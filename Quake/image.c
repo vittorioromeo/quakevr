@@ -470,8 +470,21 @@ qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, in
 
 qboolean Image_WritePNG (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown)
 {
-	unsigned error;
 	char	pathname[MAX_OSPATH];
+
+	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
+	return Image_WritePNGPath (pathname, data, width, height, bpp, upsidedown);
+}
+
+/*
+============
+Image_WritePNGPath -- QVR: Image_WritePNG to a full path; any thread (a screenshot is written on the game's
+thread pool: vr/vr_voicenotes.cpp)
+============
+*/
+qboolean Image_WritePNGPath (const char *pathname, byte *data, int width, int height, int bpp, qboolean upsidedown)
+{
+	unsigned error;
 	byte	*flipped;
 	unsigned char	*filters;
 	unsigned char	*png;
@@ -480,8 +493,6 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 
 	if (!(bpp == 32 || bpp == 24))
 		Sys_Error("bpp not 24 or 32");
-
-	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
 
 	flipped = (!upsidedown)? Image_CopyFlipped (data, width, height, bpp) : data;
 	filters = (unsigned char *) malloc (height);
@@ -516,7 +527,7 @@ qboolean Image_WritePNG (const char *name, byte *data, int width, int height, in
 	if (error == 0)
 		error = lodepng_save_file (png, pngsize, pathname);
 #ifdef LODEPNG_COMPILE_ERROR_TEXT
-	else Con_Printf("WritePNG: %s\n", lodepng_error_text (error));
+	else if (VR_OnMainThread ()) Con_Printf("WritePNG: %s\n", lodepng_error_text (error)); // QVR: (the console is the main thread's)
 #endif
 
 	lodepng_state_cleanup (&state);

@@ -2070,6 +2070,7 @@ static void SV_SpawnServerRun (const char *server)
 	VR_OnSpawnServerBeforeLoad (); // QVR
 	VR_TimeMark ("server: submodels, VR before load"); // QVR
 	ED_LoadFromFile (sv.worldmodel->entities);
+	VR_OnSpawnServerSpawned (); // QVR
 	VR_TimeMark ("server: entities spawned"); // QVR
 
 	sv.active = true;

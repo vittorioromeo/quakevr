@@ -4,6 +4,7 @@
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
+#include "vr_jobs.hpp"
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
@@ -17,9 +18,12 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <ctime>
 #include <string>
 #include <vector>
+
+extern "C" qboolean Image_WritePNGPath(const char* pathname, byte* data, int width, int height, int bpp, qboolean upsidedown); // image.c
 
 namespace qvr::voicenotes
 {
@@ -91,7 +95,8 @@ void writeLE(FILE* f, std::uint32_t v, int bytes)
     }
 }
 
-[[nodiscard]] bool writeWav(const std::string& path)
+// (Any thread: a note's sound is saved on the game's thread pool, see saveFile.)
+[[nodiscard]] bool writeWav(const std::string& path, const std::vector<std::int16_t>& samples, int rate)
 {
     FILE* f = fopen(path.c_str(), "wb");
     if(!f)
@@ -114,6 +119,75 @@ void writeLE(FILE* f, std::uint32_t v, int bytes)
     fwrite(samples.data(), 1, bytes, f);
     fclose(f);
     return true;
+}
+
+// ----------------------------------------------------------------------------
+// Files saved on the game's thread pool: a note's sound, and screenshots (the screenshot command's PNG: a voice note
+// takes one as it starts; SCR_ScreenShot_f). Their encoding and writing (a screenshot's PNG: about 13 ms at 960x540,
+// over 100 at 3440x1440) was a hitch on the main thread. Each is written under a temporary name (a "~" before its
+// file name) and renamed once complete: its own name never holds part of a file. While it is written its name is
+// kept (VR_ScreenshotPending: the next screenshot takes another), and shutdown waits for every one.
+
+struct PendingFile
+{
+    std::string path;    // the file's (full) path
+    std::string name;    // the screenshot's name in the game folder (VR_ScreenshotPending), or empty
+    std::string saved;   // printed when it is written (empty: nothing)
+    jobs::Future<bool> done;
+};
+std::vector<PendingFile> pendingFiles;
+
+// The files written since: their messages (or their failures). wait: every one, written or not yet.
+void pollFiles(bool wait)
+{
+    for(auto it = pendingFiles.begin(); it != pendingFiles.end();)
+    {
+        if(!wait && !it->done.ready())
+        {
+            ++it;
+            continue;
+        }
+        const bool ok = it->done.get();
+        if(!ok)
+        {
+            Con_Printf("Couldn't write %s\n", it->path.c_str());
+        }
+        else if(!it->saved.empty())
+        {
+            Con_Printf("%s", it->saved.c_str());
+        }
+        it = pendingFiles.erase(it);
+    }
+}
+
+// The temporary name a file is written under (a "~" before its file name, in its folder).
+[[nodiscard]] std::string partPath(const std::string& path)
+{
+    const std::size_t slash = path.find_last_of("/\\");
+    return slash == std::string::npos ? "~" + path : path.substr(0, slash + 1) + "~" + path.substr(slash + 1);
+}
+
+// write(temporary path) on the pool, then the file renamed to path.
+template <typename Write>
+void saveFile(const std::string& path, const std::string& name, const std::string& saved, Write&& write)
+{
+    pollFiles(false);
+    PendingFile f;
+    f.path = path;
+    f.name = name;
+    f.saved = saved;
+    f.done = jobs::async(
+        [path, write = std::forward<Write>(write)]() mutable
+        {
+            const std::string part = partPath(path);
+            if(!write(part))
+            {
+                std::remove(part.c_str());
+                return false;
+            }
+            return std::rename(part.c_str(), path.c_str()) == 0;
+        });
+    pendingFiles.push_back(std::move(f));
 }
 
 [[nodiscard]] const char* modelName(int index)
@@ -182,7 +256,7 @@ void start(bool fromButton)
     recording = true;
     byButton = fromButton;
     startTime = realtime;
-    Cbuf_AddText("screenshot\n");
+    Cbuf_InsertText("screenshot\n"); // (next: a test script's commands wait behind it; its PNG saved on the pool)
     haptic(0.08f, 0.6f);
     Con_Printf("VR notes: recording from %s\n", name ? name : "the default microphone");
 }
@@ -219,16 +293,11 @@ void stop()
         haptic(0.03f, 0.3f);
         return;
     }
-    if(writeWav(baseName + ".wav"))
-    {
-        Con_Printf("VR notes: saved %s.wav (%.1f s)\n", baseName.c_str(), seconds);
-    }
-    else
-    {
-        Con_Printf("VR notes: can't write %s.wav\n", baseName.c_str());
-    }
+    // Saved on the pool (a 3-minute note is 5.8 MB): its message when written (pollFiles).
+    saveFile(baseName + ".wav", {}, va("VR notes: saved %s.wav (%.1f s)\n", baseName.c_str(), seconds),
+        [take = std::move(samples), rate = rate](const std::string& part) { return writeWav(part, take, rate); });
+    samples = {};
     haptic(0.05f, 0.5f);
-    samples.clear();
 }
 
 // Whether the off hand is at the mouth: within reach of a point a little below and in front of
@@ -285,6 +354,7 @@ void init()
 
 void frame()
 {
+    pollFiles(false);
     if(!recording)
     {
         return;
@@ -334,4 +404,40 @@ void shutdown()
     stop();
 }
 
+void finishWrites()
+{
+    pollFiles(true);
+}
+
 } // namespace qvr::voicenotes
+
+extern "C" int VR_ScreenshotWrite(const char* name, unsigned char* rgb, int width, int height)
+{
+    using namespace qvr::voicenotes;
+    if(!qvr::jobs::pool())
+    {
+        return 0; // (written as before, on this thread)
+    }
+    saveFile(std::string{com_gamedir} + "/" + name, name, {},
+        [rgb, width, height](const std::string& part)
+        {
+            const bool ok = Image_WritePNGPath(part.c_str(), rgb, width, height, 24, false);
+            free(rgb);
+            return ok != 0;
+        });
+    return 1;
+}
+
+extern "C" int VR_ScreenshotPending(const char* name)
+{
+    using namespace qvr::voicenotes;
+    pollFiles(false);
+    for(const PendingFile& f : pendingFiles)
+    {
+        if(f.name == name)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}

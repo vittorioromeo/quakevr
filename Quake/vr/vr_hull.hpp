@@ -24,6 +24,16 @@ namespace qvr::hull
 // VR_Init: the vr_hull_stats and vr_hull_bench commands, the setting's callback.
 void init();
 
+// The map load's builds on the game's thread pool, made while the server spawns the map: VR_OnSpawnServerBeforeLoad
+// starts the map as brushes and the player's compiled hull, VR_OnEntitySpawned each monster width's hull as the first
+// monster of that width spawns (VR_OnSpawnServerSpawned any left).
+// Their first use waits for them; finishLoads() too (the map's memory about to go, shutdown). The results are those
+// of the builds on one thread.
+void beforeLoad();
+void entitySpawned(const edict_t* ent);
+void spawned();
+void finishLoads();
+
 // VR_OnSpawnServerAfterLoad: the server's map rebuilt as brushes (with vr_hull_width on; else on first use).
 void afterLoad();
 

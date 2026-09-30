@@ -15665,3 +15665,82 @@ Tests (mock): Move Towards: Off Hand, the left controller turned 90 degrees left
 pushed forward in turn: `vr_lefthanded 0` the left stick moves 64 units left, the right none; `1` the left stick
 none, the right 64 units right. Arms (body on) look the same for 0 and 1, the gadget on the left or the right
 forearm, its screen readable on either. eval canary: 48/53, no difference from the baseline.
+## Map load and voice notes on the thread pool (2026-09-30)
+
+Your plan: the map load's independent work on the pool (the narrow hulls: the brushes, the player's and each monster
+width's compiled hull; the Box3D world mesh; anything else pure), bit for bit the same results at any worker count;
+a voice note's screenshot (and anything else heavy at a note's or a take's end) saved on the pool, shutdown waiting.
+
+### The map load
+
+- **The map as brushes** (`vr_hull.cpp` build, method B's): hull 0's walk and the clip brushes' recovery (hull 1's
+  walk, 76 of its 94 ms on e2m2) split 9 levels down into up to 512 subtrees walked at once, each into its own lists,
+  merged in the walk's order. e2m2 94 -> 24-38 ms.
+- **The compiled hulls** (method A): each tree built on the pool, and the trees at once. The brushes and the player's
+  tree start as the server starts spawning the map (`VR_OnSpawnServerBeforeLoad`); each monster width's tree as the
+  first monster of that width has spawned (`VR_OnEntitySpawned`, new hook in `ED_LoadFromFile`; `VR_OnSpawnServerSpawned`
+  after the spawn catches any left). Their first use (every `worldBrushes`/`treeFor`) waits for them; so do the next
+  map's `VR_OnClearMemory` (a load that failed half-way) and `VR_Shutdown`. The main thread touches neither the brushes
+  nor a tree being built meanwhile (slots taken first; the monster trees' vector reserved; one Future per build).
+- **One tree's build shared out**: the brushes are grown on one thread (39 ms of e2m2's 185: they add most of the plane
+  table, and nearly the same planes as each other: grown apart, 1517 of 1835 brushes had to be done again). The tree's
+  top is then split 10 levels down, both sides of each node at once; each node's split and each subtree below is a unit
+  on a plane table of its own over its base's, logging every plane it asks for. The merge walks the units in the order
+  the one-thread build goes and asks the tree's table the same: every answer the plane the unit had (the same values;
+  one it added: new to it and its parents, one to one) means the unit computed what one thread computes, and its nodes
+  are renumbered in; else its planes come back out and it is built again on the merging thread (`pieces done again` in
+  the developer line; 0 on every map tried). The plane table's index keeps each key's planes in the order added (a
+  vector per key instead of `unordered_multimap`; identical results, checked). A tree: 180-200 -> 75-90 ms (its top
+  21-24 ms). `vr_jobs_parallel 0`: the one-thread build.
+- **Box3D's world mesh** (`vr_box3d.cpp`): made on the pool from `VR_OnSpawnServerBeforeLoad` into the mesh cache, the
+  world's first look at the cache taking it (47-61 ms before, now 0 waited).
+- **Ledges** (climbing's map): its lip lines tested on the pool (each task its own buffers, the lists joined in order).
+  e4m7 113 -> 16 ms, e2m2 50 -> 9.
+- **Hit models**: the precached models' meshes made at once (10-16 -> 2-5 ms).
+- `vr_startup_times` shows the main thread's waits (`hull: ... waited for`, `box3d: the world's mesh, waited for`) and
+  the `VR after load:` steps. `VR_OnMainThread()` (new): the ledges' traces can reach `SV_RecursiveHullCheck`'s
+  `backup past 0` print, now only printed from the main thread (the console is not thread-safe).
+- Not done: the brushes' growth per tree (above); the grasp solves at load (none happen at a load); the occlusion bake
+  is already on the pool.
+
+Load times (exclusive runs; `vr_hull_method 1; vr_hull_width 16; vr_mhull 1`, your settings; the median of 3, the
+first of each cold; `vr_startup_times`' map load to the first frame drawn):
+
+| Map | Before | After | "2 frames" stage | "VR after load" stage |
+|---|---|---|---|---|
+| e1m1 | 718 ms | 443 ms | 188-195 -> 33-35 | 114-150 -> 7 |
+| e2m2 | 1208 ms | 527 ms | 479-587 -> 92-99 | 207-213 -> 10 |
+| e4m7 | 982 ms | 502 ms | 301-312 -> 62 | 255-260 -> 16 |
+
+What's left of the hulls on the main thread is e2m2's monster trees (about 70 ms waited in the first frame: its first
+monster spawns 320 ms into the spawn, the trees take 80-90); e1m1 and e4m7 wait 0-21 ms.
+
+Checked the same (FNV hashes, `vr_hull_stats`, `vr_ledges`, `developer 1` lines, `vr_debug_box3d 1`):
+- The brushes (planes, brushes, the leaf and clip tables, the stamp) and every tree's world subtree (nodes, their
+  planes' numbers and values) on 10 maps (e1m1 e1m4 e2m2 e3m6 e4m7 e4m3 start dm3 e2m6 e3m1; 16, 24 and 40 wide):
+  identical to the build before this change, with 31 workers, `-jobs 1`, `-jobs 3` and `vr_jobs_parallel 0`; a width
+  changed in the map (22, e1m3) and a saved game loaded: identical.
+- The ledges (6 maps) and Box3D's mesh bytes (6 maps, default and `-jobs 1`): identical to before. The hit models:
+  identical on the pool and serially.
+- Melee canary: 48/53, 0 differences. A dedicated server loads and quits.
+
+### Voice notes and screenshots
+
+- The `screenshot` command's PNG is encoded and saved on the pool (`gl_screen.c` hands the rows to
+  `VR_ScreenshotWrite`; `Image_WritePNGPath`, new, takes a full path): written as `~<name>` and renamed once complete,
+  the name kept from the next screenshot meanwhile (4 in one second got 4 names), `VR_Shutdown` waiting for all. A voice
+  note's sound likewise; its message prints when written. A note's screenshot is now taken right after its start
+  (`Cbuf_InsertText`), not behind whatever else is in the command buffer (a test script's rest).
+- Checked: the PNG decodes to the same pixels as a TGA of the same frame; a screenshot just before `quit` is complete;
+  the WAV's header and length are right; no `~` files left; the note and its screenshot share their name.
+- Frame times (`vr_profile_hitch 0.5`, real time, the kit's 960x540 window): the `screenshot` command 13 -> 1 ms (at
+  your 3440x1440 the PNG was most of the 115 ms; `glReadPixels` stays, a few ms); the frame a note starts 18-19 ms both
+  (SDL opening the microphone, 12 ms: left on the main thread, as SDL's WASAPI device wants COM on its thread) and the
+  next frame's screenshot hitch gone; the frame it ends about 16 ms (closing the microphone, 9-10 ms). A motion take
+  was already written on the pool; nothing else heavy at its end.
+
+### In the headset
+
+- [ ] Load e1m1, e2m2 and a big map with Narrower Monsters on: loads noticeably faster; monsters walk as before.
+- [ ] Take a few voice notes: no hitch as one starts (a small one from the microphone opening); `quakevr/notes/` and
+  `screenshots/` have each note's sound and picture; `transcribe_notes.py` pairs them as before.

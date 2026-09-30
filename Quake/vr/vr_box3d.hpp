@@ -35,6 +35,11 @@ bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin,
 // times its density: vr_box3d.cpp). 0 without Box3D's world (no local server) or a model. Also for a prop in a hand.
 [[nodiscard]] float propMass(edict_t* ent);
 
+// The map's mesh made on the game's thread pool while the server spawns the map (VR_OnSpawnServerBeforeLoad); the
+// world's first look at it waits for it, and so does finishLoads (the map's memory about to go, shutdown).
+void beforeLoad();
+void finishLoads();
+
 // Forgets the world and everything made for it (a new server: its bodies are rebuilt from the entities).
 void reset();
 

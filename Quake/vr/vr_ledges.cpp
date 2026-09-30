@@ -28,8 +28,8 @@
 
 #include "vr_ledges.hpp"
 #include "vr_cvars.hpp"
+#include "vr_jobs.hpp"
 #include "vr_lines.hpp"
-#include "vr_mem.hpp"
 
 #include <algorithm>
 #include <array>
@@ -45,15 +45,13 @@ namespace qvr::ledges
 namespace
 {
 
-// A ledge's tests' buffers (the ledge maps are made on the main thread).
+// A ledge's tests' buffers: each task's own (a map's lip lines are tested on the game's thread pool, build).
 struct LedgeScratch
 {
     std::vector<glm::vec2> rows[3];  // the open spans along three lines out from the lip (test: the drop)
     std::vector<glm::vec2> under;    // the solid under the top, going in (test: the depth)
     std::vector<glm::vec2> over;     // the open over it
-    auto members() { return std::tie(rows, under, over); }
 };
-mem::Scratch<LedgeScratch> scratch{"ledges"};
 
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
@@ -171,7 +169,7 @@ struct Test
     Sample sample;
 };
 
-[[nodiscard]] Test test(const Hull& h, const Line& line, float s)
+[[nodiscard]] Test test(const Hull& h, const Line& line, float s, LedgeScratch& scratch)
 {
     Test r;
     const glm::vec3 lip = line.at(s);
@@ -377,7 +375,8 @@ void joinPieces(const std::vector<Piece>& pieces, std::vector<Line>& lines)
 }
 
 // The ledges along a line: runs of samples that pass the tests.
-void lineLedges(const Hull& h, const Line& line, Map& map)
+// A line's ledges: its edges (their first samples counted in `samples`) and their samples.
+void lineLedges(const Hull& h, const Line& line, std::vector<Edge>& edges, std::vector<Sample>& samples, LedgeScratch& scratch)
 {
     const float length = line.s1 - line.s0;
     if(length < 0.25f)
@@ -401,7 +400,7 @@ void lineLedges(const Hull& h, const Line& line, Map& map)
         ts[i] = std::min(static_cast<float>(i) * sampleStep, length);
         if(i % 4 == 0 || i == count - 1)
         {
-            tests[i] = test(h, line, sAt(ts[i]));
+            tests[i] = test(h, line, sAt(ts[i]), scratch);
         }
     }
     for(const int stride : {2, 1})
@@ -409,7 +408,7 @@ void lineLedges(const Hull& h, const Line& line, Map& map)
         for(int i = stride; i < count - 1; i += 2 * stride)
         {
             const int lo = i - stride, hi = std::min(i + stride, count - 1);
-            tests[i] = same(tests[lo], tests[hi]) ? tests[lo] : test(h, line, sAt(ts[i]));
+            tests[i] = same(tests[lo], tests[hi]) ? tests[lo] : test(h, line, sAt(ts[i]), scratch);
         }
     }
     // Where the tests change between two samples: halved three times (to an eighth of a unit).
@@ -417,7 +416,7 @@ void lineLedges(const Hull& h, const Line& line, Map& map)
         for(int k = 0; k < 3; k++)
         {
             const float mid = 0.5f * (okT + badT);
-            (test(h, line, sAt(mid)).ok ? okT : badT) = mid;
+            (test(h, line, sAt(mid), scratch).ok ? okT : badT) = mid;
         }
         return okT;
     };
@@ -445,17 +444,17 @@ void lineLedges(const Hull& h, const Line& line, Map& map)
             e.dir = e.len > 1e-4f ? (b - e.a) / e.len : line.along;
             e.out = line.out;
             e.normal = line.normal;
-            e.firstSample = static_cast<int>(map.samples.size());
+            e.firstSample = static_cast<int>(samples.size());
             e.samples = j - i + 1;
             e.sampleStart = (ts[i] - start) * stretch;
             e.spacing = sampleStep * stretch;
             for(int k = i; k <= j; k++)
             {
-                map.samples.push_back(tests[k].sample);
+                samples.push_back(tests[k].sample);
             }
             e.mins = glm::min(e.a, b);
             e.maxs = glm::max(e.a, b);
-            map.edges.push_back(e);
+            edges.push_back(e);
         }
         i = j + 1;
     }
@@ -475,9 +474,31 @@ void lineLedges(const Hull& h, const Line& line, Map& map)
         std::vector<Line> lines;
         joinPieces(pieces, lines);
         map->lines = static_cast<int>(lines.size());
-        for(const Line& line : lines)
+        // The lines tested on the pool, each into its own lists, joined in their order (the same map as on one thread).
+        struct Out
         {
-            lineLedges(h, line, *map);
+            std::vector<Edge> edges;
+            std::vector<Sample> samples;
+        };
+        std::vector<Out> outs(lines.size());
+        jobs::parallelFor(lines.size(), 4,
+            [&](std::size_t begin, std::size_t end)
+            {
+                LedgeScratch scratch;
+                for(std::size_t i = begin; i < end; ++i)
+                {
+                    lineLedges(h, lines[i], outs[i].edges, outs[i].samples, scratch);
+                }
+            });
+        for(const Out& o : outs)
+        {
+            const int base = static_cast<int>(map->samples.size());
+            for(Edge e : o.edges)
+            {
+                e.firstSample += base;
+                map->edges.push_back(e);
+            }
+            map->samples.insert(map->samples.end(), o.samples.begin(), o.samples.end());
         }
     }
     map->finish();
@@ -551,7 +572,21 @@ void printStats(const char* when)
         Con_Printf("; the world: %d walkable faces, %d lip pieces in %d lines, %d ledges, %.1f ms", world->faces,
             world->pieces, world->lines, static_cast<int>(world->edges.size()), world->ms);
     }
-    Con_Printf("\n");
+    // Their contents' hash (FNV-1a: the same on the pool and on one thread).
+    std::uint32_t hash = 2166136261u;
+    const auto add = [&hash](const void* data, size_t size)
+    {
+        for(size_t i = 0; i < size; i++)
+        {
+            hash = (hash ^ static_cast<const unsigned char*>(data)[i]) * 16777619u;
+        }
+    };
+    for(const auto& [name, m] : cache.maps)
+    {
+        add(m->edges.data(), m->edges.size() * sizeof(Edge));
+        add(m->samples.data(), m->samples.size() * sizeof(Sample));
+    }
+    Con_Printf("; hash %08x\n", static_cast<unsigned>(hash));
 }
 
 void ledges_f()

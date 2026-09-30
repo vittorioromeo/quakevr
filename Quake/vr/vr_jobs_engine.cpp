@@ -61,8 +61,14 @@ void onParallel(cvar_t* var)
 } // namespace
 
 // -jobs <n>: the pool's workers from the start (vr_jobs_threads is read after the pool is made).
+namespace
+{
+std::thread::id mainThread; // (start's: VR_Init runs on the main thread)
+} // namespace
+
 void start()
 {
+    mainThread = std::this_thread::get_id();
     const int i = COM_CheckParm("-jobs");
     init(i && i + 1 < com_argc ? std::clamp(Q_atoi(com_argv[i + 1]), 0, 64) : 0);
 }
@@ -391,3 +397,9 @@ void test_f()
 }
 
 } // namespace qvr::jobs
+
+extern "C" int VR_OnMainThread(void)
+{
+    // (before VR_Init, only the main thread runs)
+    return qvr::jobs::mainThread == std::thread::id{} || std::this_thread::get_id() == qvr::jobs::mainThread;
+}

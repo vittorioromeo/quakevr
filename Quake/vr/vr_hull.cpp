@@ -3,12 +3,14 @@
 #include "vr_hull.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
+#include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <random>
 #include <tuple>
@@ -427,6 +429,79 @@ void walk(const hull_t& hull, int num, Poly&& poly, OnSolid& onSolid)
     }
 }
 
+// The walk shared out on the game's thread pool: the tree's top `walkSplitDepth` levels split here, in the walk's order,
+// into items: the subtrees below them, and the solid leaves' pieces met on the way down; each item then walked on its
+// own (a worker's or this thread) with its own output, and the outputs merged in the items' order: the same pieces, in
+// the same order, as the walk on one thread.
+constexpr int walkSplitDepth = 9; // up to 512 subtrees
+
+struct WalkItem
+{
+    int num;  // the subtree's node; a piece's: its leaf's parent node
+    int side; // -1: the subtree from num; 0, 1: that child of num, a solid leaf, and its piece
+    Poly poly;
+};
+
+void splitTop(const hull_t& hull, int num, Poly&& poly, int depth, std::vector<WalkItem>& items)
+{
+    if(num < hull.firstclipnode || num > hull.lastclipnode)
+    {
+        return;
+    }
+    if(depth == 0)
+    {
+        items.push_back(WalkItem{num, -1, std::move(poly)});
+        return;
+    }
+    const mclipnode_t& node = hull.clipnodes[num];
+    const mplane_t& plane = hull.planes[node.planenum];
+    Poly parts[2];
+    splitPoly(std::move(poly), glm::dvec3{plane.normal[0], plane.normal[1], plane.normal[2]}, plane.dist, parts[0],
+        parts[1]);
+    for(int side = 0; side < 2; ++side)
+    {
+        const int child = node.children[side];
+        if(parts[side].empty())
+        {
+            continue;
+        }
+        if(child >= 0)
+        {
+            splitTop(hull, child, std::move(parts[side]), depth - 1, items);
+        }
+        else if(solidContents(child))
+        {
+            items.push_back(WalkItem{num, side, std::move(parts[side])});
+        }
+    }
+}
+
+// Each item walked (items[i]'s pieces to onSolid(num, side, piece, outs[i])), on the pool.
+template <class Out, class OnSolid>
+void walkItems(const hull_t& hull, std::vector<WalkItem>& items, std::vector<Out>& outs, const OnSolid& onSolid)
+{
+    outs.clear();
+    outs.resize(items.size());
+    jobs::parallelFor(items.size(), 1,
+        [&](std::size_t begin, std::size_t end)
+        {
+            for(std::size_t i = begin; i < end; ++i)
+            {
+                Out& out = outs[i];
+                auto on = [&](int num, int side, const Poly& piece) { onSolid(num, side, piece, out); };
+                if(items[i].side < 0)
+                {
+                    walk(hull, items[i].num, std::move(items[i].poly), on);
+                }
+                else
+                {
+                    on(items[i].num, items[i].side, items[i].poly);
+                }
+                items[i].poly = Poly{};
+            }
+        });
+}
+
 void recoverClips(Brushes& b, qmodel_t* world);
 
 // A model's brushes: hull 0's tree walked from its head node (numnodes: its hull 0's nodes; base: their leaves' place in
@@ -469,10 +544,59 @@ void build(qmodel_t* world)
     b.leafBrush.assign(static_cast<std::size_t>(b.numnodes) * 2, -1);
     b.subs.clear();
     b.modelSub.assign(MAX_MODELS, -2);
+    // The world's models (addSubModel's walk for each), their walks shared out on the pool together.
+    hull_t h = hull0;
+    h.firstclipnode = 0;
+    h.lastclipnode = b.numnodes - 1;
+    std::vector<WalkItem> items;
+    std::vector<std::size_t> subEnd(static_cast<std::size_t>(std::max(world->numsubmodels, 0)));
     for(int i = 0; i < world->numsubmodels; ++i)
     {
         const dmodel_t& sub = world->submodels[i];
-        addSubModel(b, hull0, b.numnodes, 0, sub.headnode[0], sub.mins, sub.maxs);
+        const int head = sub.headnode[0];
+        if(head >= 0 && head < b.numnodes)
+        {
+            const glm::dvec3 margin{64.0};
+            splitTop(h, head,
+                boxPoly(glm::dvec3{sub.mins[0], sub.mins[1], sub.mins[2]} - margin,
+                    glm::dvec3{sub.maxs[0], sub.maxs[1], sub.maxs[2]} + margin),
+                walkSplitDepth, items);
+        }
+        subEnd[static_cast<std::size_t>(i)] = items.size();
+    }
+    struct Out
+    {
+        Brushes b; // the item's brushes and their planes, numbered from 0
+        std::vector<std::pair<std::size_t, int>> leaves; // (leaf key, its brush in b or -1)
+    };
+    std::vector<Out> outs;
+    walkItems(h, items, outs,
+        [](int num, int side, const Poly& piece, Out& out)
+        { out.leaves.emplace_back(static_cast<std::size_t>(num) * 2 + side, emitBrush(out.b, piece)); });
+    std::size_t item = 0;
+    for(int i = 0; i < world->numsubmodels; ++i)
+    {
+        const auto first = static_cast<std::uint32_t>(b.brushes.size());
+        for(; item < subEnd[static_cast<std::size_t>(i)]; ++item)
+        {
+            Out& o = outs[item];
+            const auto planeBase = static_cast<std::uint32_t>(b.planes.size());
+            const auto brushBase = static_cast<int>(b.brushes.size());
+            b.planes.insert(b.planes.end(), o.b.planes.begin(), o.b.planes.end());
+            for(Brush br : o.b.brushes)
+            {
+                br.first += planeBase;
+                b.brushes.push_back(br);
+            }
+            for(const auto& [key, brush] : o.leaves)
+            {
+                b.leafBrush[key] = brush < 0 ? -1 : brush + brushBase;
+            }
+            b.bevels += o.b.bevels;
+            b.dropped += o.b.dropped;
+        }
+        b.subs.push_back(SubModel{hull0.clipnodes, world->submodels[i].headnode[0], 0, first,
+            static_cast<std::uint32_t>(b.brushes.size()) - first});
     }
     const auto t1 = std::chrono::steady_clock::now();
     recoverClips(b, world);
@@ -486,9 +610,12 @@ float widthSetting()
     return std::clamp(vr_hull_width.value, minWidth, maxWidth);
 }
 
+void settle();
+
 // The server's map as brushes, built now if not yet (the setting turned on during a map: a hitch, once).
 const Brushes* worldBrushes(qmodel_t* world)
 {
+    settle(); // (the map load's builds on the pool)
     if(!world || world->type != mod_brush || world->numnodes <= 0)
     {
         return nullptr;
@@ -802,10 +929,21 @@ void recoverClips(Brushes& b, qmodel_t* world)
     const glm::dvec3 e32{16.0, 16.0, 28.0};
     const glm::dvec3 lift{0.0, 0.0, 4.0}; // hull 1's point is 4 below the centre of Quake's box (-24..32)
     b.hull1Clip.assign(static_cast<std::size_t>(world->numclipnodes) * 2, -2);
-    std::vector<bool> open; // the piece's faces' (a build's buffer)
-    auto onSolid = [&](int num1, int side1, const Poly& piece)
+    // Each walk item's (walkItems): its clip brushes and their planes, numbered from 0.
+    struct Out
     {
-        ++b.hull1Leaves;
+        std::vector<bool> open; // the piece's faces' (a buffer)
+        std::vector<Plane> planes;
+        std::vector<Brush> brushes;
+        std::vector<std::pair<std::size_t, bool>> leaves; // (hull 1 leaf key, a clip brush: its next in brushes)
+        int hull1Leaves = 0;
+        std::size_t tests = 0; // boxInSolid's (b.stamp's count)
+    };
+    // (b is only read here: its hull 0 brushes, complete)
+    auto onSolid = [&b, &h1, &h0, &sub, head, lift, e32](int num1, int side1, const Poly& piece, Out& out)
+    {
+        ++out.hull1Leaves;
+        std::vector<bool>& open = out.open;
         // Its faces that face the open (hull 1 empty just past their middle), its centre and bounds.
         open.clear();
         glm::dvec3 c{0.0}, lo{1e300}, hi{-1e300};
@@ -847,7 +985,8 @@ void recoverClips(Brushes& b, qmodel_t* world)
                     return false;
                 }
             }
-            return !boxInSolid(b, h0, 0, p + lift, e32, false);
+            ++out.tests; // (boxInSolid without its clip brushes, b.stamp counted in the merge)
+            return !boxInTree(b, h0, 0, p + lift, e32, false, 0);
         };
         bool clip = false;
         for(std::size_t fi = 0; fi < piece.size() && !clip; ++fi)
@@ -892,31 +1031,53 @@ void recoverClips(Brushes& b, qmodel_t* world)
             }
             clip = inside && roomAt(p);
         }
-        b.hull1Clip[static_cast<std::size_t>(num1) * 2 + side1] = clip ? static_cast<int>(b.brushes.size()) : -1;
+        out.leaves.emplace_back(static_cast<std::size_t>(num1) * 2 + side1, clip);
         if(!clip)
         {
             return;
         }
         // Kept in the box centre's space; the open faces shrink back with a narrower box.
-        const std::size_t first = b.planes.size();
+        const std::size_t first = out.planes.size();
         for(std::size_t fi = 0; fi < piece.size(); ++fi)
         {
             const Face& f = piece[fi];
             const double dist = f.dist + glm::dot(f.normal, lift);
             const double reach =
                 std::abs(f.normal.x) * e32.x + std::abs(f.normal.y) * e32.y + std::abs(f.normal.z) * e32.z;
-            b.planes.push_back(
+            out.planes.push_back(
                 Plane{glm::vec3{f.normal}, static_cast<float>(open[fi] ? dist - reach : dist), open[fi] ? 1.f : 0.f});
         }
-        b.brushes.push_back(Brush{static_cast<std::uint32_t>(first), static_cast<std::uint32_t>(b.planes.size() - first),
+        out.brushes.push_back(Brush{static_cast<std::uint32_t>(first), static_cast<std::uint32_t>(out.planes.size() - first),
             glm::vec3{lo + lift}, glm::vec3{hi + lift}, true});
-        b.clips.push_back(static_cast<int>(b.brushes.size()) - 1);
     };
     const glm::dvec3 margin{96.0};
-    walk(h1, head,
+    std::vector<WalkItem> items;
+    splitTop(h1, head,
         boxPoly(glm::dvec3{sub.mins[0], sub.mins[1], sub.mins[2]} - margin,
             glm::dvec3{sub.maxs[0], sub.maxs[1], sub.maxs[2]} + margin),
-        onSolid);
+        walkSplitDepth, items);
+    std::vector<Out> outs;
+    walkItems(h1, items, outs, onSolid);
+    for(const Out& o : outs)
+    {
+        b.hull1Leaves += o.hull1Leaves;
+        b.stamp += o.tests;
+        std::size_t next = 0;
+        for(const auto& [key, clip] : o.leaves)
+        {
+            b.hull1Clip[key] = clip ? static_cast<int>(b.brushes.size()) : -1;
+            if(!clip)
+            {
+                continue;
+            }
+            Brush br = o.brushes[next++];
+            const auto from = o.planes.begin() + br.first;
+            br.first = static_cast<std::uint32_t>(b.planes.size());
+            b.planes.insert(b.planes.end(), from, from + br.count);
+            b.brushes.push_back(br);
+            b.clips.push_back(static_cast<int>(b.brushes.size()) - 1);
+        }
+    }
 
     // Each clip brush into the leaves its box centres reach (a sweep's centre passes through them).
     std::vector<std::pair<int, int>> pairs; // (leaf key, clip brush)
@@ -1017,9 +1178,10 @@ struct Tree
     std::vector<int> heads;                    // [sub]: its tree's root in nodes; -1 not built yet
     const mclipnode_t* forClipnodes = nullptr; // the Brushes it was built from (their world's hull 0)
     glm::vec3 ext{0.f};                        // the half size of the box it was built for
+    int redone = 0;                            // pieces of its builds on the pool done again on one thread (buildTree)
     double ms = 0.0;                           // the builds so far
     int solidLeaves = 0, emptyLeaves = 0;
-    auto members() { return std::tie(nodes, planes, heads, forClipnodes, ext, ms, solidLeaves, emptyLeaves); }
+    auto members() { return std::tie(nodes, planes, heads, forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone); }
 };
 mem::Cache<Tree> tree{"hull tree", mem::MapChange};
 
@@ -1048,20 +1210,54 @@ struct Frag
     const Brush* brush = nullptr; // the brush it is a piece of
 };
 
+// A plane asked of the table (TreeBuilder::plane) by a builder on the pool: what it asked and what it got (the merge
+// asks the tree's table the same, in the order the build on one thread would have: see Merge).
+struct PlaneAsk
+{
+    glm::dvec3 n;
+    double d;
+    int id;
+};
+
 class TreeBuilder
 {
 public:
-    explicit TreeBuilder(Tree& t) : t_(t)
+    // The builder of a tree: its planes and nodes go straight into t.
+    explicit TreeBuilder(Tree& t)
+        : planes_{&t.planes}, nodes_{&t.nodes}, solid_{&t.solidLeaves}, empty_{&t.emptyLeaves}, ext_{t.ext}
     {
-        for(std::size_t i = 0; i < t_.planes.size(); ++i)
+        for(std::size_t i = 0; i < planes_->size(); ++i)
         {
-            index_.emplace(key(t_.planes[i].dist), static_cast<int>(i));
+            index_[key((*planes_)[i].dist)].push_back(static_cast<int>(i));
         }
+    }
+
+    // A builder on the pool over `base` (its table as it is now, only read: base does not change while this one works):
+    // the planes it adds numbered after base's, its nodes from 0, its leaves counted in solid and empty, and every plane
+    // it asks for logged.
+    TreeBuilder(const TreeBuilder& base, std::vector<mplane_t>& planes, std::vector<mclipnode_t>& nodes, int& solid,
+        int& empty, std::vector<PlaneAsk>& log)
+        : base_{&base}, baseCount_{base.count()}, planes_{&planes}, nodes_{&nodes}, solid_{&solid}, empty_{&empty},
+          ext_{base.ext_}, log_{&log}
+    {
+    }
+
+    TreeBuilder(const TreeBuilder&) = delete;
+    TreeBuilder& operator=(const TreeBuilder&) = delete;
+
+    // The table's planes (base's, then this one's).
+    [[nodiscard]] std::size_t count() const { return baseCount_ + planes_->size(); }
+    [[nodiscard]] const mplane_t& planeAt(int i) const
+    {
+        const auto u = static_cast<std::size_t>(i);
+        return u < baseCount_ ? base_->planeAt(i) : (*planes_)[u - baseCount_];
     }
 
     // The table's plane for n, d (either way round: the table's faces its larger axis positive, as qbsp's do).
     int plane(glm::dvec3 n, double d)
     {
+        const glm::dvec3 askedN = n;
+        const double askedD = d;
         for(int a = 0; a < 3; ++a)
         {
             if(std::abs(n[a]) > 1.0 - 1e-6)
@@ -1079,32 +1275,40 @@ public:
             d = -d;
         }
         const long long k = key(static_cast<float>(d));
-        for(long long kk = k - 1; kk <= k + 1; ++kk)
+        int id = -1;
+        for(long long kk = k - 1; kk <= k + 1 && id < 0; ++kk)
         {
-            const auto [lo, hi] = index_.equal_range(kk);
-            for(auto it = lo; it != hi; ++it)
+            id = find(kk, n, d);
+        }
+        if(id < 0)
+        {
+            mplane_t p{};
+            for(int i = 0; i < 3; ++i)
             {
-                const mplane_t& p = t_.planes[static_cast<std::size_t>(it->second)];
-                // qbsp's epsilons (a normal's components, not their dot: far from the origin a small turn is far off)
-                if(std::abs(p.dist - d) < 0.01 && std::abs(p.normal[0] - n.x) < 1e-5 && std::abs(p.normal[1] - n.y) < 1e-5 &&
-                    std::abs(p.normal[2] - n.z) < 1e-5)
-                {
-                    return it->second;
-                }
+                p.normal[i] = static_cast<float>(n[i]);
+                p.signbits = static_cast<byte>(p.signbits | (p.normal[i] < 0.f ? (1 << i) : 0));
             }
+            p.dist = static_cast<float>(d);
+            p.type = static_cast<byte>(a.x > 1.0 - 1e-6 ? 0 : (a.y > 1.0 - 1e-6 ? 1 : (a.z > 1.0 - 1e-6 ? 2 : 3 + major)));
+            planes_->push_back(p);
+            id = static_cast<int>(count()) - 1;
+            index_[k].push_back(id);
         }
-        mplane_t p{};
-        for(int i = 0; i < 3; ++i)
+        if(log_)
         {
-            p.normal[i] = static_cast<float>(n[i]);
-            p.signbits = static_cast<byte>(p.signbits | (p.normal[i] < 0.f ? (1 << i) : 0));
+            log_->push_back(PlaneAsk{askedN, askedD, id});
         }
-        p.dist = static_cast<float>(d);
-        p.type = static_cast<byte>(a.x > 1.0 - 1e-6 ? 0 : (a.y > 1.0 - 1e-6 ? 1 : (a.z > 1.0 - 1e-6 ? 2 : 3 + major)));
-        t_.planes.push_back(p);
-        const int i = static_cast<int>(t_.planes.size()) - 1;
-        index_.emplace(k, i);
-        return i;
+        return id;
+    }
+
+    // The planes added since the table had `to` let go (the last first; the tree's builder only).
+    void rollback(std::size_t to)
+    {
+        while(planes_->size() > to)
+        {
+            index_[key(planes_->back().dist)].pop_back(); // (the plane added last is its key's last)
+            planes_->pop_back();
+        }
     }
 
     // A brush grown by the box as a piece (false: nothing left of it).
@@ -1149,67 +1353,33 @@ public:
     const Brushes* debugBrushes = nullptr;
     int rebounded = 0; // pieces cut back to their brush's bounds (bounded)
 
-    // The tree of the pieces; its root (a node, or a leaf's contents). region: the node's space (only when watching).
-    int build(std::vector<Frag>& frags, Poly* region = nullptr)
+    // The pieces' leaf: its contents (counted), or 0 when they need a node.
+    int leaf(const std::vector<Frag>& frags)
     {
-        bool watched = false;
-        if(watch && region)
-        {
-            watched = true;
-            for(const Face& face : *region)
-            {
-                watched = watched && glm::dot(face.normal, *watch) - face.dist <= 0.0;
-            }
-        }
         if(frags.empty())
         {
-            ++t_.emptyLeaves;
+            ++*empty_;
             return CONTENTS_EMPTY;
         }
         for(const Frag& f : frags)
         {
             if(f.live == 0)
             {
-                ++t_.solidLeaves;
-                if(watched)
-                {
-                    glm::dvec3 lo{1e300}, hi{-1e300};
-                    for(const Face& face : *region)
-                    {
-                        for(const glm::dvec3& v : face.w)
-                        {
-                            lo = glm::min(lo, v);
-                            hi = glm::max(hi, v);
-                        }
-                    }
-                    Con_Printf("leaf: solid by a piece %.2f %.2f %.2f .. %.2f %.2f %.2f; the leaf %.2f %.2f %.2f .. %.2f %.2f %.2f\n",
-                        f.lo.x, f.lo.y, f.lo.z, f.hi.x, f.hi.y, f.hi.z, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z);
-                    for(const Face& face : f.poly)
-                    {
-                        Con_Printf("  face %.3f %.3f %.3f d %.3f, %d points, tag %d\n", face.normal.x, face.normal.y,
-                            face.normal.z, face.dist, static_cast<int>(face.w.size()), face.tag);
-                    }
-                    if(f.brush && debugBrushes)
-                    {
-                        const Brush& br = *f.brush;
-                        Con_Printf("  brush %d %s %.2f %.2f %.2f .. %.2f %.2f %.2f, %u planes:\n",
-                            static_cast<int>(&br - debugBrushes->brushes.data()), br.clip ? "(clip)" : "", br.mins.x, br.mins.y, br.mins.z, br.maxs.x,
-                            br.maxs.y, br.maxs.z, br.count);
-                        for(std::uint32_t i = 0; i < br.count; ++i)
-                        {
-                            const Plane& q = debugBrushes->planes[br.first + i];
-                            Con_Printf("    plane %.4f %.4f %.4f d %.3f\n", q.normal.x, q.normal.y, q.normal.z, q.dist);
-                        }
-                    }
-                }
+                ++*solid_;
                 return CONTENTS_SOLID;
             }
         }
+        return 0;
+    }
+
+    // The pieces split by the plane chosen for their node (returned; n, d: it facing its way) into the front's and
+    // the back's.
+    int split(std::vector<Frag>& frags, std::vector<Frag> (&sides)[2], glm::dvec3& n, double& d)
+    {
         const int split = choose(frags);
-        const mplane_t& mp = t_.planes[static_cast<std::size_t>(split)];
-        const glm::dvec3 n{mp.normal[0], mp.normal[1], mp.normal[2]};
-        const double d = mp.dist;
-        std::vector<Frag> sides[2];
+        const mplane_t& mp = planeAt(split);
+        n = glm::dvec3{mp.normal[0], mp.normal[1], mp.normal[2]};
+        d = mp.dist;
         Poly parts[2];
         for(Frag& f : frags)
         {
@@ -1232,22 +1402,126 @@ public:
         }
         frags.clear();
         frags.shrink_to_fit();
+        return split;
+    }
+
+    // The tree of the pieces; its root (a node, or a leaf's contents). region: the node's space (only when watching).
+    int build(std::vector<Frag>& frags, Poly* region = nullptr)
+    {
+        bool watched = false;
+        if(watch && region)
+        {
+            watched = true;
+            for(const Face& face : *region)
+            {
+                watched = watched && glm::dot(face.normal, *watch) - face.dist <= 0.0;
+            }
+        }
+        if(watched && !frags.empty())
+        {
+            for(const Frag& f : frags)
+            {
+                if(f.live == 0)
+                {
+                    describe(f, *region);
+                    break;
+                }
+            }
+        }
+        if(const int contents = leaf(frags))
+        {
+            return contents;
+        }
+        std::vector<Frag> sides[2];
+        glm::dvec3 n;
+        double d;
+        const int split = this->split(frags, sides, n, d);
         Poly regions[2];
         if(watched)
         {
             splitPoly(std::move(*region), n, d, regions[0], regions[1]);
         }
-        const int node = static_cast<int>(t_.nodes.size());
-        t_.nodes.push_back(mclipnode_t{split, {0, 0}});
+        const int node = static_cast<int>(nodes_->size());
+        nodes_->push_back(mclipnode_t{split, {0, 0}});
         const int front = build(sides[0], watched ? &regions[0] : nullptr);
         const int back = build(sides[1], watched ? &regions[1] : nullptr);
-        t_.nodes[static_cast<std::size_t>(node)].children[0] = front;
-        t_.nodes[static_cast<std::size_t>(node)].children[1] = back;
+        (*nodes_)[static_cast<std::size_t>(node)].children[0] = front;
+        (*nodes_)[static_cast<std::size_t>(node)].children[1] = back;
         return node;
     }
 
+    // Its leaf counts added (a merged piece of the build's).
+    void addLeaves(int solid, int empty)
+    {
+        *solid_ += solid;
+        *empty_ += empty;
+    }
+
+    [[nodiscard]] std::vector<mclipnode_t>& nodes() { return *nodes_; }
+
 private:
     static long long key(float d) { return static_cast<long long>(std::floor(d * 4.f)); }
+
+    // The first plane of the key's within qbsp's epsilons of n, d (in the order they were added: base's first), else -1.
+    int find(long long kk, const glm::dvec3& n, double d) const
+    {
+        if(base_)
+        {
+            if(const int id = base_->find(kk, n, d); id >= 0)
+            {
+                return id;
+            }
+        }
+        const auto found = index_.find(kk);
+        if(found == index_.end())
+        {
+            return -1;
+        }
+        for(const int id : found->second)
+        {
+            const mplane_t& p = planeAt(id);
+            // qbsp's epsilons (a normal's components, not their dot: far from the origin a small turn is far off)
+            if(std::abs(p.dist - d) < 0.01 && std::abs(p.normal[0] - n.x) < 1e-5 && std::abs(p.normal[1] - n.y) < 1e-5 &&
+                std::abs(p.normal[2] - n.z) < 1e-5)
+            {
+                return id;
+            }
+        }
+        return -1;
+    }
+
+    // vr_hull_leafdebug: the solid piece making the watched point's leaf.
+    void describe(const Frag& f, const Poly& region) const
+    {
+        glm::dvec3 lo{1e300}, hi{-1e300};
+        for(const Face& face : region)
+        {
+            for(const glm::dvec3& v : face.w)
+            {
+                lo = glm::min(lo, v);
+                hi = glm::max(hi, v);
+            }
+        }
+        Con_Printf("leaf: solid by a piece %.2f %.2f %.2f .. %.2f %.2f %.2f; the leaf %.2f %.2f %.2f .. %.2f %.2f %.2f\n",
+            f.lo.x, f.lo.y, f.lo.z, f.hi.x, f.hi.y, f.hi.z, lo.x, lo.y, lo.z, hi.x, hi.y, hi.z);
+        for(const Face& face : f.poly)
+        {
+            Con_Printf("  face %.3f %.3f %.3f d %.3f, %d points, tag %d\n", face.normal.x, face.normal.y, face.normal.z,
+                face.dist, static_cast<int>(face.w.size()), face.tag);
+        }
+        if(f.brush && debugBrushes)
+        {
+            const Brush& br = *f.brush;
+            Con_Printf("  brush %d %s %.2f %.2f %.2f .. %.2f %.2f %.2f, %u planes:\n",
+                static_cast<int>(&br - debugBrushes->brushes.data()), br.clip ? "(clip)" : "", br.mins.x, br.mins.y,
+                br.mins.z, br.maxs.x, br.maxs.y, br.maxs.z, br.count);
+            for(std::uint32_t i = 0; i < br.count; ++i)
+            {
+                const Plane& q = debugBrushes->planes[br.first + i];
+                Con_Printf("    plane %.4f %.4f %.4f d %.3f\n", q.normal.x, q.normal.y, q.normal.z, q.dist);
+            }
+        }
+    }
 
     // A piece reaching out of its grown brush's bounds (the padded box it was cut from) lost a bounding face to the
     // epsilon (a sliver of one: the build can't tell) and runs on to the bogus winding's end: its leaf would be solid
@@ -1259,7 +1533,7 @@ private:
         {
             return true;
         }
-        const glm::dvec3 pad = f.brush->clip ? glm::dvec3{2.0} : glm::dvec3{t_.ext} + 2.0;
+        const glm::dvec3 pad = f.brush->clip ? glm::dvec3{2.0} : glm::dvec3{ext_} + 2.0;
         const glm::dvec3 lo = glm::dvec3{f.brush->mins} - pad, hi = glm::dvec3{f.brush->maxs} + pad;
         constexpr double slack = 0.5;
         bool cut = false;
@@ -1298,7 +1572,7 @@ private:
     // The table's plane i, facing the way n does.
     void oriented(int i, const glm::dvec3& n, glm::dvec3& on, double& od) const
     {
-        const mplane_t& p = t_.planes[static_cast<std::size_t>(i)];
+        const mplane_t& p = planeAt(i);
         on = glm::dvec3{p.normal[0], p.normal[1], p.normal[2]};
         od = p.dist;
         if(glm::dot(on, n) < 0.0)
@@ -1339,8 +1613,8 @@ private:
     // the fewest, balanced, axial first. Many pieces: a sample of the planes (the build's time).
     int choose(const std::vector<Frag>& frags)
     {
-        seen_.resize(t_.planes.size(), 0);
-        facing_.resize(t_.planes.size(), 0);
+        seen_.resize(count(), 0);
+        facing_.resize(count(), 0);
         ++stamp_;
         cands_.clear();
         for(const Frag& f : frags)
@@ -1362,14 +1636,14 @@ private:
             }
         }
         std::stable_partition(cands_.begin(), cands_.end(),
-            [this](int c) { return t_.planes[static_cast<std::size_t>(c)].type < 3; });
+            [this](int c) { return planeAt(c).type < 3; });
         const std::size_t step = std::max<std::size_t>(1, cands_.size() * frags.size() / chooseBudget);
         int best = cands_.front();
         long long bestValue = std::numeric_limits<long long>::min();
         for(std::size_t ci = 0; ci < cands_.size(); ci += step)
         {
             const int c = cands_[ci];
-            const mplane_t& p = t_.planes[static_cast<std::size_t>(c)];
+            const mplane_t& p = planeAt(c);
             const glm::dvec3 n{p.normal[0], p.normal[1], p.normal[2]};
             int front = 0, back = 0, splits = 0;
             for(const Frag& f : frags)
@@ -1414,45 +1688,284 @@ private:
 
     static constexpr std::size_t chooseBudget = 40000; // planes x pieces weighed at a node, at most
 
-    Tree& t_;
-    std::unordered_multimap<long long, int> index_;
+    const TreeBuilder* base_ = nullptr; // (a builder on the pool) the table it adds to
+    std::size_t baseCount_ = 0;         // base's planes
+    std::vector<mplane_t>* planes_;     // its planes (after base's)
+    std::vector<mclipnode_t>* nodes_;
+    int* solid_;
+    int* empty_;
+    glm::vec3 ext_;                     // the box's half size
+    std::vector<PlaneAsk>* log_ = nullptr;
+    std::unordered_map<long long, std::vector<int>> index_; // its planes by key(dist), each key's in the order added
     std::vector<std::size_t> seen_;
     std::vector<int> facing_;
     std::size_t stamp_ = 0;
     std::vector<int> cands_;
 };
 
-// The tree of one model (sub), built into t (its root: a node; a lone leaf gets a node of its own).
-void buildTree(Tree& t, const Brushes& b, std::size_t sub, const glm::dvec3* watch = nullptr)
+// A tree's build shared out on the game's thread pool, the same tree as the build on one thread (buildTree's reference,
+// vr_jobs_parallel 0), node for node and plane for plane:
+// - The brushes are grown on one thread (they add most of the table's planes, and nearly the same planes as each
+//   other: grown apart, nearly every brush would be done again). The tree's top is split `shareDepth` levels down,
+//   each node's split and, below the top, each subtree a unit, the two sides of a node at once.
+// - A unit asks the table for its planes as it would on one thread, but it only sees the table as it was when it began
+//   (its base's), not the planes the units before it (in the order the build on one thread goes) add meanwhile. So it
+//   adds its planes to a table of its own, and logs what it asked and got.
+// - The merge then goes through the units in that order, asking the tree's table the same: if every answer is the
+//   plane the unit had (the same values; a plane it added: a plane new to it, one to one), it computed what the build
+//   on one thread computes, and its pieces or nodes are taken, its planes renumbered. Else (rarely: two units adding
+//   nearly the same plane) its planes are taken back out of the table and it is done again there, on the merging
+//   thread, as the build on one thread does it.
+constexpr int shareDepth = 10;         // the top's levels: up to 1024 subtrees
+constexpr std::size_t shareMin = 48;   // fewer pieces: a subtree of their own (not split further here)
+
+struct Unit
+{
+    const Unit* parent = nullptr;    // the unit whose split made its pieces (none: the tree's own table is its base)
+    std::size_t baseCount = 0;       // the planes it saw (its base's)
+    std::vector<mplane_t> planes;    // those it added (numbered from baseCount)
+    std::vector<PlaneAsk> log;
+    std::vector<int> map;            // its planes' numbers in the tree's table (the merge)
+    int solid = 0, empty = 0, rebounded = 0;
+    // A node's: a leaf (kind 0: root its contents), a split (kind 1: split, kids), a subtree (kind 2: root and nodes,
+    // numbered from 0); input: its pieces (done again from them if the merge's check fails).
+    int kind = 0;
+    int root = 0;
+    int split = 0;
+    std::unique_ptr<Unit> kids[2];
+    std::vector<mclipnode_t> nodes;
+    std::vector<Frag> input;
+};
+
+// The merge's state: which unit's plane each plane added to the tree's table since `start` is.
+struct Merge
+{
+    std::size_t start = 0;
+    std::vector<const Unit*> owner; // [plane - start]
+    int redone = 0;                 // units done again on the merging thread
+
+    // A plane number of u's (or of the units above it) in the tree's table.
+    [[nodiscard]] int real(const Unit& u, int id) const
+    {
+        for(const Unit* x = &u; x; x = x->parent)
+        {
+            if(static_cast<std::size_t>(id) >= x->baseCount)
+            {
+                return x->map[static_cast<std::size_t>(id) - x->baseCount];
+            }
+        }
+        return id;
+    }
+
+    [[nodiscard]] bool mine(int id, const Unit& u) const
+    {
+        const std::size_t i = static_cast<std::size_t>(id) - start;
+        const Unit* o = i < owner.size() ? owner[i] : nullptr;
+        for(const Unit* x = &u; x && o; x = x->parent)
+        {
+            if(o == x)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void own(std::size_t from, std::size_t to, const Unit& u)
+    {
+        owner.resize(std::max(owner.size(), to - start), nullptr);
+        for(std::size_t i = from; i < to; ++i)
+        {
+            owner[i - start] = &u;
+        }
+    }
+
+    static bool same(const mplane_t& a, const mplane_t& b)
+    {
+        return std::memcmp(a.normal, b.normal, sizeof(a.normal)) == 0 && std::memcmp(&a.dist, &b.dist, sizeof(a.dist)) == 0 &&
+               a.type == b.type && a.signbits == b.signbits;
+    }
+
+    // u's asks put to the tree's table (tb) in turn: whether every answer is the plane u had.
+    bool adopt(TreeBuilder& tb, Unit& u)
+    {
+        u.map.assign(u.planes.size(), -1);
+        for(const PlaneAsk& a : u.log)
+        {
+            const int got = tb.plane(a.n, a.d);
+            const auto id = static_cast<std::size_t>(a.id);
+            if(id < u.baseCount)
+            {
+                if(got != (u.parent ? real(*u.parent, a.id) : a.id))
+                {
+                    return false;
+                }
+                continue;
+            }
+            int& to = u.map[id - u.baseCount];
+            if(to >= 0)
+            {
+                if(to != got)
+                {
+                    return false;
+                }
+                continue;
+            }
+            // One it added: the table's must be new to it (not one it or the units above it could see or had) and the same.
+            if(static_cast<std::size_t>(got) < start || mine(got, u) || !same(tb.planeAt(got), u.planes[id - u.baseCount]))
+            {
+                return false;
+            }
+            to = got;
+            own(static_cast<std::size_t>(got), static_cast<std::size_t>(got) + 1, u);
+        }
+        return true;
+    }
+
+    // What u's asks added taken out again, before it is done on the merging thread.
+    void undo(TreeBuilder& tb, std::size_t to)
+    {
+        tb.rollback(to);
+        owner.resize(std::min(owner.size(), to - start));
+    }
+};
+
+// A unit of the tree's top (its pieces), over base; its sides' units at once below it.
+void speculate(Unit& u, const TreeBuilder& base, std::vector<Frag>&& frags, int depth)
+{
+    u.baseCount = base.count();
+    TreeBuilder tb{base, u.planes, u.nodes, u.solid, u.empty, u.log};
+    if(depth == 0 || frags.size() < shareMin)
+    {
+        u.kind = 2;
+        u.input = frags;
+        u.root = tb.build(frags);
+    }
+    else if(const int contents = tb.leaf(frags))
+    {
+        u.kind = 0; // (asks for no plane: never done again)
+        u.root = contents;
+    }
+    else
+    {
+        u.kind = 1;
+        u.input = frags;
+        std::vector<Frag> sides[2];
+        glm::dvec3 n;
+        double d;
+        u.split = tb.split(frags, sides, n, d);
+        for(int side = 0; side < 2; ++side)
+        {
+            u.kids[side] = std::make_unique<Unit>();
+            u.kids[side]->parent = &u;
+        }
+        jobs::parallelFor(2, 1,
+            [&](std::size_t begin, std::size_t end)
+            {
+                for(std::size_t i = begin; i < end; ++i)
+                {
+                    speculate(*u.kids[i], tb, std::move(sides[i]), depth - 1);
+                }
+            });
+    }
+    u.rebounded = tb.rebounded;
+}
+
+// u's nodes into the tree (in the order the build on one thread makes them); its root.
+int emit(TreeBuilder& tb, Unit& u, Merge& m)
+{
+    const std::size_t saved = tb.count();
+    if(!m.adopt(tb, u))
+    {
+        m.undo(tb, saved);
+        ++m.redone;
+        const int root = tb.build(u.input);
+        m.own(saved, tb.count(), u);
+        return root;
+    }
+    tb.addLeaves(u.solid, u.empty);
+    tb.rebounded += u.rebounded;
+    std::vector<mclipnode_t>& nodes = tb.nodes();
+    if(u.kind == 0)
+    {
+        return u.root;
+    }
+    if(u.kind == 2)
+    {
+        const int offset = static_cast<int>(nodes.size());
+        for(mclipnode_t n : u.nodes)
+        {
+            n.planenum = m.real(u, n.planenum);
+            for(int& c : n.children)
+            {
+                c = c >= 0 ? c + offset : c;
+            }
+            nodes.push_back(n);
+        }
+        return u.root >= 0 ? u.root + offset : u.root;
+    }
+    const int node = static_cast<int>(nodes.size());
+    nodes.push_back(mclipnode_t{m.real(u, u.split), {0, 0}});
+    const int front = emit(tb, *u.kids[0], m);
+    const int back = emit(tb, *u.kids[1], m);
+    nodes[static_cast<std::size_t>(node)].children[0] = front;
+    nodes[static_cast<std::size_t>(node)].children[1] = back;
+    return node;
+}
+
+// The tree of one model (sub), built into t (its root: a node; a lone leaf gets a node of its own). Only t is written:
+// trees for different boxes are built at once on the pool (report false there: the pieces cut back are returned, for
+// the main thread to print). On the pool (vr_jobs_parallel) unless watching (vr_hull_leafdebug).
+int buildTree(Tree& t, const Brushes& b, std::size_t sub, const glm::dvec3* watch = nullptr, bool report = true)
 {
     const auto t0 = std::chrono::steady_clock::now();
     TreeBuilder tb{t};
     tb.watch = watch;
     tb.debugBrushes = &b;
     const glm::dvec3 ext{t.ext};
-    std::vector<Frag> frags;
+    std::vector<const Brush*> list;
     const SubModel& sm = b.subs[sub];
-    auto add = [&](const Brush& br)
-    {
-        Frag f;
-        if(tb.grow(b, br, ext, f))
-        {
-            frags.push_back(std::move(f));
-        }
-    };
     for(std::uint32_t i = 0; i < sm.numBrushes; ++i)
     {
-        add(b.brushes[sm.firstBrush + i]);
+        list.push_back(&b.brushes[sm.firstBrush + i]);
     }
     if(sub == 0)
     {
         for(const int c : b.clips)
         {
-            add(b.brushes[static_cast<std::size_t>(c)]);
+            list.push_back(&b.brushes[static_cast<std::size_t>(c)]);
         }
     }
-    Poly region = watch ? boxPoly(glm::dvec3{-bogus * 0.5}, glm::dvec3{bogus * 0.5}) : Poly{};
-    int root = tb.build(frags, watch ? &region : nullptr);
+    std::vector<Frag> frags;
+    auto growAll = [&]
+    {
+        for(const Brush* br : list)
+        {
+            Frag f;
+            if(tb.grow(b, *br, ext, f))
+            {
+                frags.push_back(std::move(f));
+            }
+        }
+    };
+    int root = 0;
+    if(!watch && jobs::parallel() && jobs::pool())
+    {
+        Merge m;
+        growAll();
+        Unit top;
+        speculate(top, tb, std::move(frags), shareDepth);
+        m.start = tb.count();
+        m.owner.clear();
+        root = emit(tb, top, m);
+        t.redone += m.redone;
+    }
+    else
+    {
+        growAll();
+        Poly region = watch ? boxPoly(glm::dvec3{-bogus * 0.5}, glm::dvec3{bogus * 0.5}) : Poly{};
+        root = tb.build(frags, watch ? &region : nullptr);
+    }
     if(root < 0)
     {
         const int node = static_cast<int>(t.nodes.size());
@@ -1460,12 +1973,13 @@ void buildTree(Tree& t, const Brushes& b, std::size_t sub, const glm::dvec3* wat
         root = node;
     }
     t.heads[sub] = root;
-    if(tb.rebounded)
+    if(tb.rebounded && report)
     {
         Con_DPrintf("hull: %d pieces cut back to their brushes' bounds (%gx%g, model %d)\n", tb.rebounded, t.ext.x * 2.f,
             t.ext.z * 2.f, static_cast<int>(sub));
     }
     t.ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    return tb.rebounded;
 }
 
 // Quake's trace of a point (the box's centre) through a model's tree.
@@ -1659,9 +2173,11 @@ float classWidth(int cls, float size, float quake)
 
 // A live monster of a known class moving with its narrower width (vr_mhull): its width, and the height its world
 // clipping keeps (Quake's hull's).
-bool monsterWidth(const edict_t* ent, float& width, float& height)
+// (loading: also while the server spawns the map, for the trees compiled ahead: see spawned)
+bool monsterWidth(const edict_t* ent, float& width, float& height, bool loading = false)
 {
-    if(vr_mhull.value == 0.f || !ent || !sv.active || !sv.worldmodel || static_cast<int>(ent->v.solid) != SOLID_SLIDEBOX)
+    if(vr_mhull.value == 0.f || !ent || !(sv.active || loading) || !sv.worldmodel ||
+        static_cast<int>(ent->v.solid) != SOLID_SLIDEBOX)
     {
         return false;
     }
@@ -1742,10 +2258,10 @@ int subOf(Brushes& b, int index)
 // Method A's hull of a model (sub) for the box of half size ext: compiled now if not yet (the world's with the map or
 // the setting; a new width compiles all again).
 // The tree for a box size: the player's (the player's size, or what it holds already), else a monster's (vr_mhull).
-Tree& slotFor(const Brushes& b, const glm::vec3& ext)
+Tree& slotFor(const mclipnode_t* clipnodes, const glm::vec3& ext)
 {
     Tree& p = tree;
-    if(p.forClipnodes == b.clipnodes && p.ext == ext)
+    if(p.forClipnodes == clipnodes && p.ext == ext)
     {
         return p;
     }
@@ -1753,14 +2269,14 @@ Tree& slotFor(const Brushes& b, const glm::vec3& ext)
     if(vr_hull_width.value > 0.f && sv.worldmodel && ext == glm::vec3{half, half, hull1Height(sv.worldmodel) * 0.5f})
     {
         tree.release();
-        p.forClipnodes = b.clipnodes;
+        p.forClipnodes = clipnodes;
         p.ext = ext;
         return p;
     }
     std::vector<Tree>& v = monsterTrees.trees;
     for(Tree& t : v)
     {
-        if(t.forClipnodes == b.clipnodes && t.ext == ext)
+        if(t.forClipnodes == clipnodes && t.ext == ext)
         {
             return t;
         }
@@ -1770,14 +2286,149 @@ Tree& slotFor(const Brushes& b, const glm::vec3& ext)
         v.clear();
     }
     v.emplace_back();
-    v.back().forClipnodes = b.clipnodes;
+    v.back().forClipnodes = clipnodes;
     v.back().ext = ext;
     return v.back();
 }
 
+// The tree already made (or being made) for this box, if any (no slot taken).
+Tree* findSlot(const mclipnode_t* clipnodes, const glm::vec3& ext)
+{
+    if(tree.forClipnodes == clipnodes && tree.ext == ext)
+    {
+        return &static_cast<Tree&>(tree);
+    }
+    for(Tree& t : monsterTrees.trees)
+    {
+        if(t.forClipnodes == clipnodes && t.ext == ext)
+        {
+            return &t;
+        }
+    }
+    return nullptr;
+}
+
+// The map load's builds on the pool (beforeLoad, spawned): the map as brushes, then the player's and the monsters'
+// trees, made while the server spawns the map; settle() waits for them (every use of the brushes or the trees first).
+// While they run, the main thread touches neither `built` nor the trees being made.
+struct Pending
+{
+    jobs::Future<void> brushes;         // build(): the map as brushes
+    std::vector<Tree*> trees;           // being compiled, each by its job below (after the brushes)
+    std::vector<jobs::Future<int>> run; // (their pieces cut back)
+    glm::vec3 playerExt{0.f};           // the player's tree's box, if it is one of them
+    double posted = 0.0;                // when the builds were handed out (the load's report)
+};
+Pending pending;
+
+// The trees for these boxes whose world model (sub 0) is not compiled yet: their slots taken (their order kept, each
+// once; the player's size is the player's tree); none being compiled already (pending).
+std::vector<Tree*> claimTrees(const mclipnode_t* clipnodes, const std::vector<glm::vec3>& exts)
+{
+    for(const glm::vec3& ext : exts)
+    {
+        if(!pending.trees.empty() && !findSlot(clipnodes, ext) && monsterTrees.trees.size() >= maxMonsterTrees)
+        {
+            continue; // (a new slot would let go of the trees being made: this one is made when first used)
+        }
+        (void)slotFor(clipnodes, ext);
+    }
+    std::vector<Tree*> out; // (found after every slot is taken: a new one may move the others)
+    for(const glm::vec3& ext : exts)
+    {
+        Tree* t = findSlot(clipnodes, ext);
+        if(t && std::find(pending.trees.begin(), pending.trees.end(), t) == pending.trees.end() &&
+            (t->heads.empty() || t->heads[0] < 0) && std::find(out.begin(), out.end(), t) == out.end())
+        {
+            out.push_back(t);
+        }
+    }
+    return out;
+}
+
+// The world model's tree in t (after the map's brushes are built); the pieces cut back.
+int compileWorldTree(Tree& t, const Brushes& b)
+{
+    if(t.heads.size() < b.subs.size())
+    {
+        t.heads.resize(b.subs.size(), -1);
+    }
+    return t.heads[0] < 0 ? buildTree(t, b, 0, nullptr, false) : 0;
+}
+
+void reportTree(const Tree& t, int rebounded)
+{
+    if(rebounded)
+    {
+        Con_DPrintf("hull: %d pieces cut back to their brushes' bounds (%gx%g, model 0)\n", rebounded, t.ext.x * 2.f,
+            t.ext.z * 2.f);
+    }
+    Con_DPrintf("hull: %s compiled for %gx%g: %d nodes, %d planes in %.1f ms (%d pieces done again)\n", sv.worldmodel ? sv.worldmodel->name : "?",
+        t.ext.x * 2.f, t.ext.z * 2.f, static_cast<int>(t.nodes.size()), static_cast<int>(t.planes.size()), t.ms, t.redone);
+}
+
+// These trees compiled at once on the pool (the main thread one of them), reported in their order.
+void compileTrees(const std::vector<Tree*>& todo, const Brushes& b)
+{
+    std::vector<int> rebounded(todo.size(), 0);
+    jobs::parallelFor(todo.size(), 1,
+        [&](std::size_t begin, std::size_t end)
+        {
+            for(std::size_t i = begin; i < end; ++i)
+            {
+                rebounded[i] = compileWorldTree(*todo[i], b);
+            }
+        });
+    for(std::size_t i = 0; i < todo.size(); ++i)
+    {
+        reportTree(*todo[i], rebounded[i]);
+    }
+}
+
+// A tree compiled on the pool once the brushes are built.
+void postTree(Tree* t)
+{
+    pending.trees.push_back(t);
+    pending.run.push_back(jobs::async(
+        [t]
+        {
+            pending.brushes.wait(); // (only waited on until settle: nothing else touches it meanwhile)
+            return compileWorldTree(*t, built);
+        }));
+}
+
+void settle()
+{
+    if(!pending.brushes.valid())
+    {
+        return;
+    }
+    const double t0 = Sys_DoubleTime();
+    std::vector<jobs::Future<int>> run = std::move(pending.run);
+    std::vector<Tree*> trees = std::move(pending.trees);
+    pending.run.clear();
+    pending.trees.clear();
+    std::vector<int> rebounded;
+    for(jobs::Future<int>& f : run)
+    {
+        rebounded.push_back(f.get());
+    }
+    pending.brushes.get();
+    const double t1 = Sys_DoubleTime();
+    VR_TimeAdd("hull: the map's brushes and compiled hulls, waited for (built on the pool)", t1 - t0);
+    Con_DPrintf("hull: %s rebuilt as %d brushes in %.1f ms (on the pool; waited %.1f ms, %.1f ms after they began)\n",
+        sv.worldmodel ? sv.worldmodel->name : "?", static_cast<int>(built.brushes.size()), built.ms, (t1 - t0) * 1000.0,
+        (t1 - pending.posted) * 1000.0);
+    for(std::size_t i = 0; i < trees.size(); ++i)
+    {
+        reportTree(*trees[i], rebounded[i]);
+    }
+}
+
 const Tree& treeFor(const Brushes& b, std::size_t sub, const glm::vec3& ext)
 {
-    Tree& t = slotFor(b, ext);
+    settle();
+    Tree& t = slotFor(b.clipnodes, ext);
     if(t.heads.size() < b.subs.size())
     {
         t.heads.resize(b.subs.size(), -1);
@@ -1787,8 +2438,8 @@ const Tree& treeFor(const Brushes& b, std::size_t sub, const glm::vec3& ext)
         buildTree(t, b, sub);
         if(sub == 0)
         {
-            Con_DPrintf("hull: %s compiled for %gx%g: %d nodes, %d planes in %.1f ms\n", sv.worldmodel->name, ext.x * 2.f,
-                ext.z * 2.f, static_cast<int>(t.nodes.size()), static_cast<int>(t.planes.size()), t.ms);
+            Con_DPrintf("hull: %s compiled for %gx%g: %d nodes, %d planes in %.1f ms (%d pieces done again)\n", sv.worldmodel->name, ext.x * 2.f,
+                ext.z * 2.f, static_cast<int>(t.nodes.size()), static_cast<int>(t.planes.size()), t.ms, t.redone);
         }
     }
     return t;
@@ -1823,6 +2474,99 @@ int hull0PointsInBox(const hull_t& hull0, const glm::vec3& p)
     return solid;
 }
 
+// FNV-1a over the build's results (vr_hull_stats: the same on the pool and on one thread).
+struct Hash
+{
+    std::uint32_t h = 2166136261u;
+    template <class T>
+    void add(const T& v)
+    {
+        const auto* p = reinterpret_cast<const unsigned char*>(&v);
+        for(std::size_t i = 0; i < sizeof(T); ++i)
+        {
+            h = (h ^ p[i]) * 16777619u;
+        }
+    }
+};
+
+std::uint32_t hashOf(const Brushes& b)
+{
+    Hash h;
+    for(const Plane& q : b.planes)
+    {
+        h.add(q.normal);
+        h.add(q.dist);
+        h.add(q.grows);
+    }
+    for(const Brush& br : b.brushes)
+    {
+        h.add(br.first);
+        h.add(br.count);
+        h.add(br.mins);
+        h.add(br.maxs);
+        h.add(br.clip);
+    }
+    for(const int v : b.leafBrush)
+    {
+        h.add(v);
+    }
+    for(const int v : b.clips)
+    {
+        h.add(v);
+    }
+    for(const int v : b.leafClipStart)
+    {
+        h.add(v);
+    }
+    for(const int v : b.leafClipList)
+    {
+        h.add(v);
+    }
+    for(const int v : b.hull1Clip)
+    {
+        h.add(v);
+    }
+    for(const SubModel& sm : b.subs)
+    {
+        h.add(sm.head);
+        h.add(sm.firstBrush);
+        h.add(sm.numBrushes);
+    }
+    h.add(b.bevels);
+    h.add(b.dropped);
+    h.add(b.hull1Leaves);
+    return h.h;
+}
+
+// The world's tree (its models' trees, compiled when first met, follow in the same arrays): its nodes from the root,
+// with their numbers and planes.
+std::uint32_t hashOf(const Tree& t)
+{
+    Hash h;
+    const int root = t.heads.empty() ? -1 : t.heads[0];
+    std::vector<int> stack{root};
+    while(!stack.empty())
+    {
+        const int num = stack.back();
+        stack.pop_back();
+        h.add(num);
+        if(num < 0)
+        {
+            continue;
+        }
+        const mclipnode_t& n = t.nodes[static_cast<std::size_t>(num)];
+        const mplane_t& p = t.planes[static_cast<std::size_t>(n.planenum)];
+        h.add(n.planenum);
+        h.add(p.normal);
+        h.add(p.dist);
+        h.add(p.type);
+        h.add(p.signbits);
+        stack.push_back(n.children[1]);
+        stack.push_back(n.children[0]);
+    }
+    return h.h;
+}
+
 void stats_f()
 {
     if(!sv.active || !sv.worldmodel)
@@ -1842,6 +2586,7 @@ void stats_f()
         static_cast<int>(b->clips.size()), static_cast<int>(b->planes.size()), b->bevels, b->dropped, bytes / 1024.0,
         b->ms, b->clipMs, vr_hull_width.value > 0.f ? widthSetting() : 0.f,
         vr_hull_width.value > 0.f ? "on" : "off: Quake's hull 1");
+    Con_Printf("hull: hash brushes %08x (stamp %u)\n", hashOf(*b), static_cast<unsigned>(b->stamp));
     int external = 0;
     for(std::size_t i = 0; i < b->subs.size(); ++i)
     {
@@ -1853,6 +2598,10 @@ void stats_f()
         static_cast<int>(b->subs.size()), external, vr_hull_method.value != 0.f ? "compiled hull" : "brush sweep",
         t.forClipnodes == b->clipnodes ? "" : "(none yet) ", static_cast<int>(t.nodes.size()),
         static_cast<int>(t.planes.size()), t.solidLeaves, t.emptyLeaves, tree.bytes() / 1024.0, t.ms);
+    if(t.forClipnodes == b->clipnodes)
+    {
+        Con_Printf("hull: hash tree %gx%g %08x\n", t.ext.x * 2.f, t.ext.z * 2.f, hashOf(t));
+    }
     // The monsters' (vr_mhull).
     double ms = 0.0;
     int count = 0;
@@ -1866,6 +2615,7 @@ void stats_f()
         ms += m.ms;
         Con_Printf("hull: monsters' tree %gx%g: %d nodes, %d planes, %.0f KB, built in %.1f ms\n", m.ext.x * 2.f,
             m.ext.z * 2.f, static_cast<int>(m.nodes.size()), static_cast<int>(m.planes.size()), heldBytes(m) / 1024.0, m.ms);
+        Con_Printf("hull: hash tree %gx%g %08x\n", m.ext.x * 2.f, m.ext.z * 2.f, hashOf(m));
     }
     Con_Printf("hull: monsters (vr_mhull %s): %d trees, %.0f KB, built in %.1f ms\n", vr_mhull.value != 0.f ? "on" : "off",
         count, monsterTrees.bytes() / 1024.0, ms);
@@ -2872,32 +3622,50 @@ void walkTest_f()
 
 // The world's brushes, and with method A its hull for the player's box: built with the map or the setting (not at the
 // first move: a hitch in play).
-void prepare()
+bool wanted()
 {
-    if(!sv.worldmodel || vr_hull_method.value == 0.f || (vr_hull_width.value <= 0.f && vr_mhull.value == 0.f) ||
-        !worldBrushes(sv.worldmodel))
-    {
-        return;
-    }
+    return sv.worldmodel && vr_hull_method.value != 0.f && (vr_hull_width.value > 0.f || vr_mhull.value != 0.f);
+}
+
+glm::vec3 playerExt(const qmodel_t* world)
+{
+    const float half = widthSetting() * 0.5f;
+    return glm::vec3{half, half, hull1Height(world) * 0.5f};
+}
+
+// The boxes the trees are wanted for: the player's (first, if on), then each size the level's monsters ask for
+// (vr_mhull), in their order (loading: while the server spawns them).
+std::vector<glm::vec3> wantedExts(bool loading)
+{
+    std::vector<glm::vec3> exts;
     if(vr_hull_width.value > 0.f)
     {
-        const float half = widthSetting() * 0.5f;
-        (void)treeFor(built, 0, glm::vec3{half, half, hull1Height(sv.worldmodel) * 0.5f});
+        exts.push_back(playerExt(sv.worldmodel));
     }
-    // The monsters' (vr_mhull): each size the level's monsters ask for, now (not at their first step).
-    if(vr_mhull.value != 0.f && sv.active)
+    if(vr_mhull.value != 0.f && (sv.active || loading))
     {
         for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; ++i)
         {
             const edict_t* e = reinterpret_cast<const edict_t*>(reinterpret_cast<const byte*>(sv.qcvm.edicts) +
                 static_cast<std::ptrdiff_t>(i) * sv.qcvm.edict_size);
             float w = 0.f, h = 0.f;
-            if(!e->free && monsterWidth(e, w, h))
+            if(!e->free && monsterWidth(e, w, h, loading))
             {
-                (void)treeFor(built, 0, glm::vec3{w * 0.5f, w * 0.5f, h * 0.5f});
+                exts.emplace_back(w * 0.5f, w * 0.5f, h * 0.5f);
             }
         }
     }
+    return exts;
+}
+
+// The trees for those boxes, compiled at once on the pool (not at the first move: a hitch in play).
+void prepare()
+{
+    if(!wanted() || !worldBrushes(sv.worldmodel))
+    {
+        return;
+    }
+    compileTrees(claimTrees(built.clipnodes, wantedExts(false)), built);
 }
 
 void onWidthChanged(cvar_t*)
@@ -2925,6 +3693,73 @@ void init()
     {
         Cvar_SetCallback(c.width, onWidthChanged);
     }
+}
+
+void beforeLoad()
+{
+    settle();
+    qmodel_t* world = sv.worldmodel;
+    if(!wanted() || world->type != mod_brush || world->numnodes <= 0 || built.clipnodes == world->hulls[0].clipnodes)
+    {
+        return;
+    }
+    pending.posted = Sys_DoubleTime();
+    monsterTrees.trees.reserve(maxMonsterTrees); // (a slot taken while others are made moves none of them)
+    pending.brushes = jobs::async([world] { build(world); });
+    pending.playerExt = glm::vec3{0.f};
+    if(vr_hull_width.value > 0.f)
+    {
+        pending.playerExt = playerExt(world);
+        for(Tree* t : claimTrees(world->hulls[0].clipnodes, {pending.playerExt}))
+        {
+            postTree(t);
+        }
+    }
+}
+
+void entitySpawned(const edict_t* ent)
+{
+    float w = 0.f, h = 0.f;
+    if(!pending.brushes.valid() || !wanted() || sv.state != ss_loading || ent->free || !monsterWidth(ent, w, h, true))
+    {
+        return;
+    }
+    const glm::vec3 ext{w * 0.5f, w * 0.5f, h * 0.5f};
+    if(vr_hull_width.value > 0.f && playerExt(sv.worldmodel) != pending.playerExt)
+    {
+        return; // (spawned: see there)
+    }
+    if(findSlot(sv.worldmodel->hulls[0].clipnodes, ext))
+    {
+        return; // (made or being made)
+    }
+    for(Tree* t : claimTrees(sv.worldmodel->hulls[0].clipnodes, {ext}))
+    {
+        postTree(t);
+    }
+}
+
+void spawned()
+{
+    if(!pending.brushes.valid() || !wanted())
+    {
+        return;
+    }
+    const std::vector<glm::vec3> exts = wantedExts(true);
+    if(vr_hull_width.value > 0.f && exts.front() != pending.playerExt)
+    {
+        settle(); // (the player's width changed while the map spawned: its tree is made again, not while it is made)
+        return;
+    }
+    for(Tree* t : claimTrees(sv.worldmodel->hulls[0].clipnodes, exts))
+    {
+        postTree(t);
+    }
+}
+
+void finishLoads()
+{
+    settle();
 }
 
 void afterLoad()
