@@ -85,6 +85,10 @@ After the Ironwail-diff cleanup: model normal maps and parallax, water refractio
 
 Climbing page: Reach Over the Top (16 units) and Touch Distance (4.5 cm) now settings; try lower values; health boxes sound metallic
 
+Grunts fire 3-round bursts: damage feels fair (Combat > Enemy Weapons > Burst Rifles toggles back to shotguns)
+Picked-up grunt gun: 3 rounds per pull, holding fires a burst every 0.5 s, counter drops by 3 (30 rounds)
+Picked-up enforcer rifle: laser is fast (1800 u/s) and hits corpses, gibs and boxes
+
 [Decide or give feedback]
 README.md is the biggest remaining upstream diff (+245 lines): keep it as Quake VR's front page?
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
