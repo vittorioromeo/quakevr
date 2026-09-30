@@ -110,6 +110,9 @@ void solve(const handrig::Pose& pose, const Shape& shape, const glm::mat4& shape
     const Solution* previous, Solution& out, Shape* extra = nullptr, const glm::mat4& extraToRig = glm::mat4{1.f},
     float extraOverlap = 0.f);
 
+// Forgets the afresh solves remembered (solve: the same inputs, the result they gave): vr_grasp_bench times a real one.
+void forgetSolves();
+
 // A shape of triangles as they are given (their own coordinates: no model), for solve's `extra`.
 void makeShape(const std::vector<Triangle>& tris, Shape& out);
 

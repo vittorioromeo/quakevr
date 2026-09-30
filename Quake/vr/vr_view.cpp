@@ -5181,6 +5181,7 @@ void graspBench_f()
         std::sort(us.begin(), us.end());
         // Solved afresh (as when first taken) and again with the solve before (as each frame it moves in the hand).
         grasp::Solution first;
+        grasp::forgetSolves(); // a real solve, not a remembered one
         const auto t0 = std::chrono::steady_clock::now();
         grasp::solve(rh.pose, *shape, inRig, settings, nullptr, first);
         const double firstUs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() * 1e6;

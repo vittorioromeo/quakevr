@@ -846,6 +846,54 @@ struct CachedShape
 };
 std::unordered_map<ShapeKey, CachedShape, ShapeKeyHash> shapes;
 
+// ----------------------------------------------------------------------------
+// Afresh solves remembered (round 22, profiling). A solve with no solve before and nothing else in the way is a pure
+// function of the shape, its place in the hand, the settings and the fingers' shifts (the solver reads nothing else),
+// and afresh it costs 1.5-6.5 ms (the palm's place searched: up to 29 places, the four fingers closed at each). A weapon
+// taken into the hand was solved afresh as it came and again, the same, once it rested (updateGrasp: the same canonical
+// place), and each time it was taken again (weapon switches, a foregrip let go and taken back): the profile's worst
+// CPU frames in play. The same inputs give the result they gave, bit for bit; anything else is solved as before.
+
+struct Remembered
+{
+    const Shape* shape{nullptr};
+    std::size_t tris{0};
+    unsigned rig{0}; // handrig::generation()
+    glm::mat4 shapeToRig{1.f};
+    Settings settings;
+    glm::vec3 shift[handrig::FingerCount]{};
+    Solution solution;
+};
+constexpr int rememberedCount = 32; // a hand's weapons, grips and fits, both hands (no heap: a fixed table)
+std::array<Remembered, rememberedCount> remembered{};
+int rememberedNext = 0;
+int rememberedUsed = 0;
+
+[[nodiscard]] bool sameSettings(const Settings& a, const Settings& b)
+{
+    return a.palmLimit == b.palmLimit && a.palmTurnLimit == b.palmTurnLimit && a.overlap == b.overlap &&
+           a.thenar == b.thenar && a.thumbTop == b.thumbTop && a.fixedPalm == b.fixedPalm && a.palmMove == b.palmMove &&
+           a.palmTurnMove == b.palmTurnMove && a.searchPlace == b.searchPlace;
+}
+
+[[nodiscard]] bool sameInputs(const Remembered& r, const handrig::Pose& pose, const Shape& shape,
+    const glm::mat4& shapeToRig, const Settings& settings)
+{
+    if(r.shape != &shape || r.tris != shape.tris.size() || r.rig != handrig::generation() || r.shapeToRig != shapeToRig ||
+        !sameSettings(r.settings, settings))
+    {
+        return false;
+    }
+    for(int f = 0; f < handrig::FingerCount; f++)
+    {
+        if(r.shift[f] != pose.shift[f])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool buildShape(const entity_t& e, int frame, Shape& out)
 {
     out.tris.clear();
@@ -923,6 +971,14 @@ bool buildShape(const entity_t& e, int frame, Shape& out)
 void reset()
 {
     shapes.clear();
+    forgetSolves();
+}
+
+void forgetSolves()
+{
+    remembered.fill(Remembered{});
+    rememberedNext = 0;
+    rememberedUsed = 0;
 }
 
 void makeShape(const std::vector<Triangle>& tris, Shape& out)
@@ -983,6 +1039,10 @@ const Shape* shapeOf(const entity_t& e, int frame)
     CachedShape& cached = shapes[ShapeKey{e.model, f}];
     if(cached.name != e.model->name)
     {
+        if(!cached.name.empty())
+        {
+            forgetSolves(); // a slot's shape made again in place: the solves remembered for it are another model's
+        }
         cached.name = e.model->name;
         cached.valid = buildShape(e, f, cached.shape);
     }
@@ -1015,6 +1075,21 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     const Solution* previous, Solution& out, Shape* extra, const glm::mat4& extraToRig, float extraOverlap)
 {
     const auto t0 = std::chrono::steady_clock::now();
+    // Afresh with nothing else in the way: the same inputs as a solve remembered give its result (Remembered).
+    const bool memo = !previous && !extra;
+    if(memo)
+    {
+        for(int i = 0; i < rememberedUsed; i++)
+        {
+            if(sameInputs(remembered[static_cast<std::size_t>(i)], start, shape, shapeToRig, settings))
+            {
+                out = remembered[static_cast<std::size_t>(i)].solution;
+                probes = 0;
+                out.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+                return;
+            }
+        }
+    }
     const Kinematics& k = kinematics();
     out = Solution{};
     probes = 0;
@@ -1150,6 +1225,19 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     }
     out.probes = probes;
     out.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    if(memo)
+    {
+        Remembered& r = remembered[static_cast<std::size_t>(rememberedNext)];
+        r.shape = &shape;
+        r.tris = shape.tris.size();
+        r.rig = handrig::generation();
+        r.shapeToRig = shapeToRig;
+        r.settings = settings;
+        std::copy(start.shift, start.shift + handrig::FingerCount, r.shift);
+        r.solution = out;
+        rememberedNext = (rememberedNext + 1) % rememberedCount;
+        rememberedUsed = std::min(rememberedUsed + 1, rememberedCount);
+    }
 }
 
 float pathCurl(float curl)
