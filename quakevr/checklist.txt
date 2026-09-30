@@ -90,7 +90,6 @@ Picked-up grunt gun: 3 rounds per pull, holding fires a burst every 0.5 s, count
 Picked-up enforcer rifle: laser is fast (1800 u/s) and hits corpses, gibs and boxes
 
 [Decide or give feedback]
-README.md is the biggest remaining upstream diff (+245 lines): keep it as Quake VR's front page?
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
