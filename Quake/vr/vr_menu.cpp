@@ -1634,6 +1634,12 @@ void hologramTestMessage()
         toggle("Explosive Boxes by the Fist", vr_carry_grab_drawn)
             .help("An explosive box is taken as everything else is: when the fist touches it. Off: when the hand is within "
                   "a hand's width of its box (up to 12 cm off)."),
+        toggle("Weapons by the Fist", vr_weapon_grab_drawn)
+            .help("A weapon lying on the floor is taken where the fist touches it: a crowbar by its bar, a sword by its "
+                  "blade. Off: only with the hand at its handle."),
+        slider("Weapon Grab Slack", vr_weapon_grab_slack, 0.f, 10.f, 0.5f, "%.1f cm")
+            .help("With Weapons by the Fist: a weapon is taken with the fist this far off it too (a gun lying flat on the "
+                  "floor is thinner than the lowest your fist gets over it)."),
         toggle("Drawn In the Hand", vr_carry_local)
             .help("What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it."),
         toggle("Two-Handed Carrying", vr_carry_two_hands)

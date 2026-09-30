@@ -304,10 +304,24 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
     return 1000.f; // gibs and heads: flesh
 }
 
-// A Mass set for the prop's model (Held Object Offsets, vr_props.inc), kg; 0: none (its volume times its density).
-[[nodiscard]] float massSetting(const qmodel_t* model)
+// A Mass set for the prop's model (Held Object Offsets, vr_props.inc), kg; else a weapon's own (a weapon lying about or
+// thrown weighs what it weighs in the hand: Weapon Weights' Mass, vr_weapons.inc); 0: none (its volume times its
+// density: a crowbar's hull made it 0.6 kg of its 2.2, and it landed with the light metal sounds).
+[[nodiscard]] float propMassSetting(const qmodel_t* model)
 {
     return model ? std::max(props::valueFor(model, props::Key::Mass), 0.f) : 0.f;
+}
+
+[[nodiscard]] float weaponMassSetting(edict_t* ent, const qmodel_t* model)
+{
+    const int slot = model && isWeaponLike(ent) ? weapons::slotForModel(model) : -1;
+    return slot >= 0 && slot != weapons::fistSlot() ? std::max(weapons::value(slot, weapons::Key::Mass), 0.f) : 0.f;
+}
+
+[[nodiscard]] float massSetting(edict_t* ent, const qmodel_t* model)
+{
+    const float prop = propMassSetting(model);
+    return prop > 0.f ? prop : weaponMassSetting(ent, model);
 }
 
 // Soft things (backpacks, gibs, heads) land with a thud: no bounce, and their tumble dies away fast on the ground (a
@@ -1187,7 +1201,7 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     b3HullData* hull = propHull(ent, model, lo, hi);
     const glm::vec3 half = (hi - lo) * 0.5f / world->m2u;
     // A Mass set for its model: the density that gives it (Held Object Offsets).
-    if(const float mass = massSetting(model); mass > 0.f)
+    if(const float mass = massSetting(ent, model); mass > 0.f)
     {
         const float volume = hull ? hull->volume : 8.f * half.x * half.y * half.z;
         def.density = mass / std::max(volume, 1e-6f);
@@ -1313,7 +1327,7 @@ void updateShapeGeneration()
         {
             return false;
         }
-        if(s.massSetting != massSetting(model))
+        if(s.massSetting != massSetting(ent, model))
         {
             return true;
         }
@@ -1453,7 +1467,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.scale = scaleFields(ent);
     s.brush = model && model->type == mod_brush;
     s.spins = kind == Kind::Fixture && model && (model->flags & EF_ROTATE);
-    s.massSetting = massSetting(model);
+    s.massSetting = massSetting(ent, model);
     s.soft = model && isSoft(ent, model);
     s.sound = physsound::materialOf(ent, model);
     s.origin = vec(ent->v.origin);
@@ -3971,7 +3985,7 @@ void list_f()
             const qmodel_t* model = modelOf(e);
             const float mass = qvr::box3d::propMass(e);
             Con_Printf("    %s: %.1f kg%s, thrown x%.2f\n", model ? model->name : "no model", mass,
-                model && massSetting(model) > 0.f ? " (Held Object Offsets)" : "",
+                model && propMassSetting(model) > 0.f ? " (Held Object Offsets)" : model && weaponMassSetting(e, model) > 0.f ? " (Weapon Weights)" : "",
                 qvr::props::throwScale(model ? qvr::props::slotForModel(model) : -1, mass));
             Con_Printf("    movetype %d, solid %d, rigid %d, flags %d\n", static_cast<int>(e->v.movetype), static_cast<int>(e->v.solid),
                 isRigid(e) ? 1 : 0, static_cast<int>(e->v.flags));
@@ -4789,7 +4803,7 @@ float propMass(edict_t* ent)
     {
         return 0.f;
     }
-    if(const float mass = massSetting(model); mass > 0.f)
+    if(const float mass = massSetting(ent, model); mass > 0.f)
     {
         return mass;
     }

@@ -206,7 +206,8 @@ def bezier(p0, mid, p2, s):
 # ---------------------------------------------------------------------------------------------------------
 # A take
 
-WEAPONS = {"fist": 0, "axe": 2, "mjolnir": 3, "shotgun": 4, "super_shotgun": 5, "nailgun": 6, "sword": 13, "crowbar": 17}
+WEAPONS = {"fist": 0, "axe": 2, "mjolnir": 3, "shotgun": 4, "super_shotgun": 5, "nailgun": 6, "sword": 13, "chainsaw": 14,
+           "crowbar": 17}
 
 
 class Take:
@@ -371,7 +372,10 @@ WEAPON_FAR = {"axe": (0.155, -0.012, 0.209), "mjolnir": (0.159, -0.0025, 0.205),
               "shotgun": (0.45, -0.037, 0.003),
               # The crowbar lies as the swords do (its far end, the hook's back, on the blade's line): 35.0 cm of the
               # sword's 88.9 from the hand (vr_hotspot_fit).
-              "crowbar": (0.060, 0.001, 0.345)}
+              "crowbar": (0.060, 0.001, 0.345),
+              # The ogres' chainsaw, held by its rear handle: the bar's tip along the hand, 80.4 cm from it (vr_hotspot_fit;
+              # its melee trace's far point turned into the hand's frame as the axe's is).
+              "chainsaw": (0.769, -0.040, -0.032)}
 
 
 def weapon_pose(hand, weapon, axis, right):
@@ -541,6 +545,12 @@ def preset(name, args):
         if two:
             take.grip("off", True)
         (p0, p1, p2), (b0, b1, b2) = swords[name]
+        if args.weapon == "chainsaw" and not two:
+            # The chainsaw along the same line (its bar's tip on the blade's; weapon_pose from its far end).
+            take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, main_weapon="chainsaw", target=(d, 0.0),
+                        note="synthetic")
+            weapon_swing(take, "main", "chainsaw", (p0, p1, p2), (norm(b0), norm(b1), norm(b2)), T)
+            return take
         sword_swing(take, p0, p1, p2, norm(b0), norm(b1), norm(b2), T, two)
         return take
     if name in ("punch_straight", "no_hit_slow_punch"):
@@ -607,7 +617,7 @@ def main():
     ap.add_argument("--eye-height", type=float, default=1.646)
     ap.add_argument("--two-handed", action="store_true", help="the sword's with the off hand on the grip")
     ap.add_argument("--weapon", default="axe", choices=sorted(WEAPON_FAR),
-                    help="the chop presets' weapon; crowbar: the sword presets' too")
+                    help="the chop presets' weapon; crowbar, chainsaw: the sword presets' too")
     ap.add_argument("--settings-from", help="write the takes for this config's hand settings (vr_gunangle, "
                     "vr_handcal_*...: an ironwail.cfg)")
     ap.add_argument("--mock", action="store_true", help="also a vr_mock_play script of each (<take>.mock)")

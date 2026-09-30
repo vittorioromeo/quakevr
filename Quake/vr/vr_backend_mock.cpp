@@ -8,6 +8,10 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
+#include "vr_hands.hpp"
+#include "vr_held.hpp"
+#include "vr_progs.hpp"
+#include "vr_units.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -341,6 +345,132 @@ void mockLook_f()
     const float yaw = glm::radians(Q_atof(Cmd_Argv(2)));
     mockHeadOrientation =
         glm::angleAxis(yaw, glm::vec3{0.f, 1.f, 0.f}) * glm::angleAxis(-pitch, glm::vec3{1.f, 0.f, 0.f});
+}
+
+// vr_mock_hand_to <main|off> <x> <y> <z>: moves the mock hand (its tracking-space position; its orientation kept) so
+// that it is at that world point. "vr_mock_hand_to <main|off> weapon <fraction> [<height cm>]": over the weapon lying
+// nearest you (a thrown_weapon), `fraction` of the way along its drawn length (0 and 1: its two drawn points farthest
+// apart), `height` cm over its top there (0 as shipped). For grab tests: from the hand's place last frame, so a hand
+// kept out of the floor lands short of a point under it; run it again (or a few frames on) to follow a weapon.
+bool weaponPoint(float fraction, float height, glm::vec3& out)
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        return false;
+    }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    edict_t* player = EDICT_NUM(1);
+    edict_t* best = nullptr;
+    float bestDist = 0.f;
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(e->free || strcmp(PR_GetString(e->v.classname), "thrown_weapon"))
+        {
+            continue;
+        }
+        const float d = glm::distance(glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]},
+            glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]});
+        if(!best || d < bestDist)
+        {
+            best = e;
+            bestDist = d;
+        }
+    }
+    std::vector<glm::vec3> verts;
+    const bool found = best && held::drawnVertices(best, verts) && !verts.empty();
+    const char* name = found ? PR_GetString(best->v.netname) : "";
+    if(found)
+    {
+        // (In its axes from its origin: to the world.)
+        const glm::mat3 axes = held::axesFromAngles(best->v.angles, false);
+        const glm::vec3 origin{best->v.origin[0], best->v.origin[1], best->v.origin[2]};
+        for(glm::vec3& v : verts)
+        {
+            v = origin + axes * v;
+        }
+    }
+    PR_PopQCVM(oldVm);
+    if(!found)
+    {
+        return false;
+    }
+    glm::vec3 centre{0.f};
+    for(const glm::vec3& v : verts)
+    {
+        centre += v;
+    }
+    centre /= static_cast<float>(verts.size());
+    const auto farthest = [&](const glm::vec3& from) {
+        glm::vec3 pick = from;
+        for(const glm::vec3& v : verts)
+        {
+            if(glm::distance(v, from) > glm::distance(pick, from))
+            {
+                pick = v;
+            }
+        }
+        return pick;
+    };
+    const glm::vec3 a = farthest(centre);
+    const glm::vec3 b = farthest(a);
+    const glm::vec3 axis = glm::normalize(b - a + glm::vec3{0.f, 0.f, 1e-6f});
+    const glm::vec3 at = glm::mix(a, b, fraction);
+    // Its slice there (the drawn points within a unit and a half along its length): their middle, and its top.
+    glm::vec3 mid{0.f};
+    float top = -1e9f;
+    int n = 0;
+    for(const glm::vec3& v : verts)
+    {
+        if(std::fabs(glm::dot(v - at, axis)) <= 1.5f)
+        {
+            mid += v;
+            top = std::fmax(top, v.z);
+            n++;
+        }
+    }
+    out = n ? glm::vec3{mid.x / n, mid.y / n, top} : at;
+    out.z += height * 0.01f * units::metresToUnits();
+    Con_Printf("vr_mock_hand_to: %s, %.2f of the way along (%.1f units long): %.1f %.1f %.1f\n",
+        name, fraction, glm::distance(a, b), out.x, out.y, out.z);
+    return true;
+}
+
+void mockHandTo_f()
+{
+    const int hand = Cmd_Argc() >= 2 ? mockHand(Cmd_Argv(1)) : -1;
+    const bool weapon = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "weapon");
+    if(hand < 0 || (!weapon && Cmd_Argc() != 5))
+    {
+        Con_Printf("usage: vr_mock_hand_to <main|off> <x> <y> <z>\n"
+                   "       vr_mock_hand_to <main|off> weapon <fraction> [<height cm>]\n");
+        return;
+    }
+    glm::vec3 target{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
+    if(weapon && !weaponPoint(Q_atof(Cmd_Argv(3)), Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f, target))
+    {
+        Con_Printf("vr_mock_hand_to: no weapon lying about\n");
+        return;
+    }
+    const hands::State& st = hands::current();
+    if(!st.valid)
+    {
+        Con_Printf("vr_mock_hand_to: the hands aren't known yet\n");
+        return;
+    }
+    // The world's offset in the tracking space's axes (the play space's yaw), in metres.
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(glm::vec3{0.f, hands::playSpaceYaw(), 0.f}, fwd, right, up);
+    const glm::vec3 d = (target - st.pos[hand]) / units::metresToUnits();
+    if(!mockHandSet[hand])
+    {
+        mockHandPos[hand] = standingPose().hands[hand].position;
+        mockHandSet[hand] = true;
+    }
+    mockHandPos[hand] += glm::vec3{glm::dot(d, right), glm::dot(d, up), -glm::dot(d, fwd)};
+    Con_Printf("vr_mock_hand_to: %s hand at %.3f %.3f %.3f (tracking)\n", hand == HAND_MAIN ? "main" : "off",
+        mockHandPos[hand].x, mockHandPos[hand].y, mockHandPos[hand].z);
 }
 
 // vr_mock_camera <x> <y> <z> <pitch> <yaw>: the eyes drawn from there (tracking space, metres; pitch down positive)
@@ -727,6 +857,7 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_button", mockButton_f);
     Cmd_AddCommand("vr_mock_stick", mockStick_f);
     Cmd_AddCommand("vr_mock_hand", mockHand_f);
+    Cmd_AddCommand("vr_mock_hand_to", mockHandTo_f);
     Cmd_AddCommand("vr_mock_look", mockLook_f);
     Cmd_AddCommand("vr_mock_camera", mockCamera_f);
     Cmd_AddCommand("vr_mock_fingers", mockFingers_f);

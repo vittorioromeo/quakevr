@@ -749,7 +749,7 @@ is the most useful thing to send me along with a description. In particular:
 ## Testing without a headset
 
 `vr_backend mock; vr_enabled 1` runs everything with a pretend headset. `vr_mock_button <main|off> <trigger|grip|primary|secondary|stickclick|menu> <0|1>`,
-`vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]` and `vr_mock_look <pitch> <yaw>` drive it; `vr_mock_swing <period>`
+`vr_mock_stick <main|off> <x> <y>` `vr_mock_hand <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]` and `vr_mock_look <pitch> <yaw>` drive it (`vr_mock_hand_to <main|off> <x> <y> <z>` puts a hand at a world point, `vr_mock_hand_to main weapon <fraction> [<cm>]` over the nearest weapon lying about, that far along it: ROUND21.md, "Crowbar follow-ups"); `vr_mock_swing <period>`
 swings the main hand for throwing tests. `vr_mock_shake <degrees>` shakes the head (quick small turns at 5-13 Hz and
 4 mm a degree of position wobble) and `vr_mock_shake_turn <degrees/s>` turns it slowly under that, timed from when the
 shake starts (the same poses every run with `vr_fixed_frames 1`); `vr_window_log 1` prints the head's and the window

@@ -138,6 +138,9 @@ struct FistContact
 // nothing is within `reach` units of the fist's bounds (out.gap is then more than reach).
 bool fistContact(edict_t* ent, const std::vector<glm::vec4>& spheres, float reach, FistContact& out);
 
+// Whether the world point `p` is within `margin` units of the box `ent`'s model is drawn in (turned with it).
+[[nodiscard]] bool nearDrawn(edict_t* ent, const glm::vec3& p, float margin);
+
 // Server side: whether `player`'s `hand` (0 off, 1 main) touches `ent` to take hold of it: its fist at the hand's
 // place and angles (the move's) within vr_carry_grab_bias (cm, may be negative) plus `slack` (units) of its drawn
 // surface. Without a fist (not known), the old test: the hand's point in the thing's box and within 8 cm of its

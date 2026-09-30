@@ -459,6 +459,11 @@ float bounds(const std::vector<glm::vec4>& spheres, glm::vec3& centre)
 
 } // namespace
 
+bool nearDrawn(edict_t* ent, const glm::vec3& p, float margin)
+{
+    return nearDrawnBox(ent, p, margin);
+}
+
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
 {
     std::vector<Triangle>& triangles = scratch.distanceTris;
