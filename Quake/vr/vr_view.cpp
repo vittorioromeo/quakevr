@@ -5263,6 +5263,136 @@ void graspBench_f()
     }
 }
 
+// vr_grasp_sweep [runs]: each hand's grasp of what it holds solved afresh at 7 places in the hand (as held; moved 0.3
+// hand units along x, y, z; turned 4 degrees about x, z) and 8 kinds of solve (as held; again with the solve before;
+// the place searched wider; the palm given; the thumb's style swapped; the thenar swapped and a deeper overlap; a prop's
+// fit, turned to face and flush; cupped by the other hand, when drawn): one line each with the whole result, to the
+// last bit ("gsweep ...": Misc/quakevr/grasp_compare.py compares two runs' lines), then the afresh solve as held timed
+// `runs` times (default 20; its median, ms).
+void graspSweep_f()
+{
+    const int runs = Cmd_Argc() > 1 ? CLAMP(1, Q_atoi(Cmd_Argv(1)), 10000) : 20;
+    const auto line = [](int hand, const char* model, int variant, int place, const grasp::Solution& s) {
+        std::string t = va("gsweep h%d %s v%d p%d palm %.9g %.9g %.9g turn %.9g %.9g %.9g %.9g thumb %d %.9g %.9g %.9g %.9g",
+            hand, model, variant, place, s.palm.x, s.palm.y, s.palm.z, s.palmTurn.w, s.palmTurn.x, s.palmTurn.y,
+            s.palmTurn.z, s.thumbChoice, s.thumbTurn.w, s.thumbTurn.x, s.thumbTurn.y, s.thumbTurn.z);
+        for(int f = 0; f < handrig::FingerCount; f++)
+        {
+            const grasp::FingerStop& st = s.finger[f];
+            t += va(" f%d %.9g %.9g %.9g %d%d%d%d", f, st.stop[0], st.stop[1], st.stop[2], st.met ? 1 : 0, st.startsInside ? 1 : 0,
+                st.fromClosed ? 1 : 0, st.leastInside ? 1 : 0);
+        }
+        t += va(" probes %d places %d\n", s.probes, s.places);
+        Con_Printf("%s", t.c_str());
+    };
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const RigHand& rh = rigHands[hand];
+        if(!rh.drawn || !rh.held.ent || !rh.held.ent->model)
+        {
+            continue;
+        }
+        const int frame = rh.held.frame >= 0 ? rh.held.frame : rh.held.ent->frame;
+        const grasp::Shape* shape = grasp::shapeOf(*rh.held.ent, frame);
+        if(!shape)
+        {
+            continue;
+        }
+        const char* model = COM_SkipPath(rh.held.ent->model->name);
+        const glm::mat4 inRig = glm::inverse(rh.solveRig) * grasp::shapeToWorld(*rh.held.ent, rh.held.mirrored);
+        const grasp::Settings base = graspSettings(rh.held, rh.rigUnit);
+
+        // The other hand as drawn, for the cup (as updateGrasp makes it).
+        const RigHand& other = rigHands[1 - hand];
+        grasp::Shape otherShape;
+        if(other.drawn)
+        {
+            const glm::mat4 otherInRig = glm::inverse(rh.solveRig) * other.rigToWorld;
+            std::vector<glm::vec3> posed;
+            handrig::vertices(other.posed, posed);
+            std::vector<grasp::Triangle> tris;
+            const auto at = [&](const glm::vec3& p) { return glm::vec3{otherInRig * glm::vec4{drawnInRig(other, p), 1.f}}; };
+            for(const auto& tri : handrig::rig().triangles)
+            {
+                tris.push_back({{at(posed[tri[0]]), at(posed[tri[1]]), at(posed[tri[2]])}});
+            }
+            grasp::makeShape(tris, otherShape);
+        }
+
+        const glm::mat4 places[7] = {glm::mat4{1.f}, glm::translate(glm::mat4{1.f}, glm::vec3{0.3f, 0.f, 0.f}),
+            glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.3f, 0.f}), glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, 0.3f}),
+            glm::rotate(glm::mat4{1.f}, glm::radians(4.f), glm::vec3{1.f, 0.f, 0.f}),
+            glm::rotate(glm::mat4{1.f}, glm::radians(4.f), glm::vec3{0.f, 0.f, 1.f}),
+            glm::rotate(glm::translate(glm::mat4{1.f}, glm::vec3{-0.3f, -0.2f, 0.2f}), glm::radians(-4.f), glm::vec3{0.f, 1.f, 0.f})};
+        int solves = 0;
+        for(int p = 0; p < 7; p++)
+        {
+            const glm::mat4 m = places[p] * inRig;
+            grasp::Solution first;
+            for(int v = 0; v < 8; v++)
+            {
+                grasp::Settings s = base;
+                const grasp::Solution* previous = nullptr;
+                grasp::Shape* extra = nullptr;
+                switch(v)
+                {
+                case 1: previous = &first; break;
+                case 2:
+                    s.searchPlace = true;
+                    s.palmTurnLimit = 0.f;
+                    s.palmLimit = std::fmax(base.palmLimit, 1.f) * 1.5f;
+                    break;
+                case 3:
+                    s.fixedPalm = true;
+                    s.palmMove = first.palm;
+                    s.palmTurnMove = first.palmTurn;
+                    break;
+                case 4: s.thumbTop = !base.thumbTop; break;
+                case 5:
+                    s.thenar = !base.thenar;
+                    s.overlap = base.overlap * 1.5f + 0.05f;
+                    break;
+                case 6:
+                    s.searchPlace = false;
+                    s.fixedPalm = false;
+                    s.palmTurnLimit = 20.f;
+                    s.palmLimit = std::fmax(base.palmLimit, 1.f);
+                    break;
+                case 7:
+                    if(!other.drawn)
+                    {
+                        continue;
+                    }
+                    extra = &otherShape;
+                    break;
+                default: break;
+                }
+                grasp::forgetSolves(); // a real solve, not a remembered one
+                grasp::Solution out;
+                grasp::solve(rh.pose, *shape, m, s, previous, out, extra, glm::mat4{1.f}, extra ? 0.1f : 0.f);
+                if(v == 0)
+                {
+                    first = out;
+                }
+                line(hand, model, v, p, out);
+                solves++;
+            }
+        }
+        std::vector<double> ms;
+        for(int i = 0; i < runs; i++)
+        {
+            grasp::forgetSolves();
+            grasp::Solution out;
+            const auto t0 = std::chrono::steady_clock::now();
+            grasp::solve(rh.pose, *shape, inRig, base, nullptr, out);
+            ms.push_back(std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() * 1e3);
+        }
+        std::sort(ms.begin(), ms.end());
+        Con_Printf("gsweep time h%d %s: %d solves; afresh as held, %d times: min %.3f ms, median %.3f ms\n", hand, model,
+            solves, runs, ms.front(), ms[ms.size() / 2]);
+    }
+}
+
 void graspDump_f()
 {
     const int hand = Cmd_Argc() >= 2 && !q_strcasecmp(Cmd_Argv(1), "off") ? HAND_OFF : HAND_MAIN;
