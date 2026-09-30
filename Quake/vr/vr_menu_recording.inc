@@ -13,6 +13,11 @@
                   "rendering. The headset's view is the same in all three."),
         cycle("Desktop Mirror", "vr_mirror", {{0.f, "Off"}, {1.f, "On"}, {2.f, "Both Eyes (Left Eye view)"}})
             .help("Off: the window shows nothing of the game in VR (in any Window View), which saves its small cost."),
+        toggle("Flat HUD on the Mirror", "vr_window_hud_mirror")
+            .help("The flat status bar over the window's Left Eye and Smoothed Mirror views (on by default)."),
+        toggle("Flat HUD on the Spectator Camera", "vr_window_hud_spectator")
+            .help("The flat status bar over the Spectator Camera (off by default: the recording shows the game as the "
+                  "headset does, with the wrist gadget as its HUD)."),
         header("Steadying"),
         slider("Smoothing", "vr_window_smooth", 0.f, 0.5f, 0.01f, "%.2f s")
             .help("How much the head's shake is smoothed out: the view's lag behind your head. 0.1-0.2 s takes out the "

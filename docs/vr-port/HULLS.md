@@ -413,7 +413,7 @@ Quake's hull 1, 0.015 with B at 16 and 0.015 with A at 16 (29 traces and 66-73 h
    (Width Against Them, per category). Decided (round 21): shots and missiles hit a 24-wide box (Width Shots Hit);
    melee and splash go by distance; item pickups keep Quake's 32 box.
 4. **Clip brushes.** Accept the heuristic's residue, or add the hull 1 fallback (a second trace).
-5. **Monsters.** Round 3 ("Monsters" below): per class and opt-in (Movement > Monster Hitbox, off by default).
+5. **Monsters.** Round 3 ("Monsters" below): per class (Movement > Monster Hitbox, on by default since 2026-09-30).
 6. **Method.** A (the compiled hull) is the default: Quake's own trace, a little faster, 90 ms more at load (170 at
    most). B stays selectable for comparing.
 7. **On by default?** Decided (round 21, NOTES.md e1m1_2026-09-30_02-19-27, e1m3_2026-09-30_02-34-01): 16 wide with
@@ -453,7 +453,7 @@ them against the map with hull 1 or 2, so the box and the width against walls di
 didn't. "Quite large" was mostly the width against walls: an ogre kept 32 units from a wall when its box is 20 from its
 centre (and drawn narrower still), a grunt or a knight 16 instead of 12.
 
-### What it does (`vr_mhull`, Movement > Monster Hitbox, off by default)
+### What it does (`vr_mhull`, Movement > Monster Hitbox, on by default since 2026-09-30)
 
 With Narrower Monsters on, a monster of a known class (id1's 13, by classname; alive: `SOLID_SLIDEBOX`) moves against
 the map and brush models with a compiled hull (method A, the player's machinery) of its class's width, Quake's hull

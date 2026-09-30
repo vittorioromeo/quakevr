@@ -388,14 +388,19 @@ extern "C" void VR_End2D(void (*windowHud)())
     // Back to the window, with the HUD and the 2D layer over the mirrored eye.
     gfx::endCanvas();
     gadget::renderScreen(); // shown in the eyes next frame, as the canvas
-    if(std::exchange(windowHudPending, false) && windowHud)
+    // The flat HUD over the window's view of the eyes (NOTES.md vrfiringrange_2026-09-30_11-20-33): the mirror's
+    // (vr_window_hud_mirror, on) and the spectator camera's (vr_window_hud_spectator, off: a recording shows the
+    // game as the headset does, with the wrist gadget).
+    const window::View view = window::view();
+    const bool windowHudShown = !stereoThisFrame ||
+                                (view == window::View::Spectator ? vr_window_hud_spectator.value : vr_window_hud_mirror.value) != 0.f;
+    if(std::exchange(windowHudPending, false) && windowHud && windowHudShown)
     {
         windowHud();
     }
 
     // Not over the smoothed mirror or the spectator camera (vr_window.cpp), for recording: the window shows the HUD and
     // the menus as the headset does, in the world; the console still, while it is down.
-    const window::View view = window::view();
     const bool recording = stereoThisFrame && (view == window::View::Smoothed || view == window::View::Spectator);
     if(!recording || key_dest == key_console || con_forcedup)
     {

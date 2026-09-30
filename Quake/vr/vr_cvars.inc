@@ -14,7 +14,7 @@ QVR_CVAR(vr_hull_monsters, "1", CVAR_ARCHIVE)          // the narrow entity widt
 QVR_CVAR(vr_hull_players, "1", CVAR_ARCHIVE)           // ... between players
 QVR_CVAR(vr_hull_boxes, "1", CVAR_ARCHIVE)             // ... between the player and other solid boxes (explosive boxes, solid items)
 QVR_CVAR(vr_hull_hit_width, "24", CVAR_ARCHIVE)        // the player's width that shots, missiles and splash traces hit (not bodies moving: vr_hull_ent_width) (8-32; 0: Quake's 32)
-QVR_CVAR(vr_mhull, "0", CVAR_ARCHIVE)                  // Movement > Monster Hitbox: monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
+QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                  // Movement > Monster Hitbox: monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
 QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
 QVR_CVAR(vr_mhull_ledges, "1", CVAR_ARCHIVE)            // ... and SV_CheckBottom's ledge test takes the narrow box's corners (0: Quake's box's)
 QVR_CVAR(vr_mhull_army, "-1", CVAR_ARCHIVE)            // a class's width against walls: -1 its own box's (QC setsize; the default), 0 Quake's hull, or 16 up
@@ -78,13 +78,13 @@ QVR_CVAR(vr_throw_gain_hi, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_weight_influence, "0.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_hitbox, "6", CVAR_ARCHIVE)       // half-size (units) of a thrown weapon's box against monsters
 QVR_CVAR(vr_throw_hit_min_speed, "200", CVAR_ARCHIVE) // units/s a thrown thing must go at to hurt what it touches (slower: the throw is over)
-// Aim assist (QC, opt-in): bends a throw by up to vr_throw_assist_strength onto a monster or
+// Aim assist (QC; on, the author's values, NOTES.md vrfiringrange_2026-09-30_11-25-52): bends a throw by up to vr_throw_assist_strength onto a monster or
 // breakable within vr_throw_assist_cone degrees of it (fully within vr_throw_assist_full), in
 // range and in sight, on a ballistic arc, allowing vr_throw_assist_speed more speed.
-QVR_CVAR(vr_throw_assist, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_assist_cone, "12", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_assist, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_assist_cone, "15", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_full, "4", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_assist_strength, "0.8", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_assist_strength, "0.35", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_range, "1200", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_assist_speed, "0.15", CVAR_ARCHIVE)
 // Thrown weapons and backpacks as rigid bodies (Box3D, vr_box3d.cpp): bounciness and friction of
@@ -158,6 +158,10 @@ QVR_CVAR(vr_spectator_scale, "0.75", CVAR_ARCHIVE)    // spectator camera: its r
 QVR_CVAR(vr_spectator_rate, "60", CVAR_ARCHIVE)        // spectator camera: drawn every frame (1), every 2nd or 3rd (2, 3), or at most this many times a second (more than 3); the window shows the last between
 QVR_CVAR(vr_spectator_aa, "1", CVAR_ARCHIVE)           // spectator camera: 1 the window's MSAA (vid_fsaa), as the eyes; 0 none
 QVR_CVAR(vr_spectator_pos_smooth, "0.05", CVAR_ARCHIVE) // spectator camera: seconds, the steadied position's lag (0 none .. 0.3)
+// The flat HUD (the status bar, hudstyle) over the window's view while in VR: over the mirror (Left Eye, Smoothed
+// Mirror) and over the spectator camera (off: the headset's view, the wrist gadget its HUD, for recording).
+QVR_CVAR(vr_window_hud_mirror, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_window_hud_spectator, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_window_log, "0", CVAR_NONE)               // 1: print the head's and the window camera's angles every frame (tests)
 
 // Near clipping plane in the headset, in units (the desktop's is up to 4).
@@ -958,7 +962,7 @@ QVR_CVAR(vr_weapon_throw_damage_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_throw_velocity_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_weapon_cycle_mode, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_melee_bloodlust, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_melee_bloodlust_mult, "1.0", CVAR_ARCHIVE)
+QVR_CVAR(vr_melee_bloodlust_mult, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_enemy_drops, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_enemy_drops_chance_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammobox_drops, "0", CVAR_ARCHIVE)
@@ -1034,8 +1038,8 @@ QVR_CVAR(vr_damage_self, "1", CVAR_ARCHIVE)              // damage the player de
 QVR_CVAR(vr_headshot_mult, "1.5", CVAR_ARCHIVE)          // positional damage: headshots,
 QVR_CVAR(vr_limbshot_mult, "0.35", CVAR_ARCHIVE)         // arms (far from the body's middle),
 QVR_CVAR(vr_legshot_mult, "0.6", CVAR_ARCHIVE)           // and legs
-QVR_CVAR(vr_melee_push, "1", CVAR_ARCHIVE)               // how far your melee blows push what they hit
-QVR_CVAR(vr_melee_push_player, "1", CVAR_ARCHIVE)        // how far monsters' melee blows push you
+QVR_CVAR(vr_melee_push, "0.5", CVAR_ARCHIVE)               // how far your melee blows push what they hit
+QVR_CVAR(vr_melee_push_player, "0.6", CVAR_ARCHIVE)        // how far monsters' melee blows push you
 QVR_CVAR(vr_parry_push_enemy, "1", CVAR_ARCHIVE)         // how far a parry pushes the attacker back
 QVR_CVAR(vr_parry_push_player, "1", CVAR_ARCHIVE)        // and you
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)

@@ -1016,7 +1016,7 @@ After the posing test (ROUND21.md): `vr_debug_shots 1` with `developer 1` prints
 what its pellets hit, headshots) and each damage you deal; a monster at the muzzle: `impulse 150 + weapon id` (with
 `vr_weapon_grip_mode 1`, `impulse 9` for ammo a frame before), `vr_mock_hand main 0.08 1.05 -1.2 40 0 0`, then
 `vr_test_spawn 0; vr_test_spawn_dist 44; impulse 241` puts a grunt's head round the muzzle in vrfiringrange.
-`vr_pose_solve 1` solves the posing hand live (as before).
+`vr_pose_solve 1` solves the posing hand live (as before). Each headshot that plays its sound prints `headshot sound: <target> by <inflictor>` (`vr_debug_shots 1`). Weapon ids: impulse 154 shotgun, 156 nailgun, 162 laser cannon (hipnotic). `vr_test_dialog [seconds] [turn] [eyeshot]`: the New Game confirmation, closing by itself, while the mock head turns: eye images at its first and last frames and the eyes' yaw printed (they must follow the head).
 Dummy attacks (round 21): `vr_dummy_attacks 1` in vrfiringrange (as the button); with `developer 1` each wind-up, blow
 and miss is printed with its time; `vr_dummy_attack_jitter 0` makes the blows regular (the first 1.6 s after it's
 turned on, then every `vr_dummy_attack_period`). Note: `setpos` turns noclip on, and in noclip a blow's knockback

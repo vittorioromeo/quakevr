@@ -119,6 +119,11 @@ void setPlaySpaceYaw(float yaw);
 void resetClientState();
 void setLean(const glm::vec3& worldLean);
 
+// A frame outside the host frames (a dialog's, VR_ModalMessageFrame): the head and hands read again from the new
+// tracking, in the same host frame. Else the eyes kept the last host frame's head, and the headset showed that image
+// stuck to the face.
+void refresh();
+
 // Updated at most once per host frame; valid only while connected to a VR-protocol server.
 [[nodiscard]] State& current();
 

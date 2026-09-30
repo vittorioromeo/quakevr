@@ -96,8 +96,18 @@ const DefaultChange defaultChanges[] = {
     // 53: the author's melee speed: soft punches landed too rarely at 4 (NOTES.md vrfiringrange_2026-09-30_02-00-22 and
     // 02-02-15; ROUND21.md, "Melee speed 3; reloads aren't blows").
     {53, &vr_melee_speed, "4"},
+    // 57: the author's (NOTES.md 2026-09-30): Narrower Monsters on (e1m1_2026-09-30_10-57-09), a little throw aim assist
+    // (vrfiringrange_2026-09-30_11-25-52), and his melee pushes and bloodlust, compiled in now (vr_defaults.cfg had them
+    // since round 15, without a change for the configs saved before: vrfiringrange_2026-09-30_11-20-10).
+    {57, &vr_mhull, "0"},                     // 1
+    {57, &vr_throw_assist, "0"},              // 1
+    {57, &vr_throw_assist_cone, "12"},        // 15
+    {57, &vr_throw_assist_strength, "0.8"},   // 0.35
+    {57, &vr_melee_push, "1"},                // 0.5
+    {57, &vr_melee_push_player, "1"},         // 0.6
+    {57, &vr_melee_bloodlust_mult, "1.0"},    // 0.5
 };
-constexpr int configVersion = 56;
+constexpr int configVersion = 57;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
