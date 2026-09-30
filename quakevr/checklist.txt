@@ -66,6 +66,8 @@ First session on the clang-cl build: plays as before (and a Debug build steps fi
 
 Main hand Left: right stick moves, left turns, gadget on the right wrist reading upright, torch on the right hip; arms look normal (no swap); calibration's main-hand step raising each hand
 
+Map loads faster (e1m1 718->443 ms, e2m2 1208->527 ms): monsters still walk normally with Narrower Monsters; voice notes: no hitch from the screenshot
+
 [Decide or give feedback]
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
