@@ -15634,3 +15634,53 @@ stack with files and lines from lld's .pdb (`VR_DebugCrash_f vr_main.cpp:720`, `
 `build.sh`'s `" error "` grep shows; a linker warning (lld-link's `lld-link : warning :`) would not show: its grep
 could be `" error |warning C|: warning :"`. The machine needs Visual Studio's "C++ Clang tools for Windows" (installed
 here: clang 19.1.5).
+
+## Phasing through a toppled box (2026-09-30)
+
+Your note (vrfiringrange 16:25): after toppling the long explosive box onto its long side, you went through it when
+jumping on top; after nudging it, it stopped, and you couldn't make it happen again.
+
+**Why.** Not a stale shape or stale bounds: the box's traced shape, its Quake box and its area links follow its turn
+(solidBox, every write), and a test measuring against its Box3D body, not the entity, always agreed with the traced
+shape. The hole was in "Never Trapped" (`VR_PropLetsOut`): a player whose move *starts* inside a solid prop isn't held
+by it, so he can walk out of a box toppled onto him. It exempted only the prop he stands on, and only with
+`FL_ONGROUND` set, which Quake clears for the length of his own walk move and which a jump clears. So when a box lying
+on its side rocked or turned up into his feet by a fraction of a unit (woken by his landing, his weight or his jump
+push; a box lying on a long side rocks on it), or he was a hair into it after a landing on a rocking box, the whole box
+stopped being solid to him: he fell into it and through it, and `unstickProps` shoved it away sideways. How often it
+happens depends on how the box lies and rocks, which is why a nudge (another rest pose) made it go away.
+
+**Now** (`vr_box3d_player_hold`, 1; vr_box3d.cpp `VR_PropLetsOut`, `depthIn`, `feetInTop`; world.c passes the move's
+end and whether the drawn shape met it):
+
+- A player inside a solid prop moves only out of it, never deeper (a move that ends deeper is stopped). He still walks
+  out of a box toppled onto him, the nearest way (or sideways, under a box on his head).
+- With his feet a little (at most a step) into its top, the nearest way out being a face he'd stand on, he isn't let
+  through at all: `SV_CheckStuck` puts him back on top (its last free spot, else a unit or more up), and the box isn't
+  shoved out of him.
+- 0 is the old behaviour. Player Hitbox page, "Standing on Props": Never Through Them.
+
+**Tests** (mock headset, your settings, `Misc/quakevr/propphase_sweep.py`: 96 cases, the map's long box 207 laid on each
+long face at exactly 90 degrees, dropped onto either long edge, and tipped past its balance to topple by itself, at 12
+yaws 0 to 165; then your feet put 0.5 and 4 units into its top, dropped on it and jumped twice, walked off 4 ways, and
+run at it from 8 directions 3 ways each, jumping onto and over it; `vr_physics_inside` counts frames inside its body's
+drawn shape, grown by your column):
+
+| | Before (`vr_box3d_player_hold 0`) | After |
+| --- | --- | --- |
+| Feet 0.5 / 4 units into its top: ended standing on it | 0 of 192 (all fell through to the floor) | 192 of 192 |
+| Cases with you over 2 units inside it | 96 of 96 (deepest 24.0) | 0 (deepest 0.74, 12 frames in all) |
+| The run-ups alone (an earlier run, without the sink tests) | 3 of 84 cases, 14.9 and 22.7 units deep | - |
+
+The runs are not frame-for-frame repeatable (Box3D's threads), so the natural cases vary; the sink tests fail every
+time before. Regression: the trapped-under-a-toppled-box test (you walk out), walking into boxes and jumping on and off
+20 times give the same prints with the setting on and off; melee canary 48/53, no differences; e1m1 smoke clean.
+
+**Debug:** `vr_physics_inside [1 | 0]` (Debug, "World and Physics": Watch Props Entered, Props Entered),
+`vr_physics_player onto <n> [<height>]` (feet that far over its box's top; negative: into it), `vr_physics_player near
+<n> <direction> <distance>` (on the floor beside it, facing it). The sweep: `python Misc/quakevr/propphase_sweep.py
+[--set "vr_box3d_player_hold 0"] [--out pp_x.cfg]`, run `exec pp_x.cfg` with `-Filter "CASE|SINK|vr_physics_inside:|
+vr_physics_player: [0-9]"`, then `--check <output>` (nonzero exit on a failure).
+
+**In the headset:** topple the long box onto a long side, jump onto it many times (from the floor and in place on it),
+stand on its ends and rock it; you should always stay on top. Also let a box fall onto you and walk out.

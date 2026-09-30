@@ -3794,7 +3794,7 @@ void sink_f()
 
 // vr_physics_player [onto <number | classname>]: the first player's origin, velocity and ground (FL_ONGROUND,
 // .groundentity) and what is under his feet, for tests of standing on props; with onto, first put on top of that
-// entity's box (the first of them), still, noclip off.
+// entity's box (the first of them), still, noclip off; with near, on the floor beside it (see below).
 void playerOverProp(edict_t* p); // (below, with the players' shape against props)
 
 void player_f()
@@ -3816,8 +3816,35 @@ void player_f()
         const edict_t* e = list.front();
         p->v.origin[0] = (e->v.absmin[0] + e->v.absmax[0]) * 0.5f;
         p->v.origin[1] = (e->v.absmin[1] + e->v.absmax[1]) * 0.5f;
-        p->v.origin[2] = e->v.absmax[2] - p->v.mins[2] + 1.f;
+        // (onto <entity> <height>: his feet that far over its box's top, 1 by default; under 0, into it: his feet in a lying
+        // box's top, as it rocks up into them.)
+        p->v.origin[2] = e->v.absmax[2] - p->v.mins[2] + (Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 1.f);
         VectorCopy(vec3_origin, p->v.velocity);
+        VectorCopy(p->v.origin, p->v.oldorigin); // (SV_CheckStuck's last free spot: here, not where he was before)
+        p->v.movetype = MOVETYPE_WALK;
+        setFlag(p, FL_ONGROUND, false);
+        SV_LinkEdict(p, false);
+    }
+    else if(Cmd_Argc() > 4 && !strcmp(Cmd_Argv(1), "near"))
+    {
+        // near <number | classname> <direction> <distance>: on the floor the entity's box stands on, <distance> units
+        // from its middle towards <direction> (degrees of yaw), facing it (a run-up at a prop from a side).
+        const std::vector<edict_t*> list = entitiesNamed(Cmd_Argv(2));
+        if(list.empty())
+        {
+            Con_Printf("vr_physics_player: no %s\n", Cmd_Argv(2));
+            return;
+        }
+        const edict_t* e = list.front();
+        const float a = glm::radians(Q_atof(Cmd_Argv(3))), d = Q_atof(Cmd_Argv(4));
+        p->v.origin[0] = (e->v.absmin[0] + e->v.absmax[0]) * 0.5f + d * std::cos(a);
+        p->v.origin[1] = (e->v.absmin[1] + e->v.absmax[1]) * 0.5f + d * std::sin(a);
+        p->v.origin[2] = e->v.absmin[2] - p->v.mins[2] + 1.f;
+        p->v.angles[0] = p->v.angles[2] = 0.f;
+        p->v.angles[1] = anglemod(Q_atof(Cmd_Argv(3)) + 180.f);
+        p->v.fixangle = 1;
+        VectorCopy(vec3_origin, p->v.velocity);
+        VectorCopy(p->v.origin, p->v.oldorigin); // (SV_CheckStuck's last free spot: here, not where he was before)
         p->v.movetype = MOVETYPE_WALK;
         setFlag(p, FL_ONGROUND, false);
         SV_LinkEdict(p, false);
@@ -3838,6 +3865,8 @@ void player_f()
 
 void inLevel_f(); // (below: the Box3D queries it uses are)
 void approach_f(); // (below, with the players' shape against props)
+void inside_f();
+void watchInside();
 
 void registerCommands()
 {
@@ -3856,6 +3885,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_sink", sink_f);
         Cmd_AddCommand("vr_physics_inlevel", inLevel_f);
         Cmd_AddCommand("vr_physics_approach", approach_f);
+        Cmd_AddCommand("vr_physics_inside", inside_f);
         Cmd_AddCommand("vr_physics_spawn", spawn_f);
         Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
     }
@@ -4729,9 +4759,12 @@ void shoveBumped(float dt)
     world->bumps.clear();
 }
 
+[[nodiscard]] bool feetInTop(edict_t* p, edict_t* prop); // (below, with the players' shape against props)
+
 // Before the step: a solid prop in a player's body (toppled onto him, shoved into him; its drawn shape in his box, less
-// a unit), not the one he stands on, is pushed out of it, away from his middle (never down), at 1 m/s at least; his moves
-// aren't blocked by it meanwhile (VR_PropLetsOut). Source pushes a prop stuck in the player out likewise.
+// a unit), not the one he stands on nor one his feet are a little into the top of, is pushed out of it, away from his
+// middle (never down), at 1 m/s at least; his moves aren't blocked by it meanwhile (VR_PropLetsOut). Source pushes a
+// prop stuck in the player out likewise.
 void unstickProps()
 {
     if(!vr_box3d_player_unstick.value)
@@ -4784,6 +4817,10 @@ void unstickProps()
         const glm::vec3 middle = origin + 0.5f * (glm::vec3{mins[0], mins[1], mins[2]} + glm::vec3{maxs[0], maxs[1], maxs[2]});
         for(int k = 0; k < q.count; k++)
         {
+            if(vr_box3d_player_hold.value && feetInTop(player, EDICT_NUM(q.nums[static_cast<size_t>(k)])))
+            {
+                continue; // (he is on it: put back on top, SV_CheckStuck)
+            }
             const b3BodyId body = world->slots[q.nums[static_cast<size_t>(k)]].body;
             glm::vec3 away = world->toU(b3Body_GetWorldCenter(body)) - middle;
             away.z = std::max(away.z, 0.f);
@@ -4966,12 +5003,19 @@ void addNormal(PropShape& p, glm::dvec3 n)
 }
 
 // The prop `touch` (slot s) and the player's box (mins, maxs from his origin) as they meet.
+[[nodiscard]] PropShape propShapeAt(const glm::vec3& origin, const glm::mat3& axes, const Slot& s, const float* mins, const float* maxs);
+
 [[nodiscard]] PropShape propShape(edict_t* touch, const Slot& s, const float* mins, const float* maxs)
 {
+    return propShapeAt(vec(touch->v.origin), held::axesFromAngles(touch->v.angles, s.brush), s, mins, maxs);
+}
+
+// The same with the prop at origin, turned to axes (its body's pose: vr_physics_inside).
+[[nodiscard]] PropShape propShapeAt(const glm::vec3& origin, const glm::mat3& axes, const Slot& s, const float* mins, const float* maxs)
+{
     PropShape p;
-    const glm::mat3 axes = held::axesFromAngles(touch->v.angles, s.brush);
     const glm::vec3 mid = (s.mins + s.maxs) * 0.5f;
-    p.centre = glm::dvec3{vec(touch->v.origin)} + glm::dvec3{axes * mid};
+    p.centre = glm::dvec3{origin} + glm::dvec3{axes * mid};
     p.half = glm::dvec3{(s.maxs - s.mins) * 0.5f};
     int up = 0;
     for(int k = 0; k < 3; k++)
@@ -5195,6 +5239,165 @@ void approach_f()
         met ? lo : 0.0, met ? hi : 0.0, 0.5f * (maxs[0] - mins[0]), vr_box3d_player_shape.value ? "as drawn" : "off: its box");
 }
 
+// vr_physics_inside [1 | 0]: a test's watch on players passing into solid props (ROUND21.md, "Phasing through a
+// toppled box"). Each frame, a player's origin inside a solid prop's drawn box grown by his column (where none of his
+// moves may go, vr_box3d_player_shape) is counted, and the first frame of each time in is printed.
+struct InsideWatch
+{
+    bool on{false};
+    int frames{0}, inside{0}, times{0}, longest{0};
+    double deepest{0.0};
+    std::array<int, MAX_SCOREBOARD + 1> in{}, run{}; // (the prop each player is in, 0: none; for how many frames)
+};
+InsideWatch insideWatch;
+
+// How deep the player's origin o is inside the sum (negative: outside, by that much along the nearest face).
+[[nodiscard]] double insideDepth(const PropShape& p, const glm::dvec3& o)
+{
+    double depth = 1e300;
+    for(int k = 0; k < p.count; k++)
+    {
+        const glm::dvec3& n = p.normals[static_cast<size_t>(k)];
+        depth = std::min(depth, propSupport(p, n) - glm::dot(n, o));
+    }
+    return depth;
+}
+
+// How deep a player's origin is inside solid prop `prop` (his box mins, maxs as he meets it; shaped: its drawn shape,
+// else its Quake box), and the nearest way out (the face of their sum it is nearest; negative: outside by that much).
+[[nodiscard]] double depthIn(edict_t* prop, const float* origin, const float* mins, const float* maxs, bool shaped, glm::dvec3& out)
+{
+    const glm::dvec3 o{origin[0], origin[1], origin[2]};
+    double depth = 1e300;
+    const auto face = [&](const glm::dvec3& n, double d) {
+        if(d < depth)
+        {
+            depth = d;
+            out = n;
+        }
+    };
+    if(shaped)
+    {
+        const PropShape p = propShape(prop, world->slots[static_cast<size_t>(NUM_FOR_EDICT(prop))], mins, maxs);
+        for(int k = 0; k < p.count; k++)
+        {
+            const glm::dvec3& n = p.normals[static_cast<size_t>(k)];
+            face(n, propSupport(p, n) - glm::dot(n, o));
+        }
+    }
+    else
+    {
+        for(int k = 0; k < 3; k++) // (Quake's box against its box: their sum's six faces)
+        {
+            glm::dvec3 n{0.0};
+            n[k] = 1.0;
+            face(n, prop->v.origin[k] + prop->v.maxs[k] - mins[k] - o[k]);
+            face(-n, o[k] - (prop->v.origin[k] + prop->v.mins[k] - maxs[k]));
+        }
+    }
+    return depth;
+}
+
+// A player inside a solid prop with his feet only a little into its top: the nearest way out is up, through a face he
+// would stand on, at most a step. He landed on it, or it rose or turned into his feet (rocking under him, woken by his
+// weight), and is on it, not under it (ROUND21.md, "Phasing through a toppled box").
+[[nodiscard]] bool feetInTop(edict_t* prop, const float* origin, const float* mins, const float* maxs, bool shaped)
+{
+    glm::dvec3 out{0.0};
+    const double depth = depthIn(prop, origin, mins, maxs, shaped, out);
+    return out.z > 0.7 && depth <= VR_StepSize(18.f);
+}
+
+// The same for player p where he is, with his box as his moves meet prop (vr_hull_ent_width).
+[[nodiscard]] bool feetInTop(edict_t* p, edict_t* prop)
+{
+    vec3_t mins, maxs;
+    if(!VR_HullEntBox(p, p->v.mins, p->v.maxs, mins, maxs) || !VR_HullNarrowsAgainst(p, prop))
+    {
+        VectorCopy(p->v.mins, mins);
+        VectorCopy(p->v.maxs, maxs);
+    }
+    return feetInTop(prop, p->v.origin, mins, maxs, vr_box3d_player_shape.value != 0.f);
+}
+
+void watchInside()
+{
+    if(!insideWatch.on || !world || !vr_box3d_player_shape.value)
+    {
+        return;
+    }
+    insideWatch.frames++;
+    for(int num = 1; num <= svs.maxclients && num < qcvm->num_edicts; num++)
+    {
+        edict_t* p = EDICT_NUM(num);
+        if(p->free || static_cast<int>(p->v.solid) != SOLID_SLIDEBOX || static_cast<int>(p->v.movetype) == MOVETYPE_NOCLIP)
+        {
+            continue;
+        }
+        vec3_t mins, maxs;
+        if(!VR_HullEntBox(p, p->v.mins, p->v.maxs, mins, maxs))
+        {
+            VectorCopy(p->v.mins, mins);
+            VectorCopy(p->v.maxs, maxs);
+        }
+        int in = 0;
+        double depth = 0.0, traced = 0.0;
+        for(int g = svs.maxclients + 1; g < static_cast<int>(world->slots.size()) && g < qcvm->num_edicts && !in; g++)
+        {
+            edict_t* e = EDICT_NUM(g);
+            if(!solidProp(g) || e->free)
+            {
+                continue;
+            }
+            // (Its body as it is, not the entity's origin and angles its shape is traced from.)
+            const Slot& s = world->slots[static_cast<size_t>(g)];
+            const b3WorldTransform xf = b3Body_GetTransform(s.body);
+            const PropShape shape = propShapeAt(world->toU(xf.p), glm::mat3_cast(fromB3(xf.q)), s, mins, maxs);
+            depth = insideDepth(shape, glm::dvec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]});
+            in = depth > 0.01 ? g : 0;
+            if(in)
+            {
+                traced = insideDepth(propShape(e, s, mins, maxs), glm::dvec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]});
+            }
+        }
+        const size_t k = static_cast<size_t>(num);
+        if(in)
+        {
+            insideWatch.inside++;
+            insideWatch.deepest = std::max(insideWatch.deepest, depth);
+            if(insideWatch.in[k] != in)
+            {
+                insideWatch.times++;
+                edict_t* e = EDICT_NUM(in);
+                edict_t* g = PROG_TO_EDICT(p->v.groundentity);
+                Con_Printf("vr_physics_inside: %.2f s player %d in %d by %.2f (its traced shape: %.2f) at %.2f %.2f %.2f vel %.0f %.0f %.0f, "
+                           "%s on %d; it at %.2f %.2f %.2f angles %.2f %.2f %.2f, %s\n",
+                    qcvm->time, num, in, depth, traced, p->v.origin[0], p->v.origin[1], p->v.origin[2], p->v.velocity[0], p->v.velocity[1],
+                    p->v.velocity[2], (static_cast<int>(p->v.flags) & FL_ONGROUND) ? "grounded" : "in the air", NUM_FOR_EDICT(g),
+                    e->v.origin[0], e->v.origin[1], e->v.origin[2], e->v.angles[0], e->v.angles[1], e->v.angles[2],
+                    world->slots[static_cast<size_t>(in)].asleep ? "asleep" : "awake");
+            }
+        }
+        insideWatch.in[k] = in;
+        insideWatch.run[k] = in ? insideWatch.run[k] + 1 : 0;
+        insideWatch.longest = std::max(insideWatch.longest, insideWatch.run[k]);
+    }
+}
+
+void inside_f()
+{
+    if(Cmd_Argc() > 1)
+    {
+        insideWatch = InsideWatch{};
+        insideWatch.on = Q_atoi(Cmd_Argv(1)) != 0;
+        Con_Printf("vr_physics_inside: watch %s\n", insideWatch.on ? "on" : "off");
+        return;
+    }
+    Con_Printf("vr_physics_inside: %s: %d times in a prop, %d of %d frames (at most %d in a row), deepest %.2f units\n",
+        insideWatch.on ? "on" : "off", insideWatch.times, insideWatch.inside, insideWatch.frames, insideWatch.longest,
+        insideWatch.deepest);
+}
+
 } // namespace
 
 // SV_FlyMove: a solid prop is ground to a player (vr_box3d_player_stand) as a brush is.
@@ -5253,17 +5456,43 @@ extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal
     world->bumps.push_back({num, g, dir, speed});
 }
 
-// SV_ClipToLinks: a player's move that starts inside a solid prop's box (toppled onto him) goes on through it, not the
-// one he stands on (riding it, rideStanding steps him up out of it).
-extern "C" int VR_PropLetsOut(edict_t* mover, edict_t* touch)
+// SV_ClipToLinks: a player's move that starts inside a solid prop's box (toppled onto him) goes on, out of it; not in the
+// one he stands on (riding it, rideStanding steps him up out of it), nor one his feet are a little into the top of
+// (feetInTop: landed on it, or it rocked up into him; he's held, and SV_CheckStuck puts him back on top); and only a
+// move that takes him no deeper into it (vr_box3d_player_hold). Letting every move through, he fell into a box that
+// rocked up into his feet, or a side that rocked into him, and went on through it: "Phasing through a toppled box",
+// ROUND21.md.
+extern "C" int VR_PropLetsOut(edict_t* mover, edict_t* touch, const float* start, const float* mins, const float* maxs,
+    const float* end, int shaped)
 {
     if(!world || !vr_box3d_player_unstick.value)
     {
         return 0;
     }
     const int num = NUM_FOR_EDICT(mover), g = NUM_FOR_EDICT(touch);
-    return num >= 1 && num <= svs.maxclients && solidProp(g) &&
-           !((static_cast<int>(mover->v.flags) & FL_ONGROUND) && PROG_TO_EDICT(mover->v.groundentity) == touch);
+    if(num < 1 || num > svs.maxclients || !solidProp(g) ||
+        ((static_cast<int>(mover->v.flags) & FL_ONGROUND) && PROG_TO_EDICT(mover->v.groundentity) == touch))
+    {
+        return 0;
+    }
+    if(vr_box3d_player_hold.value)
+    {
+        vec3_t entmins, entmaxs;
+        const bool narrow = VR_HullEntBox(mover, mins, maxs, entmins, entmaxs) && VR_HullNarrowsAgainst(mover, touch);
+        const float* m = narrow ? entmins : mins;
+        const float* M = narrow ? entmaxs : maxs;
+        glm::dvec3 out{0.0}, to{0.0};
+        const double depth = depthIn(touch, start, m, M, shaped != 0, out);
+        if(depthIn(touch, end, m, M, shaped != 0, to) > depth + 0.01)
+        {
+            return 0; // (deeper: held, the move is stopped)
+        }
+        if(out.z > 0.7 && depth <= VR_StepSize(18.f)) // (feetInTop)
+        {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 // SV_ClipToLinks: a player's own box (his move's; mins, maxs) against a solid prop meets its drawn box as it is turned,
@@ -5443,6 +5672,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
     }
     callShocks();
+    watchInside();
 }
 
 namespace qvr::box3d
