@@ -81,7 +81,7 @@ struct AoScratch
 {
     std::vector<const entity_t*> owners; // each candidate's entity
     std::vector<int> order;              // the candidates in view, nearest first
-    auto members() { return std::tie(owners, order); }
+    auto members() { return qvr::mem::list(owners, order); }
 };
 mem::Scratch<AoScratch> scratch{"ao"};
 // The chosen occluders' models and their groups (a model's shapes share one: they don't darken the model itself), at

@@ -86,7 +86,7 @@ struct Scratch
 {
     std::vector<gfx::TubeRing> rings;
     std::vector<gfx::TubeRing> handleRings;
-    auto members() { return std::tie(rings, handleRings); }
+    auto members() { return qvr::mem::list(rings, handleRings); }
 };
 mem::Scratch<Scratch> scratch{"chainsaw"};
 

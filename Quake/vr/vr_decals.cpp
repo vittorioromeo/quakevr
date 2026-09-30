@@ -79,7 +79,7 @@ struct DecalScratch
 {
     std::vector<glm::vec3> poly, clipped; // a face's polygon cut to the mark (clipToWorld)
     std::vector<Corner> tris;             // the mark's triangles (add)
-    auto members() { return std::tie(poly, clipped, tris); }
+    auto members() { return qvr::mem::list(poly, clipped, tris); }
 };
 mem::Scratch<DecalScratch> scratch{"decals"};
 

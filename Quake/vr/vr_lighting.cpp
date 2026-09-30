@@ -322,7 +322,7 @@ struct CasterScratch
     std::vector<glm::mat4> brushModels;    // the brush casters' model matrices
     std::vector<entity_t*> faceCasters;    // the skeletal casters, drawn in every face
     std::vector<unsigned char> posed;      // whether each alias caster is posed by bones
-    auto members() { return std::tie(brushModels, faceCasters, posed); }
+    auto members() { return qvr::mem::list(brushModels, faceCasters, posed); }
 };
 mem::Scratch<CasterScratch> casterScratch{"shadow casters"};
 
@@ -674,7 +674,7 @@ struct ShadowScratch
     std::vector<Candidate> dlightCandidates; // (selectDlights)
     std::vector<Candidate> mapCandidates;    // the map lights near the viewer
     std::vector<Request> requests;           // the faces packed into the atlas
-    auto members() { return std::tie(dlightCandidates, mapCandidates, requests); }
+    auto members() { return qvr::mem::list(dlightCandidates, mapCandidates, requests); }
 };
 mem::Scratch<ShadowScratch> shadowScratch{"shadow lights"};
 

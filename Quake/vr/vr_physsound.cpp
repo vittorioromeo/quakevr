@@ -162,7 +162,7 @@ State state;
 struct PhysSoundScratch
 {
     std::vector<int> stillScraping; // (frameEnd)
-    auto members() { return std::tie(stillScraping); }
+    auto members() { return qvr::mem::list(stillScraping); }
 };
 mem::Scratch<PhysSoundScratch> scratch{"physsound"};
 

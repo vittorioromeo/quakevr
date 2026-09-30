@@ -87,7 +87,7 @@ struct Brushes
     int numnodes = 0;
     auto members()
     {
-        return std::tie(clipnodes, planes, brushes, leafBrush, subs, modelSub, clips, leafClipStart, leafClipList, clipStamp, stamp, hull1Clip, ms,
+        return qvr::mem::list(clipnodes, planes, brushes, leafBrush, subs, modelSub, clips, leafClipStart, leafClipList, clipStamp, stamp, hull1Clip, ms,
             clipMs, bevels, dropped, hull1Leaves, numnodes);
     }
 };
@@ -1181,7 +1181,7 @@ struct Tree
     int redone = 0;                            // pieces of its builds on the pool done again on one thread (buildTree)
     double ms = 0.0;                           // the builds so far
     int solidLeaves = 0, emptyLeaves = 0;
-    auto members() { return std::tie(nodes, planes, heads, forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone); }
+    auto members() { return qvr::mem::list(nodes, planes, heads, forClipnodes, ext, ms, solidLeaves, emptyLeaves, redone); }
 };
 mem::Cache<Tree> tree{"hull tree", mem::MapChange};
 
@@ -1196,7 +1196,7 @@ std::size_t heldBytes(const Tree& t)
 struct MonsterTrees
 {
     std::vector<Tree> trees;
-    auto members() { return std::tie(trees); }
+    auto members() { return qvr::mem::list(trees); }
 };
 mem::Cache<MonsterTrees> monsterTrees{"hull monster trees", mem::MapChange};
 constexpr std::size_t maxMonsterTrees = 12; // more box sizes than this at once: all compiled again (not expected)
@@ -2106,7 +2106,7 @@ struct ClassCache
 {
     std::vector<int> names;
     std::vector<signed char> classes;
-    auto members() { return std::tie(names, classes); }
+    auto members() { return qvr::mem::list(names, classes); }
 };
 mem::Cache<ClassCache> classCache{"hull monster classes", mem::MapChange};
 

@@ -519,7 +519,7 @@ struct GadgetScratch
     std::vector<std::pair<std::size_t, float>> picked; // those shown: wrapped's line, its alpha
     NotifyLine notifyLine;                            // a console line read
     std::string plain;                                // a line to check (VR_GameLineOnWrist)
-    auto members() { return std::tie(messageLines, keep, hologramKey, hologramLine, used, wrapped, picked, notifyLine, plain); }
+    auto members() { return qvr::mem::list(messageLines, keep, hologramKey, hologramLine, used, wrapped, picked, notifyLine, plain); }
 };
 mem::Scratch<GadgetScratch> scratch{"gadget"};
 

@@ -87,7 +87,7 @@ struct Box3dScratch
     std::vector<glm::vec3> actorVerts;  // an actor's (actorHull)
     std::vector<glm::vec3> corners;     // a body's shapes' corners (floorDepth)
     std::vector<uint8_t> carried;       // by edict: carried by a player (syncEntities)
-    auto members() { return std::tie(propVerts, actorVerts, corners, carried); }
+    auto members() { return qvr::mem::list(propVerts, actorVerts, corners, carried); }
 };
 mem::Scratch<Box3dScratch> scratch{"box3d"};
 

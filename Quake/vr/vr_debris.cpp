@@ -366,7 +366,7 @@ std::vector<Placement> placements;
 struct DebrisCache
 {
     std::unordered_map<const texture_t*, glm::vec3> textureLab;
-    auto members() { return std::tie(textureLab); }
+    auto members() { return qvr::mem::list(textureLab); }
 };
 mem::Cache<DebrisCache> cache{"debris", mem::MapChange | mem::GameDirChange};
 
@@ -374,7 +374,7 @@ mem::Cache<DebrisCache> cache{"debris", mem::MapChange | mem::GameDirChange};
 struct DebrisScratch
 {
     std::vector<glm::vec3> verts; // a piece's drawn vertices (put)
-    auto members() { return std::tie(verts); }
+    auto members() { return qvr::mem::list(verts); }
 };
 mem::Scratch<DebrisScratch> scratch{"debris"};
 

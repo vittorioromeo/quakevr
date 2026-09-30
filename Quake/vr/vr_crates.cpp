@@ -236,7 +236,7 @@ struct SightCache
 {
     double time{-1.0};
     std::vector<int> fixed;
-    auto members() { return std::tie(time, fixed); }
+    auto members() { return qvr::mem::list(time, fixed); }
 };
 mem::Cache<SightCache> sightCache{"crates", mem::MapChange};
 

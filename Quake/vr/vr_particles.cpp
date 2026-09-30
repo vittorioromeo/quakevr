@@ -1944,7 +1944,7 @@ namespace
 struct LyingScratch
 {
     std::vector<gfx::Vertex> grid;
-    auto members() { return std::tie(grid); }
+    auto members() { return qvr::mem::list(grid); }
 };
 mem::Scratch<LyingScratch> lyingScratch{"particles"};
 

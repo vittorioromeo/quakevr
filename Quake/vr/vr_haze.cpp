@@ -392,7 +392,7 @@ struct HazeScratch
     std::vector<GLint> lavaFirst;     // the lava layers drawn: their first vertex
     std::vector<GLsizei> lavaCount;   // and their count
     std::vector<Ellipsoid> ellipsoids; // the explosions and flames
-    auto members() { return std::tie(lavaFirst, lavaCount, ellipsoids); }
+    auto members() { return qvr::mem::list(lavaFirst, lavaCount, ellipsoids); }
 };
 mem::Scratch<HazeScratch> scratch{"haze"};
 

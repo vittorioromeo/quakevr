@@ -219,7 +219,7 @@ Flow flow;
 struct SetupScratch
 {
     std::string text;
-    auto members() { return std::tie(text); }
+    auto members() { return qvr::mem::list(text); }
 };
 mem::Scratch<SetupScratch> scratch{"setup"};
 

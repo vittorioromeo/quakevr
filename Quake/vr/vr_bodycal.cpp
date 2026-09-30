@@ -2034,7 +2034,7 @@ struct BodycalReadouts
 {
     std::string stepHelp;
     std::string measured[4]; // measuredLine's
-    auto members() { return std::tie(stepHelp, measured); }
+    auto members() { return qvr::mem::list(stepHelp, measured); }
 };
 mem::Scratch<BodycalReadouts> readouts{"bodycal readouts"};
 

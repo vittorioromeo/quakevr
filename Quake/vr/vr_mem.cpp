@@ -4,8 +4,9 @@
 #include "vr_mem.hpp"
 
 #include "vr_engine.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/SizeT.hpp"
 
-#include <algorithm>
 
 namespace qvr::mem
 {
@@ -77,7 +78,7 @@ void printLargest(int count)
     struct Row
     {
         Registration* set;
-        std::size_t bytes;
+        za::SizeT bytes;
     };
     Row rows[64];
     int n = 0;
@@ -85,7 +86,7 @@ void printLargest(int count)
     {
         rows[n++] = {r, r->bytes()};
     }
-    std::sort(rows, rows + n, [](const Row& a, const Row& b) { return a.bytes > b.bytes; });
+    za::quickSort(rows, rows + n, [](const Row& a, const Row& b) { return a.bytes > b.bytes; });
     for(int i = 0; i < n && i < count && rows[i].bytes > 0; i++)
     {
         Con_Printf("    %-12s %-7s %7.1f KiB\n", rows[i].set->system(), rows[i].set->kind() == Kind::Scratch ? "scratch" : "cache",

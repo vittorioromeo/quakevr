@@ -415,7 +415,7 @@ struct ViewScratch
     std::vector<glm::vec4> collideRig;              // and the rig's
     auto members()
     {
-        return std::tie(restVerts, nowVerts, weight, otherHand, otherHandTris, otherHandVerts, handSpheres, fistSpheres,
+        return qvr::mem::list(restVerts, nowVerts, weight, otherHand, otherHandTris, otherHandVerts, handSpheres, fistSpheres,
             openSpheres, boneSpheres, collideSpheres, collideRig);
     }
 };

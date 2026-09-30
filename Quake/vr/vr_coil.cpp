@@ -86,7 +86,7 @@ struct CoilScratch
     std::vector<NearLight> lights;   // the dynamic lights reaching it
     std::vector<glm::vec3> mid;      // the rings' middles
     std::vector<glm::vec3> radial;   // and axes
-    auto members() { return std::tie(line, along, tangent, normal, lights, mid, radial); }
+    auto members() { return qvr::mem::list(line, along, tangent, normal, lights, mid, radial); }
 };
 mem::Scratch<CoilScratch> scratch{"coil"};
 

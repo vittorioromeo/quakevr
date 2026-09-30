@@ -16,7 +16,7 @@ namespace
 struct CmdTokenReadouts
 {
     std::string token;
-    auto members() { return std::tie(token); }
+    auto members() { return qvr::mem::list(token); }
 };
 qvr::mem::Scratch<CmdTokenReadouts> readouts{"cmd token"};
 

@@ -138,7 +138,7 @@ constexpr double putBackStreakTime = 0.25;
 struct RigidScratch
 {
     std::vector<glm::vec3> vertices; // a rigid body's drawn corners (buried)
-    auto members() { return std::tie(vertices); }
+    auto members() { return qvr::mem::list(vertices); }
 };
 mem::Scratch<RigidScratch> scratch{"rigid"};
 

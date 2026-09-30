@@ -1695,7 +1695,7 @@ namespace
 struct MotionReadouts
 {
     std::string labelStatus;
-    auto members() { return std::tie(labelStatus); }
+    auto members() { return qvr::mem::list(labelStatus); }
 };
 mem::Scratch<MotionReadouts> readouts{"motion readouts"};
 

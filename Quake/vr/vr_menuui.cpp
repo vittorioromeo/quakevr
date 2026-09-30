@@ -601,7 +601,7 @@ void haptic(int hand, float seconds, float amplitude)
 struct MenuUiScratch
 {
     std::vector<gfx::Vertex> laser;
-    auto members() { return std::tie(laser); }
+    auto members() { return qvr::mem::list(laser); }
 };
 mem::Scratch<MenuUiScratch> scratch{"menu laser"};
 

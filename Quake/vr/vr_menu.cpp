@@ -333,7 +333,7 @@ struct MenuReadouts
     std::string weaponWeightsDrop;      // weaponWeightsDropReadout
     auto members()
     {
-        return std::tie(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
+        return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
             weaponWeightsDrop);
     }
 };
@@ -350,7 +350,7 @@ struct PageTexts
     std::vector<std::string> checklistSections; // the Checklist's headers
     auto members()
     {
-        return std::tie(weaponOffsetsTitle, weaponOffsetsInheritTitle, weaponOffsetsInheritNames, weaponWeightsTitle,
+        return qvr::mem::list(weaponOffsetsTitle, weaponOffsetsInheritTitle, weaponOffsetsInheritNames, weaponWeightsTitle,
             weaponWeightsInheritTitle, heldObjectOffsetsTitle, heldObjectWeightsTitle, checklistSections);
     }
 };
@@ -3900,7 +3900,7 @@ struct MenuPages
 {
     std::vector<Item> built[pageCount];
     bool done[pageCount]{};
-    auto members() { return std::tie(built, done); }
+    auto members() { return qvr::mem::list(built, done); }
 };
 mem::Cache<MenuPages> menuPages{"menu pages", mem::Never};
 

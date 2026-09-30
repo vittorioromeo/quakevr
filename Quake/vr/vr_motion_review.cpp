@@ -1646,7 +1646,7 @@ namespace
 struct ReviewReadouts
 {
     std::string summary, reviewed, eval, listTitle;
-    auto members() { return std::tie(summary, reviewed, eval, listTitle); }
+    auto members() { return qvr::mem::list(summary, reviewed, eval, listTitle); }
 };
 mem::Scratch<ReviewReadouts> readouts{"review readouts"};
 

@@ -1721,7 +1721,7 @@ struct FlashlightScratch
     std::vector<gfx::TubeRing> rings;     // the cord's (drawOpaque)
     std::vector<gfx::Vertex> fan;         // the lens's disc (drawLens)
     std::vector<gfx::Vertex> triangles;   // the beam's cones (drawTranslucent)
-    auto members() { return std::tie(rings, fan, triangles); }
+    auto members() { return qvr::mem::list(rings, fan, triangles); }
 };
 mem::Scratch<FlashlightScratch> scratch{"flashlight"};
 

@@ -30,7 +30,7 @@ struct State
     std::vector<int> firstLine;                    // each item's first wrapped line in `lines`
     std::vector<std::pair<int, int>> lines;        // start and length in its `shown` text
     std::unordered_set<std::string> tickedTexts;   // every ticked item's text, those no longer listed too
-    auto members() { return std::tie(sections, texts, shown, section, firstLine, lines, tickedTexts); }
+    auto members() { return qvr::mem::list(sections, texts, shown, section, firstLine, lines, tickedTexts); }
 };
 mem::Cache<State> state{"checklist", mem::Never};
 

@@ -388,7 +388,7 @@ struct EmissiveScratch
 {
     std::vector<TorchCandidate> candidates;   // torches in the PVS, near enough
     std::vector<std::pair<float, int>> fading; // those going out: their weight, their id
-    auto members() { return std::tie(candidates, fading); }
+    auto members() { return qvr::mem::list(candidates, fading); }
 };
 mem::Scratch<EmissiveScratch> scratch{"emissive"};
 

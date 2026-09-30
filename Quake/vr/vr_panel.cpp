@@ -44,7 +44,7 @@ bool drawingToCanvas = false;
 struct PanelScratch
 {
     std::vector<gfx::Vertex> vertices;
-    auto members() { return std::tie(vertices); }
+    auto members() { return qvr::mem::list(vertices); }
 };
 mem::Scratch<PanelScratch> scratch{"panel"};
 bool stereoThisFrame = false;

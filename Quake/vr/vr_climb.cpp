@@ -363,7 +363,7 @@ struct ClimbScratch
     std::vector<edict_t*> movers;        // the brush models round it (findHold)
     std::vector<const Candidate*> order; // those the hand is at, the first taken first (findHold)
     std::vector<Scored> scored;          // the lenient ones (findHold)
-    auto members() { return std::tie(nearby, areaEdicts, found, movers, order, scored); }
+    auto members() { return qvr::mem::list(nearby, areaEdicts, found, movers, order, scored); }
 };
 mem::Scratch<ClimbScratch> scratch{"climb"};
 

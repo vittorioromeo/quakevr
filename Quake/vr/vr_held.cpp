@@ -214,7 +214,7 @@ struct HeldScratch
     std::vector<Triangle> fitTris;        // surfaceFit
     auto members()
     {
-        return std::tie(verticesTris, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris);
+        return qvr::mem::list(verticesTris, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris);
     }
 };
 mem::Scratch<HeldScratch> scratch{"held"};

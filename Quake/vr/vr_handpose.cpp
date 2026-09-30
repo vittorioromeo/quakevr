@@ -119,7 +119,7 @@ struct HandposeScratch
 {
     std::vector<glm::vec3> model; // the weapon model's points (makeShape)
     std::vector<Plane> planes;    // the rays' planes (gunDepenetrate)
-    auto members() { return std::tie(model, planes); }
+    auto members() { return qvr::mem::list(model, planes); }
 };
 mem::Scratch<HandposeScratch> scratch{"handpose"};
 

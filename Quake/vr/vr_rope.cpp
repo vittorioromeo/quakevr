@@ -112,7 +112,7 @@ struct Mesh
 struct RopeMeshes
 {
     std::unordered_map<const qmodel_t*, Mesh> meshes;
-    auto members() { return std::tie(meshes); }
+    auto members() { return qvr::mem::list(meshes); }
 };
 mem::Cache<RopeMeshes> cache{"rope meshes", mem::GameDirChange | mem::ModelReload};
 
@@ -132,7 +132,7 @@ struct RopeScratch
     std::vector<float> lengths;            // each piece between two pins: its length and its points
     std::vector<int> counts;
     std::vector<char> pinned;              // each chain point: a pin
-    auto members() { return std::tie(onLine, lies, samples, points, data, packed, packedFirst, path, from, resampled, lengths, counts, pinned); }
+    auto members() { return qvr::mem::list(onLine, lies, samples, points, data, packed, packedFirst, path, from, resampled, lengths, counts, pinned); }
 };
 mem::Scratch<RopeScratch> scratch{"rope"};
 
