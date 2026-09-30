@@ -1684,6 +1684,7 @@ void loadExpectations()
         case 2: return "axe";
         case 3: return "mjolnir";
         case 13: return "sword";
+        case 14: return "chainsaw"; // a melee weapon (QC VR_MTHING_SAW)
         default: return wid >= 4 && wid <= 12 ? "gun" : "other";
     }
 }

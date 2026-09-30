@@ -951,7 +951,8 @@ The ogres' chainsaw (ROUND21.md, "The ogres' chainsaw"): `impulse 164` puts a fu
 as `vr_mock_hand`) for the cord's handle and the front handle; with the main hand at `0.2 1.2 -0.35 70 0 0` the handle is
 at `vr_mock_hand off 0.115 1.28 -0.556 0 0 0`. `Misc/quakevr/chainsaw_pull.mock` (copy it into `quakevr/motions/`, a
 path the game opens: `vr_mock_play quakevr/motions/chainsaw_pull.mock`) grips there and pulls slowly, then fast, then again;
-`vr_chainsaw_start_chance 1` makes a good pull always start it, `vr_debug_chainsaw 1` prints the cord and the cuts. Don't
+`impulse 230` starts the chainsaws in your hands without the cord; `vr_test_spawn 105` (an ogre's head) and
+`106` (a gib) with `impulse 241` put one on the floor ahead (cut tests). `vr_chainsaw_start_chance 1` makes a good pull always start it, `vr_debug_chainsaw 1` prints the cord and the cuts. Don't
 set `vr_mock_fingers off` before the grip: its grip value presses the grip where the hand is. `r_fullbright 1` lights e1m1's
 dark corridor for screenshots.
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of

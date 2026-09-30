@@ -1310,6 +1310,45 @@ void(float xHand) W_SwordMelee =
     particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
 };
 
+// The ogres' chainsaw (WID_CHAINSAW) swung: a melee weapon's blow (the axe's), its bar striking (vr_melee.qc
+// VR_MTHING_SAW); its weight makes it land harder (VR_Weight_MeleeMult). Its sounds go on a channel of their own: the
+// engine's sound is on the weapon's (vr_chainsaw.qc). A running chain also cuts what the bar is in (VR_Chainsaw_Cut).
+void(float xHand) W_ChainsawMelee =
+{
+    float xdmg = VRMeleeDmg(xHand, 20);
+    if(!VRDoMeleeAttackTracelineFor(xHand, 22, 30))
+    {
+        return;
+    }
+
+    vector org = trace_endpos - v_forward * 4;
+    if(trace_ent.takedamage)
+    {
+        trace_ent.axhitme = 1;
+        self.damage_weapon = IT_AXE;
+        if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
+        {
+            SpawnBloodSplash(org, xdmg);
+        }
+        if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+        {
+            VRMeleeHapticByHand(xHand);
+            sound(self, CHAN_AUTO, VR_Melee_HitSound("fisthit.wav"), 1.0, ATTN_NORM);
+            VRSetMeleeHitSoundPlayed(xHand, TRUE);
+        }
+        return;
+    }
+
+    // A wall: a clang and sparks.
+    if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+    {
+        VRMeleeHapticByHand(xHand);
+        sound(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
+        VRSetMeleeHitSoundPlayed(xHand, TRUE);
+    }
+    particle2(org, trace_plane_normal * 60, QVR_PARTICLE_PRESET_SPARKS, 8);
+};
+
 // A knight or hell knight always drops its sword when it dies (gibbed or not; a statue has none): a weapon lying
 // where its hand was.
 void(float xHellKnight) VR_DropKnightSword =
@@ -3819,6 +3858,10 @@ void() ImpulseCommands =
     {
         VR_Chainsaw_TakeNearest();
     }
+    if(self.impulse == 230 && !deathmatch && !coop) // QVR test: the chainsaws in your hands started (no cord pulled)
+    {
+        VR_Chainsaw_StartAll();
+    }
     if(self.impulse == 232 && !deathmatch && !coop) // QVR test: the nearest prop flung at a monster or you (VR_Test_Fling)
     {
         VR_Test_Fling();
@@ -3838,7 +3881,57 @@ void() ImpulseCommands =
         float spawnKind = cvar("vr_test_spawn");
         entity spawnPlayer = self;
         entity spawned = world;
-        if(spawnKind >= 100)
+        if(spawnKind == 105 || spawnKind == 106)
+        {
+            traceline(spawnAt, spawnAt - '0 0 256', TRUE, self); // (on the floor)
+            spawnAt = trace_endpos;
+        }
+        if(spawnKind == 105)
+        {
+            // An ogre's head lying on the floor (gib destroying tests): an ogre gibbed, its head (the ogre itself) put
+            // there.
+            entity ogreDispenser = spawn();
+            ogreDispenser.weapon = 1;
+            setorigin(ogreDispenser, spawnAt);
+            self = ogreDispenser;
+            activator = spawnPlayer;
+            func_enemy_dispenser_use();
+            spawned = self;
+            self = spawnPlayer;
+            remove(ogreDispenser);
+            if(spawned != ogreDispenser)
+            {
+                spawned.takedamage = DAMAGE_AIM;
+                T_Damage(spawned, world, world, spawned.health + 200);
+                setorigin(spawned, spawnAt + '0 0 1');
+                spawned.velocity = '0 0 0';
+                spawned.avelocity = '0 0 0';
+                dprint(sprintf("test spawn: %s's head at %v, box %v .. %v, gib %g\n", spawned.classname, spawned.origin,
+                    spawned.mins, spawned.maxs, spawned.vr_gib));
+            }
+            spawned = world;
+        }
+        else if(spawnKind == 106)
+        {
+            // A gib lying on the floor (gib destroying tests).
+            self = spawn();
+            setorigin(self, spawnAt + '0 0 1');
+            ThrowGib("progs/gib1.mdl", -10);
+            entity lying = find(world, classname, "");
+            while(lying)
+            {
+                if(lying.vr_gib && lying.ltime == time && lying.carry_player == world && lying.origin == self.origin)
+                {
+                    lying.velocity = '0 0 0';
+                    lying.avelocity = '0 0 0';
+                    dprint(sprintf("test spawn: a gib at %v, box %v .. %v\n", lying.origin, lying.mins, lying.maxs));
+                }
+                lying = find(lying, classname, "");
+            }
+            remove(self);
+            self = spawnPlayer;
+        }
+        else if(spawnKind >= 100)
         {
             self = spawn();
             setorigin(self, spawnAt - '16 16 0'); // a box's origin is its corner: its middle there

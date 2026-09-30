@@ -2045,7 +2045,8 @@ std::vector<Item> pageDebugTests()
              {6.f, "Hell Knight"}, {7.f, "Dog"}, {8.f, "Enforcer"}, {9.f, "Fiend"}, {10.f, "Vore"}, {11.f, "Spawn"},
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
              {17.f, "Overlord"}, {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
-             {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}})
+             {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
+             {106.f, "Gib"}})
             .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
         toggle("As a Corpse", vr_test_spawn_dead).help("A monster killed at once: a corpse, to test gibbing and carrying."),
@@ -2055,6 +2056,8 @@ std::vector<Item> pageDebugTests()
                                                                 "hand). Take its cord with the other hand and pull."),
         command("Take the Nearest Chainsaw", "impulse 229").help("The chainsaw lying nearest you (an ogre's, dropped) into an "
                                                                  "empty hand, its fuel as it was."),
+        command("Start the Engine", "impulse 230")
+            .help("The chainsaws in your hands started, as a good pull of the cord does."),
         command("Nearly Empty Tank", "impulse 227").help("The chainsaws in your hands left with 5% fuel: to see one stall."),
         command("Report the Chainsaws", "impulse 228").help("Prints each chainsaw in your hands: its fuel, engine, chain and cord."),
         header("Flung Props"),

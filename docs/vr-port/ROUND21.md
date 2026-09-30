@@ -14544,3 +14544,50 @@ called at its end, read whole before anything runs.
 one hash each; 0 canary differences). The full set's one difference from `eval_baseline.csv`
 (`slash_backswing_up_right` 23-12-35: 27.0 -> 26.9 damage, still PASS) is the same with the old preload: not from
 this change; the baseline predates it.
+
+## The chainsaw: on the firing range, cuts gibs and heads, a melee weapon, the author's offsets (2026-09-30)
+
+NOTES.md vrfiringrange_2026-09-30_10-57-41, 11-09-08, 11-11-09, 11-12-02, 11-18-39. Branch `agent/chainsaw2`.
+
+- **On the firing range**: a full chainsaw lies on the floor east of the prop area's explosive boxes (-176 -836), a
+  "chainsaw" label above it. `make_prop_area.py` writes it with the area (`--ent-only`: `vrfiringrange.ent`).
+- **Why gibs and heads were missed**: a loose gib or head is no longer a monster (VR_MakeGibGrabbable clears
+  FL_MONSTER), so precise hit detection doesn't test it (`hitmodel_segment` -2), and the fallback, a traceline, passes
+  it (SOLID_NOT_BUT_TOUCHABLE: only MOVE_HITGIBS traces stop at gibs). Boxes (solid) and corpses (still monsters) were
+  hit. Now `VR_Chainsaw_Cut` tests a loose gib's box (its model's), grown by the bar's half height (3 units), as the
+  melee does; one held in a hand is left alone. A tick of the chain shreds it at once (its whole `vr_gib_hp`): a tick's
+  8 damage burst nothing and knocked the head off the bar (seen in the test). Gibs bleed when cut, not spark.
+- **A melee weapon**: its swing is `VR_MTHING_SAW` (vr_melee.qc), not a gun's blunt blow: the bar (0.55, 0.78 and 1
+  of the way to the tip) strikes as an axe's head ("cut"; a thrust is a "jab"; the rear handle a pommel strike), no
+  gun landing factor, `W_ChainsawMelee` (the axe's base damage 20, x its weight's melee multiplier; the gun blow's was
+  12), sounds on CHAN_AUTO (the engine's loop is on the weapon's channel: a whoosh there cut it). No sights
+  (vr_sightalign.cpp). The motion eval names it `chainsaw`; `slash` and `hilt_pommel` accept it (expect.cfg).
+- **The author's settings are the defaults** (weapons `settingsVersion` 25: slot 20 reset from 24): Scale 0.38, Offset
+  -2.2 6.7 5.6, grip overlap 0.6, thumb bias -1 and offset -0.05 -0.1 -0.1, middle bias 0.04; hotspot 1 at 10.6 -6.85
+  -1.9 turned -27.2 -3.9 86.2, bias 2.5, overlap 0.85; hotspot 2 a grip at the rear handle (bias 2.5); hotspot 4 a
+  grip at 11.09 -0.96 -4.76 turned -2.9 2.4 5.8; Mass 15 kg, spring stiffness and damping 0.65, sag 1.25. His
+  `vr_chainsaw_*` were the shipped values: no config migration (58 unused).
+- **Test aids** (Debug > Tests): `impulse 230` starts the chainsaws in your hands; Thing `vr_test_spawn 105` an ogre's
+  head (an ogre gibbed, its head put there), 106 a gib, both on the floor ahead.
+
+### Tests (mock)
+
+- `vr_weapon_grip_mode 1; map vrfiringrange; impulse 229; impulse 228`: "taking the one 570.6 units away (fuel 100)";
+  "fuel 100, running 0"; `impulse 230`: running 1.
+- Chainsaw started, `vr_mock_hand main 0.0 0.35 -0.9 10 0 0` (the bar's tip on the floor 48 units ahead), `+attack`:
+  an ogre's head (105): "gib: hit by player for 18, 0 left", "gib: burst"; a gib (106): "hit for 12, 0 left", burst.
+- A synthetic horizontal swing (motion_synth's module, WEAPONS chainsaw 14; the dummy at 1.35 m): "melee/slash main
+  19.2 (the bar's tip)", PASS (N/A before the eval knew the chainsaw); the axe's take: 14.7, PASS.
+- Config migration (the kit's baseline, `vr_wofs_version` 21): version 25, slot 21's cvars at the new defaults.
+- Melee eval canary: 48/53, no differences.
+
+### In the headset
+
+- [ ] The chainsaw by the explosive boxes; start it, cut an ogre's head and gibs on the floor: they burst at a touch.
+- [ ] Swing it (not running) at a monster: a cut, harder than a gun's blow; the engine's sound keeps going.
+- [ ] His hotspots and offsets as he left them.
+
+### Open questions
+
+- Hotspot 2 is at the model's origin (the rear handle), as his config had it: meant, or a leftover?
+- Sounds: candidates (CC0/CC-BY) are listed in the coordinator's report; nothing downloaded.

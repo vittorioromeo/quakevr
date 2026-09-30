@@ -1082,6 +1082,12 @@
 "_proparea" "1"
 }
 {
+"classname" "func_weapon_grabbable"
+"origin" "-176 -836 29"
+"weapon" "14"
+"_proparea" "1"
+}
+{
 "classname" "func_worldtext_banner"
 "origin" "-476 -779 33"
 "angle" "90"
@@ -1104,6 +1110,15 @@
 "origin" "-599 -760 103"
 "angle" "0"
 "worldtext" "torches"
+"worldtext_halign" "1"
+"worldtext_scale" "0.25"
+"_proparea" "1"
+}
+{
+"classname" "func_worldtext_banner"
+"origin" "-176 -796 57"
+"angle" "90"
+"worldtext" "chainsaw"
 "worldtext_halign" "1"
 "worldtext_scale" "0.25"
 "_proparea" "1"
