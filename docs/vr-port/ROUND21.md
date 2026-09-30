@@ -14065,3 +14065,32 @@ it is sunk in the new open hand's body and passed through until clear (ignoreIns
 
 - Throw weapons and boxes hard, with a wrist snap, and gently: they should leave in the direction and spin thrown.
 - Open the hand still under a box or gib on the palm: it stays there. A slow toss (below 0.75 m/s) still meets the hand.
+## Melee speed 3; reloads aren't blows (2026-09-30)
+
+NOTES.md vrfiringrange_2026-09-30_02-00-22 to 02-05-00: soft punches didn't land, so the author lowered the melee speed
+in game and wants it as it is; a fast reload next to a monster still hit it as a downward blow, and he didn't want a
+higher threshold to fix it. Wiggles he keeps as they are.
+
+- **Default:** `vr_melee_speed` 4 -> 3 (his value; config 53 moves a config still at 4 to it). A punch lands from
+  3 x 1.35 = 4.05 m/s, a weapon's swing from 3.75, a gun's swing from 5.6 (was 7.5), a gun's butt from 3.9.
+- **Reloads** (QC `VR_Melee_Reloading`, `VR_MELEE_RELOAD_*`): a gun whose grip went down at least 0.8 steeply over the
+  last 0.15 s (its coming back towards the body left out: a holster is under and behind a gun held out), from no higher
+  than 0.1 m over the eyes, neither strikes nor whooshes (no "stroke"). A gun chopped down from overhead, or swung down
+  and ahead at something, still strikes. Numbers from the takes: his fast reloads went 0.5-0.7 m down in those 0.15 s,
+  0.97-0.99 steep, from level with the eyes to 0.3 m under; his gun strikes that were going steeply down when they hit
+  (gun_strike_swing 23-05-25, 05-28, 05-45; gun_strike_butt 06-19) came 0.8-0.95 m ahead and at most 0.26 m down in them
+  (0.3 steep at most), from up to 0.15 m over the eyes.
+- **Takes:** at speed 3 alone three reload takes failed (no_hit_reloading 23-08-51 and 08-58 hit the dummy with the
+  muzzle, 08-55 whooshed); with the reload check all six pass. So no take changed its verdict and none was moved:
+  168/176 pass, the same 8 fail. Events changed only in damage (stronger at the lower threshold), plus three gun strikes
+  that land with another part (the barrel or the muzzle where the butt did). Two no_hit_weak takes (23-07-45, 07-51)
+  and a fast axe wiggle (no_hit_wiggling 23-07-31), failing before on a whoosh, now land hits: what he asked for (soft
+  punches land; a very fast wiggle may). The kit's baseline and canary are rebuilt (canary: 56 takes, adding reload
+  08-55 and the four steep gun strikes above); the old ones are `eval_baseline_pre_speed3.csv` and
+  `canary_pre_speed3.txt`.
+
+### Test in VR
+
+- [ ] Soft punches land; a fist waved about doesn't.
+- [ ] Reload fast next to the dummy (gun from aim to the hip holster): no hit, no whoosh. With a gun and with each hand.
+- [ ] Gun strikes still land: the butt forward, a swing down and ahead, a chop from over the head.

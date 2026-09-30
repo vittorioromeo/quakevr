@@ -258,7 +258,7 @@ built-in ones.
 | `vr_throw_gravity` | 9.81 | thrown things' gravity; 0 is Quake's |
 | `vr_throw_assist` | 0 | throw aim assist |
 | `vr_forcegrab_mode` | 1 | force grab |
-| `vr_melee_speed`, `vr_melee_distance` | 2.75 (shipped), 0.2 | how fast (m/s) and how far (m) the wrist must move for a blow |
+| `vr_melee_speed`, `vr_melee_wrist_speed` | 3, 1.1 | how fast (m/s) the striking hand (a weapon's swing 1.25x, a stab 0.75x) and its wrist must move for a blow |
 | `vr_parry`, `vr_bash`, `vr_headbutt`, `vr_deflect` | 1 | parry, bash, headbutt, batting projectiles |
 
 ### Damage and gore

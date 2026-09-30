@@ -37,7 +37,12 @@ Pouch grenade at your values (now the defaults)
 
 Throws: hard throws, wrist snaps and gentle tosses of weapons and boxes keep their direction and spin; a still open hand keeps things resting on the palm
 
+Melee speed 3 (your value): soft punches land
+A fast reload next to the dummy neither hits nor whooshes (both hands); gun butt strikes, downward swings and overhead chops still land
+
 [Decide or give feedback]
+At speed 3, two 'weak punch' no-hit takes and one axe wiggle take now hit: drop those takes (invalidated), or keep them as known failures?
+Promote vr_melee_push 0.5, vr_melee_push_player 0.6 and vr_melee_bloodlust_mult 0.5 (your config) as defaults?
 Throw grace also ignores your body capsule for 0.2 s (an overhead snap hit your own body): keep, or hands only? (Throwing and Physics > vr_box3d_throw_grace_body)
 Spectator and smoothed desktop views now show the flat HUD: OK, or a setting to hide it for clean recordings?
 
