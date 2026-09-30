@@ -15438,3 +15438,96 @@ hand `impulse 161`, a shotgun in the off hand `impulse 174`, an ogre from `vr_te
 - [ ] A monster swimming near you when you do it takes damage (less the further away).
 - [ ] From above, fire into a pool: arcs crawl over the surface round where the beam goes in; a fish or a swimming
   monster there takes damage while you keep firing. Is the flash comfortable (Shock Flash)?
+## Enemy weapons: the grunts' shotguns and the enforcers' laser rifles
+
+Your request: as the knights' swords and the ogres' chainsaws, the grunts' shotguns and the enforcers' laser rifles as
+weapons; single use, a limited ammo of their own; cut out of the enemies' death poses and cleaned up to look better up
+close; the chainsaw's model improved the same way (same shape and proportions); a menu with the base damage and ammo of
+all these weapons; offsets and weights in the normal weapon menus. Branch `agent/enemyguns`; the kit's scratch images:
+`enemyguns_beforeafter.png` (each model before and after, software-rendered), `enemyguns_held.png` (in the hand),
+`enemyguns_corpses.png` (the corpses without their guns, the guns beside them).
+
+### What you get
+
+- **Every grunt drops its shotgun, every enforcer its laser rifle** when it dies, gibbed or not (`VR_DropEnemyGun` in
+  `army_die` and `enf_die`, so the Honey mod's too), full, beside its hands. Their death frames are drawn without it
+  (`vr_monstermods.cpp`, as the ogre's chainsaw: Quake VR's soldier's gun is its vertices 463..548, hidden in its death
+  frames by number, 8..28, as its frames have no names; the enforcer's rifle its vertices 22, 23, 100, 400..430,
+  455..478, hidden in its "death*" and "fdeath*" frames. `developer 1`: "the shotgun (86 vertices) hidden in 21 death
+  frames", "the laser rifle (58 vertices) hidden in 25 death frames"). id's models are left alone.
+- **The weapons**: `WID_GRUNTGUN` 15 (item `IID_GRUNTGUN` 45, `HIP_IT_GRUNTGUN`), weapon slot 21 (`_22` in the menus),
+  `progs/v_gruntgun.mdl`; `WID_ENFRIFLE` 16 (`IID_ENFRIFLE` 46, `HIP_IT_ENFRIFLE`), slot 22 (`_23`), `progs/v_enfrifle.mdl`.
+  Held by a pistol grip under the receiver (Offset from the chainsaw's rear handle, your fit: the same fist point),
+  the other hand on a band round the barrel (hotspot 1, a grip); 3.5 and 4.5 kg; Scale 0.4 (about 65 and 75 cm).
+  Holstered, thrown, force-grabbed as any weapon; `func_weapon_grabbable` weapon 15 and 16 lay full ones.
+- **Single use**: the ammo is the weapon's clip, full as it drops (Shells 10, Shots 20): it goes with that gun from hand
+  to hand, into a holster, onto the ground and back; the counter on the gun shows it. Its ammo id is none: shell boxes
+  and cells fill your own guns, never it, and it never reloads. Empty, the trigger clicks; it is still a club (a gun's
+  melee blow), or drop it.
+- **Firing**: the grunt's shotgun fires as yours (six pellets, your shotgun's spread, 4 damage a pellet, a shot every
+  0.5 s; the grunt's shot sound; no shells ejected: it has no port); the enforcer's rifle fires the enforcer's laser
+  (`LaunchLaser` from its muzzle along the aim, 600 units a second, 15 damage, a shot every 0.3 s, the enforcer's sounds).
+  Quad and the runes apply as to your guns.
+
+### The models (`Misc/quakevr/make_enemyguns.py`, `make_chainsaw.py`)
+
+- **Cut out** of Quake VR's own `soldier.mdl` and `enforcer.mdl` (the models' separate gun pieces, stand1), laid with +x
+  along the barrel, +z up; their triangles, skin coordinates and skins kept (as the chainsaw keeps the ogre's).
+- **Cleaned**: degenerate triangles dropped (the rifle had 6); the normals smoothed over the gun alone (the monsters'
+  were lit as part of their bodies); holes closed by `seal_mdl.py` (both were already closed: `check_mdl_holes.py` ok).
+- **A cleaner silhouette where the hands go**: a bevelled pistol grip (a butt plate, three finger ribs), a trigger guard
+  and a trigger; on the rifle a band where the other hand holds it (the shotgun's own band is its foregrip); bolt heads on
+  the receivers; the skins' edge wear (`mdlpolish.py`, in the skins' browns and steels, flat-shaded as the id guns).
+- **The chainsaw** (same shape, proportions, anchors and hotspots; `make_chainsaw.py` `polish`): its two degenerate
+  triangles dropped (the muzzle anchor is still 20: checked by the generator); the cord's T-handle floated beside the
+  block's sloping back with nothing under it: a starter housing (a bevelled box, as a real saw's) now stands under it;
+  two nuts hold the bar on the clutch cover; the skin's edge wear. Only appended: every old vertex, triangle and UV, and
+  the handle read from frames 0 and 9, are as before.
+- Normal maps baked again (`bake_normals.py`) for the three.
+
+### Settings (Combat > Enemy Weapons, also linked from World)
+
+The Knights' Swords and Ogres' Chainsaws rows moved here from World.
+
+| Menu | Cvar | Default |
+|---|---|---|
+| Sword Damage | `vr_sword_damage_mult` | 1.5x the axe |
+| Chainsaw Damage | `vr_chainsaw_damage` | 80 a second |
+| Fuel When Dropped | `vr_chainsaw_drop_fuel_min` (new) | 40% or more (as before: 40-100%) |
+| (the chainsaw's other rows) | `vr_chainsaw_*` | as before |
+| Pellet Damage | `vr_gruntgun_damage` | 4 |
+| Shells | `vr_gruntgun_ammo` | 10 |
+| Laser Damage | `vr_enfrifle_damage` | 15 |
+| Shots | `vr_enfrifle_ammo` | 20 |
+
+Offsets, hotspots and weights: the weapon menus with the gun in hand (slots `_22`, `_23`), `vr_wofs_version` 28 (the
+slots were unused placeholders; configs get the new defaults).
+
+Debug > Tests > **Enemy Guns**: a grunt's shotgun (`impulse 165`, 185 the off hand) or an enforcer's rifle (`166`, 186) in
+your hand, take the nearest lying about (`impulse 212`), report (`213`: each with its ammo, and your shell and cell
+pools), one shot left (`214`).
+
+### Tests (mock)
+
+- e1m1, a grunt and an enforcer killed (`vr_test_spawn 0` / `8`, dead): the corpses lie without their guns, each gun
+  beside them (`enemyguns_corpses.png`); taken (`impulse 212`): 10 and 20 left.
+- Fired until empty: 10 shots, "0 left", then empty clicks; `give s 100; give c 100` (your pools 100): the guns still 0.
+- The menu values: Shots 4 gave a rifle with 4; Laser Damage 33: an ogre 128 -> 95 -> 62 -> 29 -> -4; Pellet Damage 20:
+  a shot 72 on an ogre's body (14.4 at the default 4); Shells 3: a shotgun with 3; Fuel When Dropped 95: a chainsaw with
+  95.
+- `check_mdl_holes.py`: the three ok (their few open loops are the bolt heads' feet, hidden). Calibration boards: 0 menu
+  paths missing.
+
+### In the headset
+
+- [ ] Kill grunts and enforcers: each drops its gun; no gun left in a corpse's hands (both death animations).
+- [ ] Hold each: the pistol grip in the fist, the barrel ahead where the controller aims; the other hand on the band.
+- [ ] Fire until empty (the counter on it); walk over shells and cells: it stays empty; it clicks; swing it as a club.
+- [ ] Drop it half used and pick it up: the same ammo.
+- [ ] The chainsaw: the housing under the cord's handle, the handle and cord as before.
+
+### Open questions
+
+- The guns' size (Scale 0.4) and where the grip sits are first guesses: the weapon menus (or the posing mode) change them.
+- The grunt's shotgun ejects no shells (its model has no port); the rifle's laser is the enforcer's (slow, 600 units a
+  second): keep, or faster for yours?

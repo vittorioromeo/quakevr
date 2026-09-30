@@ -57,6 +57,10 @@ articles, talks and other engines' source are credited with where they came from
 - **The ogres' chainsaw** (`progs/v_chainsaw.mdl`, made by `make_chainsaw.py`) is cut out of Quake VR's own ogre model
   (`quakevr/progs/ogre.mdl`, from the same project as the knights below), with its skin; the cord's handle is added. Its
   sounds (`sound/vr/saw_*.wav`) are recordings: see "Chainsaw sounds" below.
+- **The grunts' shotgun and the enforcers' laser rifle** (`progs/v_gruntgun.mdl`, `v_enfrifle.mdl`, made by
+  `make_enemyguns.py`) are cut out of Quake VR's own soldier and enforcer models (`quakevr/progs/soldier.mdl`,
+  `enforcer.mdl`, from the same project as the knights below), with their skins; the pistol grips, trigger guards, bands
+  and bolt heads are added (`mdlpolish.py`).
 - **The knights' swords** (`progs/v_ksword.mdl`, `v_hksword.mdl`, made by `make_swords.py`) are cut out of Quake VR's
   own knight models (`quakevr/progs/knight.mdl`, `hknight.mdl`), and the engine hides those swords in the models'
   death frames. These models appear to come from the

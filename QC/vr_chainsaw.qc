@@ -145,7 +145,7 @@ void(string xWhat) VR_Saw_Debug =
 
 string(float xHand) VR_Saw_HandName = { return xHand == cVR_OffHand ? "off" : "main"; };
 
-// An ogre dies: its chainsaw falls where it held it (by its right side as it stands), 40-100% full.
+// An ogre dies: its chainsaw falls where it held it (by its right side as it stands), 40-100% full (vr_chainsaw_drop_fuel_min).
 void() VR_DropOgreChainsaw =
 {
     makevectors(self.angles);
@@ -154,7 +154,8 @@ void() VR_DropOgreChainsaw =
     traceline(from, at, TRUE, self);
     at = trace_endpos + (from - trace_endpos) * 0.2 * (trace_fraction < 1);
     vector vel = v_forward * -15 - v_right * 20 + v_right * (crandom() * 15) + '0 0 60';
-    CreateThrownWeapon(self, WID_CHAINSAW, 0, floor(40 + random() * 60) /* its fuel */,
+    float least = min(max(0, cvar_hget(cvarh_vr_chainsaw_drop_fuel_min)), VR_CHAINSAW_TANK); // Enemy Weapons: Fuel When Dropped
+    CreateThrownWeapon(self, WID_CHAINSAW, 0, floor(least + random() * (VR_CHAINSAW_TANK - least)) /* its fuel */,
         at, self.angles, vel, randomVec(40),
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,

@@ -9,7 +9,9 @@
 //
 // The ogres drop their chainsaws likewise (QC VR_DropOgreChainsaw: v_chainsaw.mdl, made by
 // Misc/quakevr/make_chainsaw.py): Quake VR's ogre's chainsaw is hidden in its death frames ("death*" and
-// "bdeath*") by its known vertices; id's ogre (or another) is left alone.
+// "bdeath*") by its known vertices; id's ogre (or another) is left alone. So are the grunts' shotguns and the
+// enforcers' laser rifles (QC vr_enemyguns.qc: v_gruntgun.mdl and v_enfrifle.mdl, made by
+// Misc/quakevr/make_enemyguns.py): Quake VR's soldier's and enforcer's guns, by their known vertices.
 
 #include "vr_engine.hpp"
 
@@ -118,7 +120,9 @@ std::vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tr
 // Quake VR's own knight models (quakevr/progs, higher detail than id's): their swords' vertices,
 // found by hand (Misc/quakevr/make_swords.py uses the same lists). The knight's frames are numbered,
 // not named: its death frames are id's (the last 21, death1 .. deathb11). And Quake VR's ogre's chainsaw
-// (Misc/quakevr/make_chainsaw.py: vertices 416..496, a separate piece).
+// (Misc/quakevr/make_chainsaw.py: vertices 416..496, a separate piece), its soldier's shotgun and its enforcer's laser
+// rifle (Misc/quakevr/make_enemyguns.py: separate pieces). The soldier's frames are not named either: its death frames
+// are id's 8..28 (death1 .. deathc11).
 struct KnownSword
 {
     const char* model;
@@ -140,7 +144,44 @@ const KnownSword knownSwords[] = {
          return v;
      }(),
         -1, -1},
+    {"progs/soldier.mdl", 555, 810, [] {
+         std::vector<int> v(86);
+         std::iota(v.begin(), v.end(), 463);
+         return v;
+     }(),
+        8, 28},
+    {"progs/enforcer.mdl", 479, 984, [] {
+         std::vector<int> v{22, 23, 100};
+         for(int i = 400; i <= 430; i++)
+         {
+             v.push_back(i);
+         }
+         for(int i = 455; i <= 478; i++)
+         {
+             v.push_back(i);
+         }
+         return v;
+     }(),
+        -1, -1},
 };
+
+// What a monster's model drops (the log's name for it).
+[[nodiscard]] const char* droppedName(const char* model)
+{
+    if(!strcmp(model, "progs/ogre.mdl"))
+    {
+        return "chainsaw";
+    }
+    if(!strcmp(model, "progs/soldier.mdl"))
+    {
+        return "shotgun";
+    }
+    if(!strcmp(model, "progs/enforcer.mdl"))
+    {
+        return "laser rifle";
+    }
+    return "sword";
+}
 
 } // namespace
 
@@ -152,8 +193,10 @@ extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stve
     aliashdr_t* hdr = static_cast<aliashdr_t*>(aliashdr);
     const bool knight = !strcmp(name, "progs/knight.mdl");
     const bool hellKnight = !strcmp(name, "progs/hknight.mdl");
-    const bool ogre = !strcmp(name, "progs/ogre.mdl");
-    if(!knight && !hellKnight && !ogre)
+    // The ogre, the soldier and the enforcer: only Quake VR's own models (by their known vertices).
+    const bool knownOnly = !strcmp(name, "progs/ogre.mdl") || !strcmp(name, "progs/soldier.mdl") ||
+                           !strcmp(name, "progs/enforcer.mdl");
+    if(!knight && !hellKnight && !knownOnly)
     {
         return;
     }
@@ -183,7 +226,7 @@ extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stve
             }
         }
     }
-    else if(!ogre)
+    else if(!knownOnly)
     {
         sword = knight ? knightSword(hdr, stverts, tris) : separatePieceSword(hdr, tris, poses[0]);
     }
@@ -222,7 +265,8 @@ extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stve
     {
         const maliasframedesc_t& fd = hdr->frames[f];
         const bool death = known && known->firstDeath >= 0 ? f >= known->firstDeath && f <= known->lastDeath
-                                                           : strncmp(fd.name, "death", 5) == 0 || strncmp(fd.name, "bdeath", 6) == 0;
+                                                           : strncmp(fd.name, "death", 5) == 0 || strncmp(fd.name, "bdeath", 6) == 0 ||
+                                                                 strncmp(fd.name, "fdeath", 6) == 0;
         if(!death)
         {
             continue;
@@ -248,6 +292,6 @@ extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stve
             }
         }
     }
-    Con_DPrintf("VR: %s: the %s (%d vertices) hidden in %d death frames\n", name, ogre ? "chainsaw" : "sword",
+    Con_DPrintf("VR: %s: the %s (%d vertices) hidden in %d death frames\n", name, droppedName(name),
         static_cast<int>(own.size()), frames);
 }

@@ -142,6 +142,8 @@ float(float wid) WeaponIdToItemId =
     if(wid == WID_LASER_CANNON)     { return IID_LASER_CANNON; }
     if(wid == WID_SWORD)            { return IID_SWORD; }
     if(wid == WID_CHAINSAW)         { return IID_CHAINSAW; }
+    if(wid == WID_GRUNTGUN)         { return IID_GRUNTGUN; }
+    if(wid == WID_ENFRIFLE)         { return IID_ENFRIFLE; }
 
     ASSERT(FALSE);
     return -1;
@@ -174,6 +176,8 @@ string(float wid, float xWeaponFlags) WeaponIdToModel =
     if(wid == WID_LASER_CANNON)     { return "progs/v_laserg.mdl"; }
     if(wid == WID_SWORD)            { return SelectModelByFlags(xWeaponFlags, "progs/v_ksword.mdl", "progs/v_hksword.mdl"); }
     if(wid == WID_CHAINSAW)         { return "progs/v_chainsaw.mdl"; }
+    if(wid == WID_GRUNTGUN)         { return "progs/v_gruntgun.mdl"; }
+    if(wid == WID_ENFRIFLE)         { return "progs/v_enfrifle.mdl"; }
 
     ASSERT(FALSE);
     return "";
@@ -206,6 +210,8 @@ float(float wid, float xWeaponFlags) WeaponIdToAmmoId =
     if(wid == WID_LASER_CANNON)     { return AID_CELLS; }
     if(wid == WID_SWORD)            { return AID_NONE; }
     if(wid == WID_CHAINSAW)         { return AID_NONE; }
+    if(wid == WID_GRUNTGUN)         { return AID_NONE; }
+    if(wid == WID_ENFRIFLE)         { return AID_NONE; }
 
     ASSERT(FALSE);
     return AID_NONE;
@@ -244,6 +250,8 @@ float(float wid) WeaponIdToThrowMult =
     if(wid == WID_LASER_CANNON)     { return 0.4; }
     if(wid == WID_SWORD)            { return 0.8; }
     if(wid == WID_CHAINSAW)         { return 0.4; }
+    if(wid == WID_GRUNTGUN)         { return 0.7; }
+    if(wid == WID_ENFRIFLE)         { return 0.6; }
 
     ASSERT(FALSE);
     return 1;
@@ -266,6 +274,8 @@ float(float wid) WeaponIdToThrowStabilizeDim =
     if(wid == WID_LASER_CANNON)     { return 0; }
     if(wid == WID_SWORD)            { return 0; }
     if(wid == WID_CHAINSAW)         { return 0; }
+    if(wid == WID_GRUNTGUN)         { return 0; }
+    if(wid == WID_ENFRIFLE)         { return 0; }
 
     ASSERT(FALSE);
     return 0;
@@ -288,6 +298,8 @@ float(float wid) WeaponIdToThrowDamage =
     if(wid == WID_LASER_CANNON)     { return 45; }
     if(wid == WID_SWORD)            { return 60; }
     if(wid == WID_CHAINSAW)         { return 50; }
+    if(wid == WID_GRUNTGUN)         { return 20; }
+    if(wid == WID_ENFRIFLE)         { return 25; }
 
     ASSERT(FALSE);
     return 0;
@@ -310,6 +322,8 @@ float(float wid) WeaponIdToThrowBounds =
     if(wid == WID_LASER_CANNON)     { return 2.4; }
     if(wid == WID_SWORD)            { return 2.4; }
     if(wid == WID_CHAINSAW)         { return 2.4; }
+    if(wid == WID_GRUNTGUN)         { return 1.6; }
+    if(wid == WID_ENFRIFLE)         { return 1.8; }
 
     ASSERT(FALSE);
     return 0;
@@ -351,6 +365,8 @@ float(float wid) WeaponIdToInitialAmmoCount =
     if(wid == WID_LASER_CANNON)     { return 30; }
     if(wid == WID_SWORD)            { return 0; }
     if(wid == WID_CHAINSAW)         { return 0; }
+    if(wid == WID_GRUNTGUN)         { return 0; }
+    if(wid == WID_ENFRIFLE)         { return 0; }
 
     ASSERT(FALSE);
     return -1;
@@ -374,6 +390,8 @@ string(float wid) WeaponIdToWeaponName =
     if(wid == WID_LASER_CANNON)     { return "Laser Cannon"; }
     if(wid == WID_SWORD)            { return "Knight's Sword"; }
     if(wid == WID_CHAINSAW)         { return "Ogre's Chainsaw"; }
+    if(wid == WID_GRUNTGUN)         { return "Grunt's Shotgun"; }
+    if(wid == WID_ENFRIFLE)         { return "Enforcer's Laser Rifle"; }
 
     ASSERT(FALSE);
     return "";
@@ -407,6 +425,8 @@ float(float wid) WeaponIdToSupportsReload =
     if(wid == WID_LASER_CANNON)     { return FALSE; }
     if(wid == WID_SWORD)            { return FALSE; }
     if(wid == WID_CHAINSAW)         { return FALSE; }
+    if(wid == WID_GRUNTGUN)         { return FALSE; }
+    if(wid == WID_ENFRIFLE)         { return FALSE; }
 
     ASSERT(FALSE);
     return -1;
@@ -429,6 +449,8 @@ float(float wid) WeaponIdToSupportsReloadFlicking =
     if(wid == WID_LASER_CANNON)     { return FALSE; }
     if(wid == WID_SWORD)            { return FALSE; }
     if(wid == WID_CHAINSAW)         { return FALSE; }
+    if(wid == WID_GRUNTGUN)         { return FALSE; }
+    if(wid == WID_ENFRIFLE)         { return FALSE; }
 
     ASSERT(FALSE);
     return -1;
@@ -451,6 +473,8 @@ float(float wid) WeaponIdToBaseClipSize =
     if(wid == WID_LASER_CANNON)     { return 0; }
     if(wid == WID_SWORD)            { return 0; }
     if(wid == WID_CHAINSAW)         { return VR_CHAINSAW_TANK; }
+    if(wid == WID_GRUNTGUN)         { return cvar_hget(cvarh_vr_gruntgun_ammo); }
+    if(wid == WID_ENFRIFLE)         { return cvar_hget(cvarh_vr_enfrifle_ammo); }
 
     ASSERT(FALSE);
     return -1;
