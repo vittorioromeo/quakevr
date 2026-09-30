@@ -33,6 +33,8 @@ articles, talks and other engines' source are credited with where they came from
   - QuakeSpasm-Spiked.
 - **Hand models** with finger tracking: [CrazyHairGuy](https://www.crazyhairguy.com/).
 - **Weapon ironsights:** based on the [Authentic Model Improvements](https://github.com/NightFright2k19/authmdl) project.
+- **Models:** many of the models in Quake VR's game folder (`quakevr/progs/`) come from the
+  [Authentic Model Improvements](https://github.com/NightFright2k19/authmdl) project (NightFright and contributors).
 - **Beta testers:** carn1x, GeekyGami, Sly VR.
 - **QuakeC and engine help:** Spike.
 

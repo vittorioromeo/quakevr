@@ -61,7 +61,6 @@ Tip a box onto a slope or the other box: jump on, walk on, jump off, stand near 
 [Decide or give feedback]
 On a tilted box steeper than ~30 degrees you slowly slide off (like the level's steep slopes): should boxes count as ground up to a steeper angle?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
-quakevr/progs/flame.mdl has no recorded origin (Authentic Model Improvements?): do you know where it's from, for CREDITS.md?
 Optimization follow-ups: solve weapon grips at map load (+30-60 ms load)? voice-note screenshot on a background thread? a Low graphics preset (render resolution, foveation, decal cap)?
 Function-local non-std statics (two text buffers, lastOut in vr_handpose): move them to the scratch/state pattern too?
 
