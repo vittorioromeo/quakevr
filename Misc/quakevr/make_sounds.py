@@ -24,6 +24,9 @@
 #   grapple_reel.wav, grapple_taut.wav, grapple_unreel.wav  the grappling hook (QC vr_grapple.qc): the reel winding in
 #                 (a ratchet's clicks over a whirr, played back to back while it reels), the rope snapping taut (a low
 #                 twang, a chink) and the unreel paying it out (the ratchet backwards: reversed clicks, lighter, quicker)
+#   saw_idle.wav, saw_run.wav, saw_cut.wav, saw_pull.wav, saw_start.wav, saw_stall.wav  the ogres' chainsaw (QC
+#                 vr_chainsaw.qc): a two-stroke engine idling, its chain running flat out and cutting (loops played back
+#                 to back), its starter cord pulled (a zip and coughs; the engine catching and revving) and stalling
 #   pommel1..3.wav  a pommel, a hilt or a gun's butt striking (QC vr_melee.qc VR_Melee_HitSound): a blunt knock,
 #                 short and dry, apart from the blades' cuts and the punches; three, a little apart in pitch
 #   rock1..3.wav, brick1..3.wav  a rock's thud and a brick's clack (QC vr_debris.qc): landing, knocked, thrown into
@@ -784,6 +787,119 @@ def grapple_taut():
     return finish(out, 0.85)
 
 
+# ---- The ogres' chainsaw (QC vr_chainsaw.qc; a two-stroke engine) -------------------------------------------------------
+# Its engine fires in pulses (each a burst of exhaust noise over a low bark), `rate` of them a second: idling about 45,
+# the chain running flat out 150, cutting a little lower under the load. The loops hold a whole number of pulses, so
+# that played back to back they run on without a seam (only their first and last millisecond eased).
+
+
+def engine(length, rate, amp, seed, bright=1.0, grind=0.0, whine=0.0):
+    """`length` seconds of a two-stroke engine: `rate(t)` pulses a second, each `amp(t)` loud; `bright` more exhaust
+    hiss, `grind` a chain biting (gritty noise bursts), `whine` the chain's high whine over the bar."""
+    rng = random.Random(seed)
+    n = int(RATE * length)
+    bark_lp, hiss_lp, hiss_hp = OnePole(420), OnePole(3800), OnePole(600)
+    grit_lp, grit_hp = OnePole(5200), OnePole(1400)
+    out = []
+    phase = 0.0          # the pulses' phase (one per cycle)
+    since = 1.0          # seconds since the last pulse
+    kick = 0.0
+    wp = 0.0
+    for i in range(n):
+        t = i / RATE
+        r = rate(t)
+        phase += r / RATE
+        if phase >= 1.0:
+            phase -= 1.0
+            since = 0.0
+            kick = amp(t) * rng.uniform(0.85, 1.0)
+        since += 1.0 / RATE
+        noise = rng.uniform(-1, 1)
+        env = kick * math.exp(-since / 0.006)
+        bark = bark_lp(noise * env * 6.0) + math.sin(2 * math.pi * 95 * since) * env * 0.5
+        h = hiss_lp(noise)
+        h -= hiss_hp(h)
+        hiss = h * env * 0.9 * bright
+        s = bark + hiss
+        if grind:
+            g = grit_lp(noise)
+            g -= grit_hp(g)
+            s += g * grind * (0.5 + 0.5 * abs(math.sin(2 * math.pi * 23 * t + rng.uniform(0, 0.4)))) * amp(t)
+        if whine:
+            wp += 2 * math.pi * (1700 + 90 * math.sin(2 * math.pi * r * t)) / RATE
+            s += whine * (math.sin(wp) * 0.6 + math.sin(2.02 * wp) * 0.25) * amp(t)
+        out.append(s)
+    return out
+
+
+def looped(out, peak_to):
+    peak = max(abs(v) for v in out) or 1.0
+    n = len(out)
+    e = int(RATE * 0.001)
+    return [math.tanh(v / peak * 1.6) / math.tanh(1.6) * peak_to * min(1.0, (i + 1) / e, (n - i) / e)
+            for i, v in enumerate(out)]
+
+
+def saw_idle():
+    """Idling: 45 pulses a second, lumpy (every other one a little weaker), 0.4 s (18 pulses)."""
+    return looped(engine(0.4, lambda t: 45.0, lambda t: 0.8 + 0.2 * math.sin(2 * math.pi * 22.5 * t), 611), 0.55)
+
+
+def saw_run():
+    """The chain running flat out: 150 pulses a second and the chain's whine, 0.3 s (45 pulses)."""
+    return looped(engine(0.3, lambda t: 150.0, lambda t: 1.0, 612, bright=1.4, whine=0.25), 0.8)
+
+
+def saw_cut():
+    """Cutting: bogged down to 120 pulses a second, the chain grinding through flesh and bone, 0.3 s (36 pulses)."""
+    return looped(engine(0.3, lambda t: 120.0, lambda t: 1.0, 613, bright=1.2, grind=1.6, whine=0.12), 0.9)
+
+
+def cord_zip(length, seed):
+    """The starter cord pulled out: a whirr of the recoil's pawls, faster as it spins up, then slowing."""
+    rng = random.Random(seed)
+    n = int(RATE * length)
+    lp, hp = OnePole(3000), OnePole(700)
+    out = []
+    ph = 0.0
+    for i in range(n):
+        t = i / RATE
+        u = t / length
+        rate = 30 + 140 * math.sin(math.pi * min(1.0, u * 1.1))
+        ph += rate / RATE
+        click = math.exp(-(ph % 1.0) * 9.0)
+        noise = rng.uniform(-1, 1)
+        z = lp(noise)
+        z -= hp(z)
+        out.append(z * (0.3 + 0.7 * click) * math.sin(math.pi * u) * 0.9)
+    return out
+
+
+def saw_pull():
+    """The cord pulled and the engine not catching: the cord's zip, then two coughs, dying."""
+    zip_ = cord_zip(0.28, 621)
+    coughs = engine(0.5, lambda t: 9.0 if t < 0.25 else 5.0, lambda t: 0.9 * math.exp(-t / 0.25), 622)
+    out = zip_ + [0.0] * int(RATE * 0.03) + coughs
+    return finish([math.tanh(v * 1.4) for v in out], 0.75, fade=0.05)
+
+
+def saw_start():
+    """The cord pulled and the engine catching: the zip, a few pulses gathering, a rev up and settling to idle; 0.9 s
+    (QC VR_Chainsaw_Frame plays the idle after it)."""
+    zip_ = cord_zip(0.26, 631)
+    rev = lambda t: 12 + 110 * math.exp(-((t - 0.3) / 0.12) ** 2) + 33 * min(1.0, t / 0.2)
+    run = engine(0.64, rev, lambda t: min(1.0, 0.5 + t * 3.0), 632, bright=1.2)
+    out = zip_ + run
+    peak = max(abs(v) for v in out) or 1.0
+    return [math.tanh(v / peak * 1.6) / math.tanh(1.6) * 0.8 for v in out]
+
+
+def saw_stall():
+    """Out of fuel: the idle stumbling and slowing, a last cough, and nothing."""
+    out = engine(0.8, lambda t: max(6.0, 45.0 - t * 60.0), lambda t: 0.8 * math.exp(-t / 0.35), 641)
+    return finish([math.tanh(v * 1.4) for v in out], 0.6, fade=0.1)
+
+
 def read_wav(path):
     """A 16-bit mono WAV's samples, -1..1."""
     with open(path, "rb") as f:
@@ -850,6 +966,12 @@ def main():
         "grapple_reel.wav": grapple_reel,
         "grapple_taut.wav": grapple_taut,
         "grapple_unreel.wav": grapple_unreel,
+        "saw_idle.wav": saw_idle,
+        "saw_run.wav": saw_run,
+        "saw_cut.wav": saw_cut,
+        "saw_pull.wav": saw_pull,
+        "saw_start.wav": saw_start,
+        "saw_stall.wav": saw_stall,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():

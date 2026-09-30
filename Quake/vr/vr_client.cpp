@@ -2,6 +2,7 @@
 // VR input commands, building the VR move from tracking, and parsing VR server data.
 
 #include "vr_client.hpp"
+#include "vr_chainsaw.hpp"
 #include "vr_held.hpp"
 #include "vr_decals.hpp"
 #include "vr_drawblend.hpp"
@@ -295,12 +296,13 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     {
         move.buttons |= QVR_BUTTON_HANDSTRACKED;
     }
-    // A hand holding the flashlight does not force grab.
-    if(flashlight::holds(HAND_OFF))
+    // A hand holding the flashlight (or a chainsaw's cord) does not force grab.
+    move.sawCord = chainsaw::moveBits();
+    if(flashlight::holds(HAND_OFF) || chainsaw::holds(HAND_OFF))
     {
         move.buttons |= QVR_BUTTON_OFFHANDBUSY;
     }
-    if(flashlight::holds(HAND_MAIN))
+    if(flashlight::holds(HAND_MAIN) || chainsaw::holds(HAND_MAIN))
     {
         move.buttons |= QVR_BUTTON_MAINHANDBUSY;
     }
@@ -616,6 +618,7 @@ extern "C" void VR_OnClientClearState()
     shells::clear();
     wounds::clear();
     rope::forget();
+    chainsaw::reset();
     view::resetClientState();
     hands::resetClientState();
 }

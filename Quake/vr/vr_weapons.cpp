@@ -133,9 +133,10 @@ namespace
 // hotspots, second pass, 2026-09-28 afternoon: the shotgun's cup moved, a cup and a grip on the super shotgun, a cup on
 // the nailgun). 22: the author's holstered poses (2026-09-29: 94 hip and chest Holstered values in 13 weapons) and the
 // axe's thumb bias: only those keys are reset, each slot's other settings kept. 23: slot 17's weapon button (the
-// grappling hook's quick release: vr_grapple.qc VR_Grapple_QuickRelease): only its button's keys. A first start (no saved config) takes this version as it is: its settings are these defaults
-// (markCurrent).
-constexpr int settingsVersion = 23;
+// grappling hook's quick release: vr_grapple.qc VR_Grapple_QuickRelease): only its button's keys. 24: slot 20 (the ogres'
+// chainsaw, Misc/quakevr/make_chainsaw.py; an unused placeholder before). A first start (no saved config) takes this
+// version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 24;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -363,6 +364,10 @@ void migrate()
             Cvar_SetQuick(&var, var.default_string);
         }
     }
+    if(vr_wofs_version.value < 24) // the ogres' chainsaw (an unused placeholder before)
+    {
+        resetSlot(20);
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -506,6 +511,10 @@ void markCurrent()
             cvar_t& var = cvarAt(17, key);
             Cvar_SetQuick(&var, var.default_string);
         }
+    }
+    if(vr_wofs_version.value < 24) // the ogres' chainsaw (as migrate)
+    {
+        resetSlot(20);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

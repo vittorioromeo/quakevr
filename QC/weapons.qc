@@ -2731,6 +2731,12 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     // Mjolnir without its cells is still a hammer: no click, as the trigger closes the hand round its handle (the
     // author holds it as a real hammer; NOTES.md vrfiringrange_2026-09-29_21-55-59). The motion's blows strike with
     // it; without tracked hands it swings as the hammer (below, fewer than 30 cells).
+    // The chainsaw's trigger runs its chain (vr_chainsaw.qc VR_Chainsaw_Frame, every frame): no attack here.
+    if(xWeapon == WID_CHAINSAW)
+    {
+        return;
+    }
+
     float emptyHammer = xWeapon == WID_MJOLNIR && !W_CheckNoAmmo(xHand);
     if(emptyHammer && VRHandsTracked(self) && self.ishuman)
     {
@@ -3602,7 +3608,7 @@ void() ImpulseCommands =
             cheatWid = self.impulse - 170;
         }
         self.impulse = 0;
-        if(cheatWid > WID_SWORD)
+        if(cheatWid > WID_LAST)
         {
             return; // no such weapon (it broke the hand's weapon state)
         }
@@ -3800,6 +3806,18 @@ void() ImpulseCommands =
     if(self.impulse == 239) // QVR: every grappling hook's state, its gun's place and its rope (vr_grapple.qc)
     {
         VR_Grapple_Report();
+    }
+    if(self.impulse == 227 && !deathmatch && !coop) // QVR test: the chainsaws in your hands nearly empty (vr_chainsaw.qc)
+    {
+        VR_Chainsaw_Impulse(TRUE);
+    }
+    if(self.impulse == 228) // QVR: the chainsaws in your hands: fuel, engine, cord (vr_chainsaw.qc)
+    {
+        VR_Chainsaw_Impulse(FALSE);
+    }
+    if(self.impulse == 229 && !deathmatch && !coop) // QVR test: the chainsaw lying nearest you into an empty hand
+    {
+        VR_Chainsaw_TakeNearest();
     }
     if(self.impulse == 232 && !deathmatch && !coop) // QVR test: the nearest prop flung at a monster or you (VR_Test_Fling)
     {
@@ -5295,6 +5313,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
     throwVelUnits = VRThrowAssist(ent, origin, throwVelUnits, throwGravity);
 
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's
+    xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_SAW_STATE); // a chainsaw's engine stops
 
     entity thrown = world;
     if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
@@ -5348,6 +5367,7 @@ VRPutWeaponInHolster =
     sound(entPlayer, CHAN_BODY, "weapons/holster1.wav", 1, ATTN_NORM);
 
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's
+    xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_SAW_STATE); // a chainsaw's engine stops
     setHolsterWeapon(xHotspot, xWeapon);
     setHolsterWeaponModel(xHotspot, WeaponIdToModel(xWeapon, xWeaponFlags));
     setHolsterWeaponFlags(xHotspot, xWeaponFlags);

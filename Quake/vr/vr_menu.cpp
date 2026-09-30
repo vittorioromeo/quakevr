@@ -553,6 +553,25 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").extend()
             .help("Knights and hell knights always drop their sword, a melee weapon you can pick up. A sword swing's damage "
                   "over the axe's (the hell knight's sword: 25% more)."),
+        header("Ogres' Chainsaws"),
+        slider("Chainsaw Damage", vr_chainsaw_damage, 10.f, 300.f, 5.f, "%.0f a second").extend()
+            .help("Ogres always drop their chainsaw: heavy, held in both hands. Pull its cord with your other hand to start "
+                  "it; the trigger runs its chain, which cuts what its bar is in: this much damage a second (a grunt has 30 "
+                  "health, an ogre 200)."),
+        slider("Chain Fuel Use", vr_chainsaw_fuel_use, 0.f, 20.f, 0.5f, "%.1f%% a second").extend()
+            .help("Each chainsaw has its own fuel (it goes with it, dropped or holstered): what its chain burns a second, "
+                  "the trigger held, of a full tank. Out of fuel, it stalls."),
+        slider("Idle Fuel Use", vr_chainsaw_idle_fuel_use, 0.f, 5.f, 0.1f, "%.1f%% a second").extend()
+            .help("What the engine burns a second while it runs, the trigger or not."),
+        slider("Blade Sinks In", vr_chainsaw_overlap, 0.f, 20.f, 1.f, "%.0f cm").extend()
+            .help("How deep the running chain's bar may sink into a monster (it cuts in) before it stops at its surface, as "
+                  "weapons do."),
+        slider("Start Chance", vr_chainsaw_start_chance, 0.05f, 1.f, 0.05f, "%.2f")
+            .help("The chance a good pull of the cord starts the engine: a few pulls may be needed."),
+        slider("Cord Pull Distance", vr_chainsaw_pull_distance, 10.f, 60.f, 1.f, "%.0f cm").extend()
+            .help("How far the cord must be pulled out for a pull (the handle taken in the other, empty, hand's grip)."),
+        slider("Cord Pull Speed", vr_chainsaw_pull_speed, 0.3f, 4.f, 0.1f, "%.1f m/s").extend()
+            .help("How fast the hand must pull it there: a slower pull is only a weak one, and never starts it."),
         header("Weapon Drops"),
         cycle("Enemy Weapon Drops", "vr_enemy_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random enemy weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
         slider("Enemy Drops Chance", "vr_enemy_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for enemy weapon drops."),
@@ -1850,6 +1869,10 @@ std::vector<Item> pageDebugLogging()
             .help("The game's developer messages: needed by Shots and Damage and the Grappling Hook's log below, and many "
                   "others (melee events, grenades, deflections). Verbose: every frame's melee detail too."),
         header("Logs"),
+        cycle("Chainsaw", vr_debug_chainsaw, {{0.f, "Off"}, {1.f, "Pulls and Cuts"}, {2.f, "And the Bar in Monsters"}})
+            .help("The chainsaws' cords (taken, pulled, too slow, let go), their engines (started, stalled) and cuts; "
+                  "And the Bar: also each cut's test against what is near, how deep the drawn bar sinks into a monster, "
+                  "and the cord's hole drawn. The engine and cut lines need Developer Messages."),
         toggle("Shots and Damage", vr_debug_shots)
             .help("Each hitscan shot (where it starts, its direction, what its pellets hit, headshots), each damage you deal "
                   "(and when Quad's sound plays) and each prop a shot pushes. Needs Developer Messages."),
@@ -2026,6 +2049,13 @@ std::vector<Item> pageDebugTests()
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
         toggle("As a Corpse", vr_test_spawn_dead).help("A monster killed at once: a corpse, to test gibbing and carrying."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        header("Chainsaw"),
+        command("A Chainsaw in Your Hand", "impulse 164").help("A full ogre's chainsaw in the main hand (impulse 184: the off "
+                                                                "hand). Take its cord with the other hand and pull."),
+        command("Take the Nearest Chainsaw", "impulse 229").help("The chainsaw lying nearest you (an ogre's, dropped) into an "
+                                                                 "empty hand, its fuel as it was."),
+        command("Nearly Empty Tank", "impulse 227").help("The chainsaws in your hands left with 5% fuel: to see one stall."),
+        command("Report the Chainsaws", "impulse 228").help("Prints each chainsaw in your hands: its fuel, engine, chain and cord."),
         header("Flung Props"),
         slider("Fling Speed", vr_test_fling_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(),
         cycle("Fling At", vr_test_fling_at, {{0.f, "Nearest Monster"}, {1.f, "You"}}),

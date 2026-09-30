@@ -25,7 +25,7 @@ void(string xFnName, float xItemId) VR_ItemUtil_Impl_PrintInvalidItemCategory =
 
 // Indexed by item id (IID_*, vr_defs.qc): its bit, and which of .items, .hipnotic_items and
 // .rogue_items holds it (tables: an array accessor's few comparisons, not a chain of 43).
-float vr_itemutil_flag[44] =
+float vr_itemutil_flag[45] =
 {
     0, // 0 IID_NONE
     IT_ARMOR1, // 1 IID_ARMOR1
@@ -70,10 +70,11 @@ float vr_itemutil_flag[44] =
     ROGUE_IT_ANTIGRAV, // 40 IID_ANTIGRAV
     ROGUE_IT_EARTHQUAKE, // 41 IID_EARTHQUAKE
     ROGUE_IT_V_SPHERE, // 42 IID_V_SPHERE
-    HIP_IT_SWORD // 43 IID_SWORD
+    HIP_IT_SWORD, // 43 IID_SWORD
+    HIP_IT_CHAINSAW // 44 IID_CHAINSAW
 };
 
-float vr_itemutil_category[44] =
+float vr_itemutil_category[45] =
 {
     IID_CATEGORY_INVALID, // 0 IID_NONE
     IID_CATEGORY_ITEMS, // 1 IID_ARMOR1
@@ -118,12 +119,13 @@ float vr_itemutil_category[44] =
     IID_CATEGORY_ROGUE_ITEMS, // 40 IID_ANTIGRAV
     IID_CATEGORY_ROGUE_ITEMS, // 41 IID_EARTHQUAKE
     IID_CATEGORY_ROGUE_ITEMS, // 42 IID_V_SPHERE
-    IID_CATEGORY_HIPNOTIC_ITEMS // 43 IID_SWORD
+    IID_CATEGORY_HIPNOTIC_ITEMS, // 43 IID_SWORD
+    IID_CATEGORY_HIPNOTIC_ITEMS // 44 IID_CHAINSAW
 };
 
 float(float xItemId) VR_ItemUtil_Impl_ItemIdToFlag =
 {
-    if(xItemId < IID_ARMOR1 || xItemId > IID_SWORD)
+    if(xItemId < IID_ARMOR1 || xItemId > IID_CHAINSAW)
     {
         VR_ItemUtil_Impl_PrintInvalidItemId("VR_ItemUtil_Impl_ItemIdToFlag", xItemId);
         return 0;
@@ -140,7 +142,7 @@ float(float xItemId) VR_ItemUtil_Impl_ItemIdToFlag =
 
 float(float xItemId) VR_ItemUtil_ItemIdToItemCategory =
 {
-    if(xItemId < IID_ARMOR1 || xItemId > IID_SWORD)
+    if(xItemId < IID_ARMOR1 || xItemId > IID_CHAINSAW)
     {
         VR_ItemUtil_Impl_PrintInvalidItemId("VR_ItemUtil_ItemIdToItemCategory", xItemId);
         return IID_CATEGORY_INVALID;

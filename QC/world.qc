@@ -270,6 +270,7 @@ void() worldspawn =
     precache_sound("knight/sword2.wav");
     precache_model("progs/v_ksword.mdl");
     precache_model("progs/v_hksword.mdl");
+    VR_Chainsaw_Precache(); // VR: the ogres' chainsaw (vr_chainsaw.qc)
     VR_Debris_Precache(); // VR: rocks and bricks lying about (vr_debris.qc)
 
     // setup precaches allways needed

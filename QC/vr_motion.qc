@@ -194,7 +194,7 @@ void(entity xTarget) VR_Motion_Sample =
 // impulse 150 + id does.
 void(float xHand, float xWid, float xFlags) VR_Motion_Equip =
 {
-    if(xWid < WID_FIST || xWid > WID_SWORD)
+    if(xWid < WID_FIST || xWid > WID_LAST)
     {
         return;
     }

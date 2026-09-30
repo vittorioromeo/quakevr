@@ -11,6 +11,12 @@ float QVR_WPNFLAG_USE_SECONDARY_AMMO = VRUTIL_POWER_OF_TWO(0);
 // A gun left hanging from its foregrip by the hand-off (vr_2h_handoff): drawn as it was held, unusable
 // until a hand takes its handle (QVR_HS_CARRIED_GRIP). Never kept outside a hand.
 float QVR_WPNFLAG_FOREGRIP_CARRIED = VRUTIL_POWER_OF_TWO(1);
+// The ogres' chainsaw (vr_chainsaw.qc): its engine runs (started by its cord), and its chain runs (the engine running and
+// the trigger held: the engine lets its bar sink into monsters, vr_modelcollide.cpp). A hand's state: never kept outside a
+// hand (holstered or thrown, the engine stops).
+float QVR_WPNFLAG_SAW_RUNNING = VRUTIL_POWER_OF_TWO(2);
+float QVR_WPNFLAG_SAW_CHAIN = VRUTIL_POWER_OF_TWO(3);
+float QVR_WPNFLAG_SAW_STATE = 12; // both (QVR_WPNFLAG_SAW_RUNNING | QVR_WPNFLAG_SAW_CHAIN): stripped as it leaves the hands
 
 //
 //
@@ -86,6 +92,7 @@ float IID_ANTIGRAV           = 40; // ROGUE.
 float IID_EARTHQUAKE         = 41; // ROGUE.
 float IID_V_SPHERE           = 42; // ROGUE.
 float IID_SWORD              = 43; // VR.
+float IID_CHAINSAW           = 44; // VR: an ogre's chainsaw.
 
 //
 //
@@ -108,6 +115,9 @@ float WID_ROCKET_LAUNCHER  = 10;
 float WID_LIGHTNING        = 11;
 float WID_LASER_CANNON     = 12; // HIPNOTIC.
 float WID_SWORD            = 13; // VR: a knight's sword (weaponflags QVR_WPNFLAG_USE_SECONDARY_AMMO: the hell knight's)
+float WID_CHAINSAW         = 14; // VR: an ogre's chainsaw (vr_chainsaw.qc; its clip is its fuel)
+float WID_LAST             = 14; // the last weapon id
+float VR_CHAINSAW_TANK     = 100; // a chainsaw's full tank (its clip: fuel, in percent)
 
 //
 //

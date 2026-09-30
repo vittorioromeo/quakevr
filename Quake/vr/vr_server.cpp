@@ -189,6 +189,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         static_cast<float>(withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary | primary));
     setFieldVec(ent, f.teleport_target, move.teleportTarget);
     setFieldFloat(ent, f.offhand_hotspot, move.hotspots[0]);
+    setFieldFloat(ent, f.sawcord, move.sawCord);
     setFieldFloat(ent, f.mainhand_hotspot, move.hotspots[1]);
     setFieldVec(ent, f.roomscalemove, move.roomscaleMove);
     setFieldFloat(ent, f.button3, (move.buttons & QVR_BUTTON_OFFHANDATTACK) ? 1.f : 0.f);

@@ -6,6 +6,7 @@
 #include "vr_engine.hpp"
 #include "vr_imgprefetch.hpp"
 #include "vr_anchor.hpp"
+#include "vr_chainsaw.hpp"
 #include "vr_decals.hpp"
 #include "vr_gore.hpp"
 #include "vr_envmap.hpp"
@@ -1000,6 +1001,7 @@ extern "C" void VR_Init()
     bodycal::init();
     motion::init();
     flashlight::init();
+    chainsaw::init();
     detail::init();
     hull::init();
     unstick::init();

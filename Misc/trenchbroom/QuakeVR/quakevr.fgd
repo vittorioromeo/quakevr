@@ -166,6 +166,7 @@
 		11 : "Thunderbolt"
 		12 : "Laser cannon (Scourge of Armagon)"
 		13 : "Sword (a knight's)"
+		14 : "Chainsaw (an ogre's; a full tank)"
 	]
 	weaponflags(choices) : "Variant" : 0 : "The weapon's variant: its alternative ammunition (Dissolution of Eternity's), or the hell knight's sword." =
 	[
@@ -1996,6 +1997,7 @@ This is just a solid wall if not inhibitted"
 		weapon == "11" -> "progs/v_light.mdl",
 		weapon == "12" -> "progs/v_laserg.mdl",
 		weapon == "13" -> "progs/v_ksword.mdl",
+		weapon == "14" -> "progs/v_chainsaw.mdl",
 		"progs/v_shot.mdl"
 	}}
 ) =
@@ -2019,6 +2021,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		11 : "Thunderbolt"
 		12 : "Laser cannon (Scourge of Armagon)"
 		13 : "Sword (a knight's)"
+		14 : "Chainsaw (an ogre's; a full tank)"
 	]
 ]
 
@@ -2043,6 +2046,7 @@ func_weapon_grabbable). Only the standard variant. A point entity, despite its n
 		weapon == "12" -> "progs/v_laserg.mdl",
 		weapon == "13" && (weaponflags & 1) == 1 -> "progs/v_hksword.mdl",
 		weapon == "13" -> "progs/v_ksword.mdl",
+		weapon == "14" -> "progs/v_chainsaw.mdl",
 		"progs/v_shot.mdl"
 	}}
 ) =

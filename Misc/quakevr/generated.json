@@ -118,6 +118,14 @@
   "sha256": "59d16902495dcfc631ca1eb35dcb915c022ac25ebd22db963e70e0243ae42067",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/v_chainsaw.mdl": {
+  "sha256": "89fb326a76101a258148cb81dc4699dd5b8ad7c2e41123dde4a6fbe0600bcf6a",
+  "by": "make_chainsaw.py"
+ },
+ "quakevr/progs/v_chainsaw.mdl_0_norm.png": {
+  "sha256": "27dc2b464fc90d8d00547a0cd747152c48df1cc633de81861205a7bd3cb61c45",
+  "by": "bake_normals.py"
+ },
  "quakevr/progs/v_grpple.mdl": {
   "sha256": "bd101fbf3cc2c6dd3da59f1f10a93e2cc56dcda37abfb32b1d7717e3896556a1",
   "by": "polish_weapons.py"
