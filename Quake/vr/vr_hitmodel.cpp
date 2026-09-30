@@ -5,6 +5,7 @@
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
+#include "vr_jobs.hpp"
 #include "vr_lines.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_profile.hpp"
@@ -1065,11 +1066,39 @@ void afterLoad()
 {
     const auto t0 = Clock::now();
     int built = 0, tris = 0;
+    // The meshes to make, made at once on the game's thread pool (each build writes only its own mesh), before the
+    // walk below finds them made.
+    std::array<bool, MAX_MODELS> had{};
+    std::vector<std::pair<Mesh*, const aliashdr_t*>> todo;
+    for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
+    {
+        const qmodel_t* model = sv.models[i];
+        const aliashdr_t* hdr = model ? quakeAlias(model) : nullptr;
+        had[i] = hdr && meshes.count(model->name) && meshes[model->name].hdr == hdr;
+        if(!hdr || (byIndexModel[i] == model && byIndex[i] && byIndex[i]->hdr == hdr))
+        {
+            continue; // (none, or the one meshOf keeps)
+        }
+        Mesh& m = meshes[model->name];
+        if((m.hdr != hdr || m.numverts != hdr->numverts || m.numposes != hdr->numposes) &&
+            std::none_of(todo.begin(), todo.end(), [&m](const auto& t) { return t.first == &m; }))
+        {
+            todo.emplace_back(&m, hdr);
+        }
+    }
+    qvr::jobs::parallelFor(todo.size(), 1,
+        [&todo](std::size_t begin, std::size_t end)
+        {
+            for(std::size_t k = begin; k < end; k++)
+            {
+                build(*todo[k].first, todo[k].second);
+            }
+        });
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
     {
         const aliashdr_t* hdr = nullptr;
-        const bool had = sv.models[i] && meshes.count(sv.models[i]->name) && meshes[sv.models[i]->name].hdr == quakeAlias(sv.models[i]);
-        if(const Mesh* m = meshOf(i, sv.models[i], hdr); m && !had)
+        const bool had_ = had[i];
+        if(const Mesh* m = meshOf(i, sv.models[i], hdr); m && !had_)
         {
             built++;
             tris += static_cast<int>(m->tris.size());
@@ -1084,7 +1113,27 @@ void afterLoad()
         it = used ? std::next(it) : meshes.erase(it);
     }
     const double ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
-    Con_DPrintf("hit models: %d made (%d triangles) in %.1f ms\n", built, tris, ms);
+    // (the precached models' meshes' hash, FNV-1a: the same made on the pool or not)
+    std::uint32_t hash = 2166136261u;
+    const auto add = [&hash](const void* data, std::size_t size)
+    {
+        for(std::size_t k = 0; k < size; k++)
+        {
+            hash = (hash ^ static_cast<const unsigned char*>(data)[k]) * 16777619u;
+        }
+    };
+    for(int i = 1; i < MAX_MODELS && sv.model_precache[i] && developer.value; i++)
+    {
+        if(const Mesh* m = byIndexModel[i] == sv.models[i] ? byIndex[i] : nullptr)
+        {
+            add(&m->restPose, sizeof(m->restPose));
+            add(&m->winding, sizeof(m->winding));
+            add(m->tris.data(), m->tris.size() * sizeof(m->tris[0]));
+            add(m->nodes.data(), m->nodes.size() * sizeof(Node));
+            add(m->bounds.data(), m->bounds.size() * sizeof(Bounds));
+        }
+    }
+    Con_DPrintf("hit models: %d made (%d triangles) in %.1f ms, hash %08x\n", built, tris, ms, static_cast<unsigned>(hash));
 }
 
 void reset()

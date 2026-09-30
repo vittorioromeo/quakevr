@@ -1,6 +1,7 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
 #include "vr_hitmodel.hpp"
+#include "vr_box3d.hpp"
 #include "vr_hull.hpp"
 #include "vr_unstick.hpp"
 #include "vr_engine.hpp"
@@ -1097,6 +1098,8 @@ extern "C" void VR_Init()
 
 extern "C" void VR_Shutdown()
 {
+    hull::finishLoads(); // (a map load's builds, if a quit came in the middle of one)
+    box3d::finishLoads();
     imgprefetch::shutdown(); // (the decoding tasks finished)
     ao::shutdown(); // (the models' occlusion bakes, VR or not)
     gpustats::stop();

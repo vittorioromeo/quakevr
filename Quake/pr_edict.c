@@ -1632,6 +1632,7 @@ void ED_LoadFromFile (const char *data)
 
 		pr_global_struct->self = EDICT_TO_PROG(ent);
 		PR_ExecuteProgram (func - qcvm->functions);
+		VR_OnEntitySpawned (ent); // QVR
 	}
 
 	Con_DPrintf ("%i entities inhibited\n", inhibit);

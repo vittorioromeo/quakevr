@@ -43,6 +43,7 @@
 
 #include "vr_box3d.hpp"
 #include "vr_hitmodel.hpp"
+#include "vr_jobs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
@@ -522,7 +523,8 @@ struct MeshStats
     double ms{0.0};
 };
 
-[[nodiscard]] b3MeshData* worldMesh(const qmodel_t* map, float m2u, MeshStats& stats)
+// (Only reads the map: made on the game's thread pool while the map spawns, see beforeLoad.)
+[[nodiscard]] b3MeshData* worldMesh(const qmodel_t* map, float m2u, bool junctions, MeshStats& stats)
 {
     const double t0 = Sys_DoubleTime();
     struct Face
@@ -606,7 +608,6 @@ struct MeshStats
     std::vector<int> outline;
     std::vector<uint8_t> corner; // per outline entry: one of the face's own corners (else a T-junction put in)
     std::vector<std::pair<float, int>> between;
-    const bool junctions = vr_box3d_mesh_junctions.value != 0.f;
     for(const Face& f : faces)
     {
         outline.clear();
@@ -778,8 +779,11 @@ constexpr size_t meshCacheScales = 4;
            c.junctions == (vr_box3d_mesh_junctions.value != 0.f);
 }
 
+void settleMesh();
+
 [[nodiscard]] MeshCache* findMesh(const qmodel_t* map, float m2u)
 {
+    settleMesh(); // (the one beforeLoad made, if any)
     for(MeshCache& c : meshCache)
     {
         if(c.m2u == m2u && sameMap(c, map))
@@ -799,14 +803,10 @@ constexpr size_t meshCacheScales = 4;
 }
 
 // (Only with the world destroyed: a mesh let go may be the one its shape used.)
-[[nodiscard]] b3MeshData* cachedWorldMesh(const qmodel_t* map, float m2u)
+// A mesh made, into the cache (the latest used last): another map's (or other settings'), and the least recently used
+// scale beyond the few kept, let go first.
+MeshCache& addMesh(const MeshCache& made, const qmodel_t* map)
 {
-    if(MeshCache* found = findMesh(map, m2u))
-    {
-        std::rotate(found, found + 1, meshCache.data() + meshCache.size()); // the latest used last
-        return meshCache.back().mesh;
-    }
-    // Another map's (or other settings'), and the least recently used scale beyond the few kept, let go.
     for(auto it = meshCache.begin(); it != meshCache.end();)
     {
         if(!sameMap(*it, map) || meshCache.size() >= meshCacheScales)
@@ -822,19 +822,62 @@ constexpr size_t meshCacheScales = 4;
             ++it;
         }
     }
-    MeshCache& c = meshCache.emplace_back();
-    q_strlcpy(c.name, map->name, sizeof(c.name));
-    c.vertexes = map->numvertexes;
-    c.surfaces = map->numsurfaces;
-    c.m2u = m2u;
-    c.junctions = vr_box3d_mesh_junctions.value != 0.f;
-    c.mesh = worldMesh(map, m2u, c.stats);
+    MeshCache& c = meshCache.emplace_back(made);
     if(vr_debug_box3d.value)
     {
-        Con_Printf("box3d: the mesh of %s: %d faces, %d triangles, %d T-junctions joined in %d faces (%d fanned from the middle), %.1f ms\n", map->name,
-            c.stats.faces, c.stats.triangles, c.stats.junctions, c.stats.junctionFaces, c.stats.middleFans, c.stats.ms);
+        // (its bytes' hash, FNV-1a: the same made on the pool or not)
+        uint32_t hash = 2166136261u;
+        const auto* bytes = reinterpret_cast<const unsigned char*>(c.mesh);
+        for(int32_t i = 0; c.mesh && i < c.mesh->byteCount; i++)
+        {
+            hash = (hash ^ bytes[i]) * 16777619u;
+        }
+        Con_Printf("box3d: the mesh of %s: %d faces, %d triangles, %d T-junctions joined in %d faces (%d fanned from the middle), %.1f ms, hash %08x\n", c.name,
+            c.stats.faces, c.stats.triangles, c.stats.junctions, c.stats.junctionFaces, c.stats.middleFans, c.stats.ms,
+            static_cast<unsigned>(hash));
     }
-    return c.mesh;
+    return c;
+}
+
+// The map's mesh made on the game's thread pool while the map spawns (beforeLoad), for the cache: put there at the
+// first look at the cache after (findMesh), or when the map's memory is about to go (finishLoads).
+struct PendingMesh
+{
+    jobs::Future<b3MeshData*> job;
+    MeshCache key; // its map, scale and settings (its mesh: the job's)
+    const qmodel_t* map{nullptr};
+};
+PendingMesh pendingMesh;
+
+void settleMesh()
+{
+    if(!pendingMesh.job.valid())
+    {
+        return;
+    }
+    const double t0 = Sys_DoubleTime();
+    MeshCache made = pendingMesh.key;
+    made.mesh = pendingMesh.job.get();
+    made.stats = pendingMesh.key.stats;
+    VR_TimeAdd("box3d: the world's mesh, waited for (made on the pool)", Sys_DoubleTime() - t0);
+    (void)addMesh(made, pendingMesh.map);
+}
+
+[[nodiscard]] b3MeshData* cachedWorldMesh(const qmodel_t* map, float m2u)
+{
+    if(MeshCache* found = findMesh(map, m2u))
+    {
+        std::rotate(found, found + 1, meshCache.data() + meshCache.size()); // the latest used last
+        return meshCache.back().mesh;
+    }
+    MeshCache made;
+    q_strlcpy(made.name, map->name, sizeof(made.name));
+    made.vertexes = map->numvertexes;
+    made.surfaces = map->numsurfaces;
+    made.m2u = m2u;
+    made.junctions = vr_box3d_mesh_junctions.value != 0.f;
+    made.mesh = worldMesh(map, m2u, made.junctions, made.stats);
+    return addMesh(made, map).mesh;
 }
 
 // A convex region as the intersection of half-spaces dot(n, p) <= d: its corners (triples of planes meeting inside
@@ -3870,6 +3913,37 @@ void registerCommands()
 
 namespace qvr::box3d
 {
+
+void beforeLoad()
+{
+    finishLoads();
+    const qmodel_t* map = sv.worldmodel;
+    if(!wanted() || !map || map->type != mod_brush)
+    {
+        return;
+    }
+    const float m2u = units::metresToUnits();
+    if(findMesh(map, m2u))
+    {
+        return; // (kept: the same map again)
+    }
+    PendingMesh& p = pendingMesh;
+    p.key = MeshCache{};
+    q_strlcpy(p.key.name, map->name, sizeof(p.key.name));
+    p.key.vertexes = map->numvertexes;
+    p.key.surfaces = map->numsurfaces;
+    p.key.m2u = m2u;
+    p.key.junctions = vr_box3d_mesh_junctions.value != 0.f;
+    p.map = map;
+    MeshStats* stats = &p.key.stats; // (only the job writes it until settleMesh)
+    const bool junctions = p.key.junctions;
+    p.job = jobs::async([map, m2u, junctions, stats] { return worldMesh(map, m2u, junctions, *stats); });
+}
+
+void finishLoads()
+{
+    settleMesh();
+}
 
 bool toss(edict_t* ent)
 {

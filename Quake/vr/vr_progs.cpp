@@ -199,6 +199,9 @@ extern "C" void VR_OnClearMemory()
     {
         VR_OnClientClearState();
     }
+    // The map load's builds still on the pool (a load that failed half-way) finished first: they read the old world.
+    qvr::hull::finishLoads();
+    qvr::box3d::finishLoads();
     // The registered scratch buffers given back (a one-off peak not kept for the next map), and the caches of the old
     // world's data (vr_mem.hpp).
     qvr::mem::on(qvr::mem::MapChange);
@@ -211,6 +214,18 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
     // The training dummy's attacks (parry practice; QC vr_dummy.qc) are off at every map load, a saved game's too.
     Cvar_SetQuick(&qvr::vr_dummy_attacks, "0");
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerBeforeLoad);
+    qvr::hull::beforeLoad(); // the map as brushes and the compiled hulls, on the pool while the map spawns
+    qvr::box3d::beforeLoad(); // the world's mesh, likewise
+}
+
+extern "C" void VR_OnEntitySpawned(edict_t* ent)
+{
+    qvr::hull::entitySpawned(ent); // a monster's compiled hull, as soon as its width is known
+}
+
+extern "C" void VR_OnSpawnServerSpawned()
+{
+    qvr::hull::spawned(); // the monsters' compiled hulls (their widths now known), on the pool
 }
 
 extern "C" void VR_OnEdictFree(edict_t* ed)
@@ -242,13 +257,26 @@ void qvr::progs::testRemove_f()
 
 extern "C" void VR_OnSpawnServerAfterLoad()
 {
+    // (each timed for vr_startup_times' map load)
+    double t = Sys_DoubleTime();
+    const auto timed = [&t](const char* what)
+    {
+        const double now = Sys_DoubleTime();
+        VR_TimeAdd(what, now - t);
+        t = now;
+    };
     qvr::server::onSpawnServerAfterLoad();
+    timed("VR after load: server state");
     qvr::debris::afterLoad();
     qvr::ledges::afterLoad(); // climbing's ledge map (with Climbing on)
+    timed("VR after load: ledges");
     qvr::hitmodel::afterLoad(); // precise hits: every precached model's triangle hierarchy (no first-hit hitch)
+    timed("VR after load: hit models");
     qvr::hull::afterLoad(); // the player's narrower box: the map as brushes (vr_hull_width)
+    timed("VR after load: hulls");
     qvr::climb::reset();
     callSpawnServerEntryPoint(sv_bindings.OnSpawnServerAfterLoad);
+    timed("VR after load: QuakeC");
     loadingSaveGame = false;
 }
 
