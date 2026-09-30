@@ -535,7 +535,8 @@ bool weightKey(Key key)
         case Key::SpringTwoHanded:
         case Key::SpringSnap:
         case Key::MeleeDamage:
-        case Key::ThrowDamage: return true;
+        case Key::ThrowDamage:
+        case Key::SpinAlign: return true;
         default: return false;
     }
 }

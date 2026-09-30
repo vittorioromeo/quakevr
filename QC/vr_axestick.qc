@@ -262,6 +262,39 @@ entity(float xKind) VR_AxeStick_TestTarget =
     return best;
 };
 
+// `v` turned `deg` degrees about the unit `k` (right-handed).
+vector(vector v, vector k, float deg) VR_AxeStick_Turn =
+{
+    float c = cos(deg * (3.14159265 / 180));
+    float s = sin(deg * (3.14159265 / 180));
+    vector kv;
+    kv_x = k_y * v_z - k_z * v_y;
+    kv_y = k_z * v_x - k_x * v_z;
+    kv_z = k_x * v_y - k_y * v_x;
+    return v * c + kv * s + k * ((k * v) * (1 - c));
+};
+
+// A model's angles (as a view's pitch: MakeThrown turns it) for its forward `fw` and up `up` (square to each other).
+vector(vector fw, vector up) VR_AxeStick_Angles =
+{
+    vector a = vectoangles(fw);
+    a_x = a_x * -1;
+    a_z = 0;
+    makevectors(a);
+    vector c;
+    c_x = v_up_y * up_z - v_up_z * up_y;
+    c_y = v_up_z * up_x - v_up_x * up_z;
+    c_z = v_up_x * up_y - v_up_y * up_x;
+    float roll = atan2(c * fw, v_up * up) * (180 / 3.14159265);
+    a_z = roll;
+    makevectors(a);
+    if(v_up * up < 0.999)
+    {
+        a_z = -roll; // (the other way round)
+    }
+    return a;
+};
+
 void() VR_AxeStick_TestThrow =
 {
     makevectors('0 1 0' * self.v_viewangle_y);
@@ -329,6 +362,56 @@ void() VR_AxeStick_TestThrow =
         a = vectoangles(L * -1); // its forward to the right: its left (y, across the blade) ahead
     }
     a_x = a_x * -1; // (MakeThrown turns a view's pitch into a model's)
+    // A hand's throw (4 overhand, 5 sidearm, 6 sloppy: at random; 7 as set): from blade first, turned (vr_test_axe_roll
+    // about the way it goes, _pitch about your left, its head forward, _yaw about the upright) and spun (rad/s about
+    // the way it goes, your left: end over end, its top going ahead, the upright). vr_test_axe_loft: aimed up to meet
+    // what is ahead level with your eyes.
+    vector spin = '0 0 0';
+    if(mode >= 4)
+    {
+        vector t = '0 0 0'; // roll, pitch, yaw
+        vector w = '0 0 0'; // about F, L, U
+        if(mode == 4) // overhand: end over end
+        {
+            t = randomVec(1) * 15;
+            t_y = crandom() * 30;
+            w_y = 8 + random() * 8;
+            w_x = crandom() * 1.5;
+            w_z = crandom() * 1.5;
+        }
+        else if(mode == 5) // sidearm: the blade level, spun about the upright either way
+        {
+            t_x = 90 + crandom() * 15;
+            t_y = crandom() * 10;
+            t_z = crandom() * 30;
+            w_z = (random() < 0.5 ? -1 : 1) * (8 + random() * 8);
+            w_x = crandom() * 1.5;
+            w_y = crandom() * 1.5;
+        }
+        else if(mode == 6) // sloppy: turned and spun any way, end over end the most
+        {
+            t = randomVec(1) * 45;
+            w = randomVec(1) * 6;
+            w_y = w_y + 4 + random() * 8;
+        }
+        else
+        {
+            t_x = cvar("vr_test_axe_roll");
+            t_y = cvar("vr_test_axe_pitch");
+            t_z = cvar("vr_test_axe_yaw");
+            w_x = cvar("vr_test_axe_spin_f");
+            w_y = cvar("vr_test_axe_spin_l");
+            w_z = cvar("vr_test_axe_spin_u");
+        }
+        vector fw = bf * 0.9398 + hp * 0.3417;
+        vector up = hp * 0.9398 - bf * 0.3417;
+        fw = VR_AxeStick_Turn(VR_AxeStick_Turn(VR_AxeStick_Turn(fw, F, t_x), L, t_y), U, t_z);
+        up = VR_AxeStick_Turn(VR_AxeStick_Turn(VR_AxeStick_Turn(up, F, t_x), L, t_y), U, t_z);
+        a = VR_AxeStick_Angles(fw, up);
+        spin = F * w_x + L * w_y + U * w_z;
+        dprint(sprintf("axe test: hand throw roll %.0f pitch %.0f yaw %.0f, spin %.1f %.1f %.1f (along, left, up)\n", t_x, t_y,
+            t_z, w_x, w_y, w_z));
+    }
     // vr_test_axe_dist: you moved along so that what is ahead of your eyes is that far (units) from you.
     if(dist > 0)
     {
@@ -339,14 +422,60 @@ void() VR_AxeStick_TestThrow =
             self.velocity = '0 0 0';
         }
     }
-    vector from = self.origin + '0 0 22' + F * 40; // (clear of your body)
+    vector from = self.origin + '0 0 22' + F * 40 + L * cvar("vr_test_axe_side"); // (clear of your body)
     float speed = cvar("vr_test_axe_speed") * VRMetersToUnits();
     float hurt = cvar("vr_test_axe_damage") != 0;
     entity axe = CreateThrownWeapon(self, WID_AXE, 0, 0, from, a, F * speed - self.velocity, '0 0 0',
         FALSE, hurt, WeaponIdToThrowDamage(WID_AXE));
+    if(mode >= 4 && cvar("vr_test_axe_loft") && speed > 0)
+    {
+        traceline(from, from + F * 4000, TRUE, self);
+        float g = (axe.gravity ? axe.gravity : 1) * cvar("sv_gravity");
+        axe.velocity_z = axe.velocity_z + 0.5 * g * (4000 * trace_fraction / speed);
+    }
     if(mode == 3)
     {
         axe.vr_spin = L * 12; // end over end (rad/s), its top going ahead, the blade coming down
+    }
+    if(mode >= 4)
+    {
+        axe.vr_spin = spin;
+    }
+    // vr_test_axe_what (the spin in the air's tests): 1 a gib, 2 an explosive box (that never blows up) thrown instead,
+    // the same way (the axe's place, velocity and spin; the axe itself removed).
+    float what = cvar("vr_test_axe_what");
+    if(what == 1 || what == 2)
+    {
+        entity thing = world;
+        if(what == 1)
+        {
+            thing = spawn();
+            thing.classname = "test_gib";
+            setmodel(thing, "progs/gib1.mdl");
+            setsize(thing, '0 0 0', '0 0 0');
+            thing.movetype = MOVETYPE_BOUNCE;
+            thing.solid = SOLID_NOT;
+            thing.vr_rigid = 1;
+            setorigin(thing, from);
+        }
+        else
+        {
+            entity oldSelf = self;
+            self = spawn();
+            setorigin(self, from - '16 16 32');
+            misc_explobox();
+            thing = self;
+            self = oldSelf;
+            thing.takedamage = DAMAGE_NO;
+            setorigin(thing, from - '16 16 32');
+            thing.flags = thing.flags - (thing.flags & FL_ONGROUND);
+        }
+        thing.angles = axe.angles;
+        thing.velocity = axe.velocity;
+        thing.vr_spin = axe.vr_spin;
+        thing.owner = self;
+        remove(axe);
+        axe = thing;
     }
     traceline(from, from + F * 2000, FALSE, self);
     dprint(sprintf("axe test: thrown %s at %.1f m/s (%.0f u/s) from %v, angles %v; ahead: %s %.0f units away\n",

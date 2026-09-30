@@ -287,6 +287,9 @@ QVR_WEAPON_KEY(Hotspot1Sticky, "hs1_sticky")
 QVR_WEAPON_KEY(Hotspot2Sticky, "hs2_sticky")
 QVR_WEAPON_KEY(Hotspot3Sticky, "hs3_sticky")
 QVR_WEAPON_KEY(Hotspot4Sticky, "hs4_sticky")
+// Round 21, "Thrown axes: blade leniency, spin in the air": times Throwing and Physics' Spin Alignment
+// (vr_throw_spin_align) for the weapon thrown (Weapon Weights; 1 by default: registerCvars).
+QVR_WEAPON_KEY(SpinAlign, "w_spinalign")
 #endif
 
 #ifdef QVR_WEAPON_RETIRED

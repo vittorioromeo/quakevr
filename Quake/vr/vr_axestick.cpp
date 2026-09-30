@@ -9,7 +9,7 @@
 // one fails it, or never strikes with the edge at all), and within vr_axestick_incidence of straight into the surface.
 // It then sticks as it was turned when it struck, pushed along the way the blade faces until the edge is its depth
 // under the surface (vr_axestick_depth at twice the least speed, half at it, never more than 60% of the blade), and
-// only if its handle stays out of the wall.
+// only if its handle stays out of the wall. vr_axestick_leniency (beforeStep) widens each of these a little.
 //
 // Where it is kept: the axe's pose in the frame of what it is in (its origin and angles: a door's, a prop's as drawn,
 // a monster's yaw; the world's; or the monster model's triangle it went into, as drawn now: vr_hitmodel.cpp's
@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <array>
+#include <span>
 #include <cmath>
 #include <cstdarg>
 #include <cstring>
@@ -201,6 +202,15 @@ struct Strike
 
 constexpr float sweepBack = 3.f;  // units each point's sweep starts behind it
 constexpr float lookAhead = 16.f; // units past this step's move a monster is looked for
+// vr_axestick_leniency's, at 1 (times it): units past this step's move the edge is looked for (the level, props); degrees
+// more the edge may slant along itself and the blade meet the surface off square; degrees the axe may be turned about
+// its edge to keep its handle out of the wall.
+constexpr float aheadUnits = 4.f;
+constexpr float slantLeniency = 25.f;
+constexpr float incidenceLeniency = 10.f;
+constexpr float handleLeniency = 25.f;
+constexpr float fewPoints[]{0.f, 0.5f, 1.f};                // along each edge (its share of the way), without leniency
+constexpr float morePoints[]{0.f, 0.25f, 0.5f, 0.75f, 1.f}; // and with
 
 void report(edict_t* ent, const char* fmt, ...)
 {
@@ -294,6 +304,32 @@ void sweep(edict_t* ent, int edge, const glm::vec3& local, const glm::vec3& from
     }
 }
 
+// Which part of the axe the world point `p` is on (its debug): an edge, the rest of the head, the handle.
+[[nodiscard]] const char* partOf(edict_t* ent, const Blade& blade, const glm::vec3& p)
+{
+    const glm::vec3 local = glm::transpose(held::axesFromAngles(ent->v.angles, false)) * (p - vec(ent->v.origin));
+    const auto toSegment = [&](const glm::vec3& a, const glm::vec3& b) {
+        const glm::vec3 ab = b - a;
+        const float t = std::clamp(glm::dot(local - a, ab) / std::max(1e-6f, glm::dot(ab, ab)), 0.f, 1.f);
+        return glm::distance(local, a + ab * t);
+    };
+    float edge = 1e9f;
+    for(int e = 0; e < 2; e++)
+    {
+        const DrawnEdge d = drawnEdge(ent, blade, e);
+        edge = std::min(edge, toSegment(d.a, d.b));
+    }
+    const glm::vec3 head = held::drawnModelPoint(ent, blade.head);
+    const glm::vec3 handle = held::drawnModelPoint(ent, blade.handle);
+    if(edge < 4.f)
+    {
+        return "an edge";
+    }
+    const glm::vec3 axis = glm::normalize(head - handle);
+    const float along = glm::dot(local - handle, axis);
+    return along > glm::length(head - handle) - 8.f ? "the head" : along < 4.f ? "the handle's end" : "the handle";
+}
+
 void callStuck(func_t fn, edict_t* ent, edict_t* host, int kind, float speed)
 {
     const int oldSelf = pr_global_struct->self;
@@ -378,8 +414,13 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
         if(glm::length(glm::vec2{dv.x, dv.y}) > 25.f || dv.z > 25.f || dv.z < -fall - 25.f || glm::length(spin - lastSpin) > 2.f)
         {
             setFieldFloat(ent, f.vr_stick_kind, static_cast<float>(Out));
-            report(ent, "hit something (%.0f u/s, spin %.1f rad/s changed): never sticks now", glm::length(dv),
-                glm::length(spin - lastSpin));
+            if(vr_debug_axestick.value)
+            {
+                glm::vec3 p;
+                const char* part = box3d::contactPoint(NUM_FOR_EDICT(ent), p) ? partOf(ent, *blade, p) : "?";
+                report(ent, "hit something with %s (%.0f u/s, spin %.1f rad/s changed): never sticks now", part,
+                    glm::length(dv), glm::length(spin - lastSpin));
+            }
             return false;
         }
     }
@@ -407,12 +448,20 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     const glm::mat3 turn = rotation(spin, dt);
     const glm::vec3 move = vel * dt;
 
+    // Leniency (vr_axestick_leniency, 0..2): five points along each edge instead of three, each looked for
+    // `ahead` units past this step's move (the edge about to meet what the body meets first: the handle's butt or the
+    // head's side a moment before it; Box3D's hull, one convex hull, also fills the beard's hollow, between the blade's
+    // lower corner and the handle), and the angles wider (below).
+    const float leniency = std::clamp(vr_axestick_leniency.value, 0.f, 2.f);
+    const float ahead = aheadUnits * leniency;
+    const std::span<const float> points = leniency > 0.f ? std::span<const float>{morePoints} : std::span<const float>{fewPoints};
+
     Strike best;
     DrawnEdge edges[2];
     for(int e = 0; e < 2; e++)
     {
         edges[e] = drawnEdge(ent, *blade, e);
-        for(const float t : {0.f, 0.5f, 1.f})
+        for(const float t : points)
         {
             const glm::vec3 local = glm::mix(edges[e].a, edges[e].b, t);
             const glm::vec3 at = origin + axes * local;
@@ -425,7 +474,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
                 continue;
             }
             const glm::vec3 dir = (to - at) / len;
-            sweep(ent, e, local, at - dir * sweepBack, to, sweepBack, len, false, best);
+            sweep(ent, e, local, at - dir * sweepBack, to + dir * ahead, sweepBack, len, false, best);
         }
     }
     // A monster a little further on: Box3D meets it at its body's hull (its standing pose's, round it), before the
@@ -434,7 +483,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     {
         for(int e = 0; e < 2; e++)
         {
-            for(const float t : {0.f, 0.5f, 1.f})
+            for(const float t : points)
             {
                 const glm::vec3 local = glm::mix(edges[e].a, edges[e].b, t);
                 const glm::vec3 at = origin + axes * local;
@@ -445,7 +494,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
                     continue;
                 }
                 const glm::vec3 dir = (to - at) / len;
-                sweep(ent, e, local, at - dir * sweepBack, to + dir * lookAhead, sweepBack, len, true, best);
+                sweep(ent, e, local, at - dir * sweepBack, to + dir * std::max(lookAhead, ahead), sweepBack, len, true, best);
             }
         }
     }
@@ -469,6 +518,19 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     const glm::vec3 facing = glm::normalize(axesAt * edge.out);
     const float angle = speed > 1e-3f ? degrees(facing, rel / speed) : 180.f;
     const float incidence = degrees(facing, -best.normal);
+    // The way the edge goes split into its blade's plane (a spinning axe's edge comes in at a slant along itself: a
+    // corner of the blade bites first, and the spin drives it in) and across it (the blade's side first: a flat throw).
+    // Leniency widens the first only, and for a spinning axe (vr_axestick_angle + 25 degrees at 1 once the spin gives
+    // the edge a third of its speed; none without spin: a slanting blade that doesn't turn skids); 0: the whole angle
+    // within vr_axestick_angle, as before.
+    const glm::vec3 across = glm::normalize(axesAt * glm::cross(edge.b - edge.a, edge.out));
+    const glm::vec3 relDir = speed > 1e-3f ? rel / speed : -facing;
+    const float sideOn = glm::degrees(std::asin(std::clamp(std::abs(glm::dot(relDir, across)), 0.f, 1.f)));
+    const glm::vec3 inPlane = relDir - across * glm::dot(relDir, across);
+    const float slant = glm::length(inPlane) > 1e-4f ? degrees(facing, glm::normalize(inPlane)) : 90.f;
+    const float spinShare = glm::length(glm::cross(spin, pointAt - com)) / std::max(glm::length(edgeVel), 1e-3f);
+    const float slantMax = vr_axestick_angle.value + slantLeniency * leniency * std::clamp(spinShare * 3.f, 0.f, 1.f);
+    const float incidenceMax = vr_axestick_incidence.value + incidenceLeniency * leniency;
     const char* hostName = host == qcvm->edicts ? "the level" : PR_GetString(host->v.classname);
 
     const char* why = best.why;
@@ -480,11 +542,19 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     {
         why = "not going into it";
     }
-    else if(!why && angle > vr_axestick_angle.value)
+    else if(!why && leniency <= 0.f && angle > vr_axestick_angle.value)
     {
         why = "not blade first";
     }
-    else if(!why && incidence > vr_axestick_incidence.value)
+    else if(!why && leniency > 0.f && sideOn > vr_axestick_angle.value)
+    {
+        why = "not blade first (its side)";
+    }
+    else if(!why && leniency > 0.f && slant > slantMax)
+    {
+        why = "not blade first (slanting)";
+    }
+    else if(!why && incidence > incidenceMax)
     {
         why = "too glancing";
     }
@@ -493,21 +563,48 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     const float depthMax = std::max(0.f, vr_axestick_depth.value) * 0.01f * m2u;
     const float depth = std::min(depthMax * std::clamp(speed / (2.f * minSpeed), 0.5f, 1.f), 0.6f * edge.width);
     const float along = depth / std::max(0.35f, glm::dot(facing, -best.normal));
-    const glm::vec3 stuckOrigin = originAt + (best.point - pointAt) + facing * along;
+    glm::vec3 stuckOrigin = originAt + (best.point - pointAt) + facing * along;
+    glm::mat3 stuckAxes = axesAt;
+    float tilted = 0.f;
 
-    // Its handle out of the wall (the level's, a door's, a prop's): from the head's middle to the handle's end.
+    // Its handle out of the wall (the level's, a door's, a prop's): from the head's middle to the handle's end. With
+    // leniency, if it would be in, the axe is turned about the edge where it went in, the handle away from the wall,
+    // by up to handleLeniency degrees (at 1) before it gives up.
     if(!why && best.kind != Model && best.kind != MonsterBox)
     {
-        const glm::vec3 head = stuckOrigin + axesAt * held::drawnModelPoint(ent, blade->head);
-        // (To 90% of the handle's length: its end may touch the wall.)
-        const glm::vec3 handle = glm::mix(head, stuckOrigin + axesAt * held::drawnModelPoint(ent, blade->handle), 0.9f);
-        vec3_t a, b, zero{0.f, 0.f, 0.f};
-        store(head, a);
-        store(handle, b);
-        const trace_t tr = SV_Move(a, zero, zero, b, MOVE_NOMONSTERS, ent);
-        if(SV_PointContents(a) == CONTENTS_SOLID || tr.startsolid || tr.fraction < 1.f)
+        const auto handleIn = [&](const glm::vec3& o, const glm::mat3& r) {
+            const glm::vec3 head = o + r * held::drawnModelPoint(ent, blade->head);
+            // (To 90% of the handle's length: its end may touch the wall.)
+            const glm::vec3 handle = glm::mix(head, o + r * held::drawnModelPoint(ent, blade->handle), 0.9f);
+            vec3_t a, b, zero{0.f, 0.f, 0.f};
+            store(head, a);
+            store(handle, b);
+            const trace_t tr = SV_Move(a, zero, zero, b, MOVE_NOMONSTERS, ent);
+            return SV_PointContents(a) == CONTENTS_SOLID || tr.startsolid || tr.fraction < 1.f;
+        };
+        if(handleIn(stuckOrigin, stuckAxes))
         {
             why = "its handle would be in the wall";
+            const glm::vec3 butt = axesAt * (held::drawnModelPoint(ent, blade->handle) - held::drawnModelPoint(ent, blade->head));
+            const glm::vec3 pivotAxis = glm::cross(butt, best.normal);
+            const float most = handleLeniency * leniency;
+            if(glm::length(pivotAxis) > 1e-4f && most > 0.f)
+            {
+                const glm::vec3 pivot = best.point - facing * along * 0.5f; // (in the wall, on the edge)
+                for(float deg = 5.f; deg <= most + 1e-3f; deg += 5.f)
+                {
+                    const glm::mat3 t = glm::mat3_cast(glm::angleAxis(glm::radians(deg), glm::normalize(pivotAxis)));
+                    const glm::vec3 o = pivot + t * (stuckOrigin - pivot);
+                    if(!handleIn(o, t * axesAt))
+                    {
+                        stuckOrigin = o;
+                        stuckAxes = t * axesAt;
+                        tilted = deg;
+                        why = nullptr;
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -519,8 +616,9 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     }
     if(why)
     {
-        report(ent, "blade %d struck %s at %.0f u/s (%.1f m/s), %.0f deg off its edge, %.0f deg to the surface: bounces (%s)",
-            best.edge, hostName, speed, speed / m2u, angle, incidence, why);
+        report(ent, "blade %d struck %s at %.0f u/s (%.1f m/s), %.0f deg off its edge (%.0f slanting, %.0f side on), %.0f "
+                    "deg to the surface, %.2f of the step: bounces (%s)",
+            best.edge, hostName, speed, speed / m2u, angle, slant, sideOn, incidence, best.fraction, why);
         return false;
     }
 
@@ -535,7 +633,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     }
     const glm::mat3 inv = glm::transpose(frameAxes); // (orthonormal)
     vec3_t localAngles;
-    held::anglesFromAxes(inv * axesAt, localAngles, true);
+    held::anglesFromAxes(inv * stuckAxes, localAngles, true);
     setFieldFloat(ent, f.vr_stick_kind, static_cast<float>(kind));
     fieldInt(ent, f.vr_stick_ent) = EDICT_TO_PROG(host);
     setFieldVec(ent, f.vr_stick_ofs, inv * (stuckOrigin - framePoint));
@@ -544,17 +642,17 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     setFieldFloat(ent, f.vr_stick_edge, static_cast<float>(best.edge));
     setFieldFloat(ent, f.vr_stick_wiggle, 0.f);
     store(edgeVel, ent->v.velocity); // (the throw's, for QC's blow)
-    place(ent, *blade, stuckOrigin, axesAt);
+    place(ent, *blade, stuckOrigin, stuckAxes);
 
     // A prop takes the blow.
     if(kind == Prop)
     {
         box3d::push(host, best.point, edgeVel, box3d::propMass(ent));
     }
-    report(ent, "blade %d stuck in %s (%d, kind %d) at %.0f u/s (%.1f m/s), %.0f deg off its edge, %.0f deg to the surface, "
-                "%.2f units deep (%.1f cm; the blade %.2f wide)",
-        best.edge, hostName, NUM_FOR_EDICT(host), kind, speed, speed / m2u, angle, incidence, depth, depth / m2u * 100.f,
-        edge.width);
+    report(ent, "blade %d stuck in %s (%d, kind %d) at %.0f u/s (%.1f m/s), %.0f deg off its edge (%.0f slanting, %.0f side "
+                "on), %.0f deg to the surface, %.2f of the step, %.2f units deep (%.1f cm; the blade %.2f wide)%s",
+        best.edge, hostName, NUM_FOR_EDICT(host), kind, speed, speed / m2u, angle, slant, sideOn, incidence, best.fraction,
+        depth, depth / m2u * 100.f, edge.width, tilted > 0.f ? va(", turned %.0f deg to keep its handle out", tilted) : "");
 
     callStuck(stuckFn, ent, host, kind, speed);
     return true;

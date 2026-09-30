@@ -16226,3 +16226,77 @@ maps and model loading to `vr_normalmaps.cpp` and `vr_modelload.cpp`, the alias 
 to their own files; `quakedef.h` includes the module's C headers once; the Makefiles' rules in `vr/vr.mk`, the toolset
 in `quakevr.toolset.props`. Every hunk marked `// QVR`. Hot paths (traces, draw loops) stay inline. The table, what
 stays and why, and the checks (eval identical, CPU busy 0.398 / 0.395 ms): [IRONWAIL_DIFF.md](IRONWAIL_DIFF.md).
+
+## Thrown axes: blade leniency; spin in the air (2026-09-30)
+
+"The axe blade getting stuck after a throw is an awesome feature, but it is really hard to trigger. [...] A slider that
+controls the leniency of what is considered part of the blade. [...] Some sort of way to make the mid-air rotation of
+elongated objects like the axe feel more natural [...] they should naturally align and spin end-over-end."
+
+**Why real throws rarely stuck** (measured: 60 synthetic hand throws of each kind at vrfiringrange's wall, 3-7 m, 7-12
+m/s, aimed up to meet it at eye level; `vr_test_axe 7`). A hand's throw spins (8-16 rad/s): the edge's velocity is the
+flight's plus the spin's, so it comes in slanting along the edge, and only a quarter of the turn has the front blade
+within 45 degrees of it (the back blade, at the bottom, moves back against the flight). The failures, overhand: 25
+"not blade first" (46-105 degrees; nearly all slanting along the edge, few side on), 17 the handle's butt first (Box3D's
+hull is one convex hull: it fills the beard's hollow, from the blade's lower corner to the butt), 7 "its handle would be
+in the wall". Box3D-only spin (align 0): a sloppy throw 43 degrees off its steadiest axis is still 43 off after 1.5 s.
+
+**Blade Leniency** (Throwing and Physics > Thrown Axes; `vr_axestick_leniency`, 0..2, default 1; 0 is exactly the old
+test). At 1: five points along each edge instead of three, each looked for 4 units past the step's move (the edge about
+to meet what the body meets first sticks a step early); the way the edge goes split into the blade's plane (slant) and
+across it (side on): side on stays within Stick Angle (a flat throw still bounces), the slant may be 25 degrees more,
+but only for a spinning axe (in full once the spin gives the edge a third of its speed: the spin drives the corner in; a
+handle-first throw falling blade-down onto the floor skids off); Stick Incidence + 10; and, if the handle would be in
+the wall, the axe is turned about the edge where it went in, handle away from the wall, 5 degrees at a time up to 25.
+
+| Throw (60 each) | Before | Leniency 1 (slant not yet by spin) | Leniency 1 + Spin Alignment 8 (shipped) | Leniency 2 (slant not yet by spin) |
+|---|---|---|---|---|
+| Overhand (end over end, +-30 deg release, +-1.5 rad/s wobble) | 18% | 53% | 52% | 78% |
+| Sidearm (blade level, spun about the upright) | 30% | 48% | 50% | 72% |
+| Sloppy (turned +-45, spun any way) | 32% | 57% | 53% | 67% |
+| Dart (blade first, +-2 rad/s) | 78% | 92% | 88% | 93% |
+| Flat (the blade's side first) | 2% | 3% | 2% | 5% |
+| Handle first | 0% | 5% | 2% | 17% |
+
+The old fixed tests at leniency 1 (`vr_test_axe` 0-3 at 90, 150, 200, 250 units): blade first sticks at 90 and 150 (its
+butt hits the floor first further off, as before), flat bounces at all four, handle first bounces at all four,
+spinning sticks at 200 and 250 (the back blade led at 90, as before).
+
+**Box3D and the gyroscopic torque.** Box3D integrates it (`solver.c`, `b3IntegrateVelocitiesTask`: `I (w2 - w1) + h w2
+x I w2 = 0` solved in body space by one Newton step, `B3_GYROSCOPIC_ITERATIONS` 1, always on, "improves the simulation
+of long skinny bodies"). So a free body precesses, and the intermediate-axis flip can happen. What it lacks is a loss: a
+torque-free tumble keeps its energy (the implicit step loses a little, far too little in a throw's second), so a
+tumble never settles on the steadiest axis (the major-axis rule: a body losing energy at constant angular momentum ends
+spinning about the axis of most inertia; for the axe, square to its blade's plane: end over end, blade leading).
+
+**Spin Alignment** (`vr_box3d.cpp`'s `spinAlign`; Throwing and Physics > Physics: Spin Alignment, `vr_throw_spin_align`
+8 a second, 0 off). For a throw (a prop let go of by a hand, or whose owner is a player: `noteThrows` sets its slot's
+`flight`), each step before Box3D's until it first touches anything (or the water): its principal axes from Box3D's local
+inertia (its hull's), its spin in them; the spin about the least and the middle axes dies away at the rate times
+(1 - least / most)^2 times (0.1 + 0.9 flat), flat = how far the most inertia stands out from the middle (0 for a rod, a
+gib, a square box: then the middle's is kept, any turn across the length will do), and the angular momentum's size is
+kept (a spin about the handle ends end over end at a fifth of the rate). The axe: inertia 0.0039 0.0169 0.0206, long
+0.81, distinct 0.18: 5.25/s at 8. A gib (progs/gib1.mdl): long 0.83, distinct 0: 0.55/s, its spin about its length only;
+an explosive box: long 0.60, distinct 0: 0.29/s. Only the angular velocity of a body touching nothing: Box3D's contacts
+and anything held are untouched. Per weapon: Weapon Weights > Thrown > Spin in the Air (`vr_wofs_w_spinalign_NN`, 1);
+per prop: Held Object Weights > Thrown > Spin in the Air (`vr_prop_spin_align_NN`, 1): times the global.
+
+Measured (`vr_debug_spin_align 2`; degrees between the spin and the steadiest axis): overhand, 13 at the release
+(median; 24 at most), under 10 within 0.09 s (0.18 at most), 2.9 at the wall; sidearm 10, under 10 within 0.07 s (0.14);
+sloppy 49 (up to 89), long throws (14-18 m): every one under 10 in flight, median 0.35 s, at most 0.69 s (align 0: 43 at
+the release, 43 after 1.5 s, not one under 10). A stronger alignment (16) changed no stick rate (it is for the look).
+
+**Settings, debug, tests.** New settings only (no config migration). Debug > Spin in the Air (`vr_debug_spin_align`: 1
+each throw's spin as it leaves and at its flight's end; 2 every step). Axe Sticks' lines now give the slant and side-on
+angles, the share of the step, a turn to keep the handle out, and what a body hit first (an edge, the head, the handle,
+its butt). Debug > Tests > Thrown Axe: Axe Throw adds Overhand, Sidearm, Sloppy (a hand's throw at random, aimed up to
+meet the wall at eye level: `vr_test_axe_loft`); 7 is as set (`vr_test_axe_roll/_pitch/_yaw`, `_spin_f/_l/_u`,
+`_side`); Throw Instead (`vr_test_axe_what`: a gib, an explosive box). `eval.sh` canary: no differences.
+
+**In the headset:**
+- [ ] Throw the axe overhand, end over end, at a wall from a few distances: does it stick about half the time, and
+  look right in the wall (a turned one sits up to 25 degrees off how it came)? Blade Leniency 0..2 tunes it.
+- [ ] A flat throw (blade's side first) and a handle-first one still bounce.
+- [ ] Throw it sloppily: does its tumble settle into a clean end-over-end spin in the air, and does that look natural?
+  Spin Alignment (global), Spin in the Air (Weapon Weights) tune it; 0 turns it off.
+- [ ] A thrown gib, box or other prop still tumbles as before (or near it).
