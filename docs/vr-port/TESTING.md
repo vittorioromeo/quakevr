@@ -1241,6 +1241,14 @@ hit by 4.0 kg: 189 u/s gained, x0.09: 17 u/s`; `shoved` for the steps after, cap
 strike's share (`(x0.77 by mass)`) and a QC poke's (`that push by 3.0 kg against its 40.0 kg`). The same grenade
 made heavy: `vr_prop_mass_04 40` before `vr_test_projectile 4` (the kit's `scratch/heldphys2/flick.sh <kg>`); an
 explosive box ahead: `vr_test_spawn 102; vr_test_spawn_dist 34; impulse 241` punched with `poke.txt` (`box.sh`).
+Weapons and props against the level (ROUND21.md, "Held weapons and props against the level"): `vr_debug_gun_wall 1`
+prints each frame a hand's weapon is held out (`gunwall: main hand moved 9.94 (up 9.94, across 0.00) units; depth 0.00;
+lowest point 0.40 over the surface below`), `2` every frame. The prop table's edge: `map vrfiringrange; setpos -476 -760
+41 0 -90 0; vr_weapon_grip_mode 1; impulse 9; wait2; impulse 154` (the shotgun), then `vr_mock_hand main 0.2 <1.10 down
+to 0.60> -0.45 70 0 0` (its top is z 49, its front edge y -782; a func_wall of `maps/vr_proptable.bsp`). A held gib there:
+from `setpos -476 -770 41 0 -90 0` grip at `vr_mock_hand off -0.1 1.2 -0.45 0 -13 90` (`+graboff; vr_mock_button off grip
+1; impulse 252`), then `vr_mock_hand off -0.2 <height> -0.95 70 0 0` (`vr_debug_carry 1`: the prop's lowest corner). The
+kit's `scratch/heldenv/` (`tilt.sh`, `mkprop.sh`, `palm.sh`: a gib on the palm, `vr_model_collide_rest 0|1`).
 Held props meeting: `vr_debug_carry 1` prints `held: 199 and 198 meet` / `apart` and, each frame they touch, how deep
 and how far each is drawn moved (`meet.sh`: a gib put in the main hand by `vr_rigid_place new main 0 0 0` and the
 grip, a head in the off hand by `impulse 252`); `vr_debug_carry 2`'s `carry_trace.txt` has each drawn hand off its

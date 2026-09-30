@@ -14094,3 +14094,66 @@ higher threshold to fix it. Wiggles he keeps as they are.
 - [ ] Soft punches land; a fist waved about doesn't.
 - [ ] Reload fast next to the dummy (gun from aim to the hip holster): no hit, no whoosh. With a gun and with each hand.
 - [ ] Gun strikes still land: the butt forward, a swing down and ahead, a chop from over the head.
+## Held weapons and props against the level: they rest on a table; things on the palm
+
+NOTES.md vrclimb 2026-09-30 02:36:05, vrfiringrange 01:58:26 and 02:37:13. Branch `agent/heldenv`; scripts in the kit's
+`scratch/heldenv/` (`tilt.sh`, `mkprop.sh`, `palm.sh`, `rt.sh`).
+
+### What changed
+
+- **A held weapon slides along the level** (`vr_handpose.cpp` gunOutOfWalls, `vr_gun_wall_slide` 1). Before, the hand
+  was moved back until a box swept from the hand to the muzzle stopped at the wall, along the axes the wall faced: a gun
+  lowered at a table's edge met the table's front face with its barrel and was pushed back towards the torso by the
+  barrel's length over the table (5 units in the mock), and a gun pushed down through the prop table (a thin func_wall)
+  ended under it. Now the weapon is its points: the drawn model's (24 farthest-point samples, as the model collisions
+  use: `modelcollide::weaponShape`, recorded as drawn last frame and turned with the hand), the hand and the muzzle.
+  Clear where the hand is (and not held last frame): there. Otherwise it starts where it was last frame, leaves any
+  surface its turn put it into (the rays from the hand to its points; each that goes into a surface a plane there, the
+  least move out of them all, Gauss-Seidel, three rounds), then slides towards the hand's place: every point swept along
+  the move, stopped at the first surface, the rest of the move along the surfaces met (along the crease of two, four
+  bumps: SV_FlyMove's clip), 0.4 units off the surface. Held, it keeps sliding even to a clear place (it never goes
+  through a thin table to get there). As far as `vr_gun_wall_max` (40 cm, as the props' Wall Give): pushed further, the
+  hand goes in by the rest. Empty hands too (their drawn open hand or fist), which the old 5-unit "muzzle" did roughly.
+  About 2-10 us a hand a frame (26-50 short traces).
+- **A prop held in one hand is part of it**: its points (its model's samples, or a brush model's box) as it sat in the
+  hand last frame, from the hand drawn with it (`modelcollide::endView`). So a held gib rests on the table with the
+  hand, not only the hand.
+- **The prop table was invisible to the held props' wall test.** `wallFrame` traced the client's world and its inline
+  brush models (`*N`); the firing range's prop table is a func_wall of its own file (`maps/vr_proptable.bsp`): a held
+  prop went into it as deep as its size under the hand. `worldtrace::world` takes `ownFiles` (off by default: the other
+  27 callers unchanged); `wallFrame` passes it. With the hand now holding the prop out first, wallFrame finds nothing
+  in the table tests; it stays for what the hand's slide lets through.
+- **A thing lying on a hand doesn't push it** (`vr_model_collide_rest` 1, `box3d::restsOnHand`). The model collisions
+  (round 21, `vr_modelcollide.cpp`) treated a gib lying on the open palm as a thing on the ground and pushed the drawn
+  hand out of it (0.5 units for a small gib, more for a brick): the hand no longer looked under it. Now a loose prop in
+  contact with the hand's reach body or sphere, the contact's normal pointing up into it (> 0.3), is left out of that
+  hand's test (and for 0.25 s after: a bounce). Other things (and a hand pressing a gib into the floor) still stop it.
+
+### Numbers (mock, fast mode)
+
+- The shotgun lowered 16 units below the prop table's top at its edge (hand in front of the edge, barrel over it), five
+  poses: old: pushed back 2.7-5.1 units, its lowest point 6-14 units into or under the table; new: moved straight up
+  7.4-9.9 units, never across, its lowest model point 0.40 units over the top (the margin), depth 0. Muzzle tilted 20
+  degrees down: the hand is lifted to the give (13.1 units) and the muzzle is 0.6 units in.
+- A test gib held in the off hand, lowered onto the prop table: before the table fix it passed through (the table was
+  not seen); now its drawn box's lowest corner is 0.16 units over the top, the hand moved up 7.9, no wall push left.
+- A gib let go of on the off palm (turned up), asleep there: the off hand's model push 0.51 units with
+  `vr_model_collide_rest 0`, none with 1 (the gib not tested).
+- Melee eval (canary, full, and `--render`): 168/176, the same verdicts as the baseline (its damage values differ by
+  x0.75 on this branch's base: `vr_melee_speed` 4 here, 3 in the baseline).
+
+### Settings
+
+`vr_gun_wall_slide` (1; Weapons Slide Along Walls), `vr_gun_wall_max` (40 cm; Weapon Wall Give), `vr_model_collide_rest`
+(1; Things Rest on Hands), all on the Carrying page by the held props' wall settings; `vr_debug_gun_wall` (Debug: Log
+Weapon Wall Collisions; 2 every frame): the hand moved (up, across), the depth left, the weapon's lowest point over the
+surface below it, the points and the time. `vr_debug_carry 1`'s wall line also prints the held prop's lowest corner.
+
+### Test in VR
+
+- [ ] Lower a gun onto a table (the prop table, and a world-brush one), at its edge and over it, level, tilted, rolled:
+      it rests on the top and never jumps back towards you. Slide it along the top; lift it off.
+- [ ] Push a gun into a wall at an angle: it slides along the wall instead of being pulled back along the barrel.
+- [ ] Push a held gib or brick down onto the prop table: it sits on the top, the hand with it.
+- [ ] Balance a gib or a brick on an open palm: the hand stays under it.
+- [ ] Empty hands against walls and tables, grabbing things on a table, climbing: nothing feels stuck.

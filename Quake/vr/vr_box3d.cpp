@@ -1792,6 +1792,7 @@ constexpr HandBox openHandBox{{-15.5f, -4.4f, -12.f}, {5.5f, -0.8f, 2.f}};
 constexpr HandBox fistBox{{-16.f, -4.3f, -12.1f}, {-0.9f, 3.2f, -3.1f}};
 constexpr float reachSink = 0.01f;     // m: sunk no deeper in a new reach body, a prop rests on it; deeper, passes through
 constexpr float reachCapsule = 0.015f; // m: another player's weapon's radius
+constexpr float restUp = 0.3f;         // a prop rests on a hand where their contact's normal (up into it) is this steep (restsOnHand)
 
 // The hand whose reach body `body` is (of client `player`), or nullptr.
 [[nodiscard]] World::HandBody* reachOf(b3BodyId body, int player)
@@ -4246,6 +4247,43 @@ bool castAt(int num, const glm::vec3& from, const glm::vec3& to, float radius, f
         &q);
     fraction = q.fraction;
     return q.any;
+}
+
+bool restsOnHand(int num, int player, int hand)
+{
+    if(!world || num <= 0 || num >= static_cast<int>(world->slots.size()) || player < 1 ||
+        player >= static_cast<int>(world->hands.size()) || hand < 0 || hand > 1)
+    {
+        return false;
+    }
+    const Slot& s = world->slots[static_cast<std::size_t>(num)];
+    const World::HandBody& hb = world->hands[static_cast<std::size_t>(player)][static_cast<std::size_t>(hand)];
+    if(s.kind != Kind::Prop || !b3Body_IsValid(s.body))
+    {
+        return false;
+    }
+    std::array<b3ContactData, 16> contacts;
+    const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
+    for(int i = 0; i < count; i++)
+    {
+        const b3ContactData& c = contacts[static_cast<std::size_t>(i)];
+        const bool isA = B3_ID_EQUALS(b3Shape_GetBody(c.shapeIdA), s.body);
+        const b3BodyId other = b3Shape_GetBody(isA ? c.shapeIdB : c.shapeIdA);
+        if(!(B3_IS_NON_NULL(hb.reach) && B3_ID_EQUALS(other, hb.reach)) && !(B3_IS_NON_NULL(hb.body) && B3_ID_EQUALS(other, hb.body)))
+        {
+            continue;
+        }
+        for(int m = 0; m < c.manifoldCount; m++)
+        {
+            // (The manifold's normal points from A to B: here from the hand up into the prop.)
+            const float up = isA ? -c.manifolds[m].normal.z : c.manifolds[m].normal.z;
+            if(c.manifolds[m].pointCount > 0 && up > restUp)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool ropeOverlaps(const glm::vec3& at, float radius, int skipA, int skipB)

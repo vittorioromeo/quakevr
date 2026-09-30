@@ -54,7 +54,7 @@ trace_t hullTrace(qmodel_t* model, const glm::vec3& origin, const glm::vec3& sta
 
 } // namespace
 
-trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities)
+trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, bool ownFiles)
 {
     trace_t tr;
     memset(&tr, 0, sizeof(tr));
@@ -78,7 +78,8 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities)
     for(int i = 1; i < cl.num_entities; i++)
     {
         entity_t& e = cl_entities[i];
-        if(!e.model || e.model->type != mod_brush || e.model->name[0] != '*' || e.msgtime != cl.mtime[0])
+        if(!e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0] ||
+            (e.model->name[0] != '*' && !ownFiles))
         {
             continue;
         }

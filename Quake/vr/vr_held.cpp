@@ -1427,7 +1427,7 @@ void wallFrame(const hands::State& s)
                 for(const glm::vec3& point : points)
                 {
                     const glm::vec3 end = point + p;
-                    const trace_t tr = worldtrace::world(grip + p, end, true);
+                    const trace_t tr = worldtrace::world(grip + p, end, true, true);
                     if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f)
                     {
                         continue;
@@ -1498,9 +1498,25 @@ void wallFrame(const hands::State& s)
         }
         if(vr_debug_carry.value && (touching || meet.wallTouching[h]))
         {
-            Con_Printf("held: %d in the %s hand %s a wall: %.1f cm deep; drawn moved back %.1f cm (%.2f %.2f %.2f)\n", hd.ent,
-                h == 1 ? "main" : "off", touching ? "against" : "off", deepest / m2u * 100.f, glm::length(wall) / m2u * 100.f,
-                wall.x, wall.y, wall.z);
+            // Its drawn box's lowest corner over the surface under it (below: into it; a floor, a table top).
+            float lowest = 1e9f;
+            if(Box drawnBox; propBox(hd, drawnBox))
+            {
+                for(int i = 0; i < 8; i++)
+                {
+                    const glm::vec3 c{(i & 1) ? 1.f : -1.f, (i & 2) ? 1.f : -1.f, (i & 4) ? 1.f : -1.f};
+                    const glm::vec3 at = drawnBox.centre + drawnBox.axes * (c * drawnBox.half) + wall;
+                    const trace_t tr = worldtrace::world(at + glm::vec3{0.f, 0.f, 32.f}, at - glm::vec3{0.f, 0.f, 64.f}, true, true);
+                    if(!tr.allsolid && tr.fraction < 1.f)
+                    {
+                        lowest = std::min(lowest, at.z - tr.endpos[2]);
+                    }
+                }
+            }
+            Con_Printf("held: %d in the %s hand %s a wall: %.1f cm deep; drawn moved back %.1f cm (%.2f %.2f %.2f); lowest "
+                       "corner %.2f units over the surface below\n",
+                hd.ent, h == 1 ? "main" : "off", touching ? "against" : "off", deepest / m2u * 100.f,
+                glm::length(wall) / m2u * 100.f, wall.x, wall.y, wall.z, lowest);
         }
         meet.wallTouching[h] = touching;
         if(wall != glm::vec3{0.f})
