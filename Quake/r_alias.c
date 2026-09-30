@@ -465,7 +465,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		if (showtris) { textures[0] = blacktexture; textures[1] = whitetexture; }
 		textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
-		GL_BindTextures (0, 3, textures);
+		GL_BindTextures (0, 3, textures); // QVR: and the normal map
 		GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, ibuf.count);
 		rs_aliaspasses += hdr->numtris * ibuf.count;
 	}
@@ -501,7 +501,7 @@ void R_FlushAliasInstances (qboolean showtris)
 			if (showtris) { textures[0] = blacktexture; textures[1] = whitetexture; }
 			textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
-			GL_BindTextures (0, 3, textures);
+			GL_BindTextures (0, 3, textures); // QVR: and the normal map
 			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, ibuf.count);
 			rs_aliaspasses += hdr->numtris * ibuf.count;
 		}

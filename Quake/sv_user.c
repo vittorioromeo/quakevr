@@ -354,7 +354,7 @@ void SV_AirMove (void)
 		maxspeed *= VR_StaminaSpeedScale (sv_player);
 	if (wishspeed > maxspeed)
 	{
-		VectorScale (wishvel, maxspeed/wishspeed, wishvel);
+		VectorScale (wishvel, maxspeed/wishspeed, wishvel); // QVR: maxspeed: stamina
 		wishspeed = maxspeed;
 	}
 
@@ -438,7 +438,7 @@ void SV_ClientThink (void)
 		float scale = VR_WaterStickScale (sv_player, false); // QVR: wading in shallow water
 		cmd.forwardmove *= scale; cmd.sidemove *= scale; cmd.upmove *= scale; // QVR
 		SV_AirMove ();
-	}
+	} // QVR
 	//johnfitz
 }
 

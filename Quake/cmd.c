@@ -103,7 +103,7 @@ Cbuf_Init
 */
 void Cbuf_Init (void)
 {
-	cmd_text.maxsize = 1<<20;
+	cmd_text.maxsize = 1<<20; // QVR: a buffer Cbuf_Reserve grows (was SZ_Alloc of 1<<18 bytes, a fixed size)
 	cmd_text.cursize = 0;
 	cmd_text.data = (byte *) malloc (cmd_text.maxsize);
 	if (!cmd_text.data)
@@ -163,6 +163,7 @@ qboolean Cbuf_Reserve (int l)
 	return true;
 }
 
+
 /*
 ============
 Cbuf_AddText
@@ -172,12 +173,25 @@ Adds command text at the end of the buffer
 */
 void Cbuf_AddText (const char *text)
 {
-	Cbuf_AddTextLen (text, Q_strlen (text));
+	int		l;
+
+	l = Q_strlen (text);
+
+	if (!Cbuf_Reserve (l)) // QVR: the buffer grows
+	{
+		// QVR: only out of memory (Cbuf_Reserve says so)
+		return;
+	}
+
+	SZ_Write (&cmd_text, text, Q_strlen (text));
 }
 void Cbuf_AddTextLen (const char *text, int l)
 {
-	if (!Cbuf_Reserve (l))
+	if (!Cbuf_Reserve (l)) // QVR: the buffer grows
+	{
+		// QVR: only out of memory (Cbuf_Reserve says so)
 		return;
+	}
 
 	SZ_Write (&cmd_text, text, l);
 }
@@ -198,7 +212,7 @@ void Cbuf_InsertText (const char *text)
 	int		templen;
 
 // copy off any commands still remaining in the exec buffer
-	Cbuf_Compact ();
+	Cbuf_Compact (); // QVR: without the text already run
 	templen = cmd_text.cursize;
 	if (templen)
 	{
@@ -216,14 +230,18 @@ void Cbuf_InsertText (const char *text)
 
 // add the entire text of the file
 	Cbuf_AddText (text);
-	if (Cbuf_Reserve (1 + templen))
+	if (!Cbuf_Reserve (1 + templen)) // QVR: room for the rest (the buffer grows; out of memory, the rest is lost)
 	{
-		SZ_Write (&cmd_text, "\n", 1);
-// add the copied off data
-		if (templen)
-			SZ_Write (&cmd_text, temp, templen);
+		free (temp);
+		return;
 	}
-	free (temp);
+	SZ_Write (&cmd_text, "\n", 1);
+// add the copied off data
+	if (templen)
+	{
+		SZ_Write (&cmd_text, temp, templen);
+		free (temp); // QVR: was Z_Free (malloc'd)
+	}
 }
 
 //Spike: for renderer/server isolation
@@ -241,25 +259,25 @@ Spike: reworked 'wait' for renderer/server rate independance
 */
 void Cbuf_Execute (void)
 {
-	int		i, len;
+	int		i, len; // QVR: len
 	char	*text;
-	char	stackline[1024];
+	char	stackline[1024]; // QVR: a line of any length: here, or malloc'd
 	char	*line;
 	int		quotes, comment;
 
-	while (cmd_text.cursize > cbuf_start && !cmd_wait)
+	while (cmd_text.cursize > cbuf_start && !cmd_wait) // QVR: from the read position (cbuf_start)
 	{
 // find a \n or ; line break
-		text = (char *)cmd_text.data + cbuf_start;
+		text = (char *)cmd_text.data + cbuf_start; // QVR
 		len = cmd_text.cursize - cbuf_start;
 
 		quotes = 0;
 		comment = 0;
-		for (i=0 ; i< len ; i++)
+		for (i=0 ; i< len ; i++) // QVR: len
 		{
 			if (text[i] == '"')
 				quotes++;
-			if (text[i] == '/' && i + 1 < len && text[i + 1] == '/')
+			if (text[i] == '/' && i + 1 < len && text[i + 1] == '/') // QVR: not past the text
 				comment = true;
 			if (!(quotes&1) && !comment && text[i] == ';')
 				break;	// don't break if inside a quoted string
@@ -280,17 +298,17 @@ void Cbuf_Execute (void)
 // this is necessary because commands (exec, alias) can insert data at the
 // beginning of the text buffer
 
-		if (i == len)
+		if (i == len) // QVR: len, cbuf_start
 			cmd_text.cursize = cbuf_start = 0;
 		else
-			cbuf_start += i + 1;
+			cbuf_start += i + 1; // QVR: the read position moves (was a memmove of the rest)
 
 // execute the command line
 		Cmd_ExecuteString (line, src_command);
-		if (line != stackline)
+		if (line != stackline) // QVR
 			free (line);
 	}
-	if (cbuf_start >= cmd_text.cursize)
+	if (cbuf_start >= cmd_text.cursize) // QVR: all of it run
 		cmd_text.cursize = cbuf_start = 0;
 }
 
@@ -797,7 +815,7 @@ const char	*Cmd_Args (void)
 Cmd_AddArg
 ============
 */
-static qboolean cmd_args_warned;
+static qboolean cmd_args_warned; // QVR: Cmd_AddArg's warning, once per command
 
 void Cmd_AddArg (const char *arg)
 {
@@ -832,7 +850,7 @@ void Cmd_TokenizeString (const char *text)
 		Z_Free (cmd_argv[i]);
 
 	cmd_argc = 0;
-	cmd_args_warned = false;
+	cmd_args_warned = false; // QVR
 	cmd_args = NULL;
 
 	while (1)

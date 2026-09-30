@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quake VR's toolset, imported by ironwail.vcxproj after its configurations and before Microsoft.Cpp.props (where the
+     toolset is chosen): clang-cl, the ClangCL toolset (Visual Studio's "C++ Clang tools for Windows"; linked by
+     lld-link), its 64-bit tools (VC/Tools/Llvm/x64). The rest of the module's settings: quakevr.props. -->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PlatformToolset>ClangCL</PlatformToolset>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+</Project>

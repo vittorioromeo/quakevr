@@ -7,14 +7,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - compiler: clang
-            cxx: clang++
-          - compiler: gcc
-            cxx: g++
+        compiler: ["clang", "gcc"]
     steps:
     - uses: actions/checkout@v7
     - name: Install Dependencies
       run: sudo apt update && sudo apt install libcurl4-openssl-dev libmpg123-dev libsdl2-dev libvorbis-dev
     - name: Build
-      run: make --jobs=3 --keep-going --directory=Quake CC=${{ matrix.compiler }} CXX=${{ matrix.cxx }}
+      run: make --jobs=3 --keep-going --directory=Quake CC=${{ matrix.compiler }} CXX=${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }} # QVR: CXX, for the VR module

@@ -143,7 +143,7 @@ extern	const char	*gl_version;
 	x(GLboolean,	UnmapBuffer, (GLenum target))\
 	x(void*,		MapBufferRange, (GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access))\
 	x(void,			FlushMappedBufferRange, (GLenum target, GLintptr offset, GLsizeiptr length))\
-	x(void,			BlendEquation, (GLenum mode))\
+	x(void,			BlendEquation, (GLenum mode)) /* QVR */\
 	x(void,			FramebufferTextureLayer, (GLenum target, GLenum attachment, GLuint texture, GLint level, GLint layer))\
 	x(GLsync,		FenceSync, (GLenum condition, GLbitfield flags))\
 	x(void,			DeleteSync, (GLsync sync))\

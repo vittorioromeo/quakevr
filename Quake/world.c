@@ -1099,7 +1099,7 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict)
 {
 	trace_t trace;
-	++vr_profcounts.traces;
+	++vr_profcounts.traces; // QVR: profile (the rest in SV_MoveRun)
 	if (!vr_profile_fine)
 		return SV_MoveRun (start, mins, maxs, end, type, passedict);
 	VR_ProfileBegin ("trace");

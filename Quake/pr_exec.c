@@ -397,7 +397,7 @@ static void PR_ExecuteProgramRun (func_t fnum);
 // QVR: the profiler's "quakec" scope round the outermost call (vr_profile_report); with profiling off, one test.
 void PR_ExecuteProgram (func_t fnum)
 {
-	if (vr_profile_on && !vr_profile_inqc)
+	if (vr_profile_on && !vr_profile_inqc) // QVR: profile (the rest in PR_ExecuteProgramRun)
 	{
 		vr_profile_inqc = 1;
 		VR_ProfileBegin ("quakec");

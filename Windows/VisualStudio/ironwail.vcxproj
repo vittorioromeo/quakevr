@@ -23,31 +23,31 @@
     <RootNamespace>ironwail</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <PreferredToolArchitecture>x64</PreferredToolArchitecture><!-- QVR: the 64-bit clang-cl and lld-link (quakevr.props) -->
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>ClangCL</PlatformToolset><!-- QVR: clang-cl (quakevr.props) -->
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>ClangCL</PlatformToolset><!-- QVR: clang-cl (quakevr.props) -->
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>ClangCL</PlatformToolset><!-- QVR: clang-cl (quakevr.props) -->
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>ClangCL</PlatformToolset><!-- QVR: clang-cl (quakevr.props) -->
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
+  <Import Project="quakevr.toolset.props" /><!-- QVR: clang-cl -->
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -123,12 +123,6 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <StringPooling>true</StringPooling>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <SDLCheck>false</SDLCheck>
-      <FloatingPointModel>Precise</FloatingPointModel>
-      <AdditionalOptions>/Ob3 /Gw %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>..\curl\include;..\SDL2\include;..\codecs\include;..\misc\include;..\..\Quake;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;USE_SDL2;USE_CODEC_MP3;USE_CODEC_VORBIS;USE_CODEC_WAVE;USE_CODEC_FLAC;USE_CODEC_OPUS;USE_CODEC_XMP;USE_CODEC_UMX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -149,7 +143,6 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <TargetMachine>MachineX86</TargetMachine>
       <LargeAddressAware>true</LargeAddressAware>
     </Link>
@@ -201,12 +194,6 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <StringPooling>true</StringPooling>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
-      <SDLCheck>false</SDLCheck>
-      <FloatingPointModel>Precise</FloatingPointModel>
-      <AdditionalOptions>/Ob3 /Gw %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>..\curl\include;..\SDL2\include;..\codecs\include;..\misc\include;..\..\Quake;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USE_WINSOCK2;_CRT_NONSTDC_NO_DEPRECATE;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;USE_SDL2;USE_CODEC_MP3;USE_CODEC_VORBIS;USE_CODEC_WAVE;USE_CODEC_FLAC;USE_CODEC_OPUS;USE_CODEC_XMP;USE_CODEC_UMX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
@@ -227,7 +214,6 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <LinkTimeCodeGeneration>UseFastLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
     <PostBuildEvent>

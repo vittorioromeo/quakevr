@@ -337,7 +337,7 @@ void Host_WriteConfigurationToFile (const char *name)
 		if (in_mlook.state & 1) fprintf (f, "+mlook\n");
 		//johnfitz
 
-		if (ferror (f) | fclose (f) || Sys_ReplaceFile (tmpname, fullname) != 0)
+		if (ferror (f) | fclose (f) || Sys_ReplaceFile (tmpname, fullname) != 0) // QVR: written to a temporary file, then replacing the config in one step
 		{
 			Con_Printf ("\x02" "Couldn't write %s (the disk full?): the file was kept as it was\n", name);
 			Sys_remove (tmpname);
@@ -1298,7 +1298,7 @@ void _Host_Frame (double time)
 	if (vrserver >= 0 ? vrserver : accumtime >= host_netinterval)
 	{
 		float realframetime = host_frametime;
-		if (vrserver >= 0)
+		if (vrserver >= 0) // QVR: a motion take's recorded server frames (VR_ServerFrameOverride)
 		{
 			host_frametime = vrframetime;
 			accumtime = 0;

@@ -494,7 +494,7 @@ void SV_PushMove (edict_t *pusher, float movetime)
 	// if the entity is standing on the pusher, it will definately be moved
 		hanging = VR_ClimbHangsFrom (check, pusher); // QVR: or hanging from it (vr_climb)
 		if ( ! ( ((int)check->v.flags & FL_ONGROUND)
-		&& PROG_TO_EDICT(check->v.groundentity) == pusher) && !hanging )
+		&& PROG_TO_EDICT(check->v.groundentity) == pusher) && !hanging ) // QVR: not a hand hanging on it
 		{
 #ifdef USE_SSE2
 			__m128 check_absmin_vec = _mm_loadu_ps (check->v.absmin);

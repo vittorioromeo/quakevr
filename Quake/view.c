@@ -921,12 +921,12 @@ extern vrect_t	scr_vrect;
 
 /*
 ==================
-V_SetupView
+V_SetupView -- QVR
 
-QVR: the view's refdef and the view entities, without drawing (V_RenderView; VR_HeadlessView's frames)
+The view's refdef and the view entities, without drawing (V_RenderView; VR_HeadlessView's frames)
 ==================
 */
-void V_SetupView (void)
+void V_SetupView (void) // QVR
 {
 	if (cl.intermission)
 		V_CalcIntermissionRefdef ();

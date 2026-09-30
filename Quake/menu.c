@@ -1151,6 +1151,7 @@ static enum m_state_e M_GetBaseState (enum m_state_e state)
 //=============================================================================
 /* MAIN MENU */
 
+int	m_main_cursor = 1; // QVR: MAIN_SINGLEPLAYER (below): Single Player first, as before the VR Calibration row
 int m_main_mods;
 
 enum
@@ -1165,8 +1166,6 @@ enum
 
 	MAIN_ITEMS,
 };
-
-int	m_main_cursor = MAIN_SINGLEPLAYER; // QVR: Single Player first, as before the VR Calibration row
 
 // QVR: the rows as text, in the lettering of Quake's picture of them (gfx/mainmenu.lmp), cut from id's menu pictures
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
@@ -1202,9 +1201,9 @@ void M_Menu_Main_f (void)
 
 void M_Main_Draw (void)
 {
-	int		cursor, i, row;
+	int		cursor, i, row; // QVR: i, row
 	qpic_t	*p;
-	qboolean text;
+	qboolean text; // QVR: the rows as text (VR_BigFont_Draw)
 
 	M_DrawTransPic (16, 4, Draw_CachePic ("gfx/qplaque.lmp") );
 	p = Draw_CachePic ("gfx/ttl_main.lmp");
@@ -1219,12 +1218,12 @@ void M_Main_Draw (void)
 
 	if (text)
 	{
-		for (i = 0, row = 0; i < MAIN_ITEMS; i++)
+		for (i = 0, row = 0; i < MAIN_ITEMS; i++) // QVR: the rows as text
 			if (i != MAIN_MODS || m_main_mods)
 				VR_BigFont_Draw (73, 32 + row++ * 20, m_main_labels[i]);
 	}
 	else
-	{
+	{ // QVR: the VR Calibration row above the picture's
 		M_PrintEx (74, 32 + 1, 16, "VR CALIBRATION");
 
 		p = Draw_CachePic ("gfx/mainmenu.lmp");
@@ -7685,7 +7684,7 @@ static menulist_t *M_CurrentList (void)
 	}
 }
 
-qboolean M_ScrollList (int rows)
+qboolean M_ScrollList (int rows) // QVR
 {
 	menulist_t *list = M_CurrentList ();
 	if (!list || bind_grab || list->numitems <= 0 || M_List_GetOverflow (list) <= 0)

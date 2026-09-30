@@ -1005,10 +1005,10 @@ static void ED_PrintEdict_f (void)
 	i = Q_atoi (Cmd_Argv(1));
 	if (i < 0 || i >= sv.qcvm.num_edicts) // QVR: checked before the push (the early return left the VM pushed: the next push ended the game)
 	{
-		Con_Printf("Bad edict number %d (%d edicts)\n", i, sv.qcvm.num_edicts);
+		Con_Printf("Bad edict number %d (%d edicts)\n", i, sv.qcvm.num_edicts); // QVR: which
 		return;
 	}
-	PR_PushQCVM(&sv.qcvm, &oldqcvm);
+	PR_PushQCVM(&sv.qcvm, &oldqcvm); // QVR
 	ED_PrintNum (i);
 	PR_PopQCVM(oldqcvm);
 }

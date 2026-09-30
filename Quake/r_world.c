@@ -413,7 +413,7 @@ R_DrawBrushModels_Real
 */
 static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass, qboolean translucent)
 {
-	int i;
+	int i; // QVR: (j and baseinst: R_AddBModelPassCalls)
 	int totalinst;
 	unsigned state;
 	GLuint program;
@@ -492,7 +492,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 		glEnable (GL_SAMPLE_ALPHA_TO_ONE);
 	}
 	if (pass <= BP_ALPHATEST)
-	{
+	{ // QVR: and the deluxemaps
 		GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? greytexture : lightmap_texture);
 		GL_Bind (GL_TEXTURE9, lux_texture); // QVR: the light's directions (deluxemaps: LuxTex; read only with ShadowFlags 128)
 	}
@@ -562,7 +562,7 @@ static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin
 
 		baseinst += numinst;
 	}
-}
+} // QVR: R_AddBModelPassCalls
 
 /*
 =============

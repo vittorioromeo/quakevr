@@ -3,8 +3,6 @@ Windows/VisualStudio/Build-*/
 Windows/VisualStudio/ironwail.vcxproj.user
 Quake/*.o
 Quake/*.d
-Quake/vr/*.o
-Quake/vr/*.d
 Quake/*.res
 Quake/*.exe
 Quake/ironwail
@@ -12,30 +10,8 @@ build/
 /.vs
 /out/
 
-# Quake VR: build output and runtime files in the game folder
-/quakevr/progs.dat
-/quakevr/progs.lno
-/quakevr/*.cfg
-!/quakevr/quakevr.cfg
-/quakevr/*.sav
-/quakevr/*.dem
-/quakevr/screenshots/
-/quakevr/notes/
-/quakevr/motions/*
-!/quakevr/motions/expect.cfg
-!/quakevr/motions/suspects.cfg
-/quakevr/profile/
-/quakevr/cache/
-/quakevr/bodycal/
-/quakevr/eyeshots/
-/quakevr/envmap.tga
-/quakevr/checklist_ticks.txt
-!/quakevr/default.cfg
-!/quakevr/vr_bindings.cfg
-!/quakevr/vr_defaults.cfg
+# QVR: Quake VR's build and packaging output (quakevr/ and Quake/vr/ have their own .gitignore)
 /build-cmake/
 /dist/
 __pycache__/
-/quakevr/autosave/
-/quakevr/relit/
 /build.log

@@ -2048,6 +2048,7 @@ int SCR_ModalMessage (const char *text, float timeout) //johnfitz -- timeout
 		if (!VR_ModalMessageFrame ()) // QVR: a headset's frames go on, showing the dialog
 			Sys_Sleep (16);
 		Key_GetGrabbedInput (&lastkey, &lastchar);
+		// QVR: Sys_Sleep (16) above, unless a headset's frame was drawn
 		if (timeout) time2 = Sys_DoubleTime (); //johnfitz -- zero timeout means wait forever.
 	} while (lastchar != 'y' && lastchar != 'Y' &&
 		 lastchar != 'n' && lastchar != 'N' &&

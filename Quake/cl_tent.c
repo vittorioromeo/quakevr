@@ -292,7 +292,7 @@ entity_t *CL_NewTempEntity (void)
 	{
 		VR_LimitHit (QVR_LIMIT_TEMPENTS); // QVR: counted and warned (was silent: the entity not drawn)
 		return NULL;
-	}
+	} // QVR
 	ent = &cl_temp_entities[num_temp_entities];
 	memset (ent, 0, sizeof(*ent));
 	num_temp_entities++;
@@ -350,7 +350,7 @@ void CL_UpdateTEnts (void)
 			continue;
 
 	// calculate pitch and yaw
-		VectorSubtract (bend, bstart, dist);
+		VectorSubtract (bend, bstart, dist); // QVR: the ends as drawn
 
 		if (dist[1] == 0 && dist[0] == 0)
 		{

@@ -331,7 +331,7 @@ GL_PostProcess
 void GL_PostProcess (void)
 {
 	int palidx, variant;
-	float dither, gamma, contrast;
+	float dither, gamma, contrast; // QVR: gamma, contrast: the headset's (VR_PostProcessGamma)
 	if (!GL_NeedsPostprocess ())
 		return;
 

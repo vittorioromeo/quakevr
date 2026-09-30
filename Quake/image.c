@@ -469,6 +469,7 @@ qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, in
 
 qboolean Image_WritePNG (const char *name, byte *data, int width, int height, int bpp, qboolean upsidedown)
 {
+	// QVR: the rest in Image_WritePNGPath (a full path, any thread)
 	char	pathname[MAX_OSPATH];
 
 	q_snprintf (pathname, sizeof(pathname), "%s/%s", com_gamedir, name);
@@ -493,6 +494,7 @@ qboolean Image_WritePNGPath (const char *pathname, byte *data, int width, int he
 	if (!(bpp == 32 || bpp == 24))
 		Sys_Error("bpp not 24 or 32");
 
+	// QVR: pathname is the caller's
 	flipped = (!upsidedown)? Image_CopyFlipped (data, width, height, bpp) : data;
 	filters = (unsigned char *) malloc (height);
 	if (!filters || !flipped)

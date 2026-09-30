@@ -288,7 +288,7 @@ static void CL_ParseServerInfoRun (void);
 // QVR: a map's load, a scope of its own for the profiler (its hitch log).
 void CL_ParseServerInfo (void)
 {
-	VR_ProfileBegin ("map load");
+	VR_ProfileBegin ("map load"); // QVR: profile (the rest in CL_ParseServerInfoRun)
 	CL_ParseServerInfoRun ();
 	VR_ProfileEnd ();
 }

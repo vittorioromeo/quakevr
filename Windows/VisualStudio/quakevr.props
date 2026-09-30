@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Quake VR module build settings, imported by ironwail.vcxproj (after its own, so these override them).
+<!-- Quake VR module build settings, imported by ironwail.vcxproj (after its own, so these override them; the toolset:
+     quakevr.toolset.props).
      The whole engine is built by clang-cl (the ClangCL toolset: Visual Studio's "C++ Clang tools for Windows"; linked by
      lld-link): the C files as C11 (as upstream's), the Quake VR C++ files as C++23, so any of them can include Zancle
      (Quake/vr/external/zancle/README.md). -->
@@ -36,7 +37,13 @@ copy "$(SolutionDir)..\OpenXR\lib\x64\openxr_loader.dll" "$(TargetDir)"</Command
        the intermediate folder so that a rebuild of one file re-optimises only what changed. -->
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
-      <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>
+      <!-- Optimised for speed, inlining across functions more (/Ob3), without the security checks. -->
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <StringPooling>true</StringPooling>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <SDLCheck>false</SDLCheck>
+      <FloatingPointModel>Precise</FloatingPointModel>
+      <AdditionalOptions>-flto=thin /Ob3 /Gw %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>

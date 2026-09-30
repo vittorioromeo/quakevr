@@ -29,7 +29,7 @@ enum srcformat;
 
 //be sure to free the hunk after using this loading function
 byte *Image_LoadImage (const char *name, int *width, int *height, enum srcformat *fmt);
-#endif
+#endif // QVR
 
 byte* Image_CopyFlipped (const void *src, int width, int height, int bpp);
 

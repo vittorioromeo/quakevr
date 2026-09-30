@@ -28,14 +28,14 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // name lazily (Cvar_EnsureSorted: once after a batch of registrations, not an insertion sort per cvar, which was
 // quadratic with tens of thousands of cvars).
 static int			cvar_count;
-static int			cvar_capacity;
+static int			cvar_capacity; // QVR: no fixed count: the list and the hash map grow (Cvar_Reserve)
 static cvar_t		**cvar_list;
 static size_t		cvar_hash_capacity;
 static cvar_t		**cvar_hashmap;
 static qboolean		cvar_sorted = true;
 static char			cvar_null_string[] = "";
 
-int Cvar_Count (void)
+int Cvar_Count (void) // QVR: (vr_limits)
 {
 	return cvar_count;
 }
@@ -47,7 +47,7 @@ Cvar_AddToHashMap
 */
 static void Cvar_AddToHashMap (cvar_t *var)
 {
-	size_t capacity = cvar_hash_capacity;
+	size_t capacity = cvar_hash_capacity; // QVR: it grows
 	size_t pos = COM_HashString (var->name) % capacity, end = pos;
 
 	do
@@ -156,7 +156,7 @@ void Cvar_List_f (void)
 	}
 
 	count = 0;
-	Cvar_EnsureSorted ();
+	Cvar_EnsureSorted (); // QVR: in order first
 	for (i = 0; i < cvar_count; i++)
 	{
 		cvar = cvar_list[i];
@@ -311,7 +311,7 @@ void Cvar_ResetAll_f (void)
 {
 	int i;
 
-	Cvar_EnsureSorted ();
+	Cvar_EnsureSorted (); // QVR: in order first
 	for (i = 0; i < cvar_count; i++)
 		Cvar_Reset (cvar_list[i]->name);
 }
@@ -325,7 +325,7 @@ void Cvar_ResetCfg_f (void)
 {
 	int i;
 
-	Cvar_EnsureSorted ();
+	Cvar_EnsureSorted (); // QVR: in order first
 	for (i = 0; i < cvar_count; i++)
 		if (cvar_list[i]->flags & CVAR_ARCHIVE)
 			Cvar_Reset (cvar_list[i]->name);
@@ -373,7 +373,7 @@ cvar_t *Cvar_FindVar (const char *var_name)
 	if (!cvar_count)
 		return NULL;
 
-	capacity = cvar_hash_capacity;
+	capacity = cvar_hash_capacity; // QVR: it grows
 	pos = COM_HashString (var_name) % capacity;
 	end = pos;
 
@@ -401,7 +401,7 @@ cvar_t *Cvar_FindVarAfter (const char *prev_name, unsigned int with_flags)
 	if (!cvar_count)
 		return NULL;
 
-	Cvar_EnsureSorted ();
+	Cvar_EnsureSorted (); // QVR: in order first
 	if (*prev_name)
 	{
 		var = Cvar_FindVar (prev_name);
@@ -647,8 +647,9 @@ Adds a freestanding variable to the variable list.
 */
 void Cvar_RegisterVariable (cvar_t *variable)
 {
-	char	*value;
+	char	*value; // QVR: any length (strdup)
 	qboolean	set_rom;
+	// QVR: no i (appended, not inserted in order: Cvar_EnsureSorted)
 
 // first check to see if it has already been defined
 	if (Cvar_FindVar (variable->name))
@@ -669,11 +670,11 @@ void Cvar_RegisterVariable (cvar_t *variable)
 	variable->next = NULL;
 	if (cvar_count > 0)
 	{
-		cvar_list[cvar_count - 1]->next = variable;
+		cvar_list[cvar_count - 1]->next = variable; // QVR: appended
 		if (cvar_sorted && strcmp (cvar_list[cvar_count - 1]->name, variable->name) > 0)
 			cvar_sorted = false;
 	}
-	cvar_list[cvar_count++] = variable;
+	cvar_list[cvar_count++] = variable; // QVR: appended
 	Cvar_AddToHashMap (variable);
 	variable->flags |= CVAR_REGISTERED;
 
@@ -693,7 +694,7 @@ void Cvar_RegisterVariable (cvar_t *variable)
 	Cvar_SetQuick (variable, value);
 	if (set_rom)
 		variable->flags |= CVAR_ROM;
-	free (value);
+	free (value); // QVR: strdup'd
 }
 
 /*
@@ -799,7 +800,7 @@ void Cvar_WriteVariables (FILE *f)
 {
 	int i;
 
-	Cvar_EnsureSorted ();
+	Cvar_EnsureSorted (); // QVR: in order first
 	for (i = 0; i < cvar_count; i++)
 	{
 		cvar_t *var = cvar_list[i];

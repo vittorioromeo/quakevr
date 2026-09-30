@@ -928,7 +928,7 @@ void Draw_Pic (int x, int y, qpic_t *pic)
 	Draw_KeepMenuGlyphSize (&y0, &h); // QVR
 
 	verts = Draw_AllocQuad ();
-	Draw_SetVertex (verts++, x,            y0,   gl->sl, gl->tl);
+	Draw_SetVertex (verts++, x,            y0,   gl->sl, gl->tl); // QVR: y0, h: the menu canvas's glyph size (Draw_KeepMenuGlyphSize)
 	Draw_SetVertex (verts++, x+pic->width, y0,   gl->sh, gl->tl);
 	Draw_SetVertex (verts++, x+pic->width, y0+h, gl->sh, gl->th);
 	Draw_SetVertex (verts++, x,            y0+h, gl->sl, gl->th);

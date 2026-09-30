@@ -4567,7 +4567,7 @@ static qboolean Mod_LoadMD5MeshModel (qmodel_t *mod, const char *buffer)
 		double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 		surf = (aliashdr_t*)((byte*)outhdr + m*hdrsize);
 		Mod_LoadMD5Skins (mod, surf, s); 
-		VR_TimeAdd ("      md5: skins and normal maps", Sys_DoubleTime () - t0);
+		VR_TimeAdd ("      md5: skins and normal maps", Sys_DoubleTime () - t0); // QVR: load timing
 	}
 	VEC_FREE (shaders);
 

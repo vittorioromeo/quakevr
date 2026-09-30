@@ -99,7 +99,7 @@ void Z_Free (void *ptr)
 		Sys_Error ("Z_Free: freed a freed pointer");
 
 	block->tag = 0;		// mark as free
-	zone_used -= block->size;
+	zone_used -= block->size; // QVR: (vr_limits)
 
 	other = block->prev;
 	if (!other->tag)
@@ -171,7 +171,7 @@ static void *Z_TagMalloc (int size, int tag)
 	}
 
 	base->tag = tag;				// no longer a free block
-	zone_used += base->size;
+	zone_used += base->size; // QVR: (vr_limits)
 	if (zone_used > zone_peak)
 		zone_peak = zone_used;
 
@@ -207,7 +207,7 @@ static void Z_CheckHeap (void)
 			Sys_Error ("Z_CheckHeap: two consecutive free blocks");
 	}
 }
-#endif
+#endif // QVR
 
 
 /*

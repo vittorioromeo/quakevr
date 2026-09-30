@@ -2196,7 +2196,7 @@ void Con_DrawNotify (void)
 
 	for (i = con_current-NUM_CON_TIMES+1; i <= con_current; i++)
 	{
-		if (i < 0 || onwrist)
+		if (i < 0 || onwrist) // QVR: or on the wrist
 			continue;
 		alpha = Con_NotifyAlpha (con_times[i % NUM_CON_TIMES]);
 		if (alpha <= 0.f)

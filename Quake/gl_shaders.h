@@ -665,9 +665,9 @@ QVR_WORLD_FS_FUNCTIONS // QVR: detail, parallax, specular anti-aliasing, the bak
 "	if (parallax)\n"
 "		puv = ParallaxUV(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, facing, in_pos - EyePos, in_pdepth, Parallax.z, in_uvclamp);\n"
 "#else\n"
-"	const bool parallax = false;\n"
+"	const bool parallax = false;\n" // QVR: no parallax mapping here
 "#endif\n"
-"	if ((in_flags & CF_USE_FULLBRIGHT) != 0u)\n"
+"	if ((in_flags & CF_USE_FULLBRIGHT) != 0u)\n" // QVR: parallax: the moved coordinates
 "		fullbright = parallax ? textureGrad(FullbrightTex, puv, duvdx, duvdy).rgb : texture(FullbrightTex, uv).rgb;\n"
 "	vec4 result;\n"
 "#if DITHER >= 2\n"
@@ -741,6 +741,7 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "			int cluster_idx = cluster_coord.x + cluster_coord.y * LIGHT_TILES_X + cluster_coord.z * LIGHT_TILES_X * LIGHT_TILES_Y;\n"
 "			total_light = vec3(ivec3((cluster_idx + 1) * 0x45d9f3b) >> ivec3(0, 8, 16) & 255) / 255.0;\n"
 "#endif // SHOW_ACTIVE_LIGHT_CLUSTERS\n"
+// QVR: no plane made here: facing is made first, in every mode, for the normal map
 "			vec3 dynamic_light = vec3(0.);\n"
 "			bool darkplaces = (ShadowFlags & 16u) != 0u; // QVR\n"
 "			for (i = 0u, ofs = 0u; i < 2u; i++, ofs += 32u)\n"
@@ -759,7 +760,7 @@ QVR_WORLD_FS_LIGHT_SHADOW // QVR: a light's shadow and spot cone
 "					float minlight = l.minlight;\n"
 "					if (rad < minlight)\n"
 "						continue;\n"
-"					vec3 local_pos = l.origin - facing * dist;\n"
+"					vec3 local_pos = l.origin - facing * dist;\n" // QVR: facing (the plane is made first, for the normal map)
 "					minlight = rad - minlight;\n"
 "					dist = length(in_pos - local_pos);\n"
 "					float add = clamp((minlight - dist) / 16.0, 0.0, 1.0) * max(0., rad - dist) / 256.;\n"
@@ -1326,7 +1327,7 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "#if ALPHATEST\n"
 "	result.rgb *= light;\n"
 "#else\n"
-"	result.rgb = mix(result.rgb, result.rgb * light, result.a);\n"
+"	result.rgb = mix(result.rgb, result.rgb * light, result.a);\n" // QVR: light: the model's own (QVR_ALIAS_FS_LIGHT)
 "#endif\n"
 "	result.rgb += spec; // QVR\n"
 "	result.rgb += WoundSheen(wounds, bumped); // QVR: wet blood and water shine\n"
@@ -1341,7 +1342,7 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "		result.a = clamp(coverage, 0.0, 1.0); // QVR: the samples it covers (GL_SAMPLE_ALPHA_TO_ONE writes 1)\n"
 "#endif\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
-"	vec3 fullbright = textureLod(FullbrightTex, uv, 0.).rgb;\n"
+"	vec3 fullbright = textureLod(FullbrightTex, uv, 0.).rgb;\n" // QVR: fullbright: dimmed or boosted (QVR_ALIAS_FS_GLOW)
 "#else\n"
 "	vec3 fullbright = textureGrad(FullbrightTex, uv, duvdx, duvdy).rgb; // QVR: uv moved by parallax mapping\n"
 "#endif\n"
