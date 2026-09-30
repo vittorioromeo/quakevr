@@ -196,7 +196,7 @@ void() overlord_teleport =
     spawn_tdeath(theDest.origin, self);
 
     setorigin(self, theDest.origin);
-    self.flags = self.flags - self.flags & FL_ONGROUND;
+    self.flags = self.flags - (self.flags & FL_ONGROUND);
 };
 // =======================================================
 

@@ -621,7 +621,7 @@ void() ClientDisconnected =
     if(self._last)
         self._last._next = self._next;
 
-    active_clients = active_clients - active_clients & ClientBitFlag(self.b_clientno);
+    active_clients = active_clients - (active_clients & ClientBitFlag(self.b_clientno));
 };
 /*
 -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=

@@ -148,8 +148,9 @@ float() VR_Melee_PommelWait =
 };
 
 // Whether a point of kind `xKind` strikes (the blade, a fist) rather than being the near end. (A function of the kind
-// read once: `vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST`, two array reads by a variable index in
-// one expression, came out FALSE for a fist's points, so every punch went the pommel's way and waited
+// read once. `striker = vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST` was
+// `(striker = kind == EDGE) || ...` to fteqcc (an assignment binds tighter than || in QC; docs/vr-port/CODE_STYLE.md,
+// QuakeC), FALSE for a fist's points, so every punch went the pommel's way and waited
 // VR_Melee_PommelWait before it landed: the author's punches landing late, NOTES.md vrfiringrange_2026-09-29_21-57-10.)
 float(float xKind) VR_Melee_Strikes =
 {

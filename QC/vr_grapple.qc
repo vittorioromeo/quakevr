@@ -683,8 +683,8 @@ float(entity h) VR_Grapple_FindGun =
         gg_at = gg_ent.origin + modelpoint(gg_ent, gg_ent.angles, GH_GUN_MUZZLE);
     }
 
-    gg_moved = gg_where != h.gh_where || gg_player != h.gh_wplayer || gg_ent != h.gh_went ||
-               (gg_where == GW_HAND && gg_hand != h.gh_whand) || (gg_where == GW_HOLSTER && gg_slot != h.gh_wslot);
+    gg_moved = (gg_where != h.gh_where || gg_player != h.gh_wplayer || gg_ent != h.gh_went ||
+                (gg_where == GW_HAND && gg_hand != h.gh_whand) || (gg_where == GW_HOLSTER && gg_slot != h.gh_wslot));
     if(gg_where == GW_NONE)
     {
         return FALSE;
@@ -963,8 +963,8 @@ void(entity h, string xWhy) VR_Grapple_Retract =
     VR_Carry_Forget(h);
     // Its rope wrapped round corners (the rope simulated: bitten or loose): it comes back along the rope, which
     // shortens with it (NOTES.md vrfiringrange_2026-09-30_10-53-49: it flew straight back, the rope left on the corners).
-    h.gh_retract_rope = cvar_hget(cvarh_vr_grapple_rope_sim) &&
-                        (h.gh_state == GS_BITTEN || h.gh_state == GS_LOOSE);
+    h.gh_retract_rope = (cvar_hget(cvarh_vr_grapple_rope_sim) &&
+                         (h.gh_state == GS_BITTEN || h.gh_state == GS_LOOSE));
     VR_Grapple_SetState(h, GS_RETRACT, xWhy);
     h.gh_retract_at = time;
     h.gh_retract_from = 0; // (VR_Grapple_ServiceRetract: how far it was, then)

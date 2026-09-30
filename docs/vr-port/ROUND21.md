@@ -15050,3 +15050,43 @@ handle", and real sounds instead of the synthesised ones (free downloads allowed
   it at either.
 - [ ] Pull the cord slowly (a weak zip), hard (a cough, or it starts and settles into idling with no seam); idle, rev
   (the trigger in the air), cut; loops without clicks. Holster it, die, load a save while it runs: it stops / restarts.
+
+## QuakeC: `x = a && b` is `(x = a) && b` (2026-09-30)
+
+Both of this round's QC expression bugs had one cause, and it was not array reads. Branch `agent/qcaudit`.
+
+- **The cause.** fteqcc (our fteqcc64, QC/build.sh's flags) uses QC operator priorities, not C's (`-Fcpriority` is
+  off). An assignment statement binds tighter than `&&` / `||`: `cutting = chain && time - last < 0.2` compiles to
+  `STORE_F chain -> cutting`, then the `&&` into a temporary that is dropped, so `cutting` was `chain`. The melee's
+  `striker = vr_mpt_kind[i] == VR_MPT_EDGE || vr_mpt_kind[i] == VR_MPT_FIST` was `striker = (kind == EDGE)`: FALSE for
+  a fist; the two array reads compile correctly (their result is kept in a locked temporary across the second read).
+  The same for `+=` and a field (`self.f = a && b`). Fine: a declaration's initializer (`float x = a && b;`), a
+  `return`, a call's argument. Other differences from C: `?:` binds tighter than `&&`/`||` (`a && b ? c : d` is
+  `a && (b ? c : d)`), `&&` and `||` are one priority (`a || b && c` is `(a || b) && c`), `!a == b` is `!(a == b)`,
+  `a & b == c` is `(a & b) == c`, `a - a & b` is `a - (a & b)`. Comparisons against arithmetic are as in C.
+  `Misc/quakevr/qcrepro/repro.qc` has one function per case (build it with -Fwasm, `python dump.py`).
+- **The check** (`Misc/quakevr/check_qc_precedence.py`, ~7 s; run by QC/build.sh and QC/build.bat, NO_PREC_CHECK=1
+  skips it): it compiles the progs with QC and with C priorities (-Fwasm, into build/qcprec/) and fails on any function
+  whose instructions differ, naming the file and line. fteqcc has no warning for it (only F304 for `!a == b`).
+- **The audit** (all of QC/, 5130 functions): 11 functions differed. Real behaviour changes (3):
+  - `VR_Chainsaw_Frame`: `chain = pressed && !VRIsHandCarryingByForegrip(...)` was `chain = pressed`: the chain ran
+    with the saw held by its front handle alone and that hand's trigger pressed. Now it idles, as the comment says.
+  - `VR_Grapple_FindGun`: `gg_moved = where changed || player || entity || hand || holster slot` was only "where
+    changed": a pass of the grapple gun from one hand to the other (or one holster slot to another, or another
+    player's hand) was not a move, so the hooked rope was not re-measured from the gun and the trigger's release
+    state carried over to the new hand.
+  - `VR_Grapple_Retract`: `gh_retract_rope = rope_sim && (bitten or loose)` was `rope_sim`: the quick reel-in went
+    along the rope's corners from any state (a hook still flying) with the rope simulation on.
+  Parentheses only, the same instructions (8): frikbot's `self.keys & 960 + ...` (3), `active_clients - active_clients
+  & ...`, `flags - flags & FL_ONGROUND` (triggers.qc, rogue_s_wrath.qc), `other.flags & (...) != FL_MONSTER`
+  (triggers.qc), Rogue's CTF flag-defence test (rogue_teamplay.qc, `A || B || C && !flag_radius`, QC meaning kept).
+  Verified: the whole progs compiled before and after, instruction by instruction: only those 3 functions differ.
+- The comments in vr_chainsaw.qc and vr_melee.qc now name the real cause; CODE_STYLE.md has a QuakeC section.
+
+### Test in VR
+- [ ] Chainsaw: running, hold it by the front handle only (the rear hand off) and pull that hand's trigger: it idles
+  (no chain, no cut). Both hands, rear trigger: runs and cuts as before.
+- [ ] Grapple: hook a wall, pass the gun to the other hand (and to a holster and back): the hook stays in, the rope
+  doesn't yank; the new hand's trigger works as its own.
+- [ ] Grapple quick reel-in with the rope simulation on: fired and reeled back while still flying comes straight
+  back; bitten round a corner comes back along the rope.

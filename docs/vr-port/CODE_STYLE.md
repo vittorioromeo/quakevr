@@ -75,3 +75,11 @@ context (only the engine's framebuffers are made again), so the VR module's GL o
 The profiler counts the main thread's C++ allocations (`vr_profile_report`: "allocations", avg/max a frame; the systems
 CSV's column): `vr_alloccount.cpp` replaces `operator new` with a counting one. A system's frame should allocate nothing
 once warm; its first frames after a map load grow its scratch sets again.
+
+## QuakeC
+
+fteqcc's operator priorities are QC's, not C's: parenthesise every `&&`/`||` on the right of an assignment,
+`x = (a && b);`, since `x = a && b` (also `+=` and `self.f = a && b`) is `(x = a) && b`. Also `a && b ? c : d` is
+`a && (b ? c : d)`, `a || b && c` is `(a || b) && c`, `!a == b` is `!(a == b)` and `a & b == c` is `(a & b) == c`.
+`Misc/quakevr/check_qc_precedence.py` (run by `QC/build.sh`, `QC/build.bat` and the kit's `build.sh`) fails on any
+expression that compiles differently under C's priorities; `Misc/quakevr/qcrepro/repro.qc` shows each case.

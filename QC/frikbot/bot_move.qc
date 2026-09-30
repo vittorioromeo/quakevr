@@ -393,7 +393,7 @@ void() frik_dodge_obstruction =
             way_x = self.obs_dir_y;
             way_y = self.obs_dir_x * -1;
         }
-        self.keys = self.keys & 960 + frik_KeysForDir(way);
+        self.keys = (self.keys & 960) + frik_KeysForDir(way);
     }
 
     // fix the bot
@@ -431,7 +431,7 @@ void() frik_movetogoal =
     }
 
     way = normalize(way);
-    self.keys = self.keys & 960 + frik_KeysForDir(way);
+    self.keys = (self.keys & 960) + frik_KeysForDir(way);
 
     frik_dodge_obstruction();
     frik_recognize_plat(TRUE);
@@ -458,7 +458,7 @@ float(vector weird) frik_walkmove =
 {
     // okay so it's not walkmove
     // sue me
-    self.keys = self.keys & 960 + frik_KeysForDir(weird);
+    self.keys = (self.keys & 960) + frik_KeysForDir(weird);
 
     frik_dodge_obstruction();
     frik_recognize_plat(TRUE);
