@@ -6,11 +6,14 @@
 #include "vr_evict.hpp"
 #include "vr_trace.hpp"
 
-#include <algorithm>
-#include <cstdlib>
-#include <cstring>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/MaxElement.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
+#include <stdlib.h>
+#include <string.h>
 
 using namespace qvr;
 
@@ -30,8 +33,8 @@ struct Cached
 
 const qmodel_t* loadedWorld = nullptr;
 int loadedGeneration = -1;
-std::vector<Light> lights;
-std::unordered_map<const entity_t*, Cached> cache;
+za::Vector<Light> lights;
+ankerl::unordered_dense::map<const entity_t*, Cached> cache;
 Eviction eviction;
 
 // The light entities of the map: classname light*, lit at the start (not "start off" with a
@@ -96,7 +99,7 @@ void loadLights()
         }
         if(isLight && !(startsOff && hasTarget) && value > 0.f)
         {
-            lights.push_back({origin, value, scale > 0.f ? scale : 1.f});
+            lights.pushBack({origin, value, scale > 0.f ? scale : 1.f});
         }
     }
     Con_DPrintf("VR: %d lights for model shading\n", static_cast<int>(lights.size()));
@@ -126,7 +129,7 @@ glm::vec4 compute(const glm::vec3& p)
         }
         else
         {
-            Candidate* weakest = std::min_element(best, best + 4, [](auto& a, auto& b) { return a.weight < b.weight; });
+            Candidate* weakest = za::maxElement(best, best + 4, [](auto& a, auto& b) { return b.weight < a.weight; }); // (the first weakest: std::min_element's)
             if(w > weakest->weight)
             {
                 *weakest = {w, &l};
@@ -168,7 +171,7 @@ glm::vec4 compute(const glm::vec3& p)
 
 } // namespace
 
-const std::vector<modellight::MapLight>& modellight::mapLights()
+const za::Vector<modellight::MapLight>& modellight::mapLights()
 {
     if(cl.worldmodel != loadedWorld || worldGeneration() != loadedGeneration) // the same model can hold another map: a map name loaded again (vr_relit_maps switched)
     {
@@ -205,11 +208,11 @@ glm::vec4 modellight::direction(const entity_t* e)
         c.computedAt = realtime;
     }
 
-    const float k = fresh ? 1.f : 1.f - std::exp(-static_cast<float>(host_frametime) * 6.f);
+    const float k = fresh ? 1.f : 1.f - za::exp(-static_cast<float>(host_frametime) * 6.f);
     glm::vec3 dir = glm::vec3{c.dir} * c.dir.w;
     dir = glm::mix(dir, glm::vec3{c.target} * c.target.w, k);
     const float len = glm::length(dir);
-    c.dir = len > 1e-4f ? glm::vec4{dir / len, std::min(1.f, len)} : glm::vec4{0.f};
+    c.dir = len > 1e-4f ? glm::vec4{dir / len, za::min(1.f, len)} : glm::vec4{0.f};
     c.frame = host_framecount;
     const glm::vec4 result{glm::vec3{c.dir}, c.dir.w * amount};
 

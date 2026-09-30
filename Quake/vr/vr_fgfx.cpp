@@ -12,9 +12,14 @@
 #include "vr_protocol.hpp"
 #include "vr_weapons.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <unordered_map>
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+
 
 namespace qvr::fgfx
 {
@@ -35,7 +40,7 @@ struct Target
     int state{None};
 };
 
-std::unordered_map<int, float> glows; // entity -> current glow
+ankerl::unordered_dense::map<int, float> glows; // entity -> current glow
 double lastTime = -1.0;
 
 [[nodiscard]] Target target(int stat)
@@ -75,7 +80,7 @@ double lastTime = -1.0;
     const glm::vec3 luma{0.2126f, 0.7152f, 0.0722f};
     const float l = glm::dot(c, luma);
     const float want = glm::dot(blue, luma);
-    return l > 1e-4f ? c * std::clamp(std::sqrt(want / l), 0.6f, 1.6f) : c;
+    return l > 1e-4f ? c * za::clamp(za::sqrt(want / l), 0.6f, 1.6f) : c;
 }
 
 [[nodiscard]] glm::vec4 tint(float saturation, float value, float alpha)
@@ -102,22 +107,22 @@ void tendril(const glm::vec3& a, const glm::vec3& b, float strength, int seed)
         return;
     }
     const glm::vec3 dir = d / len;
-    const glm::vec3 side1 = glm::normalize(glm::cross(dir, std::fabs(dir.z) < 0.9f ? glm::vec3{0, 0, 1} : glm::vec3{1, 0, 0}));
+    const glm::vec3 side1 = glm::normalize(glm::cross(dir, za::fabs(dir.z) < 0.9f ? glm::vec3{0, 0, 1} : glm::vec3{1, 0, 0}));
     const glm::vec3 side2 = glm::cross(dir, side1);
     const glm::vec4 haloColor = tint(0.83f, 0.9f, 1.f);
     const glm::vec4 coreColor = tint(0.3f, 1.f, 1.f);
 
     const unsigned tick = static_cast<unsigned>(static_cast<int>(realtime * 24.0));
     const unsigned key = static_cast<unsigned>(seed);
-    const int segments = std::clamp(static_cast<int>(len / 6.f), 6, 24);
-    const float amplitude = std::min(4.f, len * 0.06f);
+    const int segments = za::clamp(static_cast<int>(len / 6.f), 6, 24);
+    const float amplitude = za::min(4.f, len * 0.06f);
     for(int strand = 0; strand < 2; strand++)
     {
         glm::vec3 prev = a;
         for(int i = 1; i <= segments; i++)
         {
             const float t = static_cast<float>(i) / segments;
-            const float bulge = std::sin(t * 3.14159265f) * amplitude * (strand == 0 ? 1.f : 0.6f);
+            const float bulge = za::sin(t * 3.14159265f) * amplitude * (strand == 0 ? 1.f : 0.6f);
             glm::vec3 p = a + d * t;
             if(i < segments)
             {
@@ -150,7 +155,7 @@ void previewInMenu(const hands::State& s)
     const int hand = 0; // the off hand (the main one points at the menu)
     const glm::vec3 fwd = hands::forward(s.rot[hand]);
     const glm::vec3 palm = s.pos[hand] + fwd * 2.f;
-    const float pulse = 0.85f + 0.15f * static_cast<float>(std::sin(realtime * 17.0));
+    const float pulse = 0.85f + 0.15f * static_cast<float>(za::sin(realtime * 17.0));
     tendril(palm, palm + fwd * 28.f, pulse, 4242);
 }
 
@@ -159,7 +164,7 @@ void previewInMenu(const hands::State& s)
 void queue(const hands::State& s)
 {
     const double now = cl.time;
-    const float dt = lastTime < 0.0 ? 0.f : static_cast<float>(std::clamp(now - lastTime, 0.0, 0.1));
+    const float dt = lastTime < 0.0 ? 0.f : static_cast<float>(za::clamp(now - lastTime, 0.0, 0.1));
     lastTime = now;
 
     // The glows fade towards each hand's target: aimed at, softly; locked on or flying, fully.
@@ -180,7 +185,7 @@ void queue(const hands::State& s)
         {
             if(t.ent == ent && wanted(t))
             {
-                goal = std::max(goal, t.state == Aimed ? 0.55f : 1.f);
+                goal = za::max(goal, t.state == Aimed ? 0.55f : 1.f);
             }
         }
         return goal;
@@ -192,7 +197,7 @@ void queue(const hands::State& s)
             glows.try_emplace(t.ent, 0.f);
         }
     }
-    const float k = 1.f - std::exp(-dt * 8.f);
+    const float k = 1.f - za::exp(-dt * 8.f);
     for(auto it = glows.begin(); it != glows.end();)
     {
         const float goal = goalOf(it->first);
@@ -228,7 +233,7 @@ void queue(const hands::State& s)
             lines::glow(palm, to, 0.3f, beam * 0.18f, beam * 0.03f);
             continue;
         }
-        const float pulse = 0.85f + 0.15f * static_cast<float>(std::sin(realtime * 17.0));
+        const float pulse = 0.85f + 0.15f * static_cast<float>(za::sin(realtime * 17.0));
         tendril(palm, to, (t.state == Flying ? 1.f : 0.75f) * pulse, t.ent + hand * 1000);
         if(t.state == Flying && dt > 0.f)
         {
@@ -248,8 +253,8 @@ float entityGlow(const entity_t* e)
     {
         return 0.f;
     }
-    const float breathe = 0.88f + 0.12f * static_cast<float>(std::sin(realtime * 4.0));
-    return std::clamp(it->second * breathe * vr_forcegrab_outline.value, 0.f, 1.f);
+    const float breathe = 0.88f + 0.12f * static_cast<float>(za::sin(realtime * 4.0));
+    return za::clamp(it->second * breathe * vr_forcegrab_outline.value, 0.f, 1.f);
 }
 
 glm::vec3 glowColor()

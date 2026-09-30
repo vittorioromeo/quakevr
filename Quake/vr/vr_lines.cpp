@@ -5,7 +5,9 @@
 #include "vr_engine.hpp"
 #include "vr_profile.hpp"
 
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Fabs.hpp"
+
 
 namespace qvr::lines
 {
@@ -21,17 +23,17 @@ struct Line
     bool additive{false};
 };
 
-std::vector<Line> queue;
+za::Vector<Line> queue;
 
 // Blended over the scene [0], added onto it [1]; uv -1..1 across the width (and along a point):
 // the soft edge.
-std::vector<gfx::Vertex> vertices[2];
+za::Vector<gfx::Vertex> vertices[2];
 
-void quad(std::vector<gfx::Vertex>& out, const glm::vec3 (&p)[4], const glm::vec4 (&c)[4], const glm::vec2 (&uv)[4])
+void quad(za::Vector<gfx::Vertex>& out, const glm::vec3 (&p)[4], const glm::vec4 (&c)[4], const glm::vec2 (&uv)[4])
 {
     for(int i : {0, 1, 2, 0, 2, 3})
     {
-        out.push_back({p[i], uv[i], c[i]});
+        out.pushBack({p[i], uv[i], c[i]});
     }
 }
 
@@ -39,23 +41,23 @@ void quad(std::vector<gfx::Vertex>& out, const glm::vec3 (&p)[4], const glm::vec
 
 void line(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB)
 {
-    queue.push_back({a, b, width, colorA, colorB, false});
+    queue.pushBack({a, b, width, colorA, colorB, false});
 }
 
 void point(const glm::vec3& p, float size, const glm::vec4& color)
 {
-    queue.push_back({p, p, size, color, color, true});
+    queue.pushBack({p, p, size, color, color, true});
 }
 
 // Premultiplied blending with no alpha adds the colour.
 void glow(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB)
 {
-    queue.push_back({a, b, width, {glm::vec3{colorA}, 0.f}, {glm::vec3{colorB}, 0.f}, false, true});
+    queue.pushBack({a, b, width, {glm::vec3{colorA}, 0.f}, {glm::vec3{colorB}, 0.f}, false, true});
 }
 
 void glowPoint(const glm::vec3& p, float size, const glm::vec4& color)
 {
-    queue.push_back({p, p, size, {glm::vec3{color}, 0.f}, {glm::vec3{color}, 0.f}, true, true});
+    queue.pushBack({p, p, size, {glm::vec3{color}, 0.f}, {glm::vec3{color}, 0.f}, true, true});
 }
 
 void drawInEye(const glm::vec3& eye)
@@ -70,12 +72,12 @@ void drawInEye(const glm::vec3& eye)
     vertices[1].clear();
     for(const Line& l : queue)
     {
-        std::vector<gfx::Vertex>& out = vertices[l.additive];
+        za::Vector<gfx::Vertex>& out = vertices[l.additive];
         if(l.point)
         {
             // A disc facing the eye.
             const glm::vec3 toEye = glm::normalize(eye - l.a);
-            const glm::vec3 side = glm::normalize(glm::cross(toEye, std::fabs(toEye.z) < 0.99f
+            const glm::vec3 side = glm::normalize(glm::cross(toEye, za::fabs(toEye.z) < 0.99f
                                                                         ? glm::vec3{0.f, 0.f, 1.f}
                                                                         : glm::vec3{1.f, 0.f, 0.f}));
             const glm::vec3 up = glm::cross(side, toEye);

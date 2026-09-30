@@ -15,12 +15,19 @@
 #include "vr_profile.hpp"
 #include "vr_rope.hpp"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <span>
-#include <string>
-#include <vector>
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+
 
 namespace qvr::text3d
 {
@@ -29,23 +36,23 @@ namespace
 
 struct Queued
 {
-    std::string text;
+    za::String text;
     glm::vec3 pos;
     glm::vec3 angles;
     Align align;
     float scale;
     bool screen;
     bool overlay{false}; // over the eye's image, not depth tested (queueOverlay)
-    std::vector<OverlayBar> bars; // queueOverlay's
+    za::Vector<OverlayBar> bars; // queueOverlay's
     float backing{0.55f};
 };
 
 // This frame's texts: the first queuedCount of `queued`, whose elements (and their strings' buffers) are kept for the
 // next frame's.
-std::vector<Queued> queued;
-std::size_t queuedCount = 0;
+za::Vector<Queued> queued;
+za::SizeT queuedCount = 0;
 
-[[nodiscard]] std::span<const Queued> queuedTexts()
+[[nodiscard]] za::Span<const Queued> queuedTexts()
 {
     return {queued.data(), queuedCount};
 }
@@ -54,16 +61,16 @@ std::size_t queuedCount = 0;
 {
     if(queuedCount == queued.size())
     {
-        queued.emplace_back();
+        queued.emplaceBack();
     }
     return queued[queuedCount++];
 }
-std::vector<gfx::Vertex> vertices; // glyphs
-std::vector<gfx::Vertex> panels;   // screens behind them
-std::vector<gfx::Vertex> floating; // floating texts (blended: they fade)
-std::vector<gfx::Vertex> backings; // the wrist log's backing (blended; drawOverlay, over the eye's image)
-std::vector<gfx::Vertex> logText;  // and its text
-std::vector<gfx::Vertex> glows;    // the screens' soft glows (added)
+za::Vector<gfx::Vertex> vertices; // glyphs
+za::Vector<gfx::Vertex> panels;   // screens behind them
+za::Vector<gfx::Vertex> floating; // floating texts (blended: they fade)
+za::Vector<gfx::Vertex> backings; // the wrist log's backing (blended; drawOverlay, over the eye's image)
+za::Vector<gfx::Vertex> logText;  // and its text
+za::Vector<gfx::Vertex> glows;    // the screens' soft glows (added)
 // The ammo screens as small CRTs (vr_weapon_screen_crt): each screen text's image (its face and
 // text, in the order they were queued), drawn at the end of the 2D pass (renderScreens) and shown
 // in the eyes the next frame through Shade::Screen, like the wrist gadget's.
@@ -74,21 +81,21 @@ struct ScreenImage
     gfx::Target target;
     int width{0}, height{0}; // its virtual screen (font pixels), 0 before it is drawn
     int frame{-1};           // the host frame it was last wanted in
-    std::string drawn;       // what is drawn in it: the text, its alignment and the palette (redrawn when they change)
+    za::String drawn;       // what is drawn in it: the text, its alignment and the palette (redrawn when they change)
     int drawnAlign{-1};
     glm::vec3 drawnFace{-1.f}, drawnText{-1.f};
 };
-std::array<ScreenImage, maxScreenImages> screenImages;
+za::Array<ScreenImage, maxScreenImages> screenImages;
 
 // An ammo screen's quad this frame, with its own glitch.
 struct ScreenQuad
 {
-    std::array<gfx::Vertex, 6> vertices;
+    za::Array<gfx::Vertex, 6> vertices;
     glm::vec4 params;
     glm::vec3 size;
     gfx::Texture texture;
 };
-std::vector<ScreenQuad> screenQuads;
+za::Vector<ScreenQuad> screenQuads;
 int screenCount = 0; // screen texts laid out this frame
 
 // The ammo screens' CRT strength (vr_weapon_screen_crt).
@@ -108,7 +115,7 @@ struct ScreenShape
 
 [[nodiscard]] int screenPad()
 {
-    return static_cast<int>(std::lround(8.f * 0.35f * std::max(0.f, vr_weapon_screen_padding.value)));
+    return static_cast<int>(za::lround(8.f * 0.35f * za::max(0.f, vr_weapon_screen_padding.value)));
 }
 
 // The screens' palette (the wrist gadget's, by default the player's hue): its text, and its face behind it.
@@ -121,7 +128,7 @@ struct ScreenShape
 [[nodiscard]] glm::vec3 screenFace()
 {
     const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
-    return hue::color(vr_gadget_screen_hue, 0.57f, 0.12f * std::max(back, 0.2f));
+    return hue::color(vr_gadget_screen_hue, 0.57f, 0.12f * za::max(back, 0.2f));
 }
 
 // Map text boards (world texts: the tutorial's, func_worldtext_banner) as CRT screens
@@ -134,7 +141,7 @@ constexpr int boardPad = 6;                   // font pixels round the text
 constexpr float boardTexels = 1.5e6f;         // an image's texels at most (8 a font pixel for all but big boards)
 struct Board
 {
-    std::string text;                 // its text as last seen
+    za::String text;                 // its text as last seen
     Align align{Align::Left};
     int columns{0}, rows{0};          // the largest page so far
     const void* map{nullptr};         // the map it belongs to (handles are reused by the next one)
@@ -142,10 +149,10 @@ struct Board
     bool wanted{false};               // laid out this frame
     gfx::Target target;
     int width{0}, height{0};          // its image's virtual screen (font pixels), 0 before it is drawn
-    std::string drawn;                // the text in its image
+    za::String drawn;                // the text in its image
     glm::vec4 drawnPalette{-1.f};     // and the palette it was drawn in
 };
-std::vector<Board> boards;
+za::Vector<Board> boards;
 
 // The boards' CRT strength (vr_worldtext_crt; 0 the old plain text).
 [[nodiscard]] float boardCrt()
@@ -164,16 +171,16 @@ std::vector<Board> boards;
 [[nodiscard]] glm::vec3 boardFace()
 {
     const float back = CLAMP(0.f, vr_gadget_screen_background.value, 4.f);
-    return hsv(vr_worldtext_hue.value, 0.6f, 0.11f * std::max(back, 0.2f));
+    return hsv(vr_worldtext_hue.value, 0.6f, 0.11f * za::max(back, 0.2f));
 }
 
 gadget::Log wristLog;
 gadget::Glow gadgetGlow;
 int builtFrame = -1; // the host frame they were laid out in; -1 when texts were queued since
-std::vector<std::string_view> textLines; // layout()'s, kept between calls
+za::Vector<za::StringView> textLines; // layout()'s, kept between calls
 
 void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& down, unsigned char c, const glm::vec4& color,
-    std::vector<gfx::Vertex>& out = vertices)
+    za::Vector<gfx::Vertex>& out = vertices)
 {
     const glm::vec4 uv = gfx::fontGlyph(c);
     const gfx::Vertex tl{topLeft, {uv.x, uv.y}, color};
@@ -181,7 +188,7 @@ void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& do
     const gfx::Vertex br{topLeft + right + down, {uv.z, uv.w}, color};
     const gfx::Vertex bl{topLeft + down, {uv.x, uv.w}, color};
     // (Written in place: no temporary list of six copied one push at a time.)
-    const std::size_t n = out.size();
+    const za::SizeT n = out.size();
     out.resize(n + 6);
     gfx::Vertex* v = out.data() + n;
     v[0] = tl;
@@ -207,13 +214,13 @@ void layoutFloating(const worldtext::FloatText& ft, double now, const glm::vec3&
     const float t = CLAMP(0.f, static_cast<float>((now - ft.start) / worldtext::floatTextLife), 1.f);
     const float rise = 1.f - (1.f - t) * (1.f - t);
     const float alpha = t < 0.6f ? 1.f : 1.f - (t - 0.6f) / 0.4f;
-    const float pop = 1.f + 0.35f * std::max(0.f, 1.f - t / 0.12f);
+    const float pop = 1.f + 0.35f * za::max(0.f, 1.f - t / 0.12f);
 
     glm::vec3 pos = ft.pos + glm::vec3{0.f, 0.f, 20.f * rise};
     glm::vec3 toEye = eye - pos;
     const float dist = glm::length(toEye);
     toEye = dist > 0.01f ? toEye / dist : glm::vec3{0.f};
-    pos += toEye * std::min(10.f, dist * 0.5f);
+    pos += toEye * za::min(10.f, dist * 0.5f);
 
     const float charSize = 8.f * ft.scale * pop;
     const glm::vec3 hInc = right * charSize;
@@ -237,11 +244,11 @@ void layoutFloating(const worldtext::FloatText& ft, double now, const glm::vec3&
 }
 
 void quad(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec3& d, const glm::vec4& color,
-    std::vector<gfx::Vertex>& out = panels)
+    za::Vector<gfx::Vertex>& out = panels)
 {
     for(const glm::vec3* p : {&a, &b, &c, &a, &c, &d})
     {
-        out.push_back({*p, {0.f, 0.f}, color});
+        out.pushBack({*p, {0.f, 0.f}, color});
     }
 }
 
@@ -251,7 +258,7 @@ void quad(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm:
 void layoutLog(const gadget::Log& log, const glm::vec3& eye, const glm::vec3& right, const glm::vec3& up)
 {
     const glm::vec3 toEye = eye - log.base;
-    const float facing = glm::dot(log.normal, toEye) / std::max(glm::length(toEye), 0.01f);
+    const float facing = glm::dot(log.normal, toEye) / za::max(glm::length(toEye), 0.01f);
     const float shown = CLAMP(0.f, (facing - 0.2f) / 0.3f, 1.f);
     if(shown <= 0.f)
     {
@@ -262,8 +269,8 @@ void layoutLog(const gadget::Log& log, const glm::vec3& eye, const glm::vec3& ri
     float alpha = 0.f;
     for(size_t i = 0; i < log.lines.size(); i++)
     {
-        longest = std::max(longest, log.lines[i].size());
-        alpha = std::max(alpha, log.alpha[i] * shown);
+        longest = za::max(longest, log.lines[i].size());
+        alpha = za::max(alpha, log.alpha[i] * shown);
     }
     if(longest == 0)
     {
@@ -316,7 +323,7 @@ void glowRing(const gadget::Glow& g, float spread, float alpha)
         const gfx::Vertex d{g.centre + r * x0 + u * y1, f01, color};
         for(const gfx::Vertex* v : {&a, &b, &c, &a, &c, &d})
         {
-            glows.push_back(*v);
+            glows.pushBack(*v);
         }
     };
     const float s = spread;
@@ -360,19 +367,19 @@ void box(const glm::vec3& c, const glm::vec3& right, const glm::vec3& up, const 
 }
 
 // `text`'s lines into textLines; the longest's length.
-size_t splitLines(std::string_view text)
+size_t splitLines(za::StringView text)
 {
     textLines.clear();
     for(size_t start = 0; start <= text.size();)
     {
-        const size_t end = std::min(text.find('\n', start), text.size());
-        textLines.push_back(text.substr(start, end - start));
+        const size_t end = za::min(text.find('\n', start), text.size());
+        textLines.pushBack(text.substrByPosLen(start, end - start));
         start = end + 1;
     }
     size_t longest = 0;
-    for(std::string_view l : textLines)
+    for(za::StringView l : textLines)
     {
-        longest = std::max(longest, l.size());
+        longest = za::max(longest, l.size());
     }
     return longest;
 }
@@ -406,14 +413,14 @@ void layoutOverlay(const Queued& q)
         // A cell's middle 70%, from the bar's column: the track (dim), then the bar.
         const glm::vec3 top = topLeft + vInc * (static_cast<float>(bar.line) + 0.15f) + hInc * bar.column;
         const glm::vec3 down = vInc * 0.7f;
-        const glm::vec3 track = hInc * bar.track, fill = hInc * std::min(bar.cells, bar.track + 1.f);
+        const glm::vec3 track = hInc * bar.track, fill = hInc * za::min(bar.cells, bar.track + 1.f);
         quad(top + down, top + track + down, top + track, top, glm::vec4{bar.color.r, bar.color.g, bar.color.b, 0.12f},
             backings);
         quad(top + down, top + fill + down, top + fill, top, bar.color, backings);
     }
     for(size_t i = 0; i < textLines.size(); i++)
     {
-        const std::string_view line = textLines[i];
+        const za::StringView line = textLines[i];
         glm::vec3 p = topLeft + vInc * static_cast<float>(i) + hInc * (static_cast<float>(longest - line.size()) * 0.5f);
         for(const char c : line)
         {
@@ -426,7 +433,7 @@ void layoutOverlay(const Queued& q)
     }
 }
 
-void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
+void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
     bool screen = false)
 {
     const size_t longest = splitLines(text);
@@ -499,9 +506,9 @@ void layout(std::string_view text, const glm::vec3& pos, const glm::vec3& angles
             const gfx::Vertex v[4] = {
                 {bl, {0.f, 0.f}, phosphor}, {br, {1.f, 0.f}, phosphor}, {tr, {1.f, 1.f}, phosphor}, {tl, {0.f, 1.f}, phosphor}};
             const double offset = 2.9 + 3.7 * index;
-            const float time = static_cast<float>(std::fmod(realtime, 1000.0));
-            screenQuads.push_back({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
-                .params = {time, crt, gadget::glitch(realtime + offset) * std::min(crt, 1.f), gadget::textGlow()},
+            const float time = static_cast<float>(za::fmod(realtime, 1000.0));
+            screenQuads.pushBack({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
+                .params = {time, crt, gadget::glitch(realtime + offset) * za::min(crt, 1.f), gadget::textGlow()},
                 .size = {static_cast<float>(image->width), static_cast<float>(image->height), 1.f},
                 .texture = image->target.texture});
         }
@@ -563,8 +570,8 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
     {
         return;
     }
-    b.columns = std::max(b.columns, static_cast<int>(longest));
-    b.rows = std::max(b.rows, static_cast<int>(textLines.size()));
+    b.columns = za::max(b.columns, static_cast<int>(longest));
+    b.rows = za::max(b.rows, static_cast<int>(textLines.size()));
     b.wanted = true;
 
     vec3_t a{wt.angles.x, wt.angles.y, wt.angles.z}, f, r, u;
@@ -604,14 +611,14 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
         // Its own moments (offset by its handle), and a burst as its page turns.
         const float crt = boardCrt();
         const float sinceChange = static_cast<float>(realtime - b.changed);
-        const float turn = sinceChange >= 0.f && sinceChange < 0.3f ? 0.8f * std::sin(sinceChange / 0.3f * 3.14159265f) : 0.f;
-        const float glitch = std::max(gadget::glitch(realtime + 11.3 + 5.9 * static_cast<double>(index)), turn);
+        const float turn = sinceChange >= 0.f && sinceChange < 0.3f ? 0.8f * za::sin(sinceChange / 0.3f * 3.14159265f) : 0.f;
+        const float glitch = za::max(gadget::glitch(realtime + 11.3 + 5.9 * static_cast<double>(index)), turn);
         const glm::vec4 phosphor{textColor, 1.f};
         const gfx::Vertex v[4] = {
             {bl, {0.f, 0.f}, phosphor}, {br, {1.f, 0.f}, phosphor}, {tr, {1.f, 1.f}, phosphor}, {tl, {0.f, 1.f}, phosphor}};
-        const float time = static_cast<float>(std::fmod(realtime, 1000.0));
-        screenQuads.push_back({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
-            .params = {time, crt, glitch * std::min(crt, 1.f), gadget::textGlow()},
+        const float time = static_cast<float>(za::fmod(realtime, 1000.0));
+        screenQuads.pushBack({.vertices = {v[0], v[1], v[2], v[0], v[2], v[3]},
+            .params = {time, crt, glitch * za::min(crt, 1.f), gadget::textGlow()},
             .size = {static_cast<float>(b.width), static_cast<float>(b.height), 1.f},
             .texture = b.target.texture});
     }
@@ -666,8 +673,8 @@ void renderBoards()
         }
 
         // Its virtual screen in font pixels: whole ones, so that the image's pixels fall on the font's.
-        const float fit = std::sqrt(boardTexels / static_cast<float>(width * height));
-        const int scale = std::clamp(static_cast<int>(fit), 2, 8);
+        const float fit = za::sqrt(boardTexels / static_cast<float>(width * height));
+        const int scale = za::clamp(static_cast<int>(fit), 2, 8);
         gfx::ensureTarget(b.target, width * scale, height * scale, true, "world text board"); // mipmaps: the glow, and far away
         gfx::begin2D(b.target, width, height);
         gfx::draw2D::fill(0.f, 0.f, static_cast<float>(width), static_cast<float>(height), face);
@@ -676,9 +683,9 @@ void renderBoards()
         const int top = boardPad + (b.rows - static_cast<int>(textLines.size())) * 4; // the page centred
         for(size_t i = 0; i < textLines.size(); i++)
         {
-            const std::string line{textLines[i]};
+            const za::String line{textLines[i]};
             const float x = static_cast<float>(boardPad) + 8.f * indent(b.align, static_cast<size_t>(b.columns), line.size());
-            gfx::draw2D::text(x, static_cast<float>(top + 8 * static_cast<int>(i)), 8.f, line.c_str());
+            gfx::draw2D::text(x, static_cast<float>(top + 8 * static_cast<int>(i)), 8.f, line.cStr());
         }
         gfx::draw2D::color(glm::vec4{1.f});
         gfx::end2D();
@@ -728,10 +735,10 @@ void drawOverlay()
         gfx::fontTexture());
 }
 
-void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen)
+void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen)
 {
     Queued& q = nextQueued();
-    q.text.assign(text);
+    q.text = text;
     q.pos = pos;
     q.angles = angles;
     q.align = align;
@@ -742,18 +749,18 @@ void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles,
     builtFrame = -1;
 }
 
-void queueOverlay(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, float scale,
-    std::span<const OverlayBar> bars, float backing)
+void queueOverlay(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, float scale,
+    za::Span<const OverlayBar> bars, float backing)
 {
     Queued& q = nextQueued();
-    q.text.assign(text);
+    q.text = text;
     q.pos = pos;
     q.angles = angles;
     q.align = Align::Centre;
     q.scale = scale;
     q.screen = false;
     q.overlay = true;
-    q.bars.assign(bars.begin(), bars.end());
+    q.bars.assignRange(bars.begin(), bars.end());
     q.backing = backing;
     builtFrame = -1;
 }
@@ -821,9 +828,9 @@ void renderScreens()
         gfx::draw2D::color(glm::vec4{text, 1.f});
         for(size_t i = 0; i < textLines.size(); i++)
         {
-            const std::string line{textLines[i]};
+            const za::String line{textLines[i]};
             const float x = static_cast<float>(pad) + 8.f * indent(q.align, longest, line.size());
-            gfx::draw2D::text(x, static_cast<float>(pad + 8 * static_cast<int>(i)), 8.f, line.c_str());
+            gfx::draw2D::text(x, static_cast<float>(pad + 8 * static_cast<int>(i)), 8.f, line.cStr());
         }
         gfx::draw2D::color(glm::vec4{1.f});
         gfx::end2D();
@@ -878,7 +885,7 @@ extern "C" void VR_DrawSceneOpaque()
         {
             b.wanted = false;
         }
-        const std::vector<worldtext::WorldText>& worldTexts = worldtext::clientTexts();
+        const za::Vector<worldtext::WorldText>& worldTexts = worldtext::clientTexts();
         for(size_t i = 0; i < worldTexts.size(); i++)
         {
             const worldtext::WorldText& wt = worldTexts[i];

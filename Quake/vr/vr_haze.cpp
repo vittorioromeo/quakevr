@@ -9,12 +9,20 @@
 #include "vr_stereo.hpp"
 #include "vr_water.hpp"
 
+#include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+
 #include <glm/gtc/type_ptr.hpp>
 
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <vector>
 
 namespace qvr::haze
 {
@@ -26,8 +34,8 @@ constexpr float kLavaReach = 192.f;   // the most of a view ray through it that 
 constexpr float kLavaStrength = 0.5f; // its bend, of an explosion's
 constexpr float kNear = 12.f;         // closer to a volume than this (the near plane cuts its faces): drawn from the eye
 constexpr float kBurstLife = 0.9f;    // an explosion's haze, in seconds (a rocket's)
-constexpr std::size_t kMaxBursts = 16;
-constexpr std::size_t kMaxFlames = 12;
+constexpr za::SizeT kMaxBursts = 16;
+constexpr za::SizeT kMaxFlames = 12;
 constexpr float kFlameDistance = 640.f; // flames farther than this have none
 constexpr float kFadeDistance = 1400.f; // nor anything wholly farther than this
 constexpr int kMargin = 32;             // pixels round the hot air copied too (the most it bends)
@@ -230,15 +238,15 @@ bool ensureCopy(int width, int height, GLint format)
 // The volumes.
 
 // Triangles wound as the engine's front faces (clockwise seen from outside) for an outward normal n.
-void addTriangle(std::vector<glm::vec4>& out, glm::vec4 a, glm::vec4 b, glm::vec4 c, const glm::vec3& n)
+void addTriangle(za::Vector<glm::vec4>& out, glm::vec4 a, glm::vec4 b, glm::vec4 c, const glm::vec3& n)
 {
     if(glm::dot(glm::cross(glm::vec3(b) - glm::vec3(a), glm::vec3(c) - glm::vec3(a)), n) > 0.f)
     {
-        std::swap(b, c);
+        za::genericSwap(b, c);
     }
-    out.push_back(a);
-    out.push_back(b);
-    out.push_back(c);
+    out.pushBack(a);
+    out.pushBack(b);
+    out.pushBack(c);
 }
 
 // The lava layers: each lava top's polygon raised kLavaHeight and, on the rim, its sides; w the lava's height.
@@ -247,16 +255,16 @@ struct LavaLayer
     GLint first = 0;
     GLsizei count = 0;
     glm::vec3 mins{}, maxs{};
-    std::size_t top = 0;
+    za::SizeT top = 0;
 };
 GLuint lavaVbo = 0;
 unsigned lavaGeneration = 0;
-std::vector<LavaLayer> lavaLayers;
+za::Vector<LavaLayer> lavaLayers;
 
 void ensureLava()
 {
     unsigned generation = 0;
-    const std::vector<water::LavaTop>& tops = water::lavaTops(generation);
+    const za::Vector<water::LavaTop>& tops = water::lavaTops(generation);
     if(generation == lavaGeneration && (lavaVbo || tops.empty()))
     {
         return;
@@ -268,8 +276,8 @@ void ensureLava()
         GL_DeleteBuffer(lavaVbo);
         lavaVbo = 0;
     }
-    std::vector<glm::vec4> verts;
-    for(std::size_t i = 0; i < tops.size(); i++)
+    za::Vector<glm::vec4> verts;
+    for(za::SizeT i = 0; i < tops.size(); i++)
     {
         const water::LavaTop& top = tops[i];
         if(top.poly.size() < 3)
@@ -290,12 +298,12 @@ void ensureLava()
             layer.maxs = glm::max(layer.maxs, glm::vec3(p.x, p.y, h));
         }
         centre /= static_cast<float>(top.poly.size());
-        for(std::size_t k = 2; k < top.poly.size(); k++)
+        for(za::SizeT k = 2; k < top.poly.size(); k++)
         {
             addTriangle(verts, glm::vec4(top.poly[0].x, top.poly[0].y, h, z), glm::vec4(top.poly[k - 1].x, top.poly[k - 1].y, h, z),
                 glm::vec4(top.poly[k].x, top.poly[k].y, h, z), glm::vec3(0.f, 0.f, 1.f));
         }
-        for(std::size_t k = 0; k + 1 < top.rim.size(); k += 2)
+        for(za::SizeT k = 0; k + 1 < top.rim.size(); k += 2)
         {
             const glm::vec2 a = top.rim[k], b = top.rim[k + 1];
             glm::vec2 out(b.y - a.y, a.x - b.x);
@@ -309,7 +317,7 @@ void ensureLava()
             addTriangle(verts, a0, b1, a1, n);
         }
         layer.count = static_cast<GLsizei>(verts.size()) - layer.first;
-        lavaLayers.push_back(layer);
+        lavaLayers.pushBack(layer);
     }
     if(!verts.empty())
     {
@@ -318,10 +326,10 @@ void ensureLava()
 }
 
 // Whether p is in the polygon (xy) or within `margin` of its edges.
-bool nearPolygon(const std::vector<glm::vec3>& poly, const glm::vec2& p, float margin)
+bool nearPolygon(const za::Vector<glm::vec3>& poly, const glm::vec2& p, float margin)
 {
     bool in = false;
-    for(std::size_t i = 0, j = poly.size() - 1; i < poly.size(); j = i++)
+    for(za::SizeT i = 0, j = poly.size() - 1; i < poly.size(); j = i++)
     {
         const glm::vec2 a(poly[j]), b(poly[i]);
         if((b.y > p.y) != (a.y > p.y) && p.x < (a.x - b.x) * (p.y - b.y) / (a.y - b.y) + b.x)
@@ -329,7 +337,7 @@ bool nearPolygon(const std::vector<glm::vec3>& poly, const glm::vec2& p, float m
             in = !in;
         }
         const glm::vec2 ab = b - a;
-        const float t = glm::dot(ab, ab) > 0.f ? std::clamp(glm::dot(p - a, ab) / glm::dot(ab, ab), 0.f, 1.f) : 0.f;
+        const float t = glm::dot(ab, ab) > 0.f ? za::clamp(glm::dot(p - a, ab) / glm::dot(ab, ab), 0.f, 1.f) : 0.f;
         if(glm::distance(p, a + ab * t) < margin)
         {
             return true;
@@ -347,7 +355,7 @@ void ensureBox()
     {
         return;
     }
-    std::vector<glm::vec4> verts;
+    za::Vector<glm::vec4> verts;
     for(int axis = 0; axis < 3; axis++)
     {
         for(float side : {-1.f, 1.f})
@@ -377,7 +385,7 @@ struct Burst
     float size = 1.f;
     double start = 0.;
 };
-std::vector<Burst> bursts;
+za::Vector<Burst> bursts;
 
 struct Ellipsoid
 {
@@ -389,9 +397,9 @@ struct Ellipsoid
 // A view's volumes, gathered each eye (the main thread).
 struct HazeScratch
 {
-    std::vector<GLint> lavaFirst;     // the lava layers drawn: their first vertex
-    std::vector<GLsizei> lavaCount;   // and their count
-    std::vector<Ellipsoid> ellipsoids; // the explosions and flames
+    za::Vector<GLint> lavaFirst;     // the lava layers drawn: their first vertex
+    za::Vector<GLsizei> lavaCount;   // and their count
+    za::Vector<Ellipsoid> ellipsoids; // the explosions and flames
     auto members() { return qvr::mem::list(lavaFirst, lavaCount, ellipsoids); }
 };
 mem::Scratch<HazeScratch> scratch{"haze"};
@@ -421,10 +429,10 @@ void addBox(Rect& rect, const glm::mat4& viewProj, const glm::vec3& mins, const 
             return;
         }
         const float x = (c.x / c.w * 0.5f + 0.5f) * w, y = (c.y / c.w * 0.5f + 0.5f) * h;
-        rect.x0 = std::min(rect.x0, x);
-        rect.y0 = std::min(rect.y0, y);
-        rect.x1 = std::max(rect.x1, x);
-        rect.y1 = std::max(rect.y1, y);
+        rect.x0 = za::min(rect.x0, x);
+        rect.y0 = za::min(rect.y0, y);
+        rect.x1 = za::max(rect.x1, x);
+        rect.y1 = za::max(rect.y1, y);
     }
 }
 
@@ -441,7 +449,7 @@ bool culled(glm::vec3 mins, glm::vec3 maxs)
 
 void draw()
 {
-    const float strength = std::clamp(vr_heat_haze.value, 0.f, 1.f);
+    const float strength = za::clamp(vr_heat_haze.value, 0.f, 1.f);
     if(strength <= 0.f || !cl.worldmodel || programFailed)
     {
         bursts.clear();
@@ -461,15 +469,15 @@ void draw()
 
     // Lava: the layers over the tops in this view's PVS and frustum; the eye in one: that pool's, from the eye.
     ensureLava();
-    std::vector<GLint>& lavaFirst = scratch.lavaFirst;
-    std::vector<GLsizei>& lavaCount = scratch.lavaCount;
+    za::Vector<GLint>& lavaFirst = scratch.lavaFirst;
+    za::Vector<GLsizei>& lavaCount = scratch.lavaCount;
     lavaFirst.clear();
     lavaCount.clear();
     bool lavaInside = false;
     float lavaInsideZ = 0.f;
     {
         unsigned generation = 0;
-        const std::vector<water::LavaTop>& tops = water::lavaTops(generation);
+        const za::Vector<water::LavaTop>& tops = water::lavaTops(generation);
         for(const LavaLayer& layer : lavaLayers)
         {
             if(layer.top >= tops.size() || !water::lavaTopInPvs(tops[layer.top]) || culled(layer.mins, layer.maxs) ||
@@ -484,16 +492,16 @@ void draw()
                 lavaInsideZ = top.z;
                 rect.full = true;
             }
-            lavaFirst.push_back(layer.first);
-            lavaCount.push_back(layer.count);
+            lavaFirst.pushBack(layer.first);
+            lavaCount.pushBack(layer.count);
             addBox(rect, viewProj, layer.mins, layer.maxs, vw, vh);
         }
     }
 
     // Explosions, then the flames near the eye.
-    std::vector<Ellipsoid>& ellipsoids = scratch.ellipsoids;
+    za::Vector<Ellipsoid>& ellipsoids = scratch.ellipsoids;
     ellipsoids.clear();
-    std::erase_if(bursts, [](const Burst& b) { return cl.time < b.start || cl.time > b.start + kBurstLife * b.size; });
+    za::vectorEraseIf(bursts, [](const Burst& b) { return cl.time < b.start || cl.time > b.start + kBurstLife * b.size; });
     for(const Burst& b : bursts)
     {
         const float age = static_cast<float>(cl.time - b.start) / (kBurstLife * b.size);
@@ -501,19 +509,19 @@ void draw()
         const float grow = 1.f - (1.f - age) * (1.f - age);
         e.radii = glm::vec3(b.size * (36.f + 60.f * grow));
         e.centre = b.pos + glm::vec3(0.f, 0.f, 24.f * age * b.size); // the hot air rises
-        e.heat = std::pow(1.f - age, 1.5f);
+        e.heat = za::pow(1.f - age, 1.5f);
         e.ring = age < 0.3f ? age / 0.3f : -1.f;
-        ellipsoids.push_back(e);
+        ellipsoids.pushBack(e);
     }
-    std::size_t flames = 0;
+    za::SizeT flames = 0;
     for(int i = 0; i < cl_numvisedicts && flames < kMaxFlames; i++)
     {
         const entity_t* ent = cl_visedicts[i];
-        if(!ent || !ent->model || std::strncmp(ent->model->name, "progs/flame", 11) != 0)
+        if(!ent || !ent->model || ZA_STRNCMP(ent->model->name, "progs/flame", 11) != 0)
         {
             continue;
         }
-        const bool big = std::strcmp(ent->model->name, "progs/flame2.mdl") == 0;
+        const bool big = ZA_STRCMP(ent->model->name, "progs/flame2.mdl") == 0;
         const glm::vec3 origin(ent->origin[0], ent->origin[1], ent->origin[2]);
         if(glm::distance(origin, eye) > kFlameDistance)
         {
@@ -523,10 +531,10 @@ void draw()
         e.centre = origin + glm::vec3(0.f, 0.f, big ? 34.f : 22.f);
         e.radii = big ? glm::vec3(15.f, 15.f, 34.f) : glm::vec3(8.f, 8.f, 22.f);
         e.heat = big ? 0.55f : 0.4f;
-        ellipsoids.push_back(e);
+        ellipsoids.pushBack(e);
         flames++;
     }
-    std::erase_if(ellipsoids, [&](const Ellipsoid& e) {
+    za::vectorEraseIf(ellipsoids, [&](const Ellipsoid& e) {
         return culled(e.centre - e.radii, e.centre + e.radii) || boxDistance(eye, e.centre - e.radii, e.centre + e.radii) > kFadeDistance;
     });
     for(const Ellipsoid& e : ellipsoids)
@@ -553,10 +561,10 @@ void draw()
     int x0 = 0, y0 = 0, x1 = vw, y1 = vh;
     if(!rect.full)
     {
-        x0 = std::max(0, static_cast<int>(std::floor(rect.x0)) - kMargin);
-        y0 = std::max(0, static_cast<int>(std::floor(rect.y0)) - kMargin);
-        x1 = std::min(vw, static_cast<int>(std::ceil(rect.x1)) + kMargin);
-        y1 = std::min(vh, static_cast<int>(std::ceil(rect.y1)) + kMargin);
+        x0 = za::max(0, static_cast<int>(za::floor(rect.x0)) - kMargin);
+        y0 = za::max(0, static_cast<int>(za::floor(rect.y0)) - kMargin);
+        x1 = za::min(vw, static_cast<int>(za::ceil(rect.x1)) + kMargin);
+        y1 = za::min(vh, static_cast<int>(za::ceil(rect.y1)) + kMargin);
         if(x1 <= x0 || y1 <= y0)
         {
             return;
@@ -605,7 +613,7 @@ void draw()
         GL_Uniform4fFunc(4, kLavaReach, 0.f, 0.f, -1.f);
         GL_BindBuffer(GL_ARRAY_BUFFER, lavaVbo);
         GL_VertexAttribPointerFunc(0, 4, GL_FLOAT, GL_FALSE, sizeof(glm::vec4), nullptr);
-        for(std::size_t i = 0; i < lavaFirst.size(); i++)
+        for(za::SizeT i = 0; i < lavaFirst.size(); i++)
         {
             glDrawArrays(GL_TRIANGLES, lavaFirst[i], lavaCount[i]);
         }
@@ -679,7 +687,7 @@ extern "C" void VR_HazeExplosion(const float* pos, float size)
     {
         haze::bursts.erase(haze::bursts.begin());
     }
-    haze::bursts.push_back({glm::vec3(pos[0], pos[1], pos[2]), std::clamp(size, 0.3f, 2.f), cl.time});
+    haze::bursts.pushBack({glm::vec3(pos[0], pos[1], pos[2]), za::clamp(size, 0.3f, 2.f), cl.time});
 }
 
 // R_RenderScene, after the translucent pass.

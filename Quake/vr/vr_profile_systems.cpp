@@ -1172,7 +1172,7 @@ void overlay()
         const glm::vec3 d = at - s.head;
         const float yaw = za::atan2(d.y, d.x) * 180.f / static_cast<float>(M_PI);
         const float pitch = -za::atan2(d.z, qza::hypot(d.x, d.y)) * 180.f / static_cast<float>(M_PI);
-        text3d::queueOverlay(std::string_view{panelText.data(), panelText.size()} /* TRANSITION */, at, glm::vec3{pitch, yaw, 0.f}, charSize / 8.f, panelBars, 0.8f);
+        text3d::queueOverlay(panelText, at, glm::vec3{pitch, yaw, 0.f}, charSize / 8.f, panelBars, 0.8f);
         return;
     }
     // In front: 0.9 m ahead and a little below the eyes, turning after the head once it looks 30 degrees away.
@@ -1194,7 +1194,7 @@ void overlay()
     const glm::vec3 d = at - s.head;
     const float pitch = -za::atan2(d.z, qza::hypot(d.x, d.y)) * 180.f / static_cast<float>(M_PI);
     const float charSize = 0.0095f * m2u; // 9.5 mm at 0.9 m: about the menu's text
-    text3d::queueOverlay(std::string_view{panelText.data(), panelText.size()} /* TRANSITION */, at, glm::vec3{pitch, panelYaw, 0.f}, charSize / 8.f, panelBars, 0.8f);
+    text3d::queueOverlay(panelText, at, glm::vec3{pitch, panelYaw, 0.f}, charSize / 8.f, panelBars, 0.8f);
 }
 
 } // namespace qvr::profile::systems

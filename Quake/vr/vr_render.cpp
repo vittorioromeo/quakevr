@@ -16,10 +16,14 @@
 #include "vr_props.hpp"
 #include "vr_weapons.hpp"
 
-#include <algorithm>
-#include <cstring>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/Unique.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_zancle.hpp"
+
 
 using namespace qvr;
 
@@ -186,7 +190,7 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
 {
     if(kind == 2)
     {
-        std::memset(out, 0, sizeof(*out));
+        ZA_MEMSET(out, 0, sizeof(*out));
         return;
     }
     const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
@@ -210,7 +214,7 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
     {
         out->glow[3] = 0.f;
     }
-    std::memset(out->surface, 0, sizeof(out->surface)); // rim light and reflections (vr_rim_light, vr_weapon_reflections)
+    ZA_MEMSET(out->surface, 0, sizeof(out->surface)); // rim light and reflections (vr_rim_light, vr_weapon_reflections)
     if(lit)
     {
         VR_AliasSurface(e, out->surface);
@@ -223,7 +227,7 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
     }
     else
     {
-        std::memset(out->wound, 0, sizeof(out->wound));
+        ZA_MEMSET(out->wound, 0, sizeof(out->wound));
     }
 }
 
@@ -237,7 +241,7 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
 {
     const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
     const int n = hdr->numverts_vbo;
-    std::fill(refs, refs + n, static_cast<unsigned short>(0));
+    qza::fill(refs, refs + n, static_cast<unsigned short>(0));
     if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || hdr->numframes < 1 || hdr->numposes < 2 || n <= 0)
     {
         return;
@@ -257,23 +261,23 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
         return p[0] | p[1] << 8 | p[2] << 16;
     };
 
-    std::unordered_map<int, std::vector<int>> clusters; // by their point in frame 0
+    ankerl::unordered_dense::map<int, za::Vector<int>> clusters; // by their point in frame 0
     for(int t = 0; t + 2 < hdr->numindexes; t += 3)
     {
         const int a = indexes[t], b = indexes[t + 1], c = indexes[t + 2];
         if(a < n && b < n && c < n && key(a) == key(b) && key(a) == key(c))
         {
-            std::vector<int>& cl = clusters[key(a)];
-            cl.insert(cl.end(), {a, b, c});
+            za::Vector<int>& cl = clusters[key(a)];
+            cl.pushBackMultiple(a, b, c);
         }
     }
 
-    std::vector<bool> flash(static_cast<size_t>(n), false);
-    std::vector<int> points; // a vertex of each flash
+    za::Vector<bool> flash(static_cast<size_t>(n), false);
+    za::Vector<int> points; // a vertex of each flash
     for(auto& [k, cl] : clusters)
     {
-        std::sort(cl.begin(), cl.end());
-        cl.erase(std::unique(cl.begin(), cl.end()), cl.end());
+        za::quickSort(cl.begin(), cl.end());
+        cl.erase(za::unique(cl.begin(), cl.end()), cl.end());
         float spread = 0.f;
         for(int p = 0; p < hdr->numposes && spread < 2.f; p++)
         {
@@ -281,7 +285,7 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
             const glm::vec3 o = at(pose, cl[0]);
             for(int v : cl)
             {
-                spread = std::max(spread, glm::distance(at(pose, v), o));
+                spread = za::max(spread, glm::distance(at(pose, v), o));
             }
         }
         if(cl.size() >= 3 && spread >= 2.f)
@@ -290,7 +294,7 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
             {
                 flash[static_cast<size_t>(v)] = true;
             }
-            points.push_back(cl[0]);
+            points.pushBack(cl[0]);
         }
     }
 

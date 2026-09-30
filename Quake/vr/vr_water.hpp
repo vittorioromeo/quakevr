@@ -22,9 +22,10 @@
 
 #pragma once
 
+#include "Zancle/Container/Vector.hpp"
+
 #include <glm/glm.hpp>
 
-#include <vector>
 
 namespace qvr::water
 {
@@ -48,13 +49,13 @@ struct LavaTop
 {
     int face = 0; // the geometric waves' mesh's
     float z = 0.f;
-    std::vector<glm::vec3> poly;
-    std::vector<glm::vec2> rim; // pairs of ends
+    za::Vector<glm::vec3> poly;
+    za::Vector<glm::vec2> rim; // pairs of ends
 };
 
 // The world's lava tops (made with the geometric waves' mesh, which is made when the waves, the foam or the haze are
 // on) and a number that changes when they are made anew.
-[[nodiscard]] const std::vector<LavaTop>& lavaTops(unsigned& generation);
+[[nodiscard]] const za::Vector<LavaTop>& lavaTops(unsigned& generation);
 
 // Whether a lava top is in this view's PVS (VR_WaterMarkVis, this view).
 [[nodiscard]] bool lavaTopInPvs(const LavaTop& top);

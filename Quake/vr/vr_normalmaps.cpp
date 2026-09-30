@@ -6,10 +6,11 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/String/String.hpp"
+
 #include <climits>
-#include <cstdlib>
-#include <cstring>
-#include <string>
+#include <stdlib.h>
+#include <string.h>
 
 #define NORMALMAP_MAXSIZE	256 // made ones: the bumps a dynamic light shows need no more (and a 512 texture's would take 1.4 MB)
 #define NORMALMAP_TEXELS	2 // made ones: at most 2 texels a unit (a replacement's finer grain is noise as bumps)
@@ -583,7 +584,7 @@ old map). The key: a hash (FNV-1a, 64 bits) of all that TexMgr_SkinToNormals rea
 heights or not, the texels per unit, and the islands' mask.
 ================
 */
-static std::string TexMgr_MakeNormalCacheBuild (void)
+static za::String TexMgr_MakeNormalCacheBuild (void)
 {
 	const char *stamp = __DATE__ " " __TIME__;
 	unsigned long long h = 14695981039346656037ULL;
@@ -593,11 +594,11 @@ static std::string TexMgr_MakeNormalCacheBuild (void)
 	q_snprintf (build, sizeof (build), "%016llx", h);
 	return build;
 }
-static const std::string normalcache_build = TexMgr_MakeNormalCacheBuild (); // (made before main, read-only)
+static const za::String normalcache_build = TexMgr_MakeNormalCacheBuild (); // (made before main, read-only)
 
 static const char *TexMgr_NormalCacheBuild (void)
 {
-	return normalcache_build.c_str ();
+	return normalcache_build.cStr ();
 }
 
 static unsigned long long TexMgr_Fnv (unsigned long long h, const void *p, size_t n)

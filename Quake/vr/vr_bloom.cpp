@@ -7,7 +7,10 @@
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 
-#include <algorithm>
+#include "Zancle/Base/InitializerList.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
 
 namespace qvr::bloom
 {
@@ -233,8 +236,8 @@ void apply(GLuint sceneTex, int width, int height)
     Target& mean = chain.mean;
     for(int l = 0; l < levels; l++)
     {
-        const int w = std::max(1, width >> (2 + l));
-        const int h = std::max(1, height >> (2 + l));
+        const int w = za::max(1, width >> (2 + l));
+        const int h = za::max(1, height >> (2 + l));
         if(!ensure(down[l], w, h, "vr bloom down") || (l < levels - 1 && !ensure(up[l], w, h, "vr bloom up")))
         {
             return;
@@ -248,11 +251,11 @@ void apply(GLuint sceneTex, int width, int height)
     GL_BeginGroup("VR bloom");
     GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
 
-    const float threshold = std::clamp(vr_bloom_threshold.value, 0.f, 0.99f);
-    const float spread = std::clamp(vr_bloom_radius.value, 0.25f, 4.f);
+    const float threshold = za::clamp(vr_bloom_threshold.value, 0.f, 0.99f);
+    const float spread = za::clamp(vr_bloom_radius.value, 0.25f, 4.f);
 
     GL_UseProgram(brightProgram);
-    GL_Uniform2fFunc(1, std::max(0.f, vr_bloom_white.value), std::max(0.f, vr_bloom_color.value));
+    GL_Uniform2fFunc(1, za::max(0.f, vr_bloom_white.value), za::max(0.f, vr_bloom_color.value));
     pass(down[0], brightProgram, sceneTex, threshold, 0.f, 1.f / width, 1.f / height);
     for(int l = 1; l < levels; l++)
     {
@@ -270,7 +273,7 @@ void apply(GLuint sceneTex, int width, int height)
         GL_UseProgram(upProgram);
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, down[l].tex);
         GL_Uniform3fFunc(1, first ? levelWeight[levels - 1] : 1.f, l == 0 ? strength : 0.f,
-            std::max(0.f, vr_bloom_adapt.value));
+            za::max(0.f, vr_bloom_adapt.value));
         pass(up[l], upProgram, smaller.tex, spread, levelWeight[l], 1.f / smaller.width, 1.f / smaller.height);
     }
 

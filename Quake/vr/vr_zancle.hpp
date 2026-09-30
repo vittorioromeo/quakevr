@@ -8,6 +8,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Priv/Impl.hpp"
 #include "Zancle/Trait/IsFloatingPoint.hpp"
 
@@ -72,6 +73,39 @@ template <typename T>
         const auto v = +x;
         return v < 0 ? -v : v;
     }
+}
+
+// ZANCLE-TODO: MinMax takes two values: std::min and std::max over an initializer list (the first smallest, the first
+// largest, as those return: a fold of za::min / za::max from the left).
+template <typename T>
+[[nodiscard, gnu::always_inline]] constexpr T minOf(const T a) noexcept
+{
+    return a;
+}
+
+template <typename T, typename... Ts>
+[[nodiscard, gnu::always_inline]] constexpr T minOf(const T a, const T b, const Ts... rest) noexcept
+{
+    return minOf(za::min(a, b), rest...);
+}
+
+template <typename T>
+[[nodiscard, gnu::always_inline]] constexpr T maxOf(const T a) noexcept
+{
+    return a;
+}
+
+template <typename T, typename... Ts>
+[[nodiscard, gnu::always_inline]] constexpr T maxOf(const T a, const T b, const Ts... rest) noexcept
+{
+    return maxOf(za::max(a, b), rest...);
+}
+
+// ZANCLE-TODO: Span has no size_bytes() (std::span's): its elements' bytes.
+template <typename Span>
+[[nodiscard, gnu::always_inline]] constexpr auto sizeBytes(const Span& s) noexcept
+{
+    return s.size() * sizeof(*s.data());
 }
 
 // ZANCLE-TODO: Algorithm has no fill (std::fill): every element of [first, last), or of a range (an array, a

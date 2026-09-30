@@ -10,11 +10,12 @@
 
 #pragma once
 
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+
 #include <glm/glm.hpp>
 
-#include <cstddef>
-#include <span>
-#include <string>
 
 namespace qvr::gfx
 {
@@ -73,19 +74,19 @@ struct State
 
 // Triangles (three vertices each), transformed by `mvp` to clip space. No culling. They are copied into the frame's
 // upload buffer at each call.
-void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& state, Texture texture = 0);
+void draw(za::Span<const Vertex> triangles, const glm::mat4& mvp, const State& state, Texture texture = 0);
 
 // Triangles kept in a vertex buffer of their own, for ones that stay the same over many frames (the settled decals):
 // uploaded when they change, then drawn from it in both eyes and every frame until they change again.
 struct StaticTriangles
 {
     unsigned buffer{0};
-    std::size_t capacity{0}; // bytes
-    std::size_t count{0};    // vertices
+    za::SizeT capacity{0}; // bytes
+    za::SizeT count{0};    // vertices
     long long uploads{0};    // so far (vr_decal_count)
     long long uploadedBytes{0};
 };
-void upload(StaticTriangles& triangles, std::span<const Vertex> vertices);
+void upload(StaticTriangles& triangles, za::Span<const Vertex> vertices);
 void draw(const StaticTriangles& triangles, const glm::mat4& mvp, const State& state, Texture texture = 0);
 
 // Camera-facing particles (vr_particles.cpp), made into quads on the GPU: one record each, uploaded once a frame and
@@ -114,10 +115,10 @@ static_assert(sizeof(ParticleInstance) == 96);
 struct ParticleBatch
 {
     unsigned buffer{0};
-    std::size_t offset{0};
-    std::size_t count{0};
+    za::SizeT offset{0};
+    za::SizeT count{0};
 };
-[[nodiscard]] ParticleBatch uploadParticles(std::span<const ParticleInstance> particles);
+[[nodiscard]] ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles);
 // Draws them in the scene view (sceneViewProjection, sceneCamera); `pull`: moved towards the eye by their pull.
 void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture);
 
@@ -138,11 +139,11 @@ static_assert(sizeof(TubeRing) == 96);
 struct TubeBatch
 {
     unsigned buffer{0};
-    std::size_t offset{0};
-    std::size_t count{0}; // rings
+    za::SizeT offset{0};
+    za::SizeT count{0}; // rings
 };
 // Into the frame's upload buffer, valid until the frame ends (drawn from it in both eyes).
-[[nodiscard]] TubeBatch uploadTube(std::span<const TubeRing> rings);
+[[nodiscard]] TubeBatch uploadTube(za::Span<const TubeRing> rings);
 void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key);
 
 // A model's mesh bent along a curve, copy after copy (the grappling hook's rope, vr_rope.cpp: Rogue's chain links laid
@@ -169,10 +170,10 @@ static_assert(sizeof(BentVertex) == 32 && sizeof(CurveSample) == 48);
 struct BentBatch
 {
     unsigned buffer{0};
-    std::size_t offset{0};
-    std::size_t count{0}; // vec4s
+    za::SizeT offset{0};
+    za::SizeT count{0}; // vec4s
 };
-[[nodiscard]] BentBatch uploadBent(std::span<const glm::vec4> data);
+[[nodiscard]] BentBatch uploadBent(za::Span<const glm::vec4> data);
 struct BentDraw
 {
     int meshFirst{0};    // the mesh's first vec4 in the batch
@@ -216,7 +217,7 @@ void ensureTarget(Target& target, int width, int height, bool mipmaps = false, c
 void releaseTarget(Target& target);
 
 // How many times targets of each name were (re)made so far, as "name:count" words.
-[[nodiscard]] std::string targetsMadeByName();
+[[nodiscard]] za::String targetsMadeByName();
 
 // Draws into `target` with the engine's 2D functions (the 2D pass's own blend and state), on a
 // virtual screen of `virtualWidth` x `virtualHeight` covering it, until end2D() restores the 2D

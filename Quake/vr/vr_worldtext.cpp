@@ -5,8 +5,14 @@
 #include "vr_menu.hpp"
 #include "vr_protocol.hpp"
 
-#include <cstring>
-#include <utility>
+#include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+
+#include <string.h>
 
 using namespace qvr::protocol;
 
@@ -17,11 +23,11 @@ namespace
 
 constexpr int maxWorldTexts = 4096;
 
-constexpr std::size_t maxFloatTexts = 256;
+constexpr za::SizeT maxFloatTexts = 256;
 
-std::vector<WorldText> serverTexts;
-std::vector<WorldText> clientTextList;
-std::vector<FloatText> clientFloatTextList;
+za::Vector<WorldText> serverTexts;
+za::Vector<WorldText> clientTextList;
+za::Vector<FloatText> clientFloatTextList;
 
 [[nodiscard]] WorldText& serverText(int handle)
 {
@@ -50,7 +56,7 @@ void beginMessage(sizebuf_t* msg, int subcmd, int handle)
 void writeText(sizebuf_t* msg, int handle, const WorldText& wt)
 {
     beginMessage(msg, QVR_SVC_WORLDTEXT_TEXT, handle);
-    MSG_WriteString(msg, wt.text.c_str());
+    MSG_WriteString(msg, wt.text.cStr());
 }
 
 void writePos(sizebuf_t* msg, int handle, const WorldText& wt, unsigned int protocolflags)
@@ -83,7 +89,7 @@ void writeScale(sizebuf_t* msg, int handle, const WorldText& wt)
     MSG_WriteFloat(msg, wt.scale);
 }
 
-void writeAll(sizebuf_t* msg, const std::vector<WorldText>& texts, unsigned int protocolflags)
+void writeAll(sizebuf_t* msg, const za::Vector<WorldText>& texts, unsigned int protocolflags)
 {
     for(int handle = 0; handle < static_cast<int>(texts.size()); handle++)
     {
@@ -126,7 +132,7 @@ int serverMake()
         PR_RunError("too many world texts (max %d)", maxWorldTexts);
     }
 
-    serverTexts.emplace_back();
+    serverTexts.emplaceBack();
     const int handle = static_cast<int>(serverTexts.size() - 1);
     if(sizebuf_t* msg = broadcast())
     {
@@ -140,7 +146,7 @@ void serverSetText(int handle, const char* text)
     WorldText& wt = serverText(handle);
     // A board may name a VR Settings page ({menu:Locomotion}): its path from the main menu, as the menus are now (the
     // calibration room's boards, vr_setup.hpp).
-    wt.text = std::strstr(text, "{menu:") ? menu::expandPaths(text, 34, nullptr) : std::string{text};
+    wt.text = ZA_STRSTR(text, "{menu:") ? za::String{menu::expandPaths(text, 34, nullptr)} /* TRANSITION */ : za::String{text};
     if(sizebuf_t* msg = broadcast())
     {
         writeText(msg, handle, wt);
@@ -244,14 +250,14 @@ void clientParseFloatText()
 
     if(clientFloatTextList.size() < maxFloatTexts)
     {
-        clientFloatTextList.push_back(std::move(ft));
+        clientFloatTextList.pushBack(ZA_MOVE(ft));
     }
 }
 
-const std::vector<FloatText>& clientFloatTexts(double now)
+const za::Vector<FloatText>& clientFloatTexts(double now)
 {
     // Done, or from before a jump back in time (a demo restarted).
-    std::erase_if(clientFloatTextList,
+    za::vectorEraseIf(clientFloatTextList,
         [now](const FloatText& ft) { return now > ft.start + floatTextLife || now < ft.start - 1.0; });
     return clientFloatTextList;
 }
@@ -284,7 +290,7 @@ void clientParse(int subcmd)
     }
 }
 
-const std::vector<WorldText>& clientTexts()
+const za::Vector<WorldText>& clientTexts()
 {
     return clientTextList;
 }

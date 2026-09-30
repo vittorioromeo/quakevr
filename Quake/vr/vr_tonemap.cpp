@@ -3,14 +3,16 @@
 #include "vr_tonemap.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_stereo.hpp"
 
-#include <algorithm>
-#include <cstdio>
-#include <cstring>
-#include <filesystem>
-#include <string>
-#include <vector>
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/String/String.hpp"
+
+#include <stdio.h>
 
 namespace qvr::tonemap
 {
@@ -73,16 +75,16 @@ enum GradeIndex
     }
     // The strip's texel (x = b * n + r, y = g) to the table's (r, g, b).
     const int n = h;
-    std::vector<byte> texels(static_cast<std::size_t>(n) * n * n * 4);
+    za::Vector<byte> texels(static_cast<za::SizeT>(n) * n * n * 4);
     for(int b = 0; b < n; b++)
     {
         for(int gr = 0; gr < n; gr++)
         {
             for(int r = 0; r < n; r++)
             {
-                const byte* src = data + (static_cast<std::size_t>(gr) * w + b * n + r) * 4;
-                byte* dst = texels.data() + ((static_cast<std::size_t>(b) * n + gr) * n + r) * 4;
-                std::memcpy(dst, src, 4);
+                const byte* src = data + (static_cast<za::SizeT>(gr) * w + b * n + r) * 4;
+                byte* dst = texels.data() + ((static_cast<za::SizeT>(b) * n + gr) * n + r) * 4;
+                ZA_MEMCPY(dst, src, 4);
             }
         }
     }
@@ -105,16 +107,16 @@ enum GradeIndex
 // vr_eyeshot: a number for this session's shots.
 int eyeshotCount = 0;
 
-void writePfm(const std::string& path, const std::vector<float>& rgb, int width, int height)
+void writePfm(const za::String& path, const za::Vector<float>& rgb, int width, int height)
 {
-    FILE* f = std::fopen(path.c_str(), "wb");
+    FILE* f = fopen(path.cStr(), "wb");
     if(!f)
     {
         return;
     }
-    std::fprintf(f, "PF\n%d %d\n-1.0\n", width, height); // bottom row first, as GL reads
-    std::fwrite(rgb.data(), sizeof(float), rgb.size(), f);
-    std::fclose(f);
+    fprintf(f, "PF\n%d %d\n-1.0\n", width, height); // bottom row first, as GL reads
+    fwrite(rgb.data(), sizeof(float), rgb.size(), f);
+    fclose(f);
 }
 
 } // namespace
@@ -138,10 +140,10 @@ glm::vec4 bind(unsigned unit)
     glm::vec4 p{0.f, knee, white, 0.f};
     if(active())
     {
-        p.x = std::clamp(vr_exposure.value, 0.1f, 4.f);
+        p.x = za::clamp(vr_exposure.value, 0.1f, 4.f);
     }
     const int choice = static_cast<int>(vr_grade.value);
-    const float strength = std::clamp(vr_grade_strength.value, 0.f, 1.f);
+    const float strength = za::clamp(vr_grade_strength.value, 0.f, 1.f);
     if(choice >= 1 && choice <= 4 && strength > 0.f)
     {
         constexpr int byChoice[] = {Film, Cold, Warm};
@@ -161,27 +163,26 @@ void eyeshot(int eye, unsigned imageFbo, unsigned sceneFbo, int width, int heigh
     {
         return;
     }
-    const std::string dir = std::string{com_gamedir} + "/eyeshots";
-    std::error_code ec;
-    std::filesystem::create_directories(dir, ec);
+    const za::String dir = za::String{com_gamedir} + "/eyeshots";
+    files::createDirectories(dir.cStr());
     const char* side = eye == 0 ? "L" : "R";
-    const std::string base = va("eyeshots/%s_%03d_%s", cl.mapname[0] ? cl.mapname : "none", eyeshotCount, side);
+    const za::String base = va("eyeshots/%s_%03d_%s", cl.mapname[0] ? cl.mapname : "none", eyeshotCount, side);
 
-    std::vector<byte> pixels(static_cast<std::size_t>(width) * height * 3);
+    za::Vector<byte> pixels(static_cast<za::SizeT>(width) * height * 3);
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, imageFbo);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels.data());
-    Image_WritePNG((base + ".png").c_str(), pixels.data(), width, height, 24, false);
+    Image_WritePNG((base + ".png").cStr(), pixels.data(), width, height, 24, false);
 
     if(vr_eyeshot.value >= 2.f && vr_eyeshot.value < 3.f)
     {
-        std::vector<float> scene(static_cast<std::size_t>(width) * height * 3);
+        za::Vector<float> scene(static_cast<za::SizeT>(width) * height * 3);
         GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, sceneFbo);
         glReadPixels(0, 0, width, height, GL_RGB, GL_FLOAT, scene.data());
-        writePfm(std::string{com_gamedir} + "/" + base + ".pfm", scene, width, height);
+        writePfm(za::String{com_gamedir} + "/" + base + ".pfm", scene, width, height);
     }
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, 0);
-    Con_Printf("Wrote %s.png\n", base.c_str());
+    Con_Printf("Wrote %s.png\n", base.cStr());
     if(eye == 1)
     {
         ++eyeshotCount;

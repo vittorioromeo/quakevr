@@ -14,13 +14,16 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
-#include <array>
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <iterator>
-#include <string_view>
-#include <vector>
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "vr_zancle.hpp"
+
+#include <stdlib.h>
+#include <string.h>
 
 namespace
 {
@@ -35,7 +38,7 @@ struct Band
 // A letter is made by copying pieces of strips into its cell (and clearing what a neighbour's pixels left in it).
 struct Op
 {
-    enum Kind : std::uint8_t
+    enum Kind : za::U8
     {
         Copy,
         Clear
@@ -44,7 +47,7 @@ struct Op
     int band, x0, x1, y0, y1; // Copy: the strip's columns x0..x1 and rows y0..y1; Clear: the cell's
     int dx, dy;               // Copy: to column dx, down by the strip's dy and this
     bool flip;                // Copy: the rows upside down
-    std::uint32_t hash;       // Copy: FNV-1a of the piece (its rows in order)
+    za::U32 hash;       // Copy: FNV-1a of the piece (its rows in order)
 };
 
 struct GlyphDef
@@ -56,7 +59,7 @@ struct GlyphDef
 #include "vr_bigfont_glyphs.inc"
 
 constexpr const char* picNames[]{"gfx/mainmenu.lmp", "gfx/sp_menu.lmp", "gfx/mp_menu.lmp"};
-constexpr int glyphCount = static_cast<int>(std::size(glyphDefs));
+constexpr int glyphCount = static_cast<int>(za::getArraySize(glyphDefs));
 constexpr int pad = 2; // transparent columns round each letter in the texture (its filtering)
 
 struct Picture
@@ -71,17 +74,17 @@ struct Picture
 struct Font
 {
     bool built{false};
-    std::vector<byte> atlas;              // cellRows rows, the letters side by side (reloads of the texture read it)
+    za::Vector<byte> atlas;              // cellRows rows, the letters side by side (reloads of the texture read it)
     int atlasWidth{0};
-    std::array<int, glyphCount> column{}; // each letter's first column in it; -1: left out (a piece's hash differed)
-    std::vector<byte> pic;                // the texture's qpic_t (Draw_ReplacePic), kept from game to game
-    std::array<bool, std::size(picNames)> picFound{};
+    za::Array<int, glyphCount> column{}; // each letter's first column in it; -1: left out (a piece's hash differed)
+    za::Vector<byte> pic;                // the texture's qpic_t (Draw_ReplacePic), kept from game to game
+    za::Array<bool, za::getArraySize(picNames)> picFound{};
 };
 Font font;
 
-[[nodiscard]] std::uint32_t pieceHash(const Picture& p, const Band& b, const Op& op)
+[[nodiscard]] za::U32 pieceHash(const Picture& p, const Band& b, const Op& op)
 {
-    std::uint32_t h = 2166136261u;
+    za::U32 h = 2166136261u;
     for(int y = op.y0; y < op.y1; y++)
     {
         for(int x = op.x0; x < op.x1; x++)
@@ -92,7 +95,7 @@ Font font;
     return h;
 }
 
-[[nodiscard]] bool piecesMatch(const GlyphDef& g, const std::array<Picture, std::size(picNames)>& pics)
+[[nodiscard]] bool piecesMatch(const GlyphDef& g, const za::Array<Picture, za::getArraySize(picNames)>& pics)
 {
     for(int i = g.firstOp; i < g.firstOp + g.opCount; i++)
     {
@@ -111,7 +114,7 @@ Font font;
     return true;
 }
 
-void paint(const GlyphDef& g, int column, const std::array<Picture, std::size(picNames)>& pics)
+void paint(const GlyphDef& g, int column, const za::Array<Picture, za::getArraySize(picNames)>& pics)
 {
     byte* const cell = font.atlas.data() + column;
     const auto put = [&](int x, int y, byte v) {
@@ -153,11 +156,11 @@ void paint(const GlyphDef& g, int column, const std::array<Picture, std::size(pi
 void build()
 {
     font.built = true;
-    font.column.fill(-1);
+    qza::fill(font.column, -1);
 
-    std::array<byte*, std::size(picNames)> files{};
-    std::array<Picture, std::size(picNames)> pics{};
-    for(std::size_t i = 0; i < std::size(picNames); i++)
+    za::Array<byte*, za::getArraySize(picNames)> files{};
+    za::Array<Picture, za::getArraySize(picNames)> pics{};
+    for(za::SizeT i = 0; i < za::getArraySize(picNames); i++)
     {
         files[i] = COM_LoadMallocFile(picNames[i], nullptr);
         if(files[i] && com_filesize >= 8)
@@ -185,7 +188,8 @@ void build()
         }
     }
     font.atlasWidth = width;
-    font.atlas.assign(static_cast<std::size_t>(width) * cellRows, 255);
+    font.atlas.clear();
+    font.atlas.resize(static_cast<za::SizeT>(width) * cellRows, 255);
     for(int g = 0; g < glyphCount; g++)
     {
         if(font.column[g] >= 0)
@@ -202,21 +206,21 @@ void build()
     {
         if(font.pic.empty())
         {
-            font.pic.assign(Draw_PicBytes(), 0);
+            font.pic.resize(Draw_PicBytes(), 0);
         }
         Draw_ReplacePic(reinterpret_cast<qpic_t*>(font.pic.data()), "vr_bigfont", width, cellRows, font.atlas.data());
     }
 }
 
 // The letter at the start of `text` (the longest there is), and its length; -1 if none.
-[[nodiscard]] int glyphAt(std::string_view text, int& length)
+[[nodiscard]] int glyphAt(za::StringView text, int& length)
 {
     int best = -1;
     length = 0;
     for(int g = 0; g < glyphCount; g++)
     {
-        const std::string_view t = glyphDefs[g].text;
-        if(font.column[g] >= 0 && static_cast<int>(t.size()) > length && text.starts_with(t))
+        const za::StringView t = glyphDefs[g].text;
+        if(font.column[g] >= 0 && static_cast<int>(t.size()) > length && text.startsWith(t))
         {
             best = g;
             length = static_cast<int>(t.size());
@@ -246,7 +250,7 @@ void onGameDirChanged()
 void report_f()
 {
     ensureBuilt();
-    for(std::size_t i = 0; i < std::size(picNames); i++)
+    for(za::SizeT i = 0; i < za::getArraySize(picNames); i++)
     {
         Con_Printf("%s: %s\n", picNames[i], font.picFound[i] ? "read" : "not found");
     }
@@ -280,15 +284,15 @@ extern "C" int VR_BigFont_CanDraw(const char* text)
     {
         return 0;
     }
-    std::string_view s{text};
+    za::StringView s{text};
     while(!s.empty())
     {
         int length = 1;
-        if(s.front() != ' ' && glyphAt(s, length) < 0)
+        if(s[0] != ' ' && glyphAt(s, length) < 0)
         {
             return 0;
         }
-        s.remove_prefix(length);
+        s.removePrefix(length);
     }
     return 1;
 }
@@ -303,11 +307,11 @@ extern "C" int VR_BigFont_Draw(int x, int y, const char* text)
     qpic_t* const pic = reinterpret_cast<qpic_t*>(font.pic.data());
     const float w = static_cast<float>(font.atlasWidth);
     const int x0 = x;
-    std::string_view s{text};
+    za::StringView s{text};
     while(!s.empty())
     {
         int length = 1;
-        if(s.front() == ' ')
+        if(s[0] == ' ')
         {
             x += spaceWidth;
         }
@@ -318,7 +322,7 @@ extern "C" int VR_BigFont_Draw(int x, int y, const char* text)
                 static_cast<float>(font.column[g]) / w, 0.f, static_cast<float>(d.width) / w, 1.f, nullptr, 1.f);
             x += d.advance;
         }
-        s.remove_prefix(length);
+        s.removePrefix(length);
     }
     return x - x0;
 }

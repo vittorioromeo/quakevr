@@ -10,15 +10,35 @@
 #include "vr_stereo.hpp"
 #include "vr_jobs.hpp"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstdint>
-#include <cstring>
+#include "Zancle/Algorithm/Count.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Chrono/Clock.hpp"
+#include "Zancle/Chrono/Time.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
 #include <chrono>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 extern "C" size_t gl_bmodel_vbo_size; // r_brush.c
 
@@ -68,7 +88,7 @@ void buildVolume(qmodel_t* m)
     q_strlcpy(volumeName, m->name, sizeof(volumeName));
     volumeWet = false;
 
-    std::vector<char> wet(static_cast<std::size_t>(m->numleafs) + 1, 0);
+    za::Vector<char> wet(static_cast<za::SizeT>(m->numleafs) + 1, 0);
     float mins[3] = {1e9f, 1e9f, 1e9f}, maxs[3] = {-1e9f, -1e9f, -1e9f};
     for(int i = 0; i <= m->numleafs; i++)
     {
@@ -81,8 +101,8 @@ void buildVolume(qmodel_t* m)
         volumeWet = true;
         for(int a = 0; a < 3; a++)
         {
-            mins[a] = std::min(mins[a], leaf->minmaxs[a]);
-            maxs[a] = std::max(maxs[a], leaf->minmaxs[3 + a]);
+            mins[a] = za::min(mins[a], leaf->minmaxs[a]);
+            maxs[a] = za::max(maxs[a], leaf->minmaxs[3 + a]);
         }
     }
     if(!volumeWet)
@@ -95,13 +115,13 @@ void buildVolume(qmodel_t* m)
     int dims[3];
     for(;;)
     {
-        std::size_t total = 1;
+        za::SizeT total = 1;
         bool fits = true;
         for(int a = 0; a < 3; a++)
         {
-            dims[a] = static_cast<int>(std::ceil((maxs[a] - mins[a]) / cell)) + 2;
+            dims[a] = static_cast<int>(za::ceil((maxs[a] - mins[a]) / cell)) + 2;
             fits &= dims[a] <= 256;
-            total *= static_cast<std::size_t>(dims[a]);
+            total *= static_cast<za::SizeT>(dims[a]);
         }
         if(fits && total <= (4u << 20))
         {
@@ -118,7 +138,7 @@ void buildVolume(qmodel_t* m)
     volumeCell = cell;
 
     const int nx = dims[0], ny = dims[1], nz = dims[2];
-    std::vector<unsigned char> texels(static_cast<std::size_t>(nx) * ny * nz);
+    za::Vector<unsigned char> texels(static_cast<za::SizeT>(nx) * ny * nz);
     // Up to 4M points in the BSP tree (80-90 ms for e1m1 on one thread): the layers shared out among the game's threads
     // (vr_jobs.hpp), each writing its own (Mod_PointInLeaf only reads the model), all done before the upload. The same
     // texels.
@@ -131,19 +151,19 @@ void buildVolume(qmodel_t* m)
                 {
                     vec3_t p = {volumeOrigin[0] + (x + 0.5f) * cell, volumeOrigin[1] + (y + 0.5f) * cell,
                         volumeOrigin[2] + (z + 0.5f) * cell};
-                    const std::ptrdiff_t li = Mod_PointInLeaf(p, m) - m->leafs;
-                    texels[(static_cast<std::size_t>(z) * ny + y) * nx + x] =
+                    const za::PtrDiffT li = Mod_PointInLeaf(p, m) - m->leafs;
+                    texels[(static_cast<za::SizeT>(z) * ny + y) * nx + x] =
                         li >= 0 && li <= m->numleafs && wet[li] ? 255 : 0;
                 }
             }
         }
     };
-    const auto t0 = std::chrono::steady_clock::now();
-    jobs::parallelFor(static_cast<std::size_t>(nz), 1, [&](std::size_t z0, std::size_t z1) {
+    const za::Clock clock;
+    jobs::parallelFor(static_cast<za::SizeT>(nz), 1, [&](za::SizeT z0, za::SizeT z1) {
         layers(static_cast<int>(z0), static_cast<int>(z1));
     });
-    const double ms = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() * 1e3;
-    std::uint32_t hash = 2166136261u; // (FNV-1a: the same texels whatever the threads, developer 1)
+    const double ms = static_cast<double>(clock.getElapsedTime().asMicroseconds()) / 1e3;
+    za::U32 hash = 2166136261u; // (FNV-1a: the same texels whatever the threads, developer 1)
     for(const unsigned char t : texels)
     {
         hash = (hash ^ t) * 16777619u;
@@ -177,7 +197,7 @@ void ensureVolume()
         return;
     }
     static int generation = -1;
-    if(m != volumeModel || std::strcmp(m->name, volumeName) != 0 || generation != worldGeneration()) // the same model can hold another map: a map name loaded again (vr_relit_maps switched)
+    if(m != volumeModel || ZA_STRCMP(m->name, volumeName) != 0 || generation != worldGeneration()) // the same model can hold another map: a map name loaded again (vr_relit_maps switched)
     {
         buildVolume(m);
         generation = worldGeneration();
@@ -273,12 +293,12 @@ GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
     GLuint& program = multisampled ? distanceProgramMs : distanceProgram;
     if(!program)
     {
-        std::string fs = distanceFs;
+        za::String fs = distanceFs;
         if(multisampled)
         {
             fs.insert(fs.find('\n') + 1, "#define MULTISAMPLED\n");
         }
-        program = gfx::glProgram(distanceVs, fs.c_str(), "vr scene distances");
+        program = gfx::glProgram(distanceVs, fs.cStr(), "vr scene distances");
         failed = !program;
         if(failed)
         {
@@ -388,7 +408,7 @@ GLuint sceneDistances(bool translucent)
 constexpr float kPinDistance = 32.f;
 constexpr float kFadeEnd = 1024.f;   // gl_shaders.h, LiquidDisplace
 constexpr float kMaxSwell = 64.f;    // the most the swells rise or sink (vr_water_geo_amplitude up to 24, lava 1.3 times), and the ripples (kMaxRipple)
-constexpr std::size_t kMaxCells = 2u << 20; // grid cells in a map at most (the cell grows past it)
+constexpr za::SizeT kMaxCells = 2u << 20; // grid cells in a map at most (the cell grows past it)
 
 struct MeshVert
 {
@@ -422,18 +442,18 @@ struct Mesh
     float cell = 0.f;     // vr_water_geo_cell it was cut at
     bool built = false;
     GLuint vbo = 0, ibo = 0;
-    std::vector<MeshFace> faces; // by texnum
-    std::vector<int> leaves;
+    za::Vector<MeshFace> faces; // by texnum
+    za::Vector<int> leaves;
     // this view's: (first index, count) pairs, a texture's from ranges[texBegin[texnum]] to ranges[texEnd[texnum]]
     int framecount = -1;
-    std::vector<unsigned> ranges;
-    std::vector<int> texBegin, texEnd;
-    std::vector<LavaTop> lava; // the heat haze's (vr_haze.cpp)
+    za::Vector<unsigned> ranges;
+    za::Vector<int> texBegin, texEnd;
+    za::Vector<LavaTop> lava; // the heat haze's (vr_haze.cpp)
     unsigned generation = 0;   // made anew each build
 };
 Mesh mesh;
 
-using Poly = std::vector<glm::vec3>;
+using Poly = za::Vector<glm::vec3>;
 
 bool lexLess(const glm::vec3& a, const glm::vec3& b)
 {
@@ -445,7 +465,7 @@ glm::vec3 cutPoint(glm::vec3 a, glm::vec3 b, int axis, float at)
 {
     if(lexLess(b, a))
     {
-        std::swap(a, b);
+        za::genericSwap(a, b);
     }
     const float t = (at - a[axis]) / (b[axis] - a[axis]);
     glm::vec3 p = a + (b - a) * t;
@@ -458,46 +478,46 @@ void splitPoly(const Poly& in, int axis, float at, Poly& back, Poly& front)
 {
     back.clear();
     front.clear();
-    const std::size_t n = in.size();
+    const za::SizeT n = in.size();
     const auto side = [&](const glm::vec3& p) { const float d = p[axis] - at; return d > 0.01f ? 1 : d < -0.01f ? -1 : 0; };
-    for(std::size_t i = 0; i < n; i++)
+    for(za::SizeT i = 0; i < n; i++)
     {
         const glm::vec3& a = in[i];
         const glm::vec3& b = in[(i + 1) % n];
         const int sa = side(a), sb = side(b);
         if(sa <= 0)
         {
-            back.push_back(a);
+            back.pushBack(a);
         }
         if(sa >= 0)
         {
-            front.push_back(a);
+            front.pushBack(a);
         }
         if(sa * sb < 0)
         {
             const glm::vec3 p = cutPoint(a, b, axis, at);
-            back.push_back(p);
-            front.push_back(p);
+            back.pushBack(p);
+            front.pushBack(p);
         }
     }
 }
 
 // Cuts a convex polygon along the grid lines of one axis (every `cell` units of the world), left to right.
-void cutAlong(const Poly& poly, int axis, float cell, std::vector<Poly>& out)
+void cutAlong(const Poly& poly, int axis, float cell, za::Vector<Poly>& out)
 {
     float lo = 1e30f, hi = -1e30f;
     for(const glm::vec3& p : poly)
     {
-        lo = std::min(lo, p[axis]);
-        hi = std::max(hi, p[axis]);
+        lo = za::min(lo, p[axis]);
+        hi = za::max(hi, p[axis]);
     }
     Poly rest = poly, back, front;
-    for(long long k = static_cast<long long>(std::ceil(lo / cell)); k * cell < hi; k++)
+    for(long long k = static_cast<long long>(za::ceil(lo / cell)); k * cell < hi; k++)
     {
         splitPoly(rest, axis, static_cast<float>(k * cell), back, front);
         if(back.size() >= 3)
         {
-            out.push_back(back);
+            out.pushBack(back);
         }
         rest.swap(front);
         if(rest.size() < 3)
@@ -505,7 +525,7 @@ void cutAlong(const Poly& poly, int axis, float cell, std::vector<Poly>& out)
             return;
         }
     }
-    out.push_back(rest);
+    out.pushBack(rest);
 }
 
 float cross2(const glm::vec2& a, const glm::vec2& b)
@@ -517,7 +537,7 @@ float segmentDistance(const glm::vec2& p, const glm::vec2& a, const glm::vec2& b
 {
     const glm::vec2 ab = b - a;
     const float len2 = glm::dot(ab, ab);
-    const float t = len2 > 0.f ? std::clamp(glm::dot(p - a, ab) / len2, 0.f, 1.f) : 0.f;
+    const float t = len2 > 0.f ? za::clamp(glm::dot(p - a, ab) / len2, 0.f, 1.f) : 0.f;
     return glm::length(p - (a + ab * t));
 }
 
@@ -541,8 +561,8 @@ bool insideXY(const SrcFace& f, const glm::vec2& p)
     {
         return false;
     }
-    const std::size_t n = f.poly.size();
-    for(std::size_t i = 0; i < n; i++)
+    const za::SizeT n = f.poly.size();
+    for(za::SizeT i = 0; i < n; i++)
     {
         const glm::vec2 a(f.poly[i]), b(f.poly[(i + 1) % n]);
         if(cross2(b - a, p - a) * f.winding < -0.01f)
@@ -563,13 +583,13 @@ struct Affine
 
     explicit Affine(const SrcFace& f)
     {
-        const std::size_t n = f.poly.size();
+        const za::SizeT n = f.poly.size();
         v0 = v1 = v2 = f.verts;
         p0 = f.poly[0];
         float best = 0.f;
-        for(std::size_t i = 1; i + 1 < n; i++)
+        for(za::SizeT i = 1; i + 1 < n; i++)
         {
-            for(std::size_t j = i + 1; j < n; j++)
+            for(za::SizeT j = i + 1; j < n; j++)
             {
                 const float area = glm::length(glm::cross(f.poly[i] - p0, f.poly[j] - p0));
                 if(area > best)
@@ -613,19 +633,19 @@ struct Affine
     }
 };
 
-[[nodiscard]] std::uint64_t gridKey(long long ix, long long iy, float z)
+[[nodiscard]] za::U64 gridKey(long long ix, long long iy, float z)
 {
-    return (static_cast<std::uint64_t>(ix & 0x1fffff) << 42) | (static_cast<std::uint64_t>(iy & 0x1fffff) << 21) |
-           static_cast<std::uint64_t>(std::llround(z * 2.f) & 0x1fffff);
+    return (static_cast<za::U64>(ix & 0x1fffff) << 42) | (static_cast<za::U64>(iy & 0x1fffff) << 21) |
+           static_cast<za::U64>(qza::llround(z * 2.f) & 0x1fffff);
 }
 
 // A grid key's first slot in a table of `mask` + 1 slots (a power of two): the key mixed (splitmix64's finaliser),
 // as neighbouring crossings differ only in a few low bits of each field.
-[[nodiscard]] std::size_t gridSlot(std::uint64_t key, std::size_t mask)
+[[nodiscard]] za::SizeT gridSlot(za::U64 key, za::SizeT mask)
 {
     key = (key ^ (key >> 30)) * 0xbf58476d1ce4e5b9ull;
     key = (key ^ (key >> 27)) * 0x94d049bb133111ebull;
-    return static_cast<std::size_t>(key ^ (key >> 31)) & mask;
+    return static_cast<za::SizeT>(key ^ (key >> 31)) & mask;
 }
 
 // The pins of the mesh's vertices on the grid's crossings (the tops of level faces), by crossing and height: where the
@@ -634,37 +654,38 @@ struct Affine
 // recorded are 1 or more).
 struct PinSlot
 {
-    std::uint64_t key{0};
+    za::U64 key{0};
     float pin{0.f};
 };
-std::vector<PinSlot> gridPins;
-std::size_t gridPinCount = 0;
+za::Vector<PinSlot> gridPins;
+za::SizeT gridPinCount = 0;
 float gridPinCell = 0.f;
 
-void recordPins(const std::vector<MeshVert>& verts, float cell)
+void recordPins(const za::Vector<MeshVert>& verts, float cell)
 {
     gridPinCell = cell;
     gridPinCount = 0;
     const auto onCrossing = [cell](const MeshVert& v) {
         const float gx = v.pos[0] / cell, gy = v.pos[1] / cell;
-        return v.pin >= 1.f && std::abs(gx - std::round(gx)) < 1e-3f && std::abs(gy - std::round(gy)) < 1e-3f;
+        return v.pin >= 1.f && qza::abs(gx - za::round(gx)) < 1e-3f && qza::abs(gy - za::round(gy)) < 1e-3f;
     };
-    const std::size_t most = static_cast<std::size_t>(std::count_if(verts.begin(), verts.end(), onCrossing));
-    std::size_t size = 16;
+    const za::SizeT most = static_cast<za::SizeT>(za::countIf(verts.begin(), verts.end(), onCrossing));
+    za::SizeT size = 16;
     while(size < most * 2)
     {
         size *= 2;
     }
-    gridPins.assign(size, PinSlot{});
-    const std::size_t mask = size - 1;
+    gridPins.clear();
+    gridPins.resize(size, PinSlot{});
+    const za::SizeT mask = size - 1;
     for(const MeshVert& v : verts)
     {
         if(!onCrossing(v))
         {
             continue;
         }
-        const std::uint64_t key = gridKey(std::llround(v.pos[0] / cell), std::llround(v.pos[1] / cell), v.pos[2]);
-        std::size_t i = gridSlot(key, mask);
+        const za::U64 key = gridKey(qza::llround(v.pos[0] / cell), qza::llround(v.pos[1] / cell), v.pos[2]);
+        za::SizeT i = gridSlot(key, mask);
         while(gridPins[i].pin != 0.f && gridPins[i].key != key)
         {
             i = (i + 1) & mask;
@@ -675,14 +696,14 @@ void recordPins(const std::vector<MeshVert>& verts, float cell)
 }
 
 // The pin at a crossing and height (its grid key), or 0: none.
-[[nodiscard]] float gridPin(std::uint64_t key)
+[[nodiscard]] float gridPin(za::U64 key)
 {
     if(gridPins.empty())
     {
         return 0.f;
     }
-    const std::size_t mask = gridPins.size() - 1;
-    for(std::size_t i = gridSlot(key, mask);; i = (i + 1) & mask)
+    const za::SizeT mask = gridPins.size() - 1;
+    for(za::SizeT i = gridSlot(key, mask);; i = (i + 1) & mask)
     {
         const PinSlot& s = gridPins[i];
         if(s.pin == 0.f || s.key == key)
@@ -730,15 +751,15 @@ void buildMesh(qmodel_t* m, float cell)
         return;
     }
     // Ironwail's vertices of the brush models (once a map: a wait for the GPU is fine)
-    std::vector<glvert_t> src(gl_bmodel_vbo_size / sizeof(glvert_t));
+    za::Vector<glvert_t> src(gl_bmodel_vbo_size / sizeof(glvert_t));
     GL_BindBuffer(GL_ARRAY_BUFFER, gl_bmodel_vbo);
     getBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(src.size() * sizeof(glvert_t)), src.data());
 
     // The world's liquid faces; the level ones (not teleports') in groups: a kind, a side, a height.
-    std::vector<SrcFace> faces;
-    std::vector<int> faceOfSurface(static_cast<std::size_t>(m->numsurfaces), -1);
-    std::vector<std::vector<int>> groups;
-    std::vector<std::array<int, 3>> groupKeys;
+    za::Vector<SrcFace> faces;
+    za::Vector<int> faceOfSurface(static_cast<za::SizeT>(m->numsurfaces), -1);
+    za::Vector<za::Vector<int>> groups;
+    za::Vector<za::Array<int, 3>> groupKeys;
     double area = 0.;
     for(int i = m->firstmodelsurface; i < m->firstmodelsurface + m->nummodelsurfaces; i++)
     {
@@ -767,19 +788,19 @@ void buildMesh(qmodel_t* m, float cell)
         for(int k = 0; k < s.numedges; k++)
         {
             const float* p = f.verts[k].pos;
-            f.poly.emplace_back(p[0], p[1], p[2]);
+            f.poly.emplaceBack(p[0], p[1], p[2]);
             for(int a = 0; a < 2; a++)
             {
-                f.mins[a] = std::min(f.mins[a], p[a]);
-                f.maxs[a] = std::max(f.maxs[a], p[a]);
+                f.mins[a] = za::min(f.mins[a], p[a]);
+                f.maxs[a] = za::max(f.maxs[a], p[a]);
             }
         }
-        for(std::size_t k = 0; k < f.poly.size(); k++)
+        for(za::SizeT k = 0; k < f.poly.size(); k++)
         {
             twice += cross2(glm::vec2(f.poly[k]), glm::vec2(f.poly[(k + 1) % f.poly.size()]));
         }
         f.winding = twice < 0.f ? -1.f : 1.f;
-        f.level = std::fabs(f.normal[2]) > 0.99f && t->type != TEXTYPE_TELE;
+        f.level = za::fabs(f.normal[2]) > 0.99f && t->type != TEXTYPE_TELE;
         if(f.level)
         {
             vec3_t above = {0.f, 0.f, f.poly[0].z + 1.f};
@@ -793,24 +814,24 @@ void buildMesh(qmodel_t* m, float cell)
         }
         if(f.level)
         {
-            area += std::fabs(twice) * 0.5;
-            const std::array<int, 3> key = {static_cast<int>(t->type), f.normal[2] > 0.f ? 1 : -1,
-                static_cast<int>(std::lround(f.poly[0].z * 2.f))};
-            std::size_t g = 0;
+            area += za::fabs(twice) * 0.5;
+            const za::Array<int, 3> key = {static_cast<int>(t->type), f.normal[2] > 0.f ? 1 : -1,
+                static_cast<int>(za::lround(f.poly[0].z * 2.f))};
+            za::SizeT g = 0;
             while(g < groupKeys.size() && groupKeys[g] != key)
             {
                 g++;
             }
             if(g == groupKeys.size())
             {
-                groupKeys.push_back(key);
-                groups.emplace_back();
+                groupKeys.pushBack(key);
+                groups.emplaceBack();
             }
-            groups[g].push_back(static_cast<int>(faces.size()));
+            groups[g].pushBack(static_cast<int>(faces.size()));
             f.group = static_cast<int>(g);
         }
-        faceOfSurface[static_cast<std::size_t>(i)] = static_cast<int>(faces.size());
-        faces.push_back(std::move(f));
+        faceOfSurface[static_cast<za::SizeT>(i)] = static_cast<int>(faces.size());
+        faces.pushBack(ZA_MOVE(f));
     }
     if(faces.empty())
     {
@@ -827,17 +848,17 @@ void buildMesh(qmodel_t* m, float cell)
     {
         glm::vec2 a, b;
     };
-    std::vector<std::vector<Segment>> rims(groups.size());
-    std::vector<std::vector<Segment>> faceRims(faces.size()); // the same, by the face whose edge it is on
-    for(std::size_t fi = 0; fi < faces.size(); fi++)
+    za::Vector<za::Vector<Segment>> rims(groups.size());
+    za::Vector<za::Vector<Segment>> faceRims(faces.size()); // the same, by the face whose edge it is on
+    for(za::SizeT fi = 0; fi < faces.size(); fi++)
     {
         const SrcFace& f = faces[fi];
         if(!f.level)
         {
             continue;
         }
-        const std::size_t n = f.poly.size();
-        for(std::size_t i = 0; i < n; i++)
+        const za::SizeT n = f.poly.size();
+        for(za::SizeT i = 0; i < n; i++)
         {
             const glm::vec2 a(f.poly[i]), b(f.poly[(i + 1) % n]);
             const float len = glm::length(b - a);
@@ -846,7 +867,7 @@ void buildMesh(qmodel_t* m, float cell)
                 continue;
             }
             const glm::vec2 out = glm::vec2((b - a).y, -(b - a).x) / len * f.winding; // right of a->b: out of a CCW face
-            const int samples = std::max(1, static_cast<int>(std::ceil(len / 2.f)));
+            const int samples = za::max(1, static_cast<int>(za::ceil(len / 2.f)));
             int runStart = -1;
             for(int k = 0; k <= samples; k++)
             {
@@ -855,9 +876,9 @@ void buildMesh(qmodel_t* m, float cell)
                 {
                     const glm::vec2 p = a + (b - a) * ((k + 0.5f) / samples) + out * 0.5f;
                     open = true;
-                    for(int other : groups[static_cast<std::size_t>(f.group)])
+                    for(int other : groups[static_cast<za::SizeT>(f.group)])
                     {
-                        if(other != static_cast<int>(fi) && insideXY(faces[static_cast<std::size_t>(other)], p))
+                        if(other != static_cast<int>(fi) && insideXY(faces[static_cast<za::SizeT>(other)], p))
                         {
                             open = false;
                             break;
@@ -870,9 +891,9 @@ void buildMesh(qmodel_t* m, float cell)
                 }
                 else if(!open && runStart >= 0)
                 {
-                    rims[static_cast<std::size_t>(f.group)].push_back(
+                    rims[static_cast<za::SizeT>(f.group)].pushBack(
                         {a + (b - a) * (static_cast<float>(runStart) / samples), a + (b - a) * (static_cast<float>(k) / samples)});
-                    faceRims[fi].push_back(rims[static_cast<std::size_t>(f.group)].back());
+                    faceRims[fi].pushBack(rims[static_cast<za::SizeT>(f.group)].back());
                     runStart = -1;
                 }
             }
@@ -881,51 +902,51 @@ void buildMesh(qmodel_t* m, float cell)
     const auto pinAt = [&](int group, const glm::vec3& p) {
         const glm::vec2 q(p);
         float d = kPinDistance;
-        for(const Segment& s : rims[static_cast<std::size_t>(group)])
+        for(const Segment& s : rims[static_cast<za::SizeT>(group)])
         {
-            if(q.x < std::min(s.a.x, s.b.x) - d || q.x > std::max(s.a.x, s.b.x) + d || q.y < std::min(s.a.y, s.b.y) - d ||
-                q.y > std::max(s.a.y, s.b.y) + d)
+            if(q.x < za::min(s.a.x, s.b.x) - d || q.x > za::max(s.a.x, s.b.x) + d || q.y < za::min(s.a.y, s.b.y) - d ||
+                q.y > za::max(s.a.y, s.b.y) + d)
             {
                 continue;
             }
-            d = std::min(d, segmentDistance(q, s.a, s.b));
+            d = za::min(d, segmentDistance(q, s.a, s.b));
         }
         return 1.f + d; // the shaders' pin: smoothstep(1, 1 + kPinDistance); the foam's distance to the shore
     };
 
     // The faces, by texture: their vertices, their triangles (cut, or the polygon's fan) and their fans.
-    std::vector<int> order(faces.size());
-    for(std::size_t i = 0; i < order.size(); i++)
+    za::Vector<int> order(faces.size());
+    for(za::SizeT i = 0; i < order.size(); i++)
     {
         order[i] = static_cast<int>(i);
     }
-    std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
-        return m->surfaces[faces[static_cast<std::size_t>(a)].surf].texinfo->texnum <
-               m->surfaces[faces[static_cast<std::size_t>(b)].surf].texinfo->texnum;
+    za::insertionSort(order.begin(), order.end(), [&](int a, int b) {
+        return m->surfaces[faces[static_cast<za::SizeT>(a)].surf].texinfo->texnum <
+               m->surfaces[faces[static_cast<za::SizeT>(b)].surf].texinfo->texnum;
     });
-    std::vector<MeshVert> verts;
-    std::vector<unsigned> fullIdx, flatIdx;
-    std::vector<unsigned> faceFull, faceFlat;
-    std::unordered_map<std::uint64_t, unsigned> index;
-    std::vector<Poly> strips, pieces;
-    std::vector<int> meshFaceOf(faces.size());
+    za::Vector<MeshVert> verts;
+    za::Vector<unsigned> fullIdx, flatIdx;
+    za::Vector<unsigned> faceFull, faceFlat;
+    ankerl::unordered_dense::map<za::U64, unsigned> index;
+    za::Vector<Poly> strips, pieces;
+    za::Vector<int> meshFaceOf(faces.size());
     for(int fi : order)
     {
-        const SrcFace& f = faces[static_cast<std::size_t>(fi)];
+        const SrcFace& f = faces[static_cast<za::SizeT>(fi)];
         const msurface_t& s = m->surfaces[f.surf];
         const Affine affine(f);
         index.clear();
         const auto vertex = [&](const glm::vec3& p) {
-            const std::uint64_t key = (static_cast<std::uint64_t>(std::llround(p.x * 16.f) & 0x1fffff) << 42) |
-                                      (static_cast<std::uint64_t>(std::llround(p.y * 16.f) & 0x1fffff) << 21) |
-                                      static_cast<std::uint64_t>(std::llround(p.z * 16.f) & 0x1fffff);
+            const za::U64 key = (static_cast<za::U64>(qza::llround(p.x * 16.f) & 0x1fffff) << 42) |
+                                      (static_cast<za::U64>(qza::llround(p.y * 16.f) & 0x1fffff) << 21) |
+                                      static_cast<za::U64>(qza::llround(p.z * 16.f) & 0x1fffff);
             const auto it = index.find(key);
             if(it != index.end())
             {
                 return it->second;
             }
             const unsigned v = static_cast<unsigned>(verts.size());
-            verts.push_back(affine.at(p, !f.level ? 0.f : f.submerged ? -1.f : pinAt(f.group, p)));
+            verts.pushBack(affine.at(p, !f.level ? 0.f : f.submerged ? -1.f : pinAt(f.group, p)));
             index.emplace(key, v);
             return v;
         };
@@ -947,21 +968,21 @@ void buildMesh(qmodel_t* m, float cell)
             top.face = static_cast<int>(mesh.faces.size());
             top.z = f.poly[0].z;
             top.poly = f.poly;
-            for(const Segment& r : faceRims[static_cast<std::size_t>(fi)])
+            for(const Segment& r : faceRims[static_cast<za::SizeT>(fi)])
             {
-                top.rim.push_back(r.a);
-                top.rim.push_back(r.b);
+                top.rim.pushBack(r.a);
+                top.rim.pushBack(r.b);
             }
             out.lava = static_cast<int>(mesh.lava.size());
-            mesh.lava.push_back(std::move(top));
+            mesh.lava.pushBack(ZA_MOVE(top));
         }
 
         faceFlat.clear();
-        for(std::size_t k = 2; k < f.poly.size(); k++)
+        for(za::SizeT k = 2; k < f.poly.size(); k++)
         {
-            faceFlat.push_back(vertex(f.poly[0]));
-            faceFlat.push_back(vertex(f.poly[k - 1]));
-            faceFlat.push_back(vertex(f.poly[k]));
+            faceFlat.pushBack(vertex(f.poly[0]));
+            faceFlat.pushBack(vertex(f.poly[k - 1]));
+            faceFlat.pushBack(vertex(f.poly[k]));
         }
         faceFull.clear();
         if(f.level)
@@ -975,11 +996,11 @@ void buildMesh(qmodel_t* m, float cell)
             }
             for(const Poly& piece : pieces)
             {
-                for(std::size_t k = 2; k < piece.size(); k++)
+                for(za::SizeT k = 2; k < piece.size(); k++)
                 {
-                    faceFull.push_back(vertex(piece[0]));
-                    faceFull.push_back(vertex(piece[k - 1]));
-                    faceFull.push_back(vertex(piece[k]));
+                    faceFull.pushBack(vertex(piece[0]));
+                    faceFull.pushBack(vertex(piece[k - 1]));
+                    faceFull.pushBack(vertex(piece[k]));
                 }
             }
         }
@@ -989,12 +1010,12 @@ void buildMesh(qmodel_t* m, float cell)
         }
         out.full = static_cast<unsigned>(fullIdx.size());
         out.fullCount = static_cast<unsigned>(faceFull.size());
-        fullIdx.insert(fullIdx.end(), faceFull.begin(), faceFull.end());
+        fullIdx.emplaceBackRange(faceFull.data(), faceFull.size());
         if(f.level)
         {
             out.flat = static_cast<unsigned>(flatIdx.size()); // offset by the full ones' below
             out.flatCount = static_cast<unsigned>(faceFlat.size());
-            flatIdx.insert(flatIdx.end(), faceFlat.begin(), faceFlat.end());
+            flatIdx.emplaceBackRange(faceFlat.data(), faceFlat.size());
         }
         else
         {
@@ -1002,8 +1023,8 @@ void buildMesh(qmodel_t* m, float cell)
             out.flatCount = out.fullCount;
             out.flatCount |= 0x80000000u; // marks "already in the full section" until the offsets are fixed
         }
-        meshFaceOf[static_cast<std::size_t>(fi)] = static_cast<int>(mesh.faces.size());
-        mesh.faces.push_back(out);
+        meshFaceOf[static_cast<za::SizeT>(fi)] = static_cast<int>(mesh.faces.size());
+        mesh.faces.pushBack(out);
     }
     const unsigned flatBase = static_cast<unsigned>(fullIdx.size());
     for(MeshFace& face : mesh.faces)
@@ -1017,34 +1038,34 @@ void buildMesh(qmodel_t* m, float cell)
             face.flat += flatBase;
         }
     }
-    fullIdx.insert(fullIdx.end(), flatIdx.begin(), flatIdx.end());
+    fullIdx.emplaceBackRange(flatIdx.data(), flatIdx.size());
 
     // The leaves each face is in, for the PVS.
-    std::vector<std::vector<int>> faceLeaves(mesh.faces.size());
+    za::Vector<za::Vector<int>> faceLeaves(mesh.faces.size());
     for(int i = 1; i <= m->numleafs; i++)
     {
         const mleaf_t* leaf = m->leafs + i;
         for(int j = 0; j < leaf->nummarksurfaces; j++)
         {
             const int s = leaf->firstmarksurface[j];
-            if(s >= 0 && s < m->numsurfaces && faceOfSurface[static_cast<std::size_t>(s)] >= 0)
+            if(s >= 0 && s < m->numsurfaces && faceOfSurface[static_cast<za::SizeT>(s)] >= 0)
             {
-                faceLeaves[static_cast<std::size_t>(meshFaceOf[static_cast<std::size_t>(faceOfSurface[static_cast<std::size_t>(s)])])]
-                    .push_back(i);
+                faceLeaves[static_cast<za::SizeT>(meshFaceOf[static_cast<za::SizeT>(faceOfSurface[static_cast<za::SizeT>(s)])])]
+                    .pushBack(i);
             }
         }
     }
-    for(std::size_t i = 0; i < mesh.faces.size(); i++)
+    for(za::SizeT i = 0; i < mesh.faces.size(); i++)
     {
         mesh.faces[i].firstLeaf = static_cast<int>(mesh.leaves.size());
         mesh.faces[i].numLeaves = static_cast<int>(faceLeaves[i].size());
-        mesh.leaves.insert(mesh.leaves.end(), faceLeaves[i].begin(), faceLeaves[i].end());
+        mesh.leaves.emplaceBackRange(faceLeaves[i].data(), faceLeaves[i].size());
     }
 
     mesh.vbo = GL_CreateBuffer(GL_ARRAY_BUFFER, GL_STATIC_DRAW, "vr liquid mesh verts", verts.size() * sizeof(MeshVert), verts.data());
     mesh.ibo = GL_CreateBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_STATIC_DRAW, "vr liquid mesh indices", fullIdx.size() * sizeof(unsigned),
         fullIdx.data());
-    std::size_t rimCount = 0;
+    za::SizeT rimCount = 0;
     for(const auto& r : rims)
     {
         rimCount += r.size();
@@ -1071,8 +1092,8 @@ bool ensureMesh()
     {
         return false;
     }
-    const float cell = std::clamp(vr_water_geo_cell.value, 4.f, 128.f);
-    if(!mesh.built || m != mesh.model || std::strcmp(m->name, mesh.name) != 0 || cell != mesh.cell)
+    const float cell = za::clamp(vr_water_geo_cell.value, 4.f, 128.f);
+    if(!mesh.built || m != mesh.model || ZA_STRCMP(m->name, mesh.name) != 0 || cell != mesh.cell)
     {
         buildMesh(m, cell);
         mesh.cell = cell;
@@ -1091,9 +1112,11 @@ void markMesh(const byte* vis)
     }
     mesh.framecount = r_framecount;
     mesh.ranges.clear();
-    const std::size_t numtex = static_cast<std::size_t>(mesh.model->numtextures);
-    mesh.texBegin.assign(numtex, 0);
-    mesh.texEnd.assign(numtex, 0);
+    const za::SizeT numtex = static_cast<za::SizeT>(mesh.model->numtextures);
+    mesh.texBegin.clear();
+    mesh.texBegin.resize(numtex, 0);
+    mesh.texEnd.clear();
+    mesh.texEnd.resize(numtex, 0);
     const float* eye = r_refdef.vieworg;
     int lastTex = -1;
     for(MeshFace& f : mesh.faces)
@@ -1102,10 +1125,10 @@ void markMesh(const byte* vis)
         {
             if(lastTex >= 0)
             {
-                mesh.texEnd[static_cast<std::size_t>(lastTex)] = static_cast<int>(mesh.ranges.size());
+                mesh.texEnd[static_cast<za::SizeT>(lastTex)] = static_cast<int>(mesh.ranges.size());
             }
             lastTex = f.texnum;
-            mesh.texBegin[static_cast<std::size_t>(lastTex)] = static_cast<int>(mesh.ranges.size());
+            mesh.texBegin[static_cast<za::SizeT>(lastTex)] = static_cast<int>(mesh.ranges.size());
         }
         if(eye[0] * f.normal[0] + eye[1] * f.normal[1] + eye[2] * f.normal[2] - f.dist < -2.f * kMaxSwell)
         {
@@ -1114,7 +1137,7 @@ void markMesh(const byte* vis)
         bool seen = vis == nullptr;
         for(int i = 0; i < f.numLeaves && !seen; i++)
         {
-            const int l = mesh.leaves[static_cast<std::size_t>(f.firstLeaf + i)] - 1;
+            const int l = mesh.leaves[static_cast<za::SizeT>(f.firstLeaf + i)] - 1;
             seen = (vis[l >> 3] & (1 << (l & 7))) != 0;
         }
         if(seen)
@@ -1127,7 +1150,7 @@ void markMesh(const byte* vis)
         {
             mins[a] = f.mins[a] - kMaxSwell;
             maxs[a] = f.maxs[a] + kMaxSwell;
-            const float d = std::max({f.mins[a] - eye[a], 0.f, eye[a] - f.maxs[a]});
+            const float d = qza::maxOf(f.mins[a] - eye[a], 0.f, eye[a] - f.maxs[a]);
             d2 += d * d;
         }
         if(!seen || R_CullBox(mins, maxs))
@@ -1136,20 +1159,20 @@ void markMesh(const byte* vis)
         }
         const bool flat = d2 > (kFadeEnd + 16.f) * (kFadeEnd + 16.f);
         const unsigned first = flat ? f.flat : f.full, count = flat ? f.flatCount : f.fullCount;
-        const std::size_t n = mesh.ranges.size();
-        if(n > static_cast<std::size_t>(mesh.texBegin[static_cast<std::size_t>(lastTex)]) && mesh.ranges[n - 2] + mesh.ranges[n - 1] == first)
+        const za::SizeT n = mesh.ranges.size();
+        if(n > static_cast<za::SizeT>(mesh.texBegin[static_cast<za::SizeT>(lastTex)]) && mesh.ranges[n - 2] + mesh.ranges[n - 1] == first)
         {
             mesh.ranges[n - 1] += count;
         }
         else
         {
-            mesh.ranges.push_back(first);
-            mesh.ranges.push_back(count);
+            mesh.ranges.pushBack(first);
+            mesh.ranges.pushBack(count);
         }
     }
     if(lastTex >= 0)
     {
-        mesh.texEnd[static_cast<std::size_t>(lastTex)] = static_cast<int>(mesh.ranges.size());
+        mesh.texEnd[static_cast<za::SizeT>(lastTex)] = static_cast<int>(mesh.ranges.size());
     }
 }
 
@@ -1203,7 +1226,7 @@ void applyPreset(int preset)
     haze::applyPreset(preset); // the heat haze (vr_haze.cpp)
 }
 
-const std::vector<LavaTop>& lavaTops(unsigned& generation)
+const za::Vector<LavaTop>& lavaTops(unsigned& generation)
 {
     generation = mesh.built ? mesh.generation : 0;
     return mesh.lava;
@@ -1211,8 +1234,8 @@ const std::vector<LavaTop>& lavaTops(unsigned& generation)
 
 bool lavaTopInPvs(const LavaTop& top)
 {
-    return top.face >= 0 && static_cast<std::size_t>(top.face) < mesh.faces.size() &&
-           mesh.faces[static_cast<std::size_t>(top.face)].pvsFrame == r_framecount;
+    return top.face >= 0 && static_cast<za::SizeT>(top.face) < mesh.faces.size() &&
+           mesh.faces[static_cast<za::SizeT>(top.face)].pvsFrame == r_framecount;
 }
 
 // ----------------------------------------------------------------------------
@@ -1234,7 +1257,7 @@ constexpr float kMaxRipple = 24.f; // units, one ripple's height at most (kMaxSw
 // How many may be kept (vr_water_ripple_max).
 [[nodiscard]] int maxRipples()
 {
-    return std::clamp(static_cast<int>(vr_water_ripple_max.value), 1, kMaxRipples);
+    return za::clamp(static_cast<int>(vr_water_ripple_max.value), 1, kMaxRipples);
 }
 
 struct RippleEvent
@@ -1244,7 +1267,7 @@ struct RippleEvent
     float amp = 0.f; // units at its start (0: none)
     const qmodel_t* world = nullptr;
 };
-std::array<RippleEvent, kMaxRipples> rippleEvents;
+za::Array<RippleEvent, kMaxRipples> rippleEvents;
 
 // How high it is `age` seconds on.
 [[nodiscard]] float rippleHeight(const RippleEvent& e, float age)
@@ -1253,8 +1276,8 @@ std::array<RippleEvent, kMaxRipples> rippleEvents;
     {
         return 0.f;
     }
-    const float rise = std::min(age / 0.1f, 1.f);
-    return e.amp * rise * rise * (3.f - 2.f * rise) * std::exp(-age / std::clamp(vr_water_ripple_decay.value, 0.1f, 10.f));
+    const float rise = za::min(age / 0.1f, 1.f);
+    return e.amp * rise * rise * (3.f - 2.f * rise) * za::exp(-age / za::clamp(vr_water_ripple_decay.value, 0.1f, 10.f));
 }
 
 // This view's ripples into the frame data (the ones still there, packed).
@@ -1266,7 +1289,7 @@ void fillRipples()
         const int most = maxRipples();
         for(int i = 0; i < kMaxRipples; i++)
         {
-            RippleEvent& e = rippleEvents[static_cast<std::size_t>(i)];
+            RippleEvent& e = rippleEvents[static_cast<za::SizeT>(i)];
             if(i >= most)
             {
                 e.amp = 0.f; // over vr_water_ripple_max
@@ -1293,14 +1316,14 @@ void fillRipples()
             n++;
         }
     }
-    const float wavelength = std::clamp(vr_water_ripple_wavelength.value, 8.f, 512.f);
-    const float cell = std::clamp(vr_water_geo_cell.value, 4.f, 128.f);
-    const float cells = std::clamp((wavelength / cell - 2.f), 0.f, 1.f); // too short for the grid: in the shading only
+    const float wavelength = za::clamp(vr_water_ripple_wavelength.value, 8.f, 512.f);
+    const float cell = za::clamp(vr_water_geo_cell.value, 4.f, 128.f);
+    const float cells = za::clamp((wavelength / cell - 2.f), 0.f, 1.f); // too short for the grid: in the shading only
     r_framedata.ripple[0] = static_cast<float>(n);
     r_framedata.ripple[1] = rippleSpeed(CONTENTS_WATER);
     r_framedata.ripple[2] = 6.2831853f / wavelength;
     r_framedata.ripple[3] = cells * cells * (3.f - 2.f * cells);
-    r_framedata.water3[1] = std::clamp(vr_water_ripple_normal.value, 0.f, 4.f); // their slopes in the shading, times the shape's
+    r_framedata.water3[1] = za::clamp(vr_water_ripple_normal.value, 0.f, 4.f); // their slopes in the shading, times the shape's
 }
 
 } // namespace
@@ -1314,8 +1337,8 @@ void addRipple(const glm::vec3& at, float strength)
     // A hand's slap (strength 10) vr_water_ripple_amplitude units high; a shot (4) about half that, a rocket (19) 1.7
     // times, a body (20-50) 1.7 to 3 times; at most kMaxRipple. Splashes (1 and up) at least a quarter; a spent casing
     // (under 1, vr_shells.cpp) less: a tenth of a slap or so.
-    const float amp = std::min(std::clamp(vr_water_ripple_amplitude.value, 0.f, 24.f) *
-                                   std::clamp(std::pow(strength / 10.f, 0.8f), strength < 1.f ? 0.02f : 0.25f, 3.f),
+    const float amp = za::min(za::clamp(vr_water_ripple_amplitude.value, 0.f, 24.f) *
+                                   za::clamp(za::pow(strength / 10.f, 0.8f), strength < 1.f ? 0.02f : 0.25f, 3.f),
         kMaxRipple);
     if(amp <= 0.f)
     {
@@ -1325,10 +1348,10 @@ void addRipple(const glm::vec3& at, float strength)
     for(RippleEvent& e : rippleEvents)
     {
         const double age = cl.time - e.time;
-        if(e.amp > 0.f && e.world == cl.worldmodel && age >= -0.15 && age < 0.15 && std::abs(e.at.z - at.z) < 2.f &&
+        if(e.amp > 0.f && e.world == cl.worldmodel && age >= -0.15 && age < 0.15 && qza::abs(e.at.z - at.z) < 2.f &&
             glm::distance(glm::vec2{e.at}, glm::vec2{at}) < 16.f)
         {
-            e.amp = std::min(std::max(e.amp, amp) + 0.3f * std::min(e.amp, amp), kMaxRipple);
+            e.amp = za::min(za::max(e.amp, amp) + 0.3f * za::min(e.amp, amp), kMaxRipple);
             return;
         }
     }
@@ -1337,9 +1360,9 @@ void addRipple(const glm::vec3& at, float strength)
     float weakest = 1e9f;
     for(int i = 0, most = maxRipples(); i < most; i++)
     {
-        RippleEvent& e = rippleEvents[static_cast<std::size_t>(i)];
+        RippleEvent& e = rippleEvents[static_cast<za::SizeT>(i)];
         const float age = static_cast<float>(cl.time - e.time);
-        const float h = rippleHeight(e, std::max(age, 0.1f)) * (age >= -1.f ? 1.f : 0.f);
+        const float h = rippleHeight(e, za::max(age, 0.1f)) * (age >= -1.f ? 1.f : 0.f);
         if(h < weakest)
         {
             weakest = h;
@@ -1355,7 +1378,7 @@ void addRipple(const glm::vec3& at, float strength)
 
 float rippleSpeed(int contents)
 {
-    const float speed = std::clamp(vr_water_ripple_speed.value, 1.f, 500.f);
+    const float speed = za::clamp(vr_water_ripple_speed.value, 1.f, 500.f);
     return speed * (contents == CONTENTS_LAVA ? 0.35f : contents == CONTENTS_SLIME ? 0.7f : 1.f); // as LiquidRipples
 }
 
@@ -1380,8 +1403,8 @@ namespace
     for(int i = 0; i < 3; i++)
     {
         const float k = 6.2831853f / (lens[i] * scale);
-        const float t = (dirs[i][0] * x + dirs[i][1] * y) * k + r_framedata.time * std::sqrt(200.f * k) * speed + static_cast<float>(i) * 2.3f;
-        h += amp * shares[i] * std::sin(t);
+        const float t = (dirs[i][0] * x + dirs[i][1] * y) * k + r_framedata.time * za::sqrt(200.f * k) * speed + static_cast<float>(i) * 2.3f;
+        h += amp * shares[i] * za::sin(t);
     }
     return h;
 }
@@ -1401,15 +1424,15 @@ namespace
     for(int i = 0; i < n; i++)
     {
         const float* e = r_framedata.rippleat[i];
-        const float dist = std::sqrt((x - e[0]) * (x - e[0]) + (y - e[1]) * (y - e[1]));
+        const float dist = za::sqrt((x - e[0]) * (x - e[0]) + (y - e[1]) * (y - e[1]));
         const float front = speed * e[3];
         const float u = (dist - front) / width;
-        if(std::abs(z - e[2]) > 4.f || std::abs(u) > 3.f)
+        if(qza::abs(z - e[2]) > 4.f || qza::abs(u) > 3.f)
         {
             continue;
         }
-        const float a = amp * r_framedata.rippleamp[i >> 2][i & 3] / std::sqrt(1.f + dist * k * 0.16f);
-        h -= a * std::exp(-u * u) * std::cos(k * (dist - 2.f * front));
+        const float a = amp * r_framedata.rippleamp[i >> 2][i & 3] / za::sqrt(1.f + dist * k * 0.16f);
+        h -= a * za::exp(-u * u) * za::cos(k * (dist - 2.f * front));
     }
     return h;
 }
@@ -1421,27 +1444,27 @@ namespace
 // (the view's entries moved over) before it would be more.
 struct RiseSlot
 {
-    std::uint64_t key{0};
+    za::U64 key{0};
     unsigned stamp{0}; // riseStamp of the view it holds a rise for (0: none yet)
     float rise{0.f};
 };
-std::vector<RiseSlot> gridRises;
-std::size_t gridRisesCount = 0; // this view's
+za::Vector<RiseSlot> gridRises;
+za::SizeT gridRisesCount = 0; // this view's
 unsigned riseStamp = 0;
 int gridRisesFrame = -1;
 
 void growRises()
 {
-    std::vector<RiseSlot> old(gridRises.empty() ? 1024 : gridRises.size() * 2);
+    za::Vector<RiseSlot> old(gridRises.empty() ? 1024 : gridRises.size() * 2);
     old.swap(gridRises);
-    const std::size_t mask = gridRises.size() - 1;
+    const za::SizeT mask = gridRises.size() - 1;
     for(const RiseSlot& s : old)
     {
         if(s.stamp != riseStamp)
         {
             continue;
         }
-        std::size_t i = gridSlot(s.key, mask);
+        za::SizeT i = gridSlot(s.key, mask);
         while(gridRises[i].stamp == riseStamp)
         {
             i = (i + 1) & mask;
@@ -1458,7 +1481,7 @@ void growRises()
         gridRisesCount = 0;
         if(++riseStamp == 0) // wrapped (after years of views): every slot emptied once
         {
-            std::fill(gridRises.begin(), gridRises.end(), RiseSlot{});
+            qza::fill(gridRises.begin(), gridRises.end(), RiseSlot{});
             riseStamp = 1;
         }
     }
@@ -1466,9 +1489,9 @@ void growRises()
     {
         growRises();
     }
-    const std::uint64_t key = gridKey(ix, iy, z);
-    const std::size_t mask = gridRises.size() - 1;
-    std::size_t i = gridSlot(key, mask);
+    const za::U64 key = gridKey(ix, iy, z);
+    const za::SizeT mask = gridRises.size() - 1;
+    za::SizeT i = gridSlot(key, mask);
     for(; gridRises[i].stamp == riseStamp; i = (i + 1) & mask)
     {
         if(gridRises[i].key == key)
@@ -1486,17 +1509,17 @@ void growRises()
         return rise = 0.f;
     }
     const float x = static_cast<float>(ix) * gridPinCell, y = static_cast<float>(iy) * gridPinCell;
-    const float t = std::clamp((pinValue - 1.f) / 32.f, 0.f, 1.f);
+    const float t = za::clamp((pinValue - 1.f) / 32.f, 0.f, 1.f);
     const float pin = t * t * (3.f - 2.f * t);
     const float d = glm::distance(glm::vec3{x, y, z}, eye);
-    const float f = std::clamp((d - 512.f) / 512.f, 0.f, 1.f);
+    const float f = za::clamp((d - 512.f) / 512.f, 0.f, 1.f);
     const float fade = 1.f - f * f * (3.f - 2.f * f);
     const float swell = swellHeight(x, y, kind) * pin * fade;
     float rip = rippleHeightAt(x, y, z, kind) * r_framedata.ripple[3] * pin * fade;
     // kept off the eye as LiquidDisplace keeps it
     const float above = eye.z - z - swell;
-    const float room = std::max(std::abs(above) - 6.f, 0.f) + std::max(glm::distance(glm::vec2{x, y}, glm::vec2{eye}) - 24.f, 0.f);
-    rip = above >= 0.f ? std::min(rip, room) : std::max(rip, -room);
+    const float room = za::max(qza::abs(above) - 6.f, 0.f) + za::max(glm::distance(glm::vec2{x, y}, glm::vec2{eye}) - 24.f, 0.f);
+    rip = above >= 0.f ? za::min(rip, room) : za::max(rip, -room);
     return rise = swell + rip;
 }
 
@@ -1510,7 +1533,7 @@ float surfaceRise(const glm::vec3& p, int contents, const glm::vec3& eye)
     }
     const int kind = contents == CONTENTS_LAVA ? 1 : contents == CONTENTS_SLIME ? 2 : 4;
     const float gx = p.x / gridPinCell, gy = p.y / gridPinCell;
-    const long long ix = static_cast<long long>(std::floor(gx)), iy = static_cast<long long>(std::floor(gy));
+    const long long ix = static_cast<long long>(za::floor(gx)), iy = static_cast<long long>(za::floor(gy));
     const float fx = gx - static_cast<float>(ix), fy = gy - static_cast<float>(iy);
     const float h00 = gridRise(ix, iy, p.z, kind, eye), h10 = gridRise(ix + 1, iy, p.z, kind, eye);
     const float h01 = gridRise(ix, iy + 1, p.z, kind, eye), h11 = gridRise(ix + 1, iy + 1, p.z, kind, eye);
@@ -1562,7 +1585,7 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     water::ensureSampler();
 
     const bool liquid = contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA;
-    const float underwater = std::clamp(vr_water_underwater.value, 0.f, 2.f);
+    const float underwater = za::clamp(vr_water_underwater.value, 0.f, 2.f);
     water::viewLiquid = liquid && underwater > 0.f && stereo::isRenderingEye() ? contents : 0;
     if(water::viewLiquid)
     {
@@ -1573,24 +1596,24 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
         {
             shift.destcolor[i] = look.tint[i];
         }
-        shift.percent = static_cast<int>(look.percent * std::min(underwater, 1.f));
+        shift.percent = static_cast<int>(look.percent * za::min(underwater, 1.f));
         V_CalcBlend();
 
         lightcache_t cache{};
         vec3_t p = {r_origin[0], r_origin[1], r_origin[2]};
-        water::viewLight = std::clamp(R_LightPoint(p, 0.f, &cache) / 128.f, 0.15f, 1.5f);
+        water::viewLight = za::clamp(R_LightPoint(p, 0.f, &cache) / 128.f, 0.15f, 1.5f);
     }
     Fog_SetupFrame(); // again, with the liquid's fog (VR_WaterFog)
 
-    r_framedata.water[0] = std::clamp(vr_water_waves.value, 0.f, 3.f);
-    r_framedata.water[1] = std::clamp(vr_water_fresnel.value, 0.f, 2.f);
-    r_framedata.water[2] = VR_OpaqueSceneTexture() ? std::clamp(vr_water_refraction.value, 0.f, 3.f) : 0.f;
-    r_framedata.water[3] = std::clamp(vr_water_glints.value, 0.f, 3.f);
-    r_framedata.water2[0] = std::clamp(vr_water_lava_glow.value, 0.f, 3.f);
-    r_framedata.water2[1] = water::volumeWet ? std::clamp(vr_water_caustics.value, 0.f, 2.f) : 0.f;
+    r_framedata.water[0] = za::clamp(vr_water_waves.value, 0.f, 3.f);
+    r_framedata.water[1] = za::clamp(vr_water_fresnel.value, 0.f, 2.f);
+    r_framedata.water[2] = VR_OpaqueSceneTexture() ? za::clamp(vr_water_refraction.value, 0.f, 3.f) : 0.f;
+    r_framedata.water[3] = za::clamp(vr_water_glints.value, 0.f, 3.f);
+    r_framedata.water2[0] = za::clamp(vr_water_lava_glow.value, 0.f, 3.f);
+    r_framedata.water2[1] = water::volumeWet ? za::clamp(vr_water_caustics.value, 0.f, 2.f) : 0.f;
     r_framedata.water2[2] = liquid ? 1.f : 0.f; // surfaces seen from inside
     // the geometric waves' height (0 off): the swells in the shading of every liquid, the mesh's vertices raised by them
-    r_framedata.water2[3] = vr_water_geo_waves.value > 0.f ? std::clamp(vr_water_geo_amplitude.value, 0.f, 24.f) : 0.f;
+    r_framedata.water2[3] = vr_water_geo_waves.value > 0.f ? za::clamp(vr_water_geo_amplitude.value, 0.f, 24.f) : 0.f;
     water::fillRipples(); // the splashes' ripples (vr_water_ripples)
     for(int a = 0; a < 3; a++)
     {
@@ -1600,7 +1623,7 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     r_framedata.causticsorigin[3] = water::volumeCell;
     // The shoreline foam (vr_water_foam); the scene's distances for the refraction and the foam (VR_WaterSceneDepth:
     // made as liquids draw), if the scene's depth can be read.
-    r_framedata.water3[0] = std::clamp(vr_water_foam.value, 0.f, 2.f);
+    r_framedata.water3[0] = za::clamp(vr_water_foam.value, 0.f, 2.f);
     GLuint sceneColor = 0, sceneDepth = 0;
     int sceneSamples = 1, sceneViewport[4];
     VR_SceneTarget(&sceneColor, &sceneDepth, &sceneSamples, sceneViewport);
@@ -1617,14 +1640,14 @@ extern "C" void VR_WaterFog(float fog[4], float skyfog[4])
         return;
     }
     const water::Look& look = water::look();
-    const float strength = std::clamp(vr_water_underwater.value, 0.f, 2.f);
+    const float strength = za::clamp(vr_water_underwater.value, 0.f, 2.f);
     const float light = look.lit ? water::viewLight : 1.f;
     const float density = strength / look.distance; // ApplyFog: 1 - exp2(-(density * distance)^2)
     for(int i = 0; i < 3; i++)
     {
         fog[i] = skyfog[i] = look.fog[i] * light;
     }
-    fog[3] = std::max(fog[3], density * density);
+    fog[3] = za::max(fog[3], density * density);
     skyfog[3] = 1.f;
 }
 
@@ -1646,8 +1669,8 @@ extern "C" unsigned VR_WaterSceneDepth(int translucent)
 glm::vec3 qvr::water::viewWobble()
 {
     const bool on = water::viewLiquid != 0;
-    const float wobble = on ? std::clamp(vr_water_wobble.value, 0.f, 3.f) * 0.004f : 0.f;
-    const float blur = on ? std::clamp(vr_water_underwater.value, 0.f, 2.f) * 0.0008f : 0.f;
+    const float wobble = on ? za::clamp(vr_water_wobble.value, 0.f, 3.f) * 0.004f : 0.f;
+    const float blur = on ? za::clamp(vr_water_underwater.value, 0.f, 2.f) * 0.0008f : 0.f;
     return {static_cast<float>(cl.time), wobble, blur};
 }
 
@@ -1685,13 +1708,13 @@ extern "C" int VR_WaterMeshActive(void)
 // The (first index, count) pairs of the mesh's triangles of the world's texture texnum seen this view.
 extern "C" int VR_WaterMeshRanges(int texnum, const unsigned** ranges)
 {
-    if(texnum < 0 || static_cast<std::size_t>(texnum) >= water::mesh.texBegin.size())
+    if(texnum < 0 || static_cast<za::SizeT>(texnum) >= water::mesh.texBegin.size())
     {
         return 0;
     }
-    const int begin = water::mesh.texBegin[static_cast<std::size_t>(texnum)];
+    const int begin = water::mesh.texBegin[static_cast<za::SizeT>(texnum)];
     *ranges = water::mesh.ranges.data() + begin;
-    return (water::mesh.texEnd[static_cast<std::size_t>(texnum)] - begin) / 2;
+    return (water::mesh.texEnd[static_cast<za::SizeT>(texnum)] - begin) / 2;
 }
 
 // Binds the mesh's buffers and points attributes 0-3 as Ironwail's glvert_t and 4 at the pin (GLS_ATTRIBS(5)).

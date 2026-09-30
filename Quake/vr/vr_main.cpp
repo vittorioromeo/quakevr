@@ -644,7 +644,7 @@ void timingColumns(Columns& c, const Readers& r)
     text3d::counts(texts, boards);
     column(c, "boards", "%d", boards);
     column(c, "static_sounds", "%d", q_max(0, total_channels - MAX_DYNAMIC_CHANNELS - NUM_AMBIENTS));
-    column(c, "targets_by_name", "%s", gfx::targetsMadeByName().c_str());
+    column(c, "targets_by_name", "%s", gfx::targetsMadeByName().cStr());
 }
 
 void VR_MemStats_f()
@@ -687,7 +687,7 @@ void VR_MemStats_f()
     Con_Printf("  textures (managed) %d, %d of them normal maps, %.1f MB\n", m.textures, m.normalmaps, m.textureMb);
     Con_Printf("  GL    %d textures (%d not managed), %d buffers, %d framebuffers, %d queries, %d programs (%.1f ms to count)\n",
         m.glTextures, m.glTextures - m.textures, m.buffers, m.framebuffers, m.queries, m.programs, m.scanMs);
-    Con_Printf("  VR    render targets (re)made %d times so far (%s); ", gfx::targetsMade, gfx::targetsMadeByName().c_str());
+    Con_Printf("  VR    render targets (re)made %d times so far (%s); ", gfx::targetsMade, gfx::targetsMadeByName().cStr());
     decals::count_f();
     const mem::Totals held = mem::totals();
     Con_Printf("  VR    scratch buffers %.1f KiB (%d sets), caches %.1f KiB (%d sets); the largest:\n",

@@ -18,10 +18,14 @@
 #include "vr_cvars.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
 #include <glm/gtc/quaternion.hpp>
 
-#include <algorithm>
-#include <cmath>
 
 namespace qvr::drawblend
 {
@@ -69,7 +73,7 @@ void setPose(entity_t& e, const Pose& p)
 [[nodiscard]] float angleBetween(const glm::quat& a, const glm::quat& b)
 {
     const glm::quat d = glm::conjugate(a) * b;
-    return glm::degrees(2.f * std::atan2(glm::length(glm::vec3{d.x, d.y, d.z}), std::fabs(d.w)));
+    return glm::degrees(2.f * za::atan2(glm::length(glm::vec3{d.x, d.y, d.z}), za::fabs(d.w)));
 }
 
 struct Blend
@@ -100,12 +104,12 @@ void start(Blend& b, const Pose& from, const Pose& to, float time, int source)
     const glm::quat inv = glm::inverse(to.rot);
     b.offset.pos = inv * (from.pos - to.pos);
     b.offset.rot = glm::normalize(inv * from.rot);
-    const float raw = glm::degrees(2.f * std::acos(std::clamp(b.offset.rot.w, -1.f, 1.f)));
+    const float raw = glm::degrees(2.f * za::acos(za::clamp(b.offset.rot.w, -1.f, 1.f)));
     if(b.offset.rot.w < 0.f)
     {
         b.offset.rot = -b.offset.rot; // the same turn, the short way round
     }
-    b.startAngle = glm::degrees(2.f * std::acos(std::min(b.offset.rot.w, 1.f)));
+    b.startAngle = glm::degrees(2.f * za::acos(za::min(b.offset.rot.w, 1.f)));
     b.rawAngle = raw;
     b.on = true;
     b.start = realtime;
@@ -238,7 +242,7 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
     // Caught from a force grab (the catch and the gun's stats come in the same update, either first): eased in from
     // where the weapon flew.
     Catch& c = catches[hand];
-    if(c.on && std::fabs(realtime - c.at) > pairing)
+    if(c.on && za::fabs(realtime - c.at) > pairing)
     {
         c.on = false;
     }
