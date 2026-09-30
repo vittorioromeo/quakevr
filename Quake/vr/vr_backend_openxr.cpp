@@ -520,6 +520,7 @@ private:
     bool visibilityMaskExtension{false}; // XR_KHR_visibility_mask enabled
     char runtime[XR_MAX_RUNTIME_NAME_SIZE + 32]{}; // its name and version
     bool vdxr{false};                             // Virtual Desktop's own runtime (VDXR)
+    float debugButtonsWas{0.f};                   // vr_debug_buttons last frame
     PFN_xrGetVisibilityMaskKHR getVisibilityMask{nullptr};
     HiddenArea hidden[2];
     bool hiddenStale[2]{true, true}; // to fetch (again) before the next frame
@@ -696,7 +697,20 @@ private:
             if(!XR_SUCCEEDED(xrGetCurrentInteractionProfile(session, handPaths[side], &state)) ||
                 state.interactionProfile == XR_NULL_PATH)
             {
+                if(vr_debug_buttons.value)
+                {
+                    Con_Printf("VR buttons: the %s hand: no interaction profile (%s)\n", side == 0 ? "left" : "right", runtime);
+                }
                 continue;
+            }
+            if(vr_debug_buttons.value)
+            {
+                // (Which of suggestBindings' profiles the runtime took: its bindings are the buttons the game gets. VDXR
+                // may report Index controllers for Quest ones: "Emulate Index controllers".)
+                char name[XR_MAX_PATH_LENGTH]{};
+                uint32_t len = 0;
+                xrPathToString(instance, state.interactionProfile, sizeof(name), &len, name);
+                Con_Printf("VR buttons: the %s hand: interaction profile %s (%s)\n", side == 0 ? "left" : "right", name, runtime);
             }
             if(state.interactionProfile == path("/interaction_profiles/oculus/touch_controller") ||
                 state.interactionProfile == path("/interaction_profiles/meta/touch_controller_plus"))
@@ -1230,6 +1244,15 @@ private:
     // Returns false if the session is lost or the application should exit VR.
     bool pollEvents()
     {
+        // vr_debug_buttons turned on: the profiles the runtime picked, now (they print when they change too).
+        if(vr_debug_buttons.value != debugButtonsWas)
+        {
+            debugButtonsWas = vr_debug_buttons.value;
+            if(debugButtonsWas && sessionRunning)
+            {
+                updateControllers();
+            }
+        }
         XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
         while(xrPollEvent(instance, &event) == XR_SUCCESS)
         {

@@ -321,6 +321,7 @@ void CL_UpdateTEnts (void)
 	float		yaw, pitch;
 	float		forward;
 	int			rope; // QVR
+	vec3_t		bstart, bend; // QVR: the beam's ends as drawn this frame (the server's kept: VR_UpdateBeam moves these)
 
 	num_temp_entities = 0;
 
@@ -339,14 +340,18 @@ void CL_UpdateTEnts (void)
 		{
 			VectorCopy (cl_entities[cl.viewentity].origin, b->start);
 		}
-		rope = VR_UpdateBeam (b->entity, b->start, b->end); // QVR
+		// QVR: moved as drawn from where the server put them, each frame (moved in place, a rope's start went from gun
+		// to gun lying about, and its end crept after the hook)
+		VectorCopy (b->start, bstart);
+		VectorCopy (b->end, bend);
+		rope = VR_UpdateBeam (b->entity, bstart, bend); // QVR
 		if (!rope)
-			VR_BeamLights (i, b->model, b->start, b->end); // QVR: lights along the lightning
-		if (VR_DrawRope (b->entity, b->model, b->start, b->end)) // QVR: a grappling hook's rope, drawn in one piece (vr/vr_rope.cpp)
+			VR_BeamLights (i, b->model, bstart, bend); // QVR: lights along the lightning
+		if (VR_DrawRope (b->entity, b->model, bstart, bend)) // QVR: a grappling hook's rope, drawn in one piece (vr/vr_rope.cpp)
 			continue;
 
 	// calculate pitch and yaw
-		VectorSubtract (b->end, b->start, dist);
+		VectorSubtract (bend, bstart, dist);
 
 		if (dist[1] == 0 && dist[0] == 0)
 		{
@@ -369,7 +374,7 @@ void CL_UpdateTEnts (void)
 		}
 
 	// add new entities for the lightning
-		VectorCopy (b->start, org);
+		VectorCopy (bstart, org); // QVR
 		d = VectorNormalize(dist);
 		beamscale = VR_BeamScale (b->model); // QVR: thinner beams (1 outside VR)
 		while (d > 0)

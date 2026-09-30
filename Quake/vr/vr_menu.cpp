@@ -1861,9 +1861,15 @@ std::vector<Item> pageDebugLogging()
             .help("Each hand's state: the grip, its weapon, what it carries, the force grab, the flashlight, the hotspot, and "
                   "what climbing makes of a grip (holding, free, or why it takes nothing)."),
         toggle("Swim Strokes", vr_swim_debug).help("Each stroke: its peak speed, the power gate, the reverse damping and the push it gave."),
-        cycle("Grappling Hook", vr_grapple_debug, {{0.f, "Off"}, {1.f, "Bites and Reels"}, {2.f, "And the Rope"}, {3.f, "Every Frame"}})
-            .help("What the hook bites and each reel (mass, class, speeds); the rope 4 times a second, or every frame. Needs "
+        cycle("Grappling Hook", vr_grapple_debug,
+            {{0.f, "Off"}, {1.f, "Bites and Reels"}, {2.f, "And the Rope"}, {3.f, "Every Frame"}, {4.f, "And Every Rope Drawn"}})
+            .help("What the hook bites and each reel (mass, class, speeds); the rope 4 times a second, or every frame; and "
+                  "each rope drawn every frame (which beam, from where to where: a rope drawn where there is none). Needs "
                   "Developer Messages."),
+        toggle("Controller Buttons", vr_debug_buttons)
+            .help("Each controller button pressed and let go: the hand, the button, its key and binding, and what took it "
+                  "(the posing mode, a voice note, the flashlight); and the controller profile the headset's runtime "
+                  "picked for each hand (Virtual Desktop can report Index controllers). For a button that does nothing."),
         toggle("Wounds", vr_wounds_debug).help("Each wound painted on a model."),
         cycle("Grasp", vr_debug_grasp, {{0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"}})
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),
@@ -2148,8 +2154,12 @@ std::vector<Item> pageDebugTests()
         toggle("Shoot the Hook Off", vr_grapple_shootable)
             .help("A hook in a wall, a floor or a door comes off when you shoot it (any weapon): get it back when it is "
                   "stuck or its gun is out of reach."),
+        slider("Reel-In Button Time", vr_grapple_quick_time, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 10.f)
+            .help("How long the front button takes to reel the hook in: it speeds up, then slows down into the gun (a "
+                  "short rope quicker). 0: it flies straight back at the Reel-In Button Speed."),
         slider("Reel-In Button Speed", vr_grapple_quick_speed, 300.f, 4000.f, 100.f, "%.0f u/s").extend(100.f, 10000.f)
-            .help("How fast the hook flies back into the gun when you press the front button."),
+            .help("The fastest the hook comes back when you press the front button (a long rope takes longer than the "
+                  "Reel-In Button Time), and its speed with that time at 0."),
         slider("Hook Size", vr_grapple_hook_scale, 0.3f, 1.f, 0.05f, "%.2f").extend(0.2f, 2.f)
             .help("The size of the hook the gun fires (1: the mission pack's, too big for the gun). From the next shot."),
 
@@ -2214,10 +2224,17 @@ std::vector<Item> pageDebugTests()
             .help("How fast the reel pulls you in: to a wall or a ceiling, to a huge monster, to a prop too heavy to come."),
         slider("Shortest Rope", vr_grapple_min_length, 16.f, 128.f, 4.f, "%.0f").extend(0.f, 400.f)
             .help("How short the reel takes the rope (units)."),
+        slider("Loose Hook Goes In At", vr_grapple_reel_home, 0.5f, 16.f, 0.5f, "%.1f").extend(0.5f, 64.f)
+            .help("How close to the muzzle (units) you reel a loose hook's back before it goes into the gun. Smaller: you "
+                  "reel it in further."),
         slider("Unreel Speed", vr_grapple_unreel_speed, 50.f, 800.f, 25.f, "%.0f u/s").extend(0.f, 2000.f)
             .help("The hand's lower button (A on the right hand, X on the left) pays the rope out while held, this fast: "
                   "you let yourself down from a ceiling, a monster or a prop can go farther. Let go and the rope keeps its "
                   "length. 0: no unreel."),
+        slider("Unreel Slack", vr_grapple_unreel_slack, 4.f, 1000.f, 4.f, "%.0f").extend(4.f, 10000.f)
+            .help("With nothing pulling on the rope (you standing, a hooked box on the floor), the unreel lets out this "
+                  "much slack (units) beyond the hook's distance: the rope comes off the drum and lies there. Hanging, "
+                  "what pulls takes the rope out as ever. 4: no slack."),
         toggle("Unreel Button Only When Airborne", vr_grapple_unreel_airborne)
             .help("On: a button that jumps (A) unreels only in the air: on the ground it jumps as ever, and a press that "
                   "jumped does not unreel until pressed again; X (the reload) unreels on the ground too. Off: either "

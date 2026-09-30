@@ -666,6 +666,12 @@ void PF_ropesend()
     ropesim::send(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)));
 }
 
+// void ropeend(entity owner, float beamId): that beam's rope ended (its hook's rope is another beam's now).
+void PF_ropeend()
+{
+    ropesim::sendEnded(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)));
+}
+
 void PF_carryreach()
 {
     // The hand's place (the point given, OFS_PARM1) and angles are the `self` player's move's.
@@ -883,6 +889,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ropestep", PF_ropestep},
     {"ropepivot", PF_ropepivot},
     {"ropesend", PF_ropesend},
+    {"ropeend", PF_ropeend},
     {"tracebox", PF_tracebox},
     {"cvar_hmake", PF_cvar_hmake},
     {"cvar_hget", PF_cvar_hget},

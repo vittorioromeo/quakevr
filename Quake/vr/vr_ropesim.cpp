@@ -51,6 +51,8 @@ struct Rope
     std::vector<glm::vec3> sent;    // the corners as last sent, and when
     double sentAt{-1.0};
     int emptySends{0};              // no corners, sent this many times since (twice: a lost datagram)
+    int sentOwner{-1};              // the beam they were sent for (a new one: sent at once, whatever changed)
+    int sentBeam{-1};
 };
 
 std::unordered_map<int, Rope> ropes;
@@ -421,7 +423,8 @@ void send(edict_t* hook, edict_t* owner, int beamId)
     }
     Rope& r = it->second;
     const std::vector<glm::vec3>& c = r.corners;
-    bool changed = c.size() != r.sent.size();
+    const int ownerNum = NUM_FOR_EDICT(owner);
+    bool changed = c.size() != r.sent.size() || ownerNum != r.sentOwner || beamId != r.sentBeam;
     for(std::size_t i = 0; i < c.size() && !changed; i++)
     {
         changed = glm::distance(c[i], r.sent[i]) > sentMoved;
@@ -468,7 +471,22 @@ void send(edict_t* hook, edict_t* owner, int beamId)
     }
     r.emptySends = n == 0 ? (changed ? 1 : r.emptySends + 1) : 0;
     r.sentAt = sv.qcvm.time;
+    r.sentOwner = ownerNum;
+    r.sentBeam = beamId;
     netCount(sv.datagram.cursize - before);
+}
+
+void sendEnded(edict_t* owner, int beamId)
+{
+    if(sv.state != ss_active || sv.datagram.cursize + 16 > MAX_DATAGRAM - 64)
+    {
+        return;
+    }
+    MSG_WriteByte(&sv.datagram, protocol::svc_quakevr);
+    MSG_WriteByte(&sv.datagram, protocol::QVR_SVC_ROPE);
+    MSG_WriteShort(&sv.datagram, NUM_FOR_EDICT(owner));
+    MSG_WriteByte(&sv.datagram, beamId);
+    MSG_WriteByte(&sv.datagram, protocol::ropeEnded);
 }
 
 void forget(int num)

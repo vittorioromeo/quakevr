@@ -79,6 +79,26 @@ constexpr ButtonKeys buttonKeys[] = {
     {&HandInput::stickClick, {K_LTHUMB, K_RTHUMB}},
 };
 
+// vr_debug_buttons: a controller button pressed or let go (the hand, the button, its key and what the key is bound to),
+// and what took it before the game got its key (`takenBy`; nullptr: the game got it). The face buttons also drive the
+// grappling hook while the game has the keys (secondaryHeld, primaryHeld: its reel and unreel).
+void logButton(int h, const ButtonKeys& b, bool now, int key, const char* takenBy)
+{
+    if(!vr_debug_buttons.value)
+    {
+        return;
+    }
+    const char* name = b.button == &HandInput::trigger    ? "trigger"
+                       : b.button == &HandInput::grip      ? "grip"
+                       : b.button == &HandInput::primary   ? (h == HAND_MAIN ? "lower face button (A)" : "lower face button (X)")
+                       : b.button == &HandInput::secondary ? (h == HAND_MAIN ? "upper face button (B)" : "upper face button (Y)")
+                                                           : "stick click";
+    const char* kb = keybindings[key];
+    Con_Printf("VR buttons: %s hand's %s %s: key %s (bound to \"%s\")%s%s%s\n", h == HAND_MAIN ? "main" : "off", name,
+        now ? "pressed" : "let go", Key_KeynumToString(key), kb ? kb : "", takenBy ? ", taken by " : "", takenBy ? takenBy : "",
+        !takenBy && key_dest != key_game ? " (not in the game: no reel or unreel)" : "");
+}
+
 // A stick direction acting as a key: pressed past 0.7, released below 0.5, auto-repeating in
 // menus.
 struct StickKey
@@ -275,6 +295,7 @@ void update(const InputState& tracked)
                 // The weapon posing mode takes the buttons pressed while it runs (vr_posing.cpp).
                 if(posing::button(h, posingButton(b.button), now))
                 {
+                    logButton(h, b, now, b.key[h], "the weapon posing mode");
                     continue;
                 }
                 // The off hand's upper button at the mouth records a voice note instead (not while that hand holds
@@ -283,11 +304,13 @@ void update(const InputState& tracked)
                 if(h == HAND_OFF && b.button == &HandInput::secondary && (!now || !flashlight::wantsSecondary(HAND_OFF)) &&
                     voicenotes::offhandButton(now))
                 {
+                    logButton(h, b, now, b.key[h], "a voice note");
                     continue;
                 }
                 // With the motion recorder armed, its button's stick click records a take instead.
                 if(b.button == &HandInput::stickClick && motion::stickClick(h, now))
                 {
+                    logButton(h, b, now, b.key[h], "the motion recorder");
                     continue;
                 }
                 // A hand at the chest flashlight switches it (trigger) or takes it (grip) instead; the
@@ -306,11 +329,13 @@ void update(const InputState& tracked)
                                 keyEvent(buttonKeys[1].key[g], false); // the grip's key
                             }
                         }
+                        logButton(h, b, now, b.key[h], "the flashlight");
                         continue;
                     }
                 }
                 // A trigger pointing at the menu is its mouse button.
                 const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
+                logButton(h, b, now, key, nullptr);
                 keyEvent(key, now);
                 if(b.button == &HandInput::secondary)
                 {

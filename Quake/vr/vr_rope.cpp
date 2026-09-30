@@ -7,6 +7,7 @@
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
+#include "vr_protocol.hpp"
 #include "vr_trace.hpp"
 
 #include <algorithm>
@@ -779,7 +780,28 @@ void parseCorners()
     const int ent = MSG_ReadShort();
     const int beamId = MSG_ReadByte();
     const int count = MSG_ReadByte();
-    RopeCorners& r = cornerSets[ent | ((beamId + 1) << 16)]; // (VR_ParseBeamEntity's key)
+    const int key = ent | ((beamId + 1) << 16); // (VR_ParseBeamEntity's key)
+    if(count == protocol::ropeEnded)
+    {
+        // Its hook's rope is another beam's now: this one goes at once (it lasted 0.2 s, drawn from wherever its start
+        // went: a phantom rope from another gun, or from the hand that let it go).
+        for(int i = 0; i < MAX_BEAMS; i++)
+        {
+            if(cl_beams[i].entity == key)
+            {
+                cl_beams[i].model = nullptr;
+            }
+        }
+        if(vr_grapple_debug.value >= 2 && slacks.count(key))
+        {
+            Con_Printf("grapple: rope beam %d/%d ended (its hook's rope is another beam's now)\n", ent, beamId);
+        }
+        slacks.erase(key);
+        cornerSets.erase(key);
+        chains.erase(key);
+        return;
+    }
+    RopeCorners& r = cornerSets[key];
     r.corners.resize(static_cast<std::size_t>(count));
     glm::vec3 at{0.f};
     for(int i = 0; i < count; i++)
@@ -1063,6 +1085,16 @@ extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const f
             path.push_back(tail);
         }
         path.push_back(b);
+        if(vr_grapple_debug.value >= 4 && developer.value)
+        {
+            // (Every rope drawn, each frame: which beam, from where to where, round which corners.)
+            const glm::vec3 c0 = path.size() > 2 ? path[1] : b;
+            Con_Printf("grapple: rope beam %d/%d drawn: %.0f %.0f %.0f -> %.0f %.0f %.0f, %d corners (first %.0f %.0f %.0f)\n",
+                ent & 0xFFFF, (ent >> 16) - 1, static_cast<double>(a.x), static_cast<double>(a.y), static_cast<double>(a.z),
+                static_cast<double>(b.x), static_cast<double>(b.y), static_cast<double>(b.z),
+                static_cast<int>(path.size()) - 2 - (hasTail ? 1 : 0), static_cast<double>(c0.x), static_cast<double>(c0.y),
+                static_cast<double>(c0.z));
+        }
         if(vr_grapple_sag.value)
         {
             Chain& ch = chains[ent];
