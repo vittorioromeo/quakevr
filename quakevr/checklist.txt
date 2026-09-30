@@ -33,6 +33,9 @@ Bat with the hammer and rocket launcher vs the shotgun: heavier ones hit harder 
 
 Shoot props with every gun (health/ammo boxes, dropped weapons, gibs): do they react well? Tune in Throwing and Physics > Shots Push Props (a shotgun blast sends a health box ~3 m)
 
+Stand on props: stand still on an explosive box, jump on and off, climb a stack of 2-3 and jump from the top, walk off, shove the box you stand on (you ride it); also at hitbox width 16
+Stand on props: do 80 kg and the 0.25 jump push feel right? (Player Hitbox > Standing on Props)
+
 [Decide or give feedback]
 Hitbox: Movement > Player Hitbox, width 16 or 20; walk up to the firing-range panels (front and side), the prop table, explosive boxes; let monsters walk into you
 Hitbox: compare Method A (compiled hull, default) and B (brush sweep); does either snag?
