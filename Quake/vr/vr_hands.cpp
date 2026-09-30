@@ -684,6 +684,11 @@ void setPlaySpaceYaw(float yaw)
     stateFrame = -1;
 }
 
+void refresh()
+{
+    stateFrame = -1; // the velocities are kept (the same realtime: updateVelocities)
+}
+
 void setLean(const glm::vec3& worldLean)
 {
     lean = glm::vec3{worldLean.x, worldLean.y, 0.f};

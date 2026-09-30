@@ -2125,6 +2125,10 @@ std::vector<Item> pageDebugTests()
         command("Random Walk (60 s)", "god; notarget; vr_hull_walktest 60")
             .help("Walks you around the map at random for 60 seconds (hopping somewhere new every few), then prints how "
                   "often you got stuck or ended up in a wall."),
+        header("Dialogs"),
+        command("New Game Confirmation (3 s)", "vr_test_dialog 3 0")
+            .help("Shows the New Game confirmation for 3 seconds (it closes by itself): the game must stay in the world "
+                  "while it's up, turn your head to see (vr_test_dialog [seconds] [mock head turn] [eyeshot])."),
         header("Cheats"),
         command("God Mode", "god").help("god: takes no damage (again: takes damage)."),
         command("Quad Damage", "impulse 255").help("Quad Damage for 30 seconds."),
@@ -2414,7 +2418,7 @@ std::vector<Item> pageMonsterHitbox()
             .help("Quake moves monsters against walls with a 32-wide box (64 for the big ones), wider than most of their "
                   "own boxes in Quake VR (a grunt's is 24, an ogre's 40). On: the widths below instead (a clipping hull "
                   "compiled for each when the map loads, as yours is): they walk closer to walls and through narrower "
-                  "gaps. You and your shots meet their own boxes and models already."),
+                  "gaps (on by default). You and your shots meet their own boxes and models already."),
         toggle("Against Bodies Too", vr_mhull_ents)
             .help("A width narrower than a monster's own box meets you, other monsters and solid boxes too, both ways. "
                   "Off: their own boxes between bodies."),

@@ -949,6 +949,38 @@ int scaledEyeSize(int image, int max)
 
 static void applyUnpacedSwap(); // vr_mock_fast (below)
 
+// vr_test_dialog [seconds] [turn] [shot]: the New Game confirmation (SCR_ModalMessage) for this long, closing by itself, the
+// mock head turned `turn` degrees a second meanwhile (vr_mock_look); the eyes' images (vr_eyeshot `shot`, 1; 3 with the
+// UI) at its first and last frames, and the eyes' yaw printed then: they must follow the head (NOTES.md start_2026-09-30_11-26-59; the
+// view stuck to the face while the dialog was up).
+static struct
+{
+    bool on = false;
+    double start = 0.0;
+    float seconds = 2.f;
+    float turn = 0.f;
+    int shot = 1;
+    int frames = 0;
+    bool lastShot = false;
+    float headYaw[2]{};
+    float eyeYaw[2]{};
+} dialogTest;
+
+static void testDialog_f()
+{
+    dialogTest = {};
+    dialogTest.seconds = Cmd_Argc() > 1 ? CLAMP(0.2f, static_cast<float>(Q_atof(Cmd_Argv(1))), 30.f) : 2.f;
+    dialogTest.turn = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 45.f;
+    dialogTest.shot = Cmd_Argc() > 3 ? CLAMP(1, Q_atoi(Cmd_Argv(3)), 3) : 1;
+    dialogTest.on = true;
+    dialogTest.start = Sys_DoubleTime();
+    const int answer = SCR_ModalMessage("Are you sure you want to\nstart a new game? (y/n)\n", dialogTest.seconds);
+    dialogTest.on = false;
+    Con_Printf("test dialog: %d frames (answer %d); head yaw %.1f -> %.1f, eye yaw %.1f -> %.1f\n", dialogTest.frames,
+        answer, dialogTest.headYaw[0], dialogTest.headYaw[1], dialogTest.eyeYaw[0], dialogTest.eyeYaw[1]);
+    Cmd_ExecuteString("vr_mock_look 0 0", src_command);
+}
+
 extern "C" void VR_NewMap()
 {
     ++qvr::worldGen;
@@ -1037,6 +1069,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_wounds_info", wounds::info_f);
     Cmd_AddCommand("vr_wounds_dump", wounds::dump_f);
     Cmd_AddCommand("vr_test_remove", progs::testRemove_f);
+    Cmd_AddCommand("vr_test_dialog", testDialog_f);
     Cmd_AddCommand("vr_hotspots_legacy", view::hotspotsLegacy_f);
     Cmd_AddCommand("vr_hotspots_check", view::hotspotsCheck_f);
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
@@ -1183,10 +1216,37 @@ extern "C" int VR_ModalMessageFrame()
     // a frame for the profiler too: else its GPU timer queries piled up (64 more at a time) for as
     // long as the dialog was up.
     VR_ProfileFrame();
+    int shot = -1; // vr_test_dialog: this frame's eye images (0 the first, 1 the last)
+    if(dialogTest.on)
+    {
+        const float t = static_cast<float>(Sys_DoubleTime() - dialogTest.start);
+        const float yaw = dialogTest.turn * t;
+        Cmd_ExecuteString(va("vr_mock_look 0 %g", yaw), src_command); // read by VR_BeginFrame's tracking
+        if(dialogTest.frames == 0)
+        {
+            shot = 0;
+        }
+        else if(!dialogTest.lastShot && t >= dialogTest.seconds - 0.3f)
+        {
+            shot = 1;
+            dialogTest.lastShot = true;
+        }
+        if(shot >= 0)
+        {
+            dialogTest.headYaw[shot] = yaw;
+            Cvar_SetValueQuick(&vr_eyeshot, static_cast<float>(dialogTest.shot));
+        }
+        dialogTest.frames++;
+    }
+    hands::refresh(); // the head and hands from this frame's tracking (no host frame counted it): not stuck to the face
     VR_BeginFrame();
     scr_drawdialog = true;
     SCR_UpdateScreen();
     scr_drawdialog = false;
+    if(shot >= 0)
+    {
+        dialogTest.eyeYaw[shot] = hands::current().eyeAngles[0][YAW];
+    }
     return 1;
 }
 

@@ -14559,3 +14559,34 @@ choices. Details in MOTIONS.md, "Other record buttons".
 Checked: a mock run pressing each of the 10 choices twice (start, stop: "recording slash #1", "too short, not kept"),
 every press and release logged "taken by the motion recorder" (`vr_debug_buttons 1`); the combinations' trigger alone
 and A disarmed reach the game. eval.sh canary: 48/53, no difference from the baseline.
+## Defaults of 2026-09-30; the dialog stuck to the face; the flat HUD on the desktop views; headshot sounds (2026-09-30)
+
+From NOTES.md e1m1_2026-09-30_10-57-09, start_2026-09-30_11-26-59, e2m1_2026-09-30_11-34-35 and the firing range's
+notes of 11-19 to 11-25.
+
+- **Defaults** (config change 57: a config still holding the old value takes the new one, once): Narrower Monsters
+  on (`vr_mhull` 0 -> 1; each class keeps its own box's width, -1); the author's throw aim assist (`vr_throw_assist`
+  0 -> 1, `vr_throw_assist_cone` 12 -> 15, `vr_throw_assist_strength` 0.8 -> 0.35); his melee values compiled in
+  (`vr_melee_push` 1 -> 0.5, `vr_melee_push_player` 1 -> 0.6, `vr_melee_bloodlust_mult` 1.0 -> 0.5). The melee values
+  were shipped already (vr_defaults.cfg, since round 15, lines removed now), but with no change for the configs saved
+  before them.
+- **The New Game confirmation stuck to the face.** SCR_ModalMessage's loop runs no host frame; VR_ModalMessageFrame
+  kept the headset's frames going, but the head and hands (hands::current()) are computed once per host frame, so every
+  frame of the dialog drew the eyes from the head as it was when the dialog opened while the runtime placed each image
+  at the head's new pose: a still picture that turned with the head. `hands::refresh()` reads them again each dialog
+  frame. Test: `vr_test_dialog [seconds] [turn] [eyeshot]` (Debug > Tests > Dialogs) shows the dialog, closing by
+  itself, while the mock head turns, takes eye images at its first and last frames and prints the eyes' yaw. Before:
+  head yaw 0 -> 76.5, eye yaw 90 -> 90 (the two eye images identical); after: eye yaw 90 -> 166.6 (42% of the pixels
+  differ), and the menu panel stays where it was in the world.
+- **The flat HUD on the desktop views** (Graphics > Recording): `vr_window_hud_mirror` (1: the status bar over the
+  Left Eye and Smoothed Mirror views, as before) and `vr_window_hud_spectator` (0: none over the Spectator Camera).
+  Without a headset frame (VR off, the console down) the window always has it.
+- **Headshot sounds from projectiles.** Nails (and lava nails, super nails: spike_touch, superspike_touch) already
+  play it: with `vr_debug_shots 1; developer 1` the muzzle test (TESTING.md) prints `headshot sound: monster_army by
+  spike` for each nail in a grunt's head (part 1). The laser cannon's bolts didn't: the bolt clears its owner as it
+  touches (so it can bounce back at its shooter), and the feedback looked for a player there. Its shooter is kept in
+  `lastvictim`, used now (`headshot sound: monster_army by hiplaser`). Rockets and grenades have no head hits (their
+  damage is the explosion's); thrown weapons did already.
+- **Invalidated melee takes** (vrfiringrange_2026-09-30_11-19-50): no_hit_weak 23-07-45 and 23-07-51, no_hit_wiggling
+  23-07-31 moved to `quakevr/motions/invalidated_2026-09-30/`; the kit's eval_baseline.csv (173 takes, 168 pass, 5
+  fail) and canary.txt (53) rebuilt without them.

@@ -349,12 +349,20 @@ void(entity xTarget) PositionalHeadshotFeedback =
     {
         shooter = self.owner;
     }
+    if(shooter.classname != "player" && self.classname == "hiplaser")
+    {
+        shooter = self.lastvictim; // a laser cannon's bolt: its owner is cleared as it touches (it may bounce back)
+    }
     if(shooter.classname != "player" || shooter == xTarget)
     {
         return;
     }
 
     sound(shooter, CHAN_AUTO, "vr/headshot.wav", min(1, v), ATTN_NORM);
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("headshot sound: %s by %s\n", xTarget.classname, self.classname));
+    }
 };
 
 // HIPNOTIC
