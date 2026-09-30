@@ -17,6 +17,8 @@
 
 #include "vr_engine.hpp"
 
+#include <vector>
+
 namespace qvr::debris
 {
 
@@ -35,6 +37,24 @@ enum class Material : int
 
 [[nodiscard]] Material materialOf(const char* texture);
 [[nodiscard]] const char* materialName(Material m);
+
+// What entities a piece (or a crate: vr_crates.cpp) keeps away from: their boxes, grown by a margin.
+struct Obstacle
+{
+    glm::vec3 lo, hi;
+    const char* why; // its classname (valid while the map lasts)
+};
+
+// The map's entities and static things (wall torches, flames) as boxes to keep clear of, each grown by its kind's margin
+// (doors, lifts and whatever moves 48 units and as far as they go; teleporters, changelevels, starts 64; other triggers
+// 24; items, weapons, monsters, explosive boxes, torches 40; anything else with a model or a solid 24) and `extra`.
+void gatherObstacles(std::vector<Obstacle>& out, float extra = 0.f);
+
+// A number the map's worldspawn sets for Quake VR (`key`: "_vr_debris", "_vr_crates"), 1 if it has none.
+[[nodiscard]] float worldspawnValue(const char* key);
+
+// Whether `name` is one of the names in `list` (spaces, commas or semicolons between; case ignored).
+[[nodiscard]] bool inList(const char* list, const char* name);
 
 // Whether this map gets pieces (vr_debris, single player, not excluded, its worldspawn's "_vr_debris").
 [[nodiscard]] bool enabledHere();

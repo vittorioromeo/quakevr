@@ -167,3 +167,16 @@
 // ----------------------------------------------------------------------------
 
 .float buttonEffect;
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Wooden crates (vr_crates.qc)
+// ----------------------------------------------------------------------------
+
+.float vr_cratekind;     // 1 a small crate, 2 a large one, 3 a piece of one
+.float vr_crate_hittime; // a crate: when it last knocked (VR_Crate_Pain)
+.float vr_crate_born;    // a piece: when it was made (the oldest go first; they fade after vr_crate_piece_time)
+.float alpha;            // how opaque it is drawn (0: wholly; a piece fading away). (Here, not in honey_defs.qc: the
+                         // crates' pieces, compiled before it, use it.)

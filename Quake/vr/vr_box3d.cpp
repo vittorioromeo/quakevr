@@ -218,7 +218,8 @@ constexpr float sinkDensity = 0.5f;
 {
     const bool gib = hasFlag(ent, physics::FL_FORCEGRABBABLE) && !hasFlag(ent, FL_ITEM);
     const int index = static_cast<int>(ent->v.modelindex);
-    const bool wood = index > 0 && index < MAX_MODELS && sv.models[index] && !strcmp(sv.models[index]->name, "progs/vrtorch.mdl");
+    const char* name = index > 0 && index < MAX_MODELS && sv.models[index] ? sv.models[index]->name : "";
+    const bool wood = !strcmp(name, "progs/vrtorch.mdl") || !strncmp(name, "progs/vr_plank", 14); // (a crate's pieces float)
     if(const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr)
     {
         if(const float stone = props::stoneDensity(model); stone > 0.f)
@@ -226,7 +227,7 @@ constexpr float sinkDensity = 0.5f;
             return 1000.f / stone; // a rock or a brick (vr_debris.cpp) sinks as stone does, faster than a gib
         }
     }
-    return gib && !wood ? sinkDensity : floatDensity; // (a taken wall torch is wood: it floats)
+    return gib && !wood ? sinkDensity : floatDensity; // (a taken wall torch, a crate's piece are wood: they float)
 }
 
 [[nodiscard]] bool wetAt(float x, float y, float z)
@@ -4673,6 +4674,48 @@ int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity
         return 0;
     }
     return hit.num;
+}
+
+int sightRay(const glm::vec3& start, const glm::vec3& end, int ignoreA, int ignoreB)
+{
+    const glm::vec3 delta = end - start;
+    const int blockField = fields().vr_blocksight;
+    if(!world || blockField < 0 || glm::dot(delta, delta) < 1e-6f)
+    {
+        return 0;
+    }
+    // Solid props' shapes only (catSolid): one in a hand is a held body (catHeld) and never met.
+    struct Context
+    {
+        int num{0};
+        int blockField, ignoreA, ignoreB;
+    } ctx{0, blockField, ignoreA, ignoreB};
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.maskBits = catSolid;
+    b3World_CastRay(world->id, world->toM(start), world->toM(delta), filter,
+        [](b3ShapeId shape, b3Pos, b3Vec3, float fraction, uint64_t, int, int, void* context) -> float {
+            auto& c = *static_cast<Context*>(context);
+            const int num = numOf(shape);
+            if(num <= 0 || num >= static_cast<int>(world->slots.size()) || world->slots[num].kind != Kind::Prop ||
+                num == c.ignoreA || num == c.ignoreB)
+            {
+                return -1.f;
+            }
+            edict_t* ent = EDICT_NUM(num);
+            if(ent->free || fieldFloat(ent, c.blockField) <= 0.f || static_cast<int>(ent->v.solid) != SOLID_BBOX)
+            {
+                return -1.f;
+            }
+            c.num = num;
+            return 0.f; // one is enough
+        },
+        &ctx);
+    return ctx.num;
+}
+
+bool isBox3DProp(int num)
+{
+    return world && num > 0 && num < static_cast<int>(world->slots.size()) && world->slots[num].kind == Kind::Prop;
 }
 
 bool contactPoint(int num, glm::vec3& point)

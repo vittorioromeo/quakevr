@@ -25,6 +25,14 @@ bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pu
 // That prop's edict number, 0 if none.
 int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity, float pusherMass);
 
+// Whether a monster's sight from `start` to `end` is blocked by a solid prop that blocks sight (.vr_blocksight: a crate,
+// an explosive box), met by its Box3D shape as it lies (not one in a hand: a held body). Not the edicts `ignoreA` and
+// `ignoreB` (who looks and at whom). The blocker's edict number, 0 if none.
+[[nodiscard]] int sightRay(const glm::vec3& start, const glm::vec3& end, int ignoreA, int ignoreB);
+
+// Whether edict `num` is one of Box3D's props (its shape is what sightRay meets).
+[[nodiscard]] bool isBox3DProp(int num);
+
 // The prop `ent`'s motion slowed where it is now (its body's, so that a push after it this frame adds to it; QC's
 // .velocity written would override both at the next step): its velocity relative to `relativeTo` kept by `keep` (0 ..
 // 1) and no faster than `maxSpeed` (0: any), then `add` added; its spin kept by `keepSpin`. False if it is not a Box3D

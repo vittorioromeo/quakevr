@@ -437,6 +437,7 @@ void parseParticle2()
         case Preset::LavaSpike: puff(235, count); break;
         case Preset::BigSmoke: puff(6, count * 2); break;
         case Preset::Splash: break; // Quake had none (vr_particles.cpp)
+        case Preset::WoodDust: puff(22, count * 2); break; // (the browns)
         default: puff(73, count); break;
     }
 }

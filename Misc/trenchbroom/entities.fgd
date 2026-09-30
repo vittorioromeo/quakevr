@@ -160,6 +160,7 @@ does by default)."
 	]
 	sounds(integer) : "CD track" : 0 : "The music track to play."
 	_vr_debris(float) : "Rocks and bricks" : 1 : "Quake VR's loose rocks and bricks, placed at the foot of walls by what the textures are made of (natural ground and rock walls: rocks; brick walls: bricks). 0: none in this map; another number times their chance (0.5 half as many places, 2 twice). The player's settings (Carrying: Rocks and Bricks) apply on top."
+	_vr_crates(float) : "Wooden crates" : 1 : "Quake VR's wooden crates, placed by walls and in corners (sometimes two stacked), clear of every entity and never narrowing a passage. 0: none in this map; another number times their chance. The player's settings (Carrying: Crates) apply on top."
 	light(integer) : "Minimum light (light)" : : "The ambient (minimum) light level of the whole map, for ericw-tools' light."
 	_minlight_color(color1) : "Minimum light colour" : : "The colour of the minimum light (R G B, 0 to 1)."
 	_sunlight(integer) : "Sun brightness" : : "ericw-tools: a sun: the brightness of the direct light from sky faces."

@@ -1845,6 +1845,59 @@ void hologramTestMessage()
     };
 }
 
+// Wooden crates (vr_crates*; vr_crates.cpp, QC vr_crates.qc): where they lie, breaking them, what they hold, hiding.
+[[nodiscard]] std::vector<Item> pageCrates()
+{
+    return {
+        header("Where They Lie"),
+        toggle("Crates", vr_crates)
+            .help("Wooden crates, small and large, stand by the walls and in corners, some stacked two high: push them, "
+                  "carry them, stand on them, break them. The same places at every load. Single player. Next map."),
+        slider("Density", vr_crates_chance, 0.f, 0.3f, 0.005f, "%.3f").extend(0.f, 1.f)
+            .help("How likely a place by a wall (one every 24 units along it) gets a crate, before the limits below. Next map."),
+        slider("In Corners", vr_crates_corner, 1.f, 10.f, 0.5f, "%.1fx").extend(0.f, 50.f)
+            .help("Times the chance in a corner. Next map."),
+        slider("Most in a Map", vr_crates_max, 0.f, 60.f, 1.f, "%.0f").extend(0.f, 400.f)
+            .help("A stack counts two. Next map."),
+        slider("Spacing", vr_crates_spacing, 32.f, 1024.f, 16.f, "%.0f units").extend(0.f, 4096.f)
+            .help("Between crates (a stack's two aside; 32 units is about a metre). Next map."),
+        slider("Stacked", vr_crates_stack, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a crate has another on it, turned and off its middle a little. Next map."),
+        slider("Large Ones", vr_crates_large, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of large crates (40 x 40 x 48 units; the small ones 32 units a side). Next map."),
+        slider("Room in Front", vr_crates_clearance, 32.f, 256.f, 8.f, "%.0f units").extend(0.f, 1024.f)
+            .help("Open floor kept in front of a crate, so that it never blocks a passage or a doorway. Next map."),
+        slider("Away From Things", vr_crates_margin, 24.f, 256.f, 8.f, "%.0f units").extend(0.f, 1024.f)
+            .help("How far from other things (items, monsters, lights; doors, lifts and teleporters further, the start "
+                  "furthest). Next map."),
+        slider("Layout", vr_crates_seed, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 100000.f)
+            .help("Another number, another layout: each is the same at every load. Next map."),
+        header("Breaking"),
+        slider("Health", vr_crate_health, 0.f, 100.f, 5.f, "%.0f").extend(0.f, 1000.f)
+            .help("A small crate's (a large one's 1.6 times): shots, blows, explosions and hard hits wear it down. A shotgun "
+                  "blast does up to 24, the axe about 20. 0: they never break."),
+        slider("Breaks On Impact", vr_crate_impact, 0.f, 30.f, 1.f, "%.0f m/s").extend(0.f, 100.f)
+            .help("A crate hitting something this hard breaks (dropped from about 85 units); from 70% of it, it is damaged. "
+                  "Things thrown at it damage it as they do monsters. 0: impacts never break them."),
+        slider("Pieces", vr_crate_pieces, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 40.f)
+            .help("How many boards and splinters a small crate breaks into (a large one more). Light: they barely get in "
+                  "your way, and turn to dust when hit."),
+        slider("Most Pieces", vr_crate_piece_max, 0.f, 128.f, 4.f, "%.0f").extend(0.f, 512.f)
+            .help("Most pieces lying about at once: past it, the oldest turn to dust."),
+        slider("Pieces Last", vr_crate_piece_time, 0.f, 120.f, 5.f, "%.0f s").extend(0.f, 3600.f)
+            .help("How long a piece lies about before it fades away (0: for ever). One in your hand stays."),
+        header("What They Hold"),
+        slider("Ammo", vr_crate_ammo, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a crate holds a small box of ammunition, for a weapon you have (or the shotgun)."),
+        slider("Health Box", vr_crate_health_box, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a crate holds a small health box (15)."),
+        header("Hiding"),
+        toggle("Crates Hide You", vr_crate_sight)
+            .help("Monsters can't see you through crates and explosive boxes lying about (crouch behind a small one). "
+                  "Carrying one, they see you through it."),
+    };
+}
+
 // Split from Carrying and Gibs: taking, throwing and bursting gibs, heads and corpses.
 [[nodiscard]] std::vector<Item> pageGibs()
 {
@@ -2116,6 +2169,9 @@ std::vector<Item> pageDebugLogging()
                   "(with Throw Grace 0: watched 0.2 s, to compare)."),
         cycle("Rocks and Bricks Placement", vr_debug_debris, {{0.f, "Off"}, {1.f, "A Line a Map"}, {2.f, "Each Piece"}, {3.f, "Each Spot Rejected"}})
             .help("At the next map load: the pieces placed, the spots, the time; each piece; each spot rejected and why."),
+        cycle("Crates Placement", vr_debug_crates, {{0.f, "Off"}, {1.f, "A Line a Map"}, {2.f, "Each Crate"}, {3.f, "Each Spot Rejected"}})
+            .help("vr_debug_crates: where the crates went (and why not), each crate's clearance in front of it. Also Developer "
+                  "Messages print each crate's damage and breaking, the pieces and what it held."),
         toggle("Torch Lights", vr_debug_torch_lights)
             .help("Every torch light lit, every frame: which (a wall torch, a taken one), where, its radius and colour, shadowed."),
         cycle("Arm IK", vr_debug_arm, {{0.f, "Off"}, {1.f, "Print Once"}, {2.f, "Trace File"}})
@@ -2218,6 +2274,7 @@ std::vector<Item> pageDebugReports()
         command("Weights", "vr_weight_table").help("vr_weight_table: the weapons' and props' masses (the level's props too)."),
         command("Ledges Ahead", "vr_climb_probe").help("vr_climb_probe: the ledges 16 to 64 units ahead of you, and why each holds or not."),
         command("Rocks and Bricks", "vr_debris_list").help("vr_debris_list: the rocks and bricks placed in this map."),
+        command("Crates", "vr_crates_list").help("vr_crates_list: the crates in this map (health, resting) and how many pieces lie about."),
         command("Hit Detection", "vr_hitmodel_stats").help("vr_hitmodel_stats: precise hit detection's tests so far (hits, shots through a box beside the model) and their cost."),
         command("Wounds", "vr_wounds_info").help("vr_wounds_info: the wound masks in use."),
         command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),
@@ -2315,11 +2372,13 @@ std::vector<Item> pageDebugTests()
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
              {17.f, "Overlord"}, {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
-             {106.f, "Gib"}})
+             {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"}})
             .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
         toggle("As a Corpse", vr_test_spawn_dead).help("A monster killed at once: a corpse, to test gibbing and carrying."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        command("Go to the Next Crate", "vr_crates_goto")
+            .help("vr_crates_goto [n]: you in front of the next of the crates placed in this map (or crate n), to look at it."),
         header("Chainsaw"),
         command("A Chainsaw in Your Hand", "impulse 164").help("A full ogre's chainsaw in the main hand (impulse 184: the off "
                                                                 "hand). Take its cord with the other hand and pull."),
@@ -2902,6 +2961,7 @@ const Page pages[] = {
     {"Lightning Gun in Water", pageLightningWater, pageWeaponsHub},         // 75
     {"Enemy Weapons", pageEnemyWeapons, pageCombat},                        // 76
     {"Sound", pageSound, pageMain},                                         // 77
+    {"Crates", pageCrates, pageCarryingHub},                                // 78
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -3063,6 +3123,7 @@ std::vector<Item> pageCarryingHub()
         open("Force Grab", pageIndex(pageForceGrab)),
         open("Wall Torches", pageIndex(pageWallTorches)),
         open("Rocks and Bricks", pageIndex(pageRocksBricks)),
+        open("Crates", pageIndex(pageCrates)).help("Wooden crates by the walls: break them, carry them, hide behind them."),
         open("Gibs and Corpses", pageIndex(pageGibs)),
         header("What You Hold"),
         open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets)),

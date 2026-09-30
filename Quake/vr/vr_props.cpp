@@ -42,8 +42,8 @@ constexpr const char* keyDefaults[numKeys] = {
 // Configs archive every slot, so a slot whose shipped defaults change keeps a config's old values: vr_props_version
 // says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
 // and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's; 45: the author's bricks and torch
-// (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0.
-constexpr int settingsVersion = 48;
+// (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0; 49: the crates' slots.
+constexpr int settingsVersion = 49;
 
 std::array<std::string, numSlots * numKeys> names;
 std::array<cvar_t, numSlots * numKeys> cvars{};
@@ -257,6 +257,24 @@ void migrate()
                 Cvar_SetQuick(&var, var.default_string);
                 Con_DPrintf("Held Object Offsets: %s: %s %s (was %g)\n", cvarAt(c.slot, Key::ID).string, var.name, var.string,
                     static_cast<double>(c.before));
+            }
+        }
+    }
+    // 49: the wooden crates and their pieces (vr_crates.qc) have slots 26-31 (vr_prop_*_27 to _32), which a config saved
+    // before has empty: they take their defaults, as the rocks' and bricks' did (26). A slot the config gave another
+    // model keeps it.
+    if(from < 49)
+    {
+        for(int slot = 26; slot <= 31; slot++)
+        {
+            if(freeId(cvarAt(slot, Key::ID).string))
+            {
+                resetSlot(slot);
+            }
+            else if(strcmp(cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string) != 0)
+            {
+                Con_Printf("Held Object Offsets: slot %d is %s's in this config; %s keeps the defaults\n", slot + 1,
+                    cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string);
             }
         }
     }

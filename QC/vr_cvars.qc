@@ -157,6 +157,8 @@ float cvarh_vr_shot_push_lightning;
 float cvarh_vr_shot_push_speed;
 float cvarh_vr_carry_throw_mult;
 float cvarh_vr_explobox_impact;
+float cvarh_vr_crate_sight;
+float cvarh_vr_debug_crates;
 float cvarh_vr_walltorch_pull;
 float cvarh_vr_walltorch_reach;
 float cvarh_vr_walltorch_forcegrab;
@@ -452,6 +454,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_shot_push_speed);
     VR_CVAR_HMAKE(vr_carry_throw_mult);
     VR_CVAR_HMAKE(vr_explobox_impact);
+    VR_CVAR_HMAKE(vr_crate_sight);
+    VR_CVAR_HMAKE(vr_debug_crates);
     VR_CVAR_HMAKE(vr_walltorch_pull);
     VR_CVAR_HMAKE(vr_walltorch_reach);
     VR_CVAR_HMAKE(vr_walltorch_forcegrab);

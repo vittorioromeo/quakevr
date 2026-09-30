@@ -99,6 +99,9 @@ Spatial audio (VR Settings > Sound): sounds circling your head; a monster behind
 Super shotgun: fore-end from the side and from below (hold it overhead), front of the trigger guard: no stretching, no hole; repaint darker and plainer: OK?
 
 Crowbar (vrfiringrange): fist on the tape (offsets), both two-handed grips incl. sliding up the bar, hook vs bar hits, parry, throwing it
+Crates: e1m1/e1m2/e2m1 have 5-16 by walls and in corners, some stacked; never in your way? (Carrying > Crates: Density; Debug > Tests: Go to the Next Crate)
+Crates break to shotgun, axe, thrown things and hard drops; pieces don't block you and burst into dust when hit; crack and dust sound OK?
+Crouch behind a crate with a grunt about: it can't see you; carrying the crate, it sees you
 
 [Decide or give feedback]
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
@@ -110,6 +113,8 @@ On a tilted box steeper than ~30 degrees you slowly slide off (like the level's 
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
 Function-local non-std statics (two text buffers, lastOut in vr_handpose): move them to the scratch/state pattern too?
+
+Crates: amounts of ammo (0.35) and small health (0.2) per crate OK?
 
 [Tune]
 Grapple: reel speeds and the other grapple values (you asked for a reminder)

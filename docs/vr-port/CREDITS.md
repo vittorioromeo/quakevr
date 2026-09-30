@@ -171,6 +171,14 @@ also Quake's own `zombie/z_miss.wav` (the player's copy, not distributed).
 | `scrape_metal1..4.wav` | metal sliding | [844755](https://freesound.org/people/MeanRaccoon/sounds/844755/): *steel plate dragging on wooden floor B*, MeanRaccoon; 0.5 s at 1.28, 3.60, 17.52, 34.44 s |
 | `scrape_stone1..4.wav` | stone and brick sliding | [545562](https://freesound.org/people/rsellick/sounds/545562/): *kettlebell concrete drag metal rock stone earth.wav*, rsellick; 0.5 s at 11.16, 15.04, 27.12, 30.92 s |
 
+### Wooden crates (`quakevr/progs/vr_crate*.mdl`, `vr_plank*.mdl`; `quakevr/sound/vr/crate_*.wav`)
+
+The crates and their pieces, their skins and normal maps are the port's own, generated (`Misc/quakevr/make_crates.py`:
+the shapes, and skins painted from 3D value noise in Quake's palette; `bake_normals.py`). Their sounds
+(`Misc/quakevr/make_crate_sounds.py`): `crate_break1..3.wav` layer two or three of the physics sounds' wood knocks above
+(Kenney's *Impact Sounds*, CC0), pitched down, over synthesised splinter crackle and a thump; `crate_dust1..2.wav` a
+light wood knock pitched up, a crackle and a synthesised hiss. Nothing downloaded.
+
 ## Techniques, research and references
 
 ### Body IK

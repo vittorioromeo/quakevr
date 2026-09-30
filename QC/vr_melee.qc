@@ -1359,7 +1359,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     while(e)
     {
         if(VR_Blow_Strikable(e) && (e.solid == SOLID_SLIDEBOX || e.solid == SOLID_BBOX ||
-                                    (e.solid == SOLID_NOT_BUT_TOUCHABLE && e.vr_gib && e.carry_player == world)))
+                                    (e.solid == SOLID_NOT_BUT_TOUCHABLE && (e.vr_gib || e.vr_cratekind == 3) && e.carry_player == world)))
         {
             vector lo = e.origin + e.mins;
             vector hi = e.origin + e.maxs;

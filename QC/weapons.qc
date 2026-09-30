@@ -1534,6 +1534,12 @@ void(float damage) spawn_touchblood =
     vector    vel;
 
     vel = wall_velocity () * 0.2;
+    // VR: what it touched is wood (a crate, an explosive box): splinters, not blood (vr_crates.qc).
+    if(VR_Crate_Wooden(other))
+    {
+        VR_Crate_Splinters(self.origin + vel * 0.01, vel, damage);
+        return;
+    }
     SpawnBlood (self.origin + vel * 0.01, vel, damage);
 };
 
@@ -1756,9 +1762,16 @@ void(float damage, vector dir) TraceAttack =
     {
         if(AddMultiDamage(trace_ent, damage) && trace_ent.classname != "hook") // (a grappling hook shot off: no blood)
         {
-            SpawnBlood (org, vel*0.2, damage);
+            if(VR_Crate_Wooden(trace_ent))
+            {
+                VR_Crate_Splinters(org, vel * 0.2, damage); // VR: wood (a crate, an explosive box): splinters
+            }
+            else
+            {
+                SpawnBlood (org, vel*0.2, damage);
+                VR_Wound_Pellet(trace_ent, trace_endpos, dir, damage); // VR: painted on its model (vr_wounds.qc)
+            }
             bleed = TRUE;
-            VR_Wound_Pellet(trace_ent, trace_endpos, dir, damage); // VR: painted on its model (vr_wounds.qc)
         }
     }
 
@@ -4167,6 +4180,12 @@ void() ImpulseCommands =
             }
             remove(self);
             self = spawnPlayer;
+        }
+        else if(spawnKind >= 107 && spawnKind <= 109)
+        {
+            // A crate (vr_crates.qc), turned 30 degrees off facing you; 109: a large one with a small one on it.
+            traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, self); // (on the floor)
+            VR_Crate_TestSpawn(trace_endpos, spawnKind == 107 ? 1 : 2, spawnPlayer.v_viewangle_y + 30, spawnKind == 109);
         }
         else if(spawnKind >= 100)
         {
