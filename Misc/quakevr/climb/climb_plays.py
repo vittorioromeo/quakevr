@@ -6,7 +6,7 @@
 # and held, for screenshots, the odd ones with the controllers turned oddly; ladderlean: the ladder with the head leant
 # in, as a player's is (the holds within a real arm's reach); push and overtop: staying within reach and
 # the mantle's motion; the presses: the main hand gripping d units in front of the ledge or rung 56 and pulling, for the
-# grab leniency).
+# grab leniency: the reach is 4.5 cm plus Grab Leniency, so at 6 cm and World Scale 1 only d 2 takes it).
 import sys
 HI, LO, FWD = 1.943, 1.18, -0.72
 
@@ -48,13 +48,15 @@ def ladder(n_half, top_out=False):
         t += 0.1
         hand, other = other, hand
     if top_out:
-        # over the top of the wall (the hand hovering just short of its edge), a long pull, and the mantle
+        # over the top of the wall (the hand at its edge: 14 cm short of it took it only while the grab reached 6 units in
+        # front of a face whatever Grab Leniency was; ROUND21.md, "Climbing: the leniency is the one reach"), a long pull,
+        # and the mantle
         x = pos[hand][0]
         key(t, hand, *pos[hand]); t += 0.25
         key(t, hand, x, 2.0, -0.45); t += 0.35
-        key(t, hand, x, 2.10, -0.80); t += 0.1
+        key(t, hand, x, 2.10, -0.92); t += 0.1
         L.append(f"{t:.3f} cmd {grab[hand]}"); t += 0.1
-        key(t, hand, x, 2.10, -0.80); key(t, other, *pos[other]); t += 1.2
+        key(t, hand, x, 2.10, -0.92); key(t, other, *pos[other]); t += 1.2
         key(t, hand, x, 1.10, -0.60); key(t, other, *pos[other]); t += 0.3
         L.append(f"{t:.3f} cmd {free[hand]}"); L.append(f"{t:.3f} cmd {free[other]}")
         key(t, hand, x, 1.2, -0.3); key(t, other, pos[other][0], 1.2, -0.3); t += 1.0
