@@ -389,33 +389,39 @@ KNIGHTS = {"knight.mdl": (655, 697, (334, 335, 336, 363, 364, 365, 524, 535, 536
                                      613, 614, 615, 617, 626, 627, 628, 639, 640, 645, 646)),
            "hknight.mdl": (538, 1000, (43, 45, 46, 47, 48, 526, 527, 531, 532)),
            # The ogre's chainsaw (the same knownSwords table; make_chainsaw.py cuts v_chainsaw.mdl from it).
-           "ogre.mdl": (497, 1290, tuple(range(416, 497)))}
+           "ogre.mdl": (497, 1290, tuple(range(416, 497))),
+           # The grunt's shotgun and the enforcer's laser rifle (the same table; make_enemyguns.py cuts v_gruntgun.mdl
+           # and v_enfrifle.mdl from them).
+           "soldier.mdl": (555, 810, tuple(range(463, 549))),
+           "enforcer.mdl": (479, 984, (22, 23, 100) + tuple(range(400, 431)) + tuple(range(455, 479)))}
+
+# What each of those monsters drops, and the generator that cuts it out.
+DROPPED = {"knight.mdl": ("sword", "v_ksword.mdl", "make_swords.py"),
+           "hknight.mdl": ("sword", "v_hksword.mdl", "make_swords.py"),
+           "ogre.mdl": ("chainsaw", "v_chainsaw.mdl", "make_chainsaw.py"),
+           "soldier.mdl": ("shotgun", "v_gruntgun.mdl", "make_enemyguns.py"),
+           "enforcer.mdl": ("laser rifle", "v_enfrifle.mdl", "make_enemyguns.py")}
 
 
 def knight_report(old, new):
     """knight.mdl, hknight.mdl (vr_monstermods.cpp knownSwords): the sword hidden as the knight dies (it drops
     v_ksword.mdl / v_hksword.mdl, which make_swords.py cuts from these)."""
     nv, nt, verts = KNIGHTS[old.name.lower()]
-    ogre = old.name.lower() == "ogre.mdl"
+    what, dropped, generator = DROPPED[old.name.lower()]
     lines, problems = [], []
     if (new.num_verts, len(new.tris)) != (nv, nt):
-        problems.append(("the knight's counts", 1.0))
-        lines.append("CHECK    %d vertices, %d triangles (vr_monstermods.cpp knownSwords expects %d, %d): the sword "
-                     "hidden as the knight dies is then found as in id's model, which may hide the wrong triangles: "
-                     "set knownSwords' counts (and its vertex list, with make_swords.py's) to the new model" % (
-                         new.num_verts, len(new.tris), nv, nt))
+        problems.append(("the %s's counts" % old.name.lower()[:-4], 1.0))
+        lines.append("CHECK    %d vertices, %d triangles (vr_monstermods.cpp knownSwords expects %d, %d): the %s is "
+                     "then not hidden as the monster dies (a knight's is found as in id's model, which may hide the "
+                     "wrong triangles): set knownSwords' counts (and its vertex list, with %s's) to the new model" % (
+                         new.num_verts, len(new.tris), nv, nt, what, generator))
     pa, pb = old.pose_bytes(), new.pose_bytes()
     moved = any(p[v] != q[v] for p, q in zip(pa, pb) for v in verts if v < new.num_verts)
-    if moved and ogre:
-        problems.append(("the ogre's chainsaw", 1.0))
-        lines.append("CHECK    the chainsaw moved: the one dropped (v_chainsaw.mdl) is cut from this model by "
-                     "make_chainsaw.py: run it again")
-    elif moved:
-        problems.append(("the knight's sword", 1.0))
-        lines.append("CHECK    the sword moved: the one dropped (v_%s) is cut from this model by make_swords.py: run "
-                     "it again" % ("ksword.mdl" if old.name.lower() == "knight.mdl" else "hksword.mdl"))
-    lines.append("%s    its %d vertices (knownSwords): %s" % ("chainsaw" if ogre else "sword", len(verts),
-                                                                  "moved" if moved else "unchanged"))
+    if moved:
+        problems.append(("the %s" % what, 1.0))
+        lines.append("CHECK    the %s moved: the one dropped (%s) is cut from this model by %s: run it again" % (
+            what, dropped, generator))
+    lines.append("%s    its %d vertices (knownSwords): %s" % (what, len(verts), "moved" if moved else "unchanged"))
     return lines, problems
 
 
@@ -427,7 +433,9 @@ CHECKS = {FLASHLIGHT: ("the flashlight: read by the engine as it loads it (vr_fl
           "wpnbutton.mdl": ("the ammo button (vr_view.cpp)", button_report),
           "knight.mdl": ("the knight's sword (vr_monstermods.cpp, make_swords.py)", knight_report),
           "hknight.mdl": ("the hell knight's sword (vr_monstermods.cpp, make_swords.py)", knight_report),
-          "ogre.mdl": ("the ogre's chainsaw (vr_monstermods.cpp, make_chainsaw.py)", knight_report)}
+          "ogre.mdl": ("the ogre's chainsaw (vr_monstermods.cpp, make_chainsaw.py)", knight_report),
+          "soldier.mdl": ("the grunt's shotgun (vr_monstermods.cpp, make_enemyguns.py)", knight_report),
+          "enforcer.mdl": ("the enforcer's laser rifle (vr_monstermods.cpp, make_enemyguns.py)", knight_report)}
 CHECKS.update({n: ("the hands without the rig (vr_view.cpp drawHand; make_hand_rig.py's source)", hand_part_report)
                for n in HAND_PARTS})
 

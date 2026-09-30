@@ -21,6 +21,10 @@
 # hole): the game shows frame 9 while a hand holds the cord, and draws the handle and the cord there itself. The
 # engine reads the handle from the model as it loads it: the vertices that differ between frames 0 and 9 are the
 # handle, their middle in frame 0 is where the hand takes it, and the point they collapse onto is the cord's hole.
+#
+# Cleaned for close-up viewing (round 21, as make_enemyguns.py the grunts' and enforcers' guns): the ogre's degenerate
+# triangles dropped, then `polish` (mdlpolish.py) appends a starter housing under the cord's handle, two nuts on the
+# clutch cover and the skin's edge wear, keeping every old vertex, triangle and UV (the anchors: checked).
 
 import math
 import os
@@ -28,6 +32,8 @@ import struct
 import sys
 
 import genguard
+import mdlpolish as mp
+from improve_weapons import strip_order
 from make_swords import Mdl, Out
 from mdlgen import HEADER, add, anorms, cross, dot, mul, norm, sub
 
@@ -101,7 +107,12 @@ def main():
     for v in verts:
         p = mul(sub(L[v], grip), scale)
         index[v] = out.vert(p, m.stverts[v], None)
+    degenerate = 0
     for front, a, b, cc in tris:
+        n = cross(sub(out.p[index[b]], out.p[index[a]]), sub(out.p[index[cc]], out.p[index[a]]))
+        if dot(n, n) < 1e-6:
+            degenerate += 1  # no area (the ogre's slivers where its pieces met): dropped
+            continue
         out.tris.append((front, index[a], index[b], index[cc]))
     saw_tris = len(out.tris)
 
@@ -165,15 +176,47 @@ def main():
     path = os.path.join(out_dir, 'v_chainsaw.mdl')
     guard = genguard.Guard('make_chainsaw.py', [path])
     open(path, 'wb').write(data)
-    guard.finish()
     tipv = max(range(first_handle), key=lambda i: out.p[i][0])
-    print('v_chainsaw.mdl: %d vertices, %d triangles, %d frames; scale %.3f of the ogre\'s' % (
-        len(out.p), len(out.tris), FRAMES, scale))
-    print('  the bar\'s tip (the muzzle): vertex %d at %.2f %.2f %.2f' % (tipv, *out.p[tipv]))
+    order = strip_order(out.tris)
+    blk_verts = [index[v] for v in verts if v not in BAR and v not in REAR and v not in LOOP]
+    added = polish(path, out.p, [index[v] for v in BAR], blk_verts, hole, mid)
+    after = strip_order(mp.Model(path).tris)
+    assert after[:len(order)] == order, 'the polish moved the anchors'
+    guard.finish()
+    print('v_chainsaw.mdl: %d vertices, %d triangles (%d degenerate dropped), %d frames; scale %.3f of the ogre\'s' % (
+        len(out.p), len(out.tris), degenerate, FRAMES, scale))
+    print('  polish: +%d triangles, +%d vertices, %d skin rows, %d texels worn' % added)
+    print('  the bar\'s tip (the muzzle): vertex %d at %.2f %.2f %.2f, anchor %d (slot 20\'s MuzzleAnchorVertex)' % (
+        tipv, *out.p[tipv], order.index(tipv)))
     print('  the cord\'s handle at %.2f %.2f %.2f, its hole at %.2f %.2f %.2f' % (*mid, *hole))
     print('  the front handle\'s top: x %.2f..%.2f, z %.2f' % (min(p[0] for p in loop), max(p[0] for p in loop),
                                                            max(p[2] for p in loop)))
     print('  bounds %.1f %.1f %.1f .. %.1f %.1f %.1f' % (*lo, *hi))
+
+
+def polish(path, P, bar, block, hole, handle):
+    """The close-up pass (mdlpolish.py, as polish_weapons.py the guns'): the skin's edge wear; two nuts holding the bar on
+    the clutch cover (the block's right side); the starter's housing under the cord's T-handle (it floated beside the
+    block's sloping back, nothing under it): a bevelled box on the block's left, the handle seated on its top. Every old
+    vertex, triangle and UV stays (anchors, hotspots, the handle and its hole read from frames 0 and 9: the new vertices
+    are the same in every frame)."""
+    p = mp.Polisher(path, rows=8, seed=14)
+    texels = mp.edge_wear(p.m, p.ramps, mesh=p.mesh)
+    bx0 = min(P[v][0] for v in bar)
+    bz = sum(P[v][2] for v in bar) / len(bar)
+    ymin = min(P[v][1] for v in block)
+    # The nuts, on the block's right side over the bar's root.
+    for dz in (-1.4, 1.4):
+        p.stud((bx0 - 2.5, ymin - 20.0, bz + dz), (0.0, 1.0, 0.0), radius=0.9, height=0.55, material='blued')
+    # The starter's housing: from inside the block up to the handle's underside, as long as most of the handle.
+    hx, hy, hz = HANDLE_HALF
+    top = handle[2] - hz - 0.05
+    bottom = hole[2] - 6.0
+    key = p.carrier_at((hole[0] + 3.0, 0.0, hole[2] - 5.0))
+    p.box((handle[0], handle[1] - 0.6, 0.5 * (top + bottom)), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0),
+          (hx - 0.9, hy + 0.9, 0.5 * (top - bottom)), 'steel', key, bevel=0.45, levels=(0.22, 0.3))
+    tris, verts, rows = p.finish(path)
+    return tris, verts, rows, texels
 
 
 if __name__ == '__main__':

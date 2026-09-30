@@ -461,6 +461,8 @@ float HIP_IT_HORN_OF_CONJURING = VRUTIL_POWER_OF_TWO(3); // HIPNOTIC.
 float HIP_IT_PROXIMITY_GUN     = VRUTIL_POWER_OF_TWO(4); // HIPNOTIC.
 float HIP_IT_SWORD             = VRUTIL_POWER_OF_TWO(5); // VR: a knight's sword.
 float HIP_IT_CHAINSAW          = VRUTIL_POWER_OF_TWO(6); // VR: an ogre's chainsaw.
+float HIP_IT_GRUNTGUN          = VRUTIL_POWER_OF_TWO(7); // VR: a grunt's shotgun.
+float HIP_IT_ENFRIFLE          = VRUTIL_POWER_OF_TWO(8); // VR: an enforcer's laser rifle.
 
 //
 //

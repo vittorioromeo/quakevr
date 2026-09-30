@@ -61,7 +61,7 @@ void() Laser_Touch =
     if(other.health)
     {
         SpawnBlood (org, self.velocity*0.2, 15);
-        T_Damage(other, self, self.owner, 15);
+        T_Damage(other, self, self.owner, self.vr_laser_damage ? self.vr_laser_damage : 15); // VR: an enforcer's rifle's (vr_enemyguns.qc)
     }
     else
     {
@@ -321,6 +321,9 @@ void()    enf_fdie11    =[    $fdeath11,    enf_fdie11    ] { monster_check_remo
 
 void() enf_die =
 {
+    // VR: its laser rifle falls from its hands (its death frames are drawn without it: vr_monstermods.cpp), gibbed or not.
+    VR_DropEnemyGun(WID_ENFRIFLE);
+
 // check for gib
     if(self.health < -35)
     {

@@ -138,9 +138,10 @@ namespace
 // chainsaw, 2026-09-30: its offset, scale, hotspots, grip overlap, thumb, mass and spring). 26: the author's weights of slots 9 and 20 (the
 // laser cannon and the chainsaw: 15 kg, stiffness, damping, sag; the cannon's balance), each key only where the config
 // still held its old default (weightMigration). 27: slot 20's hotspots (the author, 2026-09-30: two, both on the front
-// handle; his rear-handle one removed): only its hotspots' keys (resetHotspots). A first start (no saved config) takes this
+// handle; his rear-handle one removed): only its hotspots' keys (resetHotspots). 28: slots 21 and 22 (the grunts' shotgun
+// and the enforcers' laser rifle, Misc/quakevr/make_enemyguns.py; unused placeholders before). A first start (no saved config) takes this
 // version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 27;
+constexpr int settingsVersion = 28;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -416,6 +417,11 @@ void migrate()
     {
         resetHotspots(20);
     }
+    if(vr_wofs_version.value < 28) // the grunts' shotgun and the enforcers' laser rifle (unused placeholders before)
+    {
+        resetSlot(21);
+        resetSlot(22);
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -568,6 +574,11 @@ void markCurrent()
     if(vr_wofs_version.value < 27) // the chainsaw's two hotspots (as migrate)
     {
         resetHotspots(20);
+    }
+    if(vr_wofs_version.value < 28) // the grunts' shotgun and the enforcers' laser rifle (as migrate)
+    {
+        resetSlot(21);
+        resetSlot(22);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

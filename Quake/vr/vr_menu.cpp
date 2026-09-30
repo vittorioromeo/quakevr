@@ -554,6 +554,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 
 // The world: monsters, knights' swords, weapon drops and what you feel (the Gameplay page before the menus were
 // reorganized; its damage and knockback are on Damage and Knockback, its voice notes on Debug).
+[[nodiscard]] std::vector<Item> pageEnemyWeapons();
+
 [[nodiscard]] std::vector<Item> pageGameplay()
 {
     return {
@@ -562,6 +564,26 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Ogres Aim Grenades Up and Down", vr_ogre_aim_height)
             .help("Ogres (and zombies throwing flesh) lob at your height, on a ledge above them or a floor below, on an arc at "
                   "their throw's own speed. Off: Quake's lob, which always flies as if you stood level with them."),
+        header("Enemy Weapons"),
+        open("Enemy Weapons", pageIndex(pageEnemyWeapons))
+            .help("What monsters drop as they die, to pick up and use: knights' swords, ogres' chainsaws, grunts' shotguns, "
+                  "enforcers' laser rifles. Their damage and ammo."),
+        header("Weapon Drops"),
+        cycle("Enemy Weapon Drops", "vr_enemy_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random enemy weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
+        slider("Enemy Drops Chance", "vr_enemy_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for enemy weapon drops."),
+        cycle("Ammo Box Weapon Drops", "vr_ammobox_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random ammo box weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
+        slider("Ammo Box Drops Chance", "vr_ammobox_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for ammo box weapon drops."),
+        header("Feel"),
+        toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
+        toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
+    };
+}
+
+// The weapons monsters drop as they die (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser
+// rifles"): their base damage and ammo. Their offsets and weights are in the weapon menus (slots _19 .. _23).
+[[nodiscard]] std::vector<Item> pageEnemyWeapons()
+{
+    return {
         header("Knights' Swords"),
         slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").extend()
             .help("Knights and hell knights always drop their sword, a melee weapon you can pick up. A sword swing's damage "
@@ -571,6 +593,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Ogres always drop their chainsaw: heavy, held in both hands. Pull its cord with your other hand to start "
                   "it; the trigger runs its chain, which cuts what its bar is in: this much damage a second (a grunt has 30 "
                   "health, an ogre 200)."),
+        slider("Fuel When Dropped", vr_chainsaw_drop_fuel_min, 0.f, 100.f, 5.f, "%.0f%% or more")
+            .help("The fuel an ogre's chainsaw has as it drops: at least this much of a full tank, at random up to full. "
+                  "It is the chainsaw's own: never refilled."),
         slider("Chain Fuel Use", vr_chainsaw_fuel_use, 0.f, 20.f, 0.5f, "%.1f%% a second").extend()
             .help("Each chainsaw has its own fuel (it goes with it, dropped or holstered): what its chain burns a second, "
                   "the trigger held, of a full tank. Out of fuel, it stalls."),
@@ -585,14 +610,19 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How far the cord must be pulled out for a pull (the handle taken in the other, empty, hand's grip)."),
         slider("Cord Pull Speed", vr_chainsaw_pull_speed, 0.3f, 4.f, 0.1f, "%.1f m/s").extend()
             .help("How fast the hand must pull it there: a slower pull is only a weak one, and never starts it."),
-        header("Weapon Drops"),
-        cycle("Enemy Weapon Drops", "vr_enemy_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random enemy weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
-        slider("Enemy Drops Chance", "vr_enemy_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for enemy weapon drops."),
-        cycle("Ammo Box Weapon Drops", "vr_ammobox_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random ammo box weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
-        slider("Ammo Box Drops Chance", "vr_ammobox_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for ammo box weapon drops."),
-        header("Feel"),
-        toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
-        toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
+        header("Grunts' Shotguns"),
+        slider("Pellet Damage", vr_gruntgun_damage, 1.f, 20.f, 1.f, "%.0f").extend()
+            .help("Grunts always drop their shotgun: it fires as yours, six pellets a shot, each this much damage (yours: "
+                  "4; a grunt has 30 health)."),
+        slider("Shells", vr_gruntgun_ammo, 1.f, 50.f, 1.f, "%.0f").extend()
+            .help("The shells in a dropped shotgun: its own, never refilled (shell boxes fill your shotguns, not it). "
+                  "Empty, it is still a club, or drop it."),
+        header("Enforcers' Laser Rifles"),
+        slider("Laser Damage", vr_enfrifle_damage, 1.f, 60.f, 1.f, "%.0f").extend()
+            .help("Enforcers always drop their laser rifle: it fires the enforcer's laser, this much damage a shot (the "
+                  "enforcer's: 15)."),
+        slider("Shots", vr_enfrifle_ammo, 1.f, 80.f, 1.f, "%.0f").extend()
+            .help("The shots in a dropped rifle: its own, never refilled (cells don't). Empty, it is still a club."),
     };
 }
 
@@ -2120,6 +2150,16 @@ std::vector<Item> pageDebugTests()
         command("Chainsaw Fit", "vr_chainsaw_fit")
             .help("vr_chainsaw_fit: with the chainsaw in the main hand, prints where the off hand must move to take its "
                   "cord and each of its hotspots (two, on the front handle), and how many it has."),
+        header("Enemy Guns"),
+        command("A Grunt's Shotgun in Your Hand", "impulse 165")
+            .help("A full grunt's shotgun (Enemy Weapons: Shells) in the main hand (impulse 185: the off hand)."),
+        command("An Enforcer's Rifle in Your Hand", "impulse 166")
+            .help("A full enforcer's laser rifle (Enemy Weapons: Shots) in the main hand (impulse 186: the off hand)."),
+        command("Take the Nearest Enemy Gun", "impulse 212")
+            .help("The grunt's shotgun or enforcer's rifle lying nearest you (dropped) into an empty hand, its ammo as it "
+                  "was."),
+        command("Report the Enemy Guns", "impulse 213").help("Prints each enemy gun in your hands and its ammo."),
+        command("One Shot Left", "impulse 214").help("The enemy guns in your hands left with one shot: to see one run dry."),
         header("Flung Props"),
         slider("Fling Speed", vr_test_fling_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(),
         cycle("Fling At", vr_test_fling_at, {{0.f, "Nearest Monster"}, {1.f, "You"}}),
@@ -2624,6 +2664,7 @@ const Page pages[] = {
     {"Checklist", pageChecklist, pageDebug},                                // 72 (also the corner's button)
     {"Player Hitbox", pageHitbox, pageMovement},                            // 73
     {"Monster Hitbox", pageMonsterHitbox, pageMovement},                    // 74
+    {"Enemy Weapons", pageEnemyWeapons, pageCombat},                        // 75
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -2733,7 +2774,7 @@ std::vector<Item> pageAdvanced()
         open("Movement", pageIndex(pageMovement)).help("Locomotion, climbing, swimming and the grappling hook."),
         open("Carrying and Throwing", pageIndex(pageCarryingHub))
             .help("Carrying, throwing, force grab, wall torches, rocks and bricks, gibs; what you hold's offsets and weights."),
-        open("World", pageIndex(pageGameplay)).help("Monsters, knights' swords, weapon drops, rumble and heartbeat."),
+        open("World", pageIndex(pageGameplay)).help("Monsters, the weapons they drop, weapon drops, rumble and heartbeat."),
         open("Gore", pageIndex(pageGore)),
         header("Body and Weapons"),
         open("Body", pageIndex(pageBody)).help("The body, its arms and pauldrons, body and player calibration."),
@@ -2759,6 +2800,8 @@ std::vector<Item> pageCombat()
         open("Stamina", pageIndex(pageStamina)).help("What parries, shoves, blows and hanging from a hold cost, and being exhausted."),
         open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades; hand grenades."),
         open("Damage and Knockback", pageIndex(pageDamage)).help("Hit detection, damage to monsters and to you, headshots, knockback."),
+        open("Enemy Weapons", pageIndex(pageEnemyWeapons))
+            .help("The swords, chainsaws, shotguns and laser rifles monsters drop: their damage and ammo."),
     };
 }
 

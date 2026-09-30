@@ -257,6 +257,9 @@ void()    army_cdie11    =[    $deathc11,    army_cdie11    ] {monster_check_rem
 
 void() army_die =
 {
+    // VR: its shotgun falls from its hands (its death frames are drawn without it: vr_monstermods.cpp), gibbed or not.
+    VR_DropEnemyGun(WID_GRUNTGUN);
+
 // check for gib
     if(self.health < -35)
     {

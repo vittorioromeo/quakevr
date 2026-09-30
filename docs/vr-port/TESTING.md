@@ -145,7 +145,13 @@ context and screenshot, ready to paste or to point me at.
     other hand on its front handle (heavy, two-handed). Start it: grab the T-handle on its top with the empty hand and
     yank the cord up and away (a slow pull never starts it; a good one starts it half the time). The trigger runs the
     chain: it cuts what its bar is in (sinking in a little) and burns its own fuel (the counter on it; each chainsaw
-    keeps its own, dropped or holstered); empty, it stalls. World > Ogres' Chainsaws; Debug > Tests > Chainsaw.
+    keeps its own, dropped or holstered); empty, it stalls. Combat > Enemy Weapons; Debug > Tests > Chainsaw.
+  - **Enemy guns** (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser rifles"): every grunt
+    drops its shotgun, every enforcer its laser rifle (no gun left in the corpse). Pick one up: the pistol grip in the
+    fist, the other hand on the band round the barrel. It fires from its own ammo only (10 shells, 20 shots; the counter
+    on it): shell boxes and cells never refill it; empty, it clicks (a club, or drop it). Combat > Enemy Weapons (damage
+    and ammo of the swords, chainsaws and these); Debug > Tests > Enemy Guns. The chainsaw has a starter housing under
+    its cord's handle now (it floated).
   - **Punches land at once; the empty hammer is quiet** (ROUND21.md, same title): punch damage used to come 0.1-0.45 s
     after the hit (a bug: every punch waited as a pommel strike does); now in the frame of contact. Pommel and butt
     strikes wait 0.05 s for the blade (Melee Settings > Pommel Strike Wait; 0.1 before). Mjolnir with no cells no
@@ -965,6 +971,15 @@ path the game opens: `vr_mock_play quakevr/motions/chainsaw_pull.mock`) grips th
 `106` (a gib) with `impulse 241` put one on the floor ahead (cut tests). `vr_chainsaw_start_chance 1` makes a good pull always start it, `vr_debug_chainsaw 1` prints the cord and the cuts. Don't
 set `vr_mock_fingers off` before the grip: its grip value presses the grip where the hand is. `r_fullbright 1` lights e1m1's
 dark corridor for screenshots.
+Enemy guns (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser rifles"): `impulse 165` puts a
+full grunt's shotgun in the main hand, `166` an enforcer's rifle (`185`, `186`: the off hand; with `vr_weapon_grip_mode 1`,
+or the mock's grip held, else it drops at once), `impulse 212` takes the one lying nearest into an empty hand, `213`
+prints each in your hands with its ammo and your shell and cell pools, `214` leaves one shot. `vr_test_spawn 0` (a grunt)
+or `8` (an enforcer) with `vr_test_spawn_dead 1` and `impulse 241` drops one (`developer 1` prints "the shotgun (86
+vertices) hidden in 21 death frames", "the laser rifle (58 vertices) hidden in 25 death frames"); `vr_debug_shots 1`
+prints each shot ("grunt's shotgun fired: hand 1, 9 left") and each empty click. Level mock hands for aimed shots:
+`vr_mock_hand main 0.25 1.20 -0.40 70 0 0`. `Misc/quakevr/make_enemyguns.py` makes the models (`check_mdl_holes.py`
+checks them).
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:

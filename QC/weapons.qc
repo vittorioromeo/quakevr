@@ -37,6 +37,10 @@ vector(float xHand, float factor) vrProjectileVelocity =
 
 void(float xHand, float xAid) updateAmmoCounter =
 {
+    if(VR_EnemyGun_Counter(xHand)) // a grunt's shotgun, an enforcer's rifle: its clip (vr_enemyguns.qc)
+    {
+        return;
+    }
     if(xAid == AID_NONE)
     {
         VRSetAmmoCounter(xHand, 0);
@@ -1814,7 +1818,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
         {
             posDmgType = PositionalDamage(trace_ent, trace_endpos, direction);
             if(debugShots && posDmgType == 1) { hitsHead++; }
-            adjDmg = 4 * PositionalDamageFactor(posDmgType);
+            adjDmg = (vr_pellet_damage ? vr_pellet_damage : 4) * PositionalDamageFactor(posDmgType);
 
             TraceAttack (adjDmg, direction);
 
@@ -2781,6 +2785,13 @@ void(float xHand, float xWeapon, float xWeaponFlags, float xAttackFinished,
     // The chainsaw's trigger runs its chain (vr_chainsaw.qc VR_Chainsaw_Frame, every frame): no attack here.
     if(xWeapon == WID_CHAINSAW)
     {
+        return;
+    }
+
+    // A grunt's shotgun or an enforcer's rifle: from its own ammo, its clip (vr_enemyguns.qc).
+    if(VR_IsEnemyGun(xWeapon))
+    {
+        VR_EnemyGun_Attack(xHand, xWeapon, xAttackFinished, xOutAttackFinished);
         return;
     }
 
@@ -3865,6 +3876,18 @@ void() ImpulseCommands =
     if(self.impulse == 229 && !deathmatch && !coop) // QVR test: the chainsaw lying nearest you into an empty hand
     {
         VR_Chainsaw_TakeNearest();
+    }
+    if(self.impulse == 212 && !deathmatch && !coop) // QVR test: the enemy gun lying nearest you into an empty hand
+    {
+        VR_EnemyGuns_TakeNearest();
+    }
+    if(self.impulse == 213) // QVR: the enemy guns in your hands and their ammo (vr_enemyguns.qc)
+    {
+        VR_EnemyGuns_Impulse(FALSE);
+    }
+    if(self.impulse == 214 && !deathmatch && !coop) // QVR test: the enemy guns in your hands left with one shot
+    {
+        VR_EnemyGuns_Impulse(TRUE);
     }
     if(self.impulse == 230 && !deathmatch && !coop) // QVR test: the chainsaws in your hands started (no cord pulled)
     {
