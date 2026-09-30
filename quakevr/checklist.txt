@@ -105,6 +105,8 @@ Crouch behind a crate with a grunt about: it can't see you; carrying the crate, 
 
 Crowbar on crates (Crates > Crowbar on Crates; set 1 to see them on e1m1): looks right on top, take it by hand and force grab, knock the crate and it falls
 
+Grip the crowbar, a sword and the chainsaw by the bar or blade on the floor: taken (Carrying Boxes > Weapon Grab Slack if too far); crowbar clanks heavier; the running chainsaw's engine keeps going through a swing
+
 [Decide or give feedback]
 Crowbar on crates: at most 1 per map (Most Crowbars): or 2?
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
