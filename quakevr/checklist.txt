@@ -69,7 +69,10 @@ Chainsaw held by the front handle only, trigger pulled: it idles (QC precedence 
 Grapple hooked, then the gun passed to the other hand or a holster and back: hook stays in, the new hand's trigger works
 Grapple quick reel-in while the hook is still flying: it comes straight back
 
+First-time weapon grips: no 2-5 ms hitch (thread pool); Debug > Profiling and Memory > Threads > self-test passes
+
 [Decide or give feedback]
+Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 Chainsaw hotspots: both on the front loop (as now), or one on each handle?
 On a tilted box steeper than ~30 degrees you slowly slide off (like the level's steep slopes): should boxes count as ground up to a steeper angle?
