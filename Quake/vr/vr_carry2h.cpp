@@ -1,6 +1,7 @@
 // vr_carry2h.cpp -- see vr_carry2h.hpp.
 
 #include "vr_carry2h.hpp"
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_physics.hpp"
@@ -18,6 +19,12 @@ namespace
 
 // A hand pulled off a prop held in both hands still holds it while its fist is within this (metres) of its surface.
 constexpr float detachTouch = 0.02f;
+
+// A prop held in both hands stopped by a wall (vr_carry_two_hands_solid): for this long (s) after, the hands may be this
+// much further (metres) off it before they let go (they go on into the wall as they push it).
+constexpr double wallTime = 0.3;
+constexpr float wallSlack = 0.3f;
+
 
 // Both hands pulled off a prop held in both: the one that moved less than half as far as the other, less this (metres),
 // keeps it (one hand pulled away from the other held still).
@@ -131,6 +138,7 @@ struct Watch
     // out of a teleporter) never pulls a hand off it (round 21, "Hands: both work").
     glm::vec3 placedBody{0.f};
     bool placed{false};
+    double blocked{-1e9}; // when it was last stopped by the level (clear): the hands pushing it in may go wallSlack further
 };
 std::unordered_map<int, Watch> watches;
 
@@ -139,6 +147,23 @@ std::unordered_map<int, Watch> watches;
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
     return model && model->type == mod_brush;
+}
+
+// Whether point `at` is inside `ent`'s own box (a brush model's, else its entity's) where `object` has it, grown by
+// `grow` units (with vr_carry_two_hands_solid: a hand pushing it against a wall passes into it, or slides along its side).
+[[nodiscard]] bool inside(edict_t* ent, const Frame& object, const glm::vec3& at, float grow)
+{
+    if(!vr_carry_two_hands_solid.value)
+    {
+        return false;
+    }
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const bool brush = model && model->type == mod_brush;
+    const glm::vec3 lo = brush ? glm::vec3{model->mins[0], model->mins[1], model->mins[2]} : glm::vec3{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
+    const glm::vec3 hi = brush ? glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]} : glm::vec3{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+    const glm::vec3 local = glm::inverse(object.rot) * (at - object.pos);
+    return glm::all(glm::greaterThanEqual(local, lo - glm::vec3{grow})) && glm::all(glm::lessThanEqual(local, hi + glm::vec3{grow}));
 }
 
 } // namespace
@@ -171,12 +196,28 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
         watches.erase(num);
         return origin;
     }
-    const Frame object = solve(it->second, hands);
+    Frame object = solve(it->second, hands);
+    const bool blocked = clear(num, {origin, fromAngles(ent->v.angles, brush)}, object);
     toAngles(object.rot, ent->v.angles, brush);
     Watch& w = watches[num];
+    if(blocked)
+    {
+        w.blocked = qcvm->time;
+    }
     w.placedBody = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     w.placed = true;
     return object.pos;
+}
+
+bool clear(int num, const Frame& from, Frame& to)
+{
+    // Pushed as hard as the hands like, it stops at the wall (and slides along it), turned as it was if its new turn
+    // would put it in (the author's note, vrfiringrange 2026-09-30 02:49: held in both hands, it went through walls).
+    if(vr_carry_two_hands_solid.value)
+    {
+        return box3d::holdClear(num, from.pos, from.rot, to.pos, to.rot);
+    }
+    return false;
 }
 
 bool reaches(edict_t* ent, edict_t* player, int hand)
@@ -200,6 +241,9 @@ int detached(edict_t* ent, edict_t* player)
     const bool brush = brushModel(ent);
     const glm::vec3 body{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     Watch& w = watches[num];
+    // Stopped by the level a moment ago (clear): the hands pushing it into a wall pass into it and the wall, as far again
+    // as wallSlack, before they let go.
+    const float limit = qcvm->time - w.blocked < wallTime ? most + wallSlack * m2u : most;
     // (Moved with the body since it was placed: see Watch.)
     const glm::vec3 carried = w.placed ? body - w.placedBody : glm::vec3{0.f};
     const Frame object{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} + carried, fromAngles(ent->v.angles, brush)};
@@ -218,12 +262,19 @@ int detached(edict_t* ent, edict_t* player)
             w.valid[h] = true;
         }
         moved[h] = glm::distance(hand[h] - body, w.onGrip[h]);
-        left[h] = distance > most && !held::grabTouch(ent, player, h, detachTouch * m2u);
+        // (A hand in it, or no further off it than it may be off its grip, is pushing it into a wall that stops it (clear),
+        // or along it: not pulled off.)
+        left[h] = distance > limit && !held::grabTouch(ent, player, h, detachTouch * m2u) && !inside(ent, object, hand[h], limit);
         if(vr_debug_carry.value >= 2.f)
         {
             Con_Printf("carry2h: %s hand %.1f cm from its grip (most %.1f), moved %.1f cm since on it%s\n", h == 0 ? "off" : "main",
                 distance / m2u * 100.f, most / m2u * 100.f, moved[h] / m2u * 100.f,
                 left[h] ? ", pulled off" : distance > most ? ", still touching it" : "");
+            if(left[h])
+            {
+                const glm::vec3 local = glm::inverse(object.rot) * (hand[h] - object.pos);
+                Con_Printf("carry2h: that hand at %.1f %.1f %.1f in it\n", local.x, local.y, local.z);
+            }
         }
     }
     // Both off it: pulled apart together, or one pulled away from the other held still (the prop, centred between them,

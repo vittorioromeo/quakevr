@@ -75,5 +75,11 @@ bool castAt(int num, const glm::vec3& from, const glm::vec3& to, float radius, f
 // open hand, the fist, the held weapon) or its sphere where the contact holds it up (its normal points up into it). For
 // the drawn hands (vr_modelcollide.cpp): a thing lying on the palm doesn't push the hand away.
 [[nodiscard]] bool restsOnHand(int num, int player, int hand);
+// A held prop `num` (its drawn box) moved from `fromPos` turned `fromRot` to `toPos` turned `toRot` (its origin, as its
+// entity's) kept out of the level (the world and its brush entities; vr_carry2h.cpp): `toPos` as far along the move as its
+// box stays out of it (overlap tests), then slid along what it met axis by axis; `toRot` the old turn if the new one would put it in. Already a
+// little in the level where it starts (taken from the floor), no deeper. True if it was stopped (either changed);
+// false if not, and without a body or Box3D's world.
+bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm::vec3& toPos, glm::quat& toRot);
 
 } // namespace qvr::box3d

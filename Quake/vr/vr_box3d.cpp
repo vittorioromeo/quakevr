@@ -426,8 +426,22 @@ struct World
         glm::vec3 feet{0.f};    // the point stood on (units): under the player's origin, at its feet, in the prop's box
         b3Vec3 local{};         // that point in the prop's body before this frame's step
         float top{0.f};         // the top of the prop's Quake box then (units): what his box stands on
+        // A jump's push on the prop jumped from, spread over jumpPushTime (a force, not a blow: see beforeStanding).
+        int pushed{0};          // the prop (0: none)
+        b3Vec3 pushLocal{};     // where, in its body
+        float pushForce{0.f};   // N, down
+        float pushLeft{0.f};    // s
     };
     std::vector<Stand> stands;
+    // A player's move blocked by a solid prop's side this frame (VR_PlayerBumps): he shoves it (shoveBumped).
+    struct Bump
+    {
+        int player{0};
+        int num{0};
+        glm::vec3 dir{0.f};     // horizontal, into the prop
+        float speed{0.f};       // units/s, his speed into it
+    };
+    std::vector<Bump> bumps;
     std::map<PropHullKey, b3HullData*> propHulls;      // nullptr: no hull (a box instead)
     std::map<const qmodel_t*, std::vector<b3HullData*>> moverHulls;
     int steps{0};
@@ -3759,6 +3773,8 @@ void player_f()
         static_cast<int>(p->v.movetype));
 }
 
+void inLevel_f(); // (below: the Box3D queries it uses are)
+
 void registerCommands()
 {
     static bool registered = false;
@@ -3774,6 +3790,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_hash", hash_f);
         Cmd_AddCommand("vr_physics_blast", blast_f);
         Cmd_AddCommand("vr_physics_sink", sink_f);
+        Cmd_AddCommand("vr_physics_inlevel", inLevel_f);
         Cmd_AddCommand("vr_physics_spawn", spawn_f);
         Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
     }
@@ -4284,6 +4301,135 @@ bool restsOnHand(int num, int player, int hand)
         }
     }
     return false;
+namespace
+{
+
+// The level's solids for a held thing (the world and its brush entities), and a box's corners turned (metres, from
+// its origin), shrunk by `in` units (the proxy's radius makes them up again).
+[[nodiscard]] b3QueryFilter levelFilter()
+{
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.categoryBits = catProp;
+    filter.maskBits = catWorld | catMover;
+    return filter;
+}
+
+[[nodiscard]] std::array<b3Vec3, 8> boxCorners(const glm::vec3& lo, const glm::vec3& hi, const glm::quat& rot, float in)
+{
+    std::array<b3Vec3, 8> out;
+    const glm::vec3 a = glm::min(lo + glm::vec3{in}, 0.5f * (lo + hi)), b = glm::max(hi - glm::vec3{in}, 0.5f * (lo + hi));
+    for(int k = 0; k < 8; k++)
+    {
+        out[static_cast<size_t>(k)] = world->toM(rot * glm::vec3{k & 1 ? b.x : a.x, k & 2 ? b.y : a.y, k & 4 ? b.z : a.z});
+    }
+    return out;
+}
+
+// A prop's own box in its axes (units, from its origin): a brush model's own (held, its entity's box is the one round
+// all its turns), else the drawn one its body was made with.
+void ownBox(const Slot& s, glm::vec3& lo, glm::vec3& hi)
+{
+    if(s.model && s.model->type == mod_brush)
+    {
+        lo = glm::vec3{s.model->mins[0], s.model->mins[1], s.model->mins[2]};
+        hi = glm::vec3{s.model->maxs[0], s.model->maxs[1], s.model->maxs[2]};
+        return;
+    }
+    lo = s.mins;
+    hi = s.maxs;
+}
+
+[[nodiscard]] bool boxInLevel(const glm::vec3& lo, const glm::vec3& hi, const glm::vec3& at, const glm::quat& rot, float in = 1.f)
+{
+    // (`in` units inside its surface: touching isn't in.)
+    const std::array<b3Vec3, 8> corners = boxCorners(lo, hi, rot, in);
+    const b3ShapeProxy proxy{corners.data(), 8, 0.f};
+    bool any = false;
+    b3World_OverlapShape(world->id, world->toM(at), &proxy, levelFilter(),
+        [](b3ShapeId, void* context) {
+            *static_cast<bool*>(context) = true;
+            return false;
+        },
+        &any);
+    return any;
+}
+
+} // namespace
+
+bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm::vec3& toPos, glm::quat& toRot)
+{
+    if(!world || num <= svs.maxclients || num >= static_cast<int>(world->slots.size()))
+    {
+        return false;
+    }
+    const Slot& s = world->slots[static_cast<size_t>(num)];
+    glm::vec3 lo, hi;
+    ownBox(s, lo, hi);
+    if(B3_IS_NULL(s.body) || (s.kind != Kind::Held && s.kind != Kind::Prop) || hi.x <= lo.x)
+    {
+        return false;
+    }
+    // Where its box may be: clear of the level (a quarter of a unit inside its surface: touching is clear), or, already
+    // in it where it starts (taken from the floor it lies a little in), no deeper than there (coarsely, by half units).
+    // Overlap tests rather than a cast along the move: a box cast starting within its rounding of a pillar's edge missed
+    // it, and the box went in.
+    const auto depth = [&](const glm::vec3& at, const glm::quat& rot) {
+        if(!boxInLevel(lo, hi, at, rot, 0.25f))
+        {
+            return 0.f;
+        }
+        float d = 0.5f;
+        while(d < 4.f && boxInLevel(lo, hi, at, rot, d + 0.25f))
+        {
+            d += 0.5f;
+        }
+        return d;
+    };
+    // Its new turn where it is: deeper into the level, it keeps the old one.
+    const float start = depth(fromPos, fromRot);
+    bool blocked = false;
+    if(toRot != fromRot && depth(fromPos, toRot) > start)
+    {
+        toRot = fromRot;
+        blocked = true;
+    }
+    const auto fits = [&](const glm::vec3& at) {
+        return start == 0.f ? !boxInLevel(lo, hi, at, toRot, 0.25f) : depth(at, toRot) <= start;
+    };
+    // As far along the move as it fits (halved eight times: a hundredth of a 32 unit step); stopped, the rest of the
+    // move along each axis in turn: it slides along what it met.
+    glm::vec3 at = fromPos;
+    const auto advance = [&](const glm::vec3& to) {
+        if(fits(to))
+        {
+            at = to;
+            return true;
+        }
+        float good = 0.f, bad = 1.f;
+        for(int k = 0; k < 8; k++)
+        {
+            const float mid = 0.5f * (good + bad);
+            (fits(at + (to - at) * mid) ? good : bad) = mid;
+        }
+        at += (to - at) * good;
+        return false;
+    };
+    if(!advance(toPos))
+    {
+        blocked = true;
+        for(int axis = 0; axis < 3; axis++)
+        {
+            glm::vec3 to = at;
+            to[axis] = toPos[axis];
+            advance(to);
+        }
+        if(vr_debug_carry.value >= 2.f)
+        {
+            Con_Printf("carry2h: %d meets the level, %.1f units short\n", num, glm::distance(toPos, at));
+        }
+    }
+    toPos = at;
+    return blocked;
 }
 
 bool ropeOverlaps(const glm::vec3& at, float radius, int skipA, int skipB)
@@ -4315,7 +4461,55 @@ bool ropeOverlaps(const glm::vec3& at, float radius, int skipA, int skipB)
 namespace
 {
 
+// vr_physics_inlevel [<number | classname | props>]: how far each prop's box (its drawn one, as it is turned) is inside
+// the level's solids (the world and its brush entities), to half a unit; 0: clear (touching isn't in). A prop held in
+// both hands pushed into a wall (vr_carry_two_hands_solid) should stay at 0.
+void inLevel_f()
+{
+    if(!sv.active || !world)
+    {
+        return;
+    }
+    const VmScope vm;
+    for(edict_t* e : entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props"))
+    {
+        const int num = NUM_FOR_EDICT(e);
+        if(num >= static_cast<int>(world->slots.size()))
+        {
+            continue;
+        }
+        const Slot& s = world->slots[static_cast<size_t>(num)];
+        glm::vec3 lo, hi;
+        qvr::box3d::ownBox(s, lo, hi);
+        if(B3_IS_NULL(s.body) || hi.x <= lo.x)
+        {
+            continue;
+        }
+        const glm::quat rot = turnOf(e->v.angles, s.brush);
+        const glm::vec3 at = vec(e->v.origin);
+        const float most = 0.5f * std::min({hi.x - lo.x, hi.y - lo.y, hi.z - lo.z});
+        float depth = 0.f;
+        for(float in = 0.5f; in < most; in += 0.5f)
+        {
+            if(!qvr::box3d::boxInLevel(lo, hi, at, rot, in))
+            {
+                break;
+            }
+            depth = in;
+        }
+        Con_Printf("vr_physics_inlevel: %d %s at %.1f %.1f %.1f: in the level by %.1f units%s (its box %.1f %.1f %.1f to %.1f %.1f %.1f)\n",
+            num, PR_GetString(e->v.classname), at.x, at.y, at.z, depth, s.kind == Kind::Held ? " (held)" : "", lo.x, lo.y,
+            lo.z, hi.x, hi.y, hi.z);
+    }
+}
+
 // Standing on props (vr_box3d_player_stand; see capsuleStandsOn), each frame after the players have moved.
+
+// How long a jump pushes the prop jumped from (s): the legs' push, which Quake's jump gives at once.
+constexpr float jumpPushTime = 0.15f;
+
+// How fast a solid prop in a player's body is pushed out of it at least (m/s; unstickProps).
+constexpr float unstickSpeed = 1.f;
 
 // The solid prop client `player` stands on now (FL_ONGROUND on a Box3D prop: VR_StandsOn made it ground), else 0.
 [[nodiscard]] int standingOn(edict_t* player)
@@ -4359,13 +4553,19 @@ void beforeStanding()
         if(!num)
         {
             // Off it with a jump (up at a jump's speed from standing on it last frame): the prop takes a share of the
-            // push, down where the feet were.
+            // push, down where the feet were. As a force over jumpPushTime (pressStanding), as legs push: a blow (an
+            // impulse at once) was a hit on what the prop stands on, at the speed it gave the prop (a small explosive
+            // box, pushed at its edge, hit the floor at 12 m/s and blew up: ROUND21.md, "Standing on props 2").
             const b3BodyId was = standBody(st.ground);
             if(live && B3_IS_NON_NULL(was) && player->v.velocity[2] > 100.f && vr_box3d_player_jump_push.value > 0.f &&
                mass > 0.f)
             {
                 const float impulse = mass * player->v.velocity[2] / world->m2u * vr_box3d_player_jump_push.value; // N s
-                b3Body_ApplyLinearImpulse(was, b3Vec3{0.f, 0.f, -impulse}, world->toM(st.feet), true);
+                st.pushed = st.ground;
+                st.pushLocal = st.local;
+                st.pushForce = impulse / jumpPushTime;
+                st.pushLeft = jumpPushTime;
+                b3Body_SetAwake(was, true);
                 if(vr_debug_box3d.value)
                 {
                     Con_Printf("box3d: player %d jumps off %d, pushing it with %.0f N s\n", i, st.ground, impulse);
@@ -4400,13 +4600,165 @@ void beforeStanding()
     }
 }
 
+} // namespace
+
+extern "C" {
+extern cvar_t sv_accelerate; // (sv_user.c)
+extern cvar_t sv_maxspeed;
+}
+
+namespace
+{
+
+// Whether prop `num` is a solid prop (an explosive box) with a body: what players stand on, shove and are let out of.
+[[nodiscard]] bool solidProp(int num)
+{
+    return num > svs.maxclients && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts &&
+           world->slots[num].kind == Kind::Prop && B3_IS_NON_NULL(world->slots[num].body) && !EDICT_NUM(num)->free &&
+           static_cast<int>(EDICT_NUM(num)->v.solid) == SOLID_BBOX;
+}
+
+// Before the step: each solid prop a player walked into this frame (VR_PlayerBumps: Quake's move stopped at its side)
+// is shoved, as Source's player shadow shoves what it walks into: towards his pace (vr_box3d_player_push_speed at full
+// stick) shared by their masses (vr_box3d_player_shove of his vr_box3d_player_mass, and its own: a light box goes at
+// nearly his pace, a heavy one slower), with at most that share of his weight (a force: a prop too heavy for it to
+// overcome the floor's friction doesn't move). His next move follows it.
+void shoveBumped(float dt)
+{
+    const float share = vr_box3d_player_shove.value;
+    const float mp = std::max(vr_box3d_player_mass.value, 1.f);
+    const float g = -b3World_GetGravity(world->id).z;
+    for(const World::Bump& b : world->bumps)
+    {
+        if(share <= 0.f || !solidProp(b.num))
+        {
+            continue;
+        }
+        const b3BodyId body = world->slots[b.num].body;
+        const float mb = std::max(b3Body_GetMass(body), 0.1f);
+        // His effort: his speed into it, against a frame's acceleration at full stick (Quake stopped him at it last
+        // frame: what he has is what this frame's move gave him, less the ground's friction), up to all of it.
+        const float full = std::max(0.5f * sv_accelerate.value * sv_maxspeed.value * dt, 1.f);
+        const float u = std::max(vr_box3d_player_push_speed.value, 0.1f) * std::min(b.speed / full, 1.f);
+        const float target = u * share * mp / (share * mp + mb); // (his shove's mass and its own)
+        const float along = glm::dot(glmv(b3Body_GetLinearVelocity(body)), b.dir);
+        if(target <= along)
+        {
+            continue;
+        }
+        const float impulse = std::min(mb * (target - along), share * mp * g * dt); // N s
+        // (Low, a quarter of its height up, under its centre: the floor's friction, at its bottom, doesn't tip a tall box
+        // over as pushed at its centre it did.)
+        edict_t* ent = EDICT_NUM(b.num);
+        const b3Pos centre = b3Body_GetWorldCenter(body);
+        const glm::vec3 at{static_cast<float>(centre.x), static_cast<float>(centre.y), (ent->v.absmin[2] + 0.25f * (ent->v.absmax[2] - ent->v.absmin[2])) / world->m2u};
+        b3Body_ApplyLinearImpulse(body, b3v(b.dir * impulse), b3v(at), true);
+        if(vr_debug_box3d.value)
+        {
+            Con_Printf("box3d: player %d walks into %d at %.0f u/s: shoved with %.1f N s (%.0f kg, to %.2f m/s)\n", b.player,
+                b.num, b.speed, impulse, mb, target);
+        }
+    }
+    world->bumps.clear();
+}
+
+// Before the step: a solid prop in a player's body (toppled onto him, shoved into him; its drawn shape in his box, less
+// a unit), not the one he stands on, is pushed out of it, away from his middle (never down), at 1 m/s at least; his moves
+// aren't blocked by it meanwhile (VR_PropLetsOut). Source pushes a prop stuck in the player out likewise.
+void unstickProps()
+{
+    if(!vr_box3d_player_unstick.value)
+    {
+        return;
+    }
+    for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
+    {
+        edict_t* player = EDICT_NUM(i);
+        if(player->free || !svs.clients[i - 1].active || player->v.health <= 0.f ||
+           static_cast<int>(player->v.movetype) == MOVETYPE_NOCLIP)
+        {
+            continue;
+        }
+        vec3_t mins, maxs;
+        if(!VR_HullEntBox(player, player->v.mins, player->v.maxs, mins, maxs))
+        {
+            VectorCopy(player->v.mins, mins);
+            VectorCopy(player->v.maxs, maxs);
+        }
+        const glm::vec3 lo = glm::vec3{mins[0], mins[1], mins[2]} + glm::vec3{1.f}, hi = glm::vec3{maxs[0], maxs[1], maxs[2]} - glm::vec3{1.f};
+        const glm::vec3 origin = vec(player->v.origin);
+        std::array<b3Vec3, 8> corners;
+        for(int k = 0; k < 8; k++)
+        {
+            corners[static_cast<size_t>(k)] = world->toM(glm::vec3{k & 1 ? hi.x : lo.x, k & 2 ? hi.y : lo.y, k & 4 ? hi.z : lo.z});
+        }
+        const b3ShapeProxy proxy{corners.data(), 8, 0.f};
+        b3QueryFilter filter = b3DefaultQueryFilter();
+        filter.categoryBits = catPlayer;
+        filter.maskBits = catSolid;
+        struct Query
+        {
+            int ground;
+            std::array<int, 8> nums;
+            int count;
+        } q{standingOn(player), {}, 0};
+        b3World_OverlapShape(world->id, world->toM(origin), &proxy, filter,
+            [](b3ShapeId shape, void* context) {
+                Query& oq = *static_cast<Query*>(context);
+                const int num = numOf(shape);
+                if(num != oq.ground && solidProp(num) && oq.count < static_cast<int>(oq.nums.size()) &&
+                   std::find(oq.nums.begin(), oq.nums.begin() + oq.count, num) == oq.nums.begin() + oq.count)
+                {
+                    oq.nums[static_cast<size_t>(oq.count++)] = num;
+                }
+                return true;
+            },
+            &q);
+        const glm::vec3 middle = origin + 0.5f * (glm::vec3{mins[0], mins[1], mins[2]} + glm::vec3{maxs[0], maxs[1], maxs[2]});
+        for(int k = 0; k < q.count; k++)
+        {
+            const b3BodyId body = world->slots[q.nums[static_cast<size_t>(k)]].body;
+            glm::vec3 away = world->toU(b3Body_GetWorldCenter(body)) - middle;
+            away.z = std::max(away.z, 0.f);
+            away = glm::length(away) > 0.1f ? glm::normalize(away) : glm::vec3{0.f, 0.f, 1.f};
+            const float along = glm::dot(glmv(b3Body_GetLinearVelocity(body)), away);
+            if(along < unstickSpeed)
+            {
+                b3Body_ApplyLinearImpulseToCenter(body, b3v(away * (unstickSpeed - along) * b3Body_GetMass(body)), true);
+            }
+            if(vr_debug_box3d.value)
+            {
+                Con_Printf("box3d: %d in player %d's body: pushed out (%.2f %.2f %.2f)\n", q.nums[static_cast<size_t>(k)], i,
+                    away.x, away.y, away.z);
+            }
+        }
+    }
+}
+
 // Each piece of the step: the weight of each player standing on a prop (vr_box3d_player_mass) where he stands. Not
 // waking it: a prop asleep under him stays so (a stack at rest stays still). On a floating prop, at most half the
 // prop's own, through its centre: the water lifts a prop by its weight, not its volume, and at its centre (beforeStep),
 // so a player heavier than a box would sink it, and his weight on its top would capsize a tall one; so it floats nine
 // tenths under, upright.
-void pressStanding()
+void pressStanding(float dt)
 {
+    // A jump's push, until its time is spent (beforeStanding). A force, like the weight: a prop on the floor is held up
+    // by it, with no blow (a hit) on it; a floating one is pushed under.
+    for(World::Stand& st : world->stands)
+    {
+        const b3BodyId pushed = standBody(st.pushed);
+        if(st.pushLeft > 0.f && B3_IS_NON_NULL(pushed))
+        {
+            const float share = std::min(dt, st.pushLeft) / dt;
+            b3Body_ApplyForce(pushed, b3Vec3{0.f, 0.f, -st.pushForce * share}, b3Body_GetWorldPoint(pushed, st.pushLocal), true);
+            st.pushLeft -= dt;
+        }
+        else
+        {
+            st.pushed = 0;
+            st.pushLeft = 0.f;
+        }
+    }
     const float mass = vr_box3d_player_mass.value;
     if(mass <= 0.f)
     {
@@ -4503,6 +4855,57 @@ extern "C" int VR_StandsOn(edict_t* ent, edict_t* ground)
            world->slots[g].kind == Kind::Prop && static_cast<int>(ground->v.solid) == SOLID_BBOX;
 }
 
+// SV_FlyMove: a player's move stopped by a solid prop's side (not its top: he stands on that) shoves it (shoveBumped).
+extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal)
+{
+    if(!world || vr_box3d_player_shove.value <= 0.f)
+    {
+        return;
+    }
+    const int num = NUM_FOR_EDICT(ent), g = NUM_FOR_EDICT(other);
+    if(num < 1 || num > svs.maxclients || !solidProp(g) || normal[2] < -0.7f)
+    {
+        return;
+    }
+    glm::vec3 dir{-normal[0], -normal[1], 0.f};
+    if(glm::length(dir) < 0.3f)
+    {
+        return;
+    }
+    dir = glm::normalize(dir);
+    const float speed = ent->v.velocity[0] * dir.x + ent->v.velocity[1] * dir.y;
+    if(speed < 1.f)
+    {
+        return;
+    }
+    for(World::Bump& b : world->bumps)
+    {
+        if(b.player == num && b.num == g)
+        {
+            if(speed > b.speed)
+            {
+                b.dir = dir;
+                b.speed = speed;
+            }
+            return;
+        }
+    }
+    world->bumps.push_back({num, g, dir, speed});
+}
+
+// SV_ClipToLinks: a player's move that starts inside a solid prop's box (toppled onto him) goes on through it, not the
+// one he stands on (riding it, rideStanding steps him up out of it).
+extern "C" int VR_PropLetsOut(edict_t* mover, edict_t* touch)
+{
+    if(!world || !vr_box3d_player_unstick.value)
+    {
+        return 0;
+    }
+    const int num = NUM_FOR_EDICT(mover), g = NUM_FOR_EDICT(touch);
+    return num >= 1 && num <= svs.maxclients && solidProp(g) &&
+           !((static_cast<int>(mover->v.flags) & FL_ONGROUND) && PROG_TO_EDICT(mover->v.groundentity) == touch);
+}
+
 extern "C" int VR_PushSkips(edict_t* ent)
 {
     if(!world)
@@ -4551,6 +4954,8 @@ extern "C" void VR_PhysicsFrameEnd(void)
         QVR_PROFILE("box3d water and hits");
         beforeStep(dt);
         beforeStanding();
+        shoveBumped(dt);
+        unstickProps();
     }
     const double t1 = Sys_DoubleTime();
 
@@ -4567,7 +4972,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         for(int i = 0; i < pieces; i++)
         {
             notePushed(dt / static_cast<float>(pieces));
-            pressStanding();
+            pressStanding(dt / static_cast<float>(pieces));
             b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);
             limitPushes(dt / static_cast<float>(pieces));
             world->steps++;

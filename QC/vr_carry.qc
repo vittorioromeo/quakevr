@@ -930,8 +930,19 @@ void() VR_Carry_TwoHandFrame =
     }
     box.carry_trigger = trigger;
 
-    // Follow both hands, turning with them; not through walls.
-    if(!VR_Carry_Follow(box, carry2h(box, self, FALSE)))
+    // Follow both hands, turning with them; not through walls. With vr_carry_two_hands_solid the engine has kept its whole
+    // box out of the level already (carry2h: stopped at a wall, slid along it), so it goes there as it is (VR_Carry_Follow's
+    // trace of its centre, kept its smallest half-size off what it met, put a turned box's corners into walls).
+    vector to = carry2h(box, self, FALSE);
+    if(cvar("vr_carry_two_hands_solid") && time >= self.carry_teleported)
+    {
+        if(frametime > 0)
+        {
+            box.velocity = (to - box.origin) * (1 / frametime);
+        }
+        setorigin(box, to);
+    }
+    else if(!VR_Carry_Follow(box, to))
     {
         VR_Carry_EndTwoHands(box);
         VR_Carry_Release(cVR_MainHand, box); // stuck behind something

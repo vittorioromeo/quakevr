@@ -293,6 +293,8 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 				ent->v.groundentity = EDICT_TO_PROG(trace.ent);
 			}
 		}
+		else
+			VR_PlayerBumps (ent, trace.ent, trace.plane.normal); // QVR: a player walking into a solid prop shoves it
 		if (!trace.plane.normal[2])
 		{
 			blocked |= 2;		// step

@@ -1039,6 +1039,14 @@ Items as physics pickups (ROUND21.md): `vr_physics_spawn <classname> [<distance>
 spawn function on the floor ahead of you (`vr_physics_spawn item_key1 25 -1` puts a hanging key at the off hand's
 `vr_mock_hand off -0.05 0.85 -0.9 0 0 0` in the firing range); the left hip holster is `vr_mock_hand off -0.20 0.95 0.0 0
 0 0`; `developer 1` prints `pickup:` lines (an object at, taken as a weapon, taken at a holster, back at).
+Standing on props 2 (ROUND21.md): `vr_debug_box3d 1` prints `player 1 walks into <n> at <u/s>: shoved with <N s>`
+and `<n> in player 1's body: pushed out`; `vr_physics_inlevel [what]` how far props' boxes are inside the level (0 clear);
+`vr_debug_carry 2` prints `carry2h: <n> meets the level` as a box held in both hands is stopped. Two hands on the small
+explosive box: `setpos -74 -844 42 0 -132 0; noclip`, hands at main `0.10 1.10 -0.45`, off `-0.35 1.1 -0.2`,
+`vr_physics_spawn misc_explobox2 100; vr_rigid_place misc_explobox2 main 2 3 0 0 -132 0; +grabright; vr_mock_button main
+grip 1`, then the off hand to `-0.96 1.10 -0.53` and `+graboff; vr_mock_button off grip 1`; move hands 2 cm a frame (a
+jump of 20 cm in one frame pulls a hand off). The kit's `scratch/propstand2/` has the scripts (`t.sh <test> <out>
+<filter> [cvars]` runs `ps2_<test>.cfg`, copied into the worktree's quakevr/, after the author's settings).
 Standing on props (ROUND21.md, "Standing on props"): `vr_physics_player` prints the first player's origin, velocity,
 ground (grounded or in the air, on what) and the trace under his feet; `vr_physics_player onto <number | classname>`
 first puts him on top of that entity's box (noclip off). A column of boxes: `vr_physics_spawn misc_explobox 60` (twice
