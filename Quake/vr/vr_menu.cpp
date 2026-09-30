@@ -1496,6 +1496,17 @@ void hologramTestMessage()
             .extend()
             .help("An open hand or a weapon holds up nothing heavier: a heavier thing slips through (it is still pushed). 0: no "
                   "limit."),
+        slider("Throw Grace", vr_box3d_throw_grace, 0.f, 0.5f, 0.05f, "%.2f s")
+            .extend(0.f, 2.f)
+            .help("How long a thing you throw passes through your hands (and the weapon you hold) as it leaves them: it keeps "
+                  "the direction and spin you threw it with instead of being knocked by the hand still moving. 0: off."),
+        slider("Throw Grace From", vr_box3d_throw_grace_speed, 0.f, 3.f, 0.25f, "%.2f m/s")
+            .extend(0.f, 10.f)
+            .help("How fast a throw (or a wrist snap) must be for Throw Grace. Slower, opening your hand held still, the thing "
+                  "stays on your palm."),
+        toggle("Throw Grace for the Body", vr_box3d_throw_grace_body)
+            .help("During Throw Grace the thing also passes through your body (an overhead wrist snap throwing it down "
+                  "across you)."),
         slider("Hand Push Mass", vr_box3d_hand_mass, 0.f, 20.f, 0.5f, "%.1f kg")
             .extend(0.f, 100.f)
             .help("How heavy your hand is to what it knocks: a thing keeps hand / (hand + its weight) of the hand's speed, so "
@@ -1836,7 +1847,9 @@ std::vector<Item> pageDebugLogging()
         toggle("Holster Draw Blend", vr_debug_draw_blend)
             .help("Each frame of a gun easing between a holster and a hand: the turn and the distance left."),
         cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
-            .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot)."),
+            .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot). Also each throw: how "
+                  "fast, whether it passes through your hands, and how much its velocity and spin changed by the grace's end "
+                  "(with Throw Grace 0: watched 0.2 s, to compare)."),
         cycle("Rocks and Bricks Placement", vr_debug_debris, {{0.f, "Off"}, {1.f, "A Line a Map"}, {2.f, "Each Piece"}, {3.f, "Each Spot Rejected"}})
             .help("At the next map load: the pieces placed, the spots, the time; each piece; each spot rejected and why."),
         toggle("Torch Lights", vr_debug_torch_lights)
