@@ -4,10 +4,10 @@
 // Holds. An empty hand can only take hold of a LEDGE of the ledge map (vr_ledges.cpp, made once from the BSP for each
 // brush model: the lip of a walkable top with room over it for the hand and a drop of at least ledges::minDrop beyond
 // it, starting at most ledges::edgeReach out, steps down on the way passed over: a ledge, a rung, a beam, a trimmed
-// lip; not open floor, a wall or a stair). The hand is AT a ledge when it touches it (Touch: `touchCm`, the only
+// lip; not open floor, a wall or a stair). The hand is AT a ledge when it touches it (Touch: vr_climb_touch, the only
 // distance there is at Grab Leniency 0): along the lip, between the hold's inset and the touch under its top (sunk into
 // it, or into a rung) and the touch over it, and either over the top, in from the lip no further than the top goes and
-// the drop is within edgeReach (edgeReach less how far out the drop starts), or in front of the face under the lip, at
+// the drop is within vr_climb_over_top (that less how far out the drop starts), or in front of the face under the lip, at
 // most the touch out, when the lip faces the body (the hand between the body and the ledge). The hand is the drawn
 // hand's point, or the controller's own where the level holds the drawn hand out of it (gripHold: a hand reaching up
 // under a rung stops with its fingers against the rung's underside).
@@ -150,7 +150,6 @@ constexpr int HS_HAND_SWITCH = 7;
 constexpr int HS_RIGHT_UPPER_HOLSTER = 9;
 constexpr int HS_GRENADE_POUCH = 11;
 
-constexpr float touchCm = 4.5f;       // cm: the hand's point this close to a ledge touches it (Grab Leniency 0)
 using ledges::holdInset;              // the hold (the palm's middle) is this far behind the lip (vr_ledges.hpp)
 constexpr float regrabDelay = 0.4f;   // seconds without new holds after letting go of everything or mantling
 constexpr float maxHangSpeed = 500.f; // units / second the body follows the hands at
@@ -230,20 +229,21 @@ struct Ledge
 };
 
 // How near a ledge the hand's point must be to be AT it (Grab Leniency 0; the leniency adds its distance round that):
-// touching it, `touchCm` from its top or from the face under its lip, or in it (sunk into its top, or into a rung) no
-// deeper than the hold's inset and that; over the top as far in as the ledge map's ledge goes (edgeReach from the
-// drop).
+// touching it, vr_climb_touch (cm) from its top or from the face under its lip, or in it (sunk into its top, or into a
+// rung) no deeper than the hold's inset and that; over the top as far in as the ledge map's ledge goes and at most
+// vr_climb_over_top (units) from the drop.
 struct Touch
 {
     float over{0.f};  // above the top
     float front{0.f}; // in front of the face under the lip (that faces the body)
     float sink{0.f};  // under the top (sunk into the ledge or a rung, in front of its face)
+    float in{0.f};    // over the top, how far in from the drop (so the lip less how far out the drop starts)
 };
 
 [[nodiscard]] Touch touch()
 {
-    const float t = touchCm * 0.01f * units::metresToUnits();
-    return Touch{t, t, holdInset + t};
+    const float t = std::max(0.f, vr_climb_touch.value) * 0.01f * units::metresToUnits();
+    return Touch{t, t, holdInset + t, std::max(0.f, vr_climb_over_top.value)};
 }
 
 // Where a hand (in the ledge's model's space) is from the place it takes a hold on ledge `e` from (see the top of the
@@ -272,7 +272,7 @@ struct Place
     p.facing = glm::dot(out, toBody);
     // In from the lip as far as the top goes and the drop is within reach; out in front of it when it faces the body.
     const Touch k = touch();
-    const float in = std::max(0.f, std::min(s.depth, ledges::edgeReach - s.dropOut));
+    const float in = std::max(0.f, std::min(s.depth, k.in - s.dropOut));
     const float front = p.facing > 0.f ? k.front : 0.f;
     const float across = glm::dot(glm::vec2{hand} - glm::vec2{lip}, out);
     const float across1 = std::clamp(across, -in, front);
@@ -379,7 +379,8 @@ void gather(edict_t* player, const glm::vec3& hand, float radius, std::vector<Ca
     LenientStats& st)
 {
     const glm::vec2 toBody = towardsBody(player, hand);
-    const glm::vec3 reach{radius + ledges::edgeReach + 1.f};
+    const Touch k = touch();
+    const glm::vec3 reach{radius + std::max(k.in, k.sink) + 1.f}; // the furthest a hand at a ledge is from its lip
     const glm::vec3 lo = hand - reach, hi = hand + reach;
     std::vector<int>& nearby = scratch.nearby;
     const auto from = [&](const ledges::Map& m, edict_t* ent, const glm::vec3& offset) {
@@ -528,7 +529,7 @@ struct Box
     const ledges::Edge& e = c.ledge();
     const ledges::Sample& s = c.map->sampleAt(e, c.place.t);
     const Touch k = touch();
-    const float in = std::max(0.f, std::min(s.depth, ledges::edgeReach - s.dropOut));
+    const float in = std::max(0.f, std::min(s.depth, k.in - s.dropOut));
     return Box{{0.f, -in, -k.sink}, {e.len, c.place.facing > 0.f ? k.front : 0.f, k.over}};
 }
 
@@ -705,7 +706,7 @@ struct Box
     // A lenient hold is at most the leniency plus this from the hand: the furthest the hold is from a hand at the ledge
     // (in over the top as far as it reaches, or in front of its face, and under the lip as far as touching reaches).
     const Touch k = touch();
-    const float lenientReach = std::hypot(std::max(ledges::edgeReach, holdInset + k.front), ledges::holdLift + k.sink) + 1e-3f;
+    const float lenientReach = std::hypot(std::max(k.in, holdInset + k.front), ledges::holdLift + k.sink) + 1e-3f;
     std::vector<Scored>& scored = scratch.scored;
     scored.clear();
     for(const Candidate& c : found)

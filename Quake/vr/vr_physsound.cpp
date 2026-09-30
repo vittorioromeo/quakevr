@@ -446,10 +446,10 @@ Material materialOf(edict_t* ent, const qmodel_t* model)
     const char* name = model->name;
     if(model->type == mod_brush)
     {
-        // The ammo boxes are metal (shells, nails, rockets, cells); the health boxes, the explosive boxes and any
-        // other box a map carries (a crate) wood.
+        // The ammo boxes (shells, nails, rockets, cells) and the health boxes (b_bh10, b_bh25, b_bh100) are metal;
+        // the explosive boxes and any other box a map carries (a crate) wood.
         if(!strncmp(name, "maps/b_shell", 12) || !strncmp(name, "maps/b_nail", 11) || !strncmp(name, "maps/b_rock", 11) ||
-            !strncmp(name, "maps/b_batt", 11))
+            !strncmp(name, "maps/b_batt", 11) || !strncmp(name, "maps/b_bh", 9))
         {
             return Material::Metal;
         }
