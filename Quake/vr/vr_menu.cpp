@@ -1475,6 +1475,9 @@ void hologramTestMessage()
             .extend(-10.f, 20.f)
             .help("A hand takes a box, gib, backpack or armour when its fist (the palm and the curled fingers) touches it. "
                   "Positive: from this far off it too. Negative: only pressed this far into it."),
+        toggle("Explosive Boxes by the Fist", vr_carry_grab_drawn)
+            .help("An explosive box is taken as everything else is: when the fist touches it. Off: when the hand is within "
+                  "a hand's width of its box (up to 12 cm off)."),
         toggle("Drawn In the Hand", vr_carry_local)
             .help("What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it."),
         toggle("Two-Handed Carrying", vr_carry_two_hands)
@@ -1500,6 +1503,9 @@ void hologramTestMessage()
             .extend(0.f, 40.f)
             .help("How far each hand is drawn moved back at most as you press them together. Pressed further, they overlap by "
                   "the rest."),
+        slider("Empty Hand Against It", vr_hand_collide_props, 0.f, 20.f, 1.f, "%.0f cm")
+            .help("An empty hand stops at the thing the other hand holds (drawn only, its fingers resting on it), as far as "
+                  "this; pressed deeper it gives, and at twice as deep passes through. 0: it passes through."),
         toggle("Weapons Slide Along Walls", vr_gun_wall_slide)
             .help("A weapon you hold into a wall, a floor or a table slides along it: lowered onto a table it rests on the top, "
                   "pushed into a wall it is held off along the wall. Off: the old push-back, the hand moved back along the aim "
@@ -1525,6 +1531,9 @@ void hologramTestMessage()
         toggle("Hands Push and Hold Things", vr_box3d_hand_props)
             .help("Your empty hands are solid to loose things: they push them, and what you let go of on an open palm turned "
                   "up stays there. Grenades pass through (your palm catches them)."),
+        toggle("Push Boxes With the Fist", vr_box3d_hand_push_fist)
+            .help("Your hands push explosive boxes where the drawn fist meets them. Off: a small ball at the hand's point, "
+                  "which met a box before the fist did."),
         toggle("Weapons Push Things", vr_box3d_weapon_push)
             .help("The weapons you hold are solid to loose things as drawn: shove things with a gun, balance them on it, bat a "
                   "grenade away with the axe."),
@@ -1843,6 +1852,9 @@ std::vector<Item> pageDebugViews()
         cycle("Show Body Collisions", vr_debug_body_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
             .help("The drawn hands and weapons stopping at each other and the body: each contact printed (and "
                   "body_collide_trace.txt); drawn: the capsules and the pushes."),
+        cycle("Log Hand Offsets", vr_debug_hand_offset, {{0.f, "Off"}, {1.f, "When Moved"}, {2.f, "Every Frame"}})
+            .help("Each hand drawn away from where it is tracked, and by what (walls, the weight's spring, models, the body, "
+                  "a held thing against a wall, the other hand's weapon or held thing), in the console."),
         toggle("Log Weapon Wall Collisions", vr_debug_gun_wall)
             .help("Each frame a held weapon is held out of the level: how far the hand is moved (up, across), the depth left "
                   "and the muzzle's height over the surface below it, in the console."),

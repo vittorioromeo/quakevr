@@ -479,6 +479,12 @@ void setFist(int hand, const std::vector<glm::vec4>& spheres)
     }
 }
 
+const std::vector<glm::vec4>& fist(int hand)
+{
+    static const std::vector<glm::vec4> none;
+    return hand == 0 || hand == 1 ? fists[hand] : none;
+}
+
 void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, std::vector<glm::vec4>& out)
 {
     out.clear();
@@ -1427,7 +1433,7 @@ void wallFrame(const hands::State& s)
                 for(const glm::vec3& point : points)
                 {
                     const glm::vec3 end = point + p;
-                    const trace_t tr = worldtrace::world(grip + p, end, true, true);
+                    const trace_t tr = worldtrace::world(grip + p, end, true, true, holding[0].ent, holding[1].ent);
                     if(tr.startsolid || tr.allsolid || tr.fraction >= 1.f)
                     {
                         continue;
@@ -1506,7 +1512,8 @@ void wallFrame(const hands::State& s)
                 {
                     const glm::vec3 c{(i & 1) ? 1.f : -1.f, (i & 2) ? 1.f : -1.f, (i & 4) ? 1.f : -1.f};
                     const glm::vec3 at = drawnBox.centre + drawnBox.axes * (c * drawnBox.half) + wall;
-                    const trace_t tr = worldtrace::world(at + glm::vec3{0.f, 0.f, 32.f}, at - glm::vec3{0.f, 0.f, 64.f}, true, true);
+                    const trace_t tr = worldtrace::world(
+                        at + glm::vec3{0.f, 0.f, 32.f}, at - glm::vec3{0.f, 0.f, 64.f}, true, true, holding[0].ent, holding[1].ent);
                     if(!tr.allsolid && tr.fraction < 1.f)
                     {
                         lowest = std::min(lowest, at.z - tr.endpos[2]);

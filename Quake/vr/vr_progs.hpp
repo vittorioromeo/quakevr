@@ -35,6 +35,7 @@ struct Bindings
     func_t Motion_Sample{0}; // the motion recorder's (QC vr_motion.qc)
     func_t Motion_Equip{0};
     func_t Dummy_Replay{0}; // a motion take's strike of the training dummy (QC vr_dummy.qc)
+    func_t Carry_Handtouch{0}; // a thing a hand can carry (QC vr_carry.qc VR_Carry_Setup): taken by the fist's touch
 
     float* spawnServerFromSaveFile{nullptr};
     float* extSpawnParms[numExtSpawnParms]{};

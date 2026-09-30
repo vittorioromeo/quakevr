@@ -562,6 +562,7 @@ void update()
             state.aimRot[h] = state.rot[h];
             state.wholeTurn[h] = glm::mat3{1.f};
             applyWholeOffset(h);
+            state.unresolvedPos[h] = state.pos[h];
         }
 
         handpose::resolvePositions(state, turnYaw);

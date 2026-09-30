@@ -403,6 +403,7 @@ struct World
         std::vector<int> ignore; // props the reach body passes through until clear of them (inside it as it was made)
         int held{0};             // the prop the hand carried last frame (0: none)
         float weaponMass{0.f};   // the held weapon's own mass (kg: Weapon Weights' Mass; 0: none, or not a weapon)
+        std::vector<glm::vec4> fist; // the push body's spheres (the drawn fist, in the hand's frame; empty: the one sphere)
     };
     std::vector<std::array<HandBody, 2>> hands;
     // Throws (vr_box3d_throw_grace, noteThrows): what was thrown passes through its thrower's hands' bodies a moment.
@@ -1678,12 +1679,34 @@ void noteThrows()
 // continuously while it is in contact, Box3D's friction and contacts doing the rest. Only against solid props (ammo boxes
 // and the like are nudged by QC's touches, as before). A hand is not armed while it carries something, nor again until
 // its sphere is clear of every solid prop (a box let go of isn't shoved away by the hand inside it).
+// With vr_box3d_hand_push_fist, the listen server's own player's hands are their drawn fists instead (held::fist: the
+// grab's spheres), turned with the hand: a box is pushed where the fist meets it, and the fist that pushes it touches it
+// to take it (the sphere at the hand's point met a box up to 7 cm before the drawn fist did).
+// The same fist within a twentieth of a unit (the view makes it again each frame, through the hand's placement).
+[[nodiscard]] bool sameFist(const std::vector<glm::vec4>& a, const std::vector<glm::vec4>& b)
+{
+    if(a.size() != b.size())
+    {
+        return false;
+    }
+    for(std::size_t k = 0; k < a.size(); k++)
+    {
+        const glm::vec4 d = glm::abs(a[k] - b[k]);
+        if(std::max(std::max(d.x, d.y), std::max(d.z, d.w)) > 0.05f)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 void syncHands(float dt)
 {
     QVR_PROFILE("box3d hands");
     const FieldOffsets& f = fields();
     world->hands.resize(static_cast<size_t>(svs.maxclients) + 1);
     const float radius = 0.045f; // m: a fist's
+    static const std::vector<glm::vec4> noFist;
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
@@ -1699,7 +1722,16 @@ void syncHands(float dt)
             const glm::vec3 angles = fieldVec(player, h ? f.handrot : f.offhandrot);
             vec3_t in{angles.x, angles.y, angles.z}, fwd, right, up;
             AngleVectors(in, fwd, right, up);
-            const glm::vec3 at = point - vec(fwd) * (radius * world->m2u);
+            const std::vector<glm::vec4>& fist = i == 1 && vr_box3d_hand_push_fist.value ? held::fist(h) : noFist;
+            const bool byFist = !fist.empty();
+            const glm::vec3 at = byFist ? point : point - vec(fwd) * (radius * world->m2u);
+            const b3Quat turn = byFist ? toB3(glm::quat_cast(held::axesFromAngles(&angles[0], true))) : b3Quat_identity;
+            if(B3_IS_NON_NULL(hb.body) && !sameFist(hb.fist, fist)) // the fist changed (its scale, the hand model): made again
+            {
+                b3DestroyBody(hb.body);
+                hb.body = b3_nullBodyId;
+                hb.armed = false;
+            }
             if(!live || point == glm::vec3{0.f})
             {
                 if(B3_IS_NON_NULL(hb.body))
@@ -1715,11 +1747,24 @@ void syncHands(float dt)
                 def.type = b3_kinematicBody;
                 def.position = world->toM(at);
                 def.userData = userOf(i);
+                def.rotation = turn;
                 hb.body = b3CreateBody(world->id, &def);
                 b3ShapeDef shape = shapeDef(i, catHand, catSolid);
                 shape.enablePreSolveEvents = true; // (preSolve: not what its player just threw)
-                const b3Sphere sphere{b3Vec3_zero, radius};
-                b3CreateSphereShape(hb.body, &shape, &sphere);
+                hb.fist = fist;
+                if(byFist)
+                {
+                    for(const glm::vec4& s : fist)
+                    {
+                        const b3Sphere sphere{world->toM(glm::vec3{s}), s.w / world->m2u};
+                        b3CreateSphereShape(hb.body, &shape, &sphere);
+                    }
+                }
+                else
+                {
+                    const b3Sphere sphere{b3Vec3_zero, radius};
+                    b3CreateSphereShape(hb.body, &shape, &sphere);
+                }
                 b3Body_Disable(hb.body);
                 hb.armed = false;
                 hb.at = at;
@@ -1729,17 +1774,31 @@ void syncHands(float dt)
             if(want && !hb.armed)
             {
                 const b3Vec3 zero = b3Vec3_zero;
-                const b3ShapeProxy proxy{&zero, 1, radius};
                 b3QueryFilter filter = b3DefaultQueryFilter();
                 filter.categoryBits = catHand;
                 filter.maskBits = catSolid;
                 bool overlaps = false;
-                b3World_OverlapShape(world->id, world->toM(at), &proxy, filter,
-                    [](b3ShapeId, void* context) {
-                        *static_cast<bool*>(context) = true;
-                        return false;
-                    },
-                    &overlaps);
+                const auto test = [&](const glm::vec3& centre, float r) {
+                    const b3ShapeProxy proxy{&zero, 1, r};
+                    b3World_OverlapShape(world->id, world->toM(centre), &proxy, filter,
+                        [](b3ShapeId, void* context) {
+                            *static_cast<bool*>(context) = true;
+                            return false;
+                        },
+                        &overlaps);
+                };
+                if(byFist)
+                {
+                    const glm::mat3 axes = held::axesFromAngles(&angles[0], true);
+                    for(std::size_t k = 0; k < fist.size() && !overlaps; k++)
+                    {
+                        test(point + axes * glm::vec3{fist[k]}, fist[k].w / world->m2u);
+                    }
+                }
+                else
+                {
+                    test(at, radius);
+                }
                 want = !overlaps;
             }
             if(want != hb.armed)
@@ -1748,7 +1807,7 @@ void syncHands(float dt)
                 if(want)
                 {
                     b3Body_Enable(hb.body);
-                    b3Body_SetTransform(hb.body, world->toM(at), b3Quat_identity);
+                    b3Body_SetTransform(hb.body, world->toM(at), turn);
                     b3Body_SetLinearVelocity(hb.body, b3Vec3_zero);
                     hb.at = at;
                 }
@@ -1766,16 +1825,16 @@ void syncHands(float dt)
                 const float most = std::max(vr_box3d_hand_push_speed.value, 0.1f) * world->m2u * dt;
                 if(distance > 0.5f * world->m2u) // a jump
                 {
-                    b3Body_SetTransform(hb.body, world->toM(at), b3Quat_identity);
+                    b3Body_SetTransform(hb.body, world->toM(at), turn);
                     b3Body_SetLinearVelocity(hb.body, b3Vec3_zero);
                 }
                 else
                 {
                     if(distance > most)
                     {
-                        b3Body_SetTransform(hb.body, world->toM(at - (at - hb.at) * (most / distance)), b3Quat_identity);
+                        b3Body_SetTransform(hb.body, world->toM(at - (at - hb.at) * (most / distance)), turn);
                     }
-                    b3Body_SetTargetTransform(hb.body, b3WorldTransform{world->toM(at), b3Quat_identity}, dt, true);
+                    b3Body_SetTargetTransform(hb.body, b3WorldTransform{world->toM(at), turn}, dt, true);
                 }
             }
             hb.at = at;

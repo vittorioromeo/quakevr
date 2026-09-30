@@ -127,6 +127,7 @@ extern "C" void VR_OnProgsLoaded()
         b.Motion_Sample = findFunction("VR_Motion_Sample");
         b.Motion_Equip = findFunction("VR_Motion_Equip");
         b.Dummy_Replay = findFunction("VR_Dummy_Replay");
+        b.Carry_Handtouch = findFunction("VR_Carry_Handtouch");
 
         const auto globalFloat = [](const char* name) -> float* {
             ddef_t* def = findGlobalDef(name);

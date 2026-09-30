@@ -42,6 +42,9 @@ struct State
     // offset: the empty hand's place (Match Controller Preview).
     glm::vec3 calibratedPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 calibratedRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    // Where the hand is before anything holds it out (the walls, the two-handed grip, the weight's spring): the
+    // offsets' place (vr_debug_hand_offset measures from it).
+    glm::vec3 unresolvedPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 aimRot[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     // After the posing test: each controller's grip pose (the runtime's: where its handle is; controllerPos/Rot are the
     // pose moved off it by vr_controller_legacy_pose): the Show Controller preview is drawn there.
