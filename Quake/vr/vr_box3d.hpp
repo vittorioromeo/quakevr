@@ -71,4 +71,9 @@ bool ropeCast(const glm::vec3& from, const glm::vec3& to, float radius, int skip
 // it misses (`hasBody` false: the entity has no body).
 bool castAt(int num, const glm::vec3& from, const glm::vec3& to, float radius, float& fraction, bool& hasBody);
 
+// Whether the loose prop `num` rests on hand `hand` ([0] off, [1] main) of client `player`: touches its reach body (the
+// open hand, the fist, the held weapon) or its sphere where the contact holds it up (its normal points up into it). For
+// the drawn hands (vr_modelcollide.cpp): a thing lying on the palm doesn't push the hand away.
+[[nodiscard]] bool restsOnHand(int num, int player, int hand);
+
 } // namespace qvr::box3d

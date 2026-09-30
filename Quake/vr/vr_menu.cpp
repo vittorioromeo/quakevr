@@ -1475,6 +1475,14 @@ void hologramTestMessage()
             .extend(0.f, 40.f)
             .help("How far each hand is drawn moved back at most as you press them together. Pressed further, they overlap by "
                   "the rest."),
+        toggle("Weapons Slide Along Walls", vr_gun_wall_slide)
+            .help("A weapon you hold into a wall, a floor or a table slides along it: lowered onto a table it rests on the top, "
+                  "pushed into a wall it is held off along the wall. Off: the old push-back, the hand moved back along the aim "
+                  "until the muzzle stops at the wall."),
+        slider("Weapon Wall Give", vr_gun_wall_max, 0.f, 80.f, 5.f, "%.0f cm")
+            .extend(0.f, 200.f)
+            .help("How far a weapon and your hand are held out of a wall or a table at most as you push into it. Pushed "
+                  "further, they go in by the rest."),
         toggle("Held Things Stop at Walls", vr_held_collide_walls)
             .help("A thing you hold in one hand stops at walls, floors and doors: it and your hand are drawn held out of them, "
                   "a short buzz as it touches. Looks only: your real hand is never held back."),
@@ -1482,6 +1490,9 @@ void hologramTestMessage()
             .extend(0.f, 200.f)
             .help("How far it and your hand are drawn held back at most as you push it into a wall. Pushed further, it goes "
                   "in by the rest; pushed about a metre past, it drops."),
+        toggle("Things Rest on Hands", vr_model_collide_rest)
+            .help("A thing lying on your open palm, fist or gun (let go of there, or balanced) never pushes the drawn hand away: "
+                  "the hand stays under it. Off: it pushes the hand out of it as other things do."),
         toggle("Held Things Stop at Monsters", vr_held_collide_monsters)
             .help("A thing you hold in one hand and swing as a club stops at the monster's body, as weapons do (held out "
                   "up to vr_model_collide_max, 20 cm), instead of passing through it. It still hits, and is never dropped for "
@@ -1796,6 +1807,9 @@ std::vector<Item> pageDebugViews()
         cycle("Show Body Collisions", vr_debug_body_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
             .help("The drawn hands and weapons stopping at each other and the body: each contact printed (and "
                   "body_collide_trace.txt); drawn: the capsules and the pushes."),
+        toggle("Log Weapon Wall Collisions", vr_debug_gun_wall)
+            .help("Each frame a held weapon is held out of the level: how far the hand is moved (up, across), the depth left "
+                  "and the muzzle's height over the surface below it, in the console."),
         cycle("Show Model Collisions", vr_debug_model_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
             .help("Held weapons and props stopping at the models' triangles: each hand's push printed; drawn: the rays (grey as tracked, "
                   "green or red as drawn) and the push (yellow)."),

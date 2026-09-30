@@ -42,6 +42,13 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
 // what is drawn at the muzzle (a flash, a beam's start) goes there too.
 [[nodiscard]] glm::vec3 drawnOffset(int hand);
 
+// The weapon in `hand` as it was drawn last frame, turned with the hand to `rot` (Quake angles): its points (a couple of
+// dozen of its model's vertices, spread over it; the farthest apart first) as offsets from the hand in the world, into
+// `out`; then those of the prop the hand holds alone (its model's, or its box's corners and faces' middles), as it sat
+// in the hand. False without either (none drawn, another model since, a jointed model). For the walls
+// (vr_handpose.cpp).
+bool weaponShape(int hand, const glm::vec3& rot, std::vector<glm::vec3>& out);
+
 // The triangles of `e` (entity number `num`: its pose is cached by it) as drawn this frame, in the world, three corners
 // each (a Quake alias model's; not a jointed one): false (none) otherwise. For the wounds painted on models
 // (vr_wounds.cpp): where a hit meets the model's surface.

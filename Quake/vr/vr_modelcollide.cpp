@@ -5,6 +5,7 @@
 #include "vr_api_render.h"
 #include "vr_backend.hpp"
 #include "vr_body.hpp"
+#include "vr_box3d.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flashlight.hpp"
@@ -36,6 +37,7 @@ constexpr float margin = 0.3f;        // units the weapon is held off the surfac
 constexpr int rounds = 3;             // tests: the first, and again from the push (a curved surface)
 constexpr float easeIn = 0.012f;      // seconds (time constants): pushed out at once, nearly
 constexpr float easeOut = 0.06f;      // and let back in more slowly (no snapping when the contact ends)
+constexpr float restGrace = 0.25f;    // seconds a thing that lay on the hand still doesn't push it (a bounce on the palm)
 constexpr float fastObject = 150.f;   // units a second: a thing moving faster (thrown, flying) is not in the way
 
 // ----------------------------------------------------------------------------
@@ -362,6 +364,24 @@ enum class Kind
     return true;
 }
 
+// A loose prop lying on `hand` (held up by the hand's body in the physics: box3d::restsOnHand), or a moment ago: it
+// doesn't push the hand from under it (the palm stays under what it holds up; the physics keeps them apart).
+std::vector<double> restSeen; // by entity: realtime it last lay on a hand
+[[nodiscard]] bool restsOn(int num, int hand)
+{
+    if(restSeen.size() <= static_cast<std::size_t>(num))
+    {
+        restSeen.resize(static_cast<std::size_t>(num) + 1, -1.0);
+    }
+    double& seen = restSeen[static_cast<std::size_t>(num)];
+    if(box3d::restsOnHand(num, cl.viewentity, hand))
+    {
+        seen = realtime;
+        return true;
+    }
+    return seen >= 0.0 && realtime - seen < restGrace;
+}
+
 // While hosting (the server's entities: its flags say what a thing is); else by the model.
 [[nodiscard]] Kind kindOf(int num, const entity_t& e, bool hosting)
 {
@@ -410,6 +430,7 @@ struct Recorded
     const qmodel_t* model{nullptr};
     int frame{0};
     glm::mat4 toHand{1.f}; // the model's raw coordinates to the hand's frame
+    std::vector<glm::vec3> prop; // the prop held in the hand alone: its points (propSamples) in the hand's frame
 };
 Recorded recorded[2];
 
@@ -877,6 +898,10 @@ Result test(const hands::State& s, int hand)
         {
             continue;
         }
+        if(kind == Kind::Object && hosting && vr_model_collide_rest.value && restsOn(num, hand))
+        {
+            continue;
+        }
         // Its box as drawn this frame (its frames' bounds, placed as it is drawn).
         const Posed* p = posed(num, e);
         if(p && !(p->hi.x < reachLo.x || p->hi.y < reachLo.y || p->hi.z < reachLo.z || p->lo.x > reachHi.x || p->lo.y > reachHi.y ||
@@ -1066,6 +1091,20 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
             r.frame = e->frame;
             r.toHand = glm::inverse(handFrame(s.pos[hand], s.visualRot[hand])) * grasp::shapeToWorld(*e, mirrored[hand]);
         }
+        // And the prop it holds alone, from the hand as drawn with it (moved by meeting the other's or a wall).
+        r.prop.clear();
+        glm::vec3 propOffset{0.f};
+        if(const int prop = s.valid ? held::heldAlone(hand, &propOffset) : 0)
+        {
+            if(const std::vector<glm::vec3>* pts = propSamples(prop))
+            {
+                const glm::mat4 fromWorld = glm::inverse(handFrame(s.pos[hand] + propOffset, s.visualRot[hand]));
+                for(const glm::vec3& w : *pts)
+                {
+                    r.prop.push_back(glm::vec3{fromWorld * glm::vec4{w, 1.f}});
+                }
+            }
+        }
 
         // What the game reads: as tracked.
         const glm::vec3 moved = drawn[hand] + pressed[hand];
@@ -1079,6 +1118,32 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
             s.grip2H[hand] -= moved;
         }
     }
+}
+
+bool weaponShape(int hand, const glm::vec3& rot, std::vector<glm::vec3>& out)
+{
+    out.clear();
+    const Recorded& r = recorded[hand];
+    const glm::mat4 turn = handFrame(glm::vec3{0.f}, rot);
+    if(r.valid && r.model == weapons::heldModel(hand))
+    {
+        if(const std::vector<glm::vec3>* samples = samplesOf(r.model, r.frame))
+        {
+            const glm::mat4 toWorld = turn * r.toHand;
+            for(const glm::vec3& v : *samples)
+            {
+                out.push_back(glm::vec3{toWorld * glm::vec4{v, 1.f}});
+            }
+        }
+    }
+    if(held::heldAlone(hand))
+    {
+        for(const glm::vec3& v : r.prop)
+        {
+            out.push_back(glm::vec3{turn * glm::vec4{v, 1.f}});
+        }
+    }
+    return !out.empty();
 }
 
 bool drawnTriangles(const entity_t& e, int num, std::vector<glm::vec3>& out)
@@ -1119,6 +1184,7 @@ void reset()
     // indices past the new ones' end).
     modelTris.clear();
     samplesCache.clear();
+    restSeen.clear();
     appliedFrame = -1;
     lastTime = -1.0;
 }
