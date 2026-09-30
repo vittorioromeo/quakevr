@@ -10,6 +10,7 @@
 #include "vr_modelcollide.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
+#include "vr_props.hpp"
 
 #include <algorithm>
 #include <array>
@@ -410,6 +411,7 @@ bool drawnOf(edict_t* ent, Drawn& d)
     {
         es = ENTSCALE_DECODE(ENTSCALE_ENCODE(val->_float));
     }
+    es *= props::drawnSize(modelOf(ent)); // a prop's Size (Held Object Offsets)
     const glm::vec3 hs{d.hdr->scale[0], d.hdr->scale[1], d.hdr->scale[2]};
     const glm::vec3 ho{d.hdr->scale_origin[0], d.hdr->scale_origin[1], d.hdr->scale_origin[2]};
     d.L = es * ns * hs;

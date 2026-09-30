@@ -22,6 +22,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_efrag.c
 
 #include "quakedef.h"
+#include "vr/vr_api_render.h" // QVR
 
 //===========================================================================
 
@@ -127,7 +128,7 @@ void R_AddEfrags (entity_t *ent)
 		return;
 
 	entmodel = ent->model;
-	scalefactor = ENTSCALE_DECODE(ent->scale);
+	scalefactor = VR_EntityScale(ent); // QVR: and a prop's Size
 	if (scalefactor != 1.0f)
 	{
 		VectorMA (ent->origin, scalefactor, entmodel->mins, r_emins);

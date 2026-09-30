@@ -45,6 +45,16 @@ void resetModelCache();
 [[nodiscard]] float valueFor(const char* model, Key key);
 [[nodiscard]] float valueFor(const qmodel_t* model, Key key);
 [[nodiscard]] cvar_t* cvar(int slot, Key key);
+
+// A prop's Size (round 21, "Prop size"): its model drawn, its Box3D body and its drawn box scaled about its origin by
+// this, and its lengths (lengthKey) with it. size: the slot's (1 for none), within 0.05..10. drawnSize: the model's, as
+// everything drawn or made from its drawn shape takes it (vr_render.cpp, vr_held.cpp's DrawnTransform, vr_box3d.cpp):
+// 1 unless on Quake VR's protocol (as weapons::modelTransform), or not a brush or alias model.
+[[nodiscard]] float size(int slot);
+[[nodiscard]] float drawnSize(const qmodel_t* model);
+// Centre of Mass, Tip, Butt, Handle From and To: lengths in its model's axes, which grow with its Size (scaledValue).
+[[nodiscard]] bool lengthKey(Key key);
+[[nodiscard]] float scaledValue(int slot, Key key); // value(), times size(slot) for a lengthKey
 [[nodiscard]] const char* keyName(Key key); // as in its cvar and propvalue's argument ("mass")
 [[nodiscard]] Key keyByName(const char* name); // Key::Count if none
 

@@ -27,8 +27,13 @@
 # circularly (FFT) to 22050 Hz, so the wrap stays seamless. Its cue point (and a LIST/ltxt "mark" with its length) is
 # what Quake reads (snd_mem.c GetWavinfo): any channel playing it loops it until another sound replaces it.
 # One-shots: resampled with the recording around them, trimmed, faded in 3 ms and out 40 ms.
-# Levels: one gain for everything from 0982 (the idle at -20 dBFS RMS), one for 0707 (its loops at -15 dBFS); peaks are
-# kept under -1 dBFS by a soft knee.
+# Levels: one gain for everything from 0982 (the idle at -20 dBFS RMS), one for 0707 (its loops at -15 dBFS), both raised
+# by LOUDER_DB (the author, 2026-09-30: "a tiny bit louder"); peaks are kept under -1 dBFS by a soft knee.
+#
+# Without the recordings, the files made can be made louder or softer in place (their loops' cue points kept):
+#   python Misc/quakevr/make_chainsaw_sounds.py --regain <dB> [folder, default quakevr/sound/vr]
+# undoes the soft knee, scales and knees again, as making them at the new level would (to a sample's rounding). The
+# files shipped were made at LOUDER_DB 0 and raised with --regain 3.
 
 import os
 import struct
@@ -135,6 +140,40 @@ def soft_limit(y, ceiling=0.89):
     return s * m
 
 
+def unsoft_limit(y, ceiling=0.89):
+    """soft_limit's inverse (a sample at the ceiling, which rounding can reach, as just under it)."""
+    knee = 0.7 * ceiling
+    s = np.sign(y)
+    m = np.abs(y).astype(np.float64)
+    over = m > knee
+    t = np.clip((m[over] - knee) / (ceiling - knee), 0.0, 0.999)
+    m[over] = knee + (ceiling - knee) * np.arctanh(t)
+    return s * m
+
+
+def regain(folder, db):
+    """Scales the sound files made here by `db` in place: every chunk but the samples kept (the loops' cue points)."""
+    g = 10 ** (db / 20)
+    for name in sorted(os.listdir(folder)):
+        if not (name.startswith("saw_") and name.endswith(".wav")):
+            continue
+        path = os.path.join(folder, name)
+        with open(path, "rb") as f:
+            raw = bytearray(f.read())
+        pos = 12
+        while pos + 8 <= len(raw):
+            cid, size = raw[pos:pos + 4], struct.unpack("<I", raw[pos + 4:pos + 8])[0]
+            if cid == b"data":
+                y = np.frombuffer(bytes(raw[pos + 8:pos + 8 + size]), dtype="<i2").astype(np.float64) / 32767
+                before = rms_db(y)
+                y = soft_limit(unsoft_limit(y) * g)
+                raw[pos + 8:pos + 8 + size] = np.clip(np.round(y * 32767), -32768, 32767).astype("<i2").tobytes()
+                print(f"{name}: rms {before:.1f} -> {rms_db(y):.1f} dBFS, peak {np.max(np.abs(y)):.2f}")
+            pos += 8 + size + (size & 1)
+        with open(path, "wb") as f:
+            f.write(raw)
+
+
 def rms_db(y):
     return 20 * np.log10(np.sqrt(np.mean(y ** 2)) + 1e-12)
 
@@ -156,7 +195,14 @@ def write_wav(path, y, loop_start=None):
         f.write(b"RIFF" + struct.pack("<I", len(body)) + body)
 
 
+LOUDER_DB = 3.0
+
+
 def main():
+    if len(sys.argv) > 2 and sys.argv[1] == "--regain":
+        folder = sys.argv[3] if len(sys.argv) > 3 else os.path.join(os.path.dirname(__file__), "..", "..", "quakevr", "sound", "vr")
+        regain(folder, float(sys.argv[2]))
+        return
     src = sys.argv[1]
     out_dir = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "..", "..", "quakevr", "sound", "vr")
     start = load(os.path.join(src, "0982.wav"))
@@ -166,7 +212,7 @@ def main():
     idle_at = snap(11.0)
     idle48, idle_n, idle_r = make_loop(start, idle_at, 2.0)
     pre48 = start[snap(6.35):idle_at]
-    g_start = 10 ** ((-20.0 - rms_db(idle48)) / 20)
+    g_start = 10 ** ((-20.0 + LOUDER_DB - rms_db(idle48)) / 20)
     idle = resample_circular(idle48) * g_start
     pre = resample_segment(start, snap(6.35), idle_at) * g_start
     pre[: int(0.003 * RATE)] *= np.linspace(0, 1, int(0.003 * RATE), endpoint=False)
@@ -183,7 +229,7 @@ def main():
     # 0707: flat out, and cutting.
     run48, run_n, run_r = make_loop(log, snap(28.35), 1.0)
     cut48, cut_n, cut_r = make_loop(log, snap(43.0), 3.0)
-    g_log = 10 ** ((-15.0 - rms_db(np.concatenate([run48, cut48]))) / 20)
+    g_log = 10 ** ((-15.0 + LOUDER_DB - rms_db(np.concatenate([run48, cut48]))) / 20)
     files["saw_run.wav"] = (resample_circular(run48) * g_log, 0)
     files["saw_cut.wav"] = (resample_circular(cut48) * g_log, 0)
 

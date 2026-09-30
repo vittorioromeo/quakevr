@@ -17,6 +17,7 @@
 #include "vr_physics.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
+#include "vr_props.hpp"
 
 #include <unordered_map>
 #include <vector>
@@ -83,12 +84,21 @@ void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
         // model's own is the drawn one.
         lo = glm::vec3{model->mins[0], model->mins[1], model->mins[2]};
         hi = glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]};
+        const float size = props::drawnSize(model); // its Size (Held Object Offsets; the alias models': modelBox)
+        lo *= size;
+        hi *= size;
         return;
     }
     if(!model || model->type != mod_alias)
     {
         lo = toGlm(ent->v.mins);
         hi = toGlm(ent->v.maxs);
+        if(static_cast<int>(ent->v.solid) != SOLID_BBOX) // (as vr_box3d.cpp's localBox)
+        {
+            const float size = props::drawnSize(model); // a brush item's Size (Held Object Offsets)
+            lo *= size;
+            hi *= size;
+        }
         return;
     }
 

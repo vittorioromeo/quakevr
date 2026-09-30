@@ -419,7 +419,7 @@ void R_GetEntityBounds (const entity_t *e, vec3_t mins, vec3_t maxs)
 		maxbounds = e->model->maxs;
 	}
 
-	scalefactor = ENTSCALE_DECODE(e->scale);
+	scalefactor = VR_EntityScale(e); // QVR: and a prop's Size
 	if (scalefactor != 1.0f)
 	{
 		VectorMA (e->origin, scalefactor, minbounds, mins);

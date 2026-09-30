@@ -511,7 +511,7 @@ void PF_propvalue()
     }
     else if(key != props::Key::Count && key != props::Key::ID)
     {
-        out = props::value(slot, key);
+        out = props::scaledValue(slot, key); // (a length in its model's axes: times its Size)
     }
     else
     {
@@ -555,7 +555,8 @@ void PF_propgrip()
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
     const int slot = model ? props::slotForModel(model) : -1;
     using props::Key;
-    glm::vec3 place{props::value(slot, Key::GripX), props::value(slot, Key::GripY), props::value(slot, Key::GripZ)};
+    glm::vec3 place = glm::vec3{props::value(slot, Key::GripX), props::value(slot, Key::GripY), props::value(slot, Key::GripZ)} *
+                      props::size(slot); // (a point of it: grows with its Size)
     glm::vec3 turn{props::value(slot, Key::GripPitch), props::value(slot, Key::GripYaw), props::value(slot, Key::GripRoll)};
     if(left)
     {

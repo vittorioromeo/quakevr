@@ -54,6 +54,9 @@ QVR_PROP_KEY(ThrowDamage, "throw_dmg", "1")
 QVR_PROP_KEY(HandleFrom, "handle_from", "0") // where the fist may hold it along its long axis, units in its model's axes
 QVR_PROP_KEY(HandleTo, "handle_to", "0")     // from its origin; both 0: the butt's half, short of its end
 QVR_PROP_KEY(HandleTilt, "handle_tilt", "25") // degrees its handle may lean off the fist's grip channel, as taken
+// Round 21, "Prop size": times its model's size, about its origin (0.05x steps): as drawn, its Box3D body and hull, its
+// drawn box (a solid prop's Quake box) and its lengths above (Centre of Mass, Tip, Butt, Handle, a Fixed grip's place).
+QVR_PROP_KEY(Size, "size", "1")
 #endif
 
 #ifdef QVR_PROP_RETIRED

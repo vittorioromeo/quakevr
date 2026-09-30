@@ -981,6 +981,11 @@ path the game opens: `vr_mock_play quakevr/motions/chainsaw_pull.mock`) grips th
 `106` (a gib) with `impulse 241` put one on the floor ahead (cut tests). `vr_chainsaw_start_chance 1` makes a good pull always start it, `vr_debug_chainsaw 1` prints the cord and the cuts. Don't
 set `vr_mock_fingers off` before the grip: its grip value presses the grip where the hand is. `r_fullbright 1` lights e1m1's
 dark corridor for screenshots.
+The chainsaw's first pulls of a start always fail (`vr_chainsaw_fail_pulls_min`/`_max`, 1-2): set both to 0 for a test
+where the first good pull may start it. Mjolnir in water (ROUND21.md, "Prop size; Mjolnir in water; chainsaw pulls;
+defaults"): `impulse 153` with `vr_weapon_grip_mode 1`, then `impulse 215` strikes its lightning (15 cells) as a blow
+does. Prop size: `vr_prop_size_NN` (the prop's slot; `vr_prop_id_NN <model>` gives a free one to a model), then
+`vr_debug_box3d 1; vr_physics_list <classname>` prints `size x`, the body's box, the entity box and the drawn scale.
 Enemy guns (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser rifles"): `impulse 165` puts a
 full grunt's shotgun in the main hand, `166` an enforcer's rifle (`185`, `186`: the off hand; with `vr_weapon_grip_mode 1`,
 or the mock's grip held, else it drops at once), `impulse 212` takes the one lying nearest into an empty hand, `213`

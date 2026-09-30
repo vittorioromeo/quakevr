@@ -359,6 +359,10 @@ std::vector<Item> pageHeldObjectOffsets()
     }
     list.insert(list.end(), {
         open("Held Object Weights", pageIndex(pageHeldObjectWeights)).help("Its mass, how it follows your hand and its damage."),
+        s("Size", Key::Size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.05f, 10.f)
+            .help("Every one of these props, drawn this much bigger or smaller, about its origin: its physics body and "
+                  "box too, and its lengths below (Tip, Butt, Handle, Centre of Mass, a Fixed grip's place). Its Mass "
+                  "setting stays as set (an estimated mass follows the size). Live."),
         header("Grip"),
         cycle("Grip", props::cvar(slot, Key::GripMode),
             {{0.f, "Where taken"}, {1.f, "Fixed"}, {2.f, "In the palm"}, {3.f, "Along the handle"}})

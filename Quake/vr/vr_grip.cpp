@@ -58,6 +58,10 @@ Settings settingsOf(int slot, bool left)
     const int mode = static_cast<int>(std::lround(props::value(slot, Key::GripMode)));
     s.mode = mode >= 0 && mode <= 3 ? static_cast<Mode>(mode) : Mode::WhereTaken;
     s.move = {props::value(slot, Key::GripX), props::value(slot, Key::GripY), props::value(slot, Key::GripZ)};
+    if(s.mode == Mode::Fixed)
+    {
+        s.move *= props::size(slot); // its origin's place: a point of it, which grows with its Size
+    }
     s.turn = {props::value(slot, Key::GripPitch), props::value(slot, Key::GripYaw), props::value(slot, Key::GripRoll)};
     if(left)
     {
@@ -65,10 +69,10 @@ Settings settingsOf(int slot, bool left)
         s.turn.y = -s.turn.y;
         s.turn.z = -s.turn.z;
     }
-    s.com = {props::value(slot, Key::ComX), props::value(slot, Key::ComY), props::value(slot, Key::ComZ)};
-    s.tip = {props::value(slot, Key::TipX), props::value(slot, Key::TipY), props::value(slot, Key::TipZ)};
-    s.handleFrom = props::value(slot, Key::HandleFrom);
-    s.handleTo = props::value(slot, Key::HandleTo);
+    s.com = {props::scaledValue(slot, Key::ComX), props::scaledValue(slot, Key::ComY), props::scaledValue(slot, Key::ComZ)};
+    s.tip = {props::scaledValue(slot, Key::TipX), props::scaledValue(slot, Key::TipY), props::scaledValue(slot, Key::TipZ)};
+    s.handleFrom = props::scaledValue(slot, Key::HandleFrom);
+    s.handleTo = props::scaledValue(slot, Key::HandleTo);
     s.handleTilt = std::clamp(props::value(slot, Key::HandleTilt), 0.f, 90.f);
     return s;
 }

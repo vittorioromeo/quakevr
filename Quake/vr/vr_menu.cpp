@@ -606,6 +606,11 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
                   "weapons do."),
         slider("Start Chance", vr_chainsaw_start_chance, 0.05f, 1.f, 0.05f, "%.2f")
             .help("The chance a good pull of the cord starts the engine: a few pulls may be needed."),
+        slider("First Pulls Fail", vr_chainsaw_fail_pulls_min, 0.f, 5.f, 1.f, "%.0f")
+            .help("Every start, at least this many good pulls of the cord fail before Start Chance applies (a cold engine "
+                  "needs priming)."),
+        slider("Up To", vr_chainsaw_fail_pulls_max, 0.f, 5.f, 1.f, "%.0f")
+            .help("And at most this many: how many fail is drawn at random between the two each start."),
         slider("Cord Pull Distance", vr_chainsaw_pull_distance, 10.f, 60.f, 1.f, "%.0f cm").extend()
             .help("How far the cord must be pulled out for a pull (the handle taken in the other, empty, hand's grip)."),
         slider("Cord Pull Speed", vr_chainsaw_pull_speed, 0.3f, 4.f, 0.1f, "%.1f m/s").extend()
@@ -2142,6 +2147,8 @@ std::vector<Item> pageDebugTools()
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
         command("Lightning Shock", "vr_shock_test 0").help("vr_shock_test 0: the lightning gun's shock in water (the flash, the arcs over your arms and body), without the damage."),
         command("Electrified Water", "vr_shock_test 1").help("vr_shock_test 1 [radius] [seconds]: arcs on the water below the point 128 units ahead."),
+        command("Mjolnir's Lightning", "impulse 215").help("impulse 215: Mjolnir in the main hand strikes its lightning now, "
+                                                            "as a blow does (15 cells). In water: the shock, with its damage."),
         header("VR Calibration"),
         command("Run the Calibration Here", "vr_setup here")
             .help("vr_setup here: VR Calibration's steps (height, body, main hand) in this map, now."),
