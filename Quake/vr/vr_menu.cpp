@@ -1463,6 +1463,9 @@ void hologramTestMessage()
             .help("How far your drawn hands may be off your real ones to stay on their grips as you pull them apart or push "
                   "them together. 0: they stay on your real hands. Pulled 3 cm further off (vr_carry_two_hands_detach), "
                   "with the hand no longer touching it, that hand lets go; both, and it drops."),
+        toggle("Two-Handed Stops at Walls", vr_carry_two_hands_solid)
+            .help("What you hold in both hands stops at walls, floors and doors however hard you push, and slides along "
+                  "them; it keeps its turn where a new one would put it in. Off: it goes where your hands put it."),
         toggle("Fit to the Hand", vr_held_surface_fit)
             .help("A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it."),
         slider("Fit Gap", vr_held_fit_gap, -6.f, 3.f, 0.1f, "%.1f cm").extend()
@@ -1919,6 +1922,7 @@ std::vector<Item> pageDebugReports()
         command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
         command("Held Props", "vr_carry_check").help("vr_carry_check: each held prop's place and axes in the hand, drawn vs where the game has it, and the fist's gap to it (cm)."),
         command("Props in Floors", "vr_physics_sink").help("vr_physics_sink: how far each prop sinks into the floor."),
+        command("Props in Walls", "vr_physics_inlevel").help("vr_physics_inlevel: how far each prop's box is inside walls, floors and doors (a prop held in both hands pushed into a wall should be at 0)."),
         command("Weights", "vr_weight_table").help("vr_weight_table: the weapons' and props' masses (the level's props too)."),
         command("Ledges Ahead", "vr_climb_probe").help("vr_climb_probe: the ledges 16 to 64 units ahead of you, and why each holds or not."),
         command("Rocks and Bricks", "vr_debris_list").help("vr_debris_list: the rocks and bricks placed in this map."),
@@ -2273,6 +2277,13 @@ std::vector<Item> pageHitbox()
         slider("Jump Push", vr_box3d_player_jump_push, 0.f, 1.f, 0.05f, "%.2f")
             .help("The share of your jump's push the prop you jump from takes (1: all of it, your weight times your "
                   "speed). 0: none."),
+        slider("Walking Into Them", vr_box3d_player_shove, 0.f, 2.f, 0.1f, "%.1f")
+            .help("How hard you shove a solid prop you walk into, as a share of your weight: a light box goes nearly at "
+                  "your pace (at most 2.5 m/s: vr_box3d_player_push_speed), a heavy one slowly, one too heavy not at all. 0: "
+                  "they stop you like walls (vr_box3d_player_shove)."),
+        toggle("Never Trapped by Them", vr_box3d_player_unstick)
+            .help("A solid prop that ends up in your body (toppled onto you, pushed into you) never holds you: you walk out "
+                  "of it, and it is pushed out of you (vr_box3d_player_unstick)."),
         header("Tests"),
         command("Stand on a Box", "vr_physics_player onto misc_explobox")
             .help("Puts you on top of the level's first explosive box (vr_physics_player onto <number | classname>)."),

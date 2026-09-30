@@ -1561,6 +1561,7 @@ void bothFrame(const hands::State& s, int ent)
     entity_t& e = cl_entities[ent];
     const bool brush = e.model->type == mod_brush;
     const carry2h::Frame hands[2] = {controller(s, 0), controller(s, 1)};
+    carry2h::Frame last = both.object; // (where it was drawn last: kept out of walls from there, carry2h::clear)
     if(both.ent != ent)
     {
         // The second hand took it: from where it is drawn now, in the hand that held it (its place this frame), or
@@ -1588,6 +1589,7 @@ void bothFrame(const hands::State& s, int ent)
             both.hold = carry2h::record(object, hands);
         }
         handEase[0] = handEase[1] = HandEase{};
+        last = object;
         if(vr_debug_carry.value)
         {
             Con_Printf("carry2h: %d in both hands, grips %.1f units apart\n", ent, both.hold.span);
@@ -1597,6 +1599,10 @@ void bothFrame(const hands::State& s, int ent)
     both.hands[0] = hands[0];
     both.hands[1] = hands[1];
     both.object = carry2h::solve(both.hold, hands);
+    if(serverEdict(ent))
+    {
+        carry2h::clear(ent, last, both.object); // (a listen server: its level; as the server holds it)
+    }
     const glm::mat3 rot = glm::mat3_cast(both.object.rot);
     place(e, both.object.pos, rot);
     for(Held& hd : holding)

@@ -13830,6 +13830,73 @@ reach down and shove it. Monsters don't stand on props (Quake's rule for them is
 a hand (you ride it); try Width Against Walls 16 too. Tell if the weight (80 kg) or the jump's push
 feels wrong.
 
+## Standing on props 2: no blow-ups, shoving by weight, never trapped, two hands stop at walls
+
+Your notes (vrfiringrange 02:49 to 02:52, the recap at 02:52:59): a box held in both hands goes through walls; jumping
+off an explosive box blows it up and kills you; walking into boxes no longer moves them (static geometry); a box
+toppled onto you pins you against the world.
+
+**Jumping off blew it up: the jump's push was a blow.** The push on the box you jump from (a share of your jump's
+momentum, `vr_box3d_player_jump_push`) was one impulse at your feet. The floor under the box can't give, so all of it
+became a hit on the floor at the speed it gave the box: 4 to 6 m/s for the big box (40 kg), and 6.5 straight up, 12.4
+jumping forward off the small one (25 kg; pushed at its edge it also turned), against its 14 m/s threshold: with a
+harder VR jump it blew up. Now the same push is a force over 0.15 s (as legs push), like your weight: the floor holds
+the box up with no blow; a floating box is still pushed under. Landing and walking on a box never pushed it.
+
+**Walking into them: Quake stopped you, and nothing shoved them.** An explosive box is solid to your movement, and your
+body's capsule (a 15 cm radius) is inside your box, so it never reached one you walk into (what moved them in the
+headset was your hands' bodies, when they led). Now when your move is stopped by a solid prop's side (`SV_FlyMove`,
+`VR_PlayerBumps`) you shove it, as Source's player shadow does: towards your pace (2.5 m/s, `vr_box3d_player_push_speed`,
+at full stick) shared by the masses (a share of your weight, `vr_box3d_player_shove` 0.6 of 80 kg, against its own),
+with at most that share of your weight as a force, a quarter of its height up (pushed at its middle, the floor's
+friction tipped the tall box over). A light box goes at nearly your pace, a heavy one slower, one too heavy for the
+floor's friction not at all; you follow it. Its top is still ground: you stand on it as before.
+
+**Trapped: its box held you.** A toppled box's Quake box (round it as it turns) ended up round part of your body, and
+Quake's movement stops a move that starts inside a solid. Now (`vr_box3d_player_unstick`) a solid prop overlapping your
+box doesn't block your moves (`SV_ClipToLinks`, `VR_PropLetsOut`; not the one you stand on: riding it you are stepped
+up out of it), and a prop whose shape is in your body is pushed out of it, away from your middle (never down), at 1 m/s
+at least.
+
+**Two hands through walls: nothing checked the box, only its centre.** The two-handed place (`carry2h`) went where the
+hands put it; QC's follow traced the centre's line and kept the smallest half-size off a wall it met, so a turned box's
+corners, and anything between pillars, went in. Now (`vr_carry_two_hands_solid`, `carry2h::clear`,
+`box3d::holdClear`) its whole box (the drawn one, turned) is kept out of the world and its brush entities in Box3D's
+level: as far along the move as it stays clear (overlap tests, halved eight times), then the rest of the move axis by
+axis (it slides along a wall); a new turn that would put it in keeps the old one; taken a little into the floor, it
+may move out or along but no deeper. QC takes that place as it is. The listen server's client draws it the same way.
+Hands pushing it into a wall pass into it: a hand in the box (or no further off it than it may be off its grip) isn't
+pulled off, and for 0.3 s after the wall stopped it the hands may go 30 cm further before they let go. (A box cast along
+the move was tried first: a cast starting within its rounding of a pillar's edge missed it.)
+
+**Settings:** Player Hitbox page, "Standing on Props": Walking Into Them (`vr_box3d_player_shove` 0.6), Never Trapped by
+Them (`vr_box3d_player_unstick` 1); "Carrying Boxes": Two-Handed Stops at Walls (`vr_carry_two_hands_solid` 1). Debug,
+"World and Physics": Props in Walls (`vr_physics_inlevel [what]`: how far each prop's box is inside the level, to half a unit).
+
+**Tests** (mock headset, vrfiringrange, your settings; scripts in the kit's `scratch/propstand2/`):
+
+| Test | Before | After |
+| --- | --- | --- |
+| Jump on and off each box 20 times (straight up, then off in 4 directions) | hits of 4-6 m/s (big), 6.5-12.4 m/s (small) | 40 jumps off, no hit at all; both boxes at 20 health |
+| Walk into the small box (25 kg) 1 s from touching | didn't move | moved 56 units, you after it |
+| ... the big box (40 kg) | didn't move | 45 units |
+| ... the big box made 150 kg | didn't move | 0.1 (too heavy) |
+| Two hands, the small box, walk into the pillars, then push both hands 1.6 m on | in the wall 3-15 units | 0.0 throughout, both hands kept |
+| Two hands pushed down onto a slab | | stops on its top, 0.0 in |
+| The big box toppled onto you against the wall, walk away 1 s | 34 units ("Unstuck" nudges) | 150 units; the box pushed off you |
+| The previous standing tests (stand 4.8 s, walk across and off, column of 3: stand, jump twice, walk off) | | drift 0.00; the box and column unmoved (0.1) |
+
+The melee eval: no differences from the baseline (canary 48/56, full 168/176). e1m1 smoke: no errors.
+
+**Limitations.** A box held in one hand is QC's follow as before (its centre's line and a clearance), so once both
+hands leave it (you walk on far into a wall), the one hand still holding it can push it in (up to 13 units here).
+Walking into a box whose Quake box (tilted) is larger than it, you meet that box first, as before.
+
+**In the headset:** jump on and off both explosive boxes, forward and sideways; walk into each with the stick (full and
+half) and try the big one pushed against the small one; stand on one while walking into another; topple the big box
+onto yourself against a wall and walk out; hold a box in both hands and push it into walls, pillars, the floor and a
+door, turning it. Tell if the shove (0.6) is too strong or weak, or the 30 cm the hands may go on.
+
 ## Fast melee eval: parallel, hidden, not drawn (2026-09-30)
 
 Your request: agents spent a long time in the melee eval, and its game windows popped up on your desktop ("run

@@ -58,6 +58,12 @@ void toAngles(const glm::quat& q, float* out, bool brush);
 // set now); kept first if nothing was (a saved game, a new server). Its hands are the player's fields.
 [[nodiscard]] glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab);
 
+// Entity `num`, held in both hands, moved from `from` to `to` (its origin and turn): `to` kept out of the level's solids
+// (box3d::holdClear: its box stops at a wall and slides along it; its turn kept if the new one would put it in), however
+// far the hands push (vr_carry_two_hands_solid). Server side (serverPlace) and a listen server's client (vr_held.cpp).
+// True if the level stopped it.
+bool clear(int num, const Frame& from, Frame& to);
+
 // Server side (QC's carryreach): whether `player`'s `hand` (0 off, 1 main) can take hold of `ent`: its fist touches the
 // thing's drawn surface, as a hand touching it can (held::grabTouch); vr_debug_carry draws the test.
 [[nodiscard]] bool reaches(edict_t* ent, edict_t* player, int hand);

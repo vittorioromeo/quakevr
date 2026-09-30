@@ -1015,6 +1015,9 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 			trace = SV_ClipMoveToBoxEntityQVR (touch, clip->mins, clip->maxs, clip);
 		else
 			trace = SV_ClipMoveToEntityQVR (touch, clip->start, clip->mins, clip->maxs, clip->end, clip); // QVR
+		// QVR: a player already inside a solid prop (toppled onto him) isn't held by it: he walks out.
+		if (trace.startsolid && clip->passedict && VR_PropLetsOut (clip->passedict, touch))
+			continue;
 		if (trace.allsolid || trace.startsolid ||
 		trace.fraction < clip->trace.fraction)
 		{
