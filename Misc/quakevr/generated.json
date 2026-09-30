@@ -135,11 +135,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_enfrifle.mdl": {
-  "sha256": "5cd7e764f69bf32ab5b37e2654d1193313f0170dee020664ef9939ad2c2013a9",
+  "sha256": "367fd3530b0e589308e565c9735f578391a7a7aad06da832311749131dbaaa24",
   "by": "make_enemyguns.py"
  },
  "quakevr/progs/v_enfrifle.mdl_0_norm.png": {
-  "sha256": "7a2be7d09f754752fd3f5b92fb9ec1d1548d02b0eb6e795bd598f6e50e81c69b",
+  "sha256": "2c2a79841a8c4b3f30ca7d9a08e4a3bdb478e9336d40432d55926e6256d98d98",
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_grpple.mdl": {
@@ -151,11 +151,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_gruntgun.mdl": {
-  "sha256": "7b20bf3b65700e6848a7c75e48f1be1420bc309c3f922c496cb6c91852e13394",
+  "sha256": "f339bad9d2e5d488685ba22be3a235f0d82574996a857ac9559928cab05688a1",
   "by": "make_enemyguns.py"
  },
  "quakevr/progs/v_gruntgun.mdl_0_norm.png": {
-  "sha256": "d97398afff8c4037d2dae2e2ba45fa40ac9e186e9f22fa189e19e8058a4eb448",
+  "sha256": "d53bf886a3597bce9ef53e5cd65550ca27110c80579d0edbcb3326d4044d8912",
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_hammer.mdl": {

@@ -140,9 +140,11 @@ namespace
 // still held its old default (weightMigration). 27: slot 20's hotspots (the author, 2026-09-30: two, both on the front
 // handle; his rear-handle one removed): only its hotspots' keys (resetHotspots). 28: slots 21 and 22 (the grunts' shotgun
 // and the enforcers' laser rifle, Misc/quakevr/make_enemyguns.py; unused placeholders before). 29: slot 23 (the crowbar,
-// Misc/quakevr/make_crowbar.py; an unused placeholder before). A first start (no saved config) takes this
+// Misc/quakevr/make_crowbar.py; an unused placeholder before). 30: slots 21 and 22 (the author's offsets, hotspots, weights
+// and holstered poses, 2026-09-30, over make_enemyguns.py's detail pass: the grunts' gun's stock moved its bounds, its
+// offset and hotspots follow; both muzzles at the new barrels' bores). A first start (no saved config) takes this
 // version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 29;
+constexpr int settingsVersion = 30;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -427,6 +429,11 @@ void migrate()
     {
         resetSlot(23);
     }
+    if(vr_wofs_version.value >= 28 && vr_wofs_version.value < 30) // the author's grunts' gun and enforcers' rifle
+    {
+        resetSlot(21);
+        resetSlot(22);
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -588,6 +595,11 @@ void markCurrent()
     if(vr_wofs_version.value < 29) // the crowbar (as migrate)
     {
         resetSlot(23);
+    }
+    if(vr_wofs_version.value < 30) // the author's grunts' gun and enforcers' rifle (as migrate)
+    {
+        resetSlot(21);
+        resetSlot(22);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
