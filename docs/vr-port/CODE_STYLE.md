@@ -52,6 +52,10 @@ and nothing says which thread may touch it. It goes into its system's state inst
 
 `vr_memstats` prints the registered sets' bytes (totals and the largest), `vr_limits` the totals.
 
+`Misc/quakevr/check_statics.py` (run by the kit's `build.sh`, which fails on it) rejects a mutable function-local
+`static std::...` or an indented `thread_local` in `Quake/vr`; a worker's own buffer that must stay ends with
+`// statics-ok: <why>`.
+
 ## Threads
 
 A worker thread owns what it touches: its job's copy of the data (`ao`'s `PoseJob`), locals, or a `thread_local` when
