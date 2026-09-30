@@ -34,6 +34,8 @@ Held gib or brick pushed onto the prop table: rests on top
 A prop balanced on the open palm: the hand stays under it
 Empty hands now stop at walls by their drawn shape: check climbing and grabbing things off tables
 
+Hitbox defaults: width 16 and method A are now the defaults; grunts shooting from afar, knights/dogs/fiends reaching you feel fair? Try Width Shots Hit 20 and 28 (default 24)
+
 [Decide or give feedback]
 At speed 3, two 'weak punch' no-hit takes and one axe wiggle take now hit: drop those takes (invalidated), or keep them as known failures?
 Promote vr_melee_push 0.5, vr_melee_push_player 0.6 and vr_melee_bloodlust_mult 0.5 (your config) as defaults?
