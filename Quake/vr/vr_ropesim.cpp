@@ -407,6 +407,35 @@ Shape step(edict_t* hook, const glm::vec3& gun, const glm::vec3& game, const glm
     return r.shape;
 }
 
+glm::vec3 retract(edict_t* hook, const glm::vec3& gun, const glm::vec3& end, float remaining)
+{
+    Rope& r = ropes[NUM_FOR_EDICT(hook)];
+    glm::vec3 at = gun;
+    glm::vec3 out = end;
+    float walked = 0.f;
+    const std::size_t n = r.corners.size();
+    for(std::size_t i = 0; i <= n; i++)
+    {
+        const glm::vec3 next = i < n ? r.corners[i] : end;
+        const float piece = glm::distance(at, next);
+        if(walked + piece >= remaining)
+        {
+            const float along = std::max(0.f, remaining - walked);
+            out = piece > 0.001f ? at + (next - at) * (along / piece) : at;
+            r.corners.resize(i); // (the corners past it: the rope has come off them)
+            break;
+        }
+        walked += piece;
+        at = next;
+    }
+    r.frame = static_cast<int>(std::lround(sv.qcvm.time * 1000.0));
+    r.time = sv.qcvm.time;
+    r.lastA = gun;
+    r.lastB = out;
+    r.shape = shapeOf(r, gun, out);
+    return out;
+}
+
 const Shape& shape(edict_t* hook)
 {
     static const Shape none;

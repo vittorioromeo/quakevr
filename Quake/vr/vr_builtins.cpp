@@ -660,6 +660,21 @@ void PF_ropepivot()
     out[2] = v.z;
 }
 
+// vector roperetract(entity hook, vector gun, vector end, float remaining): the quick reel-in along the rope's path: the
+// hook's new place, `remaining` units of the path left from the gun (ropesim::retract).
+void PF_roperetract()
+{
+    const auto vec = [](int ofs) {
+        const float* v = G_VECTOR(ofs);
+        return glm::vec3{v[0], v[1], v[2]};
+    };
+    const glm::vec3 p = ropesim::retract(G_EDICT(OFS_PARM0), vec(OFS_PARM1), vec(OFS_PARM2), G_FLOAT(OFS_PARM3));
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = p.x;
+    out[1] = p.y;
+    out[2] = p.z;
+}
+
 // void ropesend(entity hook, entity owner, float beamId): its points to the clients, for that beam.
 void PF_ropesend()
 {
@@ -889,6 +904,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ropestep", PF_ropestep},
     {"ropepivot", PF_ropepivot},
     {"ropesend", PF_ropesend},
+    {"roperetract", PF_roperetract},
     {"ropeend", PF_ropeend},
     {"tracebox", PF_tracebox},
     {"cvar_hmake", PF_cvar_hmake},

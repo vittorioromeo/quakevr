@@ -29,6 +29,12 @@ struct Shape
 // the slack is the client's), its ends' entities (`skipA`, `skipB`: not in its way; 0 none). The taut path's shape.
 Shape step(edict_t* hook, const glm::vec3& gun, const glm::vec3& game, const glm::vec3& end, float length, int skipA, int skipB);
 
+// The quick reel-in (vr_grapple.qc VR_Grapple_ServiceRetract): the hook drawn back along the rope's path, `remaining`
+// units of it left from the gun (`gun`) round its corners (the hook now at `end`); the corners it has passed are gone,
+// so the rope shortens with it. The hook's new place (`end` if the path is no longer than that). The shape after it
+// (shape(): its path from the gun, its first corner from the hook) as a step's.
+[[nodiscard]] glm::vec3 retract(edict_t* hook, const glm::vec3& gun, const glm::vec3& end, float remaining);
+
 // The shape of the last step (a hook never stepped: straight from the ends given last... none: all 0).
 [[nodiscard]] const Shape& shape(edict_t* hook);
 

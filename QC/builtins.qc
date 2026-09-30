@@ -221,6 +221,9 @@ float(entity e, vector rel, float keep, float keepSpin, float maxSpeed, vector a
 float(entity hook, vector gun, vector game, vector end, float length, entity skipA, entity skipB) ropestep = #0;
 vector(entity hook, float which) ropepivot = #0;
 void(entity hook, entity owner, float beamId) ropesend = #0;
+// The quick reel-in along the rope's path: the hook's new place, `remaining` units of the path left from `gun` round its
+// corners (the hook now at `end`); the corners passed are gone, and ropepivot reads the path after it (from the gun).
+vector(entity hook, vector gun, vector end, float remaining) roperetract = #0;
 // The rope of `owner`'s beam `beamId` ended: its hook's rope is another beam's now (the client takes the old one away).
 void(entity owner, float beamId) ropeend = #0;
 float(entity e, entity player) carry2hoff = #0; // held in both hands: which have been pulled off it (1 the off hand, 2 the main; vr_carry_two_hands_detach)
