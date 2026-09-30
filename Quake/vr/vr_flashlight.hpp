@@ -33,6 +33,10 @@ void init();
 // A map's load (VR_NewMap): the torch's model loaded and its shape read from it, not in the map's first frame.
 void prepare();
 
+// Once per frame, as the view is set up, before it moves the drawn hands (out of the body, out of models, knocked,
+// shaken): the hands the game reads, what lights the lamp up for a hand (as a press there is judged on them).
+void noteGameHands(const hands::State& s);
+
 // Once per frame, as the view is set up: moves the lamp, places its model in `ve` and lights its
 // beam.
 void setupView(const hands::State& s, view::ViewEntity& ve);
@@ -68,6 +72,12 @@ void reset();
 // Whether `hand` holds the flashlight: that hand does not force grab (its move tells the server,
 // QVR_BUTTON_*HANDBUSY, and its aim beam is not drawn).
 [[nodiscard]] bool holds(int hand);
+
+// How far `hand` is from where it reaches the lamp not held (on the body, on its way home, on the head; on a gun, the
+// free hand), over that reach: below 1 it is at the lamp (lit, taken by a press). Very large when no hand reaches it.
+// vr_body_collide lets the body go of a hand coming to it (as of a hand coming to a holster): the hand is drawn where
+// it is, at the lamp that lights up for it.
+[[nodiscard]] float reachRatio(const hands::State& s, int hand);
 
 // The game directory changed (VR_OnGameDirChanged): the guns' torch spots (by model name) forgotten, the torch's
 // shape read again from its model.

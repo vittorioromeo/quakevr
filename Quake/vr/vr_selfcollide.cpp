@@ -810,6 +810,13 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
             if(bodyPart && w > 0.f && boundsMeet(*ab, glm::vec3{0.f}, *bb, glm::vec3{0.f}))
             {
                 w *= away(h, sub == SubWeapon);
+                if(sub == SubHand && w > 0.f)
+                {
+                    // A hand coming to the flashlight on the body or the head (in its reach: lit, taken), as to a
+                    // holster: drawn where it is, not held at the body's surface by it (and so off the lamp as the
+                    // game reads it, the lamp lit for a hand drawn a few centimetres away from it, or the other way).
+                    w *= smooth(1.f, 1.5f, flashlight::reachRatio(s, h));
+                }
             }
             c.w = w;
         }

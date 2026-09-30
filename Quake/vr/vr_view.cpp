@@ -4781,6 +4781,9 @@ extern "C" void VR_SetupViewEntities()
 
     updateFingerFrames();
 
+    // The hands as the game reads them, before the view moves the drawn ones (below): what lights the flashlight up.
+    flashlight::noteGameHands(s);
+
     // The weapon posing mode (vr_posing.cpp) moves the hands for the view only: the game's put back after it.
     const bool posingNow = posing::active();
     static hands::State unposed;
