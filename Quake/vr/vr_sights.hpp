@@ -7,22 +7,7 @@
 // (so the gradient keeps its shape), and uploaded again when the cvars change. The glow
 // (vr_weapon_glow, the bloom) comes from those texels, so it takes the same colour.
 //
-// A C header: gl_texmgr.c calls these.
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// TexMgr_LoadImage8: the palette the 8-bit texture `texname` is uploaded with, `palette` (the one
-// Quake would use) or, for a sighted weapon's skin with a hue other than the sights' own, a copy of
-// it with the sight colours recoloured (valid until the next call).
-unsigned int* VR_SightPalette(const char* texname, unsigned int* palette);
-
-// gl_texmgr.c: uploads again the textures whose names start with `prefix` (from their source).
-void TexMgr_ReloadImagesNamed(const char* prefix);
-
-#ifdef __cplusplus
-}
-#endif
+// VR_SightPalette (gl_texmgr.c calls it) is declared in vr_api_render.h, TexMgr_ReloadImagesNamed in vr_engine.hpp.

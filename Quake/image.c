@@ -22,7 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //image.c -- image loading
 
 #include "quakedef.h"
-#include "vr/vr_api.h" // QVR: load timing
 
 static byte *Image_LoadPCX (FILE *f, int *width, int *height);
 static byte *Image_LoadLMP (FILE *f, int *width, int *height);

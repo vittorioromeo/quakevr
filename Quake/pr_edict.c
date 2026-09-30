@@ -22,7 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_edict.c -- entity dictionary
 
 #include "quakedef.h"
-#include "vr/vr_api.h" // QVR
 
 extern edict_t **bbox_linked;
 

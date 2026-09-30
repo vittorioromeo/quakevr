@@ -22,8 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // gl_mesh.c: triangle model functions
 
 #include "quakedef.h"
-#include "vr/vr_api_render.h" // QVR
-#include "vr/vr_ao.hpp" // QVR: dynamic ambient occlusion
 
 
 /*

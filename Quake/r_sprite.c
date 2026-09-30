@@ -22,7 +22,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //r_sprite.c -- sprite model rendering
 
 #include "quakedef.h"
-#include "vr/vr_api_render.h" // QVR
 
 typedef struct spritevert_t {
 	vec3_t		pos;

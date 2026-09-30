@@ -21,26 +21,8 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+// The engine's calls (VR_AliasVertexAO, VR_AliasAO, VR_BrushAOSelf) are declared in vr_api_render.h.
 
-struct entity_s;
-struct qmodel_s;
-
-// GLMesh_LoadVertexBuffer: a Quake model's per-pose, per-vertex visibility (0 fully occluded .. 255 open), numposes x
-// numverts in the model's own vertex order; NULL when there is none (not a single-surface .mdl). Cached by model.
-const unsigned char *VR_AliasVertexAO (struct qmodel_s *model, const void *aliashdr);
-
-// R_DrawAliasModel_Real: the instance's occlusion settings: [0] its own occluder group (0 none), [1] how much of its
-// baked per-vertex occlusion applies (vr_ao_models), [2] [3] unused.
-void VR_AliasAO (const struct entity_s *e, float out[4]);
-
-// R_InitBModelInstance: a brush model's own occluder group (0 none), which its box never darkens.
-float VR_BrushAOSelf (const struct entity_s *e);
-
-#ifdef __cplusplus
-}
 
 namespace qvr::ao
 {
@@ -58,4 +40,4 @@ void shutdown();
 void upload();
 
 } // namespace qvr::ao
-#endif
+

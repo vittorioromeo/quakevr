@@ -23,8 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // r_misc.c
 
 #include "quakedef.h"
-#include "vr/vr_api.h" // QVR
-#include "vr/vr_api_render.h" // QVR: VR_MapLiquidAlpha
 
 //johnfitz -- new cvars
 extern cvar_t r_clearcolor;

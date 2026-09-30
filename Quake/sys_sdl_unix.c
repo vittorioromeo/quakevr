@@ -23,7 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "arch_def.h"
 #include "quakedef.h"
-#include "vr/vr_api.h" // QVR: VR_FileCacheForget
 #include "steam.h"
 
 #include <sys/types.h>

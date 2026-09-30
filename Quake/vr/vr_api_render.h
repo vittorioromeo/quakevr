@@ -31,6 +31,7 @@ extern "C" {
 #endif
 
 struct entity_s;
+struct qmodel_s;
 
 // Stereo rendering (gl_screen.c, gl_rmain.c).
 int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the eyes
@@ -130,6 +131,32 @@ void VR_LoadSkinNormalMaps (struct qmodel_s *mod, void *hdr, const stvert_t *ver
 void VR_MD5SkinNormalMap (void *surf, struct gltexture_s *glt, const char *shader, int skin, int frame, unsigned char *data,
 	enum srcformat fmt, int w, int h);						// Mod_LoadMD5Skins: an MD5 skin's normal map
 void VR_MD5SkinsReset (void);							// Mod_LoadMD5Skins, before and after a surface's skins
+
+
+// Dynamic ambient occlusion (vr_ao.cpp; see vr_ao.hpp).
+// GLMesh_LoadVertexBuffer: a Quake model's per-pose, per-vertex visibility (0 fully occluded .. 255 open), numposes x
+// numverts in the model's own vertex order; NULL when there is none (not a single-surface .mdl). Cached by model.
+const unsigned char *VR_AliasVertexAO (struct qmodel_s *model, const void *aliashdr);
+
+// R_DrawAliasModel_Real: the instance's occlusion settings: [0] its own occluder group (0 none), [1] how much of its
+// baked per-vertex occlusion applies (vr_ao_models), [2] [3] unused.
+void VR_AliasAO (const struct entity_s *e, float out[4]);
+
+// R_InitBModelInstance: a brush model's own occluder group (0 none), which its box never darkens.
+float VR_BrushAOSelf (const struct entity_s *e);
+
+// The weapons' sights in the chosen colour (vr_sights.cpp; see vr_sights.hpp).
+// TexMgr_LoadImage8: the palette the 8-bit texture `texname` is uploaded with, `palette` (the one
+// Quake would use) or, for a sighted weapon's skin with a hue other than the sights' own, a copy of
+// it with the sight colours recoloured (valid until the next call).
+unsigned int* VR_SightPalette(const char* texname, unsigned int* palette);
+
+// The eyes' tone curve, grade and dither (vr_tonemap.cpp; see vr_tonemap.h).
+unsigned VR_SceneColorFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's colour format (the eyes' float one with vr_tonemap)
+int VR_SceneSamples (int samples);	// GL_CreateFrameBuffers: the scene's MSAA samples (the spectator camera's: vr_spectator_aa)
+float VR_SceneTone (void);						// R_SetupView: the brightest the world and models write (1: Quake's clamp)
+float VR_SceneDither (float dither);			// R_SetupView: the scene's screen dither (0 in the eyes with vr_dither: the post-process dithers last)
+void VR_PostProcessTone (void);					// GL_PostProcess, the non-palettized program in use: the tone curve, grade (unit 3) and dither
 
 #ifdef __cplusplus
 }

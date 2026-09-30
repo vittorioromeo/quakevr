@@ -54,18 +54,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "	return mix(c, texture(lut, clamp(c, 0.0, 1.0) * ((n - 1.0) / n) + 0.5 / n).rgb, strength);\n" \
 "}\n"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-unsigned VR_SceneColorFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's colour format (the eyes' float one with vr_tonemap)
-int VR_SceneSamples (int samples);	// GL_CreateFrameBuffers: the scene's MSAA samples (the spectator camera's: vr_spectator_aa)
-float VR_SceneTone (void);						// R_SetupView: the brightest the world and models write (1: Quake's clamp)
-float VR_SceneDither (float dither);			// R_SetupView: the scene's screen dither (0 in the eyes with vr_dither: the post-process dithers last)
-void VR_PostProcessTone (void);					// GL_PostProcess, the non-palettized program in use: the tone curve, grade (unit 3) and dither
-
-#ifdef __cplusplus
-}
-#endif
+// The engine's calls (VR_SceneColorFormat, VR_SceneTone, VR_PostProcessTone...) are declared in vr_api_render.h.
 
 #endif // QVR_VR_TONEMAP_H

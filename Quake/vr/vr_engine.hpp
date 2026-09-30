@@ -26,6 +26,7 @@ int Mod_KnownMax (void);							// gl_model.c
 qboolean Mod_CheckFullbrights (byte *pixels, int count);	// gl_model.c (vr_modelload.cpp)
 int TexMgr_Count (void);							// gl_texmgr.c
 int TexMgr_Max (void);								// gl_texmgr.c
+void TexMgr_ReloadImagesNamed (const char *prefix);	// gl_texmgr.c: the textures whose names start with `prefix` uploaded again (vr_sights.cpp)
 int Draw_CachedPicsMax (void);						// gl_draw.c
 extern int menu_numcachepics;						// gl_draw.c
 int Cmd_AliasCount (void);							// cmd.c

@@ -24,7 +24,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // draw.c -- 2d drawing
 
 #include "quakedef.h"
-#include "vr/vr_api_render.h" // QVR
 
 const vec3_t	rgb_black = {0.f, 0.f, 0.f};
 const vec3_t	rgb_white = {1.f, 1.f, 1.f};

@@ -64,6 +64,9 @@ int VR_ServerFrameOverride (double *frametime); // _Host_Frame: whether the serv
 							// usual; 0 no; 1 yes, for *frametime seconds (a take's recorded server frames)
 void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
 
+// The console (vr_cmdtoken.cpp).
+const char *VR_ParseToken (const char *data, const char **token); // Cmd_TokenizeString: COM_Parse for an argument of any length
+
 // Automated test runs (QVR_NO_ERROR_DIALOG; vr_crash.cpp, Windows only).
 void VR_InstallCrashHandler (void);	// main, first: a crash writes qvr_crash.txt (the stack) and qvr_crash.dmp
 int VR_ErrorDialogSuppressed (const char *errorMsg);	// PL_ErrorDialog: nonzero if written to qvr_error.txt instead

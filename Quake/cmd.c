@@ -817,107 +817,6 @@ void Cmd_AddArg (const char *arg)
 
 /*
 ============
-Cmd_ParseToken -- QVR
-
-COM_Parse's rules (whitespace, // and block comments, quoted strings, the single-character tokens), into a buffer
-that grows: an argument of any length. COM_Parse cut every token at 1023 characters (com_token), silently, so a long
-cvar value (vr_menu_positions, vr_bodycal_undo...) set from the config or the console lost its end.
-============
-*/
-static char		*cmd_token;
-static size_t	cmd_token_size;
-
-static void Cmd_TokenAppend (size_t *len, char c)
-{
-	if (*len + 1 >= cmd_token_size)
-	{
-		size_t newsize = cmd_token_size ? cmd_token_size * 2 : 1024;
-		char *newtoken = (char *) realloc (cmd_token, newsize);
-		if (!newtoken)
-			Sys_Error ("Cmd_ParseToken: out of memory for a %d-character argument", (int) *len);
-		cmd_token = newtoken;
-		cmd_token_size = newsize;
-	}
-	cmd_token[(*len)++] = c;
-	cmd_token[*len] = 0;
-}
-
-static const char *Cmd_ParseToken (const char *data)
-{
-	int		c;
-	size_t	len = 0;
-
-	Cmd_TokenAppend (&len, 0); // an empty token (and the buffer allocated)
-	len = 0;
-
-	if (!data)
-		return NULL;
-
-// skip whitespace
-skipwhite:
-	while ((c = *data) <= ' ')
-	{
-		if (c == 0)
-			return NULL;	// end of file
-		data++;
-	}
-
-// skip // comments
-	if (c == '/' && data[1] == '/')
-	{
-		while (*data && *data != '\n')
-			data++;
-		goto skipwhite;
-	}
-
-// skip /*..*/ comments
-	if (c == '/' && data[1] == '*')
-	{
-		data += 2;
-		while (*data && !(*data == '*' && data[1] == '/'))
-			data++;
-		if (*data)
-			data += 2;
-		goto skipwhite;
-	}
-
-// handle quoted strings specially
-	if (c == '\"')
-	{
-		data++;
-		while (1)
-		{
-			if ((c = *data) != 0)
-				++data;
-			if (c == '\"' || !c)
-				return data;
-			Cmd_TokenAppend (&len, (char) c);
-		}
-	}
-
-// parse single characters
-	if (c == '{' || c == '}'|| c == '('|| c == ')' || c == '\'' || c == ':')
-	{
-		Cmd_TokenAppend (&len, (char) c);
-		return data+1;
-	}
-
-// parse a regular word
-	do
-	{
-		Cmd_TokenAppend (&len, (char) c);
-		data++;
-		c = *data;
-		/* commented out the check for ':' so that ip:port works */
-		if (c == '{' || c == '}'|| c == '('|| c == ')' || c == '\''/* || c == ':' */)
-			break;
-	} while (c > 32);
-
-	return data;
-}
-
-/*
-============
 Cmd_TokenizeString
 
 Parses the given string into command line tokens.
@@ -926,6 +825,7 @@ Parses the given string into command line tokens.
 void Cmd_TokenizeString (const char *text)
 {
 	int		i;
+	const char	*token; // QVR: VR_ParseToken's
 
 // clear the args from the last string
 	for (i=0 ; i<cmd_argc ; i++)
@@ -955,13 +855,13 @@ void Cmd_TokenizeString (const char *text)
 		if (cmd_argc == 1)
 			 cmd_args = text;
 
-		text = Cmd_ParseToken (text); // QVR: was COM_Parse (an argument cut at 1023 characters)
+		text = VR_ParseToken (text, &token); // QVR: was COM_Parse (an argument cut at 1023 characters; vr_cmdtoken.cpp)
 		if (!text)
 			return;
 
-		if ((int) strlen (cmd_token) > cmd_limits.longest_token)
-			cmd_limits.longest_token = (int) strlen (cmd_token);
-		Cmd_AddArg (cmd_token);
+		if ((int) strlen (token) > cmd_limits.longest_token) // QVR (vr_limits)
+			cmd_limits.longest_token = (int) strlen (token);
+		Cmd_AddArg (token);
 	}
 }
 

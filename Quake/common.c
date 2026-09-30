@@ -23,7 +23,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // common.c -- misc functions used in client and server
 
 #include "quakedef.h"
-#include "vr/vr_api.h" // QVR
 #include "q_ctype.h"
 #include "bgmusic.h"
 #include "steam.h"
