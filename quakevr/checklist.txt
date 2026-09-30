@@ -30,7 +30,11 @@ Stuck anywhere (wall, door, lift)? You should pop out to the nearest free spot (
 Grapple: reel a heavy box while walking away: you're slowed like towing
 
 
+Motion Recorder > Record Button: try B and a grip; the prompt names the button; its normal action is off only while armed
+Held weapon pushed into a wall and a corner slides out as before (statics cleanup)
+
 [Decide or give feedback]
+Function-local non-std statics (two text buffers, lastOut in vr_handpose): move them to the scratch/state pattern too?
 
 [Tune]
 Grapple: reel speeds and the other grapple values (you asked for a reminder)
