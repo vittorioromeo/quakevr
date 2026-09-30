@@ -50,7 +50,8 @@ articles, talks and other engines' source are credited with where they came from
   colours.
 - **Synthesised sounds** (`make_sounds.py`, in `quakevr/sound/vr/`): made from sine partials and filtered noise by
   the script, with no recordings. They are the headshot tick, the shells' tinks, the shove, bash, parry-bash and
-  parry, and (round 21) the pommel, hilt and butt knocks `pommel1..3.wav`.
+  parry, and (round 21) the pommel, hilt and butt knocks `pommel1..3.wav` and the grunts' burst rifles' rounds
+  `burst1..3.wav`.
 - **The body's clothes and pauldrons** (`make_vrbody.py`, `make_pauldron.py`) follow the Quake ranger, id Software's
   `progs/player.mdl` and its skin: his vest, belt, camouflage trousers, thigh plates, boots and quilted pauldrons, in
   his skin's own palette colours. Nothing of the model itself is copied.

@@ -115,8 +115,12 @@ const DefaultChange defaultChanges[] = {
     {60, &r_wateralpha, "0.4"},               // 0.3
     {60, &r_slimealpha, "0.9"},               // 0.6
     {60, &vr_hand_collide_props, "10"},       // 15
+    // 61: the grunts' guns fire 3-round bursts (ROUND21.md, "The grunts' burst rifles"): a round's damage, not a
+    // pellet's, and rounds in threes.
+    {61, &vr_gruntgun_damage, "4"},           // 5
+    {61, &vr_gruntgun_ammo, "10"},            // 30
 };
-constexpr int configVersion = 60;
+constexpr int configVersion = 61;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

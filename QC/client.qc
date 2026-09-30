@@ -1970,6 +1970,8 @@ void() PlayerPostThink =
     W_Frame();
     VR_Chainsaw_Frame(cVR_MainHand); // QVR: the chainsaws' engines, chains and cords (vr_chainsaw.qc)
     VR_Chainsaw_Frame(cVR_OffHand);
+    VR_EnemyGuns_Frame(cVR_MainHand); // QVR: the grunts' burst rifles' bursts (vr_enemyguns.qc)
+    VR_EnemyGuns_Frame(cVR_OffHand);
     VR_ShotImpacts(); // QVR: projectiles fired from inside what they hit meet it (weapons.qc)
 
 // check to see if player landed and play landing sound

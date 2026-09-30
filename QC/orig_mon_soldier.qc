@@ -98,8 +98,8 @@ void()    army_atk3    =[    $shoot3,    army_atk4    ] {ai_face();};
 void()    army_atk4    =[    $shoot4,    army_atk5    ] {ai_face();};
 void()    army_atk5    =[    $shoot5,    army_atk6    ] {ai_face();army_fire();
 self.effects = self.effects | EF_MUZZLEFLASH;};
-void()    army_atk6    =[    $shoot6,    army_atk7    ] {ai_face();};
-void()    army_atk7    =[    $shoot7,    army_atk8    ] {ai_face();SUB_CheckRefire (army_atk1);};
+void()    army_atk6    =[    $shoot6,    army_atk7    ] {ai_face();army_burst();};
+void()    army_atk7    =[    $shoot7,    army_atk8    ] {ai_face();army_burst();SUB_CheckRefire (army_atk1);};
 void()    army_atk8    =[    $shoot8,    army_atk9    ] {ai_face();};
 void()    army_atk9    =[    $shoot9,    army_run1    ] {ai_face();};
 
@@ -170,11 +170,52 @@ void(entity attacker, float damage)    army_pain =
 };
 
 
+// VR: the grunt's gun is a burst rifle (vr_grunt_burst 1, the default; docs/vr-port/ROUND21.md, "The grunts' burst
+// rifles"): three rounds, one in each of its fire frames (army_atk5..7, 0.1 s apart), each a single bullet
+// (vr_grunt_burst_damage) aimed anew, tighter than the shotgun's pellets (VR_GRUNT_BURST_SPREAD). Its damage over time
+// is about the shotgun's (ROUND21.md has the numbers). vr_grunt_burst 0: id's shotgun (army_fire's 4 pellets of 4).
+vector VR_GRUNT_BURST_SPREAD = '0.07 0.07 0'; // (the shotgun's pellets: 0.1)
+
+void() army_burst_round =
+{
+    vector dir;
+
+    ai_face();
+    if(self.enemy == world)
+    {
+        return;
+    }
+    sound(self, CHAN_AUTO, VR_BurstSound(), 1, ATTN_NORM); // (not its weapon channel: each round's tail rings on)
+    dir = self.enemy.origin - self.enemy.velocity * 0.2; // as the shotgun: aimed a little behind a moving target
+    dir = normalize(dir - self.origin);
+    vr_pellet_damage = cvar_hget(cvarh_vr_grunt_burst_damage);
+    EnemyFireBullets(1, dir, VR_GRUNT_BURST_SPREAD);
+    vr_pellet_damage = 0;
+    self.damage_weapon = IT_SHOTGUN; // HONEY
+};
+
+// The burst's second and third rounds (army_atk6, 7): its first is army_fire's (army_atk5).
+void() army_burst =
+{
+    if(!cvar_hget(cvarh_vr_grunt_burst))
+    {
+        return;
+    }
+    army_burst_round();
+    self.effects = self.effects | EF_MUZZLEFLASH;
+};
+
 void() army_fire =
 {
     // vector   src, vec;
     vector    dir;
     entity    en;
+
+    if(cvar_hget(cvarh_vr_grunt_burst))
+    {
+        army_burst_round();
+        return;
+    }
 
     ai_face();
 

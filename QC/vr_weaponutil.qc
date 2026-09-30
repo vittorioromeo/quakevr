@@ -473,7 +473,7 @@ float(float wid) WeaponIdToBaseClipSize =
     if(wid == WID_LASER_CANNON)     { return 0; }
     if(wid == WID_SWORD)            { return 0; }
     if(wid == WID_CHAINSAW)         { return VR_CHAINSAW_TANK; }
-    if(wid == WID_GRUNTGUN)         { return cvar_hget(cvarh_vr_gruntgun_ammo); }
+    if(wid == WID_GRUNTGUN)         { return VR_GruntGun_ClipSize(); } // a multiple of 3 (vr_enemyguns.qc)
     if(wid == WID_ENFRIFLE)         { return cvar_hget(cvarh_vr_enfrifle_ammo); }
 
     ASSERT(FALSE);

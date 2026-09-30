@@ -15531,6 +15531,89 @@ pools), one shot left (`214`).
 - The guns' size (Scale 0.4) and where the grip sits are first guesses: the weapon menus (or the posing mode) change them.
 - The grunt's shotgun ejects no shells (its model has no port); the rifle's laser is the enforcer's (slow, 600 units a
   second): keep, or faster for yours?
+## The grunts' burst rifles; the enforcer rifle's faster lasers
+
+Your request: the grunt's gun looks nothing like a shotgun, so it fires 3-round bursts of single bullets, a little more
+precise, about the shotgun's damage over time; the one you pick up the same, its ammo a multiple of 3. The enforcer
+rifle you hold: faster lasers that also hurt corpses, gibs and props; sliders for both guns' damage and the laser's
+speed. Branch `agent/gruntburst`.
+
+### The grunts (`orig_mon_soldier.qc` `army_fire`, `army_burst`)
+
+- A burst is 3 rounds, one in each of the attack's fire frames (`army_atk5`, `6`, `7`: 0.1 s apart, a muzzle flash
+  each), each round re-aimed (the shotgun's aim a little behind a moving target), one bullet, spread 0.07 (the
+  shotgun's pellets 0.1), `vr_grunt_burst_damage` 5 a round (the shotgun: 4 pellets of 4). The animation and its timing
+  are as before (the refire check still at `atk7`, after the third round).
+- **The damage, compared** (`vr_hull_hittest`: the share of shots hitting you at Width Shots Hit 24, 200 shots from
+  each open direction; per attack: the shotgun's 16 x its share, the burst's 3 x 5 x its share):
+
+  | Distance | shotgun (spread 0.1) | burst (spread 0.07) |
+  |---|---|---|
+  | 128 | 100% -> 16 | 100% -> 15 |
+  | 256 | 78% -> 12.4 | 92% -> 13.8 |
+  | 384 | 53% -> 8.5 | 76% -> 11.3 |
+  | 512 | 38% -> 6.0 | 56% -> 8.3 |
+  | 768 | 19% -> 3.0 | 35% -> 5.3 |
+
+  In play (e1m1, skill 1, one grunt put that far ahead of you and left to fight for 30 s; it closes in as it likes):
+  the shotgun 21, 23, 20 shots from 128, 256, 512: you lost 336, 369, 289; the burst 24, 23, 22 bursts (72, 69, 66
+  rounds): 363, 348, 308. **Per 10 s: 112 / 123 / 96 before, 121 / 116 / 103 now** (within 8%); close up a burst does a
+  little less than a blast, farther a little more (the tighter spread).
+- **Burst Rifles** off (`vr_grunt_burst 0`): id's shotgun again (4 pellets, its sound): 21 shots, 334 lost in the same
+  test. The dropped guns too (below).
+- Sound: `sound/vr/burst1..3.wav`, one at random a round (a rifle's crack, the blast, the bolt's clack, a short tail;
+  0.32 s so the next round overlaps its tail), made by `make_sounds.py`. No recording was downloaded: the permission
+  reached me only through the coordinator. If you would rather have a recorded shot, name one (CC0) and it replaces
+  these.
+
+### The gun you pick up (`vr_enemyguns.qc`)
+
+- A trigger pull fires a 3-round burst: the first round at once, the next two 0.08 s apart (`VR_EnemyGuns_Frame`,
+  every player frame: the burst finishes if you let go; it stops if the gun leaves the hand or runs dry). Held, a burst
+  every 0.5 s (the shotgun's shot to shot). Each round one bullet from the muzzle, spread 0.006 (your shotgun's pellets
+  0.01; two hands tighter still), `vr_gruntgun_damage` 5 (positional: a head more), a round of its ammo.
+- Ammo **30**, a multiple of 3: the Rounds slider steps by 3, and any value is rounded to one (`vr_gruntgun_ammo 10` gives
+  9). Its counter shows the rounds left.
+- Burst Rifles off: it fires as your shotgun again (6 pellets of 4, a shell a shot), with a third of the rounds as
+  shells (10 at the default 30).
+- Tests: 30 -> 27 after a pull (rounds 0.096 and 0.064 s apart at the tests' 72 Hz frames); held 1.1 s: three bursts,
+  27 -> 18; an explosive box shot with one burst: 20 -> 5 (3 x 5). Off: "grunt's shotgun, 10 left", a shot: 6 pellets,
+  9 left.
+
+### The enforcer's rifle you hold
+
+- Its laser flies at `vr_enfrifle_speed` **1800** units a second (the enforcer's own stay 600; your nails 1750), plus the
+  hand's swing, as your nails. Measured: 1092 units in 0.592 s (1845 u/s, the frame's rounding).
+- It moves as your nails (`MOVETYPE_FLYMISSILE`: the move that meets corpses and gibs), from behind what the muzzle is
+  inside (`VR_ShotPlace`), and strikes as they do (`VR_RifleLaser_Touch`: whatever takes damage, positional; props
+  pushed by the shot-push system). Before, it flew through corpses and gibs.
+- Tests: a grunt's corpse (80 to gib) 65, 50, 35, 20, 5, gibbed; its head then 3 left; an explosive box 20 -> 5 -> blew
+  up; a health box pushed 12 N s a hit (-224 -> -221 -> -218).
+
+### Settings (Combat > Enemy Weapons)
+
+| Menu | Cvar | Default |
+|---|---|---|
+| Burst Rifles | `vr_grunt_burst` (new) | on |
+| Grunts' Round Damage | `vr_grunt_burst_damage` (new) | 5 |
+| Round Damage | `vr_gruntgun_damage` (was Pellet Damage) | 5 (was 4 a pellet) |
+| Rounds | `vr_gruntgun_ammo` (was Shells) | 30, steps of 3 (was 10) |
+| Laser Speed | `vr_enfrifle_speed` (new) | 1800 u/s |
+| Laser Damage, Shots | as before | 15, 20 |
+
+Config migration 61: a config still holding the old 4 and 10 takes 5 and 30. `vr_debug_shots 1` (Debug > Shots and
+Damage) prints each burst round ("burst round: hand 1, 2 more in the burst, 29 in the clip"), each rifle laser fired
+(its speed) and what it hit. Calibration boards: 0 menu paths missing.
+
+### In the headset
+
+- [ ] Grunts: three quick shots an attack, their muzzle flashing each; does the burst sound right (three rounds, not a
+  roar), and is their damage fair?
+- [ ] Pick up a grunt's gun: a pull fires three; the counter drops by 3 (30, 27...); hold the trigger: a burst every
+  half second.
+- [ ] Burst Rifles off: the shotgun again, grunts and dropped guns.
+- [ ] The enforcer's rifle: its lasers fast; shoot a corpse to gibs, then the gibs; an explosive box; a health box moves.
+
 ## clang-cl: the whole engine, C++23 (trial, 2026-09-30)
 
 Your option A: the whole engine built by clang-cl, the C++ as C++23, so any Quake VR file can include Zancle's headers
