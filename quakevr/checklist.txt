@@ -64,7 +64,10 @@ Chainsaw model clean-up: new starter housing under the cord handle
 
 First session on the clang-cl build: plays as before (and a Debug build steps fine in Visual Studio)
 
+Main hand Left: right stick moves, left turns, gadget on the right wrist reading upright, torch on the right hip; arms look normal (no swap); calibration's main-hand step raising each hand
+
 [Decide or give feedback]
+Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
