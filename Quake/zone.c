@@ -185,6 +185,7 @@ static void *Z_TagMalloc (int size, int tag)
 	return (void *) ((byte *)base + sizeof(memblock_t));
 }
 
+#ifdef PARANOID // QVR: only Z_Malloc calls it, when PARANOID
 /*
 ========================
 Z_CheckHeap
@@ -206,6 +207,7 @@ static void Z_CheckHeap (void)
 			Sys_Error ("Z_CheckHeap: two consecutive free blocks");
 	}
 }
+#endif
 
 
 /*

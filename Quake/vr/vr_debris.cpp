@@ -1119,7 +1119,7 @@ int plan()
             }
             const int64_t area = (static_cast<int64_t>(std::floor(floor.x / areaSize)) << 42) ^
                                  (static_cast<int64_t>(std::floor(floor.y / areaSize)) << 21) ^
-                                 static_cast<int64_t>(std::floor(floor.z / areaSize)) & 0x1fffff;
+                                 (static_cast<int64_t>(std::floor(floor.z / areaSize)) & 0x1fffff);
             if(ok && areas[area] >= areaMax)
             {
                 ok = false;

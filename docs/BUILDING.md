@@ -6,8 +6,9 @@ understand the code, start with [vr-port/PLAN.md](vr-port/PLAN.md) (design and s
 
 ## What you need
 
-- **Windows x64** and **Visual Studio 2022** with the C++ desktop workload (toolset v143). The VR code is C++20,
-  and the engine is C.
+- **Windows x64** and **Visual Studio 2022** with the C++ desktop workload and its **C++ Clang tools for Windows**
+  (the ClangCL toolset: the whole engine is built by clang-cl and linked by lld-link). The VR code is C++23, and the
+  engine is C (C11).
 - **[FTEQCC](https://www.fteqcc.org/)** (`fteqcc64.exe`) to compile the QuakeC.
 - **Python 3**, only for the tool scripts.
 - Your Quake folder (with `id1`) to run the game.
@@ -39,25 +40,31 @@ msbuild Windows\VisualStudio\ironwail.sln -p:Configuration=Release -p:Platform=x
 The output is `Windows\VisualStudio\Build-ironwail\bin\x64\Release\ironwail.exe`, with `openxr_loader.dll` and the
 other DLLs next to it.
 
-**Release flags** (`ironwail.vcxproj`, the same for the engine's C and the VR module's C++):
+**Release flags** (`ironwail.vcxproj` and `quakevr.props`, the same for the engine's C and the VR module's C++; clang-cl
+takes MSVC's flags):
 
 | Flags | Why |
 |---|---|
 | `/O2 /Ot /Oi /GF` | Full speed optimisation, intrinsics, pooled strings |
 | `/Ob3` | More inlining than `/O2`'s `/Ob2` |
-| `/GL` + `/LTCG:incremental` | Link-time (whole-program) optimisation across all files. Incremental: after editing one file the link re-optimises only what changed (about 3 s) |
+| `-flto=thin` + `/lldltocache` | ThinLTO: link-time (whole-program) optimisation across all files, in parallel; its cache (`Windows/VisualStudio/Build-ironwail/x64/Release/lto.cache`, at most 1 GB) makes the link after editing one file re-optimise only what changed (a one-file Release build takes 2-5 s) |
 | `/Gy /Gw` + `/OPT:REF /OPT:ICF` | Every function and global in its own section, so the linker drops the unused ones and merges identical ones |
 | `/GS-`, `/sdl-`, no `/guard:cf` | No stack cookies or control-flow checks: a game, not a security boundary |
 | `/fp:precise` | Kept everywhere. The engine's physics, NaN checks and demos rely on it, and `/fp:fast` in the VR module alone measured no gain |
 | no `/arch` (SSE2, the x64 baseline) | Runs on any x64 CPU. `/arch:AVX2` measured no gain |
-| `/Zi` + `/DEBUG` | A `.pdb` for crash dumps. It does not change the code |
+| `/Z7` + `/DEBUG` | A `.pdb` for crash dumps (the debug information is in the objects, gathered by the linker). It does not change the code |
 
 The frame is not CPU-bound (about 0.35 ms of CPU a frame on the development PC), so these flags make little
 difference to the frame rate. ROUND19.md ("Build flags") has the measurements. SDL2, the codecs, curl and the OpenXR
 loader are prebuilt DLLs, used as they are.
 
+Debugging in Visual Studio works as with MSVC (breakpoints, stepping, watches, `ironwail.natvis`), but there is no
+**Edit and Continue**: clang-cl can't. Precompiled headers (`quakedef.h`, the C files) work and save about a sixth of a
+clean build.
+
 **CMake** also works, for development: the top-level `CMakeLists.txt` includes `Quake/vr/vr.cmake`, which adds the
-VR module and, on Windows x64, OpenXR.
+VR module and, on Windows x64, OpenXR. On Windows configure it for clang-cl (`-T ClangCL`); MSVC's `cl` stops with a
+message.
 
 **Other platforms:** the Makefile builds (Linux, macOS, MinGW) compile the VR module with the mock backend only. The
 OpenXR backend binds to OpenGL through WGL, so there is no VR outside Windows x64 yet.

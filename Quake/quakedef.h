@@ -282,10 +282,10 @@ typedef struct
 #include "gl_model.h"
 #include "world.h"
 
-#include "image.h"	//johnfitz
 #include "gl_texmgr.h"	//johnfitz
-#include "input.h"
+#include "image.h"	//johnfitz (QVR: after gl_texmgr.h and keys.h, which define the enums image.h and input.h name: a forward-declared enum is a Microsoft extension to C, a warning in clang-cl)
 #include "keys.h"
+#include "input.h"
 #include "menu.h"
 #include "cdaudio.h"
 #include "glquake.h"

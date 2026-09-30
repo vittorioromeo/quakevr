@@ -1656,7 +1656,7 @@ const char* summary()
 {
     ensure();
     std::string& text = readouts.summary;
-    int total = 0, fail = 0, suspect = 0, reviewed = 0;
+    int total = 0, fail = 0, suspect = 0;
     for(const Take& t : takes)
     {
         if(t.discarded)
@@ -1666,7 +1666,6 @@ const char* summary()
         total++;
         fail += failing(t);
         suspect += !t.suspect.empty();
-        reviewed += t.mark != nullptr;
     }
     text = va("%d takes: %d failing, %d suspect", total, fail, suspect);
     return text.c_str();

@@ -60,6 +60,7 @@
 
 #include <chrono>
 #include <cstdarg>
+#include <cstdlib>
 #include <cmath>
 #include <cstring>
 #include <ctime>
@@ -708,6 +709,18 @@ void VR_MemStats_f()
     }
 }
 
+// vr_debug_crash [access|abort]: crashes the game on purpose, to test the crash report (pl_win.c, PL_InstallCrashHandler:
+// in a test run, qvr_crash.txt with the stack and qvr_crash.dmp): an access violation (the default) or abort().
+void VR_DebugCrash_f()
+{
+    if(Cmd_Argc() > 1 && q_strcasecmp(Cmd_Argv(1), "abort") == 0)
+    {
+        std::abort();
+    }
+    int* volatile nowhere = nullptr; // (volatile: the compiler can't see it is null)
+    *nowhere = 1;
+}
+
 // vr_memstats_log: the same, as a row of quakevr/profile/memstats_<date>.csv every so many seconds
 // and once after each map load, with the frame rate since the last row: a session's slowdown next to
 // what the game (and, in the VRAM columns, every other program) holds, whose time grew (ours, on the
@@ -1089,6 +1102,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
+    Cmd_AddCommand("vr_debug_crash", VR_DebugCrash_f);
     lighting::init();
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
     envmap::init(); // vr_envmap_dump

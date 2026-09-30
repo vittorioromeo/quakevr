@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Zancle (Quake/vr/external/zancle/README.md): its concurrency module and what that needs, with vr_jobs.cpp (the
-     game's thread pool: the only file that includes Zancle), as a static library linked into ironwail (quakevr.props).
-     clang-cl (the ClangCL toolset: Visual Studio's "C++ Clang tools for Windows"), because Zancle is written against
-     the GCC/Clang builtins (__atomic_*, __has_builtin); the engine stays on MSVC, the objects link together (the same
-     ABI, the same runtime library per configuration). C++23 and optimised without Zancle's asserts (NDEBUG) in every
-     configuration; no whole-program optimisation (the MSVC linker's LTCG takes only MSVC objects). -->
+<!-- Zancle (Quake/vr/external/zancle/README.md): its concurrency module and what that needs, as a static library linked
+     into ironwail (quakevr.props). Its own project for its own settings: C++23 and optimised without Zancle's asserts
+     (NDEBUG) in every configuration, Debug too (the engine's Debug is unoptimised, with _DEBUG's checks), as CMake's
+     qvr_zancle and the Makefiles' ZANCLE_CXXFLAGS. clang-cl, as the whole engine (Zancle is written against the
+     GCC/Clang builtins: __atomic_*, __has_builtin); ThinLTO in Release, as the engine. -->
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -29,6 +28,7 @@
     <RootNamespace>zancle</RootNamespace>
     <Keyword>Win32Proj</Keyword>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture><!-- the 64-bit clang-cl (VC/Tools/Llvm/x64) -->
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -56,8 +56,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>..\..\Quake\vr;..\..\Quake\vr\external\zancle\include;..\..\Quake\vr\external\zancle\src;..\..\Quake\vr\external\zancle\extlibs\moodycamel;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <AdditionalIncludeDirectories>..\..\Quake\vr\external\zancle\include;..\..\Quake\vr\external\zancle\src;..\..\Quake\vr\external\zancle\extlibs\moodycamel;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;ZA_STATIC;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -71,14 +71,14 @@
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\Quake\vr\external\zancle\src\Zancle\**\*.cpp">
       <ObjectFileName>$(IntDir)%(RecursiveDir)</ObjectFileName>
     </ClCompile>
-    <ClCompile Include="..\..\Quake\vr\vr_jobs.cpp" />
-    <ClInclude Include="..\..\Quake\vr\vr_jobs.hpp;..\..\Quake\vr\external\zancle\include\Zancle\**\*.hpp;..\..\Quake\vr\external\zancle\extlibs\moodycamel\*.h" />
+    <ClInclude Include="..\..\Quake\vr\external\zancle\include\Zancle\**\*.hpp;..\..\Quake\vr\external\zancle\extlibs\moodycamel\*.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

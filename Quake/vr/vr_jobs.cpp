@@ -1,5 +1,4 @@
-// vr_jobs.cpp -- see vr_jobs.hpp. The only file that includes Zancle: built as C++23, optimised, NDEBUG and ZA_STATIC in
-// every configuration (Windows/VisualStudio/quakevr.props, Quake/vr/vr.cmake, the Makefiles). No engine headers here.
+// vr_jobs.cpp -- see vr_jobs.hpp. No engine headers here.
 
 #include "vr_jobs.hpp"
 

@@ -1242,7 +1242,7 @@ void pollSaves(bool wait)
         }
         hr.wid = cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2];
         hr.wflags = cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
-        const int model = cl.stats[h == HAND_MAIN ? STAT_WEAPON : protocol::STAT_QVR_WEAPONMODEL2];
+        const int model = cl.stats[h == HAND_MAIN ? int{STAT_WEAPON} : int{protocol::STAT_QVR_WEAPONMODEL2}];
         hr.model = model > 0 && model < MAX_MODELS && cl.model_precache[model] ? cl.model_precache[model]->name : "";
         hr.helping = twohand::helping(h);
         hr.twoHand = twohand::transition(h);

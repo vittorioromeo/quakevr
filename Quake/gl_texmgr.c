@@ -131,7 +131,7 @@ static int gl_texfilter_smooth; // QVR: VR_TextureSmoothing () as applied
 
 /*
 ===============
-TexMgr_FilterMode -- QVR: the filter mode of a texture. Replacement textures (textures/*.tga and the like, drawn
+TexMgr_FilterMode -- QVR: the filter mode of a texture. Replacement textures (the .tga files in textures/ and the like, drawn
 several texels to a Quake texel) and normal maps are smooth, linear with trilinear mipmaps (vr_texture_smooth 1),
 or every mipmapped texture is (2); Quake's own follow gl_texturemode.
 ===============

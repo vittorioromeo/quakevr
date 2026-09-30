@@ -1,11 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Quake VR module build settings, imported by ironwail.vcxproj. -->
+<!-- Quake VR module build settings, imported by ironwail.vcxproj (after its own, so these override them).
+     The whole engine is built by clang-cl (the ClangCL toolset: Visual Studio's "C++ Clang tools for Windows"; linked by
+     lld-link): the C files as C11 (as upstream's), the Quake VR C++ files as C++23, so any of them can include Zancle
+     (Quake/vr/external/zancle/README.md). -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <!-- lld-link has no incremental linking (/INCREMENTAL is ignored with a warning). -->
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>..\..\Quake\vr;..\..\Quake\vr\external;..\..\Quake\vr\external\box3d\include;..\OpenXR\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>..\..\Quake\vr;..\..\Quake\vr\external;..\..\Quake\vr\external\box3d\include;..\..\Quake\vr\external\zancle\include;..\OpenXR\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- SDL_DISABLE_MM3DNOW_H: SDL_cpuinfo.h includes <mm3dnow.h> where __3dNOW__ is defined (clang-cl for 32-bit x86),
+           a header clang deprecates with a #warning. -->
+      <PreprocessorDefinitions>ZA_STATIC;SDL_DISABLE_MM3DNOW_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Platform)'=='x64'">QVR_HAVE_OPENXR;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- Debug information in the objects (/Z7; clang-cl has no /Zi or /ZI, the toolset maps them to /Z7 anyway),
+           gathered into the .pdb by the linker. No Edit and Continue: clang-cl can't. -->
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
     </ClCompile>
     <Link>
       <!-- Zancle (Quake/vr/external/zancle/README.md): WaitOnAddress. -->
@@ -20,26 +32,44 @@
 copy "$(SolutionDir)..\OpenXR\lib\x64\openxr_loader.dll" "$(TargetDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
+  <!-- Release: ThinLTO (the ClangCL toolset ignores WholeProgramOptimization and the MSVC linker's LTCG), its cache in
+       the intermediate folder so that a rebuild of one file re-optimises only what changed. -->
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <AdditionalOptions>-flto=thin %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <LinkTimeCodeGeneration>Default</LinkTimeCodeGeneration>
+      <AdditionalOptions>/lldltocache:$(IntDir)lto.cache /lldltocachepolicy:cache_size_bytes=1g %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Quake\vr\*.cpp" Exclude="..\..\Quake\vr\vr_jobs.cpp">
+    <ClCompile Include="..\..\Quake\vr\*.cpp">
       <CompileAs>CompileAsCpp</CompileAs>
+      <!-- C++23: /clang:-std=c++23, as clang-cl's /std:c++latest is C++26 (the standard library sees C++23 either way:
+           clang-cl sets _MSVC_LANG to 202004L, which the STL counts as C++23; Zancle's Config.hpp reads __cplusplus). -->
+      <AdditionalOptions>/clang:-std=c++23 %(AdditionalOptions)</AdditionalOptions>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClInclude Include="..\..\Quake\vr\*.h;..\..\Quake\vr\*.hpp" />
-    <!-- Box3D (Quake/vr/external/box3d/README.md): the physics library, C17, single-threaded. -->
+    <!-- The precompiled header's own compile (/Yc) misses LanguageStandard_C (the ClangCL toolset leaves it out of that
+         step), and a header made as C17 (clang-cl's default) is refused by the C11 files that use it. -->
+    <ClCompile Update="..\..\Quake\quakedef.c">
+      <AdditionalOptions>/std:c11 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <!-- Box3D (Quake/vr/external/box3d/README.md): the physics library, C17, single-threaded. No FMA contraction (its
+         cross-platform determinism relies on it; the build has no FMA instructions anyway, x64's baseline). -->
     <ClCompile Include="..\..\Quake\vr\external\box3d\src\*.c">
       <CompileAs>CompileAsC</CompileAs>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <AdditionalOptions>/clang:-ffp-contract=off %(AdditionalOptions)</AdditionalOptions>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <ObjectFileName>$(IntDir)box3d\</ObjectFileName>
-      <!-- C4756: "overflow in constant arithmetic", from whole-program optimization folding 1000 * FLT_MAX in the CCD
-           stall logging (b3GetStallThreshold, off by default: the comparison with infinity is intended). -->
-      <DisableSpecificWarnings>4756;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
   </ItemGroup>
-  <!-- Zancle (Quake/vr/external/zancle/README.md) with vr_jobs.cpp, the game's thread pool: a static library built by
-       clang-cl (zancle.vcxproj; vr_jobs.cpp is left out of the glob above). -->
+  <!-- Zancle's own sources (Quake/vr/external/zancle/README.md): a static library with its own settings (optimised,
+       without its asserts, in every configuration; zancle.vcxproj). -->
   <ItemGroup>
     <ProjectReference Include="zancle.vcxproj">
       <Project>{E286BCD0-E4E0-4F68-B335-083019EA8E02}</Project>

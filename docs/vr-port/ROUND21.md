@@ -15531,3 +15531,106 @@ pools), one shot left (`214`).
 - The guns' size (Scale 0.4) and where the grip sits are first guesses: the weapon menus (or the posing mode) change them.
 - The grunt's shotgun ejects no shells (its model has no port); the rifle's laser is the enforcer's (slow, 600 units a
   second): keep, or faster for yours?
+## clang-cl: the whole engine, C++23 (trial, 2026-09-30)
+
+Your option A: the whole engine built by clang-cl, the C++ as C++23, so any Quake VR file can include Zancle's headers
+(the step before moving the VR code from `std::` to Zancle). Measured against the MSVC build it replaces (the same
+commit, 1271a133; i9-13900K, 32 threads).
+
+### What changed
+
+- `Windows/VisualStudio/ironwail.vcxproj`: every configuration on the ClangCL toolset, and the 64-bit host tools
+  (`PreferredToolArchitecture x64`: without it the toolset takes the 32-bit `VC\Tools\Llvm\bin\clang-cl.exe`). The
+  rest is in `quakevr.props`, imported after the project's own settings:
+  - C++ files: `/clang:-std=c++23` (clang-cl's `/std:c++latest` is C++26; the STL counts clang-cl's `_MSVC_LANG`
+    202004L as C++23). C files stay C11 (Box3D C17).
+  - Release: ThinLTO (`-flto=thin`; the toolset ignores `WholeProgramOptimization` and lld-link takes no `/LTCG`),
+    its cache in `Build-ironwail\x64\Release\lto.cache` (at most 1 GB).
+  - `/Z7` (clang-cl has no `/Zi` / `/ZI`: the toolset maps them to it anyway); no incremental linking (lld-link has
+    none). No Edit and Continue: clang-cl can't.
+  - The precompiled header (`quakedef.h`, the C files) works, but its own compile misses `LanguageStandard_C` (a
+    toolset bug): `quakedef.c` gets `/std:c11` itself, or the header is made as C17 and the C11 files refuse it.
+    Without the header a clean build takes 4-5 s longer (Release 29 s, Debug 20 s).
+  - Parallel compiles: the toolset turns `/MP` (`MultiProcessorCompilation`) into parallel clang-cl processes.
+  - `ZA_STATIC` and Zancle's `include` for every file; `SDL_DISABLE_MM3DNOW_H` (for Win32: SDL includes a header clang
+    deprecates with a `#warning`); Box3D `/clang:-ffp-contract=off` as in CMake (no FMA on x64's baseline anyway).
+- **Zancle stays its own project** (`zancle.vcxproj`, now its sources alone): its settings differ from the engine's
+  in Debug (optimised, `NDEBUG`, while the engine's Debug is `/Od` with `_DEBUG`), which as per-file overrides in the
+  engine's project would be a dozen files' worth of exceptions; it matches CMake's `qvr_zancle` and the Makefiles'
+  `ZANCLE_CXXFLAGS`; and it costs little (about 2 s before the engine's compile starts, in a clean build). ThinLTO in
+  Release, as the engine. `vr_jobs.cpp` moved into the engine (built as any VR file).
+- **Zancle's asserts in the engine's files** follow the engine's `NDEBUG`: on in Debug. The library's `Assert.cpp`
+  has no handler without `ZA_DEBUG`, so `Quake/vr/vr_zancle.cpp` is it: a failure breaks into an attached debugger,
+  then `Sys_Error`.
+- Zancle local change: `MaxAlignT.hpp`'s `__float128` member only where the target has it: the Win32 configurations
+  (32-bit clang-cl) stopped there since Zancle came in (with MSVC too). Win32 Release and Debug now build (not run).
+- `Quake/vr/vr.cmake` (C++23, `/clang:-std=c++23` on the C++ files, Zancle's include path, `vr_jobs.cpp` in the
+  engine, the clang-cl check for the whole engine) and the Makefiles (`-std=c++23 -DZA_STATIC`, Zancle's include) the
+  same way. CMake checked: configured and built with `-T ClangCL` (the Makefiles not built here).
+- `vr_debug_crash [access|abort]` (Debug > Profiling and Memory > Crash the Game): crashes on purpose, to check the
+  test runs' crash report.
+
+### Warnings: 0 (with `/WX`)
+
+clang-cl's `/W3` is `-Wall`. 44 new warnings, all fixed at the source, none suppressed:
+
+- Upstream C (marked `QVR`): `quakedef.h` includes `gl_texmgr.h` before `image.h` and `keys.h` before `input.h`
+  (their forward-declared enums are a Microsoft extension to C); `image.c`'s stb_image pragma also for clang-cl (it
+  has no `__GNUC__`); `zone.c`'s `Z_CheckHeap` only with `PARANOID` (its one call is); `sys_sdl_win.c` frees its
+  PIDLs with `ILFree` (`CoTaskMemFree`'s `void *` dropped their `__unaligned`); a `/*` inside a comment in
+  `gl_texmgr.c` (ours).
+- Quake VR: unused `metres` (vr_bodycal), `toLocal` (vr_selfcollide), a stray `evalNext` declaration
+  (vr_motion_play) and a count never read (vr_motion_review) removed; parentheses where `&` met `^` (vr_debris's
+  area key: only the z term is masked, as it was) and `&&` met `||` (vr_motion_play, the same meaning); `int{}` where
+  two enum types met in `?:` or `*` (C++20 deprecates it, C++26 forbids it: vr_motion, vr_view, vr_selfcollide).
+- Left: lld-link's "ignoring section .debug$S with unrecognized magic 0x2" in the Win32 builds (an x86 library's old
+  debug records; x64 has none).
+
+### Measurements (MSVC v143 → clang-cl 19.1.5)
+
+| | MSVC | clang-cl |
+|---|---|---|
+| Clean build, Release (solution) | 36.5-42.1 s | 23.5-25.4 s (24.3-24.7 s with an empty ThinLTO cache) |
+| Clean build, Debug | 22.6-28.5 s | 16.2-16.3 s |
+| No-op build | 0.7 s | 0.6 s |
+| One file, Release: vr_grasp.cpp / gl_rmain.c / vr_menu.cpp | 10.1 / 9.2 / 15.4 s | 2.9 / 1.6 / 4.8 s |
+| One file, Debug: the same | 3.0 / 1.6 / 2.9 s | 2.7 / 1.4 / 2.5 s |
+| ironwail.exe Release / its .pdb | 8.16 / 40.6 MB | 9.41 / 41.1 MB (+15% code) |
+| ironwail.exe Debug / its .pdb | 18.2 / 65.5 MB | 11.5 / 43.2 MB |
+| CPU busy a frame (profiler pass scene, e2m1, `run.sh --exclusive`, 1800 frames; runs alternated) | 0.404-0.525, median 0.43 ms (8 runs) | 0.380-0.542, median 0.42 ms (6 runs) |
+| Start-up to the scene's first mark | median 8.3 s | median 8.2 s |
+
+Per system (the report's CPU column, medians of 3 alternated runs, ms a frame), no difference beyond noise: vr view
+setup 0.125 / 0.114, render other 0.043 / 0.059, shadows maplight 0.033 / 0.032, QuakeC 0.022 / 0.024, Box3D 0.017 /
+0.017. The frame is not CPU-bound; nothing got slower.
+
+Grasp bench (`vr_grasp_bench 300`, main hand, exclusive, medians of 5 MSVC and 3 clang runs; afresh / again, µs):
+
+| | MSVC | clang-cl |
+|---|---|---|
+| axe | 1279 / 18.0 | 980 / 15.7 |
+| hammer | 584 / 20.0 | 513 / 17.4 |
+| shotgun | 925 / 15.8 | 739 / 14.7 |
+| super shotgun | 477 / 30.9 | 423 / 40.0 (runs 25.7-40.7: noise) |
+| nailgun | 573 / 43.7 | 460 / 44.2 |
+| super nailgun | 740 / 49.8 | 633 / 42.6 |
+| rocket launcher | 387 / 44.3 | 348 / 38.8 |
+
+The afresh solves are 10-23% faster; the again-solves about the same (their spread between runs is larger than the
+difference).
+
+**The same results:** the melee eval (`eval.sh --full`, 173 takes) wrote a table identical in every column, byte for
+byte (168 pass, 5 fail, as MSVC; the one difference from the kit's baseline is the same in both); `vr_grasp_sweep`
+on three weapons: 168 of 168 cases identical to the last bit; the e1m1 smoke screenshots differ in 29-41 pixels by at
+most 17 (as two MSVC runs do); `vr_jobs_test` passes in the Debug build (Zancle's asserts on).
+
+**Crash reports:** `vr_debug_crash` in a test run: `ENGINE CRASH`, `exception 0xc0000005 ... (writing 0x0)` and the
+stack with files and lines from lld's .pdb (`VR_DebugCrash_f vr_main.cpp:720`, `Cmd_ExecuteString cmd.c:1112`, ...);
+`vr_debug_crash abort`: `abort: exception 0xc0000409` with its stack. The minidump is written.
+
+### The kit
+
+`build.sh` and `ship.sh` work unchanged (the same MSBuild command). With `/WX` a compiler warning is an error, which
+`build.sh`'s `" error "` grep shows; a linker warning (lld-link's `lld-link : warning :`) would not show: its grep
+could be `" error |warning C|: warning :"`. The machine needs Visual Studio's "C++ Clang tools for Windows" (installed
+here: clang 19.1.5).
