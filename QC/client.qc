@@ -1925,6 +1925,7 @@ void() PlayerPostThink =
     if(self.view_ofs == '0 0 0')
     {
        earthquake_postthink();
+       VR_Chainsaw_Silence(); // QVR: its engine's loop stops
        return;     // intermission or finale
     }
 
@@ -1948,6 +1949,7 @@ void() PlayerPostThink =
     if(self.deadflag)
     {
         VR_Carry_Dead(); // QVR: what the hands carried drops
+        VR_Chainsaw_Silence(); // QVR: its engine's loop stops
         return;
     }
 

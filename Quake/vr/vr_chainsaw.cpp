@@ -13,6 +13,7 @@
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
+#include "vr_weapons.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -30,6 +31,7 @@ constexpr float reach = 0.09f;           // metres from the handle's middle a fi
 constexpr float cordLength = 0.4f;       // metres the cord goes out past the pull's distance: then the hand lets go
 constexpr float rearm = 0.35f;           // the next pull once the hand is back within this share of the pull's distance
 constexpr double pullLatch = 0.15;       // seconds the move says "pulled" (QC reads its edge once a server frame)
+constexpr const char* weakPullSound = "vr/saw_pull_weak.wav"; // (QC precaches it too: loaded with the map)
 constexpr double retractTime = 0.12;     // seconds the handle flies back into its seat
 constexpr float handleHalf = 0.045f;     // metres, half the T-handle's length (in the fist)
 constexpr float handleRadius = 0.012f;   // metres
@@ -217,12 +219,19 @@ void fit_f()
         const glm::vec3 d = (st.seatWorld[HAND_MAIN] - op) / units::metresToUnits();
         Con_Printf("vr_chainsaw_fit: the cord's handle from the off hand's fist: right %.3f up %.3f back %.3f m\n",
             glm::dot(d, right), glm::dot(d, up), -glm::dot(d, fwd));
-        if(const view::WeaponHotspot h = view::weaponHotspot(HAND_MAIN, 0); h.type)
+        // Its hotspots (two, on the front handle's loop).
+        int count = 0;
+        for(int i = 0; i < weapons::maxHotspots; i++)
         {
-            const glm::vec3 e = (h.pos - op) / units::metresToUnits();
-            Con_Printf("vr_chainsaw_fit: its front handle (hotspot 1) from the off hand's fist: right %.3f up %.3f back %.3f m\n",
-                glm::dot(e, right), glm::dot(e, up), -glm::dot(e, fwd));
+            if(const view::WeaponHotspot h = view::weaponHotspot(HAND_MAIN, i); h.type)
+            {
+                count++;
+                const glm::vec3 e = (h.pos - op) / units::metresToUnits();
+                Con_Printf("vr_chainsaw_fit: hotspot %d (type %d) from the off hand's fist: right %.3f up %.3f back %.3f m\n",
+                    i + 1, h.type, glm::dot(e, right), glm::dot(e, up), -glm::dot(e, fwd));
+            }
         }
+        Con_Printf("vr_chainsaw_fit: %d hotspots\n", count);
     }
 }
 
@@ -391,6 +400,8 @@ void setupView(const hands::State& s)
             else
             {
                 debugLog("pulled too slowly (a weak pull)", h, ext, st.peakSpeed);
+                // The server never hears of it: its sound here (the cord's zip, the engine turned over, not firing).
+                S_StartSound(cl.viewentity, -1, S_PrecacheSound(weakPullSound), vec3_origin, 0.7f, 1.f);
             }
         }
         else if(!st.armed && ext < need * rearm)

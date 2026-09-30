@@ -14989,3 +14989,64 @@ shotgun (176 degrees off, then round).
 
 - [ ] Laser cannon (Wrenched Out off, `vr_weight_drop 0`): a quick wrist snap and back puts it back in the hand; it
   never spins a whole turn. Slow heavy swings lag as before.
+
+## The chainsaw: two hotspots, recorded sounds (2026-09-30)
+
+Your requests: "remove hotspot 2 from the chainsaw (there should be only two hotspots 0 and 1 in different parts of the
+handle", and real sounds instead of the synthesised ones (free downloads allowed).
+
+- **Hotspots** (`vr_weapons.inc`, slot 20): your hotspot 2 (a grip at the model's origin: the rear handle, which the
+  main hand holds) is gone; your hotspot 4 is now hotspot 2 (its place and turn as you set them, no bias). Two remain,
+  both on the front handle's loop: 1 its top bar (your first), 2 its left side. Weapon settings version **27** resets
+  only slot 20's hotspot keys (`resetHotspots`), every other chainsaw setting kept. In the menu they are Hotspot 1 and 2
+  (hotspots 0 and 1 counting from nothing).
+- `vr_chainsaw_fit` (now also Debug > Tests > Chainsaw Fit) prints each hotspot's offset from the off hand's fist and how
+  many there are.
+- **Sounds**: cut from two CC0 recordings of a Stihl MS260 by Joseph Sardin (BigSoundBank 0982 "Chainsaw (Starting)"
+  and 0707 "Chainsaw #2"; CREDITS.md) by `Misc/quakevr/make_chainsaw_sounds.py` (its header: the links, what is cut
+  where, how). The originals (3.6 and 11 MB) are not in the repository. 22050 Hz mono 16-bit:
+
+  | File | What | Length | Size |
+  |---|---|---|---|
+  | `saw_pull_weak.wav` | a pull that doesn't fire (new) | 0.80 s | 35 KB |
+  | `saw_pull.wav` | a strong pull: fires a moment and dies | 2.00 s | 88 KB |
+  | `saw_start.wav` | the pull that starts it, racing and settling, then the idle's loop (cue at 4.65 s) | 6.45 s | 285 KB |
+  | `saw_idle.wav` | idling, a loop | 1.80 s | 80 KB |
+  | `saw_run.wav` | flat out, the chain free, a loop | 1.09 s | 48 KB |
+  | `saw_cut.wav` | cutting a log (loaded, bogging), a loop | 2.82 s | 124 KB |
+  | `saw_stall.wav` | the engine dying | 2.50 s | 110 KB |
+
+  771 KB in all (the synthesised ones: 155 KB).
+- **Loops** carry cue points: Quake loops them on the weapon's channel until another sound replaces them, so QC plays
+  each loop once as it begins (it replayed short loops every 0.3-0.4 s). The start's sound ends in the idle's loop, so
+  the engine settles into idling without a seam. A loop is stopped (`misc/null.wav`) when the chainsaw leaves the hand,
+  stops, the player dies or the intermission begins (PlayerPostThink returned before the chainsaw's frame there: they
+  used to die out by themselves). A loaded game or a new map plays the loops again half a second in (`nosave` globals;
+  a sound sent before the client has begun is lost).
+- **Pulls**: a pull too slow (client side, `vr_chainsaw.cpp`: the server never hears of it) plays the weak pull at your
+  head (0.7); a pull with no fuel the weak pull, one with the engine running the weak pull softly (0.6); a pull that
+  doesn't catch the strong pull.
+- **Fixed**: `cutting = chain && time - last < 0.2` came out TRUE with nothing cut (fteqcc), so the chain always played
+  the cutting sound and the running one never: now an `if`.
+
+### Tests (mock)
+
+- `vr_chainsaw_fit` (main hand `0.2 1.2 -0.35 70 0 0`, off `0.115 1.28 -0.556`): "hotspot 1 (type 1) ... right 0.077
+  up 0.088 back -0.216", "hotspot 2 (type 1) ... right -0.132 up -0.012 back -0.242", "2 hotspots". The off hand moved
+  there and `+graboff` (`vr_debug_2h_grip 1`): "took it (0.4 units off its grip)", "(2.9 units)", two-handed aiming yes
+  for each; hotspot 2's type set to 0: not taken (aiming no).
+- Migration from the kit's baseline config (version 21): version 27, `hs2_x_21` 11.091614, `hs4_type_21` 0.
+- Sounds (`-Sound`, `snd_show 2`): `impulse 230`, 600 frames later `saw_start.wav [L]` still playing (in its loop);
+  `+attack` in the air: `saw_run.wav [L]`; into an ogre's head: "cuts monster_ogre", `saw_cut.wav [L]`; released:
+  `saw_idle.wav [L]`; saved and loaded: "loops played again", `saw_idle.wav [L]`; `kill`: nothing playing.
+  `chainsaw_pull.mock` (start chance 0): the slow pull `saw_pull_weak.wav` (L:178), the fast one "didn't catch",
+  `saw_pull.wav`. `soundlist`: the four loops marked L.
+- The loops' wraps (the last sample into the loop's first): the high-frequency energy over 5 ms there at the 13th to
+  84th percentile of the file's (no click); the waveforms plotted across the wrap run on.
+
+### In the headset
+
+- [ ] The chainsaw: two hotspot markers (Weapon Offsets, Show Hotspots), both on the front handle; the other hand takes
+  it at either.
+- [ ] Pull the cord slowly (a weak zip), hard (a cough, or it starts and settles into idling with no seam); idle, rev
+  (the trigger in the air), cut; loops without clicks. Holster it, die, load a save while it runs: it stops / restarts.

@@ -137,14 +137,30 @@ namespace
 // chainsaw, Misc/quakevr/make_chainsaw.py; an unused placeholder before). 25: slot 20 (the author's
 // chainsaw, 2026-09-30: its offset, scale, hotspots, grip overlap, thumb, mass and spring). 26: the author's weights of slots 9 and 20 (the
 // laser cannon and the chainsaw: 15 kg, stiffness, damping, sag; the cannon's balance), each key only where the config
-// still held its old default (weightMigration). A first start (no saved config) takes this
+// still held its old default (weightMigration). 27: slot 20's hotspots (the author, 2026-09-30: two, both on the front
+// handle; his rear-handle one removed): only its hotspots' keys (resetHotspots). A first start (no saved config) takes this
 // version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 26;
+constexpr int settingsVersion = 27;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
 // Slots owning a cup hotspot made before round 21's third pass (a config's), to move to where its hand was drawn.
 bool cupMigration[numSlots]{};
+
+// Every key of every hotspot of `slot` back to its default; the slot's other settings kept.
+void resetHotspots(int slot)
+{
+    for(int i = 0; i < maxHotspots; i++)
+    {
+        for(int field = 0; field < hotspotFields; field++)
+        {
+            cvar_t& var = cvarAt(slot, hotspotKey(i, field));
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
+    hotspotMigration[slot] = false;
+    cupMigration[slot] = false;
+}
 
 void resetSlot(int slot)
 {
@@ -396,6 +412,10 @@ void migrate()
             }
         }
     }
+    if(vr_wofs_version.value < 27) // the chainsaw's two hotspots, 2026-09-30: its hotspots' keys only
+    {
+        resetHotspots(20);
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -544,6 +564,10 @@ void markCurrent()
     if(vr_wofs_version.value < 25) // the ogres' chainsaw, the author's (as migrate)
     {
         resetSlot(20);
+    }
+    if(vr_wofs_version.value < 27) // the chainsaw's two hotspots (as migrate)
+    {
+        resetHotspots(20);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
