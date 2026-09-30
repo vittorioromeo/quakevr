@@ -120,8 +120,10 @@ const DefaultChange defaultChanges[] = {
     // pellet's, and rounds in threes.
     {61, &vr_gruntgun_damage, "4"},           // 5
     {61, &vr_gruntgun_ammo, "10"},            // 30
+    // 62: no cap on crowbars on crates (the author, 2026-10-01).
+    {62, &vr_crate_crowbar_max, "1"},       // 64
 };
-constexpr int configVersion = 61;
+constexpr int configVersion = 62;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

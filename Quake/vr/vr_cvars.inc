@@ -497,7 +497,7 @@ QVR_CVAR(vr_crate_piece_time, "30", CVAR_ARCHIVE)        // s a piece lies about
 QVR_CVAR(vr_crate_ammo, "0.35", CVAR_ARCHIVE)            // the chance a crate holds a small box of ammo for a weapon you have (or the shotgun)
 QVR_CVAR(vr_crate_health_box, "0.2", CVAR_ARCHIVE)       // the chance a crate holds a small health box
 QVR_CVAR(vr_crate_crowbar, "0.05", CVAR_ARCHIVE)         // the chance a crate placed about the map (the top of a stack) has a crowbar lying on it (next map)
-QVR_CVAR(vr_crate_crowbar_max, "1", CVAR_ARCHIVE)        // most crowbars on crates in a map
+QVR_CVAR(vr_crate_crowbar_max, "64", CVAR_ARCHIVE)       // most crowbars on crates in a map (64: no cap in practice)
 QVR_CVAR(vr_crate_sight, "1", CVAR_ARCHIVE)              // 1: crates and explosive boxes lying about hide you from monsters (not one you carry)
 QVR_CVAR(vr_debug_crates, "0", CVAR_NONE)                // 1: a line per map (crates, spots, rejections, the layout's hash); 2: each crate and its clearance; 3: each spot rejected
 // Wall torches taken off their walls (QC vr_walltorch.qc, vr_walltorch.cpp; ROUND21.md, "Wall torches you can take").
