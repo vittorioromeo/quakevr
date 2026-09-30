@@ -349,7 +349,7 @@ QVR_CVAR(vr_weight_spring_strength, "1", CVAR_ARCHIVE)   // Spring: times the ar
 QVR_CVAR(vr_weight_spring_sag, "1", CVAR_ARCHIVE)        // Spring: times the droop of heavy things under gravity (more at arm's length)
 QVR_CVAR(vr_weight_spring_inertia, "1", CVAR_ARCHIVE)    // Spring: times the swing a moving hand gives what it holds (its centre of mass trailing)
 QVR_CVAR(vr_weight_spring_2h, "4", CVAR_ARCHIVE)         // Spring: times the stiffness and strength with a two-handed grip
-QVR_CVAR(vr_weight_spring_snap, "60", CVAR_ARCHIVE)      // Spring: cm (or 3 times as many degrees) off the hand beyond which it is put back in it at once
+QVR_CVAR(vr_weight_spring_snap, "60", CVAR_ARCHIVE)      // Spring: cm (or 3 times as many degrees; past 165 always) off the hand beyond which it is put back in it at once
 QVR_CVAR(vr_weight_stamina, "1", CVAR_ARCHIVE)           // tired, things weigh more: below vr_weight_stamina_from of the stamina (Parry Stamina) the weight grows
 QVR_CVAR(vr_weight_stamina_from, "0.5", CVAR_ARCHIVE)    // the stamina left (0..1) below which it starts
 QVR_CVAR(vr_weight_stamina_max, "2.5", CVAR_ARCHIVE)     // times the weight with none left

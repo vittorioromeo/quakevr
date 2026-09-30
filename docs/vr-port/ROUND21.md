@@ -14848,3 +14848,28 @@ config still held its old default (7 kg, 12 cm, 6.5 kg, the multipliers 1).
 - [ ] Two hands on the laser cannon and the chainsaw: fast two-handed blows keep the off hand on; held still and
   pulled off, it lets go as before. Stickiness per hotspot: Weapon Offsets, the hotspot's page, under Bias.
 - [ ] Heavy blows (laser cannon, chainsaw, rocket launcher) register at gentler swings; not with a wave.
+
+## The weight spring's snap-back never turned: a whole turn after a wrist snap (2026-09-30)
+
+Your note vrfiringrange_2026-09-30_11-14 (the laser cannon "spins 360 degrees" after a quick wrist snap). The spring
+pulls the drawn weapon toward the hand the short way round; its snap-back was 3 degrees a cm of Snap Back Beyond
+(`vr_weight_spring_snap` 60: 180 degrees), which an angle measured the short way never exceeds. So after a fast snap
+and back, the heavy weapon lagging behind swung on past half a turn off the hand, the short way flipped, and it went on
+round the other way: a whole turn. `vr_weight_test`'s new wrist-snap table (the laser cannon one- and two-handed, and
+tired; 170 degrees of pitch, yaw or roll in 0.03 to 0.2 s, held or turned straight back) found it in 2 to 5 of 36 runs
+per case and frame rate (a snap and back in 0.15-0.2 s: a turn of 360 degrees), and so did your wiggling take with the
+shotgun (176 degrees off, then round).
+
+- The spring's substeps (1 ms) now check the turn off the hand against the hand's turn at that moment: past 165
+  degrees (`snapTurnMost`, whatever Snap Back Beyond says) it is put back in the hand at once. The per-frame check is
+  as it was (a smaller Snap Back Beyond still puts it back earlier). Now: no run goes the long way; exactly the runs
+  that did are put back; the rest (and the normal swing table: every row) are as before.
+- Put back so, the melee takes that moment for a jump, not a swing (`.handdrop` bits 4 / 8, QC `VR_HANDJUMP_*`, for
+  0.05 s): else the weapon arriving in the hand at once began a stroke (your no-hit wiggling take hit with the butt).
+  The other put-backs (too far, the hand's own jump) are as they were.
+- Melee: the canary as the baseline; the full set: one take's hit speed 27.0 -> 26.9 (same verdict and time).
+- `Misc/quakevr/heavy_wrist_snap.mock`: the laser cannon in one hand, yaw 170 and back in 0.4 s and 0.15 s, pitch in
+  0.15 s, a one-way snap (TESTING.md).
+
+- [ ] Laser cannon (Wrenched Out off, `vr_weight_drop 0`): a quick wrist snap and back puts it back in the hand; it
+  never spins a whole turn. Slow heavy swings lag as before.

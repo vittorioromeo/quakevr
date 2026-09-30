@@ -431,7 +431,7 @@ void resetHandMoves()
         slider("Two-Handed Help", vr_weight_spring_2h, 1.f, 8.f, 0.5f, "%.1fx").extend(1.f, 20.f)
             .help("Times the stiffness and strength with both hands on it (4: twice as quick)."),
         slider("Snap Back Beyond", vr_weight_spring_snap, 10.f, 100.f, 5.f, "%.0f cm").extend(1.f, 1000.f)
-            .help("Left further behind than this (or three times as many degrees), it is put back in your hand at once."),
+            .help("Left further behind than this (or three times as many degrees; past 165 degrees always), it is put back in your hand at once."),
     };
 }
 
