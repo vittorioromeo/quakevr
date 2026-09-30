@@ -58,6 +58,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
         writeVec3(buf, hand.angVel);
         writeVec3(buf, hand.throwPos);
         MSG_WriteFloat(buf, hand.throwAge);
+        writeVec3(buf, hand.tracked);
     }
 
     writeVec3(buf, move.headVel);
@@ -95,6 +96,7 @@ std::optional<VrMove> readVrMove()
         hand.angVel = in.vec3();
         hand.throwPos = in.vec3();
         hand.throwAge = in.real();
+        hand.tracked = in.vec3();
     }
 
     move.headVel = in.vec3();

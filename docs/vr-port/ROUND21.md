@@ -15869,3 +15869,61 @@ the prop the other hand holds). Checked: 59 with the old values -> 0.3, 0.6, 15;
 - [ ] Mjolnir with 15+ cells: strike something with the head under water: the shock, both hands drop.
 - [ ] The chainsaw: the first one or two good pulls never start it; louder than before?
 - [ ] The empty hand against a prop the other hand holds: firmer.
+## Climbing: the leniency is the one reach (2026-09-30)
+
+The author (NOTES.md vrcalibration_2026-09-30_16-12-23): at Grab Leniency 0 a grip still snapped onto a ledge from
+far away. It did: the rule for a hand AT a ledge had its own reach, whatever the leniency. A hand took a hold up to 10
+units (30 cm at World Scale 1.25) above the top, 12 under it, 6 in front of the face (18 cm) and, over the top, 16 in
+from the lip; the leniency (6 cm) only added its few units round that. The sweep below, on the old build, took every
+point from 0 to 20 cm at every leniency.
+
+**Now the leniency is the only distance.** At 0 the hand must touch the ledge: its point within `touchCm` (4.5 cm, a
+hand's half thickness) of the top or of the face under the lip, or in it (sunk into the top, into a rung) no deeper
+than the hold's inset and that (3.5 units, 11 cm at 1.25). The leniency adds its own distance round that, as before
+(the reach is 4.5 cm plus the leniency). Over the top, the hand may still be as far in as the ledge map's ledge goes
+(`edgeReach`, 16 units from the drop): touching the top there is touching the ledge. The lenient hold's cap from the
+hand and its "not below the hand" test follow the touch (they were the old 10-unit and 8-unit figures).
+
+**The controller's own point.** The level holds the drawn hand out of it (vr_handpose.cpp): a hand reaching up under
+a rung stops with its fingers on the rung's underside, its point 6.6 units (20 cm) below it, and the tight rule could
+never take the rung there (the old 12-unit sink had hidden it). The VR move now carries each controller's own point
+(`VrHandMove::tracked`, the drawn hand's less the wall push), and a grip looks for a hold from both (gripHold): a hold
+either is at (the drawn hand's first), then the drawn hand's lenient one, then the controller's. So a hand stopped
+under a rung takes it once the real hand reaches it. `vr_climb_debug 1` prints both points on a grip that takes
+nothing, and "from the controller" on a hold found from it.
+
+### Verified (mock; `Misc/quakevr/climb/climb_reach.py`, World Scale 1.25)
+
+`climb_reach.py script` puts the hand 0, 2, 5, 10 and 20 cm from vrclimb's ledge (top 48) and rung 56: in front of
+the face just under the lip, above the top (2 units in), and out and up from the lip's corner at 45 degrees;
+`climb_reach.py table qconsole.log` (E taken where the hand is, L leniently, - nothing). Before: E everywhere (the
+rung's 20 cm above: nothing). Now, the ledge and the rung alike:
+
+| Hand | Leniency | 0 cm | 2 | 5 | 10 | 20 |
+|---|---|---|---|---|---|---|
+| in front | 0 | E | E | - | - | - |
+| in front | 6 | E | E | L | L | - |
+| in front | 15 | E | E | L | L | - |
+| above | 0 / 6 / 15 | as in front | | | | |
+| corner | 0 | E | E | E | - | - |
+| corner | 6 | E | E | E | L | - |
+| corner | 15 | E | E | E | L | L |
+
+The corner reaches further (6.4 cm at 0): the place is a box round the lip, so its corner is the touch both ways.
+
+Real grips (vr_mock_play, his settings, 0 cm): a hand lowered onto the ledge takes it 1 unit (3 cm) over the top,
+not before; one pushed at the face takes it 1.3 units (4 cm) in front; one reaching up under rung 56 is stopped 6.6
+units under it and takes it "from the controller" when the controller is 3.5 units under the top (in the rung).
+
+The climb plays (World Scale 1, the old hand settings, Leniency 6, each in its own run; holds / mantles against the
+base build): ladder, ladderlean, ledge, mantle, e1m1, push, the three overtops and both shimmies as before (the
+ledge's shimmy now takes 9 of its 19 holds leniently: its hands hover 2 units over the top). Retuned: `ladderlean`'s
+top-out hand now goes to the tower's edge (-0.92 m) instead of hovering 14 cm short of it, which only the 6-unit slack
+took; it mantles to 305 as before. The `press` plays grip 2 to 8 units in front on purpose: at 6 cm only 2 takes it
+now (4 and up are past 4.5 + 6 cm at World Scale 1). A mock run's poses carry over from one play to the next
+(`vr_mock_play` leaves them; ladderlean's leaned head moved the later plays' hands 8 units back): run each in its own
+game.
+
+At Leniency 0 the same plays: the rung plays, mantle, push, overtops and shimmies as before; the ledge play (2 of 19)
+and e1m1 (none) no longer take their holds: their hands hover 2 units (7.6 cm) over the top, not touching it, which is
+what 0 now means. They pass at the default 6 cm, so they are left as they are.

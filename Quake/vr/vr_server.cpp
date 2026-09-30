@@ -477,6 +477,7 @@ void rebaseHands(edict_t* player)
     for(VrHandMove& hand : move.hands)
     {
         hand.pos += delta;
+        hand.tracked += delta;
         hand.throwPos += delta;
     }
     move.muzzlePos[0] += delta;

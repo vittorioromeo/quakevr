@@ -203,6 +203,7 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     {
         VrHandMove& hand = move.hands[h];
         hand.pos = hs.pos[h];
+        hand.tracked = hs.pos[h] - handpose::wallPush(h);
         hand.rot = hs.rot[h];
 
         // Every move carries a throw estimate: while grabbing, as if let go now (the helping
@@ -340,6 +341,7 @@ std::vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
             VrHandMove& hand = move.hands[h];
             hand = unposed.hands[h];
             hand.pos += walked;
+            hand.tracked += walked;
             hand.throwPos += walked;
             hand.vel = hand.throwVel = hand.angVel = glm::vec3{0.f};
             hand.velMag = 0.f;

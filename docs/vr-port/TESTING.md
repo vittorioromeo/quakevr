@@ -844,7 +844,7 @@ numbers every run (compare two settings' `climbtrace` lines with `diff`). `vr_cl
 <vy> <vz>]` prints what a grip at that world point would take (exact or lenient, the hold, its distance, the holds turned
 down and why, the search's time) and takes nothing; `python Misc/quakevr/climb/climb_leniency.py script` writes the
 sweep (ledge, rungs, a wall, stairs, the thin wall with a ledge behind it at vrclimb's `setpos -270 -260 24 0 180 0`,
-at leniencies 0 to 30 cm) and `climb_leniency.py table qconsole.log` tabulates it. `climb_plays.py pressL<d>|pressR<d>`
+at leniencies 0 to 30 cm) and `climb_leniency.py table qconsole.log` tabulates it. `climb_reach.py script|table` is the leniency's acceptance table (ROUND21.md, "Climbing: the leniency is the one reach": the hand 0 to 20 cm from the ledge and rung 56, at 0, 6 and 15 cm; grab or not). Run climb plays each in its own game (mock poses carry over between plays). `climb_plays.py pressL<d>|pressR<d>`
 grips d units in front of the ledge or rung 56 and pulls (a real lenient grab; `vr_climb_debug 3` also prints the
 search's time, its traces and the drawn hand's ease; `vr_climb_try` ends with the lenient search's trace count, and the
 table's last lines give the searches' median and worst times and traces; `vr_climb_debug 4` prints each mantle search's

@@ -20,6 +20,8 @@ struct VrHandMove
     glm::vec3 angVel{0.f};   // radians / second, of the throw
     glm::vec3 throwPos{0.f}; // world position the thrown object left the hand at
     float throwAge{0.f};     // seconds since it left the hand
+    glm::vec3 tracked{0.f};  // world position of the controller's own point: `pos` before the level held the drawn hand
+                             // out of it (vr_handpose.cpp; the climbing grab takes a hold at either)
 };
 
 struct VrMove
