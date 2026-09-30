@@ -76,7 +76,6 @@ Chainsaw: the first 1-2 good pulls fail; louder now (+3 dB): enough?
 Empty hand against a held prop: firmer now (15 cm)?
 
 [Decide or give feedback]
-Prop Size: should a Mass you set yourself also scale with size (by size cubed)? Now it stays fixed
 Left-handers: flashlight toggle stays on the left Y and the main weapon slot on the right controller: OK, or follow the off hand?
 Enemy guns: scale 0.4 OK? Should the player's enforcer rifle laser be faster than the enforcer's 600 u/s?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
