@@ -4301,6 +4301,8 @@ bool restsOnHand(int num, int player, int hand)
         }
     }
     return false;
+}
+
 namespace
 {
 
