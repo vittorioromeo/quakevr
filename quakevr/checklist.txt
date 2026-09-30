@@ -11,6 +11,10 @@
 # remove items freely; changing an item's wording un-ticks it.
 
 [Test in VR]
+VR Calibration (main menu, first row): the room, then height, body and main hand as asked; the summary right
+VR Calibration seated: POSITION on the stand to Seated, START CALIBRATION: height taken seated, body without its first pose
+Calibration room: each wall button changes its value (the screen above it and the wrist message), kept at the next start
+Calibration room: light and board sizes OK? Swim in the pool, climb the rungs and blocks, take the things on the table
 Flung prop damage feels right (Throwing and Physics > Flung Props: Damage, Reference Mass)
 
 

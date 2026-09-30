@@ -69,7 +69,7 @@ spawn functions but are not entities (`//! internal` in `entities.fgd`, with the
 
 | Entity | What | Keys |
 |---|---|---|
-| `func_worldtext_banner` | a floating text board (a small screen); point entity | `worldtext` (`\n` new line, `$` new page), `worldtext_halign` (left, centre, right), `worldtext_scale` (letters are 8 units x this), `speed` (seconds per letter before the next page: needed with pages; 0.085 reads well), `angle` (the way it faces; it turns round for a reader behind) |
+| `func_worldtext_banner` | a floating text board (a small screen); point entity | `worldtext` (`\n` new line, `$` new page), `worldtext_halign` (left, centre, right), `worldtext_scale` (letters are 8 units x this), `speed` (seconds per letter before the next page: needed with pages; 0.085 reads well), `angle` (the way it faces; it turns round for a reader behind); `{menu:<page title>}` (or `{menu:<title>><row label>}`) in the text shows that VR Settings page's path from the main menu as the menus are ("Options > VR Settings > ... > Locomotion"; `vr_menu_path_check` lists them and flags one gone: ROUND21.md, "VR Calibration") |
 | `func_weapon_grabbable` | a weapon as a physics object: it drops, settles, is gripped, holstered, thrown, force-grabbed; no ammo | `weapon` (1 hook, 2 axe, 3 Mjolnir, 4 shotgun ... 12 laser cannon, 13 sword, 14 chainsaw: a full tank), `weaponflags` (1: the lava nailguns, multi launchers, plasma gun, the hell knight's sword) |
 | `func_weapon_dispenser` | throws out a new weapon when triggered | `targetname`, `weapon` |
 | `func_enemy_dispenser` | spawns a monster when triggered (vrfiringrange's buttons); refuses, with a message, a monster whose game is not installed | `targetname`, `weapon` (0 grunt ... 17 Overlord), `angle` |

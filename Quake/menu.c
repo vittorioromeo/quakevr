@@ -1152,11 +1152,11 @@ static enum m_state_e M_GetBaseState (enum m_state_e state)
 //=============================================================================
 /* MAIN MENU */
 
-int	m_main_cursor;
 int m_main_mods;
 
 enum
 {
+	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp), a row of text above the menu's picture
 	MAIN_SINGLEPLAYER,
 	MAIN_MULTIPLAYER,
 	MAIN_OPTIONS,
@@ -1166,6 +1166,8 @@ enum
 
 	MAIN_ITEMS,
 };
+
+int	m_main_cursor = MAIN_SINGLEPLAYER; // QVR: Single Player first, as before the VR Calibration row
 
 void M_Menu_Main_f (void)
 {
@@ -1196,19 +1198,22 @@ void M_Main_Draw (void)
 	p = Draw_CachePic ("gfx/ttl_main.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
 
+	// QVR: VR Calibration, the first row, in the letters of the mods' fallback row; the picture's rows below it.
+	M_PrintEx (74, 32 + 1, 16, "VR CALIBRATION");
+
 	p = Draw_CachePic ("gfx/mainmenu.lmp");
 	if (m_main_mods)
 	{
 		int split = 60;
-		M_DrawSubpic (72, 32, p, 0, 0, p->width, split);
+		M_DrawSubpic (72, 52, p, 0, 0, p->width, split);
 		if (m_main_mods > 0)
-			M_DrawTransPic (72, 32 + split, Draw_CachePic ("gfx/menumods.lmp"));
+			M_DrawTransPic (72, 52 + split, Draw_CachePic ("gfx/menumods.lmp"));
 		else
-			M_PrintEx (74, 32 + split + 1, 16, "MODS");
-		M_DrawSubpic (72, 32 + split + 20, p, 0, split, p->width, p->height - split);
+			M_PrintEx (74, 52 + split + 1, 16, "MODS");
+		M_DrawSubpic (72, 52 + split + 20, p, 0, split, p->width, p->height - split);
 	}
 	else
-		M_DrawTransPic (72, 32, Draw_CachePic ("gfx/mainmenu.lmp"));
+		M_DrawTransPic (72, 52, Draw_CachePic ("gfx/mainmenu.lmp"));
 
 	cursor = m_main_cursor;
 	if (!m_main_mods && cursor > MAIN_MODS)
@@ -1254,6 +1259,17 @@ void M_Main_Key (int key)
 
 		switch (m_main_cursor)
 		{
+		case MAIN_VRCALIBRATION: // QVR: the calibration room (vr_setup)
+			if (!SCR_ModalMessage (sv.active
+				? "Start VR Calibration?\n\nThe game in progress ends: you go\nto the calibration room, and the\ncalibration starts by itself.\n\n(y/n)\n"
+				: "Start VR Calibration?\n\nYou go to the calibration room, and\nthe calibration starts by itself:\nheight, body, then your main hand.\n\n(y/n)\n", 0.0f))
+				break;
+			IN_Activate ();
+			key_dest = key_game;
+			m_state = m_none;
+			Cbuf_InsertText ("vr_setup\n"); // before anything queued (a test script's next commands)
+			break;
+
 		case MAIN_SINGLEPLAYER:
 			M_Menu_SinglePlayer_f ();
 			break;

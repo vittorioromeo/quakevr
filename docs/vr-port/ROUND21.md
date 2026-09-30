@@ -15090,3 +15090,71 @@ Both of this round's QC expression bugs had one cause, and it was not array read
   doesn't yank; the new hand's trigger works as its own.
 - [ ] Grapple quick reel-in with the rope simulation on: fired and reeled back while still flying comes straight
   back; bitten round a corner comes back along the rope.
+## VR Calibration: a first-time setup and a calibration room (2026-09-30)
+
+Your request: a "VR Calibration" option in the main menu, before New Game, that takes you to a calibration map and
+calibrates by itself, then leaves you in a simple room with wall buttons for the main options and boards that say where
+the rest is in the menus.
+
+- **The main menu's first row: VR CALIBRATION** (above Single Player, which leads to New Game; drawn in the letters of
+  the Mods row). The cursor still starts on Single Player. A confirmation (A / y yes, B / n no; it says the game in
+  progress ends, if one runs), then `vr_setup`: a new single-player game on `maps/vrcalibration.bsp`. Also on the Play
+  page (VR Settings > Advanced VR Options > Play > VR Calibration).
+- **The calibration** (`Quake/vr/vr_setup.cpp`) starts 8 s after you appear (time to stand in place; the text says how
+  to switch to seated), with its instructions floating in front of you as Body Calibration's do:
+  1. **Height:** stand tall and look ahead, a countdown, held still for 1 s: `vr_height_calibration` = your eye height
+     (as Body and Display > Set Height Now). Seated (Position: Seated): sit up straight; the height is taken seated.
+  2. **Body:** Body Calibration's seven poses (seated: six), unchanged. When the poses agree it is **applied at once**
+     (the first Apply from the default body: the tweaks go to 0, as before; Undo is on its page); when they don't, its
+     page opens on the result (redo a pose, Apply or Cancel) and the setup goes on when you close the menu. Its first
+     pose measures your eye height again: the summary shows that one.
+  3. **Main hand:** raise your main hand (the one you shoot with) high above your head: the hand held up (the other
+     below the eyes) for 0.75 s is the main one; `vr_lefthanded` changes if it was the off hand. Nothing in 25 s: left as
+     it is.
+  Then a summary for 12 s (height, body, main hand). Each result is printed (the wrist gadget's log) and the config
+  saved. The menu button stops it; dying or leaving the map too.
+- **The room** (`Misc/quakevr/make_vrcalibration_map.py` writes `quakevr/maps/vrcalibration.map`; `--compile` builds
+  it with ericw-tools 2.0 alpha11: MAPPING.md's Full profile with bounced light; quakevr_dev.wad's textures only): one
+  hall, 39 x 35 m and 11.7 m high, lit softly (measured against the firing range's look: mean brightness 90-145 of
+  255 where the firing range is 103).
+  - South: the spot where you appear, facing the welcome boards; on your right a stand: **START CALIBRATION** (`vr_setup
+    here`: all of it again) and **POSITION** (Standing / Seated), with a board: Body Calibration's and Set Height Now's
+    menu paths.
+  - West wall: two panels of buttons. **Moving and turning:** Turning (Smooth, Snap 30/45/90), Turn Speed (Slow 2,
+    Normal 3.25, Fast 5), Move Towards (Head, Off Hand), Run or Walk, Teleport, Climbing. **Body and display:** Main
+    Hand, World Scale (1.00, 1.25, 1.50), Body (Off, Torso and Arms, Full Body), HUD (Wrist Gadget, Status Bar),
+    Crosshair (Off, Dot, Laser, Soft Laser), Weapon Grip (Hold, Sticky). Each press steps to the next choice
+    (`vr_setup_option <key>`), prints it ("Turning: Snap 45") and saves the config; a small screen above each button
+    shows the value now ("custom: <value>" when set elsewhere to none of the choices).
+  - East: a pool 3.9 m deep, steps down at its north end. North-east: a platform 5.9 m high with rungs up its face,
+    stairs up its side, three blocks to mantle onto (1, 1.5 and 2.2 m). North-west: a table with a health box, shells
+    and nails, a super shotgun, the training dummy. South wall: NEW GAME (`campaign 1; map start`) and VR HUB.
+  - Boards at each: what to do there and where the rest is in the menus.
+- **The boards can't go stale.** A board names a menu page as `{menu:<page title>}` (or `{menu:<title>><row label>}`),
+  and the engine writes its path from the main menu when the map loads, from the menus as they are (`menu::pathTo`: the
+  fewest links from the VR Settings, each page as its link is labelled): `{menu:Locomotion}` shows "Options > VR
+  Settings > Advanced VR Options > Movement > Locomotion", broken at its " > "s. A page renamed, unlinked or a row gone:
+  the board shows "[menu? Locomotion]" and the console warns `MENU PATH MISSING`. `vr_menu_path_check` lists every
+  path of the loaded map's boards; `vr_menu_path_check maps/vrcalibration.map` checks the map's file without loading
+  it (13 paths, 0 missing now); `vr_menu_path_check "{menu:...}"` checks the text given. Also in Debug > Tools >
+  VR Calibration, with "Run the Calibration Here" and "Skip the Calibration Step". The agents' brief says to run it
+  when menus change.
+
+### Tests (mock headset)
+
+- The whole flow from the menu: `togglemenu`, the stick up to VR CALIBRATION, A (`vr_test_modal_answer 1` answers
+  the confirmation), the room loads, 8 s later the height (eyes at 1.70 m, the mock's head), Body Calibration with a
+  synthetic person's take played alongside (`vr_setup_test_take <take>`: the body step plays it and stops it after;
+  "upper arm 30.6 cm, forearm 23.4 cm", applied), the off hand raised: "main hand: left (changed)", the summary.
+- Every button pressed by the mock's main hand (setpos in front, the hand 0.85 m forward at 1.4 m): the 13 settings
+  each changed their setting and printed it (`vr_setup_option list` after: every one on its next choice), POSITION
+  Seated, START CALIBRATION started it again, NEW GAME loaded start.bsp.
+- `vr_menu_path_check` on the map and its file: 13 found, 0 missing; with a made-up page and row: both MISSING.
+- vrstart (its boards have no paths): unchanged, no warnings.
+
+- [ ] Main menu > VR CALIBRATION > yes: the room, then height, body and main hand as asked; the summary right.
+- [ ] Seated: POSITION on the stand to Seated, START CALIBRATION: the height taken seated, the body without its first
+  pose.
+- [ ] Press each wall button: the value above it and the message on the wrist change; the setting is kept next start.
+- [ ] The room: bright enough, not too bright? Boards readable where you stand to read them?
+- [ ] Swim in the pool, climb the rungs and the blocks, take the things on the table.

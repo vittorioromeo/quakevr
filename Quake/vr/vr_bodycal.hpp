@@ -51,6 +51,8 @@ bool restart(int returnPage);
 bool redo(int step, int returnPage);
 void apply();
 void cancel();
+// Stops taking the poses (as the menu button does: Continue takes the rest); VR Calibration's skip.
+void stop();
 // Whether the result can be applied (its poses agree).
 [[nodiscard]] bool trusted();
 [[nodiscard]] bool canUndo();

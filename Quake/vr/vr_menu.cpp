@@ -528,6 +528,7 @@ char reviewListHeader[64];
 }
 
 // The old Single Player and Bot Control menus' extras.
+void playCalibration() { Cbuf_AddText("vr_setup\n"); }
 void playHub() { Cbuf_AddText("map vrstart\n"); }
 void playTutorial() { Cbuf_AddText("map vrtutorial\n"); }
 void playFiringRange() { Cbuf_AddText("map vrfiringrange\n"); }
@@ -539,6 +540,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         header("Maps"),
+        action("VR Calibration", playCalibration)
+            .help("The calibration room: height, body and main hand calibrated as you arrive; buttons for the main options."),
         action("VR Hub", playHub),
         action("Tutorial", playTutorial),
         action("Firing Range", playFiringRange),
@@ -2053,6 +2056,12 @@ std::vector<Item> pageDebugTools()
         command("Test Light", "vr_light_test").help("vr_light_test: a white light 48 units ahead for 5 seconds."),
         command("Test Message", "vr_message_test").help("vr_message_test: a message in the gadget's hologram (once the gadget has been drawn)."),
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
+        header("VR Calibration"),
+        command("Run the Calibration Here", "vr_setup here")
+            .help("vr_setup here: VR Calibration's steps (height, body, main hand) in this map, now."),
+        command("Skip the Calibration Step", "vr_setup_skip").help("vr_setup_skip: its next step at once (not Body Calibration's poses)."),
+        command("Check the Boards' Menu Paths", "vr_menu_path_check")
+            .help("vr_menu_path_check: every menu page this map's boards name, with its path; a missing one prints MENU PATH MISSING."),
     };
 }
 
@@ -4282,7 +4291,221 @@ void dumpPages()
     showPage(was);
 }
 
+// The path to a page from Quake's main menu, by what the player reads on the way (menu::pathTo): the fewest links from
+// the VR Settings, each page as its link names it. False when no page has the title, no link reaches it, or (a row asked
+// for) the page has no row of that label.
+bool resolvePath(std::string_view spec, std::string& out)
+{
+    const auto trim = [](std::string_view s) {
+        while(!s.empty() && s.front() == ' ')
+        {
+            s.remove_prefix(1);
+        }
+        while(!s.empty() && s.back() == ' ')
+        {
+            s.remove_suffix(1);
+        }
+        return std::string{s};
+    };
+    const size_t split = spec.find('>');
+    const std::string title = trim(spec.substr(0, split));
+    const std::string row = split == std::string_view::npos ? std::string{} : trim(spec.substr(split + 1));
+    int target = -1;
+    for(int p = 0; p < pageCount && target < 0; p++)
+    {
+        target = q_strcasecmp(pages[p].title, title.c_str()) ? -1 : p;
+    }
+    if(target < 0)
+    {
+        return false;
+    }
+    // The shortest way there through the pages' links (breadth first from the VR Settings, as menu_vr dump): each page
+    // named by the link that opens it.
+    int from[pageCount];
+    const char* link[pageCount]{};
+    for(int& f : from)
+    {
+        f = -1;
+    }
+    from[PageMain] = PageMain;
+    int queue[pageCount];
+    int queued = 0;
+    queue[queued++] = PageMain;
+    for(int q = 0; q < queued && from[target] < 0; q++)
+    {
+        for(const Item& item : items(queue[q]))
+        {
+            if(item.kind == Item::Action && item.page >= 0 && item.page < pageCount && !item.actionArg && item.label &&
+                from[item.page] < 0)
+            {
+                from[item.page] = queue[q];
+                link[item.page] = item.label;
+                queue[queued++] = item.page;
+            }
+        }
+    }
+    if(from[target] < 0)
+    {
+        return false; // no link reaches it
+    }
+    std::vector<const char*> names; // from the page up
+    for(int p = target; p != PageMain; p = from[p])
+    {
+        names.push_back(link[p]);
+    }
+    out = std::string{"Options > "} + pages[PageMain].title;
+    for(auto it = names.rbegin(); it != names.rend(); ++it)
+    {
+        out += " > ";
+        out += *it;
+    }
+    if(!row.empty())
+    {
+        const char* found = nullptr;
+        for(const Item& item : items(target))
+        {
+            if(item.label && item.kind != Item::Info && !q_strcasecmp(item.label, row.c_str()))
+            {
+                found = item.label;
+                break;
+            }
+        }
+        if(!found)
+        {
+            return false;
+        }
+        out += " > ";
+        out += found;
+    }
+    return true;
+}
+
 } // namespace
+
+bool qvr::menu::pathTo(std::string_view spec, std::string& out)
+{
+    return resolvePath(spec, out);
+}
+
+std::string qvr::menu::expandPaths(std::string_view text, int width, int* missing)
+{
+    constexpr std::string_view open = "{menu:";
+    std::string out;
+    size_t at = 0;
+    for(size_t start; (start = text.find(open, at)) != std::string_view::npos;)
+    {
+        const size_t end = text.find('}', start);
+        if(end == std::string_view::npos)
+        {
+            break;
+        }
+        out.append(text.substr(at, start - at));
+        const std::string_view spec = text.substr(start + open.size(), end - start - open.size());
+        std::string path;
+        if(!resolvePath(spec, path))
+        {
+            if(missing)
+            {
+                (*missing)++;
+            }
+            Con_Warning("MENU PATH MISSING: {menu:%.*s} (a map's board names a menu page or row that no longer exists)\n",
+                static_cast<int>(spec.size()), spec.data());
+            out += "[menu? ";
+            out.append(spec);
+            out += "]";
+            at = end + 1;
+            continue;
+        }
+        // Broken into lines at its " > "s, each about `width` characters from the start of its line.
+        const size_t lineStart = out.rfind('\n');
+        int column = static_cast<int>(out.size() - (lineStart == std::string::npos ? 0 : lineStart + 1));
+        std::string_view rest = path;
+        for(bool first = true; !rest.empty(); first = false)
+        {
+            const size_t sep = rest.find(" > ");
+            const std::string_view part = rest.substr(0, sep);
+            rest = sep == std::string_view::npos ? std::string_view{} : rest.substr(sep + 3);
+            const int need = static_cast<int>(part.size()) + (first ? 0 : 3);
+            if(!first && column + need > width)
+            {
+                out += "\n> ";
+                column = 2;
+            }
+            else if(!first)
+            {
+                out += " > ";
+                column += 3;
+            }
+            out.append(part);
+            column += static_cast<int>(part.size());
+        }
+        at = end + 1;
+    }
+    out.append(text.substr(at));
+    return out;
+}
+
+// vr_menu_path_check [file or text]: every {menu:...} in the loaded map's entities (or in a text file of the game's, as
+// maps/vrcalibration.map; or in the text given, starting with "{"), each with its path; "menu paths: N found, M missing"
+// last.
+void qvr::menu::pathCheck_f()
+{
+    const char* data = nullptr;
+    byte* file = nullptr;
+    if(Cmd_Argc() > 1 && Cmd_Argv(1)[0] == '{')
+    {
+        data = Cmd_Args(); // the text itself: vr_menu_path_check "{menu:Locomotion>Snap Turn}"
+    }
+    else if(Cmd_Argc() > 1)
+    {
+        file = COM_LoadMallocFile(Cmd_Argv(1), nullptr);
+        if(!file)
+        {
+            Con_Printf("vr_menu_path_check: can't open %s\n", Cmd_Argv(1));
+            return;
+        }
+        data = reinterpret_cast<const char*>(file);
+    }
+    else if(sv.active && sv.worldmodel && sv.worldmodel->entities)
+    {
+        data = sv.worldmodel->entities;
+    }
+    else
+    {
+        Con_Printf("vr_menu_path_check [file or {menu:...}]: the loaded map's {menu:...} board paths, or a file's\n");
+        return;
+    }
+    int found = 0, missing = 0;
+    const std::string_view text{data};
+    for(size_t at = 0; (at = text.find("{menu:", at)) != std::string_view::npos;)
+    {
+        const size_t end = text.find('}', at);
+        if(end == std::string_view::npos)
+        {
+            break;
+        }
+        const std::string_view spec = text.substr(at + 6, end - at - 6);
+        std::string path;
+        if(resolvePath(spec, path))
+        {
+            found++;
+            Con_Printf("menu path: %.*s -> %s\n", static_cast<int>(spec.size()), spec.data(), path.c_str());
+        }
+        else
+        {
+            missing++;
+            Con_Printf("MENU PATH MISSING: %.*s\n", static_cast<int>(spec.size()), spec.data());
+        }
+        at = end + 1;
+    }
+    Con_Printf("menu paths: %d found, %d missing\n", found, missing);
+    free(file);
+}
+
+int qvr::menu::bodyCalibrationPage()
+{
+    return pageIndex(pageBodyCalibration);
+}
 
 extern "C" void VR_Menu_Open()
 {
