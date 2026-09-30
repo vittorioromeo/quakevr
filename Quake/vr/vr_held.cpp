@@ -314,6 +314,20 @@ bool modelVertices(const qmodel_t* model, bool mirrored, std::vector<glm::vec3>&
     return true;
 }
 
+glm::vec3 drawnModelPoint(edict_t* ent, const glm::vec3& p)
+{
+    using namespace progs;
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(!model || (model->type != mod_alias && model->type != mod_brush))
+    {
+        return p;
+    }
+    const FieldOffsets& f = fields();
+    const DrawnTransform xf{model, fieldVec(ent, f.model_scale), fieldVec(ent, f.model_scale_origin), fieldVec(ent, f.model_offset)};
+    return xf.modelPoint(p);
+}
+
 bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out)
 {
     out.clear();

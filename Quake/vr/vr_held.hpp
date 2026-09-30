@@ -98,6 +98,11 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // bodies' convex hulls, vr_box3d.cpp).
 [[nodiscard]] bool drawnVertices(edict_t* ent, std::vector<glm::vec3>& out);
 
+// Server side: where the point `p` of `ent`'s model (in the model's own space: its bounds', an alias model's vertices
+// as scale * v + scale_origin) is drawn, in its axes relative to its origin (the weapon scaling, the networked scale and
+// offset, as drawnVertices). `p` itself without a model.
+[[nodiscard]] glm::vec3 drawnModelPoint(edict_t* ent, const glm::vec3& p);
+
 // The vertices of alias model `model`'s first pose as the view draws a weapon with it (weapons::ModelTransform), in its
 // entity's axes; `mirrored` (the off hand's): its y negated. False if it has none (a held weapon's hull, vr_box3d.cpp).
 [[nodiscard]] bool modelVertices(const qmodel_t* model, bool mirrored, std::vector<glm::vec3>& out);

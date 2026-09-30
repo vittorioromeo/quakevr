@@ -67,7 +67,7 @@ void(entity e, vector at, vector dir, float damage) VR_Wound_Pellet =
 // From T_DamageImpl, as `take` is taken: the blow's kind, where it struck and which way it went.
 void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 {
-    if(take <= 0 || !VR_Wound_Takes(targ))
+    if(take <= 0 || !VR_Wound_Takes(targ) || vr_hitkind == QVR_HITKIND_BLEED)
     {
         return;
     }

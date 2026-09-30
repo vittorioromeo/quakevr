@@ -273,5 +273,19 @@
 .float  vr_hitclass; // precise hits (vr_hitmodel.cpp): a missile's class for its tolerance (HITCLASS_*: 0 a gun's, 1 the grappling hook's); -1: Quake's boxes
 .vector vr_spin;  // their angular velocity, radians per second, world axes
                   // (.vr_rigid 2: a solid one, SOLID_BBOX, its box kept round its drawn shape as it turns: an explosive box)
+// A thrown axe stuck in something by its blade (engine: vr_axestick.cpp, which sticks it and moves it with what it is in;
+// QC/vr_axestick.qc).
+.float  vr_stick_kind;   // 0 not stuck; 1 the level or a brush entity; 2 a prop; 3 a monster's model; 4 a monster's box;
+                         // -1 it came out (it never sticks again)
+.entity vr_stick_ent;    // what it is in (world: the level)
+.vector vr_stick_ofs;    // its origin in that thing's frame (the engine's)
+.vector vr_stick_ang;    // its turn in that frame (the engine's)
+.vector vr_stick_anchor; // kind 3: the model's triangle and where on it (the engine's)
+.float  vr_stick_edge;   // which blade (the engine's)
+.vector vr_stick_at;     // the middle of the blade's edge in the world (the engine's, each frame)
+.vector vr_stick_dir;    // the way the blade faces, into what it is in (the engine's, each frame)
+.float  vr_stick_wiggle; // degrees the axe is rocked about its edge (a force grab's tug)
+.vector vr_stick_vel;    // in flight: its velocity and spin at the last step (the engine's: one that changes has hit
+.vector vr_stick_spin;   // something, and it never sticks after: a handle-first throw bounces)
 .void(float xSpeed) vr_impact; // a rigid body hitting something (the world, a prop, a monster) at xSpeed m/s (at least
                                // 2): self the body, other what it hit (world for the level). Box3D's hits, after its step.

@@ -17,6 +17,16 @@
 
 float forcegrabCatching; // TRUE while a caught object's handtouch runs (wpnthrow_handtouch_ent_hand)
 
+// Thrown axes stuck in things (vr_axestick.qc, after weapons.qc): a force grab tugs one out first.
+float(entity e) VR_AxeStick_IsStuck;
+float(entity e) VR_AxeStick_Tugging;
+void(entity e, entity xPlayer, float xHand) VR_AxeStick_Tug;
+void() VR_AxeStick_Think;
+void(entity e) VR_AxeStick_PulledOut;
+void() VR_AxeStick_TestThrow;
+void() VR_AxeStick_TestReach;
+void() VR_AxeStick_TestReport;
+
 // ----------------------------------------------------------------------------
 // Per-hand state, on the player
 // ----------------------------------------------------------------------------
@@ -119,7 +129,7 @@ float(entity e) VR_Forcegrab_IsEligible =
     // Cheapest first: no model (triggers, most of what findradius finds around the hand), then
     // what kind of thing (monsters and doors are none): a dropped or thrown object, or a weapon lying
     // in the level in single player (in coop and deathmatch they stay for all).
-    if(e.model == string_null || e.fg_state != 0 || e == world)
+    if(e.model == string_null || e.fg_state != 0 || e == world || VR_AxeStick_Tugging(e))
     {
         return FALSE;
     }
@@ -524,6 +534,13 @@ void(float xHand) VR_Forcegrab_HandFrame =
 
         if(VR_Forcegrab_Flicked(xHand, target))
         {
+            if(VR_AxeStick_IsStuck(target))
+            {
+                // A thrown axe stuck in something tugs a moment first, then flies (vr_axestick.qc).
+                VR_AxeStick_Tug(target, self, xHand);
+                VR_Forcegrab_Set(xHand, world, FALSE);
+                return;
+            }
             VR_Forcegrab_Launch(target, xHand);
             VR_Forcegrab_Set(xHand, world, FALSE);
             VR_Forcegrab_SetPulled(xHand, target);

@@ -71,6 +71,18 @@ bool ropeCast(const glm::vec3& from, const glm::vec3& to, float radius, int skip
 // it misses (`hasBody` false: the entity has no body).
 bool castAt(int num, const glm::vec3& from, const glm::vec3& to, float radius, float& fraction, bool& hasBody);
 
+// A ray from `from` to `to` against the loose props (dynamic bodies: not the world, doors, monsters, players, hands, what a
+// hand holds), but the entity `skip`: the first it meets (its edict number, the fraction of the way, the point and the
+// surface's normal). False if none, and without Box3D's world. (A thrown axe's blade: vr_axestick.cpp.)
+struct PropHit
+{
+    int num{0};
+    float fraction{1.f};
+    glm::vec3 point{0.f};
+    glm::vec3 normal{0.f};
+};
+bool castProps(const glm::vec3& from, const glm::vec3& to, int skip, PropHit& hit);
+
 // Whether the loose prop `num` rests on hand `hand` ([0] off, [1] main) of client `player`: touches its reach body (the
 // open hand, the fist, the held weapon) or its sphere where the contact holds it up (its normal points up into it). For
 // the drawn hands (vr_modelcollide.cpp): a thing lying on the palm doesn't push the hand away.

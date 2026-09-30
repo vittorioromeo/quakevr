@@ -13,6 +13,7 @@ float QVR_HITKIND_BASH     = 3; // a weapon's guard driven forward (vr_bash)
 float QVR_HITKIND_SHOVE    = 4; // both empty hands driven forward (vr_bash)
 float QVR_HITKIND_SHOT     = 5; // a hitscan weapon (vr_hithand's, or vr_hitweapon): shotguns, lightning
 float QVR_HITKIND_SPLASH   = 6; // an explosion's (or a discharge's) radius damage
+float QVR_HITKIND_BLEED    = 7; // a thrown axe stuck in it bleeding it (vr_axestick.qc): no new wound
 
 float vr_hitkind;     // QVR_HITKIND_*
 float vr_hithand;     // the hand that struck or fired (-1: unknown)

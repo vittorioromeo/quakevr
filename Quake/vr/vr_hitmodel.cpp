@@ -881,6 +881,9 @@ bool segment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float radius,
         const auto& t = d.mesh->tris[f.tri];
         const glm::vec3 p0 = vs.at(d, t[0], 0.f), p1 = vs.at(d, t[1], 0.f), p2 = vs.at(d, t[2], 0.f);
         out.surface = p0 + (p1 - p0) * f.u + (p2 - p0) * f.v;
+        out.tri = static_cast<int>(f.tri);
+        out.u = f.u;
+        out.v = f.v;
         last = Last{NUM_FOR_EDICT(ent), qcvm->time, f.tri, f.u, f.v, out.point, out.surface};
     }
     if(hit)
@@ -999,6 +1002,27 @@ bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
     const glm::vec3 local = d.L * (r0 + (r1 - r0) * u + (r2 - r0) * v) + d.l;
     const float yaw[3]{0.f, ent->v.angles[1], 0.f};
     out = vec(ent->v.origin) + held::axesFromAngles(yaw, false) * local;
+    return true;
+}
+
+bool anchorFrame(edict_t* ent, int tri, float u, float v, glm::vec3& point, glm::mat3& axes)
+{
+    Drawn d;
+    if(tri < 0 || !target(ent) || !drawnOf(ent, d) || static_cast<std::size_t>(tri) >= d.mesh->tris.size())
+    {
+        return false;
+    }
+    const Verts vs = vertsOf(d);
+    const auto& t = d.mesh->tris[static_cast<std::size_t>(tri)];
+    const glm::vec3 p0 = vs.at(d, t[0], 0.f), p1 = vs.at(d, t[1], 0.f), p2 = vs.at(d, t[2], 0.f);
+    point = p0 + (p1 - p0) * u + (p2 - p0) * v;
+    const glm::vec3 e1 = p1 - p0, n = glm::cross(e1, p2 - p0) * d.mesh->winding;
+    if(glm::length(e1) < 1e-4f || glm::length(n) < 1e-6f)
+    {
+        return false; // (a triangle squashed flat in this pose)
+    }
+    const glm::vec3 x = glm::normalize(e1), z = glm::normalize(n);
+    axes = glm::mat3{x, glm::cross(z, x), z};
     return true;
 }
 

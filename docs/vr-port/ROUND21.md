@@ -15355,3 +15355,75 @@ locally; the rest are worked around in `vr_jobs.cpp` or the build.
   hitch the first time (now 0.3-0.8 ms: `vr_profile`'s `grasp solve`).
 - [ ] Load a few maps: the models' occlusion still appears a moment after (baked on the pool now), no hitch.
 - [ ] Debug > Profiling and Memory > Threads: Thread Pool Self-Test says 16 passed.
+
+## Thrown axes stick (2026-09-30)
+
+"Thrown axe sticks. Make sure that the axe sticks with its blade visually into the enemy/walls/props and that it can be
+pulled out either via force-grabbing or by grabbing it with the hand. Add the bleeding feature as well."
+
+**What it does.** A thrown axe whose blade goes in first sticks: into the level, brush entities (doors, lifts, walls),
+Box3D props (it rides with the prop, which takes the blow) and monsters (it rides with the triangle of the drawn model
+it went into, `vr_hitmodel.cpp`'s `anchorFrame`; without precise hits, with the monster's origin and yaw). It keeps the
+angle it came in at, pushed along the way the blade faces until the edge is `vr_axestick_depth` under the surface
+(5 cm at twice the least speed, half as deep at it, never more than 60% of the blade). A flat throw (the blade's side
+first), a handle-first one, a glancing blow or a slow one bounces off as before; so does anything after its first
+contact (a bounce never ends stuck). In a monster it bleeds it: `vr_axestick_bleed` health a second (5), your damage
+(credit, the monster turns on you), without a flinch each time, blood from the wound every half second, no new wound
+painted; it falls out when the monster dies or is gibbed, or when a prop it is in goes. Grip its handle to take it
+(blood or dust as it comes out); force grab it and it tugs (`vr_axestick_tug`, 0.3 s: rocked about its edge, a buzz
+in the hand), then comes free and flies to the hand as any force grab. Only axes thrown by a player stick (not the
+firing range's weapons falling off their racks, nor dropped ones).
+
+**How** (`Quake/vr/vr_axestick.cpp`, `QC/vr_axestick.qc`). Once a Box3D step, before it (`vr_box3d.cpp`'s
+`beforeStep`), for each flying axe: three points along each edge of its double-bitted head (a table of blades by model:
+`progs/v_axe.mdl`'s edges measured from its vertices) are swept from 3 units behind them (Box3D's hull is inside the
+drawn model by its rounding: the drawn edge can be in the wall a step before the body meets it) to where the axe's
+velocity and spin take them, against the level, brush entities and monsters (`SV_Move`, precise) and the props
+(`box3d::castProps`, new). Monsters are also looked for 16 units further on: Box3D meets a monster at its standing
+pose's hull, which stands out of the drawn model (an ogre's by 10 units), so the blade goes into the model a step early
+instead of bouncing off the hull. The first strike decides: the edge's speed relative to what it struck at least
+`vr_axestick_speed` (4 m/s), the blade facing within `vr_axestick_angle` (45 degrees) of the way the edge goes and
+within `vr_axestick_incidence` (65) of straight into the surface, and (the level, doors, props) its handle out of the
+wall. A change of the axe's flight since the last step beyond gravity's (Box3D bounced it) sets `.vr_stick_kind -1`:
+it never sticks after. Stuck, QC's `VR_AxeStick_Stuck` gives the throw's blow (its touch), makes it `MOVETYPE_NONE`,
+`SOLID_NOT_BUT_TOUCHABLE` (a hand's grip, a force grab); its pose in what it is in is kept in QC fields
+(`.vr_stick_ent`, `_kind`, `_ofs`, `_ang`, `_anchor`: a saved game keeps it), and each server frame
+(`VR_ServerFrameEnd`, after the monsters' drawn poses) puts it back there. QC names the engine-only fields once (in
+`VR_AxeStick_Free`): fteqcc drops fields the progs never use, and the engine then found none.
+
+**Settings** (Throwing and Physics > Thrown Axes): Axes Stick (`vr_axestick` 1), Bleeding (`vr_axestick_bleed` 5
+health/s), Stick Speed (`vr_axestick_speed` 4 m/s), Stick Angle (`vr_axestick_angle` 45), Stick Incidence
+(`vr_axestick_incidence` 65), Stick Depth (`vr_axestick_depth` 5 cm), Force Grab Tug (`vr_axestick_tug` 0.3 s). New
+settings only: no config migration. **Debug:** Debug > Axe Sticks (`vr_debug_axestick`: 1 each strike, stuck or why it
+bounced, the bleeding, the fall, the pull; 2 also each step of its flight and a hand on it; 3 also each sweep and
+placement). **Tests** (Debug > Tests > Thrown Axe): Throw an Axe (`impulse 209`: `vr_test_axe` 0 blade first, 1 flat, 2
+handle first, 3 spinning; `vr_test_axe_speed`, `vr_test_axe_damage`, `vr_test_axe_dist`, `vr_test_axe_at` 1 the
+nearest monster, 2 door, 3 loose prop), Hand on the Stuck Axe (`impulse 207`), Report the Axes (`impulse 208`).
+
+**Tested with the mock** (10 m/s, blade first, 90 units off):
+
+| Target | Result | Edge speed | Off its edge | To the surface | Depth |
+|---|---|---|---|---|---|
+| Wall (vrfiringrange) | stuck, kind 1 | 10.4 m/s | 14-17 deg | 1 deg | 1.64 units (5.0 cm; blade 4.78 wide) |
+| Door (e1m1) | stuck, rides it: door +64 x, axe +64 x | 10.4 m/s | 14 deg | 1 deg | 5.0 cm |
+| Explosive box | stuck, kind 2, rides it: flung, box +105.8 x, axe +106.8 x (and its 2 degree turn) | 10.2 m/s | 10 deg | 1 deg | 5.0 cm |
+| Grunt | stuck in its model, kind 3 | 10.0 m/s | 3-10 deg | 25 deg | 5.0 cm |
+| Ogre (a damaging throw) | stuck, kind 3 (17 damage from the blow) | 10.0 m/s | 3 deg | 11-17 deg | 5.0 cm |
+| Wall, flat | bounces: 90 deg off its edge | | | | |
+| Wall, handle first | bounces: the handle's hit changes its flight, never sticks after | | | | |
+| Wall, spinning 12 rad/s | bounces: the other blade led (116 deg off) | | | | |
+
+Bleeding: a grunt at `vr_axestick_bleed 10`, 30 -> 0 in 3.0 s (5 a tick, every 0.5 s), the axe falls out as it dies;
+an ogre at the default 5: 183 -> 153 in 12 ticks (6.0 s), 5.0 health/s (Quake rounds damage up: the fraction is carried
+from tick to tick). Pulled out by the hand (the box's axe: `impulse 207`, the grip) and by a force grab (the wall's:
+aimed, trigger, a flick back; tugged 0.30 s, out, flew 88 units in 0.4 s, caught). `eval.sh` canary: no differences.
+
+**In the headset:**
+- [ ] Throw the axe at a wall, a door, a box, a monster, blade first: it sticks, blade in, handle out at the angle it
+  came in. Does it stick often enough (or too often)? Stick Speed, Angle and Incidence tune it.
+- [ ] A flat, handle-first or glancing throw bounces off as before.
+- [ ] Open the door, push or carry the box, let the monster walk: the axe goes with it. Does the axe in a monster look
+  right as it animates (it rides one triangle of the model)?
+- [ ] A monster with an axe in it bleeds (blood every half second) and falls to it at the Bleeding rate; the axe drops
+  when it dies.
+- [ ] Grip the handle: it comes out into your hand. Force grab it: it rocks a moment, then flies to your hand.

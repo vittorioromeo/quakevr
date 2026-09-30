@@ -3882,6 +3882,18 @@ void() ImpulseCommands =
     {
         VR_Grapple_TestTouch();
     }
+    if(self.impulse == 209 && !deathmatch && !coop) // QVR test: an axe thrown ahead (vr_test_axe; vr_axestick.qc)
+    {
+        VR_AxeStick_TestThrow();
+    }
+    if(self.impulse == 207 && !deathmatch && !coop) // QVR test: your main hand on the nearest stuck axe's handle
+    {
+        VR_AxeStick_TestReach();
+    }
+    if(self.impulse == 208) // QVR test: each thrown axe, stuck or not (vr_axestick.qc)
+    {
+        VR_AxeStick_TestReport();
+    }
     if(self.impulse == 241 && !deathmatch && !coop) // QVR: a monster or a box ahead, facing you (vr_test_spawn; weapons against models)
     {
         makevectors('0 1 0' * self.v_viewangle_y);
@@ -4605,6 +4617,16 @@ void() wpnthrow_think =
         return;
     }
 
+    if(VR_AxeStick_IsStuck(self))
+    {
+        VR_AxeStick_Think(); // stuck in something by its blade (vr_axestick.qc)
+        if(self.think == wpnthrow_think)
+        {
+            self.nextthink = time + 0.02;
+        }
+        return;
+    }
+
     forcegrabbable_think_impl();
     self.nextthink = time + 0.02;
 }
@@ -4782,6 +4804,10 @@ void() forcegrabbable_touch =
 
 void() wpnthrow_touch =
 {
+    if(VR_AxeStick_IsStuck(self))
+    {
+        return; // stuck in something by its blade: bodies walking into it do nothing (vr_axestick.qc)
+    }
     forcegrabbable_touch();
 }
 
@@ -4791,6 +4817,10 @@ void(float xHand, entity ent, entity entPlayer,
 {
     sound(ent, CHAN_AUTO, "weapons/pkup.wav", 1, ATTN_NORM);
     VRGunHaptic(xHand, 0.3, 75, 1.0);
+    if(VR_AxeStick_IsStuck(ent))
+    {
+        VR_AxeStick_PulledOut(ent); // out of what it was stuck in (vr_axestick.qc)
+    }
 
     *xOutEntWeapon = ent.weapon;
     *xOutEntWeaponFlags = ent.weaponflags;
@@ -4852,6 +4882,11 @@ void(entity entWpn) wpnthrow_handtouch_ent =
 
 void() wpnthrow_handtouch =
 {
+    if(cvar("vr_debug_axestick") >= 2 && VR_AxeStick_IsStuck(self))
+    {
+        dprint(sprintf("axestick: a hand (%g) on the stuck %s, grabbing %g\n", VRGetHandtouchHand(self), self.netname,
+            VR_HandGrabUtil_StartedHandGrabbing(self.handtouch_ent, VRGetHandtouchHand(self))));
+    }
     wpnthrow_handtouch_ent(self);
 }
 
