@@ -21,9 +21,13 @@
 # - a cleaner silhouette where a hand holds it: a bevelled pistol grip under the receiver (a butt plate, ribs), a trigger
 #   guard and a trigger; a band where the other hand goes (the rifle: the shotgun has its own); bolt heads on the
 #   receiver; the skins' edge wear (mdlpolish.py: the parts in the skin's own browns and steels, flat-shaded, as the id models).
+# - a detail pass (details_grunt, details_enforcer: ROUND21.md, "The enemy guns' detail pass"): the ridges, vents and
+#   grooves the skins paint made geometry, primitive sights, a thin barrel at the muzzle, the grunts' gun a wire stock.
 # Nine frames (0..8, the same pose): the frames a gun's firing animation steps through.
-# The muzzle and counter anchors (slots 21, 22: MuzzleAnchorVertex, WpnTextAnchorVertex) are strip-order indices of
-# the cut-out vertices (the parts are appended after them): rerun improve_weapons.strip_order after changing the cut.
+# The counter anchors (slots 21, 22: WpnTextAnchorVertex) are strip-order indices of the cut-out vertices (the parts are
+# appended after them): rerun improve_weapons.strip_order after changing the cut. The muzzle anchors (MuzzleAnchorVertex)
+# are the thin barrels' bore centres: printed as the script runs. The stock moves the grunts' gun's bounds' corner
+# (scale_origin, printed too), about which the weapon Scale pivots: its Offset and hotspots then follow (vr_weapons.inc).
 
 import math
 import os
@@ -34,6 +38,7 @@ import numpy as np
 
 import genguard
 import mdlpolish as mp
+from improve_weapons import strip_order
 from make_chainsaw import principal
 from make_swords import Mdl
 from mdlgen import HEADER, anorms, cross, dot, mul, norm, sub
@@ -55,6 +60,10 @@ GUNS = {
         fore_x=3.0,           # and the other hand's (the band round the barrel)
         grip_mat='brown', guard_mat='blued',
         fore_band=False,      # its own band round the barrel is the foregrip
+        details='grunt',      # details_grunt
+        stock_x=-28.6,        # the butt plate's middle (the pad behind it)
+        barrel=4.2,           # the thin barrel's reach past the muzzle's face
+        sight_top=15.0,
     ),
     'v_enfrifle.mdl': dict(
         src='enforcer.mdl', counts=(479, 984), tris=118,
@@ -64,6 +73,10 @@ GUNS = {
         fore_x=6.0,
         grip_mat='brown', guard_mat='blued',
         fore_band=True,       # a band at the vented housing's front, where the other hand holds it
+        details='enforcer',   # details_enforcer
+        stock_x=None,
+        barrel=4.6,
+        sight_top=14.7,
     ),
 }
 
@@ -186,9 +199,197 @@ def section(P, x, width=1.0):
     return (min(p[2] for p in near), max(p[2] for p in near), min(p[1] for p in near), max(p[1] for p in near))
 
 
+# ----------------------------------------------------------------------------
+# The detail pass (NOTES.md e1m1_2026-09-30_23-27/23-31/23-34, e2m1_2026-09-30_23-42): what the skins only paint
+# (ridges, vents, grooves, lamps) made geometry, a thin barrel at the muzzle (the muzzle anchor at its bore), primitive
+# sights, and on the grunts' gun a light wire stock. Positions are the guns' own (model units, origin in the grip),
+# read off orthographic projections of the textured cut-outs.
+
+def surface(p, x, y, z, d):
+    """The old surface's point and outward normal met from (x, y, z) along d."""
+    q, n, _ = p.hit((x, y, z), d)
+    return q, n
+
+
+def ridge(p, x, zmin, width, height, material, key, sink=0.15, shade=0.0, turn=18.0):
+    """A raised rib across the gun at `x`: over the outline of its section above `zmin` (the top and the upper sides,
+    clear of what is painted lower down; None: all round, a ring), `height` proud of it, `width` along the barrel.
+    Corners turning less than `turn` degrees are dropped (fewer faces)."""
+    ax = np.array((1.0, 0.0, 0.0))
+    hull, u, v, _ = p.outline((x, 0.0, 0.0), ax, (0.0, 0.0, 1.0), width)
+    c = np.array((x, 0.0, 0.0))
+    pts = [c + u * a + v * b for a, b in hull]
+    n = len(pts)
+    mid = sum(pts) / n
+    closed = zmin is None
+    if closed:
+        arc = list(pts)
+    else:
+        i0 = next(i for i in range(n) if pts[i][2] < zmin <= pts[(i + 1) % n][2])
+
+        def cut(a, b):
+            t = (zmin - a[2]) / (b[2] - a[2])
+            return a + t * (b - a)
+
+        arc = [cut(pts[i0], pts[(i0 + 1) % n])]
+        k = (i0 + 1) % n
+        while pts[k][2] >= zmin:
+            arc.append(pts[k])
+            k = (k + 1) % n
+        arc.append(cut(pts[(k - 1) % n], pts[k]))
+    arc = [a for i, a in enumerate(arc) if i == 0 or np.linalg.norm(a - arc[i - 1]) > 0.05]
+    cos_turn = math.cos(math.radians(turn))
+    changed = True
+    while changed and len(arc) > (3 if closed else 2):
+        changed = False
+        for i in range(0 if closed else 1, len(arc) if closed else len(arc) - 1):
+            d0 = arc[i] - arc[i - 1]
+            d1 = arc[(i + 1) % len(arc)] - arc[i]
+            if d0 @ d1 / (np.linalg.norm(d0) * np.linalg.norm(d1)) > cos_turn:
+                del arc[i]
+                changed = True
+                break
+    m = len(arc)
+    segs = [(i, (i + 1) % m) for i in range(m if closed else m - 1)]
+
+    def edge_normal(a, b):
+        e = (b - a) / np.linalg.norm(b - a)
+        o = 0.5 * (a + b) - mid
+        o = o - e * (o @ e) - ax * (o @ ax)
+        return o / np.linalg.norm(o)
+
+    en = [edge_normal(arc[i], arc[j]) for i, j in segs]
+    inner, outer = [], []
+    for i, a in enumerate(arc):
+        ns = [en[k] for k, (s0, s1) in enumerate(segs) if i in (s0, s1)]
+        nn = sum(ns)
+        nn = nn / np.linalg.norm(nn)
+        mitre = 1.0 / max(0.6, min(nn @ e for e in ns))
+        inner.append(a - nn * sink)
+        outer.append(a + nn * height * mitre)
+    h = ax * 0.5 * width
+    for k, (i, j) in enumerate(segs):
+        o = en[k]
+        p.face([outer[i] - h, outer[j] - h, outer[j] + h, outer[i] + h], o, material, p.lit(o) + shade + 0.1, key)
+        p.face([inner[i] + h, inner[j] + h, outer[j] + h, outer[i] + h], ax, material, p.lit(ax) + shade, key)
+        p.face([inner[i] - h, inner[j] - h, outer[j] - h, outer[i] - h], -ax, material, p.lit(-ax) + shade, key)
+    if not closed:
+        for i, j in ((0, 1), (m - 1, m - 2)):
+            t = arc[i] - arc[j]
+            t = t / np.linalg.norm(t)
+            p.face([inner[i] - h, outer[i] - h, outer[i] + h, inner[i] + h], t, material, p.lit(t) + shade, key)
+
+
+def framed_slot(p, x0, x1, z0, z1, side, material, key, width=0.45, height=0.6, slats=(), ends=True):
+    """A raised lip round a vent painted on the side (`side` +1: +y), and slats across it at the heights `slats`:
+    the painted dark reads as a recess."""
+    def at(x, z):
+        return surface(p, x, side * 20.0, z, (0.0, -side, 0.0))
+
+    def bar(a, b):
+        (qa, na), (qb, nb) = a, b
+        e = (qb - qa) / np.linalg.norm(qb - qa)
+        up = na + nb
+        p.bar(qa - e * 0.5 * width, qb + e * 0.5 * width, up, width, height, material, key)
+
+    c = {(i, j): at(x, z) for i, x in enumerate((x0, x1)) for j, z in enumerate((z0, z1))}
+    bar(c[0, 0], c[1, 0])
+    bar(c[0, 1], c[1, 1])
+    if ends:
+        bar(c[0, 0], c[0, 1])
+        bar(c[1, 0], c[1, 1])
+    for z in slats:
+        bar(at(x0, z), at(x1, z))
+
+
+def tube(p, a, b, r, material, key, sides=6):
+    """A plain rod from a to b."""
+    a, b = np.asarray(a, np.float64), np.asarray(b, np.float64)
+    L = np.linalg.norm(b - a)
+    ax = (b - a) / L
+    ref = (0.0, 0.0, 1.0) if abs(ax[2]) < 0.9 else (1.0, 0.0, 0.0)
+    p.revolve(a, ax, ref, [(0.0, 0.0), (0.0, r), (L, r), (L, 0.0)], material, key, sides=sides,
+              shades=[0.0, 0.1, 0.0, 0.0], skip=(0, 2))  # its ends are sunk in what it joins
+
+
+def barrel_tip(p, face_x, yc, zc, length, r, collar, material, key, bore=0.35, depth=0.3, sides=6):
+    """A thin barrel out of the muzzle's face (its root sunk into it, a collar round it), its bore dark. Returns the
+    bore's bottom centre: the muzzle anchor's place."""
+    root = face_x - 0.6
+    L = face_x + length - root
+    prof = [(0.0, 0.0), (0.0, collar), (1.3, collar), (1.3, r), (L, r), (L, bore), (L - depth, bore), (L - depth, 0.0)]
+    p.revolve((root, yc, zc), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0), prof, material, key, sides=sides,
+              shades=[0, 0.05, 0.25, 0.0, 0.3, -0.35, -0.6, 0], skip=(0,))
+    return np.array((root + L - depth, yc, zc))
+
+
+def front_sight(p, x, top, material, key):
+    """A post on a small block, its top at `top`."""
+    s, _ = surface(p, x, 0.0, 40.0, (0.0, 0.0, -1.0))
+    X, Y, Z = np.eye(3)
+    base_top = s[2] + 0.5
+    p.box((x, 0.0, s[2] + 0.15), X, Y, Z, (0.65, 0.6, 0.35), material, key, bevel=0.15)
+    p.box((x, 0.0, 0.5 * (base_top + top) - 0.1), X, Y, Z, (0.28, 0.14, 0.5 * (top - base_top) + 0.1), material, key)
+    return top
+
+
+def rear_sight(p, x, notch, material, key, ear=0.55):
+    """A notch between two ears on a block across the top: the notch's bottom at `notch`."""
+    s, _ = surface(p, x, 0.0, 40.0, (0.0, 0.0, -1.0))
+    X, Y, Z = np.eye(3)
+    p.box((x, 0.0, 0.5 * (s[2] - 0.2 + notch)), X, Y, Z, (0.4, 1.05, 0.5 * (notch - s[2] + 0.2)), material, key,
+          bevel=0.12)
+    for sy in (1.0, -1.0):
+        p.box((x, sy * 0.6, notch + 0.5 * ear - 0.05), X, Y, Z, (0.18, 0.42, 0.5 * ear + 0.05), material, key)
+
+
+def details_grunt(p, spec, P, key):
+    """The grunts' burst gun: ribs over the receiver's top (between its painted dark ones), the window's frame, the
+    lamps, the muzzle cone's vents lipped and slatted, bolts on the clamp band, sights, a wire stock, a thin barrel."""
+    for x in (2.4, 4.8, 7.2, 9.6, 12.0):
+        ridge(p, x, 10.5, 0.8, 0.35, 'bronze', key)
+    # The window on the right (+y) side, framed; its two lamps as lenses.
+    framed_slot(p, 1.5, 8.3, 5.9, 10.3, 1.0, 'blued', key, width=0.4, height=0.5)
+    for x, z, mat in ((9.8, 8.9, 'red'), (11.8, 9.0, 'bronze')):
+        q, n = surface(p, x, 20.0, z, (0.0, -1.0, 0.0))
+        p.box(q, (1.0, 0.0, 0.0), (0.0, 0.0, 1.0), n, (0.5, 0.55, 0.3), mat, key)
+    # The vents painted on both sides of the muzzle cone.
+    for side in (1.0, -1.0):
+        framed_slot(p, 24.8, 28.4, 7.0, 9.7, side, 'bronze', key, width=0.35, height=0.5, slats=(8.35,), ends=False)
+    # Sights: a notch at the receiver's back, a post ahead of the clamp band (level with the notch's bottom).
+    rear_sight(p, -3.5, 14.35, 'blued', key)
+    front_sight(p, 22.4, 14.45, 'blued', key)
+    # The stock: a mount on the back, two rods straight back and one down, a butt plate and its pad.
+    X, Y, Z = np.eye(3)
+    sx = spec['stock_x']
+    p.box((-16.4, 0.0, 8.1), X, Y, Z, (0.55, 1.9, 2.2), 'blued', key)
+    for y in (1.25, -1.25):
+        tube(p, (-16.2, y, 9.3), (sx + 0.4, y, 9.3), 0.42, 'blued', key)
+    tube(p, (-16.2, 0.0, 6.6), (sx + 0.4, 0.0, 4.4), 0.42, 'blued', key)
+    p.box((sx, 0.0, 7.0), X, Y, Z, (0.45, 1.75, 3.35), 'blued', key, bevel=0.35)
+    p.box((sx - 0.65, 0.0, 7.0), X, Y, Z, (0.22, 1.6, 3.2), 'black', key)
+    return barrel_tip(p, *spec['muzzle_face'], length=4.2, r=0.72, collar=1.05, material='blued', key=key)
+
+
+def details_enforcer(p, spec, P, key):
+    """The enforcers' rifle: fins between the housing's painted vents and a spine over them, raised rings between the
+    muzzle cone's painted grooves, sights, a thin barrel."""
+    for x in (9.35, 11.95, 14.55, 17.15):
+        ridge(p, x, 6.6, 0.9, 0.35, 'bronze', key)
+    X, Y, Z = np.eye(3)
+    s0, _ = surface(p, 12.0, 0.0, 40.0, (0.0, 0.0, -1.0))
+    p.box((13.25, 0.0, s0[2] + 0.1), X, Y, Z, (4.6, 0.55, 0.3), 'bronze', key)
+    for x in (31.15, 32.9):
+        ridge(p, x, None, 0.75, 0.22, 'brown', key)
+    rear_sight(p, 5.4, 14.05, 'blued', key)
+    front_sight(p, 20.6, 14.15, 'blued', key)
+    return barrel_tip(p, *spec['muzzle_face'], length=4.6, r=0.85, collar=1.25, material='blued', key=key)
+
+
 def parts(path, spec, fore):
-    """The grip, trigger guard, trigger, foregrip band, bolt heads and edge wear (mdlpolish.py), in place."""
-    p = mp.Polisher(path, rows=16, seed=len(spec['src']))
+    """The grip, trigger guard, trigger, foregrip band, bolt heads and edge wear (mdlpolish.py), and the detail pass,
+    in place. Returns also the muzzle (the barrel's bore)."""
+    p = mp.Polisher(path, rows=28, seed=len(spec['src']))
     P = [tuple(q) for q in p.m.positions(0)]
     texels = mp.edge_wear(p.m, p.ramps, mesh=p.mesh)
     t = math.radians(GRIP_TILT)
@@ -225,8 +426,9 @@ def parts(path, spec, fore):
         for s_ in (1.0, -1.0):
             p.stud((x, s_ * (abs(ylo) + abs(yhi) + 10.0), 0.55 * zlo + 0.45 * zhi), (0.0, -s_, 0.0), radius=0.4,
                    height=0.25, material=sm)
+    muzzle = globals()['details_' + spec['details']](p, spec, P, key)
     tris, verts, rows = p.finish(path)
-    return tris, verts, rows, texels
+    return tris, verts, rows, texels, muzzle
 
 
 def main():
@@ -243,9 +445,27 @@ def main():
         hi = [max(p[k] for p in P) + MARGIN for k in range(3)]
         lo[0] = min(lo[0], -0.5 * GRIP_DEPTH - 0.5 * GRIP_LEN - 1.0)
         lo[2] = min(lo[2], -0.5 * GRIP_LEN - 1.0)
+        # The detail pass: the barrel ahead of the muzzle's face (its middle: the face's), the sights over the top,
+        # the stock behind.
+        xmax = max(p[0] for p in P)
+        face = [p for p in P if p[0] >= xmax - 0.6]
+        spec['muzzle_face'] = (sum(p[0] for p in face) / len(face), 0.5 * (min(p[1] for p in face) + max(p[1] for p in face)),
+                               0.5 * (min(p[2] for p in face) + max(p[2] for p in face)))
+        hi[0] = max(hi[0], spec['muzzle_face'][0] + spec['barrel'] + 0.3)
+        hi[2] = max(hi[2], spec['sight_top'] + 0.3)
+        if spec['stock_x'] is not None:
+            lo[0] = min(lo[0], spec['stock_x'] - 1.3)
         path = os.path.join(out_dir, name)
         write_mdl(path, gun, m.skin, m.sw, m.sh, lo, hi)
-        tris, verts, rows, texels = parts(path, spec, fore)
+        tris, verts, rows, texels, muzzle = parts(path, spec, fore)
+        # The muzzle anchor (MuzzleAnchorVertex): the strip-order index of a vertex at the bore's bottom centre.
+        done = mp.Model(path)
+        Q = done.positions(0)
+        order = strip_order(done.tris)
+        near = min(range(len(order)), key=lambda i: float(np.linalg.norm(Q[order[i]] - muzzle)))
+        print('%s: %d triangles, %d vertices; scale_origin %s; muzzle anchor %d at %s (the bore: %s)' % (
+            name, len(done.tris), len(done.st), np.round(done.origin, 4).tolist(), near,
+            np.round(Q[order[near]], 2).tolist(), np.round(muzzle, 2).tolist()))
         print('%s: %d vertices, %d triangles (%d degenerate dropped), scale %.3f of the %s\'s; sealer: %s' % (
             name, len(gun.st), len(gun.tris), dropped, scale, spec['src'], '; '.join(sealer.log) or 'nothing to do'))
         print('  parts: +%d triangles, +%d vertices, %d skin rows, %d texels worn; the foregrip %.1f ahead' % (

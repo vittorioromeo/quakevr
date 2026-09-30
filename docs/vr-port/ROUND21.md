@@ -16828,3 +16828,34 @@ weapon asleep, no repeats.
   the bar's end: each comes into the hand. Too eager (taken from a hand's width off)? Lower Weapon Grab Slack.
 - [ ] Drop the crowbar from head height: a heavier clank than before.
 - [ ] The chainsaw running, swung at the dummy: its engine keeps running through the whoosh; a thrust of the tip jabs.
+
+## The enemy guns' detail pass; the author's settings for them (2026-10-01)
+
+NOTES.md e1m1_2026-09-30_23-27, 23-31 (the stock), 23-34, e2m1_2026-09-30_23-42, 23-49. `Misc/quakevr/make_enemyguns.py`
+(details_grunt, details_enforcer) adds, after the old parts, what the skins only painted, read off orthographic
+projections of the textured cut-outs:
+
+- **The grunts' burst gun** (408 -> 938 triangles, 1704 vertices): five raised ribs over the receiver's top between its
+  painted dark ones (above the window: `ridge`, the section's outline above a height); the window framed; its red and
+  amber lamps as raised lenses; the muzzle cone's painted vents lipped, a slat across each (both sides); primitive
+  sights (a notch between two ears at the receiver's back, a post on a block ahead of the clamp band, level with the
+  notch's bottom); a light wire stock (a mount on the back, two rods straight back and one down, a butt plate and its
+  pad: 12 units behind the old back); a thin barrel (with a collar, its bore dark and 0.3 deep) out of the muzzle
+  face's middle, 4.2 units long.
+- **The enforcers' rifle** (536 -> 938 triangles, 1692 vertices): four fins between the housing's painted vents over its
+  top and upper sides, a spine along the top across them; two raised rings between the muzzle cone's painted grooves;
+  sights (a notch at the housing's back, a post at its front); a thin barrel out of the muzzle face's middle, 4.6 long.
+- The muzzle anchors (MuzzleAnchorVertex) are now the barrels' bore centres: 1829 and 1813 (the script prints them;
+  `vr_anchor_info progs/v_gruntgun.mdl 1829`: 33.15 0.02 8.08). The old vertices keep their strip-order indices (the
+  counters' anchors 23 and 37 unchanged). Normal maps rebaked (`bake_normals.py v_gruntgun.mdl v_enfrifle.mdl`).
+- **The author's settings** (vr_weapons.inc, vr_wofs_version 30: slots 21 and 22 reset once): his offsets, scale
+  (0.39), pitch, two-handed pitch and offset, hotspots, overlaps, holstered poses, counter placement and masses (5, 6),
+  from his ironwail.cfg. The grunts' gun's stock moved its model's bounds 12.29 back, and the weapon Scale pivots about
+  the bounds' corner (scale_origin): its OffsetX is his 8.8 + 0.61 x 12.29 = 16.2978 and its hotspots' X his - 7.4978
+  (a hotspot is in the weapon's frame after the Offset). The rifle's bounds' corner did not move.
+- Checked (mock, the old models against the new, each with its settings, the old muzzle vertices as anchors): the
+  grunt's old muzzle vertex drawn at 488.1902 -327.0802 105.4668 before, 488.1902 -327.0381 105.4666 after (0.04: the
+  byte grid's step); the rifle's 0.08 apart; both foregrip hotspots at the same place to 0.1. Fired: the burst rifle's
+  rounds (3 a burst) and the rifle's lasers (from its new muzzle); `check_mdl_holes.py`: both ok.
+- In VR: the stock lies along the forearm when held one-handed (it may pass through the sleeve); its length is
+  `stock_x` in make_enemyguns.py.
