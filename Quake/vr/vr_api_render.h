@@ -116,6 +116,20 @@ void VR_AlphaCoverageMip (const unsigned char *in, unsigned char *out, int count
 void VR_SetHeightMask (const unsigned char *mask, int width, int height); // a skin's islands for the heights made next (NULL: none)
 void VR_SetHeightMaskLazy (const float *corners, int numtris, int width, int height,
 	unsigned char *(*make) (const float *corners, int numtris, int w, int h)); // the same, made from the triangles only if needed
+void VR_LoadNormalMap (struct gltexture_s *glt, const char *image, const char *shared, unsigned char *data, enum srcformat format,
+	int worldwidth, int flags);								// Mod_LoadTextures, skins: a texture's normal map (authored beside `image` or `shared`, or made from `data`)
+unsigned char *VR_NormalMapSource (unsigned char *data, enum srcformat fmt, int width, int height); // Mod_LoadTextures: an RGBA image kept whole for it
+
+// Model loading (vr_modelload.cpp; gl_model.c). `mod` is the model loading, `hdr` its aliashdr_t.
+void VR_LoadLux (struct qmodel_s *mod, lump_t *l);		// Mod_LoadLighting: the light's directions (a .lux beside the .lit; deluxemaps)
+void VR_ItemTextureClamp (struct qmodel_s *mod);			// Mod_LoadBrushModel: an item box's faces' texture ranges (maps/b_*: parallax stops at their edges)
+void VR_SkinsBegin (void);								// Mod_LoadAllSkins, first
+void VR_ExternalSkin (struct qmodel_s *mod, void *hdr, struct gltexture_s **skin, struct gltexture_s **fb, unsigned texflags,
+	unsigned char *texels, int size, src_offset_t offset, int i, int j); // Mod_LoadAllSkins: skin i (frame j of a group, -1 none) replaced by a full-colour one, its normal map queued
+void VR_LoadSkinNormalMaps (struct qmodel_s *mod, void *hdr, const stvert_t *verts, const dtriangle_t *tris); // Mod_LoadAliasModel: the queued skins' normal maps, their islands from the triangles
+void VR_MD5SkinNormalMap (void *surf, struct gltexture_s *glt, const char *shader, int skin, int frame, unsigned char *data,
+	enum srcformat fmt, int w, int h);						// Mod_LoadMD5Skins: an MD5 skin's normal map
+void VR_MD5SkinsReset (void);							// Mod_LoadMD5Skins, before and after a surface's skins
 
 #ifdef __cplusplus
 }

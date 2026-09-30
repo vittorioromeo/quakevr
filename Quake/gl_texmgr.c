@@ -1350,14 +1350,7 @@ static qboolean TexMgr_AlphaTested (gltexture_t *glt)
 TexMgr_LoadImage32 -- handles 32bit source data
 ================
 */
-static void TexMgr_LoadImage32Run (gltexture_t *glt, unsigned *data);
 static void TexMgr_LoadImage32 (gltexture_t *glt, unsigned *data)
-{
-	double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
-	TexMgr_LoadImage32Run (glt, data);
-	VR_TimeAdd ("textures processed and uploaded (all)", Sys_DoubleTime () - t0);
-}
-static void TexMgr_LoadImage32Run (gltexture_t *glt, unsigned *data)
 {
 	int	miplevel, mipwidth, mipheight, picmip;
 	glformat_t internalformat;
@@ -1367,6 +1360,7 @@ static void TexMgr_LoadImage32Run (gltexture_t *glt, unsigned *data)
 	byte *coveragemip = NULL; // QVR: an alpha-tested texture's mip with its coverage kept (vr_alpha_coverage)
 	float coverage = 0.f;
 	int mark = 0;
+	double t0 = Sys_DoubleTime (); // QVR: load timing (vr_startup_times)
 
 	// HASALPHA detection
 	if (glt->source_format == SRC_RGBA && !(glt->flags & TEXPREF_ALPHAPIXELS) && !normalmap) // QVR: normal maps are opaque
@@ -1470,6 +1464,7 @@ static void TexMgr_LoadImage32Run (gltexture_t *glt, unsigned *data)
 
 	// set filter modes
 	TexMgr_SetFilterModes (glt);
+	VR_TimeAdd ("textures processed and uploaded (all)", Sys_DoubleTime () - t0); // QVR
 }
 
 /*

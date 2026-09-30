@@ -746,3 +746,70 @@ extern "C" float VR_AlphaCoverage (const byte *data, int count)
 		pass += data[i * 4 + 3] >= ALPHATEST_CUTOFF;
 	return pass / (float) count;
 }
+
+/*
+=================
+VR_LoadNormalMap -- the normal map dynamic lights light a world texture or a skin with (vr_normalmaps): an
+authored <image>_norm, or a <image>_bump height map, beside a replacement image; else one made from the texture's
+own shading (`data`, as loaded). `shared`: another image whose authored maps serve if `image` has none (a model's
+skin 0: all its skins lie on the same texture coordinates). `worldwidth` is the texture's width in the world. `flags`: NORMALMAP_HEIGHTS keeps
+the heights parallax mapping walks in its alpha (an authored _norm's own alpha, 255 if it has none); NORMALMAP_SKIN
+makes it from a model skin's colours (TexMgr_SkinToNormals). Authored ones are marked NORMALMAP_FILE.
+=================
+*/
+extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const char *shared, byte *data, enum srcformat format,
+	int worldwidth, int flags)
+{
+	int heights = flags & NORMALMAP_HEIGHTS, n;
+	static const struct { const char *suffix; int kind; } authored[] = {
+		{"_norm", NORMALMAP_AUTHORED},
+		{"_bump", NORMALMAP_SHADING},
+	};
+	char			filename[MAX_OSPATH];
+	int				i, mark, fwidth, fheight;
+	enum srcformat	fmt;
+	byte			*img;
+
+	if (!glt || !data || !VR_NormalMaps () || TexMgr_NormalMap (glt) != TexMgr_NormalMap (NULL))
+		return;
+	for (n = 0; n < 2; n++)
+	for (i = 0; (n ? shared : image) && i < (int) countof (authored); i++)
+	{
+		double t0 = Sys_DoubleTime ();
+		mark = Hunk_LowMark ();
+		q_snprintf (filename, sizeof (filename), "%s%s", n ? shared : image, authored[i].suffix);
+		if (TexMgr_ShareNormalMap (glt, filename, authored[i].kind | NORMALMAP_FILE | heights)) // made for another skin
+		{
+			Hunk_FreeToLowMark (mark);
+			return;
+		}
+		img = Image_LoadImage (filename, &fwidth, &fheight, &fmt);
+		if (img)
+		{
+			TexMgr_LoadNormalMap (glt, filename, fwidth, fheight, fmt, img, filename, 0, authored[i].kind | NORMALMAP_FILE | heights, worldwidth);
+			Con_DPrintf ("normal map %s (%d x %d, %.1f ms)" "\n", filename, fwidth, fheight, (Sys_DoubleTime () - t0) * 1000.0); // what it cost
+		}
+		Hunk_FreeToLowMark (mark);
+		if (img)
+			return;
+	}
+	TexMgr_LoadNormalMap (glt, NULL, glt->source_width, glt->source_height, format, data, glt->source_file,
+		glt->source_offset, NORMALMAP_SHADING | (flags & (NORMALMAP_HEIGHTS | NORMALMAP_SKIN)), worldwidth);
+}
+
+
+/*
+=================
+VR_NormalMapSource -- a world texture's RGBA image kept whole for its normal map (on the hunk: the upload mipmaps it in
+place), when normal maps are made; else the image itself
+=================
+*/
+extern "C" byte *VR_NormalMapSource (byte *data, enum srcformat fmt, int width, int height)
+{
+	byte *pristine;
+	if (!VR_NormalMaps () || fmt != SRC_RGBA)
+		return data;
+	pristine = (byte *) Hunk_AllocNoFill (width * height * 4);
+	memcpy (pristine, data, width * height * 4);
+	return pristine;
+}

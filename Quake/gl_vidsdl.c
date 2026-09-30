@@ -1331,11 +1331,7 @@ static void GL_Init (void)
 	}
 	//johnfitz
 
-	{
-		double t0 = Sys_DoubleTime (); // QVR: start-up timing (vr_startup_times)
-		GL_CreateShaders ();
-		VR_TimeAdd ("shaders compiled and linked (GL_CreateShaders)", Sys_DoubleTime () - t0);
-	}
+	VR_TIMED ("shaders compiled and linked (GL_CreateShaders)", GL_CreateShaders ()); // QVR: start-up timing (vr_startup_times)
 	GL_CreateFrameBuffers ();
 	GLLight_CreateResources ();
 	GLPalette_CreateResources ();

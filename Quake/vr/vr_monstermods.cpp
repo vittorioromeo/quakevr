@@ -185,9 +185,20 @@ const KnownSword knownSwords[] = {
 
 } // namespace
 
+static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* stverts, const dtriangle_t* tris,
+    trivertx_t** poses);
+
 // Mod_LoadAliasModel, after the frames are read (poses writable, before the bounds and the vertex
 // buffer are made).
 extern "C" void VR_AliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* stverts, const dtriangle_t* tris,
+    trivertx_t** poses)
+{
+    const double t0 = Sys_DoubleTime(); // load timing (vr_startup_times)
+    aliasPosesLoaded(name, aliashdr, stverts, tris, poses);
+    VR_TimeAdd("  their VR poses hook", Sys_DoubleTime() - t0);
+}
+
+static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* stverts, const dtriangle_t* tris,
     trivertx_t** poses)
 {
     aliashdr_t* hdr = static_cast<aliashdr_t*>(aliashdr);

@@ -23,6 +23,7 @@ int S_KnownSfxCount (void);							// snd_dma.c (vr_limits)
 int S_KnownSfxMax (void);							// snd_dma.c
 int Mod_KnownCount (void);							// gl_model.c
 int Mod_KnownMax (void);							// gl_model.c
+qboolean Mod_CheckFullbrights (byte *pixels, int count);	// gl_model.c (vr_modelload.cpp)
 int TexMgr_Count (void);							// gl_texmgr.c
 int TexMgr_Max (void);								// gl_texmgr.c
 int Draw_CachedPicsMax (void);						// gl_draw.c

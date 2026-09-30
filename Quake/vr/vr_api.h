@@ -80,6 +80,7 @@ int VR_ScreenshotWrite (const char *name, unsigned char *rgb, int width, int hei
 int VR_ScreenshotPending (const char *name);
 int VR_OnMainThread (void);	// whether this is the main thread (the console is only for it: a job on the game's thread pool prints nothing)
 void VR_TimeAdd (const char *what, double seconds);	// time spent in a kind of work (model loads, normal maps...), summed per stage group
+#define VR_TIMED(what, statement) do { double vr_timed_t0 = Sys_DoubleTime (); statement; VR_TimeAdd (what, Sys_DoubleTime () - vr_timed_t0); } while (0) // the statement's time, as VR_TimeAdd
 void VR_TimeFrameEnd (int signedon, int idle);	// end of _Host_Frame: the first frame ends the start-up, the first signed on a load; idle (no server, not connected) ends a load that failed
 
 // The loose files' presence while the game starts and a map loads (vr_fscache.cpp; COM_FindFile, Sys_fopen).
