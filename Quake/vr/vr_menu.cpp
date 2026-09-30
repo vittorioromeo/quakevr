@@ -2096,6 +2096,8 @@ std::vector<Item> pageDebugReports()
         command("Props in Floors", "vr_physics_sink").help("vr_physics_sink: how far each prop sinks into the floor."),
         command("Props in Walls", "vr_physics_inlevel").help("vr_physics_inlevel: how far each prop's box is inside walls, floors and doors (a prop held in both hands pushed into a wall should be at 0)."),
         command("Prop Approach", "vr_physics_approach").help("vr_physics_approach [number | classname]: how close your box gets to the first explosive box's face from 16 directions round it (the same from every side, and as close as to a wall: your half-width)."),
+        command("Watch Props Entered", "vr_physics_inside 1").help("vr_physics_inside [1 | 0]: counts the frames you spend inside a solid prop's drawn shape (where none of your moves may go) and prints each time you pass into one; with no argument, the count so far (Misc/quakevr/propphase_sweep.py: the toppled-box sweep)."),
+        command("Props Entered", "vr_physics_inside").help("vr_physics_inside: how many times, and frames, you were inside a solid prop's shape since the watch started, and how deep."),
         command("Weights", "vr_weight_table").help("vr_weight_table: the weapons' and props' masses (the level's props too)."),
         command("Ledges Ahead", "vr_climb_probe").help("vr_climb_probe: the ledges 16 to 64 units ahead of you, and why each holds or not."),
         command("Rocks and Bricks", "vr_debris_list").help("vr_debris_list: the rocks and bricks placed in this map."),
@@ -2547,6 +2549,9 @@ std::vector<Item> pageHitbox()
         toggle("Never Trapped by Them", vr_box3d_player_unstick)
             .help("A solid prop that ends up in your body (toppled onto you, pushed into you) never holds you: you walk out "
                   "of it, and it is pushed out of you (vr_box3d_player_unstick)."),
+        toggle("Never Through Them", vr_box3d_player_hold)
+            .help("Inside a solid prop, you only move out of it, never deeper; with your feet a little into its top (you "
+                  "landed on it, or it rocked up into you), you are put back on top (vr_box3d_player_hold)."),
         toggle("Their Real Shape", vr_box3d_player_shape)
             .help("You meet a solid prop's shape as drawn, however it is turned, and round: as close to a box's face turned "
                   "any way as to a wall; a tilted box is no taller than it looks. Off: the upright box round it "
@@ -2560,6 +2565,9 @@ std::vector<Item> pageHitbox()
         command("Where You Stand", "vr_physics_player")
             .help("Prints where you are, whether you are on the ground and on what (a prop's number), and what is under "
                   "your feet."),
+        command("Watch Falling Into Props", "vr_physics_inside 1")
+            .help("Counts from now the frames you spend inside a solid prop's drawn shape (where none of your moves may go) "
+                  "and prints when you pass into one; vr_physics_inside prints the count, vr_physics_inside 0 stops."),
         command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),
         command("Hitbox Approach", "vr_hull_approach").help("Prints how close your box gets to what is round you, in 8 directions (from your centre to the surface it stops at; Quake's box: 16 units). vr_hull_approach <classname> [n] does it round an entity."),
         command("Random Walk (60 s)", "god; notarget; vr_hull_walktest 60")

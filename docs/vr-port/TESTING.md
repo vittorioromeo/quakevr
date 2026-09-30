@@ -1105,6 +1105,9 @@ Items as physics pickups (ROUND21.md): `vr_physics_spawn <classname> [<distance>
 spawn function on the floor ahead of you (`vr_physics_spawn item_key1 25 -1` puts a hanging key at the off hand's
 `vr_mock_hand off -0.05 0.85 -0.9 0 0 0` in the firing range); the left hip holster is `vr_mock_hand off -0.20 0.95 0.0 0
 0 0`; `developer 1` prints `pickup:` lines (an object at, taken as a weapon, taken at a holster, back at).
+Phasing through a toppled box (ROUND21.md): `vr_physics_inside [1 | 0]` counts frames a player spends inside a solid
+prop's drawn shape (0 on success); `vr_physics_player onto <n> [<height>]`, `vr_physics_player near <n> <direction>
+<distance>`; the sweep `Misc/quakevr/propphase_sweep.py` (`--check` its output).
 Standing on props 3 (ROUND21.md): `vr_physics_approach [n | classname]` how close your box stops from a solid prop's
 drawn face from 16 directions (your half-width, 8.03 with Width 16, at any turn; `vr_hull_approach` for walls);
 `vr_physics_player` on a prop adds `its drawn shape <x> units under your feet, its upright box's top <y>` (0.00 with

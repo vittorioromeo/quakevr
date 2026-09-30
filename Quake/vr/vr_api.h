@@ -125,7 +125,8 @@ int VR_RigidToss (struct edict_s *ent);		// SV_Physics_Toss, after thinking: non
 void VR_PhysicsFrameEnd (void);				// end of SV_Physics's entity loop: Box3D's world steps (vr_box3d.cpp)
 int VR_PushSkips (struct edict_s *ent);		// SV_PushMove: nonzero for an entity it must not move (a Box3D body: lifts carry it by contact)
 void VR_PlayerBumps (struct edict_s *ent, struct edict_s *other, const float *normal); // SV_FlyMove, a move stopped by a plane of `other`: a player walking into a solid prop's side shoves it (vr_box3d_player_shove)
-int VR_PropLetsOut (struct edict_s *mover, struct edict_s *touch); // SV_ClipToLinks, a move starting inside `touch`: nonzero if it doesn't block (a player in a solid prop: vr_box3d_player_unstick)
+int VR_PropLetsOut (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
+	const float *end, int shaped); // SV_ClipToLinks, a move (his box mins, maxs; shaped: met by VR_PropClip) starting inside `touch`: nonzero if it doesn't block (a player in a solid prop: vr_box3d_player_unstick; vr_box3d_player_hold: not with his feet a little into its top, nor going deeper)
 int VR_PropClip (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
 	const float *boxmins, const float *boxmaxs, const float *end, trace_t *trace); // SV_ClipToLinks: a player's own box (mins, maxs; boxmins, boxmaxs as it meets entities) against a solid prop's drawn box, turned (vr_box3d_player_shape): nonzero if traced
 int VR_StandsOn (struct edict_s *ent, struct edict_s *ground);	// SV_FlyMove, a floor that isn't SOLID_BSP: nonzero if it is ground to ent (a player on a solid Box3D prop)

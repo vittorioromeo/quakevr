@@ -955,11 +955,13 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 	link_t		*l, *next;
 	edict_t		*touch;
 	trace_t		trace;
+	qboolean	propshape; // QVR: met as a solid prop's drawn shape (VR_PropClip)
 
 // touch linked edicts
 	for (l = node->solid_edicts.next ; l != &node->solid_edicts ; l = next)
 	{
 		next = l->next;
+		propshape = false; // QVR
 		touch = EDICT_FROM_AREA(l);
 		if (touch->v.solid == SOLID_NOT)
 			continue;
@@ -1020,13 +1022,15 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 				clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch) ? clip->entmins : clip->mins,
 				clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch) ? clip->entmaxs : clip->maxs,
 				clip->end, &trace))
-			;
+			propshape = true;
 		else if (touch->v.solid != SOLID_BSP) // QVR
 			trace = SV_ClipMoveToBoxEntityQVR (touch, clip->mins, clip->maxs, clip);
 		else
 			trace = SV_ClipMoveToEntityQVR (touch, clip->start, clip->mins, clip->maxs, clip->end, clip); // QVR
-		// QVR: a player already inside a solid prop (toppled onto him) isn't held by it: he walks out.
-		if (trace.startsolid && clip->passedict && VR_PropLetsOut (clip->passedict, touch))
+		// QVR: a player already inside a solid prop (toppled onto him) isn't held by it: he walks out. (Not with his
+		// feet a little into its top: he is on it, and SV_CheckStuck puts him back on top.)
+		if (trace.startsolid && clip->passedict &&
+			VR_PropLetsOut (clip->passedict, touch, clip->start, clip->mins, clip->maxs, clip->end, propshape))
 			continue;
 		if (trace.allsolid || trace.startsolid ||
 		trace.fraction < clip->trace.fraction)

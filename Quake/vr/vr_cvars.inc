@@ -152,6 +152,7 @@ QVR_CVAR(vr_box3d_player_jump_push, "0.25", CVAR_ARCHIVE) // the share of a jump
 QVR_CVAR(vr_box3d_player_shove, "0.6", CVAR_ARCHIVE) // a player walking into a solid prop's side shoves it with at most this share of his weight (vr_box3d_player_mass), towards his speed shared by their masses (at most vr_box3d_player_push_speed); 0: it stops him like a wall
 QVR_CVAR(vr_box3d_player_shape, "1", CVAR_ARCHIVE) // a player's box meets a solid prop's drawn box as it is turned (not the upright box round it), as a round column his width (the same distance from every side and from a wall); 0: Quake's box against its box
 QVR_CVAR(vr_box3d_player_unstick, "1", CVAR_ARCHIVE) // a solid prop overlapping a player's box (toppled onto him) doesn't block his moves, and is pushed out of his body
+QVR_CVAR(vr_box3d_player_hold, "1", CVAR_ARCHIVE) // ... but a player inside one only moves out of it, never deeper, and one with his feet a little into its top (landed on it, or it rocked up into him) is put back on top; 0: every move let through (he fell through a toppled box)
 QVR_CVAR(vr_box3d_mesh_junctions, "1", CVAR_NONE)  // the world mesh with its T-junctions joined (no bumps at the seams between faces); 0: the faces as the BSP has them
 QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken and put to sleep; 2: every awake body every frame
 
