@@ -12,19 +12,20 @@
 
 #include "vr_engine.hpp"
 
-#include <atomic>
-#include <string>
-#include <thread>
-#include <unordered_map>
-#include <unordered_set>
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
 
 namespace
 {
 
-std::atomic<bool> enabled{false};
-std::atomic<bool> forgetAsked{false}; // VR_FileCacheForget from another thread
-std::thread::id owner; // the main thread: VR_FileCacheEnable's first caller (VR_TimeStart, before any other thread)
-std::unordered_map<std::string, std::unordered_set<std::string>> dirs; // directory -> its files (not subdirectories)
+za::Atomic<bool> enabled{false};
+za::Atomic<bool> forgetAsked{false}; // VR_FileCacheForget from another thread
+za::ThreadId owner; // the main thread: VR_FileCacheEnable's first caller (VR_TimeStart, before any other thread)
+ankerl::unordered_dense::map<za::String, ankerl::unordered_dense::set<za::String>> dirs; // directory -> its files (not subdirectories)
 
 #ifdef _WIN32
 constexpr bool caseInsensitive = true; // Windows' file names: the same file whatever the case (ASCII here)
@@ -32,7 +33,7 @@ constexpr bool caseInsensitive = true; // Windows' file names: the same file wha
 constexpr bool caseInsensitive = false;
 #endif
 
-void fold(std::string& s)
+void fold(za::String& s)
 {
     if(caseInsensitive)
     {
@@ -50,21 +51,21 @@ void fold(std::string& s)
     }
 }
 
-const std::unordered_set<std::string>& listing(const std::string& dir)
+const ankerl::unordered_dense::set<za::String>& listing(const za::String& dir)
 {
     const auto it = dirs.find(dir);
     if(it != dirs.end())
     {
         return it->second;
     }
-    std::unordered_set<std::string>& files = dirs[dir];
-    for(findfile_t* f = Sys_FindFirst(dir.c_str(), nullptr); f; f = Sys_FindNext(f))
+    ankerl::unordered_dense::set<za::String>& files = dirs[dir];
+    for(findfile_t* f = Sys_FindFirst(dir.cStr(), nullptr); f; f = Sys_FindNext(f))
     {
         if(!(f->attribs & FA_DIRECTORY))
         {
-            std::string name = f->name;
+            za::String name = f->name;
             fold(name);
-            files.insert(std::move(name));
+            files.insert(ZA_MOVE(name));
         }
     }
     return files;
@@ -74,19 +75,19 @@ const std::unordered_set<std::string>& listing(const std::string& dir)
 
 extern "C" void VR_FileCacheEnable(int on)
 {
-    if(owner == std::thread::id{})
+    if(owner == za::ThreadId{})
     {
-        owner = std::this_thread::get_id();
+        owner = za::ThisThread::getId();
     }
-    enabled = on != 0;
+    enabled.storeSeqCst(on != 0);
     dirs.clear();
 }
 
 extern "C" void VR_FileCacheForget()
 {
-    if(std::this_thread::get_id() != owner)
+    if(za::ThisThread::getId() != owner)
     {
-        forgetAsked = true; // a file written on another thread (a background save, an add-on's install): the main
+        forgetAsked.storeSeqCst(true); // a file written on another thread (a background save, an add-on's install): the main
         return;             // thread's next lookup forgets the listings
     }
     dirs.clear();
@@ -94,11 +95,11 @@ extern "C" void VR_FileCacheForget()
 
 extern "C" int VR_FileCacheHas(const char* path)
 {
-    if(!enabled || std::this_thread::get_id() != owner)
+    if(!enabled.loadSeqCst() || za::ThisThread::getId() != owner)
     {
         return -1;
     }
-    if(forgetAsked.exchange(false))
+    if(forgetAsked.exchangeSeqCst(false))
     {
         dirs.clear();
     }
@@ -110,13 +111,13 @@ extern "C" int VR_FileCacheHas(const char* path)
             return -1;
         }
     }
-    std::string full = path;
+    za::String full = path;
     fold(full);
-    const size_t slash = full.find_last_of("/\\");
-    if(slash == std::string::npos || slash + 1 == full.size())
+    const size_t slash = full.findLastOf("/\\");
+    if(slash == za::StringView::nPos || slash + 1 == full.size())
     {
         return -1;
     }
-    const std::unordered_set<std::string>& files = listing(full.substr(0, slash));
-    return files.count(full.substr(slash + 1)) ? 1 : 0;
+    const ankerl::unordered_dense::set<za::String>& files = listing(za::String{full.substrByPosLen(0, slash)});
+    return files.count(za::String{full.substrByPosLen(slash + 1)}) ? 1 : 0;
 }

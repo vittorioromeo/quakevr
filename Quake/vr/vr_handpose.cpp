@@ -89,7 +89,7 @@ bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const 
 }
 
 // A line from `from` to `to` through the level (and the things lying in it); monsters don't stop it (stopAtWall).
-[[nodiscard]] std::optional<trace_t> lineTrace(const glm::vec3& from, const glm::vec3& to)
+[[nodiscard]] za::Optional<trace_t> lineTrace(const glm::vec3& from, const glm::vec3& to)
 {
     const glm::vec3 zero{0.f};
     auto tr = worldtrace::move(from, zero, zero, to, MOVE_NORMAL);

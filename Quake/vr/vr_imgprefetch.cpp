@@ -10,60 +10,53 @@
 // then, or at shutdown. An image asked for before a task has started on it is decoded by the thread that asks.
 
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_imgprefetch.hpp"
 #include "vr_jobs.hpp"
 
-#include <algorithm>
-#include <chrono>
-#include <condition_variable>
-#include <cstdlib>
-#include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <memory>
-#include <mutex>
-#include <string>
-#include <vector>
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Concurrency/AtomicMutex.hpp"
+#include "Zancle/Concurrency/LockGuard.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
 
 extern "C" unsigned char* Image_DecodeMemory(const unsigned char* bytes, int length, int* width, int* height); // image.c
 
 namespace
 {
 
-namespace fs = std::filesystem;
-
 struct Item
 {
-    std::string name; // as looked up: progs/vrbody_00_00_norm.png
-    std::vector<unsigned char> bytes;
+    za::String name; // as looked up: progs/vrbody_00_00_norm.png
+    za::Vector<unsigned char> bytes;
     unsigned char* pixels = nullptr; // malloc'd by stb_image (the caller frees it, as stbi's own)
     int width = 0, height = 0;
-    bool claimed = false; // a task (or the asking thread) is decoding it
-    bool done = false;
+    bool claimed = false;     // a task (or the asking thread) is decoding it
+    za::Atomic<za::U32> done; // 1: decoded (set after the rest, under the lock; waited on by the thread that asks)
     bool taken = false;
 };
 
-std::mutex lock;
-std::condition_variable doneCv;
-std::vector<std::unique_ptr<Item>> items;
-std::vector<qvr::jobs::Future<void>> tasks; // each decodes items until none is left
+za::AtomicMutex lock;
+za::Vector<za::UniquePtr<Item>> items;
+za::Vector<qvr::jobs::Future<void>> tasks; // each decodes items until none is left
 size_t next = 0; // the items before it are all claimed
 bool active = false;
 
-std::vector<std::string> manifest; // the list read at the start
-std::vector<std::string> decoded;  // this window's decodes (found png/tga/jpg files, over a millisecond)
+za::Vector<za::String> manifest; // the list read at the start
+za::Vector<za::String> decoded;  // this window's decodes (found png/tga/jpg files, over a millisecond)
 bool windowOpen = false;
 int takenCount = 0;  // decoded ahead and taken (developer 1: printed at the end)
 int askedCount = 0;  // ... of them decoded by the thread that asked (no task had come to them yet)
 
-fs::path toPath(const std::string& utf8)
+za::String manifestPath()
 {
-    return fs::path(std::u8string(utf8.begin(), utf8.end()));
-}
-
-std::string manifestPath()
-{
-    return std::string{com_gamedir} + "/cache/prefetch.txt";
+    return za::String{com_gamedir} + "/cache/prefetch.txt";
 }
 
 // Decodes a claimed item (outside the lock).
@@ -72,13 +65,13 @@ void decode(Item* it)
     int w = 0, h = 0;
     unsigned char* px = Image_DecodeMemory(it->bytes.data(), static_cast<int>(it->bytes.size()), &w, &h);
     {
-        std::lock_guard<std::mutex> g(lock);
+        za::LockGuard g(lock);
         it->pixels = px;
         it->width = w;
         it->height = h;
-        it->done = true;
     }
-    doneCv.notify_all();
+    it->done.storeRelease(1u);
+    it->done.notifyAll();
 }
 
 void work()
@@ -87,7 +80,7 @@ void work()
     {
         Item* it = nullptr;
         {
-            std::lock_guard<std::mutex> g(lock);
+            za::LockGuard g(lock);
             while(next < items.size() && items[next]->claimed)
             {
                 next++;
@@ -115,7 +108,7 @@ void finishTasks()
 
 void freeItems()
 {
-    std::lock_guard<std::mutex> g(lock);
+    za::LockGuard g(lock);
     for(auto& it : items)
     {
         if(!it->taken && it->pixels)
@@ -136,41 +129,40 @@ namespace qvr::imgprefetch
 void start()
 {
     windowOpen = true;
-    std::ifstream in(toPath(manifestPath()));
-    std::string line;
-    while(std::getline(in, line))
-    {
-        if(!line.empty() && line.back() == '\r')
+    za::String text;
+    (void)qvr::files::readText(manifestPath().cStr(), text); // (none: an empty list)
+    qvr::files::forLines(text, [](za::StringView line) {
+        if(line.endsWith('\r'))
         {
-            line.pop_back();
+            line.removeSuffix(1);
         }
         if(!line.empty())
         {
-            manifest.push_back(line);
+            manifest.emplaceBack(line);
         }
-    }
-    for(const std::string& name : manifest)
+    });
+    for(const za::String& name : manifest)
     {
-        byte* data = COM_LoadMallocFile(name.c_str(), nullptr);
+        byte* data = COM_LoadMallocFile(name.cStr(), nullptr);
         if(!data)
         {
             continue;
         }
-        auto it = std::make_unique<Item>();
+        auto it = za::makeUnique<Item>();
         it->name = name;
-        it->bytes.assign(data, data + com_filesize);
+        it->bytes.assignRange(data, data + com_filesize);
         free(data);
-        items.push_back(std::move(it));
+        items.pushBack(ZA_MOVE(it));
     }
     if(items.empty())
     {
         return;
     }
     active = true;
-    const int threads = std::clamp(qvr::jobs::workers(), 1, 6);
-    for(int i = 0; i < std::min<int>(threads, static_cast<int>(items.size())); i++)
+    const int threads = za::clamp(qvr::jobs::workers(), 1, 6);
+    for(int i = 0; i < za::min<int>(threads, static_cast<int>(items.size())); i++)
     {
-        tasks.push_back(qvr::jobs::async(work));
+        tasks.pushBack(qvr::jobs::async(work));
     }
 }
 
@@ -190,19 +182,18 @@ void end()
     active = false;
     if(decoded != manifest && !decoded.empty())
     {
-        std::error_code ec;
-        fs::create_directories(toPath(std::string{com_gamedir} + "/cache"), ec);
+        qvr::files::createDirectories((za::String{com_gamedir} + "/cache").cStr());
         // (A temporary file of this copy's own: parallel test runs share the folder.)
-        const std::string path = manifestPath(),
+        const za::String path = manifestPath(),
                           tmp = path + va(".%u.tmp", static_cast<unsigned>(Sys_DoubleTime() * 1e6) & 0xffffffu);
+        za::String text;
+        for(const za::String& name : decoded)
         {
-            std::ofstream out(toPath(tmp), std::ios::trunc);
-            for(const std::string& name : decoded)
-            {
-                out << name << "\n";
-            }
+            text += name;
+            text += '\n';
         }
-        fs::rename(toPath(tmp), toPath(path), ec);
+        (void)qvr::files::writeText(tmp.cStr(), text);
+        qvr::files::rename(tmp.cStr(), path.cStr());
     }
     manifest.clear();
     decoded.clear();
@@ -227,8 +218,9 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
         return nullptr;
     }
     Item* it = nullptr;
+    bool decodeHere = false;
     {
-        std::unique_lock<std::mutex> g(lock);
+        za::LockGuard g(lock);
         for(auto& i : items)
         {
             if(!i->taken && i->name == name)
@@ -245,15 +237,20 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
         {
             it->claimed = true; // no task has come to it yet: decoded here
             askedCount++;
-            g.unlock();
-            decode(it);
-            g.lock();
+            decodeHere = true;
         }
-        doneCv.wait(g, [it] { return it->done; });
+    }
+    if(decodeHere)
+    {
+        decode(it);
+    }
+    it->done.waitUntilAcquire([](za::U32 done) { return done != 0u; });
+    {
+        za::LockGuard g(lock);
         it->taken = true; // (freed by the caller if taken, below if not)
     }
     const long pos = ftell(f);
-    std::vector<unsigned char> bytes(static_cast<size_t>(std::max(length, 0)));
+    za::Vector<unsigned char> bytes(static_cast<size_t>(za::max(length, 0)));
     const bool same = length == static_cast<int>(it->bytes.size()) && it->pixels &&
                       fread(bytes.data(), 1, bytes.size(), f) == bytes.size() && bytes == it->bytes;
     fseek(f, pos, SEEK_SET);
@@ -268,9 +265,9 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
     }
     unsigned char* px = it->pixels;
     it->pixels = nullptr;
-    if(std::find(decoded.begin(), decoded.end(), it->name) == decoded.end())
+    if(za::find(decoded.begin(), decoded.end(), it->name) == decoded.end())
     {
-        decoded.push_back(it->name); // (kept on the list: taken ahead, it took no time here)
+        decoded.pushBack(it->name); // (kept on the list: taken ahead, it took no time here)
     }
     *width = it->width;
     *height = it->height;
@@ -281,9 +278,9 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
 // Image_LoadImage: a png, tga or jpg found and decoded (ahead or not) in this window, for the next session's list.
 extern "C" void VR_ImagePrefetchNote(const char* name, double seconds)
 {
-    if(windowOpen && seconds > 0.001 && std::find(decoded.begin(), decoded.end(), name) == decoded.end())
+    if(windowOpen && seconds > 0.001 && za::find(decoded.begin(), decoded.end(), name) == decoded.end())
     {
-        decoded.push_back(name);
+        decoded.pushBack(name);
     }
 }
 

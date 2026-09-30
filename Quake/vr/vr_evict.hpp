@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include <algorithm>
-#include <cstddef>
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
 
 namespace qvr
 {
@@ -21,7 +22,7 @@ struct Eviction
 // Drops the entries of `cache` (a map of values with a `frame`) not used in the last `maxAge` frames, if it holds more
 // than `limit` and something can be old enough (see Eviction). `now`: this host frame.
 template <typename Map>
-void evictStale(Map& cache, std::size_t limit, int maxAge, int now, Eviction& eviction)
+void evictStale(Map& cache, za::SizeT limit, int maxAge, int now, Eviction& eviction)
 {
     if(cache.size() <= limit || now < eviction.next)
     {
@@ -33,10 +34,10 @@ void evictStale(Map& cache, std::size_t limit, int maxAge, int now, Eviction& ev
         {
             return true;
         }
-        oldest = std::min(oldest, entry.second.frame);
+        oldest = za::min(oldest, entry.second.frame);
         return false;
     });
-    eviction.next = std::max(oldest + maxAge + 1, now + 1);
+    eviction.next = za::max(oldest + maxAge + 1, now + 1);
 }
 
 } // namespace qvr

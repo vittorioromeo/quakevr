@@ -124,7 +124,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         return;
     }
 
-    const std::optional<VrMove> read = readVrMove();
+    const za::Optional<VrMove> read = readVrMove();
     const int clientNum = static_cast<int>(client - svs.clients);
     if(!read)
     {

@@ -6,12 +6,14 @@
 // timer's expected lateness before the end (learnt as Sys_WaitUntil learns SDL_Delay's: Welford's mean and variance),
 // then Sys_WaitUntil's short spin. Its own translation unit: <windows.h> stays out of the engine's headers.
 
-#include <algorithm>
-#include <cmath>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+
 #include <windows.h>
 #ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
 #define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
@@ -87,12 +89,12 @@ extern "C" int VR_HiResSleepUntil(double endtime, double* now)
         if(hr.count < 1e6)
         {
             ++hr.count;
-            const double observed = std::max(0.0, *now - before - asked);
+            const double observed = za::max(0.0, *now - before - asked);
             const double delta = observed - hr.mean;
             hr.mean += delta / hr.count;
             hr.m2 += delta * (observed - hr.mean);
-            const double stddev = std::sqrt(hr.m2 / (hr.count - 1.0));
-            hr.estimate = std::clamp(hr.mean + 1.5 * stddev, 5e-5, 2e-3);
+            const double stddev = za::sqrt(hr.m2 / (hr.count - 1.0));
+            hr.estimate = za::clamp(hr.mean + 1.5 * stddev, 5e-5, 2e-3);
         }
     }
     return 1;

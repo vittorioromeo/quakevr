@@ -21,10 +21,16 @@
 #include "vr_cvars.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Tan.hpp"
+#include "vr_zancle.hpp"
+
 #include <glm/gtc/quaternion.hpp>
 
-#include <algorithm>
-#include <cmath>
 
 namespace qvr::window
 {
@@ -63,7 +69,7 @@ View currentView = View::Raw;
 // vr_window_level of the roll taken out of a turn (tracking space's up is the world's).
 [[nodiscard]] glm::quat leveled(const glm::quat& q)
 {
-    const float level = std::clamp(vr_window_level.value, 0.f, 1.f);
+    const float level = za::clamp(vr_window_level.value, 0.f, 1.f);
     if(level <= 0.f)
     {
         return q;
@@ -91,7 +97,7 @@ Camera camera;
 
 [[nodiscard]] float factor(float dt, float tau)
 {
-    return tau > 0.f ? 1.f - std::exp(-dt / tau) : 1.f;
+    return tau > 0.f ? 1.f - za::exp(-dt / tau) : 1.f;
 }
 
 void log(const char* what, const glm::vec3& view, float t)
@@ -108,7 +114,7 @@ void log(const char* what, const glm::vec3& view, float t)
 // Whether the crop `tx` by `ty` (tangents) turned by `m` (the eye's axes to the view's) lies within the eye's image.
 [[nodiscard]] glm::mat3 mapFor(const glm::mat3& m, const Fov& fov, float tx, float ty)
 {
-    const float l = std::tan(fov.left), r = std::tan(fov.right), u = std::tan(fov.up), d = std::tan(fov.down);
+    const float l = za::tan(fov.left), r = za::tan(fov.right), u = za::tan(fov.up), d = za::tan(fov.down);
     // Window (x, y, 1) to the view's ray in its Quake axes: forward 1, left -x tx, up y ty.
     glm::mat3 v{0.f};
     v[2][0] = 1.f;
@@ -137,7 +143,7 @@ void log(const char* what, const glm::vec3& view, float t)
 
 [[nodiscard]] bool fits(const glm::mat3& map, const Fov& fov, const HiddenArea* hidden)
 {
-    const float l = std::tan(fov.left), r = std::tan(fov.right), u = std::tan(fov.up), d = std::tan(fov.down);
+    const float l = za::tan(fov.left), r = za::tan(fov.right), u = za::tan(fov.up), d = za::tan(fov.down);
     constexpr float edge = 0.001f;
     // Its corners and the middles of its sides: a turn maps the crop's sides to straight lines, so within the image's
     // rectangle its corners suffice; the middles too for the hidden area, the lenses' rounded corners.
@@ -158,7 +164,7 @@ void log(const char* what, const glm::vec3& view, float t)
         if(hidden)
         {
             const glm::vec2 t{l + uv.x * (r - l), d + uv.y * (u - d)};
-            for(std::size_t i = 0; i + 2 < hidden->indices.size(); i += 3)
+            for(za::SizeT i = 0; i + 2 < hidden->indices.size(); i += 3)
             {
                 if(insideTriangle(t, hidden->vertices[hidden->indices[i]], hidden->vertices[hidden->indices[i + 1]],
                        hidden->vertices[hidden->indices[i + 2]]))
@@ -180,7 +186,7 @@ View view()
 
 float spectatorScale()
 {
-    return std::clamp(vr_spectator_scale.value, 0.25f, 2.f);
+    return za::clamp(vr_spectator_scale.value, 0.25f, 2.f);
 }
 
 void update(const FrameState& frame, const hands::State& s)
@@ -208,7 +214,7 @@ void update(const FrameState& frame, const hands::State& s)
 
     // Afresh after a pause (a load, another view), or a jump of the tracking no head makes in a frame (a recentre).
     const double dt = realtime - filter.time;
-    const bool jumped = filter.valid && (std::abs(glm::dot(head, filter.head)) < std::cos(glm::radians(15.f)) ||
+    const bool jumped = filter.valid && (qza::abs(glm::dot(head, filter.head)) < za::cos(glm::radians(15.f)) ||
                                             glm::distance(position, filter.position) > 0.3f);
     if(!filter.valid || dt <= 0.0 || dt > 0.25 || jumped)
     {
@@ -218,10 +224,10 @@ void update(const FrameState& frame, const hands::State& s)
     }
     else
     {
-        const float a = factor(static_cast<float>(dt), 0.5f * std::clamp(vr_window_smooth.value, 0.f, 0.5f));
+        const float a = factor(static_cast<float>(dt), 0.5f * za::clamp(vr_window_smooth.value, 0.f, 0.5f));
         filter.q1 = glm::slerp(filter.q1, head, a);
         filter.q2 = glm::slerp(filter.q2, filter.q1, a);
-        const float b = factor(static_cast<float>(dt), 0.5f * std::clamp(vr_spectator_pos_smooth.value, 0.f, 0.3f));
+        const float b = factor(static_cast<float>(dt), 0.5f * za::clamp(vr_spectator_pos_smooth.value, 0.f, 0.3f));
         filter.p1 += (position - filter.p1) * b;
         filter.p2 += (filter.p1 - filter.p2) * b;
     }
@@ -240,15 +246,15 @@ glm::mat3 mirrorMap(const Fov& fov, float aspect, const HiddenArea* hidden)
         Fov fov;
         float aspect = 0.f;
         const HiddenArea* hidden = nullptr;
-        std::size_t count = 0;
+        za::SizeT count = 0;
         float tx = 0.f, ty = 0.f;
     } widest;
-    const std::size_t count = hidden ? hidden->indices.size() : 0;
+    const za::SizeT count = hidden ? hidden->indices.size() : 0;
     if(widest.aspect != aspect || widest.hidden != hidden || widest.count != count || widest.fov.left != fov.left ||
         widest.fov.right != fov.right || widest.fov.up != fov.up || widest.fov.down != fov.down)
     {
-        float tx = std::min(std::tan(fov.right), -std::tan(fov.left));
-        float ty = std::min(std::tan(fov.up), -std::tan(fov.down));
+        float tx = za::min(za::tan(fov.right), -za::tan(fov.left));
+        float ty = za::min(za::tan(fov.up), -za::tan(fov.down));
         if(tx / ty > aspect)
         {
             tx = ty * aspect;
@@ -270,7 +276,7 @@ glm::mat3 mirrorMap(const Fov& fov, float aspect, const HiddenArea* hidden)
         }
         widest = {fov, aspect, hidden, count, tx, ty};
     }
-    const float zoom = std::clamp(vr_window_zoom.value, 1.f, 2.f);
+    const float zoom = za::clamp(vr_window_zoom.value, 1.f, 2.f);
     const float tx = widest.tx / zoom;
     const float ty = widest.ty / zoom;
 
@@ -307,8 +313,8 @@ const Camera& spectator(float aspect)
     const glm::mat3 turn = filter.worldTurn * glm::mat3_cast(leveled(filter.q2));
     camera.angles = anglesOf(turn);
     camera.origin = filter.worldHead + filter.worldTurn * quakeFromTracking(filter.p2 - filter.position) * units::metresToUnits();
-    camera.tanX = std::tan(glm::radians(0.5f * std::clamp(vr_spectator_fov.value, 40.f, 130.f)));
-    camera.tanY = camera.tanX / std::max(aspect, 0.1f);
+    camera.tanX = za::tan(glm::radians(0.5f * za::clamp(vr_spectator_fov.value, 40.f, 130.f)));
+    camera.tanY = camera.tanX / za::max(aspect, 0.1f);
     log("spectator", camera.angles, 1.f);
     return camera;
 }

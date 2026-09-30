@@ -3,9 +3,9 @@
 // VR_InstallCrashHandler; pl_win.c's PL_ErrorDialog, VR_ErrorDialogSuppressed). Windows only; its own translation
 // unit: <windows.h> stays out of the engine's headers.
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN

@@ -7,10 +7,11 @@
 #include "vr_props.hpp"
 #include "vr_weapons.hpp"
 
-#include <cstring>
-#include <map>
-#include <string>
-#include <utility>
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "vr_zancle.hpp"
 
 namespace qvr
 {
@@ -146,22 +147,22 @@ constexpr int configVersion = 61;
 struct ConfigTrack
 {
     bool on = false;
-    std::string gamedir;
-    std::map<std::string, std::string> file; // the archived settings in the config, as read or written
-    std::map<std::string, std::string> here; // this copy's values then
+    za::String gamedir;
+    ankerl::unordered_dense::map<za::String, za::String> file; // the archived settings in the config, as read or written
+    ankerl::unordered_dense::map<za::String, za::String> here; // this copy's values then
 };
 ConfigTrack configTrack;
 
 // The archived settings a config file sets (`name "value"` lines, as Cvar_WriteVariables writes them).
-[[nodiscard]] std::map<std::string, std::string> readConfigSettings(const char* path)
+[[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> readConfigSettings(const char* path)
 {
-    std::map<std::string, std::string> settings;
+    ankerl::unordered_dense::map<za::String, za::String> settings;
     FILE* f = fopen(path, "rb");
     if(!f)
     {
         return settings;
     }
-    std::string line;
+    za::String line;
     for(int c = 0; c != EOF;)
     {
         c = fgetc(f);
@@ -171,15 +172,15 @@ ConfigTrack configTrack;
             continue;
         }
         const size_t space = line.find(' ');
-        const size_t open = space == std::string::npos ? space : line.find('"', space);
+        const size_t open = space == za::StringView::nPos ? space : line.find('"', space);
         const size_t close = line.rfind('"');
-        if(open != std::string::npos && close > open && line.find_first_not_of(' ', space) == open)
+        if(open != za::StringView::nPos && close > open && line.findFirstNotOf(' ', space) == open)
         {
-            const std::string name = line.substr(0, space);
-            const cvar_t* var = Cvar_FindVar(name.c_str());
+            const za::String name{line.substrByPosLen(0, space)};
+            const cvar_t* var = Cvar_FindVar(name.cStr());
             if(var && (var->flags & CVAR_ARCHIVE))
             {
-                settings[name] = line.substr(open + 1, close - open - 1);
+                settings[name] = line.substrByPosLen(open + 1, close - open - 1);
             }
         }
         line.clear();
@@ -188,9 +189,9 @@ ConfigTrack configTrack;
     return settings;
 }
 
-[[nodiscard]] std::map<std::string, std::string> archivedSettings()
+[[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> archivedSettings()
 {
-    std::map<std::string, std::string> settings;
+    ankerl::unordered_dense::map<za::String, za::String> settings;
     for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
     {
         settings[var->name] = var->string;
@@ -272,7 +273,12 @@ void migrateConfig()
     // config saved from 15 on that still has the old shipped value takes it (before 15, 15 has moved it above).
     if(from >= 15 && from < 45)
     {
-        for(const auto& [var, before] : {std::pair{&vr_hip_offset_x, "-7"}, std::pair{&vr_upper_holster_offset_x, "-8"}})
+        struct Old
+        {
+            cvar_t* var;
+            const char* before;
+        };
+        for(const auto& [var, before] : {Old{&vr_hip_offset_x, "-7"}, Old{&vr_upper_holster_offset_x, "-8"}})
         {
             if(sameValue(var->string, before))
             {
@@ -288,7 +294,11 @@ void migrateConfig()
     // hands were at 0, not at the new defaults it has now.
     if(from < 16)
     {
-        const std::pair<cvar_t*, const char*> angles[] = {
+        const struct
+        {
+            cvar_t* var;
+            const char* before;
+        } angles[] = {
             {&vr_gunangle, "39.5"}, {&vr_gunyaw, "4"}, {&vr_offhandpitch, "40.25"}, {&vr_offhandyaw, "-4"}};
         cvar_t* const moves[] = {&vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll, &vr_handcal_off_mirror,
             &vr_handcal_off_x, &vr_handcal_off_y, &vr_handcal_off_z, &vr_handcal_off_roll};
@@ -356,7 +366,7 @@ void migrateConfig()
 // ones compiled in. "vr_default name value" sets a cvar and makes the value its default, so resets
 // and presets return to it; the saved config still wins, as it's executed after.
 // The engine cvars' own defaults, before vr_default replaced them.
-std::map<std::string, std::string> engineDefaults;
+ankerl::unordered_dense::map<za::String, za::String> engineDefaults;
 
 void default_f()
 {
@@ -371,7 +381,7 @@ void default_f()
         Con_Printf("vr_default: no cvar \"%s\"\n", Cmd_Argv(1));
         return;
     }
-    if(std::strncmp(var->name, "vr_", 3) != 0)
+    if(ZA_STRNCMP(var->name, "vr_", 3) != 0)
     {
         // The engine's own default, for vr_savedefaults (vr_ cvars have compiledDefaults).
         engineDefaults.try_emplace(var->name, var->default_string ? var->default_string : "");
@@ -399,8 +409,8 @@ const CompiledDefault compiledDefaults[] = {
 {
     return var == &vr_cfg_version || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
         || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device || var == &vr_dominant_eye
-        || !std::strncmp(var->name, "vr_motion_", 10) // the motion recorder's (a tool's settings)
-        || !std::strncmp(var->name, "vr_bodycal_", 11) || !std::strncmp(var->name, "vr_body_tweak_", 14) // one's body
+        || !ZA_STRNCMP(var->name, "vr_motion_", 10) // the motion recorder's (a tool's settings)
+        || !ZA_STRNCMP(var->name, "vr_bodycal_", 11) || !ZA_STRNCMP(var->name, "vr_body_tweak_", 14) // one's body
         // and one's arms (Body > Arms, the player's to tweak: the author's decision, 2026-09-28; pauldrons ship)
         || var == &vr_body_arm_length || var == &vr_body_arm_stretch || var == &vr_body_shoulder_reach
         || var == &vr_body_forearm_twist || var == &vr_body_wrist_limits || var == &vr_body_elbow_out
@@ -433,12 +443,12 @@ void saveDefaults_f()
     fprintf(f, "\n// The engine's graphics settings.\n");
     for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
     {
-        if(std::strncmp(var->name, "r_", 2) != 0 && std::strncmp(var->name, "gl_", 3) != 0)
+        if(ZA_STRNCMP(var->name, "r_", 2) != 0 && ZA_STRNCMP(var->name, "gl_", 3) != 0)
         {
             continue;
         }
         const auto it = engineDefaults.find(var->name);
-        const char* def = it != engineDefaults.end() ? it->second.c_str() : var->default_string;
+        const char* def = it != engineDefaults.end() ? it->second.cStr() : var->default_string;
         if(def && !sameValue(var->string, def))
         {
             fprintf(f, "vr_default %s \"%s\"\n", var->name, var->string);
@@ -475,23 +485,25 @@ extern "C" void VR_ConfigMergeOthers(const char* path)
     {
         return;
     }
-    for(const auto& [name, value] : readConfigSettings(path))
+    const auto settings = readConfigSettings(path);
+    for(const auto* setting : qza::sortedByKey(settings)) // (in the names' order, as a std::map had them)
     {
+        const auto& [name, value] = *setting;
         const auto was = configTrack.file.find(name);
-        if(was != configTrack.file.end() && sameValue(was->second.c_str(), value.c_str()))
+        if(was != configTrack.file.end() && sameValue(was->second.cStr(), value.cStr()))
         {
             continue; // not changed in the file
         }
-        cvar_t* var = Cvar_FindVar(name.c_str());
+        cvar_t* var = Cvar_FindVar(name.cStr());
         const auto here = configTrack.here.find(name);
         if(!var || (var->flags & (CVAR_ROM | CVAR_LOCKED)) || here == configTrack.here.end()
-           || !sameValue(here->second.c_str(), var->string) || sameValue(var->string, value.c_str()))
+           || !sameValue(here->second.cStr(), var->string) || sameValue(var->string, value.cStr()))
         {
             continue; // changed here too (this copy's wins), or already the same
         }
-        Con_Printf("%s \"%s\": from another copy of the game (this one left it at \"%s\")\n", name.c_str(), value.c_str(),
+        Con_Printf("%s \"%s\": from another copy of the game (this one left it at \"%s\")\n", name.cStr(), value.cStr(),
             var->string);
-        Cvar_SetQuick(var, value.c_str());
+        Cvar_SetQuick(var, value.cStr());
     }
 }
 
@@ -519,7 +531,7 @@ void saveConfigNow()
     for(const auto& [name, value] : archivedSettings())
     {
         const auto was = configTrack.here.find(name);
-        changed += was == configTrack.here.end() || !sameValue(was->second.c_str(), value.c_str()) ? 1 : 0;
+        changed += was == configTrack.here.end() || !sameValue(was->second.cStr(), value.cStr()) ? 1 : 0;
     }
     if(changed > 0)
     {

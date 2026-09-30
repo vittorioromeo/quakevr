@@ -1469,10 +1469,10 @@ void lightBeam(const Pose& p)
     // when hosting), eased so that it does not jump as the beam crosses an edge (a stair's, a
     // doorway's); the beam's own traces cut it at the walls in the meantime.
     const glm::vec3 start = lens + dir * 0.5f;
-    std::optional<trace_t> tr = worldtrace::move(start, glm::vec3{0.f}, glm::vec3{0.f}, lens + dir * range, MOVE_NORMAL);
+    za::Optional<trace_t> tr = worldtrace::move(start, glm::vec3{0.f}, glm::vec3{0.f}, lens + dir * range, MOVE_NORMAL);
     if(!tr)
     {
-        tr = worldtrace::world(start, lens + dir * range);
+        tr.emplace(worldtrace::world(start, lens + dir * range));
     }
     const float target = 0.5f + (range - 0.5f) * tr->fraction;
     const float dt = static_cast<float>(std::clamp(realtime - st.beamTime, 0.0, 0.1));

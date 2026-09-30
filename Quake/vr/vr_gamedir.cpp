@@ -26,7 +26,8 @@
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
 
-#include <cstring>
+#include "Zancle/Base/SizeT.hpp"
+
 
 namespace
 {
@@ -52,7 +53,7 @@ bool addingMissionPacks = false;
 [[nodiscard]] bool gameDirAlreadyAdded(const char* game)
 {
     // com_gamenames is "a;b;c" (without id1).
-    const std::size_t len = strlen(game);
+    const za::SizeT len = strlen(game);
     for(const char* p = com_gamenames; *p;)
     {
         if(!q_strncasecmp(p, game, len) && (p[len] == ';' || p[len] == '\0'))

@@ -8,35 +8,23 @@
 
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_files.hpp"
 
-#include <algorithm>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <string>
-#include <system_error>
-#include <vector>
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 
 namespace
 {
 
-namespace fs = std::filesystem;
-
-fs::path toPath(const std::string& utf8)
-{
-    return fs::path(std::u8string(utf8.begin(), utf8.end()));
-}
-
 constexpr unsigned version = 1;
 
-std::string dirFor(const char* kind, const char* build)
+za::String dirFor(const char* kind, const char* build)
 {
-    return std::string{com_gamedir} + "/cache/" + kind + "/" + build;
+    return za::String{com_gamedir} + "/cache/" + kind + "/" + build;
 }
 
-std::string fileFor(const char* kind, const char* build, unsigned long long key, const char* ext)
+za::String fileFor(const char* kind, const char* build, unsigned long long key, const char* ext)
 {
     char name[40];
     snprintf(name, sizeof(name), "%016llx.%s", key, ext);
@@ -44,88 +32,77 @@ std::string fileFor(const char* kind, const char* build, unsigned long long key,
 }
 
 // The folders pruned this session (a kind's in a game directory, at a build): each game's own, by its path.
-std::vector<std::string> pruned;
+za::Vector<za::String> pruned;
 
 // A kind's first write in a session (in each game directory): its other builds' folders removed (they are never read
 // again).
 void prune(const char* kind, const char* build)
 {
-    const std::string id = dirFor(kind, build);
-    if(std::find(pruned.begin(), pruned.end(), id) != pruned.end())
+    const za::String id = dirFor(kind, build);
+    if(za::find(pruned.begin(), pruned.end(), id) != pruned.end())
     {
         return;
     }
-    pruned.push_back(id);
-    std::error_code ec;
-    const fs::path root = toPath(std::string{com_gamedir} + "/cache/" + kind);
-    for(fs::directory_iterator it(root, ec), end; !ec && it != end; it.increment(ec))
-    {
-        if(it->is_directory(ec) && it->path().filename().string() != build)
+    pruned.pushBack(id);
+    const za::String root = za::String{com_gamedir} + "/cache/" + kind;
+    za::Vector<za::String> others;
+    qvr::files::forEachEntry(root.cStr(), [&](const char* name, bool isDirectory) {
+        if(isDirectory && strcmp(name, build) != 0)
         {
-            std::error_code ec2;
-            fs::remove_all(it->path(), ec2);
+            others.pushBack(root + "/" + name);
         }
+    });
+    for(const za::String& other : others)
+    {
+        qvr::files::removeAll(other.cStr());
     }
 }
 
 // A file: 4 bytes of magic, the version, two numbers of the caller's, then the data.
-bool readFile(const std::string& path, const char (&magic)[5], unsigned& a, unsigned& b, std::vector<char>& data)
+bool readFile(const za::String& path, const char (&magic)[5], unsigned& a, unsigned& b, za::Vector<char>& data)
 {
-    std::ifstream in(toPath(path), std::ios::binary | std::ios::ate);
+    FILE* in = Sys_fopen(path.cStr(), "rb");
     if(!in)
     {
         return false;
     }
-    const std::streamoff size = in.tellg();
-    constexpr std::streamoff headerSize = 4 + 3 * sizeof(unsigned);
-    if(size < headerSize)
-    {
-        return false;
-    }
-    in.seekg(0);
+    Sys_fseek(in, 0, SEEK_END);
+    const qfileofs_t size = Sys_ftell(in);
+    Sys_fseek(in, 0, SEEK_SET);
+    constexpr qfileofs_t headerSize = 4 + 3 * sizeof(unsigned);
     char m[4];
     unsigned header[3];
-    in.read(m, sizeof(m));
-    in.read(reinterpret_cast<char*>(header), sizeof(header));
-    if(!in || memcmp(m, magic, 4) != 0 || header[0] != version)
+    bool ok = size >= headerSize && fread(m, 1, sizeof(m), in) == sizeof(m) &&
+              fread(header, 1, sizeof(header), in) == sizeof(header) && memcmp(m, magic, 4) == 0 && header[0] == version;
+    if(ok)
     {
-        return false;
+        a = header[1];
+        b = header[2];
+        data.resize(static_cast<size_t>(size - headerSize));
+        ok = fread(data.data(), 1, data.size(), in) == data.size();
     }
-    a = header[1];
-    b = header[2];
-    data.resize(static_cast<size_t>(size - headerSize));
-    in.read(data.data(), static_cast<std::streamsize>(data.size()));
-    return in.gcount() == static_cast<std::streamsize>(data.size());
+    fclose(in);
+    return ok;
 }
 
-void writeFile(const char* kind, const char* build, const std::string& path, const char (&magic)[5], unsigned a, unsigned b,
+void writeFile(const char* kind, const char* build, const za::String& path, const char (&magic)[5], unsigned a, unsigned b,
     const void* data, size_t length)
 {
     prune(kind, build);
-    std::error_code ec;
-    fs::create_directories(toPath(dirFor(kind, build)), ec);
-    const std::string tmp = path + va(".%u.tmp", static_cast<unsigned>(Sys_DoubleTime() * 1e6) & 0xffffffu);
+    qvr::files::createDirectories(dirFor(kind, build).cStr());
+    const za::String tmp = path + va(".%u.tmp", static_cast<unsigned>(Sys_DoubleTime() * 1e6) & 0xffffffu);
+    FILE* out = Sys_fopen(tmp.cStr(), "wb");
+    if(!out)
     {
-        std::ofstream out(toPath(tmp), std::ios::binary | std::ios::trunc);
-        if(!out)
-        {
-            return;
-        }
-        const unsigned header[3] = {version, a, b};
-        out.write(magic, 4);
-        out.write(reinterpret_cast<const char*>(header), sizeof(header));
-        out.write(static_cast<const char*>(data), static_cast<std::streamsize>(length));
-        if(!out)
-        {
-            out.close();
-            fs::remove(toPath(tmp), ec);
-            return;
-        }
+        return;
     }
-    fs::rename(toPath(tmp), toPath(path), ec);
-    if(ec)
+    const unsigned header[3] = {version, a, b};
+    bool ok = fwrite(magic, 1, 4, out) == 4 && fwrite(header, 1, sizeof(header), out) == sizeof(header) &&
+              (length == 0 || fwrite(data, 1, length, out) == length);
+    ok = fclose(out) == 0 && ok;
+    if(!ok || !qvr::files::rename(tmp.cStr(), path.cStr()))
     {
-        fs::remove(toPath(tmp), ec);
+        qvr::files::remove(tmp.cStr());
     }
 }
 
@@ -143,7 +120,7 @@ extern "C" int VR_NormalCacheMode(void)
 extern "C" int VR_NormalCacheLoad(const char* build, unsigned long long key, unsigned char* rgba, int width, int height)
 {
     unsigned w = 0, h = 0;
-    std::vector<char> data;
+    za::Vector<char> data;
     if(!readFile(fileFor("normalmaps", build, key, "nrm"), normalMagic, w, h, data) || w != static_cast<unsigned>(width) ||
        h != static_cast<unsigned>(height) || data.size() != static_cast<size_t>(width) * height * 4)
     {

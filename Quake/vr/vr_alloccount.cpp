@@ -6,62 +6,64 @@
 
 #include "vr_alloccount.hpp"
 
-#include <cstdlib>
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+
 #include <new>
 
 namespace
 {
 
-thread_local std::uint64_t allocations = 0;
+thread_local za::U64 allocations = 0;
 
-[[nodiscard]] void* allocate(std::size_t size)
+[[nodiscard]] void* allocate(za::SizeT size)
 {
     ++allocations;
-    if(void* p = std::malloc(size ? size : 1))
+    if(void* p = malloc(size ? size : 1))
     {
         return p;
     }
-    throw std::bad_alloc{};
+    throw std::bad_alloc{}; // ZANCLE-TODO (none possible: the language's contract for a replaced operator new)
 }
 
 } // namespace
 
 // The other forms (the arrays', nothrow, sized delete) forward to these in the standard library's defaults (MSVC and
 // libstdc++); the aligned forms keep their own allocator and are not counted (the VR code uses none per frame).
-void* operator new(std::size_t size)
+void* operator new(za::SizeT size)
 {
     return allocate(size);
 }
 
-void* operator new[](std::size_t size)
+void* operator new[](za::SizeT size)
 {
     return allocate(size);
 }
 
 void operator delete(void* p) noexcept
 {
-    std::free(p);
+    free(p);
 }
 
 void operator delete[](void* p) noexcept
 {
-    std::free(p);
+    free(p);
 }
 
-void operator delete(void* p, std::size_t) noexcept
+void operator delete(void* p, za::SizeT) noexcept
 {
-    std::free(p);
+    free(p);
 }
 
-void operator delete[](void* p, std::size_t) noexcept
+void operator delete[](void* p, za::SizeT) noexcept
 {
-    std::free(p);
+    free(p);
 }
 
 namespace qvr::alloccount
 {
 
-std::uint64_t thisThread()
+za::U64 thisThread()
 {
     return allocations;
 }
