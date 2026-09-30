@@ -33,6 +33,11 @@ Grapple: reel a heavy box while walking away: you're slowed like towing
 Motion Recorder > Record Button: try B and a grip; the prompt names the button; its normal action is off only while armed
 Held weapon pushed into a wall and a corner slides out as before (statics cleanup)
 
+New Game from the main menu with a map running: the world stays put during the confirmation dialog
+Laser cannon headshots play the headshot sound
+Spectator view has no flat HUD (Graphics > Recording to show it)
+Narrower Monsters (now on by default): monsters behave normally in real levels
+
 [Decide or give feedback]
 Function-local non-std statics (two text buffers, lastOut in vr_handpose): move them to the scratch/state pattern too?
 
