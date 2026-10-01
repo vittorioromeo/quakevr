@@ -21,8 +21,8 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 
 namespace qvr::motion::review
 {
@@ -35,13 +35,13 @@ void invalidate();  // the takes changed (a take saved or deleted by the recorde
 // One take's verdict (vr_motion_eval's table row), for eval_status.csv.
 struct Verdict
 {
-    std::string path; // the take's file (its folder gets the eval_status.csv)
-    std::string label, weapons, expected, verdict, reason, events, recorded, same;
+    za::String path; // the take's file (its folder gets the eval_status.csv)
+    za::String label, weapons, expected, verdict, reason, events, recorded, same;
     int frames{0};
     double handError{-1.0};
 };
 // vr_motion_eval's results, merged into eval_status.csv in each take's folder.
-void recordEval(const std::vector<Verdict>& verdicts);
+void recordEval(const za::Vector<Verdict>& verdicts);
 
 // ---- The menu (vr_menu.cpp) ----
 

@@ -20,7 +20,6 @@
 
 #include "vr_backend.hpp"
 
-#include <string>
 
 struct edict_s;
 

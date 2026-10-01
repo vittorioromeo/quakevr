@@ -18,8 +18,14 @@ namespace qvr::files
 [[nodiscard]] bool readBytes(const char* path, za::Vector<unsigned char>& out);
 [[nodiscard]] bool readBytes(const char* path, za::Vector<char>& out);
 
-// The whole file as text: as a text-mode stream reads it (std::ifstream: on Windows CR LF read as LF).
-[[nodiscard]] bool readText(const char* path, za::String& out);
+// The whole file as text: as a text-mode stream reads it (std::ifstream: on Windows CR LF read as LF); Binary: its
+// bytes as they are (std::ifstream with std::ios::binary).
+enum class Mode
+{
+    Text,
+    Binary,
+};
+[[nodiscard]] bool readText(const char* path, za::String& out, Mode mode = Mode::Text);
 
 // The text's pieces as std::getline(stream, piece, delimiter) gives them: each up to the delimiter (not included), the
 // last one without it when it is not empty. f(za::StringView piece).
@@ -100,5 +106,27 @@ void forEachEntry(const char* dir, za::FunctionRef<void(const char* name, bool i
 
 // The part after the last '/' or '\' (std::filesystem::path::filename).
 [[nodiscard]] za::StringView fileName(za::StringView path);
+
+// The part before the last '/' or '\' ("" without one: std::filesystem::path::parent_path, for a file's path).
+[[nodiscard]] za::StringView parentPath(za::StringView path);
+
+// std::filesystem::path::is_relative: on Windows a path is absolute with a drive and a root ("C:/", "C:\") or a network
+// share's ("//", "\\"); elsewhere from "/".
+[[nodiscard]] bool isRelative(za::StringView path);
+
+// std::filesystem::path::generic_string (on Windows): '/' for every '\'.
+[[nodiscard]] za::String generic(za::StringView path);
+
+// std::filesystem::absolute(path).generic_string(): a relative path after the working directory, '/' between the
+// parts.
+[[nodiscard]] za::String absolute(za::StringView path);
+
+// std::filesystem::path's `dir / rest`: `rest` when it is absolute, else the two with a '/' between (none added after a
+// separator or an empty `dir`).
+[[nodiscard]] za::String join(za::StringView dir, za::StringView rest);
+
+// A name matched by a glob (* any run, ? any one character), whole; ASCII letters of either case alike (the
+// std::regex::icase expression the eval made of it).
+[[nodiscard]] bool globMatch(za::StringView glob, za::StringView name);
 
 } // namespace qvr::files

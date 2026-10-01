@@ -103,10 +103,10 @@ bool readBytes(const char* path, za::Vector<char>& out)
     return readWhole(path, "rb", out);
 }
 
-bool readText(const char* path, za::String& out)
+bool readText(const char* path, za::String& out, Mode mode)
 {
     za::Vector<char> bytes;
-    const bool ok = readWhole(path, "r", bytes); // (text mode: CR LF read as LF on Windows, as a stream's)
+    const bool ok = readWhole(path, mode == Mode::Text ? "r" : "rb", bytes); // (text mode: CR LF read as LF on Windows)
     out.clear();
     if(!bytes.empty())
     {
@@ -323,6 +323,114 @@ za::StringView fileName(za::StringView path)
 {
     const za::SizeT slash = path.findLastOf("/\\");
     return slash == za::StringView::nPos ? path : path.substrByPosLen(slash + 1);
+}
+
+za::StringView parentPath(za::StringView path)
+{
+    const za::SizeT slash = path.findLastOf("/\\");
+    return slash == za::StringView::nPos ? za::StringView{} : path.substrByPosLen(0, slash);
+}
+
+bool isRelative(za::StringView path)
+{
+    const auto sep = [](char c) { return c == '/' || c == '\\'; };
+#ifdef _WIN32
+    const bool drive = path.size() >= 3 && ((path[0] >= 'a' && path[0] <= 'z') || (path[0] >= 'A' && path[0] <= 'Z')) &&
+                       path[1] == ':' && sep(path[2]);
+    const bool share = path.size() >= 2 && sep(path[0]) && sep(path[1]);
+    return !drive && !share;
+#else
+    return path.empty() || !sep(path[0]);
+#endif
+}
+
+za::String absolute(za::StringView path)
+{
+    za::String out;
+    if(isRelative(path))
+    {
+#ifdef _WIN32
+        wchar_t wcwd[MAX_PATH];
+        char cwd[MAX_PATH * 3];
+        if(GetCurrentDirectoryW(MAX_PATH, wcwd) && WideCharToMultiByte(CP_UTF8, 0, wcwd, -1, cwd, sizeof(cwd), nullptr, nullptr))
+#else
+        char cwd[4096];
+        if(getcwd(cwd, sizeof(cwd)))
+#endif
+        {
+            out = join(cwd, path);
+        }
+        else
+        {
+            out = za::String{path};
+        }
+    }
+    else
+    {
+        out = za::String{path};
+    }
+    return generic(out);
+}
+
+za::String generic(za::StringView path)
+{
+    za::String out{path};
+#ifdef _WIN32
+    for(char& c : out)
+    {
+        c = c == '\\' ? '/' : c;
+    }
+#endif
+    return out;
+}
+
+za::String join(za::StringView dir, za::StringView rest)
+{
+    if(!isRelative(rest) || dir.empty())
+    {
+        return za::String{rest};
+    }
+    za::String out{dir};
+    if(!dir.endsWith('/') && !dir.endsWith('\\'))
+    {
+        out += '/';
+    }
+    out += rest;
+    return out;
+}
+
+bool globMatch(za::StringView glob, za::StringView name)
+{
+    const auto lower = [](char c) { return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c; };
+    // Iterative wildcard matching: the last '*' remembered, backtracked to on a mismatch.
+    za::SizeT g = 0, n = 0, star = za::StringView::nPos, mark = 0;
+    while(n < name.size())
+    {
+        if(g < glob.size() && (glob[g] == '?' || (glob[g] != '*' && lower(glob[g]) == lower(name[n]))))
+        {
+            g++;
+            n++;
+        }
+        else if(g < glob.size() && glob[g] == '*')
+        {
+            star = g++;
+            mark = n;
+        }
+        else if(star != za::StringView::nPos)
+        {
+            g = star + 1;
+            n = ++mark;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    while(g < glob.size() && glob[g] == '*')
+    {
+        g++;
+    }
+    return g == glob.size();
 }
 
 } // namespace qvr::files

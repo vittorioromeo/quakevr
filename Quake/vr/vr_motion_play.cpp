@@ -17,33 +17,44 @@
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_progs.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-#include <filesystem>
-#include <fstream>
-#include <map>
-#include <regex>
-#include <sstream>
-#include <string>
-#include <thread>
-#include <vector>
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Chrono/Time.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "vr_zancle.hpp"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 namespace qvr::motion
 {
 
 Row captureRow(bool tick, double svDt); // vr_motion.cpp: this frame's row, as the recorder makes it
-std::string resolveTake(const std::string& arg);
+za::String resolveTake(const za::String& arg);
 
 namespace
 {
@@ -77,7 +88,7 @@ struct Frame
     bool hasW{false};                 // world, with the monster's origin
     glm::vec3 handW[HAND_COUNT]{};
     glm::vec3 headD{0.f};
-    std::vector<Event> events;
+    za::Vector<Event> events;
 
     // For placing the player (the first frame's).
     bool hasOrg{false};
@@ -89,7 +100,7 @@ struct Frame
     glm::vec3 leanPF{0.f};  // player frame
     bool hasMon{false};
     bool hasMonW{false};
-    std::string monClass;
+    za::String monClass;
     glm::vec3 monW{0.f};
     float monYawW{0.f};
     glm::vec3 monPF{0.f};
@@ -99,29 +110,29 @@ struct Frame
 
 struct Take
 {
-    std::string path;
-    std::string name; // the file's name
-    std::map<std::string, std::string> header;
-    std::string label, category, detail, map;
+    za::String path;
+    za::String name; // the file's name
+    ankerl::unordered_dense::map<za::String, za::String> header;
+    za::String label, category, detail, map;
     bool hasYaw0{false};
     float yaw0{0.f};
     bool hasTicks{false};
     bool hasPlayYaw{false};
     bool hasWeapons{false};
     bool dummyAttacks{false}; // recorded with the training dummy striking back (the header's "dummy attacks: on")
-    std::vector<Frame> frames;
+    za::Vector<Frame> frames;
     size_t firstRec{0};
 };
 
-[[nodiscard]] std::vector<std::string> split(const std::string& s, char sep)
+[[nodiscard]] za::Vector<za::String> split(za::StringView s, char sep)
 {
-    std::vector<std::string> out;
-    std::string cur;
+    za::Vector<za::String> out;
+    za::String cur;
     for(const char c : s)
     {
         if(c == sep)
         {
-            out.push_back(cur);
+            out.pushBack(cur);
             cur.clear();
         }
         else if(c != '\r')
@@ -129,32 +140,32 @@ struct Take
             cur += c;
         }
     }
-    out.push_back(cur);
+    out.pushBack(cur);
     return out;
 }
 
-[[nodiscard]] std::string trim(const std::string& s)
+[[nodiscard]] za::String trim(za::StringView s)
 {
-    const size_t a = s.find_first_not_of(" \t\r\n");
-    if(a == std::string::npos)
+    const size_t a = s.findFirstNotOf(" \t\r\n");
+    if(a == za::StringView::nPos)
     {
         return "";
     }
-    const size_t b = s.find_last_not_of(" \t\r\n");
-    return s.substr(a, b - a + 1);
+    const size_t b = s.findLastNotOf(" \t\r\n");
+    return za::String{s.substrByPosLen(a, b - a + 1)};
 }
 
 // The events of a row: kind:sub:hand:value:x:y:z:target:detail, ';' between them.
-[[nodiscard]] std::vector<Event> parseEvents(const std::string& cell)
+[[nodiscard]] za::Vector<Event> parseEvents(const za::String& cell)
 {
-    std::vector<Event> out;
+    za::Vector<Event> out;
     if(cell.empty())
     {
         return out;
     }
-    for(const std::string& e : split(cell, ';'))
+    for(const za::String& e : split(cell, ';'))
     {
-        const std::vector<std::string> f = split(e, ':');
+        const za::Vector<za::String> f = split(e, ':');
         if(f.size() < 9)
         {
             continue;
@@ -163,40 +174,41 @@ struct Take
         ev.kind = f[0];
         ev.sub = f[1];
         ev.hand = f[2] == "main" ? HAND_MAIN : f[2] == "off" ? HAND_OFF : -1;
-        ev.value = std::strtof(f[3].c_str(), nullptr);
+        ev.value = strtof(f[3].cStr(), nullptr);
         ev.hasAt = !f[4].empty();
         if(ev.hasAt)
         {
-            ev.at = {std::strtof(f[4].c_str(), nullptr), std::strtof(f[5].c_str(), nullptr), std::strtof(f[6].c_str(), nullptr)};
+            ev.at = {strtof(f[4].cStr(), nullptr), strtof(f[5].cStr(), nullptr), strtof(f[6].cStr(), nullptr)};
         }
         ev.target = f[7];
         ev.detail = f[8];
-        out.push_back(std::move(ev));
+        out.pushBack(ZA_MOVE(ev));
     }
     return out;
 }
 
 // A take file (any columns missing take their defaults: a synthetic take needs only the tracking).
-[[nodiscard]] bool loadTake(const std::string& path, Take& take, std::string& error)
+[[nodiscard]] bool loadTake(const za::String& path, Take& take, za::String& error)
 {
-    std::ifstream in(path, std::ios::binary);
-    if(!in)
+    za::String text;
+    if(!files::readText(path.cStr(), text, files::Mode::Binary))
     {
         error = "can't open " + path;
         return false;
     }
     take = Take{};
     take.path = path;
-    take.name = std::filesystem::path(path).filename().string();
+    take.name = za::String{files::fileName(path)};
 
-    std::string line;
-    std::vector<std::string> names;
-    std::map<std::string, int> col;
-    while(std::getline(in, line))
+    za::Vector<za::StringView> lines;
+    files::forLines(text, [&](za::StringView l) { lines.pushBack(l); });
+    za::Vector<za::String> names;
+    ankerl::unordered_dense::map<za::String, int> col;
+    for(za::StringView line : lines)
     {
-        if(!line.empty() && line.back() == '\r')
+        if(line.endsWith('\r'))
         {
-            line.pop_back();
+            line.removeSuffix(1);
         }
         if(line.empty())
         {
@@ -205,9 +217,9 @@ struct Take
         if(line[0] == '#')
         {
             const size_t colon = line.find(':');
-            if(colon != std::string::npos)
+            if(colon != za::StringView::nPos)
             {
-                take.header[trim(line.substr(1, colon - 1))] = trim(line.substr(colon + 1));
+                take.header[trim(line.substrByPosLen(1, colon - 1))] = trim(line.substrByPosLen(colon + 1));
             }
             continue;
         }
@@ -221,28 +233,28 @@ struct Take
             continue;
         }
 
-        const std::vector<std::string> cells = split(line, ',');
+        const za::Vector<za::String> cells = split(line, ',');
         const auto has = [&](const char* name) {
             const auto it = col.find(name);
             return it != col.end() && it->second < static_cast<int>(cells.size()) && !cells[it->second].empty();
         };
-        const auto str = [&](const std::string& name) -> std::string {
+        const auto str = [&](const za::String& name) -> za::String {
             const auto it = col.find(name);
-            return it != col.end() && it->second < static_cast<int>(cells.size()) ? cells[it->second] : std::string{};
+            return it != col.end() && it->second < static_cast<int>(cells.size()) ? cells[it->second] : za::String{};
         };
-        const auto num = [&](const std::string& name, double def) {
-            const std::string v = str(name);
-            return v.empty() ? def : std::strtod(v.c_str(), nullptr);
+        const auto num = [&](const za::String& name, double def) {
+            const za::String v = str(name);
+            return v.empty() ? def : strtod(v.cStr(), nullptr);
         };
-        const auto f = [&](const std::string& name, float def) { return static_cast<float>(num(name, def)); };
-        const auto vec = [&](const std::string& a, const std::string& b, const std::string& c) {
+        const auto f = [&](const za::String& name, float def) { return static_cast<float>(num(name, def)); };
+        const auto vec = [&](const za::String& a, const za::String& b, const za::String& c) {
             return glm::vec3{f(a, 0.f), f(b, 0.f), f(c, 0.f)};
         };
 
         Frame fr;
         fr.t = num("t", 0.0);
         fr.dt = num("dt", 1.0 / 90.0);
-        const std::string phase = str("phase");
+        const za::String phase = str("phase");
         fr.phase = phase == "pre" ? PhasePre : phase == "tail" ? PhaseTail : PhaseRec;
         if(has("sv_tick"))
         {
@@ -257,7 +269,7 @@ struct Take
         }
 
         // The runtime's tracking.
-        const auto pose = [&](const std::string& p, Pose& out, bool grip) {
+        const auto pose = [&](const za::String& p, Pose& out, bool grip) {
             out.position = vec(p + "px", p + "py", p + "pz");
             out.orientation = glm::quat{f(p + "qw", 1.f), f(p + "qx", 0.f), f(p + "qy", 0.f), f(p + "qz", 0.f)};
             if(glm::length(out.orientation) < 0.5f)
@@ -280,7 +292,7 @@ struct Take
         pose("raw_o_", fr.tracking.hands[HAND_OFF], true);
         for(const int h : {HAND_MAIN, HAND_OFF})
         {
-            const std::string p = h == HAND_MAIN ? "m_" : "o_";
+            const za::String p = h == HAND_MAIN ? "m_" : "o_";
             HandInput& hi = fr.tracking.input.hands[h];
             const int buttons = static_cast<int>(num(p + "buttons", 0.0));
             hi.trigger = (buttons & 1) != 0;
@@ -294,18 +306,18 @@ struct Take
             hi.thumbTouch = num(p + "thumb", 0.0) != 0.0;
             hi.stick = {f(p + "stick_x", 0.f), f(p + "stick_y", 0.f)};
             fr.helping[h] = num(p + "helping", 0.0) != 0.0;
-            if(has((p + "wid").c_str()))
+            if(has((p + "wid").cStr()))
             {
                 take.hasWeapons = true;
                 fr.wid[h] = static_cast<int>(num(p + "wid", 0.0));
                 fr.wflags[h] = static_cast<int>(num(p + "wflags", 0.0));
             }
-            if(has((p + "pos_w_x").c_str()))
+            if(has((p + "pos_w_x").cStr()))
             {
                 fr.hasW = true;
                 fr.handW[h] = vec(p + "pos_w_x", p + "pos_w_y", p + "pos_w_z");
             }
-            if(has((p + "pos_d_x_u").c_str()))
+            if(has((p + "pos_d_x_u").cStr()))
             {
                 fr.hasD = true;
                 fr.handD[h] = vec(p + "pos_d_x_u", p + "pos_d_y_u", p + "pos_d_z_u");
@@ -342,7 +354,7 @@ struct Take
                 fr.monYawW = f("mon_yaw_w", 0.f);
             }
         }
-        take.frames.push_back(std::move(fr));
+        take.frames.pushBack(ZA_MOVE(fr));
     }
     if(take.frames.empty())
     {
@@ -352,7 +364,7 @@ struct Take
 
     const auto h = [&](const char* key) {
         const auto it = take.header.find(key);
-        return it == take.header.end() ? std::string{} : it->second;
+        return it == take.header.end() ? za::String{} : it->second;
     };
     take.label = h("label");
     take.category = h("category");
@@ -361,7 +373,7 @@ struct Take
     take.dummyAttacks = h("dummy attacks").rfind("on", 0) == 0;
     if(take.label.empty())
     {
-        take.label = take.name.substr(0, take.name.rfind('.'));
+        take.label = take.name.substrByPosLen(0, take.name.rfind('.'));
     }
     if(take.category.empty())
     {
@@ -376,10 +388,10 @@ struct Take
             break;
         }
     }
-    if(const std::string y = h("yaw0"); !y.empty())
+    if(const za::String y = h("yaw0"); !y.empty())
     {
         take.hasYaw0 = true;
-        take.yaw0 = std::strtof(y.c_str(), nullptr);
+        take.yaw0 = strtof(y.cStr(), nullptr);
     }
     else
     {
@@ -387,7 +399,7 @@ struct Take
         // angles), and the play space's turn.
         const Frame& fr = take.frames[take.firstRec];
         const glm::vec3 fwd = fr.tracking.head.orientation * glm::vec3{0.f, 0.f, -1.f};
-        take.yaw0 = glm::degrees(std::atan2(-fwd.x, -fwd.z)) + fr.playYaw;
+        take.yaw0 = glm::degrees(za::atan2(-fwd.x, -fwd.z)) + fr.playYaw;
     }
     return true;
 }
@@ -398,7 +410,7 @@ struct Take
 
 // Those that place the hands, the weapons and the body (applied for the playback, then restored); with
 // `recorded`, the melee's own too.
-[[nodiscard]] bool placingSetting(const std::string& name, bool melee)
+[[nodiscard]] bool placingSetting(const za::String& name, bool melee)
 {
     static const char* const placing[] = {"vr_world_scale", "vr_height_calibration", "vr_floor_offset", "vr_lefthanded",
         "vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_handcal_", "vr_gunmodel", "vr_weapon_grip_mode", "vr_2h_",
@@ -430,39 +442,39 @@ struct Take
 
 // name=value pairs of a header line (settings, weapon settings, melee settings), or "name value" pairs
 // (hand angles, grips).
-void collectSettings(const std::string& value, bool pairs, std::vector<std::pair<std::string, std::string>>& out)
+void collectSettings(const za::String& value, bool pairs, za::Vector<qza::Pair<za::String, za::String>>& out)
 {
-    std::istringstream words(value);
-    std::string w;
+    files::Words words{value};
+    za::String w;
     if(pairs)
     {
-        std::string v;
+        za::String v;
         while(words >> w >> v)
         {
-            out.emplace_back(w, v);
+            out.emplaceBack(w, v);
         }
         return;
     }
     while(words >> w)
     {
         const size_t eq = w.find('=');
-        if(eq != std::string::npos)
+        if(eq != za::StringView::nPos)
         {
-            out.emplace_back(w.substr(0, eq), w.substr(eq + 1));
+            out.pushBack({za::String{w.substrByPosLen(0, eq)}, za::String{w.substrByPosLen(eq + 1)}});
         }
     }
 }
 
-std::vector<std::pair<cvar_t*, std::string>> savedSettings; // the values before a playback
+za::Vector<qza::Pair<cvar_t*, za::String>> savedSettings; // the values before a playback
 
 void applySettings(const Take& take, bool melee)
 {
-    std::vector<std::pair<std::string, std::string>> list;
+    za::Vector<qza::Pair<za::String, za::String>> list;
     const auto h = [&](const char* key) {
         const auto it = take.header.find(key);
-        return it == take.header.end() ? std::string{} : it->second;
+        return it == take.header.end() ? za::String{} : it->second;
     };
-    if(const std::string all = h("settings"); !all.empty())
+    if(const za::String all = h("settings"); !all.empty())
     {
         collectSettings(all, false, list);
     }
@@ -471,16 +483,16 @@ void applySettings(const Take& take, bool melee)
         // A take from before the settings line: its own lines.
         for(const char* key : {"vr_world_scale", "vr_height_calibration", "vr_floor_offset"})
         {
-            if(const std::string v = h(key); !v.empty())
+            if(const za::String v = h(key); !v.empty())
             {
-                list.emplace_back(key, v);
+                list.emplaceBack(key, v);
             }
         }
         collectSettings(h("hand angles"), true, list);
         collectSettings(h("grips"), true, list);
-        if(const std::string d = h("dominant hand"); !d.empty())
+        if(const za::String d = h("dominant hand"); !d.empty())
         {
-            list.emplace_back("vr_lefthanded", d.rfind("left", 0) == 0 ? "1" : "0");
+            list.emplaceBack("vr_lefthanded", d.rfind("left", 0) == 0 ? "1" : "0");
         }
     }
     collectSettings(h("weapon settings"), false, list);
@@ -488,18 +500,18 @@ void applySettings(const Take& take, bool melee)
     for(const cvar_t* var : {&vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll, &vr_handcal_off_mirror,
             &vr_handcal_off_x, &vr_handcal_off_y, &vr_handcal_off_z, &vr_handcal_off_roll})
     {
-        if(std::none_of(list.begin(), list.end(), [&](const auto& kv) { return kv.first == var->name; }))
+        if(!za::anyOf(list.begin(), list.end(), [&](const auto& kv) { return kv.first == var->name; }))
         {
-            list.emplace_back(var->name, var->default_string);
+            list.emplaceBack(var->name, var->default_string);
         }
     }
     // A take from before the player's narrower box (config 51, vr_hull.cpp): Quake's 32 box, as then (a narrower one lets
     // the body stand closer to the target, and the blow meets it with another part of the weapon).
     for(const char* name : {"vr_hull_width", "vr_hull_ent_width", "vr_hull_hit_width"})
     {
-        if(std::none_of(list.begin(), list.end(), [&](const auto& kv) { return kv.first == name; }))
+        if(!za::anyOf(list.begin(), list.end(), [&](const auto& kv) { return kv.first == name; }))
         {
-            list.emplace_back(name, "0");
+            list.emplaceBack(name, "0");
         }
     }
     if(melee)
@@ -513,13 +525,13 @@ void applySettings(const Take& take, bool melee)
         {
             continue;
         }
-        cvar_t* var = Cvar_FindVar(name.c_str());
-        if(!var || !strcmp(var->string, value.c_str()))
+        cvar_t* var = Cvar_FindVar(name.cStr());
+        if(!var || !strcmp(var->string, value.cStr()))
         {
             continue;
         }
-        savedSettings.emplace_back(var, var->string);
-        Cvar_SetQuick(var, value.c_str());
+        savedSettings.emplaceBack(var, var->string);
+        Cvar_SetQuick(var, value.cStr());
         applied++;
     }
     if(applied)
@@ -530,9 +542,9 @@ void applySettings(const Take& take, bool melee)
 
 void restoreSettings()
 {
-    for(auto it = savedSettings.rbegin(); it != savedSettings.rend(); ++it)
+    for(auto it = qza::rbegin(savedSettings); it != qza::rend(savedSettings); ++it)
     {
-        Cvar_SetQuick(it->first, it->second.c_str());
+        Cvar_SetQuick(it->first, it->second.cStr());
     }
     savedSettings.clear();
 }
@@ -560,7 +572,7 @@ constexpr float noTargetDistance = 40.f; // units ahead to the dummy for a take 
 
 struct Options
 {
-    std::string target;   // a classname, or #<entity number>; "" the take's monster's class, else the dummy
+    za::String target;   // a classname, or #<entity number>; "" the take's monster's class, else the dummy
     bool yawSet{false};
     float yaw{0.f};       // the player's heading (the take's yaw0) in the world
     bool place{true};
@@ -576,8 +588,8 @@ struct Options
 // the server frames left to the engine (72 Hz). The take's events stay at their times, for the report.
 void resample(Take& take, float hz)
 {
-    std::vector<Frame> out;
-    const std::vector<Frame>& in = take.frames;
+    za::Vector<Frame> out;
+    const za::Vector<Frame>& in = take.frames;
     const double dt = 1.0 / hz;
     const double tEnd = in.back().t;
     size_t j = 0;
@@ -589,8 +601,8 @@ void resample(Take& take, float hz)
             j++;
         }
         const Frame& a = in[j];
-        const Frame& b = in[std::min(j + 1, in.size() - 1)];
-        const float s = b.t > a.t ? static_cast<float>(std::clamp((t - a.t) / (b.t - a.t), 0.0, 1.0)) : 0.f;
+        const Frame& b = in[za::min(j + 1, in.size() - 1)];
+        const float s = b.t > a.t ? static_cast<float>(za::clamp((t - a.t) / (b.t - a.t), 0.0, 1.0)) : 0.f;
         Frame f = a;
         f.t = t;
         f.dt = dt;
@@ -609,15 +621,15 @@ void resample(Take& take, float hz)
         {
             blend(f.tracking.hands[h], a.tracking.hands[h], b.tracking.hands[h]);
         }
-        f.playYaw = a.playYaw + std::remainder(b.playYaw - a.playYaw, 360.f) * s;
+        f.playYaw = a.playYaw + za::remainder(b.playYaw - a.playYaw, 360.f) * s;
         // The source frames' events up to this one.
         for(; nextEvents < in.size() && in[nextEvents].t <= t; nextEvents++)
         {
-            f.events.insert(f.events.end(), in[nextEvents].events.begin(), in[nextEvents].events.end());
+            f.events.emplaceBackRange(in[nextEvents].events.data(), in[nextEvents].events.size());
         }
-        out.push_back(std::move(f));
+        out.pushBack(ZA_MOVE(f));
     }
-    take.frames = std::move(out);
+    take.frames = ZA_MOVE(out);
     take.hasTicks = false;
     take.firstRec = 0;
     for(size_t i = 0; i < take.frames.size(); i++)
@@ -633,11 +645,11 @@ void resample(Take& take, float hz)
 // A playback's outcome.
 struct Report
 {
-    std::string file;
+    za::String file;
     int frames{0};
-    std::vector<Event> recorded; // the take's events (from its start)
-    std::vector<Event> replayed; // the replay's
-    std::vector<double> recordedT, replayedT;
+    za::Vector<Event> recorded; // the take's events (from its start)
+    za::Vector<Event> replayed; // the replay's
+    za::Vector<double> recordedT, replayedT;
     double errMax[HAND_COUNT]{};
     double errSum[HAND_COUNT]{};
     int errCount{0};
@@ -646,8 +658,8 @@ struct Report
     int guardFrames{0};
     int recFrames{0};
     int wid[HAND_COUNT]{};
-    std::string targetClass;
-    std::string warnings;
+    za::String targetClass;
+    za::String warnings;
     bool ok{false};
 };
 
@@ -670,21 +682,21 @@ bool launchRequest = false;
 bool equipRequest = false;
 double wallStart = 0.0;
 double playClock = 0.0; // the take's time played so far
-std::vector<Row> replayRows;
+za::Vector<Row> replayRows;
 void (*onDone)(const Report&) = nullptr; // the evaluation's
 
-[[nodiscard]] edict_t* findTarget(const std::string& wanted, const std::string& recordedClass, const glm::vec3& from)
+[[nodiscard]] edict_t* findTarget(const za::String& wanted, const za::String& recordedClass, const glm::vec3& from)
 {
     if(!wanted.empty() && wanted[0] == '#')
     {
-        const int n = std::atoi(wanted.c_str() + 1);
+        const int n = atoi(wanted.cStr() + 1);
         if(n > 0 && n < qcvm->num_edicts && !EDICT_NUM(n)->free)
         {
             return EDICT_NUM(n);
         }
         return nullptr;
     }
-    const auto nearestOf = [&](const std::string& className) -> edict_t* {
+    const auto nearestOf = [&](const za::String& className) -> edict_t* {
         edict_t* best = nullptr;
         float bestDist = 1e9f;
         for(int i = 1; i < qcvm->num_edicts; i++)
@@ -723,7 +735,7 @@ void workOutPlacement(edict_t* player)
 {
     const Frame& f0 = take.frames.front();
     const glm::vec3 here{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    edict_t* target = findTarget(opts.target, f0.hasMon ? f0.monClass : std::string{}, here);
+    edict_t* target = findTarget(opts.target, f0.hasMon ? f0.monClass : za::String{}, here);
     targetEnt = target ? NUM_FOR_EDICT(target) : 0;
     report.targetClass = target ? PR_GetString(target->v.classname) : "";
     placed = true;
@@ -759,10 +771,10 @@ void workOutPlacement(edict_t* player)
         }
         else
         {
-            const float bearing = glm::degrees(std::atan2(monPF.y, monPF.x));
+            const float bearing = glm::degrees(za::atan2(monPF.y, monPF.x));
             yawP = tYaw + 180.f - bearing;
         }
-        delta = std::remainder(yawP - take.yaw0, 360.f);
+        delta = za::remainder(yawP - take.yaw0, 360.f);
         placeOrigin = tOrigin - hands::rotateYaw(glm::vec3{monPF.x, monPF.y, 0.f}, yawP);
         placeOrigin.z = tOrigin.z - (f0.hasMon ? monPF.z : 0.f);
         if(!f0.hasMon)
@@ -773,7 +785,7 @@ void workOutPlacement(edict_t* player)
     placeLean = hands::rotateYaw(f0.leanPF, take.yaw0 + delta);
     placeVelocity = f0.hasVel ? hands::rotateYaw(f0.velPF, take.yaw0 + delta) : glm::vec3{0.f};
     Con_DPrintf("vr_motion_play: %s #%d at %.1f %.1f %.1f; the player at %.2f %.2f %.2f, turned %.1f\n",
-        report.targetClass.c_str(), targetEnt, tOrigin.x, tOrigin.y, tOrigin.z, placeOrigin.x, placeOrigin.y, placeOrigin.z,
+        report.targetClass.cStr(), targetEnt, tOrigin.x, tOrigin.y, tOrigin.z, placeOrigin.x, placeOrigin.y, placeOrigin.z,
         delta);
 }
 
@@ -820,7 +832,7 @@ void placePlayer(edict_t* player)
             }
         }
     }
-    if(!free && report.warnings.find("overlaps") == std::string::npos)
+    if(!free && report.warnings.find("overlaps") == za::StringView::nPos)
     {
         report.warnings += "the player's box overlaps something where the take has it (recorded in noclip?); ";
     }
@@ -879,7 +891,7 @@ void doStrikes(size_t upTo)
             edict_t* target = targetEnt > 0 && targetEnt < qcvm->num_edicts ? EDICT_NUM(targetEnt) : nullptr;
             if(!fn || !target || target->free || strcmp(PR_GetString(target->v.classname), "vr_dummy") != 0)
             {
-                if(report.warnings.find("dummy's strikes") == std::string::npos)
+                if(report.warnings.find("dummy's strikes") == za::StringView::nPos)
                 {
                     report.warnings += "the take's dummy's strikes aren't done again: its target isn't the training dummy; ";
                 }
@@ -926,9 +938,9 @@ bool isHit(const Event& e)
     return e.kind == "melee" || e.kind == "bash" || e.kind == "parrybash" || e.kind == "shove" || e.kind == "headbutt";
 }
 
-[[nodiscard]] std::string eventText(const Event& e)
+[[nodiscard]] za::String eventText(const Event& e)
 {
-    std::string s = e.kind;
+    za::String s = e.kind;
     if(!e.sub.empty())
     {
         s += "/" + e.sub;
@@ -959,7 +971,7 @@ struct Match
 [[nodiscard]] Match matchHits(const Report& r)
 {
     Match m;
-    std::vector<bool> used(r.replayed.size(), false);
+    za::Vector<bool> used(r.replayed.size(), false);
     for(size_t j = 0; j < r.replayed.size(); j++)
     {
         m.replayedHits += isHit(r.replayed[j]);
@@ -982,18 +994,18 @@ struct Match
             }
             used[j] = true;
             m.matched++;
-            m.maxDamageDiff = std::max(m.maxDamageDiff,
-                std::fabs(static_cast<double>(a.value - b.value)) / std::max(1.0, std::fabs(static_cast<double>(a.value))));
-            m.maxTimeDiff = std::max(m.maxTimeDiff, std::fabs(r.recordedT[i] - r.replayedT[j]));
+            m.maxDamageDiff = za::max(m.maxDamageDiff,
+                za::fabs(static_cast<double>(a.value - b.value)) / za::max(1.0, za::fabs(static_cast<double>(a.value))));
+            m.maxTimeDiff = za::max(m.maxTimeDiff, za::fabs(r.recordedT[i] - r.replayedT[j]));
             break;
         }
     }
     return m;
 }
 
-[[nodiscard]] std::string eventsText(const std::vector<Event>& events, const std::vector<double>& times, bool hitsAndPushes)
+[[nodiscard]] za::String eventsText(const za::Vector<Event>& events, const za::Vector<double>& times, bool hitsAndPushes)
 {
-    std::string s;
+    za::String s;
     for(size_t i = 0; i < events.size(); i++)
     {
         const Event& e = events[i];
@@ -1034,13 +1046,13 @@ void saveReplay()
     info.origin0 = first->origin;
     info.t0 = first->realtime;
     info.take = 0;
-    const std::string dir = motionsDir() + "/replays";
-    Sys_mkdir(dir.c_str());
-    const std::string stem = take.name.substr(0, take.name.rfind('.'));
-    const std::string path = dir + "/" + stem + "_replay.csv";
+    const za::String dir = motionsDir() + "/replays";
+    Sys_mkdir(dir.cStr());
+    const za::String stem{take.name.substrByPosLen(0, take.name.rfind('.'))};
+    const za::String path = dir + "/" + stem + "_replay.csv";
     if(writeTake(path, info, replayRows))
     {
-        Con_Printf("vr_motion_play: the replay is motions/replays/%s_replay.csv\n", stem.c_str());
+        Con_Printf("vr_motion_play: the replay is motions/replays/%s_replay.csv\n", stem.cStr());
     }
 }
 
@@ -1059,10 +1071,10 @@ void finish()
     const Match m = matchHits(report);
     if(!opts.quiet)
     {
-        Con_Printf("vr_motion_play: %s: %d frames against %s\n", take.name.c_str(), report.frames,
-            report.targetClass.empty() ? "nothing" : report.targetClass.c_str());
-        Con_Printf("  recorded: %s\n", eventsText(report.recorded, report.recordedT, true).c_str());
-        Con_Printf("  replayed: %s\n", eventsText(report.replayed, report.replayedT, true).c_str());
+        Con_Printf("vr_motion_play: %s: %d frames against %s\n", take.name.cStr(), report.frames,
+            report.targetClass.empty() ? "nothing" : report.targetClass.cStr());
+        Con_Printf("  recorded: %s\n", eventsText(report.recorded, report.recordedT, true).cStr());
+        Con_Printf("  replayed: %s\n", eventsText(report.replayed, report.replayedT, true).cStr());
         if(m.recordedHits || m.replayedHits)
         {
             Con_Printf("  hits: %d recorded, %d replayed, %d matched (damage within %.1f%%, time within %.3f s)\n",
@@ -1071,8 +1083,8 @@ void finish()
         if(report.errCount)
         {
             Con_Printf("  hands vs the take, relative to the dummy: main max %.3f rms %.3f, off max %.3f rms %.3f units\n",
-                report.errMax[HAND_MAIN], std::sqrt(report.errSum[HAND_MAIN] / report.errCount), report.errMax[HAND_OFF],
-                std::sqrt(report.errSum[HAND_OFF] / report.errCount));
+                report.errMax[HAND_MAIN], za::sqrt(report.errSum[HAND_MAIN] / report.errCount), report.errMax[HAND_OFF],
+                za::sqrt(report.errSum[HAND_OFF] / report.errCount));
         }
         if(take.dummyAttacks)
         {
@@ -1080,7 +1092,7 @@ void finish()
         }
         if(!report.warnings.empty())
         {
-            Con_Printf("  note: %s\n", report.warnings.c_str());
+            Con_Printf("  note: %s\n", report.warnings.cStr());
         }
     }
     if(onDone)
@@ -1106,13 +1118,13 @@ void stopPlayback(const char* why)
     }
 }
 
-[[nodiscard]] bool startPlayback(const std::string& path, const Options& o)
+[[nodiscard]] bool startPlayback(const za::String& path, const Options& o)
 {
-    std::string error;
+    za::String error;
     Take t;
     if(!loadTake(path, t, error))
     {
-        Con_Printf("vr_motion_play: %s\n", error.c_str());
+        Con_Printf("vr_motion_play: %s\n", error.cStr());
         return false;
     }
     const Backend* be = backend();
@@ -1148,9 +1160,9 @@ void stopPlayback(const char* why)
     }
     if(o.rate > 0.f)
     {
-        resample(t, std::clamp(o.rate, 20.f, 500.f));
+        resample(t, za::clamp(o.rate, 20.f, 500.f));
     }
-    take = std::move(t);
+    take = ZA_MOVE(t);
     opts = o;
     report = Report{};
     report.file = take.name;
@@ -1162,8 +1174,8 @@ void stopPlayback(const char* why)
         }
         for(const Event& e : f.events)
         {
-            report.recorded.push_back(e);
-            report.recordedT.push_back(f.t);
+            report.recorded.pushBack(e);
+            report.recordedT.pushBack(f.t);
         }
     }
     for(const int h : {HAND_MAIN, HAND_OFF})
@@ -1174,7 +1186,7 @@ void stopPlayback(const char* why)
     // The training dummy's attacks off (put back afterwards): in a replay it strikes only as the take has it.
     if(vr_dummy_attacks.value != 0.f)
     {
-        savedSettings.emplace_back(&vr_dummy_attacks, vr_dummy_attacks.string);
+        savedSettings.emplaceBack(&vr_dummy_attacks, vr_dummy_attacks.string);
         Cvar_SetQuick(&vr_dummy_attacks, "0");
     }
     strikeNext = 0;
@@ -1191,7 +1203,7 @@ void stopPlayback(const char* why)
     delta = 0.f;
     targetEnt = 0;
     replayRows.clear();
-    std::srand(1); // (QC's random() and the engine's rand(): the same draws every time)
+    srand(1); // (QC's random() and the engine's rand(): the same draws every time)
     return true;
 }
 
@@ -1259,7 +1271,7 @@ void play_f()
         return;
     }
     onDone = nullptr;
-    const std::string path = resolveTake(Cmd_Argv(1));
+    const za::String path = resolveTake(Cmd_Argv(1));
     if(path.empty())
     {
         Con_Printf("vr_motion_play: no take \"%s\" (in motions/, the game folder, or a path)\n", Cmd_Argv(1));
@@ -1271,13 +1283,13 @@ void play_f()
 } // namespace
 
 // A take's file: as given, in motions/, or in the game folder ("" if none).
-std::string resolveTake(const std::string& arg)
+za::String resolveTake(const za::String& arg)
 {
-    for(const std::string& p : {arg, motionsDir() + "/" + arg, std::string{com_gamedir} + "/" + arg})
+    for(const za::String& p : {arg, motionsDir() + "/" + arg, za::String{com_gamedir} + "/" + arg})
     {
-        for(const std::string& q : {p, p + ".csv"})
+        for(const za::String& q : {p, p + ".csv"})
         {
-            if(Sys_FileType(q.c_str()) == FS_ENT_FILE)
+            if(Sys_FileType(q.cStr()) == FS_ENT_FILE)
             {
                 return q;
             }
@@ -1314,7 +1326,7 @@ double hostFrameTime(double time)
     }
     else if(state == State::Play)
     {
-        cur = std::min(nextFrame, take.frames.size() - 1);
+        cur = za::min(nextFrame, take.frames.size() - 1);
         nextFrame++;
         dt = CLAMP(0.0005, take.frames[cur].dt, 0.1);
     }
@@ -1329,7 +1341,7 @@ double hostFrameTime(double time)
         const double ahead = playClock - (Sys_DoubleTime() - wallStart);
         if(ahead > 0.0)
         {
-            std::this_thread::sleep_for(std::chrono::duration<double>(std::min(ahead, 0.1)));
+            za::ThisThread::sleepFor(za::microseconds(static_cast<za::I64>(za::min(ahead, 0.1) * 1e6)));
         }
     }
     return dt;
@@ -1394,9 +1406,9 @@ void playAfterTracking(TrackingState& tracking, FrameState& frame)
                      : state == State::Post ? take.frames.back()
                                             : take.frames[cur];
     GripInRaw grips[HAND_COUNT]; // the controllers' own (not in the take): where the Show Controller preview goes
-    std::copy(std::begin(tracking.gripInHand), std::end(tracking.gripInHand), grips);
+    za::copy(tracking.gripInHand, tracking.gripInHand + HAND_COUNT, grips);
     tracking = f.tracking;
-    std::copy(std::begin(grips), std::end(grips), tracking.gripInHand);
+    za::copy(grips, grips + za::getArraySize(grips), tracking.gripInHand);
     tracking.time = realtime;
     if(state == State::Setup)
     {
@@ -1468,7 +1480,7 @@ void playServerSample(edict_t*& target)
     }
 }
 
-void playFrameEnd(std::vector<Event>& events, bool tick, double svDt)
+void playFrameEnd(za::Vector<Event>& events, bool tick, double svDt)
 {
     switch(state)
     {
@@ -1528,8 +1540,8 @@ void playFrameEnd(std::vector<Event>& events, bool tick, double svDt)
             {
                 if(r.phase != PhasePre)
                 {
-                    report.replayed.push_back(e);
-                    report.replayedT.push_back(post ? f.t + postElapsed : f.t);
+                    report.replayed.pushBack(e);
+                    report.replayedT.pushBack(post ? f.t + postElapsed : f.t);
                 }
             }
             // The hands relative to the target, against the take's: from its origin, in the world's axes turned
@@ -1542,7 +1554,7 @@ void playFrameEnd(std::vector<Event>& events, bool tick, double svDt)
                     const double e = f.hasW
                         ? glm::distance(r.hands[h].pos - sv.monOrigin, hands::rotateYaw(f.handW[h] - f.monW, delta))
                         : glm::distance(hands::rotateYaw(r.hands[h].pos - sv.monOrigin, -sv.monAngles.y), f.handD[h]);
-                    report.errMax[h] = std::max(report.errMax[h], e);
+                    report.errMax[h] = za::max(report.errMax[h], e);
                     report.errSum[h] += e * e;
                 }
                 report.errCount++;
@@ -1563,7 +1575,7 @@ void playFrameEnd(std::vector<Event>& events, bool tick, double svDt)
             }
             if(opts.save)
             {
-                replayRows.push_back(std::move(r));
+                replayRows.pushBack(ZA_MOVE(r));
             }
             if(post)
             {
@@ -1593,21 +1605,21 @@ namespace
 // An expectation (expect.cfg): see the file's comments and docs/vr-port/MOTIONS.md.
 struct Expectation
 {
-    std::vector<std::string> required;  // kind[/sub][@point|point] (any one of them)
-    std::vector<std::string> forbidden; // kind[/sub]
+    za::Vector<za::String> required;  // kind[/sub][@point|point] (any one of them)
+    za::Vector<za::String> forbidden; // kind[/sub]
     bool none{false};
-    std::vector<std::string> poses;     // parry, guard: held for half the take
-    std::vector<std::string> notPoses;  // parry, guard: never, in the take
-    std::vector<std::string> weapons;   // the weapon classes it applies to (empty: any)
+    za::Vector<za::String> poses;     // parry, guard: held for half the take
+    za::Vector<za::String> notPoses;  // parry, guard: never, in the take
+    za::Vector<za::String> weapons;   // the weapon classes it applies to (empty: any)
     bool skip{false};                   // "-": reported only
 };
 
-std::map<std::string, Expectation> expectations;
-std::string expectPath;
+ankerl::unordered_dense::map<za::String, Expectation> expectations;
+za::String expectPath;
 
-[[nodiscard]] std::string underscores(std::string s)
+[[nodiscard]] za::String underscores(za::String s)
 {
-    std::replace(s.begin(), s.end(), ' ', '_');
+    qza::replace(s.begin(), s.end(), ' ', '_');
     return s;
 }
 
@@ -1615,22 +1627,23 @@ void loadExpectations()
 {
     expectations.clear();
     expectPath = motionsDir() + "/expect.cfg";
-    std::ifstream in(expectPath);
-    if(!in)
+    za::String text;
+    if(!files::readText(expectPath.cStr(), text))
     {
-        Con_Printf("vr_motion_eval: no %s: every take is reported without a verdict\n", expectPath.c_str());
+        Con_Printf("vr_motion_eval: no %s: every take is reported without a verdict\n", expectPath.cStr());
         return;
     }
-    std::string line;
-    while(std::getline(in, line))
+    za::Vector<za::StringView> lines;
+    files::forLines(text, [&](za::StringView l) { lines.pushBack(l); });
+    for(za::StringView line : lines)
     {
         const size_t hash = line.find('#');
-        if(hash != std::string::npos)
+        if(hash != za::StringView::nPos)
         {
-            line = line.substr(0, hash);
+            line = line.substrByPosLen(0, hash);
         }
-        std::istringstream words(line);
-        std::string label, w;
+        files::Words words{line};
+        za::String label, w;
         if(!(words >> label))
         {
             continue;
@@ -1648,34 +1661,34 @@ void loadExpectations()
             }
             else if(w.rfind("!pose:", 0) == 0)
             {
-                e.notPoses.push_back(w.substr(6));
+                e.notPoses.emplaceBack(w.substrByPosLen(6));
             }
             else if(w[0] == '!')
             {
-                e.forbidden.push_back(w.substr(1));
+                e.forbidden.emplaceBack(w.substrByPosLen(1));
             }
             else if(w.rfind("pose:", 0) == 0)
             {
-                e.poses.push_back(w.substr(5));
+                e.poses.emplaceBack(w.substrByPosLen(5));
             }
             else if(w.rfind("weapon:", 0) == 0)
             {
-                for(const std::string& c : split(w.substr(7), '|'))
+                for(const za::String& c : split(w.substrByPosLen(7), '|'))
                 {
-                    e.weapons.push_back(c);
+                    e.weapons.pushBack(c);
                 }
             }
             else
             {
-                e.required.push_back(w);
+                e.required.pushBack(w);
             }
         }
-        expectations[label] = std::move(e);
+        expectations[label] = ZA_MOVE(e);
     }
 }
 
 // A weapon id's class, as expect.cfg names them.
-[[nodiscard]] std::string weaponClass(int wid)
+[[nodiscard]] za::String weaponClass(int wid)
 {
     switch(wid)
     {
@@ -1692,20 +1705,20 @@ void loadExpectations()
     }
 }
 
-[[nodiscard]] bool matchesItem(const Event& e, const std::string& item)
+[[nodiscard]] bool matchesItem(const Event& e, const za::String& item)
 {
-    std::string kind = item;
-    std::string points;
-    if(const size_t at = kind.find('@'); at != std::string::npos)
+    za::String kind = item;
+    za::String points;
+    if(const size_t at = kind.find('@'); at != za::StringView::nPos)
     {
-        points = kind.substr(at + 1);
-        kind = kind.substr(0, at);
+        points = kind.substrByPosLen(at + 1);
+        kind = kind.substrByPosLen(0, at);
     }
-    std::string sub;
-    if(const size_t slash = kind.find('/'); slash != std::string::npos)
+    za::String sub;
+    if(const size_t slash = kind.find('/'); slash != za::StringView::nPos)
     {
-        sub = kind.substr(slash + 1);
-        kind = kind.substr(0, slash);
+        sub = kind.substrByPosLen(slash + 1);
+        kind = kind.substrByPosLen(0, slash);
     }
     if(e.kind != kind || (!sub.empty() && e.sub != sub))
     {
@@ -1713,26 +1726,26 @@ void loadExpectations()
     }
     if(!points.empty())
     {
-        const std::vector<std::string> list = split(points, '|');
-        return std::find(list.begin(), list.end(), underscores(e.detail)) != list.end();
+        const za::Vector<za::String> list = split(points, '|');
+        return za::find(list.begin(), list.end(), underscores(e.detail)) != list.end();
     }
     return true;
 }
 
 struct Result
 {
-    std::string path; // the take's file
-    std::string file, label, weapons, expectation, verdict, reason, replayed, recorded, same;
+    za::String path; // the take's file
+    za::String file, label, weapons, expectation, verdict, reason, replayed, recorded, same;
     int frames{0};
     double err{0.0};
 };
 
-std::vector<Result> results;
+za::Vector<Result> results;
 
-[[nodiscard]] std::string expectationText(const Expectation& e)
+[[nodiscard]] za::String expectationText(const Expectation& e)
 {
-    std::string s;
-    const auto add = [&](const std::string& w) { s += (s.empty() ? "" : " ") + w; };
+    za::String s;
+    const auto add = [&](const za::String& w) { s += (s.empty() ? "" : " ") + w; };
     if(e.skip)
     {
         add("-");
@@ -1759,7 +1772,7 @@ std::vector<Result> results;
     }
     if(!e.weapons.empty())
     {
-        std::string w;
+        za::String w;
         for(const auto& c : e.weapons)
         {
             w += (w.empty() ? "" : "|") + c;
@@ -1772,8 +1785,8 @@ std::vector<Result> results;
 // The verdict on a replay: PASS, FAIL, N/A (not for this weapon), or "-" (no expectation).
 void judge(const Report& r, const Expectation* e, Result& out)
 {
-    const std::string main = weaponClass(r.wid[HAND_MAIN]);
-    const std::string off = weaponClass(r.wid[HAND_OFF]);
+    const za::String main = weaponClass(r.wid[HAND_MAIN]);
+    const za::String off = weaponClass(r.wid[HAND_OFF]);
     out.weapons = main + (r.wid[HAND_OFF] ? "+" + off : "");
     if(!r.ok)
     {
@@ -1788,12 +1801,12 @@ void judge(const Report& r, const Expectation* e, Result& out)
         return;
     }
     out.expectation = expectationText(*e);
-    if(!e->weapons.empty() && std::find(e->weapons.begin(), e->weapons.end(), main) == e->weapons.end() &&
-       std::find(e->weapons.begin(), e->weapons.end(), off) == e->weapons.end())
+    if(!e->weapons.empty() && za::find(e->weapons.begin(), e->weapons.end(), main) == e->weapons.end() &&
+       za::find(e->weapons.begin(), e->weapons.end(), off) == e->weapons.end())
     {
         out.verdict = "N/A";
         out.reason = "not for a " + main + " (expected with " + [&] {
-            std::string w;
+            za::String w;
             for(const auto& c : e->weapons)
             {
                 w += (w.empty() ? "" : " or ") + c;
@@ -1803,14 +1816,14 @@ void judge(const Report& r, const Expectation* e, Result& out)
         return;
     }
 
-    std::vector<std::string> fails;
+    za::Vector<za::String> fails;
     // Required (any one): an event of one of them, a hit against the target.
     if(!e->required.empty())
     {
         bool any = false;
         for(const Event& ev : r.replayed)
         {
-            for(const std::string& item : e->required)
+            for(const za::String& item : e->required)
             {
                 if(matchesItem(ev, item) && (!isHit(ev) || ev.target == r.targetClass))
                 {
@@ -1820,8 +1833,8 @@ void judge(const Report& r, const Expectation* e, Result& out)
         }
         if(!any)
         {
-            fails.push_back("no " + [&] {
-                std::string w;
+            fails.pushBack("no " + [&] {
+                za::String w;
                 for(const auto& c : e->required)
                 {
                     w += (w.empty() ? "" : " or ") + c;
@@ -1834,7 +1847,7 @@ void judge(const Report& r, const Expectation* e, Result& out)
     for(const Event& ev : r.replayed)
     {
         bool bad = false;
-        for(const std::string& item : e->forbidden)
+        for(const za::String& item : e->forbidden)
         {
             bad = bad || matchesItem(ev, item);
         }
@@ -1845,40 +1858,40 @@ void judge(const Report& r, const Expectation* e, Result& out)
         if(isHit(ev) && !e->none)
         {
             bool expected = false;
-            for(const std::string& item : e->required)
+            for(const za::String& item : e->required)
             {
-                const std::string kind = item.substr(0, item.find_first_of("/@"));
+                const za::StringView kind = item.substrByPosLen(0, item.findFirstOf("/@"));
                 expected = expected || kind == ev.kind;
             }
             bad = bad || !expected;
         }
         if(bad)
         {
-            fails.push_back("unexpected " + eventText(ev));
+            fails.pushBack("unexpected " + eventText(ev));
         }
     }
     // Poses: held for at least half the take.
-    for(const std::string& p : e->poses)
+    for(const za::String& p : e->poses)
     {
         const int held = p == "parry" ? r.parryAnyFrames
                          : p == "guard" ? r.guardFrames
                                         : 0;
         if(r.recFrames == 0 || held * 2 < r.recFrames)
         {
-            fails.push_back(va("%s pose held %d of %d frames", p.c_str(), held, r.recFrames));
+            fails.pushBack(va("%s pose held %d of %d frames", p.cStr(), held, r.recFrames));
         }
     }
     // Poses that must never be: not a frame of the take in them.
-    for(const std::string& p : e->notPoses)
+    for(const za::String& p : e->notPoses)
     {
         const int held = p == "parry" ? r.parryAnyFrames : p == "guard" ? r.guardFrames : 0;
         if(held > 0)
         {
-            fails.push_back(va("%s pose in %d of %d frames", p.c_str(), held, r.recFrames));
+            fails.pushBack(va("%s pose in %d of %d frames", p.cStr(), held, r.recFrames));
         }
     }
     out.verdict = fails.empty() ? "PASS" : "FAIL";
-    for(const std::string& f : fails)
+    for(const za::String& f : fails)
     {
         out.reason += (out.reason.empty() ? "" : "; ") + f;
     }
@@ -1892,37 +1905,33 @@ enum class Eval
 };
 
 Eval evalState = Eval::Idle;
-std::vector<std::string> evalFiles;
+za::Vector<za::String> evalFiles;
 size_t evalIndex = 0;
-std::string evalMap = "vrfiringrange";
-std::string evalOut;
+za::String evalMap = "vrfiringrange";
+za::String evalOut;
 Options evalOpts;
 int evalWait = 0;
 bool evalQuit = false; // quit the game when done (scripts)
 double evalStart = 0.0;
-std::string evalProgress; // a file told how far it is (the review's re-evaluation, vr_motion_review.cpp)
+za::String evalProgress; // a file told how far it is (the review's re-evaluation, vr_motion_review.cpp)
 
-void writeProgress(const std::string& text)
+void writeProgress(const za::String& text)
 {
     if(evalProgress.empty())
     {
         return;
     }
-    std::filesystem::path p = evalProgress;
-    if(p.is_relative())
+    const za::String p = files::isRelative(evalProgress) ? files::join(motionsDir(), evalProgress) : evalProgress;
+    if(FILE* f = fopen(p.cStr(), "wb"))
     {
-        p = std::filesystem::path{motionsDir()} / p;
-    }
-    if(FILE* f = fopen(p.string().c_str(), "wb"))
-    {
-        fputs(text.c_str(), f);
+        fputs(text.cStr(), f);
         fclose(f);
     }
 }
 
 // developer 0 while a map loads (the user's value kept, and put back).
 bool quiet = false;
-std::string userDeveloper;
+za::String userDeveloper;
 void quietLoad(bool on)
 {
     cvar_t* developer = Cvar_FindVar("developer");
@@ -1938,13 +1947,13 @@ void quietLoad(bool on)
     }
     else
     {
-        Cvar_SetQuick(developer, userDeveloper.c_str());
+        Cvar_SetQuick(developer, userDeveloper.cStr());
     }
 }
 
 // host_maxfps raised while evaluating: the frames' game time is the takes' own (hostFrameTime), so only the
 // wall clock between them changes (the server stays at 72 Hz: host_maxfps is above 72 either way).
-std::string userMaxfps;
+za::String userMaxfps;
 void fastFrames(bool on)
 {
     cvar_t* maxfps = Cvar_FindVar("host_maxfps");
@@ -1962,7 +1971,7 @@ void fastFrames(bool on)
     }
     else if(!on && !userMaxfps.empty())
     {
-        Cvar_SetQuick(maxfps, userMaxfps.c_str());
+        Cvar_SetQuick(maxfps, userMaxfps.cStr());
         userMaxfps.clear();
     }
 }
@@ -1972,7 +1981,7 @@ void evalDone(const Report& r)
     Result res;
     res.path = evalIndex < evalFiles.size() ? evalFiles[evalIndex] : r.file;
     res.file = r.file;
-    std::string label = take.label;
+    za::String label = take.label;
     res.label = label;
     const Expectation* e = nullptr;
     if(const auto it = expectations.find(label); it != expectations.end())
@@ -1991,17 +2000,17 @@ void evalDone(const Report& r)
     const bool synthetic = source != take.header.end() && source->second.rfind("synthetic", 0) == 0;
     res.same = synthetic ? "-" : (m.matched == m.recordedHits && m.matched == m.replayedHits ? "yes" : "no");
     res.frames = r.frames;
-    res.err = r.errCount ? std::max(r.errMax[HAND_MAIN], r.errMax[HAND_OFF]) : -1.0;
+    res.err = r.errCount ? za::max(r.errMax[HAND_MAIN], r.errMax[HAND_OFF]) : -1.0;
     if(!r.warnings.empty())
     {
         res.reason += (res.reason.empty() ? "" : "; ") + r.warnings;
     }
-    Con_Printf("%-5s %s: %s%s%s%s\n", res.verdict.c_str(), res.file.c_str(), res.replayed.c_str(),
-        res.reason.empty() ? "" : " -- ", res.reason.c_str(),
-        res.same == "no" ? va(" [live: %s]", res.recorded.c_str()) : "");
-    results.push_back(std::move(res));
+    Con_Printf("%-5s %s: %s%s%s%s\n", res.verdict.cStr(), res.file.cStr(), res.replayed.cStr(),
+        res.reason.empty() ? "" : " -- ", res.reason.cStr(),
+        res.same == "no" ? va(" [live: %s]", res.recorded.cStr()) : "");
+    results.pushBack(ZA_MOVE(res));
     evalIndex++;
-    writeProgress(va("%d/%d %s", static_cast<int>(evalIndex), static_cast<int>(evalFiles.size()), r.file.c_str()));
+    writeProgress(va("%d/%d %s", static_cast<int>(evalIndex), static_cast<int>(evalFiles.size()), r.file.cStr()));
     evalState = Eval::Loading;
     evalWait = -1;
 }
@@ -2011,21 +2020,21 @@ void writeResults()
     fixedLoading = false;
     quietLoad(false);
     fastFrames(false);
-    std::string path = evalOut;
+    za::String path = evalOut;
     if(path.empty())
     {
-        const std::time_t now = std::time(nullptr);
+        const time_t now = time(nullptr);
         char stamp[64];
-        std::strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
+        strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
         path = motionsDir() + "/eval_" + stamp + ".csv";
     }
-    else if(std::filesystem::path(path).is_relative())
+    else if(files::isRelative(path))
     {
         path = motionsDir() + "/" + path;
     }
-    FILE* f = fopen(path.c_str(), "wb");
+    FILE* f = fopen(path.cStr(), "wb");
     int pass = 0, fail = 0, na = 0, none = 0;
-    std::map<std::string, std::pair<int, int>> perLabel; // passes, judged
+    ankerl::unordered_dense::map<za::String, qza::Pair<int, int>> perLabel; // passes, judged
     for(const Result& r : results)
     {
         pass += r.verdict == "PASS";
@@ -2042,17 +2051,17 @@ void writeResults()
     if(f)
     {
         fprintf(f, "# vr_motion_eval: %d takes, %d pass, %d fail, %d n/a, %d without an expectation (%s, %s)\n",
-            static_cast<int>(results.size()), pass, fail, na, none, evalMap.c_str(), expectPath.c_str());
+            static_cast<int>(results.size()), pass, fail, na, none, evalMap.cStr(), expectPath.cStr());
         fprintf(f, "file,label,weapons,expected,verdict,reason,events,recorded_events,same_hits_as_recorded,frames,hand_error_u\n");
-        const auto cell = [](std::string s) {
-            std::replace(s.begin(), s.end(), ',', ' ');
+        const auto cell = [](za::String s) {
+            qza::replace(s.begin(), s.end(), ',', ' ');
             return s;
         };
         for(const Result& r : results)
         {
-            fprintf(f, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%d,%s\n", cell(r.file).c_str(), cell(r.label).c_str(), r.weapons.c_str(),
-                cell(r.expectation).c_str(), r.verdict.c_str(), cell(r.reason).c_str(), cell(r.replayed).c_str(),
-                cell(r.recorded).c_str(), r.same.c_str(), r.frames, r.err >= 0.0 ? va("%.3f", r.err) : "");
+            fprintf(f, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%d,%s\n", cell(r.file).cStr(), cell(r.label).cStr(), r.weapons.cStr(),
+                cell(r.expectation).cStr(), r.verdict.cStr(), cell(r.reason).cStr(), cell(r.replayed).cStr(),
+                cell(r.recorded).cStr(), r.same.cStr(), r.frames, r.err >= 0.0 ? va("%.3f", r.err) : "");
         }
         fclose(f);
     }
@@ -2069,24 +2078,25 @@ void writeResults()
         Con_Printf("vr_motion_eval: %d of %d replays hit as their takes did live (the same hits: kind, sub, hand, target, point)\n",
             same, compared);
     }
-    for(const auto& [label, c] : perLabel)
+    for(const auto* entry : qza::sortedByKey(perLabel)) // (in the labels' order, as a std::map had them)
     {
-        Con_Printf("  %-24s %d/%d\n", label.c_str(), c.first, c.second);
+        const auto& [label, c] = *entry;
+        Con_Printf("  %-24s %d/%d\n", label.cStr(), c.first, c.second);
     }
-    Con_Printf("vr_motion_eval: the table is %s\n", f ? path.c_str() : "(could not be written)");
+    Con_Printf("vr_motion_eval: the table is %s\n", f ? path.cStr() : "(could not be written)");
 
     // Each take's verdict next to it (eval_status.csv: what Review Takes lists), from an evaluation as the takes are
     // judged: the current melee settings, the takes' own rate, the firing range.
-    if(evalOpts.rate > 0.f || evalOpts.recorded || q_strcasecmp(evalMap.c_str(), "vrfiringrange") != 0)
+    if(evalOpts.rate > 0.f || evalOpts.recorded || q_strcasecmp(evalMap.cStr(), "vrfiringrange") != 0)
     {
         Con_Printf("vr_motion_eval: (not the takes' verdicts: rate, recorded or another map; eval_status.csv unchanged)\n");
     }
     else
     {
-        std::vector<review::Verdict> verdicts;
+        za::Vector<review::Verdict> verdicts;
         for(const Result& r : results)
         {
-            verdicts.push_back({r.path, r.label, r.weapons, r.expectation, r.verdict, r.reason, r.replayed, r.recorded,
+            verdicts.pushBack({r.path, r.label, r.weapons, r.expectation, r.verdict, r.reason, r.replayed, r.recorded,
                 r.same, r.frames, r.err});
         }
         review::recordEval(verdicts);
@@ -2119,8 +2129,8 @@ void evalFrame()
             // thousands of "can't find" lines for textures cost seconds); the take plays at the user's.
             quietLoad(true);
             fixedLoading = true;
-            std::srand(1);
-            Cbuf_AddText(va("map %s\n", evalMap.c_str()));
+            srand(1);
+            Cbuf_AddText(va("map %s\n", evalMap.cStr()));
             evalWait = 0;
             return;
         }
@@ -2141,10 +2151,10 @@ void evalFrame()
         {
             Result res;
             res.path = evalFiles[evalIndex];
-            res.file = std::filesystem::path(evalFiles[evalIndex]).filename().string();
+            res.file = za::String{files::fileName(evalFiles[evalIndex])};
             res.verdict = "ERROR";
             res.reason = "could not play";
-            results.push_back(res);
+            results.pushBack(res);
             evalIndex++;
             evalState = Eval::Loading;
             evalWait = -1;
@@ -2152,53 +2162,22 @@ void evalFrame()
     }
 }
 
-// A glob's (* ?) regular expression.
-[[nodiscard]] std::regex globRegex(const std::string& glob)
-{
-    std::string re;
-    for(const char c : glob)
-    {
-        if(c == '*')
-        {
-            re += ".*";
-        }
-        else if(c == '?')
-        {
-            re += '.';
-        }
-        else if(std::strchr(".+()[]{}^$|\\", c))
-        {
-            re += '\\';
-            re += c;
-        }
-        else
-        {
-            re += c;
-        }
-    }
-    return std::regex{re, std::regex::icase};
-}
-
 // The takes a vr_motion_eval argument names: a folder (its .csv takes), a pattern (in motions/, or
 // in its folder), or a take; by default every take in motions/.
-[[nodiscard]] std::vector<std::string> collectTakes(const std::string& arg)
+[[nodiscard]] za::Vector<za::String> collectTakes(const za::String& arg)
 {
-    namespace fs = std::filesystem;
-    std::vector<std::string> out;
-    std::error_code ec;
-    const auto isTake = [](const fs::path& p) {
-        const std::string name = p.filename().string();
-        return p.extension() == ".csv" && name.rfind("eval_", 0) != 0;
+    za::Vector<za::String> out;
+    const auto isTake = [](za::StringView name) {
+        const za::StringView dot = name.substrByPosLen(za::min(name.rfind('.'), name.size()));
+        return dot == ".csv" && name.rfind('.') != 0 && !name.startsWith("eval_");
     };
-    const auto folder = [&](const fs::path& dir, const std::regex* pattern) {
-        for(const auto& entry : fs::directory_iterator(dir, ec))
-        {
-            if(entry.is_regular_file() && isTake(entry.path()) &&
-               (!pattern || std::regex_match(entry.path().filename().string(), *pattern)))
+    const auto folder = [&](const za::String& dir, const za::StringView* pattern) {
+        files::forEachEntry(dir.cStr(), [&](const char* name, bool isDirectory) {
+            if(!isDirectory && isTake(name) && (!pattern || files::globMatch(*pattern, name)))
             {
-                out.push_back(entry.path().string());
+                out.pushBack(files::join(dir, name));
             }
-        }
+        });
     };
     if(arg.empty())
     {
@@ -2206,31 +2185,30 @@ void evalFrame()
     }
     else
     {
-        fs::path p = arg;
-        std::vector<fs::path> bases{p, fs::path{motionsDir()} / p, fs::path{com_gamedir} / p};
+        const za::String bases[] = {arg, files::join(motionsDir(), arg), files::join(com_gamedir, arg)};
         bool found = false;
-        for(const fs::path& b : bases)
+        for(const za::String& b : bases)
         {
-            if(fs::is_directory(b, ec))
+            if(files::isDirectory(b.cStr()))
             {
                 folder(b, nullptr);
                 found = true;
                 break;
             }
-            if(fs::is_regular_file(b, ec))
+            if(files::isFile(b.cStr()))
             {
-                out.push_back(b.string());
+                out.pushBack(b);
                 found = true;
                 break;
             }
         }
         if(!found)
         {
-            const fs::path dir = p.has_parent_path() ? p.parent_path() : fs::path{};
-            const std::regex pattern = globRegex(p.filename().string());
-            for(const fs::path& d : {dir, fs::path{motionsDir()} / dir, fs::path{com_gamedir} / dir})
+            const za::String dir{files::parentPath(arg)};
+            const za::StringView pattern = files::fileName(arg); // (a glob: * and ?, either case)
+            for(const za::String& d : {dir, files::join(motionsDir(), dir), files::join(com_gamedir, dir)})
             {
-                if(!d.empty() && fs::is_directory(d, ec))
+                if(!d.empty() && files::isDirectory(d.cStr()))
                 {
                     folder(d, &pattern);
                     if(!out.empty())
@@ -2241,7 +2219,7 @@ void evalFrame()
             }
         }
     }
-    std::sort(out.begin(), out.end());
+    za::quickSort(out.begin(), out.end());
     return out;
 }
 
@@ -2278,7 +2256,7 @@ void eval_f()
         Con_Printf("vr_motion_eval: plays in the mock headset only (vr_backend mock)\n");
         return;
     }
-    std::string arg, list;
+    za::String arg, list;
     evalOpts = Options{};
     evalProgress.clear();
     evalOpts.quiet = true;
@@ -2341,44 +2319,33 @@ void eval_f()
     if(!list.empty())
     {
         // A file of takes, a path a line (relative: to motions/): the review's Re-evaluate.
-        std::filesystem::path lp = list;
-        if(lp.is_relative())
+        const za::String lp = files::isRelative(list) ? files::join(motionsDir(), list) : list;
+        za::String text;
+        if(!files::readText(lp.cStr(), text, files::Mode::Binary))
         {
-            lp = std::filesystem::path{motionsDir()} / lp;
-        }
-        std::ifstream in(lp, std::ios::binary);
-        if(!in)
-        {
-            Con_Printf("vr_motion_eval: can't read %s\n", lp.string().c_str());
+            Con_Printf("vr_motion_eval: can't read %s\n", lp.cStr());
             return;
         }
         evalFiles.clear();
-        std::string line;
-        std::error_code ec;
-        while(std::getline(in, line))
-        {
-            while(!line.empty() && (line.back() == '\r' || line.back() == ' '))
+        files::forLines(text, [](za::StringView line) {
+            while(line.endsWith('\r') || line.endsWith(' '))
             {
-                line.pop_back();
+                line.removeSuffix(1);
             }
             if(line.empty())
             {
-                continue;
+                return;
             }
-            std::filesystem::path p = line;
-            if(p.is_relative())
+            const za::String p = files::isRelative(line) ? files::join(motionsDir(), line) : za::String{line};
+            if(files::isFile(p.cStr()))
             {
-                p = std::filesystem::path{motionsDir()} / p;
-            }
-            if(std::filesystem::is_regular_file(p, ec))
-            {
-                evalFiles.push_back(p.string());
+                evalFiles.pushBack(p);
             }
             else
             {
-                Con_Printf("vr_motion_eval: no take %s (left out)\n", p.string().c_str());
+                Con_Printf("vr_motion_eval: no take %s (left out)\n", p.cStr());
             }
-        }
+        });
     }
     else
     {
@@ -2386,7 +2353,7 @@ void eval_f()
     }
     if(evalFiles.empty())
     {
-        Con_Printf("vr_motion_eval: no takes in \"%s\"\n", arg.empty() ? motionsDir().c_str() : arg.c_str());
+        Con_Printf("vr_motion_eval: no takes in \"%s\"\n", arg.empty() ? motionsDir().cStr() : arg.cStr());
         return;
     }
     loadExpectations();
@@ -2399,7 +2366,7 @@ void eval_f()
     {
         fastFrames(true);
     }
-    Con_Printf("vr_motion_eval: %d takes, each in %s\n", static_cast<int>(evalFiles.size()), evalMap.c_str());
+    Con_Printf("vr_motion_eval: %d takes, each in %s\n", static_cast<int>(evalFiles.size()), evalMap.cStr());
 }
 
 } // namespace
