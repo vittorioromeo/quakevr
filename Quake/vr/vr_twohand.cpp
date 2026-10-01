@@ -170,6 +170,13 @@ double grabStart[2]{-1.0, -1.0}; // when each hand last started gripping
 double carryLast[2]{-1.0, -1.0}; // the last frame each hand carried a weapon
 double retakeFrom[2]{-1.0, -1.0}; // the carry (its carryLast) a retake was last tried for (startRetake: once)
 
+// Per holding hand: what it held last frame (its weapon id, -1 none yet; carried off its handle or not). Another weapon
+// (taken, drawn, picked up, handed over or off, dropped, thrown, holstered) or another way of holding it starts the
+// hand's two-handed state afresh (NOTES.md vrfiringrange_2026-10-01_22-40-50: a sword's blade grip, kept, made the
+// next gun's foregrip a blade grip: the helping hand slid along the whole gun, turned as on a blade).
+int heldWas[2]{-1, -1};
+bool carriedWas[2]{false, false};
+
 [[nodiscard]] RelPose relativeTo(const glm::vec3& basePos, const glm::vec3& baseRot, const glm::vec3& pos,
     const glm::vec3& rot)
 {
@@ -510,6 +517,24 @@ void endFree(int holding, const char* why, float value, float limit)
     g.on = false;
 }
 
+// The hand `holding` holds another weapon, or holds it another way (heldWas): nothing of the last one's grips carries
+// over (the grip kind, the blade's length, the aim's and the stock's transitions, a free grip and its eased-out turn).
+// Not the helping hand's own history (help, carryPose, carryLast: a retake and a hand-off read it as the weapon moves).
+void resetHolding(int holding, int was, int now)
+{
+    if(vr_debug_2h_grip.value && (aimTransition[holding] > 0.f || grip[holding] != GRIP_FOREGRIP || freeGrips[holding].on ||
+                                     freeGrips[holding].t > 0.f))
+    {
+        Con_Printf("2h grip: %s hand's grips reset (weapon %d -> %d)\n", holding == HAND_MAIN ? "main" : "off", was, now);
+    }
+    endFree(holding, "another weapon", 0.f, 0.f);
+    freeGrips[holding] = FreeGrip{};
+    aimTransition[holding] = stockTransition[holding] = 0.f;
+    shouldAim[holding] = false;
+    grip[holding] = GRIP_FOREGRIP;
+    gripLength[holding] = 0.f;
+}
+
 // The other hand (`helping`) holding the weapon in `holding` (by its handle) anywhere: held on (false once it lets go),
 // the aim turned as its mode says.
 bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
@@ -696,6 +721,8 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
         return;
     }
 
+    // Not a sword: no blade grip (bladeGrip would draw the helping hand along the whole weapon).
+    grip[holding] = GRIP_FOREGRIP;
     const glm::vec3 holdingPos = s.pos[holding];
 
     // The helping hand's grip point, in the holding hand's frame (mirrored for the off hand).
@@ -894,7 +921,18 @@ void apply(hands::State& s)
             grabStart[h] = realtime;
         }
         grabWas[h] = grab;
-        if(carrying(h))
+        const int id = weaponId(h);
+        const bool carried = carrying(h);
+        if(id != heldWas[h] || carried != carriedWas[h])
+        {
+            if(heldWas[h] >= 0)
+            {
+                resetHolding(h, heldWas[h], id);
+            }
+            heldWas[h] = id;
+            carriedWas[h] = carried;
+        }
+        if(carried)
         {
             carryLast[h] = realtime;
         }
@@ -996,6 +1034,9 @@ void reset()
         freeGrips[h] = FreeGrip{};
         freeCandidate[h] = grabWas[h] = false;
         candidateTime[h] = grabStart[h] = carryLast[h] = retakeFrom[h] = -1.0;
+        gripLength[h] = 0.f;
+        heldWas[h] = -1;
+        carriedWas[h] = false;
     }
     lastTime = -1.0;
     fastShare = 0.f;
