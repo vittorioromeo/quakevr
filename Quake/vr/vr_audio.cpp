@@ -1926,7 +1926,7 @@ extern "C" void VR_SndBus(portable_samplepair_t* buffer, int count)
         const int measured = za::max(0, za::min(count, c.wanted - c.busSeen));
         for(int i = 0; i < measured; i++)
         {
-            const int peak = za::max(qza::abs(buffer[i].left), qza::abs(buffer[i].right));
+            const int peak = za::max(za::abs(buffer[i].left), za::abs(buffer[i].right));
             c.busPeak = za::max(c.busPeak, static_cast<float>(peak));
             c.busOver += peak > ceiling ? 1 : 0;
         }
@@ -1971,7 +1971,7 @@ extern "C" void VR_SndLimit(portable_samplepair_t* buffer, int count)
     {
         float l = static_cast<float>(buffer[i].left);
         float r = static_cast<float>(buffer[i].right);
-        const float peak = za::max(qza::abs(l), qza::abs(r));
+        const float peak = za::max(za::abs(l), za::abs(r));
         if(peak > BusLimiter::fullScale)
         {
             b.over++;
