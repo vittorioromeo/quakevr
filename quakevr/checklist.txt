@@ -41,13 +41,10 @@ Chainsaw on the firing range (east of the explosive boxes): cut heads and gibs o
 Reach for an explosive box: pushed and grabbed only when the fist is on it
 
 
-Grapple: quick reel-in round a pillar: the rope shortens with the hook
 
 
 
 
-Grapple hooked, then the gun passed to the other hand or a holster and back: hook stays in, the new hand's trigger works
-Grapple quick reel-in while the hook is still flying: it comes straight back
 
 
 Pain feedback: hits from each side knock the hands (size and time feel right? Combat > Damage and Knockback > When You're Hit); shots still land while knocked; the damage buzz feels as before at 1x
@@ -67,26 +64,20 @@ Long explosive box toppled on its long side: jump onto it repeatedly and rock it
 
 
 
-Picked-up enforcer rifle: laser is fast (1800 u/s) and hits corpses, gibs and boxes
 
-Burst rifle sounds (real AK-47, recorded downrange: crack, blast, echo): character and loudness next to the shotgun OK?
 
 Axe throws: overhand at a wall sticks about half the time (Thrown Axes > Blade Leniency 1; 2 sticks more but handle-first throws start sticking); flat and handle-first still bounce
 Thrown axe settles into an end-over-end spin that looks natural (Throwing > Spin in the Air 8; per-weapon and per-prop multipliers); gibs and boxes tumble as before
 
 
-Super shotgun: fore-end from the side and from below (hold it overhead), front of the trigger guard: no stretching, no hole; repaint darker and plainer: OK?
 
 Crowbar (vrfiringrange): fist on the tape (offsets), both two-handed grips incl. sliding up the bar, hook vs bar hits, parry, throwing it
-Crates: e1m1/e1m2/e2m1 have 5-16 by walls and in corners, some stacked; never in your way? (Carrying > Crates: Density; Debug > Tests: Go to the Next Crate)
 Crates break to shotgun, axe, thrown things and hard drops; pieces don't block you and burst into dust when hit; crack and dust sound OK?
 Crouch behind a crate with a grunt about: it can't see you; carrying the crate, it sees you
 
-Crowbar on crates (Crates > Crowbar on Crates; set 1 to see them on e1m1): looks right on top, take it by hand and force grab, knock the crate and it falls
 
 Grip the crowbar, a sword and the chainsaw by the bar or blade on the floor: taken (Carrying Boxes > Weapon Grab Slack if too far); crowbar clanks heavier; the running chainsaw's engine keeps going through a swing
 
-Chainsaw out of fuel: the trigger clicks; cutting a zombie knocks it down (~0.4 s: too fast?) and keeps cutting gibs it on the ground
 
 Burst gun and enforcer rifle models (ribs, vents, sights, thin barrel; burst gun wire stock): look right in hand; shots leave from the new barrel tips; your offsets and weights are the defaults (stock may clip the sleeve one-handed?)
 
