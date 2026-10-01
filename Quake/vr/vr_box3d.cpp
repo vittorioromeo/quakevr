@@ -4800,7 +4800,7 @@ bool contactPoint(int num, glm::vec3& point)
             }
         }
     }
-    return best >= 0.f;
+    return best > 0.f; // (a speculative contact that didn't push is no touch)
 }
 
 bool castProps(const glm::vec3& from, const glm::vec3& to, int skip, PropHit& hit)

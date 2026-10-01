@@ -1,12 +1,12 @@
-// vr_axestick.hpp -- thrown axes stick (ROUND21.md, "Thrown axes stick"): a thrown axe whose blade goes into
-// something first -- fast enough (vr_axestick_speed), the blade facing the way its edge goes (vr_axestick_angle) and
-// square enough to the surface (vr_axestick_incidence) -- sticks in it with its edge in (vr_axestick_depth), at the
-// angle it came in at: the level and brush entities (doors, lifts), the props (Box3D's: it rides with the prop) and the
-// monsters (their models as drawn, vr_hitmodel.cpp: it rides with the triangle it went into). Anything else, a flat or
-// handle-first throw, bounces off as before (Box3D). vr_axestick_leniency (1) widens what counts as the blade: the
-// edge met a little ahead, a spinning blade's slant along its edge, a little more glancing, the axe turned about its
-// edge to keep its handle out of the wall (vr_axestick.cpp). QC (QC/vr_axestick.qc) does the rest: the blow, the bleeding, the
-// fall when the monster dies or the prop goes, the pull by a hand or a force grab.
+// vr_axestick.hpp -- thrown axes stick (ROUND21.md, "Thrown axes stick", "Thrown axes: the blade decides"): a thrown
+// axe whose blade goes into something first -- its edge, its corners or the blade just behind them
+// (vr_axestick_leniency: how much of it), not the handle or the head's middle, and not its side first
+// (vr_axestick_angle) nor glancing (vr_axestick_incidence), fast enough (vr_axestick_speed) -- sticks in it with that part
+// in (vr_axestick_depth), at the angle it came in at: the level and brush entities (doors, lifts), the props (Box3D's: it
+// rides with the prop) and the monsters (their models as drawn, vr_hitmodel.cpp: it rides with the triangle it went
+// into). Anything else, a flat or handle-first throw, bounces off as before (Box3D), and an axe never sticks after its
+// first contact. QC (QC/vr_axestick.qc) does the rest: the blow, the bleeding, the fall when the monster dies or the
+// prop goes, the pull by a hand or a force grab.
 //
 // Which models have blades, and where, is a table here (the axe: progs/v_axe.mdl, a double-bitted head).
 

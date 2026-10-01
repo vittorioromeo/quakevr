@@ -83,9 +83,9 @@ QVR_CVAR(vr_throw_hit_min_speed, "200", CVAR_ARCHIVE) // units/s a thrown thing 
 // square enough, sticks in it (the level, a door, a prop, a monster: it rides with it); a hand or a force grab pulls it out.
 QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE)             // on
 QVR_CVAR(vr_axestick_speed, "4", CVAR_ARCHIVE)       // m/s the blade's edge must go at into what it meets (relative to it)
-QVR_CVAR(vr_axestick_angle, "45", CVAR_ARCHIVE)      // degrees at most between the way the blade faces and the way its edge goes (flat, handle first: more)
-QVR_CVAR(vr_axestick_incidence, "65", CVAR_ARCHIVE)  // degrees at most between the way the blade faces and straight into the surface (a glancing blow: more)
-QVR_CVAR(vr_axestick_leniency, "1", CVAR_ARCHIVE)   // 0..2: how much of the head counts as its blade (vr_axestick.cpp): 0 the edge alone, as before; 1 the edge and a little round it, met a little ahead, the angles a little wider
+QVR_CVAR(vr_axestick_angle, "45", CVAR_ARCHIVE)      // degrees at most the blade may go in out of its own plane (its side first, a flat throw: more)
+QVR_CVAR(vr_axestick_incidence, "65", CVAR_ARCHIVE)  // degrees at most between the way the blade goes in and straight into the surface (a glancing blow: more)
+QVR_CVAR(vr_axestick_leniency, "1", CVAR_ARCHIVE)   // 0..2: how much of the blade behind its edge cuts when it goes in first (vr_axestick.cpp): 0 the edge and its corners; 1 45% of its width; 2 80%; also met a little ahead, a little more glancing
 QVR_CVAR(vr_axestick_depth, "5", CVAR_ARCHIVE)       // cm the edge goes in at twice the least speed (half as deep at it; at most 60% of the blade)
 QVR_CVAR(vr_axestick_bleed, "5", CVAR_ARCHIVE)       // health a second a monster an axe is stuck in loses (0: none), the thrower's damage
 QVR_CVAR(vr_axestick_tug, "0.3", CVAR_ARCHIVE)       // seconds a force grab tugs a stuck axe before it comes free
@@ -1268,7 +1268,7 @@ QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 1: print each hand drawn
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
 QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse)
-QVR_CVAR(vr_test_axe, "0", CVAR_NONE)               // impulse 209 (tests): an axe thrown ahead from the eyes: 0 blade first, 1 flat, 2 handle first, 3 spinning end over end; a hand's throw at random: 4 overhand, 5 sidearm, 6 sloppy; 7 as the next set
+QVR_CVAR(vr_test_axe, "0", CVAR_NONE)               // impulse 209 (tests): an axe thrown ahead from the eyes: 0 blade first, 1 flat, 2 handle first, 3 spinning end over end; a hand's throw at random: 4 overhand, 5 sidearm, 6 sloppy, 8 upright, 9 knife-style, 10 spear-like, 11 flat, 12 handle first; 7 as the next set
 QVR_CVAR(vr_test_axe_roll, "0", CVAR_NONE)          // ... 7: from blade first, degrees turned about the way it goes (90: the blade level)
 QVR_CVAR(vr_test_axe_pitch, "0", CVAR_NONE)         // ... then about your left (its head forward)
 QVR_CVAR(vr_test_axe_yaw, "0", CVAR_NONE)           // ... then about the upright

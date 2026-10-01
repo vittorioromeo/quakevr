@@ -1573,17 +1573,19 @@ void hologramTestMessage()
             .help("Health a second a monster loses while an axe is stuck in it (your damage). It falls out when the "
                   "monster dies."),
         slider("Blade Leniency", vr_axestick_leniency, 0.f, 2.f, 0.1f, "%.1f")
-            .help("How much of the axe's head counts as its blade. 0: the edge alone, square on (as before). 1: the edge "
-                  "met a little before the body meets the wall, its corners biting when it comes in slanting along its "
-                  "edge (Stick Angle + 25), a little more glancing allowed (Stick Incidence + 10), and turned up to 25 "
-                  "degrees about the edge to keep the handle out of the wall. 2: twice that (handle-first throws start to "
-                  "stick). A flat throw, the blade's side first, still bounces."),
+            .help("Whichever part of the axe goes in first decides: its blade sticks, anything else bounces. This is how "
+                  "much of the blade counts. 0: the edge and its two corners. 1: the blade 45% of its width back from "
+                  "the edge (its top and bottom edges in from the corners), met a little before the body meets the "
+                  "wall, a little more glancing allowed (Stick Incidence + 10), and turned up to 25 degrees to keep the "
+                  "handle out of the wall. 2: 80% of the blade, twice the rest. The handle, its end and the head's "
+                  "middle never stick; a flat throw, the blade's side first, bounces."),
         slider("Stick Speed", vr_axestick_speed, 1.f, 12.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
             .help("How fast the blade's edge must go into what it strikes; slower, it bounces off."),
         slider("Stick Angle", vr_axestick_angle, 10.f, 90.f, 5.f, "%.0f deg")
-            .help("How far the blade may face from the way its edge goes: more, and flat or handle-first throws stick too."),
+            .help("How far out of its own plane the blade may go in: more, and flat throws (the blade's side first) "
+                  "stick too."),
         slider("Stick Incidence", vr_axestick_incidence, 10.f, 90.f, 5.f, "%.0f deg")
-            .help("How far from square to the surface the blade may go in: more, and glancing blows stick too."),
+            .help("How far from straight into the surface the blade may go in: more, and glancing blows stick too."),
         slider("Stick Depth", vr_axestick_depth, 0.f, 12.f, 0.5f, "%.1f cm").extend()
             .help("How deep the edge goes in at a hard throw (half as deep at the Stick Speed)."),
         slider("Force Grab Tug", vr_axestick_tug, 0.f, 1.f, 0.05f, "%.2f s")
@@ -2448,11 +2450,14 @@ za::Vector<Item> pageDebugTests()
         header("Thrown Axe"),
         cycle("Axe Throw", vr_test_axe,
             {{0.f, "Blade First"}, {1.f, "Flat"}, {2.f, "Handle First"}, {3.f, "Spinning"}, {4.f, "Overhand"},
-             {5.f, "Sidearm"}, {6.f, "Sloppy"}})
+             {5.f, "Sidearm"}, {6.f, "Sloppy"}, {8.f, "Upright"}, {9.f, "Knife-Style"}, {10.f, "Spear-Like"},
+             {11.f, "Flat (Hand)"}, {12.f, "Handle First (Hand)"}})
             .help("How Throw an Axe throws it: blade first (the edge upright), the blade's side first, the handle's end "
                   "first, blade first spinning end over end; or as a hand would, turned and spun a little differently "
                   "each time: overhand (end over end), sidearm (the blade level, spun about the upright), sloppy (any "
-                  "way). The hand's throws aim up to meet what is ahead at eye level."),
+                  "way), upright (pushed, the handle upright, the blade ahead), knife-style (held by the head, the "
+                  "handle ahead, flicked end over end), spear-like (the head ahead), flat (the blade's side ahead) and "
+                  "handle first. The hand's throws aim up to meet what is ahead at eye level."),
         slider("Axe Speed", vr_test_axe_speed, 2.f, 20.f, 1.f, "%.0f m/s").extend(),
         cycle("Throw Instead", vr_test_axe_what, {{0.f, "The Axe"}, {1.f, "A Gib"}, {2.f, "An Explosive Box"}})
             .help("Throws a gib or an explosive box (one that never blows up) the same way instead of the axe: to "
