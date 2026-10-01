@@ -985,6 +985,7 @@ struct WorldHotspot
 };
 WorldHotspot worldHotspots[2][weapons::maxHotspots];
 int chosenGrip[2]{-1, -1}; // per holding hand: the grip hotspot the other hand holds, or last took
+int chosenGripSlot[2]{-1, -1}; // the weapon (slot) it is of: another weapon chooses afresh (its indices are another's)
 
 // Round 21's migration (weapons::takeHotspotMigration, vr_hotspots_legacy): a slot's two-handed grip keys (the
 // foregrip, the sword's blade grip) as hotspots, exactly where they were drawn. The old foregrip was placed as
@@ -1262,6 +1263,11 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     {
         // The grip the other hand takes: the one nearest it, less its bias; kept while it holds it.
         int& chosen = chosenGrip[hand];
+        if(chosenGripSlot[hand] != slot)
+        {
+            chosen = -1;
+            chosenGripSlot[hand] = slot;
+        }
         const bool holdsOne = twohand::helping(1 - hand) && chosen >= 0 && weapons::isGripType(worldHotspots[hand][chosen].type);
         if(!holdsOne)
         {
@@ -5230,6 +5236,7 @@ void view::resetClientState()
             fingerBias[h][f] = 0.f;
         }
         chosenGrip[h] = -1;
+        chosenGripSlot[h] = -1;
     }
     fingerFramesTime = -1.0;
     forEachEntity([](view::ViewEntity& ve) {

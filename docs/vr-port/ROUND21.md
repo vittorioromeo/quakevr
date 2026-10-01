@@ -19162,3 +19162,30 @@ NOTES.md vrfiringrange_2026-10-01_22-43-20, _22-46-00, _23-04-14.
   0.61 ms average while falling (worst 19 ms, the spawn frame), 0.10 ms 200 frames later.
 - **Axe sticking**: his `vr_axestick_speed` 2.5 (was 4) is the default; config 74 moves a config still at 4 (73 is a
   parallel branch's: chainsaw2's worktree).
+## Grips reset with the weapon (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_22-40-50: after a sword held by its blade (the other hand on it, or both hands on it),
+the next gun's pump, any hotspot or a grip anywhere near one drew the helping hand like a blade grip, slid along the
+whole gun and turned as on a blade.
+
+Cause: `vr_twohand.cpp`'s per-holding-hand `grip[]` (GRIP_BLADE, the half-sword grip) was set only by `applySword` and
+never cleared: a gun's hotspot grip left it as it was, so `twohand::bladeGrip` said "by its blade" as soon as the gun's
+two-handed transition began (vr_view.cpp drew the hand with `bladeGripHand`, the motion recorder logged grip 2). The
+same hand's other two-handed state (the aim and stock transitions, the grip held, a free grip and its eased-out turn)
+also carried over to a weapon swapped in while the other hand still gripped; vr_view.cpp's `chosenGrip[]` (a hotspot
+index) carried over to another weapon's hotspots.
+
+Now: `twohand::apply` keeps what each hand held last frame (weapon id, carried off its handle or not); any change
+(taken, drawn, picked up, handed over or off, dropped, thrown, holstered, swapped) resets that hand's holding state
+(`resetHolding`: grip kind, blade length, transitions, free grip), not the helping hand's history (help, carryPose,
+carryLast: hand-offs and retakes still read it). A non-sword weapon's grip is always the foregrip kind. `chosenGrip` is
+chosen afresh for another weapon. `vr_debug_2h_grip 1` prints "<hand> hand's grips reset (weapon A -> B)" when
+something was reset.
+
+Test: `python Misc/quakevr/twohand/grip_state_test.py <agent>` (the mock, e1m1, three runs): sword by its blade, both
+hands on it, let go; shotgun by its pump; crowbar by its blade, swapped for the shotgun while still gripped; the pump
+again; anywhere. Each way round (main or off hand holding). Before: 10 failures ("held two-handed by its blade" on the
+pump, the hand drawn at angles (-82 85 2) instead of (3 63 -84)); now PASS. `scratch/anygrip2/run_all.sh`: PASS; melee
+canary: no differences.
+
+- [ ] Sword: both hands on its blade, let go; take the shotgun: its pump and anywhere on it hold as before the sword.
