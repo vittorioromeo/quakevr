@@ -29,6 +29,8 @@ if (WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different "${QVR_OPENXR_DIR}/lib/x64/openxr_loader.dll" $<TARGET_FILE_DIR:ironwail>)
 endif()
 
+# No exceptions (docs/vr-port/CODE_STYLE.md): the module and Zancle are built without them (clang-cl /EHs-c-, after
+# CMake's /EHsc: the later wins; elsewhere -fno-exceptions).
 set_target_properties(ironwail PROPERTIES
 	CXX_STANDARD 23
 	CXX_STANDARD_REQUIRED ON
@@ -38,7 +40,9 @@ set_target_properties(ironwail PROPERTIES
 if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
 	set(QVR_CPP_SRC ${QVR_SRC})
 	list(FILTER QVR_CPP_SRC INCLUDE REGEX "\\.cpp$")
-	set_source_files_properties(${QVR_CPP_SRC} PROPERTIES COMPILE_OPTIONS "/clang:-std=c++23")
+	set_source_files_properties(${QVR_CPP_SRC} PROPERTIES COMPILE_OPTIONS "/clang:-std=c++23;/EHs-c-")
+else()
+	target_compile_options(ironwail PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>")
 endif()
 
 # Box3D (external/box3d/README.md): the rigid-body physics library (vr_box3d.cpp), C17, single-threaded.
@@ -77,9 +81,9 @@ else()
 	target_compile_definitions(qvr_zancle PRIVATE NDEBUG ZA_STATIC)
 endif()
 if (MSVC)
-	target_compile_options(qvr_zancle PRIVATE "$<${QVR_ZANCLE_OPTIMISED}:/O2;/Ob2;/RTC->" "/clang:-std=c++23")
+	target_compile_options(qvr_zancle PRIVATE "$<${QVR_ZANCLE_OPTIMISED}:/O2;/Ob2;/RTC->" "/clang:-std=c++23" "/EHs-c-")
 else()
-	target_compile_options(qvr_zancle PRIVATE "$<${QVR_ZANCLE_OPTIMISED}:-O2>")
+	target_compile_options(qvr_zancle PRIVATE "$<${QVR_ZANCLE_OPTIMISED}:-O2>" -fno-exceptions)
 endif()
 find_package(Threads REQUIRED)
 target_link_libraries(qvr_zancle PUBLIC Threads::Threads)

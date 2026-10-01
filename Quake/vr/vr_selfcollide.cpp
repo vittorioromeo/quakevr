@@ -17,6 +17,7 @@
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
 #include "vr_hands.hpp"
+#include "vr_mem.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -219,6 +220,16 @@ glm::vec3 principal(const glm::mat3& cov, const glm::vec3& start)
     return v;
 }
 
+// A weapon's capsules fitted (weaponCaps: again while its drawn scale changes, a weapon brought up): its points and the
+// fit's projections, kept between fits.
+struct FitScratch
+{
+    za::Vector<glm::vec3> pts;
+    za::Vector<float> along, us, vs;
+    auto members() { return qvr::mem::list(pts, along, us, vs); }
+};
+mem::Scratch<FitScratch> fitScratch{"self-collision fit"};
+
 float percentile(za::Vector<float>& v, float q)
 {
     if(v.empty())
@@ -263,7 +274,9 @@ void fitCaps(const za::Vector<glm::vec3>& pts, Caps& out)
     const glm::vec3 cx = glm::cross(ax, bx);
 
     float s0 = 1e30f, s1 = -1e30f;
-    za::Vector<float> along(pts.size());
+    za::Vector<float>& along = fitScratch.along;
+    along.clear();
+    along.resize(pts.size());
     for(za::SizeT i = 0; i < pts.size(); i++)
     {
         along[i] = glm::dot(pts[i] - mean, ax);
@@ -271,7 +284,10 @@ void fitCaps(const za::Vector<glm::vec3>& pts, Caps& out)
         s1 = za::max(s1, along[i]);
     }
     // The slabs: about as long as the weapon is thick, 2 to 5 of them.
-    za::Vector<float> us, vs;
+    za::Vector<float>& us = fitScratch.us;
+    za::Vector<float>& vs = fitScratch.vs;
+    us.clear();
+    vs.clear();
     for(za::SizeT i = 0; i < pts.size(); i++)
     {
         us.pushBack(glm::dot(pts[i] - mean, bx));
@@ -338,7 +354,8 @@ const Caps* weaponCaps(const entity_t& e, const glm::vec3& axes)
         f.caps.clear();
         if(const grasp::Shape* shape = grasp::shapeOf(e, e.frame))
         {
-            za::Vector<glm::vec3> pts;
+            za::Vector<glm::vec3>& pts = fitScratch.pts;
+            pts.clear();
             pts.reserve(shape->tris.size() * 3);
             for(const grasp::Triangle& t : shape->tris)
             {

@@ -58,6 +58,8 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
            clang-cl sets _MSVC_LANG to 202004L, which the STL counts as C++23; Zancle's Config.hpp reads __cplusplus). -->
       <AdditionalOptions>/clang:-std=c++23 %(AdditionalOptions)</AdditionalOptions>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <!-- No exceptions (docs/vr-port/CODE_STYLE.md): the module and Zancle (zancle.vcxproj) are built without them. -->
+      <ExceptionHandling>false</ExceptionHandling>
     </ClCompile>
     <ClInclude Include="..\..\Quake\vr\*.h;..\..\Quake\vr\*.hpp" />
     <!-- The precompiled header's own compile (/Yc) misses LanguageStandard_C (the ClangCL toolset leaves it out of that

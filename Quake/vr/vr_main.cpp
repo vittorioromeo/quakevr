@@ -37,6 +37,7 @@
 #include "vr_bigfont.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_setup.hpp"
+#include "vr_alloccount.hpp"
 #include "vr_ao.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -1151,6 +1152,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);
     Cmd_AddCommand("vr_memstats", VR_MemStats_f);
+    allocsites::registerCommands(); // vr_alloc_sites
     Cmd_AddCommand("vr_debug_crash", VR_DebugCrash_f);
     lighting::init();
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
@@ -1358,6 +1360,7 @@ extern "C" int VR_ModalMessageFrame()
 extern "C" void VR_HostFrameEnd()
 {
     qvr::motion::hostFrameEnd();
+    qvr::allocsites::frameEnd();
 }
 
 extern "C" double VR_HostFrameTime(double time)

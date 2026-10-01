@@ -10,8 +10,9 @@
 //   (a long bake queued ahead of it can't take a frame's time). Nested calls are safe.
 // - async(f): f on a worker; Future::get() waits for it (running f itself if no worker has taken it yet), and a Future
 //   destroyed unfinished waits too (as std::async's).
-// An exception thrown by a chunk or by f comes back to the caller: parallelFor rethrows the lowest chunk's once every
-// chunk ran, get() rethrows f's.
+// Nothing here throws, and neither may a chunk or f: the engine is built without exceptions, and everything the pool
+// runs is called from noexcept functions (an exception escaping one, were it ever built with them, ends the game with
+// the crash report: std::terminate's abort, vr_crash).
 //
 // Results never depend on the number of workers or on which thread ran what, as long as each chunk writes only its own
 // items: reduce them in a fixed order after the call.
@@ -32,8 +33,6 @@
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
-#include <exception> // ZANCLE-TODO: no exception transport (std::exception_ptr, current_exception, rethrow_exception)
-
 namespace qvr::jobs
 {
 
@@ -49,10 +48,9 @@ struct Job
 {
     za::Atomic<int> phase{0}; // 0 queued, 1 running, 2 done
     za::Atomic<za::U32> refs; // the JobPtrs to it (the Future's, the queued task's)
-    std::exception_ptr error; // ZANCLE-TODO: no exception transport
 
     virtual ~Job() = default;
-    virtual void execute() = 0;
+    virtual void execute() noexcept = 0;
 
     // Runs it here if nobody has claimed it yet; returns whether it did.
     bool claimAndRun() noexcept;
@@ -132,7 +130,7 @@ struct JobOf final : Result<T>
     F f;
     explicit JobOf(F&& fn) : f{ZA_MOVE(fn)} {}
     explicit JobOf(const F& fn) : f{fn} {}
-    void execute() override
+    void execute() noexcept override
     {
         if constexpr(ZA_IS_VOID(T))
         {
@@ -190,15 +188,11 @@ public:
             job->wait();
         }
     }
-    // Waits, then returns the result (or rethrows f's exception). The Future is empty after.
-    T get()
+    // Waits, then returns the result. The Future is empty after.
+    T get() noexcept
     {
         detail::JobPtr<detail::Result<T>> j = ZA_MOVE(job);
         j->wait();
-        if(j->error)
-        {
-            std::rethrow_exception(j->error); // ZANCLE-TODO: no exception transport
-        }
         if constexpr(!ZA_IS_VOID(T))
         {
             return ZA_MOVE(*j->value);
@@ -243,7 +237,7 @@ public:
 
     // body(begin, end) over [0, count) in chunks of `chunk` (0: about a quarter of an even share per thread), the
     // calling thread taking part; `parallel` false: every chunk on the calling thread (the same results).
-    void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel = true);
+    void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel = true) noexcept;
 
     template <typename F>
     [[nodiscard]] auto async(F&& f) -> Future<detail::ResultOf<F>>
@@ -264,7 +258,7 @@ private:
 
 // A task made once and posted again and again without an allocation (Box3D's step tasks: vr_box3d.cpp, "Box3D on the
 // pool"): post(pool, fn, context) queues fn(context); wait() returns once it ran, running it on the waiting thread if no
-// worker has started it yet (as Future::get). Posted again only after wait(); destroyed, it waits. fn must not throw.
+// worker has started it yet (as Future::get). Posted again only after wait(); destroyed, it waits.
 class Task
 {
 public:
@@ -296,7 +290,7 @@ void setParallel(bool on) noexcept;
 [[nodiscard]] Stats stats() noexcept;
 
 // On the game's pool; without one, on the calling thread (async: at once).
-void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body);
+void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body) noexcept;
 
 template <typename F>
 [[nodiscard]] auto async(F&& f) -> Future<detail::ResultOf<F>>

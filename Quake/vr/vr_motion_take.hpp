@@ -12,14 +12,14 @@
 
 #include "vr_backend.hpp"
 
+#include "Zancle/Container/InPlaceVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "vr_zancle.hpp"
 
 #include <glm/glm.hpp>
-
-#include <memory>
 
 namespace qvr::motion
 {
@@ -47,7 +47,8 @@ struct Point
     za::String name;
 };
 
-// A server frame's view (VR_ServerFrameEnd), shared by the host frames until the next one.
+// A server frame's view (VR_ServerFrameEnd), copied into each host frame's row until the next one: in place, nothing
+// allocated (the names fit a String's own buffer).
 struct ServerSample
 {
     double time{0.0}; // sv.time
@@ -68,8 +69,12 @@ struct ServerSample
 
     // VR_Motion_Sample (QC): the hands' striking points, and named values (parry, guard, ...).
     bool qc{false};
-    za::Vector<Point> points[HAND_COUNT];
-    za::Vector<qza::Pair<za::String, glm::vec3>> values;
+    // At most QC's: a blow's 9 points a hand (vr_melee.qc's mh_cp), and its values (8 now: vr_motion.qc's
+    // VR_Motion_Sample; room for more). Past these, qcPoint and qcValue drop them (a console warning).
+    static constexpr za::SizeT maxPoints = 9;
+    static constexpr za::SizeT maxValues = 16;
+    za::InPlaceVector<Point, maxPoints> points[HAND_COUNT];
+    za::InPlaceVector<qza::Pair<za::String, glm::vec3>, maxValues> values;
 
     [[nodiscard]] const glm::vec3* value(const char* key) const;
 };
@@ -128,7 +133,11 @@ struct Row
     Pose rawHead;
     HandRow hands[HAND_COUNT];
 
-    std::shared_ptr<const ServerSample> sv; // ZANCLE-TODO: no shared ownership (std::shared_ptr)
+    // The server's latest sample when the row was made (none before the first, nor while nothing wanted them), a
+    // copy: a row owns everything it holds, so a take's rows can be written on another thread with nothing shared.
+    // svFrame: which sample (counted from 1 since start-up): rows of the same server frame have the same.
+    za::Optional<ServerSample> sv;
+    za::U32 svFrame{0};
     za::Vector<Event> events;
     bool dummyAttacks{false}; // the training dummy striking back (vr_dummy_attacks, or a replay of its strikes)
 };
@@ -180,9 +189,6 @@ struct Category
 
 // The takes in quakevr/motions changed (moved, relabelled): the recorder's counts are counted again.
 void invalidateTakeCounts();
-
-// The latest server sample (null before the first), and the events of the frame so far.
-[[nodiscard]] std::shared_ptr<const ServerSample> latestSample(); // ZANCLE-TODO: no shared ownership (std::shared_ptr)
 
 // A take's file name, <label>_<YYYY-MM-DD_HH-MM-SS[-n]>.csv: its label and stamp (false: not a take's name).
 [[nodiscard]] bool parseTakeName(za::StringView name, za::StringView& label, za::StringView& stamp);

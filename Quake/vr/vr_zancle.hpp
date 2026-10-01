@@ -7,7 +7,6 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
-#include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -178,41 +177,6 @@ template <typename A, typename B>
 {
     return Pair<A, B>{static_cast<A&&>(a), static_cast<B&&>(b)};
 }
-
-// ZANCLE-TODO: Concurrency has LockGuard but no unique lock (std::unique_lock: unlocked before the scope's end, then
-// not again at it).
-class UniqueLock
-{
-public:
-    explicit UniqueLock(za::AtomicMutex& mutex) noexcept : m_mutex{mutex}
-    {
-        m_mutex.lock();
-    }
-    ~UniqueLock()
-    {
-        if(m_owns)
-        {
-            m_mutex.unlock();
-        }
-    }
-    UniqueLock(const UniqueLock&) = delete;
-    UniqueLock& operator=(const UniqueLock&) = delete;
-
-    void unlock() noexcept
-    {
-        m_mutex.unlock();
-        m_owns = false;
-    }
-    void lock() noexcept
-    {
-        m_mutex.lock();
-        m_owns = true;
-    }
-
-private:
-    za::AtomicMutex& m_mutex;
-    bool m_owns{true};
-};
 
 // ZANCLE-TODO: Zancle's containers have no reverse iterators (rbegin, rend): over a contiguous container from its
 // last element to its first, `it` then `++it` as std::reverse_iterator's.

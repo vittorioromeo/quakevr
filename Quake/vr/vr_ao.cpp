@@ -1129,47 +1129,48 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
     }
 
     BakeQueue& q = bakeQueue();
-    qza::UniqueLock lock(q.mutex);
-    if(const auto qi = q.queued.find(za::StringView{model->name}); qi != q.queued.end() && qi->second == h)
     {
-        return nullptr; // on its way
-    }
-    auto job = za::makeUnique<BakeJob>();
-    job->name = model->name;
-    job->model = model;
-    job->hash = h;
-    job->numverts = hdr->numverts;
-    job->numposes = hdr->numposes;
-    const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-    job->verts.assignRange(verts, verts + count);
-    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
-    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
-    job->tris.reserve(hdr->numindexes / 3);
-    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
-    {
-        Tri t;
-        bool ok = true;
-        for(int k = 0; k < 3; k++)
+        za::LockGuard lock(q.mutex); // (the task is started outside it)
+        if(const auto qi = q.queued.find(za::StringView{model->name}); qi != q.queued.end() && qi->second == h)
         {
-            const int vbo = idx[i + k];
-            ok = ok && vbo < hdr->numverts_vbo;
-            t.v[k] = ok ? desc[vbo].vertindex : 0;
+            return nullptr; // on its way
         }
-        if(ok && t.v[0] != t.v[1] && t.v[1] != t.v[2] && t.v[0] != t.v[2])
+        auto job = za::makeUnique<BakeJob>();
+        job->name = model->name;
+        job->model = model;
+        job->hash = h;
+        job->numverts = hdr->numverts;
+        job->numposes = hdr->numposes;
+        const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+        job->verts.assignRange(verts, verts + count);
+        const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+        const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+        job->tris.reserve(hdr->numindexes / 3);
+        for(int i = 0; i + 2 < hdr->numindexes; i += 3)
         {
-            job->tris.pushBack(t);
+            Tri t;
+            bool ok = true;
+            for(int k = 0; k < 3; k++)
+            {
+                const int vbo = idx[i + k];
+                ok = ok && vbo < hdr->numverts_vbo;
+                t.v[k] = ok ? desc[vbo].vertindex : 0;
+            }
+            if(ok && t.v[0] != t.v[1] && t.v[1] != t.v[2] && t.v[0] != t.v[2])
+            {
+                job->tris.pushBack(t);
+            }
         }
+        job->scale = {hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+        job->origin = {hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+        q.queued[model->name] = h;
+        q.pending.pushBack(ZA_MOVE(job));
+        if(q.running || q.stop.loadSeqCst())
+        {
+            return nullptr; // (the task under way takes it next)
+        }
+        q.running = true;
     }
-    job->scale = {hdr->scale[0], hdr->scale[1], hdr->scale[2]};
-    job->origin = {hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-    q.queued[model->name] = h;
-    q.pending.pushBack(ZA_MOVE(job));
-    if(q.running || q.stop.loadSeqCst())
-    {
-        return nullptr; // (the task under way takes it next)
-    }
-    q.running = true;
-    lock.unlock();
     q.runner = jobs::async(bakeQueued); // (the one before has returned: running was false)
     return nullptr;
 }

@@ -32,6 +32,8 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/String/ToString.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
 
 #include <stdio.h>
@@ -341,7 +343,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     // The player's frame: from the player's origin, turned by the take's yaw.
     const auto pf = [&](const glm::vec3& world) { return hands::rotateYaw(world - r.origin, -yaw0); };
     const auto dir = [&](const glm::vec3& v) { return hands::rotateYaw(v, -yaw0); };
-    const ServerSample* sv = r.sv.get();
+    const ServerSample* sv = r.sv ? &*r.sv : nullptr;
     const bool mon = sv && sv->monster;
     // The monster's frame: from its origin, turned by its yaw (x its facing, y its left, z up).
     const auto df = [&](const glm::vec3& world) {
@@ -818,7 +820,8 @@ namespace
 // The server's samples and the QC's events
 // ----------------------------------------------------------------------------
 
-std::shared_ptr<const ServerSample> latest; // ZANCLE-TODO: no shared ownership (std::shared_ptr)
+za::Optional<ServerSample> latest; // the last server frame's sample (each row made takes a copy)
+za::U32 latestFrame = 0;          // its number (Row::svFrame)
 ServerSample* sampling = nullptr; // the sample VR_Motion_Sample is filling
 bool tickThisFrame = false;
 double tickDt = 0.0;
@@ -1047,11 +1050,14 @@ void stopTake()
 // A take being written in the background (a long take's file takes a few frames to format).
 struct PendingSave
 {
+    // The take's rows, this save's alone: the writing task reads them through a pointer (they don't move with the
+    // PendingSave), and they outlive it: get() (pollSaves) before they go, and `result` is declared after them, so a
+    // PendingSave destroyed unfinished waits for the task (~Future) before its rows are freed.
+    za::UniquePtr<const za::Vector<Row>> rows{nullptr};
     jobs::Future<int> result; // (the game's thread pool) 1 written in motions/, 2 in the game folder (fallback), 0 not at all
     za::String path;
     za::String fallback;
     TakeInfo info;
-    std::shared_ptr<const za::Vector<Row>> rows; // ZANCLE-TODO: no shared ownership (std::shared_ptr)
     double held{0.0};
 };
 za::Vector<PendingSave> pendingSaves;
@@ -1137,16 +1143,16 @@ void finishTake()
     p.fallback = takePath(com_gamedir);
     p.info = info;
     p.held = held;
-    auto shared = std::make_shared<const za::Vector<Row>>(ZA_MOVE(take));
-    p.rows = shared;
-    const za::String header = takeHeader(info, *shared);
+    p.rows = za::makeUnique<const za::Vector<Row>>(ZA_MOVE(take));
+    const za::Vector<Row>* rowsToWrite = p.rows.get();
+    const za::String header = takeHeader(info, *rowsToWrite);
     const float u2m = 1.f / units::metresToUnits();
-    p.result = jobs::async([path = p.path, fallback = p.fallback, header, info, u2m, shared]() {
-        if(writeTakeFile(path, header, info, u2m, *shared))
+    p.result = jobs::async([path = p.path, fallback = p.fallback, header, info, u2m, rowsToWrite]() {
+        if(writeTakeFile(path, header, info, u2m, *rowsToWrite))
         {
             return 1;
         }
-        return writeTakeFile(fallback, header, info, u2m, *shared) ? 2 : 0;
+        return writeTakeFile(fallback, header, info, u2m, *rowsToWrite) ? 2 : 0;
     });
     pendingSaves.pushBack(ZA_MOVE(p));
 }
@@ -1260,6 +1266,7 @@ void pollSaves(bool wait)
         hr.muzzle = s.muzzle[h];
     }
     r.sv = latest;
+    r.svFrame = latest ? latestFrame : 0u;
     r.events.swap(frameEvents);
     return r;
 }
@@ -1390,11 +1397,6 @@ void categoryChanged(cvar_t* /* var */)
 // The interface
 // ----------------------------------------------------------------------------
 
-std::shared_ptr<const ServerSample> latestSample() // ZANCLE-TODO: no shared ownership (std::shared_ptr)
-{
-    return latest;
-}
-
 void initPlayback(); // vr_motion_play.cpp
 void playAfterTracking(TrackingState& tracking, FrameState& frame);
 void playServerSample(edict_t*& target);
@@ -1510,32 +1512,32 @@ void serverFrame()
     }
 
     edict_t* player = svs.clients[0].edict;
-    auto s = std::make_shared<ServerSample>();
-    s->time = qcvm->time;
-    s->player = true;
-    s->origin = {player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    s->velocity = {player->v.velocity[0], player->v.velocity[1], player->v.velocity[2]};
-    s->onGround = (static_cast<int>(player->v.flags) & FL_ONGROUND) != 0;
+    ServerSample s;
+    s.time = qcvm->time;
+    s.player = true;
+    s.origin = {player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    s.velocity = {player->v.velocity[0], player->v.velocity[1], player->v.velocity[2]};
+    s.onGround = (static_cast<int>(player->v.flags) & FL_ONGROUND) != 0;
 
-    edict_t* target = nearestMonster(s->origin);
+    edict_t* target = nearestMonster(s.origin);
     playServerSample(target); // a playback's target, while it plays
     if(target)
     {
-        s->monster = true;
-        s->monEnt = NUM_FOR_EDICT(target);
-        s->monClass = PR_GetString(target->v.classname);
-        s->monOrigin = {target->v.origin[0], target->v.origin[1], target->v.origin[2]};
-        s->monMins = {target->v.mins[0], target->v.mins[1], target->v.mins[2]};
-        s->monMaxs = {target->v.maxs[0], target->v.maxs[1], target->v.maxs[2]};
-        s->monAngles = {target->v.angles[0], target->v.angles[1], target->v.angles[2]};
-        s->monTargetname = PR_GetString(target->v.targetname);
-        s->monHealth = target->v.health;
+        s.monster = true;
+        s.monEnt = NUM_FOR_EDICT(target);
+        s.monClass = PR_GetString(target->v.classname);
+        s.monOrigin = {target->v.origin[0], target->v.origin[1], target->v.origin[2]};
+        s.monMins = {target->v.mins[0], target->v.mins[1], target->v.mins[2]};
+        s.monMaxs = {target->v.maxs[0], target->v.maxs[1], target->v.maxs[2]};
+        s.monAngles = {target->v.angles[0], target->v.angles[1], target->v.angles[2]};
+        s.monTargetname = PR_GetString(target->v.targetname);
+        s.monHealth = target->v.health;
     }
 
     if(const func_t fn = progs::bindings().Motion_Sample)
     {
-        sampling = s.get();
-        s->qc = true;
+        sampling = &s;
+        s.qc = true;
         pr_global_struct->time = qcvm->time;
         pr_global_struct->self = EDICT_TO_PROG(player);
         pr_global_struct->other = EDICT_TO_PROG(qcvm->edicts);
@@ -1543,7 +1545,8 @@ void serverFrame()
         PR_ExecuteProgram(fn);
         sampling = nullptr;
     }
-    latest = ZA_MOVE(s);
+    latest.emplace(ZA_MOVE(s));
+    latestFrame++;
 }
 
 void hostFrameEnd()
@@ -1684,6 +1687,12 @@ void qcPoint(int hand, const float* at, const char* name)
 {
     if(sampling && (hand == HAND_OFF || hand == HAND_MAIN))
     {
+        if(sampling->points[hand].size() == ServerSample::maxPoints)
+        {
+            Con_Warning("VR_Motion_Sample: more than %d points for hand %d (ServerSample::maxPoints): \"%s\" left out\n",
+                static_cast<int>(ServerSample::maxPoints), hand, name ? name : "");
+            return;
+        }
         sampling->points[hand].pushBack({{at[0], at[1], at[2]}, name ? name : ""});
     }
 }
@@ -1692,6 +1701,12 @@ void qcValue(const char* key, const float* value)
 {
     if(sampling && key)
     {
+        if(sampling->values.size() == ServerSample::maxValues)
+        {
+            Con_Warning("VR_Motion_Sample: more than %d values (ServerSample::maxValues): \"%s\" left out\n",
+                static_cast<int>(ServerSample::maxValues), key);
+            return;
+        }
         sampling->values.emplaceBack(key, glm::vec3{value[0], value[1], value[2]});
     }
 }

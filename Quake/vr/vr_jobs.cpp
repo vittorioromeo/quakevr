@@ -31,7 +31,6 @@ za::Atomic<bool> parallelOn{true};
 
 using MO = za::MemoryOrder;
 constexpr za::U32 closed = 0x80000000u;
-constexpr za::SizeT noChunk = static_cast<za::SizeT>(-1);
 
 // A parallelFor's state, shared by the caller and its helpers; reused (a pool's own list). A helper that starts after
 // the caller has finished (it was queued behind other work) finds the gate closed and only lets go of it: the caller's
@@ -43,32 +42,17 @@ struct Loop
     za::Atomic<za::SizeT> next; // the next chunk to take
     za::SizeT count{0}, chunk{0}, chunks{0};
     const FunctionRef<void(za::SizeT, za::SizeT)>* body{nullptr}; // the caller's (read only inside the gate)
-    za::AtomicMutex errorMutex;
-    za::SizeT errorChunk{noChunk}; // the lowest chunk that threw, and what
-    std::exception_ptr error;      // ZANCLE-TODO: no exception transport
     Pool::Impl* owner{nullptr};
 };
 
 // Runs chunks until none is left; returns how many.
-za::SizeT runChunks(Loop& l)
+za::SizeT runChunks(Loop& l) noexcept
 {
     za::SizeT ran = 0;
     for(za::SizeT c; (c = l.next.fetchAddRelaxed(1u)) < l.chunks;)
     {
         const za::SizeT begin = c * l.chunk;
-        try
-        {
-            (*l.body)(begin, za::min(begin + l.chunk, l.count));
-        }
-        catch(...)
-        {
-            const za::LockGuard lock{l.errorMutex};
-            if(c < l.errorChunk)
-            {
-                l.errorChunk = c;
-                l.error = std::current_exception();
-            }
-        }
+        (*l.body)(begin, za::min(begin + l.chunk, l.count));
         ran++;
     }
     return ran;
@@ -117,14 +101,7 @@ bool detail::Job::claimAndRun() noexcept
     {
         return false;
     }
-    try
-    {
-        execute();
-    }
-    catch(...)
-    {
-        error = std::current_exception();
-    }
+    execute();
     counters.tasks.fetchAddRelaxed(1u);
     phase.storeRelease(2);
     phase.notifyAll();
@@ -177,7 +154,7 @@ struct Task::Job final : detail::Job
     void (*fn)(void*){nullptr};
     void* context{nullptr};
 
-    void execute() override
+    void execute() noexcept override
     {
         fn(context);
     }
@@ -209,7 +186,7 @@ void Task::wait() noexcept
 
 // ----------------------------------------------------------------------------
 
-void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel)
+void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel) noexcept
 {
     if(count == 0)
     {
@@ -225,27 +202,12 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
 
     if(helpers == 0)
     {
-        // The same chunks, in order, on this thread (and the same exception: the lowest chunk's).
+        // The same chunks, in order, on this thread.
         counters.serialLoops.fetchAddRelaxed(1u);
         counters.chunksCaller.fetchAddRelaxed(chunks);
-        std::exception_ptr error; // ZANCLE-TODO: no exception transport
         for(za::SizeT begin = 0; begin < count; begin += chunk)
         {
-            try
-            {
-                body(begin, za::min(begin + chunk, count));
-            }
-            catch(...)
-            {
-                if(!error)
-                {
-                    error = std::current_exception();
-                }
-            }
-        }
-        if(error)
-        {
-            std::rethrow_exception(error);
+            body(begin, za::min(begin + chunk, count));
         }
         return;
     }
@@ -259,8 +221,6 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
     l->chunk = chunk;
     l->chunks = chunks;
     l->body = &body;
-    l->errorChunk = noChunk;
-    l->error = nullptr;
 
     impl->threads->postCopies(
         [l] {
@@ -307,13 +267,7 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
             g = l->gate.loadAcquire();
         }
     }
-    const std::exception_ptr error = ZA_MOVE(l->error); // ZANCLE-TODO: no exception transport
-    l->error = nullptr;
     impl->release(l);
-    if(error)
-    {
-        std::rethrow_exception(error);
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -379,7 +333,7 @@ Stats stats() noexcept
     return s;
 }
 
-void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body)
+void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body) noexcept
 {
     if(Pool* p = pool())
     {
@@ -387,7 +341,6 @@ void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, z
         return;
     }
     // No pool (before VR_Init, after VR_Shutdown): the caller alone, as Pool's serial path.
-    std::exception_ptr error; // ZANCLE-TODO: no exception transport
     if(chunk == 0)
     {
         chunk = za::max<za::SizeT>(count, 1);
@@ -395,21 +348,7 @@ void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, z
     counters.serialLoops.fetchAddRelaxed(1u);
     for(za::SizeT begin = 0; begin < count; begin += chunk)
     {
-        try
-        {
-            body(begin, za::min(begin + chunk, count));
-        }
-        catch(...)
-        {
-            if(!error)
-            {
-                error = std::current_exception();
-            }
-        }
-    }
-    if(error)
-    {
-        std::rethrow_exception(error);
+        body(begin, za::min(begin + chunk, count));
     }
 }
 

@@ -1,6 +1,6 @@
 // vr_jobs_engine.cpp -- the game's thread pool (vr_jobs.hpp) on the engine's side: made at VR_Init, joined at
 // VR_Shutdown; vr_jobs_threads, vr_jobs_parallel, vr_jobs_info and vr_jobs_test (its self-test: pools made and joined,
-// every index covered once, the calling thread taking part, every worker busy, exceptions, nested waits, results
+// every index covered once, the calling thread taking part, every worker busy, nested waits, results
 // independent of the thread count, a pool destroyed with work queued, the game's pool: one line per check, then the
 // totals).
 
@@ -23,7 +23,6 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/ToString.hpp"
 
-#include <stdexcept> // ZANCLE-TODO: no exception transport (the self-test throws std:: exceptions through the pool)
 
 namespace qvr::jobs
 {
@@ -244,57 +243,6 @@ void test_f()
         check(returned && after.helpersCalledOff >= before.helpersCalledOff + static_cast<za::SizeT>(pool.workers()),
             va("every worker blocked: the caller ran all 1000 items; %d helpers called off once freed",
                 static_cast<int>(after.helpersCalledOff - before.helpersCalledOff)));
-    }
-
-    // Exceptions: the lowest chunk's, after every chunk ran; the same without threads; async's through get().
-    for(const bool par : {true, false})
-    {
-        za::Atomic<int> ran{0};
-        za::String what;
-        try
-        {
-            pool.parallelFor(
-                64, 1,
-                [&](za::SizeT b, za::SizeT) {
-                    ran.fetchAddSeqCst(1);
-                    if(b == 5 || b == 17 || b == 40)
-                    {
-                        sleepMs(b == 5 ? 3 : 0); // (the lowest thrown last)
-                        throw std::runtime_error(("chunk " + za::toString(b)).cStr()); // (va isn't thread-safe)
-                    }
-                },
-                par);
-        }
-        catch(const std::exception& e)
-        {
-            what = e.what();
-        }
-        check(what == "chunk 5" && ran.loadSeqCst() == 64,
-            va("parallelFor%s: chunks 5, 17, 40 threw: \"%s\" came back, %d of 64 chunks ran", par ? "" : " (serial)",
-                what.cStr(), ran.loadSeqCst()));
-    }
-    {
-        Future<int> f = pool.async([]() -> int { throw std::logic_error("async threw"); });
-        za::String what;
-        try
-        {
-            (void)f.get();
-        }
-        catch(const std::exception& e)
-        {
-            what = e.what();
-        }
-        {
-            Future<int> dropped = pool.async([]() -> int { throw std::logic_error("dropped"); }); // (never got: no terminate)
-        }
-        za::Atomic<long long> sum{0};
-        pool.parallelFor(1000, 0, [&](za::SizeT b, za::SizeT e) {
-            for(za::SizeT i = b; i < e; i++)
-            {
-                sum.fetchAddSeqCst(static_cast<long long>(i));
-            }
-        });
-        check(what == "async threw" && sum.loadSeqCst() == 499500, "async: get() rethrew; a Future dropped with an exception is quiet; the pool works after");
     }
 
     // Nested waits: parallelFor in parallelFor (three deep), async waited for inside chunks and tasks, every worker

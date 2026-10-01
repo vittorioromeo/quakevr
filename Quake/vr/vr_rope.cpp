@@ -13,6 +13,7 @@
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/SmallVector.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -63,7 +64,7 @@ ankerl::unordered_dense::map<int, RopeSlack> slacks;
 // of a second while there are any).
 struct RopeCorners
 {
-    za::Vector<glm::vec3> corners;
+    za::SmallVector<glm::vec3, 16> corners; // (in place: the server's rope wraps round 16 at most, vr_ropesim's maxCorners)
     double time{0.0}; // cl.time
 };
 ankerl::unordered_dense::map<int, RopeCorners> cornerSets;
@@ -73,12 +74,19 @@ constexpr double cornersFresh = 1.0; // seconds
 // corners and the hook, hanging between them (gravity, a little drag) and lying on the world: each point is traced
 // from where it was to where it goes (stopped on what it meets, sliding along it), and each piece is traced too (one
 // that goes through the world is pushed out of it). Beam key -> chain.
+constexpr int chainMaxPoints = 128;
+// A chain's points in place (a chain is made each time a hook flies: nothing allocated then). stepChain spaces them so
+// that they are chainMaxPoints at most (a rounding's one or two more); its pins are the path's points (the gun, the
+// corners, 16 at most, the hook's tail and point); drawn adds two at most where a piece goes through the world (seldom).
+// More than these spill to the heap (SmallVector), as before.
+using ChainPoints = za::SmallVector<glm::vec3, chainMaxPoints + 2>;
 struct Chain
 {
-    za::Vector<glm::vec3> p;    // the points (the pins among them)
-    za::Vector<glm::vec3> prev; // last frame's (Verlet)
-    za::Vector<int> pins;       // each path point's (the gun, the corners, the hook) index in p
-    za::Vector<glm::vec3> drawn; // the points drawn: p, a piece still through the world taken round what it meets
+    ChainPoints p;                             // the points (the pins among them)
+    ChainPoints prev;                          // last frame's (Verlet)
+    za::SmallVector<int, 20> pins;             // each path point's (the gun, the corners, the hook) index in p
+    za::SmallVector<glm::vec3, chainMaxPoints + 32> drawn; // the points drawn: p, a piece still through the world taken
+                                               // round what it meets
     float lastDt{0.f};
     float fastest{0.f};          // the farthest a free point moved this step (units: vr_grapple_rope_draw_dump), which
     int fastestAt{-1};
@@ -87,7 +95,6 @@ struct Chain
     double time{-1.0};           // realtime of its last step
 };
 ankerl::unordered_dense::map<int, Chain> chains;
-constexpr int chainMaxPoints = 128;
 constexpr float chainDrag = 1.5f;      // of a point's speed lost to the air, a second
 constexpr float chainSlide = 0.6f;     // of its speed along a surface a point keeps where it touches it
 constexpr float chainGravity = 800.f;  // units/s/s
@@ -349,11 +356,11 @@ void ropePoints(const RopeSlack& r, const glm::vec3& a, const glm::vec3& b, za::
 // The simulated rope's points (`sim`) as a smooth curve from `a` to `b` (the beam's ends: the gun as drawn, the hook) into
 // `out`: its first and last points moved there (the next ones eased along), a Catmull-Rom curve through them, each piece
 // cut in pieces of about 2 units (6 at most).
-void simPoints(const za::Vector<glm::vec3>& sim, const glm::vec3& a, const glm::vec3& b, za::Vector<glm::vec3>& out,
-    float& length)
+void simPoints(const glm::vec3* sim, za::SizeT simCount, const glm::vec3& a, const glm::vec3& b,
+    za::Vector<glm::vec3>& out, float& length)
 {
     za::Vector<glm::vec3>& p = scratch.onLine;
-    p = sim;
+    p.assignRange(sim, sim + simCount);
     const int n = static_cast<int>(p.size());
     // The ends as drawn: the gun where the hand is now, not where the server last had it; its difference eased out over
     // the first pieces (and the hook's over the last ones).
@@ -497,7 +504,7 @@ void stepChain(Chain& ch, const za::Vector<glm::vec3>& path, float slack)
         }
         if(!same)
         {
-            for(za::Vector<glm::vec3>* v : {&ch.p, &ch.prev})
+            for(ChainPoints* v : {&ch.p, &ch.prev})
             {
                 za::Vector<glm::vec3>& out = scratch.resampled;
                 out.clear();
@@ -508,7 +515,7 @@ void stepChain(Chain& ch, const za::Vector<glm::vec3>& path, float slack)
                     out.popBack(); // (the next piece's first)
                 }
                 out.pushBack(v->back());
-                *v = out;
+                v->assignRange(out.data(), out.data() + out.size());
             }
             int at = 0;
             for(int i = 0; i < pieces; i++)
@@ -531,7 +538,7 @@ void stepChain(Chain& ch, const za::Vector<glm::vec3>& path, float slack)
 
     // Verlet: the free points fall, a little slowed by the air.
     za::Vector<glm::vec3>& from = scratch.from;
-    from = ch.p;
+    from.assignRange(ch.p.data(), ch.p.data() + ch.p.size());
     const float keep = za::exp(-chainDrag * dt) * (ch.lastDt > 0.f ? dt / ch.lastDt : 1.f);
     const glm::vec3 fall{0.f, 0.f, -chainGravity * dt * dt};
     for(za::SizeT i = 0; i < ch.p.size(); i++)
@@ -1119,7 +1126,7 @@ extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const f
             Chain& ch = chains[ent];
             ch.tail = hasTail;
             stepChain(ch, path, r.shown);
-            simPoints(ch.drawn, a, b, pts, length);
+            simPoints(ch.drawn.data(), ch.drawn.size(), a, b, pts, length);
             // (vr_grapple_rope_draw_dump: how far the rope's last 3 units turn from the hook's length.)
             ch.endAngle = -1.f;
             if(dir != glm::vec3{0.f} && pts.size() >= 2)
@@ -1137,7 +1144,7 @@ extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const f
             }
             if(vr_debug_rope.value)
             {
-                debugRopes.pushBack({ch.drawn, path});
+                debugRopes.pushBack({za::Vector<glm::vec3>{ch.drawn.data(), ch.drawn.data() + ch.drawn.size()}, path});
             }
         }
         else

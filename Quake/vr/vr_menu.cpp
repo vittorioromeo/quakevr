@@ -2399,7 +2399,7 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_jobs_info: the pool's workers and what it has run (tasks, loops, the chunks each side took)."),
         command("Thread Pool Self-Test", "vr_jobs_test")
             .help("vr_jobs_test: the pool's checks (start and stop, every item once, the main thread helping, busy workers, "
-                  "exceptions, nested waits, the same results whatever the threads), a line each (under a second)."),
+                  "nested waits, the same results whatever the threads), a line each (under a second)."),
         command("Zancle Math Self-Test", "vr_zancle_math_test")
             .help("vr_zancle_math_test: Zancle's math (and the angle wrap) against the standard library's on edge values "
                   "(signed zeros, halves, wrap angles, infinities, NaN), to the last bit; one line."),
@@ -2416,6 +2416,10 @@ za::Vector<Item> pageDebugProfiling()
                   "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture)."),
         command("Print Memory Now", "vr_memstats")
             .help("vr_memstats: video and system memory, the textures and models loaded, the frame times since the last one."),
+        command("Allocation Sites", "vr_alloc_sites 300")
+            .help("vr_alloc_sites [frames] [lines]: the main thread's C++ allocations over the next 300 frames by where they "
+                  "were asked for (the commonest first: a frame's, the place, its caller) in the console. To find the buffers "
+                  "a frame makes and frees."),
         header("Crashes"),
         command("Crash the Game", "vr_debug_crash")
             .help("vr_debug_crash [access | abort]: crashes the game now, on purpose, to test the crash report (in a test run: "
