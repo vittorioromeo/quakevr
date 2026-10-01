@@ -4196,6 +4196,10 @@ void() ImpulseCommands =
             else if(spawnKind == 103) { misc_explobox2(); } // 25 kg
             else if(spawnKind == 104) { misc_explobox(); self.takedamage = DAMAGE_NO; } // one that never blows up (shot pushes)
             else                      { item_shells(); }
+            if((spawnKind == 100 || spawnKind == 101) && !VRPlaceItemNow()) // (its final size from the first frame)
+            {
+                self = world;
+            }
             spawned = self;
         }
         else

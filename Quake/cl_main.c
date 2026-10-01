@@ -730,6 +730,7 @@ void CL_RelinkEntities (void)
 	}
 
 	VR_RelinkHeld (); // QVR: what the local player carries is drawn in the hands
+	VR_DebugDrawnBoxes (); // QVR: vr_debug_item_sizes
 }
 
 

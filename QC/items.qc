@@ -261,6 +261,43 @@ void() PlaceItem =
 
     self.nextthink = time + 0.2;
     self.think = PlacedItem;
+
+    VRBoxObjectNow();
+};
+
+// Ammo and health boxes become objects (AfterPlacementAmmoBox, AfterPlacementHealthBox: MakeItemGrabbable) the frame
+// they are placed, not a moment later: drawn, touched and given their body at their final size from the first frame.
+// The map's are placed in the server's settle frames (StartItem), before a client sees them; those made later (a
+// crate's, a test spawn's) call PlaceItem at once (VRPlaceItemNow).
+void() VRBoxObjectNow =
+{
+    if(self.think2 != AfterPlacementAmmoBox && self.think2 != AfterPlacementHealthBox)
+    {
+        return;
+    }
+    if(self.think2 == AfterPlacementAmmoBox)
+    {
+        AfterPlacementAmmoBox();
+    }
+    else
+    {
+        AfterPlacementHealthBox();
+    }
+    self.think2 = SUB_Null;
+    self.nextthink2 = 0;
+};
+
+// An item made after the map loaded (by its spawn function, `self`), placed now instead of StartItem's 0.2 s later
+// (that wait is for the map's solids, there already): drawn at its final size and place from the first frame.
+// FALSE: it fell out of the level (removed: a freed entity's nextthink is -1).
+float() VRPlaceItemNow =
+{
+    if(self.think != PlaceItem)
+    {
+        return TRUE;
+    }
+    PlaceItem();
+    return self.nextthink >= 0;
 };
 
 /*

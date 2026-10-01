@@ -17181,3 +17181,27 @@ without the trigger, 0.024 with it held (0.088 before the fix, z -9 instead of 1
 never thrown within the run); velocity -215 / -221 u/s alike. Wrenched out at 0.4: (-143.8, 25.3) of (-359.4, 63.2)
 as thrown, spin 8 of 20 rad/s. The "thrown:" developer line now prints how long after the estimate it left
 ("released") and the velocity as thrown ("of").
+## Ammo and health boxes drawn at their final size from the first frame (2026-10-01)
+
+The author's notes (e1m1 02:46, e1m2 02:57): a box out of a broken crate, and the map's boxes as a map loads, are
+drawn at their vanilla size for a moment, then shrink.
+
+- **Cause (QC):** a box became an object (MakeItemGrabbable: vr_forcegrabbable_box_scale, its centred box, its Box3D
+  prop) by `think2` 0.75 s after its spawn function ran (AfterPlacementAmmoBox/HealthBox), after PlaceItem (StartItem:
+  0.2 s). The map's boxes are placed in the server's two settle frames, before a client sees them, but the 0.75 s came
+  about 0.5 s into play; a crate's box was drawn at full size until then (0.2 s an unplaced trigger, then a fixture).
+  The networking was not at fault (the scale rides every entity update; baselines carry none).
+- **Fixed (QC):** `VRBoxObjectNow` (end of PlaceItem) makes the box an object the frame it is placed (think2 cleared).
+  `VRPlaceItemNow` places an item made after the map loaded at once (StartItem's wait is for the map's solids): crate
+  loot (VR_Crate_Item) and the Debug menu's Health Box / Shells Box test spawns. The first drawn frame, the first touch
+  and the first Box3D step all have the final size.
+- **Pop (new setting):** `vr_crate_item_pop` (default 3.5 m/s; Crates > What They Hold > Pop Out): what a crate held is
+  thrown up (0.85 to 1.15 of it) and outwards (0.35 to 0.55: away from the crate's middle, half along the blow, a bit
+  random). 0: left lying where the crate stood.
+- **Debug:** `vr_debug_item_sizes 1` (Debug menu: "Box Sizes", next to Crates Placement) prints each "maps/b_" box as it
+  is first drawn (client side, from the frame's drawn entities) and each change of its drawn scale after.
+- Mock, e1m2 load, before: three boxes first drawn at scale 1.00 (frame 3), rescaled to 0.20 at frame 39 (0.51 s
+  later). After: first drawn at 0.20, never rescaled. A test crate broken by `vr_physics_blast` (vr_crate_ammo 1,
+  vr_crate_health_box 1): shells and a health box first drawn at 0.20 the frame after the break, popped at 100 to 130
+  u/s up. e1m1 after 200 frames: every box an asleep prop resting on its floor (vr_physics_sink: 0.25 above, the lift
+  MakeItemGrabbable gives). eval canary: no differences.
