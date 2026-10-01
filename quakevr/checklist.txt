@@ -60,7 +60,13 @@ Gib speed by cause (Gore > Gib Speed: Melee 0.45, Light Weapons 0.65, Explosives
 Monster-dropped guns and backpacks can't hurt you for 0.5 s (Flung Props > Monster Drops Harmless For)
 Debug > Views > Show Damage Numbers: floating numbers on monsters, props, crates, secret walls; console lines like the dummy's
 
+Pain knock: hits now move the hands across your view at the full configured size (When You're Hit > Knock Across Your View; 0 = old); your 45 deg tip at 15 cm may now look strong; any frame hitch on an ogre grenade hit?
+Grip a dropped crowbar by its bar, a sword by its blade, the chainsaw by its front handle: it hangs from that hand until the other hand takes the handle (Carrying > Weapons by Their Hotspots); 15 cm reach OK? more annoying in play?
+Axe upright, wrist flick down, facing several directions in your room: spins end over end, edge first (Throwing > Spin From Controller Turn; 0 = old)
+Punch, club, chop and saw a crate: wood dust only, also on the breaking blow; Debug > Tests > Two Crates Stacked sit flush; grittier darker crate wood up close (with and without QRP)
+
 [Decide or give feedback]
+Virtual Desktop reports controller angular velocity in the controller's frame (spec: tracking space). Throws are fixed; the hands' speed correction (melee) still reads it wrong (up to ~1 m/s error in fast wrist turns): fix it too? (changes melee feel)
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
