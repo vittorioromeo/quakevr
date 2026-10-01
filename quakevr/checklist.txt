@@ -115,6 +115,8 @@ Thumb lies along the outside of bricks and rocks in the palm grip (Hands > thumb
 
 Crates: dogs and grunts running into them only push them (no breaks, no damage); shoot and punch a crate after throwing or clubbing with it; crouch behind a crate and hold one up against a grunt (bullets hit the crate first); the new wood look up close; small pieces in the palm grip
 
+Push the free hand into a held shotgun and laser cannon (side, top, along the barrel): stops at the surface, held back ~4 cm, then goes in
+
 [Decide or give feedback]
 Crouching makes you a smaller target for all bullets and missiles (Player Hitbox > hit box only up to your head, on by default): keep?
 Explosive boxes as shields too (vr_crate_shield 2: they blow up in your hands)? Off by default
