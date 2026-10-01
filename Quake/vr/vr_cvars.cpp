@@ -139,8 +139,12 @@ const DefaultChange defaultChanges[] = {
     {65, &vr_pain_knock_strength, "0.3"},   // 0.75
     {65, &vr_pain_knock_max, "5"},          // 7.5
     {65, &vr_pain_knock_time, "0.35"},      // 0.6
+    // 66: the author's crates (NOTES.md e1m2_2026-10-01_02-58-14, "make those the defaults").
+    {66, &vr_crates_max, "16"},             // 24
+    {66, &vr_crate_crowbar, "0.05"},        // 0.1
+    {66, &vr_crate_crowbar_max, "64"},      // 4
 };
-constexpr int configVersion = 65;
+constexpr int configVersion = 66;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

@@ -17759,3 +17759,64 @@ From his notes vrfiringrange_2026-09-30_23-51-18 and 2026-10-01_00-22-37 to 00-2
 - [ ] Hold a box or a brick, push the other hand into it: it stops at the surface and is held back; push much further:
       it goes in; pull out and push again.
 - [ ] Hold bricks and rocks: the thumb on the outside, not squashed under them.
+
+## Crates: monsters, damage, held crates, texture (2026-10-01)
+
+NOTES.md e1m1_2026-10-01_02-45 to 02-50, e1m2_2026-10-01_02-52 to 02-58. Branch `agent/crates2`; the kit's
+`scratch/crates2/` has the tests (`run_walk.sh`, `run_dmg.sh`, `run_shield*.sh`, `shots.sh`).
+
+**A monster walking into a crate broke it and was hurt** ("a dog just immediately ran into the crate, and it died, and the
+crate exploded"). A monster is a kinematic body in Box3D following its steps, and a step is a jump of 8-30 units in one
+frame: for that frame the body moved at tens of metres a second, kicked the crate at that, and the crate's hit (14.1 m/s
+against a grunt; the threshold is 70% of 14) broke it and flung it into the monster (`VR_Prop_Flung`, 35 damage). Now
+(`vr_box3d.cpp`): a monster's body shoves props at most at **Monsters Shove Them At** (`vr_box3d_monster_push_speed`, 3
+m/s; Physics > Props' player rows), as a player's does (`vr_box3d_player_push_speed`): it jumps the rest of its step and
+the props are eased out of it; and a prop's hit against a monster counts only its own share of the approach (the
+monster's speed towards it taken off). Tests (firing range, a crate 70 units ahead, the monster running at you): grunt,
+dog, ogre, fiend, shambler, enforcer into small and large crates: before, a large crate broken by a grunt (and the grunt
+hurt 35), a dog hurt 24-35 and a small crate broken; after, no hit, no damage, the crates pushed (a shambler shoves one
+along). The explosive boxes share the path.
+
+**A crate that ignored shots and blows** (after it had been thrown, "used as a two-handed club"). Taken, a prop is its
+carrier's (`.owner`); thrown hard it stays his while the throw lasts, so it doesn't hit him. Nothing gave a solid prop
+back when its throw ended (`VR_SolidProp_Impact` ended the throw only), and Quake's traces pass through what the tracer
+owns: his pellets, punches and blows went through it, while a thing he threw (its own owner) broke it. Now a solid prop
+is nobody's when let go (`VR_Carry_Loose`; a throw makes it his again) and when its throw ends. `vr_crates_list` prints a
+crate's takedamage, solid and owner when any would keep hits off it. Tests (`run_dmg.sh`, small crate, prep none / thrown
+/ carried two-handed, swung into the dummy and thrown): shotgun (24, then broken), nailgun (9, 9, broken), axe, fist (19-20),
+a punch holding a health box, a thrown health box, a rocket: each breaks it, in all three. Before (QC stashed): after the
+two-handed throw, "owner 1", three shotgun blasts or three punches and health 25.
+
+**The pieces' grips**: the broken board, the splinter and the broken batten are held in the palm (Grip Mode 2, as a rock);
+the whole board as taken. `vr_props_version` 51 gives configs that still have 0 the new grip (50 is props2's).
+
+**Enemy bullets and crates.** Held, a crate is not solid (a held body in Box3D), so bullets went through it. Now a
+monster's bullet meets a crate a player holds by its shape as the hand holds it (`heldshape`, `box3d::heldRay`;
+`VR_Crate_MonsterShot`) before what it hit: **Held Crate Shields You** (`vr_crate_shield`: 1 crates, 2 explosive boxes too,
+which then blow up; Crates > Hiding). Behind a crate: the player's hit box (24 wide, `vr_hull_hit_width`) stood 56 units
+tall whatever his head did, so crouched behind a crate the bullets over it and over his head still hit him. Now a bullet's
+or missile's box reaches only to the top of his head (the headset's, 5 units over its middle) (**Height Shots Hit: Your
+Head's**, `vr_hull_hit_head` 1, Movement > Player Hitbox; `hull::hitBox`), and a monster's bullets aim no higher than 70% of
+his real height (`VR_Crate_ShotAim`; otherwise crouched in the open every shot flew over him). The monsters' own look
+whether they can hit him (CheckAttack's trace to his box's eyes) still meets the full box: they still fire. Tests (e1m1, a
+grunt 230 units off, `vr_debug_shots`): crouched (head 1.0 m) in the open, 12 of 12 shots hit, as before; behind a small
+crate, before 8 on you and 1 on the crate, after the first 5 on the crate (broken) and only then on you; holding a small
+crate two-handed in front, before 9 of 9 on you, after 5 on the crate (broken by the fifth), then on you. Standing: unchanged.
+
+**The crates' texture.** The skins were flat Quake-palette yellows. Now `make_crates.py` paints them in full colour at four
+times the size (1024 x 1024 a crate's, 512 a piece's; external skins `vr_crate1.mdl_0.png` ...): wood's figure (growth
+rings cut at a slant, fibres, pores), each board its own shade, worn edges, scratches, checks along the grain, dirt, water
+stains, floor grime up the sides, dust on top, nails with rust run down from them; pine, brown and weathered (grey,
+checked). The 8-bit skins are the same, quantized (for a renderer without external skins). The normal maps (1024 a
+crate's) come from the generator's own relief (normaltiles.py "crate"): the planks sunk under the battens and brace and
+cupped, their edges rounded into the gaps, the rings standing, checks, scratches, dents, the nails' heads. No texture
+pack's wood: QRP's (what his explosive boxes show) is not ours to ship. Image: `scratch/crates2/crates_before_after.png`.
+
+**His values** (NOTES.md e1m2_2026-10-01_02-58-14): Most in a Map 24 (16), Crowbar on Crates 0.1 (0.05), Most Crowbars 4
+(64); config migration 66.
+
+- [ ] A dog or a grunt running into a crate: pushed, neither hurt.
+- [ ] Throw a crate, club with one two-handed and drop it: shoot it, punch it, chop it: it breaks.
+- [ ] Hold a crate up in front of you against a grunt; crouch behind one: the crate takes the shots. Crouched in the open,
+      still shot.
+- [ ] The crates' look in e1m1, e1m2 (QRP), up close; the pieces in the palm.

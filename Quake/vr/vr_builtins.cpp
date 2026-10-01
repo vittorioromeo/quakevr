@@ -872,6 +872,17 @@ void PF_sightblocked()
     G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num));
 }
 
+// float heldshape(entity prop, vector start, vector end): where the line from `start` to `end` first meets the shape of
+// `prop` held in a hand (its held body, as the hand holds it), as a fraction of it; 1 if it doesn't or `prop` isn't held
+// (box3d::heldRay). A crate held up stops monsters' shots (weapons.qc VR_Crate_ShieldShot).
+void PF_heldshape()
+{
+    const float* a = G_VECTOR(OFS_PARM1);
+    const float* b = G_VECTOR(OFS_PARM2);
+    G_FLOAT(OFS_RETURN) = box3d::heldRay(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{a[0], a[1], a[2]},
+        glm::vec3{b[0], b[1], b[2]});
+}
+
 // Precise hit detection (vr_hitmodel.cpp). hitmodel_target(e): whether e's model is what is hit (the option on, a
 // monster or corpse with a Quake model).
 void PF_hitmodel_target()
@@ -990,6 +1001,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"cratecrowbarput", PF_cratecrowbarput},
     {"crateplace", PF_crateplace},
     {"sightblocked", PF_sightblocked},
+    {"heldshape", PF_heldshape},
     {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
     {"physicsshot", PF_physicsshot},

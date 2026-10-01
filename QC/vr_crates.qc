@@ -150,6 +150,13 @@ void(float xSpeed) VR_SolidProp_Impact =
             self.owner = world; // (as above)
         }
     }
+    // The throw over, it is nobody's: a trace from its owner passes through what he owns, so a crate thrown and
+    // never given back ignored his shots and blows, though a thing he threw broke it (NOTES.md e1m1_2026-10-01_02-48-29,
+    // e1m2_2026-10-01_02-52-58).
+    if(self.throwhit != QVR_THROWHIT_NEVER_HIT && self.carry_player == world && self.owner.classname == "player")
+    {
+        self.owner = world;
+    }
 };
 
 // A crate's hardest hit of a frame (Box3D's): what it met thrown or flung (VR_SolidProp_Impact), and itself: from 70% of
@@ -180,6 +187,89 @@ void(entity attacker, float damage) VR_Crate_Pain =
     float k = floor(random() * 4);
     string s = k < 1 ? "vr/phys/wood_m1.wav" : (k < 2 ? "vr/phys/wood_m2.wav" : (k < 3 ? "vr/phys/wood_m3.wav" : "vr/phys/wood_m4.wav"));
     sound(self, CHAN_AUTO, s, min(1, 0.4 + damage * 0.04), ATTN_NORM);
+};
+
+// ----------------------------------------------------------------------------
+// Monsters' shots (FireBulletsImpl)
+
+float VR_SHOT_OVER_HEAD = 5; // units: the top of a player's head over the headset's middle (vr_hull.cpp hitBox's)
+
+// A crate `xHeld` held by a player in the way of a monster's bullet from `xA` to `xB` before what it hit (trace_*): the
+// crate is hit there, met by its shape as the hand holds it (vr_crate_shield; 2: an explosive box too).
+void(entity xHeld, vector xA, vector xB, float xShield) VR_Crate_ShieldShot =
+{
+    if(xHeld == world || xHeld.carry_player == world || !xHeld.takedamage || !xHeld.vr_blocksight ||
+       !(VR_Crate_Is(xHeld) || xShield >= 2))
+    {
+        return;
+    }
+    float t = heldshape(xHeld, xA, xB);
+    if(t >= trace_fraction)
+    {
+        return;
+    }
+    if(cvar_hget(cvarh_vr_debug_shots))
+    {
+        dprint(sprintf("shot: %s held by %s takes it (%.0f units before %s)\n", xHeld.classname,
+            xHeld.carry_player.netname, vlen(xB - xA) * (trace_fraction - t), trace_ent.classname));
+    }
+    trace_ent = xHeld;
+    trace_fraction = t;
+    trace_endpos = xA + (xB - xA) * t;
+    trace_plane_normal = normalize(xA - xB);
+    trace_allsolid = FALSE;
+    trace_startsolid = FALSE;
+    trace_inopen = TRUE;
+    trace_inwater = FALSE;
+};
+
+// After the traceline of a monster's bullet from `xA` to `xB` (trace_* its result; NOTES.md e1m1_2026-10-01_02-50-03,
+// "if I'm holding a crate in front of my body ... enemy bullets should hit the crate before me"): a crate a player holds
+// up in its way is hit first (vr_crate_shield): held, it is not solid, and they went through it. (Crouched behind a
+// crate, those flying over his head miss him: his hit box reaches to his head, vr_hull_hit_head, vr_hull.cpp hitBox.)
+void(vector xA, vector xB) VR_Crate_MonsterShot =
+{
+    float shield = cvar_hget(cvarh_vr_crate_shield);
+    if(shield <= 0)
+    {
+        return;
+    }
+    for(entity p = find(world, classname, "player"); p != world; p = find(p, classname, "player"))
+    {
+        VR_Crate_ShieldShot(p.mainhand_held, xA, xB, shield);
+        if(p.offhand_held != p.mainhand_held)
+        {
+            VR_Crate_ShieldShot(p.offhand_held, xA, xB, shield);
+        }
+    }
+};
+
+// A monster's bullets at a player in VR (EnemyFireBullets, vr_hull_hit_head): aimed no higher than 70% of his real
+// height (his head's), as Quake's aim at his box's middle is for a player standing: crouched, the shots come lower
+// (into the crate he crouches behind), not all over his head.
+vector(vector xSrc, vector xDir, entity xEnemy) VR_Crate_ShotAim =
+{
+    if(!cvar_hget(cvarh_vr_hull_hit_head) || xEnemy.classname != "player" || xEnemy.headpos == '0 0 0')
+    {
+        return xDir;
+    }
+    vector flat = xDir;
+    flat_z = 0;
+    float along = vlen(flat);
+    vector to = xEnemy.origin - xSrc;
+    to_z = 0;
+    float far = vlen(to);
+    if(along < 0.01 || far < 1)
+    {
+        return xDir;
+    }
+    float most = xEnemy.absmin_z + 0.7 * (xEnemy.headpos_z + VR_SHOT_OVER_HEAD - xEnemy.absmin_z);
+    float passes = xSrc_z + xDir_z * far / along; // the height it passes him at
+    if(passes <= most)
+    {
+        return xDir;
+    }
+    return normalize(flat * (far / along) + '0 0 1' * (most - xSrc_z));
 };
 
 // ----------------------------------------------------------------------------

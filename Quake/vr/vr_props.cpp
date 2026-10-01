@@ -48,8 +48,8 @@ constexpr const char* keyDefaults[numKeys] = {
 // says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
 // and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's; 45: the author's bricks and torch
 // (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0; 49: the crates' slots; 50:
-// the rocks and bricks at Size 1.25.
-constexpr int settingsVersion = 50;
+// the rocks and bricks at Size 1.25; 51: the crates' small pieces in the palm.
+constexpr int settingsVersion = 51;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -300,6 +300,21 @@ void migrate()
             {
                 Cvar_SetQuick(&var, var.default_string);
                 Con_DPrintf("Held Object Offsets: %s: Size %s (was 1)\n", cvarAt(slot, Key::ID).string, var.string);
+            }
+        }
+    }
+    // 51: a crate's small pieces (the broken board, the splinter, the broken batten: slots 29-31, vr_prop_*_30 to _32)
+    // are held in the palm (Grip Mode 2, as a rock); the whole board keeps where it was taken (NOTES.md
+    // e1m1_2026-10-01_02-49-27). A config that still has the old default (0) and the slot's own model takes it.
+    if(from < 51)
+    {
+        for(const int slot : {29, 30, 31})
+        {
+            cvar_t& var = cvarAt(slot, Key::GripMode);
+            if(!strcmp(cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string) && atof(var.string) == 0.0)
+            {
+                Cvar_SetQuick(&var, var.default_string);
+                Con_DPrintf("Held Object Offsets: %s: %s %s (was 0)\n", cvarAt(slot, Key::ID).string, var.name, var.string);
             }
         }
     }

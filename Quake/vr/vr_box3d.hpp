@@ -30,6 +30,11 @@ int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity
 // `ignoreB` (who looks and at whom). The blocker's edict number, 0 if none.
 [[nodiscard]] int sightRay(const glm::vec3& start, const glm::vec3& end, int ignoreA, int ignoreB);
 
+// Where the line from `start` to `end` first meets the shape of edict `num` held in a hand (a held body, following the
+// hand), as a fraction of it; 1 if it doesn't, or `num` isn't held. (A crate held up stops monsters' shots: QC
+// heldshape, FireBulletsImpl.)
+[[nodiscard]] float heldRay(int num, const glm::vec3& start, const glm::vec3& end);
+
 // Whether edict `num` is one of Box3D's props (its shape is what sightRay meets).
 [[nodiscard]] bool isBox3DProp(int num);
 

@@ -11,6 +11,8 @@
 # the dark seams painted into them as grooves, their painted rivets and stitches as bumps, the wood's grain.
 
 import math
+import os
+import sys
 
 import numpy as np
 
@@ -127,6 +129,18 @@ def stone_heights(low, skin, depth, scale):
                          ).reshape(low.H * scale, low.W * scale)
 
 
+def crate_heights(low, hs):
+    """make_crates.py's relief of a crate or one of its pieces (it paints them: the planks sunk under the battens, the
+    gaps, the grain, the nails...), in skin texels, at `hs` times the skin's size."""
+    misc = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
+    if misc not in sys.path:
+        sys.path.insert(0, misc)
+    import make_crates
+    h, density, k = make_crates.relief(low.name)
+    uv = np.stack(np.meshgrid((np.arange(low.W * hs) + 0.5) / hs, (np.arange(low.H * hs) + 0.5) / hs), -1).reshape(-1, 2)
+    return nb.sampler(h * density, k)(uv).reshape(low.H * hs, low.W * hs)
+
+
 # What each model gets. "tiles": a generator's tiles; "paint": its painted skin's seams, rivets and grain (not for
 # the dithered skins of mdlgen.py's models, whose speckle is no shape); "bevel": the creases' width in skin texels.
 MODELS = {
@@ -145,12 +159,12 @@ for _k in range(1, 6):
     MODELS["vr_rock%d.mdl" % _k] = {"stone": 1.2, "bevel": 1.0, "scale": 4}
 for _k in range(1, 5):
     MODELS["vr_brick%d.mdl" % _k] = {"stone": 0.9, "bevel": 1.4, "scale": 4}
-# The wooden crates and their pieces (make_crates.py): the frame, the planks' gaps, the nails and the grain from the
-# skin's shading, as the stones'.
+# The wooden crates and their pieces (make_crates.py): their relief is the generator's ("crate": the planks sunk under the
+# frame, the gaps, the grain, checks, dents, the nails), at their full-colour skins' size (four times the 8-bit skin's).
 for _k in range(1, 3):
-    MODELS["vr_crate%d.mdl" % _k] = {"stone": 1.0, "bevel": 1.2, "scale": 2}
+    MODELS["vr_crate%d.mdl" % _k] = {"crate": True, "bevel": 1.2, "scale": 4}
 for _k in range(1, 5):
-    MODELS["vr_plank%d.mdl" % _k] = {"stone": 0.8, "bevel": 1.0, "scale": 4}
+    MODELS["vr_plank%d.mdl" % _k] = {"crate": True, "bevel": 1.0, "scale": 4}
 VIEW_MODEL = {"paint": True, "grain": 0.55, "bevel": 1.8, "scale": 2}
 # The axe's head is painted with streaks of dried blood in the wood's own browns: only its handle is wood.
 MODELS["v_axe.mdl"] = dict(VIEW_MODEL, wood_rects=[(440, 0, 512, 130)])
@@ -246,6 +260,8 @@ def bake(low, skin, rec=None, supersample=2, base=None, details=True):
             h += paint_heights(low, skin, rec.get("grain", 0.5), hs, rec.get("wood_rects"))
         if rec.get("stone"):
             h += stone_heights(low, skin, rec["stone"], hs)
+        if rec.get("crate"):
+            h += crate_heights(low, hs)
         detail = nb.tangent_uv(r, nb.sampler(h, hs), d=0.5 / hs)
         # the same heights for parallax mapping: texels up, in model units on each face
         heights = nb.sampler(h, hs)(r.uv) * nb.texel_size(r)

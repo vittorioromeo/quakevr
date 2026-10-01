@@ -916,7 +916,7 @@ static trace_t SV_ClipMoveToBoxEntityQVR (edict_t *touch, vec3_t mins, vec3_t ma
 		M = clip->entmaxs;
 	}
 	narrowtouch = clip->bodymove ? VR_HullTouchBox (touch, clip->passedict, tmins, tmaxs)
-		: VR_HullHitBox (touch, tmins, tmaxs); // a shot or missile: the player's hit box (vr_hull_hit_width)
+		: VR_HullHitBox (touch, tmins, tmaxs, clip->hitmodel >= 0 || clip->hitgibs || clip->type == MOVE_MISSILE); // a shot or missile: the player's hit box (vr_hull_hit_width, vr_hull_hit_head)
 	if (m == mins && !narrowtouch)
 		return SV_ClipMoveToEntity (touch, clip->start, mins, maxs, clip->end);
 

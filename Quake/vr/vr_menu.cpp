@@ -2024,6 +2024,10 @@ void hologramTestMessage()
         toggle("Crates Hide You", vr_crate_sight)
             .help("Monsters can't see you through crates and explosive boxes lying about (crouch behind a small one). "
                   "Carrying one, they see you through it."),
+        cycle("Held Crate Shields You", vr_crate_shield,
+            {{0.f, "Off"}, {1.f, "Crates"}, {2.f, "Crates and Explosive Boxes"}})
+            .help("A crate you hold up takes monsters' bullets meant for you (enough of them break it). Crates and "
+                  "Explosive Boxes: an explosive box too, which then blows up in your hands (vr_crate_shield)."),
     };
 }
 
@@ -2917,6 +2921,10 @@ za::Vector<Item> pageHitbox()
             .help("How wide you are to monsters' shots and missiles (bullets, nails, lasers, grenades, rockets, spit, "
                   "vore balls). Quake's box is 32; 24 still leaves them a bit of leniency. Melee blows and splash "
                   "damage go by distance, not by this box; monsters see and chase you as before."),
+        toggle("Height Shots Hit: Your Head's", vr_hull_hit_head)
+            .help("Shots and missiles meet you only up to the top of your head: crouched behind a crate, those flying "
+                  "over it miss you (Quake's box stands as tall), and monsters' bullets aim no higher than your body. "
+                  "Off: Quake's height, crouched or not (vr_hull_hit_head)."),
         slider("Prop Push Radius", vr_box3d_player_radius, 5.f, 40.f, 1.f, "%.0f cm")
             .help("Loose props (rocks, bricks, weapons on the floor) are pushed by a capsule this wide round your body, "
                   "not by your box (vr_box3d_player_radius)."),
@@ -2934,6 +2942,9 @@ za::Vector<Item> pageHitbox()
             .help("How hard you shove a solid prop you walk into, as a share of your weight: a light box goes nearly at "
                   "your pace (at most 2.5 m/s: vr_box3d_player_push_speed), a heavy one slowly, one too heavy not at all. 0: "
                   "they stop you like walls (vr_box3d_player_shove)."),
+        slider("Monsters Shove Them At", vr_box3d_monster_push_speed, 0.f, 10.f, 0.5f, "%.1f m/s")
+            .help("The fastest a monster walking or running into a solid prop pushes it: its steps are jumps, and a crate "
+                  "kicked at their speed broke and hurt the monster. 0: no limit (vr_box3d_monster_push_speed)."),
         toggle("Never Trapped by Them", vr_box3d_player_unstick)
             .help("A solid prop that ends up in your body (toppled onto you, pushed into you) never holds you: you walk out "
                   "of it, and it is pushed out of you (vr_box3d_player_unstick)."),
