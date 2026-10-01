@@ -42,6 +42,10 @@ Grip a dropped crowbar by its bar, a sword by its blade, the chainsaw by its fro
 
 Chainsaw: your smoke and shake values are the defaults; each ripcord pull (with fuel) shakes, puffs smoke and throws a few sparks (weak pull: half); empty tank: sound only (Chainsaw Engine > Pulling the Cord)
 
+Mantle grunt now not the jump's: the hard landing's "oof" (Climbing > Mantle Grunt Sound; Hear Mantle Grunt to compare the 5, two are Quake's played deeper)
+Physics stress: Debug > Tests > Physics Stress (first section): Pile of Rocks / Pile of Bricks / Wall of Crates / Mixed Pile (Pile Size, Crates in the Wall), Clear the Piles; Physics Step Time before and after, threads on and off
+Axe sticking: your Stick Speed 2.5 m/s is the default now
+
 [Decide or give feedback]
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
