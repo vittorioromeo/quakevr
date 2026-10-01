@@ -1128,6 +1128,12 @@ over 1 ms with Box3D's profile; 2: every awake body every frame; 3: frames over 
 slow frames). `vr_physics_blast <x> <y> <z> [<damage>]` sets off an explosion there (QC's `T_RadiusDamage` from the
 world, 120 by default, and its effect): monsters take it, props are thrown (Box3D). `vr_forcegrabbable_return 0` keeps
 moved items from going back to their places during a long test.
+Box3D on the pool (ROUND21.md, "Box3D on the pool"): `vr_physics_mtbench [<bodies> [<steps>]]` steps a world of its own
+(boxes in toppling columns) with 1, 2, 3, 4, 6, 8, 16 and all the pool's workers from the same start: each count's step
+time and a hash of every body after (must say `the same with every worker count`); `vr_physics_steptime` prints the
+game world's step time a frame since its last call (average, worst, awake bodies, workers). In game:
+`bash Misc/quakevr/box3dmt/physbench.sh <agent> <count> "<cvars>" [--exclusive]` (vrfiringrange, `count` props toppling
+then tossed; `vr_box3d_threads 0` the main thread alone, `vr_box3d_threads_bodies 0` threaded whatever the count).
 Items as physics pickups (ROUND21.md): `vr_physics_spawn <classname> [<distance> [<left>]]` makes a map entity by its
 spawn function on the floor ahead of you (`vr_physics_spawn item_key1 25 -1` puts a hanging key at the off hand's
 `vr_mock_hand off -0.05 0.85 -0.9 0 0 0` in the firing range); the left hip holster is `vr_mock_hand off -0.20 0.95 0.0 0

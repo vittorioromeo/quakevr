@@ -74,6 +74,7 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -434,9 +435,35 @@ struct Pushed
     glm::vec3 velocity{0.f}, spin{0.f}; // m/s, rad/s
 };
 
+// Box3D on the pool (vr_box3d_threads; ROUND21.md, "Box3D on the pool"): a task of Box3D's step
+// (b3EnqueueTaskCallback) as a jobs::Task, run by a worker of the game's pool or by the stepping thread as it waits for
+// it (finishStepTask). The worker borrows the stepping thread's QuakeC VM (qcvm and pr_global_struct are thread-local):
+// the callbacks it may call (shouldCollide, preSolve) read the entities.
+struct StepTask
+{
+    jobs::Task task;
+    b3TaskCallback* fn{nullptr};
+    void* context{nullptr};
+    qcvm_t* vm{nullptr};
+    globalvars_t* globals{nullptr};
+};
+
+// A world's (its b3WorldDef's userTaskContext): its workers and the tasks of the step under way.
+struct StepTasks
+{
+    int workers{1}; // Box3D's (stepWorkers; 1: the step on the stepping thread alone)
+    za::Array<StepTask, B3_MAX_TASKS + 8> tasks; // a step's (Box3D enqueues at most B3_MAX_TASKS)
+    za::Atomic<int> next{0};                      // the step's next in `tasks` (0 before each step)
+};
+
 struct World
 {
     b3WorldId id{};
+    StepTasks tasks;
+    // vr_physics_steptime: the steps' time since it last printed.
+    double stepTime{0.0}, stepTimeMax{0.0}; // s, a frame's
+    int stepFrames{0};
+    za::U64 stepAwake{0}; // the awake bodies, summed over the frames
     const qmodel_t* map{nullptr};
     float m2u{1.f};      // units a metre
     float gravity{0.f};  // sv_gravity at the last update
@@ -490,7 +517,19 @@ struct World
         bool skips{true};       // false: only watched (vr_debug_box3d with the grace off: its numbers, for comparing)
         glm::vec3 velocity{0.f}; // m/s, rad/s: as it left the hand
         glm::vec3 spin{0.f};
-        int skipped{0};         // the hands' contacts it passed through (steps)
+        // The hands' contacts it passed through (steps): counted by preSolve, on Box3D's workers (relaxed; copied with
+        // the grace).
+        struct Count
+        {
+            za::Atomic<int> n{0};
+            Count() = default;
+            Count(const Count& o) noexcept : n{o.n.loadRelaxed()} {}
+            Count& operator=(const Count& o) noexcept
+            {
+                n.storeRelaxed(o.n.loadRelaxed());
+                return *this;
+            }
+        } skipped;
     };
     za::Vector<Grace> graces;
     za::Vector<int> made; // the props whose bodies were made this frame (createBody): what may have been thrown
@@ -526,6 +565,64 @@ struct World
 };
 
 za::UniquePtr<World> world{nullptr};
+
+void runStepTask(void* p)
+{
+    StepTask& t = *static_cast<StepTask*>(p);
+    qcvm_t* const vm = qcvm;
+    globalvars_t* const globals = pr_global_struct;
+    qcvm = t.vm;
+    pr_global_struct = t.globals;
+    t.fn(t.context);
+    qcvm = vm;
+    pr_global_struct = globals;
+}
+
+// Box3D's b3EnqueueTaskCallback (`user`: the world's StepTasks): on the pool; with one worker, no pool or past the bound, here and now
+// (nullptr: nothing to finish).
+void* enqueueStepTask(b3TaskCallback* fn, void* context, void* user, const char*)
+{
+    StepTasks& w = *static_cast<StepTasks*>(user);
+    jobs::Pool* const pool = jobs::pool();
+    const int n = static_cast<int>(w.tasks.size());
+    const int i = w.workers > 1 && pool ? w.next.fetchAddRelaxed(1) : n;
+    if(i >= n)
+    {
+        fn(context);
+        return nullptr;
+    }
+    StepTask& t = w.tasks[static_cast<za::SizeT>(i)];
+    t.fn = fn;
+    t.context = context;
+    t.vm = qcvm;
+    t.globals = pr_global_struct;
+    t.task.post(*pool, runStepTask, &t);
+    return &t;
+}
+
+// Box3D's b3FinishTaskCallback: returns once the task ran (on this thread if no worker has started it).
+void finishStepTask(void* task, void*)
+{
+    static_cast<StepTask*>(task)->task.wait();
+}
+
+// Box3D's workers: the game's pool's and this thread, at most vr_box3d_workers (0: no cap but Box3D's 32); 1 (the step on
+// this thread alone) with vr_box3d_threads 0, without a pool, with vr_jobs_parallel 0 (the single-threaded reference),
+// while vr_debug_box3d 2 prints from the callbacks (only the main thread prints), or while fewer than
+// vr_box3d_threads_bodies bodies are awake (`awake`; with `current` workers above one, back to one under three quarters of
+// it, so it doesn't flip each frame): a smaller step costs more handed out than on one thread (ROUND21.md, "Box3D on the
+// pool").
+[[nodiscard]] int stepWorkers(int awake, int current)
+{
+    const float least = za::max(vr_box3d_threads_bodies.value, 0.f) * (current > 1 ? 0.75f : 1.f);
+    if(!vr_box3d_threads.value || !jobs::pool() || !jobs::parallel() || vr_debug_box3d.value >= 2.f ||
+       static_cast<float>(awake) < least)
+    {
+        return 1;
+    }
+    const int cap = vr_box3d_workers.value >= 1.f ? static_cast<int>(vr_box3d_workers.value) : B3_MAX_WORKERS;
+    return za::clamp(za::min(cap, jobs::workers() + 1), 1, B3_MAX_WORKERS);
+}
 
 [[nodiscard]] b3Quat toB3(const glm::quat& q)
 {
@@ -1698,7 +1795,7 @@ void follow(edict_t* ent, Slot& s, float dt)
     {
         if(g.num == num && g.player == player && g.skips && qcvm->time < g.until)
         {
-            g.skipped++;
+            g.skipped.n.fetchAddRelaxed(1);
             return true;
         }
     }
@@ -1730,7 +1827,7 @@ void noteThrows()
             Con_Printf("box3d: throw %s for %d %s after %.2f s: velocity %.2f m/s, changed by %.2f (gravity out); spin "
                        "%.2f rad/s, changed by %.2f; %d hand contacts passed through\n",
                 g.skips ? "grace over" : "watched", g.num, PR_GetString(EDICT_NUM(g.num)->v.classname), t,
-                glm::length(v), glm::length(v - fall - g.velocity), glm::length(w), glm::length(w - g.spin), g.skipped);
+                glm::length(v), glm::length(v - fall - g.velocity), glm::length(w), glm::length(w - g.spin), g.skipped.n.loadRelaxed());
         }
         return true;
     });
@@ -3641,6 +3738,12 @@ void limitPushes(float dt)
 
 void updateSettings()
 {
+    if(const int workers = stepWorkers(b3World_GetAwakeBodyCount(world->id), world->tasks.workers);
+       workers != world->tasks.workers)
+    {
+        b3World_SetWorkerCount(world->id, workers);
+        world->tasks.workers = workers;
+    }
     const float g = sv_gravity.value;
     if(g != world->gravity)
     {
@@ -3732,12 +3835,12 @@ void buildWorld()
     def.gravity = b3Vec3{0.f, 0.f, -world->gravity / world->m2u};
     def.enableSleep = true;
     def.enableContinuous = true;
-    // One worker and no task callbacks: Box3D's serial path runs every task inline on this thread (no scheduler,
-    // no threads).
-    def.workerCount = 1;
-    def.enqueueTask = nullptr;
-    def.finishTask = nullptr;
-    def.userTaskContext = nullptr;
+    // Its tasks on the game's pool (enqueueStepTask), with stepWorkers' workers (1: all of them on this thread).
+    world->tasks.workers = stepWorkers(0, 1);
+    def.workerCount = static_cast<uint32_t>(world->tasks.workers);
+    def.enqueueTask = enqueueStepTask;
+    def.finishTask = finishStepTask;
+    def.userTaskContext = &world->tasks;
     // Room for the map's entities as bodies and a pile's contacts from the start: no growing (a reallocation and copy
     // of Box3D's arrays) in the frame a pile collapses.
     def.capacity.staticBodyCount = 1;
@@ -3998,6 +4101,121 @@ void hash_f()
         count++;
     }
     Con_Printf("vr_physics_hash: %d bodies, %016llx\n", count, static_cast<unsigned long long>(h));
+}
+
+// vr_physics_steptime: Box3D's step time a frame since it last printed (the average and the worst, ms), the awake bodies
+// on average, and its workers (vr_box3d_threads); then starts counting again. A bench: run it, play, run it again.
+void steptime_f()
+{
+    if(!world)
+    {
+        Con_Printf("vr_physics_steptime: no physics world\n");
+        return;
+    }
+    const int n = za::max(world->stepFrames, 1);
+    Con_Printf("vr_physics_steptime: %d frames, step %.3f ms (worst %.3f), %.1f bodies awake, %d bodies, %d workers\n",
+        world->stepFrames, world->stepTime * 1000.0 / n, world->stepTimeMax * 1000.0,
+        static_cast<double>(world->stepAwake) / n, b3World_GetCounters(world->id).bodyCount, world->tasks.workers);
+    world->stepTime = 0.0;
+    world->stepTimeMax = 0.0;
+    world->stepFrames = 0;
+    world->stepAwake = 0;
+}
+
+// vr_physics_mtbench [<bodies> [<steps>]]: Box3D on the pool, alone (ROUND21.md, "Box3D on the pool"). A world of its
+// own: a floor, `bodies` boxes (60 cm and 90 cm cubes: a small explosive box, a crate; 200) in leaning columns of 10 that
+// topple into a pile, stepped `steps` times (300) at 1/72 s with vr_box3d_substeps, from the same start with each worker
+// count (1, 2, 3, 4, 6, 8, 16 and all the pool's, as far as the pool goes): each count's step time, its awake bodies and
+// a hash of every body's place, turn and velocities after, which must be the same for every count.
+void mtbench_f()
+{
+    const int bodies = Cmd_Argc() > 1 ? CLAMP(1, Q_atoi(Cmd_Argv(1)), 5000) : 200;
+    const int steps = Cmd_Argc() > 2 ? CLAMP(1, Q_atoi(Cmd_Argv(2)), 100000) : 300;
+    const int substeps = CLAMP(1, static_cast<int>(vr_box3d_substeps.value), 8);
+    const int most = jobs::pool() ? za::min(jobs::workers() + 1, B3_MAX_WORKERS) : 1;
+    za::Vector<int> counts;
+    for(const int n : {1, 2, 3, 4, 6, 8, 16})
+    {
+        if(n < most)
+        {
+            counts.pushBack(n);
+        }
+    }
+    counts.pushBack(most);
+    const za::UniquePtr<StepTasks> tasks = za::makeUnique<StepTasks>();
+    za::U64 first = 0;
+    bool same = true;
+    for(const int workers : counts)
+    {
+        tasks->workers = workers;
+        b3WorldDef def = b3DefaultWorldDef();
+        def.gravity = b3Vec3{0.f, 0.f, -9.81f};
+        def.enableSleep = true;
+        def.enableContinuous = true;
+        def.workerCount = static_cast<uint32_t>(workers);
+        def.enqueueTask = enqueueStepTask;
+        def.finishTask = finishStepTask;
+        def.userTaskContext = tasks.get();
+        const b3WorldId id = b3CreateWorld(&def);
+        b3BodyDef floorDef = b3DefaultBodyDef();
+        floorDef.position = b3Pos{0.f, 0.f, -0.5f};
+        const b3ShapeDef shape = b3DefaultShapeDef();
+        const b3BoxHull floorHull = b3MakeBoxHull(100.f, 100.f, 0.5f);
+        b3CreateHullShape(b3CreateBody(id, &floorDef), &shape, &floorHull.base);
+        const b3BoxHull small = b3MakeCubeHull(0.3f), crate = b3MakeCubeHull(0.45f);
+        za::Vector<b3BodyId> made;
+        const int columns = (bodies + 9) / 10, side = za::max(1, static_cast<int>(za::ceil(za::sqrt(static_cast<float>(columns)))));
+        for(int i = 0; i < bodies; i++)
+        {
+            const int column = i / 10, level = i % 10;
+            const bool big = column % 2 == 1;
+            const float half = big ? 0.45f : 0.3f;
+            b3BodyDef body = b3DefaultBodyDef();
+            body.type = b3_dynamicBody;
+            // Each level 10 cm further along x than the one under it, and turned (as vr_physics_pile): they lean and fall.
+            body.position = b3Pos{static_cast<float>(column % side) * 2.5f + static_cast<float>(level) * 0.1f,
+                static_cast<float>(column / side) * 2.5f, 0.02f + static_cast<float>(level) * (2.f * half + 0.02f) + half};
+            body.rotation = b3MakeQuatFromAxisAngle(b3Vec3{0.f, 0.f, 1.f}, static_cast<float>((i * 37) % 90) * (3.14159265f / 180.f));
+            const b3BodyId b = b3CreateBody(id, &body);
+            b3CreateHullShape(b, &shape, big ? &crate.base : &small.base);
+            made.pushBack(b);
+        }
+        double time = 0.0;
+        za::U64 awake = 0;
+        for(int i = 0; i < steps; i++)
+        {
+            tasks->next.storeRelaxed(0);
+            const double t0 = Sys_DoubleTime();
+            b3World_Step(id, 1.f / 72.f, substeps);
+            time += Sys_DoubleTime() - t0;
+            awake += static_cast<za::U64>(b3World_GetAwakeBodyCount(id));
+        }
+        za::U64 h = 1469598103934665603ull;
+        const auto mix = [&h](const void* p, size_t n)
+        {
+            for(size_t k = 0; k < n; k++)
+            {
+                h = (h ^ static_cast<const unsigned char*>(p)[k]) * 1099511628211ull;
+            }
+        };
+        for(const b3BodyId b : made)
+        {
+            const b3WorldTransform x = b3Body_GetTransform(b);
+            const b3Vec3 v[2] = {b3Body_GetLinearVelocity(b), b3Body_GetAngularVelocity(b)};
+            mix(&x, sizeof(x));
+            mix(v, sizeof(v));
+        }
+        b3DestroyWorld(id);
+        if(workers == counts[0])
+        {
+            first = h;
+        }
+        same = same && h == first;
+        Con_Printf("vr_physics_mtbench: %d bodies, %d steps of %d: %2d workers %.3f ms a step, %.1f awake, hash %016llx\n",
+            bodies, steps, substeps, workers, time * 1000.0 / steps, static_cast<double>(awake) / steps,
+            static_cast<unsigned long long>(h));
+    }
+    Con_Printf("vr_physics_mtbench: %s\n", same ? "the same with every worker count" : "DIFFERENT between worker counts");
 }
 
 // vr_physics_list [<classname | props>]: the rigid bodies (or those), where they are and how they move.
@@ -4363,6 +4581,8 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_loose", loose_f);
         Cmd_AddCommand("vr_physics_pile", pile_f);
         Cmd_AddCommand("vr_physics_hash", hash_f);
+        Cmd_AddCommand("vr_physics_steptime", steptime_f);
+        Cmd_AddCommand("vr_physics_mtbench", mtbench_f);
         Cmd_AddCommand("vr_physics_blast", blast_f);
         Cmd_AddCommand("vr_physics_sink", sink_f);
         Cmd_AddCommand("vr_physics_inlevel", inLevel_f);
@@ -6218,6 +6438,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         {
             notePushed(dt / static_cast<float>(pieces));
             pressStanding(dt / static_cast<float>(pieces));
+            world->tasks.next.storeRelaxed(0);
             b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);
             limitPushes(dt / static_cast<float>(pieces));
             world->steps++;
@@ -6225,6 +6446,10 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
     }
     const double t2 = Sys_DoubleTime();
+    world->stepTime += t2 - t1;
+    world->stepTimeMax = za::max(world->stepTimeMax, t2 - t1);
+    world->stepFrames++;
+    world->stepAwake += static_cast<za::U64>(b3World_GetAwakeBodyCount(world->id));
     // Slow frames (over a millisecond; vr_debug_box3d 3: over 0.2) with Box3D's own profile and counts.
     if((vr_debug_box3d.value || developer.value) && (t2 - t0) * 1000.0 > (vr_debug_box3d.value >= 3.f ? 0.2 : 1.0))
     {

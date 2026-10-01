@@ -2365,6 +2365,18 @@ za::Vector<Item> pageDebugProfiling()
         cycle("Worker Threads", vr_jobs_threads, {{0.f, "Auto"}, {1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"}})
             .help("The thread pool's workers besides the main thread (Auto: the CPU's threads less one). Changed, the pool is "
                   "made again. -jobs <n> on the command line sets it from the start."),
+        toggle("Physics on Threads", vr_box3d_threads)
+            .help("Box3D's step (the props' physics) shared between the thread pool and the main thread. Off: the main "
+                  "thread steps it alone (the same results: Box3D is deterministic whatever its threads)."),
+        cycle("Physics Threads", vr_box3d_workers, {{0.f, "All"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {6.f, "6"}, {8.f, "8"}})
+            .help("With Physics on Threads: at most this many threads step Box3D, the main thread one of them (All: every "
+                  "worker of the pool). Box3D does best on a few performance cores."),
+        cycle("Physics Threads From", vr_box3d_threads_bodies, {{0.f, "Always"}, {100.f, "100 Bodies"}, {150.f, "150 Bodies"}, {200.f, "200 Bodies"}, {300.f, "300 Bodies"}, {500.f, "500 Bodies"}, {1000.f, "1000 Bodies"}})
+            .help("With Physics on Threads: shared out only while at least this many bodies are awake (a smaller step is "
+                  "faster on the main thread alone: handing it out costs more than it saves)."),
+        command("Physics Step Time", "vr_physics_steptime")
+            .help("vr_physics_steptime: Box3D's step time a frame since the last time (average and worst, ms), the awake "
+                  "bodies and its threads. Run it, play, run it again."),
         command("Thread Pool Info", "vr_jobs_info")
             .help("vr_jobs_info: the pool's workers and what it has run (tasks, loops, the chunks each side took)."),
         command("Thread Pool Self-Test", "vr_jobs_test")

@@ -262,6 +262,26 @@ private:
     za::UniquePtr<Impl> impl;
 };
 
+// A task made once and posted again and again without an allocation (Box3D's step tasks: vr_box3d.cpp, "Box3D on the
+// pool"): post(pool, fn, context) queues fn(context); wait() returns once it ran, running it on the waiting thread if no
+// worker has started it yet (as Future::get). Posted again only after wait(); destroyed, it waits. fn must not throw.
+class Task
+{
+public:
+    Task();
+    ~Task();
+    Task(const Task&) = delete;
+    Task& operator=(const Task&) = delete;
+
+    void post(Pool& pool, void (*fn)(void*), void* context);
+    void wait() noexcept;
+
+    struct Job;
+
+private:
+    detail::JobPtr<Job> job;
+};
+
 // The game's pool (VR_Init .. VR_Shutdown): `workers` 0 is the hardware's threads less one (at most 31).
 void init(int workers = 0);
 void shutdown();
