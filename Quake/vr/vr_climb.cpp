@@ -1421,6 +1421,30 @@ void staminaSound(edict_t* ent, const char* sample, float volume)
     }
 }
 
+// A small grunt as a mantle starts (NOTES.md vrclimb_2026-10-01_16-27-48): Quake's jump grunt, vr_climb_mantle_grunt's
+// volume, if the progs precached it (id's world.qc does).
+void mantleGrunt(edict_t* ent)
+{
+    constexpr const char* grunt = "player/plyrjmp8.wav";
+    const float volume = za::clamp(vr_climb_mantle_grunt.value, 0.f, 1.f);
+    if(volume <= 0.f)
+    {
+        return;
+    }
+    for(int i = 1; i < MAX_SOUNDS && sv.sound_precache[i]; i++)
+    {
+        if(!strcmp(sv.sound_precache[i], grunt))
+        {
+            SV_StartSound(ent, 2, grunt, static_cast<int>(za::lround(255.f * volume)), 1.f); // (CHAN_VOICE, ATTN_NORM)
+            if(debug())
+            {
+                Con_Printf("climb: mantle grunt %.2f\n", volume);
+            }
+            return;
+        }
+    }
+}
+
 // The body stands on something (the box 2 units down meets a floor, a step, a brush model's top).
 [[nodiscard]] bool feetSupported(edict_t* ent)
 {
@@ -2215,6 +2239,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         c.mantleShift = glm::vec3{0.f};
         c.grips[0].active = c.grips[1].active = false;
         c.owed = glm::vec3{0.f};
+        mantleGrunt(ent);
         if(debug())
         {
             Con_Printf("climb: mantle from (%.1f %.1f %.1f) up to %.1f, onto (%.1f %.1f %.1f)\n", c.mantleFrom.x,

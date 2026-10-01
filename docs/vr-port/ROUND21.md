@@ -18935,3 +18935,55 @@ Checked (`scratch/anygrip2`, kit; the mock, e1m1): `run_all.sh anygrip2` (the fi
 - [ ] Carried anywhere, take the handle back turned a little: the other hand stays on it.
 - [ ] Support Only: aiming and melee feel two-handed (spread, damage, parry); no aim offsets.
 - [ ] Anywhere vs the pump: the weight feels alike now? Carry a gun by its muzzle end: heavier than by its handle.
+## Defaults: gibs, pain knock, grenade grips; mantle grunt; prop pile; one empty-hand collision (2026-10-01)
+
+**The author's values as defaults** (his `ironwail.cfg` against the compiled-in and shipped defaults; config version 71,
+props version 54: a config still holding the old default takes the new one, a changed one is kept):
+
+| Setting | Was | Now | Note |
+|---|---|---|---|
+| `vr_gib_speed_melee` (Gib Speed: Melee) | 0.45 | 0.15 | vrfiringrange 16-40-58 |
+| `vr_gib_speed_light` (Gib Speed: Light Weapons) | 0.65 | 0.25 | (Explosives stays 1) |
+| `vr_pain_knock_strength` (Knock per Damage) | 0.75 | 1 | vrfiringrange 16-45-39 (Knock Time stays 0.6) |
+| `vr_pain_knock_max` (Largest Knock) | 7.5 | 15 | |
+| `vr_pain_knock_tip` (Knock Tip) | 2 | 3 | |
+| `vr_prop_grip_roll_04` (grenade: Grip Roll) | 0 | 10 | vrfiringrange 16-53-53, the thumb round it |
+| `vr_prop_grip_z_04` (grenade: Grip Z) | 0 | 1 | |
+| `vr_prop_overlap_04` (grenade: Overlap) | -1 (global) | 0.75 | |
+| `vr_prop_grip_yaw_05` (multi-grenade: Grip Yaw) | 0 | 10 | vrfiringrange 17-17-58 |
+| `vr_prop_overlap_05` (multi-grenade: Overlap) | -1 (global) | 0.6 | |
+
+Already his: Spin in the Air (16-34-01) is 1x for every weapon and prop by default (`vr_wofs_w_spinalign_NN`,
+`vr_prop_spin_align_NN`; Spin Alignment 8), as his config has it; the thumb settings (`vr_hand_fit_thumb_outside` 1,
+`_wide` 1, the grenade's `vr_wofs_fgr_*thumb*_21`) are the defaults already. Not taken: his bricks' Handle Tilt 0 (slots
+23, 24), which only an Along the Handle grip reads (the bricks are In the Palm).
+
+**Mantle grunt** (vrclimb 16-27-48): as a mantle starts pulling the body up, Quake's jump grunt (`player/plyrjmp8.wav`,
+CHAN_VOICE) at `vr_climb_mantle_grunt` (0.6; 0 off; Movement > Climbing: Mantle Grunt), if the progs precached it.
+Mock (vrclimb's long ledge, both hands, pull): `climb: mantle grunt 0.60` then the mantle; at 0 none.
+
+**Big prop pile** (vrfiringrange 16-36-40): `vr_physics_bigpile [count] [distance]` (Debug > Tests, after Physics Step
+Time: Spawn a Big Prop Pile): 300 rocks and bricks (`vr_debris_piece`, the nine models in turn, at most 2000) 96 units
+ahead, in leaning columns of 10, 20 units apart, that topple into one pile. Mock (vrfiringrange): 142 bodies before, 442
+after; the step 0.26 ms with 67 awake before, 0.45 ms with 245-277 awake and 4 workers while it falls, 0.10 ms with 46
+awake once it settles.
+
+**One empty-hand collision** (vrfiringrange 17-15-34, "they could work in the same way"): the empty hand against the prop
+the other hand holds alone now works as against its weapon: both drawn moved back by half how deep the hand would be, at
+most `vr_hand_collide` cm each (5), a buzz as they meet; pressed further the hand sinks in by the rest (it used to be
+held back alone up to `vr_hand_collide_props`, 15 cm, then let through). The prop's hand is pressed as a weapon's
+(`weaponPressed`, `view::handPress`) and the prop moves with it (`held::viewPush` takes the press). `vr_hand_collide_props`
+is retired (kept unsaved so configs load silently); the old non-shared path (`propThrough`) is gone. One set of rows,
+Carrying (after Collide Give): Empty Hand Against Held Things (`vr_hand_collide`), Empty Hand Stops Off It
+(`vr_hand_collide_props_margin`), Fingers Rest on Held Things (`vr_hand_collide_fingers`); the Hands page's Hands Brush
+Weapons and Fingers Brush Weapons rows moved there. Mock (heldself `empdown`: a health box in the off hand, the empty
+main hand lowered onto it, `vr_debug_hand_collide 1`): drawn held 1.00 cm off it, hand and box each moved back half the
+depth (0.14 ... 4.89 cm), capped at 5.00, then the hand in it by the rest; `vr_debug_hand_offset 2`: the off hand drawn
+moved 1.13 by the press. Melee canary 48/53, no differences; `vr_menu_path_check`: 0 missing.
+
+- [ ] Gib a corpse with the axe, the shotgun and a rocket: the new gib speeds feel right.
+- [ ] Take a hit: the knock at the new defaults.
+- [ ] Take a grenade and a multi-grenade from the pouch: they sit as you set them.
+- [ ] Mantle onto a ledge: a small grunt (Climbing: Mantle Grunt for its volume).
+- [ ] Debug > Tests > Spawn a Big Prop Pile, then Physics Step Time: the pile falls without a hitch.
+- [ ] Empty hand into a box held in the other hand: both give a little and it holds firm, as with a gun.

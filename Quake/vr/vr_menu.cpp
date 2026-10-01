@@ -1888,13 +1888,16 @@ void hologramTestMessage()
             .extend(0.f, 40.f)
             .help("How far each hand is drawn moved back at most as you press them together. Pressed further, they overlap by "
                   "the rest."),
-        slider("Empty Hand Against It", vr_hand_collide_props, 0.f, 30.f, 1.f, "%.0f cm")
-            .help("An empty hand stops at the surface of the thing the other hand holds (drawn only, its fingers resting on "
-                  "it), drawn held back as far as this; pushed further in, it passes into it until you take it out. 0: it "
-                  "always passes through."),
+        slider("Empty Hand Against Held Things", vr_hand_collide, 0.f, 10.f, 0.5f, "%.1f cm").extend(0.f, 30.f)
+            .help("An empty hand bumps into what the other hand holds, a weapon or a thing, the same way, as two held things "
+                  "do: at its surface the hand and it are each drawn moved back by half, as far as this, a short buzz as "
+                  "they meet; pressed further, the hand sinks in by the rest. Drawn only. 0: it always passes through."),
         slider("Empty Hand Stops Off It", vr_hand_collide_props_margin, 0.f, 3.f, 0.25f, "%.2f cm")
-            .help("How far off that thing's surface (or the other hand's weapon's) the empty hand's palm and knuckles stop: "
-                  "about 1 cm keeps the skin at the surface."),
+            .help("How far off the surface of what the other hand holds the empty hand's palm and knuckles stop: about 1 cm "
+                  "keeps the skin at the surface."),
+        toggle("Fingers Rest on Held Things", vr_hand_collide_fingers)
+            .help("With Empty Hand Against Held Things: the empty hand's fingers rest on what the other hand holds or bend "
+                  "out of it, instead of the whole hand being pushed by its fingertips."),
         toggle("Weapons Slide Along Walls", vr_gun_wall_slide)
             .help("A weapon you hold into a wall, a floor or a table slides along it: lowered onto a table it rests on the top, "
                   "pushed into a wall it is held off along the wall. Off: the old push-back, the hand moved back along the aim "
@@ -2330,8 +2333,8 @@ za::Vector<Item> pageDebugViews()
                   "(yellow where the drop starts further out). Built even with climbing off."),
         toggle("Log Empty Hand Against Held", vr_debug_hand_collide)
             .help("Prints, each frame an empty hand meets the weapon or the thing the other hand holds, how near the real "
-                  "and the drawn hand's palm and knuckles are to its surface, how far the drawn hand is held back, and "
-                  "whether it passes through (Hands Brush Weapons; Carrying: Empty Hand Against It)."),
+                  "and the drawn hand's palm and knuckles are to its surface, how far the drawn hand and the thing are "
+                  "held back (Carrying: Empty Hand Against Held Things)."),
         cycle("Show Grab Test", vr_debug_carry, {{0.f, "Off"}, {1.f, "Drawn"}, {2.f, "Drawn and Logged"}, {3.f, "Also Far Fists"}})
             .help("For each hand near something to carry: the box it is drawn in and the fist tested (its spheres; the nearest "
                   "bright). Logged: each grab and held prop's placing printed, carry_trace.txt written, and held props meeting each "
@@ -2513,6 +2516,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Physics Step Time", "vr_physics_steptime")
             .help("vr_physics_steptime: Box3D's step time a frame since the last time (average and worst, ms), the awake "
                   "bodies and its threads. Run it, play, run it again."),
+        command("Spawn a Big Prop Pile", "vr_physics_bigpile")
+            .help("vr_physics_bigpile [count] [distance]: 300 rocks and bricks ahead of you in leaning columns that topple "
+                  "into a pile: more awake bodies than Physics Threads From while they fall (Physics on Threads at work). "
+                  "Physics Step Time before and after gives the step's time."),
         command("Thread Pool Info", "vr_jobs_info")
             .help("vr_jobs_info: the pool's workers and what it has run (tasks, loops, the chunks each side took)."),
         command("Thread Pool Self-Test", "vr_jobs_test")

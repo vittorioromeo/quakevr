@@ -881,8 +881,8 @@ QVR_CVAR(vr_gib_blood, "1", CVAR_ARCHIVE)              // gibs and heads bleed: 
 QVR_CVAR(vr_gib_blood_trail, "1", CVAR_ARCHIVE)        // how dense their trail of blood and drops is (0 none)
 QVR_CVAR(vr_gore, "2", CVAR_ARCHIVE)                   // gore (vr_gore.cpp): 0 Quake VR's blood only, 1 more, 2 over the top (sprays on walls, pools under corpses, gibs stuck to ceilings dripping)
 // Gib speed by what gibbed it (player.qc VelocityForDamage, combat.qc VR_GibSpeedScale): every gibbing, monsters' and corpses'.
-QVR_CVAR(vr_gib_speed_melee, "0.45", CVAR_ARCHIVE)   // a melee blow (a swing, a bash, a shove, a headbutt, a stomp)
-QVR_CVAR(vr_gib_speed_light, "0.65", CVAR_ARCHIVE)   // a thrown thing, the shotguns, nails, a stuck axe's bleeding
+QVR_CVAR(vr_gib_speed_melee, "0.15", CVAR_ARCHIVE)   // a melee blow (a swing, a bash, a shove, a headbutt, a stomp)
+QVR_CVAR(vr_gib_speed_light, "0.25", CVAR_ARCHIVE)   // a thrown thing, the shotguns, nails, a stuck axe's bleeding
 QVR_CVAR(vr_gib_speed_heavy, "1", CVAR_ARCHIVE)      // explosions, rockets, grenades, lightning, everything else (Quake's)
 QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit or a gibbing sprays onto the walls, floor and ceiling round it (0 none)
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
@@ -981,6 +981,7 @@ QVR_CVAR(vr_climb_fling, "1", CVAR_ARCHIVE)           // how much letting go fli
 QVR_CVAR(vr_climb_leniency, "2", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
 QVR_CVAR(vr_climb_leniency_air, "4", CVAR_ARCHIVE)   // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
 QVR_CVAR(vr_climb_air_grab_time, "0.3", CVAR_ARCHIVE) // s: a grip pressed at no hold keeps looking for one this long while it stays pressed, in the air (a ledge jumped at: taken as the hand comes over or down onto it; 0: only at the press)
+QVR_CVAR(vr_climb_mantle_grunt, "0.6", CVAR_ARCHIVE) // volume (0..1) of the player's grunt as a mantle pulls him up onto a ledge (Quake's jump grunt, player/plyrjmp8.wav); 0 off
 QVR_CVAR(vr_climb_touch, "4.5", CVAR_ARCHIVE)        // cm: the hand this close to a ledge's top or the face under its lip touches it (the whole reach at leniency 0)
 QVR_CVAR(vr_climb_over_top, "16", CVAR_ARCHIVE)      // units: a hand over a ledge's top still holds it this far in from the drop (as far as the top goes)
 QVR_CVAR(vr_climb_slide, "1", CVAR_ARCHIVE)          // a holding hand the body can't follow along the ledge (past the arm's reach, a wall) slides along it, the drawn hand staying on the controller (0: it stays put, the two drift apart)
@@ -1008,10 +1009,10 @@ QVR_CVAR(vr_fatigue_shake_always, "0", CVAR_ARCHIVE)  // 0: only while a hand ho
 // Hits knock the hands (vr_painknock.cpp; ROUND21.md, "Pain feedback: hits knock the hands"): looks only, both drawn hands
 // pushed away from the hit, more the one on its side, and eased back; the aim and the shots stay steady.
 QVR_CVAR(vr_pain_knock, "1", CVAR_ARCHIVE)             // being hit knocks the drawn hands, arms and what they hold
-QVR_CVAR(vr_pain_knock_strength, "0.75", CVAR_ARCHIVE) // cm the hands are pushed for each point of damage (armour's share too), for small hits
-QVR_CVAR(vr_pain_knock_max, "7.5", CVAR_ARCHIVE)       // cm harder hits curve towards (a rocket nearly; hits in quick succession add up to no more)
+QVR_CVAR(vr_pain_knock_strength, "1", CVAR_ARCHIVE)    // cm the hands are pushed for each point of damage (armour's share too), for small hits
+QVR_CVAR(vr_pain_knock_max, "15", CVAR_ARCHIVE)        // cm harder hits curve towards (a rocket nearly; hits in quick succession add up to no more)
 QVR_CVAR(vr_pain_knock_time, "0.6", CVAR_ARCHIVE)      // s the knock takes: out, held a moment, eased back
-QVR_CVAR(vr_pain_knock_tip, "2", CVAR_ARCHIVE)         // degrees the hands (and what they hold) tip up for each cm they are knocked
+QVR_CVAR(vr_pain_knock_tip, "3", CVAR_ARCHIVE)         // degrees the hands (and what they hold) tip up for each cm they are knocked
 QVR_CVAR(vr_pain_knock_seen, "1", CVAR_ARCHIVE)        // 1: the knock's size is what you see: turned across the line from your eyes to each hand (a hit from ahead lifts them, from the side throws them sideways), its move towards or away from your eyes kept on top; 0: straight away from the hit and up (from ahead nearly all of it towards your eyes, where it barely shows)
 QVR_CVAR(vr_pain_haptics, "1", CVAR_ARCHIVE)           // strength of the buzz a hit gives each controller (more the harder and the nearer its side; 0: none)
 QVR_CVAR(vr_climb_debug, "0", CVAR_NONE)              // print holds, releases and mantles (2: and "climbtrace" and "climbreach" lines every frame: the body, the hands, the pull, the holds' reach; 3: the shoulders, estimated and drawn)
@@ -1115,7 +1116,7 @@ QVR_CVAR(vr_weapon_anygrip_mode, "0", CVAR_ARCHIVE)  // the other hand gripping 
 QVR_CVAR(vr_debug_buttons, "0", CVAR_NONE)            // prints each controller button press and release (the hand, the button, its key and binding, and what took it: the posing mode, a voice note, the flashlight...), and the interaction profile the runtime picked for each hand when it changes
 QVR_CVAR(vr_debug_hands, "0", CVAR_NONE)              // prints each hand's state when it changes (2: every frame): the grip, what it holds (weapon, carried object, force grab, flashlight), its climbing hold and why a grip takes none, the hotspot (vr_climb.cpp debugHands)
 QVR_CVAR(vr_debug_carry, "0", CVAR_NONE)              // draws, for each hand near a carriable thing, the grab test: the box the thing is drawn in, the fist tested (its spheres; the nearest bright) and the nearest point of its surface (green: it touches, in reach); 2: also carry_trace.txt, what is carried and both hands every frame, and each grab test printed; 3: and the fists not near
-QVR_CVAR(vr_debug_hand_collide, "0", CVAR_NONE)       // Debug > Views > Log Empty Hand Against Held: prints, each frame a free hand meets the weapon or the prop the other hand holds, how near the real and the drawn hand's palm and knuckles are to its surface (cm, negative in it), how far it is drawn held back, and whether it passes through (vr_hand_collide, vr_hand_collide_props); 2: also each point held and its plane
+QVR_CVAR(vr_debug_hand_collide, "0", CVAR_NONE)       // Debug > Views > Log Empty Hand Against Held: prints, each frame a free hand meets the weapon or the prop the other hand holds, how near the real and the drawn hand's palm and knuckles are to its surface (cm, negative in it), how far it and the thing are drawn held back (vr_hand_collide); 2: also each point held and its plane
 QVR_CVAR(vr_debug_arm, "0", CVAR_NONE)                // prints each drawn arm's IK once (the shoulder, elbow and wrist in the body's axes, cm; the elbow's swing; the wrist's bend and twist against the forearm), then turns itself off; 2: every frame
 QVR_CVAR(vr_debug_lean, "0", CVAR_NONE)               // lean_trace.txt (the game directory): the head, the box, the lean, the pelvis and the feet every frame, and the lean's cues (vr_lean_detect)
 QVR_CVAR(vr_grapple_test_stuck, "0", CVAR_NONE)        // Debug > Tests > Grappling Hook > Load Stuck: what hangs on the rope (a loose hook, a hooked prop) stays where it is, as if snagged (tests the rope holding you back)
@@ -1419,9 +1420,9 @@ QVR_CVAR(vr_test_projectile, "0", CVAR_NONE)          // impulse 246 (tests): th
 QVR_CVAR(vr_test_grenade_shot, "10", CVAR_NONE)       // impulse 210 (tests): what shoots the nearest grenade from your eyes (vr_physics_fire's kinds: 10 a shotgun pellet, 1 a nail, 0 a rocket, 4 a laser)
 QVR_CVAR(vr_test_grenade_dist, "256", CVAR_NONE)      // impulse 211 (tests): units ahead a dud hand grenade is put on the floor
 QVR_CVAR(vr_test_projectile_side, "0", CVAR_NONE)     // and from how many degrees to your left of ahead
-QVR_CVAR(vr_hand_collide, "5", CVAR_ARCHIVE)          // cm a free hand and the weapon in the other hand are each drawn moved back at most as the hand meets its surface (vr_hand_collide_props_margin off it), by half how deep it would be, as a prop held there and that weapon (vr_held_collide_max); pressed further, the hand sinks in by the rest (0: it always passes through)
+QVR_CVAR(vr_hand_collide, "5", CVAR_ARCHIVE)          // cm a free hand and what the other hand holds (its weapon, or the prop it holds alone) are each drawn moved back at most as the hand meets its surface (vr_hand_collide_props_margin off it), by half how deep it would be, as a prop held there and that thing (vr_held_collide_max); pressed further, the hand sinks in by the rest (0: it always passes through)
 QVR_CVAR(vr_hand_collide_fingers, "1", CVAR_ARCHIVE)  // with it: the free hand's fingers react to the other hand's weapon: they rest on it or bend out of it (0: only the hand is pushed, by its fingertips too)
-QVR_CVAR(vr_hand_collide_props, "15", CVAR_ARCHIVE)   // cm a free hand is drawn held back at most at the surface of the prop the other hand holds alone (a gib, a box: drawn only); pressed further, it passes into it until it is out again (0: never held)
+QVR_CVAR(vr_hand_collide_props, "15", CVAR_NONE)      // retired (ROUND21.md, "Defaults: gibs, pain knock, grenade grips; mantle grunt; prop pile; one empty-hand collision": vr_hand_collide for the prop too): kept so saved configs load silently
 QVR_CVAR(vr_hand_collide_props_margin, "1", CVAR_ARCHIVE) // cm off the surface of the prop or the weapon the other hand holds the free hand's palm and knuckles stop (0..2: the drawn skin about at it)
 QVR_CVAR(vr_body_collide, "1", CVAR_ARCHIVE)         // round 21: the drawn hands and held weapons stop at each other, the other arm, the wrist gadget and the body (drawn only: the game reads the tracked hands; vr_selfcollide.cpp); 0 off
 QVR_CVAR(vr_body_collide_pass, "0.7", CVAR_ARCHIVE)  // pushed this share of the way through what stops it (the whole hand or weapon), it lets go and passes through (1: only once all the way through; held out at most this times 15 cm)
