@@ -499,7 +499,8 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
     {
         dir = normalize((c.absmin + c.absmax) * 0.5 - (inflictor.absmin + inflictor.absmax) * 0.5);
     }
-    dprint("corpse: "); dprint(c.classname); dprint(" gibbed (kills: "); dprint(ftos(killed_monsters)); dprint(")\n");
+    dprint("corpse: "); dprint(c.classname); dprint(" gibbed (kills: "); dprint(ftos(killed_monsters));
+    dprint(sprintf(", gib speed x%.2f)\n", vr_gib_speed > 0 ? vr_gib_speed : 1));
 
     entity oldSelf = self;
     self = c;
@@ -807,7 +808,79 @@ void(entity e, vector dir, float speed, float up) VR_Push =
 
 //MED 01/10/97 added empathyused variable
 float empathyused;
-float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
+
+// VR: gib speed by what gibbed it (vrfiringrange_2026-10-01_11-35-41; ROUND21.md, "Gib speed by what gibbed it"): a melee
+// blow (vr_gib_speed_melee), a thrown thing or a light weapon (vr_gib_speed_light: the shotguns, nails, an enforcer's
+// laser, a stuck axe bleeding it), or the rest (vr_gib_speed_heavy: explosions, rockets, grenades, lightning, plasma,
+// monsters' blows: Quake's). Set for the length of each T_DamageImpl, so every gibbing it causes (a monster's death, a
+// corpse's: VR_Corpse_Gib) throws at that speed (VelocityForDamage); 0 between blows (Quake's).
+float vr_gib_speed;
+
+float QVR_GIBKIND_HEAVY = 0;
+float QVR_GIBKIND_MELEE = 1;
+float QVR_GIBKIND_LIGHT = 2;
+
+float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind =
+{
+    float k = vr_hitkind;
+    if(k == QVR_HITKIND_SPLASH)
+    {
+        return QVR_GIBKIND_HEAVY;
+    }
+    if(isVRMelee || k == QVR_HITKIND_MELEE || k == QVR_HITKIND_HEADBUTT || k == QVR_HITKIND_BASH ||
+       k == QVR_HITKIND_SHOVE)
+    {
+        return QVR_GIBKIND_MELEE;
+    }
+    if(k == QVR_HITKIND_BLEED)
+    {
+        return QVR_GIBKIND_LIGHT;
+    }
+    if(k == QVR_HITKIND_SHOT)
+    {
+        // Lightning (the gun's, Mjolnir's: vr_hitweapon) is heavy; the shotguns, the grunts' guns light.
+        if(vr_hitweapon != "" ||
+           (vr_hithand >= 0 && (attacker.flags & FL_CLIENT) && VRGetEntWeapon(attacker, vr_hithand) == WID_LIGHTNING))
+        {
+            return QVR_GIBKIND_HEAVY;
+        }
+        return QVR_GIBKIND_LIGHT;
+    }
+    if(inflictor == world || inflictor == attacker)
+    {
+        // A player's blow with nothing between (a kick, a landing): light. A monster's own: Quake's.
+        return (attacker.flags & FL_CLIENT) ? QVR_GIBKIND_LIGHT : QVR_GIBKIND_HEAVY;
+    }
+    string c = inflictor.classname;
+    if(c == "missile" || c == "grenade" || c == "MultiRocket" || c == "MiniGrenade" || c == "MultiGrenade" ||
+       c == "proximity_grenade" || c == "plasma" || c == "hiplaser")
+    {
+        return QVR_GIBKIND_HEAVY;
+    }
+    if(c == "spike" || c == "lava_spike" || c == "laser" || c == "thrown_weapon" || inflictor.vr_gib ||
+       (inflictor.carry_use && !inflictor.vr_grenade) || inflictor.vr_deflect_time > 0)
+    {
+        return QVR_GIBKIND_LIGHT; // nails, an enforcer's bolt; thrown, flung or deflected things
+    }
+    return QVR_GIBKIND_HEAVY;
+};
+
+float(entity inflictor, entity attacker, float isVRMelee) VR_GibSpeedScale =
+{
+    float k = VR_GibKind(inflictor, attacker, isVRMelee);
+    float h = cvarh_vr_gib_speed_heavy;
+    if(k == QVR_GIBKIND_MELEE)
+    {
+        h = cvarh_vr_gib_speed_melee;
+    }
+    else if(k == QVR_GIBKIND_LIGHT)
+    {
+        h = cvarh_vr_gib_speed_light;
+    }
+    return min(3, max(0.05, cvar_hget(h)));
+};
+// The damage itself (T_DamageImpl's).
+float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageDeal =
 {
     vector    dir;
     entity    oldself;
@@ -828,6 +901,13 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     }
 
     IsExplosionDamage = 0;
+
+    // VR: Debug: Show Damage Numbers (vr_debug_damage_numbers, vr_dummy.qc VR_DamageNumber): a gib's, a crate piece's or
+    // a corpse's hit as dealt (their own damage below); everything else's as taken (after armour).
+    if(targ.th_die == VR_Gib_Die || targ.vr_cratekind == 3 || targ.vr_corpse == 2)
+    {
+        VR_DamageNumber(targ, inflictor, attacker, damage, 0, isVRMelee);
+    }
 
     // VR: a gib or head only ever bursts (vr_gib_destroy, vr_carry.qc), never dies again.
     if(targ.th_die == VR_Gib_Die)
@@ -1027,6 +1107,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     }
 
     // VR: gore: blood sprayed onto the walls, floor and ceiling behind the hit (vr_gore, vr_carry.qc).
+    VR_DamageNumber(targ, inflictor, attacker, take, save, isVRMelee); // VR: Debug: Show Damage Numbers
     VR_Gore_Hit(targ, inflictor, take);
     VR_Wound_Hit(targ, inflictor, attacker, take); // VR: painted on its model (vr_wounds.qc)
 
@@ -1099,6 +1180,16 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     self = oldself;
     return TRUE;
+};
+
+// Deals the damage, with the gibs it may throw at the speed for what dealt it (vr_gib_speed).
+float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
+{
+    float oldGibSpeed = vr_gib_speed;
+    vr_gib_speed = VR_GibSpeedScale(inflictor, attacker, isVRMelee);
+    float r = T_DamageDeal(targ, inflictor, attacker, damage, isVRMelee);
+    vr_gib_speed = oldGibSpeed;
+    return r;
 };
 
 // ----------------------------------------------------------------------------

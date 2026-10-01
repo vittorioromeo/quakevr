@@ -350,6 +350,10 @@ float VR_FLING_REHIT = 0.5;       // s between a flung prop's hits
 float VR_FLING_LETGO_GRACE = 0.5; // s
 float VR_FLING_CREDIT = 10;       // s
 
+// When a monster dropped it (a weapon, a backpack: CreateThrownWeapon, DropBackpack; 0 never): for vr_prop_drop_grace s
+// after, it can't hurt a player as a flung prop (vrfiringrange_2026-10-01_11-51-45: its loot, landing on him as it fell).
+.float vr_monster_drop;
+
 entity(entity xProp) VR_Grapple_PropHolder; // (vr_grapple.qc)
 void(float damage) spawn_touchblood;
 
@@ -413,6 +417,13 @@ float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
     float least = max(1, cvar_hget(cvarh_vr_prop_impact_min_speed) * VRMetersToUnits());
     if(mass < cvar_hget(cvarh_vr_prop_impact_min_mass) || min(xSpeed, xOwnSpeed) < least * VR_Thrown_Lenient(self))
     {
+        return FALSE;
+    }
+    if((other.flags & FL_CLIENT) && self.vr_monster_drop > 0 &&
+       time < self.vr_monster_drop + max(0, cvar_hget(cvarh_vr_prop_drop_grace)))
+    {
+        dprint(sprintf("prop: %s a monster dropped %.2f s ago met %s: no harm yet (vr_prop_drop_grace)\n", self.classname,
+            time - self.vr_monster_drop, other.netname));
         return FALSE;
     }
     entity holder = VR_Grapple_PropHolder(self);

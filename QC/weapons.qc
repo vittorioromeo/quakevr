@@ -5568,6 +5568,11 @@ entity(entity thrower, float xWeapon, float xWeaponFlags, float xWeaponClip,
         xDealDamage,
         xBaseDamage);
 
+    if(thrower.flags & FL_MONSTER)
+    {
+        newmis.vr_monster_drop = time; // dropped by a monster: it can't hurt players just yet (vr_prop_drop_grace)
+    }
+
     return newmis;
 }
 

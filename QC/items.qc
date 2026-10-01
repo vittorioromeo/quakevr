@@ -2056,6 +2056,10 @@ void() DropBackpack =
 
     entity item = spawn();
     item.origin = self.origin - '0 0 24';
+    if(self.flags & FL_MONSTER)
+    {
+        item.vr_monster_drop = time; // it can't hurt players just yet (vr_prop_drop_grace: vr_carry.qc VR_Prop_Flung)
+    }
 
     item.ammo_shells = self.ammo_shells;
     item.ammo_nails = self.ammo_nails;
