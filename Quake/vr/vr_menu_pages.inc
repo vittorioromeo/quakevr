@@ -334,8 +334,9 @@ void resetHandMoves()
         toggle("Fingers Stop at Walls", "vr_hand_walls")
             .help("The fingers bend back where they would go into walls and floors."),
         slider("Hands Brush Weapons", "vr_hand_collide", 0.f, 10.f, 0.5f, "%.1f cm").extend()
-            .help("The free hand is pushed aside by the other hand's weapon, up to this far, eased, and then passes "
-                  "through. 0: never pushed."),
+            .help("The free hand stops at the surface of the other hand's weapon (about 1 cm off it: Carrying, Empty "
+                  "Hand Stops Off It) and is held back as far as this; pushed further, it passes into it until you take "
+                  "it out. 0: it always passes through."),
         toggle("Fingers Brush Weapons", "vr_hand_collide_fingers")
             .help("With Hands Brush Weapons: the free hand's fingers rest on the other hand's weapon or bend out of it, "
                   "instead of the whole hand being pushed by its fingertips."),

@@ -141,10 +141,6 @@ bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, fl
 // move, vr_view.cpp migrateCups): its channel with the fingers at their default places, moved as they are.
 void legacyGripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, float& radius);
 
-// Whether the world point `p` is inside `shape` (drawn with `shapeToWorld`) within `reach` world units of its surface
-// (the nearest triangle faces away from it); `out` the move out to that surface.
-bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, glm::vec3& out);
-
 // The signed distance (world units) from the world point `p` to `shape`'s surface, if within `reach`: negative inside
 // (the nearest triangle faces away from it); `at` that nearest point and `normal` its triangle's outward normal (world).
 // False if nothing is within `reach`.
@@ -157,8 +153,8 @@ bool rayHit(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& 
     glm::vec3& normal, bool& entering);
 
 // vr_debug_hand_bones: the distance (world units) from the world point `p` to `shape`'s surface (drawn with
-// `shapeToWorld`), if within `reach`: its nearest point in `at`, and whether `p` is inside it (the nearest triangle
-// faces away from it). -1 if nothing is that near.
+// `shapeToWorld`), if within `reach`: its nearest point in `at`, and whether `p` is inside it (the nearest triangle's
+// outward side, by the model's winding, faces away from it). -1 if nothing is that near.
 float surfaceDistance(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, glm::vec3& at, bool& in);
 
 // A finger at `curls`: its joints (the knuckle, the two between) and its tip's end, rig space.

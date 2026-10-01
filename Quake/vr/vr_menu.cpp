@@ -1781,8 +1781,8 @@ void hologramTestMessage()
                   "it), drawn held back as far as this; pushed further in, it passes into it until you take it out. 0: it "
                   "always passes through."),
         slider("Empty Hand Stops Off It", vr_hand_collide_props_margin, 0.f, 3.f, 0.25f, "%.2f cm")
-            .help("How far off that thing's surface the empty hand's palm and knuckles stop: about 1 cm keeps the skin at "
-                  "the surface."),
+            .help("How far off that thing's surface (or the other hand's weapon's) the empty hand's palm and knuckles stop: "
+                  "about 1 cm keeps the skin at the surface."),
         toggle("Weapons Slide Along Walls", vr_gun_wall_slide)
             .help("A weapon you hold into a wall, a floor or a table slides along it: lowered onto a table it rests on the top, "
                   "pushed into a wall it is held off along the wall. Off: the old push-back, the hand moved back along the aim "
@@ -2213,9 +2213,10 @@ za::Vector<Item> pageDebugViews()
         cycle("Show Ledges", vr_debug_ledges, {{0.f, "Off"}, {256.f, "Within 256 units"}, {1.f, "Within 512 units"}, {1024.f, "Within 1024 units"}})
             .help("The ledge map round you, what climbing holds: lips green (on moving brushes pink), a tick out every 8 units "
                   "(yellow where the drop starts further out). Built even with climbing off."),
-        toggle("Log Empty Hand Against Prop", vr_debug_hand_collide)
-            .help("Prints, each frame an empty hand meets the thing the other hand holds, how far the real hand is in, how "
-                  "far the drawn hand is held back, and whether it passes through (Carrying: Empty Hand Against It)."),
+        toggle("Log Empty Hand Against Held", vr_debug_hand_collide)
+            .help("Prints, each frame an empty hand meets the weapon or the thing the other hand holds, how near the real "
+                  "and the drawn hand's palm and knuckles are to its surface, how far the drawn hand is held back, and "
+                  "whether it passes through (Hands Brush Weapons; Carrying: Empty Hand Against It)."),
         cycle("Show Grab Test", vr_debug_carry, {{0.f, "Off"}, {1.f, "Drawn"}, {2.f, "Drawn and Logged"}, {3.f, "Also Far Fists"}})
             .help("For each hand near something to carry: the box it is drawn in and the fist tested (its spheres; the nearest "
                   "bright). Logged: each grab and held prop's placing printed, carry_trace.txt written, and held props meeting each "

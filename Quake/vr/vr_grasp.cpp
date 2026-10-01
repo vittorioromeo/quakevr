@@ -165,7 +165,8 @@ struct Shape::Space
     za::Vector<Tri> tris;
     glm::mat4 rawToReal{1.f};
     // +1 if the triangles are wound outwards (their normals, b - a by c - a, point out of the model), -1 inwards (Quake's
-    // own winding, as its models are drawn): the sign of the volume they close (measureWinding). For signedDistance.
+    // own winding, as its models are drawn): the sign of the volume they close (measureWinding). For signedDistance,
+    // rayHit and surfaceDistance.
     float outward{1.f};
 
     float cell{0.f}; // the grid's (real units), for the hand's size it was made at
@@ -1576,38 +1577,6 @@ bool gripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& dir, fl
     return true;
 }
 
-bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, glm::vec3& out)
-{
-    Shape::Space& space = *shape.space;
-    const glm::mat4 realToWorld = shapeToWorld * glm::inverse(space.rawToReal);
-    const float scale = glm::length(glm::vec3{realToWorld[0]});
-    if(!(scale > 1e-6f))
-    {
-        return false;
-    }
-    if(space.cell <= 0.f)
-    {
-        space.buildGrid(0.8f / scale); // about the hand's cells (a hand unit is about 0.4 world units)
-    }
-    const glm::mat4 worldToReal = glm::inverse(realToWorld);
-    const glm::vec3 q{worldToReal * glm::vec4{p, 1.f}};
-    glm::vec3 at, n;
-    const float d = space.nearest(q, reach / scale, &at, &n);
-    if(d >= reach / scale || glm::dot(q - at, n) >= 0.f)
-    {
-        return false; // outside (or nothing near)
-    }
-    // Out along the surface's normal, into the world (normals take the inverse transpose; the models are wound
-    // outwards, mirrored ones inwards: the determinant says which).
-    glm::vec3 nw = glm::normalize(glm::mat3{glm::transpose(worldToReal)} * n);
-    if(glm::determinant(glm::mat3{realToWorld}) < 0.f)
-    {
-        nw = -nw;
-    }
-    out = nw * (d * scale);
-    return true;
-}
-
 bool signedDistance(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, float& distance,
     glm::vec3& at, glm::vec3& normal)
 {
@@ -1620,7 +1589,7 @@ bool signedDistance(const Shape& shape, const glm::mat4& shapeToWorld, const glm
     }
     if(space.cell <= 0.f)
     {
-        space.buildGrid(0.8f / scale); // (as inside's)
+        space.buildGrid(0.8f / scale); // about the hand's cells (a hand unit is about 0.4 world units)
     }
     const glm::mat4 worldToReal = glm::inverse(realToWorld);
     const glm::vec3 q{worldToReal * glm::vec4{p, 1.f}};
@@ -1674,7 +1643,7 @@ float surfaceDistance(const Shape& shape, const glm::mat4& shapeToWorld, const g
     }
     if(space.cell <= 0.f)
     {
-        space.buildGrid(0.8f / scale); // (as inside's)
+        space.buildGrid(0.8f / scale); // (as signedDistance's)
     }
     const glm::vec3 q{glm::inverse(realToWorld) * glm::vec4{p, 1.f}};
     glm::vec3 closest, n;
@@ -1683,7 +1652,7 @@ float surfaceDistance(const Shape& shape, const glm::mat4& shapeToWorld, const g
     {
         return -1.f;
     }
-    in = glm::dot(q - closest, n) < 0.f;
+    in = glm::dot(q - closest, n * space.outward) < 0.f; // (Quake's models are wound inwards: Space::outward)
     at = glm::vec3{realToWorld * glm::vec4{closest, 1.f}};
     return d * scale;
 }
