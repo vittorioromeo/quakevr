@@ -1222,6 +1222,9 @@ void armsResetTweaks()
         slider("Elbow Stays Clear", vr_body_elbow_lift, 0.f, 8.f, 0.5f, "%.1f")
             .help("How much that swing keeps the elbow out of the torso and from crossing the chest by the neck (a hand "
                   "near the face or the chest), times this (0: free, as before)."),
+        slider("Elbows Spread", vr_body_elbow_spread, 0.f, 1.f, 0.05f, "%.2f")
+            .help("With the hand at the face or the chest and the palm down, how far the elbow turns out to the side "
+                  "(wings). Palm up or on its side, it stays tucked in (0: as before)."),
         slider("Elbow Out", vr_body_elbow_out, 0.f, 1.f, 0.05f, "%.2f")
             .help("Where the elbow points: down, plus this much outwards."),
         slider("Elbow Back", vr_body_elbow_back, 0.f, 1.f, 0.05f, "%.2f")
@@ -2422,7 +2425,7 @@ za::Vector<Item> pageDebugLogging()
             .help("Every torch light lit, every frame: which (a wall torch, a taken one), where, its radius and colour, shadowed."),
         cycle("Arm IK", vr_debug_arm, {{0.f, "Off"}, {1.f, "Print Once"}, {2.f, "Trace File"}})
             .help("Each drawn arm's joints once (shoulder, elbow, wrist in the body's axes, the elbow's swing, the wrist's bend "
-                  "and twist); or arm_trace.txt every frame."),
+                  "and twist, and the swing's cost every 15 degrees: armcost); or arm_trace.txt every frame."),
         toggle("Heavy Weapon Wrenched Out", vr_debug_weight_drop)
             .help("Twice a second, each hand's fastest turn against its heavy weapon's limit (above half of it), and each "
                   "weapon wrenched out (Weapon Weights: Wrenched Out)."),

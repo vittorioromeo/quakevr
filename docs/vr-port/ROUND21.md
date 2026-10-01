@@ -18632,6 +18632,45 @@ His takes (53: no-hit, guards, punches, shoves; 45,406 arm-frames replayed with 
 more than 2 cm; in those the wrist strain falls (mean 5.04 -> 4.11), elbows across the chest > 15 cm 89 -> 56, elbow
 jumps (> 6 cm in a frame with the wrist still) 72 -> 63. Melee canary: no differences.
 
+### Follow-up: palm down spreads the elbows (2026-10-01, branch `agent/ikelbow2`)
+
+His note (vrfiringrange 16:46): better, but with the hands at the face, palms to the floor, pointing 45 degrees in
+towards the eyes, the elbows still end up by the chest; that pose should spread them out ("wings"), while a palm up,
+facing the face, keeps the elbow tucked in. Use the hand's turn to choose.
+
+- **Why:** with the wrist 12-22 cm in front of the face the arm is folded and the pole (down, out, back, away from
+  the thumb) puts the elbow straight ahead of the shoulder (27 cm forward, 12 out, level), the forearm standing up in
+  front of the chest and the wrist bent back 70-80 degrees. That is within the wrist's reach (85 and 45 degrees, plus
+  15%), so no strain moved it. (A wrist-straightening cost tried first spread the palm-down elbows only unevenly, by
+  up to 25 cm above the shoulder, and untucked the palm-up ones.)
+- **What changed** (`solveArm`, `vr_avatar.cpp`): a folded arm (the wrist within 0.65 of the arm's length of the
+  shoulder, fading out by 0.8) with the palm to the floor (its normal from 0.3 to 0.7 down) turns its pole out to the
+  side and a little down (`lateral - 0.35 up`), by `vr_body_elbow_spread` (default 1, Body > Arms "Elbows Spread",
+  personal like the other arm settings; 0: exactly as before). Palm up or on its side (a guard), nothing changes. The
+  wrist easing then works from that pole as before, and an elbow so spread also pays `vr_body_elbow_lift`'s rise cost
+  past the pole's height (without it, a palm-down hand pointing straight ahead flipped the elbow 24 cm above the
+  shoulder). `vr_debug_arm 1` also prints `armcost`: the swing's cost every 15 degrees from -180 (from the pole).
+- **Results** (mock, his calibration and `vr_body_elbow_lift 8`; wrists placed by `armT` 12-22 cm in front of the
+  face or at the chest, each reached over 30 frames from a neutral pose; elbow from the shoulder in cm, forward / out /
+  up, mean):
+
+| poses (count) | before | after | elbow >= 15 cm out | wrist strain |
+|---|---|---|---|---|
+| his repro: palm down, 45 deg in towards the eyes (21) | 27 / 12 / -2 | 24 / 18 / 5 | 4 -> 18 | 0.03 -> 0.00 |
+| palm down, hands towards each other (14) | 28 / 10 / -5 | 23 / 20 / 5 | 1 -> 14 | 0.00 -> 0.00 |
+| palm down, pointing ahead (7) | 30 / 5 / -5 | 29 / 6 / -5 | 0 -> 0 | 0.27 -> 0.36 |
+| palm up / facing the face (42) | 26 / -15 / -6 | unchanged (max 0.1 cm) | 0 -> 0 | 0.30 -> 0.30 |
+| palm down at the chest (18) | 14 / 11 / -25 | 17 / 18 / -18 | 0 -> 12 | 0.03 -> 0.04 |
+| palm up at the chest (18) | 12 / -7 / -27 | unchanged | 0 -> 0 | 0.77 -> 0.77 |
+
+  The 27-angle grid: ordinary places (189 poses) move at most 0.3 cm; face 36 of 243 and chest 9 of 135 move (the
+  palm-down ones). E.g. eyes, palm down 45 degrees in: (27, 14, 4) -> (22, 19, 10); mouth: (28, 11, -9) -> (25, 19, 1).
+  Right arm mirrors the left. Pointing straight ahead the elbow stays: out to the side the wrist would bend 90 degrees
+  towards the thumb, so the swing takes it back.
+- His takes (53, 45,406 arm-frames, his old hand settings): 7.5% of arm-frames move more than 2 cm (1.8% more than
+  10), the elbows 5 cm further out and 4 higher on average there; wrist strain 1.26 -> 1.23; elbow jumps (> 6 cm in a
+  frame with the wrist still) 79 -> 85. Melee canary: no differences.
+
 ## Multi-grenades from the pouch (2026-10-01)
 
 His note: only normal grenades come out of the back pouch; holding B or Y as he grabs there should give the mission
