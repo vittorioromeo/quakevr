@@ -337,17 +337,34 @@ void(entity e) VR_Forcegrab_Miss =
     dprint(e.classname);
     dprint("\n");
     // Back along the way to where it is from somewhere it surely fits: its box placed on the
-    // player's own (a small item clips with the player-sized hull), or else where it flew from.
+    // player's own (a small item clips with the player-sized hull), else from the player's middle
+    // (the corner is often in the table or the wall the player stands at: a small item, under 3
+    // units, is traced as a point from the corner itself, and a VR player's box may lean into a
+    // table), else where it is if it fits there in sight of the player, and only else where it
+    // flew from (NOTES.md vrfiringrange_2026-10-01_00-25-09: a prop missed close to a table went
+    // back to where it lay).
     entity p = e.fg_player;
     float placed = FALSE;
     if(p.classname == "player")
     {
-        vector from = p.origin + p.mins - e.mins;
-        tracebox(from, e.mins, e.maxs, e.origin, TRUE, p);
+        tracebox(p.origin + p.mins - e.mins, e.mins, e.maxs, e.origin, TRUE, p);
+        if(trace_startsolid || trace_allsolid)
+        {
+            tracebox(p.origin, e.mins, e.maxs, e.origin, TRUE, p);
+        }
         if(!trace_startsolid && !trace_allsolid)
         {
             setorigin(e, trace_endpos);
             placed = TRUE;
+        }
+        else
+        {
+            tracebox(e.origin, e.mins, e.maxs, e.origin, TRUE, p);
+            if(!trace_startsolid && !trace_allsolid)
+            {
+                traceline(p.origin, e.origin, TRUE, p);
+                placed = trace_fraction == 1;
+            }
         }
     }
     if(!placed)
