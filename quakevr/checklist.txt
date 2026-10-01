@@ -94,7 +94,7 @@ Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
 
-Zancle: review the proposals in docs/vr-port/ROUND21.md ("Zancle proposals", "Zancle migration", "Zancle update"): your initializer_list fix is wrong (ODR clash with MSVC's; QVR keeps its own fix); za::remainder truncates like fmod (rename or make it IEEE); MSVC port list in qvr-kit/ZANCLE_MSVC.md
+Zancle: read docs/vr-port/ZANCLE_REPORT.md (all bugs, MSVC portability, missing features, API proposals, prioritized actions); your initializer_list fix is wrong (QVR keeps its own); za::remainder truncates like fmod
 Box toppled onto you: a box still wedged 2+ units inside a wall no longer holds you under it (propregress relaxed the never-through rule there): OK?
 
 [Tune]
