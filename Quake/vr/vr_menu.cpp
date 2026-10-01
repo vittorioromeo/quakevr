@@ -844,6 +844,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("A sound within a metre of your head: the nearer ear louder, the farther one quieter and duller, by how "
                   "near and how much to the side. 0 off."),
         header("Advanced"),
+        toggle("Mix Limiter", vr_snd_limiter)
+            .help("Loud sounds piling up (explosive boxes blowing up together) are brought down smoothly just under full "
+                  "volume instead of clipping, which crackles; quieter sounds untouched. Spatial audio on or off. Off: "
+                  "Quake's hard clip, 6 dB lower."),
+        slider("Limiter Ceiling", vr_snd_limiter_ceiling, -6.f, 0.f, 0.5f, "%.1f dB").extend(-12.f, 0.f)
+            .help("The loudest the mix gets, under full volume (-1 by default; -6: Quake's clip, quieter explosions)."),
         cycle("Frame Size", vr_snd_frame, {{256.f, "256 (5.8 ms)"}, {512.f, "512"}, {1024.f, "1024 (Cheapest)"}})
             .help("Samples a voice renders at a time: larger is cheaper, a moving sound's direction coarser."),
         command("Spatial Audio Info", "vr_snd_info")
@@ -2722,6 +2728,10 @@ za::Vector<Item> pageDebugTests()
         command("Record the Mix (2 s)", "vr_snd_capture 2 menu")
             .help("vr_snd_capture: the next 2 seconds of the final mix to the game folder's sound_tests (capture_menu.wav), and its levels "
                   "in the console."),
+        command("Five Explosions at Once", "vr_snd_burst weapons/r_exp3.wav 5")
+            .help("vr_snd_burst: five rocket explosions at once 2.5 m ahead of you (as explosive boxes blowing up together): "
+                  "with the limiter on (Sound, Advanced: Mix Limiter) a loud bang, off a crackle; Record the Mix and "
+                  "Spatial Audio Info tell how far over full scale it went."),
         command("Save the Sound Scene", "vr_snd_scene_obj")
             .help("vr_snd_scene_obj: the map as Steam Audio sees it, to the game folder's sound_tests (scene.obj)."),
         header("Ahead of You"),

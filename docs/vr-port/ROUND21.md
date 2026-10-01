@@ -19218,3 +19218,31 @@ from it, was 8 from the left); `vr_flashlight_side 1` moves the lamp to the righ
 along the right). A config of his with `vr_lefthanded "1"` loads as swap 1, arm 1, side 1: the right stick moves, the left
 turns, the gadget at x +11.1 and the lamp at +1.23 (mirrors of the right-handed -10.7, -1.23). flashbuttons: the same
 holding-hand buttons with all three on either side.
+## The mix's limiter: explosions piling up without the crackle (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_23-06-10: explosive boxes blowing up together crackled. The cause: Quake clips the
+sum of its effects hard at full scale (`S_PaintChannels`, then halves it: 6 dB kept for the music), and our louder
+sound (HRTF Volume 1.5, Distance Falloff 0.75) drives even one explosion 2.5 m away 7.5 dB over it (1223 samples
+cut); five together peak 12.5 dB over, 19,500 samples cut (0.44 s of the 2 s). The sound's start offsets that Quake
+gives identical sounds started together were working; the sum was simply too loud.
+
+`vr_snd_limiter 1` (default; Sound, Advanced: Mix Limiter): the effects keep what is over (`VR_SndBus`: halved,
+not clipped), and a look-ahead peak limiter on the whole mix before the transfer (`VR_SndLimit`, `vr_audio.cpp`)
+brings it under `vr_snd_limiter_ceiling` (-1 dB of the output's full scale): 3 ms look-ahead (a min-hold then a box
+average of the same length, so the gain is never above what the delayed sample needs), `vr_snd_limiter_release`
+0.15 s back up. A sample under the ceiling passes unchanged. Spatial audio on or off. 0: Quake's clip exactly.
+
+Measured (vrfiringrange, music off, `vr_snd_burst weapons/r_exp3.wav N` 2.5 m ahead, `vr_snd_capture 2`):
+
+| | samples cut | loudest 400 ms | single's distortion (against a quiet copy) |
+|-|-|-|-|
+| one explosion, Quake's clip | 1223 | -11.4 dB | 27.7 dB under |
+| one explosion, limiter | 0 | -11.4 dB (gain to the quiet copy exactly x5) | 38.0 dB under |
+| five, Quake's clip | 19528 | -7.8 dB | |
+| five, limiter | 0 | -8.4 dB (deepest gain -7.4 dB) | |
+
+A ceiling of -6 dB (Quake's clip point) made one explosion 2.2 dB quieter, so the default uses the music's headroom
+instead; nothing comes out quieter than before except the tail just after a peak while the gain comes back up.
+Tools: `vr_snd_burst <sample> [count] [distance] [spread] [volume]` (Debug, Tests: Five Explosions at Once);
+`vr_snd_capture` now prints the effects' peak and the samples over, the mix's peak, the samples clipped and the
+limiter's deepest gain; `vr_snd_info` the limiter's line. vr_snd_test: 25 passed.

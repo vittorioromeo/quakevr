@@ -507,11 +507,8 @@ void S_PaintChannels (int endtime)
 	// clip each sample to 0dB, then reduce by 6dB (to leave some headroom for
 	// the lowpass filter and the music). the lowpass will smooth out the
 	// clipping
-		for (i=0; i<end-paintedtime; i++)
-		{
-			paintbuffer[i].left = CLAMP(-32768 * 256, paintbuffer[i].left, 32767 * 256) / 2;
-			paintbuffer[i].right = CLAMP(-32768 * 256, paintbuffer[i].right, 32767 * 256) / 2;
-		}
+	// QVR: vr_snd_limiter: the effects keep what is over (the limiter below brings the whole mix down; vr/vr_audio.cpp)
+		VR_SndBus (paintbuffer, end - paintedtime);
 
 	// apply a lowpass filter
 		if (sndspeed.value == 11025 && shm->speed == 44100)
@@ -546,6 +543,7 @@ void S_PaintChannels (int endtime)
 		}
 
 	// transfer out according to DMA format
+		VR_SndLimit (paintbuffer, end - paintedtime); // QVR: vr_snd_limiter (loud sounds piling up brought down, not clipped)
 		VR_SndCapture (paintbuffer, end - paintedtime); // QVR: vr_snd_capture
 		S_TransferPaintBuffer(end);
 		paintedtime = end;
