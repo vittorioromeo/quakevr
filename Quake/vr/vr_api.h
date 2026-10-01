@@ -306,6 +306,8 @@ int VR_SndKeepStatics (void);						// S_Update: nonzero: the static sounds of on
 int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's end, rounded down to whole frames of the voices
 void VR_SndPaint (portable_samplepair_t *buffer, int start, int end);	// S_PaintChannels, each chunk: the voices' mix added
 int VR_SndOwns (const channel_t *ch);				// S_PaintChannels: nonzero for a channel a voice renders (Quake skips it)
+void VR_SndBus (portable_samplepair_t *buffer, int count);		// S_PaintChannels, the effects' sum: clipped (wider with vr_snd_limiter), then halved
+void VR_SndLimit (portable_samplepair_t *buffer, int count);		// S_PaintChannels, the whole mix before the transfer: vr_snd_limiter
 void VR_SndCapture (const portable_samplepair_t *buffer, int count);	// S_PaintChannels, before the transfer: vr_snd_capture's recording
 
 #ifdef __cplusplus

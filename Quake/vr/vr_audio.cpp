@@ -46,6 +46,7 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/Log10.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -730,6 +731,42 @@ struct Capture
     int wanted{0};
     za::String name;
     za::Vector<float> left, right;
+    // The effects' sum (VR_SndBus): its loudest sample (dB of its full scale, where Quake clips it) and the samples
+    // over it. The whole mix (VR_SndLimit): its loudest sample before the limiter (dB of the output's full scale), the
+    // samples cut at full scale, and the limiter's deepest gain.
+    int busSeen{0};
+    float busPeak{0.f};
+    int busOver{0};
+    float outPeak{0.f};
+    int outClipped{0};
+    float minGain{1.f};
+};
+
+// The mix's limiter (S_PaintChannels: VR_SndBus, VR_SndLimit): Quake clips the sum of its effects hard at full scale
+// (then halves it, for the music's headroom), so loud sounds piling up (explosive boxes blowing up together) crackle
+// with the clipping. vr_snd_limiter 1: the effects keep what is over, and a look-ahead peak limiter on the whole mix
+// brings it under vr_snd_limiter_ceiling. A sample under it passes unchanged; over it, the gain comes down smoothly
+// over the look-ahead (min-hold, then a box average of the same length: the gain is never above what the sample needs
+// when it comes out of the delay) and back up over the release.
+struct BusLimiter
+{
+    static constexpr int maxLook = 512;
+    static constexpr float fullScale = 32767.f * 256.f; // (paintbuffer's units)
+    int look{0};  // samples of look-ahead (the delay, plus one)
+    int rate{0};
+    float releaseCoef{0.f};
+    long long n{0};
+    za::Array<float, maxLook> delayL{}, delayR{};
+    za::Array<float, maxLook> box{};  // the held gains, for the average
+    double boxSum{0.0};
+    za::Array<float, maxLook> dqGain{};  // the sliding minimum of the needed gains: a monotonic queue (a ring)
+    za::Array<long long, maxLook> dqAt{};
+    int dqFront{0};
+    int dqCount{0};
+    float gain{1.f};
+    float minGain{1.f};      // the deepest since vr_snd_info last said
+    long long clipped{0};    // samples the bus cut (each side), since the start
+    long long over{0};       // samples over full scale coming in
 };
 
 struct Live
@@ -776,6 +813,7 @@ struct Live
     double mixMs{0.0};   // the voices' render, averaged
     double lastReport{0.0};
     Capture capture;
+    BusLimiter bus;
 };
 
 Live* live{nullptr};
@@ -1144,6 +1182,11 @@ void finishCapture()
     Con_Printf("vr_snd_capture %s: %d samples, rms %.1f dB, left %.1f dB, right %.1f dB, below 500 Hz %.1f dB, above 4 kHz "
                "%.1f dB (%s)\n",
         c.name.cStr(), static_cast<int>(c.left.size()), lv.rms, lv.left, lv.right, lv.low, lv.high, path.cStr());
+    const auto db = [](float x) { return x > 0.f ? 20.f * za::log10(x) : -200.f; };
+    Con_Printf("  effects: peak %.1f dB of full scale, %d samples over it; mix: peak %.1f dB, %d samples clipped; limiter %s, "
+               "deepest %.1f dB\n",
+        db(c.busPeak / BusLimiter::fullScale), c.busOver, db(c.outPeak / BusLimiter::fullScale), c.outClipped,
+        vr_snd_limiter.value != 0.f ? "on" : "off", db(c.minGain));
     c.left.clear();
     c.right.clear();
 }
@@ -1179,6 +1222,12 @@ void info_f()
                 L.reverb.reverbTimes[2]);
         }
     }
+    Con_Printf("  mix: limiter %s (ceiling %.1f dB, %.0f ms release), deepest %.1f dB since the last info; %lld samples "
+               "over full scale, %lld clipped\n",
+        vr_snd_limiter.value != 0.f ? "on" : "off (Quake's hard clip)", za::clamp(vr_snd_limiter_ceiling.value, -12.f, 0.f),
+        za::clamp(vr_snd_limiter_release.value, 0.02f, 1.f) * 1000.f,
+        L.bus.minGain > 0.f ? 20.f * za::log10(L.bus.minGain) : -200.f, L.bus.over, L.bus.clipped);
+    L.bus.minGain = 1.f;
     const mleaf_t* leaf = cl.worldmodel ? Mod_PointInLeaf(&L.listener.pos.x, cl.worldmodel) : nullptr;
     Con_Printf("  listener: %s at %.0f %.0f %.0f (leaf contents %d), speed %.0f units/s\n", L.head ? "the head" : "the view",
         L.listener.pos.x, L.listener.pos.y, L.listener.pos.z, leaf ? leaf->contents : 0, glm::length(L.listener.vel));
@@ -1203,6 +1252,12 @@ void capture_f()
     c.right.clear();
     c.left.reserve(c.wanted);
     c.right.reserve(c.wanted);
+    c.busSeen = 0;
+    c.busPeak = 0.f;
+    c.busOver = 0;
+    c.outPeak = 0.f;
+    c.outClipped = 0;
+    c.minGain = 1.f;
     c.running = true;
 }
 
@@ -1257,6 +1312,32 @@ void play_f()
     S_StartSound(0, 0, sfx, at, volume, attenuation);
 }
 
+// Copies of a sound at once (vr_snd_burst <sample> [count] [distance] [spread] [volume]): ahead of the listener,
+// spread round a circle, all started this frame as explosive boxes blowing up together are (Quake's S_StartSound
+// offsets identical sounds started together a little). For the effects' bus's limiter (vr_snd_limiter).
+void burst_f()
+{
+    if(cls.state != ca_connected || !live)
+    {
+        Con_Printf("vr_snd_burst <sample> [count] [distance] [spread] [volume]: copies of a sound at once, ahead of you\n");
+        return;
+    }
+    const char* name = Cmd_Argc() > 1 ? Cmd_Argv(1) : "weapons/r_exp3.wav";
+    const int count = Cmd_Argc() > 2 ? za::clamp(Q_atoi(Cmd_Argv(2)), 1, 32) : 5;
+    const float distance = Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 96.f;
+    const float spread = Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 32.f;
+    const float volume = Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 1.f;
+    sfx_t* sfx = S_PrecacheSound(name);
+    const Listener& l = live->listener;
+    for(int i = 0; i < count; i++)
+    {
+        const float a = static_cast<float>(i) * 2.399963f;
+        const glm::vec3 p = l.pos + l.fwd * distance + l.right * (za::cos(a) * spread) + l.up * (za::sin(a) * spread * 0.5f);
+        vec3_t at{p.x, p.y, p.z};
+        S_StartSound(-1, 0, sfx, at, volume, 1.f);
+    }
+}
+
 // A point in a liquid (the first water, slime or lava leaf's middle): for the underwater tests.
 void liquid_f()
 {
@@ -1291,6 +1372,7 @@ void init()
     Cmd_AddCommand("vr_snd_scene_obj", sceneObj_f);
     Cmd_AddCommand("vr_snd_liquid", liquid_f);
     Cmd_AddCommand("vr_snd_play", play_f);
+    Cmd_AddCommand("vr_snd_burst", burst_f);
 }
 
 void shutdown()
@@ -1761,6 +1843,159 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     }
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     L.mixMs += (ms - L.mixMs) * 0.05;
+}
+
+namespace qvr::audio
+{
+namespace
+{
+
+// The limiter's settings from the rate and the release (cvar); its state reset when they change.
+void configureBus(BusLimiter& b, int rate)
+{
+    const float release = za::clamp(vr_snd_limiter_release.value, 0.02f, 1.f);
+    const int look = za::clamp(static_cast<int>(static_cast<float>(rate) * 0.003f), 1, BusLimiter::maxLook); // 3 ms
+    const float coef = 1.f - za::exp(-1.f / (static_cast<float>(rate) * release));
+    if(b.look == look && b.rate == rate && b.releaseCoef == coef)
+    {
+        return;
+    }
+    const bool fresh = b.look != look || b.rate != rate;
+    b.rate = rate;
+    b.releaseCoef = coef;
+    if(!fresh)
+    {
+        return;
+    }
+    b.look = look;
+    b.n = 0;
+    za::fill(b.delayL.begin(), b.delayL.end(), 0.f);
+    za::fill(b.delayR.begin(), b.delayR.end(), 0.f);
+    za::fill(b.box.begin(), b.box.end(), 1.f);
+    b.boxSum = static_cast<double>(look);
+    b.dqFront = 0;
+    b.dqCount = 0;
+    b.gain = 1.f;
+}
+
+} // namespace
+} // namespace qvr::audio
+
+extern "C" void VR_SndBus(portable_samplepair_t* buffer, int count)
+{
+    constexpr int ceiling = 32767 * 256;
+    constexpr int bottom = -32768 * 256;
+    const bool limit = live && shm && vr_snd_limiter.value != 0.f;
+    if(live && live->capture.running)
+    {
+        Capture& c = live->capture;
+        const int measured = za::max(0, za::min(count, c.wanted - c.busSeen));
+        for(int i = 0; i < measured; i++)
+        {
+            const int peak = za::max(qza::abs(buffer[i].left), qza::abs(buffer[i].right));
+            c.busPeak = za::max(c.busPeak, static_cast<float>(peak));
+            c.busOver += peak > ceiling ? 1 : 0;
+        }
+        c.busSeen += measured;
+    }
+    // With the limiter, the effects keep what is over full scale here (the 6 dB under the output's full scale that
+    // Quake keeps for the music): the limiter on the whole mix (VR_SndLimit) brings it down. (The wide clamp: only so
+    // that the filters on the way can't overflow.)
+    const int hi = limit ? ceiling * 8 : ceiling;
+    const int lo = limit ? bottom * 8 : bottom;
+    for(int i = 0; i < count; i++)
+    {
+        buffer[i].left = za::clamp(buffer[i].left, lo, hi) / 2;
+        buffer[i].right = za::clamp(buffer[i].right, lo, hi) / 2;
+    }
+}
+
+extern "C" void VR_SndLimit(portable_samplepair_t* buffer, int count)
+{
+    if(!live || !shm)
+    {
+        return;
+    }
+    BusLimiter& b = live->bus;
+    Capture& c = live->capture;
+    const int measured = c.running ? za::max(0, za::min(count, c.wanted - static_cast<int>(c.left.size()))) : 0;
+    const bool limit = vr_snd_limiter.value != 0.f;
+    if(limit)
+    {
+        configureBus(b, shm->speed);
+    }
+    else
+    {
+        b.look = 0; // (fresh when it's back on)
+        b.gain = 1.f;
+    }
+    constexpr int ceiling = 32767 * 256;
+    constexpr int bottom = -32768 * 256;
+    const float threshold = BusLimiter::fullScale * za::pow(10.f, za::clamp(vr_snd_limiter_ceiling.value, -12.f, 0.f) / 20.f);
+    const int look = b.look;
+    for(int i = 0; i < count; i++)
+    {
+        float l = static_cast<float>(buffer[i].left);
+        float r = static_cast<float>(buffer[i].right);
+        const float peak = za::max(qza::abs(l), qza::abs(r));
+        if(peak > BusLimiter::fullScale)
+        {
+            b.over++;
+        }
+        if(i < measured)
+        {
+            c.outPeak = za::max(c.outPeak, peak);
+        }
+        if(limit)
+        {
+            // The gain this sample needs, into the sliding minimum over the look-ahead.
+            const float need = peak > threshold ? threshold / peak : 1.f;
+            while(b.dqCount > 0 && b.dqGain[(b.dqFront + b.dqCount - 1) % BusLimiter::maxLook] >= need)
+            {
+                b.dqCount--;
+            }
+            const int back = (b.dqFront + b.dqCount) % BusLimiter::maxLook;
+            b.dqGain[back] = need;
+            b.dqAt[back] = b.n;
+            b.dqCount++;
+            while(b.dqAt[b.dqFront] <= b.n - look)
+            {
+                b.dqFront = (b.dqFront + 1) % BusLimiter::maxLook;
+                b.dqCount--;
+            }
+            const float held = b.dqGain[b.dqFront];
+            // Averaged over the same length: smooth, and never above what the delayed sample needs.
+            const int slot = static_cast<int>(b.n % look);
+            b.boxSum += static_cast<double>(held) - static_cast<double>(b.box[slot]);
+            b.box[slot] = held;
+            const float smooth = za::min(1.f, static_cast<float>(b.boxSum / static_cast<double>(look)));
+            b.gain = smooth < b.gain ? smooth : b.gain + (smooth - b.gain) * b.releaseCoef;
+            b.minGain = za::min(b.minGain, b.gain);
+            if(i < measured)
+            {
+                c.minGain = za::min(c.minGain, b.gain);
+            }
+            // The delay: this sample in, the one look - 1 samples back out.
+            b.delayL[slot] = l;
+            b.delayR[slot] = r;
+            const int out = static_cast<int>((b.n + 1) % look);
+            l = b.delayL[out] * b.gain;
+            r = b.delayR[out] * b.gain;
+            b.n++;
+        }
+        const int li = static_cast<int>(l);
+        const int ri = static_cast<int>(r);
+        if(li > ceiling || li < bottom || ri > ceiling || ri < bottom)
+        {
+            b.clipped++;
+            if(i < measured)
+            {
+                c.outClipped++;
+            }
+        }
+        buffer[i].left = za::clamp(li, bottom, ceiling);
+        buffer[i].right = za::clamp(ri, bottom, ceiling);
+    }
 }
 
 extern "C" void VR_SndCapture(const portable_samplepair_t* buffer, int count)
