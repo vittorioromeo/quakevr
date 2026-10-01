@@ -6346,6 +6346,22 @@ extern "C" int VR_PropLetsOut(edict_t* mover, edict_t* touch, const float* start
     return 1;
 }
 
+// SV_ClipToLinks, Quake's owner rule (an entity's traces pass its own missiles): a player's traces (his moves, his shots,
+// his hands') meet a solid prop even when it is his (vr_box3d_player_hold). A box let go of fast enough to be a throw
+// (VR_Carry_Release; a heavy one at a gentle 1.6 m/s: a two-handed topple let go of on its way down) was his from then
+// on, and he walked through it until he took it again (the author's note vrfiringrange_2026-10-01_00-33). Starting
+// inside it (let go of against his body) he is let out as from any solid prop (VR_PropLetsOut), and it is pushed out of
+// him (unstickProps).
+extern "C" int VR_OwnPropMeets(edict_t* mover, edict_t* touch)
+{
+    if(!world || !vr_box3d_player_hold.value)
+    {
+        return 0;
+    }
+    const int num = NUM_FOR_EDICT(mover);
+    return num >= 1 && num <= svs.maxclients && solidProp(NUM_FOR_EDICT(touch));
+}
+
 // SV_ClipToLinks: a player's own box (his move's; mins, maxs) against a solid prop meets its drawn box as it is turned,
 // as a round column (boxmins, boxmaxs: his box against entities, vr_hull_ent_width). See propShape.
 extern "C" int VR_PropClip(edict_t* mover, edict_t* touch, const float* start, const float* mins, const float* maxs,

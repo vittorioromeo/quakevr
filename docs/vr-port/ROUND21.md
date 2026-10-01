@@ -17594,3 +17594,45 @@ explosive box tilted 45 degrees took the hook in the air beside it. Branch `agen
 - **Test aids:** `vr_test_spawn_yaw` / `vr_test_spawn_tilt` (degrees; Debug > Tests > Ahead of You, Box Turned / Box
   Tilted): `impulse 241`'s box (100..104) let loose, turned and tipped; `vr_grapple_test_aim x y z` turns the flying hook
   at a world point; `vr_grapple_debug 2` prints a bitten prop's origin and model axes.
+
+## Phasing through a box toppled in both hands (2026-10-01)
+
+Your note (vrfiringrange_2026-10-01_00-33): push the long explosive box, hold it in both hands, topple it so it lands on
+its side, walk into it, and you go through it; taking it again, lifting it a little and letting go fixes it.
+
+**Why: it was yours.** Not the floor: after the topple it lies clear of the floor (`vr_physics_inlevel`: 0.0 units, the
+two-handed hold kept it out, `holdClear`), also toppled harder and pressed 8 units into the floor. Letting go of a prop
+(`VR_Carry_Release`) as fast as a throw (250 u/s times its weight's leniency) makes it a missile: its `.owner` is you,
+so its throw doesn't hurt you. For the 40 kg box that threshold is low: letting go of it on its way down from a topple
+(143 u/s here) is a throw. Nothing ever gave it back (its throw ending cleared `throwhit`, not `.owner`), and Quake's
+owner rule (`SV_ClipToLinks`: an entity's traces pass its own missiles) let every move of yours through it: you walked
+in (Box3D's body still nudged it, "disturbing" it) and through. Taking it again and letting go gently cleared it.
+
+**Now:**
+
+- A player's traces (his moves, shots and hands') meet a solid prop even when it's his (`VR_OwnPropMeets`, world.c's
+  owner rule; with `vr_box3d_player_hold`, Player Hitbox, "Never Through Them", whose help says so). Let go of against
+  your body, you walk out of it as out of any solid prop (`VR_PropLetsOut`) and it is pushed out of you
+  (`unstickProps`): both already applied to it, owned or not.
+- QC (`VR_SolidProp_Impact`): a thrown solid prop is no longer the thrower's once its throw is over (too slow, too long,
+  or it hit).
+
+**Tests** (mock headset, your settings, `Misc/quakevr/boxtopple_repro.py`: box 207 taken at its sides near the top,
+toppled forward 90 degrees about its far bottom edge in 0.6 s, the hands 3 units into the floor at the end, let go of with
+1.5 m/s down and forward; then walked into from 8 directions; `vr_physics_inside` as in "Phasing through a toppled
+box"):
+
+| | Before | After |
+| --- | --- | --- |
+| The topple (let go of at 143 u/s): its `.owner` | you | you (no hit ended the throw), but solid to you |
+| ... walking into it: frames inside, deepest | 177 of 720, 23.1 units | 1, 0.06 (it is shoved) |
+| A harder topple (0.35 s, 8 units into the floor, let go of at 265 u/s), `vr_box3d_player_hold 0` / 1 | 125 frames, 24.0 | 0 frames |
+| ... in the floor after it | 0.0 units | 0.0 |
+| Let go of gently (no throw: `.owner` stays the world) | 2 frames, 1.4 | |
+
+Regression: the toppled-box sweep (`propphase_sweep.py`, 96 cases) 192 of 192 sink tests on the box, deepest 0.74 units (as before), no failures; "Standing on
+props 2"'s tests: standing (still on it, the box unmoved), 40 jumps off (no hit), and walking into the boxes and the
+trapped test as the build without this change (the props there are never the player's, so nothing changes for them); melee canary 48/53, no differences; e1m1 smoke clean.
+
+**In the headset:** topple the long box in both hands so it lands on its side, let go, walk into it from every side: it
+should shove, never let you through. Also throw a box ahead and walk after it (it is solid to you as it flies).

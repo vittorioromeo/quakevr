@@ -2929,7 +2929,8 @@ za::Vector<Item> pageHitbox()
                   "of it, and it is pushed out of you (vr_box3d_player_unstick)."),
         toggle("Never Through Them", vr_box3d_player_hold)
             .help("Inside a solid prop, you only move out of it, never deeper; with your feet a little into its top (you "
-                  "landed on it, or it rocked up into you), you are put back on top (vr_box3d_player_hold)."),
+                  "landed on it, or it rocked up into you), you are put back on top. A box you threw or let go of is solid "
+                  "to you too (vr_box3d_player_hold)."),
         toggle("Their Real Shape", vr_box3d_player_shape)
             .help("You meet a solid prop's shape as drawn, however it is turned, and round: as close to a box's face turned "
                   "any way as to a wall; a tilted box is no taller than it looks. Off: the upright box round it "
