@@ -30,8 +30,6 @@ Pain feedback: hits from each side knock the hands (size and time feel right? Co
 
 Enemy guns: grunts drop a shotgun, enforcers a laser rifle (both death animations: corpse has no gun); grip and foregrip placement; fire until empty, shell/cell pickups don't refill; Combat > Enemy Weapons values
 
-Main hand Left: right stick moves, left turns, gadget on the right wrist reading upright, torch on the right hip; arms look normal (no swap); calibration's main-hand step raising each hand
-
 Crowbar (vrfiringrange): fist on the tape (offsets), both two-handed grips incl. sliding up the bar, hook vs bar hits, parry, throwing it
 Crates break to shotgun, axe, thrown things and hard drops; pieces don't block you and burst into dust when hit; crack and dust sound OK?
 Crouch behind a crate with a grunt about: it can't see you; carrying the crate, it sees you
@@ -40,30 +38,9 @@ After the Zancle follow-ups (no exceptions, fewer allocations): record a few tak
 
 Your tuned values are now defaults (Distance Falloff 0.75, HRTF Volume 1.5, Physics Sounds 2, scrape 0.8, grab 0.7, Mid-Air Leniency 4 cm): fresh config feels the same as yours
 
-Debug > Views > Show Damage Numbers: floating numbers on monsters, props, crates, secret walls; console lines like the dummy's
-
 Grip a dropped crowbar by its bar, a sword by its blade, the chainsaw by its front handle: it hangs from that hand until the other hand takes the handle (Carrying > Weapons by Their Hotspots); 15 cm reach OK? more annoying in play?
 
-Controller spin frame fix (Throwing > Controller Spin Frame, auto): Debug > Controller Spin on, flick both wrists: fixed cosine ~1.0, evidence stays positive; throws and calibration feel the same facing any way in your room
-
-Stand on a box leaning more than 30 deg: you slide off promptly (Standing on Props > Steepest Face to Stand On 30; 46 = old); under 30 deg standing, walking and jumping unchanged
-
-Drop-down lists: point the laser at a setting with many choices (Player Hitbox > Width Against Walls, Motion Recorder > Category) and pull the trigger: a list opens by it; point at a choice and pull to pick, pull outside or press B to close; the stick moves the highlight, A picks; thumbstick left/right still steps (HUD and Menus > Menu > Drop-Down Lists)
-
-Running chainsaw: faint smoke from the engine's right side, hand shake (less with two hands), shakes and drifts a little when dropped running (Combat > Enemy Weapons > Chainsaw Engine; Debug > Tests > Chainsaw > Drop the Chainsaws)
-Weapons anywhere follow-ups: sword with the off hand on its grip, let go of the handle: stays where the off hand holds it (no flip); let go at a holster while the other hand holds it: no holster; off hand anywhere near the handle: no jump to it; retake the handle with the off hand anywhere: it stays on; support mode counts as two-handed; weight anywhere feels like the pump?
-Mantle grunt when you mantle (Climbing > Mantle Grunt 0.6); Debug > Tests > Spawn a Big Prop Pile (300 props), then Physics Step Time with threads on and off
-Empty hand against a held prop now works like against a held weapon (both pushed back half, 5 cm each, buzz, then sinks in); settings in Carrying (Empty Hand Against Held Things)
-
-Enemy shoves: your values are defaults (range 50, delay 0.5, cooldown 1.5, distance 128); enforcers 1.5x damage and distance (192 units: too far?); parried shove now short (Parry Reduction 0.75 = takes 75% off: grunt 32, enforcer 48 units); shoved while hanging: you let go and slide; a blast of 30+ throws you off a hold (Climbing > blast threshold; Debug > Tests > Enemy Shoves > A Blast in 3 Seconds)
-Elbows: palms down near the face (your 45 deg repro) and near the chest: elbows spread out; palm up facing the face: still tucked; rolling palm side to down: smooth (Body > Arms > Elbows Spread 1; try 0.5 if too high)
-
-Grenades and melee: ordinary punches and swings bat a grenade on the ground; only very fast hard blows (20 m/s punch, 34 m/s weapon, 10 damage) or a running chainsaw set it off (Batting and Catching > Grenades); a full-speed blow on one in flight sets it off too: OK?
-Parry an ogre's chainsaw: one parry sound per burst (Parry and Bash > Parry Sound Once Per Burst 0.3 s)
-Throw a backpack high and stand under it: it hurts you after 0.35 s grace (Throwing and Physics > Your Throws Spare You For)
-
 [Decide or give feedback]
-Axe sticking: make your values defaults? (speed 1 vs 4, depth 5.5 vs 5, leniency 2 vs 1)
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
@@ -71,7 +48,6 @@ The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
 
 Zancle: read docs/vr-port/ZANCLE_REPORT.md (all bugs, MSVC portability, missing features, API proposals, prioritized actions); your initializer_list fix is wrong (QVR keeps its own); za::remainder truncates like fmod
-Box toppled onto you: a box still wedged 2+ units inside a wall no longer holds you under it (propregress relaxed the never-through rule there): OK?
 
 [Tune]
 Weapon Damage page (Combat > Weapon Damage): tune every weapon's base damage; crowbar now 20 (hook ~25)
