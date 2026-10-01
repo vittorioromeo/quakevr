@@ -162,8 +162,16 @@ const DefaultChange defaultChanges[] = {
     // 70: the empty hand meets the other hand's weapon as a prop held there does (NOTES.md
     // vrfiringrange_2026-10-01_12-12-28): each drawn moved back up to this, not the hand alone held up to 4 cm.
     {70, &vr_hand_collide, "4"},            // 5
+    // 71: the author's (NOTES.md 2026-10-01): gentler gibs from melee and light weapons (vrfiringrange 16-40-58, "make
+    // those the defaults"), and his pain knock after its third pass (vrfiringrange 16-45-39). ROUND21.md, "Defaults:
+    // gibs, pain knock, grenade grips; mantle grunt; prop pile; one empty-hand collision".
+    {71, &vr_gib_speed_melee, "0.45"},      // 0.15
+    {71, &vr_gib_speed_light, "0.65"},      // 0.25
+    {71, &vr_pain_knock_strength, "0.75"},  // 1
+    {71, &vr_pain_knock_max, "7.5"},        // 15
+    {71, &vr_pain_knock_tip, "2"},          // 3
 };
-constexpr int configVersion = 70;
+constexpr int configVersion = 71;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

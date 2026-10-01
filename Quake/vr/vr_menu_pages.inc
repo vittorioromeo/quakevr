@@ -95,6 +95,7 @@
         slider("Reach Over the Top", "vr_climb_over_top", 0.f, 40.f, 1.f, "%.0f units").extend().help("Over the top of a ledge, how far in from the drop a hand touching the top still holds it (up to how deep the top is). Less: only a hand near the edge grabs."),
         toggle("Hands Slide Along Ledges", "vr_climb_slide").extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
         slider("Grab Sound", "vr_physsound_grab", 0.f, 1.f, 0.1f, "%.1f").help("A small slap as your hand takes a hold, of what the hold is made of: wood, muted metal or stone (0 off; also Carrying: Physics Sounds)."),
+        slider("Mantle Grunt", "vr_climb_mantle_grunt", 0.f, 1.f, 0.1f, "%.1f").help("A small grunt as you pull yourself up onto a ledge (0 off)."),
         header("Climbing Stamina"),
         toggle("Climbing Stamina", "vr_climb_stamina").help("Hanging from a ledge or a rung tires you: it spends stamina from the pool parries, shoves and blows use (Stamina page), and none comes back while you hang. With none left your hands let go. Standing on something while you hold, pulling up onto a ledge and standing on it cost nothing."),
         slider("Hanging Cost, One Hand", "vr_climb_stamina_rate", 0.f, 30.f, 0.5f, "%.1f /s").extend().help("Stamina a second hanging from one hand costs (5 of 100: 20 s)."),
@@ -337,14 +338,6 @@ void resetHandMoves()
                   "closer; larger: steadier)."),
         toggle("Fingers Stop at Walls", "vr_hand_walls")
             .help("The fingers bend back where they would go into walls and floors."),
-        slider("Hands Brush Weapons", "vr_hand_collide", 0.f, 10.f, 0.5f, "%.1f cm").extend()
-            .help("The free hand bumps into the other hand's weapon as a thing held in it does: at its surface (about 1 cm "
-                  "off it: Carrying, Empty Hand Stops Off It) the hand and the weapon are each drawn moved back by half, "
-                  "as far as this, a short buzz as they meet; pressed further, the hand sinks in by the rest. 0: it "
-                  "always passes through."),
-        toggle("Fingers Brush Weapons", "vr_hand_collide_fingers")
-            .help("With Hands Brush Weapons: the free hand's fingers rest on the other hand's weapon or bend out of it, "
-                  "instead of the whole hand being pushed by its fingertips."),
         header("Against Monsters and Things"),
         cycle("Weapons Stop at Models", "vr_model_collide", {{0.f, "Off"}, {1.f, "Monsters"}, {2.f, "Monsters and Objects"}})
             .help("A weapon held into a monster, a corpse or another player (and, with Objects, a box, gib or weapon on the "

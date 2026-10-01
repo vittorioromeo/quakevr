@@ -1108,7 +1108,9 @@ void beginView(hands::State& s)
     for(int hand = 0; hand < 2; hand++)
     {
         s.pos[hand] += drawn[hand] + pressed[hand];
-        held::viewPush(hand, drawn[hand]); // (a prop held in it, moved with it)
+        // (A prop held in it, moved with it: out of the models, and pressed back by the other, empty hand, view::handPress;
+        // drawnPush is a weapon hand's only.)
+        held::viewPush(hand, drawn[hand] + pressed[hand]);
     }
 }
 

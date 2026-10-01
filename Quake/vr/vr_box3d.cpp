@@ -4083,6 +4083,80 @@ void pile_f()
     Con_Printf("vr_physics_pile: %d in %d columns\n", static_cast<int>(list.size()), static_cast<int>((list.size() + per - 1) / per));
 }
 
+// The rocks and bricks a big pile is made of (vr_debris.qc's models, precached on every map).
+constexpr const char* pileModels[] = {"progs/vr_rock1.mdl", "progs/vr_rock2.mdl", "progs/vr_rock3.mdl", "progs/vr_rock4.mdl",
+    "progs/vr_rock5.mdl", "progs/vr_brick1.mdl", "progs/vr_brick2.mdl", "progs/vr_brick3.mdl", "progs/vr_brick4.mdl"};
+
+// vr_physics_bigpile [<count> [<distance>]]: a big pile of props for Box3D on the pool (NOTES.md
+// vrfiringrange_2026-10-01_16-36-40; Debug > Tests > Spawn a Big Prop Pile): `count` (300; at most 2000) rocks and
+// bricks (vr_debris_piece, the models in turn) `distance` units (96) ahead of the first player, in columns of 10 on a
+// square grid 20 units apart, each piece set a little further along than the one under it, so that the columns topple
+// into one pile: more awake bodies than Physics Threads From (vr_box3d_threads_bodies, 150) while they fall and settle.
+// vr_physics_steptime (Physics Step Time) before and after gives the step's time; vr_physics_mtbench the same alone.
+void bigPile_f()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        Con_Printf("usage: vr_physics_bigpile [<count> [<distance>]] (in a game)\n");
+        return;
+    }
+    const int count = Cmd_Argc() > 1 ? CLAMP(1, Q_atoi(Cmd_Argv(1)), 2000) : 300;
+    const float distance = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 96.f;
+    const VmScope vm;
+    const func_t fn = qvr::progs::findFunction("vr_debris_piece");
+    if(!fn)
+    {
+        Con_Printf("vr_physics_bigpile: no vr_debris_piece in the progs\n");
+        return;
+    }
+    edict_t* player = EDICT_NUM(1);
+    vec3_t yaw{0.f, player->v.angles[1], 0.f};
+    vec3_t forward, right, up;
+    AngleVectors(yaw, forward, right, up);
+    const glm::vec3 fwd{forward[0], forward[1], 0.f};
+    const glm::vec3 side{right[0], right[1], 0.f};
+    constexpr int perColumn = 10;
+    constexpr float spacing = 20.f;
+    constexpr float lean = 1.5f; // units each piece is set along from the one under it
+    const int columns = (count + perColumn - 1) / perColumn;
+    const int across = za::max(1, static_cast<int>(glm::ceil(za::sqrt(static_cast<float>(columns)))));
+    const int classname = PR_SetEngineString("vr_debris_piece");
+    constexpr int modelCount = static_cast<int>(sizeof(pileModels) / sizeof(pileModels[0]));
+    int made = 0;
+    float z = 0.f; // the bottom of the next piece of this column
+    for(int i = 0; i < count; i++)
+    {
+        const int column = i / perColumn;
+        const int row = i % perColumn;
+        const float cx = static_cast<float>(column % across) - static_cast<float>(across - 1) * 0.5f;
+        const float cy = static_cast<float>(column / across);
+        const glm::vec3 base = vec(player->v.origin) + fwd * (distance + cy * spacing) + side * (cx * spacing);
+        edict_t* e = ED_Alloc();
+        store(base, e->v.origin);
+        e->v.classname = classname;
+        e->v.model = PR_SetEngineString(pileModels[i % modelCount]);
+        pr_global_struct->time = qcvm->time;
+        pr_global_struct->self = EDICT_TO_PROG(e);
+        PR_ExecuteProgram(fn); // rests it on the floor below (vr_debris_piece)
+        if(e->free)
+        {
+            continue;
+        }
+        if(row == 0)
+        {
+            z = e->v.absmin[2]; // the floor under the column
+        }
+        glm::vec3 lo, hi;
+        localBox(e, modelOf(e), lo, hi);
+        const glm::vec3 at = base + fwd * (lean * static_cast<float>(row));
+        placeStill(e, glm::vec3{at.x, at.y, z - lo.z + 0.5f}, player->v.angles[1] + static_cast<float>((i * 37) % 90));
+        z += hi.z - lo.z + 0.5f;
+        made++;
+    }
+    Con_Printf("vr_physics_bigpile: %d of %d props in %d columns ahead (vr_physics_steptime: the step's time)\n", made, count,
+        columns);
+}
+
 // vr_physics_blast <x> <y> <z> [<damage>]: an explosion there, from the world (QC's T_RadiusDamage, 120 by default: a
 // rocket's; and its effect): what it does to monsters, gibs and the props (physicsblast). For tests.
 void blast_f()
@@ -4634,6 +4708,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_list", list_f);
         Cmd_AddCommand("vr_physics_loose", loose_f);
         Cmd_AddCommand("vr_physics_pile", pile_f);
+        Cmd_AddCommand("vr_physics_bigpile", bigPile_f);
         Cmd_AddCommand("vr_physics_hash", hash_f);
         Cmd_AddCommand("vr_physics_steptime", steptime_f);
         Cmd_AddCommand("vr_physics_mtbench", mtbench_f);

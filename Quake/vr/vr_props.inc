@@ -93,12 +93,21 @@ QVR_PROP_DEFAULT(3, Mass, "1.2")
 // middle over the fist's grip channel, the fingers round it. vr_props_version 44 gives these to configs saved before.
 QVR_PROP_DEFAULT(3, GripMode, "2")
 QVR_PROP_DEFAULT(3, TwoHands, "0")
+// The author's fit (NOTES.md vrfiringrange_2026-10-01_16-53-53, the thumb round it; vr_props_version 54): turned 10
+// degrees, 1 unit up, the fingers sunk 0.75 cm into it.
+QVR_PROP_DEFAULT(3, GripRoll, "10")
+QVR_PROP_DEFAULT(3, GripZ, "1")
+QVR_PROP_DEFAULT(3, Overlap, "0.75")
 QVR_PROP_DEFAULT(4, ID, "progs/mervup.mdl")
 QVR_PROP_DEFAULT(4, Mass, "1.2")
 // The multi-grenade held as the grenade is (round 21, "Multi-grenades from the pouch": one from the pouch with B/Y held,
 // or caught): in the palm, in one hand. vr_props_version 53 gives these to configs saved before.
 QVR_PROP_DEFAULT(4, GripMode, "2")
 QVR_PROP_DEFAULT(4, TwoHands, "0")
+// The author's (NOTES.md vrfiringrange_2026-10-01_17-17-58; vr_props_version 54): turned 10 degrees, the fingers sunk
+// 0.6 cm into it.
+QVR_PROP_DEFAULT(4, GripYaw, "10")
+QVR_PROP_DEFAULT(4, Overlap, "0.6")
 // A wall torch taken off its wall (vr_walltorch.qc; ROUND21.md, "Wall torches you can take"): a wooden stick along its
 // model's +x (the butt at -14, the handle to -7, the head to +1.8), its weight in its head; held by its handle through the
 // fist, flame up (Along the Handle: where it was taken along the handle, leaning as taken), in either hand or both (the
