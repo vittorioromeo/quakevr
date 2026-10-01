@@ -61,6 +61,8 @@ Melee with a weapon held anywhere: hilt and pommel of a sword held upside down, 
 
 Slow motion for recording (Graphics > Recording > Slow Motion; vr_slowmo bindable, 0.25 default): record at 0.25 moving at quarter speed, speed footage up 4x: looks and sounds natural?; a real-speed swing is capped at 8 m/s (Hand Speed cap): feels right?; Slow Sounds off/on
 
+Bullet time (Combat > Bullet Time): press the inner button on the gadget's lower edge with the other fingertip: world 0.3x for 6 s, TIME bar on the gadget, 2 s cooldown, 20 s refill; look (desaturate, vignette, tint) strength; button easy to find? (Button Size, Fingertip Reach); try Sandevistan (you, hands, your shots at full speed); turning stays real time by default: OK?; start/stop sounds are placeholders
+
 [Decide or give feedback]
 Parry cooldown: blows inside it also cost no parry stamina (else an ogre swing exhausts you every time): OK?
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
