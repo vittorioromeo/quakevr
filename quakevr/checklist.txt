@@ -86,6 +86,8 @@ Stand close to a grunt or enforcer: after 0.6 s it winds up (0.3 s, two-handed g
 
 Weapons held anywhere (Carrying > Weapons Anywhere, 12 cm Away From Grips): grab a dropped shotgun/enemy rifle mid-body (no fire); handle + other hand anywhere: compare Other Hand Anywhere modes foregrip / support only / rigid (global and per weapon in Weapon Offsets > Other Hand's Grips); let go of the handle: carried like a prop, melee and throw it, holster it, draw takes the handle; handle and pump still easy to grab? off-hand fingers look right?
 
+Drop-down lists: point the laser at a setting with many choices (Player Hitbox > Width Against Walls, Motion Recorder > Category) and pull the trigger: a list opens by it; point at a choice and pull to pick, pull outside or press B to close; the stick moves the highlight, A picks; thumbstick left/right still steps (HUD and Menus > Menu > Drop-Down Lists)
+
 [Decide or give feedback]
 Weapons anywhere: crowbar and swords have no anywhere region (hotspots cover the whole bar); support-only mode doesn't count as two-handed (no spread or 2H melee bonus): OK?
 Melee on grenades: lying/rolling ones explode on a blow, flying ones are still batted or caught (Blows Set Grenades Off): OK?
