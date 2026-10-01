@@ -37,6 +37,9 @@ $frame paind1 paind2 paind3 paind4 paind5 paind6 paind7 paind8
 $frame paind9 paind10 paind11 paind12 paind13 paind14 paind15 paind16
 $frame paind17 paind18 paind19
 
+// VR: the shove (quakevr/progs: Misc/quakevr/make_enemyshove.py appends these after the model's own frames)
+$frame shove1 shove2 shove3 shove4 shove5 shove6
+
 
 void() Laser_Touch =
 {
@@ -186,6 +189,14 @@ void()    enf_atk13    =[    $attack9,    enf_atk14    ] {ai_face();};
 void()    enf_atk14    =[    $attack10,    enf_run1    ] {ai_face();
 SUB_CheckRefire (enf_atk1);
 };
+
+// VR: the shove (vr_enemyshove.qc): a wind-up, the push with the rifle held across (the blow), back.
+void()    enf_shove1    =[    $shove1,    enf_shove2    ] {ai_face();};
+void()    enf_shove2    =[    $shove2,    enf_shove3    ] {ai_face();};
+void()    enf_shove3    =[    $shove3,    enf_shove4    ] {ai_face();};
+void()    enf_shove4    =[    $shove4,    enf_shove5    ] {VR_EnemyShove_Hit();};
+void()    enf_shove5    =[    $shove5,    enf_shove6    ] {};
+void()    enf_shove6    =[    $shove6,    enf_run1    ] {};
 
 void()    enf_paina1    =[    $paina1,    enf_paina2    ] {};
 void()    enf_paina2    =[    $paina2,    enf_paina3    ] {};
@@ -384,6 +395,7 @@ void() monster_enforcer =
     self.th_pain = enf_pain;
     self.th_die = enf_die;
     self.th_missile = enf_atk1;
+    self.th_vrshove = enf_shove1;
 
     // HONEY
     monster_add_to_counter();

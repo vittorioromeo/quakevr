@@ -4578,6 +4578,10 @@ void() ImpulseCommands =
         monster_knight();
         self = knightPlayer;
     }
+    if(self.impulse == 219 && !deathmatch && !coop) // QVR: shove the nearest monster (enemy shove tests; vr_enemyshove.qc)
+    {
+        VR_EnemyShove_TestShoveNearest();
+    }
     if(self.impulse == 249 && !deathmatch && !coop) // QVR: does the pose parry a blow from ahead? (developer 1)
     {
         VR_Parry_Probe();

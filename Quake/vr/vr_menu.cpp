@@ -573,6 +573,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 // The world: monsters, knights' swords, weapon drops and what you feel (the Gameplay page before the menus were
 // reorganized; its damage and knockback are on Damage and Knockback, its voice notes on Debug).
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons();
+[[nodiscard]] za::Vector<Item> pageEnemyShoves();
 [[nodiscard]] za::Vector<Item> pageSound();
 
 [[nodiscard]] za::Vector<Item> pageGameplay()
@@ -595,6 +596,29 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         header("Feel"),
         toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
         toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
+    };
+}
+
+// Grunts and enforcers shove you away when you stand too close (QC vr_enemyshove.qc; ROUND21.md, "Grunts and enforcers
+// shove you").
+[[nodiscard]] za::Vector<Item> pageEnemyShoves()
+{
+    return {
+        toggle("Enemy Shoves", vr_enemy_shove)
+            .help("Grunts and enforcers shove you away, pushing their gun out with both hands, when you stand too close "
+                  "for a moment. Never while they fire, are staggered or knocked away."),
+        slider("Too Close", vr_enemy_shove_range, 36.f, 96.f, 2.f, "%.0f units").extend(32.f, 160.f)
+            .help("How close you must be (between your middles, flat: touching is 32 units) for them to shove you."),
+        slider("Delay", vr_enemy_shove_delay, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 10.f)
+            .help("How long you must stay that close before they shove (the shove's wind-up then takes 0.3 s)."),
+        slider("Cooldown", vr_enemy_shove_cooldown, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 30.f)
+            .help("From one shove to the same enemy's next, parried or not."),
+        slider("Damage", vr_enemy_shove_damage, 0.f, 20.f, 1.f, "%.0f").extend(0.f, 50.f)
+            .help("A shove's damage, cut by a parry as any blow's (Parry and Bash). 0: none, and it can't be parried."),
+        slider("Push Distance", vr_enemy_shove_distance, 0.f, 160.f, 4.f, "%.0f units").extend(0.f, 400.f)
+            .help("How far a shove pushes you (a quick slide; 32 units is about a metre). Not scaled by Knockback."),
+        slider("Parried Push", vr_enemy_shove_parried, 0.f, 1.f, 0.05f, "%.2fx")
+            .help("A parried shove pushes you this much of Push Distance."),
     };
 }
 
@@ -2609,6 +2633,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_crates_goto crowbar: you in front of the next crate with a crowbar lying on it (Crates: Crowbar on Crates)."),
         command("Go to the Next Crate", "vr_crates_goto")
             .help("vr_crates_goto [n]: you in front of the next of the crates placed in this map (or crate n), to look at it."),
+        header("Enemy Shoves"),
+        command("Shove the Nearest Monster", "impulse 219")
+            .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
+                  "staggered). Developer 1 logs grunts' and enforcers' shoves and why one can't shove (Combat > Enemy Shoves)."),
         header("Chainsaw"),
         command("A Chainsaw in Your Hand", "impulse 164").help("A full ogre's chainsaw in the main hand (impulse 184: the off "
                                                                 "hand). Take its cord with the other hand and pull."),
@@ -3235,6 +3263,7 @@ const Page pages[] = {
     {"Crates", pageCrates, pageCarryingHub},                                // 78
     {"Weapon Damage", pageWeaponDamage, pageCombat},                        // 79
     {"Weapon Effects", pageWeaponEffects, pageWeaponsHub},                  // 80
+    {"Enemy Shoves", pageEnemyShoves, pageCombat},                          // 81
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -3376,6 +3405,8 @@ za::Vector<Item> pageCombat()
                   "monsters drop, thrown weapons."),
         open("Enemy Weapons", pageIndex(pageEnemyWeapons))
             .help("The swords, chainsaws, shotguns and laser rifles monsters drop: their fuel, ammo and handling."),
+        open("Enemy Shoves", pageIndex(pageEnemyShoves))
+            .help("Grunts and enforcers shove you away when you stand too close: how close, how soon, how hard."),
     };
 }
 

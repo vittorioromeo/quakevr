@@ -29,6 +29,8 @@ vr_crates.qc
 vr_walltorch.qc
 // The grapple after vr_carry.qc and vr_walltorch.qc: it reads their fields.
 vr_grapple.qc
+// Grunts' and enforcers' shoves (ai.qc calls it; the monsters' files use it).
+vr_enemyshove.qc
 
 buttons.qc
 client.qc

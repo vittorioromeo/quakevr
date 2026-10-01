@@ -1031,6 +1031,11 @@ vertices) hidden in 21 death frames", "the laser rifle (58 vertices) hidden in 2
 prints each shot ("grunt's shotgun fired: hand 1, 9 left") and each empty click. Level mock hands for aimed shots:
 `vr_mock_hand main 0.25 1.20 -0.40 70 0 0`. The grunts' burst rifles and the rifle's lasers (ROUND21.md, "The grunts' burst rifles; the enforcer rifle's faster lasers"): `vr_debug_shots 1` prints each burst round and each rifle laser (fired: its speed; what it hit, its damage); `vr_hull_hittest <distance> <spread>` gives a spread's share of hits on you; `hullhit/hit_test.sh <worktree> 2160 "0:256" 24` a grunt's damage to you in 30 s (`vr_grunt_burst 0`: the shotgun's). `Misc/quakevr/make_enemyguns.py` makes the models (`check_mdl_holes.py`
 checks them).
+Enemy shoves (ROUND21.md, "Grunts and enforcers shove you"): `developer 1`, `vr_test_spawn 0` (or `8`),
+`vr_test_spawn_dist 40`, `impulse 241` on vrcalibration's open floor: "enemy shove: ... shoves the player ...", "the player
+slid 63.7 units"; parry with the crowbar across (`vr_weapon_grip_mode 1; impulse 167; vr_mock_hand main 0.15 1.35 -0.35
+0 90 0`); `impulse 219` shoves the nearest monster (staggered: it can't shove); side view `vr_mock_camera -1.8 1.3 -0.7 0
+-90`.
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:
