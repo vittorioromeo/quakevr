@@ -60,6 +60,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
         writeVec3(buf, hand.throwVel);
         MSG_WriteFloat(buf, hand.velMag);
         writeVec3(buf, hand.angVel);
+        writeVec3(buf, hand.throwFlick);
         writeVec3(buf, hand.throwPos);
         MSG_WriteFloat(buf, hand.throwAge);
         writeVec3(buf, hand.tracked);
@@ -98,6 +99,7 @@ za::Optional<VrMove> readVrMove()
         hand.throwVel = in.vec3();
         hand.velMag = in.real();
         hand.angVel = in.vec3();
+        hand.throwFlick = in.vec3();
         hand.throwPos = in.vec3();
         hand.throwAge = in.real();
         hand.tracked = in.vec3();

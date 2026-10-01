@@ -19118,3 +19118,53 @@ His notes vrfiringrange_2026-10-01_16-41-40, _16-42-00 (a backpack thrown high n
   The crowbar's hook at 9.1 m/s: batted (weapon threshold 34, 10 alike). A running chainsaw's chain cutting into a dud
   falling past the bar: set off ("a running chainsaw"); its rear handle's pommel strike (19.1 m/s) had too, before
   the pommel was left out of the rule. Melee canary: no differences.
+
+## Throws by weight (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-01_23-00-33 and _23-07-05: anything, however heavy, could be thrown far and easily with
+one hand (a super nailgun flicked from the wrist went 50-60 m); two hands didn't help.
+
+**What there was.** A throw's speed is the controller's peak speed around the release (`vr_throw_window`,
+`_lookahead`, `_peak_span`), plus 70% (`vr_throw_ang_factor`) of a clear wrist flick's spin (over
+`vr_throw_ang_threshold` 6 rad/s) through `vr_throw_lever_arm` (0.1 m). QC then multiplied it by the gain
+(`vr_throw_gain_lo` 1.5 / `_hi` 6 / `_max` 1.5: up to 1.5x for fast throws), by `1 + (WeaponIdToThrowMult - 1) *
+vr_throw_weight_influence` (0.25: the super nailgun 0.9, the laser cannon 0.85, the axe 0.975) and by
+`vr_weapon_throw_velocity_mult` (1). Two hands averaged both hands' estimates times `vr_2h_throw_velocity_mult` (1):
+no stronger. Props: `vr_carry_throw_mult` (1) and Held Object Offsets: Throw (0: from the mass, `sqrt(12 / mass)` over
+`vr_weight_throw_mass` 12 kg). So a 7 kg gun left the hand at 0.9 of a 2 kg axe's speed.
+
+**The model** (`weight::throwVelocity`, vr_weight.cpp; QC builtin `throwvelocity`, used by thrown weapons and released
+props):
+1. The wrist flick: the estimate now carries the part of its velocity the hand's turn gives (`throwing::Estimate::flick`,
+   sent as `.handthrowflick`/`.offhandthrowflick`): the spin about the wrist, `vr_throw_wrist_dist` (0.07 m) behind the
+   controller's point, plus the lever-arm term. A thing heavier than `vr_throw_flick_mass` (2.5 kg) keeps only (flick
+   mass / mass) of it (the super nailgun 36%, the laser cannon 17%), never more than the throw has along it.
+2. The gain, as before (moved from QC's VRThrowGain).
+3. The limit by mass: `vr_throw_max_speed` (28 m/s) up to `vr_throw_mass_light` (2 kg: the axe, grenades 1.2), then
+   times (light / mass)^`vr_throw_mass_exp` (0.75, between equal energy 0.5 and equal impulse 1): shotgun 3 kg 20.7,
+   super nailgun 7 kg 10.9, laser cannon 15 kg 6.2, an explosive box 40 kg 3.0 m/s. Soft: untouched up to
+   `vr_throw_mass_knee` (0.7) of it, then a tanh towards it.
+4. Two hands (a weapon held two-handed within 0.3 s, a prop held in both): as if `vr_throw_2h_strength` (2) times
+   lighter, for the flick and the limit: heavy things go farther, light ones no faster.
+`vr_throw_mass_model 0` restores the old path (props' Throw from the mass again). The QC weight influence stays (0.25).
+
+Menu: Throwing and Physics, header "Throws by Weight" (all eight). Debug: `vr_debug_throw 1` prints each throw's
+`throw weight:` line (mass, hands, flick kept, gain, limit, speed and reach at 45 degrees, and without the model);
+Debug > World and Physics > Throws by Weight runs `vr_throw_table [hand m/s] [flick m/s]`.
+
+**Measured** (mock throws, scratch `gen_throws.py`: throw_plays.py's arcs with the controller 7 cm ahead of the wrist;
+the same estimate with and without; reach = v^2 / g at 45 degrees, before the QC weight factor):
+
+| main hand | overhand (6.7 m/s) | hard (9 m/s) | whip (11-14 m/s, half of it the flick) |
+|---|---|---|---|
+| axe 2 kg | 9.9 m/s 10 m = | 13.6 19 m = | 20.4 42 m = |
+| shotgun 3 kg | 10.0 -> 9.4 m/s | 13.5 -> 12.7 | 20.9 -> 18.4 (45 -> 34 m) |
+| super nailgun 7 kg | 10.0 -> 7.3 (10 -> 5 m) | 13.5 -> 9.9 (19 -> 10 m) | 16.5 -> 9.4 (28 -> 9 m) |
+| laser cannon 15 kg | 10.4 -> 5.6 (11 -> 3 m) | 13.6 -> 6.2 (19 -> 4 m) | 18.5 -> 6.2 (35 -> 4 m) |
+
+`vr_throw_table 9 3.6` (hard) one hand / two: grenade 13.5 / 13.5, axe 13.5 / 13.5, shotgun 12.6 / 13.5, super
+nailgun 9.7 / 12.0, laser cannon 6.2 / 9.4, explosive box 3.0 / 5.0 m/s (before: 13.5 for all, 7.4 for the box).
+
+Open: heavy props (explosive boxes 40 kg, crates 25 kg) can no longer be thrown far (one hand 3-4 m/s, under their
+missile threshold; two hands 5-7 m/s): their own Throw (Held Object Offsets) multiplies the result, or lower Heavy
+Falloff. The weight spring (the drawn weapon lagging the hand) is not used for the throw.

@@ -978,8 +978,58 @@ float dropLimit(float mass, float twoHanded)
     return wrenchLimit(mass, twoHanded);
 }
 
+// vr_throw_table [hand speed m/s] [flick m/s]: throws by weight (throwVelocity), for the weapons and props that have a mass:
+// a throw whose hand's estimate is that fast (8 m/s: a hard overarm throw), that much of it the wrist's flick (2), the
+// flick along it. Each: the speed it leaves at and its reach (level ground, at 45 degrees, at vr_throw_gravity) with the
+// model off (the gain only), one hand and two.
+void throwTable_f()
+{
+    const float hand = Cmd_Argc() > 1 ? Q_atof(Cmd_Argv(1)) : 8.f;
+    const float flick = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 2.f;
+    const float g = vr_throw_gravity.value > 0.f ? vr_throw_gravity.value : 9.81f;
+    const glm::vec3 vel{hand, 0.f, 0.f}, fl{za::min(flick, hand), 0.f, 0.f};
+    Con_Printf("vr_throw_table: hand %.1f m/s (flick %.1f), model %s; max %.0f m/s up to %.1f kg, ^%.2f, knee %.2f\n", hand,
+        flick, vr_throw_mass_model.value ? "on" : "off", vr_throw_max_speed.value, vr_throw_mass_light.value,
+        vr_throw_mass_exp.value, vr_throw_mass_knee.value);
+    Con_Printf("  whole flick up to %.1f kg; two hands as %.1fx lighter; reach at 45 degrees, %.2f m/s^2\n",
+        vr_throw_flick_mass.value, vr_throw_2h_strength.value, g);
+    Con_Printf("%-4s %-24s %5s | %11s | %11s %5s | %11s %5s\n", "slot", "model", "kg", "off m/s m", "1h m/s m", "lim",
+        "2h m/s m", "lim");
+    const auto row = [&](const char* slot, const char* model, float mass) {
+        const float was = vr_throw_mass_model.value, debug = vr_debug_throw.value;
+        vr_debug_throw.value = 0.f;
+        vr_throw_mass_model.value = 0.f; // (the value only: not the cvar's string, nor archived)
+        const float off = glm::length(throwVelocity(vel, fl, mass, 1).vel);
+        vr_throw_mass_model.value = 1.f;
+        const float one = glm::length(throwVelocity(vel, fl, mass, 1).vel);
+        const float two = glm::length(throwVelocity(vel, fl, mass, 2).vel);
+        const float lim1 = throwLimit(mass, 1), lim2 = throwLimit(mass, 2);
+        vr_throw_mass_model.value = was;
+        vr_debug_throw.value = debug;
+        Con_Printf("%-4s %-24s %5.1f | %5.1f %5.1f | %5.1f %5.1f %5.1f | %5.1f %5.1f %5.1f\n", slot, model, mass, off,
+            off * off / g, one, one * one / g, lim1, two, two * two / g, lim2);
+    };
+    for(int slot = 0; slot < weapons::numSlots; slot++)
+    {
+        const char* id = weapons::cvar(slot, weapons::Key::ID)->string;
+        if(id[0] && strcmp(id, "-1") && weapons::value(slot, weapons::Key::Mass) > 0.f)
+        {
+            row(va("w%d", slot + 1), id, weapons::value(slot, weapons::Key::Mass));
+        }
+    }
+    for(int slot = 0; slot < props::numSlots; slot++)
+    {
+        const char* id = props::cvar(slot, props::Key::ID)->string;
+        if(id[0] && strcmp(id, "-1") && props::value(slot, props::Key::Mass) > 0.f)
+        {
+            row(va("p%d", slot + 1), id, props::value(slot, props::Key::Mass));
+        }
+    }
+}
+
 void registerCommands()
 {
+    Cmd_AddCommand("vr_throw_table", throwTable_f);
     Cmd_AddCommand("vr_weight_test", test_f);
     Cmd_AddCommand("vr_weight_table", table_f);
 }
@@ -1136,6 +1186,99 @@ float damageMultiplier(float mass)
     const float ref = mass > heavy ? heavy : mass < light ? light : mass;
     const float lo = za::min(vr_weight_damage_min.value, 1.f), hi = za::max(vr_weight_damage_max.value, 1.f);
     return za::clamp(za::pow(mass / ref, k), lo, hi);
+}
+
+namespace
+{
+
+// The gain of a real throw (docs/vr-port/THROWING.md 3.2): speeds up to vr_throw_gain_lo m/s leave the hand as they are
+// (drops, passes); above, smoothly more, up to vr_throw_gain_max times at vr_throw_gain_hi. (QC's VRThrowGain before.)
+[[nodiscard]] float throwGain(float speed)
+{
+    const float lo = vr_throw_gain_lo.value, hi = vr_throw_gain_hi.value, most = vr_throw_gain_max.value;
+    if(hi <= lo)
+    {
+        return speed >= hi ? most : 1.f;
+    }
+    const float t = za::clamp((speed - lo) / (hi - lo), 0.f, 1.f);
+    return 1.f + (most - 1.f) * t * t * (3.f - 2.f * t);
+}
+
+// As if it weighed this much (two hands: less).
+[[nodiscard]] float throwMass(float mass, int hands)
+{
+    return hands >= 2 ? mass / za::max(vr_throw_2h_strength.value, 0.1f) : mass;
+}
+
+} // namespace
+
+float throwLimit(float mass, int hands)
+{
+    if(!vr_throw_mass_model.value)
+    {
+        return 0.f;
+    }
+    const float m = throwMass(za::max(mass, 0.f), hands);
+    const float light = za::max(vr_throw_mass_light.value, 0.01f);
+    const float most = za::max(vr_throw_max_speed.value, 0.1f);
+    return m > light ? most * za::pow(light / m, za::max(vr_throw_mass_exp.value, 0.f)) : most;
+}
+
+ThrowOut throwVelocity(const glm::vec3& vel, const glm::vec3& flick, float mass, int hands)
+{
+    ThrowOut out;
+    glm::vec3 v = vel;
+    if(vr_throw_mass_model.value)
+    {
+        // A wrist too weak to flick it: of a heavy thing, only some of the flick's speed.
+        const float m = throwMass(za::max(mass, 0.f), hands);
+        const float free = za::max(vr_throw_flick_mass.value, 0.01f);
+        out.kept = m > free ? free / m : 1.f;
+        // No more of it than the throw has along it (a controller turned about its own point, not the wrist).
+        const float f = glm::length(flick);
+        if(f > 1e-4f)
+        {
+            const glm::vec3 along = flick / f;
+            v -= along * (za::clamp(glm::dot(v, along), 0.f, f) * (1.f - out.kept));
+        }
+    }
+    out.gain = throwGain(glm::length(v));
+    v *= out.gain;
+
+    out.limit = throwLimit(mass, hands);
+    const float speed = glm::length(v);
+    if(out.limit > 0.f && speed > 1e-4f)
+    {
+        // Soft: as it was up to the knee, then easing towards the limit (tanh: the same slope at the knee).
+        const float knee = za::clamp(vr_throw_mass_knee.value, 0.f, 1.f) * out.limit;
+        float s = speed;
+        if(s > knee)
+        {
+            const float room = out.limit - knee;
+            if(room > 1e-4f)
+            {
+                const float x = (s - knee) / room;
+                s = knee + room * (1.f - 2.f / (za::exp(2.f * x) + 1.f));
+            }
+            else
+            {
+                s = out.limit;
+            }
+        }
+        v *= s / speed;
+    }
+    out.vel = v;
+
+    if(vr_debug_throw.value)
+    {
+        // And as it was without the model (the gain only), and how far each would go at 45 degrees on level ground.
+        const float off = glm::length(vel) * throwGain(glm::length(vel)), now = glm::length(out.vel);
+        const float g = vr_throw_gravity.value > 0.f ? vr_throw_gravity.value : 9.81f;
+        Con_Printf("throw weight: %.1f kg %dh %.1f (flick %.1f, %.0f%%) x%.2f lim %.1f: %.1f m/s %.0f m; was %.1f %.0f m\n",
+            mass, hands, glm::length(vel), glm::length(flick), out.kept * 100.f, out.gain, out.limit, now, now * now / g,
+            off, off * off / g);
+    }
+    return out;
 }
 
 float leniency(float mass)

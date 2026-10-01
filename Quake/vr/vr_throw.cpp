@@ -150,8 +150,9 @@ constexpr double peakFit = 0.03;
 
 // The peak of the controller's speed around the release.
 // `lever`: metres along the hand's forward to the held object's centre (vr_throw_lever_arm): a clear wrist flick adds
-// its spin's velocity there (none for two hands: their samples are the object's own).
-[[nodiscard]] Estimate releasePeak(const History& h, double releaseTime, float leverArm)
+// its spin's velocity there (none for two hands: their samples are the object's own). `wrist`: the estimate's flick, the
+// part of it the hand's turn gives (none for two hands).
+[[nodiscard]] Estimate releasePeak(const History& h, double releaseTime, float leverArm, bool wrist)
 {
     const double from = releaseTime - za::max(vr_throw_window.value, 0.f);
     const double to = releaseTime + za::max(vr_throw_lookahead.value, 0.f);
@@ -227,12 +228,25 @@ constexpr double peakFit = 0.03;
 
     // The object's centre, and the velocity a clear wrist flick adds there.
     const glm::vec3 lever = peak.forward * leverArm; // metres
+    glm::vec3 flick{0.f};
     if(glm::length(angVel) > vr_throw_ang_threshold.value)
     {
-        vel += glm::cross(angVel, lever) * vr_throw_ang_factor.value;
+        flick = glm::cross(angVel, lever) * vr_throw_ang_factor.value;
+        vel += flick;
+    }
+    // The part of it the hand's turn about the wrist gives (vr_throw_wrist_dist behind the controller's point): a heavy
+    // thing keeps less of it (weight::throwVelocity), the wrist being too weak to flick it. Not pitched (vr_throw_pitch
+    // turns the whole throw a little).
+    if(wrist)
+    {
+        flick += glm::cross(angVel, peak.forward * za::max(vr_throw_wrist_dist.value, 0.f));
+    }
+    else
+    {
+        flick = glm::vec3{0.f};
     }
 
-    return {pitched(vel), angVel, peak.pos + lever * units::metresToUnits(), peak.time};
+    return {pitched(vel), angVel, flick, peak.pos + lever * units::metresToUnits(), peak.time};
 }
 
 // Grip state per hand, for the release detection.
@@ -283,7 +297,7 @@ Estimate estimateAt(int hand, double releaseTime)
         return {};
     }
 
-    return releasePeak(h, releaseTime, vr_throw_lever_arm.value);
+    return releasePeak(h, releaseTime, vr_throw_lever_arm.value, true);
 }
 
 Estimate estimateBothAt(double releaseTime, const glm::vec3& centre)
@@ -333,7 +347,7 @@ Estimate estimateBothAt(double releaseTime, const glm::vec3& centre)
     {
         return {};
     }
-    return releasePeak(both, releaseTime, 0.f);
+    return releasePeak(both, releaseTime, 0.f, false);
 }
 
 double latestTime(int hand)

@@ -19,6 +19,7 @@ struct VrHandMove
     glm::vec3 throwVel{0.f}; // smoothed velocity used for throwing
     float velMag{0.f};
     glm::vec3 angVel{0.f};   // radians / second, of the throw
+    glm::vec3 throwFlick{0.f}; // metres / second: the part of throwVel the wrist's flick gives (throwing::Estimate::flick)
     glm::vec3 throwPos{0.f}; // world position the thrown object left the hand at
     float throwAge{0.f};     // seconds since it left the hand
     glm::vec3 tracked{0.f};  // world position of the controller's own point: `pos` before the level held the drawn hand

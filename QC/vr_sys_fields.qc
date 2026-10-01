@@ -176,6 +176,7 @@
 .vector handavel;
 .vector handthrowpos;  // where the thrown object left the hand (world)
 .float  handthrowage;  // seconds since
+.vector handthrowflick; // m/s: the part of handthrowvel the wrist's flick gives (a heavy thing keeps less: throwvelocity)
 
 //
 //
@@ -192,6 +193,7 @@
 .vector offhandavel;
 .vector offhandthrowpos;
 .float  offhandthrowage;
+.vector offhandthrowflick;
 
 //
 //

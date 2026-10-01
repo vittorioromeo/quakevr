@@ -523,8 +523,8 @@ za::Vector<Item> pageHeldObjectWeights()
     if(!flashlightProp)
     {
         list.pushBack(s("Throw", Key::Throw, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-                           .help("How much of your hand's throw it keeps. 0: from its mass (all of it up to 12 kg, less "
-                                 "beyond: vr_weight_throw_mass)."));
+                           .help("How much of your hand's throw it keeps. 0: from its mass (Throws by Weight, on the "
+                                 "Throwing page; off: all of it up to 12 kg, less beyond: vr_weight_throw_mass)."));
     }
     list.pushBackMultiple(
         header("Spring (times the Aiming page's)"),

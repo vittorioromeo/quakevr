@@ -566,11 +566,20 @@ void(entity xBox, vector v) VR_Carry_Throw =
 // Let go: it keeps the hand's throw (the same estimate thrown weapons use).
 void(float xHand, entity xBox) VR_Carry_Release =
 {
+    // Thrown with both hands: held in both, or by the other until a moment ago (the hand's estimate is then the prop's
+    // own, from both: held::bothHandsThrow).
+    float hands = 1;
+    if(xBox.carry_2h || time - xBox.carry_2h_end <= cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+    {
+        hands = 2;
+    }
+
     VR_Carry_SetHeld(self, xHand, world);
 
     float m2u = VRMetersToUnits();
     vector throwVel = VRGetHandThrowVel(xHand);
-    vector v = throwVel * m2u * VRThrowGain(vlen(throwVel)) * cvar_hget(cvarh_vr_carry_throw_mult);
+    vector v = throwvelocity(throwVel, VRGetHandThrowFlick(xHand), propvalue(xBox, "mass"), hands) * m2u *
+               cvar_hget(cvarh_vr_carry_throw_mult);
     v = v * propvalue(xBox, "throw"); // a heavy thing leaves the hand slower (Held Object Offsets: Throw, from its mass)
 
     VR_Carry_Loose(xBox);
