@@ -11,7 +11,9 @@
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
 #include "vr_progs.hpp"
+#include "vr_twohand.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -364,14 +366,13 @@ void mockLook_f()
 // nearest you (a thrown_weapon), `fraction` of the way along its drawn length (0 and 1: its two drawn points farthest
 // apart), `height` cm over its top there (0 as shipped). For grab tests: from the hand's place last frame, so a hand
 // kept out of the floor lands short of a point under it; run it again (or a few frames on) to follow a weapon.
-bool weaponPoint(float fraction, float height, glm::vec3& out)
+// "vr_mock_hand_to <main|off> spot <index> [<height cm>]": at its hotspot `index` (a grip's point, a blade's zone's middle:
+// view::groundHotspotPoint), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> carried": at
+// the handle of the weapon the other hand carries (taking it back).
+
+// The thrown_weapon nearest the player (the server's: its qcvm pushed), or null.
+edict_t* nearestThrownWeapon()
 {
-    if(!sv.active || svs.maxclients < 1)
-    {
-        return false;
-    }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
     edict_t* player = EDICT_NUM(1);
     edict_t* best = nullptr;
     float bestDist = 0.f;
@@ -390,6 +391,39 @@ bool weaponPoint(float fraction, float height, glm::vec3& out)
             bestDist = d;
         }
     }
+    return best;
+}
+
+bool weaponSpot(int index, float height, glm::vec3& out)
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        return false;
+    }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    edict_t* best = nearestThrownWeapon();
+    const int num = best ? NUM_FOR_EDICT(best) : 0;
+    const char* name = best ? PR_GetString(best->v.netname) : "";
+    PR_PopQCVM(oldVm);
+    if(!num || !view::groundHotspotPoint(num, index, out))
+    {
+        return false;
+    }
+    out.z += height * 0.01f * units::metresToUnits();
+    Con_Printf("vr_mock_hand_to: %s, its hotspot %d: %.1f %.1f %.1f\n", name, index, out.x, out.y, out.z);
+    return true;
+}
+
+bool weaponPoint(float fraction, float height, glm::vec3& out)
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        return false;
+    }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    edict_t* best = nearestThrownWeapon();
     za::Vector<glm::vec3> verts;
     const bool found = best && held::drawnVertices(best, verts) && !verts.empty();
     const char* name = found ? PR_GetString(best->v.netname) : "";
@@ -453,16 +487,35 @@ void mockHandTo_f()
 {
     const int hand = Cmd_Argc() >= 2 ? mockHand(Cmd_Argv(1)) : -1;
     const bool weapon = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "weapon");
-    if(hand < 0 || (!weapon && Cmd_Argc() != 5))
+    const bool spot = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "spot");
+    const bool carried = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "carried");
+    if(hand < 0 || (!weapon && !spot && !carried && Cmd_Argc() != 5))
     {
         Con_Printf("usage: vr_mock_hand_to <main|off> <x> <y> <z>\n"
-                   "       vr_mock_hand_to <main|off> weapon <fraction> [<height cm>]\n");
+                   "       vr_mock_hand_to <main|off> weapon <fraction> [<height cm>]\n"
+                   "       vr_mock_hand_to <main|off> spot <hotspot index> [<height cm>]\n"
+                   "       vr_mock_hand_to <main|off> carried\n");
         return;
     }
-    glm::vec3 target{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
-    if(weapon && !weaponPoint(Q_atof(Cmd_Argv(3)), Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f, target))
+    glm::vec3 target{0.f};
+    if(!carried && !weapon && !spot)
+    {
+        target = glm::vec3{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
+    }
+    if(carried && !twohand::carriedHandle(1 - hand, target))
+    {
+        Con_Printf("vr_mock_hand_to: the other hand carries no weapon\n");
+        return;
+    }
+    const float height = Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
+    if(weapon && !weaponPoint(Q_atof(Cmd_Argv(3)), height, target))
     {
         Con_Printf("vr_mock_hand_to: no weapon lying about\n");
+        return;
+    }
+    if(spot && !weaponSpot(Q_atoi(Cmd_Argv(3)), height, target))
+    {
+        Con_Printf("vr_mock_hand_to: no weapon lying about, or no such hotspot (none, or a cup)\n");
         return;
     }
     const hands::State& st = hands::current();

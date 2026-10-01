@@ -132,6 +132,17 @@ HelpRecord carryPose[2];
 bool handleValid[2]{false, false};
 glm::vec3 handle[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 
+// Per empty hand: the weapon lying about it is near a hotspot of (vr_weapon_grab_hotspots), and how it would carry it by
+// that hotspot (a help record, as if the other hand had held it and let go).
+struct GroundSpot
+{
+    int entity = 0; // 0: none
+    int index = -1;
+    HelpRecord record;
+    int recordIndex = -1; // the hotspot the record is for (kept after the hand takes it)
+};
+GroundSpot groundSpots[2];
+
 [[nodiscard]] RelPose relativeTo(const glm::vec3& basePos, const glm::vec3& baseRot, const glm::vec3& pos,
     const glm::vec3& rot)
 {
@@ -593,10 +604,15 @@ bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, 
     {
         return false;
     }
+    bladeGripOn(slot, holding, s.muzzle[holding], s.visualRot[holding], holderPos, holderRot, pos, rot);
+    return true;
+}
 
+void bladeGripOn(int slot, int holding, const glm::vec3& tip, const glm::vec3& holderVisualRot, const glm::vec3& holderPos,
+    const glm::vec3& holderRot, glm::vec3& pos, glm::vec3& rot)
+{
     // The blade's axis, as drawn: through its tip, along its direction.
-    const glm::vec3 d = bladeDirection(slot, holding, s.visualRot[holding]);
-    const glm::vec3 tip = s.muzzle[holding];
+    const glm::vec3 d = bladeDirection(slot, holding, holderVisualRot);
     const auto onAxis = [&](const glm::vec3& p) { return tip + d * glm::dot(p - tip, d); };
     const auto local = [](const glm::vec3& v, const glm::vec3& angles) {
         glm::vec3 f, r, u;
@@ -631,7 +647,6 @@ bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, 
     const float along =
         za::clamp(glm::dot(pos - hands::redirect(o, rot) - tip, d), hilt * 0.75f, hilt * (1.f - za::max(0.26f, end)));
     pos = tip + d * along + hands::redirect(o, rot);
-    return true;
 }
 
 void reset()
@@ -643,6 +658,7 @@ void reset()
         grip[h] = GRIP_FOREGRIP;
         help[h] = HelpRecord{};
         carryWasOn[h] = carryPoseValid[h] = handleValid[h] = false;
+        groundSpots[h] = GroundSpot{};
     }
     lastTime = -1.0;
     fastShare = 0.f;
@@ -675,14 +691,22 @@ namespace
 {
 
 // The pose a carrying hand carries by: taken when its carry begins, from its last help (if that was
-// just now: the server hands off on the release, a few frames at most after the last help).
+// just now: the server hands off on the release, a few frames at most after the last help), or from the hotspot it was
+// near on a weapon lying about (taken by it: vr_weapon_grab_hotspots), whichever is the later.
 [[nodiscard]] const HelpRecord* carriedPose(int hand)
 {
     const bool on = carrying(hand);
     if(on && !carryWasOn[hand])
     {
-        carryPoseValid[hand] = help[hand].valid && realtime - help[hand].time < 0.5;
-        carryPose[hand] = help[hand];
+        const HelpRecord& ground = groundSpots[hand].record;
+        const HelpRecord& from = ground.valid && (!help[hand].valid || ground.time > help[hand].time) ? ground : help[hand];
+        carryPoseValid[hand] = from.valid && realtime - from.time < 0.5;
+        carryPose[hand] = from;
+        if(vr_debug_2h_grip.value && &from == &ground)
+        {
+            Con_Printf("2h grip: %s hand carries a weapon by its hotspot %d, taken off the floor (%s)\n",
+                hand == HAND_MAIN ? "main" : "off", groundSpots[hand].recordIndex, carryPoseValid[hand] ? "posed" : "too late");
+        }
     }
     carryWasOn[hand] = on;
     if(!on)
@@ -721,6 +745,45 @@ void setCarriedHandle(int hand, const glm::vec3& pos)
 {
     handleValid[hand] = true;
     handle[hand] = pos;
+}
+
+void recordGroundSpot(int hand, int entity, int index, const glm::vec3& trackedPos, const glm::vec3& trackedRot,
+    const glm::vec3& holderPos, const glm::vec3& holderRot, bool holderMirrored, const glm::vec3& drawnPos,
+    const glm::vec3& drawnRot)
+{
+    GroundSpot& g = groundSpots[hand];
+    g.entity = entity;
+    g.index = index;
+    g.recordIndex = index;
+    g.record.valid = true;
+    g.record.time = realtime;
+    g.record.holder = relativeTo(trackedPos, trackedRot, holderPos, holderRot);
+    g.record.holderMirrored = holderMirrored;
+    g.record.drawnHand = relativeTo(trackedPos, trackedRot, drawnPos, drawnRot);
+}
+
+bool carriedHandle(int hand, glm::vec3& out)
+{
+    if(!carrying(hand) || !handleValid[hand])
+    {
+        return false;
+    }
+    out = handle[hand];
+    return true;
+}
+
+void clearGroundSpot(int hand)
+{
+    // (The record stays: the carry that begins as the server takes the weapon, a frame or two on, still takes it.)
+    groundSpots[hand].entity = 0;
+    groundSpots[hand].index = -1;
+}
+
+int groundSpot(int hand, int entity)
+{
+    const GroundSpot& g = groundSpots[hand];
+    // (Seen this frame or the last few: the server runs before the view in a frame.)
+    return entity > 0 && g.entity == entity && g.index >= 0 && realtime - g.record.time < 0.25 ? g.index + 1 : 0;
 }
 
 void updateHotspots(hands::State& s)

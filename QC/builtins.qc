@@ -181,6 +181,9 @@ vector(entity e, vector handangles, float grab) carryangles = #0; // a held obje
 // to the tip (2). The local player's only (as its view draws them).
 vector(entity player, float hand, float index) weaponhotspot = #0;
 float(entity player, float hand, float index, float what) weaponhotspotinfo = #0;
+// A weapon lying about taken by a hotspot (vr_weapon_grab_hotspots): the hotspot (index + 1; 0: its handle) the local
+// player's empty `hand` is nearer than the handle of `weapon` (as its view finds it); others' are 0.
+float(entity player, float hand, entity weapon) weapongrabspot = #0;
 vector(entity e, vector handpos, vector palm) carryfit = #0; // at the grip: how far to move it (the way the palm faces) to sit against the palm, not in the fist (vr_held_surface_fit)
 vector(entity e, entity player, float grab) carry2h = #0; // held in both hands: at the second grip (grab 1) the grips are kept; after, where it goes (its angles are set)
 void(vector at, float damage) physicsblast = #0; // an explosion throws the rigid bodies round it (Box3D's)

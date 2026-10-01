@@ -5228,14 +5228,25 @@ void(float xHand, entity ent, entity entPlayer,
         VR_AxeStick_PulledOut(ent); // out of what it was stuck in (vr_axestick.qc)
     }
 
+    // Gripped nearer one of its grip or blade hotspots than its handle (vr_weapon_grab_hotspots, the engine's view finds
+    // it): carried by that hotspot, as the hand-off leaves a weapon (QVR_WPNFLAG_FOREGRIP_CARRIED: drawn hanging from
+    // the hand, unusable until a hand takes its handle). A force grab's catch takes the handle, to use it.
+    float spot = forcegrabCatching ? 0 : weapongrabspot(entPlayer, xHand, ent);
+
     if(cvar("developer"))
     {
-        dprint(sprintf("weapon: %s taken into the %s hand, %g units from its handle\n", ent.netname,
-            xHand == cVR_MainHand ? "main" : "off", vlen(VRGetEntHandPos(entPlayer, xHand) - ent.origin)));
+        dprint(sprintf("weapon: %s taken into the %s hand, %g units from its handle%s\n", ent.netname,
+            xHand == cVR_MainHand ? "main" : "off", vlen(VRGetEntHandPos(entPlayer, xHand) - ent.origin),
+            spot ? sprintf(", by its hotspot %g", spot - 1) : ""));
     }
 
+    float flags = ent.weaponflags - (ent.weaponflags & QVR_WPNFLAG_FOREGRIP_CARRIED);
+    if(spot)
+    {
+        flags = flags | QVR_WPNFLAG_FOREGRIP_CARRIED;
+    }
     *xOutEntWeapon = ent.weapon;
-    *xOutEntWeaponFlags = ent.weaponflags;
+    *xOutEntWeaponFlags = flags;
     *xOutEntWeaponClip = ent.weaponclip;
     remove(ent);
 

@@ -18177,3 +18177,50 @@ done here: the eval stays as it is).
   smoke on e1m1, e2m1 and vrfiringrange (no pixel differs by more than 24 from the base build's).
 - `std::` in Quake/vr (not external/): 74 -> 48 (exceptions 19 -> 0, `shared_ptr` 7 -> 0; standard headers included
   11 -> 8). `ZANCLE-TODO`: 34 -> 19.
+
+## Weapons taken by their hotspots (2026-10-01)
+
+NOTES.md `vrfiringrange_2026-10-01_11-30-28`: gripping a weapon lying on the floor by its chainsaw front handle or its
+crowbar bar still took it by the main handle. Now (`vr_weapon_grab_hotspots` 1; VR Settings > Advanced VR Options >
+Carrying and Throwing > Carrying > Weapons by Their Hotspots) an empty hand gripping a weapon lying about nearer one of
+its grip or blade hotspots than its handle (within 15 cm of the hotspot; a hotspot within 10 cm of the handle, a
+sword's or the crowbar's second hand on its grip, counts as the handle) carries it by that hotspot, as the two-handed
+hand-off does (`QVR_WPNFLAG_FOREGRIP_CARRIED`, now for swords and crowbars too): it hangs from the hand, does not fire,
+and the other hand gripping its handle takes it (that hand then helps on the hotspot it holds). Cup hotspots (the
+two-handed pistol grip's) never count; a force grab's catch always takes the handle (to use it at once). Every weapon
+with grip or blade hotspots: the chainsaw's front handle, the crowbar's and the sword's blade, the guns' foregrips and
+pumps.
+
+How: the view (`vr_view.cpp` updateGroundSpots, before the weapons are placed) finds, per empty hand, the weapon lying
+nearest it and the hotspot it is near, and records the carry's poses (`twohand::recordGroundSpot`): a grip's as the
+helping hand is drawn on it (the settings' canonical pose, as `canonicalHotspotGrip`), a blade's from the hand as it
+lies on the weapon, turned onto the blade and slid into its zone as the half-sword grip does (`twohand::bladeGripOn`,
+split out of `bladeGripHand`), then fitted (alignChannel). The hand stays drawn where it is tracked; the weapon moves to
+it. QC `wpnthrow_handtouch_impl` asks `weapongrabspot(player, hand, weapon)` (the local player's only; others take the
+handle) and sets the flag; the carry that begins takes those poses as a hand-off takes its last help's.
+
+Test aids: `vr_mock_hand_to <hand> spot <index> [<cm>]` (over the nearest lying weapon's hotspot),
+`vr_mock_hand_to <hand> carried` (at the handle the other hand carries); `developer 1` adds ", by its hotspot N" to
+"weapon: ... taken"; `vr_debug_2h_grip 1` prints the carry's start, 2 also how far the carrying hand is drawn from each
+hotspot (Debug > Two-Handed Grip).
+
+Tests (e1m1, mock: the weapon dropped near the player, the hand brought to 3 cm over the hotspot, gripped, lifted, then
+the other hand to the carried handle and gripped):
+
+| weapon, hotspot, hand | taken | drawn hand off the hotspot | handle taken back |
+|---|---|---|---|
+| crowbar, blade (1), main | by its hotspot 1 (6.3 units off the handle) | 1.7 (the blade grip's offset off its axis) | yes: the main hand then helps on the blade (0.54 of the way) |
+| crowbar, blade (1), off | by its hotspot 1 | 1.7 | yes |
+| crowbar, grip (0, by the handle), main | by the handle (3.1 units) | - | - |
+| crowbar, blade, `vr_weapon_grab_hotspots 0` | by the handle | - | - |
+| chainsaw, front handle top (0), main | by its hotspot 0 (9.9 units) | 2.6 (its hand offset) | yes |
+| chainsaw, front handle side (1), off | by its hotspot 1 (12.5 units) | 0.4 | yes |
+| crowbar, force-grab catch (impulse 216) | by the handle | - | - |
+
+Melee canary: 48/53, no difference. (A crowbar or sword carried by its blade strikes along its line from the hand to
+the tip only, as a carried gun does.)
+
+- [ ] Grip a chainsaw on the floor by its front handle: it hangs from that hand; grip its rear handle with the other
+  hand: both hands on it, as usual. The same for a crowbar by its bar and a sword by its blade.
+- [ ] Gripping a weapon near its handle still takes it ready to use; a force grab always does.
+- [ ] Too annoying in play? Weapons by Their Hotspots off restores the old pick-up.

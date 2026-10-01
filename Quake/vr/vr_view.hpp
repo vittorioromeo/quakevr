@@ -106,6 +106,10 @@ struct WeaponHotspot
 };
 [[nodiscard]] WeaponHotspot weaponHotspot(int hand, int index);
 
+// Hotspot `index` of the weapon lying about as client entity `entity` (vr_weapon_grab_hotspots: taken by it): a grip's
+// point, a blade's zone's middle. False for none or a cup (tests: vr_mock_hand_to <hand> spot).
+[[nodiscard]] bool groundHotspotPoint(int entity, int index, glm::vec3& out);
+
 // The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,
 // up) -- rigid; the model's vertices go in it as the view draws them (mirrored, then weapons::ModelTransform). For the
