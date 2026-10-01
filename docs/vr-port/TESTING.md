@@ -935,7 +935,11 @@ places in the hand, the held weapon at its resting place: the same inputs every 
 (`Misc/quakevr/grasp_compare.py a.txt b.txt` compares two runs: the largest curl difference), checks each against the
 same solve on one thread, and times the afresh solve on the thread pool and on one thread.
 
-The game's thread pool (`vr_jobs.hpp`, ROUND21.md "The game's thread pool"): `vr_jobs_test` runs its self-test (16
+Allocations a frame, where (ROUND21.md, "Zancle follow-ups"): `vr_alloc_sites [frames] [lines]` traces the main thread's C++
+allocations over the next frames (300) and prints the places that made them, the commonest first (a frame's, the
+place, its caller); Debug > Profiling and Memory > Allocation Sites. The profiler's "allocations" says how many.
+
+The game's thread pool (`vr_jobs.hpp`, ROUND21.md "The game's thread pool"): `vr_jobs_test` runs its self-test (13
 checks, under a second), `vr_jobs_info` prints its workers and counts, `vr_jobs_parallel 0` makes every shared-out loop
 run on its caller (the same results: to compare), `vr_jobs_threads <n>` / `-jobs <n>` set its workers (Debug >
 Profiling and Memory > Threads). With `developer 1` the liquids' volume, the decal atlas and each occlusion bake print a

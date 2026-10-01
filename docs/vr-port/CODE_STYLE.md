@@ -22,16 +22,21 @@ C++ standard library: Zancle's types compile faster and run faster in Debug. Use
   `ZA_MOVE`, `ZA_FORWARD`, `ZA_ASSERT` (on in Debug: its handler is `vr_zancle.cpp`'s).
 - `za::quickSort` (unstable: equal elements may come out in another order than `std::sort` left them; where that
   matters, a key that orders them all or `za::insertionSort`, stable), `za::find`, `za::anyOf`, `za::count`, ...
-- `za::Atomic`, `za::AtomicMutex` with `za::LockGuard` (`qza::UniqueLock` to unlock early), `za::Thread`,
+- `za::Atomic`, `za::AtomicMutex` with `za::LockGuard` (to unlock early: the locked part in a scope of its own, or
+  `za::Optional<za::LockGuard<...>>` and `reset()`), `za::Thread`,
   `za::ThisThread`; `za::Clock` / `za::Time` (microseconds; `qza::nowNs` for nanoseconds).
 - Files: `qvr::files` (`vr_files.hpp`: whole files read and written, directories listed, std::filesystem's path parts),
   through the engine's `Sys_*` calls (UTF-8 paths).
 - What Zancle lacks: `vr_zancle.hpp` (namespace `qza`: `abs`, `hypot` and the other missing math, `fill`, `iota`,
   `lowerBound`, `stablePartition`, `Pair`, `minOf` / `maxOf`, `rbegin` / `rend`, ...), each a proposal for Zancle. Add
   a missing piece there (marked `ZANCLE-TODO`) rather than reach for `std::`. `std::` stays only where Zancle has no
-  such thing and a stand-in would not do (random engines whose sequences matter, exception transport, an ordered map
-  with stable nodes, `std::shared_ptr` across threads, `std::nth_element` where its partition must stay as it was):
-  each such place says `// ZANCLE-TODO: <what's missing>` (the list: ROUND21.md, "Zancle migration").
+  such thing and a stand-in would not do (an ordered map with stable nodes, `std::nth_element` where its partition
+  must stay as it was, a nanosecond clock): each such place says `// ZANCLE-TODO: <what's missing>` (the list:
+  ROUND21.md, "Zancle migration" and "Zancle follow-ups").
+- **No exceptions.** The engine's C++ and Zancle are built without them (clang-cl without `/EH`, `-fno-exceptions`):
+  no `try`, `catch` or `throw`. A failure that can't go on ends the game with the crash report (`abort()`, or
+  `Sys_Error` from the engine's side); the thread pool's tasks and loops are `noexcept`. No shared ownership either
+  (`std::shared_ptr`): one owner, and others hold a pointer the owner provably outlives (or a copy).
 
 ## Scratch buffers and caches
 

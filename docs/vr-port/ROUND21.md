@@ -16947,12 +16947,12 @@ after.** By category (`count_std.py` in the session's scratchpad; comments and s
 | files (filesystem, fstream, sstream, printf...) | 164 | 0 | `qvr::files` (`vr_files.hpp`, new), the C stdio functions |
 | utility / bit (move, forward, swap, bit_cast...) | 148 | 0 | `ZA_MOVE`, `ZA_FORWARD`, `za::genericSwap`, `ZA_BIT_CAST` |
 | C library (strcmp, memcpy, strtof...) | 141 | 0 | `ZA_STRCMP`, `ZA_MEMCPY`... (builtins), the C functions themselves |
-| concurrency (thread, mutex, atomic, condition_variable...) | 138 | 0 | `za::Thread`, `za::AtomicMutex` + `za::LockGuard` / `qza::UniqueLock`, `za::Atomic` (its wait/notify for the condition variables) |
+| concurrency (thread, mutex, atomic, condition_variable...) | 138 | 0 | `za::Thread`, `za::AtomicMutex` + `za::LockGuard` (`qza::UniqueLock` at first; gone in the follow-ups), `za::Atomic` (its wait/notify for the condition variables) |
 | chrono / time | 132 | 3 | `za::Clock` / `za::Time`, `qza::nowNs` (its `std::chrono` the 3 left, in `vr_zancle.cpp`) |
-| vocabulary (optional, span, unique_ptr, function, shared_ptr) | 84 | 7 | `za::Optional`, `za::Span`, `za::UniquePtr`, `za::FunctionRef`; the pool's `std::shared_ptr` an intrusive count (`jobs::detail::JobPtr`); 7 kept (motion samples) |
+| vocabulary (optional, span, unique_ptr, function, shared_ptr) | 84 | 7 (0 after the follow-ups) | `za::Optional`, `za::Span`, `za::UniquePtr`, `za::FunctionRef`; the pool's `std::shared_ptr` an intrusive count (`jobs::detail::JobPtr`); 7 kept (motion samples; by value since "Zancle follow-ups") |
 | type traits, limits | 39 | 0 | Zancle's traits, `ZA_FLOAT_MAX`..., `<limits.h>` |
 | random | 22 | 0 | `za::FastNonCryptoRng` (Zancle/Random; "Zancle update" below) |
-| exceptions | 19 | 19 | kept (ZANCLE-TODO) |
+| exceptions | 19 | 19 (0 after the follow-ups) | kept (ZANCLE-TODO); gone in "Zancle follow-ups": built without exceptions |
 | regex | 12 | 0 | parsed by hand (the take names: `motion::parseTakeName`; vr_motion_eval's globs: `files::globMatch`) |
 | other | 21 | 0 | |
 
@@ -17007,19 +17007,19 @@ a mixed-type math call...), fixed by hand. What a compiler can't see was audited
 Small stand-ins written the way Zancle writes its own (builtins behind always-inline templates), each marked
 `ZANCLE-TODO` and each a proposal: `abs` (integers too), `remainder` (std's, rounding to nearest: below), `nanF`,
 `nowNs` (+ `nsSince`...: a nanosecond clock), `minOf` / `maxOf` (min/max of a list), `lexicographicLess` (Array's `<`), `sizeBytes` (Span's
-`size_bytes`), `repeated` (String's `(count, char)`), `Pair`, `UniqueLock`, `ReverseIterator` / `rbegin` / `rend`,
+`size_bytes`), `repeated` (String's `(count, char)`), `Pair`, `UniqueLock` (removed in the follow-ups), `ReverseIterator` / `rbegin` / `rend`,
 `stableAt` (a map whose values stay put), `sortedByKey` (an ordered map's loop).
 
 `std::` kept (each place says `// ZANCLE-TODO: <what's missing>`):
 
 | Where | What | Missing in Zancle |
 |---|---|---|
-| vr_jobs, vr_jobs_engine | `std::exception_ptr`, `current_exception`, `rethrow_exception`; the self-test's `std::runtime_error` | exception transport |
-| vr_motion, vr_motion_take.hpp | `std::shared_ptr` (samples and rows shared with the saving thread) | shared ownership |
 | vr_motion_review | `std::map` (the verdicts and marks: written in name order, and the takes keep pointers into them) | an ordered map with nodes that stay put |
 | vr_audio (voices), vr_hitmodel (the tree) | `std::nth_element` | a selection algorithm (its partition, so every hit is the same) |
 | vr_zancle.cpp | `std::chrono::steady_clock` (behind `qza::nowNs`) | a nanosecond clock (`za::Clock` counts microseconds; the profiler times scopes under one) |
-| vr_alloccount | `std::bad_alloc` | (none possible: a replaced `operator new` throws it) |
+
+(The rows for the pool's exception transport, the motion samples' `std::shared_ptr` and `operator new`'s
+`std::bad_alloc` are gone since "Zancle follow-ups" below: built without exceptions, samples by value.)
 
 ### Zancle proposals (for upstream; you own it): the API, as met in the migration
 
@@ -18034,3 +18034,105 @@ and the band; 3 also each sweep that met something.
   first, it bounces. Is it predictable now? Blade Leniency 0..2 says how much of the blade counts.
 - [ ] A flat throw (the blade's side first) still bounces. Stick Angle/Incidence were reset to 45/65 if you had 90.
 - [ ] A spear-like or corner hit: the axe goes in along the way it came, a corner in the wall: does it look right?
+
+## Zancle follow-ups: no UniqueLock, no exceptions, no shared_ptr, buffers in place (2026-10-01)
+
+Four follow-ups to "Zancle migration" and "Was the Zancle migration worth it?".
+
+### UniqueLock gone
+
+`qza::UniqueLock` had one use, the occlusion bake's queue (`vr_ao.cpp`), which unlocked before starting the bake
+task. The locked part (the queue looked up, the job made and queued, `running` set) is now a scope of its own with
+`za::LockGuard`, returning from inside it as before; the task is started after it (as it was, after the unlock).
+
+### No exceptions
+
+Nothing in Quake VR threw except to test the pool, and the pool carried a chunk's or a task's exception back to the
+caller (`std::exception_ptr`). Now:
+
+- `vr_jobs`: no exception transport. `Job::execute`, `runChunks`, both `parallelFor`s and `Future::get` are `noexcept`
+  (a throw inside one would end the game with the crash report: `std::terminate`'s `abort`, vr_crash's SIGABRT
+  handler). The self-test's three exception checks are gone (`vr_jobs_test`: 13 checks, was 16).
+- `operator new` (`vr_alloccount.cpp`) out of memory: a line on stderr and `abort()` (the crash report), not
+  `std::bad_alloc` (the engine's `Sys_Error` is not for any thread's `new`).
+- Built without exceptions: the engine's C++ files and Zancle (`quakevr.props` and `zancle.vcxproj`:
+  `ExceptionHandling` false, so clang-cl gets no `/EH`; `vr.cmake`: `/EHs-c-` after CMake's `/EHsc` with clang-cl,
+  `-fno-exceptions` elsewhere; `vr.mk`: `-fno-exceptions`). Checked: the compile lines have no `/EHsc` (Release and
+  Debug). Third parties: Box3D is C; Steam Audio, OpenXR and SDL are C APIs from DLLs (nothing thrown across them);
+  ankerl's map, moodycamel's queue (Zancle's pool) and Zancle's `Optional` switch to aborting without exceptions
+  (`__cpp_exceptions` / `_CPPUNWIND`); the std code left (`std::map`, `<chrono>`, `std::nth_element`) throws only on
+  misuse (`map::at`, unused), and clang accepts the STL's `throw`s in system headers. `_HAS_EXCEPTIONS` is left alone.
+
+### Motion samples without std::shared_ptr
+
+What they were for: `ServerSample` (the server frame's view for the motion recorder: the player, the nearest monster,
+QC's striking points and named values, `VR_Motion_Sample`) is made once a server frame and was shared by every host
+frame's `Row` until the next one (`std::shared_ptr<const ServerSample>`: no copy per row, and a row kept its sample
+alive after the recorder moved on); `latestSample()` handed it out (unused). And a finished take's rows were shared
+between the recorder's pending save and the save task on the thread pool (`std::shared_ptr<const za::Vector<Row>>`:
+either could outlive the other in principle).
+
+Threading and lifetimes, checked: samples are made, copied and read on the main thread only (`serverFrame`, `makeRow`,
+playback's `captureRow`); the saving task only reads a finished take's rows; `pollSaves` calls `get()` on the task's
+`Future` before the pending save (and its rows) goes; a `Future` destroyed unfinished waits for its task.
+
+Now: a row holds its sample by value (`za::Optional<ServerSample> sv`, and `svFrame`, the sample's number, the same for
+the rows of one server frame); the sample is in place (below: copying it allocates nothing). The pending save owns its
+rows (`za::UniquePtr<const za::Vector<Row>>`, declared before its `Future`, so that a save destroyed unfinished waits
+for its task before the rows go); the task reads them through a pointer. `latestSample()` removed.
+
+### Allocations a frame: where, and buffers in place
+
+New: **`vr_alloc_sites [frames] [lines]`** (Debug > Profiling and Memory > Allocation Sites): the main thread's C++
+allocations over the next frames (300) by call stack (`RtlCaptureStackBackTrace` into a fixed table, nothing allocated
+while tracing), then resolved (dbghelp and the .pdb, as the crash report) to the first frame outside the allocators
+(Zancle's containers, std, the scratch sets): how many a frame, the place, its caller. The profiler's "allocations"
+says how many; this says where.
+
+Scenes (the mock, fast mode; the scratchpad's `alloc/`): the firing range (the dummy striking, six monsters fighting,
+the super nailgun firing; traced 600 frames from the first shot), e1m1 (boxes and grunts ahead, the grapple fired and
+reeled, a box flung, the nailgun firing; 600 frames from the hook), and four melee takes replayed on the dummy (slash,
+punch, two-handed stab, gun butt; 2000 frames, the takes' loading included).
+
+| Scene | allocations a frame, before | after |
+|---|---|---|
+| firing range | 1.51 (908) | 1.01 (605) |
+| e1m1, grapple and props | 1.52 (915) | 1.34 (806) |
+| melee takes replayed | 8.24 (16,476) | 6.92 (13,841) |
+
+The steady state was already near none: the firing range from 400 frames after the first shot, 0.02 a frame (13 in
+600: decals, the memory log); e1m1's 0.07. What is left at the start is caches filling (a model frame's grasp shape,
+`modelcollide`'s posed models and samples, a decal ring's slots, the scratch sets growing once a map) and loading.
+
+Changed (bounded, per frame or per event):
+
+- **The motion sample** (`vr_motion_take.hpp`): its points `za::InPlaceVector<Point, 9>` a hand (QC's `mh_cp[9]`) and
+  its values `za::InPlaceVector<..., 16>` (8 used); past them `qcPoint`/`qcValue` leave one out with a console warning.
+  Was a `make_shared` and its vectors growing every server frame while recording, armed or replaying: the melee
+  scene's `qcPoint` (1,289), `PF_motionvalue` (764) and the sample itself (525) all gone, and copying it into a row
+  allocates nothing.
+- **The rope's chain** (`vr_rope.cpp`), made for each hook that flies: its points and last frame's in place
+  (`za::SmallVector<glm::vec3, chainMaxPoints + 2>`: stepChain spaces them 128 at most), its pins (20), its drawn
+  points (160); a rope's corners (16: the server's `maxCorners`). SmallVector: more than these spill to the heap, as
+  before. e1m1: `VR_DrawRope` 67 -> 27 (the rest the scratch sets' first growth).
+- **A weapon's capsules** (`vr_selfcollide.cpp`, `weaponCaps`): refitted every frame while the weapon's drawn scale
+  changes (brought up, switched); its points and the fit's projections are a scratch set now (`fitScratch`):
+  `selfcollide::endView` 329 -> 25 (firing range), 72 -> 0 (e1m1).
+
+Top sites left (the melee scene): the takes' loading (`vr_motion_play.cpp` `split`, 9,874 for 4 takes: a vector of
+strings a CSV line; `collectSettings`, 1,078), Box3D's world mesh at a map's first physics frame (`VR_PhysicsFrameEnd`,
+1,072), the props' and movers' hulls (cached per model). The eval's loading could take views instead of strings (not
+done here: the eval stays as it is).
+
+### Checked
+
+- 0 warnings, Release and Debug (`QVR_ZANCLE_DEBUG` on).
+- Melee eval (`eval.sh --full`, 177 takes): the table byte for byte the same as the base commit's build (172 pass,
+  5 fail; the one difference from the kit's baseline is the same in both).
+- Grasp sweep (12 weapons x 8 kinds x 7 places, e2m1): 672 of 672 identical to the base build's (`grasp_compare.py`:
+  curl and palm differences 0), each the same on one thread.
+- `vr_jobs_test` 13 of 13, `vr_zancle_math_test` 0 failed; a take recorded in the mock (`vr_motion_record`: 476 rows,
+  the sample's, the monster's and QC's point columns filled) and listed by Review Takes (`vr_motion_review list`);
+  smoke on e1m1, e2m1 and vrfiringrange (no pixel differs by more than 24 from the base build's).
+- `std::` in Quake/vr (not external/): 74 -> 48 (exceptions 19 -> 0, `shared_ptr` 7 -> 0; standard headers included
+  11 -> 8). `ZANCLE-TODO`: 34 -> 19.
