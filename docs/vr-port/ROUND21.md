@@ -19159,8 +19159,11 @@ weapon's size): 10 capsules, end to end. Props and the world never used these ca
   hilt first into a grunt 60 units ahead: "pommel strike with the pommel, 7.6 m/s, x0.61, monster_army". Before: no
   contact (the line ended a unit past the hand).
 - The laser cannon in the off hand at 0.9 (50.9 units long), butt first into a zombie: "butt strike with the butt,
-  14.5 m/s". (With the weight spring stiffened for the test: one-handed by its muzzle it lags the hand a lot.)
-- The shotgun swept across the sword's mid-blade: blocked, pushed 8.8 cm, let go at 0.7 of the way through.
+  14.5 m/s". Before: no contact. (With the weight spring stiffened for the test: one-handed by its muzzle it lags the
+  hand a lot.)
+- The shotgun (main hand) swept across the sword's mid-blade (off hand; the main hand 0.87 m ahead): blocked, pushed
+  8.8 cm, let go at 0.7 of the way through. Before: no contact at all (0.93 m and 1.05 m ahead, nearer the tip, met
+  it before too).
 - Melee canary: 48/53, no differences.
 
 - [ ] Hold the sword upside down by its blade and hit with the hilt and pommel; hold the rocket launcher and the laser
