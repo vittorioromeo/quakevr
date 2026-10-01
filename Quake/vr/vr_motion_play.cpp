@@ -11,6 +11,7 @@
 // vr_motion_eval plays many takes, each in the map loaded afresh (the same start every time: nothing
 // left from the one before), and checks each one's events against quakevr/motions/expect.cfg.
 
+#include "vr_angvel.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
 #include "vr_motion_review.hpp"
@@ -1303,6 +1304,16 @@ bool playing()
     return state != State::Idle;
 }
 
+const char* playSource()
+{
+    if(state == State::Idle)
+    {
+        return "";
+    }
+    const auto it = take.header.find("source");
+    return it != take.header.end() ? it->second.cStr() : "";
+}
+
 bool playWantsSamples()
 {
     return state != State::Idle;
@@ -1424,6 +1435,7 @@ void playAfterTracking(TrackingState& tracking, FrameState& frame)
     if(state == State::Play && cur == 0)
     {
         hands::setLean(placeLean);
+        angvel::reset(); // the angular velocity's detection, from the take's own samples
     }
     for(int eye = 0; eye < 2; eye++)
     {

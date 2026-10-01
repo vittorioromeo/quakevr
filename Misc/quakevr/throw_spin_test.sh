@@ -5,10 +5,11 @@
 # of the flick, facing the play space's front (yaw 0) and turned 90 and 180 degrees in it. Each run prints the "thrown
 # spin:" line (developer 1): how far its spin's axis is off end over end, its tip going down (about the hand's left
 # axis: 0; about the handle or a cartwheel: 90; backwards: 180). vr_mock_angvel_local 1 reports the angular velocity in
-# the controller's frame, as VirtualDesktopXR 1.0.10 does: with vr_throw_spin_from_pose 0 (before the fix) a flick
-# turned 90 degrees in the play space spun the axe as a cartwheel, turned 180 backwards; with 1 (the default) every
-# case is within a few degrees.
-# Prints "PASS" when every case with vr_throw_spin_from_pose 1 is under 10 degrees off.
+# the controller's frame, as VirtualDesktopXR 1.0.10 does: with vr_throw_spin_from_pose 0 and vr_angvel_frame 0 (before
+# both fixes) a flick turned 90 degrees in the play space spun the axe as a cartwheel, turned 180 backwards; with
+# either fix (vr_throw_spin_from_pose 1, the default; vr_angvel_frame -1 auto, the default, or 2) every case is within a
+# few degrees.
+# Prints "PASS" when every case but the old one (local, from_pose 0, angvel_frame 0) is under 10 degrees off.
 AGENT=$1; OUT=${2:-$(mktemp -d)}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd -W 2>/dev/null || pwd)
@@ -33,18 +34,19 @@ for yaw in (0, 90, 180):
     open(f"{sys.argv[1]}/spin_yaw{yaw}.txt", "w", newline="\n").write("\n".join(L) + "\n")
 PY
 fails=0
-for local in 0 1; do
-    for frompose in 0 1; do
+for cfg in "0 0 -1" "0 1 -1" "1 0 0" "1 0 -1" "1 1 -1" "1 0 2"; do
+    read local frompose frame <<< "$cfg"
+    {
         for yaw in 0 90 180; do
             play="$OUT/spin_yaw$yaw.txt"
             head=$(head -1 "$play" | cut -d' ' -f3-); start=$(sed -n 2p "$play" | cut -d' ' -f3-)
-            line=$(bash $KIT/run.sh $AGENT -Script "map vrfiringrange;wait60;god;notarget;developer 1;vr_gunangle 70;vr_gunyaw 0;vr_weapon_grip_mode 0;vr_mock_grip_velocity 1;vr_mock_angvel_local $local;vr_throw_spin_from_pose $frompose;vr_mock_hand head $head;vr_mock_hand main $start;wait10;impulse 9;wait5;+grabright;vr_mock_button main grip 1;impulse 152;wait40;vr_mock_play $play;wait100;toggleconsole;quit" -Filter "^thrown spin:" 2>&1 | grep "^thrown spin:" | head -1)
+            line=$(bash $KIT/run.sh $AGENT -Script "map vrfiringrange;wait60;god;notarget;developer 1;vr_gunangle 70;vr_gunyaw 0;vr_weapon_grip_mode 0;vr_mock_grip_velocity 1;vr_mock_angvel_local $local;vr_throw_spin_from_pose $frompose;vr_angvel_frame $frame;vr_mock_hand head $head;vr_mock_hand main $start;wait10;impulse 9;wait5;+grabright;vr_mock_button main grip 1;impulse 152;wait40;vr_mock_play $play;wait100;toggleconsole;quit" -Filter "^thrown spin:" 2>&1 | grep "^thrown spin:" | head -1)
             off=$(echo "$line" | sed -n 's/.* rad\/s, \([0-9.]*\) deg off.*/\1/p')
-            echo "local $local from_pose $frompose yaw $yaw: $line"
-            if [ "$frompose" = 1 ]; then
+            echo "local $local from_pose $frompose angvel_frame $frame yaw $yaw: $line"
+            if [ "$frompose" = 1 ] || [ "$frame" != 0 ]; then
                 python -c "import sys; sys.exit(0 if '$off' and float('$off') < 10 else 1)" || fails=$((fails + 1))
             fi
         done
-    done
+    }
 done
 [ $fails = 0 ] && echo PASS || echo "FAIL ($fails)"

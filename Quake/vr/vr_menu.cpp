@@ -1667,6 +1667,11 @@ void hologramTestMessage()
             .help("A throw's spin from how the controller turned, not the runtime's angular velocity (Virtual Desktop "
                   "reports it in the controller's frame: a flick facing away from the play space's front spun throws "
                   "sideways)."),
+        cycle("Controller Spin Frame", vr_angvel_frame,
+            {{-1.f, "Auto"}, {0.f, "Tracking Space"}, {1.f, "Controller's"}, {2.f, "From Turn"}})
+            .help("Which frame the runtime's controller angular velocity is in (melee, flick reload, throws). Auto: "
+                  "Virtual Desktop's controller frame, else the tracking space, checked against how the controllers "
+                  "turn. Tracking Space: as before. From Turn: ignore it, use the controller's turn."),
         slider("Max Speed Gain", vr_throw_gain_max, 1.f, 3.f, 0.05f, "%.2fx").extend()
             .help("Extra speed for fast throws, which feel weak at true speed."),
         toggle("Aim Assist", vr_throw_assist)
@@ -2312,6 +2317,9 @@ za::Vector<Item> pageDebugLogging()
         cycle("Throws", vr_debug_throw, {{0.f, "Off"}, {1.f, "Each Throw"}, {2.f, "And Its Timing"}})
             .help("Each throw's speed estimate from the hand's motion (and the release's timing); a thrown weapon's spin "
                   "and how far its axis is off end over end (0: a wrist flick's, tip going down; needs Developer Messages)."),
+        toggle("Controller Spin", vr_debug_angvel)
+            .help("While a controller turns fast: which frame its angular velocity is read in (Controller Spin Frame), "
+                  "how well the runtime's and the fixed one follow the turn, the hand's speed before and after."),
         toggle("Axe Sticks", vr_debug_axestick)
             .help("Each thrown axe's blade striking something: stuck (how fast, how deep, at what angles) or why it bounced; "
                   "its bleeding, its fall, its pull. Needs Developer Messages for the last."),
