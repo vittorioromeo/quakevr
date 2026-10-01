@@ -1527,12 +1527,35 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 
     // Unarmed: arms crossed in front take the blow on the forearms (both hands knocked, less taken
     // off than with a weapon).
-    if(hand < 0 && VR_Parry_ArmsCrossed(targ, to))
+    float armsCrossed = FALSE;
+    if(hand < 0)
+    {
+        armsCrossed = VR_Parry_ArmsCrossed(targ, to);
+    }
+    // One sound for a burst of quick blows from the same monster (vr_parry_sound_burst; NOTES.md
+    // vrfiringrange_2026-10-01_16-44-46: the ogre's chainsaw, one swing three or four blows): a parry within that long
+    // of its last parried blow is quiet; its next attack sounds again.
+    float quiet = FALSE;
+    if((hand >= 0) || armsCrossed)
+    {
+        float burst = max(0, cvar_hget(cvarh_vr_parry_sound_burst));
+        quiet = (burst > 0 && attacker.vr_parry_last > 0 && time - attacker.vr_parry_last < burst);
+        if(quiet)
+        {
+            dprint(sprintf("parry: %s again %.2f s after its last: no sound (the same burst)\n", attacker.classname,
+                time - attacker.vr_parry_last));
+        }
+        attacker.vr_parry_last = time;
+    }
+    if(armsCrossed)
     {
         entity oldSelfX = self;
         self = targ;
-        sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
-        sound(self, CHAN_AUTO, "demon/dland2.wav", 0.5, ATTN_NORM);
+        if(!quiet)
+        {
+            sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
+            sound(self, CHAN_AUTO, "demon/dland2.wav", 0.5, ATTN_NORM);
+        }
         haptic(cVR_MainHand, 0.0, 0.3, 60, 1.0);
         haptic(cVR_OffHand, 0.0, 0.3, 60, 1.0);
         handimpact(cVR_MainHand, 4, to * -1);
@@ -1560,7 +1583,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         vector at = vr_parry_at + to * 4;
         // Its own ring (vr_bash_sound; round 18), apart from a blow landing; 0: the old clang.
         float parrySound = cvar_hget(cvarh_vr_bash_sound);
-        if(parrySound > 0)
+        if(quiet)
+        {
+            // (the same burst: its first parry sounded)
+        }
+        else if(parrySound > 0)
         {
             sound(self, CHAN_AUTO, "vr/parry.wav", min(1, parrySound), ATTN_NORM);
             sound(self, CHAN_AUTO, "player/axhit2.wav", 0.35 * min(1, parrySound), ATTN_NORM);

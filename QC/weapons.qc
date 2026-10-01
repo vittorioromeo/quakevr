@@ -1367,7 +1367,12 @@ void(float xHand) W_ChainsawMelee =
     {
         trace_ent.axhitme = 1;
         self.damage_weapon = IT_AXE;
-        if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
+        // Swung running, its bar sets a grenade off as its chain does (VR_GrenShot_BlowSetsOff); not its rear handle.
+        vr_grenshot_saw = ((VRGetWeaponFlags(xHand) & QVR_WPNFLAG_SAW_RUNNING) &&
+                           VR_Blow(xHand).mh_kind != VR_MKIND_POMMEL);
+        float hurt = T_Damage_VRMelee(trace_ent, self, self, xdmg);
+        vr_grenshot_saw = FALSE;
+        if(hurt)
         {
             VR_HitBloodSplash(trace_ent, org, xdmg);
         }
@@ -4023,11 +4028,16 @@ void() VR_GrenShot_TestDud =
     makevectors('0 1 0' * self.v_viewangle_y);
     vector ahead = self.origin + v_forward * cvar("vr_test_grenade_dist");
     traceline(ahead + '0 0 16', ahead - '0 0 256', TRUE, self);
-    setorigin(g, trace_endpos - g.mins + '0 0 1');
+    // (vr_test_grenade_height: in the air, it falls)
+    setorigin(g, trace_endpos - g.mins + '0 0 1' * (1 + max(0, cvar("vr_test_grenade_height"))));
     g.velocity = '0 0 0';
     g.vr_spin = '0 0 0';
     g.vr_gren_lastvel = '0 0 0';
     g.vr_gren_lastorg = g.origin;
+    if(!cvar("vr_test_grenade_yours"))
+    {
+        g.owner = world; // (nobody's, as an enemy's lying about: your blows meet it, VR_Blow_Strikable)
+    }
     dprint(sprintf("test: a dud hand grenade on the floor at %v, %.0f units ahead (armed %g, fuse %g)\n", g.origin,
         vlen(g.origin - self.origin), g.vr_hgren_armed, g.vr_gren_fuse));
 };
@@ -4305,6 +4315,10 @@ void() ImpulseCommands =
     if(self.impulse == 232 && !deathmatch && !coop) // QVR test: the nearest prop flung at a monster or you (VR_Test_Fling)
     {
         VR_Test_Fling();
+    }
+    if(self.impulse == 220 && !deathmatch && !coop) // QVR test: the nearest prop thrown up as yours (VR_Throw_TestUp)
+    {
+        VR_Throw_TestUp();
     }
     if(self.impulse == 231 && !deathmatch && !coop) // QVR test: an empty hand takes the nearest grappling gun lying about
     {
@@ -5212,6 +5226,42 @@ void() VR_Test_Fling =
         cvar("vr_test_fling_away") ? ", away from it" : "", target.health));
 };
 
+// Tests (impulse 220; Debug > Tests > Flung Props): the loose prop nearest you (a rigid body not carried, within 512
+// units) thrown straight up as yours (VR_Carry_Throw) from over your head at vr_test_throw_up_speed m/s: it falls back
+// on you, past vr_throw_self_grace (vrfiringrange_2026-10-01_16-41-40: a backpack thrown high).
+void() VR_Throw_TestUp =
+{
+    entity prop = world;
+    float best = 512;
+    for(entity e = nextent(world); e != world; e = nextent(e))
+    {
+        if(e.vr_rigid && e.carry_player == world && (e.touch == forcegrabbable_touch || e.vr_impact) &&
+           vlen(e.origin - self.origin) < best)
+        {
+            best = vlen(e.origin - self.origin);
+            prop = e;
+        }
+    }
+    if(prop == world)
+    {
+        dprint("throw test: no prop\n");
+        return;
+    }
+    prop.throwhit = QVR_THROWHIT_HIT;
+    prop.owner = world;
+    prop.vr_fling_hit = 0;
+    prop.fg_state = 0;
+    prop.flags = prop.flags - (prop.flags & FL_ONGROUND);
+    vector top = VRGetHeadPos(self);
+    top_z = max(top_z, self.absmax_z) + 4 - prop.mins_z; // (its bottom just over your head)
+    setorigin(prop, top - '1 0 0' * 0.5 * (prop.mins_x + prop.maxs_x) - '0 1 0' * 0.5 * (prop.mins_y + prop.maxs_y));
+    prop.vr_spin = '0 0 0';
+    prop.avelocity = '0 0 0';
+    VR_Carry_Throw(prop, '0 0 1' * cvar("vr_test_throw_up_speed") * VRMetersToUnits());
+    dprint(sprintf("throw test: %s thrown up from %v at %.1f m/s; your health %.0f\n", prop.classname, prop.origin,
+        cvar("vr_test_throw_up_speed"), self.health));
+};
+
 void() forcegrabbable_touch =
 {
     if(self.owner != world && other == self.owner)
@@ -5261,7 +5311,14 @@ void() forcegrabbable_touch =
             float adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
 
             spawn_touchblood(adjDmg);
-            T_Damage(other, self, self.owner, adjDmg);
+            entity thrower = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace the player who threw it)
+            if(other == thrower)
+            {
+                dprint(sprintf("throw: %s fell on its thrower at %.0f u/s, %.2f s after the throw: %.1f damage\n",
+                    self.classname, vlen(self.velocity), time - self.carry_letgo_time, adjDmg));
+            }
+            T_Damage(other, self, thrower, adjDmg);
+            self.vr_fling_hit = time; // (not hit again as a flung prop as it bounces off: VR_FLING_REHIT)
         }
         // hit wall
         else
@@ -5596,6 +5653,7 @@ void MakeThrown(entity newmis,
     SetThrownWeaponMetalNoiseOnTouch(newmis, TRUE);
 
     newmis.owner = thrower;
+    VR_Throw_SelfStart(newmis, thrower); // (a player's throw spares him only for vr_throw_self_grace)
 
     newmis.throwstabilize = 8;
     newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);

@@ -193,3 +193,12 @@
 .float vr_shot_half;   // its model's half size (the shot box: vr_shot_radius, with vr_grenade_shoot_pad)
 .float vr_shot_off;    // set off (or gone off): no more shots meet it
 .void() vr_shot_boom;  // a Quake grenade set off: its own think (its blast), run by VR_GrenShot_Boom
+
+// ----------------------------------------------------------------------------
+// Parry sound bursts (combat.qc VR_Parry) and your own throws hurting you (vr_carry.qc, "Your own throws")
+// ----------------------------------------------------------------------------
+
+.float vr_parry_last;    // (a monster) when a blow of its was last parried: within vr_parry_sound_burst, no sound
+.float vr_throw_self;    // a thing a player threw hard (his: .owner): 1 sparing him until vr_throw_self_at; 2 past it,
+                         // .owner given up (it meets him) and the throw still his (VR_Throw_Thrower: .carry_letgo)
+.float vr_throw_self_at; // when it can hurt its thrower (vr_throw_self_grace after the throw)

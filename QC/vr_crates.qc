@@ -168,7 +168,8 @@ void(float xSpeed) VR_SolidProp_Impact =
     // speed: not what it hit's (a player running into it; after the step its own velocity is the bounce's).
     float approach = xSpeed * VRMetersToUnits();
     VR_Prop_Flung(approach, approach - vlen(other.velocity));
-    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && self.owner.classname == "player")
+    entity thrower = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace the player who threw it)
+    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && thrower.classname == "player")
     {
         float lenient = VR_Thrown_Lenient(self);
         float speed = max(vlen(self.velocity), xSpeed * VRMetersToUnits());
@@ -192,8 +193,10 @@ void(float xSpeed) VR_SolidProp_Impact =
             {
                 spawn_touchblood(dmg);
             }
-            T_Damage(other, self, self.owner, dmg);
+            T_Damage(other, self, thrower, dmg);
+            self.vr_fling_hit = time; // (not hit again as a flung prop as it bounces off: VR_FLING_REHIT)
             self.owner = world; // (as above)
+            self.vr_throw_self = 0;
         }
     }
     // The throw over, it is nobody's: a trace from its owner passes through what he owns, so a crate thrown and

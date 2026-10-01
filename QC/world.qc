@@ -530,6 +530,7 @@ void() StartFrame =
     VR_Crates_Frame(); // VR: at a new map's first frame, its crates (vr_crates.qc; before the rocks and bricks: they keep clear)
     VR_Debris_Frame(); // VR: at a new map's first frame, its rocks and bricks (vr_debris.qc)
     VR_Grapple_WorldFrame(); // VR: the grappling hooks whose guns lie about (vr_grapple.qc)
+    VR_Throw_SelfFrame(); // VR: things you threw hurt you once vr_throw_self_grace is over (vr_carry.qc)
     framecount = framecount + 1;
 };
 

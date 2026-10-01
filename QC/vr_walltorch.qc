@@ -662,7 +662,7 @@ void() VR_WallTorch_Touch =
     if(self.wt_state == 1 && self.wt_fire > 0 && self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage &&
        other != self.owner)
     {
-        VR_WallTorch_Ignite(other, self.owner, self.origin, self.velocity);
+        VR_WallTorch_Ignite(other, VR_Throw_Thrower(self), self.origin, self.velocity); // (yours, past the grace too)
     }
     forcegrabbable_touch();
 };

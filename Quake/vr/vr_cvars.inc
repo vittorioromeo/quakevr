@@ -1152,6 +1152,7 @@ QVR_CVAR(vr_gib_throw_damage, "4", CVAR_ARCHIVE)      // and of a gib or head
 QVR_CVAR(vr_prop_impact_damage, "1", CVAR_ARCHIVE)        // on
 QVR_CVAR(vr_prop_impact_players, "1", CVAR_ARCHIVE)       // 1: players too (never the one who just let go of it), 0: monsters only
 QVR_CVAR(vr_prop_drop_grace, "0.5", CVAR_ARCHIVE)         // s a weapon or backpack a monster just dropped can't hurt players (vr_prop_impact_players)
+QVR_CVAR(vr_throw_self_grace, "0.35", CVAR_ARCHIVE)       // s after you throw or let go of a thing before it can hurt you (thrown up, falling back on you; 0: at once)
 QVR_CVAR(vr_prop_impact_min_mass, "1", CVAR_ARCHIVE)      // kg: lighter props never hurt so
 QVR_CVAR(vr_prop_impact_min_speed, "8", CVAR_ARCHIVE)     // m/s towards what it meets (less for things over 10 kg: heavy leniency)
 QVR_CVAR(vr_prop_impact_mult, "1", CVAR_ARCHIVE)          // the damage times this
@@ -1178,6 +1179,7 @@ QVR_CVAR(vr_shove_speed, "2.4", CVAR_ARCHIVE)          // m/s open palms (facing
 QVR_CVAR(vr_bash_damage, "8", CVAR_ARCHIVE)            // a bash's damage (small: it knocks back and staggers)
 QVR_CVAR(vr_bash_push, "1", CVAR_ARCHIVE)              // how far a bash throws what it hits
 QVR_CVAR(vr_bash_sound, "1", CVAR_ARCHIVE)             // volume of the shove, bash, counter bash and parry sounds (0: the old ones)
+QVR_CVAR(vr_parry_sound_burst, "0.3", CVAR_ARCHIVE)      // s: a parry within this long of the last parry of the same monster's blow makes no sound (one sound for a burst of quick hits: the ogre's chainsaw; 0: every parry)
 QVR_CVAR(vr_bash_deflect_radius, "24", CVAR_ARCHIVE)   // units around the guard (the weapon, the hands) a bash bats projectiles back within (vr_deflect)
 QVR_CVAR(vr_bash_deflect_window, "0.3", CVAR_ARCHIVE)  // s a bash (or a shove with a weapon in hand) goes on batting after the push
 QVR_CVAR(vr_parry_wobble, "1", CVAR_ARCHIVE)          // how much a parried blow knocks your hand and arm
@@ -1333,7 +1335,10 @@ QVR_CVAR(vr_grenade_catch_window, "0.15", CVAR_ARCHIVE) // s an open palm holds 
 QVR_CVAR(vr_grenade_return_full, "1", CVAR_ARCHIVE)     // a grenade you throw or bat back goes off as your grenade launcher's (120 damage, 160 units round), not its thrower's (an ogre's 40)
 QVR_CVAR(vr_grenade_shoot, "1", CVAR_ARCHIVE)          // shots, blows and blasts set grenades off (live or a hand grenade's dud; the ogres', yours): the one who hit it gets the kills (QC vr_grenade.qc)
 QVR_CVAR(vr_grenade_shoot_pad, "2", CVAR_ARCHIVE)     // units a grenade's shot box reaches beyond its model's half size (0: the model's box as it is)
-QVR_CVAR(vr_grenade_shoot_melee, "1", CVAR_ARCHIVE)   // melee blows set grenades off too (a lying or rolling one: one in flight a weapon bats, an empty hand catches)
+QVR_CVAR(vr_grenade_shoot_melee, "1", CVAR_ARCHIVE)   // melee blows meet grenades: a very strong one sets it off (vr_grenade_melee_*), any other bats it (one in flight of a monster's: a weapon bats, an empty hand catches)
+QVR_CVAR(vr_grenade_melee_speed, "20", CVAR_ARCHIVE)  // m/s a punch, a gun's swing, a pommel or a butt must go at to set a grenade off (slower: it bats it)
+QVR_CVAR(vr_grenade_melee_speed_weapon, "34", CVAR_ARCHIVE) // m/s for a blade's or a head's blow (a sword, the axe, the crowbar, a club, a stopped chainsaw: swung faster); a running chainsaw always sets it off
+QVR_CVAR(vr_grenade_melee_damage, "10", CVAR_ARCHIVE) // and the least damage the blow must deal (0: the speed alone)
 QVR_CVAR(vr_handgrenade, "1", CVAR_ARCHIVE)             // hand grenades: an empty hand gripping at the grenade pouch (the small of the back) takes one while you have rockets
 QVR_CVAR(vr_handgrenade_fuse, "2.5", CVAR_ARCHIVE)      // s from arming a hand grenade to its going off (the launcher's is 2.5)
 QVR_CVAR(vr_handgrenade_arm, "0", CVAR_ARCHIVE)         // 0: the trigger pulls the pin (let go of unarmed, it is a dud); 1: letting go arms it (the lever flies off)
@@ -1423,6 +1428,9 @@ QVR_CVAR(vr_test_fling_away, "0", CVAR_NONE)          // 1: from inside the edge
 QVR_CVAR(vr_test_projectile, "0", CVAR_NONE)          // impulse 246 (tests): the projectile fired at you: 0 a knight's spike, 1 a laser, 2 a scrag's spit, 3 a vore's ball, 4 an ogre's grenade, 5 a zombie's flesh (6: impulse 240's ogre throws a multi-grenade)
 QVR_CVAR(vr_test_grenade_shot, "10", CVAR_NONE)       // impulse 210 (tests): what shoots the nearest grenade from your eyes (vr_physics_fire's kinds: 10 a shotgun pellet, 1 a nail, 0 a rocket, 4 a laser)
 QVR_CVAR(vr_test_grenade_dist, "256", CVAR_NONE)      // impulse 211 (tests): units ahead a dud hand grenade is put on the floor
+QVR_CVAR(vr_test_grenade_height, "0", CVAR_NONE)      // ... and this many units over the floor (in the air: it falls; at hand height, to punch or swing at)
+QVR_CVAR(vr_test_grenade_yours, "1", CVAR_NONE)       // ... yours (1: your blows pass it, as your own grenades), or nobody's (0: as an enemy's lying about, your blows meet it)
+QVR_CVAR(vr_test_throw_up_speed, "10", CVAR_NONE)     // impulse 220 (tests): the loose prop nearest you thrown straight up as yours from over your head at this many m/s
 QVR_CVAR(vr_test_projectile_side, "0", CVAR_NONE)     // and from how many degrees to your left of ahead
 QVR_CVAR(vr_hand_collide, "5", CVAR_ARCHIVE)          // cm a free hand and what the other hand holds (its weapon, or the prop it holds alone) are each drawn moved back at most as the hand meets its surface (vr_hand_collide_props_margin off it), by half how deep it would be, as a prop held there and that thing (vr_held_collide_max); pressed further, the hand sinks in by the rest (0: it always passes through)
 QVR_CVAR(vr_hand_collide_fingers, "1", CVAR_ARCHIVE)  // with it: the free hand's fingers react to the other hand's weapon: they rest on it or bend out of it (0: only the hand is pushed, by its fingertips too)

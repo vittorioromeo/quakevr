@@ -191,6 +191,15 @@ context and screenshot, ready to paste or to point me at.
     the model a shot still hits it: 2 units), **Blows Set Grenades Off**. Debug > Tests > At You: **Drop a Dud Ahead**,
     **Shoot the Nearest Grenade** (with Fire at Me's Ogre's Grenade for one in flight). **Tell me if grenades are
     too hard (or too easy) to hit.**
+  - **Blows bat grenades; parry sounds once a burst; your own throws hurt you** (ROUND21.md, "Combat 4: grenade blows,
+    parry bursts, your own throws"): punch or swing at an enemy's grenade lying or rolling: it flies off the way the
+    blow went; only a full-speed blow (or a running chainsaw's bar) sets it off. Batting and Catching > Grenades >
+    **Blow Speed to Set Off** (20 m/s: punches, guns, pommels), **Weapon Blow Speed to Set Off** (34: blades and heads),
+    **Blow Damage to Set Off** (10). Parry an ogre's chainsaw: one parry sound for its swing's several hits (Parry and
+    Bash > **Parry Sound Once Per Burst**, 0.3 s). Throw a backpack high and stand under it: it hurts you when it falls
+    back (Carrying and Throwing > Throwing and Physics > **Your Throws Spare You For**, 0.35 s). Debug > Tests: Flung
+    Props > **Throw the Nearest Prop Up**; At You > **Dud Height**, **Dud Is Yours** off, **Drop a Dud Ahead**.
+    **Tell me if the set-off speeds feel right for your hardest punches and swings.**
   - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
     grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
     touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,

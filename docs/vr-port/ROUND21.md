@@ -19068,3 +19068,53 @@ moved 1.13 by the press. Melee canary 48/53, no differences; `vr_menu_path_check
 - [ ] Mantle onto a ledge: a small grunt (Climbing: Mantle Grunt for its volume).
 - [ ] Debug > Tests > Spawn a Big Prop Pile, then Physics Step Time: the pile falls without a hitch.
 - [ ] Empty hand into a box held in the other hand: both give a little and it holds firm, as with a gun.
+## Combat 4: grenade blows, parry bursts, your own throws (2026-10-01)
+
+His notes vrfiringrange_2026-10-01_16-41-40, _16-42-00 (a backpack thrown high never hurt him falling back), _16-44-46
+(the ogre's chainsaw: a parry sound per hit of one swing), _16-55-46 and _17-14-36 (batting a grenade mostly set it off).
+
+### What changed
+
+- **Blows bat grenades; only very strong ones set them off** (QC `vr_grenade.qc` `VR_GrenShot_BlowSetsOff`,
+  `VR_GrenShot_Knock`, `VR_GrenShot_Damage`). A melee blow that meets a grenade (an enemy's or nobody's: your blows
+  pass your own, `VR_Blow_Strikable`) sets it off only when its speed (VR_Blow's `mh_speed`, the arm's, as the melee
+  events print it) is at least **Blow Speed to Set Off** (`vr_grenade_melee_speed` 20 m/s: a punch, a gun's swing, a
+  pommel or butt) or **Weapon Blow Speed to Set Off** (`vr_grenade_melee_speed_weapon` 34: a sword's, the axe's, the
+  crowbar's, a club's or a stopped chainsaw's blade or head, swung faster) and its damage at least **Blow Damage to Set
+  Off** (`vr_grenade_melee_damage` 10). His takes (eval baseline): punches 12-25 m/s (median 15.7), sword slashes
+  24-40 (28.5), stabs 13-40, gun swings 9-17. A running chainsaw always does: its chain cutting (`VR_Chainsaw_Cut` now
+  meets a grenade's shot cube, the bar's half-thickness added) or its bar swung running (`W_ChainsawMelee`; not its
+  rear handle's pommel strike), through `vr_grenshot_saw`. Any other blow bats it: an enemy's in flight is VR_Deflect's
+  (a weapon's swing bats it, an empty hand catches it, as before); one lying, rolling or nobody's flies off the way the
+  struck part went (the fist or grip for a punch or pommel, the far end for a swing or stab), at its speed (300 ..
+  1500 u/s; lifted a quarter of that off the floor), through `VR_Deflect_Send` (yours then, tink and sparks). One a
+  swing batted in the last 0.3 s is left alone. A headbutt only bats. Multi-grenades on monsters unchanged (rogue's).
+- **One parry sound a burst** (QC `combat.qc` `VR_Parry`, `.vr_parry_last` on the monster): a parry (a weapon's or
+  crossed arms) within **Parry Sound Once Per Burst** (`vr_parry_sound_burst` 0.3 s) of the same monster's last parried
+  blow is quiet (the sparks, the buzz, the push and the stamina as before). The ogre's chainsaw hits every 0.1 s
+  (`ogre_swing5..11`, `ogre_smash6..11`); its next swing is 0.8 s or more after its last hit, so it sounds again.
+- **Your own throws hurt you** (QC `vr_carry.qc` "Your own throws": `VR_Throw_SelfStart`, `VR_Throw_Thrower`,
+  `VR_Throw_SelfFrame` from StartFrame). A thing thrown hard (`VR_Carry_Release`, now through `VR_Carry_Throw`; a
+  weapon: `MakeThrown`) is its thrower's (`.owner`), which Quake's owner rule let through him and its touch spared. For
+  **Your Throws Spare You For** (`vr_throw_self_grace` 0.35 s) it still does; then it gives its owner up
+  (`.vr_throw_self` 2, the thrower in `.carry_letgo`) and meets him: falling on him in its throw it hurts him as a
+  monster (forcegrabbable_touch, `VR_SolidProp_Impact`), its throw over as a flung prop (`VR_Prop_Flung`, whose
+  let-go grace is the same setting now, was 0.5 s). Its hits stay his (`VR_Throw_Thrower`: the throw's damage, a stuck
+  axe's bleeding, a torch's fire). Not grenades (they stay his: their blasts, his blows passing them). A throw's hit
+  now sets `.vr_fling_hit` too, so bouncing off what it hit it doesn't hit it again as a flung prop (it did: 20.9 then
+  7.5 on the same fall).
+- Tests (Debug > Tests): Flung Props > **Throw Up Speed** (`vr_test_throw_up_speed` 10 m/s), **Throw the Nearest Prop
+  Up** (`impulse 220`, `VR_Throw_TestUp`); At You > **Dud Height** (`vr_test_grenade_height`), **Dud Is Yours**
+  (`vr_test_grenade_yours` 1; 0: nobody's, as an enemy's, your blows meet it).
+
+### Results (mock, vrfiringrange, `developer 1`)
+
+- A health box thrown up at 10 m/s from over your head: "it can hurt him now" 0.35 s after (215 u/s, going up); falls
+  on you 2.05 s after at 331 u/s: 20.8 damage, once. `vr_throw_self_grace 5`: no hit.
+- A knight's blows (`impulse 242`) parried with the crowbar across, 0.1 s apart: four parries, one sound; 1 s later
+  two, one sound; `vr_parry_sound_burst 0`: each sounds.
+- A nobody's dud at hand height punched straight (`quakevr/motions/gpunch_*.mock`, not shipped): 13.0 m/s batted
+  (427 u/s, the punch's way); 18.6 m/s with Blow Speed 15: set off ("a blow: 18.6 m/s of 15.0, 25.0 damage of 10.0").
+  The crowbar's hook at 9.1 m/s: batted (weapon threshold 34, 10 alike). A running chainsaw's chain cutting into a dud
+  falling past the bar: set off ("a running chainsaw"); its rear handle's pommel strike (19.1 m/s) had too, before
+  the pommel was left out of the rule. Melee canary: no differences.
