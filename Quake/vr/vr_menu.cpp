@@ -891,6 +891,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far a bash or shove throws what it hits (times Knockback)."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sounds that tell a shove, a weapon bash, a counter bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
+        slider("Parry Sound Once Per Burst", vr_parry_sound_burst, 0.f, 1.f, 0.05f, "%.2f s")
+            .help("A blow parried within this long of the last parried blow of the same monster makes no sound: one sound "
+                  "for an attack of quick blows (the ogre's chainsaw), and its next attack sounds again. 0: every parry."),
         header("Counter-Attacks"),
         toggle("Counter-Attacks", vr_counter)
             .help("After a parry (a weapon's or crossed arms), your next melee attack in the window is a counter and hits harder: a blow with either hand, a bash or a shove. One a parry."),
@@ -1017,8 +1020,20 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Grenade Shot Size", vr_grenade_shoot_pad, 0.f, 8.f, 0.5f, "%.1f units").extend(0.f, 12.f)
             .help("How far beyond the grenade's model a shot still hits it (0: the model's own box, a few units across)."),
         toggle("Blows Set Grenades Off", vr_grenade_shoot_melee)
-            .help("A melee blow sets off a grenade lying or rolling. One in flight is still batted by a weapon and caught by "
-                  "an empty hand."),
+            .help("A very strong melee blow (the speeds and damage below) or a running chainsaw sets an enemy's grenade "
+                  "off. Any other blow bats it away: one lying or rolling flies off the way the blow went; one in flight "
+                  "is batted by a weapon's swing and caught by an empty hand. Your own grenades your blows pass through. "
+                  "Off: blows pass through grenades."),
+        slider("Blow Speed to Set Off", vr_grenade_melee_speed, 5.f, 40.f, 0.5f, "%.1f m/s").extend(0.f, 80.f)
+            .help("How fast a punch, a gun's swing, a pommel or a gun's butt must go to set a grenade off rather than bat "
+                  "it (the arm's speed, as the melee events print it). Your strongest punches go about 20-25."),
+        slider("Weapon Blow Speed to Set Off", vr_grenade_melee_speed_weapon, 5.f, 60.f, 0.5f, "%.1f m/s")
+            .extend(0.f, 100.f)
+            .help("The same for a sword's, the axe's, the crowbar's, a club's or a stopped chainsaw's blade or head: they "
+                  "are swung faster (an ordinary sword slash goes about 28). A running chainsaw always sets it off."),
+        slider("Blow Damage to Set Off", vr_grenade_melee_damage, 0.f, 60.f, 1.f, "%.0f").extend(0.f, 200.f)
+            .help("And the least damage the blow must deal (a full-speed punch deals about 25; tired blows less). 0: the "
+                  "speed alone."),
         header("Hand Grenades"),
         toggle("Hand Grenades", vr_handgrenade)
             .help("Reach behind the small of your back with an empty hand and grip: a grenade from your pouch, while you have "
@@ -1727,6 +1742,9 @@ void hologramTestMessage()
         slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").extend().help("Half-size of a thrown weapon's box against monsters."),
         slider("Hit Min Speed", vr_throw_hit_min_speed, 0.f, 600.f, 25.f, "%.0f").extend()
             .help("Units/s a thrown weapon, box or gib must go at to hurt a monster; slower (at rest against it, pushed into it) it does nothing."),
+        slider("Your Throws Spare You For", vr_throw_self_grace, 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("What you throw passes through you and can't hurt you for this long after it leaves your hand; after "
+                  "it, it hurts you as it would a monster (a backpack thrown high falling back on you)."),
         header("Thrown Axes"),
         toggle("Axes Stick", vr_axestick)
             .help("A thrown axe that strikes blade first sticks in walls, doors, props and monsters (it moves with them). "
@@ -2712,6 +2730,10 @@ za::Vector<Item> pageDebugTests()
         command("Fling the Nearest Prop", "impulse 232")
             .help("Sends the loose prop nearest you (put a box there first) at it, as if batted or knocked flying; "
                   "developer 1 prints the hit (prop: flung ...)."),
+        slider("Throw Up Speed", vr_test_throw_up_speed, 2.f, 25.f, 0.5f, "%.1f m/s"),
+        command("Throw the Nearest Prop Up", "developer 1; impulse 220")
+            .help("The loose prop nearest you thrown straight up as yours from just over your head: it falls back on you "
+                  "and hurts you (Your Throws Spare You For, on Throwing and Physics). Prints the throw and the hit."),
         header("Thrown Axe"),
         cycle("Axe Throw", vr_test_axe,
             {{0.f, "Blade First"}, {1.f, "Flat"}, {2.f, "Handle First"}, {3.f, "Spinning"}, {4.f, "Overhand"},
@@ -2756,6 +2778,12 @@ za::Vector<Item> pageDebugTests()
                   "first; yours; a dud). Prints what it shot, how far, its shot box (impulse 210)."),
         slider("Dud Distance", vr_test_grenade_dist, 64.f, 1024.f, 32.f, "%.0f units")
             .help("How far ahead Drop a Dud Ahead puts the grenade."),
+        slider("Dud Height", vr_test_grenade_height, 0.f, 64.f, 2.f, "%.0f units")
+            .help("How high over the floor Drop a Dud Ahead puts the grenade (it falls): at hand height to punch or swing at "
+                  "it (Blow Speed to Set Off, on Batting and Catching)."),
+        toggle("Dud Is Yours", vr_test_grenade_yours)
+            .help("On: the dud is yours (your blows pass through your own grenades). Off: nobody's, as an enemy's grenade "
+                  "lying about: your blows meet it (bat it, or set it off when very strong)."),
         command("Drop a Dud Ahead", "developer 1; impulse 211")
             .help("Takes a hand grenade from your pouch into your empty off hand, lets go of it unarmed (a dud), and puts it "
                   "on the floor ahead: a trap to shoot from afar (impulse 211)."),

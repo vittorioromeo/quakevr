@@ -275,6 +275,14 @@ float(float xHand) VR_Chainsaw_Cut =
                         e.origin + e.maxs + '1 1 1' * VR_SAW_BAR_HALF);
                 }
             }
+            else if(along == -2 && e.vr_shootnade && e.vr_shot_radius > 0)
+            {
+                // A grenade shots set off (vr_grenade.qc): its shot cube round its middle, grown by the bar's
+                // half-thickness (a trace passes it: a point, or a touchable non-solid). The chain sets it off.
+                vector gmid = e.origin + (e.mins + e.maxs) * 0.5;
+                vector greach = '1 1 1' * (e.vr_shot_radius + VR_SAW_BAR_HALF);
+                along = VR_SegmentBox(root, tip, gmid - greach, gmid + greach);
+            }
             else if(along == -2)
             {
                 traceline(root, tip, FALSE, self);
@@ -345,7 +353,10 @@ float(float xHand) VR_Chainsaw_Cut =
             hurt = max(dmg, e.vr_gib_hp);
         }
         hurt = VR_Zombie_SawHurt(e, hurt); // (a zombie: the tick that puts it down, or gibs it down)
-        if(T_DamageImpl(e, self, self, hurt, 1) && alive)
+        vr_grenshot_saw = TRUE; // (a grenade: the running chain always sets it off, VR_GrenShot_BlowSetsOff)
+        float cut = T_DamageImpl(e, self, self, hurt, 1);
+        vr_grenshot_saw = FALSE;
+        if(cut && alive)
         {
             VR_QuadSound(self, "the chainsaw cut");
         }

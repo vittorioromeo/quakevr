@@ -87,8 +87,9 @@ float VR_LOB_STEPS = 10;       // the arc's segments traced for a wall in the wa
 //
 // A grenade (the launcher's, an ogre's or a multi-grenade ogre's, rogue's multi-grenade, a hand grenade, live or a dud
 // lying about) is set off by whatever hits it: a shot (the shotguns', a grunt's, the lightning), a missile (nails,
-// rockets, lasers, spit), a thrown thing, a melee blow (vr_grenade_shoot_melee: one lying or rolling; one in flight a
-// weapon bats and an empty hand catches, as before), and another blast (a chain, each a moment after the last). Quake's
+// rockets, lasers, spit), a thrown thing, a very strong melee blow (vr_grenade_shoot_melee; VR_GrenShot_BlowSetsOff: a
+// full-speed one, or a running chainsaw; any other blow bats it: VR_GrenShot_Knock, or VR_Deflect for a monster's in
+// flight; an empty hand catches one in flight), and another blast (a chain, each a moment after the last). Quake's
 // grenades are points no shot meets: the engine meets a cube round its middle, its model's half size and
 // vr_grenade_shoot_pad (.vr_shot_radius: vr_hitmodel.cpp VR_ShotTargetClip), its owner's own shots too once it has left
 // his launcher or hand (VR_GRENSHOT_OWN_GRACE). Not one in a hand or an open palm. What it blows up is the doing of who
@@ -178,18 +179,113 @@ void(entity g, entity xBy, float xDelay, string xHow) VR_GrenShot_SetOff =
     g.nextthink = time + xDelay;
 };
 
+// Melee blows on grenades (vrfiringrange_2026-10-01_16-55-46, _17-14-36; ROUND21.md, "Grenades: blows bat, strong
+// ones set off"): a blow bats a grenade; only a very strong one sets it off: the blow's speed (VR_Blow's mh_speed, the
+// arm's; a pommel's its own) at least vr_grenade_melee_speed (a punch, a gun's swing, a pommel, a butt) or
+// vr_grenade_melee_speed_weapon (a blade's or a head's: a sword, the axe, the crowbar, a club, a stopped chainsaw: they
+// go round faster), and its damage at least vr_grenade_melee_damage. A running chainsaw always does (vr_grenshot_saw:
+// its chain cutting, VR_Chainsaw_Cut, or swung running, W_ChainsawMelee). A headbutt only bats.
+float vr_grenshot_saw; // set while a running chainsaw's blow or cut deals its damage
+float VR_GRENSHOT_KNOCK_MIN = 300;  // u/s a grenade a blow bats flies at least (VR_GrenShot_Knock),
+float VR_GRENSHOT_KNOCK_LIFT = 0.25; // and one lying on the floor rises at least this share of that (not a skid)
+float VR_GRENSHOT_BATTED = 0.3;     // s after it was batted (VR_Deflect_Send) a blow leaves it be (the same swing)
+
+// Whether the melee blow dealing `damage` to a grenade now (vr_hithand's, VR_Blow) sets it off; vr_grenshot_why says
+// how strong it was against what it needed (for the log).
+string vr_grenshot_why;
+float(float damage) VR_GrenShot_BlowSetsOff =
+{
+    if(vr_grenshot_saw)
+    {
+        vr_grenshot_why = "a running chainsaw";
+        return TRUE;
+    }
+    float hand = vr_hithand;
+    if(hand != cVR_MainHand && hand != cVR_OffHand)
+    {
+        vr_grenshot_why = "not a hand's blow";
+        return FALSE;
+    }
+    entity b = VR_Blow(hand);
+    float heavy = ((b.mh_thing == VR_MTHING_SWORD || b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB ||
+                    b.mh_thing == VR_MTHING_SAW || b.mh_thing == VR_MTHING_CROWBAR) && b.mh_kind != VR_MKIND_POMMEL);
+    float need = max(0, cvar_hget(heavy ? cvarh_vr_grenade_melee_speed_weapon : cvarh_vr_grenade_melee_speed));
+    float least = max(0, cvar_hget(cvarh_vr_grenade_melee_damage));
+    vr_grenshot_why = sprintf("%.1f m/s of %.1f, %.1f damage of %.1f", b.mh_speed, need, damage, least);
+    return b.mh_speed >= need && damage >= least;
+};
+
+// A melee blow of the player (self) that doesn't set the grenade `g` off bats it the way the struck part was going (the
+// fist or grip for a punch or a pommel, the far end for a swing or a stab), at that speed (VR_GRENSHOT_KNOCK_MIN ..
+// VR_BAT_MAX_SPEED): one lying on the floor lifted a little. It is the player's then (VR_Deflect_Send).
+void(entity g) VR_GrenShot_Knock =
+{
+    float hand = vr_hithand;
+    vector v = '0 0 0';
+    if(hand == cVR_MainHand || hand == cVR_OffHand)
+    {
+        entity b = VR_Blow(hand);
+        v = b.mh_vfar;
+        if(b.mh_kind == VR_MKIND_POMMEL || b.mh_kind == VR_MKIND_PUNCH)
+        {
+            v = b.mh_vgrip;
+        }
+        v = VR_Blow_ToWorld(v) * VRMetersToUnits() + self.velocity;
+    }
+    else
+    {
+        v = vr_hitdir * VR_GRENSHOT_KNOCK_MIN;
+    }
+    float speed = vlen(v);
+    if(speed < 1)
+    {
+        v = g.origin - self.origin; // (no way known: away from you)
+        speed = 1;
+    }
+    float want = min(VR_BAT_MAX_SPEED, max(VR_GRENSHOT_KNOCK_MIN, speed));
+    v = v * (want / max(1, vlen(v)));
+    if((g.flags & FL_ONGROUND) && v_z < want * VR_GRENSHOT_KNOCK_LIFT)
+    {
+        v_z = want * VR_GRENSHOT_KNOCK_LIFT;
+    }
+    dprint(sprintf("grenade: %s batted by a blow (%s): %.0f u/s\n", g.classname, vr_grenshot_why, vlen(v)));
+    VR_Deflect_Send(g, v, hand < 0 ? cVR_MainHand : hand, "blow");
+};
+
 // T_Damage on a grenade shots set off (T_DamageImpl; `xMelee` a VR melee blow's): set off, by `xAttacker`. Not by its
-// own blast, nor a melee blow in flight (batted or caught: vr_deflect, vr_grenade_catch). TRUE if it was set off.
+// own blast; a melee blow only a very strong one (VR_GrenShot_BlowSetsOff), any other bats it (a monster's in flight
+// batted by the swing, VR_Deflect, or caught by an empty hand, as before; the rest VR_GrenShot_Knock). TRUE if it was
+// set off.
 float(entity targ, entity inflictor, entity attacker, float damage, float xMelee) VR_GrenShot_Damage =
 {
     if(!VR_GrenShot_Is(targ) || !targ.takedamage || targ.solid == SOLID_NOT || inflictor == targ || damage <= 0)
     {
         return FALSE;
     }
-    if(xMelee && (!cvar_hget(cvarh_vr_grenade_shoot_melee) ||
-                  (cvar_hget(cvarh_vr_deflect) && vlen(targ.velocity) >= VR_GREN_FLYING)))
+    if(xMelee)
     {
-        return FALSE;
+        if(!cvar_hget(cvarh_vr_grenade_shoot_melee))
+        {
+            return FALSE;
+        }
+        if(!VR_GrenShot_BlowSetsOff(damage))
+        {
+            if(time < targ.vr_deflect_time + VR_GRENSHOT_BATTED)
+            {
+                return FALSE; // (this swing batted it already)
+            }
+            if(cvar_hget(cvarh_vr_deflect) && vlen(targ.velocity) >= VR_GREN_FLYING && VR_Deflect_IsProjectile(targ))
+            {
+                dprint(sprintf("grenade: %s in flight met by a blow (%s): batted by the swing or caught, not set off\n",
+                    targ.classname, vr_grenshot_why));
+                return FALSE; // (VR_Deflect bats it this frame; an empty hand catches it)
+            }
+            if(attacker.flags & FL_CLIENT)
+            {
+                VR_GrenShot_Knock(targ);
+            }
+            return FALSE;
+        }
     }
     string how = "a hit";
     float delay = 0;
@@ -200,7 +296,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float xMelee
     }
     else if(xMelee)
     {
-        how = "a blow";
+        how = sprintf("a blow: %s", vr_grenshot_why);
     }
     else if(inflictor != attacker)
     {

@@ -52,7 +52,7 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
         forcegrabbable_touch();
     }
     self.throwhit = QVR_THROWHIT_HIT;
-    self.vr_stick_by = self.owner;
+    self.vr_stick_by = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace who threw it)
     self.vr_stick_model = other.modelindex;
     self.vr_stick_next = time + AXESTICK_BLEED_TICK;
     self.vr_stick_owed = 0;
