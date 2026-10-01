@@ -144,7 +144,7 @@ context and screenshot, ready to paste or to point me at.
   - **The crowbar** (ROUND21.md, same title): one lies in the firing range's prop area, north of the chainsaw. Hold it
     as a sword: by its black tape, one hand or two (the other hand below the first, or on the bar above the hands,
     sliding along it short of the hook). Its blows are blunt, the hook's hardest; its chisel end jabs as a pommel does;
-    it parries. Combat > Melee > Crowbar Damage; Debug > Tests > Crowbar.
+    it parries. Combat > Weapon Damage > Crowbar; Debug > Tests > Crowbar.
   - **The ogres' chainsaw** (ROUND21.md, same title): every ogre drops its chainsaw. Hold it by its rear handle, the
     other hand on its front handle (heavy, two-handed). Start it: grab the T-handle on its top with the empty hand and
     yank the cord up and away (a slow pull never starts it; a good one starts it half the time). The trigger runs the
@@ -153,8 +153,8 @@ context and screenshot, ready to paste or to point me at.
   - **Enemy guns** (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser rifles"): every grunt
     drops its shotgun, every enforcer its laser rifle (no gun left in the corpse). Pick one up: the pistol grip in the
     fist, the other hand on the band round the barrel. It fires from its own ammo only (10 shells, 20 shots; the counter
-    on it): shell boxes and cells never refill it; empty, it clicks (a club, or drop it). Combat > Enemy Weapons (damage
-    and ammo of the swords, chainsaws and these); Debug > Tests > Enemy Guns. The chainsaw has a starter housing under
+    on it): shell boxes and cells never refill it; empty, it clicks (a club, or drop it). Combat > Enemy Weapons (fuel
+    and ammo of the swords, chainsaws and these; their damage: Combat > Weapon Damage); Debug > Tests > Enemy Guns. The chainsaw has a starter housing under
     its cord's handle now (it floated).
   - **Punches land at once; the empty hammer is quiet** (ROUND21.md, same title): punch damage used to come 0.1-0.45 s
     after the hit (a bug: every punch waited as a pommel strike does); now in the frame of contact. Pommel and butt

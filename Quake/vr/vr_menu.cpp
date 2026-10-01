@@ -317,6 +317,8 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageBodyArms();
 [[nodiscard]] za::Vector<Item> pageBodyCalibration();
 [[nodiscard]] za::Vector<Item> pageWeightDamage();
+[[nodiscard]] za::Vector<Item> pageWeaponDamage();
+[[nodiscard]] za::Vector<Item> pageDamage();
 [[nodiscard]] za::Vector<Item> pageFingersCollisions();
 [[nodiscard]] za::Vector<Item> pageFlashlightLowGrip();
 [[nodiscard]] za::Vector<Item> pageFlashlightOverheadGrip();
@@ -598,15 +600,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons()
 {
     return {
-        header("Knights' Swords"),
-        slider("Sword Damage", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx").extend()
-            .help("Knights and hell knights always drop their sword, a melee weapon you can pick up. A sword swing's damage "
-                  "over the axe's (the hell knight's sword: 25% more)."),
+        header("Their Damage"),
+        open("Weapon Damage", pageIndex(pageWeaponDamage))
+            .help("The swords', chainsaws', burst rifles' and laser rifles' damage, with every other weapon's."),
         header("Ogres' Chainsaws"),
-        slider("Chainsaw Damage", vr_chainsaw_damage, 10.f, 300.f, 5.f, "%.0f a second").extend()
-            .help("Ogres always drop their chainsaw: heavy, held in both hands. Pull its cord with your other hand to start "
-                  "it; the trigger runs its chain, which cuts what its bar is in: this much damage a second (a grunt has 30 "
-                  "health, an ogre 200)."),
         slider("Fuel When Dropped", vr_chainsaw_drop_fuel_min, 0.f, 100.f, 5.f, "%.0f%% or more")
             .help("The fuel an ogre's chainsaw has as it drops: at least this much of a full tank, at random up to full. "
                   "It is the chainsaw's own: never refilled."),
@@ -637,21 +634,90 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Grunts' Round Damage", vr_grunt_burst_damage, 1.f, 16.f, 1.f, "%.0f").extend()
             .help("A grunt's burst: each round's damage to you (5: about the shotgun's damage over time; its 4 pellets "
                   "did 4 each)."),
-        slider("Round Damage", vr_gruntgun_damage, 1.f, 30.f, 1.f, "%.0f").extend()
-            .help("Grunts always drop their gun: a trigger pull fires a 3-round burst, each round this much damage (a "
-                  "head more; a grunt has 30 health)."),
         slider("Rounds", vr_gruntgun_ammo, 3.f, 90.f, 3.f, "%.0f").extend()
             .help("The rounds in a dropped burst rifle, in threes (a burst's): its own, never refilled (shell boxes "
                   "fill your shotguns, not it). Empty, it is still a club, or drop it."),
         header("Enforcers' Laser Rifles"),
-        slider("Laser Damage", vr_enfrifle_damage, 1.f, 60.f, 1.f, "%.0f").extend()
-            .help("Enforcers always drop their laser rifle: it fires the enforcer's laser, this much damage a shot (the "
-                  "enforcer's: 15). As your nails, it strikes corpses, gibs, props and breakables too."),
         slider("Laser Speed", vr_enfrifle_speed, 600.f, 4000.f, 100.f, "%.0f u/s").extend()
             .help("How fast a dropped rifle's lasers fly, in units a second (the enforcer's own: 600; your nails: "
                   "1750)."),
         slider("Shots", vr_enfrifle_ammo, 1.f, 80.f, 1.f, "%.0f").extend()
             .help("The shots in a dropped rifle: its own, never refilled (cells don't). Empty, it is still a club."),
+    };
+}
+
+// VR Settings > Combat > Weapon Damage: every weapon's base damage in one place, to balance them (NOTES.md
+// vrfiringrange_2026-10-01_02-33; ROUND21.md, "Weapon Damage menu"). id's numbers (or the mission packs') as shipped,
+// but the crowbar's 20. A gun's applies to your shots only: monsters and traps firing the same keep id's (QC VR_WpnDmg).
+// Damage to Enemies (Damage and Knockback) multiplies them all; a melee blow's is also times its speed and its weight.
+[[nodiscard]] za::Vector<Item> pageWeaponDamage()
+{
+    return {
+        header("Guns"),
+        slider("Shotgun", vr_dmg_shotgun, 0.5f, 20.f, 0.5f, "%.1f a pellet").extend()
+            .help("Each of its 6 pellets (id's 4; a head more). A grunt's dropped shotgun (Burst Rifles off) too."),
+        slider("Double Shotgun", vr_dmg_super_shotgun, 0.5f, 20.f, 0.5f, "%.1f a pellet").extend()
+            .help("Each of its 14 pellets (id's 4)."),
+        slider("Nailgun", vr_dmg_nail, 1.f, 60.f, 1.f, "%.0f a nail").extend().help("id's 9 (a head more)."),
+        slider("Super Nailgun", vr_dmg_super_nail, 1.f, 100.f, 1.f, "%.0f a nail").extend().help("id's 18 (a head more)."),
+        slider("Grenade", vr_dmg_grenade, 10.f, 400.f, 5.f, "%.0f").extend()
+            .help("A grenade's blast at its middle, less further out (id's 120): the launcher's, a hand grenade's and an "
+                  "ogre's grenade caught and thrown back."),
+        slider("Rocket", vr_dmg_rocket, 10.f, 400.f, 5.f, "%.0f").extend()
+            .help("A direct hit, and up to a fifth more at random (id's 100); its blast on what's around 1.2 times it."),
+        slider("Lightning Gun", vr_dmg_lightning, 1.f, 100.f, 1.f, "%.0f a bolt").extend()
+            .help("Each bolt, 10 a second (id's 30). Its shock fired in water: Lightning Gun in Water."),
+        header("Scourge of Armagon"),
+        slider("Proximity Gun", vr_dmg_proximity, 10.f, 400.f, 5.f, "%.0f").extend().help("A mine's blast (95)."),
+        slider("Laser Cannon", vr_dmg_laser, 1.f, 100.f, 1.f, "%.0f a bolt").extend()
+            .help("Each bolt (18; one in ten a third more). A bolt bouncing back into what it hit does half."),
+        slider("Mjolnir's Lightning", vr_dmg_mjolnir_lightning, 5.f, 300.f, 5.f, "%.0f").extend()
+            .help("Its first strike from the ground (80); the strikes after it 3/8 of it."),
+        header("Dissolution of Eternity"),
+        slider("Lava Nails", vr_dmg_lava_nail, 1.f, 60.f, 1.f, "%.0f a nail").extend()
+            .help("A nail to a monster (15; to a player 3/5 of it)."),
+        slider("Super Lava Nails", vr_dmg_super_lava_nail, 1.f, 100.f, 1.f, "%.0f a nail").extend()
+            .help("A nail to a monster (30; to a player 3/5 of it)."),
+        slider("Multi-Grenade", vr_dmg_multi_grenade, 10.f, 300.f, 5.f, "%.0f a bomblet").extend()
+            .help("Each of the 5 bomblets it bursts into (90)."),
+        slider("Multi-Rocket", vr_dmg_multi_rocket, 5.f, 300.f, 5.f, "%.0f").extend()
+            .help("A rocket's direct hit, and up to a quarter more (60); its blast 1.25 times it."),
+        slider("Plasma Gun", vr_dmg_plasma, 5.f, 300.f, 5.f, "%.0f").extend()
+            .help("A ball's direct hit, and up to a quarter more (80); its blast 7/8 of it, its arcs 5/8."),
+        header("Melee"),
+        slider("Fist", vr_dmg_fist, 1.f, 60.f, 1.f, "%.0f").extend()
+            .help("A punch (10), before its speed (twice Swing Speed: a full blow) and Melee's Punch Damage Mult."),
+        slider("Axe", vr_dmg_axe, 1.f, 100.f, 1.f, "%.0f").extend().help("A blow (id's 20), before its speed and weight."),
+        slider("Crowbar", vr_crowbar_damage, 1.f, 100.f, 1.f, "%.0f").extend()
+            .help("A blow (20, the axe's: 25 before), before its speed and weight; its hook hits 20% harder, its chisel "
+                  "end 40% softer. Crowbars lie in the firing range's prop area."),
+        slider("Gun as a Club", vr_dmg_gun_bash, 1.f, 60.f, 1.f, "%.0f").extend()
+            .help("A gun swung at something (12), before its speed and weight."),
+        slider("Mjolnir", vr_dmg_mjolnir, 1.f, 100.f, 1.f, "%.0f").extend()
+            .help("A blow (25), before its speed and weight. Its lightning: above."),
+        header("Enemy Weapons"),
+        slider("Knight's Sword", vr_sword_damage_mult, 0.5f, 3.f, 0.05f, "%.2fx 20").extend()
+            .help("Knights and hell knights always drop their sword: a swing's damage, times 20 (1.5: 30), before its "
+                  "speed and weight; the hell knight's sword 25% more."),
+        slider("Ogre's Chainsaw Swung", vr_dmg_chainsaw_swing, 1.f, 100.f, 1.f, "%.0f").extend()
+            .help("A blow with it, the engine off or on (20), before its speed and its weight (heavy)."),
+        slider("Ogre's Chainsaw Chain", vr_chainsaw_damage, 10.f, 300.f, 5.f, "%.0f a second").extend()
+            .help("Ogres always drop their chainsaw: its running chain cuts what its bar is in, this much damage a second "
+                  "(a grunt has 30 health, an ogre 200). Its fuel and cord: Enemy Weapons."),
+        slider("Grunt's Burst Rifle", vr_gruntgun_damage, 1.f, 30.f, 1.f, "%.0f a round").extend()
+            .help("Grunts always drop their gun: a trigger pull fires a 3-round burst, each round this much damage (a "
+                  "head more; a grunt has 30 health). Burst Rifles off: the Shotgun's pellets."),
+        slider("Enforcer's Laser Rifle", vr_enfrifle_damage, 1.f, 60.f, 1.f, "%.0f a shot").extend()
+            .help("Enforcers always drop their laser rifle: it fires the enforcer's laser (the enforcer's: 15). As your "
+                  "nails, it strikes corpses, gibs, props and breakables too."),
+        header("Thrown"),
+        slider("Thrown Weapons", "vr_weapon_throw_damage_mult", 0.05f, 5.f, 0.05f, "%.2fx").extend()
+            .help("Every thrown weapon's damage (from 20 for a gun to 60 for a sword), more the faster it flies. Each "
+                  "weapon's own: Weapon Weights' Throw Damage."),
+        header("More"),
+        open("Damage and Knockback", pageIndex(pageDamage))
+            .help("Damage to Enemies (all of these at once), Damage to You, headshots, knockback."),
+        open("Weight and Damage", pageIndex(pageWeightDamage)).help("How a held weapon's weight changes its blows."),
     };
 }
 
@@ -2996,6 +3062,7 @@ const Page pages[] = {
     {"Enemy Weapons", pageEnemyWeapons, pageCombat},                        // 76
     {"Sound", pageSound, pageMain},                                         // 77
     {"Crates", pageCrates, pageCarryingHub},                                // 78
+    {"Weapon Damage", pageWeaponDamage, pageCombat},                        // 79
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -3132,8 +3199,11 @@ za::Vector<Item> pageCombat()
         open("Stamina", pageIndex(pageStamina)).help("What parries, shoves, blows and hanging from a hold cost, and being exhausted."),
         open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades; hand grenades."),
         open("Damage and Knockback", pageIndex(pageDamage)).help("Hit detection, damage to monsters and to you, headshots, knockback, hits knocking your hands."),
+        open("Weapon Damage", pageIndex(pageWeaponDamage))
+            .help("Every weapon's base damage, to balance them: your guns, the mission packs', melee weapons, the weapons "
+                  "monsters drop, thrown weapons."),
         open("Enemy Weapons", pageIndex(pageEnemyWeapons))
-            .help("The swords, chainsaws, shotguns and laser rifles monsters drop: their damage and ammo."),
+            .help("The swords, chainsaws, shotguns and laser rifles monsters drop: their fuel, ammo and handling."),
     };
 }
 
@@ -3198,6 +3268,7 @@ za::Vector<Item> pageWeaponsHub()
         header("Handling"),
         open("Aiming", pageIndex(pageAimingSettings)).help("Two-handed aiming; how weight feels: the spring, tired arms."),
         open("Weight and Damage", pageIndex(pageWeightDamage)),
+        open("Weapon Damage", pageIndex(pageWeaponDamage)).help("Every weapon's base damage, to balance them."),
         open("Immersion", pageIndex(pageImmersionSettings)).help("Holsters, reloading, throwing weapons, shell casings, haptics."),
         open("Lightning Gun in Water", pageIndex(pageLightningWater)).help("The shock fired under water, and electrified water."),
         header("Holsters"),

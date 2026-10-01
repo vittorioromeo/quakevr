@@ -967,7 +967,30 @@ QVR_CVAR(vr_air_supply, "1.5", CVAR_ARCHIVE)        // the breath under water be
 QVR_CVAR(vr_swim_debug, "0", CVAR_NONE)               // print each stroke: peak speed, power gate, reverse damping and the push it gave
 QVR_CVAR(vr_sword_drop, "1", CVAR_NONE)               // retired (knights and hell knights always drop their sword: ROUND21.md, "Simplification"): kept so saved configs load silently
 QVR_CVAR(vr_sword_damage_mult, "1.5", CVAR_ARCHIVE)   // a knight's sword: its swing's damage over the axe's
-QVR_CVAR(vr_crowbar_damage, "25", CVAR_ARCHIVE)       // the crowbar (QC vr_crowbar.qc): a blow's base damage (the axe's 20, a knight's sword's 30), its hook's x1.2
+QVR_CVAR(vr_crowbar_damage, "20", CVAR_ARCHIVE)       // the crowbar (QC vr_crowbar.qc): a blow's base damage (the axe's; a knight's sword's 30; 25 before round 21's Weapon Damage), its hook's x1.2
+// Weapon Damage (VR Settings > Combat > Weapon Damage; QC VR_WpnDmg): each weapon's base damage, id's (or the mission
+// packs') as shipped. A gun's or a projectile's applies to players' (and bots') shots only: monsters and traps firing the
+// same keep id's. Melee: before the blow's speed, the weight's curve and Melee's Damage Multiplier.
+QVR_CVAR(vr_dmg_shotgun, "4", CVAR_ARCHIVE)          // the shotgun: a pellet's (6 a shot)
+QVR_CVAR(vr_dmg_super_shotgun, "4", CVAR_ARCHIVE)    // the double-barrelled shotgun: a pellet's (14 a shot)
+QVR_CVAR(vr_dmg_nail, "9", CVAR_ARCHIVE)             // the nailgun: a nail's
+QVR_CVAR(vr_dmg_super_nail, "18", CVAR_ARCHIVE)      // the super nailgun: a nail's
+QVR_CVAR(vr_dmg_grenade, "120", CVAR_ARCHIVE)        // a grenade's blast (the launcher's, a hand grenade's, a returned ogre grenade's)
+QVR_CVAR(vr_dmg_rocket, "100", CVAR_ARCHIVE)         // a rocket's direct hit (and up to a fifth more at random); its blast 1.2 times it
+QVR_CVAR(vr_dmg_lightning, "30", CVAR_ARCHIVE)       // the lightning gun: a bolt's (10 a second)
+QVR_CVAR(vr_dmg_proximity, "95", CVAR_ARCHIVE)       // Scourge of Armagon's proximity gun: a mine's blast
+QVR_CVAR(vr_dmg_laser, "18", CVAR_ARCHIVE)           // its laser cannon: a bolt's (1 in 10: 25/18 of it; halved on a second hit)
+QVR_CVAR(vr_dmg_mjolnir_lightning, "80", CVAR_ARCHIVE) // Mjolnir's lightning: its first strike (its later ones 3/8 of it)
+QVR_CVAR(vr_dmg_lava_nail, "15", CVAR_ARCHIVE)       // Dissolution of Eternity's lava nails: a nail's to a monster (to a player 3/5)
+QVR_CVAR(vr_dmg_super_lava_nail, "30", CVAR_ARCHIVE) // and the super nailgun's (to a player 3/5)
+QVR_CVAR(vr_dmg_multi_grenade, "90", CVAR_ARCHIVE)   // its multi-grenade: each of its 5 bomblets' blast
+QVR_CVAR(vr_dmg_multi_rocket, "60", CVAR_ARCHIVE)    // its multi-rocket: a rocket's direct hit (and up to a quarter more); its blast 1.25 times it
+QVR_CVAR(vr_dmg_plasma, "80", CVAR_ARCHIVE)          // its plasma gun: a ball's direct hit (and up to a quarter more); its blast 7/8, its arcs 5/8
+QVR_CVAR(vr_dmg_fist, "10", CVAR_ARCHIVE)            // a punch's base damage
+QVR_CVAR(vr_dmg_axe, "20", CVAR_ARCHIVE)             // the axe's blow
+QVR_CVAR(vr_dmg_gun_bash, "12", CVAR_ARCHIVE)        // a gun swung as a club
+QVR_CVAR(vr_dmg_chainsaw_swing, "20", CVAR_ARCHIVE)  // an ogre's chainsaw swung (its running chain: vr_chainsaw_damage)
+QVR_CVAR(vr_dmg_mjolnir, "25", CVAR_ARCHIVE)         // Mjolnir's blow
 QVR_CVAR(vr_chainsaw_damage, "80", CVAR_ARCHIVE)      // an ogre's chainsaw (QC vr_chainsaw.qc): damage a second its running chain deals what its bar is in
 QVR_CVAR(vr_chainsaw_fuel_use, "5", CVAR_ARCHIVE)     // fuel (percent of a tank) a second the chain uses, the trigger held
 QVR_CVAR(vr_chainsaw_idle_fuel_use, "0.5", CVAR_ARCHIVE) // and the engine idling

@@ -5,7 +5,7 @@
 //
 // Its blows (vr_melee.qc VR_MTHING_CROWBAR): the bar past the hands strikes, blunt, the hook at its end hardest
 // (VR_MELEE_CROWBAR_HOOK); its chisel end jabs as a pommel does. No stabs (a hook, not a point). The damage is
-// vr_crowbar_damage (25: the axe's 20, a knight's sword's 30) times the blow's speed and the weight's curve (its mass,
+// vr_crowbar_damage (20, the axe's; a knight's sword's 30) times the blow's speed and the weight's curve (its mass,
 // 1.9 kg: Weapon Weights). It parries as any weapon (combat.qc VR_Parry: its line from the chisel to the hook), is thrown
 // as a weapon (40 damage) and lands with the metal physics sounds (vr_physsound.cpp: a thrown weapon is metal).
 //

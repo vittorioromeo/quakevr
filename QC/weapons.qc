@@ -109,6 +109,25 @@ void(float xHand, float xAid, float xValue) delAmmoOrClipAndUpdateCounter =
     }
 }
 
+// A weapon's base damage (VR Settings > Combat > Weapon Damage; vr_dmg_*): the setting's for a shot or a projectile
+// `xOwner` fired as a player (or a bot); `xStock` (id's, or the mission pack's) for a monster's or a trap's.
+float(entity xOwner, float xCvarh, float xStock) VR_WpnDmg =
+{
+    if(xOwner.flags & FL_CLIENT)
+    {
+        return cvar_hget(xCvarh);
+    }
+
+    return xStock;
+};
+
+// And as a multiplier of the stock damage: for a weapon whose setting also scales its other numbers (a rocket's blast
+// over its direct hit, a laser's rare harder bolt).
+float(entity xOwner, float xCvarh, float xStock) VR_WpnDmgScale =
+{
+    return VR_WpnDmg(xOwner, xCvarh, xStock) / xStock;
+};
+
 // Quad Damage's extra for melee (vr_quad_melee_damage), on top of the x4 T_Damage gives every damage under Quad.
 float() VRMeleeDmgQuadMult =
 {
@@ -598,7 +617,7 @@ entity(vector org, vector vec, vector extraVel, float light) HIP_LaunchLaser =
     setorigin(newmis, org);
 
     newmis.speed = 1750;
-    newmis.dmg = 18;
+    newmis.dmg = VR_WpnDmg(self, cvarh_vr_dmg_laser, 18);
     newmis.velocity = vec * newmis.speed + extraVel;
     newmis.old_velocity = newmis.velocity;
     newmis.angles = vectoangles(newmis.velocity);
@@ -675,7 +694,7 @@ void(float xHand, float stat) HIP_FireLaser =
         {
             newmis = HIP_LaunchLaser(org, dir, extraVel, 1);
             VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
-            newmis.dmg = 25;
+            newmis.dmg = 25 * VR_WpnDmgScale(self, cvarh_vr_dmg_laser, 18);
         }
         else
         {
@@ -855,10 +874,9 @@ void() HIP_LightningThink =
    dot = vec * self.owner.movedir;
    head = self;
    self = self.owner.owner;
-   if(oldstate==0)
-      dam = 80;
-   else
-      dam = 30;
+   dam = VR_WpnDmg(self, cvarh_vr_dmg_mjolnir_lightning, 80); // (self: the player now)
+   if(oldstate!=0)
+      dam = dam * (30 / 80);
    VR_SetHitKind(QVR_HITKIND_SHOT, -1, trace_endpos, normalize(trace_endpos - org));
    vr_hitweapon = "Mjolnir's lightning";
    if(dot>0.3)
@@ -1028,7 +1046,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
 
 void(float xHand) HIP_FireMjolnir =
 {
-    float xdmg = VRMeleeDmg(xHand, 25);
+    float xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_mjolnir));
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 22, 12))
     {
@@ -1157,7 +1175,7 @@ void(float xHand) W_FireAxe =
     float  bleed; // TODO VR: (P2) apply bleed mechanic to other attacks
     bleed = FALSE;
 
-    xdmg = VRMeleeDmg(xHand, 20);
+    xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_axe));
 
     // HONEY
     // Check if we maybe should gib some zombies for fun!
@@ -1244,7 +1262,7 @@ void(float xHand) W_GunMelee =
     vector    org;
     float    xdmg;
 
-    xdmg = VRMeleeDmg(xHand, 12);
+    xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_gun_bash));
 
     if(!VRDoMeleeAttackTracelineFor(xHand, 22, 12))
     {
@@ -1337,7 +1355,7 @@ void(float xHand) W_SwordMelee =
 // engine's sound is on the weapon's (vr_chainsaw.qc). A running chain also cuts what the bar is in (VR_Chainsaw_Cut).
 void(float xHand) W_ChainsawMelee =
 {
-    float xdmg = VRMeleeDmg(xHand, 20);
+    float xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_chainsaw_swing));
     if(!VRDoMeleeAttackTracelineFor(xHand, 22, 30))
     {
         return;
@@ -1388,7 +1406,7 @@ void(float xHellKnight) VR_DropKnightSword =
 void(float xHand) W_FistMelee =
 {
     vector org;
-    float xdmg = VRMeleeDmg(xHand, 10);
+    float xdmg = VRMeleeDmg(xHand, cvar_hget(cvarh_vr_dmg_fist));
     float playedsound = FALSE;
 
     // A wall torch in hand is a club (vr_walltorch.qc).
@@ -1905,7 +1923,9 @@ void(float xHand) W_FireShotgun =
 
     dir = VRGetWeaponFireRotFwd(xHand);
 
+    vr_pellet_damage = cvar_hget(cvarh_vr_dmg_shotgun); // (Weapon Damage)
     FireBullets(xHand, 6, dir, '0.01 0.01 0');
+    vr_pellet_damage = 0;
 
     VRGunHaptic(xHand, 0.25, 70, 0.75);
 
@@ -1948,7 +1968,9 @@ void(float xHand) W_FireSuperShotgun =
 
     delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 2);
     dir = VRGetWeaponFireRotFwd(xHand);
+    vr_pellet_damage = cvar_hget(cvarh_vr_dmg_super_shotgun); // (Weapon Damage)
     FireBullets(xHand, 14, dir, '0.035 0.025 0');
+    vr_pellet_damage = 0;
 
     VRGunHaptic(xHand, 0.55, 75, 1.0);
 
@@ -2004,7 +2026,8 @@ void() T_MissileTouch =
         return;
     }
 
-    damg = 100 + random()*20;
+    float rocketScale = VR_WpnDmgScale(self.owner, cvarh_vr_dmg_rocket, 100); // (Weapon Damage)
+    damg = (100 + random()*20) * rocketScale;
 
     // HONEY
     self.owner.damage_weapon = IT_ROCKET_LAUNCHER;
@@ -2018,7 +2041,7 @@ void() T_MissileTouch =
 
     // don't do radius damage to the other, because all the damage
     // was done in the impact
-    T_RadiusDamage(self, self.owner, 120, other);
+    T_RadiusDamage(self, self.owner, 120 * rocketScale, other);
 
 //    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
@@ -2358,7 +2381,7 @@ void(float xHand) W_FireLightning =
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
     VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', v_forward);
-    LightningDamage(from, trace_endpos + v_forward*4, self, 30);
+    LightningDamage(from, trace_endpos + v_forward*4, self, cvar_hget(cvarh_vr_dmg_lightning));
     VR_ClearHitKind();
 
     VRGunHaptic(xHand, 0.4, 175, 1.0);
@@ -2371,7 +2394,7 @@ void(float xHand) W_FireLightning =
 
 void() GrenadeExplode =
 {
-    T_RadiusDamage(self, self.owner, 120, world);
+    T_RadiusDamage(self, self.owner, VR_WpnDmg(self.owner, cvarh_vr_dmg_grenade, 120), world);
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
@@ -2479,7 +2502,7 @@ void(float xHand) W_FireGrenade =
 
 void() ProximityExplode =
 {
-    T_RadiusDamage(self, self.owner, 95, world);
+    T_RadiusDamage(self, self.owner, VR_WpnDmg(self.owner, cvarh_vr_dmg_proximity, 95), world);
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION);
@@ -2805,7 +2828,7 @@ void() spike_touch =
     if(other.takedamage)
     {
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-        adjDmg = 9 * PositionalDamageFactor(posDmgType);
+        adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_nail, 9) * PositionalDamageFactor(posDmgType);
 
         if(T_Damage(other, self, self.owner, adjDmg))
         {
@@ -2864,7 +2887,7 @@ void() superspike_touch =
     if(other.takedamage)
     {
         posDmgType = PositionalDamage(trace_ent, trace_endpos, v_forward);
-        adjDmg = 18 * PositionalDamageFactor(posDmgType);
+        adjDmg = VR_WpnDmg(self.owner, cvarh_vr_dmg_super_nail, 18) * PositionalDamageFactor(posDmgType);
 
         if(T_Damage(other, self, self.owner, adjDmg))
         {

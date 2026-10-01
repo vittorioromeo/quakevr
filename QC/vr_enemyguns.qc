@@ -128,7 +128,7 @@ void(float xHand) VR_FireGruntGun =
 {
     sound(self, VRGetGunChannel(xHand), "soldier/sattck1.wav", 1, ATTN_NORM);
     self.punchangle_x = -2;
-    vr_pellet_damage = 4; // your shotgun's pellet
+    vr_pellet_damage = cvar_hget(cvarh_vr_dmg_shotgun); // your shotgun's pellet (Weapon Damage)
     FireBullets(xHand, 6, VRGetWeaponFireRotFwd(xHand), '0.01 0.01 0');
     vr_pellet_damage = 0;
     VRGunHaptic(xHand, 0.25, 70, 0.75);

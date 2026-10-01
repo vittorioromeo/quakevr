@@ -10,7 +10,7 @@ void() MiniGrenadeExplode =
 {
     if(self.owner.classname == "player")
     {
-        T_RadiusDamage(self, self.owner, 90, world);
+        T_RadiusDamage(self, self.owner, VR_WpnDmg(self.owner, cvarh_vr_dmg_multi_grenade, 90), world); // (Weapon Damage)
     }
     else
     {
@@ -187,7 +187,8 @@ void() MultiRocketExplode =
 //    Stock Single Rocket Damage...
 //    damg = 100 + random()*20;
 
-    damg = 60 + random()*15;
+    float multiScale = VR_WpnDmgScale(self.owner, cvarh_vr_dmg_multi_rocket, 60); // (Weapon Damage)
+    damg = (60 + random()*15) * multiScale;
 
     if(other.health)
     {
@@ -203,7 +204,7 @@ void() MultiRocketExplode =
 //    Stock single rocket damage.
 //    T_RadiusDamage(self, self.owner, 120, other);
 
-    T_RadiusDamage(self, self.owner, 75, other);
+    T_RadiusDamage(self, self.owner, 75 * multiScale, other);
 
 //    sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
     self.origin = self.origin - 8*normalize(self.velocity);
@@ -431,7 +432,7 @@ void(entity current, float doDamage) PlasmaDischarge =
 
     sound(self, CHAN_VOICE, "weapons/lhit.wav", 1, ATTN_NORM);
     if(doDamage == 1)
-        PlasmaDamage(self.origin, current.origin, self, 50);
+        PlasmaDamage(self.origin, current.origin, self, 50 * VR_WpnDmgScale(self.owner, cvarh_vr_dmg_plasma, 80));
 };
 
 void() PlasmaGroundOut =
@@ -479,7 +480,8 @@ void() PlasmaTouch =
         return;
     }
 
-    damg = 80 + random()*20;
+    float plasmaScale = VR_WpnDmgScale(self.owner, cvarh_vr_dmg_plasma, 80); // (Weapon Damage)
+    damg = (80 + random()*20) * plasmaScale;
 
     // TODO VR: (P2) rogue (commented to avoid warnings)
     sound(self, CHAN_WEAPON, "plasma/explode.wav", 1, ATTN_NORM);
@@ -493,7 +495,7 @@ void() PlasmaTouch =
 
     // don't do radius damage to the other, because all the damage
     // was done in the impact
-    T_RadiusDamage(self, self.owner, 70, other);
+    T_RadiusDamage(self, self.owner, 70 * plasmaScale, other);
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_EXPLOSION2);

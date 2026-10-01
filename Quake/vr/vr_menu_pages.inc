@@ -370,10 +370,8 @@ void resetHandMoves()
         slider("Quad: Extra Melee Reach", "vr_quad_melee_range", 1.f, 1.5f, 0.01f, "x%.2f").extend().help("With Quad Damage, melee reaches this much further. 1: the same reach as without Quad; the old Quake VR had 1.23."),
         cycle("Melee Bloodlust", "vr_melee_bloodlust", {{0.f, "On"}, {1.f, "Off"}}).help("When enabled, restores the player's health when performing melee attacks on enemies."),
         slider("Melee Bloodlust Mult.", "vr_melee_bloodlust_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for melee bloodlust health restoration."),
-        header("Crowbar"),
-        slider("Crowbar Damage", "vr_crowbar_damage", 5.f, 100.f, 1.f, "%.0f").extend()
-            .help("A crowbar blow's damage before its speed and weight (the axe's 20, a knight's sword's 30); its hook hits "
-                  "20% harder, its chisel end 40% softer. Crowbars lie in the firing range's prop area."),
+        open("Weapon Damage", pageIndex(pageWeaponDamage))
+            .help("Each weapon's base damage: the fist, the axe, the crowbar, Mjolnir, the swords..."),
         header("Headbutt"),
         toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
         slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").extend().help("How fast the head must lunge (towards where you look)."),
