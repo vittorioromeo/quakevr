@@ -31,6 +31,7 @@ monster_SPAWNFLAG_REMOVE_CORPSE
 void() monster_SPAWNFLAG_REMOVE_CORPSE =
 {
     //Screw this, just delete it, it's not visible.
+    VR_Head_StopFlies(self); // QVR: a head's flies would loop on where it lay
     /*
     self.movetype = MOVETYPE_NOCLIP;
     self.velocity = '0 0 -18';

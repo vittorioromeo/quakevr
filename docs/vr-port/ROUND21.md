@@ -17073,3 +17073,26 @@ assert handler's report, `qza::nowNs`), `vr_crash.cpp` (the test runs' reports),
 `Quake/vr/vr.mk` (`QVR_ZANCLE_DEBUG`); `Misc/quakevr/check_statics.py` (`za::` and `ankerl::` statics too);
 `Misc/quakevr/zancle_vendor.py` (new: what to vendor, what nothing uses); `docs/BUILDING.md`, `docs/vr-port/CODE_STYLE.md`
 ("Zancle, not the standard library").
+## Flies round a severed head (2026-10-01)
+
+The author's note (vrfiringrange, 02:42): a fly-like buzz after gibbing an enforcer. Not ours and not id1's: Scourge
+of Armagon's (hipnotic, "MED 10/21/96 added flies sound"). A thrown head (ThrowHead, player.qc) thinks once 1.5 s
+later (HeadThink) and, outside base maps (worldtype != 2: the firing range is 0), with a 10% chance plays
+`misc/flys.wav` on channel 6 at ATTN_STATIC (heard to about 330 units). The file is hipnotic's (the same bytes as
+hipnotic/pak0.pak's) and loops (a cue at sample 73), so it buzzes on where the head lay until something else takes
+that channel. Mock: 30 gibbed enforcers, 2 to 5 heads with flies, each `misc/flys.wav [L]` in `snd_show 2`.
+(Hipnotic rolled the 10% every 10 s; ours once, then monster_check_remove_corpse.)
+
+- **The bug (ours):** the loop outlived the head. Nothing stops a sound when its entity is removed (not QC, not the
+  engine), and our heads go: burst (vr_gib_destroy: shot, struck, blown up), cleared (SPAWNFLAG_REMOVE_CORPSE), or
+  carried off (the buzz stayed where it lay). Mock, before: after two blasts burst every head, the same flies channels
+  were still heard (3 of 3, 2 of 2).
+- **Fixed (QC):** `.vr_flies` marks a head with flies; `VR_Head_StopFlies` (vr_carry.qc) plays `misc/null.wav` on its
+  channel 6 (now precached) when it bursts (VR_Gib_Burst), is taken in a hand (VR_Carry_Start), is cleared
+  (monster_SPAWNFLAG_REMOVE_CORPSE), and when a gibbed player comes back (PutClientInServer). A burst head is removed
+  0.1 s later by `VR_Head_RemoveSilenced`, which stops it again: the first stop rides the burst frame's datagram, and
+  a big blast's gore fills it (SV_StartSound drops a sound when sv.datagram is full: the flies kept buzzing with the
+  single stop). After: `flies_test.sh`, flies started and stopped 4/4, 2/2, 5/5, 4/4; channels heard after the
+  blasts 0 every time. The effect itself is kept: a head lying about still has its flies.
+- Test aid: `vr_test_spawn_dead 2` gibs the monster `impulse 241` puts (health + 100 damage); the Debug menu's "As a
+  Corpse" row is a toggle (0/1), so 2 is console-only for now.

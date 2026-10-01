@@ -4218,7 +4218,8 @@ void() ImpulseCommands =
         if(spawned != world && spawnKind < 100 && cvar("vr_test_spawn_dead"))
         {
             spawned.takedamage = DAMAGE_AIM; // (walkmonster_start gives it a moment later)
-            T_Damage(spawned, world, world, spawned.health + 1);
+            // 2: gibbed (its head left lying: the flies' tests, VR_Head_StopFlies)
+            T_Damage(spawned, world, world, spawned.health + (cvar("vr_test_spawn_dead") >= 2 ? 100 : 1));
         }
     }
     if(self.impulse == 245 && !deathmatch && !coop) // QVR: a gib in the empty off hand (held gib tests)

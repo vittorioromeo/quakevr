@@ -357,6 +357,7 @@ void() worldspawn =
     // HIPNOTIC
     //MED 10/21/96 added flies sound
     precache_sound("misc/flys.wav");
+    precache_sound("misc/null.wav"); // QVR: stops the flies (VR_Head_StopFlies)
     //MED 01/13/97 added explosion sounds
     precache_sound("misc/shortexp.wav");
     precache_sound("misc/longexpl.wav");

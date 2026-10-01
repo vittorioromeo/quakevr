@@ -929,6 +929,8 @@ void() PutClientInServer =
 {
     entity spot;
 
+    VR_Head_StopFlies(self); // QVR: flies round a gibbed player's head don't follow it back to life
+
     self.classname = "player";
     self.health = 100;
     self.takedamage = DAMAGE_AIM;

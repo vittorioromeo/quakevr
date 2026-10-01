@@ -791,7 +791,11 @@ void() HeadThink =
    if(world.worldtype != 2)
       {
       if(random()<0.1)
+         {
          sound(self, 6, "misc/flys.wav", 0.7, ATTN_STATIC);
+         self.vr_flies = TRUE; // QVR: it loops; stopped when the head goes (VR_Head_StopFlies, vr_carry.qc)
+         dprint("head: flies at "); dprint(vtos(self.origin)); dprint("\n");
+         }
       }
    };
 

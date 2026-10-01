@@ -225,6 +225,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 {
     dprint("carry: taken\n");
     xBox.carry_player = xPlayer;
+    VR_Head_StopFlies(xBox); // (they would buzz on where it lay)
 
     vector handPos = VRGetEntHandPos(xPlayer, xHand);
     vector handRot = VRGetEntHandRot(xPlayer, xHand);
@@ -1272,6 +1273,27 @@ void() VR_Gib_Die =
     VR_Gib_Burst(self, '0 0 0');
 };
 
+// A severed head's flies (Scourge of Armagon's HeadThink, player.qc): misc/flys.wav loops, and a loop plays on
+// where it started until something else takes its channel. Removing the head doesn't stop it (nor does the engine), so
+// a head burst or cleared away, or carried off, left the buzz hanging in the air. Silenced then.
+void(entity xHead) VR_Head_StopFlies =
+{
+    if(xHead.vr_flies)
+    {
+        xHead.vr_flies = FALSE;
+        sound(xHead, 6, "misc/null.wav", 1, ATTN_STATIC);
+        dprint("head: flies stopped at "); dprint(vtos(xHead.origin)); dprint("\n");
+    }
+};
+
+// A head whose flies were stopped, removed: stopped again (the first stop goes out with the frame's other news, and
+// is lost when a big blast's gore fills it).
+void() VR_Head_RemoveSilenced =
+{
+    sound(self, 6, "misc/null.wav", 1, ATTN_STATIC);
+    remove(self);
+};
+
 float vr_gib_burstsoundtime;
 
 // A mist of blood at `org`, `size` times a gib's: soft clouds of blood through it, a spray of blood
@@ -1324,6 +1346,8 @@ void(entity xGib, vector xDir) VR_Gib_Burst =
     }
 
     // Gone. Removed the next frame, not now: what struck it may still use it this frame.
+    xGib.think = xGib.vr_flies ? VR_Head_RemoveSilenced : SUB_Remove;
+    VR_Head_StopFlies(xGib);
     xGib.takedamage = DAMAGE_NO;
     xGib.th_die = SUB_Null;
     xGib.vr_gib_hp = 0;
@@ -1343,7 +1367,6 @@ void(entity xGib, vector xDir) VR_Gib_Burst =
     xGib.model = string_null;
     xGib.modelindex = 0;
     setorigin(xGib, xGib.origin);
-    xGib.think = SUB_Remove;
     xGib.nextthink = time + 0.1;
     xGib.think2 = SUB_Null;
     xGib.nextthink2 = 0;
