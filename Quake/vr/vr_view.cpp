@@ -5321,9 +5321,10 @@ extern "C" void VR_SetupViewEntities()
         {
             const entity_t& we = entities.weapon[hand].ent;
             const entity_t& he = entities.hand[hand][FingerBase].ent;
-            Con_Printf("painview %.3f %s weapon %d %.2f %.2f %.2f hand %d %.2f %.2f %.2f\n", cl.time,
+            Con_Printf("painview %.3f %s weapon %d %.2f %.2f %.2f hand %d %.2f %.2f %.2f eye %.2f %.2f %.2f\n", cl.time,
                 hand == HAND_MAIN ? "main" : "off", entities.weapon[hand].visible ? 1 : 0, we.origin[0], we.origin[1],
-                we.origin[2], entities.hand[hand][FingerBase].visible ? 1 : 0, he.origin[0], he.origin[1], he.origin[2]);
+                we.origin[2], entities.hand[hand][FingerBase].visible ? 1 : 0, he.origin[0], he.origin[1], he.origin[2],
+                s.eyeOrigin[0].x, s.eyeOrigin[0].y, s.eyeOrigin[0].z);
         }
     }
     if(posingNow)

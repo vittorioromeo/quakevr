@@ -1,0 +1,1 @@
+map e1m1;wait60;give h 250;vr_pain_knock_max 15;vr_pain_knock_strength 5;vr_pain_knock_time 0.6;vr_pain_knock_tip 3;vr_mock_hand main 0.15 1.25 -0.5 0 0 0;vr_mock_hand off -0.15 1.25 -0.5 0 0 0;wait30;vr_test_spawn 1;vr_test_spawn_dist 256;impulse 241;vr_debug_pain 2;echo RUN_ogre;wait300;echo RUN_after;vr_debug_pain 0;toggleconsole;quit

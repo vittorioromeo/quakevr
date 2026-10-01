@@ -9,9 +9,11 @@
 
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 
 #include <stdlib.h>
 
@@ -27,11 +29,13 @@ constexpr float holdShare = 0.15f;   // then held out this share of it, then eas
 constexpr float liftShare = 0.5f;    // a directed knock's lift: the hands flinch up as well as away (a share of the away)
 constexpr float sideWeight = 0.3f;   // the far hand's share from the side: 1 - 2 * this (from ahead or behind: both all)
 constexpr float noDirection = 2.f;   // units: a source this near the world's middle (or the player) has no direction
+constexpr float wristBack = 10.f;    // cm from the grip back to the wrist: what the tip turns the hand about
 
 struct Knock
 {
     double time = -1.0;
     glm::vec3 dir{0.f};        // world, unit: the way the hands are pushed
+    glm::vec3 away{0.f};       // world, level unit: away from where a level-directed hit came from (zero: none)
     float size[2]{0.f, 0.f};   // units at the peak, per hand
     float duration = 0.f;      // s
 };
@@ -104,10 +108,12 @@ void hit(float damage, const glm::vec3& from, bool directed, const char* what)
     glm::vec3 toSource = from - s.playerOrigin;
     glm::vec3 level{toSource.x, toSource.y, 0.f};
     glm::vec3 dir{0.f, 0.f, -1.f};
+    glm::vec3 away{0.f};
     float side = 0.f; // -1: from the left, 1: from the right
     if(directed && glm::length(level) > noDirection)
     {
         level = glm::normalize(level);
+        away = -level;
         dir = glm::normalize(-level + glm::vec3{0.f, 0.f, liftShare});
         side = za::clamp(glm::dot(level, right), -1.f, 1.f);
     }
@@ -132,6 +138,7 @@ void hit(float damage, const glm::vec3& from, bool directed, const char* what)
         nextKnock = (nextKnock + 1) % maxKnocks;
         k.time = cl.time;
         k.dir = dir;
+        k.away = away;
         k.duration = duration;
         for(int hand = 0; hand < 2; hand++)
         {
@@ -194,10 +201,72 @@ void onDamage(int armor, int blood, const float from[3])
     hit(static_cast<float>(armor + blood), f, directed, "damage");
 }
 
-void offset(int hand, glm::vec3& pos, glm::vec3& angles)
+namespace
 {
-    pos = glm::vec3{0.f};
-    angles = glm::vec3{0.f};
+
+// The way a knock moves hand `hand` this frame, a unit of its size: with vr_pain_knock_seen, turned across the line from
+// the eyes to the hand, so all of its size shows as a move (a hit from ahead pushed the hands away and up: for hands held
+// ahead of and below the eyes, that is nearly straight towards the eyes, and a hand coming 15 cm nearer barely shows; the
+// hit's throw of the whole player the same way hid it further: ROUND21.md, "Pain feedback, third pass"). From ahead or
+// behind the hands rise, from the side they go sideways (and up a little); its move towards or away from the eyes is kept
+// on top.
+struct Sight
+{
+    bool valid = false;                      // false (vr_pain_knock_seen 0, no headset eyes): the knock's own way
+    glm::vec3 los{0.f}, right{0.f}, up{0.f}; // world, unit: from the eyes to the hand, and across it (as seen)
+};
+
+[[nodiscard]] Sight sightOf(const hands::State& s, int hand)
+{
+    Sight v;
+    const glm::vec3 eye = 0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]);
+    const glm::vec3 toHand = s.unresolvedPos[hand] - eye; // (the hand before anything draws it elsewhere)
+    if(!vr_pain_knock_seen.value || eye == glm::vec3{0.f} || glm::length(toHand) < 1.f)
+    {
+        return v;
+    }
+    v.valid = true;
+    v.los = glm::normalize(toHand);
+    glm::vec3 r = glm::cross(v.los, glm::vec3{0.f, 0.f, 1.f});
+    if(glm::length(r) < 0.2f)
+    {
+        // The hand straight above or below the eyes: across by the body's right.
+        glm::vec3 fwd, up;
+        hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, r, up);
+        r -= v.los * glm::dot(r, v.los);
+    }
+    v.right = glm::normalize(r);
+    v.up = glm::cross(v.right, v.los);
+    return v;
+}
+
+[[nodiscard]] glm::vec3 knockWay(const Knock& k, const Sight& v)
+{
+    if(!v.valid)
+    {
+        return k.dir;
+    }
+    glm::vec3 across;
+    if(k.away != glm::vec3{0.f})
+    {
+        const float side = glm::dot(k.away, v.right);
+        across = glm::normalize(side * v.right + za::max(1.f - za::fabs(side), liftShare) * v.up);
+    }
+    else
+    {
+        // Straight down (no direction: a fall, lava) or from above or below: across as it goes, else down or up.
+        const glm::vec3 c = k.dir - v.los * glm::dot(k.dir, v.los);
+        across = glm::length(c) > 0.2f ? glm::normalize(c) : (k.dir.z < 0.f ? -v.up : v.up);
+    }
+    return across + v.los * glm::dot(k.dir, v.los);
+}
+
+// Hand `hand`'s knock this frame (world units), and how much of it is seen (across the line from the eyes, cm).
+[[nodiscard]] glm::vec3 knockOf(int hand, float& seenCm)
+{
+    const hands::State& s = hands::current();
+    const Sight v = sightOf(s, hand);
+    glm::vec3 pos{0.f};
     for(const Knock& k : knocks)
     {
         if(k.time < 0.0)
@@ -205,17 +274,40 @@ void offset(int hand, glm::vec3& pos, glm::vec3& angles)
             continue;
         }
         const float e = envelope(static_cast<float>(cl.time - k.time), k.duration);
-        pos += k.dir * (k.size[hand] * e);
+        if(e > 0.f)
+        {
+            pos += knockWay(k, v) * (k.size[hand] * e);
+        }
     }
-    // Hits adding up go no further than one at the cap.
+    // Hits adding up go no further (as seen) than one at the cap.
     const float cap = za::max(vr_pain_knock_max.value, 0.f) * 0.01f * units::metresToUnits();
-    const float len = glm::length(pos);
-    if(len > cap)
+    const float seen = v.valid ? glm::length(pos - v.los * glm::dot(pos, v.los)) : glm::length(pos);
+    if(seen > cap)
     {
-        pos *= len > 0.f ? cap / len : 0.f;
+        pos *= seen > 0.f ? cap / seen : 0.f;
     }
-    const float cmNow = glm::length(pos) / (0.01f * units::metresToUnits());
+    seenCm = za::min(seen, cap) / (0.01f * units::metresToUnits());
+    return pos;
+}
+
+} // namespace
+
+void offset(int hand, glm::vec3& pos, glm::vec3& angles)
+{
+    float cmNow = 0.f;
+    pos = knockOf(hand, cmNow);
+    angles = glm::vec3{0.f};
     angles.x = -za::max(vr_pain_knock_tip.value, 0.f) * cmNow; // tipped up (pitch down is positive)
+    if(angles.x < 0.f)
+    {
+        // Tipped about the wrist, not the grip: about the grip, the wrist and the arm swung down as the hand tipped up
+        // (his 3 degrees a cm at 15 cm: 45 degrees, the wrist 11 cm down, nearly all the knock's lift undone).
+        const hands::State& s = hands::current();
+        glm::vec3 f, r, u;
+        hands::angleVectors(s.rot[hand], f, r, u);
+        const float a = glm::radians(-angles.x);
+        pos += (wristBack * 0.01f * units::metresToUnits()) * ((za::cos(a) - 1.f) * f + za::sin(a) * u);
+    }
 
     if(vr_debug_pain.value && hand == HAND_MAIN && cmNow > 0.f && realtime != printedAt)
     {
@@ -223,18 +315,13 @@ void offset(int hand, glm::vec3& pos, glm::vec3& angles)
         const hands::State& s = hands::current();
         glm::vec3 fwd, right, up;
         hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);
-        glm::vec3 off{0.f};
-        for(const Knock& k : knocks)
-        {
-            if(k.time >= 0.0)
-            {
-                off += k.dir * (k.size[HAND_OFF] * envelope(static_cast<float>(cl.time - k.time), k.duration));
-            }
-        }
+        float offCm = 0.f;
+        const glm::vec3 off = knockOf(HAND_OFF, offCm);
         const float toCm = 1.f / (0.01f * units::metresToUnits());
-        Con_Printf("painknock t %.3f main %.2f cm (right %.2f fwd %.2f up %.2f) off %.2f cm (right %.2f fwd %.2f up %.2f)\n",
-            cl.time, cmNow, glm::dot(pos, right) * toCm, glm::dot(pos, fwd) * toCm, pos.z * toCm, glm::length(off) * toCm,
-            glm::dot(off, right) * toCm, glm::dot(off, fwd) * toCm, off.z * toCm);
+        Con_Printf("painknock t %.3f main %.2f cm seen of %.2f (right %.2f fwd %.2f up %.2f) off %.2f seen of %.2f (right %.2f "
+                   "fwd %.2f up %.2f)\n",
+            cl.time, cmNow, glm::length(pos) * toCm, glm::dot(pos, right) * toCm, glm::dot(pos, fwd) * toCm, pos.z * toCm, offCm,
+            glm::length(off) * toCm, glm::dot(off, right) * toCm, glm::dot(off, fwd) * toCm, off.z * toCm);
     }
 }
 
