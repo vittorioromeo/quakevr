@@ -141,6 +141,17 @@ void legacyGripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& d
 // (the nearest triangle faces away from it); `out` the move out to that surface.
 bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, glm::vec3& out);
 
+// The signed distance (world units) from the world point `p` to `shape`'s surface, if within `reach`: negative inside
+// (the nearest triangle faces away from it); `at` that nearest point and `normal` its triangle's outward normal (world).
+// False if nothing is within `reach`.
+bool signedDistance(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, float& distance,
+    glm::vec3& at, glm::vec3& normal);
+
+// Where the segment from `from` to `to` (world) first meets `shape`'s surface: `at`, the normal of the triangle met,
+// facing `from`, and whether it goes in there (from outside) or out. False if it meets none.
+bool rayHit(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& from, const glm::vec3& to, glm::vec3& at,
+    glm::vec3& normal, bool& entering);
+
 // vr_debug_hand_bones: the distance (world units) from the world point `p` to `shape`'s surface (drawn with
 // `shapeToWorld`), if within `reach`: its nearest point in `at`, and whether `p` is inside it (the nearest triangle
 // faces away from it). -1 if nothing is that near.

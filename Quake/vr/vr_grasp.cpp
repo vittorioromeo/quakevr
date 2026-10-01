@@ -163,6 +163,9 @@ struct Shape::Space
     };
     za::Vector<Tri> tris;
     glm::mat4 rawToReal{1.f};
+    // +1 if the triangles are wound outwards (their normals, b - a by c - a, point out of the model), -1 inwards (Quake's
+    // own winding, as its models are drawn): the sign of the volume they close (measureWinding). For signedDistance.
+    float outward{1.f};
 
     float cell{0.f}; // the grid's (real units), for the hand's size it was made at
     glm::vec3 lo{0.f}, hi{0.f}; // the triangles' box
@@ -313,7 +316,9 @@ struct Shape::Space
     }
 
     // Where a ray from `from` along the unit `dir` first meets a triangle (Moller-Trumbore), within `reach`.
-    [[nodiscard]] bool ray(const glm::vec3& from, const glm::vec3& dir, float reach, float& hit, glm::vec3* normal = nullptr) const
+    // `normal`: the triangle met's, facing `from`; `wound`: as wound.
+    [[nodiscard]] bool ray(const glm::vec3& from, const glm::vec3& dir, float reach, float& hit, glm::vec3* normal = nullptr,
+        glm::vec3* wound = nullptr) const
     {
         hit = reach;
         bool found = false;
@@ -351,6 +356,10 @@ struct Shape::Space
             {
                 *normal = glm::dot(t.normal, dir) > 0.f ? -t.normal : t.normal;
             }
+            if(wound)
+            {
+                *wound = t.normal;
+            }
             found = true;
         }
         return found;
@@ -361,6 +370,28 @@ Shape::Shape() = default;
 Shape::~Shape() = default;
 Shape::Shape(Shape&&) noexcept = default;
 Shape& Shape::operator=(Shape&&) noexcept = default;
+
+namespace
+{
+// The triangles' winding (Space::outward): the sign of the volume they close (the divergence theorem: a sixth of each
+// triangle's a . (b x c)), about their box's middle. A model is closed, or nearly: its sign is its winding's.
+void measureWinding(Shape::Space& space)
+{
+    glm::vec3 lo{1e30f}, hi{-1e30f};
+    for(const Shape::Space::Tri& t : space.tris)
+    {
+        lo = glm::min(lo, t.lo);
+        hi = glm::max(hi, t.hi);
+    }
+    const glm::vec3 mid = (lo + hi) * 0.5f;
+    double volume = 0.0;
+    for(const Shape::Space::Tri& t : space.tris)
+    {
+        volume += static_cast<double>(glm::dot(t.a - mid, glm::cross(t.b - mid, t.c - mid)));
+    }
+    space.outward = volume < 0.0 ? -1.f : 1.f;
+}
+} // namespace
 
 za::SizeT heldBytes(const Shape& s)
 {
@@ -1025,6 +1056,7 @@ bool buildShape(const entity_t& e, int frame, Shape& out)
         r.hi = glm::max(r.a, glm::max(r.b, r.c));
         out.space->tris.pushBack(r);
     }
+    measureWinding(*out.space);
     return !out.tris.empty();
 }
 
@@ -1067,6 +1099,7 @@ void makeShape(const za::Vector<Triangle>& tris, Shape& out)
         r.hi = glm::max(r.a, glm::max(r.b, r.c));
         space.tris.pushBack(r);
     }
+    measureWinding(space);
 }
 
 glm::mat4 shapeToWorld(const entity_t& e, bool mirrored)
@@ -1480,6 +1513,61 @@ bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& 
         nw = -nw;
     }
     out = nw * (d * scale);
+    return true;
+}
+
+bool signedDistance(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, float& distance,
+    glm::vec3& at, glm::vec3& normal)
+{
+    Shape::Space& space = *shape.space;
+    const glm::mat4 realToWorld = shapeToWorld * glm::inverse(space.rawToReal);
+    const float scale = glm::length(glm::vec3{realToWorld[0]});
+    if(!(scale > 1e-6f))
+    {
+        return false;
+    }
+    if(space.cell <= 0.f)
+    {
+        space.buildGrid(0.8f / scale); // (as inside's)
+    }
+    const glm::mat4 worldToReal = glm::inverse(realToWorld);
+    const glm::vec3 q{worldToReal * glm::vec4{p, 1.f}};
+    glm::vec3 closest, n;
+    const float d = space.nearest(q, reach / scale, &closest, &n);
+    if(d >= reach / scale)
+    {
+        return false;
+    }
+    // Its outward normal by the model's winding (Space::outward), to the world by the inverse transpose, which keeps a
+    // side outward under any placing, mirrored too.
+    const glm::vec3 out = n * space.outward;
+    normal = glm::normalize(glm::mat3{glm::transpose(worldToReal)} * out);
+    at = glm::vec3{realToWorld * glm::vec4{closest, 1.f}};
+    // Inside by the nearest triangle's side; never deeper than half the model's thinnest box side (beside an edge or a
+    // corner, the triangle's side can be the wrong one).
+    const bool in = glm::dot(q - closest, out) < 0.f && d <= 0.5f * qza::minOf(space.hi.x - space.lo.x, space.hi.y - space.lo.y, space.hi.z - space.lo.z);
+    distance = in ? -d * scale : d * scale;
+    return true;
+}
+
+bool rayHit(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& from, const glm::vec3& to, glm::vec3& at,
+    glm::vec3& normal, bool& entering)
+{
+    const Shape::Space& space = *shape.space;
+    const glm::mat4 realToWorld = shapeToWorld * glm::inverse(space.rawToReal);
+    const glm::mat4 worldToReal = glm::inverse(realToWorld);
+    const glm::vec3 a{worldToReal * glm::vec4{from, 1.f}}, b{worldToReal * glm::vec4{to, 1.f}};
+    const float len = glm::length(b - a);
+    float hit;
+    glm::vec3 n, wound;
+    const glm::vec3 dir = (b - a) / za::max(len, 1e-6f);
+    if(!(len > 1e-6f) || !space.ray(a, dir, len, hit, &n, &wound))
+    {
+        return false;
+    }
+    entering = glm::dot(wound * space.outward, dir) < 0.f; // its outward side faces `from`
+    at = glm::vec3{realToWorld * glm::vec4{a + dir * hit, 1.f}};
+    normal = glm::normalize(glm::mat3{glm::transpose(worldToReal)} * n); // (facing `from`: kept so by the inverse transpose)
     return true;
 }
 

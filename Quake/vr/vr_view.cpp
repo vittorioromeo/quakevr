@@ -1413,8 +1413,16 @@ struct RigHand
     glm::mat4 inRig{1.f}; // where what it holds is in the hand this frame (vr_debug_grasp_trace)
     glm::mat4 solveRig{1.f}; // the rig's place the grasp is solved at, and its size (vr_grasp_bench)
     float rigUnit{0.f};
-    glm::vec3 pushed{0.f};   // drawn out of the other hand's weapon (vr_hand_collide), eased
+    glm::vec3 pushed{0.f};   // drawn out of the other hand's weapon (vr_hand_collide), eased, or its prop
     double pushedTime{-1.0};
+    // Against the other hand's prop (vr_hand_collide_props, pushOutProp): pushed back further than that, the hand passes
+    // into it until it is out of it again.
+    bool propThrough{false};
+    static constexpr int propPoints = 1 + 2 * handrig::FingerCount; // the palm's middle, the knuckles, the fingertips
+    const entity_t* propAgainst{nullptr};
+    glm::vec3 propDrawn[propPoints]{}; // where each point was drawn last frame, in the prop's frame (its way in)
+    bool propDrawnValid[propPoints]{};
+    bool propTouching[propPoints]{}; // held out last frame: a fingertip stays tested while it touches (not only stuck)
     // Brushing the other hand's weapon (vr_hand_collide, pushOut): the weapon, and the fingers solved against it
     // (setupRigHand: they rest on it or bend out of it); a finger in it at every curl ("stuck") pushes the hand instead.
     const entity_t* brushEnt{nullptr};
@@ -1848,6 +1856,169 @@ void bendOutOfWalls(const RigHand& rh, int finger, const glm::mat4& rigToWorld, 
 // Hand units from the palm's middle within which the other hand's weapon makes the fingers react (a finger's reach).
 constexpr float brushReach = 24.f;
 
+// vr_hand_collide_props: the free `hand` (if `free`) against the prop the other hand holds alone (NOTES.md
+// vrfiringrange_2026-10-01_00-29-55). Its palm's middle and knuckles (and the tips of the fingers stuck in it last
+// frame) stop at the prop's own surface, vr_hand_collide_props_margin cm off it: the drawn hand is held back at once (not
+// eased in, which let it sink in first), sliding along the surface, as far as vr_hand_collide_props cm; pushed further,
+// it passes into the prop (eased) and is held back again only once it is out of it. A point in the prop is held out by
+// the face it went in by (from where it was drawn last frame, in the prop's own frame, to where it is now), so a hand
+// deeper than half the prop is not pushed out through the far side; a point just outside, off its nearest point. The
+// fingers rest on it as on a weapon (setupRigHand).
+void pushOutProp(RigHand& rh, int hand, bool free, const entity_t& against, glm::vec3& pos, const glm::vec3& handRot,
+    bool mirrored, float dt)
+{
+    const float u = 0.01f * units::metresToUnits();
+    const float most = za::fmax(vr_hand_collide_props.value, 0.f) * u;
+    const float margin = za::clamp(vr_hand_collide_props_margin.value, 0.f, 10.f) * u;
+    const grasp::Shape* shape =
+        free && most > 0.f && handrig::usable(viewModel(handrig::modelName)) ? grasp::shapeOf(against, against.frame) : nullptr;
+    if(rh.propAgainst != &against || !shape)
+    {
+        qza::fill(rh.propDrawnValid, false);
+        qza::fill(rh.propTouching, false);
+        rh.propAgainst = shape ? &against : nullptr;
+    }
+    glm::vec3 target{0.f};
+    float deepest = 0.f; // how far the real hand is in (its point the furthest past its plane)
+    if(shape)
+    {
+        const glm::mat4 toWorld = grasp::shapeToWorld(against, false);
+        const glm::mat4 toShape = glm::inverse(toWorld);
+        const glm::mat4 rig = rigPlacement(hand, pos, handRot, mirrored, nullptr);
+        const float unit = glm::length(glm::vec3{rig[0]});
+        // The points, each in its own place (RigHand::propDrawn): the palm's middle, the knuckles, the stuck tips.
+        glm::vec3 points[RigHand::propPoints];
+        bool tested[RigHand::propPoints]{};
+        points[0] = glm::vec3{rig * glm::vec4{grasp::palmCentre(), 1.f}};
+        tested[0] = true;
+        for(int f = 0; f < handrig::FingerCount; f++)
+        {
+            glm::vec3 p[4];
+            grasp::fingerPoints(rh.pose, f, rh.pose.curl[f], p);
+            points[1 + f] = glm::vec3{rig * glm::vec4{p[0], 1.f}};
+            tested[1 + f] = true;
+            points[1 + handrig::FingerCount + f] = glm::vec3{rig * glm::vec4{p[3], 1.f}};
+            tested[1 + handrig::FingerCount + f] =
+                rh.brushStuck[f] || rh.propTouching[1 + handrig::FingerCount + f] || !vr_hand_collide_fingers.value;
+        }
+        const float reach = 2.f * most + margin;
+        // Each point's plane (n . x >= rest).
+        glm::vec3 normals[RigHand::propPoints];
+        float rests[RigHand::propPoints];
+        glm::vec3 planePoints[RigHand::propPoints];
+        int planes = 0;
+        bool anyIn = false;
+        qza::fill(rh.propTouching, false);
+        for(int i = 0; i < RigHand::propPoints; i++)
+        {
+            float d;
+            glm::vec3 at, n;
+            if(!tested[i] || !grasp::signedDistance(*shape, toWorld, points[i], reach, d, at, n))
+            {
+                continue;
+            }
+            // In it: it went in by a face from where it was drawn last frame (held out, so outside); else (no way in
+            // found: the first frame near it, passing through, or the way in missed between two triangles) by the
+            // nearest face's side.
+            bool in = d < 0.f;
+            if(rh.propDrawnValid[i])
+            {
+                const glm::vec3 from{toWorld * glm::vec4{rh.propDrawn[i], 1.f}};
+                glm::vec3 hit, hn;
+                bool entering = false;
+                if(glm::distance(from, points[i]) > 1e-4f && grasp::rayHit(*shape, toWorld, from, points[i], hit, hn, entering) &&
+                    entering)
+                {
+                    in = true;
+                    at = hit;
+                    n = hn;
+                }
+            }
+            anyIn = anyIn || in;
+            if(!in)
+            {
+                const float off = glm::length(points[i] - at);
+                if(off >= margin)
+                {
+                    continue; // clear of it
+                }
+                if(off > 0.01f)
+                {
+                    n = (points[i] - at) / off; // just outside: off its nearest point (an edge's, a corner's)
+                }
+            }
+            if(i > handrig::FingerCount && glm::dot(n, points[0] - at) < 0.f)
+            {
+                continue; // a fingertip past the far side (hooked round it): it bends, the hand is never pulled in
+            }
+            if(vr_debug_hand_collide.value >= 2.f)
+            {
+                Con_Printf("  point %d d %.2f n %.2f %.2f %.2f in %.2f%s\n", i, d / u, n.x, n.y, n.z,
+                    (glm::dot(n, at) + margin - glm::dot(n, points[i])) / u, in ? " (in)" : "");
+            }
+            normals[planes] = n;
+            rests[planes] = glm::dot(n, at) + margin;
+            planePoints[planes] = points[i];
+            rh.propTouching[i] = true;
+            deepest = za::fmax(deepest, rests[planes] - glm::dot(n, points[i]));
+            planes++;
+        }
+        // The least move of the real hand that takes every point out past its plane (a few passes: a corner's two faces).
+        glm::vec3 move{0.f};
+        for(int pass = 0; pass < 4; pass++)
+        {
+            for(int i = 0; i < planes; i++)
+            {
+                const float in = rests[i] - glm::dot(normals[i], planePoints[i] + move);
+                if(in > 0.f)
+                {
+                    move += normals[i] * in;
+                }
+            }
+        }
+        if(rh.propThrough)
+        {
+            rh.propThrough = anyIn; // through it until it is out of it
+        }
+        else if(glm::length(move) > most)
+        {
+            rh.propThrough = true; // pushed back further than the most: it passes in
+        }
+        else
+        {
+            target = move;
+        }
+        // Where each point is drawn (held out, or where it is), in the prop's frame: next frame's way in.
+        for(int i = 0; i < RigHand::propPoints; i++)
+        {
+            rh.propDrawn[i] = glm::vec3{toShape * glm::vec4{points[i] + target, 1.f}};
+            rh.propDrawnValid[i] = tested[i] && !rh.propThrough;
+        }
+        // Near it (within a hand's length of the palm's middle) and not passing through it: the fingers react.
+        glm::vec3 closest;
+        bool in = false;
+        if(vr_hand_collide_fingers.value && !rh.propThrough &&
+            grasp::surfaceDistance(*shape, toWorld, points[0], brushReach * unit, closest, in) >= 0.f)
+        {
+            rh.brushEnt = &against;
+            rh.brushMirrored = false;
+        }
+    }
+    else
+    {
+        rh.propThrough = false;
+    }
+    // Held back at once; let go of (passing in, or drawn out of it) eased over 0.08 s.
+    const bool holding = !rh.propThrough && glm::length(target) > 0.f;
+    rh.pushed = holding ? target : rh.pushed + (target - rh.pushed) * za::fmin(1.f, dt / 0.08f);
+    if(vr_debug_hand_collide.value && shape && (deepest > 0.f || glm::length(rh.pushed) > 0.01f))
+    {
+        Con_Printf("handcollide: hand %d depth %.2f target %.2f drawn %.2f%s\n", hand, deepest / u, glm::length(target) / u,
+            glm::length(rh.pushed) / u, rh.propThrough ? " through" : "");
+    }
+    pos += rh.pushed;
+}
+
 // vr_hand_collide: the free `hand` (if `free`) drawn out of the weapon in the other hand: its palm's middle and its
 // knuckles tested against the weapon's surface (and the fingertips of the fingers that can't bend out of it); the
 // deepest in it sets the push out (along the surface's normal), all of it up to vr_hand_collide cm, then less and less,
@@ -1880,6 +2051,12 @@ void pushOut(const hands::State& s, int hand, bool free, glm::vec3& pos, const g
         against = &cl_entities[prop];
         most = za::fmax(vr_hand_collide_props.value, 0.f) * 0.01f * units::metresToUnits();
     }
+    if(against && against != &other.ent)
+    {
+        pushOutProp(rh, hand, free, *against, pos, handRot, mirrored, dt);
+        return;
+    }
+    rh.propThrough = false;
     if(free && most > 0.f && against && handrig::usable(viewModel(handrig::modelName)))
     {
         if(const grasp::Shape* shape = grasp::shapeOf(*against, against->frame))
