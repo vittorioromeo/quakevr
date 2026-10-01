@@ -1892,8 +1892,8 @@ void pushOutProp(RigHand& rh, int hand, bool free, const entity_t& against, glm:
         free && most > 0.f && handrig::usable(viewModel(handrig::modelName)) ? grasp::shapeOf(against, against.frame) : nullptr;
     if(rh.propAgainst != &against || !shape)
     {
-        qza::fill(rh.propDrawnValid, false);
-        qza::fill(rh.propTouching, false);
+        for(bool& b : rh.propDrawnValid) { b = false; }
+        for(bool& b : rh.propTouching) { b = false; }
         rh.propAgainst = shape ? &against : nullptr;
     }
     glm::vec3 target{0.f};
@@ -1926,7 +1926,7 @@ void pushOutProp(RigHand& rh, int hand, bool free, const entity_t& against, glm:
         glm::vec3 planePoints[RigHand::propPoints];
         int planes = 0;
         bool anyIn = false;
-        qza::fill(rh.propTouching, false);
+        for(bool& b : rh.propTouching) { b = false; }
         for(int i = 0; i < RigHand::propPoints; i++)
         {
             float d;

@@ -707,7 +707,7 @@ void lieAlong(const Context& ctx, float sink, FingerStop& st)
         return; // in it too deep (left as it was), or clear of it open (free: nothing to lie along)
     }
     st = FingerStop{};
-    qza::fill(st.stop, st.stop + handrig::jointsPerFinger, 0.f);
+    za::fill(st.stop, st.stop + handrig::jointsPerFinger, 0.f);
     st.met = true;
     st.lying = za::fmax(-least, 0.f);
 }
