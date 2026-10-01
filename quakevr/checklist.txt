@@ -72,6 +72,8 @@ Empty hand pushed into the gun in your other hand (side, top, barrel): both held
 
 Controller spin frame fix (Throwing > Controller Spin Frame, auto): Debug > Controller Spin on, flick both wrists: fixed cosine ~1.0, evidence stays positive; throws and calibration feel the same facing any way in your room
 
+Stand on a box leaning more than 30 deg: you slide off promptly (Standing on Props > Steepest Face to Stand On 30; 46 = old); under 30 deg standing, walking and jumping unchanged
+
 [Decide or give feedback]
 Hand Collide (empty hand vs weapon) and Collide Give (held prop) are separate settings, both 5 cm: merge them into one?
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
