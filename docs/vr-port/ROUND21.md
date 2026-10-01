@@ -19118,3 +19118,39 @@ His notes vrfiringrange_2026-10-01_16-41-40, _16-42-00 (a backpack thrown high n
   The crowbar's hook at 9.1 m/s: batted (weapon threshold 34, 10 alike). A running chainsaw's chain cutting into a dud
   falling past the bar: set off ("a running chainsaw"); its rear handle's pommel strike (19.1 m/s) had too, before
   the pommel was left out of the rule. Melee canary: no differences.
+
+## The laser cannon re-mapped and carved (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_22-38-05. New `Misc/quakevr/refine_laserg.py`, run by `polish_weapons.py` (POST, as
+`reuv_shot2.py` for the double): `python Misc/quakevr/polish_weapons.py v_laserg.mdl`, then
+`python Misc/quakevr/bake_normals.py v_laserg.mdl`. `--report` prints the stretch only.
+
+- **Stretch fixed** (area-weighted texels per model unit, anisotropy; before -> after): the keel under the body
+  2.05 / 4.9 -> 3.2 / ~1.0 (its sides had been folded onto 8-texel strips); the body's bottom (folded onto a line) ->
+  3.2; the spade grip's head 5.25 / 5.4, neck 4.4 / 3.7, trigger guard 5.7 / 20, trigger 9.8 / 8.0 -> 6, 6, 9, 9 / ~1.
+  Each part is cut into charts (faces within 50 degrees of the chart's first), unwrapped (`reuv_shot2.lscm`), packed
+  left-first into texels nothing used (id's old hand picture, the old keel strips, the grip's old rows: the skin keeps
+  800 x 277) and painted from the 3D point each texel shows (the part's own ramp: the keel's dark browns with a grain
+  along the gun, improve_weapons3's grip browns, its dark guard and steel trigger; convex edges lit, the next row worn).
+  The knurled grip itself was fine and is unchanged.
+- **The body's sides match.** Its -y side was mapped 9 texels off the +y one (its vents sat lower, across the side's
+  bend); it now takes the +y mapping mirrored across the body's middle (y -0.3), on the skin's own copy of the panel
+  (153 texels right, 13 up).
+- **Carved** (Blender's exact boolean, headless, `blender/carve_mesh.py`): the four vent windows on each side (skin
+  u 585-602 on the +y panel, 10 rows each from v 67, 89, 111, 133; 0.7 deep) and the three dark grooves between them
+  (u 586-600, 3 rows from v 81, 103, 125; 0.35 deep), mirrored to -y. The floors keep the painted windows (the red
+  lamps sit inside), the walls the window's darkest texel, flat-shaded; the box walls sit on the file's byte grid (x
+  steps 0.54). `carve_mesh.py` has a new opt-in `dissolve` (flat runs with one mapping merged before triangulating:
+  the body 922 -> 474 triangles, 116 -> 4 collapsed by the grid); the enemy guns don't ask for it (their files
+  regenerate byte-identical).
+- Counts: 557 -> 1005 triangles, 524 -> 1500 vertices (under QS's 2000; flat recess walls and chart seams need their
+  own vertices). `vr_ao` bakes it in ~230 ms at load.
+- **Unchanged:** every old vertex's bytes, the triangles before the body (the anchors: hand 4, muzzle 22, counter 226;
+  `polish_weapons.py` checks them), header (scale, origin: offsets, hotspots, sights), the other models.
+  `check_mdl_holes.py`: the same as before (3 open loops, none see-through). Not touched: a dark sliver of the barrel
+  support pokes through the keel's bottom near its front (id's geometry, there before).
+- Checks: `refine_laserg.py` output byte-identical on a rerun; mock: held (`impulse 162`) and fired, no errors; melee
+  canary unchanged. Images (kit scratch): `laserg_beforeafter.png` (Blender, flat-lit: left, right, bottom,
+  front-below, back-right-below, the grip twice, the vents, the keel; before over after), `lv_after.png` (the engine:
+  `Misc/quakevr/laserg/laserg_views.sh`: right, left, below, behind). `Misc/quakevr/blender/render_views.py` renders
+  any .mdl from named angles or close-ups, headless (`QVR_RENDER_LIGHT=FLAT` for the skin as it is).

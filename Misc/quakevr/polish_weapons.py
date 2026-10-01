@@ -36,6 +36,7 @@ import numpy as np
 
 import genguard
 import mdlpolish as mp
+import refine_laserg
 import reuv_shot2
 from improve_weapons import strip_order
 
@@ -140,8 +141,9 @@ RECIPES = {
 }
 WEAR_ONLY = ["v_grpple.mdl", "v_laserg.mdl", "v_hammer.mdl"]
 # After the polish: the double shotgun's fore-end re-mapped (its old UVs were stretched) and its holes closed
-# (reuv_shot2.py: the old vertices, triangles and anchors stay; those UVs and texels change).
-POST = {"v_shot2.mdl": reuv_shot2.fix}
+# (reuv_shot2.py: the old vertices, triangles and anchors stay; those UVs and texels change); the laser cannon's
+# stretched keel, bottom and grip re-mapped and its body's vents carved (refine_laserg.py: Blender, headless).
+POST = {"v_shot2.mdl": reuv_shot2.fix, "v_laserg.mdl": refine_laserg.fix}
 
 
 # ----------------------------------------------------------------------------

@@ -6,6 +6,7 @@
 #           "uvs": [[[u, v] x 3]...] (per face corner), "cuts": [cut...]}
 # a cut:   {"box": [x0, x1, y0, y1, z0, z1], "inner": [[x, y, z]...] (the mesh's vertices moved `depth` in: the
 #           recess's floor), "wall_uv": [u, v] (the box's faces: the recess's walls)}
+#          "dissolve": true (optional): coplanar faces with one skin mapping merged before triangulating
 # Each cut takes away (box - inner) from the mesh: inside the box the surface sinks to the inner mesh's (its floor keeps
 # the skin's coordinates over it: the painted vent, now recessed), and the box's faces become the recess's walls.
 # out.json: {"verts": [...], "faces": [[a, b, c]...] (counter-clockwise), "uvs": [...], "cut": [0 or 1 per face]}
@@ -91,6 +92,10 @@ def main():
     # Points the boolean made twice (where a box's fan met an edge of the mesh along the middle plane) merged.
     bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
     bmesh.ops.dissolve_degenerate(bm, edges=bm.edges[:], dist=1e-6)
+    if src.get('dissolve'):
+        # (refine_laserg.py) Flat runs of faces with one skin mapping merged before the triangulation: the boxes'
+        # fans and the boolean's splits become a few triangles (Quake's coarse byte grid would collapse the slivers).
+        bmesh.ops.dissolve_limit(bm, angle_limit=0.0175, verts=bm.verts[:], edges=bm.edges[:], delimit={'UV'})
     bmesh.ops.triangulate(bm, faces=bm.faces[:], quad_method='BEAUTY', ngon_method='BEAUTY')
     uvl = bm.loops.layers.uv['UVMap']
     cutl = bm.faces.layers.int['qvr_cut']

@@ -196,11 +196,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_laserg.mdl": {
-  "sha256": "a08914264b405d82a91f2c3986bdfb450de4d824be191c500d555d7886388030",
+  "sha256": "678cf6aaa2cbc8904a056d68ffe05fc5c0bfe5a424ac1a33e9e70e3d0aceff2f",
   "by": "polish_weapons.py"
  },
  "quakevr/progs/v_laserg.mdl_0_norm.png": {
-  "sha256": "2554d2df94809be36ffc8ececfb67424cd7c692bc391e3fc0d8cf221f3d04f8a",
+  "sha256": "1f75761a5e494e7fd693f2bea1598962b7a56ef96345c59d431057e3e9180a79",
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_lava.mdl": {
