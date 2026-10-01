@@ -1345,6 +1345,7 @@ struct Held
     bool trigger{false}; // its own weapon: the index finger pulls the trigger with the controller's
     bool cup{false};     // the other hand's weapon, by a cup hotspot: the other hand is in the way too
     bool thumbTop{false}; // the hotspot's style: the thumb along the top
+    bool inPalm{false};   // a prop held In the Palm (its Grip): the thumb round the outside of it
     float overlap{-1.f};  // cm the fingers and palm may sink into it (round 21, third pass: the weapon's or the hotspot's
                           // overlap slider); negative: vr_hand_fit_overlap's (things)
     // Round 21, third pass: the fingers set by hand (the weapon's or the hotspot's Fingers: Manual), no solve: each
@@ -1569,6 +1570,8 @@ void printGrasp(int hand, const Grasp& g, float rigUnit)
     s.overlap = za::fmax(held.overlap >= 0.f ? held.overlap : vr_hand_fit_overlap.value, 0.f) * toRig;
     s.thenar = !held.weapon;
     s.thumbTop = held.thumbTop;
+    s.thumbOutside = held.inPalm && vr_hand_fit_thumb_outside.value > 0.f;
+    s.thumbSink = s.thumbOutside ? vr_hand_fit_thumb_outside.value * toRig : 0.f;
     return s;
 }
 
@@ -1651,7 +1654,8 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
         const bool fitSame = rh.fitValid && rh.fitModel == held.ent->model && rh.fitInRig == held.fitInRig &&
                              rh.fitSettings.palmLimit == settings.palmLimit && rh.fitSettings.palmTurnLimit == settings.palmTurnLimit &&
                              rh.fitSettings.overlap == settings.overlap && rh.fitSettings.searchPlace == settings.searchPlace &&
-                             rh.fitSettings.thenar == settings.thenar;
+                             rh.fitSettings.thenar == settings.thenar && rh.fitSettings.thumbOutside == settings.thumbOutside &&
+                             rh.fitSettings.thumbSink == settings.thumbSink;
         if(!fitSame)
         {
             QVR_PROFILE("grasp solve");
@@ -1670,7 +1674,9 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
     }
     const bool settingsChanged = settings.palmLimit != g.settings.palmLimit || settings.palmTurnLimit != g.settings.palmTurnLimit ||
                                  settings.overlap != g.settings.overlap || settings.thenar != g.settings.thenar ||
-                                 settings.thumbTop != g.settings.thumbTop || settings.searchPlace != g.settings.searchPlace ||
+                                 settings.thumbTop != g.settings.thumbTop || settings.thumbOutside != g.settings.thumbOutside ||
+                                 settings.thumbSink != g.settings.thumbSink ||
+                                 settings.searchPlace != g.settings.searchPlace ||
                                  settings.fixedPalm != g.settings.fixedPalm || settings.palmMove != g.settings.palmMove ||
                                  settings.palmTurnMove != g.settings.palmTurnMove;
     bool fresh = false;
@@ -2948,6 +2954,7 @@ void setupHand(const hands::State& s, int hand)
             const int slot = props::slotForModel(model);
             using props::Key;
             held.overlap = props::value(slot, Key::Overlap);
+            held.inPalm = static_cast<int>(props::value(slot, Key::GripMode)) == 2; // (vr_grip.hpp's Palm)
             const float curl[handrig::FingerCount]{props::value(slot, Key::FingerCurlThumb), props::value(slot, Key::FingerCurlIndex),
                 props::value(slot, Key::FingerCurlMiddle), props::value(slot, Key::FingerCurlRing), props::value(slot, Key::FingerCurlPinky)};
             setManualFingers(held, props::value(slot, Key::FingerManual) >= 0.5f, curl, props::value(slot, Key::FingerThumbAcross));

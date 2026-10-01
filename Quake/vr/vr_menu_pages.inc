@@ -318,6 +318,9 @@ void resetHandMoves()
                   "Hand Only offset moves it."),
         slider("Palm Turn", "vr_hand_fit_palm_turn", 0.f, 45.f, 5.f, "%.0f deg").extend()
             .help("How far the palm may turn toward the surface of a held thing (not a weapon's grip)."),
+        slider("Thumb Round In-Palm Props", "vr_hand_fit_thumb_outside", 0.f, 3.f, 0.25f, "%.2f cm").extend()
+            .help("A rock, a brick or a grenade held In the Palm has the thumb round its outside, never tucked between your "
+                  "palm and it: its base may sink into it as far as this to lie along it. 0: as any held thing."),
         slider("Fit Overlap: Things", "vr_hand_fit_overlap", 0.f, 1.5f, 0.1f, "%.1f cm").extend()
             .help("How far the fingers and palm may sink into a held thing (a box, a gib, the torch): snug, with no gap, "
                   "and steadier. A weapon has its own (Weapon Offsets: Overlap, and each hotspot's)."),

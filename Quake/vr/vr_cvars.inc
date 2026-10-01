@@ -1296,6 +1296,7 @@ QVR_CVAR(vr_pose_weapon_hand, "1", CVAR_NONE)           // the weapon posing mod
 QVR_CVAR(vr_pose_solve, "0", CVAR_NONE)                 // and the posing hand wraps the weapon while posing (1: the grasp solved live, as before the posing test); 0: it passes through, unsolved, and shows the solved grip for a moment after each set
 QVR_CVAR(vr_pose_reset_offsets, "0", CVAR_NONE)         // and confirming a pose sets the tuning offsets to 0 (the weapon's Hand and Weapon Together and Hand Only; a hotspot's Held Hand)
 QVR_CVAR(vr_hand_fit_palm, "5", CVAR_ARCHIVE)          // with it: cm the drawn hand may move off the controller to sit flush on what it holds (0: stays on the controller)
+QVR_CVAR(vr_hand_fit_thumb_outside, "1", CVAR_ARCHIVE) // cm: a prop held In the Palm (a rock, a brick, a grenade) has the thumb round its outside, its base sunk into it as far as this, never tucked between the palm and it (0: as any held thing's)
 QVR_CVAR(vr_hand_fit_palm_weapon, "3", CVAR_ARCHIVE)   // the same on a weapon (its own grip, a foregrip, a blade): cm (the weapon is placed in the hand by its settings)
 QVR_CVAR(vr_hand_fit_palm_turn, "20", CVAR_ARCHIVE)    // and degrees it may turn to face the surface it holds (0: not at all)
 QVR_CVAR(vr_hand_fit_overlap, "0.3", CVAR_ARCHIVE)     // round 21, second pass: cm the fingers and palm may sink into what they hold (snug, no gap); third pass: things only (a weapon, its hotspots: their own overlap sliders)

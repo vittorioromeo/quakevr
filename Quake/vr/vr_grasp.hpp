@@ -71,6 +71,8 @@ struct FingerStop
     bool startsInside{false}; // in it at every curl (left as the controller has it)
     bool fromClosed{false};   // in it open: closed from the tightest curl it is clear at
     bool leastInside{false};  // the thumb in it at every turn and curl: where it is least in it
+    float lying{-1.f};        // the thumb lying along what the palm holds, open (Settings::thumbOutside): hand units its
+                              // base is sunk in it (-1: not lying)
 };
 
 struct Solution
@@ -95,6 +97,8 @@ struct Settings
     float overlap{0.f};       // hand units the hand may sink into what it holds (snug, no gap)
     bool thenar{false};       // the ball of the thumb meets it too (a thing held against the palm; not a weapon's grip)
     bool thumbTop{false};     // the thumb along the top of what it holds, not wrapped round it
+    bool thumbOutside{false}; // the thumb round the outside of what the palm holds (In the Palm), never tucked under it
+    float thumbSink{0.f};     // with it: hand units more the thumb may sink into it (its base, on the thing the palm holds)
     bool fixedPalm{false};    // round 21, third pass: the palm's move given (palmMove; no turn), not searched nor fitted
     glm::vec3 palmMove{0.f};
     glm::quat palmTurnMove{1.f, 0.f, 0.f, 0.f};
