@@ -460,7 +460,7 @@ QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the g
 QVR_CVAR(vr_debug_fatigue, "0", CVAR_NONE)               // 1: the tired arms' shake printed four times a second; 2: and each frame the aim, the muzzle and the drawn weapon ("fatigueaim")
 QVR_CVAR(vr_debug_pain, "0", CVAR_NONE)                  // 1: each hit ("painhit": damage, side, knock, buzz) and the hands' knock each frame ("painknock", cm along the body); 2: also where each hand and its weapon are drawn ("painview")
 QVR_CVAR(vr_debug_weight, "0", CVAR_NONE)                // 1: each hand's target and drawn pose, a line a frame in weight_trace.txt; 2: and printed
-QVR_CVAR(vr_props_version, "49", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)
+QVR_CVAR(vr_props_version, "50", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)
 // Explosive boxes (misc_explobox, misc_explobox2) as physics props.
 QVR_CVAR(vr_explobox_physics, "1", CVAR_ARCHIVE)         // 1: pushed, tipped, carried by hand (never force grabbed); 0: fixed in place (id's)
 QVR_CVAR(vr_explobox_impact, "14", CVAR_ARCHIVE)         // m/s: a box hitting something this hard is damaged, more the harder (0: never): dropped from 85 units or more (Quake's gravity); tipped over, its top lands at 11
@@ -1064,6 +1064,7 @@ QVR_CVAR(vr_weapon_grab_slack, "5", CVAR_ARCHIVE)     // cm: with vr_weapon_grab
 QVR_CVAR(vr_debug_buttons, "0", CVAR_NONE)            // prints each controller button press and release (the hand, the button, its key and binding, and what took it: the posing mode, a voice note, the flashlight...), and the interaction profile the runtime picked for each hand when it changes
 QVR_CVAR(vr_debug_hands, "0", CVAR_NONE)              // prints each hand's state when it changes (2: every frame): the grip, what it holds (weapon, carried object, force grab, flashlight), its climbing hold and why a grip takes none, the hotspot (vr_climb.cpp debugHands)
 QVR_CVAR(vr_debug_carry, "0", CVAR_NONE)              // draws, for each hand near a carriable thing, the grab test: the box the thing is drawn in, the fist tested (its spheres; the nearest bright) and the nearest point of its surface (green: it touches, in reach); 2: also carry_trace.txt, what is carried and both hands every frame, and each grab test printed; 3: and the fists not near
+QVR_CVAR(vr_debug_hand_collide, "0", CVAR_NONE)       // Debug > Views > Log Empty Hand Against Prop: prints, each frame a free hand meets the prop the other hand holds, how deep its real hand is, how far it is drawn pushed back, and whether it passes through (vr_hand_collide_props); 2: also each point held and its plane
 QVR_CVAR(vr_debug_arm, "0", CVAR_NONE)                // prints each drawn arm's IK once (the shoulder, elbow and wrist in the body's axes, cm; the elbow's swing; the wrist's bend and twist against the forearm), then turns itself off; 2: every frame
 QVR_CVAR(vr_debug_lean, "0", CVAR_NONE)               // lean_trace.txt (the game directory): the head, the box, the lean, the pelvis and the feet every frame, and the lean's cues (vr_lean_detect)
 QVR_CVAR(vr_grapple_test_stuck, "0", CVAR_NONE)        // Debug > Tests > Grappling Hook > Load Stuck: what hangs on the rope (a loose hook, a hooked prop) stays where it is, as if snagged (tests the rope holding you back)
@@ -1314,6 +1315,7 @@ QVR_CVAR(vr_pose_weapon_hand, "1", CVAR_NONE)           // the weapon posing mod
 QVR_CVAR(vr_pose_solve, "0", CVAR_NONE)                 // and the posing hand wraps the weapon while posing (1: the grasp solved live, as before the posing test); 0: it passes through, unsolved, and shows the solved grip for a moment after each set
 QVR_CVAR(vr_pose_reset_offsets, "0", CVAR_NONE)         // and confirming a pose sets the tuning offsets to 0 (the weapon's Hand and Weapon Together and Hand Only; a hotspot's Held Hand)
 QVR_CVAR(vr_hand_fit_palm, "5", CVAR_ARCHIVE)          // with it: cm the drawn hand may move off the controller to sit flush on what it holds (0: stays on the controller)
+QVR_CVAR(vr_hand_fit_thumb_outside, "1", CVAR_ARCHIVE) // cm: a prop held In the Palm (a rock, a brick, a grenade) has the thumb round its outside, its base sunk into it as far as this, never tucked between the palm and it (0: as any held thing's)
 QVR_CVAR(vr_hand_fit_palm_weapon, "3", CVAR_ARCHIVE)   // the same on a weapon (its own grip, a foregrip, a blade): cm (the weapon is placed in the hand by its settings)
 QVR_CVAR(vr_hand_fit_palm_turn, "20", CVAR_ARCHIVE)    // and degrees it may turn to face the surface it holds (0: not at all)
 QVR_CVAR(vr_hand_fit_overlap, "0.3", CVAR_ARCHIVE)     // round 21, second pass: cm the fingers and palm may sink into what they hold (snug, no gap); third pass: things only (a weapon, its hotspots: their own overlap sliders)
@@ -1354,7 +1356,8 @@ QVR_CVAR(vr_test_projectile, "0", CVAR_NONE)          // impulse 246 (tests): th
 QVR_CVAR(vr_test_projectile_side, "0", CVAR_NONE)     // and from how many degrees to your left of ahead
 QVR_CVAR(vr_hand_collide, "4", CVAR_ARCHIVE)          // cm a free hand is held out of the weapon in the other hand (drawn only; deeper, it lets go and passes through; 0: never)
 QVR_CVAR(vr_hand_collide_fingers, "1", CVAR_ARCHIVE)  // with it: the free hand's fingers react to the other hand's weapon: they rest on it or bend out of it (0: only the hand is pushed, by its fingertips too)
-QVR_CVAR(vr_hand_collide_props, "15", CVAR_ARCHIVE)   // cm a free hand is held out of the prop the other hand holds alone (a gib, a box: drawn only, as vr_hand_collide against a weapon; deeper, it lets go and passes through, at twice as deep; 0: never)
+QVR_CVAR(vr_hand_collide_props, "15", CVAR_ARCHIVE)   // cm a free hand is drawn held back at most at the surface of the prop the other hand holds alone (a gib, a box: drawn only); pressed further, it passes into it until it is out again (0: never held)
+QVR_CVAR(vr_hand_collide_props_margin, "1", CVAR_ARCHIVE) // cm off that prop's surface the free hand's palm and knuckles stop (0..2: the drawn skin about at it)
 QVR_CVAR(vr_body_collide, "1", CVAR_ARCHIVE)         // round 21: the drawn hands and held weapons stop at each other, the other arm, the wrist gadget and the body (drawn only: the game reads the tracked hands; vr_selfcollide.cpp); 0 off
 QVR_CVAR(vr_body_collide_pass, "0.7", CVAR_ARCHIVE)  // pushed this share of the way through what stops it (the whole hand or weapon), it lets go and passes through (1: only once all the way through; held out at most this times 15 cm)
 QVR_CVAR(vr_body_collide_elbows, "1", CVAR_ARCHIVE)  // with it: the elbows swing out of the torso rather than through it (the arm's IK)

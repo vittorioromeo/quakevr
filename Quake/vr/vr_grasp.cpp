@@ -164,6 +164,9 @@ struct Shape::Space
     };
     za::Vector<Tri> tris;
     glm::mat4 rawToReal{1.f};
+    // +1 if the triangles are wound outwards (their normals, b - a by c - a, point out of the model), -1 inwards (Quake's
+    // own winding, as its models are drawn): the sign of the volume they close (measureWinding). For signedDistance.
+    float outward{1.f};
 
     float cell{0.f}; // the grid's (real units), for the hand's size it was made at
     glm::vec3 lo{0.f}, hi{0.f}; // the triangles' box
@@ -314,7 +317,9 @@ struct Shape::Space
     }
 
     // Where a ray from `from` along the unit `dir` first meets a triangle (Moller-Trumbore), within `reach`.
-    [[nodiscard]] bool ray(const glm::vec3& from, const glm::vec3& dir, float reach, float& hit, glm::vec3* normal = nullptr) const
+    // `normal`: the triangle met's, facing `from`; `wound`: as wound.
+    [[nodiscard]] bool ray(const glm::vec3& from, const glm::vec3& dir, float reach, float& hit, glm::vec3* normal = nullptr,
+        glm::vec3* wound = nullptr) const
     {
         hit = reach;
         bool found = false;
@@ -352,6 +357,10 @@ struct Shape::Space
             {
                 *normal = glm::dot(t.normal, dir) > 0.f ? -t.normal : t.normal;
             }
+            if(wound)
+            {
+                *wound = t.normal;
+            }
             found = true;
         }
         return found;
@@ -362,6 +371,28 @@ Shape::Shape() = default;
 Shape::~Shape() = default;
 Shape::Shape(Shape&&) noexcept = default;
 Shape& Shape::operator=(Shape&&) noexcept = default;
+
+namespace
+{
+// The triangles' winding (Space::outward): the sign of the volume they close (the divergence theorem: a sixth of each
+// triangle's a . (b x c)), about their box's middle. A model is closed, or nearly: its sign is its winding's.
+void measureWinding(Shape::Space& space)
+{
+    glm::vec3 lo{1e30f}, hi{-1e30f};
+    for(const Shape::Space::Tri& t : space.tris)
+    {
+        lo = glm::min(lo, t.lo);
+        hi = glm::max(hi, t.hi);
+    }
+    const glm::vec3 mid = (lo + hi) * 0.5f;
+    double volume = 0.0;
+    for(const Shape::Space::Tri& t : space.tris)
+    {
+        volume += static_cast<double>(glm::dot(t.a - mid, glm::cross(t.b - mid, t.c - mid)));
+    }
+    space.outward = volume < 0.0 ? -1.f : 1.f;
+}
+} // namespace
 
 za::SizeT heldBytes(const Shape& s)
 {
@@ -653,6 +684,34 @@ void solveFinger(const Context& ctx, int finger, bool settle, const FingerStop* 
     }
 }
 
+// The thumb Outside what the palm holds (ThumbStyle::Outside: In the Palm): one in it open (on the ball of the thumb,
+// the thing sits on its base) closed from the fist, or closing past it into the gap under it, is tucked between the palm
+// and it (NOTES.md vrfiringrange_2026-10-01_00-23-13 and 00-24-47). If no deeper than `sink` hand units in it open, it
+// lies along it open instead (its base sunk that little), which is how a thumb holds a stone or a brick from the side.
+void lieAlong(const Context& ctx, float sink, FingerStop& st)
+{
+    if(!(sink > 0.f) || (st.met && !st.fromClosed && !st.startsInside))
+    {
+        return; // closed onto it from open: it wraps it already
+    }
+    const float open[handrig::jointsPerFinger]{0.f, 0.f, 0.f};
+    Probe p;
+    probe(ctx, handrig::Thumb, open, 0, p);
+    float least = 1e9f;
+    for(int b = 1; b <= handrig::jointsPerFinger; b++)
+    {
+        least = za::fmin(least, p.clear[b]);
+    }
+    if(least < -tolerance - sink || least > tolerance)
+    {
+        return; // in it too deep (left as it was), or clear of it open (free: nothing to lie along)
+    }
+    st = FingerStop{};
+    qza::fill(st.stop, st.stop + handrig::jointsPerFinger, 0.f);
+    st.met = true;
+    st.lying = za::fmax(-least, 0.f);
+}
+
 // How well a finger holds: -1 in it at every curl, 0 touching nothing, else its closure where it stopped (0..1).
 // A wrap (its joints stopped one after another: the segments round what it holds) beats a finger stopped by its tip.
 [[nodiscard]] float score(const FingerStop& s)
@@ -664,6 +723,10 @@ void solveFinger(const Context& ctx, int finger, bool settle, const FingerStop* 
     if(!s.met)
     {
         return 0.f;
+    }
+    if(s.lying >= 0.f)
+    {
+        return 0.3f - 0.2f * s.lying; // lying along it (lieAlong): the less sunk in it, the better
     }
     const float closure = (s.stop[0] + s.stop[1] + s.stop[2]) / (3.f * maxCurl);
     const float wrap = (s.stop[1] - s.stop[0] > 0.1f ? 0.5f : 0.f) + (s.stop[2] - s.stop[1] > 0.1f ? 0.5f : 0.f);
@@ -688,36 +751,57 @@ constexpr int thumbTurnCount = static_cast<int>(sizeof(thumbTurns) / sizeof(thum
            glm::angleAxis(glm::radians(t.opposition), glm::vec3{-1.f, 0.f, 0.f});
 }
 
-// Whether a thumb turn fits the style: along the top (swung up and away), or wrapping round (not).
-[[nodiscard]] bool thumbStyle(const ThumbTurn& t, bool top)
+// How the thumb holds: wrapped round (a grip, a handle), along the top (swung up and away: a hotspot's Thumb on Top), or
+// outside what the palm holds (In the Palm: a rock, a brick; any turn, never tucked between the palm and it).
+enum class ThumbStyle
 {
-    return top ? t.swing < 0.f : t.swing >= 0.f;
+    Wrap,
+    Top,
+    Outside,
+};
+
+[[nodiscard]] ThumbStyle thumbStyleOf(const Settings& s)
+{
+    return s.thumbTop ? ThumbStyle::Top : s.thumbOutside ? ThumbStyle::Outside : ThumbStyle::Wrap;
+}
+
+// Whether a thumb turn fits the style.
+[[nodiscard]] bool thumbStyle(const ThumbTurn& t, ThumbStyle style)
+{
+    return style == ThumbStyle::Outside || (style == ThumbStyle::Top ? t.swing < 0.f : t.swing >= 0.f);
 }
 
 // The thumb: closed at each turn of its metacarpal (of the style asked for), the one holding best (a turn costs a
 // little: a thumb held naturally beats a contorted one holding a little better). Solved again (the solve before
 // known): its turn only, closed from where it held. The turns tried (solve closes them on the game's threads, each with
 // its own pose), then the choice among them (in their order: the first of equals).
-[[nodiscard]] bool thumbTried(int i, const Solution* previous, bool top)
+[[nodiscard]] bool thumbTried(int i, const Solution* previous, ThumbStyle style)
 {
-    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], top);
-    return !((again && i != previous->thumbChoice) || !thumbStyle(thumbTurns[i], top));
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], style);
+    return !((again && i != previous->thumbChoice) || !thumbStyle(thumbTurns[i], style));
 }
 
-void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const Solution* previous, bool top, FingerStop& out,
-    glm::quat& turn, int& choice)
+// `tucked`: Outside (tuckedThumbs), the turns whose thumb ends tucked between the palm and what it holds: taken only if
+// no turn's thumb holds it from outside.
+void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const bool (&tucked)[thumbTurnCount], const Solution* previous,
+    ThumbStyle style, FingerStop& out, glm::quat& turn, int& choice)
 {
+    bool outsideMet = false;
+    for(int i = 0; i < thumbTurnCount && style == ThumbStyle::Outside; i++)
+    {
+        outsideMet = outsideMet || (thumbTried(i, previous, style) && tried[i].met && !tried[i].startsInside && !tucked[i]);
+    }
     float best = -1e9f;
     for(int i = 0; i < thumbTurnCount; i++)
     {
-        if(!thumbTried(i, previous, top))
+        if(!thumbTried(i, previous, style))
         {
             continue;
         }
         const ThumbTurn& t = thumbTurns[i];
         const FingerStop& st = tried[i];
         const float value = score(st) - 0.003f * (t.opposition + za::fabs(t.swing));
-        if(!st.startsInside && value > best)
+        if(!st.startsInside && !(outsideMet && (tucked[i] || !st.met)) && value > best)
         {
             best = value;
             out = st;
@@ -730,11 +814,11 @@ void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const Solution* prev
         return;
     }
     // In it at every turn and curl (its base in a grip): left as the controller has it, at a natural turn.
-    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], top);
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], style);
     out = FingerStop{};
     out.startsInside = true;
     out.leastInside = true;
-    choice = again ? previous->thumbChoice : top ? 4 : 1;
+    choice = again ? previous->thumbChoice : style == ThumbStyle::Top ? 4 : 1;
     turn = thumbQuat(thumbTurns[choice]);
 }
 
@@ -775,6 +859,33 @@ void Target::place(const glm::quat& turn, const glm::vec3& move)
     if(extra)
     {
         extraToReal = handTo(extraBase, turn, move);
+    }
+}
+
+// Outside (ThumbStyle::Outside): the thumb turns whose closed thumb's tip is nearer the palm than half way to the middle
+// of what the palm holds (measured towards it from the palm's middle): under it, between the palm and it, not round its
+// side (NOTES.md vrfiringrange_2026-10-01_00-23-13: a rock's or a brick's thumb squashed against the palm). A thumb in
+// it open, closed from the fist, is always under it.
+void tuckedThumbs(const handrig::Pose& pose, const Target& target, const FingerStop (&thumbs)[thumbTurnCount],
+    bool (&tucked)[thumbTurnCount])
+{
+    const Shape::Space& space = *target.space;
+    glm::vec3 lo{1e30f}, hi{-1e30f};
+    for(const Shape::Space::Tri& t : space.tris)
+    {
+        lo = glm::min(lo, t.lo);
+        hi = glm::max(hi, t.hi);
+    }
+    const glm::vec3 palm = kinematics().palmCentre;
+    const glm::vec3 towards = glm::vec3{glm::inverse(target.rigToReal) * glm::vec4{(lo + hi) * 0.5f, 1.f}} - palm;
+    const float away = glm::length(towards);
+    for(int i = 0; i < thumbTurnCount; i++)
+    {
+        handrig::Pose turned = pose;
+        turned.metacarpal = thumbQuat(thumbTurns[i]);
+        glm::vec3 points[4];
+        fingerPoints(turned, handrig::Thumb, thumbs[i].stop, points);
+        tucked[i] = thumbs[i].fromClosed || (away > 1e-4f && glm::dot(points[3] - palm, towards / away) < 0.5f * away);
     }
 }
 
@@ -935,7 +1046,8 @@ int rememberedUsed = 0;
 [[nodiscard]] bool sameSettings(const Settings& a, const Settings& b)
 {
     return a.palmLimit == b.palmLimit && a.palmTurnLimit == b.palmTurnLimit && a.overlap == b.overlap &&
-           a.thenar == b.thenar && a.thumbTop == b.thumbTop && a.fixedPalm == b.fixedPalm && a.palmMove == b.palmMove &&
+           a.thenar == b.thenar && a.thumbTop == b.thumbTop && a.thumbOutside == b.thumbOutside && a.thumbSink == b.thumbSink && a.fixedPalm == b.fixedPalm &&
+           a.palmMove == b.palmMove &&
            a.palmTurnMove == b.palmTurnMove && a.searchPlace == b.searchPlace;
 }
 
@@ -1026,6 +1138,7 @@ bool buildShape(const entity_t& e, int frame, Shape& out)
         r.hi = glm::max(r.a, glm::max(r.b, r.c));
         out.space->tris.pushBack(r);
     }
+    measureWinding(*out.space);
     return !out.tris.empty();
 }
 
@@ -1068,6 +1181,7 @@ void makeShape(const za::Vector<Triangle>& tris, Shape& out)
         r.hi = glm::max(r.a, glm::max(r.b, r.c));
         space.tris.pushBack(r);
     }
+    measureWinding(space);
 }
 
 glm::mat4 shapeToWorld(const entity_t& e, bool mirrored)
@@ -1276,12 +1390,13 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
 
     // The fingers: the thumb at each turn tried, and the four fingers, each closed on the game's threads (each turn
     // with its own pose), then the thumb's turn chosen.
-    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], settings.thumbTop);
+    const ThumbStyle style = thumbStyleOf(settings);
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], style);
     int work[thumbTurnCount + handrig::FingerCount - 1];
     int count = 0;
     for(int i = 0; i < thumbTurnCount; i++)
     {
-        if(thumbTried(i, previous, settings.thumbTop))
+        if(thumbTried(i, previous, style))
         {
             work[count++] = i;
         }
@@ -1302,6 +1417,10 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
                 turned.metacarpal = thumbQuat(thumbTurns[job]);
                 const Context ctx{&target, &turned, settings.overlap, &jobProbes[j]};
                 solveFinger(ctx, handrig::Thumb, true, again ? &previous->finger[handrig::Thumb] : nullptr, thumbs[job]);
+                if(style == ThumbStyle::Outside)
+                {
+                    lieAlong(ctx, settings.thumbSink, thumbs[job]);
+                }
             }
             else
             {
@@ -1311,7 +1430,12 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
             }
         }
     });
-    chooseThumb(thumbs, previous, settings.thumbTop, out.finger[handrig::Thumb], out.thumbTurn, out.thumbChoice);
+    bool tucked[thumbTurnCount]{};
+    if(style == ThumbStyle::Outside)
+    {
+        tuckedThumbs(pose, target, thumbs, tucked);
+    }
+    chooseThumb(thumbs, tucked, previous, style, out.finger[handrig::Thumb], out.thumbTurn, out.thumbChoice);
     for(int j = 0; j < count; j++)
     {
         probes += jobProbes[j];
@@ -1481,6 +1605,61 @@ bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& 
         nw = -nw;
     }
     out = nw * (d * scale);
+    return true;
+}
+
+bool signedDistance(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, float& distance,
+    glm::vec3& at, glm::vec3& normal)
+{
+    Shape::Space& space = *shape.space;
+    const glm::mat4 realToWorld = shapeToWorld * glm::inverse(space.rawToReal);
+    const float scale = glm::length(glm::vec3{realToWorld[0]});
+    if(!(scale > 1e-6f))
+    {
+        return false;
+    }
+    if(space.cell <= 0.f)
+    {
+        space.buildGrid(0.8f / scale); // (as inside's)
+    }
+    const glm::mat4 worldToReal = glm::inverse(realToWorld);
+    const glm::vec3 q{worldToReal * glm::vec4{p, 1.f}};
+    glm::vec3 closest, n;
+    const float d = space.nearest(q, reach / scale, &closest, &n);
+    if(d >= reach / scale)
+    {
+        return false;
+    }
+    // Its outward normal by the model's winding (Space::outward), to the world by the inverse transpose, which keeps a
+    // side outward under any placing, mirrored too.
+    const glm::vec3 out = n * space.outward;
+    normal = glm::normalize(glm::mat3{glm::transpose(worldToReal)} * out);
+    at = glm::vec3{realToWorld * glm::vec4{closest, 1.f}};
+    // Inside by the nearest triangle's side; never deeper than half the model's thinnest box side (beside an edge or a
+    // corner, the triangle's side can be the wrong one).
+    const bool in = glm::dot(q - closest, out) < 0.f && d <= 0.5f * qza::minOf(space.hi.x - space.lo.x, space.hi.y - space.lo.y, space.hi.z - space.lo.z);
+    distance = in ? -d * scale : d * scale;
+    return true;
+}
+
+bool rayHit(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& from, const glm::vec3& to, glm::vec3& at,
+    glm::vec3& normal, bool& entering)
+{
+    const Shape::Space& space = *shape.space;
+    const glm::mat4 realToWorld = shapeToWorld * glm::inverse(space.rawToReal);
+    const glm::mat4 worldToReal = glm::inverse(realToWorld);
+    const glm::vec3 a{worldToReal * glm::vec4{from, 1.f}}, b{worldToReal * glm::vec4{to, 1.f}};
+    const float len = glm::length(b - a);
+    float hit;
+    glm::vec3 n, wound;
+    const glm::vec3 dir = (b - a) / za::max(len, 1e-6f);
+    if(!(len > 1e-6f) || !space.ray(a, dir, len, hit, &n, &wound))
+    {
+        return false;
+    }
+    entering = glm::dot(wound * space.outward, dir) < 0.f; // its outward side faces `from`
+    at = glm::vec3{realToWorld * glm::vec4{a + dir * hit, 1.f}};
+    normal = glm::normalize(glm::mat3{glm::transpose(worldToReal)} * n); // (facing `from`: kept so by the inverse transpose)
     return true;
 }
 

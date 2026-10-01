@@ -86,8 +86,13 @@ void printSlot(int slot, Part part = Part::All); // the settings that differ fro
 [[nodiscard]] float stoneDensity(const qmodel_t* model);
 
 // A model's mass (kg) estimated from its drawn box (units, its size) and what it is made of, when neither Box3D (a
-// listen server's body) nor a Mass setting says: its box's volume less what a box has round a rounded shape.
+// listen server's body) nor a Mass setting says: its box's volume less what a box has round a rounded shape, times its
+// Mass x (massScale).
 [[nodiscard]] float estimateMass(const qmodel_t* model, const glm::vec3& boxSize);
+
+// Times an estimated mass (Held Object Weights' Mass x, 0..): Box3D's body (its density) and the estimate above. Not a
+// Mass setting's.
+[[nodiscard]] float massScale(const qmodel_t* model);
 
 // How much of the hand's throw a prop of `mass` kg keeps: its Throw setting, else all of it up to
 // vr_weight_throw_mass kg, less beyond (by the square root: a thing twice as heavy leaves at 71% the speed).

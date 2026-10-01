@@ -248,9 +248,25 @@ int heldObjectSlot = -1;
 bool heldObjectStale = true;
 bool heldObjectKeepHand = false; // Edit the Other Hand's Prop: that hand, even empty
 za::String heldObjectModel;
+bool heldObjectWeapon = false; // the page's prop is the held weapon's physics-prop form (heldWeaponPropModel)
 
-// The prop `hand` holds: a carried thing's model, or the flashlight's ("": none).
-[[nodiscard]] za::String heldPropModel(int hand)
+// The weapon model `hand` holds ("": none, or the empty hand's): a thrown or dropped weapon is a physics prop drawn with
+// it (QC weapons.qc's thrown_weapon: WeaponIdToModel), so its prop settings are that model's (NOTES.md
+// vrfiringrange_2026-09-30_23-51-18).
+[[nodiscard]] za::String heldWeaponPropModel(int hand)
+{
+    const qmodel_t* model = weapons::heldModel(hand);
+    if(!model || !model->name[0] || !strcmp(model->name, "progs/hand.mdl") ||
+        (weapons::fistSlot() >= 0 && weapons::slotForModel(model) == weapons::fistSlot()))
+    {
+        return {};
+    }
+    return model->name;
+}
+
+// The prop `hand` holds: a carried thing's model, the flashlight's, or with `weapon` its weapon's physics-prop form
+// (heldWeaponPropModel; "": none).
+[[nodiscard]] za::String heldPropModel(int hand, bool weapon = true)
 {
     if(cls.state != ca_connected)
     {
@@ -260,19 +276,30 @@ za::String heldObjectModel;
     {
         return cl_entities[ent].model->name;
     }
-    return flashlight::holds(hand) ? "progs/vrflashlight.mdl" : "";
+    if(flashlight::holds(hand))
+    {
+        return "progs/vrflashlight.mdl";
+    }
+    return weapon ? heldWeaponPropModel(hand) : za::String{};
 }
 
-// The page's prop: the chosen hand's (opened with it empty and a prop in the other hand: that one), its slot claimed.
-// Pushes the page's title; false: no prop to edit (the page is its title and the other hand's action).
+// The page's prop: the chosen hand's (opened with it holding no prop and one in the other hand: that one; a carried
+// thing before a weapon's prop form), its slot claimed. Pushes the page's title; false: no prop to edit (the page is its
+// title and the other hand's action).
 bool heldObjectBegin(za::Vector<Item>& list, za::String& title, void (*otherHand)())
 {
-    if(!heldObjectKeepHand && heldPropModel(heldObjectHand).empty() && !heldPropModel(1 - heldObjectHand).empty())
+    if(!heldObjectKeepHand)
     {
-        heldObjectHand = 1 - heldObjectHand;
+        const bool here = !heldPropModel(heldObjectHand, false).empty(), there = !heldPropModel(1 - heldObjectHand, false).empty();
+        if((!here && there) || (!here && heldPropModel(heldObjectHand).empty() && !heldPropModel(1 - heldObjectHand).empty()))
+        {
+            heldObjectHand = 1 - heldObjectHand;
+        }
     }
     heldObjectKeepHand = false;
     heldObjectModel = heldPropModel(heldObjectHand);
+    heldObjectWeapon = !heldObjectModel.empty() && heldObjectModel == heldWeaponPropModel(heldObjectHand) &&
+                       heldPropModel(heldObjectHand, false).empty();
     const char* hand = heldObjectHand == 1 ? "Main hand" : "Off hand";
     heldObjectSlot = heldObjectModel.empty() ? -1 : props::claimSlot(heldObjectModel.cStr());
     if(heldObjectSlot < 0)
@@ -283,10 +310,17 @@ bool heldObjectBegin(za::Vector<Item>& list, za::String& title, void (*otherHand
         return false;
     }
     const int slot = heldObjectSlot;
-    title = za::String(hand) + ": " + heldObjectModel + " (_" + (slot + 1 < 10 ? "0" : "") + za::toString(slot + 1) + ")";
+    title = za::String(hand) + ": " + heldObjectModel + (heldObjectWeapon ? ", its weapon thrown" : "") + " (_" +
+            (slot + 1 < 10 ? "0" : "") + za::toString(slot + 1) + ")";
     list.pushBack(header(title.cStr()));
     list.pushBack(action("Edit the Other Hand's Prop", otherHand)
                        .help("The page shows what the hand held when it was opened: reopen it after taking something else."));
+    if(heldObjectWeapon)
+    {
+        list.pushBack(info([]() -> const char* {
+            return "The weapon as a physics prop (thrown, dropped, lying about); in the hand: Weapon Offsets and Weights.";
+        }));
+    }
     return true;
 }
 
@@ -329,13 +363,27 @@ void heldObjectWeightsPrint()
 [[nodiscard]] const char* heldObjectMassReadout(int /* unused */)
 {
     za::String& text = readouts.heldObjectMass;
+    if(heldObjectWeapon)
+    {
+        // Thrown: a Mass set here, else Weapon Weights' (vr_box3d.cpp massSetting).
+        const float own = props::valueFor(heldObjectModel.cStr(), props::Key::Mass);
+        const int slot = weapons::slotForName(heldObjectModel.cStr());
+        const float weapon = slot >= 0 ? weapons::value(slot, weapons::Key::Mass) : 0.f;
+        text = own > 0.f      ? va("Mass thrown: %.1f kg (set)", own)
+             : weapon > 0.f ? va("Mass thrown: %.1f kg (Weapon Weights)", weapon)
+                            : "Mass thrown: estimated";
+        return text.cStr();
+    }
     const weight::Load l = weight::load(heldObjectHand);
     if(!l.valid || strcmp(l.model, heldObjectModel.cStr()) != 0)
     {
         return "Mass now: (let go of)";
     }
     const bool set = props::valueFor(heldObjectModel.cStr(), props::Key::Mass) > 0.f;
-    text = va("Mass now: %.1f kg (%s)", l.mass, set ? "set" : "estimated");
+    const float scale = props::valueFor(heldObjectModel.cStr(), props::Key::MassScale);
+    text = set ? va("Mass now: %.1f kg (set)", l.mass)
+         : scale != 1.f ? va("Mass now: %.1f kg (estimated, x%.2f)", l.mass, scale)
+                        : va("Mass now: %.1f kg (estimated)", l.mass);
     return text.cStr();
 }
 
@@ -375,7 +423,7 @@ za::Vector<Item> pageHeldObjectOffsets()
         s("Size", Key::Size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.05f, 10.f)
             .help("Every one of these props, drawn this much bigger or smaller, about its origin: its physics body and "
                   "box too, and its lengths below (Tip, Butt, Handle, Centre of Mass, a Fixed grip's place). Its Mass "
-                  "setting stays as set (an estimated mass follows the size). Live."),
+                  "set on Held Object Weights stays as set; an estimated one follows the size, cubed. Live."),
         header("Grip"),
         cycle("Grip", props::cvar(slot, Key::GripMode),
             {{0.f, "Where taken"}, {1.f, "Fixed"}, {2.f, "In the palm"}, {3.f, "Along the handle"}})
@@ -461,6 +509,9 @@ za::Vector<Item> pageHeldObjectWeights()
             .help("0: estimated from its size and what it is made of (the readout above). Also its mass in the physics "
                   "world (what knocks it how far), how it follows your hand, and how hard it strikes and is thrown "
                   "(Aiming: Weight and Damage)."),
+        s("Estimated Mass x", Key::MassScale, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 50.f)
+            .help("Times its estimated mass (Mass 0: its volume, which grows with its Size cubed, times what it is "
+                  "made of): tune the estimate rather than set a mass by hand. A Mass set above is used as set."),
         s("Inertia", Key::Inertia, 0.1f, 4.f, 0.1f, "%.1fx").extend(0.f, 20.f)
             .help("How sluggishly it turns in the hand, times its shape's."),
         s("Centre of Mass X", Key::ComX, -30.f, 30.f, 0.5f, "%+.1f").extend(-200.f, 200.f)

@@ -112,6 +112,7 @@ struct MassCache
     int ent{0};
     const qmodel_t* model{nullptr};
     float setting{-1.f};
+    unsigned generation{0}; // props::settingsGeneration: a Size or Mass x changed while held weighs it again
     float mass{0.f};
 };
 MassCache massCache[2];
@@ -153,11 +154,12 @@ double easedAt = -1.0;
         return setting;
     }
     MassCache& c = massCache[hand];
-    if(c.ent == ent && c.model == model && c.setting == setting)
+    const unsigned generation = props::settingsGeneration();
+    if(c.ent == ent && c.model == model && c.setting == setting && c.generation == generation)
     {
         return c.mass;
     }
-    c = {ent, model, setting, 0.f};
+    c = {ent, model, setting, generation, 0.f};
     if(sv.active && ent < sv.qcvm.num_edicts)
     {
         qcvm_t* const old = qcvm;
@@ -775,6 +777,14 @@ void table_f()
         }
         row(va("p%d", slot + 1), id, props::value(slot, props::Key::Mass), props::value(slot, props::Key::MeleeDamage),
             props::value(slot, props::Key::ThrowDamage));
+    }
+    // What each hand holds, as the weight has it (tests: a held prop's Size and Mass x weigh it again at once).
+    for(int hand = 1; hand >= 0; hand--)
+    {
+        if(const Load l = load(hand); l.valid && !l.empty)
+        {
+            Con_Printf("hand %s: %s %.2f kg\n", hand == 1 ? "main" : "off", l.model ? l.model : "?", l.mass);
+        }
     }
     // The things in the level (a local server): each model's mass as the game has it (its setting, else Box3D's).
     if(!sv.active)

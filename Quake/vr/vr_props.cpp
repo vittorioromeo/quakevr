@@ -47,8 +47,9 @@ constexpr const char* keyDefaults[numKeys] = {
 // Configs archive every slot, so a slot whose shipped defaults change keeps a config's old values: vr_props_version
 // says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
 // and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's; 45: the author's bricks and torch
-// (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0; 49: the crates' slots.
-constexpr int settingsVersion = 49;
+// (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0; 49: the crates' slots; 50:
+// the rocks and bricks at Size 1.25.
+constexpr int settingsVersion = 50;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -288,6 +289,20 @@ void migrate()
             }
         }
     }
+    // 50: every rock and brick (slots 17-25) drawn at 1.25 times its model's size (the author's, 2026-10-01, NOTES.md
+    // vrfiringrange_2026-10-01_00-24-47 and 00-25-50). A slot still its model's at the old default (1) takes it.
+    if(from < 50)
+    {
+        for(int slot = 17; slot <= 25; slot++)
+        {
+            cvar_t& var = cvarAt(slot, Key::Size);
+            if(!strcmp(cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string) && atof(var.string) == 1.0)
+            {
+                Cvar_SetQuick(&var, var.default_string);
+                Con_DPrintf("Held Object Offsets: %s: Size %s (was 1)\n", cvarAt(slot, Key::ID).string, var.string);
+            }
+        }
+    }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);
 }
 
@@ -504,6 +519,26 @@ int claimSlot(const char* model)
             return slot;
         }
     }
+    // None free: a slot the menu gave another model that was never changed (its page opened, nothing set: every key at
+    // its default) is given to this one. (Opening the pages with weapons in hand claims a slot for each.)
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        if(!freeId(cvarAt(slot, Key::ID).default_string))
+        {
+            continue; // a shipped prop's
+        }
+        bool untouched = true;
+        for(int key = 0; key < numKeys && untouched; key++)
+        {
+            const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
+            untouched = static_cast<Key>(key) == Key::ID || !strcmp(var.string, var.default_string);
+        }
+        if(untouched)
+        {
+            Cvar_SetQuick(&cvarAt(slot, Key::ID), model);
+            return slot;
+        }
+    }
     return -1;
 }
 
@@ -564,7 +599,8 @@ bool weightKey(Key key)
         case Key::SpringSnap:
         case Key::MeleeDamage:
         case Key::ThrowDamage:
-        case Key::SpinAlign: return true;
+        case Key::SpinAlign:
+        case Key::MassScale: return true;
         default: return false;
     }
 }
@@ -679,7 +715,12 @@ float estimateMass(const qmodel_t* model, const glm::vec3& boxSize)
     // A brush model is its box; an alias model's hull fills about half of it (Box3D's hulls of the gibs and the
     // backpack: 45 to 60%).
     const float fill = model && model->type == mod_brush ? 1.f : 0.5f;
-    return m.x * m.y * m.z * fill * density(model, false);
+    return m.x * m.y * m.z * fill * density(model, false) * massScale(model);
+}
+
+float massScale(const qmodel_t* model)
+{
+    return za::max(valueFor(model, Key::MassScale), 0.f);
 }
 
 float throwScale(int slot, float mass)

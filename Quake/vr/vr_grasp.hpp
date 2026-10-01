@@ -71,6 +71,8 @@ struct FingerStop
     bool startsInside{false}; // in it at every curl (left as the controller has it)
     bool fromClosed{false};   // in it open: closed from the tightest curl it is clear at
     bool leastInside{false};  // the thumb in it at every turn and curl: where it is least in it
+    float lying{-1.f};        // the thumb lying along what the palm holds, open (Settings::thumbOutside): hand units its
+                              // base is sunk in it (-1: not lying)
 };
 
 struct Solution
@@ -95,6 +97,8 @@ struct Settings
     float overlap{0.f};       // hand units the hand may sink into what it holds (snug, no gap)
     bool thenar{false};       // the ball of the thumb meets it too (a thing held against the palm; not a weapon's grip)
     bool thumbTop{false};     // the thumb along the top of what it holds, not wrapped round it
+    bool thumbOutside{false}; // the thumb round the outside of what the palm holds (In the Palm), never tucked under it
+    float thumbSink{0.f};     // with it: hand units more the thumb may sink into it (its base, on the thing the palm holds)
     bool fixedPalm{false};    // round 21, third pass: the palm's move given (palmMove; no turn), not searched nor fitted
     glm::vec3 palmMove{0.f};
     glm::quat palmTurnMove{1.f, 0.f, 0.f, 0.f};
@@ -140,6 +144,17 @@ void legacyGripChannel(const handrig::Pose& pose, glm::vec3& point, glm::vec3& d
 // Whether the world point `p` is inside `shape` (drawn with `shapeToWorld`) within `reach` world units of its surface
 // (the nearest triangle faces away from it); `out` the move out to that surface.
 bool inside(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, glm::vec3& out);
+
+// The signed distance (world units) from the world point `p` to `shape`'s surface, if within `reach`: negative inside
+// (the nearest triangle faces away from it); `at` that nearest point and `normal` its triangle's outward normal (world).
+// False if nothing is within `reach`.
+bool signedDistance(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& p, float reach, float& distance,
+    glm::vec3& at, glm::vec3& normal);
+
+// Where the segment from `from` to `to` (world) first meets `shape`'s surface: `at`, the normal of the triangle met,
+// facing `from`, and whether it goes in there (from outside) or out. False if it meets none.
+bool rayHit(const Shape& shape, const glm::mat4& shapeToWorld, const glm::vec3& from, const glm::vec3& to, glm::vec3& at,
+    glm::vec3& normal, bool& entering);
 
 // vr_debug_hand_bones: the distance (world units) from the world point `p` to `shape`'s surface (drawn with
 // `shapeToWorld`), if within `reach`: its nearest point in `at`, and whether `p` is inside it (the nearest triangle

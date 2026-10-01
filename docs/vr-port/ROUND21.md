@@ -17707,3 +17707,55 @@ Verified: Release and Debug (`QVR_ZANCLE_DEBUG` on) 0 warnings; the full melee e
 the base commit's (`c3c65b88`, 172 of 177 pass); the grasp sweep (17 weapons x 8 kinds x 7 places, e2m1) 952 of 952
 to the last bit against the base commit; smoke (e1m1, e2m1, vrfiringrange) clean; in Debug (Zancle's asserts on) the
 math test, a sweep and two maps with no assert.
+
+## Prop settings for a held weapon; Estimated Mass x; rocks and bricks 1.25; the thumb round them; force grab misses; the empty hand against a prop (2026-10-01)
+
+From his notes vrfiringrange_2026-09-30_23-51-18 and 2026-10-01_00-22-37 to 00-29-55.
+
+- **Held Object Offsets / Weights with a weapon in hand** (`vr_menu_props.inc`): a hand holding no carried prop but a
+  weapon edits the weapon's physics-prop form (its thrown or dropped `thrown_weapon`, drawn with the same model:
+  "Main hand: progs/v_axe.mdl, its weapon thrown (_06)"); a carried thing in either hand still comes first. The
+  weights page's readout says the thrown mass (set here, else Weapon Weights). `props::claimSlot`, with no free slot,
+  now takes a slot the menu gave a model that was never changed (opening the pages with weapons claims one each).
+- **Size scales the estimated mass** (it did in Box3D already, by the hull's volume: rock5 1.36 kg at its Size, 5.69 at
+  2x); the hands' weight cached it per entity, so a held prop kept its old mass until taken again: now weighed again
+  at each prop setting change (`props::settingsGeneration`). A Mass set is not scaled. **Estimated Mass x**
+  (`vr_prop_mass_scale_NN`, default 1; Held Object Weights) times the estimate, in Box3D (its density; the body made
+  again when it changes) and the hands. Test aid: `vr_weight_table` prints what each hand holds and its mass.
+  Mock (`tests`: rock5 held): size 1.25 1.36 kg, size 2 5.69, x0.5 2.84, Mass 3 3.00 at either size.
+- **Rocks and bricks at Size 1.25** (vr_props.inc; `vr_props_version` 50: a slot still its model's at 1 takes 1.25; his
+  rock2 was still 1). Their estimated masses are 1.95x their models' (as he had them in his session).
+- **Force grab missed close to a table** (`VR_Forcegrab_Miss`, vr_wpnforcegrab.qc): the missed thing was placed by a
+  trace from the player's box's bottom corner; that start is in the table a VR player leans against (or, for a thing
+  under 3 units, traced as a point, on the floor plane), so the trace started solid and the thing went back to where
+  it lay (`fg_origin`). Now: from the corner, else from the player's middle, else where it is if it fits in sight, and
+  only then where it flew from. Mock (brick from the table, player 2-12 units off it): before at (-385, -798) on the
+  table, now on the floor under the hand (-517, -762).
+- **The empty hand against the other hand's prop** (`vr_view.cpp` `pushOutProp`): the old test read Quake's inward
+  triangle winding as outward, so the hand was pushed while still outside, up to twice `vr_hand_collide_props` away
+  (contact 28 cm early at 15 cm), and a deep point was pushed out through the far side. Now each palm/knuckle point
+  (and a fingertip while it touches) stops `vr_hand_collide_props_margin` (1 cm) off the real surface, by the face it
+  went in by (a ray from where it was drawn last frame; `grasp::rayHit`, `grasp::signedDistance` with the winding
+  measured per shape); held back at once (not eased), sliding along the surface, up to `vr_hand_collide_props` cm (15);
+  pushed further it passes in (eased) until it is out of it. Fingertips hooked past the far side never pull the hand.
+  Debug > Log Empty Hand Against Prop (`vr_debug_hand_collide` 1, 2 with each point's plane). Mock sweep, health box
+  and rock2 in the main hand, the off hand in 1 cm steps: held 1:1 (1.0, 2.0, ... 14.9 cm), through past 15, back out
+  re-armed, at three heights. The weapon path (`vr_hand_collide`) is unchanged (its `grasp::inside` has the same
+  winding reading: worth a look).
+- **The thumb round In-the-Palm props** (`vr_grasp.cpp`, `ThumbStyle::Outside`, `vr_hand_fit_thumb_outside` 1 cm;
+  Hands page "Thumb Round In-Palm Props"): every brick's thumb was in the brick open at every turn, so it closed "from
+  closed" to the full fist, tucked between palm and brick. Outside style (props whose Grip is In the Palm): all thumb
+  turns tried; a thumb in it open by no more than the setting lies along it open (`lieAlong`); turns whose closed tip is
+  nearer the palm than half way to the thing's middle (`tuckedThumbs`) are taken only if none holds it from outside.
+  Mock: bricks 1-4 from "from closed, curl 4" to lying along (curl 0, or the half brick's tip curled round); rocks met
+  from open as before in the default pose, and rock2 at another pose from "inside" to met at 0.4.
+
+### In the headset
+
+- [ ] Hold the axe, open Held Object Offsets: it shows v_axe.mdl's thrown form; set Size, throw it.
+- [ ] Hold a rock, raise Size and Estimated Mass x on Held Object Weights: "Mass now" follows at once.
+- [ ] Rocks and bricks are bigger by default.
+- [ ] Force grab a brick from the table standing against it and don't catch it: it falls from your hand.
+- [ ] Hold a box or a brick, push the other hand into it: it stops at the surface and is held back; push much further:
+      it goes in; pull out and push again.
+- [ ] Hold bricks and rocks: the thumb on the outside, not squashed under them.
