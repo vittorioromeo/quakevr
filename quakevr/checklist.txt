@@ -127,7 +127,6 @@ After the Zancle follow-ups (no exceptions, fewer allocations): record a few tak
 
 [Decide or give feedback]
 Crouching makes you a smaller target for all bullets and missiles (Player Hitbox > hit box only up to your head, on by default): keep?
-Explosive boxes as shields too (vr_crate_shield 2: they blow up in your hands)? Off by default
 Physics threads: default 150-body threshold and 4-thread cap OK?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?

@@ -148,8 +148,11 @@ const DefaultChange defaultChanges[] = {
     // all the way (90, the author's, to make the old test pass) takes the defaults, or flat throws would stick.
     {67, &vr_axestick_angle, "90"},          // 45
     {67, &vr_axestick_incidence, "90"},      // 65
+    // 68: explosive boxes held up as shields too ("it's the player's fault if they use an explosive as a shield", the
+    // author, 2026-10-01).
+    {68, &vr_crate_shield, "1"},            // 2
 };
-constexpr int configVersion = 67;
+constexpr int configVersion = 68;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
