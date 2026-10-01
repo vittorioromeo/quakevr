@@ -37,6 +37,9 @@ $frame prowl_1 prowl_2 prowl_3 prowl_4 prowl_5 prowl_6 prowl_7 prowl_8
 $frame prowl_9 prowl_10 prowl_11 prowl_12 prowl_13 prowl_14 prowl_15 prowl_16
 $frame prowl_17 prowl_18 prowl_19 prowl_20 prowl_21 prowl_22 prowl_23 prowl_24
 
+// VR: the shove (quakevr/progs: Misc/quakevr/make_enemyshove.py appends these after the model's own frames)
+$frame shove1 shove2 shove3 shove4 shove5 shove6
+
 /*
 ==============================================================================
 SOLDIER CODE
@@ -102,6 +105,14 @@ void()    army_atk6    =[    $shoot6,    army_atk7    ] {ai_face();army_burst();
 void()    army_atk7    =[    $shoot7,    army_atk8    ] {ai_face();army_burst();SUB_CheckRefire (army_atk1);};
 void()    army_atk8    =[    $shoot8,    army_atk9    ] {ai_face();};
 void()    army_atk9    =[    $shoot9,    army_run1    ] {ai_face();};
+
+// VR: the shove (vr_enemyshove.qc): a wind-up, the push with both hands on the gun (the blow), back.
+void()    army_shove1    =[    $shove1,    army_shove2    ] {ai_face();};
+void()    army_shove2    =[    $shove2,    army_shove3    ] {ai_face();};
+void()    army_shove3    =[    $shove3,    army_shove4    ] {ai_face();};
+void()    army_shove4    =[    $shove4,    army_shove5    ] {VR_EnemyShove_Hit();};
+void()    army_shove5    =[    $shove5,    army_shove6    ] {};
+void()    army_shove6    =[    $shove6,    army_run1    ] {};
 
 
 void()    army_pain1    =[    $pain1,        army_pain2    ] {};
@@ -367,6 +378,7 @@ void() monster_army =
     self.th_walk = army_walk1;
     self.th_run = army_run1;
     self.th_missile = army_atk1;
+    self.th_vrshove = army_shove1;
     self.th_pain = army_pain;
     self.th_die = army_die;
 

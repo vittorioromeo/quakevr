@@ -1215,13 +1215,17 @@ void(entity p, float hand) VR_Counter_Open;
 // The firing range's training dummy while its own blow is dealt (vr_dummy.qc, vr_dummy_attacks): only then.
 .float vr_dummy_striking;
 
+// A grunt's or an enforcer's shove while its blow is dealt (vr_enemyshove.qc): parried as a melee blow; its push is its
+// own (VR_EnemyShove_Push), not the parry's nor a melee blow's.
+.float vr_eshove_striking;
+
 // Monsters that strike in melee (a blow comes from the monster itself, up close).
 float(entity e) VR_Parry_MeleeMonster =
 {
     string c = e.classname;
     return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_ogre" || c == "monster_demon1" ||
            c == "monster_dog" || c == "monster_shambler" || c == "monster_fish" || c == "monster_gremlin" ||
-           c == "monster_mummy" || e.vr_dummy_striking;
+           c == "monster_mummy" || e.vr_dummy_striking || e.vr_eshove_striking;
 };
 
 // Whether `p`'s `hand` holds a weapon with the hand's forward across `toAttacker` (horizontal, unit):
@@ -1509,7 +1513,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         self = oldSelfX;
 
         VR_Push(attacker, to, 260 * cvar_hget(cvarh_vr_parry_push_enemy), 90 * cvar_hget(cvarh_vr_parry_push_enemy));
-        VR_Push(targ, to * -1, 200 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
+        if(!attacker.vr_eshove_striking) // (a shove pushes you its own way: VR_EnemyShove_Hit)
+        {
+            VR_Push(targ, to * -1, 200 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
+        }
         dprint("parry: "); dprint(attacker.classname); dprint(" with crossed arms\n");
         VR_Motion_Event("parry", "arms", -1, damage, VRGetHandPos(cVR_MainHand), attacker, "");
         vr_parried = 2;
@@ -1551,7 +1558,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 
         // Both are pushed apart (vr_parry_push_enemy, vr_parry_push_player).
         VR_Push(attacker, to, 320 * cvar_hget(cvarh_vr_parry_push_enemy), 120 * cvar_hget(cvarh_vr_parry_push_enemy));
-        VR_Push(targ, to * -1, 180 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
+        if(!attacker.vr_eshove_striking) // (a shove pushes you its own way: VR_EnemyShove_Hit)
+        {
+            VR_Push(targ, to * -1, 180 * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
+        }
 
         dprint("parry: "); dprint(attacker.classname); dprint(" with hand "); dprint(ftos(hand));
         dprint(twoHanded ? " (two hands)\n" : "\n");
@@ -1619,7 +1629,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
     // VR: a monster's melee blow that was not parried throws the player back (vr_melee_push_player;
     // Quake's own push is weak).
     if(r && parried == damage && inflictor == attacker && (attacker.flags & FL_MONSTER) &&
-       targ.classname == "player" && VR_Parry_MeleeMonster(attacker) && vlen(attacker.origin - targ.origin) < 150)
+       targ.classname == "player" && VR_Parry_MeleeMonster(attacker) && !attacker.vr_eshove_striking && vlen(attacker.origin - targ.origin) < 150)
     {
         VR_Push(targ, targ.origin - attacker.origin, damage * 12 * cvar_hget(cvarh_vr_melee_push_player),
             damage * 3 * cvar_hget(cvarh_vr_melee_push_player));

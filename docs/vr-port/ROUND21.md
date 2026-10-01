@@ -18725,3 +18725,55 @@ the ground, a trap of a dropped unarmed hand grenade shot from afar.
   a rocket and a laser. Two duds 40 units apart: the second set off by the first's blast 0.12 s later (flung by it
   first). A grunt 32 units past a dud: 97 damage by the grenade, credited to the player, gibbed.
 - `vr_grenade_shoot 0`: nothing to shoot. Melee canary: no differences.
+## Grunts and enforcers shove you (2026-10-01)
+
+Stand too close to a grunt or an enforcer and, after a moment, it shoves you away: a short wind-up (the gun drawn in,
+leaning back), then a push with both hands on the gun, leaning in. Parry it as any melee blow.
+
+### How it works (QC `vr_enemyshove.qc`)
+
+- **When:** you within Too Close (`vr_enemy_shove_range` 52 units between your middles, flat; touching is 32; up to 48
+  above or below; in its sight) for Delay (`vr_enemy_shove_delay` 0.6 s), its Cooldown (`vr_enemy_shove_cooldown` 3 s,
+  from its last shove's start, parried or not) over, you within 60 degrees of its facing (else it turns to you first).
+  Checked in the AI's stand, walk and run thinks (`ai.qc`: `ai_stand`, `ai_walk`, `ai_run`, before deciding to fire),
+  so never while it fires (its attack frames call none of them), is in pain, or dies. And only when it is ready
+  (`VR_EnemyShove_Ready`): alive, on the floor, not staggered (`pain_finished`), not sliding from a push (`vr_shove`,
+  combat.qc), not charmed. An idle one notices you (Quake's `FoundTarget`) and shoves, then fights. `notarget`: never.
+- **The blow** (its 4th frame, 0.3 s after the start): if you're still in reach (+16) and ahead of it, `T_Damage` for
+  `vr_enemy_shove_damage` (5) with `.vr_eshove_striking` set, so `VR_Parry_MeleeMonster` takes it as a melee blow: the
+  existing parry (a weapon across, crossed arms; its sounds, counter window, stamina, the attacker pushed back) cuts the
+  damage as any parry's. Damage 0: no parry possible (the parry runs inside `T_Damage`). `vr/shove.wav` (half volume
+  parried), a rumble in both hands when it lands.
+- **The push** (`VR_EnemyShove_Push`): a slide of the player's, `vr_enemy_shove_distance` (64 units, about 2 m) away
+  from it, times `vr_enemy_shove_parried` (0.35) when parried; decelerating at 1200 u/s/s (64 units: 0.33 s), set every
+  player frame before the move (`client.qc` `PlayerPreThink` -> `VR_EnemyShove_PlayerFrame`). Not the player shove's
+  impulse (`VR_Push`): on the ground Quake's friction eats an impulse unevenly (a 0.35x impulse goes about a fifth as
+  far), so the setting is a distance and the parried one is 0.35x of it. Not scaled by `vr_push`. For a shove the
+  parry's own push of you, and the unparried melee blow's push (`vr_melee_push_player`), are left out.
+- **Animation:** `Misc/quakevr/make_enemyshove.py` appends six frames (shove1..shove6) to `quakevr/progs/soldier.mdl`
+  (frames 114-119) and `enforcer.mdl` (102-107); every existing frame is byte for byte as it was (only the header's frame
+  count changes). Made from stand1 by a soft deformation (the models have no skeleton): the gun moves rigidly, the arms
+  follow it from the hands (full at the grip points, nothing at the shoulders, by distance along the surface), the upper
+  body leans about the hips; normals are stand1's turned by the lean. Re-running replaces its own frames (tune
+  `GRUNT_KEYS` / `ENFORCER_KEYS`: lean, thrust). QC: `army_shove1..6`, `enf_shove1..6` (`th_vrshove`).
+- **Settings:** Combat > Enemy Shoves (page 81). **Debug > Tests > Enemy Shoves:** Shove the Nearest Monster (`impulse
+  219`: your two-handed shove's knockback and stagger on it). `developer 1` logs each shove ("enemy shove: monster_army
+  starts its shove at 2.27 (from frame 74)...", "shoves the player (parried): 5 damage (health 100 -> 98), pushed 22.4
+  units", "the player slid 22.3 units") and why a ready-to-shove one can't ("can't shove: staggered").
+
+### Tests (mock, vrcalibration's open floor; `vr_test_spawn 0`/`8`, `impulse 241`, 40-52 units ahead)
+
+| Test | Result |
+|---|---|
+| Grunt, you standing still | shoves at 2.21-2.27 s (0.6 s after noticing you), 63.7 units slid (of 64), 5 damage |
+| Cooldown | next shoves 3.3-3.8 s later (cooldown 3 + delay + its walk back) |
+| Parried (crowbar across, `vr_mock_hand main 0.15 1.35 -0.35 0 90 0`) | "parry: monster_army with hand 1", 22.3 units (0.350x), health 100 -> 98 (1.25) |
+| Enforcer, unparried / parried | 63.7 / 22.3 units, 5 / 1.25 damage |
+| Staggered every 0.5 s for 5 s at 28-40 units (`impulse 219`, `vr_bash_push 0.05`) | no shove; "can't shove: staggered", then it shoves 0.6 s later |
+| Firing | every shove started from a run frame (73-77; grunt; 24-25 enforcer), never an attack frame |
+| Side views | wind-up, the push with both arms out, you thrown back (scratchpad shots) |
+| Melee canary | 48/53, no differences from the baseline |
+
+Not verified: in the headset (the push's comfort at 64 units, readability of the 0.3 s wind-up), against stairs and
+ledges (the slide steps up and goes over edges as walking does), climbing (a shove while you hang from a hold: the climb
+probably overrides the slide's velocity).

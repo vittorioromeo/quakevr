@@ -1627,6 +1627,9 @@ void() PlayerPreThink =
 
     // The grappling hooks of the guns in the hands and the holsters (vr_grapple.qc)
     VR_Grapple_PlayerFrame();
+
+    // Slid by a grunt's or an enforcer's shove (vr_enemyshove.qc)
+    VR_EnemyShove_PlayerFrame();
 };
 
 /*

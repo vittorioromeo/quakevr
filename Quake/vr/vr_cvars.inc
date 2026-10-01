@@ -1289,6 +1289,13 @@ QVR_CVAR(vr_melee_push, "0.5", CVAR_ARCHIVE)               // how far your melee
 QVR_CVAR(vr_melee_push_player, "0.6", CVAR_ARCHIVE)        // how far monsters' melee blows push you
 QVR_CVAR(vr_parry_push_enemy, "1", CVAR_ARCHIVE)         // how far a parry pushes the attacker back
 QVR_CVAR(vr_parry_push_player, "1", CVAR_ARCHIVE)        // and you
+QVR_CVAR(vr_enemy_shove, "1", CVAR_ARCHIVE)              // grunts and enforcers shove you away when you stand too close (QC vr_enemyshove.qc)
+QVR_CVAR(vr_enemy_shove_range, "52", CVAR_ARCHIVE)       // how close (units between your middles, flat; touching is 32)
+QVR_CVAR(vr_enemy_shove_delay, "0.6", CVAR_ARCHIVE)      // seconds that close before it shoves (not while it fires, is staggered or knocked away)
+QVR_CVAR(vr_enemy_shove_cooldown, "3", CVAR_ARCHIVE)     // seconds from one shove to its next (parried or not)
+QVR_CVAR(vr_enemy_shove_damage, "5", CVAR_ARCHIVE)       // a shove's damage (0: none, and it can't be parried)
+QVR_CVAR(vr_enemy_shove_distance, "64", CVAR_ARCHIVE)    // how far it pushes you (units, a slide; not scaled by vr_push)
+QVR_CVAR(vr_enemy_shove_parried, "0.35", CVAR_ARCHIVE)   // a parried shove's push, times the distance
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)
 QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // heavy weapon hits shove monsters
 QVR_CVAR(vr_kill_push, "1", CVAR_ARCHIVE)                // killing blows throw the bodies

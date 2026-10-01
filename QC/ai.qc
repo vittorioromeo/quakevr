@@ -780,9 +780,16 @@ ai_walk
 The monster is walking it's beat
 =============
 */
+// VR: grunts and enforcers shove you away when you stand too close (vr_enemyshove.qc): checked in the stand, walk and
+// run thinks; TRUE when the shove started.
+float() VR_EnemyShove_Check;
+
 void(float dist) ai_walk =
 {
     movedist = dist;
+
+    if(VR_EnemyShove_Check())
+        return;
 
 //MED 01/20/97
     // check for noticing a player
@@ -810,6 +817,9 @@ The monster is staying in one place for a while, with slight angle turns
 */
 void() ai_stand =
 {
+    if(VR_EnemyShove_Check())
+        return;
+
    if(FindTarget ())
       return;
 
@@ -1108,6 +1118,10 @@ void(float dist) ai_run =
     }
 
     self.show_hostile = time + 1;        // wake up other monsters
+
+    // VR: too close, it shoves you (before deciding to fire).
+    if(VR_EnemyShove_Check())
+        return;
 
 // check knowledge of enemy
     enemy_vis = visible(self.enemy);

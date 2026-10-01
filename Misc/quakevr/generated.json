@@ -35,6 +35,10 @@
   "sha256": "35bc4304f5ca2c2028a9b61abd5e9625a6ffb7577cfe5bd4e444be3490d1d239",
   "by": "make_spawn_buttons.py"
  },
+ "quakevr/progs/enforcer.mdl": {
+  "sha256": "d442e5763f8581b5431c9d815339b9fb0ed416d2ef1b912ab10064092ff8a44e",
+  "by": "make_enemyshove.py"
+ },
  "quakevr/progs/finger_index.mdl": {
   "sha256": "88f6798e8f9f44459c973b1d93b8912bbeff6d341e4cd822f280c0102f8a0791",
   "by": "make_bloody_hands.py",
@@ -114,6 +118,10 @@
   "sha256": "b52b792dec174216883857a7bb6a2a46e8f90e37f2f925bef32d99fb6b8eff7a",
   "by": "make_grenade_skins.py",
   "part": "mdl skins after 0"
+ },
+ "quakevr/progs/soldier.mdl": {
+  "sha256": "36cc9c8ba2b919d993f1a1206772075b457dda42933895be701cee2e0e6ce92a",
+  "by": "make_enemyshove.py"
  },
  "quakevr/progs/v_axe.mdl": {
   "sha256": "b411c919fa6a6ded00bd87d7040b5ae07f0988619b4eeacc93399738ca4309e4",

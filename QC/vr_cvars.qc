@@ -319,6 +319,13 @@ float cvarh_vr_forcegrabbable_box_scale;
 float cvarh_vr_forcegrabbable_return_time_deathmatch;
 float cvarh_vr_forcegrabbable_return_time_singleplayer;
 float cvarh_vr_reload_mode;
+float cvarh_vr_enemy_shove;
+float cvarh_vr_enemy_shove_range;
+float cvarh_vr_enemy_shove_delay;
+float cvarh_vr_enemy_shove_cooldown;
+float cvarh_vr_enemy_shove_damage;
+float cvarh_vr_enemy_shove_distance;
+float cvarh_vr_enemy_shove_parried;
 
 //
 //
@@ -648,6 +655,13 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_forcegrabbable_return_time_deathmatch);
     VR_CVAR_HMAKE(vr_forcegrabbable_return_time_singleplayer);
     VR_CVAR_HMAKE(vr_reload_mode);
+    VR_CVAR_HMAKE(vr_enemy_shove);
+    VR_CVAR_HMAKE(vr_enemy_shove_range);
+    VR_CVAR_HMAKE(vr_enemy_shove_delay);
+    VR_CVAR_HMAKE(vr_enemy_shove_cooldown);
+    VR_CVAR_HMAKE(vr_enemy_shove_damage);
+    VR_CVAR_HMAKE(vr_enemy_shove_distance);
+    VR_CVAR_HMAKE(vr_enemy_shove_parried);
 
 #undef VR_CVAR_HMAKE
 }
