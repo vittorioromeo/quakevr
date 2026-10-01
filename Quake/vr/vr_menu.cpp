@@ -748,6 +748,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Sound Source Size", vr_snd_occlusion_radius, 0.1f, 2.f, 0.1f, "%.1f m")
             .help("The sphere a sound comes from, for partial occlusion."),
         toggle("Air Absorption", vr_snd_air).help("Far sounds lose their highs in the air."),
+        slider("Distance Falloff", vr_snd_falloff, 0.f, 2.f, 0.05f, "%.2fx")
+            .help("How fast sounds get quieter with distance: 1 as Quake (a sound gone at about 30 m), 0.5 they carry "
+                  "twice as far, 0 never quieter. Every sound, spatial audio on or off."),
         slider("Room Reverb", vr_snd_reverb, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 2.f)
             .help("The reverb of the space around your head, simulated from the map (a small room rings short, a big hall "
                   "long): how loud. 0 off."),
@@ -1818,9 +1821,9 @@ void hologramTestMessage()
         open("Held Object Weights (Held Prop)", pageIndex(pageHeldObjectWeights))
             .help("The mass, spring and damage of what a hand carries (Aiming: Weight for how weight feels)."),
         header("Physics Sounds"),
-        slider("Physics Sounds", vr_physsound, 0.f, 1.f, 0.1f, "%.1f")
+        slider("Physics Sounds", vr_physsound, 0.f, 2.f, 0.1f, "%.1f")
             .help("Volume of what things say as physics moves them: knocks as they land, bounce and hit each other, "
-                  "scrapes as they slide, a climbing hand taking a hold (0 off). By what they are made of: wood (crates, "
+                  "scrapes as they slide, a climbing hand taking a hold (0 off; over 1 louder than recorded, up to 2). By what they are made of: wood (crates, "
                   "torches), metal (weapons, ammo, armour), stone, brick, flesh (gibs, heads), a backpack's thud."),
         slider("Knocks", vr_physsound_impact, 0.f, 1.f, 0.1f, "%.1f")
             .help("Things hitting the floor, walls, doors and each other: louder the harder and the heavier, a heavy "

@@ -148,6 +148,25 @@ bool Mixer::create(int rate, int frameSize, const char* sofa)
         hrtf = nullptr;
         return false;
     }
+    // The lanes' HRTFs: copies of it (as many as the pool's threads, the caller's too, up to maxLanes).
+    laneHrtfs[0] = hrtf;
+    lanes = 1;
+    const int wanted = za::clamp(jobs::workers() + 1, 1, maxLanes);
+    while(lanes < wanted)
+    {
+        IPLHRTFSettings copy = hs;
+        if(sofaLoaded)
+        {
+            copy.type = IPL_HRTFTYPE_SOFA;
+            copy.sofaFileName = sofa;
+        }
+        IPLHRTF h = nullptr;
+        if(sa->iplHRTFCreate(steamaudio::context(), &as, &copy, &h) != IPL_STATUS_SUCCESS || !h)
+        {
+            break;
+        }
+        laneHrtfs[lanes++] = h;
+    }
     for(Voice& v : voices)
     {
         IPLBinauralEffectSettings bs{hrtf};
@@ -207,6 +226,12 @@ void Mixer::destroy()
     reflection = nullptr;
     decode = nullptr;
     reverbOrder = -1;
+    for(int i = 1; i < lanes; i++)
+    {
+        sa->iplHRTFRelease(&laneHrtfs[i]);
+    }
+    laneHrtfs = {};
+    lanes = 0;
     if(hrtf)
     {
         sa->iplHRTFRelease(&hrtf);
@@ -424,7 +449,7 @@ void Mixer::read(Voice& v, float* out, float step0, float step1)
     v.pos = pos;
 }
 
-void Mixer::process(Voice& v, int blocks, const Features& f)
+void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
 {
     const int n = frame;
     for(int b = 0; b < blocks; b++)
@@ -491,7 +516,7 @@ void Mixer::process(Voice& v, int blocks, const Features& f)
             p.direction = v.dir;
             p.interpolation = f.bilinear ? IPL_HRTFINTERPOLATION_BILINEAR : IPL_HRTFINTERPOLATION_NEAREST;
             p.spatialBlend = v.blend;
-            p.hrtf = hrtf;
+            p.hrtf = laneHrtf;
             p.peakDelays = nullptr;
             float* inPtr[1] = {src};
             float* outPtr[2] = {v.l.data(), v.r.data()};
@@ -571,22 +596,44 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
             list[active++] = i;
         }
     }
-    if(active == 1)
+    // Lane j renders the voices j, j + lanes, ... with its own HRTF (never two threads on one).
+    const int used = za::min(active, lanes);
+    if(used == 1)
     {
-        process(voices[list[0]], blocks, f);
+        for(int k = 0; k < active; k++)
+        {
+            process(voices[list[k]], blocks, f, laneHrtfs[0]);
+        }
     }
-    else if(active > 1)
+    else if(used > 1)
     {
-        jobs::parallelFor(static_cast<za::SizeT>(active), 1, [&](za::SizeT begin, za::SizeT end) {
-            for(za::SizeT k = begin; k < end; k++)
+        jobs::parallelFor(static_cast<za::SizeT>(used), 1, [&](za::SizeT begin, za::SizeT end) {
+            for(za::SizeT j = begin; j < end; j++)
             {
-                process(voices[list[k]], blocks, f);
+                for(int k = static_cast<int>(j); k < active; k += used)
+                {
+                    process(voices[list[k]], blocks, f, laneHrtfs[j]);
+                }
             }
         });
     }
     for(int k = 0; k < active; k++)
     {
-        const Voice& v = voices[list[k]];
+        Voice& v = voices[list[k]];
+        // A voice that made not-numbers (it never should) is dropped from this call and its effects reset: one would
+        // stay in the reverb's and the HRTF's convolutions and crackle on and on.
+        float check = 0.f;
+        for(int i = 0; i < count; i++)
+        {
+            check += v.outL[i] * 0.f + v.outR[i] * 0.f;
+        }
+        if(check != 0.f)
+        {
+            sa->iplBinauralEffectReset(v.binaural);
+            sa->iplDirectEffectReset(v.direct);
+            qza::fill(v.send.begin(), v.send.begin() + count, 0.f);
+            continue;
+        }
         for(int i = 0; i < count; i++)
         {
             outL[i] += v.outL[i];
@@ -860,6 +907,54 @@ int handOf(const channel_t* ch)
     }
     return ch->entchannel == 5 ? HAND_OFF : HAND_MAIN;
 }
+
+// vr_snd_falloff: Quake's distance falloff scaled (1 Quake's own; 0.5 a sound carries twice as far).
+float falloffScale()
+{
+    return za::clamp(vr_snd_falloff.value, 0.f, 4.f);
+}
+
+} // namespace
+
+// A sound's place a little into a wall or the floor (a prop knocking: its contact; a hold the hand takes; a shot's
+// impact) taken out of it, towards the head: Steam Audio's occlusion (and the world's line of sight standing in for it)
+// found such a place behind the surface and hid it, 21 dB quieter than Quake in sight of the head (vr_snd_test
+// distance). Up to 32 units (a metre) along the line to the head, in 2-unit steps; one deeper in stays where it is.
+glm::vec3 outOfSolid(const glm::vec3& at, const glm::vec3& head)
+{
+    if(!cl.worldmodel)
+    {
+        return at;
+    }
+    const auto solid = [](const glm::vec3& p) {
+        vec3_t q{p.x, p.y, p.z};
+        const mleaf_t* leaf = Mod_PointInLeaf(q, cl.worldmodel);
+        return leaf && leaf->contents == CONTENTS_SOLID;
+    };
+    if(!solid(at))
+    {
+        return at;
+    }
+    const glm::vec3 d = head - at;
+    const float len = glm::length(d);
+    if(len < 1.f)
+    {
+        return at;
+    }
+    const glm::vec3 dir = d / len;
+    for(float step = 2.f; step <= za::min(32.f, len); step += 2.f)
+    {
+        const glm::vec3 p = at + dir * step;
+        if(!solid(p))
+        {
+            return p + dir * 1.f; // (and a unit clear of the surface)
+        }
+    }
+    return at;
+}
+
+namespace
+{
 
 bool eligible(const channel_t* ch)
 {
@@ -1348,7 +1443,7 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
                         }
                     }
                 }
-                s.pos = toSteam(at, f.unitsPerMetre);
+                s.pos = toSteam(outOfSolid(at, L.listener.pos), f.unitsPerMetre);
                 n = v + 1;
             }
         }
@@ -1394,7 +1489,7 @@ extern "C" int VR_SndSpatialize(channel_t* ch)
         ch->origin[2] = p.z;
         vec3_t d;
         VectorSubtract(ch->origin, listener_origin, d);
-        const float dist = VectorNormalize(d) * ch->dist_mult;
+        const float dist = VectorNormalize(d) * ch->dist_mult * falloffScale();
         const float dot = DotProduct(listener_right, d);
         const float scale = za::max(0.f, 1.f - dist);
         ch->rightvol = za::max(0, static_cast<int>(static_cast<float>(ch->master_vol) * scale * (1.f + dot)));
@@ -1439,11 +1534,33 @@ extern "C" int VR_SndSpatialize(channel_t* ch)
             }
         }
     }
-    return 0;
+    const float scale = falloffScale();
+    if(scale == 1.f || ch->entnum == cl.viewentity)
+    {
+        return 0; // (Quake's own panning and falloff; the player's own sounds at full volume)
+    }
+    // SND_Spatialize's panning with the falloff scaled.
+    vec3_t d;
+    VectorSubtract(ch->origin, listener_origin, d);
+    const float dist = VectorNormalize(d) * ch->dist_mult * scale;
+    const float dot = shm && shm->channels == 1 ? 0.f : DotProduct(listener_right, d);
+    const float gain = 1.f - dist;
+    ch->rightvol = za::max(0, static_cast<int>(static_cast<float>(ch->master_vol) * gain * (1.f + dot)));
+    ch->leftvol = za::max(0, static_cast<int>(static_cast<float>(ch->master_vol) * gain * (1.f - dot)));
+    return 1;
 }
 
 extern "C" void VR_SndStarted(channel_t* ch)
 {
+    // The physics sounds louder than the server can send (its volume byte stops at 1): vr_physsound over 1 multiplies
+    // them here (vr_physsound.cpp sends them at most at 1).
+    if(ch->sfx && vr_physsound.value > 1.f && !q_strncasecmp(ch->sfx->name, "vr/phys/", 8))
+    {
+        const float boost = za::min(vr_physsound.value, 2.f);
+        ch->master_vol = static_cast<int>(static_cast<float>(ch->master_vol) * boost);
+        ch->leftvol = static_cast<int>(static_cast<float>(ch->leftvol) * boost); // (spatialized already)
+        ch->rightvol = static_cast<int>(static_cast<float>(ch->rightvol) * boost);
+    }
     if(!live)
     {
         return;
@@ -1560,7 +1677,8 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
         const channel_t* ch = &snd_channels[c];
         VoiceInput in;
         in.pos = glm::vec3{ch->origin[0], ch->origin[1], ch->origin[2]};
-        const float falloff = za::max(0.f, 1.f - glm::length(in.pos - L.listener.pos) * ch->dist_mult);
+        const float falloff =
+            za::max(0.f, 1.f - glm::length(in.pos - L.listener.pos) * ch->dist_mult * falloffScale());
         in.gain = static_cast<float>(ch->master_vol) * falloff * volume;
         in.attached = handOf(ch) >= 0;
         if(c < dynamicChannels && L.follow[c].active && vr_snd_follow.value != 0.f)
@@ -1578,8 +1696,9 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
                 trace_t trace;
                 ZA_MEMSET(&trace, 0, sizeof trace);
                 trace.fraction = 1.f;
+                const glm::vec3 out = outOfSolid(in.pos, L.listener.pos);
                 vec3_t from{L.listener.pos.x, L.listener.pos.y, L.listener.pos.z};
-                vec3_t to{in.pos.x, in.pos.y, in.pos.z};
+                vec3_t to{out.x, out.y, out.z};
                 SV_RecursiveHullCheck(cl.worldmodel->hulls, 0, 0.f, 1.f, from, to, &trace);
                 L.guess[v] = DirectResult{};
                 if(trace.fraction < 1.f || trace.allsolid)

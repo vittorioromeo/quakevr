@@ -43,6 +43,9 @@ struct Features
 };
 [[nodiscard]] Features featuresFromCvars();
 
+// A place a little into the map's solid (a contact, an impact) moved out of it towards `head` (vr_audio.cpp).
+[[nodiscard]] glm::vec3 outOfSolid(const glm::vec3& at, const glm::vec3& head);
+
 // What a voice plays from where, set each time it renders.
 struct VoiceInput
 {
@@ -80,6 +83,10 @@ public:
     [[nodiscard]] int frameSize() const
     {
         return frame;
+    }
+    [[nodiscard]] int laneCount() const
+    {
+        return lanes;
     }
     [[nodiscard]] bool customHrtf() const
     {
@@ -151,7 +158,7 @@ private:
     };
 
     void prepare(Voice& v, const Listener& l, const Features& f) const;
-    void process(Voice& v, int blocks, const Features& f);
+    void process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf);
     void read(Voice& v, float* out, float step0, float step1);
 
     const steamaudio::Api* sa{nullptr};
@@ -159,6 +166,12 @@ private:
     int frame{0};
     bool sofaLoaded{false};
     IPLHRTF hrtf{nullptr};
+    // The voices are rendered in lanes (a pool task each, its voices one after another), each lane with an HRTF of
+    // its own (the first: `hrtf`): Steam Audio's bilinear interpolation works in the HRTF's own buffers, so two voices
+    // interpolating one HRTF at once on two threads made not-numbers (the author's crackling, ROUND21.md).
+    static constexpr int maxLanes = 8;
+    za::Array<IPLHRTF, maxLanes> laneHrtfs{};
+    int lanes{0};
     za::Array<Voice, maxVoices> voices;
 
     // The reverb.
