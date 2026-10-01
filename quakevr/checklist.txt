@@ -53,7 +53,12 @@ Several boxes exploding together: no crackle (Sound > Advanced > Mix Limiter on;
 Throws by weight (Throwing and Physics > Throws by Weight): axe and grenades exactly as before; super nailgun ~10 m hard one-handed, laser cannon ~4 m, much farther with two hands; explosive boxes and crates much weaker one-handed (40 kg box can't reach a damaging throw one-handed: raise the prop's Throw or lower Heavy Falloff if wanted)
 Laser cannon: vents and grooves carved in, keel/bottom/grip no longer stretched, both sides match: look close up, from below, lying on the floor
 
+Let go of the chainsaw or laser cannon at your body (no throw): it never hurts you; a real throw falling back still can
+Parry the ogre's chainsaw and a charging knight: one ring and one counter per attack, every blow's damage still cut, stamina no longer drained within one swing (Parry and Bash > Parry Cooldown 0.4 s)
+After the Zancle update (vendored = upstream 534219bf, no local changes): model ambient lighting on monsters and items, a general play pass
+
 [Decide or give feedback]
+Parry cooldown: blows inside it also cost no parry stamina (else an ogre swing exhausts you every time): OK?
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
