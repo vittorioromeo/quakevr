@@ -1648,6 +1648,10 @@ void hologramTestMessage()
             .help("Tilts every throw up (or down, below 0). 0: as throws were tuned; the hand calibration doesn't change them."),
         toggle("Analog Release", vr_throw_release)
             .help("A throw lets go as the grip starts to open, not only once it is released."),
+        toggle("Spin From Controller Turn", vr_throw_spin_from_pose)
+            .help("A throw's spin from how the controller turned, not the runtime's angular velocity (Virtual Desktop "
+                  "reports it in the controller's frame: a flick facing away from the play space's front spun throws "
+                  "sideways)."),
         slider("Max Speed Gain", vr_throw_gain_max, 1.f, 3.f, 0.05f, "%.2fx").extend()
             .help("Extra speed for fast throws, which feel weak at true speed."),
         toggle("Aim Assist", vr_throw_assist)
@@ -2280,7 +2284,8 @@ za::Vector<Item> pageDebugLogging()
             .help("Each missile's hit (rockets, nails, grenades, lasers...): what it met, where and the surface's normal; "
                   "a solid prop: its drawn box as it stands (vr_debug_missiles)."),
         cycle("Throws", vr_debug_throw, {{0.f, "Off"}, {1.f, "Each Throw"}, {2.f, "And Its Timing"}})
-            .help("Each throw's speed estimate from the hand's motion (and the release's timing)."),
+            .help("Each throw's speed estimate from the hand's motion (and the release's timing); a thrown weapon's spin "
+                  "and how far its axis is off end over end (0: a wrist flick's, tip going down; needs Developer Messages)."),
         toggle("Axe Sticks", vr_debug_axestick)
             .help("Each thrown axe's blade striking something: stuck (how fast, how deep, at what angles) or why it bounced; "
                   "its bleeding, its fall, its pull. Needs Developer Messages for the last."),

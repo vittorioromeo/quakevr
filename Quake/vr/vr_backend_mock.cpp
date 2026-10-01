@@ -689,6 +689,11 @@ public:
             hand.gripVelocity = hand.gripVelocityValid
                                     ? hand.linearVelocity - glm::cross(hand.angularVelocity, -(hand.orientation * tracking.gripInHand[h].offset))
                                     : glm::vec3{0.f};
+            // vr_mock_angvel_local: the angular velocity in the controller's own frame, as VirtualDesktopXR reports it.
+            if(vr_mock_angvel_local.value)
+            {
+                hand.angularVelocity = glm::inverse(hand.orientation) * hand.angularVelocity;
+            }
         }
 
         // The head likewise (a lunge scripted with vr_mock_hand head).

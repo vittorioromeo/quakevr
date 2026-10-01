@@ -57,6 +57,12 @@ QVR_CVAR(vr_throw_lever_arm, "0.1", CVAR_ARCHIVE)   // metres from the palm to t
 QVR_CVAR(vr_throw_dir_lookback, "0.04", CVAR_ARCHIVE) // seconds before the peak the direction is averaged over
 QVR_CVAR(vr_throw_ang_threshold, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_ang_factor, "0.7", CVAR_ARCHIVE)
+// A throw's spin (and a wrist flick's speed through the lever arm), 1: from the controller's turn between tracking samples
+// (vr_hands.cpp poseSpin); 0: the runtime's angular velocity, which OpenXR gives in the tracking space but
+// VirtualDesktopXR 1.0.10 gives in the controller's own frame (takes of 2026-09-29: 0.97 against the turn in the
+// controller's frame, 0.3-0.5 in the tracking space): a flick facing anywhere but the play space's front then spun
+// the throw about another axis (an upright axe flicked end over end left the hand cartwheeling sideways).
+QVR_CVAR(vr_throw_spin_from_pose, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_pitch, "0", CVAR_ARCHIVE)        // degrees every throw's direction is tilted up (negative: down), its speed kept
 QVR_CVAR(vr_throw_gravity, "9.81", CVAR_ARCHIVE)   // m/s^2 on thrown weapons, bounces included (0: sv_gravity)
 QVR_CVAR(vr_debug_throw, "0", CVAR_NONE)           // print each throw's estimate (2: and its timing)
@@ -120,6 +126,9 @@ QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
 // Mock backend: 1 reports the grip's (the palm's) velocity too, as the OpenXR backend does for a Touch controller with
 // vr_controller_legacy_pose (throws then go with the palm, as in the headset); 0 (the default): the raw pose's only.
 QVR_CVAR(vr_mock_grip_velocity, "0", CVAR_NONE)
+// Mock backend: 1 reports the hands' angular velocity in the controller's own frame, as VirtualDesktopXR 1.0.10 does
+// (vr_throw_spin_from_pose); 0 (the default): in the tracking space, as OpenXR says.
+QVR_CVAR(vr_mock_angvel_local, "0", CVAR_NONE)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)

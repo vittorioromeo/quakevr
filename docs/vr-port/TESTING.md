@@ -910,6 +910,11 @@ with them. `python Misc/quakevr/throw_calibration.py <takes folder>` models the 
 fix on recorded takes (the old and the new hand settings, each term alone) and prints the elevation and speed changes
 per take and per kind.
 
+A thrown axe's spin (ROUND21.md, "A thrown axe's spin: the runtime's angular velocity frame"): `bash
+Misc/quakevr/throw_spin_test.sh <agent>` flicks an upright axe facing three ways in the play space, with the runtime's
+angular velocity in the world and (`vr_mock_angvel_local 1`, as Virtual Desktop) in the controller's frame, before and
+after (`vr_throw_spin_from_pose`); each `thrown spin:` line (developer 1) says how far the spin is off end over end.
+
 Thrown axes sticking (ROUND21.md, "Thrown axes: the blade decides"): `bash Misc/quakevr/axe_stick_rates.sh <agent>
 <out dir> ["extra cmds"]` throws 60 synthetic hand throws of each kind (`vr_test_axe` 4 overhand, 5 sidearm, 6 sloppy, 8
 upright, 9 knife-style, 10 spear-like, 11 flat, 12 handle first) at vrfiringrange's target wall and prints each kind's
