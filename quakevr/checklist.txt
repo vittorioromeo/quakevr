@@ -85,7 +85,6 @@ After the Zancle migration (Debug build has Zancle asserts on): fights with gibs
 Gib enforcers until a severed head buzzes with flies; pick it up, punch or shoot it: the buzz stops
 
 [Decide or give feedback]
-Zancle in Debug builds: keep its asserts on (QVR_ZANCLE_DEBUG) after the migration, or back to optimised/no asserts?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 On a tilted box steeper than ~30 degrees you slowly slide off (like the level's steep slopes): should boxes count as ground up to a steeper angle?
