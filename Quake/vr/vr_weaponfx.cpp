@@ -18,6 +18,7 @@
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 
 #include <string.h>
 
@@ -53,7 +54,7 @@ struct HandFx
 };
 HandFx handFx[2];
 
-// A grunt's flash: its entity, since when, turned how.
+// A monster's flash (a grunt's or an enforcer's): its entity, since when, turned how.
 struct EnemyFlash
 {
     int ent{0};
@@ -91,46 +92,71 @@ unsigned seed = 0x2545F491u;
 // The draws' buffers (the main thread).
 struct WeaponFxScratch
 {
-    za::Vector<glm::vec3> rest; // a grunt's vertices (gruntMuzzle)
+    za::Vector<glm::vec3> rest; // a monster's vertices (monsterMuzzle)
     za::Vector<glm::vec3> now;
     za::Vector<gfx::Vertex> ribbons; // the tracers (drawTranslucent)
     auto members() { return mem::list(rest, now, ribbons); }
 };
 mem::Scratch<WeaponFxScratch> scratch{"weaponfx"};
 
-// soldier.mdl's gun (Quake VR's, a separate piece of the model: vertices 463..548, vr_monstermods.cpp), rigid: the ring
-// of its muzzle and its rear on the barrel's line (found in its first fire frame, shoot5, where it points along +x).
-// Their middles give its muzzle and which way it points in any frame, its recoil animation's too.
-constexpr int soldierVerts = 555;
+// The monsters' guns (Quake VR's models: each gun a separate piece of its model, vr_monstermods.cpp), rigid: the middle
+// of the muzzle's ring or face and of its rear on the barrel's line give its muzzle and which way it points in any frame,
+// its recoil animation's too.
+// - soldier.mdl (vertices 463..548): found in its first fire frame, shoot5, where it points along +x; the gun's length
+//   stays 28.4..28.6 model units in shoot1..9.
+// - enforcer.mdl (vertices 22, 23, 100, 400..430, 455..478: the rifle make_enemyguns.py cuts out): its muzzle face (the 7
+//   vertices furthest along the rifle) and 5 at its back whose middle lies on the rifle's long axis (0.02 degrees off it
+//   in attack6, the fire frame; 0.3 at most in the others); 29.9..30.3 model units apart in every frame.
+struct MonsterGun
+{
+    const char* model;
+    int verts;
+    za::Span<const int> muzzle;
+    za::Span<const int> rear;
+};
 constexpr int soldierMuzzle[] = {498, 499, 501, 502, 503, 504, 505, 506, 514, 515, 521, 522, 547, 548};
 constexpr int soldierRear[] = {465, 497, 500, 510, 544, 545};
-constexpr float flashOfGun = 0.3f; // a grunt's flash, as long as this share of its gun
+constexpr int enforcerMuzzle[] = {22, 100, 400, 401, 402, 403, 407};
+constexpr int enforcerRear[] = {404, 405, 423, 424, 425};
+const MonsterGun monsterGuns[] = {
+    {"progs/soldier.mdl", 555, soldierMuzzle, soldierRear},
+    {"progs/enforcer.mdl", 479, enforcerMuzzle, enforcerRear},
+};
+constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share of its gun
 
-[[nodiscard]] bool isSoldier(const entity_t& e)
+// The monster gun `e` is drawn with (one of monsterGuns, its model's vertex count checked), or none.
+[[nodiscard]] const MonsterGun* monsterGun(const entity_t& e)
 {
-    if(!e.model || e.model->type != mod_alias || strcmp(e.model->name, "progs/soldier.mdl") != 0)
+    if(!e.model || e.model->type != mod_alias)
     {
-        return false;
+        return nullptr;
     }
-    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
-    return hdr->numverts == soldierVerts;
+    for(const MonsterGun& g : monsterGuns)
+    {
+        if(strcmp(e.model->name, g.model) == 0)
+        {
+            const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
+            return hdr->numverts == g.verts ? &g : nullptr;
+        }
+    }
+    return nullptr;
 }
 
-// A grunt's gun's muzzle and where it points (unit), as drawn; its length in the world. False when it isn't one.
-[[nodiscard]] bool gruntMuzzle(const entity_t& e, glm::vec3& muzzle, glm::vec3& dir, float& gunLength)
+// A monster's gun's muzzle and where it points (unit), as drawn; its length in the world. False when it has none.
+[[nodiscard]] bool monsterMuzzle(const entity_t& e, glm::vec3& muzzle, glm::vec3& dir, float& gunLength)
 {
-    if(!isSoldier(e) || !anchor::posedVertices(e, 0.f, scratch.rest, scratch.now) ||
-        static_cast<int>(scratch.now.size()) != soldierVerts)
+    const MonsterGun* gun = monsterGun(e);
+    if(!gun || !anchor::posedVertices(e, 0.f, scratch.rest, scratch.now) || static_cast<int>(scratch.now.size()) != gun->verts)
     {
         return false;
     }
-    const auto middle = [](const auto& indices) {
+    const auto middle = [](za::Span<const int> indices) {
         glm::vec3 sum{0.f};
         for(const int i : indices)
         {
             sum += scratch.now[i];
         }
-        return sum / static_cast<float>(sizeof(indices) / sizeof(indices[0]));
+        return sum / static_cast<float>(indices.size());
     };
     float m[16];
     render::entityMatrix(e, false, e.scale ? e.scale : ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
@@ -138,8 +164,8 @@ constexpr float flashOfGun = 0.3f; // a grunt's flash, as long as this share of 
         return glm::vec3{m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12], m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13],
             m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
     };
-    muzzle = world(middle(soldierMuzzle));
-    const glm::vec3 back = muzzle - world(middle(soldierRear));
+    muzzle = world(middle(gun->muzzle));
+    const glm::vec3 back = muzzle - world(middle(gun->rear));
     gunLength = glm::length(back);
     if(gunLength < 1e-3f)
     {
@@ -214,7 +240,7 @@ void playerFired(int hand)
 void monsterFired(int ent)
 {
     if(!vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || ent <= 0 || ent >= cl.num_entities ||
-        !isSoldier(cl_entities[ent]))
+        !monsterGun(cl_entities[ent]))
     {
         return;
     }
@@ -237,7 +263,7 @@ void monsterFired(int ent)
     slot->roll = random01() * 360.f;
     if(vr_debug_weaponfx.value)
     {
-        Con_Printf("weaponfx grunt fired t %.3f ent %d\n", cl.time, ent);
+        Con_Printf("weaponfx monster fired t %.3f ent %d (%s)\n", cl.time, ent, cl_entities[ent].model->name);
     }
     if(vr_debug_weaponfx.value >= 3)
     {
@@ -346,7 +372,7 @@ void parseTracer()
     // A grunt's from its gun's muzzle (the game's from its middle).
     glm::vec3 muzzle, dir;
     float gunLength;
-    if(hand > 1 && ent > 0 && ent < cl.num_entities && gruntMuzzle(cl_entities[ent], muzzle, dir, gunLength))
+    if(hand > 1 && ent > 0 && ent < cl.num_entities && monsterMuzzle(cl_entities[ent], muzzle, dir, gunLength))
     {
         from = muzzle;
     }
@@ -507,7 +533,7 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
         glm::vec3 muzzle, dir;
         float gunLength;
         if(!vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || age < 0.f || age >= enemyTime ||
-            f.ent <= 0 || f.ent >= cl.num_entities || !gruntMuzzle(cl_entities[f.ent], muzzle, dir, gunLength))
+            f.ent <= 0 || f.ent >= cl.num_entities || !monsterMuzzle(cl_entities[f.ent], muzzle, dir, gunLength))
         {
             f.at = -1.0;
             continue;

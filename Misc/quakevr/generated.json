@@ -135,11 +135,11 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_enfrifle.mdl": {
-  "sha256": "45e571334c990d0a7b304d1f77f8eed4d90d2941a2b046d124c47cdd270c6b2f",
+  "sha256": "5d0123a59628a01bc241e06aa5f3743605690caefce6cb51727963ee5c133869",
   "by": "make_enemyguns.py"
  },
  "quakevr/progs/v_enfrifle.mdl_0_norm.png": {
-  "sha256": "3c9277eb09488d3f36517492c715a695de3955d1b1440043985887fc43c8928e",
+  "sha256": "d9dd858a9247119dfac2bf5eb5a8211f9d1061336365e9ed63ed6be3964bf67d",
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_grpple.mdl": {
@@ -362,10 +362,6 @@
   "sha256": "f53c6a2fe678f864caa2ab10d4118e40b2e508a56177e72f6e7d8d61426430cd",
   "by": "bake_normals.py"
  },
- "quakevr/progs/vr_muzzleflash.mdl": {
-  "sha256": "dfffc8665a65b8cd41925a8a2f15eb0d8c9954eaaaaa5a9987075d42d07e0cbf",
-  "by": "make_muzzleflash.py"
- },
  "quakevr/progs/vr_crate2.mdl_1.png": {
   "sha256": "7487dddb4f6a2157c420bc9d35758ae8cf6c60afbcc4df00b58fc99922c6b339",
   "by": "make_crates.py"
@@ -373,6 +369,10 @@
  "quakevr/progs/vr_crate2.mdl_2.png": {
   "sha256": "16fee81a12ea5a27cd44256ad8ca4cc0283c409d88259c4284aba8acd525b96a",
   "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_muzzleflash.mdl": {
+  "sha256": "dfffc8665a65b8cd41925a8a2f15eb0d8c9954eaaaaa5a9987075d42d07e0cbf",
+  "by": "make_muzzleflash.py"
  },
  "quakevr/progs/vr_plank1.mdl": {
   "sha256": "ba55285ee04f47ea6bae40c5cd3613f4e54318f219667be1e6e9cc0e79859bd7",

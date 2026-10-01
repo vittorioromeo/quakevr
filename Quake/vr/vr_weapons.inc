@@ -2692,6 +2692,13 @@ QVR_WEAPON_DEFAULT(21, Recoil, "1")
 QVR_WEAPON_DEFAULT(21, RecoilTime, "0.12")
 QVR_WEAPON_DEFAULT(21, Flash, "1")
 QVR_WEAPON_DEFAULT(21, TracerChance, "3")
+// The enforcers' laser rifle (NOTES.md vrfiringrange_2026-10-01_11-38-49; weapon settings version 33): its shots along
+// its barrel (Pitch 0 draws it 7.0 degrees over the hand's aim, so its laser went 6.5 degrees under its sights:
+// vr_sight_check), which its zeroed sights meet 10 m out; a smaller kick than the burst rifle's, the same muzzle flash.
+QVR_WEAPON_DEFAULT(22, ShotPitch, "7")
+QVR_WEAPON_DEFAULT(22, Recoil, "1")
+QVR_WEAPON_DEFAULT(22, RecoilStrength, "0.5")
+QVR_WEAPON_DEFAULT(22, Flash, "1")
 QVR_WEAPON_DEFAULT(22, Hotspot2X, "1.238281")
 QVR_WEAPON_DEFAULT(22, Hotspot2Y, "-1.868408")
 QVR_WEAPON_DEFAULT(22, Hotspot2Z, "-1.081261")

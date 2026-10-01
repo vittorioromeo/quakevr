@@ -82,10 +82,11 @@ constexpr Table table[] = {
 #include "vr_sightalign_table.inc"
 };
 
-// No sights: melee weapons, the hand, and the monsters' guns (their lights and screens are not sights).
+// No sights: melee weapons and the hand. (The monsters' guns' lights and screens are not sights: their modelled sights,
+// make_enemyguns.py's, are in the table.)
 constexpr const char* melee[] = {
     "progs/v_axe.mdl", "progs/v_hammer.mdl", "progs/v_ksword.mdl", "progs/v_hksword.mdl", "progs/v_chainsaw.mdl",
-    "progs/hand.mdl", "progs/v_gruntgun.mdl", "progs/v_enfrifle.mdl", "progs/v_crowbar.mdl",
+    "progs/hand.mdl", "progs/v_crowbar.mdl",
 };
 
 [[nodiscard]] bool isSightIndex(int i)

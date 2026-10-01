@@ -151,9 +151,11 @@ namespace
 // and holstered poses, 2026-09-30, over make_enemyguns.py's detail pass: the grunts' gun's stock moved its bounds, its
 // offset and hotspots follow; both muzzles at the new barrels' bores). 31: slot 20's hotspots' Bias and Stickiness (the
 // author's, 2026-10-01: 1, 1 and 1.5, 1.5), each key only where the config still held its old default. 32: slot 21's ammo screen hidden (WpnTextMode 0, where
-// the config still shows it; its new weapon effects' keys take their defaults by themselves). A first start (no saved config) takes this
+// the config still shows it; its new weapon effects' keys take their defaults by themselves). 33: slot 22 (the enforcers' rifle: its
+// shots along its barrel, Shot Pitch 7; Recoil on at half strength, Muzzle Flash on), each key only where the config still
+// held its old default. A first start (no saved config) takes this
 // version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 32;
+constexpr int settingsVersion = 33;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -464,6 +466,12 @@ void migrate()
         {
             Cvar_SetQuick(&var, var.default_string);
         }
+    }
+    if(vr_wofs_version.value < 33) // the enforcers' rifle's shots, recoil and muzzle flash: where still the old ones
+    {
+        const OldDefault fx[] = {{22, Key::ShotPitch, 0.f}, {22, Key::Recoil, 0.f}, {22, Key::RecoilStrength, 1.f},
+            {22, Key::Flash, 0.f}};
+        takeWhereOld(fx);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

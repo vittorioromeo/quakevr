@@ -125,6 +125,7 @@ void() enforcer_fire =
     org = self.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
 
     LaunchLaser(org, self.enemy.origin - self.origin);
+    weaponfired(self, -1); // VR: its rifle's muzzle flash (an enforcer's: vr_weaponfx.cpp)
 };
 
 //============================================================================
