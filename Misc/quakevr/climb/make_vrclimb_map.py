@@ -56,6 +56,10 @@ B.append(box(-120, -330, 88, -60, -230, 104, "qvr_wall", "qvr_floor"))
 B.append(box(-300, 400, 40, -172, 496, 48, "qvr_trim", "qvr_floor"))
 B.append(box(-120, 400, 32, 8, 496, 48, "qvr_trim", "qvr_floor"))
 
+# ROUND21.md, "Climbing: a jump to a ledge from against its wall": a block 96 high (out of a standing hand's reach, in
+# a jump's), 64 deep, its face at x 0 (`setpos -40 -310 24 0 0 0; noclip`: walk into it, jump, grab its top)
+B.append(box(0, -370, 0, 64, -250, 96, "qvr_wall", "qvr_floor"))
+
 # ROUND21.md, "Ledge map": moving ledges, each started by a trigger where the player stands to test it (facing +x, its
 # face 18 units ahead, as the long ledge's is from `setpos 78 176 24`):
 # - a lift (func_train "lift1"): a block 40 high (x -300..-236, y 40..136) rising at 8 units a second to 80 up and back,
@@ -77,7 +81,7 @@ for (x, y, z, l) in [(0, 0, 440, 300), (0, 400, 440, 300), (-300, 400, 200, 250)
                      (24, 180, 100, 220), (24, 380, 100, 220), (24, 580, 100, 220), (-200, 450, -100, 250),
                      (-200, 0, 100, 250), (-60, -40, 60, 300), (-60, 40, 160, 300), (-60, -40, 260, 300), (-60, 220, 100, 300), (-60, 420, 100, 300), (-250, -260, 110, 250),
                      (-230, -280, 110, 250), (-150, -280, 80, 250), (-280, 88, 170, 250), (-170, 72, 110, 250),
-                     (-236, 360, 120, 250), (-56, 360, 120, 250)]:
+                     (-236, 360, 120, 250), (-56, 360, 120, 250), (-40, -310, 150, 250)]:
     ents.append(f'{{\n"classname" "light"\n"origin" "{x} {y} {z}"\n"light" "{l}"\n"_color" "1 0.95 0.85"\n}}')
 for (name, x, y, z, target, wait) in [("lift1_a", -300, 40, 0, "lift1_b", 1), ("lift1_b", -300, 40, 80, "lift1_a", 2)]:
     ents.append(f'{{\n"classname" "path_corner"\n"targetname" "{name}"\n"target" "{target}"\n"origin" "{x} {y} {z}"\n"wait" "{wait}"\n}}')

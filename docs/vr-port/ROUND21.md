@@ -18177,3 +18177,31 @@ done here: the eval stays as it is).
   smoke on e1m1, e2m1 and vrfiringrange (no pixel differs by more than 24 from the base build's).
 - `std::` in Quake/vr (not external/): 74 -> 48 (exceptions 19 -> 0, `shared_ptr` 7 -> 0; standard headers included
   11 -> 8). `ZANCLE-TODO`: 34 -> 19.
+
+## Climbing: a jump to a ledge from against its wall (2026-10-01)
+
+Note vrclimb_2026-10-01_11-49-25: against a wall, jumping straight up and grabbing its top mostly didn't register.
+
+- **Cause.** A grip takes a hold only at the press, and only where the hand is at a ledge then (Touch plus the leniency:
+  a shell of about 3 units round the lip). Against the wall the drawn hand can't get over the top: the hand's collision
+  sweeps it from the chest, which is under the top and right at the face, so the line to a hand over the top crosses
+  the face and the hand is drawn in front of the face, even 8 units over the lip (vr_handpose.cpp resolvePositions).
+  So it never comes down onto the top (where it would stay); it passes the lip in a frame or three on the way up and
+  again on the way down. Repro (vrclimb's new jump wall, below; one press a trial, every 0.02 s from the jump to 0.58 s
+  after, held 0.4 s): 5 to 8 of 30 press times took the ledge (two windows of about 0.06 s), with his settings too
+  (World Scale 1.2, height 1.552, Mid-Air Leniency 4) and with the head leant in 25 cm.
+- **Fix.** `vr_climb_air_grab_time` (0.3 s; Climbing page, **Mid-Air Grab Window**, under Mid-Air Leniency): a grip
+  pressed in the air at no hold keeps looking for one while it stays pressed and the player is in the air and not
+  holding on with the other hand, for that long; the first hold the hand reaches is taken as if pressed there. On the
+  ground, hanging, or with the grip let go, nothing changes (a press elsewhere dragged onto a hold still does nothing);
+  a press refused (too soon after letting go, a holster, a busy hand, too tired) doesn't keep looking. `vr_climb_debug 1`
+  ends such a hold's line with "pressed N ms before, in the air". After: 27 of 30 (every press up to 0.50 s after the
+  jump; the last three press after the hand has passed the lip going down), the same with his settings; at 0, 5 of 30.
+- **vrclimb**: a jump wall (a block 96 high, 64 deep, its face at x 0: `setpos -40 -310 24 0 0 0; noclip`) and a light
+  over it. Debug > Tests > Climbing: **Climbing Test Map**, **To the Jump Wall**.
+- Test: `python Misc/quakevr/climb/climb_jump.py script <abs dir> [cvars]` writes the 30 plays and prints the console
+  script; `climb_jump.py table qconsole.log` prints one letter a trial (H, L lenient, R taken later in the air, . none)
+  and PASS if every press from 0 to 0.50 s took the ledge (exit code 1 on FAIL).
+- Not changed: the drawn hand still floats in front of the face over the lip while the chest is under the top (the
+  collision's line from the chest); drawing it over the top (the arm round the lip) and resting on the top as the body
+  falls would be the visual half, in vr_handpose.cpp (it moves every bare hand near walls: melee).

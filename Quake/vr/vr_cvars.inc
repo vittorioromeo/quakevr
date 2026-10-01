@@ -949,6 +949,7 @@ QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a 
 QVR_CVAR(vr_climb_fling, "1", CVAR_ARCHIVE)           // how much letting go flings you with the hands' motion (capped; 0 none)
 QVR_CVAR(vr_climb_leniency, "2", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
 QVR_CVAR(vr_climb_leniency_air, "2.5", CVAR_ARCHIVE) // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
+QVR_CVAR(vr_climb_air_grab_time, "0.3", CVAR_ARCHIVE) // s: a grip pressed at no hold keeps looking for one this long while it stays pressed, in the air (a ledge jumped at: taken as the hand comes over or down onto it; 0: only at the press)
 QVR_CVAR(vr_climb_touch, "4.5", CVAR_ARCHIVE)        // cm: the hand this close to a ledge's top or the face under its lip touches it (the whole reach at leniency 0)
 QVR_CVAR(vr_climb_over_top, "16", CVAR_ARCHIVE)      // units: a hand over a ledge's top still holds it this far in from the drop (as far as the top goes)
 QVR_CVAR(vr_climb_slide, "1", CVAR_ARCHIVE)          // a holding hand the body can't follow along the ledge (past the arm's reach, a wall) slides along it, the drawn hand staying on the controller (0: it stays put, the two drift apart)

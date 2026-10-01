@@ -823,6 +823,9 @@ wall (`setpos 71 0 24 0 0 0; noclip`, the second toggling setpos's noclip off) a
 plays (hand over hand to the top, a two-hand hang and a shimmy with a fall, a mantle, and e1m1 from `setpos 250 2350
 40`). With `vr_climb 1; vr_climb_debug 2`, `climb_trace.py qconsole.log` prints the body's move against the hands'
 pull every frame and at every hand-off. `vr_climb_probe [yaw]` lists the holds ahead.
+Climbing, a jump to a ledge from against its wall (ROUND21.md, the section of that name): `python
+Misc/quakevr/climb/climb_jump.py script <abs dir> [cvars]` (vrclimb's jump wall, 30 press times after a jump) then
+`climb_jump.py table qconsole.log` (PASS: every press from 0 to 0.50 s takes the ledge; `vr_climb_air_grab_time 0`: about 5 of 30).
 Stamina and tired arms (ROUND21.md, "Tired arms: shaking and heavy hands"): `vr_stamina_set <0..1>` puts the game's
 stamina there, `vr_debug_stamina_hold 1` keeps it; `vr_debug_fatigue 1|2` prints the shake (2: each frame's aim,
 muzzle and drawn weapon, `fatigueaim`); `vr_fatigue_shake_always 1` shakes off a hold too.
