@@ -110,7 +110,8 @@ struct Box3dScratch
     za::Vector<glm::vec3> actorVerts;  // an actor's (actorHull)
     za::Vector<glm::vec3> corners;     // a body's shapes' corners (floorDepth)
     za::Vector<uint8_t> carried;       // by edict: carried by a player (syncEntities)
-    auto members() { return qvr::mem::list(propVerts, actorVerts, corners, carried); }
+    za::Vector<b3ContactData> pushContacts; // a pushed prop's touching contacts, all of them (limitPushes)
+    auto members() { return qvr::mem::list(propVerts, actorVerts, corners, carried, pushContacts); }
 };
 mem::Scratch<Box3dScratch> scratch{"box3d"};
 
@@ -3516,10 +3517,27 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
     return point.z < feet + ps.radius || n.z > 0.5f;
 }
 
-// Box3D's pre-solve, for the fists' spheres' contacts (none with what their player just threw: graced) and the reach
-// bodies' (their shapes ask for it), each step: none with what the body skips
-// (reachSkips), nor holding up what is heavier than vr_box3d_hand_hold_mass (the prop on top: the normal from the reach
-// body within 60 degrees of up); pushed from the side or below, it still is.
+// A contact's normal turned to point from a hand's body to the prop (towards the prop's centre: Box3D's contacts and its
+// continuous collision give it either way round).
+[[nodiscard]] glm::vec3 towardsProp(b3BodyId prop, b3Pos point, b3Vec3 normal)
+{
+    const glm::vec3 n = glmv(normal);
+    return glm::dot(n, glmv(b3Body_GetWorldCenter(prop)) - glmv(point)) < 0.f ? -n : n;
+}
+
+// Whether a hand's body may hold `prop` up where it meets it (normal `n`, from the body to the prop): not a prop heavier
+// than vr_box3d_hand_hold_mass on top of it (the normal within 60 degrees of up), which slips through it.
+[[nodiscard]] bool mayHoldUp(b3BodyId prop, const glm::vec3& n)
+{
+    const float most = vr_box3d_hand_hold_mass.value;
+    return most <= 0.f || n.z < 0.5f || b3Body_GetMass(prop) <= most;
+}
+
+// Box3D's pre-solve, for the fists' contacts and the reach bodies' (their shapes ask for it), each step: none with what
+// their player just threw (graced) or what the reach body skips (reachSkips), nor holding up what is heavier than
+// vr_box3d_hand_hold_mass (the prop on top: the normal from the hand's body within 60 degrees of up); pushed from the
+// side or below, it still is. (A fist that held up the big box toppled onto its player, its drawn fist dozens of
+// kinematic spheres, wedged it into the wall: Box3D threw it off at 10 to 15 m/s. ROUND21.md, "Props regressions".)
 bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
 {
     const bool aPlayer = (b3Shape_GetFilter(a).categoryBits & catPlayer) != 0;
@@ -3535,7 +3553,13 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
     const bool aFist = (b3Shape_GetFilter(a).categoryBits & catHand) != 0;
     if(aFist || (b3Shape_GetFilter(b).categoryBits & catHand) != 0)
     {
-        return !graced(numOf(aFist ? a : b), numOf(aFist ? b : a)); // (a fist's sphere: noteThrows)
+        const b3ShapeId fist = aFist ? a : b, prop = aFist ? b : a;
+        if(graced(numOf(fist), numOf(prop))) // (noteThrows)
+        {
+            return false;
+        }
+        const b3BodyId propBody = b3Shape_GetBody(prop);
+        return mayHoldUp(propBody, towardsProp(propBody, point, normal));
     }
     const bool aReach = (b3Shape_GetFilter(a).categoryBits & catReach) != 0;
     const b3ShapeId reach = aReach ? a : b, other = aReach ? b : a;
@@ -3548,15 +3572,8 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
     {
         return false;
     }
-    // The normal turned to point from the body to the prop (towards the prop's centre: Box3D's contacts and its
-    // continuous collision give it either way round).
     const b3BodyId reachBody = b3Shape_GetBody(reach), propBody = b3Shape_GetBody(other);
-    const glm::vec3 at = glmv(point);
-    glm::vec3 n = glmv(normal);
-    if(glm::dot(n, glmv(b3Body_GetWorldCenter(propBody)) - at) < 0.f)
-    {
-        n = -n;
-    }
+    const glm::vec3 n = towardsProp(propBody, point, normal);
     // Moving apart faster than 0.5 m/s (a prop just struck, flying off ahead of the body: sweepReach): no contact, which
     // Box3D's continuous collision would otherwise make of the body it leaves (stopping the prop there).
     const glm::vec3 relative =
@@ -3571,9 +3588,7 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
     {
         return false;
     }
-    const float most = vr_box3d_hand_hold_mass.value;
-    const float up = n.z;
-    return most <= 0.f || up < 0.5f || b3Body_GetMass(b3Shape_GetBody(other)) <= most;
+    return mayHoldUp(propBody, n);
 }
 
 // Pushes by mass (pushShare): the mass behind a hand's body `shape` (kg), 0 for none (a kinematic body's full push: not
@@ -3670,7 +3685,7 @@ void notePushed(float dt)
 // and stops them at full strength.
 void limitPushes(float dt)
 {
-    za::Array<b3ContactData, 16> contacts;
+    za::Vector<b3ContactData>& contacts = scratch.pushContacts;
     for(const Pushed& p : world->pushed)
     {
         const Slot& s = world->slots[static_cast<size_t>(p.num)];
@@ -3679,6 +3694,10 @@ void limitPushes(float dt)
             continue;
         }
         const float m = b3Body_GetMass(s.body);
+        // Every contact, not the first few: a drawn fist (vr_box3d_hand_push_fist) is a body of a sphere per joint, and
+        // pressed on a box its spheres touch it in dozens of places, the ones that push often not among the first 16 (it
+        // then pushed at full strength, as a kinematic body: walked into, a tall box tipped; landing on you, it flew off).
+        contacts.resize(static_cast<za::SizeT>(za::max(b3Body_GetContactCapacity(s.body), 1)));
         const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
         float pusher = 0.f, strongest = 0.f;
         bool full = false;
@@ -6361,6 +6380,27 @@ extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal
     world->bumps.pushBack({num, g, dir, speed});
 }
 
+// A prop wedged in the level (its box still in it 2 units inside its surface: Box3D can't push it out, of the level nor
+// of a player in it). A player in one isn't held (VR_PropLetsOut): it would hold him for good. (The big box toppled
+// onto the player against a wall stayed 9 units in it a time in four, the player under it walking on the spot; ROUND21.md,
+// "Props regressions".)
+[[nodiscard]] bool wedgedInLevel(int num)
+{
+    if(num <= svs.maxclients || num >= static_cast<int>(world->slots.size()))
+    {
+        return false;
+    }
+    const Slot& s = world->slots[static_cast<size_t>(num)];
+    glm::vec3 lo, hi;
+    qvr::box3d::ownBox(s, lo, hi);
+    if(B3_IS_NULL(s.body) || hi.x <= lo.x)
+    {
+        return false;
+    }
+    const edict_t* ent = EDICT_NUM(num);
+    return qvr::box3d::boxInLevel(lo, hi, vec(ent->v.origin), turnOf(ent->v.angles, s.brush), 2.f);
+}
+
 // SV_ClipToLinks: a player's move that starts inside a solid prop's box (toppled onto him) goes on, out of it; not in the
 // one he stands on (riding it, rideStanding steps him up out of it), nor one his feet are a little into the top of
 // (feetInTop: landed on it, or it rocked up into him; he's held, and SV_CheckStuck puts him back on top); and only a
@@ -6388,7 +6428,7 @@ extern "C" int VR_PropLetsOut(edict_t* mover, edict_t* touch, const float* start
         const float* M = narrow ? entmaxs : maxs;
         glm::dvec3 out{0.0}, to{0.0};
         const double depth = depthIn(touch, start, m, M, shaped != 0, out);
-        if(depthIn(touch, end, m, M, shaped != 0, to) > depth + 0.01)
+        if(depthIn(touch, end, m, M, shaped != 0, to) > depth + 0.01 && !wedgedInLevel(g))
         {
             return 0; // (deeper: held, the move is stopped)
         }
