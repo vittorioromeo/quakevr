@@ -268,6 +268,7 @@ VrMove unposed;
         hand.velMag = glm::length(hs.vel[h]);
         hand.throwVel = e.vel;
         hand.angVel = e.angVel;
+        hand.throwFlick = e.flick;
         hand.throwPos = e.pos;
         hand.throwAge = static_cast<float>(za::max(0.0, latest - e.time));
 
@@ -355,7 +356,7 @@ VrMove unposed;
             hand.pos += walked;
             hand.tracked += walked;
             hand.throwPos += walked;
-            hand.vel = hand.throwVel = hand.angVel = glm::vec3{0.f};
+            hand.vel = hand.throwVel = hand.angVel = hand.throwFlick = glm::vec3{0.f};
             hand.velMag = 0.f;
             move.hotspots[h] = unposed.hotspots[h];
             move.muzzlePos[h] = unposed.muzzlePos[h] + walked;

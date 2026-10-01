@@ -90,6 +90,22 @@ void reset();
 // (vr_weight_lenient*: 1 up to vr_weight_lenient_from, lower for heavier things, at least vr_weight_lenient_min).
 [[nodiscard]] float leniency(float mass);
 
+// Throws by weight (vr_throw_mass_model; ROUND21.md, "Throws by weight"): the velocity (m/s) a thing of `mass` kg
+// thrown with `hands` hands (1 or 2) leaves them at, from the hand's estimate `vel` (m/s) and the part of it the wrist's
+// flick gives, `flick`: the flick kept by its mass (vr_throw_flick_mass), the gain of a real throw (vr_throw_gain_*), and
+// the speed limited by its mass (vr_throw_max_speed, _mass_light, _mass_exp, _mass_knee; two hands: vr_throw_2h_strength).
+// vr_throw_mass_model 0: only the gain. `mass` 0: a light thing's.
+struct ThrowOut
+{
+    glm::vec3 vel{0.f};
+    float kept{1.f};   // of the flick
+    float gain{1.f};
+    float limit{0.f};  // m/s (0: none)
+};
+[[nodiscard]] ThrowOut throwVelocity(const glm::vec3& vel, const glm::vec3& flick, float mass, int hands);
+// The speed limit alone (m/s): a thing of `mass` kg thrown with `hands` hands (0: none, the model off).
+[[nodiscard]] float throwLimit(float mass, int hands);
+
 // Wrenched out (experimental, vr_weight_drop*): a weapon at least vr_weight_drop_from kg falls out of a hand whose
 // controller turns faster than its limit (a snap or a twist of the wrist; the controller as tracked: turning with the
 // stick and walking don't count). The move's bits (QC .handdrop, VR_HANDDROP_*: 1 the off hand, 2 the main hand), each

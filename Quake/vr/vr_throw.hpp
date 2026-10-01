@@ -16,6 +16,9 @@ struct Estimate
 {
     glm::vec3 vel{0.f};    // of the held object's centre
     glm::vec3 angVel{0.f}; // of the hand
+    glm::vec3 flick{0.f};  // the part of `vel` the hand's turn gives (the wrist's flick: its spin about the wrist, through
+                           // vr_throw_wrist_dist and the lever arm); none for two hands. A heavy thing keeps less of it
+                           // (weight::throwVelocity).
     glm::vec3 pos{0.f};    // world position of the object's centre when it left the hand
     double time{0.0};      // when it left the hand
 };

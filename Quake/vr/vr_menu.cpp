@@ -1776,6 +1776,30 @@ void hologramTestMessage()
                   "turn. Tracking Space: as before. From Turn: ignore it, use the controller's turn."),
         slider("Max Speed Gain", vr_throw_gain_max, 1.f, 3.f, 0.05f, "%.2fx").extend()
             .help("Extra speed for fast throws, which feel weak at true speed."),
+        header("Throws by Weight"),
+        toggle("Throws by Weight", vr_throw_mass_model)
+            .help("Heavy things can't be thrown as fast or as far as light ones, a wrist flick does little to them, and "
+                  "two hands throw them farther than one. Off: every weapon and prop as fast as your hand (Max Speed "
+                  "Gain), heavy weapons a little slower, props over 12 kg slower. Debug: Throws by Weight prints the table."),
+        slider("Light Things' Top Speed", vr_throw_max_speed, 10.f, 40.f, 1.f, "%.0f m/s").extend(5.f, 100.f)
+            .help("The fastest anything leaves your hand: a grenade, the axe (28: about 80 m at 45 degrees)."),
+        slider("Light Up To", vr_throw_mass_light, 0.5f, 5.f, 0.1f, "%.1f kg").extend(0.1f, 50.f)
+            .help("Things up to this heavy can reach the top speed (the axe: 2 kg, a grenade 1.2); heavier, less."),
+        slider("Heavy Falloff", vr_throw_mass_exp, 0.f, 1.5f, 0.05f, "%.2f")
+            .help("How fast the limit falls with mass beyond it: (light / mass) to this power. 0.5: the same energy, 1: "
+                  "the same impulse. 0.75: the super nailgun (7 kg) at most 11 m/s, the laser cannon (15 kg) 6."),
+        slider("Soft Limit From", vr_throw_mass_knee, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Below this share of a thing's limit a throw is as fast as your hand's; above, it eases towards the "
+                  "limit (1: a hard cap)."),
+        slider("Two-Hand Strength", vr_throw_2h_strength, 1.f, 4.f, 0.1f, "%.1fx").extend(0.1f, 10.f)
+            .help("Thrown with both hands, a thing is as if it weighed this many times less: heavy things go farther, "
+                  "light ones no faster (1: no help)."),
+        slider("Full Wrist Flick Up To", vr_throw_flick_mass, 0.5f, 10.f, 0.1f, "%.1f kg").extend(0.01f, 100.f)
+            .help("A wrist flick throws things up to this heavy at its whole speed; a heavier one keeps only (this / "
+                  "mass) of the speed the flick gives (the super nailgun a third)."),
+        slider("Wrist to Controller", vr_throw_wrist_dist, 0.f, 0.15f, 0.005f, "%.3f m")
+            .help("From the wrist to the controller's point: the turn of the hand about the wrist gives the controller "
+                  "this lever's speed, the part of a throw a heavy thing keeps less of."),
         toggle("Aim Assist", vr_throw_assist)
             .help("Throws close to an enemy's direction bend towards it."),
         slider("Assist Cone", vr_throw_assist_cone, 2.f, 30.f, 1.f, "%.0f deg").extend(),
@@ -2616,6 +2640,9 @@ za::Vector<Item> pageDebugReports()
         command("Watch Props Entered", "vr_physics_inside 1").help("vr_physics_inside [1 | 0]: counts the frames you spend inside a solid prop's drawn shape (where none of your moves may go) and prints each time you pass into one; with no argument, the count so far (Misc/quakevr/propphase_sweep.py: the toppled-box sweep)."),
         command("Props Entered", "vr_physics_inside").help("vr_physics_inside: how many times, and frames, you were inside a solid prop's shape since the watch started, and how deep."),
         command("Weights", "vr_weight_table").help("vr_weight_table: the weapons' and props' masses (the level's props too)."),
+        command("Throws by Weight", "vr_throw_table").help("vr_throw_table [hand m/s] [flick m/s]: how fast and far each "
+            "weapon and prop is thrown, one hand and two, by a hard throw (8 m/s, 2 of it the wrist's flick), with "
+            "Throws by Weight off and on."),
         command("Ledges Ahead", "vr_climb_probe").help("vr_climb_probe: the ledges 16 to 64 units ahead of you, and why each holds or not."),
         command("Rocks and Bricks", "vr_debris_list").help("vr_debris_list: the rocks and bricks placed in this map."),
         command("Crates", "vr_crates_list").help("vr_crates_list: the crates in this map (health, resting) and how many pieces lie about."),

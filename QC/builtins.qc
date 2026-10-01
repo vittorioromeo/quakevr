@@ -217,6 +217,10 @@ float(string model, string key) weaponvalue = #0;
 // no mass). Heavy leniency (vr_weight_lenient*): the factor on its strikes' and throws' speed thresholds (1: not heavy).
 float(float mass) weightdamage = #0;
 float(float mass) weightleniency = #0;
+// Throws by weight (vr_throw_mass_model): the velocity (m/s) a thing of `mass` kg leaves `hands` hands (1 or 2) at, from
+// the hand's throw estimate `vel` (m/s) and the part of it the wrist's flick gives (VRGetHandThrowFlick): a heavy thing
+// keeps less of the flick, the gain of a real throw (vr_throw_gain_*), and its speed limited by its mass.
+vector(vector vel, vector flick, float mass, float hands) throwvelocity = #0;
 // Rocks and bricks lying about (engine vr_debris.cpp; vr_debris.qc): placing them (after the map's entities: how
 // many), piece i's model, and putting piece i on an entity with its model set (its skin, size, turn, place on the floor
 // and box; its kind: 1 a rock, 2 a brick, 0 none).

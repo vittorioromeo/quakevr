@@ -5799,28 +5799,6 @@ float() getWeaponMode =
     return cvar_hget(cvarh_vr_holster_mode);
 }
 
-// Speeds up to vr_throw_gain_lo m/s leave the hand as they are (drops, passes); above, smoothly
-// more, up to vr_throw_gain_max times at vr_throw_gain_hi (docs/vr-port/THROWING.md 3.2).
-float(float xSpeed) VRThrowGain =
-{
-    float lo = cvar_hget(cvarh_vr_throw_gain_lo);
-    float hi = cvar_hget(cvarh_vr_throw_gain_hi);
-    float gainMax = cvar_hget(cvarh_vr_throw_gain_max);
-
-    if(hi <= lo)
-    {
-        if(xSpeed >= hi)
-        {
-            return gainMax;
-        }
-        return 1;
-    }
-
-    float t = min(1, max(0, (xSpeed - lo) / (hi - lo)));
-    t = t * t * (3 - 2 * t); // smoothstep
-    return 1 + (gainMax - 1) * t;
-}
-
 // Angle between two unit vectors, in degrees.
 float(vector xA, vector xB) VRAngleBetween =
 {
@@ -5980,27 +5958,33 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
     }
 
     float twoHThrowVelMult;
+    float throwHands = 1;
     vector throwVel;
+    vector throwFlick;
     if(time - self.last_2h_time < 0.3)
     {
         twoHThrowVelMult = cvar_hget(cvarh_vr_2h_throw_velocity_mult);
         throwVel = VRGetHandThrowVel(xHand) + VRGetHandThrowVel(VRGetOtherHand(xHand));
         throwVel /= 2.0;
         throwVel *= twoHThrowVelMult;
+        throwFlick = (VRGetHandThrowFlick(xHand) + VRGetHandThrowFlick(VRGetOtherHand(xHand))) * 0.5 * twoHThrowVelMult;
+        throwHands = 2;
     }
     else
     {
         twoHThrowVelMult = 1.0;
         throwVel = VRGetHandThrowVel(xHand);
+        throwFlick = VRGetHandThrowFlick(xHand);
     }
 
 
     // The hand's velocity (m/s) at true scale: the weapon leaves the hand as fast as the hand
-    // moved, a little more for real throws (VRThrowGain), a little less for heavy weapons, and
-    // falls at vr_throw_gravity rather than Quake's 2.5g.
+    // moved, a little more for real throws (the gain), as fast as its mass lets one hand or two throw it (throws by
+    // weight: throwvelocity), a little less for heavy weapons, and falls at vr_throw_gravity rather than Quake's 2.5g.
     float m2u = VRMetersToUnits();
     float weight = 1 + (WeaponIdToThrowMult(xWeapon) - 1) * cvar_hget(cvarh_vr_throw_weight_influence);
-    vector asThrown = throwVel * m2u * VRThrowGain(vlen(throwVel)) * weight *
+    float throwMass = weaponvalue(WeaponIdToModel(xWeapon, xWeaponFlags), "w_mass");
+    vector asThrown = throwvelocity(throwVel, throwFlick, throwMass, throwHands) * m2u * weight *
                       cvar_hget(cvarh_vr_weapon_throw_velocity_mult);
     vector throwVelUnits = asThrown * xVelScale;
 

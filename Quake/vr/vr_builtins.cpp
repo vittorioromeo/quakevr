@@ -551,6 +551,21 @@ void PF_weightleniency()
     G_FLOAT(OFS_RETURN) = weight::leniency(G_FLOAT(OFS_PARM0));
 }
 
+// vector(vector vel, vector flick, float mass, float hands) throwvelocity: throws by weight (weight::throwVelocity): the
+// velocity (m/s) a thing of `mass` kg leaves `hands` hands (1 or 2) at, from the hand's throw estimate `vel` (m/s) and
+// the part of it the wrist's flick gives (`flick`): the flick its mass keeps, the gain of a real throw, the limit.
+void PF_throwvelocity()
+{
+    const float* v = G_VECTOR(OFS_PARM0);
+    const float* f = G_VECTOR(OFS_PARM1);
+    const weight::ThrowOut out = weight::throwVelocity(
+        glm::vec3{v[0], v[1], v[2]}, glm::vec3{f[0], f[1], f[2]}, G_FLOAT(OFS_PARM2), static_cast<int>(G_FLOAT(OFS_PARM3)));
+    float* r = G_VECTOR(OFS_RETURN);
+    r[0] = out.vel.x;
+    r[1] = out.vel.y;
+    r[2] = out.vel.z;
+}
+
 // vector(entity e, vector handangles, float lefthand) propgrip: a prop held the same way every time (Grip Mode 1): from
 // now on it turns with the hand as its Grip Pitch, Yaw and Roll say (its angles set now), and its origin's place in
 // the hand is returned (forward, right, up, as .carry_offset: Grip X, Y (left) and Z; the left hand's mirrored).
@@ -1040,6 +1055,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponvalue", PF_weaponvalue},
     {"weightdamage", PF_weightdamage},
     {"weightleniency", PF_weightleniency},
+    {"throwvelocity", PF_throwvelocity},
     {"debrisplan", PF_debrisplan},
     {"debrismodel", PF_debrismodel},
     {"debrisput", PF_debrisput},

@@ -69,6 +69,10 @@ VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandThrowPos,
                            self.offhandthrowpos,
                            self.handthrowpos);
 
+VR_IMPL_MAKE_VECTOR_GETTER(VRGetHandThrowFlick,
+                           self.offhandthrowflick,
+                           self.handthrowflick);
+
 VR_IMPL_MAKE_FLOAT_GETTER(VRGetHandThrowAge,
                           self.offhandthrowage,
                           self.handthrowage);

@@ -786,6 +786,10 @@ float throwScale(int slot, float mass)
     {
         return own;
     }
+    if(vr_throw_mass_model.value)
+    {
+        return 1.f; // throws by weight limit it by its mass (weight::throwVelocity)
+    }
     const float free = za::max(vr_weight_throw_mass.value, 0.1f);
     return mass > free ? za::sqrt(free / mass) : 1.f;
 }

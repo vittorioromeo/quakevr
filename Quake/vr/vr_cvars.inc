@@ -99,6 +99,22 @@ QVR_CVAR(vr_throw_gain_max, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_gain_lo, "1.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_gain_hi, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_weight_influence, "0.25", CVAR_ARCHIVE)
+// Throws by weight (weight::throwVelocity; ROUND21.md, "Throws by weight"): a thing's release speed is limited by its mass,
+// as a human's: up to vr_throw_mass_light kg (a grenade, the axe) at most vr_throw_max_speed m/s, heavier things less, as
+// (light / mass)^vr_throw_mass_exp (0.5: the same energy; 1: the same impulse). The limit is soft: the speed rises as the
+// hand's up to vr_throw_mass_knee of it, then eases towards it. A wrist flick (the part of the throw the hand's turn
+// about the wrist gives, vr_throw_wrist_dist metres behind the controller's point) keeps all of its speed up to
+// vr_throw_flick_mass kg, (flick mass / mass) of it beyond. Two hands throw as if the thing weighed
+// 1 / vr_throw_2h_strength as much (a heavy thing farther, the light ones no faster). 0: off (only the gain and
+// vr_throw_weight_influence, as before 2026-10-02).
+QVR_CVAR(vr_throw_mass_model, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_max_speed, "28", CVAR_ARCHIVE)      // m/s: the most any throw leaves the hand at (a light thing's)
+QVR_CVAR(vr_throw_mass_light, "2", CVAR_ARCHIVE)      // kg: up to this heavy, the whole vr_throw_max_speed (the axe: 2)
+QVR_CVAR(vr_throw_mass_exp, "0.75", CVAR_ARCHIVE)     // how fast the limit falls with mass beyond it
+QVR_CVAR(vr_throw_mass_knee, "0.7", CVAR_ARCHIVE)     // 0..1: below this share of the limit a throw is untouched
+QVR_CVAR(vr_throw_2h_strength, "2", CVAR_ARCHIVE)     // two hands: as if the thing weighed 1 / this (1: no help)
+QVR_CVAR(vr_throw_flick_mass, "2.5", CVAR_ARCHIVE)    // kg: up to this heavy, a wrist flick's whole speed
+QVR_CVAR(vr_throw_wrist_dist, "0.07", CVAR_ARCHIVE)   // metres from the wrist to the controller's point (the flick's lever)
 QVR_CVAR(vr_throw_hitbox, "6", CVAR_ARCHIVE)       // half-size (units) of a thrown weapon's box against monsters
 QVR_CVAR(vr_throw_hit_min_speed, "200", CVAR_ARCHIVE) // units/s a thrown thing must go at to hurt what it touches (slower: the throw is over)
 // Thrown axes stick (vr_axestick.cpp, QC/vr_axestick.qc): one whose blade goes into something first, fast enough and
@@ -463,7 +479,7 @@ QVR_CVAR(vr_weight_stamina_empty, "15", CVAR_ARCHIVE)    // kg an empty hand wei
 QVR_CVAR(vr_stamina_speed, "1", CVAR_ARCHIVE)           // tired, you run slower: the most walking speed (sv_maxspeed) drops on the weight's curve (vr_weight_stamina_from, _curve)
 QVR_CVAR(vr_stamina_speed_min, "0.5", CVAR_ARCHIVE)     // times the most speed with no stamina left (1: no slower)
 QVR_CVAR(vr_debug_stamina_speed, "0", CVAR_NONE)        // tests: 1 prints the stamina, the speed cap and the player's ground speed twice a second (a local game)
-QVR_CVAR(vr_weight_throw_mass, "12", CVAR_ARCHIVE)       // kg: props up to this heavy are thrown with the hand's whole speed, heavier ones slower (Throw: Held Object Offsets)
+QVR_CVAR(vr_weight_throw_mass, "12", CVAR_ARCHIVE)       // vr_throw_mass_model 0 only: kg: props up to this heavy are thrown with the hand's whole speed, heavier ones slower (Throw: Held Object Offsets)
 // Weight and damage (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage"): a melee blow's
 // and a throw's damage times (mass / vr_weight_damage_heavy)^vr_weight_damage_exp for things heavier than it,
 // (mass / vr_weight_damage_light)^exp for lighter ones, 1 between (every weapon), within vr_weight_damage_min..max; the
