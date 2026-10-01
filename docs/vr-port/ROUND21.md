@@ -17481,7 +17481,7 @@ The author's note: run Box3D multithreaded on the game's thread pool, for more p
   synchronisation. A worker borrows the stepping thread's QuakeC VM (`qcvm`, `pr_global_struct` are thread-local) for
   the callbacks (`shouldCollide`, `preSolve`), which only read; the grace's skip count is now a relaxed atomic.
   `vr_debug_box3d 2` (prints from `preSolve`) and `vr_jobs_parallel 0` step on one thread.
-- **Settings** (Debug > Threads): `vr_box3d_threads 1` (Physics on Threads), `vr_box3d_workers 4` (Physics Threads: the
+- **Settings** (Debug > Profiling and Memory, its Threads section): `vr_box3d_threads 1` (Physics on Threads), `vr_box3d_workers 4` (Physics Threads: the
   most threads, the main one included; 0 all), `vr_box3d_threads_bodies 150` (Physics Threads From: only while that many
   bodies are awake, back to one thread under three quarters of it). `vr_physics_steptime`, `vr_physics_mtbench`.
 - **Deterministic:** `vr_physics_mtbench` hashes every body (place, turn, velocities, bit for bit) after 200-300 steps:
@@ -18177,3 +18177,16 @@ done here: the eval stays as it is).
   smoke on e1m1, e2m1 and vrfiringrange (no pixel differs by more than 24 from the base build's).
 - `std::` in Quake/vr (not external/): 74 -> 48 (exceptions 19 -> 0, `shared_ptr` 7 -> 0; standard headers included
   11 -> 8). `ZANCLE-TODO`: 34 -> 19.
+
+## The author's sound and climbing values; full body; flies (2026-10-01)
+
+- **Defaults from his config** (NOTES.md start_2026-10-01_11-47-28, vrclimb_2026-10-01_11-49-25), config version 69
+  (a config still at the old default takes the new one): `vr_snd_falloff` 1 -> 0.75 ("Distance falloff helps"),
+  `vr_snd_hrtf_gain` 1.25 -> 1.5, `vr_physsound` 1 -> 2, `vr_physsound_scrape` 0.7 -> 0.8, `vr_physsound_grab`
+  0.5 -> 0.7, `vr_climb_leniency_air` 2.5 -> 4 cm.
+- **Full body by default:** it already was (`vr_default vr_body_mode 3` in vr_defaults.cfg, `vr_body_walk 1`; the
+  setup wizard's default 3); the compiled-in default (2) is 3 now too, for a game folder without vr_defaults.cfg.
+- **Physics Step Time** is in Debug > Profiling and Memory, its Threads section (the checklist said Debug > Threads).
+- **Flies:** they work (`flies_test.sh misc8 2`: 1 and 4 of 30 gibbed enforcers' heads). The chance is 10%, rolled
+  once, 1.5 s after the gib, at volume 0.7 and ATTN_STATIC (heard within about 330 units, 440 at falloff 0.75); a head
+  shot, burst, blown up or picked up silences them.

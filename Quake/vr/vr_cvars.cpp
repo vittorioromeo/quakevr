@@ -151,8 +151,16 @@ const DefaultChange defaultChanges[] = {
     // 68: explosive boxes held up as shields too ("it's the player's fault if they use an explosive as a shield", the
     // author, 2026-10-01).
     {68, &vr_crate_shield, "1"},            // 2
+    // 69: the author's sound options (NOTES.md start_2026-10-01_11-47-28, "Distance falloff helps") and Mid-Air
+    // Leniency (vrclimb_2026-10-01_11-49-25).
+    {69, &vr_snd_falloff, "1"},             // 0.75
+    {69, &vr_snd_hrtf_gain, "1.25"},        // 1.5
+    {69, &vr_physsound, "1"},               // 2
+    {69, &vr_physsound_scrape, "0.7"},      // 0.8
+    {69, &vr_physsound_grab, "0.5"},        // 0.7
+    {69, &vr_climb_leniency_air, "2.5"},    // 4
 };
-constexpr int configVersion = 68;
+constexpr int configVersion = 69;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

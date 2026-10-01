@@ -739,7 +739,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         cycle("HRTF Smoothing", vr_snd_hrtf_interp, {{1.f, "Smooth (Bilinear)"}, {0.f, "Nearest (Cheaper)"}})
             .help("Between the measured directions: blended (moving sounds glide), or the nearest one."),
         slider("HRTF Volume", vr_snd_hrtf_gain, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("The binaural sounds' volume against the others (1.25: as loud as Quake's panning, all round)."),
+            .help("The binaural sounds' volume against the others (1.25: as loud as Quake's panning, all round; 1.5 by default: a little louder)."),
         slider("Spatial Voices", vr_snd_voices, 4.f, 64.f, 4.f, "%.0f")
             .help("How many of the loudest sounds are rendered this way at once; the rest are panned as ever."),
         header("Walls and Rooms"),
@@ -752,8 +752,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("The sphere a sound comes from, for partial occlusion."),
         toggle("Air Absorption", vr_snd_air).help("Far sounds lose their highs in the air."),
         slider("Distance Falloff", vr_snd_falloff, 0.f, 2.f, 0.05f, "%.2fx")
-            .help("How fast sounds get quieter with distance: 1 as Quake (a sound gone at about 30 m), 0.5 they carry "
-                  "twice as far, 0 never quieter. Every sound, spatial audio on or off."),
+            .help("How fast sounds get quieter with distance: 1 as Quake (a sound gone at about 30 m), 0.75 (the default) "
+                  "a bit further, 0.5 twice as far, 0 never quieter. Every sound, spatial audio on or off."),
         slider("Room Reverb", vr_snd_reverb, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 2.f)
             .help("The reverb of the space around your head, simulated from the map (a small room rings short, a big hall "
                   "long): how loud. 0 off."),

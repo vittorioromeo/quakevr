@@ -97,7 +97,7 @@ Climbing: Grab Leniency now 2 cm; grab a ledge mid-jump (Mid-Air Leniency +2.5 c
 Pain knock: hits now push the hands away and up, near hand full, hold then ease back (your values: 0.75 / 7.5 cm / 0.6 s, Knock Tip 2 deg/cm): too strong at 7.5 cm?
 Lightning gun fired into a pool from outside: splashes where the beam enters
 Torso direction: hand behind the back, one hand sweeping across, glances with hands down, physical turns; A/B against Body > Torso Direction mode 0
-Big prop pile: Debug > Threads > Physics Step Time with Physics on Threads on and off (threads only above 150 awake bodies)
+Big prop pile: Debug > Profiling and Memory > Physics Step Time (its Threads section, at the bottom) with Physics on Threads on and off (threads only above 150 awake bodies)
 
 Weapon effects (Weapons > Weapon Effects): burst rifle recoil kick and return, muzzle flash size and placement on the bore, ammo screen hidden; tracers on shotguns and the burst rifle (speed, density, colour); grunts' muzzle flashes and tracers
 
