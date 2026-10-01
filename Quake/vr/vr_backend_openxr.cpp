@@ -14,6 +14,7 @@
 #include "vr_engine.hpp"
 #include "vr_profile.hpp"
 
+#include "Zancle/Base/InitializerList.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
@@ -32,7 +33,6 @@
 #endif
 
 #include <string.h>
-#include <initializer_list>
 
 namespace qvr
 {
@@ -938,7 +938,7 @@ private:
         const char* path;
     };
 
-    void suggest(const char* profile, std::initializer_list<Binding> bindings)
+    void suggest(const char* profile, za::InitializerList<Binding> bindings)
     {
         za::Vector<XrActionSuggestedBinding> suggested;
         for(const Binding& b : bindings)
