@@ -4,10 +4,12 @@
 // touched (the tests have their own mixer and simulator). The renders are written to <game>/sound_tests/test_<name>.wav.
 //
 //   circle     a noise circling the head at 2 m: left/right level and time differences, front/back brightness
+//   clicks     a tone turning round the head, each HRTF interpolation: steps at the frames' edges
 //   occlusion  a noise 5 m ahead, then behind a wall (a static one, then a brush model's instance moved in and out)
 //   reverb     a click in a small room and a big hall, each reverb quality: the simulated and the measured RT60
 //   doppler    a 1 kHz tone passing the head at 1000 units/s: the pitch coming and going
 //   nearfield  a noise at the right ear (0.2 m) and 2 m to the right: the level difference between the ears
+//   distance   (in a map) how loud by the distance, in sight of the head: Quake's panning against the spatial mix
 //   hands      (in a map, in VR) the player's weapon channels' origins and panning: the hands'
 //   bench      32 voices, every feature on, then off; and Quake's own mixing of 32 channels: ms per 90 Hz frame
 //   all        each of them
@@ -20,6 +22,7 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -441,6 +444,153 @@ void testCircle(Result& res)
 }
 
 // A 4 m wide, 3 m tall, 0.3 m thick wall across the way ahead (x), centred at `x` metres.
+// Clicks: a smooth tone's second difference, |x[i] - 2x[i-1] + x[i-2]| over the render's peak. A 440 Hz sine's own is
+// (2 pi 440 / 44100)^2 = 0.004; a step of the signal shows as its size. Split by where it falls: at a frame's edge (the
+// first two samples of a frame) or inside one.
+struct Clicks
+{
+    float edge{0.f};     // the largest at the frames' edges
+    float interior{0.f}; // the largest inside them
+    int count{0};        // samples above 0.02 (five times the tone's own)
+    int bad{0};          // samples not a number (or infinite)
+    float peak{0.f};
+};
+
+Clicks clicks(const Render& r, int frame, int from)
+{
+    Clicks c;
+    float peak = 1.f;
+    for(za::SizeT i = static_cast<za::SizeT>(from); i < r.l.size(); i++)
+    {
+        for(const float x : {r.l[i], r.r[i]})
+        {
+            if(!(qza::abs(x) < 1e30f))
+            {
+                c.bad++;
+                continue;
+            }
+            peak = za::max(peak, qza::abs(x));
+        }
+    }
+    c.peak = peak;
+    for(const za::Vector<float>* ch : {&r.l, &r.r})
+    {
+        const za::Vector<float>& x = *ch;
+        for(za::SizeT i = static_cast<za::SizeT>(za::max(from, 2)); i < x.size(); i++)
+        {
+            const float e = qza::abs(x[i] - 2.f * x[i - 1] + x[i - 2]) / peak;
+            if(!(e < 1e30f))
+            {
+                continue;
+            }
+            float& worst = static_cast<int>(i % static_cast<za::SizeT>(frame)) < 2 ? c.edge : c.interior;
+            worst = za::max(worst, e);
+            c.count += e > 0.02f ? 1 : 0;
+        }
+    }
+    return c;
+}
+
+float sine440(int i, unsigned&)
+{
+    return 8000.f * za::sin(2.f * 3.14159265f * 440.f * static_cast<float>(i) / testRate);
+}
+
+// A 440 Hz tone at 2 m, turning round the head (120 deg/s, its elevation swinging +-40 deg twice a second: a head
+// turning and nodding), its direction new each frame; and still, between the HRTF's measured directions. Each
+// interpolation: no steps at the frames' edges (the author heard bilinear crackle, NOTES.md 2026-09-30 23:18).
+void testClicks(Result& res)
+{
+    Mixer m;
+    const double made = Sys_DoubleTime();
+    if(!m.create(testRate, testFrame(), ""))
+    {
+        res.check("clicks (no Steam Audio)", false);
+        return;
+    }
+    Con_Printf("snd_test clicks: the mixer made in %.1f ms, %d lanes (an HRTF each)\n", (Sys_DoubleTime() - made) * 1000.0,
+        m.laneCount());
+    const Sound snd = makeSound(testRate, true, sine440);
+    const Listener lis = centred();
+    const float r = 2.f * units::perMetre;
+    const auto at = [&](float azDeg, float elDeg) {
+        const float a = azDeg * 3.14159265f / 180.f;
+        const float e = elDeg * 3.14159265f / 180.f;
+        return r * (za::cos(e) * (za::cos(a) * lis.fwd + za::sin(a) * lis.right) + za::sin(e) * lis.up);
+    };
+    for(int bilinear = 0; bilinear < 2; bilinear++)
+    {
+        Features f = baseFeatures();
+        f.bilinear = bilinear != 0;
+        const char* name = bilinear ? "bilinear" : "nearest";
+        const Render moving = renderVoice(m, snd.cache(), lis, f, nullptr, 4.f, [&](double t, VoiceInput& in) {
+            in.pos = at(static_cast<float>(t * 120.0), static_cast<float>(40.0 * za::sin(t * 2.0 * 2.0 * 3.14159265)));
+        });
+        const Render still = renderVoice(m, snd.cache(), lis, f, nullptr, 1.f,
+            [&](double, VoiceInput& in) { in.pos = at(37.f, 13.f); });
+        writeWav(bilinear ? "clicks_bilinear" : "clicks_nearest", moving);
+        const int from = testRate / 10;
+        const Clicks cm = clicks(moving, m.frameSize(), from);
+        const Clicks cs = clicks(still, m.frameSize(), from);
+        Con_Printf("snd_test clicks: %s, moving: frame edges %.4f, inside %.4f, %d over 0.02; still: edges %.4f, inside "
+                   "%.4f, %d over\n",
+            name, cm.edge, cm.interior, cm.count, cs.edge, cs.interior, cs.count);
+        char test[96];
+        snprintf(test, sizeof(test), "clicks: %s, a moving tone has no steps (< 0.02)", name);
+        res.check(test, cm.bad == 0 && cs.bad == 0 && cm.edge < 0.02f && cm.interior < 0.02f && cs.edge < 0.02f &&
+                            cs.interior < 0.02f);
+
+        // 16 voices at once (the game's: one a pool task each), each its own direction, turning; on the pool, then on
+        // one thread.
+        for(int parallel = 1; parallel >= 0; parallel--)
+        {
+            constexpr int count = 16;
+            for(int v = 0; v < Mixer::maxVoices; v++)
+            {
+                m.stop(v);
+            }
+            for(int v = 0; v < count; v++)
+            {
+                m.start(v, snd.cache(), static_cast<double>(v * 37));
+            }
+            jobs::setParallel(parallel != 0);
+            Render sum;
+            const int frame = m.frameSize();
+            const int blocks = 2 * testRate / frame;
+            za::Vector<float> l(frame), rr(frame);
+            for(int b = 0; b < blocks; b++)
+            {
+                const double t = static_cast<double>(b) * frame / testRate;
+                for(int v = 0; v < count; v++)
+                {
+                    VoiceInput in;
+                    in.gain = 1.f / count;
+                    in.pos = at(static_cast<float>(v * 360 / count + t * 120.0),
+                        static_cast<float>(40.0 * za::sin(t * 4.0 * 3.14159265 + v)));
+                    m.set(v, in);
+                }
+                qza::fill(l.begin(), l.end(), 0.f);
+                qza::fill(rr.begin(), rr.end(), 0.f);
+                m.render(1, lis, f, nullptr, l.data(), rr.data());
+                sum.l.emplaceBackRange(l.data(), l.size());
+                sum.r.emplaceBackRange(rr.data(), rr.size());
+            }
+            jobs::setParallel(true);
+            const Clicks c = clicks(sum, frame, from);
+            Con_Printf("snd_test clicks: %s, %d voices %s: frame edges %.4f, inside %.4f, %d over 0.02, %d not numbers, "
+                       "peak %.0f\n",
+                name, count, parallel ? "on the pool" : "on one thread", c.edge, c.interior, c.count, c.bad, c.peak);
+            if(parallel)
+            {
+                writeWav(bilinear ? "clicks_bilinear_voices" : "clicks_nearest_voices", sum);
+            }
+            snprintf(test, sizeof(test), "clicks: %s, %d voices %s have no steps (< 0.02)", name, count,
+                parallel ? "on the pool" : "on one thread");
+            res.check(test, c.bad == 0 && c.peak > 1000.f && c.edge < 0.02f && c.interior < 0.02f);
+        }
+    }
+}
+
 void addWall(Mesh& mesh, float x, float upm)
 {
     const float m = upm;
@@ -687,6 +837,156 @@ void testNearField(Result& res)
     res.check("nearfield: off, the same ILD near and far (within 1.5 dB)", qza::abs(nearOff - farOn) < 1.5f);
 }
 
+// In a map: how loud a sound is by its distance from the head, Quake's panning (as vr_snd_spatial 0 mixes it) against
+// the spatial mix (the settings' HRTF, occlusion from this map's own scene, the air, the near field; no reverb), each
+// in dB against the sound itself. The sounds in sight of the head (the world's line of sight), round it, at three
+// heights: the head's, a monster's origin (24 units over the floor), on the floor (2 units over it: an item) and half a
+// unit into it (a prop's contact as it knocks: hidden by the floor, 21 dB under Quake, till outOfSolid). The author found sounds 5-10 m away too quiet (NOTES.md vrfiringrange_2026-10-01_00-29-12).
+void testDistance(Result& res)
+{
+    if(!cl.worldmodel || cls.state != ca_connected || !shm)
+    {
+        Con_Printf("snd_test distance: skipped (needs a map and sound)\n");
+        return;
+    }
+    Mixer m;
+    Simulation sim;
+    const int frame = testFrame();
+    if(!m.create(testRate, frame, "") || !sim.create(testRate, frame, IPL_REFLECTIONEFFECTTYPE_PARAMETRIC, 1, 1.f, 1024))
+    {
+        res.check("distance (no Steam Audio)", false);
+        return;
+    }
+    Features f = featuresFromCvars();
+    f.reverb = 0.f;
+    f.doppler = 0.f;
+    const float upm = f.unitsPerMetre;
+    Mesh mesh;
+    appendBrushModel(cl.worldmodel, mesh, upm);
+    sim.buildSceneNow(ZA_MOVE(mesh));
+    Listener lis;
+    lis.pos = glm::vec3{listener_origin[0], listener_origin[1], listener_origin[2]};
+    lis.fwd = glm::vec3{listener_forward[0], listener_forward[1], listener_forward[2]};
+    lis.right = glm::vec3{listener_right[0], listener_right[1], listener_right[2]};
+    lis.up = glm::vec3{listener_up[0], listener_up[1], listener_up[2]};
+    const IPLCoordinateSpace3 lc = coordinates(lis.pos, lis.fwd, lis.right, lis.up, upm);
+    SimSettings ss;
+    ss.occlusion = f.occlusion > 0.f;
+    ss.occlusionSamples = static_cast<int>(vr_snd_occlusion_samples.value);
+    ss.occlusionRadius = za::clamp(vr_snd_occlusion_radius.value, 0.05f, 4.f);
+    ss.air = f.air;
+
+    const Sound snd = makeSound(testRate, true, noise);
+    const float monoDb = [&] {
+        double s = 0;
+        const short* d = reinterpret_cast<const short*>(snd.cache()->data);
+        for(int i = 0; i < testRate; i++)
+        {
+            s += static_cast<double>(d[i]) * d[i];
+        }
+        return db(s / testRate);
+    }();
+    const auto clear = [&](const glm::vec3& a, const glm::vec3& b) {
+        trace_t trace;
+        ZA_MEMSET(&trace, 0, sizeof trace);
+        trace.fraction = 1.f;
+        vec3_t from{a.x, a.y, a.z};
+        vec3_t to{b.x, b.y, b.z};
+        SV_RecursiveHullCheck(cl.worldmodel->hulls, 0, 0.f, 1.f, from, to, &trace);
+        return trace.fraction >= 1.f && !trace.allsolid && !trace.startsolid;
+    };
+    const float distances[] = {1.f, 2.f, 3.f, 5.f, 7.f, 10.f, 15.f, 20.f};
+    const char* heights[] = {"head", "monster", "floor", "contact"};
+    const float distMult = 1.f / 1000.f; // ATTN_NORM
+    Con_Printf("snd_test distance: from %.0f %.0f %.0f, %.2f units a metre; dB against the sound, Quake's panning | the "
+               "spatial mix (without occlusion) | occlusion, the air's highs\n",
+        lis.pos.x, lis.pos.y, lis.pos.z, upm);
+    float worst = 0.f;
+    for(int h = 0; h < 4; h++)
+    {
+        for(const float d : distances)
+        {
+            constexpr int around = 36;
+            Simulation::Source src[around]{};
+            glm::vec3 at[around];
+            int n = 0;
+            for(int k = 0; k < around; k++)
+            {
+                const float a = static_cast<float>(k) * 2.f * 3.14159265f / around;
+                glm::vec3 p = lis.pos + d * upm * (za::cos(a) * lis.fwd + za::sin(a) * lis.right);
+                if(h > 0)
+                {
+                    // Down to the floor under it.
+                    trace_t trace;
+                    ZA_MEMSET(&trace, 0, sizeof trace);
+                    trace.fraction = 1.f;
+                    vec3_t from{p.x, p.y, p.z};
+                    vec3_t to{p.x, p.y, p.z - 512.f};
+                    SV_RecursiveHullCheck(cl.worldmodel->hulls, 0, 0.f, 1.f, from, to, &trace);
+                    if(trace.fraction >= 1.f || trace.startsolid)
+                    {
+                        continue;
+                    }
+                    p.z = trace.endpos[2] + (h == 1 ? 24.f : h == 2 ? 2.f : -0.5f);
+                }
+                if(!clear(lis.pos, h == 3 ? p + glm::vec3{0.f, 0.f, 1.f} : p) || qza::abs(glm::length(p - lis.pos) / upm - d) > 0.5f * d)
+                {
+                    continue;
+                }
+                at[n] = p;
+                src[n].active = true;
+                src[n].serial = 1;
+                src[n].pos = toSteam(outOfSolid(p, lis.pos), upm); // (as the game places it)
+                n++;
+            }
+            if(n == 0)
+            {
+                Con_Printf("snd_test distance: %4.0f m, %-7s: no place in sight\n", d, heights[h]);
+                continue;
+            }
+            sim.runDirectNow(lc, src, n, ss);
+            double quake = 0, spatial = 0, open = 0, occ = 0, air = 0;
+            int guessed = 0; // hidden by the world's line of sight (the stand-in till the first result)
+            for(int k = 0; k < n; k++)
+            {
+                const glm::vec3 dir = glm::normalize(at[k] - lis.pos);
+                const float dot = glm::dot(dir, lis.right);
+                const float scale = za::max(0.f, 1.f - glm::length(at[k] - lis.pos) * distMult);
+                const float power = 0.5f * ((1.f - dot) * (1.f - dot) + (1.f + dot) * (1.f + dot)) * scale * scale;
+                quake += 10.0 * za::log10(za::max(power, 1e-12f));
+                DirectResult dr;
+                const bool have = sim.direct(k, 1, dr);
+                for(int withOcclusion = 1; withOcclusion >= 0; withOcclusion--)
+                {
+                    Features fk = f;
+                    fk.occlusion = withOcclusion ? f.occlusion : 0.f;
+                    const Render out = renderVoice(m, snd.cache(), lis, fk, nullptr, 0.25f, [&](double, VoiceInput& in) {
+                        in.pos = at[k];
+                        in.gain = scale;
+                        in.hasDirect = have;
+                        in.direct = dr;
+                    });
+                    const int from = testRate / 20;
+                    const Levels lv = measure(out.l.data() + from, out.r.data() + from,
+                        static_cast<int>(out.l.size()) - from, testRate);
+                    (withOcclusion ? spatial : open) += lv.rms - monoDb;
+                }
+                guessed += clear(lis.pos, outOfSolid(at[k], lis.pos)) ? 0 : 1;
+                occ += have ? dr.occlusion : 1.f;
+                air += have ? dr.air[2] : 1.f;
+            }
+            quake /= n;
+            spatial /= n;
+            open /= n;
+            Con_Printf("snd_test distance: %4.0f m, %-7s (%2d places): Quake %+6.1f dB | spatial %+6.1f dB (%+6.1f) | "
+                       "occlusion %.2f, air %.2f, %d hidden by the stand-in; spatial - Quake %+5.1f dB\n",
+                d, heights[h], n, quake, spatial, open, occ / n, air / n, guessed, spatial - quake);
+            worst = za::max(worst, static_cast<float>(qza::abs(spatial - quake)));
+        }
+    }
+    res.check("distance: in sight, as loud as Quake's mix (within 3 dB; a contact too)", worst < 3.f);
+}
+
 void testHands(Result& res)
 {
     const hands::State& hs = hands::current();
@@ -884,6 +1184,10 @@ void test_f()
     {
         testCircle(res);
     }
+    if(all || !ZA_STRCMP(which, "clicks"))
+    {
+        testClicks(res);
+    }
     if(all || !ZA_STRCMP(which, "occlusion"))
     {
         testOcclusion(res);
@@ -899,6 +1203,10 @@ void test_f()
     if(all || !ZA_STRCMP(which, "nearfield"))
     {
         testNearField(res);
+    }
+    if(all || !ZA_STRCMP(which, "distance"))
+    {
+        testDistance(res);
     }
     if(all || !ZA_STRCMP(which, "hands"))
     {

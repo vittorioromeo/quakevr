@@ -162,7 +162,7 @@ QVR_CVAR(vr_box3d_player_hold, "1", CVAR_ARCHIVE) // ... but a player inside one
 QVR_CVAR(vr_box3d_mesh_junctions, "1", CVAR_NONE)  // the world mesh with its T-junctions joined (no bumps at the seams between faces); 0: the faces as the BSP has them
 QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken and put to sleep; 2: every awake body every frame
 // Physics sounds (vr_physsound.cpp; ROUND21.md, "Physics sounds"): props knocking and scraping, a climbing hand's grab.
-QVR_CVAR(vr_physsound, "1", CVAR_ARCHIVE)             // all of them: their volume (0 off)
+QVR_CVAR(vr_physsound, "1", CVAR_ARCHIVE)             // all of them: their volume (0 off; up to 2: over 1 the client multiplies them, vr_audio.cpp)
 QVR_CVAR(vr_physsound_impact, "1", CVAR_ARCHIVE)      // props hitting the level, doors and each other: volume (0 off)
 QVR_CVAR(vr_physsound_min_speed, "1.5", CVAR_ARCHIVE) // m/s, the slowest hit that knocks (a 4 cm drop; quietly)
 QVR_CVAR(vr_physsound_full_speed, "10", CVAR_ARCHIVE) // m/s, a hit this hard or harder at full volume (a 1 m drop: 7.8)
@@ -184,13 +184,14 @@ QVR_CVAR(vr_snd_occlusion, "0.8", CVAR_ARCHIVE)       // walls and doors between
 QVR_CVAR(vr_snd_occlusion_samples, "8", CVAR_ARCHIVE) // rays per sound: 1 on or off; more: partly hidden (a sphere's points)
 QVR_CVAR(vr_snd_occlusion_radius, "0.5", CVAR_ARCHIVE) // m, the sphere a sound comes from (partial occlusion)
 QVR_CVAR(vr_snd_air, "1", CVAR_ARCHIVE)               // far sounds lose their highs in the air
-QVR_CVAR(vr_snd_reverb, "0.4", CVAR_ARCHIVE)          // the room's reverb, simulated from the map where the head is: wet mix (0 off)
+QVR_CVAR(vr_snd_falloff, "1", CVAR_ARCHIVE)           // Quake's distance falloff, scaled (1 Quake's; 0.5: sounds carry twice as far; 0 none): every sound, spatial or not
+QVR_CVAR(vr_snd_reverb, "0.5", CVAR_ARCHIVE)          // the room's reverb, simulated from the map where the head is: wet mix (0 off)
 QVR_CVAR(vr_snd_reverb_quality, "1", CVAR_ARCHIVE)    // 0 parametric (cheapest), 1 convolution (2 s of the simulated response), 2 convolution (3 s, more rays)
 QVR_CVAR(vr_snd_reverb_interval, "0.25", CVAR_ARCHIVE) // s between the room's simulations (a pool task)
 QVR_CVAR(vr_snd_hands, "1", CVAR_ARCHIVE)             // your weapons' sounds from the hand that holds them, not the middle of the head
 QVR_CVAR(vr_snd_follow, "1", CVAR_ARCHIVE)            // sounds follow their thing as it moves (a rocket, a monster, a door)
 QVR_CVAR(vr_snd_doppler, "1", CVAR_ARCHIVE)           // the pitch of things coming and going: scale (0 off, 1 physical)
-QVR_CVAR(vr_snd_nearfield, "1", CVAR_ARCHIVE)         // a sound within a metre of the head: the nearer ear louder, the farther shadowed: strength (0 off)
+QVR_CVAR(vr_snd_nearfield, "1.2", CVAR_ARCHIVE)         // a sound within a metre of the head: the nearer ear louder, the farther shadowed: strength (0 off)
 QVR_CVAR(vr_debug_snd, "0", CVAR_NONE)                // 1: the voices and the simulations' times each second; 2: also each voice
 
 // Desktop mirror of the headset view: 0 off, 1 left eye, 2 both eyes side by side.

@@ -122,8 +122,13 @@ const DefaultChange defaultChanges[] = {
     {61, &vr_gruntgun_ammo, "10"},            // 30
     // 62: no cap on crowbars on crates (the author, 2026-10-01).
     {62, &vr_crate_crowbar_max, "1"},       // 64
+    // 63: the author's Sound page (NOTES.md e1m1_2026-10-01_00-41-15, "tweaked just a few values"; ROUND21.md, "Spatial
+    // audio: bilinear crackle, distance, physics volume"). His HRTF smoothing (nearest) was the crackle's workaround:
+    // below, not a default.
+    {63, &vr_snd_reverb, "0.4"},              // 0.5
+    {63, &vr_snd_nearfield, "1"},             // 1.2
 };
-constexpr int configVersion = 62;
+constexpr int configVersion = 63;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -241,6 +246,13 @@ void migrateConfig()
             Con_DPrintf("VR: %s: new default %s (was %s)\n", c.var->name, c.var->default_string, c.before);
             Cvar_SetQuick(c.var, c.var->default_string);
         }
+    }
+    // 63: bilinear HRTF smoothing crackled (two voices interpolating one HRTF at once on the pool made not-numbers;
+    // each pool lane has its own HRTF now): a config that went to nearest to get away from it goes back to bilinear.
+    if(from < 63 && vr_snd_hrtf_interp.value == 0.f)
+    {
+        Con_DPrintf("VR: vr_snd_hrtf_interp: 1 (bilinear no longer crackles)\n");
+        Cvar_SetQuick(&vr_snd_hrtf_interp, "1");
     }
     // 12: one colour for the player's effects (vr_player_hue, vr_hue.hpp). The gadget's screen hue
     // was the one; a config's becomes the player's, and the screen follows it: nothing changes but

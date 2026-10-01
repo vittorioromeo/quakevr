@@ -17096,3 +17096,43 @@ that channel. Mock: 30 gibbed enforcers, 2 to 5 heads with flies, each `misc/fly
   blasts 0 every time. The effect itself is kept: a head lying about still has its flies.
 - Test aid: `vr_test_spawn_dead 2` gibs the monster `impulse 241` puts (health + 100 damage); the Debug menu's "As a
   Corpse" row is a toggle (0/1), so 2 is console-only for now.
+
+## Spatial audio: bilinear crackle, distance, physics volume, the author's defaults (2026-10-01)
+
+NOTES.md start_2026-09-30_23-18-10, e1m1_2026-10-01_00-41-15, vrfiringrange_2026-10-01_00-29-12 and 00-36-41.
+
+- **Bilinear HRTF crackle: a data race, not the block handling.** One sound alone renders clean either way (`vr_snd_test
+  clicks`: a 440 Hz tone turning 120 deg/s and nodding, its direction new each 256-sample frame: the largest second
+  difference over the peak 0.0045 at the frames' edges, 0.0046 inside, the tone's own being 0.004). Sixteen voices at
+  once on the pool with bilinear: 161,420 of 176,400 samples not numbers (on one thread, or with nearest: none).
+  Steam Audio's bilinear interpolation works in the `IPLHRTF`'s own buffers, and every voice shared one HRTF. Now the
+  voices render in lanes (a pool task each, its voices one after another, `Mixer::maxLanes` 8, one lane per pool
+  thread), each lane with its own copy of the HRTF (the mixer made in 42-53 ms instead of one HRTF's few; the bench
+  unchanged: 0.358 ms for 32 voices with every feature, 0.526 on one thread). After it: 16 voices on the pool, 0 not
+  numbers, edges 0.0040 / inside 0.0047. A voice that ever makes a not-number again is dropped from that call and its
+  effects reset (one would stay in the convolutions and the reverb).
+- **Far sounds too quiet: sources inside surfaces.** `vr_snd_test distance` (in a map): sounds in sight of the head
+  round it at 1-20 m, at four heights, Quake's panning against the spatial mix (dB against the sound). At the head's,
+  a monster's and an item's height the spatial mix is within 0.0-2.0 dB of Quake's at every distance (the air takes
+  0.5-1.5 dB at 10-20 m). Half a unit into the floor (a prop's contact as it knocks, a hold, a shot's impact):
+  **-20.6 to -21.2 dB** under Quake at 3-20 m, occlusion 0.00: Steam Audio and the world's line of sight (the stand-in
+  until the first result) both found it behind the floor. `outOfSolid` (vr_audio.cpp) moves such a place out along the
+  line to the head (2-unit steps, up to 32 units) for both: after it -0.2 to -2.2 dB. End to end in vrfiringrange
+  (`vr_snd_capture`, a hum 5.6 m away): Quake's mixer -29.2 dB, the spatial mix -28.5 dB.
+
+  | distance | Quake | contact before | contact after |
+  |---|---|---|---|
+  | 3 m | -0.0 dB | -20.6 | -0.3 |
+  | 5 m | -0.3 | -20.9 | -0.5 |
+  | 7 m | -0.8 | -21.7 | -1.3 |
+  | 10 m | -1.7 | -22.8 | -3.1 |
+  | 15 m | -4.3 | -25.4 | -6.5 |
+  | 20 m | -7.9 | -28.9 | -9.3 |
+
+  `vr_snd_falloff` (1; Sound > Walls and Rooms, "Distance Falloff"): Quake's distance falloff scaled, every sound,
+  spatial or not (0.5 carries twice as far; at 1 a sound is gone at about 30 m with ATTN_NORM).
+- **Physics sounds up to 2** (`vr_physsound` 0-2, the slider too): the server's volume byte stops at 1, so over 1 the
+  client multiplies the `vr/phys/` sounds as they start (`VR_SndStarted`). Measured: 2 against 1, +6.0 dB spatial,
+  +6.1 dB Quake's mixer.
+- **Defaults** (config 63): `vr_snd_reverb` 0.4 -> 0.5, `vr_snd_nearfield` 1 -> 1.2 (his). His `vr_snd_hrtf_interp 0`
+  was the crackle's workaround: the default stays bilinear, and a config from before 63 at 0 goes back to 1.
