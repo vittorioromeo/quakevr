@@ -635,7 +635,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         header("Exhaust Smoke"),
         slider("Smoke", vr_chainsaw_smoke, 0.f, 30.f, 1.f, "%.0f puffs a second").extend(0.f, 100.f)
             .help("Faint puffs of smoke from the running engine's exhaust, in the hand and lying running. 0: none."),
-        slider("Smoke Opacity", vr_chainsaw_smoke_alpha, 0.f, 0.6f, 0.02f, "%.2f").extend(0.f, 1.f)
+        slider("Smoke Opacity", vr_chainsaw_smoke_alpha, 0.f, 1.f, 0.02f, "%.2f")
             .help("How opaque each puff is as it leaves the exhaust; it fades out over about 2 s as it spreads and rises."),
         header("Shake"),
         slider("In One Hand", vr_chainsaw_shake, 0.f, 6.f, 0.25f, "%.2f mm").extend(0.f, 20.f)
@@ -647,6 +647,17 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Let go running (Runs On When Let Go), as it lies it is kicked 20 times a second, mostly up, at a point "
                   "of its engine at random: it rocks and walks about a little, physically. How hard each kick is. 0: "
                   "still."),
+        header("Pulling the Cord"),
+        slider("Pull Shake", vr_chainsaw_pull_shake, 0.f, 8.f, 0.25f, "%.2f mm").extend(0.f, 20.f)
+            .help("Each pull of the cord of a chainsaw not running, with fuel, the engine turning over: the chainsaw "
+                  "shakes this much, dying out over Pull Shake Time. A weak pull (too slow), half. With an empty tank, "
+                  "no shake, smoke or sparks: only the sound. 0: still."),
+        slider("Pull Shake Time", vr_chainsaw_pull_shake_time, 0.05f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("How long a pull's shake lasts."),
+        slider("Pull Smoke", vr_chainsaw_pull_smoke, 0.f, 12.f, 1.f, "%.0f puffs").extend(0.f, 40.f)
+            .help("Puffs of exhaust smoke each pull makes (as Smoke's, at Smoke Opacity). A weak pull, half. 0: none."),
+        slider("Pull Sparks", vr_chainsaw_pull_sparks, 0.f, 20.f, 1.f, "%.0f").extend(0.f, 60.f)
+            .help("Tiny sparks out of the exhaust at each pull. A weak pull, half. 0: none."),
     };
 }
 

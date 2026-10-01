@@ -20,6 +20,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
@@ -52,6 +53,7 @@ constexpr glm::vec3 exhaustPoint{25.f, -9.f, 2.f};
 constexpr glm::vec3 exhaustOut{0.f, -1.f, 0.4f};
 constexpr float shakeDegPerMm = 0.2f;    // the hand's turn as it shakes, degrees a mm of vr_chainsaw_shake
 constexpr float shakeChain = 1.6f;       // harder with the chain running
+constexpr float weakPullShare = 0.5f;    // a weak pull's feedback (shake, smoke, sparks) against a good one's
 constexpr za::U8 bitOffHolds = 1;  // QC VR_SAWCORD_OFF_HOLDS: the off hand holds the main hand's chainsaw's cord
 constexpr za::U8 bitMainHolds = 2; // VR_SAWCORD_MAIN_HOLDS
 constexpr za::U8 bitOffPulled = 4; // VR_SAWCORD_OFF_PULLED: that cord pulled
@@ -88,6 +90,8 @@ struct State
     double smokeTime{-1.0};          // cl.time the exhaust's smoke was last made at (-1: not yet)
     float smokeDue[2]{0.f, 0.f};     // each hand's chainsaw's puffs due (a share of one carried on)
     double shakePrinted{-1.0};       // vr_debug_chainsaw's last shake line (realtime)
+    double pullKickAt[2]{-1.0, -1.0}; // each hand's chainsaw's last pull's kick (realtime; -1 none): it shakes after it
+    float pullKick[2]{0.f, 0.f};      // how hard (1 a good pull, weakPullShare a weak one)
 };
 State st;
 
@@ -180,6 +184,22 @@ const Handle& handleOf(const qmodel_t* model)
     return cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
 }
 
+// The fuel in `hand`'s chainsaw (QC keeps it in the weapon's clip, a fraction of a percent too).
+[[nodiscard]] float fuelOf(int hand)
+{
+    const int stat = hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2;
+    return za::max(cl.statsf[stat], static_cast<float>(cl.stats[stat]));
+}
+
+// The exhaust of the chainsaw drawn as `ve` (world) and the way its smoke leaves it (a unit vector).
+void exhaustOf(const view::ViewEntity& ve, glm::vec3& at, glm::vec3& dir)
+{
+    at = view::modelPoint(ve, exhaustPoint);
+    const glm::vec3 out = view::modelPoint(ve, exhaustPoint + exhaustOut) - at;
+    const float len = glm::length(out);
+    dir = len > 1e-4f ? out / len : glm::vec3{0.f, 0.f, 1.f};
+}
+
 // An engine's buzz on one axis (-1..1): three fast sines, out of step on each axis and hand (a running engine's
 // vibration, not a tired arm's slow tremor: vr_fatigue.cpp).
 [[nodiscard]] float buzz(float t, int hand, int axis)
@@ -219,16 +239,63 @@ void smokeFrame()
             continue;
         }
         st.smokeDue[h] -= static_cast<float>(n);
-        const glm::vec3 at = view::modelPoint(*ve, exhaustPoint);
-        const glm::vec3 out = view::modelPoint(*ve, exhaustPoint + exhaustOut) - at;
-        const float len = glm::length(out);
-        particles::chainsawSmoke(at, len > 1e-4f ? out / len : glm::vec3{0.f, 0.f, 1.f}, n);
+        glm::vec3 at, dir;
+        exhaustOf(*ve, at, dir);
+        particles::chainsawSmoke(at, dir, n);
         if(vr_debug_chainsaw.value)
         {
             Con_Printf("chainsaw: %s hand's exhaust: %d puff(s) at %.1f %.1f %.1f\n", h == HAND_MAIN ? "main" : "off", n,
                 at.x, at.y, at.z);
         }
     }
+}
+
+// A pull of the cord of `sawHand`'s chainsaw (`share` 1 a good pull, weakPullShare a weak one; NOTES.md
+// vrfiringrange_2026-10-01_22-54-54): not running, with fuel, the engine turns over: the hand shakes a moment
+// (vr_chainsaw_pull_shake, in shake), a puff of exhaust smoke (vr_chainsaw_pull_smoke) and a few sparks
+// (vr_chainsaw_pull_sparks, a casing's: particles::shellEject). Running or with an empty tank, nothing (the sound only).
+void pullFeedback(int sawHand, float share)
+{
+    const view::ViewEntity* ve = sawIn(sawHand);
+    const float fuel = fuelOf(sawHand);
+    if(!ve || (flagsOf(sawHand) & wpnFlagSawRunning) || fuel <= 0.f)
+    {
+        if(vr_debug_chainsaw.value)
+        {
+            Con_Printf("chainsaw: %s hand's pull: no feedback (%s)\n", sawHand == HAND_MAIN ? "main" : "off",
+                !ve ? "not drawn" : fuel <= 0.f ? "no fuel" : "running");
+        }
+        return;
+    }
+    st.pullKickAt[sawHand] = realtime;
+    st.pullKick[sawHand] = share;
+    glm::vec3 at, dir;
+    exhaustOf(*ve, at, dir);
+    const int puffs = static_cast<int>(za::ceil(za::max(0.f, vr_chainsaw_pull_smoke.value) * share));
+    const int sparks = static_cast<int>(za::ceil(za::max(0.f, vr_chainsaw_pull_sparks.value) * share));
+    particles::chainsawSmoke(at, dir, puffs);
+    if(sparks > 0)
+    {
+        particles::shellEject(at, dir, 0.f, sparks); // no smoke of its own: only its sparks
+    }
+    if(vr_debug_chainsaw.value)
+    {
+        Con_Printf("chainsaw: %s hand's pull feedback: %.2f, fuel %.1f, %d puff(s), %d spark(s)\n",
+            sawHand == HAND_MAIN ? "main" : "off", share, fuel, puffs, sparks);
+    }
+}
+
+// The shake left of `hand`'s chainsaw's last pull (mm, dying out over vr_chainsaw_pull_shake_time), 0 none.
+[[nodiscard]] float pullShakeMm(int hand)
+{
+    const float time = vr_chainsaw_pull_shake_time.value;
+    const float since = static_cast<float>(realtime - st.pullKickAt[hand]);
+    if(st.pullKickAt[hand] < 0.0 || time <= 0.f || since < 0.f || since >= time)
+    {
+        return 0.f;
+    }
+    const float left = 1.f - since / time;
+    return za::max(0.f, vr_chainsaw_pull_shake.value) * st.pullKick[hand] * left * left;
 }
 
 // Where a fist closes (its grip channel's middle, world) and the channel's direction.
@@ -414,17 +481,23 @@ void shake(int hand, glm::vec3& pos, glm::vec3& angles)
 {
     pos = glm::vec3{0.f};
     angles = glm::vec3{0.f};
-    if(hand < 0 || hand > 1 || !(flagsOf(hand) & wpnFlagSawRunning) || !sawIn(hand) || cl.stats[STAT_HEALTH] <= 0)
+    if(hand < 0 || hand > 1 || !sawIn(hand) || cl.stats[STAT_HEALTH] <= 0)
     {
         return;
     }
     // Steadied by the other hand, less (not still).
     const float two = za::clamp(twohand::transition(hand), 0.f, 1.f);
-    float mm = za::max(0.f, vr_chainsaw_shake.value) * (1.f - two) + za::max(0.f, vr_chainsaw_shake_2h.value) * two;
-    if(flagsOf(hand) & wpnFlagSawChain)
+    float mm = 0.f;
+    if(flagsOf(hand) & wpnFlagSawRunning)
     {
-        mm *= shakeChain;
+        mm = za::max(0.f, vr_chainsaw_shake.value) * (1.f - two) + za::max(0.f, vr_chainsaw_shake_2h.value) * two;
+        if(flagsOf(hand) & wpnFlagSawChain)
+        {
+            mm *= shakeChain;
+        }
     }
+    // A pull's kick (it may just have caught: the stronger).
+    mm = za::max(mm, pullShakeMm(hand));
     if(mm <= 0.f)
     {
         return;
@@ -505,12 +578,14 @@ void setupView(const hands::State& s)
                 st.pulledUntil = realtime + pullLatch;
                 st.pulledBy = h;
                 debugLog("pulled", h, ext, st.peakSpeed);
+                pullFeedback(sawHand, 1.f);
             }
             else
             {
                 debugLog("pulled too slowly (a weak pull)", h, ext, st.peakSpeed);
                 // The server never hears of it: its sound here (the cord's zip, the engine turned over, not firing).
                 S_StartSound(cl.viewentity, -1, S_PrecacheSound(weakPullSound), vec3_origin, 0.7f, 1.f);
+                pullFeedback(sawHand, weakPullShare);
             }
         }
         else if(!st.armed && ext < need * rearm)
