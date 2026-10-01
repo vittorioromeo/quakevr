@@ -22,7 +22,8 @@
 //   by the line, vr_chainsaw_damage a second, in ticks of a tenth of a second.
 //   The client lets its bar sink into a monster's model while the chain runs (vr_chainsaw_overlap, cm;
 //   vr_modelcollide.cpp) instead of stopping it at the surface.
-// - Out of fuel, it stalls. Holstered or thrown, it stops (its flags' QVR_WPNFLAG_SAW_STATE are a hand's).
+// - Out of fuel, it stalls. Holstered, it stops (its flags' QVR_WPNFLAG_SAW_STATE are a hand's). Dropped or thrown
+//   running, it runs on a few seconds as it lies (vr_chainsaw_drop_run; VR_Saw_PropRuns), still running if taken back.
 // - The weapon's ammo counter shows its fuel. Empty, the trigger clicks dry, as an empty gun's (every half a second held).
 // - A zombie heeds no tick of it (each below the 9 it ignores): the chain's cutting adds up on it instead
 //   (orig_mon_zombie.qc VR_Zombie_SawHurt): about a third of a second puts it down, as a heavy hit does; cut on while it
@@ -158,6 +159,75 @@ void(string xWhat) VR_Saw_Debug =
 };
 
 string(float xHand) VR_Saw_HandName = { return xHand == cVR_OffHand ? "off" : "main"; };
+
+// A running chainsaw dropped or thrown (weapons.qc DropWeaponInHandScaled) runs on as it lies, vr_chainsaw_drop_run
+// seconds, its idle heard from it as it flies (the engine's sounds follow their entity: vr_audio.cpp), then dies; taken
+// back into a hand meanwhile, it is still running, no cord to pull (NOTES.md vrfiringrange_2026-10-01_11-33-00). Its
+// chain stops as it leaves the hand. Its weaponflags keep QVR_WPNFLAG_SAW_RUNNING while it runs.
+.float vr_saw_prop_on; // when it was let go running (0: not running)
+
+void(entity xProp) VR_Saw_PropRuns =
+{
+    xProp.weaponflags = xProp.weaponflags | QVR_WPNFLAG_SAW_RUNNING;
+    xProp.vr_saw_prop_on = time;
+    sound(xProp, CHAN_WEAPON, "vr/saw_idle.wav", 1, ATTN_NORM);
+    VR_Saw_Debug(sprintf("chainsaw: let go running: runs on %g s, fuel %g\n", cvar_hget(cvarh_vr_chainsaw_drop_run),
+        xProp.weaponclip));
+};
+
+// Its fuel as burnt idling since it was let go; it stops (not running, its flag cleared) when `xStop`.
+void(entity xProp, float xStop) VR_Saw_PropSettle =
+{
+    xProp.weaponclip = max(0, xProp.weaponclip - (time - xProp.vr_saw_prop_on) * cvar_hget(cvarh_vr_chainsaw_idle_fuel_use));
+    if(xStop)
+    {
+        xProp.vr_saw_prop_on = 0;
+        xProp.weaponflags = xProp.weaponflags - (xProp.weaponflags & QVR_WPNFLAG_SAW_STATE);
+    }
+};
+
+// It is removed (a deathmatch timeout, gone on a hit): its loop would play on.
+void(entity xProp) VR_Saw_PropStop =
+{
+    if(xProp.vr_saw_prop_on)
+    {
+        VR_Saw_PropSettle(xProp, TRUE);
+        sound(xProp, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM);
+    }
+};
+
+// Taken into a hand (wpnthrow_handtouch_impl): still running, its sound the hand's from now on (VR_Chainsaw_Frame).
+void(entity xProp) VR_Saw_PropTaken =
+{
+    if(xProp.vr_saw_prop_on)
+    {
+        VR_Saw_PropSettle(xProp, xProp.weaponclip <= 0 || time >= xProp.vr_saw_prop_on + cvar_hget(cvarh_vr_chainsaw_drop_run));
+        if(xProp.weaponflags & QVR_WPNFLAG_SAW_RUNNING)
+        {
+            xProp.vr_saw_prop_on = 0; // (the hand runs it now)
+        }
+        sound(xProp, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM);
+        VR_Saw_Debug(sprintf("chainsaw: taken back %s, fuel %g\n",
+            (xProp.weaponflags & QVR_WPNFLAG_SAW_RUNNING) ? "running" : "stopped", xProp.weaponclip));
+    }
+};
+
+// Each think of a thrown weapon (wpnthrow_think): a chainsaw let go running dies when its time is up (or its tank dry).
+void() VR_Saw_PropThink =
+{
+    if(!self.vr_saw_prop_on)
+    {
+        return;
+    }
+    float left = self.weaponclip - (time - self.vr_saw_prop_on) * cvar_hget(cvarh_vr_chainsaw_idle_fuel_use);
+    if(left > 0 && time < self.vr_saw_prop_on + cvar_hget(cvarh_vr_chainsaw_drop_run))
+    {
+        return;
+    }
+    VR_Saw_PropSettle(self, TRUE);
+    sound(self, CHAN_WEAPON, "vr/saw_stall.wav", 1, ATTN_NORM); // (the engine dying: replaces the idle's loop)
+    VR_Saw_Debug(sprintf("chainsaw: let go: its engine stopped, fuel %g\n", self.weaponclip));
+};
 
 // An ogre dies: its chainsaw falls where it held it (by its right side as it stands), 40-100% full (vr_chainsaw_drop_fuel_min).
 void() VR_DropOgreChainsaw =
