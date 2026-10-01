@@ -123,6 +123,8 @@ After the statics cleanup: wrist gadget messages, menu sliders held past their e
 
 Axe: throw upright, spear-like, knife-style, overhand and sidearm: sticks whenever the edge, a corner or the blade goes in first; flat and handle-first bounce; a corner hit looks right (your 90/90 angle settings were reset to 45/65: the meanings changed)
 
+After the Zancle follow-ups (no exceptions, fewer allocations): record a few takes, fire and reel the grapple around corners often, switch weapons
+
 [Decide or give feedback]
 Crouching makes you a smaller target for all bullets and missiles (Player Hitbox > hit box only up to your head, on by default): keep?
 Explosive boxes as shields too (vr_crate_shield 2: they blow up in your hands)? Off by default
