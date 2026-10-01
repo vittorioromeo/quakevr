@@ -17411,3 +17411,61 @@ Notes vrclimb_2026-10-01_00-32, vrfiringrange_2026-10-01_00-02, 00-08, 00-12, 00
 - [ ] Take hits (Debug > Getting Hit too): the hands flinch away and up, the gun tips; small and big hits differ; Knock
   Time and Largest Knock clearly change it.
 - [ ] Fire the lightning gun into the pool from the edge: splashes where the beam goes in.
+## Torso direction: the head leads, the hands only in front pull (2026-10-01)
+
+Voice note (vrstart_2026-09-30_23-13): the torso over-followed the arms. One hand behind the back with the other
+moving turned it a lot; one hand swept right to left in front turned the whole torso after it.
+
+Nothing tracks the torso: its yaw (`hands::State::bodyYaw`: the body model, holsters, pouch, flashlight, legs' turn
+steps) is guessed. The old engine's guess (VR_GetBodyYawAngle, now `vr_torso_mode 0`) mixed the head's forward with
+the hands' average reach from the shoulders, 0.8 towards the hands, every frame; hands behind only had their length
+cut, so one hand behind and one in front still averaged to a direction well off to the side.
+
+`vr_torso.cpp` (`vr_torso_mode 1`, the default) takes a weighted mean of directions, relative to the head:
+
+- the head now (`vr_torso_head` 1) and where it faced lately (`vr_torso_head_history` 1, eased over
+  `vr_torso_head_lag` 0.3 s);
+- both hands' midpoint, only when both are in front of the torso (`vr_torso_hands` 2.5): 5 to 25 cm ahead of their
+  shoulders, and not far to a side (full to `vr_torso_side_angle` 45 degrees from the chest, none 35 further);
+- otherwise one hand alone in front, a little (`vr_torso_one_hand` 0.3);
+- both hands hanging by the sides (`vr_torso_hands_down` 2): square to the line between them. Low, level, close to
+  the body, shoulder width apart; judged without the torso's frame, so that a torso that followed a glance does not
+  lose the vote that holds it. Hands hanging turn with the body, not with a glance: the one cue that tells a look
+  round from a turn when the hands are down.
+
+Hands are judged in the torso's frame (its last estimate: "behind the back" is behind the torso), from a chest 0.15 m
+behind the head, shoulders 0.18 m to each side. The result turns only once it is more than `vr_torso_deadzone` (8
+degrees) off, then eases all the way (`vr_torso_speed` 12/s), and is never further than `vr_torso_neck_max` (70) from
+the head. It is kept in the play space: snap and smooth turns and the server's yaw turn it at once. Settings: Body
+page, "Torso Direction"; Debug > "Print Torso Direction" (`vr_torso_report [label]`: head, old and new yaws in the
+play space, then the target, the head's history, the hands' direction and weights).
+
+Acceptance (`Misc/quakevr/torso_cases.py` writes a `vr_mock_play` file of the cases; degrees left positive, head
+straight ahead unless given; old = the old estimate in the same frame):
+
+| case | head | old | new |
+|---|---|---|---|
+| rest, both hands forward | 0 | -0.2 | 0.0 |
+| off hand behind the back, main hand right / centre / left / far right | 0 | -16 / 3 / 19 / -30 | 0 / 0 / 0 / -6 |
+| main hand swept right to left, off hand down: start / middle / end | 0 | -16 / 13 / 38 | -6 / -6 / 4 |
+| the same sweep, off hand forward too: start / end | 0 | -13 / 26 | -12 / 22 |
+| gun held out, body turning 90 left in 1.5 s: half way / at the end / +0.5 s | 45 / 90 / 90 | 47 / 92 / 92 | 37 / 82 / 89 |
+| gun held at 90, a 60 glance left for 0.4 s | 147 | 120 | 120 |
+| hands down, body turning 90 to 0 in 1 s: half way / at the end / +1 s | 44 / 0 / 0 | 48 / 0 / 0 | 57 / 13 / 3 |
+| aiming ahead, head 45 right | -45 | -23 | -20 |
+| hands down, head 100 right: at once / +1.5 s | -100 | -117 | -71 / -98 |
+| hands down at -100, a 60 glance left for 0.6 s | -42 | -30 | -71 |
+
+Limits (a headset and two controllers do not measure the torso):
+
+- Both hands in front with one swept across still turns it (22 of the 26): a reach across and a turn of the torso
+  look the same. `vr_torso_hands` lower trades it for less of the hands' hold in a glance.
+- A glance with both hands held out still turns it about half way (the head's weight; the hands at 90, the head 147,
+  the torso 120): in front, the hands' midpoint is where the torso faces only if the arms are square to it.
+- Physical turns lag: about 13 degrees at the end of a 90/s turn with the hands down, 8 with a gun held out (the
+  head's history and the easing). Stick turns do not lag.
+- One hand alone tells little: with the other behind the back the head alone decides.
+
+Also seen: `za::remainder` truncates (fmod), where `std::remainder` rounded to the nearest: since the Zancle
+migration's step 6, 15 `za::remainder(x, 360.f)` yaw wraps in Quake/vr (vr_avatar.cpp's `yawDelta` for the feet's
+turn steps among them) return -360..360 rather than -180..180. vr_torso.cpp wraps with its own `wrapYaw`.
