@@ -17097,3 +17097,74 @@ that channel. Mock: 30 gibbed enforcers, 2 to 5 heads with flies, each `misc/fly
   blasts 0 every time. The effect itself is kept: a head lying about still has its flies.
 - Test aid: `vr_test_spawn_dead 2` gibs the monster `impulse 241` puts (health + 100 damage); the Debug menu's "As a
   Corpse" row is a toggle (0/1), so 2 is console-only for now.
+
+## Zancle update to 4ed9c3cc (2026-10-01)
+
+The author's Zancle additions (Math: `hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign`, `trunc`; Base:
+`ZA_ISFINITE`, `Limits.hpp`; Algorithm: `stablePartition`, `lowerBound`, `fill`, `iota`, `replace`; Random:
+`FastNonCryptoRng`; MSVC compatibility) vendored at `4ed9c3cc` (`Quake/vr/external/zancle/README.md`: 178 files) and
+used: the `qza` shims for them are gone from `vr_zancle.hpp`, and the std random engines with them.
+
+- **Local changes:** `Config.hpp`'s (clang-cl's C++23 check) dropped, upstream took it; `MaxAlignT.hpp`,
+  `Assert.cpp` and `InitializerList.hpp` kept. `Math/FloatMax.hpp` moved upstream to `Base/Limits.hpp` (vr_held,
+  vr_particles).
+- **`fill` over a whole array:** Zancle's takes iterators only: the 22 range calls pass `a, a + za::getArraySize(a)` or
+  `.begin(), .end()` (`getArraySize` is consteval: not on an array reached through a reference; `beamSides` and the
+  global's own size there). A range overload is a proposal.
+- **Random:** `za::FastNonCryptoRng` (xoroshiro128++). The engines seeded by `std::random_device` (particles, shells,
+  gore, body blood) are seeded per run from `qza::nowNs()`; `vr_particle_seed` reseeds the particles' (the same
+  particles every run, but not the old run's); the melee HUD's embers (`0x5C0FFEE`), `vr_hitmodel_bench` and
+  `vr_hull_bench` (1234) keep fixed seeds with new sequences: a deliberate change, nothing compared those sequences
+  (the benches' shares move within their sampling: hit models at 5000 rays 79/85% before, 80/84% now; the hull
+  bench's agreement the same). `rnd(lo, hi)` is `lo + (hi - lo) * getF(0, 1)` (std's arithmetic: either order).
+- **`za::remainder` is not `std::remainder`** (found by another agent): it truncates the quotient (fmod's result, through
+  an int), std rounds it to the nearest. The migration's 13 angle wraps (`za::remainder(x, 360.f)`: the avatar's feet
+  turn, the hands' snap turn, the motion playback's yaw, the review's lerp, the panel's follow, the profiler HUD, the
+  view's angles, the weight's twist) returned -360..360 instead of -180..180; now `qza::remainder` (the builtin
+  IEEE remainder; `ZANCLE-TODO`). Audited the migration's other math for the same mismatch: every other function it
+  moved to Zancle is a builtin wrapper of the same name (`fmod`, `round`, `lround`, `llround`, `trunc`, `copysign`,
+  `atan2`, `floor`, `ceil`, `fmin`/`fmax`...), `za::min`/`max`/`clamp` are std's expressions (`b < a ? b : a`...: the
+  same with NaN), `qza::abs` std's overloads; no `signbit` was moved. **`vr_zancle_math_test`** (Debug menu, "Zancle
+  Math Self-Test") checks them against std on edge values (signed zeros, halves, the wrap angles, 1e9, 3e38,
+  denormals, infinities, NaN; every pair for the 2-argument ones; the wrap of every half degree in -1080..1080): 102625
+  checks, 0 differ to the last bit; `za::remainder` differs from `std::remainder` in 89 of 198 of its cases.
+- **Counts** (`Quake/vr`, outside `external`, lines): `std::` 126 -> 132, of which 27 new are the self-test's std
+  reference (`vr_zancle.cpp`; outside it 125 -> 104); `ZANCLE-TODO` 47 -> 34.
+
+### The initializer_list fix upstream: not correct
+
+Upstream (`13db45220`) keeps its own `std::initializer_list` (a pointer and a size) under MSVC's STL, defines that STL's
+include guard `_INITIALIZER_LIST_` with it, and adds a `(first, last)` constructor for cl.exe. The guard only settles
+which definition a file gets: the one whose header came first. A file that includes Zancle first gets the pointer and
+size, a file that includes `<vector>` first gets MSVC's two pointers, and in one program both are the same
+`std::initializer_list<T>`: an ODR violation the linker resolves by keeping one copy of every inline function that
+takes one (a container's braced-list constructor), so the other file's callers pass a pointer where a size is read,
+or the reverse. That is the original heap corruption, unchanged.
+
+Standalone test (the session's scratchpad `iltest/`: two files, one including Zancle's header first, one MSVC's STL
+first, both building a `Holder<int>{1, 2, 3, 4, 5}` through one shared noinline constructor, plus `std::vector<int>`
+and `std::vector<std::string>` from braced lists; each file probes the layout by its bytes), x64, clang-cl and cl
+19.44, `/O2` and `/Od`:
+
+| Header | clang-cl /O2 | clang-cl /Od | cl /O2 | cl /Od |
+|---|---|---|---|---|
+| upstream 4ed9c3cc | layouts differ; the shared constructor saw a size of 612011736004 | crashed (0xC0000409) | layouts differ; size 70620542364 | crashed (0xC0000409) |
+| ours (the real header under `_MSC_VER`) | pass | pass | pass | pass |
+| Zancle's type with MSVC's layout under `_MSC_VER` | pass | pass | pass | pass |
+
+`sizeof` (16) and `alignof` (8) agree in every case, so a size check can't catch it; within one file begin, end and
+size are right in every case. Kept ours. The fix to take upstream: under `_MSC_VER` include the real
+`<initializer_list>` (MSVC's is small: `<yvals_core.h>` and `<cstddef>`), as ours does; or, to keep its own type there,
+lay it out as MSVC's (two pointers, `begin`/`end`/`size` from them, the `(first, last)` constructor for cl.exe):
+every file then agrees whichever header came first (the third row; still two definitions, formally, but the same
+layout and meaning). Also, under cl.exe the header's `[[gnu::always_inline]]` and `[[gnu::pure]]` warn (C5030).
+
+Zancle proposals from this update: (1) the above; (2) `za::remainder`'s name says `std::remainder` but it truncates:
+rename it (`truncatedRemainder`) or make it the IEEE one (`__builtin_remainder`), and it divides through an `int`
+(wrong past 2^31 quotients); (3) a range `fill`; (4) `FastNonCryptoRng.hpp` pulls `Geometry/Priv/Vec2Base.hpp` for
+`getVec2f`: a separate header would keep it out of non-geometry users.
+
+Verified: Release and Debug (`QVR_ZANCLE_DEBUG` on) 0 warnings; the full melee eval's table byte for byte the same as
+the base commit's (`c3c65b88`, 172 of 177 pass); the grasp sweep (17 weapons x 8 kinds x 7 places, e2m1) 952 of 952
+to the last bit against the base commit; smoke (e1m1, e2m1, vrfiringrange) clean; in Debug (Zancle's asserts on) the
+math test, a sweep and two maps with no assert.
