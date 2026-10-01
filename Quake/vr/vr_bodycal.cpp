@@ -1375,7 +1375,7 @@ void saveSession()
             &vr_bodycal_forearm, &vr_bodycal_shoulder_rise, &vr_bodycal_shoulder_swing, &vr_body_tweak_upper_arm,
             &vr_body_tweak_forearm, &vr_body_tweak_shoulders_back, &vr_body_tweak_shoulders_up, &vr_body_tweak_shoulders_out,
             &vr_body_tweak_shoulder_rise, &vr_body_tweak_shoulder_swing, &vr_body_arm_length, &vr_body_arm_stretch, &vr_gunangle,
-            &vr_gunyaw, &vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll, &vr_lefthanded})
+            &vr_gunyaw, &vr_handcal_x, &vr_handcal_y, &vr_handcal_z, &vr_handcal_roll})
     {
         fprintf(f, " %s=%s", c->name, c->string);
     }

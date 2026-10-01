@@ -553,7 +553,7 @@ BeamTrace beamTraces[beamRings][beamSides];
 }
 
 // Stored on the belt (round 21: hanging; on the chest at first, where a boxing guard's fist closed on it): clipped by
-// its tail to the belt on the off hand's side, between the buckle and the hip holster, hanging straight down over the
+// its tail to the belt on the left (vr_flashlight_side 1: the right) side, between the buckle and the hip holster, hanging straight down over the
 // hip, the lens at the bottom, the switch out, leaning its lens out from the body by vr_flashlight_tilt
 // (vr_flashlight_forward, _up and _out move it). Switched on there, it lights the floor at your feet: of no use but to
 // find it, so that it is taken in a hand, clipped on a gun or put on the head.
@@ -567,7 +567,7 @@ BeamTrace beamTraces[beamRings][beamSides];
     const glm::vec3 up = torso.pelvis.rot[0];
     const glm::vec3 fwd = torso.pelvis.rot[2];
     const glm::vec3 left = glm::cross(up, fwd);
-    const float side = hands::moveHand() == HAND_OFF ? 1.f : -1.f; // the player's off hand's hip
+    const float side = vr_flashlight_side.value != 0.f ? -1.f : 1.f; // the left hip, or (vr_flashlight_side 1) the right
 
     // The clip on the belt's front (make_vrbody.py's torso rings: the belt 10-20% up from the hips), beltUp above the
     // pelvis joint and beltSide to the side, deeper for the brawnier builds; the tube's axis the torch's greatest
@@ -1690,7 +1690,7 @@ void toggle_f()
     }
 }
 
-// vr_flashlight_give <left|right>: the torch into that controller's hand (left is HAND_OFF, whatever vr_lefthanded), as
+// vr_flashlight_give <left|right>: the torch into that controller's hand (left is HAND_OFF), as
 // if gripped there; that hand's grip lets go of it. A test aid (Misc/quakevr/flashbuttons).
 void give_f()
 {

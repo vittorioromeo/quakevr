@@ -6,14 +6,14 @@
 //     Display > Set Height Now.
 //  2. Body: Body Calibration's poses (vr_bodycal.hpp; seated without its first), applied at once when the poses agree;
 //     otherwise its page opens on the result (redo a pose, Apply or Cancel) and the setup goes on when the menu closes.
-//  3. Main hand: the hand raised high is the main one (vr_lefthanded: the other is the off hand, which moves and wears
-//     the wrist gadget; hands::moveHand).
+// (No main hand step: there is no main hand setting. The sides are their own settings, on the room's buttons: SWAP
+// STICKS, GADGET ARM, TORCH SIDE.)
 //
 // Each result is printed (the wrist gadget's log) and the config saved; a summary shows at the end. The menu button stops
 // it (as Body Calibration's); the room's START CALIBRATION button (`vr_setup here`) runs it again.
 //
 // The room's wall buttons (func_button with buttonEffect 3 and targetname "vr_setup_option <key>\n") each step one of
-// the main settings through its presets (the table in vr_setup.cpp: turning, locomotion, main hand, world scale, the
+// the main settings through its presets (the table in vr_setup.cpp: turning, locomotion, the sticks, the gadget's arm, the torch's hip, world scale, the
 // body, the HUD...), print the new value and save the config; each button's value is drawn on a small screen above it.
 // Its boards say where the rest is in the menus: their texts name the pages ({menu:<page title>}, menu::expandPaths),
 // so the paths follow the menus, and a page or row that no longer exists shows and warns (vr_menu_path_check).

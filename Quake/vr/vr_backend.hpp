@@ -55,7 +55,7 @@ constexpr float runtimePanelDistance = 1.4f;
     return p;
 }
 
-// The physical controllers: HAND_OFF the left, HAND_MAIN the right, whatever vr_lefthanded says (it only picks the
+// The physical controllers: HAND_OFF the left, HAND_MAIN the right, whatever the side settings say (it only picks the
 // player's off hand, hands::moveHand).
 enum Hand : int
 {

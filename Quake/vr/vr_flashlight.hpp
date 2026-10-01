@@ -1,5 +1,5 @@
 // vr_flashlight.hpp -- the chest flashlight (vr_flashlight): a straight tactical torch (round 21; a
-// right-angle one before) stored hanging from a clip on the belt's off hand side, lens down (lighting only the feet:
+// right-angle one before) stored hanging from a clip on the belt's left (vr_flashlight_side) side, lens down (lighting only the feet:
 // it is meant to be taken, clipped on a gun or worn on the head). Only deliberate presses take, switch or unclip it: an
 // open, still hand (a fist clenched in a fight next to it does nothing).
 // A hand at it with the trigger switches it on or off; an empty hand's grip takes it, held in the

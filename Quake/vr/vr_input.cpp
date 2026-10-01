@@ -2,12 +2,12 @@
 //
 // Controller buttons are Quake keys, so everything they do comes from bindings (defaults in
 // quakevr/default.cfg) and can be rebound -- with aliases -- from the console or the bindings
-// menu. They reuse Ironwail's gamepad keys: the main hand (the right controller, left-handed too)
+// menu. They reuse Ironwail's gamepad keys: the main hand (always the right controller)
 // is the "right" half of a gamepad (RT, RB, A, B, RS), the off hand the "left" half (LT, LB, X,
 // Y, LS). Menus understand these keys already.
 //
-// The player's off hand's stick moves (analog, see VR_AdjustMove; vr_lefthanded 1: the right
-// one, hands::moveHand); the other stick turns, and pushed up or down it is DPAD UP/DOWN. In
+// The left stick moves (analog, see VR_AdjustMove; vr_stick_swap 1: the right one,
+// hands::moveHand); the other stick turns, and pushed up or down it is DPAD UP/DOWN. In
 // menus the moving stick is the DPAD; the turning one
 // only scrolls a page with a scrollbar or is DPAD UP/DOWN (never left/right: it doesn't change
 // settings); the menu button closes the menu from any page.
@@ -289,7 +289,7 @@ void update(const InputState& tracked)
     const bool active = vrActive();
     const InputState& in = active ? tracked : released;
 
-    // The sticks by what they do: the player's off hand's moves (vr_lefthanded: the right one), the other's turns.
+    // The sticks by what they do: the moving one (vr_stick_swap: the right), the turning one.
     const HandInput& off = in.hands[hands::moveHand()];
     const HandInput& main = in.hands[1 - hands::moveHand()];
 

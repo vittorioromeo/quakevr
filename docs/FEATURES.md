@@ -4,7 +4,9 @@ What Quake VR does and how to use it. Menu paths are under **Options > VR Settin
 **VR Settings > Advanced VR Options** (the other pages). [SETTINGS.md](SETTINGS.md) lists the settings themselves.
 
 The controls named here are the defaults: trigger, grip, A/B on the main hand, X/Y on the off hand, and the sticks.
-The main hand is your right hand unless *Left Handed* is on.
+The main hand is the right controller, the off hand the left: both hands hold, fire, swing and climb alike. There is no
+left-handed mode; what has a side has its own setting: *Swap Stick Functions* (the right stick moves), *Wrist Gadget
+Arm* and *Flashlight Side*. A config with the old `vr_lefthanded 1` gets all three on the right.
 
 - [Weapons](#weapons)
 - [Holsters and reloading](#holsters-and-reloading)
@@ -113,7 +115,7 @@ through walls, so it can't get stuck. Settings: the *Force Grab* page, and *Forc
 
 ## Movement
 
-- **Smooth locomotion** with the off-hand stick, towards your head or your off hand (*Move Towards*). Run or walk by
+- **Smooth locomotion** with the left stick (the right one with *Swap Stick Functions*), towards your head or that hand (*Move Towards*). Run or walk by
   default (*Default Speed*); clicking the off-hand stick switches to the other.
 - **Turning:** smooth, or snap 30, 45 or 90 degrees.
 - **Teleport** (off by default): turn on *Teleport* and bind a button to `+teleport`, for example
