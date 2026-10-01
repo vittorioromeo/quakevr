@@ -706,7 +706,7 @@ float(float xHand) VR_WallTorch_Melee =
         trace_ent.axhitme = 1;
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
-            SpawnBloodSplash(org, xdmg);
+            VR_HitBloodSplash(trace_ent, org, xdmg);
         }
         if(lit)
         {

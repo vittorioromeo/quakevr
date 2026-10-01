@@ -18347,3 +18347,30 @@ the handle; 180 backwards).
   180; the runtime's angular velocity in the world or the controller's frame; before and after): with the
   controller's frame and `vr_throw_spin_from_pose 0`, 0 / 90 / 180 degrees off end over end (the bug); every other
   case 0.0, spin 8.0-8.3 rad/s. PASS.
+## Crates: wood dust, stacks, a grittier texture (2026-10-01)
+
+**Wood dust, not blood** (NOTES.md e1m1_2026-10-01_12-10-47). Only the shots' and thrown things' touches
+(`spawn_touchblood`, the bullets' trace) knew wood; every blow sprayed blood. Now `VR_HitBlood` / `VR_HitBloodSplash`
+(vr_crates.qc) take what was hit and throw `VR_Crate_Splinters` (the wood dust preset) off wood: fists and held things,
+the axe and its variants, the crowbar, a torch, a bash, a headbutt, the grapple's hook, the lightning gun; the chainsaw
+throws splinters, not sparks. `VR_Crate_Wooden` also counts a crate the blow has just broken (`vr_crate_broken`) and a
+piece just burst: most paths spray after `T_Damage`, which clears `vr_cratekind`. `developer 1` prints `hit: <class> is
+wood: splinters at ...`. Tests (firing range, `run_dmg.sh` from `scratch/crates2`): punch x3, held health box x2: every
+blow splinters, the breaking one too; thrown: as before.
+
+**Stacked test crates touching** (NOTES.md vrfiringrange_2026-10-01_11-44-23). `VR_Crate_TestSpawn` stacked the top on
+the lower one's `absmax` from its own `absmin`: both a unit wider each way (SV_LinkEdict), a 2.05-unit gap the asleep
+top never fell across. Now from origin and `mins`/`maxs`: a 0.05 gap. Test (e1m1, `vr_test_spawn 109`): top minus bottom
+origin 40.0 (24 + 16) at spawn and 300 frames later (was 42.05). The map's own stacks were right (32.0).
+
+**A grittier texture** (NOTES.md vrfiringrange_2026-10-01_11-43-14). Matched by measurement to QRP's wood (`wood1_1`:
+mean 0.32 0.22 0.12, fine detail (luminance minus a 3-px blur, std) 0.093): darker, duller palette; the rings' contrast
+down (0.85 -> 0.6), fibres at three scales with their contrast up, crevices (long thin cracks along the grain), grime at
+every scale and packed into the gaps, worn edges and scratches less bright, the nails' iron rusty brown. The relief's
+fibres doubled (0.025 -> 0.045: the crevices in the normal map). Small crate's plank (crop): pine 0.375 0.279 0.172 /
+detail 0.048 -> 0.322 0.242 0.137 / 0.056; brown 0.259 0.174 0.106 -> 0.197 0.130 0.072; weathered 0.311 0.299 0.277 ->
+0.233 0.224 0.206. No QRP pixels used (CREDITS.md: no licence file; retextures of id's art).
+
+- [ ] Punch, club, chop, saw a crate: wood dust, no blood (the breaking blow too).
+- [ ] Debug > Tests > Thing > Two Crates Stacked: the top one sits on the lower one.
+- [ ] The crates up close in e1m1 (QRP and not): gritty, darker, in keeping with the walls and explosive boxes.

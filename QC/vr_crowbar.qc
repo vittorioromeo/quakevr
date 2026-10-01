@@ -84,7 +84,7 @@ void(float xHand) W_CrowbarMelee =
         self.damage_weapon = IT_AXE;
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
-            SpawnBloodSplash(org, xdmg);
+            VR_HitBloodSplash(trace_ent, org, xdmg);
         }
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {

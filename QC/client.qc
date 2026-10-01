@@ -2736,7 +2736,7 @@ void(float xThreshold) VR_Headbutt_Hit =
     if(victim.takedamage)
     {
         victim.axhitme = 1;
-        SpawnBloodSplash(at, dmg);
+        VR_HitBloodSplash(victim, at, dmg);
         VR_SetHitKind(QVR_HITKIND_HEADBUTT, -1, at, dir);
         T_Damage_VRMelee(victim, self, self, dmg);
         VR_ClearHitKind();

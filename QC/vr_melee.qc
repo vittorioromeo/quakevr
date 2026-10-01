@@ -2277,7 +2277,7 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
         e.attack_finished = time + stagger;
         self = oldSelf;
     }
-    SpawnBloodSplash(e.origin + '0 0 16', 4);
+    VR_HitBloodSplash(e, e.origin + '0 0 16', 4);
 };
 
 // A push's stamina (vr_shove_stamina), once a push (`xBoth`: two hands; `xArmed`: a bash), whether it lands or bats a

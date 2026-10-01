@@ -58,16 +58,48 @@ float(entity e) VR_Crate_Is =
     return e.vr_cratekind == 1 || e.vr_cratekind == 2;
 };
 
-// Wood: a crate, a piece of one, an explosive box. Shot or struck, it throws splinters, not blood.
+// Wood: a crate, a piece of one, an explosive box. Shot or struck, it throws splinters, not blood. Also one the blow has
+// just broken (VR_Crate_Break, VR_CratePiece_Burst clear vr_cratekind): blood often comes after the damage.
 float(entity e) VR_Crate_Wooden =
 {
-    return e.vr_cratekind > 0 || e.vr_blocksight > 0;
+    return e.vr_cratekind > 0 || e.vr_blocksight > 0 || e.classname == "vr_crate_broken" || e.classname == "vr_crate_piece" ||
+           e.classname == "vr_crate_piece_gone";
 };
 
 // Splinters and a puff of dust where a shot or a blow hits wood (`damage`: how much).
 void(vector org, vector dir, float damage) VR_Crate_Splinters =
 {
     particle2(org, dir, QVR_PARTICLE_PRESET_WOODDUST, max(2, min(8, damage * 0.5)));
+};
+
+void(vector org, vector vel, float damage) SpawnBlood;
+void(vector org, float damage) SpawnBloodSplash;
+
+// Where a blow or a shot hits `targ`: blood (SpawnBlood, `vel` its spray), or splinters if it is wood. Every melee path
+// goes through these (fists, held weapons and things, the crowbar, a torch, a bash, a headbutt, the chainsaw, the
+// grapple, the lightning gun), so a crate never bleeds (NOTES.md e1m1_2026-10-01_12-10-47). It may come after T_Damage:
+// a crate the blow broke is still wood (VR_Crate_Wooden).
+void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
+{
+    if(VR_Crate_Wooden(targ))
+    {
+        dprint(sprintf("hit: %s is wood: splinters at %v\n", targ.classname, org));
+        VR_Crate_Splinters(org, vel * 0.2, damage);
+        return;
+    }
+    SpawnBlood(org, vel, damage);
+};
+
+// The same, sprayed every way (SpawnBloodSplash).
+void(entity targ, vector org, float damage) VR_HitBloodSplash =
+{
+    if(VR_Crate_Wooden(targ))
+    {
+        dprint(sprintf("hit: %s is wood: splinters at %v\n", targ.classname, org));
+        VR_Crate_Splinters(org, [crandom() * 48, crandom() * 48, random() * 24 + 20], damage);
+        return;
+    }
+    SpawnBloodSplash(org, damage);
 };
 
 // ----------------------------------------------------------------------------
@@ -657,7 +689,9 @@ entity(vector at, float kind, float yaw, float stacked) VR_Crate_TestSpawn =
         top.angles = '0 1 0' * (yaw + 20);
         setorigin(top, at + '3 0 0');
         crateplace(top);
-        setorigin(top, top.origin + '0 0 1' * (e.absmax_z - top.absmin_z + 0.05));
+        // Its bottom on the lower one's top (their boxes: absmin and absmax are a unit wider each way, which left a gap
+        // of 2 units the asleep top never fell across: NOTES.md vrfiringrange_2026-10-01_11-44-23).
+        setorigin(top, [top.origin_x, top.origin_y, e.origin_z + e.maxs_z - top.mins_z + 0.05]);
         VR_Crate_Setup(top, 1);
         dprint(sprintf("test spawn: a crate on it at %v\n", top.origin));
     }
