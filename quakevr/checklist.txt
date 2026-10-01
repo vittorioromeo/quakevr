@@ -40,6 +40,8 @@ Your tuned values are now defaults (Distance Falloff 0.75, HRTF Volume 1.5, Phys
 
 Grip a dropped crowbar by its bar, a sword by its blade, the chainsaw by its front handle: it hangs from that hand until the other hand takes the handle (Carrying > Weapons by Their Hotspots); 15 cm reach OK? more annoying in play?
 
+Chainsaw: your smoke and shake values are the defaults; each ripcord pull (with fuel) shakes, puffs smoke and throws a few sparks (weak pull: half); empty tank: sound only (Chainsaw Engine > Pulling the Cord)
+
 [Decide or give feedback]
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
