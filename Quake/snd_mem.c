@@ -99,6 +99,7 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	wavinfo_t	info;
 	int		len;
 	float	stepscale;
+	float	ratescale;
 	sfxcache_t	*sc;
 
 // see if still in memory
@@ -115,6 +116,19 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 //	Con_Printf ("loading %s\n",namebuffer);
 
 	data = COM_LoadMallocFile (namebuffer, NULL);
+
+	// VR: a sound made from one of Quake's when no file has its name (VR_SndDerived: played slower, lower)
+	ratescale = 1.f;
+	if (!data)
+	{
+		const char *source = VR_SndDerived (s->name, &ratescale);
+		if (source)
+		{
+			q_strlcpy(namebuffer, "sound/", sizeof(namebuffer));
+			q_strlcat(namebuffer, source, sizeof(namebuffer));
+			data = COM_LoadMallocFile (namebuffer, NULL);
+		}
+	}
 
 	if (!data)
 	{
@@ -136,6 +150,9 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 		Con_Printf("%s is not 8 or 16 bit\n", s->name);
 		return NULL;
 	}
+
+	if (ratescale != 1.f) // VR: a derived sound's rate (slower: lower and longer)
+		info.rate = (int)(info.rate * ratescale + 0.5f);
 
 	stepscale = (float)info.rate / shm->speed;
 	len = info.samples / stepscale;

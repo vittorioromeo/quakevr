@@ -52,7 +52,9 @@ Drop-down lists: point the laser at a setting with many choices (Player Hitbox >
 
 Running chainsaw: faint smoke from the engine's right side, hand shake (less with two hands), shakes and drifts a little when dropped running (Combat > Enemy Weapons > Chainsaw Engine; Debug > Tests > Chainsaw > Drop the Chainsaws)
 Weapons anywhere follow-ups: sword with the off hand on its grip, let go of the handle: stays where the off hand holds it (no flip); let go at a holster while the other hand holds it: no holster; off hand anywhere near the handle: no jump to it; retake the handle with the off hand anywhere: it stays on; support mode counts as two-handed; weight anywhere feels like the pump?
-Mantle grunt when you mantle (Climbing > Mantle Grunt 0.6); Debug > Tests > Spawn a Big Prop Pile (300 props), then Physics Step Time with threads on and off
+Mantle grunt now not the jump's: the hard landing's "oof" (Climbing > Mantle Grunt Sound; Hear Mantle Grunt to compare the 5, two are Quake's played deeper)
+Physics stress: Debug > Tests > Physics Stress (first section): Pile of Rocks / Pile of Bricks / Wall of Crates / Mixed Pile (Pile Size, Crates in the Wall), Clear the Piles; Physics Step Time before and after, threads on and off
+Axe sticking: your Stick Speed 2.5 m/s is the default now
 Empty hand against a held prop now works like against a held weapon (both pushed back half, 5 cm each, buzz, then sinks in); settings in Carrying (Empty Hand Against Held Things)
 
 Enemy shoves: your values are defaults (range 50, delay 0.5, cooldown 1.5, distance 128); enforcers 1.5x damage and distance (192 units: too far?); parried shove now short (Parry Reduction 0.75 = takes 75% off: grunt 32, enforcer 48 units); shoved while hanging: you let go and slide; a blast of 30+ throws you off a hold (Climbing > blast threshold; Debug > Tests > Enemy Shoves > A Blast in 3 Seconds)

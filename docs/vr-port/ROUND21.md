@@ -19118,3 +19118,28 @@ His notes vrfiringrange_2026-10-01_16-41-40, _16-42-00 (a backpack thrown high n
   The crowbar's hook at 9.1 m/s: batted (weapon threshold 34, 10 alike). A running chainsaw's chain cutting into a dud
   falling past the bar: set off ("a running chainsaw"); its rear handle's pommel strike (19.1 m/s) had too, before
   the pommel was left out of the rule. Melee canary: no differences.
+
+## Mantle grunt sound, Physics Stress, axe stick speed (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_22-43-20, _22-46-00, _23-04-14.
+
+- **Mantle grunt** (`vr_climb_mantle_grunt_sound`, 1; Climbing > Mantle Grunt Sound, Hear Mantle Grunt =
+  `vr_climb_mantle_grunt_test`): 0 the jump's (`player/plyrjmp8.wav`, as before), 1 a hard landing's "oof"
+  (`player/land2.wav`, the new default: heard only after a long fall, so not mistaken for a jump), 2 the jump's at 0.8
+  speed (~4 semitones down), 3 the landing's at 0.88, 4 a short low pain grunt (`player/pain2.wav`). 2 and 3 are
+  *derived sounds*: `S_LoadSound` (snd_mem.c), finding no file of the name, asks `VR_SndDerived` (vr_audio.cpp
+  `derivedSounds`) for the id recording it is made of and its rate, and loads that at the lower rate (more samples:
+  lower and longer). Nothing of id's is shipped or written; a real file of the name wins. All five are precached with
+  each map (`climb::precache`, through `physsound::precacheOne`). soundlist: `vr/derived/plyrjmp8_low.wav` 19050
+  samples (15240 / 0.8), `vr/derived/land2_low.wav` 27840 (24500 / 0.88).
+- **Physics Stress** (Debug > Tests, first section; the path from `vr_menu_path_check {menu:Debug - Tests>Physics
+  Stress}`: Options > VR Settings > Advanced VR Options > Debug > Tests > Physics Stress): Pile Size
+  (`vr_test_pile_count`, 300), Crates in the Wall (`vr_test_pile_crates`, 40), Pile of Rocks / Pile of Bricks / Wall of
+  Crates / Mixed Pile (`vr_physics_bigpile rocks | bricks | crates | mixed`; without a kind: rocks and bricks as before;
+  count and distance still optional numbers), Clear the Piles (`vr_physics_clearpiles`), Physics Step Time. The piles'
+  props carry spawnflags bit 2^20 (`stressTagBit`); Clear takes those away and every broken crate's piece. Crate walls:
+  8 wide, 5 high, the next 48 units behind; mixed: every fourth column 3 small crates, the grid 36 apart.
+  Test (vrfiringrange): rocks 60, bricks 60, crates 40, mixed 100 all made; Clear: 260 removed, then 0; mixed 150: step
+  0.61 ms average while falling (worst 19 ms, the spawn frame), 0.10 ms 200 frames later.
+- **Axe sticking**: his `vr_axestick_speed` 2.5 (was 4) is the default; config 74 moves a config still at 4 (73 is a
+  parallel branch's: chainsaw2's worktree).

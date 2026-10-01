@@ -545,6 +545,11 @@ void precache()
     }
 }
 
+int precacheOne(const char* name)
+{
+    return progs::bindings().isVrProgs && sv.state == ss_loading ? precacheName(name) : 0;
+}
+
 void hit(int num, Material material, float mass, float speed, const glm::vec3& at)
 {
     if(material == Material::None || master() <= 0.f || speed < vr_physsound_min_speed.value)

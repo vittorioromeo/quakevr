@@ -104,7 +104,7 @@ QVR_CVAR(vr_throw_hit_min_speed, "200", CVAR_ARCHIVE) // units/s a thrown thing 
 // Thrown axes stick (vr_axestick.cpp, QC/vr_axestick.qc): one whose blade goes into something first, fast enough and
 // square enough, sticks in it (the level, a door, a prop, a monster: it rides with it); a hand or a force grab pulls it out.
 QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE)             // on
-QVR_CVAR(vr_axestick_speed, "4", CVAR_ARCHIVE)       // m/s the blade's edge must go at into what it meets (relative to it)
+QVR_CVAR(vr_axestick_speed, "2.5", CVAR_ARCHIVE)     // m/s the blade's edge must go at into what it meets (relative to it)
 QVR_CVAR(vr_axestick_angle, "45", CVAR_ARCHIVE)      // degrees at most the blade may go in out of its own plane (its side first, a flat throw: more)
 QVR_CVAR(vr_axestick_incidence, "65", CVAR_ARCHIVE)  // degrees at most between the way the blade goes in and straight into the surface (a glancing blow: more)
 QVR_CVAR(vr_axestick_leniency, "1", CVAR_ARCHIVE)   // 0..2: how much of the blade behind its edge cuts when it goes in first (vr_axestick.cpp): 0 the edge and its corners; 1 45% of its width; 2 80%; also met a little ahead, a little more glancing
@@ -983,7 +983,8 @@ QVR_CVAR(vr_climb_blast_letgo, "30", CVAR_ARCHIVE)   // a blast this strong (dam
 QVR_CVAR(vr_climb_leniency, "2", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
 QVR_CVAR(vr_climb_leniency_air, "4", CVAR_ARCHIVE)   // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
 QVR_CVAR(vr_climb_air_grab_time, "0.3", CVAR_ARCHIVE) // s: a grip pressed at no hold keeps looking for one this long while it stays pressed, in the air (a ledge jumped at: taken as the hand comes over or down onto it; 0: only at the press)
-QVR_CVAR(vr_climb_mantle_grunt, "0.6", CVAR_ARCHIVE) // volume (0..1) of the player's grunt as a mantle pulls him up onto a ledge (Quake's jump grunt, player/plyrjmp8.wav); 0 off
+QVR_CVAR(vr_climb_mantle_grunt, "0.6", CVAR_ARCHIVE) // volume (0..1) of the player's grunt as a mantle pulls him up onto a ledge (which: vr_climb_mantle_grunt_sound); 0 off
+QVR_CVAR(vr_climb_mantle_grunt_sound, "1", CVAR_ARCHIVE) // the mantle's grunt (vr_climb.cpp mantleGrunts): 0 the jump's (player/plyrjmp8.wav), 1 a hard landing's (player/land2.wav), 2 the jump's deeper, 3 a hard landing's deeper (both made from id's as they load), 4 a short pain grunt (player/pain2.wav)
 QVR_CVAR(vr_climb_touch, "4.5", CVAR_ARCHIVE)        // cm: the hand this close to a ledge's top or the face under its lip touches it (the whole reach at leniency 0)
 QVR_CVAR(vr_climb_over_top, "16", CVAR_ARCHIVE)      // units: a hand over a ledge's top still holds it this far in from the drop (as far as the top goes)
 QVR_CVAR(vr_climb_slide, "1", CVAR_ARCHIVE)          // a holding hand the body can't follow along the ledge (past the arm's reach, a wall) slides along it, the drawn hand staying on the controller (0: it stays put, the two drift apart)
@@ -1405,6 +1406,8 @@ QVR_CVAR(vr_debug_gun_wall, "0", CVAR_NONE)          // 1: print each frame a he
 QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
+QVR_CVAR(vr_test_pile_count, "300", CVAR_NONE)       // Debug > Tests > Physics Stress: the props a pile of rocks, bricks or both has (vr_physics_bigpile without a count)
+QVR_CVAR(vr_test_pile_crates, "40", CVAR_NONE)       // and the crates its Wall of Crates has (vr_physics_bigpile crates)
 QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse); 2: killed hard enough to gib (QC weapons.qc: 100 damage past its health)
 QVR_CVAR(vr_test_spawn_yaw, "0", CVAR_NONE)           // 100..104: a box let loose (a physics prop), turned this many degrees about its upright (grappling hook tests: a turned box's empty corners)
 QVR_CVAR(vr_test_spawn_tilt, "0", CVAR_NONE)          // ... and tipped this many degrees about the way you face, its lowest corner on the floor (it topples: sv_gravity 0 holds it so)

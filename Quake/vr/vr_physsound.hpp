@@ -30,6 +30,10 @@ enum class Material : uint8_t
 // forgotten.
 void precache();
 
+// While a map loads (as precache): another sound of Quake VR's precached for the server (`name` a literal: it outlives
+// the server), with Quake VR's progs. Its index, 0 if not.
+int precacheOne(const char* name);
+
 // Box3D's hit events, each step (vr_box3d.cpp touches): prop `num` (of `material`, `mass` kg) hit something at `speed`
 // m/s (the contact's approach) at `at` (units). Only the hardest of a frame per prop plays (frameEnd).
 void hit(int num, Material material, float mass, float speed, const glm::vec3& at);

@@ -175,8 +175,11 @@ const DefaultChange defaultChanges[] = {
     {72, &vr_enemy_shove_delay, "0.6"},     // 0.5
     {72, &vr_enemy_shove_cooldown, "3"},    // 1.5
     {72, &vr_enemy_shove_distance, "64"},   // 128
+    // 74 (73 is taken by a parallel round-21 branch): the author's axe sticking, tuned again (NOTES.md
+    // vrfiringrange_2026-10-01_23-04-14): a slower throw sticks.
+    {74, &vr_axestick_speed, "4"},          // 2.5
 };
-constexpr int configVersion = 72;
+constexpr int configVersion = 74;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

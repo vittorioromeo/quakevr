@@ -16,7 +16,10 @@ struct State;
 namespace qvr::climb
 {
 
-void init(); // registers vr_climb_probe
+void init(); // registers vr_climb_probe, vr_climb_mantle_grunt_test
+
+// Server, a new map loading (VR_OnSpawnServerBeforeLoad): the mantle's grunts precached (vr_climb_mantle_grunt_sound).
+void precache();
 
 // Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
 // maps are another world's).
