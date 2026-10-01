@@ -82,6 +82,8 @@ Rogue map: hold B/Y while grabbing at the back pouch: a multi-grenade (uses a mu
 
 Shoot grenades (Combat > Batting and Catching > Grenades): an ogre grenade mid-flight, your own on the ground, a dropped dud from afar (Debug > Tests > At You > Drop a Dud Ahead); chains ripple; kills credited to you; too hard/easy to hit? (Grenade Shot Size); batting and catching ogre grenades as before
 
+Stand close to a grunt or enforcer: after 0.6 s it winds up (0.3 s, two-handed gun push) and shoves you ~64 units, 5 damage, 3 s cooldown; parry it: 0.35x distance, less damage; never while staggered or firing (Combat > Enemy Shoves); shoved while hanging from a ledge?
+
 [Decide or give feedback]
 Melee on grenades: lying/rolling ones explode on a blow, flying ones are still batted or caught (Blows Set Grenades Off): OK?
 Multi-grenade hitting a monster directly: one blast (Rogue's rule) or cluster too?
