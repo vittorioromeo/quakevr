@@ -374,8 +374,9 @@ void(entity crate, vector mid, vector dir) VR_Crate_Pieces =
 // What a crate holds
 
 // An item made where the crate was (`at`: the middle of its floor), by its spawn function (a brush item's origin is its
-// corner: its middle there).
-void(vector at, float kind) VR_Crate_Item =
+// corner: its middle there), placed at once (VRPlaceItemNow: an object at its final size from the first frame), and
+// popped out (vr_crate_item_pop, m/s): up, and away from the crate's middle (`mid`) or along the blow (`dir`).
+void(vector at, float kind, vector mid, vector dir) VR_Crate_Item =
 {
     entity oself = self;
     self = spawn();
@@ -386,13 +387,29 @@ void(vector at, float kind) VR_Crate_Item =
     else if(kind == 3) { self.classname = "item_cells"; item_cells(); }
     else               { self.classname = "item_health"; self.spawnflags = 1; item_health(); } // H_ROTTEN: the small one (15)
     dprint(sprintf("crate: holds %s\n", self.classname));
+    if(VRPlaceItemNow())
+    {
+        float pop = max(0, cvar("vr_crate_item_pop")) * VRMetersToUnits();
+        if(pop > 0 && self.movetype != MOVETYPE_NONE)
+        {
+            vector away = at - mid;
+            away_z = 0;
+            away = normalize(away) + dir * 0.5 + ('1 0 0' * crandom() + '0 1 0' * crandom()) * 0.3;
+            away_z = 0;
+            away = normalize(away);
+            self.velocity = away * pop * (0.35 + random() * 0.2) + '0 0 1' * pop * (0.85 + random() * 0.3);
+            self.flags &= ~FL_ONGROUND;
+        }
+        dprint(sprintf("crate: %s at %v, box %v .. %v, scale %v, velocity %v\n", self.classname, self.origin, self.mins,
+                       self.maxs, self.model_scale + '1 1 1', self.velocity));
+    }
     self = oself;
 };
 
 // A small box of ammo for a weapon the player may use (the shotgun's shells always; nails, rockets, cells for a nailgun,
 // a grenade or rocket launcher, the lightning gun he has: VR_WeaponUtil_EntIsEligibleForWeapon), at vr_crate_ammo; a
 // small health box at vr_crate_health_box.
-void(entity crate, vector mid) VR_Crate_Contents =
+void(entity crate, vector mid, vector dir) VR_Crate_Contents =
 {
     vector at = mid;
     at_z = crate.absmin_z + 1;
@@ -421,11 +438,11 @@ void(entity crate, vector mid) VR_Crate_Contents =
         {
             kind = 3;
         }
-        VR_Crate_Item(at - '6 0 0', kind);
+        VR_Crate_Item(at - '6 0 0', kind, mid, dir);
     }
     if(random() < cvar("vr_crate_health_box"))
     {
-        VR_Crate_Item(at + '6 0 0', 4);
+        VR_Crate_Item(at + '6 0 0', 4, mid, dir);
     }
 };
 
@@ -464,7 +481,7 @@ void() VR_Crate_Break =
     setorigin(crate, crate.origin);
 
     VR_Crate_Pieces(crate, mid, dir);
-    VR_Crate_Contents(crate, mid);
+    VR_Crate_Contents(crate, mid, dir);
 
     crate.vr_cratekind = 0;
     crate.classname = "vr_crate_broken";

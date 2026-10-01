@@ -1909,6 +1909,9 @@ void hologramTestMessage()
             .help("The chance a crate holds a small box of ammunition, for a weapon you have (or the shotgun)."),
         slider("Health Box", vr_crate_health_box, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance a crate holds a small health box (15)."),
+        slider("Pop Out", vr_crate_item_pop, 0.f, 8.f, 0.5f, "%.1f m/s").extend(0.f, 20.f)
+            .help("How hard what a crate held pops out when it breaks: up, and a little outwards (along the blow). 0: it "
+                  "is left lying where the crate stood."),
         slider("Crowbar on Crates", vr_crate_crowbar, 0.f, 1.f, 0.05f, "%.2f")
             .help("The chance a crate placed about the map (the top one of a stack) has a crowbar lying on it; the same "
                   "crates each load. Next map."),
@@ -2195,6 +2198,9 @@ za::Vector<Item> pageDebugLogging()
         cycle("Crates Placement", vr_debug_crates, {{0.f, "Off"}, {1.f, "A Line a Map"}, {2.f, "Each Crate"}, {3.f, "Each Spot Rejected"}})
             .help("vr_debug_crates: where the crates went (and why not), each crate's clearance in front of it. Also Developer "
                   "Messages print each crate's damage and breaking, the pieces and what it held."),
+        toggle("Box Sizes", vr_debug_item_sizes)
+            .help("vr_debug_item_sizes: each ammo or health box's scale as it is first drawn (after a map loads, out of a "
+                  "crate), and each change of it after: they should be drawn at their final size from the first frame."),
         toggle("Torch Lights", vr_debug_torch_lights)
             .help("Every torch light lit, every frame: which (a wall torch, a taken one), where, its radius and colour, shadowed."),
         cycle("Arm IK", vr_debug_arm, {{0.f, "Off"}, {1.f, "Print Once"}, {2.f, "Trace File"}})

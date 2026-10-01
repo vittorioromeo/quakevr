@@ -174,6 +174,7 @@ void VR_ProjectileImpactLight (int kind, const float *pos); // cl_tent.c: a scra
 void VR_HazeExplosion (const float *pos, float size);	// cl_tent.c: an explosion's heat haze (vr_haze.cpp; size 1 a rocket's)
 int VR_SuppressModelRotate (int ent);					// CL_RelinkEntities: nonzero to keep an EF_ROTATE model's angles (rigid bodies)
 void VR_RelinkHeld (void);								// end of CL_RelinkEntities: the local player's held objects drawn in the hands (vr_held.cpp)
+void VR_DebugDrawnBoxes (void);							// end of CL_RelinkEntities: vr_debug_item_sizes (vr_client.cpp)
 float VR_BeamScale (struct qmodel_s *model);				// CL_UpdateTEnts: scale of a beam's segments
 int VR_UpdateBeam (int ent, float *start, float *end);	// CL_UpdateTEnts: moves the player's own beams with the gun; nonzero: a rope (no random roll)
 int VR_DrawRope (int ent, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a grappling hook's rope, drawn in one piece along its curve (vr_rope.cpp); zero if the beam is not one (drawn as any beam)
