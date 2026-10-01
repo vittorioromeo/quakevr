@@ -1532,30 +1532,70 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     {
         armsCrossed = VR_Parry_ArmsCrossed(targ, to);
     }
-    // One sound for a burst of quick blows from the same monster (vr_parry_sound_burst; NOTES.md
-    // vrfiringrange_2026-10-01_16-44-46: the ogre's chainsaw, one swing three or four blows): a parry within that long
-    // of its last parried blow is quiet; its next attack sounds again.
+    // The parry's cooldown, per monster (vr_parry_cooldown; NOTES.md vrfiringrange_2026-10-01_16-44-46, _22-58-06,
+    // _22-59-02: the ogre's chainsaw, a knight's swing, one attack several quick blows): a blow parried within that long
+    // of its last parried blow is still parried (its damage cut, the knock felt and both pushed apart as ever) but is no
+    // new parry: no sound, no sparks, no stamina spent (no weapon knocked away), and above all no new counter window
+    // (VR_Counter_Open's shing and glow, which combat 4's quiet parry still replayed for every blow, and its window
+    // restarted). Its next attack is a full parry again.
     float quiet = FALSE;
     if((hand >= 0) || armsCrossed)
     {
-        float burst = max(0, cvar_hget(cvarh_vr_parry_sound_burst));
-        quiet = (burst > 0 && attacker.vr_parry_last > 0 && time - attacker.vr_parry_last < burst);
+        float cooldown = max(0, cvar_hget(cvarh_vr_parry_cooldown));
+        quiet = (cooldown > 0 && attacker.vr_parry_last > 0 && time - attacker.vr_parry_last < cooldown);
         if(quiet)
         {
-            dprint(sprintf("parry: %s again %.2f s after its last: no sound (the same burst)\n", attacker.classname,
-                time - attacker.vr_parry_last));
+            dprint(sprintf("parry: %s again %.2f s after its last parried blow: cooldown (damage cut, no sound, no "
+                "counter)\n", attacker.classname, time - attacker.vr_parry_last));
         }
         attacker.vr_parry_last = time;
+    }
+    if(quiet)
+    {
+        // (The same attack: the first parry's sound, sparks, stamina and counter window stand.)
+        vr_parried = armsCrossed ? 2 : 1;
+        entity oldSelfQ = self;
+        self = targ;
+        if(armsCrossed)
+        {
+            haptic(cVR_MainHand, 0.0, 0.3, 60, 1.0);
+            haptic(cVR_OffHand, 0.0, 0.3, 60, 1.0);
+            handimpact(cVR_MainHand, 4, to * -1);
+            handimpact(cVR_OffHand, 4, to * -1);
+        }
+        else
+        {
+            haptic(hand, 0.0, 0.3, 90, 1.0);
+            handimpact(hand, 5, to * -1);
+            if(VRGet2HAiming(self))
+            {
+                haptic(VRGetOtherHand(hand), 0.0, 0.25, 90, 0.8);
+                handimpact(VRGetOtherHand(hand), 3, to * -1);
+            }
+        }
+        self = oldSelfQ;
+        float pushE = armsCrossed ? 260 : 320;
+        float liftE = armsCrossed ? 90 : 120;
+        VR_Push(attacker, to, pushE * cvar_hget(cvarh_vr_parry_push_enemy), liftE * cvar_hget(cvarh_vr_parry_push_enemy));
+        if(!attacker.vr_eshove_striking) // (a shove pushes you its own way: VR_EnemyShove_Hit)
+        {
+            float pushP = armsCrossed ? 200 : 180;
+            VR_Push(targ, to * -1, pushP * cvar_hget(cvarh_vr_parry_push_player), 40 * cvar_hget(cvarh_vr_parry_push_player));
+        }
+        VR_Motion_Event("parry", armsCrossed ? "arms" : VR_Motion_HandSub(hand), armsCrossed ? -1 : hand, damage,
+            armsCrossed ? VRGetEntHandPos(targ, cVR_MainHand) : vr_parry_at, attacker, "cooldown");
+        v_forward = oldForward;
+        v_right = oldRight;
+        v_up = oldUp;
+        float cut = armsCrossed ? cvar_hget(cvarh_vr_parry_unarmed_reduction) : cvar_hget(cvarh_vr_parry_reduction);
+        return damage * (1 - min(1, max(0, cut)));
     }
     if(armsCrossed)
     {
         entity oldSelfX = self;
         self = targ;
-        if(!quiet)
-        {
-            sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
-            sound(self, CHAN_AUTO, "demon/dland2.wav", 0.5, ATTN_NORM);
-        }
+        sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
+        sound(self, CHAN_AUTO, "demon/dland2.wav", 0.5, ATTN_NORM);
         haptic(cVR_MainHand, 0.0, 0.3, 60, 1.0);
         haptic(cVR_OffHand, 0.0, 0.3, 60, 1.0);
         handimpact(cVR_MainHand, 4, to * -1);
@@ -1583,11 +1623,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         vector at = vr_parry_at + to * 4;
         // Its own ring (vr_bash_sound; round 18), apart from a blow landing; 0: the old clang.
         float parrySound = cvar_hget(cvarh_vr_bash_sound);
-        if(quiet)
-        {
-            // (the same burst: its first parry sounded)
-        }
-        else if(parrySound > 0)
+        if(parrySound > 0)
         {
             sound(self, CHAN_AUTO, "vr/parry.wav", min(1, parrySound), ATTN_NORM);
             sound(self, CHAN_AUTO, "player/axhit2.wav", 0.35 * min(1, parrySound), ATTN_NORM);

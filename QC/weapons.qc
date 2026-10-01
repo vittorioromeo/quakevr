@@ -5227,7 +5227,8 @@ void() VR_Test_Fling =
 };
 
 // Tests (impulse 222; Debug > Tests > Flung Props): the loose prop nearest you (a rigid body not carried, within 512
-// units) thrown straight up as yours (VR_Carry_Throw) from over your head at vr_test_throw_up_speed m/s: it falls back
+// units) thrown straight up as yours (VR_Carry_Throw) from over your head (vr_test_throw_up_body: at your chest) at
+// vr_test_throw_up_speed m/s (0: let go of gently, it never hurts you): it falls back
 // on you, past vr_throw_self_grace (vrfiringrange_2026-10-01_16-41-40: a backpack thrown high).
 void() VR_Throw_TestUp =
 {
@@ -5254,6 +5255,12 @@ void() VR_Throw_TestUp =
     prop.flags = prop.flags - (prop.flags & FL_ONGROUND);
     vector top = VRGetHeadPos(self);
     top_z = max(top_z, self.absmax_z) + 4 - prop.mins_z; // (its bottom just over your head)
+    if(cvar("vr_test_throw_up_body"))
+    {
+        top = self.origin + '0 0 16' - '0 0 0.5' * (prop.mins_z + prop.maxs_z); // (at your chest, in your box)
+    }
+    prop.carry_letgo = self; // (let go of by you: VR_Carry_Loose)
+    prop.carry_letgo_time = time;
     setorigin(prop, top - '1 0 0' * 0.5 * (prop.mins_x + prop.maxs_x) - '0 1 0' * 0.5 * (prop.mins_y + prop.maxs_y));
     prop.vr_spin = '0 0 0';
     prop.avelocity = '0 0 0';
@@ -5653,7 +5660,7 @@ void MakeThrown(entity newmis,
     SetThrownWeaponMetalNoiseOnTouch(newmis, TRUE);
 
     newmis.owner = thrower;
-    VR_Throw_SelfStart(newmis, thrower); // (a player's throw spares him only for vr_throw_self_grace)
+    newmis.vr_throw_self = 0;
 
     newmis.throwstabilize = 8;
     newmis.throwstabilizedim = WeaponIdToThrowStabilizeDim(xWeapon);
@@ -5693,6 +5700,21 @@ void MakeThrown(entity newmis,
     setorigin(newmis, xOrigin);
 
     newmis.velocity = xThrowVel + thrower.velocity;
+
+    // Thrown hard (as fast as a carried thing must be let go of to be a missile: VR_THROW_MISSILE_SPEED, a heavy one's
+    // less), it spares its thrower only for vr_throw_self_grace (VR_Throw_SelfStart): thrown up, it can fall back on
+    // him. Let go of gently (dropped, set down) it is his for good, as it always was: a long heavy weapon let go of at
+    // the body fell through his box at about the speed its throw hurts at (the chainsaw's, the laser cannon's: 115 u/s,
+    // reached 0.35 s into the fall; NOTES.md vrfiringrange_2026-10-01_22-33-36).
+    if(vlen(xThrowVel) >= VR_THROW_MISSILE_SPEED * VR_Thrown_Lenient(newmis))
+    {
+        VR_Throw_SelfStart(newmis, thrower); // (a player's throw spares him only for vr_throw_self_grace)
+    }
+    else if(thrower.flags & FL_CLIENT)
+    {
+        dprint(sprintf("thrown: %s let go of gently (%.0f u/s, under %.0f): never hurts %s\n", newmis.netname,
+            vlen(xThrowVel), VR_THROW_MISSILE_SPEED * VR_Thrown_Lenient(newmis), thrower.netname));
+    }
 
     // A rigid body from the start (vr_box3d.cpp): it lands and rests on its drawn shape. As Quake's
     // toss (a monster's dropped gun, a weapon from an ammo box, the firing range's weapons) it landed on its box, a

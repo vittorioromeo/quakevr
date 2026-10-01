@@ -19118,3 +19118,56 @@ His notes vrfiringrange_2026-10-01_16-41-40, _16-42-00 (a backpack thrown high n
   The crowbar's hook at 9.1 m/s: batted (weapon threshold 34, 10 alike). A running chainsaw's chain cutting into a dud
   falling past the bar: set off ("a running chainsaw"); its rear handle's pommel strike (19.1 m/s) had too, before
   the pommel was left out of the rule. Melee canary: no differences.
+
+## Combat 5: parry cooldown, gentle releases (2026-10-01)
+
+His notes vrfiringrange_2026-10-01_22-33-36 (the chainsaw or the laser cannon let go of at the body, no throw, hurt
+him), _22-58-06 and _22-59-02 (combat 4's "parry sound once a burst" did nothing against the ogre's chainsaw or a
+knight, at 1 s too).
+
+### Why
+
+- **Gentle releases.** Combat 4 gave every thrown weapon's owner up after `vr_throw_self_grace` (`MakeThrown` called
+  `VR_Throw_SelfStart` whatever the speed), so a weapon only let go of fell as a throw that could hurt him. Let go of
+  at the body, a long weapon's box is inside his (Quake's touch fires as it falls through it), and a heavy one's throw
+  hurts from `vr_throw_hit_min_speed` x its heavy leniency: the chainsaw's (lenient 0.58) is 115 u/s, which a fall
+  reaches about when the grace ends (113 u/s at 0.35 s from 1.0 m; 130 u/s from 1.45 m). The old code, mock, the
+  chainsaw let go at 1.45 m at 0.4 m/s: "fell on its thrower at 130 u/s, 0.35 s after the throw: 75.5 damage". Light
+  weapons (lenient 1: 200 u/s) never get there from hand height; that is why only the long heavy ones did it.
+- **Parry burst.** The quiet parry silenced `vr/parry.wav` only. Each parried blow still called `VR_Counter_Open`,
+  which plays the counter's shing (`vr/counter_open.wav`, his `vr_counter_sound 0.7`), restarts its window and glow,
+  and spent parry stamina. Combat 4's test (`impulse 242`) only checked the parry sound. Real ogre, his take
+  `parry_pose_2026-09-29_23-14-13` (cooldown 0, as combat 4 for the counter): 4 parries, 4 shings, then "Exhausted:
+  the blow knocks the weapon out of your hand!".
+
+### What changed
+
+- **Parry Cooldown** (QC `combat.qc` `VR_Parry`; `vr_parry_cooldown` 0.4 s, Parry and Bash > Parry Cooldown; replaces
+  `vr_parry_sound_burst`, kept retired so configs load): per monster (`.vr_parry_last`), a blow parried within it of
+  that monster's last parried blow is still parried (damage cut by Parry Reduction / Unarmed Parry Reduction, the knock
+  in the hands, both pushed apart, `vr_parried` set, the motion event `parry ... cooldown`) but plays no sound and no
+  sparks, opens no new counter window (the first one runs on: its shing, glow and pulses once) and spends no stamina
+  (no knock-away). The window slides with each parried blow, so a long burst (the ogre's 7 hits, 0.1 s apart) is one
+  parry whatever its length; the next attack (the ogre's next swing 0.8 s or more after its last hit) is a full parry.
+- **A gentle release never hurts** (QC `weapons.qc` `MakeThrown`, `vr_carry.qc`): a weapon gives its thrower up only
+  when thrown hard (at least `VR_THROW_MISSILE_SPEED` 250 u/s x its heavy leniency, the carry's rule: the chainsaw's
+  144); let go slower it stays his, as before combat 4 ("thrown: Ogre's Chainsaw let go of gently (12 u/s, under 144):
+  never hurts player"). A carried prop let go of gently (not a missile) never hurts who let go of it in its first fall
+  (`.vr_letgo_fall`, `VR_Prop_Flung`), until it lands or bounces (falling slower than 10 u/s after 0.1 s), is taken
+  (hand, grapple, force grab) or after 3 s (`VR_Throw_SelfFrame`).
+- Tests: Debug > Tests > Flung Props: **Throw Up Speed** down to 0 (let go, not thrown), **Throw Up From Your Body**
+  (`vr_test_throw_up_body`: at your chest, inside your box); the test prop is now let go of by you (`.carry_letgo`).
+
+### Results (mock, `developer 1`, `god`)
+
+- Let go at 1.45 m (`vr_mock_play`, 0.25 m/s down): chainsaw, laser cannon, shotgun: "let go of gently", no hit.
+  Chainsaw thrown up at 7.9 m/s: "it can hurt him now" at 0.35 s as before. A health box thrown up at 10 m/s
+  (`impulse 222`): "fell on its thrower at 332 u/s ... 20.8 damage" (as combat 4). Speed 0 at the body (health box,
+  explosive box), grace 0: no hit; "first fall over" 0.1-0.5 s later.
+- Real monsters, vrcalibration, his take `parry_pose_2026-09-29_23-14-13` (sword) with `vr_parry_stamina 1`:
+  ogre: 2 full parries, 7 cooldown, 2 counter windows, never exhausted (cooldown 0: 4 full, 4 windows, exhausted);
+  knight (160 units, charging): 2 full, 1 cooldown, 2 windows (cooldown 0: 4, 4, exhausted). The crowbar held across
+  (`vr_mock_hand main 0.15 1.35 -0.35 0 90 0`): ogre swings 1 full + 5-6 cooldown each; a charging knight 1 + 1.
+- Melee canary: no differences.
+- Open: a weapon thrown up hard and falling back on you bounces off your Box3D capsule (`vr_box3d.cpp` `touches`
+  sends no player touches), so it never hurts you; a prop (health box) does. Unchanged from combat 4.

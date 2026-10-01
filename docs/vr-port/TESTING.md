@@ -200,6 +200,13 @@ context and screenshot, ready to paste or to point me at.
     back (Carrying and Throwing > Throwing and Physics > **Your Throws Spare You For**, 0.35 s). Debug > Tests: Flung
     Props > **Throw the Nearest Prop Up**; At You > **Dud Height**, **Dud Is Yours** off, **Drop a Dud Ahead**.
     **Tell me if the set-off speeds feel right for your hardest punches and swings.**
+  - **Parry cooldown; a gentle release never hurts you** (ROUND21.md, "Combat 5: parry cooldown, gentle releases"):
+    parry an ogre's chainsaw or a knight's swing: the first blow of the attack is the parry (its ring, sparks, the
+    counter's shing and glow); its next quick hits are still parried (damage cut, the knock, the push) but silent, and
+    they neither restart the counter window nor spend parry stamina. Parry and Bash > **Parry Cooldown** (per monster,
+    0.4 s from its last parried blow; replaces Parry Sound Once Per Burst). Let go of the chainsaw or the laser cannon
+    at your body (not thrown): it never hurts you; throw a backpack up hard and it still can. Debug > Tests > Flung
+    Props: **Throw Up Speed** 0 and **Throw Up From Your Body**, then **Throw the Nearest Prop Up**.
   - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
     grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
     touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,

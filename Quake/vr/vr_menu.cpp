@@ -913,6 +913,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Parry Arm Knock", "vr_parry_wobble", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much a parried blow knocks your hand and arm."),
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
         slider("Unarmed Parry Reduction", vr_parry_unarmed_reduction, 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Parry Cooldown", vr_parry_cooldown, 0.f, 1.5f, 0.05f, "%.2f s")
+            .help("Per monster: a blow parried within this long of its last parried blow is still parried (its damage cut, "
+                  "both pushed apart) "
+                  "but makes no sound or sparks, opens no new counter window (the first one runs on) and costs no "
+                  "stamina: one parry for an attack of quick hits (the ogre's chainsaw, a knight's swing). Its next "
+                  "attack is a full parry again. 0: every blow a full parry."),
         header("Bash and Shove"),
         toggle("Bash", vr_bash).help("The parry stance (a weapon level across in front, one hand or two) pushed straight forward bashes: knocks monsters back and staggers them. Open palms facing a monster pushed at it shove it. Two hands (a weapon held two-handed, a palm pushing on the blade, both palms) push harder and further."),
         slider("Bash Speed", vr_bash_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend().help("How fast the stance (a weapon level across, held half a second) must be pushed forward, both its ends going ahead. A swing passing through the stance doesn't bash."),
@@ -921,9 +927,6 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Bash Push", vr_bash_push, 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far a bash or shove throws what it hits (times Knockback)."),
         slider("Bash and Parry Sounds", vr_bash_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the sounds that tell a shove, a weapon bash, a counter bash (a bash right after a parry) and a parry apart from your blows (0: the old sounds)."),
-        slider("Parry Sound Once Per Burst", vr_parry_sound_burst, 0.f, 1.f, 0.05f, "%.2f s")
-            .help("A blow parried within this long of the last parried blow of the same monster makes no sound: one sound "
-                  "for an attack of quick blows (the ogre's chainsaw), and its next attack sounds again. 0: every parry."),
         header("Counter-Attacks"),
         toggle("Counter-Attacks", vr_counter)
             .help("After a parry (a weapon's or crossed arms), your next melee attack in the window is a counter and hits harder: a blow with either hand, a bash or a shove. One a parry."),
@@ -2777,7 +2780,11 @@ za::Vector<Item> pageDebugTests()
         command("Fling the Nearest Prop", "impulse 232")
             .help("Sends the loose prop nearest you (put a box there first) at it, as if batted or knocked flying; "
                   "developer 1 prints the hit (prop: flung ...)."),
-        slider("Throw Up Speed", vr_test_throw_up_speed, 2.f, 25.f, 0.5f, "%.1f m/s"),
+        slider("Throw Up Speed", vr_test_throw_up_speed, 0.f, 25.f, 0.5f, "%.1f m/s")
+            .help("0: let go of gently (dropped, not thrown): it must never hurt you."),
+        toggle("Throw Up From Your Body", vr_test_throw_up_body)
+            .help("Throw the Nearest Prop Up lets it go at your chest, inside your body, as a long heavy thing let go "
+                  "of at the body (not from over your head)."),
         command("Throw the Nearest Prop Up", "developer 1; impulse 222")
             .help("The loose prop nearest you thrown straight up as yours from just over your head: it falls back on you "
                   "and hurts you (Your Throws Spare You For, on Throwing and Physics). Prints the throw and the hit."),
