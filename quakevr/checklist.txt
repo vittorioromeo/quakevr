@@ -85,6 +85,9 @@ Burst gun and enforcer rifle models (ribs, vents, sights, thin barrel; burst gun
 After the Zancle migration (Debug build has Zancle asserts on): fights with gibs and decals, climbing, menus, Review Takes, flashlight, audio all as before
 Gib enforcers until a severed head buzzes with flies; pick it up, punch or shoot it: the buzz stops
 
+Throw the grunt gun and the nailgun while holding the trigger: they leave cleanly with no last shot; a wrench-out reads as losing grip (Weapon Weights > Wrenched Out > Falls At 0.4)
+Map health/ammo boxes are small from the first frame; broken-crate loot comes out small and pops out (Crates > Pop Out 3.5)
+
 [Decide or give feedback]
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
