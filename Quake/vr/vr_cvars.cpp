@@ -143,8 +143,13 @@ const DefaultChange defaultChanges[] = {
     {66, &vr_crates_max, "16"},             // 24
     {66, &vr_crate_crowbar, "0.05"},        // 0.1
     {66, &vr_crate_crowbar_max, "64"},      // 4
+    // 67: thrown axes stick by which part goes in first (ROUND21.md, "Thrown axes: the blade decides"). Stick Angle and
+    // Stick Incidence mean something new (the blade's way out of its plane, its way off straight in): a config opened
+    // all the way (90, the author's, to make the old test pass) takes the defaults, or flat throws would stick.
+    {67, &vr_axestick_angle, "90"},          // 45
+    {67, &vr_axestick_incidence, "90"},      // 65
 };
-constexpr int configVersion = 66;
+constexpr int configVersion = 67;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

@@ -362,7 +362,8 @@ void() VR_AxeStick_TestThrow =
         a = vectoangles(L * -1); // its forward to the right: its left (y, across the blade) ahead
     }
     a_x = a_x * -1; // (MakeThrown turns a view's pitch into a model's)
-    // A hand's throw (4 overhand, 5 sidearm, 6 sloppy: at random; 7 as set): from blade first, turned (vr_test_axe_roll
+    // A hand's throw (4 overhand, 5 sidearm, 6 sloppy, 8 upright, 9 knife-style, 10 spear-like, 11 flat, 12 handle
+    // first: at random; 7 as set): from blade first (8-12: from their own hold), turned (vr_test_axe_roll
     // about the way it goes, _pitch about your left, its head forward, _yaw about the upright) and spun (rad/s about
     // the way it goes, your left: end over end, its top going ahead, the upright). vr_test_axe_loft: aimed up to meet
     // what is ahead level with your eyes.
@@ -393,6 +394,44 @@ void() VR_AxeStick_TestThrow =
             t = randomVec(1) * 45;
             w = randomVec(1) * 6;
             w_y = w_y + 4 + random() * 8;
+        }
+        else if(mode == 8) // upright: the handle upright, the blade ahead, pushed (a little turn either way)
+        {
+            t = randomVec(1) * 12;
+            w = randomVec(1) * 1.5;
+            w_y = w_y + crandom() * 3;
+        }
+        else if(mode == 9) // knife-style (a throwing knife's blade grip): the handle ahead, the edge up, flicked end over end
+        {
+            bf = U;
+            hp = F * -1;
+            t = randomVec(1) * 15;
+            t_y = crandom() * 20;
+            w_y = 6 + random() * 8;
+            w_x = crandom() * 1.5;
+            w_z = crandom() * 1.5;
+        }
+        else if(mode == 10) // spear-like: the head ahead, the handle pointing at it, the blade turned any way about it
+        {
+            hp = F;
+            bf = VR_AxeStick_Turn(U, F, random() * 360);
+            t = randomVec(1) * 12;
+            w = randomVec(1) * 1.5;
+        }
+        else if(mode == 11) // flat: the blade's side ahead, its plane square to the way it goes, spun in that plane
+        {
+            bf = L * -1;
+            hp = U;
+            t = randomVec(1) * 15;
+            w = randomVec(1) * 1.5;
+            w_x = crandom() * 10;
+        }
+        else if(mode == 12) // handle first: the handle's end ahead, the edge up, hardly turning
+        {
+            bf = U;
+            hp = F * -1;
+            t = randomVec(1) * 15;
+            w = randomVec(1) * 1.5;
         }
         else
         {
@@ -431,7 +470,10 @@ void() VR_AxeStick_TestThrow =
     {
         traceline(from, from + F * 4000, TRUE, self);
         float g = (axe.gravity ? axe.gravity : 1) * cvar("sv_gravity");
-        axe.velocity_z = axe.velocity_z + 0.5 * g * (4000 * trace_fraction / speed);
+        if(trace_fraction < 1) // (nothing ahead: not lofted, or it went up at 140 m/s)
+        {
+            axe.velocity_z = axe.velocity_z + 0.5 * g * (4000 * trace_fraction / speed);
+        }
     }
     if(mode == 3)
     {

@@ -910,6 +910,11 @@ with them. `python Misc/quakevr/throw_calibration.py <takes folder>` models the 
 fix on recorded takes (the old and the new hand settings, each term alone) and prints the elevation and speed changes
 per take and per kind.
 
+Thrown axes sticking (ROUND21.md, "Thrown axes: the blade decides"): `bash Misc/quakevr/axe_stick_rates.sh <agent>
+<out dir> ["extra cmds"]` throws 60 synthetic hand throws of each kind (`vr_test_axe` 4 overhand, 5 sidearm, 6 sloppy, 8
+upright, 9 knife-style, 10 spear-like, 11 flat, 12 handle first) at vrfiringrange's target wall and prints each kind's
+stick rate (about 2.5 minutes a kind); `vr_debug_axestick 1` says what part of the axe went in first.
+
 Throw grace (ROUND21.md, "Throws leave the hand clean"): `bash Misc/quakevr/throw_grace_test.sh <agent>` throws a weapon
 and props with `vr_box3d_throw_grace` 0 and 0.2 and lets a gib go on the palm; `vr_debug_box3d 1` prints each throw
 and its velocity and spin change by the grace's end.
