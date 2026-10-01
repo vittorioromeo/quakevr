@@ -17096,3 +17096,63 @@ that channel. Mock: 30 gibbed enforcers, 2 to 5 heads with flies, each `misc/fly
   blasts 0 every time. The effect itself is kept: a head lying about still has its flies.
 - Test aid: `vr_test_spawn_dead 2` gibs the monster `impulse 241` puts (health + 100 damage); the Debug menu's "As a
   Corpse" row is a toggle (0/1), so 2 is console-only for now.
+
+## Was the Zancle migration worth it? (2026-10-01)
+
+The author asked for an honest verdict on the migration above, with its measurements. **In short: worth it for
+development (Debug speed, rebuilding one file, Zancle's asserts); neutral for players; paid for with a large diff, a
+dependency the author has to maintain, and some risk in paths the tests don't reach.**
+
+Gains (all measured; method in "Zancle migration" above):
+
+- **Debug is much faster.** CPU per frame in the e2m1 combat scene went from 3.38 to 2.53 ms (−25%). At e1m1's load,
+  building the ledges went from 1308 to 16.5 ms and the hit models from 85.6 to 18.0 ms. This is the main gain.
+- **Rebuilding one file is about a fifth faster:** a `.cpp` touched, 3.6 → 2.8 s in Release and 3.0 → 2.4 s in
+  Debug. A header touched: Release 17.3 → 15.8 s, Debug 14.9 → 14.2 s (best of 3). A full rebuild barely changes,
+  because the engine's own headers dominate it: Release 28.2 → 27.5 s, Debug 19.5 → 19.1 s (best of 3). In the time
+  traces of the VR files, the back end went from 57 to 31 s and the front end from 310 to 297 s.
+- **A smaller exe:** Release 9.94 → 8.52 MB (−14%); Debug 12.2 → 11.8 MB. Players won't notice this.
+- **Zancle's asserts are on in Debug** (`QVR_ZANCLE_DEBUG`), and test runs now report every CRT error and assert
+  without a dialog.
+
+No change:
+
+- **Release CPU per frame:** 0.440 → 0.448 ms, inside the spread of the runs (0.413–0.481). Players gain nothing.
+- **Behaviour:** the melee eval, grasp sweep, probes, menu dump and sound test are byte or bit identical.
+
+Costs:
+
+- **Churn:** 18 commits, 169 VR files, +9.5k/−8.4k lines, and nearly every line that used std was touched. On top of
+  that come +960 lines of our own helpers (`vr_zancle.hpp` 394, `vr_files` 568) and +11.4k lines of vendored Zancle
+  (159 files, 4 local changes to keep across updates). The blame history of `Quake/vr` is mostly this round now, and
+  every branch open during it has to merge across it.
+- **Readability is mixed.** Explicit types and math calls are clearer (`za::sin` takes exactly a float, so every mixed
+  call std quietly promoted now shows its cast). But the API is unfamiliar to anyone who knows std, and some idioms got
+  longer: `makeOptional`, `za::String{view}`, `{nullptr}` on `UniquePtr` members, and the `qza::` stand-ins for
+  missing pieces.
+- **Bugs: the migration introduced more than it surfaced.** It found no bug in Quake VR's existing code. It introduced
+  four, all found and fixed before the merge:
+  - the `initializer_list` layout clash (heap corruption in Release);
+  - `vectorEraseIf` on ankerl maps (gib and decal crashes in Debug, found by a Zancle assert);
+  - pointers into dense maps left dangling (a hit-model crash);
+  - a codemod that turned `nowNs` into infinite recursion.
+
+  It found one bug in Zancle (the `initializer_list` layout under MSVC) and two traps (`vectorEraseIf` accepts a map;
+  `Optional`'s explicit constructor). Those are proposals 1–3.
+- **Remaining risk:** dense-map pointer stability was audited, but not proved. Equal elements may now come out of the
+  sorts that only affect what's drawn in a different order. Map iteration order changed wherever the old order wasn't
+  forced. `qvr::files` replaces streams and filesystem: edge cases such as odd paths and malformed numbers are covered
+  only by the save, config and take round-trips the tests exercise. The thread primitives (condition variables
+  replaced by atomic waits, the jobs pool's intrusive pointer) pass the job tests and 24 Debug combat runs, but
+  concurrency bugs depend on timing.
+- **A dependency:** Zancle is the author's own library. That's good because he can fix it (the 11 proposals), and a
+  cost because updating the vendored copy, its local changes and `zancle_vendor.py` is now his job.
+- **The std that remains costs us twice.** First, two styles live side by side: the 60 remaining uses (random engines,
+  exceptions in the jobs pool, `shared_ptr`, the ordered maps in Review Takes, `nth_element`, `chrono`) still pull in
+  MSVC STL headers, `<random>` among them. Second, mixing the two libraries is a hazard: the `initializer_list` clash
+  came from exactly that mix. Until Zancle covers the 7 kinds of use left, the local fix in `InitializerList.hpp`
+  must survive every update.
+
+Not measured: much of the Debug speed-up probably came from turning off MSVC's checked iterators, and
+`_ITERATOR_DEBUG_LEVEL=0` (or optimising the STL in Debug) might have bought a large part of it with no churn at all.
+That alternative was never tried, so the −25% should not be credited entirely to Zancle.
