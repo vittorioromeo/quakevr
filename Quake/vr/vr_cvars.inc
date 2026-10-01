@@ -741,7 +741,7 @@ QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic rec
 QVR_CVAR(vr_recoil_kick, "1.5", CVAR_ARCHIVE)          // cm the drawn weapon is kicked back at a weapon's Recoil Strength 1 (looks only)
 QVR_CVAR(vr_recoil_rise, "4", CVAR_ARCHIVE)            // degrees its muzzle tips up at Strength 1 (looks only: the aim stays)
 QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)
-QVR_CVAR(vr_muzzle_flash_enemies, "1", CVAR_ARCHIVE)   // the grunts' guns flash at their muzzles as they fire
+QVR_CVAR(vr_muzzle_flash_enemies, "1", CVAR_ARCHIVE)   // the grunts' and enforcers' guns flash at their muzzles as they fire
 QVR_CVAR(vr_muzzle_flash_enemy_size, "1", CVAR_ARCHIVE) // their flashes' size (times a third of their gun's length)
 QVR_CVAR(vr_tracers, "1", CVAR_ARCHIVE)                // bullet tracers for hitscan shots (the shotguns, the burst rifle; a weapon's Tracers may differ)
 QVR_CVAR(vr_tracers_enemies, "1", CVAR_ARCHIVE)        // the monsters' hitscan shots (the grunts') too

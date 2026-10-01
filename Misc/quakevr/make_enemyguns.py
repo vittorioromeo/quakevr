@@ -54,9 +54,18 @@ FRAMES = 9
 GRIP_LEN, GRIP_DEPTH, GRIP_WIDTH, GRIP_TILT, GRIP_BEVEL, SINK = 7.2, 3.4, 2.6, 8.0, 0.5, 0.9
 MARGIN = 0.9  # room round the gun in the file's byte grid for the parts (bands, bolt heads)
 
-# The rifle's sights (model units along the barrel): the notch just ahead of the housing's peak, the post between its
-# third and fourth vents.
-ENF_REAR_SIGHT_X, ENF_FRONT_SIGHT_X = 6.3, 15.6
+# The rifle's sights (model units along the barrel): the notch just ahead of the housing's peak, a short post on top of
+# the foregrip band (NOTES.md vrfiringrange_2026-10-01_11-38-49: lower sights, the post much shorter), ENF_POST over it.
+ENF_REAR_SIGHT_X, ENF_POST = 6.3, 0.3
+# The rifle's top lowered (the same note: the sights sat 8.4 model units over the bore, 12.8 cm drawn): everything over
+# ENF_TOP_PIVOT (model units over the grip's middle; the bore is at 5.0) squashed down towards it, ENF_TOP_SQUASH of its
+# height kept. The housing's peak 13.0 -> 10.3, its front 11.7 -> 10.0, the receiver 11.2 -> 9.9; the vents, the
+# barrel and all below the pivot as they were.
+ENF_TOP_PIVOT, ENF_TOP_SQUASH = 9.6, 0.2
+# The rifle's sights zeroed: the sight line (notch to post) meets the bore's line (the shots': the gun's x) this far
+# ahead of the muzzle, in metres at the weapon settings' Scale 0.4 (one model unit 0.4 Quake units, 26.25 a metre).
+ENF_ZERO_METRES = 10.0
+MODEL_UNITS_PER_METRE = 26.25 / 0.4
 
 
 def slot(box, depth, probe, side):
@@ -99,7 +108,8 @@ GUNS = {
         details='enforcer',   # details_enforcer
         stock_x=None,
         barrel=4.6,
-        sight_top=13.8,
+        sight_top=11.0,
+        top_squash=(ENF_TOP_PIVOT, ENF_TOP_SQUASH),  # its top lowered (ENF_TOP_PIVOT)
         symmetric=True,       # mirrored exactly about y = 0 (symmetrize), on a byte grid centred on it
         origin=(-16.39794921875, -6.089954376220703, -4.599999904632568),  # the bounds' corner (vr_weapons.inc)
         anchors=(37, 14, 1813),
@@ -260,6 +270,9 @@ def extract(progs, spec):
         index[v] = len(gun.st)
         gun.st.append(tuple(m.stverts[v]))
         pos.append(sub(mul(sub(L[v], grip_top), scale), centre))
+    if spec.get('top_squash'):
+        pivot, keep = spec['top_squash']
+        pos = [(p[0], p[1], p[2] if p[2] <= pivot else pivot + (p[2] - pivot) * keep) for p in pos]
     dropped = 0
     for front, a, b, cc in tris:
         t = (front, index[a], index[b], index[cc])
@@ -552,12 +565,12 @@ def barrel_tip(p, face_x, yc, zc, length, r, collar, material, key, bore=0.35, d
     return np.array((root + L - depth, yc, zc))
 
 
-def front_sight(p, x, top, material, key, base=(0.65, 0.6, 0.35), post=(0.28, 0.14), bevel=0.15):
-    """A post on a small block, its top at `top`."""
-    s, _ = surface(p, x, 0.0, 40.0, (0.0, 0.0, -1.0))
+def front_sight(p, x, top, material, key, base=(0.65, 0.6, 0.35), post=(0.28, 0.14), bevel=0.15, base_z=None):
+    """A post on a small block, its top at `top`; on the surface, or standing at `base_z` (on a part)."""
+    z = surface(p, x, 0.0, 40.0, (0.0, 0.0, -1.0))[0][2] if base_z is None else base_z
     X, Y, Z = np.eye(3)
-    base_top = s[2] - 0.2 + 2.0 * base[2]
-    p.box((x, 0.0, s[2] - 0.2 + base[2]), X, Y, Z, base, material, key, bevel=bevel)
+    base_top = z - 0.2 + 2.0 * base[2]
+    p.box((x, 0.0, z - 0.2 + base[2]), X, Y, Z, base, material, key, bevel=bevel)
     p.box((x, 0.0, 0.5 * (base_top + top) - 0.1), X, Y, Z, (post[0], post[1], 0.5 * (top - base_top) + 0.1), material,
           key)
     return top
@@ -596,13 +609,27 @@ def details_grunt(p, spec, P, key):
 
 def details_enforcer(p, spec, P, key):
     """The enforcers' rifle (its vents and the muzzle cone's grooves carved: GUNS' cuts): small, low sights (NOTES.md
-    vrfiringrange_2026-10-01_02-39: a notch just over the housing's peak, a thin post between the vents level with the
-    notch's bottom, the line along the barrel), a thin barrel."""
+    vrfiringrange_2026-10-01_02-39, 11-38-49: a notch over the lowered housing's peak, a short thin post on the
+    foregrip band, a little under the notch's bottom: the sight line meets the shots' ENF_ZERO_METRES ahead), a thin
+    barrel."""
     s, _ = surface(p, ENF_REAR_SIGHT_X, 0.0, 40.0, (0.0, 0.0, -1.0))
-    notch = s[2] + 0.2
+    face_x, _, bore = spec['muzzle_face']
+    xf = spec['fore']
+    # The line through the notch (n) and the post's top (t) meets the bore's line ENF_ZERO_METRES past the muzzle:
+    # n - t = (n - bore) k. The post ENF_POST over the band, the notch at least 0.2 over the housing.
+    k = (xf - ENF_REAR_SIGHT_X) / (face_x + spec['barrel'] + ENF_ZERO_METRES * MODEL_UNITS_PER_METRE - ENF_REAR_SIGHT_X)
+    notch = max((spec['band_top'] + ENF_POST - bore * k) / (1.0 - k), s[2] + 0.2)
+    slope = (notch - bore) * k / (xf - ENF_REAR_SIGHT_X)
+    top = notch - slope * (xf - ENF_REAR_SIGHT_X)
+    # Nothing of the body between them over the line (the eye sees the post over it).
+    for q in P:
+        if ENF_REAR_SIGHT_X + 0.5 < q[0] < xf and abs(q[1]) < 1.0:
+            assert q[2] < notch - slope * (q[0] - ENF_REAR_SIGHT_X) - 0.05, 'the body stands over the sight line at %s' % (q,)
     rear_sight(p, ENF_REAR_SIGHT_X, notch, 'blued', key, ear=0.3, block=(0.2, 0.55), ears=(0.09, 0.14), gap=0.38)
-    front_sight(p, ENF_FRONT_SIGHT_X, notch, 'blued', key, base=(0.26, 0.24, 0.12), post=(0.13, 0.07), bevel=0.06)
-    return barrel_tip(p, *spec['muzzle_face'], length=4.6, r=0.85, collar=1.25, material='blued', key=key)
+    front_sight(p, xf, top, 'blued', key, base=(0.26, 0.24, 0.12), post=(0.13, 0.07), bevel=0.06,
+                base_z=spec['band_top'])
+    spec['sights'] = ((ENF_REAR_SIGHT_X, 0.0, notch), (xf, 0.0, top), top - spec['band_top'], notch - bore, slope)
+    return barrel_tip(p, *spec['muzzle_face'], length=spec['barrel'], r=0.85, collar=1.25, material='blued', key=key)
 
 
 def parts(path, spec, fore):
@@ -638,7 +665,14 @@ def parts(path, spec, fore):
     # The foregrip: a band round the barrel where the other hand holds it (the grunt's gun has its own).
     if spec['fore_band']:
         zlo, zhi, _, _ = section(P, fore)
-        p.band((fore, 0.0, 0.5 * (zlo + zhi)), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0), 3.0, 0.3, gm)
+        c = (fore, 0.0, 0.5 * (zlo + zhi))
+        outline = p.outline(c, (1.0, 0.0, 0.0), (0.0, 0.0, 1.0), 3.0, only="piece")
+        if spec.get('symmetric'):
+            # Its outline's simplification walks round one way: its +y half (v = -y) mirrored, the band symmetric too.
+            half = [h for h in outline[0] if h[1] <= 1e-9]
+            outline = (mp.convex_hull(half + [(h[0], -h[1]) for h in half]),) + tuple(outline[1:])
+        p.band(c, (1.0, 0.0, 0.0), (0.0, 0.0, 1.0), 3.0, 0.3, gm, outline=outline)
+        spec['fore'], spec['band_top'] = fore, c[2] + max(h[0] for h in outline[0]) + 0.3  # (a front sight on it)
     # Bolt heads on the receiver's sides, over the grip.
     zlo, zhi, ylo, yhi = section(P, 1.5)
     for x in (-0.5, 2.5):
@@ -780,6 +814,11 @@ def main():
         print('  carved: %d triangles cut away, %d added (%d cuts, %d slivers split away); parts: +%d triangles, +%d vertices, %d skin rows, '
               '%d texels worn; the foregrip %.1f ahead' % (cut_away, carved, len(spec['cuts']), slivers, tris, verts, rows, texels,
                                                            fore))
+        if spec.get('sights'):
+            (rx, _, rz), (fx, _, fz), post, height, slope = spec['sights']
+            print('  sights: notch %.3f %.3f, post top %.3f %.3f (%.2f over the body), %.2f over the bore, %.3f deg down '
+                  'to it (vr_sightalign_table.inc: {%.2ff, 0.f, %.3ff}, {%.2ff, 0.f, %.3ff})' % (
+                      rx, rz, fx, fz, post, height, math.degrees(math.atan(slope)), rx, rz, fx, fz))
         if spec.get('symmetric'):
             M = Q * (1.0, -1.0, 1.0)
             err = max(float(np.min(np.linalg.norm(Q - q, axis=1))) for q in M)

@@ -3404,8 +3404,8 @@ za::Vector<Item> pageWeaponEffects()
         toggle("Programmatic Muzzle Flash", vr_muzzle_flash)
             .help("The shotgun's flash at the muzzle of the weapons whose Muzzle Flash is on (Weapon Offsets > Effects: the "
                   "grunts' burst rifle), following the gun."),
-        toggle("Grunts' Muzzle Flashes", vr_muzzle_flash_enemies).help("The grunts' guns flash at their muzzles as they fire."),
-        slider("Grunts' Flash Size", vr_muzzle_flash_enemy_size, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f),
+        toggle("Enemies' Muzzle Flashes", vr_muzzle_flash_enemies).help("The grunts' and enforcers' guns flash at their muzzles as they fire."),
+        slider("Enemies' Flash Size", vr_muzzle_flash_enemy_size, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f),
         header("Bullet Tracers"),
         toggle("Bullet Tracers", vr_tracers)
             .help("Hitscan shots (the shotguns, the burst rifle) draw streaks of light flying from the muzzle to what they "

@@ -6,8 +6,8 @@
 //   muzzle back on the steady weapon): the aim and the shots stay where the controller is.
 // - Muzzle flash: a moment of the shotgun's own flash (progs/vr_muzzleflash.mdl, Misc/quakevr/make_muzzleflash.py) at
 //   the weapon's muzzle anchor, turned as the gun is, every frame; gone as soon as the gun leaves the hand that fired it
-//   (dropped, holstered, thrown, passed to the other hand). The grunts' guns flash at their muzzles too (soldier.mdl's
-//   gun: a rigid piece of its vertices, its front ring and its rear).
+//   (dropped, holstered, thrown, passed to the other hand). The grunts' and the enforcers' guns flash at their muzzles too
+//   (soldier.mdl's and enforcer.mdl's guns: rigid pieces of their vertices, their fronts and rears: monsterGuns).
 // - Tracers: a hitscan pellet or round (the shotguns, the burst rifle, the grunts') may draw a streak of light flying
 //   from the muzzle to what it hit (vr_tracer_*: speed, length, thickness, colour, the chance a pellet shows one; each
 //   weapon's multipliers and colour), depth tested in the scene's translucent pass.

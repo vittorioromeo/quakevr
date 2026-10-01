@@ -18374,3 +18374,60 @@ detail 0.048 -> 0.322 0.242 0.137 / 0.056; brown 0.259 0.174 0.106 -> 0.197 0.13
 - [ ] Punch, club, chop, saw a crate: wood dust, no blood (the breaking blow too).
 - [ ] Debug > Tests > Thing > Two Crates Stacked: the top one sits on the lower one.
 - [ ] The crates up close in e1m1 (QRP and not): gritty, darker, in keeping with the walls and explosive boxes.
+## The enforcers' rifle: low zeroed sights, its shots along its barrel, recoil, muzzle flashes (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_11-38-49. Branch `agent/enforcergun`.
+
+- **Why the sights didn't match the laser:** `vr_sight_check` (the rifle is in the sight table now) with the shipped
+  settings: the laser left 6.53 degrees under the sight line, 121 cm under it at 10 m. With Pitch 0 the rifle is drawn
+  7.0 degrees over the hand's aim, and the shots go along the aim (the burst rifle has the author's Pitch -7 for the
+  same reason). The sights also stood 8.4 model units over the bore (12.8 cm as drawn).
+- **Shots along the barrel:** slot 22's Shot Pitch 7 (Weapon Offsets > Muzzle: Shot Pitch). The drawn gun stays where
+  it was in the hand. Two-handed aim is unchanged.
+- **The model** (`make_enemyguns.py`; the vents, grooves and the rest kept):
+  - The top is lowered: everything over z 9.6 squashed to a fifth of its height (`ENF_TOP_PIVOT`, `ENF_TOP_SQUASH`).
+    Housing peak 13.0 -> 10.3, its front 11.7 -> 10.0, receiver 11.2 -> 9.9. The bore, vents and the rest below are
+    as they were.
+  - The front post is on the foregrip band, 0.30 over it (it stood 1.0 over the housing). The notch is 0.2 over the
+    peak. The sights are now 5.68 units (8.7 cm) over the bore, against 8.4 (12.8 cm), and the radius is 16.7 (9.3).
+  - Zeroed: the post is 0.137 under the notch, so the sight line meets the barrel's line 10 m past the muzzle
+    (`ENF_ZERO_METRES`; 0.47 degrees).
+  - The band's outline is mirrored (its simplification had made it 0.7 off symmetric). Mirror error 0.000000.
+  - Anchors are kept: muzzle 1813 at 40.47 0 5.0, counter 37 at 3.01 0 9.93 (it went down with the receiver). The
+    bounds' corner is unchanged, so no offsets or hotspots move. Normal map rebaked. `v_gruntgun.mdl` is
+    byte-identical.
+- **Sight table:** `sightline_table.py` adds both enemy guns' modelled sights: the rifle 6.30/10.660 -> 23.00/10.523,
+  and the burst gun -3.5/14.35 -> 22.4/14.45. Neither is in the "no sights" list any more, so Show Sight Line, Align
+  Sights and Sight Check work on them. The burst gun's laser is 0.22 degrees off its sight line (for reference).
+- **Recoil and flash:** slot 22 now has Recoil on, Recoil Strength 0.5 (the burst rifle's 1), Muzzle Flash on (the
+  burst rifle's flash and size).
+- **Enforcers' flashes:** `enforcer_fire` sends `weaponfired(self, -1)`. `vr_weaponfx.cpp` reads a table of monster
+  guns (`monsterGuns`):
+  - soldier.mdl as before;
+  - enforcer.mdl: muzzle face vertices 22 100 400 401 402 403 407, rear 404 405 423 424 425. That pair is 0.02 degrees
+    off the rifle's axis in attack6 and 0.3 at most in the other frames; the gun is 29.9..30.3 long in every frame.
+  - The rows are now "Enemies' Muzzle Flashes" and "Enemies' Flash Size" (Weapons > Weapon Effects).
+- **Weapon settings version 33.** For slot 22, Shot Pitch 0 -> 7, Recoil 0 -> 1, Recoil Strength 1 -> 0.5 and Flash
+  0 -> 1, each only where the config still held the old value. The author's config migrates; a changed strength
+  (0.8) is kept.
+
+### Tests (mock)
+
+- `bash Misc/quakevr/enfrifle/rifle_test.sh <agent>` holds the rifle, checks the sights, fires once, then puts an
+  enforcer 250 units ahead. Results:
+  - The laser is 0.4701 degrees from the sight line, rising onto it: 6.0 cm under it at 2 m, 3.6 at 5 m, 0.11 at the
+    wall 12.8 m away. Before: 6.53 degrees and 121 cm at 10 m.
+  - The shot prints `weaponfx fired ... slot 22 recoil 1 (0.50, 0.150 s) flash 1`.
+  - The enforcer prints 4 `weaponfx monster fired ... (progs/enforcer.mdl)`, and the eyeshot shows its flash at its
+    rifle's muzzle.
+- Eyeshot from the side (`vr_wofs_fx_flash_time_23 1; vr_weaponfx_test 1 0`): the flash comes out of the bore,
+  along the barrel.
+- `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
+
+### In the headset
+
+- [ ] One-handed, put the sights on a target 5-15 m away: the laser should hit it. Shot Pitch fine-tunes it, and so
+  does Align Sights to My Aim, which now works on the rifle.
+- [ ] Are the lower top and the short post on the band good to look at and quick to pick up?
+- [ ] Is the kick enough (Weapon Offsets > Effects: Recoil Strength 0.5)? Are the flashes right on your rifle and on
+  the enforcers'?
