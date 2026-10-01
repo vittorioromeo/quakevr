@@ -267,6 +267,7 @@ float(float xHand) VR_Chainsaw_Cut =
         self.damage_weapon = IT_AXE;
         float alive = e.health > 0;
         float flesh = (e.flags & FL_MONSTER) || (e.flags & FL_CLIENT) || e.vr_gib; // (a gib may be gone after it)
+        float wood = VR_Crate_Wooden(e); // (a crate: splinters, not sparks)
         float hurt = dmg;
         if(e.vr_gib)
         {
@@ -282,6 +283,10 @@ float(float xHand) VR_Chainsaw_Cut =
         if(flesh)
         {
             SpawnBlood(at, (crandom() * v_right + v_up) * 60, dmg * 2);
+        }
+        else if(wood)
+        {
+            VR_Crate_Splinters(at, (crandom() * v_right + v_up) * 12, dmg * 2);
         }
         else
         {

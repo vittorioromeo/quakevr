@@ -151,9 +151,16 @@ def wood(along, across, layer, seed, res, rings=0.55):
     f = ring - np.floor(ring)
     late = md.smoothstep(f, 0.52, 0.78) * (1.0 - md.smoothstep(f, 0.88, 1.0))
     k = min(10.0, 0.42 * res)  # the finest across the grain the texture shows
-    fib = 0.6 * md.vnoise(np.stack([along * 0.35, across * k * 0.5, layer + 3.0], -1), seed + 1) + \
-        0.4 * md.vnoise(np.stack([along * 0.9, across * k, layer + 9.0], -1), seed + 5)
-    pores = md.smoothstep(md.vnoise(np.stack([along * 0.6, across * k * 0.8, layer + 6.0], -1), seed + 2), 0.8, 0.9)
+    # Fibres: streaks along the grain at three scales, the finest at the texture's own (what makes it read as worn,
+    # gritty wood up close, as the texture packs' wood does: NOTES.md vrfiringrange_2026-10-01_11-43-14).
+    fib = 0.35 * md.vnoise(np.stack([along * 0.35, across * k * 0.5, layer + 3.0], -1), seed + 1) + \
+        0.3 * md.vnoise(np.stack([along * 0.9, across * k, layer + 9.0], -1), seed + 5) + \
+        0.35 * md.vnoise(np.stack([along * 0.5, across * k * 1.6, layer + 19.0], -1), seed + 7)
+    # Crevices: the grain opened by age, long thin dark cracks between the fibres.
+    crev = md.smoothstep(md.vnoise(np.stack([along * 0.12, across * k * 1.2, layer + 23.0], -1), seed + 8), 0.62, 0.86)
+    crev = crev * md.smoothstep(md.vnoise(np.stack([along * 0.05, across * 0.4, layer + 29.0], -1), seed + 10), 0.25, 0.6)
+    fib = np.clip((fib - 0.5) * 1.6 + 0.5 - 0.9 * crev, 0.0, 1.0)
+    pores = 0.6 * md.smoothstep(md.vnoise(np.stack([along * 0.6, across * k * 0.8, layer + 6.0], -1), seed + 2), 0.84, 0.92)
     return late, fib, pores
 
 
@@ -170,14 +177,18 @@ def lines(u, v, seed, layer, spacing, width, keep):
 
 # A skin's colours (sRGB 0..1): early wood (the light growth), late wood (its rings), fresh wood (worn edges, scratches,
 # breaks), grime; how weathered (grey, its grain checked) and how dirty.
+# Darker and duller than a fresh board's: old, handled, damp wood, the texture packs' (QRP's wood1_1 averages 0.32 0.22
+# 0.12; NOTES.md vrfiringrange_2026-10-01_11-43-14).
 SKINS = [
-    ("pine", rgb((0.50, 0.37, 0.22)), rgb((0.33, 0.21, 0.11)), rgb((0.70, 0.56, 0.37)), rgb((0.13, 0.10, 0.07)), 0.1, 1.0),
-    ("brown", rgb((0.36, 0.23, 0.13)), rgb((0.20, 0.12, 0.06)), rgb((0.58, 0.43, 0.27)), rgb((0.10, 0.08, 0.05)), 0.2, 1.0),
-    ("weathered", rgb((0.43, 0.41, 0.37)), rgb((0.26, 0.24, 0.21)), rgb((0.52, 0.45, 0.35)), rgb((0.13, 0.12, 0.10)), 1.0,
-     1.1),
+    ("pine", rgb((0.52, 0.38, 0.20)), rgb((0.31, 0.21, 0.10)), rgb((0.52, 0.41, 0.27)), rgb((0.08, 0.065, 0.045)), 0.15,
+     1.2),
+    ("brown", rgb((0.32, 0.20, 0.10)), rgb((0.18, 0.10, 0.045)), rgb((0.44, 0.33, 0.21)), rgb((0.06, 0.05, 0.035)), 0.2,
+     1.2),
+    ("weathered", rgb((0.38, 0.36, 0.32)), rgb((0.22, 0.21, 0.18)), rgb((0.44, 0.39, 0.31)), rgb((0.08, 0.075, 0.065)),
+     1.0, 1.3),
 ]
 RUST = rgb((0.35, 0.17, 0.07))
-IRON = rgb((0.18, 0.18, 0.19))
+IRON = rgb((0.16, 0.12, 0.09))  # old iron, rusty brown
 
 
 def finish(fig, N, P, seed, res, regions):
@@ -190,27 +201,32 @@ def finish(fig, N, P, seed, res, regions):
     stain = md.smoothstep(stain_n, 0.6, 0.63) * (0.55 + 0.45 * (1.0 - md.smoothstep(stain_n, 0.63, 0.66)))  # a tide line
     speck = md.smoothstep(md.vnoise(P * min(3.0, 0.4 * res), seed + 71), 0.86, 0.95)
     up = np.clip(N[..., 2], 0, 1)
-    broad = 0.88 + 0.24 * md.fbm(P * 0.06 + 3.0, seed + 55, 3)  # the whole crate's light and dark: sun, damp, handling
+    broad = 0.80 + 0.40 * md.fbm(P * 0.06 + 3.0, seed + 55, 3)  # the whole crate's light and dark: sun, damp, handling
+    # Grime ground into it at every scale (blotches, smudges, specks), darkest where the grain is open.
+    grunge = md.fbm(P * 0.25 + 11.0, seed + 57, 4)
+    grit = md.vnoise(P * min(4.0, 0.45 * res) + 5.0, seed + 59)
+    rough = (0.80 + 0.40 * grunge) * (0.82 + 0.36 * grit)
     out = []
     for _, early, latec, fresh, grime, weather, dirty in SKINS:
-        c = mix(np.broadcast_to(early, late.shape + (3,)), latec, late * 0.85)
-        c = c * (0.82 + 0.34 * fib)[..., None] * (1.0 - 0.4 * pores)[..., None] * tint * broad[..., None]
+        c = mix(np.broadcast_to(early, late.shape + (3,)), latec, late * 0.6)
+        c = c * (0.5 + 0.8 * fib)[..., None] * (1.0 - 0.5 * pores)[..., None] * tint * (broad * rough)[..., None]
         if weather:
             grey = c.mean(-1, keepdims=True) * rgb((1.0, 0.97, 0.92))
             c = mix(c, grey, 0.55 * weather)
             c = c * (1.0 - 0.6 * weather * regions["checks"])[..., None]
         raw = fresh * (0.82 + 0.26 * fib)[..., None]
         c = mix(c, raw, regions["fresh"])
-        c = mix(c, raw, regions["wear"] * 0.75)
-        c = mix(c, fresh, regions["scratch"] * 0.3)
+        c = mix(c, raw, regions["wear"] * 0.5)
+        c = mix(c, fresh, regions["scratch"] * 0.22)
         c = mix(c, grime, dirt * 0.42 * dirty)
+        c = mix(c, grime, (1.0 - regions["ao"]) * 0.6 * dirty)  # grime packed into the gaps and against the battens
         c = mix(c, grime, stain * 0.4 * dirty)
         c = mix(c, grime, speck * 0.45 * dirty)
         c = mix(c, grime, regions["low"] * 0.5 * dirty)  # floor grime up its sides
         c = mix(c, rgb((0.50, 0.48, 0.44)), up * dirt * 0.18)  # dust on top
         c = mix(c, RUST, regions["rust"] * 0.65)
         c = c * regions["ao"][..., None]
-        c = mix(c, IRON * (0.8 + 0.6 * regions["nailhi"])[..., None], regions["nail"])
+        c = mix(c, IRON * (0.75 + 0.5 * regions["nailhi"])[..., None], regions["nail"])
         out.append(np.clip(c, 0, 1))
     return out
 
@@ -336,7 +352,7 @@ def crate_paint(faces, P, F, E, seed, batten, brace, res):
     h = h - np.where(planks, 0.3 * (1 - md.smoothstep(edge_d, 0.15, 0.55)), 0.0)
     h = np.where(gap, -1.1, h)
     h = h - 0.25 * (1 - md.smoothstep(np.minimum(frame_edge, brace_edge), 0.0, 0.45)) ** 2
-    h = h + 0.06 * late + 0.025 * (fib - 0.5) - 0.05 * pores - 0.12 * checks - 0.05 * scratch
+    h = h + 0.06 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.12 * checks - 0.05 * scratch
     h = h - 0.15 * md.smoothstep(md.vnoise(P * 0.45 + 3.0, seed + 81), 0.86, 0.97)  # dents
     h = h + np.where(nd < r, 0.14 * (1 - (nd / r) ** 2), np.where(nd < r * 1.8, -0.04 * (1 - (nd - r) / (r * 0.8)), 0.0))
     return skins, h
@@ -373,7 +389,7 @@ def board_paint(faces, P, F, E, seed, nails, res):
                "low": np.zeros_like(x), "fresh": np.where(fresh, 0.85, 0.0)}
     tint = np.ones(x.shape + (3,))
     skins = finish((late, fib, pores, tint), N, P, seed, res, regions)
-    h = 0.06 * late + 0.025 * (fib - 0.5) - 0.05 * pores - 0.12 * checks - 0.05 * scratch
+    h = 0.06 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.12 * checks - 0.05 * scratch
     h = np.where(fresh, 0.18 * (fibres - 0.5), h)  # torn fibres
     h = np.where(end, 0.05 * late - 0.04 * pores, h)
     h = h + np.where(nd < r, 0.14 * (1 - (nd / r) ** 2), 0.0)

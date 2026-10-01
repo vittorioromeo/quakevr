@@ -2405,7 +2405,7 @@ void(entity h, float xHand, float xReeling) VR_Grapple_ServiceAnchor =
         spray_x = 100 * crandom();
         spray_y = 100 * crandom();
         spray_z = 100 * crandom() + 50;
-        SpawnBlood(h.origin, spray, 20);
+        VR_HitBlood(t, h.origin, spray, 20);
     }
 };
 

@@ -1072,7 +1072,7 @@ void(float xHand) HIP_FireMjolnir =
         }
 
         trace_ent.axhitme = 1;
-        SpawnBlood (org, v_forward, xdmg);
+        VR_HitBlood(trace_ent, org, v_forward, xdmg);
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
         if(vr_melee_blunt && VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
@@ -1224,7 +1224,7 @@ void(float xHand) W_FireAxe =
 
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
-            SpawnBloodSplash(org, xdmg);
+            VR_HitBloodSplash(trace_ent, org, xdmg);
             bleed = TRUE;
         }
 
@@ -1275,7 +1275,7 @@ void(float xHand) W_GunMelee =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
-        SpawnBloodSplash (org, xdmg);
+        VR_HitBloodSplash(trace_ent, org, xdmg);
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
 
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
@@ -1330,7 +1330,7 @@ void(float xHand) W_SwordMelee =
         self.damage_weapon = IT_AXE;
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
-            SpawnBloodSplash(org, xdmg);
+            VR_HitBloodSplash(trace_ent, org, xdmg);
         }
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
@@ -1369,7 +1369,7 @@ void(float xHand) W_ChainsawMelee =
         self.damage_weapon = IT_AXE;
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
-            SpawnBloodSplash(org, xdmg);
+            VR_HitBloodSplash(trace_ent, org, xdmg);
         }
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
@@ -1442,7 +1442,7 @@ void(float xHand) W_FistMelee =
     {
         VRMeleeHapticByHand(xHand);
         trace_ent.axhitme = 1;
-        SpawnBloodSplash (org, xdmg);
+        VR_HitBloodSplash(trace_ent, org, xdmg);
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
     }
     else
@@ -2156,7 +2156,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     {
         if(T_Damage(trace_ent, from, from, damage))
         {
-            SpawnBloodSplash (trace_endpos, damage*5);
+            VR_HitBloodSplash(trace_ent, trace_endpos, damage * 5);
         }
 
         if(self.classname == "player")
@@ -2174,7 +2174,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     {
         if(T_Damage(trace_ent, from, from, damage))
         {
-            SpawnBloodSplash (trace_endpos, damage*5);
+            VR_HitBloodSplash(trace_ent, trace_endpos, damage * 5);
         }
     }
     e2 = trace_ent;
@@ -2186,7 +2186,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     {
         if(T_Damage(trace_ent, from, from, damage))
         {
-            SpawnBloodSplash (trace_endpos, damage*5);
+            VR_HitBloodSplash(trace_ent, trace_endpos, damage * 5);
         }
     }
 };
