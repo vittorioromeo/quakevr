@@ -238,6 +238,7 @@ float cvarh_vr_throw_gain_lo;
 float cvarh_vr_throw_gain_hi;
 float cvarh_vr_throw_weight_influence;
 float cvarh_vr_throw_spin_max;
+float cvarh_vr_weight_drop_velocity;
 float cvarh_vr_throw_assist;
 float cvarh_vr_throw_assist_cone;
 float cvarh_vr_throw_assist_full;
@@ -535,6 +536,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_throw_gain_hi);
     VR_CVAR_HMAKE(vr_throw_weight_influence);
     VR_CVAR_HMAKE(vr_throw_spin_max);
+    VR_CVAR_HMAKE(vr_weight_drop_velocity);
     VR_CVAR_HMAKE(vr_throw_assist);
     VR_CVAR_HMAKE(vr_throw_assist_cone);
     VR_CVAR_HMAKE(vr_throw_assist_full);

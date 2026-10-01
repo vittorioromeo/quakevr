@@ -4475,6 +4475,8 @@ void(vector xOrigin, float xHand) PlayerLightningGunEffect =
     WriteVec3(MSG_BROADCAST, trace_endpos);
 }
 
+float(entity ent, float xHand) VRWeaponLeavingHand;
+
 void(float xHand, float xButton) FrameDrawLightningTrail =
 {
     // Lightning effect (per-frame)
@@ -4491,6 +4493,12 @@ void(float xHand) W_WeaponFrameImpl =
 {
     // A gun hanging from its foregrip (the hand-off) is carried, not held: it does not fire.
     if(VRIsHandCarryingByForegrip(self, xHand))
+    {
+        return;
+    }
+
+    // Let go of this frame (W_Frame's DoHandImpl, later in the frame, throws or holsters it): no shot as it leaves.
+    if(VRWeaponLeavingHand(self, xHand))
     {
         return;
     }
@@ -5624,7 +5632,9 @@ float() getWeaponThrowMode =
     return cvar_hget(cvarh_vr_weapon_throw_mode);
 }
 
-void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponClip) DropWeaponInHand =
+// `xVelScale`: times the throw's velocity and spin (1: thrown; vr_weight_drop_velocity: wrenched out, the grip lost
+// rather than a throw, which the throw assist does not aim either).
+void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponClip, float xVelScale) DropWeaponInHandScaled =
 {
     if(VRIsHandWeaponless(ent, xHand))
     {
@@ -5652,8 +5662,9 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
     // falls at vr_throw_gravity rather than Quake's 2.5g.
     float m2u = VRMetersToUnits();
     float weight = 1 + (WeaponIdToThrowMult(xWeapon) - 1) * cvar_hget(cvarh_vr_throw_weight_influence);
-    vector throwVelUnits = throwVel * m2u * VRThrowGain(vlen(throwVel)) * weight *
-                           cvar_hget(cvarh_vr_weapon_throw_velocity_mult);
+    vector asThrown = throwVel * m2u * VRThrowGain(vlen(throwVel)) * weight *
+                      cvar_hget(cvarh_vr_weapon_throw_velocity_mult);
+    vector throwVelUnits = asThrown * xVelScale;
 
     float throwGravity = cvar_hget(cvarh_sv_gravity);
     if(cvar_hget(cvarh_vr_throw_gravity) > 0)
@@ -5689,7 +5700,10 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
         }
     }
 
-    throwVelUnits = VRThrowAssist(ent, origin, throwVelUnits, throwGravity);
+    if(xVelScale == 1)
+    {
+        throwVelUnits = VRThrowAssist(ent, origin, throwVelUnits, throwGravity);
+    }
 
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_SAW_STATE); // a chainsaw's engine stops
@@ -5726,18 +5740,22 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
 
         // Flies, spins, bounces and settles as a rigid body (engine: vr_rigid.cpp).
         thrown.vr_rigid = 1;
-        thrown.vr_spin = VRThrowSpinCapped(VRGetHandAVel(xHand));
+        thrown.vr_spin = VRThrowSpinCapped(VRGetHandAVel(xHand)) * xVelScale;
 
-        dprint("thrown: velocity "); dprint(vtos(thrown.velocity));
-        dprint(" gravity "); dprint(ftos(thrown.gravity));
-        dprint(" spin "); dprint(vtos(thrown.vr_spin));
-        dprint(" age "); dprint(ftos(age)); dprint("\n");
+        // ("released": how long after the throw's estimate it left the hand, uncapped: throw_trigger_test.sh.)
+        dprint(sprintf("thrown: velocity %v gravity %.2f spin %v age %.3f released %.3f scale %g of %v\n",
+            thrown.velocity, thrown.gravity, thrown.vr_spin, age, VRGetHandThrowAge(xHand), xVelScale, asThrown));
     }
     // (QVR_WEAPONTHROWMODE_DISCARD: nothing is thrown, the weapon is gone.)
 
     sound(ent, CHAN_BODY, "knight/sword2.wav", 0.7, ATTN_NORM);
     VRSetHandEmpty(ent, xHand);
     W_SetCurrentAmmoFor(xHand);
+}
+
+void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponClip) DropWeaponInHand =
+{
+    DropWeaponInHandScaled(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip, 1);
 }
 
 void(entity entPlayer, float xHotspot, float xWeapon, float xWeaponFlags, float xWeaponClip)
@@ -5863,6 +5881,55 @@ float(entity ent, float xHand, float xWeapon) VRWeaponLetGo =
     return !grabbing && (ent.stickypending & bit);
 }
 
+// Where a weapon let go of falls (or flies) from the hand, rather than going in a holster or to the other hand
+// (2H hotspots: unusable, as you can only dual wield with no weapon out; the grenade pouch holds grenades only).
+float(float xHotspot) VRLetGoDropsAt =
+{
+    return xHotspot == QVR_HS_NONE ||
+           xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
+           xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
+           xHotspot == QVR_HS_CARRIED_GRIP ||
+           xHotspot == QVR_HS_GRENADE_POUCH;
+}
+
+// Whether the weapon in `xHand` leaves it this frame (DoHandImpl's let-go: thrown, dropped or holstered), as
+// VRWeaponLetGo will say, without its side effects. W_WeaponFrameImpl runs earlier in the frame: a trigger held through
+// a throw fires no last shot as the weapon leaves.
+float(entity ent, float xHand) VRWeaponLeavingHand =
+{
+    if(VRIsHandWeaponless(ent, xHand) || VR_HandGrabUtil_IsHandGrabbing(ent, xHand))
+    {
+        return FALSE;
+    }
+
+    if(cvar_hget(cvarh_vr_weapon_grip_mode) == 1)
+    {
+        float bit = xHand == cVR_MainHand ? 2 : 1;
+        float lastWeapon = xHand == cVR_MainHand ? ent.stickyweaponmain : ent.stickyweaponoff;
+        float armedNow = VR_HandGrabUtil_IsHandPrevGrabbing(ent, xHand) && (ent.stickyarmed & bit) &&
+                         VRGetEntWeapon(ent, xHand) == lastWeapon;
+        if(!(ent.stickypending & bit) && !armedNow)
+        {
+            return FALSE;
+        }
+    }
+
+    float hotspot = xHand == cVR_MainHand ? ent.mainhand_hotspot : ent.offhand_hotspot;
+    return VRLetGoDropsAt(hotspot) ||
+           (isHolsterHotspot(hotspot) && getWeaponMode() == QVR_WEAPONMODE_IMMERSIVE &&
+            getHolsterWeapon(hotspot) == WID_FIST);
+}
+
+// A weapon has left `xHand` (thrown, dropped, holstered, handed over, wrenched out): its firing animation stops there
+// (a nailgun's chain would fire on from the empty hand; the fist would show the gun's frames).
+void(entity ent, float xHand) VRHandStopFiring =
+{
+    entity oself = self;
+    self = ent;
+    player_run(xHand);
+    self = oself;
+}
+
 // Hand-off (vr_2h_handoff, docs/vr-port/ROUND16.md): the hand holding a weapon two-handed lets go while
 // the other, empty hand still grips it (steadying it: VRGet2HAiming, or a moment ago). The weapon
 // stays in that hand instead of falling: a sword (held by its grip with both hands) simply changes
@@ -5929,11 +5996,13 @@ void(float xHand) VRWeightWrenchFrame =
     float wid = VRGetEntWeapon(self, xHand);
     float flags = VRGetEntWeaponFlags(self, xHand);
     float clip = VRGetEntWeaponClip(self, xHand);
-    // Held two-handed, the other hand keeps it (the hand-off); else it falls.
+    // Held two-handed, the other hand keeps it (the hand-off); else it falls: the grip lost, slower than a throw
+    // (vr_weight_drop_velocity; NOTES.md vrfiringrange_2026-10-01_00-10).
     if(!VRTryHandOff(self, xHand, wid, flags, clip))
     {
-        DropWeaponInHand(self, xHand, wid, flags, clip);
+        DropWeaponInHandScaled(self, xHand, wid, flags, clip, max(0, cvar_hget(cvarh_vr_weight_drop_velocity)));
     }
+    VRHandStopFiring(self, xHand);
     VRGunHaptic(xHand, 0.15, 60, 1);
     sprint(self, "Too heavy for that: it is wrenched out of your hand!\n");
     dprint(sprintf("weight drop: weapon %g wrenched out of hand %g\n", wid, xHand));
@@ -5986,18 +6055,15 @@ void(entity ent, float xHand,
         VRSetHolsterHovered(ent, xHotspot, TRUE);
     }
 
-    // Holding a weapon, but not grabbing the controller.
-    if(!handWeaponless && letGo && time >= xAttackFinished)
+    // Holding a weapon, but not grabbing the controller. At once, even mid-shot (the trigger held through a throw): it
+    // used to wait for the shot's attack_finished, so a held trigger (a dry fire's click, a nailgun's chain) kept the
+    // weapon in the hand until then, and it then jumped out to where the throw would have taken it
+    // (NOTES.md e2m1_2026-09-30_23-41). Its firing animation stops below.
+    if(!handWeaponless && letGo)
     {
         VRWeaponLetGoDone(ent, xHand);
 
-        // No hotspot, or 2H hotspot (unusable).
-        // (2H hotspots ignored because you can only dual wield with no weapon out.)
-        if(xHotspot == QVR_HS_NONE ||
-           xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
-           xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
-           xHotspot == QVR_HS_CARRIED_GRIP ||
-           xHotspot == QVR_HS_GRENADE_POUCH) // (the grenade pouch holds grenades only: vr_grenade.qc)
+        if(VRLetGoDropsAt(xHotspot))
         {
             // Held two-handed: the other hand keeps it (the hand-off). Otherwise it falls, or flies.
             if(!VRTryHandOff(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip))
@@ -6053,6 +6119,11 @@ void(entity ent, float xHand,
 
                 W_SetCurrentAmmo();
             }
+        }
+
+        if(VRGetEntWeapon(ent, xHand) != xWeapon)
+        {
+            VRHandStopFiring(ent, xHand);
         }
     }
     // Holding a weapon and hovering an holster. Possible intention to holster or reload.

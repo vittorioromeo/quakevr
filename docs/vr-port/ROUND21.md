@@ -17096,3 +17096,29 @@ that channel. Mock: 30 gibbed enforcers, 2 to 5 heads with flies, each `misc/fly
   blasts 0 every time. The effect itself is kept: a head lying about still has its flies.
 - Test aid: `vr_test_spawn_dead 2` gibs the monster `impulse 241` puts (health + 100 damage); the Debug menu's "As a
   Corpse" row is a toggle (0/1), so 2 is console-only for now.
+
+## Throws with the trigger held; wrenched out falls slower (2026-10-01)
+
+NOTES.md e2m1_2026-09-30_23-41 and vrfiringrange_2026-10-01_00-10.
+
+**A weapon thrown with the trigger held left the hand late, then jumped.** DoHandImpl (weapons.qc) let a weapon go only
+once `time >= attack_finished`. A held trigger keeps pushing that forward: the grunt gun's burst cycle or dry-fire click
+(0.5 s), the nailgun's fire chain (every 0.1 s, so a nailgun never left the hand while the trigger was held). The
+weapon stayed drawn in the hand until then, and DropWeaponInHand then started it where the throw would have carried it by
+then (the estimate's age, up to 0.3 s): the jump. Now the weapon leaves on the let-go frame, mid-shot or not:
+- `VRWeaponLeavingHand` (a side-effect-free mirror of VRWeaponLetGo, with the drop hotspots and an empty immersive
+  holster): W_WeaponFrameImpl runs before W_Frame, and fires no last shot from a weapon leaving that frame.
+- `VRHandStopFiring` (player_run on that hand): whenever the let-go branch, a hand-off or a wrench-out takes the weapon
+  from the hand, its fire animation stops (the nailgun's chain would fire on from the empty hand; the fist would show
+  the gun's frames). The burst's later rounds already stop when the weapon changes.
+- `VRLetGoDropsAt`: the drop hotspots, shared by both.
+
+**Wrenched out flew like a throw.** `vr_weight_drop_velocity` (0.4, Weapon Weights > Wrenched Out > "Falls At"): a
+weapon wrenched out leaves at that times a throw's velocity and spin (DropWeaponInHandScaled; DropWeaponInHand is it at
+1), and the throw assist doesn't aim it.
+
+Test: `Misc/quakevr/throw_trigger_test.sh <agent>`. The flat throw: grunt gun released 0.024 s after the estimate
+without the trigger, 0.024 with it held (0.088 before the fix, z -9 instead of 11); nailgun 0.014–0.024 both ways (before:
+never thrown within the run); velocity -215 / -221 u/s alike. Wrenched out at 0.4: (-143.8, 25.3) of (-359.4, 63.2)
+as thrown, spin 8 of 20 rad/s. The "thrown:" developer line now prints how long after the estimate it left
+("released") and the velocity as thrown ("of").
