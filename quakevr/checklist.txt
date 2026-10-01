@@ -58,6 +58,10 @@ Empty hand against a held prop now works like against a held weapon (both pushed
 Enemy shoves: your values are defaults (range 50, delay 0.5, cooldown 1.5, distance 128); enforcers 1.5x damage and distance (192 units: too far?); parried shove now short (Parry Reduction 0.75 = takes 75% off: grunt 32, enforcer 48 units); shoved while hanging: you let go and slide; a blast of 30+ throws you off a hold (Climbing > blast threshold; Debug > Tests > Enemy Shoves > A Blast in 3 Seconds)
 Elbows: palms down near the face (your 45 deg repro) and near the chest: elbows spread out; palm up facing the face: still tucked; rolling palm side to down: smooth (Body > Arms > Elbows Spread 1; try 0.5 if too high)
 
+Grenades and melee: ordinary punches and swings bat a grenade on the ground; only very fast hard blows (20 m/s punch, 34 m/s weapon, 10 damage) or a running chainsaw set it off (Batting and Catching > Grenades); a full-speed blow on one in flight sets it off too: OK?
+Parry an ogre's chainsaw: one parry sound per burst (Parry and Bash > Parry Sound Once Per Burst 0.3 s)
+Throw a backpack high and stand under it: it hurts you after 0.35 s grace (Throwing and Physics > Your Throws Spare You For)
+
 [Decide or give feedback]
 Axe sticking: make your values defaults? (speed 1 vs 4, depth 5.5 vs 5, leniency 2 vs 1)
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
