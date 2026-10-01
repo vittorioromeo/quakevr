@@ -227,6 +227,9 @@ za::Vector<Item> pageWeaponWeights()
             .help("Times the speed with the other hand on it too."),
         slider("Measured Over", vr_weight_drop_window, 0.02f, 0.2f, 0.01f, "%.2f s").extend(0.005f, 0.5f)
             .help("The time the turn is measured over: shorter catches shorter snaps (and more of a tracking jitter)."),
+        slider("Falls At", vr_weight_drop_velocity, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("How fast a weapon wrenched out leaves your hand, times a throw at the same hand speed (and spin): it "
+                  "slips from your grip, it isn't thrown. 0: it just falls."),
         header("This Weapon"),
         action("Print Changes to Console", weaponWeightsPrint)
             .help("Prints this weapon's weight settings that differ from the defaults, ready to be made the shipped "

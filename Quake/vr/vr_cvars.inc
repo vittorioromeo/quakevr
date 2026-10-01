@@ -449,6 +449,7 @@ QVR_CVAR(vr_weight_drop_speed, "1900", CVAR_ARCHIVE)   // degrees a second a wea
 QVR_CVAR(vr_weight_drop_curve, "1", CVAR_ARCHIVE)      // heavier, times (from / mass)^this (1: 15 kg, 2/3 of it: 1267)
 QVR_CVAR(vr_weight_drop_2h, "1.5", CVAR_ARCHIVE)       // times the speed with the other hand on it too
 QVR_CVAR(vr_weight_drop_window, "0.06", CVAR_ARCHIVE)  // seconds the turn is measured over
+QVR_CVAR(vr_weight_drop_velocity, "0.4", CVAR_ARCHIVE) // times a throw's velocity and spin, wrenched out (the grip lost: no throw)
 QVR_CVAR(vr_debug_weight_drop, "0", CVAR_NONE)         // 1: prints each hand's fastest turn against its limit (above half of it), twice a second
 QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)      // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
