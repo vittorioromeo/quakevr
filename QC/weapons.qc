@@ -4294,6 +4294,10 @@ void() ImpulseCommands =
                 VRGetEntWeapon(self, cVR_MainHand), self.ammo_cells));
         }
     }
+    if(self.impulse == 220 && !deathmatch && !coop) // QVR test: the chainsaws in your hands dropped (running: they run on)
+    {
+        VR_Chainsaw_DropAll();
+    }
     if(self.impulse == 230 && !deathmatch && !coop) // QVR test: the chainsaws in your hands started (no cord pulled)
     {
         VR_Chainsaw_StartAll();

@@ -1585,6 +1585,7 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
         case Preset::BloodTrail: bloodTrail(org, dir, count); break;
         case Preset::Splash: splash(org, dir, count); break;
         case Preset::WoodDust: woodDust(org, dir, count); break;
+        case Preset::ChainsawSmoke: chainsawSmoke(org, glm::length(dir) > 0.01f ? glm::normalize(dir) : dir, count); break;
         default: blood(org, dir, count); break;
     }
     return true;
@@ -1663,6 +1664,32 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
         p.floor = org.z - 0.5f;
         pool.pushBack(p);
     }
+}
+
+void chainsawSmoke(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const float alpha = za::clamp(vr_chainsaw_smoke_alpha.value, 0.f, 1.f);
+    if(!vr_particles.value || alpha <= 0.f || count <= 0 || !ensureAtlas())
+    {
+        return;
+    }
+    // A two-stroke's thin blue-grey wisp: small as it leaves, spreading, slowing and rising as it fades.
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        const float g = rnd(0.5f, 0.6f);
+        p.color = glm::vec4{g * 0.94f, g * 0.97f, g, alpha * rnd(0.75f, 1.15f)};
+        const float life = rnd(1.6f, 2.4f);
+        p.die = cl.time + life;
+        p.scale = rnd(0.3f, 0.45f);
+        p.type = Custom;
+        p.fade = -p.color.a / life;
+        p.grow = rnd(1.2f, 2.f);
+        p.drag = 2.f;
+        p.spin = rnd(-0.8f, 0.8f);
+        p.acc = gravity(-0.035f);
+        p.org = org + inBox(0.3f);
+        p.vel = dir * rnd(6.f, 12.f) + inBox(2.5f);
+    });
 }
 
 void shellEject(const glm::vec3& org, const glm::vec3& dir, float smoke, int sparks)

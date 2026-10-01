@@ -5693,6 +5693,11 @@ extern "C" void VR_SetupViewEntities()
         weaponfx::recoilOffset(hand, s.visualRot[hand], recoilPos, recoilAngles);
         shakePos[hand] += recoilPos;
         shakeAngles[hand] += recoilAngles;
+        // A running chainsaw's engine (vr_chainsaw.cpp), the same way.
+        glm::vec3 sawPos, sawAngles;
+        chainsaw::shake(hand, sawPos, sawAngles);
+        shakePos[hand] += sawPos;
+        shakeAngles[hand] += sawAngles;
         s.pos[hand] += knockPos[hand] + shakePos[hand];
         s.rot[hand] += knockAngles[hand] + shakeAngles[hand];
         s.visualRot[hand] += knockAngles[hand] + shakeAngles[hand];

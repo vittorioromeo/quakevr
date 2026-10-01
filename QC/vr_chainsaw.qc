@@ -165,11 +165,25 @@ string(float xHand) VR_Saw_HandName = { return xHand == cVR_OffHand ? "off" : "m
 // back into a hand meanwhile, it is still running, no cord to pull (NOTES.md vrfiringrange_2026-10-01_11-33-00). Its
 // chain stops as it leaves the hand. Its weaponflags keep QVR_WPNFLAG_SAW_RUNNING while it runs.
 .float vr_saw_prop_on; // when it was let go running (0: not running)
+// Its engine as it lies running (VR_Saw_PropEngine):
+vector VR_SAW_EXHAUST = '25 -9 2';      // model space: the exhaust, on the engine block's right (vr_chainsaw.cpp exhaustPoint)
+vector VR_SAW_EXHAUST_OUT = '0 -1 0.4'; // the way its smoke leaves it
+vector VR_SAW_BLOCK = '20 0 2';         // model space: the engine block's middle, about which its kicks land
+float VR_SAW_KICK_TICK = 0.05;
+.float vr_saw_smoke_due;  // its puffs due (a share of one carried on)
+.float vr_saw_smoke_last; // when it last smoked
+.float vr_saw_kick_next;  // its next kick
+.float vr_saw_kicks;      // how many it has had (vr_debug_chainsaw)
+.vector vr_saw_kick_from; // where it lay at its 20th (vr_debug_chainsaw: how far they walked it)
 
 void(entity xProp) VR_Saw_PropRuns =
 {
     xProp.weaponflags = xProp.weaponflags | QVR_WPNFLAG_SAW_RUNNING;
     xProp.vr_saw_prop_on = time;
+    xProp.vr_saw_smoke_last = 0; // (its smoke and its kicks from now: VR_Saw_PropEngine)
+    xProp.vr_saw_smoke_due = 0;
+    xProp.vr_saw_kick_next = 0;
+    xProp.vr_saw_kicks = 0;
     sound(xProp, CHAN_WEAPON, "vr/saw_idle.wav", 1, ATTN_NORM);
     VR_Saw_Debug(sprintf("chainsaw: let go running: runs on %g s, fuel %g\n", cvar_hget(cvarh_vr_chainsaw_drop_run),
         xProp.weaponclip));
@@ -212,6 +226,57 @@ void(entity xProp) VR_Saw_PropTaken =
     }
 };
 
+// Lying running, its engine smokes and shakes it about (NOTES.md vrfiringrange_2026-10-01_16-37-54; Combat > Enemy
+// Weapons > Chainsaw Engine): vr_chainsaw_smoke faint puffs a second from its exhaust (the client's Preset::ChainsawSmoke,
+// as the hand's: vr_chainsaw.cpp), and on the ground a kick every VR_SAW_KICK_TICK s, vr_chainsaw_shake_ground m/s
+// mostly up at a point of its engine block at random (physicspush: Box3D), that rocks it and walks it about a little.
+
+void() VR_Saw_PropEngine =
+{
+    float dt = self.vr_saw_smoke_last ? min(max(0, time - self.vr_saw_smoke_last), 0.1) : 0;
+    self.vr_saw_smoke_last = time;
+    self.vr_saw_smoke_due = self.vr_saw_smoke_due + max(0, cvar_hget(cvarh_vr_chainsaw_smoke)) * dt;
+    if(self.vr_saw_smoke_due >= 1)
+    {
+        float n = floor(self.vr_saw_smoke_due);
+        self.vr_saw_smoke_due = self.vr_saw_smoke_due - n;
+        vector at = modelpoint(self, self.angles, VR_SAW_EXHAUST);
+        vector out = normalize(modelpoint(self, self.angles, VR_SAW_EXHAUST + VR_SAW_EXHAUST_OUT) - at);
+        particle2(self.origin + at, out, QVR_PARTICLE_PRESET_SAWSMOKE, n);
+    }
+
+    float kick = cvar_hget(cvarh_vr_chainsaw_shake_ground);
+    if(kick <= 0 || time < self.vr_saw_kick_next)
+    {
+        return;
+    }
+    self.vr_saw_kick_next = time + VR_SAW_KICK_TICK;
+    traceline(self.origin, self.origin - '0 0 24', TRUE, self);
+    if(trace_fraction == 1 || vlen(self.velocity) > 40)
+    {
+        return; // (still in the air, or bouncing, rolling)
+    }
+    if(self.vr_saw_kicks == 20) // (settled by then: what the kicks themselves walk it)
+    {
+        self.vr_saw_kick_from = self.origin;
+    }
+    vector spot = VR_SAW_BLOCK;
+    spot_x = spot_x + crandom() * 10;
+    spot_y = spot_y + crandom() * 8;
+    vector dir = '0 0 1';
+    dir_x = crandom() * 0.35;
+    dir_y = crandom() * 0.35;
+    if(physicspush(self, self.origin + modelpoint(self, self.angles, spot), normalize(dir) * kick * VRMetersToUnits()))
+    {
+        self.vr_saw_kicks = self.vr_saw_kicks + 1;
+    }
+    if(!(self.vr_saw_kicks & 7))
+    {
+        VR_Saw_Debug(sprintf("chainsaw: lying running: kick %g at %v, velocity %g\n", self.vr_saw_kicks, self.origin,
+            vlen(self.velocity)));
+    }
+};
+
 // Each think of a thrown weapon (wpnthrow_think): a chainsaw let go running dies when its time is up (or its tank dry).
 void() VR_Saw_PropThink =
 {
@@ -222,8 +287,17 @@ void() VR_Saw_PropThink =
     float left = self.weaponclip - (time - self.vr_saw_prop_on) * cvar_hget(cvarh_vr_chainsaw_idle_fuel_use);
     if(left > 0 && time < self.vr_saw_prop_on + cvar_hget(cvarh_vr_chainsaw_drop_run))
     {
+        VR_Saw_PropEngine();
         return;
     }
+    if(self.vr_saw_kicks)
+    {
+        VR_Saw_Debug(sprintf("chainsaw: let go: %g kicks on the ground walked it %g units after the 20th\n", self.vr_saw_kicks,
+            vlen(self.origin - self.vr_saw_kick_from)));
+    }
+    self.vr_saw_kicks = 0;
+    self.vr_saw_smoke_last = 0;
+    self.vr_saw_smoke_due = 0;
     VR_Saw_PropSettle(self, TRUE);
     sound(self, CHAN_WEAPON, "vr/saw_stall.wav", 1, ATTN_NORM); // (the engine dying: replaces the idle's loop)
     VR_Saw_Debug(sprintf("chainsaw: let go: its engine stopped, fuel %g\n", self.weaponclip));
@@ -620,6 +694,21 @@ void() VR_Chainsaw_StartAll =
             VR_Saw_SetLoop(hand, VR_SAW_LOOP_START, 0);
         }
         bprint(sprintf("chainsaw: %s hand's started (test), fuel %g\n", VR_Saw_HandName(hand), VRGetWeaponClip(hand)));
+    }
+};
+
+// impulse 220 (a test aid; Debug > Tests): the chainsaws in your hands dropped where they are, as letting go does (one
+// running runs on as it lies: its smoke, its kicks on the ground).
+void() VR_Chainsaw_DropAll =
+{
+    for(float h = 0; h < 2; h++)
+    {
+        float hand = h ? cVR_MainHand : cVR_OffHand;
+        if(VRGetWeapon(hand) == WID_CHAINSAW)
+        {
+            DropWeaponInHand(self, hand, VRGetWeapon(hand), VRGetWeaponFlags(hand), VRGetWeaponClip(hand));
+            VR_Saw_Silence(hand); // (the hand's loop: the prop plays its own)
+        }
     }
 };
 
