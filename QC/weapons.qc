@@ -4261,6 +4261,34 @@ void() ImpulseCommands =
                 self = world;
             }
             spawned = self;
+            float spawnYaw = cvar("vr_test_spawn_yaw");
+            float spawnTilt = cvar("vr_test_spawn_tilt");
+            if(spawnYaw != 0 || spawnTilt != 0)
+            {
+                // Loose (a physics prop), turned about its middle and tipped, its lowest corner on the floor where it
+                // stood (grappling hook tests: a turned box's empty corners).
+                vector spawnMid = (self.mins + self.maxs) * 0.5;
+                vector spawnAt2 = self.origin + spawnMid;
+                float spawnFloor = self.origin_z + self.mins_z;
+                VR_Carry_Loose(self);
+                self.angles = '0 1 0' * (spawnPlayer.v_viewangle_y + spawnYaw) + '0 0 1' * spawnTilt;
+                vector spawnTurned = spawnAt2 - modelpoint(self, self.angles, spawnMid);
+                float spawnLow = 999999;
+                for(float c = 0; c < 8; c++)
+                {
+                    vector corner = self.mins;
+                    if(c & 1) { corner_x = self.maxs_x; }
+                    if(c & 2) { corner_y = self.maxs_y; }
+                    if(c & 4) { corner_z = self.maxs_z; }
+                    corner = modelpoint(self, self.angles, corner);
+                    spawnLow = min(spawnLow, spawnTurned_z + corner_z);
+                }
+                spawnTurned_z = spawnTurned_z + spawnFloor + 0.5 - spawnLow;
+                setorigin(self, spawnTurned);
+                self.velocity = '0 0 0';
+                dprint(sprintf("test spawn: %s turned %v at %v, its middle at %v\n", self.classname, self.angles, self.origin,
+                    self.origin + modelpoint(self, self.angles, spawnMid)));
+            }
         }
         else
         {

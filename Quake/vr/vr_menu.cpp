@@ -2527,6 +2527,13 @@ za::Vector<Item> pageDebugTests()
         cycle("As a Corpse", vr_test_spawn_dead, {{0.f, "Off"}, {1.f, "Corpse"}, {2.f, "Gibbed"}})
             .help("A monster killed at once: a corpse, to test gibbing and carrying; Gibbed: killed hard enough to gib (its "
                   "gibs and head to pick up)."),
+        slider("Box Turned", vr_test_spawn_yaw, 0.f, 90.f, 1.f, "%.0f degrees")
+            .extend()
+            .help("A box (Health Box .. Explosive Box): let loose and turned this far about its upright, to test the "
+                  "grappling hook against its real shape (its turned box's empty corners let the hook by)."),
+        slider("Box Tilted", vr_test_spawn_tilt, 0.f, 90.f, 1.f, "%.0f degrees")
+            .extend()
+            .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
         command("Go to a Crowbar on a Crate", "vr_crates_goto crowbar")
             .help("vr_crates_goto crowbar: you in front of the next crate with a crowbar lying on it (Crates: Crowbar on Crates)."),

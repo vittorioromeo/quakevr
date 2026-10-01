@@ -359,12 +359,56 @@ void cast_f()
         static_cast<double>(hit.normal.y), static_cast<double>(hit.normal.z), box3d::ropeOverlaps(b, rad, 0, 0) ? 1 : 0);
 }
 
+// vr_grapple_test_aim x y z: the flying hook turns to fly at the world point x y z, at its speed (tests: the hook's bite
+// against a turned prop, from where it is now).
+void testAim_f()
+{
+    if(Cmd_Argc() < 4 || !sv.active)
+    {
+        Con_Printf("vr_grapple_test_aim x y z (a hook flying)\n");
+        return;
+    }
+    const glm::vec3 target{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    edict_t* hook = nullptr;
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(!e->free && static_cast<int>(e->v.movetype) == MOVETYPE_FLYMISSILE && !strcmp(PR_GetString(e->v.classname), "hook"))
+        {
+            hook = e;
+        }
+    }
+    if(hook)
+    {
+        const glm::vec3 from{hook->v.origin[0], hook->v.origin[1], hook->v.origin[2]};
+        const glm::vec3 v{hook->v.velocity[0], hook->v.velocity[1], hook->v.velocity[2]};
+        const glm::vec3 dir = glm::normalize(target - from + glm::vec3{0.f, 0.f, 1e-6f});
+        const glm::vec3 nv = dir * glm::length(v);
+        hook->v.velocity[0] = nv.x;
+        hook->v.velocity[1] = nv.y;
+        hook->v.velocity[2] = nv.z;
+        vec3_t fwd{dir.x, dir.y, dir.z};
+        VectorAngles(fwd, hook->v.angles);
+        Con_Printf("grapple test aim: hook %d from %.2f %.2f %.2f dir %.5f %.5f %.5f\n", NUM_FOR_EDICT(hook),
+            static_cast<double>(from.x), static_cast<double>(from.y), static_cast<double>(from.z), static_cast<double>(dir.x),
+            static_cast<double>(dir.y), static_cast<double>(dir.z));
+    }
+    else
+    {
+        Con_Printf("vr_grapple_test_aim: no hook flying\n");
+    }
+    PR_PopQCVM(oldVm);
+}
+
 void registerCommands()
 {
     static bool registered = false;
     if(!registered)
     {
         registered = true;
+        Cmd_AddCommand("vr_grapple_test_aim", testAim_f);
         Cmd_AddCommand("vr_grapple_rope_dump", dump_f);
         Cmd_AddCommand("vr_grapple_rope_cast", cast_f);
         Cmd_AddCommand("vr_grapple_rope_netstats", netstats_f);

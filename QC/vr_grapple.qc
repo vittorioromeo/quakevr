@@ -134,6 +134,7 @@ vector GH_GUN_MUZZLE = '3 -0.4 0.4'; // where a thrown gun's rope starts on it (
 .float gh_kind;          // GH_*
 .float gh_len;           // the rope's length (units): from the player's body (a prop's: from the gun) to the hook
 .vector gh_ofs;          // where it bit, on what it bit: a prop's model axes, a monster's (turned by its yaw), a door's
+.float gh_turned;        // a prop too heavy to come (GH_ANCHOR): gh_ofs on its model axes all the same (VR_Grapple_Turned)
 .float gh_class;         // a monster's class (GH_SMALL ..), 0 for the rest
 .float gh_mass;          // what it bit weighs (kg; 0: the world, a door)
 .float gh_speed;         // the reel's full speed for it (units/s)
@@ -329,12 +330,19 @@ entity(entity xProp) VR_Grapple_PropHolder =
     return world;
 };
 
+// Whether the hook's place on what it bit (gh_ofs) is on its model axes: any prop (it turns: a tilted box, a heavy one
+// too).
+float(entity h) VR_Grapple_Turned =
+{
+    return h.gh_kind == GH_PROP || h.gh_turned;
+};
+
 // Where on `t` the point `xAt` is, for the hook to stay there (gh_ofs): a prop's model axes, a monster's or a player's
 // turned by its yaw, a door's or a lift's (and the world's) as it is.
 vector(entity h, entity t, vector xAt) VR_Grapple_Local =
 {
     vector d = xAt - t.origin;
-    if(h.gh_kind == GH_PROP)
+    if(VR_Grapple_Turned(h))
     {
         // modelpoint is its model's axes turned (and scaled) as drawn, off its origin: undone along each axis.
         vector o = modelpoint(t, t.angles, '0 0 0');
@@ -389,7 +397,7 @@ float() VR_Grapple_HookShortest =
 vector(entity h) VR_Grapple_HookPoint =
 {
     entity t = h.enemy;
-    if(h.gh_kind == GH_PROP)
+    if(VR_Grapple_Turned(h))
     {
         return t.origin + modelpoint(t, t.angles, h.gh_ofs);
     }
@@ -1093,6 +1101,7 @@ void(entity h, entity t, vector xAt) VR_Grapple_Bite =
     h.gh_speed = cvar_hget(cvarh_vr_grapple_reel_speed);
     h.gh_reel = 0;
     h.gh_taut = FALSE;
+    h.gh_turned = FALSE;
     h.gh_stamina_mult = 1;
     setorigin(h, xAt);
 
@@ -1144,6 +1153,7 @@ void(entity h, entity t, vector xAt) VR_Grapple_Bite =
         if(h.gh_mass >= cvar_hget(cvarh_vr_grapple_prop_anchor))
         {
             h.gh_kind = GH_ANCHOR;
+            h.gh_turned = TRUE; // (it stays on its surface as it turns)
         }
         else
         {
@@ -1208,6 +1218,15 @@ void(entity h, entity t, vector xAt) VR_Grapple_Bite =
         }
         dprint(sprintf("grapple: hook %g (hand %g) bit %s (%.1f kg) at %v, ", h.gh_tag, xHand, what, h.gh_mass, xAt));
         dprint(sprintf("the gun at %v: %s; rope %.0f\n", gg_at, kind, h.gh_len));
+        if(VR_Grapple_Debug() >= 2 && t != world && t.solid != SOLID_BSP && !(t.flags & FL_MONSTER))
+        {
+            // (Tests: the prop's origin and model axes as it is turned, to check the bite against its drawn box.)
+            vector o = modelpoint(t, t.angles, '0 0 0');
+            dprint(sprintf("grapple: bitten box: origin %v\n", t.origin + o));
+            dprint(sprintf("grapple: bitten box: x %v\n", modelpoint(t, t.angles, '1 0 0') - o));
+            dprint(sprintf("grapple: bitten box: y %v\n", modelpoint(t, t.angles, '0 1 0') - o));
+            dprint(sprintf("grapple: bitten box: z %v\n", modelpoint(t, t.angles, '0 0 1') - o));
+        }
     }
     self = oldSelf;
 };
@@ -1301,46 +1320,45 @@ float(entity h) VR_Grapple_FlightProps =
     {
         if(e != h && e != gg_ent && e != gg_player && VR_Grapple_IsProp(e))
         {
-            // Its box first (a hair bigger), then its model as drawn (an item's box is much bigger than it): it bites only
-            // what it touches. A brush model (a health box) is its box.
-            float t = VR_SegmentBox(a, b, e.absmin - '0.5 0.5 0.5', e.absmax + '0.5 0.5 0.5');
+            // Its shape: a weapon lying about and a loose physics prop (its box round it as it is turned is much
+            // bigger than it, or doesn't hold it: a long gun reaches out of its handle's box) by their shape alone; the
+            // rest by its box first (a hair bigger), then its model as drawn (an item's box is much bigger than it). A
+            // brush model not yet loose (a health box where the map put it) is its box.
             float m = -3;
-            if(e.classname == "thrown_weapon")
+            float t = -1;
+            if(e.classname == "thrown_weapon" || e.vr_rigid)
             {
-                // A weapon lying about: its body as drawn, first (its box is a cube round its handle, which a long gun,
-                // the laser cannon, reaches well out of).
                 m = hitmodel_any(e, a, b, 0.5);
                 if(VR_Grapple_Debug() >= 2 && m != -1)
                 {
-                    dprint(sprintf("grapple: flight past %s (weapon %g, at %v): its body %s\n", e.classname, e.weapon,
-                        e.origin, m == -2 ? "none (its box)" : m == -1 ? "missed" : sprintf("hit at %.2f", m)));
+                    dprint(sprintf("grapple: flight past %s (at %v, angles %v): its body %s\n",
+                        e.classname != string_null ? e.classname : e.model, e.origin, e.angles,
+                        m == -2 ? "none (its box)" : sprintf("hit at %.2f", m)));
                 }
-                if(m != -2)
+                t = m;
+            }
+            if(m == -2 || m == -3)
+            {
+                t = VR_SegmentBox(a, b, e.absmin - '0.5 0.5 0.5', e.absmax + '0.5 0.5 0.5');
+                if(t >= 0 && t < bestT && m == -3)
                 {
-                    t = m;
+                    m = hitmodel_any(e, a, b, 0.5);
+                    if(VR_Grapple_Debug() >= 2)
+                    {
+                        dprint(sprintf("grapple: flight through %s's box (%v .. %v, %s) at %.2f: its model %s\n",
+                            e.classname != string_null ? e.classname : e.model, e.absmin, e.absmax, e.model, t,
+                            m == -2 ? "none (the box)" : m == -1 ? "missed" : sprintf("hit at %.2f", m)));
+                    }
+                    if(m != -2)
+                    {
+                        t = m;
+                    }
                 }
             }
             if(t >= 0 && t < bestT)
             {
-                if(m == -3)
-                {
-                    m = hitmodel_any(e, a, b, 0.5);
-                }
-                if(VR_Grapple_Debug() >= 2)
-                {
-                    dprint(sprintf("grapple: flight through %s's box (%v .. %v, %s) at %.2f: its model %s\n",
-                        e.classname != string_null ? e.classname : e.model, e.absmin, e.absmax, e.model, t,
-                        m == -2 ? "none (the box)" : m == -1 ? "missed" : sprintf("hit at %.2f", m)));
-                }
-                if(m >= 0)
-                {
-                    t = m;
-                }
-                if(m != -1 && t < bestT)
-                {
-                    bestT = t;
-                    best = e;
-                }
+                bestT = t;
+                best = e;
             }
         }
         e = e.chain;
@@ -1348,6 +1366,16 @@ float(entity h) VR_Grapple_FlightProps =
     if(best == world)
     {
         return FALSE;
+    }
+    // It bites the surface itself: where the bare line meets it (the padding above only lets a near miss bite).
+    float exact = hitmodel_any(best, a, b, 0);
+    if(exact == -2)
+    {
+        exact = VR_SegmentBox(a, b, best.absmin, best.absmax);
+    }
+    if(exact >= 0 && exact >= bestT && exact <= before)
+    {
+        bestT = exact;
     }
     vector at = a + (b - a) * bestT;
     sound(h, CHAN_WEAPON, "player/axhit2.wav", 0.7, ATTN_NORM);

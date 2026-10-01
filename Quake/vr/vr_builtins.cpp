@@ -902,8 +902,8 @@ void PF_hitmodel_segment()
 
 // hitmodel_any(e, a, b, radius): the segment a..b, a sphere of `radius`, against e's model as drawn, whatever e is (a
 // prop, an item: the grappling hook bites only what it touches): where along it it first meets it, -1 missed, -2 e has no
-// Quake .mdl (a brush model: its box is its shape). A weapon lying about, drawn by its Weapon Offsets: its Box3D body
-// (-2 without one: its box).
+// shape of its own (its box is). A weapon lying about, drawn by its Weapon Offsets, and a brush prop (an explosive box):
+// its Box3D body, as it is turned (-2 without one).
 void PF_hitmodel_any()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
@@ -924,9 +924,20 @@ void PF_hitmodel_any()
         G_FLOAT(OFS_RETURN) = hit ? fraction : body ? -1.f : -2.f;
         return;
     }
+    if(model && model->type == mod_brush)
+    {
+        // A brush prop (an explosive box, a health box) loose in Box3D: its body as it is turned (Quake's box round a
+        // tilted one is much bigger than it); placed by the map, not a body yet: its box.
+        float fraction = 1.f;
+        bool body = false;
+        const bool hit = box3d::castAt(NUM_FOR_EDICT(e), glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius,
+            fraction, body);
+        G_FLOAT(OFS_RETURN) = hit ? fraction : body ? -1.f : -2.f;
+        return;
+    }
     if(!model || model->type != mod_alias)
     {
-        G_FLOAT(OFS_RETURN) = -2.f; // (a brush model: its box)
+        G_FLOAT(OFS_RETURN) = -2.f; // (no model: its box)
         return;
     }
     const bool hit =
