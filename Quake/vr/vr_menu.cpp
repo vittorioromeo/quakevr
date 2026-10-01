@@ -2182,6 +2182,9 @@ za::Vector<Item> pageDebugLogging()
             .help("Each grasp solve of the jointed hands (and each finger's stops)."),
         toggle("Holster Draw Blend", vr_debug_draw_blend)
             .help("Each frame of a gun easing between a holster and a hand: the turn and the distance left."),
+        command("Check Last Pose", "vr_pose_check")
+            .help("vr_pose_check: after the posing mode, how far what you set is from what you get. A weapon or hotspot: "
+                  "hold it. In a holster: holster it there; each holster of that kind holding it is measured."),
         cycle("Physics Sounds", vr_debug_physsound, {{0.f, "Off"}, {1.f, "Each Sound"}, {2.f, "And Each Hit Skipped"}})
             .help("Each knock (the prop, its material and weight, the hit's speed, the volume), each scrape starting and "
                   "stopping and each climbing grab (the hold's texture); or also the hits too soon after the last and each "
@@ -3337,7 +3340,8 @@ void weaponOffsetsHotspotAtHand()
     weaponOffsetsStale = true;
 }
 
-// The weapon posing mode (vr_posing.cpp) on the page's weapon: the weapon (hotspot -2), a hotspot (0..3), a new one (-1).
+// The weapon posing mode (vr_posing.cpp) on the page's weapon: the weapon (hotspot -2), a hotspot (0..3), a new one (-1),
+// the edited kind of holster (-3).
 void weaponOffsetsPose(int hotspot)
 {
     qmodel_t* model = weapons::heldModel(weaponOffsetsHand);
@@ -3347,8 +3351,11 @@ void weaponOffsetsPose(int hotspot)
         return;
     }
     const int weaponHand = static_cast<int>(vr_pose_weapon_hand.value) == 0 ? HAND_OFF : HAND_MAIN;
-    if(posing::start(weaponOffsetsHeldSlot, model, weaponHand, hotspot == -2 ? posing::Target::Weapon : posing::Target::Hotspot,
-           hotspot, qvr::menu::currentPage()))
+    const posing::Target target = hotspot == -3   ? posing::Target::Holster
+                                  : hotspot == -2 ? posing::Target::Weapon
+                                                  : posing::Target::Hotspot;
+    if(posing::start(weaponOffsetsHeldSlot, model, weaponHand, target,
+           target == posing::Target::Holster ? static_cast<int>(editedHolster()) : hotspot, qvr::menu::currentPage()))
     {
         weaponOffsetsStale = true;
     }
@@ -3402,6 +3409,12 @@ void weaponOffsetsPoseHotspot()
 void weaponOffsetsPoseNewHotspot()
 {
     weaponOffsetsPose(-1);
+}
+
+// The weapon posing mode in the edited kind of holster: the holster floats in front, the weapon in it to be carried.
+void weaponOffsetsPoseHolster()
+{
+    weaponOffsetsPose(-3);
 }
 
 void weaponOffsetsHotspotRemove()
@@ -3809,6 +3822,11 @@ za::Vector<Item> pageWeaponOffsets()
             cycle("Holster", vr_weapon_holster, {{1.f, "Hip"}, {2.f, "Upper (Chest)"}, {3.f, "Shoulder (Back)"}})
                 .help("The holsters whose pose of this weapon the sliders below edit: a weapon lies differently on the hips, "
                       "the chest and the back, so each has its own."),
+            action("Pose in This Holster", weaponOffsetsPoseHolster)
+                .help("Posing mode in these holsters: the right one floats in front of you, this weapon in it as the "
+                      "sliders below put it. Take the weapon with either grip, carry it, let go where it should sit (it "
+                      "stays there); A/X sets it (B/Y undoes), the menu button sets it and comes back here. The trigger "
+                      "goes on to the next kind of holster, the stick turns it all."),
             toggle("Preview in Holster", vr_weapon_holster_preview)
                 .help("While a setting of this section is chosen, this weapon is drawn in both holsters of that kind (in place "
                       "of what they hold): look down at them, or at the body preview, as you tune it."),

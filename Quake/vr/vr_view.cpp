@@ -62,6 +62,7 @@
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Atan.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -147,7 +148,13 @@ float fingerBias[2][FingerCount]{};
 [[nodiscard]] float biasFor(int hand, int finger)
 {
     // Posing (vr_posing.cpp): the weapon hand holds the posed weapon; the other hand, posing a hotspot, helps.
-    const bool posed = posing::active() && hand == posing::session().weaponHand;
+    // In a holster (Target::Holster) both hands are drawn empty.
+    const bool posed = posing::active() && posing::session().target != posing::Target::Holster &&
+                       hand == posing::session().weaponHand;
+    if(posing::active() && posing::session().target == posing::Target::Holster)
+    {
+        return 0.f;
+    }
     const bool posingHelper = posing::active() && !posed && posing::session().target == posing::Target::Hotspot;
     // Posing the weapon unsolved (posing::showSolved): the controller's plain curls, no tweaks.
     const bool posingPlain = posed && posing::session().target == posing::Target::Weapon && !posing::showSolved();
@@ -3109,12 +3116,48 @@ void posingMarks(const hands::State& s, const glm::vec3& aimRot)
     lines::line(m, m + shot * length, 0.12f, red, glm::vec4{glm::vec3{red}, 0.f});
 }
 
+// Posing the weapon in a holster (posing::HolsterSession): both hands drawn empty at their controllers; the hand whose
+// grip took the weapon carries it (its place in that hand taken on the first frame after the grip). The floating holster
+// and the weapon in it are drawn by setupHolsters (floatingHolster), which places them on their first frame.
+void setupHolsterPosing(hands::State& s)
+{
+    posing::HolsterSession& h = posing::session().holster;
+    setupWeapon(s, HAND_MAIN, viewModel("progs/hand.mdl"), 0);
+    setupWeapon(s, HAND_OFF, viewModel("progs/hand.mdl"), 0);
+    s.grip2HValid[HAND_OFF] = s.grip2HValid[HAND_MAIN] = false;
+    setupHand(s, HAND_MAIN);
+    setupHand(s, HAND_OFF);
+    if(h.grabHand < 0 || !h.placed)
+    {
+        return;
+    }
+    const glm::vec3 p = s.pos[h.grabHand];
+    const glm::mat3 r = anglesBasis(s.rot[h.grabHand]);
+    if(!h.grabTaken)
+    {
+        h.grabPos = glm::transpose(r) * (h.weaponPos - p);
+        h.grabTurn = glm::transpose(r) * h.weaponTurn;
+        h.grabTaken = true;
+        return;
+    }
+    const glm::vec3 pos = p + r * h.grabPos;
+    const glm::mat3 turn = r * h.grabTurn;
+    h.moved = h.moved || pos != h.weaponPos || turn != h.weaponTurn;
+    h.weaponPos = pos;
+    h.weaponTurn = turn;
+}
+
 // Posing: the floating weapon (in the weapon hand's view entity), the hands (the posing one at its controller; the
 // other confirming, or, posing a hotspot, drawn holding the weapon), and the marks. `s` is changed for the view only
 // (VR_SetupViewEntities puts it back).
 void setupPosing(hands::State& s)
 {
     posing::Session& ps = posing::session();
+    if(ps.target == posing::Target::Holster)
+    {
+        setupHolsterPosing(s);
+        return;
+    }
     const int wh = ps.weaponHand, oh = 1 - wh;
     const bool weaponTarget = ps.target == posing::Target::Weapon;
     const int poser = weaponTarget ? wh : oh;
@@ -3318,6 +3361,113 @@ void poseHolstered(HolsterPose& pose, const HolsterFrame& frame, const weapons::
     }
 }
 
+// Alias model angles as a turn (columns: forward, left, up), and a vector in a holster's frame (out, side, up).
+[[nodiscard]] glm::mat3 aliasBasis(const glm::vec3& drawn)
+{
+    return anglesBasis({-drawn.x, drawn.y, drawn.z}); // alias models' pitch is the other way
+}
+[[nodiscard]] glm::vec3 inHolsterFrame(const HolsterFrame& f, const glm::vec3& v)
+{
+    return {glm::dot(v, f.out), glm::dot(v, f.side), glm::dot(v, f.up)};
+}
+
+// poseHolstered undone: the Holstered settings that move the weapon from `basePos`, `baseTurn` (as the holster alone
+// places it) to `pos`, `turn`. In the frame's axes (out, side, up), holsterRotation(f, {pitch, yaw, roll}) is
+// Rz(yaw) Ry(pitch) Rx(-roll) whichever way the frame is handed (a mirrored frame turns both its axes and the sense of
+// its turns), so the angles are that product's.
+[[nodiscard]] weapons::HolsteredPose holsteredFrom(const HolsterFrame& f, const glm::vec3& basePos, const glm::mat3& baseTurn,
+    const glm::vec3& pos, const glm::mat3& turn)
+{
+    weapons::HolsteredPose p;
+    p.offset = inHolsterFrame(f, pos - basePos);
+    const glm::mat3 axes{f.out, f.side, f.up};
+    const glm::mat3 q = glm::transpose(axes) * turn * glm::transpose(baseTurn) * axes;
+    const float pitch = za::asin(CLAMP(-1.f, -q[0][2], 1.f));
+    const float yaw = za::atan2(q[0][1], q[0][0]);
+    const float roll = -za::atan2(q[1][2], q[2][2]);
+    p.angles = glm::degrees(glm::vec3{pitch, yaw, roll});
+    return p;
+}
+
+// The holster being posed (posing::HolsterSession). On its first frame it is placed in front of the player from where
+// the body has it (`pose`, `frame`, `pivot`: the right holster of its kind, the weapon as the holster alone places it),
+// turned about the vertical so that its outside faces the player, its point 45 cm ahead of the head and 35 cm below it,
+// and the weapon put where its settings place it. Then `pose`, `frame` and `pivot` become the floating ones, the weapon
+// where it was left; the candidate is the Holstered settings that put it there. Marks: the holster's point (white) and
+// its axes (red off the body, green outwards, blue up).
+void floatingHolster(const hands::State& s, HolsterPose& pose, HolsterFrame& frame, glm::vec3& pivot, bool slotDrawn)
+{
+    posing::Session& ps = posing::session();
+    posing::HolsterSession& h = ps.holster;
+    const float m2u = units::metresToUnits();
+    if(!h.placed)
+    {
+        const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
+        glm::vec3 outFlat{frame.out.x, frame.out.y, 0.f};
+        float yaw = 0.f;
+        if(glm::length(outFlat) > 0.1f)
+        {
+            outFlat = glm::normalize(outFlat);
+            yaw = za::atan2(glm::cross(outFlat, -fwd).z, glm::dot(outFlat, -fwd));
+        }
+        const glm::mat3 m = glm::mat3_cast(glm::angleAxis(yaw, glm::vec3{0.f, 0.f, 1.f}));
+        const glm::vec3 at = s.head + fwd * (0.45f * m2u) - glm::vec3{0.f, 0.f, 0.35f * m2u};
+        h.out = m * frame.out;
+        h.up = m * frame.up;
+        h.side = m * frame.side;
+        h.pivot = at;
+        h.basePos = at + m * (pose.weaponPos - pivot);
+        h.baseTurn = m * aliasBasis(pose.weaponAngles);
+        h.slotPos = at + m * (pose.slotPos - pivot);
+        h.slotTurn = m * aliasBasis(pose.slotAngles);
+        h.slotDrawn = slotDrawn;
+        h.tiltAxis = glm::vec3{-fwd.y, fwd.x, 0.f}; // across the view, to the left
+        h.placed = true;
+        h.fromSettings = true;
+        h.moved = false;
+    }
+    frame = {h.out, h.up, h.side};
+    if(h.fromSettings)
+    {
+        const weapons::HolsteredPose p = weapons::holsteredPose(ps.slot, h.kind);
+        h.weaponPos = h.basePos + frame.out * p.offset.x + frame.side * p.offset.y + frame.up * p.offset.z;
+        h.weaponTurn = glm::mat3_cast(holsterRotation(frame, p.angles)) * h.baseTurn;
+        h.fromSettings = false;
+        h.grabTaken = false; // carried: taken again from where it is now
+    }
+    pivot = h.pivot;
+    pose = {h.slotPos, aliasAngles(h.slotTurn[0], h.slotTurn[2]), h.weaponPos, aliasAngles(h.weaponTurn[0], h.weaponTurn[2])};
+
+    posing::Candidate& c = posing::candidate();
+    c.holstered = holsteredFrom(frame, h.basePos, h.baseTurn, h.weaponPos, h.weaponTurn);
+    c.inHolsterPos = inHolsterFrame(frame, h.weaponPos - h.pivot);
+    c.inHolsterFwd = inHolsterFrame(frame, h.weaponTurn[0]);
+    c.inHolsterUp = inHolsterFrame(frame, h.weaponTurn[2]);
+    c.valid = true;
+
+    const float axis = 0.12f * m2u;
+    lines::point(h.pivot, 1.2f, glm::vec4{1.f});
+    lines::line(h.pivot, h.pivot + frame.out * axis, 0.12f, glm::vec4{1.f, 0.25f, 0.2f, 0.9f}, glm::vec4{1.f, 0.25f, 0.2f, 0.f});
+    lines::line(h.pivot, h.pivot + frame.side * axis, 0.12f, glm::vec4{0.3f, 1.f, 0.35f, 0.9f}, glm::vec4{0.3f, 1.f, 0.35f, 0.f});
+    lines::line(h.pivot, h.pivot + frame.up * axis, 0.12f, glm::vec4{0.3f, 0.5f, 1.f, 0.9f}, glm::vec4{0.3f, 0.5f, 1.f, 0.f});
+    // Where the body would be (behind the holster): a faint line into it.
+    lines::line(h.pivot, h.pivot - frame.out * (2.f * axis), 0.25f, glm::vec4{1.f, 1.f, 1.f, 0.25f}, glm::vec4{1.f, 1.f, 1.f, 0.f});
+}
+
+// What each holster drew last (vr_pose_check after posing in a holster): its frame and point, and the weapon in it.
+struct HolsterSeen
+{
+    bool valid{false};
+    bool floating{false};
+    weapons::HolsterKind kind{weapons::HolsterKind::Hip};
+    int slot{-1};
+    glm::vec3 pivot{0.f};
+    HolsterFrame frame{};
+    glm::vec3 weaponPos{0.f};
+    glm::mat3 weaponTurn{1.f};
+};
+HolsterSeen holsterSeen[HolsterCount];
+
 // A holstered grappling gun (`model`, drawn at `at`) whose hook is out: a rope starts at it (the hook's own beam, from
 // the server's holster place). Drawn empty then (frame 2; 0 is the hook in it).
 [[nodiscard]] bool holsteredGrappleOut(const qmodel_t* model, const glm::vec3& at)
@@ -3438,6 +3588,15 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         {0.f, yaw - 10.f, 0.f}, {0.f, yaw + 10.f, 0.f}, {-30.f, yaw - 10.f, 0.f},
         {-30.f, yaw + 10.f, 0.f}};
 
+    // Posing the weapon in a holster (vr_posing.cpp): the right holster of that kind floats in front of the player, the
+    // posed weapon in it (floatingHolster).
+    const bool holsterPosing = posing::active() && posing::session().target == posing::Target::Holster;
+    const weapons::HolsterKind posedKind = posing::session().holster.kind;
+    const int posedHolster = !holsterPosing                                     ? -1
+                             : posedKind == weapons::HolsterKind::Shoulder ? int{RightShoulder}
+                             : posedKind == weapons::HolsterKind::Upper    ? int{RightUpper}
+                                                                           : int{RightHip};
+
     // Weapon Offsets > Holstered, a setting chosen: the page's weapon (the one its hand holds) previewed in the holsters.
     int previewHand = 0, previewKind = 0;
     qmodel_t* previewModel = nullptr;
@@ -3452,7 +3611,8 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         const bool shoulder = h == LeftShoulder || h == RightShoulder;
         const bool mirrored = h == LeftHip || h == LeftUpper || h == LeftShoulder;
         const glm::vec3 pos = positions[static_cast<za::SizeT>(bodyHolster[h])];
-        const bool hover = hovered(s, bodyHolster[h]);
+        const bool posedHere = h == posedHolster;
+        const bool hover = hovered(s, bodyHolster[h]) && !posedHere;
 
         // The shoulders' guns (round 20): drawn too, on the back; a gun let go there was nowhere to be seen.
         HolsterPose pose = shoulder ? holsterOnBack(pos, yaw, mirrored) : HolsterPose{pos, slotAngles[h], pos, angles[h]};
@@ -3483,6 +3643,10 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         }
         HolsterFrame frame = holsterFrame(out, up, outwards);
         turnHolster(pose, pivot, frame, holsterTurn(h));
+        if(posedHere)
+        {
+            floatingHolster(s, pose, frame, pivot, slotModel && !shoulder);
+        }
 
         const int stat = static_cast<int>(bodyHolster[h]);
         qmodel_t* model = precachedModel(cl.stats[STAT_QVR_HOLSTERWEAPONMODEL0 + stat]);
@@ -3490,22 +3654,33 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         const weapons::HolsterKind kind = shoulder ? weapons::HolsterKind::Shoulder
                                           : h == LeftUpper || h == RightUpper ? weapons::HolsterKind::Upper
                                                                                : weapons::HolsterKind::Hip;
-        if(preview && kind == static_cast<weapons::HolsterKind>(previewKind))
+        const bool previewHere = preview && kind == static_cast<weapons::HolsterKind>(previewKind);
+        if(previewHere)
         {
             model = previewModel; // Weapon Offsets > Holstered: the page's weapon, in both holsters of the kind edited
+            clip = -1;
+        }
+        if(posedHere)
+        {
+            model = posing::session().model; // where it was left (floatingHolster)
             clip = -1;
         }
         if(isHandModel(model))
         {
             model = nullptr;
         }
-        poseHolstered(pose, frame, weapons::holsteredPose(weapons::slotForModel(model), kind));
+        if(!posedHere)
+        {
+            poseHolstered(pose, frame, weapons::holsteredPose(weapons::slotForModel(model), kind));
+        }
 
         view::ViewEntity& ve = entities.holster[h];
         place(ve, model, pose.weaponPos, pose.weaponAngles, holsteredGrappleOut(model, pose.weaponPos) ? 2 : 0, mirrored);
         highlight(ve, hover);
         // Just holstered: eased from the hand into the holster (vr_drawblend.cpp).
-        drawblend::holster(s, stat, model ? &ve.ent : nullptr, !(preview && kind == static_cast<weapons::HolsterKind>(previewKind)));
+        drawblend::holster(s, stat, model ? &ve.ent : nullptr, !previewHere && !posedHere);
+        holsterSeen[h] = {model != nullptr, posedHere, kind, weapons::slotForModel(model), pivot, frame, pose.weaponPos,
+            aliasBasis(pose.weaponAngles)};
 
         if(slotModel && !shoulder)
         {
@@ -5692,6 +5867,47 @@ void hotspotsLegacy_f()
 }
 
 // vr_dumpview: lists the VR view entities.
+void holsterPoseCheck(weapons::HolsterKind kind, const qmodel_t* model, const glm::vec3& inPos, const glm::vec3& inFwd,
+    const glm::vec3& inUp)
+{
+    if(posing::active())
+    {
+        Con_Printf("vr_pose_check: leave the posing mode first\n");
+        return;
+    }
+    static constexpr const char* names[HolsterCount] = {"left hip", "right hip", "left upper", "right upper", "left shoulder",
+        "right shoulder"};
+    const int slot = weapons::slotForModel(model);
+    const auto turnOf = [](const glm::vec3& f, const glm::vec3& u) {
+        const glm::vec3 x = glm::normalize(f);
+        const glm::vec3 z = glm::normalize(u - x * glm::dot(u, x));
+        return glm::mat3{x, glm::cross(z, x), z};
+    };
+    int found = 0;
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        const HolsterSeen& seen = holsterSeen[h];
+        if(!seen.valid || seen.floating || seen.kind != kind || seen.slot != slot || slot < 0)
+        {
+            continue;
+        }
+        const glm::vec3 pos = inHolsterFrame(seen.frame, seen.weaponPos - seen.pivot);
+        const glm::mat3 now = turnOf(inHolsterFrame(seen.frame, seen.weaponTurn[0]), inHolsterFrame(seen.frame, seen.weaponTurn[2]));
+        const glm::quat q = glm::quat_cast(glm::transpose(turnOf(inFwd, inUp)) * now);
+        const float angle = glm::degrees(2.f * za::atan2(glm::length(glm::vec3{q.x, q.y, q.z}), za::fabs(q.w)));
+        Con_Printf("vr_pose_check: %s holster: the weapon %.4f units and %.4f degrees from the pose set (at %.2f %.2f %.2f "
+                   "in it; set at %.2f %.2f %.2f)\n",
+            names[h], static_cast<double>(glm::distance(pos, inPos)), static_cast<double>(angle), static_cast<double>(pos.x),
+            static_cast<double>(pos.y), static_cast<double>(pos.z), static_cast<double>(inPos.x), static_cast<double>(inPos.y),
+            static_cast<double>(inPos.z));
+        found++;
+    }
+    if(!found)
+    {
+        Con_Printf("vr_pose_check: no holster of the kind posed holds %s now: holster it there\n", model ? model->name : "it");
+    }
+}
+
 void posingCheck(bool weaponTarget, int weaponHand, const glm::mat4& rigInWeapon, const glm::vec3* palmInWeapon,
     const glm::mat4& rigWorld)
 {
