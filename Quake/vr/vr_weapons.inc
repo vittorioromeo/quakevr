@@ -290,6 +290,28 @@ QVR_WEAPON_KEY(Hotspot4Sticky, "hs4_sticky")
 // Round 21, "Thrown axes: blade leniency, spin in the air": times Throwing and Physics' Spin Alignment
 // (vr_throw_spin_align) for the weapon thrown (Weapon Weights; 1 by default: registerCvars).
 QVR_WEAPON_KEY(SpinAlign, "w_spinalign")
+// Weapon effects (vr_weaponfx.cpp; ROUND21.md, "Weapon effects: recoil, muzzle flash, tracers"; Weapon Offsets >
+// Effects), for weapons whose models have none of their own: a programmatic recoil of the drawn weapon (looks only: the
+// aim and the shots stay; 0 off, 1 on), how hard (times vr_recoil_kick cm and vr_recoil_rise degrees) and the seconds it
+// takes to come back to rest; a muzzle flash at its muzzle anchor (0 off, 1 on), its size (times the shotgun's) and the
+// seconds it shows; its hitscan shots' bullet tracers (0 as Weapon Effects' vr_tracers, 1 never, 2 always), times
+// Weapon Effects' speed, length, thickness and chance a pellet, and a colour of its own (0 Weapon Effects', 1 R G B 0..1).
+// Every slot's multipliers default to 1 and its colour to the global one (registerCvars).
+QVR_WEAPON_KEY(Recoil, "fx_recoil")
+QVR_WEAPON_KEY(RecoilStrength, "fx_recoil_str")
+QVR_WEAPON_KEY(RecoilTime, "fx_recoil_time")
+QVR_WEAPON_KEY(Flash, "fx_flash")
+QVR_WEAPON_KEY(FlashSize, "fx_flash_size")
+QVR_WEAPON_KEY(FlashTime, "fx_flash_time")
+QVR_WEAPON_KEY(Tracers, "fx_tracers")
+QVR_WEAPON_KEY(TracerSpeed, "fx_tr_speed")
+QVR_WEAPON_KEY(TracerLength, "fx_tr_len")
+QVR_WEAPON_KEY(TracerWidth, "fx_tr_width")
+QVR_WEAPON_KEY(TracerChance, "fx_tr_chance")
+QVR_WEAPON_KEY(TracerOwnColour, "fx_tr_owncol")
+QVR_WEAPON_KEY(TracerRed, "fx_tr_r")
+QVR_WEAPON_KEY(TracerGreen, "fx_tr_g")
+QVR_WEAPON_KEY(TracerBlue, "fx_tr_b")
 #endif
 
 #ifdef QVR_WEAPON_RETIRED
@@ -1525,7 +1547,7 @@ QVR_WEAPON_DEFAULT(21, WpnTextX, "-7.25")
 QVR_WEAPON_DEFAULT(21, WpnTextY, "-0.05")
 QVR_WEAPON_DEFAULT(21, WpnTextYaw, "0.0")
 QVR_WEAPON_DEFAULT(21, WpnTextZ, "-2")
-QVR_WEAPON_DEFAULT(21, WpnTextMode, "1")
+QVR_WEAPON_DEFAULT(21, WpnTextMode, "0")
 QVR_WEAPON_DEFAULT(21, OffsetX, "16.2978")
 QVR_WEAPON_DEFAULT(21, OffsetY, "3.7")
 QVR_WEAPON_DEFAULT(21, Yaw, "0.0")
@@ -2664,6 +2686,12 @@ QVR_WEAPON_DEFAULT(21, UpperHolsterY, "3")
 QVR_WEAPON_DEFAULT(21, UpperHolsterZ, "-4")
 QVR_WEAPON_DEFAULT(21, UpperHolsterYaw, "25")
 QVR_WEAPON_DEFAULT(21, UpperHolsterRoll, "15")
+// The grunts' burst rifle: recoil and a muzzle flash (its model has neither), its tracers on most rounds, no ammo screen
+// (weapon settings version 31).
+QVR_WEAPON_DEFAULT(21, Recoil, "1")
+QVR_WEAPON_DEFAULT(21, RecoilTime, "0.12")
+QVR_WEAPON_DEFAULT(21, Flash, "1")
+QVR_WEAPON_DEFAULT(21, TracerChance, "3")
 QVR_WEAPON_DEFAULT(22, Hotspot2X, "1.238281")
 QVR_WEAPON_DEFAULT(22, Hotspot2Y, "-1.868408")
 QVR_WEAPON_DEFAULT(22, Hotspot2Z, "-1.081261")

@@ -32,6 +32,7 @@
 #include "vr_twohand.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
+#include "vr_weaponfx.hpp"
 #include "vr_weight.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_wounds.hpp"
@@ -546,6 +547,7 @@ void init()
     Cmd_AddCommand("vr_particle_test", particleTest_f);
     shells::registerCommands();
     shock::registerCommands();
+    weaponfx::registerCommands();
     Cmd_AddCommand("+offhandattack", OffhandAttackDown_f);
     Cmd_AddCommand("-offhandattack", OffhandAttackUp_f);
     Cmd_AddCommand("+grableft", GrabLeftDown_f);
@@ -637,6 +639,7 @@ extern "C" void VR_OnClientClearState()
     selfcollide::reset();
     shells::clear();
     shock::clear();
+    weaponfx::clear();
     wounds::clear();
     rope::forget();
     chainsaw::reset();
@@ -738,6 +741,8 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;
         case QVR_SVC_ROPE: rope::parseCorners(); break;
         case QVR_SVC_SHOCK: shock::parse(); break;
+        case QVR_SVC_FIRED: weaponfx::parseFired(); break;
+        case QVR_SVC_TRACER: weaponfx::parseTracer(); break;
         default: Host_Error("svc_quakevr: unknown command %d", subcmd);
     }
 

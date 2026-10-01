@@ -42,6 +42,7 @@
 #include "vr_selfcollide.hpp"
 #include "vr_posing.hpp"
 #include "vr_painknock.hpp"
+#include "vr_weaponfx.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_drawblend.hpp"
@@ -267,6 +268,8 @@ struct Entities
     view::ViewEntity button[2];
     view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
     view::ViewEntity ghost[2]; // the motion review's ghost of a take's weapons (view::setGhost)
+    view::ViewEntity muzzleFlash[2]; // the weapons' programmatic muzzle flashes (vr_weaponfx.cpp)
+    view::ViewEntity enemyFlash[weaponfx::maxEnemyFlashes]; // and the grunts' guns'
 };
 
 Entities entities;
@@ -334,6 +337,14 @@ void forEachEntity(F&& f)
         f(ve);
     }
     for(view::ViewEntity& ve : entities.ghost)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.muzzleFlash)
+    {
+        f(ve);
+    }
+    for(view::ViewEntity& ve : entities.enemyFlash)
     {
         f(ve);
     }
@@ -4999,6 +5010,11 @@ extern "C" void VR_SetupViewEntities()
         painknock::offset(hand, painPos, painAngles);
         shakePos[hand] += painPos;
         shakeAngles[hand] += painAngles;
+        // A shot's programmatic recoil (vr_weaponfx.cpp), the same way.
+        glm::vec3 recoilPos, recoilAngles;
+        weaponfx::recoilOffset(hand, s.visualRot[hand], recoilPos, recoilAngles);
+        shakePos[hand] += recoilPos;
+        shakeAngles[hand] += recoilAngles;
         s.pos[hand] += knockPos[hand] + shakePos[hand];
         s.rot[hand] += knockAngles[hand] + shakeAngles[hand];
         s.visualRot[hand] += knockAngles[hand] + shakeAngles[hand];
@@ -5163,6 +5179,9 @@ extern "C" void VR_SetupViewEntities()
         return;
     }
     lastAddedFrame = host_framecount;
+
+    // The muzzle flashes on the weapons as drawn now (vr_weaponfx.cpp).
+    weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
 
     forEachEntity([](view::ViewEntity& ve) {
         if(ve.visible && ve.ent.model && cl_numvisedicts < MAX_VISEDICTS)

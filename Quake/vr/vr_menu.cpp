@@ -2564,6 +2564,11 @@ za::Vector<Item> pageDebugTests()
                   "was."),
         command("Report the Enemy Guns", "impulse 213").help("Prints each enemy gun in your hands and its ammo."),
         command("One Shot Left", "impulse 214").help("The enemy guns in your hands left with one shot: to see one run dry."),
+        command("Weapon Effects Test", "vr_weaponfx_test 1 3")
+            .help("vr_weaponfx_test 1 3: the main hand's weapon kicks and flashes as if it fired (its Effects), with 3 "
+                  "tracers (no shot)."),
+        toggle("Print Weapon Effects", vr_debug_weaponfx)
+            .help("vr_debug_weaponfx: each shot's recoil, flash and tracers (2: and the recoil each frame)."),
         header("Flung Props"),
         slider("Fling Speed", vr_test_fling_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(),
         cycle("Fling At", vr_test_fling_at, {{0.f, "Nearest Monster"}, {1.f, "You"}}),
@@ -3029,6 +3034,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageWeaponsHub();
 [[nodiscard]] za::Vector<Item> pageHudHub();
 [[nodiscard]] za::Vector<Item> pageLightningWater();
+[[nodiscard]] za::Vector<Item> pageWeaponEffects();
 
 // The pages, by their number (menu_vr <n>): the numbers stay as they were, new pages are added last (the menus'
 // tree is in the pages' links: VR Settings > Advanced VR Options > its groups > their pages; ROUND21.md, "Menus
@@ -3116,6 +3122,7 @@ const Page pages[] = {
     {"Sound", pageSound, pageMain},                                         // 77
     {"Crates", pageCrates, pageCarryingHub},                                // 78
     {"Weapon Damage", pageWeaponDamage, pageCombat},                        // 79
+    {"Weapon Effects", pageWeaponEffects, pageWeaponsHub},                  // 80
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -3288,6 +3295,47 @@ za::Vector<Item> pageCarryingHub()
     };
 }
 
+// The programmatic weapon effects (vr_weaponfx.cpp): their global settings; each weapon's are in Weapon Offsets > Effects.
+za::Vector<Item> pageWeaponEffects()
+{
+    return {
+        header("Recoil"),
+        toggle("Programmatic Recoil", vr_weapon_recoil)
+            .help("Each shot kicks the drawn weapon back and tips it up, for the weapons whose Recoil is on (Weapon Offsets > "
+                  "Effects: the grunts' burst rifle; the others' models have their own). Looks only: the aim and the shots "
+                  "stay where your controller is."),
+        slider("Kick Back", vr_recoil_kick, 0.f, 5.f, 0.1f, "%.1f cm").extend(0.f, 20.f)
+            .help("How far a shot kicks the weapon back, at a weapon's Recoil Strength 1."),
+        slider("Muzzle Rise", vr_recoil_rise, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
+            .help("How far a shot tips the muzzle up, at a weapon's Recoil Strength 1."),
+        header("Muzzle Flash"),
+        toggle("Programmatic Muzzle Flash", vr_muzzle_flash)
+            .help("The shotgun's flash at the muzzle of the weapons whose Muzzle Flash is on (Weapon Offsets > Effects: the "
+                  "grunts' burst rifle), following the gun."),
+        toggle("Grunts' Muzzle Flashes", vr_muzzle_flash_enemies).help("The grunts' guns flash at their muzzles as they fire."),
+        slider("Grunts' Flash Size", vr_muzzle_flash_enemy_size, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f),
+        header("Bullet Tracers"),
+        toggle("Bullet Tracers", vr_tracers)
+            .help("Hitscan shots (the shotguns, the burst rifle) draw streaks of light flying from the muzzle to what they "
+                  "hit. A weapon may differ (Weapon Offsets > Effects: Tracers, and its multipliers)."),
+        toggle("Enemies' Tracers", vr_tracers_enemies).help("The grunts' shots too."),
+        slider("Tracer Speed", vr_tracer_speed, 20.f, 600.f, 10.f, "%.0f m/s").extend(1.f, 3000.f),
+        slider("Tracer Length", vr_tracer_length, 0.1f, 5.f, 0.1f, "%.1f m").extend(0.01f, 50.f),
+        slider("Tracer Thickness", vr_tracer_width, 0.2f, 5.f, 0.1f, "%.1f cm").extend(0.05f, 30.f),
+        slider("Chance a Pellet", vr_tracer_chance, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance each pellet (or round) shows a tracer: a shotgun's 6 pellets at 0.3 show about 2."),
+        slider("Tracer Red", vr_tracer_r, 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Tracer Green", vr_tracer_g, 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Tracer Blue", vr_tracer_b, 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Tracer Brightness", vr_tracer_brightness, 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 10.f),
+        header("Each Weapon"),
+        open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets))
+            .help("The held weapon's own: its Effects section turns its recoil and flash on, and changes its tracers."),
+        command("Test the Held Weapon's Effects", "vr_weaponfx_test 1 3")
+            .help("vr_weaponfx_test 1 3: the main hand's weapon kicks and flashes as if it fired, with 3 tracers (no shot)."),
+    };
+}
+
 // The lightning gun in water (vr_lg_water*; QC weapons.qc VR_LGWater_*, vr_shock.cpp).
 za::Vector<Item> pageLightningWater()
 {
@@ -3324,6 +3372,7 @@ za::Vector<Item> pageWeaponsHub()
         open("Weapon Damage", pageIndex(pageWeaponDamage)).help("Every weapon's base damage, to balance them."),
         open("Immersion", pageIndex(pageImmersionSettings)).help("Holsters, reloading, throwing weapons, shell casings, haptics."),
         open("Lightning Gun in Water", pageIndex(pageLightningWater)).help("The shock fired under water, and electrified water."),
+        open("Weapon Effects", pageIndex(pageWeaponEffects)).help("Recoil, muzzle flashes and bullet tracers."),
         header("Holsters"),
         open("Hotspots", pageIndex(pageHotspotSettings)).help("The virtual stock, the shoulder and upper holsters."),
         open("Hip Holsters", pageIndex(pageHipHolsters)).help("The hip holsters and their slots' models; the grenade pouch at your back."),
@@ -3548,6 +3597,12 @@ void weaponOffsetsHotspotRemove()
         weapons::setHotspot(weaponOffsetsSlot, editedHotspot(), weapons::Hotspot{});
         weaponOffsetsStale = true;
     }
+}
+
+// Effects: the page's weapon's effects as if it fired (vr_weaponfx_test).
+void weaponOffsetsTestEffects()
+{
+    Cbuf_AddText(va("vr_weaponfx_test %d 3\n", weaponOffsetsHand == 1 ? 1 : 0));
 }
 
 za::Vector<Item> pageWeaponOffsets()
@@ -3923,7 +3978,39 @@ za::Vector<Item> pageWeaponOffsets()
             s("Screen Pitch", Key::WpnTextPitch, -180.f, 180.f, 0.5f, "%.1f"),
             s("Screen Yaw", Key::WpnTextYaw, -180.f, 180.f, 0.5f, "%.1f"),
             s("Screen Roll", Key::WpnTextRoll, -180.f, 180.f, 0.5f, "%.1f"),
-            s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f").extend(0.01f, 10.f)
+            s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f").extend(0.01f, 10.f),
+            cycle("Ammo Screen", weapons::cvar(slot, Key::WpnTextMode), {{1.f, "Shown"}, {0.f, "Hidden"}})
+                .help("Whether this weapon shows its ammunition screen (every weapon's: Screens, Weapon Ammo Screen)."),
+            // The programmatic weapon effects (vr_weaponfx.cpp; their global settings: Weapon Effects).
+            header("Effects"),
+            cycle("Recoil", weapons::cvar(slot, Key::Recoil), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
+                .help("Each shot kicks the drawn weapon back and tips it up, then it comes back to rest: for a model without "
+                      "a recoil animation of its own. Looks only: the aim and the shots don't move."),
+            s("Recoil Strength", Key::RecoilStrength, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+                .help("Times Weapon Effects' Kick Back and Muzzle Rise."),
+            s("Recoil Return Time", Key::RecoilTime, 0.03f, 0.6f, 0.01f, "%.2f s").extend(0.02f, 3.f)
+                .help("How long a shot's kick takes to come back to rest."),
+            cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
+                .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
+                      "the gun; gone when it leaves your hand."),
+            s("Flash Size", Key::FlashSize, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Times the shotgun's flash."),
+            s("Flash Time", Key::FlashTime, 0.02f, 0.2f, 0.01f, "%.2f s").extend(0.01f, 1.f).help("How long it shows."),
+            cycle("Tracers", weapons::cvar(slot, Key::Tracers), {{0.f, "As Weapon Effects"}, {1.f, "Never"}, {2.f, "Always"}})
+                .help("Bullet tracers of this weapon's hitscan shots (the shotguns, the burst rifle): as Weapon Effects' "
+                      "Bullet Tracers, never, or always."),
+            s("Tracer Speed", Key::TracerSpeed, 0.1f, 5.f, 0.05f, "%.2fx").extend(0.01f, 20.f).help("Times Weapon Effects'."),
+            s("Tracer Length", Key::TracerLength, 0.1f, 5.f, 0.05f, "%.2fx").extend(0.01f, 20.f).help("Times Weapon Effects'."),
+            s("Tracer Thickness", Key::TracerWidth, 0.1f, 5.f, 0.05f, "%.2fx").extend(0.01f, 20.f).help("Times Weapon Effects'."),
+            s("Tracer Chance", Key::TracerChance, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+                .help("Times Weapon Effects' Chance a Pellet (at most every pellet)."),
+            cycle("Tracer Colour", weapons::cvar(slot, Key::TracerOwnColour), {{0.f, "Weapon Effects'"}, {1.f, "Its Own"}})
+                .help("Its Own: the Red, Green and Blue below."),
+            s("Tracer Red", Key::TracerRed, 0.f, 1.f, 0.05f, "%.2f"),
+            s("Tracer Green", Key::TracerGreen, 0.f, 1.f, 0.05f, "%.2f"),
+            s("Tracer Blue", Key::TracerBlue, 0.f, 1.f, 0.05f, "%.2f"),
+            action("Test the Effects", weaponOffsetsTestEffects)
+                .help("This weapon kicks and flashes as if it fired, with 3 tracers (no shot: vr_weaponfx_test)."),
+            open("Weapon Effects (All Weapons)", pageIndex(pageWeaponEffects))
         );
     }
     if(!fist)

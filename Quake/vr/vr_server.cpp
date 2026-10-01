@@ -598,6 +598,39 @@ void sendShock(edict_t* player, int kind, const float org[3], float radius, floa
     MSG_WriteByte(msg, CLAMP(0, static_cast<int>(duration * 50.f + 0.5f), 255));
 }
 
+void sendFired(edict_t* shooter, int hand)
+{
+    if(sv.datagram.cursize > MAX_DATAGRAM - 8)
+    {
+        return;
+    }
+    MSG_WriteByte(&sv.datagram, svc_quakevr);
+    MSG_WriteByte(&sv.datagram, QVR_SVC_FIRED);
+    MSG_WriteShort(&sv.datagram, NUM_FOR_EDICT(shooter));
+    MSG_WriteByte(&sv.datagram, hand == 0 || hand == 1 ? hand : 255); // (HAND_OFF, HAND_MAIN)
+}
+
+void sendTracer(edict_t* shooter, int hand, const float from[3], const float to[3])
+{
+    // A shotgun's 14 pellets are 14 of these: a full datagram keeps its room for the rest.
+    if(sv.datagram.cursize > MAX_DATAGRAM - 64)
+    {
+        return;
+    }
+    MSG_WriteByte(&sv.datagram, svc_quakevr);
+    MSG_WriteByte(&sv.datagram, QVR_SVC_TRACER);
+    MSG_WriteShort(&sv.datagram, NUM_FOR_EDICT(shooter));
+    MSG_WriteByte(&sv.datagram, hand == 0 || hand == 1 ? hand : 255); // (HAND_OFF, HAND_MAIN)
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(&sv.datagram, from[i], sv.protocolflags);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(&sv.datagram, to[i], sv.protocolflags);
+    }
+}
+
 void init()
 {
     Cmd_AddCommand("vr_dumpplayer", dumpPlayer_f);

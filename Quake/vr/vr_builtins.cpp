@@ -724,6 +724,18 @@ void PF_ejectcasings()
         G_FLOAT(OFS_PARM3));
 }
 
+// weaponfired(shooter, hand): a weapon fired (vr_weaponfx.cpp: the drawn kick, the muzzle flash); hand -1 a monster's.
+void PF_weaponfired()
+{
+    server::sendFired(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)));
+}
+
+// tracer(shooter, hand, from, to): a hitscan pellet's line, for the clients' bullet tracers (vr_weaponfx.cpp).
+void PF_tracer()
+{
+    server::sendTracer(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), G_VECTOR(OFS_PARM2), G_VECTOR(OFS_PARM3));
+}
+
 // watershock(kind, org, radius, duration): the lightning gun in water's effects (vr_shock.cpp): 0 the `self` player
 // shocked, 1 arcs on a liquid's surface round `org`, 2 arcs out from `org` in a liquid.
 void PF_watershock()
@@ -1002,6 +1014,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"carry2hkeep", PF_carry2hkeep},
     {"floattext", PF_floattext},
     {"ejectcasings", PF_ejectcasings},
+    {"weaponfired", PF_weaponfired},
+    {"tracer", PF_tracer},
     {"watershock", PF_watershock},
     {"findflags", PF_findflags},
     {"liquidentry", PF_liquidentry},
