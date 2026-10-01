@@ -16881,3 +16881,40 @@ projections of the textured cut-outs:
   rounds (3 a burst) and the rifle's lasers (from its new muzzle); `check_mdl_holes.py`: both ok.
 - In VR: the stock lies along the forearm when held one-handed (it may pass through the sleeve); its length is
   `stock_x` in make_enemyguns.py.
+
+## The enemy guns carved, the rifle symmetric (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_02-38, 02-39 (both). `Misc/quakevr/make_enemyguns.py`, new
+`Misc/quakevr/blender/carve_mesh.py` (run by the script: Blender 5.2 headless, `QVR_BLENDER` for another blender.exe).
+
+- **The rifle is exactly mirror-symmetric.** The enforcer's mesh pairs every left vertex with a right one, but placed up
+  to 1.0 model units off each other's mirror image (and with different diagonals on each side): `symmetrize` sets each
+  pair to the average of the one and the other's mirror image (the middle vertices onto the plane; the size kept),
+  `mirror_triangles` mirrors the right side's triangles onto the left (back faces, as the monster's left side). The
+  byte grid is centred on y = 0 (index 127) so the mirror images quantize alike. Mirror error (every vertex to the
+  nearest of its mirror image), the whole model with its parts: 0.000000 (4e-7); the cut-out had 1.0.
+- **Carved, not raised.** The fins, spine and rings (rifle) and the ribs, window frame and vent lips (burst gun) are
+  gone. Each dark groove or vent the skin paints is cut into the mesh (GUNS' `cuts`: a box, a depth): inside the box
+  the surface sinks to the mesh moved in by the depth (its floor keeps the painted dark), the box's sides are the
+  walls (the darkest texel near the painted vent). Positions read off the skins over the cut-outs (luminance runs):
+  rifle: the housing's five vents (x 8.4-9.5, 11.1-12.1, 13.8-14.8, 16.4-17.5, 19.1-20.2; from 1.95 off the top's
+  middle over the edge and down the side, 0.5 deep) both sides, the muzzle cone's two grooves all round (31.1-31.8,
+  32.85-33.45, 0.35 deep); burst gun: the receiver's five top grooves (x 2.0, 4.9, 7.6, 10.3, 12.7, 1.0 wide, 0.4
+  deep), its window (0.3 deep: framed by the recess's walls), the muzzle cone's vents (x 24.1-28.1, z 7-9, 0.5 deep,
+  both sides). The cut surface keeps its old smooth shading (new vertices take the old normals interpolated); the
+  recesses are flat-shaded. Rifle 938 -> 1476 triangles, burst gun 938 -> 1190.
+- **The rifle's sights**: a notch 0.2 over the housing's peak (x 6.3; ears 0.3) and a thin post (0.26 x 0.14) at x 15.6
+  between the third and fourth vents, level with the notch's bottom (the line along the barrel, as the burst gun's).
+  The housing falls towards the muzzle, so a post further forward would have to be taller (about 1.2 units here, 2.5
+  before).
+- **Anchors and offsets unchanged.** Configs keep the anchors (`vr_wofs_muzzle_av_22/23` 1829/1813, `wpntxt_av` 23/37),
+  so the indices stay: `pin_anchors` orders the triangles (the strip builder joins only triangles sharing vertices: a
+  subset sum of pieces' strip lengths) so that 23/37 are the counter's old cut-out vertices and 1829/1813 the bores
+  (`vr_anchor_info`: rifle 37 at 3.01 0.00 11.17, 1813 at 40.47 0.00 5.01, both now on the middle plane, 0.42 and
+  0.11 from before; the burst gun's exactly as before). The bounds' corners (scale_origin) are pinned (GUNS'
+  `origin`): his offsets and hotspots need no change. Normal maps rebaked.
+- Checked: `check_mdl_holes.py` both ok (the same open loops as before: the bolt heads' feet); the script's output
+  byte-identical on a second run; mock: the rifle held (impulse 166, `vr_weapon_grip_mode 1`) and fired (a laser at
+  1800 u/s, 19 left), the burst gun (165) fired a 3-round burst (27 left). Images (kit scratch):
+  `enemymodels2_rifle_beforeafter.png`, `enemymodels2_burst_beforeafter.png` (Blender, before | after: side, top,
+  front, then close-ups), `em_held.png` (the rifle held, in the engine: head, both sides, top).

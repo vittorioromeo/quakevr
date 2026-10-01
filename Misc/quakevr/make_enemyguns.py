@@ -21,13 +21,16 @@
 # - a cleaner silhouette where a hand holds it: a bevelled pistol grip under the receiver (a butt plate, ribs), a trigger
 #   guard and a trigger; a band where the other hand goes (the rifle: the shotgun has its own); bolt heads on the
 #   receiver; the skins' edge wear (mdlpolish.py: the parts in the skin's own browns and steels, flat-shaded, as the id models).
-# - a detail pass (details_grunt, details_enforcer: ROUND21.md, "The enemy guns' detail pass"): the ridges, vents and
-#   grooves the skins paint made geometry, primitive sights, a thin barrel at the muzzle, the grunts' gun a wire stock.
+# - the rifle made exactly mirror-symmetric (symmetrize, mirror_triangles: its sides sat off its middle);
+# - a detail pass (GUNS' cuts, details_grunt, details_enforcer: ROUND21.md, "The enemy guns' detail pass" and "The enemy
+#   guns carved, the rifle symmetric"): the grooves and vents the skins paint dark carved in (carve: Blender 5.2's exact
+#   boolean, headless, blender/carve_mesh.py; QVR_BLENDER names another blender.exe), small sights, a thin barrel at
+#   the muzzle, the grunts' gun a wire stock.
 # Nine frames (0..8, the same pose): the frames a gun's firing animation steps through.
-# The counter anchors (slots 21, 22: WpnTextAnchorVertex) are strip-order indices of the cut-out vertices (the parts are
-# appended after them): rerun improve_weapons.strip_order after changing the cut. The muzzle anchors (MuzzleAnchorVertex)
-# are the thin barrels' bore centres: printed as the script runs. The stock moves the grunts' gun's bounds' corner
-# (scale_origin, printed too), about which the weapon Scale pivots: its Offset and hotspots then follow (vr_weapons.inc).
+# The anchors (slots 21, 22: WpnTextAnchorVertex, MuzzleAnchorVertex; configs keep them) stay at their indices:
+# pin_anchors orders the triangles so the counter's cut-out vertex and the barrel's bore centre come at them (GUNS'
+# anchors). The bounds' corner (scale_origin, about which the weapon Scale pivots: the Offsets and hotspots follow it)
+# is pinned too (GUNS' origin); the script prints both.
 
 import math
 import os
@@ -51,6 +54,19 @@ FRAMES = 9
 GRIP_LEN, GRIP_DEPTH, GRIP_WIDTH, GRIP_TILT, GRIP_BEVEL, SINK = 7.2, 3.4, 2.6, 8.0, 0.5, 0.9
 MARGIN = 0.9  # room round the gun in the file's byte grid for the parts (bands, bolt heads)
 
+# The rifle's sights (model units along the barrel): the notch just ahead of the housing's peak, the post between its
+# third and fourth vents.
+ENF_REAR_SIGHT_X, ENF_FRONT_SIGHT_X = 6.3, 15.6
+
+
+def slot(box, depth, probe, side):
+    """A recess cut into the gun (carve): inside `box` (x0, x1, y0, y1, z0, z1) the surface sunk `depth`; its walls
+    take the skin's texel where a ray from `probe` (outside the gun) meets it, inwards across `side` ('+y': along -y)."""
+    d = {'+y': (0.0, -1.0, 0.0), '-y': (0.0, 1.0, 0.0), 'z': (0.0, 0.0, -1.0)}[side]
+    box = (box[0], box[1], min(box[2], box[3]), max(box[2], box[3]), box[4], box[5])
+    return dict(box=box, depth=depth, probe=(probe, d))
+
+
 GUNS = {
     'v_gruntgun.mdl': dict(
         src='soldier.mdl', counts=(555, 810), tris=116,
@@ -64,6 +80,13 @@ GUNS = {
         stock_x=-28.6,        # the butt plate's middle (the pad behind it)
         barrel=4.2,           # the thin barrel's reach past the muzzle's face
         sight_top=15.0,
+        origin=(-29.899999618530273, -6.170675277709961, -4.599999904632568),  # the bounds' corner (vr_weapons.inc)
+        anchors=(23, 7, 1829),  # WpnTextAnchorVertex (strip index, the cut-out's vertex), MuzzleAnchorVertex
+        cuts=[slot((x - 0.5, x + 0.5, -3.1, 3.1, 11.0, 30.0), 0.4, (x, 2.0, 40.0), 'z')  # the receiver's top grooves
+              for x in (2.0, 4.9, 7.6, 10.3, 12.7)]
+             + [slot((1.75, 8.0, 2.0, 12.0, 6.85, 9.1), 0.3, (2.5, 20.0, 9.7), '+y')]    # the window (on the right)
+             + [slot((24.1, 28.1, 2.0 * s, 12.0 * s, 7.0, 9.0), 0.5, (26.0, 20.0 * s, 8.0), '+y' if s > 0 else '-y')
+                for s in (1.0, -1.0)],                                                       # the muzzle cone's vents
     ),
     'v_enfrifle.mdl': dict(
         src='enforcer.mdl', counts=(479, 984), tris=118,
@@ -76,7 +99,18 @@ GUNS = {
         details='enforcer',   # details_enforcer
         stock_x=None,
         barrel=4.6,
-        sight_top=14.7,
+        sight_top=13.8,
+        symmetric=True,       # mirrored exactly about y = 0 (symmetrize), on a byte grid centred on it
+        origin=(-16.39794921875, -6.089954376220703, -4.599999904632568),  # the bounds' corner (vr_weapons.inc)
+        anchors=(37, 14, 1813),
+        # The housing's five vents, over its top and down its sides (their bottoms follow its slope), both sides;
+        # the muzzle cone's two grooves, all round.
+        cuts=[slot((x0, x1, 1.95 * s, 12.0 * s, 7.6 - 0.07 * (0.5 * (x0 + x1) - 9.0), 30.0), 0.5,
+                   (0.5 * (x0 + x1), 20.0 * s, 8.8), '+y' if s > 0 else '-y')
+              for x0, x1 in ((8.38, 9.48), (11.13, 12.08), (13.8, 14.8), (16.43, 17.48), (19.1, 20.18))
+              for s in (1.0, -1.0)]
+             + [slot((x0, x1, -12.0, 12.0, -12.0, 30.0), 0.35, (0.5 * (x0 + x1), 0.0, 40.0), 'z')
+                for x0, x1 in ((31.1, 31.8), (32.85, 33.45))],
     ),
 }
 
@@ -94,9 +128,9 @@ def tri_area(p, a, b, c):
     return 0.5 * math.sqrt(dot(n, n))
 
 
-def smooth_normals(pos, tris):
+def smooth_vectors(pos, tris):
     """Per vertex: the area-weighted normals of the faces round its welded position (Quake's front faces clockwise
-    seen from outside: the outward normal is minus the cross product)."""
+    seen from outside: the outward normal is minus the cross product), unit vectors."""
     key = lambda p: tuple(round(x, 3) for x in p)
     acc = {}
     for _, a, b, c in tris:
@@ -104,13 +138,21 @@ def smooth_normals(pos, tris):
         for v in (a, b, c):
             k = key(pos[v])
             acc[k] = sub(acc.get(k, (0.0, 0.0, 0.0)), n)
-    table = anorms()
     out = []
     for p in pos:
         n = acc.get(key(p), (0.0, 0.0, 1.0))
-        n = norm(n) if dot(n, n) > 1e-12 else (0.0, 0.0, 1.0)
-        out.append(max(range(len(table)), key=lambda k: dot(table[k], n)))
+        out.append(norm(n) if dot(n, n) > 1e-12 else (0.0, 0.0, 1.0))
     return out
+
+
+def nearest_anorm(n):
+    table = anorms()
+    return max(range(len(table)), key=lambda k: dot(table[k], n))
+
+
+def smooth_normals(pos, tris):
+    """Per vertex: the index of Quake's normal nearest its smooth_vectors one."""
+    return [nearest_anorm(n) for n in smooth_vectors(pos, tris)]
 
 
 def write_mdl(path, gun, skin, sw, sh, lo, hi):
@@ -138,6 +180,44 @@ def write_mdl(path, gun, skin, sw, sh, lo, hi):
         f.write(out)
 
 
+def symmetrize(L):
+    """The cut-out made exactly mirror-symmetric about its y = 0 plane (NOTES.md vrfiringrange_2026-10-01_02-38: the
+    rifle's sides sat off its middle). Every vertex has a mirror partner in the monster's mesh (its left and right
+    halves are the same vertices, only placed by hand on a coarse grid, up to a unit apart); each pair is set to the
+    average of the one and the other's mirror image, a vertex that is its own partner onto the plane. Returns the new
+    positions and the largest mirror error they had."""
+    keys = list(L)
+    P = np.array([L[k] for k in keys], np.float64)
+    M = P * (1.0, -1.0, 1.0)
+    partner = [int(np.argmin(np.linalg.norm(P - q, axis=1))) for q in M]
+    assert all(partner[partner[i]] == i for i in range(len(keys))), 'the cut-out has no clean mirror pairing'
+    err = max(float(np.linalg.norm(P[partner[i]] - M[i])) for i in range(len(keys)))
+    out = {}
+    for i, k in enumerate(keys):
+        q = 0.5 * (P[i] + M[partner[i]])
+        if partner[i] == i:
+            q[1] = 0.0
+        out[k] = tuple(float(c) for c in q)
+    return out, err, {k: keys[partner[i]] for i, k in enumerate(keys)}
+
+
+def mirror_triangles(tris, pos, partner):
+    """The triangulation made mirror-symmetric too (the monster's diagonals differ side to side, so its two halves'
+    quads bend differently and a cut crossing a diagonal lands off its mirror image): the triangles on the right
+    (+y) side kept and mirrored onto the left as back faces (the left half of the skin's back half, as the monster's
+    left side has it); those across the middle kept (a quad across it is a trapezoid, flat and symmetric)."""
+    right, middle = [], []
+    for t in tris:
+        ys = [pos[v][1] for v in t[1:]]
+        if min(ys) < -1e-9 and max(ys) > 1e-9:
+            middle.append(t)
+        elif max(ys) > 1e-9:
+            assert t[0] == 1, 'a back face on the right side'
+            right.append(t)
+    left = [(0, partner[a], partner[c], partner[b]) for _, a, b, c in right]
+    return right + middle + left
+
+
 def extract(progs, spec):
     """The gun cut out of its monster, cleaned, sealed, in its own frame (origin: the pistol grip's middle). Returns
     (gun, the source model, the degenerate triangles dropped, the sealer, the scale, the foregrip's x)."""
@@ -158,7 +238,10 @@ def extract(progs, spec):
     local = lambda p: (dot(sub(p, c), X), dot(sub(p, c), Y), dot(sub(p, c), Z))
     L = {v: local(m.pos(v)) for v in spec['verts']}
     xs = [p[0] for p in L.values()]
-    scale = spec['length'] / (max(xs) - min(xs))
+    scale = spec['length'] / (max(xs) - min(xs))  # (the length as cut out: symmetrize keeps the size)
+    partner = None
+    if spec.get('symmetric'):
+        L, spec['mirror_error'], partner = symmetrize(L)
 
     # The grip: under the receiver at grip_x, its top at the receiver's underside there.
     near = [p for p in L.values() if abs(p[0] - spec['grip_x']) < 2.0]
@@ -184,6 +267,8 @@ def extract(progs, spec):
             dropped += 1
             continue
         gun.tris.append(t)
+    if partner:
+        gun.tris = mirror_triangles(gun.tris, pos, {index[a]: index[b] for a, b in partner.items()})
     gun.frames = [['frame%d' % (f + 1), list(pos), [0] * len(pos)] for f in range(FRAMES)]
     sealer = seal(gun, (0, 0, 8, 8), None, spec['src'])
     nrm = smooth_normals(gun.frames[0][1], gun.tris)
@@ -200,10 +285,14 @@ def section(P, x, width=1.0):
 
 
 # ----------------------------------------------------------------------------
-# The detail pass (NOTES.md e1m1_2026-09-30_23-27/23-31/23-34, e2m1_2026-09-30_23-42): what the skins only paint
-# (ridges, vents, grooves, lamps) made geometry, a thin barrel at the muzzle (the muzzle anchor at its bore), primitive
-# sights, and on the grunts' gun a light wire stock. Positions are the guns' own (model units, origin in the grip),
-# read off orthographic projections of the textured cut-outs.
+# The detail pass (NOTES.md e1m1_2026-09-30_23-27/23-31/23-34, e2m1_2026-09-30_23-42; vrfiringrange_2026-10-01_02-38,
+# 02-39): the grooves and vents the skins paint dark carved into the guns (recesses whose floors keep the painted
+# dark), a thin barrel at the muzzle (the muzzle anchor at its bore), small sights, and on the grunts' gun a light wire
+# stock and its lamps as lenses. Positions are the guns' own (model units, origin in the grip), read off the skins
+# painted over the cut-outs (the dark runs along and round each gun).
+
+BLENDER = os.environ.get('QVR_BLENDER', r'C:\Program Files\Blender Foundation\Blender 5.2\blender.exe')
+
 
 def surface(p, x, y, z, d):
     """The old surface's point and outward normal met from (x, y, z) along d."""
@@ -211,95 +300,235 @@ def surface(p, x, y, z, d):
     return q, n
 
 
-def ridge(p, x, zmin, width, height, material, key, sink=0.15, shade=0.0, turn=18.0):
-    """A raised rib across the gun at `x`: over the outline of its section above `zmin` (the top and the upper sides,
-    clear of what is painted lower down; None: all round, a ring), `height` proud of it, `width` along the barrel.
-    Corners turning less than `turn` degrees are dropped (fewer faces)."""
-    ax = np.array((1.0, 0.0, 0.0))
-    hull, u, v, _ = p.outline((x, 0.0, 0.0), ax, (0.0, 0.0, 1.0), width)
-    c = np.array((x, 0.0, 0.0))
-    pts = [c + u * a + v * b for a, b in hull]
-    n = len(pts)
-    mid = sum(pts) / n
-    closed = zmin is None
-    if closed:
-        arc = list(pts)
-    else:
-        i0 = next(i for i in range(n) if pts[i][2] < zmin <= pts[(i + 1) % n][2])
-
-        def cut(a, b):
-            t = (zmin - a[2]) / (b[2] - a[2])
-            return a + t * (b - a)
-
-        arc = [cut(pts[i0], pts[(i0 + 1) % n])]
-        k = (i0 + 1) % n
-        while pts[k][2] >= zmin:
-            arc.append(pts[k])
-            k = (k + 1) % n
-        arc.append(cut(pts[(k - 1) % n], pts[k]))
-    arc = [a for i, a in enumerate(arc) if i == 0 or np.linalg.norm(a - arc[i - 1]) > 0.05]
-    cos_turn = math.cos(math.radians(turn))
-    changed = True
-    while changed and len(arc) > (3 if closed else 2):
-        changed = False
-        for i in range(0 if closed else 1, len(arc) if closed else len(arc) - 1):
-            d0 = arc[i] - arc[i - 1]
-            d1 = arc[(i + 1) % len(arc)] - arc[i]
-            if d0 @ d1 / (np.linalg.norm(d0) * np.linalg.norm(d1)) > cos_turn:
-                del arc[i]
-                changed = True
-                break
-    m = len(arc)
-    segs = [(i, (i + 1) % m) for i in range(m if closed else m - 1)]
-
-    def edge_normal(a, b):
-        e = (b - a) / np.linalg.norm(b - a)
-        o = 0.5 * (a + b) - mid
-        o = o - e * (o @ e) - ax * (o @ ax)
-        return o / np.linalg.norm(o)
-
-    en = [edge_normal(arc[i], arc[j]) for i, j in segs]
-    inner, outer = [], []
-    for i, a in enumerate(arc):
-        ns = [en[k] for k, (s0, s1) in enumerate(segs) if i in (s0, s1)]
-        nn = sum(ns)
-        nn = nn / np.linalg.norm(nn)
-        mitre = 1.0 / max(0.6, min(nn @ e for e in ns))
-        inner.append(a - nn * sink)
-        outer.append(a + nn * height * mitre)
-    h = ax * 0.5 * width
-    for k, (i, j) in enumerate(segs):
-        o = en[k]
-        p.face([outer[i] - h, outer[j] - h, outer[j] + h, outer[i] + h], o, material, p.lit(o) + shade + 0.1, key)
-        p.face([inner[i] + h, inner[j] + h, outer[j] + h, outer[i] + h], ax, material, p.lit(ax) + shade, key)
-        p.face([inner[i] - h, inner[j] - h, outer[j] - h, outer[i] - h], -ax, material, p.lit(-ax) + shade, key)
-    if not closed:
-        for i, j in ((0, 1), (m - 1, m - 2)):
-            t = arc[i] - arc[j]
-            t = t / np.linalg.norm(t)
-            p.face([inner[i] - h, outer[i] - h, outer[i] + h, inner[i] + h], t, material, p.lit(t) + shade, key)
+def corner_uv(gun, sw, tri):
+    """A triangle's corners' skin coordinates (texels; the back half's for an on-seam vertex of a back face)."""
+    front = tri[0]
+    out = []
+    for v in tri[1:]:
+        on, s, t = gun.st[v]
+        out.append((float(s + (sw // 2 if on and not front else 0)), float(t)))
+    return out
 
 
-def framed_slot(p, x0, x1, z0, z1, side, material, key, width=0.45, height=0.6, slats=(), ends=True):
-    """A raised lip round a vent painted on the side (`side` +1: +y), and slats across it at the heights `slats`:
-    the painted dark reads as a recess."""
-    def at(x, z):
-        return surface(p, x, side * 20.0, z, (0.0, -side, 0.0))
+def ray_uv(P, faces, uvs, origin, d):
+    """The skin coordinates where the ray first meets the mesh (Moller-Trumbore over every face)."""
+    o, d = np.asarray(origin, np.float64), np.asarray(d, np.float64)
+    best = None
+    for (a, b, c), uv in zip(faces, uvs):
+        pa, pb, pc = P[a], P[b], P[c]
+        e1, e2 = pb - pa, pc - pa
+        h = np.cross(d, e2)
+        det = e1 @ h
+        if abs(det) < 1e-12:
+            continue
+        f = 1.0 / det
+        s = o - pa
+        u = f * (s @ h)
+        q = np.cross(s, e1)
+        v = f * (d @ q)
+        t = f * (e2 @ q)
+        if u < 0 or v < 0 or u + v > 1 or t <= 1e-6 or (best and t >= best[0]):
+            continue
+        best = (t, np.array((1 - u - v, u, v)) @ np.array(uv))
+    assert best, 'the probe %s along %s misses the gun' % (origin, d)
+    return best[1]
 
-    def bar(a, b):
-        (qa, na), (qb, nb) = a, b
-        e = (qb - qa) / np.linalg.norm(qb - qa)
-        up = na + nb
-        p.bar(qa - e * 0.5 * width, qb + e * 0.5 * width, up, width, height, material, key)
 
-    c = {(i, j): at(x, z) for i, x in enumerate((x0, x1)) for j, z in enumerate((z0, z1))}
-    bar(c[0, 0], c[1, 0])
-    bar(c[0, 1], c[1, 1])
-    if ends:
-        bar(c[0, 0], c[0, 1])
-        bar(c[1, 0], c[1, 1])
-    for z in slats:
-        bar(at(x0, z), at(x1, z))
+def inner_mesh(W, faces, depth):
+    """The welded mesh's vertices moved `depth` in, every face plane round a vertex moved in by the same (least
+    squares over the planes: exact where three or fewer meet): the floor of a recess that follows the surface."""
+    planes = [[] for _ in W]
+    for f in faces:
+        n = np.cross(W[f[1]] - W[f[0]], W[f[2]] - W[f[0]])
+        a = np.linalg.norm(n)
+        if a < 1e-9:
+            continue
+        n = n / a  # outward: the faces are counter-clockwise seen from outside
+        for v in f:
+            if all(float(n @ m) < 0.9999 for m in planes[v]):
+                planes[v].append(n)
+    out = []
+    for v, ns in enumerate(planes):
+        A = np.array(ns)
+        delta = np.linalg.lstsq(A, -depth * np.ones(len(ns)), rcond=None)[0]
+        if np.linalg.norm(delta) > 3.0 * depth:  # a needle-sharp corner: straight in along the mean normal
+            m = A.sum(axis=0)
+            delta = -depth * m / np.linalg.norm(m)
+        out.append(W[v] + delta)
+    return np.array(out)
+
+
+def split_slivers(V, faces, uvs, cut):
+    """Removes the triangles with no area (three corners in a line, where the boolean's polygons had a corner on an
+    edge) without leaving a T-junction: the triangle across the sliver's long edge is split at its middle corner
+    (that triangle's skin coordinates interpolated there). Counter-clockwise faces; returns how many went."""
+    gone = 0
+    while True:
+        area = [np.linalg.norm(np.cross(V[f[1]] - V[f[0]], V[f[2]] - V[f[0]])) for f in faces]
+        bad = next((i for i, a in enumerate(area) if a < 1e-6), None)
+        if bad is None:
+            return gone
+        f = faces[bad]
+        k = max(range(3), key=lambda j: np.linalg.norm(V[f[(j + 1) % 3]] - V[f[j]]))
+        a, c, b = f[k], f[(k + 1) % 3], f[(k + 2) % 3]   # the long edge a -> c, b in its middle
+        other = next((i for i, g in enumerate(faces) if i != bad and any(g[j] == c and g[(j + 1) % 3] == a
+                                                                         for j in range(3))), None)
+        assert other is not None, 'a sliver with nothing across its long edge'
+        g, gu = faces[other], uvs[other]
+        j = next(j for j in range(3) if g[j] == c and g[(j + 1) % 3] == a)
+        d, ud = g[(j + 2) % 3], gu[(j + 2) % 3]
+        uc, ua = gu[j], gu[(j + 1) % 3]
+        t = np.linalg.norm(V[b] - V[c]) / np.linalg.norm(V[a] - V[c])
+        ub = [uc[0] + t * (ua[0] - uc[0]), uc[1] + t * (ua[1] - uc[1])]
+        new_f = [[c, b, d], [b, a, d]]
+        new_u = [[uc, ub, ud], [ub, ua, ud]]
+        keep = [i for i in range(len(faces)) if i not in (bad, other)]
+        cut_other = cut[other]
+        faces[:] = [faces[i] for i in keep] + new_f
+        uvs[:] = [uvs[i] for i in keep] + new_u
+        cut[:] = [cut[i] for i in keep] + [cut_other, cut_other]
+        gone += 1
+
+
+def interpolated_normal(q, P, tris, N):
+    """The normals N of the vertices P interpolated at q over the triangle q lies on (the nearest)."""
+    best = None
+    for _, a, b, c in tris:
+        pa, pb, pc = P[a], P[b], P[c]
+        n = np.cross(pb - pa, pc - pa)
+        nn = n @ n
+        if nn < 1e-12:
+            continue
+        d = abs((q - pa) @ n) / math.sqrt(nn)
+        r = q - pa
+        w1 = np.cross(r, pc - pa) @ n / nn
+        w2 = np.cross(pb - pa, r) @ n / nn
+        w = np.array((1.0 - w1 - w2, w1, w2))
+        out = -min(0.0, w.min())  # how far outside the triangle
+        score = d + out
+        if best is None or score < best[0]:
+            w = np.clip(w, 0.0, None)
+            best = (score, w / w.sum() @ N[[a, b, c]])
+    n = best[1]
+    return n / np.linalg.norm(n)
+
+
+def carve(gun, skin, sw, cuts, name):
+    """The cuts (dicts: box (x0, x1, y0, y1, z0, z1), depth, probe (a ray's origin and direction onto the painted
+    vent: the recess's walls take that texel)) taken out of the gun's mesh by Blender (blender/carve_mesh.py,
+    headless). The cut-out's own vertices keep their indices and the triangles left whole their order (the counter
+    anchors are strip-order indices of the cut-out's vertices); the recesses' faces are flat-shaded. Returns the
+    triangles cut away and added."""
+    import json
+    import subprocess
+    import tempfile
+    P = np.array(gun.frames[0][1], np.float64)
+    weld, W, wi = {}, [], []
+    for p in P:
+        k = tuple(np.round(p, 4))
+        if k not in weld:
+            weld[k] = len(W)
+            W.append(p)
+        wi.append(weld[k])
+    W = np.array(W)
+    faces = [(wi[a], wi[c], wi[b]) for _, a, b, c in gun.tris]  # Quake's clockwise to counter-clockwise
+    uvs = []
+    for tri in gun.tris:
+        u = corner_uv(gun, sw, tri)
+        uvs.append([u[0], u[2], u[1]])
+    job = {'verts': W.tolist(), 'faces': faces, 'uvs': uvs, 'cuts': []}
+    lum = mp.palette() @ np.array((0.3, 0.59, 0.11))
+    for c in cuts:
+        # The walls: the darkest texel within two of where the probe meets the painted vent.
+        u, v = (int(np.floor(x)) for x in ray_uv(W, faces, uvs, *c['probe']))
+        u, v = min(((a, b) for a in range(u - 2, u + 3) for b in range(v - 2, v + 3)),
+                   key=lambda q: (lum[skin[q[1] * sw + q[0]]], abs(q[0] - u) + abs(q[1] - v)))
+        job['cuts'].append({'box': list(c['box']), 'inner': inner_mesh(W, faces, c['depth']).tolist(),
+                            'wall_uv': [u + 0.5, v + 0.5]})
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'blender', 'carve_mesh.py')
+    with tempfile.TemporaryDirectory() as tmp:
+        src, dst = os.path.join(tmp, 'in.json'), os.path.join(tmp, 'out.json')
+        with open(src, 'w') as f:
+            json.dump(job, f)
+        r = subprocess.run([BLENDER, '-b', '--factory-startup', '--python-exit-code', '1', '-P', script, '--', src, dst],
+                           capture_output=True, text=True)
+        assert r.returncode == 0 and os.path.exists(dst), '%s: Blender failed:\n%s' % (name, (r.stdout + r.stderr)[-3000:])
+        with open(dst) as f:
+            res = json.load(f)
+        if os.environ.get('QVR_CARVE_KEEP'):  # a folder to keep Blender's input and output in (debugging)
+            import shutil
+            for a, b in ((src, 'in'), (dst, 'out')):
+                shutil.copy(a, os.path.join(os.environ['QVR_CARVE_KEEP'], '%s_%s.json' % (name, b)))
+    V = np.array(res['verts'], np.float64)
+    slivers = split_slivers(V, res['faces'], res['uvs'], res['cut'])
+
+    # The old vertices by place and skin coordinates (an on-seam one twice: its front's and its back's).
+    old = {}
+    for v, p in enumerate(P):
+        on, s, t = gun.st[v]
+        k = tuple(np.round(p, 3))
+        old.setdefault((k, s, t), []).append((v, 1 if on else None))
+        if on:
+            old.setdefault((k, s + sw // 2, t), []).append((v, 0))
+    old_tris = {tuple(t[1:]): i for i, t in enumerate(gun.tris)}
+    old_list = list(gun.tris)
+    st, pos = [list(x) for x in gun.st], [tuple(float(c) for c in p) for p in P]
+    new_key = {}
+
+    def vertex(p, s, t, tag):
+        k = (tuple(np.round(p, 4)), s, t, tag)
+        if k not in new_key:
+            new_key[k] = len(st)
+            st.append([0, s, t])
+            pos.append(tuple(float(c) for c in p))
+        return new_key[k]
+
+    kept, added, recess = {}, [], []
+    for f, uv, is_cut in zip(res['faces'], res['uvs'], res['cut']):
+        f = (f[0], f[2], f[1])  # counter-clockwise back to Quake's clockwise
+        uv = (uv[0], uv[2], uv[1])
+        sts = [(int(math.floor(u + 1e-3)), int(math.floor(v + 1e-3))) for u, v in uv]
+        if is_cut:
+            n = np.cross(V[f[1]] - V[f[0]], V[f[2]] - V[f[0]])
+            tag = tuple(np.round(n / (np.linalg.norm(n) or 1.0), 3))
+            recess.append((1,) + tuple(vertex(V[i], s, t, tag) for i, (s, t) in zip(f, sts)))
+            continue
+        # An old vertex where one is (with its skin coordinates), else a new one; the face's front flag as its
+        # on-seam corners need it.
+        cand = [old.get((tuple(np.round(V[i], 3)), s, t), []) for i, (s, t) in zip(f, sts)]
+        fronts = {c[0][1] for c in cand if c and c[0][1] is not None}
+        front = fronts.pop() if len(fronts) == 1 else 1
+        ids = []
+        for i, (s, t), c in zip(f, sts, cand):
+            m = [v for v, fl in c if fl is None or fl == front]
+            ids.append(m[0] if m else vertex(V[i], s, t, None))
+        tri = (front,) + tuple(ids)
+        if tuple(ids) in old_tris and gun.tris[old_tris[tuple(ids)]][0] == front:
+            kept[old_tris[tuple(ids)]] = tri
+        else:
+            added.append(tri)
+    cut_away = len(gun.tris) - len(kept)
+    body = [kept[i] for i in sorted(kept)] + added
+    gun.st = st
+    gun.tris = body + recess
+    # The surface shaded as before it was cut: a new vertex on it takes the old vertices' normals interpolated over
+    # the old triangle it lies on (its faces' own normals would shade wedges across the old smooth faces); the
+    # recesses flat.
+    old_n = np.array(smooth_vectors([tuple(p) for p in P], old_list))
+    nrm = [None] * len(pos)
+    for v in range(len(P)):
+        nrm[v] = nearest_anorm(tuple(old_n[v]))
+    for _, *vs in body:
+        for v in vs:
+            if nrm[v] is None:
+                nrm[v] = nearest_anorm(tuple(interpolated_normal(np.array(pos[v]), P, old_list, old_n)))
+    for _, a, b, c in recess:
+        k = nearest_anorm(norm(mul(cross(sub(pos[b], pos[a]), sub(pos[c], pos[a])), -1.0)))
+        for v in (a, b, c):
+            nrm[v] = k
+    nrm = [0 if n is None else n for n in nrm]
+    gun.frames = [[fr[0], list(pos), list(nrm)] for fr in gun.frames]
+    return cut_away, len(added) + len(recess), slivers
 
 
 def tube(p, a, b, r, material, key, sides=6):
@@ -323,39 +552,33 @@ def barrel_tip(p, face_x, yc, zc, length, r, collar, material, key, bore=0.35, d
     return np.array((root + L - depth, yc, zc))
 
 
-def front_sight(p, x, top, material, key):
+def front_sight(p, x, top, material, key, base=(0.65, 0.6, 0.35), post=(0.28, 0.14), bevel=0.15):
     """A post on a small block, its top at `top`."""
     s, _ = surface(p, x, 0.0, 40.0, (0.0, 0.0, -1.0))
     X, Y, Z = np.eye(3)
-    base_top = s[2] + 0.5
-    p.box((x, 0.0, s[2] + 0.15), X, Y, Z, (0.65, 0.6, 0.35), material, key, bevel=0.15)
-    p.box((x, 0.0, 0.5 * (base_top + top) - 0.1), X, Y, Z, (0.28, 0.14, 0.5 * (top - base_top) + 0.1), material, key)
+    base_top = s[2] - 0.2 + 2.0 * base[2]
+    p.box((x, 0.0, s[2] - 0.2 + base[2]), X, Y, Z, base, material, key, bevel=bevel)
+    p.box((x, 0.0, 0.5 * (base_top + top) - 0.1), X, Y, Z, (post[0], post[1], 0.5 * (top - base_top) + 0.1), material,
+          key)
     return top
 
 
-def rear_sight(p, x, notch, material, key, ear=0.55):
+def rear_sight(p, x, notch, material, key, ear=0.55, block=(0.4, 1.05), ears=(0.18, 0.42), gap=0.6):
     """A notch between two ears on a block across the top: the notch's bottom at `notch`."""
     s, _ = surface(p, x, 0.0, 40.0, (0.0, 0.0, -1.0))
     X, Y, Z = np.eye(3)
-    p.box((x, 0.0, 0.5 * (s[2] - 0.2 + notch)), X, Y, Z, (0.4, 1.05, 0.5 * (notch - s[2] + 0.2)), material, key,
-          bevel=0.12)
+    p.box((x, 0.0, 0.5 * (s[2] - 0.2 + notch)), X, Y, Z, (block[0], block[1], 0.5 * (notch - s[2] + 0.2)), material,
+          key, bevel=0.3 * block[0])
     for sy in (1.0, -1.0):
-        p.box((x, sy * 0.6, notch + 0.5 * ear - 0.05), X, Y, Z, (0.18, 0.42, 0.5 * ear + 0.05), material, key)
+        p.box((x, sy * gap, notch + 0.5 * ear - 0.05), X, Y, Z, (ears[0], ears[1], 0.5 * ear + 0.05), material, key)
 
 
 def details_grunt(p, spec, P, key):
-    """The grunts' burst gun: ribs over the receiver's top (between its painted dark ones), the window's frame, the
-    lamps, the muzzle cone's vents lipped and slatted, bolts on the clamp band, sights, a wire stock, a thin barrel."""
-    for x in (2.4, 4.8, 7.2, 9.6, 12.0):
-        ridge(p, x, 10.5, 0.8, 0.35, 'bronze', key)
-    # The window on the right (+y) side, framed; its two lamps as lenses.
-    framed_slot(p, 1.5, 8.3, 5.9, 10.3, 1.0, 'blued', key, width=0.4, height=0.5)
+    """The grunts' burst gun (its grooves, window and muzzle vents carved: GUNS' cuts): its lamps as lenses, sights,
+    a wire stock, a thin barrel."""
     for x, z, mat in ((9.8, 8.9, 'red'), (11.8, 9.0, 'bronze')):
         q, n = surface(p, x, 20.0, z, (0.0, -1.0, 0.0))
         p.box(q, (1.0, 0.0, 0.0), (0.0, 0.0, 1.0), n, (0.5, 0.55, 0.3), mat, key)
-    # The vents painted on both sides of the muzzle cone.
-    for side in (1.0, -1.0):
-        framed_slot(p, 24.8, 28.4, 7.0, 9.7, side, 'bronze', key, width=0.35, height=0.5, slats=(8.35,), ends=False)
     # Sights: a notch at the receiver's back, a post ahead of the clamp band (level with the notch's bottom).
     rear_sight(p, -3.5, 14.35, 'blued', key)
     front_sight(p, 22.4, 14.45, 'blued', key)
@@ -372,17 +595,13 @@ def details_grunt(p, spec, P, key):
 
 
 def details_enforcer(p, spec, P, key):
-    """The enforcers' rifle: fins between the housing's painted vents and a spine over them, raised rings between the
-    muzzle cone's painted grooves, sights, a thin barrel."""
-    for x in (9.35, 11.95, 14.55, 17.15):
-        ridge(p, x, 6.6, 0.9, 0.35, 'bronze', key)
-    X, Y, Z = np.eye(3)
-    s0, _ = surface(p, 12.0, 0.0, 40.0, (0.0, 0.0, -1.0))
-    p.box((13.25, 0.0, s0[2] + 0.1), X, Y, Z, (4.6, 0.55, 0.3), 'bronze', key)
-    for x in (31.15, 32.9):
-        ridge(p, x, None, 0.75, 0.22, 'brown', key)
-    rear_sight(p, 5.4, 14.05, 'blued', key)
-    front_sight(p, 20.6, 14.15, 'blued', key)
+    """The enforcers' rifle (its vents and the muzzle cone's grooves carved: GUNS' cuts): small, low sights (NOTES.md
+    vrfiringrange_2026-10-01_02-39: a notch just over the housing's peak, a thin post between the vents level with the
+    notch's bottom, the line along the barrel), a thin barrel."""
+    s, _ = surface(p, ENF_REAR_SIGHT_X, 0.0, 40.0, (0.0, 0.0, -1.0))
+    notch = s[2] + 0.2
+    rear_sight(p, ENF_REAR_SIGHT_X, notch, 'blued', key, ear=0.3, block=(0.2, 0.55), ears=(0.09, 0.14), gap=0.38)
+    front_sight(p, ENF_FRONT_SIGHT_X, notch, 'blued', key, base=(0.26, 0.24, 0.12), post=(0.13, 0.07), bevel=0.06)
     return barrel_tip(p, *spec['muzzle_face'], length=4.6, r=0.85, collar=1.25, material='blued', key=key)
 
 
@@ -431,6 +650,86 @@ def parts(path, spec, fore):
     return tris, verts, rows, texels, muzzle
 
 
+def pin_anchors(path, text_index, text_vertex, muzzle_index, muzzle):
+    """Keeps the weapon settings' anchors (strip-order indices: configs keep them, so a changed index would leave a
+    config's counter and muzzle elsewhere): orders the file's triangles so that strip-order index `text_index` is
+    the cut-out's vertex `text_vertex` (where the counter was) and `muzzle_index` a vertex at the bore's bottom centre.
+    The strip builder (improve_weapons.strip_order, vr_anchor.cpp's) joins triangles only through shared vertices,
+    so a run of one piece's triangles gives the same strips wherever it stands: pieces filling the strip order up to
+    the counter's index (a subset sum), the body (its triangles rotated to start at one with the counter's vertex),
+    more pieces up to the muzzle index, the barrel, then the rest. Returns the pieces moved."""
+    m = mp.Model(path)
+    T = list(m.tris)
+    Q = m.positions(0)
+    root = list(range(len(m.st)))
+
+    def find(v):
+        while root[v] != v:
+            root[v] = root[root[v]]
+            v = root[v]
+        return v
+
+    for _, a, b, c in T:
+        for x in (b, c):
+            ra, rx = find(a), find(x)
+            if ra != rx:
+                root[rx] = ra
+    pieces = {}
+    for i, t in enumerate(T):
+        pieces.setdefault(find(t[1]), []).append(i)
+    pieces = list(pieces.values())
+    bore = {v for v in range(len(Q)) if np.linalg.norm(Q[v] - muzzle) < 0.15}
+    body = next(pc for pc in pieces if any(text_vertex in T[i][1:] for i in pc))
+    barrel = next(pc for pc in pieces if any(set(T[i][1:]) & bore for i in pc))
+    assert body is not barrel
+    pool = [pc for pc in pieces if pc is not body and pc is not barrel]
+    sizes = [len(strip_order([T[i] for i in pc])) for pc in pool]
+    ob = strip_order([T[i] for i in barrel])
+
+    def subset(target, avoid=()):
+        reach = {0: []}  # strip entries -> the pool pieces giving them
+        for k, n in enumerate(sizes):
+            if k in avoid:
+                continue
+            for total, used in list(reach.items()):
+                if total + n <= target and total + n not in reach:
+                    reach[total + n] = used + [k]
+        return reach.get(target)
+
+    # The counter: the body's triangles rotated to start at one with its vertex (in the first strip's first corners),
+    # after pool pieces filling the strip order up to there; the muzzle: more pool pieces, then the barrel.
+    for s0 in [k for k, i in enumerate(body) if text_vertex in T[i][1:]]:
+        lead = body[s0:] + body[:s0]
+        o = strip_order([T[i] for i in lead])
+        for k in [k for k, v in enumerate(o) if v == text_vertex and k <= text_index]:
+            before = subset(text_index - k)
+            if before is None:
+                continue
+            start = text_index - k + len(o)
+            for kb in [kb for kb, v in enumerate(ob) if v in bore]:
+                if muzzle_index - kb - start < 0:
+                    continue
+                middle = subset(muzzle_index - kb - start, set(before))
+                if middle is not None:
+                    break
+            else:
+                continue
+            break
+        else:
+            continue
+        break
+    else:
+        raise AssertionError('%s: no order of the pieces keeps the anchors %d and %d' % (path, text_index, muzzle_index))
+    chosen = set(before) | set(middle)
+    order = ([i for k in before for i in pool[k]] + lead + [i for k in middle for i in pool[k]] + barrel
+             + [i for k, pc in enumerate(pool) if k not in chosen for i in pc])
+    m.tris = [T[i] for i in order]
+    full = strip_order(m.tris)
+    assert full[text_index] == text_vertex and full[muzzle_index] in bore
+    m.write(path)
+    return len(chosen)
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     progs = os.path.join(here, '..', '..', 'quakevr', 'progs')
@@ -439,6 +738,7 @@ def main():
     guard = genguard.Guard('make_enemyguns.py', paths)
     for name, spec in GUNS.items():
         gun, m, dropped, sealer, scale, fore = extract(progs, spec)
+        cut_away, carved, slivers = carve(gun, m.skin, m.sw, spec['cuts'], name)
         P = gun.frames[0][1]
         # Room for the parts: the grip and its butt under the gun, bands and bolt heads round it.
         lo = [min(p[k] for p in P) - MARGIN for k in range(3)]
@@ -455,21 +755,36 @@ def main():
         hi[2] = max(hi[2], spec['sight_top'] + 0.3)
         if spec['stock_x'] is not None:
             lo[0] = min(lo[0], spec['stock_x'] - 1.3)
+        # The bounds' corner (scale_origin, about which the weapon Scale pivots) kept where the weapon settings have it.
+        assert all(lo[k] >= spec['origin'][k] - 1e-3 for k in range(3)), '%s: the gun leaves its bounds %s' % (name, lo)
+        lo = list(spec['origin'])
+        if spec.get('symmetric'):  # y = 0 a step of the byte grid (127): its mirror image is on the grid too
+            assert max(abs(p[1]) for p in P) < -lo[1]
+            hi[1] = lo[1] - 255.0 * lo[1] / 127.0
         path = os.path.join(out_dir, name)
         write_mdl(path, gun, m.skin, m.sw, m.sh, lo, hi)
         tris, verts, rows, texels, muzzle = parts(path, spec, fore)
-        # The muzzle anchor (MuzzleAnchorVertex): the strip-order index of a vertex at the bore's bottom centre.
+        # The anchors kept at their indices (WpnTextAnchorVertex, MuzzleAnchorVertex: a vertex at the bore's bottom
+        # centre).
+        moved = pin_anchors(path, *spec['anchors'], muzzle)
         done = mp.Model(path)
         Q = done.positions(0)
         order = strip_order(done.tris)
-        near = min(range(len(order)), key=lambda i: float(np.linalg.norm(Q[order[i]] - muzzle)))
-        print('%s: %d triangles, %d vertices; scale_origin %s; muzzle anchor %d at %s (the bore: %s)' % (
-            name, len(done.tris), len(done.st), np.round(done.origin, 4).tolist(), near,
-            np.round(Q[order[near]], 2).tolist(), np.round(muzzle, 2).tolist()))
+        print('%s: %d triangles, %d vertices; scale_origin %s; muzzle anchor %d at %s (the bore: %s); counter anchor '
+              '%d at %s (%d pieces moved ahead of the barrel)' % (
+                  name, len(done.tris), len(done.st), np.round(done.origin, 4).tolist(), spec['anchors'][2],
+                  np.round(Q[order[spec['anchors'][2]]], 2).tolist(), np.round(muzzle, 2).tolist(), spec['anchors'][0],
+                  np.round(Q[order[spec['anchors'][0]]], 2).tolist(), moved))
         print('%s: %d vertices, %d triangles (%d degenerate dropped), scale %.3f of the %s\'s; sealer: %s' % (
             name, len(gun.st), len(gun.tris), dropped, scale, spec['src'], '; '.join(sealer.log) or 'nothing to do'))
-        print('  parts: +%d triangles, +%d vertices, %d skin rows, %d texels worn; the foregrip %.1f ahead' % (
-            tris, verts, rows, texels, fore))
+        print('  carved: %d triangles cut away, %d added (%d cuts, %d slivers split away); parts: +%d triangles, +%d vertices, %d skin rows, '
+              '%d texels worn; the foregrip %.1f ahead' % (cut_away, carved, len(spec['cuts']), slivers, tris, verts, rows, texels,
+                                                           fore))
+        if spec.get('symmetric'):
+            M = Q * (1.0, -1.0, 1.0)
+            err = max(float(np.min(np.linalg.norm(Q - q, axis=1))) for q in M)
+            print('  mirror error (every vertex to the nearest to its mirror image): %.6f (the cut-out had %.3f)' % (
+                err, spec['mirror_error']))
     guard.finish()
 
 
