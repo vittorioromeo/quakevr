@@ -96,7 +96,8 @@ ThreadPool::ThreadPool(const SizeT workerCount)
     m_impl->workers.reserve(workerCount);
 
     for (SizeT i = 0u; i < workerCount; ++i)
-        m_impl->workers.emplaceBack([&queue = m_impl->queue]
+        // `noexcept`: a task that throws terminates the program (see the class documentation)
+        m_impl->workers.emplaceBack([&queue = m_impl->queue]() noexcept
         {
             moodycamel::ConsumerToken token{queue};
 
@@ -186,7 +187,7 @@ void ThreadPool::postCopies(const Task& task, const SizeT count)
 
 
 ////////////////////////////////////////////////////////////
-bool ThreadPool::tryRunPendingTask()
+bool ThreadPool::tryRunPendingTask() noexcept
 {
     Task task;
 

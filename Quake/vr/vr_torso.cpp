@@ -29,7 +29,8 @@ namespace qvr::torso
 namespace
 {
 
-// The turn from `from` to `to`, -180 to 180 (IEEE remainder: za::remainder truncates, as fmod).
+// The turn from `from` to `to`, -180 to 180 (the quotient rounded half away from zero: as za::remainder but at odd
+// multiples of 180, which za::remainder rounds to even; kept as written).
 [[nodiscard]] float wrapYaw(float a)
 {
     return a - za::round(a / 360.f) * 360.f;

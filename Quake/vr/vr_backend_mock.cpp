@@ -17,6 +17,7 @@
 #include "vr_view.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -263,11 +264,11 @@ void mockPlay_f()
         playEnd = za::max(playEnd, t);
     }
     fclose(file);
-    za::insertionSort(playButtons.begin(), playButtons.end(),
+    za::stableSort(playButtons.begin(), playButtons.end(),
         [](const PlayButton& l, const PlayButton& r) { return l.t < r.t; });
     for(auto& keys : playKeys)
     {
-        za::insertionSort(keys.begin(), keys.end(), [](const PlayKey& l, const PlayKey& r) { return l.t < r.t; });
+        za::stableSort(keys.begin(), keys.end(), [](const PlayKey& l, const PlayKey& r) { return l.t < r.t; });
     }
     playStart = realtime;
 }

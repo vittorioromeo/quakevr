@@ -22,6 +22,7 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -214,7 +215,7 @@ void update(const FrameState& frame, const hands::State& s)
 
     // Afresh after a pause (a load, another view), or a jump of the tracking no head makes in a frame (a recentre).
     const double dt = realtime - filter.time;
-    const bool jumped = filter.valid && (qza::abs(glm::dot(head, filter.head)) < za::cos(glm::radians(15.f)) ||
+    const bool jumped = filter.valid && (za::abs(glm::dot(head, filter.head)) < za::cos(glm::radians(15.f)) ||
                                             glm::distance(position, filter.position) > 0.3f);
     if(!filter.valid || dt <= 0.0 || dt > 0.25 || jumped)
     {

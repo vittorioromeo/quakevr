@@ -199,10 +199,10 @@ constexpr const char* melee[] = {
             continue;
         }
         const glm::vec3 p0 = vertex(vi[0]), p1 = vertex(vi[1]), p2 = vertex(vi[2]);
-        const int x0 = za::max(0, static_cast<int>(za::floor(qza::minOf(uv[0].x, uv[1].x, uv[2].x))) - 1);
-        const int x1 = za::min(sw - 1, static_cast<int>(za::ceil(qza::maxOf(uv[0].x, uv[1].x, uv[2].x))) + 1);
-        const int y0 = za::max(0, static_cast<int>(za::floor(qza::minOf(uv[0].y, uv[1].y, uv[2].y))) - 1);
-        const int y1 = za::min(sh - 1, static_cast<int>(za::ceil(qza::maxOf(uv[0].y, uv[1].y, uv[2].y))) + 1);
+        const int x0 = za::max(0, static_cast<int>(za::floor(za::min(uv[0].x, uv[1].x, uv[2].x))) - 1);
+        const int x1 = za::min(sw - 1, static_cast<int>(za::ceil(za::max(uv[0].x, uv[1].x, uv[2].x))) + 1);
+        const int y0 = za::max(0, static_cast<int>(za::floor(za::min(uv[0].y, uv[1].y, uv[2].y))) - 1);
+        const int y1 = za::min(sh - 1, static_cast<int>(za::ceil(za::max(uv[0].y, uv[1].y, uv[2].y))) + 1);
         for(int ty = y0; ty <= y1; ty++)
         {
             for(int tx = x0; tx <= x1; tx++)

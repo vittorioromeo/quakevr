@@ -82,6 +82,7 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -92,6 +93,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
 
@@ -475,7 +477,7 @@ struct World
     float friction{-1.f}, restitution{-1.f};
     b3MeshData* mesh{nullptr}; // (meshCache's)
     b3ShapeId worldShape{b3_nullShapeId};
-    za::Vector<qza::Pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
+    za::Vector<za::Pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
     za::Vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
     za::Vector<Pushed> pushed; // the props near the hands' bodies before this step (kept: no allocation a frame)
     za::Vector<Slot> slots; // by edict number
@@ -569,7 +571,7 @@ struct World
     [[nodiscard]] glm::vec3 toU(const b3Vec3& m) const { return glm::vec3{m.x, m.y, m.z} * m2u; }
 };
 
-za::UniquePtr<World> world{nullptr};
+za::UniquePtr<World> world;
 
 void runStepTask(void* p)
 {
@@ -740,7 +742,7 @@ struct MeshStats
         const auto part = [](int v) { return static_cast<uint64_t>(static_cast<uint32_t>(v) & 0x1fffffu); };
         return (part(c.x) << 42) | (part(c.y) << 21) | part(c.z);
     };
-    za::Vector<qza::Pair<uint64_t, int>> grid;
+    za::Vector<za::Pair<uint64_t, int>> grid;
     for(int v = 0; v < map->numvertexes; v++)
     {
         if(used[static_cast<size_t>(v)])
@@ -781,7 +783,7 @@ struct MeshStats
 
     za::Vector<int> outline;
     za::Vector<uint8_t> corner; // per outline entry: one of the face's own corners (else a T-junction put in)
-    za::Vector<qza::Pair<float, int>> between;
+    za::Vector<za::Pair<float, int>> between;
     for(const Face& f : faces)
     {
         outline.clear();
@@ -823,7 +825,7 @@ struct MeshStats
                         for(int dx = -1; dx <= 1; dx++)
                         {
                             const uint64_t key = keyOf(c + glm::ivec3{dx, dy, dz});
-                            for(auto it = za::lowerBound(grid.begin(), grid.end(), qza::makePair(key, INT32_MIN));
+                            for(auto it = za::lowerBound(grid.begin(), grid.end(), za::makePair(key, INT32_MIN));
                                 it != grid.end() && it->first == key; ++it)
                             {
                                 const int v = it->second;
@@ -1078,7 +1080,7 @@ struct HalfSpace
             for(size_t k = j + 1; k < count; k++)
             {
                 const double det = glm::dot(ij, planes[k].n);
-                if(qza::abs(det) < 1e-9)
+                if(za::abs(det) < 1e-9)
                 {
                     continue;
                 }
@@ -2868,7 +2870,7 @@ void eigenSymmetric(const glm::mat3& m, glm::vec3& values, glm::mat3& vectors)
                     continue;
                 }
                 const float theta = (a[q][q] - a[p][p]) / (2.f * a[p][q]);
-                const float t = (theta >= 0.f ? 1.f : -1.f) / (qza::abs(theta) + za::sqrt(theta * theta + 1.f));
+                const float t = (theta >= 0.f ? 1.f : -1.f) / (za::abs(theta) + za::sqrt(theta * theta + 1.f));
                 const float c = 1.f / za::sqrt(t * t + 1.f), sn = t * c;
                 for(int k = 0; k < 3; k++) // a J: its columns p and q
                 {
@@ -2954,7 +2956,7 @@ void spinAlign(edict_t* ent, Slot& s, float dt, bool end)
     if(debug)
     {
         const float t = static_cast<float>(qcvm->time - s.born);
-        const float off = rate > 1e-4f ? glm::degrees(za::acos(za::clamp(qza::abs(c.z) / rate, 0.f, 1.f))) : 0.f;
+        const float off = rate > 1e-4f ? glm::degrees(za::acos(za::clamp(za::abs(c.z) / rate, 0.f, 1.f))) : 0.f;
         if(end)
         {
             // (Its spin now is the touch's: the flight's last step's.)
@@ -3104,7 +3106,7 @@ void beforeStep(float dt)
             int axis = 0;
             for(int i = 1; i < 3; i++)
             {
-                if(qza::abs(axes[i].z) > qza::abs(axes[axis].z))
+                if(za::abs(axes[i].z) > za::abs(axes[axis].z))
                 {
                     axis = i;
                 }
@@ -3336,7 +3338,7 @@ void soundHits(const b3ContactEvents& events)
 // The step's touches, as the old solver's: a prop meeting another entity's body (a monster, a door) touches it
 // (QC's damage, sounds); props hitting each other hard touch each other (a thrown box into a pile: its knock, the
 // throw over). Landing on the world touches nothing (as before).
-void touches(za::Vector<qza::Pair<int, int>>& out)
+void touches(za::Vector<za::Pair<int, int>>& out)
 {
     const b3ContactEvents events = b3World_GetContactEvents(world->id);
     const auto kindAt = [](int n) { return n > 0 && n < static_cast<int>(world->slots.size()) ? world->slots[n].kind : Kind::None; };
@@ -5756,7 +5758,7 @@ void inLevel_f()
         }
         const glm::quat rot = turnOf(e->v.angles, s.brush);
         const glm::vec3 at = vec(e->v.origin);
-        const float most = 0.5f * qza::minOf(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z);
+        const float most = 0.5f * za::min(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z);
         float depth = 0.f;
         for(float in = 0.5f; in < most; in += 0.5f)
         {
@@ -6182,7 +6184,7 @@ void addNormal(Shape& p, glm::dvec3 n)
     n /= length;
     for(int k = 0; k < 3; k++)
     {
-        n[k] = qza::abs(n[k]) < 1e-7 ? 0.0 : n[k]; // (a wall's normal is flat: Quake's step up needs normal z 0)
+        n[k] = za::abs(n[k]) < 1e-7 ? 0.0 : n[k]; // (a wall's normal is flat: Quake's step up needs normal z 0)
     }
     n = glm::normalize(n);
     p.normals[static_cast<size_t>(p.count++)] = n;
@@ -6208,7 +6210,7 @@ void addNormal(Shape& p, glm::dvec3 n)
     for(int k = 0; k < 3; k++)
     {
         p.axes[static_cast<size_t>(k)] = glm::normalize(glm::dvec3{axes[k]});
-        if(qza::abs(axes[k].z) > qza::abs(axes[up].z))
+        if(za::abs(axes[k].z) > za::abs(axes[up].z))
         {
             up = k;
         }
@@ -6252,7 +6254,7 @@ void addNormal(Shape& p, glm::dvec3 n)
     double box = glm::dot(n, p.centre);
     for(int k = 0; k < 3; k++)
     {
-        box += p.half[k] * qza::abs(glm::dot(n, p.axes[static_cast<size_t>(k)]));
+        box += p.half[k] * za::abs(glm::dot(n, p.axes[static_cast<size_t>(k)]));
     }
     double ring = -1e300;
     for(const glm::dvec2& v : p.ring)
@@ -6268,7 +6270,7 @@ void addNormal(Shape& p, glm::dvec3 n)
     double h = glm::dot(n, p.centre);
     for(int k = 0; k < 3; k++)
     {
-        h += p.half[k] * qza::abs(glm::dot(n, p.axes[static_cast<size_t>(k)])) + p.ext[k] * qza::abs(n[k]);
+        h += p.half[k] * za::abs(glm::dot(n, p.axes[static_cast<size_t>(k)])) + p.ext[k] * za::abs(n[k]);
     }
     return h;
 }
@@ -6347,7 +6349,7 @@ template <typename Shape>
         for(int i = 0; i < 3; i++)
         {
             const double t = glm::dot(d, p.axes[static_cast<size_t>(i)]);
-            out[i] = za::max(qza::abs(t) - p.half[i], 0.0);
+            out[i] = za::max(za::abs(t) - p.half[i], 0.0);
         }
         best = za::min(best, glm::length(out));
     }
@@ -7103,7 +7105,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     const double t1 = Sys_DoubleTime();
 
     // Box3D's step, in pieces of at most 1/45 s (a slow server frame).
-    za::Vector<qza::Pair<int, int>>& impacts = world->impacts;
+    za::Vector<za::Pair<int, int>>& impacts = world->impacts;
     impacts.clear();
     world->shocks.clear();
     // (At most three: after a hitch (a level's load, a saved game, a slow frame; Quake's frame time is at most a tenth of

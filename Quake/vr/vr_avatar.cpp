@@ -14,6 +14,7 @@
 
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -22,6 +23,7 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
@@ -117,7 +119,7 @@ constexpr glm::vec3 BACK{-1.f, 0.f, 0.f};
     glm::vec3 z = hint - x * glm::dot(hint, x);
     if(glm::length(z) < 1e-5f)
     {
-        z = glm::cross(x, qza::abs(x.z) < 0.9f ? UP : FWD);
+        z = glm::cross(x, za::abs(x.z) < 0.9f ? UP : FWD);
     }
     z = glm::normalize(z);
     return glm::mat3(x, glm::cross(z, x), z);
@@ -275,7 +277,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
         // Only as sure as it is a lean (vr_lean_detect): the body lagging the head as the player walks in the room
         // stays upright, the hips with the head, the feet catching up.
         const float sure = vr_lean_detect.value > 0.f ? s.leanHold : 1.f;
-        tiltReach = sure * qza::minOf(leanLen * 0.8f, allowed, 0.7f * torsoLen);
+        tiltReach = sure * za::min(leanLen * 0.8f, allowed, 0.7f * torsoLen);
     }
     const float tiltDrop = torsoLen - za::sqrt(torsoLen * torsoLen - tiltReach * tiltReach);
     const glm::vec3 top0 = top + UP * tiltDrop; // the neck as it would be without the tilt
@@ -345,7 +347,7 @@ void solveTorso(const hands::State& s, Body& b, float scale = 0.f)
     const glm::vec3 toTarget = target - root;
     const float d = glm::length(toTarget);
     const glm::vec3 dir = d > 1e-4f ? toTarget / d : -UP;
-    const float reach = CLAMP(qza::abs(a - b) + 1e-3f, d, a + b - 1e-4f);
+    const float reach = CLAMP(za::abs(a - b) + 1e-3f, d, a + b - 1e-4f);
 
     const float cosA = CLAMP(-1.f, (a * a + reach * reach - b * b) / (2.f * a * reach), 1.f);
     const float sinA = za::sqrt(za::max(0.f, 1.f - cosA * cosA));
@@ -409,7 +411,7 @@ ArmCostTrace costTrace;
     const float bend = za::sqrt(glm::pow(t.flexion / glm::radians(flexRange * limits), 2.f) +
                                  glm::pow(t.deviation / glm::radians(devRange * limits), 2.f));
     const float bendStrain = za::max(0.f, bend - 1.15f) / 0.3f;
-    const float twistStrain = za::max(0.f, qza::abs(t.twist) - glm::radians(60.f * limits)) / glm::radians(25.f);
+    const float twistStrain = za::max(0.f, za::abs(t.twist) - glm::radians(60.f * limits)) / glm::radians(25.f);
     return bendStrain * bendStrain + twistStrain * twistStrain;
 }
 
@@ -470,7 +472,7 @@ ArmCostTrace costTrace;
             for(int i = -reach; i <= reach; i++)
             {
                 const float swivel = at + step * static_cast<float>(i);
-                if(i == 0 || qza::abs(swivel) > most)
+                if(i == 0 || za::abs(swivel) > most)
                 {
                     continue;
                 }
@@ -769,7 +771,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         const double now = realtime;
         const double since = lastOutTime[side] >= 0.0 ? CLAMP(0.0, now - lastOutTime[side], 0.1) : -1.0;
         const float out = since < 0.0 ? want : glm::mix(lastOut[side], want, 1.f - za::exp(-static_cast<float>(since) / 0.05f));
-        lastOut[side] = qza::abs(out) < 1e-4f ? 0.f : out;
+        lastOut[side] = za::abs(out) < 1e-4f ? 0.f : out;
         lastOutTime[side] = now;
         if(lastOut[side] != 0.f)
         {
@@ -803,7 +805,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // held upside down would otherwise flip the forearm's twist from one side to the other as it shakes.
     float(&lastTwist)[2] = armEase.twist;
     twist -= glm::two_pi<float>() * za::round((twist - lastTwist[side]) / glm::two_pi<float>());
-    if(qza::abs(twist) > glm::radians(225.f))
+    if(za::abs(twist) > glm::radians(225.f))
     {
         twist -= glm::two_pi<float>() * za::round(twist / glm::two_pi<float>());
     }
@@ -832,7 +834,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // The wrist joint: all of the roll and half of the bend (the bisector of the forearm and the hand), stretched
     // across the bend by 1 / cos(half the bend), as a mitre joint's section is, so that the bent wrist keeps the
     // thickness of the arm on both sides of it.
-    const float bendAngle = 2.f * za::acos(CLAMP(-1.f, qza::abs(wristSwing.w), 1.f));
+    const float bendAngle = 2.f * za::acos(CLAMP(-1.f, za::abs(wristSwing.w), 1.f));
     const glm::quat halfWristSwing =
         glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, wristSwing.w < 0.f ? -wristSwing : wristSwing, 0.5f);
     Bone& w = b.bones[foreHelpers(side) + twistJoints];
@@ -1007,7 +1009,7 @@ void updateGait(const Body& b, float dt)
     {
         gait.dir = glm::normalize(vel);
         const float run = za::min(1.f, speed / RUN_SPEED);
-        const float sideways = qza::abs(glm::dot(gait.dir, b.left));
+        const float sideways = za::abs(glm::dot(gait.dir, b.left));
         const float backwards = za::max(0.f, -glm::dot(gait.dir, b.fwd));
         // Wading: shorter, higher steps, fewer of them.
         const float wade = water.wade * CLAMP(0.f, vr_body_wade.value, 2.f);
@@ -1059,7 +1061,7 @@ constexpr float STEP_DISTANCE = 0.25f; // metres the body may move from the feet
 // Degrees from `from` to `to`, -180 .. 180.
 [[nodiscard]] float yawDelta(float to, float from)
 {
-    return qza::remainder(to - from, 360.f);
+    return za::remainder(to - from, 360.f);
 }
 
 [[nodiscard]] glm::vec3 yawForward(float yaw)
@@ -1083,7 +1085,7 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
     const float bodyYaw = glm::degrees(za::atan2(b.fwd.y, b.fwd.x));
     if(dt > 0.f)
     {
-        const float change = qza::abs(yawDelta(bodyYaw, stance.lastYaw));
+        const float change = za::abs(yawDelta(bodyYaw, stance.lastYaw));
         const float rate = change < 20.f ? change / dt : 0.f;
         stance.yawRate += (rate - stance.yawRate) * (1.f - za::exp(-8.f * dt));
     }
@@ -1144,7 +1146,7 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
     for(Foot& f : stance.feet)
     {
         const float lag = yawDelta(bodyYaw, f.yaw);
-        if(f.step < 0.f && qza::abs(lag) > maxLag)
+        if(f.step < 0.f && za::abs(lag) > maxLag)
         {
             f.yaw = bodyYaw - za::copysign(maxLag, lag);
         }
@@ -1187,12 +1189,12 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
         // Squaring up after the other foot's step, if there is anything to square.
         const int side = stance.follow;
         stance.follow = -1;
-        if(qza::abs(turned[side]) > 5.f || moved[side] > 0.04f)
+        if(za::abs(turned[side]) > 5.f || moved[side] > 0.04f)
         {
             stepping = side;
         }
     }
-    else if(za::max(qza::abs(turned[0]), qza::abs(turned[1])) > turnLimit)
+    else if(za::max(za::abs(turned[0]), za::abs(turned[1])) > turnLimit)
     {
         stepping = turned[0] + turned[1] > 0.f ? 0 : 1; // turned left: the left foot leads
     }

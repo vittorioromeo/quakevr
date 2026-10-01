@@ -12,14 +12,16 @@ VR_CXXFLAGS = $(filter-out -std=%,$(CFLAGS)) -std=c++23 -fno-exceptions -DZA_STA
 
 # Zancle (vr/external/zancle/README.md), the modules the Quake VR code uses: C++23, optimised and without Zancle's
 # asserts (NDEBUG); with DEBUG=1 and QVR_ZANCLE_DEBUG=1 (the default while the migration settles; 0 to switch it off)
-# built as the engine's debug build with its asserts on (their handler: vr_zancle.cpp).
+# built as the engine's debug build with its asserts on (their handler: vr_zancle.cpp; QVR_ZANCLE_DEBUG tells that file
+# the library has its own assert function).
 QVR_ZANCLE_DEBUG ?= 1
 ZANCLE_DIR = vr/external/zancle
 ZANCLEOBJS := $(patsubst %.cpp,%.o,$(wildcard $(ZANCLE_DIR)/src/Zancle/*/*.cpp))
 OBJS += $(ZANCLEOBJS)
 OBJDEPS += $(ZANCLEOBJS:%.o=%.d)
 ifeq ($(DEBUG)$(QVR_ZANCLE_DEBUG),11)
-ZANCLE_CXXFLAGS = $(filter-out -std=%,$(CFLAGS)) -std=c++23 -fno-exceptions -DQVR_ZANCLE_DEBUG -DZA_STATIC -I$(ZANCLE_DIR)/include \
+VR_CXXFLAGS += -DQVR_ZANCLE_DEBUG
+ZANCLE_CXXFLAGS = $(filter-out -std=%,$(CFLAGS)) -std=c++23 -fno-exceptions -DZA_STATIC -I$(ZANCLE_DIR)/include \
 	-I$(ZANCLE_DIR)/src -I$(ZANCLE_DIR)/extlibs/moodycamel
 else
 ZANCLE_CXXFLAGS = $(filter-out -std=% -O%,$(CFLAGS)) -std=c++23 -fno-exceptions -O2 -DNDEBUG -DZA_STATIC -I$(ZANCLE_DIR)/include \

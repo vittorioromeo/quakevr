@@ -21,6 +21,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/UIntPtrT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -51,9 +52,6 @@ namespace
 constexpr double hitchMs = 250.0;
 // GPU frames in flight before a slot is read waiting.
 constexpr int gpuSlots = 6;
-
-// The clock in nanoseconds (scopes of well under a microsecond, za::Clock's unit: qza::nowNs, vr_zancle.hpp).
-using qza::nowNs;
 
 struct Node
 {
@@ -225,7 +223,7 @@ void beginPhase(const char* name, bool gpu)
     PhaseOpen o{phaseOf(name), 0, -1};
     if(o.phase >= 0)
     {
-        o.start = nowNs();
+        o.start = za::Clock::nowNanoseconds();
         PhaseGpuSlot& s = phaseSlots[phaseSlot];
         if(gpu && phaseInfo[o.phase].gpu && phaseGpuMade && s.used + 2 <= phaseGpuQueries)
         {
@@ -249,7 +247,7 @@ void endPhase()
     {
         return;
     }
-    phaseFrameNs[o.phase] += nowNs() - o.start;
+    phaseFrameNs[o.phase] += za::Clock::nowNanoseconds() - o.start;
     PhaseGpuSlot& s = phaseSlots[phaseSlot];
     // A begin keeps room for its own end only: scopes nested inside it can fill the slot first (its
     // record is then left without an end, and not read back).
@@ -336,7 +334,7 @@ void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
         s.sample = at;
         s.serial = frameSerial;
     }
-    za::fill(phaseFrameNs, phaseFrameNs + za::getArraySize(phaseFrameNs), za::I64{0});
+    za::fill(phaseFrameNs, za::I64{0});
     s.pending = keep && s.recCount > 0;
 
     if(!phaseGpuMade && GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc &&
@@ -877,7 +875,7 @@ void startCapture(za::I64 now)
 
 void dump_f()
 {
-    report(nowNs(), true);
+    report(za::Clock::nowNanoseconds(), true);
 }
 
 } // namespace
@@ -922,7 +920,7 @@ bool frameSample(int back, FrameSample& out)
 
 double nowSeconds()
 {
-    return static_cast<double>(nowNs()) / 1e9;
+    return static_cast<double>(za::Clock::nowNanoseconds()) / 1e9;
 }
 
 void begin(const char* name, bool gpu)
@@ -933,7 +931,7 @@ void begin(const char* name, bool gpu)
         return;
     }
     const int parent = stack.empty() ? 0 : stack.back().node;
-    Open o{child(parent, name), nowNs(), -1};
+    Open o{child(parent, name), za::Clock::nowNanoseconds(), -1};
     if(gpu && gpuOk)
     {
         GpuSlot& s = slots[slotIndex];
@@ -966,7 +964,7 @@ void endScope()
     const Open o = stack.back();
     stack.popBack();
     Node& n = nodes[o.node];
-    const za::I64 ns = nowNs() - o.start;
+    const za::I64 ns = za::Clock::nowNanoseconds() - o.start;
     n.frameNs += ns;
     ++n.frameCalls;
     // Its own time to its system; its parent's (whose time holds it) less.
@@ -1030,7 +1028,7 @@ extern "C" void VR_ProfileFrame()
     {
         return;
     }
-    const za::I64 now = nowNs();
+    const za::I64 now = za::Clock::nowNanoseconds();
     endPhaseFrame(now, frameStart, frameEnded ? frameEnd : now);
     const vr_profcounts_t counts = vr_profcounts; // the frame's (counted whatever vr_profile is)
     vr_profcounts = vr_profcounts_t{};
@@ -1142,7 +1140,7 @@ extern "C" void VR_ProfileFrame()
             gpuEvery >= 1 && gpuFrameCount++ % static_cast<unsigned>(gpuEvery) == 0;
     if(active)
     {
-        systems::profilerTime(nowNs() - now); // this frame's share of the profiler's own work (its files, its panel)
+        systems::profilerTime(za::Clock::nowNanoseconds() - now); // this frame's share of the profiler's own work (its files, its panel)
     }
     frameStart = now;
     frameEnded = false;
@@ -1152,7 +1150,7 @@ extern "C" void VR_ProfileFrameEnd()
 {
     if(!profile::frameEnded)
     {
-        profile::frameEnd = profile::nowNs();
+        profile::frameEnd = za::Clock::nowNanoseconds();
         profile::frameEnded = true;
     }
 }

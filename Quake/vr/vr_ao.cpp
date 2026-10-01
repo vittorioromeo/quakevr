@@ -16,12 +16,14 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Copysign.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -284,14 +286,14 @@ void aliasMatrix(const entity_t* e, const aliashdr_t* hdr, float m[16])
 
 void addEllipsoid(Occluder o, float strength, float reach, float group)
 {
-    if(qza::maxOf(o.size.x, o.size.y, o.size.z) < 1.5f)
+    if(za::max(o.size.x, o.size.y, o.size.z) < 1.5f)
     {
         return;
     }
     o.box = false;
     o.strength = strength;
     o.reach = reach;
-    o.influence = qza::maxOf(o.size.x, o.size.y, o.size.z) * reach;
+    o.influence = za::max(o.size.x, o.size.y, o.size.z) * reach;
     o.group = group;
     candidates.pushBack(o);
 }
@@ -308,7 +310,7 @@ void addLimb(const glm::vec3& a, const glm::vec3& b, float radius, float extra, 
     Occluder o;
     o.centre = (a + b) * 0.5f;
     o.axes[0] = d / len;
-    const glm::vec3 ref = qza::abs(o.axes[0].z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
+    const glm::vec3 ref = za::abs(o.axes[0].z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
     o.axes[1] = glm::normalize(glm::cross(ref, o.axes[0]));
     o.axes[2] = glm::cross(o.axes[0], o.axes[1]);
     o.size = {len * 0.5f + extra, radius, radius};
@@ -511,7 +513,7 @@ void addBrush(const entity_t* e, float strength)
         glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]}, glm::vec3{1.f}, o);
     o.box = true;
     o.strength = strength * 0.75f; // big boxes close by fill much of a wall's hemisphere: a little lighter than the ellipsoids
-    o.reach = za::clamp(qza::maxOf(o.size.x, o.size.y, o.size.z) * 0.6f, 16.f, 64.f);
+    o.reach = za::clamp(za::max(o.size.x, o.size.y, o.size.z) * 0.6f, 16.f, 64.f);
     o.influence = glm::length(o.size) + o.reach;
     o.group = -1.f;
     candidates.pushBack(o);
@@ -520,7 +522,7 @@ void addBrush(const entity_t* e, float strength)
 // Chooses the frame's occluders (once, for both eyes): the nearest MAX_OCCLUDERS that can reach the view.
 void build()
 {
-    const auto t0 = qza::nowNs();
+    const auto t0 = za::Clock::nowNanoseconds();
     candidates.clear();
     chosen.clear();
     groupCount = 0;
@@ -621,7 +623,7 @@ void build()
         v[5][2] = 0.f;
         v[5][3] = o.group;
     }
-    buildSeconds += qza::secondsSince(t0);
+    buildSeconds += za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - t0);
     buildCount++;
 }
 
@@ -793,7 +795,7 @@ void bakePose(const PoseJob& job, int pose, za::Vector<int>& cand)
         e1[t] = b - a;
         e2[t] = c - a;
         mid[t] = (a + b + c) * (1.f / 3.f);
-        rad[t] = za::sqrt(qza::maxOf(glm::dot(a - mid[t], a - mid[t]), glm::dot(b - mid[t], b - mid[t]), glm::dot(c - mid[t], c - mid[t])));
+        rad[t] = za::sqrt(za::max(glm::dot(a - mid[t], a - mid[t]), glm::dot(b - mid[t], b - mid[t]), glm::dot(c - mid[t], c - mid[t])));
     }
     const float reach = job.reach;
     const float tmin = reach * 0.02f;
@@ -848,7 +850,7 @@ void bakePose(const PoseJob& job, int pose, za::Vector<int>& cand)
                 {
                     const glm::vec3 pv = glm::cross(d, e2[t]);
                     const float det = glm::dot(e1[t], pv);
-                    if(qza::abs(det) < 1e-9f)
+                    if(za::abs(det) < 1e-9f)
                     {
                         continue;
                     }
@@ -965,7 +967,7 @@ struct BelowNormal
 
 void runBake(BakeJob& job)
 {
-    const auto t0 = qza::nowNs();
+    const auto t0 = za::Clock::nowNanoseconds();
     // Reach: an eighth of the first pose's diagonal (a grunt's 9 units, a gun's few), within 1 .. 16 units.
     glm::vec3 lo{1e9f}, hi{-1e9f};
     for(int i = 0; i < job.numverts; i++)
@@ -1015,7 +1017,7 @@ void runBake(BakeJob& job)
             }
         }
     });
-    job.seconds = qza::secondsSince(t0);
+    job.seconds = za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - t0);
 }
 
 // The bake task: the queued models baked in turn, until none is left (or the game stops).
@@ -1113,11 +1115,11 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
     {
         return nullptr; // a test run that doesn't draw (VR_SkipScreen): not seconds of every core's time at its start
     }
-    const auto t0 = qza::nowNs();
+    const auto t0 = za::Clock::nowNanoseconds();
     struct Timer
     {
         za::I64 start;
-        ~Timer() { queueSeconds += qza::secondsSince(start); }
+        ~Timer() { queueSeconds += za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - start); }
     } timer{t0};
     const size_t count = static_cast<size_t>(hdr->numposes) * hdr->numverts;
     const za::U64 h = modelHash(hdr);

@@ -28,6 +28,7 @@
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -179,8 +180,8 @@ Render renderVoice(Mixer& m, const sfxcache_t* sc, const Listener& lis, const Fe
         {
             m.set(0, in);
         }
-        za::fill(l.begin(), l.end(), 0.f);
-        za::fill(r.begin(), r.end(), 0.f);
+        za::fill(l, 0.f);
+        za::fill(r, 0.f);
         m.render(1, lis, f, reverb, l.data(), r.data());
         out.l.emplaceBackRange(l.data(), l.size());
         out.r.emplaceBackRange(r.data(), r.size());
@@ -436,7 +437,7 @@ void testCircle(Result& res)
     }
     res.check("circle: the right louder on the right (ILD at 90 > 6 dB)", ild[2] > 6.f);
     res.check("circle: the left louder on the left (ILD at 270 < -6 dB)", ild[6] < -6.f);
-    res.check("circle: ahead and behind balanced (|ILD| < 3 dB)", qza::abs(ild[0]) < 3.f && qza::abs(ild[4]) < 3.f);
+    res.check("circle: ahead and behind balanced (|ILD| < 3 dB)", za::abs(ild[0]) < 3.f && za::abs(ild[4]) < 3.f);
     res.check("circle: the right ear first on the right, the left on the left (ITD)", lag[2] > 0 && lag[6] < 0);
     // Ahead and behind: the same level at each ear, told apart by the pinnae's colouring (behind: less of the highs).
     const float frontBack = (oct[0].band[2] - oct[4].band[2]) + (oct[0].band[3] - oct[4].band[3]);
@@ -465,12 +466,12 @@ Clicks clicks(const Render& r, int frame, int from)
     {
         for(const float x : {r.l[i], r.r[i]})
         {
-            if(!(qza::abs(x) < 1e30f))
+            if(!(za::abs(x) < 1e30f))
             {
                 c.bad++;
                 continue;
             }
-            peak = za::max(peak, qza::abs(x));
+            peak = za::max(peak, za::abs(x));
         }
     }
     c.peak = peak;
@@ -479,7 +480,7 @@ Clicks clicks(const Render& r, int frame, int from)
         const za::Vector<float>& x = *ch;
         for(za::SizeT i = static_cast<za::SizeT>(za::max(from, 2)); i < x.size(); i++)
         {
-            const float e = qza::abs(x[i] - 2.f * x[i - 1] + x[i - 2]) / peak;
+            const float e = za::abs(x[i] - 2.f * x[i - 1] + x[i - 2]) / peak;
             if(!(e < 1e30f))
             {
                 continue;
@@ -570,8 +571,8 @@ void testClicks(Result& res)
                         static_cast<float>(40.0 * za::sin(t * 4.0 * 3.14159265 + v)));
                     m.set(v, in);
                 }
-                za::fill(l.begin(), l.end(), 0.f);
-                za::fill(rr.begin(), rr.end(), 0.f);
+                za::fill(l, 0.f);
+                za::fill(rr, 0.f);
                 m.render(1, lis, f, nullptr, l.data(), rr.data());
                 sum.l.emplaceBackRange(l.data(), l.size());
                 sum.r.emplaceBackRange(rr.data(), rr.size());
@@ -804,9 +805,9 @@ void testDoppler(Result& res)
                "off: %.1f, %.1f Hz\n",
         speed, speed / upm, coming, expectComing, going, expectGoing, coming0, going0);
     res.check("doppler: higher coming, lower going (within 2%)",
-        qza::abs(coming / expectComing - 1.0) < 0.02 && qza::abs(going / expectGoing - 1.0) < 0.02);
-    res.check("doppler: off leaves the pitch (within 0.5%)", qza::abs(coming0 / 1000.0 - 1.0) < 0.005 &&
-                                                                 qza::abs(going0 / 1000.0 - 1.0) < 0.005);
+        za::abs(coming / expectComing - 1.0) < 0.02 && za::abs(going / expectGoing - 1.0) < 0.02);
+    res.check("doppler: off leaves the pitch (within 0.5%)", za::abs(coming0 / 1000.0 - 1.0) < 0.005 &&
+                                                                 za::abs(going0 / 1000.0 - 1.0) < 0.005);
 }
 
 void testNearField(Result& res)
@@ -835,7 +836,7 @@ void testNearField(Result& res)
     const float nearOff = ild(0.2f, 0.f);
     Con_Printf("snd_test nearfield: ILD at 0.2 m %+.1f dB (near field off: %+.1f), at 2 m %+.1f dB\n", nearOn, nearOff, farOn);
     res.check("nearfield: a sound at the ear has a larger ILD than at 2 m (> 4 dB more)", nearOn - farOn > 4.f);
-    res.check("nearfield: off, the same ILD near and far (within 1.5 dB)", qza::abs(nearOff - farOn) < 1.5f);
+    res.check("nearfield: off, the same ILD near and far (within 1.5 dB)", za::abs(nearOff - farOn) < 1.5f);
 }
 
 // In a map: how loud a sound is by its distance from the head, Quake's panning (as vr_snd_spatial 0 mixes it) against
@@ -930,7 +931,7 @@ void testDistance(Result& res)
                     }
                     p.z = trace.endpos[2] + (h == 1 ? 24.f : h == 2 ? 2.f : -0.5f);
                 }
-                if(!clear(lis.pos, h == 3 ? p + glm::vec3{0.f, 0.f, 1.f} : p) || qza::abs(glm::length(p - lis.pos) / upm - d) > 0.5f * d)
+                if(!clear(lis.pos, h == 3 ? p + glm::vec3{0.f, 0.f, 1.f} : p) || za::abs(glm::length(p - lis.pos) / upm - d) > 0.5f * d)
                 {
                     continue;
                 }
@@ -982,7 +983,7 @@ void testDistance(Result& res)
             Con_Printf("snd_test distance: %4.0f m, %-7s (%2d places): Quake %+6.1f dB | spatial %+6.1f dB (%+6.1f) | "
                        "occlusion %.2f, air %.2f, %d hidden by the stand-in; spatial - Quake %+5.1f dB\n",
                 d, heights[h], n, quake, spatial, open, occ / n, air / n, guessed, spatial - quake);
-            worst = za::max(worst, static_cast<float>(qza::abs(spatial - quake)));
+            worst = za::max(worst, static_cast<float>(za::abs(spatial - quake)));
         }
     }
     res.check("distance: in sight, as loud as Quake's mix (within 3 dB; a contact too)", worst < 3.f);
@@ -1014,7 +1015,7 @@ void testHands(Result& res)
                    "head, %.1f to the right), left %d, right %d\n",
             h == HAND_MAIN ? "main" : "off", ch.entchannel, at.x, at.y, at.z, glm::length(at - hand), glm::length(at - head),
             side, ch.leftvol, ch.rightvol);
-        const bool panned = qza::abs(side) < 2.f || (side > 0.f) == (ch.rightvol > ch.leftvol);
+        const bool panned = za::abs(side) < 2.f || (side > 0.f) == (ch.rightvol > ch.leftvol);
         res.check(h == HAND_MAIN ? "hands: the main hand's weapon channel plays from it" : "hands: the off hand's from it",
             handled && glm::length(at - hand) < 0.5f && panned);
     }
@@ -1143,7 +1144,7 @@ void bench(Result& res)
         const double start = Sys_DoubleTime();
         for(int k = 0; k < frames; k++)
         {
-            za::fill(paint.begin(), paint.end(), 0);
+            za::fill(paint, 0);
             for(int c = 0; c < voices; c++)
             {
                 const short* sfx = reinterpret_cast<const short*>(sounds[c % 4].cache()->data) + (k * perFrame) % 20000;

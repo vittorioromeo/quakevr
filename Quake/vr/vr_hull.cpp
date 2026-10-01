@@ -16,8 +16,10 @@
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Swap.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Floor.hpp"
@@ -25,6 +27,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
 
@@ -280,7 +283,7 @@ bool hasPlane(const Brushes& b, za::SizeT first, const glm::dvec3& n, double d)
     for(za::SizeT i = first; i < b.planes.size(); ++i)
     {
         const Plane& q = b.planes[i];
-        if(glm::dot(glm::dvec3{q.normal}, n) > 1.0 - 1e-6 && qza::abs(q.dist - d) < 0.01)
+        if(glm::dot(glm::dvec3{q.normal}, n) > 1.0 - 1e-6 && za::abs(q.dist - d) < 0.01)
         {
             return true;
         }
@@ -354,7 +357,7 @@ int emitBrush(Brushes& b, const Poly& p)
                 continue;
             }
             e /= len;
-            if(qza::abs(e.x) > 0.9999 || qza::abs(e.y) > 0.9999 || qza::abs(e.z) > 0.9999)
+            if(za::abs(e.x) > 0.9999 || za::abs(e.y) > 0.9999 || za::abs(e.z) > 0.9999)
             {
                 continue; // an axial edge: the axial bevels have it
             }
@@ -540,7 +543,7 @@ void addSubModel(Brushes& b, const hull_t& hull0, int numnodes, za::U32 base, in
 
 void build(qmodel_t* world)
 {
-    const auto t0 = qza::nowNs();
+    const auto t0 = za::Clock::nowNanoseconds();
     Brushes& b = built;
     const hull_t& hull0 = world->hulls[0];
     b.clipnodes = hull0.clipnodes;
@@ -582,7 +585,7 @@ void build(qmodel_t* world)
     struct Out
     {
         Brushes b; // the item's brushes and their planes, numbered from 0
-        za::Vector<qza::Pair<za::SizeT, int>> leaves; // (leaf key, its brush in b or -1)
+        za::Vector<za::Pair<za::SizeT, int>> leaves; // (leaf key, its brush in b or -1)
     };
     za::Vector<Out> outs;
     walkItems(h, items, outs,
@@ -613,9 +616,9 @@ void build(qmodel_t* world)
         b.subs.pushBack(SubModel{hull0.clipnodes, world->submodels[i].headnode[0], 0, first,
             static_cast<za::U32>(b.brushes.size()) - first});
     }
-    const auto t1 = qza::nowNs();
+    const auto t1 = za::Clock::nowNanoseconds();
     recoverClips(b, world);
-    const auto t2 = qza::nowNs();
+    const auto t2 = za::Clock::nowNanoseconds();
     b.clipMs = (static_cast<double>(t2 - t1) / 1e6);
     b.ms = (static_cast<double>(t2 - t0) / 1e6);
 }
@@ -667,7 +670,7 @@ struct Sweep
 
 double support(const Plane& p, const glm::dvec3& ext)
 {
-    return p.grows * (qza::abs(p.normal.x * ext.x) + qza::abs(p.normal.y * ext.y) + qza::abs(p.normal.z * ext.z));
+    return p.grows * (za::abs(p.normal.x * ext.x) + za::abs(p.normal.y * ext.y) + za::abs(p.normal.z * ext.z));
 }
 
 void clipToBrush(Sweep& s, const Brush& br)
@@ -750,7 +753,7 @@ void sweepNode(Sweep& s, int num, double p1f, double p2f, const glm::dvec3& p1, 
         const glm::dvec3 n{plane.normal[0], plane.normal[1], plane.normal[2]};
         t1 = glm::dot(n, p1) - plane.dist;
         t2 = glm::dot(n, p2) - plane.dist;
-        offset = qza::abs(s.ext.x * n.x) + qza::abs(s.ext.y * n.y) + qza::abs(s.ext.z * n.z);
+        offset = za::abs(s.ext.x * n.x) + za::abs(s.ext.y * n.y) + za::abs(s.ext.z * n.z);
     }
     // Quake 3's unit of slop past the box's extent.
     if(t1 >= offset + 1.0 && t2 >= offset + 1.0)
@@ -849,7 +852,7 @@ bool boxInTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
     const mplane_t& plane = hull.planes[node.planenum];
     const glm::dvec3 n{plane.normal[0], plane.normal[1], plane.normal[2]};
     const double t = glm::dot(n, p) - plane.dist;
-    const double offset = qza::abs(ext.x * n.x) + qza::abs(ext.y * n.y) + qza::abs(ext.z * n.z);
+    const double offset = za::abs(ext.x * n.x) + za::abs(ext.y * n.y) + za::abs(ext.z * n.z);
     for(int side = 0; side < 2; ++side)
     {
         if(side == 0 ? t <= -offset - 1.0 : t >= offset + 1.0)
@@ -904,7 +907,7 @@ void leavesOfBox(const hull_t& hull, int num, const glm::dvec3& lo, const glm::d
     const glm::dvec3 n{plane.normal[0], plane.normal[1], plane.normal[2]};
     const glm::dvec3 centre = (lo + hi) * 0.5, half = (hi - lo) * 0.5;
     const double t = glm::dot(n, centre) - plane.dist;
-    const double reach = qza::abs(n.x * half.x) + qza::abs(n.y * half.y) + qza::abs(n.z * half.z) + 1.0;
+    const double reach = za::abs(n.x * half.x) + za::abs(n.y * half.y) + za::abs(n.z * half.z) + 1.0;
     for(int side = 0; side < 2; ++side)
     {
         if(side == 0 ? t < -reach : t >= reach)
@@ -951,7 +954,7 @@ void recoverClips(Brushes& b, qmodel_t* world)
         za::Vector<bool> open; // the piece's faces' (a buffer)
         za::Vector<Plane> planes;
         za::Vector<Brush> brushes;
-        za::Vector<qza::Pair<za::SizeT, bool>> leaves; // (hull 1 leaf key, a clip brush: its next in brushes)
+        za::Vector<za::Pair<za::SizeT, bool>> leaves; // (hull 1 leaf key, a clip brush: its next in brushes)
         int hull1Leaves = 0;
         za::SizeT tests = 0; // boxInSolid's (b.stamp's count)
     };
@@ -1059,7 +1062,7 @@ void recoverClips(Brushes& b, qmodel_t* world)
             const Face& f = piece[fi];
             const double dist = f.dist + glm::dot(f.normal, lift);
             const double reach =
-                qza::abs(f.normal.x) * e32.x + qza::abs(f.normal.y) * e32.y + qza::abs(f.normal.z) * e32.z;
+                za::abs(f.normal.x) * e32.x + za::abs(f.normal.y) * e32.y + za::abs(f.normal.z) * e32.z;
             out.planes.pushBack(
                 Plane{glm::vec3{f.normal}, static_cast<float>(open[fi] ? dist - reach : dist), open[fi] ? 1.f : 0.f});
         }
@@ -1096,7 +1099,7 @@ void recoverClips(Brushes& b, qmodel_t* world)
     }
 
     // Each clip brush into the leaves its box centres reach (a sweep's centre passes through them).
-    za::Vector<qza::Pair<int, int>> pairs; // (leaf key, clip brush)
+    za::Vector<za::Pair<int, int>> pairs; // (leaf key, clip brush)
     za::Vector<int> keys;
     for(const int c : b.clips)
     {
@@ -1278,7 +1281,7 @@ public:
         const double askedD = d;
         for(int a = 0; a < 3; ++a)
         {
-            if(qza::abs(n[a]) > 1.0 - 1e-6)
+            if(za::abs(n[a]) > 1.0 - 1e-6)
             {
                 const double s = n[a] > 0.0 ? 1.0 : -1.0;
                 n = glm::dvec3{0.0};
@@ -1499,8 +1502,8 @@ private:
         {
             const mplane_t& p = planeAt(id);
             // qbsp's epsilons (a normal's components, not their dot: far from the origin a small turn is far off)
-            if(qza::abs(p.dist - d) < 0.01 && qza::abs(p.normal[0] - n.x) < 1e-5 && qza::abs(p.normal[1] - n.y) < 1e-5 &&
-                qza::abs(p.normal[2] - n.z) < 1e-5)
+            if(za::abs(p.dist - d) < 0.01 && za::abs(p.normal[0] - n.x) < 1e-5 && za::abs(p.normal[1] - n.y) < 1e-5 &&
+                za::abs(p.normal[2] - n.z) < 1e-5)
             {
                 return id;
             }
@@ -1676,7 +1679,7 @@ private:
                 {
                     const glm::dvec3 centre = (f.lo + f.hi) * 0.5, half = (f.hi - f.lo) * 0.5;
                     const double s = glm::dot(n, centre) - p.dist;
-                    const double r = qza::abs(n.x) * half.x + qza::abs(n.y) * half.y + qza::abs(n.z) * half.z;
+                    const double r = za::abs(n.x) * half.x + za::abs(n.y) * half.y + za::abs(n.z) * half.z;
                     lo = s - r;
                     hi = s + r;
                 }
@@ -1693,7 +1696,7 @@ private:
                     ++splits;
                 }
             }
-            const long long value = 5ll * facing_[static_cast<za::SizeT>(c)] - 5ll * splits - qza::abs(front - back) +
+            const long long value = 5ll * facing_[static_cast<za::SizeT>(c)] - 5ll * splits - za::abs(front - back) +
                                     (p.type < 3 ? 5 : 0);
             if(value > bestValue)
             {
@@ -1937,7 +1940,7 @@ int emit(TreeBuilder& tb, Unit& u, Merge& m)
 // the main thread to print). On the pool (vr_jobs_parallel) unless watching (vr_hull_leafdebug).
 int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch = nullptr, bool report = true)
 {
-    const auto t0 = qza::nowNs();
+    const auto t0 = za::Clock::nowNanoseconds();
     TreeBuilder tb{t};
     tb.watch = watch;
     tb.debugBrushes = &b;
@@ -1997,7 +2000,7 @@ int buildTree(Tree& t, const Brushes& b, za::SizeT sub, const glm::dvec3* watch 
         Con_DPrintf("hull: %d pieces cut back to their brushes' bounds (%gx%g, model %d)\n", tb.rebounded, t.ext.x * 2.f,
             t.ext.z * 2.f, static_cast<int>(sub));
     }
-    t.ms += qza::msSince(t0);
+    t.ms += za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
     return tb.rebounded;
 }
 
@@ -2709,7 +2712,7 @@ void bench_f()
     // Each set twice, the second timed (the first warms the caches).
     for(int pass = 0; pass < 2; ++pass)
     {
-        auto t0 = qza::nowNs();
+        auto t0 = za::Clock::nowNanoseconds();
         for(int i = 0; i < n; ++i)
         {
             trace_t& tr = stock[i];
@@ -2720,24 +2723,24 @@ void bench_f()
             VectorCopy(e, tr.endpos);
             SV_RecursiveHullCheck(hull1, hull1->firstclipnode, 0.f, 1.f, a, e, &tr);
         }
-        bs.ns = qza::nsSince(t0) / n;
+        bs.ns = static_cast<double>(za::Clock::nowNanoseconds() - t0) / n;
         b32.brushTests = bw.brushTests = 0;
-        t0 = qza::nowNs();
+        t0 = za::Clock::nowNanoseconds();
         for(int i = 0; i < n; ++i)
         {
             const Result r = boxTrace(*b, hull0, 0, starts[i], m32, M32, ends[i]);
             box32[i] = r.trace;
             b32.brushTests += r.brushTests;
         }
-        b32.ns = qza::nsSince(t0) / n;
-        t0 = qza::nowNs();
+        b32.ns = static_cast<double>(za::Clock::nowNanoseconds() - t0) / n;
+        t0 = za::Clock::nowNanoseconds();
         for(int i = 0; i < n; ++i)
         {
             const Result r = boxTrace(*b, hull0, 0, starts[i], mw, Mw, ends[i]);
             boxw[i] = r.trace;
             bw.brushTests += r.brushTests;
         }
-        bw.ns = qza::nsSince(t0) / n;
+        bw.ns = static_cast<double>(za::Clock::nowNanoseconds() - t0) / n;
     }
 
     // Agreement of the two 32 boxes: more than a unit apart along the move. Hull 1 stopping much sooner (8 units or
@@ -2758,7 +2761,7 @@ void bench_f()
             }
         }
         const float gap = (fb - fs) * len;
-        if(qza::abs(gap) <= 1.f)
+        if(za::abs(gap) <= 1.f)
         {
             ++agree;
         }
@@ -2833,12 +2836,12 @@ void bench_f()
             const Tree& t = k ? aw : a32;
             const glm::vec3 centre = k ? (mw + Mw) * 0.5f : (m32 + M32) * 0.5f;
             za::Vector<trace_t>& out = k ? treew : tree32;
-            const auto t0 = qza::nowNs();
+            const auto t0 = za::Clock::nowNanoseconds();
             for(int i = 0; i < n; ++i)
             {
                 out[i] = treeTrace(t, t.heads[0], starts[i] + centre, ends[i] + centre);
             }
-            (k ? baw : ba32).ns = qza::nsSince(t0) / n;
+            (k ? baw : ba32).ns = static_cast<double>(za::Clock::nowNanoseconds() - t0) / n;
         }
     }
     // Agreement within a unit along the move; startsolid differing.
@@ -2853,15 +2856,15 @@ void bench_f()
             const float fx = x[i].allsolid ? 0.f : x[i].fraction, fy = y[i].allsolid ? 0.f : y[i].fraction;
             solidDiff += (x[i].startsolid != 0) != (y[i].startsolid != 0);
             const float gap = (fy - fx) * len;
-            if(qza::abs(gap) <= 1.f)
+            if(za::abs(gap) <= 1.f)
             {
                 ++same;
                 continue;
             }
             (gap > 0.f ? xSooner : ySooner)++;
-            if(qza::abs(gap) >= 8.f && shown++ < 2)
+            if(za::abs(gap) >= 8.f && shown++ < 2)
             {
-                Con_Printf("  %s: %.0f units apart from %.0f %.0f %.0f (%s sooner)\n", what, qza::abs(gap), starts[i].x,
+                Con_Printf("  %s: %.0f units apart from %.0f %.0f %.0f (%s sooner)\n", what, za::abs(gap), starts[i].x,
                     starts[i].y, starts[i].z, gap > 0.f ? "first" : "second");
             }
         }
@@ -3176,7 +3179,7 @@ void monsterWalkStep(MonsterWalk& w)
             continue;
         }
         const glm::vec2 across{o.x - m.goal.x, o.y - m.goal.y};
-        const bool there = glm::length(across) < 32.f && qza::abs(o.z - m.goal.z) < 48.f;
+        const bool there = glm::length(across) < 32.f && za::abs(o.z - m.goal.z) < 48.f;
         if(there || now >= m.goalUntil)
         {
             c.reached += there;
@@ -3287,7 +3290,7 @@ void probeTree(const Brushes& b, const hull_t& hull, int num, const glm::dvec3& 
     const mplane_t& plane = hull.planes[node.planenum];
     const glm::dvec3 n{plane.normal[0], plane.normal[1], plane.normal[2]};
     const double t = glm::dot(n, p) - plane.dist;
-    const double offset = qza::abs(ext.x * n.x) + qza::abs(ext.y * n.y) + qza::abs(ext.z * n.z);
+    const double offset = za::abs(ext.x * n.x) + za::abs(ext.y * n.y) + za::abs(ext.z * n.z);
     for(int side = 0; side < 2; ++side)
     {
         if(side == 0 ? t <= -offset - 1.0 : t >= offset + 1.0)

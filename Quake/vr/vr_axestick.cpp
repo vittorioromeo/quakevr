@@ -32,6 +32,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -721,7 +722,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     const glm::vec3 relDir = speed > 1e-3f ? rel / speed : -facing;
     // The sanity checks: fast enough, going into it, not the blade's side first (its way out of the blade's plane), not
     // glancing (its way off straight into the surface).
-    const float sideOn = glm::degrees(za::asin(za::clamp(qza::abs(glm::dot(relDir, across)), 0.f, 1.f)));
+    const float sideOn = glm::degrees(za::asin(za::clamp(za::abs(glm::dot(relDir, across)), 0.f, 1.f)));
     const float incidence = degrees(relDir, -best.normal);
     const float offFacing = degrees(facing, relDir); // (the debug's: the old test's angle)
     const float spinIn = glm::dot(glm::cross(spin, pointAt - com), -best.normal); // (u/s the spin drives the point in)

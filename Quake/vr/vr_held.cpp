@@ -30,6 +30,7 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
 
@@ -798,7 +799,7 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
         for(int i = 1; i <= svs.maxclients && glm::length(forward) == 0.f; i++)
         {
             edict_t* player = EDICT_NUM(i);
-            for(const auto& [pos, rot] : {qza::Pair{f.handpos, f.handrot}, qza::Pair{f.offhandpos, f.offhandrot}})
+            for(const auto& [pos, rot] : {za::Pair{f.handpos, f.handrot}, za::Pair{f.offhandpos, f.offhandrot}})
             {
                 if(pos >= 0 && rot >= 0 && fieldVec(player, pos) == hand)
                 {

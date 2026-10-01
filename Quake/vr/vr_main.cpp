@@ -67,12 +67,14 @@
 #include "vr_wounds.hpp"
 
 #include "Zancle/Base/Abort.hpp"
+#include "Zancle/Base/Assert.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Lround.hpp"
@@ -99,7 +101,7 @@ namespace
 
 struct State
 {
-    za::UniquePtr<qvr::Backend> backend{nullptr};
+    za::UniquePtr<qvr::Backend> backend;
     qvr::TrackingState tracking;
     qvr::FrameState frame;
     bool restartRequested{false};
@@ -750,13 +752,37 @@ void VR_MemStats_f()
     }
 }
 
-// vr_debug_crash [access|abort]: crashes the game on purpose, to test the crash report (vr_crash.cpp, VR_InstallCrashHandler:
-// in a test run, qvr_crash.txt with the stack and qvr_crash.dmp): an access violation (the default) or abort().
+// vr_debug_crash [access|abort|assert|zassert]: crashes the game on purpose, to test the crash report (vr_crash.cpp,
+// VR_InstallCrashHandler: in a test run, qvr_crash.txt with the stack and qvr_crash.dmp): an access violation (the
+// default) or abort(). In Debug builds, a failed ZA_ASSERT to test Zancle's assert handler (vr_zancle.cpp: a Quake
+// error, in a test run the report): in the engine's code (assert), or in Zancle's library (zassert: with
+// QVR_ZANCLE_DEBUG, the library built with its asserts).
 void VR_DebugCrash_f()
 {
-    if(Cmd_Argc() > 1 && q_strcasecmp(Cmd_Argv(1), "abort") == 0)
+    const char* const kind = Cmd_Argc() > 1 ? Cmd_Argv(1) : "access";
+    if(q_strcasecmp(kind, "abort") == 0)
     {
         za::abort();
+    }
+    if(q_strcasecmp(kind, "assert") == 0)
+    {
+#ifdef ZA_DEBUG
+        const volatile bool holds = false; // (volatile: not a constant the compiler folds)
+        ZA_ASSERT(holds && "vr_debug_crash assert");
+#else
+        Con_Printf("vr_debug_crash assert: Zancle's asserts are off in this build (Debug builds have them)\n");
+#endif
+        return;
+    }
+    if(q_strcasecmp(kind, "zassert") == 0)
+    {
+#ifdef QVR_ZANCLE_DEBUG
+        za::Thread none;
+        none.join(); // Zancle's Thread.cpp: ZA_ASSERT(m_joinable)
+#else
+        Con_Printf("vr_debug_crash zassert: Zancle's library is built without its asserts (Debug with QVR_ZANCLE_DEBUG has them)\n");
+#endif
+        return;
     }
     int* volatile nowhere = nullptr; // (volatile: the compiler can't see it is null)
     *nowhere = 1;

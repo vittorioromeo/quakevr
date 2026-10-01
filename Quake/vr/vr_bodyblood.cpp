@@ -11,6 +11,7 @@
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -94,7 +95,7 @@ double lastTime = -1.0;
 int lastFrame = -1;
 const qmodel_t* lastWorld = nullptr;
 
-za::FastNonCryptoRng rng{static_cast<za::U64>(qza::nowNs())}; // a new sequence every run
+za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // a new sequence every run
 
 [[nodiscard]] float rnd(float lo, float hi)
 {

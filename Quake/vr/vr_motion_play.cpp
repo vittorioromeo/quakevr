@@ -33,6 +33,7 @@
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/ReverseIterator.hpp"
 #include "Zancle/Chrono/Time.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -41,9 +42,11 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
 #include <stdio.h>
@@ -443,7 +446,7 @@ struct Take
 
 // name=value pairs of a header line (settings, weapon settings, melee settings), or "name value" pairs
 // (hand angles, grips).
-void collectSettings(const za::String& value, bool pairs, za::Vector<qza::Pair<za::String, za::String>>& out)
+void collectSettings(const za::String& value, bool pairs, za::Vector<za::Pair<za::String, za::String>>& out)
 {
     files::Words words{value};
     za::String w;
@@ -466,11 +469,11 @@ void collectSettings(const za::String& value, bool pairs, za::Vector<qza::Pair<z
     }
 }
 
-za::Vector<qza::Pair<cvar_t*, za::String>> savedSettings; // the values before a playback
+za::Vector<za::Pair<cvar_t*, za::String>> savedSettings; // the values before a playback
 
 void applySettings(const Take& take, bool melee)
 {
-    za::Vector<qza::Pair<za::String, za::String>> list;
+    za::Vector<za::Pair<za::String, za::String>> list;
     const auto h = [&](const char* key) {
         const auto it = take.header.find(key);
         return it == take.header.end() ? za::String{} : it->second;
@@ -551,9 +554,9 @@ void applySettings(const Take& take, bool melee)
 
 void restoreSettings()
 {
-    for(auto it = qza::rbegin(savedSettings); it != qza::rend(savedSettings); ++it)
+    for(const auto& [cvar, value] : za::reversed(savedSettings))
     {
-        Cvar_SetQuick(it->first, it->second.cStr());
+        Cvar_SetQuick(cvar, value.cStr());
     }
     savedSettings.clear();
 }
@@ -630,7 +633,7 @@ void resample(Take& take, float hz)
         {
             blend(f.tracking.hands[h], a.tracking.hands[h], b.tracking.hands[h]);
         }
-        f.playYaw = a.playYaw + qza::remainder(b.playYaw - a.playYaw, 360.f) * s;
+        f.playYaw = a.playYaw + za::remainder(b.playYaw - a.playYaw, 360.f) * s;
         // The source frames' events up to this one.
         for(; nextEvents < in.size() && in[nextEvents].t <= t; nextEvents++)
         {
@@ -783,7 +786,7 @@ void workOutPlacement(edict_t* player)
             const float bearing = glm::degrees(za::atan2(monPF.y, monPF.x));
             yawP = tYaw + 180.f - bearing;
         }
-        delta = qza::remainder(yawP - take.yaw0, 360.f);
+        delta = za::remainder(yawP - take.yaw0, 360.f);
         placeOrigin = tOrigin - hands::rotateYaw(glm::vec3{monPF.x, monPF.y, 0.f}, yawP);
         placeOrigin.z = tOrigin.z - (f0.hasMon ? monPF.z : 0.f);
         if(!f0.hasMon)
@@ -2054,7 +2057,7 @@ void writeResults()
     }
     FILE* f = fopen(path.cStr(), "wb");
     int pass = 0, fail = 0, na = 0, none = 0;
-    ankerl::unordered_dense::map<za::String, qza::Pair<int, int>> perLabel; // passes, judged
+    ankerl::unordered_dense::map<za::String, za::Pair<int, int>> perLabel; // passes, judged
     for(const Result& r : results)
     {
         pass += r.verdict == "PASS";

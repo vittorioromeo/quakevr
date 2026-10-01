@@ -19,6 +19,7 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/IsNan.hpp"
+#include "Zancle/Base/Limits.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -27,6 +28,7 @@
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -504,12 +506,12 @@ void residuals(const FitInput& in, const za::Array<double, ParamCount>& p, za::V
         int best = c;
         for(int r = c + 1; r < n; r++)
         {
-            if(qza::abs(a[r * n + c]) > qza::abs(a[best * n + c]))
+            if(za::abs(a[r * n + c]) > za::abs(a[best * n + c]))
             {
                 best = r;
             }
         }
-        if(qza::abs(a[best * n + c]) < 1e-300)
+        if(za::abs(a[best * n + c]) < 1e-300)
         {
             return false;
         }
@@ -639,7 +641,7 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
             for(int a = 0; a < n; a++)
             {
                 q[a] += step[a];
-                largest = za::max(largest, qza::abs(step[a]) / stepOf(a));
+                largest = za::max(largest, za::abs(step[a]) / stepOf(a));
             }
             q[PReach] = za::max(q[PReach], 0.2);
             q[PFore] = CLAMP(0.08, q[PFore], q[PReach] - 0.08);
@@ -704,7 +706,7 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
             const double med = sorted[sorted.size() / 2];
             for(double& v : sorted)
             {
-                v = qza::abs(v - med);
+                v = za::abs(v - med);
             }
             za::quickSort(sorted.begin(), sorted.end());
             const double spread = za::max(1.4826 * sorted[sorted.size() / 2], 0.3);
@@ -713,7 +715,7 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
                 if(in.obs[i].kind == kind && in.obs[i].weight == 1.0)
                 {
                     const double u = r[i] / (4.685 * spread);
-                    weights[i] = qza::abs(u) < 1.0 ? (1.0 - u * u) * (1.0 - u * u) : 0.0;
+                    weights[i] = za::abs(u) < 1.0 ? (1.0 - u * u) * (1.0 - u * u) : 0.0;
                 }
             }
         }
@@ -821,7 +823,7 @@ struct Pivot
         const glm::mat3 handInGrip = glm::transpose(R) * l.hand[side];
         offset += glm::transpose(handInGrip) * (d - pv.real);
         const glm::quat q = glm::quat_cast(R * glm::transpose(ref));
-        const float angle = 2.f * za::acos(za::fmin(1.f, qza::abs(q.w)));
+        const float angle = 2.f * za::acos(za::fmin(1.f, za::abs(q.w)));
         const glm::vec3 axis = glm::length(glm::vec3{q.x, q.y, q.z}) > 1e-6f ? glm::normalize(glm::vec3{q.x, q.y, q.z}) * (q.w < 0.f ? -1.f : 1.f)
                                                                            : glm::vec3{0.f};
         turns.pushBack(axis * glm::degrees(angle));
@@ -961,7 +963,7 @@ constexpr float wristsNeed = 8.f;   // degrees
     const glm::vec3 s = restShoulder(0, m); // forward, left, up
     const glm::vec3 world = c.pos + (c.rot[2] * s.x - c.rot[1] * s.y + c.rot[0] * s.z) * units::metresToUnits();
     const glm::vec3 rel = (world - r.head) / units::metresToUnits() * 100.f;
-    return {-rel.x, -rel.z, qza::abs(rel.y)};
+    return {-rel.x, -rel.z, za::abs(rel.y)};
 }
 
 [[nodiscard]] Grade gradeStatic(float cm)
@@ -1163,7 +1165,7 @@ void analyse()
             }
             s2 += w * f.residual[i] * f.residual[i];
             w2 += w;
-            worst = za::max(worst, qza::abs(f.residual[i]));
+            worst = za::max(worst, za::abs(f.residual[i]));
             if(o.kind == ObsReach)
             {
                 sideSum[o.side] += w * f.residual[i];
@@ -1718,7 +1720,7 @@ bool begin(za::Vector<int> todo, int returnPage)
         switch(step)
         {
             case Stand:
-                if(qza::abs(r.headAngles.x) > 25.f)
+                if(za::abs(r.headAngles.x) > 25.f)
                 {
                     return "look ahead";
                 }
@@ -1930,7 +1932,7 @@ void drawText(const hands::State& s, int step, double now)
         const double length = steps[step].seconds;
         const double t = now - ses.subStart;
         const int bars = CLAMP(0, static_cast<int>(20.0 * t / length), 20);
-        text += qza::repeated(static_cast<za::SizeT>(bars), '=') + qza::repeated(static_cast<za::SizeT>(20 - bars), '.');
+        text += za::String(static_cast<za::SizeT>(bars), '=') + za::String(static_cast<za::SizeT>(20 - bars), '.');
         if(!ses.hint.empty())
         {
             text += "\n" + ses.hint;
@@ -2616,7 +2618,7 @@ void migrateUndo()
     float old[7], measured[7], tweak[7];
     for(int i = 0; i < 7; i++)
     {
-        old[i] = qza::nanF;
+        old[i] = ZA_FLOAT_NAN;
         measured[i] = 0.f; // what the Undo puts back is complete: nothing measured, no tweak, unless it says
         tweak[i] = 0.f;
     }
@@ -2753,7 +2755,7 @@ void migrate()
     {
         const Split& sp = splits()[i];
         any = any || sp.old->string[0] != 0;
-        old[i] = sp.old->string[0] != 0 ? static_cast<float>(atof(sp.old->string)) : qza::nanF;
+        old[i] = sp.old->string[0] != 0 ? static_cast<float>(atof(sp.old->string)) : ZA_FLOAT_NAN;
         measured[i] = sp.measured->value;
         tweak[i] = sp.tweak->value;
     }

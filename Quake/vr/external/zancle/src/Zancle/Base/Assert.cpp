@@ -9,21 +9,54 @@
 
 #include "Zancle/Config.hpp" // IWYU pragma: keep
 
-// Quake VR (local change): not with QVR_ZANCLE_DEBUG (the library built with its asserts, in the engine's Debug): the
-// engine's handler (Quake/vr/vr_zancle.cpp) is the one, for its files and the library's.
-#if defined(ZA_DEBUG) && !defined(QVR_ZANCLE_DEBUG)
+#ifdef ZA_DEBUG
 
     #include "Zancle/Base/Abort.hpp"
     #include "Zancle/Base/StackTrace.hpp"
 
     #include <cstdio>
 
+#endif
+
+
+namespace
+{
+////////////////////////////////////////////////////////////
+constinit za::AssertHandler assertHandler = nullptr; // `nullptr`: default handling
+
+} // namespace
+
+
+namespace za
+{
+////////////////////////////////////////////////////////////
+AssertHandler setAssertHandler(const AssertHandler handler) noexcept
+{
+    const AssertHandler previous = assertHandler;
+    assertHandler                = handler;
+    return previous;
+}
+
+} // namespace za
+
+
+#ifdef ZA_DEBUG
 
 namespace za::priv
 {
 ////////////////////////////////////////////////////////////
 void assertFailure(const char* code, const char* file, const int line)
 {
+    // A failed assertion within the handler gets the default handling, instead of recursing
+    thread_local bool inHandler = false;
+
+    if (const AssertHandler handler = assertHandler; handler != nullptr && !inHandler)
+    {
+        inHandler = true;
+        handler(code, file, line); // normally does not return
+        inHandler = false;
+    }
+
     // Flush pending regular output first, as `abort()` does not flush stdio buffers
     std::fflush(stdout);
 

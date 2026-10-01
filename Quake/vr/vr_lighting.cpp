@@ -17,6 +17,7 @@
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Cbrt.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -172,7 +173,7 @@ int cubeViews(glm::vec2 origin, float size, ShadowView out[6])
 // A spot light's frame: must match SpotShadow in gl_shaders.h.
 void spotFrame(const glm::vec3& dir, glm::vec3& right, glm::vec3& up)
 {
-    right = glm::normalize(glm::cross(dir, qza::abs(dir.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}));
+    right = glm::normalize(glm::cross(dir, za::abs(dir.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}));
     up = glm::cross(right, dir);
 }
 
@@ -1548,10 +1549,10 @@ extern "C" float VR_ParallaxDepth(const entity_t* e, const float matrix[16], con
     }
     const glm::mat3 m{glm::vec3{matrix[0], matrix[1], matrix[2]}, glm::vec3{matrix[4], matrix[5], matrix[6]},
                       glm::vec3{matrix[8], matrix[9], matrix[10]}};
-    float det = qza::abs(glm::determinant(m));
+    float det = za::abs(glm::determinant(m));
     if(modelscale)
     {
-        det /= za::max(qza::abs(modelscale[0] * modelscale[1] * modelscale[2]), 1e-12f);
+        det /= za::max(za::abs(modelscale[0] * modelscale[1] * modelscale[2]), 1e-12f);
     }
     const float scale = za::cbrt(det);
     float depth = world;

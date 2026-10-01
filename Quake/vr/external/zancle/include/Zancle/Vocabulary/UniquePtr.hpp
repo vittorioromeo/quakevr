@@ -76,7 +76,7 @@ public:
     /// \brief Default constructor, creates a null pointer
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard, gnu::always_inline]] constexpr explicit UniquePtr() noexcept : m_ptr{nullptr}
+    [[nodiscard, gnu::always_inline]] constexpr UniquePtr() noexcept : m_ptr{nullptr}
     {
     }
 

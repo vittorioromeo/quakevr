@@ -6,6 +6,7 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
 
@@ -74,7 +75,7 @@ public:
 
 private:
     static constexpr float cellSize = 64.f;
-    za::Vector<qza::Pair<uint64_t, int>> cells; // (cell, edge), sorted
+    za::Vector<za::Pair<uint64_t, int>> cells; // (cell, edge), sorted
     mutable za::Vector<uint32_t> seen;         // nearby(): an edge already listed this query
     mutable uint32_t stamp{0};
 };

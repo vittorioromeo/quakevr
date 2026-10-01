@@ -129,9 +129,11 @@
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -315,11 +317,11 @@ struct Place
     {
         return a.over;
     }
-    if(qza::abs(a.top - b.top) > 0.01f)
+    if(za::abs(a.top - b.top) > 0.01f)
     {
         return a.top > b.top;
     }
-    if(qza::abs(a.facing - b.facing) > 1e-3f)
+    if(za::abs(a.facing - b.facing) > 1e-3f)
     {
         return a.facing > b.facing;
     }
@@ -570,14 +572,14 @@ struct Box
         const Candidate* k;
     };
     za::Vector<Blocker> blockers;
-    const bool flat = qza::abs(e.dir.z) < 1e-3f;
+    const bool flat = za::abs(e.dir.z) < 1e-3f;
     if(flat)
     {
         for(const Candidate& k : all)
         {
             const ledges::Edge& ke = k.ledge();
-            const float cosine = qza::abs(glm::dot(ke.dir, e.dir));
-            if(&k == &c || qza::abs(ke.dir.z) >= 1e-3f || (cosine > 1e-3f && cosine < 1.f - 1e-3f))
+            const float cosine = za::abs(glm::dot(ke.dir, e.dir));
+            if(&k == &c || za::abs(ke.dir.z) >= 1e-3f || (cosine > 1e-3f && cosine < 1.f - 1e-3f))
             {
                 continue;
             }
@@ -693,7 +695,8 @@ struct Box
             order.pushBack(&c);
         }
     }
-    // (Stable: equal places in their order, as std::sort left a few.)
+    // (Stable: equal places in their order, as std::sort left a few. insertionSort, not stableSort: takenBefore compares
+    // within tolerances, not a strict weak order, and the two may disagree on such a one.)
     za::insertionSort(order.begin(), order.end(), [](const Candidate* a, const Candidate* b) { return takenBefore(a->place, b->place); });
     for(const Candidate* c : order)
     {
@@ -768,7 +771,7 @@ struct Box
         const float score = dist * (1.f - reachFavour * (dist > 1e-3f ? glm::dot(d / dist, reach) : 0.f));
         scored.pushBack(Scored{score, taken, at});
     }
-    za::insertionSort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) { return a.score < b.score; });
+    za::stableSort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) { return a.score < b.score; });
     for(const Scored& sc : scored)
     {
         switch(check(player, sc.c, sc.at, true, hand, headPos, movers))
@@ -1087,7 +1090,7 @@ void slideHold(Grip& g, const glm::vec3& tracked, const glm::vec3& shoulder, flo
     const float c = glm::dot(v, v) - za::max(reach * reach, glm::dot(v, v));
     const float root = za::sqrt(za::max(0.f, b * b - c));
     s = za::clamp(s, -b - root, -b + root);
-    if(qza::abs(s) < 1e-4f)
+    if(za::abs(s) < 1e-4f)
     {
         return;
     }
@@ -1652,7 +1655,7 @@ static void climbPreThink(edict_t* ent)
     }
     Climber& c = *cp;
     const double time = qcvm->time;
-    if(c.lastTime < 0.0 || qza::abs(time - c.lastTime) > 1.0) // a new map, a loaded game
+    if(c.lastTime < 0.0 || za::abs(time - c.lastTime) > 1.0) // a new map, a loaded game
     {
         c = Climber{};
     }

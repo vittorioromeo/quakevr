@@ -17,6 +17,7 @@
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -131,7 +132,7 @@ struct Orient
     // Its half extent along the horizontal unit vector `d`.
     [[nodiscard]] float along(const glm::vec2& d) const
     {
-        return qza::abs(glm::dot(d, glm::vec2{fwd})) * hf + qza::abs(glm::dot(d, glm::vec2{left})) * hl;
+        return za::abs(glm::dot(d, glm::vec2{fwd})) * hf + za::abs(glm::dot(d, glm::vec2{left})) * hl;
     }
 };
 
@@ -290,7 +291,7 @@ struct Planner
             for(const glm::vec3& p : pts)
             {
                 const trace_t t = traceLine(p + glm::vec3{0.f, 0.f, 4.f}, p - glm::vec3{0.f, 0.f, 4.f});
-                if(t.fraction >= 1.f || t.startsolid || t.ent != qcvm->edicts || qza::abs(t.endpos[2] - floorZ) > 1.5f ||
+                if(t.fraction >= 1.f || t.startsolid || t.ent != qcvm->edicts || za::abs(t.endpos[2] - floorZ) > 1.5f ||
                     t.plane.normal[2] < 0.95f)
                 {
                     reason = RUneven;
@@ -341,8 +342,8 @@ struct Planner
             }
         }
         // Clear of the entities (their boxes grown by their margins).
-        const float rx = qza::abs(o.fwd.x) * o.hf + qza::abs(o.left.x) * o.hl;
-        const float ry = qza::abs(o.fwd.y) * o.hf + qza::abs(o.left.y) * o.hl;
+        const float rx = za::abs(o.fwd.x) * o.hf + za::abs(o.left.x) * o.hl;
+        const float ry = za::abs(o.fwd.y) * o.hf + za::abs(o.left.y) * o.hl;
         for(const debris::Obstacle& ob : obstacles)
         {
             if(c.x + rx > ob.lo.x && c.x - rx < ob.hi.x && c.y + ry > ob.lo.y && c.y - ry < ob.hi.y &&
@@ -587,7 +588,7 @@ int plan()
         }
         const int texnum = surf.texinfo->texnum;
         const texture_t* tex = texnum >= 0 && texnum < map->numtextures ? map->textures[texnum] : nullptr;
-        if(qza::abs(n.z) > 0.3f || glm::length(glm::vec2{n}) < 0.9f || debris::materialOf(tex ? tex->name : "") == debris::Material::None)
+        if(za::abs(n.z) > 0.3f || glm::length(glm::vec2{n}) < 0.9f || debris::materialOf(tex ? tex->name : "") == debris::Material::None)
         {
             continue;
         }
@@ -606,7 +607,7 @@ int plan()
             const int va = static_cast<int>(e0 >= 0 ? map->edges[e0].v[0] : map->edges[-e0].v[1]);
             const int vb = static_cast<int>(e1 >= 0 ? map->edges[e1].v[0] : map->edges[-e1].v[1]);
             const glm::vec3 a = vec(map->vertexes[va].position), b = vec(map->vertexes[vb].position);
-            if(qza::abs(a.z - lo) > 0.5f || qza::abs(b.z - lo) > 0.5f || glm::length(b - a) < 32.f)
+            if(za::abs(a.z - lo) > 0.5f || za::abs(b.z - lo) > 0.5f || glm::length(b - a) < 32.f)
             {
                 continue;
             }
@@ -618,7 +619,7 @@ int plan()
                 const glm::vec3 at = a + edge * (t / len);
                 const glm::vec3 probe = at + glm::vec3{out * 2.f, 0.f};
                 const trace_t down = traceLine(probe + glm::vec3{0.f, 0.f, 4.f}, probe - glm::vec3{0.f, 0.f, 4.f});
-                if(down.fraction >= 1.f || down.startsolid || down.ent != qcvm->edicts || qza::abs(down.endpos[2] - at.z) > 1.5f)
+                if(down.fraction >= 1.f || down.startsolid || down.ent != qcvm->edicts || za::abs(down.endpos[2] - at.z) > 1.5f)
                 {
                     noFloor++;
                     continue;
@@ -1019,7 +1020,7 @@ int sightBlocked(const glm::vec3& start, const glm::vec3& end, int ignoreA, int 
         for(int k = 0; k < 3 && hit; k++)
         {
             const float lo = e->v.absmin[k], hi = e->v.absmax[k];
-            if(qza::abs(d[k]) < 1e-6f)
+            if(za::abs(d[k]) < 1e-6f)
             {
                 hit = start[k] >= lo && start[k] <= hi;
                 continue;

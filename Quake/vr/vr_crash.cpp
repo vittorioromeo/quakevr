@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// vr_zancle.cpp: Zancle's failed asserts (ZA_ASSERT) reported as a Quake error (za::setAssertHandler).
+extern "C" void VR_InstallZancleAssertHandler (void);
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -205,6 +208,7 @@ static int __cdecl PL_CrtReportHook (int type, char *message, int *returnValue)
 
 extern "C" void VR_InstallCrashHandler (void)
 {
+	VR_InstallZancleAssertHandler ();
 	bool &installed = crashHandlerInstalled;
 	if (!installed && getenv ("QVR_NO_ERROR_DIALOG"))
 	{
@@ -268,6 +272,7 @@ extern "C" int VR_ErrorDialogSuppressed (const char *errorMsg)
 
 extern "C" void VR_InstallCrashHandler (void)
 {
+	VR_InstallZancleAssertHandler ();
 }
 
 extern "C" void VR_FatalReport (const char *what)

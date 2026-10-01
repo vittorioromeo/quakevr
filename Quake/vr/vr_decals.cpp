@@ -520,7 +520,7 @@ struct GoreShape
 void encode(glm::vec3 f, unsigned char* out)
 {
     f = glm::clamp(f, 0.f, 2.f);
-    const float dim = za::max(0.f, 1.f - qza::minOf(f.r, f.g, f.b));
+    const float dim = za::max(0.f, 1.f - za::min(f.r, f.g, f.b));
     const glm::vec3 c = f - 1.f + dim;
     for(int i = 0; i < 3; i++)
     {
@@ -623,7 +623,7 @@ void encode(glm::vec3 f, unsigned char* out)
                     }
                     // Faded out to nothing at the cell's border: filtering (and the smaller
                     // mipmaps) must not reach the next cell.
-                    const int edge = qza::minOf(x, y, cellSize - 1 - x, cellSize - 1 - y);
+                    const int edge = za::min(x, y, cellSize - 1 - x, cellSize - 1 - y);
                     f = glm::mix(glm::vec3{1.f}, f, smoothstep(3.f, 14.f, static_cast<float>(edge)));
                     encode(f, &rgba[((oy + y) * atlasWidth + ox + x) * 4]);
                 }
@@ -1259,7 +1259,7 @@ void draw()
         {
             const Decal& d = decals[k];
             // When it last changes: shown, spread, darkened; then its fading.
-            const double settled = d.born + qza::maxOf(0.f, d.grow, d.darken > 0.f ? za::max(d.grow, 8.f) : 0.f);
+            const double settled = d.born + za::max(0.f, d.grow, d.darken > 0.f ? za::max(d.grow, 8.f) : 0.f);
             const double fades = d.born + life - 5.0;
             if(cl.time >= settled && cl.time < fades)
             {

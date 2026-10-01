@@ -179,6 +179,55 @@ struct ZA_GSL_POINTER(T) Span
 
 
     ////////////////////////////////////////////////////////////
+    /// \brief Size of the viewed elements in bytes (like `std::span::size_bytes`)
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr SizeT sizeBytes() const noexcept
+    {
+        return theSize * sizeof(T);
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief First element (the span must not be empty)
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr T& front() const
+    {
+        ZA_ASSERT(theSize > 0u);
+        return *theData;
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Last element (the span must not be empty)
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr T& back() const
+    {
+        ZA_ASSERT(theSize > 0u);
+        return *(theData + theSize - 1u);
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief View of `count` elements starting at `offset` (like `std::span::subspan`)
+    ///
+    /// `offset` must be at most `size()`. Without `count` (or when it exceeds
+    /// what is left), the view extends to the end of the span.
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr Span subspan(const SizeT offset,
+                                                                        const SizeT count = static_cast<SizeT>(-1)) const
+    {
+        ZA_ASSERT(offset <= theSize);
+
+        const SizeT available = theSize - offset;
+        return Span{theData + offset, count < available ? count : available};
+    }
+
+
+    ////////////////////////////////////////////////////////////
     /// \brief Element-wise comparison of two ranges
     ///
     /// Returns `true` only if both ranges have the same length and every

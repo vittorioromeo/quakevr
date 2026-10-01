@@ -9,6 +9,7 @@
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -248,7 +249,7 @@ struct Shape::Space
             first[c + 1] = first[c] + counts[c];
         }
         items.resize(first[cells]);
-        za::fill(counts.begin(), counts.end(), 0u);
+        za::fill(counts, 0u);
         for(za::SizeT i = 0; i < tris.size(); i++)
         {
             each(tris[i], [&](za::SizeT c, za::U32 firsts) {
@@ -721,7 +722,7 @@ void lieAlong(const Context& ctx, float sink, FingerStop& st)
         return; // in it too deep (left as it was), or clear of it open (free: nothing to lie along)
     }
     st = FingerStop{};
-    za::fill(st.stop, st.stop + handrig::jointsPerFinger, 0.f);
+    za::fill(st.stop, 0.f);
     st.met = true;
     st.lying = za::fmax(-least, 0.f);
 }
@@ -1205,7 +1206,7 @@ void reset()
 
 void forgetSolves()
 {
-    za::fill(remembered.begin(), remembered.end(), Remembered{});
+    za::fill(remembered, Remembered{});
     rememberedNext = 0;
     rememberedUsed = 0;
 }
@@ -1304,7 +1305,7 @@ glm::vec3 palmCentre()
 void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shapeToRig, const Settings& settings,
     const Solution* previous, Solution& out, Shape* extra, const glm::mat4& extraToRig, float extraOverlap)
 {
-    const auto t0 = qza::nowNs();
+    const auto t0 = za::Clock::nowNanoseconds();
     // Afresh with nothing else in the way: the same inputs as a solve remembered give its result (Remembered).
     const bool memo = !previous && !extra;
     if(memo)
@@ -1314,7 +1315,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
             if(sameInputs(remembered[static_cast<za::SizeT>(i)], start, shape, shapeToRig, settings))
             {
                 out = remembered[static_cast<za::SizeT>(i)].solution;
-                out.seconds = qza::secondsSince(t0);
+                out.seconds = za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - t0);
                 return;
             }
         }
@@ -1496,7 +1497,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
         out.fingerProbes[f] += jobProbes[j];
     }
     out.probes = probes;
-    out.seconds = qza::secondsSince(t0);
+    out.seconds = za::nanosecondsToSeconds(za::Clock::nowNanoseconds() - t0);
     if(memo)
     {
         Remembered& r = remembered[static_cast<za::SizeT>(rememberedNext)];
@@ -1658,7 +1659,7 @@ bool signedDistance(const Shape& shape, const glm::mat4& shapeToWorld, const glm
     at = glm::vec3{realToWorld * glm::vec4{closest, 1.f}};
     // Inside by the nearest triangle's side; never deeper than half the model's thinnest box side (beside an edge or a
     // corner, the triangle's side can be the wrong one).
-    const bool in = glm::dot(q - closest, out) < 0.f && d <= 0.5f * qza::minOf(space.hi.x - space.lo.x, space.hi.y - space.lo.y, space.hi.z - space.lo.z);
+    const bool in = glm::dot(q - closest, out) < 0.f && d <= 0.5f * za::min(space.hi.x - space.lo.x, space.hi.y - space.lo.y, space.hi.z - space.lo.z);
     distance = in ? -d * scale : d * scale;
     return true;
 }

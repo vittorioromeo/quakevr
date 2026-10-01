@@ -6,6 +6,8 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
+#include "Zancle/Container/Priv/LexicographicLess.hpp"
+
 #include "Zancle/Base/Assert.hpp"
 #include "Zancle/Base/LifetimeAttributes.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -163,10 +165,92 @@ struct [[nodiscard]] ZA_GSL_OWNER(T) Array
 
 
     ////////////////////////////////////////////////////////////
+    /// \brief First element
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr T& front() noexcept ZA_LIFETIMEBOUND
+    {
+        return elements[0];
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief First element
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr const T& front() const noexcept ZA_LIFETIMEBOUND
+    {
+        return elements[0];
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Last element
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr T& back() noexcept ZA_LIFETIMEBOUND
+    {
+        return elements[N - 1u];
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Last element
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr const T& back() const noexcept ZA_LIFETIMEBOUND
+    {
+        return elements[N - 1u];
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Assign `value` to every element (like `std::array::fill`)
+    ///
+    ////////////////////////////////////////////////////////////
+    constexpr void fill(const T& value)
+    {
+        for (T& element : elements)
+            element = value;
+    }
+
+
+    ////////////////////////////////////////////////////////////
     /// \brief Element-wise equality comparison
     ///
     ////////////////////////////////////////////////////////////
     [[nodiscard]] constexpr bool operator==(const Array& rhs) const = default;
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Lexicographic ordering, using only the elements' `operator<` (like `std::array`'s)
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] constexpr bool operator<(const Array& rhs) const
+    {
+        return priv::lexicographicLess(elements, N, rhs.elements, N);
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline]] constexpr bool operator>(const Array& rhs) const
+    {
+        return rhs < *this;
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline]] constexpr bool operator<=(const Array& rhs) const
+    {
+        return !(rhs < *this);
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline]] constexpr bool operator>=(const Array& rhs) const
+    {
+        return !(*this < rhs);
+    }
 };
 
 

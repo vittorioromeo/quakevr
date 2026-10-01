@@ -4,8 +4,10 @@ reached header's source file (Quake/vr/external/zancle/README.md).
 
 usage:
   zancle_vendor.py <upstream checkout> [Zancle/X/Y.hpp ...]   copies what is missing (the VR code's includes when no
-                                                               header is named); files already there are kept (their
-                                                               local changes too)
+                                                               header is named); files already there are kept
+  zancle_vendor.py --update <upstream checkout>                an update: also every vendored file upstream changed
+                                                               (the vendored tree has no local changes: it is
+                                                               upstream's), then what the VR code now reaches
   zancle_vendor.py --list-unused                               the vendored files nothing reaches (to delete)
 """
 import os
@@ -41,8 +43,9 @@ def closure(root, seeds):
             r = locate(root, m.group(1))
             if r:
                 todo.append(r)
-        if rel.startswith("include") and rel.endswith(".hpp"):
-            cpp = os.path.join("src", rel[len("include") + 1:-4] + ".cpp")
+        if rel.endswith(".hpp") and rel.startswith(("include", "src")):
+            # a header's source file: include/X.hpp's src/X.cpp, and a private src/X.hpp's src/X.cpp (StackTrace)
+            cpp = os.path.join("src", rel.split(os.sep, 1)[1][:-4] + ".cpp")
             if (root / cpp).exists():
                 todo.append(cpp)
     return seen
@@ -72,7 +75,22 @@ def main():
             if p.is_file() and rel.startswith(("include", "src", "extlibs")) and rel not in used:
                 print("unused:", rel)
         return 0
+    update = args[0] == "--update"
+    if update:
+        args = args[1:]
     up = pathlib.Path(args[0])
+    updated = 0
+    for d in sorted(DST.rglob("*")) if update else []:
+        rel = os.path.normpath(os.path.relpath(d, DST))
+        if not d.is_file() or not rel.startswith(("include", "src", "extlibs")):
+            continue
+        src = up / rel.replace("extlibs" + os.sep, "extlibs" + os.sep + "headers" + os.sep, 1) if rel.startswith("extlibs") else up / rel
+        if not src.exists():
+            print("not upstream any more:", rel)
+        elif src.read_bytes().replace(b"\r\n", b"\n") != d.read_bytes().replace(b"\r\n", b"\n"):
+            updated += 1
+            print("update", rel)
+            d.write_bytes(src.read_bytes())
     seeds = [locate(up, a) for a in args[1:]] if len(args) > 1 else sorted(vr_includes(up))
     need = closure(up, [s for s in seeds if s])
     added = 0
@@ -84,7 +102,7 @@ def main():
         print("add", rel)
         d.parent.mkdir(parents=True, exist_ok=True)
         d.write_bytes((up / rel).read_bytes())
-    print(f"{len(need)} files reached, {added} added")
+    print(f"{len(need)} files reached, {added} added" + (f", {updated} updated" if update else ""))
     return 0
 
 

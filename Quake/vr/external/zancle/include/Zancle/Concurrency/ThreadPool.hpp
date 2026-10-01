@@ -29,6 +29,11 @@ namespace za
 /// next available worker thread. `parallelFor` splits a range of work
 /// between the workers and the calling thread, and waits for it.
 ///
+/// Tasks and `parallelFor` bodies must not throw: an exception escaping
+/// one terminates the program (`std::terminate`), as the pool cannot
+/// report it to whoever posted the work, and other threads may still
+/// depend on the frame it would unwind.
+///
 ////////////////////////////////////////////////////////////
 class ZA_SYSTEM_API ThreadPool
 {
@@ -86,7 +91,7 @@ public:
     /// \return `true` if a task was run, `false` if no task was pending
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard]] bool tryRunPendingTask();
+    [[nodiscard]] bool tryRunPendingTask() noexcept;
 
     ////////////////////////////////////////////////////////////
     /// \brief Call `f(begin, end)` on chunks covering `[0, count)` in parallel, and wait for all of them
@@ -103,9 +108,11 @@ public:
     /// unrelated ones) instead of idling, which also makes nested calls
     /// from within a task safe.
     ///
+    /// `f` must not throw: an exception escaping it terminates the program.
+    ///
     ////////////////////////////////////////////////////////////
     template <typename F>
-    void parallelFor(SizeT count, F&& f, SizeT chunkSize = 0u);
+    void parallelFor(SizeT count, F&& f, SizeT chunkSize = 0u) noexcept;
 
     ////////////////////////////////////////////////////////////
     /// \brief Number of workers in the pool
@@ -141,7 +148,7 @@ private:
 
 ////////////////////////////////////////////////////////////
 template <typename F>
-void ThreadPool::parallelFor(const SizeT count, F&& f, SizeT chunkSize)
+void ThreadPool::parallelFor(const SizeT count, F&& f, SizeT chunkSize) noexcept
 {
     if (count == 0u)
         return;

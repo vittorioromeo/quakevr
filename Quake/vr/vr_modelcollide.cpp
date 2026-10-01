@@ -24,6 +24,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Swap.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -1295,9 +1296,9 @@ void bench_f()
             {
                 entry.second->frame = -1; // posed afresh each time, as each frame
             }
-            const auto t0 = qza::nowNs();
+            const auto t0 = za::Clock::nowNanoseconds();
             res = test(s, hand);
-            us.pushBack(qza::usSince(t0));
+            us.pushBack(za::nanosecondsToMicroseconds(za::Clock::nowNanoseconds() - t0));
         }
         za::quickSort(us.begin(), us.end());
         const Stats& st = res.stats;

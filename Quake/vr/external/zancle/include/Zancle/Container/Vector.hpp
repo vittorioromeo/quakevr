@@ -14,6 +14,7 @@
 #include "Zancle/Base/PlacementNew.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Swap.hpp"
 
 #include "Zancle/Trait/EnableTrivialRelocation.hpp"
 #include "Zancle/Trait/IsTriviallyDestructible.hpp"
@@ -55,6 +56,21 @@ private:
     TItem* m_data{nullptr};        //!< Pointer to the beginning of the storage, or `nullptr`
     TItem* m_endSize{nullptr};     //!< Pointer one past the last constructed element
     TItem* m_endCapacity{nullptr}; //!< Pointer one past the end of the allocated storage
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Reverse the order of the elements of `[first, last)` in place
+    ///
+    ////////////////////////////////////////////////////////////
+    static void reverseRange(TItem* first, TItem* last)
+    {
+        while (last - first > 1)
+        {
+            --last;
+            genericSwap(*first, *last);
+            ++first;
+        }
+    }
 
 
     ////////////////////////////////////////////////////////////
@@ -347,6 +363,59 @@ public:
     [[gnu::always_inline]] TItem* insert(const TItem* const pos, TItem&& value)
     {
         return emplace(pos, static_cast<TItem&&>(value));
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Insert copies of `[first, last)` before `pos`; invalidates iterators on growth
+    ///
+    /// `[first, last)` may be a subrange of `*this`. Costs `O(size() - index + count)`
+    /// element swaps: the copies are appended, then rotated into place.
+    ///
+    /// \return Iterator to the first inserted element (`pos` if the range is empty)
+    ///
+    ////////////////////////////////////////////////////////////
+    TItem* insert(const TItem* const pos, const TItem* const first, const TItem* const last)
+    {
+        ZA_ASSERT(pos >= begin() && pos <= end());
+        ZA_ASSERT(first <= last);
+
+        const auto index   = static_cast<SizeT>(pos - m_data);
+        const auto oldSize = size();
+
+        emplaceBackRange(first, static_cast<SizeT>(last - first)); // handles `[first, last)` inside `*this`
+
+        // Rotate `[index, oldSize)` and the appended elements, by three reversals
+        reverseRange(m_data + index, m_data + oldSize);
+        reverseRange(m_data + oldSize, m_endSize);
+        reverseRange(m_data + index, m_endSize);
+
+        return m_data + index;
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Insert copies of the elements of `list` before `pos`; invalidates iterators on growth
+    ///
+    /// \return Iterator to the first inserted element (`pos` if the list is empty)
+    ///
+    ////////////////////////////////////////////////////////////
+    TItem* insert(const TItem* const pos, const std::initializer_list<TItem> list)
+    {
+        return insert(pos, list.begin(), list.end());
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Replace the contents with `count` copies of `value` (which may be an element of `*this`)
+    ///
+    ////////////////////////////////////////////////////////////
+    void assign(const SizeT count, const TItem& value)
+    {
+        const TItem copy(value); // `value` may be an element of `*this`, destroyed by `clear`
+
+        clear();
+        resize(count, copy);
     }
 
 

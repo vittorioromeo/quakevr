@@ -234,7 +234,7 @@ bool Simulation::create(int rate, int frameSize, IPLReflectionEffectType reflect
     sa->iplSimulatorCommit(simulator);
     {
         const za::LockGuard lock{mutex};
-        za::fill(directValid.begin(), directValid.end(), false);
+        za::fill(directValid, false);
         reflectionsValid = false;
     }
     lastDirect = lastReflections = -1e9;
@@ -378,7 +378,7 @@ void Simulation::useBuilt(Built b)
         sa->iplSimulatorCommit(simulator);
     }
     const za::LockGuard lock{mutex};
-    za::fill(directValid.begin(), directValid.end(), false);
+    za::fill(directValid, false);
     reflectionsValid = false;
 }
 

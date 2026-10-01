@@ -196,6 +196,13 @@ public:
 
 
     ////////////////////////////////////////////////////////////
+    /// \brief `count` copies of `c` (like `std::string(count, c)`)
+    ///
+    ////////////////////////////////////////////////////////////
+    explicit String(SizeT count, char c);
+
+
+    ////////////////////////////////////////////////////////////
     template <typename AnsiStringLike>
         requires(isSame<typename AnsiStringLike::value_type, char> &&
                  requires(const AnsiStringLike& s) {
@@ -381,6 +388,7 @@ public:
     String& append(char c);
     String& append(const char* cStr);
     String& append(const char* cStr, SizeT count);
+    String& append(SizeT count, char c); // `count` copies of `c`
 
 
     ////////////////////////////////////////////////////////////
@@ -473,6 +481,10 @@ public:
     friend ZA_SYSTEM_API void swap(String& lhs, String& rhs) noexcept;
 
 
+    ////////////////////////////////////////////////////////////
+    void swap(String& other) noexcept;
+
+
 ////////////////////////////////////////////////////////////
 // Bridge macro: forward `methodName(...)` to the equivalent on `StringView`.
 // The optional trailing argument is appended after the member function qualifiers.
@@ -495,6 +507,7 @@ public:
     [[nodiscard, gnu::always_inline, gnu::flatten, gnu::pure]] ZA_PRIV_DEFINE_STRING_VIEW_BRIDGE(startsWith);
     [[nodiscard, gnu::always_inline, gnu::flatten, gnu::pure]] ZA_PRIV_DEFINE_STRING_VIEW_BRIDGE(endsWith);
     [[nodiscard, gnu::always_inline, gnu::flatten, gnu::pure]] ZA_PRIV_DEFINE_STRING_VIEW_BRIDGE(contains);
+    [[nodiscard, gnu::always_inline, gnu::flatten, gnu::pure]] ZA_PRIV_DEFINE_STRING_VIEW_BRIDGE(compare);
     [[gnu::always_inline, gnu::flatten]] ZA_PRIV_DEFINE_STRING_VIEW_BRIDGE(forSplits);
     [[gnu::always_inline, gnu::flatten]] ZA_PRIV_DEFINE_STRING_VIEW_BRIDGE(forLines);
 

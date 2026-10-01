@@ -22,6 +22,7 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Container/Array.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -76,7 +77,7 @@ constexpr double peakFit = 0.03;
     for(int i = 0; i < h.count; i++)
     {
         const double x = h.at(i).time - peakTime;
-        if(qza::abs(x) > peakFit)
+        if(za::abs(x) > peakFit)
         {
             continue;
         }
@@ -105,7 +106,7 @@ constexpr double peakFit = 0.03;
                a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
     };
     const double d = det3(m);
-    if(qza::abs(d) < 1e-18)
+    if(za::abs(d) < 1e-18)
     {
         return 0.f;
     }
@@ -184,7 +185,7 @@ constexpr double peakFit = 0.03;
     int nVel = 0, nAng = 0;
     for(int i = 0; i < h.count; i++)
     {
-        const double dt = qza::abs(h.at(i).time - peak.time);
+        const double dt = za::abs(h.at(i).time - peak.time);
         if(dt <= span)
         {
             vel += h.at(i).vel;

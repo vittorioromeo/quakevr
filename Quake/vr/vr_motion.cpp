@@ -29,10 +29,12 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/String/ToString.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
 
@@ -315,7 +317,7 @@ constexpr const char* avxyz[3] = {"avx", "avy", "avz"};
 
 [[nodiscard]] float wrapYaw(float y)
 {
-    return qza::remainder(y, 360.f);
+    return za::remainder(y, 360.f);
 }
 
 [[nodiscard]] za::String eventField(za::String s)
@@ -870,7 +872,7 @@ enum class Rec
 
 Rec rec = Rec::Off;
 void finishTake();
-za::Vector<qza::Pair<TakeInfo, za::Vector<Row>>> unsaved; // takes that could not be written
+za::Vector<za::Pair<TakeInfo, za::Vector<Row>>> unsaved; // takes that could not be written
 // The buttons the recorder can take (vr_motion_button's), an index into taken's.
 constexpr bool HandInput::*recButtons[] = {
     &HandInput::trigger, &HandInput::grip, &HandInput::primary, &HandInput::secondary, &HandInput::stickClick};
@@ -1053,7 +1055,7 @@ struct PendingSave
     // The take's rows, this save's alone: the writing task reads them through a pointer (they don't move with the
     // PendingSave), and they outlive it: get() (pollSaves) before they go, and `result` is declared after them, so a
     // PendingSave destroyed unfinished waits for the task (~Future) before its rows are freed.
-    za::UniquePtr<const za::Vector<Row>> rows{nullptr};
+    za::UniquePtr<const za::Vector<Row>> rows;
     jobs::Future<int> result; // (the game's thread pool) 1 written in motions/, 2 in the game folder (fallback), 0 not at all
     za::String path;
     za::String fallback;

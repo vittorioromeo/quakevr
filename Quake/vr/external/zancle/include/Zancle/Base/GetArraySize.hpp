@@ -16,7 +16,7 @@ namespace za
 ///
 ////////////////////////////////////////////////////////////
 template <typename T, auto N>
-[[nodiscard]] consteval SizeT getArraySize(const T (&)[N]) noexcept
+[[nodiscard, gnu::always_inline, gnu::const]] constexpr SizeT getArraySize(const T (&)[N]) noexcept
 {
     return N;
 }
@@ -27,7 +27,7 @@ template <typename T, auto N>
 ///
 ////////////////////////////////////////////////////////////
 template <typename S, typename T, auto N>
-[[nodiscard]] consteval SizeT getArraySize(const T (S::*)[N]) noexcept
+[[nodiscard, gnu::always_inline, gnu::const]] constexpr SizeT getArraySize(const T (S::*)[N]) noexcept
 {
     return N;
 }
