@@ -50,7 +50,11 @@ After the Zancle follow-ups (no exceptions, fewer allocations): record a few tak
 
 Shoot a tipped-over explosive box with the shotgun, nails and rockets: shots past its corners go by, shots at its faces hit where it's drawn (Player Hitbox > Shots Meet Their Shape)
 
+Big prop pile: Debug > Profiling and Memory > Physics Step Time (Threads section) with Physics on Threads on and off
+Your tuned values are now defaults (Distance Falloff 0.75, HRTF Volume 1.5, Physics Sounds 2, scrape 0.8, grab 0.7, Mid-Air Leniency 4 cm): fresh config feels the same as yours
+
 [Decide or give feedback]
+Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)

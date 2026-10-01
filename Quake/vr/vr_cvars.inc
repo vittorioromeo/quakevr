@@ -169,21 +169,21 @@ QVR_CVAR(vr_box3d_player_hold, "1", CVAR_ARCHIVE) // ... but a player inside one
 QVR_CVAR(vr_box3d_mesh_junctions, "1", CVAR_NONE)  // the world mesh with its T-junctions joined (no bumps at the seams between faces); 0: the faces as the BSP has them
 QVR_CVAR(vr_debug_box3d, "0", CVAR_NONE)             // 1: bodies made, woken and put to sleep; 2: every awake body every frame
 // Physics sounds (vr_physsound.cpp; ROUND21.md, "Physics sounds"): props knocking and scraping, a climbing hand's grab.
-QVR_CVAR(vr_physsound, "1", CVAR_ARCHIVE)             // all of them: their volume (0 off; up to 2: over 1 the client multiplies them, vr_audio.cpp)
+QVR_CVAR(vr_physsound, "2", CVAR_ARCHIVE)             // all of them: their volume (0 off; up to 2: over 1 the client multiplies them, vr_audio.cpp)
 QVR_CVAR(vr_physsound_impact, "1", CVAR_ARCHIVE)      // props hitting the level, doors and each other: volume (0 off)
 QVR_CVAR(vr_physsound_min_speed, "1.5", CVAR_ARCHIVE) // m/s, the slowest hit that knocks (a 4 cm drop; quietly)
 QVR_CVAR(vr_physsound_full_speed, "10", CVAR_ARCHIVE) // m/s, a hit this hard or harder at full volume (a 1 m drop: 7.8)
 QVR_CVAR(vr_physsound_interval, "0.12", CVAR_ARCHIVE) // s, a prop knocks at most this often (a harder hit, twice as loud, sooner)
-QVR_CVAR(vr_physsound_scrape, "0.7", CVAR_ARCHIVE)    // props sliding with friction (dragged, shoved, skidding): volume (0 off)
+QVR_CVAR(vr_physsound_scrape, "0.8", CVAR_ARCHIVE)    // props sliding with friction (dragged, shoved, skidding): volume (0 off)
 QVR_CVAR(vr_physsound_scrape_min, "0.3", CVAR_ARCHIVE) // m/s, the slowest slide that scrapes
 QVR_CVAR(vr_physsound_scrape_full, "3", CVAR_ARCHIVE) // m/s, a slide this fast or faster at full volume
-QVR_CVAR(vr_physsound_grab, "0.5", CVAR_ARCHIVE)      // a climbing hand taking a hold (by the hold's texture: wood, metal, stone): volume (0 off)
+QVR_CVAR(vr_physsound_grab, "0.7", CVAR_ARCHIVE)      // a climbing hand taking a hold (by the hold's texture: wood, metal, stone): volume (0 off)
 QVR_CVAR(vr_debug_physsound, "0", CVAR_NONE)          // 1: each impact, scrape and grab played; 2: also the hits skipped and each scrape grain
 // Spatial audio (vr_audio.cpp, Steam Audio; ROUND21.md, "Spatial audio (Steam Audio)"). Without phonon.dll: Quake's panning.
 QVR_CVAR(vr_snd_spatial, "1", CVAR_ARCHIVE)           // 0 Quake's mixer as it was; 1 the features below in VR; 2 also on the desktop (headphones)
 QVR_CVAR(vr_snd_hrtf, "1", CVAR_ARCHIVE)              // binaural (HRTF) from the head's pose; 0: Quake's left/right panning
 QVR_CVAR(vr_snd_hrtf_interp, "1", CVAR_ARCHIVE)       // the HRTF between its measured directions: 1 bilinear (smooth), 0 nearest (cheaper)
-QVR_CVAR(vr_snd_hrtf_gain, "1.25", CVAR_ARCHIVE)      // the binaural voices' volume against Quake's panned channels (1.25: as loud as its panning, all round)
+QVR_CVAR(vr_snd_hrtf_gain, "1.5", CVAR_ARCHIVE)       // the binaural voices' volume against Quake's panned channels (1.25: as loud as its panning, all round; 1.5 the author's)
 QVR_CVAR(vr_snd_hrtf_sofa, "", CVAR_ARCHIVE)          // an HRTF of your own: a .sofa file in the game folder (empty: Steam Audio's)
 QVR_CVAR(vr_snd_voices, "32", CVAR_ARCHIVE)           // how many of the loudest channels are rendered so (1-64); the rest are panned as ever
 QVR_CVAR(vr_snd_frame, "256", CVAR_ARCHIVE)           // samples a voice renders at a time (256, 512, 1024): larger is cheaper, direction changes coarser
@@ -191,7 +191,7 @@ QVR_CVAR(vr_snd_occlusion, "0.8", CVAR_ARCHIVE)       // walls and doors between
 QVR_CVAR(vr_snd_occlusion_samples, "8", CVAR_ARCHIVE) // rays per sound: 1 on or off; more: partly hidden (a sphere's points)
 QVR_CVAR(vr_snd_occlusion_radius, "0.5", CVAR_ARCHIVE) // m, the sphere a sound comes from (partial occlusion)
 QVR_CVAR(vr_snd_air, "1", CVAR_ARCHIVE)               // far sounds lose their highs in the air
-QVR_CVAR(vr_snd_falloff, "1", CVAR_ARCHIVE)           // Quake's distance falloff, scaled (1 Quake's; 0.5: sounds carry twice as far; 0 none): every sound, spatial or not
+QVR_CVAR(vr_snd_falloff, "0.75", CVAR_ARCHIVE)        // Quake's distance falloff, scaled (1 Quake's; 0.75 the author's, a bit further; 0.5: sounds carry twice as far; 0 none): every sound, spatial or not
 QVR_CVAR(vr_snd_reverb, "0.5", CVAR_ARCHIVE)          // the room's reverb, simulated from the map where the head is: wet mix (0 off)
 QVR_CVAR(vr_snd_reverb_quality, "1", CVAR_ARCHIVE)    // 0 parametric (cheapest), 1 convolution (2 s of the simulated response), 2 convolution (3 s, more rays)
 QVR_CVAR(vr_snd_reverb_interval, "0.25", CVAR_ARCHIVE) // s between the room's simulations (a pool task)
@@ -588,7 +588,7 @@ QVR_CVAR(vr_grenade_pouch_hold_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_grenade_pouch_hold_roll, "0", CVAR_ARCHIVE)
 // The player's body (vr_avatar.cpp): 0 none, 2 torso and arms, 3 torso, arms and legs: the skinned
 // progs/vrbody model, posed by IK from the head and hands (1, the old floating torso, is now 2).
-QVR_CVAR(vr_body_mode, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_body_mode, "3", CVAR_ARCHIVE)           // 3 shipped (vr_defaults.cfg too): the full body, legs and all
 QVR_CVAR(vr_body_build, "1", CVAR_ARCHIVE)            // 0 lean, 1 athletic, 2 brawny (progs/vrbody_lean, vrbody, vrbody_brawny)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
 QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
@@ -948,7 +948,7 @@ QVR_CVAR(vr_climb, "0", CVAR_ARCHIVE)                 // on as shipped (vr_defau
 QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a ledge must be to take hold of
 QVR_CVAR(vr_climb_fling, "1", CVAR_ARCHIVE)           // how much letting go flings you with the hands' motion (capped; 0 none)
 QVR_CVAR(vr_climb_leniency, "2", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
-QVR_CVAR(vr_climb_leniency_air, "2.5", CVAR_ARCHIVE) // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
+QVR_CVAR(vr_climb_leniency_air, "4", CVAR_ARCHIVE)   // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
 QVR_CVAR(vr_climb_touch, "4.5", CVAR_ARCHIVE)        // cm: the hand this close to a ledge's top or the face under its lip touches it (the whole reach at leniency 0)
 QVR_CVAR(vr_climb_over_top, "16", CVAR_ARCHIVE)      // units: a hand over a ledge's top still holds it this far in from the drop (as far as the top goes)
 QVR_CVAR(vr_climb_slide, "1", CVAR_ARCHIVE)          // a holding hand the body can't follow along the ledge (past the arm's reach, a wall) slides along it, the drawn hand staying on the controller (0: it stays put, the two drift apart)
