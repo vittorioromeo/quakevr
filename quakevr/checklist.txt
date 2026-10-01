@@ -125,6 +125,8 @@ Axe: throw upright, spear-like, knife-style, overhand and sidearm: sticks whenev
 
 After the Zancle follow-ups (no exceptions, fewer allocations): record a few takes, fire and reel the grapple around corners often, switch weapons
 
+Shoot a tipped-over explosive box with the shotgun, nails and rockets: shots past its corners go by, shots at its faces hit where it's drawn (Player Hitbox > Shots Meet Their Shape)
+
 [Decide or give feedback]
 Physics threads: default 150-body threshold and 4-thread cap OK?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
