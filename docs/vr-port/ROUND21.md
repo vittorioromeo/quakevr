@@ -18374,3 +18374,43 @@ detail 0.048 -> 0.322 0.242 0.137 / 0.056; brown 0.259 0.174 0.106 -> 0.197 0.13
 - [ ] Punch, club, chop, saw a crate: wood dust, no blood (the breaking blow too).
 - [ ] Debug > Tests > Thing > Two Crates Stacked: the top one sits on the lower one.
 - [ ] The crates up close in e1m1 (QRP and not): gritty, darker, in keeping with the walls and explosive boxes.
+
+## Sliding off steep boxes (2026-10-01)
+
+Your note (vrfiringrange 12:15:08): on a box tilted more than 30 degrees you don't slide off easily, you get a little
+stuck; you thought the box toppled towards you.
+
+**Why** (mock repro: the long box leant on the small one, settled 33 degrees steep, the player dropped on its face and
+printed every frame, `Misc/quakevr/boxslide/run.sh`). The box never moved (asleep throughout). Two things held you:
+
+- A solid prop's face was ground up to Quake's limit (a normal's z over 0.7, 45.6 degrees), as the level's slopes. On
+  ground, friction eats gravity's pull down a slope under 45 degrees, so you only creep: 7 units a second down the
+  33-degree face (2.4 s to go 13 units), with your weight pressing the box.
+- Sliding along a prop's face, `SV_FlyMove` stopped you dead every few frames. The prop trace (Quake 3's brush trace,
+  `vr_box3d_player_shape`) meets a face again when the velocity slid along it drifts into it by a hair
+  (`ClipVelocity` zeroes components under 0.1), at fraction 0; Quake took the same plane twice as a crease with
+  itself and zeroed the velocity. Quake's hull traces only meet planes they cross, so the level never does this.
+
+**Now:**
+
+- `vr_box3d_player_slope` (30 degrees; Player Hitbox, "Standing on Props", "Steepest Face to Stand On"): a solid prop's
+  face steeper than this isn't ground (`VR_StandsOn` gets the face's normal). You slide off it as off a slope too
+  steep to walk, and your weight doesn't press it (nothing to tip it towards you). 46: the old behaviour.
+- `SV_FlyMove`: meeting the same plane again without having moved, the velocity is nudged out of it by 1 unit a
+  second and the move goes on (Quake 3's slide move does this). Only the prop trace produces it.
+
+| 33-degree box, dropped on its face | Before | Now |
+| --- | --- | --- |
+| on its face | grounded, creeping 7 u/s, stopped dead now and then | sliding, 190 u/s by the bottom |
+| off it onto the floor | not after 2.4 s (13 units down the face) | 0.55 s after landing (3 runs) |
+| with `vr_box3d_player_slope 40` (the face is ground) | | grounded, creeping as before, no stops |
+
+Regressions, as before: the toppled-box sweep 192 of 192 on the box, 0 failures; the two-handed topple 1 frame inside,
+0.02 units; Standing on props 2: trapped under the box you walk out (153 units; base 152), the walking pushes the same
+(25 kg box 50 units, 40 kg 43, 150 kg 0.1), two hands at the wall held with every check 0.0 in the level (one run in
+three the off hand missed the grip, "not within reach", before the wall; it did not happen in two more runs, and that
+part involves no player movement). Melee canary: no differences. e1m1: no errors.
+
+**In the headset:** stand on a box leaning steeply on another (or on a slope): you should slide off it promptly; on
+one tilted less than 30 degrees you should stand, walk and jump as before. If 30 feels too strict on a box you want
+to climb, raise "Steepest Face to Stand On".

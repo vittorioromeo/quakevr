@@ -6361,16 +6361,21 @@ void inside_f()
 
 } // namespace
 
-// SV_FlyMove: a solid prop is ground to a player (vr_box3d_player_stand) as a brush is.
-extern "C" int VR_StandsOn(edict_t* ent, edict_t* ground)
+// SV_FlyMove: a solid prop is ground to a player (vr_box3d_player_stand) as a brush is, where its face (met at `normal`)
+// is no steeper than vr_box3d_player_slope. Steeper, he slides off it, not friction holding him: with Quake's limit (a
+// normal's z over 0.7, 45.6 degrees), on a box tilted 33 degrees he stood, creeping down at 7 units a second, its own
+// weight on it (ROUND21.md, "Sliding off steep boxes").
+extern "C" int VR_StandsOn(edict_t* ent, edict_t* ground, const float* normal)
 {
     if(!world || !vr_box3d_player_stand.value)
     {
         return 0;
     }
     const int num = NUM_FOR_EDICT(ent), g = NUM_FOR_EDICT(ground);
+    const float steepest = za::clamp(vr_box3d_player_slope.value, 0.f, 90.f);
     return num >= 1 && num <= svs.maxclients && g > svs.maxclients && g < static_cast<int>(world->slots.size()) &&
-           world->slots[g].kind == Kind::Prop && static_cast<int>(ground->v.solid) == SOLID_BBOX;
+           world->slots[g].kind == Kind::Prop && static_cast<int>(ground->v.solid) == SOLID_BBOX &&
+           normal[2] >= za::cos(glm::radians(steepest)) - 0.0001f;
 }
 
 // SV_FlyMove: a player's move stopped by a solid prop's side (not its top: he stands on that) shoves it (shoveBumped).
