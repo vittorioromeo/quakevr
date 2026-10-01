@@ -16881,3 +16881,195 @@ projections of the textured cut-outs:
   rounds (3 a burst) and the rifle's lasers (from its new muzzle); `check_mdl_holes.py`: both ok.
 - In VR: the stock lies along the forearm when held one-handed (it may pass through the sleeve); its length is
   `stock_x` in make_enemyguns.py.
+
+## Zancle migration: the VR code off the standard library (2026-10-01)
+
+Your note: move all of Quake VR's code from the C++ standard library to Zancle (its containers, strings, vocabulary
+types, algorithms and builtin macros), keep `std::` only where it is needed or Zancle's alternative has a real
+drawback, and mark those places for Zancle. Scope: `Quake/vr` (not Ironwail's C, not third-party code). Behaviour kept
+identical; done module by module, one commit each, so that a regression can be bisected.
+
+**std:: uses in `Quake/vr` (outside `external/`): 7454 before, 60 after; standard headers included: 708 before, 16
+after.** By category (`count_std.py` in the session's scratchpad; comments and strings not counted):
+
+| | Before | After | What took their place |
+|---|---|---|---|
+| containers (vector, array, unordered_map/set, map, pair, tuple...) | 1586 | 7 | `za::Vector`, `za::Array`, `za::Bitset`, `ankerl::unordered_dense::map/set`, `qza::Pair`; the 7 left are Review Takes' `std::map`s |
+| min / max / clamp | 1417 | 0 | `za::min`, `za::max`, `za::clamp`, `qza::minOf` / `maxOf` |
+| math (sin, sqrt, fabs, atan2, abs, isfinite...) | 1108 | 0 | `za::sin`... (`Zancle/Math`), `qza::abs` / `hypot` / `cbrt` / `isfinite`..., `ZA_ISNAN` |
+| int types (size_t, uint32_t...) | 1069 | 0 | `za::SizeT`, `za::U32`... |
+| strings (string, string_view, to_string...) | 1065 | 0 | `za::String`, `za::StringView`, `za::toString` (integers; a float's text through `va`, as `std::to_string`'s `%f`) |
+| algorithms (sort, find, fill, copy, any_of, lower_bound...) | 289 | 2 | `za::quickSort` / `insertionSort` / `find` / `anyOf` / `copy`..., `qza::fill` / `iota` / `lowerBound` / `stablePartition`; 2 `std::nth_element` kept |
+| files (filesystem, fstream, sstream, printf...) | 164 | 0 | `qvr::files` (`vr_files.hpp`, new), the C stdio functions |
+| utility / bit (move, forward, swap, bit_cast...) | 148 | 0 | `ZA_MOVE`, `ZA_FORWARD`, `za::genericSwap`, `ZA_BIT_CAST` |
+| C library (strcmp, memcpy, strtof...) | 141 | 0 | `ZA_STRCMP`, `ZA_MEMCPY`... (builtins), the C functions themselves |
+| concurrency (thread, mutex, atomic, condition_variable...) | 138 | 0 | `za::Thread`, `za::AtomicMutex` + `za::LockGuard` / `qza::UniqueLock`, `za::Atomic` (its wait/notify for the condition variables) |
+| chrono / time | 132 | 3 | `za::Clock` / `za::Time`, `qza::nowNs` (its `std::chrono` the 3 left, in `vr_zancle.cpp`) |
+| vocabulary (optional, span, unique_ptr, function, shared_ptr) | 84 | 7 | `za::Optional`, `za::Span`, `za::UniquePtr`, `za::FunctionRef`; the pool's `std::shared_ptr` an intrusive count (`jobs::detail::JobPtr`); 7 kept (motion samples) |
+| type traits, limits | 39 | 0 | Zancle's traits, `ZA_FLOAT_MAX`..., `<limits.h>` |
+| random | 22 | 22 | kept (ZANCLE-TODO) |
+| exceptions | 19 | 19 | kept (ZANCLE-TODO) |
+| regex | 12 | 0 | parsed by hand (the take names: `motion::parseTakeName`; vr_motion_eval's globs: `files::globMatch`) |
+| other | 21 | 0 | |
+
+### How it was done
+
+A codemod (the session's scratchpad: `zmig.py`) did the mechanical part per module: the names (`std::vector<` ->
+`za::Vector<`, `std::sin(` -> `za::sin(`...), the member renames (`push_back` -> `pushBack`, `c_str` -> `cStr`,
+`substr` -> `substrByPosLen`...), common idioms (`insert(end, {...})` -> `pushBackMultiple`, `fill(begin(a), end(a),
+v)`, `copy_n`, `rbegin`...), and each file's includes (the Zancle headers it uses, the standard headers it no longer
+uses). The compiler then found what it could not do (Optional's explicit constructor, a view where a string was kept,
+a mixed-type math call...), fixed by hand. What a compiler can't see was audited in every module:
+
+- **Sorts:** `za::quickSort` orders equal elements differently from MSVC's `std::sort` (both are unstable; MSVC's is an
+  insertion sort up to 32 elements, Zancle's up to 16). Every sort was read: most order distinct keys (the same result);
+  where equal keys can reach play, a stable sort (`za::insertionSort`: the same as MSVC's for up to 32 elements) or a
+  key that orders them all (the climbing candidates, the menu positions' pages, the review's replay events); sorts that
+  only order what is drawn or printed (the emissive torches' choice among equal scores, the lights' shadow ranks, the
+  profiler's tables) were left unstable. `std::stable_sort` became `za::insertionSort` (stable: the same result);
+  medians and quantiles taken with `std::nth_element` sort whole (the same value); `std::partial_sort` sorts whole (the
+  first n are its, but for the order of equal ones).
+- **Maps:** a dense map's values move when it grows (`std::unordered_map`'s nodes stayed put). Every map whose values
+  are pointed into past the next insertion holds them behind `za::UniquePtr` (`qza::stableAt`): the grasp shapes,
+  collision samples and fits, hit meshes, rope meshes, vertex orders, posed models (`vr_mapaudit.py` in the
+  scratchpad listed the candidates). The hit meshes' build list (pointers into the map, then more inserted) crashed a
+  Debug run before that. A dense map iterates in insertion order: where a `std::map`'s sorted order was printed, summed
+  or written, the loop goes through `qza::sortedByKey` (the config merge, gpustats' programs, ledges' totals and hash,
+  the takes' list and the eval's per-label totals); `std::unordered_map`s' loops were in hash order before, any order
+  now.
+- **Strings:** `substrByPosLen` returns a view: kept as `za::String{...}` where it outlives its string.
+  `std::to_string(float)` is `%f`: kept as `va("%f")` (the one place).
+- **Files:** `std::filesystem` and the streams became `qvr::files` (`vr_files.hpp`/`.cpp`, through the engine's
+  `Sys_fopen`, `Sys_FindFirst`, `Sys_ReplaceFile`... with UTF-8 paths): whole files read (text mode or binary, as each
+  stream was), `getline`'s lines (`forLines`, `forPieces`), a stream's `>>` (`files::Words`: words, and numbers by
+  `strtof`/`strtod`/`strtol` as the game writes them), directory listings, `create_directories`, `remove_all`,
+  `rename`, `last_write_time` (100 ns), and the path parts (`fileName`, `parentPath`, `isRelative`, `join`,
+  `absolute`, `generic`). Paths are joined with '/' (Windows takes both; only printed paths look different).
+
+### Two bugs found on the way
+
+- **Zancle's `std::initializer_list` against MSVC's** (fixed in the vendored `Base/InitializerList.hpp`, a local
+  change): Zancle defines its own `std::initializer_list` (a pointer and a size) when `<initializer_list>` has not been
+  included; MSVC's STL's is two pointers. A file that included Zancle first and one that included the STL first built
+  two layouts of the same `std::initializer_list<int>`, and the linker kept one instantiation of its users: a Debug
+  static initialiser asked for 2 TB, a Release run corrupted its heap. Under `_MSC_VER` the real header now.
+- **`std::erase_if` on two maps** (decals' gib trails and bullet holes): the codemod made it `za::vectorEraseIf`, which
+  compiles on an ankerl map (it has `begin`/`end`/`erase`) but moves the values without their buckets. Caught by
+  Zancle's asserts in Debug (an index past the end, 2 runs in 22 of the profiler's combat scene); ankerl's own
+  `erase_if` now (found by ADL). Proposal below.
+
+### What Zancle lacks: `vr_zancle.hpp` (namespace `qza`) and the `std::` kept
+
+Small stand-ins written the way Zancle writes its own (builtins behind always-inline templates), each marked
+`ZANCLE-TODO` and each a proposal: `abs` (integers too), `hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign`,
+`trunc`, `isfinite`, `nanF`, `nowNs` (+ `nsSince`...: a nanosecond clock), `fill`, `iota`, `replace`, `lowerBound`,
+`stablePartition`, `minOf` / `maxOf` (min/max of a list), `lexicographicLess` (Array's `<`), `sizeBytes` (Span's
+`size_bytes`), `repeated` (String's `(count, char)`), `Pair`, `UniqueLock`, `ReverseIterator` / `rbegin` / `rend`,
+`stableAt` (a map whose values stay put), `sortedByKey` (an ordered map's loop).
+
+`std::` kept (each place says `// ZANCLE-TODO: <what's missing>`):
+
+| Where | What | Missing in Zancle |
+|---|---|---|
+| vr_particles, vr_shells, vr_gore, vr_bodyblood, vr_meleehud, vr_hull (bench), vr_hitmodel (test) | `std::mt19937`, `std::minstd_rand`, the uniform distributions | random engines and distributions (the seeded ones' sequences must stay) |
+| vr_jobs, vr_jobs_engine | `std::exception_ptr`, `current_exception`, `rethrow_exception`; the self-test's `std::runtime_error` | exception transport |
+| vr_motion, vr_motion_take.hpp | `std::shared_ptr` (samples and rows shared with the saving thread) | shared ownership |
+| vr_motion_review | `std::map` (the verdicts and marks: written in name order, and the takes keep pointers into them) | an ordered map with nodes that stay put |
+| vr_audio (voices), vr_hitmodel (the tree) | `std::nth_element` | a selection algorithm (its partition, so every hit is the same) |
+| vr_zancle.cpp | `std::chrono::steady_clock` (behind `qza::nowNs`) | a nanosecond clock (`za::Clock` counts microseconds; the profiler times scopes under one) |
+| vr_alloccount | `std::bad_alloc` | (none possible: a replaced `operator new` throws it) |
+
+### Zancle proposals (for upstream; you own it): the API, as met in the migration
+
+1. **InitializerList.hpp's layout on MSVC** (above; the local change is the fix to take: include the real header
+   where the STL's layout differs, `_MSC_VER`).
+2. **`vectorEraseIf` accepts an ankerl map** and corrupts it: constrain it to vectors (or give `za::` one `eraseIf`
+   that calls the map's `erase_if`).
+3. **`Optional`**: the constructor from `T` is explicit (`return value;` from a function returning `Optional<T>` needs
+   `makeOptional`) and there is no `operator=(T)` (`opt.emplace(v)`): std's are implicit.
+4. **`UniquePtr`'s default constructor is explicit**: a struct with a `UniquePtr` member can't be `T{}` (nor made by
+   `makeUnique<T>()`, which brace-initialises) without `= nullptr` / `{nullptr}` on the member.
+5. **`za::Thread(f)` with a plain function** does not compile (F deduced as a function type: decay it); a lambda works.
+6. **`String`**: no `(count, char)` constructor or `append(count, char)`, no `compare(pos, n, ...)`, no member `swap`.
+   **`StringView`**: no `front()` / `back()`. `substrByPosLen` returning a view is right, but `za::String s =
+   view;` can't compile (explicit): fine, worth a line in the docs.
+7. **`Vector`**: no `assign(count, value)`, no `insert(pos, first, last)` / `insert(pos, {list})` (there are
+   `assignRange`, `emplaceBackRange`, `pushBackMultiple`), no reverse iterators. **`Span`**: no `size_bytes`,
+   `subspan`. **`Array`**: no `fill`, `front`, `back`, ordering operators.
+8. **`getArraySize` is `consteval`**: not usable on an array reached through a reference parameter.
+9. The math wrappers take exactly `float`, `double` or `long double` (good: every mixed call std promoted is now
+   explicit); missing: `abs` for integers, `hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign`, `trunc`, `isfinite`.
+10. Missing algorithms the code used: `fill`, `iota`, `replace`, `lower_bound`, `stable_partition`, `nth_element`, a
+    stable sort for large ranges (`insertionSort` is O(n²)), `min`/`max` of a list.
+11. Missing: an ordered (flat) map, shared ownership, a unique lock, random engines, a nanosecond clock, a wide string.
+
+### Debug: Zancle with its asserts (`QVR_ZANCLE_DEBUG`); test runs never wait on a dialog
+
+Your request: Zancle's library builds in the engine's own configuration with its asserts on, as a switch
+(`docs/BUILDING.md`): the MSBuild property `QVR_ZANCLE_DEBUG` (`zancle.vcxproj`; `-p:QVR_ZANCLE_DEBUG=false` to turn it
+off), CMake's option of that name, the Makefiles' variable. **On for Debug, as left here** (Release unchanged:
+optimised, asserts off). With it, a failed assert in Zancle's own sources goes to the same handler as the VR code's
+(`vr_zancle.cpp`; the library's `Assert.cpp` leaves it, a local change). Asserts that fired: the two above (the decals'
+maps: Quake VR's misuse, fixed; the `initializer_list` layout: Zancle's, proposal 1). None fired in Zancle itself.
+
+Test runs (`QVR_NO_ERROR_DIALOG`): the crash handler is installed before the other files' static initialisers too
+(`#pragma init_seg(lib)`: the `initializer_list` crash happened in one), the debug CRT's reports go to stderr and an
+error's or an assert's to the crash report (`_CrtSetReportHook2`), `_set_error_mode(_OUT_TO_STDERR)`; a failed Zancle
+assert in a test run writes the crash report with its stack (`VR_FatalReport`) and ends the run. Checked: a deliberate
+`vr_debug_crash abort` in a Debug test run exits with the report and no dialog.
+
+### Results
+
+Unchanged (the build of `vr-cleanup` a8208b36, merged here, against this branch, the same QC):
+
+- **Melee eval** (`eval.sh --full`, 177 takes): the table byte for byte (172 pass, 5 fail; the one difference from the
+  kit's baseline is the same in both). In Debug (Zancle's asserts on, every take): the same verdicts and events.
+- **Grasp sweep** (`vr_grasp_sweep`, 12 weapons x 8 kinds x 7 places, e2m1): 672 of 672 to the last bit.
+- **Smoke** (e1m1, e2m1, vrfiringrange, 120 frames): within two runs' own noise (the firing range's animated boards).
+- **Determinism probes** (developer 1, five maps: e1m1, e2m1, e1m3, e3m1, vrfiringrange): every hash identical (the
+  ledges', the hulls' trees and brushes, the hit models', the occlusion bakes'), and every weapon's sight line.
+- `menu_vr dump` (every page and row) identical; `vr_menu_path_check maps/vrcalibration.map`: 13 found, 0 missing;
+  `vr_snd_test`: 18 of 18, the same figures; `vr_jobs_test`: 16 of 16 (Release and Debug).
+- 0 warnings in Release and Debug (`/WX`).
+
+Measured (i9-13900K, 32 threads):
+
+**Build times** (MSBuild, the whole solution, `-m`; 3 rounds alternating the base a8208b36 and the branch; median,
+seconds; a touched header or file then a build):
+
+| | Before | After |
+|---|---|---|
+| Release, rebuild | 32.4 (28.2-40.9) | 27.7 (27.5-28.0) |
+| Release, `vr_engine.hpp` touched | 18.1 (17.3-19.8) | 16.3 (15.8-33.1) |
+| Release, `vr_grasp.cpp` touched | 3.6 | 2.8 |
+| Debug, rebuild | 20.8 (19.5-24.6) | 19.1 (19.1-21.2) |
+| Debug, `vr_engine.hpp` touched | 15.5 (14.9-27.5) | 14.2 (14.2-14.3) |
+| Debug, `vr_grasp.cpp` touched | 3.0 | 2.4 |
+
+A rebuild's time is mostly the engine's own headers (`quakedef.h`, GLM, SDL's GL headers, `intrin.h`); in clang's time
+traces of the VR files (summed over their files, so more than the wall time): the front end 310 -> 297 s, the back end
+(optimisation and code) 57 -> 31 s. One file's change (`vr_grasp.cpp`) builds about a fifth faster.
+
+- **Executables**: Release 9.94 -> 8.52 MB (-14%), Debug 12.2 -> 11.8 MB.
+- **CPU a frame, Release** (the profiler's e2m1 combat scene, 1800 frames, 6 runs each, alternated, nothing else
+  running): busy median 0.440 ms before, 0.448 after (ranges 0.413-0.470 and 0.428-0.481): no difference beyond the
+  runs' spread. By system the same within noise (vr view setup 0.121 / 0.125, render 0.232 / 0.227, light setup 0.035
+  / 0.028, quakec 0.026 / 0.027).
+- **CPU a frame, Debug** (the same scene; Zancle in Debug with its asserts): busy median 3.38 ms before, 2.53 after
+  (**-25%**); render 2.05 -> 1.52, vr view setup 0.87 -> 0.70, server 0.37 -> 0.20, shadows maplight 0.48 -> 0.35. At a
+  map load in Debug: e1m1's ledges built in 1308 ms before, 16.5 after; its hit models 85.6 -> 18.0 ms.
+
+### In the headset
+
+Nothing should look or play differently. Worth a few minutes in a Debug build (Zancle's asserts on): a map with
+fights and gibs, climbing, the menus and Review Takes; a failed assert stops with its file and line.
+
+### Files
+
+`Quake/vr/*` (every file), `vr_zancle.hpp` (new: the stand-ins), `vr_files.hpp` / `.cpp` (new), `vr_zancle.cpp` (the
+assert handler's report, `qza::nowNs`), `vr_crash.cpp` (the test runs' reports), `vr_mem.hpp` (`mem::list` replaces
+`std::tie` in every set's `members()`; `heldBytes` for Zancle's containers and `za::UniquePtr`);
+`Quake/vr/external/zancle` (the modules used; README); `Windows/VisualStudio/zancle.vcxproj`, `Quake/vr/vr.cmake`,
+`Quake/vr/vr.mk` (`QVR_ZANCLE_DEBUG`); `Misc/quakevr/check_statics.py` (`za::` and `ankerl::` statics too);
+`Misc/quakevr/zancle_vendor.py` (new: what to vendor, what nothing uses); `docs/BUILDING.md`, `docs/vr-port/CODE_STYLE.md`
+("Zancle, not the standard library").
