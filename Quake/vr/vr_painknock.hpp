@@ -2,7 +2,8 @@
 //
 // Each hit the client is told of (svc_damage: V_ParseDamage, the damage and where it came from) pushes both drawn hands
 // away from where it came from, sized by the damage (vr_pain_knock_strength cm a point, at most vr_pain_knock_max cm),
-// more the hand on the side it came from, and eases them back over vr_pain_knock_time; each controller buzzes with the
+// more the hand on the side it came from, and eases them back over vr_pain_knock_time (vr_pain_knock_seen: turned across
+// the line from the eyes to each hand, so that size is what is seen; tipped about the wrist); each controller buzzes with the
 // same weight (vr_pain_haptics). Looks only, as a parried blow's knock and the tired arms' shake: the drawn hands are
 // moved for the view's setup and put back, the muzzle placed on the knocked weapon put back on the steady one, so the
 // aim, the shots and the melee stay where the controllers are.

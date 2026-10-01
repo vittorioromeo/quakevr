@@ -828,7 +828,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How far the hardest hits knock the hands (a rocket nearly that far; a harder hit always a little "
                   "further; hits in quick succession add up to no more). Away from the hit and up."),
         slider("Knock Tip", vr_pain_knock_tip, 0.f, 5.f, 0.25f, "%.2f deg/cm").extend(0.f, 20.f)
-            .help("How much the hands and what they hold tip up for each cm they are knocked (a gun's barrel kicks up)."),
+            .help("How much the hands and what they hold tip up for each cm they are knocked (a gun's barrel kicks up), "
+                  "about the wrist."),
+        toggle("Knock Across Your View", vr_pain_knock_seen)
+            .help("On: the knock's size is what you see, across your view (a hit from ahead throws the hands up and "
+                  "towards you, from the side sideways). Off: straight away from the hit and up, which for hands held "
+                  "ahead of and below your eyes is mostly towards your eyes, where it barely shows."),
         slider("Knock Time", vr_pain_knock_time, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.05f, 3.f)
             .help("How long the knock takes: out quickly, held a moment, then eased back."),
         slider("Hit Buzz", vr_pain_haptics, 0.f, 2.f, 0.1f, "%.1fx").extend()

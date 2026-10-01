@@ -462,7 +462,7 @@ QVR_CVAR(vr_debug_weight_drop, "0", CVAR_NONE)         // 1: prints each hand's 
 QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)      // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
 QVR_CVAR(vr_debug_fatigue, "0", CVAR_NONE)               // 1: the tired arms' shake printed four times a second; 2: and each frame the aim, the muzzle and the drawn weapon ("fatigueaim")
-QVR_CVAR(vr_debug_pain, "0", CVAR_NONE)                  // 1: each hit ("painhit": damage, side, knock, buzz) and the hands' knock each frame ("painknock", cm along the body); 2: also where each hand and its weapon are drawn ("painview")
+QVR_CVAR(vr_debug_pain, "0", CVAR_NONE)                  // 1: each hit ("painhit": damage, side, knock, buzz) and the hands' knock each frame ("painknock", cm along the body); 2: also where each hand and its weapon are drawn and the eye ("painview"; Misc/quakevr/painknock/painsum.py)
 QVR_CVAR(vr_debug_weight, "0", CVAR_NONE)                // 1: each hand's target and drawn pose, a line a frame in weight_trace.txt; 2: and printed
 QVR_CVAR(vr_props_version, "50", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)
 // Explosive boxes (misc_explobox, misc_explobox2) as physics props.
@@ -980,6 +980,7 @@ QVR_CVAR(vr_pain_knock_strength, "0.75", CVAR_ARCHIVE) // cm the hands are pushe
 QVR_CVAR(vr_pain_knock_max, "7.5", CVAR_ARCHIVE)       // cm harder hits curve towards (a rocket nearly; hits in quick succession add up to no more)
 QVR_CVAR(vr_pain_knock_time, "0.6", CVAR_ARCHIVE)      // s the knock takes: out, held a moment, eased back
 QVR_CVAR(vr_pain_knock_tip, "2", CVAR_ARCHIVE)         // degrees the hands (and what they hold) tip up for each cm they are knocked
+QVR_CVAR(vr_pain_knock_seen, "1", CVAR_ARCHIVE)        // 1: the knock's size is what you see: turned across the line from your eyes to each hand (a hit from ahead lifts them, from the side throws them sideways), its move towards or away from your eyes kept on top; 0: straight away from the hit and up (from ahead nearly all of it towards your eyes, where it barely shows)
 QVR_CVAR(vr_pain_haptics, "1", CVAR_ARCHIVE)           // strength of the buzz a hit gives each controller (more the harder and the nearer its side; 0: none)
 QVR_CVAR(vr_climb_debug, "0", CVAR_NONE)              // print holds, releases and mantles (2: and "climbtrace" and "climbreach" lines every frame: the body, the hands, the pull, the holds' reach; 3: the shoulders, estimated and drawn)
 QVR_CVAR(vr_swim, "1", CVAR_ARCHIVE)                  // VR swimming: the stick slows in water, strokes of the hands move you

@@ -17395,6 +17395,24 @@ Notes vrclimb_2026-10-01_00-32, vrfiringrange_2026-10-01_00-02, 00-08, 00-12, 00
   Defaults his: strength 0.3 -> 0.75, max 5 -> 7.5, time 0.35 -> 0.6 (config version 63, where still the old ones).
   Measured drawn hand at the new defaults: 5 / 16 / 40 / 100 damage peak 3.1 / 6.1 / 7.4 / 7.6 cm, at or over half
   until 0.37 s of 0.6 (time 1.2: 0.72 s); max 15: 12.4 cm; 16 from the left: off 7.5, main 3.0.
+- **Pain feedback, third pass** (notes 2026-10-01 11:59, 12:00: at 15 cm / 5 cm a point the hands still barely moved,
+  even an ogre grenade in the face). Cause: nothing held the hands back (no spring or follow acts on the drawn hands:
+  the knock is added after the weight's spring, the walls and the grip; the body and model collisions moved them under
+  1 cm). Measured with the eye (`painview` prints it now; `painsum.py` gives the part seen across the line from the eye
+  to the hand): the drawn hand did move the full 15 cm, but (1) away from a hit from ahead and up is, for hands held
+  ahead of and below the eyes, nearly straight towards the eyes: of 15 cm only 8 showed as a move (hands 50 cm ahead in
+  the mock; held further out, less), the rest a hand coming nearer; the grenade also throws the whole player back that
+  way (0.4 to 1.8 m in the mock), and (2) the tip turned the hand about the grip, so at his 3 degrees a cm (45 degrees at 15 cm)
+  the wrist and arm swung down about 11 cm, undoing the lift (across the view and tip 3 about the grip: 8.0 cm seen
+  of 14.7 with tip 0).
+  Now (`vr_painknock.cpp`): `vr_pain_knock_seen` 1 (new, Knock Across Your View) turns the knock across the line from
+  the eyes to each hand, its full size: from ahead or behind the hands rise, from the side they go sideways (and up 0.5),
+  falls down; its move towards or away from the eyes kept on top (0: as before). The tip turns the hand about the wrist
+  (10 cm back from the grip). The cap applies to the part seen. Tests (`Misc/quakevr/painknock/painseen_script.txt`,
+  his 15 / 5 / 0.6, hands 50 cm ahead; seen across, cm): 40 from ahead old 8.2 / 7.6, now 14.7 / 13.5; tip 3 now 13.4 /
+  13.1; from the left off 14.2, main 6.1 (the far hand's 0.4, as
+  designed); from behind 15.6; no direction 14.0; 1 point 4.2 (of 4.25). A real ogre grenade (`paingrenade_script.txt`,
+  37 points): 12.9 cm seen at the first drawn frame after it, the player thrown 40 cm.
 - **Lightning gun into water** (`VR_LGWater_Splash`, weapons.qc): each bolt from the open into water, slime or lava
   splashes where it goes in (strength 8), with a plip at most every 0.3 s; whatever `vr_lg_water`. Test
   (`Misc/quakevr/lgsplash/lgsplash_script.txt`, vrfiringrange pool): aimed down into it 7 bolts, 7 splashes, 2 plips;
