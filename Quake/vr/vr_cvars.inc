@@ -1077,6 +1077,14 @@ QVR_CVAR(vr_chainsaw_pull_distance, "30", CVAR_ARCHIVE) // cm the cord must be p
 QVR_CVAR(vr_chainsaw_pull_speed, "1.2", CVAR_ARCHIVE) // m/s the hand must pull it at, there
 QVR_CVAR(vr_chainsaw_drop_fuel_min, "40", CVAR_ARCHIVE) // an ogre's dropped chainsaw has this much fuel (percent of a tank) or more, up to a full tank
 QVR_CVAR(vr_chainsaw_drop_run, "3", CVAR_ARCHIVE)  // seconds a running chainsaw dropped or thrown runs on (QC VR_Saw_PropRuns); taken back meanwhile, still running. 0: it stops at once
+// A running chainsaw (NOTES.md vrfiringrange_2026-10-01_16-37-54; Combat > Enemy Weapons > Chainsaw Engine): its engine's
+// faint exhaust smoke, in a hand and lying running (vr_chainsaw.cpp, QC VR_Saw_PropThink); its shake in the hand (drawn
+// only: the aim and its cuts don't move) and lying on the ground (pushed about, physically: Box3D).
+QVR_CVAR(vr_chainsaw_smoke, "8", CVAR_ARCHIVE)        // puffs of exhaust smoke a second (0: none)
+QVR_CVAR(vr_chainsaw_smoke_alpha, "0.12", CVAR_ARCHIVE) // each puff's opacity as it leaves the exhaust (0..1), fading out over 2 s
+QVR_CVAR(vr_chainsaw_shake, "2", CVAR_ARCHIVE)        // mm the hand holding it shakes, held in one hand (and 0.2 degrees a mm); its chain running 1.6x
+QVR_CVAR(vr_chainsaw_shake_2h, "0.8", CVAR_ARCHIVE)   // mm, held in both hands (the other steadying it)
+QVR_CVAR(vr_chainsaw_shake_ground, "0.3", CVAR_ARCHIVE) // m/s of the kicks (20 a second) that rock and walk it about as it lies running (0: none)
 QVR_CVAR(vr_gruntgun_damage, "5", CVAR_ARCHIVE)      // a grunt's dropped burst rifle (QC vr_enemyguns.qc): each round's damage (3 a trigger pull)
 QVR_CVAR(vr_gruntgun_ammo, "30", CVAR_ARCHIVE)       // the rounds a grunt's dropped burst rifle holds (its own: never refilled; a multiple of 3)
 QVR_CVAR(vr_grunt_burst, "1", CVAR_ARCHIVE)          // 1: grunts fire 3-round bursts of single bullets (QC orig_mon_soldier.qc army_fire); 0: id's shotgun (4 pellets), their dropped guns too

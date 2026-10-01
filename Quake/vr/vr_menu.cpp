@@ -622,6 +622,29 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     };
 }
 
+// A running chainsaw's engine (NOTES.md vrfiringrange_2026-10-01_16-37-54): its exhaust's smoke, its shake in the hand
+// and lying on the ground (vr_chainsaw.cpp, QC vr_chainsaw.qc VR_Saw_PropEngine).
+[[nodiscard]] za::Vector<Item> pageChainsawEngine()
+{
+    return {
+        header("Exhaust Smoke"),
+        slider("Smoke", vr_chainsaw_smoke, 0.f, 30.f, 1.f, "%.0f puffs a second").extend(0.f, 100.f)
+            .help("Faint puffs of smoke from the running engine's exhaust, in the hand and lying running. 0: none."),
+        slider("Smoke Opacity", vr_chainsaw_smoke_alpha, 0.f, 0.6f, 0.02f, "%.2f").extend(0.f, 1.f)
+            .help("How opaque each puff is as it leaves the exhaust; it fades out over about 2 s as it spreads and rises."),
+        header("Shake"),
+        slider("In One Hand", vr_chainsaw_shake, 0.f, 6.f, 0.25f, "%.2f mm").extend(0.f, 20.f)
+            .help("How much the running chainsaw (and the hand on it) shakes held in one hand: this far, and turning 0.2 "
+                  "degrees a mm; 1.6x with the chain running. Drawn only: the aim and the cuts don't shake. 0: still."),
+        slider("In Two Hands", vr_chainsaw_shake_2h, 0.f, 6.f, 0.25f, "%.2f mm").extend(0.f, 20.f)
+            .help("The same, steadied by the other hand on its front handle."),
+        slider("On the Ground", vr_chainsaw_shake_ground, 0.f, 1.f, 0.05f, "%.2f m/s").extend(0.f, 3.f)
+            .help("Let go running (Runs On When Let Go), as it lies it is kicked 20 times a second, mostly up, at a point "
+                  "of its engine at random: it rocks and walks about a little, physically. How hard each kick is. 0: "
+                  "still."),
+    };
+}
+
 // The weapons monsters drop as they die (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser
 // rifles"): their base damage and ammo. Their offsets and weights are in the weapon menus (slots _19 .. _23).
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons()
@@ -642,6 +665,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Runs On When Let Go", vr_chainsaw_drop_run, 0.f, 10.f, 0.5f, "%.1f s").extend()
             .help("A running chainsaw dropped or thrown runs on this long as it lies, then dies; taken back meanwhile, it is "
                   "still running (no cord to pull). 0: it stops as it leaves the hand."),
+        open("Chainsaw Engine", pageIndex(pageChainsawEngine))
+            .help("The running engine's exhaust smoke and its shake: in one hand, in two, lying on the ground."),
         slider("Blade Sinks In", vr_chainsaw_overlap, 0.f, 20.f, 1.f, "%.0f cm").extend()
             .help("How deep the running chain's bar may sink into a monster (it cuts in) before it stops at its surface, as "
                   "weapons do."),
@@ -2668,6 +2693,9 @@ za::Vector<Item> pageDebugTests()
                                                                  "empty hand, its fuel as it was."),
         command("Start the Engine", "impulse 230")
             .help("The chainsaws in your hands started, as a good pull of the cord does."),
+        command("Drop the Chainsaws", "impulse 220")
+            .help("impulse 220: the chainsaws in your hands dropped, as letting go does: one running runs on as it lies "
+                  "(Runs On When Let Go), smoking and shaking about (Combat > Enemy Weapons > Chainsaw Engine)."),
         command("Nearly Empty Tank", "impulse 227").help("The chainsaws in your hands left with 5% fuel: to see one stall."),
         command("Report the Chainsaws", "impulse 228").help("Prints each chainsaw in your hands: its fuel, engine, chain and cord."),
         command("Chainsaw Fit", "vr_chainsaw_fit")
@@ -3298,6 +3326,7 @@ const Page pages[] = {
     {"Weapon Damage", pageWeaponDamage, pageCombat},                        // 79
     {"Weapon Effects", pageWeaponEffects, pageWeaponsHub},                  // 80
     {"Enemy Shoves", pageEnemyShoves, pageCombat},                          // 81
+    {"Chainsaw Engine", pageChainsawEngine, pageEnemyWeapons},              // 82
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

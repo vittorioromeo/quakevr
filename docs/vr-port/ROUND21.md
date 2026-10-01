@@ -18876,3 +18876,28 @@ click should open a little list to pick from with the mouse or the laser.
   Checked with the mock laser: a click on Player Hitbox's Width Against Walls row opens it (8 choices), a click on
   "8 units" sets `vr_hull_width` 8, a click outside closes it unchanged, A + stick + A picks, B closes, the off hand's
   stick right still steps 16 to 20; Motion Recorder's Category (13 choices) scrolls; the flat style draws Quake's box.
+## The running chainsaw smokes and shakes (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_16-37-54 and _16-38-38. Combat > Enemy Weapons > **Chainsaw Engine** (a page under
+Ogres' Chainsaws, after Runs On When Let Go).
+
+- **Exhaust smoke** (`vr_chainsaw_smoke` 8 puffs a second, 0 none; `vr_chainsaw_smoke_alpha` 0.12): a new particle
+  preset, `Preset::ChainsawSmoke` (16; QC `QVR_PARTICLE_PRESET_SAWSMOKE`): small blue-grey puffs that spread, slow and
+  rise, fading over 1.6-2.4 s. In a hand the client makes them at the exhaust (`vr_chainsaw.cpp` `smokeFrame`, model
+  point `25 -9 2`, the engine block's right side, going out right and a little up); lying running the server sends them
+  (`VR_Saw_PropEngine`, `particle2` at the same model point through `modelpoint`). Nothing with `vr_particles 0`.
+- **Shake in the hand** (`vr_chainsaw_shake` 2 mm in one hand, `vr_chainsaw_shake_2h` 0.8 mm steadied by the other,
+  blended by `twohand::transition`; 0.2 degrees a mm; 1.6x with the chain running): `chainsaw::shake`, added to the
+  drawn hand with the fatigue tremor, pain knock and recoil (`vr_view.cpp`), so the aim, the muzzle and the cuts don't
+  move. Three sines at 19, 29 and 43 Hz per axis (an engine's buzz, not the tremor's 5-13 Hz).
+- **Shake on the ground** (`vr_chainsaw_shake_ground` 0.3 m/s, 0 none): lying running (within 24 units of the floor
+  and under 40 units/s), a `physicspush` every 0.05 s at a random point of the engine block, mostly up (35% sideways at
+  most): it rocks and walks about a little in Box3D. Measured (6 s run on, from the 20th kick to the 92nd): 0.25 m/s
+  walked it 2 units, 0.4 m/s 8.5 units (noisy; a 0.001 m/s baseline: none after settling).
+- **Test aid:** `impulse 220` (Debug > Tests > Chainsaw > Drop the Chainsaws) drops the chainsaws in your hands as
+  letting go does. `vr_debug_chainsaw 1` prints the hand's shake (twice a second), each hand's exhaust puffs, the prop's
+  kicks (every 8th: where, how fast) and how far they walked it.
+
+Checked in the mock: one hand 2.00 mm, both hands (off hand gripping a front-handle hotspot) 0.80 mm, two-handed 1.00;
+the dropped running chainsaw's smoke: 995 live particles against 972 with `vr_chainsaw_smoke 0`; the in-hand smoke seen
+at opacity 0.6 (from the engine's right, rising). eval.sh canary: no differences.

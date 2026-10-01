@@ -9,8 +9,10 @@
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
+#include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
+#include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
@@ -21,7 +23,9 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 
 #include <string.h>
 
@@ -40,7 +44,14 @@ constexpr const char* weakPullSound = "vr/saw_pull_weak.wav"; // (QC precaches i
 constexpr double retractTime = 0.12;     // seconds the handle flies back into its seat
 constexpr float handleHalf = 0.045f;     // metres, half the T-handle's length (in the fist)
 constexpr float handleRadius = 0.012f;   // metres
+constexpr int wpnFlagSawRunning = 4;     // QC QVR_WPNFLAG_SAW_RUNNING: the engine runs
 constexpr int wpnFlagSawChain = 8;       // QC QVR_WPNFLAG_SAW_CHAIN: the chain runs
+// The engine's exhaust (model space: the right side of the engine block, ahead of the cord's handle; QC VR_SAW_EXHAUST)
+// and the way its smoke leaves it (out to the right, a little up).
+constexpr glm::vec3 exhaustPoint{25.f, -9.f, 2.f};
+constexpr glm::vec3 exhaustOut{0.f, -1.f, 0.4f};
+constexpr float shakeDegPerMm = 0.2f;    // the hand's turn as it shakes, degrees a mm of vr_chainsaw_shake
+constexpr float shakeChain = 1.6f;       // harder with the chain running
 constexpr za::U8 bitOffHolds = 1;  // QC VR_SAWCORD_OFF_HOLDS: the off hand holds the main hand's chainsaw's cord
 constexpr za::U8 bitMainHolds = 2; // VR_SAWCORD_MAIN_HOLDS
 constexpr za::U8 bitOffPulled = 4; // VR_SAWCORD_OFF_PULLED: that cord pulled
@@ -74,6 +85,9 @@ struct State
     bool sawDrawn[2]{false, false};
     bool gripTaken[2]{false, false}; // a grip press the cord took (its release is taken too)
     int lastFrame{-1};               // the frame setupView last ran in (once a frame)
+    double smokeTime{-1.0};          // cl.time the exhaust's smoke was last made at (-1: not yet)
+    float smokeDue[2]{0.f, 0.f};     // each hand's chainsaw's puffs due (a share of one carried on)
+    double shakePrinted{-1.0};       // vr_debug_chainsaw's last shake line (realtime)
 };
 State st;
 
@@ -158,6 +172,63 @@ const Handle& handleOf(const qmodel_t* model)
 {
     const view::ViewEntity* ve = view::heldWeapon(hand);
     return ve && isChainsaw(ve->ent.model) ? ve : nullptr;
+}
+
+// The server's weapon flags of `hand`'s weapon (QVR_WPNFLAG_*).
+[[nodiscard]] int flagsOf(int hand)
+{
+    return cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
+}
+
+// An engine's buzz on one axis (-1..1): three fast sines, out of step on each axis and hand (a running engine's
+// vibration, not a tired arm's slow tremor: vr_fatigue.cpp).
+[[nodiscard]] float buzz(float t, int hand, int axis)
+{
+    constexpr float freq[3]{19.f, 29.f, 43.f};
+    constexpr float share[3]{0.5f, 0.3f, 0.2f};
+    float n = 0.f;
+    for(int k = 0; k < 3; k++)
+    {
+        const float f = freq[k] * (1.f + 0.047f * static_cast<float>(axis) + 0.089f * static_cast<float>(hand));
+        const float phase = 1.7f * static_cast<float>(hand) + 2.3f * static_cast<float>(axis) + 0.9f * static_cast<float>(k);
+        n += share[k] * za::sin(glm::two_pi<float>() * f * t + phase);
+    }
+    return n;
+}
+
+// The running chainsaws' exhaust smoke in the hands (vr_chainsaw_smoke puffs a second), once a frame; the one lying
+// running is the server's (QC VR_Saw_PropThink: Preset::ChainsawSmoke).
+void smokeFrame()
+{
+    const double now = cl.time;
+    const float dt = st.smokeTime < 0.0 ? 0.f : static_cast<float>(za::clamp(now - st.smokeTime, 0.0, 0.1));
+    st.smokeTime = now;
+    const float rate = za::max(0.f, vr_chainsaw_smoke.value);
+    for(int h = 0; h < 2; h++)
+    {
+        const view::ViewEntity* ve = st.sawDrawn[h] && (flagsOf(h) & wpnFlagSawRunning) ? sawIn(h) : nullptr;
+        if(!ve || rate <= 0.f)
+        {
+            st.smokeDue[h] = 0.f;
+            continue;
+        }
+        st.smokeDue[h] += rate * dt;
+        const int n = static_cast<int>(st.smokeDue[h]);
+        if(n <= 0)
+        {
+            continue;
+        }
+        st.smokeDue[h] -= static_cast<float>(n);
+        const glm::vec3 at = view::modelPoint(*ve, exhaustPoint);
+        const glm::vec3 out = view::modelPoint(*ve, exhaustPoint + exhaustOut) - at;
+        const float len = glm::length(out);
+        particles::chainsawSmoke(at, len > 1e-4f ? out / len : glm::vec3{0.f, 0.f, 1.f}, n);
+        if(vr_debug_chainsaw.value)
+        {
+            Con_Printf("chainsaw: %s hand's exhaust: %d puff(s) at %.1f %.1f %.1f\n", h == HAND_MAIN ? "main" : "off", n,
+                at.x, at.y, at.z);
+        }
+    }
 }
 
 // Where a fist closes (its grip channel's middle, world) and the channel's direction.
@@ -339,6 +410,38 @@ bool grip(int hand, bool pressed)
     return true;
 }
 
+void shake(int hand, glm::vec3& pos, glm::vec3& angles)
+{
+    pos = glm::vec3{0.f};
+    angles = glm::vec3{0.f};
+    if(hand < 0 || hand > 1 || !(flagsOf(hand) & wpnFlagSawRunning) || !sawIn(hand) || cl.stats[STAT_HEALTH] <= 0)
+    {
+        return;
+    }
+    // Steadied by the other hand, less (not still).
+    const float two = za::clamp(twohand::transition(hand), 0.f, 1.f);
+    float mm = za::max(0.f, vr_chainsaw_shake.value) * (1.f - two) + za::max(0.f, vr_chainsaw_shake_2h.value) * two;
+    if(flagsOf(hand) & wpnFlagSawChain)
+    {
+        mm *= shakeChain;
+    }
+    if(mm <= 0.f)
+    {
+        return;
+    }
+    const float t = static_cast<float>(za::fmod(realtime, 1000.0));
+    const float amount = mm * 0.001f * units::metresToUnits();
+    pos = glm::vec3{buzz(t, hand, 0), buzz(t, hand, 1), buzz(t, hand, 2)} * amount;
+    angles = glm::vec3{buzz(t, hand, 3), buzz(t, hand, 4), buzz(t, hand, 5)} * (mm * shakeDegPerMm);
+    if(vr_debug_chainsaw.value && realtime - st.shakePrinted >= 0.5)
+    {
+        st.shakePrinted = realtime;
+        Con_Printf("chainsaw: %s hand shakes %.2f mm (two-handed %.2f), now %.3f mm %.3f deg\n",
+            hand == HAND_MAIN ? "main" : "off", mm, two, glm::length(pos) / units::metresToUnits() * 1000.f,
+            glm::length(angles));
+    }
+}
+
 void setupView(const hands::State& s)
 {
     if(st.lastFrame == host_framecount)
@@ -357,6 +460,7 @@ void setupView(const hands::State& s)
             st.seatWorld[h] = view::modelPoint(*ve, handle.seat);
         }
     }
+    smokeFrame();
     st.drawHandle = false;
 
     // The chainsaw left the other hand, or the holder took something: the handle goes (nothing to fly back to).

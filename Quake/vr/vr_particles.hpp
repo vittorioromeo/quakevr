@@ -47,7 +47,10 @@ enum class Preset : int
     Splash,
     // A crate or one of its pieces breaking (QC vr_crates.qc): a cloud of wood dust drifting down and splinters thrown
     // out and falling; `dir` pushes them (the blow), `count` how much (8 a piece bursting, 30 to 50 a crate).
-    WoodDust
+    WoodDust,
+    // A running chainsaw's exhaust (QC vr_chainsaw.qc, lying running; vr_chainsaw.cpp in a hand): `count` faint puffs,
+    // vr_chainsaw_smoke_alpha opaque, drifting out along `dir` and up.
+    ChainsawSmoke
 };
 
 // Spawns a preset's particles (count scaled by vr_particle_mult); false if they are off, for the
@@ -86,6 +89,10 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength);
 
 // A lava nail's streak (vr_emissive.cpp) from `from` to `to`: a hot, short-lived glowing core and a
 // few embers falling off it. Nothing with vr_particles 0.
+// A running chainsaw's exhaust smoke (Preset::ChainsawSmoke): `count` puffs at `org` going out along `dir` (a unit
+// vector, or zero), each vr_chainsaw_smoke_alpha opaque. Nothing with vr_particles 0.
+void chainsawSmoke(const glm::vec3& org, const glm::vec3& dir, int count);
+
 void lavaNailTrail(const glm::vec3& from, const glm::vec3& to);
 
 // The counter glow (vr_meleehud.cpp): a golden ember leaving a held weapon's surface at `org`, going `vel`, `bright`

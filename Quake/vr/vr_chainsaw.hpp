@@ -47,6 +47,11 @@ void drawOpaque();
 [[nodiscard]] float sinkDepth(int hand, const qmodel_t* model);
 [[nodiscard]] float barStart(const qmodel_t* model);
 
+// A running chainsaw in `hand` shakes (vr_chainsaw_shake; vr_chainsaw_shake_2h steadied by the other hand): world units
+// and degrees (pitch, yaw, roll) added to the drawn hand this frame, as fatigue::shake (the aim and the cuts don't
+// move). Zero without one. Its exhaust's smoke is made in setupView.
+void shake(int hand, glm::vec3& pos, glm::vec3& angles);
+
 // A new map, a disconnect: the cord let go.
 void reset();
 
