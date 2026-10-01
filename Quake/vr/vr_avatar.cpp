@@ -409,17 +409,42 @@ struct WristTurn
 // cost (so that within the wrist's reach the elbow stays where the pole puts it). The swing nearest the last one
 // (`last`) is kept unless another is clearly better, so that where two are about as good (the hand upside down) the
 // elbow does not flick between them.
+// With the hand near the face or the chest the arm is folded, the elbow far off the line from the shoulder to the wrist,
+// and the swing that eases the wrist most could put it by the neck or across the chest, or into the torso (where the
+// torso then pushes it out the shorter way, up or down, whatever that does to the wrist). So a swing costs more
+// (vr_body_elbow_lift: `lift`) that takes the elbow (its joint `elbowRadius` thick) into the torso, or across the chest
+// past 50 degrees from straight ahead (a shoulder's horizontal reach across), or over the shoulder while across it;
+// `up`, `outward` and `forward` are the chest's up, the clavicle's way out and the chest's forward, `upperArm` its
+// length. Crossing and rising count only past where the pole puts the elbow: an arm the pole already raises or crosses
+// (reaching up, or across the body) swings as before. Each costs 1 (as a 45 degree swing) 0.4 of the upper arm (10 cm)
+// past it, times `lift`; the torso four times that.
 [[nodiscard]] float easeWrist(const glm::vec3& shoulder, const glm::vec3& wrist, const glm::vec3& elbow,
-    const glm::vec3& bend, const glm::mat3& handRot, int side, float limits, float last)
+    const glm::vec3& bend, const glm::mat3& handRot, int side, float limits, float last, const glm::vec3& up,
+    const glm::vec3& outward, const glm::vec3& forward, float upperArm, float lift, float elbowRadius)
 {
     const glm::vec3 axis = safeNormalize(wrist - shoulder);
     const glm::vec3 centre = shoulder + axis * glm::dot(elbow - shoulder, axis);
     const float most = glm::radians(150.f);
+    const float freeRise = za::max(0.f, glm::dot(elbow - shoulder, up));
+    const float freeIn = za::max(0.f, -glm::dot(elbow - shoulder, outward));
+    const float liftScale = 0.4f * upperArm;
+    constexpr float crossing = 1.192f; // tan 50 degrees: how far across, per its distance ahead, an elbow goes freely
     const auto cost = [&](float swivel) {
         const glm::quat q = glm::angleAxis(swivel, axis);
-        const glm::vec3 foreDir = safeNormalize(wrist - (centre + q * (elbow - centre)), axis);
+        const glm::vec3 swung = centre + q * (elbow - centre);
+        const glm::vec3 foreDir = safeNormalize(wrist - swung, axis);
         const float s = swivel / glm::radians(45.f);
-        return wristStrain(wristTurn(foreDir, q * bend, handRot, side), limits) + s * s;
+        float c = wristStrain(wristTurn(foreDir, q * bend, handRot, side), limits) + s * s;
+        if(lift > 0.f)
+        {
+            const glm::vec3 e = swung - shoulder;
+            const float across = -glm::dot(e, outward);
+            const float in = za::max(0.f, across - za::max(freeIn, za::max(0.f, glm::dot(e, forward)) * crossing)) / liftScale;
+            const float rise = za::max(0.f, glm::dot(e, up) - freeRise) / liftScale * CLAMP(0.f, across / liftScale, 1.f);
+            const float inside = selfcollide::elbowDepth(swung, elbowRadius) / liftScale;
+            c += lift * (rise * rise + in * in + 4.f * inside * inside);
+        }
+        return c;
     };
 
     // The least cost within `reach` steps of `step` from `from`, then finer about it, and last the least of the
@@ -671,7 +696,8 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     if(const float limits = easeWrists ? vr_body_wrist_limits.value : 0.f; limits > 0.f && glm::length(handPose.forward) > 0.5f)
     {
         const glm::vec3 axis = safeNormalize(wrist - u.pos);
-        const float best = easeWrist(u.pos, wrist, elbow, bend, handRot, side, limits, lastSwivel[side]);
+        const float best = easeWrist(u.pos, wrist, elbow, bend, handRot, side, limits, lastSwivel[side], cUp, lateral, cFwd,
+            a, za::max(0.f, vr_body_elbow_lift.value), 0.03f * b.m2w);
         const double now = realtime;
         const double since = lastSwivelTime[side] >= 0.0 ? CLAMP(0.0, now - lastSwivelTime[side], 0.1) : -1.0;
         swivel = since < 0.0 ? best
