@@ -98,6 +98,8 @@
         toggle("Hands Slide Along Ledges", "vr_climb_slide").extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
         slider("Grab Sound", "vr_physsound_grab", 0.f, 1.f, 0.1f, "%.1f").help("A small slap as your hand takes a hold, of what the hold is made of: wood, muted metal or stone (0 off; also Carrying: Physics Sounds)."),
         slider("Mantle Grunt", "vr_climb_mantle_grunt", 0.f, 1.f, 0.1f, "%.1f").help("A small grunt as you pull yourself up onto a ledge (0 off)."),
+        cycle("Mantle Grunt Sound", "vr_climb_mantle_grunt_sound", {{0.f, "Jump grunt"}, {1.f, "Hard landing"}, {2.f, "Jump, deeper"}, {3.f, "Landing, deeper"}, {4.f, "Pain grunt"}}).help("Which grunt the mantle makes. Hard landing (the default): the strained \"oof\" of landing from a height, so it doesn't sound like a jump. The deeper ones are Quake's played slower. Hear it with Hear Mantle Grunt."),
+        command("Hear Mantle Grunt", "vr_climb_mantle_grunt_test").help("Plays the mantle's grunt as set, at full volume."),
         header("Climbing Stamina"),
         toggle("Climbing Stamina", "vr_climb_stamina").help("Hanging from a ledge or a rung tires you: it spends stamina from the pool parries, shoves and blows use (Stamina page), and none comes back while you hang. With none left your hands let go. Standing on something while you hold, pulling up onto a ledge and standing on it cost nothing."),
         slider("Hanging Cost, One Hand", "vr_climb_stamina_rate", 0.f, 30.f, 0.5f, "%.1f /s").extend().help("Stamina a second hanging from one hand costs (5 of 100: 20 s)."),

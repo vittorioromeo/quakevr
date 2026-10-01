@@ -1421,11 +1421,27 @@ void staminaSound(edict_t* ent, const char* sample, float volume)
     }
 }
 
-// A small grunt as a mantle starts (NOTES.md vrclimb_2026-10-01_16-27-48): Quake's jump grunt, vr_climb_mantle_grunt's
-// volume, if the progs precached it (id's world.qc does).
+// A small grunt as a mantle starts (NOTES.md vrclimb_2026-10-01_16-27-48), at vr_climb_mantle_grunt's volume: which one
+// is vr_climb_mantle_grunt_sound's (NOTES.md vrfiringrange_2026-10-01_22-43-20: not the jump's by default, so the two
+// are told apart). Id's recordings (world.qc precaches them) or two made from them as they load, played slower (deeper;
+// vr_audio.cpp derivedSounds). Precached with each map (precache); one not precached stays quiet.
+constexpr const char* mantleGrunts[] = {
+    "player/plyrjmp8.wav",         // 0 the jump's grunt
+    "player/land2.wav",            // 1 a hard landing's "oof" (the default)
+    "vr/derived/plyrjmp8_low.wav", // 2 the jump's, deeper and longer
+    "vr/derived/land2_low.wav",    // 3 a hard landing's, deeper
+    "player/pain2.wav",            // 4 a short low pain grunt
+};
+
+[[nodiscard]] const char* mantleGruntSample()
+{
+    const int n = static_cast<int>(za::getArraySize(mantleGrunts));
+    return mantleGrunts[za::clamp(static_cast<int>(vr_climb_mantle_grunt_sound.value), 0, n - 1)];
+}
+
 void mantleGrunt(edict_t* ent)
 {
-    constexpr const char* grunt = "player/plyrjmp8.wav";
+    const char* grunt = mantleGruntSample();
     const float volume = za::clamp(vr_climb_mantle_grunt.value, 0.f, 1.f);
     if(volume <= 0.f)
     {
@@ -1438,11 +1454,17 @@ void mantleGrunt(edict_t* ent)
             SV_StartSound(ent, 2, grunt, static_cast<int>(za::lround(255.f * volume)), 1.f); // (CHAN_VOICE, ATTN_NORM)
             if(debug())
             {
-                Con_Printf("climb: mantle grunt %.2f\n", volume);
+                Con_Printf("climb: mantle grunt %s %.2f\n", grunt, volume);
             }
             return;
         }
     }
+}
+
+// vr_climb_mantle_grunt_test: the mantle's grunt as set, heard here (the menu's Hear Mantle Grunt).
+void gruntTest_f()
+{
+    S_LocalSound(mantleGruntSample());
 }
 
 // The body stands on something (the box 2 units down meets a floor, a step, a brush model's top).
@@ -2594,6 +2616,15 @@ void qvr::climb::init()
 {
     Cmd_AddCommand("vr_climb_probe", probe_f);
     Cmd_AddCommand("vr_climb_try", try_f);
+    Cmd_AddCommand("vr_climb_mantle_grunt_test", gruntTest_f);
+}
+
+void qvr::climb::precache()
+{
+    for(const char* grunt : mantleGrunts)
+    {
+        (void)physsound::precacheOne(grunt);
+    }
 }
 
 void qvr::climb::calcStats(edict_t* ent, int* statsi)

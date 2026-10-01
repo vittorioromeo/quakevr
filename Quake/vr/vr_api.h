@@ -307,6 +307,7 @@ int VR_SndMixEnd (int paintedtime, int endtime);	// S_Update_: the mix-ahead's e
 void VR_SndPaint (portable_samplepair_t *buffer, int start, int end);	// S_PaintChannels, each chunk: the voices' mix added
 int VR_SndOwns (const channel_t *ch);				// S_PaintChannels: nonzero for a channel a voice renders (Quake skips it)
 void VR_SndCapture (const portable_samplepair_t *buffer, int count);	// S_PaintChannels, before the transfer: vr_snd_capture's recording
+const char *VR_SndDerived (const char *name, float *rate);	// S_LoadSound, no file of `name`: the Quake sound it is made from, played at `rate` (slower: lower), or NULL
 
 #ifdef __cplusplus
 }

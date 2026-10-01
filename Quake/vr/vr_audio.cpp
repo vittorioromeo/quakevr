@@ -1763,6 +1763,39 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     L.mixMs += (ms - L.mixMs) * 0.05;
 }
 
+namespace
+{
+
+// Sounds made from Quake's own as they load (S_LoadSound, when no file has the name): one of id's recordings played
+// slower, so lower and a little longer. Nothing of id's is shipped or written; a file of the name wins. (The mantle's
+// deeper grunts, vr_climb_mantle_grunt_sound: vr_climb.cpp.)
+struct DerivedSound
+{
+    const char* name;
+    const char* source;
+    float rate;
+};
+
+constexpr DerivedSound derivedSounds[] = {
+    {"vr/derived/plyrjmp8_low.wav", "player/plyrjmp8.wav", 0.8f}, // the jump's grunt, ~4 semitones down
+    {"vr/derived/land2_low.wav", "player/land2.wav", 0.88f},      // a hard landing's, ~2 semitones down
+};
+
+} // namespace
+
+extern "C" const char* VR_SndDerived(const char* name, float* rate)
+{
+    for(const DerivedSound& d : derivedSounds)
+    {
+        if(!strcmp(d.name, name))
+        {
+            *rate = d.rate;
+            return d.source;
+        }
+    }
+    return nullptr;
+}
+
 extern "C" void VR_SndCapture(const portable_samplepair_t* buffer, int count)
 {
     if(!live || !live->capture.running)

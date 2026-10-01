@@ -181,8 +181,11 @@ const DefaultChange defaultChanges[] = {
     {73, &vr_chainsaw_shake, "2"},          // 2.5
     {73, &vr_chainsaw_shake_2h, "0.8"},     // 1.25
     {73, &vr_chainsaw_shake_ground, "0.3"}, // 0.5
+    // 74: the author's axe sticking, tuned again (NOTES.md
+    // vrfiringrange_2026-10-01_23-04-14): a slower throw sticks.
+    {74, &vr_axestick_speed, "4"},          // 2.5
 };
-constexpr int configVersion = 73;
+constexpr int configVersion = 74;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

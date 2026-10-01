@@ -4083,30 +4083,115 @@ void pile_f()
     Con_Printf("vr_physics_pile: %d in %d columns\n", static_cast<int>(list.size()), static_cast<int>((list.size() + per - 1) / per));
 }
 
-// The rocks and bricks a big pile is made of (vr_debris.qc's models, precached on every map).
+// The rocks and bricks a big pile is made of (vr_debris.qc's models, precached on every map): rocks, then bricks.
 constexpr const char* pileModels[] = {"progs/vr_rock1.mdl", "progs/vr_rock2.mdl", "progs/vr_rock3.mdl", "progs/vr_rock4.mdl",
     "progs/vr_rock5.mdl", "progs/vr_brick1.mdl", "progs/vr_brick2.mdl", "progs/vr_brick3.mdl", "progs/vr_brick4.mdl"};
+constexpr int pileRocks = 5;
+constexpr int pileBricks = 4;
 
-// vr_physics_bigpile [<count> [<distance>]]: a big pile of props for Box3D on the pool (NOTES.md
-// vrfiringrange_2026-10-01_16-36-40; Debug > Tests > Spawn a Big Prop Pile): `count` (300; at most 2000) rocks and
-// bricks (vr_debris_piece, the models in turn) `distance` units (96) ahead of the first player, in columns of 10 on a
-// square grid 20 units apart, each piece set a little further along than the one under it, so that the columns topple
-// into one pile: more awake bodies than Physics Threads From (vr_box3d_threads_bodies, 150) while they fall and settle.
-// vr_physics_steptime (Physics Step Time) before and after gives the step's time; vr_physics_mtbench the same alone.
+// What the physics stress tests spawn carries this bit in its spawnflags (no map sets it; the spawn functions read only
+// their low bits), so that vr_physics_clearpiles takes away theirs and nothing the map placed. 2^20: exact as a float.
+constexpr int stressTagBit = 1 << 20;
+
+enum class PileKind
+{
+    Debris, // rocks and bricks in turn
+    Rocks,
+    Bricks,
+    Crates, // walls of small crates
+    Mixed,  // rocks and bricks, every fourth column small crates
+};
+
+struct PileKindName
+{
+    const char* name;
+    PileKind kind;
+};
+
+constexpr PileKindName pileKindNames[] = {{"debris", PileKind::Debris}, {"rocks", PileKind::Rocks},
+    {"bricks", PileKind::Bricks}, {"crates", PileKind::Crates}, {"mixed", PileKind::Mixed}};
+
+// One prop of the stress tests spawned at `at` by its spawn function `fn` (`model` given to it if not null), tagged
+// (stressTagBit). Null if it removed itself.
+edict_t* spawnStressProp(func_t fn, const char* classname, const char* model, const glm::vec3& at)
+{
+    edict_t* e = ED_Alloc();
+    store(at, e->v.origin);
+    e->v.classname = PR_SetEngineString(classname);
+    if(model)
+    {
+        e->v.model = PR_SetEngineString(model);
+    }
+    e->v.spawnflags = static_cast<float>(stressTagBit);
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(e);
+    PR_ExecuteProgram(fn); // rests it on the floor below (vr_debris_piece, vr_crate)
+    return e->free ? nullptr : e;
+}
+
+// vr_physics_bigpile [<count>] [<distance>] [debris | rocks | bricks | crates | mixed]: a big pile of props for Box3D on
+// the pool (NOTES.md vrfiringrange_2026-10-01_16-36-40, _22-46-00; Debug > Tests > Physics Stress). `count` props
+// (vr_test_pile_count, 300, or for crates vr_test_pile_crates, 40; at most 2000) `distance` units (96) ahead of the
+// first player:
+// - debris (the default), rocks, bricks, mixed: in columns of 10 (small crates: 3) on a square grid 20 units apart (36
+//   with crates), each prop set a little further along than the one under it, so that the columns topple into one pile:
+//   more awake bodies than Physics Threads From (vr_box3d_threads_bodies, 150) while they fall and settle. Mixed: rocks
+//   and bricks, every fourth column small crates.
+// - crates: walls of small crates facing you, 8 wide and 5 high, each next one 48 units behind.
+// Each is tagged (stressTagBit): vr_physics_clearpiles takes them away. vr_physics_steptime (Physics Step Time) before
+// and after gives the step's time; vr_physics_mtbench the same alone.
 void bigPile_f()
 {
     if(!sv.active || svs.maxclients < 1)
     {
-        Con_Printf("usage: vr_physics_bigpile [<count> [<distance>]] (in a game)\n");
+        Con_Printf("usage: vr_physics_bigpile [<count>] [<distance>] [debris | rocks | bricks | crates | mixed] (in a game)\n");
         return;
     }
-    const int count = Cmd_Argc() > 1 ? CLAMP(1, Q_atoi(Cmd_Argv(1)), 2000) : 300;
-    const float distance = Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 96.f;
-    const VmScope vm;
-    const func_t fn = qvr::progs::findFunction("vr_debris_piece");
-    if(!fn)
+    PileKind kind = PileKind::Debris;
+    int numbers = 0;
+    int count = -1;
+    float distance = 96.f;
+    for(int a = 1; a < Cmd_Argc(); a++)
     {
-        Con_Printf("vr_physics_bigpile: no vr_debris_piece in the progs\n");
+        const char* arg = Cmd_Argv(a);
+        if((arg[0] >= '0' && arg[0] <= '9') || arg[0] == '.' || arg[0] == '-')
+        {
+            if(numbers++ == 0)
+            {
+                count = CLAMP(1, Q_atoi(arg), 2000);
+            }
+            else
+            {
+                distance = static_cast<float>(Q_atof(arg));
+            }
+            continue;
+        }
+        bool known = false;
+        for(const PileKindName& k : pileKindNames)
+        {
+            if(!q_strcasecmp(k.name, arg))
+            {
+                kind = k.kind;
+                known = true;
+            }
+        }
+        if(!known)
+        {
+            Con_Printf("vr_physics_bigpile: no kind %s (debris, rocks, bricks, crates, mixed)\n", arg);
+            return;
+        }
+    }
+    if(count < 0)
+    {
+        const float v = kind == PileKind::Crates ? vr_test_pile_crates.value : vr_test_pile_count.value;
+        count = CLAMP(1, static_cast<int>(v), 2000);
+    }
+    const VmScope vm;
+    const func_t pieceFn = qvr::progs::findFunction("vr_debris_piece");
+    const func_t crateFn = qvr::progs::findFunction("vr_crate");
+    if((kind != PileKind::Crates && !pieceFn) || ((kind == PileKind::Crates || kind == PileKind::Mixed) && !crateFn))
+    {
+        Con_Printf("vr_physics_bigpile: no vr_debris_piece or vr_crate in the progs\n");
         return;
     }
     edict_t* player = EDICT_NUM(1);
@@ -4115,46 +4200,124 @@ void bigPile_f()
     AngleVectors(yaw, forward, right, up);
     const glm::vec3 fwd{forward[0], forward[1], 0.f};
     const glm::vec3 side{right[0], right[1], 0.f};
-    constexpr int perColumn = 10;
-    constexpr float spacing = 20.f;
-    constexpr float lean = 1.5f; // units each piece is set along from the one under it
-    const int columns = (count + perColumn - 1) / perColumn;
-    const int across = za::max(1, static_cast<int>(glm::ceil(za::sqrt(static_cast<float>(columns)))));
-    const int classname = PR_SetEngineString("vr_debris_piece");
-    constexpr int modelCount = static_cast<int>(sizeof(pileModels) / sizeof(pileModels[0]));
+    const glm::vec3 origin = vec(player->v.origin);
     int made = 0;
-    float z = 0.f; // the bottom of the next piece of this column
+
+    if(kind == PileKind::Crates)
+    {
+        constexpr int wide = 8;
+        constexpr int high = 5;
+        constexpr float wallGap = 48.f;
+        const int across = za::min(count, wide);
+        float floorZ[wide] = {}; // the floor under each column of this wall (where crateplace rested its bottom crate)
+        float step = 33.f;       // a crate's width and a unit between (from the first crate)
+        for(int i = 0; i < count; i++)
+        {
+            const int wall = i / (across * high);
+            const int inWall = i % (across * high);
+            const int column = inWall % across;
+            const int row = inWall / across;
+            const float cx = static_cast<float>(column) - static_cast<float>(across - 1) * 0.5f;
+            const glm::vec3 at = origin + fwd * (distance + static_cast<float>(wall) * wallGap) + side * (cx * step);
+            edict_t* e = spawnStressProp(crateFn, "vr_crate", nullptr, at);
+            if(!e)
+            {
+                continue;
+            }
+            glm::vec3 lo, hi;
+            localBox(e, modelOf(e), lo, hi);
+            if(i == 0)
+            {
+                step = hi.x - lo.x + 1.f;
+            }
+            if(row == 0)
+            {
+                floorZ[column] = e->v.absmin[2];
+            }
+            const float z = floorZ[column] + static_cast<float>(row) * (hi.z - lo.z + 0.5f);
+            placeStill(e, glm::vec3{at.x, at.y, z - lo.z + 0.5f}, player->v.angles[1]);
+            made++;
+        }
+        Con_Printf("vr_physics_bigpile: %d of %d crates in walls of %d x %d ahead (vr_physics_clearpiles: away)\n", made,
+            count, across, high);
+        return;
+    }
+
+    // Columns of props (pieces 10, a crate column 3) on a square grid.
+    const bool mixed = kind == PileKind::Mixed;
+    const float spacing = mixed ? 36.f : 20.f;
+    constexpr float lean = 1.5f; // units each prop is set along from the one under it
+    const auto crateColumn = [mixed](int column) { return mixed && column % 4 == 3; };
+    int columns = 0;
+    for(int left = count; left > 0; columns++)
+    {
+        left -= crateColumn(columns) ? 3 : 10;
+    }
+    const int across = za::max(1, static_cast<int>(glm::ceil(za::sqrt(static_cast<float>(columns)))));
+    const int firstModel = kind == PileKind::Bricks ? pileRocks : 0;
+    const int models = kind == PileKind::Rocks ? pileRocks : kind == PileKind::Bricks ? pileBricks : pileRocks + pileBricks;
+    int column = 0;
+    int row = 0;
+    int pieces = 0;
+    float z = 0.f; // the bottom of the next prop of this column
     for(int i = 0; i < count; i++)
     {
-        const int column = i / perColumn;
-        const int row = i % perColumn;
+        const bool crate = crateColumn(column);
         const float cx = static_cast<float>(column % across) - static_cast<float>(across - 1) * 0.5f;
         const float cy = static_cast<float>(column / across);
-        const glm::vec3 base = vec(player->v.origin) + fwd * (distance + cy * spacing) + side * (cx * spacing);
-        edict_t* e = ED_Alloc();
-        store(base, e->v.origin);
-        e->v.classname = classname;
-        e->v.model = PR_SetEngineString(pileModels[i % modelCount]);
-        pr_global_struct->time = qcvm->time;
-        pr_global_struct->self = EDICT_TO_PROG(e);
-        PR_ExecuteProgram(fn); // rests it on the floor below (vr_debris_piece)
+        const glm::vec3 base = origin + fwd * (distance + cy * spacing) + side * (cx * spacing);
+        edict_t* e = crate ? spawnStressProp(crateFn, "vr_crate", nullptr, base)
+                           : spawnStressProp(pieceFn, "vr_debris_piece", pileModels[firstModel + pieces++ % models], base);
+        if(e)
+        {
+            if(row == 0)
+            {
+                z = e->v.absmin[2]; // the floor under the column
+            }
+            glm::vec3 lo, hi;
+            localBox(e, modelOf(e), lo, hi);
+            const glm::vec3 at = base + fwd * (lean * static_cast<float>(row));
+            placeStill(e, glm::vec3{at.x, at.y, z - lo.z + 0.5f}, player->v.angles[1] + static_cast<float>((i * 37) % 90));
+            z += hi.z - lo.z + 0.5f;
+            made++;
+        }
+        if(++row >= (crate ? 3 : 10))
+        {
+            row = 0;
+            column++;
+        }
+    }
+    Con_Printf("vr_physics_bigpile: %d of %d props in %d columns ahead (vr_physics_steptime: the step's time; "
+               "vr_physics_clearpiles: away)\n",
+        made, count, columns);
+}
+
+// vr_physics_clearpiles: every prop the stress tests spawned (vr_physics_bigpile: tagged) taken away, and every broken
+// crate's piece (theirs or not), as QC's remove() does. Debug > Tests > Physics Stress: Clear the Piles.
+void clearPiles_f()
+{
+    if(!sv.active)
+    {
+        Con_Printf("vr_physics_clearpiles: in a game\n");
+        return;
+    }
+    const VmScope vm;
+    int removed = 0;
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
         if(e->free)
         {
             continue;
         }
-        if(row == 0)
+        const bool tagged = (static_cast<int>(e->v.spawnflags) & stressTagBit) != 0;
+        if(tagged || !strcmp(PR_GetString(e->v.classname), "vr_crate_piece"))
         {
-            z = e->v.absmin[2]; // the floor under the column
+            ED_Free(e);
+            removed++;
         }
-        glm::vec3 lo, hi;
-        localBox(e, modelOf(e), lo, hi);
-        const glm::vec3 at = base + fwd * (lean * static_cast<float>(row));
-        placeStill(e, glm::vec3{at.x, at.y, z - lo.z + 0.5f}, player->v.angles[1] + static_cast<float>((i * 37) % 90));
-        z += hi.z - lo.z + 0.5f;
-        made++;
     }
-    Con_Printf("vr_physics_bigpile: %d of %d props in %d columns ahead (vr_physics_steptime: the step's time)\n", made, count,
-        columns);
+    Con_Printf("vr_physics_clearpiles: %d removed\n", removed);
 }
 
 // vr_physics_blast <x> <y> <z> [<damage>]: an explosion there, from the world (QC's T_RadiusDamage, 120 by default: a
@@ -4709,6 +4872,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_loose", loose_f);
         Cmd_AddCommand("vr_physics_pile", pile_f);
         Cmd_AddCommand("vr_physics_bigpile", bigPile_f);
+        Cmd_AddCommand("vr_physics_clearpiles", clearPiles_f);
         Cmd_AddCommand("vr_physics_hash", hash_f);
         Cmd_AddCommand("vr_physics_steptime", steptime_f);
         Cmd_AddCommand("vr_physics_mtbench", mtbench_f);

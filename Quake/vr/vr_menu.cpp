@@ -2554,9 +2554,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_physics_steptime: Box3D's step time a frame since the last time (average and worst, ms), the awake "
                   "bodies and its threads. Run it, play, run it again."),
         command("Spawn a Big Prop Pile", "vr_physics_bigpile")
-            .help("vr_physics_bigpile [count] [distance]: 300 rocks and bricks ahead of you in leaning columns that topple "
-                  "into a pile: more awake bodies than Physics Threads From while they fall (Physics on Threads at work). "
-                  "Physics Step Time before and after gives the step's time."),
+            .help("vr_physics_bigpile [count] [distance] [rocks | bricks | crates | mixed]: Pile Size rocks and bricks "
+                  "ahead of you in leaning columns that topple into a pile: more awake bodies than Physics Threads From "
+                  "while they fall (Physics on Threads at work). Physics Step Time before and after gives the step's "
+                  "time. More piles, a wall of crates and Clear the Piles: Debug > Tests > Physics Stress."),
         command("Thread Pool Info", "vr_jobs_info")
             .help("vr_jobs_info: the pool's workers and what it has run (tasks, loops, the chunks each side took)."),
         command("Thread Pool Self-Test", "vr_jobs_test")
@@ -2685,6 +2686,27 @@ za::Vector<Item> pageDebugTools()
 za::Vector<Item> pageDebugTests()
 {
     return {
+        header("Physics Stress"),
+        slider("Pile Size", vr_test_pile_count, 50.f, 1000.f, 50.f, "%.0f props")
+            .extend(10.f, 2000.f)
+            .help("How many props Pile of Rocks, Pile of Bricks and Mixed Pile put ahead of you."),
+        slider("Crates in the Wall", vr_test_pile_crates, 8.f, 120.f, 8.f, "%.0f crates")
+            .extend(1.f, 400.f)
+            .help("How many small crates Wall of Crates stacks ahead of you (walls 8 wide and 5 high, one behind another)."),
+        command("Pile of Rocks", "vr_physics_bigpile rocks")
+            .help("vr_physics_bigpile rocks: Pile Size rocks 96 units ahead of you, in leaning columns that topple into "
+                  "one pile (Physics on Threads at work while they fall). Clear the Piles takes them away."),
+        command("Pile of Bricks", "vr_physics_bigpile bricks").help("vr_physics_bigpile bricks: the same, of bricks."),
+        command("Wall of Crates", "vr_physics_bigpile crates")
+            .help("vr_physics_bigpile crates: Crates in the Wall small crates stacked into walls facing you: push, "
+                  "shoot or blow them up."),
+        command("Mixed Pile", "vr_physics_bigpile mixed")
+            .help("vr_physics_bigpile mixed: Pile Size props, rocks and bricks, with every fourth column small crates."),
+        command("Clear the Piles", "vr_physics_clearpiles")
+            .help("vr_physics_clearpiles: every prop these put there taken away, and every broken crate's pieces."),
+        command("Physics Step Time", "vr_physics_steptime")
+            .help("vr_physics_steptime: Box3D's step time a frame since the last time (average and worst, ms), the awake "
+                  "bodies and its threads. Run it, make a pile, play, run it again (Profiling and Memory: Physics Threads)."),
         header("Spatial Audio"),
         command("Spatial Audio Tests", "vr_snd_test all")
             .help("vr_snd_test: offline renders through the spatial audio (a sound circling the head, behind a wall, a door "
