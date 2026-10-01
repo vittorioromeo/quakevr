@@ -17636,3 +17636,41 @@ trapped test as the build without this change (the props there are never the pla
 
 **In the headset:** topple the long box in both hands so it lands on its side, let go, walk into it from every side: it
 should shove, never let you through. Also throw a box ahead and walk after it (it is solid to you as it flies).
+
+## Props regressions: the "Standing on props 2" tests again (2026-10-01)
+
+The kit's `scratch/propstand2/` tests (now `Misc/quakevr/propstand2/`, `run.sh`) had drifted: the two-handed test no
+longer took the box, a box toppled onto you flew off, and walking into the big box tipped it over. Bisected along
+vr-cleanup's merges from `2b67b386`.
+
+**Two hands at walls: the test was stale.** Culprit: heldself (`00461805`, `vr_carry_grab_drawn`): an explosive box is
+taken by the fist against its drawn surface, not the hand's 5-unit box (12 cm of slack). The script put the box by the
+main hand's corner and the off hand 4 cm off its far face, so neither grip took it. Now the box is put where the main
+fist touches it (`main -3 0 -3`) and the off hand 2 cm into the far face (the rest of the script moved with it). Result
+as before: both hands keep it, the box 0.0 units in the level at each of the 11 checks, stopped at the wall ("meets the
+level" up to 7 units short).
+
+**Walking into the big box tipped it.** Culprit: heldself (`vr_box3d_hand_push_fist`). The hands' push bodies became the
+drawn fists: 93 spheres each. Pressed on a box, dozens of them touch it; `limitPushes` read the box's first 16 contacts,
+none of them the ones pushing, so the hands pushed at full strength (as kinematic bodies) at their height, and the 64-unit
+box tipped. It now reads all of them (`b3Body_GetContactCapacity`, a scratch buffer). Walked into with the hands on:
+the 25 kg box 54 units (56 before), the 40 kg one 63 units, upright (58 before heldself); with `vr_box3d_hand_push 0`,
+as in the table above, 44.9 and 0.1 (150 kg).
+
+**The box toppled onto you flew off.** Culprit: heldself again. The script puts the box 14 units into the wall. The fists
+under it held it up at full strength (a still hand holds things), and wedged between them and the wall Box3D threw it
+off at 10 to 15 m/s (touches of 265 to 600 u/s, the box landing 200 to 500 units away). The reach bodies already let
+a prop heavier than `vr_box3d_hand_hold_mass` (20 kg) slip through instead of holding it up; the fists now share that
+rule (`preSolve`, `mayHoldUp`). A second cause, from boxphase (`fe725b78`, `vr_box3d_player_hold`): a time in four the box
+stayed 9 units in the wall, and as no move of yours may take you deeper into a box, you walked on the spot under it for
+good (Box3D can't push it out of the wall). A prop wedged in the level (its box still in it 2 units inside its surface,
+`wedgedInLevel`) no longer holds you. 8 runs: you walk out 150 units each time (-849.6, as before); the box is pushed
+off you or stays leaning on the wall, landing at most at 10 m/s when it topples (7.7 before heldself), at most 90 units
+from where it was put.
+
+Regression: the toppled-box sweep (`propphase_sweep.py`) 192 of 192 on the box, 0 failures; the two-handed topple
+(`boxtopple_repro.py`) 1 frame inside, 0.03 units. Melee canary 48/53, no differences. e1m1: no errors.
+
+**In the headset:** topple the big box onto yourself against a wall with your hands under it (it should slide off your
+hands, not be thrown); walk into the big box with your hands ahead (it slides, upright); take a small box with both
+hands, fists on its sides.
