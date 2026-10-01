@@ -1589,6 +1589,16 @@ extern "C" void VR_ClimbPreThink(edict_t* ent)
 
 static void climbPreThink(edict_t* ent)
 {
+    // Knocked off the holds by a blast or a shove since the last frame (the QC's .vr_climb_knockoff: combat.qc
+    // VR_Climb_KnockOff), read and cleared every frame, held or not.
+    bool knockedOff = false;
+    if(fields().vr_climb_knockoff >= 0)
+    {
+        float& knock = fieldFloat(ent, fields().vr_climb_knockoff);
+        knockedOff = knock != 0.f;
+        knock = 0.f;
+    }
+
     Climber* cp = climberOf(ent);
     if(!cp)
     {
@@ -1634,6 +1644,17 @@ static void climbPreThink(edict_t* ent)
             }
             forced = true;
         }
+    }
+    // Knocked off (a blast of vr_climb_blast_letgo or more, an enemy's shove): let go, no fling, the velocity the blast or
+    // the shove gives the body kept (letting go here, before the frame's grips, is no release: see below).
+    if(knockedOff && (c.hanging() || c.mantling))
+    {
+        if(debug())
+        {
+            Con_Printf("climb: knocked off at (%.1f %.1f %.1f), velocity (%.0f %.0f %.0f)\n", ent->v.origin[0],
+                ent->v.origin[1], ent->v.origin[2], ent->v.velocity[0], ent->v.velocity[1], ent->v.velocity[2]);
+        }
+        forced = true;
     }
     if(forced && (c.hanging() || c.mantling))
     {

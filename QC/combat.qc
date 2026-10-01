@@ -879,6 +879,28 @@ float(entity inflictor, entity attacker, float isVRMelee) VR_GibSpeedScale =
     }
     return min(3, max(0.05, cvar_hget(h)));
 };
+
+// Knocked off a hold (ROUND21.md, "Enemy shoves: parry, enforcers, knocked off a hold"): set on a player to make the
+// hands let go of a ledge or a rung (or stop pulling up onto one) at the start of the player's next frame, the
+// velocity a blast or a shove gave it kept (the engine's vr_climb.cpp reads it and clears it every frame; hanging, the
+// climb owns the body's move and a blast's push was lost).
+.float vr_climb_knockoff;
+
+// `p` knocked off its holds by `xWhy`: a shove that lands (vr_enemyshove.qc), a blast of at least vr_climb_blast_letgo
+// (T_DamageDeal). Nothing if it holds none.
+void(entity p, string xWhy) VR_Climb_KnockOff =
+{
+    if(p.classname != "player")
+    {
+        return;
+    }
+    p.vr_climb_knockoff = 1; // (the engine lets go only of holds it has: none, nothing happens)
+    if(VRHasBit(p.vrbits0, QVR_VRBITS0_MAINHAND_CLIMBING) || VRHasBit(p.vrbits0, QVR_VRBITS0_OFFHAND_CLIMBING))
+    {
+        dprint(sprintf("climb: knocked off the hold by %s\n", xWhy));
+    }
+};
+
 // The damage itself (T_DamageImpl's).
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageDeal =
 {
@@ -1046,6 +1068,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         dir = targ.origin - (inflictor.absmin + inflictor.absmax) * 0.5;
         dir = normalize(dir);
         targ.velocity = targ.velocity + dir*damage*8;
+        // VR: a blast strong enough knocks a player off a ledge or a rung, which it throws (vr_climb_blast_letgo).
+        float blastLetGo = cvar_hget(cvarh_vr_climb_blast_letgo);
+        if(vr_hitkind == QVR_HITKIND_SPLASH && blastLetGo > 0 && damage >= blastLetGo)
+        {
+            VR_Climb_KnockOff(targ, sprintf("a blast of %g (%s)", damage, inflictor.classname));
+        }
     }
 
     // check for godmode or invincibility

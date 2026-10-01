@@ -4,10 +4,11 @@
 //   enforcer able to (VR_EnemyShove_Ready: alive, on its feet, not staggered, not sliding from a push) starts its shove
 //   (its model's shove1..shove6 frames: Misc/quakevr/make_enemyshove.py) instead of what it was about to do;
 // - its blow (the 4th frame) deals vr_enemy_shove_damage and pushes you vr_enemy_shove_distance units away, if you are
-//   still in reach and ahead of it;
+//   still in reach and ahead of it (an enforcer's: vr_enemy_shove_enforcer_damage and _distance times as much); hanging
+//   from a ledge or a rung, you let go (VR_Climb_KnockOff) and are pushed;
 // - the blow goes through the parry (combat.qc VR_Parry, as a melee monster's blow: .vr_eshove_striking): parried, its
-//   damage is cut as any parry's, and the push is vr_enemy_shove_parried times as far (the parry's own push of you is
-//   left out for it);
+//   damage is cut as any parry's, and vr_enemy_shove_parry_reduction of the push is taken off (as vr_parry_reduction
+//   takes off the damage; the parry's own push of you is left out for it);
 // - then vr_enemy_shove_cooldown seconds before its next shove (from its start: parried or not, landed or not).
 // The check runs in the AI's stand, walk and run thinks (ai.qc ai_stand, ai_walk, ai_run), so never while it fires
 // (its attack frames call none of them), is in pain (its pain frames neither), or is dying.
@@ -90,10 +91,9 @@ float() VR_EnemyShove_Check =
         if(time >= self.vr_eshove_logged) // (developer 1, at most twice a second)
         {
             self.vr_eshove_logged = time + 0.5;
-            dprint(sprintf("enemy shove: %s can't shove: %s\n", self.classname,
+            dprint(sprintf("enemy shove: %s can't shove: %s (at %v, velocity %v)\n", self.classname,
                 self.vr_shove != world ? "knocked away" : (time < self.pain_finished ? "staggered" :
-                (!(self.flags & FL_ONGROUND) ? "off the floor" : "charmed"))));
-        }
+                (!(self.flags & FL_ONGROUND) ? "off the floor" : "charmed")), self.origin, self.velocity));        }
         return FALSE;
     }
     // Facing you (within 60 degrees: the wind-up turns it the rest of the way); else it turns to you first (its AI).
@@ -194,7 +194,9 @@ void() VR_EnemyShove_Hit =
     }
 
     // Through the parry, as a melee monster's blow (combat.qc VR_Parry_MeleeMonster).
-    float dmg = cvar_hget(cvarh_vr_enemy_shove_damage);
+    float enforcer = self.classname == "monster_enforcer";
+    float dmg = cvar_hget(cvarh_vr_enemy_shove_damage) *
+                (enforcer ? max(0, cvar_hget(cvarh_vr_enemy_shove_enforcer_damage)) : 1);
     float healthBefore = p.health;
     vr_parried = 0;
     self.vr_eshove_striking = TRUE;
@@ -205,13 +207,18 @@ void() VR_EnemyShove_Hit =
     self.vr_eshove_striking = FALSE;
     float parried = vr_parried;
 
-    float dist = cvar_hget(cvarh_vr_enemy_shove_distance);
+    float dist = cvar_hget(cvarh_vr_enemy_shove_distance) *
+                 (enforcer ? max(0, cvar_hget(cvarh_vr_enemy_shove_enforcer_distance)) : 1);
     if(parried)
     {
-        dist = dist * cvar_hget(cvarh_vr_enemy_shove_parried);
+        dist = dist * (1 - min(1, max(0, cvar_hget(cvarh_vr_enemy_shove_parry_reduction))));
     }
     sound(self, CHAN_WEAPON, "vr/shove.wav", parried ? 0.5 : 1, ATTN_NORM);
     VR_EnemyShove_Push(p, to, dist);
+    if(dist > 0)
+    {
+        VR_Climb_KnockOff(p, sprintf("%s's shove", self.classname)); // (hanging from a hold: you let go, and slide)
+    }
     if(!parried)
     {
         entity oldSelf = self;
@@ -252,4 +259,30 @@ void() VR_EnemyShove_TestShoveNearest =
     vr_bash_exhaust_push = 0;
     dprint(sprintf("enemy shove: test: shoving %s %.0f units away (frame %g)\n", best.classname, bestDist, best.frame));
     VR_Bash_Hit(best, best.origin, normalize(dir), QVR_HITKIND_SHOVE, -1, 1, 1);
+};
+
+// QVR: impulse 220 (weapons.qc; Debug > Tests > Enemy Shoves): a blast of 60 (about 47 to you) at your feet 3 s from
+// now, 12 units ahead (towards the wall of a ledge or a rung you hang from by then): it knocks you off at
+// vr_climb_blast_letgo 47 or less (combat.qc T_DamageDeal).
+void() VR_Climb_TestBlastGo =
+{
+    entity p = self.owner;
+    makevectors('0 1 0' * p.v_viewangle_y);
+    setorigin(self, p.origin + v_forward * 12 - '0 0 20');
+    dprint(sprintf("climb test: a blast of 60 at %v, the player at %v\n", self.origin, p.origin));
+    T_RadiusDamage(self, world, 60, world);
+    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+    WriteVec3(MSG_BROADCAST, self.origin);
+    BecomeExplosion();
+};
+
+void() VR_Climb_TestBlast =
+{
+    entity b = spawn();
+    b.classname = "vr_testblast";
+    b.owner = self;
+    b.think = VR_Climb_TestBlastGo;
+    b.nextthink = time + 3;
+    dprint("climb test: a blast at your feet in 3 s\n");
 };

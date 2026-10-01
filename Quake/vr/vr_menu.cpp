@@ -617,8 +617,13 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("A shove's damage, cut by a parry as any blow's (Parry and Bash). 0: none, and it can't be parried."),
         slider("Push Distance", vr_enemy_shove_distance, 0.f, 160.f, 4.f, "%.0f units").extend(0.f, 400.f)
             .help("How far a shove pushes you (a quick slide; 32 units is about a metre). Not scaled by Knockback."),
-        slider("Parried Push", vr_enemy_shove_parried, 0.f, 1.f, 0.05f, "%.2fx")
-            .help("A parried shove pushes you this much of Push Distance."),
+        slider("Parry Push Reduction", vr_enemy_shove_parry_reduction, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Share of a shove's push a parry takes off (as Parry Damage Reduction takes off its damage): 0.75, a "
+                  "parried shove pushes you a quarter as far. 1: not at all."),
+        slider("Enforcer Damage", vr_enemy_shove_enforcer_damage, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("An enforcer's shove's damage, times Damage."),
+        slider("Enforcer Push", vr_enemy_shove_enforcer_distance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How far an enforcer's shove pushes you, times Push Distance."),
     };
 }
 
@@ -2661,6 +2666,10 @@ za::Vector<Item> pageDebugTests()
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
                   "staggered). Developer 1 logs grunts' and enforcers' shoves and why one can't shove (Combat > Enemy Shoves)."),
+        command("A Blast in 3 Seconds", "impulse 220")
+            .help("impulse 220: an explosion of 60 at your feet 3 s from now, a little ahead of you (towards a wall you hang "
+                  "from): hanging from a ledge or a rung, a blast of Climbing: Blasts Knock You Off or more makes you let go "
+                  "and throws you. Developer 1 (and vr_climb_debug 1) logs it."),
         header("Chainsaw"),
         command("A Chainsaw in Your Hand", "impulse 164").help("A full ogre's chainsaw in the main hand (impulse 184: the off "
                                                                 "hand). Take its cord with the other hand and pull."),

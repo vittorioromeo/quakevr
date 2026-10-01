@@ -1047,7 +1047,12 @@ Enemy shoves (ROUND21.md, "Grunts and enforcers shove you"): `developer 1`, `vr_
 `vr_test_spawn_dist 40`, `impulse 241` on vrcalibration's open floor: "enemy shove: ... shoves the player ...", "the player
 slid 63.7 units"; parry with the crowbar across (`vr_weapon_grip_mode 1; impulse 167; vr_mock_hand main 0.15 1.35 -0.35
 0 90 0`); `impulse 219` shoves the nearest monster (staggered: it can't shove); side view `vr_mock_camera -1.8 1.3 -0.7 0
--90`.
+-90`. His real parries against a grunt: `vr_motion_play C:/OHWorkspace/quakevr-iw/quakevr/motions/parry_pose_<...>.csv
+target monster_army` after `impulse 241` (vrfiringrange, `vr_test_spawn_dist 45`). Knocked off a hold (ROUND21.md, "Enemy
+shoves: parry, enforcers, knocked off a hold"): vrclimb's start, `climb_plays.py ledgehang` (its 6.000 keys made 12.000)
+hangs from rung 56 with both hands; `impulse 220` blasts 3 s later (`vr_climb_blast_letgo` 30 / 50: let go / held); a
+grunt beside: `vr_mock_look 0 90; impulse 241` (`vr_test_spawn_dist 40`, `vr_enemy_shove 0` until hanging), `vr_mock_look
+0 0`, then the play; `vr_physics_player` prints the body's place and velocity.
 `vr_mock_camera <x> <y> <z> <pitch> <yaw>` draws the mock eyes from elsewhere in the tracking space (a spectator's view of
 your body; the hands stay with the head), `vr_mock_camera` alone puts them back.
 Grappling hook (round 21): `impulse 151` (main hand), `vr_mock_hand main 0.2 1.3 -0.3 70 0 0` aims level (105:

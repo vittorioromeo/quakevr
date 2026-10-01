@@ -162,8 +162,13 @@ const DefaultChange defaultChanges[] = {
     // 70: the empty hand meets the other hand's weapon as a prop held there does (NOTES.md
     // vrfiringrange_2026-10-01_12-12-28): each drawn moved back up to this, not the hand alone held up to 4 cm.
     {70, &vr_hand_collide, "4"},            // 5
+    // 71: the author's enemy shove settings (NOTES.md vrfiringrange_2026-10-01_16-59-13).
+    {71, &vr_enemy_shove_range, "52"},      // 50
+    {71, &vr_enemy_shove_delay, "0.6"},     // 0.5
+    {71, &vr_enemy_shove_cooldown, "3"},    // 1.5
+    {71, &vr_enemy_shove_distance, "64"},   // 128
 };
-constexpr int configVersion = 70;
+constexpr int configVersion = 71;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

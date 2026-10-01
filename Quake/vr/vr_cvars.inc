@@ -977,6 +977,7 @@ QVR_CVAR(vr_headshot_sound, "0.5", CVAR_ARCHIVE)      // volume of the tick on a
 QVR_CVAR(vr_climb, "0", CVAR_ARCHIVE)                 // on as shipped (vr_defaults.cfg): either empty hand gripping a ledge or rung hangs from it; hand over hand, shimmy, mantle (vr_climb.cpp)
 QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a ledge must be to take hold of
 QVR_CVAR(vr_climb_fling, "1", CVAR_ARCHIVE)           // how much letting go flings you with the hands' motion (capped; 0 none)
+QVR_CVAR(vr_climb_blast_letgo, "30", CVAR_ARCHIVE)   // a blast this strong (damage) or more knocks you off a hold: you let go and it throws you (0: never); an enemy shove always does
 QVR_CVAR(vr_climb_leniency, "2", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
 QVR_CVAR(vr_climb_leniency_air, "4", CVAR_ARCHIVE)   // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
 QVR_CVAR(vr_climb_air_grab_time, "0.3", CVAR_ARCHIVE) // s: a grip pressed at no hold keeps looking for one this long while it stays pressed, in the air (a ledge jumped at: taken as the hand comes over or down onto it; 0: only at the press)
@@ -1293,12 +1294,14 @@ QVR_CVAR(vr_melee_push_player, "0.6", CVAR_ARCHIVE)        // how far monsters' 
 QVR_CVAR(vr_parry_push_enemy, "1", CVAR_ARCHIVE)         // how far a parry pushes the attacker back
 QVR_CVAR(vr_parry_push_player, "1", CVAR_ARCHIVE)        // and you
 QVR_CVAR(vr_enemy_shove, "1", CVAR_ARCHIVE)              // grunts and enforcers shove you away when you stand too close (QC vr_enemyshove.qc)
-QVR_CVAR(vr_enemy_shove_range, "52", CVAR_ARCHIVE)       // how close (units between your middles, flat; touching is 32)
-QVR_CVAR(vr_enemy_shove_delay, "0.6", CVAR_ARCHIVE)      // seconds that close before it shoves (not while it fires, is staggered or knocked away)
-QVR_CVAR(vr_enemy_shove_cooldown, "3", CVAR_ARCHIVE)     // seconds from one shove to its next (parried or not)
+QVR_CVAR(vr_enemy_shove_range, "50", CVAR_ARCHIVE)       // how close (units between your middles, flat; touching is 32)
+QVR_CVAR(vr_enemy_shove_delay, "0.5", CVAR_ARCHIVE)      // seconds that close before it shoves (not while it fires, is staggered or knocked away)
+QVR_CVAR(vr_enemy_shove_cooldown, "1.5", CVAR_ARCHIVE)     // seconds from one shove to its next (parried or not)
 QVR_CVAR(vr_enemy_shove_damage, "5", CVAR_ARCHIVE)       // a shove's damage (0: none, and it can't be parried)
-QVR_CVAR(vr_enemy_shove_distance, "64", CVAR_ARCHIVE)    // how far it pushes you (units, a slide; not scaled by vr_push)
-QVR_CVAR(vr_enemy_shove_parried, "0.35", CVAR_ARCHIVE)   // a parried shove's push, times the distance
+QVR_CVAR(vr_enemy_shove_distance, "128", CVAR_ARCHIVE)    // how far it pushes you (units, a slide; not scaled by vr_push)
+QVR_CVAR(vr_enemy_shove_parry_reduction, "0.75", CVAR_ARCHIVE) // share of a shove's push a parry takes off (0: none, 1: all; was vr_enemy_shove_parried, the share left)
+QVR_CVAR(vr_enemy_shove_enforcer_damage, "1.5", CVAR_ARCHIVE) // an enforcer's shove's damage, times vr_enemy_shove_damage
+QVR_CVAR(vr_enemy_shove_enforcer_distance, "1.5", CVAR_ARCHIVE) // an enforcer's shove's push, times vr_enemy_shove_distance
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)
 QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // heavy weapon hits shove monsters
 QVR_CVAR(vr_kill_push, "1", CVAR_ARCHIVE)                // killing blows throw the bodies
