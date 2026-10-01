@@ -649,7 +649,7 @@ void draw(za::Span<const Vertex> triangles, const glm::mat4& mvp, const State& s
     // Into the frame's upload buffer, like Ironwail's own dynamic geometry.
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
-    GL_Upload(GL_ARRAY_BUFFER, triangles.data(), qza::sizeBytes(triangles), &buf, &ofs);
+    GL_Upload(GL_ARRAY_BUFFER, triangles.data(), triangles.sizeBytes(), &buf, &ofs);
     drawVertices(buf, ofs, triangles.size(), state);
 }
 
@@ -657,18 +657,18 @@ void upload(StaticTriangles& t, za::Span<const Vertex> triangles)
 {
     t.count = triangles.size();
     t.uploads++;
-    t.uploadedBytes += qza::sizeBytes(triangles);
+    t.uploadedBytes += triangles.sizeBytes();
     if(triangles.empty())
     {
         return;
     }
-    if(!t.buffer || qza::sizeBytes(triangles) > t.capacity)
+    if(!t.buffer || triangles.sizeBytes() > t.capacity)
     {
         if(t.buffer)
         {
             GL_DeleteBuffer(t.buffer);
         }
-        t.capacity = qza::sizeBytes(triangles) + qza::sizeBytes(triangles) / 2; // room to grow
+        t.capacity = triangles.sizeBytes() + triangles.sizeBytes() / 2; // room to grow
         t.buffer = GL_CreateBuffer(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW, "vr static triangles", t.capacity, nullptr);
     }
     else
@@ -678,7 +678,7 @@ void upload(StaticTriangles& t, za::Span<const Vertex> triangles)
         GL_BufferDataFunc(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(t.capacity), nullptr, GL_DYNAMIC_DRAW);
     }
     GL_BindBuffer(GL_ARRAY_BUFFER, t.buffer);
-    GL_BufferSubDataFunc(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(qza::sizeBytes(triangles)), triangles.data());
+    GL_BufferSubDataFunc(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(triangles.sizeBytes()), triangles.data());
     GL_BindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
@@ -699,7 +699,7 @@ ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles)
     }
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
-    GL_Upload(GL_SHADER_STORAGE_BUFFER, particles.data(), qza::sizeBytes(particles), &buf, &ofs);
+    GL_Upload(GL_SHADER_STORAGE_BUFFER, particles.data(), particles.sizeBytes(), &buf, &ofs);
     return {buf, reinterpret_cast<za::SizeT>(ofs), particles.size()};
 }
 
@@ -764,7 +764,7 @@ TubeBatch uploadTube(za::Span<const TubeRing> rings)
     }
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
-    GL_Upload(GL_SHADER_STORAGE_BUFFER, rings.data(), qza::sizeBytes(rings), &buf, &ofs);
+    GL_Upload(GL_SHADER_STORAGE_BUFFER, rings.data(), rings.sizeBytes(), &buf, &ofs);
     return {buf, reinterpret_cast<za::SizeT>(ofs), rings.size()};
 }
 
@@ -818,7 +818,7 @@ BentBatch uploadBent(za::Span<const glm::vec4> data)
     }
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
-    GL_Upload(GL_SHADER_STORAGE_BUFFER, data.data(), qza::sizeBytes(data), &buf, &ofs);
+    GL_Upload(GL_SHADER_STORAGE_BUFFER, data.data(), data.sizeBytes(), &buf, &ofs);
     return {buf, reinterpret_cast<za::SizeT>(ofs), data.size()};
 }
 

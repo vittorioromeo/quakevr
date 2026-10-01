@@ -16,10 +16,13 @@
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Iota.hpp"
+#include "Zancle/Algorithm/NthElement.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Swap.hpp"
+#include "Zancle/Chrono/Clock.hpp"
+#include "Zancle/Base/BitCast.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -31,10 +34,9 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
-
-#include <algorithm>
 
 namespace qvr::hitmodel
 {
@@ -121,7 +123,7 @@ za::Array<const qmodel_t*, MAX_MODELS> byIndexModel{};  // (what byIndex was fou
 
 void build(Mesh& m, const aliashdr_t* hdr)
 {
-    const auto t0 = qza::nowNs();
+    const auto t0 = za::Clock::nowNanoseconds();
     m = Mesh{};
     m.hdr = hdr;
     m.numverts = hdr->numverts;
@@ -191,8 +193,10 @@ void build(Mesh& m, const aliashdr_t* hdr)
         const glm::vec3 ext = cmax - cmin;
         const int axis = ext.x >= ext.y && ext.x >= ext.z ? 0 : ext.y >= ext.z ? 1 : 2;
         const za::U32 mid = (lo + hi) / 2;
-        // ZANCLE-TODO: no selection algorithm (std::nth_element: the tree as it was, so every hit is the same)
-        std::nth_element(order.begin() + lo, order.begin() + mid, order.begin() + hi,
+        // (The median by the axis: a tie's sides are the partition's. Zancle's nthElement splits some ties otherwise than
+        // std::nth_element did: vr_hitmodel_bench 5000 on e1m1, e2m1 and e1m3, 9 monsters, the same hits but for 83 of
+        // 45000 rays (a zombie's and a fiend's) meeting another of two triangles at the same place: the same t and normal.)
+        za::nthElement(order.begin() + lo, order.begin() + mid, order.begin() + hi,
             [&](za::U32 a, za::U32 b) { return centroid[a][axis] < centroid[b][axis]; });
         self(self, lo, mid);
         m.nodes[idx].first = static_cast<za::U32>(m.nodes.size()); // the right child
@@ -256,7 +260,7 @@ void build(Mesh& m, const aliashdr_t* hdr)
         }
     }
     m.valid = true;
-    m.buildMs = qza::msSince(t0);
+    m.buildMs = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
 }
 
 [[nodiscard]] const qmodel_t* modelOf(edict_t* ent)
@@ -519,7 +523,7 @@ struct VertCache
         }
         if(++now == 0u)
         {
-            za::fill(stamp.begin(), stamp.end(), 0u);
+            za::fill(stamp, 0u);
             now = 1u;
         }
     }
@@ -869,7 +873,7 @@ bool segment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float radius,
     {
         return false;
     }
-    const auto t0 = qza::nowNs();
+    const auto t0 = za::Clock::nowNanoseconds();
     stats.narrow++;
     const glm::vec3 dir = b - a;
     Found f;
@@ -911,7 +915,7 @@ bool segment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float radius,
     {
         stats.throughs++;
     }
-    stats.ns += qza::nsSince(t0);
+    stats.ns += static_cast<double>(za::Clock::nowNanoseconds() - t0);
     record(ent, d, a, b, radius, c, hit ? &out : nullptr, hit && !in ? &f : nullptr);
     return hit;
 }
@@ -926,7 +930,7 @@ bool clip(edict_t* ent, const glm::vec3& a, const glm::vec3& b, const glm::vec3&
     float moverRadius = 1e30f;
     for(int k = 0; k < 3; k++)
     {
-        moverRadius = qza::minOf(moverRadius, -mins[k], maxs[k]);
+        moverRadius = za::min(moverRadius, -mins[k], maxs[k]);
     }
     moverRadius = za::max(0.f, moverRadius);
     return segment(ent, a, b, tol + moverRadius, maxT, c, out);
@@ -1104,12 +1108,12 @@ void serverFrame()
 
 void afterLoad()
 {
-    const auto t0 = qza::nowNs();
+    const auto t0 = za::Clock::nowNanoseconds();
     int built = 0, tris = 0;
     // The meshes to make, made at once on the game's thread pool (each build writes only its own mesh), before the
     // walk below finds them made.
     za::Array<bool, MAX_MODELS> had{};
-    za::Vector<qza::Pair<Mesh*, const aliashdr_t*>> todo;
+    za::Vector<za::Pair<Mesh*, const aliashdr_t*>> todo;
     for(int i = 1; i < MAX_MODELS && sv.model_precache[i]; i++)
     {
         const qmodel_t* model = sv.models[i];
@@ -1152,7 +1156,7 @@ void afterLoad()
         const bool used = za::anyOf(byIndex.begin(), byIndex.end(), [&](const Mesh* m) { return m == it->second.get(); });
         it = used ? (it + 1) : meshes.erase(it);
     }
-    const double ms = qza::msSince(t0);
+    const double ms = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0);
     // (the precached models' meshes' hash, FNV-1a: the same made on the pool or not)
     za::U32 hash = 2166136261u;
     const auto add = [&hash](const void* data, za::SizeT size)
@@ -1178,8 +1182,8 @@ void afterLoad()
 
 void reset()
 {
-    za::fill(byIndex.begin(), byIndex.end(), nullptr);
-    za::fill(byIndexModel.begin(), byIndexModel.end(), nullptr);
+    za::fill(byIndex, nullptr);
+    za::fill(byIndexModel, nullptr);
     tracks.clear();
     last = Last{};
     events.clear();
@@ -1395,6 +1399,7 @@ void bench_f()
         const glm::vec3 c = (lo + hi) * 0.5f;
         const float reach = glm::length(hi - lo) * 2.f + 32.f;
         int boxHits = 0, modelHits = 0;
+        za::U64 hitHash = 1469598103934665603ull; // FNV-1a of every ray's model hit (where, which triangle): the same rays, the same hits
         double boxNs = 0., modelNs = 0.;
         const Stats before = stats;
         vec3_t zero{0.f, 0.f, 0.f};
@@ -1405,18 +1410,24 @@ void bench_f()
             const glm::vec3 aim = lo + (hi - lo) * glm::vec3{uni(), uni(), uni()};
             const glm::vec3 to = from + (aim - from) * 2.f;
             vec3_t a{from.x, from.y, from.z}, b{to.x, to.y, to.z};
-            auto t0 = qza::nowNs();
+            auto t0 = za::Clock::nowNanoseconds();
             const trace_t tr = SV_ClipMoveToEntity(ent, a, zero, zero, b);
-            boxNs += qza::nsSince(t0);
+            boxNs += static_cast<double>(za::Clock::nowNanoseconds() - t0);
             if(tr.fraction < 1.f || tr.startsolid)
             {
                 boxHits++;
             }
-            t0 = qza::nowNs();
+            t0 = za::Clock::nowNanoseconds();
             Hit h;
             const bool hit = clip(ent, from, to, glm::vec3{0.f}, glm::vec3{0.f}, tol, Class::Guns, 1.f, h);
-            modelNs += qza::nsSince(t0);
+            modelNs += static_cast<double>(za::Clock::nowNanoseconds() - t0);
             modelHits += hit;
+            const za::U32 words[]{hit, ZA_BIT_CAST(za::U32, h.t), static_cast<za::U32>(h.tri), ZA_BIT_CAST(za::U32, h.normal.x),
+                ZA_BIT_CAST(za::U32, h.normal.y), ZA_BIT_CAST(za::U32, h.normal.z)};
+            for(const za::U32 w : words)
+            {
+                hitHash = (hitHash ^ w) * 1099511628211ull;
+            }
         }
         const long long narrow = stats.narrow - before.narrow;
         const aliashdr_t* hdr = nullptr;
@@ -1443,6 +1454,7 @@ void bench_f()
             boxHits * 100 / rays, modelHits * 100 / rays, boxHits ? modelHits * 100 / boxHits : 0, boxNs / 1000. / rays,
             modelNs / 1000. / rays, narrow ? static_cast<double>(stats.nodes - before.nodes) / narrow : 0.,
             narrow ? static_cast<double>(stats.tris - before.tris) / narrow : 0., overhang);
+        Con_Printf("  hits %016llx %s\n", static_cast<unsigned long long>(hitHash), name.cStr());
     }
     vr_debug_hits.value = saveDebug;
     if(!wasOn)

@@ -14,6 +14,7 @@
 #include "Zancle/Base/PlacementNew.hpp"
 #include "Zancle/Base/SizeT.hpp"
 
+#include "Zancle/Trait/Decay.hpp"
 #include "Zancle/Trait/IsSame.hpp"
 #include "Zancle/Trait/RemoveCVRef.hpp"
 
@@ -132,7 +133,8 @@ public:
     template <typename F>
         requires(!za::isSame<za::RemoveCVRef<F>, Thread>)
     [[nodiscard]] explicit Thread(F&& callable) :
-        Thread(/* opaque tag */ int{}, allocateEntry<za::RemoveCVRef<F>>(static_cast<F&&>(callable)))
+        // Decayed, so that a plain function (deduced as a reference to a function type) is stored as a pointer
+        Thread(/* opaque tag */ int{}, allocateEntry<za::Decay<F>>(static_cast<F&&>(callable)))
     {
     }
 

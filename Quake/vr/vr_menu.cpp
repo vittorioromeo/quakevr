@@ -37,8 +37,11 @@
 
 #include "Zancle/Algorithm/Count.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/ReverseIterator.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Floor.hpp"
@@ -49,6 +52,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/String/ToString.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
 #include <stdlib.h>
@@ -361,7 +365,7 @@ mem::Scratch<MenuReadouts> readouts{"menu readouts"};
 struct PageTexts
 {
     za::String weaponOffsetsTitle, weaponOffsetsInheritTitle;
-    za::Vector<qza::Pair<float, za::String>> weaponOffsetsInheritNames; // the Inherit From choice's
+    za::Vector<za::Pair<float, za::String>> weaponOffsetsInheritNames; // the Inherit From choice's
     za::String weaponWeightsTitle, weaponWeightsInheritTitle;
     za::String heldObjectOffsetsTitle, heldObjectWeightsTitle;
     za::Vector<za::String> checklistSections; // the Checklist's headers
@@ -2575,6 +2579,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Crash the Game", "vr_debug_crash")
             .help("vr_debug_crash [access | abort]: crashes the game now, on purpose, to test the crash report (in a test run: "
                   "qvr_crash.txt, the stack, and qvr_crash.dmp in the game folder). The game quits!"),
+        command("Fail a Zancle Assert", "vr_debug_crash assert")
+            .help("vr_debug_crash assert (zassert: in Zancle's library): a failed ZA_ASSERT, to test its report (a Quake "
+                  "error; in a test run, the crash report). Debug builds only (zassert: with QVR_ZANCLE_DEBUG). The game quits!"),
     };
 }
 
@@ -3888,7 +3895,7 @@ za::Vector<Item> pageWeaponOffsets()
     weaponOffsetsHeldSlot = heldSlot;
     weaponOffsetsInherit = weapons::inheritsFrom(heldSlot);
     za::String& inheritTitle = pageTexts.weaponOffsetsInheritTitle;
-    za::Vector<qza::Pair<float, za::String>>& inheritNames = pageTexts.weaponOffsetsInheritNames;
+    za::Vector<za::Pair<float, za::String>>& inheritNames = pageTexts.weaponOffsetsInheritNames;
     if(weaponOffsetsInherit >= 0)
     {
         slot = weaponOffsetsInherit;
@@ -4376,7 +4383,7 @@ struct RowAnchor
         {
             continue;
         }
-        const int cost = qza::abs(i - a.index) + (a.section == rowSection(list, i) ? 0 : 1 << 20);
+        const int cost = za::abs(i - a.index) + (a.section == rowSection(list, i) ? 0 : 1 << 20);
         if(best < 0 || cost < bestCost)
         {
             best = i;
@@ -4718,10 +4725,10 @@ void openInTree(int target)
     {
         chain.pushBack(p);
     }
-    for(auto it = qza::rbegin(chain); it != qza::rend(chain); ++it)
+    for(const int p : za::reversed(chain))
     {
-        parentPage[*it] = page;
-        showPage(*it);
+        parentPage[p] = page;
+        showPage(p);
     }
     if(!chain.empty())
     {
@@ -5582,10 +5589,10 @@ bool resolvePath(za::StringView spec, za::String& out)
         names.pushBack(link[p]);
     }
     out = za::String{"Options > "} + pages[PageMain].title;
-    for(auto it = qza::rbegin(names); it != qza::rend(names); ++it)
+    for(const char* name : za::reversed(names))
     {
         out += " > ";
-        out += *it;
+        out += name;
     }
     if(!row.empty())
     {
@@ -5984,7 +5991,7 @@ extern "C" void VR_MenuSavePositions()
             order.pushBack(p);
         }
     }
-    za::insertionSort(order.begin(), order.end(), [](int a, int b) { return visits[a] > visits[b]; }); // (stable: ties in the order std::sort gave a few)
+    za::stableSort(order.begin(), order.end(), [](int a, int b) { return visits[a] > visits[b]; }); // (stable: ties in the order std::sort gave a few)
     for(const int p : order)
     {
         add(p, leftAnchors[p]);

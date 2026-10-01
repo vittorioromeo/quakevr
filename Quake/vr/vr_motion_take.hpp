@@ -17,6 +17,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
 #include <glm/glm.hpp>
@@ -74,7 +75,7 @@ struct ServerSample
     static constexpr za::SizeT maxPoints = 9;
     static constexpr za::SizeT maxValues = 16;
     za::InPlaceVector<Point, maxPoints> points[HAND_COUNT];
-    za::InPlaceVector<qza::Pair<za::String, glm::vec3>, maxValues> values;
+    za::InPlaceVector<za::Pair<za::String, glm::vec3>, maxValues> values;
 
     [[nodiscard]] const glm::vec3* value(const char* key) const;
 };

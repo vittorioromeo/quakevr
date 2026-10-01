@@ -20,12 +20,14 @@
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Replace.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/String/ToString.hpp"
@@ -1107,7 +1109,7 @@ const za::String noCell; // (loadGhost: a column the table does not have)
         }
         start = end + 2;
     }
-    za::insertionSort(out.begin(), out.end(), [](const ReplayEvent& a, const ReplayEvent& b) { return a.t < b.t; }); // (stable: ties as std::sort left a few)
+    za::stableSort(out.begin(), out.end(), [](const ReplayEvent& a, const ReplayEvent& b) { return a.t < b.t; }); // (stable: ties as std::sort left a few)
     return out;
 }
 
@@ -1147,7 +1149,7 @@ void anchorGhost(const hands::State& s)
 
 [[nodiscard]] float lerpAngle(float a, float b, float f)
 {
-    return a + qza::remainder(b - a, 360.f) * f;
+    return a + za::remainder(b - a, 360.f) * f;
 }
 
 [[nodiscard]] glm::vec3 lerpAngles(const glm::vec3& a, const glm::vec3& b, float f)

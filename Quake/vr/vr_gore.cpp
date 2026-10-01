@@ -11,6 +11,7 @@
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -32,7 +33,7 @@ namespace
 using decals::Mark;
 using decals::MarkOptions;
 
-za::FastNonCryptoRng rng{static_cast<za::U64>(qza::nowNs())}; // a new sequence every run
+za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // a new sequence every run
 
 [[nodiscard]] float rnd(float lo, float hi)
 {

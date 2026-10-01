@@ -14,6 +14,7 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
 
 
@@ -81,7 +82,7 @@ constexpr float ownHue = 30.f;
 void recolor(za::U8* rgb, float shift, float saturation)
 {
     const float r = rgb[0] / 255.f, g = rgb[1] / 255.f, b = rgb[2] / 255.f;
-    const float mx = qza::maxOf(r, g, b), mn = qza::minOf(r, g, b);
+    const float mx = za::max(r, g, b), mn = za::min(r, g, b);
     if(mx <= 0.f)
     {
         return;

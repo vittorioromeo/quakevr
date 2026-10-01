@@ -163,7 +163,7 @@ void setGlow(dlight_t* dl, glm::vec3 color, float radius, float fade, bool shado
     }
     else
     {
-        color = colored ? color / qza::maxOf(color.r, color.g, color.b, 1e-3f) : glm::vec3{1.f};
+        color = colored ? color / za::max(color.r, color.g, color.b, 1e-3f) : glm::vec3{1.f};
         dl->decay = fade > 0.f ? radius / fade : 0.f;
     }
     dl->color[0] = color.r;

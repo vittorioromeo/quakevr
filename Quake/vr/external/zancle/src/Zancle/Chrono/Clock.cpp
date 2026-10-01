@@ -139,8 +139,15 @@ Clock::Clock() : m_refPoint{priv::monotonicNanoseconds()}, m_stopPoint{priv::clo
 ////////////////////////////////////////////////////////////
 Time Clock::getElapsedTime() const
 {
+    return priv::nanosecondsToTime(getElapsedNanoseconds());
+}
+
+
+////////////////////////////////////////////////////////////
+I64 Clock::getElapsedNanoseconds() const noexcept
+{
     const I64 endPoint = isRunning() ? priv::monotonicNanoseconds() : m_stopPoint;
-    return priv::nanosecondsToTime(endPoint - m_refPoint);
+    return endPoint - m_refPoint;
 }
 
 
@@ -199,6 +206,13 @@ Time Clock::reset()
 Time Clock::now()
 {
     return priv::nanosecondsToTime(priv::monotonicNanoseconds());
+}
+
+
+////////////////////////////////////////////////////////////
+I64 Clock::nowNanoseconds() noexcept
+{
+    return priv::monotonicNanoseconds();
 }
 
 } // namespace za

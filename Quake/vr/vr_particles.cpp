@@ -20,6 +20,7 @@
 #include "Zancle/Base/Limits.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Bitset.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
@@ -110,14 +111,14 @@ struct Particle
     // The cosine and sine of `angle` as of `csAngle` (buildInstances, buildLying): worked out again only when it has
     // turned since (most particles never turn).
     glm::vec2 cs{1.f, 0.f};
-    float csAngle{qza::nanF};
+    float csAngle{ZA_FLOAT_NAN};
 };
 
 constexpr za::SizeT maxParticles = 32768;
 za::Vector<Particle> pool; // reserved to maxParticles at startup (init): it never reallocates in play
 double lastRun = -1.0;
 
-za::FastNonCryptoRng rng{static_cast<za::U64>(qza::nowNs())}; // a new sequence every run (vr_particle_seed: a fixed one)
+za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // a new sequence every run (vr_particle_seed: a fixed one)
 
 [[nodiscard]] float rnd(float lo, float hi)
 {
@@ -440,7 +441,7 @@ void inForceGrabHue(za::SizeT first)
     for(za::SizeT i = first; i < pool.size(); i++)
     {
         Particle& p = pool[i];
-        p.color = glm::vec4{c * qza::maxOf(p.color.r, p.color.g, p.color.b), p.color.a};
+        p.color = glm::vec4{c * za::max(p.color.r, p.color.g, p.color.b), p.color.a};
     }
 }
 
@@ -1971,7 +1972,7 @@ struct Softness
             break;
     }
     fade *= za::min(vr_soft_particles_scale.value, 4.f);
-    return {fade, puff ? qza::minOf(fade, radius, 12.f) : 0.f};
+    return {fade, puff ? za::min(fade, radius, 12.f) : 0.f};
 }
 
 // ---- Lying on a liquid (a splash's rings and foam) ---------------------------------------------

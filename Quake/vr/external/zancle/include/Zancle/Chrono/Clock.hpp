@@ -45,6 +45,15 @@ public:
     [[nodiscard]] Time getElapsedTime() const;
 
     ////////////////////////////////////////////////////////////
+    /// \brief Like `getElapsedTime`, in nanoseconds (not truncated to `za::Time`'s whole microseconds)
+    ///
+    /// For profiling and benchmarks. See `nowNanoseconds` for the actual
+    /// resolution, which depends on the platform.
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] za::I64 getElapsedNanoseconds() const noexcept;
+
+    ////////////////////////////////////////////////////////////
     /// \brief `true` if the clock is currently running
     ///
     ////////////////////////////////////////////////////////////
@@ -95,6 +104,21 @@ public:
     ////////////////////////////////////////////////////////////
     [[nodiscard]] static Time now();
 
+    ////////////////////////////////////////////////////////////
+    /// \brief Like `now`, in nanoseconds (not truncated to `za::Time`'s whole microseconds)
+    ///
+    /// For profiling and benchmarks: e.g. take a reading before some work,
+    /// and pass the difference with one after it to `nanosecondsToMilliseconds`.
+    /// Same epoch as `now` (`now().asMicroseconds() == nowNanoseconds() / 1000`).
+    ///
+    /// The unit is nanoseconds, not the resolution: that depends on the
+    /// platform, from true nanoseconds (Linux, macOS) to typically 100ns
+    /// (Windows' performance counter) or 5-100us (browsers, which coarsen
+    /// `performance.now()` on purpose).
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] static za::I64 nowNanoseconds() noexcept;
+
 private:
     ////////////////////////////////////////////////////////////
     // Member data
@@ -106,6 +130,36 @@ private:
     za::I64 m_refPoint;  //!< Time of last reset
     za::I64 m_stopPoint; //!< Time of last stop, or a sentinel value while running
 };
+
+
+////////////////////////////////////////////////////////////
+/// \brief A duration in nanoseconds (e.g. from `Clock::nowNanoseconds`) as seconds
+///
+////////////////////////////////////////////////////////////
+[[nodiscard, gnu::always_inline, gnu::const]] constexpr double nanosecondsToSeconds(const za::I64 nanoseconds) noexcept
+{
+    return static_cast<double>(nanoseconds) / 1e9;
+}
+
+
+////////////////////////////////////////////////////////////
+/// \brief A duration in nanoseconds (e.g. from `Clock::nowNanoseconds`) as milliseconds
+///
+////////////////////////////////////////////////////////////
+[[nodiscard, gnu::always_inline, gnu::const]] constexpr double nanosecondsToMilliseconds(const za::I64 nanoseconds) noexcept
+{
+    return static_cast<double>(nanoseconds) / 1e6;
+}
+
+
+////////////////////////////////////////////////////////////
+/// \brief A duration in nanoseconds (e.g. from `Clock::nowNanoseconds`) as microseconds
+///
+////////////////////////////////////////////////////////////
+[[nodiscard, gnu::always_inline, gnu::const]] constexpr double nanosecondsToMicroseconds(const za::I64 nanoseconds) noexcept
+{
+    return static_cast<double>(nanoseconds) / 1e3;
+}
 
 } // namespace za
 
@@ -136,6 +190,14 @@ private:
 /// The `za::Time` value returned by the clock can then be
 /// converted to a number of seconds, milliseconds or even
 /// microseconds.
+///
+/// For finer measurements (profiling, benchmarks), the clock also
+/// reports nanoseconds:
+/// \code
+/// const za::I64 start = za::Clock::nowNanoseconds();
+/// doWork();
+/// const double ms = za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - start);
+/// \endcode
 ///
 /// \see `za::Time`
 ///

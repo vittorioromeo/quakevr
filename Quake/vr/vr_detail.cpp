@@ -15,6 +15,7 @@
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
@@ -403,7 +404,7 @@ Stats analyse(const texture_t* t)
     {
         const unsigned c = d_8to24table[px[i]];
         const float cr = (c & 255) / 255.f, cg = ((c >> 8) & 255) / 255.f, cb = ((c >> 16) & 255) / 255.f;
-        const float mx = qza::maxOf(cr, cg, cb), mn = qza::minOf(cr, cg, cb);
+        const float mx = za::max(cr, cg, cb), mn = za::min(cr, cg, cb);
         lum[i] = 0.3f * cr + 0.59f * cg + 0.11f * cb;
         l += lum[i];
         sat += mx > 0.f ? (mx - mn) / mx : 0.f;
@@ -419,7 +420,7 @@ Stats analyse(const texture_t* t)
     r /= n;
     g /= n;
     b /= n;
-    const double mx = qza::maxOf(r, g, b), mn = qza::minOf(r, g, b);
+    const double mx = za::max(r, g, b), mn = za::min(r, g, b);
     if(mx > mn)
     {
         double hue = mx == r ? (g - b) / (mx - mn) : mx == g ? 2.0 + (b - r) / (mx - mn) : 4.0 + (r - g) / (mx - mn);
@@ -432,8 +433,8 @@ Stats analyse(const texture_t* t)
         for(int x = 0; x < w; x++)
         {
             const float v = lum[static_cast<za::SizeT>(y) * w + x];
-            gx += qza::abs(lum[static_cast<za::SizeT>(y) * w + (x + 1) % w] - v);
-            gy += qza::abs(lum[static_cast<za::SizeT>((y + 1) % h) * w + x] - v);
+            gx += za::abs(lum[static_cast<za::SizeT>(y) * w + (x + 1) % w] - v);
+            gy += za::abs(lum[static_cast<za::SizeT>((y + 1) % h) * w + x] - v);
         }
     }
     s.gx = static_cast<float>(gx / n);
@@ -644,7 +645,7 @@ void list_f()
         }
         const Stats s = analyse(t);
         Con_Printf("%-16s %-8s %s tile %.0f strength %.2f%s   (lum %.2f sat %.2f hue %.0f grain %.2f)\n", t->name,
-            kinds[e.kind].name.cStr(), e.byRule ? "cfg " : "auto", t->width / qza::abs(e.v[0]), e.v[2],
+            kinds[e.kind].name.cStr(), e.byRule ? "cfg " : "auto", t->width / za::abs(e.v[0]), e.v[2],
             e.swapped ? " along t" : "", s.lum, s.sat, s.hue, s.gy > 0.f ? s.gx / s.gy : 0.f);
     }
 }

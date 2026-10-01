@@ -9,6 +9,7 @@
 #include "vr_lines.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Round.hpp"
@@ -183,7 +184,7 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
     hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
     const float x = glm::dot(pos - standing.head, fwd) - axis; // (behind the spine: the plate faces back)
     const float y = glm::dot(pos - standing.head, right);
-    const glm::vec3 flat = qza::abs(x) + qza::abs(y) > 1e-3f
+    const glm::vec3 flat = za::abs(x) + za::abs(y) > 1e-3f
                                ? glm::normalize(fwd * (x / (depth * depth)) + right * (y / (width * width)))
                                : fwd;
 
@@ -436,7 +437,7 @@ void migrateHolsters()
         const float now = glm::dot(pos - standing.head, fwd);
         const float front = frontOfTheBody(standing, h, pos);
         const float x = var.value + (h == RightHip ? HIP_X_DEFAULT : UPPER_X_DEFAULT) - front + za::max(now, front) - now;
-        if(qza::abs(x - var.value) > 1e-3f)
+        if(za::abs(x - var.value) > 1e-3f)
         {
             Con_DPrintf("VR: %s %s is now %.2f (the same place on the body)\n", var.name, var.string, x);
             Cvar_SetValueQuick(&var, za::round(x * 100.f) / 100.f);

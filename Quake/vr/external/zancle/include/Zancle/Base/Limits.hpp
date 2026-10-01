@@ -110,6 +110,20 @@
 
 
 ////////////////////////////////////////////////////////////
+// Infinities and quiet NaNs (constant expressions: GCC, Clang, and MSVC all provide these builtins)
+////////////////////////////////////////////////////////////
+#define ZA_FLOAT_INFINITY __builtin_huge_valf()
+#define ZA_FLOAT_NAN      __builtin_nanf("0")
+
+#define ZA_DOUBLE_INFINITY __builtin_huge_val()
+#define ZA_DOUBLE_NAN      __builtin_nan("0")
+
+// Exact conversions from `double` (MSVC has no `__builtin_huge_vall` or `__builtin_nanl`)
+#define ZA_LONG_DOUBLE_INFINITY static_cast<long double>(__builtin_huge_val())
+#define ZA_LONG_DOUBLE_NAN      static_cast<long double>(__builtin_nan("0"))
+
+
+////////////////////////////////////////////////////////////
 /// \file
 ///
 /// \brief Limits of the fundamental types, without `<climits>`, `<cfloat>`, or `<limits>`
@@ -124,6 +138,10 @@
 ///
 /// As in `<cfloat>`, `ZA_FLOAT_MIN` is the smallest *normalized positive*
 /// value; the lowest value is `-ZA_FLOAT_MAX`.
+///
+/// `ZA_<TYPE>_INFINITY` and `ZA_<TYPE>_NAN` (for `FLOAT`, `DOUBLE`, and
+/// `LONG_DOUBLE`) are `std::numeric_limits<T>::infinity()` and
+/// `std::numeric_limits<T>::quiet_NaN()`.
 ///
 /// Values come from the compiler's predefined macros (GCC, Clang), or
 /// from the fixed data model of MSVC on Windows.

@@ -74,11 +74,10 @@
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
     </ClCompile>
   </ItemDefinitionGroup>
-  <!-- QVR_ZANCLE_DEBUG: Zancle as the engine's Debug (unoptimised, its asserts on; QVR_ZANCLE_DEBUG tells its Assert.cpp
-       to leave the handler to vr_zancle.cpp). Else optimised without its asserts, Debug as Release. -->
+  <!-- QVR_ZANCLE_DEBUG: Zancle as the engine's Debug (unoptimised, its asserts on; a failure calls vr_zancle.cpp's
+       handler, installed by za::setAssertHandler). Else optimised without its asserts, Debug as Release. -->
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug' and '$(QVR_ZANCLE_DEBUG)'=='true'">
     <ClCompile>
-      <PreprocessorDefinitions>QVR_ZANCLE_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>Disabled</Optimization>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>

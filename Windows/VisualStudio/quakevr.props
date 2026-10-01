@@ -9,6 +9,16 @@
     <!-- lld-link has no incremental linking (/INCREMENTAL is ignored with a warning). -->
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
+  <!-- Zancle's library built with its asserts in Debug (zancle.vcxproj, the same default): QVR_ZANCLE_DEBUG tells
+       vr_zancle.cpp that the library has its own assert function (without it, the engine's Debug defines one). -->
+  <PropertyGroup Condition="'$(QVR_ZANCLE_DEBUG)'==''">
+    <QVR_ZANCLE_DEBUG>true</QVR_ZANCLE_DEBUG>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug' and '$(QVR_ZANCLE_DEBUG)'=='true'">
+    <ClCompile>
+      <PreprocessorDefinitions>QVR_ZANCLE_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>..\..\Quake\vr;..\..\Quake\vr\external;..\..\Quake\vr\external\box3d\include;..\..\Quake\vr\external\zancle\include;..\OpenXR\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -79,7 +89,7 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     <ClInclude Include="..\..\Quake\vr\external\box3d\src\*.h;..\..\Quake\vr\external\box3d\include\box3d\*.h" />
   </ItemGroup>
   <!-- Zancle's own sources (Quake/vr/external/zancle/README.md): a static library with its own settings (optimised,
-       without its asserts, in every configuration; zancle.vcxproj). -->
+       without its asserts, except in Debug with QVR_ZANCLE_DEBUG; zancle.vcxproj). -->
   <ItemGroup>
     <ProjectReference Include="zancle.vcxproj">
       <Project>{E286BCD0-E4E0-4F68-B335-083019EA8E02}</Project>

@@ -63,7 +63,8 @@ target_link_libraries(ironwail PRIVATE qvr_box3d)
 
 # Zancle (external/zancle/README.md): the modules the Quake VR code uses, a static library with its own settings: C++23;
 # optimised and without Zancle's asserts (NDEBUG) in Release; in Debug by QVR_ZANCLE_DEBUG: ON, built as the engine's
-# Debug with its asserts on (a failure calls vr_zancle.cpp's handler, as in the engine's own files); OFF, as in Release.
+# Debug with its asserts on (a failure calls vr_zancle.cpp's handler, installed by za::setAssertHandler, as in the
+# engine's own files); OFF, as in Release (the engine's Debug then defines the assert function the library has not).
 option(QVR_ZANCLE_DEBUG "Zancle's library in Debug: unoptimised, with its asserts (OFF: optimised, asserts off)" ON)
 file(GLOB_RECURSE QVR_ZANCLE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/external/zancle/src/*.cpp")
 add_library(qvr_zancle STATIC ${QVR_ZANCLE_SRC})
@@ -74,8 +75,10 @@ target_include_directories(qvr_zancle PRIVATE
 set_target_properties(qvr_zancle PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
 if (QVR_ZANCLE_DEBUG)
 	# Debug: the engine's own flags, and the asserts (their handler: vr_zancle.cpp); other configurations optimised.
+	# QVR_ZANCLE_DEBUG tells the engine's vr_zancle.cpp that the library has its own assert function.
 	set(QVR_ZANCLE_OPTIMISED "$<NOT:$<CONFIG:Debug>>")
-	target_compile_definitions(qvr_zancle PRIVATE ZA_STATIC "$<$<CONFIG:Debug>:QVR_ZANCLE_DEBUG>" "$<${QVR_ZANCLE_OPTIMISED}:NDEBUG>")
+	target_compile_definitions(qvr_zancle PRIVATE ZA_STATIC "$<${QVR_ZANCLE_OPTIMISED}:NDEBUG>")
+	target_compile_definitions(ironwail PRIVATE "$<$<CONFIG:Debug>:QVR_ZANCLE_DEBUG>")
 else()
 	set(QVR_ZANCLE_OPTIMISED 1)
 	target_compile_definitions(qvr_zancle PRIVATE NDEBUG ZA_STATIC)

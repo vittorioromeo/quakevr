@@ -10,11 +10,13 @@
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Cbrt.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -28,6 +30,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
 #include <ctype.h>
@@ -455,7 +458,7 @@ struct FloorGrid
         for(const int i : it->second)
         {
             const MapFace& f = faces[static_cast<size_t>(i)];
-            if(qza::abs(glm::dot(f.normal, p) - f.dist) > 1.f)
+            if(za::abs(glm::dot(f.normal, p) - f.dist) > 1.f)
             {
                 continue;
             }
@@ -642,7 +645,7 @@ struct Planner
         const float hx = half.x, hy = onSide ? half.z : half.y;
         const float c = za::cos(glm::radians(yaw)), s = za::sin(glm::radians(yaw));
         const glm::vec2 ax{c, s}, ay{-s, c};
-        return qza::abs(glm::dot(d, ax)) * hx + qza::abs(glm::dot(d, ay)) * hy;
+        return za::abs(glm::dot(d, ax)) * hx + za::abs(glm::dot(d, ay)) * hy;
     }
 
     // Checks the place of a piece whose middle is over `p` (on the floor at z): room round it, a flat floor of the
@@ -690,7 +693,7 @@ struct Planner
         {
             const glm::vec3 at = floor + glm::vec3{c * corner.x - s * corner.y, s * corner.x + c * corner.y, 0.f};
             const trace_t t = traceLine(at + glm::vec3{0.f, 0.f, 3.f}, at - glm::vec3{0.f, 0.f, 3.f});
-            if(t.fraction >= 1.f || t.startsolid || t.ent != qcvm->edicts || qza::abs(t.endpos[2] - floor.z) > 1.f ||
+            if(t.fraction >= 1.f || t.startsolid || t.ent != qcvm->edicts || za::abs(t.endpos[2] - floor.z) > 1.f ||
                 t.plane.normal[2] < 0.9f)
             {
                 reason = RUneven;
@@ -829,7 +832,7 @@ void list_f()
     PR_PopQCVM(oldVm);
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "lit"))
     {
-        za::insertionSort(rows.begin(), rows.end(), [](const Row& a, const Row& b) { return a.light > b.light; });
+        za::stableSort(rows.begin(), rows.end(), [](const Row& a, const Row& b) { return a.light > b.light; });
     }
     for(const Row& r : rows)
     {
@@ -1006,7 +1009,7 @@ int plan()
         for(size_t k = 0; k < f.pts.size(); k++)
         {
             const glm::vec3 a = f.pts[k], b = f.pts[(k + 1) % f.pts.size()];
-            if(qza::abs(a.z - lo) > 0.5f || qza::abs(b.z - lo) > 0.5f || glm::length(b - a) < 8.f)
+            if(za::abs(a.z - lo) > 0.5f || za::abs(b.z - lo) > 0.5f || glm::length(b - a) < 8.f)
             {
                 continue;
             }
@@ -1020,7 +1023,7 @@ int plan()
                 // The floor that meets it (a point just out from the wall, at the edge's height).
                 const glm::vec3 probe = at + glm::vec3{out * 2.f, 0.f};
                 const trace_t down = traceLine(probe + glm::vec3{0.f, 0.f, 4.f}, probe - glm::vec3{0.f, 0.f, 4.f});
-                if(down.fraction >= 1.f || down.startsolid || qza::abs(down.endpos[2] - at.z) > 1.5f)
+                if(down.fraction >= 1.f || down.startsolid || za::abs(down.endpos[2] - at.z) > 1.5f)
                 {
                     pl.rejected[RNoFloor]++;
                     continue;
@@ -1091,7 +1094,7 @@ int plan()
         const int n = za::min(clusterMax, 1 + (pl.rng.uniform() < (corner ? 0.5f : 0.3f)) + (pl.rng.uniform() < (corner ? 0.25f : 0.1f)));
         glm::vec3 anchor{0.f};
         float anchorHalf = 0.f;
-        za::Vector<qza::Pair<glm::vec3, float>> cluster;
+        za::Vector<za::Pair<glm::vec3, float>> cluster;
         for(int piece = 0; piece < n && static_cast<int>(placements.size()) < most; piece++)
         {
             Placement p;

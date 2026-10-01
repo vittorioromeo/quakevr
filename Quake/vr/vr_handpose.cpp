@@ -29,6 +29,7 @@
 #include "vr_weight.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -356,12 +357,12 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
                 const glm::vec3 local{glm::dot(last, m.lastFwd), glm::dot(last, m.lastRight), glm::dot(last, m.lastUp)};
                 const glm::vec3 muzzleOffset = hands::redirect(local, s.rot[h]);
                 const glm::vec3 tracked = pos;
-                const auto t0 = qza::nowNs();
+                const auto t0 = za::Clock::nowNanoseconds();
                 makeShape(h, s.rot[h], muzzleOffset);
                 colliding[h] = gunOutOfWalls(m, pos, shape[h]);
                 if(vr_debug_gun_wall.value >= 2.f || (vr_debug_gun_wall.value && m.slid))
                 {
-                    debugPrint(h, tracked, pos, shape[h], qza::usSince(t0));
+                    debugPrint(h, tracked, pos, shape[h], za::nanosecondsToMicroseconds(za::Clock::nowNanoseconds() - t0));
                 }
             }
             else

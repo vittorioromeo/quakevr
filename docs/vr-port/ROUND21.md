@@ -19118,3 +19118,68 @@ His notes vrfiringrange_2026-10-01_16-41-40, _16-42-00 (a backpack thrown high n
   The crowbar's hook at 9.1 m/s: batted (weapon threshold 34, 10 alike). A running chainsaw's chain cutting into a dud
   falling past the bar: set off ("a running chainsaw"); its rear handle's pommel strike (19.1 m/s) had too, before
   the pommel was left out of the rule. Melee canary: no differences.
+
+## Zancle update to 534219bf (2026-10-01)
+
+The author's fixes for `docs/vr-port/ZANCLE_REPORT.md`'s items (`fad225a4`, `8bb74612`, `00019de8`, `dbd1cfa4`,
+`8c3ac3b2`, `534219bf`) vendored (`Quake/vr/external/zancle/README.md`: 186 files) and used. **The vendored tree has
+no local changes now**: byte for byte upstream's. `zancle_vendor.py --update <checkout>` takes every file upstream
+changed (before, an update copied by hand: the script only added missing files), and follows a private `src/`
+header to its source file (`Base/StackTrace.cpp`, which `Assert.cpp` needs now that it is built in Debug).
+
+- **initializer_list (B1):** upstream uses the real `<initializer_list>` under `_MSC_VER`, as QVR's local change did;
+  dropped. The standalone two-file test again (clang-cl x64, `/O2` and `/Od`): upstream's header passes, 4ed9c3cc's
+  still crashes (0xC0000409).
+- **MaxAlignT (B6):** upstream took the `__SIZEOF_FLOAT128__` guard; dropped (Win32 not rebuilt here).
+- **The assert hook (A10):** `za::setAssertHandler`. `vr_zancle.cpp`'s `VR_InstallZancleAssertHandler` (called first
+  thing by `VR_InstallCrashHandler`) installs the same report as before (a Quake error; in a test run the crash
+  report with its stack). The library built with its asserts (`QVR_ZANCLE_DEBUG`, the Debug default) defines the
+  assert function and calls the handler; built without them it defines none, and `vr_zancle.cpp` defines it for the
+  engine's Debug files. So the engine now gets the define `QVR_ZANCLE_DEBUG` (MSBuild `quakevr.props`, CMake, the
+  Makefiles), and the library no longer needs it. Test aid: `vr_debug_crash assert` (a failed `ZA_ASSERT` in the
+  engine's code) and `zassert` (in the library's `Thread.cpp`), Debug > Crashes > Fail a Zancle Assert. Tested: Debug
+  with `QVR_ZANCLE_DEBUG` both fire the report through `Assert.cpp`; with it off, `assert` fires through
+  `vr_zancle.cpp`'s, `zassert` says the library has no asserts; Release says both are off.
+- **remainder (B2):** `za::remainder` is the IEEE one now, the old truncating one `za::truncatedRemainder`. Audit: the
+  13 angle wraps were on `qza::remainder` (IEEE, since 4ed9c3cc fixed them), all `za::remainder` now: identical (the
+  self-test's wrap of every half degree in -1080..1080 and the edge values, bit for bit as `std::remainder`). None
+  wanted truncation; none was a bug. `vr_torso.cpp`'s `wrapYaw` (`a - round(a / 360) * 360`, as before the migration)
+  differs from IEEE only at odd multiples of 180 (half away from zero, not to even): kept, its comment corrected.
+- **vectorEraseIf (B3):** contiguous only now. QVR's 10 calls are all on `za::Vector`s; the maps already used ankerl's
+  `erase_if`. Nothing to change.
+- **ThreadPool noexcept (B5):** nothing to change (built without exceptions; QVR's own `parallelFor` stays for B4).
+- **Thread, getArraySize, UniquePtr (A3, A6, A2):** `za::Thread(run)` (gpustats; was a lambda); the four
+  `UniquePtr<...> x{nullptr}` members plain; the two fills that went through `getArraySize` of another array now
+  `za::fill(array, v)`.
+- **The cheap gaps:** `za::abs` (111 calls), variadic `za::min`/`max` (28: a left fold, as `qza::minOf`/`maxOf`),
+  `ZA_FLOAT_NAN` (3), `za::String(count, c)`, `span.sizeBytes()` (8), `za::reversed` (5 loops; `za::rbegin`/`rend` for
+  the one that erases), `za::fill(range, v)` (36 calls that passed `begin()/end()` or an array's bounds),
+  `za::Clock::nowNanoseconds()` and `za::nanosecondsToSeconds`/`Milliseconds`/`Microseconds` (the profiler, benches and
+  load timings; `std::chrono` gone), `za::Pair`/`makePair` (29), `<` on `za::Array` (the ledges' key), `za::nthElement`
+  (2), `za::stableSort` (8 of the 9 `insertionSort`s: the same results for a strict weak order, O(n log n); the climb's
+  stays, its comparator has tolerances). `vr_zancle.hpp` keeps only `stableAt` and `sortedByKey`; the `std::` left
+  outside the self-test: `vr_motion_review.cpp`'s three `std::map`s (no ordered map in Zancle).
+- **nthElement splits ties otherwise than std::nth_element.** The audio's voice cut (which of equal priorities at the
+  k-th is kept) and the hit models' tree (which of equal centroids goes left). New test aid: `vr_hitmodel_bench` prints
+  a hash of every ray's hit (`hits <hash> <monster>`; deterministic right after `map`). 5000 rays a monster on e1m1,
+  e2m1 and e1m3 (9 monsters): 7 hash the same as with `std::nth_element`; the zombie (9 rays) and the fiend (74)
+  differ only in the triangle id, with the same `t` and normal (two triangles at the same place: coincident faces of
+  the model). Not a bug; nothing downstream sees it but the hit's triangle and its u, v.
+- **Docs (00019de8):** dense maps move their values; `quickSort` orders equal elements otherwise than `std::sort`;
+  `insertionSort` is stable. Re-audited: no `quickSort` call relies on the order of equals (those that did were stable
+  sorts already). The maps (an agent read every `ankerl::unordered_dense` map's uses): one held reference,
+  `vr_ambient.cpp`'s model ambient, which kept `Cached& c = cache[e]` across `evictStale`'s `erase_if`: an erase moves
+  the last value into the erased slot, so `c` could point past the values (undefined; it worked because the bytes
+  stayed). Fixed: the entry is looked up again when the eviction removed something. Everything else is safe (the
+  caches that hand out pointers hold `UniquePtr`s).
+- **Random (A8):** no longer reaches `Geometry`: `Geometry/Priv/Vec2Base.hpp` and `Math/ClampMacro.hpp` are vendored
+  but unused now (`--list-unused`; to delete).
+- **`vr_zancle_math_test`** checks the new pieces too: the variadic `min`/`max` against a left fold of std's (and
+  against std's list overloads where no NaN: MSVC's vectorised `std::min({...})` answers otherwise with a NaN first),
+  `za::abs`, `stableSort` against `std::stable_sort` element by element and `nthElement` against `std::nth_element`
+  (200 random arrays with many ties each): 105050 checks, 0 failed; `za::truncatedRemainder` differs from
+  `std::remainder` in 89 of 198, as the old `za::remainder` did.
+
+Verified: Release and Debug (`QVR_ZANCLE_DEBUG` on, and off for the link) 0 warnings; the self-test 0 failed in
+Release and Debug; smoke (e1m1, e2m1, vrfiringrange) clean in Release and with the Debug exe (Zancle's asserts on: none
+fired); the eval canary 48/53, 0 differ from the baseline.

@@ -5,20 +5,17 @@
 
 #if defined(__CLANGD__) || defined(_MSC_VER)
 
-    // Quake VR (local change): `_MSC_VER` too. MSVC's STL lays std::initializer_list out as two pointers, not as the
-    // pointer and size below: a program that also uses MSVC's STL got two std::initializer_list<T> of different
-    // layouts in different files (an ODR violation: the linker keeps one instantiation of, say, std::vector<int>'s
-    // initializer-list constructor, and a caller built with the other layout passes it a pointer as the size). Sharing
-    // the STL's include guard (`_INITIALIZER_LIST_`, upstream) only settles which one a file gets: the one whose header
-    // came first, so still both in one program. The real header there. (libstdc++'s and libc++'s are a pointer and a
-    // size, as this one.) Quake/vr/external/zancle/README.md.
+    // MSVC's STL lays `std::initializer_list` out as two pointers, unlike the definition below (a pointer
+    // and a size, like libstdc++'s and libc++'s). Translation units including the headers in different
+    // orders would get both definitions of the same type (an ODR violation): an inline function compiled
+    // against one layout, called with the other, reads garbage (e.g. a braced-list constructor sizing an
+    // allocation from a pointer). The real header is cheap there, so always use it (also with clang-cl).
     #include <initializer_list> // IWYU pragma: export
 
-#elif !defined(_LIBCPP_INITIALIZER_LIST) && !defined(_INITIALIZER_LIST) && !defined(_INITIALIZER_LIST_)
+#elif !defined(_LIBCPP_INITIALIZER_LIST) && !defined(_INITIALIZER_LIST)
 
     #define _LIBCPP_INITIALIZER_LIST // libcpp
     #define _INITIALIZER_LIST        // libstdc++
-    #define _INITIALIZER_LIST_       // msstl
 
 namespace std
 {
@@ -50,17 +47,6 @@ public:
         m_size(s)
     {
     }
-
-    #if defined(_MSC_VER) && !defined(__clang__)
-    ////////////////////////////////////////////////////////////
-    // MSVC constructs braced lists through a `(first, last)` constructor (clang-cl uses the member layout)
-    [[nodiscard, gnu::always_inline]] constexpr initializer_list(const T* const first, const T* const last) noexcept :
-        m_begin(first),
-        m_size(static_cast<size_type>(last - first))
-    {
-    }
-    #endif
-
 
     ////////////////////////////////////////////////////////////
     [[nodiscard, gnu::always_inline, gnu::pure]] constexpr const T* begin() const noexcept
@@ -132,6 +118,8 @@ using InitializerList = std::initializer_list<T>;
 /// brace-init constructors, so the type itself must live in `std`.
 /// This header defines the minimal interface that the compiler expects
 /// while pretending to be the real `<initializer_list>` header (via
-/// the standard libraries' include guards).
+/// the standard libraries' include guards), with the same layout as
+/// libstdc++'s and libc++'s. On the MSVC ABI (`_MSC_VER`, including
+/// clang-cl), whose layout differs, it includes the real header instead.
 ///
 ////////////////////////////////////////////////////////////

@@ -42,6 +42,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
 #include <glm/gtc/constants.hpp>
@@ -486,7 +487,7 @@ bool parseMesh(const char* text, Md5Mesh& m, za::String& error)
 }
 
 // The md5anim's joints (the engine's MD5 loader refuses a model whose anim doesn't list the mesh's joints).
-bool parseAnim(const char* text, za::Vector<qza::Pair<za::String, long>>& hierarchy, za::String& error)
+bool parseAnim(const char* text, za::Vector<za::Pair<za::String, long>>& hierarchy, za::String& error)
 {
     Reader r(text, animFile);
     r.expect("MD5Version");
@@ -969,7 +970,7 @@ bool readRig(const char* meshText, Rig& out, za::String& error, Report& report)
     // The md5anim: the engine's loader needs the same joints there.
     if(byte* anim = COM_LoadMallocFile(animFile, nullptr))
     {
-        za::Vector<qza::Pair<za::String, long>> hierarchy;
+        za::Vector<za::Pair<za::String, long>> hierarchy;
         za::String animError;
         const bool ok = parseAnim(reinterpret_cast<const char*>(anim), hierarchy, animError);
         free(anim);

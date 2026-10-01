@@ -26,6 +26,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
@@ -1128,7 +1129,7 @@ void precacheWaterSounds()
 {
     for(auto& indices : waterSoundIndices)
     {
-        za::fill(indices, indices + za::getArraySize(waterSoundIndices[0]), 0);
+        za::fill(indices, 0);
     }
     if(!active() || sv.state != ss_loading)
     {
@@ -1427,7 +1428,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         AngleVectors(a, f, r, u);
         const glm::vec3 side{r[0], r[1], r[2]};
         const float facing = glm::dot(side, dir);
-        const float flat = qza::abs(facing);
+        const float flat = za::abs(facing);
         const float palm = (1.f - palmWeight) + palmWeight * za::pow(flat, flatExp);
         const float edge = recovery + (1.f - recovery) * glm::smoothstep(0.1f, 0.45f, flat);
 

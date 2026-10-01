@@ -16,26 +16,32 @@ C++ standard library: Zancle's types compile faster and run faster in Debug. Use
   where the old `std::map`'s order was printed or summed, loop over `qza::sortedByKey(map)`.
 - `za::String`, `za::StringView` (`substrByPosLen` returns a view: `za::String{...}` to keep it), `za::toString` for an
   integer (a float's text through `va`/`snprintf`, whose formats the code already uses), `za::Optional`, `za::Span`,
-  `za::UniquePtr` / `za::makeUnique`, `za::FunctionRef` (a callback for the call's length), `za::FixedFunction`.
-- `za::min` / `za::max` / `za::clamp`, `za::sin` and the rest of `Zancle/Math` (exactly `float`, `double` or `long
-  double`: a mixed call that std promoted needs its cast), `ZA_MEMCPY` / `ZA_STRCMP` and the other builtin macros,
-  `ZA_MOVE`, `ZA_FORWARD`, `ZA_ASSERT` (on in Debug: its handler is `vr_zancle.cpp`'s).
+  `za::UniquePtr` / `za::makeUnique`, `za::FunctionRef` (a callback for the call's length), `za::FixedFunction`,
+  `za::Pair` / `za::makePair` (where the two have no better names than a struct's), `za::reversed(c)` (a range-for
+  backwards; `za::rbegin` / `za::rend`). `Array` and the vectors compare with `<` (element by element).
+- `za::min` / `za::max` (also of 3 or more, all of one type) / `za::clamp`, `za::abs` (std's overloads), `za::sin` and
+  the rest of `Zancle/Math` (exactly `float`, `double` or `long double`: a mixed call that std promoted needs its cast);
+  `za::remainder` is the IEEE one (std's: an angle wrap to -180..180), `za::truncatedRemainder` fmod's (fast, inexact
+  past large quotients). `ZA_FLOAT_NAN` / `ZA_FLOAT_INFINITY` (`Base/Limits.hpp`), `ZA_MEMCPY` / `ZA_STRCMP` and the
+  other builtin macros, `ZA_MOVE`, `ZA_FORWARD`, `ZA_ASSERT` (on in Debug: its handler is `vr_zancle.cpp`'s, installed
+  with `za::setAssertHandler`).
 - `za::quickSort` (unstable: equal elements may come out in another order than `std::sort` left them; where that
-  matters, a key that orders them all or `za::insertionSort`, stable), `za::find`, `za::anyOf`, `za::count`, ...
+  matters, a key that orders them all or `za::stableSort`, stable and allocation-free; `za::insertionSort` is stable
+  too, for a few elements or a comparator that is not a strict weak order), `za::nthElement`, `za::fill` (a range, an
+  array or two iterators), `za::find`, `za::anyOf`, `za::count`, `za::lowerBound` / `za::upperBound`, ...
+  `za::vectorEraseIf` takes contiguous containers only; a dense map's is `erase_if(map, ...)` (ankerl's, by ADL).
 - `za::Atomic`, `za::AtomicMutex` with `za::LockGuard` (to unlock early: the locked part in a scope of its own, or
   `za::Optional<za::LockGuard<...>>` and `reset()`), `za::Thread`,
-  `za::ThisThread`; `za::Clock` / `za::Time` (microseconds; `qza::nowNs` for nanoseconds).
+  `za::ThisThread`; `za::Clock` / `za::Time` (microseconds); `za::Clock::nowNanoseconds()` and
+  `za::nanosecondsToSeconds` / `ToMilliseconds` / `ToMicroseconds` for nanoseconds.
 - Files: `qvr::files` (`vr_files.hpp`: whole files read and written, directories listed, std::filesystem's path parts),
   through the engine's `Sys_*` calls (UTF-8 paths).
-- What Zancle lacks: `vr_zancle.hpp` (namespace `qza`: `abs`, `remainder` (IEEE: `za::remainder` truncates),
-  `Pair` / `makePair`, `minOf` / `maxOf`, `rbegin` / `rend`, `lexicographicLess`, `sortedByKey`, `stableAt`, `nowNs`
-  and the `*Since` clocks, ...), each a proposal for Zancle. `fill`, `iota`, `replace`, `lowerBound`,
-  `stablePartition`, `hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign` and `trunc` are Zancle's since 4ed9c3cc
-  (`za::`; `za::fill` takes iterators, not a range). Add
-  a missing piece there (marked `ZANCLE-TODO`) rather than reach for `std::`. `std::` stays only where Zancle has no
-  such thing and a stand-in would not do (an ordered map with stable nodes, `std::nth_element` where its partition
-  must stay as it was, a nanosecond clock): each such place says `// ZANCLE-TODO: <what's missing>` (the list:
-  ROUND21.md, "Zancle migration" and "Zancle follow-ups").
+- What Zancle lacks: `vr_zancle.hpp` (namespace `qza`: `stableAt` and `sortedByKey`, for the maps), each a proposal
+  for Zancle. Add a missing piece there (marked `ZANCLE-TODO`) rather than reach for `std::`. `std::` stays only where
+  Zancle has no such thing and a stand-in would not do (an ordered map with stable nodes, `std::map` in
+  `vr_motion_review.cpp`): each such place says `// ZANCLE-TODO: <what's missing>` (the list: ROUND21.md, "Zancle
+  migration", "Zancle follow-ups" and the Zancle updates). The vendored Zancle has no local changes: update it with
+  `Misc/quakevr/zancle_vendor.py` (`external/zancle/README.md`).
 - **No exceptions.** The engine's C++ and Zancle are built without them (clang-cl without `/EH`, `-fno-exceptions`):
   no `try`, `catch` or `throw`. A failure that can't go on ends the game with the crash report (`abort()`, or
   `Sys_Error` from the engine's side); the thread pool's tasks and loops are `noexcept`. No shared ownership either

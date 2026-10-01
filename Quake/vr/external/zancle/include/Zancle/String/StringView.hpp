@@ -558,6 +558,28 @@ public:
 
 
     ////////////////////////////////////////////////////////////
+    /// \brief First character (the view must not be empty)
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr const char& front() const noexcept
+    {
+        ZA_ASSERT(theSize > 0u);
+        return theData[0];
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Last character (the view must not be empty)
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr const char& back() const noexcept
+    {
+        ZA_ASSERT(theSize > 0u);
+        return theData[theSize - 1u];
+    }
+
+
+    ////////////////////////////////////////////////////////////
     [[nodiscard, gnu::always_inline, gnu::pure]] friend inline constexpr bool operator==(const StringView& lhs,
                                                                                          const StringView& rhs) noexcept
     {
@@ -604,6 +626,21 @@ public:
             return 1;
 
         return 0;
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Compare the substring of up to `count` characters starting at `startPos` with `rhs`
+    ///
+    /// Equivalent to `substrByPosLen(startPos, count).compare(rhs)`, like
+    /// `std::string::compare(pos, count, str)`. `startPos` must be at most `size()`.
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline, gnu::pure]] inline constexpr int compare(const SizeT       startPos,
+                                                                              const SizeT       count,
+                                                                              const StringView& rhs) const noexcept
+    {
+        return substrByPosLen(startPos, count).compare(rhs);
     }
 
 

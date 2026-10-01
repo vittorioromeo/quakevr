@@ -555,9 +555,10 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         freshThisFrame = 0;
     }
 
-    Cached& c = cache[e];
-    if(c.frame != host_framecount)
+    Cached* entry = &cache[e];
+    if(entry->frame != host_framecount)
     {
+        Cached& c = *entry;
         QVR_PROFILE("model ambient");
         const bool view = e == &cl.viewent || VR_IsViewEntity(e);
         const glm::vec3 anchor = view ? glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}
@@ -643,10 +644,17 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         c.frame = host_framecount;
 
         // Evict entities not drawn for a while (temporary entities come and go): at most once a frame (vr_evict.hpp).
+        // `e` is still there (the eviction leaves the entities drawn this frame), but maybe not where it was: a dense
+        // map's erase moves its last value into the erased slot.
+        const za::SizeT before = cache.size();
         evictStale(cache, 2048, 100, host_framecount, eviction);
+        if(cache.size() != before)
+        {
+            entry = &cache.find(e)->second;
+        }
     }
 
-    // (`c` is still there: the eviction above leaves the entities drawn this frame.)
+    const Cached& c = *entry;
     if(c.tracedAt < 0.0)
     {
         return; // not traced yet (over this frame's budget): shaded as before

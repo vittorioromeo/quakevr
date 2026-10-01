@@ -35,11 +35,13 @@
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
+#include "Zancle/Algorithm/NthElement.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -52,7 +54,6 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
-#include <algorithm>
 #include <stdio.h>
 
 namespace qvr::audio
@@ -547,7 +548,7 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
 
         // The near field: the nearer ear louder, the farther one quieter and duller (the head's shadow), by how near
         // (within a metre) and how much to the side.
-        const float amount = za::min(1.f, v.closeness * qza::abs(v.lateral));
+        const float amount = za::min(1.f, v.closeness * za::abs(v.lateral));
         const int contra = v.lateral >= 0.f ? 0 : 1; // the far ear: the left for a sound on the right
         float* nearEar = contra == 0 ? v.r.data() : v.l.data();
         float* farEar = contra == 0 ? v.l.data() : v.r.data();
@@ -660,7 +661,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
     for(int b = 0; b < blocks; b++)
     {
         bool silent = true;
-        za::fill(reverbIn.begin(), reverbIn.end(), 0.f);
+        za::fill(reverbIn, 0.f);
         for(int k = 0; k < active; k++)
         {
             const float* s = voices[list[k]].send.data() + b * frame;
@@ -879,8 +880,8 @@ void ensure()
     {
         Con_Printf("Spatial audio: couldn't load the HRTF %s; Steam Audio's own instead\n", sofa.cStr());
     }
-    za::fill(live->voiceOf.begin(), live->voiceOf.end(), -1);
-    za::fill(live->channelOf.begin(), live->channelOf.end(), -1);
+    za::fill(live->voiceOf, -1);
+    za::fill(live->channelOf, -1);
     live->mixL.clear();
     live->mixL.resize(Mixer::maxSamples, 0.f);
     live->mixR.clear();
@@ -997,8 +998,8 @@ void selectVoices(int time)
     const int k = za::min(n, za::clamp(static_cast<int>(vr_snd_voices.value), 1, Mixer::maxVoices));
     if(n > k)
     {
-        // ZANCLE-TODO: no selection algorithm (std::nth_element: the k kept, whatever the order of equal priorities)
-        std::nth_element(L.candidates.begin(), L.candidates.begin() + k, L.candidates.begin() + n,
+        // (The k kept, whatever the order of equal priorities: which of a tie at the k-th is kept is the partition's.)
+        za::nthElement(L.candidates.begin(), L.candidates.begin() + k, L.candidates.begin() + n,
             [](const Candidate& a, const Candidate& b) { return a.priority > b.priority; });
     }
     for(int j = 0; j < k; j++)
@@ -1282,8 +1283,8 @@ void liquid_f()
 void init()
 {
     live = new Live{};
-    za::fill(live->voiceOf.begin(), live->voiceOf.end(), -1);
-    za::fill(live->channelOf.begin(), live->channelOf.end(), -1);
+    za::fill(live->voiceOf, -1);
+    za::fill(live->channelOf, -1);
     Cmd_AddCommand("vr_snd_info", info_f);
     Cmd_AddCommand("vr_snd_test", test_f);
     Cmd_AddCommand("vr_snd_capture", capture_f);

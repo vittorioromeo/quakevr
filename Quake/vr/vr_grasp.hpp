@@ -42,7 +42,7 @@ struct Shape
 {
     struct Space;
     za::Vector<Triangle> tris;
-    za::UniquePtr<Space> space{nullptr};
+    za::UniquePtr<Space> space;
 
     Shape();
     ~Shape();

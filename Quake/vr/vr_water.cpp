@@ -13,6 +13,7 @@
 #include "Zancle/Algorithm/Count.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
@@ -24,6 +25,7 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -681,7 +683,7 @@ void recordPins(const za::Vector<MeshVert>& verts, float cell)
     gridPinCount = 0;
     const auto onCrossing = [cell](const MeshVert& v) {
         const float gx = v.pos[0] / cell, gy = v.pos[1] / cell;
-        return v.pin >= 1.f && qza::abs(gx - za::round(gx)) < 1e-3f && qza::abs(gy - za::round(gy)) < 1e-3f;
+        return v.pin >= 1.f && za::abs(gx - za::round(gx)) < 1e-3f && za::abs(gy - za::round(gy)) < 1e-3f;
     };
     const za::SizeT most = static_cast<za::SizeT>(za::countIf(verts.begin(), verts.end(), onCrossing));
     za::SizeT size = 16;
@@ -934,7 +936,7 @@ void buildMesh(qmodel_t* m, float cell)
     {
         order[i] = static_cast<int>(i);
     }
-    za::insertionSort(order.begin(), order.end(), [&](int a, int b) {
+    za::stableSort(order.begin(), order.end(), [&](int a, int b) {
         return m->surfaces[faces[static_cast<za::SizeT>(a)].surf].texinfo->texnum <
                m->surfaces[faces[static_cast<za::SizeT>(b)].surf].texinfo->texnum;
     });
@@ -1164,7 +1166,7 @@ void markMesh(const byte* vis)
         {
             mins[a] = f.mins[a] - kMaxSwell;
             maxs[a] = f.maxs[a] + kMaxSwell;
-            const float d = qza::maxOf(f.mins[a] - eye[a], 0.f, eye[a] - f.maxs[a]);
+            const float d = za::max(f.mins[a] - eye[a], 0.f, eye[a] - f.maxs[a]);
             d2 += d * d;
         }
         if(!seen || R_CullBox(mins, maxs))
@@ -1362,7 +1364,7 @@ void addRipple(const glm::vec3& at, float strength)
     for(RippleEvent& e : rippleEvents)
     {
         const double age = cl.time - e.time;
-        if(e.amp > 0.f && e.world == cl.worldmodel && age >= -0.15 && age < 0.15 && qza::abs(e.at.z - at.z) < 2.f &&
+        if(e.amp > 0.f && e.world == cl.worldmodel && age >= -0.15 && age < 0.15 && za::abs(e.at.z - at.z) < 2.f &&
             glm::distance(glm::vec2{e.at}, glm::vec2{at}) < 16.f)
         {
             e.amp = za::min(za::max(e.amp, amp) + 0.3f * za::min(e.amp, amp), kMaxRipple);
@@ -1441,7 +1443,7 @@ namespace
         const float dist = za::sqrt((x - e[0]) * (x - e[0]) + (y - e[1]) * (y - e[1]));
         const float front = speed * e[3];
         const float u = (dist - front) / width;
-        if(qza::abs(z - e[2]) > 4.f || qza::abs(u) > 3.f)
+        if(za::abs(z - e[2]) > 4.f || za::abs(u) > 3.f)
         {
             continue;
         }
@@ -1495,7 +1497,7 @@ void growRises()
         gridRisesCount = 0;
         if(++riseStamp == 0) // wrapped (after years of views): every slot emptied once
         {
-            za::fill(gridRises.begin(), gridRises.end(), RiseSlot{});
+            za::fill(gridRises, RiseSlot{});
             riseStamp = 1;
         }
     }
@@ -1532,7 +1534,7 @@ void growRises()
     float rip = rippleHeightAt(x, y, z, kind) * r_framedata.ripple[3] * pin * fade;
     // kept off the eye as LiquidDisplace keeps it
     const float above = eye.z - z - swell;
-    const float room = za::max(qza::abs(above) - 6.f, 0.f) + za::max(glm::distance(glm::vec2{x, y}, glm::vec2{eye}) - 24.f, 0.f);
+    const float room = za::max(za::abs(above) - 6.f, 0.f) + za::max(glm::distance(glm::vec2{x, y}, glm::vec2{eye}) - 24.f, 0.f);
     rip = above >= 0.f ? za::min(rip, room) : za::max(rip, -room);
     return rise = swell + rip;
 }

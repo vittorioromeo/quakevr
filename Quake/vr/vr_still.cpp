@@ -114,7 +114,7 @@ glm::vec3 Window::last(int c) const
 bool Window::still(double now, double seconds, za::Vector<glm::vec3>& mean, int minSamples)
 {
     const size_t nc = spec.size();
-    za::fill(devs.begin(), devs.end(), 0.f);
+    za::fill(devs, 0.f);
     if(times.empty() || now - times.front() < seconds - 1e-3)
     {
         return false;

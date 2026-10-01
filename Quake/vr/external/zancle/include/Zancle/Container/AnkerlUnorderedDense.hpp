@@ -2,6 +2,20 @@
 
 // Small fork of ankerl::unordered_dense to use Zancle's base library.
 // Removes allocator support.
+//
+// Element stability (unlike `std::unordered_map` / `std::unordered_set`):
+// the elements live contiguously in a vector (`values()`), not in individual
+// nodes, so they move.
+// - Inserting appends to that vector: when it grows, every element moves (like
+//   `Vector::pushBack`), invalidating all pointers, references, and iterators
+//   to elements. `reserve` beforehand avoids it.
+// - Erasing moves the last element into the erased one's place, invalidating
+//   pointers, references, and iterators to the last element too, and changing
+//   the iteration order (otherwise the insertion order).
+// `std::unordered_map`'s elements, instead, stay where they are until erased.
+// Code that keeps pointers into a map across insertions or erasures (e.g. a
+// cache handing out references to its values) must store indirections, such
+// as `za::UniquePtr<T>` values, or indices into a separate container.
 
 ///////////////////////// ankerl::unordered_dense::{map, set} /////////////////////////
 

@@ -13,6 +13,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
 #include <stdio.h>
@@ -31,7 +32,7 @@ struct State
     za::Vector<za::String> shown;                // as drawn: characters the menu's font lacks replaced
     za::Vector<int> section;                      // each item's (-1: none)
     za::Vector<int> firstLine;                    // each item's first wrapped line in `lines`
-    za::Vector<qza::Pair<int, int>> lines;        // start and length in its `shown` text
+    za::Vector<za::Pair<int, int>> lines;        // start and length in its `shown` text
     ankerl::unordered_dense::set<za::String> tickedTexts;   // every ticked item's text, those no longer listed too
     auto members() { return qvr::mem::list(sections, texts, shown, section, firstLine, lines, tickedTexts); }
 };
@@ -128,7 +129,7 @@ char lineText[64];
 }
 
 // `text` in lines of `columns` at most, broken at spaces (a longer word cut).
-void wrap(const za::String& text, za::Vector<qza::Pair<int, int>>& out)
+void wrap(const za::String& text, za::Vector<za::Pair<int, int>>& out)
 {
     const int n = static_cast<int>(text.size());
     int p = 0;

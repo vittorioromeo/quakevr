@@ -6,6 +6,8 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
+#include "Zancle/Container/Priv/LexicographicLess.hpp"
+
 #include "Zancle/Math/MinMaxMacros.hpp"
 
 #include "Zancle/Base/Assert.hpp"
@@ -372,6 +374,27 @@ template <typename T, typename U>
                 return false;                                                                                                       \
                                                                                                                                     \
         return true;                                                                                                                \
+    }                                                                                                                               \
+                                                                                                                                    \
+    /* Lexicographic ordering, using only the elements' `operator<` (like `std::vector`'s) */                                       \
+    [[nodiscard]] constexpr bool operator<(const vectorType& rhs) const                                                             \
+    {                                                                                                                               \
+        return priv::lexicographicLess(data(), size(), rhs.data(), rhs.size());                                                     \
+    }                                                                                                                               \
+                                                                                                                                    \
+    [[nodiscard, gnu::always_inline]] constexpr bool operator>(const vectorType& rhs) const                                         \
+    {                                                                                                                               \
+        return rhs < *this;                                                                                                         \
+    }                                                                                                                               \
+                                                                                                                                    \
+    [[nodiscard, gnu::always_inline]] constexpr bool operator<=(const vectorType& rhs) const                                        \
+    {                                                                                                                               \
+        return !(rhs < *this);                                                                                                      \
+    }                                                                                                                               \
+                                                                                                                                    \
+    [[nodiscard, gnu::always_inline]] constexpr bool operator>=(const vectorType& rhs) const                                        \
+    {                                                                                                                               \
+        return !(*this < rhs);                                                                                                      \
     }                                                                                                                               \
                                                                                                                                     \
     /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                                                                                \

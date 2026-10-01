@@ -24,6 +24,7 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -217,7 +218,7 @@ Shape shape_;
                 continue;
             }
             const glm::vec3 a = pos[tr.v[0]], b = pos[tr.v[1]], c = pos[tr.v[2]];
-            const float along = qza::abs(glm::cross(b - a, c - a).x); // twice its area seen along the axis
+            const float along = za::abs(glm::cross(b - a, c - a).x); // twice its area seen along the axis
             middle += glm::dvec3{(a + b + c) / 3.f} * static_cast<double>(along);
             weight += along;
             lit.pushBack(i);
@@ -258,7 +259,7 @@ Shape shape_;
         for(const Tri& tr : tris)
         {
             const glm::vec3 a = pos[tr.v[0]], b = pos[tr.v[1]], c = pos[tr.v[2]];
-            const float span = qza::maxOf(glm::distance(a, b), glm::distance(b, c), glm::distance(c, a));
+            const float span = za::max(glm::distance(a, b), glm::distance(b, c), glm::distance(c, a));
             const int n = za::clamp(static_cast<int>(za::ceil(span / 0.03f)), 1, 64);
             for(int u = 0; u <= n; u++)
             {
@@ -759,7 +760,7 @@ ankerl::unordered_dense::map<za::String, GunSpot> gunSpots;
     for(int i = 0; i + 2 < hdr->numindexes; i += 3)
     {
         const glm::vec3 a = corner(i), b = corner(i + 1), c = corner(i + 2);
-        const float span = qza::maxOf(glm::distance(a, b), glm::distance(b, c), glm::distance(c, a));
+        const float span = za::max(glm::distance(a, b), glm::distance(b, c), glm::distance(c, a));
         const int n = za::clamp(static_cast<int>(za::ceil(span / 0.005f)), 1, 64);
         for(int u = 0; u <= n; u++)
         {
@@ -771,11 +772,11 @@ ankerl::unordered_dense::map<za::String, GunSpot> gunSpots;
                     continue;
                 }
                 const float r = torchRadius(q.x) + 0.003f;
-                if(qza::abs(q.y - y0) < r)
+                if(za::abs(q.y - y0) < r)
                 {
                     down = za::max(down, r - q.z + z0);
                 }
-                if(qza::abs(q.z - z0) < r)
+                if(za::abs(q.z - z0) < r)
                 {
                     side = za::max(side, q.y + r - y0);
                 }
@@ -1420,7 +1421,7 @@ void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float
         // beyond the cone, too): on the traced rings and sides (the quality's), the other sides in between.
         if(i == 0)
         {
-            za::fill(beam.reach[i], beam.reach[i] + beamSides, beamLookPast);
+            za::fill(beam.reach[i], beamLookPast);
             continue;
         }
         if(!tracedRing(i))
@@ -2075,7 +2076,7 @@ void drawTranslucent()
                 const glm::vec3 normal = glm::normalize(beam.around[j] - beam.dir * shell.slope);
                 const glm::vec3 toPoint = pos - eye;
                 const float away = glm::length(toPoint);
-                const float cosine = away > 0.01f ? qza::abs(glm::dot(normal, toPoint)) / away : 0.f;
+                const float cosine = away > 0.01f ? za::abs(glm::dot(normal, toPoint)) / away : 0.f;
                 const float facing = cosine * cosine;
 
                 // None right at the eye (the lamp held up to the face).

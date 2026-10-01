@@ -17,7 +17,9 @@ namespace za
 /// \brief Insertion sort using `comp` as a strict-weak less-than
 ///
 /// Elements already in place are only compared, never moved, so
-/// sorted and nearly sorted ranges are cheap.
+/// sorted and nearly sorted ranges are cheap. Stable (equivalent
+/// elements keep their relative order), but quadratic: only for small
+/// or nearly sorted ranges.
 ///
 ////////////////////////////////////////////////////////////
 template <typename RandomIt>
@@ -141,6 +143,87 @@ template <typename RandomIt>
 namespace za::priv
 {
 ////////////////////////////////////////////////////////////
+/// \brief Ranges of up to this many elements are sorted by insertion (in `quickSort`, `nthElement`, and `stableSort`)
+///
+////////////////////////////////////////////////////////////
+inline constexpr int insertionSortCutoffThreshold = 16;
+
+
+////////////////////////////////////////////////////////////
+/// \brief `2 * floor(log2(n))`: partitioning rounds before falling back to heapsort
+///
+////////////////////////////////////////////////////////////
+[[nodiscard, gnu::always_inline, gnu::const]] constexpr int introDepthLimit(auto n) noexcept
+{
+    int depthLimit = 0;
+    for (; n > 1; n /= 2)
+        depthLimit += 2;
+
+    return depthLimit;
+}
+
+
+////////////////////////////////////////////////////////////
+/// \brief Partition `[first, last)` (more than 3 elements) around a median-of-three pivot
+///
+/// \return Final position of the pivot: elements before it are not
+///         greater, elements after it are not less
+///
+////////////////////////////////////////////////////////////
+template <typename RandomIt>
+[[nodiscard, gnu::always_inline]] inline constexpr RandomIt partitionAroundMedianOfThree(
+    const RandomIt first,
+    const RandomIt last,
+    auto&&         comp)
+{
+    // --- Median-of-three pivot selection ---
+    // 1. Choose three elements: first, middle, and last.
+    const RandomIt mid = first + (last - first) / 2;
+
+    // 2. Sort these three elements to find the median.
+    if (comp(*mid, *first))
+        iterSwap(first, mid);
+
+    if (comp(*(last - 1), *first))
+        iterSwap(first, last - 1);
+
+    if (comp(*(last - 1), *mid))
+        iterSwap(mid, last - 1);
+
+    // 3. The median is now at `mid`. Place it just before the end
+    //    to act as the pivot. The element at `last-1` is now a sentinel,
+    //    guaranteed to be >= the pivot.
+    iterSwap(mid, last - 2);
+    RandomIt pivot = last - 2;
+
+    // --- Hoare-like Partitioning ---
+    RandomIt i = first;
+    RandomIt j = last - 2;
+
+    while (true)
+    {
+        // The elements at `first` and `last-1` act as sentinels,
+        // so we don't need boundary checks inside the loops.
+        // (This relies on `comp` being a strict weak ordering.)
+        while (comp(*++i, *pivot))
+            ;
+
+        while (comp(*pivot, *(--j)))
+            ;
+
+        if (i >= j)
+            break;
+
+        iterSwap(i, j);
+    }
+
+    // Restore the pivot to its final sorted position.
+    iterSwap(i, pivot);
+    return i;
+}
+
+
+////////////////////////////////////////////////////////////
 /// \brief Introsort: median-of-three quicksort with Hoare partitioning, insertion sort for small
 ///        partitions, recursion on the smaller side (`O(log n)` stack depth), and a heapsort
 ///        fallback once `depthLimit` partitioning rounds are exhausted (`O(n log n)` worst case)
@@ -149,11 +232,6 @@ namespace za::priv
 template <typename RandomIt>
 inline constexpr void quickSortImpl(RandomIt first, RandomIt last, int depthLimit, auto&& comp)
 {
-    enum : int
-    {
-        insertionSortCutoffThreshold = 16
-    };
-
     while (last - first > insertionSortCutoffThreshold)
     {
         // Pathological input (e.g. median-of-three killer sequences): bail out to heapsort
@@ -163,49 +241,7 @@ inline constexpr void quickSortImpl(RandomIt first, RandomIt last, int depthLimi
             return;
         }
 
-        // --- Median-of-three pivot selection ---
-        // 1. Choose three elements: first, middle, and last.
-        const RandomIt mid = first + (last - first) / 2;
-
-        // 2. Sort these three elements to find the median.
-        if (comp(*mid, *first))
-            iterSwap(first, mid);
-
-        if (comp(*(last - 1), *first))
-            iterSwap(first, last - 1);
-
-        if (comp(*(last - 1), *mid))
-            iterSwap(mid, last - 1);
-
-        // 3. The median is now at `mid`. Place it just before the end
-        //    to act as the pivot. The element at `last-1` is now a sentinel,
-        //    guaranteed to be >= the pivot.
-        iterSwap(mid, last - 2);
-        RandomIt pivot = last - 2;
-
-        // --- Hoare-like Partitioning ---
-        RandomIt i = first;
-        RandomIt j = last - 2;
-
-        while (true)
-        {
-            // The elements at `first` and `last-1` act as sentinels,
-            // so we don't need boundary checks inside the loops.
-            // (This relies on `comp` being a strict weak ordering.)
-            while (comp(*++i, *pivot))
-                ;
-
-            while (comp(*pivot, *(--j)))
-                ;
-
-            if (i >= j)
-                break;
-
-            iterSwap(i, j);
-        }
-
-        // Restore the pivot to its final sorted position.
-        iterSwap(i, pivot);
+        const RandomIt i = partitionAroundMedianOfThree(first, last, comp);
 
         // --- Tail-call optimization ---
         // Recurse on the smaller partition and loop on the larger one
@@ -238,6 +274,14 @@ namespace za
 /// otherwise the behavior is undefined, as partitioning relies on it
 /// to stay within the range.
 ///
+/// Unstable: the relative order of equivalent elements is unspecified,
+/// and in general differs from `std::sort`'s (e.g. this sorts subranges
+/// of up to 16 elements by insertion, MSVC's `std::sort` up to 32), so
+/// code ported from `std::sort` may see equivalent elements reordered.
+/// When their order matters (e.g. for deterministic or reproducible
+/// results), make `comp` a total order by breaking ties (e.g. by a
+/// unique ID, or by the original index), or use `stableSort`.
+///
 ////////////////////////////////////////////////////////////
 template <typename RandomIt>
 [[gnu::always_inline]] inline constexpr void quickSort(const RandomIt first, const RandomIt last, auto&& comp)
@@ -247,12 +291,7 @@ template <typename RandomIt>
 
     ZA_ASSERT(!comp(*first, *first) && "`comp` must be a strict weak ordering (e.g. `<`, not `<=`)");
 
-    // `2 * floor(log2(n))` partitioning rounds before falling back to heapsort
-    int depthLimit = 0;
-    for (auto n = last - first; n > 1; n /= 2)
-        depthLimit += 2;
-
-    priv::quickSortImpl(first, last, depthLimit, comp);
+    priv::quickSortImpl(first, last, priv::introDepthLimit(last - first), comp);
 }
 
 

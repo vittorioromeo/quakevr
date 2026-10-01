@@ -29,12 +29,15 @@
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/ReverseIterator.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Floor.hpp"
@@ -45,6 +48,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
 #include <string.h>
@@ -534,7 +538,7 @@ struct GadgetScratch
     za::String hologramLine;                         // a line drawn into the image
     za::Vector<bool> used;                           // the image's blocks drawn this frame
     Lines wrapped;                                    // the wrist log's lines (notifyLines: out.lines views them)
-    za::Vector<qza::Pair<za::SizeT, float>> picked; // those shown: wrapped's line, its alpha
+    za::Vector<za::Pair<za::SizeT, float>> picked; // those shown: wrapped's line, its alpha
     NotifyLine notifyLine;                            // a console line read
     za::String plain;                                // a line to check (VR_GameLineOnWrist)
     auto members() { return qvr::mem::list(messageLines, keep, hologramKey, hologramLine, used, wrapped, picked, notifyLine, plain); }
@@ -888,7 +892,7 @@ void collectMessages()
         }
         const double printed = realtime - line.seconds;
         auto it = za::findIf(queue.begin(), queue.end(),
-            [&](const HoloMessage& m) { return m.printed > 0.0 && qza::abs(m.printed - printed) < 1e-4; });
+            [&](const HoloMessage& m) { return m.printed > 0.0 && za::abs(m.printed - printed) < 1e-4; });
         if(it != queue.end())
         {
             makeMessage(line.text, continuation);
@@ -966,7 +970,7 @@ void collectMessages()
         }
     }
     holoMessages.resize(shown);
-    za::insertionSort(holoMessages.begin(), holoMessages.end(),
+    za::stableSort(holoMessages.begin(), holoMessages.end(),
         [](const HoloMessage& a, const HoloMessage& b) { return a.start < b.start; });
 }
 
@@ -1081,7 +1085,7 @@ void layoutHologram()
     // While the screen faces the viewer, and it is in view (with or without messages: gadgetInView).
     float shown = facing(eye);
     const glm::vec4 clip = gfx::sceneViewProjection() * glm::vec4{base, 1.f};
-    if(clip.w <= 0.f || qza::abs(clip.x) > clip.w * 1.1f || qza::abs(clip.y) > clip.w * 1.1f)
+    if(clip.w <= 0.f || za::abs(clip.x) > clip.w * 1.1f || za::abs(clip.y) > clip.w * 1.1f)
     {
         shown = 0.f;
     }
@@ -1113,9 +1117,8 @@ void layoutHologram()
     used.resize(holoDrawn.size(), false);
     float y = 0.f, widest = 0.f, strongest = 0.f;
     double newest = -100.0;
-    for(auto it = qza::rbegin(holoMessages); it != qza::rend(holoMessages); ++it)
+    for(const HoloMessage& m : za::reversed(holoMessages))
     {
-        const HoloMessage& m = *it;
         size_t b = 0;
         while(b < holoDrawn.size() && (used[b] || holoDrawn[b].text != m.text))
         {
@@ -1205,7 +1208,7 @@ void layoutHologram()
     float nearest = 10.f;
     for(int i = 0; i < 4; i++)
     {
-        float d = qza::abs(angle[static_cast<size_t>(order[static_cast<size_t>(i)])] + 2.3561945f);
+        float d = za::abs(angle[static_cast<size_t>(order[static_cast<size_t>(i)])] + 2.3561945f);
         d = za::min(d, 6.2831853f - d);
         if(d < nearest)
         {
@@ -1457,7 +1460,7 @@ void renderFpsDetailed()
     part(" LATE", word);
     newRow();
     part(" MS  NOW  AVG  MIN  MAX", word);
-    for(const auto& [label, series] : {qza::Pair{"CPU", &f.cpu}, qza::Pair{"GPU", &f.gpu}})
+    for(const auto& [label, series] : {za::Pair{"CPU", &f.cpu}, za::Pair{"GPU", &f.gpu}})
     {
         newRow();
         part(label, word);
@@ -1472,8 +1475,8 @@ void renderFpsDetailed()
     // The graphs: the last fpsGraphTime seconds, newest at the right; a column the worst frame over it.
     const float top = static_cast<float>(holoPad + fpsTextRows * fpsRowPitch + 2);
     float cpuCol[fpsGraphWidth], gpuCol[fpsGraphWidth];
-    za::fill(cpuCol, cpuCol + za::getArraySize(cpuCol), -1.f);
-    za::fill(gpuCol, gpuCol + za::getArraySize(gpuCol), -1.f);
+    za::fill(cpuCol, -1.f);
+    za::fill(gpuCol, -1.f);
     profile::FrameSample newest, fs;
     if(profile::frameSample(0, newest))
     {
@@ -1649,7 +1652,7 @@ void centrePrint(za::StringView text)
     makeMessage(text, m);
     if(m.rows == 0)
     {
-        for(auto it = qza::rbegin(queue); it != qza::rend(queue); ++it)
+        for(auto it = za::rbegin(queue); it != za::rend(queue); ++it)
         {
             if(it->centre)
             {
@@ -1894,7 +1897,7 @@ bool log(Log& out)
     // lines are the hologram's (vr_messages_hologram); the rest dimmer (vr_notify_wrist_alpha).
     // The lines are kept in the scratch (out.lines views them) until the next call: nothing allocated from frame to frame.
     Lines& wrapped = scratch.wrapped;
-    za::Vector<qza::Pair<za::SizeT, float>>& picked = scratch.picked; // wrapped's line, its alpha
+    za::Vector<za::Pair<za::SizeT, float>>& picked = scratch.picked; // wrapped's line, its alpha
     NotifyLine& line = scratch.notifyLine;
     wrapped.clear();
     picked.clear();
@@ -1926,10 +1929,10 @@ bool log(Log& out)
     {
         return false;
     }
-    for(auto it = qza::rbegin(picked); it != qza::rend(picked); ++it) // (views taken once `wrapped` is complete)
+    for(const auto& [line, alpha] : za::reversed(picked)) // (views taken once `wrapped` is complete)
     {
-        out.lines.pushBack(wrapped[it->first]);
-        out.alpha.pushBack(it->second);
+        out.lines.pushBack(wrapped[line]);
+        out.alpha.pushBack(alpha);
     }
 
     // Over the gadget (as seen) and the hologram, its characters about 7 mm, in the screen's colour

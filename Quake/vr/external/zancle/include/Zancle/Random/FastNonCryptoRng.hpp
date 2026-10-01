@@ -8,8 +8,6 @@
 ////////////////////////////////////////////////////////////
 #include "Zancle/Random/Xoroshiro128PlusPlusBitGenerator.hpp"
 
-#include "Zancle/Geometry/Priv/Vec2Base.hpp"
-
 #include "Zancle/Math/Constants.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -20,7 +18,20 @@
 #include "Zancle/Base/MulWide.hpp"
 
 #include "Zancle/Trait/IsIntegral.hpp"
+#include "Zancle/Trait/IsSame.hpp"
 #include "Zancle/Trait/MakeUnsigned.hpp"
+
+
+////////////////////////////////////////////////////////////
+// Forward declarations
+////////////////////////////////////////////////////////////
+namespace za
+{
+template <typename T>
+struct Vec2;
+
+using Vec2f = Vec2<float>;
+} // namespace za
 
 
 namespace za
@@ -185,6 +196,11 @@ public:
         return min + t * (max - min);
     }
 
+    // The `Vec2` members are templates on `V` (always `Vec2f`), so that this header does not depend on
+    // `Geometry` (a higher level): their bodies only compile where they are called, where `Vec2` is
+    // complete. Braced arguments (e.g. `getVec2f({0.f, 0.f}, {1.f, 1.f})`) do not deduce `V`, which
+    // then falls back to its default.
+
     ////////////////////////////////////////////////////////////
     /// \brief Generates a random 2D vector with components in specified ranges.
     ///
@@ -194,7 +210,9 @@ public:
     /// \return A random Vec2f within the specified bounds.
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard, gnu::always_inline, gnu::flatten]] inline Vec2f getVec2f(const Vec2f mins, const Vec2f maxs)
+    template <typename V = Vec2f>
+        requires isSame<V, Vec2f>
+    [[nodiscard, gnu::always_inline, gnu::flatten]] inline V getVec2f(const V mins, const V maxs)
     {
         return {getF(mins.x, maxs.x), getF(mins.y, maxs.y)};
     }
@@ -207,7 +225,9 @@ public:
     /// \return A random Vec2f within the range `[0, maxs.x]` and `[0, maxs.y]`.
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard, gnu::always_inline, gnu::flatten]] inline Vec2f getVec2f(const Vec2f maxs)
+    template <typename V = Vec2f>
+        requires isSame<V, Vec2f>
+    [[nodiscard, gnu::always_inline, gnu::flatten]] inline V getVec2f(const V maxs)
     {
         return {getF(0.f, maxs.x), getF(0.f, maxs.y)};
     }
@@ -221,7 +241,9 @@ public:
     /// \return A random `Vec2f` inside the specified circle.
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard, gnu::always_inline, gnu::flatten]] inline Vec2f getPointInCircle(const Vec2f center, const float radius)
+    template <typename V = Vec2f>
+        requires isSame<V, Vec2f>
+    [[nodiscard, gnu::always_inline, gnu::flatten]] inline V getPointInCircle(const V center, const float radius)
     {
         const float angle    = getF(0.f, tau);
         const float distance = radius * ZA_MATH_SQRTF(getF(0.f, 1.f));
@@ -247,7 +269,9 @@ public:
     /// \return A random `Vec2f` with magnitude `1`.
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard, gnu::always_inline, gnu::flatten]] inline Vec2f getDirVec2f()
+    template <typename V = Vec2f>
+        requires isSame<V, Vec2f>
+    [[nodiscard, gnu::always_inline, gnu::flatten]] inline V getDirVec2f()
     {
         const float angle = getF(0.f, tau);
         return {ZA_MATH_COSF(angle), ZA_MATH_SINF(angle)};
@@ -267,7 +291,7 @@ public:
 ///
 /// const int       damage   = rng.getI(5, 10);              // in [5, 10]
 /// const float     angle    = rng.getF(0.f, za::tau);       // in [0, tau]
-/// const za::Vec2f position = rng.getVec2f({800.f, 600.f}); // in [0, 800] x [0, 600]
+/// const za::Vec2f position = rng.getVec2f({800.f, 600.f}); // in [0, 800] x [0, 600] (needs `Geometry/Vec2.hpp`)
 ///
 /// // Independent, non-overlapping streams for parallel work
 /// za::FastNonCryptoRng workerRng = rng;

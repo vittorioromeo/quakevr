@@ -105,6 +105,13 @@ String::String(const StringView view) : String{view.data(), view.size()}
 
 
 ////////////////////////////////////////////////////////////
+String::String(const SizeT count, const char c) : String{}
+{
+    resize(count, c);
+}
+
+
+////////////////////////////////////////////////////////////
 String::String(const String& other) : String{other.data(), other.size()}
 {
 }
@@ -302,6 +309,14 @@ String& String::append(const char* const cStr)
 {
     ZA_ASSERT(cStr != nullptr);
     return append(StringView{cStr});
+}
+
+
+////////////////////////////////////////////////////////////
+String& String::append(const SizeT count, const char c)
+{
+    resize(size() + count, c);
+    return *this;
 }
 
 
@@ -533,13 +548,13 @@ SizeT String::replaceAllOccurrences(const StringView target, const StringView re
 
     result.append(self.substrByPosLen(copiedUpTo));
 
-    swap(*this, result);
+    swap(result);
     return count;
 }
 
 
 ////////////////////////////////////////////////////////////
-void swap(String& lhs, String& rhs) noexcept
+void String::swap(String& other) noexcept
 {
 #ifdef __GNUC__
     #pragma GCC diagnostic push
@@ -548,13 +563,20 @@ void swap(String& lhs, String& rhs) noexcept
 
     alignas(String::RepUnion) char temp[sizeof(String::RepUnion)];
 
-    ZA_MEMCPY(&temp, &lhs.m_rep, sizeof(String::RepUnion));
-    ZA_MEMCPY(&lhs.m_rep, &rhs.m_rep, sizeof(String::RepUnion));
-    ZA_MEMCPY(&rhs.m_rep, &temp, sizeof(String::RepUnion));
+    ZA_MEMCPY(&temp, &m_rep, sizeof(String::RepUnion));
+    ZA_MEMCPY(&m_rep, &other.m_rep, sizeof(String::RepUnion));
+    ZA_MEMCPY(&other.m_rep, &temp, sizeof(String::RepUnion));
 
 #ifdef __GNUC__
     #pragma GCC diagnostic pop
 #endif
+}
+
+
+////////////////////////////////////////////////////////////
+void swap(String& lhs, String& rhs) noexcept
+{
+    lhs.swap(rhs);
 }
 
 

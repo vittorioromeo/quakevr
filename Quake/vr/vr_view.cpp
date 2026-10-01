@@ -62,6 +62,7 @@
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/UIntPtrT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -78,11 +79,13 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/String/ToString.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
 #include <string.h>
@@ -552,7 +555,7 @@ ankerl::unordered_dense::map<const qmodel_t*, int> clipSizes;
 // and plasma are not in the stats).
 [[nodiscard]] int idleAmmo(const qmodel_t* model)
 {
-    static constexpr qza::Pair<const char*, int> ammo[] = {{"progs/v_shot.mdl", STAT_SHELLS},
+    static constexpr za::Pair<const char*, int> ammo[] = {{"progs/v_shot.mdl", STAT_SHELLS},
         {"progs/v_shot2.mdl", STAT_SHELLS}, {"progs/v_nail.mdl", STAT_NAILS}, {"progs/v_nail2.mdl", STAT_NAILS},
         {"progs/v_rock.mdl", STAT_ROCKETS}, {"progs/v_rock2.mdl", STAT_ROCKETS}, {"progs/v_prox.mdl", STAT_ROCKETS},
         {"progs/v_light.mdl", STAT_CELLS}, {"progs/v_laserg.mdl", STAT_CELLS}, {"progs/v_hammer.mdl", STAT_CELLS}};
@@ -2737,7 +2740,7 @@ void moveDrawnHand(int hand, bool mirrored, const glm::vec3& frameRot, glm::vec3
     glm::vec3 a = basisAngles(w0 * glm::transpose(w) * anglesBasis(turn)) - weaponAngleOffsets(weapons::fistSlot(), mirrored);
     for(int k = 0; k < 3; k++)
     {
-        a[k] = qza::remainder(a[k], 360.f);
+        a[k] = za::remainder(a[k], 360.f);
     }
     if(!mirrored)
     {
@@ -3566,7 +3569,7 @@ void setupPosingHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
     const auto normalized = [](glm::vec3 a) {
         for(int k = 0; k < 3; k++)
         {
-            a[k] = qza::remainder(a[k], 360.f);
+            a[k] = za::remainder(a[k], 360.f);
         }
         return a;
     };
@@ -5874,7 +5877,7 @@ float fingerCurl(int hand, int finger)
 
 void resetCaches()
 {
-    za::fill(viewModels, viewModels + za::getArraySize(viewModels), ViewModelEntry{});
+    za::fill(viewModels, ViewModelEntry{});
     clipSizes.clear();
     for(RigHand& rh : rigHands)
     {
@@ -6066,17 +6069,17 @@ void graspBench_f()
         grasp::Solution s;
         for(int i = 0; i < runs; i++)
         {
-            const auto t0 = qza::nowNs();
+            const auto t0 = za::Clock::nowNanoseconds();
             grasp::solve(rh.pose, *shape, inRig, settings, rh.grasp.valid ? &rh.grasp.solution : nullptr, s);
-            us.pushBack(qza::secondsSince(t0) * 1e6);
+            us.pushBack(za::nanosecondsToMicroseconds(za::Clock::nowNanoseconds() - t0));
         }
         za::quickSort(us.begin(), us.end());
         // Solved afresh (as when first taken) and again with the solve before (as each frame it moves in the hand).
         grasp::Solution first;
         grasp::forgetSolves(); // a real solve, not a remembered one
-        const auto t0 = qza::nowNs();
+        const auto t0 = za::Clock::nowNanoseconds();
         grasp::solve(rh.pose, *shape, inRig, settings, nullptr, first);
-        const double firstUs = qza::secondsSince(t0) * 1e6;
+        const double firstUs = za::nanosecondsToMicroseconds(za::Clock::nowNanoseconds() - t0);
 
         Con_Printf("vr_grasp_bench: %s hand, %s (%d triangles): afresh %.1f us (%d probes, %d places); again, %d times: min "
                    "%.1f us, median %.1f us, max %.1f us (%d probes)\n",
@@ -6252,9 +6255,9 @@ void graspSweep_f()
             {
                 grasp::forgetSolves();
                 grasp::Solution out;
-                const auto t0 = qza::nowNs();
+                const auto t0 = za::Clock::nowNanoseconds();
                 grasp::solve(rh.pose, *shape, inRig, base, nullptr, out);
-                ms.pushBack(qza::secondsSince(t0) * 1e3);
+                ms.pushBack(za::nanosecondsToMilliseconds(za::Clock::nowNanoseconds() - t0));
             }
             za::quickSort(ms.begin(), ms.end());
             median[mode] = ms[ms.size() / 2];
@@ -6671,7 +6674,7 @@ void dumpView_f()
         if(emptyHandSpheres(s, h, true, fist) && emptyHandSpheres(s, h, false, open))
         {
             const float cm = 100.f / units::metresToUnits();
-            for(const auto& [name, spheres] : {qza::Pair{"fist", &fist}, qza::Pair{"open hand", &open}})
+            for(const auto& [name, spheres] : {za::Pair{"fist", &fist}, za::Pair{"open hand", &open}})
             {
                 glm::vec3 lo{1e9f}, hi{-1e9f};
                 for(const glm::vec4& sp : *spheres)

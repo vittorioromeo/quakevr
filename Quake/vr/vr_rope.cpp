@@ -451,7 +451,7 @@ void stepChain(Chain& ch, const za::Vector<glm::vec3>& path, float slack)
     }
     const float total = straight / za::max(0.02f, 1.f - za::clamp(slack, 0.f, 1.f));
     const float spacing =
-        qza::maxOf(2.f, vr_grapple_rope_spacing.value, total / static_cast<float>(chainMaxPoints - pieces - 1));
+        za::max(2.f, vr_grapple_rope_spacing.value, total / static_cast<float>(chainMaxPoints - pieces - 1));
     for(int i = 0; i < pieces; i++)
     {
         const float d = glm::distance(path[static_cast<za::SizeT>(i)], path[static_cast<za::SizeT>(i) + 1]);

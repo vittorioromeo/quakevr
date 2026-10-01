@@ -33,6 +33,7 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Hypot.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
@@ -988,8 +989,8 @@ void gpuFrameDone(int queries)
             addMax(s->gpuViewSum[v], s->gpuViewMax[v], frameViewGpu[v]);
         }
     }
-    za::fill(frameGpu, frameGpu + za::getArraySize(frameGpu), 0.0);
-    za::fill(frameViewGpu, frameViewGpu + za::getArraySize(frameViewGpu), 0.0);
+    za::fill(frameGpu, 0.0);
+    za::fill(frameViewGpu, 0.0);
 }
 
 void profilerTime(za::I64 ns)
@@ -1068,8 +1069,8 @@ void frameEnd(za::I64 now, za::I64 periodNs, za::I64 hostNs, const Counts& count
             addMax(s->countSum[c], s->countMax[c], n[c]);
         }
     }
-    za::fill(frameCpu, frameCpu + za::getArraySize(frameCpu), za::I64{0});
-    za::fill(frameViewCpu, frameViewCpu + za::getArraySize(frameViewCpu), za::I64{0});
+    za::fill(frameCpu, za::I64{0});
+    za::fill(frameViewCpu, za::I64{0});
 
     // A second's end: into the ring (and a row of the CSV).
     if(now - secondStart >= 1'000'000'000)
@@ -1120,10 +1121,10 @@ void start(za::I64 now)
     second = half = lastHalf = Sum{};
     secondStart = halfStart = now;
     ringCount = ringNext = 0;
-    za::fill(frameCpu, frameCpu + za::getArraySize(frameCpu), za::I64{0});
-    za::fill(frameViewCpu, frameViewCpu + za::getArraySize(frameViewCpu), za::I64{0});
-    za::fill(frameGpu, frameGpu + za::getArraySize(frameGpu), 0.0);
-    za::fill(frameViewGpu, frameViewGpu + za::getArraySize(frameViewGpu), 0.0);
+    za::fill(frameCpu, za::I64{0});
+    za::fill(frameViewCpu, za::I64{0});
+    za::fill(frameGpu, 0.0);
+    za::fill(frameViewGpu, 0.0);
     qcProgs = nullptr;
     panelText.clear();
     panelBars.clear();
@@ -1183,7 +1184,7 @@ void overlay()
         panelYaw = headYaw;
         panelPlaced = true;
     }
-    float off = qza::remainder(headYaw - panelYaw, 360.f);
+    float off = za::remainder(headYaw - panelYaw, 360.f);
     if(za::fabs(off) > 30.f)
     {
         const float step = za::min(za::fabs(off) - 30.f, za::max(1.f, 120.f * static_cast<float>(host_frametime)));

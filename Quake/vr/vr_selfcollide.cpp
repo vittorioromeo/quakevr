@@ -21,9 +21,11 @@
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -267,7 +269,7 @@ void fitCaps(const za::Vector<glm::vec3>& pts, Caps& out)
                                                              : glm::vec3{0.f, 0.f, 1.f};
     const glm::vec3 ax = principal(cov, start);
     const glm::mat3 deflated = cov - glm::outerProduct(ax, ax) * glm::dot(ax, cov * ax);
-    glm::vec3 guess = qza::abs(ax.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{0.f, 1.f, 0.f};
+    glm::vec3 guess = za::abs(ax.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{0.f, 1.f, 0.f};
     guess = glm::normalize(guess - ax * glm::dot(guess, ax));
     glm::vec3 bx = principal(deflated, guess);
     bx = glm::normalize(bx - ax * glm::dot(bx, ax));
@@ -1416,9 +1418,9 @@ void bench_f()
     {
         contacts = kept;
         stats = Stats{};
-        const auto t0 = qza::nowNs();
+        const auto t0 = za::Clock::nowNanoseconds();
         solve(s, 0.f, out, stats);
-        us.pushBack(qza::usSince(t0));
+        us.pushBack(za::nanosecondsToMicroseconds(za::Clock::nowNanoseconds() - t0));
     }
     contacts = kept;
     passedAt[0] = keptPassed[0];

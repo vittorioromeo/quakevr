@@ -9,6 +9,7 @@
 #include "Zancle/Base/LifetimeAttributes.hpp"
 
 #include "Zancle/Trait/IsClass.hpp"
+#include "Zancle/Trait/IsSame.hpp"
 
 
 namespace za
@@ -68,6 +69,42 @@ template <typename T>
 {
     // NOLINTNEXTLINE(bugprone-return-const-ref-from-parameter)
     return a < b ? b : a;
+}
+
+
+////////////////////////////////////////////////////////////
+/// \brief Return the smallest of three or more values
+///
+/// Equivalent to `std::min({a, b, c, ...})`: if several values are
+/// equivalent to the smallest, returns the first of them. All the values
+/// must have the same type, and the result is returned by value.
+///
+////////////////////////////////////////////////////////////
+template <typename T, typename... Ts>
+    requires(za::isSame<Ts, T> && ...)
+[[nodiscard, gnu::always_inline, gnu::pure]] constexpr T min(const T& a, const T& b, const T& c, const Ts&... rest)
+{
+    T result = za::min(za::min(a, b), c);
+    ((result = za::min(result, rest)), ...);
+    return result;
+}
+
+
+////////////////////////////////////////////////////////////
+/// \brief Return the largest of three or more values
+///
+/// Equivalent to `std::max({a, b, c, ...})`: if several values are
+/// equivalent to the largest, returns the first of them. All the values
+/// must have the same type, and the result is returned by value.
+///
+////////////////////////////////////////////////////////////
+template <typename T, typename... Ts>
+    requires(za::isSame<Ts, T> && ...)
+[[nodiscard, gnu::always_inline, gnu::pure]] constexpr T max(const T& a, const T& b, const T& c, const Ts&... rest)
+{
+    T result = za::max(za::max(a, b), c);
+    ((result = za::max(result, rest)), ...);
+    return result;
 }
 
 } // namespace za

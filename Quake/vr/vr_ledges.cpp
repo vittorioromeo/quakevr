@@ -49,6 +49,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
 
@@ -367,7 +368,7 @@ void joinPieces(const za::Vector<Piece>& pieces, za::Vector<Line>& lines)
         keyed.pushBack(Keyed{{q(za::atan2(p.out.y, p.out.x), 2000.f), q(l.offset, 8.f), q(l.z0, 8.f), q(l.slope, 1000.f)}, l});
     }
     za::quickSort(keyed.begin(), keyed.end(), [](const Keyed& x, const Keyed& y) {
-        return x.key != y.key ? qza::lexicographicLess(x.key, y.key) : x.line.s0 < y.line.s0;
+        return x.key != y.key ? x.key < y.key : x.line.s0 < y.line.s0;
     });
     for(size_t i = 0; i < keyed.size();)
     {
@@ -681,7 +682,7 @@ void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, za::Vector<int>& 
     }
     if(++stamp == 0)
     {
-        za::fill(seen.begin(), seen.end(), 0u);
+        za::fill(seen, 0u);
         stamp = 1;
     }
     const glm::ivec3 lo = cellOf(mins, cellSize), hi = cellOf(maxs, cellSize);
@@ -692,7 +693,7 @@ void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, za::Vector<int>& 
             for(int z = lo.z; z <= hi.z; z++)
             {
                 const uint64_t key = keyOf(glm::ivec3{x, y, z});
-                auto it = za::lowerBound(cells.begin(), cells.end(), qza::makePair(key, 0));
+                auto it = za::lowerBound(cells.begin(), cells.end(), za::makePair(key, 0));
                 for(; it != cells.end() && it->first == key; ++it)
                 {
                     const Edge& e = edges[static_cast<size_t>(it->second)];

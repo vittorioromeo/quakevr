@@ -363,7 +363,7 @@ void start()
         {
             wake = CreateEventW(nullptr, FALSE, FALSE, nullptr); // (auto-reset)
         }
-        worker = za::Thread([] { run(); });
+        worker = za::Thread(run);
         Con_DPrintf("gpustats: sampling thread started\n");
     }
 #endif

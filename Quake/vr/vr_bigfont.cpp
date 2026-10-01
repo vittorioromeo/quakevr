@@ -156,7 +156,7 @@ void paint(const GlyphDef& g, int column, const za::Array<Picture, za::getArrayS
 void build()
 {
     font.built = true;
-    za::fill(font.column.begin(), font.column.end(), -1);
+    za::fill(font.column, -1);
 
     za::Array<byte*, za::getArraySize(picNames)> files{};
     za::Array<Picture, za::getArraySize(picNames)> pics{};
