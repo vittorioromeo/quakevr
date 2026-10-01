@@ -19,7 +19,6 @@
 #include "vr_hands.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
-#include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"

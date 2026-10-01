@@ -25,7 +25,6 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
-#include <chrono> // ZANCLE-TODO: a nanosecond clock (nowNs)
 #include <cstdarg>
 #include <stdio.h>
 #include <time.h>
@@ -51,13 +50,8 @@ constexpr double hitchMs = 250.0;
 // GPU frames in flight before a slot is read waiting.
 constexpr int gpuSlots = 6;
 
-// ZANCLE-TODO: za::Clock and za::Time count microseconds; the profiler times scopes of well under one (a nanosecond
-// clock: std::chrono::steady_clock, QueryPerformanceCounter on Windows).
-[[nodiscard]] za::I64 nowNs()
-{
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
-        .count();
-}
+// The clock in nanoseconds (scopes of well under a microsecond, za::Clock's unit: qza::nowNs, vr_zancle.hpp).
+using qza::nowNs;
 
 struct Node
 {

@@ -28,7 +28,6 @@
 #include "vr_units.hpp"
 #include "vr_weight.hpp"
 
-#include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"

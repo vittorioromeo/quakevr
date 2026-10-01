@@ -18,7 +18,7 @@
 //
 //     void findHolds(...)
 //     {
-//         za::Vector<int>& nearby = scratch.nearby;  // cleared by its user: it keeps its capacity between calls
+//         za::Vector<int>& nearby = scratch.nearby; // cleared by its user: it keeps its capacity between calls
 //         nearby.clear();
 
 #include "Zancle/Base/SizeT.hpp"
@@ -32,13 +32,6 @@
 #include "Zancle/Trait/DeclVal.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
-// TRANSITION (removed when every file is on Zancle): the std containers' overloads.
-#include <array>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <vector>
 
 namespace qvr::mem
 {
@@ -81,69 +74,6 @@ template <class K, class H, class E>
 [[nodiscard]] za::SizeT heldBytes(const ankerl::unordered_dense::set<K, H, E>& s);
 template <class T>
 [[nodiscard]] za::SizeT heldBytes(const za::UniquePtr<T>& p);
-// TRANSITION
-[[nodiscard]] inline za::SizeT heldBytes(const std::string& s);
-template <class A, class B>
-[[nodiscard]] za::SizeT heldBytes(const std::pair<A, B>& p);
-template <class T, class Alloc>
-[[nodiscard]] za::SizeT heldBytes(const std::vector<T, Alloc>& v);
-template <class T, za::SizeT N>
-[[nodiscard]] za::SizeT heldBytes(const std::array<T, N>& a);
-template <class K, class V, class H, class E, class A>
-[[nodiscard]] za::SizeT heldBytes(const std::unordered_map<K, V, H, E, A>& m);
-template <class K, class H, class E, class A>
-[[nodiscard]] za::SizeT heldBytes(const std::unordered_set<K, H, E, A>& s);
-
-inline za::SizeT heldBytes(const std::string& s)
-{
-    return s.capacity() > std::string{}.capacity() ? s.capacity() + 1 : 0;
-}
-template <class A, class B>
-za::SizeT heldBytes(const std::pair<A, B>& p)
-{
-    return heldBytes(p.first) + heldBytes(p.second);
-}
-template <class T, class Alloc>
-za::SizeT heldBytes(const std::vector<T, Alloc>& v)
-{
-    za::SizeT n = v.capacity() * sizeof(T);
-    for(const T& e : v)
-    {
-        n += heldBytes(e);
-    }
-    return n;
-}
-template <class T, za::SizeT N>
-za::SizeT heldBytes(const std::array<T, N>& a)
-{
-    za::SizeT n = 0;
-    for(const T& e : a)
-    {
-        n += heldBytes(e);
-    }
-    return n;
-}
-template <class K, class V, class H, class E, class A>
-za::SizeT heldBytes(const std::unordered_map<K, V, H, E, A>& m)
-{
-    za::SizeT n = m.bucket_count() * sizeof(void*) + m.size() * (sizeof(std::pair<const K, V>) + 2 * sizeof(void*));
-    for(const auto& [k, v] : m)
-    {
-        n += heldBytes(k) + heldBytes(v);
-    }
-    return n;
-}
-template <class K, class H, class E, class A>
-za::SizeT heldBytes(const std::unordered_set<K, H, E, A>& s)
-{
-    za::SizeT n = s.bucket_count() * sizeof(void*) + s.size() * (sizeof(K) + 2 * sizeof(void*));
-    for(const K& k : s)
-    {
-        n += heldBytes(k);
-    }
-    return n;
-}
-// TRANSITION end
 
 template <class T>
 za::SizeT heldBytes(const T&)

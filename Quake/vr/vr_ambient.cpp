@@ -9,7 +9,6 @@
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
-#include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/UIntPtrT.hpp"
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Chrono/Time.hpp"

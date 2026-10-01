@@ -15,7 +15,6 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memset.hpp"
-#include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"

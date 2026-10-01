@@ -21,7 +21,6 @@
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
-#include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Base/Strlen.hpp"
@@ -34,7 +33,6 @@
 #include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
-#include "Zancle/String/StringView.hpp"
 #include "vr_zancle.hpp"
 
 #include <cstdarg>
