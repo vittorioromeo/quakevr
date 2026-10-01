@@ -514,12 +514,12 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 -400 24 ) ( -624 -399 24 ) ( -624 -400 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -400 24 ) ( -624 -400 25 ) ( -623 -400 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -400 24 ) ( -623 -400 24 ) ( -624 -399 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -368 56 ) ( -616 -367 56 ) ( -615 -368 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -368 56 ) ( -615 -368 56 ) ( -616 -368 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 -368 56 ) ( -616 -368 57 ) ( -616 -367 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -408 24 ) ( -624 -407 24 ) ( -624 -408 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -408 24 ) ( -624 -408 25 ) ( -623 -408 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -408 24 ) ( -623 -408 24 ) ( -624 -407 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -376 56 ) ( -616 -375 56 ) ( -615 -376 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -376 56 ) ( -615 -376 56 ) ( -616 -376 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 -376 56 ) ( -616 -376 57 ) ( -616 -375 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
 // entity 2
@@ -536,12 +536,12 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 -336 24 ) ( -624 -335 24 ) ( -624 -336 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -336 24 ) ( -624 -336 25 ) ( -623 -336 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -336 24 ) ( -623 -336 24 ) ( -624 -335 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -304 56 ) ( -616 -303 56 ) ( -615 -304 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -304 56 ) ( -615 -304 56 ) ( -616 -304 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 -304 56 ) ( -616 -304 57 ) ( -616 -303 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -352 24 ) ( -624 -351 24 ) ( -624 -352 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -352 24 ) ( -624 -352 25 ) ( -623 -352 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -352 24 ) ( -623 -352 24 ) ( -624 -351 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -320 56 ) ( -616 -319 56 ) ( -615 -320 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -320 56 ) ( -615 -320 56 ) ( -616 -320 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 -320 56 ) ( -616 -320 57 ) ( -616 -319 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
 // entity 3
@@ -558,15 +558,37 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 -272 24 ) ( -624 -271 24 ) ( -624 -272 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -272 24 ) ( -624 -272 25 ) ( -623 -272 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -272 24 ) ( -623 -272 24 ) ( -624 -271 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -240 56 ) ( -616 -239 56 ) ( -615 -240 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -240 56 ) ( -615 -240 56 ) ( -616 -240 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 -240 56 ) ( -616 -240 57 ) ( -616 -239 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -296 24 ) ( -624 -295 24 ) ( -624 -296 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -296 24 ) ( -624 -296 25 ) ( -623 -296 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -296 24 ) ( -623 -296 24 ) ( -624 -295 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -264 56 ) ( -616 -263 56 ) ( -615 -264 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -264 56 ) ( -615 -264 56 ) ( -616 -264 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 -264 56 ) ( -616 -264 57 ) ( -616 -263 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
 // entity 4
+{
+"classname" "func_button"
+"buttonEffect" "3"
+"targetname" "vr_setup_option sticks\n"
+"worldtext" "SWAP STICKS"
+"worldtext_halign" "1"
+"worldtext_scale" "0.2"
+"angle" "180"
+"wait" "1"
+"speed" "50"
+"lip" "4"
+"sounds" "1"
+{
+( -624 -240 24 ) ( -624 -239 24 ) ( -624 -240 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -240 24 ) ( -624 -240 25 ) ( -623 -240 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -240 24 ) ( -623 -240 24 ) ( -624 -239 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -208 56 ) ( -616 -207 56 ) ( -615 -208 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -208 56 ) ( -615 -208 56 ) ( -616 -208 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 -208 56 ) ( -616 -208 57 ) ( -616 -207 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
+}
+// entity 5
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -580,15 +602,15 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 -208 24 ) ( -624 -207 24 ) ( -624 -208 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -208 24 ) ( -624 -208 25 ) ( -623 -208 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -208 24 ) ( -623 -208 24 ) ( -624 -207 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -176 56 ) ( -616 -175 56 ) ( -615 -176 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -176 56 ) ( -615 -176 56 ) ( -616 -176 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 -176 56 ) ( -616 -176 57 ) ( -616 -175 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -184 24 ) ( -624 -183 24 ) ( -624 -184 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -184 24 ) ( -624 -184 25 ) ( -623 -184 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -184 24 ) ( -623 -184 24 ) ( -624 -183 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -152 56 ) ( -616 -151 56 ) ( -615 -152 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -152 56 ) ( -615 -152 56 ) ( -616 -152 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 -152 56 ) ( -616 -152 57 ) ( -616 -151 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 5
+// entity 6
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -602,15 +624,15 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 -144 24 ) ( -624 -143 24 ) ( -624 -144 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -144 24 ) ( -624 -144 25 ) ( -623 -144 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -144 24 ) ( -623 -144 24 ) ( -624 -143 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -112 56 ) ( -616 -111 56 ) ( -615 -112 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -112 56 ) ( -615 -112 56 ) ( -616 -112 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 -112 56 ) ( -616 -112 57 ) ( -616 -111 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -128 24 ) ( -624 -127 24 ) ( -624 -128 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -128 24 ) ( -624 -128 25 ) ( -623 -128 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -128 24 ) ( -623 -128 24 ) ( -624 -127 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -96 56 ) ( -616 -95 56 ) ( -615 -96 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -96 56 ) ( -615 -96 56 ) ( -616 -96 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 -96 56 ) ( -616 -96 57 ) ( -616 -95 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 6
+// entity 7
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -624,20 +646,20 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 -80 24 ) ( -624 -79 24 ) ( -624 -80 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -80 24 ) ( -624 -80 25 ) ( -623 -80 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 -80 24 ) ( -623 -80 24 ) ( -624 -79 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -48 56 ) ( -616 -47 56 ) ( -615 -48 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 -48 56 ) ( -615 -48 56 ) ( -616 -48 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 -48 56 ) ( -616 -48 57 ) ( -616 -47 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -72 24 ) ( -624 -71 24 ) ( -624 -72 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -72 24 ) ( -624 -72 25 ) ( -623 -72 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 -72 24 ) ( -623 -72 24 ) ( -624 -71 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -40 56 ) ( -616 -39 56 ) ( -615 -40 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 -40 56 ) ( -615 -40 56 ) ( -616 -40 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 -40 56 ) ( -616 -40 57 ) ( -616 -39 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 7
+// entity 8
 {
 "classname" "func_button"
 "buttonEffect" "3"
-"targetname" "vr_setup_option hand\n"
-"worldtext" "MAIN HAND"
+"targetname" "vr_setup_option gadget\n"
+"worldtext" "GADGET ARM"
 "worldtext_halign" "1"
 "worldtext_scale" "0.2"
 "angle" "180"
@@ -646,15 +668,37 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 48 24 ) ( -624 49 24 ) ( -624 48 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 48 24 ) ( -624 48 25 ) ( -623 48 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 48 24 ) ( -623 48 24 ) ( -624 49 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 80 56 ) ( -616 81 56 ) ( -615 80 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 80 56 ) ( -615 80 56 ) ( -616 80 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 80 56 ) ( -616 80 57 ) ( -616 81 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 40 24 ) ( -624 41 24 ) ( -624 40 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 40 24 ) ( -624 40 25 ) ( -623 40 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 40 24 ) ( -623 40 24 ) ( -624 41 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 72 56 ) ( -616 73 56 ) ( -615 72 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 72 56 ) ( -615 72 56 ) ( -616 72 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 72 56 ) ( -616 72 57 ) ( -616 73 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 8
+// entity 9
+{
+"classname" "func_button"
+"buttonEffect" "3"
+"targetname" "vr_setup_option torch\n"
+"worldtext" "TORCH SIDE"
+"worldtext_halign" "1"
+"worldtext_scale" "0.2"
+"angle" "180"
+"wait" "1"
+"speed" "50"
+"lip" "4"
+"sounds" "1"
+{
+( -624 96 24 ) ( -624 97 24 ) ( -624 96 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 96 24 ) ( -624 96 25 ) ( -623 96 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 96 24 ) ( -623 96 24 ) ( -624 97 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 128 56 ) ( -616 129 56 ) ( -615 128 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 128 56 ) ( -615 128 56 ) ( -616 128 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 128 56 ) ( -616 128 57 ) ( -616 129 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
+}
+// entity 10
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -668,15 +712,15 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 112 24 ) ( -624 113 24 ) ( -624 112 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 112 24 ) ( -624 112 25 ) ( -623 112 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 112 24 ) ( -623 112 24 ) ( -624 113 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 144 56 ) ( -616 145 56 ) ( -615 144 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 144 56 ) ( -615 144 56 ) ( -616 144 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 144 56 ) ( -616 144 57 ) ( -616 145 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 152 24 ) ( -624 153 24 ) ( -624 152 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 152 24 ) ( -624 152 25 ) ( -623 152 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 152 24 ) ( -623 152 24 ) ( -624 153 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 184 56 ) ( -616 185 56 ) ( -615 184 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 184 56 ) ( -615 184 56 ) ( -616 184 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 184 56 ) ( -616 184 57 ) ( -616 185 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 9
+// entity 11
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -690,15 +734,15 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 176 24 ) ( -624 177 24 ) ( -624 176 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 176 24 ) ( -624 176 25 ) ( -623 176 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 176 24 ) ( -623 176 24 ) ( -624 177 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 208 56 ) ( -616 209 56 ) ( -615 208 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 208 56 ) ( -615 208 56 ) ( -616 208 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 208 56 ) ( -616 208 57 ) ( -616 209 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 208 24 ) ( -624 209 24 ) ( -624 208 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 208 24 ) ( -624 208 25 ) ( -623 208 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 208 24 ) ( -623 208 24 ) ( -624 209 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 240 56 ) ( -616 241 56 ) ( -615 240 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 240 56 ) ( -615 240 56 ) ( -616 240 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 240 56 ) ( -616 240 57 ) ( -616 241 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 10
+// entity 12
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -712,15 +756,15 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 240 24 ) ( -624 241 24 ) ( -624 240 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 240 24 ) ( -624 240 25 ) ( -623 240 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 240 24 ) ( -623 240 24 ) ( -624 241 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 272 56 ) ( -616 273 56 ) ( -615 272 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 272 56 ) ( -615 272 56 ) ( -616 272 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 272 56 ) ( -616 272 57 ) ( -616 273 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 264 24 ) ( -624 265 24 ) ( -624 264 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 264 24 ) ( -624 264 25 ) ( -623 264 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 264 24 ) ( -623 264 24 ) ( -624 265 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 296 56 ) ( -616 297 56 ) ( -615 296 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 296 56 ) ( -615 296 56 ) ( -616 296 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 296 56 ) ( -616 296 57 ) ( -616 297 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 11
+// entity 13
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -734,15 +778,15 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 304 24 ) ( -624 305 24 ) ( -624 304 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 304 24 ) ( -624 304 25 ) ( -623 304 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 304 24 ) ( -623 304 24 ) ( -624 305 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 336 56 ) ( -616 337 56 ) ( -615 336 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 336 56 ) ( -615 336 56 ) ( -616 336 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 336 56 ) ( -616 336 57 ) ( -616 337 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 320 24 ) ( -624 321 24 ) ( -624 320 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 320 24 ) ( -624 320 25 ) ( -623 320 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 320 24 ) ( -623 320 24 ) ( -624 321 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 352 56 ) ( -616 353 56 ) ( -615 352 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 352 56 ) ( -615 352 56 ) ( -616 352 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 352 56 ) ( -616 352 57 ) ( -616 353 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 12
+// entity 14
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -756,15 +800,15 @@
 "lip" "4"
 "sounds" "1"
 {
-( -624 368 24 ) ( -624 369 24 ) ( -624 368 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 368 24 ) ( -624 368 25 ) ( -623 368 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -624 368 24 ) ( -623 368 24 ) ( -624 369 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 400 56 ) ( -616 401 56 ) ( -615 400 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
-( -616 400 56 ) ( -615 400 56 ) ( -616 400 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
-( -616 400 56 ) ( -616 400 57 ) ( -616 401 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 376 24 ) ( -624 377 24 ) ( -624 376 25 ) qvr_button [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 376 24 ) ( -624 376 25 ) ( -623 376 24 ) qvr_button [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -624 376 24 ) ( -623 376 24 ) ( -624 377 24 ) qvr_button [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 408 56 ) ( -616 409 56 ) ( -615 408 56 ) qvr_button [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( -616 408 56 ) ( -615 408 56 ) ( -616 408 57 ) qvr_button [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( -616 408 56 ) ( -616 408 57 ) ( -616 409 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 13
+// entity 15
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -786,7 +830,7 @@
 ( 80 -296 56 ) ( 80 -296 57 ) ( 80 -295 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 14
+// entity 16
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -808,7 +852,7 @@
 ( 80 -248 56 ) ( 80 -248 57 ) ( 80 -247 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 15
+// entity 17
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -830,7 +874,7 @@
 ( -40 -488 56 ) ( -40 -488 57 ) ( -40 -487 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 16
+// entity 18
 {
 "classname" "func_button"
 "buttonEffect" "3"
@@ -852,7 +896,7 @@
 ( 72 -488 56 ) ( 72 -488 57 ) ( 72 -487 56 ) qvr_button [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 17
+// entity 19
 {
 "classname" "func_worldtext_banner"
 "worldtext" "VR CALIBRATION ROOM\n\nThe buttons on the walls change the main\noptions: each press steps to the next\nchoice, shows it on your wrist, and saves it."
@@ -861,7 +905,7 @@
 "angle" "270"
 "origin" "0 -144 88"
 }
-// entity 18
+// entity 20
 {
 "classname" "func_worldtext_banner"
 "worldtext" "West: turning, moving, body, HUD.\nEast: a pool. North-east: climbing.\nNorth-west: things to pick up."
@@ -870,7 +914,7 @@
 "angle" "270"
 "origin" "0 -144 62"
 }
-// entity 19
+// entity 21
 {
 "classname" "func_worldtext_banner"
 "worldtext" "CALIBRATE AGAIN\nSTART CALIBRATION: all of it.\n\nBody only:\n{menu:Body Calibration}\n\nHeight only:\n{menu:Body and Display>Set Height Now}"
@@ -879,25 +923,25 @@
 "angle" "180"
 "origin" "88 -288 104"
 }
-// entity 20
+// entity 22
 {
 "classname" "func_worldtext_banner"
-"worldtext" "MOVING AND TURNING\n\nMore: {menu:VR Settings>Comfort}\nand {menu:Locomotion}"
+"worldtext" "MOVING AND TURNING\n\nSWAP STICKS: the right stick moves.\n\nMore: {menu:VR Settings>Comfort}\nand {menu:Locomotion}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "0"
 "origin" "-623 -224 136"
 }
-// entity 21
+// entity 23
 {
 "classname" "func_worldtext_banner"
-"worldtext" "BODY AND DISPLAY\n\nMore: {menu:Body and Display}\n\nHands not where your controllers are?\n{menu:Hand/Gun Calibration}"
+"worldtext" "BODY AND DISPLAY\n\nGadget arm, torch side and more:\n{menu:Body and Display}\n\nHands not where your controllers are?\n{menu:Hand/Gun Calibration}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.3"
 "angle" "0"
 "origin" "-623 224 136"
 }
-// entity 22
+// entity 24
 {
 "classname" "func_worldtext_banner"
 "worldtext" "SWIMMING\nStroke with your arms, or use the stick.\nSteps at the north end.\n\n{menu:Swimming}"
@@ -906,7 +950,7 @@
 "angle" "180"
 "origin" "200 -256 88"
 }
-// entity 23
+// entity 25
 {
 "classname" "func_worldtext_banner"
 "worldtext" "CLIMBING\nGrip a rung or a ledge with an empty\nhand and pull yourself up; let go to drop.\nStairs on the left.\n\n{menu:Climbing}"
@@ -915,7 +959,7 @@
 "angle" "270"
 "origin" "344 318 120"
 }
-// entity 24
+// entity 26
 {
 "classname" "func_worldtext_banner"
 "worldtext" "THINGS TO PICK UP\nGrip to take, open the hand to throw.\n\nWhere weapons sit in your hand:\n{menu:Weapon Offsets}\nThrowing: {menu:Throwing and Physics}"
@@ -924,7 +968,7 @@
 "angle" "270"
 "origin" "-384 336 88"
 }
-// entity 25
+// entity 27
 {
 "classname" "func_worldtext_banner"
 "worldtext" "LOOKS AND SPEED\nRender scale, upscaling: {menu:Headset}\n\nGraphics: {menu:Graphics}\n\nWrist gadget: {menu:Wrist Gadget}"
@@ -933,7 +977,7 @@
 "angle" "270"
 "origin" "-96 639 96"
 }
-// entity 26
+// entity 28
 {
 "classname" "func_worldtext_banner"
 "worldtext" "START PLAYING\nNEW GAME starts Quake; VR HUB, the hub."
@@ -942,39 +986,39 @@
 "angle" "90"
 "origin" "0 -495 88"
 }
-// entity 27
+// entity 29
 {
 "classname" "info_player_start"
 "origin" "0 -288 24"
 "angle" "90"
 }
-// entity 28
+// entity 30
 {
 "classname" "item_health"
 "origin" "-432 384 40"
 }
-// entity 29
+// entity 31
 {
 "classname" "item_shells"
 "origin" "-384 384 40"
 }
-// entity 30
+// entity 32
 {
 "classname" "item_spikes"
 "origin" "-344 384 40"
 }
-// entity 31
+// entity 33
 {
 "classname" "weapon_supershotgun"
 "origin" "-384 456 24"
 }
-// entity 32
+// entity 34
 {
 "classname" "vr_dummy"
 "origin" "-512 520 24"
 "angle" "300"
 }
-// entity 33
+// entity 35
 {
 "classname" "light"
 "origin" "-448 -320 344"
@@ -982,7 +1026,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 34
+// entity 36
 {
 "classname" "light"
 "origin" "-448 0 344"
@@ -990,7 +1034,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 35
+// entity 37
 {
 "classname" "light"
 "origin" "-448 320 344"
@@ -998,7 +1042,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 36
+// entity 38
 {
 "classname" "light"
 "origin" "-128 -320 344"
@@ -1006,7 +1050,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 37
+// entity 39
 {
 "classname" "light"
 "origin" "-128 0 344"
@@ -1014,7 +1058,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 38
+// entity 40
 {
 "classname" "light"
 "origin" "-128 320 344"
@@ -1022,7 +1066,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 39
+// entity 41
 {
 "classname" "light"
 "origin" "192 -320 344"
@@ -1030,7 +1074,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 40
+// entity 42
 {
 "classname" "light"
 "origin" "192 0 344"
@@ -1038,7 +1082,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 41
+// entity 43
 {
 "classname" "light"
 "origin" "192 320 344"
@@ -1046,7 +1090,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 42
+// entity 44
 {
 "classname" "light"
 "origin" "480 -320 344"
@@ -1054,7 +1098,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 43
+// entity 45
 {
 "classname" "light"
 "origin" "480 0 344"
@@ -1062,7 +1106,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 44
+// entity 46
 {
 "classname" "light"
 "origin" "480 320 344"
@@ -1070,7 +1114,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 45
+// entity 47
 {
 "classname" "light"
 "origin" "-560 -224 120"
@@ -1078,7 +1122,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 46
+// entity 48
 {
 "classname" "light"
 "origin" "-560 224 120"
@@ -1086,7 +1130,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 47
+// entity 49
 {
 "classname" "light"
 "origin" "0 -200 140"
@@ -1094,7 +1138,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 48
+// entity 50
 {
 "classname" "light"
 "origin" "380 -256 90"
@@ -1102,7 +1146,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 49
+// entity 51
 {
 "classname" "light"
 "origin" "464 240 140"
@@ -1110,7 +1154,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 50
+// entity 52
 {
 "classname" "light"
 "origin" "-384 300 120"
@@ -1118,7 +1162,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 51
+// entity 53
 {
 "classname" "light"
 "origin" "0 560 160"
@@ -1126,7 +1170,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 52
+// entity 54
 {
 "classname" "light"
 "origin" "0 -440 110"

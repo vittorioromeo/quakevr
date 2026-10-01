@@ -1474,7 +1474,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         open("On a Gun or Head", pageIndex(pageFlashlightMounts)).help("Where the torch clips on a gun or on your head, and the zones that clip it on."),
         header("Flashlight"),
         toggle("Chest Flashlight", vr_flashlight)
-            .help("A torch hanging on your belt, on your off hand's side (lighting only your feet there). Trigger at it: on or off. Grip it with an open, still hand to take it (a fist closing by it in a fight does nothing); let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
+            .help("A torch hanging on your belt, on the hip Side picks (lighting only your feet there). Trigger at it: on or off. Grip it with an open, still hand to take it (a fist closing by it in a fight does nothing); let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx").extend(),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f").extend(100.f, 6000.f),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
@@ -1488,7 +1488,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Lean Out", vr_flashlight_tilt, -90.f, 90.f, 1.f, "%.0f deg").extend().help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
         slider("Forward", vr_flashlight_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
         slider("Up", vr_flashlight_up, -0.4f, 0.4f, 0.01f, "%.2f m").extend(),
-        slider("Out", vr_flashlight_out, -0.3f, 0.3f, 0.01f, "%.2f m").extend().help("Towards your off hand's side."),
+        slider("Out", vr_flashlight_out, -0.3f, 0.3f, 0.01f, "%.2f m").extend().help("Away from your middle, towards its side."),
+        cycle("Side", vr_flashlight_side, {{0.f, "Left hip"}, {1.f, "Right hip"}}),
         header("In the Hand"),
         slider("In Hand Forward", vr_flashlight_hand_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Where the held lamp sits in your fist."),
         slider("In Hand Up", vr_flashlight_hand_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
@@ -1633,7 +1634,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 {
     return {
         cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}),
-        cycle("Arm", vr_gadget_hand, {{0.f, "Off hand"}, {1.f, "Main hand"}}),
+        cycle("Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}),
         slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 3.f),
         header("Placement"),
         slider("Along the Arm", vr_gadget_x, -15.f, 15.f, 0.5f, "%.1f cm").extend(-40.f, 40.f),
@@ -3390,7 +3391,8 @@ za::Vector<Item> pageMain()
         header("Comfort"),
         cycle("Turning", vr_snap_turn, {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}}),
         slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend(),
-        cycle("Move Towards", vr_movement_mode, {{1.f, "Head"}, {0.f, "Off hand"}}),
+        cycle("Move Towards", vr_movement_mode, {{1.f, "Head"}, {0.f, "Hand"}}).help("Hand: where the moving stick's hand points (Swap Stick Functions: the right hand's)."),
+        toggle("Swap Stick Functions", vr_stick_swap).help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%"),
         toggle("Teleport", vr_teleport_enabled),
@@ -3408,7 +3410,7 @@ za::Vector<Item> pageMain()
         toggle("Force Grab", vr_forcegrab_mode),
         cycle("Haptics", vr_disablehaptics, {{0.f, "On"}, {1.f, "Off"}}),
         header("More"),
-        open("Body and Display", pageIndex(pageBodyDisplay)).help("Handedness, height, the body, the HUD, the crosshair and the menu."),
+        open("Body and Display", pageIndex(pageBodyDisplay)).help("The wrist gadget's arm and the flashlight's side, height, the body, the HUD, the crosshair and the menu."),
         open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
         open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
         open("Advanced VR Options", PageAdvanced),
@@ -3420,12 +3422,13 @@ za::Vector<Item> pageMain()
 {
     return {
         header("Body"),
-        toggle("Left Handed", vr_lefthanded).help("Which hand is your off hand: its stick moves you (and with Move Towards: Off Hand, its pointing steers), it wears the wrist gadget and the torch hangs on its hip; the other stick turns. On: the right one. Both hands hold, fire, swing and climb alike either way."),
+        cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}).help("The arm the wrist gadget (the HUD) is on."),
+        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left hip"}, {1.f, "Right hip"}}).help("The hip the torch hangs on (Chest Flashlight)."),
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f),
         action("Set Height Now", calibrateHeight),
         slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f),
         slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f),
-        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (off hand side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
+        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (Flashlight Side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
 
         header("Body Model"),
         cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),

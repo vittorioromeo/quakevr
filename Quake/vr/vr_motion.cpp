@@ -725,7 +725,7 @@ za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
     line("date", info.date);
     line("source", info.source);
     line("map", info.map);
-    line("dominant hand", vr_lefthanded.value ? "left (vr_lefthanded 1)" : "right (vr_lefthanded 0)");
+    line("moving stick", vr_stick_swap.value ? "right (vr_stick_swap 1)" : "left (vr_stick_swap 0)");
     if(first)
     {
         line("main weapon", weaponLine(first->hands[HAND_MAIN]));

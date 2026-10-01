@@ -115,17 +115,18 @@ def button(label, command, x0, y0, z0, x1, y1, z1, angle, scale="0.2"):
         "lip": "4", "sounds": "1"}, [box(x0, y0, z0, x1, y1, z1, "qvr_button")]))
 
 
-def west_buttons(entries, y_first):
-    """Buttons along a west panel, 64 apart, their faces 8 out from the panel, pushed west (angle 180)."""
+def west_buttons(entries, y_first, step=56):
+    """Buttons along a west panel, `step` apart, their faces 8 out from the panel, pushed west (angle 180)."""
     for i, (label, key) in enumerate(entries):
-        yc = y_first + 64 * i
+        yc = y_first + step * i
         button(label, f"vr_setup_option {key}", PANEL_X, yc - 16, 24, PANEL_X + 8, yc + 16, 56, 180)
 
 
+# (No main hand: each side is its own setting, ROUND21.md "Handedness: separate options".)
 west_buttons([("TURNING", "turning"), ("TURN SPEED", "turnspeed"), ("MOVE TOWARDS", "movedir"),
-              ("RUN OR WALK", "run"), ("TELEPORT", "teleport"), ("CLIMBING", "climb")], -384)
-west_buttons([("MAIN HAND", "hand"), ("WORLD SCALE", "scale"), ("BODY", "body"), ("HUD", "hud"),
-              ("CROSSHAIR", "crosshair"), ("WEAPON GRIP", "grip")], 64)
+              ("SWAP STICKS", "sticks"), ("RUN OR WALK", "run"), ("TELEPORT", "teleport"), ("CLIMBING", "climb")], -392)
+west_buttons([("GADGET ARM", "gadget"), ("TORCH SIDE", "torch"), ("WORLD SCALE", "scale"), ("BODY", "body"),
+              ("HUD", "hud"), ("CROSSHAIR", "crosshair"), ("WEAPON GRIP", "grip")], 56)
 # the stand (west face at x 80, pushed east: angle 0)
 button("START\\nCALIBRATION", "vr_setup here", 72, -328, 24, 80, -296, 56, 0)
 button("POSITION", "vr_setup_option position", 72, -280, 24, 80, -248, 56, 0)
@@ -148,9 +149,10 @@ board(N.join(["West: turning, moving, body, HUD.", "East: a pool. North-east: cl
               "North-west: things to pick up."]), 0, -144, 62, 270, "0.3")
 board(N.join(["CALIBRATE AGAIN", "START CALIBRATION: all of it.", "", "Body only:", "{menu:Body Calibration}", "",
               "Height only:", "{menu:Body and Display>Set Height Now}"]), 88, -288, 104, 180, "0.2")
-board(N.join(["MOVING AND TURNING", "", "More: {menu:VR Settings>Comfort}", "and {menu:Locomotion}"]),
+board(N.join(["MOVING AND TURNING", "", "SWAP STICKS: the right stick moves.", "",
+              "More: {menu:VR Settings>Comfort}", "and {menu:Locomotion}"]),
       PANEL_X + 1, -224, 136, 0, "0.3")
-board(N.join(["BODY AND DISPLAY", "", "More: {menu:Body and Display}", "",
+board(N.join(["BODY AND DISPLAY", "", "Gadget arm, torch side and more:", "{menu:Body and Display}", "",
               "Hands not where your controllers are?", "{menu:Hand/Gun Calibration}"]),
       PANEL_X + 1, 224, 136, 0, "0.3")
 board(N.join(["SWIMMING", "Stroke with your arms, or use the stick.", "Steps at the north end.", "",

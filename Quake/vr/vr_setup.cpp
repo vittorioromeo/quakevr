@@ -48,11 +48,13 @@ struct Option
 constexpr Option options[] = {
     {"turning", "Turning", "vr_snap_turn", {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}}, 4},
     {"turnspeed", "Smooth Turn Speed", "vr_turn_speed", {{2.f, "Slow"}, {3.25f, "Normal"}, {5.f, "Fast"}}, 3},
-    {"movedir", "Move Towards", "vr_movement_mode", {{1.f, "Head"}, {0.f, "Off Hand"}}, 2},
+    {"movedir", "Move Towards", "vr_movement_mode", {{1.f, "Head"}, {0.f, "Hand"}}, 2},
+    {"sticks", "Swap Stick Functions", "vr_stick_swap", {{0.f, "Left moves"}, {1.f, "Right moves"}}, 2},
     {"run", "Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}, 2},
     {"teleport", "Teleport", "vr_teleport_enabled", {{0.f, "Off"}, {1.f, "On"}}, 2},
     {"grip", "Weapon Grip", "vr_weapon_grip_mode", {{0.f, "Hold"}, {1.f, "Sticky"}}, 2},
-    {"hand", "Main Hand", "vr_lefthanded", {{0.f, "Right"}, {1.f, "Left"}}, 2},
+    {"gadget", "Wrist Gadget Arm", "vr_gadget_arm", {{0.f, "Left"}, {1.f, "Right"}}, 2},
+    {"torch", "Flashlight Side", "vr_flashlight_side", {{0.f, "Left hip"}, {1.f, "Right hip"}}, 2},
     {"position", "Position", "vr_bodycal_seated", {{0.f, "Standing"}, {1.f, "Seated"}}, 2},
     {"scale", "World Scale", "vr_world_scale", {{1.f, "1.00: world larger"}, {1.25f, "1.25: normal"}, {1.5f, "1.50: world smaller"}}, 3},
     {"body", "Body", "vr_body_mode", {{0.f, "Off"}, {2.f, "Torso and Arms"}, {3.f, "Full Body"}}, 3},
@@ -185,7 +187,6 @@ enum class Step
     Height,     // standing tall and still
     Body,       // Body Calibration running
     BodyReview, // its page open on a result it didn't trust
-    Hand,       // the main hand raised
     Done,       // the summary
 };
 
@@ -194,9 +195,6 @@ constexpr double readSeconds = 3.0;       // a step's instructions before its co
 constexpr double stillSeconds = 1.0;      // the head held this still...
 constexpr float stillMetres = 0.015f;     // ...within this
 constexpr double gotItSeconds = 1.2;
-constexpr double handHoldSeconds = 0.75;  // a hand held up this long
-constexpr float handAboveMetres = 0.08f;  // above the eyes
-constexpr double handGiveUpSeconds = 25.0;
 constexpr double doneSeconds = 12.0;
 constexpr const char* roomMap = "vrcalibration";
 
@@ -212,10 +210,7 @@ struct Flow
     bool counted{false};
     glm::vec3 anchor{0.f}; // the head's place since it last moved (tracking metres)
     double anchorAt{0.0};
-    int raised{-1};       // the hand held up (HAND_MAIN, HAND_OFF), since raisedAt
-    double raisedAt{0.0};
-    const char* body{""}; // the summary's lines: how the body step ended,
-    const char* hand{""}; // and the main hand
+    const char* body{""}; // the summary's line: how the body step ended
 };
 Flow flow;
 
@@ -247,7 +242,6 @@ void enter(Step step)
     flow.start = realtime;
     flow.got = false;
     flow.counted = false;
-    flow.raised = -1;
     flow.anchorAt = realtime;
     flow.anchor = tracking().head.position;
 }
@@ -270,9 +264,8 @@ void begin()
 {
     flow.world = worldGeneration();
     flow.body = "Body: skipped";
-    flow.hand = "Main hand: skipped";
     enter(Step::Intro);
-    Con_Printf("VR Calibration: starting (height, body, main hand); the menu button stops it\n");
+    Con_Printf("VR Calibration: starting (height, body); the menu button stops it\n");
 }
 
 void finish()
@@ -294,7 +287,7 @@ void startBody()
     if(!bodycal::restart(-1))
     {
         Con_Printf("VR Calibration: Body Calibration couldn't start: skipped\n");
-        enter(Step::Hand);
+        finish();
     }
 }
 
@@ -304,7 +297,7 @@ void afterBody()
     {
         bodycal::apply(); // prints and saves
         flow.body = "Body: measured";
-        enter(Step::Hand);
+        finish();
         return;
     }
     if(bodycal::phase() == bodycal::Phase::Result)
@@ -320,7 +313,7 @@ void afterBody()
     Con_Printf("VR Calibration: the body wasn't measured: run it again later from %s\n",
         menu::pathTo("Body Calibration", path) ? path.cStr() : "the Body Calibration page");
     flow.body = "Body: not measured";
-    enter(Step::Hand);
+    finish();
 }
 
 // The step's text, floating ahead of the eyes (as Body Calibration's).
@@ -398,72 +391,6 @@ void heightFrame(double now, za::String& text)
     S_LocalSound("misc/menu2.wav");
 }
 
-void handFrame(double now, za::String& text)
-{
-    appendGold(text, "MAIN HAND");
-    text += "\n";
-    text += "Raise your MAIN hand (the one\nyou shoot with) high above your\nhead, and hold it there.\n";
-    text += "The other hand's stick moves\nyou; it wears the wrist gadget.\n\n";
-    if(flow.got)
-    {
-        text += "got it";
-        if(now - flow.gotAt >= gotItSeconds)
-        {
-            finish();
-        }
-        return;
-    }
-    if(now - flow.start < readSeconds)
-    {
-        text += "get ready";
-        return;
-    }
-    const TrackingState& t = tracking();
-    const float eyes = t.head.position.y;
-    int up = -1;
-    for(const int h : {HAND_MAIN, HAND_OFF})
-    {
-        const int other = h == HAND_MAIN ? HAND_OFF : HAND_MAIN;
-        if(t.hands[h].valid && t.hands[h].position.y > eyes + handAboveMetres &&
-            (!t.hands[other].valid || t.hands[other].position.y < eyes))
-        {
-            up = h;
-        }
-    }
-    if(up != flow.raised)
-    {
-        flow.raised = up;
-        flow.raisedAt = now;
-    }
-    if(up < 0)
-    {
-        if(now - flow.start > handGiveUpSeconds)
-        {
-            Con_Printf("VR Calibration: main hand unchanged (%s)\n", vr_lefthanded.value != 0.f ? "left" : "right");
-            flow.hand = vr_lefthanded.value != 0.f ? "Main hand: left (unchanged)" : "Main hand: right (unchanged)";
-            flow.got = true;
-            flow.gotAt = now;
-            return;
-        }
-        text += "one hand up, the other down";
-        return;
-    }
-    text += "hold it";
-    if(now - flow.raisedAt < handHoldSeconds)
-    {
-        return;
-    }
-    // (HAND_OFF is the left controller whatever the setting: vr_backend.hpp.)
-    const bool changed = (up == HAND_OFF) != (vr_lefthanded.value != 0.f);
-    Cvar_SetValueQuick(&vr_lefthanded, up == HAND_OFF ? 1.f : 0.f);
-    const char* side = vr_lefthanded.value != 0.f ? "left" : "right";
-    Con_Printf("VR Calibration: main hand: %s%s\n", side, changed ? " (changed)" : "");
-    flow.hand = vr_lefthanded.value != 0.f ? "Main hand: left" : "Main hand: right";
-    flow.got = true;
-    flow.gotAt = now;
-    S_LocalSound("misc/menu2.wav");
-}
-
 void flowFrame()
 {
     if(flow.pending && sv.active && cls.state == ca_connected && cls.signon == SIGNONS && cl.worldmodel &&
@@ -492,7 +419,7 @@ void flowFrame()
     {
         if(key_dest != key_menu && bodycal::phase() != bodycal::Phase::Capturing)
         {
-            enter(Step::Hand);
+            finish();
         }
         return;
     }
@@ -529,7 +456,7 @@ void flowFrame()
         case Step::Intro:
         {
             const int left = static_cast<int>(za::ceil(introSeconds - (now - flow.start)));
-            text += "Height, then your body, then your main hand.\n\n";
+            text += "Your height, then your body.\n\n";
             text += seated() ? "Seated: sit where you will play.\n" : "Stand in the middle of your play space.\n";
             text += "Playing seated? Press POSITION on the\nstand to your right: Seated.\n\n";
             text += va("starting in %d", za::max(left, 1));
@@ -540,12 +467,11 @@ void flowFrame()
             break;
         }
         case Step::Height: heightFrame(now, text); break;
-        case Step::Hand: handFrame(now, text); break;
         case Step::Done:
         {
             appendGold(text, "DONE");
             // The height as the body step left it (its first pose measures it again).
-            text += va("\nHeight: eyes at %.2f m\n%s\n%s\n\n", vr_height_calibration.value, flow.body, flow.hand);
+            text += va("\nHeight: eyes at %.2f m\n%s\n\n", vr_height_calibration.value, flow.body);
             text += "Explore the room: the buttons on the\nwalls change the main options, the\nboards say where the rest is.";
             if(now - flow.start >= doneSeconds || key_dest == key_menu)
             {
@@ -593,10 +519,9 @@ void skip_f()
         case Step::Height: startBody(); break;
         case Step::Body:
             bodycal::stop(); // its result, if any, is left to its page
-            enter(Step::Hand);
+            finish();
             break;
-        case Step::BodyReview: enter(Step::Hand); break;
-        case Step::Hand: finish(); break;
+        case Step::BodyReview: finish(); break;
         case Step::Done: flow.step = Step::Idle; break;
         default: Con_Printf("vr_setup_skip: the setup isn't running\n"); break;
     }

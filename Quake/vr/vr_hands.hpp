@@ -101,12 +101,17 @@ struct Calibration
 };
 [[nodiscard]] Calibration calibration(int hand);
 
-// Handedness (vr_lefthanded). The hands are the physical ones: HAND_OFF is always the left controller and HAND_MAIN the
-// right, drawn, posed and solved as such (both work the same: either holds, fires, swings and climbs). The setting only
-// says which of them is the player's off hand: the one whose stick moves (and, Move Towards: Off Hand, whose pointing
-// steers), the wrist gadget's arm (vr_gadget_hand 0) and the torch's hip; the other stick turns.
-[[nodiscard]] int moveHand(); // HAND_OFF, or HAND_MAIN left-handed
-[[nodiscard]] int gadgetHand(); // the wrist gadget's arm: moveHand(), or (vr_gadget_hand 1) the other
+// Sides. The hands are the physical ones: HAND_OFF is always the left controller and HAND_MAIN the right, drawn, posed
+// and solved as such (both work the same: either holds, fires, swings and climbs). There is no main hand setting: each
+// thing with a side has its own (ROUND21.md, "Handedness: separate options"): the stick that moves (vr_stick_swap; with
+// Move Towards: Hand, its hand's pointing steers; the other stick turns), the wrist gadget's arm (vr_gadget_arm) and the
+// torch's hip (vr_flashlight_side, vr_flashlight.cpp).
+[[nodiscard]] int moveHand();   // the moving stick's hand: HAND_OFF (the left), or HAND_MAIN with vr_stick_swap 1
+[[nodiscard]] int gadgetHand(); // the wrist gadget's arm: HAND_OFF (the left), or HAND_MAIN with vr_gadget_arm 1
+
+// The retired vr_lefthanded and vr_gadget_hand (a config's, after it ran; one typed in the console, the next frame):
+// their meaning in vr_stick_swap, vr_gadget_arm and vr_flashlight_side, then emptied. Nothing when both are empty.
+void migrateHandedness();
 
 // Where a hand's palm is (State::palmLocal), or its point if not known.
 [[nodiscard]] glm::vec3 palmPoint(const State& s, int hand);

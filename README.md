@@ -55,7 +55,7 @@ A short list. [docs/FEATURES.md](docs/FEATURES.md) explains each feature and how
   and lean over railings.
 - **Swimming** with arm strokes.
 - **Ledge grab** (experimental): hang from a ledge and pull yourself up.
-- Left-handed mode, height calibration and world scale.
+- Either hand for anything (the stick functions, the wrist gadget's arm and the torch's hip are separate options), height calibration and world scale.
 
 ### Body and immersion
 
@@ -177,7 +177,7 @@ keys (`RTRIGGER`, `LSHOULDER`, `ABUTTON`...). See [docs/SETTINGS.md](docs/SETTIN
 at it with the laser and pull the trigger, or use the sticks: A selects, B goes back. Worth doing first:
 
 1. **Height:** stand straight and pick *Set Height Now* (Body section).
-2. **Comfort:** *Turning* (smooth, or snap 30/45/90 degrees), *Turn Speed*, *Move Towards* (head or off hand), and
+2. **Comfort:** *Turning* (smooth, or snap 30/45/90 degrees), *Turn Speed*, *Move Towards* (head or the moving stick's hand), *Swap Stick Functions*, and
    *Teleport*.
 3. **Weapons:** if guns don't point where your controller points, adjust *Gun Angle* and *Off Hand Angle*. *Weapon
    Grip* set to *Sticky* keeps weapons in your hand without holding the grip.

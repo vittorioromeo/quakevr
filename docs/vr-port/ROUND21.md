@@ -19118,3 +19118,33 @@ His notes vrfiringrange_2026-10-01_16-41-40, _16-42-00 (a backpack thrown high n
   The crowbar's hook at 9.1 m/s: batted (weapon threshold 34, 10 alike). A running chainsaw's chain cutting into a dud
   falling past the bar: set off ("a running chainsaw"); its rear handle's pommel strike (19.1 m/s) had too, before
   the pommel was left out of the rule. Melee canary: no differences.
+
+## Handedness: separate options (2026-10-01)
+
+Note vrfiringrange_2026-10-01_23-08-48: no explicit left-handed mode; each thing it did is its own option. His decision:
+the Main Hand / Left Handed setting is gone (no preset). What `vr_lefthanded 1` did, all of it (the hands themselves were
+already the physical ones: the IK, drawing, buttons and the torch's buttons never depended on it):
+
+| What | New setting (default) | Menu |
+|---|---|---|
+| which stick moves (and, Move Towards: Hand, whose pointing steers); the other turns | `vr_stick_swap` 0 (1: the right moves) | VR Settings > Swap Stick Functions |
+| the wrist gadget's arm (was relative: `vr_gadget_hand` 0 the off hand's) | `vr_gadget_arm` 0 left (1 right) | VR Settings > Body and Display > Wrist Gadget Arm; Wrist Gadget > Arm |
+| the torch's hip on the belt | `vr_flashlight_side` 0 left (1 right) | VR Settings > Body and Display > Flashlight Side; Flashlight > Side |
+| VR Calibration's third step (raise the main hand) | removed: height, then body | the room's wall buttons: SWAP STICKS, GADGET ARM, TORCH SIDE |
+
+Migration (`hands::migrateHandedness`, after the config runs and each frame for the console): `vr_lefthanded` and
+`vr_gadget_hand` are kept as unsaved, empty settings; a value in either is moved (`vr_lefthanded 1` gives stick swap,
+right arm, right hip; `vr_gadget_hand 1` flips the arm, as it was relative to the moving stick's hand), printed
+(`VR: vr_lefthanded 1, vr_gadget_hand 0 is now ...`) and emptied. A motion take's `vr_lefthanded` (settings line or the
+old "dominant hand") plays as `vr_stick_swap`; new takes write "moving stick". Move Towards' second choice reads "Hand".
+
+The calibration room (make_vrcalibration_map.py, rebuilt): the west panels hold 7 buttons each, 56 apart (SWAP STICKS
+with the moving ones; GADGET ARM and TORCH SIDE replace MAIN HAND); the boards name them. `vr_menu_path_check
+maps/vrcalibration.map`: 13 found, 0 missing.
+
+Tests (mock, vrcalibration): defaults: left stick y moves 104 units, right x turns, right y nothing; `vr_stick_swap 1`:
+right y moves, right x strafes, gadget and torch stay put. `vr_gadget_arm 1` puts the gadget by the right hand (6 units
+from it, was 8 from the left); `vr_flashlight_side 1` moves the lamp to the right of the hands' middle (-1.3 to +1.1
+along the right). A config of his with `vr_lefthanded "1"` loads as swap 1, arm 1, side 1: the right stick moves, the left
+turns, the gadget at x +11.1 and the lamp at +1.23 (mirrors of the right-handed -10.7, -1.23). flashbuttons: the same
+holding-hand buttons with all three on either side.

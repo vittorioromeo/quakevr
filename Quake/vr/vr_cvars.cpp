@@ -4,6 +4,7 @@
 #include "vr_body.hpp"
 #include "vr_bodycal.hpp"
 #include "vr_engine.hpp"
+#include "vr_hands.hpp"
 #include "vr_props.hpp"
 #include "vr_weapons.hpp"
 
@@ -276,6 +277,7 @@ void migrateConfig_f()
 void migrateConfig()
 {
     bodycal::migrate(); // round 21's arm settings, whatever the version (they are moved, not changed in place)
+    hands::migrateHandedness(); // vr_lefthanded, vr_gadget_hand: the separate side settings, whatever the version
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "new"))
     {
         Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));

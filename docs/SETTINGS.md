@@ -22,7 +22,7 @@ Advanced VR Options, then the pages in the order listed below; `menu_vr list` pr
 **Using the menus:** point with the laser from your hand and pull the trigger to click. Drag sliders with the
 trigger held. With the left stick (the off hand's), up and down move between rows, left and right change a value; A
 selects and B goes back. The right stick (the main hand's) only scrolls or moves between rows: it never changes a
-setting, so navigating can't change one by accident (with *Left Handed* on, the sticks swap). *Back to Game* is at the top left, or hold the menu button. Each setting shows a line
+setting, so navigating can't change one by accident (with *Swap Stick Functions* on, the sticks swap). *Back to Game* is at the top left, or hold the menu button. Each setting shows a line
 of help at the bottom when you select it. In the headset the menus are taller than on the desktop, so more rows show
 at once (Menu page > *Menu Height*, `vr_menu_height`: 1.35 times Quake's height, about 35 degrees up and down with
 the shipped menu distance and scale).
@@ -34,8 +34,8 @@ The main page has these sections:
 
 | Section | Settings |
 |---|---|
-| **Comfort** | Turning (smooth or snap 30/45/90), Turn Speed, Move Towards (head or off hand), Default Speed (run or walk), Stick Deadzone, Teleport and Teleport Range, Room Scale (real movement to game movement) |
-| **Body** | Left Handed, Height and *Set Height Now*, World Scale, Floor Offset, Chest Flashlight |
+| **Comfort** | Turning (smooth or snap 30/45/90), Turn Speed, Move Towards (head or the moving stick's hand), Swap Stick Functions, Default Speed (run or walk), Stick Deadzone, Teleport and Teleport Range, Room Scale (real movement to game movement) |
+| **Body** | Wrist Gadget Arm, Flashlight Side, Height and *Set Height Now*, World Scale, Floor Offset, Chest Flashlight |
 | **Weapons** | Gun Angle, Off Hand Angle, Weapon Grip (hold or sticky), Two-Handed (off, basic, virtual stock), *Weapon Offsets (Held Weapon)*, Two-Handed Hand-Off, Throw Speed, Throw Gravity (real or Quake), Force Grab, Haptics, Crosshair and its size |
 | **Display** | HUD (wrist gadget or status bar), Status Bar hand, HUD Scale, Menu Distance and Scale, Desktop Mirror (off, left eye, both eyes), Body (off, torso and arms, full body), Build, Torso, Legs and Shoulders offsets, Holster Models |
 | **Headset** | VR on or off, Restart VR, OpenXR Runtime, Render Scale, Upscaling (bilinear, FSR, NIS), Sharpness, Foveated Rendering (off, conservative, balanced, aggressive), Hide Lens Corners |
@@ -233,7 +233,9 @@ built-in ones.
 | `vr_height_calibration` | 1.646 | your height in metres (*Set Height Now*) |
 | `vr_world_scale` | 1.25 | size of the world around you |
 | `vr_floor_offset` | -21 | floor height |
-| `vr_lefthanded` | 0 | swap the main and off hands |
+| `vr_stick_swap` | 0 | 1: the right stick moves and the left turns (*Swap Stick Functions*, on the main VR Settings page) |
+| `vr_gadget_arm` | 0 | the wrist gadget's arm: 0 left, 1 right |
+| `vr_flashlight_side` | 0 | the hip the torch hangs on: 0 left, 1 right |
 | `vr_body_mode` | 3 (shipped) | 0 off, 2 torso and arms, 3 full body |
 | `vr_body_build` | 1 | 0 lean, 1 athletic, 2 brawny |
 | `vr_body_torso_back`, `vr_body_legs_back` | 0.07, 0.3 (shipped) | body placement, metres behind your head |

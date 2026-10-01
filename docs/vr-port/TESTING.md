@@ -30,8 +30,8 @@ headset on, or switching runtimes). `vr_enabled 0` is flat-screen play.
 
 Controller buttons are Quake keys (issue #12), so everything can be rebound from the console or Ironwail's
 bindings menu (press the controller button when asked for a key), aliases included. They reuse the gamepad key
-names **by role**: the main hand is the gamepad's right half, the off hand its left half, so `vr_lefthanded 1`
-needs no rebinding.
+names **by controller**: the main hand (the right controller) is the gamepad's right half, the off hand (the left) its
+left half. `vr_stick_swap 1` swaps only what the sticks do (the right one moves).
 
 | Control | Main hand key | Off hand key | Default binding (main / off) |
 |---|---|---|---|
