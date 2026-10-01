@@ -386,6 +386,15 @@ struct WristTurn
     return {twist, across > 1e-6f ? toPalm * bend * h.y / across : 0.f, across > 1e-6f ? bend * h.z / across : 0.f};
 }
 
+// vr_debug_arm 1: the swing's cost every 15 degrees from -180 (easeWrist), printed with the arm (traceArm).
+struct ArmCostTrace
+{
+    static constexpr int count = 24;
+    bool want = false;
+    float cost[count]{};
+};
+ArmCostTrace costTrace;
+
 // How far past a wrist's reach a turn is (0 within it; vr_body_wrist_limits scales the reach). A wrist's range is
 // lopsided: about 85 degrees of flexion and 80 of extension, 45 towards the little finger and 30 towards the thumb (a
 // hand gripping something rests in a little extension and ulnar deviation). The bend is measured against that range,
@@ -417,10 +426,12 @@ struct WristTurn
 // `up`, `outward` and `forward` are the chest's up, the clavicle's way out and the chest's forward, `upperArm` its
 // length. Crossing and rising count only past where the pole puts the elbow: an arm the pole already raises or crosses
 // (reaching up, or across the body) swings as before. Each costs 1 (as a 45 degree swing) 0.4 of the upper arm (10 cm)
-// past it, times `lift`; the torso four times that.
+// past it, times `lift`; the torso four times that. An elbow the pole spreads out to the side (`spread`, 0 .. 1:
+// solveArm) also costs for rising past where the pole puts it, across the chest or not.
 [[nodiscard]] float easeWrist(const glm::vec3& shoulder, const glm::vec3& wrist, const glm::vec3& elbow,
     const glm::vec3& bend, const glm::mat3& handRot, int side, float limits, float last, const glm::vec3& up,
-    const glm::vec3& outward, const glm::vec3& forward, float upperArm, float lift, float elbowRadius)
+    const glm::vec3& outward, const glm::vec3& forward, float upperArm, float lift, float elbowRadius,
+    float spread)
 {
     const glm::vec3 axis = safeNormalize(wrist - shoulder);
     const glm::vec3 centre = shoulder + axis * glm::dot(elbow - shoulder, axis);
@@ -440,7 +451,8 @@ struct WristTurn
             const glm::vec3 e = swung - shoulder;
             const float across = -glm::dot(e, outward);
             const float in = za::max(0.f, across - za::max(freeIn, za::max(0.f, glm::dot(e, forward)) * crossing)) / liftScale;
-            const float rise = za::max(0.f, glm::dot(e, up) - freeRise) / liftScale * CLAMP(0.f, across / liftScale, 1.f);
+            const float rise = za::max(0.f, glm::dot(e, up) - freeRise) / liftScale *
+                               za::max(spread, CLAMP(0.f, across / liftScale, 1.f));
             const float inside = selfcollide::elbowDepth(swung, elbowRadius) / liftScale;
             c += lift * (rise * rise + in * in + 4.f * inside * inside);
         }
@@ -479,6 +491,13 @@ struct WristTurn
         found = best;
         return cost(best);
     };
+    if(costTrace.want)
+    {
+        for(int i = 0; i < ArmCostTrace::count; i++)
+        {
+            costTrace.cost[i] = cost(glm::radians(15.f * static_cast<float>(i - ArmCostTrace::count / 2)));
+        }
+    }
     float anywhere, nearby;
     const float anywhereCost = search(0.f, glm::radians(10.f), 15, anywhere);
     const float nearbyCost = search(last, glm::radians(2.f), 15, nearby);
@@ -543,6 +562,15 @@ void traceArm(const Body& b, int side, const glm::vec3& shoulder, const glm::vec
         return;
     }
     Con_Printf("arm %s\n", line);
+    if(costTrace.want)
+    {
+        Con_Printf("armcost %s", side == 0 ? "L" : "R");
+        for(const float c : costTrace.cost)
+        {
+            Con_Printf(" %.2f", c);
+        }
+        Con_Printf("\n");
+    }
     const glm::vec3 ts = trm(shoulder), te = trm(elbow), tw = trm(wrist), tf = tr(handRot[0]), tu = tr(-handRot[2]);
     Con_Printf("armT %s S %.4f %.4f %.4f E %.4f %.4f %.4f W %.4f %.4f %.4f F %.4f %.4f %.4f U %.4f %.4f %.4f\n",
         side == 0 ? "L" : "R", ts.x, ts.y, ts.z, te.x, te.y, te.z, tw.x, tw.y, tw.z, tf.x, tf.y, tf.z, tu.x, tu.y, tu.z);
@@ -677,7 +705,25 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     glm::vec3 bend;
     const glm::vec3 foreGuess = safeNormalize(wrist - twoBone(u.pos, wrist, a, l, bodyPole, lateral, bend), cFwd);
     const glm::vec3 thumbAcross = safeNormalize(handUp - foreGuess * glm::dot(handUp, foreGuess), handUp);
-    const glm::vec3 pole = bodyPole - thumbAcross * vr_body_elbow_hand.value;
+    glm::vec3 pole = bodyPole - thumbAcross * vr_body_elbow_hand.value;
+    float spreadBy = 0.f; // (easeWrist)
+
+    // A folded arm (the hand at the face or the chest) with the palm to the floor spreads the elbow out to the side,
+    // level with the forearm, as a person's does (wings), instead of standing the forearm up in front of the chest with
+    // the wrist bent back 70-80 degrees (within its reach, so nothing else moved it): the pole turns out, by
+    // vr_body_elbow_spread. Palm up (facing the face) or on its side (a guard), the pole is as before: the elbow tucked
+    // in, under the hand. Folded: the wrist within 0.65 of the arm's length of the shoulder, fading out by 0.8 (the hand
+    // out in front or at the side swings as before). Palm down: from 0.3 (a little past on its side) to 0.7 (45 degrees
+    // from flat).
+    if(const float spread = za::max(0.f, vr_body_elbow_spread.value); spread > 0.f && glm::length(handPose.forward) > 0.5f)
+    {
+        const float folded = CLAMP(0.f, (0.8f - glm::distance(wrist, u.pos) / (a + l)) / 0.15f, 1.f);
+        const glm::vec3 palm = side == 0 ? glm::cross(handPose.forward, handUp) : glm::cross(handUp, handPose.forward);
+        const float palmDown = CLAMP(0.f, (-glm::dot(safeNormalize(palm), UP) - 0.3f) / 0.4f, 1.f);
+        const glm::vec3 wings = (lateral - cUp * 0.35f) * glm::length(pole);
+        spreadBy = za::min(1.f, folded * palmDown * spread);
+        pole = glm::mix(pole, wings, spreadBy);
+    }
     glm::vec3 elbow = twoBone(u.pos, wrist, a, l, pole, lateral, bend);
 
     // The hand bone's axes: the drawn hand's (or, without one, the wrist's roll only).
@@ -693,11 +739,12 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     float(&lastSwivel)[2] = armEase.swivel;
     double(&lastSwivelTime)[2] = armEase.swivelTime;
     float swivel = 0.f;
+    costTrace.want = easeWrists && vr_debug_arm.value == 1.f;
     if(const float limits = easeWrists ? vr_body_wrist_limits.value : 0.f; limits > 0.f && glm::length(handPose.forward) > 0.5f)
     {
         const glm::vec3 axis = safeNormalize(wrist - u.pos);
         const float best = easeWrist(u.pos, wrist, elbow, bend, handRot, side, limits, lastSwivel[side], cUp, lateral, cFwd,
-            a, za::max(0.f, vr_body_elbow_lift.value), 0.03f * b.m2w);
+            a, za::max(0.f, vr_body_elbow_lift.value), 0.03f * b.m2w, spreadBy);
         const double now = realtime;
         const double since = lastSwivelTime[side] >= 0.0 ? CLAMP(0.0, now - lastSwivelTime[side], 0.1) : -1.0;
         swivel = since < 0.0 ? best
