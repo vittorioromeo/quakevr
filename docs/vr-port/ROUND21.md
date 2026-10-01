@@ -17096,3 +17096,34 @@ that channel. Mock: 30 gibbed enforcers, 2 to 5 heads with flies, each `misc/fly
   blasts 0 every time. The effect itself is kept: a head lying about still has its flies.
 - Test aid: `vr_test_spawn_dead 2` gibs the monster `impulse 241` puts (health + 100 damage); the Debug menu's "As a
   Corpse" row is a toggle (0/1), so 2 is console-only for now.
+
+## Box3D on the pool (2026-10-01)
+
+The author's note: run Box3D multithreaded on the game's thread pool, for more props. Box3D's step hands its tasks
+(`b3EnqueueTaskCallback` / `b3FinishTaskCallback`) to the pool (vr_box3d.cpp `enqueueStepTask`, `finishStepTask`):
+
+- **Hookup:** each task is a `jobs::Task` (new in vr_jobs.hpp: a task posted again and again without an allocation; a
+  world keeps `B3_MAX_TASKS` of them, `StepTasks`, an atomic index reset before each step). The stepping (main) thread
+  takes part: Box3D runs worker 0's share on it, and `finishStepTask` runs a task no worker has started yet. No other
+  synchronisation. A worker borrows the stepping thread's QuakeC VM (`qcvm`, `pr_global_struct` are thread-local) for
+  the callbacks (`shouldCollide`, `preSolve`), which only read; the grace's skip count is now a relaxed atomic.
+  `vr_debug_box3d 2` (prints from `preSolve`) and `vr_jobs_parallel 0` step on one thread.
+- **Settings** (Debug > Threads): `vr_box3d_threads 1` (Physics on Threads), `vr_box3d_workers 4` (Physics Threads: the
+  most threads, the main one included; 0 all), `vr_box3d_threads_bodies 150` (Physics Threads From: only while that many
+  bodies are awake, back to one thread under three quarters of it). `vr_physics_steptime`, `vr_physics_mtbench`.
+- **Deterministic:** `vr_physics_mtbench` hashes every body (place, turn, velocities, bit for bit) after 200-300 steps:
+  the same hash with 1, 2, 3, 4, 6, 8, 16 and 32 workers, for 10, 50, 100, 200, 500, 1000 and 2000 bodies, and the same
+  across `-jobs 1`, `-jobs 3` and the default pool. (In game, two runs of a scene never hash alike even single-threaded:
+  QC's random draws and the load's timing differ, so the game world can't be compared run to run.)
+- **Measured** (mock, `--exclusive`, ms a step, 4 sub-steps; a 32-thread CPU). The bench world (boxes on a floor, all
+  awake): 200 bodies 0.147 on one thread, 0.141 with 4, 0.135 with 8; 500: 0.36, 0.24, 0.22; 1000: 0.72, 0.39-0.43,
+  0.34; 2000: 1.49, 1.0, 0.88. 32 workers is always worse than 8. Box3D's own scheduler (tried, not kept) was as fast.
+  In game (physbench.sh, vrfiringrange, its props and the spawned ones, collapse / tossed; one thread vs 4 vs 8):
+  10 spawned (36 / 115 awake) 0.040 / 0.161 vs 0.072 / 0.174 vs 0.088 / 0.198; 50 (80 / 150 awake) 0.108 / 0.218 vs
+  0.120 / 0.199 vs 0.133 / 0.218; 100 (95 / 160) 0.122 / 0.231 vs 0.142 / 0.198 vs 0.160 / 0.219; 200 (141 / 195)
+  0.183 / 0.279 vs 0.180 / 0.224 vs 0.199 / 0.239; 400 (~250 awake, defaults) 0.334 vs 0.267. e1m1 (14 awake): 0.022
+  one thread, 0.021 with the defaults (one thread: under 150), 0.044 forced to 4.
+- **So:** Box3D's step is already cheap (a fifth of a millisecond for 200 props); handing a step out costs about as much
+  as it saves until ~150 bodies are awake, then 4 threads save 20-40%, and 2x from 1000. Hence the 150 threshold and the
+  cap of 4; the gain is in headroom for big piles, not today's maps. Melee canary unchanged; standing on props
+  (propstand2's stand test, threaded at any count) as the reference.

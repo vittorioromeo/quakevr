@@ -167,6 +167,48 @@ void Pool::post(detail::JobPtr<detail::Job> job)
     impl->threads->post([job = ZA_MOVE(job)] { job->claimAndRun(); });
 }
 
+// ----------------------------------------------------------------------------
+
+// The Task's job, kept by the Task's own reference (never deleted by the pool). A post whose job the waiter ran leaves its
+// pool task queued: it finds the job claimed and does nothing, or, if the Task was posted again meanwhile, runs that
+// post (the later pool task then finds it claimed): one run a post either way.
+struct Task::Job final : detail::Job
+{
+    void (*fn)(void*){nullptr};
+    void* context{nullptr};
+
+    void execute() override
+    {
+        fn(context);
+    }
+};
+
+Task::Task() : job{new Job}
+{
+    job->phase.storeRelaxed(2); // (idle: nothing posted)
+}
+
+Task::~Task()
+{
+    wait();
+}
+
+void Task::post(Pool& pool, void (*fn)(void*), void* context)
+{
+    ZA_ASSERT(job->phase.loadAcquire() == 2);
+    job->fn = fn;
+    job->context = context;
+    job->phase.storeRelease(0);
+    pool.post(detail::JobPtr<detail::Job>{job});
+}
+
+void Task::wait() noexcept
+{
+    job->wait();
+}
+
+// ----------------------------------------------------------------------------
+
 void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel)
 {
     if(count == 0)

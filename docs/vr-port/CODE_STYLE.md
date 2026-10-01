@@ -100,8 +100,11 @@ A task owns what it touches: its job's copy of the data (`ao`'s `PoseJob`), loca
 helper also runs on the main thread (`decals`'s atlas RNG). Registered sets are the main thread's alone (`mem::on` and
 the reports walk them there), and so are the console, the profiler's scopes and the engine's globals: nothing a task
 runs prints or profiles. Results come back through the owner's queue under its mutex (`ao`'s `BakeQueue`,
-`imgprefetch`'s items) or a `jobs::Future` (`motion`'s saves, `decals`'s atlas). Box3D steps with one worker (the
-caller's), so its callbacks run on the main thread.
+`imgprefetch`'s items) or a `jobs::Future` (`motion`'s saves, `decals`'s atlas). Box3D's step may run on the pool
+(`vr_box3d_threads`; ROUND21.md, "Box3D on the pool"): its callbacks (`shouldCollide`, `preSolve` and what they call)
+then run on workers, with the stepping thread's QuakeC VM lent (`qcvm` and `pr_global_struct` are thread-local). They
+only read the entities and the world's state, count with an atomic, and never print (`vr_debug_box3d 2` steps on one
+thread).
 
 ## GL objects
 
