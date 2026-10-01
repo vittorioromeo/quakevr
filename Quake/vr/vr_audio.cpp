@@ -75,6 +75,7 @@ Features featuresFromCvars()
     f.doppler = za::clamp(vr_snd_doppler.value, 0.f, 4.f);
     f.nearfield = za::clamp(vr_snd_nearfield.value, 0.f, 2.f);
     f.unitsPerMetre = units::metresToUnits();
+    f.rate = VR_SndRate();
     return f;
 }
 
@@ -354,6 +355,7 @@ void Mixer::prepare(Voice& v, const Listener& l, const Features& f) const
         const float vl = za::clamp(glm::dot(l.vel, dir) * f.doppler, -0.5f * c, 0.5f * c);
         v.dopplerTarget = za::clamp((c + vl) / (c + vs), 0.5f, 2.f);
     }
+    v.dopplerTarget *= f.rate; // slow motion: read slower (lower), the rate eased as the Doppler's
 
     v.closeness = f.nearfield > 0.f ? za::clamp((1.f - metres) / 0.9f, 0.f, 1.f) * f.nearfield : 0.f;
 
@@ -1089,7 +1091,10 @@ void selectVoices(int time)
         double pos = ch->pos;
         if(!L.fresh[c])
         {
-            pos = static_cast<double>(sc->length - (ch->end - time));
+            // (Slow motion: Quake painted it at VR_SndRate's rate, its end in output samples; snd_mix.c.)
+            const float rate = VR_SndRate();
+            pos = rate == 1.f ? static_cast<double>(sc->length - (ch->end - time))
+                              : static_cast<double>(sc->length) - static_cast<double>(ch->end - time) * rate;
             if(pos >= sc->length && sc->loopstart >= 0 && sc->loopstart < sc->length)
             {
                 pos = sc->loopstart + za::fmod(pos - sc->length, static_cast<double>(sc->length - sc->loopstart));
@@ -1827,7 +1832,7 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
         const double pos = L.mixer.position(v);
         ch->pos = static_cast<int>(pos);
         const int length = sc ? sc->length : ch->pos;
-        ch->end = renderedEnd + static_cast<int>((length - pos) / za::max(0.5f, L.mixer.dopplerFactor(v)));
+        ch->end = renderedEnd + static_cast<int>((length - pos) / za::max(0.01f, L.mixer.dopplerFactor(v)));
     }
 
     for(int i = 0; i < remain; i++)

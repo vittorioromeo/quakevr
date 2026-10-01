@@ -441,7 +441,7 @@ struct State
     // Round 21: each hand's grip, flipped with its B/Y while held away from a gun: the low grip (false: the beam out of
     // the thumb's side) or the overhead one (true: out of the little finger's side). Set as it is taken (chooseGrip).
     bool overhead[2]{};
-    double flipAt[2]{-10.0, -10.0}; // realtime each hand's last flip began (its spin: flipTime)
+    double flipAt[2]{-10.0, -10.0}; // vr_gametime each hand's last flip began (its spin: flipTime)
 
     // Round 21, what a deliberate press is (intent): per hand, for the grip [0] and the trigger [1], since when the
     // analog value has been under openBelow (-1: it is not) and when it last was; and until when the hand counts as
@@ -528,7 +528,7 @@ struct BeamTrace
 {
     glm::vec3 from{0.f}, to{0.f};
     float reach{0.f};
-    double time{-1.0}; // realtime it was traced (-1: never)
+    double time{-1.0}; // vr_gametime it was traced (-1: never)
 };
 BeamTrace beamTraces[beamRings][beamSides];
 
@@ -658,7 +658,7 @@ struct GripAdjust
 
 [[nodiscard]] Pose handPose(const hands::State& s, int hand)
 {
-    return handPoseTurned(s, hand, turnedAt(hand, realtime));
+    return handPoseTurned(s, hand, turnedAt(hand, vr_gametime));
 }
 
 // Round 21, the author's tuning notes: a grip's fingers on the torch (vr_flashlight_low_* or _high_*), as a weapon's.
@@ -934,10 +934,10 @@ void noteIntent(const hands::State& s)
             {
                 if(st.openSince[hand][k] < 0.0)
                 {
-                    st.openSince[hand][k] = realtime;
+                    st.openSince[hand][k] = vr_gametime;
                 }
                 st.openFrom[hand][k] = st.openSince[hand][k];
-                st.openUntil[hand][k] = realtime;
+                st.openUntil[hand][k] = vr_gametime;
             }
             else
             {
@@ -946,16 +946,16 @@ void noteIntent(const hands::State& s)
         }
         // Fast by the runtime's velocity, or by where it is drawn from frame to frame (a jump: a teleport, the
         // tracking regained, a recorded take starting with the hand already somewhere).
-        const float dt = static_cast<float>(realtime - st.lastPosTime);
+        const float dt = static_cast<float>(vr_gametime - st.lastPosTime);
         const bool jumped = st.lastPosTime >= 0.0 && dt > 0.f && dt < 0.25f &&
                             glm::distance(s.pos[hand], st.lastPos[hand]) / units::metresToUnits() >= slowSpeed * za::max(dt, 1.f / 90.f);
         if(s.valid && (glm::length(s.vel[hand]) >= slowSpeed || jumped))
         {
-            st.fastUntil[hand] = realtime + fastHold;
+            st.fastUntil[hand] = vr_gametime + fastHold;
         }
         st.lastPos[hand] = s.pos[hand];
     }
-    st.lastPosTime = s.valid ? realtime : -1.0;
+    st.lastPosTime = s.valid ? vr_gametime : -1.0;
 }
 
 // Whether a press of `b` by `hand` is deliberate (see noteIntent): the hand still, and for the grip and the trigger,
@@ -963,7 +963,7 @@ void noteIntent(const hands::State& s)
 [[nodiscard]] bool deliberate(int hand, Button b)
 {
     const hands::State& s = hands::current();
-    const bool still = realtime >= st.fastUntil[hand] && (!s.valid || glm::length(s.vel[hand]) < slowSpeed);
+    const bool still = vr_gametime >= st.fastUntil[hand] && (!s.valid || glm::length(s.vel[hand]) < slowSpeed);
     if(!still)
     {
         Con_DPrintf("torch press ignored: the %s hand moving\n", hand == HAND_MAIN ? "main" : "off");
@@ -974,7 +974,7 @@ void noteIntent(const hands::State& s)
         return true;
     }
     const int k = b == Button::Grip ? 0 : 1;
-    const bool opened = st.openUntil[hand][k] - st.openFrom[hand][k] >= openFor && realtime - st.openUntil[hand][k] <= squeezeWithin;
+    const bool opened = st.openUntil[hand][k] - st.openFrom[hand][k] >= openFor && vr_gametime - st.openUntil[hand][k] <= squeezeWithin;
     if(!opened)
     {
         Con_DPrintf("torch press ignored: the %s hand's %s not from an open hand\n", hand == HAND_MAIN ? "main" : "off",
@@ -1172,7 +1172,7 @@ void chooseGrip(int hand)
     bool overhead = true;
     const char* why = "from the belt";
     const bool passed = st.mode == Mode::Held ||
-                          (st.mode == Mode::Returning && st.releasedBy == 1 - hand && realtime - st.releasedAt < catchWindow);
+                          (st.mode == Mode::Returning && st.releasedBy == 1 - hand && vr_gametime - st.releasedAt < catchWindow);
     if(st.mode == Mode::OnHead || st.mode == Mode::OnGun || passed)
     {
         const hands::State& s = hands::current();
@@ -1214,7 +1214,7 @@ void handOver(const hands::State& s, int hand)
     const Pose to = handPose(s, hand);
     const glm::quat inv = glm::inverse(to.rot);
     st.handOverFrom = {inv * (from.pos - to.pos), glm::normalize(inv * from.rot)};
-    st.handOverAt = realtime;
+    st.handOverAt = vr_gametime;
     haptic(hand, 0.05f, 0.45f);
 }
 
@@ -1224,8 +1224,8 @@ void letGo(const hands::State& s, const Pose& mount)
     st.mode = Mode::Returning;
     st.holder = -1;
     st.releasedBy = hand;
-    st.releasedAt = realtime;
-    st.flightStart = realtime;
+    st.releasedAt = vr_gametime;
+    st.flightStart = vr_gametime;
     st.flightOffset = st.pose.pos - mount.pos;
     st.flightRot = st.pose.rot;
     st.flightVel = glm::vec3{0.f};
@@ -1249,10 +1249,10 @@ void letGo(const hands::State& s, const Pose& mount)
 void flip(int hand)
 {
     // A flip during a flip turns back from where the spin is.
-    const float was = turnedAt(hand, realtime);
+    const float was = turnedAt(hand, vr_gametime);
     st.overhead[hand] = !st.overhead[hand];
     const float remaining = st.overhead[hand] ? 1.f - was : was; // of the way still to go, eased
-    st.flipAt[hand] = realtime - flipTime * (1.f - remaining);
+    st.flipAt[hand] = vr_gametime - flipTime * (1.f - remaining);
     Con_DPrintf("flashlight: %s grip in the %s hand\n", st.overhead[hand] ? "overhead" : "low", hand == HAND_MAIN ? "main" : "off");
     sound("vr/flashlight_flip.wav", glm::vec3{0.f});
     haptic(hand, 0.025f, 0.3f);
@@ -1434,10 +1434,10 @@ void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float
             const glm::vec3 to = from + beam.around[j] * (beam.radius[i] * beamLookPast);
             BeamTrace& t = beamTraces[i][j];
             const float still = za::max(0.1f, 0.01f * glm::distance(from, to));
-            if(!quality.reuse || t.time < 0.0 || realtime - t.time > reuseSeconds || realtime < t.time ||
+            if(!quality.reuse || t.time < 0.0 || vr_gametime - t.time > reuseSeconds || vr_gametime < t.time ||
                glm::distance(from, t.from) > still || glm::distance(to, t.to) > still)
             {
-                t = {from, to, beamLookPast * worldtrace::line(from, to), realtime};
+                t = {from, to, beamLookPast * worldtrace::line(from, to), vr_gametime};
             }
             beam.reach[i][j] = t.reach;
         }
@@ -1492,8 +1492,8 @@ void lightBeam(const Pose& p)
         tr.emplace(worldtrace::world(start, lens + dir * range));
     }
     const float target = 0.5f + (range - 0.5f) * tr->fraction;
-    const float dt = static_cast<float>(za::clamp(realtime - st.beamTime, 0.0, 0.1));
-    st.beamTime = realtime;
+    const float dt = static_cast<float>(za::clamp(vr_gametime - st.beamTime, 0.0, 0.1));
+    st.beamTime = vr_gametime;
     st.beamLength = st.beamLength < 0.f ? target : st.beamLength + (target - st.beamLength) * (1.f - za::exp(-dt * 8.f));
 
     shapeBeam(p, lens, dir, st.beamLength, warm * za::max(0.f, vr_flashlight_brightness.value));
@@ -1728,7 +1728,7 @@ void probe_f()
         Con_Printf("torchprobe %s %s lit %d drawn %d at %d game %d hotspot %d empty %d still %d\n", tag,
             hand == HAND_MAIN ? "main" : "off", st.hovered[hand] ? 1 : 0, st.drawnAt[hand] ? 1 : 0, at ? 1 : 0,
             at && !reachesLamp(s, hand) ? 1 : 0, static_cast<int>(s.hotspot[hand]), handEmpty(hand) ? 1 : 0,
-            realtime >= st.fastUntil[hand] ? 1 : 0);
+            vr_gametime >= st.fastUntil[hand] ? 1 : 0);
     }
     if(developer.value)
     {
@@ -1848,7 +1848,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     if(st.mode == Mode::Held)
     {
         p = handPose(s, st.holder);
-        if(const float k = static_cast<float>(realtime - st.handOverAt) / handOverTime; k < 1.f)
+        if(const float k = static_cast<float>(vr_gametime - st.handOverAt) / handOverTime; k < 1.f)
         {
             // Just passed over: from where it was in the other hand, onto this one's grip (relative to it, so it
             // follows the hand as it eases in).
@@ -1903,7 +1903,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     {
         // Critically damped: x(t) = (x0 + (v0 + w x0) t) e^(-w t), relative to the (moving) mount.
         const float w = returnOmega;
-        const float t = static_cast<float>(realtime - st.flightStart);
+        const float t = static_cast<float>(vr_gametime - st.flightStart);
         const float decay = za::exp(-w * t);
         const glm::vec3 x = (st.flightOffset + (st.flightVel + w * st.flightOffset) * t) * decay;
         p.pos = mount.pos + x;
@@ -2262,7 +2262,7 @@ bool button(int hand, Button b, bool pressed)
             return true;
         }
         // Caught on its way home just after the other hand let it go: passed over, not taken afresh.
-        if(st.mode == Mode::Returning && st.releasedBy == 1 - hand && realtime - st.releasedAt < catchWindow)
+        if(st.mode == Mode::Returning && st.releasedBy == 1 - hand && vr_gametime - st.releasedAt < catchWindow)
         {
             handOver(s, hand);
             swallowed = true;
@@ -2355,7 +2355,7 @@ bool heldPlace(const hands::State& s, int hand, glm::vec3& origin, glm::vec3& an
     }
     // While it spins over, the grasp holds the grip it had (solved once, not chased through the turn); at the end
     // it is solved for the new one and blends to it (vr_hand_fit_blend).
-    const bool spinning = realtime - st.flipAt[hand] < flipTime;
+    const bool spinning = vr_gametime - st.flipAt[hand] < flipTime;
     const Pose p = spinning ? handPoseTurned(s, hand, st.overhead[hand] ? 0.f : 1.f) : handPose(s, hand);
     const glm::mat3 m = glm::mat3_cast(p.rot);
     const glm::vec3 a = hands::anglesFromVectors(m[0], m[2]);
@@ -2372,10 +2372,10 @@ bool fingers(int hand, Fingers& out)
     }
     // The grip the grasp is solved for (heldPlace: while it spins over, the one it had) sets the fingers; the tweaks and
     // the thumb's place go from one grip's to the other's as it turns, as the curls ease (vr_finger_blending_speed).
-    const bool spinning = realtime - st.flipAt[hand] < flipTime;
+    const bool spinning = vr_gametime - st.flipAt[hand] < flipTime;
     const bool overhead = spinning ? !st.overhead[hand] : st.overhead[hand];
     out = gripFingers(overhead);
-    const float turned = turnedAt(hand, realtime);
+    const float turned = turnedAt(hand, vr_gametime);
     const Fingers lo = gripFingers(false), hi = gripFingers(true);
     for(int f = 0; f < 5; f++)
     {

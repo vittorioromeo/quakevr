@@ -23,6 +23,7 @@
 #include "vr_lines.hpp"
 #include "vr_limits.hpp"
 #include "vr_text3d.hpp"
+#include "vr_timescale.hpp"
 #include "vr_torso.hpp"
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
@@ -1188,6 +1189,7 @@ extern "C" void VR_Init()
     allocsites::registerCommands(); // vr_alloc_sites
     Cmd_AddCommand("vr_debug_crash", VR_DebugCrash_f);
     lighting::init();
+    timescale::init(); // vr_slowmo
     Cvar_SetCallback(&vr_map_liquid_alpha, [](cvar_t*) { R_UpdateLiquidAlpha(); }); // gl_rmisc.c: the liquids' alphas again
     envmap::init(); // vr_envmap_dump
     profile::init();
@@ -1251,6 +1253,7 @@ extern "C" void VR_BeginFrame()
         motion::afterTracking(state->tracking, state->frame); // the recorder's copy; a playback's poses
         // The runtime's angular velocity into the tracking space (a take's too: it holds the runtime's numbers).
         angvel::fix(state->tracking, motion::playing() ? motion::playSource() : state->backend->runtimeName());
+        timescale::filterHands(state->tracking); // slow motion: the hands slowed with the world (not the head)
     }
 
     sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared

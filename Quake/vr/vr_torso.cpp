@@ -173,11 +173,11 @@ float estimate(const hands::State& s, float headYaw, float turnYaw, bool handsVa
     }
 
     const float head = yawDelta(headYaw, turnYaw);
-    const double dtRaw = est.valid ? realtime - est.time : -1.0;
+    const double dtRaw = est.valid ? vr_gametime - est.time : -1.0;
     const bool restart = dtRaw < 0.0 || dtRaw > 0.5; // first, or after a pause (a load, the menu): from the head
     const float dt = restart ? 0.f : static_cast<float>(dtRaw);
     est.head = head;
-    est.time = realtime;
+    est.time = vr_gametime;
 
     // The head, and where it has faced lately.
     const float lag = vr_torso_head_lag.value;
@@ -241,7 +241,7 @@ void reset()
 void report_f()
 {
     const char* label = Cmd_Argc() >= 2 ? Cmd_Argv(1) : "";
-    Con_Printf("torso %s (t %.2f): head %.1f old %.1f new %.1f\n", label, realtime, est.head, est.legacy, est.yaw);
+    Con_Printf("torso %s (t %.2f): head %.1f old %.1f new %.1f\n", label, vr_gametime, est.head, est.legacy, est.yaw);
     Con_Printf("torso+ target %.1f hist %.1f hands %.1f weight %.2f (off %.2f main %.2f both %.2f down %.2f)\n", est.target,
         est.headHistory, est.handsDir, est.handsWeight, est.weight[0], est.weight[1], est.both, est.down);
 }

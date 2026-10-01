@@ -128,7 +128,7 @@ struct WeaponHotspot
 // The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,
 // up) -- rigid; the model's vertices go in it as the view draws them (mirrored, then weapons::ModelTransform). For the
-// held weapons' bodies in Box3D (vr_box3d.cpp: they push props). `when`: realtime it was drawn; model nullptr: none.
+// held weapons' bodies in Box3D (vr_box3d.cpp: they push props). `when`: vr_gametime it was drawn; model nullptr: none.
 struct DrawnWeapon
 {
     const qmodel_t* model{nullptr};

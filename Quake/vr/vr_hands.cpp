@@ -384,7 +384,7 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
 void updateVelocities(const TrackingState* t)
 {
     const float u2m = 1.f / units::metresToUnits();
-    const double dt = previous.valid ? realtime - previous.time : 0.0;
+    const double dt = previous.valid ? vr_gametime - previous.time : 0.0;
     // Recomputed within the same frame (a turn, a server yaw): keep the frame's velocities.
     const auto differenced = [&](const glm::vec3& now, const glm::vec3& before, const glm::vec3& same) {
         if(!previous.valid)
@@ -423,7 +423,7 @@ void updateVelocities(const TrackingState* t)
         // On the runtime's clock when it has one: the release is timed on it too. Throws go with
         // the palm, where the object is held, not the controller point further out; and with the
         // controller alone, whatever the hand calibration (see throwFrame).
-        const double time = t && t->time >= 0.0 ? t->time : realtime;
+        const double time = t && t->time >= 0.0 ? t->time : vr_gametime;
         glm::vec3 throwVel = state.vel[h];
         glm::vec3 throwForward = forward(state.rot[h]);
         glm::vec3 throwSpin = state.angVel[h];
@@ -441,7 +441,7 @@ void updateVelocities(const TrackingState* t)
     }
 
     previous.head = head;
-    previous.time = realtime;
+    previous.time = vr_gametime;
     previous.valid = true;
 }
 
@@ -745,7 +745,7 @@ void setPlaySpaceYaw(float yaw)
 
 void refresh()
 {
-    stateFrame = -1; // the velocities are kept (the same realtime: updateVelocities)
+    stateFrame = -1; // the velocities are kept (the same vr_gametime: updateVelocities)
 }
 
 void setLean(const glm::vec3& worldLean)

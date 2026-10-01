@@ -29,7 +29,7 @@ bool current[2]{false, false};
 float spinLeft[2]{0.f, 0.f};                            // degrees of the visual spin still to go
 glm::vec3 restUp[2]{glm::vec3{0.f, 0.f, 1.f}, glm::vec3{0.f, 0.f, 1.f}}; // hand's up while still
 double lastTime = -1.0;     // cl.time of the last detection
-double lastSpinTime = -1.0; // realtime of the last spin step: every rendered frame, smoothly
+double lastSpinTime = -1.0; // vr_gametime of the last spin step: every rendered frame, smoothly
 
 [[nodiscard]] bool canFlick(int hand)
 {
@@ -47,8 +47,8 @@ void update(hands::State& s)
 {
     const bool newFrame = cl.time != lastTime;
     lastTime = cl.time;
-    const float spinDt = lastSpinTime >= 0.0 ? static_cast<float>(CLAMP(0.0, realtime - lastSpinTime, 0.1)) : 0.f;
-    lastSpinTime = realtime;
+    const float spinDt = lastSpinTime >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - lastSpinTime, 0.1)) : 0.f;
+    lastSpinTime = vr_gametime;
 
     for(int h = 0; h < HAND_COUNT; h++)
     {

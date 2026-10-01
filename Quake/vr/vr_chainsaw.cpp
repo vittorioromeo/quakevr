@@ -75,10 +75,10 @@ struct State
 {
     int holder{-1};           // the hand holding a cord (the chainsaw is in the other), -1 none
     bool armed{true};         // a pull may come (the hand came back since the last)
-    double pulledUntil{-1.0}; // the move says "pulled" until then (realtime)
+    double pulledUntil{-1.0}; // the move says "pulled" until then (vr_gametime)
     int pulledBy{-1};         // which hand pulled
     float peakSpeed{0.f};     // m/s along the cord, the most in the last frames (a crossing between frames)
-    double retractFrom{-1.0}; // the handle flying back since then (realtime; -1 not)
+    double retractFrom{-1.0}; // the handle flying back since then (vr_gametime; -1 not)
     int retractHand{-1};      // the chainsaw's hand it flies back to
     glm::vec3 retractStart{0.f};
     glm::vec3 handlePos{0.f}, handleAxis{0.f, 0.f, 1.f}; // drawn this frame (world)
@@ -89,8 +89,8 @@ struct State
     int lastFrame{-1};               // the frame setupView last ran in (once a frame)
     double smokeTime{-1.0};          // cl.time the exhaust's smoke was last made at (-1: not yet)
     float smokeDue[2]{0.f, 0.f};     // each hand's chainsaw's puffs due (a share of one carried on)
-    double shakePrinted{-1.0};       // vr_debug_chainsaw's last shake line (realtime)
-    double pullKickAt[2]{-1.0, -1.0}; // each hand's chainsaw's last pull's kick (realtime; -1 none): it shakes after it
+    double shakePrinted{-1.0};       // vr_debug_chainsaw's last shake line (vr_gametime)
+    double pullKickAt[2]{-1.0, -1.0}; // each hand's chainsaw's last pull's kick (vr_gametime; -1 none): it shakes after it
     float pullKick[2]{0.f, 0.f};      // how hard (1 a good pull, weakPullShare a weak one)
 };
 State st;
@@ -267,7 +267,7 @@ void pullFeedback(int sawHand, float share)
         }
         return;
     }
-    st.pullKickAt[sawHand] = realtime;
+    st.pullKickAt[sawHand] = vr_gametime;
     st.pullKick[sawHand] = share;
     glm::vec3 at, dir;
     exhaustOf(*ve, at, dir);
@@ -289,7 +289,7 @@ void pullFeedback(int sawHand, float share)
 [[nodiscard]] float pullShakeMm(int hand)
 {
     const float time = vr_chainsaw_pull_shake_time.value;
-    const float since = static_cast<float>(realtime - st.pullKickAt[hand]);
+    const float since = static_cast<float>(vr_gametime - st.pullKickAt[hand]);
     if(st.pullKickAt[hand] < 0.0 || time <= 0.f || since < 0.f || since >= time)
     {
         return 0.f;
@@ -314,7 +314,7 @@ void fistOf(const hands::State& s, int hand, glm::vec3& point, glm::vec3& dir)
 
 void letGo(int sawHand, const glm::vec3& from)
 {
-    st.retractFrom = realtime;
+    st.retractFrom = vr_gametime;
     st.retractHand = sawHand;
     st.retractStart = from;
     st.holder = -1;
@@ -409,7 +409,7 @@ za::U8 moveBits()
     {
         bits |= bitMainHolds;
     }
-    if(realtime < st.pulledUntil)
+    if(vr_gametime < st.pulledUntil)
     {
         bits |= st.pulledBy == HAND_OFF ? bitOffPulled : bitMainPulled;
     }
@@ -502,13 +502,13 @@ void shake(int hand, glm::vec3& pos, glm::vec3& angles)
     {
         return;
     }
-    const float t = static_cast<float>(za::fmod(realtime, 1000.0));
+    const float t = static_cast<float>(za::fmod(vr_gametime, 1000.0));
     const float amount = mm * 0.001f * units::metresToUnits();
     pos = glm::vec3{buzz(t, hand, 0), buzz(t, hand, 1), buzz(t, hand, 2)} * amount;
     angles = glm::vec3{buzz(t, hand, 3), buzz(t, hand, 4), buzz(t, hand, 5)} * (mm * shakeDegPerMm);
-    if(vr_debug_chainsaw.value && realtime - st.shakePrinted >= 0.5)
+    if(vr_debug_chainsaw.value && vr_gametime - st.shakePrinted >= 0.5)
     {
-        st.shakePrinted = realtime;
+        st.shakePrinted = vr_gametime;
         Con_Printf("chainsaw: %s hand shakes %.2f mm (two-handed %.2f), now %.3f mm %.3f deg\n",
             hand == HAND_MAIN ? "main" : "off", mm, two, glm::length(pos) / units::metresToUnits() * 1000.f,
             glm::length(angles));
@@ -543,7 +543,7 @@ void setupView(const hands::State& s)
         st.armed = true;
         cord.hide();
     }
-    if(st.retractFrom >= 0.0 && (!st.sawDrawn[st.retractHand] || realtime - st.retractFrom > retractTime))
+    if(st.retractFrom >= 0.0 && (!st.sawDrawn[st.retractHand] || vr_gametime - st.retractFrom > retractTime))
     {
         st.retractFrom = -1.0;
         st.retractHand = -1;
@@ -575,7 +575,7 @@ void setupView(const hands::State& s)
             st.armed = false;
             if(st.peakSpeed >= vr_chainsaw_pull_speed.value)
             {
-                st.pulledUntil = realtime + pullLatch;
+                st.pulledUntil = vr_gametime + pullLatch;
                 st.pulledBy = h;
                 debugLog("pulled", h, ext, st.peakSpeed);
                 pullFeedback(sawHand, 1.f);
@@ -609,7 +609,7 @@ void setupView(const hands::State& s)
     if(st.holder < 0 && st.retractFrom >= 0.0)
     {
         // Flying back: along the cord into its seat.
-        const float t = static_cast<float>(za::clamp((realtime - st.retractFrom) / retractTime, 0.0, 1.0));
+        const float t = static_cast<float>(za::clamp((vr_gametime - st.retractFrom) / retractTime, 0.0, 1.0));
         st.handlePos = glm::mix(st.retractStart, st.seatWorld[sawHand], t * t);
         st.drawHandle = t < 1.f;
     }

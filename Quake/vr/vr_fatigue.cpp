@@ -127,7 +127,7 @@ float staminaLeft()
 
 float shakeLevel()
 {
-    if(levelAt == realtime)
+    if(levelAt == vr_gametime)
     {
         return level;
     }
@@ -142,8 +142,8 @@ float shakeLevel()
             target = za::pow(za::clamp((from - left) / from, 0.f, 1.f), growth);
         }
     }
-    const float dt = levelAt >= 0.0 ? static_cast<float>(za::clamp(realtime - levelAt, 0.0, 0.25)) : 1.f;
-    levelAt = realtime;
+    const float dt = levelAt >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - levelAt, 0.0, 0.25)) : 1.f;
+    levelAt = vr_gametime;
     level = target + (level - target) * za::exp(-dt / easeTime);
     if(za::fabs(level - target) < 1e-4f)
     {
@@ -161,16 +161,16 @@ void shake(int hand, glm::vec3& pos, glm::vec3& angles)
     {
         return;
     }
-    const float t = static_cast<float>(za::fmod(realtime, 1000.0)) * za::max(vr_fatigue_shake_speed.value, 0.f);
+    const float t = static_cast<float>(za::fmod(vr_gametime, 1000.0)) * za::max(vr_fatigue_shake_speed.value, 0.f);
     // Now stronger, now weaker (a tired arm's tremor comes in bouts).
     const float bout = lv * (0.75f + 0.25f * za::sin(glm::two_pi<float>() * 0.37f * t + 1.9f * static_cast<float>(hand)));
     const float cm = za::max(vr_fatigue_shake.value, 0.f) * 0.01f * units::metresToUnits() * bout;
     const float deg = za::max(vr_fatigue_shake_angle.value, 0.f) * bout;
     pos = glm::vec3{tremor(t, hand, 0), tremor(t, hand, 1), tremor(t, hand, 2)} * cm;
     angles = glm::vec3{tremor(t, hand, 3), tremor(t, hand, 4), tremor(t, hand, 5)} * deg;
-    if(vr_debug_fatigue.value && hand == 1 && realtime - printedAt >= 0.25)
+    if(vr_debug_fatigue.value && hand == 1 && vr_gametime - printedAt >= 0.25)
     {
-        printedAt = realtime;
+        printedAt = vr_gametime;
         Con_Printf("fatigue: stamina %.2f shake %.3f (bout %.3f) main off %.3f cm %.3f deg%s\n", staminaLeft(), lv, bout,
             glm::length(pos) / units::metresToUnits() * 100.f, glm::length(angles), climbing() ? " climbing" : "");
     }
@@ -235,9 +235,9 @@ extern "C" float VR_StaminaSpeedScale(edict_t* ent)
     const float most = za::max(1.f, vr_parry_stamina_max.value);
     const float left = on ? za::clamp(1.f - fieldFloatOr(ent, f.vr_stamina_used, 0.f) / most, 0.f, 1.f) : 1.f;
     const float scale = fatigue::speedScaleFor(left);
-    if(vr_debug_stamina_speed.value && (realtime - fatigue::speedPrintedAt >= 0.5 || realtime < fatigue::speedPrintedAt))
+    if(vr_debug_stamina_speed.value && (vr_gametime - fatigue::speedPrintedAt >= 0.5 || vr_gametime < fatigue::speedPrintedAt))
     {
-        fatigue::speedPrintedAt = realtime;
+        fatigue::speedPrintedAt = vr_gametime;
         Con_Printf("stamina speed: stamina %.2f cap %.0f (x%.3f) ground speed %.1f\n", left, sv_maxspeed.value * scale, scale,
             za::hypot(ent->v.velocity[0], ent->v.velocity[1]));
     }

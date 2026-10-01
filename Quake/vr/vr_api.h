@@ -62,6 +62,12 @@ double VR_HostFrameTime (double time);	// start of _Host_Frame: the frame's time
 							// it plays back, vr_motion_play: the same frames at any speed)
 int VR_ServerFrameOverride (double *frametime); // _Host_Frame: whether the server runs this frame: -1 as
 							// usual; 0 no; 1 yes, for *frametime seconds (a take's recorded server frames)
+// Slow motion (vr_timescale.cpp; ROUND21.md, "Slow motion").
+void VR_AdvanceTime (double dt);	// Host_AdvanceTime, after realtime: the time scale's ease, vr_gametime
+double VR_TimeScale (void);		// the game's time per real second: 1 unless slow motion (vr_timescale, single player)
+float VR_SndRate (void);		// the sounds' playback rate: VR_TimeScale with vr_timescale_sound, else 1
+extern double vr_gametime;		// realtime slowed by the time scale (equal to it until slow motion is first used):
+							// what VR's own client simulations step and time on
 void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
 
 // The frame cap (vr_sleep.cpp).

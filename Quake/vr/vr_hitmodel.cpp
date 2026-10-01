@@ -792,7 +792,7 @@ void record(edict_t* ent, const Drawn& d, const glm::vec3& a, const glm::vec3& b
         }
     }
     Event e;
-    e.when = realtime;
+    e.when = vr_gametime;
     e.hit = hit != nullptr;
     e.cls = c;
     e.num = NUM_FOR_EDICT(ent);
@@ -1195,7 +1195,7 @@ void debugDraw()
     {
         return;
     }
-    const double now = realtime;
+    const double now = vr_gametime;
     while(!events.empty() && (now - events.front().when > eventLife || now < events.front().when))
     {
         events.erase(events.begin());

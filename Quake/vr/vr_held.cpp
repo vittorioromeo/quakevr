@@ -708,7 +708,7 @@ void noteCarryProbe(int hand, edict_t* ent, const glm::vec3& at, float distance,
         return;
     }
     CarryProbe& p = carryProbes[hand];
-    p.time = realtime;
+    p.time = vr_gametime;
     p.at = at;
     p.nearest = nearest;
     p.distance = distance;
@@ -740,7 +740,7 @@ void drawCarryProbes()
     }
     for(const CarryProbe& p : carryProbes)
     {
-        if(p.time < 0.0 || realtime - p.time > 0.1)
+        if(p.time < 0.0 || vr_gametime - p.time > 0.1)
         {
             continue;
         }
@@ -1173,7 +1173,7 @@ void reset()
 [[nodiscard]] bool weaponBox(const hands::State& s, int h, Box& out)
 {
     const view::DrawnWeapon& d = view::drawnWeapon(h);
-    if(!d.model || d.when < 0.0 || realtime - d.when > 0.5 || !s.valid)
+    if(!d.model || d.when < 0.0 || vr_gametime - d.when > 0.5 || !s.valid)
     {
         return false;
     }

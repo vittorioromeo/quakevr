@@ -431,6 +431,7 @@ CHANNEL MIXING
 
 static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
 static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
+static void SND_PaintChannelRate (channel_t *ch, sfxcache_t *sc, int start, int end, float rate); // QVR
 
 void S_PaintChannels (int endtime)
 {
@@ -438,6 +439,8 @@ void S_PaintChannels (int endtime)
 	int		end, ltime, count;
 	channel_t	*ch;
 	sfxcache_t	*sc;
+
+	float	rate = VR_SndRate (); // QVR: slow motion: the sounds' playback rate (1 normal)
 
 	snd_vol = sfxvolume.value * 256;
 
@@ -465,6 +468,18 @@ void S_PaintChannels (int endtime)
 			sc = S_LoadSound (ch->sfx);
 			if (!sc)
 				continue;
+
+			if (rate != 1.f) // QVR: slow motion (vr_timescale_sound): read slower, interpolated
+			{
+				SND_PaintChannelRate (ch, sc, paintedtime, end, rate);
+				continue;
+			}
+			if (ch->resampled) // QVR: back from slow motion: the end in the sound's own samples again
+			{
+				ch->resampled = 0;
+				ch->frac = 0.f;
+				ch->end = paintedtime + sc->length - ch->pos;
+			}
 
 			ltime = paintedtime;
 
@@ -629,3 +644,55 @@ static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, in
 	ch->pos += count;
 }
 
+/*
+QVR: slow motion (vr_timescale_sound): paints the channel from output sample `start` to `end`, reading its sound at
+`rate` of its samples per output sample (slower and lower under 1), linearly interpolated; loops as the others do. Its
+end is kept in output samples at that rate (the channel's life, S_StartSound's choice of a channel to reuse).
+*/
+static void SND_PaintChannelRate (channel_t *ch, sfxcache_t *sc, int start, int end, float rate)
+{
+	const int	length = sc->length;
+	const int	loop = sc->loopstart >= 0 && sc->loopstart < length ? sc->loopstart : -1;
+	const int	leftvol = ch->leftvol * snd_vol / 256;
+	const int	rightvol = ch->rightvol * snd_vol / 256;
+	double		pos = ch->pos + (double)ch->frac;
+	int		i;
+
+	for (i = start; i < end; i++)
+	{
+		int	i0, i1;
+		float	f, s0, s1, data;
+
+		if (pos >= length)
+		{
+			if (loop < 0)
+			{
+				ch->sfx = NULL;
+				return;
+			}
+			pos = loop + fmod (pos - length, (double)(length - loop));
+		}
+		i0 = (int)pos;
+		i1 = i0 + 1 < length ? i0 + 1 : (loop >= 0 ? loop : i0);
+		f = (float)(pos - i0);
+		if (sc->width == 1) // 8-bit samples as 16-bit ones (the scale table's * 256)
+		{
+			s0 = (float)((signed char)sc->data[i0] * 256);
+			s1 = (float)((signed char)sc->data[i1] * 256);
+		}
+		else
+		{
+			s0 = (float)((signed short *)sc->data)[i0];
+			s1 = (float)((signed short *)sc->data)[i1];
+		}
+		data = s0 + (s1 - s0) * f;
+		paintbuffer[i - paintedtime].left += (int)(data * leftvol);
+		paintbuffer[i - paintedtime].right += (int)(data * rightvol);
+		pos += rate;
+	}
+
+	ch->pos = (int)pos;
+	ch->frac = (float)(pos - ch->pos);
+	ch->end = end + (int)((length - pos) / rate);
+	ch->resampled = 1;
+}

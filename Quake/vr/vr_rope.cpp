@@ -92,7 +92,7 @@ struct Chain
     int fastestAt{-1};
     bool tail{false};            // its last pin is the hook's tail (hookTail), not a corner
     float endAngle{-1.f};        // degrees between the drawn rope's last few units and the hook's length (-1: no hook)
-    double time{-1.0};           // realtime of its last step
+    double time{-1.0};           // vr_gametime of its last step
 };
 ankerl::unordered_dense::map<int, Chain> chains;
 constexpr float chainDrag = 1.5f;      // of a point's speed lost to the air, a second
@@ -247,8 +247,8 @@ glm::vec3 worldLight(const glm::vec3& p)
 // The slack shown eased towards the one sent (it comes in 125 steps): a sagging rope never jumps.
 void easeSlack(RopeSlack& r)
 {
-    const float dt = static_cast<float>(za::clamp(realtime - r.time, 0.0, 0.1));
-    r.time = realtime;
+    const float dt = static_cast<float>(za::clamp(vr_gametime - r.time, 0.0, 0.1));
+    r.time = vr_gametime;
     r.shown += (r.target - r.shown) * za::min(1.f, 10.f * dt);
 }
 
@@ -467,7 +467,7 @@ void stepChain(Chain& ch, const za::Vector<glm::vec3>& path, float slack)
             za::max(1, static_cast<int>(za::ceil(lengths[static_cast<za::SizeT>(i)] / spacing)));
     }
 
-    const double now = realtime;
+    const double now = vr_gametime;
     bool rebuild = ch.p.empty() || ch.pins.size() != path.size() || ch.time < 0.0 || now - ch.time > 0.5 || now < ch.time;
     for(za::SizeT k = 0; k < ch.pins.size() && !rebuild; k++)
     {
@@ -1183,9 +1183,9 @@ extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const f
     q.light = worldLight(pts[pts.size() / 2]);
     queued.pushBack(q);
 
-    if(vr_grapple_debug.value >= 2 && realtime >= r.logAt)
+    if(vr_grapple_debug.value >= 2 && vr_gametime >= r.logAt)
     {
-        r.logAt = realtime + 0.5;
+        r.logAt = vr_gametime + 0.5;
         Con_Printf("grapple: rope %d drawn: chord %.1f, length %.1f, sag %.1f, %d samples, %d links, built in %.1f us\n",
             ent, static_cast<double>(glm::distance(a, b)), static_cast<double>(total), static_cast<double>(h), q.samples,
             q.copies, (Sys_DoubleTime() - t0) * 1e6);
