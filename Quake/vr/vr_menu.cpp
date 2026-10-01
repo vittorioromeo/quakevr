@@ -2399,6 +2399,13 @@ za::Vector<Item> pageDebugTests()
             .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
         toggle("As a Corpse", vr_test_spawn_dead).help("A monster killed at once: a corpse, to test gibbing and carrying."),
+        slider("Box Turned", vr_test_spawn_yaw, 0.f, 90.f, 1.f, "%.0f degrees")
+            .extend()
+            .help("A box (Health Box .. Explosive Box): let loose and turned this far about its upright, to test the "
+                  "grappling hook against its real shape (its turned box's empty corners let the hook by)."),
+        slider("Box Tilted", vr_test_spawn_tilt, 0.f, 90.f, 1.f, "%.0f degrees")
+            .extend()
+            .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
         command("Go to a Crowbar on a Crate", "vr_crates_goto crowbar")
             .help("vr_crates_goto crowbar: you in front of the next crate with a crowbar lying on it (Crates: Crowbar on Crates)."),

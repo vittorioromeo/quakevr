@@ -4956,8 +4956,11 @@ bool ropeCast(const glm::vec3& from, const glm::vec3& to, float radius, int skip
 bool castAt(int num, const glm::vec3& from, const glm::vec3& to, float radius, float& fraction, bool& hasBody)
 {
     fraction = 1.f;
+    // (A prop's or a fixture's body: the cast's filter meets only theirs, not an actor's box nor a held one.)
     hasBody = world && num > 0 && num < static_cast<int>(world->slots.size()) &&
-              B3_IS_NON_NULL(world->slots[static_cast<za::SizeT>(num)].body);
+              B3_IS_NON_NULL(world->slots[static_cast<za::SizeT>(num)].body) &&
+              (world->slots[static_cast<za::SizeT>(num)].kind == Kind::Prop ||
+                  world->slots[static_cast<za::SizeT>(num)].kind == Kind::Fixture);
     if(!hasBody || glm::distance(from, to) < 1e-3f)
     {
         return false;
@@ -6140,6 +6143,34 @@ extern "C" int VR_PropClip(edict_t* mover, edict_t* touch, const float* start, c
         return 0;
     }
     const PropShape p = propShape(touch, world->slots[g], boxmins, boxmaxs);
+    memset(trace, 0, sizeof(*trace));
+    trace->fraction = 1.f;
+    VectorCopy(end, trace->endpos);
+    if(traceProp(p, glm::dvec3{start[0], start[1], start[2]}, glm::dvec3{end[0], end[1], end[2]}, *trace))
+    {
+        trace->ent = touch;
+    }
+    trace->inopen = !trace->allsolid;
+    return 1;
+}
+
+// SV_ClipToLinks: the flying grappling hook (a point, .vr_hitclass 1) against a solid prop (an explosive box) meets its
+// drawn box as it is turned, not Quake's box round it: a tilted box's empty corners let it by.
+extern "C" int VR_PropPointClip(edict_t* mover, edict_t* touch, const float* start, const float* mins, const float* maxs,
+    const float* end, trace_t* trace)
+{
+    if(!world || !mover || mins[0] != 0.f || mins[1] != 0.f || mins[2] != 0.f || maxs[0] != 0.f || maxs[1] != 0.f ||
+        maxs[2] != 0.f)
+    {
+        return 0;
+    }
+    const int g = NUM_FOR_EDICT(touch);
+    if(!solidProp(g) || fieldFloatOr(mover, fields().vr_hitclass, 0.f) != 1.f)
+    {
+        return 0;
+    }
+    const float point[3]{0.f, 0.f, 0.f};
+    const PropShape p = propShape(touch, world->slots[g], point, point);
     memset(trace, 0, sizeof(*trace));
     trace->fraction = 1.f;
     VectorCopy(end, trace->endpos);

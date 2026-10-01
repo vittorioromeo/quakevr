@@ -17096,3 +17096,35 @@ that channel. Mock: 30 gibbed enforcers, 2 to 5 heads with flies, each `misc/fly
   blasts 0 every time. The effect itself is kept: a head lying about still has its flies.
 - Test aid: `vr_test_spawn_dead 2` gibs the monster `impulse 241` puts (health + 100 damage); the Debug menu's "As a
   Corpse" row is a toggle (0/1), so 2 is console-only for now.
+
+## Grappling hook: a turned prop is bitten by its real shape (2026-10-01)
+
+The author's note (vrfiringrange 02:44): the hook bit a turned prop at Quake's box round it, not at its shape; an
+explosive box tilted 45 degrees took the hook in the air beside it. Branch `agent/grapple5`.
+
+- **Why:** a solid prop (an explosive box) turned by Box3D gets Quake's box round its turned shape (solidBox), and the
+  flying hook (a point, MOVETYPE_FLYMISSILE) met that box in the engine's move (SV_ClipToLinks), as did the flight's
+  own traceline; the flight's prop test (VR_Grapple_FlightProps) also took a brush prop's box as its shape
+  (`hitmodel_any` -2), and its bite was 0.5 units short of it (the padding).
+- **The engine's move:** `VR_PropPointClip` (vr_box3d.cpp, from world.c): the hook (`.vr_hitclass` 1, a point) against
+  a solid prop meets its drawn box as it is turned (propShape/traceProp with a point: the same trace the player's box
+  uses against solid props), so a turned box's empty corners let it by. Other missiles are unchanged (their box).
+- **The flight's prop test:** `hitmodel_any` gives a brush prop loose in Box3D (an explosive box, a health box) its
+  body as turned (`box3d::castAt`), as it did a weapon lying about; a weapon or any loose physics prop (`.vr_rigid`) is
+  tested by its shape alone, without Quake's box first (a loose non-solid prop's box doesn't turn with it). The bite is
+  then put where the bare line meets the surface (the 0.5 padding only lets a near miss bite). `castAt` now counts
+  only a prop's or a fixture's body (an actor's box, a static explosive box where the map put it: its box, as before).
+- **The rope's anchor on it:** a prop too heavy to come (Too Heavy From, GH_ANCHOR) keeps the hook on its model axes
+  too (`.gh_turned`), as a light one did: it stays on its surface as it turns (it turned only with its yaw).
+- **Checked (mock; `python Misc/quakevr/grapple/turned_box_test.py <worktree name> [yaw,tilt ...]`):** an explosive box (never blows up) let loose 160 units ahead, turned
+  0, 22, 45 degrees about its upright, and tilted 22 and 45 degrees about the facing axis (sv_gravity 0); the hook flies
+  (`vr_grapple_test_aim`) at its middle, at its four facing corners 1.5 units in, and at the four corners of Quake's box
+  round it, 1 unit in. Each bite against the exact ray / turned-box crossing: every hit 0.16-0.31 units from the real
+  surface (the hook's stop, DIST_EPSILON and the debug print's rounding); through the empty corners the hook went by:
+  on to the box's real side further along (bitten there, exactly) or past it to the wall or its rope's end, where
+  Quake's box would have bitten. Quake's box would have bitten up to 21 units off the surface at 45 degrees. 45 shots,
+  0 failures. (A hook that flies to its rope's end lies loose out there and the gun fires no more in the mock without a
+  reel: the script fires the rest in a new run.)
+- **Test aids:** `vr_test_spawn_yaw` / `vr_test_spawn_tilt` (degrees; Debug > Tests > Ahead of You, Box Turned / Box
+  Tilted): `impulse 241`'s box (100..104) let loose, turned and tipped; `vr_grapple_test_aim x y z` turns the flying hook
+  at a world point; `vr_grapple_debug 2` prints a bitten prop's origin and model axes.

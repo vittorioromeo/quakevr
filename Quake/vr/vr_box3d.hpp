@@ -79,9 +79,9 @@ bool ropeCast(const glm::vec3& from, const glm::vec3& to, float radius, int skip
 // Whether a sphere there overlaps any of them.
 [[nodiscard]] bool ropeOverlaps(const glm::vec3& at, float radius, int skipA, int skipB);
 
-// A sphere of `radius` cast from `from` to `to` against the body of the entity `num` alone (its drawn shape: a weapon
-// lying about, which its box, round its handle, doesn't hold): the fraction of the way where it first meets it; false if
-// it misses (`hasBody` false: the entity has no body).
+// A sphere of `radius` cast from `from` to `to` against the body of the entity `num` alone (its drawn shape, as it is
+// turned: a weapon lying about, which its box, round its handle, doesn't hold; a tilted box): the fraction of the way
+// where it first meets it; false if it misses (`hasBody` false: the entity has no prop's or fixture's body).
 bool castAt(int num, const glm::vec3& from, const glm::vec3& to, float radius, float& fraction, bool& hasBody);
 
 // A ray from `from` to `to` against the loose props (dynamic bodies: not the world, doors, monsters, players, hands, what a
