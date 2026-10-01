@@ -99,6 +99,8 @@ Lightning gun fired into a pool from outside: splashes where the beam enters
 Torso direction: hand behind the back, one hand sweeping across, glances with hands down, physical turns; A/B against Body > Torso Direction mode 0
 Big prop pile: Debug > Threads > Physics Step Time with Physics on Threads on and off (threads only above 150 awake bodies)
 
+Weapon effects (Weapons > Weapon Effects): burst rifle recoil kick and return, muzzle flash size and placement on the bore, ammo screen hidden; tracers on shotguns and the burst rifle (speed, density, colour); grunts' muzzle flashes and tracers
+
 [Decide or give feedback]
 Physics threads: default 150-body threshold and 4-thread cap OK?
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
