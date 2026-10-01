@@ -2459,6 +2459,9 @@ za::Vector<Item> pageDebugLogging()
             .help("The game's developer messages: needed by Shots and Damage and the Grappling Hook's log below, and many "
                   "others (melee events, grenades, deflections). Verbose: every frame's melee detail too."),
         header("Logs"),
+        cycle("Bullet Time", vr_debug_bullettime, {{0.f, "Off"}, {1.f, "On, Off, Refused"}, {2.f, "And the Button's Distance"}})
+            .help("Bullet time starting, stopping and refused (the meter, the cooldown); and every frame, how far your "
+                  "fingertip is from the gadget's button."),
         cycle("Chainsaw", vr_debug_chainsaw, {{0.f, "Off"}, {1.f, "Pulls and Cuts"}, {2.f, "And the Bar in Monsters"}})
             .help("The chainsaws' cords (taken, pulled, too slow, let go), their engines (started, stalled) and cuts; "
                   "And the Bar: also each cut's test against what is near, how deep the drawn bar sinks into a monster, "
@@ -2642,6 +2645,7 @@ za::Vector<Item> pageDebugReports()
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
         command("Player", "vr_dumpplayer").help("vr_dumpplayer [client]: a player's VR fields in the game (hands, weapons, hotspots)."),
         command("View", "vr_dumpview").help("vr_dumpview: the hands, grips, palms, fingers and every entity drawn in the view (long)."),
+        command("Bullet Time Now", "vr_bullettime").help("vr_bullettime: starts or stops bullet time, as the gadget's button."),
         command("Slow Motion Clocks", "vr_slowmo_probe")
             .help("vr_slowmo_probe [classname | number]: the time scale, the server's, real, slowed and client's clocks, the "
                   "player's origin and velocity, the main hand's speed and lag behind the controller (and an entity's)."),
@@ -3465,6 +3469,7 @@ const Page pages[] = {
     {"Weapon Effects", pageWeaponEffects, pageWeaponsHub},                  // 80
     {"Enemy Shoves", pageEnemyShoves, pageCombat},                          // 81
     {"Chainsaw Engine", pageChainsawEngine, pageEnemyWeapons},              // 82
+    {"Bullet Time", pageBulletTime, pageCombat},                            // 83 (vr_menu_recording.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -3610,6 +3615,8 @@ za::Vector<Item> pageCombat()
             .help("The swords, chainsaws, shotguns and laser rifles monsters drop: their fuel, ammo and handling."),
         open("Enemy Shoves", pageIndex(pageEnemyShoves))
             .help("Grunts and enforcers shove you away when you stand too close: how close, how soon, how hard."),
+        open("Bullet Time", pageIndex(pageBulletTime))
+            .help("The wrist gadget's button slows the world for as long as its meter lasts; Sandevistan; its look."),
     };
 }
 

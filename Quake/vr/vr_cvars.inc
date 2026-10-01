@@ -268,6 +268,29 @@ QVR_CVAR(vr_timescale_ramp, "0.3", CVAR_ARCHIVE)       // real seconds the time 
 QVR_CVAR(vr_timescale_sound, "1", CVAR_ARCHIVE)        // 1: sounds play slowed and lower with the time scale (resampled); 0: at their normal speed and pitch
 QVR_CVAR(vr_timescale_hand_speed, "8", CVAR_ARCHIVE)   // m/s of the game's time: the most a hand moves in slow motion (a real-speed swing is no supersonic blow); 0: no limit
 QVR_CVAR(vr_timescale_hand_spin, "20", CVAR_ARCHIVE)   // rad/s of the game's time: the most a hand turns in slow motion; 0: no limit
+QVR_CVAR(vr_timescale_turn_realtime, "1", CVAR_ARCHIVE) // 1: the smooth turn at its real-time speed in slow motion (footage sped up shows it faster); 0: slowed with the world
+QVR_CVAR(vr_timescale_move_realtime, "0", CVAR_ARCHIVE) // 1: the player's own movement (the stick, jumps, falls) and its weapons' timing in real time in slow motion; 0: slowed with the world
+QVR_CVAR(vr_sandevistan, "0", CVAR_ARCHIVE)            // 1: in any slow motion the player runs in its own time (moves, turns, hands, weapons' timing, its missiles: vr_sandevistan_missiles), only the world slowed
+QVR_CVAR(vr_sandevistan_missiles, "1", CVAR_ARCHIVE)   // in Sandevistan, the player's missiles (rockets, grenades, nails, thrown weapons, the hook) fly and think in its time too; 0: they join the slowed world
+// Bullet time (vr_bullettime.cpp; ROUND21.md, "Slow motion: bullet time and Sandevistan"): the gadget's button slows the
+// world for as long as the meter lasts.
+QVR_CVAR(vr_bullettime_enabled, "1", CVAR_ARCHIVE)     // 1: the wrist gadget's button (the inner one on its lower edge) and vr_bullettime start and stop it; 0: off
+QVR_CVAR(vr_bullettime_scale, "0.3", CVAR_ARCHIVE)     // the world's time scale while it runs (0.05 .. 1)
+QVR_CVAR(vr_bullettime_duration, "6", CVAR_ARCHIVE)    // real seconds a full meter lasts
+QVR_CVAR(vr_bullettime_recharge, "20", CVAR_ARCHIVE)   // real seconds the meter takes to fill from empty (after the cooldown)
+QVR_CVAR(vr_bullettime_cooldown, "2", CVAR_ARCHIVE)    // real seconds after it ends before it can start again (the meter waits too)
+QVR_CVAR(vr_bullettime_min, "0.25", CVAR_ARCHIVE)      // the least meter it starts with (0.01 .. 1)
+QVR_CVAR(vr_bullettime_sandevistan, "0", CVAR_ARCHIVE) // 1: while it runs, the player runs in its own time (as vr_sandevistan)
+QVR_CVAR(vr_bullettime_fx, "1", CVAR_ARCHIVE)          // its look's strength in the eyes (0 off .. 1); never for the recording's vr_timescale
+QVR_CVAR(vr_bullettime_fx_desat, "0.7", CVAR_ARCHIVE)  // ... how much of the colour it takes out (0 .. 1)
+QVR_CVAR(vr_bullettime_fx_vignette, "0.5", CVAR_ARCHIVE) // ... how dark the view's edges (0 .. 1)
+QVR_CVAR(vr_bullettime_fx_tint, "0.85 0.95 1.15", CVAR_ARCHIVE) // ... the colour it multiplies by (red green blue)
+QVR_CVAR(vr_bullettime_button_radius, "1.5", CVAR_ARCHIVE) // units: how near the fingertip must come to the button's middle to press it
+QVR_CVAR(vr_bullettime_button_reach, "1", CVAR_ARCHIVE) // units: the fingertip, ahead of the hand's place
+QVR_CVAR(vr_bullettime_sound_on, "items/inv1.wav", CVAR_ARCHIVE)     // its sounds (empty: none)
+QVR_CVAR(vr_bullettime_sound_off, "items/inv2.wav", CVAR_ARCHIVE)
+QVR_CVAR(vr_bullettime_sound_denied, "misc/menu2.wav", CVAR_ARCHIVE) // pressed with the meter too low or cooling down
+QVR_CVAR(vr_debug_bullettime, "0", CVAR_NONE)          // 1: prints it starting, stopping and refused; 2: the fingertip's distance to the button every frame
 // The flat HUD (the status bar, hudstyle) over the window's view while in VR: over the mirror (Left Eye, Smoothed
 // Mirror) and over the spectator camera (off: the headset's view, the wrist gadget its HUD, for recording).
 QVR_CVAR(vr_window_hud_mirror, "1", CVAR_ARCHIVE)

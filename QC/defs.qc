@@ -128,6 +128,8 @@ void end_sys_globals; // Flag for structure dumping.
 // Quake VR globals (after end_sys_globals: the engine looks these up by name)
 // ----------------------------------------------------------------------------
 
+nosave float vr_player_time_offset; // QVR: the player's clock ahead of `time` (slow motion's Sandevistan: the engine's,
+                                    // vr_timescale.cpp; 0 otherwise): what its melee is timed on (vr_melee.qc)
 float spawnServerFromSaveFile; // Whether the last `OnSpawnServerXXX` call was
                                // from a save file or a brand new loaded map.
 

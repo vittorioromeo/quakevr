@@ -38,6 +38,7 @@ struct Bindings
     func_t Carry_Handtouch{0}; // a thing a hand can carry (QC vr_carry.qc VR_Carry_Setup): taken by the fist's touch
 
     float* spawnServerFromSaveFile{nullptr};
+    float* playerTimeOffset{nullptr}; // vr_player_time_offset: the player's clock ahead of time (vr_timescale.cpp)
     float* extSpawnParms[numExtSpawnParms]{};
 };
 

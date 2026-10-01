@@ -1,6 +1,7 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
 #include "vr_audio.hpp"
+#include "vr_bullettime.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hull.hpp"
@@ -1271,6 +1272,7 @@ extern "C" void VR_BeginFrame()
     profile::overlay();  // the profiler's panel (vr_profile_overlay)
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
+    bullettime::frame(); // the gadget's bullet time button (the hands as last placed)
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
     input::roomscaleJump(hands::current());

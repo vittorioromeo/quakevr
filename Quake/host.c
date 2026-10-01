@@ -989,7 +989,11 @@ void Host_ServerFrame (void)
 
 // read client messages
 	VR_ProfileBegin ("run clients"); // QVR: profile
-	SV_RunClients ();
+	{
+		double vrworld = VR_PlayerRunBegin (); // QVR: slow motion: the player's moves in its own time (Sandevistan)
+		SV_RunClients ();
+		VR_PlayerRunEnd (vrworld); // QVR
+	}
 	VR_ProfileEnd (); // QVR
 
 // move things around and think

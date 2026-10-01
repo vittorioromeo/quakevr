@@ -6,6 +6,7 @@
 
 #include "vr_angvel.hpp"
 #include "vr_backend.hpp"
+#include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -369,7 +370,8 @@ void mockLook_f()
 // apart), `height` cm over its top there (0 as shipped). For grab tests: from the hand's place last frame, so a hand
 // kept out of the floor lands short of a point under it; run it again (or a few frames on) to follow a weapon.
 // "vr_mock_hand_to <main|off> spot <index> [<height cm>]": at its hotspot `index` (a grip's point, a blade's zone's middle:
-// view::groundHotspotPoint), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> carried": at
+// view::groundHotspotPoint), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> button":
+// its fingertip on the wrist gadget's bullet time button (vr_bullettime.cpp). "vr_mock_hand_to <main|off> carried": at
 // the handle of the weapon the other hand carries (taking it back). "vr_mock_hand_to <main|off> held <fraction> [<cm>]": in the
 // weapon the other hand holds or carries, `fraction` of the way from its handle to its tip, `cm` over it
 // (view::heldWeaponPoint; vr_weapon_grab_anywhere tests).
@@ -494,17 +496,24 @@ void mockHandTo_f()
     const bool spot = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "spot");
     const bool carried = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "carried");
     const bool inHeld = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "held");
-    if(hand < 0 || (!weapon && !spot && !carried && !inHeld && Cmd_Argc() != 5))
+    const bool button = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "button");
+    if(hand < 0 || (!weapon && !spot && !carried && !inHeld && !button && Cmd_Argc() != 5))
     {
         Con_Printf("usage: vr_mock_hand_to <main|off> <x> <y> <z>\n"
                    "       vr_mock_hand_to <main|off> weapon <fraction> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> spot <hotspot index> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> carried\n"
-                   "       vr_mock_hand_to <main|off> held <fraction> [<cm>]\n");
+                   "       vr_mock_hand_to <main|off> held <fraction> [<cm>]\n"
+                   "       vr_mock_hand_to <main|off> button\n");
         return;
     }
     glm::vec3 target{0.f};
-    if(!carried && !weapon && !spot && !inHeld)
+    if(button && !bullettime::buttonHandTarget(hand, target))
+    {
+        Con_Printf("vr_mock_hand_to: no gadget shown\n");
+        return;
+    }
+    if(!carried && !weapon && !spot && !inHeld && !button)
     {
         target = glm::vec3{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
     }

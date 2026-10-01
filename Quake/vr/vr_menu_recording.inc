@@ -73,5 +73,57 @@
                   "a real-speed swing lands as a hard blow, not a supersonic one. 0: no limit (the hands keep up)."),
         slider("Hand Turn Limit", "vr_timescale_hand_spin", 0.f, 40.f, 1.f, "%.0f rad/s")
             .help("Likewise, the most your hands turn per second of the game's time in slow motion. 0: no limit."),
+        toggle("Turn in Real Time", "vr_timescale_turn_realtime")
+            .help("On: the stick's smooth turn keeps its real-time speed in slow motion (sped up in editing, it looks "
+                  "faster). Off: slowed with the world."),
+        toggle("Move in Real Time", "vr_timescale_move_realtime")
+            .help("On: your own movement (the stick, jumps, falls) and your weapons' timing keep their real-time speed "
+                  "in slow motion; your hands are still slowed. Off: slowed with the world."),
+        toggle("Sandevistan: You at Full Speed", "vr_sandevistan")
+            .help("On: in slow motion only the world slows: you move, turn, swing, shoot and reload at full speed, your "
+                  "hands follow your controllers as they are (Your Missiles at Full Speed Too: Combat > Bullet Time)."),
+        slider("Bullet Time's Look", "vr_bullettime_fx", 0.f, 1.f, 0.05f, "%.2f")
+            .help("Bullet time (Combat > Bullet Time) drains, tints and darkens the eyes' view while it runs; the window's "
+                  "Left Eye and Smoothed Mirror show it, the Spectator Camera doesn't. Set 0 to record bullet time "
+                  "without it. The Time Scale above never has it."),
+    };
+}
+
+// Combat > Bullet Time (vr_bullettime.cpp; ROUND21.md, "Slow motion: bullet time and Sandevistan").
+[[nodiscard]] za::Vector<Item> pageBulletTime()
+{
+    return {
+        toggle("Bullet Time", "vr_bullettime_enabled")
+            .help("Press the inner button on your wrist gadget's lower edge with your other hand's fingertip: the world "
+                  "slows for as long as the meter on the gadget's screen (TIME) lasts; press again to stop. Then a "
+                  "cooldown, and the meter fills again. Bindable: vr_bullettime. Single player."),
+        command("Start or Stop It Now", "vr_bullettime").help("vr_bullettime: as the gadget's button."),
+        slider("Time Scale", "vr_bullettime_scale", 0.1f, 1.f, 0.05f, "%.2fx").extend(0.05f, 1.f)
+            .help("How fast the world runs while it lasts (0.3: under a third of its speed)."),
+        slider("Duration", "vr_bullettime_duration", 1.f, 20.f, 0.5f, "%.1f s").extend(0.5f, 120.f)
+            .help("Real seconds a full meter lasts."),
+        slider("Recharge Time", "vr_bullettime_recharge", 2.f, 120.f, 1.f, "%.0f s").extend(0.5f, 600.f)
+            .help("Real seconds the meter takes to fill from empty."),
+        slider("Cooldown", "vr_bullettime_cooldown", 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("Real seconds after it ends (or is stopped) before it can start again; the meter waits too."),
+        slider("Least Meter to Start", "vr_bullettime_min", 0.05f, 1.f, 0.05f, "%.2f")
+            .help("How full the meter must be to start (it then runs until empty or stopped)."),
+        toggle("Sandevistan: You at Full Speed", "vr_bullettime_sandevistan")
+            .help("On: only the world slows; you move, turn, swing, throw, shoot and reload at full speed. Off: you are "
+                  "slowed with the world but your view (your hands follow your controllers as the slowed world allows)."),
+        toggle("Your Missiles at Full Speed Too", "vr_sandevistan_missiles")
+            .help("In Sandevistan: your rockets, grenades, nails, thrown weapons and the hook fly at full speed. Off: they "
+                  "join the slowed world as they leave you. Props you throw always join it."),
+        header("Look"),
+        slider("Look's Strength", "vr_bullettime_fx", 0.f, 1.f, 0.05f, "%.2f")
+            .help("While it runs, the view drained of colour, tinted and darkened at its edges: this much (0 off). Never "
+                  "with the recording's Time Scale (Graphics > Recording)."),
+        slider("Colour Drained", "vr_bullettime_fx_desat", 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Darkened Edges", "vr_bullettime_fx_vignette", 0.f, 1.f, 0.05f, "%.2f"),
+        header("Button"),
+        slider("Button Size", "vr_bullettime_button_radius", 0.5f, 4.f, 0.25f, "%.2f units")
+            .help("How near your fingertip must come to the button's middle to press it (a unit is about 3.8 cm)."),
+        slider("Fingertip Reach", "vr_bullettime_button_reach", -2.f, 6.f, 0.25f, "%.2f units")
+            .help("Where your fingertip is taken to be, ahead of your hand's point."),
     };
 }

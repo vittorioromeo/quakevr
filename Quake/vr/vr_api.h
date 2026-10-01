@@ -67,7 +67,17 @@ void VR_AdvanceTime (double dt);	// Host_AdvanceTime, after realtime: the time s
 double VR_TimeScale (void);		// the game's time per real second: 1 unless slow motion (vr_timescale, single player)
 float VR_SndRate (void);		// the sounds' playback rate: VR_TimeScale with vr_timescale_sound, else 1
 extern double vr_gametime;		// realtime slowed by the time scale (equal to it until slow motion is first used):
-							// what VR's own client simulations step and time on
+							// what VR's own client simulations step and time on (the player's body: real in Sandevistan)
+double VR_PlayerMoveSpeedup (void);	// how many times faster than the world the player moves (1; Sandevistan,
+							// vr_timescale_move_realtime: 1 over the scale)
+double VR_PlayerRunBegin (void);	// Host_ServerFrame, round SV_RunClients: the player's moves in its own time;
+void VR_PlayerRunEnd (double world);	// ... the world's frame put back (VR_PlayerRunBegin's result)
+struct edict_s;
+double VR_PhysicsEntityBegin (struct edict_s *ent, int num); // SV_Physics, round an entity's: the player and its
+							// missiles in the player's own time (0: in the world's)
+void VR_PhysicsEntityEnd (struct edict_s *ent, int num, double world); // ... its timers into the world's time
+double VR_ThinkFrame (double frametime); // SV_RunThink: how far ahead a think is due (the world's frame, also
+							// for an entity in the player's time)
 void VR_HostFrameEnd (void);	// end of _Host_Frame, after the screen and the sound (the motion recorder's row)
 
 // The frame cap (vr_sleep.cpp).

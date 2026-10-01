@@ -868,10 +868,20 @@ vector(entity p, float xHand) VR_Melee_Wrist =
     return w;
 };
 
+// The player's own clock: `time`, ahead by the engine's vr_player_time_offset (slow motion's Sandevistan, where the
+// player runs at full speed in a slowed world; 0 otherwise). Its blows, rearming, pommel wait, bash stance and cooldown
+// are timed on it.
+float() VR_PlayerTime =
+{
+    return time + vr_player_time_offset;
+};
+
 float(float xHand, entity b) VR_Melee_Track =
 {
-    // The pose is the client's as this server frame ends (time + frametime): QC's time is still the frame's start.
-    float now = time + frametime;
+    // The pose is the client's as this server frame ends (time + frametime): QC's time is still the frame's start. On
+    // the player's own clock (the engine's vr_player_time_offset: 0 but in slow motion's Sandevistan, where the player
+    // runs at full speed in a slowed world, and frametime is the player's), so its blows' speeds are its own.
+    float now = time + vr_player_time_offset + frametime;
     float dt = now - b.mh_time;
     float thing = VR_Melee_Thing(self, xHand);
     float wid = VRGetEntWeapon(self, xHand);
@@ -1392,14 +1402,14 @@ float(float xHand, entity b, entity xEnt) VR_Melee_Armed =
 // turned back (a backswing) or went on long enough: a swing whose arc curves on through a big monster is one blow.
 void(float xHand, entity b) VR_Melee_Rearm =
 {
-    if(!VRGetMeleeHitSoundPlayed(xHand) || time < b.mh_hit_time + 0.1)
+    if(!VRGetMeleeHitSoundPlayed(xHand) || VR_PlayerTime() < b.mh_hit_time + 0.1)
     {
         return;
     }
     float rearm = b.mh_fast < VR_Melee_MinSpeedOf(b) * VR_MELEE_REARM_SLOW;
-    if(!rearm && time - b.mh_hit_touch > VR_MELEE_REARM_OUT)
+    if(!rearm && VR_PlayerTime() - b.mh_hit_touch > VR_MELEE_REARM_OUT)
     {
-        if(time - b.mh_hit_time > VR_MELEE_REARM_TIME)
+        if(VR_PlayerTime() - b.mh_hit_time > VR_MELEE_REARM_TIME)
         {
             rearm = TRUE;
         }
@@ -1509,7 +1519,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
         {
             if(trace_ent == b.mh_hit_ent)
             {
-                b.mh_hit_touch = time;
+                b.mh_hit_touch = VR_PlayerTime();
             }
             if(vr_mpt_kind[i] == VR_MPT_GRIP)
             {
@@ -1585,7 +1595,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 {
                     if(e == b.mh_hit_ent)
                     {
-                        b.mh_hit_touch = time; // still in what it struck
+                        b.mh_hit_touch = VR_PlayerTime(); // still in what it struck
                     }
                     if(!armed)
                     {
@@ -1655,7 +1665,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
         b.mh_c_dir = normalize(b.mh_cp[hiltI] - b.mh_pp[hiltI]);
         b.mh_c_normal = b.mh_c_dir * -1;
         b.mh_pend_ent = hiltEnt;
-        b.mh_pend_time = time;
+        b.mh_pend_time = VR_PlayerTime();
         b.mh_pend_pos = hiltAt;
         b.mh_pend_dir = b.mh_c_dir;
         b.mh_pend_kind = b.mh_kind;
@@ -1664,7 +1674,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
         b.mh_pend_part = b.mh_part;
         b.mh_pend_way = b.mh_way;
     }
-    if(b.mh_pend_ent != world && time - b.mh_pend_time >= VR_Melee_PommelWait())
+    if(b.mh_pend_ent != world && VR_PlayerTime() - b.mh_pend_time >= VR_Melee_PommelWait())
     {
         // The blade never came: the pommel strike.
         b.mh_c_ent = b.mh_pend_ent;
@@ -2696,10 +2706,10 @@ void() VR_Bash =
         if(stance != b.mh_stance)
         {
             b.mh_stance = stance;
-            b.mh_stance_since = time;
+            b.mh_stance_since = VR_PlayerTime();
             b.mh_stance_said = FALSE;
         }
-        if(stance == 1 && !b.mh_stance_said && time - b.mh_stance_since >= VR_STANCE_REPORT)
+        if(stance == 1 && !b.mh_stance_said && VR_PlayerTime() - b.mh_stance_since >= VR_STANCE_REPORT)
         {
             // (The parry poses are reported: a weapon across, crossed arms; not a palm facing ahead.)
             b.mh_stance_said = TRUE;
@@ -2710,19 +2720,19 @@ void() VR_Bash =
         {
             dprint(sprintf("melee debug: hand %g stance %g push %v ends %v %v dist %.3f\n", h, stance,
                 VR_Bash_PushVel(b), b.mh_vnear, b.mh_vfar, b.mh_push_dist));
-            dprint(sprintf("melee debug: held %.2f ok %g pushing %g\n", time - b.mh_stance_since, b.mh_push_ok,
+            dprint(sprintf("melee debug: held %.2f ok %g pushing %g\n", VR_PlayerTime() - b.mh_stance_since, b.mh_push_ok,
                 VR_Bash_Pushing(h, b, pfwd, speed)));
         }
         // A push begun from the stance goes on while it pushes, the stance tilting or turning as it goes (a push with one
         // hand swings the far end forward).
-        float going = b.mh_push_ok && b.mh_push_stance == 1 && time - b.mh_push_last <= VR_BASH_GAP;
+        float going = b.mh_push_ok && b.mh_push_stance == 1 && VR_PlayerTime() - b.mh_push_last <= VR_BASH_GAP;
         if(!stance && going)
         {
             b.mh_stance = 1; // (for the push's test: a weapon's)
         }
         if((stance || going) && VR_Bash_Pushing(h, b, pfwd, speed))
         {
-            if(b.mh_push_dist <= 0 && time - b.mh_push_last > VR_BASH_GAP)
+            if(b.mh_push_dist <= 0 && VR_PlayerTime() - b.mh_push_last > VR_BASH_GAP)
             {
                 // A push begins: from a stance held (a weapon's; a palm's needs none).
                 b.mh_push_ok = FALSE;
@@ -2731,16 +2741,16 @@ void() VR_Bash =
                 {
                     b.mh_push_ok = TRUE;
                 }
-                else if(time - b.mh_stance_since >= VR_BASH_HELD)
+                else if(VR_PlayerTime() - b.mh_stance_since >= VR_BASH_HELD)
                 {
                     b.mh_push_ok = TRUE;
                 }
             }
             b.mh_pushing = b.mh_push_ok;
             b.mh_push_dist = b.mh_push_dist + (VR_Bash_PushVel(b) * pfwd) * b.mh_dt;
-            b.mh_push_last = time;
+            b.mh_push_last = VR_PlayerTime();
         }
-        else if(time - b.mh_push_last > VR_BASH_GAP)
+        else if(VR_PlayerTime() - b.mh_push_last > VR_BASH_GAP)
         {
             b.mh_push_dist = 0;
         }
@@ -2754,9 +2764,9 @@ void() VR_Bash =
     if(arms != self.vr_arms)
     {
         self.vr_arms = arms;
-        self.vr_arms_since = time;
+        self.vr_arms_since = VR_PlayerTime();
     }
-    else if(arms && self.vr_arms_since > 0 && time - self.vr_arms_since >= VR_STANCE_REPORT)
+    else if(arms && self.vr_arms_since > 0 && VR_PlayerTime() - self.vr_arms_since >= VR_STANCE_REPORT)
     {
         self.vr_arms_since = 0;
         VR_Melee_Event("stance arms, hand -1");
@@ -2804,25 +2814,25 @@ void() VR_Bash =
     }
 
     // The motion recorder (vr_motion.qc): a push, whatever it meets; once a push (its frames in a row).
-    if(time - self.vr_motion_pushseen > 0.15)
+    if(VR_PlayerTime() - self.vr_motion_pushseen > 0.15)
     {
-        self.vr_push_start = time;
+        self.vr_push_start = VR_PlayerTime();
         VR_Motion_Event("push", armed ? "bash" : "shove", both ? -1 : readyHand, 0, VRGetHandPos(readyHand), world,
                         both ? "two hands" : "one hand");
     }
-    self.vr_motion_pushseen = time;
+    self.vr_motion_pushseen = VR_PlayerTime();
 
     // The hands in the push strike nothing else in this motion.
     VRSetMeleeHitSoundPlayed(readyHand, TRUE);
     b.mh_hit_ent = world;
-    b.mh_hit_time = time;
-    b.mh_hit_touch = time;
+    b.mh_hit_time = VR_PlayerTime();
+    b.mh_hit_touch = VR_PlayerTime();
     if(both)
     {
         VRSetMeleeHitSoundPlayed(other, TRUE);
         ob.mh_hit_ent = world;
-        ob.mh_hit_time = time;
-        ob.mh_hit_touch = time;
+        ob.mh_hit_time = VR_PlayerTime();
+        ob.mh_hit_touch = VR_PlayerTime();
     }
 
     // Batting: a bash (a weapon or a club across, pushed: VR_Melee_HoldsWeapon); what it bats goes the way the hands
@@ -2843,7 +2853,7 @@ void() VR_Bash =
         VR_Bash_DeflectStart(both ? -1 : readyHand, fwd, pushVel, both);
     }
 
-    if(time < self.vr_bash_time)
+    if(VR_PlayerTime() < self.vr_bash_time)
     {
         return;
     }
@@ -2896,7 +2906,7 @@ void() VR_Bash =
     vr_bash_both = FALSE;
     vr_bash_exhaust_dmg = 0;
     vr_bash_exhaust_push = 0;
-    self.vr_bash_time = time + VR_BASH_COOLDOWN;
+    self.vr_bash_time = VR_PlayerTime() + VR_BASH_COOLDOWN;
 
     // Each its own sound (vr_bash_sound; round 18), apart from the blows'; 0: the old ones.
     float bashSound = min(1, cvar_hget(cvarh_vr_bash_sound));
@@ -3009,8 +3019,8 @@ void(float xHand) VR_Melee_Landed =
 {
     entity b = VR_Blow(xHand);
     b.mh_hit_ent = b.mh_c_ent;
-    b.mh_hit_time = time;
-    b.mh_hit_touch = time;
+    b.mh_hit_time = VR_PlayerTime();
+    b.mh_hit_touch = VR_PlayerTime();
     vector v = b.mh_vfar;
     if(b.mh_kind == VR_MKIND_POMMEL)
     {
