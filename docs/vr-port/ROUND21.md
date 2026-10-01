@@ -18631,3 +18631,50 @@ sternum, rolled: (10, 26, 2) -> (22, -3, -16). The price: in those poses the wri
 His takes (53: no-hit, guards, punches, shoves; 45,406 arm-frames replayed with `vr_debug_arm 2`): 0.9% of frames move
 more than 2 cm; in those the wrist strain falls (mean 5.04 -> 4.11), elbows across the chest > 15 cm 89 -> 56, elbow
 jumps (> 6 cm in a frame with the wrist still) 72 -> 63. Melee canary: no differences.
+
+## Multi-grenades from the pouch (2026-10-01)
+
+His note: only normal grenades come out of the back pouch; holding B or Y as he grabs there should give the mission
+pack's cluster grenades if he has them, muted until live and held with the same offsets and poses. Branch
+`agent/pouchalt`.
+
+- **What the mission packs have:** Dissolution of Eternity (rogue) has the multi-grenade launcher: `MultiGrenade`
+  (`progs/mervup.mdl`) from the multi-rockets (`.ammo_multi_rockets`), bursting on its fuse into five mini-grenades
+  (`MultiGrenadeExplode`, 90 damage each, `vr_dmg_multi_grenade`). Scourge of Armagon (hipnotic) has the proximity
+  gun, whose bombs use rockets and stick and wait for a target: not a cluster, not taken here (B/Y there gives the
+  grenade).
+- **Taking one** (`QC/vr_grenade.qc` `VR_HandGrenade_Take`): the hand's upper face button held as its grip closes at the
+  pouch (`QVR_VRBITS0_MAINHAND_SECONDARY`/`OFFHAND_SECONDARY`, the engine's `secondaryHeld`) and a multi-rocket or more:
+  a multi-grenade (`.vr_hgren_multi`), a multi-rocket leaving the ammo; else a grenade from the rockets ("no
+  multi-rockets: a grenade instead"); neither: the dull knock. The tap as the hand arrives counts either ammo.
+- **The rest is the hand grenade's:** the same `VR_Grenade_Setup` (a Box3D rigid body, force-grabbable, catchable),
+  unarmed until the trigger (or the release, Arm When Let Go Of), the same fuse, lit look and sounds; put back at the
+  pouch unarmed, its multi-rocket goes back (`VR_HandGrenade_AmmoBack`, full at 100); a level's end puts it back too.
+  On its fuse (or in the hand) it bursts as rogue's; on a monster it hits it goes off as a launcher's grenade
+  (`MultiGrenadeTouch`: rogue's own rule for the player's multi-grenades, and a caught ogre's).
+- **Its look** (`Misc/quakevr/make_grenade_skins.py`, now for both models): `progs/mervup.mdl` gets skin 1, its pale
+  lavender shell a dull grey (gain 0.75: the grenade's 1.4 made it brighter than the live one) and its amber caps
+  unlit; `VR_GrenadeTrail` gives skin 1 of either model no smoke trail.
+- **In the hand:** Held Object Offsets slot 5 (`progs/mervup.mdl`) is In the Palm, one hand, as the grenade's slot 4
+  (`vr_props_version` 53 gives it to configs saved before, if the slot still has the old defaults). The pouch's turn
+  (`vr_grenade_pouch_hold_*`) is applied to both; the model stands along its z where the grenade lies along its x, so
+  `grip::serverFromPouch` first turns a prop's long axis onto the hand's forward: both come out upright in the palm
+  (log: the grenade's x and the multi-grenade's z both `0 0 1` in the hand), the thumb round it (the wide wrap).
+- **B/Y's other uses at that moment:** next/previous weapon (`impulse 10/12`) cycles nothing with tracked hands (Weapon
+  Cycle Mode 0, the default); a grappling hook that is out reels while B/Y is held, as always. Not changed.
+- **Not done:** the pouch model's full/empty frame still follows the rockets only (multi-rockets are no client stat).
+
+Tests (mock, `+grabmain`/`+graboff` at `vr_mock_hand main|off 0 1.0 0.2`, `vr_mock_button <hand> secondary 1`):
+
+| Case | Log |
+|---|---|
+| r1m1, B held, no multi-rockets, 3 rockets | "no multi-rockets: a grenade instead"; grenade taken, 2 left; skin 1, no trail; back: 3 |
+| r1m1, `impulse 9`, B held, main hand | `progs/mervup.mdl` (mode 2), MultiGrenade taken, 99 multi-rockets left; skin 1, trail off |
+| Let go of at the pouch | "multi-grenade put back", 100 multi-rockets |
+| No B | grenade from the rockets (99) and back (100) |
+| Off hand, Y held, trigger, let go | taken by hand 0; armed 2.50 s; skin 0, trail on; goes off: five mini-grenades |
+| Config at `vr_props_version` 51, slot 5 Where Taken, two hands | "progs/mervup.mdl: In the Palm, one hand": grip 2, two hands 0, version 53 |
+
+Pictures (kit scratch): `pouchalt_t3.png` the multi-grenade in the palm unarmed (grey) and armed (lavender, amber);
+`pouchalt_t4.png` both hands with the fingers closed, the multi-grenade (right) and the grenade (left), from the front
+and from above.

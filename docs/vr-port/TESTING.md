@@ -178,7 +178,9 @@ context and screenshot, ready to paste or to point me at.
     Grenade Fuse**); the pouch's place under it (**Grenade Pouch**), and its turn on Hip Holsters > **Grenade Pouch**.
     Under it too, **Grenade In Hand Pitch/Yaw/Roll**: how a grenade from the pouch is turned in your palm (a held one
     turns as you drag them). A health box, ammo box or power-up you carry, let go of at the pouch, is taken as at a
-    holster.
+    holster. Hold that hand's **B/Y** as you grip there: the mission pack's **multi-grenade** (Dissolution of
+    Eternity's, from your multi-rockets; a grenade if you have none), muted until armed, held, armed and thrown as the
+    grenade is; on its fuse it bursts into five mini-grenades.
   - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
     grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
     touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,

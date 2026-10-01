@@ -2234,8 +2234,8 @@ GrenadeTrailLog grenadeTrails;
 
 } // namespace
 
-// A grenade's smoke trail: not a hand grenade with its pin in (vr_grenade.qc: skin 1 of progs/grenade.mdl,
-// VR_HGREN_SKIN_UNARMED, muted by make_grenade_skins.py until its fuse is lit).
+// A grenade's smoke trail: not a hand grenade with its pin in (vr_grenade.qc: skin 1 of progs/grenade.mdl or of the
+// multi-grenade's progs/mervup.mdl, VR_HGREN_SKIN_UNARMED, muted by make_grenade_skins.py until its fuse is lit).
 extern "C" int VR_GrenadeTrail(int ent)
 {
     if(ent <= 0 || ent >= cl.num_entities)
@@ -2244,7 +2244,8 @@ extern "C" int VR_GrenadeTrail(int ent)
     }
     const entity_t& e = cl_entities[ent];
     constexpr int unarmedSkin = 1;
-    const bool smokes = !(e.model && e.skinnum == unarmedSkin && !strcmp(e.model->name, "progs/grenade.mdl"));
+    const bool smokes = !(e.model && e.skinnum == unarmedSkin &&
+                          (!strcmp(e.model->name, "progs/grenade.mdl") || !strcmp(e.model->name, "progs/mervup.mdl")));
     // developer 1: each grenade's trail as it starts or stops.
     const auto n = static_cast<size_t>(ent);
     if(developer.value && (!grenadeTrails.seen[n] || grenadeTrails.smoking[n] != smokes))

@@ -48,8 +48,8 @@ constexpr const char* keyDefaults[numKeys] = {
 // says which changes a config has seen (as vr_wofs_version for the weapons). 1: the table's first version; 26: the rocks
 // and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's; 45: the author's bricks and torch
 // (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0; 49: the crates' slots; 50:
-// the rocks and bricks at Size 1.25; 51: the crates' small pieces in the palm.
-constexpr int settingsVersion = 51;
+// the rocks and bricks at Size 1.25; 51: the crates' small pieces in the palm; 53: the multi-grenade's as the grenade's.
+constexpr int settingsVersion = 53;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -316,6 +316,23 @@ void migrate()
                 Cvar_SetQuick(&var, var.default_string);
                 Con_DPrintf("Held Object Offsets: %s: %s %s (was 0)\n", cvarAt(slot, Key::ID).string, var.name, var.string);
             }
+        }
+    }
+    // 53: the mission pack's multi-grenade (slot 5, progs/mervup.mdl: one from the pouch with B/Y held, an ogre's caught)
+    // is held as the grenade is (round 21, "Multi-grenades from the pouch"): In the Palm, in one hand, if the slot is
+    // still the multi-grenade's and they are still every prop's (as 44 for the grenade).
+    if(from < 53)
+    {
+        constexpr int multiGrenadeSlot = 4;
+        if(!strcmp(cvarAt(multiGrenadeSlot, Key::ID).string, cvarAt(multiGrenadeSlot, Key::ID).default_string) &&
+            atof(cvarAt(multiGrenadeSlot, Key::GripMode).string) == 0.0 &&
+            atof(cvarAt(multiGrenadeSlot, Key::TwoHands).string) == 1.0)
+        {
+            for(const Key key : {Key::GripMode, Key::TwoHands})
+            {
+                Cvar_SetQuick(&cvarAt(multiGrenadeSlot, key), cvarAt(multiGrenadeSlot, key).default_string);
+            }
+            Con_DPrintf("Held Object Offsets: progs/mervup.mdl: In the Palm, one hand\n");
         }
     }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);

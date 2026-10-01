@@ -95,6 +95,10 @@ QVR_PROP_DEFAULT(3, GripMode, "2")
 QVR_PROP_DEFAULT(3, TwoHands, "0")
 QVR_PROP_DEFAULT(4, ID, "progs/mervup.mdl")
 QVR_PROP_DEFAULT(4, Mass, "1.2")
+// The multi-grenade held as the grenade is (round 21, "Multi-grenades from the pouch": one from the pouch with B/Y held,
+// or caught): in the palm, in one hand. vr_props_version 53 gives these to configs saved before.
+QVR_PROP_DEFAULT(4, GripMode, "2")
+QVR_PROP_DEFAULT(4, TwoHands, "0")
 // A wall torch taken off its wall (vr_walltorch.qc; ROUND21.md, "Wall torches you can take"): a wooden stick along its
 // model's +x (the butt at -14, the handle to -7, the head to +1.8), its weight in its head; held by its handle through the
 // fist, flame up (Along the Handle: where it was taken along the handle, leaning as taken), in either hand or both (the

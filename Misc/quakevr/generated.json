@@ -110,6 +110,11 @@
   "sha256": "76ab8ac01bf62bf917b9ea91706c59a71c62fe69b16a9ffe5847c4d894dc4660",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/mervup.mdl": {
+  "sha256": "b52b792dec174216883857a7bb6a2a46e8f90e37f2f925bef32d99fb6b8eff7a",
+  "by": "make_grenade_skins.py",
+  "part": "mdl skins after 0"
+ },
  "quakevr/progs/v_axe.mdl": {
   "sha256": "b411c919fa6a6ded00bd87d7040b5ae07f0988619b4eeacc93399738ca4309e4",
   "by": "polish_weapons.py"

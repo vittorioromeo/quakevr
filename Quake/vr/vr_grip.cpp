@@ -530,7 +530,19 @@ glm::vec3 serverFromPouch(edict_t* e, const float* handAngles, const glm::vec3& 
     // spawned, at the hand's angles, which a model turns with the pitch the other way (held::axesFromAngles): the hand's
     // pitch and roll tipped it in the hand, so that it came out much the same way in the world, however the hand was.
     // Now the grip (In the Palm) and vr_grenade_pouch_hold_* alone place it in the hand.
-    h.taken = {glm::vec3{0.f}, glm::mat3{1.f}};
+    // Its long axis along the hand's forward, as progs/grenade.mdl's (x) is: the mission pack's multi-grenade
+    // (progs/mervup.mdl) stands along its z, its top then forward, and comes out held as the grenade does.
+    const glm::vec3 size = h.prop.hi - h.prop.lo;
+    glm::mat3 turn{1.f};
+    if(size.z > size.x && size.z >= size.y)
+    {
+        turn = glm::mat3{glm::vec3{0.f, 0.f, -1.f}, glm::vec3{0.f, 1.f, 0.f}, glm::vec3{1.f, 0.f, 0.f}};
+    }
+    else if(size.y > size.x)
+    {
+        turn = glm::mat3{glm::vec3{0.f, -1.f, 0.f}, glm::vec3{1.f, 0.f, 0.f}, glm::vec3{0.f, 0.f, 1.f}};
+    }
+    h.taken = {glm::vec3{0.f}, turn};
     h.kept = false;
     placeNow(h);
     physics::setCarryTurn(e, handAngles, h.now.rot);

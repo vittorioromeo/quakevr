@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-# make_grenade_skins.py -- adds skin 1 to quakevr/progs/grenade.mdl: the hand grenade with its pin still in (vr_grenade.qc
-# VR_HGREN_SKIN_UNARMED; docs/vr-port/ROUND21.md, "Hand grenades: unarmed look"). Skin 0, the live grenade's (dark brown
-# iron, a glowing red band), is kept; skin 1 is it muted: the iron its grey (the palette's grey ramp: a nearest colour
-# over the whole palette turned the dark browns teal), the band a dull, unlit brick red (no fullbright texels: the band
-# glows only once the fuse runs). The engine leaves skin 1 no smoke trail
+# make_grenade_skins.py -- adds skin 1 to quakevr/progs/grenade.mdl and progs/mervup.mdl (the mission pack's
+# multi-grenade): the hand grenade with its pin still in (vr_grenade.qc VR_HGREN_SKIN_UNARMED; docs/vr-port/ROUND21.md,
+# "Hand grenades: unarmed look", "Multi-grenades from the pouch"). Skin 0, the live grenade's (dark brown iron, a glowing
+# red band; the multi-grenade's brown shell and glowing amber caps), is kept; skin 1 is it muted: the iron its grey (the
+# palette's grey ramp: a nearest colour over the whole palette turned the dark browns teal), the band a dull, unlit brick
+# red (no fullbright texels: the band glows only once the fuse runs). The engine leaves skin 1 no smoke trail
 # (vr_particles.cpp VR_GrenadeTrail).
 #
 # Usage: python Misc/quakevr/make_grenade_skins.py [progs folder] [--saturation S] [--band-light L]
@@ -42,21 +43,22 @@ def nearest(rgb, among):
     return min(among, key=lambda i: sum((PALETTE[i][k] - rgb[k]) ** 2 for k in range(3)))
 
 
-def muted_index(index, saturation, band_light):
+def muted_index(index, saturation, band_light, gain, lift):
     r, g, b = PALETTE[index]
     grey = 0.299 * r + 0.587 * g + 0.114 * b
     if index < FULLBRIGHT:
-        grey = min(255.0, grey * GREY_GAIN + GREY_LIFT)
+        grey = min(255.0, grey * gain + lift)
         return nearest((grey, grey, grey), GREYS)
     r, g, b, grey = r * band_light, g * band_light, b * band_light, grey * band_light
     return nearest(tuple(grey + saturation * (c - grey) for c in (r, g, b)), range(FULLBRIGHT))
 
 
-def main():
-    saturation = arg("--saturation", SATURATION)
-    band_light = arg("--band-light", BAND_LIGHT)
-    folder = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "..", "quakevr", "progs")
-    path = os.path.join(folder, "grenade.mdl")
+# Each model and its iron's grey (gain, lift): the multi-grenade's shell is a pale lavender, grey a little darker than
+# it (lighter, it read brighter than the live one).
+MODELS = (("grenade.mdl", GREY_GAIN, GREY_LIFT), ("mervup.mdl", 0.75, 0))
+
+
+def mute(path, saturation, band_light, gain, lift):
     guard = genguard.Guard("make_grenade_skins.py", [path], part=genguard.MDL_SKINS_AFTER_0)
 
     data = open(path, "rb").read()
@@ -67,7 +69,7 @@ def main():
     (group,) = struct.unpack_from("<i", base, 0)
     if group != 0:
         raise SystemExit("%s: skin 0 is a group; not supported" % path)
-    table = [muted_index(i, saturation, band_light) for i in range(256)]
+    table = [muted_index(i, saturation, band_light, gain, lift) for i in range(256)]
     muted = bytes(table[p] for p in base[4:4 + w * hgt])
 
     h[12] = 2
@@ -78,8 +80,16 @@ def main():
         f.write(data[off:])
     guard.finish()
     band = sorted({table[i] for i in set(base[4:4 + w * hgt]) if i >= FULLBRIGHT})
-    print("grenade.mdl: 2 skins (%dx%d); skin 1 grey, the band's fullbrights (saturation %.2f) to %s" % (
-        w, hgt, saturation, ", ".join("%d %s" % (i, PALETTE[i]) for i in band)))
+    print("%s: 2 skins (%dx%d); skin 1 grey, the band's fullbrights (saturation %.2f) to %s" % (
+        os.path.basename(path), w, hgt, saturation, ", ".join("%d %s" % (i, PALETTE[i]) for i in band)))
+
+
+def main():
+    saturation = arg("--saturation", SATURATION)
+    band_light = arg("--band-light", BAND_LIGHT)
+    folder = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "..", "..", "quakevr", "progs")
+    for name, gain, lift in MODELS:
+        mute(os.path.join(folder, name), saturation, band_light, gain, lift)
 
 
 if __name__ == "__main__":
