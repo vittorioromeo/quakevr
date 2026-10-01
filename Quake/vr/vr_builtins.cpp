@@ -18,6 +18,8 @@
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
 #include "vr_server.hpp"
+#include "vr_twohand.hpp"
+#include "vr_cvars.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
@@ -798,6 +800,19 @@ void PF_weaponhotspotinfo()
     G_FLOAT(OFS_RETURN) = what == 0 ? static_cast<float>(h.type) : what == 1 ? h.bias : h.share;
 }
 
+// float(entity player, float hand, entity weapon) weapongrabspot: the hotspot (index + 1; 0 none: its handle) by which
+// `player`'s empty `hand` takes `weapon` lying about (vr_weapon_grab_hotspots: the local player's view found the hand
+// nearer that grip or blade hotspot than the handle; vr_twohand.cpp groundSpot). Others' are 0.
+void PF_weapongrabspot()
+{
+    edict_t* player = G_EDICT(OFS_PARM0);
+    edict_t* weapon = G_EDICT(OFS_PARM2);
+    const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
+    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
+    G_FLOAT(OFS_RETURN) =
+        local && vr_weapon_grab_hotspots.value ? static_cast<float>(twohand::groundSpot(hand, NUM_FOR_EDICT(weapon))) : 0.f;
+}
+
 // Rocks and bricks lying about (vr_debris.cpp, QC vr_debris.qc). float() debrisplan: places them (after the map's
 // entities), how many; string(float i) debrismodel: piece i's model (to set); float(entity e, float i) debrisput: puts
 // piece i on e (its model set): its skin, size, turn, place resting on the floor and box; its kind (1 a rock, 2 a
@@ -980,6 +995,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"makeforward", PF_makeforward},
     {"weaponhotspot", PF_weaponhotspot},
     {"weaponhotspotinfo", PF_weaponhotspotinfo},
+    {"weapongrabspot", PF_weapongrabspot},
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
     {"forcegrabpoint", PF_forcegrabpoint},

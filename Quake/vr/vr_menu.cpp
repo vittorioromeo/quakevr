@@ -1775,6 +1775,11 @@ void hologramTestMessage()
         slider("Weapon Grab Slack", vr_weapon_grab_slack, 0.f, 10.f, 0.5f, "%.1f cm")
             .help("With Weapons by the Fist: a weapon is taken with the fist this far off it too (a gun lying flat on the "
                   "floor is thinner than the lowest your fist gets over it)."),
+        toggle("Weapons by Their Hotspots", vr_weapon_grab_hotspots)
+            .help("Grip a weapon on the floor nearer one of its other grips than its handle (a chainsaw's front handle, "
+                  "a crowbar's bar, a sword's blade, a gun's pump) and you carry it by that grip, as when your other hand "
+                  "lets go of a weapon held in both: grip its handle with the other hand to use it. Not a pistol's "
+                  "two-handed cup grip. A force grab always takes the handle. Off: always by the handle."),
         toggle("Drawn In the Hand", vr_carry_local)
             .help("What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it."),
         toggle("Two-Handed Carrying", vr_carry_two_hands)

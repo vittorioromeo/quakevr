@@ -27,6 +27,24 @@ void apply(hands::State& s);
 // (`pos`, `rot`: in, as tracked and drawn; out, on the blade), given the holding hand's drawn pose.
 [[nodiscard]] bool bladeGripHand(const hands::State& s, int hand, const glm::vec3& holderPos, const glm::vec3& holderRot,
     glm::vec3& pos, glm::vec3& rot);
+// The same for the weapon of `slot` held in `holding` at the angles `holderVisualRot` (as drawn), its tip at `tip`: the
+// other hand's pose (`pos`, `rot`) turned onto the blade (either way round) and slid along it into its grip's zone.
+void bladeGripOn(int slot, int holding, const glm::vec3& tip, const glm::vec3& holderVisualRot, const glm::vec3& holderPos,
+    const glm::vec3& holderRot, glm::vec3& pos, glm::vec3& rot);
+
+// A weapon lying about taken by one of its hotspots (vr_weapon_grab_hotspots; the view's groundSpots, QC
+// wpnthrow_handtouch_impl): the empty `hand` near a grip or blade hotspot of the weapon entity `entity` (the client's
+// number, the server's edict) records, each frame, how it would carry it by that hotspot: the poses (all in the same
+// frame) of the hand as tracked, of the other hand as it would hold the handle (`holderMirrored`: the off hand) and of the
+// hand as drawn on the hotspot. The server asks which hotspot (groundSpot: index + 1, 0 none: its handle); a carry that begins
+// just after takes those poses (as a hand-off takes its last help's).
+void recordGroundSpot(int hand, int entity, int index, const glm::vec3& trackedPos, const glm::vec3& trackedRot,
+    const glm::vec3& holderPos, const glm::vec3& holderRot, bool holderMirrored, const glm::vec3& drawnPos,
+    const glm::vec3& drawnRot);
+void clearGroundSpot(int hand);
+// The handle of the weapon `hand` carries (where the other hand takes it back), as drawn last; false if none.
+[[nodiscard]] bool carriedHandle(int hand, glm::vec3& out);
+[[nodiscard]] int groundSpot(int hand, int entity);
 
 void reset();
 
