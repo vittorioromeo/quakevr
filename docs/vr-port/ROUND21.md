@@ -18837,14 +18837,13 @@ tip (TESTING.md).
 | Melee canary | 48/53, no differences |
 
 Edge cases decided:
-- The support mode is not two-handed aiming for the server (no spread reduction, no two-handed melee); its weight is
-  shared. Foregrip and rigid are. Both hands on a carried weapon are not (nothing to aim).
+- ~~The support mode is not two-handed aiming for the server~~ (changed in the follow-ups below: every free grip is).
 - A weapon picked up anywhere is drawn as it lay, unmirrored, whichever hand took it; the other hand taking its handle
   holds it as that hand holds weapons (mirrored or not). A carried, mirrored weapon thrown flips (the world model isn't
   mirrored).
 - Rigid mode keeps the holding hand where it is (the aim's turn only), so the muzzle stays at the hand.
 - Remote players (not the listen server's) get the old hand-off (their client's free grips are drawn, but the server
-  doesn't know them): a sword changes hands.
+  doesn't know them). A sword no longer changes hands for anyone (follow-ups below).
 - On a held weapon the hand anywhere must start gripping on it (a hand gripping already, slid onto it, does not take it).
 
 - [ ] Grip a shotgun lying on the floor by its middle: it comes up as it lay; it doesn't fire; take its handle with the
@@ -18901,3 +18900,38 @@ Ogres' Chainsaws, after Runs On When Let Go).
 Checked in the mock: one hand 2.00 mm, both hands (off hand gripping a front-handle hotspot) 0.80 mm, two-handed 1.00;
 the dropped running chainsaw's smoke: 995 live particles against 972 with `vr_chainsaw_smoke 0`; the in-hand smoke seen
 at opacity 0.6 (from the engine's right, rising). eval.sh canary: no differences.
+### Follow-ups (2026-10-01, second pass)
+
+His notes (NOTES.md vrfiringrange_2026-10-01_17-01-55 .. _17-13-41).
+
+| Note | Cause | Now |
+|---|---|---|
+| Sword: the off hand on its grip below the hand, the main hand lets go: the sword flips into the off hand | the hands were within 5 units: the release was the hand switch (`QVR_HS_HAND_SWITCH`), which hands the weapon over by its handle; and the hand-off itself changed a sword's or crowbar's hands | the hand-off comes first wherever the hand lets go, and carries a sword or crowbar too: the off hand holds it where it holds it (its grip, or its blade), as the shotgun's pump (QC `DoHandImpl`, `VRTryHandOff`) |
+| Let go of at a holster while the other hand holds it: holstered | the holster came before the hand-off | the hand-off first: it stays in the other hand. A hand at a holster with the other hand not on the weapon holsters as before |
+| The off hand anywhere near the handle, the main hand lets go: it jumps onto the handle | the hand switch again (hands within 5 units) | the hand-off first: carried where it is held. A hand within Anywhere: Away From Grips (12 cm) of the handle holds nothing, so the switch still works there |
+| The main hand takes the handle back: the hand anywhere always lets go | the weapon jumps to the taking hand's pose (up to 6 units off the handle, turned as that hand is): the free grip, started afresh, found the hand off the weapon's surface | `startRetake` (vr_twohand.cpp): a hand that carried the weapon anywhere a moment ago goes on holding it at its place on it. As a foregrip the aim turns onto it (only the hands' distance apart counts: updateFree's 20 units); supported or rigid, its place as now drawn within the hotspots' keep (20 units, times the stickiness) of the hand. Drawn on its place as it carried it. Once a carry. (A carry by a hotspot, the pump, is unchanged: the hotspot takes it back if it is in reach.) |
+| Decision change: a hand anywhere is two hands | | every free grip, whatever its mode (support included) and both hands on a carried weapon, sets `VRBITS0_2H_AIMING` (spread reduction, two-handed melee and parry, the stamina cost, 2H throws). Not a weapon with Two-Handed: Not Allowed. Only the hotspots aim by Two-Handed Aim's offsets (Aim Offset, Aim Pitch/Yaw/Roll: they never applied anywhere) and their 2H frame blend (`zb_2h`: it did apply anywhere; now hotspot only) |
+| Anywhere feels less weighty | the same spring stiffening (2h 1.00) but no pivot: a hotspot's weight turns about between the hands (its centre of mass moved half way to the grip), anywhere's about the handle; and a weapon carried off its handle had its centre of mass ahead of the carrying hand, as if held by its handle | anywhere turns about between the hands as a hotspot does (`twohand::freeGripPoint`); a carried weapon's centre of mass is where it is drawn (its Balance ahead of its handle), its inertia a rod along it about the hand |
+
+Checked (`scratch/anygrip2`, kit; the mock, e1m1): `run_all.sh anygrip2` (the first pass's tests): PASS. Melee canary
+48/53, no differences.
+
+| Test | Result |
+|---|---|
+| Sword, off hand on its grip below the hand (-0.15 of the way), main lets go (`i1.txt`) | "handed off to the off hand", carried; drawn at the same place (0.0 units, 0.2 degrees) |
+| Sword, off hand on its blade (0.6), main lets go | carried by the blade (1.6 units, 0.1 degrees: where the sliding hand was at the release) |
+| Shotgun at the right hip holster (hotspot 6), the off hand on its pump or its stock end (`i2.txt`), main lets go | "handed off", carried; the holster stays empty |
+| Shotgun, off hand anywhere 4.2 units from the handle (hotspot 7, the hand switch), main lets go | before: weapon 4 in the off hand by its handle; now "handed off ..., held anywhere", carried |
+| Carried anywhere, the main hand takes the handle turned 50 degrees from it (`i4.txt`) | before: let go; now "goes on holding" (7.2 units off its place before the turn), each mode |
+| `vr_status` "two-handed aiming", anywhere as a foregrip / support / rigid, both hands on a carried weapon (`i5.txt`) | yes in each (support: was no); the shot's direction the same in the three modes |
+| `vr_debug_weight 2` (now prints 2h, the centre of mass and the inertia): shotgun by its handle / + pump / + anywhere at 0.5 / carried by its middle | com 0.120 0 0 m / -0.064 -0.012 0.019 / 0.014 0.016 0.005 (was 0.120 0 0) / -0.028 -0.020 -0.093 (was 0.120 0 0); 2h 0 / 1 / 1 / 0 |
+
+`vr_debug_2h_grip 2` prints where a held weapon is drawn too (was: carried only), to check a hand-off's continuity.
+
+- [ ] Sword two-handed by its grip below the hand: let go with the main hand: it stays in the off hand where it holds it
+  (no flip); take the handle again.
+- [ ] Two hands on a gun, the main hand at a holster: let go: it stays in the off hand.
+- [ ] The off hand anywhere close to the handle: let go of the handle: it stays where the off hand holds it.
+- [ ] Carried anywhere, take the handle back turned a little: the other hand stays on it.
+- [ ] Support Only: aiming and melee feel two-handed (spread, damage, parry); no aim offsets.
+- [ ] Anywhere vs the pump: the weight feels alike now? Carry a gun by its muzzle end: heavier than by its handle.

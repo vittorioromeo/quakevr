@@ -317,17 +317,52 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
         0.06f);
     l.twoHanded = za::clamp(twohand::support(h), 0.f, 1.f); // (a hotspot's grip, or the other hand anywhere on it)
     l.tune = weaponTuning(slot);
-    const float onGrip = za::clamp(twohand::transition(h), 0.f, 1.f); // (a hotspot's: its point)
-    if(s && onGrip > 0.f && s->grip2HValid[h])
+    if(!s)
     {
-        // Held by its handle and a foregrip: it turns about between them (as far as the grip is taken).
-        const glm::mat3 hand = held::axesFromAngles(&s->rot[h][0], true);
-        const glm::vec3 pivot = glm::transpose(hand) * (s->grip2H[h] - s->pos[h]) * (0.5f * u2m * onGrip);
-        l.com -= pivot;
-        const float across = l.mass * (glm::pow(weapons::value(slot, weapons::Key::Span) * 0.01f, 2.f) / 12.f);
+        return l;
+    }
+    // The other hand on it: at a hotspot (its point), or anywhere (its place on it: the same pivot, NOTES.md
+    // vrfiringrange_2026-10-01_17-10-50).
+    float onGrip = za::clamp(twohand::transition(h), 0.f, 1.f);
+    glm::vec3 gripAt{0.f};
+    bool gripped = onGrip > 0.f && s->grip2HValid[h];
+    if(gripped)
+    {
+        gripAt = s->grip2H[h];
+    }
+    else if(float t = 0.f; twohand::freeGripPoint(*s, h, gripAt, t) && t > 0.f)
+    {
+        gripped = true;
+        onGrip = za::clamp(t, 0.f, 1.f);
+    }
+    const glm::mat3 hand = held::axesFromAngles(&s->rot[h][0], true);
+    glm::vec3 axis{1.f, 0.f, 0.f}; // the weapon's, in the hand's axes
+    // Carried off its handle (the hand-off, a hotspot, anywhere): its centre of mass is where it is drawn, its Balance ahead
+    // of its handle, not ahead of this hand.
+    twohand::HeldAs as{glm::vec3{0.f}, glm::vec3{0.f}, false};
+    const bool carried = twohand::carrying(h) && twohand::carriedWeapon(*s, h, as);
+    if(carried)
+    {
+        glm::vec3 f, r, u;
+        hands::angleVectors(as.rot, f, r, u);
+        axis = glm::transpose(hand) * f;
+        l.com = glm::transpose(hand) * (as.pos - s->pos[h]) * u2m + axis * (weapons::value(slot, weapons::Key::Balance) * 0.01f);
+    }
+    if(gripped)
+    {
+        // Held by its handle and a foregrip (or both hands on it anywhere): it turns about between them (as far as the
+        // grip is taken).
+        l.com -= glm::transpose(hand) * (gripAt - s->pos[h]) * (0.5f * u2m * onGrip);
+    }
+    if(gripped || carried)
+    {
+        // A rod along `axis` (its own inertia: about its middle; 6 cm round), about the pivot (the parallel axes).
+        const float length = za::max(weapons::value(slot, weapons::Key::Span), 1.f) * 0.01f;
+        const glm::mat3 along = glm::outerProduct(axis, axis);
         const glm::vec3 r = l.com;
-        l.inertia = {l.mass * 0.06f * 0.06f + l.mass * (r.y * r.y + r.z * r.z), across + l.mass * (r.x * r.x + r.z * r.z),
-            across + l.mass * (r.x * r.x + r.y * r.y)};
+        const glm::mat3 about = l.mass * 0.06f * 0.06f * along + l.mass * length * length / 12.f * (glm::mat3{1.f} - along) +
+                                l.mass * (glm::dot(r, r) * glm::mat3{1.f} - glm::outerProduct(r, r));
+        l.inertia = {about[0][0], about[1][1], about[2][2]};
     }
     return l;
 }
@@ -375,8 +410,9 @@ void trace(int h, const Load& l, const glm::vec3& xt, const glm::quat& qt, const
         wrap(da.x - ta.x), wrap(da.y - ta.y), wrap(da.z - ta.z), speed, "spring");
     if(vr_debug_weight.value >= 2)
     {
-        Con_Printf("weight: %s %s %.1f kg x%.2f off %.2f cm %.2f deg\n", h == HAND_MAIN ? "main" : "off", l.model, l.mass,
-            l.staminaMult, off, ang);
+        Con_Printf("weight: %s %s %.1f kg x%.2f off %.2f cm %.2f deg, 2h %.2f, com %.3f %.3f %.3f m, inertia %.4f %.4f %.4f\n",
+            h == HAND_MAIN ? "main" : "off", l.model, l.mass, l.staminaMult, off, ang, l.twoHanded, l.com.x, l.com.y, l.com.z,
+            l.inertia.x, l.inertia.y, l.inertia.z);
     }
 }
 

@@ -6247,9 +6247,9 @@ void(entity ent, float xHand) VRHandStopFiring =
 
 // Hand-off (vr_2h_handoff, docs/vr-port/ROUND16.md): the hand holding a weapon two-handed lets go while
 // the other, empty hand still grips it (steadying it: VRGet2HAiming, or a moment ago). The weapon
-// stays in that hand instead of falling: a sword (held by its grip with both hands) simply changes
-// hands; a gun, held by its foregrip, hangs from it as it was held (QVR_WPNFLAG_FOREGRIP_CARRIED: the
-// client draws it there; it doesn't fire or reload) until a hand takes its handle again. A hand that
+// stays in that hand instead of falling: it hangs from where that hand holds it (a gun's foregrip, a
+// sword's grip or blade: QVR_WPNFLAG_FOREGRIP_CARRIED: the client draws it there; it doesn't fire or
+// reload) until a hand takes its handle again. A hand that
 // holds a weapon of its own is never helping, so dual wielding keeps dropping as before.
 // Weapons held anywhere (vr_weapon_grab_anywhere, the engine's weaponanygrip 2): the other hand holding it anywhere on it
 // (whatever its mode, and on a weapon carried off its handle too) carries it there, a sword or a crowbar too.
@@ -6266,11 +6266,9 @@ float(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponC
         return FALSE;
     }
 
-    float flags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED);
-    if((xWeapon != WID_SWORD && xWeapon != WID_CROWBAR) || anywhere)
-    {
-        flags = flags | QVR_WPNFLAG_FOREGRIP_CARRIED;
-    }
+    // Carried where the other hand holds it, a sword or a crowbar too (by its grip below the hand or its blade: it used to
+    // change hands, flipped onto its handle; NOTES.md vrfiringrange_2026-10-01_17-01-55).
+    float flags = (xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED)) | QVR_WPNFLAG_FOREGRIP_CARRIED;
     dprint(sprintf("weapon: %g handed off to the %s hand%s\n", xWeapon, other == cVR_MainHand ? "main" : "off",
         anywhere ? ", held anywhere" : ""));
 
@@ -6383,13 +6381,15 @@ void(entity ent, float xHand,
     {
         VRWeaponLetGoDone(ent, xHand);
 
-        if(VRLetGoDropsAt(xHotspot))
+        // Held two-handed: the other hand keeps it (the hand-off), wherever this hand lets go: at a holster or the hand
+        // switch too (the other hand still holds it: NOTES.md vrfiringrange_2026-10-01_17-09-51, _17-11-37, _17-01-55).
+        if(VRTryHandOff(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip))
         {
-            // Held two-handed: the other hand keeps it (the hand-off). Otherwise it falls, or flies.
-            if(!VRTryHandOff(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip))
-            {
-                DropWeaponInHand(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip);
-            }
+        }
+        else if(VRLetGoDropsAt(xHotspot))
+        {
+            // Otherwise it falls, or flies.
+            DropWeaponInHand(ent, xHand, xWeapon, xWeaponFlags, xWeaponClip);
         }
         // Put a weapon in a holster.
         else if(isHolsterHotspot(xHotspot))
