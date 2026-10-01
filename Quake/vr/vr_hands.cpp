@@ -119,6 +119,11 @@ struct Previous
     double time{0.0};
     glm::vec3 hands[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     glm::vec3 head{0.f};
+    // poseSpin: each controller's orientation (tracking space) at its last sample's time (< 0: none), and the spin
+    // since the sample before (world, rad/s).
+    glm::quat handRot[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}};
+    double handRotTime[2]{-1.0, -1.0};
+    glm::vec3 handSpin[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 };
 
 Previous previous;
@@ -343,6 +348,36 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
     }
 }
 
+// A controller's spin (tracking space, rad/s) from its turn since its previous sample (vr_throw_spin_from_pose): what
+// its orientation did, whatever frame the runtime gives its angular velocity in (VirtualDesktopXR: the controller's
+// own, not the tracking space's). Kept within a frame resampled at the same time; none after a gap of over 0.1 s.
+[[nodiscard]] glm::vec3 poseSpin(int h, const glm::quat& rot, double time)
+{
+    const double dt = time - previous.handRotTime[h];
+    if(previous.valid && previous.handRotTime[h] >= 0.0 && dt == 0.0)
+    {
+        return previous.handSpin[h];
+    }
+    glm::vec3 spin{0.f};
+    if(previous.valid && previous.handRotTime[h] >= 0.0 && dt > 0.0 && dt < 0.1)
+    {
+        glm::quat d = rot * glm::inverse(previous.handRot[h]);
+        if(d.w < 0.f)
+        {
+            d = -d;
+        }
+        const glm::vec3 v{d.x, d.y, d.z};
+        if(const float s = glm::length(v); s > 1e-7f)
+        {
+            spin = v * (2.f * za::atan2(s, d.w) / (s * static_cast<float>(dt)));
+        }
+    }
+    previous.handRot[h] = rot;
+    previous.handRotTime[h] = time;
+    previous.handSpin[h] = spin;
+    return spin;
+}
+
 // Fills the velocities: from the runtime when it has them, else by differencing body-relative
 // positions (the flat-screen hands, or a runtime without velocities).
 void updateVelocities(const TrackingState* t)
@@ -390,12 +425,18 @@ void updateVelocities(const TrackingState* t)
         const double time = t && t->time >= 0.0 ? t->time : realtime;
         glm::vec3 throwVel = state.vel[h];
         glm::vec3 throwForward = forward(state.rot[h]);
+        glm::vec3 throwSpin = state.angVel[h];
         if(t && t->hands[h].velocityValid)
         {
             throwVel = fromTracking(t->hands[h].gripVelocityValid ? t->hands[h].gripVelocity : t->hands[h].linearVelocity);
             throwForward = forward(anglesFromTracking(throwFrame(t->hands[h].orientation, h), turnYaw));
+            const glm::vec3 spin = poseSpin(h, t->hands[h].orientation, time);
+            if(vr_throw_spin_from_pose.value)
+            {
+                throwSpin = fromTracking(spin);
+            }
         }
-        throwing::sample(h, time, state.pos[h], throwVel, state.angVel[h], throwForward);
+        throwing::sample(h, time, state.pos[h], throwVel, throwSpin, throwForward);
     }
 
     previous.head = head;

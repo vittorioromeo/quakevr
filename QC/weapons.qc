@@ -5948,6 +5948,14 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
         // ("released": how long after the throw's estimate it left the hand, uncapped: throw_trigger_test.sh.)
         dprint(sprintf("thrown: velocity %v gravity %.2f spin %v age %.3f released %.3f scale %g of %v\n",
             thrown.velocity, thrown.gravity, thrown.vr_spin, age, VRGetHandThrowAge(xHand), xVelScale, asThrown));
+        // (Its spin's axis against the hand's left, about which a wrist flick turns it end over end, its tip going
+        // down: 0 for that, 90 for a spin about the handle or a cartwheel, 180 backwards: throw_spin_test.sh.)
+        makevectors(VRGetHandRot(xHand));
+        float spinRate = vlen(thrown.vr_spin);
+        float spinCos = spinRate > 0.01 ? max(-1, min(1, normalize(thrown.vr_spin) * -v_right)) : 1;
+        float spinOff = atan2(sqrt(1 - spinCos * spinCos), spinCos) * 57.29578;
+        dprint(sprintf("thrown spin: %.2f rad/s, %.1f deg off end over end; hand %v, angles %v\n", spinRate, spinOff,
+            VRGetHandRot(xHand), thrown.angles));
     }
     // (QVR_WEAPONTHROWMODE_DISCARD: nothing is thrown, the weapon is gone.)
 

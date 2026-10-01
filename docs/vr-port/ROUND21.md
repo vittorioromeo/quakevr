@@ -18306,3 +18306,44 @@ the tip only, as a carried gun does.)
   hand: both hands on it, as usual. The same for a crowbar by its bar and a sword by its blade.
 - [ ] Gripping a weapon near its handle still takes it ready to use; a force grab always does.
 - [ ] Too annoying in play? Weapons by Their Hotspots off restores the old pick-up.
+## A thrown axe's spin: the runtime's angular velocity frame (2026-10-01)
+
+His report (vrfiringrange_2026-10-01_11-28-18): the axe held upright in the right hand, a small flick of the wrist
+down in the vertical plane ahead, let go: it left the hand "bent 90 degrees", spinning sideways, not end over end
+with its edge ahead.
+
+**Cause: the runtime's angular velocity is in the controller's frame.** OpenXR gives `XrSpaceVelocity::angularVelocity`
+in the base space; his runtime, VirtualDesktopXR 1.0.10 (the takes' `source`), gives it in the controller's own frame.
+On his takes of 2026-09-29 (`raw_m_w*` against the turn of `raw_m_q*` between samples, above 8 rad/s): in the
+controller's frame (a fixed turn of about 30-40 degrees about its x axis from the raw pose fitted) the median cosine is
+0.97; in the tracking space, 0.3-0.5. At the palm's fastest moment of each slash, stab and punch take the two axes are a
+median 40-90 degrees apart. The throw took that vector as a world one (`vr_hands.cpp`: `fromTracking`), so a thrown
+weapon's spin (`.vr_spin` from `handavel`) was about the right axis only for a flick about the controller's x axis made
+facing the play space's front (as a mock flick always was): facing 90 degrees away the flick's axis became the
+forward one, a cartwheel; facing back, backwards. Spin in the Air then only settled what it was given. The release
+pose was right (the thrown weapon starts at the hand's angles; checked in the mock, `thrown spin:` angles).
+
+**Fix:** a throw's spin comes from the controller's turn between its tracking samples (`poseSpin`, on the runtime's
+clock, then turned into the world as positions are), `vr_throw_spin_from_pose 1` (default; 0: the runtime's, as before;
+Settings > Throwing: Spin From Controller Turn). The throws' samples (`throwing::sample`) take it, so the spin, the
+wrist flick's speed through the lever arm and two-handed throws all use it. Its size at the peak is about the
+runtime's (median 1.07-1.12x on the takes; the runtime's lags its pose by about 3 samples). `state.angVel` (the flick
+reload's speed, the recorded `m_av*`) is left as it was.
+
+Not changed (same cause, follow-ups): the legacy pose's velocity (`toLegacyPose`: the grip's velocity plus
+`cross(angularVelocity, raw - grip)`, 10 cm) and the calibrated hand's point (`vr_hands.cpp`:
+`cross(angularVelocity, off)`) take the runtime's angular velocity as a world one too, so on Virtual Desktop the hands'
+velocity (melee) carries a wrong lever term of up to about 1 m/s in fast wrist turns; the old takes were recorded with
+it. `throw_calibration.py` likewise reads `raw_m_w*` as world.
+
+Mock: `vr_mock_angvel_local 1` reports the hands' angular velocity in the controller's frame, as VirtualDesktopXR.
+The thrown weapon's debug line `thrown spin: <rate> rad/s, <deg> deg off end over end` (developer 1; Debug > Throws
+help): its spin's axis against the hand's left axis (0: a flick's end over end, tip going down; 90 a cartwheel or about
+the handle; 180 backwards).
+
+### Checked
+
+- `Misc/quakevr/throw_spin_test.sh <agent>` (the upright axe flicked down, facing the play space's front, turned 90 and
+  180; the runtime's angular velocity in the world or the controller's frame; before and after): with the
+  controller's frame and `vr_throw_spin_from_pose 0`, 0 / 90 / 180 degrees off end over end (the bug); every other
+  case 0.0, spin 8.0-8.3 rad/s. PASS.
