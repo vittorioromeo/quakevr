@@ -493,7 +493,8 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
         return;
     }
 
-    const glm::vec3 move = vrMove->roomscaleMove;
+    // (Units per second of the world's time; the player's frame in its own time is longer: VR_PlayerMoveSpeedup.)
+    const glm::vec3 move = vrMove->roomscaleMove / static_cast<float>(VR_PlayerMoveSpeedup());
     if((move.x == 0.f && move.y == 0.f) || !ZA_ISFINITE(move.x) || !ZA_ISFINITE(move.y))
     {
         return;

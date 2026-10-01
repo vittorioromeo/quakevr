@@ -144,6 +144,7 @@ extern "C" void VR_OnProgsLoaded()
         };
 
         b.spawnServerFromSaveFile = globalFloat("spawnServerFromSaveFile");
+        b.playerTimeOffset = globalFloat("vr_player_time_offset");
         for(int i = 0; i < numExtSpawnParms; i++)
         {
             b.extSpawnParms[i] = globalFloat(va("parm%d", firstExtSpawnParm + i));

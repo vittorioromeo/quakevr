@@ -77,12 +77,12 @@ after; `models` 0.028 / 0.026 ms.
 | `Quake/gl_draw.c` | +111 -4 | +110 -4 | 10 | lasting run-time pics (the big font), the menu canvas in the headset, glyph size and text outline |
 | `Quake/gl_rmisc.c` | +95 -14 | +93 -14 | 14 | liquid alphas from the settings and the map's keys (R_UpdateLiquidAlpha), shader storage ranges |
 | `Quake/gl_rmain.c` | +194 -11 | +89 -11 | 47 | eye rendering: scene format and samples, post-process gamma/target, projection, shadow maps, tone, profiling scopes |
-| `Quake/host.c` | +94 -6 | +92 -6 | 51 | VR frame hooks, config written atomically and merged, motion takes' server frames, test-run pacing |
+| `Quake/host.c` | +94 -6 | +103 -7 | 51 | VR frame hooks, config written atomically and merged, motion takes' server frames, test-run pacing; slow motion: the frame times scaled (`VR_AdvanceTime`, `VR_TimeScale`), the player's moves in its own time round `SV_RunClients` (`VR_PlayerRunBegin/End`) |
 | `Quake/gl_model.c` | +613 -6 | +84 -7 | 30 | the model-loading hooks (vr_modelload.cpp, vr_normalmaps.cpp), relit maps, derived models, load timing |
 | `Quake/gl_screen.c` | +74 -7 | +72 -7 | 18 | the HUD to the window only (the wrist gadget), async PNG screenshots, modal dialogs in the headset, test runs' unpaced frames |
 | `Quake/console.c` | +68 -1 | +67 -1 | 11 | notify lines for the wrist gadget's log and hologram |
 | `Quake/r_sprite.c` | +66 -1 | +65 -1 | 10 | soft sprites (vr_particles.cpp) |
-| `Quake/sv_phys.c` | +65 -10 | +51 -10 | 28 | client move hooks (VR_ClientSpecialMove, climbing), props, rigid bodies riding pushers, second think timer |
+| `Quake/sv_phys.c` | +65 -10 | +73 -11 | 35 | client move hooks (VR_ClientSpecialMove, climbing), props, rigid bodies riding pushers, second think timer; slow motion's Sandevistan: the player and its missiles stepped in its own time (`VR_PhysicsEntityBegin/End`), a think due within the world's frame (`VR_ThinkFrame`) |
 | `Quake/image.c` | +44 -7 | +45 -7 | 9 | image decoding from memory, prefetch, PNG to a full path from any thread, load timing |
 | `Quake/zone.c` | +45 -2 | +45 -2 | 9 | 32 MiB zone, usage counts, heap check only when PARANOID |
 | `Quake/cl_tent.c` | +40 -5 | +39 -5 | 24 | decals, impact lights, heat haze, beams as drawn (ropes), temp-entity limit counted |
@@ -112,7 +112,8 @@ after; `models` 0.028 / 0.026 ms.
 | `Quake/Makefile` | +27 -2 | +5 -1 | 3 | include vr/vr.mk; clean |
 | `.gitignore` | +30 -0 | +6 -0 | 1 | build and packaging output (the game folder: quakevr/.gitignore) |
 | `Quake/snd_dma.c` | +4 -1 | +11 -2 | 7 | 4096 known sounds, counted; the spatial audio's hooks (vr_audio.cpp: the listener, the hands' and moving sounds, a new sound, the statics not combined, whole frames) |
-| `Quake/snd_mix.c` | 0 | +4 -0 | 3 | the spatial audio's voices painted, their channels skipped, vr_snd_capture |
+| `Quake/snd_mix.c` | 0 | +74 -5 | 8 | the spatial audio's voices painted, their channels skipped, vr_snd_capture; slow motion's slowed and lowered sounds (`SND_PaintChannelRate`: a channel read at `VR_SndRate`, interpolated; its end in output samples, put back at 1) |
+| `Quake/q_sound.h` | 0 | +2 -0 | 1 | slow motion: a channel's fraction of a sample (`frac`) and whether its end counts resampled output (`resampled`) |
 | `Quake/world.h` | +9 -0 | +5 -0 | 1 | MOVE_HITGIBS, MOVE_HITMODEL flags |
 | `Quake/gl_shaders.c` | +5 -0 | +5 -0 | 2 | the wound-painting programs |
 | `Quake/gl_model.h` | +5 -0 | +4 -0 | 4 | texture uvclamp, deluxemap samples, Mod_ReloadAliasModel |

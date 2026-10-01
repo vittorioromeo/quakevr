@@ -235,6 +235,12 @@ context and screenshot, ready to paste or to point me at.
     your hands follow your controllers as fast as the slowed world allows. Try moving at a quarter speed while
     recording, then speed the footage up 4x: does it look and sound natural? Try a real-speed swing in slow motion
     (Hand Speed Limit), Slow Sounds off, Ease In and Out.
+  - **Bullet time and Sandevistan** (ROUND21.md, "Slow motion: bullet time and Sandevistan"): press the inner button
+    on your wrist gadget's lower edge with your other hand's fingertip: the world slows for as long as the TIME meter on
+    the gadget's screen lasts (6 s), the view drained and darkened at its edges; press again to stop. Combat > Bullet
+    Time: try **Sandevistan: You at Full Speed** (you move, turn, swing, shoot at full speed in the slowed world). Is
+    the button easy to find and press (Button Size, Fingertip Reach)? Is the look too strong? Graphics > Recording:
+    **Turn in Real Time**, **Move in Real Time**.
   - **Grappling hook: rope, reel on demand, props and monsters** (ROUND21.md, same title): the hook bites and the rope
     just holds you at its length (swing on it, walk closer; nothing pulls). Hold that hand's **B** (right) or **Y**
     (left) with the trigger to reel in; let go and the rope keeps its length. Walls and ceilings, heavy props (100 kg

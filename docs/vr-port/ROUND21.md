@@ -19561,3 +19561,86 @@ a gameplay bullet time on the wrist gadget and a Sandevistan mode. This is phase
 - Single player only (a remote server keeps its own time; `vr_slowmo` says so).
 - A few UI animations stepped by `host_frametime` slow down with it. Steam Audio's reverb and occlusion update in real
   time. The window's spectator camera smoothing is in real time (as the head).
+
+## Slow motion: bullet time and Sandevistan (2026-10-02)
+
+Phase 2 of "Slow motion": bullet time for play, its look, the Sandevistan mode, and the phase-1 limits that matter
+for play.
+
+### Bullet time (`vr_bullettime.cpp`)
+
+- **The button:** the inner of the two buttons on the wrist gadget's lower edge (`make_gadget.py`: x 0.25, y -1.33;
+  no model change). The other hand's fingertip (its point plus `vr_bullettime_button_reach` 1 unit ahead) coming within
+  `vr_bullettime_button_radius` (1.5 units) presses it (a press is the arrival; it re-arms past 1.5x the radius, at
+  most one press per 0.3 s), with a tick in both hands. Bindable: `vr_bullettime`. Off with
+  `vr_bullettime_enabled 0`. Single player, in game, alive.
+- **The meter:** drains over `vr_bullettime_duration` (6 s real when full); at empty (or pressed again) it stops,
+  `vr_bullettime_cooldown` (2 s) passes, then it fills over `vr_bullettime_recharge` (20 s from empty). It starts
+  only with `vr_bullettime_min` (0.25) or more. A menu open: the meter waits. Sounds `vr_bullettime_sound_on/_off/
+  _denied` (`items/inv1.wav`, `items/inv2.wav`, `misc/menu2.wav`). The world's scale is `vr_bullettime_scale` (0.3),
+  eased by `vr_timescale_ramp` as the recording's; the slower of the two wins.
+- **The gadget** shows it right of the keys' row: "TIME" over a bar (lit when ready, blinking frame while on, only a
+  dim frame while cooling down).
+- **The look** (`vr_bullettime_fx` 1, `_desat` 0.7, `_vignette` 0.5, `_tint` "0.85 0.95 1.15"): the eyes'
+  post-process (`vr_glsl.h` `QVR_POSTPROCESS_GRADE_DITHER`, uniforms 9 and 10 set by `VR_PostProcessTone`), before
+  the grade, eased in and out over 0.25 s. Only bullet time has it (never the recording's `vr_timescale`); the
+  window's Left Eye and Smoothed Mirror show it, the Spectator Camera doesn't; Graphics > Recording has its strength
+  to record bullet time without it.
+
+### Sandevistan (`vr_sandevistan` for any slow motion, `vr_bullettime_sandevistan` for bullet time)
+
+Only the world slows; the player runs in its own time:
+
+- **Moves:** the player's frame on the server is the world's over the scale (`VR_PlayerRunBegin` round
+  `SV_RunClients`, `VR_PhysicsEntityBegin/End` round its `SV_Physics_Client`): Quake's acceleration, friction,
+  gravity, jumps; QC's `frametime` too. The room-scale move is divided back (`VR_ClientRoomscaleMove`).
+- **Its timers:** what its frame sets (`nextthink`, `attack_finished`, `offhand_attack_finished`, the melee
+  `*_melee_attack_finished`) is shortened to the world's time: weapons fire and animate at their own rate. A think is
+  due within the world's frame (`VR_ThinkFrame` in `SV_RunThink`), not the player's longer one (it fired early: a
+  nailgun at 15 shots a second instead of 11).
+- **Its missiles** (`vr_sandevistan_missiles` 1): toss, bounce, fly and fly-missile entities it owns are stepped in
+  its time, and the first think of what its frame spawned (fuses, lifetimes) shortened. Props thrown (Box3D) join the
+  slowed world.
+- **Hands and melee:** the hands are not slowed (no follower; velocities as the runtime's: real). QC's melee runs on
+  the player's clock: `vr_player_time_offset` (a `nosave` global the engine sets each server frame: how far the
+  player's time is ahead of `time`), in `VR_Melee_Track`'s `now` and `VR_PlayerTime()` for the blows' rearming,
+  pommel wait, bash stance and push, bash cooldown. Stamina, counter windows and the bash's deflect window stay on
+  `time` (the engine writes `vr_stamina_time` too; they cross into the monsters' code). At 1 the offset is 0.
+- **Turns:** at real-time speed (`timescale::turnSpeedup`).
+- `vr_gametime` (the VR client's body simulations) runs at real speed in Sandevistan.
+
+### Phase-1 limits fixed or made settings
+
+- **Head-relative melee:** the hands now follow their controllers from the head (`filterHands`: the follower holds
+  the hand's place from the head, its velocity the head's plus its own): walking in the room, ducking and dodging carry
+  the hands along unslowed, and a dodge no longer reads as a hand's blow from the head. What remains: a hand held still
+  while the head moves fast reads that speed (x1/scale), but a blow needs the hand to sweep into something, which a
+  still hand doesn't.
+- **Turning:** `vr_timescale_turn_realtime` (1): the smooth turn at its real-time speed. **Moving:**
+  `vr_timescale_move_realtime` (0): the player's movement and weapons' timing in real time, the hands still slowed.
+
+### Menus
+
+Advanced VR Options > Combat > **Bullet Time** (on/off, Start or Stop It Now, Time Scale, Duration, Recharge Time,
+Cooldown, Least Meter to Start, Sandevistan: You at Full Speed, Your Missiles at Full Speed Too, the look's Strength,
+Colour Drained, Darkened Edges, Button Size, Fingertip Reach). Graphics > Recording > Slow Motion: **Turn in Real
+Time**, **Move in Real Time**, **Sandevistan: You at Full Speed**, **Bullet Time's Look**. Debug > Logging > **Bullet
+Time** (`vr_debug_bullettime`: 1 on, off, refused; 2 the fingertip's distance every frame); Debug > Reports > **Bullet
+Time Now**. Mock: `vr_mock_hand_to <main|off> button` puts the fingertip on the button.
+
+### Results (mock, `vr_fixed_frames 1`, e1m1)
+
+- Meter (duration 2, cooldown 1, recharge 4): 0.99, 0.74, 0.49, 0.24 at half-second steps at 0.30x; off at 2.0 s;
+  cooling 1 s; then +0.125 every half second.
+- Button: `vr_mock_hand_to main button`: on; away and back: off (a second arrival without leaving: nothing).
+- Moving forward 0.5 s real: 139.2 units at 1x; 28.2 slowed at 0.3; 139.2 in Sandevistan at 0.3 (the same path, a step
+  down included).
+- Nailgun held 1 s real: 11 nails at 1x, 4 slowed, 11 in Sandevistan. A nail's flight in Sandevistan: the same
+  positions as at 1x every 3 frames; slowed: 10 units a step instead of 69.
+- Look (eyeshots): saturation 0.0122 to 0.0027, edges 0.0191 to 0.0152 with the centre unchanged, a cool tint.
+- Melee takes in Sandevistan at 0.3 (`EVAL_PRE` with `vr_timescale 0.3; vr_sandevistan 1`): canary 48/53 (the
+  baseline's count), full set 172/177; before the bash timers moved to the player's clock 4 bash takes failed. At 1x:
+  canary unchanged.
+- Hands at 0.25 with the head-relative follower: as phase 1 (0.5 m jump followed at 8 m/s; slow move exact); the head
+  and hand moved 0.3 m together: 0.07 m behind for one frame, then none.
+

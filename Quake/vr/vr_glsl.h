@@ -39,6 +39,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "layout(binding=3) uniform sampler3D GradeLUT; // QVR: the eye's colour grade (vr_grade; vr/vr_tonemap.cpp)\n" \
 "layout(location=7) uniform vec4 Tone; // QVR: exposure (0: no tone curve), the curve's knee and white point, the grade's strength (0: none)\n" \
 "layout(location=8) uniform vec4 Dither; // QVR: the eye's last dither: amplitude (0: none), the right eye's own noise (1), frame offset (0: fixed), unused\n" \
+"layout(location=9) uniform vec4 SlowLook; // QVR: bullet time's look (vr/vr_bullettime.cpp): strength (0: none), desaturation, vignette, unused\n" \
+"layout(location=10) uniform vec3 SlowTint; // QVR: ... its tint\n" \
 "\n" \
 QVR_TONE_GLSL
 
@@ -68,6 +70,15 @@ QVR_TONE_GLSL
 
 // graded (vr_grade) and dithered into the 8-bit image
 #define QVR_POSTPROCESS_GRADE_DITHER \
+"	if (SlowLook.x > 0.0) // QVR: bullet time's look: the colour drained towards grey, tinted, the edges darkened\n" \
+"	{\n" \
+"		vec2 sv = gl_FragCoord.xy / vec2(textureSize(GammaTexture, 0)) * 2.0 - 1.0;\n" \
+"		float luma = dot(out_fragcolor.rgb, vec3(0.299, 0.587, 0.114));\n" \
+"		vec3 c = mix(out_fragcolor.rgb, vec3(luma), SlowLook.x * SlowLook.y);\n" \
+"		c *= mix(vec3(1.0), SlowTint, SlowLook.x);\n" \
+"		c *= 1.0 - SlowLook.x * SlowLook.z * smoothstep(0.35, 1.7, dot(sv, sv));\n" \
+"		out_fragcolor.rgb = c;\n" \
+"	}\n" \
 "	if (Tone.w > 0.0) // QVR: graded (vr_grade)\n" \
 "		out_fragcolor.rgb = QvrGrade(GradeLUT, out_fragcolor.rgb, Tone.w);\n" \
 "	if (Dither.x > 0.0) // QVR: dithered last, into the 8-bit image: triangular noise, 1/255 either way, from two hashes\n" \

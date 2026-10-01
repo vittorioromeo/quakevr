@@ -128,7 +128,7 @@ qboolean SV_RunThink (edict_t *ent)
 		return false;
 
 	thinktime = ent->v.nextthink;
-	if (thinktime <= 0 || thinktime > qcvm->time + host_frametime)
+	if (thinktime <= 0 || thinktime > qcvm->time + VR_ThinkFrame (host_frametime)) // QVR: the world's frame, in the player's time too
 		return true;
 
 	if (thinktime < qcvm->time)
@@ -1283,6 +1283,7 @@ void SV_Physics (void)
 	int	i;
 	int	entity_cap; // For sv_freezenonclients 
 	edict_t	*ent;
+	double	vrworld; // QVR: VR_PhysicsEntityBegin's
 
 // let the progs know that a new frame has started
 	pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
@@ -1313,6 +1314,7 @@ void SV_Physics (void)
 			SV_LinkEdict (ent, true);	// force retouch even for stationary
 		}
 
+		vrworld = VR_PhysicsEntityBegin (ent, i); // QVR: slow motion's Sandevistan: the player and its missiles in its own time
 		if (i > 0 && i <= svs.maxclients)
 			SV_Physics_Client (ent, i);
 		else if (ent->v.movetype == MOVETYPE_PUSH)
@@ -1331,6 +1333,8 @@ void SV_Physics (void)
 			SV_Physics_Toss (ent);
 		else
 			Sys_Error ("SV_Physics: bad movetype %i", (int)ent->v.movetype);
+		if (vrworld > 0.0)
+			VR_PhysicsEntityEnd (ent, i, vrworld); // QVR
 
 	//johnfitz -- PROTOCOL_FITZQUAKE
 	//capture interval to nextthink here and send it to client for better

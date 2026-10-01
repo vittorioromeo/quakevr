@@ -11,6 +11,7 @@
 // its last 16 lines for it: Con_NotifyLine), laid out by vr_text3d facing the viewer.
 
 #include "vr_gadget.hpp"
+#include "vr_bullettime.hpp"
 #include "vr_color.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hue.hpp"
@@ -271,6 +272,32 @@ bool meleeRow(const Palette& pal)
     return true;
 }
 
+// Bullet time's meter (vr_bullettime.cpp), at the right of the keys' row: "TIME" over a bar, lit for what's left. Running:
+// the bar drains and its frame blinks; cooling down: only its frame, dim; not enough to start: the bar dim.
+void bulletTimeMeter(const Palette& pal)
+{
+    const bullettime::Meter m = bullettime::meter();
+    if(!m.enabled)
+    {
+        return;
+    }
+    constexpr float x = 176.f, y = 104.f, w = 56.f, h = 8.f;
+    const glm::vec3 lit{pal.text};
+    const glm::vec3 dim = pal.line * 0.6f;
+    gfx::draw2D::color(m.active ? pal.text : glm::vec4{pal.line, 1.f});
+    gfx::draw2D::text(x - 36.f, y, 8.f, "TIME");
+    gfx::draw2D::color(white);
+    const glm::vec3 frame = m.active ? (blinkOn() ? lit : pal.line) : m.cooling ? dim : pal.line;
+    fill(x, y - 1.f, w, 1.f, frame);
+    fill(x, y + h, w, 1.f, frame);
+    fill(x - 1.f, y - 1.f, 1.f, h + 2.f, frame);
+    fill(x + w, y - 1.f, 1.f, h + 2.f, frame);
+    if(!m.cooling)
+    {
+        fill(x + 1.f, y + 1.f, (w - 2.f) * CLAMP(0.f, m.level, 1.f), h - 2.f, m.active || m.ready ? lit : dim);
+    }
+}
+
 void layout()
 {
     const Palette pal = palette();
@@ -354,6 +381,8 @@ void layout()
             x += 12.f;
         }
     }
+
+    bulletTimeMeter(pal);
 
     // The level, kills and secrets.
     if(!vr_gadget_show_level.value)

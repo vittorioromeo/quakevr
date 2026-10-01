@@ -22,6 +22,7 @@
 #include "vr_motion.hpp"
 #include "vr_posing.hpp"
 #include "vr_voicenotes.hpp"
+#include "vr_timescale.hpp"
 #include "vr_flashlight.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
@@ -230,7 +231,8 @@ void turn(float x)
     }
     else if(const float v = deadzone(x); v != 0.f)
     {
-        hands::addTurn(-v * static_cast<float>(host_frametime) * 100.f * vr_turn_speed.value);
+        // (In slow motion at its real-time speed with vr_timescale_turn_realtime or Sandevistan.)
+        hands::addTurn(-v * static_cast<float>(host_frametime) * timescale::turnSpeedup() * 100.f * vr_turn_speed.value);
     }
 }
 
