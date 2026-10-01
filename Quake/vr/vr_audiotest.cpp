@@ -570,8 +570,8 @@ void testClicks(Result& res)
                         static_cast<float>(40.0 * za::sin(t * 4.0 * 3.14159265 + v)));
                     m.set(v, in);
                 }
-                qza::fill(l.begin(), l.end(), 0.f);
-                qza::fill(rr.begin(), rr.end(), 0.f);
+                za::fill(l.begin(), l.end(), 0.f);
+                za::fill(rr.begin(), rr.end(), 0.f);
                 m.render(1, lis, f, nullptr, l.data(), rr.data());
                 sum.l.emplaceBackRange(l.data(), l.size());
                 sum.r.emplaceBackRange(rr.data(), rr.size());

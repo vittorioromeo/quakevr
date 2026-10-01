@@ -632,7 +632,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
         {
             sa->iplBinauralEffectReset(v.binaural);
             sa->iplDirectEffectReset(v.direct);
-            qza::fill(v.send.begin(), v.send.begin() + count, 0.f);
+            za::fill(v.send.begin(), v.send.begin() + count, 0.f);
             continue;
         }
         for(int i = 0; i < count; i++)
