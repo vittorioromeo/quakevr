@@ -339,6 +339,11 @@ void CL_UpdateTEnts (void)
 		{
 			VectorCopy (cl_entities[cl.viewentity].origin, b->start);
 		}
+		if (VR_BeamGone (b->entity)) // QVR: its gun has left the hand (thrown, dropped, holstered): no beam from the empty hand
+		{
+			b->model = NULL;
+			continue;
+		}
 		// QVR: moved as drawn from where the server put them, each frame (moved in place, a rope's start went from gun
 		// to gun lying about, and its end crept after the hook)
 		VectorCopy (b->start, bstart);

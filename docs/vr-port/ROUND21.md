@@ -18177,3 +18177,24 @@ done here: the eval stays as it is).
   smoke on e1m1, e2m1 and vrfiringrange (no pixel differs by more than 24 from the base build's).
 - `std::` in Quake/vr (not external/): 74 -> 48 (exceptions 19 -> 0, `shared_ptr` 7 -> 0; standard headers included
   11 -> 8). `ZANCLE-TODO`: 34 -> 19.
+
+## A chainsaw let go runs on; a thrown lightning gun's beam ends with it (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_11-33-00 and _11-41-09.
+
+- **The chainsaw** (QC `vr_chainsaw.qc` `VR_Saw_Prop*`, `weapons.qc` `DropWeaponInHandScaled`): dropped or thrown
+  running (any let-go: thrown, dropped, wrenched out, at death), it runs on as it lies for `vr_chainsaw_drop_run`
+  seconds (3; Combat > Enemy Weapons > Runs On When Let Go; 0: it stops as before), its idle loop played on the prop
+  (CHAN_WEAPON; the client's sounds follow their entity: `vr_snd_follow`), burning its idle fuel; then the stall's
+  sound (the engine dying) replaces the loop. Taken back meanwhile, it is still running: the hand plays its idle, no
+  cord to pull. Its chain stops as it leaves the hand. Removed while running (a deathmatch timeout, gone on a hit),
+  its loop is silenced. Holstered, it still stops at once.
+- **The lightning gun** (`cl_tent.c`, `vr_client.cpp` `VR_BeamGone`): a beam lasts 0.2 s after the server last sent
+  it, drawn from the hand's muzzle; thrown with the trigger held, it went on from the empty hand. A hand's beam (ids 0
+  and 1, QuakeVR progs) now ends as soon as that hand no longer holds `progs/v_light.mdl` (thrown, dropped,
+  holstered); its hum (`weapons/lhit.wav`, up to 0.6 s) is stopped as it leaves the hand too.
+
+Checked in the mock (vrfiringrange, `vr_debug_chainsaw 1`): started, dropped: "let go running" at fuel 99.76, "its
+engine stopped" at 98.25 (3 s of 0.5 %/s); dropped, regripped and taken back (impulse 229) 1 s later: "taken back
+running", impulse 228 "running 1"; `vr_chainsaw_drop_run 0`: taken back stopped, as before. The lightning gun fired
+and dropped with the trigger held: "beam: the main hand's lightning ended" in the beam's lifetime.

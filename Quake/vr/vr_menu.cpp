@@ -615,6 +615,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
                   "the trigger held, of a full tank. Out of fuel, it stalls."),
         slider("Idle Fuel Use", vr_chainsaw_idle_fuel_use, 0.f, 5.f, 0.1f, "%.1f%% a second").extend()
             .help("What the engine burns a second while it runs, the trigger or not."),
+        slider("Runs On When Let Go", vr_chainsaw_drop_run, 0.f, 10.f, 0.5f, "%.1f s").extend()
+            .help("A running chainsaw dropped or thrown runs on this long as it lies, then dies; taken back meanwhile, it is "
+                  "still running (no cord to pull). 0: it stops as it leaves the hand."),
         slider("Blade Sinks In", vr_chainsaw_overlap, 0.f, 20.f, 1.f, "%.0f cm").extend()
             .help("How deep the running chain's bar may sink into a monster (it cuts in) before it stops at its surface, as "
                   "weapons do."),

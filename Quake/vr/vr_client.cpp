@@ -994,6 +994,25 @@ void thrownGunRopeStart(int key, float* start)
     start[2] = at.z;
 }
 
+// A hand's lightning (beam id 0: the off hand's, 1: the main hand's) lasts 0.2 s after the server last sent it: thrown,
+// dropped or holstered while firing, its gun left the hand and the beam went on from the empty hand (NOTES.md
+// vrfiringrange_2026-10-01_11-41-09). It ends as soon as the hand no longer holds the lightning gun.
+extern "C" int VR_BeamGone(int ent)
+{
+    const int id = (ent >> 16) - 1;
+    if(!vrProtocol() || !(cl.protocolflags & PRFL_QUAKEVR_PROGS) || id < 0 || id > 1 || (ent & 0xFFFF) != cl.viewentity)
+    {
+        return 0;
+    }
+    const qmodel_t* const held = weapons::heldModel(id);
+    if(held && !strcmp(held->name, "progs/v_light.mdl"))
+    {
+        return 0;
+    }
+    Con_DPrintf("beam: the %s hand's lightning ended: its gun left the hand\n", id == HAND_MAIN ? "main" : "off");
+    return 1;
+}
+
 // The player's own beams follow the gun as drawn, every frame, rather than where the server last
 // saw it (a few frames late, and stepping at the server's rate). Beam ids 0 and 1 (the off and
 // main hands' lightning) start at that hand's muzzle and aim along the hand, keeping their length;

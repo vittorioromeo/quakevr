@@ -5015,13 +5015,22 @@ void() forcegrabbable_think =
     self.nextthink = time + 0.02;
 }
 
+// A running chainsaw dropped or thrown runs on a moment as it lies (vr_chainsaw.qc).
+void(entity xProp) VR_Saw_PropRuns;
+void(entity xProp) VR_Saw_PropStop;
+void(entity xProp) VR_Saw_PropTaken;
+void() VR_Saw_PropThink;
+
 void() wpnthrow_think =
 {
     if(deathmatch && time > GetThrownWeaponTimeout(self))
     {
+        VR_Saw_PropStop(self);
         SUB_Remove();
         return;
     }
+
+    VR_Saw_PropThink();
 
     if(VR_AxeStick_IsStuck(self))
     {
@@ -5175,6 +5184,7 @@ void() forcegrabbable_touch =
 
         if(GetThrownWeaponDisappearOnHit(self) == TRUE)
         {
+            VR_Saw_PropStop(self);
             remove(self);
         }
 
@@ -5234,6 +5244,7 @@ void(float xHand, entity ent, entity entPlayer,
             xHand == cVR_MainHand ? "main" : "off", vlen(VRGetEntHandPos(entPlayer, xHand) - ent.origin)));
     }
 
+    VR_Saw_PropTaken(ent); // a chainsaw still running: its fuel as burnt, its sound the hand's from now on
     *xOutEntWeapon = ent.weapon;
     *xOutEntWeaponFlags = ent.weaponflags;
     *xOutEntWeaponClip = ent.weaponclip;
@@ -5866,8 +5877,18 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
         throwVelUnits = VRThrowAssist(ent, origin, throwVelUnits, throwGravity);
     }
 
+    // A running chainsaw's engine runs on a moment as it lies (VR_Saw_PropRuns); its chain stops.
+    float sawRuns = xWeapon == WID_CHAINSAW && (xWeaponFlags & QVR_WPNFLAG_SAW_RUNNING) && xWeaponClip > 0 &&
+                    cvar_hget(cvarh_vr_chainsaw_drop_run) > 0;
     xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED); // a hand's state, not the weapon's
-    xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_SAW_STATE); // a chainsaw's engine stops
+    xWeaponFlags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_SAW_STATE); // (the hand's chainsaw's engine stops)
+
+    // The lightning gun's hum stops with it (it played on for up to 0.6 s from the empty hand; its beam ends at once on
+    // the client: VR_BeamGone; NOTES.md vrfiringrange_2026-10-01_11-41-09).
+    if(xWeapon == WID_LIGHTNING)
+    {
+        sound(ent, VRGetGunChannel(xHand), "misc/null.wav", 1, ATTN_NORM);
+    }
 
     entity thrown = world;
     if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
@@ -5891,6 +5912,11 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
 
     if(thrown != world)
     {
+        if(sawRuns)
+        {
+            VR_Saw_PropRuns(thrown);
+        }
+
         // The same damage for the same hand speed as the old x120 scaling.
         thrown.throwdmgspeed = 700 * m2u / 120;
 

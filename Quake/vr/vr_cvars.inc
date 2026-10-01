@@ -1043,6 +1043,7 @@ QVR_CVAR(vr_chainsaw_fail_pulls_max, "2", CVAR_ARCHIVE) // up to this many (draw
 QVR_CVAR(vr_chainsaw_pull_distance, "30", CVAR_ARCHIVE) // cm the cord must be pulled out for a pull (vr_chainsaw.cpp)
 QVR_CVAR(vr_chainsaw_pull_speed, "1.2", CVAR_ARCHIVE) // m/s the hand must pull it at, there
 QVR_CVAR(vr_chainsaw_drop_fuel_min, "40", CVAR_ARCHIVE) // an ogre's dropped chainsaw has this much fuel (percent of a tank) or more, up to a full tank
+QVR_CVAR(vr_chainsaw_drop_run, "3", CVAR_ARCHIVE)  // seconds a running chainsaw dropped or thrown runs on (QC VR_Saw_PropRuns); taken back meanwhile, still running. 0: it stops at once
 QVR_CVAR(vr_gruntgun_damage, "5", CVAR_ARCHIVE)      // a grunt's dropped burst rifle (QC vr_enemyguns.qc): each round's damage (3 a trigger pull)
 QVR_CVAR(vr_gruntgun_ammo, "30", CVAR_ARCHIVE)       // the rounds a grunt's dropped burst rifle holds (its own: never refilled; a multiple of 3)
 QVR_CVAR(vr_grunt_burst, "1", CVAR_ARCHIVE)          // 1: grunts fire 3-round bursts of single bullets (QC orig_mon_soldier.qc army_fire); 0: id's shotgun (4 pellets), their dropped guns too
