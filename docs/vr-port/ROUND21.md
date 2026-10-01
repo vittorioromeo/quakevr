@@ -17759,3 +17759,44 @@ From his notes vrfiringrange_2026-09-30_23-51-18 and 2026-10-01_00-22-37 to 00-2
 - [ ] Hold a box or a brick, push the other hand into it: it stops at the surface and is held back; push much further:
       it goes in; pull out and push again.
 - [ ] Hold bricks and rocks: the thumb on the outside, not squashed under them.
+
+## The empty hand against the other hand's weapon: the winding read right (2026-10-01)
+
+The props2 fix above, for the weapon too. `vr_hand_collide` (`pushOut`, `grasp::inside`) read Quake's inward triangle
+winding as outward, as the prop path did: a point outside (within twice the setting) counted as in, so the free hand was
+pushed about 7 cm before it touched the gun, by up to the full 4 cm while still clear of it, sank up to 3 cm in while
+"held", and was pushed out through the far side of a thin gun instead of passing through.
+
+- `vr_view.cpp`: `pushOutProp` is now `pushAgainst` (the thing, whether it is drawn mirrored, its setting) and takes
+  both the other hand's weapon (`vr_hand_collide`, 4 cm as before) and the prop it holds alone
+  (`vr_hand_collide_props`). The palm and knuckles (and the stuck or touching fingertips) stop
+  `vr_hand_collide_props_margin` (1 cm, now shared: Carrying "Empty Hand Stops Off It") off the real surface, by the face
+  they went in by; held back at once up to the setting, then passing in until out of it. The fingers still rest on the
+  gun (`brushEnt`, now with its mirroring from the same place).
+- `vr_grasp.cpp`: `grasp::inside` (the wrong reading, now unused) removed; `surfaceDistance`'s inside flag (the Show
+  Hand Bones colours against a held thing) reads the model's winding (`Space::outward`).
+- Debug > Log Empty Hand Against Held (was "...Against Prop"; `vr_debug_hand_collide` 1, 2 with each point's plane)
+  covers the weapon too and prints the real and the drawn hand's nearest palm or knuckle to the surface (cm, negative
+  in it). Help texts of Hands Brush Weapons, Empty Hand Stops Off It and the cvars say the new behaviour.
+
+Mock sweep (main hand `0.2 1.2 -0.4`, the gun gripped; the off hand in 1 cm steps from the left, right, top, bottom and
+front; per step the last frame): contact = the real hand's distance when first pushed; "outside push" = the most it
+was pushed while 1.5 cm or more clear; "drawn" = the drawn palm/knuckles' distance while held.
+
+| | contact (cm) | outside push (cm) | drawn while held (cm) | passes through |
+|---|---|---|---|---|
+| shotgun before | 7.0-7.3 (L R T F) | 2.8-3.8 | -3.2 .. +1.7 | never (pushed out the far side) |
+| shotgun after | 0.4-1.6 | 0 (L R T); 0.9-1.2 (B F: a touching fingertip) | +0.7 .. +1.4 (L R T) | at -0.7 .. -2.4 |
+| laser cannon before | 7.2-7.8 (L R T F) | 1.7-3.5 | -2.6 .. +1.8 | never |
+| laser cannon after | 0.2-1.0 | 0 (L R F); 1.6-1.9 (T B: fingertips) | +1.0 (L R B F), -1.2 at a concave spot (T) | at -0.1 .. -1.4 |
+
+Left over: in a concave spot the per-point planes can leave a knuckle about 1 cm in (the laser cannon's top), and two
+points held from opposite sides of a thin part can add up past the setting, so the hand passes in at once there (as on
+props). Melee canary: 0 differ.
+
+### In the headset
+
+- [ ] Shotgun in one hand, push the other hand into it from the side: it stops at the metal (not before), held back
+      about 4 cm, then goes in; pull it out and push again. Same from above and along the barrel.
+- [ ] Laser cannon: the same; the fingers rest on it.
+- [ ] Hands Brush Weapons and Empty Hand Stops Off It change it.
