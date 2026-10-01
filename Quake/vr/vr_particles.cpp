@@ -11,6 +11,7 @@
 #include "vr_mem.hpp"
 #include "vr_text3d.hpp"
 #include "vr_flashlight.hpp"
+#include "vr_weaponfx.hpp"
 #include "vr_profile.hpp"
 #include "vr_water.hpp"
 
@@ -2197,6 +2198,7 @@ extern "C" void VR_DrawSceneTranslucent()
 
     text3d::drawTranslucent(); // the floating texts, the wrist log (vr_text3d.cpp)
     flashlight::drawTranslucent(); // the flashlight's visible beam (vr_flashlight.cpp)
+    weaponfx::drawTranslucent(); // the bullet tracers (vr_weaponfx.cpp)
 
     if(!drawn)
     {

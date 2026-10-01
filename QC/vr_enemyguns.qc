@@ -118,6 +118,7 @@ void(float xHand) VR_FireBurstRound =
     vr_pellet_damage = cvar_hget(cvarh_vr_gruntgun_damage);
     FireBullets(xHand, 1, VRGetWeaponFireRotFwd(xHand), VR_BURST_SPREAD);
     vr_pellet_damage = 0;
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.08, 110, 0.6);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
     self.damage_weapon = IT_SHOTGUN; // HONEY
@@ -131,6 +132,7 @@ void(float xHand) VR_FireGruntGun =
     vr_pellet_damage = 4; // your shotgun's pellet
     FireBullets(xHand, 6, VRGetWeaponFireRotFwd(xHand), '0.01 0.01 0');
     vr_pellet_damage = 0;
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.25, 70, 0.75);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
     self.damage_weapon = IT_SHOTGUN; // HONEY
@@ -202,6 +204,7 @@ void(float xHand) VR_FireEnforcerRifle =
     laser.touch = VR_RifleLaser_Touch;
     laser.classname = "rifle_laser";
     VR_ShotPlace(laser, xHand);
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.2, 90, 0.6);
     if(cvar_hget(cvarh_vr_debug_shots))
     {

@@ -17096,3 +17096,68 @@ that channel. Mock: 30 gibbed enforcers, 2 to 5 heads with flies, each `misc/fly
   blasts 0 every time. The effect itself is kept: a head lying about still has its flies.
 - Test aid: `vr_test_spawn_dead 2` gibs the monster `impulse 241` puts (health + 100 damage); the Debug menu's "As a
   Corpse" row is a toggle (0/1), so 2 is console-only for now.
+
+## Weapon effects: recoil, muzzle flash, tracers (2026-10-01)
+
+The author (notes e1m1_2026-09-30_23-27 .. 23-37, e1m1_2026-10-01_00-38, 00-39): the grunts' burst rifle needs a recoil
+and a muzzle flash, done programmatically so that future weapons can use them; bullet tracers for every hitscan weapon,
+with a menu and per-weapon overrides; a per-weapon switch for the ammo screen (off for the burst rifle); flashes on the
+grunts' guns too if they can be placed reliably. `vr_weaponfx.cpp`; the QC says when (`weaponfired()`, `tracer()`:
+`QVR_SVC_FIRED` 19, `QVR_SVC_TRACER` 20, the datagram).
+
+- **Recoil** (Weapon Offsets > Effects: Recoil, Recoil Strength, Recoil Return Time; Weapons > Weapon Effects: Kick
+  Back `vr_recoil_kick` 1.5 cm, Muzzle Rise `vr_recoil_rise` 4 degrees, `vr_weapon_recoil`): each shot kicks the drawn
+  hand and weapon back and tips the muzzle up (a quick rise, at most 35 ms, then smoothly back to 0 at the return
+  time; a burst's kicks add up, at most 2.5 of them). Added to the drawn hands' shake (`vr_view.cpp`, with the parry
+  knock, the tired arms and the pain knock), so the game's aim and muzzle are put back as for those. On for slot 21
+  (the burst rifle: return time 0.12 s); the other weapons keep their models' recoil animations (off).
+- **Muzzle flash** (Effects: Muzzle Flash, Flash Size, Flash Time 0.06 s; `vr_muzzle_flash`): `progs/vr_muzzleflash.mdl`
+  (`Misc/quakevr/make_muzzleflash.py`): the shotgun's own flash, the 59 triangles `v_shot.mdl`'s fire frame moves out
+  of the bore and their fullbright texels (a 68x17 skin), drawn both ways round, at the shotgun's drawn size (the
+  weapon models' scale, worked out from the drawn weapon: its world units a model unit over its Scale). Placed every
+  frame (before the view entities are added) at the drawn weapon's muzzle anchor, along its +x and turned a random roll
+  a shot; gone as soon as the hand draws another model or nothing (dropped, holstered, thrown, passed over). On for
+  slot 21. The burst rifle already had its dynamic light (`player_shot1`'s `EF_MUZZLEFLASH`).
+- **Grunts' flashes** (`vr_muzzle_flash_enemies`, `vr_muzzle_flash_enemy_size`): soldier.mdl's gun is a rigid piece
+  (vertices 463..548); the middle of its muzzle ring (14 vertices) and of its rear on the barrel's line (6) give the
+  muzzle and the barrel's direction in every frame (found in shoot5; the gun's length stays 28.4..28.6 model units in
+  shoot1..9, so the pair is rigid; its recoil frames tip it up to 30 degrees and the flash follows). The flash is a
+  third of the gun's length. `EnemyFireBullets` sends `weaponfired(self, -1)`; models other than a 555-vertex
+  soldier.mdl (the gremlins' stolen shotguns) get none. Enforcers: not done (lasers, not hitscan; their rifle would
+  need its own vertex pair).
+- **Tracers** (Weapon Effects: Bullet Tracers `vr_tracers`, Enemies' Tracers, Speed 150 m/s, Length 1.5 m, Thickness
+  1.2 cm, Chance a Pellet 0.3, Red/Green/Blue 1/0.8/0.45, Brightness; Effects: Tracers As Weapon Effects / Never /
+  Always, Speed/Length/Thickness/Chance multipliers, Tracer Colour Weapon Effects' / Its Own + R G B): `FireBulletsImpl`
+  sends each pellet's line (from the muzzle, or the grunt's middle: the client starts a grunt's at its gun's muzzle);
+  the client keeps it by its chance and draws a camera-facing streak flying along it, added onto the scene, depth
+  tested, in the translucent pass (`vr_particles.cpp`, after the flashlight's beam). Slot 21's chance is 3x (0.9).
+- **Ammo screen** (Weapon Offsets > Ammo Screen: Shown / Hidden): the existing `WpnTextMode` key, now in the menu; 0 for
+  slot 21.
+- Settings: weapon keys `vr_wofs_fx_*` (15), weapon settings version **31** (slot 21's `WpnTextMode` 1 -> 0 where a config
+  still shows it; the new keys take their defaults by themselves). New page 79 "Weapon Effects" (Weapons hub); Debug >
+  Tests: Weapon Effects Test (`vr_weaponfx_test [hand] [tracers]`: the held weapon's effects as if it fired, no shot),
+  Print Weapon Effects (`vr_debug_weaponfx` 1 each shot, 2 the recoil each frame, 3 also an eyeshot of the next grunt's
+  flash).
+
+### Tests (mock)
+
+- `Misc/quakevr/weaponfx/fire_test.sh <agent>`: the burst rifle fires a burst (3 rounds): 3 "fired" with recoil and
+  flash, 3 tracers. The kick peaks at 1.0 (1.5 cm, 4.0 degrees) 35 ms after a shot and is 0 exactly 0.120 s after the
+  last one. Recoil on against `vr_weapon_recoil 0`, frame by frame after the trigger (260 frames): the drawn weapon
+  differs in 69 frames (up to 4.9 degrees), the game's aim by at most 1e-5 degrees and its muzzle by 0.00014 units
+  (float rounding of the restore).
+- `Misc/quakevr/weaponfx/shots_test.sh <agent>`: the flash and 6 slowed tracers from the side; a grunt's flash at its
+  gun (`weaponfx_accept.png` in the kit's scratch: the head view at the first round, the side view, the grunt).
+- The flash's time set to 1 s, the gun taken out of the hand (`impulse 150`) 10 frames after a shot: "flash gone ...
+  after 0.176 s: the weapon left the hand"; left there: gone after 1.002 s, its time.
+- The shotgun and the super shotgun: no recoil or flash of ours (their models' own), 1 of 6 and 2 of 14 pellets
+  traced at 0.3.
+- Version 30 config with `vr_wofs_wpntxtmode_22 1`: 0 after the load, version 31.
+- Melee canary: 48/53, 0 differ from the baseline.
+
+### In the headset
+
+- The burst rifle: does the kick feel right (Kick Back, Muzzle Rise, Return Time)? Is the flash the right size and
+  length on it (Flash Size, Flash Time), and does it sit on the bore (its Muzzle settings place it)?
+- Tracers: speed, length, how many (Chance a Pellet; the burst rifle 3x) and the colour, on the shotguns and the burst
+  rifle; the grunts' tracers and flashes.

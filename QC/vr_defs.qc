@@ -124,6 +124,9 @@ float WID_ENFRIFLE         = 16; // VR: an enforcer's laser rifle (vr_enemyguns.
 float WID_CROWBAR          = 17; // VR: the crowbar (vr_crowbar.qc; a melee weapon, one hand or two, as the swords)
 float WID_LAST             = 17; // the last weapon id
 float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a grunt's shotgun fires (vr_enemyguns.qc; 0: the usual 4)
+// FireBulletsImpl's tracers (the tracer builtin): the hand that fires (-1 a monster's gun) and where they start (its muzzle).
+float vr_tracer_hand;
+vector vr_tracer_from;
 float VR_CHAINSAW_TANK     = 100; // a chainsaw's full tank (its clip: fuel, in percent)
 
 //

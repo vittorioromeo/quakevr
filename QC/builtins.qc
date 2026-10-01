@@ -161,6 +161,13 @@ vector(entity e) forcegrabpoint = #0;
 void(float hand, float kind, float count, float delay, float flags) ejectcasings = #0;
 float QVR_CASING_SHOTGUNSHELL = 0;
 float QVR_EJECT_FLICK = 1; // a flick reload: flung by the spinning weapon
+// Weapon effects (engine vr_weaponfx.cpp): `shooter` fired the weapon in its `hand` (-1: a monster's gun): its drawn
+// weapon kicks and its muzzle flashes, as that weapon's settings say (Weapon Offsets > Effects); a grunt's gun flashes
+// at its muzzle. Sent to the clients, nothing in the game changes.
+void(entity shooter, float hand) weaponfired = #0;
+// A hitscan pellet (or round) of `shooter`'s, from `from` (the muzzle) to `to` (what it hit, or its range's end): the
+// clients may draw a bullet tracer along it (vr_tracers, the weapon's own settings). `hand` -1: a monster's.
+void(entity shooter, float hand, vector from, vector to) tracer = #0;
 // The lightning gun in water's effects (engine vr_shock.cpp): QVR_SHOCK_SELF the `self` player shocked (its client: a flash
 // over the view, arcs over the hands, arms and body, for `duration` s), QVR_SHOCK_SURFACE arcs on a liquid's surface round
 // `org` (every client), QVR_SHOCK_BURST arcs out from `org` in a liquid. `radius`: how far the shock reaches.

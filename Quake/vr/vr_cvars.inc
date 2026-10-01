@@ -701,6 +701,25 @@ QVR_CVAR(vr_show_flashlight_zones, "0", CVAR_NONE)     // draws those zones (gre
 QVR_CVAR(vr_shells, "1", CVAR_ARCHIVE)                // 0: none
 QVR_CVAR(vr_shells_life, "20", CVAR_ARCHIVE)          // seconds they lie on the floor before fading out
 QVR_CVAR(vr_shells_sound, "1", CVAR_ARCHIVE)          // volume of their tink as they land (0 off)
+// Weapon effects (vr_weaponfx.cpp; ROUND21.md, "Weapon effects: recoil, muzzle flash, tracers"): each weapon's own
+// settings are Weapon Offsets > Effects (vr_wofs_fx_*: which weapons kick and flash, their tracers' multipliers).
+QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil (the models' own recoil animations stay)
+QVR_CVAR(vr_recoil_kick, "1.5", CVAR_ARCHIVE)          // cm the drawn weapon is kicked back at a weapon's Recoil Strength 1 (looks only)
+QVR_CVAR(vr_recoil_rise, "4", CVAR_ARCHIVE)            // degrees its muzzle tips up at Strength 1 (looks only: the aim stays)
+QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)
+QVR_CVAR(vr_muzzle_flash_enemies, "1", CVAR_ARCHIVE)   // the grunts' guns flash at their muzzles as they fire
+QVR_CVAR(vr_muzzle_flash_enemy_size, "1", CVAR_ARCHIVE) // their flashes' size (times a third of their gun's length)
+QVR_CVAR(vr_tracers, "1", CVAR_ARCHIVE)                // bullet tracers for hitscan shots (the shotguns, the burst rifle; a weapon's Tracers may differ)
+QVR_CVAR(vr_tracers_enemies, "1", CVAR_ARCHIVE)        // the monsters' hitscan shots (the grunts') too
+QVR_CVAR(vr_tracer_speed, "150", CVAR_ARCHIVE)         // m/s they fly (times a weapon's Tracer Speed)
+QVR_CVAR(vr_tracer_length, "1.5", CVAR_ARCHIVE)        // m long
+QVR_CVAR(vr_tracer_width, "1.2", CVAR_ARCHIVE)         // cm thick
+QVR_CVAR(vr_tracer_chance, "0.3", CVAR_ARCHIVE)        // the chance a pellet (or a round) shows one, 0..1 (times a weapon's)
+QVR_CVAR(vr_tracer_r, "1", CVAR_ARCHIVE)               // their colour (a weapon may have its own), 0..1
+QVR_CVAR(vr_tracer_g, "0.8", CVAR_ARCHIVE)
+QVR_CVAR(vr_tracer_b, "0.45", CVAR_ARCHIVE)
+QVR_CVAR(vr_tracer_brightness, "1", CVAR_ARCHIVE)      // times the colour (they add light onto the scene)
+QVR_CVAR(vr_debug_weaponfx, "0", CVAR_NONE)            // 1: each shot's effects ("weaponfx fired/tracer"); 2: and the recoil each frame ("weaponfx recoil"); 3: as 1, and the eyes' view of the next grunt's flash (vr_eyeshot, once)
 QVR_CVAR(vr_body_arm_length, "1", CVAR_ARCHIVE)      // arm length, relative to the proportions of vr_height_calibration
 QVR_CVAR(vr_body_arm_stretch, "1.2", CVAR_ARCHIVE)    // how far arms may stretch to reach the hands (1: not at all)
 // The arms and shoulders (vr_bodycal.hpp, "The arms' settings"): what Body Calibration measured (vr_bodycal_*), and

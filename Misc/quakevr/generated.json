@@ -346,6 +346,10 @@
   "sha256": "123b34a9fcfd4023fec6b8a75f2a119cb85a50d9d457d477365756635cf776b0",
   "by": "bake_normals.py"
  },
+ "quakevr/progs/vr_muzzleflash.mdl": {
+  "sha256": "dfffc8665a65b8cd41925a8a2f15eb0d8c9954eaaaaa5a9987075d42d07e0cbf",
+  "by": "make_muzzleflash.py"
+ },
  "quakevr/progs/vr_plank1.mdl": {
   "sha256": "8ead7ebfe4deb073515f6833ecd8a0a9538353faae46fedf73aed4267a9f1db1",
   "by": "make_crates.py"

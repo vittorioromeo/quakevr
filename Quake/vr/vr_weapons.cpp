@@ -147,9 +147,10 @@ namespace
 // and the enforcers' laser rifle, Misc/quakevr/make_enemyguns.py; unused placeholders before). 29: slot 23 (the crowbar,
 // Misc/quakevr/make_crowbar.py; an unused placeholder before). 30: slots 21 and 22 (the author's offsets, hotspots, weights
 // and holstered poses, 2026-09-30, over make_enemyguns.py's detail pass: the grunts' gun's stock moved its bounds, its
-// offset and hotspots follow; both muzzles at the new barrels' bores). A first start (no saved config) takes this
+// offset and hotspots follow; both muzzles at the new barrels' bores). 31: slot 21's ammo screen hidden (WpnTextMode 0, where
+// the config still shows it; its new weapon effects' keys take their defaults by themselves). A first start (no saved config) takes this
 // version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 30;
+constexpr int settingsVersion = 31;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -439,6 +440,14 @@ void migrate()
         resetSlot(21);
         resetSlot(22);
     }
+    if(vr_wofs_version.value >= 28 && vr_wofs_version.value < 31) // the burst rifle's ammo screen hidden (still shown)
+    {
+        cvar_t& var = cvarAt(21, Key::WpnTextMode);
+        if(var.value == 1.f)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
 
@@ -485,6 +494,20 @@ void registerCvars()
         {
             cvarAt(slot, key).string = "1";
         }
+    }
+
+    // The weapon effects' (vr_weaponfx.cpp): off, at the shotgun's strength and size; the tracers as Weapon Effects'.
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        for(const Key key : {Key::RecoilStrength, Key::FlashSize, Key::TracerSpeed, Key::TracerLength, Key::TracerWidth,
+                Key::TracerChance, Key::TracerRed})
+        {
+            cvarAt(slot, key).string = "1";
+        }
+        cvarAt(slot, Key::RecoilTime).string = "0.15";
+        cvarAt(slot, Key::FlashTime).string = "0.06";
+        cvarAt(slot, Key::TracerGreen).string = "0.8";
+        cvarAt(slot, Key::TracerBlue).string = "0.45";
     }
 
 #define QVR_WEAPON_DEFAULT(slot, key, value) cvarAt(slot, Key::key).string = value;

@@ -685,6 +685,7 @@ void(float xHand, float stat) HIP_FireLaser =
     }
 
     self.punchangle_x = -1;
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
@@ -1827,6 +1828,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             trace_endpos = src;
             trace_plane_normal = -direction;
         }
+        tracer(self, vr_tracer_hand, vr_tracer_from, trace_endpos); // a bullet tracer, from the muzzle (vr_weaponfx.cpp)
         VR_ShotPush(trace_ent, src, trace_endpos, direction, QVR_SHOTPUSH_PELLET, 1); // the prop it hits or goes through
         VR_Gib_TraceHeld(src, src + direction*xRange);               // and one held in the other hand
         VR_WaterShotSplash(src, trace_endpos);                        // a splash where it goes into water
@@ -1874,6 +1876,8 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
     vector src = VR_ShotBackPoint(xHand, muzzle, dir);
 
     VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
+    vr_tracer_hand = xHand;
+    vr_tracer_from = muzzle;
     FireBulletsImpl(shotcount, dir, spread, src, 2048 + vlen(muzzle - src), TRUE);
     VR_ClearHitKind();
 }
@@ -1885,6 +1889,9 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
     src = self.origin + v_forward*10;
     src_z = self.absmin_z + self.size_z * 0.7;
 
+    weaponfired(self, -1); // VR: its gun's muzzle flash (a grunt's: vr_weaponfx.cpp)
+    vr_tracer_hand = -1;
+    vr_tracer_from = src; // (the clients start a grunt's tracers at its gun's muzzle)
     FireBulletsImpl(shotcount, dir, spread, src, 2048, FALSE);
 };
 
@@ -1907,6 +1914,7 @@ void(float xHand) W_FireShotgun =
 
     FireBullets(xHand, 6, dir, '0.01 0.01 0');
 
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.25, 70, 0.75);
 
     // The spent shell out of the port as the gun cycles (vr_shells.cpp). The super shotgun's (one
@@ -1950,6 +1958,7 @@ void(float xHand) W_FireSuperShotgun =
     dir = VRGetWeaponFireRotFwd(xHand);
     FireBullets(xHand, 14, dir, '0.035 0.025 0');
 
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.55, 75, 1.0);
 
     // Without reloading it reloads itself: the two spent shells come out as it would open.
@@ -2072,6 +2081,7 @@ entity(float xHand) W_FireRocket =
     // HIPNOTIC
     //MED 11/09/96
 
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.5, 75, 1.0);
 
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 3);
@@ -2361,6 +2371,7 @@ void(float xHand) W_FireLightning =
     LightningDamage(from, trace_endpos + v_forward*4, self, 30);
     VR_ClearHitKind();
 
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 175, 1.0);
     particle2(org, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
@@ -2473,6 +2484,7 @@ void(float xHand) W_FireGrenade =
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     VR_Grenade_Make(missile, GrenadeExplode, 2.5, TRUE); // QVR: catchable too with vr_grenade_catch 2
 
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 };
@@ -2656,6 +2668,7 @@ void(float xHand) W_FireProximityGrenade =
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
     setsize(missile, '-1 -1 -1', '1 1 1');
 
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 75, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 2);
 };
@@ -2716,6 +2729,7 @@ void(float xHand) W_FireSuperSpikes =
 
     self.punchangle_x = -2;
 
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
@@ -2749,6 +2763,7 @@ void(float xHand, float ox) W_FireSpikes =
 
     self.punchangle_x = -2;
 
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2(VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };

@@ -50,4 +50,9 @@ void sendEject(struct edict_s* player, int hand, int kind, int count, int flags,
 // to `player` alone, the others (arcs on or in a liquid round `org`) to every client, unreliable.
 void sendShock(struct edict_s* player, int kind, const float org[3], float radius, float duration);
 
+// Weapon effects (vr_weaponfx.cpp), to every client (the datagram: a lost one is a flash or a tracer less): `shooter`
+// fired the weapon in `hand` (-1: a monster's gun), and a hitscan pellet of its went from `from` to `to`.
+void sendFired(struct edict_s* shooter, int hand);
+void sendTracer(struct edict_s* shooter, int hand, const float from[3], const float to[3]);
+
 } // namespace qvr::server

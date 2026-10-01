@@ -60,6 +60,7 @@ void(float xHand) W_FireSuperLavaSpikes =
 
     self.punchangle_x = -2;
 
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };
@@ -93,6 +94,7 @@ void(float xHand, float ox) W_FireLavaSpikes =
 
     self.punchangle_x = -2;
 
+    weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.05, 150, 1.0);
     particle2(VRGetMuzzlePos(xHand) + v_right*ox, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1);
 };

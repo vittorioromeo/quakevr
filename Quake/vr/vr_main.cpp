@@ -57,6 +57,7 @@
 #include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
+#include "vr_weaponfx.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_water.hpp"
 #include "vr_wounds.hpp"
@@ -1036,6 +1037,7 @@ extern "C" void VR_NewMap()
     step("view models", view::prepareModels);
     step("torch", flashlight::prepare);
     step("casings", shells::prepare);
+    step("muzzle flash", weaponfx::prepare);
     Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.cStr());
 
     countGlForLog(); // the memory log's GL objects, in the load (12-13 ms)
