@@ -88,6 +88,9 @@ Gib enforcers until a severed head buzzes with flies; pick it up, punch or shoot
 Throw the grunt gun and the nailgun while holding the trigger: they leave cleanly with no last shot; a wrench-out reads as losing grip (Weapon Weights > Wrenched Out > Falls At 0.4)
 Map health/ammo boxes are small from the first frame; broken-crate loot comes out small and pops out (Crates > Pop Out 3.5)
 
+Weapon Damage page (Combat > Weapon Damage): tune every weapon's base damage; crowbar now 20 (hook ~25)
+Audio: bilinear HRTF (back on) with many sounds: no crackle; impacts 5-10 m away audible; Physics Sounds above 1; Distance Falloff setting
+
 [Decide or give feedback]
 Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
