@@ -78,7 +78,10 @@ Climbing: stand against a wall (vrclimb jump wall: Debug > Tests > Climbing > To
 
 Elbow: left hand to the face and to the chest (and a chest holster grab): elbow stays down/out, not up by the neck or into the chest; compare Body > Arms > Elbow Stays Clear 0 vs 4 (2 if the wrist looks too bent)
 
+Rogue map: hold B/Y while grabbing at the back pouch: a multi-grenade (uses a multi-rocket; none = normal grenade); sits upright in the palm with the thumb wrap; muted grey unarmed vs live lavender; bursts into minis on its fuse
+
 [Decide or give feedback]
+Multi-grenade hitting a monster directly: one blast (Rogue's rule) or cluster too?
 Hand Collide (empty hand vs weapon) and Collide Give (held prop) are separate settings, both 5 cm: merge them into one?
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
