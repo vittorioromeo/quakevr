@@ -135,15 +135,23 @@ QVR builds Zancle with **clang-cl only**. Plain cl cannot build it: CMake stops 
 is built by clang-cl (ROUND21, "Zancle, vendored" and "clang-cl: the whole engine").
 
 The full cl audit is `ZANCLE_MSVC.md`. It was made against upstream `20a39d952` (2026-09-30), which is **before**
-4ed9c3cc ("MSVC compatibility" per ROUND21, "Zancle update"), so recheck each item against current upstream.
+`c16b19e` (`ZA_HAS_BUILTIN`), `18fddfb` (`Base/Limits.hpp`) and `13db45220` ("Improve compatibility with MSVC and
+clang-cl"), all ancestors of the vendored 4ed9c3cc. Rechecked against `13db45220` (2026-10-01, by reading the code):
+P1, P3, P5, the `ZA_CPU_RELAX` part of P7 and the `Path` part of P11 are fixed upstream; QVR already has them (its
+vendored files are upstream's 4ed9c3cc byte for byte, but for the three local changes).
 
 Audit baseline: 141 of 432 headers and 130 of 150 `.cpp` files fail. There are 6,768 diagnostics, and 197 fatal
 C1012 errors hide most of the rest. After all the fixes below, only 3 headers and 4 `.cpp` files still fail, all
 expected or blocked on dependencies.
 
-Status for P1-P13: **open** as of the audit (`20a39d952`). Not used by QVR, which builds with clang-cl.
+Status: P1, P3, P5 **fixed upstream** (`13db45220`); P7 and P11 **partly fixed upstream** (`13db45220`); the rest
+**open** as of the audit (`20a39d952`). None of it matters to QVR, which builds with clang-cl.
 
-- **P1. `__has_builtin` used unguarded in `#if`** (MSVC audit R1; ROUND21 #2)
+- **P1. `__has_builtin` used unguarded in `#if`** (MSVC audit R1; ROUND21 #2). **Fixed upstream** (`c16b19e`, in
+  `13db45220`): `Base/HasBuiltin.hpp`'s `ZA_HAS_BUILTIN` (`__has_builtin` where defined; on cl a table:
+  `is_constant_evaluated`, `launder`, `strlen`, `memcmp`, `offsetof`, `__assume`; no `bit_cast`), used in 81 files;
+  `git grep __has_builtin` outside `HasBuiltin.hpp`: 0 hits (at 4ed9c3cc too); `ZA_PRIV_HAS_MATH_BUILTIN` and
+  `SourceLocation.hpp` go through it (SourceLocation's `#error` on cl remains: P11).
   - Scope: 79 files. On cl it gives C4067 and silently takes the fallback.
   - It is fatal C1012 inside `ZA_PRIV_HAS_MATH_BUILTIN`, which blocks every `Math/*.hpp`.
   - `SourceLocation.hpp` hits its `#error`.
@@ -157,7 +165,10 @@ Status for P1-P13: **open** as of the audit (`20a39d952`). Not used by QVR, whic
     - `std::atomic_ref`: verified to compile all of `include/` and `src/`.
     - `_Interlocked*` and `__iso_volatile_*` intrinsics: inline even at `/Od`. The audit has the intrinsic table,
       ARM64 variants included.
-- **P3. GCC predefined macros** (R3; ROUND21 #2)
+- **P3. GCC predefined macros** (R3; ROUND21 #2). **Fixed upstream** (`13db45220`): `UIntPtrT.hpp` has `_WIN64` /
+  `_WIN32` branches; `Base/Limits.hpp` (`18fddfb`) defines `ZA_INT_MAX`, `ZA_FLOAT_MAX`... with `__INT_MAX__`... only
+  under `#if defined(...)`; `FromChars.hpp` has no `__FLT_*`/`__DBL_*` left; `RectPacker.cpp` uses `ZA_INT_MAX`. The
+  only other predefined macro, `IntTypes.hpp`'s `__INT64_TYPE__`, is behind `#ifdef`.
   - `Base/UIntPtrT.hpp` (`__UINTPTR_TYPE__`, else `#error`): add `_WIN64`/`_WIN32` branches.
   - `String/FromChars.hpp` (`__FLT_MAX__`...): use `ZA_FLOAT_MAX`...
   - `RectPacker.cpp` (`__INT_MAX__`).
@@ -165,7 +176,9 @@ Status for P1-P13: **open** as of the audit (`20a39d952`). Not used by QVR, whic
   - Affects `Trait/ReferenceConvertsFromTemporary.hpp` and `IsInvocableR.hpp`.
   - Fix: the portable fallback macro in R4. It has a known false positive for an lvalue class with a conversion to
     `T&`; document it.
-- **P5. `std::fabs` is not constexpr on MSVC** (R5)
+- **P5. `std::fabs` is not constexpr on MSVC** (R5). **Fixed upstream** (`13db45220`): `Math/Fabs.hpp` falls back to
+  `za::priv::fabsViaSignBit` (`ZA_BIT_CAST`, `& 0x7FFFFFFF` / `& 0x7FFF...FF`: exact for -0, infinities, NaN) when
+  `__builtin_fabs` is missing (the `long double` one still `std::fabsl`).
   - Constexpr callers fail with C3615: `SinCosLookup`, `Transform`, `DrawableBatchUtils`.
   - Fix: a bit-mask `fabs` via `bit_cast`, which is correct for -0.0 and NaN.
 - **P6. `gnu::` attributes and `[[assume]]`** (R6; ROUND21 #4; ROUND21, "The initializer_list fix upstream")
@@ -174,10 +187,13 @@ Status for P1-P13: **open** as of the audit (`20a39d952`). Not used by QVR, whic
     `InitializerList.hpp`.
   - Fix: attribute-list-element macros (`ZA_ALWAYS_INLINE` -> `msvc::forceinline`, `ZA_FLATTEN`, `ZA_NOINLINE`,
     `ZA_COLD`/`ZA_PURE`/`ZA_CONST` empty on cl, `ZA_ASSUME` -> `__assume`). cl accepts an empty element.
-- **P7. Builtin fallbacks that compile but lose behaviour or speed on cl** (R7; ROUND21 #3)
+- **P7. Builtin fallbacks that compile but lose behaviour or speed on cl** (R7; ROUND21 #3). **Partly fixed upstream**
+  (`13db45220`: the first bullet).
   - `ZA_CPU_RELAX()` is empty on cl, so `parallelFor` spins without a pause. Fix: `_mm_pause()` on x86/x64,
-    `__yield()` on ARM64.
-  - `Prefetch` is empty. Fix: `_mm_prefetch` / `__prefetch`.
+    `__yield()` on ARM64. **Fixed** (`Base/CpuRelax.hpp`: `_MSC_VER` with `_M_X64`/`_M_IX86` -> `_mm_pause()`,
+    `_M_ARM64`/`_M_ARM` -> `__yield()`).
+  - `Prefetch` is empty (still at 4ed9c3cc: `Base/Prefetch.hpp` has only `__builtin_prefetch` or `((void)0)`).
+    Fix: `_mm_prefetch` / `__prefetch`.
   - `Clzll`/`Ctzll`/`Popcountll`/`Bswap64` are calls even at `/Ob1`. Fix: intrinsics behind
     `ZA_IS_CONSTANT_EVALUATED()`.
   - `IsNan`/`IsInf`/`Signbit` are CRT calls. Fix: bit tests.
@@ -195,11 +211,12 @@ Status for P1-P13: **open** as of the audit (`20a39d952`). Not used by QVR, whic
   - `FmtString`: move the requires-clause to the template head.
   - `TextBase`: the deducing-`this` instantiations must say `this`.
   - `Glsl.inl`: the constrained constructor specialization.
-- **P11. Missing features on cl** (R11)
+- **P11. Missing features on cl** (R11). **Partly fixed upstream** (`13db45220`: the `Path` bullet).
   - `SourceLocation.hpp` needs an MSVC branch (`__builtin_FILE/LINE/COLUMN/FUNCTION`).
   - `RflNames.hpp` hits ICE C1001 on cl: make it an explicit opt-out there.
   - `StackTrace.cpp` uses libbacktrace and `cxxabi`: add a DbgHelp backend.
-  - `Path.cpp`'s `file_clock::to_sys` does not exist in MSVC's STL: use `clock_cast`.
+  - `Path.cpp`'s `file_clock::to_sys` does not exist in MSVC's STL: use `clock_cast`. **Fixed** (`IO/Unity/Path.cpp`:
+    `clock_cast<system_clock>` under `_MSVC_STL_VERSION`, so clang-cl too).
 - **P12. Pragmas and `/W4` warnings** (R12)
   - Unguarded `#pragma GCC/clang diagnostic` (C4068 ×103), some of them in public headers.
   - C4127 ×415 from `ZA_ASSERT(false && ...)`.
@@ -346,7 +363,8 @@ The numbering below is from ROUND21's second proposal list, "Zancle proposals...
 8. **Ergonomics:** the `Optional` implicit constructor and `operator=` (A1), the `UniquePtr` default constructor
    (A2), `Thread` with a function pointer (A3), the missing `String`/`StringView`/`Vector`/`Span`/`Array` members
    (A4, A5) and the `Random` header split (A8).
-9. **Decide on cl support.** Either work through `ZANCLE_MSVC.md`'s order (P1 -> P13: `ZA_HAS_BUILTIN` first, which
-   unblocks most TUs), re-auditing against current upstream first, or document "clang-cl on Windows" only.
+9. **Decide on cl support.** Either work through the rest of `ZANCLE_MSVC.md`'s order (P1, P3, P5, CpuRelax and
+   `Path` are done at `13db45220`; next P2's `Atomic` backend and P4), re-auditing against current upstream first, or
+   document "clang-cl on Windows" only.
 10. **Docs:** dense-map value movement (N4), `quickSort`'s order of equal elements (N3), the explicit conversion from
     view to `String` (A4) and the exact-type math wrappers (A7).

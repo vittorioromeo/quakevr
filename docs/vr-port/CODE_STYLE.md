@@ -27,8 +27,11 @@ C++ standard library: Zancle's types compile faster and run faster in Debug. Use
   `za::ThisThread`; `za::Clock` / `za::Time` (microseconds; `qza::nowNs` for nanoseconds).
 - Files: `qvr::files` (`vr_files.hpp`: whole files read and written, directories listed, std::filesystem's path parts),
   through the engine's `Sys_*` calls (UTF-8 paths).
-- What Zancle lacks: `vr_zancle.hpp` (namespace `qza`: `abs`, `hypot` and the other missing math, `fill`, `iota`,
-  `lowerBound`, `stablePartition`, `Pair`, `minOf` / `maxOf`, `rbegin` / `rend`, ...), each a proposal for Zancle. Add
+- What Zancle lacks: `vr_zancle.hpp` (namespace `qza`: `abs`, `remainder` (IEEE: `za::remainder` truncates),
+  `Pair` / `makePair`, `minOf` / `maxOf`, `rbegin` / `rend`, `lexicographicLess`, `sortedByKey`, `stableAt`, `nowNs`
+  and the `*Since` clocks, ...), each a proposal for Zancle. `fill`, `iota`, `replace`, `lowerBound`,
+  `stablePartition`, `hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign` and `trunc` are Zancle's since 4ed9c3cc
+  (`za::`; `za::fill` takes iterators, not a range). Add
   a missing piece there (marked `ZANCLE-TODO`) rather than reach for `std::`. `std::` stays only where Zancle has no
   such thing and a stand-in would not do (an ordered map with stable nodes, `std::nth_element` where its partition
   must stay as it was, a nanosecond clock): each such place says `// ZANCLE-TODO: <what's missing>` (the list:
