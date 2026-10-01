@@ -175,8 +175,14 @@ const DefaultChange defaultChanges[] = {
     {72, &vr_enemy_shove_delay, "0.6"},     // 0.5
     {72, &vr_enemy_shove_cooldown, "3"},    // 1.5
     {72, &vr_enemy_shove_distance, "64"},   // 128
+    // 73: the author's chainsaw smoke and shake (NOTES.md vrfiringrange_2026-10-01_22-34-43).
+    {73, &vr_chainsaw_smoke, "8"},          // 12
+    {73, &vr_chainsaw_smoke_alpha, "0.12"}, // 0.6
+    {73, &vr_chainsaw_shake, "2"},          // 2.5
+    {73, &vr_chainsaw_shake_2h, "0.8"},     // 1.25
+    {73, &vr_chainsaw_shake_ground, "0.3"}, // 0.5
 };
-constexpr int configVersion = 72;
+constexpr int configVersion = 73;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

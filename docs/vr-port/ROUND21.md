@@ -19118,3 +19118,23 @@ His notes vrfiringrange_2026-10-01_16-41-40, _16-42-00 (a backpack thrown high n
   The crowbar's hook at 9.1 m/s: batted (weapon threshold 34, 10 alike). A running chainsaw's chain cutting into a dud
   falling past the bar: set off ("a running chainsaw"); its rear handle's pommel strike (19.1 m/s) had too, before
   the pommel was left out of the rule. Melee canary: no differences.
+
+## The chainsaw's cord pulls give feedback; the author's smoke and shake (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_22-34-43: the author's tuned smoke and shake are the defaults (config version 73
+moves a config still on the old ones): `vr_chainsaw_smoke` 12 (was 8), `_smoke_alpha` 0.6 (0.12; the menu's Smoke
+Opacity slider now goes to 1), `vr_chainsaw_shake` 2.5 (2), `_shake_2h` 1.25 (0.8), `_shake_ground` 0.5 (0.3).
+
+NOTES.md vrfiringrange_2026-10-01_22-54-54: a pull of the cord did nothing but its sound. Now each pull of a chainsaw
+not running, with fuel, turns the engine over visibly (vr_chainsaw.cpp `pullFeedback`, on the client, where pulls are
+told apart): the chainsaw's hand shakes `vr_chainsaw_pull_shake` mm (3; the running shake's buzz, 0.2 degrees a mm),
+dying out (squared) over `vr_chainsaw_pull_shake_time` s (0.35); `vr_chainsaw_pull_smoke` puffs (4) of exhaust smoke
+leave at once (the running smoke's, at Smoke Opacity) and `vr_chainsaw_pull_sparks` (6) tiny sparks (a casing's,
+`particles::shellEject` with no smoke). A weak pull (too slow: the server never hears of it) gives half of each. Already
+running, or with an empty tank (the fuel stat in the weapon's clip), nothing but the sound, as before. A pull that
+starts it shakes by the stronger of the kick and the running shake. Menu: Combat > Enemy Weapons > Chainsaw Engine,
+"Pulling the Cord".
+
+Tested (e1m1, `Misc/quakevr/chainsaw_pull.mock`, `vr_debug_chainsaw 1`): the weak pull "pull feedback: 0.50, fuel
+100.0, 2 puff(s), 3 spark(s)" and a 1.47 mm shake; the good one "1.00 ... 4 puff(s), 6 spark(s)", 2.93 mm. Started
+(`impulse 230`) and drained (`vr_chainsaw_idle_fuel_use 1000`): both pulls "no feedback (no fuel)".

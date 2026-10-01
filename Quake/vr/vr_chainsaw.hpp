@@ -49,7 +49,8 @@ void drawOpaque();
 
 // A running chainsaw in `hand` shakes (vr_chainsaw_shake; vr_chainsaw_shake_2h steadied by the other hand): world units
 // and degrees (pitch, yaw, roll) added to the drawn hand this frame, as fatigue::shake (the aim and the cuts don't
-// move). Zero without one. Its exhaust's smoke is made in setupView.
+// move). Zero without one. Its exhaust's smoke is made in setupView. A pull of its cord, not running and with fuel,
+// shakes it a moment too (vr_chainsaw_pull_shake), with a puff of smoke and a few sparks.
 void shake(int hand, glm::vec3& pos, glm::vec3& angles);
 
 // A new map, a disconnect: the cord let go.
