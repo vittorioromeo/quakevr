@@ -129,6 +129,7 @@ void(float xSpeed) VR_SolidProp_Impact =
         if(time - self.carry_thrown > VR_THROWN_BOX_TIME || speed < cvar_hget(cvarh_vr_throw_hit_min_speed) * lenient)
         {
             self.throwhit = QVR_THROWHIT_HIT;
+            self.owner = world; // the throw is over: no longer the thrower's (his traces pass his own missiles)
         }
         else if(other != world && other.takedamage && other != self.owner)
         {
@@ -146,6 +147,7 @@ void(float xSpeed) VR_SolidProp_Impact =
                 spawn_touchblood(dmg);
             }
             T_Damage(other, self, self.owner, dmg);
+            self.owner = world; // (as above)
         }
     }
 };

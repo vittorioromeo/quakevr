@@ -992,7 +992,8 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 			return;
 		if (clip->passedict)
 		{
-		 	if (PROG_TO_EDICT(touch->v.owner) == clip->passedict)
+		 	if (PROG_TO_EDICT(touch->v.owner) == clip->passedict &&
+				!VR_OwnPropMeets (clip->passedict, touch)) // QVR: not a solid prop a player threw
 				continue;	// don't clip against own missiles
 			if (PROG_TO_EDICT(clip->passedict->v.owner) == touch)
 				continue;	// don't clip against owner
