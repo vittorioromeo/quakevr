@@ -59,6 +59,8 @@ After the Zancle update (vendored = upstream 534219bf, no local changes): model 
 
 Melee with a weapon held anywhere: hilt and pommel of a sword held upside down, butt of the rocket launcher and laser cannon held backwards all hit (pommel/butt strikes); cross a held sword's mid-blade with a gun or another sword: it blocks; one-handed muzzle-end swings of heavy guns may feel weak (weight lag)
 
+Slow motion for recording (Graphics > Recording > Slow Motion; vr_slowmo bindable, 0.25 default): record at 0.25 moving at quarter speed, speed footage up 4x: looks and sounds natural?; a real-speed swing is capped at 8 m/s (Hand Speed cap): feels right?; Slow Sounds off/on
+
 [Decide or give feedback]
 Parry cooldown: blows inside it also cost no parry stamina (else an ogre swing exhausts you every time): OK?
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
