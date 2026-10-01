@@ -11,6 +11,7 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/InterferenceSize.hpp"
+#include "Zancle/Base/Limits.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/UIntPtrT.hpp"
 
@@ -262,7 +263,7 @@ void platformWake(const void* const addr, const bool wakeOne) noexcept
     syscall(SYS_futex,
             const_cast<void*>(addr),
             FUTEX_WAKE_PRIVATE,
-            /* val: number of waiters to wake */ wakeOne ? 1 : __INT_MAX__,
+            /* val: number of waiters to wake */ wakeOne ? 1 : ZA_INT_MAX,
             /* timeout */ nullptr,
             /* uaddr2  */ nullptr,
             /* val3    */ 0);
@@ -274,7 +275,7 @@ void platformWake(const void* const addr, const bool wakeOne) noexcept
         WakeByAddressAll(const_cast<void*>(addr));
 
 #elif ZA_PRIV_WAIT_EMSCRIPTEN
-    emscripten_atomic_notify(const_cast<void*>(addr), wakeOne ? 1 : __INT_MAX__);
+    emscripten_atomic_notify(const_cast<void*>(addr), wakeOne ? 1 : ZA_INT_MAX);
 
 #elif ZA_PRIV_WAIT_APPLE_ULOCK
     constexpr za::U32 ulCompareAndWait = 1u;            // `UL_COMPARE_AND_WAIT` (must match the wait operation)
@@ -283,12 +284,12 @@ void platformWake(const void* const addr, const bool wakeOne) noexcept
     __ulock_wake(ulCompareAndWait | ulfNoErrno | (wakeOne ? 0u : ulfWakeAll), const_cast<void*>(addr), /* wakeValue */ 0u);
 
 #elif ZA_PRIV_WAIT_FREEBSD_UMTX
-    _umtx_op(const_cast<void*>(addr), UMTX_OP_WAKE_PRIVATE, wakeOne ? 1 : __INT_MAX__, /* uaddr */ nullptr, /* uaddr2 */ nullptr);
+    _umtx_op(const_cast<void*>(addr), UMTX_OP_WAKE_PRIVATE, wakeOne ? 1 : ZA_INT_MAX, /* uaddr */ nullptr, /* uaddr2 */ nullptr);
 
 #elif ZA_PRIV_WAIT_OPENBSD_FUTEX
     futex(static_cast<volatile za::U32*>(const_cast<void*>(addr)),
           FUTEX_WAKE | FUTEX_PRIVATE_FLAG,
-          wakeOne ? 1 : __INT_MAX__,
+          wakeOne ? 1 : ZA_INT_MAX,
           /* timeout */ nullptr,
           /* uaddr2  */ nullptr);
 

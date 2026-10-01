@@ -34,6 +34,7 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -392,7 +393,7 @@ void Mixer::read(Voice& v, float* out, float step0, float step1)
     const sfxcache_t* sc = v.sc;
     if(v.ended || !sc || sc->length <= 0)
     {
-        qza::fill(out, out + n, 0.f);
+        za::fill(out, out + n, 0.f);
         v.ended = true;
         return;
     }
@@ -413,7 +414,7 @@ void Mixer::read(Voice& v, float* out, float step0, float step1)
             {
                 if(loop < 0 || loop >= length)
                 {
-                    qza::fill(out + i, out + n, 0.f);
+                    za::fill(out + i, out + n, 0.f);
                     v.ended = true;
                     v.pos = length;
                     return;
@@ -432,7 +433,7 @@ void Mixer::read(Voice& v, float* out, float step0, float step1)
         {
             if(loop < 0 || loop >= length)
             {
-                qza::fill(out + i, out + n, 0.f);
+                za::fill(out + i, out + n, 0.f);
                 v.ended = true;
                 v.pos = length;
                 return;
@@ -659,7 +660,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
     for(int b = 0; b < blocks; b++)
     {
         bool silent = true;
-        qza::fill(reverbIn.begin(), reverbIn.end(), 0.f);
+        za::fill(reverbIn.begin(), reverbIn.end(), 0.f);
         for(int k = 0; k < active; k++)
         {
             const float* s = voices[list[k]].send.data() + b * frame;
@@ -878,8 +879,8 @@ void ensure()
     {
         Con_Printf("Spatial audio: couldn't load the HRTF %s; Steam Audio's own instead\n", sofa.cStr());
     }
-    qza::fill(live->voiceOf, -1);
-    qza::fill(live->channelOf, -1);
+    za::fill(live->voiceOf.begin(), live->voiceOf.end(), -1);
+    za::fill(live->channelOf.begin(), live->channelOf.end(), -1);
     live->mixL.clear();
     live->mixL.resize(Mixer::maxSamples, 0.f);
     live->mixR.clear();
@@ -1281,8 +1282,8 @@ void liquid_f()
 void init()
 {
     live = new Live{};
-    qza::fill(live->voiceOf, -1);
-    qza::fill(live->channelOf, -1);
+    za::fill(live->voiceOf.begin(), live->voiceOf.end(), -1);
+    za::fill(live->channelOf.begin(), live->channelOf.end(), -1);
     Cmd_AddCommand("vr_snd_info", info_f);
     Cmd_AddCommand("vr_snd_test", test_f);
     Cmd_AddCommand("vr_snd_capture", capture_f);
@@ -1719,8 +1720,8 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     const int frame = L.frame;
     const int blocks = (remain + frame - 1) / frame;
     const int rendered = blocks * frame;
-    qza::fill(L.mixL.begin(), L.mixL.begin() + rendered, 0.f);
-    qza::fill(L.mixR.begin(), L.mixR.begin() + rendered, 0.f);
+    za::fill(L.mixL.begin(), L.mixL.begin() + rendered, 0.f);
+    za::fill(L.mixR.begin(), L.mixR.begin() + rendered, 0.f);
     L.mixer.render(blocks, L.listener, f, L.haveReverb ? &L.reverb : nullptr, L.mixL.data(), L.mixR.data());
 
     // The channels as Quake would have left them at the end of what was rendered.

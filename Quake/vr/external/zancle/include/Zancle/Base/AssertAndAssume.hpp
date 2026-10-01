@@ -7,6 +7,7 @@
 // Headers
 ////////////////////////////////////////////////////////////
 #include "Zancle/Base/Assert.hpp"
+#include "Zancle/Base/Assume.hpp"
 
 
 ////////////////////////////////////////////////////////////
@@ -20,5 +21,5 @@
     do                            \
     {                             \
         ZA_ASSERT(__VA_ARGS__);   \
-        [[assume(__VA_ARGS__)]];  \
+        ZA_ASSUME(__VA_ARGS__);   \
     } while (false)

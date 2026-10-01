@@ -10,8 +10,8 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Random/FastNonCryptoRng.hpp"
 
-#include <random>
 
 namespace qvr::meleehud
 {
@@ -27,11 +27,11 @@ float lastCounter = 0.f;   // the window's share left last frame
 float emberDue[2] = {0.f}; // each hand's embers owed (a fraction of one carried over)
 double lastQueue = -1.0;
 
-std::minstd_rand rng{0x5C0FFEEu}; // ZANCLE-TODO: no random engines or distributions (these sequences kept)
+za::FastNonCryptoRng rng{0x5C0FFEEu}; // a fixed seed: the same embers every run
 
 [[nodiscard]] float rnd(float lo, float hi)
 {
-    return std::uniform_real_distribution<float>{lo, hi}(rng);
+    return lo + (hi - lo) * rng.getF(0.f, 1.f); // (lo > hi too)
 }
 
 // A hand with nothing in it to glow for: empty, not steadying the other's weapon, carrying or climbing.
@@ -60,7 +60,7 @@ void ember(const hands::State& s, int hand, float bright)
         {
             return;
         }
-        const int vertex = std::uniform_int_distribution<int>{0, hdr->numverts - 1}(rng);
+        const int vertex = rng.getI(0, hdr->numverts - 1);
         const glm::vec3 p = view::anchorPosition(*ve, vertex, glm::vec3{0.f});
         glm::vec3 out{0.f};
         view::WeaponMount mount;

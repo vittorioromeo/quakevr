@@ -3,7 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__is_constructible)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__is_constructible)
 
     ////////////////////////////////////////////////////////////
     #define ZA_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)

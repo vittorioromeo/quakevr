@@ -17,6 +17,7 @@
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/IsNan.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
@@ -751,7 +752,7 @@ void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<
         }
         out.upperSe = za::sqrt(za::max(0.0, cov[PReach * n + PReach] + cov[PFore * n + PFore] - 2.0 * cov[PReach * n + PFore]));
     }
-    out.ok = qza::isfinite(out.p[PReach]) && out.p[PReach] > 0.3 && out.p[PReach] < 1.2 && out.p[PFore] > 0.1;
+    out.ok = ZA_ISFINITE(out.p[PReach]) && out.p[PReach] > 0.3 && out.p[PReach] < 1.2 && out.p[PFore] > 0.1;
     return out;
 }
 

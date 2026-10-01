@@ -16943,7 +16943,7 @@ after.** By category (`count_std.py` in the session's scratchpad; comments and s
 | math (sin, sqrt, fabs, atan2, abs, isfinite...) | 1108 | 0 | `za::sin`... (`Zancle/Math`), `qza::abs` / `hypot` / `cbrt` / `isfinite`..., `ZA_ISNAN` |
 | int types (size_t, uint32_t...) | 1069 | 0 | `za::SizeT`, `za::U32`... |
 | strings (string, string_view, to_string...) | 1065 | 0 | `za::String`, `za::StringView`, `za::toString` (integers; a float's text through `va`, as `std::to_string`'s `%f`) |
-| algorithms (sort, find, fill, copy, any_of, lower_bound...) | 289 | 2 | `za::quickSort` / `insertionSort` / `find` / `anyOf` / `copy`..., `qza::fill` / `iota` / `lowerBound` / `stablePartition`; 2 `std::nth_element` kept |
+| algorithms (sort, find, fill, copy, any_of, lower_bound...) | 289 | 2 | `za::quickSort` / `insertionSort` / `find` / `anyOf` / `copy` / `fill` / `iota` / `replace` / `lowerBound` / `stablePartition`...; 2 `std::nth_element` kept |
 | files (filesystem, fstream, sstream, printf...) | 164 | 0 | `qvr::files` (`vr_files.hpp`, new), the C stdio functions |
 | utility / bit (move, forward, swap, bit_cast...) | 148 | 0 | `ZA_MOVE`, `ZA_FORWARD`, `za::genericSwap`, `ZA_BIT_CAST` |
 | C library (strcmp, memcpy, strtof...) | 141 | 0 | `ZA_STRCMP`, `ZA_MEMCPY`... (builtins), the C functions themselves |
@@ -16951,7 +16951,7 @@ after.** By category (`count_std.py` in the session's scratchpad; comments and s
 | chrono / time | 132 | 3 | `za::Clock` / `za::Time`, `qza::nowNs` (its `std::chrono` the 3 left, in `vr_zancle.cpp`) |
 | vocabulary (optional, span, unique_ptr, function, shared_ptr) | 84 | 7 | `za::Optional`, `za::Span`, `za::UniquePtr`, `za::FunctionRef`; the pool's `std::shared_ptr` an intrusive count (`jobs::detail::JobPtr`); 7 kept (motion samples) |
 | type traits, limits | 39 | 0 | Zancle's traits, `ZA_FLOAT_MAX`..., `<limits.h>` |
-| random | 22 | 22 | kept (ZANCLE-TODO) |
+| random | 22 | 0 | `za::FastNonCryptoRng` (Zancle/Random; "Zancle update" below) |
 | exceptions | 19 | 19 | kept (ZANCLE-TODO) |
 | regex | 12 | 0 | parsed by hand (the take names: `motion::parseTakeName`; vr_motion_eval's globs: `files::globMatch`) |
 | other | 21 | 0 | |
@@ -17005,9 +17005,8 @@ a mixed-type math call...), fixed by hand. What a compiler can't see was audited
 ### What Zancle lacks: `vr_zancle.hpp` (namespace `qza`) and the `std::` kept
 
 Small stand-ins written the way Zancle writes its own (builtins behind always-inline templates), each marked
-`ZANCLE-TODO` and each a proposal: `abs` (integers too), `hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign`,
-`trunc`, `isfinite`, `nanF`, `nowNs` (+ `nsSince`...: a nanosecond clock), `fill`, `iota`, `replace`, `lowerBound`,
-`stablePartition`, `minOf` / `maxOf` (min/max of a list), `lexicographicLess` (Array's `<`), `sizeBytes` (Span's
+`ZANCLE-TODO` and each a proposal: `abs` (integers too), `remainder` (std's, rounding to nearest: below), `nanF`,
+`nowNs` (+ `nsSince`...: a nanosecond clock), `minOf` / `maxOf` (min/max of a list), `lexicographicLess` (Array's `<`), `sizeBytes` (Span's
 `size_bytes`), `repeated` (String's `(count, char)`), `Pair`, `UniqueLock`, `ReverseIterator` / `rbegin` / `rend`,
 `stableAt` (a map whose values stay put), `sortedByKey` (an ordered map's loop).
 
@@ -17015,7 +17014,6 @@ Small stand-ins written the way Zancle writes its own (builtins behind always-in
 
 | Where | What | Missing in Zancle |
 |---|---|---|
-| vr_particles, vr_shells, vr_gore, vr_bodyblood, vr_meleehud, vr_hull (bench), vr_hitmodel (test) | `std::mt19937`, `std::minstd_rand`, the uniform distributions | random engines and distributions (the seeded ones' sequences must stay) |
 | vr_jobs, vr_jobs_engine | `std::exception_ptr`, `current_exception`, `rethrow_exception`; the self-test's `std::runtime_error` | exception transport |
 | vr_motion, vr_motion_take.hpp | `std::shared_ptr` (samples and rows shared with the saving thread) | shared ownership |
 | vr_motion_review | `std::map` (the verdicts and marks: written in name order, and the takes keep pointers into them) | an ordered map with nodes that stay put |
@@ -17042,10 +17040,13 @@ Small stand-ins written the way Zancle writes its own (builtins behind always-in
    `subspan`. **`Array`**: no `fill`, `front`, `back`, ordering operators.
 8. **`getArraySize` is `consteval`**: not usable on an array reached through a reference parameter.
 9. The math wrappers take exactly `float`, `double` or `long double` (good: every mixed call std promoted is now
-   explicit); missing: `abs` for integers, `hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign`, `trunc`, `isfinite`.
-10. Missing algorithms the code used: `fill`, `iota`, `replace`, `lower_bound`, `stable_partition`, `nth_element`, a
-    stable sort for large ranges (`insertionSort` is O(n²)), `min`/`max` of a list.
-11. Missing: an ordered (flat) map, shared ownership, a unique lock, random engines, a nanosecond clock, a wide string.
+   explicit); missing: `abs` for integers. (`hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign`, `trunc`,
+   `ZA_ISFINITE`: in Zancle since 4ed9c3cc, used.) **`za::remainder` is not `std::remainder`** ("Zancle update" below).
+10. Missing algorithms the code used: `nth_element`, a stable sort for large ranges (`insertionSort` is O(n²)),
+    `min`/`max` of a list, a range overload of `fill` (22 calls fill a whole array). (`fill`, `iota`, `replace`,
+    `lowerBound`, `stablePartition`: in Zancle since 4ed9c3cc, used.)
+11. Missing: an ordered (flat) map, shared ownership, a unique lock, a nanosecond clock, a wide string. (Random
+    engines: Zancle/Random since 4ed9c3cc, used.)
 
 ### Debug: Zancle with its asserts (`QVR_ZANCLE_DEBUG`); test runs never wait on a dialog
 
@@ -17636,3 +17637,73 @@ trapped test as the build without this change (the props there are never the pla
 
 **In the headset:** topple the long box in both hands so it lands on its side, let go, walk into it from every side: it
 should shove, never let you through. Also throw a box ahead and walk after it (it is solid to you as it flies).
+## Zancle update to 4ed9c3cc (2026-10-01)
+
+The author's Zancle additions (Math: `hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign`, `trunc`; Base:
+`ZA_ISFINITE`, `Limits.hpp`; Algorithm: `stablePartition`, `lowerBound`, `fill`, `iota`, `replace`; Random:
+`FastNonCryptoRng`; MSVC compatibility) vendored at `4ed9c3cc` (`Quake/vr/external/zancle/README.md`: 178 files) and
+used: the `qza` shims for them are gone from `vr_zancle.hpp`, and the std random engines with them.
+
+- **Local changes:** `Config.hpp`'s (clang-cl's C++23 check) dropped, upstream took it; `MaxAlignT.hpp`,
+  `Assert.cpp` and `InitializerList.hpp` kept. `Math/FloatMax.hpp` moved upstream to `Base/Limits.hpp` (vr_held,
+  vr_particles).
+- **`fill` over a whole array:** Zancle's takes iterators only: the 22 range calls pass `a, a + za::getArraySize(a)` or
+  `.begin(), .end()` (`getArraySize` is consteval: not on an array reached through a reference; `beamSides` and the
+  global's own size there). A range overload is a proposal.
+- **Random:** `za::FastNonCryptoRng` (xoroshiro128++). The engines seeded by `std::random_device` (particles, shells,
+  gore, body blood) are seeded per run from `qza::nowNs()`; `vr_particle_seed` reseeds the particles' (the same
+  particles every run, but not the old run's); the melee HUD's embers (`0x5C0FFEE`), `vr_hitmodel_bench` and
+  `vr_hull_bench` (1234) keep fixed seeds with new sequences: a deliberate change, nothing compared those sequences
+  (the benches' shares move within their sampling: hit models at 5000 rays 79/85% before, 80/84% now; the hull
+  bench's agreement the same). `rnd(lo, hi)` is `lo + (hi - lo) * getF(0, 1)` (std's arithmetic: either order).
+- **`za::remainder` is not `std::remainder`** (found by another agent): it truncates the quotient (fmod's result, through
+  an int), std rounds it to the nearest. The migration's 13 angle wraps (`za::remainder(x, 360.f)`: the avatar's feet
+  turn, the hands' snap turn, the motion playback's yaw, the review's lerp, the panel's follow, the profiler HUD, the
+  view's angles, the weight's twist) returned -360..360 instead of -180..180; now `qza::remainder` (the builtin
+  IEEE remainder; `ZANCLE-TODO`). Audited the migration's other math for the same mismatch: every other function it
+  moved to Zancle is a builtin wrapper of the same name (`fmod`, `round`, `lround`, `llround`, `trunc`, `copysign`,
+  `atan2`, `floor`, `ceil`, `fmin`/`fmax`...), `za::min`/`max`/`clamp` are std's expressions (`b < a ? b : a`...: the
+  same with NaN), `qza::abs` std's overloads; no `signbit` was moved. **`vr_zancle_math_test`** (Debug menu, "Zancle
+  Math Self-Test") checks them against std on edge values (signed zeros, halves, the wrap angles, 1e9, 3e38,
+  denormals, infinities, NaN; every pair for the 2-argument ones; the wrap of every half degree in -1080..1080): 102625
+  checks, 0 differ to the last bit; `za::remainder` differs from `std::remainder` in 89 of 198 of its cases.
+- **Counts** (`Quake/vr`, outside `external`, lines): `std::` 126 -> 132, of which 27 new are the self-test's std
+  reference (`vr_zancle.cpp`; outside it 125 -> 104); `ZANCLE-TODO` 47 -> 34.
+
+### The initializer_list fix upstream: not correct
+
+Upstream (`13db45220`) keeps its own `std::initializer_list` (a pointer and a size) under MSVC's STL, defines that STL's
+include guard `_INITIALIZER_LIST_` with it, and adds a `(first, last)` constructor for cl.exe. The guard only settles
+which definition a file gets: the one whose header came first. A file that includes Zancle first gets the pointer and
+size, a file that includes `<vector>` first gets MSVC's two pointers, and in one program both are the same
+`std::initializer_list<T>`: an ODR violation the linker resolves by keeping one copy of every inline function that
+takes one (a container's braced-list constructor), so the other file's callers pass a pointer where a size is read,
+or the reverse. That is the original heap corruption, unchanged.
+
+Standalone test (the session's scratchpad `iltest/`: two files, one including Zancle's header first, one MSVC's STL
+first, both building a `Holder<int>{1, 2, 3, 4, 5}` through one shared noinline constructor, plus `std::vector<int>`
+and `std::vector<std::string>` from braced lists; each file probes the layout by its bytes), x64, clang-cl and cl
+19.44, `/O2` and `/Od`:
+
+| Header | clang-cl /O2 | clang-cl /Od | cl /O2 | cl /Od |
+|---|---|---|---|---|
+| upstream 4ed9c3cc | layouts differ; the shared constructor saw a size of 612011736004 | crashed (0xC0000409) | layouts differ; size 70620542364 | crashed (0xC0000409) |
+| ours (the real header under `_MSC_VER`) | pass | pass | pass | pass |
+| Zancle's type with MSVC's layout under `_MSC_VER` | pass | pass | pass | pass |
+
+`sizeof` (16) and `alignof` (8) agree in every case, so a size check can't catch it; within one file begin, end and
+size are right in every case. Kept ours. The fix to take upstream: under `_MSC_VER` include the real
+`<initializer_list>` (MSVC's is small: `<yvals_core.h>` and `<cstddef>`), as ours does; or, to keep its own type there,
+lay it out as MSVC's (two pointers, `begin`/`end`/`size` from them, the `(first, last)` constructor for cl.exe):
+every file then agrees whichever header came first (the third row; still two definitions, formally, but the same
+layout and meaning). Also, under cl.exe the header's `[[gnu::always_inline]]` and `[[gnu::pure]]` warn (C5030).
+
+Zancle proposals from this update: (1) the above; (2) `za::remainder`'s name says `std::remainder` but it truncates:
+rename it (`truncatedRemainder`) or make it the IEEE one (`__builtin_remainder`), and it divides through an `int`
+(wrong past 2^31 quotients); (3) a range `fill`; (4) `FastNonCryptoRng.hpp` pulls `Geometry/Priv/Vec2Base.hpp` for
+`getVec2f`: a separate header would keep it out of non-geometry users.
+
+Verified: Release and Debug (`QVR_ZANCLE_DEBUG` on) 0 warnings; the full melee eval's table byte for byte the same as
+the base commit's (`c3c65b88`, 172 of 177 pass); the grasp sweep (17 weapons x 8 kinds x 7 places, e2m1) 952 of 952
+to the last bit against the base commit; smoke (e1m1, e2m1, vrfiringrange) clean; in Debug (Zancle's asserts on) the
+math test, a sweep and two maps with no assert.

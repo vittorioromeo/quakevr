@@ -6,18 +6,20 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
 #include "Zancle/Trait/DeclVal.hpp"
 #include "Zancle/Trait/IsSame.hpp"
 #include "Zancle/Trait/IsTriviallyCopyable.hpp"
 #include "Zancle/Trait/RemoveCV.hpp"
 
 
-#if __has_builtin(__builtin_is_cpp_trivially_relocatable)
+#if ZA_HAS_BUILTIN(__builtin_is_cpp_trivially_relocatable)
 
     ////////////////////////////////////////////////////////////
     #define ZA_IS_TRIVIALLY_RELOCATABLE_BY_BUILTIN(...) __builtin_is_cpp_trivially_relocatable(__VA_ARGS__)
 
-#elif __has_builtin(__is_trivially_relocatable)
+#elif ZA_HAS_BUILTIN(__is_trivially_relocatable)
 
     ////////////////////////////////////////////////////////////
     #define ZA_IS_TRIVIALLY_RELOCATABLE_BY_BUILTIN(...) __is_trivially_relocatable(__VA_ARGS__)

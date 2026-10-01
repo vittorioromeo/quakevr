@@ -680,11 +680,16 @@ private:
         constexpr ~Buffer() requires(isTriviallyDestructible<T>) = default;
         [[gnu::always_inline]] constexpr ~Buffer() requires(!isTriviallyDestructible<T>) { }
 
+#if !defined(_MSC_VER) || defined(__clang__)
+        // Explicitly defaulted: the user-declared destructor suppresses the implicit moves. MSVC defines
+        // these eagerly (failing for non-copyable `T`, even with constraints), so it relies on the implicit
+        // copy operations instead: `Optional<T>` is then not movable if `T` is trivially movable but not copyable
         constexpr Buffer(const Buffer&) = default;
         constexpr Buffer& operator=(const Buffer&) = default;
 
         constexpr Buffer(Buffer&&) = default;
         constexpr Buffer& operator=(Buffer&&) = default;
+#endif
         // clang-format on
     } m_buffer;
 

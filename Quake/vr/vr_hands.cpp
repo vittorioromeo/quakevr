@@ -21,9 +21,9 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "vr_zancle.hpp"
 
 
 using namespace qvr;
@@ -650,7 +650,7 @@ void setServerYaw(float yaw)
 
 void addTurn(float degrees)
 {
-    turnYaw = za::remainder(turnYaw + degrees, 360.f);
+    turnYaw = qza::remainder(turnYaw + degrees, 360.f);
     stateFrame = -1;
 }
 
@@ -669,7 +669,7 @@ void resetClientState()
 
 void setPlaySpaceYaw(float yaw)
 {
-    turnYaw = za::remainder(yaw, 360.f);
+    turnYaw = qza::remainder(yaw, 360.f);
     pendingYawValid = false;
     stateFrame = -1;
 }

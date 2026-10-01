@@ -3,6 +3,7 @@
 #include "vr_still.hpp"
 #include "vr_engine.hpp"
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -12,7 +13,6 @@
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "vr_zancle.hpp"
 
 
 namespace qvr::still
@@ -114,7 +114,7 @@ glm::vec3 Window::last(int c) const
 bool Window::still(double now, double seconds, za::Vector<glm::vec3>& mean, int minSamples)
 {
     const size_t nc = spec.size();
-    qza::fill(devs.begin(), devs.end(), 0.f);
+    za::fill(devs.begin(), devs.end(), 0.f);
     if(times.empty() || now - times.front() < seconds - 1e-3)
     {
         return false;

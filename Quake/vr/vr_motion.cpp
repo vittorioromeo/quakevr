@@ -22,13 +22,13 @@
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Replace.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
-#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/String/ToString.hpp"
@@ -308,7 +308,7 @@ constexpr const char* avxyz[3] = {"avx", "avy", "avz"};
 
 [[nodiscard]] float wrapYaw(float y)
 {
-    return za::remainder(y, 360.f);
+    return qza::remainder(y, 360.f);
 }
 
 [[nodiscard]] za::String eventField(za::String s)
@@ -651,7 +651,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
             continue;
         }
         za::String value = var->string;
-        qza::replace(value.begin(), value.end(), ' ', '_'); // (none has spaces that matter here)
+        za::replace(value.begin(), value.end(), ' ', '_'); // (none has spaces that matter here)
         out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + value;
     }
     const cvar_t* maxfps = Cvar_FindVar("host_maxfps");
@@ -705,8 +705,8 @@ za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
 
     za::String h = "# Quake VR motion take (docs/vr-port/MOTIONS.md)\n";
     const auto line = [&](const char* key, za::String value) {
-        qza::replace(value.begin(), value.end(), '\n', ' ');
-        qza::replace(value.begin(), value.end(), '\r', ' ');
+        za::replace(value.begin(), value.end(), '\n', ' ');
+        za::replace(value.begin(), value.end(), '\r', ' ');
         h += za::String{"# "} + key + ": " + value + "\n";
     };
     line("format", za::toString(formatVersion));
@@ -1270,8 +1270,8 @@ void saveUnsaved_f()
     {
         takeLabel = it->first.label;
         takeStamp = it->first.date; // YYYY-MM-DD HH:MM:SS, as a file name's
-        qza::replace(takeStamp.begin(), takeStamp.end(), ' ', '_');
-        qza::replace(takeStamp.begin(), takeStamp.end(), ':', '-');
+        za::replace(takeStamp.begin(), takeStamp.end(), ' ', '_');
+        za::replace(takeStamp.begin(), takeStamp.end(), ':', '-');
         const za::String path = takePath(motionsDir());
         if(writeTake(path, it->first, it->second))
         {

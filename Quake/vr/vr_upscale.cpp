@@ -21,11 +21,11 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Exp2.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Tan.hpp"
 #include "Zancle/String/String.hpp"
-#include "vr_zancle.hpp"
 
 
 #ifndef GL_TEXTURE_FETCH_BARRIER_BIT
@@ -419,7 +419,7 @@ void easuConstants(float inW, float inH, float outW, float outH, float con[16])
 [[nodiscard]] float rcasConstant(float sharpness)
 {
     const float stops = 2.f * (1.f - za::clamp(sharpness, 0.f, 1.f));
-    return qza::exp2(-stops); // FsrRcasCon's con[0] (as its float)
+    return za::exp2(-stops); // FsrRcasCon's con[0] (as its float)
 }
 
 [[nodiscard]] float sharpness()

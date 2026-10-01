@@ -5,18 +5,21 @@ and the author's own (`license.md`); moodycamel's queue is under the simplified 
 `extlibs/moodycamel/concurrentqueue.h`), its semaphore under zlib (`lightweightsemaphore.h`).
 
 - Upstream: https://github.com/vittorioromeo/zancle, branch `rebrand_to_zancle`
-- Commit: `6b8c610639544ac69dcc071c8e64458adee8588b` (2026-09-28, "Fix anchor point mixin setters, docs, and add tests")
+- Commit: `4ed9c3cc516729400125a30021c74bec3c084047` (2026-10-01, "Add Zancle/Random: FastNonCryptoRng and the
+  xoroshiro128++ bit generator")
 
 The Quake VR code is written on Zancle instead of the C++ standard library (`docs/vr-port/ROUND21.md`, "Zancle
 migration"; `docs/vr-port/CODE_STYLE.md`, "Zancle, not the standard library"). Vendored: the headers the VR code
 includes and every header they reach, each reached header's source file, and moodycamel's three headers (upstream's
-`extlibs/headers/moodycamel/`, here `extlibs/moodycamel/`): 159 files, about 1.2 MB.
+`extlibs/headers/moodycamel/`, here `extlibs/moodycamel/`): 178 files, about 1.2 MB.
 
-- `include/Zancle/`: `Algorithm` (Sort, Find, AnyOf, Count, Copy, Erase, Remove, Rotate, Unique, MaxElement),
-  `Base` (the builtin macros: Memcpy, Strcmp, BitCast, IsNan..., Assert, Macros, Swap, IntTypes, SizeT...),
+- `include/Zancle/`: `Algorithm` (Sort, Find, AnyOf, Count, Copy, Erase, Remove, Rotate, Unique, MaxElement, Fill,
+  Iota, Replace, LowerBound, StablePartition), `Base` (the builtin macros: Memcpy, Strcmp, BitCast, IsNan, IsInf,
+  IsFinite..., Limits, Assert, Macros, Swap, IntTypes, SizeT...),
   `Chrono` (Clock, Time), `Concurrency` (Atomic, AtomicMutex, LockGuard, Thread, ThreadPool), `Container` (Vector,
-  SmallVector, InPlaceVector, Array, Bitset, AnkerlUnorderedDense), `Math` (the math wrappers, MinMax, Clamp, the
-  float limits), `String` (String, StringView, ToString, ToChars, FromChars), `Trait`, `Vocabulary` (Optional, Span,
+  SmallVector, InPlaceVector, Array, Bitset, AnkerlUnorderedDense), `Math` (the math wrappers, with Hypot, Cbrt, Log2, Exp2,
+  Llround, Copysign, Trunc; MinMax, Clamp), `Random` (FastNonCryptoRng and its xoroshiro128++ generator; it reaches
+  `Geometry/Priv/Vec2Base.hpp`), `String` (String, StringView, ToString, ToChars, FromChars), `Trait`, `Vocabulary` (Optional, Span,
   UniquePtr, FunctionRef, FixedFunction, InPlacePImpl), `Fmt/FmtAppendMixinFwd.hpp`, `Config.hpp`.
 - `src/Zancle/`: `Base/{Abort,Assert}.cpp` (and `StackTrace.hpp`), `Chrono/Clock.cpp`, `Concurrency/*.cpp`,
   `String/String.cpp`, `Vocabulary/Optional.cpp`, `Lifetime/LifetimeTrackingABICheck.cpp` (the symbol `Config.hpp`'s ABI
@@ -45,15 +48,18 @@ Build (every build file compiles the same set):
 
 Local changes (marked `Quake VR (local change)` in the file):
 
-- `include/Zancle/Config.hpp`: the C++23 check reads `__cplusplus` under clang-cl, which sets `_MSVC_LANG` to 202004L in
-  C++23 mode (as MSVC's `/std:c++latest` did) and so was rejected. Proposed upstream (ROUND21.md, "Zancle proposals").
 - `include/Zancle/Base/MaxAlignT.hpp`: its `__float128` member on 32-bit x86 only where the target has the type
   (`__SIZEOF_FLOAT128__`): clang-cl's 32-bit Windows target (ironwail's Win32 configurations) has not, and stopped there.
 - `include/Zancle/Base/InitializerList.hpp`: the real `<initializer_list>` under `_MSC_VER` too. Zancle's own
   `std::initializer_list` is a pointer and a size; MSVC's STL's is two pointers, and a program that also uses MSVC's STL
   got both layouts in different files (an ODR violation: a caller built with one layout passed a pointer as the size of
   an instantiation built with the other; heap corruption in Release, a 2 TB allocation in a Debug static initialiser).
+  Upstream's own fix (4ed9c3cc: its type also defines MSVC's STL's guard `_INITIALIZER_LIST_`, and has a `(first,
+  last)` constructor for cl.exe) only decides which of the two a file gets, by which header came first: a standalone
+  test (ROUND21.md, "Zancle update") still breaks with it, under clang-cl and cl, Release and Debug. Kept.
 - `src/Zancle/Base/Assert.cpp`: no handler with `QVR_ZANCLE_DEBUG` (the engine's `vr_zancle.cpp` is the one).
+
+(Dropped at 4ed9c3cc, upstream took it: `Config.hpp`'s C++23 check reads `__cplusplus` under clang-cl.)
 
 To update: copy the same files from upstream over these, keep the local changes unless upstream took them, and change
 the commit above. `python Misc/quakevr/zancle_vendor.py <upstream checkout>` adds what the VR code's includes reach and

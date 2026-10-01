@@ -19,6 +19,7 @@
 #include "vr_weapons.hpp"
 #include "vr_hands.hpp"
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/MaxElement.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -1417,7 +1418,7 @@ void shapeBeam(const Pose& p, const glm::vec3& lens, const glm::vec3& dir, float
         // beyond the cone, too): on the traced rings and sides (the quality's), the other sides in between.
         if(i == 0)
         {
-            qza::fill(beam.reach[i], beamLookPast);
+            za::fill(beam.reach[i], beam.reach[i] + beamSides, beamLookPast);
             continue;
         }
         if(!tracedRing(i))

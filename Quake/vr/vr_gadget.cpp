@@ -26,6 +26,7 @@
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
@@ -1456,8 +1457,8 @@ void renderFpsDetailed()
     // The graphs: the last fpsGraphTime seconds, newest at the right; a column the worst frame over it.
     const float top = static_cast<float>(holoPad + fpsTextRows * fpsRowPitch + 2);
     float cpuCol[fpsGraphWidth], gpuCol[fpsGraphWidth];
-    qza::fill(cpuCol, cpuCol + za::getArraySize(cpuCol), -1.f);
-    qza::fill(gpuCol, gpuCol + za::getArraySize(gpuCol), -1.f);
+    za::fill(cpuCol, cpuCol + za::getArraySize(cpuCol), -1.f);
+    za::fill(gpuCol, gpuCol + za::getArraySize(gpuCol), -1.f);
     profile::FrameSample newest, fs;
     if(profile::frameSample(0, newest))
     {

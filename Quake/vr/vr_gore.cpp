@@ -9,6 +9,7 @@
 #include "vr_ring.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -19,8 +20,9 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Random/FastNonCryptoRng.hpp"
+#include "vr_zancle.hpp"
 
-#include <random>
 
 namespace qvr::gore
 {
@@ -30,11 +32,11 @@ namespace
 using decals::Mark;
 using decals::MarkOptions;
 
-std::mt19937 rng{std::random_device{}()}; // ZANCLE-TODO: no random engines or distributions
+za::FastNonCryptoRng rng{static_cast<za::U64>(qza::nowNs())}; // a new sequence every run
 
 [[nodiscard]] float rnd(float lo, float hi)
 {
-    return std::uniform_real_distribution<float>{lo, hi}(rng);
+    return lo + (hi - lo) * rng.getF(0.f, 1.f); // (lo > hi too)
 }
 
 [[nodiscard]] glm::vec3 onSphere()

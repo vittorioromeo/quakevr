@@ -3,7 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__is_constructible) && __has_builtin(__add_rvalue_reference)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__is_constructible) && ZA_HAS_BUILTIN(__add_rvalue_reference)
 
     ////////////////////////////////////////////////////////////
     #define ZA_IS_MOVE_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__, __add_rvalue_reference(__VA_ARGS__))

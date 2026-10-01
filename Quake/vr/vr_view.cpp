@@ -54,7 +54,9 @@
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Replace.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -75,7 +77,6 @@
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
@@ -2470,7 +2471,7 @@ void moveDrawnHand(int hand, bool mirrored, const glm::vec3& frameRot, glm::vec3
     glm::vec3 a = basisAngles(w0 * glm::transpose(w) * anglesBasis(turn)) - weaponAngleOffsets(weapons::fistSlot(), mirrored);
     for(int k = 0; k < 3; k++)
     {
-        a[k] = za::remainder(a[k], 360.f);
+        a[k] = qza::remainder(a[k], 360.f);
     }
     if(!mirrored)
     {
@@ -2931,7 +2932,7 @@ void setupPosingHand(int hand, const glm::vec3& pos, const glm::vec3& rot)
     const auto normalized = [](glm::vec3 a) {
         for(int k = 0; k < 3; k++)
         {
-            a[k] = za::remainder(a[k], 360.f);
+            a[k] = qza::remainder(a[k], 360.f);
         }
         return a;
     };
@@ -5221,7 +5222,7 @@ float fingerCurl(int hand, int finger)
 
 void resetCaches()
 {
-    qza::fill(viewModels, ViewModelEntry{});
+    za::fill(viewModels, viewModels + za::getArraySize(viewModels), ViewModelEntry{});
     clipSizes.clear();
     for(RigHand& rh : rigHands)
     {
@@ -5240,7 +5241,7 @@ namespace
 [[nodiscard]] za::String modelPath(const char* arg)
 {
     za::String name = arg;
-    qza::replace(name.begin(), name.end(), '\\', '/');
+    za::replace(name.begin(), name.end(), '\\', '/');
     if(name.find('/') == za::StringView::nPos)
     {
         name = "progs/" + name;

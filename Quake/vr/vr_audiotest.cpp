@@ -21,6 +21,7 @@
 #include "vr_jobs.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -178,8 +179,8 @@ Render renderVoice(Mixer& m, const sfxcache_t* sc, const Listener& lis, const Fe
         {
             m.set(0, in);
         }
-        qza::fill(l.begin(), l.end(), 0.f);
-        qza::fill(r.begin(), r.end(), 0.f);
+        za::fill(l.begin(), l.end(), 0.f);
+        za::fill(r.begin(), r.end(), 0.f);
         m.render(1, lis, f, reverb, l.data(), r.data());
         out.l.emplaceBackRange(l.data(), l.size());
         out.r.emplaceBackRange(r.data(), r.size());
@@ -1142,7 +1143,7 @@ void bench(Result& res)
         const double start = Sys_DoubleTime();
         for(int k = 0; k < frames; k++)
         {
-            qza::fill(paint.begin(), paint.end(), 0);
+            za::fill(paint.begin(), paint.end(), 0);
             for(int c = 0; c < voices; c++)
             {
                 const short* sfx = reinterpret_cast<const short*>(sounds[c % 4].cache()->data) + (k * perFrame) % 20000;

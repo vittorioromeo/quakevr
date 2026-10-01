@@ -3,7 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__reference_converts_from_temporary)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__reference_converts_from_temporary)
 
     ////////////////////////////////////////////////////////////
     #define ZA_REFERENCE_CONVERTS_FROM_TEMPORARY(T, U) __reference_converts_from_temporary(T, U)

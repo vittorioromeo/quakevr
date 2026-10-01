@@ -45,9 +45,9 @@
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
-#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
 
 #include <glm/gtc/quaternion.hpp>
 
@@ -360,7 +360,7 @@ void trace(int h, const Load& l, const glm::vec3& xt, const glm::quat& qt, const
         return;
     }
     const glm::vec3 ta = anglesFromQuat(qt), da = anglesFromQuat(q);
-    const auto wrap = [](float a) { return za::remainder(a, 360.f); };
+    const auto wrap = [](float a) { return qza::remainder(a, 360.f); };
     const float off = glm::distance(x, xt) * 100.f;
     const float ang = glm::degrees(glm::length(rotationVector(qt * glm::conjugate(q))));
     fprintf(file,
@@ -611,7 +611,7 @@ void test_f()
                 else if(t < jumpAt)
                 {
                     overCm = za::max(overCm, (b.x.y - xt.y) * 100.f); // past the target, the way it went
-                    overDeg = za::max(overDeg, za::remainder(anglesFromQuat(b.q).y - 70.f, 360.f));
+                    overDeg = za::max(overDeg, qza::remainder(anglesFromQuat(b.q).y - 70.f, 360.f));
                     const bool out = za::fabs(off - sagCm) > 0.5f || za::fabs(ang - sagDeg) > 0.5f;
                     if(out)
                     {

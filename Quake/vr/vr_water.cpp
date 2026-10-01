@@ -11,6 +11,7 @@
 #include "vr_jobs.hpp"
 
 #include "Zancle/Algorithm/Count.hpp"
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
@@ -29,6 +30,7 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Llround.hpp"
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
@@ -635,7 +637,7 @@ struct Affine
 [[nodiscard]] za::U64 gridKey(long long ix, long long iy, float z)
 {
     return (static_cast<za::U64>(ix & 0x1fffff) << 42) | (static_cast<za::U64>(iy & 0x1fffff) << 21) |
-           static_cast<za::U64>(qza::llround(z * 2.f) & 0x1fffff);
+           static_cast<za::U64>(za::llround(z * 2.f) & 0x1fffff);
 }
 
 // A grid key's first slot in a table of `mask` + 1 slots (a power of two): the key mixed (splitmix64's finaliser),
@@ -683,7 +685,7 @@ void recordPins(const za::Vector<MeshVert>& verts, float cell)
         {
             continue;
         }
-        const za::U64 key = gridKey(qza::llround(v.pos[0] / cell), qza::llround(v.pos[1] / cell), v.pos[2]);
+        const za::U64 key = gridKey(za::llround(v.pos[0] / cell), za::llround(v.pos[1] / cell), v.pos[2]);
         za::SizeT i = gridSlot(key, mask);
         while(gridPins[i].pin != 0.f && gridPins[i].key != key)
         {
@@ -936,9 +938,9 @@ void buildMesh(qmodel_t* m, float cell)
         const Affine affine(f);
         index.clear();
         const auto vertex = [&](const glm::vec3& p) {
-            const za::U64 key = (static_cast<za::U64>(qza::llround(p.x * 16.f) & 0x1fffff) << 42) |
-                                      (static_cast<za::U64>(qza::llround(p.y * 16.f) & 0x1fffff) << 21) |
-                                      static_cast<za::U64>(qza::llround(p.z * 16.f) & 0x1fffff);
+            const za::U64 key = (static_cast<za::U64>(za::llround(p.x * 16.f) & 0x1fffff) << 42) |
+                                      (static_cast<za::U64>(za::llround(p.y * 16.f) & 0x1fffff) << 21) |
+                                      static_cast<za::U64>(za::llround(p.z * 16.f) & 0x1fffff);
             const auto it = index.find(key);
             if(it != index.end())
             {
@@ -1480,7 +1482,7 @@ void growRises()
         gridRisesCount = 0;
         if(++riseStamp == 0) // wrapped (after years of views): every slot emptied once
         {
-            qza::fill(gridRises.begin(), gridRises.end(), RiseSlot{});
+            za::fill(gridRises.begin(), gridRises.end(), RiseSlot{});
             riseStamp = 1;
         }
     }

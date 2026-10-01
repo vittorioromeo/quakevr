@@ -3,7 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__builtin_bit_cast)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__builtin_bit_cast)
 
     ////////////////////////////////////////////////////////////
     #define ZA_BIT_CAST(type, ...) __builtin_bit_cast(type, __VA_ARGS__)

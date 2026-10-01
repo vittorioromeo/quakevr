@@ -3,7 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__is_convertible)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__is_convertible)
 
     ////////////////////////////////////////////////////////////
     #define ZA_IS_CONVERTIBLE(from, to) __is_convertible(from, to)

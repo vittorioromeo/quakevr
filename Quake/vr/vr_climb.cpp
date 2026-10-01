@@ -128,11 +128,13 @@
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Hypot.hpp"
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
@@ -717,7 +719,7 @@ struct Box
     // A lenient hold is at most the leniency plus this from the hand: the furthest the hold is from a hand at the ledge
     // (in over the top as far as it reaches, or in front of its face, and under the lip as far as touching reaches).
     const Touch k = touch();
-    const float lenientReach = qza::hypot(za::max(k.in, holdInset + k.front), ledges::holdLift + k.sink) + 1e-3f;
+    const float lenientReach = za::hypot(za::max(k.in, holdInset + k.front), ledges::holdLift + k.sink) + 1e-3f;
     za::Vector<Scored>& scored = scratch.scored;
     scored.clear();
     for(const Candidate& c : found)
@@ -1919,7 +1921,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
         }
         const glm::vec3 moved = rel[h] - g.lastRel;
         const float w = glm::length(moved);
-        if(qza::isfinite(w))
+        if(ZA_ISFINITE(w))
         {
             pull += moved * w;
             weights += w;
