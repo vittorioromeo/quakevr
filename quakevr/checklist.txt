@@ -67,7 +67,11 @@ Punch, club, chop and saw a crate: wood dust only, also on the breaking blow; De
 
 Enforcer rifle: lower top and a short front post; one-handed on targets 5-15 m the laser lands on the sights (Muzzle: Shot Pitch 7; or tilt the gun with Pitch -7, Shot Pitch 0); muzzle flash on your rifle and on enforcers; light recoil (Effects > Recoil Strength 0.5)
 
+Hand grenade in the palm: thumb wraps round the outside; bricks now too (Hands > Thumb Opens Wide Round Them to compare)
+Empty hand pushed into the gun in your other hand (side, top, barrel): both held back like a held box does (5 cm each, buzz), then sinks in gradually
+
 [Decide or give feedback]
+Hand Collide (empty hand vs weapon) and Collide Give (held prop) are separate settings, both 5 cm: merge them into one?
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
