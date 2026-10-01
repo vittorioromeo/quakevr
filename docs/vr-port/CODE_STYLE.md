@@ -35,10 +35,19 @@ C++ standard library: Zancle's types compile faster and run faster in Debug. Use
 
 ## Scratch buffers and caches
 
-A function that needs a container only to avoid allocating it again next time (a scratch buffer), or that keeps results
-for a key (a cache), does **not** declare it `static` (or `thread_local`) inside the function. Hidden there it is never
-given back (a one-off peak stays for the session), never counted, never emptied when what it was made from goes away,
-and nothing says which thread may touch it. It goes into its system's state instead:
+**No function-local `static` (or `thread_local`) variables in `Quake/vr`, of any type, except `static constexpr`.** Global
+state is marked as such, at file scope, where it can be seen: not hidden in a function. A local static is also paid for on
+every call: one that is built at run time (`static const T x = f();`, `static const za::Vector<...> list = {...}`) or has a
+destructor gets a thread-safe guard (MSVC/clang-cl: a `$TSS` guard variable checked on each call, `_Init_thread_header`
+on the first), and a mutable one is state nobody sees. `static constexpr` is the exception because `constexpr` proves the
+compiler initialises it at compile time and nothing changes it: no guard, no state. `static const` is not enough, even
+when its value happens to be constant (`static const int n = 3;` has no guard; `static const int n = f();` does, and the
+two read alike): spell a constant `static constexpr` (`static constexpr const char* names[] = {...}`).
+
+A container kept only to avoid allocating it again next time (a scratch buffer), or results kept for a key (a cache), is
+the main case. Hidden in a function it is never given back (a one-off peak stays for the session), never counted, never
+emptied when what it was made from goes away, and nothing says which thread may touch it. It goes into its system's
+state instead:
 
 1. **Scratch** (its contents mean nothing from one call to the next): a member of the file's scratch struct, registered
    with `mem::Scratch` (`vr_mem.hpp`). The function takes a reference and clears it itself; the capacity stays from call
@@ -73,18 +82,32 @@ and nothing says which thread may touch it. It goes into its system's state inst
    that can change otherwise (a setting) is part of the key and checked on use. Explicit resets that already exist
    (`resetServerWorld`, `VR_OnClientClearState`, `VR_OnGameDirChanged`'s list) stay; `mem::on(event)` is called from
    `VR_OnClearMemory`, `VR_OnGameDirChanged` and the two reload commands.
-3. **Per-frame state that is not a buffer** (what a frame built once and every view draws: `flashlight.cpp`'s
-   `CordDraw`, `rope.cpp`'s `RopeDraw`; a debug command's totals): a named struct at file scope in the anonymous
-   namespace, next to the system's other state. A debug command's working buffer is a plain local.
-4. **Constants** built once (`static const za::Array` of fixed data): `constexpr` when the type allows
-   (`bodycal`'s `splitList`), else a namespace-scope `const` (made before `main`, read by any thread: `ao`'s `rayDirs`)
-   or a function-local `static const` (its initialisation is thread-safe). Never mutable.
+3. **State that is not a buffer** (what a frame built once and every view draws: `flashlight.cpp`'s `CordDraw`,
+   `rope.cpp`'s `RopeDraw`; what a function remembers from one call to the next: a "once a frame" frame number, the last
+   print's time, a "registered" flag, a debug trace's open `FILE*`, an easing's last value): a named variable or struct
+   at file scope in the anonymous namespace, next to the function (or the system's other state), with a comment saying
+   who uses it and from which thread (`avatar.cpp`'s `ArmEase`, `view.cpp`'s `OncePerFrame` and `GrappleDebug`,
+   `main.cpp`'s `UnpacedSwap`). A member of the class when the function is a member (`MockBackend::shake`). The
+   function may bind a reference to it under the old name (`int& lastFrame = oncePerFrame.quadArcs;`). A debug
+   command's working buffer is a plain local; a fixed array that is all written before it is read is a plain local too
+   (`coil.cpp`'s forces), unless it is too big for the stack (then file scope: `throw.cpp`'s `bothHistory`).
+4. **Constants**: `static constexpr` when the type allows (`bodycal`'s `splitList`, the name tables), else a
+   namespace-scope `const` built before `main` (read by any thread, no guard): `ao`'s `rayDirs`, `ambient`'s `rayTable`,
+   `avatar`'s `bindPose`, `unstick`'s `spotOffsets`, `motion`'s `categoryList`, `handrig`'s `referenceRig`. Its
+   initialiser may use only constexpr data and pure functions: another file's globals may not be made yet (the static
+   initialisation order). An empty object returned by reference (`none`) is a namespace-scope `const` too. Text handed
+   out by pointer goes into the file's readouts set (`menu`'s `MenuReadouts`) or a file-scope `char` array (valid until
+   the function's next call). An engine cvar is read through its `extern "C" cvar_t` (not a `Cvar_FindVar` cached in a
+   static).
 
 `vr_memstats` prints the registered sets' bytes (totals and the largest), `vr_limits` the totals.
 
-`Misc/quakevr/check_statics.py` (run by the kit's `build.sh`, which fails on it) rejects a mutable function-local
-`static` of a `std::`, `za::` or `ankerl::` type or an indented `thread_local` in `Quake/vr`; a worker's own buffer that must stay ends with
-`// statics-ok: <why>`.
+`Misc/quakevr/check_statics.py` (run by the kit's `build.sh`, which fails on it) rejects every function-local `static`
+or `thread_local` in `Quake/vr` that is not `static constexpr`, of any type, in any function or lambda body (an
+`if(static bool once = false; !once)` too); class members and namespace-scope variables are not function-local. It
+reads the source's scopes (comments, strings and raw strings skipped), so it needs no compiler. A line that must stay
+(a worker thread's own buffer) ends with `// statics-ok: <why>`; none does today. `--legacy` applies the old rule
+(`static std::`/`za::`/`ankerl::` only) for comparison.
 
 ## Threads
 

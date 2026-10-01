@@ -17898,3 +17898,44 @@ Regression: the toppled-box sweep (`propphase_sweep.py`) 192 of 192 on the box, 
 **In the headset:** topple the big box onto yourself against a wall with your hands under it (it should slide off your
 hands, not be thrown); walk into the big box with your hands ahead (it slides, upright); take a small box with both
 hands, fists on its sides.
+
+## No function-local statics (2026-10-01)
+
+Your note (e1m1_2026-10-01_00-42): no function-local `static` of any kind, not only the `std::`/Zancle containers moved
+earlier this round; global state visibly marked, and no thread-safe initialisation guard paid on every call.
+
+**The rule** (`CODE_STYLE.md`, "Scratch buffers and caches"): inside a function only `static constexpr` is allowed.
+`constexpr` proves the value is made at compile time and never changes: no guard, no state. What the compiler does with
+the others (MSVC/clang-cl, read from the Debug objects' symbols, which have no LTCG): a local static that is built at
+run time or has a destructor gets a `$TSS` guard checked on every call (17 of them in the VR objects before: the
+avatar's bind pose, the ambient rays, the rig, the unstick offsets, the motion categories, the AO queue, the
+`za::Vector`/`za::String` "none" objects, the `Cvar_FindVar` lookups, the gadget's message buffers...); a POD one
+initialised with a constant gets none, but is hidden mutable state. `static const` is rejected too: `static const int
+n = 3` has no guard and `static const int n = f()` has one, and from the source they read alike.
+
+**Where they went** (130 sites in 51 files, plus 6 `if(static bool registered = false; !registered)`):
+- state remembered from call to call (frame numbers for "once a frame", last print times, "registered" flags, debug
+  traces' `FILE*`, easing values, the slider's end hold, the menu's noted place): named variables or structs at file
+  scope next to their function, with who uses them (`ArmEase`, `OncePerFrame`, `GrappleDebug`, `UnpacedSwap`,
+  `SliderHold`, `Landings`...); a class member where the function is a member (`MockBackend::shake`, the OpenXR
+  swapchain's `formatLogged`);
+- run-time constants: namespace-scope `const`s built before `main` from constexpr data only (`bindPose`, `rayTable`,
+  `referenceRig`, `spotOffsets`, `categoryList`, `fallbackTracking`, the empty `none` objects); the name tables became
+  `static constexpr`;
+- buffers: the gadget's message buffers into a `mem::Scratch` ("gadget messages"), the grasp kinematics into a counted
+  `mem::Cache` ("grasp kinematics", keyed by the rig's generation as before), the menu's text readouts into
+  `MenuReadouts`; the coil's forces a plain local (all written before read);
+- `sv_friction` and `host_maxfps` read through their `extern "C" cvar_t` instead of a cached `Cvar_FindVar`.
+
+**The check** (`Misc/quakevr/check_statics.py`, run by `build.sh`): reads each file's scopes (namespaces, classes,
+function and lambda bodies, braced initialisers; comments, strings and raw strings skipped) and fails on any `static`
+or `thread_local` in a function body that is not `static constexpr`. On the code before this change: the old rule
+finds 0, the new one 136; after: 0. `--legacy` runs the old rule.
+
+Results: `$TSS` guards in the VR objects (Debug) 17 -> 0; the full melee eval byte-identical to the build before the
+change (177 takes, 172 pass; the one difference from the kit's baseline, slash_backswing_up_right 23-12-35 27.0 ->
+26.9, is the same on the old build); 0 warnings in Release and Debug; e1m1, e2m1 and vrfiringrange load and draw, no
+errors, `vr_memstats` and `vr_limits time` as before.
+
+**In the headset:** nothing should look or feel different. Worth a glance: the wrist gadget's messages (a secret, a
+key), the menu's sliders held past their ends, the flashlight on a new map, the grappling gun's rope.
