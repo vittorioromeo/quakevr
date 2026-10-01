@@ -122,8 +122,11 @@ const DefaultChange defaultChanges[] = {
     {61, &vr_gruntgun_ammo, "10"},            // 30
     // 62: no cap on crowbars on crates (the author, 2026-10-01).
     {62, &vr_crate_crowbar_max, "1"},       // 64
+    // 63: the crowbar a little softer, "its damage is a bit high" (NOTES.md vrfiringrange_2026-10-01_02-33; ROUND21.md,
+    // "Weapon Damage menu"): the axe's base now.
+    {63, &vr_crowbar_damage, "25"},           // 20
 };
-constexpr int configVersion = 62;
+constexpr int configVersion = 63;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

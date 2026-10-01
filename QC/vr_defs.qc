@@ -123,7 +123,7 @@ float WID_GRUNTGUN         = 15; // VR: a grunt's shotgun (vr_enemyguns.qc; its 
 float WID_ENFRIFLE         = 16; // VR: an enforcer's laser rifle (vr_enemyguns.qc; its clip is its only ammo)
 float WID_CROWBAR          = 17; // VR: the crowbar (vr_crowbar.qc; a melee weapon, one hand or two, as the swords)
 float WID_LAST             = 17; // the last weapon id
-float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a grunt's shotgun fires (vr_enemyguns.qc; 0: the usual 4)
+float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a shotgun fires (yours, Weapon Damage; a grunt's, vr_enemyguns.qc; 0: id's 4)
 float VR_CHAINSAW_TANK     = 100; // a chainsaw's full tank (its clip: fuel, in percent)
 
 //

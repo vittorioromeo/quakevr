@@ -135,7 +135,7 @@ void() lavaspike_touch =
             // other.armorvalue = 0;
 
             // TODO VR: (P1) pass a flag to `T_Damage` to ignore armor
-            T_Damage(other, self, self.owner, 9);
+            T_Damage(other, self, self.owner, 9 * VR_WpnDmgScale(self.owner, cvarh_vr_dmg_lava_nail, 15)); // (Weapon Damage)
 
             // other.armortype = old_armortype;
             // other.armorvalue = old_armorvalue;
@@ -145,7 +145,7 @@ void() lavaspike_touch =
         {
             if(other.classname != "monster_lava_man")
             {
-                T_Damage(other, self, self.owner, 15);
+                T_Damage(other, self, self.owner, VR_WpnDmg(self.owner, cvarh_vr_dmg_lava_nail, 15));
             }
         }
     }
@@ -204,7 +204,7 @@ void() superlavaspike_touch =
 //            old_armorvalue = other.armorvalue;
             other.armortype = other.armortype * 0.5;
 //            other.armorvalue = 0;
-            T_Damage(other, self, self.owner, 18);
+            T_Damage(other, self, self.owner, 18 * VR_WpnDmgScale(self.owner, cvarh_vr_dmg_super_lava_nail, 30)); // (Weapon Damage)
 
             // if the damage didn't wipe out the armor, armortype
             if(other.armortype != 0)
@@ -217,7 +217,7 @@ void() superlavaspike_touch =
         {
             if(other.classname != "monster_lava_man")
             {
-                T_Damage(other, self, self.owner, 30);
+                T_Damage(other, self, self.owner, VR_WpnDmg(self.owner, cvarh_vr_dmg_super_lava_nail, 30));
             }
         }
     }

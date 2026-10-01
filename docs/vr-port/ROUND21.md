@@ -17096,3 +17096,45 @@ that channel. Mock: 30 gibbed enforcers, 2 to 5 heads with flies, each `misc/fly
   blasts 0 every time. The effect itself is kept: a head lying about still has its flies.
 - Test aid: `vr_test_spawn_dead 2` gibs the monster `impulse 241` puts (health + 100 damage); the Debug menu's "As a
   Corpse" row is a toggle (0/1), so 2 is console-only for now.
+
+## Weapon Damage menu (2026-10-01)
+
+The author's note (NOTES.md vrfiringrange_2026-10-01_02-33): the crowbar is nearly perfect but hits a bit hard; rather
+than hard-coded damage, a menu with every weapon's base damage, to balance them.
+
+- **VR Settings > Advanced > Combat > Weapon Damage** (also linked from Weapons, Melee and Enemy Weapons): each weapon's
+  base damage as a setting (`vr_dmg_*`, archived), id's numbers (or the mission packs') as shipped:
+
+  | Row | Cvar | Default |
+  |---|---|---|
+  | Shotgun / Double Shotgun | `vr_dmg_shotgun` / `vr_dmg_super_shotgun` | 4 / 4 a pellet (6 / 14 pellets) |
+  | Nailgun / Super Nailgun | `vr_dmg_nail` / `vr_dmg_super_nail` | 9 / 18 |
+  | Grenade (launcher, hand, a returned ogre grenade) | `vr_dmg_grenade` | 120 (blast) |
+  | Rocket | `vr_dmg_rocket` | 100 direct (+ up to 1/5); blast 1.2x it |
+  | Lightning Gun | `vr_dmg_lightning` | 30 a bolt |
+  | Proximity Gun / Laser Cannon / Mjolnir's Lightning | `vr_dmg_proximity` / `vr_dmg_laser` / `vr_dmg_mjolnir_lightning` | 95 / 18 (1 in 10: 25/18 of it) / 80 (later strikes 3/8) |
+  | Lava Nails / Super Lava Nails | `vr_dmg_lava_nail` / `vr_dmg_super_lava_nail` | 15 / 30 to monsters (to players 3/5) |
+  | Multi-Grenade / Multi-Rocket / Plasma Gun | `vr_dmg_multi_grenade` / `vr_dmg_multi_rocket` / `vr_dmg_plasma` | 90 a bomblet / 60 (+1/4; blast 1.25x) / 80 (+1/4; blast 7/8, arcs 5/8) |
+  | Fist / Axe / Gun as a Club / Mjolnir | `vr_dmg_fist` / `vr_dmg_axe` / `vr_dmg_gun_bash` / `vr_dmg_mjolnir` | 10 / 20 / 12 / 25 |
+  | Crowbar | `vr_crowbar_damage` (moved from Melee) | **20** (was 25) |
+  | Knight's Sword, Chainsaw Chain, Burst Rifle, Laser Rifle (moved from Enemy Weapons) | `vr_sword_damage_mult`, `vr_chainsaw_damage`, `vr_gruntgun_damage`, `vr_enfrifle_damage` | as they were |
+  | Ogre's Chainsaw Swung | `vr_dmg_chainsaw_swing` | 20 |
+  | Thrown Weapons (a copy of Weight and Damage's row) | `vr_weapon_throw_damage_mult` | 1 |
+
+  A weapon whose numbers come in parts (a rocket's direct hit and blast) has one setting; the others scale with it.
+  Melee values are before the blow's speed, the weight's curve and Melee's Damage Multiplier, as before; Damage to
+  Enemies multiplies everything. The knight's sword stays a multiplier of 20 (no longer described as "the axe's": it
+  doesn't follow the Axe row).
+- **Players' shots only** (QC `VR_WpnDmg`, `VR_WpnDmgScale` in weapons.qc): a projectile's or shot's setting applies when
+  its owner is a client (players, bots); monsters and traps firing the same (Chthon's and Armagon's rockets, gremlins,
+  spike shooters) keep id's numbers. The pellets go through `vr_pellet_damage` (as the grunt's guns did); the grunt's
+  dropped id shotgun (Burst Rifles off) uses the Shotgun row.
+- **The crowbar: 20** (the axe's base). It was 25 to the axe's 20 and the sword's 30; the author found it a bit high, and
+  its hook still adds 20%, so a hook blow at full strength is about the old bar blow (24). A config holding 25 takes
+  20 once (`vr_cfg_version` 63).
+- Tests: `Misc/quakevr/weapondmg/dmg_test.sh <worktree> ["cvar value;..."]` (an ogre in the firing range shot with the
+  shotgun, then a rocket; vr_debug_shots' damage lines): defaults 24 / 102-118, `vr_dmg_shotgun 8; vr_dmg_rocket 50`
+  48 / 59.3. `crowbar_test.sh` (a synthetic swing, motion_synth.py, at the dummy): the hook at x0.98 19.6 at 20, 24.5
+  at 25; the bar at x0.95 37.8 at 40. Nails at `vr_dmg_nail 20`: 20 a nail; lightning at 50: 50 a bolt. Melee canary
+  unchanged (no crowbar takes in the set). `vr_menu_path_check maps/vrcalibration.map`: 0 missing. Note: a run under
+  heavy parallel load once missed the shotgun shot (0): rerun serially.
