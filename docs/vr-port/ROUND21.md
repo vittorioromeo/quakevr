@@ -19118,3 +19118,51 @@ His notes vrfiringrange_2026-10-01_16-41-40, _16-42-00 (a backpack thrown high n
   The crowbar's hook at 9.1 m/s: batted (weapon threshold 34, 10 alike). A running chainsaw's chain cutting into a dud
   falling past the bar: set off ("a running chainsaw"); its rear handle's pommel strike (19.1 m/s) had too, before
   the pommel was left out of the rule. Melee canary: no differences.
+
+## A weapon held anywhere strikes with all of it; a sword's whole blade meets the other weapon (2026-10-02)
+
+Your notes (NOTES.md vrfiringrange_2026-10-01_22-35-54, _22-37-04, _22-42-11): a sword held upside down by its blade
+didn't strike with its hilt; the rocket launcher and the laser cannon held backwards didn't reach with their butts.
+And _22-47-18, _22-48-02, _22-48-26: a held sword's middle went through the other hand's weapon; only its hilt and tip
+met it (props and the world met all of it).
+
+### Melee: the whole weapon, wherever the hand is on it (QC `vr_melee.qc`)
+
+The cause: the melee line ran from the hand to the tip, with the near end a share of that behind the hand, as if the
+hand were on the handle. Carried off its handle (anywhere, by a hotspot, the hand-off), most of the weapon past the
+hand, away from the tip, wasn't there.
+
+- `VR_Melee_FreeLine`: a weapon the hand carries off its handle is laid out from its near end (its pommel, butt or
+  handle's end: `VR_Melee_NearBack` behind its handle, as when held by the handle) to its tip. Its handle and tip come
+  from the view as drawn, in the carrying hand's frame (builtin `weapondrawnpose` what 4 and 5, new), placed on the hand
+  of the move the server runs (as drawn they lag the hand by a frame: a thrust's far end stood still).
+- `VR_Melee_FreeLayout`: 9 points evenly along all of it; those within 5 cm of the hand strike nothing (`VR_MPT_GRIP`);
+  the pommel, hilt and guard, an axe's handle, the chainsaw's engine, a gun's butt strike as the blade does (at once, at
+  a swing's speeds: new kind `VR_MPT_BLUNT`) but as a pommel (butt) strike: its weight, its blunt knock; the rest as
+  the blade, the head, the barrel. The far end is the end further from the hand (either way).
+- The striking point picked is the furthest from the hand (was: the highest index, which for a weapon held near its
+  tip was the blade beside the hand). Unchanged for weapons held by their handle (same points, same order).
+- `developer 1` prints "melee: hand N holds its weapon off its handle, ..." once as it is taken, with both ends;
+  `developer 2`'s blow lines give the point and its place on the weapon, and say "wiggled", "taken down to reload" or
+  "a blow" after the checks.
+
+### Weapon against weapon: the blade's middle (`vr_selfcollide.cpp`)
+
+The held weapons' capsules are fitted to slabs along the weapon's points; a sword's blade is a few long triangles from
+the guard to the tip, so the middle slabs had no points and no capsule (`vr_body_collide_bench 1 1`: the sword's 6
+capsules, none from 294 to 282 along its 38 units). Long triangles are now sampled across (a step of 1/24 of the
+weapon's size): 10 capsules, end to end. Props and the world never used these capsules.
+
+### Checked (mock, vrfiringrange)
+
+- The sword in the off hand on its blade (0.9 of the way: "0.94 of the way from its near end to its tip"), driven
+  hilt first into a grunt 60 units ahead: "pommel strike with the pommel, 7.6 m/s, x0.61, monster_army". Before: no
+  contact (the line ended a unit past the hand).
+- The laser cannon in the off hand at 0.9 (50.9 units long), butt first into a zombie: "butt strike with the butt,
+  14.5 m/s". (With the weight spring stiffened for the test: one-handed by its muzzle it lags the hand a lot.)
+- The shotgun swept across the sword's mid-blade: blocked, pushed 8.8 cm, let go at 0.7 of the way through.
+- Melee canary: 48/53, no differences.
+
+- [ ] Hold the sword upside down by its blade and hit with the hilt and pommel; hold the rocket launcher and the laser
+  cannon backwards and hit with their butts.
+- [ ] Cross a held sword's mid-blade with the other hand's gun (and another sword).

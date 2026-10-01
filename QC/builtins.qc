@@ -188,7 +188,8 @@ float(entity player, float hand, entity weapon) weapongrabspot = #0;
 // (0 not, 1 by a hotspot, 2 anywhere on it, or a moment ago); others' are 0.
 float(entity player, float hand) weaponanygrip = #0;
 // The weapon the local player's `hand` carries off its handle, as drawn: what 0 its handle's place, 1 its angles as
-// CreateThrownWeapon takes them (the pitch negated), 2 '1 0 0' if known ('0 0 0' else).
+// CreateThrownWeapon takes them (the pitch negated), 2 '1 0 0' if known ('0 0 0' else), 3 its tip (its muzzle's anchor); 4 its handle and 5 its tip in the frame of
+// the hand carrying it as drawn (forward, right, up: makevectors of the hand's angles).
 vector(entity player, float hand, float what) weapondrawnpose = #0;
 vector(entity e, vector handpos, vector palm) carryfit = #0; // at the grip: how far to move it (the way the palm faces) to sit against the palm, not in the fist (vr_held_surface_fit)
 vector(entity e, entity player, float grab) carry2h = #0; // held in both hands: at the second grip (grab 1) the grips are kept; after, where it goes (its angles are set)

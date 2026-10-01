@@ -828,7 +828,9 @@ void PF_weaponanygrip()
 
 // vector(entity player, float hand, float what) weapondrawnpose: the weapon `player`'s `hand` carries off its handle (the
 // hand-off, a hotspot, anywhere), as the local player's view draws it: what 0 its handle's place, 1 its angles as a thrown
-// weapon is given them (MakeThrown negates the pitch: then drawn as it was), 2 '1 0 0' if known ('0 0 0': not carried, or another player). QC: thrown from where it is drawn.
+// weapon is given them (MakeThrown negates the pitch: then drawn as it was), 2 '1 0 0' if known ('0 0 0': not carried, or another player),
+// 3 its tip (the melee's line: QC VR_Melee_Line); 4 its handle and 5 its tip in the frame of the hand carrying it as drawn
+// (forward, right, up: QC places them on the hand of the move it runs, VR_Melee_FreeLine). QC: thrown from where it is drawn.
 void PF_weapondrawnpose()
 {
     edict_t* player = G_EDICT(OFS_PARM0);
@@ -837,8 +839,13 @@ void PF_weapondrawnpose()
     const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
     glm::vec3 pos{0.f}, rot{0.f}, tip{0.f};
     bool mirrored = false;
-    const bool known = local && twohand::carrying(hand) && view::carriedWeaponPose(hand, pos, rot, mirrored, tip);
-    const glm::vec3 out = !known ? glm::vec3{0.f} : what == 0 ? pos : what == 1 ? rot : glm::vec3{1.f, 0.f, 0.f};
+    bool known = local && twohand::carrying(hand) && view::carriedWeaponPose(hand, pos, rot, mirrored, tip);
+    if(known && (what == 4 || what == 5))
+    {
+        known = view::carriedWeaponInHand(hand, pos, tip);
+        rot = what == 4 ? pos : tip;
+    }
+    const glm::vec3 out = !known ? glm::vec3{0.f} : what == 0 ? pos : what == 1 || what >= 4 ? rot : what == 3 ? tip : glm::vec3{1.f, 0.f, 0.f};
     for(int i = 0; i < 3; i++)
     {
         G_VECTOR(OFS_RETURN)[i] = out[i];

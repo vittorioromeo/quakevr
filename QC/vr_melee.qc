@@ -144,6 +144,8 @@ float VR_MPT_GRIP = 1;  // the hilt, the guard, the hand on a handle or a gun's 
                         // with the hilt, the handle, a gun's grip); it only keeps a blow's target touched (VR_Melee_Rearm)
 float VR_MPT_NEAR = 2;  // the pommel, the handle's end, a gun's butt
 float VR_MPT_FIST = 3;  // the fist and the knuckles
+float VR_MPT_BLUNT = 4; // a weapon carried off its handle (VR_Melee_FreeLayout): its pommel, hilt, handle or butt, struck
+                        // with as its blade is (at once, at a swing's speeds) but a pommel (butt) strike
 
 // How long the pommel's (the near end's) touch waits for the blade proper (VR_MELEE_BLADE_FROM out), s
 // (vr_melee_pommel_wait): a cut from close by is the blade's (the author's close chops draw the weapon back along its
@@ -160,7 +162,7 @@ float() VR_Melee_PommelWait =
 // VR_Melee_PommelWait before it landed: the author's punches landing late, NOTES.md vrfiringrange_2026-09-29_21-57-10.)
 float(float xKind) VR_Melee_Strikes =
 {
-    return xKind == VR_MPT_EDGE || xKind == VR_MPT_FIST;
+    return xKind == VR_MPT_EDGE || xKind == VR_MPT_FIST || xKind == VR_MPT_BLUNT;
 };
 
 // The kinds of blows.
@@ -188,6 +190,11 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .vector mh_vnear;      // and their velocities (m/s, play space)
 .vector mh_vgrip;
 .vector mh_vfar;
+.float mh_free;        // a weapon carried off its handle: laid out along all of it (VR_Melee_FreeLayout), with
+.float mh_free_hs;     // the hand's share of the way from its near end to its tip,
+.float mh_free_tip;    // the far end its tip (else its near end),
+.float mh_free_gw;     // the hand's half width (a share of its length),
+.float mh_free_back;   // and how far its near end is behind its handle (a share of the handle to the tip)
 .float mh_fast;        // the part's fastest (m/s): the far end, or the grip if faster
 .float mh_lenient;     // heavy leniency: its speed thresholds' factor, from what the hand holds (VR_Weight_Leniency)
 .float mh_whooshed;    // a whoosh played for this motion (until it slows)
@@ -272,6 +279,7 @@ float vr_bash_exhaust_push; // and its knockback's and stagger's
 // The layout of the points (VR_Melee_Layout): their place along the line (the grip 0, the far end 1; the near
 // end negative), kind and name.
 float vr_mpt_f[9];
+float vr_mpt_fh[9]; // the place on the weapon (its handle 0, its tip 1; the near end -1 in VR_Melee_Layout's)
 float vr_mpt_kind[9];
 string vr_mpt_name[9];
 float vr_mpt_n;
@@ -430,14 +438,96 @@ vector(entity p, float xHelper) VR_Melee_HelpGrip =
     return best;
 };
 
+// How far behind the handle (a share of the way from the handle to the tip) the near end of a weapon held by its handle
+// is: a sword's pommel, an axe's handle's end, a gun's butt.
+float(float xThing) VR_Melee_NearBack =
+{
+    if(xThing == VR_MTHING_SWORD)
+    {
+        return 0.3; // the hand closes just under the guard; the grip and the pommel below it
+    }
+    if(xThing == VR_MTHING_AXE)
+    {
+        return 0.25; // the handle's end, below the hand
+    }
+    if(xThing == VR_MTHING_SAW)
+    {
+        return 0.1; // the rear handle's back (the model's origin is the handle's bar)
+    }
+    if(xThing == VR_MTHING_CROWBAR)
+    {
+        return VR_CROWBAR_NEAR; // the chisel's tip, below the tape (both hands' room)
+    }
+    return 0.3; // a gun: the butt behind the grip
+};
+
 // The line of what `xHand` of `p` holds, into vr_mline_near, _grip, _far (world): FALSE for nothing to strike with.
 vector vr_mline_near;
 vector vr_mline_grip;
 vector vr_mline_far;
+// A weapon carried off its handle (VR_Melee_FreeLine; FALSE: held by its handle, or not a weapon): the near end and the
+// far end are its two ends, the grip where the hand is on the line between them, and its points are laid out along all
+// of it (VR_Melee_FreeLayout, from these).
+float vr_mline_free;
+float vr_mline_hs;   // the hand's share of the way from its near end (its pommel, butt) to its tip
+float vr_mline_tip;  // the far end is its tip (the hand nearer its near end), else its near end
+float vr_mline_gw;   // the hand's half width, a share of its length
+float vr_mline_back; // its near end behind its handle (VR_Melee_NearBack)
+
+// The hand's half width along a weapon held anywhere on it (m): the points there are the hand's, they strike nothing.
+float VR_MELEE_FREE_GRIP = 0.05;
+
+// A weapon `xHand` of `p` carries off its handle (by a hotspot, the hand-off, anywhere on it: NOTES.md
+// vrfiringrange_2026-10-01_22-35-54, a sword held upside down by its blade, struck with its hilt; _22-37-04, the rocket
+// launcher and the laser cannon held backwards, struck with their butts) as the local player's view draws it
+// (weapondrawnpose): its line from its near end, VR_Melee_NearBack behind its handle, to its tip. Before, the line was
+// the hand's to the tip, as if the hand were on the handle: past the hand, away from the tip, only a little of it struck.
+// FALSE: not known (another player; not drawn lately).
+float(entity p, float xHand, float xThing, vector xHandPos) VR_Melee_FreeLine =
+{
+    if(weapondrawnpose(p, xHand, 2) == '0 0 0')
+    {
+        return FALSE;
+    }
+    // Its handle and tip as drawn in the hand, placed on the hand of this move (as drawn, the weapon's place lags the
+    // hand by a frame: a thrust's far end stood still while the hand went on).
+    vector lg = weapondrawnpose(p, xHand, 4);
+    vector lt = weapondrawnpose(p, xHand, 5);
+    makevectors(VRGetEntHandRot(p, xHand));
+    vector g = xHandPos + v_forward * lg_x + v_right * lg_y + v_up * lg_z;
+    vector t = xHandPos + v_forward * lt_x + v_right * lt_y + v_up * lt_z;
+    float len = vlen(t - g);
+    if(len < 2 || len > 120)
+    {
+        return FALSE;
+    }
+    vr_mline_back = VR_Melee_NearBack(xThing);
+    vector e1 = g - (t - g) * vr_mline_back;
+    vector ax = t - e1;
+    float l2 = ax * ax;
+    vr_mline_hs = min(1, max(0, ((xHandPos - e1) * ax) / l2));
+    vr_mline_grip = e1 + ax * vr_mline_hs;
+    vr_mline_tip = (vr_mline_hs <= 0.5);
+    if(vr_mline_tip)
+    {
+        vr_mline_far = t;
+        vr_mline_near = e1;
+    }
+    else
+    {
+        vr_mline_far = e1;
+        vr_mline_near = t;
+    }
+    vr_mline_gw = VR_MELEE_FREE_GRIP * VRMetersToUnits() / sqrt(l2);
+    vr_mline_free = TRUE;
+    return TRUE;
+};
+
 float(entity p, float xHand, float xThing) VR_Melee_Line =
 {
     vector h = VRGetEntHandPos(p, xHand);
     vr_mline_grip = h;
+    vr_mline_free = FALSE;
     if(xThing == VR_MTHING_NONE)
     {
         return FALSE;
@@ -466,6 +556,11 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
         vr_mline_near = vr_mclub_butt != '0 0 0' ? org + modelpoint(c, ang, vr_mclub_butt) : h - (vr_mline_far - h) * 0.25;
         return TRUE;
     }
+    // Carried off its handle (by a hotspot, the hand-off, anywhere on it): all of it, wherever the hand is on it.
+    if(VRIsHandCarryingByForegrip(p, xHand) && VR_Melee_FreeLine(p, xHand, xThing, h))
+    {
+        return TRUE;
+    }
     vector m = xHand == cVR_OffHand ? p.offmuzzlepos : p.muzzlepos;
     if(m == '0 0 0' || vlen(m - h) > 80 || vlen(m - h) < 2)
     {
@@ -473,36 +568,18 @@ float(entity p, float xHand, float xThing) VR_Melee_Line =
     }
     vector a = m - h;
     vr_mline_far = m;
-    if(xThing == VR_MTHING_SWORD)
+    float back = VR_Melee_NearBack(xThing);
+    if(xThing == VR_MTHING_GUN && VRIsHandCarryingByForegrip(p, xHand))
     {
-        vr_mline_near = h - a * 0.3; // the hand closes just under the guard; the grip and the pommel below it
+        back = 0.8; // held by its pump: the stock is well behind the hand
     }
-    else if(xThing == VR_MTHING_AXE)
-    {
-        vr_mline_near = h - a * 0.25; // the handle's end, below the hand
-    }
-    else if(xThing == VR_MTHING_SAW)
-    {
-        vr_mline_near = h - a * 0.1; // the rear handle's back (the model's origin is the handle's bar)
-    }
-    else if(xThing == VR_MTHING_CROWBAR)
-    {
-        vr_mline_near = h - a * VR_CROWBAR_NEAR; // the chisel's tip, below the tape (both hands' room)
-    }
-    else if(VRIsHandCarryingByForegrip(p, xHand))
-    {
-        vr_mline_near = h - a * 0.8; // held by its pump: the stock is well behind the hand
-    }
-    else
-    {
-        vr_mline_near = h - a * 0.3; // the butt behind the grip
-    }
+    vr_mline_near = h - a * back;
     return TRUE;
 };
 
 // A point of the layout (a macro: the constant index is a plain global).
 #define VR_MPT(xIndex, xF, xKind, xName) \
-    vr_mpt_f[xIndex] = xF; \
+    vr_mpt_f[xIndex] = xF;     vr_mpt_fh[xIndex] = xF; \
     vr_mpt_kind[xIndex] = xKind; \
     vr_mpt_name[xIndex] = xName; \
     vr_mpt_n = xIndex + 1
@@ -580,10 +657,80 @@ void(float xThing) VR_Melee_Layout =
     }
 };
 
-// A point's place on the line (the layout's -1: the near end).
+// The name of the part of a weapon of `xThing` at `xFh` (its handle 0, its tip 1) and whether it is blunt there (into
+// vr_mpart_blunt: VR_MPT_BLUNT, held anywhere on it): as VR_Melee_Layout's points.
+float vr_mpart_blunt;
+string(float xThing, float xFh) VR_Melee_PartAt =
+{
+    vr_mpart_blunt = FALSE;
+    if(xThing == VR_MTHING_SWORD)
+    {
+        vr_mpart_blunt = (xFh < 0.2);
+        return xFh < -0.15 ? "the pommel" : (xFh < 0.06 ? "the hilt" : (xFh < 0.2 ? "the guard" : (xFh > 0.93 ? "the tip" : "the blade")));
+    }
+    if(xThing == VR_MTHING_AXE)
+    {
+        vr_mpart_blunt = (xFh < 0.6);
+        return xFh < -0.12 ? "the handle's end" : (xFh < 0.6 ? "the handle" : "the head");
+    }
+    if(xThing == VR_MTHING_SAW)
+    {
+        vr_mpart_blunt = (xFh < 0.45);
+        return xFh < -0.05 ? "the rear handle" : (xFh < 0.45 ? "the engine" : (xFh > 0.93 ? "the bar's tip" : "the bar"));
+    }
+    if(xThing == VR_MTHING_CROWBAR)
+    {
+        vr_mpart_blunt = (xFh < -0.6);
+        return xFh < -0.6 ? "the chisel end" : (xFh < VR_CROWBAR_HOOK_F ? "the bar" : "the hook");
+    }
+    vr_mpart_blunt = (xFh < -0.1);
+    return xFh < -0.1 ? "the butt" : (xFh < 0.1 ? "the grip" : (xFh < 0.9 ? "the barrel" : "the muzzle"));
+};
+
+// The points of a weapon carried off its handle (VR_Melee_FreeLine): all of it, evenly from its near end to its tip (as a
+// prop held anywhere is all of it), each as VR_Melee_PartAt has it; those at the hand strike nothing. Their place on the
+// line (vr_mpt_f) is from the grip (the hand) to the far end, which may be either end: past the hand, away from the far
+// end, they are negative.
+void(float xThing, float xHs, float xTip, float xGw, float xBack) VR_Melee_FreeLayout =
+{
+    float i;
+    for(i = 0; i < 9; ++i)
+    {
+        float sh = i / 8;
+        float fh = sh * (1 + xBack) - xBack;
+        vr_mpt_f[i] = (sh - xHs) / ((xTip ? 1 : 0) - xHs);
+        vr_mpt_fh[i] = fh;
+        vr_mpt_name[i] = VR_Melee_PartAt(xThing, fh);
+        if(fabs(sh - xHs) <= xGw)
+        {
+            vr_mpt_kind[i] = VR_MPT_GRIP;
+        }
+        else
+        {
+            vr_mpt_kind[i] = vr_mpart_blunt ? VR_MPT_BLUNT : VR_MPT_EDGE;
+        }
+    }
+    vr_mpt_n = 9;
+};
+
+// The points of what `b`'s hand holds (as it was last tracked).
+void(entity b) VR_Melee_LayoutOf =
+{
+    if(b.mh_free)
+    {
+        VR_Melee_FreeLayout(b.mh_thing, b.mh_free_hs, b.mh_free_tip, b.mh_free_gw, b.mh_free_back);
+    }
+    else
+    {
+        VR_Melee_Layout(b.mh_thing);
+    }
+};
+
+// A point's place on the line (the layout's -1: the near end; laid out along all of a weapon held anywhere, where the
+// line goes on past the grip).
 vector(float xF) VR_Melee_At =
 {
-    if(xF < 0)
+    if(xF < 0 && !vr_mline_free)
     {
         return vr_mline_near;
     }
@@ -732,6 +879,7 @@ float(float xHand, entity b) VR_Melee_Track =
     {
         b.mh_n = 0;
         b.mh_thing = thing;
+        b.mh_free = FALSE;
         b.mh_lenient = VR_Weight_Leniency(self, xHand);
         b.mh_vnear = b.mh_vgrip = b.mh_vfar = '0 0 0';
         b.mh_fast = 0;
@@ -754,6 +902,11 @@ float(float xHand, entity b) VR_Melee_Track =
     }
 
     float same = b.mh_n > 0 && thing == b.mh_thing && wid == b.mh_wid && dt > 0 && dt <= 0.1;
+    // (Taken anywhere, let go of its handle, the far end the other end: its points are other points.)
+    if(vr_mline_free != b.mh_free || (vr_mline_free && (vr_mline_tip != b.mh_free_tip || fabs(vr_mline_hs - b.mh_free_hs) > 0.05)))
+    {
+        same = FALSE;
+    }
     if(same)
     {
         // A jump (a teleport, the play space re-based, a weapon taken) is faster than a hand goes.
@@ -804,8 +957,21 @@ float(float xHand, entity b) VR_Melee_Track =
         b.mh_hdt[b.mh_hi] = 0; // (nothing to look back through)
     }
 
+    if(vr_mline_free && (!b.mh_free || vr_mline_tip != b.mh_free_tip) && cvar("developer"))
+    {
+        dprint(sprintf("melee: hand %g holds its weapon off its handle, %.2f of the way from its near end to its tip (%.1f units long); "
+            "it strikes with all of it, the far end its %s (the hand at %v, the near end %v, the far end %v)\n", xHand,
+            vr_mline_hs, vlen(vr_mline_far - vr_mline_near), vr_mline_tip ? "tip" : "near end", vr_mline_grip, vr_mline_near,
+            vr_mline_far));
+    }
+    b.mh_free = vr_mline_free;
+    b.mh_free_hs = vr_mline_hs;
+    b.mh_free_tip = vr_mline_tip;
+    b.mh_free_gw = vr_mline_gw;
+    b.mh_free_back = vr_mline_back;
+
     // The points: kept from the last pose, laid out now.
-    VR_Melee_Layout(thing);
+    VR_Melee_LayoutOf(b);
     // (Unrolled, constant indices: plain fields and globals, not the array accessors a variable index calls.)
 #define VR_MELEE_KEEP(k) \
     if(k < vr_mpt_n) \
@@ -830,7 +996,7 @@ float(float xHand, entity b) VR_Melee_Track =
 // The velocity of a point of the layout at `xF` (play space, m/s): the line moves as a rigid thing.
 vector(entity b, float xF) VR_Melee_PointVel =
 {
-    if(xF < 0)
+    if(xF < 0 && !b.mh_free)
     {
         return b.mh_vnear;
     }
@@ -1056,6 +1222,24 @@ float(entity b) VR_Melee_WristMoved =
     return VR_Melee_WristSpeed(b) >= need;
 };
 
+// The weight of a pommel (butt) strike with `xThing`.
+float(float xThing) VR_Melee_PommelWeight =
+{
+    if(xThing == VR_MTHING_SWORD)
+    {
+        return VR_MELEE_POMMEL_SWORD;
+    }
+    if(xThing == VR_MTHING_AXE || xThing == VR_MTHING_CLUB || xThing == VR_MTHING_SAW)
+    {
+        return VR_MELEE_POMMEL_AXE;
+    }
+    if(xThing == VR_MTHING_CROWBAR)
+    {
+        return VR_MELEE_POMMEL_CROWBAR;
+    }
+    return 1;
+};
+
 // Whether the blow of `xHand` (point `xI`, of kind `xKind`, on `xEnt`) lands, and as what: sets mh_kind, mh_speed,
 // mh_strength, mh_part and mh_way. FALSE: nothing (too slow, or no blow).
 float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
@@ -1096,11 +1280,13 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
             weight = weight * VR_Carry_PunchMult(self, xHand); // a box, a rock, a brick in hand: an improvised weapon
         }
     }
-    else if(xKind == VR_MPT_EDGE)
+    else if(xKind == VR_MPT_EDGE || xKind == VR_MPT_BLUNT)
     {
         // The far end driven point first, along the line (its outer half striking): a stab (a jab). Else a swing: the
-        // arm must drive it (VR_MELEE_ARM), however fast the head goes round.
-        if(along >= VR_MELEE_STAB_ALONG && f >= 0.5 && b.mh_thing != VR_MTHING_AXE && b.mh_thing != VR_MTHING_CROWBAR)
+        // arm must drive it (VR_MELEE_ARM), however fast the head goes round. (Held anywhere on it, its pommel, hilt,
+        // handle or butt: struck with as a swing is, a pommel (butt) strike.)
+        if(xKind == VR_MPT_EDGE && along >= VR_MELEE_STAB_ALONG && f >= 0.5 && b.mh_thing != VR_MTHING_AXE &&
+           b.mh_thing != VR_MTHING_CROWBAR)
         {
             kind = VR_MKIND_STAB;
             need = minSpeed * VR_MELEE_STAB_SPEED;
@@ -1112,9 +1298,15 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
             {
                 land = VR_MELEE_GUN_LAND;
             }
-            if(b.mh_thing == VR_MTHING_CROWBAR && f >= VR_CROWBAR_HOOK_F)
+            if(b.mh_thing == VR_MTHING_CROWBAR && vr_mpt_fh[xI] >= VR_CROWBAR_HOOK_F)
             {
                 weight = VR_MELEE_CROWBAR_HOOK; // the hook: a hooked blow
+            }
+            if(xKind == VR_MPT_BLUNT)
+            {
+                kind = VR_MKIND_POMMEL;
+                way = vp;
+                weight = VR_Melee_PommelWeight(b.mh_thing);
             }
         }
     }
@@ -1131,23 +1323,12 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         {
             return FALSE; // the arm drives it too (a sword waved round swings its guard fast)
         }
-        if(b.mh_thing == VR_MTHING_SWORD)
-        {
-            weight = VR_MELEE_POMMEL_SWORD;
-        }
-        else if(b.mh_thing == VR_MTHING_AXE || b.mh_thing == VR_MTHING_CLUB || b.mh_thing == VR_MTHING_SAW)
-        {
-            weight = VR_MELEE_POMMEL_AXE;
-        }
-        else if(b.mh_thing == VR_MTHING_CROWBAR)
-        {
-            weight = VR_MELEE_POMMEL_CROWBAR;
-        }
+        weight = VR_Melee_PommelWeight(b.mh_thing);
     }
     if(cvar("developer") >= 2)
     {
-        dprint(sprintf("melee debug: hand %g %s at %s: grip %.1f far %.1f", xHand, VR_Melee_KindName(kind, b.mh_thing),
-            vr_mpt_name[xI], vgrip, vfar));
+        dprint(sprintf("melee debug: hand %g %s at %s (point %g, %.2f on the weapon): grip %.1f far %.1f", xHand,
+            VR_Melee_KindName(kind, b.mh_thing), vr_mpt_name[xI], xI, vr_mpt_fh[xI], vgrip, vfar)); // (8 at most)
         dprint(sprintf(" along %.2f lead %.2f need %.1f run %.2f wrist %.2f\n", along, lead, need, VR_Melee_Run(b, TRUE),
             VR_Melee_WristSpeed(b)));
     }
@@ -1168,12 +1349,24 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     // Nor a weapon waved back and forth.
     if(VR_Melee_Wiggled(b))
     {
+        if(cvar("developer") >= 2)
+        {
+            dprint("melee debug: wiggled, no blow\n");
+        }
         return FALSE;
     }
     // Nor a gun taken down to reload.
     if(VR_Melee_Reloading(b))
     {
+        if(cvar("developer") >= 2)
+        {
+            dprint("melee debug: taken down to reload, no blow\n");
+        }
         return FALSE;
+    }
+    if(cvar("developer") >= 2)
+    {
+        dprint("melee debug: a blow\n");
     }
 
     float s = VR_MELEE_WEAKEST + (1 - VR_MELEE_WEAKEST) * (speed - need) / (need * (VR_MELEE_GOOD - 1));
@@ -1257,7 +1450,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     {
         return FALSE;
     }
-    VR_Melee_Layout(b.mh_thing); // (this hand's: the globals hold the last hand tracked)
+    VR_Melee_LayoutOf(b); // (this hand's: the globals hold the last hand tracked)
     float r = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier));
     vector hand = b.mh_grip;
 
@@ -1402,8 +1595,9 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 }
                 striker = VR_Melee_Strikes(vr_mpt_kind[i]);
                 // Of the striking points in it, the outermost (a blade strikes with its outer part, its root may have been
-                // in the thing for a while); of the near end's, the first along the sweep.
-                if((striker && i < edgeI) || (!striker && t >= hiltT))
+                // in the thing for a while: the furthest from the grip, either way along a weapon held anywhere); of the
+                // near end's, the first along the sweep.
+                if((striker && edgeI >= 0 && fabs(vr_mpt_f[i]) < fabs(vr_mpt_f[edgeI])) || (!striker && t >= hiltT))
                 {
                     continue;
                 }

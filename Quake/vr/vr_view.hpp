@@ -115,6 +115,11 @@ struct WeaponHotspot
 // (MakeThrown negates it back); `mirrored`: as the off hand holds it) and its tip (the muzzle's anchor: the melee's line, QC's throw from where it is). False if it carries none.
 [[nodiscard]] bool carriedWeaponPose(int hand, glm::vec3& pos, glm::vec3& rot, bool& mirrored, glm::vec3& tip);
 
+// The same weapon's handle and tip in the frame of the hand that carries it as it was drawn (its position and `rot`:
+// forward, right, up), for the server to place on the hand of the move it runs (QC's melee: VR_Melee_FreeLine). False if
+// it carries none.
+[[nodiscard]] bool carriedWeaponInHand(int hand, glm::vec3& handle, glm::vec3& tip);
+
 // A point in the weapon `hand` holds or carries, as drawn last: `fraction` of the way from its handle to its tip (the
 // middle of its drawn points within a unit and a half of the way there), `cm` over it (tests: vr_mock_hand_to <hand>
 // held). False if it has none.

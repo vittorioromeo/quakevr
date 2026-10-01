@@ -595,6 +595,7 @@ OncePerFrame oncePerFrame;
 glm::vec3 carriedTip[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // a carried weapon's tip as drawn (setupWeapon)
 bool carriedTipValid[2]{false, false};
 glm::vec3 carriedAngles[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and its entity's angles, the pitch negated (QC's thrown weapon's)
+glm::vec3 carriedInHand[2][2]{}; // and its handle and tip in the carrying hand's frame (view::carriedWeaponInHand)
 double carriedPrintAt[2]{-1.0, -1.0}; // vr_debug_2h_grip 2, per hand: the next print of its weapon's drawn pose
 
 // vr_grapple_debug's memory: what was printed last, and when the next print may come.
@@ -1257,6 +1258,13 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
         carriedTipValid[hand] = true;
         carriedAngles[hand] = glm::vec3{-ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
+        glm::vec3 f, r, u;
+        hands::angleVectors(s.rot[hand], f, r, u);
+        const glm::vec3 points[2]{held.pos - s.pos[hand], carriedTip[hand] - s.pos[hand]};
+        for(int i = 0; i < 2; i++)
+        {
+            carriedInHand[hand][i] = {glm::dot(points[i], f), glm::dot(points[i], r), glm::dot(points[i], u)};
+        }
     }
     if(s.grip2HValid[hand])
     {
@@ -3076,6 +3084,17 @@ bool view::carriedWeaponPose(int hand, glm::vec3& pos, glm::vec3& rot, bool& mir
     rot = carriedAngles[hand];
     mirrored = drawnAs[hand].mirrored;
     tip = carriedTip[hand];
+    return true;
+}
+
+bool view::carriedWeaponInHand(int hand, glm::vec3& handle, glm::vec3& tip)
+{
+    if(hand < 0 || hand > 1 || !weaponCarried[hand] || !carriedTipValid[hand])
+    {
+        return false;
+    }
+    handle = carriedInHand[hand][0];
+    tip = carriedInHand[hand][1];
     return true;
 }
 
