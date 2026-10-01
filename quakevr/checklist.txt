@@ -107,6 +107,12 @@ Topple the long box in both hands onto its side, let go, walk into it from every
 
 After the Zancle update (yaw wrap fix): turning in place (feet steps), snap turn, the HUD panel following your head, replaying takes
 
+Holding a weapon, open Held Object Offsets/Weights: they edit its thrown form (e.g. the axe)
+Size and Estimated Mass x change "Mass now" at once; rocks and bricks are 1.25x by default
+Missed force grab next to the table: the prop falls under your hand, no teleport back
+Poke a held box or brick with the other hand: the hand stops 1 cm off its surface, held back up to 15 cm
+Thumb lies along the outside of bricks and rocks in the palm grip (Hands > thumb outside)
+
 [Decide or give feedback]
 Rockets and nails still hit a turned box's bigger bounding box: make them use its real shape too?
 Physics threads: default 150-body threshold and 4-thread cap OK?
