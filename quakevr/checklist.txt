@@ -76,6 +76,8 @@ Stand on a box leaning more than 30 deg: you slide off promptly (Standing on Pro
 
 Climbing: stand against a wall (vrclimb jump wall: Debug > Tests > Climbing > To the Jump Wall), jump, press grip anytime on the way up: grabs as the hand reaches the lip (Climbing > Mid-Air Grab Window 0.3 s; lower if too sticky)
 
+Elbow: left hand to the face and to the chest (and a chest holster grab): elbow stays down/out, not up by the neck or into the chest; compare Body > Arms > Elbow Stays Clear 0 vs 4 (2 if the wrist looks too bent)
+
 [Decide or give feedback]
 Hand Collide (empty hand vs weapon) and Collide Give (held prop) are separate settings, both 5 cm: merge them into one?
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
