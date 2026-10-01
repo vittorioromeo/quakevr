@@ -84,7 +84,10 @@ Shoot grenades (Combat > Batting and Catching > Grenades): an ogre grenade mid-f
 
 Stand close to a grunt or enforcer: after 0.6 s it winds up (0.3 s, two-handed gun push) and shoves you ~64 units, 5 damage, 3 s cooldown; parry it: 0.35x distance, less damage; never while staggered or firing (Combat > Enemy Shoves); shoved while hanging from a ledge?
 
+Weapons held anywhere (Carrying > Weapons Anywhere, 12 cm Away From Grips): grab a dropped shotgun/enemy rifle mid-body (no fire); handle + other hand anywhere: compare Other Hand Anywhere modes foregrip / support only / rigid (global and per weapon in Weapon Offsets > Other Hand's Grips); let go of the handle: carried like a prop, melee and throw it, holster it, draw takes the handle; handle and pump still easy to grab? off-hand fingers look right?
+
 [Decide or give feedback]
+Weapons anywhere: crowbar and swords have no anywhere region (hotspots cover the whole bar); support-only mode doesn't count as two-handed (no spread or 2H melee bonus): OK?
 Melee on grenades: lying/rolling ones explode on a blow, flying ones are still batted or caught (Blows Set Grenades Off): OK?
 Multi-grenade hitting a monster directly: one blast (Rogue's rule) or cluster too?
 Hand Collide (empty hand vs weapon) and Collide Give (held prop) are separate settings, both 5 cm: merge them into one?
