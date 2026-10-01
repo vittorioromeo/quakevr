@@ -174,7 +174,9 @@ also Quake's own `zombie/z_miss.wav` (the player's copy, not distributed).
 ### Wooden crates (`quakevr/progs/vr_crate*.mdl`, `vr_plank*.mdl`; `quakevr/sound/vr/crate_*.wav`)
 
 The crates and their pieces, their skins and normal maps are the port's own, generated (`Misc/quakevr/make_crates.py`:
-the shapes, and skins painted from 3D value noise in Quake's palette; `bake_normals.py`). Their sounds
+the shapes, and skins painted from 3D value noise, in full colour (`vr_crate*.mdl_<skin>.png`) and in Quake's palette;
+the normal maps from the generator's own relief, `bake_normals.py`). No texture pack's wood is used (QRP's are not ours
+to ship). Their sounds
 (`Misc/quakevr/make_crate_sounds.py`): `crate_break1..3.wav` layer two or three of the physics sounds' wood knocks above
 (Kenney's *Impact Sounds*, CC0), pitched down, over synthesised splinter crackle and a thump; `crate_dust1..2.wav` a
 light wood knock pitched up, a crackle and a synthesised hiss. Nothing downloaded.

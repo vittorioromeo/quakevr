@@ -464,6 +464,13 @@ void list_f()
             PR_GetString(e->v.model) + 6, static_cast<int>(e->v.skin), e->v.origin[0], e->v.origin[1], e->v.origin[2],
             e->v.angles[0], e->v.angles[1], e->v.angles[2], e->v.health,
             (static_cast<int>(e->v.flags) & FL_ONGROUND) ? ", resting" : "", box3d::isBox3DProp(i) ? ", a body" : "");
+        // What would keep shots and blows off it: not damageable, not solid, or owned (a trace from its owner passes
+        // through it: a crate thrown and never given back; NOTES.md e1m2_2026-10-01_02-52-58).
+        if(e->v.takedamage == 0.f || static_cast<int>(e->v.solid) != SOLID_BBOX || e->v.owner != 0)
+        {
+            Con_Printf("crates: %d takedamage %.0f solid %.0f owner %d\n", i, e->v.takedamage, e->v.solid,
+                NUM_FOR_EDICT(PROG_TO_EDICT(e->v.owner)));
+        }
     }
     PR_PopQCVM(oldVm);
     Con_Printf("crates: %d crates, %d pieces\n", n, pieces);

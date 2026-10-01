@@ -204,7 +204,8 @@ QVR_PROP_DEFAULT(25, TipX, "1.6")
 QVR_PROP_DEFAULT(25, ButtX, "-1.6")
 // The wooden crates (vr_crates.qc; ROUND21.md, "Wooden crates"): as heavy as the explosive boxes of their size, carried
 // by hand as they are, never force grabbed. What they break into: light boards, a splinter and a batten, thrown and
-// force grabbed as any small thing (vr_props_version 49 gives these slots to configs saved before).
+// force grabbed as any small thing (vr_props_version 49 gives these slots to configs saved before); the small ones (a
+// broken board, the splinter, a broken batten) held in the palm, the whole board where taken (51).
 QVR_PROP_DEFAULT(26, ID, "progs/vr_crate1.mdl")
 QVR_PROP_DEFAULT(26, Mass, "25")
 QVR_PROP_DEFAULT(26, ForceGrab, "0")
@@ -214,11 +215,14 @@ QVR_PROP_DEFAULT(27, ForceGrab, "0")
 QVR_PROP_DEFAULT(28, ID, "progs/vr_plank1.mdl")
 QVR_PROP_DEFAULT(28, Mass, "0.6")
 QVR_PROP_DEFAULT(29, ID, "progs/vr_plank2.mdl")
+QVR_PROP_DEFAULT(29, GripMode, "2")
 QVR_PROP_DEFAULT(29, Mass, "0.4")
 QVR_PROP_DEFAULT(29, TwoHands, "0")
 QVR_PROP_DEFAULT(30, ID, "progs/vr_plank3.mdl")
+QVR_PROP_DEFAULT(30, GripMode, "2")
 QVR_PROP_DEFAULT(30, Mass, "0.15")
 QVR_PROP_DEFAULT(30, TwoHands, "0")
 QVR_PROP_DEFAULT(31, ID, "progs/vr_plank4.mdl")
+QVR_PROP_DEFAULT(31, GripMode, "2")
 QVR_PROP_DEFAULT(31, Mass, "0.45")
 #endif

@@ -82,6 +82,12 @@ void(entity xBox) VR_Carry_Loose =
     xBox.solid = xBox.carry_solid ? xBox.carry_solid : SOLID_NOT_BUT_TOUCHABLE;
     xBox.vr_rigid = xBox.carry_rigid ? xBox.carry_rigid : 1;
     xBox.flags = xBox.flags - (xBox.flags & FL_ONGROUND);
+    if(xBox.carry_rigid == 2)
+    {
+        // A solid prop (a crate, an explosive box) is nobody's once let go of (taken, it was the carrier's: a trace from
+        // him passes through it); thrown, VR_Carry_Release makes it his again until the throw is over.
+        xBox.owner = world;
+    }
     setorigin(xBox, xBox.origin);
 };
 

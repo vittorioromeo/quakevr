@@ -14,6 +14,7 @@ QVR_CVAR(vr_hull_monsters, "1", CVAR_ARCHIVE)          // the narrow entity widt
 QVR_CVAR(vr_hull_players, "1", CVAR_ARCHIVE)           // ... between players
 QVR_CVAR(vr_hull_boxes, "1", CVAR_ARCHIVE)             // ... between the player and other solid boxes (explosive boxes, solid items)
 QVR_CVAR(vr_hull_hit_width, "24", CVAR_ARCHIVE)        // the player's width that shots, missiles and splash traces hit (not bodies moving: vr_hull_ent_width) (8-32; 0: Quake's 32)
+QVR_CVAR(vr_hull_hit_head, "1", CVAR_ARCHIVE)          // ... and their box reaches only to the top of his head (the headset's, 5 units over it): crouched behind cover, shots over it miss; monsters' bullets aim no higher than 70% of it; 0: Quake's height, standing or not
 QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                  // Movement > Monster Hitbox: monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
 QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
 QVR_CVAR(vr_mhull_ledges, "1", CVAR_ARCHIVE)            // ... and SV_CheckBottom's ledge test takes the narrow box's corners (0: Quake's box's)
@@ -155,6 +156,7 @@ QVR_CVAR(vr_shot_push_lightning, "6", CVAR_ARCHIVE)  // N s, each bolt of the li
 QVR_CVAR(vr_shot_push_speed, "10", CVAR_ARCHIVE)     // m/s, the most a shot makes what it hits go (light things: a gib, a small gun)
 QVR_CVAR(vr_box3d_player_radius, "15", CVAR_ARCHIVE) // cm, that capsule's radius
 QVR_CVAR(vr_box3d_player_push_speed, "2.5", CVAR_ARCHIVE) // m/s, the most a player's body shoves a prop at (the rest of its move it passes into it, eased out)
+QVR_CVAR(vr_box3d_monster_push_speed, "3", CVAR_ARCHIVE) // m/s, the same for a monster's body (its steps jump 8-30 units a frame: kicked at that, a crate broke and hurt it); 0: unlimited
 QVR_CVAR(vr_box3d_player_stand, "1", CVAR_ARCHIVE)   // players stand on solid props (explosive boxes): ground to walk and jump from, carried as it moves, the body not shoving what it stands on (vr_box3d.cpp, "Standing on props")
 QVR_CVAR(vr_box3d_player_mass, "80", CVAR_ARCHIVE)   // kg, the weight a player standing on a prop presses it down with (a box in water sinks); 0: none
 QVR_CVAR(vr_box3d_player_jump_push, "0.25", CVAR_ARCHIVE) // the share of a jump's push (the player's mass times its speed) the prop jumped from takes, as a force over 0.15 s; 0: none
@@ -486,7 +488,7 @@ QVR_CVAR(vr_debug_debris, "0", CVAR_NONE)                // 1: a line per map (p
 QVR_CVAR(vr_crates, "1", CVAR_ARCHIVE)                   // 1: crates placed about the maps (next map; single player); 0: none
 QVR_CVAR(vr_crates_chance, "0.06", CVAR_ARCHIVE)         // the chance a spot by a wall (one every 24 units along it) gets a crate, before the limits
 QVR_CVAR(vr_crates_corner, "4", CVAR_ARCHIVE)            // times the chance in a corner (a wall beside the spot along the wall)
-QVR_CVAR(vr_crates_max, "16", CVAR_ARCHIVE)              // most crates in a map (a stack counts two)
+QVR_CVAR(vr_crates_max, "24", CVAR_ARCHIVE)              // most crates in a map (a stack counts two)
 QVR_CVAR(vr_crates_spacing, "224", CVAR_ARCHIVE)         // units between crate spots
 QVR_CVAR(vr_crates_stack, "0.25", CVAR_ARCHIVE)          // the chance a crate has another on top (turned and off centre a little)
 QVR_CVAR(vr_crates_large, "0.4", CVAR_ARCHIVE)           // the share of large crates (the rest small)
@@ -502,9 +504,10 @@ QVR_CVAR(vr_crate_piece_time, "30", CVAR_ARCHIVE)        // s a piece lies about
 QVR_CVAR(vr_crate_ammo, "0.35", CVAR_ARCHIVE)            // the chance a crate holds a small box of ammo for a weapon you have (or the shotgun)
 QVR_CVAR(vr_crate_health_box, "0.2", CVAR_ARCHIVE)       // the chance a crate holds a small health box
 QVR_CVAR(vr_crate_item_pop, "3.5", CVAR_ARCHIVE)        // how hard what a crate held pops out when it breaks (m/s: up, and a little outwards)
-QVR_CVAR(vr_crate_crowbar, "0.05", CVAR_ARCHIVE)         // the chance a crate placed about the map (the top of a stack) has a crowbar lying on it (next map)
-QVR_CVAR(vr_crate_crowbar_max, "64", CVAR_ARCHIVE)       // most crowbars on crates in a map (64: no cap in practice)
+QVR_CVAR(vr_crate_crowbar, "0.1", CVAR_ARCHIVE)          // the chance a crate placed about the map (the top of a stack) has a crowbar lying on it (next map)
+QVR_CVAR(vr_crate_crowbar_max, "4", CVAR_ARCHIVE)        // most crowbars on crates in a map
 QVR_CVAR(vr_crate_sight, "1", CVAR_ARCHIVE)              // 1: crates and explosive boxes lying about hide you from monsters (not one you carry)
+QVR_CVAR(vr_crate_shield, "1", CVAR_ARCHIVE)             // a crate you hold stops monsters' bullets (it takes them); 2: an explosive box too (it blows up); 0: they pass through what you hold
 QVR_CVAR(vr_debug_crates, "0", CVAR_NONE)                // 1: a line per map (crates, spots, rejections, the layout's hash); 2: each crate and its clearance; 3: each spot rejected
 QVR_CVAR(vr_debug_item_sizes, "0", CVAR_NONE)            // 1: each ammo or health box as it is first drawn, and each change of its drawn scale (console)
 // Wall torches taken off their walls (QC vr_walltorch.qc, vr_walltorch.cpp; ROUND21.md, "Wall torches you can take").

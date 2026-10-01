@@ -1845,6 +1845,10 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
             trace_endpos = src;
             trace_plane_normal = -direction;
         }
+        if(!(self.flags & FL_CLIENT))
+        {
+            VR_Crate_MonsterShot(src, src + direction*xRange); // a crate held up in the way
+        }
         VR_ShotPush(trace_ent, src, trace_endpos, direction, QVR_SHOTPUSH_PELLET, 1); // the prop it hits or goes through
         VR_Gib_TraceHeld(src, src + direction*xRange);               // and one held in the other hand
         VR_WaterShotSplash(src, trace_endpos);                        // a splash where it goes into water
@@ -1902,6 +1906,7 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
 
     src = self.origin + v_forward*10;
     src_z = self.absmin_z + self.size_z * 0.7;
+    dir = VR_Crate_ShotAim(src, dir, self.enemy); // no higher than a player crouched really stands
 
     FireBulletsImpl(shotcount, dir, spread, src, 2048, FALSE);
 };

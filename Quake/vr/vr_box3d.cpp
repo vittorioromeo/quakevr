@@ -1756,8 +1756,14 @@ void follow(edict_t* ent, Slot& s, float dt)
         // the props it then overlaps are eased out of it (Box3D's contact softness, a few metres a second), rather
         // than kicked ahead at a run's speed (Quake's 320 units a second is 8 m/s). Props don't stop players (they
         // are not solid in Quake's movement): walking into a stack pushes through it, not into a wall of boxes.
-        const float most = za::max(vr_box3d_player_push_speed.value, 0.1f) * world->m2u * dt;
-        if(s.kind == Kind::Player && distance > most)
+        // A monster's likewise (vr_box3d_monster_push_speed): its steps are a frame's jumps of 8-30 units (a dog's run,
+        // a grunt's walk), a body tens of metres a second fast for that step: walking into a crate it kicked it at that,
+        // and the crate broke and flung into it (NOTES.md e1m1_2026-10-01_02-45-57, 02-50-44).
+        const float pushSpeed = s.kind == Kind::Player ? za::max(vr_box3d_player_push_speed.value, 0.1f)
+                              : s.kind == Kind::Actor && vr_box3d_monster_push_speed.value > 0.f ? vr_box3d_monster_push_speed.value
+                                                                                                  : 0.f;
+        const float most = pushSpeed * world->m2u * dt;
+        if(pushSpeed > 0.f && distance > most)
         {
             const glm::vec3 from = origin - (origin - s.origin) * (most / distance);
             b3Body_SetTransform(s.body, world->toM(from), rot);
@@ -3376,14 +3382,29 @@ void touches(za::Vector<qza::Pair<int, int>>& out)
             {
                 continue;
             }
+            // Against a monster (a kinematic body following its steps: a walk's or a run's 8-20 units in one frame, a
+            // body several metres a second fast at the step's start), only the prop's own share of the approach: a
+            // monster walking into a crate pushes it, neither breaking it nor hurt by it (NOTES.md e1m1_2026-10-01
+            // 02-45-57, 02-50-44); a crate thrown into a monster standing still hits it as hard as before.
+            float speed = e.approachSpeed;
+            if(kindAt(b) == Kind::Actor && b3Body_IsValid(world->slots[b].body))
+            {
+                // (The normal points from shape A to shape B; the monster's speed towards the prop.)
+                const float along = b3Dot(b3Body_GetWorldPointVelocity(world->slots[b].body, e.point), e.normal);
+                speed -= za::max(side ? along : -along, 0.f);
+                if(speed < 2.f)
+                {
+                    continue;
+                }
+            }
             auto it = za::findIf(world->shocks.begin(), world->shocks.end(), [a](const Shock& s) { return s.num == a; });
             if(it == world->shocks.end())
             {
-                world->shocks.pushBack({a, b, e.approachSpeed});
+                world->shocks.pushBack({a, b, speed});
             }
-            else if(e.approachSpeed > it->speed)
+            else if(speed > it->speed)
             {
-                *it = {a, b, e.approachSpeed};
+                *it = {a, b, speed};
             }
         }
     }
@@ -4981,6 +5002,32 @@ int sightRay(const glm::vec3& start, const glm::vec3& end, int ignoreA, int igno
         },
         &ctx);
     return ctx.num;
+}
+
+float heldRay(int num, const glm::vec3& start, const glm::vec3& end)
+{
+    const glm::vec3 delta = end - start;
+    if(!world || num <= 0 || num >= static_cast<int>(world->slots.size()) || glm::dot(delta, delta) < 1e-6f)
+    {
+        return 1.f;
+    }
+    const Slot& s = world->slots[num];
+    if(s.kind != Kind::Held || !b3Body_IsValid(s.body))
+    {
+        return 1.f;
+    }
+    za::Array<b3ShapeId, 8> shapes;
+    const int n = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
+    float nearest = 1.f;
+    for(int i = 0; i < n; i++)
+    {
+        const b3WorldCastOutput out = b3Shape_RayCast(shapes[i], world->toM(start), world->toM(delta));
+        if(out.hit && out.fraction < nearest)
+        {
+            nearest = za::max(out.fraction, 0.f);
+        }
+    }
+    return nearest;
 }
 
 bool isBox3DProp(int num)

@@ -55,7 +55,9 @@ void afterLoad();
 // A monster's corners for SV_CheckBottom (vr_mhull_ledges): absMins..absMaxs narrowed to its width; true if narrowed.
 [[nodiscard]] bool footprint(const edict_t* ent, float* absMins, float* absMaxs);
 
-[[nodiscard]] bool hitBox(const edict_t* touch, float* boxMins, float* boxMaxs);
+// A player's box as a shot or missile meets it: narrowed (vr_hull_hit_width) and, a bullet or missile (`projectile`), only
+// up to the top of his head (vr_hull_hit_head). True if changed.
+[[nodiscard]] bool hitBox(const edict_t* touch, float* boxMins, float* boxMaxs, bool projectile);
 
 // SV_ClipMoveToEntity for a SOLID_BSP entity with moveBox's box (vr_hull_method's way): false if not a brush model, or
 // a brush model other than the world with vr_hull_brushmodels off: Quake's hull is used.

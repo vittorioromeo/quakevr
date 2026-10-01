@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
 #include "vr_mem.hpp"
+#include "vr_progs.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
@@ -43,6 +44,7 @@ constexpr double distEpsilon = 0.03125; // Quake's DIST_EPSILON: how far a move 
 constexpr double onEpsilon = 0.001;     // a winding's point this close to a plane is on it (the build)
 constexpr double bogus = 262144.0;      // a plane's first winding, far past any map (BSP2's included)
 constexpr float minWidth = 8.f, maxWidth = 32.f;
+constexpr float headTop = 5.f; // units: the top of a player's head over the headset's middle (hitBox; QC VR_SHOT_OVER_HEAD)
 
 // A brush's face, outward: inside is dot(normal, p) < dist.
 // A brush's face, outward: inside is dot(normal, p) < dist + grows * the box's reach along normal. A face of hull 0's
@@ -3857,14 +3859,44 @@ bool footprint(const edict_t* ent, float* absMins, float* absMaxs)
     return true;
 }
 
-bool hitBox(const edict_t* touch, float* boxMins, float* boxMaxs)
+bool hitBox(const edict_t* touch, float* boxMins, float* boxMaxs, bool projectile)
 {
     const float width = hitWidthSetting();
-    if(width <= 0.f || !sv.active || !isPlayerBox(touch, touch->v.mins, touch->v.maxs))
+    if(!sv.active || !isPlayerBox(touch, touch->v.mins, touch->v.maxs))
     {
         return false;
     }
-    narrowBox(touch->v.mins, touch->v.maxs, width, boxMins, boxMaxs);
+    // A bullet or missile only up to the top of his head (vr_hull_hit_head; NOTES.md e1m1_2026-10-01_02-50-03): crouched
+    // behind a crate, the box stood as tall as standing, and the shots over the crate and his head hit him. Not a
+    // monster's look whether it can hit him (CheckAttack's trace to his box's eyes, which then never met him crouched:
+    // it never fired). (Not lower than 24 units: a head on the floor is a mock's or a glitch's.)
+    float top = touch->v.maxs[2];
+    const int headOfs = progs::fields().headpos;
+    if(projectile && vr_hull_hit_head.value != 0.f && headOfs >= 0)
+    {
+        const glm::vec3 head = progs::fieldVec(const_cast<edict_t*>(touch), headOfs);
+        if(head != glm::vec3{0.f})
+        {
+            top = za::clamp(head.z + headTop - touch->v.origin[2], touch->v.mins[2] + 24.f, touch->v.maxs[2]);
+        }
+    }
+    if(width <= 0.f && top >= touch->v.maxs[2])
+    {
+        return false;
+    }
+    if(width > 0.f)
+    {
+        narrowBox(touch->v.mins, touch->v.maxs, width, boxMins, boxMaxs);
+    }
+    else
+    {
+        for(int i = 0; i < 3; ++i)
+        {
+            boxMins[i] = touch->v.mins[i];
+            boxMaxs[i] = touch->v.maxs[i];
+        }
+    }
+    boxMaxs[2] = top;
     return true;
 }
 
@@ -4081,7 +4113,7 @@ extern "C" int VR_HullTouchBox(edict_t* touch, edict_t* mover, float* boxmins, f
     return qvr::hull::touchBox(touch, mover, boxmins, boxmaxs);
 }
 
-extern "C" int VR_HullHitBox(edict_t* touch, float* boxmins, float* boxmaxs)
+extern "C" int VR_HullHitBox(edict_t* touch, float* boxmins, float* boxmaxs, int projectile)
 {
-    return qvr::hull::hitBox(touch, boxmins, boxmaxs);
+    return qvr::hull::hitBox(touch, boxmins, boxmaxs, projectile != 0);
 }
