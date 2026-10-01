@@ -14,6 +14,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 #include "vr_zancle.hpp"
 
 #include <string.h>
@@ -147,9 +148,10 @@ namespace
 // and the enforcers' laser rifle, Misc/quakevr/make_enemyguns.py; unused placeholders before). 29: slot 23 (the crowbar,
 // Misc/quakevr/make_crowbar.py; an unused placeholder before). 30: slots 21 and 22 (the author's offsets, hotspots, weights
 // and holstered poses, 2026-09-30, over make_enemyguns.py's detail pass: the grunts' gun's stock moved its bounds, its
-// offset and hotspots follow; both muzzles at the new barrels' bores). A first start (no saved config) takes this
+// offset and hotspots follow; both muzzles at the new barrels' bores). 31: slot 20's hotspots' Bias and Stickiness (the
+// author's, 2026-10-01: 1, 1 and 1.5, 1.5), each key only where the config still held its old default. A first start (no saved config) takes this
 // version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 30;
+constexpr int settingsVersion = 31;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -181,6 +183,27 @@ void resetSlot(int slot)
     // The defaults are in today's form: nothing of the config's left to turn into hotspots or cups.
     hotspotMigration[slot] = false;
     cupMigration[slot] = false;
+}
+
+// A key whose default changed: the slot, the key and its old default.
+struct OldDefault
+{
+    int slot;
+    Key key;
+    float before;
+};
+
+// Each key to its new default where the config still holds the old one (one the player changed is kept).
+void takeWhereOld(za::Span<const OldDefault> changes)
+{
+    for(const OldDefault& c : changes)
+    {
+        cvar_t& var = cvarAt(c.slot, c.key);
+        if(var.value == c.before)
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
 }
 
 // The configs are read before anything asks for a slot.
@@ -403,23 +426,10 @@ void migrate()
     }
     if(vr_wofs_version.value < 26) // the author's laser cannon and chainsaw weights, 2026-09-30: where still the old ones
     {
-        struct Change
-        {
-            int slot;
-            Key key;
-            float before;
-        };
-        const Change changes[] = {{9, Key::Mass, 7.f}, {9, Key::Balance, 12.f}, {9, Key::SpringStiffness, 1.f},
-            {9, Key::SpringDamping, 1.f}, {9, Key::SpringSag, 1.f}, {20, Key::Mass, 6.5f}, {20, Key::SpringStiffness, 1.f},
-            {20, Key::SpringDamping, 1.f}, {20, Key::SpringSag, 1.f}};
-        for(const Change& c : changes)
-        {
-            cvar_t& var = cvarAt(c.slot, c.key);
-            if(var.value == c.before)
-            {
-                Cvar_SetQuick(&var, var.default_string);
-            }
-        }
+        const OldDefault weights[] = {{9, Key::Mass, 7.f}, {9, Key::Balance, 12.f}, {9, Key::SpringStiffness, 1.f}, {9, Key::SpringDamping, 1.f},
+            {9, Key::SpringSag, 1.f}, {20, Key::Mass, 6.5f}, {20, Key::SpringStiffness, 1.f}, {20, Key::SpringDamping, 1.f},
+            {20, Key::SpringSag, 1.f}};
+        takeWhereOld(weights);
     }
     if(vr_wofs_version.value < 27) // the chainsaw's two hotspots, 2026-09-30: its hotspots' keys only
     {
@@ -438,6 +448,12 @@ void migrate()
     {
         resetSlot(21);
         resetSlot(22);
+    }
+    if(vr_wofs_version.value < 31) // the author's chainsaw grips, 2026-10-01: where still the old ones
+    {
+        const OldDefault grips[] = {{20, Key::Hotspot1Bias, 2.5f}, {20, Key::Hotspot2Bias, 0.f}, {20, Key::Hotspot1Sticky, 1.f},
+            {20, Key::Hotspot2Sticky, 1.f}};
+        takeWhereOld(grips);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
@@ -605,6 +621,12 @@ void markCurrent()
     {
         resetSlot(21);
         resetSlot(22);
+    }
+    if(vr_wofs_version.value < 31) // the author's chainsaw grips (as migrate)
+    {
+        const OldDefault grips[] = {{20, Key::Hotspot1Bias, 2.5f}, {20, Key::Hotspot2Bias, 0.f}, {20, Key::Hotspot1Sticky, 1.f},
+            {20, Key::Hotspot2Sticky, 1.f}};
+        takeWhereOld(grips);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

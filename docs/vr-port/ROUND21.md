@@ -17365,3 +17365,49 @@ NOTES.md vrfiringrange_2026-10-01_02-38, 02-39 (both). `Misc/quakevr/make_enemyg
   1800 u/s, 19 left), the burst gun (165) fired a 3-round burst (27 left). Images (kit scratch):
   `enemymodels2_rifle_beforeafter.png`, `enemymodels2_burst_beforeafter.png` (Blender, before | after: side, top,
   front, then close-ups), `em_held.png` (the rifle held, in the engine: head, both sides, top).
+## Misc: mid-air leniency, torch buttons, pain feedback second pass, LG splashes, defaults (2026-10-01)
+
+Notes vrclimb_2026-10-01_00-32, vrfiringrange_2026-10-01_00-02, 00-08, 00-12, 00-19 and 00-20.
+
+- **Grab Leniency 2 cm** (`vr_climb_leniency` 6 -> 2, config version 63). **Mid-Air Leniency** (`vr_climb_leniency_air`,
+  +2.5 cm; Climbing page, under Grab Leniency): added to Grab Leniency while the player is in the air and not holding on
+  (`midAir` in `vr_climb.cpp`: walking movetype, not `FL_ONGROUND`, no hand on a hold, not swimming: waterlevel < 2;
+  noclip doesn't count, so the leniency tables' noclip runs are unchanged). `vr_climb_try` uses it too and says "mid-air".
+  Test (`Misc/quakevr/climb/climb_air_script.txt`, vrclimb site A1, hand in front of the lip at x 94..91): on the ground
+  only x 94 takes the ledge; two frames after a jump x 94..93.25 (93 not: 2 + 2.5 cm = the 1 unit more); Mid-Air 5:
+  to 92.5; landed again: only 94.
+- **Torch buttons** (no change needed): the hands are the controllers (`vr_lefthanded` only picks the moving hand), and
+  `flashlight::button` takes the holding hand's buttons. Test (`Misc/quakevr/flashbuttons/flashbuttons_script.txt`): with
+  `vr_lefthanded` 0 and 1, the torch in the left and in the right hand: the holder's trigger switches it, its B/Y flips
+  the grip, the other hand's trigger and B/Y change nothing, the holder's grip let go sends it home: 4/4 combinations.
+  New test aid `vr_flashlight_give left|right` (Debug page: Flashlight to Left Hand, to Right Hand); a grip
+  pressed by the hand already holding the torch is now the torch's (its release lets go: only reachable after a give).
+  `vr_flashlight_probe` also prints on and each hand's grip.
+- **Pain feedback, second pass.** Measured (`vr_debug_pain 2` prints `painview`: where each hand and its weapon are
+  drawn; `Misc/quakevr/painknock/painsum.py`): the drawn hand did follow the settings, but a hit from ahead moved each hand
+  0.7 of the knock (3.4 cm at the old defaults, 5.3 at his 0.75 / 7.5 / 0.6), straight back towards the eyes (depth: the
+  least visible way), tipped 0.8 degrees a cm, and the quadratic ease lost half of it in the return's first 30% (at or
+  over half for 0.20 s of his 0.6). With the hard cap, every hit over 10 points (his values) knocked the same. Now
+  (`vr_painknock.cpp`): the hand on the hit's side and both from ahead take all of it (far hand 0.4); away and up (lift
+  0.5 of the away); size `max * (1 - exp(-strength * damage / max))` (small hits as before, harder ones always a little
+  further); out in 0.06 s, held 15%, smoothstep back; tip `vr_pain_knock_tip` (2 degrees a cm, new row Knock Tip).
+  Defaults his: strength 0.3 -> 0.75, max 5 -> 7.5, time 0.35 -> 0.6 (config version 63, where still the old ones).
+  Measured drawn hand at the new defaults: 5 / 16 / 40 / 100 damage peak 3.1 / 6.1 / 7.4 / 7.6 cm, at or over half
+  until 0.37 s of 0.6 (time 1.2: 0.72 s); max 15: 12.4 cm; 16 from the left: off 7.5, main 3.0.
+- **Lightning gun into water** (`VR_LGWater_Splash`, weapons.qc): each bolt from the open into water, slime or lava
+  splashes where it goes in (strength 8), with a plip at most every 0.3 s; whatever `vr_lg_water`. Test
+  (`Misc/quakevr/lgsplash/lgsplash_script.txt`, vrfiringrange pool): aimed down into it 7 bolts, 7 splashes, 2 plips;
+  aimed up: none.
+- **Defaults, his:** two-handed grips while swinging `vr_2h_sticky_fast` 1 -> 3.5, `vr_2h_sticky_fast_hold` 0.4 -> 0.6
+  (config version 63); the chainsaw's grips (slot 20): Bias 2.5 / 0 -> 1 / 1, Stickiness 1 / 1 -> 1.5 / 1.5
+  (`vr_wofs_version` 31, each key only where the config still held the old default: `takeWhereOld`). Migration test:
+  a version-62/30 config with the old values takes the new ones; values the player changed (0.5, 1.2) are kept.
+- **As a Corpse** (Debug > Ahead of You) is a cycle now: Off, Corpse, Gibbed (`vr_test_spawn_dead` 2). Test
+  (`spawn_gibbed_script.txt`): 1 leaves a soldier corpse; 2 a head and three gibs.
+
+### In the headset
+
+- [ ] Jump at a ledge and grab it in the air: easier than standing; tune Mid-Air Leniency.
+- [ ] Take hits (Debug > Getting Hit too): the hands flinch away and up, the gun tips; small and big hits differ; Knock
+  Time and Largest Knock clearly change it.
+- [ ] Fire the lightning gun into the pool from the edge: splashes where the beam goes in.

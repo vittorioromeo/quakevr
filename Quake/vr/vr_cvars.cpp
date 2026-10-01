@@ -130,8 +130,17 @@ const DefaultChange defaultChanges[] = {
     // below, not a default.
     {64, &vr_snd_reverb, "0.4"},              // 0.5
     {64, &vr_snd_nearfield, "1"},             // 1.2
+    // 65: the author's (NOTES.md 2026-10-01): Grab Leniency 2 cm, "you have to touch the thing" (vrclimb 00-32-03), and
+    // his two-handed grips' stickiness while swinging (vrfiringrange 00-08-01).
+    {65, &vr_climb_leniency, "6"},          // 2
+    {65, &vr_2h_sticky_fast, "1"},          // 3.5
+    {65, &vr_2h_sticky_fast_hold, "0.4"},   // 0.6
+    // and his pain knock (NOTES.md vrfiringrange_2026-10-01_00-19-04; ROUND21.md, "Pain feedback, second pass").
+    {65, &vr_pain_knock_strength, "0.3"},   // 0.75
+    {65, &vr_pain_knock_max, "5"},          // 7.5
+    {65, &vr_pain_knock_time, "0.35"},      // 0.6
 };
-constexpr int configVersion = 64;
+constexpr int configVersion = 65;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

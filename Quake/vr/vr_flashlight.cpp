@@ -1687,6 +1687,27 @@ void toggle_f()
     }
 }
 
+// vr_flashlight_give <left|right>: the torch into that controller's hand (left is HAND_OFF, whatever vr_lefthanded), as
+// if gripped there; that hand's grip lets go of it. A test aid (Misc/quakevr/flashbuttons).
+void give_f()
+{
+    const char* which = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const int hand = !q_strcasecmp(which, "left")    ? HAND_OFF
+                     : !q_strcasecmp(which, "right") ? HAND_MAIN
+                                                     : -1;
+    if(hand < 0 || !enabled())
+    {
+        Con_Printf("vr_flashlight_give <left|right> (the chest flashlight on: vr_flashlight 1)\n");
+        return;
+    }
+    if(st.mode == Mode::Held && st.holder != hand)
+    {
+        handOver(hands::current(), hand);
+        return;
+    }
+    take(hand);
+}
+
 // vr_flashlight_probe [tag]: per hand, whether the lamp is lit up for it (the last view) and what a press there would
 // see on the hands the game reads (at the lamp, the game's grip winning and its hotspot, empty, still): "highlighted
 // implies grabbable" (Misc/quakevr/flashgrab). With developer 1, also the torso's yaw, the lamp's middle and the hands.
@@ -1695,7 +1716,8 @@ void probe_f()
     const hands::State& s = hands::current();
     const char* tag = Cmd_Argc() > 1 ? Cmd_Argv(1) : "-";
     static constexpr const char* modes[] = {"mounted", "held", "returning", "ongun", "onhead"};
-    Con_Printf("torchprobe %s mode %s holder %d placed %d\n", tag, modes[static_cast<int>(st.mode)], st.holder, st.placed ? 1 : 0);
+    Con_Printf("torchprobe %s mode %s holder %d placed %d on %d overhead %d %d\n", tag, modes[static_cast<int>(st.mode)],
+        st.holder, st.placed ? 1 : 0, st.on ? 1 : 0, st.overhead[HAND_OFF] ? 1 : 0, st.overhead[HAND_MAIN] ? 1 : 0);
     for(int hand = 0; hand < 2; hand++)
     {
         const bool at = st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand);
@@ -1744,6 +1766,7 @@ void init()
 {
     Cmd_AddCommand("vr_flashlight_toggle", toggle_f);
     Cmd_AddCommand("vr_flashlight_probe", probe_f);
+    Cmd_AddCommand("vr_flashlight_give", give_f);
 }
 
 void prepare()
@@ -2202,6 +2225,13 @@ bool button(int hand, Button b, bool pressed)
         return false;
     }
 
+    // A grip pressed by the hand already holding it (given without one: vr_flashlight_give) is the torch's: its
+    // release lets go.
+    if(grip && holding)
+    {
+        swallowed = true;
+        return true;
+    }
     if(!grip && (holding || (atLamp && deliberate(hand, b))))
     {
         toggle(hand);

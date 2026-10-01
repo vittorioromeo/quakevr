@@ -2352,7 +2352,7 @@ QVR_WEAPON_DEFAULT(20, Hotspot1Z, "-1.9")
 QVR_WEAPON_DEFAULT(20, Hotspot1Pitch, "-27.16128")
 QVR_WEAPON_DEFAULT(20, Hotspot1Yaw, "-3.926062")
 QVR_WEAPON_DEFAULT(20, Hotspot1Roll, "86.177124")
-QVR_WEAPON_DEFAULT(20, Hotspot1Bias, "2.5")
+QVR_WEAPON_DEFAULT(20, Hotspot1Bias, "1")
 QVR_WEAPON_DEFAULT(20, Hotspot1Overlap, "0.85")
 // Two hotspots, both on the front handle's loop (the author, 2026-09-30: his rear-handle one removed, his fourth made
 // the second; vr_wofs_version 27): two parts of the loop.
@@ -2363,6 +2363,11 @@ QVR_WEAPON_DEFAULT(20, Hotspot2Z, "-4.755821")
 QVR_WEAPON_DEFAULT(20, Hotspot2Pitch, "-2.92907")
 QVR_WEAPON_DEFAULT(20, Hotspot2Yaw, "2.439026")
 QVR_WEAPON_DEFAULT(20, Hotspot2Roll, "5.789284")
+// The author's grips on the loop, 2026-10-01 (NOTES.md vrfiringrange_2026-10-01_00-12-44; vr_wofs_version 31): stickier,
+// the fingers' bias the same on both.
+QVR_WEAPON_DEFAULT(20, Hotspot2Bias, "1")
+QVR_WEAPON_DEFAULT(20, Hotspot1Sticky, "1.5")
+QVR_WEAPON_DEFAULT(20, Hotspot2Sticky, "1.5")
 QVR_WEAPON_DEFAULT(20, GripOverlap, "0.6")
 QVR_WEAPON_DEFAULT(20, FingerMiddleBias, "0.04")
 QVR_WEAPON_DEFAULT(20, FingerThumbBias, "-1")

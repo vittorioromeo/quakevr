@@ -5113,6 +5113,18 @@ extern "C" void VR_SetupViewEntities()
             cl.viewangles[0], cl.viewangles[1], cl.viewangles[2], s.muzzle[HAND_MAIN].x, s.muzzle[HAND_MAIN].y, s.muzzle[HAND_MAIN].z,
             we.origin[0], we.origin[1], we.origin[2], we.angles[0], we.angles[1], we.angles[2]);
     }
+    if(vr_debug_pain.value >= 2.f)
+    {
+        // Tests (Misc/quakevr/painknock): where the hand and the weapon in it are drawn this frame, against the tracked hand.
+        for(int hand = 0; hand < 2; hand++)
+        {
+            const entity_t& we = entities.weapon[hand].ent;
+            const entity_t& he = entities.hand[hand][FingerBase].ent;
+            Con_Printf("painview %.3f %s weapon %d %.2f %.2f %.2f hand %d %.2f %.2f %.2f\n", cl.time,
+                hand == HAND_MAIN ? "main" : "off", entities.weapon[hand].visible ? 1 : 0, we.origin[0], we.origin[1],
+                we.origin[2], entities.hand[hand][FingerBase].visible ? 1 : 0, he.origin[0], he.origin[1], he.origin[2]);
+        }
+    }
     if(posingNow)
     {
         drawnWeapons[0] = drawnWeapons[1] = view::DrawnWeapon{};

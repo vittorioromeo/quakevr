@@ -778,9 +778,18 @@ struct Box
     return finish(nullptr);
 }
 
-[[nodiscard]] float leniencyUnits()
+// Mid-air: a walking player neither on the ground nor holding on (after a jump, falling; not swimming, not noclipping)
+// reaches vr_climb_leniency_air cm further (a ledge grabbed mid-jump: NOTES.md vrclimb_2026-10-01_00-32-39).
+[[nodiscard]] bool midAir(const edict_t* ent, bool hanging)
 {
-    return za::max(0.f, vr_climb_leniency.value) * 0.01f * units::metresToUnits();
+    return !hanging && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK && !(static_cast<int>(ent->v.flags) & FL_ONGROUND) &&
+           ent->v.waterlevel < 2.f;
+}
+
+[[nodiscard]] float leniencyUnits(bool airborne)
+{
+    const float cm = za::max(0.f, vr_climb_leniency.value) + (airborne ? za::max(0.f, vr_climb_leniency_air.value) : 0.f);
+    return cm * 0.01f * units::metresToUnits();
 }
 
 // The hold a grip of hand `h` takes (findHold): from the drawn hand, or from the controller's own point where the level
@@ -788,11 +797,12 @@ struct Box
 // rung's underside, its point a hand's height below it). A hold either point is at comes first (the drawn hand's
 // before the controller's), then the drawn hand's lenient one, then the controller's. `tracked`: found from the
 // controller's point.
-[[nodiscard]] za::Optional<Ledge> gripHold(edict_t* ent, const VrMove& move, int h, bool& lenient, bool& tracked, LenientStats* st)
+[[nodiscard]] za::Optional<Ledge> gripHold(edict_t* ent, const VrMove& move, int h, bool hanging, bool& lenient, bool& tracked,
+    LenientStats* st)
 {
     constexpr float maxHeldOut = 64.f; // units: a controller's point further from the drawn hand is not believed
     const VrHandMove& m = move.hands[h];
-    const float radius = leniencyUnits();
+    const float radius = leniencyUnits(midAir(ent, hanging));
     tracked = false;
     za::Optional<Ledge> drawn = findHold(ent, m.pos, m.throwVel, move.headPos, radius, lenient, st);
     const float heldOut = glm::distance(m.tracked, m.pos);
@@ -1689,7 +1699,7 @@ static void climbPreThink(edict_t* ent)
         LenientStats st;
         const int traces0 = traceCount;
         bool lenient = false, fromTracked = false;
-        const za::Optional<Ledge> ledge = gripHold(ent, *move, h, lenient, fromTracked, &st);
+        const za::Optional<Ledge> ledge = gripHold(ent, *move, h, hanging, lenient, fromTracked, &st);
         if(debug() && vr_climb_debug.value >= 3.f)
         {
             Con_Printf("climb: hold search: %d ledges looked at, %d traces in %.4f ms\n", st.points, traceCount - traces0,
@@ -2388,18 +2398,24 @@ void try_f()
     bool lenient = false;
     const int traces0 = traceCount;
     const double t0 = Sys_DoubleTime();
-    const za::Optional<Ledge> l = findHold(ent, hand, vel, head, leniencyUnits(), lenient, &st);
+    const Climber* climber = climberOf(ent);
+    const bool airborne = midAir(ent, climber && climber->hanging());
+    const za::Optional<Ledge> l = findHold(ent, hand, vel, head, leniencyUnits(airborne), lenient, &st);
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     if(l)
     {
         Con_Printf("climbtry %.2f %.2f %.2f %s: %s hold %.2f %.2f %.2f top %.1f out %.2f %.2f, %.2f units from the hand (%.1f cm)",
             hand.x, hand.y, hand.z, handName(h), lenient ? "lenient" : "exact", l->hold.x, l->hold.y, l->hold.z, l->top,
             l->out.x, l->out.y, glm::distance(l->hold, hand), glm::distance(l->hold, hand) / units::metresToUnits() * 100.f);
+        if(airborne)
+        {
+            Con_Printf(" (mid-air +%.1f cm)", vr_climb_leniency_air.value);
+        }
     }
     else
     {
-        Con_Printf("climbtry %.2f %.2f %.2f %s: none (leniency %.1f cm)", hand.x, hand.y, hand.z, handName(h),
-            vr_climb_leniency.value);
+        Con_Printf("climbtry %.2f %.2f %.2f %s: none (leniency %.1f cm%s)", hand.x, hand.y, hand.z, handName(h),
+            vr_climb_leniency.value, airborne ? va(", mid-air +%.1f", vr_climb_leniency_air.value) : "");
     }
     Con_Printf("; %d points, %d holds seen, turned down: %d low, %d below, %d far, %d behind, %d through a wall, %d covered, "
                "%d hidden; %.4f ms, %d traces\n",

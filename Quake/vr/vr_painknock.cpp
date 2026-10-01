@@ -9,6 +9,7 @@
 
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -20,10 +21,11 @@ namespace
 {
 
 constexpr int maxKnocks = 4;         // hits in quick succession add up (the oldest replaced)
-constexpr float riseShare = 0.2f;    // of the knock's time, the push out (then the ease back)
-constexpr float riseMax = 0.05f;     // s, at most
-constexpr float pitchPerCm = 0.8f;   // degrees the hand tips up for each cm it is pushed
-constexpr float sideWeight = 0.3f;   // each hand's share: 0.7 +- this, more for the hand on the side the hit came from
+constexpr float riseShare = 0.15f;   // of the knock's time, the push out
+constexpr float riseMax = 0.06f;     // s, at most
+constexpr float holdShare = 0.15f;   // then held out this share of it, then eased back (slow, then quicker, then slow)
+constexpr float liftShare = 0.5f;    // a directed knock's lift: the hands flinch up as well as away (a share of the away)
+constexpr float sideWeight = 0.3f;   // the far hand's share from the side: 1 - 2 * this (from ahead or behind: both all)
 constexpr float noDirection = 2.f;   // units: a source this near the world's middle (or the player) has no direction
 
 struct Knock
@@ -37,7 +39,9 @@ Knock knocks[maxKnocks];
 int nextKnock = 0;
 double printedAt = -1.0;
 
-// 0..1..0 over the knock: a quick push out, then an ease back ending at `duration`.
+// 0..1..0 over the knock: a quick push out, held a moment, then an ease back ending at `duration` (smooth both ends:
+// half of it still there halfway back; the old quadratic ease lost half in the return's first 30%, the knock barely
+// showed: ROUND21.md, "Pain feedback, second pass").
 [[nodiscard]] float envelope(float t, float duration)
 {
     if(t < 0.f || t >= duration || duration <= 0.f)
@@ -50,8 +54,26 @@ double printedAt = -1.0;
         const float u = t / rise;
         return u * u * (3.f - 2.f * u);
     }
-    const float u = (t - rise) / (duration - rise);
-    return (1.f - u) * (1.f - u);
+    const float hold = duration * holdShare;
+    if(t < rise + hold)
+    {
+        return 1.f;
+    }
+    const float u = (t - rise - hold) / za::max(duration - rise - hold, 1e-3f);
+    return 1.f - u * u * (3.f - 2.f * u);
+}
+
+// cm a hit of `damage` knocks the hands: Knock per Damage a point for small hits, curving into Largest Knock (never
+// reached: a harder hit always knocks further, where a hard cap made every hit past it the same).
+[[nodiscard]] float knockCm(float damage)
+{
+    const float most = za::max(vr_pain_knock_max.value, 0.f);
+    const float per = za::max(vr_pain_knock_strength.value, 0.f);
+    if(most <= 0.f || per <= 0.f || damage <= 0.f)
+    {
+        return 0.f;
+    }
+    return most * (1.f - za::exp(-per * damage / most));
 }
 
 // +1 for the hand on the body's right, -1 for the one on its left: by where they are (crossed arms: the hand that is
@@ -86,7 +108,7 @@ void hit(float damage, const glm::vec3& from, bool directed, const char* what)
     if(directed && glm::length(level) > noDirection)
     {
         level = glm::normalize(level);
-        dir = -level;
+        dir = glm::normalize(-level + glm::vec3{0.f, 0.f, liftShare});
         side = za::clamp(glm::dot(level, right), -1.f, 1.f);
     }
     else if(directed && glm::length(toSource) > noDirection)
@@ -97,11 +119,11 @@ void hit(float damage, const glm::vec3& from, bool directed, const char* what)
     float weight[2];
     for(int hand = 0; hand < 2; hand++)
     {
-        weight[hand] = 1.f - sideWeight + sideWeight * side * handSide(s, hand, right);
+        weight[hand] = 1.f - sideWeight * (za::fabs(side) - side * handSide(s, hand, right));
     }
 
     // The knock.
-    const float cm = za::min(za::max(vr_pain_knock_max.value, 0.f), za::max(vr_pain_knock_strength.value, 0.f) * damage);
+    const float cm = knockCm(damage);
     const float duration = za::max(vr_pain_knock_time.value, 0.f);
     const bool knocked = vr_pain_knock.value != 0.f && cm > 0.f && duration > 0.f;
     if(knocked)
@@ -193,7 +215,7 @@ void offset(int hand, glm::vec3& pos, glm::vec3& angles)
         pos *= len > 0.f ? cap / len : 0.f;
     }
     const float cmNow = glm::length(pos) / (0.01f * units::metresToUnits());
-    angles.x = -pitchPerCm * cmNow; // tipped up (pitch down is positive)
+    angles.x = -za::max(vr_pain_knock_tip.value, 0.f) * cmNow; // tipped up (pitch down is positive)
 
     if(vr_debug_pain.value && hand == HAND_MAIN && cmNow > 0.f && realtime != printedAt)
     {
