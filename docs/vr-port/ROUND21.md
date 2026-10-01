@@ -19104,7 +19104,7 @@ His notes vrfiringrange_2026-10-01_16-41-40, _16-42-00 (a backpack thrown high n
   now sets `.vr_fling_hit` too, so bouncing off what it hit it doesn't hit it again as a flung prop (it did: 20.9 then
   7.5 on the same fall).
 - Tests (Debug > Tests): Flung Props > **Throw Up Speed** (`vr_test_throw_up_speed` 10 m/s), **Throw the Nearest Prop
-  Up** (`impulse 220`, `VR_Throw_TestUp`); At You > **Dud Height** (`vr_test_grenade_height`), **Dud Is Yours**
+  Up** (`impulse 222`, `VR_Throw_TestUp`); At You > **Dud Height** (`vr_test_grenade_height`), **Dud Is Yours**
   (`vr_test_grenade_yours` 1; 0: nobody's, as an enemy's, your blows meet it).
 
 ### Results (mock, vrfiringrange, `developer 1`)

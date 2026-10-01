@@ -2778,7 +2778,7 @@ za::Vector<Item> pageDebugTests()
             .help("Sends the loose prop nearest you (put a box there first) at it, as if batted or knocked flying; "
                   "developer 1 prints the hit (prop: flung ...)."),
         slider("Throw Up Speed", vr_test_throw_up_speed, 2.f, 25.f, 0.5f, "%.1f m/s"),
-        command("Throw the Nearest Prop Up", "developer 1; impulse 220")
+        command("Throw the Nearest Prop Up", "developer 1; impulse 222")
             .help("The loose prop nearest you thrown straight up as yours from just over your head: it falls back on you "
                   "and hurts you (Your Throws Spare You For, on Throwing and Physics). Prints the throw and the hit."),
         header("Thrown Axe"),

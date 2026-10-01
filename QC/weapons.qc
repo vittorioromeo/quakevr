@@ -4316,7 +4316,7 @@ void() ImpulseCommands =
     {
         VR_Test_Fling();
     }
-    if(self.impulse == 220 && !deathmatch && !coop) // QVR test: the nearest prop thrown up as yours (VR_Throw_TestUp)
+    if(self.impulse == 222 && !deathmatch && !coop) // QVR test: the nearest prop thrown up as yours (VR_Throw_TestUp)
     {
         VR_Throw_TestUp();
     }
@@ -5226,7 +5226,7 @@ void() VR_Test_Fling =
         cvar("vr_test_fling_away") ? ", away from it" : "", target.health));
 };
 
-// Tests (impulse 220; Debug > Tests > Flung Props): the loose prop nearest you (a rigid body not carried, within 512
+// Tests (impulse 222; Debug > Tests > Flung Props): the loose prop nearest you (a rigid body not carried, within 512
 // units) thrown straight up as yours (VR_Carry_Throw) from over your head at vr_test_throw_up_speed m/s: it falls back
 // on you, past vr_throw_self_grace (vrfiringrange_2026-10-01_16-41-40: a backpack thrown high).
 void() VR_Throw_TestUp =
