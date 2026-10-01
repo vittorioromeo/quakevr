@@ -1182,9 +1182,16 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     return TRUE;
 };
 
+// A grenade shots set off (vr_grenade.qc, "Shooting grenades"): any damage sets it off.
+float(entity targ, entity inflictor, entity attacker, float damage, float xMelee) VR_GrenShot_Damage;
+
 // Deals the damage, with the gibs it may throw at the speed for what dealt it (vr_gib_speed).
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
 {
+    if(targ.vr_shootnade)
+    {
+        return VR_GrenShot_Damage(targ, inflictor, attacker, damage, isVRMelee);
+    }
     float oldGibSpeed = vr_gib_speed;
     vr_gib_speed = VR_GibSpeedScale(inflictor, attacker, isVRMelee);
     float r = T_DamageDeal(targ, inflictor, attacker, damage, isVRMelee);

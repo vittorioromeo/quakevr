@@ -955,6 +955,7 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 	edict_t		*touch;
 	trace_t		trace;
 	qboolean	propshape; // QVR: met as a solid prop's drawn shape (VR_PropClip)
+	int			shot; // QVR: a grenade shots set off (VR_ShotTargetClip)
 
 // touch linked edicts
 	for (l = node->solid_edicts.next ; l != &node->solid_edicts ; l = next)
@@ -964,6 +965,29 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		touch = EDICT_FROM_AREA(l);
 		if (touch->v.solid == SOLID_NOT)
 			continue;
+		// QVR: a grenade shots set off (.vr_shot_radius: VR_ShotTargetClip): a shot or a missile meets a cube round it,
+		// its owner's own shots too; any other move meets it by Quake's rules.
+		if (touch != clip->passedict && touch->v.takedamage && touch->v.solid != SOLID_BSP
+			&& clip->boxmins[0] <= touch->v.absmax[0] && clip->boxmins[1] <= touch->v.absmax[1]
+			&& clip->boxmins[2] <= touch->v.absmax[2] && clip->boxmaxs[0] >= touch->v.absmin[0]
+			&& clip->boxmaxs[1] >= touch->v.absmin[1] && clip->boxmaxs[2] >= touch->v.absmin[2])
+		{
+			shot = VR_ShotTargetClip (clip->passedict, touch, clip->start, clip->mins, clip->maxs, clip->end, clip->hittype, &trace);
+			if (shot == 0)
+				continue;
+			if (shot > 0)
+			{
+				if (clip->trace.allsolid)
+					return;
+				if (trace.fraction < clip->trace.fraction)
+				{
+					qboolean wasStartSolid = clip->trace.startsolid;
+					clip->trace = trace;
+					clip->trace.startsolid = wasStartSolid;
+				}
+				continue;
+			}
+		}
 		// QVR: touchable non-solids never block, but shots and missiles stop at gibs and heads
 		// (those that take damage: vr_gib_destroy).
 		if (touch->v.solid == SOLID_NOT_BUT_TOUCHABLE && !(clip->hitgibs && touch->v.takedamage))
@@ -1165,6 +1189,14 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 		{
 			clip.boxmins[i] -= clip.hitmodel + MOVE_HITMODEL_REACH;
 			clip.boxmaxs[i] += clip.hitmodel + MOVE_HITMODEL_REACH;
+		}
+	}
+	else if (clip.hitgibs || (clip.hittype & MOVE_HITMODEL)) // QVR: a shot or a missile: a grenade's cube reaching out of its point (VR_ShotTargetClip)
+	{
+		for (i=0 ; i<3 ; i++)
+		{
+			clip.boxmins[i] -= VR_SHOT_TARGET_REACH;
+			clip.boxmaxs[i] += VR_SHOT_TARGET_REACH;
 		}
 	}
 

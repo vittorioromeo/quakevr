@@ -181,3 +181,15 @@
 .float vr_crate_born;    // a piece: when it was made (the oldest go first; they fade after vr_crate_piece_time)
 .float alpha;            // how opaque it is drawn (0: wholly; a piece fading away). (Here, not in honey_defs.qc: the
                          // crates' pieces, compiled before it, use it.)
+
+//
+//
+//
+// ----------------------------------------------------------------------------
+// Grenades shots set off (vr_grenade.qc, "Shooting grenades")
+// ----------------------------------------------------------------------------
+
+.float vr_shootnade;   // a grenade shots, blows and blasts set off (VR_GrenShot_Make): T_Damage is its (VR_GrenShot_Damage)
+.float vr_shot_half;   // its model's half size (the shot box: vr_shot_radius, with vr_grenade_shoot_pad)
+.float vr_shot_off;    // set off (or gone off): no more shots meet it
+.void() vr_shot_boom;  // a Quake grenade set off: its own think (its blast), run by VR_GrenShot_Boom

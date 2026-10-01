@@ -231,6 +231,9 @@ int VR_HitModelTarget (struct edict_s *ent);			// SV_ClipToLinks: nonzero if its
 int VR_HitModelClip (struct edict_s *ent, const float *start, const float *mins, const float *maxs, const float *end, int type,
 	float tolerance, float maxfraction, trace_t *trace);	// nonzero: hit (trace filled); zero: the move goes through its box
 int VR_HitModelMoveFlags (struct edict_s *ent);		// SV_PushEntity: the flags a projectile's move adds
+#define VR_SHOT_TARGET_REACH 16	// units: the most a shot target's cube reaches from its middle (.vr_shot_radius; SV_Move grows a shot's box by it)
+int VR_ShotTargetClip (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
+	const float *end, int type, trace_t *trace);	// SV_ClipToLinks: a shot or missile (type: SV_Move's, with its flags) against a grenade shots set off (.vr_shot_radius): -1 not one (Quake's rules), 0 passes it, 1 met (trace filled)
 
 // Client effects (r_part.c): Quake VR's particles in place of Quake's (nonzero if they took it).
 int VR_RunParticleEffect (const float *org, const float *dir, int color, int count);	// impacts, blood (svc_particle)

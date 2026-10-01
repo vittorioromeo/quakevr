@@ -1559,6 +1559,11 @@ void(float damage) spawn_touchblood =
         VR_Crate_Splinters(self.origin + vel * 0.01, vel, damage);
         return;
     }
+    if(other.vr_shootnade) // VR: a grenade (vr_grenade.qc, "Shooting grenades"): sparks
+    {
+        VR_GrenShot_Sparks(self.origin);
+        return;
+    }
     SpawnBlood (self.origin + vel * 0.01, vel, damage);
 };
 
@@ -1784,6 +1789,10 @@ void(float damage, vector dir) TraceAttack =
             if(VR_Crate_Wooden(trace_ent))
             {
                 VR_Crate_Splinters(org, vel * 0.2, damage); // VR: wood (a crate, an explosive box): splinters
+            }
+            else if(trace_ent.vr_shootnade)
+            {
+                VR_GrenShot_Sparks(org); // VR: a grenade (vr_grenade.qc, "Shooting grenades"): sparks
             }
             else
             {
@@ -3935,6 +3944,7 @@ entity(float xKind, vector xAt) VR_Test_Fire =
         setsize(m, '0 0 0', '0 0 0');
         setorigin(m, from);
         m.velocity = dir * 600;
+        VR_Grenade_Make(m, GrenadeExplode, 2.5, TRUE); // (as the launcher's: W_FireGrenade)
     }
     else if(xKind == 4)
     {
@@ -3961,6 +3971,65 @@ entity(float xKind, vector xAt) VR_Test_Fire =
     }
     m.angles = vectoangles(m.velocity);
     return m;
+};
+
+// impulse 210: shoots the nearest grenade shots set off (VR_GrenShot_Is) from your eyes (VR_Test_Fire, the kind
+// vr_test_grenade_shot says) at its middle.
+void() VR_GrenShot_TestShoot =
+{
+    entity best = world;
+    float bestDist = 4000;
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(VR_GrenShot_Is(e) && e.takedamage && vlen(e.origin - self.origin) < bestDist)
+        {
+            best = e;
+            bestDist = vlen(e.origin - self.origin);
+        }
+    }
+    if(best == world)
+    {
+        dprint("test: no grenade to shoot\n");
+        return;
+    }
+    vector at = best.origin + (best.mins + best.maxs) * 0.5;
+    float kind = cvar("vr_test_grenade_shot");
+    dprint(sprintf("test: shooting %s (%s's) at %v, %.0f units away, %.0f u/s, shot box %.1f (kind %g)\n", best.classname,
+        best.owner.classname, at, vlen(at - (self.origin + self.view_ofs)), vlen(best.velocity), best.vr_shot_radius, kind));
+    VR_Test_Fire(kind, at);
+};
+
+// impulse 211: a hand grenade from the pouch into the empty off hand (a rocket for it if you have none), let go of
+// unarmed (a dud: VR_Carry_Release, VR_Grenade_Released), and put on the floor vr_test_grenade_dist ahead.
+void() VR_GrenShot_TestDud =
+{
+    if(!VRIsHandEmpty(self, cVR_OffHand) || VR_Carry_Held(self, cVR_OffHand) != world)
+    {
+        dprint("test: the off hand isn't empty\n");
+        return;
+    }
+    if(self.ammo_rockets < 1)
+    {
+        self.ammo_rockets = 1;
+    }
+    VR_HandGrenade_Take(cVR_OffHand);
+    entity g = VR_Carry_Held(self, cVR_OffHand);
+    if(g == world || !g.vr_hgren)
+    {
+        dprint("test: no hand grenade taken\n");
+        return;
+    }
+    VR_Carry_Release(cVR_OffHand, g);
+    makevectors('0 1 0' * self.v_viewangle_y);
+    vector ahead = self.origin + v_forward * cvar("vr_test_grenade_dist");
+    traceline(ahead + '0 0 16', ahead - '0 0 256', TRUE, self);
+    setorigin(g, trace_endpos - g.mins + '0 0 1');
+    g.velocity = '0 0 0';
+    g.vr_spin = '0 0 0';
+    g.vr_gren_lastvel = '0 0 0';
+    g.vr_gren_lastorg = g.origin;
+    dprint(sprintf("test: a dud hand grenade on the floor at %v, %.0f units ahead (armed %g, fuse %g)\n", g.origin,
+        vlen(g.origin - self.origin), g.vr_hgren_armed, g.vr_gren_fuse));
 };
 
 void() ImpulseCommands =
@@ -4521,6 +4590,17 @@ void() ImpulseCommands =
         }
         self = player;
         dprint(sprintf("test: projectile %g from %v at %v\n", kind, shooter.origin, aim));
+    }
+    // QVR: shooting grenades' tests (vr_grenade.qc, "Shooting grenades"): 210 shoots the nearest grenade shots set off
+    // (from your eyes, with vr_test_grenade_shot: a pellet, a nail, a rocket, a laser); 211 takes a hand grenade from the
+    // pouch into the empty off hand, lets go of it unarmed (a dud), and puts it on the floor vr_test_grenade_dist ahead.
+    if(self.impulse == 210 && !deathmatch && !coop)
+    {
+        VR_GrenShot_TestShoot();
+    }
+    if(self.impulse == 211 && !deathmatch && !coop)
+    {
+        VR_GrenShot_TestDud();
     }
     // QVR: the nearest ogre or zombie throws at you now (grenade and lob tests; vr_grenade.qc); an ogre a multi-grenade
     // with vr_test_projectile 6.

@@ -171,6 +171,7 @@ void(float xHand) W_FireMultiGrenade =
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, VRGetMuzzlePos(xHand));
     VR_ShotPlace(missile, xHand); // behind what the muzzle is inside (VR_ShotPlace)
+    VR_GrenShot_Make(missile); // QVR: a shot sets it off (vr_grenade_shoot; vr_grenade.qc)
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 75, 1.0);

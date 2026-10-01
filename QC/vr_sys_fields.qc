@@ -290,3 +290,6 @@
 .void(float xSpeed) vr_impact; // a rigid body hitting something (the world, a prop, a monster) at xSpeed m/s (at least
                                // 2): self the body, other what it hit (world for the level). Box3D's hits, after its step.
 .float vr_blocksight; // a solid prop monsters can't see through while it lies about (a crate, an explosive box: sightblocked)
+.float vr_shot_radius;  // a grenade shots set off (vr_grenade.qc, "Shooting grenades"; engine: vr_hitmodel.cpp VR_ShotTargetClip): shots
+                        // and missiles meet a cube this half size round its middle (0: Quake's rules); with takedamage
+.float vr_shot_ownfrom; // its owner's own shots meet it from then (not as it leaves his launcher or hand)

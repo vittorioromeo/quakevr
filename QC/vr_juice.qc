@@ -70,7 +70,7 @@ float(vector xA0, vector xA1, vector xB0, vector xB1) VR_SegmentDistance =
 // scrag's spit, a vore's ball, an ogre's grenade, ...).
 float(entity e) VR_Deflect_IsProjectile =
 {
-    if(!(e.owner.flags & FL_MONSTER) || e.solid == SOLID_NOT || !e.touch || e.takedamage)
+    if(!(e.owner.flags & FL_MONSTER) || e.solid == SOLID_NOT || !e.touch || (e.takedamage && !e.vr_shootnade))
     {
         return FALSE;
     }

@@ -82,6 +82,140 @@ float VR_LOB_HARDER = 1.2;    // times that an out-of-reach lob may be thrown (a
 float VR_LOB_LEAD = 0.3;       // share of the target's walk over the flight a lob leads it by (slightly)
 float VR_LOB_STEPS = 10;       // the arc's segments traced for a wall in the way (VR_Lob_Clear)
 
+// ----------------------------------------------------------------------------
+// Shooting grenades (vr_grenade_shoot; ROUND21.md, "Shooting grenades")
+//
+// A grenade (the launcher's, an ogre's or a multi-grenade ogre's, rogue's multi-grenade, a hand grenade, live or a dud
+// lying about) is set off by whatever hits it: a shot (the shotguns', a grunt's, the lightning), a missile (nails,
+// rockets, lasers, spit), a thrown thing, a melee blow (vr_grenade_shoot_melee: one lying or rolling; one in flight a
+// weapon bats and an empty hand catches, as before), and another blast (a chain, each a moment after the last). Quake's
+// grenades are points no shot meets: the engine meets a cube round its middle, its model's half size and
+// vr_grenade_shoot_pad (.vr_shot_radius: vr_hitmodel.cpp VR_ShotTargetClip), its owner's own shots too once it has left
+// his launcher or hand (VR_GRENSHOT_OWN_GRACE). Not one in a hand or an open palm. What it blows up is the doing of who
+// set it off (its owner then: T_RadiusDamage's attacker), with its own blast (an ogre's stays an ogre's). Hipnotic's
+// proximity mines were shootable already (once they land).
+
+float VR_GRENSHOT_CHAIN = 0.12;     // s a grenade a blast sets off waits (a chain ripples, not one bang)
+float VR_GRENSHOT_OWN_GRACE = 0.15; // s after it leaves its owner's launcher or hand before his own shots meet it
+
+// Whether `g` is a grenade shots set off now (VR_GrenShot_Make, not set off yet).
+float(entity g) VR_GrenShot_Is =
+{
+    return g.vr_shootnade && !g.vr_shot_off;
+};
+
+// Whether shots meet the grenade `g` now (set by VR_GrenShot_Update): vr_grenade_shoot on, not set off or gone off,
+// not in a hand or an open palm.
+void(entity g) VR_GrenShot_Update =
+{
+    if(!VR_GrenShot_Is(g) || !cvar_hget(cvarh_vr_grenade_shoot) || g.carry_player != world || g.vr_gren_trap != world ||
+       g.solid == SOLID_NOT)
+    {
+        g.takedamage = DAMAGE_NO;
+        g.vr_shot_radius = 0;
+        return;
+    }
+    g.takedamage = DAMAGE_YES; // (not DAMAGE_AIM: no autoaim at it, and Quake's grenades bounce off it)
+    g.health = 1; // (what some touches test: Hipnotic's laser)
+    g.vr_shot_radius = max(0.5, g.vr_shot_half + max(0, cvar_hget(cvarh_vr_grenade_shoot_pad)));
+};
+
+// Makes the grenade `g` (its model set, just thrown) one that shots and blasts set off.
+void(entity g) VR_GrenShot_Make =
+{
+    vector lo = modelbounds(g, 0);
+    vector hi = modelbounds(g, 1);
+    g.vr_shootnade = TRUE;
+    g.vr_shot_off = FALSE;
+    g.vr_shot_half = max(hi_x - lo_x, max(hi_y - lo_y, hi_z - lo_z)) * 0.5;
+    g.vr_shot_ownfrom = time + VR_GRENSHOT_OWN_GRACE;
+    VR_GrenShot_Update(g);
+};
+
+// No longer one shots meet (it went off).
+void(entity g) VR_GrenShot_Spent =
+{
+    g.vr_shot_off = TRUE;
+    VR_GrenShot_Update(g);
+};
+
+// A Quake grenade set off (self; not a catchable one, which its tick sets off: VR_Grenade_Think) goes off: its blast.
+void() VR_GrenShot_Boom =
+{
+    dprint(sprintf("grenade: %s goes off at %v (%s's)\n", self.classname, self.origin, self.owner.classname));
+    self.think = self.vr_shot_boom;
+    self.think();
+};
+
+// Sets the grenade `g` off, `xBy` its doing (the kills are theirs), `xDelay` s from now (`xHow` for the log): the next
+// tick at the soonest (a blast's damage, a shotgun's pellets: not amid the damage's own loops).
+void(entity g, entity xBy, float xDelay, string xHow) VR_GrenShot_SetOff =
+{
+    VR_GrenShot_Spent(g);
+    if(xBy != world && xBy != g && (xBy.flags & (FL_CLIENT | FL_MONSTER)))
+    {
+        g.owner = xBy;
+    }
+    string fuse = "a dud";
+    if(!g.vr_hgren || g.vr_hgren_armed)
+    {
+        fuse = sprintf("%.2f s before its fuse", (g.vr_grenade ? g.vr_gren_fuse : g.nextthink) - time);
+    }
+    dprint(sprintf("grenade: %s set off by %s (%s) at %v, %s's (%s, %.0f u/s)\n", g.classname, xBy.classname, xHow,
+        g.origin, g.owner.classname, fuse, vlen(g.velocity)));
+    if(g.vr_grenade)
+    {
+        if(g.vr_hgren && !g.vr_hgren_armed)
+        {
+            g.vr_hgren_armed = TRUE; // (a dud: no pin, no fuse; it goes off all the same)
+            g.skin = 0;
+        }
+        g.vr_gren_fuse = time + xDelay; // (its tick: VR_Grenade_Think)
+        return;
+    }
+    g.vr_shot_boom = g.think; // (Quake's grenade: its think is its blast)
+    g.think = VR_GrenShot_Boom;
+    g.nextthink = time + xDelay;
+};
+
+// T_Damage on a grenade shots set off (T_DamageImpl; `xMelee` a VR melee blow's): set off, by `xAttacker`. Not by its
+// own blast, nor a melee blow in flight (batted or caught: vr_deflect, vr_grenade_catch). TRUE if it was set off.
+float(entity targ, entity inflictor, entity attacker, float damage, float xMelee) VR_GrenShot_Damage =
+{
+    if(!VR_GrenShot_Is(targ) || !targ.takedamage || targ.solid == SOLID_NOT || inflictor == targ || damage <= 0)
+    {
+        return FALSE;
+    }
+    if(xMelee && (!cvar_hget(cvarh_vr_grenade_shoot_melee) ||
+                  (cvar_hget(cvarh_vr_deflect) && vlen(targ.velocity) >= VR_GREN_FLYING)))
+    {
+        return FALSE;
+    }
+    string how = "a hit";
+    float delay = 0;
+    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    {
+        how = sprintf("a blast, %s's", inflictor.classname);
+        delay = VR_GRENSHOT_CHAIN;
+    }
+    else if(xMelee)
+    {
+        how = "a blow";
+    }
+    else if(inflictor != attacker)
+    {
+        how = inflictor.classname;
+    }
+    VR_GrenShot_SetOff(targ, attacker, delay, how);
+    return TRUE;
+};
+
+// Where a shot or a blow meets a grenade: sparks, not blood (TraceAttack, spawn_touchblood, VR_HitBlood).
+void(vector xAt) VR_GrenShot_Sparks =
+{
+    particle2(xAt, '0 0 40', QVR_PARTICLE_PRESET_SPARKS, 8);
+};
+
 // Whether grenades of this kind are catchable (vr_grenade_catch: 1 the ogres', 2 also the player's).
 float(float xPlayers) VR_Grenade_On =
 {
@@ -132,6 +266,7 @@ void(entity g, void() xBoom, float xFuse, float xPlayers) VR_Grenade_Make =
     {
         VR_Grenade_Setup(g, xBoom, xFuse);
     }
+    VR_GrenShot_Make(g); // (caught or not, a shot sets it off: vr_grenade_shoot)
 };
 
 // Lets go of the grenade `g` wherever it is held (it went off).
@@ -222,6 +357,7 @@ void(entity g) VR_Grenade_Spent =
     g.flags = g.flags - (g.flags & FL_FORCEGRABBABLE);
     g.handtouch = SUB_Null;
     g.vr_wpntouch = SUB_Null;
+    VR_GrenShot_Spent(g);
 };
 
 // Its own touch (OgreGrenadeTouch, GrenadeTouch, MultiGrenadeTouch: Quake's rules, it goes off on what it can aim at,
@@ -254,6 +390,7 @@ void() VR_Grenade_Touch =
         self.flags = oldFlags;
         self.handtouch = VR_Carry_Handtouch;
         self.vr_wpntouch = VR_Carry_Weapontouch;
+        self.vr_shot_off = FALSE; // (shots meet it again: VR_GrenShot_Update at its tick)
     }
 };
 
@@ -541,6 +678,7 @@ void(entity xBox, float xHand) VR_Grenade_Released =
     }
     xBox.owner = self;
     xBox.vr_gren_made = time; // (not caught again by the hand it leaves)
+    xBox.vr_shot_ownfrom = time + VR_GRENSHOT_OWN_GRACE; // (nor shot by you as it leaves the hand)
     SetThrownWeaponDealDamage(xBox, FALSE); // (it hurts by going off, not as a thrown box)
     if(VR_HandGrenade_Armed(xBox))
     {
@@ -602,6 +740,7 @@ void() VR_Grenade_Think =
     }
     float wasHeld = self.vr_gren_held;
     self.vr_gren_held = held;
+    VR_GrenShot_Update(self); // (not in a hand or a palm)
     if(time >= self.vr_gren_fuse && VR_HandGrenade_Armed(self))
     {
         VR_Grenade_Explode();
@@ -794,6 +933,7 @@ void(float xHand) VR_HandGrenade_Take =
     vr_carry_quiet = TRUE; // (the pouch's own sound)
     VR_Carry_Start(p, xHand, g);
     vr_carry_quiet = FALSE;
+    VR_GrenShot_Make(g); // (shots meet it once it leaves the hand: a dud lying about too)
     // Its turn in the hand as it comes out (vr_grenade_pouch_hold_*), on top of its grip (vr_grip.cpp serverFromPouch).
     g.carry_offset = carrypouch(g, VRGetEntHandRot(p, xHand), g.carry_offset);
     sound(p, CHAN_AUTO, "vr/grenade_pouch.wav", 0.9, ATTN_NORM);
