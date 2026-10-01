@@ -23,6 +23,8 @@
 // - Players stand on solid props (vr_box3d_player_stand, "Standing on props": capsuleStandsOn, beforeStanding,
 //   pressStanding, rideStanding): ground to Quake's movement, their weight pressing, carried as the prop moves. Their
 //   boxes meet a solid prop's drawn box as turned, as a round column (vr_box3d_player_shape: VR_PropClip, propShape).
+// - Shots and missiles (rockets, nails, grenades, lasers, the grappling hook; the guns' traces) meet a solid prop's drawn
+//   box as turned, not its Quake box (vr_box3d_shot_shape: VR_PropShotClip, shotShape).
 // - And kinematic bodies at full speed that push the other props and hold them up (syncReach, ROUND21.md, "Hands and
 //   weapons as bodies"): an empty hand's open hand or fist (vr_box3d_hand_props; not grenades, which the palm catches),
 //   a held weapon's drawn hull (vr_box3d_weapon_push: a grenade is batted). What was inside one as it was made (let go
@@ -4613,6 +4615,8 @@ void player_f()
 
 void inLevel_f(); // (below: the Box3D queries it uses are)
 void approach_f(); // (below, with the players' shape against props)
+void shotBench_f(); // (below, with the shots' shape against props)
+void fire_f();
 void inside_f();
 void watchInside();
 
@@ -4637,6 +4641,8 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_sink", sink_f);
         Cmd_AddCommand("vr_physics_inlevel", inLevel_f);
         Cmd_AddCommand("vr_physics_approach", approach_f);
+        Cmd_AddCommand("vr_physics_shotbench", shotBench_f);
+        Cmd_AddCommand("vr_physics_fire", fire_f);
         Cmd_AddCommand("vr_physics_inside", inside_f);
         Cmd_AddCommand("vr_physics_spawn", spawn_f);
         Cmd_AddCommand("vr_physics_fling", fling_f);
@@ -5912,7 +5918,22 @@ struct PropShape
     int count{0};
 };
 
-void addNormal(PropShape& p, glm::dvec3 n)
+// Shots and missiles against solid props' shapes (vr_box3d_shot_shape; ROUND21.md, "Missiles meet a turned prop's
+// shape"): a shot's or a missile's box (a point, mostly) swept against the prop's drawn box as it is turned, as Quake
+// traces a box against a hull: the half-spaces of their Minkowski sum (the prop's 3 axes; with a box, the world's 3 and
+// the 9 edge pairs too), exact and cheap (a point: 6 planes).
+struct ShotShape
+{
+    glm::dvec3 centre{0.0}; // the prop's drawn box (less the mover's box's offset from its origin): its centre, axes, half its size
+    za::Array<glm::dvec3, 3> axes{};
+    glm::dvec3 half{0.0};
+    glm::dvec3 ext{0.0}; // half the mover's box
+    za::Array<glm::dvec3, 2 * 15> normals{};
+    int count{0};
+};
+
+template <typename Shape>
+void addNormal(Shape& p, glm::dvec3 n)
 {
     const double length = glm::length(n);
     if(length < 1e-6)
@@ -6002,8 +6023,21 @@ void addNormal(PropShape& p, glm::dvec3 n)
     return box + ring + za::max(-n.z * p.bottom, -n.z * p.top);
 }
 
-// Quake 3's brush trace of the player's origin from start to end against the sum's half-spaces. False: missed.
-[[nodiscard]] bool traceProp(const PropShape& p, const glm::dvec3& start, const glm::dvec3& end, trace_t& trace)
+// How far a shot's origin may go along n: the prop's box's support plus the shot's box's.
+[[nodiscard]] double propSupport(const ShotShape& p, const glm::dvec3& n)
+{
+    double h = glm::dot(n, p.centre);
+    for(int k = 0; k < 3; k++)
+    {
+        h += p.half[k] * qza::abs(glm::dot(n, p.axes[static_cast<size_t>(k)])) + p.ext[k] * qza::abs(n[k]);
+    }
+    return h;
+}
+
+// Quake 3's brush trace of the player's origin (or a shot's) from start to end against the sum's half-spaces. False:
+// missed.
+template <typename Shape>
+[[nodiscard]] bool traceProp(const Shape& p, const glm::dvec3& start, const glm::dvec3& end, trace_t& trace)
 {
     double enter = -1.0, leave = 1.0;
     bool startOut = false, getOut = false;
@@ -6487,23 +6521,105 @@ extern "C" int VR_PropClip(edict_t* mover, edict_t* touch, const float* start, c
     return 1;
 }
 
-// SV_ClipToLinks: the flying grappling hook (a point, .vr_hitclass 1) against a solid prop (an explosive box) meets its
-// drawn box as it is turned, not Quake's box round it: a tilted box's empty corners let it by.
-extern "C" int VR_PropPointClip(edict_t* mover, edict_t* touch, const float* start, const float* mins, const float* maxs,
-    const float* end, trace_t* trace)
+namespace
 {
-    if(!world || !mover || mins[0] != 0.f || mins[1] != 0.f || mins[2] != 0.f || maxs[0] != 0.f || maxs[1] != 0.f ||
-        maxs[2] != 0.f)
+
+// Whether `mover` is a flying or thrown thing: a rocket, a nail, a grenade, a laser, a Vore pod, the grappling hook, a gib
+// (MOVETYPE_FLY, FLYMISSILE, BOUNCE, TOSS, GIB); not a player or a monster (in the air), nor a physics body (Box3D's: a
+// prop, one held, a pickup's fixture).
+[[nodiscard]] bool flyingThing(edict_t* mover)
+{
+    if(!mover || mover == qcvm->edicts || (static_cast<int>(mover->v.flags) & (FL_CLIENT | FL_MONSTER)))
+    {
+        return false;
+    }
+    const int m = static_cast<int>(mover->v.movetype);
+    if(m != MOVETYPE_FLY && m != MOVETYPE_FLYMISSILE && m != MOVETYPE_BOUNCE && m != MOVETYPE_TOSS && m != MOVETYPE_GIB)
+    {
+        return false;
+    }
+    const int num = NUM_FOR_EDICT(mover);
+    if(num < static_cast<int>(world->slots.size()))
+    {
+        const Kind k = world->slots[static_cast<size_t>(num)].kind;
+        return k != Kind::Prop && k != Kind::Held && k != Kind::Fixture;
+    }
+    return true;
+}
+
+// Whether a trace or move (SV_Move's type, with its flags) by `mover` is a shot's or a missile's: a missile's move
+// (MOVE_MISSILE, or any of a flying thing's), or a gun's or the grappling hook's trace (MOVE_HITMODEL of their class, or
+// MOVE_HITGIBS alone: the pellets, the lightning, the burst rifle, the laser cannon). Not a melee blow's or a thrown
+// weapon's trace (their classes): those keep the box.
+[[nodiscard]] bool shotMove(edict_t* mover, int type)
+{
+    if((type & ~(MOVE_HITGIBS | MOVE_HITMODEL | MOVE_HITMODEL_CLASS)) == MOVE_MISSILE || flyingThing(mover))
+    {
+        return true;
+    }
+    if(type & MOVE_HITMODEL)
+    {
+        return ((type & MOVE_HITMODEL_CLASS) >> MOVE_HITMODEL_CLASS_SHIFT) <= 1; // (guns 0, the grappling hook 1)
+    }
+    return (type & MOVE_HITGIBS) != 0;
+}
+
+// The shot's box (mins, maxs from its origin) against prop `touch` (slot s) as it stands.
+[[nodiscard]] ShotShape shotShape(const edict_t* touch, const Slot& s, const float* mins, const float* maxs)
+{
+    ShotShape p;
+    const glm::mat3 axes = held::axesFromAngles(touch->v.angles, s.brush);
+    const glm::vec3 mid = (s.mins + s.maxs) * 0.5f;
+    const glm::dvec3 offset{0.5 * (mins[0] + maxs[0]), 0.5 * (mins[1] + maxs[1]), 0.5 * (mins[2] + maxs[2])};
+    p.centre = glm::dvec3{vec(touch->v.origin)} + glm::dvec3{axes * mid} - offset;
+    p.half = glm::dvec3{(s.maxs - s.mins) * 0.5f};
+    p.ext = glm::dvec3{0.5 * (maxs[0] - mins[0]), 0.5 * (maxs[1] - mins[1]), 0.5 * (maxs[2] - mins[2])};
+    for(int k = 0; k < 3; k++)
+    {
+        p.axes[static_cast<size_t>(k)] = glm::normalize(glm::dvec3{axes[k]});
+        addNormal(p, p.axes[static_cast<size_t>(k)]);
+    }
+    if(p.ext.x > 0.0 || p.ext.y > 0.0 || p.ext.z > 0.0)
+    {
+        for(int w = 0; w < 3; w++)
+        {
+            glm::dvec3 e{0.0};
+            e[w] = 1.0;
+            addNormal(p, e);
+            for(const glm::dvec3& a : p.axes)
+            {
+                addNormal(p, glm::cross(a, e)); // (parallel ones are skipped)
+            }
+        }
+    }
+    return p;
+}
+
+} // namespace
+
+// SV_ClipToLinks: a shot or a missile (shotMove: rockets, nails, grenades, lasers, Vore pods, the grappling hook; the
+// guns' traces) against a solid prop (an explosive box) meets its drawn box as it is turned, not Quake's box round it: a
+// turned box's empty corners let it by, and it is met at its real surface (vr_box3d_shot_shape; the flying hook always,
+// as before it: ROUND21.md, the grapple5 section).
+extern "C" int VR_PropShotClip(edict_t* mover, edict_t* touch, const float* start, const float* mins, const float* maxs,
+    const float* end, int type, trace_t* trace)
+{
+    if(!world)
     {
         return 0;
     }
     const int g = NUM_FOR_EDICT(touch);
-    if(!solidProp(g) || fieldFloatOr(mover, fields().vr_hitclass, 0.f) != 1.f)
+    if(!solidProp(g))
     {
         return 0;
     }
-    const float point[3]{0.f, 0.f, 0.f};
-    const PropShape p = propShape(touch, world->slots[g], point, point);
+    const bool point = mins[0] == 0.f && mins[1] == 0.f && mins[2] == 0.f && maxs[0] == 0.f && maxs[1] == 0.f && maxs[2] == 0.f;
+    const bool hook = point && mover && fieldFloatOr(mover, fields().vr_hitclass, 0.f) == 1.f && flyingThing(mover);
+    if(!hook && (!vr_box3d_shot_shape.value || !shotMove(mover, type)))
+    {
+        return 0;
+    }
+    const ShotShape p = shotShape(touch, world->slots[static_cast<size_t>(g)], mins, maxs);
     memset(trace, 0, sizeof(*trace));
     trace->fraction = 1.f;
     VectorCopy(end, trace->endpos);
@@ -6514,6 +6630,180 @@ extern "C" int VR_PropPointClip(edict_t* mover, edict_t* touch, const float* sta
     trace->inopen = !trace->allsolid;
     return 1;
 }
+
+// SV_PushEntity, a flying thing's move that met `other` (vr_debug_missiles): what, where, the surface's normal; a solid
+// prop: its drawn box as it stands (centre, half sizes, axes).
+extern "C" void VR_MissileHitDebug(edict_t* ent, edict_t* other, const trace_t* trace)
+{
+    if(!vr_debug_missiles.value || !world || !flyingThing(ent))
+    {
+        return;
+    }
+    Con_Printf("missile hit: %s %d hit %s %d at %.2f %.2f %.2f normal %.3f %.3f %.3f\n", PR_GetString(ent->v.classname),
+        NUM_FOR_EDICT(ent), other == qcvm->edicts ? "the world" : PR_GetString(other->v.classname), NUM_FOR_EDICT(other),
+        static_cast<double>(trace->endpos[0]), static_cast<double>(trace->endpos[1]), static_cast<double>(trace->endpos[2]),
+        static_cast<double>(trace->plane.normal[0]), static_cast<double>(trace->plane.normal[1]),
+        static_cast<double>(trace->plane.normal[2]));
+    const int g = NUM_FOR_EDICT(other);
+    if(solidProp(g))
+    {
+        const float zero[3]{0.f, 0.f, 0.f};
+        const ShotShape p = shotShape(other, world->slots[static_cast<size_t>(g)], zero, zero);
+        Con_Printf("missile hit: prop %d centre %.3f %.3f %.3f half %.3f %.3f %.3f\n", g, p.centre.x, p.centre.y, p.centre.z,
+            p.half.x, p.half.y, p.half.z);
+        for(int k = 0; k < 3; k++)
+        {
+            const glm::dvec3& a = p.axes[static_cast<size_t>(k)];
+            Con_Printf("missile hit: prop %d axis %d %.5f %.5f %.5f\n", g, k, a.x, a.y, a.z);
+        }
+    }
+}
+
+namespace
+{
+
+// vr_physics_shotbench [<count>]: the cost of a shot's or a missile's clip against the first solid prop (vr_box3d_shot_shape):
+// `count` lines (100000 by default) across its box round it, each as a point's shape clip alone, and as a missile's
+// whole trace (SV_Move, MOVE_MISSILE: the world and every entity near it) with the option on and off. For tests.
+void shotBench_f()
+{
+    if(!sv.active || !world)
+    {
+        Con_Printf("vr_physics_shotbench: no physics world\n");
+        return;
+    }
+    const VmScope vm;
+    int g = 0;
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts && !g; i++)
+    {
+        g = solidProp(i) ? i : 0;
+    }
+    if(!g)
+    {
+        Con_Printf("vr_physics_shotbench: no solid prop\n");
+        return;
+    }
+    edict_t* prop = EDICT_NUM(g);
+    const int count = Cmd_Argc() > 1 ? za::max(1, Q_atoi(Cmd_Argv(1))) : 100000;
+    // The lines: from 64 units outside its box round it, through a point inside that box, on (a fixed sequence).
+    const glm::vec3 lo = vec(prop->v.absmin), hi = vec(prop->v.absmax), mid = (lo + hi) * 0.5f;
+    const auto line = [&](int i, vec3_t a, vec3_t b) {
+        const float u = static_cast<float>((i * 7919) % 1000) / 1000.f, v = static_cast<float>((i * 104729) % 1000) / 1000.f;
+        const float yaw = static_cast<float>(i) * 2.399963f;
+        const glm::vec3 through = lo + (hi - lo) * glm::vec3{u, v, 0.5f * (u + v)};
+        const glm::vec3 dir{za::cos(yaw), za::sin(yaw), 0.3f * (v - 0.5f)};
+        const float reach = glm::length(hi - mid) + 64.f;
+        for(int k = 0; k < 3; k++)
+        {
+            a[k] = through[k] - dir[k] * reach;
+            b[k] = through[k] + dir[k] * reach;
+        }
+    };
+    const float zero[3]{0.f, 0.f, 0.f};
+    int hits = 0;
+    double t0 = Sys_DoubleTime();
+    for(int i = 0; i < count; i++)
+    {
+        vec3_t a, b;
+        line(i, a, b);
+        trace_t tr;
+        memset(&tr, 0, sizeof(tr));
+        tr.fraction = 1.f;
+        const ShotShape p = shotShape(prop, world->slots[static_cast<size_t>(g)], zero, zero);
+        hits += traceProp(p, glm::dvec3{a[0], a[1], a[2]}, glm::dvec3{b[0], b[1], b[2]}, tr) ? 1 : 0;
+    }
+    const double clip = (Sys_DoubleTime() - t0) * 1e9 / count;
+    const float saved = vr_box3d_shot_shape.value;
+    double move[2]{0.0, 0.0};
+    int met[2]{0, 0};
+    for(int on = 0; on < 2; on++)
+    {
+        Cvar_SetValueQuick(&vr_box3d_shot_shape, static_cast<float>(on));
+        t0 = Sys_DoubleTime();
+        for(int i = 0; i < count; i++)
+        {
+            vec3_t a, b, m{0.f, 0.f, 0.f};
+            line(i, a, b);
+            met[on] += SV_Move(a, m, m, b, MOVE_MISSILE, nullptr).ent == prop ? 1 : 0;
+        }
+        move[on] = (Sys_DoubleTime() - t0) * 1e9 / count;
+    }
+    Cvar_SetValueQuick(&vr_box3d_shot_shape, saved);
+    Con_Printf("vr_physics_shotbench: prop %d, %d lines: a point's shape clip %.0f ns (%d hit its shape); a missile's whole "
+               "trace %.0f ns with the shape (%d met it), %.0f ns with its box (%d met it)\n",
+        g, count, clip, hits, move[1], met[1], move[0], met[0]);
+}
+
+// vr_physics_fire <kind> [<x> <y> <z>]: a missile or a shot of yours (QC's VR_Test_Fire), from your eyes at the world
+// point, or at the middle of the nearest solid prop: 0 a rocket, 1 a nail, 2 a grenade, 3 a super nail, 4 an enforcer's
+// laser, 10 a shotgun pellet (the burst rifle's, the lightning's trace). vr_debug_missiles prints where a missile hits. For
+// tests (shots against a turned prop's shape).
+void fire_f()
+{
+    if(!sv.active || Cmd_Argc() < 2 || svs.maxclients < 1)
+    {
+        Con_Printf("usage: vr_physics_fire <kind> [<x> <y> <z>]\n");
+        return;
+    }
+    const VmScope vm;
+    edict_t* player = EDICT_NUM(1);
+    dfunction_t* fn = nullptr;
+    for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)
+    {
+        fn = !strcmp(PR_GetString(qcvm->functions[i].s_name), "VR_Test_Fire") ? &qcvm->functions[i] : nullptr;
+    }
+    if(!fn || player->free)
+    {
+        Con_Printf("vr_physics_fire: no VR_Test_Fire in the progs, or no player\n");
+        return;
+    }
+    glm::vec3 at{0.f};
+    if(Cmd_Argc() >= 5)
+    {
+        at = glm::vec3{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
+    }
+    else
+    {
+        float best = 1e30f;
+        for(int i = svs.maxclients + 1; world && i < qcvm->num_edicts; i++)
+        {
+            if(!solidProp(i))
+            {
+                continue;
+            }
+            const float zero[3]{0.f, 0.f, 0.f};
+            const glm::vec3 c{shotShape(EDICT_NUM(i), world->slots[static_cast<size_t>(i)], zero, zero).centre};
+            const float d = glm::distance(c, vec(player->v.origin));
+            if(d < best)
+            {
+                best = d;
+                at = c;
+            }
+        }
+        if(best >= 1e30f)
+        {
+            Con_Printf("vr_physics_fire: no solid prop to fire at\n");
+            return;
+        }
+    }
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(player);
+    G_FLOAT(OFS_PARM0) = static_cast<float>(Q_atof(Cmd_Argv(1)));
+    G_FLOAT(OFS_PARM1 + 0) = at.x;
+    G_FLOAT(OFS_PARM1 + 1) = at.y;
+    G_FLOAT(OFS_PARM1 + 2) = at.z;
+    PR_ExecuteProgram(static_cast<func_t>(fn - qcvm->functions));
+    edict_t* shot = PROG_TO_EDICT(G_INT(OFS_RETURN));
+    if(shot != qcvm->edicts)
+    {
+        Con_Printf("vr_physics_fire: %s %d from %.3f %.3f %.3f vel %.3f %.3f %.3f\n", PR_GetString(shot->v.classname),
+            NUM_FOR_EDICT(shot), static_cast<double>(shot->v.origin[0]), static_cast<double>(shot->v.origin[1]),
+            static_cast<double>(shot->v.origin[2]), static_cast<double>(shot->v.velocity[0]),
+            static_cast<double>(shot->v.velocity[1]), static_cast<double>(shot->v.velocity[2]));
+    }
+}
+
+} // namespace
 
 extern "C" int VR_PushSkips(edict_t* ent)
 {

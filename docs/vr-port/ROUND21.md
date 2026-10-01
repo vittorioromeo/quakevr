@@ -17596,6 +17596,47 @@ explosive box tilted 45 degrees took the hook in the air beside it. Branch `agen
   Tilted): `impulse 241`'s box (100..104) let loose, turned and tipped; `vr_grapple_test_aim x y z` turns the flying hook
   at a world point; `vr_grapple_debug 2` prints a bitten prop's origin and model axes.
 
+## Missiles meet a turned prop's shape (2026-10-01)
+
+The author's decision: rockets, nails and every other missile hit a turned solid prop at its real shape, not the bigger
+box round it, as the grappling hook did (the grapple5 section above). Branch `agent/missileshape`.
+
+- **The engine's move:** `VR_PropShotClip` (vr_box3d.cpp, from world.c's SV_ClipToLinks; it replaces the hook's
+  `VR_PropPointClip`): a shot or a missile against a solid prop (an explosive box) meets its drawn box as it is turned.
+  Which moves: any move of a flying thing (MOVETYPE_FLY, FLYMISSILE, BOUNCE, TOSS, GIB: rockets, nails, super and lava
+  nails, grenades, enforcer and Hipnotic lasers, Vore pods, ogre and zombie lobs, gibs, the hook; not players, monsters
+  nor Box3D bodies), any MOVE_MISSILE trace, and the guns' and the hook's traces (MOVE_HITMODEL of class guns or
+  grapple, or MOVE_HITGIBS alone): the shotgun pellets, the burst rifle, the lightning, the laser cannon, the QC traces
+  that stand in for a missile's flight (VR_TouchTrace, VR_ShotPlace). A melee blow's and a thrown weapon's traces keep
+  the box (their classes). Before this only the hook did: the hitscan traces met the box round it too.
+- **The shape:** the mover's box (a point, mostly) swept against the prop's turned box: the half-spaces of their
+  Minkowski sum (the prop's 3 axes; for a box, also the world's 3 and the 9 edge pairs), through the same brush trace
+  as the players' column (`traceProp`, now a template), stopped DIST_EPSILON short. The plane is the face's: a rocket's
+  scorch and a nail's ricochet lie on the real face.
+- **Option:** `vr_box3d_shot_shape` (1; Movement > Player Hitbox > Standing on Props > Shots Meet Their Shape). 0: the box round it
+  (the hook still meets the shape, as before).
+- **Cost:** `vr_physics_shotbench` (exclusive run, a box turned 45 degrees): a point's shape clip 87 ns; a missile's
+  whole trace through a solid prop's box 481 ns with the shape, 405 ns with its box. Only a move whose box overlaps a
+  solid prop's box pays it.
+- **Checked (mock; `python Misc/quakevr/shot_shape_test.py <worktree> [yaw,tilt ...] [--off] [--more]`):** an
+  explosive box that never blows up (`vr_test_spawn 104`), 160 units ahead, turned 0, 22, 45 degrees about its upright
+  and tilted 22 and 45 (sv_gravity 0); a rocket, a nail, a grenade (flying straight) and a shotgun pellet fired at its
+  middle, at its facing corners 1.5 units in and at the corners of the box round it 1 unit in: 180 shots, 0 failures;
+  every hit 0.04-0.05 units from the exact ray / turned-box crossing; through the empty corners every one went by (to
+  the wall behind). `--more` (a super nail, an enforcer's laser): 36 shots, 0 failures. With `--off` (the old box): 44
+  of 72 wrong (the empty corners hit, up to 12 units off the surface). The grapple test (45 degrees) still 0 failures;
+  the melee canary unchanged.
+- **Test aids:** `vr_physics_fire <kind> [<x> <y> <z>]` (QC `VR_Test_Fire`): a missile or a shot of yours from your eyes
+  at the point, or at the nearest solid prop's middle (0 a rocket, 1 a nail, 2 a grenade, 3 a super nail, 4 an
+  enforcer's laser, 10 a shotgun pellet); `vr_debug_missiles` prints each missile's hit (what, where, the normal; a
+  prop's drawn box); `vr_physics_shotbench [<count>]`. In the menus: Debug > Logs > Missile Hits; Movement > Player Hitbox >
+  Tests > Rocket / Nail / Grenade at the Nearest Box, Shot Clip Cost.
+
+### In the headset
+
+- Shoot a tilted or turned explosive box (knock one over) with the shotgun, nails and rockets: through the empty space
+  beside its corners the shots go by; on its faces they hit where it is drawn (bullet puffs, nails, the rocket's blast).
+
 ## Phasing through a box toppled in both hands (2026-10-01)
 
 Your note (vrfiringrange_2026-10-01_00-33): push the long explosive box, hold it in both hands, topple it so it lands on
