@@ -70,6 +70,8 @@ Enforcer rifle: lower top and a short front post; one-handed on targets 5-15 m t
 Hand grenade in the palm: thumb wraps round the outside; bricks now too (Hands > Thumb Opens Wide Round Them to compare)
 Empty hand pushed into the gun in your other hand (side, top, barrel): both held back like a held box does (5 cm each, buzz), then sinks in gradually
 
+Controller spin frame fix (Throwing > Controller Spin Frame, auto): Debug > Controller Spin on, flick both wrists: fixed cosine ~1.0, evidence stays positive; throws and calibration feel the same facing any way in your room
+
 [Decide or give feedback]
 Hand Collide (empty hand vs weapon) and Collide Give (held prop) are separate settings, both 5 cm: merge them into one?
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
