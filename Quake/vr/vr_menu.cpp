@@ -2276,6 +2276,9 @@ za::Vector<Item> pageDebugLogging()
         toggle("Shots and Damage", vr_debug_shots)
             .help("Each hitscan shot (where it starts, its direction, what its pellets hit, headshots), each damage you deal "
                   "(and when Quad's sound plays) and each prop a shot pushes. Needs Developer Messages."),
+        toggle("Missile Hits", vr_debug_missiles)
+            .help("Each missile's hit (rockets, nails, grenades, lasers...): what it met, where and the surface's normal; "
+                  "a solid prop: its drawn box as it stands (vr_debug_missiles)."),
         cycle("Throws", vr_debug_throw, {{0.f, "Off"}, {1.f, "Each Throw"}, {2.f, "And Its Timing"}})
             .help("Each throw's speed estimate from the hand's motion (and the release's timing)."),
         toggle("Axe Sticks", vr_debug_axestick)
@@ -2970,9 +2973,24 @@ za::Vector<Item> pageHitbox()
             .help("You meet a solid prop's shape as drawn, however it is turned, and round: as close to a box's face turned "
                   "any way as to a wall; a tilted box is no taller than it looks. Off: the upright box round it "
                   "(vr_box3d_player_shape)."),
+        toggle("Shots Meet Their Shape", vr_box3d_shot_shape)
+            .help("Rockets, nails, grenades, lasers and every other missile, and the guns' shots, meet a solid prop's "
+                  "shape as drawn, however it is turned: a tilted box's empty corners let them by, and they hit its real "
+                  "faces. Off: the upright box round it (the grappling hook still meets its shape) (vr_box3d_shot_shape)."),
         header("Tests"),
         command("Stand on a Box", "vr_physics_player onto misc_explobox")
             .help("Puts you on top of the level's first explosive box (vr_physics_player onto <number | classname>)."),
+        command("Rocket at the Nearest Box", "vr_debug_missiles 1; developer 1; vr_physics_fire 0")
+            .help("Fires a rocket of yours from your eyes at the middle of the nearest solid prop and prints where it hits "
+                  "(vr_physics_fire <kind> [<x> <y> <z>]: 0 a rocket, 1 a nail, 2 a grenade, 3 a super nail, 4 an "
+                  "enforcer's laser, 10 a shotgun pellet; Missile Hits)."),
+        command("Nail at the Nearest Box", "vr_debug_missiles 1; vr_physics_fire 1")
+            .help("A nail of yours at the middle of the nearest solid prop (vr_physics_fire 1)."),
+        command("Grenade at the Nearest Box", "vr_debug_missiles 1; vr_physics_fire 2")
+            .help("A grenade of yours, thrown straight at the middle of the nearest solid prop (vr_physics_fire 2)."),
+        command("Shot Clip Cost", "vr_physics_shotbench")
+            .help("Prints how long a shot's or a missile's clip against the first solid prop's shape takes, and a "
+                  "missile's whole trace with Shots Meet Their Shape on and off (vr_physics_shotbench [<count>])."),
         command("Box Approach", "vr_physics_approach")
             .help("Prints how close your box gets to the first explosive box's face from 16 directions round it: the same "
                   "from every side and as close as to a wall (Hitbox Approach) with Their Real Shape on."),

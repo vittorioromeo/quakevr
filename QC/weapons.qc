@@ -3899,6 +3899,70 @@ void() VR_Test_MissilesReport =
     dprint(sprintf(" touched %s\n", what));
 };
 
+// vr_physics_fire (vr_box3d.cpp): a missile or a shot of yours from your eyes at the world point xAt, flying straight
+// at it (shape tests: missiles and shots against a turned solid prop; vr_debug_missiles prints where a missile hits,
+// vr_debug_shots what a pellet hit). xKind: 0 a rocket, 1 a nail, 2 a grenade, 3 a super nail, 4 an enforcer's laser,
+// 10 a shotgun pellet (the burst rifle's and the lightning's trace: the same). The missile, or world for a shot.
+entity(float xKind, vector xAt) VR_Test_Fire =
+{
+    vector from = self.origin + self.view_ofs;
+    vector dir = normalize(xAt - from);
+    from = from + dir * 24; // (ahead of your hands)
+    if(xKind == 10)
+    {
+        traceline(from, from + dir * 2048, MOVE_HITGIBS | MOVE_HITMODEL, self); // (a pellet's: FireBulletsImpl)
+        string what = "nothing";
+        if(trace_ent != world) { what = trace_ent.classname; } else if(trace_fraction < 1) { what = "the world"; }
+        dprint(sprintf("test fire: shot from %.3f %.3f %.3f dir %.5f %.5f %.5f ", from_x, from_y, from_z, dir_x, dir_y, dir_z));
+        dprint(sprintf("hit %s at %.3f %.3f %.3f\n", what, trace_endpos_x, trace_endpos_y, trace_endpos_z));
+        vr_tracer_hand = -1;
+        vr_tracer_from = from;
+        FireBulletsImpl(1, dir, '0 0 0', from, 2048, FALSE); // (and the shot itself)
+        return world;
+    }
+    entity m;
+    if(xKind == 2)
+    {
+        m = spawn();
+        m.owner = self;
+        m.movetype = MOVETYPE_BOUNCE;
+        m.solid = SOLID_BBOX;
+        m.classname = "grenade";
+        m.touch = GrenadeTouch;
+        m.nextthink = time + 2.5;
+        m.think = GrenadeExplode;
+        setmodel(m, "progs/grenade.mdl");
+        setsize(m, '0 0 0', '0 0 0');
+        setorigin(m, from);
+        m.velocity = dir * 600;
+    }
+    else if(xKind == 4)
+    {
+        m = LaunchLaser(from, dir);
+    }
+    else
+    {
+        m = launch_spike(from, dir);
+        if(xKind == 0)
+        {
+            m.classname = "missile";
+            m.touch = T_MissileTouch;
+            m.vr_shot_push_kind = 0;
+            setmodel(m, "progs/missile.mdl");
+            m.velocity = dir * 1000;
+        }
+        else if(xKind == 3)
+        {
+            m.touch = superspike_touch;
+            m.vr_shot_push_kind = QVR_SHOTPUSH_SUPERNAIL;
+            setmodel(m, "progs/s_spike.mdl");
+        }
+        setsize(m, '0 0 0', '0 0 0');
+    }
+    m.angles = vectoangles(m.velocity);
+    return m;
+};
+
 void() ImpulseCommands =
 {
     // Development and tests (single player): impulse 150 + a weapon id puts that weapon, loaded, in

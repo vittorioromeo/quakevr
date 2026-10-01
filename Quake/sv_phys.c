@@ -424,7 +424,10 @@ trace_t SV_PushEntity (edict_t *ent, vec3_t push)
 	SV_LinkEdict (ent, true);
 
 	if (trace.ent)
+	{
+		VR_MissileHitDebug (ent, trace.ent, &trace); // QVR: vr_debug_missiles
 		SV_Impact (ent, trace.ent);
+	}
 
 	return trace;
 }
