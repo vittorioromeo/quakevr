@@ -595,7 +595,7 @@ OncePerFrame oncePerFrame;
 glm::vec3 carriedTip[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // a carried weapon's tip as drawn (setupWeapon)
 bool carriedTipValid[2]{false, false};
 glm::vec3 carriedAngles[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and its entity's angles, the pitch negated (QC's thrown weapon's)
-double carriedPrintAt = -1.0; // vr_debug_2h_grip 2: the next print of a carried weapon's hotspots off its hand
+double carriedPrintAt[2]{-1.0, -1.0}; // vr_debug_2h_grip 2, per hand: the next print of its weapon's drawn pose
 
 // vr_grapple_debug's memory: what was printed last, and when the next print may come.
 struct GrappleDebug
@@ -1176,8 +1176,9 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
 
     // Steadied in the "fixed" two-handed display mode (a grip hotspot: the helping hand drawn on it): the weapon's
     // own blend towards frame 0 for that grip (old engine's V_SetupHandViewEnts).
+    // Not held anywhere: a hotspot's own setting (NOTES.md vrfiringrange_2026-10-01_17-13-04).
     const bool fixed2H = model && slot >= 0 && hasGripHotspot(slot);
-    ve.zeroBlend = weapons::value(slot, fixed2H && twohand::helping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
+    ve.zeroBlend = weapons::value(slot, fixed2H && twohand::helping(1 - hand) && !twohand::freeHelping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
 
     if(model && slot >= 0 && !carried) // a carried gun has no aim
     {
@@ -1213,15 +1214,16 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     }
 
     s.grip2HValid[hand] = fixed2H && !carried;
-    if(carried && model && slot >= 0 && vr_debug_2h_grip.value >= 2.f && realtime >= carriedPrintAt)
+    if(model && slot >= 0 && slot != weapons::fistSlot() && vr_debug_2h_grip.value >= 2.f && realtime >= carriedPrintAt[hand])
     {
-        // vr_debug_2h_grip 2: how far the hand carrying it is drawn from each of its grip and blade hotspots.
-        carriedPrintAt = realtime + 0.5;
-        Con_Printf("2h grip: %s hand carrying %s: drawn at %.1f %.1f %.1f, angles %.1f %.1f %.1f%s\n",
-            hand == HAND_MAIN ? "main" : "off", model->name, ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2],
+        // vr_debug_2h_grip 2: where its weapon is drawn (held or carried: a hand-off's continuity); carried, how far the
+        // hand carrying it is drawn from each of its grip and blade hotspots.
+        carriedPrintAt[hand] = realtime + 0.5;
+        Con_Printf("2h grip: %s hand %s %s: drawn at %.1f %.1f %.1f, angles %.1f %.1f %.1f%s\n",
+            hand == HAND_MAIN ? "main" : "off", carried ? "carrying" : "holding", model->name, ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2],
             ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2], mirrored ? ", mirrored" : "");
         glm::vec3 handPos, handRot;
-        if(twohand::carryingHand(s, hand, handPos, handRot))
+        if(carried && twohand::carryingHand(s, hand, handPos, handRot))
         {
             const glm::vec3 tip = view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
                 weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
@@ -1320,7 +1322,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         place(old, m.from, held.pos, {-ot.x, ot.y, ot.z},
             za::clamp(frame, 0, za::max(m.from->numframes - 1, 0)), mirrored);
         const bool oldFixed2H = hasGripHotspot(oldSlot);
-        old.zeroBlend = weapons::value(oldSlot, oldFixed2H && twohand::helping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
+        old.zeroBlend = weapons::value(oldSlot, oldFixed2H && twohand::helping(1 - hand) && !twohand::freeHelping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
         ve.morph = morphValue(t, m.kind, true);
         old.morph = morphValue(t, m.kind, false);
     }

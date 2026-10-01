@@ -114,6 +114,9 @@ void setFreeCandidate(int hand, bool on);
 // How `hand` helps hold the other hand's weapon (QC weaponanygrip): 0 not, 1 by a hotspot (or the old anywhere 5-25
 // units), 2 anywhere (a free grip; or a moment ago).
 [[nodiscard]] int helpKind(int hand);
+// Where the other hand holds the weapon in (or carried by) `hand` anywhere on it (world), and how far that grip is
+// blended in (`t`): its weight turns about between the hands (vr_weight.cpp), as with a hotspot. False: no free grip.
+[[nodiscard]] bool freeGripPoint(const hands::State& s, int hand, glm::vec3& out, float& t);
 // How much the weapon in `hand` is held two-handed (its weight shared, vr_weight.cpp): the hotspot grip's transition, a
 // free grip's.
 [[nodiscard]] float support(int hand);
