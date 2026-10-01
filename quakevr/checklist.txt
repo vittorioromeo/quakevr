@@ -11,6 +11,7 @@
 # remove items freely; changing an item's wording un-ticks it.
 
 [Test in VR]
+Weapon Offsets > Holstered > Pose in This Holster (hip, upper, shoulder): carry the gun into the floating holster with a grip, let go, press menu: does it sit in your holster as you left it?
 Main menu at start (before a map): the laser's dot follows your hand on the flat panel, trigger picks a row
 Flung prop damage feels right (Throwing and Physics > Flung Props: Damage, Reference Mass)
 

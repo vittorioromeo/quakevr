@@ -2598,6 +2598,50 @@ function, the hand's drawing split out).
 - Pose a foregrip and a cup, then take them in play. Is the cup still round your hand?
 - Is the text readable and out of the way? Is 40 cm ahead at the chest a good place for the weapon?
 - Undo a few times; leave with the menu button; do the page's sliders show the new values?
+
+## Posing a weapon in a holster
+
+Your note (e1m1, 2026-10-01 00:43): posing a weapon in a holster with the sliders is tiring, more so looking down at
+the hip. Now: pick the holster on the Weapon Offsets page as before, press **Pose in This Holster**, and put the weapon
+in it by hand. Branch `agent/holsterpose`. The posing mode's flow, text, sounds, clicks and undo are the weapon
+posing mode's (above).
+
+| | What you get |
+|---|---|
+| Enter | Weapon Offsets > Holstered > **Holster** (Hip, Upper (Chest), Shoulder (Back)), then **Pose in This Holster**; or `vr_pose hip`, `vr_pose upper`, `vr_pose shoulder` |
+| The holster | the right holster of that kind, as it is on your body (its model, its own turn from Hotspots, the body's fit), floats 45 cm ahead of your head and 35 cm below it, turned so that its outside faces you; the weapon in it as its Holstered sliders put it. Marks: the holster's point (white), its axes (red off the body, green outwards, blue up) and a faint line into where the body would be |
+| Move it | either hand's **grip** takes the weapon (from wherever the hand is: it keeps its place relative to the hand) and carries it, turning with the hand; letting go leaves it where it is |
+| Set | **A/X** (either hand) writes the six Holstered settings of that kind (X/Y/Z, Pitch/Yaw/Roll) that put the weapon there, for both holsters of the kind (the left mirrors the right, as always). **B/Y** undoes |
+| Leave | the **menu button** sets it if you moved it since the last set, then leaves (back to the page, or to the game from the console) |
+| Trigger | the next kind of holster (hip, upper, shoulder): placed in front again; the page's Holster row follows |
+| Stick | turns the holster and the weapon in it together (to see it from the sides: nothing set changes); its click puts it back in front as it started, the weapon where its settings put it |
+
+The grenade pouch holds grenades, not weapons: it has no holstered pose, so nothing to pose there.
+
+How it works (`vr_posing.cpp`, `vr_view.cpp`: `setupHolsterPosing`, `floatingHolster`, `holsteredFrom`): the right
+holster of the kind is worked out by the holster code (`setupHolsters`) on the first frame, then moved rigidly in front
+of you, its frame (out, up, outwards) with it. What a set writes is `poseHolstered` undone: X/Y/Z are the weapon's
+move from where the holster alone puts it along the frame's axes; the turn, in the frame's axes, is
+`Rz(yaw) Ry(pitch) Rx(-roll)` whichever way the frame is handed, so Pitch/Yaw/Roll are that product's angles. Both
+hands are drawn empty while posing in a holster.
+
+Tests (mock; `vr_pose_check` after holstering the weapon there: the weapon in each holster of that kind holding it,
+in the holster's frame, against the pose set):
+
+| Case | Weapon vs the pose set |
+|---|---|
+| Hip (shotgun, off hand carrying it, set with the menu button), the new game's shotgun in the right hip | 0.0000 units, 0.0000° |
+| Upper, started from the page's row (the main hand's A), the off hand carrying it; holstered at the right upper | 0.0001 units, 0.0012° |
+| The same, the page's preview: both upper holsters (the left mirrored) | 0.0000 units, 0.0000° (each) |
+| Shoulder, set with `vr_pose_confirm`; holstered at the right shoulder | 0.0000 units, 0.0000° |
+| Set, turned (`vr_pose_turn 40 20`), set again; the stick click, set; three undos | the same values; back to the defaults |
+
+### In the headset
+
+- Hold the shotgun, Weapon Offsets > Holstered > Holster: Hip > Pose in This Holster. Is the floating holster where
+  you can work with it? Carry the gun into it with a grip, let go, press menu: is it on your hip as you left it?
+- The same for Upper (Chest) and Shoulder (Back) (the trigger goes on to the next one).
+- Is taking it from wherever the hand is (not only at the gun) good, or should the hand have to be at the gun?
 ## Box3D physics
 
 Your request: two agents in parallel, one extending the current solver to stack, the other (this one) adding Box3D

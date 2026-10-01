@@ -64,6 +64,10 @@ struct Posed
     glm::vec3 palmInWeapon{0.f};
     glm::mat4 rigWorld{1.f};
     bool palmFitted{false}; // palmInWeapon seen solved (solvedPalm)
+    // Target::Holster: the weapon's model and its place in the holster (Candidate::inHolster*).
+    weapons::HolsterKind kind{weapons::HolsterKind::Hip};
+    qmodel_t* model{nullptr};
+    glm::vec3 inHolsterPos{0.f}, inHolsterFwd{1.f, 0.f, 0.f}, inHolsterUp{0.f, 0.f, 1.f};
 };
 Posed lastPosed;
 
@@ -84,6 +88,16 @@ constexpr float turnSpeed = 120.f; // degrees a second, the stick all the way
 [[nodiscard]] const char* handName(int hand)
 {
     return hand == HAND_MAIN ? "main" : "off";
+}
+
+[[nodiscard]] const char* kindName(weapons::HolsterKind kind)
+{
+    switch(kind)
+    {
+        case weapons::HolsterKind::Upper: return "Upper (Chest)";
+        case weapons::HolsterKind::Shoulder: return "Shoulder (Back)";
+        default: return "Hip";
+    }
 }
 
 [[nodiscard]] const char* typeName(HotspotType type)
@@ -217,7 +231,20 @@ void confirm()
     const int slot = current.slot;
     const bool reset = resetOffsets();
     char buf[256];
-    if(current.target == Target::Weapon)
+    if(current.target == Target::Holster)
+    {
+        const weapons::HolsterKind kind = current.holster.kind;
+        const float values[] = {c.holstered.offset.x, c.holstered.offset.y, c.holstered.offset.z, c.holstered.angles.x,
+            c.holstered.angles.y, c.holstered.angles.z};
+        for(int f = 0; f < weapons::holsteredFields; f++)
+        {
+            write(step, slot, weapons::holsteredKey(kind, f), values[f]);
+        }
+        q_snprintf(buf, sizeof(buf), "set %s in the %s holsters: %.1f %.1f %.1f, turn %.0f %.0f %.0f",
+            slotName(writtenSlot()).cStr(), kindName(kind), values[0], values[1], values[2], values[3], values[4], values[5]);
+        current.holster.moved = false;
+    }
+    else if(current.target == Target::Weapon)
     {
         constexpr Key place[] = {Key::OffsetX, Key::OffsetY, Key::OffsetZ, Key::Pitch, Key::Yaw, Key::Roll};
         const float values[] = {c.offset.x, c.offset.y, c.offset.z, c.angles.x, c.angles.y, c.angles.z};
@@ -283,7 +310,7 @@ void confirm()
     step.what = buf;
     undoSteps.pushBack(ZA_MOVE(step));
     lastPosed = {true, current.target, current.weaponHand, current.hotspot, c.rigInWeapon, c.palmInWeapon, c.rigWorld,
-        c.palmFitted};
+        c.palmFitted, current.holster.kind, current.model, c.inHolsterPos, c.inHolsterFwd, c.inHolsterUp};
     solvedUntil = realtime + solvedShowSeconds; // the grip it gives, for a moment
     say(buf);
     S_LocalSound("weapons/pkup.wav");
@@ -305,6 +332,11 @@ void undo()
         Cvar_SetQuick(step.changes[k].var, step.changes[k].was.cStr());
     }
     lastPosed.valid = false;
+    if(current.active && current.target == Target::Holster)
+    {
+        current.holster.fromSettings = true; // the weapon back where the settings now put it
+        current.holster.grabHand = -1;
+    }
     say("undone: " + step.what);
     S_LocalSound("misc/menu2.wav");
     if(current.active)
@@ -316,6 +348,18 @@ void undo()
 // Weapon -> hotspot 1 .. 4 -> weapon.
 void next()
 {
+    if(current.target == Target::Holster)
+    {
+        // Hip -> upper -> shoulder -> hip: placed again in front (the Weapon Offsets page edits that kind then).
+        HolsterSession& h = current.holster;
+        h.kind = static_cast<weapons::HolsterKind>((static_cast<int>(h.kind) + 1) % weapons::holsterKinds);
+        h.placed = false;
+        h.grabHand = -1;
+        Cvar_SetValueQuick(&vr_weapon_holster, static_cast<float>(static_cast<int>(h.kind) + 1));
+        latest.valid = false;
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
     if(current.target == Target::Weapon)
     {
         current.target = Target::Hotspot;
@@ -355,6 +399,30 @@ void nextType()
 // view), degrees, about its middle.
 void turn(float yaw, float tilt)
 {
+    if(current.target == Target::Holster)
+    {
+        HolsterSession& h = current.holster;
+        if(!h.placed || (yaw == 0.f && tilt == 0.f))
+        {
+            return;
+        }
+        // The holster and the weapon in it turned together about the holster's point (the pose between them stays).
+        const glm::mat3 m = glm::mat3_cast(glm::angleAxis(glm::radians(yaw), glm::vec3{0.f, 0.f, 1.f}) *
+                                           glm::angleAxis(glm::radians(-tilt), h.tiltAxis));
+        h.out = m * h.out;
+        h.up = m * h.up;
+        h.side = m * h.side;
+        h.basePos = h.pivot + m * (h.basePos - h.pivot);
+        h.baseTurn = m * h.baseTurn;
+        h.slotPos = h.pivot + m * (h.slotPos - h.pivot);
+        h.slotTurn = m * h.slotTurn;
+        if(h.grabHand < 0)
+        {
+            h.weaponPos = h.pivot + m * (h.weaponPos - h.pivot);
+            h.weaponTurn = m * h.weaponTurn;
+        }
+        return;
+    }
     if(!current.placed || (yaw == 0.f && tilt == 0.f))
     {
         return;
@@ -367,6 +435,14 @@ void turn(float yaw, float tilt)
 
 void resetTurn()
 {
+    if(current.target == Target::Holster)
+    {
+        // In front again, as it started: the holster where you look, the weapon where its settings put it.
+        current.holster.placed = false;
+        current.holster.grabHand = -1;
+        latest.valid = false;
+        return;
+    }
     current.turn = current.startTurn;
     current.modelOrigin = current.startOrigin;
 }
@@ -374,6 +450,10 @@ void resetTurn()
 [[nodiscard]] za::String targetLine()
 {
     const int poser = posingHand();
+    if(current.target == Target::Holster)
+    {
+        return za::String{"The "} + kindName(current.holster.kind) + " holster: take the weapon with a grip, put it in it";
+    }
     if(current.target == Target::Weapon)
     {
         return za::String{"The weapon: pose your "} + handName(poser) + " hand on it";
@@ -407,6 +487,11 @@ void pose_f()
         target = Target::Hotspot;
         index = -1;
     }
+    else if(!q_strcasecmp(what, "hip") || !q_strcasecmp(what, "upper") || !q_strcasecmp(what, "shoulder"))
+    {
+        target = Target::Holster;
+        index = !q_strcasecmp(what, "hip") ? 0 : !q_strcasecmp(what, "upper") ? 1 : 2;
+    }
     else if(what[0] >= '1' && what[0] <= '4' && !what[1])
     {
         target = Target::Hotspot;
@@ -414,8 +499,9 @@ void pose_f()
     }
     else if(q_strcasecmp(what, "weapon") != 0)
     {
-        Con_Printf("usage: vr_pose [weapon | 1..4 | new | stop] [main | off]\n"
-                   "  poses the weapon in the main hand (or else the off hand's), held in the hand given\n");
+        Con_Printf("usage: vr_pose [weapon | 1..4 | new | hip | upper | shoulder | stop] [main | off]\n"
+                   "  poses the weapon in the main hand (or else the off hand's), held in the hand given; hip, upper,\n"
+                   "  shoulder: in that kind of holster\n");
         return;
     }
     // The weapon held (the main hand's, else the off hand's).
@@ -473,6 +559,12 @@ void check_f()
         Con_Printf("vr_pose_check: nothing confirmed (or it was undone)\n");
         return;
     }
+    if(lastPosed.target == Target::Holster)
+    {
+        view::holsterPoseCheck(lastPosed.kind, lastPosed.model, lastPosed.inHolsterPos, lastPosed.inHolsterFwd,
+            lastPosed.inHolsterUp);
+        return;
+    }
     view::posingCheck(lastPosed.target == Target::Weapon, lastPosed.weaponHand, lastPosed.rigInWeapon,
         lastPosed.palmFitted ? &lastPosed.palmInWeapon : nullptr, lastPosed.rigWorld);
 }
@@ -507,6 +599,10 @@ Candidate& candidate()
 
 int posingHand()
 {
+    if(current.target == Target::Holster)
+    {
+        return current.holster.grabHand >= 0 ? current.holster.grabHand : current.weaponHand;
+    }
     return current.target == Target::Weapon ? current.weaponHand : 1 - current.weaponHand;
 }
 
@@ -564,6 +660,10 @@ bool start(int slot, qmodel_t* model, int weaponHand, Target target, int hotspot
     {
         return refuse("hold the weapon to pose");
     }
+    if(target == Target::Holster && hotspot < 0)
+    {
+        hotspot = 0;
+    }
     if(target == Target::Hotspot && hotspot < 0)
     {
         hotspot = firstFreeHotspot(slot);
@@ -588,8 +688,10 @@ bool start(int slot, qmodel_t* model, int weaponHand, Target target, int hotspot
     current.model = model;
     current.weaponHand = weaponHand;
     current.target = target;
-    current.hotspot = CLAMP(0, hotspot, weapons::maxHotspots - 1);
+    current.hotspot = target == Target::Holster ? 0 : CLAMP(0, hotspot, weapons::maxHotspots - 1);
     current.type = typeFor(slot, current.hotspot);
+    current.holster.kind =
+        static_cast<weapons::HolsterKind>(target == Target::Holster ? CLAMP(0, hotspot, weapons::holsterKinds - 1) : 0);
     current.returnPage = returnPage;
     sessionWorld = worldGeneration();
     latest = Candidate{};
@@ -598,9 +700,17 @@ bool start(int slot, qmodel_t* model, int weaponHand, Target target, int hotspot
     ZA_MEMSET(eaten, 0, sizeof(eaten));
 
     const int from = weapons::inheritsFrom(slot);
-    Con_Printf("Posing %s%s: %s. Confirm with %s, undo with %s; the menu button leaves.\n", slotName(slot).cStr(),
-        from >= 0 ? (" (the settings of " + slotName(from) + ", which it inherits)").cStr() : "", targetLine().cStr(),
-        lowerButton(confirmHand()), upperButton(confirmHand()));
+    const za::String whose = from >= 0 ? " (the settings of " + slotName(from) + ", which it inherits)" : za::String{};
+    if(target == Target::Holster)
+    {
+        Con_Printf("Posing %s%s: %s. A/X sets it, B/Y undoes; the menu button sets it and leaves.\n", slotName(slot).cStr(),
+            whose.cStr(), targetLine().cStr());
+    }
+    else
+    {
+        Con_Printf("Posing %s%s: %s. Confirm with %s, undo with %s; the menu button leaves.\n", slotName(slot).cStr(),
+            whose.cStr(), targetLine().cStr(), lowerButton(confirmHand()), upperButton(confirmHand()));
+    }
     S_LocalSound("misc/menu3.wav");
     return true;
 }
@@ -633,6 +743,11 @@ bool button(int hand, Button b, bool down)
     {
         const bool mine = eaten[hand][i];
         eaten[hand][i] = false;
+        if(mine && b == Button::Grip && current.holster.grabHand == hand)
+        {
+            current.holster.grabHand = -1; // let go: the weapon stays where it is
+            haptic(hand, 0.03f, 0.4f);
+        }
         // A grip held since before posing stays held for the game (its release is kept from it): the weapon or thing
         // the hand held is still there afterwards, with vr_weapon_grip_mode 0 too.
         return mine || (active() && b == Button::Grip);
@@ -644,7 +759,31 @@ bool button(int hand, Button b, bool down)
     eaten[hand][i] = true;
     if(b == Button::Menu)
     {
+        // In a holster, the menu button sets the weapon where it was left, then leaves.
+        if(current.target == Target::Holster && current.holster.moved)
+        {
+            confirm();
+        }
         stop(true);
+        return true;
+    }
+    if(current.target == Target::Holster)
+    {
+        // Either hand: the grip carries the weapon, A/X sets, B/Y undoes, the trigger goes on to the next holster, the
+        // stick click puts it all back in front as it started.
+        switch(b)
+        {
+            case Button::Grip:
+                current.holster.grabHand = hand;
+                current.holster.grabTaken = false;
+                haptic(hand, 0.03f, 0.5f);
+                break;
+            case Button::Primary: confirm(); break;
+            case Button::Secondary: undo(); break;
+            case Button::Trigger: next(); break;
+            case Button::StickClick: resetTurn(); break;
+            default: break;
+        }
         return true;
     }
     if(hand != confirmHand())
@@ -679,7 +818,8 @@ void sticks(const glm::vec2& off, const glm::vec2& main)
     {
         return;
     }
-    const glm::vec2 stick = confirmHand() == HAND_MAIN ? main : off;
+    // In a holster, either stick (the hand carrying the weapon is busy).
+    const glm::vec2 stick = current.target == Target::Holster ? off + main : confirmHand() == HAND_MAIN ? main : off;
     const auto dz = [](float v) {
         return za::fabs(v) < stickDeadzone ? 0.f : (v - qza::copysign(stickDeadzone, v)) / (1.f - stickDeadzone);
     };
@@ -715,9 +855,18 @@ void frame()
         text += " (sets " + slotName(from) + "'s)";
     }
     text += "\n" + targetLine() + "\n";
-    text += va("%s: set it   %s: undo   trigger: next", lowerButton(confirmer), upperButton(confirmer));
-    text += current.target == Target::Hotspot ? "\nstick: turn it   click: type   menu: leave"
-                                              : "\nstick: turn it (click: back)   menu: leave";
+    if(current.target == Target::Holster)
+    {
+        text += "grip: take it, let go   A/X: set it   B/Y: undo   trigger: next holster";
+        text += current.holster.moved ? "\nstick: turn it (click: back)   menu: set it and leave"
+                                      : "\nstick: turn it (click: back)   menu: leave";
+    }
+    else
+    {
+        text += va("%s: set it   %s: undo   trigger: next", lowerButton(confirmer), upperButton(confirmer));
+        text += current.target == Target::Hotspot ? "\nstick: turn it   click: type   menu: leave"
+                                                  : "\nstick: turn it (click: back)   menu: leave";
+    }
     if(realtime < feedbackUntil)
     {
         text += "\n" + feedback;

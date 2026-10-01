@@ -14,7 +14,39 @@ namespace qvr::posing
 enum class Target : int
 {
     Weapon,  // the weapon's place in the hand (Offset X/Y/Z, Pitch/Yaw/Roll), posed with the weapon hand
-    Hotspot  // a hotspot (point, Hand Pitch/Yaw/Roll; a blade's share), posed with the other hand
+    Hotspot, // a hotspot (point, Hand Pitch/Yaw/Roll; a blade's share), posed with the other hand
+    Holster  // the weapon in a kind of holster (its Holstered X/Y/Z, Pitch/Yaw/Roll): put there with either hand's grip
+};
+
+// Posing the weapon in a holster (Target::Holster): the right holster of the kind, as it is on the body, floats in front
+// of the player (turned so that its outside faces them); the weapon sits in it as its settings put it, either hand's grip
+// takes it and carries it, and letting go leaves it where it is. Everything is in the world; turns are bases (columns:
+// forward, left, up, as anglesBasis). The view places it on its first frame (`placed`) and works out the candidate.
+struct HolsterSession
+{
+    weapons::HolsterKind kind{weapons::HolsterKind::Hip};
+    bool placed{false};
+    // The holster's frame (holsterFrame: out off the body, up, side outwards) and the point it turns about (where the
+    // hand reaches for it).
+    glm::vec3 out{1.f, 0.f, 0.f}, up{0.f, 0.f, 1.f}, side{0.f, 1.f, 0.f};
+    glm::vec3 pivot{0.f};
+    // The weapon with all its Holstered settings 0 (as the holster alone places it), and the holster model.
+    glm::vec3 basePos{0.f};
+    glm::mat3 baseTurn{1.f};
+    glm::vec3 slotPos{0.f};
+    glm::mat3 slotTurn{1.f};
+    bool slotDrawn{false};
+    glm::vec3 tiltAxis{0.f, 1.f, 0.f};
+    // The weapon as it is now (its model's origin, as placed), and the hand carrying it (-1: none) with the weapon's
+    // place in that hand (taken on the first frame after the grip: `grabTaken`).
+    glm::vec3 weaponPos{0.f};
+    glm::mat3 weaponTurn{1.f};
+    int grabHand{-1};
+    bool grabTaken{false};
+    glm::vec3 grabPos{0.f};
+    glm::mat3 grabTurn{1.f};
+    bool moved{false};     // moved since it was last set (or placed): the menu button sets it before leaving
+    bool fromSettings{false}; // put the weapon back where its settings place it (after an undo), keeping the holster
 };
 
 // What is being posed, and where the weapon floats.
@@ -26,6 +58,7 @@ struct Session
     int weaponHand{1};            // the hand holding the weapon (HAND_MAIN 1, HAND_OFF 0): it poses the weapon
     Target target{Target::Weapon};
     int hotspot{0};               // 0..3
+    HolsterSession holster;       // Target::Holster
     weapons::HotspotType type{weapons::HotspotType::Grip}; // the posed hotspot's type
     int returnPage{-1};           // the VR Settings page reopened on leaving (-1: none)
 
@@ -49,6 +82,10 @@ struct Candidate
     glm::vec3 offset{0.f};   // Target::Weapon: Offset X/Y/Z,
     glm::vec3 angles{0.f};   // and Pitch/Yaw/Roll
     weapons::Hotspot spot;   // Target::Hotspot: the hotspot (type, point or share, Hand Pitch/Yaw/Roll; the rest as it is)
+    weapons::HolsteredPose holstered; // Target::Holster: Holstered X/Y/Z, Pitch/Yaw/Roll
+    // Target::Holster: the weapon in the holster's frame (out, side, up), from its pivot: its place, forward and up
+    // (vr_pose_check compares the weapon holstered on the body with them).
+    glm::vec3 inHolsterPos{0.f}, inHolsterFwd{1.f, 0.f, 0.f}, inHolsterUp{0.f, 0.f, 1.f};
     // The posing hand's rig (as drawn, before the palm's fit) and its drawn palm, in the weapon's model frame
     // (the view's hotspot frame): vr_pose_check compares the hand holding the weapon afterwards with them.
     glm::mat4 rigInWeapon{1.f};
@@ -63,7 +100,8 @@ void init(); // the commands
 [[nodiscard]] Session& session();
 [[nodiscard]] Candidate& candidate();
 
-// The hand that poses (the weapon hand for the weapon, the other for a hotspot) and the one that confirms.
+// The hand that poses (the weapon hand for the weapon, the other for a hotspot) and the one that confirms. In a holster
+// either hand carries the weapon and either confirms: the one carrying it (else the weapon hand), and the other.
 [[nodiscard]] int posingHand();
 [[nodiscard]] int confirmHand();
 // Whether the Hand Only, Hand and Weapon Together and a hotspot's Held Hand offsets are reset to 0 on confirming
@@ -71,7 +109,8 @@ void init(); // the commands
 [[nodiscard]] bool resetOffsets();
 
 // Starts posing the weapon in `slot` (its model `model`) held in `weaponHand`, the weapon or hotspot `hotspot` (-1: a
-// new one, the first free); `returnPage`: the VR Settings page to reopen on leaving. False (said why) if it can't.
+// new one, the first free; Target::Holster: the weapons::HolsterKind); `returnPage`: the VR Settings page to reopen on
+// leaving. False (said why) if it can't.
 bool start(int slot, qmodel_t* model, int weaponHand, Target target, int hotspot, int returnPage);
 void stop(bool reopenMenu);
 

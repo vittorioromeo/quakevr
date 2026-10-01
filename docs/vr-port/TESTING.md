@@ -1112,6 +1112,14 @@ wait60; vr_weapon_grip_mode 1; impulse 155; wait60; vr_mock_look 30 0; vr_mock_h
 vr_mock_fingers main 1 1 1; vr_pose; wait90; vr_mock_button off primary 1; wait3; vr_mock_button off primary 0; wait10;
 vr_pose stop; wait120; vr_pose_check`. The floating weapon's grip is at (0, 1.35, -0.4) in the mock's tracking space
 (40 cm ahead of the head, 35 cm below it); the super shotgun's foregrip is near (-0.06, 1.31, -0.71).
+In a holster (ROUND21.md, "Posing a weapon in a holster"): `vr_pose hip|upper|shoulder`; either hand's `grip` takes
+the weapon and carries it, `primary` sets, `secondary` undoes, `trigger` goes on to the next kind, `stickclick` puts it
+back in front, `menu` sets it (if moved) and leaves. The floating holster's point is at (0, 1.35, -0.45) in the mock's
+tracking space. `vr_pose_check` after holstering it there (with `vr_weapon_grip_mode 0`: `+grabright; vr_mock_button
+main grip 1; impulse 154` first, the main hand kept gripping while the off hand carries it, then at the holster
+`-grabright; vr_mock_button main grip 0`; the right upper is `vr_mock_hand main 0.12 1.3 -0.15`, the right shoulder
+`0.1 1.75 0.12`; the new game's shotgun is already in the right hip) prints each holster of that kind holding it
+against the pose set; on the page with Preview in Holster and a Holstered row chosen, both holsters (the left mirrored).
 Rigid bodies (round 21, Box3D, the only solver): `vr_physics_stack`, `vr_physics_pyramid`,
 `vr_physics_pile` put props (a number, a classname or `props`) in a column, a pyramid or toppling columns;
 `vr_physics_loose` makes a hanging armour or a pickup a loose prop; `vr_physics_list` and `vr_physics_hash` print

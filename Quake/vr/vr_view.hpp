@@ -6,6 +6,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_weapons.hpp"
 
 namespace qvr::view
 {
@@ -151,6 +152,10 @@ void dumpView_f();
 // solved while posing).
 void posingCheck(bool weaponTarget, int weaponHand, const glm::mat4& rigInWeapon, const glm::vec3* palmInWeapon,
     const glm::mat4& rigWorld);
+// vr_pose_check after posing a weapon in a holster: each holster of that kind holding that weapon now, against the pose
+// set (the weapon's place, forward and up in the holster's frame, from its point: posing::Candidate::inHolster*).
+void holsterPoseCheck(weapons::HolsterKind kind, const qmodel_t* model, const glm::vec3& inPos, const glm::vec3& inFwd,
+    const glm::vec3& inUp);
 
 // A new map (VR_OnClientClearState): the per-hand states timed by the client's time or eased frame to frame start
 // afresh (a parried blow's knock, the weapons' button hover and morph, the drawn hands' grasp and curls).
