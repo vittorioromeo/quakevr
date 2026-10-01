@@ -373,9 +373,23 @@ entity(entity e) VR_Throw_Thrower =
 };
 
 // Each frame (StartFrame): the things thrown hard whose grace is over give their owner up (not one taken again, flying
-// to a force grab, or no longer its thrower's).
+// to a force grab, or no longer its thrower's); a thing let go of gently ends its first fall (.vr_letgo_fall) once it
+// lands or bounces (no longer falling, after a moment), is taken (a hand, the grapple), flies to a force grab, or after
+// VR_LETGO_FALL_MAX.
+float VR_LETGO_FALL_MAX = 3; // s
 void() VR_Throw_SelfFrame =
 {
+    for(entity f = findflags(world, vr_letgo_fall, 1); f; f = findflags(f, vr_letgo_fall, 1))
+    {
+        float fell = time - f.carry_letgo_time;
+        if(f.carry_player != world || f.fg_state != 0 || VR_Grapple_PropHolder(f) != world || fell > VR_LETGO_FALL_MAX ||
+           (fell > 0.1 && f.velocity_z > -10))
+        {
+            dprint(sprintf("letgo: %s's first fall over %.2f s after it was let go (%.0f u/s): it can hurt %s now\n",
+                f.classname, fell, vlen(f.velocity), f.carry_letgo.netname));
+            f.vr_letgo_fall = 0;
+        }
+    }
     for(entity e = findflags(world, vr_throw_self, 1); e; e = findflags(e, vr_throw_self, 1))
     {
         if(time < e.vr_throw_self_at)
@@ -489,7 +503,7 @@ float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
     }
     entity holder = VR_Grapple_PropHolder(self);
     if(other == holder || (other == self.carry_letgo &&
-                             time < self.carry_letgo_time + max(0, cvar_hget(cvarh_vr_throw_self_grace))))
+                             (self.vr_letgo_fall || time < self.carry_letgo_time + max(0, cvar_hget(cvarh_vr_throw_self_grace)))))
     {
         return FALSE;
     }
@@ -554,12 +568,16 @@ void(entity xBox, vector v) VR_Carry_Throw =
         // (VR_Thrown_Damage).
         SetThrownWeaponBaseDamage(xBox, cvar_hget(xBox.vr_gib ? cvarh_vr_gib_throw_damage : cvarh_vr_carry_throw_damage));
         xBox.owner = self;
+        xBox.vr_letgo_fall = 0;
         VR_Throw_SelfStart(xBox, self); // (it spares you only for vr_throw_self_grace)
     }
     else
     {
         xBox.owner = world;
         xBox.vr_throw_self = 0;
+        // Let go of gently: in its first fall it never hurts who let go of it (VR_Prop_Flung; a heavy thing set down at
+        // the feet), whatever the grace (NOTES.md vrfiringrange_2026-10-01_22-33-36).
+        xBox.vr_letgo_fall = (xBox.carry_letgo != world);
     }
 };
 
