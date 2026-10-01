@@ -57,6 +57,8 @@ Let go of the chainsaw or laser cannon at your body (no throw): it never hurts y
 Parry the ogre's chainsaw and a charging knight: one ring and one counter per attack, every blow's damage still cut, stamina no longer drained within one swing (Parry and Bash > Parry Cooldown 0.4 s)
 After the Zancle update (vendored = upstream 534219bf, no local changes): model ambient lighting on monsters and items, a general play pass
 
+Melee with a weapon held anywhere: hilt and pommel of a sword held upside down, butt of the rocket launcher and laser cannon held backwards all hit (pommel/butt strikes); cross a held sword's mid-blade with a gun or another sword: it blocks; one-handed muzzle-end swings of heavy guns may feel weak (weight lag)
+
 [Decide or give feedback]
 Parry cooldown: blows inside it also cost no parry stamina (else an ogre swing exhausts you every time): OK?
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
