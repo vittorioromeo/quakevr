@@ -1343,8 +1343,9 @@ void list_f()
             }
         }
     }
-    for(const auto& [label, n] : takeCounts)
+    for(const auto* entry : qza::sortedByKey(takeCounts)) // (in the labels' order, as a std::map had them)
     {
+        const auto& [label, n] = *entry;
         if(categoryOf(label).empty())
         {
             total += n;

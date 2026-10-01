@@ -689,7 +689,8 @@ struct Box
             order.pushBack(&c);
         }
     }
-    za::quickSort(order.begin(), order.end(), [](const Candidate* a, const Candidate* b) { return takenBefore(a->place, b->place); });
+    // (Stable: equal places in their order, as std::sort left a few.)
+    za::insertionSort(order.begin(), order.end(), [](const Candidate* a, const Candidate* b) { return takenBefore(a->place, b->place); });
     for(const Candidate* c : order)
     {
         if(c->place.top + c->offset.z < lowest)
@@ -763,7 +764,7 @@ struct Box
         const float score = dist * (1.f - reachFavour * (dist > 1e-3f ? glm::dot(d / dist, reach) : 0.f));
         scored.pushBack(Scored{score, taken, at});
     }
-    za::quickSort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) { return a.score < b.score; });
+    za::insertionSort(scored.begin(), scored.end(), [](const Scored& a, const Scored& b) { return a.score < b.score; });
     for(const Scored& sc : scored)
     {
         switch(check(player, sc.c, sc.at, true, hand, headPos, movers))
