@@ -4,6 +4,7 @@
 #include "vr_rope.hpp"
 #include "vr_view.hpp"
 #include "vr_engine.hpp"
+#include "vr_backend.hpp"
 #include "vr_units.hpp"
 #include "vr_color.hpp"
 #include "vr_anchor.hpp"
@@ -1455,6 +1456,13 @@ struct RigHand
     glm::vec3 propDrawn[propPoints]{}; // where each point was drawn last frame, in the prop's frame (its way in)
     bool propDrawnValid[propPoints]{};
     bool propTouching[propPoints]{}; // held out last frame: a fingertip stays tested while it touches (not only stuck)
+    // Against the other hand's weapon (pushAgainst's `share`): each point's plane last frame (in the weapon's frame), kept
+    // while the point is in it deeper than the hand is drawn held out (no way in found from where it was drawn, in it);
+    // and whether they touched (a buzz as they meet).
+    glm::vec3 propPlaneN[propPoints]{};
+    glm::vec3 propPlaneAt[propPoints]{};
+    bool propPlaneValid[propPoints]{};
+    bool weaponTouching{false};
     // Brushing the other hand's weapon (vr_hand_collide, pushOut): the weapon, and the fingers solved against it
     // (setupRigHand: they rest on it or bend out of it); a finger in it at every curl ("stuck") pushes the hand instead.
     const entity_t* brushEnt{nullptr};
@@ -1553,6 +1561,10 @@ constexpr int rigFinger[handrig::FingerCount] = {FingerThumb, FingerIndex, Finge
 }
 
 int graspSolves[2]{}; // solves, per hand (vr_debug_grasp_trace)
+// Each hand's weapon drawn pressed back by the other, free hand against it (pushAgainst, `share`; NOTES.md
+// vrfiringrange_2026-10-01_12-12-28): the model collision adds it to the weapon hand next frame (view::handPress), as it
+// does a prop's in the other hand (held::drawnPush).
+glm::vec3 weaponPressed[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 int brushSolves[2]{}; // brushing the other hand's weapon: solves, per hand
 
 void printGrasp(int hand, const Grasp& g, float rigUnit)
@@ -1603,6 +1615,7 @@ void printGrasp(int hand, const Grasp& g, float rigUnit)
     s.thumbTop = held.thumbTop;
     s.thumbOutside = held.inPalm && vr_hand_fit_thumb_outside.value > 0.f;
     s.thumbSink = s.thumbOutside ? vr_hand_fit_thumb_outside.value * toRig : 0.f;
+    s.thumbWide = s.thumbOutside && vr_hand_fit_thumb_wide.value > 0.f;
     return s;
 }
 
@@ -1686,7 +1699,7 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
                              rh.fitSettings.palmLimit == settings.palmLimit && rh.fitSettings.palmTurnLimit == settings.palmTurnLimit &&
                              rh.fitSettings.overlap == settings.overlap && rh.fitSettings.searchPlace == settings.searchPlace &&
                              rh.fitSettings.thenar == settings.thenar && rh.fitSettings.thumbOutside == settings.thumbOutside &&
-                             rh.fitSettings.thumbSink == settings.thumbSink;
+                             rh.fitSettings.thumbSink == settings.thumbSink && rh.fitSettings.thumbWide == settings.thumbWide;
         if(!fitSame)
         {
             QVR_PROFILE("grasp solve");
@@ -1706,7 +1719,7 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
     const bool settingsChanged = settings.palmLimit != g.settings.palmLimit || settings.palmTurnLimit != g.settings.palmTurnLimit ||
                                  settings.overlap != g.settings.overlap || settings.thenar != g.settings.thenar ||
                                  settings.thumbTop != g.settings.thumbTop || settings.thumbOutside != g.settings.thumbOutside ||
-                                 settings.thumbSink != g.settings.thumbSink ||
+                                 settings.thumbSink != g.settings.thumbSink || settings.thumbWide != g.settings.thumbWide ||
                                  settings.searchPlace != g.settings.searchPlace ||
                                  settings.fixedPalm != g.settings.fixedPalm || settings.palmMove != g.settings.palmMove ||
                                  settings.palmTurnMove != g.settings.palmTurnMove;
@@ -1903,8 +1916,15 @@ constexpr float brushReach = 24.f;
 // point just outside, off its nearest point. The winding is the model's own (grasp::signedDistance: Quake's models are
 // wound inwards; read as outwards, the hand was pushed while still outside and out through the far side). The fingers
 // rest on it (setupRigHand).
+// `share` (the other hand's weapon, vr_hand_collide; NOTES.md vrfiringrange_2026-10-01_12-12-28: "the hand itself should
+// collide ... with the same behavior that it's already there when holding a prop"): as a prop in this hand and that
+// weapon meet (vr_held.cpp meetFrame), the hand and the weapon are each drawn moved back by half how deep the hand would
+// be, at most `most` each; pressed further, the hand sinks in by the rest (never let through all at once), held out by
+// the face it went in by however deep, until it is out of it. The weapon's part: weaponPressed (its hand moved by the
+// model collision next frame); the hand is tested against the weapon where it would be without it. A buzz in both hands
+// as they meet.
 void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool againstMirrored, float most,
-    glm::vec3& pos, const glm::vec3& handRot, bool mirrored, float dt)
+    glm::vec3& pos, const glm::vec3& handRot, bool mirrored, float dt, bool share)
 {
     const float u = 0.01f * units::metresToUnits();
     const float margin = za::clamp(vr_hand_collide_props_margin.value, 0.f, 10.f) * u;
@@ -1914,9 +1934,11 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
     {
         for(bool& b : rh.propDrawnValid) { b = false; }
         for(bool& b : rh.propTouching) { b = false; }
+        for(bool& b : rh.propPlaneValid) { b = false; }
         rh.propAgainst = shape ? &against : nullptr;
     }
     glm::vec3 target{0.f};
+    glm::vec3 press{0.f}; // `share`: the weapon's part
     float deepest = 0.f; // how far the real hand is in (its point the furthest past its plane)
     glm::mat4 toWorld{1.f};
     // The points, each in its own place (RigHand::propDrawn): the palm's middle, the knuckles, the stuck tips.
@@ -1925,7 +1947,13 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
     if(shape)
     {
         toWorld = grasp::shapeToWorld(against, againstMirrored);
+        if(share)
+        {
+            toWorld = glm::translate(glm::mat4{1.f}, -weaponPressed[1 - hand]) * toWorld; // where it is without the press
+        }
         const glm::mat4 toShape = glm::inverse(toWorld);
+        const glm::mat3 normalToWorld = glm::transpose(glm::inverse(glm::mat3{toWorld}));
+        const glm::mat3 normalToShape = glm::transpose(glm::mat3{toWorld});
         const glm::mat4 rig = rigPlacement(hand, pos, handRot, mirrored, nullptr);
         const float unit = glm::length(glm::vec3{rig[0]});
         points[0] = glm::vec3{rig * glm::vec4{grasp::palmCentre(), 1.f}};
@@ -1940,13 +1968,15 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
             tested[1 + handrig::FingerCount + f] =
                 rh.brushStuck[f] || rh.propTouching[1 + handrig::FingerCount + f] || !vr_hand_collide_fingers.value;
         }
-        const float reach = 2.f * most + margin;
+        // (Shared: the hand may be in it deeper than the push, by the rest.)
+        const float reach = (share ? 6.f : 2.f) * most + margin;
         // Each point's plane (n . x >= rest).
         glm::vec3 normals[RigHand::propPoints];
         float rests[RigHand::propPoints];
         glm::vec3 planePoints[RigHand::propPoints];
         int planes = 0;
         bool anyIn = false;
+        bool planeMade[RigHand::propPoints]{};
         for(bool& b : rh.propTouching) { b = false; }
         for(int i = 0; i < RigHand::propPoints; i++)
         {
@@ -1971,6 +2001,19 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
                     in = true;
                     at = hit;
                     n = hn;
+                }
+            }
+            if(share && in && rh.propPlaneValid[i])
+            {
+                // In it and still behind the plane it was held out by last frame: held out by that face however deep
+                // (sunk in by the rest), not the nearest (past the middle of a barrel, the far side's) nor one a way in
+                // from inside it meets (the model's other parts).
+                const glm::vec3 keptAt{toWorld * glm::vec4{rh.propPlaneAt[i], 1.f}};
+                const glm::vec3 keptN = glm::normalize(normalToWorld * rh.propPlaneN[i]);
+                if(glm::dot(keptN, points[i] - keptAt) < margin)
+                {
+                    at = keptAt;
+                    n = keptN;
                 }
             }
             anyIn = anyIn || in;
@@ -1999,6 +2042,9 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
             rests[planes] = glm::dot(n, at) + margin;
             planePoints[planes] = points[i];
             rh.propTouching[i] = true;
+            rh.propPlaneAt[i] = glm::vec3{toShape * glm::vec4{at, 1.f}};
+            rh.propPlaneN[i] = glm::normalize(normalToShape * n);
+            planeMade[i] = true;
             deepest = za::fmax(deepest, rests[planes] - glm::dot(n, points[i]));
             planes++;
         }
@@ -2015,7 +2061,23 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
                 }
             }
         }
-        if(rh.propThrough)
+        for(int i = 0; i < RigHand::propPoints; i++)
+        {
+            rh.propPlaneValid[i] = planeMade[i];
+        }
+        if(share)
+        {
+            // Each moved back by half, at most `most`; deeper, the hand in it by the rest.
+            rh.propThrough = false;
+            const float depth = glm::length(move);
+            if(depth > 1e-4f)
+            {
+                const float each = za::fmin(depth * 0.5f, most);
+                target = move * (each / depth);
+                press = -target;
+            }
+        }
+        else if(rh.propThrough)
         {
             rh.propThrough = anyIn; // through it until it is out of it
         }
@@ -2027,10 +2089,11 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
         {
             target = move;
         }
-        // Where each point is drawn (held out, or where it is), in the prop's frame: next frame's way in.
+        // Where each point is drawn (held out, or where it is), in the prop's frame: next frame's way in. (Shared: off
+        // the weapon as drawn, pressed back, as off it unpressed.)
         for(int i = 0; i < RigHand::propPoints; i++)
         {
-            rh.propDrawn[i] = glm::vec3{toShape * glm::vec4{points[i] + target, 1.f}};
+            rh.propDrawn[i] = glm::vec3{toShape * glm::vec4{points[i] + target - press, 1.f}};
             rh.propDrawnValid[i] = tested[i] && !rh.propThrough;
         }
         // Near it (within a hand's length of the palm's middle) and not passing through it: the fingers react.
@@ -2048,8 +2111,25 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
         rh.propThrough = false;
     }
     // Held back at once; let go of (passing in, or drawn out of it) eased over 0.08 s.
-    const bool holding = !rh.propThrough && glm::length(target) > 0.f;
-    rh.pushed = holding ? target : rh.pushed + (target - rh.pushed) * za::fmin(1.f, dt / 0.08f);
+    // (Shared: a sudden drop, part of the hand through to the far side, eased too.)
+    const float ease = za::fmin(1.f, dt / 0.08f);
+    const bool holding = !rh.propThrough && glm::length(target) > 0.f &&
+                         !(share && glm::length(target) < glm::length(rh.pushed) - u);
+    rh.pushed = holding ? target : rh.pushed + (target - rh.pushed) * ease;
+    if(share)
+    {
+        glm::vec3& w = weaponPressed[1 - hand];
+        w = holding ? press : w + (press - w) * ease;
+        if(holding && !rh.weaponTouching && !vr_disablehaptics.value)
+        {
+            if(Backend* be = backend())
+            {
+                be->haptic(0, 0.04f, 120.f, 0.35f); // (meetFrame's)
+                be->haptic(1, 0.04f, 120.f, 0.35f);
+            }
+        }
+        rh.weaponTouching = glm::length(target) > 0.f;
+    }
     if(vr_debug_hand_collide.value && shape)
     {
         // The real hand's and the drawn hand's nearest point to the surface (cm, negative in it): where it touched, and
@@ -2063,15 +2143,17 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
             {
                 real = za::fmin(real, d);
             }
-            if(tested[i] && grasp::signedDistance(*shape, toWorld, points[i] + rh.pushed, 4.f * most + margin, d, at, n))
+            const glm::vec3 apart = rh.pushed - (share ? weaponPressed[1 - hand] : glm::vec3{0.f});
+            if(tested[i] && grasp::signedDistance(*shape, toWorld, points[i] + apart, 4.f * most + margin, d, at, n))
             {
                 drawn = za::fmin(drawn, d);
             }
         }
         if(real < 1e8f || glm::length(rh.pushed) > 0.01f)
         {
-            Con_Printf("handcollide: hand %d real %.2f drawn %.2f depth %.2f target %.2f pushed %.2f%s\n", hand, real / u,
-                drawn / u, deepest / u, glm::length(target) / u, glm::length(rh.pushed) / u, rh.propThrough ? " through" : "");
+            Con_Printf("handcollide: hand %d real %.2f drawn %.2f depth %.2f target %.2f pushed %.2f weapon %.2f%s\n", hand,
+                real / u, drawn / u, deepest / u, glm::length(target) / u, glm::length(rh.pushed) / u,
+                share ? glm::length(weaponPressed[1 - hand]) / u : 0.f, rh.propThrough ? " through" : "");
         }
     }
     pos += rh.pushed;
@@ -2097,12 +2179,16 @@ void pushOut(int hand, bool free, glm::vec3& pos, const glm::vec3& handRot, bool
     if(other.visible && slot >= 0 && slot != weapons::fistSlot())
     {
         pushAgainst(rh, hand, free, other.ent, other.mirrored, za::fmax(vr_hand_collide.value, 0.f) * u, pos, handRot,
-            mirrored, dt);
+            mirrored, dt, true);
+        return;
     }
-    else if(const int prop = held::heldAlone(1 - hand))
+    // (No weapon there: its press let go of, eased.)
+    weaponPressed[1 - hand] -= weaponPressed[1 - hand] * za::fmin(1.f, dt / 0.08f);
+    rh.weaponTouching = false;
+    if(const int prop = held::heldAlone(1 - hand))
     {
         pushAgainst(rh, hand, free, cl_entities[prop], false, za::fmax(vr_hand_collide_props.value, 0.f) * u, pos, handRot,
-            mirrored, dt);
+            mirrored, dt, false);
     }
     else
     {
@@ -5900,6 +5986,11 @@ bool hotspotAt(int hand, const glm::vec3& p, glm::vec3& out)
 const DrawnWeapon& drawnWeapon(int hand)
 {
     return drawnWeapons[hand == 0 ? 0 : 1];
+}
+
+glm::vec3 handPress(int hand)
+{
+    return hand == 0 || hand == 1 ? weaponPressed[hand] : glm::vec3{0.f};
 }
 
 WeaponHotspot weaponHotspot(int hand, int index)

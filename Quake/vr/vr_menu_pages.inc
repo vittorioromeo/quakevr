@@ -321,6 +321,9 @@ void resetHandMoves()
         slider("Thumb Round In-Palm Props", "vr_hand_fit_thumb_outside", 0.f, 3.f, 0.25f, "%.2f cm").extend()
             .help("A rock, a brick or a grenade held In the Palm has the thumb round its outside, never tucked between your "
                   "palm and it: its base may sink into it as far as this to lie along it. 0: as any held thing."),
+        toggle("Thumb Opens Wide Round Them", "vr_hand_fit_thumb_wide")
+            .help("With Thumb Round In-Palm Props: when the thumb would sink into the thing at its usual turns (a hand "
+                  "grenade's side), it opens wider and wraps round its outside instead. Off: it lies along it, sunk in."),
         slider("Fit Overlap: Things", "vr_hand_fit_overlap", 0.f, 1.5f, 0.1f, "%.1f cm").extend()
             .help("How far the fingers and palm may sink into a held thing (a box, a gib, the torch): snug, with no gap, "
                   "and steadier. A weapon has its own (Weapon Offsets: Overlap, and each hotspot's)."),
@@ -334,9 +337,10 @@ void resetHandMoves()
         toggle("Fingers Stop at Walls", "vr_hand_walls")
             .help("The fingers bend back where they would go into walls and floors."),
         slider("Hands Brush Weapons", "vr_hand_collide", 0.f, 10.f, 0.5f, "%.1f cm").extend()
-            .help("The free hand stops at the surface of the other hand's weapon (about 1 cm off it: Carrying, Empty "
-                  "Hand Stops Off It) and is held back as far as this; pushed further, it passes into it until you take "
-                  "it out. 0: it always passes through."),
+            .help("The free hand bumps into the other hand's weapon as a thing held in it does: at its surface (about 1 cm "
+                  "off it: Carrying, Empty Hand Stops Off It) the hand and the weapon are each drawn moved back by half, "
+                  "as far as this, a short buzz as they meet; pressed further, the hand sinks in by the rest. 0: it "
+                  "always passes through."),
         toggle("Fingers Brush Weapons", "vr_hand_collide_fingers")
             .help("With Hands Brush Weapons: the free hand's fingers rest on the other hand's weapon or bend out of it, "
                   "instead of the whole hand being pushed by its fingertips."),

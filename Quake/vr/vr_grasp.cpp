@@ -755,9 +755,14 @@ struct ThumbTurn
     float opposition, swing;
 };
 // (Round 21, second pass: no longer 60 degrees across nor 30 up: the skin round the thumb's base stretched thin.)
+// From wideTurns on, the wide ones (Settings::thumbWide): swung far up and away from the index, the thumb opened wide
+// round something thick in the palm (a hand grenade, a brick) whose side its usual turns are all in (NOTES.md
+// vrfiringrange_2026-10-01_12-08-49: "the thumb kind of clips a little bit into it"); tried for In the Palm only.
 constexpr ThumbTurn thumbTurns[] = {{0.f, 0.f}, {15.f, 0.f}, {30.f, 0.f}, {45.f, 0.f}, {15.f, -15.f}, {30.f, -15.f},
-    {45.f, -15.f}, {30.f, 15.f}, {45.f, 15.f}, {0.f, -15.f}};
+    {45.f, -15.f}, {30.f, 15.f}, {45.f, 15.f}, {0.f, -15.f}, {0.f, -45.f}, {15.f, -45.f}, {0.f, -60.f}, {15.f, -60.f},
+    {30.f, -60.f}};
 constexpr int thumbTurnCount = static_cast<int>(sizeof(thumbTurns) / sizeof(thumbTurns[0]));
+constexpr int wideTurns = 10;
 
 [[nodiscard]] glm::quat thumbQuat(const ThumbTurn& t)
 {
@@ -766,23 +771,36 @@ constexpr int thumbTurnCount = static_cast<int>(sizeof(thumbTurns) / sizeof(thum
 }
 
 // How the thumb holds: wrapped round (a grip, a handle), along the top (swung up and away: a hotspot's Thumb on Top), or
-// outside what the palm holds (In the Palm: a rock, a brick; any turn, never tucked between the palm and it).
+// outside what the palm holds (In the Palm: a rock, a brick; any turn, never tucked between the palm and it; Wide: the
+// wide turns too).
 enum class ThumbStyle
 {
     Wrap,
     Top,
     Outside,
+    OutsideWide,
 };
 
 [[nodiscard]] ThumbStyle thumbStyleOf(const Settings& s)
 {
-    return s.thumbTop ? ThumbStyle::Top : s.thumbOutside ? ThumbStyle::Outside : ThumbStyle::Wrap;
+    return s.thumbTop       ? ThumbStyle::Top
+           : s.thumbOutside ? (s.thumbWide ? ThumbStyle::OutsideWide : ThumbStyle::Outside)
+                            : ThumbStyle::Wrap;
 }
 
-// Whether a thumb turn fits the style.
-[[nodiscard]] bool thumbStyle(const ThumbTurn& t, ThumbStyle style)
+[[nodiscard]] bool outside(ThumbStyle style)
 {
-    return style == ThumbStyle::Outside || (style == ThumbStyle::Top ? t.swing < 0.f : t.swing >= 0.f);
+    return style == ThumbStyle::Outside || style == ThumbStyle::OutsideWide;
+}
+
+// Whether thumb turn `i` fits the style.
+[[nodiscard]] bool thumbStyle(int i, ThumbStyle style)
+{
+    if(i >= wideTurns)
+    {
+        return style == ThumbStyle::OutsideWide;
+    }
+    return outside(style) || (style == ThumbStyle::Top ? thumbTurns[i].swing < 0.f : thumbTurns[i].swing >= 0.f);
 }
 
 // The thumb: closed at each turn of its metacarpal (of the style asked for), the one holding best (a turn costs a
@@ -791,24 +809,45 @@ enum class ThumbStyle
 // its own pose), then the choice among them (in their order: the first of equals).
 [[nodiscard]] bool thumbTried(int i, const Solution* previous, ThumbStyle style)
 {
-    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], style);
-    return !((again && i != previous->thumbChoice) || !thumbStyle(thumbTurns[i], style));
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(previous->thumbChoice, style);
+    return !((again && i != previous->thumbChoice) || !thumbStyle(i, style));
 }
 
 // `tucked`: Outside (tuckedThumbs), the turns whose thumb ends tucked between the palm and what it holds: taken only if
-// no turn's thumb holds it from outside.
+// no turn's thumb holds it from outside. OutsideWide: the wide turns (wideTurns on) are taken only when no usual turn
+// holds it cleanly from outside (met, not in it nor tucked, lying along it no deeper than cleanLie) and a wide one does,
+// and then only a clean one: the thumb wraps round the outside, not into it (a grenade's side, a brick's).
+constexpr float cleanLie = 0.1f; // hand units a thumb lying along it may be in it and still count as clean (~1 mm)
 void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const bool (&tucked)[thumbTurnCount], const Solution* previous,
     ThumbStyle style, FingerStop& out, glm::quat& turn, int& choice)
 {
-    bool outsideMet = false;
-    for(int i = 0; i < thumbTurnCount && style == ThumbStyle::Outside; i++)
+    const auto clean = [&](int i) {
+        return tried[i].met && !tried[i].startsInside && !tucked[i] && tried[i].lying <= cleanLie;
+    };
+    bool anyUsual = false, usualClean = false, wideClean = false;
+    for(int i = 0; i < thumbTurnCount; i++)
     {
-        outsideMet = outsideMet || (thumbTried(i, previous, style) && tried[i].met && !tried[i].startsInside && !tucked[i]);
+        if(thumbTried(i, previous, style))
+        {
+            const bool usual = i < wideTurns;
+            anyUsual = anyUsual || usual;
+            usualClean = usualClean || (usual && clean(i));
+            wideClean = wideClean || (!usual && clean(i));
+        }
+    }
+    const bool wide = !anyUsual || (wideClean && !usualClean);
+    const auto considered = [&](int i) {
+        return thumbTried(i, previous, style) && (i < wideTurns ? !wide : wide && (!anyUsual || clean(i)));
+    };
+    bool outsideMet = false;
+    for(int i = 0; i < thumbTurnCount && outside(style); i++)
+    {
+        outsideMet = outsideMet || (considered(i) && tried[i].met && !tried[i].startsInside && !tucked[i]);
     }
     float best = -1e9f;
     for(int i = 0; i < thumbTurnCount; i++)
     {
-        if(!thumbTried(i, previous, style))
+        if(!considered(i))
         {
             continue;
         }
@@ -828,7 +867,7 @@ void chooseThumb(const FingerStop (&tried)[thumbTurnCount], const bool (&tucked)
         return;
     }
     // In it at every turn and curl (its base in a grip): left as the controller has it, at a natural turn.
-    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], style);
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(previous->thumbChoice, style);
     out = FingerStop{};
     out.startsInside = true;
     out.leastInside = true;
@@ -1060,7 +1099,7 @@ int rememberedUsed = 0;
 [[nodiscard]] bool sameSettings(const Settings& a, const Settings& b)
 {
     return a.palmLimit == b.palmLimit && a.palmTurnLimit == b.palmTurnLimit && a.overlap == b.overlap &&
-           a.thenar == b.thenar && a.thumbTop == b.thumbTop && a.thumbOutside == b.thumbOutside && a.thumbSink == b.thumbSink && a.fixedPalm == b.fixedPalm &&
+           a.thenar == b.thenar && a.thumbTop == b.thumbTop && a.thumbOutside == b.thumbOutside && a.thumbSink == b.thumbSink && a.thumbWide == b.thumbWide && a.fixedPalm == b.fixedPalm &&
            a.palmMove == b.palmMove &&
            a.palmTurnMove == b.palmTurnMove && a.searchPlace == b.searchPlace;
 }
@@ -1405,7 +1444,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     // The fingers: the thumb at each turn tried, and the four fingers, each closed on the game's threads (each turn
     // with its own pose), then the thumb's turn chosen.
     const ThumbStyle style = thumbStyleOf(settings);
-    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(thumbTurns[previous->thumbChoice], style);
+    const bool again = previous && previous->thumbChoice >= 0 && thumbStyle(previous->thumbChoice, style);
     int work[thumbTurnCount + handrig::FingerCount - 1];
     int count = 0;
     for(int i = 0; i < thumbTurnCount; i++)
@@ -1431,7 +1470,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
                 turned.metacarpal = thumbQuat(thumbTurns[job]);
                 const Context ctx{&target, &turned, settings.overlap, &jobProbes[j]};
                 solveFinger(ctx, handrig::Thumb, true, again ? &previous->finger[handrig::Thumb] : nullptr, thumbs[job]);
-                if(style == ThumbStyle::Outside)
+                if(outside(style))
                 {
                     lieAlong(ctx, settings.thumbSink, thumbs[job]);
                 }
@@ -1445,7 +1484,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
         }
     });
     bool tucked[thumbTurnCount]{};
-    if(style == ThumbStyle::Outside)
+    if(outside(style))
     {
         tuckedThumbs(pose, target, thumbs, tucked);
     }

@@ -159,8 +159,11 @@ const DefaultChange defaultChanges[] = {
     {69, &vr_physsound_scrape, "0.7"},      // 0.8
     {69, &vr_physsound_grab, "0.5"},        // 0.7
     {69, &vr_climb_leniency_air, "2.5"},    // 4
+    // 70: the empty hand meets the other hand's weapon as a prop held there does (NOTES.md
+    // vrfiringrange_2026-10-01_12-12-28): each drawn moved back up to this, not the hand alone held up to 4 cm.
+    {70, &vr_hand_collide, "4"},            // 5
 };
-constexpr int configVersion = 69;
+constexpr int configVersion = 70;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
