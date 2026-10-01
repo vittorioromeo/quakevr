@@ -791,6 +791,7 @@ QVR_CVAR(vr_test_modal_answer, "-1", CVAR_NONE)
 QVR_CVAR(vr_body_shoulder_reach, "0.08", CVAR_ARCHIVE) // metres the shoulders may reach out towards a hand past the arm
 QVR_CVAR(vr_body_forearm_twist, "0.5", CVAR_ARCHIVE)  // share of the wrist's roll the middle of the forearm follows (none at the elbow, all at the wrist)
 QVR_CVAR(vr_body_wrist_limits, "1", CVAR_ARCHIVE)   // the elbow swings round to keep the wrist within a real one's bend and roll, times this (0: never)
+QVR_CVAR(vr_body_elbow_lift, "4", CVAR_ARCHIVE)    // that swing keeps the elbow out of the torso, from crossing the chest and from rising over the shoulder across it, times this (0: free)
 QVR_CVAR(vr_body_elbow_out, "0.35", CVAR_ARCHIVE)     // elbow direction: down, plus this much outwards,
 QVR_CVAR(vr_body_elbow_back, "0.25", CVAR_ARCHIVE)    // this much backwards,
 QVR_CVAR(vr_body_elbow_hand, "0.4", CVAR_ARCHIVE)     // and this much away from the back of the hand

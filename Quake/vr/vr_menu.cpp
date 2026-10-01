@@ -1181,6 +1181,9 @@ void armsResetTweaks()
             .help("Share of the wrist's roll the middle of the forearm follows (none at the elbow, all at the wrist)."),
         slider("Wrist Limits", vr_body_wrist_limits, 0.f, 2.f, 0.05f, "%.2f")
             .help("The elbow swings round to keep the wrist within a real one's bend and roll, times this (0: never)."),
+        slider("Elbow Stays Clear", vr_body_elbow_lift, 0.f, 8.f, 0.5f, "%.1f")
+            .help("How much that swing keeps the elbow out of the torso and from crossing the chest by the neck (a hand "
+                  "near the face or the chest), times this (0: free, as before)."),
         slider("Elbow Out", vr_body_elbow_out, 0.f, 1.f, 0.05f, "%.2f")
             .help("Where the elbow points: down, plus this much outwards."),
         slider("Elbow Back", vr_body_elbow_back, 0.f, 1.f, 0.05f, "%.2f")

@@ -459,7 +459,8 @@ const CompiledDefault compiledDefaults[] = {
         || !ZA_STRNCMP(var->name, "vr_bodycal_", 11) || !ZA_STRNCMP(var->name, "vr_body_tweak_", 14) // one's body
         // and one's arms (Body > Arms, the player's to tweak: the author's decision, 2026-09-28; pauldrons ship)
         || var == &vr_body_arm_length || var == &vr_body_arm_stretch || var == &vr_body_shoulder_reach
-        || var == &vr_body_forearm_twist || var == &vr_body_wrist_limits || var == &vr_body_elbow_out
+        || var == &vr_body_forearm_twist || var == &vr_body_wrist_limits || var == &vr_body_elbow_lift
+        || var == &vr_body_elbow_out
         || var == &vr_body_elbow_back || var == &vr_body_elbow_hand;
 }
 

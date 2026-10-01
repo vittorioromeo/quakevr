@@ -1090,7 +1090,9 @@ from `vr_mock_hand main -0.15 1.66 -0.50` going down.
 Arm IK (ROUND21.md, "Arm IK with calibrated hands"): `vr_debug_arm 1` prints each drawn arm once (shoulder, elbow,
 wrist, the elbow's swing, the wrist's flexion, deviation, twist and strain against the solved forearm and the pole's;
 `armT` lines in tracking-space metres from the head, for `vr_mock_hand`); `vr_debug_arm 2` writes it every frame to
-`arm_trace.txt`, e.g. while `vr_motion_eval` replays takes.
+`arm_trace.txt`, e.g. while `vr_motion_eval` replays takes. Elbow near the face or the chest (ROUND21.md, "Elbow near
+the face and the chest"): `vr_body_elbow_lift 0` gives the old swing for A/B; reach each pose over ~30 frames from a
+neutral one (`vr_fixed_frames 1`), as the swing keeps the nearest good elbow.
 
 After the posing test (ROUND21.md): `vr_debug_shots 1` with `developer 1` prints each hitscan shot (start, direction,
 what its pellets hit, headshots) and each damage you deal; a monster at the muzzle: `impulse 150 + weapon id` (with

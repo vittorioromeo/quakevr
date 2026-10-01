@@ -1315,6 +1315,25 @@ glm::vec3 drawnOffset(int hand)
     return hand == 0 || hand == 1 ? drawn[hand] : glm::vec3{0.f};
 }
 
+float elbowDepth(const glm::vec3& elbow, float radius)
+{
+    const Caps& torso = scene.part[Torso][0];
+    if(!viewOn || !vr_body_collide_elbows.value)
+    {
+        return 0.f;
+    }
+    // An arm at rest lies against the torso: a centimetre of slack.
+    const float slack = 0.01f * units::metresToUnits() * units::bodyScale();
+    float most = 0.f;
+    for(const Cap& k : torso)
+    {
+        glm::vec3 a, b;
+        closestPoints(elbow, elbow, k.a, k.b, a, b);
+        most = za::max(most, k.r + radius - slack - glm::distance(a, b));
+    }
+    return most;
+}
+
 float elbowSwing(const glm::vec3& shoulder, const glm::vec3& elbow, const glm::vec3& wrist, float radius)
 {
     const Caps& torso = scene.part[Torso][0];
@@ -1322,18 +1341,7 @@ float elbowSwing(const glm::vec3& shoulder, const glm::vec3& elbow, const glm::v
     {
         return 0.f;
     }
-    // How far the elbow's joint (with `radius`) is inside the torso, less a centimetre: an arm at rest lies against it.
-    const float slack = 0.01f * units::metresToUnits() * units::bodyScale();
-    const auto depth = [&](const glm::vec3& p) {
-        float most = 0.f;
-        for(const Cap& k : torso)
-        {
-            glm::vec3 a, b;
-            closestPoints(p, p, k.a, k.b, a, b);
-            most = za::max(most, k.r + radius - slack - glm::distance(a, b));
-        }
-        return most;
-    };
+    const auto depth = [&](const glm::vec3& p) { return elbowDepth(p, radius); };
     if(depth(elbow) <= 0.f)
     {
         return 0.f;

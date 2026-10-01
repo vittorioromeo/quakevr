@@ -18242,3 +18242,51 @@ Shotgun, 14 pellets, 14 head (x1.50)` (the dummy's `VR_Dummy_Kind`/`_Part`/`_Hit
 took it (monsters on each other: `developer`). Health after the hit, what armour took; a corpse, gib or crate
 piece's hit as dealt ("corpse of monster_army", "head", "gib"). Never floated over a player (in your face): your
 own hits taken are printed only. The dummy keeps its own report.
+
+## Elbow near the face and the chest (2026-10-01)
+
+His note (vrfiringrange 12:01): with the left hand near the face the elbow sometimes goes up a lot; with a hand near
+the torso it goes inward, unnaturally ("maybe push the shoulder back instead"); improve only without making other poses
+worse. Branch `agent/ikelbow`.
+
+### Why
+
+- Near the face or the chest the arm is folded: the shoulder-to-wrist line is short and the elbow's circle about it is
+  wide (most of the upper arm's 26 cm). The wrist-easing swing (`easeWrist`) costs only the swing's angle and the wrist's
+  strain, so for a hand rolled or tilted past the wrist's reach it picked elbows up by the neck: 26 cm across the chest
+  from the shoulder, up to 18 cm above it (an upper arm pointing straight across, which no shoulder does).
+- Near the chest, the pole elbow and most of the swings that ease the wrist are inside the torso's capsules. The torso
+  then pushed the elbow out the shorter way (`selfcollide::elbowSwing`), up by the neck or down, whatever that did to
+  the wrist: the "inward" elbow.
+- Not the shoulder's room: the swing's choice, so the shoulder stays where it is (pushing it back would not change
+  where the swing sends the elbow).
+
+### What changed (`easeWrist`, `vr_avatar.cpp`; `selfcollide::elbowDepth`)
+
+- A swing now also costs (`vr_body_elbow_lift`, default 4, Body > Arms "Elbow Stays Clear"; 0: exactly as before):
+  the elbow inside the torso (the same capsules and margin the torso push uses, four times the weight), across the chest
+  past 50 degrees from straight ahead (a shoulder's horizontal reach across), and above the shoulder while across it.
+  Crossing and rising count only past where the pole puts the elbow, so arms the pole already raises or crosses
+  (reaching up, across the body) swing as before. Each costs 1 (a 45 degree swing) 10 cm past, times the setting.
+- `selfcollide::elbowDepth` is the torso push's depth test, now shared with the swing.
+
+### Results
+
+Mock (scratchpad `ik/`: 17 left-hand places x 27 controller angles, each reached over 30 frames from a neutral pose,
+`vr_debug_arm 1`; elbow from the shoulder in cm, forward / across / up):
+
+| | before | after |
+|---|---|---|
+| face (5 places, 135 poses): elbow > 10 cm past the 50 degree crossing | 13 | 7 |
+| face: elbow above the shoulder | 21 | 18 (the rest are out to the side, not across) |
+| chest (5 places, 135 poses): elbow > 10 cm past the crossing | 11 | 0 |
+| chest: elbow above the shoulder | 8 | 1 |
+| ordinary (7 places, 189 poses): elbows moved | - | none (0.0 cm) |
+| median wrist strain face / chest | 1.86 / 1.81 | 1.86 / 2.49 |
+
+E.g. mouth, hand 50 degrees down: (-1, 27, 7) -> (26, -8, -6); left chest, same hand: (-4, 26, 9) -> (11, -8, -24);
+sternum, rolled: (10, 26, 2) -> (22, -3, -16). The price: in those poses the wrist bends more (strain up by 2-9).
+
+His takes (53: no-hit, guards, punches, shoves; 45,406 arm-frames replayed with `vr_debug_arm 2`): 0.9% of frames move
+more than 2 cm; in those the wrist strain falls (mean 5.04 -> 4.11), elbows across the chest > 15 cm 89 -> 56, elbow
+jumps (> 6 cm in a frame with the wrist still) 72 -> 63. Melee canary: no differences.

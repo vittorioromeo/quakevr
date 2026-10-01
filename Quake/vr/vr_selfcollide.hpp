@@ -55,7 +55,11 @@ void endView(hands::State& s, const Drawn& drawn);
 // How far `hand` (and its weapon) is drawn from where it is tracked by this (world units).
 [[nodiscard]] glm::vec3 drawnOffset(int hand);
 
-// The arms' IK (vr_avatar.cpp, vr_body_collide_elbows): the least swing of `elbow` about the line from `shoulder` to
+// The arms' IK (vr_avatar.cpp, vr_body_collide_elbows): how deep an elbow's joint at `elbow` (with `radius`, world
+// units, less a centimetre) is in the torso's capsules as this frame's view made them (world units; 0 when it is out,
+// or with none).
+[[nodiscard]] float elbowDepth(const glm::vec3& elbow, float radius);
+// The least swing of `elbow` about the line from `shoulder` to
 // `wrist` (radians) that takes it out of the torso, as this frame's view made its capsules (none: 0). The elbow's joint
 // is kept `radius` (world units) less a centimetre outside them.
 [[nodiscard]] float elbowSwing(const glm::vec3& shoulder, const glm::vec3& elbow, const glm::vec3& wrist, float radius);
