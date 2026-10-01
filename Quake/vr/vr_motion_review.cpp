@@ -8,6 +8,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
@@ -16,23 +17,28 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-#include <filesystem>
-#include <fstream>
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "Zancle/String/ToString.hpp"
+#include "vr_zancle.hpp"
+
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 #include <map>
-#include <regex>
-#include <sstream>
-#include <string>
-#include <tuple>
-#include <vector>
 
 namespace qvr::motion::child
 {
-bool start(const std::vector<std::string>& args, std::string& error); // vr_motion_child.cpp
+bool start(const za::Vector<za::String>& args, za::String& error); // vr_motion_child.cpp
 bool running();
 int lastExitCode();
 void stop();
@@ -44,21 +50,25 @@ namespace qvr::motion::review
 namespace
 {
 
-namespace fs = std::filesystem;
+// A path's parts joined as std::filesystem::path's `/` joined them (files::join).
+[[nodiscard]] za::String operator/(za::StringView dir, za::StringView rest)
+{
+    return files::join(dir, rest);
+}
 
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
 
-[[nodiscard]] std::vector<std::string> splitOn(const std::string& s, char sep)
+[[nodiscard]] za::Vector<za::String> splitOn(const za::String& s, char sep)
 {
-    std::vector<std::string> out;
-    std::string cur;
+    za::Vector<za::String> out;
+    za::String cur;
     for(const char c : s)
     {
         if(c == sep)
         {
-            out.push_back(cur);
+            out.pushBack(cur);
             cur.clear();
         }
         else if(c != '\r')
@@ -66,22 +76,22 @@ namespace fs = std::filesystem;
             cur += c;
         }
     }
-    out.push_back(cur);
+    out.pushBack(cur);
     return out;
 }
 
-[[nodiscard]] std::string trim(const std::string& s)
+[[nodiscard]] za::String trim(za::StringView s)
 {
-    const size_t a = s.find_first_not_of(" \t\r\n");
-    if(a == std::string::npos)
+    const size_t a = s.findFirstNotOf(" \t\r\n");
+    if(a == za::StringView::nPos)
     {
         return "";
     }
-    return s.substr(a, s.find_last_not_of(" \t\r\n") - a + 1);
+    return za::String{s.substrByPosLen(a, s.findLastNotOf(" \t\r\n") - a + 1)};
 }
 
 // A CSV cell: no commas or line breaks (the eval's tables are read by splitting on commas).
-[[nodiscard]] std::string cell(std::string s)
+[[nodiscard]] za::String cell(za::String s)
 {
     for(char& c : s)
     {
@@ -93,11 +103,11 @@ namespace fs = std::filesystem;
     return s;
 }
 
-[[nodiscard]] std::string now()
+[[nodiscard]] za::String now()
 {
-    const std::time_t t = std::time(nullptr);
+    const time_t t = time(nullptr);
     char text[32];
-    std::strftime(text, sizeof(text), "%Y-%m-%d %H:%M:%S", std::localtime(&t));
+    strftime(text, sizeof(text), "%Y-%m-%d %H:%M:%S", localtime(&t));
     return text;
 }
 
@@ -114,114 +124,106 @@ namespace fs = std::filesystem;
     return *s && (*p == '?' || *p == *s) && globMatch(p + 1, s + 1);
 }
 
-[[nodiscard]] std::string fileName(const fs::path& p)
+[[nodiscard]] za::String fileName(za::StringView p)
 {
-    return p.filename().string();
+    return za::String{files::fileName(p)};
+}
+
+// A file's lines, as std::getline gives them (its bytes as they are: a line keeps a CR before its LF); none if it can't
+// be read.
+[[nodiscard]] za::Vector<za::String> linesOf(const za::String& path)
+{
+    za::Vector<za::String> out;
+    za::String text;
+    if(files::readText(path.cStr(), text, files::Mode::Binary))
+    {
+        files::forLines(text, [&](za::StringView line) { out.emplaceBack(line); });
+    }
+    return out;
 }
 
 // A take's file name: <label>_<YYYY-MM-DD_HH-MM-SS[-n]>.csv.
 struct NameParts
 {
     bool ok{false};
-    std::string label, stamp;
+    za::String label, stamp;
 };
 
-[[nodiscard]] NameParts parseName(const std::string& name)
+[[nodiscard]] NameParts parseName(const za::String& name)
 {
-    static const std::regex pattern{R"(^(.+)_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(-\d+)?)\.csv$)"};
-    std::smatch m;
-    if(!std::regex_match(name, m, pattern))
+    za::StringView label, stamp;
+    if(!parseTakeName(name, label, stamp))
     {
         return {};
     }
-    return {true, m[1].str(), m[2].str()};
+    return {true, za::String{label}, za::String{stamp}};
 }
 
-[[nodiscard]] fs::path motionsPath()
+[[nodiscard]] za::String motionsPath()
 {
-    return fs::path{motionsDir()};
+    return za::String{motionsDir()};
 }
 
-[[nodiscard]] fs::path reviewPath()
+[[nodiscard]] za::String reviewPath()
 {
-    const fs::path p = motionsPath() / "review";
-    std::error_code ec;
-    fs::create_directories(p, ec);
+    const za::String p = motionsPath() / "review";
+    files::createDirectories(p.cStr());
     return p;
 }
 
 // Writes `text` into `path` whole, through a temporary file (a reader never sees half of it).
-[[nodiscard]] bool writeWhole(const fs::path& path, const std::string& text)
+[[nodiscard]] bool writeWhole(const za::String& path, const za::String& text)
 {
-    const fs::path tmp = path.string() + ".tmp";
+    const za::String tmp = path + ".tmp";
+    if(!files::writeBytes(tmp.cStr(), text.data(), text.size()))
     {
-        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
-        if(!out)
-        {
-            return false;
-        }
-        out.write(text.data(), static_cast<std::streamsize>(text.size()));
-        if(!out)
-        {
-            return false;
-        }
+        return false;
     }
-    std::error_code ec;
-    fs::rename(tmp, path, ec);
-    if(ec)
+    if(!files::rename(tmp.cStr(), path.cStr()))
     {
-        fs::remove(tmp, ec);
+        files::remove(tmp.cStr());
         return false;
     }
     return true;
 }
 
-[[nodiscard]] bool readWhole(const fs::path& path, std::string& text)
+[[nodiscard]] bool readWhole(const za::String& path, za::String& text)
 {
-    std::ifstream in(path, std::ios::binary);
-    if(!in)
-    {
-        return false;
-    }
-    std::ostringstream ss;
-    ss << in.rdbuf();
-    text = ss.str();
-    return true;
+    return files::readText(path.cStr(), text, files::Mode::Binary);
 }
 
 // A name in `dir` for `name` that no file has yet: name, else name-2, name-3 ... (before the extension).
-[[nodiscard]] fs::path freeName(const fs::path& dir, const std::string& name)
+[[nodiscard]] za::String freeName(const za::String& dir, const za::String& name)
 {
-    std::error_code ec;
-    fs::path p = dir / name;
-    const std::string stem = fs::path(name).stem().string();
-    const std::string ext = fs::path(name).extension().string();
-    for(int n = 2; fs::exists(p, ec) && n < 1000; n++)
+    za::String p = dir / name;
+    const za::SizeT dot = name.rfind('.');
+    const bool hasExt = dot != za::StringView::nPos && dot != 0; // (std::filesystem::path's stem and extension)
+    const za::String stem{hasExt ? name.substrByPosLen(0, dot) : name.toStringView()};
+    const za::String ext{hasExt ? name.substrByPosLen(dot) : za::StringView{}};
+    for(int n = 2; files::exists(p.cStr()) && n < 1000; n++)
     {
-        p = dir / (stem + "-" + std::to_string(n) + ext);
+        p = dir / (stem + "-" + za::toString(n) + ext);
     }
     return p;
 }
 
 // Moves a file; never over another one.
-[[nodiscard]] bool moveFile(const fs::path& from, const fs::path& to, std::string& error)
+[[nodiscard]] bool moveFile(const za::String& from, const za::String& to, za::String& error)
 {
-    std::error_code ec;
-    if(!fs::exists(from, ec))
+    if(!files::exists(from.cStr()))
     {
         error = fileName(from) + " is missing";
         return false;
     }
-    if(fs::exists(to, ec))
+    if(files::exists(to.cStr()))
     {
         error = fileName(to) + " is there already";
         return false;
     }
-    fs::create_directories(to.parent_path(), ec);
-    fs::rename(from, to, ec);
-    if(ec)
+    files::createDirectories(za::String{files::parentPath(to)}.cStr());
+    if(!files::rename(from.cStr(), to.cStr()))
     {
-        error = "can't move " + fileName(from) + " (" + ec.message() + ")";
+        error = "can't move " + fileName(from);
         return false;
     }
     return true;
@@ -233,25 +235,24 @@ struct NameParts
 
 struct Status
 {
-    std::string file, label, verdict, reason, expected, events, recorded, same, weapons, evaluated;
+    za::String file, label, verdict, reason, expected, events, recorded, same, weapons, evaluated;
 };
 
 const char* const statusColumns =
     "file,label,verdict,reason,expected,events,recorded_events,same_hits_as_recorded,weapons,evaluated";
 
-[[nodiscard]] std::map<std::string, Status> readStatus(const fs::path& path)
+// ZANCLE-TODO: no ordered map: the verdicts by file name, written in that order.
+[[nodiscard]] std::map<za::String, Status> readStatus(const za::String& path)
 {
-    std::map<std::string, Status> out;
-    std::ifstream in(path, std::ios::binary);
-    std::string line;
-    std::map<std::string, size_t> col;
-    while(in && std::getline(in, line))
+    std::map<za::String, Status> out;
+    ankerl::unordered_dense::map<za::String, size_t> col;
+    for(const za::String& line : linesOf(path))
     {
         if(line.empty() || line[0] == '#')
         {
             continue;
         }
-        const std::vector<std::string> cells = splitOn(line, ',');
+        const za::Vector<za::String> cells = splitOn(line, ',');
         if(col.empty())
         {
             for(size_t i = 0; i < cells.size(); i++)
@@ -262,21 +263,21 @@ const char* const statusColumns =
         }
         const auto get = [&](const char* name) {
             const auto it = col.find(name);
-            return it != col.end() && it->second < cells.size() ? cells[it->second] : std::string{};
+            return it != col.end() && it->second < cells.size() ? cells[it->second] : za::String{};
         };
         Status s{get("file"), get("label"), get("verdict"), get("reason"), get("expected"), get("events"),
             get("recorded_events"), get("same_hits_as_recorded"), get("weapons"), get("evaluated")};
         if(!s.file.empty())
         {
-            out[s.file] = std::move(s);
+            out[s.file] = ZA_MOVE(s);
         }
     }
     return out;
 }
 
-[[nodiscard]] bool writeStatus(const fs::path& path, const std::map<std::string, Status>& entries)
+[[nodiscard]] bool writeStatus(const za::String& path, const std::map<za::String, Status>& entries)
 {
-    std::string text = "# eval_status.csv -- vr_motion_eval's verdict on each take of this folder, the latest evaluation "
+    za::String text = "# eval_status.csv -- vr_motion_eval's verdict on each take of this folder, the latest evaluation "
                        "of each (docs/vr-port/MOTIONS.md, \"Reviewing failing takes\")\n";
     text += statusColumns;
     text += '\n';
@@ -295,54 +296,50 @@ const char* const statusColumns =
 
 struct Suspect
 {
-    std::string pattern, reason;
+    za::String pattern, reason;
 };
 
-[[nodiscard]] std::vector<Suspect> readSuspects()
+[[nodiscard]] za::Vector<Suspect> readSuspects()
 {
-    std::vector<Suspect> out;
-    std::ifstream in(motionsPath() / "suspects.cfg", std::ios::binary);
-    std::string line;
-    while(in && std::getline(in, line))
+    za::Vector<Suspect> out;
+    for(za::String line : linesOf(motionsPath() / "suspects.cfg"))
     {
         line = trim(line);
         if(line.empty() || line[0] == '#')
         {
             continue;
         }
-        const size_t space = line.find_first_of(" \t");
+        const size_t space = line.findFirstOf(" \t");
         Suspect s;
-        s.pattern = line.substr(0, space);
-        s.reason = space == std::string::npos ? std::string{"suspect"} : trim(line.substr(space));
-        if(s.pattern.size() < 4 || s.pattern.compare(s.pattern.size() - 4, 4, ".csv") != 0)
+        s.pattern = line.substrByPosLen(0, space);
+        s.reason = space == za::StringView::nPos ? za::String{"suspect"} : trim(line.substrByPosLen(space));
+        if(s.pattern.size() < 4 || !s.pattern.endsWith(".csv"))
         {
             s.pattern += ".csv";
         }
-        out.push_back(std::move(s));
+        out.pushBack(ZA_MOVE(s));
     }
     return out;
 }
 
 struct Mark
 {
-    std::string decision; // keep, relabel
-    std::string date;
+    za::String decision; // keep, relabel
+    za::String date;
 };
 
-std::map<std::string, Mark> marks; // by the take's file name
+std::map<za::String, Mark> marks; // by the take's file name (ZANCLE-TODO: no ordered map: written in order, pointers kept)
 
 void readMarks()
 {
     marks.clear();
-    std::ifstream in(reviewPath() / "reviewed.csv", std::ios::binary);
-    std::string line;
-    while(in && std::getline(in, line))
+    for(za::String line : linesOf(reviewPath() / "reviewed.csv"))
     {
         if(line.empty() || line[0] == '#' || line.rfind("file,", 0) == 0)
         {
             continue;
         }
-        const std::vector<std::string> c = splitOn(line, ',');
+        const za::Vector<za::String> c = splitOn(line, ',');
         if(c.size() >= 3 && !c[0].empty())
         {
             marks[c[0]] = {c[1], c[2]};
@@ -352,7 +349,7 @@ void readMarks()
 
 [[nodiscard]] bool writeMarks()
 {
-    std::string text = "# reviewed.csv -- the takes reviewed in the game (Review Takes): kept, or relabelled\nfile,decision,date\n";
+    za::String text = "# reviewed.csv -- the takes reviewed in the game (Review Takes): kept, or relabelled\nfile,decision,date\n";
     for(const auto& [name, m] : marks)
     {
         text += cell(name) + ',' + cell(m.decision) + ',' + cell(m.date) + '\n';
@@ -367,31 +364,29 @@ void readMarks()
 //   relabel a: the take, b: the relabelled take, c: the original's name in review/relabelled/, d/e: a's mark before
 struct Change
 {
-    std::string date, action, a, b, c, d, e;
+    za::String date, action, a, b, c, d, e;
 };
 
-std::vector<Change> journal;
+za::Vector<Change> journal;
 
 void readJournal()
 {
     journal.clear();
-    std::ifstream in(reviewPath() / "undo.csv", std::ios::binary);
-    std::string line;
-    while(in && std::getline(in, line))
+    for(za::String line : linesOf(reviewPath() / "undo.csv"))
     {
         if(line.empty() || line[0] == '#' || line.rfind("date,", 0) == 0)
         {
             continue;
         }
-        std::vector<std::string> c = splitOn(line, ',');
+        za::Vector<za::String> c = splitOn(line, ',');
         c.resize(7);
-        journal.push_back({c[0], c[1], c[2], c[3], c[4], c[5], c[6]});
+        journal.pushBack({c[0], c[1], c[2], c[3], c[4], c[5], c[6]});
     }
 }
 
 [[nodiscard]] bool writeJournal()
 {
-    std::string text = "# undo.csv -- the review's changes, newest last (Undo Last takes back the last)\ndate,action,a,b,c,d,e\n";
+    za::String text = "# undo.csv -- the review's changes, newest last (Undo Last takes back the last)\ndate,action,a,b,c,d,e\n";
     for(const Change& c : journal)
     {
         text += cell(c.date) + ',' + cell(c.action) + ',' + cell(c.a) + ',' + cell(c.b) + ',' + cell(c.c) + ',' +
@@ -406,28 +401,28 @@ void readJournal()
 
 struct Take
 {
-    std::string name, label, category, detail, stamp;
+    za::String name, label, category, detail, stamp;
     bool discarded{false};
     const Status* status{nullptr}; // its verdict (null: never evaluated)
     bool stale{false};             // the verdict is of the take under another label (relabelled since)
-    std::string suspect;           // why it is suspect ("": it isn't)
+    za::String suspect;           // why it is suspect ("": it isn't)
     const Mark* mark{nullptr};     // reviewed
 };
 
-std::map<std::string, Status> statuses;
-std::vector<Suspect> suspectList;
-std::vector<Take> takes;
-std::string lastEvaluated; // the newest verdict's date
+std::map<za::String, Status> statuses; // ZANCLE-TODO: no ordered map (the takes keep pointers into it)
+za::Vector<Suspect> suspectList;
+za::Vector<Take> takes;
+za::String lastEvaluated; // the newest verdict's date
 bool dirty = true;
 int gen = 0;
 int shownFilter = -99, shownCategory = -99;
-std::vector<int> shown; // indices into takes
-std::vector<std::string> rowTexts, rowHelps;
+za::Vector<int> shown; // indices into takes
+za::Vector<za::String> rowTexts, rowHelps;
 bool multiDay = false;
 
-std::string pickedName;       // the take the Take page shows
+za::String pickedName;       // the take the Take page shows
 bool pickedDiscarded = false; // in discarded/
-std::string actionText;       // the last change's outcome
+za::String actionText;       // the last change's outcome
 
 enum Show : int
 {
@@ -451,10 +446,10 @@ enum Show : int
     return t.status && !t.stale;
 }
 
-[[nodiscard]] int categoryRank(const std::string& category)
+[[nodiscard]] int categoryRank(const za::String& category)
 {
     const auto& list = categories();
-    const std::vector<int> order = categoryOrder();
+    const za::Vector<int> order = categoryOrder();
     for(size_t i = 0; i < order.size(); i++)
     {
         if(category == list[order[i]].choice.name)
@@ -473,33 +468,31 @@ void rebuild()
     readMarks();
     readJournal(); // (as on disk: every change is written as it is made)
     lastEvaluated.clear();
-    std::map<std::string, const Status*> byStamp; // a relabelled take's verdict, under its old name
+    ankerl::unordered_dense::map<za::String, const Status*> byStamp; // a relabelled take's verdict, under its old name
     for(const auto& [name, s] : statuses)
     {
         if(const NameParts p = parseName(name); p.ok)
         {
             byStamp[p.stamp] = &s;
         }
-        lastEvaluated = std::max(lastEvaluated, s.evaluated);
+        lastEvaluated = za::max(lastEvaluated, s.evaluated);
     }
 
     takes.clear();
-    std::error_code ec;
-    const auto scan = [&](const fs::path& dir, bool discarded) {
-        for(const auto& entry : fs::directory_iterator(dir, ec))
-        {
-            const std::string name = fileName(entry.path());
+    const auto scan = [&](const za::String& dir, bool discarded) {
+        files::forEachEntry(dir.cStr(), [&](const char* entryName, bool isDirectory) {
+            const za::String name{entryName};
             const NameParts p = parseName(name);
-            if(!p.ok || !entry.is_regular_file(ec))
+            if(!p.ok || isDirectory)
             {
-                continue;
+                return;
             }
             Take t;
             t.name = name;
             t.label = p.label;
             t.stamp = p.stamp;
             t.category = categoryOf(p.label);
-            t.detail = t.category.empty() || t.label == t.category ? "" : t.label.substr(t.category.size() + 1);
+            t.detail = t.category.empty() || t.label == t.category ? "" : t.label.substrByPosLen(t.category.size() + 1);
             t.discarded = discarded;
             if(const auto it = statuses.find(name); it != statuses.end())
             {
@@ -512,7 +505,7 @@ void rebuild()
             }
             for(const Suspect& s : suspectList)
             {
-                if(globMatch(s.pattern.c_str(), name.c_str()))
+                if(globMatch(s.pattern.cStr(), name.cStr()))
                 {
                     t.suspect = s.reason;
                     break;
@@ -522,22 +515,22 @@ void rebuild()
             {
                 t.mark = &mt->second;
             }
-            takes.push_back(std::move(t));
-        }
+            takes.pushBack(ZA_MOVE(t));
+        });
     };
     scan(motionsPath(), false);
-    if(fs::is_directory(motionsPath() / "discarded", ec))
+    if(files::isDirectory((motionsPath() / "discarded").cStr()))
     {
         scan(motionsPath() / "discarded", true);
     }
-    std::sort(takes.begin(), takes.end(), [](const Take& a, const Take& b) {
+    za::quickSort(takes.begin(), takes.end(), [](const Take& a, const Take& b) {
         const int ra = categoryRank(a.category), rb = categoryRank(b.category);
         return ra != rb ? ra < rb : a.stamp != b.stamp ? a.stamp < b.stamp : a.name < b.name;
     });
     multiDay = false;
     for(const Take& t : takes)
     {
-        multiDay = multiDay || t.stamp.compare(0, 10, takes.front().stamp, 0, 10) != 0;
+        multiDay = multiDay || t.stamp.substrByPosLen(0, 10) != takes.front().stamp.substrByPosLen(0, 10);
     }
     shownFilter = -99; // filtered again
 }
@@ -571,7 +564,7 @@ void rebuild()
     }
 }
 
-[[nodiscard]] std::string verdictCode(const Take& t)
+[[nodiscard]] za::String verdictCode(const Take& t)
 {
     if(!t.status)
     {
@@ -581,31 +574,31 @@ void rebuild()
     {
         return "old";
     }
-    const std::string& v = t.status->verdict;
+    const za::String& v = t.status->verdict;
     return v == "ERROR" ? "ERR" : v == "-" ? "--" : v;
 }
 
 // "02:41:57", or with the day when the takes span several ("27 02:41").
-[[nodiscard]] std::string shortTime(const Take& t)
+[[nodiscard]] za::String shortTime(const Take& t)
 {
     if(t.stamp.size() < 19)
     {
         return t.stamp;
     }
-    std::string hms = t.stamp.substr(11, 8);
-    std::replace(hms.begin(), hms.end(), '-', ':');
-    return multiDay ? t.stamp.substr(8, 2) + " " + hms.substr(0, 5) : hms;
+    za::String hms{t.stamp.substrByPosLen(11, 8)};
+    qza::replace(hms.begin(), hms.end(), '-', ':');
+    return multiDay ? t.stamp.substrByPosLen(8, 2) + " " + hms.substrByPosLen(0, 5) : hms;
 }
 
-[[nodiscard]] std::string eventsOrNothing(const std::string& events)
+[[nodiscard]] za::String eventsOrNothing(const za::String& events)
 {
     return events.empty() || events == "-" ? "nothing" : events;
 }
 
 // The row's help (four lines of 38 under the list): what matters first.
-[[nodiscard]] std::string helpFor(const Take& t)
+[[nodiscard]] za::String helpFor(const Take& t)
 {
-    std::string h;
+    za::String h;
     if(t.status && !t.stale)
     {
         h = t.status->verdict + (t.status->reason.empty() ? "" : ": " + t.status->reason) + ". Got " +
@@ -644,12 +637,12 @@ void refilter()
         {
             continue;
         }
-        shown.push_back(static_cast<int>(i));
+        shown.pushBack(static_cast<int>(i));
         char text[64];
-        q_snprintf(text, sizeof(text), "%-4.4s%c %-23.23s %-8.8s %c", verdictCode(t).c_str(), t.suspect.empty() ? ' ' : '*',
-            t.label.c_str(), shortTime(t).c_str(), t.mark ? (t.mark->decision == "relabel" ? 'r' : 'k') : ' ');
-        rowTexts.emplace_back(text);
-        rowHelps.push_back(helpFor(t));
+        q_snprintf(text, sizeof(text), "%-4.4s%c %-23.23s %-8.8s %c", verdictCode(t).cStr(), t.suspect.empty() ? ' ' : '*',
+            t.label.cStr(), shortTime(t).cStr(), t.mark ? (t.mark->decision == "relabel" ? 'r' : 'k') : ' ');
+        rowTexts.emplaceBack(text);
+        rowHelps.pushBack(helpFor(t));
     }
     gen++;
 }
@@ -675,7 +668,7 @@ void changed()
     gen++;
 }
 
-[[nodiscard]] const Take* find(const std::string& name, bool discarded)
+[[nodiscard]] const Take* find(const za::String& name, bool discarded)
 {
     for(const Take& t : takes)
     {
@@ -693,15 +686,15 @@ void changed()
     return pickedName.empty() ? nullptr : find(pickedName, pickedDiscarded);
 }
 
-[[nodiscard]] fs::path pathOf(const Take& t)
+[[nodiscard]] za::String pathOf(const Take& t)
 {
     return t.discarded ? motionsPath() / "discarded" / t.name : motionsPath() / t.name;
 }
 
-void say(const std::string& text, bool ok)
+void say(const za::String& text, bool ok)
 {
     actionText = text;
-    Con_Printf("Review Takes: %s\n", text.c_str());
+    Con_Printf("Review Takes: %s\n", text.cStr());
     S_LocalSound(ok ? "misc/menu3.wav" : "doors/basetry.wav");
 }
 
@@ -723,14 +716,14 @@ bool jobRunning = false;
 int jobCount = 0;
 double jobStart = 0.0;
 double jobNextPoll = 0.0;
-std::string jobProgress;
+za::String jobProgress;
 
-[[nodiscard]] fs::path jobFile(const char* name)
+[[nodiscard]] za::String jobFile(const char* name)
 {
     return reviewPath() / name;
 }
 
-void startJob(const std::vector<std::string>& paths)
+void startJob(const za::Vector<za::String>& paths)
 {
     if(COM_CheckParm("-evalcopy"))
     {
@@ -747,20 +740,19 @@ void startJob(const std::vector<std::string>& paths)
         say("no takes to evaluate", false);
         return;
     }
-    std::string list;
-    for(const std::string& p : paths)
+    za::String list;
+    for(const za::String& p : paths)
     {
         list += p + '\n';
     }
     // The copy's script: the map, a moment for the mock headset to start, the evaluation, and quit.
-    std::string script = "sv_autosave 0\nmap vrfiringrange\n";
+    za::String script = "sv_autosave 0\nmap vrfiringrange\n";
     for(int i = 0; i < 60; i++)
     {
         script += "wait\n";
     }
     script += "vr_motion_eval list \"review/eval_job.txt\" progress \"review/eval_progress.txt\" out \"review/eval_job_table.csv\" quit\n";
-    std::error_code ec;
-    fs::remove(jobFile("eval_progress.txt"), ec);
+    files::remove(jobFile("eval_progress.txt").cStr());
     if(!writeWhole(jobFile("eval_job.txt"), list) || !writeWhole(jobFile("eval_job.cfg"), script))
     {
         say("can't write motions/review/eval_job.*", false);
@@ -772,7 +764,7 @@ void startJob(const std::vector<std::string>& paths)
     // The script first: the engine keeps only the command line's first 256 characters for its + commands (a long
     // -basedir would cut it off). -noautoexec: the player's autoexec.cfg could start anything, a re-evaluation among
     // them; -evalcopy: this copy never starts copies of its own.
-    std::vector<std::string> args{"+exec", "motions/review/eval_job.cfg", "-vrmock", "-noconfigwrite", "-noautoexec",
+    za::Vector<za::String> args{"+exec", "motions/review/eval_job.cfg", "-vrmock", "-noconfigwrite", "-noautoexec",
         "-evalcopy", "-nosound", "-window", "-width", "480", "-height", "270"};
     bool baseDir = false;
     for(int i = 1; i < com_argc; i++)
@@ -780,17 +772,17 @@ void startJob(const std::vector<std::string>& paths)
         if((!q_strcasecmp(com_argv[i], "-game") || !q_strcasecmp(com_argv[i], "-basedir")) && i + 1 < com_argc)
         {
             baseDir = baseDir || !q_strcasecmp(com_argv[i], "-basedir");
-            args.emplace_back(com_argv[i]);
-            args.emplace_back(com_argv[i + 1]);
+            args.emplaceBack(com_argv[i]);
+            args.emplaceBack(com_argv[i + 1]);
             i++;
         }
     }
     if(!baseDir)
     {
-        args.emplace_back("-basedir");
-        args.emplace_back(com_basedirs[com_numbasedirs - 1]); // (the game folder's)
+        args.emplaceBack("-basedir");
+        args.emplaceBack(com_basedirs[com_numbasedirs - 1]); // (the game folder's)
     }
-    std::string error;
+    za::String error;
     if(!child::start(args, error))
     {
         say("can't start the evaluation: " + error, false);
@@ -813,7 +805,7 @@ void pollJob()
         return;
     }
     jobNextPoll = realtime + 1.0;
-    std::string text;
+    za::String text;
     if(readWhole(jobFile("eval_progress.txt"), text))
     {
         jobProgress = trim(text);
@@ -824,7 +816,7 @@ void pollJob()
     }
     jobRunning = false;
     const int code = child::lastExitCode();
-    std::string done;
+    za::String done;
     if(!readWhole(jobFile("eval_progress.txt"), done))
     {
         done.clear();
@@ -836,7 +828,7 @@ void pollJob()
     }
     else
     {
-        say(va("the re-evaluation stopped (exit code %d, %s): see motions/review/", code, jobProgress.c_str()), false);
+        say(va("the re-evaluation stopped (exit code %d, %s): see motions/review/", code, jobProgress.cStr()), false);
     }
 }
 
@@ -846,7 +838,7 @@ void pollJob()
 
 struct GhostEvent
 {
-    std::string text;
+    za::String text;
     bool hit{false};
     bool hasAt{false};
     glm::vec3 at{0.f}; // world, as recorded
@@ -860,7 +852,7 @@ struct GhostHand
     int model{-1};      // into Ghost::models
     bool hasLine{false};
     glm::vec3 butt{0.f}, end{0.f};
-    std::vector<glm::vec3> points;
+    za::Vector<glm::vec3> points;
 };
 
 struct GhostFrame
@@ -870,18 +862,18 @@ struct GhostFrame
     glm::vec3 head{0.f};
     glm::vec3 view{0.f};
     GhostHand hands[2];
-    std::vector<GhostEvent> events;
+    za::Vector<GhostEvent> events;
 };
 
 struct ReplayEvent
 {
     double t;
-    std::string text;
+    za::String text;
 };
 
 struct Marker
 {
-    std::string text;
+    za::String text;
     bool live{true};
     bool hit{false}; // a hit (red); a push, parry or batting (yellow)
     bool hasAt{false};
@@ -892,15 +884,15 @@ struct Marker
 struct Ghost
 {
     bool active{false};
-    std::string name, label, verdict;
-    std::vector<GhostFrame> frames;
-    std::vector<std::string> modelNames;
-    std::vector<qmodel_t*> models;
-    std::vector<ReplayEvent> replayEvents;
-    std::vector<Marker> markers;
+    za::String name, label, verdict;
+    za::Vector<GhostFrame> frames;
+    za::Vector<za::String> modelNames;
+    za::Vector<qmodel_t*> models;
+    za::Vector<ReplayEvent> replayEvents;
+    za::Vector<Marker> markers;
     const qmodel_t* world{nullptr}; // the map it was started in
     bool hasMon{false};
-    std::string monClass;
+    za::String monClass;
     glm::vec3 monW{0.f};  // the take's monster (the first frame's)
     glm::vec3 org0{0.f};  // the take's player at its start
     float yaw0{0.f};
@@ -917,10 +909,10 @@ struct Ghost
 
 Ghost ghost;
 
-[[nodiscard]] std::string eventText(const std::vector<std::string>& f)
+[[nodiscard]] za::String eventText(const za::Vector<za::String>& f)
 {
     // kind:sub:hand:value:x:y:z:target:detail
-    std::string s = f[0];
+    za::String s = f[0];
     if(!f[1].empty())
     {
         s += "/" + f[1];
@@ -929,7 +921,7 @@ Ghost ghost;
     {
         s += " " + f[2];
     }
-    const float value = std::strtof(f[3].c_str(), nullptr);
+    const float value = strtof(f[3].cStr(), nullptr);
     if(value != 0.f)
     {
         s += va(" %.0f", value);
@@ -941,24 +933,22 @@ Ghost ghost;
     return s;
 }
 
-[[nodiscard]] bool loadGhost(const fs::path& path, std::string& error)
+[[nodiscard]] bool loadGhost(const za::String& path, za::String& error)
 {
-    std::ifstream in(path, std::ios::binary);
-    if(!in)
+    if(!files::isFile(path.cStr()))
     {
         error = "can't open " + fileName(path);
         return false;
     }
     Ghost g;
-    std::map<std::string, std::string> header;
-    std::map<std::string, int> col;
-    std::string line;
+    ankerl::unordered_dense::map<za::String, za::String> header;
+    ankerl::unordered_dense::map<za::String, int> col;
     bool yaw0Known = false;
-    while(std::getline(in, line))
+    for(za::String line : linesOf(path))
     {
-        if(!line.empty() && line.back() == '\r')
+        if(line.endsWith('\r'))
         {
-            line.pop_back();
+            line.popBack();
         }
         if(line.empty())
         {
@@ -967,13 +957,13 @@ Ghost ghost;
         if(line[0] == '#')
         {
             const size_t colon = line.find(':');
-            if(colon != std::string::npos)
+            if(colon != za::StringView::nPos)
             {
-                header[trim(line.substr(1, colon - 1))] = trim(line.substr(colon + 1));
+                header[trim(line.substrByPosLen(1, colon - 1))] = trim(line.substrByPosLen(colon + 1));
             }
             continue;
         }
-        const std::vector<std::string> cells = splitOn(line, ',');
+        const za::Vector<za::String> cells = splitOn(line, ',');
         if(col.empty())
         {
             for(size_t i = 0; i < cells.size(); i++)
@@ -982,24 +972,24 @@ Ghost ghost;
             }
             if(const auto it = header.find("yaw0"); it != header.end())
             {
-                g.yaw0 = std::strtof(it->second.c_str(), nullptr);
+                g.yaw0 = strtof(it->second.cStr(), nullptr);
                 yaw0Known = true;
             }
             continue;
         }
-        const auto str = [&](const std::string& name) -> const std::string& {
-            static const std::string none;
+        const auto str = [&](const za::String& name) -> const za::String& {
+            static const za::String none;
             const auto it = col.find(name);
             return it != col.end() && it->second < static_cast<int>(cells.size()) ? cells[it->second] : none;
         };
-        const auto has = [&](const std::string& name) { return !str(name).empty(); };
-        const auto f = [&](const std::string& name) { return std::strtof(str(name).c_str(), nullptr); };
-        const auto vec = [&](const std::string& a, const std::string& b, const std::string& c) {
+        const auto has = [&](const za::String& name) { return !str(name).empty(); };
+        const auto f = [&](const za::String& name) { return strtof(str(name).cStr(), nullptr); };
+        const auto vec = [&](const za::String& a, const za::String& b, const za::String& c) {
             return glm::vec3{f(a), f(b), f(c)};
         };
 
         GhostFrame fr;
-        fr.t = std::strtod(str("t").c_str(), nullptr);
+        fr.t = strtod(str("t").cStr(), nullptr);
         fr.phase = str("phase") == "pre" ? 0 : str("phase") == "tail" ? 2 : 1;
         const glm::vec3 org = vec("org_w_x", "org_w_y", "org_w_z");
         const auto world = [&](const glm::vec3& pf) { return org + hands::rotateYaw(pf, g.yaw0); };
@@ -1007,7 +997,7 @@ Ghost ghost;
         fr.view = {f("view_pitch"), f("view_yaw") + g.yaw0, f("view_roll")};
         for(const int h : {HAND_MAIN, HAND_OFF})
         {
-            const std::string p = h == HAND_MAIN ? "m_" : "o_";
+            const za::String p = h == HAND_MAIN ? "m_" : "o_";
             GhostHand& gh = fr.hands[h];
             gh.has = has(p + "pos_w_x");
             if(!gh.has)
@@ -1016,14 +1006,14 @@ Ghost ghost;
             }
             gh.pos = vec(p + "pos_w_x", p + "pos_w_y", p + "pos_w_z");
             gh.rot = {f(p + "pitch"), f(p + "yaw") + g.yaw0, f(p + "roll")};
-            const std::string& model = str(p + "model");
+            const za::String& model = str(p + "model");
             if(!model.empty())
             {
-                const auto it = std::find(g.modelNames.begin(), g.modelNames.end(), model);
+                const auto it = za::find(g.modelNames.begin(), g.modelNames.end(), model);
                 gh.model = static_cast<int>(it - g.modelNames.begin());
                 if(it == g.modelNames.end())
                 {
-                    g.modelNames.push_back(model);
+                    g.modelNames.pushBack(model);
                 }
             }
             gh.hasLine = has(p + "butt_x_u") && has(p + "end_x_u");
@@ -1034,18 +1024,18 @@ Ghost ghost;
             }
             for(int i = 0; i < 6; i++)
             {
-                const std::string q = p + "pt" + std::to_string(i) + "_";
+                const za::String q = p + "pt" + za::toString(i) + "_";
                 if(has(q + "x_u"))
                 {
-                    gh.points.push_back(world(vec(q + "x_u", q + "y_u", q + "z_u")));
+                    gh.points.pushBack(world(vec(q + "x_u", q + "y_u", q + "z_u")));
                 }
             }
         }
-        if(const std::string& events = str("events"); !events.empty())
+        if(const za::String& events = str("events"); !events.empty())
         {
-            for(const std::string& e : splitOn(events, ';'))
+            for(const za::String& e : splitOn(events, ';'))
             {
-                const std::vector<std::string> ef = splitOn(e, ':');
+                const za::Vector<za::String> ef = splitOn(e, ':');
                 if(ef.size() < 9 || ef[0] == "stroke")
                 {
                     continue;
@@ -1056,10 +1046,10 @@ Ghost ghost;
                 ge.hasAt = !ef[4].empty();
                 if(ge.hasAt)
                 {
-                    ge.at = world({std::strtof(ef[4].c_str(), nullptr), std::strtof(ef[5].c_str(), nullptr),
-                        std::strtof(ef[6].c_str(), nullptr)});
+                    ge.at = world({strtof(ef[4].cStr(), nullptr), strtof(ef[5].cStr(), nullptr),
+                        strtof(ef[6].cStr(), nullptr)});
                 }
-                fr.events.push_back(std::move(ge));
+                fr.events.pushBack(ZA_MOVE(ge));
             }
         }
         if(!g.hasMon && has("mon_w_x"))
@@ -1072,7 +1062,7 @@ Ghost ghost;
         {
             g.org0 = org;
         }
-        g.frames.push_back(std::move(fr));
+        g.frames.pushBack(ZA_MOVE(fr));
     }
     if(g.frames.empty())
     {
@@ -1084,18 +1074,18 @@ Ghost ghost;
         error = fileName(path) + " has no yaw0 (a synthetic take: play it with vr_motion_play)";
         return false;
     }
-    for(const std::string& m : g.modelNames)
+    for(const za::String& m : g.modelNames)
     {
-        g.models.push_back(Mod_ForName(m.c_str(), false));
+        g.models.pushBack(Mod_ForName(m.cStr(), false));
     }
-    ghost = std::move(g);
+    ghost = ZA_MOVE(g);
     return true;
 }
 
 // The replay's events from the evaluation ("melee/stab main 12.0 the tip @0.345; ...").
-[[nodiscard]] std::vector<ReplayEvent> replayEventsOf(const std::string& events)
+[[nodiscard]] za::Vector<ReplayEvent> replayEventsOf(const za::String& events)
 {
-    std::vector<ReplayEvent> out;
+    za::Vector<ReplayEvent> out;
     if(events.empty() || events == "-")
     {
         return out;
@@ -1104,19 +1094,19 @@ Ghost ghost;
     while(start < events.size())
     {
         size_t end = events.find("; ", start);
-        const std::string e = events.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        const za::String e{events.substrByPosLen(start, end == za::StringView::nPos ? za::StringView::nPos : end - start)};
         const size_t at = e.rfind(" @");
-        if(at != std::string::npos)
+        if(at != za::StringView::nPos)
         {
-            out.push_back({std::strtod(e.c_str() + at + 2, nullptr), e.substr(0, at)});
+            out.pushBack({strtod(e.cStr() + at + 2, nullptr), za::String{e.substrByPosLen(0, at)}});
         }
-        if(end == std::string::npos)
+        if(end == za::StringView::nPos)
         {
             break;
         }
         start = end + 2;
     }
-    std::sort(out.begin(), out.end(), [](const ReplayEvent& a, const ReplayEvent& b) { return a.t < b.t; });
+    za::insertionSort(out.begin(), out.end(), [](const ReplayEvent& a, const ReplayEvent& b) { return a.t < b.t; }); // (stable: ties as std::sort left a few)
     return out;
 }
 
@@ -1156,7 +1146,7 @@ void anchorGhost(const hands::State& s)
 
 [[nodiscard]] float lerpAngle(float a, float b, float f)
 {
-    return a + std::remainder(b - a, 360.f) * f;
+    return a + za::remainder(b - a, 360.f) * f;
 }
 
 [[nodiscard]] glm::vec3 lerpAngles(const glm::vec3& a, const glm::vec3& b, float f)
@@ -1164,11 +1154,11 @@ void anchorGhost(const hands::State& s)
     return {lerpAngle(a.x, b.x, f), lerpAngle(a.y, b.y, f), lerpAngle(a.z, b.z, f)};
 }
 
-void queueText(const std::string& text, const glm::vec3& pos, const hands::State& s)
+void queueText(const za::String& text, const glm::vec3& pos, const hands::State& s)
 {
     const glm::vec3 d = pos - s.head;
-    const float yaw = glm::degrees(std::atan2(d.y, d.x));
-    const float dist = std::max(glm::length(d), 16.f);
+    const float yaw = glm::degrees(za::atan2(d.y, d.x));
+    const float dist = za::max(glm::length(d), 16.f);
     text3d::queue(text, pos, glm::vec3{0.f, yaw, 0.f}, text3d::Align::Centre, 0.003f * dist);
 }
 
@@ -1218,22 +1208,22 @@ void drawGhost()
         i++;
     }
     const GhostFrame& a = ghost.frames[i];
-    const GhostFrame& b = ghost.frames[std::min(i + 1, ghost.frames.size() - 1)];
+    const GhostFrame& b = ghost.frames[za::min(i + 1, ghost.frames.size() - 1)];
     const float f = b.t > a.t ? static_cast<float>(CLAMP(0.0, (ghost.t - a.t) / (b.t - a.t), 1.0)) : 0.f;
 
     // Events: the take's own (live) where they happened, the evaluation's replay over the dummy.
-    const double shownFor = 1.2 / std::max(speed, 0.25);
+    const double shownFor = 1.2 / za::max(speed, 0.25);
     while(ghost.nextEvent <= i && ghost.nextEvent < ghost.frames.size())
     {
         for(const GhostEvent& e : ghost.frames[ghost.nextEvent].events)
         {
-            ghost.markers.push_back({"live: " + e.text, true, e.hit, e.hasAt, e.at, realtime + shownFor});
+            ghost.markers.pushBack({"live: " + e.text, true, e.hit, e.hasAt, e.at, realtime + shownFor});
         }
         ghost.nextEvent++;
     }
     while(ghost.nextReplay < ghost.replayEvents.size() && ghost.replayEvents[ghost.nextReplay].t <= ghost.t)
     {
-        ghost.markers.push_back({"replay: " + ghost.replayEvents[ghost.nextReplay].text, false, false, false, {}, realtime + shownFor});
+        ghost.markers.pushBack({"replay: " + ghost.replayEvents[ghost.nextReplay].text, false, false, false, {}, realtime + shownFor});
         ghost.nextReplay++;
     }
 
@@ -1298,7 +1288,7 @@ void drawGhost()
     // Its name, time and verdict over the dummy (or over the ghost), and the events shown.
     const glm::vec3 over = (ghost.hasMon && ghost.hasTarget ? ghost.target : head) + glm::vec3{0.f, 0.f, 1.3f * m2u};
     const char* phase = a.phase == 0 ? "lead-in" : a.phase == 2 ? "tail" : "take";
-    queueText(va("GHOST %s  %.2f s %s  x%.2g\n%s", ghost.label.c_str(), ghost.t, phase, speed, ghost.verdict.c_str()), over, s);
+    queueText(va("GHOST %s  %.2f s %s  x%.2g\n%s", ghost.label.cStr(), ghost.t, phase, speed, ghost.verdict.cStr()), over, s);
     int replayRow = 0;
     for(auto it = ghost.markers.begin(); it != ghost.markers.end();)
     {
@@ -1325,14 +1315,14 @@ void drawGhost()
 // The details
 // ----------------------------------------------------------------------------
 
-std::vector<std::string> details;
+za::Vector<za::String> details;
 int detailsGen = -1;
 
-void wrapInto(std::vector<std::string>& out, const std::string& text)
+void wrapInto(za::Vector<za::String>& out, const za::String& text)
 {
     constexpr size_t columns = 40;
-    std::string rest = text;
-    const std::string indent = "  ";
+    za::String rest = text;
+    const za::String indent = "  ";
     bool first = true;
     while(!rest.empty())
     {
@@ -1341,13 +1331,13 @@ void wrapInto(std::vector<std::string>& out, const std::string& text)
         if(n > width)
         {
             n = rest.rfind(' ', width);
-            if(n == std::string::npos || n == 0)
+            if(n == za::StringView::nPos || n == 0)
             {
                 n = width;
             }
         }
-        out.push_back((first ? "" : indent) + rest.substr(0, n));
-        rest = trim(rest.substr(n));
+        out.pushBack((first ? "" : indent) + rest.substrByPosLen(0, n));
+        rest = trim(rest.substrByPosLen(n));
         first = false;
     }
 }
@@ -1358,28 +1348,28 @@ void makeDetails()
     const Take* t = picked();
     if(!t)
     {
-        details.push_back(pickedName.empty() ? "No take picked: pick one in the list." : "The take is gone: " + pickedName);
+        details.pushBack(pickedName.empty() ? "No take picked: pick one in the list." : "The take is gone: " + pickedName);
         return;
     }
-    std::string when = t->stamp;
+    za::String when = t->stamp;
     if(when.size() >= 19)
     {
-        when = when.substr(0, 10) + " " + when.substr(11);
-        std::replace(when.begin() + 11, when.end(), '-', ':');
+        when = when.substrByPosLen(0, 10) + " " + when.substrByPosLen(11);
+        qza::replace(when.begin() + 11, when.end(), '-', ':');
     }
     wrapInto(details, t->label);
     wrapInto(details, "recorded " + when + (t->discarded ? "  DISCARDED" : ""));
-    wrapInto(details, "category " + (t->category.empty() ? std::string{"-"} : t->category) +
+    wrapInto(details, "category " + (t->category.empty() ? za::String{"-"} : t->category) +
                           (t->detail.empty() ? "" : ", detail " + t->detail));
     if(t->status && !t->stale)
     {
         const Status& s = *t->status;
         wrapInto(details, s.verdict + (s.reason.empty() ? "" : ": " + s.reason));
-        wrapInto(details, "expected: " + (s.expected.empty() ? std::string{"-"} : s.expected));
+        wrapInto(details, "expected: " + (s.expected.empty() ? za::String{"-"} : s.expected));
         wrapInto(details, "replay: " + eventsOrNothing(s.events));
         wrapInto(details, "live: " + eventsOrNothing(s.recorded) +
                               (s.same == "yes" ? "  (same hits)" : s.same == "no" ? "  (other hits)" : ""));
-        wrapInto(details, "weapons " + s.weapons + ", evaluated " + s.evaluated.substr(0, 16));
+        wrapInto(details, "weapons " + s.weapons + ", evaluated " + s.evaluated.substrByPosLen(0, 16));
     }
     else if(t->stale)
     {
@@ -1405,7 +1395,7 @@ void makeDetails()
 void review_f()
 {
     ensure();
-    const std::string cmd = Cmd_Argc() > 1 ? Cmd_Argv(1) : "list";
+    const za::String cmd = Cmd_Argc() > 1 ? Cmd_Argv(1) : "list";
     if(cmd == "list")
     {
         Con_Printf("%s\n%s\n%s\n%s\n", summary(), reviewedLine(), evalLine(), listTitle());
@@ -1430,7 +1420,7 @@ void review_f()
         {
             for(const Take& t : takes)
             {
-                if(t.name == arg || t.name == std::string{arg} + ".csv")
+                if(t.name == arg || t.name == za::String{arg} + ".csv")
                 {
                     pickedName = t.name;
                     pickedDiscarded = t.discarded;
@@ -1438,7 +1428,7 @@ void review_f()
                 }
             }
         }
-        Con_Printf("picked: %s\n", pickedName.empty() ? "-" : pickedName.c_str());
+        Con_Printf("picked: %s\n", pickedName.empty() ? "-" : pickedName.cStr());
     }
     else if(cmd == "show")
     {
@@ -1538,7 +1528,7 @@ void serverFrame()
     }
     edict_t* player = svs.clients[0].edict;
     const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-    const std::string wanted = ghost.monClass.empty() ? std::string{"vr_dummy"} : ghost.monClass;
+    const za::String wanted = ghost.monClass.empty() ? za::String{"vr_dummy"} : ghost.monClass;
     float best = 1e9f;
     bool found = false;
     for(int i = 1; i < qcvm->num_edicts; i++)
@@ -1559,30 +1549,31 @@ void serverFrame()
     ghost.hasTarget = found;
 }
 
-void recordEval(const std::vector<Verdict>& verdicts)
+void recordEval(const za::Vector<Verdict>& verdicts)
 {
-    std::map<fs::path, std::vector<const Verdict*>> byFolder;
+    ankerl::unordered_dense::map<za::String, za::Vector<const Verdict*>> byFolder;
     for(const Verdict& v : verdicts)
     {
-        byFolder[fs::path(v.path).parent_path()].push_back(&v);
+        byFolder[za::String{files::parentPath(v.path)}].pushBack(&v);
     }
-    const std::string when = now();
-    for(const auto& [folder, list] : byFolder)
+    const za::String when = now();
+    for(const auto* entry : qza::sortedByKey(byFolder)) // (in the folders' order, as a std::map had them)
     {
-        const fs::path file = folder / "eval_status.csv";
-        std::map<std::string, Status> entries = readStatus(file);
+        const auto& [folder, list] = *entry;
+        const za::String file = folder / "eval_status.csv";
+        std::map<za::String, Status> entries = readStatus(file);
         for(const Verdict* v : list)
         {
-            const std::string name = fileName(v->path);
+            const za::String name = fileName(v->path);
             entries[name] = {name, v->label, v->verdict, v->reason, v->expected, v->events, v->recorded, v->same, v->weapons, when};
         }
         if(writeStatus(file, entries))
         {
-            Con_Printf("vr_motion_eval: the verdicts are in %s\n", file.string().c_str());
+            Con_Printf("vr_motion_eval: the verdicts are in %s\n", file.cStr());
         }
         else
         {
-            Con_Warning("vr_motion_eval: can't write %s\n", file.string().c_str());
+            Con_Warning("vr_motion_eval: can't write %s\n", file.cStr());
         }
     }
     dirty = true;
@@ -1602,12 +1593,12 @@ int rowCount()
 
 const char* rowText(int row)
 {
-    return row >= 0 && row < static_cast<int>(rowTexts.size()) ? rowTexts[row].c_str() : "";
+    return row >= 0 && row < static_cast<int>(rowTexts.size()) ? rowTexts[row].cStr() : "";
 }
 
 const char* rowHelp(int row)
 {
-    return row >= 0 && row < static_cast<int>(rowHelps.size()) ? rowHelps[row].c_str() : nullptr;
+    return row >= 0 && row < static_cast<int>(rowHelps.size()) ? rowHelps[row].cStr() : nullptr;
 }
 
 void pick(int row)
@@ -1645,8 +1636,8 @@ namespace
 // The menu's texts, valid until the same function's next call (the menu draws them at once).
 struct ReviewReadouts
 {
-    std::string summary, reviewed, eval, listTitle;
-    auto members() { return std::tie(summary, reviewed, eval, listTitle); }
+    za::String summary, reviewed, eval, listTitle;
+    auto members() { return qvr::mem::list(summary, reviewed, eval, listTitle); }
 };
 mem::Scratch<ReviewReadouts> readouts{"review readouts"};
 
@@ -1655,7 +1646,7 @@ mem::Scratch<ReviewReadouts> readouts{"review readouts"};
 const char* summary()
 {
     ensure();
-    std::string& text = readouts.summary;
+    za::String& text = readouts.summary;
     int total = 0, fail = 0, suspect = 0;
     for(const Take& t : takes)
     {
@@ -1668,13 +1659,13 @@ const char* summary()
         suspect += !t.suspect.empty();
     }
     text = va("%d takes: %d failing, %d suspect", total, fail, suspect);
-    return text.c_str();
+    return text.cStr();
 }
 
 const char* reviewedLine()
 {
     ensure();
-    std::string& text = readouts.reviewed;
+    za::String& text = readouts.reviewed;
     int kept = 0, relabelled = 0, discarded = 0;
     for(const Take& t : takes)
     {
@@ -1687,43 +1678,43 @@ const char* reviewedLine()
     {
         text = va("%d reviewed, %d discarded", kept + relabelled, discarded);
     }
-    return text.c_str();
+    return text.cStr();
 }
 
 const char* evalLine()
 {
     ensure();
-    std::string& text = readouts.eval;
+    za::String& text = readouts.eval;
     if(jobRunning)
     {
-        text = va("evaluating: %s (%.0f s)", jobProgress.c_str(), realtime - jobStart);
-        return text.c_str();
+        text = va("evaluating: %s (%.0f s)", jobProgress.cStr(), realtime - jobStart);
+        return text.cStr();
     }
     int fresh = 0;
     for(const Take& t : takes)
     {
         fresh += !t.discarded && !evaluated(t);
     }
-    text = lastEvaluated.empty() ? std::string{"never evaluated: Re-evaluate"}
-                                 : "evaluated " + lastEvaluated.substr(0, 16) + (fresh ? va(", %d not", fresh) : "");
-    return text.c_str();
+    text = lastEvaluated.empty() ? za::String{"never evaluated: Re-evaluate"}
+                                 : "evaluated " + lastEvaluated.substrByPosLen(0, 16) + (fresh ? va(", %d not", fresh) : "");
+    return text.cStr();
 }
 
 const char* listTitle()
 {
     ensure();
     static const char* const names[ShowCount] = {"To Review", "Failing", "Suspect", "Not Evaluated", "Reviewed", "All", "Discarded"};
-    std::string& text = readouts.listTitle;
+    za::String& text = readouts.listTitle;
     const auto& list = categories();
     const int c = shownCategory;
     text = va("%s%s%s: %d", names[shownFilter], c >= 0 && c < static_cast<int>(list.size()) ? ", " : "",
         c >= 0 && c < static_cast<int>(list.size()) ? list[c].choice.name : "", static_cast<int>(shown.size()));
-    return text.c_str();
+    return text.cStr();
 }
 
 const char* lastAction()
 {
-    return actionText.c_str();
+    return actionText.cStr();
 }
 
 const char* detailLine(int line)
@@ -1733,7 +1724,7 @@ const char* detailLine(int line)
         makeDetails();
         detailsGen = gen;
     }
-    return line >= 0 && line < static_cast<int>(details.size()) ? details[line].c_str() : "";
+    return line >= 0 && line < static_cast<int>(details.size()) ? details[line].cStr() : "";
 }
 
 void playGhost()
@@ -1749,7 +1740,7 @@ void playGhost()
         say("the ghost plays in a map: go to the firing range (Play > Firing Range)", false);
         return;
     }
-    std::string error;
+    za::String error;
     if(!loadGhost(pathOf(*t), error))
     {
         say(error, false);
@@ -1758,8 +1749,8 @@ void playGhost()
     ghost.name = t->name;
     ghost.label = t->label;
     ghost.verdict = t->status && !t->stale ? t->status->verdict + (t->status->reason.empty() ? "" : ": " + t->status->reason)
-                                           : std::string{"not evaluated"};
-    ghost.replayEvents = t->status && !t->stale ? replayEventsOf(t->status->events) : std::vector<ReplayEvent>{};
+                                           : za::String{"not evaluated"};
+    ghost.replayEvents = t->status && !t->stale ? replayEventsOf(t->status->events) : za::Vector<ReplayEvent>{};
     ghost.world = cl.worldmodel;
     ghost.active = true;
     ghost.anchored = false;
@@ -1792,7 +1783,7 @@ void replayMock()
         say("Replay drives the tracking: the mock headset only (in the headset: Play Ghost)", false);
         return;
     }
-    Cbuf_InsertText(va("vr_motion_play \"%s\" watch\n", pathOf(*t).generic_string().c_str())); // (next: before a script's rest)
+    Cbuf_InsertText(va("vr_motion_play \"%s\" watch\n", files::generic(pathOf(*t)).cStr())); // (next: before a script's rest)
     say("replaying " + t->name + " in the mock headset", true);
 }
 
@@ -1805,17 +1796,17 @@ void keep()
         return;
     }
     const Mark before = t->mark ? *t->mark : Mark{};
-    const std::string name = t->name;
+    const za::String name = t->name;
     if(before.decision == "keep")
     {
         marks.erase(name);
-        journal.push_back({now(), "keep", name, before.decision, before.date, "", ""});
+        journal.pushBack({now(), "keep", name, before.decision, before.date, "", ""});
         say("unmarked " + name, true);
     }
     else
     {
         marks[name] = {"keep", now()};
-        journal.push_back({now(), "keep", name, before.decision, before.date, "", ""});
+        journal.pushBack({now(), "keep", name, before.decision, before.date, "", ""});
         say("kept " + name, true);
     }
     saveReview();
@@ -1830,16 +1821,16 @@ void discard()
         say(t ? "already discarded" : "no take picked", false);
         return;
     }
-    const std::string name = t->name;
-    const fs::path to = freeName(motionsPath() / "discarded", name);
-    std::string error;
+    const za::String name = t->name;
+    const za::String to = freeName(motionsPath() / "discarded", name);
+    za::String error;
     if(!moveFile(motionsPath() / name, to, error))
     {
         say("can't discard: " + error, false);
         changed();
         return;
     }
-    journal.push_back({now(), "discard", name, fileName(to), "", "", ""});
+    journal.pushBack({now(), "discard", name, fileName(to), "", "", ""});
     saveReview();
     pickedName = fileName(to);
     pickedDiscarded = true;
@@ -1859,15 +1850,15 @@ void restore()
         say(t ? "not discarded" : "no take picked", false);
         return;
     }
-    const std::string name = t->name;
-    std::string error;
+    const za::String name = t->name;
+    za::String error;
     if(!moveFile(motionsPath() / "discarded" / name, motionsPath() / name, error))
     {
         say("can't restore: " + error, false);
         changed();
         return;
     }
-    journal.push_back({now(), "restore", name, name, "", "", ""});
+    journal.pushBack({now(), "restore", name, name, "", "", ""});
     saveReview();
     pickedName = name;
     pickedDiscarded = false;
@@ -1886,32 +1877,32 @@ void relabel()
     const auto& list = categories();
     const Category& c = list[CLAMP(0, static_cast<int>(vr_motion_relabel_category.value), static_cast<int>(list.size()) - 1)];
     const Choice& d = c.details[CLAMP(0, static_cast<int>(vr_motion_relabel_detail.value), static_cast<int>(c.details.size()) - 1)];
-    const std::string label = d.name[0] ? std::string{c.choice.name} + "_" + d.name : c.choice.name;
+    const za::String label = d.name[0] ? za::String{c.choice.name} + "_" + d.name : c.choice.name;
     if(label == t->label)
     {
         say("it is " + label + " already", false);
         return;
     }
-    const std::string oldName = t->name;
+    const za::String oldName = t->name;
     const Mark before = t->mark ? *t->mark : Mark{};
-    const fs::path from = motionsPath() / oldName;
+    const za::String from = motionsPath() / oldName;
 
     // The take with its header's label, category and detail changed (and where it came from); the rest as it was.
-    std::string text;
+    za::String text;
     if(!readWhole(from, text))
     {
         say("can't read " + oldName, false);
         return;
     }
-    std::string out;
+    za::String out;
     out.reserve(text.size() + 128);
     size_t pos = 0;
     bool inHeader = true, noted = false;
     while(pos < text.size())
     {
         size_t eol = text.find('\n', pos);
-        eol = eol == std::string::npos ? text.size() : eol + 1;
-        const std::string line = text.substr(pos, eol - pos);
+        eol = eol == za::StringView::nPos ? text.size() : eol + 1;
+        const za::String line{text.substrByPosLen(pos, eol - pos)};
         pos = eol;
         if(!inHeader || line.empty() || line[0] != '#')
         {
@@ -1924,19 +1915,19 @@ void relabel()
             out += line;
             continue;
         }
-        const std::string key = trim(line.substr(1, line.find(':') == std::string::npos ? 0 : line.find(':') - 1));
-        const std::string nl = line.size() >= 2 && line[line.size() - 2] == '\r' ? "\r\n" : "\n";
+        const za::String key = trim(line.substrByPosLen(1, line.find(':') == za::StringView::nPos ? 0 : line.find(':') - 1));
+        const za::String nl = line.size() >= 2 && line[line.size() - 2] == '\r' ? "\r\n" : "\n";
         if(key == "label")
         {
             out += "# label: " + label + nl;
         }
         else if(key == "category")
         {
-            out += std::string{"# category: "} + c.choice.name + nl;
+            out += za::String{"# category: "} + c.choice.name + nl;
         }
         else if(key == "detail")
         {
-            out += std::string{"# detail: "} + d.name + nl;
+            out += za::String{"# detail: "} + d.name + nl;
         }
         else if(key == "relabelled")
         {
@@ -1947,35 +1938,31 @@ void relabel()
             out += line;
         }
     }
-    const fs::path to = freeName(motionsPath(), safeLabel(label) + "_" + t->stamp + ".csv");
+    const za::String to = freeName(motionsPath(), safeLabel(label) + "_" + t->stamp + ".csv");
     if(!parseName(fileName(to)).ok)
     {
         say("can't name the relabelled take " + fileName(to), false);
         return;
     }
-    std::error_code ec;
     {
-        const fs::path tmp = to.string() + ".tmp";
-        std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
-        f.write(out.data(), static_cast<std::streamsize>(out.size()));
-        f.close();
-        if(!f || (fs::rename(tmp, to, ec), ec))
+        const za::String tmp = to + ".tmp";
+        if(!files::writeBytes(tmp.cStr(), out.data(), out.size()) || !files::rename(tmp.cStr(), to.cStr()))
         {
-            fs::remove(tmp, ec);
+            files::remove(tmp.cStr());
             say("can't write " + fileName(to), false);
             return;
         }
     }
-    const fs::path backup = freeName(reviewPath() / "relabelled", oldName);
-    std::string error;
+    const za::String backup = freeName(reviewPath() / "relabelled", oldName);
+    za::String error;
     if(!moveFile(from, backup, error))
     {
-        fs::remove(to, ec); // (the original is still where it was)
+        files::remove(to.cStr()); // (the original is still where it was)
         say("can't relabel: " + error, false);
         changed();
         return;
     }
-    journal.push_back({now(), "relabel", oldName, fileName(to), fileName(backup), before.decision, before.date});
+    journal.pushBack({now(), "relabel", oldName, fileName(to), fileName(backup), before.decision, before.date});
     marks.erase(oldName);
     marks[fileName(to)] = {"relabel", now()};
     saveReview();
@@ -1994,9 +1981,9 @@ void undo()
         return;
     }
     const Change c = journal.back();
-    std::string error;
+    za::String error;
     bool ok = true;
-    const auto setMark = [](const std::string& name, const std::string& decision, const std::string& date) {
+    const auto setMark = [](const za::String& name, const za::String& decision, const za::String& date) {
         if(decision.empty())
         {
             marks.erase(name);
@@ -2026,13 +2013,12 @@ void undo()
     }
     else if(c.action == "relabel")
     {
-        std::error_code ec;
-        const fs::path relabelled = motionsPath() / c.b;
+        const za::String relabelled = motionsPath() / c.b;
         ok = moveFile(reviewPath() / "relabelled" / c.c, motionsPath() / c.a, error);
         if(ok)
         {
             // The relabelled copy goes (the original, byte for byte, is back); a missing one is fine.
-            fs::remove(relabelled, ec);
+            files::remove(relabelled.cStr());
             marks.erase(c.b);
             setMark(c.a, c.d, c.e);
         }
@@ -2043,14 +2029,14 @@ void undo()
     {
         // (Dropped: it could never be undone now, and it would stand in front of the older ones. The files are as they
         // were: what is said names them.)
-        journal.pop_back();
+        journal.popBack();
         saveReview();
         say("can't undo the " + c.action + " of " + c.a + ": " + error + "; dropped from the undo list (motions/review/undo.csv)",
             false);
         changed();
         return;
     }
-    journal.pop_back();
+    journal.popBack();
     saveReview();
     say("undone: " + c.action + " " + c.a, true);
     changed();
@@ -2064,7 +2050,10 @@ namespace
 [[nodiscard]] int pickedRow(bool after)
 {
     const Take* p = find(pickedName, pickedDiscarded);
-    const auto key = [](const Take& t) { return std::make_tuple(categoryRank(t.category), t.stamp, t.name); };
+    const auto before = [](const Take& a, const Take& b) { // (by category, stamp, name: the list's order)
+        const int ra = categoryRank(a.category), rb = categoryRank(b.category);
+        return ra != rb ? ra < rb : a.stamp != b.stamp ? a.stamp < b.stamp : a.name < b.name;
+    };
     int row = after ? static_cast<int>(shown.size()) : -1;
     for(size_t r = 0; r < shown.size(); r++)
     {
@@ -2073,11 +2062,11 @@ namespace
         {
             return static_cast<int>(r);
         }
-        if(p && after && key(t) > key(*p) && row == static_cast<int>(shown.size()))
+        if(p && after && before(*p, t) && row == static_cast<int>(shown.size()))
         {
             row = static_cast<int>(r) - 1; // (the next is this one)
         }
-        if(p && !after && key(t) < key(*p))
+        if(p && !after && before(t, *p))
         {
             row = static_cast<int>(r) + 1; // (the previous is this one)
         }
@@ -2121,18 +2110,18 @@ void reevaluateTake()
         say(t ? "a discarded take: Restore it first" : "no take picked", false);
         return;
     }
-    startJob({fs::absolute(pathOf(*t)).generic_string()});
+    startJob({files::absolute(pathOf(*t))});
 }
 
 void reevaluateShown()
 {
     ensure();
-    std::vector<std::string> paths;
+    za::Vector<za::String> paths;
     for(const int i : shown)
     {
         if(!takes[i].discarded)
         {
-            paths.push_back(fs::absolute(pathOf(takes[i])).generic_string());
+            paths.pushBack(files::absolute(pathOf(takes[i])));
         }
     }
     startJob(paths);

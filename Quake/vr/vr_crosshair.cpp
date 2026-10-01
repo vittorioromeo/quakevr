@@ -15,6 +15,8 @@
 #include "vr_trace.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Math/Fmax.hpp"
+
 namespace qvr::crosshair
 {
 namespace
@@ -73,7 +75,7 @@ void queue(const hands::State& s)
         {
             glm::vec3 end = aimEnd(start, dir, false);
             end.z += vr_crosshairy.value;
-            lines::point(end, size * std::fmax(1.f, glm::distance(start, end) * 0.01f), red);
+            lines::point(end, size * za::fmax(1.f, glm::distance(start, end) * 0.01f), red);
             continue;
         }
 

@@ -9,12 +9,17 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/String/String.hpp"
+
+#include <string.h>
 
 using namespace qvr;
 
@@ -60,7 +65,7 @@ struct Taken
     unsigned stamp = 0;   // the frame it was last seen taken
 };
 
-std::unordered_map<int, Taken> taken;
+ankerl::unordered_dense::map<int, Taken> taken;
 const qmodel_t* torchWorld = nullptr;
 int torchGeneration = -1;
 unsigned frameStamp = 0;
@@ -144,7 +149,7 @@ void crackles()
         }
         const entity_t& e = cl_entities[ch.entnum];
         VectorCopy(e.origin, ch.origin);
-        ch.master_vol = static_cast<int>(255.f * crackleVolume * std::max(0.2f, it->second.level));
+        ch.master_vol = static_cast<int>(255.f * crackleVolume * za::max(0.2f, it->second.level));
     }
 }
 
@@ -304,7 +309,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
         else
         {
             const int n = at + 8 <= size ? rd(at + 4) : 0;
-            at += 8 + static_cast<size_t>(std::max(n, 0)) * (4 + skinBytes);
+            at += 8 + static_cast<size_t>(za::max(n, 0)) * (4 + skinBytes);
         }
     }
     const size_t trisAt = at + static_cast<size_t>(numVerts) * 12;
@@ -315,7 +320,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     }
     // Which vertices move: the first frame's poses against each other (a group), or the first two frames.
     const size_t vertsBytes = static_cast<size_t>(numVerts) * 4;
-    std::vector<const byte*> poses;
+    za::Vector<const byte*> poses;
     size_t f = framesAt;
     for(int k = 0; k < numFrames && poses.size() < 2; k++)
     {
@@ -325,7 +330,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
         }
         if(rd(f) == 0)
         {
-            poses.push_back(src + f + 4 + 24);
+            poses.pushBack(src + f + 4 + 24);
             f += 4 + 24 + vertsBytes;
         }
         else
@@ -334,7 +339,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
             const size_t first = f + 4 + 12 + static_cast<size_t>(n) * 4;
             for(int j = 0; j < n; j++)
             {
-                poses.push_back(src + first + static_cast<size_t>(j) * (24 + vertsBytes) + 24);
+                poses.pushBack(src + first + static_cast<size_t>(j) * (24 + vertsBytes) + 24);
             }
             f = first + static_cast<size_t>(n) * (24 + vertsBytes);
         }
@@ -343,7 +348,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     {
         return fail("no animation to tell its flame by");
     }
-    std::vector<bool> moving(static_cast<size_t>(numVerts), false);
+    za::Vector<bool> moving(static_cast<size_t>(numVerts), false);
     for(size_t p = 1; p < poses.size(); p++)
     {
         for(int v = 0; v < numVerts; v++)
@@ -351,7 +356,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
             moving[static_cast<size_t>(v)] = moving[static_cast<size_t>(v)] || memcmp(poses[0] + v * 4, poses[p] + v * 4, 3) != 0;
         }
     }
-    std::vector<byte> tris;
+    za::Vector<byte> tris;
     int kept = 0;
     for(int t = 0; t < numTris; t++)
     {
@@ -364,7 +369,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
         }
         if(all)
         {
-            tris.insert(tris.end(), src + o, src + o + 16);
+            tris.emplaceBackRange(src + o, 16);
             kept++;
         }
     }
@@ -413,7 +418,7 @@ extern "C" void VR_WallTorchFlames(void)
     }
     frameStamp++;
     bool any = false;
-    const float size = std::max(0.f, vr_walltorch_flame.value);
+    const float size = za::max(0.f, vr_walltorch_flame.value);
     for(int i = 1; i < cl.num_entities; i++)
     {
         const entity_t& e = cl_entities[i];
@@ -457,7 +462,7 @@ extern "C" void VR_WallTorchFlames(void)
                 t.wallKnown = true;
             }
         }
-        const int frame = hung ? fireLevels : std::clamp(static_cast<int>(e.frame), 0, fireLevels);
+        const int frame = hung ? fireLevels : za::clamp(static_cast<int>(e.frame), 0, fireLevels);
         t.level = static_cast<float>(frame) / static_cast<float>(fireLevels);
         if(frame == 0)
         {
@@ -470,13 +475,13 @@ extern "C" void VR_WallTorchFlames(void)
         const double now = cl.time;
         if(t.time >= 0.0 && now > t.time)
         {
-            const float dt = static_cast<float>(std::min(now - t.time, 0.1));
+            const float dt = static_cast<float>(za::min(now - t.time, 0.1));
             glm::vec3 v = (head - t.head) / dt;
             if(glm::length(v) > 3000.f)
             {
                 v = glm::vec3{0.f}; // a jump (taken into a hand, a teleport)
             }
-            t.vel += (v - t.vel) * (1.f - std::exp(-dt / leanEase));
+            t.vel += (v - t.vel) * (1.f - za::exp(-dt / leanEase));
         }
         else if(t.time < 0.0)
         {
@@ -494,8 +499,8 @@ extern "C" void VR_WallTorchFlames(void)
         }
         const glm::vec3 up = glm::normalize(glm::vec3{0.f, 0.f, 1.f} + lean);
         const glm::vec3 along = axes[0];
-        const glm::vec3 base = head + along * (std::max(0.f, -along.z) * 1.5f);
-        const float s = hung ? 1.f : size * std::pow(t.level, 0.6f); // (it shrinks slower than its light dims at first; on its wall, id's)
+        const glm::vec3 base = head + along * (za::max(0.f, -along.z) * 1.5f);
+        const float s = hung ? 1.f : size * za::pow(t.level, 0.6f); // (it shrinks slower than its light dims at first; on its wall, id's)
         t.fire = base + glm::vec3{0.f, 0.f, (fireLight - fireBase) * s};
 
         qmodel_t* model = s > 0.03f ? fire() : nullptr;
@@ -522,7 +527,7 @@ extern "C" void VR_WallTorchFlames(void)
         held::anglesFromAxes(m, ent->angles, false);
         ent->model = model;
         ent->scale = ENTSCALE_ENCODE(s);
-        ent->syncbase = std::fmod(static_cast<float>(i) * 0.618f, 1.f); // (the torches' flames not in step)
+        ent->syncbase = za::fmod(static_cast<float>(i) * 0.618f, 1.f); // (the torches' flames not in step)
     }
     if(any)
     {
@@ -564,7 +569,7 @@ void walltorch::restoreAfterLoad()
         return;
     }
     // The torches the save has: where they hung.
-    std::vector<glm::vec3> have;
+    za::Vector<glm::vec3> have;
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
@@ -573,7 +578,7 @@ void walltorch::restoreAfterLoad()
             continue;
         }
         const eval_t* home = GetEdictFieldValueByName(e, "wt_home");
-        have.push_back(home ? glm::vec3{home->vector[0], home->vector[1], home->vector[2]}
+        have.pushBack(home ? glm::vec3{home->vector[0], home->vector[1], home->vector[2]}
                             : glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]});
     }
     // The map's (its entities as they were spawned, the skill's and deathmatch's taken out as ED_LoadFromFile does).
@@ -582,12 +587,12 @@ void walltorch::restoreAfterLoad()
     while((data = COM_Parse(data)) != nullptr && com_token[0] == '{')
     {
         const char* block = data;
-        std::string classname;
+        za::String classname;
         glm::vec3 origin{0.f};
         int spawnflags = 0;
         while((data = COM_Parse(data)) != nullptr && com_token[0] != '}')
         {
-            const std::string key = com_token;
+            const za::String key = com_token;
             data = COM_Parse(data);
             if(!data)
             {
@@ -621,7 +626,7 @@ void walltorch::restoreAfterLoad()
         {
             continue;
         }
-        const bool found = std::any_of(have.begin(), have.end(), [&](const glm::vec3& h) { return glm::distance(h, origin) < 0.5f; });
+        const bool found = za::anyOf(have.begin(), have.end(), [&](const glm::vec3& h) { return glm::distance(h, origin) < 0.5f; });
         if(found)
         {
             continue;

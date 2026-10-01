@@ -24,10 +24,13 @@
 #include "vr_profile.hpp"
 #include "vr_window.hpp"
 
+#include "Zancle/Base/Exchange.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Remainder.hpp"
+
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <utility>
-#include <vector>
 
 using namespace qvr;
 
@@ -43,8 +46,8 @@ bool drawingToCanvas = false;
 // The canvas's quads, each draw (the main thread).
 struct PanelScratch
 {
-    std::vector<gfx::Vertex> vertices;
-    auto members() { return std::tie(vertices); }
+    za::Vector<gfx::Vertex> vertices;
+    auto members() { return qvr::mem::list(vertices); }
 };
 mem::Scratch<PanelScratch> scratch{"panel"};
 bool stereoThisFrame = false;
@@ -85,7 +88,7 @@ void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, con
         return;
     }
 
-    std::vector<gfx::Vertex>& vertices = scratch.vertices;
+    za::Vector<gfx::Vertex>& vertices = scratch.vertices;
     vertices.clear();
 
     const glm::vec2 uv0{uvRect.x, uvRect.y};
@@ -95,9 +98,9 @@ void drawCanvas(const glm::mat4& mvp, const glm::vec4& uvRect = wholeCanvas, con
         {
             return;
         }
-        for(const auto& [x, y] : {std::pair{x0, y0}, {x1, y0}, {x1, y1}, {x0, y0}, {x1, y1}, {x0, y1}})
+        for(const glm::vec2 c : {glm::vec2{x0, y0}, {x1, y0}, {x1, y1}, {x0, y0}, {x1, y1}, {x0, y1}})
         {
-            vertices.push_back({{x, y, 0.f}, glm::mix(uv0, uv1, glm::vec2{x, y})});
+            vertices.pushBack({{c.x, c.y, 0.f}, glm::mix(uv0, uv1, c)});
         }
     };
 
@@ -263,9 +266,9 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
     }
     else
     {
-        const float t = 1.f - std::exp(-dt * 10.f);
+        const float t = 1.f - za::exp(-dt * 10.f);
         hudAngles.x += (head.x - hudAngles.x) * t;
-        hudAngles.y += std::remainder(head.y - hudAngles.y, 360.f) * t;
+        hudAngles.y += za::remainder(head.y - hudAngles.y, 360.f) * t;
     }
 
     drawFacing(s, {hudAngles.x, hudAngles.y, 0.f}, 200.f * vr_menu_scale.value, mask);
@@ -394,7 +397,7 @@ extern "C" void VR_End2D(void (*windowHud)())
     const window::View view = window::view();
     const bool windowHudShown = !stereoThisFrame ||
                                 (view == window::View::Spectator ? vr_window_hud_spectator.value : vr_window_hud_mirror.value) != 0.f;
-    if(std::exchange(windowHudPending, false) && windowHud && windowHudShown)
+    if(za::exchange(windowHudPending, false) && windowHud && windowHudShown)
     {
         windowHud();
     }

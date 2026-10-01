@@ -46,9 +46,15 @@
 #include "vr_panel.hpp"
 #include "vr_units.hpp"
 
-#include <cmath>
-#include <cstring>
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Fmin.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+
+#include <string.h>
 
 extern "C" {
 extern float m_mousex, m_mousey; // menu.c: the menus' mouse, in menu coordinates
@@ -87,7 +93,7 @@ namespace
 // The menu's height in menu pixels (Quake's 200, times vr_menu_height), whole rows.
 [[nodiscard]] int heightSetting()
 {
-    return static_cast<int>(std::lround(200.f * CLAMP(1.f, vr_menu_height.value, 2.f) / 8.f)) * 8;
+    return static_cast<int>(za::lround(200.f * CLAMP(1.f, vr_menu_height.value, 2.f) / 8.f)) * 8;
 }
 
 // The current menu's row spacing: 1 for the menus drawn from pictures, whose cursor steps over a
@@ -114,7 +120,7 @@ namespace
 // canvas's bounds (Ironwail's lists, the VR pages) get the rows above and below it.
 [[nodiscard]] float canvasScale()
 {
-    return std::fmin(vid.guiwidth / 320.f, vid.guiheight / (heightSetting() * spacingSetting()));
+    return za::fmin(vid.guiwidth / 320.f, vid.guiheight / (heightSetting() * spacingSetting()));
 }
 
 // The styled widgets are drawn only into the menu canvas while it is the VR one.
@@ -158,8 +164,8 @@ struct Painter
     Painter()
     {
         const drawtransform_t& t = glcanvas.transform;
-        k = std::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth));
-        step = std::fmax(2.f / (t.scale[0] * vid.guiwidth), 0.25f);
+        k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth));
+        step = za::fmax(2.f / (t.scale[0] * vid.guiwidth), 0.25f);
         const uint32_t c = glcanvas.colorstack[glcanvas.colorstacktop];
         tint = glm::vec4{c & 0xff, (c >> 8) & 0xff, (c >> 16) & 0xff, (c >> 24) & 0xff} / 255.f;
     }
@@ -184,14 +190,14 @@ struct Painter
     // Rounded corners of radius `r`, drawn a canvas unit high at a time.
     void rounded(float x0, float x1, float yc, float half, float r, const glm::vec4& color) const
     {
-        r = std::fmin(r, std::fmin(half, (x1 - x0) * 0.5f));
+        r = za::fmin(r, za::fmin(half, (x1 - x0) * 0.5f));
         const float straight = half - r;
         rect(x0, x1, yc, straight, color);
         for(float t = straight; t < half; t += step)
         {
-            const float t1 = std::fmin(t + step, half);
+            const float t1 = za::fmin(t + step, half);
             const float e = (t + t1) * 0.5f - straight;
-            const float inset = r - std::sqrt(std::fmax(0.f, r * r - e * e));
+            const float inset = r - za::sqrt(za::fmax(0.f, r * r - e * e));
             band(x0 + inset, x1 - inset, yc, -t1, -t, color);
             band(x0 + inset, x1 - inset, yc, t, t1, color);
         }
@@ -207,7 +213,7 @@ struct Painter
     {
         for(float t = 0.f; t < half; t += step)
         {
-            const float t1 = std::fmin(t + step, half);
+            const float t1 = za::fmin(t + step, half);
             const float inset = (t + t1) * 0.5f * w / half;
             band(x + inset, x + w, yc, -t1, -t, color);
             band(x + inset, x + w, yc, t, t1, color);
@@ -219,7 +225,7 @@ struct Painter
     {
         for(float t = 0.f; t < half; t += step)
         {
-            const float t1 = std::fmin(t + step, half);
+            const float t1 = za::fmin(t + step, half);
             const float inset = (t + t1) * 0.5f * w / half;
             band(x - w, x - inset, yc, -t1, -t, color);
             band(x - w, x - inset, yc, t, t1, color);
@@ -320,7 +326,7 @@ glm::vec2 runtimePanelUv[HAND_COUNT]{};
     const glm::vec3 dir = hands::aimedController(controller.orientation, hand) * glm::vec3{0.f, 0.f, -1.f};
     const glm::vec3 normal = panel.orientation * glm::vec3{0.f, 0.f, 1.f};
     const float along = glm::dot(dir, normal);
-    if(std::fabs(along) < 1e-6f)
+    if(za::fabs(along) < 1e-6f)
     {
         return hit;
     }
@@ -359,7 +365,7 @@ glm::vec2 runtimePanelUv[HAND_COUNT]{};
 
     const glm::vec3 normal = glm::cross(xAxis, yAxis);
     const float along = glm::dot(dir, normal);
-    if(std::fabs(along) < 1e-6f)
+    if(za::fabs(along) < 1e-6f)
     {
         return hit;
     }
@@ -395,7 +401,7 @@ void moveMouse(const Hit& hit, bool force, bool held)
 }
 
 // A camera-facing strip from `a` to `b` (soft edges), or a disc at `a` (b == a).
-void appendStrip(std::vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3& b, float width,
+void appendStrip(za::Vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3& b, float width,
     const glm::vec4& colorA, const glm::vec4& colorB)
 {
     glm::vec3 eye, right, up;
@@ -410,7 +416,7 @@ void appendStrip(std::vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec
             {a + r + u, {1.f, 1.f}, colorA}, {a - r + u, {-1.f, 1.f}, colorA}};
         for(const int i : {0, 1, 2, 0, 2, 3})
         {
-            v.push_back(q[i]);
+            v.pushBack(q[i]);
         }
         return;
     }
@@ -420,7 +426,7 @@ void appendStrip(std::vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec
         {b + side, {1.f, 0.f}, colorB}, {b - side, {-1.f, 0.f}, colorB}};
     for(const int i : {0, 1, 2, 0, 2, 3})
     {
-        v.push_back(q[i]);
+        v.pushBack(q[i]);
     }
 }
 
@@ -481,7 +487,7 @@ struct ToolbarLayout
     float right, bottom;
     ToolbarLayout l;
     Draw_GetTransformBounds(&t, &l.left, &l.top, &right, &bottom);
-    l.k = std::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // as Painter's
+    l.k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // as Painter's
 
     // All as wide as the widest label, their right edges a character left of Quake's plaque (x 16): on
     // a wide panel near the menu rather than out at its corner. Where the labels do not fit, only
@@ -489,7 +495,7 @@ struct ToolbarLayout
     float widest = 0.f;
     for(const char* label : toolLabels)
     {
-        widest = std::fmax(widest, 8.f * static_cast<float>(strlen(label)));
+        widest = za::fmax(widest, 8.f * static_cast<float>(strlen(label)));
     }
     const float width = 4.f + ToolbarLayout::icon + 4.f + widest + 5.f;
     l.x1 = 16.f - 8.f;
@@ -600,8 +606,8 @@ void haptic(int hand, float seconds, float amplitude)
 // The laser's strips, each eye (the main thread).
 struct MenuUiScratch
 {
-    std::vector<gfx::Vertex> laser;
-    auto members() { return std::tie(laser); }
+    za::Vector<gfx::Vertex> laser;
+    auto members() { return qvr::mem::list(laser); }
 };
 mem::Scratch<MenuUiScratch> scratch{"menu laser"};
 
@@ -788,7 +794,7 @@ bool scrollStick(float y)
 
     // Past a dead zone, 3 rows a second up to 25 at full push; the first row at once.
     constexpr float deadzone = 0.2f;
-    const float t = (std::fabs(y) - deadzone) / (1.f - deadzone);
+    const float t = (za::fabs(y) - deadzone) / (1.f - deadzone);
     if(t <= 0.f)
     {
         pushed = false;
@@ -858,7 +864,7 @@ void drawInEye(const hands::State& s)
     const Hit hit = intersect(s, h);
     const glm::vec3 end = hit.valid ? hit.point : start + dir * 30.f;
 
-    std::vector<gfx::Vertex>& vertices = scratch.laser;
+    za::Vector<gfx::Vertex>& vertices = scratch.laser;
     vertices.clear();
     const float bright = mouseHeld[h] ? 1.f : 0.8f;
     // In the player's hue (vr_menu_laser_hue; 35 its old amber, the menus' own).
@@ -1013,7 +1019,7 @@ extern "C" int VR_MenuDrawHighlight(int cx, int cy)
     drawnHighlight = {m_state, cy};
 
     const Painter p;
-    const float left = std::fmin(cx - 4.f, 8.f);
+    const float left = za::fmin(cx - 4.f, 8.f);
     const float right = 320.f - left;
     const float yc = cy + 4.f;
     p.rounded(left, right, yc, 5.5f, 2.f, colors::highlight);
@@ -1033,7 +1039,7 @@ extern "C" int VR_MenuHidesPlaque()
 extern "C" void VR_MenuBounds(int* top, int* height)
 {
     const float bottom = menuui::toolbarBottom();
-    const int below = static_cast<int>(std::ceil(bottom)) + 4;
+    const int below = static_cast<int>(za::ceil(bottom)) + 4;
     if(below <= *top)
     {
         return;

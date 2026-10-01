@@ -6,14 +6,20 @@
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
 
-#include <algorithm>
-#include <cstring>
-#include <functional>
-#include <string>
-#include <string_view>
-#include <unordered_map>
-#include <utility>
-#include <vector>
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "Zancle/String/ToString.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 
 namespace qvr::gfx
 {
@@ -468,9 +474,9 @@ GLuint programFor(Shade shade, bool blended)
     {
         return p;
     }
-    const std::string fragment = "#version 430\n#define MODE " + std::to_string(s) + "\n#define BLENDED " +
+    const za::String fragment = "#version 430\n#define MODE " + za::toString(s) + "\n#define BLENDED " +
                                  (blended ? "1" : "0") + "\n" + fragmentShader;
-    p = glProgram(vertexShader, fragment.c_str(), "vr triangles");
+    p = glProgram(vertexShader, fragment.cStr(), "vr triangles");
     programFailed[s][blended] = !p;
     return p;
 }
@@ -493,17 +499,22 @@ void bindWindow()
     glViewport(glx, gly, glwidth, glheight);
 }
 
-// By name; looked up by a const char* without making a std::string of it (a transparent hash).
+// By name; looked up by a const char* without making a za::String of it (a transparent hash).
 struct NameHash
 {
     using is_transparent = void;
-    [[nodiscard]] std::size_t operator()(std::string_view s) const { return std::hash<std::string_view>{}(s); }
+    [[nodiscard]] za::U64 operator()(za::StringView s) const { return ankerl::unordered_dense::hash<za::StringView>{}(s); }
 };
-std::unordered_map<std::string, qpic_t*, NameHash, std::equal_to<>> pics;
+struct NameEqual
+{
+    using is_transparent = void;
+    [[nodiscard]] bool operator()(za::StringView a, za::StringView b) const { return a == b; }
+};
+ankerl::unordered_dense::map<za::String, qpic_t*, NameHash, NameEqual> pics;
 
 [[nodiscard]] qpic_t* picNamed(const char* name)
 {
-    const auto it = pics.find(std::string_view{name});
+    const auto it = pics.find(za::StringView{name});
     if(it != pics.end())
     {
         return it->second;
@@ -611,7 +622,7 @@ namespace
 }
 
 // `count` vertices from `buffer` at `offset`, then the blend put back as GLS_BLEND_ALPHA expects it.
-void drawVertices(GLuint buffer, const GLbyte* offset, std::size_t count, const State& state)
+void drawVertices(GLuint buffer, const GLbyte* offset, za::SizeT count, const State& state)
 {
     GL_BindBuffer(GL_ARRAY_BUFFER, buffer);
     GL_VertexAttribPointerFunc(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), offset + offsetof(Vertex, pos));
@@ -629,7 +640,7 @@ void drawVertices(GLuint buffer, const GLbyte* offset, std::size_t count, const 
 
 } // namespace
 
-void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& state, Texture texture)
+void draw(za::Span<const Vertex> triangles, const glm::mat4& mvp, const State& state, Texture texture)
 {
     if(triangles.empty() || !beginDraw(mvp, state, texture))
     {
@@ -638,26 +649,26 @@ void draw(std::span<const Vertex> triangles, const glm::mat4& mvp, const State& 
     // Into the frame's upload buffer, like Ironwail's own dynamic geometry.
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
-    GL_Upload(GL_ARRAY_BUFFER, triangles.data(), triangles.size_bytes(), &buf, &ofs);
+    GL_Upload(GL_ARRAY_BUFFER, triangles.data(), qza::sizeBytes(triangles), &buf, &ofs);
     drawVertices(buf, ofs, triangles.size(), state);
 }
 
-void upload(StaticTriangles& t, std::span<const Vertex> triangles)
+void upload(StaticTriangles& t, za::Span<const Vertex> triangles)
 {
     t.count = triangles.size();
     t.uploads++;
-    t.uploadedBytes += triangles.size_bytes();
+    t.uploadedBytes += qza::sizeBytes(triangles);
     if(triangles.empty())
     {
         return;
     }
-    if(!t.buffer || triangles.size_bytes() > t.capacity)
+    if(!t.buffer || qza::sizeBytes(triangles) > t.capacity)
     {
         if(t.buffer)
         {
             GL_DeleteBuffer(t.buffer);
         }
-        t.capacity = triangles.size_bytes() + triangles.size_bytes() / 2; // room to grow
+        t.capacity = qza::sizeBytes(triangles) + qza::sizeBytes(triangles) / 2; // room to grow
         t.buffer = GL_CreateBuffer(GL_ARRAY_BUFFER, GL_DYNAMIC_DRAW, "vr static triangles", t.capacity, nullptr);
     }
     else
@@ -667,7 +678,7 @@ void upload(StaticTriangles& t, std::span<const Vertex> triangles)
         GL_BufferDataFunc(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(t.capacity), nullptr, GL_DYNAMIC_DRAW);
     }
     GL_BindBuffer(GL_ARRAY_BUFFER, t.buffer);
-    GL_BufferSubDataFunc(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(triangles.size_bytes()), triangles.data());
+    GL_BufferSubDataFunc(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(qza::sizeBytes(triangles)), triangles.data());
     GL_BindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
@@ -680,7 +691,7 @@ void draw(const StaticTriangles& t, const glm::mat4& mvp, const State& state, Te
     drawVertices(t.buffer, nullptr, t.count, state);
 }
 
-ParticleBatch uploadParticles(std::span<const ParticleInstance> particles)
+ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles)
 {
     if(particles.empty())
     {
@@ -688,8 +699,8 @@ ParticleBatch uploadParticles(std::span<const ParticleInstance> particles)
     }
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
-    GL_Upload(GL_SHADER_STORAGE_BUFFER, particles.data(), particles.size_bytes(), &buf, &ofs);
-    return {buf, reinterpret_cast<std::size_t>(ofs), particles.size()};
+    GL_Upload(GL_SHADER_STORAGE_BUFFER, particles.data(), qza::sizeBytes(particles), &buf, &ofs);
+    return {buf, reinterpret_cast<za::SizeT>(ofs), particles.size()};
 }
 
 void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture)
@@ -700,9 +711,9 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
     }
     if(!particleProgram && !particleProgramFailed)
     {
-        const std::string fragment = "#version 430\n#define MODE " + std::to_string(static_cast<int>(Shade::Texture)) +
+        const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Texture)) +
                                      "\n#define BLENDED 1\n" + fragmentShader;
-        particleProgram = glProgram(particleVertexShader, fragment.c_str(), "vr particles");
+        particleProgram = glProgram(particleVertexShader, fragment.cStr(), "vr particles");
         particleProgramFailed = !particleProgram;
     }
     if(!particleProgram)
@@ -745,7 +756,7 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
 }
 
-TubeBatch uploadTube(std::span<const TubeRing> rings)
+TubeBatch uploadTube(za::Span<const TubeRing> rings)
 {
     if(rings.size() < 2)
     {
@@ -753,8 +764,8 @@ TubeBatch uploadTube(std::span<const TubeRing> rings)
     }
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
-    GL_Upload(GL_SHADER_STORAGE_BUFFER, rings.data(), rings.size_bytes(), &buf, &ofs);
-    return {buf, reinterpret_cast<std::size_t>(ofs), rings.size()};
+    GL_Upload(GL_SHADER_STORAGE_BUFFER, rings.data(), qza::sizeBytes(rings), &buf, &ofs);
+    return {buf, reinterpret_cast<za::SizeT>(ofs), rings.size()};
 }
 
 void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key)
@@ -765,9 +776,9 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     }
     if(!tubeProgram && !tubeProgramFailed)
     {
-        const std::string fragment = "#version 430\n#define MODE " + std::to_string(static_cast<int>(Shade::Color)) +
+        const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Color)) +
                                      "\n#define BLENDED 0\n" + fragmentShader;
-        tubeProgram = glProgram(tubeVertexShader, fragment.c_str(), "vr tube");
+        tubeProgram = glProgram(tubeVertexShader, fragment.cStr(), "vr tube");
         tubeProgramFailed = !tubeProgram;
     }
     if(!tubeProgram)
@@ -799,7 +810,7 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     }
 }
 
-BentBatch uploadBent(std::span<const glm::vec4> data)
+BentBatch uploadBent(za::Span<const glm::vec4> data)
 {
     if(data.empty())
     {
@@ -807,8 +818,8 @@ BentBatch uploadBent(std::span<const glm::vec4> data)
     }
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
-    GL_Upload(GL_SHADER_STORAGE_BUFFER, data.data(), data.size_bytes(), &buf, &ofs);
-    return {buf, reinterpret_cast<std::size_t>(ofs), data.size()};
+    GL_Upload(GL_SHADER_STORAGE_BUFFER, data.data(), qza::sizeBytes(data), &buf, &ofs);
+    return {buf, reinterpret_cast<za::SizeT>(ofs), data.size()};
 }
 
 void drawBent(const BentBatch& batch, const BentDraw& d)
@@ -889,14 +900,19 @@ glm::vec4 fontGlyph(unsigned char c)
 }
 
 int targetsMade = 0; // targets' textures (re)made so far (vr_memstats: steady in play, not a frame)
-std::vector<std::pair<const char*, int>> targetsMadeNamed; // by name, in the order first made
-
-std::string targetsMadeByName()
+struct TargetMade
 {
-    std::string out;
+    const char* name;
+    int count;
+};
+za::Vector<TargetMade> targetsMadeNamed; // by name, in the order first made
+
+za::String targetsMadeByName()
+{
+    za::String out;
     for(const auto& [name, count] : targetsMadeNamed)
     {
-        out += (out.empty() ? "" : " ") + std::string{name} + ":" + std::to_string(count);
+        out += (out.empty() ? "" : " ") + za::String{name} + ":" + za::toString(count);
     }
     return out;
 }
@@ -919,7 +935,7 @@ void releaseTarget(Target& target)
 void ensureTarget(Target& target, int width, int height, bool mipmaps, const char* name)
 {
     int levels = 1;
-    while(mipmaps && std::max(width, height) >> levels)
+    while(mipmaps && za::max(width, height) >> levels)
     {
         levels++;
     }
@@ -928,16 +944,16 @@ void ensureTarget(Target& target, int width, int height, bool mipmaps, const cha
         return;
     }
     targetsMade++;
-    auto named = std::find_if(targetsMadeNamed.begin(), targetsMadeNamed.end(),
-        [&](const auto& n) { return std::strcmp(n.first, name) == 0; });
+    auto named = za::findIf(targetsMadeNamed.begin(), targetsMadeNamed.end(),
+        [&](const TargetMade& n) { return ZA_STRCMP(n.name, name) == 0; });
     if(named == targetsMadeNamed.end())
     {
-        targetsMadeNamed.emplace_back(name, 0);
+        targetsMadeNamed.pushBack({name, 0});
         named = targetsMadeNamed.end() - 1;
     }
-    named->second++;
+    named->count++;
     Con_DPrintf("VR: render target \"%s\" made at %dx%d (was %dx%d), %d times so far\n", name, width, height,
-        target.width, target.height, named->second);
+        target.width, target.height, named->count);
 
     GLuint texture = target.texture;
     if(texture)
@@ -1090,7 +1106,7 @@ Texture createTexture(int width, int height, const void* rgba, bool mipmaps)
 {
     mipmaps = mipmaps && rgba;
     int levels = 1;
-    while(mipmaps && std::max(width, height) >> levels)
+    while(mipmaps && za::max(width, height) >> levels)
     {
         levels++;
     }
@@ -1107,7 +1123,7 @@ Texture createTexture(int width, int height, const void* rgba, bool mipmaps)
             GL_GenerateMipmapFunc(GL_TEXTURE_2D);
             if(gl_max_anisotropy > 1.f) // else not supported
             {
-                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, std::min(16.f, gl_max_anisotropy));
+                glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, za::min(16.f, gl_max_anisotropy));
             }
         }
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipmaps ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);

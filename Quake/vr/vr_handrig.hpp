@@ -30,9 +30,10 @@
 
 #include "vr_engine.hpp"
 
-#include <array>
-#include <string>
-#include <vector>
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+
 
 namespace qvr::handrig
 {
@@ -97,13 +98,13 @@ struct Sphere
 // The rig in use: the compiled one, or the one read from progs/hand_rig.md5mesh.
 struct Rig
 {
-    std::string source{"compiled"};
+    za::String source{"compiled"};
     glm::vec3 pivot[FingerCount][jointsPerFinger]{};
     glm::quat turns[FingerCount][data::numFrames][jointsPerFinger]; // per curl frame, relative to the segment before
-    std::vector<Vertex> vertices;                                  // the whole mesh
-    std::vector<std::array<int, 3>> triangles;                     // clockwise seen from outside
-    std::vector<SegmentSphere> segmentSpheres;                     // the grasp solver's, at rest
-    std::vector<Sphere> palmSpheres, thenarSpheres;
+    za::Vector<Vertex> vertices;                                  // the whole mesh
+    za::Vector<za::Array<int, 3>> triangles;                     // clockwise seen from outside
+    za::Vector<SegmentSphere> segmentSpheres;                     // the grasp solver's, at rest
+    za::Vector<Sphere> palmSpheres, thenarSpheres;
 };
 
 [[nodiscard]] const Rig& rig();
@@ -124,7 +125,7 @@ struct Posed
 {
     Rigid segment[FingerCount][jointsPerFinger + 1];
     glm::quat turn[FingerCount][jointsPerFinger]; // relative to the segment before
-    std::array<Rigid, data::numJoints> joint;
+    za::Array<Rigid, data::numJoints> joint;
 };
 
 void pose(const Pose& p, Posed& out);
@@ -136,7 +137,7 @@ void fingerSegments(const Pose& p, int finger, const float curls[jointsPerFinger
 [[nodiscard]] float jointRate(int finger, int joint);
 
 // Every vertex of the mesh (rig().vertices) where the pose puts it (the GPU's blend, on the CPU).
-void vertices(const Posed& posed, std::vector<glm::vec3>& out);
+void vertices(const Posed& posed, za::Vector<glm::vec3>& out);
 
 // Skinning matrices (3x4 row-major, as bonepose_t) for progs/hand_rig.md5mesh's joints.
 void skin(const Posed& posed, float out[data::numJoints * 12]);

@@ -34,15 +34,25 @@
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+
 #include <glm/gtc/quaternion.hpp>
 
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
-#include <cstring>
-#include <string>
-#include <vector>
+#include <stdio.h>
+#include <string.h>
 
 namespace qvr::weight
 {
@@ -131,7 +141,7 @@ double easedAt = -1.0;
     }
     const glm::vec3 v{q.x, q.y, q.z};
     const float s = glm::length(v);
-    return s < 1e-7f ? v * 2.f : v * (2.f * std::atan2(s, q.w) / s);
+    return s < 1e-7f ? v * 2.f : v * (2.f * za::atan2(s, q.w) / s);
 }
 
 // The prop's mass: its setting, else Box3D's (a listen server: the server's entity of the same number), else estimated.
@@ -202,7 +212,7 @@ double easedAt = -1.0;
 void withStamina(Load& l)
 {
     l.staminaMult = l.empty ? 1.f : staminaMultiplier();
-    l.staminaAdd = l.empty ? 0.f : std::max(vr_weight_stamina_add.value, 0.f) * staminaShare();
+    l.staminaAdd = l.empty ? 0.f : za::max(vr_weight_stamina_add.value, 0.f) * staminaShare();
 }
 
 // A rod along the hand's forward: `length` metres, its centre of mass `balance` ahead of the grip, `radius` round it.
@@ -219,7 +229,7 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
 [[nodiscard]] Load emptyHandLoad(int h)
 {
     Load l;
-    const float mass = std::max(vr_weight_stamina_empty.value, 0.f) * staminaShare();
+    const float mass = za::max(vr_weight_stamina_empty.value, 0.f) * staminaShare();
     const bool climbing = (cl.protocolflags & PRFL_QUAKEVR) && (cl.stats[protocol::STAT_QVR_CLIMB] & (1 << h)) != 0;
     if(mass <= 0.01f || climbing || twohand::helping(h))
     {
@@ -257,7 +267,7 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
             const glm::vec3 pivot = both ? other * (0.5f * u2m) : glm::vec3{0.f};
             const glm::vec3 r = (origin + axes * com) * u2m - pivot;
             const glm::vec3 d = size * u2m;
-            const float scale = std::max(props::value(slot, props::Key::Inertia), 0.f);
+            const float scale = za::max(props::value(slot, props::Key::Inertia), 0.f);
             const glm::mat3 own{glm::vec3{mass / 12.f * (d.y * d.y + d.z * d.z) * scale, 0.f, 0.f},
                 glm::vec3{0.f, mass / 12.f * (d.x * d.x + d.z * d.z) * scale, 0.f},
                 glm::vec3{0.f, 0.f, mass / 12.f * (d.x * d.x + d.y * d.y) * scale}};
@@ -301,9 +311,9 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
     }
     l.valid = true;
     l.model = weapons::cvar(slot, weapons::Key::ID)->string;
-    rodLoad(l, mass, weapons::value(slot, weapons::Key::Balance) * 0.01f, std::max(weapons::value(slot, weapons::Key::Span), 1.f) * 0.01f,
+    rodLoad(l, mass, weapons::value(slot, weapons::Key::Balance) * 0.01f, za::max(weapons::value(slot, weapons::Key::Span), 1.f) * 0.01f,
         0.06f);
-    l.twoHanded = std::clamp(twohand::transition(h), 0.f, 1.f);
+    l.twoHanded = za::clamp(twohand::transition(h), 0.f, 1.f);
     l.tune = weaponTuning(slot);
     if(s && l.twoHanded > 0.f && s->grip2HValid[h])
     {
@@ -328,7 +338,7 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
     hands::angleVectors({0.f, s.headAngles.y - turnYaw, 0.f}, f, r, u);
     const bool right = h == HAND_MAIN; // (the right controller)
     const glm::vec3 shoulder = head + glm::vec3{0.f, 0.f, -0.22f} + r * (right ? 0.18f : -0.18f);
-    return std::clamp(glm::distance(grip, shoulder) / 0.62f, 0.f, 1.f);
+    return za::clamp(glm::distance(grip, shoulder) / 0.62f, 0.f, 1.f);
 }
 
 // vr_debug_weight: a line a frame per hand holding something: where it is tracked (target, body frame metres) and
@@ -350,7 +360,7 @@ void trace(int h, const Load& l, const glm::vec3& xt, const glm::quat& qt, const
         return;
     }
     const glm::vec3 ta = anglesFromQuat(qt), da = anglesFromQuat(q);
-    const auto wrap = [](float a) { return std::remainder(a, 360.f); };
+    const auto wrap = [](float a) { return za::remainder(a, 360.f); };
     const float off = glm::distance(x, xt) * 100.f;
     const float ang = glm::degrees(glm::length(rotationVector(qt * glm::conjugate(q))));
     fprintf(file,
@@ -384,32 +394,32 @@ constexpr float snapTurnMost = 165.f; // degrees
     const glm::quat& qt, float dt, float sag)
 {
     const float snapRad = glm::radians(snapTurnMost);
-    const int n = std::max(1, static_cast<int>(std::ceil(dt / substep - 1e-4f)));
+    const int n = za::max(1, static_cast<int>(za::ceil(dt / substep - 1e-4f)));
     const float h = dt / static_cast<float>(n);
     const glm::vec3 vt = (xt - xt0) / dt;
     const glm::vec3 wt = rotationVector(qt * glm::conjugate(qt0)) / dt;
 
     // The global settings (Aiming: Spring) times the thing's own (Weapon Weights, Held Object Weights).
     const Tuning& t = l.tune;
-    const float zeta = std::max(vr_weight_spring_damping.value * t.damping, 0.f);
-    const float grip2 = 1.f + (std::max(vr_weight_spring_2h.value * t.twoHanded, 1.f) - 1.f) * l.twoHanded; // two hands: stiffer, stronger
-    const float stiff = std::max(vr_weight_spring_stiffness.value * t.stiffness, 0.01f) * grip2;
+    const float zeta = za::max(vr_weight_spring_damping.value * t.damping, 0.f);
+    const float grip2 = 1.f + (za::max(vr_weight_spring_2h.value * t.twoHanded, 1.f) - 1.f) * l.twoHanded; // two hands: stiffer, stronger
+    const float stiff = za::max(vr_weight_spring_stiffness.value * t.stiffness, 0.01f) * grip2;
     float k = armStiffness * stiff;
-    k = std::min(k, m * fastest * fastest);
-    const float c = 2.f * zeta * std::sqrt(k * m);
+    k = za::min(k, m * fastest * fastest);
+    const float c = 2.f * zeta * za::sqrt(k * m);
     // A heavy thing is gripped harder: the wrist's stiffness grows with the weight's pull about the grip (its own mass,
     // not what tiredness adds: a tired arm droops more).
     const float kA = (wristStiffness + gripStiffening * l.mass * gravity * glm::length(l.com)) * stiff;
-    const float strength = std::max(vr_weight_spring_strength.value * t.strength, 0.f);
+    const float strength = za::max(vr_weight_spring_strength.value * t.strength, 0.f);
     const float force = strength > 0.f ? armForce * strength * grip2 : 0.f;
     const float torque = strength > 0.f ? wristTorque * strength * grip2 : 0.f;
-    const float inert = std::max(vr_weight_spring_inertia.value * t.swing, 0.f);
+    const float inert = za::max(vr_weight_spring_inertia.value * t.swing, 0.f);
 
     glm::vec3 inertia, damping;
     for(int i = 0; i < 3; i++)
     {
-        inertia[i] = std::max(l.inertia[i], kA / (fastest * fastest));
-        damping[i] = 2.f * zeta * std::sqrt(kA * inertia[i]);
+        inertia[i] = za::max(l.inertia[i], kA / (fastest * fastest));
+        damping[i] = 2.f * zeta * za::sqrt(kA * inertia[i]);
     }
     const glm::vec3 sagAccel{0.f, 0.f, -gravity * sag};
     const glm::vec3 holdForce = -m * sagAccel; // holding it up takes this much: the strength is what is left for moving it
@@ -497,7 +507,7 @@ void test_f()
         {"box 2H", box, 0.6f, 0.f, 1.f, 1.f, boxTune},
     };
     const float rates[] = {45.f, 72.f, 90.f, 144.f};
-    const float empty = std::max(vr_weight_stamina_empty.value, 0.f);
+    const float empty = za::max(vr_weight_stamina_empty.value, 0.f);
     const TestCase emptyCases[] = {
         {"empty 100%", empty * staminaShareFor(1.f), 0.04f, 0.12f, 0.f, 1.f, Tuning{}, true},
         {"empty 50%", empty * staminaShareFor(0.5f), 0.04f, 0.12f, 0.f, 0.5f, Tuning{}, true},
@@ -515,7 +525,7 @@ void test_f()
         l.valid = true;
         if(tc.length > 0.f)
         {
-            rodLoad(l, std::max(tc.mass, 0.01f), tc.balance, tc.length, tc.empty ? 0.04f : 0.06f);
+            rodLoad(l, za::max(tc.mass, 0.01f), tc.balance, tc.length, tc.empty ? 0.04f : 0.06f);
             if(tc.twoHanded > 0.f)
             {
                 // Turning about between the handle and a foregrip 35 cm ahead.
@@ -537,21 +547,21 @@ void test_f()
         }
         l.twoHanded = tc.twoHanded;
         l.tune = tc.tune;
-        m = std::max(tc.empty ? tc.mass
+        m = za::max(tc.empty ? tc.mass
                               : tc.mass * staminaCurve(tc.stamina) +
-                                    std::max(vr_weight_stamina_add.value, 0.f) * staminaShareFor(tc.stamina),
+                                    za::max(vr_weight_stamina_add.value, 0.f) * staminaShareFor(tc.stamina),
             0.01f);
         return l;
     };
-    std::vector<TestCase> all(std::begin(cases), std::end(cases));
-    all.insert(all.end(), std::begin(emptyCases), std::end(emptyCases));
+    za::Vector<TestCase> all(cases, cases + za::getArraySize(cases));
+    all.emplaceBackRange(emptyCases, za::getArraySize(emptyCases));
     for(const TestCase& tc : all)
     {
         for(const float fps : rates)
         {
             float m = 0.f;
             const Load l = caseLoad(tc, m);
-            const float sag = sagShare * std::max(vr_weight_spring_sag.value * tc.tune.sag, 0.f); // at arm's length
+            const float sag = sagShare * za::max(vr_weight_spring_sag.value * tc.tune.sag, 0.f); // at arm's length
             const float dt = 1.f / fps;
             const glm::vec3 start{0.55f, -0.25f, 1.25f};
             Body b;
@@ -567,7 +577,7 @@ void test_f()
             for(int f = 1; f <= frames; f++)
             {
                 const float t = static_cast<float>(f) / fps;
-                const float u = std::clamp((t - swingFrom) / swingTime, 0.f, 1.f);
+                const float u = za::clamp((t - swingFrom) / swingTime, 0.f, 1.f);
                 const float sm = u * u * (3.f - 2.f * u);
                 glm::vec3 xt = start + glm::vec3{0.f, 0.6f * sm, 0.f};
                 const glm::quat qt = quatFromAngles(glm::vec3{0.f, 70.f * sm, 0.f});
@@ -575,7 +585,7 @@ void test_f()
                 {
                     xt += glm::vec3{2.f, 0.f, 0.f};
                 }
-                if(const float snapCm = std::max(vr_weight_spring_snap.value * tc.tune.snap, 1.f);
+                if(const float snapCm = za::max(vr_weight_spring_snap.value * tc.tune.snap, 1.f);
                     putBack(b, xt, qt, snapCm) || step(b, l, m, prevX, xt, prevQ, qt, dt, sag))
                 {
                     b.x = xt;
@@ -595,14 +605,14 @@ void test_f()
                 }
                 else if(t <= swingFrom + swingTime)
                 {
-                    lagCm = std::max(lagCm, off - sagCm);
-                    lagDeg = std::max(lagDeg, ang - sagDeg);
+                    lagCm = za::max(lagCm, off - sagCm);
+                    lagDeg = za::max(lagDeg, ang - sagDeg);
                 }
                 else if(t < jumpAt)
                 {
-                    overCm = std::max(overCm, (b.x.y - xt.y) * 100.f); // past the target, the way it went
-                    overDeg = std::max(overDeg, std::remainder(anglesFromQuat(b.q).y - 70.f, 360.f));
-                    const bool out = std::fabs(off - sagCm) > 0.5f || std::fabs(ang - sagDeg) > 0.5f;
+                    overCm = za::max(overCm, (b.x.y - xt.y) * 100.f); // past the target, the way it went
+                    overDeg = za::max(overDeg, za::remainder(anglesFromQuat(b.q).y - 70.f, 360.f));
+                    const bool out = za::fabs(off - sagCm) > 0.5f || za::fabs(ang - sagDeg) > 0.5f;
                     if(out)
                     {
                         settle = -1.f;
@@ -616,7 +626,7 @@ void test_f()
                     {
                         if(restX != glm::vec3{0.f})
                         {
-                            jitter = std::max(jitter, glm::distance(b.x, restX) * 1000.f);
+                            jitter = za::max(jitter, glm::distance(b.x, restX) * 1000.f);
                         }
                         restX = b.x;
                     }
@@ -645,8 +655,8 @@ void test_f()
         {
             float m = 0.f;
             const Load l = caseLoad(tc, m);
-            const float sag = sagShare * std::max(vr_weight_spring_sag.value * tc.tune.sag, 0.f);
-            const float snapCm = std::max(vr_weight_spring_snap.value * tc.tune.snap, 1.f);
+            const float sag = sagShare * za::max(vr_weight_spring_sag.value * tc.tune.sag, 0.f);
+            const float snapCm = za::max(vr_weight_spring_snap.value * tc.tune.snap, 1.f);
             const float dt = 1.f / fps;
             int runs = 0, longWay = 0, snaps = 0;
             float maxDeg = 0.f, maxExtra = 0.f;
@@ -658,7 +668,7 @@ void test_f()
                     {
                         const glm::vec3 x0{0.55f, -0.25f, 1.25f};
                         const auto turnAt = [&](float t) {
-                            const float u = std::clamp(t / dur, 0.f, 1.f), w = std::clamp(t / dur - 1.f, 0.f, 1.f);
+                            const float u = za::clamp(t / dur, 0.f, 1.f), w = za::clamp(t / dur - 1.f, 0.f, 1.f);
                             float a = 170.f * u * u * (3.f - 2.f * u);
                             if(back)
                             {
@@ -666,12 +676,17 @@ void test_f()
                             }
                             glm::vec3 angles{0.f};
                             angles[axis] = a;
-                            return std::pair{quatFromAngles(angles), a};
+                            struct Turn
+                            {
+                                glm::quat q;
+                                float angle;
+                            };
+                            return Turn{quatFromAngles(angles), a};
                         };
-                        const glm::vec3 dir = glm::normalize(rotationVector(turnAt(dur).first * glm::conjugate(turnAt(0.f).first)));
+                        const glm::vec3 dir = glm::normalize(rotationVector(turnAt(dur).q * glm::conjugate(turnAt(0.f).q)));
                         Body b;
                         b.x = x0;
-                        b.q = turnAt(0.f).first;
+                        b.q = turnAt(0.f).q;
                         glm::quat prevQ = b.q;
                         float turned = 0.f, runMax = 0.f, runExtra = 0.f;
                         bool snapped = false;
@@ -690,14 +705,14 @@ void test_f()
                             }
                             prevQ = qt;
                             turned += glm::degrees(glm::dot(rotationVector(b.q * glm::conjugate(before)), dir));
-                            runMax = std::max(runMax, glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q)))));
-                            runExtra = std::max(runExtra, std::fabs(turned - want));
+                            runMax = za::max(runMax, glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q)))));
+                            runExtra = za::max(runExtra, za::fabs(turned - want));
                         }
                         runs++;
                         longWay += runExtra > 200.f;
                         snaps += snapped;
-                        maxDeg = std::max(maxDeg, runMax);
-                        maxExtra = std::max(maxExtra, runExtra);
+                        maxDeg = za::max(maxDeg, runMax);
+                        maxExtra = za::max(maxExtra, runExtra);
                         if(vr_debug_weight.value)
                         {
                             Con_Printf("  %s %.0f fps: %s %.2f s%s: max %.1f deg, extra %.1f, %s\n", tc.name, fps,
@@ -775,13 +790,13 @@ void table_f()
         }
         PR_SwitchQCVM(&sv.qcvm);
     }
-    std::vector<std::string> seen;
+    za::Vector<za::String> seen;
     for(int i = 1; i < sv.qcvm.num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
         const int index = static_cast<int>(e->v.modelindex);
         const qmodel_t* model = !e->free && index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-        if(!model || model->name[0] == '*' || std::find(seen.begin(), seen.end(), model->name) != seen.end())
+        if(!model || model->name[0] == '*' || za::find(seen.begin(), seen.end(), model->name) != seen.end())
         {
             continue;
         }
@@ -789,7 +804,7 @@ void table_f()
         const int slot = props::slotForModel(model);
         if(mass > 0.f && weapons::slotForName(model->name) < 0 && (slot < 0 || props::value(slot, props::Key::Mass) <= 0.f))
         {
-            seen.push_back(model->name);
+            seen.pushBack(model->name);
             row("lvl", model->name, mass, props::value(slot, props::Key::MeleeDamage), props::value(slot, props::Key::ThrowDamage));
         }
     }
@@ -807,13 +822,13 @@ void table_f()
 // never is (off, or lighter than vr_weight_drop_from).
 [[nodiscard]] float wrenchLimit(float mass, float twoHanded)
 {
-    const float from = std::max(vr_weight_drop_from.value, 0.1f);
+    const float from = za::max(vr_weight_drop_from.value, 0.1f);
     if(!vr_weight_drop.value || !(mass >= from) || vr_weight_drop_speed.value <= 0.f)
     {
         return 0.f;
     }
-    const float twoHands = 1.f + (std::max(vr_weight_drop_2h.value, 1.f) - 1.f) * std::clamp(twoHanded, 0.f, 1.f);
-    return vr_weight_drop_speed.value * std::pow(from / mass, std::max(vr_weight_drop_curve.value, 0.f)) * twoHands;
+    const float twoHands = 1.f + (za::max(vr_weight_drop_2h.value, 1.f) - 1.f) * za::clamp(twoHanded, 0.f, 1.f);
+    return vr_weight_drop_speed.value * za::pow(from / mass, za::max(vr_weight_drop_curve.value, 0.f)) * twoHands;
 }
 
 // Wrenched out: hand `h`'s controller turned faster than its weapon's limit over the window (the grip pose as tracked,
@@ -837,10 +852,10 @@ void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, flo
     w.newest = (w.newest + 1) % Wrench::size;
     w.t[w.newest] = w.clock;
     w.q[w.newest] = q;
-    w.count = std::min(w.count + 1, Wrench::size);
+    w.count = za::min(w.count + 1, Wrench::size);
 
     // The newest sample at least the window old (else the oldest kept, once half the window is kept).
-    const double window = std::clamp(static_cast<double>(vr_weight_drop_window.value), 0.005, 0.5);
+    const double window = za::clamp(static_cast<double>(vr_weight_drop_window.value), 0.005, 0.5);
     int from = -1;
     for(int i = 1; i < w.count; i++)
     {
@@ -887,9 +902,9 @@ void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, flo
 
 } // namespace
 
-std::uint8_t dropBits()
+za::U8 dropBits()
 {
-    std::uint8_t bits = 0;
+    za::U8 bits = 0;
     if(realtime < wrenches[HAND_OFF].until)
     {
         bits |= 1; // QC VR_HANDDROP_OFF
@@ -927,18 +942,18 @@ float staminaShareFor(float left)
 
 float tiredShare(float left)
 {
-    const float from = std::clamp(vr_weight_stamina_from.value, 0.01f, 1.f);
+    const float from = za::clamp(vr_weight_stamina_from.value, 0.01f, 1.f);
     if(left >= from)
     {
         return 0.f;
     }
-    const float u = std::clamp((from - left) / from, 0.f, 1.f);
-    return std::pow(u, std::max(vr_weight_stamina_curve.value, 0.1f));
+    const float u = za::clamp((from - left) / from, 0.f, 1.f);
+    return za::pow(u, za::max(vr_weight_stamina_curve.value, 0.1f));
 }
 
 float staminaCurve(float left)
 {
-    return 1.f + (std::max(vr_weight_stamina_max.value, 1.f) - 1.f) * staminaShareFor(left);
+    return 1.f + (za::max(vr_weight_stamina_max.value, 1.f) - 1.f) * staminaShareFor(left);
 }
 
 float staminaShare()
@@ -948,10 +963,10 @@ float staminaShare()
         return easedShare;
     }
     const float target = staminaShareFor(fatigue::staminaLeft());
-    const float dt = easedAt >= 0.0 ? static_cast<float>(std::clamp(realtime - easedAt, 0.0, 0.25)) : 1.f;
+    const float dt = easedAt >= 0.0 ? static_cast<float>(za::clamp(realtime - easedAt, 0.0, 0.25)) : 1.f;
     easedAt = realtime;
-    easedShare = target + (easedShare - target) * std::exp(-dt / 0.25f);
-    if(std::fabs(easedShare - target) < 1e-4f)
+    easedShare = target + (easedShare - target) * za::exp(-dt / 0.25f);
+    if(za::fabs(easedShare - target) < 1e-4f)
     {
         easedShare = target; // (settled exactly: unchanged at 0)
     }
@@ -960,7 +975,7 @@ float staminaShare()
 
 float staminaMultiplier()
 {
-    return 1.f + (std::max(vr_weight_stamina_max.value, 1.f) - 1.f) * staminaShare();
+    return 1.f + (za::max(vr_weight_stamina_max.value, 1.f) - 1.f) * staminaShare();
 }
 
 float effectiveMass(const Load& l)
@@ -1007,7 +1022,7 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
         }
         if(newFrame && dt > 0.f)
         {
-            const float snap = std::max(vr_weight_spring_snap.value * l.tune.snap, 1.f);
+            const float snap = za::max(vr_weight_spring_snap.value * l.tune.snap, 1.f);
             // Put back: left too far behind, or the hand jumped (faster than a hand goes: a teleport, the play space
             // re-based, tracking lost and found; as the melee's VR_MELEE_JUMP).
             const bool jumped = b.targetValid && glm::distance(xt, b.xt) > jumpSpeed * dt;
@@ -1016,9 +1031,9 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
             const bool other = b.model != l.model || b.entity != l.entity; // (a weapon changed, a prop taken)
             if(b.active && b.targetValid && !snapped && !other)
             {
-                const float m = std::max(effectiveMass(l), 0.01f);
-                const float sag = sagShare * std::max(vr_weight_spring_sag.value * l.tune.sag, 0.f) *
-                                  (0.35f + 0.65f * std::pow(extension(s, h, b.x, base, turnYaw), 2.f));
+                const float m = za::max(effectiveMass(l), 0.01f);
+                const float sag = sagShare * za::max(vr_weight_spring_sag.value * l.tune.sag, 0.f) *
+                                  (0.35f + 0.65f * za::pow(extension(s, h, b.x, base, turnYaw), 2.f));
                 flipped = step(b, l, m, b.xt, xt, b.qt, qt, dt, sag);
             }
             if(!b.active || !b.targetValid || snapped || flipped || other)
@@ -1062,27 +1077,27 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
 
 float damageMultiplier(float mass)
 {
-    const float k = std::max(vr_weight_damage_exp.value, 0.f);
+    const float k = za::max(vr_weight_damage_exp.value, 0.f);
     if(!(mass > 0.f) || k == 0.f)
     {
         return 1.f;
     }
-    const float light = std::max(vr_weight_damage_light.value, 0.01f);
-    const float heavy = std::max(vr_weight_damage_heavy.value, light);
+    const float light = za::max(vr_weight_damage_light.value, 0.01f);
+    const float heavy = za::max(vr_weight_damage_heavy.value, light);
     const float ref = mass > heavy ? heavy : mass < light ? light : mass;
-    const float lo = std::min(vr_weight_damage_min.value, 1.f), hi = std::max(vr_weight_damage_max.value, 1.f);
-    return std::clamp(std::pow(mass / ref, k), lo, hi);
+    const float lo = za::min(vr_weight_damage_min.value, 1.f), hi = za::max(vr_weight_damage_max.value, 1.f);
+    return za::clamp(za::pow(mass / ref, k), lo, hi);
 }
 
 float leniency(float mass)
 {
-    const float j = std::max(vr_weight_lenient.value, 0.f);
-    const float from = std::max(vr_weight_lenient_from.value, 0.01f);
+    const float j = za::max(vr_weight_lenient.value, 0.f);
+    const float from = za::max(vr_weight_lenient_from.value, 0.01f);
     if(!(mass > from) || j == 0.f)
     {
         return 1.f;
     }
-    return std::clamp(std::pow(from / mass, j), std::clamp(vr_weight_lenient_min.value, 0.01f, 1.f), 1.f);
+    return za::clamp(za::pow(from / mass, j), za::clamp(vr_weight_lenient_min.value, 0.01f, 1.f), 1.f);
 }
 
 void reset()

@@ -25,14 +25,29 @@
 #include "vr_handrig.hpp"
 #include "vr_mem.hpp"
 
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Count.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Fmin.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
 #include <glm/gtc/constants.hpp>
 
-#include <algorithm>
-#include <cmath>
-#include <cstdarg>
-#include <cstdlib>
-#include <cstring>
-#include <string>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 
 namespace qvr::handrig
 {
@@ -70,38 +85,38 @@ Rig compiledRig()
         Vertex v;
         v.pos = vec(pv.pos);
         v.count = pv.count;
-        std::copy(pv.joint, pv.joint + 4, v.joint);
-        std::copy(pv.weight, pv.weight + 4, v.weight);
-        r.vertices.push_back(v);
+        za::copy(pv.joint, pv.joint + 4, v.joint);
+        za::copy(pv.weight, pv.weight + 4, v.weight);
+        r.vertices.pushBack(v);
     }
     for(const data::Vertex& dv : data::vertices)
     {
         Vertex v;
         v.pos = vec(dv.pos);
         v.count = dv.count;
-        std::copy(dv.joint, dv.joint + 4, v.joint);
-        std::copy(dv.weight, dv.weight + 4, v.weight);
-        r.vertices.push_back(v);
+        za::copy(dv.joint, dv.joint + 4, v.joint);
+        za::copy(dv.weight, dv.weight + 4, v.weight);
+        r.vertices.pushBack(v);
     }
     for(const auto& t : data::palmTriangles)
     {
-        r.triangles.push_back({t[0], t[1], t[2]});
+        r.triangles.pushBack({t[0], t[1], t[2]});
     }
     for(const auto& t : data::fingerTriangles)
     {
-        r.triangles.push_back({data::numPalmVertices + t[0], data::numPalmVertices + t[1], data::numPalmVertices + t[2]});
+        r.triangles.pushBack({data::numPalmVertices + t[0], data::numPalmVertices + t[1], data::numPalmVertices + t[2]});
     }
     for(const data::SegmentSphere& s : data::segmentSpheres)
     {
-        r.segmentSpheres.push_back({s.finger, s.bone, vec(s.c), s.r});
+        r.segmentSpheres.pushBack({s.finger, s.bone, vec(s.c), s.r});
     }
     for(const auto& s : data::palmSpheres)
     {
-        r.palmSpheres.push_back({vec(s), s[3]});
+        r.palmSpheres.pushBack({vec(s), s[3]});
     }
     for(const auto& s : data::thenarSpheres)
     {
-        r.thenarSpheres.push_back({vec(s), s[3]});
+        r.thenarSpheres.pushBack({vec(s), s[3]});
     }
     return r;
 }
@@ -129,8 +144,8 @@ bool reloading = false; // vr_hand_reload is loading the model: its report is pr
 
 [[nodiscard]] glm::quat turn(int finger, int joint, float curl)
 {
-    const float c = std::fmin(std::fmax(curl, 0.f), static_cast<float>(data::numFrames - 1));
-    const int a = std::min(static_cast<int>(c), data::numFrames - 2);
+    const float c = za::fmin(za::fmax(curl, 0.f), static_cast<float>(data::numFrames - 1));
+    const int a = za::min(static_cast<int>(c), data::numFrames - 2);
     return glm::slerp(turnAt(finger, joint, a), turnAt(finger, joint, a + 1), c - static_cast<float>(a));
 }
 
@@ -177,7 +192,7 @@ void segments(const Pose& p, int finger, const float curls[jointsPerFinger], Rig
 struct ModelCheck
 {
     qmodel_t* model{nullptr};
-    std::string name; // the model's (its slot is reused by another after a game change)
+    za::String name; // the model's (its slot is reused by another after a game change)
     bool usable{false};
 };
 ModelCheck checked;
@@ -185,7 +200,7 @@ ModelCheck checked;
 // ----------------------------------------------------------------------------
 // Reading the MD5 files
 
-std::string format(const char* fmt, ...)
+za::String format(const char* fmt, ...)
 {
     char buf[1024];
     va_list args;
@@ -202,17 +217,17 @@ public:
     Reader(const char* text, const char* what) : p_(text), what_(what) {}
 
     [[nodiscard]] bool failed() const { return !error_.empty(); }
-    [[nodiscard]] const std::string& error() const { return error_; }
+    [[nodiscard]] const za::String& error() const { return error_; }
 
-    void fail(const std::string& message)
+    void fail(const za::String& message)
     {
         if(error_.empty())
         {
-            error_ = format("%s, line %d: %s", what_, line_, message.c_str());
+            error_ = format("%s, line %d: %s", what_, line_, message.cStr());
         }
     }
 
-    [[nodiscard]] std::string next()
+    [[nodiscard]] za::String next()
     {
         if(failed())
         {
@@ -242,33 +257,34 @@ public:
         }
         if(*p_ == '"')
         {
-            const char* end = std::strchr(p_ + 1, '"');
+            const char* end = strchr(p_ + 1, '"');
             if(!end)
             {
                 fail("a name's closing quote is missing");
                 return {};
             }
-            std::string s(p_ + 1, end);
+            za::String s{p_ + 1, static_cast<za::SizeT>(end - (p_ + 1))};
             p_ = end + 1;
             return s;
         }
-        if(std::strchr("(){}", *p_))
+        if(strchr("(){}", *p_))
         {
-            return std::string(1, *p_++);
+            const char* c = p_++;
+            return za::String{c, 1};
         }
         const char* start = p_;
-        while(*p_ && !std::strchr(" \t\r\n(){}\"", *p_))
+        while(*p_ && !strchr(" \t\r\n(){}\"", *p_))
         {
             p_++;
         }
-        return {start, p_};
+        return za::String{start, static_cast<za::SizeT>(p_ - start)};
     }
 
-    [[nodiscard]] std::string peek()
+    [[nodiscard]] za::String peek()
     {
         const char* p = p_;
         const int line = line_;
-        std::string s = next();
+        za::String s = next();
         p_ = p;
         line_ = line;
         return s;
@@ -276,45 +292,45 @@ public:
 
     void expect(const char* s)
     {
-        const std::string t = next();
+        const za::String t = next();
         if(!failed() && t != s)
         {
-            fail(format("expected \"%s\", found \"%s\"", s, t.c_str()));
+            fail(format("expected \"%s\", found \"%s\"", s, t.cStr()));
         }
     }
 
     [[nodiscard]] long integer()
     {
-        const std::string t = next();
+        const za::String t = next();
         if(failed())
         {
             return 0;
         }
         char* end = nullptr;
-        const long v = std::strtol(t.c_str(), &end, 10);
+        const long v = strtol(t.cStr(), &end, 10);
         if(t.empty() || *end)
         {
-            fail(format("expected a whole number, found \"%s\"", t.c_str()));
+            fail(format("expected a whole number, found \"%s\"", t.cStr()));
         }
         return v;
     }
 
     [[nodiscard]] double number()
     {
-        const std::string t = next();
+        const za::String t = next();
         if(failed())
         {
             return 0.0;
         }
         char* end = nullptr;
-        const double v = std::strtod(t.c_str(), &end);
+        const double v = strtod(t.cStr(), &end);
         if(t.empty() || *end)
         {
-            fail(format("expected a number, found \"%s\"", t.c_str()));
+            fail(format("expected a number, found \"%s\"", t.cStr()));
         }
-        else if(!std::isfinite(v))
+        else if(!qza::isfinite(v))
         {
-            fail(format("%s is not a finite number", t.c_str()));
+            fail(format("%s is not a finite number", t.cStr()));
         }
         return v;
     }
@@ -334,12 +350,12 @@ private:
     const char* p_;
     const char* what_;
     int line_{1};
-    std::string error_;
+    za::String error_;
 };
 
 struct Md5Joint
 {
-    std::string name;
+    za::String name;
     long parent{0};
     float pos[3]{};
     float quat[3]{};
@@ -359,13 +375,13 @@ struct Md5Vert
 
 struct Md5Mesh
 {
-    std::vector<Md5Joint> joints;
-    std::vector<Md5Vert> verts;
-    std::vector<std::array<int, 3>> tris;
-    std::vector<Md5Weight> weights;
+    za::Vector<Md5Joint> joints;
+    za::Vector<Md5Vert> verts;
+    za::Vector<za::Array<int, 3>> tris;
+    za::Vector<Md5Weight> weights;
 };
 
-bool parseMesh(const char* text, Md5Mesh& m, std::string& error)
+bool parseMesh(const char* text, Md5Mesh& m, za::String& error)
 {
     Reader r(text, meshFile);
     r.expect("MD5Version");
@@ -399,7 +415,7 @@ bool parseMesh(const char* text, Md5Mesh& m, std::string& error)
         jt.parent = r.integer();
         r.numbers(jt.pos, 3);
         r.numbers(jt.quat, 3);
-        m.joints.push_back(jt);
+        m.joints.pushBack(jt);
     }
     r.expect("}");
     r.expect("mesh");
@@ -424,7 +440,7 @@ bool parseMesh(const char* text, Md5Mesh& m, std::string& error)
         Md5Vert mv;
         mv.first = r.integer();
         mv.count = r.integer();
-        m.verts.push_back(mv);
+        m.verts.pushBack(mv);
     }
     r.expect("numtris");
     const long numTris = r.integer();
@@ -436,12 +452,12 @@ bool parseMesh(const char* text, Md5Mesh& m, std::string& error)
     {
         r.expect("tri");
         (void)r.integer();
-        std::array<int, 3> tri;
+        za::Array<int, 3> tri;
         for(int& i : tri)
         {
             i = static_cast<int>(r.integer());
         }
-        m.tris.push_back(tri);
+        m.tris.pushBack(tri);
     }
     r.expect("numweights");
     const long numWeights = r.integer();
@@ -457,7 +473,7 @@ bool parseMesh(const char* text, Md5Mesh& m, std::string& error)
         mw.joint = r.integer();
         mw.bias = static_cast<float>(r.number());
         r.numbers(mw.offset, 3);
-        m.weights.push_back(mw);
+        m.weights.pushBack(mw);
     }
     r.expect("}");
     error = r.error();
@@ -465,7 +481,7 @@ bool parseMesh(const char* text, Md5Mesh& m, std::string& error)
 }
 
 // The md5anim's joints (the engine's MD5 loader refuses a model whose anim doesn't list the mesh's joints).
-bool parseAnim(const char* text, std::vector<std::pair<std::string, long>>& hierarchy, std::string& error)
+bool parseAnim(const char* text, za::Vector<qza::Pair<za::String, long>>& hierarchy, za::String& error)
 {
     Reader r(text, animFile);
     r.expect("MD5Version");
@@ -491,11 +507,11 @@ bool parseAnim(const char* text, std::vector<std::pair<std::string, long>>& hier
     r.expect("{");
     for(long j = 0; j < joints && j < 256 && !r.failed(); j++)
     {
-        std::string name = r.next();
+        za::String name = r.next();
         const long parent = r.integer();
         (void)r.integer();
         (void)r.integer();
-        hierarchy.emplace_back(name, parent);
+        hierarchy.emplaceBack(name, parent);
     }
     r.expect("}");
     error = r.error();
@@ -516,7 +532,7 @@ bool parseAnim(const char* text, std::vector<std::pair<std::string, long>>& hier
         if(x != 0.0 || y != 0.0 || z != 0.0)
         {
             const double t = 1.0 - (x * x + y * y + z * z);
-            const double qw = t > 0.0 ? -std::sqrt(t) : 0.0;
+            const double qw = t > 0.0 ? -za::sqrt(t) : 0.0;
             const double* o = w.offset;
             const double tx = 2.0 * (y * o[2] - z * o[1]), ty = 2.0 * (z * o[0] - x * o[2]), tz = 2.0 * (x * o[1] - y * o[0]);
             p[0] = o[0] + qw * tx + (y * tz - z * ty);
@@ -540,7 +556,7 @@ bool parseAnim(const char* text, std::vector<std::pair<std::string, long>>& hier
 // after its joint when it turns half as far or more (the ring at a joint), else for the one before (the thenar's).
 struct Classes
 {
-    std::vector<int> finger, segment;
+    za::Vector<int> finger, segment;
 };
 
 Classes classify(const Rig& r)
@@ -560,16 +576,16 @@ Classes classify(const Rig& r)
         switch(j.kind)
         {
         case data::PalmJoint:
-            c.finger.push_back(-1);
-            c.segment.push_back(0);
+            c.finger.pushBack(-1);
+            c.segment.pushBack(0);
             break;
         case data::SegmentJoint:
-            c.finger.push_back(j.finger);
-            c.segment.push_back(j.index);
+            c.finger.pushBack(j.finger);
+            c.segment.pushBack(j.index);
             break;
         case data::PartJoint:
-            c.finger.push_back(j.finger);
-            c.segment.push_back(j.share >= 0.5f ? j.index + 1 : j.index);
+            c.finger.pushBack(j.finger);
+            c.segment.pushBack(j.share >= 0.5f ? j.index + 1 : j.index);
             break;
         }
     }
@@ -611,7 +627,7 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
             glm::vec3 p = r.vertices[t[e]].pos, q = r.vertices[t[(e + 1) % 3]].pos;
             if(before(q, p))
             {
-                std::swap(p, q);
+                za::genericSwap(p, q);
             }
             const float dp = glm::dot(p - a, x), dq = glm::dot(q - a, x);
             if((dp > 0.f) == (dq > 0.f))
@@ -625,10 +641,10 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
             }
             const float u = glm::dot(rel, D), w = glm::dot(rel, E);
             s.ok = true;
-            s.reach = std::fmax(s.reach, u);
-            s.back = std::fmin(s.back, u);
-            s.lo = std::fmin(s.lo, w);
-            s.hi = std::fmax(s.hi, w);
+            s.reach = za::fmax(s.reach, u);
+            s.back = za::fmin(s.back, u);
+            s.lo = za::fmin(s.lo, w);
+            s.hi = za::fmax(s.hi, w);
         }
     }
     s.ok = s.ok && s.lo < 0.f && s.hi > 0.f && s.back < 0.f && s.reach > 0.f; // all round the axis: a whole section
@@ -643,7 +659,7 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
     {
         if(c.finger[i] == finger && c.segment[i] == 3)
         {
-            most = std::fmax(most, glm::dot(r.vertices[i].pos - pivot, x));
+            most = za::fmax(most, glm::dot(r.vertices[i].pos - pivot, x));
         }
     }
     return most;
@@ -714,11 +730,11 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
     for(const auto& t : r.triangles)
     {
         glm::vec3 v[3] = {r.vertices[t[0]].pos, r.vertices[t[1]].pos, r.vertices[t[2]].pos};
-        std::sort(v, v + 3, before);
+        za::quickSort(v, v + 3, before);
         const glm::vec3 e1 = v[1] - v[0], e2 = v[2] - v[0];
         const glm::vec3 pv = glm::cross(dir, e2);
         const float det = glm::dot(e1, pv);
-        if(std::fabs(det) < 1e-12f)
+        if(za::fabs(det) < 1e-12f)
         {
             continue;
         }
@@ -737,9 +753,9 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
             continue;
         }
         const float d = glm::dot(e2, qv) * inv;
-        if(std::fabs(d - want) < bestGap)
+        if(za::fabs(d - want) < bestGap)
         {
-            bestGap = std::fabs(d - want);
+            bestGap = za::fabs(d - want);
             out = d;
             found = true;
         }
@@ -750,7 +766,7 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
 // A segment's direction at rest (the last segment's is the middle one's: no pivot past it).
 [[nodiscard]] glm::vec3 segmentDir(const Rig& r, int finger, int bone)
 {
-    const int b = std::min(bone, 2);
+    const int b = za::min(bone, 2);
     return glm::normalize(r.pivot[finger][b] - r.pivot[finger][b - 1]);
 }
 
@@ -785,7 +801,7 @@ Section section(const Rig& r, const Classes& c, int finger, const glm::vec3& a, 
 // What reading a file found, for the console.
 struct Report
 {
-    std::vector<std::string> notes;
+    za::Vector<za::String> notes;
     double ms{0.0}; // reading and deriving it took
     float pivotMove{0.f};
     float sphereMove{0.f};
@@ -848,7 +864,7 @@ void derive(Rig& out, Report& report)
             const Section sn = section(out, newClasses, f, p0n + xn * atn, xn, rn * dh, rn * eh);
             if(sr.ok && sn.ok)
             {
-                scale = std::fmin(std::fmax((sn.hi - sn.lo) / (sr.hi - sr.lo), 0.5f), 2.f);
+                scale = za::fmin(za::fmax((sn.hi - sn.lo) / (sr.hi - sr.lo), 0.5f), 2.f);
                 du = (sn.reach - sr.reach) - (sr.reach - dl) * (scale - 1.f);
                 de = (sn.hi + sn.lo) * 0.5f - (sr.hi + sr.lo) * 0.5f;
                 measured = true;
@@ -860,14 +876,14 @@ void derive(Rig& out, Report& report)
         SegmentSphere o = s;
         o.c = s.c + (p0n - p0) + (rn * moved - rr * l);
         o.r = s.r * scale;
-        out.segmentSpheres.push_back(o);
-        report.sphereMove = std::fmax(report.sphereMove, glm::distance(o.c, s.c));
-        report.radiusLo = std::fmin(report.radiusLo, scale);
-        report.radiusHi = std::fmax(report.radiusHi, scale);
+        out.segmentSpheres.pushBack(o);
+        report.sphereMove = za::fmax(report.sphereMove, glm::distance(o.c, s.c));
+        report.radiusLo = za::fmin(report.radiusLo, scale);
+        report.radiusHi = za::fmax(report.radiusHi, scale);
     }
 
     // The palm's and the thenar's: with the skin over them.
-    const auto skinSpheres = [&](const std::vector<Sphere>& from, std::vector<Sphere>& to) {
+    const auto skinSpheres = [&](const za::Vector<Sphere>& from, za::Vector<Sphere>& to) {
         to.clear();
         for(const Sphere& s : from)
         {
@@ -884,8 +900,8 @@ void derive(Rig& out, Report& report)
             {
                 report.unmeasured++;
             }
-            to.push_back(o);
-            report.sphereMove = std::fmax(report.sphereMove, glm::distance(o.c, s.c));
+            to.pushBack(o);
+            report.sphereMove = za::fmax(report.sphereMove, glm::distance(o.c, s.c));
         }
     };
     skinSpheres(ref.palmSpheres, out.palmSpheres);
@@ -893,7 +909,7 @@ void derive(Rig& out, Report& report)
 }
 
 // progs/hand_rig.md5mesh (and .md5anim) as a rig, or why not.
-bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
+bool readRig(const char* meshText, Rig& out, za::String& error, Report& report)
 {
     Md5Mesh m;
     if(!parseMesh(meshText, m, error))
@@ -902,26 +918,26 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
     }
 
     // The joints: the 33 this code knows, by name and in order.
-    std::string missing, unknown;
+    za::String missing, unknown;
     for(const data::Joint& j : data::joints)
     {
-        if(std::none_of(m.joints.begin(), m.joints.end(), [&](const Md5Joint& mj) { return mj.name == j.name; }))
+        if(!za::anyOf(m.joints.begin(), m.joints.end(), [&](const Md5Joint& mj) { return mj.name == j.name; }))
         {
             missing += format("%s\"%s\"", missing.empty() ? "" : ", ", j.name);
         }
     }
     for(const Md5Joint& mj : m.joints)
     {
-        if(std::none_of(std::begin(data::joints), std::end(data::joints), [&](const data::Joint& j) { return mj.name == j.name; }))
+        if(!za::anyOf(data::joints, data::joints + za::getArraySize(data::joints), [&](const data::Joint& j) { return mj.name == j.name; }))
         {
-            unknown += format("%s\"%s\"", unknown.empty() ? "" : ", ", mj.name.c_str());
+            unknown += format("%s\"%s\"", unknown.empty() ? "" : ", ", mj.name.cStr());
         }
     }
     if(!missing.empty() || !unknown.empty())
     {
         error = format("%s: the bones must be the hand's %d, unrenamed.%s%s%s%s%s%s Bones can be moved, not renamed or deleted.",
-            meshFile, data::numJoints, missing.empty() ? "" : " Missing: ", missing.c_str(), missing.empty() ? "" : ".",
-            unknown.empty() ? "" : " Not the hand's: ", unknown.c_str(), unknown.empty() ? "" : ".");
+            meshFile, data::numJoints, missing.empty() ? "" : " Missing: ", missing.cStr(), missing.empty() ? "" : ".",
+            unknown.empty() ? "" : " Not the hand's: ", unknown.cStr(), unknown.empty() ? "" : ".");
         return false;
     }
     if(static_cast<int>(m.joints.size()) != data::numJoints)
@@ -935,12 +951,12 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
         {
             error = format("%s: joint %d is \"%s\", the hand's is \"%s\" there (export the hand with the Quake VR add-on: it "
                            "writes them in order)",
-                meshFile, j, m.joints[j].name.c_str(), data::joints[j].name);
+                meshFile, j, m.joints[j].name.cStr(), data::joints[j].name);
             return false;
         }
         if(m.joints[j].parent < -1 || m.joints[j].parent >= data::numJoints)
         {
-            error = format("%s: joint \"%s\"'s parent %ld is not a joint", meshFile, m.joints[j].name.c_str(), m.joints[j].parent);
+            error = format("%s: joint \"%s\"'s parent %ld is not a joint", meshFile, m.joints[j].name.cStr(), m.joints[j].parent);
             return false;
         }
     }
@@ -948,8 +964,8 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
     // The md5anim: the engine's loader needs the same joints there.
     if(byte* anim = COM_LoadMallocFile(animFile, nullptr))
     {
-        std::vector<std::pair<std::string, long>> hierarchy;
-        std::string animError;
+        za::Vector<qza::Pair<za::String, long>> hierarchy;
+        za::String animError;
         const bool ok = parseAnim(reinterpret_cast<const char*>(anim), hierarchy, animError);
         free(anim);
         if(!ok)
@@ -967,7 +983,7 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
             if(hierarchy[j].first != m.joints[j].name || hierarchy[j].second != m.joints[j].parent)
             {
                 error = format("%s's joint %d (\"%s\", parent %ld) is not the mesh's (\"%s\", parent %ld): export both files together",
-                    animFile, j, hierarchy[j].first.c_str(), hierarchy[j].second, m.joints[j].name.c_str(), m.joints[j].parent);
+                    animFile, j, hierarchy[j].first.cStr(), hierarchy[j].second, m.joints[j].name.cStr(), m.joints[j].parent);
                 return false;
             }
         }
@@ -1029,13 +1045,13 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
             out_v.weight[i] = mw.bias;
             total += mw.bias;
         }
-        if(std::fabs(total - 1.0) > 0.01)
+        if(za::fabs(total - 1.0) > 0.01)
         {
             error = format("%s: vertex %ld's weights add up to %.3f, not 1 (in Blender: Weights > Normalize All)", meshFile, v, total);
             return false;
         }
         out_v.pos = restPlace(m, mv);
-        if(!std::isfinite(out_v.pos.x) || !std::isfinite(out_v.pos.y) || !std::isfinite(out_v.pos.z) || glm::length(out_v.pos) > 100.f)
+        if(!qza::isfinite(out_v.pos.x) || !qza::isfinite(out_v.pos.y) || !qza::isfinite(out_v.pos.z) || glm::length(out_v.pos) > 100.f)
         {
             error = format("%s: vertex %ld is at (%g %g %g), nowhere near the hand", meshFile, v, out_v.pos.x, out_v.pos.y, out_v.pos.z);
             return false;
@@ -1064,7 +1080,7 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
     }
     if(degenerate)
     {
-        report.notes.push_back(format("%d triangles use a vertex twice", degenerate));
+        report.notes.pushBack(format("%d triangles use a vertex twice", degenerate));
     }
     out.triangles = m.tris;
 
@@ -1084,9 +1100,9 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
     constexpr const char* names[FingerCount] = {"thumb", "index", "middle", "ring", "pinky"};
     for(int f = 0; f < FingerCount; f++)
     {
-        if(std::count(classes.finger.begin(), classes.finger.end(), f) == 0)
+        if(za::count(classes.finger.begin(), classes.finger.end(), f) == 0)
         {
-            report.notes.push_back(format("no vertex rides the %s (its spheres stay the shipped hand's)", names[f]));
+            report.notes.pushBack(format("no vertex rides the %s (its spheres stay the shipped hand's)", names[f]));
         }
     }
 
@@ -1096,7 +1112,7 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
         for(int k = 0; k < jointsPerFinger; k++)
         {
             out.pivot[f][k] = vec(m.joints[1 + f * jointsPerFinger + k].pos);
-            report.pivotMove = std::fmax(report.pivotMove, glm::distance(out.pivot[f][k], reference().pivot[f][k]));
+            report.pivotMove = za::fmax(report.pivotMove, glm::distance(out.pivot[f][k], reference().pivot[f][k]));
         }
         for(int k = 0; k + 1 < jointsPerFinger; k++)
         {
@@ -1112,11 +1128,11 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
         const data::Joint& dj = data::joints[j];
         if(dj.kind == data::PartJoint && glm::distance(vec(m.joints[j].pos), out.pivot[dj.finger][dj.index]) > 0.01f)
         {
-            report.notes.push_back(format("\"%s\" isn't at its joint's pivot: it turns there all the same", dj.name));
+            report.notes.pushBack(format("\"%s\" isn't at its joint's pivot: it turns there all the same", dj.name));
         }
         if(dj.kind == data::PalmJoint && glm::length(vec(m.joints[j].pos)) > 0.01f)
         {
-            report.notes.push_back("the palm bone was moved: the palm is the hand's frame and stays (move its vertices instead)");
+            report.notes.pushBack("the palm bone was moved: the palm is the hand's frame and stays (move its vertices instead)");
         }
     }
 
@@ -1126,7 +1142,7 @@ bool readRig(const char* meshText, Rig& out, std::string& error, Report& report)
 
 void install(Rig&& r)
 {
-    current() = std::move(r);
+    current() = ZA_MOVE(r);
     rigGeneration++;
     checked = ModelCheck{};
 }
@@ -1136,15 +1152,15 @@ void printReport(const char* who, const Rig& r, const Report& report, bool loud)
     auto print = loud ? Con_Printf : Con_DPrintf;
     print("%s: %s: %d vertices, %d triangles; the pivots moved %.2f units at most, %d hinges turned; the grasp's spheres "
           "moved %.2f at most, sized x%.2f .. x%.2f (read in %.1f ms)\n",
-        who, r.source.c_str(), static_cast<int>(r.vertices.size()), static_cast<int>(r.triangles.size()), report.pivotMove,
+        who, r.source.cStr(), static_cast<int>(r.vertices.size()), static_cast<int>(r.triangles.size()), report.pivotMove,
         report.turnedJoints, report.sphereMove, report.radiusLo, report.radiusHi, report.ms);
     if(report.unmeasured)
     {
         print("%s: %d spheres found no skin where the shipped hand's is: they stay where they were\n", who, report.unmeasured);
     }
-    for(const std::string& n : report.notes)
+    for(const za::String& n : report.notes)
     {
-        print("%s: note: %s\n", who, n.c_str());
+        print("%s: note: %s\n", who, n.cStr());
     }
 }
 
@@ -1188,7 +1204,7 @@ void pose(const Pose& p, Posed& out)
     }
 }
 
-void vertices(const Posed& posed, std::vector<glm::vec3>& out)
+void vertices(const Posed& posed, za::Vector<glm::vec3>& out)
 {
     const Rig& r = current();
     out.resize(r.vertices.size());
@@ -1214,7 +1230,7 @@ float jointRate(int finger, int joint)
         {
             d = -d;
         }
-        rate = std::fmax(rate, glm::angle(d));
+        rate = za::fmax(rate, glm::angle(d));
     }
     return rate;
 }
@@ -1280,13 +1296,13 @@ void reload_f()
         return;
     }
     Rig r;
-    std::string error;
+    za::String error;
     Report report;
     const bool ok = readRig(reinterpret_cast<const char*>(text), r, error, report);
     free(text);
     if(!ok)
     {
-        Con_Warning("vr_hand_reload: %s\n", error.c_str());
+        Con_Warning("vr_hand_reload: %s\n", error.cStr());
         Con_Printf("vr_hand_reload: kept the hand you had\n");
         return;
     }
@@ -1313,7 +1329,7 @@ void info_f()
 {
     const Rig& r = current();
     const Rig& ref = reference();
-    Con_Printf("vr_hand_rig_info: the rig in use is %s (%d vertices, %d triangles, %d + %d + %d spheres)\n", r.source.c_str(),
+    Con_Printf("vr_hand_rig_info: the rig in use is %s (%d vertices, %d triangles, %d + %d + %d spheres)\n", r.source.cStr(),
         static_cast<int>(r.vertices.size()), static_cast<int>(r.triangles.size()), static_cast<int>(r.segmentSpheres.size()),
         static_cast<int>(r.palmSpheres.size()), static_cast<int>(r.thenarSpheres.size()));
     // Against the compiled rig, number for number (== on floats: the same bits, but for signed zeros).
@@ -1381,14 +1397,14 @@ extern "C" int VR_ModelReplacementOk(const char* name, const char* md5mesh)
         return 1;
     }
     Rig r;
-    std::string error;
+    za::String error;
     Report report;
     const double start = Sys_DoubleTime();
     const bool ok = readRig(md5mesh, r, error, report);
     report.ms = (Sys_DoubleTime() - start) * 1000.0;
     if(!ok)
     {
-        Con_Warning("%s: %s\n", reloading ? "vr_hand_reload" : "the jointed hand", error.c_str());
+        Con_Warning("%s: %s\n", reloading ? "vr_hand_reload" : "the jointed hand", error.cStr());
         if(!reloading)
         {
             Con_Printf("the jointed hand: the six hand models are drawn until the file is fixed (then vr_hand_reload)\n");
@@ -1397,6 +1413,6 @@ extern "C" int VR_ModelReplacementOk(const char* name, const char* md5mesh)
     }
     r.source = meshFile;
     printReport(reloading ? "vr_hand_reload" : "the jointed hand", r, report, reloading);
-    install(std::move(r));
+    install(ZA_MOVE(r));
     return 1;
 }

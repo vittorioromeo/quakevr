@@ -6,8 +6,8 @@
 #include "vr_engine.hpp"
 #include "vr_mem.hpp"
 
-#include <string>
-#include <tuple>
+#include "Zancle/String/String.hpp"
+
 
 namespace
 {
@@ -15,8 +15,8 @@ namespace
 // The token read last, valid until the next VR_ParseToken (Cmd_TokenizeString copies it at once: Cmd_AddArg).
 struct CmdTokenReadouts
 {
-    std::string token;
-    auto members() { return std::tie(token); }
+    za::String token;
+    auto members() { return qvr::mem::list(token); }
 };
 qvr::mem::Scratch<CmdTokenReadouts> readouts{"cmd token"};
 
@@ -26,7 +26,7 @@ bool singleChar(int c)
 }
 
 // The rest of `data` after the token read into `t` (empty: none), or nullptr at the end of the text.
-const char* parse(const char* data, std::string& t)
+const char* parse(const char* data, za::String& t)
 {
     if(!data)
     {
@@ -112,9 +112,9 @@ const char* parse(const char* data, std::string& t)
 // nullptr at the end (then *token is empty).
 extern "C" const char* VR_ParseToken(const char* data, const char** token)
 {
-    std::string& t = readouts.token;
+    za::String& t = readouts.token;
     t.clear();
     data = parse(data, t);
-    *token = t.c_str();
+    *token = t.cStr();
     return data;
 }

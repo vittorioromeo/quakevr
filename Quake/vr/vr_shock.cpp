@@ -14,8 +14,11 @@
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <cmath>
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+
 
 namespace qvr::shock
 {
@@ -60,7 +63,7 @@ struct Random
     glm::vec3 flatDir()
     {
         const float a = (*this)() * 6.2831853f;
-        return {std::cos(a), std::sin(a), 0.f};
+        return {za::cos(a), za::sin(a), 0.f};
     }
 };
 
@@ -103,9 +106,9 @@ void arc(Random& rnd, glm::vec3 a, const glm::vec3& target, int segments, float 
 [[nodiscard]] float effectFade(double start, double until)
 {
     const double now = cl.time;
-    const float in = static_cast<float>(std::clamp((now - start) / 0.04, 0.0, 1.0));
-    const float out = static_cast<float>(std::clamp((until - now) / 0.12, 0.0, 1.0));
-    return std::min(in, out);
+    const float in = static_cast<float>(za::clamp((now - start) / 0.04, 0.0, 1.0));
+    const float out = static_cast<float>(za::clamp((until - now) / 0.12, 0.0, 1.0));
+    return za::min(in, out);
 }
 
 // A flickering blue light over the effect.
@@ -132,7 +135,7 @@ void drawSurface(int index, const Effect& e, Random& rnd)
     {
         return;
     }
-    const float reach = std::clamp(e.radius * 0.45f, 24.f, 160.f);
+    const float reach = za::clamp(e.radius * 0.45f, 24.f, 160.f);
     const glm::vec3 o = e.org + glm::vec3{0.f, 0.f, 0.75f};
     for(int bolt = 0; bolt < 9; bolt++)
     {
@@ -143,8 +146,8 @@ void drawSurface(int index, const Effect& e, Random& rnd)
         const glm::vec3 dir = rnd.flatDir();
         const float len = reach * (0.3f + 0.7f * rnd());
         const glm::vec3 end = o + dir * len;
-        const int segments = std::clamp(static_cast<int>(len / 10.f), 4, 14);
-        arc(rnd, o, end, segments, std::max(3.f, len * 0.12f), fade, true, 2.5f, true);
+        const int segments = za::clamp(static_cast<int>(len / 10.f), 4, 14);
+        arc(rnd, o, end, segments, za::max(3.f, len * 0.12f), fade, true, 2.5f, true);
         if(rnd() < 0.6f)
         {
             const glm::vec3 from = glm::mix(o, end, 0.3f + 0.5f * rnd());
@@ -161,7 +164,7 @@ void drawSurface(int index, const Effect& e, Random& rnd)
         const glm::vec3 at = o + rnd.flatDir() * (reach * (0.5f + 0.7f * rnd()));
         arc(rnd, at, at + rnd.flatDir() * (6.f + 10.f * rnd()), 3, 3.f, fade * 0.7f, true, 1.6f, true);
     }
-    light(index, e.org, std::clamp(e.radius, 100.f, 300.f), fade, rnd);
+    light(index, e.org, za::clamp(e.radius, 100.f, 300.f), fade, rnd);
 }
 
 // Arcs out from a point in the liquid, every way (the shock's source).
@@ -172,7 +175,7 @@ void drawBurst(int index, const Effect& e, Random& rnd)
     {
         return;
     }
-    const float reach = std::clamp(e.radius * 0.3f, 16.f, 110.f);
+    const float reach = za::clamp(e.radius * 0.3f, 16.f, 110.f);
     for(int bolt = 0; bolt < 10; bolt++)
     {
         if(rnd() < 0.3f)
@@ -180,10 +183,10 @@ void drawBurst(int index, const Effect& e, Random& rnd)
             continue;
         }
         const float len = reach * (0.3f + 0.7f * rnd());
-        arc(rnd, e.org, e.org + rnd.dir() * len, std::clamp(static_cast<int>(len / 10.f), 4, 10), len * 0.1f, fade, false,
+        arc(rnd, e.org, e.org + rnd.dir() * len, za::clamp(static_cast<int>(len / 10.f), 4, 10), len * 0.1f, fade, false,
             2.5f, true);
     }
-    light(index, e.org, std::clamp(e.radius, 120.f, 320.f), fade, rnd);
+    light(index, e.org, za::clamp(e.radius, 120.f, 320.f), fade, rnd);
 }
 
 // The player shocked: a flickering blue flash over the view (Quake's colour shift, as the pickup flash), a few arcs in
@@ -195,8 +198,8 @@ void drawSelf(const hands::State& s, Random& rnd)
     {
         return;
     }
-    const float k = static_cast<float>(std::clamp((selfUntil - now) / std::max(0.05, selfUntil - selfStart), 0.0, 1.0));
-    const float flash = std::clamp(vr_lg_water_flash.value, 0.f, 1.f);
+    const float k = static_cast<float>(za::clamp((selfUntil - now) / za::max(0.05, selfUntil - selfStart), 0.0, 1.0));
+    const float flash = za::clamp(vr_lg_water_flash.value, 0.f, 1.f);
 
     if(flash > 0.f)
     {
@@ -205,7 +208,7 @@ void drawSelf(const hands::State& s, Random& rnd)
         shift.destcolor[1] = 185;
         shift.destcolor[2] = 255;
         const float percent = flash * (0.35f + 0.65f * k) * (rnd() < 0.25f ? 8.f : 25.f + 35.f * rnd());
-        shift.percent = std::max(shift.percent, percent);
+        shift.percent = za::max(shift.percent, percent);
     }
 
     if(!s.valid)
@@ -258,7 +261,7 @@ void add(int kind, const glm::vec3& org, float radius, float duration)
         {
             selfStart = now;
         }
-        selfUntil = std::max(selfUntil, now + duration);
+        selfUntil = za::max(selfUntil, now + duration);
         return;
     }
 
@@ -295,7 +298,7 @@ void add(int kind, const glm::vec3& org, float radius, float duration)
     e.kind = kind;
     e.org = org;
     e.radius = radius;
-    e.until = std::max(e.until > now ? e.until : 0.0, now + duration);
+    e.until = za::max(e.until > now ? e.until : 0.0, now + duration);
 }
 
 // vr_shock_test <kind> [radius] [duration]

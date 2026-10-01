@@ -16,8 +16,9 @@
 #include "vr_protocol.hpp"
 #include "vr_weapons.hpp"
 
-#include <array>
-#include <cstring>
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Array.hpp"
+
 
 namespace qvr::limits
 {
@@ -32,7 +33,7 @@ struct Hit
     int count;
 };
 
-std::array<Hit, QVR_LIMIT_COUNT> hits{{
+za::Array<Hit, QVR_LIMIT_COUNT> hits{{
     {"MAX_TEMP_ENTITIES", "temporary entities (beams' segments, torch flames) not drawn", 0},
     {"MAX_DLIGHTS", "dynamic lights taking over the first one", 0},
     {"datagram", "frames whose farther entities were not sent (Packet overflow)", 0},
@@ -80,7 +81,7 @@ void hit(int limit)
     {
         return;
     }
-    Hit& h = hits[static_cast<std::size_t>(limit)];
+    Hit& h = hits[static_cast<za::SizeT>(limit)];
     if(h.count++ == 0)
     {
         Con_Printf("\x02" "Limit reached: %s: %s (vr_limits)\n", h.name, h.what);

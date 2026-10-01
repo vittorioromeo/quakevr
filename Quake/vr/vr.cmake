@@ -57,21 +57,29 @@ if (UNIX AND NOT APPLE)
 endif()
 target_link_libraries(ironwail PRIVATE qvr_box3d)
 
-# Zancle (external/zancle/README.md): its concurrency module, a static library with its own settings: C++23, optimised
-# and without Zancle's asserts (NDEBUG) in every configuration. (Zancle's asserts in the engine's own files, where NDEBUG
-# isn't defined, call vr_zancle.cpp's handler.)
+# Zancle (external/zancle/README.md): the modules the Quake VR code uses, a static library with its own settings: C++23;
+# optimised and without Zancle's asserts (NDEBUG) in Release; in Debug by QVR_ZANCLE_DEBUG: ON, built as the engine's
+# Debug with its asserts on (a failure calls vr_zancle.cpp's handler, as in the engine's own files); OFF, as in Release.
+option(QVR_ZANCLE_DEBUG "Zancle's library in Debug: unoptimised, with its asserts (OFF: optimised, asserts off)" ON)
 file(GLOB_RECURSE QVR_ZANCLE_SRC CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/external/zancle/src/*.cpp")
 add_library(qvr_zancle STATIC ${QVR_ZANCLE_SRC})
 target_include_directories(qvr_zancle PRIVATE
 	"${CMAKE_CURRENT_LIST_DIR}/external/zancle/include"
 	"${CMAKE_CURRENT_LIST_DIR}/external/zancle/src"
 	"${CMAKE_CURRENT_LIST_DIR}/external/zancle/extlibs/moodycamel")
-target_compile_definitions(qvr_zancle PRIVATE NDEBUG ZA_STATIC)
 set_target_properties(qvr_zancle PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
-if (MSVC)
-	target_compile_options(qvr_zancle PRIVATE /O2 /Ob2 /RTC- "/clang:-std=c++23")
+if (QVR_ZANCLE_DEBUG)
+	# Debug: the engine's own flags, and the asserts (their handler: vr_zancle.cpp); other configurations optimised.
+	set(QVR_ZANCLE_OPTIMISED "$<NOT:$<CONFIG:Debug>>")
+	target_compile_definitions(qvr_zancle PRIVATE ZA_STATIC "$<$<CONFIG:Debug>:QVR_ZANCLE_DEBUG>" "$<${QVR_ZANCLE_OPTIMISED}:NDEBUG>")
 else()
-	target_compile_options(qvr_zancle PRIVATE -O2)
+	set(QVR_ZANCLE_OPTIMISED 1)
+	target_compile_definitions(qvr_zancle PRIVATE NDEBUG ZA_STATIC)
+endif()
+if (MSVC)
+	target_compile_options(qvr_zancle PRIVATE "$<${QVR_ZANCLE_OPTIMISED}:/O2;/Ob2;/RTC->" "/clang:-std=c++23")
+else()
+	target_compile_options(qvr_zancle PRIVATE "$<${QVR_ZANCLE_OPTIMISED}:-O2>")
 endif()
 find_package(Threads REQUIRED)
 target_link_libraries(qvr_zancle PUBLIC Threads::Threads)

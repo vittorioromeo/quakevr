@@ -18,14 +18,24 @@
 #include "vr_units.hpp"
 #include "vr_weapons.hpp"
 
-#include <algorithm>
-#include <array>
-#include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Fmin.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_zancle.hpp"
+
 
 namespace qvr::modelcollide
 {
@@ -47,13 +57,13 @@ constexpr float fastObject = 150.f;   // units a second: a thing moving faster (
 
 struct ModelTris
 {
-    std::string name; // a slot reused by another model after a game change is made again
+    za::String name; // a slot reused by another model after a game change is made again
     bool valid{false};
     bool alias{false};
-    std::vector<std::array<std::uint16_t, 3>> tris;
-    std::vector<glm::vec3> brushVerts;
+    za::Vector<za::Array<za::U16, 3>> tris;
+    za::Vector<glm::vec3> brushVerts;
 };
-std::unordered_map<const qmodel_t*, ModelTris> modelTris;
+ankerl::unordered_dense::map<const qmodel_t*, za::UniquePtr<ModelTris>> modelTris; // (pointers into it are kept)
 
 [[nodiscard]] const aliashdr_t* quakeAlias(const qmodel_t* model)
 {
@@ -72,7 +82,7 @@ std::unordered_map<const qmodel_t*, ModelTris> modelTris;
 
 const ModelTris* trianglesOf(const qmodel_t* model)
 {
-    ModelTris& m = modelTris[model];
+    ModelTris& m = qza::stableAt<ModelTris>(modelTris, model);
     if(m.name == model->name)
     {
         return m.valid ? &m : nullptr;
@@ -87,7 +97,7 @@ const ModelTris* trianglesOf(const qmodel_t* model)
         const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
         for(int i = 0; i + 2 < hdr->numindexes; i += 3)
         {
-            m.tris.push_back({mesh[indexes[i]].vertindex, mesh[indexes[i + 1]].vertindex, mesh[indexes[i + 2]].vertindex});
+            m.tris.pushBack({mesh[indexes[i]].vertindex, mesh[indexes[i + 1]].vertindex, mesh[indexes[i + 2]].vertindex});
         }
     }
     else if(model->type == mod_brush)
@@ -100,14 +110,14 @@ const ModelTris* trianglesOf(const qmodel_t* model)
                 const mvertex_t& v = model->vertexes[ed >= 0 ? model->edges[ed].v[0] : model->edges[-ed].v[1]];
                 return glm::vec3{v.position[0], v.position[1], v.position[2]};
             };
-            const auto first = static_cast<std::uint16_t>(m.brushVerts.size());
+            const auto first = static_cast<za::U16>(m.brushVerts.size());
             for(int k = 0; k < surf.numedges && m.brushVerts.size() < 65535; k++)
             {
-                m.brushVerts.push_back(vertex(k));
+                m.brushVerts.pushBack(vertex(k));
             }
             for(int k = 2; k < surf.numedges && first + k < 65535; k++)
             {
-                m.tris.push_back({first, static_cast<std::uint16_t>(first + k - 1), static_cast<std::uint16_t>(first + k)});
+                m.tris.pushBack({first, static_cast<za::U16>(first + k - 1), static_cast<za::U16>(first + k)});
             }
         }
     }
@@ -131,9 +141,9 @@ struct Posed
     float blend{0.f};
     glm::vec3 lo{0.f}, hi{0.f}; // its box as drawn (its frames' bounds, or a brush model's, placed)
     int vertsFrame{-1};         // host_framecount its vertices were posed for (only when something comes near)
-    std::vector<glm::vec3> verts; // world
+    za::Vector<glm::vec3> verts; // world
 };
-std::unordered_map<int, Posed> posedCache; // by entity number
+ankerl::unordered_dense::map<int, za::UniquePtr<Posed>> posedCache; // by entity number (pointers into it are kept)
 
 struct Lerped
 {
@@ -171,7 +181,7 @@ struct Lerped
     {
         if(e.lerpflags & LERP_FINISH && numposes == 1)
         {
-            l.blend = CLAMP(0.f, static_cast<float>(cl.time - e.lerpstart) / std::fmax(e.lerpfinish - e.lerpstart, 1e-4f), 1.f);
+            l.blend = CLAMP(0.f, static_cast<float>(cl.time - e.lerpstart) / za::fmax(e.lerpfinish - e.lerpstart, 1e-4f), 1.f);
         }
         else
         {
@@ -197,7 +207,7 @@ struct Lerped
         else
         {
             const float blend = (e.lerpflags & LERP_FINISH)
-                                    ? CLAMP(0.f, static_cast<float>(cl.time - e.movelerpstart) / std::fmax(e.lerpfinish - e.movelerpstart, 1e-4f), 1.f)
+                                    ? CLAMP(0.f, static_cast<float>(cl.time - e.movelerpstart) / za::fmax(e.lerpfinish - e.movelerpstart, 1e-4f), 1.f)
                                     : CLAMP(0.f, static_cast<float>(cl.time - e.movelerpstart) / 0.1f, 1.f);
             const glm::vec3 previous{e.previousorigin[0], e.previousorigin[1], e.previousorigin[2]};
             const glm::vec3 previousAngles{e.previousangles[0], e.previousangles[1], e.previousangles[2]};
@@ -239,7 +249,7 @@ struct Lerped
 // Where `e` is drawn this frame and its box (cheap: no vertices yet).
 const Posed* posed(int num, const entity_t& e)
 {
-    Posed& p = posedCache[num];
+    Posed& p = qza::stableAt<Posed>(posedCache, num);
     if(p.frame == host_framecount)
     {
         return p.valid ? &p : nullptr;
@@ -308,7 +318,7 @@ const Posed* posed(int num, const entity_t& e)
 }
 
 // Its vertices as drawn this frame (the lerp between its two poses), in the world: once a frame, when something is near.
-const std::vector<glm::vec3>& vertsOf(Posed& p)
+const za::Vector<glm::vec3>& vertsOf(Posed& p)
 {
     if(p.vertsFrame == host_framecount)
     {
@@ -319,21 +329,21 @@ const std::vector<glm::vec3>& vertsOf(Posed& p)
     {
         const aliashdr_t* hdr = quakeAlias(p.ent->model);
         const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-        const trivertx_t* v1 = base + static_cast<std::size_t>(p.pose1) * static_cast<std::size_t>(hdr->numverts);
-        const trivertx_t* v2 = base + static_cast<std::size_t>(p.pose2) * static_cast<std::size_t>(hdr->numverts);
-        p.verts.resize(static_cast<std::size_t>(hdr->numverts));
+        const trivertx_t* v1 = base + static_cast<za::SizeT>(p.pose1) * static_cast<za::SizeT>(hdr->numverts);
+        const trivertx_t* v2 = base + static_cast<za::SizeT>(p.pose2) * static_cast<za::SizeT>(hdr->numverts);
+        p.verts.resize(static_cast<za::SizeT>(hdr->numverts));
         const float b = p.blend;
         for(int i = 0; i < hdr->numverts; i++)
         {
             const glm::vec3 raw{v1[i].v[0] + (v2[i].v[0] - v1[i].v[0]) * b, v1[i].v[1] + (v2[i].v[1] - v1[i].v[1]) * b,
                 v1[i].v[2] + (v2[i].v[2] - v1[i].v[2]) * b};
-            p.verts[static_cast<std::size_t>(i)] = glm::vec3{p.m * glm::vec4{raw, 1.f}};
+            p.verts[static_cast<za::SizeT>(i)] = glm::vec3{p.m * glm::vec4{raw, 1.f}};
         }
     }
     else
     {
         p.verts.resize(p.model->brushVerts.size());
-        for(std::size_t i = 0; i < p.verts.size(); i++)
+        for(za::SizeT i = 0; i < p.verts.size(); i++)
         {
             p.verts[i] = glm::vec3{p.m * glm::vec4{p.model->brushVerts[i], 1.f}};
         }
@@ -367,14 +377,14 @@ enum class Kind
 
 // A loose prop lying on `hand` (held up by the hand's body in the physics: box3d::restsOnHand), or a moment ago: it
 // doesn't push the hand from under it (the palm stays under what it holds up; the physics keeps them apart).
-std::vector<double> restSeen; // by entity: realtime it last lay on a hand
+za::Vector<double> restSeen; // by entity: realtime it last lay on a hand
 [[nodiscard]] bool restsOn(int num, int hand)
 {
-    if(restSeen.size() <= static_cast<std::size_t>(num))
+    if(restSeen.size() <= static_cast<za::SizeT>(num))
     {
-        restSeen.resize(static_cast<std::size_t>(num) + 1, -1.0);
+        restSeen.resize(static_cast<za::SizeT>(num) + 1, -1.0);
     }
-    double& seen = restSeen[static_cast<std::size_t>(num)];
+    double& seen = restSeen[static_cast<za::SizeT>(num)];
     if(box3d::restsOnHand(num, cl.viewentity, hand))
     {
         seen = realtime;
@@ -431,7 +441,7 @@ struct Recorded
     const qmodel_t* model{nullptr};
     int frame{0};
     glm::mat4 toHand{1.f}; // the model's raw coordinates to the hand's frame
-    std::vector<glm::vec3> prop; // the prop held in the hand alone: its points (propSamples) in the hand's frame
+    za::Vector<glm::vec3> prop; // the prop held in the hand alone: its points (propSamples) in the hand's frame
 };
 Recorded recorded[2];
 
@@ -443,19 +453,19 @@ struct SampleKey
 };
 struct SampleKeyHash
 {
-    std::size_t operator()(const SampleKey& k) const
+    za::SizeT operator()(const SampleKey& k) const
     {
-        return std::hash<const void*>{}(k.model) ^ (static_cast<std::size_t>(k.pose) * 2654435761u);
+        return ankerl::unordered_dense::hash<const void*>{}(k.model) ^ (static_cast<za::SizeT>(k.pose) * 2654435761u);
     }
 };
 struct Samples
 {
-    std::string name;
-    std::vector<glm::vec3> raw;
+    za::String name;
+    za::Vector<glm::vec3> raw;
 };
-std::unordered_map<SampleKey, Samples, SampleKeyHash> samplesCache;
+ankerl::unordered_dense::map<SampleKey, za::UniquePtr<Samples>, SampleKeyHash> samplesCache; // (pointers into it are kept)
 
-const std::vector<glm::vec3>* samplesOf(const qmodel_t* model, int frame)
+const za::Vector<glm::vec3>* samplesOf(const qmodel_t* model, int frame)
 {
     const aliashdr_t* hdr = quakeAlias(model);
     if(!hdr)
@@ -463,7 +473,7 @@ const std::vector<glm::vec3>* samplesOf(const qmodel_t* model, int frame)
         return nullptr;
     }
     const int pose = hdr->frames[frame >= 0 && frame < hdr->numframes ? frame : 0].firstpose;
-    Samples& s = samplesCache[SampleKey{model, pose}];
+    Samples& s = qza::stableAt<Samples>(samplesCache, SampleKey{model, pose});
     if(s.name == model->name)
     {
         return s.raw.empty() ? nullptr : &s.raw;
@@ -471,22 +481,22 @@ const std::vector<glm::vec3>* samplesOf(const qmodel_t* model, int frame)
     s.name = model->name;
     s.raw.clear();
     const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes) +
-                        static_cast<std::size_t>(pose) * static_cast<std::size_t>(hdr->numverts);
+                        static_cast<za::SizeT>(pose) * static_cast<za::SizeT>(hdr->numverts);
     // Farthest-point sampling, in the model's own units (its raw vertices scaled by its header): from the vertex
     // farthest from their middle, each next the one farthest from those taken.
     const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
-    std::vector<glm::vec3> real(static_cast<std::size_t>(hdr->numverts));
+    za::Vector<glm::vec3> real(static_cast<za::SizeT>(hdr->numverts));
     glm::vec3 middle{0.f};
     for(int i = 0; i < hdr->numverts; i++)
     {
-        real[static_cast<std::size_t>(i)] = glm::vec3{verts[i].v[0], verts[i].v[1], verts[i].v[2]} * scale;
-        middle += real[static_cast<std::size_t>(i)];
+        real[static_cast<za::SizeT>(i)] = glm::vec3{verts[i].v[0], verts[i].v[1], verts[i].v[2]} * scale;
+        middle += real[static_cast<za::SizeT>(i)];
     }
     middle /= static_cast<float>(hdr->numverts);
-    std::vector<float> nearest(real.size(), 1e30f);
-    std::size_t next = 0;
+    za::Vector<float> nearest(real.size(), 1e30f);
+    za::SizeT next = 0;
     float farthest = -1.f;
-    for(std::size_t i = 0; i < real.size(); i++)
+    for(za::SizeT i = 0; i < real.size(); i++)
     {
         if(const float d = glm::distance(real[i], middle); d > farthest)
         {
@@ -496,12 +506,12 @@ const std::vector<glm::vec3>* samplesOf(const qmodel_t* model, int frame)
     }
     for(int k = 0; k < sampleCount && k < hdr->numverts; k++)
     {
-        s.raw.push_back(glm::vec3{verts[next].v[0], verts[next].v[1], verts[next].v[2]});
+        s.raw.pushBack(glm::vec3{verts[next].v[0], verts[next].v[1], verts[next].v[2]});
         const glm::vec3 taken = real[next];
         float best = -1.f;
-        for(std::size_t i = 0; i < real.size(); i++)
+        for(za::SizeT i = 0; i < real.size(); i++)
         {
-            nearest[i] = std::fmin(nearest[i], glm::distance(real[i], taken));
+            nearest[i] = za::fmin(nearest[i], glm::distance(real[i], taken));
             if(nearest[i] > best)
             {
                 best = nearest[i];
@@ -540,11 +550,11 @@ struct Tri
 };
 
 // Runs of a model's triangles in its own order (neighbours, mostly: a limb's), under one box: a ray skips a run at once.
-constexpr std::uint32_t chunkSize = 8;
+constexpr za::U32 chunkSize = 8;
 struct Chunk
 {
     glm::vec3 lo, hi;
-    std::uint32_t first, count;
+    za::U32 first, count;
 };
 
 struct Plane
@@ -578,12 +588,12 @@ struct Ray
     bool blade{false};  // to a point of a running chainsaw's bar: may sink into a monster (vr_chainsaw.cpp)
 };
 
-std::vector<Tri> tris;     // the triangles near the rays
-std::vector<Chunk> chunks; // and their runs
-std::vector<Ray> rays;
-std::vector<Plane> planes;
-std::vector<int> nearby;     // the entities near the weapon
-std::vector<int> monsters;   // those of them that are monsters (a chainsaw's bar sinks into them)
+za::Vector<Tri> tris;     // the triangles near the rays
+za::Vector<Chunk> chunks; // and their runs
+za::Vector<Ray> rays;
+za::Vector<Plane> planes;
+za::Vector<int> nearby;     // the entities near the weapon
+za::Vector<int> monsters;   // those of them that are monsters (a chainsaw's bar sinks into them)
 
 // The first place `ray` goes into a triangle's front (`s` along it, 0..1), and after it the first place it comes out
 // of the same model (1: it doesn't before its end).
@@ -611,7 +621,7 @@ struct Crossing
         {
             continue;
         }
-        for(std::size_t i = k.first; i < k.first + k.count; i++)
+        for(za::SizeT i = k.first; i < k.first + k.count; i++)
         {
             const Tri& t = tris[i];
             if(t.hi.x < rlo.x || t.hi.y < rlo.y || t.hi.z < rlo.z || t.lo.x > rhi.x || t.lo.y > rhi.y || t.lo.z > rhi.z)
@@ -620,7 +630,7 @@ struct Crossing
             }
             const glm::vec3 pv = glm::cross(d, t.e2);
             const float det = glm::dot(t.e1, pv);
-            if(std::fabs(det) < 1e-9f)
+            if(za::fabs(det) < 1e-9f)
             {
                 continue;
             }
@@ -664,7 +674,7 @@ struct Crossing
         return c;
     }
     c.in = true;
-    const Tri& t = tris[static_cast<std::size_t>(inTri)];
+    const Tri& t = tris[static_cast<za::SizeT>(inTri)];
     for(int i = 0; i < outs; i++)
     {
         if(outOwner[i] == t.owner && outS[i] > c.sIn && outS[i] < c.sOut)
@@ -684,12 +694,12 @@ void gather(const glm::vec3& lo, const glm::vec3& hi, Stats& stats)
     chunks.clear();
     for(const int num : nearby)
     {
-        Posed& p = posedCache[num];
+        Posed& p = qza::stableAt<Posed>(posedCache, num);
         if(p.hi.x < lo.x || p.hi.y < lo.y || p.hi.z < lo.z || p.lo.x > hi.x || p.lo.y > hi.y || p.lo.z > hi.z)
         {
             continue;
         }
-        const std::vector<glm::vec3>& verts = vertsOf(p);
+        const za::Vector<glm::vec3>& verts = vertsOf(p);
         for(const auto& tri : p.model->tris)
         {
             if(tri[0] >= verts.size() || tri[1] >= verts.size() || tri[2] >= verts.size())
@@ -706,13 +716,13 @@ void gather(const glm::vec3& lo, const glm::vec3& hi, Stats& stats)
             }
             if(chunks.empty() || chunks.back().count == chunkSize || tris.back().owner != num)
             {
-                chunks.push_back(Chunk{tlo, thi, static_cast<std::uint32_t>(tris.size()), 0});
+                chunks.pushBack(Chunk{tlo, thi, static_cast<za::U32>(tris.size()), 0});
             }
             Chunk& k = chunks.back();
             k.lo = glm::min(k.lo, tlo);
             k.hi = glm::max(k.hi, thi);
             k.count++;
-            tris.push_back(Tri{a, b - a, c - a, tlo, thi, num});
+            tris.pushBack(Tri{a, b - a, c - a, tlo, thi, num});
         }
     }
     stats.triangles += static_cast<int>(tris.size());
@@ -775,14 +785,14 @@ void gather(const glm::vec3& lo, const glm::vec3& hi, Stats& stats)
 
 // The samples of the prop `num` held in a hand, in the world as drawn this frame: an alias model's vertices (as a
 // weapon's), a brush model's box (its corners and its faces' middles).
-std::vector<glm::vec3> propPoints;
-const std::vector<glm::vec3>* propSamples(int num)
+za::Vector<glm::vec3> propPoints;
+const za::Vector<glm::vec3>* propSamples(int num)
 {
     const entity_t& e = cl_entities[num];
     propPoints.clear();
     if(e.model->type == mod_alias)
     {
-        const std::vector<glm::vec3>* raw = samplesOf(e.model, e.frame);
+        const za::Vector<glm::vec3>* raw = samplesOf(e.model, e.frame);
         if(!raw)
         {
             return nullptr;
@@ -790,7 +800,7 @@ const std::vector<glm::vec3>* propSamples(int num)
         const glm::mat4 toWorld = grasp::shapeToWorld(e, false);
         for(const glm::vec3& v : *raw)
         {
-            propPoints.push_back(glm::vec3{toWorld * glm::vec4{v, 1.f}});
+            propPoints.pushBack(glm::vec3{toWorld * glm::vec4{v, 1.f}});
         }
         return &propPoints;
     }
@@ -805,14 +815,14 @@ const std::vector<glm::vec3>* propSamples(int num)
     for(int i = 0; i < 8; i++)
     {
         const glm::vec3 c{(i & 1) ? 1.f : -1.f, (i & 2) ? 1.f : -1.f, (i & 4) ? 1.f : -1.f};
-        propPoints.push_back(origin + axes * (mid + c * half));
+        propPoints.pushBack(origin + axes * (mid + c * half));
     }
     for(int i = 0; i < 3; i++)
     {
         glm::vec3 d{0.f};
         d[i] = half[i];
-        propPoints.push_back(origin + axes * (mid + d));
-        propPoints.push_back(origin + axes * (mid - d));
+        propPoints.pushBack(origin + axes * (mid + d));
+        propPoints.pushBack(origin + axes * (mid - d));
     }
     return &propPoints;
 }
@@ -824,12 +834,12 @@ Result test(const hands::State& s, int hand)
     const Recorded& r = recorded[hand];
     glm::vec3 propOffset{0.f};
     const int prop = held::heldAlone(hand, &propOffset);
-    const std::vector<glm::vec3>* samples = prop ? propSamples(prop) : samplesOf(r.model, r.frame);
+    const za::Vector<glm::vec3>* samples = prop ? propSamples(prop) : samplesOf(r.model, r.frame);
     if(!samples)
     {
         return result;
     }
-    const float most = std::fmax(vr_model_collide_max.value, 0.f) * 0.01f * units::metresToUnits();
+    const float most = za::fmax(vr_model_collide_max.value, 0.f) * 0.01f * units::metresToUnits();
     if(most <= 0.f)
     {
         return result;
@@ -845,14 +855,14 @@ Result test(const hands::State& s, int hand)
     rays.clear();
     if(toTorso > 1.f)
     {
-        rays.push_back(Ray{grip + (torso - grip) * (std::fmin(handRayLength, toTorso) / toTorso), grip, true});
+        rays.pushBack(Ray{grip + (torso - grip) * (za::fmin(handRayLength, toTorso) / toTorso), grip, true});
     }
     // The ogres' chainsaw with its chain running: its bar cuts into monsters, this deep (vr_chainsaw_overlap).
     const float sink = prop ? 0.f : chainsaw::sinkDepth(hand, r.model);
     const float barFrom = sink > 0.f ? chainsaw::barStart(r.model) : 0.f;
     for(const glm::vec3& v : *samples)
     {
-        rays.push_back(Ray{grip, glm::vec3{toWorld * glm::vec4{v, 1.f}}, false, sink > 0.f && v.x >= barFrom});
+        rays.pushBack(Ray{grip, glm::vec3{toWorld * glm::vec4{v, 1.f}}, false, sink > 0.f && v.x >= barFrom});
     }
     glm::vec3 lo = grip, hi = grip;
     for(const Ray& ray : rays)
@@ -887,7 +897,7 @@ Result test(const hands::State& s, int hand)
         float pad = 0.f;
         if(const client::EntityVr* net = client::entityVr(num))
         {
-            grow *= 1.f + std::fmax(0.f, std::fmax(net->scale.x, std::fmax(net->scale.y, net->scale.z)));
+            grow *= 1.f + za::fmax(0.f, za::fmax(net->scale.x, za::fmax(net->scale.y, net->scale.z)));
             pad = glm::length(net->offset) * grow + glm::length(net->scaleOrigin) * glm::length(net->scale);
         }
         glm::vec3 elo, ehi;
@@ -914,10 +924,10 @@ Result test(const hands::State& s, int hand)
         if(p && !(p->hi.x < reachLo.x || p->hi.y < reachLo.y || p->hi.z < reachLo.z || p->lo.x > reachHi.x || p->lo.y > reachHi.y ||
                     p->lo.z > reachHi.z))
         {
-            nearby.push_back(num);
+            nearby.pushBack(num);
             if(kind == Kind::Monster)
             {
-                monsters.push_back(num);
+                monsters.pushBack(num);
             }
         }
     }
@@ -960,17 +970,17 @@ Result test(const hands::State& s, int hand)
             const glm::vec3 entry = moved.a + d * c.sIn;
             const glm::vec3 deepest = moved.a + d * c.sOut;
             float depth = glm::dot(entry - deepest, c.n); // of the part inside, below the surface it went in by
-            if(ray.blade && std::find(monsters.begin(), monsters.end(), c.owner) != monsters.end())
+            if(ray.blade && za::find(monsters.begin(), monsters.end(), c.owner) != monsters.end())
             {
                 sunk++;
-                sunkDepth = std::fmax(sunkDepth, depth);
+                sunkDepth = za::fmax(sunkDepth, depth);
                 depth -= sink + margin; // a running chainsaw's bar: in this far (and no margin)
             }
             if(depth + margin <= 0.f)
             {
                 continue;
             }
-            planes.push_back(Plane{c.n, depth + margin + glm::dot(p, c.n)});
+            planes.pushBack(Plane{c.n, depth + margin + glm::dot(p, c.n)});
             result.stats.entity = c.owner;
             found = true;
         }
@@ -987,7 +997,7 @@ Result test(const hands::State& s, int hand)
                 if(short_ > 0.f)
                 {
                     p += plane.n * short_;
-                    worst = std::fmax(worst, short_);
+                    worst = za::fmax(worst, short_);
                 }
             }
             if(worst < 0.01f)
@@ -1009,7 +1019,7 @@ Result test(const hands::State& s, int hand)
     result.push = p;
     result.blocked = glm::length(p) > 0.f;
     const float len = glm::length(p);
-    const float give = len <= most ? 1.f : std::fmax(0.f, 2.f - len / most); // past it: less, then none
+    const float give = len <= most ? 1.f : za::fmax(0.f, 2.f - len / most); // past it: less, then none
     result.given = p * give;
     return result;
 }
@@ -1026,7 +1036,7 @@ double lastTime = -1.0;
 void drawDebug(const hands::State& s, int hand, const Result& res)
 {
     const Recorded& r = recorded[hand];
-    const std::vector<glm::vec3>* samples = samplesOf(r.model, r.frame);
+    const za::Vector<glm::vec3>* samples = samplesOf(r.model, r.frame);
     if(!samples)
     {
         return;
@@ -1053,7 +1063,7 @@ void beginView(hands::State& s)
     if(!again)
     {
         appliedFrame = host_framecount;
-        const float dt = lastTime >= 0.0 ? static_cast<float>(std::clamp(realtime - lastTime, 0.0, 0.1)) : 0.f;
+        const float dt = lastTime >= 0.0 ? static_cast<float>(za::clamp(realtime - lastTime, 0.0, 0.1)) : 0.f;
         lastTime = realtime;
         for(int hand = 0; hand < 2; hand++)
         {
@@ -1067,7 +1077,7 @@ void beginView(hands::State& s)
             // Out at once (nearly), back in more slowly.
             const bool deeper = glm::dot(target - drawn[hand], target) > 0.f;
             const float tau = deeper ? easeIn : easeOut;
-            drawn[hand] += (target - drawn[hand]) * (dt > 0.f ? 1.f - std::exp(-dt / tau) : 1.f);
+            drawn[hand] += (target - drawn[hand]) * (dt > 0.f ? 1.f - za::exp(-dt / tau) : 1.f);
             if(glm::length(drawn[hand]) < 1e-3f && glm::length(target) == 0.f)
             {
                 drawn[hand] = glm::vec3{0.f};
@@ -1120,12 +1130,12 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
         glm::vec3 propOffset{0.f};
         if(const int prop = s.valid ? held::heldAlone(hand, &propOffset) : 0)
         {
-            if(const std::vector<glm::vec3>* pts = propSamples(prop))
+            if(const za::Vector<glm::vec3>* pts = propSamples(prop))
             {
                 const glm::mat4 fromWorld = glm::inverse(handFrame(s.pos[hand] + propOffset, s.visualRot[hand]));
                 for(const glm::vec3& w : *pts)
                 {
-                    r.prop.push_back(glm::vec3{fromWorld * glm::vec4{w, 1.f}});
+                    r.prop.pushBack(glm::vec3{fromWorld * glm::vec4{w, 1.f}});
                 }
             }
         }
@@ -1144,19 +1154,19 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
     }
 }
 
-bool weaponShape(int hand, const glm::vec3& rot, std::vector<glm::vec3>& out)
+bool weaponShape(int hand, const glm::vec3& rot, za::Vector<glm::vec3>& out)
 {
     out.clear();
     const Recorded& r = recorded[hand];
     const glm::mat4 turn = handFrame(glm::vec3{0.f}, rot);
     if(r.valid && r.model == weapons::heldModel(hand))
     {
-        if(const std::vector<glm::vec3>* samples = samplesOf(r.model, r.frame))
+        if(const za::Vector<glm::vec3>* samples = samplesOf(r.model, r.frame))
         {
             const glm::mat4 toWorld = turn * r.toHand;
             for(const glm::vec3& v : *samples)
             {
-                out.push_back(glm::vec3{toWorld * glm::vec4{v, 1.f}});
+                out.pushBack(glm::vec3{toWorld * glm::vec4{v, 1.f}});
             }
         }
     }
@@ -1164,13 +1174,13 @@ bool weaponShape(int hand, const glm::vec3& rot, std::vector<glm::vec3>& out)
     {
         for(const glm::vec3& v : r.prop)
         {
-            out.push_back(glm::vec3{turn * glm::vec4{v, 1.f}});
+            out.pushBack(glm::vec3{turn * glm::vec4{v, 1.f}});
         }
     }
     return !out.empty();
 }
 
-bool drawnTriangles(const entity_t& e, int num, std::vector<glm::vec3>& out)
+bool drawnTriangles(const entity_t& e, int num, za::Vector<glm::vec3>& out)
 {
     out.clear();
     Posed* p = const_cast<Posed*>(posed(num, e));
@@ -1178,13 +1188,13 @@ bool drawnTriangles(const entity_t& e, int num, std::vector<glm::vec3>& out)
     {
         return false;
     }
-    const std::vector<glm::vec3>& v = vertsOf(*p);
+    const za::Vector<glm::vec3>& v = vertsOf(*p);
     out.reserve(p->model->tris.size() * 3);
     for(const auto& t : p->model->tris)
     {
-        out.push_back(v[t[0]]);
-        out.push_back(v[t[1]]);
-        out.push_back(v[t[2]]);
+        out.pushBack(v[t[0]]);
+        out.pushBack(v[t[1]]);
+        out.pushBack(v[t[2]]);
     }
     return true;
 }
@@ -1234,16 +1244,18 @@ void bench_f()
             }
             if(posed(num, e))
             {
-                nearby.push_back(num);
+                nearby.pushBack(num);
             }
         }
         Stats st;
         gather(glm::min(ray.a, ray.b), glm::max(ray.a, ray.b), st);
-        const std::vector<Tri> all = tris;
-        for(std::size_t i = 0; i < all.size(); i++)
+        const za::Vector<Tri> all = tris;
+        for(za::SizeT i = 0; i < all.size(); i++)
         {
-            tris.assign(1, all[i]);
-            chunks.assign(1, Chunk{all[i].lo, all[i].hi, 0, 1});
+            tris.clear();
+            tris.resize(1, all[i]);
+            chunks.clear();
+            chunks.resize(1, Chunk{all[i].lo, all[i].hi, 0, 1});
             const Crossing c = cross(ray);
             // One triangle: an entry is a front; else test it reversed for a back.
             if(c.in)
@@ -1252,8 +1264,9 @@ void bench_f()
                 continue;
             }
             Tri back = all[i];
-            std::swap(back.e1, back.e2);
-            tris.assign(1, back);
+            za::genericSwap(back.e1, back.e2);
+            tris.clear();
+            tris.resize(1, back);
             if(const Crossing b = cross(ray); b.in)
             {
                 Con_Printf("probe: out at %.1f units, entity %d (%s)\n", b.sIn * 200.f, all[i].owner, cl_entities[all[i].owner].model->name);
@@ -1261,7 +1274,7 @@ void bench_f()
         }
         return;
     }
-    const int n = Cmd_Argc() > 1 ? std::max(1, Q_atoi(Cmd_Argv(1))) : 1000;
+    const int n = Cmd_Argc() > 1 ? za::max(1, Q_atoi(Cmd_Argv(1))) : 1000;
     for(int hand = 1; hand >= 0; hand--)
     {
         const char* name = hand == HAND_MAIN ? "main" : "off";
@@ -1270,31 +1283,31 @@ void bench_f()
             Con_Printf("vr_model_collide_bench: %s hand: not tested (%s)\n", name, why);
             continue;
         }
-        std::vector<double> us;
-        us.reserve(static_cast<std::size_t>(n));
+        za::Vector<double> us;
+        us.reserve(static_cast<za::SizeT>(n));
         Result res;
         for(int i = 0; i < n; i++)
         {
             for(auto& entry : posedCache)
             {
-                entry.second.frame = -1; // posed afresh each time, as each frame
+                entry.second->frame = -1; // posed afresh each time, as each frame
             }
-            const auto t0 = std::chrono::steady_clock::now();
+            const auto t0 = qza::nowNs();
             res = test(s, hand);
-            us.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t0).count());
+            us.pushBack(qza::usSince(t0));
         }
-        std::sort(us.begin(), us.end());
+        za::quickSort(us.begin(), us.end());
         const Stats& st = res.stats;
         if(Cmd_Argc() > 2)
         {
             for(const int num : nearby)
             {
-                const Posed& p = posedCache[num];
+                const Posed& p = qza::stableAt<Posed>(posedCache, num);
                 Con_Printf("  near: %d %s, drawn (%.0f %.0f %.0f)..(%.0f %.0f %.0f)\n", num, cl_entities[num].model->name, p.lo.x,
                     p.lo.y, p.lo.z, p.hi.x, p.hi.y, p.hi.z);
             }
         }
-        if(const std::vector<glm::vec3>* samples = samplesOf(recorded[hand].model, recorded[hand].frame))
+        if(const za::Vector<glm::vec3>* samples = samplesOf(recorded[hand].model, recorded[hand].frame))
         {
             // The weapon's reach: its farthest sample from the hand, and the muzzle.
             const glm::mat4 toWorld = handFrame(s.pos[hand], s.visualRot[hand]) * recorded[hand].toHand;
@@ -1316,7 +1329,7 @@ void bench_f()
         Con_Printf("vr_model_collide_bench: %s hand, %s, %d times: min %.1f us, median %.1f, 99%% %.1f, max %.1f; %d models "
                    "near, %d triangles, %d rays, %d rounds, %d planes; push %.2f units\n",
             name, recorded[hand].model ? recorded[hand].model->name : "?", n, us.front(), us[us.size() / 2],
-            us[std::min(us.size() - 1, us.size() * 99 / 100)], us.back(),
+            us[za::min(us.size() - 1, us.size() * 99 / 100)], us.back(),
             st.models, st.triangles, st.rays, st.rounds, st.planes, glm::length(res.push));
     }
 }

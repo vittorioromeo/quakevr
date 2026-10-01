@@ -15,10 +15,15 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <vector>
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
+#include <string.h>
 
 namespace qvr::chainsaw
 {
@@ -36,10 +41,10 @@ constexpr double retractTime = 0.12;     // seconds the handle flies back into i
 constexpr float handleHalf = 0.045f;     // metres, half the T-handle's length (in the fist)
 constexpr float handleRadius = 0.012f;   // metres
 constexpr int wpnFlagSawChain = 8;       // QC QVR_WPNFLAG_SAW_CHAIN: the chain runs
-constexpr std::uint8_t bitOffHolds = 1;  // QC VR_SAWCORD_OFF_HOLDS: the off hand holds the main hand's chainsaw's cord
-constexpr std::uint8_t bitMainHolds = 2; // VR_SAWCORD_MAIN_HOLDS
-constexpr std::uint8_t bitOffPulled = 4; // VR_SAWCORD_OFF_PULLED: that cord pulled
-constexpr std::uint8_t bitMainPulled = 8;
+constexpr za::U8 bitOffHolds = 1;  // QC VR_SAWCORD_OFF_HOLDS: the off hand holds the main hand's chainsaw's cord
+constexpr za::U8 bitMainHolds = 2; // VR_SAWCORD_MAIN_HOLDS
+constexpr za::U8 bitOffPulled = 4; // VR_SAWCORD_OFF_PULLED: that cord pulled
+constexpr za::U8 bitMainPulled = 8;
 
 // The handle, read from the model (model space).
 struct Handle
@@ -84,9 +89,9 @@ CordDraw cordDraw;
 
 struct Scratch
 {
-    std::vector<gfx::TubeRing> rings;
-    std::vector<gfx::TubeRing> handleRings;
-    auto members() { return std::tie(rings, handleRings); }
+    za::Vector<gfx::TubeRing> rings;
+    za::Vector<gfx::TubeRing> handleRings;
+    auto members() { return qvr::mem::list(rings, handleRings); }
 };
 mem::Scratch<Scratch> scratch{"chainsaw"};
 
@@ -114,8 +119,8 @@ const Handle& handleOf(const qmodel_t* model)
         return handle;
     }
     const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-    const trivertx_t* seated = base + static_cast<std::size_t>(hdr->frames[0].firstpose) * hdr->numverts;
-    const trivertx_t* pulled = base + static_cast<std::size_t>(hdr->frames[pulledFrame].firstpose) * hdr->numverts;
+    const trivertx_t* seated = base + static_cast<za::SizeT>(hdr->frames[0].firstpose) * hdr->numverts;
+    const trivertx_t* pulled = base + static_cast<za::SizeT>(hdr->frames[pulledFrame].firstpose) * hdr->numverts;
     const auto at = [&](const trivertx_t& t) {
         return glm::vec3{t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
             t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
@@ -126,8 +131,8 @@ const Handle& handleOf(const qmodel_t* model)
     for(int v = 0; v < hdr->numverts; v++)
     {
         const glm::vec3 a = at(seated[v]);
-        lo = std::min(lo, a.x);
-        hi = std::max(hi, a.x);
+        lo = za::min(lo, a.x);
+        hi = za::max(hi, a.x);
         if(memcmp(seated[v].v, pulled[v].v, 3) != 0)
         {
             seat += a;
@@ -254,9 +259,9 @@ bool holds(int hand)
     return st.holder == hand;
 }
 
-std::uint8_t moveBits()
+za::U8 moveBits()
 {
-    std::uint8_t bits = 0;
+    za::U8 bits = 0;
     const int holder = st.holder >= 0 ? st.holder : st.retractFrom >= 0.0 ? 1 - st.retractHand : -1;
     if(holder == HAND_OFF)
     {
@@ -280,7 +285,7 @@ float sinkDepth(int hand, const qmodel_t* model)
         return 0.f;
     }
     const int flags = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_WEAPONFLAGS : protocol::STAT_QVR_WEAPONFLAGS2];
-    return (flags & wpnFlagSawChain) ? std::fmax(0.f, vr_chainsaw_overlap.value) * 0.01f * units::metresToUnits() : 0.f;
+    return (flags & wpnFlagSawChain) ? za::fmax(0.f, vr_chainsaw_overlap.value) * 0.01f * units::metresToUnits() : 0.f;
 }
 
 float barStart(const qmodel_t* model)
@@ -386,8 +391,8 @@ void setupView(const hands::State& s)
         const float ext = glm::length(out) - glm::distance(st.seatWorld[sawHand], hole);
         const glm::vec3 dir = glm::length(out) > 1e-3f ? out / glm::length(out) : sawUp;
         const float speed = glm::dot(s.vel[h], dir); // m/s away from the hole
-        st.peakSpeed = std::max(st.peakSpeed * 0.5f, speed);
-        const float need = metres(std::fmax(1.f, vr_chainsaw_pull_distance.value) * 0.01f);
+        st.peakSpeed = za::max(st.peakSpeed * 0.5f, speed);
+        const float need = metres(za::fmax(1.f, vr_chainsaw_pull_distance.value) * 0.01f);
         if(st.armed && ext >= need)
         {
             st.armed = false;
@@ -425,7 +430,7 @@ void setupView(const hands::State& s)
     if(st.holder < 0 && st.retractFrom >= 0.0)
     {
         // Flying back: along the cord into its seat.
-        const float t = static_cast<float>(std::clamp((realtime - st.retractFrom) / retractTime, 0.0, 1.0));
+        const float t = static_cast<float>(za::clamp((realtime - st.retractFrom) / retractTime, 0.0, 1.0));
         st.handlePos = glm::mix(st.retractStart, st.seatWorld[sawHand], t * t);
         st.drawHandle = t < 1.f;
     }
@@ -463,10 +468,10 @@ void drawOpaque()
         d.cord = cord.build(0.5f * (s.eyeOrigin[0] + s.eyeOrigin[1]), scratch.rings, d.sides) ? gfx::uploadTube(scratch.rings)
                                                                                               : gfx::TubeBatch{};
         // The T-handle across the fist: a short thick tube, closed at its ends.
-        std::vector<gfx::TubeRing>& rings = scratch.handleRings;
+        za::Vector<gfx::TubeRing>& rings = scratch.handleRings;
         rings.clear();
         const glm::vec3 axis = glm::normalize(st.handleAxis);
-        const glm::vec3 ref = std::fabs(axis.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
+        const glm::vec3 ref = za::fabs(axis.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
         const glm::vec3 across = glm::normalize(glm::cross(ref, axis));
         const glm::vec3 light = coil::lightAt(st.handlePos);
         const float half = metres(handleHalf), r = metres(handleRadius);
@@ -480,7 +485,7 @@ void drawOpaque()
             ring.ambient = glm::vec4{light, 0.f};
             ring.lamp = glm::vec4{0.f};
             ring.lampDir = glm::vec4{0.f, 0.f, 1.f, 0.f};
-            rings.push_back(ring);
+            rings.pushBack(ring);
         }
         d.handle = gfx::uploadTube(rings);
     }

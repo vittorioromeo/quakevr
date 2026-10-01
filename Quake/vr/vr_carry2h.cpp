@@ -9,8 +9,10 @@
 #include "vr_progs.hpp"
 #include "vr_units.hpp"
 
-#include <cmath>
-#include <unordered_map>
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Fmax.hpp"
+
 
 namespace qvr::carry2h
 {
@@ -50,7 +52,7 @@ constexpr float noLine = 0.03f;
         glm::vec3 axis = across - from * glm::dot(across, from);
         if(glm::length(axis) < 1e-4f)
         {
-            axis = std::fabs(from.x) < 0.9f ? glm::cross(from, glm::vec3{1.f, 0.f, 0.f}) : glm::cross(from, glm::vec3{0.f, 1.f, 0.f});
+            axis = za::fabs(from.x) < 0.9f ? glm::cross(from, glm::vec3{1.f, 0.f, 0.f}) : glm::cross(from, glm::vec3{0.f, 1.f, 0.f});
         }
         return glm::angleAxis(glm::pi<float>(), glm::normalize(axis));
     }
@@ -94,7 +96,7 @@ Frame solve(const Hold& hold, const Frame hands[2])
     {
         const glm::vec3 have = rot * hold.axis;
         // Opposite (the hands swapped over): half a turn about the object's up (or forward) across the line.
-        const glm::vec3 across = rot * (std::fabs(hold.axis.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f});
+        const glm::vec3 across = rot * (za::fabs(hold.axis.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f});
         const glm::quat swing = leastTurn(have, d / distance, across);
         rot = glm::normalize(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, swing, k) * rot);
     }
@@ -126,7 +128,7 @@ void toAngles(const glm::quat& q, float* out, bool brush)
 namespace
 {
 
-std::unordered_map<int, Hold> holds; // entity -> its hold
+ankerl::unordered_dense::map<int, Hold> holds; // entity -> its hold
 
 // Server side: where each hand was, from the player's origin, when it was last on its grip (detached).
 struct Watch
@@ -140,7 +142,7 @@ struct Watch
     bool placed{false};
     double blocked{-1e9}; // when it was last stopped by the level (clear): the hands pushing it in may go wallSlack further
 };
-std::unordered_map<int, Watch> watches;
+ankerl::unordered_dense::map<int, Watch> watches;
 
 [[nodiscard]] bool brushModel(edict_t* ent)
 {
@@ -236,8 +238,8 @@ int detached(edict_t* ent, edict_t* player)
         return 0;
     }
     const float m2u = units::metresToUnits();
-    const float drift = std::fmax(vr_carry_two_hands_drift.value, 0.f) * 0.01f * m2u;
-    const float most = drift + std::fmax(vr_carry_two_hands_detach.value, 0.f) * 0.01f * m2u;
+    const float drift = za::fmax(vr_carry_two_hands_drift.value, 0.f) * 0.01f * m2u;
+    const float most = drift + za::fmax(vr_carry_two_hands_detach.value, 0.f) * 0.01f * m2u;
     const bool brush = brushModel(ent);
     const glm::vec3 body{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     Watch& w = watches[num];

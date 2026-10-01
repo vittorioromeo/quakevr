@@ -24,10 +24,13 @@
 #include "vr_voicenotes.hpp"
 #include "vr_flashlight.hpp"
 
-#include <cmath>
-#include <string>
-#include <utility>
-#include <vector>
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
 
@@ -39,7 +42,7 @@ namespace
 // A take playing back (vr_motion_play): the controllers' key commands go ahead of whatever waits in the
 // command buffer (a script's remaining commands and waits), as they run at once in the headset; else a grip
 // pressed in a replay would take its weapon only after the script. In game only (menus as usual).
-std::string playbackCommands;
+za::String playbackCommands;
 
 void keyEvent(int key, bool down)
 {
@@ -57,7 +60,7 @@ void keyEvent(int key, bool down)
     }
     if(down)
     {
-        playbackCommands += kb[0] == '+' ? std::string{va("%s %i", kb, key)} : std::string{kb};
+        playbackCommands += kb[0] == '+' ? za::String{va("%s %i", kb, key)} : za::String{kb};
         playbackCommands += '\n';
     }
     else if(kb[0] == '+')
@@ -169,16 +172,16 @@ struct PendingHaptic
     float amplitude;
 };
 
-std::vector<PendingHaptic> pendingHaptics;
+za::Vector<PendingHaptic> pendingHaptics;
 
 [[nodiscard]] float deadzone(float v)
 {
     const float dz = CLAMP(0.f, vr_deadzone.value / 100.f, 0.9f);
-    if(std::fabs(v) < dz)
+    if(za::fabs(v) < dz)
     {
         return 0.f;
     }
-    return (v - std::copysign(dz, v)) / (1.f - dz);
+    return (v - qza::copysign(dz, v)) / (1.f - dz);
 }
 
 void stickKey(StickKey& k, float value, bool menu)
@@ -214,11 +217,11 @@ void turn(float x)
     // Snap by vr_snap_turn degrees, or turn smoothly at vr_turn_speed.
     if(vr_snap_turn.value > 0.f)
     {
-        if(std::fabs(x) < 0.3f)
+        if(za::fabs(x) < 0.3f)
         {
             snapTurnArmed = true;
         }
-        else if(snapTurnArmed && std::fabs(x) > 0.7f)
+        else if(snapTurnArmed && za::fabs(x) > 0.7f)
         {
             snapTurnArmed = false;
             hands::addTurn(x > 0.f ? -vr_snap_turn.value : vr_snap_turn.value);
@@ -356,7 +359,7 @@ void update(const InputState& tracked)
                 if(now && key_dest == key_menu && !vr_disablehaptics.value)
                 {
                     // A click under the finger, as the old engine gave in menus.
-                    pendingHaptics.push_back({realtime, h, 0.02f, 150.f, 0.3f});
+                    pendingHaptics.pushBack({realtime, h, 0.02f, 150.f, 0.3f});
                 }
             }
         }
@@ -374,11 +377,11 @@ void update(const InputState& tracked)
         // scrolls (on a page with a scrollbar) or moves the selection up and down: its left and
         // right do nothing, so that navigating never changes a setting by accident (round 20).
         const bool scrolls = menuui::scrollStick(main.stick.y);
-        if(scrolls && std::fabs(main.stick.y) > 0.3f)
+        if(scrolls && za::fabs(main.stick.y) > 0.3f)
         {
             mainStickScrolls = true;
         }
-        else if(std::fabs(main.stick.x) < 0.3f && std::fabs(main.stick.y) < 0.3f)
+        else if(za::fabs(main.stick.x) < 0.3f && za::fabs(main.stick.y) < 0.3f)
         {
             mainStickScrolls = false;
         }
@@ -419,7 +422,7 @@ void update(const InputState& tracked)
     previous = in;
     if(!playbackCommands.empty())
     {
-        Cbuf_InsertText(playbackCommands.c_str());
+        Cbuf_InsertText(playbackCommands.cStr());
         playbackCommands.clear();
     }
     runHaptics();
@@ -464,7 +467,7 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
         hands::angleVectors(s.rot[hands::moveHand()], lfwd, lright, lup);
 
         // Pointing (nearly) straight up or down: steer with the hand's up vector instead.
-        if(std::fabs(lfwd.z) > 0.8f)
+        if(za::fabs(lfwd.z) > 0.8f)
         {
             if(lfwd.z < -0.8f)
             {
@@ -474,11 +477,11 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
             {
                 lup = -lup;
             }
-            std::swap(lup, lfwd);
+            za::genericSwap(lup, lfwd);
         }
 
         // Tilting the hand must not change the speed.
-        const float fac = 1.f / std::fmax(std::fabs(lup.z), 0.2f);
+        const float fac = 1.f / za::fmax(za::fabs(lup.z), 0.2f);
         const glm::vec3 move = (moveAxes.y * lfwd + moveAxes.x * lright) * fac;
 
         glm::vec3 vfwd, vright, vup;
@@ -522,8 +525,8 @@ void parseHaptic()
     // At most 10 s ahead (a NaN or a huge delay would never come due: kept for ever), at most 64 waiting.
     if((hand == HAND_OFF || hand == HAND_MAIN) && pendingHaptics.size() < 64)
     {
-        const double wait = std::isfinite(delay) ? CLAMP(0.0, static_cast<double>(delay), 10.0) : 0.0;
-        pendingHaptics.push_back({realtime + wait, hand, duration, frequency, amplitude});
+        const double wait = qza::isfinite(delay) ? CLAMP(0.0, static_cast<double>(delay), 10.0) : 0.0;
+        pendingHaptics.pushBack({realtime + wait, hand, duration, frequency, amplitude});
     }
 }
 

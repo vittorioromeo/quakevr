@@ -7,6 +7,7 @@
 
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_main.hpp"
@@ -19,19 +20,23 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-#include <deque>
-#include <filesystem>
-#include <iterator>
-#include <map>
-#include <regex>
-#include <string>
-#include <vector>
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "Zancle/String/ToString.hpp"
+#include "vr_zancle.hpp"
+
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
 extern "C" float host_netinterval; // host.c
 
@@ -42,10 +47,10 @@ namespace qvr::motion
 // Labels
 // ----------------------------------------------------------------------------
 
-const std::vector<Category>& categories()
+const za::Vector<Category>& categories()
 {
     static const Choice any{"", "-"};
-    static const std::vector<Category> list = {
+    static const za::Vector<Category> list = {
         {{"slash", "Expected Slash"},
             {any, {"overhead", "Overhead"}, {"horizontal_ltr", "Horizontal L-R"}, {"horizontal_rtl", "Horizontal R-L"},
                 {"diagonal_down_left", "Diagonal Down-L"}, {"diagonal_down_right", "Diagonal Down-R"},
@@ -78,28 +83,28 @@ const std::vector<Category>& categories()
     return list;
 }
 
-std::vector<int> categoryOrder()
+za::Vector<int> categoryOrder()
 {
     // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
     static const char* const order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
         "hilt_pommel", "punch", "palm_shove_1h", "palm_shove_2h", "gun_strike", "other"};
     const auto& list = categories();
-    std::vector<int> out;
+    za::Vector<int> out;
     for(const char* name : order)
     {
         for(size_t i = 0; i < list.size(); i++)
         {
             if(!strcmp(list[i].choice.name, name))
             {
-                out.push_back(static_cast<int>(i));
+                out.pushBack(static_cast<int>(i));
             }
         }
     }
     for(size_t i = 0; i < list.size(); i++) // (any not in the order)
     {
-        if(std::find(out.begin(), out.end(), static_cast<int>(i)) == out.end())
+        if(za::find(out.begin(), out.end(), static_cast<int>(i)) == out.end())
         {
-            out.push_back(static_cast<int>(i));
+            out.pushBack(static_cast<int>(i));
         }
     }
     return out;
@@ -117,18 +122,18 @@ const Choice& chosenDetail()
     return c.details[CLAMP(0, static_cast<int>(vr_motion_detail.value), static_cast<int>(c.details.size()) - 1)];
 }
 
-std::string chosenLabel()
+za::String chosenLabel()
 {
     const Choice& d = chosenDetail();
-    return d.name[0] ? std::string{chosenCategory().choice.name} + "_" + d.name : chosenCategory().choice.name;
+    return d.name[0] ? za::String{chosenCategory().choice.name} + "_" + d.name : chosenCategory().choice.name;
 }
 
-std::string categoryOf(const std::string& label)
+za::String categoryOf(const za::String& label)
 {
-    std::string best;
+    za::String best;
     for(const Category& c : categories())
     {
-        const std::string name = c.choice.name;
+        const za::String name = c.choice.name;
         if((label == name || label.rfind(name + "_", 0) == 0) && name.size() > best.size())
         {
             best = name;
@@ -137,9 +142,9 @@ std::string categoryOf(const std::string& label)
     return best;
 }
 
-std::string safeLabel(const std::string& label)
+za::String safeLabel(const za::String& label)
 {
-    std::string out;
+    za::String out;
     for(const char c : label)
     {
         const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
@@ -148,10 +153,10 @@ std::string safeLabel(const std::string& label)
     return out.empty() ? "unlabelled" : out;
 }
 
-std::string motionsDir()
+za::String motionsDir()
 {
-    const std::string dir = std::string{com_gamedir} + "/motions";
-    Sys_mkdir(dir.c_str());
+    const za::String dir = za::String{com_gamedir} + "/motions";
+    Sys_mkdir(dir.cStr());
     return dir;
 }
 
@@ -212,9 +217,9 @@ public:
         add(buf);
     }
 
-    void text(const char* name, const std::string& v)
+    void text(const char* name, const za::String& v)
     {
-        add(names_ ? std::string{name} : clean(v));
+        add(names_ ? za::String{name} : clean(v));
     }
 
     void empty(const char* name)
@@ -223,51 +228,51 @@ public:
     }
 
     // A position in the player's frame: units, then metres.
-    void pos(const std::string& prefix, bool ok, const glm::vec3& units, float u2m)
+    void pos(const za::String& prefix, bool ok, const glm::vec3& units, float u2m)
     {
         static const char* const axes[] = {"x", "y", "z"};
         for(int unit = 0; unit < 2; unit++)
         {
             for(int i = 0; i < 3; i++)
             {
-                const std::string name = prefix + "_" + axes[i] + (unit == 0 ? "_u" : "_m");
+                const za::String name = prefix + "_" + axes[i] + (unit == 0 ? "_u" : "_m");
                 if(!ok)
                 {
-                    empty(name.c_str());
+                    empty(name.cStr());
                 }
                 else
                 {
-                    num(name.c_str(), unit == 0 ? units[i] : units[i] * u2m, unit == 0 ? 3 : 5);
+                    num(name.cStr(), unit == 0 ? units[i] : units[i] * u2m, unit == 0 ? 3 : 5);
                 }
             }
         }
     }
 
-    void vec(const std::string& prefix, bool ok, const glm::vec3& v, int decimals, const char* const (&axes)[3])
+    void vec(const za::String& prefix, bool ok, const glm::vec3& v, int decimals, const char* const (&axes)[3])
     {
         for(int i = 0; i < 3; i++)
         {
-            const std::string name = prefix + axes[i];
+            const za::String name = prefix + axes[i];
             if(!ok)
             {
-                empty(name.c_str());
+                empty(name.cStr());
             }
             else
             {
-                num(name.c_str(), v[i], decimals);
+                num(name.cStr(), v[i], decimals);
             }
         }
     }
 
-    [[nodiscard]] const std::string& line() const
+    [[nodiscard]] const za::String& line() const
     {
         return line_;
     }
 
     // No commas, quotes or line breaks in a cell (the events' separators are ';' and ':').
-    [[nodiscard]] static std::string clean(const std::string& s)
+    [[nodiscard]] static za::String clean(const za::String& s)
     {
-        std::string out = s;
+        za::String out = s;
         for(char& c : out)
         {
             if(c == ',' || c == '"' || c == '\n' || c == '\r')
@@ -279,7 +284,7 @@ public:
     }
 
 private:
-    void add(const std::string& cell)
+    void add(const za::String& cell)
     {
         if(!first_)
         {
@@ -291,7 +296,7 @@ private:
 
     bool names_;
     bool first_{true};
-    std::string line_;
+    za::String line_;
 };
 
 constexpr const char* xyz[3] = {"x", "y", "z"};
@@ -303,10 +308,10 @@ constexpr const char* avxyz[3] = {"avx", "avy", "avz"};
 
 [[nodiscard]] float wrapYaw(float y)
 {
-    return std::remainder(y, 360.f);
+    return za::remainder(y, 360.f);
 }
 
-[[nodiscard]] std::string eventField(std::string s)
+[[nodiscard]] za::String eventField(za::String s)
 {
     for(char& c : s)
     {
@@ -402,53 +407,53 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     for(const int h : {HAND_MAIN, HAND_OFF})
     {
         const HandRow& hr = r.hands[h];
-        const std::string p = h == HAND_MAIN ? "m_" : "o_";
+        const za::String p = h == HAND_MAIN ? "m_" : "o_";
         const auto name = [&](const char* n) { return p + n; };
         s.pos(p + "pos", true, pf(hr.pos), u2m);
         s.vec(p + "pos_w_", true, hr.pos, 3, xyz);
         s.pos(p + "pos_d", mon, df(hr.pos), u2m);
-        s.num(name("pitch").c_str(), hr.rot.x, 3);
-        s.num(name("yaw").c_str(), wrapYaw(hr.rot.y - yaw0), 3);
-        s.num(name("roll").c_str(), hr.rot.z, 3);
+        s.num(name("pitch").cStr(), hr.rot.x, 3);
+        s.num(name("yaw").cStr(), wrapYaw(hr.rot.y - yaw0), 3);
+        s.num(name("roll").cStr(), hr.rot.z, 3);
         if(mon)
         {
-            s.num(name("yaw_d").c_str(), wrapYaw(hr.rot.y - sv->monAngles.y), 3);
+            s.num(name("yaw_d").cStr(), wrapYaw(hr.rot.y - sv->monAngles.y), 3);
         }
         else
         {
-            s.empty(name("yaw_d").c_str());
+            s.empty(name("yaw_d").cStr());
         }
         s.vec(p, true, dir(hr.vel), 4, vxyz);
         s.vec(p, true, dir(hr.angVel), 4, avxyz);
-        s.num(name("trigger").c_str(), hr.input.triggerValue, 3);
-        s.num(name("grip").c_str(), hr.input.gripValue, 3);
-        s.integer(name("thumb").c_str(), hr.input.thumbTouch ? 1 : 0);
-        s.num(name("stick_x").c_str(), hr.input.stick.x, 3);
-        s.num(name("stick_y").c_str(), hr.input.stick.y, 3);
+        s.num(name("trigger").cStr(), hr.input.triggerValue, 3);
+        s.num(name("grip").cStr(), hr.input.gripValue, 3);
+        s.integer(name("thumb").cStr(), hr.input.thumbTouch ? 1 : 0);
+        s.num(name("stick_x").cStr(), hr.input.stick.x, 3);
+        s.num(name("stick_y").cStr(), hr.input.stick.y, 3);
         const int buttons = (hr.input.trigger ? 1 : 0) | (hr.input.grip ? 2 : 0) | (hr.input.primary ? 4 : 0) |
                             (hr.input.secondary ? 8 : 0) | (hr.input.stickClick ? 16 : 0) | (hr.input.menu ? 32 : 0);
-        s.integer(name("buttons").c_str(), buttons);
+        s.integer(name("buttons").cStr(), buttons);
         static const char* const fingers[] = {"curl_thumb", "curl_index", "curl_middle", "curl_ring", "curl_pinky"};
         for(int f = 0; f < 5; f++)
         {
-            s.num(name(fingers[f]).c_str(), hr.curl[f], 3);
+            s.num(name(fingers[f]).cStr(), hr.curl[f], 3);
         }
-        s.integer(name("wid").c_str(), hr.wid);
-        s.integer(name("wflags").c_str(), hr.wflags);
-        s.text(name("model").c_str(), hr.model);
-        s.integer(name("helping").c_str(), hr.helping ? 1 : 0);
-        s.integer(name("2h").c_str(), hr.grip2h);
-        s.num(name("2h_t").c_str(), hr.twoHand, 3);
-        s.integer(name("carried").c_str(), hr.carried ? 1 : 0);
-        s.integer(name("hotspot").c_str(), hr.hotspot);
-        s.integer(name("muzzle_ok").c_str(), hr.muzzleOk ? 1 : 0);
+        s.integer(name("wid").cStr(), hr.wid);
+        s.integer(name("wflags").cStr(), hr.wflags);
+        s.text(name("model").cStr(), hr.model);
+        s.integer(name("helping").cStr(), hr.helping ? 1 : 0);
+        s.integer(name("2h").cStr(), hr.grip2h);
+        s.num(name("2h_t").cStr(), hr.twoHand, 3);
+        s.integer(name("carried").cStr(), hr.carried ? 1 : 0);
+        s.integer(name("hotspot").cStr(), hr.hotspot);
+        s.integer(name("muzzle_ok").cStr(), hr.muzzleOk ? 1 : 0);
         s.pos(p + "muzzle", hr.muzzleOk, pf(hr.muzzle), u2m);
         s.pos(p + "muzzle_d", hr.muzzleOk && mon, df(hr.muzzle), u2m);
 
         // The QC's striking points (VR_Blow_Points): up to six, and the weapon's line (its butt: a
         // sword's pommel, an axe's or a hammer's handle end, a gun's grip; and its far end).
         const bool qc = sv && sv->qc;
-        std::string names;
+        za::String names;
         if(qc)
         {
             for(const Point& pt : sv->points[h])
@@ -456,14 +461,14 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
                 names += (names.empty() ? "" : "|") + pt.name;
             }
         }
-        s.text(name("pt_names").c_str(), names);
+        s.text(name("pt_names").cStr(), names);
         for(int i = 0; i < 6; i++)
         {
             const bool ok = qc && i < static_cast<int>(sv->points[h].size());
-            s.pos(p + "pt" + std::to_string(i), ok, ok ? pf(sv->points[h][i].at) : glm::vec3{0.f}, u2m);
+            s.pos(p + "pt" + za::toString(i), ok, ok ? pf(sv->points[h][i].at) : glm::vec3{0.f}, u2m);
         }
-        const glm::vec3* butt = qc ? sv->value((p + "butt").c_str()) : nullptr;
-        const glm::vec3* end = qc ? sv->value((p + "end").c_str()) : nullptr;
+        const glm::vec3* butt = qc ? sv->value((p + "butt").cStr()) : nullptr;
+        const glm::vec3* end = qc ? sv->value((p + "end").cStr()) : nullptr;
         s.pos(p + "butt", butt != nullptr, butt ? pf(*butt) : glm::vec3{0.f}, u2m);
         s.pos(p + "end", end != nullptr, end ? pf(*end) : glm::vec3{0.f}, u2m);
         s.pos(p + "butt_d", butt != nullptr && mon, butt ? df(*butt) : glm::vec3{0.f}, u2m);
@@ -471,11 +476,11 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         const glm::vec3* parry = qc ? sv->value("parry") : nullptr;
         if(parry)
         {
-            s.integer(name("parry").c_str(), (h == HAND_MAIN ? parry->x : parry->y) != 0.f ? 1 : 0);
+            s.integer(name("parry").cStr(), (h == HAND_MAIN ? parry->x : parry->y) != 0.f ? 1 : 0);
         }
         else
         {
-            s.empty(name("parry").c_str());
+            s.empty(name("parry").cStr());
         }
     }
 
@@ -502,7 +507,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         s.empty("guard_hand");
         s.empty("guard_ready");
     }
-    std::string extra;
+    za::String extra;
     if(sv && sv->qc)
     {
         for(const auto& [k, v] : sv->values)
@@ -512,7 +517,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
                 continue;
             }
             char buf[160];
-            q_snprintf(buf, sizeof(buf), "%s%s=%g:%g:%g", extra.empty() ? "" : ";", eventField(k).c_str(), v.x, v.y, v.z);
+            q_snprintf(buf, sizeof(buf), "%s%s=%g:%g:%g", extra.empty() ? "" : ";", eventField(k).cStr(), v.x, v.y, v.z);
             extra += buf;
         }
     }
@@ -567,7 +572,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 
     // The melee events of this frame: kind:sub:hand:value:x:y:z:target:detail, ';' between events;
     // x y z in the player's frame (units).
-    std::string events;
+    za::String events;
     for(const Event& e : r.events)
     {
         char at[96] = "::";
@@ -577,28 +582,28 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
             q_snprintf(at, sizeof(at), "%.2f:%.2f:%.2f", a.x, a.y, a.z);
         }
         char buf[512];
-        q_snprintf(buf, sizeof(buf), "%s%s:%s:%s:%.3f:%s:%s:%s", events.empty() ? "" : ";", eventField(e.kind).c_str(),
-            eventField(e.sub).c_str(), handName(e.hand), e.value, at, eventField(e.target).c_str(),
-            eventField(e.detail).c_str());
+        q_snprintf(buf, sizeof(buf), "%s%s:%s:%s:%.3f:%s:%s:%s", events.empty() ? "" : ";", eventField(e.kind).cStr(),
+            eventField(e.sub).cStr(), handName(e.hand), e.value, at, eventField(e.target).cStr(),
+            eventField(e.detail).cStr());
         events += buf;
     }
     s.text("events", events);
 
     // The runtime's tracking, as it came (tracking space: metres, +x right, +y up, -z forward).
-    const auto raw = [&](const std::string& p, const Pose& pose, bool grip) {
+    const auto raw = [&](const za::String& p, const Pose& pose, bool grip) {
         s.vec(p, true, pose.position, 5, pxyz);
-        s.num((p + "qw").c_str(), pose.orientation.w, 6);
-        s.num((p + "qx").c_str(), pose.orientation.x, 6);
-        s.num((p + "qy").c_str(), pose.orientation.y, 6);
-        s.num((p + "qz").c_str(), pose.orientation.z, 6);
+        s.num((p + "qw").cStr(), pose.orientation.w, 6);
+        s.num((p + "qx").cStr(), pose.orientation.x, 6);
+        s.num((p + "qy").cStr(), pose.orientation.y, 6);
+        s.num((p + "qz").cStr(), pose.orientation.z, 6);
         s.vec(p, true, pose.linearVelocity, 5, vxyz);
         s.vec(p, true, pose.angularVelocity, 5, wxyz);
-        s.integer((p + "valid").c_str(), pose.valid ? 1 : 0);
-        s.integer((p + "vvalid").c_str(), pose.velocityValid ? 1 : 0);
+        s.integer((p + "valid").cStr(), pose.valid ? 1 : 0);
+        s.integer((p + "vvalid").cStr(), pose.velocityValid ? 1 : 0);
         if(grip)
         {
             s.vec(p, true, pose.gripVelocity, 5, gxyz);
-            s.integer((p + "gvalid").c_str(), pose.gripVelocityValid ? 1 : 0);
+            s.integer((p + "gvalid").cStr(), pose.gripVelocityValid ? 1 : 0);
         }
     };
     raw("raw_head_", r.rawHead, false);
@@ -606,27 +611,27 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     raw("raw_o_", r.hands[HAND_OFF].raw, true);
 }
 
-[[nodiscard]] std::string weaponLine(const HandRow& h)
+[[nodiscard]] za::String weaponLine(const HandRow& h)
 {
-    return va("%d (flags %d, %s)%s%s", h.wid, h.wflags, h.model.empty() ? "-" : h.model.c_str(),
+    return va("%d (flags %d, %s)%s%s", h.wid, h.wflags, h.model.empty() ? "-" : h.model.cStr(),
         h.helping ? ", helping the other hand" : "",
         h.grip2h == 1 ? ", two-handed by the foregrip" : h.grip2h == 2 ? ", two-handed by the blade" : "");
 }
 
 // The settings the melee reads, for the header.
-[[nodiscard]] std::string meleeSettings()
+[[nodiscard]] za::String meleeSettings()
 {
     static const char* const prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
         "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult"};
-    std::string out;
+    za::String out;
     for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
     {
         for(const char* p : prefixes)
         {
             if(!strncmp(var->name, p, strlen(p)))
             {
-                out += (out.empty() ? "" : " ") + std::string{var->name} + "=" + var->string;
+                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + var->string;
                 break;
             }
         }
@@ -636,33 +641,33 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 
 // Every Quake VR setting a player keeps (archived vr_ cvars; the weapons' offsets are weaponSettings'),
 // for playback to place the hands and weapons as they were (vr_motion_play applies the ones that do).
-[[nodiscard]] std::string allSettings()
+[[nodiscard]] za::String allSettings()
 {
-    std::string out;
+    za::String out;
     for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
     {
         if(strncmp(var->name, "vr_", 3) != 0 || !strncmp(var->name, "vr_wofs_", 8) || !strncmp(var->name, "vr_motion_", 10))
         {
             continue;
         }
-        std::string value = var->string;
-        std::replace(value.begin(), value.end(), ' ', '_'); // (none has spaces that matter here)
-        out += (out.empty() ? "" : " ") + std::string{var->name} + "=" + value;
+        za::String value = var->string;
+        qza::replace(value.begin(), value.end(), ' ', '_'); // (none has spaces that matter here)
+        out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + value;
     }
     const cvar_t* maxfps = Cvar_FindVar("host_maxfps");
-    out += std::string{" host_maxfps="} + (maxfps ? maxfps->string : "0");
+    out += za::String{" host_maxfps="} + (maxfps ? maxfps->string : "0");
     return out;
 }
 
 // The weapon offsets (vr_wofs_*) of the empty hand's slot and of the weapons in the hands.
-[[nodiscard]] std::string weaponSettings()
+[[nodiscard]] za::String weaponSettings()
 {
-    std::vector<int> slots{weapons::fistSlot(), weapons::heldSlot(HAND_MAIN), weapons::heldSlot(HAND_OFF)};
-    std::string out;
+    za::Vector<int> slots{weapons::fistSlot(), weapons::heldSlot(HAND_MAIN), weapons::heldSlot(HAND_OFF)};
+    za::String out;
     for(size_t i = 0; i < slots.size(); i++)
     {
         const int slot = slots[i];
-        if(slot < 0 || std::find(slots.begin(), slots.begin() + static_cast<long>(i), slot) != slots.begin() + static_cast<long>(i))
+        if(slot < 0 || za::find(slots.begin(), slots.begin() + static_cast<long>(i), slot) != slots.begin() + static_cast<long>(i))
         {
             continue;
         }
@@ -670,7 +675,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         {
             if(const cvar_t* var = weapons::cvar(slot, static_cast<weapons::Key>(key)))
             {
-                out += (out.empty() ? "" : " ") + std::string{var->name} + "=" + var->string;
+                out += (out.empty() ? "" : " ") + za::String{var->name} + "=" + var->string;
             }
         }
     }
@@ -679,7 +684,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 
 } // namespace
 
-std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows)
+za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows)
 {
     int pre = 0, rec = 0, tail = 0;
     const Row* first = nullptr;
@@ -698,18 +703,18 @@ std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows)
         first = &rows.front();
     }
 
-    std::string h = "# Quake VR motion take (docs/vr-port/MOTIONS.md)\n";
-    const auto line = [&](const char* key, std::string value) {
-        std::replace(value.begin(), value.end(), '\n', ' ');
-        std::replace(value.begin(), value.end(), '\r', ' ');
-        h += std::string{"# "} + key + ": " + value + "\n";
+    za::String h = "# Quake VR motion take (docs/vr-port/MOTIONS.md)\n";
+    const auto line = [&](const char* key, za::String value) {
+        qza::replace(value.begin(), value.end(), '\n', ' ');
+        qza::replace(value.begin(), value.end(), '\r', ' ');
+        h += za::String{"# "} + key + ": " + value + "\n";
     };
-    line("format", std::to_string(formatVersion));
+    line("format", za::toString(formatVersion));
     line("label", info.label);
     line("category", info.category);
     line("detail", info.detail);
     line("note", info.note);
-    line("take", std::to_string(info.take));
+    line("take", za::toString(info.take));
     line("date", info.date);
     line("source", info.source);
     line("map", info.map);
@@ -733,7 +738,7 @@ std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows)
                                  vr_handcal_off_z.string, vr_handcal_off_roll.string));
     line("grips", va("vr_weapon_grip_mode %s vr_2h_mode %s", vr_weapon_grip_mode.string, vr_2h_mode.string));
     const cvar_t* maxfps = Cvar_FindVar("host_maxfps");
-    line("server rate", std::string{"host_maxfps "} + (maxfps ? maxfps->string : "?") + ", server frame " +
+    line("server rate", za::String{"host_maxfps "} + (maxfps ? maxfps->string : "?") + ", server frame " +
                             (host_netinterval > 0.f ? va("%.4f s (72 Hz)", host_netinterval) : "every host frame"));
     line("yaw0", va("%.3f", info.yaw0));
     line("origin0", va("%.3f %.3f %.3f", info.origin0.x, info.origin0.y, info.origin0.z));
@@ -741,8 +746,8 @@ std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows)
     {
         const ServerSample& sv = *first->sv;
         line("target", va("%s #%d%s%s at %.3f %.3f %.3f, angles %.1f %.1f %.1f, box %.1f %.1f %.1f .. %.1f %.1f %.1f",
-                           sv.monClass.c_str(), sv.monEnt, sv.monTargetname.empty() ? "" : " targetname ",
-                           sv.monTargetname.c_str(), sv.monOrigin.x, sv.monOrigin.y, sv.monOrigin.z, sv.monAngles.x,
+                           sv.monClass.cStr(), sv.monEnt, sv.monTargetname.empty() ? "" : " targetname ",
+                           sv.monTargetname.cStr(), sv.monOrigin.x, sv.monOrigin.y, sv.monOrigin.z, sv.monAngles.x,
                            sv.monAngles.y, sv.monAngles.z, sv.monMins.x, sv.monMins.y, sv.monMins.z, sv.monMaxs.x,
                            sv.monMaxs.y, sv.monMaxs.z));
     }
@@ -752,7 +757,7 @@ std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows)
     }
     // The training dummy struck back (vr_dummy_attacks, at any moment of the take): its "strike" events, which a
     // replay reproduces (vr_motion_play.cpp). Not written without.
-    if(std::any_of(rows.begin(), rows.end(), [](const Row& r) { return r.dummyAttacks; }))
+    if(za::anyOf(rows.begin(), rows.end(), [](const Row& r) { return r.dummyAttacks; }))
     {
         line("dummy attacks", "on");
     }
@@ -763,42 +768,42 @@ std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows)
     return h;
 }
 
-bool writeTakeFile(const std::string& path, const std::string& header, const TakeInfo& info, float u2m,
-    const std::vector<Row>& rows)
+bool writeTakeFile(const za::String& path, const za::String& header, const TakeInfo& info, float u2m,
+    const za::Vector<Row>& rows)
 {
-    FILE* f = fopen(path.c_str(), "wb");
+    FILE* f = fopen(path.cStr(), "wb");
     if(!f)
     {
         return false;
     }
-    fputs(header.c_str(), f);
+    fputs(header.cStr(), f);
     Sink names(true);
     emitRow(names, rows.empty() ? Row{} : rows.front(), 0, info, u2m);
-    fprintf(f, "%s\n", names.line().c_str());
+    fprintf(f, "%s\n", names.line().cStr());
     int frame = 0;
     for(const Row& r : rows)
     {
         Sink cells(false);
         emitRow(cells, r, frame++, info, u2m);
-        fprintf(f, "%s\n", cells.line().c_str());
+        fprintf(f, "%s\n", cells.line().cStr());
     }
     const bool ok = !ferror(f);
     return fclose(f) == 0 && ok;
 }
 
-bool writeTake(const std::string& path, const TakeInfo& info, const std::vector<Row>& rows)
+bool writeTake(const za::String& path, const TakeInfo& info, const za::Vector<Row>& rows)
 {
     if(!writeTakeFile(path, takeHeader(info, rows), info, 1.f / units::metresToUnits(), rows))
     {
-        Con_Printf("Motion recorder: can't write %s\n", path.c_str());
+        Con_Printf("Motion recorder: can't write %s\n", path.cStr());
         return false;
     }
     return true;
 }
 
-std::string takeHeader(const TakeInfo& info, const std::vector<Row>& rows);
-bool writeTakeFile(const std::string& path, const std::string& header, const TakeInfo& info, float u2m,
-    const std::vector<Row>& rows);
+za::String takeHeader(const TakeInfo& info, const za::Vector<Row>& rows);
+bool writeTakeFile(const za::String& path, const za::String& header, const TakeInfo& info, float u2m,
+    const za::Vector<Row>& rows);
 bool playDummyAttacks(); // vr_motion_play.cpp: a replay reproducing the dummy's strikes
 
 namespace
@@ -808,11 +813,11 @@ namespace
 // The server's samples and the QC's events
 // ----------------------------------------------------------------------------
 
-std::shared_ptr<const ServerSample> latest;
+std::shared_ptr<const ServerSample> latest; // ZANCLE-TODO: no shared ownership (std::shared_ptr)
 ServerSample* sampling = nullptr; // the sample VR_Motion_Sample is filling
 bool tickThisFrame = false;
 double tickDt = 0.0;
-std::vector<Event> frameEvents;
+za::Vector<Event> frameEvents;
 
 bool armedOrRecording();
 
@@ -857,25 +862,25 @@ enum class Rec
 
 Rec rec = Rec::Off;
 void finishTake();
-std::vector<std::pair<TakeInfo, std::vector<Row>>> unsaved; // takes that could not be written
+za::Vector<qza::Pair<TakeInfo, za::Vector<Row>>> unsaved; // takes that could not be written
 // The buttons the recorder can take (vr_motion_button's), an index into taken's.
 constexpr bool HandInput::*recButtons[] = {
     &HandInput::trigger, &HandInput::grip, &HandInput::primary, &HandInput::secondary, &HandInput::stickClick};
-constexpr int recButtonCount = static_cast<int>(std::size(recButtons));
+constexpr int recButtonCount = static_cast<int>(za::getArraySize(recButtons));
 bool taken[HAND_COUNT][recButtonCount]{}; // the recorder took this button's press (its release too)
-std::vector<Row> rows;
-std::deque<Row> preroll;
+za::Vector<Row> rows;
+za::Vector<Row> preroll; // (first in, first out)
 TrackingState rawTracking;
 double stopTime = 0.0;
-std::string takeLabel;
-std::string takeStamp;
-std::string takeDate;
+za::String takeLabel;
+za::String takeStamp;
+za::String takeDate;
 int takeNumber = 0;
-std::string lastSavedName;
-std::vector<std::string> savedThisSession; // for Delete Last Take
+za::String lastSavedName;
+za::Vector<za::String> savedThisSession; // for Delete Last Take
 double feedbackUntil = 0.0; // "SAVED" / "DROPPED" shown until then
-std::string feedbackText;
-std::map<std::string, int> takeCounts;
+za::String feedbackText;
+ankerl::unordered_dense::map<za::String, int> takeCounts;
 bool countsValid = false;
 
 // vr_motion_button's choices (VR Settings > Advanced > Motion Recorder, "Record Button"): a button of one hand, pressed
@@ -906,7 +911,7 @@ constexpr RecordBinding recordBindings[] = {
 [[nodiscard]] const RecordBinding& recordBinding()
 {
     const int i = static_cast<int>(vr_motion_button.value);
-    return recordBindings[i >= 0 && i < static_cast<int>(std::size(recordBindings)) ? i : 0];
+    return recordBindings[i >= 0 && i < static_cast<int>(za::getArraySize(recordBindings)) ? i : 0];
 }
 
 [[nodiscard]] int recordHand()
@@ -932,28 +937,25 @@ bool armedOrRecording()
 }
 
 // The label of a take's file name, <label>_YYYY-MM-DD_HH-MM-SS[-n].csv ("" for another file).
-[[nodiscard]] std::string labelOf(const std::string& name)
+[[nodiscard]] za::String labelOf(const za::String& name)
 {
-    static const std::regex pattern{R"(^(.+)_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(-\d+)?\.csv$)"};
-    std::smatch m;
-    return std::regex_match(name, m, pattern) ? m[1].str() : std::string{};
+    za::StringView label, stamp;
+    return parseTakeName(name, label, stamp) ? za::String{label} : za::String{};
 }
 
 void countTakes()
 {
     takeCounts.clear();
     countsValid = true;
-    std::error_code ec;
-    for(const auto& entry : std::filesystem::directory_iterator(motionsDir(), ec))
-    {
-        if(const std::string label = labelOf(entry.path().filename().string()); !label.empty())
+    files::forEachEntry(motionsDir().cStr(), [](const char* name, bool) {
+        if(const za::String label = labelOf(name); !label.empty())
         {
             takeCounts[label]++;
         }
-    }
+    });
 }
 
-[[nodiscard]] int takeCount(const std::string& label)
+[[nodiscard]] int takeCount(const za::String& label)
 {
     if(!countsValid)
     {
@@ -964,7 +966,7 @@ void countTakes()
 }
 
 // The takes of a category, all its details together.
-[[nodiscard]] int categoryCount(const std::string& category)
+[[nodiscard]] int categoryCount(const za::String& category)
 {
     if(!countsValid)
     {
@@ -989,7 +991,7 @@ void haptic(int hand, float seconds, float amplitude)
     }
 }
 
-void startTake(const std::string& label)
+void startTake(const za::String& label)
 {
     if(rec != Rec::Off)
     {
@@ -1004,14 +1006,14 @@ void startTake(const std::string& label)
 
     takeLabel = safeLabel(label);
     takeNumber = takeCount(takeLabel) + 1;
-    const std::time_t now = std::time(nullptr);
+    const time_t now = time(nullptr);
     char stamp[64], date[64];
-    std::strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
-    std::strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+    strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
+    strftime(date, sizeof(date), "%Y-%m-%d %H:%M:%S", localtime(&now));
     takeStamp = stamp;
     takeDate = date;
 
-    rows.assign(preroll.begin(), preroll.end());
+    rows.assignRange(preroll.begin(), preroll.end());
     for(Row& r : rows)
     {
         r.phase = PhasePre;
@@ -1020,7 +1022,7 @@ void startTake(const std::string& label)
     rec = Rec::Recording;
     haptic(recordHand(), 0.06f, 0.8f);
     S_LocalSound("misc/talk.wav");
-    Con_Printf("Motion recorder: recording %s #%d\n", takeLabel.c_str(), takeNumber);
+    Con_Printf("Motion recorder: recording %s #%d\n", takeLabel.cStr(), takeNumber);
 }
 
 void stopTake()
@@ -1041,30 +1043,30 @@ void stopTake()
 struct PendingSave
 {
     jobs::Future<int> result; // (the game's thread pool) 1 written in motions/, 2 in the game folder (fallback), 0 not at all
-    std::string path;
-    std::string fallback;
+    za::String path;
+    za::String fallback;
     TakeInfo info;
-    std::shared_ptr<const std::vector<Row>> rows;
+    std::shared_ptr<const za::Vector<Row>> rows; // ZANCLE-TODO: no shared ownership (std::shared_ptr)
     double held{0.0};
 };
-std::vector<PendingSave> pendingSaves;
+za::Vector<PendingSave> pendingSaves;
 
 // Where a take goes: <dir>/<label>_<date>_<time>.csv, never over another (nor one being written).
-[[nodiscard]] std::string takePath(const std::string& dir)
+[[nodiscard]] za::String takePath(const za::String& dir)
 {
-    const std::string name = takeLabel + "_" + takeStamp;
-    const auto taken = [&](const std::string& path) {
-        if(Sys_FileType(path.c_str()) != FS_ENT_NONE)
+    const za::String name = takeLabel + "_" + takeStamp;
+    const auto taken = [&](const za::String& path) {
+        if(Sys_FileType(path.cStr()) != FS_ENT_NONE)
         {
             return true;
         }
-        return std::any_of(pendingSaves.begin(), pendingSaves.end(),
+        return za::anyOf(pendingSaves.begin(), pendingSaves.end(),
             [&](const PendingSave& p) { return p.path == path || p.fallback == path; });
     };
-    std::string path = dir + "/" + name + ".csv";
+    za::String path = dir + "/" + name + ".csv";
     for(int n = 2; taken(path); n++)
     {
-        path = dir + "/" + name + "-" + std::to_string(n) + ".csv";
+        path = dir + "/" + name + "-" + za::toString(n) + ".csv";
     }
     return path;
 }
@@ -1072,7 +1074,7 @@ std::vector<PendingSave> pendingSaves;
 void finishTake()
 {
     rec = Rec::Off;
-    std::vector<Row> take;
+    za::Vector<Row> take;
     take.swap(rows);
 
     const Row* first = nullptr;
@@ -1093,12 +1095,12 @@ void finishTake()
     {
         if(vr_motion_armed.value && r.realtime >= take.back().realtime - vr_motion_preroll.value)
         {
-            preroll.push_back(r);
+            preroll.pushBack(r);
         }
     }
     if(!first || held < minHeldSeconds)
     {
-        Con_Printf("Motion recorder: %s #%d too short (%.2f s), not kept\n", takeLabel.c_str(), takeNumber, held);
+        Con_Printf("Motion recorder: %s #%d too short (%.2f s), not kept\n", takeLabel.cStr(), takeNumber, held);
         feedbackText = va("NOT KEPT: too short (%.2f s)", held);
         feedbackUntil = realtime + 2.0;
         haptic(recordHand(), 0.25f, 0.4f);
@@ -1110,8 +1112,8 @@ void finishTake()
     info.label = takeLabel;
     info.category = categoryOf(takeLabel);
     info.detail = info.category.empty() || takeLabel.size() <= info.category.size()
-                      ? std::string{}
-                      : takeLabel.substr(info.category.size() + 1);
+                      ? za::String{}
+                      : takeLabel.substrByPosLen(info.category.size() + 1);
     info.note = vr_motion_note.string;
     info.date = takeDate;
     info.map = cl.mapname;
@@ -1130,9 +1132,9 @@ void finishTake()
     p.fallback = takePath(com_gamedir);
     p.info = info;
     p.held = held;
-    auto shared = std::make_shared<const std::vector<Row>>(std::move(take));
+    auto shared = std::make_shared<const za::Vector<Row>>(ZA_MOVE(take));
     p.rows = shared;
-    const std::string header = takeHeader(info, *shared);
+    const za::String header = takeHeader(info, *shared);
     const float u2m = 1.f / units::metresToUnits();
     p.result = jobs::async([path = p.path, fallback = p.fallback, header, info, u2m, shared]() {
         if(writeTakeFile(path, header, info, u2m, *shared))
@@ -1141,7 +1143,7 @@ void finishTake()
         }
         return writeTakeFile(fallback, header, info, u2m, *shared) ? 2 : 0;
     });
-    pendingSaves.push_back(std::move(p));
+    pendingSaves.pushBack(ZA_MOVE(p));
 }
 
 // The takes written since the last frame: their feedback (or the alarm).
@@ -1155,27 +1157,27 @@ void pollSaves(bool wait)
             continue;
         }
         const int written = it->result.get();
-        PendingSave p = std::move(*it);
+        PendingSave p = ZA_MOVE(*it);
         it = pendingSaves.erase(it);
-        const std::string label = p.info.label;
+        const za::String label = p.info.label;
         if(written == 0)
         {
             Con_Warning("Motion recorder: %s #%d NOT SAVED (%s): kept in memory, vr_motion_save_unsaved retries\n",
-                label.c_str(), p.info.take, p.path.c_str());
-            unsaved.push_back({p.info, *p.rows});
+                label.cStr(), p.info.take, p.path.cStr());
+            unsaved.pushBack({p.info, *p.rows});
             feedbackText = "NOT SAVED! (see the console)";
             feedbackUntil = realtime + 6.0;
             haptic(recordHand(), 0.4f, 1.f);
             S_LocalSound("doors/basetry.wav");
             continue;
         }
-        const std::string path = written == 1 ? p.path : p.fallback;
+        const za::String path = written == 1 ? p.path : p.fallback;
         if(written == 2)
         {
-            Con_Warning("Motion recorder: couldn't write %s; saved in the game folder instead\n", p.path.c_str());
+            Con_Warning("Motion recorder: couldn't write %s; saved in the game folder instead\n", p.path.cStr());
         }
-        savedThisSession.push_back(path);
-        lastSavedName = std::filesystem::path(path).filename().string();
+        savedThisSession.pushBack(path);
+        lastSavedName = za::String{files::fileName(path)};
         takeCounts[label]++;
         review::invalidate(); // a new take to list
         int events = 0;
@@ -1183,12 +1185,12 @@ void pollSaves(bool wait)
         {
             events += static_cast<int>(r.events.size());
         }
-        const std::string category = p.info.category.empty() ? label : p.info.category;
-        const std::string shown = written == 1 ? "motions/" + lastSavedName : path;
+        const za::String category = p.info.category.empty() ? label : p.info.category;
+        const za::String shown = written == 1 ? "motions/" + lastSavedName : path;
         const int count = p.info.category.empty() ? takeCount(label) : categoryCount(category);
-        Con_Printf("Motion recorder: saved %s (%.2f s, %d frames, %d events); %s: %d take%s\n", shown.c_str(), p.held,
-            static_cast<int>(p.rows->size()), events, category.c_str(), count, count == 1 ? "" : "s");
-        feedbackText = va("SAVED %s #%d (%s: %d)", label.c_str(), p.info.take, category.c_str(), count);
+        Con_Printf("Motion recorder: saved %s (%.2f s, %d frames, %d events); %s: %d take%s\n", shown.cStr(), p.held,
+            static_cast<int>(p.rows->size()), events, category.cStr(), count, count == 1 ? "" : "s");
+        feedbackText = va("SAVED %s #%d (%s: %d)", label.cStr(), p.info.take, category.cStr(), count);
         feedbackUntil = realtime + 2.5;
         haptic(recordHand(), 0.12f, 0.6f);
         S_LocalSound("misc/menu2.wav");
@@ -1268,12 +1270,12 @@ void saveUnsaved_f()
     {
         takeLabel = it->first.label;
         takeStamp = it->first.date; // YYYY-MM-DD HH:MM:SS, as a file name's
-        std::replace(takeStamp.begin(), takeStamp.end(), ' ', '_');
-        std::replace(takeStamp.begin(), takeStamp.end(), ':', '-');
-        const std::string path = takePath(motionsDir());
+        qza::replace(takeStamp.begin(), takeStamp.end(), ' ', '_');
+        qza::replace(takeStamp.begin(), takeStamp.end(), ':', '-');
+        const za::String path = takePath(motionsDir());
         if(writeTake(path, it->first, it->second))
         {
-            Con_Printf("Motion recorder: saved %s\n", path.c_str());
+            Con_Printf("Motion recorder: saved %s\n", path.cStr());
             it = unsaved.erase(it);
             countsValid = false;
             review::invalidate();
@@ -1291,7 +1293,7 @@ void record_f()
 {
     if(rec != Rec::Off)
     {
-        Con_Printf("Motion recorder: already recording %s\n", takeLabel.c_str());
+        Con_Printf("Motion recorder: already recording %s\n", takeLabel.cStr());
         return;
     }
     startTake(Cmd_Argc() > 1 ? Cmd_Argv(1) : chosenLabel());
@@ -1306,27 +1308,24 @@ void stop_f()
 void list_f()
 {
     countTakes();
-    const std::string only = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const za::String only = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
     if(!only.empty())
     {
-        std::vector<std::string> files;
-        std::error_code ec;
-        for(const auto& entry : std::filesystem::directory_iterator(motionsDir(), ec))
-        {
-            const std::string name = entry.path().filename().string();
-            const std::string label = labelOf(name);
+        za::Vector<za::String> takes;
+        files::forEachEntry(motionsDir().cStr(), [&](const char* name, bool) {
+            const za::String label = labelOf(name);
             if(!label.empty() && (label == only || categoryOf(label) == only))
             {
-                files.push_back(name);
+                takes.pushBack(za::String{name});
             }
-        }
-        std::sort(files.begin(), files.end());
-        for(const std::string& f : files)
+        });
+        za::quickSort(takes.begin(), takes.end());
+        for(const za::String& f : takes)
         {
-            Con_Printf("  %s\n", f.c_str());
+            Con_Printf("  %s\n", f.cStr());
         }
-        Con_Printf("%d take%s of %s in %s\n", static_cast<int>(files.size()), files.size() == 1 ? "" : "s", only.c_str(),
-            motionsDir().c_str());
+        Con_Printf("%d take%s of %s in %s\n", static_cast<int>(takes.size()), takes.size() == 1 ? "" : "s", only.cStr(),
+            motionsDir().cStr());
         return;
     }
     int total = 0;
@@ -1335,23 +1334,25 @@ void list_f()
         const int n = categoryCount(c.choice.name);
         total += n;
         Con_Printf("%-24s %3d\n", c.choice.name, n);
-        for(const auto& [label, count] : takeCounts)
+        for(const auto* entry : qza::sortedByKey(takeCounts)) // (in the labels' order, as a std::map had them)
         {
+            const auto& [label, count] = *entry;
             if(categoryOf(label) == c.choice.name && label != c.choice.name)
             {
-                Con_Printf("  %-22s %3d\n", label.substr(strlen(c.choice.name) + 1).c_str(), count);
+                Con_Printf("  %-22s %3d\n", label.cStr() + strlen(c.choice.name) + 1, count);
             }
         }
     }
-    for(const auto& [label, n] : takeCounts)
+    for(const auto* entry : qza::sortedByKey(takeCounts)) // (in the labels' order, as a std::map had them)
     {
+        const auto& [label, n] = *entry;
         if(categoryOf(label).empty())
         {
             total += n;
-            Con_Printf("%-24s %3d (no category)\n", label.c_str(), n);
+            Con_Printf("%-24s %3d (no category)\n", label.cStr(), n);
         }
     }
-    Con_Printf("%d takes in %s\n", total, motionsDir().c_str());
+    Con_Printf("%d takes in %s\n", total, motionsDir().cStr());
 }
 
 void discard_f()
@@ -1384,7 +1385,7 @@ void categoryChanged(cvar_t* /* var */)
 // The interface
 // ----------------------------------------------------------------------------
 
-std::shared_ptr<const ServerSample> latestSample()
+std::shared_ptr<const ServerSample> latestSample() // ZANCLE-TODO: no shared ownership (std::shared_ptr)
 {
     return latest;
 }
@@ -1392,7 +1393,7 @@ std::shared_ptr<const ServerSample> latestSample()
 void initPlayback(); // vr_motion_play.cpp
 void playAfterTracking(TrackingState& tracking, FrameState& frame);
 void playServerSample(edict_t*& target);
-void playFrameEnd(std::vector<Event>& events, bool tick, double svDt);
+void playFrameEnd(za::Vector<Event>& events, bool tick, double svDt);
 void playServerFrame();
 bool playWantsSamples();
 
@@ -1537,7 +1538,7 @@ void serverFrame()
         PR_ExecuteProgram(fn);
         sampling = nullptr;
     }
-    latest = std::move(s);
+    latest = ZA_MOVE(s);
 }
 
 void hostFrameEnd()
@@ -1570,16 +1571,18 @@ void hostFrameEnd()
     Row r = makeRow(s, tick, svDt);
     if(rec == Rec::Off)
     {
-        preroll.push_back(std::move(r));
-        while(!preroll.empty() && preroll.front().realtime < realtime - vr_motion_preroll.value)
+        preroll.pushBack(ZA_MOVE(r));
+        za::SizeT drop = 0; // (the oldest, gone at once)
+        while(drop < preroll.size() && preroll[drop].realtime < realtime - vr_motion_preroll.value)
         {
-            preroll.pop_front();
+            drop++;
         }
+        preroll.erase(preroll.begin(), preroll.begin() + drop);
         return;
     }
 
     r.phase = rec == Rec::Recording ? PhaseRec : PhaseTail;
-    rows.push_back(std::move(r));
+    rows.pushBack(ZA_MOVE(r));
     if(rec == Rec::Recording)
     {
         const Row* first = nullptr;
@@ -1616,7 +1619,7 @@ void frame()
         return;
     }
 
-    std::string text;
+    za::String text;
     if(rec == Rec::Recording)
     {
         double held = 0.0;
@@ -1629,11 +1632,11 @@ void frame()
             }
         }
         // "REC" in Quake's alternate (gold) letters.
-        text = va("%c%c%c %s #%d  %.1f s", 'R' | 0x80, 'E' | 0x80, 'C' | 0x80, takeLabel.c_str(), takeNumber, held);
+        text = va("%c%c%c %s #%d  %.1f s", 'R' | 0x80, 'E' | 0x80, 'C' | 0x80, takeLabel.cStr(), takeNumber, held);
     }
     else if(rec == Rec::Tail)
     {
-        text = va("%s #%d: saving", takeLabel.c_str(), takeNumber);
+        text = va("%s #%d: saving", takeLabel.cStr(), takeNumber);
     }
     else if(realtime < feedbackUntil)
     {
@@ -1641,8 +1644,8 @@ void frame()
     }
     else
     {
-        const std::string label = chosenLabel();
-        text = va("armed: %s #%d (%s)", label.c_str(), takeCount(label) + 1, recordButtonText());
+        const za::String label = chosenLabel();
+        text = va("armed: %s #%d (%s)", label.cStr(), takeCount(label) + 1, recordButtonText());
     }
 
     const float m2u = units::metresToUnits();
@@ -1669,14 +1672,14 @@ void qcEvent(const char* kind, const char* sub, int hand, float value, const flo
     }
     e.target = targ && NUM_FOR_EDICT(targ) != 0 ? PR_GetString(targ->v.classname) : "";
     e.detail = detail ? detail : "";
-    frameEvents.push_back(std::move(e));
+    frameEvents.pushBack(ZA_MOVE(e));
 }
 
 void qcPoint(int hand, const float* at, const char* name)
 {
     if(sampling && (hand == HAND_OFF || hand == HAND_MAIN))
     {
-        sampling->points[hand].push_back({{at[0], at[1], at[2]}, name ? name : ""});
+        sampling->points[hand].pushBack({{at[0], at[1], at[2]}, name ? name : ""});
     }
 }
 
@@ -1684,7 +1687,7 @@ void qcValue(const char* key, const float* value)
 {
     if(sampling && key)
     {
-        sampling->values.emplace_back(key, glm::vec3{value[0], value[1], value[2]});
+        sampling->values.emplaceBack(key, glm::vec3{value[0], value[1], value[2]});
     }
 }
 
@@ -1694,8 +1697,8 @@ namespace
 // The menu's text, valid until the next call (the menu draws it at once).
 struct MotionReadouts
 {
-    std::string labelStatus;
-    auto members() { return std::tie(labelStatus); }
+    za::String labelStatus;
+    auto members() { return qvr::mem::list(labelStatus); }
 };
 mem::Scratch<MotionReadouts> readouts{"motion readouts"};
 
@@ -1703,31 +1706,30 @@ mem::Scratch<MotionReadouts> readouts{"motion readouts"};
 
 const char* labelStatus()
 {
-    std::string& text = readouts.labelStatus;
-    const std::string label = chosenLabel();
-    const std::string category = chosenCategory().choice.name;
+    za::String& text = readouts.labelStatus;
+    const za::String label = chosenLabel();
+    const za::String category = chosenCategory().choice.name;
     const int n = takeCount(label);
-    text = va("%s: %d take%s", label.c_str(), n, n == 1 ? "" : "s");
+    text = va("%s: %d take%s", label.cStr(), n, n == 1 ? "" : "s");
     if(label != category)
     {
         text += va(" (%d in all)", categoryCount(category));
     }
-    return text.c_str();
+    return text.cStr();
 }
 
 const char* lastSaved()
 {
-    return lastSavedName.empty() ? "-" : lastSavedName.c_str();
+    return lastSavedName.empty() ? "-" : lastSavedName.cStr();
 }
 
 // Moves the last take saved (again: the one before) into motions/discarded/.
 void discardLast()
 {
     // Takes the review moved or relabelled since (Review Takes) are no longer this session's to delete.
-    std::error_code ec;
-    while(!savedThisSession.empty() && !std::filesystem::exists(savedThisSession.back(), ec))
+    while(!savedThisSession.empty() && !files::exists(savedThisSession.back().cStr()))
     {
-        savedThisSession.pop_back();
+        savedThisSession.popBack();
     }
     if(savedThisSession.empty())
     {
@@ -1735,24 +1737,60 @@ void discardLast()
         S_LocalSound("doors/basetry.wav");
         return;
     }
-    const std::string from = savedThisSession.back();
-    const std::string name = std::filesystem::path(from).filename().string();
-    const std::string dir = motionsDir() + "/discarded";
-    Sys_mkdir(dir.c_str());
-    if(std::rename(from.c_str(), (dir + "/" + name).c_str()) != 0)
+    const za::String from = savedThisSession.back();
+    const za::String name{files::fileName(from)};
+    const za::String dir = motionsDir() + "/discarded";
+    Sys_mkdir(dir.cStr());
+    if(rename(from.cStr(), (dir + "/" + name).cStr()) != 0) // (<stdio.h>'s)
     {
-        Con_Printf("Motion recorder: can't move %s into motions/discarded/\n", name.c_str());
+        Con_Printf("Motion recorder: can't move %s into motions/discarded/\n", name.cStr());
         S_LocalSound("doors/basetry.wav");
         return;
     }
-    savedThisSession.pop_back();
+    savedThisSession.popBack();
     countsValid = false;
     review::invalidate();
-    Con_Printf("Motion recorder: deleted %s (moved into motions/discarded/)\n", name.c_str());
-    feedbackText = va("DELETED %s", name.c_str());
+    Con_Printf("Motion recorder: deleted %s (moved into motions/discarded/)\n", name.cStr());
+    feedbackText = va("DELETED %s", name.cStr());
     feedbackUntil = realtime + 2.0;
-    lastSavedName = savedThisSession.empty() ? "" : std::filesystem::path(savedThisSession.back()).filename().string();
+    lastSavedName = savedThisSession.empty() ? za::String{} : za::String{files::fileName(savedThisSession.back())};
     S_LocalSound("misc/menu3.wav");
+}
+
+bool parseTakeName(za::StringView name, za::StringView& label, za::StringView& stamp)
+{
+    // As the regular expression ^(.+)_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}(-\d+)?)\.csv$ matched it: the longest label
+    // (.+ is greedy) whose rest is the stamp and ".csv".
+    const auto digits = [](za::StringView s, za::SizeT at, za::SizeT n) {
+        for(za::SizeT i = at; i < at + n; i++)
+        {
+            if(i >= s.size() || s[i] < '0' || s[i] > '9')
+            {
+                return false;
+            }
+        }
+        return true;
+    };
+    const auto isStamp = [&](za::StringView s) { // _YYYY-MM-DD_HH-MM-SS[-n].csv, whole
+        if(s.size() < 24 || s[0] != '_' || !digits(s, 1, 4) || s[5] != '-' || !digits(s, 6, 2) || s[8] != '-' ||
+            !digits(s, 9, 2) || s[11] != '_' || !digits(s, 12, 2) || s[14] != '-' || !digits(s, 15, 2) || s[17] != '-' ||
+            !digits(s, 18, 2) || !s.endsWith(".csv"))
+        {
+            return false;
+        }
+        const za::StringView rest = s.substrByPosLen(20, s.size() - 24); // between the seconds and ".csv"
+        return rest.empty() || (rest.size() >= 2 && rest[0] == '-' && digits(rest, 1, rest.size() - 1));
+    };
+    for(za::SizeT k = name.size(); k-- > 1;)
+    {
+        if(name[k] == '_' && isStamp(name.substrByPosLen(k)))
+        {
+            label = name.substrByPosLen(0, k);
+            stamp = name.substrByPosLen(k + 1, name.size() - k - 5);
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace qvr::motion

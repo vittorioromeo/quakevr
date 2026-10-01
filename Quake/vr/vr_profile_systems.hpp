@@ -11,8 +11,8 @@
 
 #pragma once
 
-#include <cstdint>
-#include <string>
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/String/String.hpp"
 
 namespace qvr::profile::systems
 {
@@ -24,13 +24,13 @@ void classify(const char* name, int parentSystem, int parentView, int& system, i
 [[nodiscard]] int rootView();
 
 // This frame's CPU time in a system and view (nanoseconds; negative to take a child scope's time off its parent).
-void cpu(int system, int view, std::int64_t ns);
+void cpu(int system, int view, za::I64 ns);
 // The GPU's time, likewise (milliseconds), as a frame's timer queries are read back (a few frames later).
 void gpu(int system, int view, double ms);
 void gpuFrameDone(int queries); // one frame's `queries` timer queries all read: into the sums
 
 // The profiler's own work this frame (vr_profile.cpp's frame processing), off the frame's "other".
-void profilerTime(std::int64_t ns);
+void profilerTime(za::I64 ns);
 
 // Counts, per frame.
 struct Counts
@@ -44,13 +44,13 @@ struct Counts
 // A collected frame ended: `periodNs` from its start to the next's, `hostNs` of it in _Host_Frame (the rest is the frame
 // rate cap's idle time). Frames over `longMs` are logged (the hitch log) but left out of the averages. `scopes`: for a
 // hitch, its costliest scopes (vr_profile.cpp's call tree, with their paths).
-void frameEnd(std::int64_t now, std::int64_t periodNs, std::int64_t hostNs, const Counts& counts, double longMs,
-    const char* map, const std::string& scopes);
+void frameEnd(za::I64 now, za::I64 periodNs, za::I64 hostNs, const Counts& counts, double longMs,
+    const char* map, const za::String& scopes);
 
 // The hitch log's threshold: a frame whose _Host_Frame takes longer is a hitch (ms; 0: vr_profile_hitch off).
 [[nodiscard]] double hitchMs();
 
-void start(std::int64_t now); // collecting from now (the sums restart)
+void start(za::I64 now); // collecting from now (the sums restart)
 void stop();                  // not collecting any more (a CSV capture is closed)
 
 void init();    // commands

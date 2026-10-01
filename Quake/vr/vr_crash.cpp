@@ -3,9 +3,9 @@
 // VR_InstallCrashHandler; pl_win.c's PL_ErrorDialog, VR_ErrorDialogSuppressed). Windows only; its own translation
 // unit: <windows.h> stays out of the engine's headers.
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -15,6 +15,9 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <stdint.h>
+#if defined(_MSC_VER) && defined(_DEBUG)
+#include <crtdbg.h>
+#endif
 
 /* A crash in an automated test run (QVR_NO_ERROR_DIALOG) writes qvr_crash.txt (the exception and the crashing
  * thread's stack, with symbols from the build's .pdb) and qvr_crash.dmp (a minidump for a debugger) in the working
@@ -159,6 +162,12 @@ static void PL_FatalReport (const char *what)
 	TerminateProcess (GetCurrentProcess (), 0xc0000409);
 }
 
+// A fatal error found by the game's own checks (a failed Zancle assert, vr_zancle.cpp): reported as the CRT's are.
+extern "C" void VR_FatalReport (const char *what)
+{
+	PL_FatalReport (what);
+}
+
 static void PL_AbortSignal (int sig)
 {
 	(void)sig;
@@ -178,10 +187,26 @@ static void PL_PureCall (void)
 }
 #endif
 
+#if defined(_MSC_VER) && defined(_DEBUG)
+/* Debug builds: the debug CRT's own reports (a failed _ASSERT, a heap check, abort's "Debug Error!") would wait on a
+ * dialog. In a test run a warning goes to stderr; an error or an assert writes the report (its message first) and
+ * ends the run, as a crash. */
+static int __cdecl PL_CrtReportHook (int type, char *message, int *returnValue)
+{
+	if (type == _CRT_WARN)
+		return FALSE; // (written to stderr: _CrtSetReportMode below)
+	PL_FatalReport (message ? message : "a debug CRT report");
+	*returnValue = 0;
+	return TRUE;
+}
+#endif
+
 extern "C" void VR_InstallCrashHandler (void)
 {
-	if (getenv ("QVR_NO_ERROR_DIALOG"))
+	static bool installed = false;
+	if (!installed && getenv ("QVR_NO_ERROR_DIALOG"))
 	{
+		installed = true;
 		remove ("qvr_crash.txt");
 		remove ("qvr_crash.dmp");
 		SetUnhandledExceptionFilter (PL_CrashFilter);
@@ -190,9 +215,32 @@ extern "C" void VR_InstallCrashHandler (void)
 		_set_abort_behavior (0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
 		_set_invalid_parameter_handler (PL_InvalidParameter);
 		_set_purecall_handler (PL_PureCall);
+		_set_error_mode (_OUT_TO_STDERR);
+#ifdef _DEBUG
+		// No debug CRT dialog in a test run: its reports to stderr, and an error's or an assert's to the crash report.
+		_CrtSetReportMode (_CRT_WARN, _CRTDBG_MODE_FILE);
+		_CrtSetReportFile (_CRT_WARN, _CRTDBG_FILE_STDERR);
+		_CrtSetReportMode (_CRT_ERROR, _CRTDBG_MODE_FILE);
+		_CrtSetReportFile (_CRT_ERROR, _CRTDBG_FILE_STDERR);
+		_CrtSetReportMode (_CRT_ASSERT, _CRTDBG_MODE_FILE);
+		_CrtSetReportFile (_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+		_CrtSetReportHook2 (_CRT_RPTHOOK_INSTALL, PL_CrtReportHook);
+#endif
 #endif
 	}
 }
+
+// Installed before the other files' static initialisers as well (the library's segment runs before the user's): a
+// failure while the statics are made (a scratch set's, a Zancle container's) reports too instead of waiting on a
+// dialog. (main_sdl.c's call finds it done.)
+#pragma init_seg(lib)
+namespace
+{
+struct EarlyCrashHandler
+{
+	EarlyCrashHandler () { VR_InstallCrashHandler (); }
+} earlyCrashHandler;
+} // namespace
 
 /*
 ==================
@@ -218,6 +266,11 @@ extern "C" int VR_ErrorDialogSuppressed (const char *errorMsg)
 
 extern "C" void VR_InstallCrashHandler (void)
 {
+}
+
+extern "C" void VR_FatalReport (const char *what)
+{
+	(void) what;
 }
 
 extern "C" int VR_ErrorDialogSuppressed (const char *errorMsg)

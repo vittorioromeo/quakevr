@@ -15,15 +15,17 @@
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
 
-#include <algorithm>
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
 
 using namespace qvr;
 
 namespace
 {
 
-std::vector<gfx::Vertex> vertices; // uv -1..1 across the disc
+za::Vector<gfx::Vertex> vertices; // uv -1..1 across the disc
 int builtFrame = -1;
 
 // A disc on the floor below `from`, fading with the height above it beyond `lift` (gone at
@@ -43,8 +45,8 @@ void blob(const glm::vec3& from, float radius, float range, float strength, cons
         return; // not a floor
     }
 
-    const float height = std::max(0.f, tr.fraction * (range + lift) - lift);
-    const float alpha = strength * std::max(0.f, 1.f - height / range);
+    const float height = za::max(0.f, tr.fraction * (range + lift) - lift);
+    const float alpha = strength * za::max(0.f, 1.f - height / range);
     const glm::vec3 centre = worldtrace::endPos(tr) + n * 0.25f + shift;
     const glm::vec3 u = glm::normalize(glm::cross(n, glm::vec3{0.f, 1.f, 0.f} + n * 0.001f)) * radius;
     const glm::vec3 v = glm::cross(n, u);
@@ -54,7 +56,7 @@ void blob(const glm::vec3& from, float radius, float range, float strength, cons
         {centre + u + v, {1.f, 1.f}, color}, {centre - u + v, {-1.f, 1.f}, color}};
     for(int i : {0, 1, 2, 0, 2, 3})
     {
-        vertices.push_back(c[i]);
+        vertices.pushBack(c[i]);
     }
 }
 
@@ -76,12 +78,12 @@ void entityBlobs()
         const float scale = VR_EntityScale(e);
         const glm::vec3 mins{e->model->mins[0], e->model->mins[1], e->model->mins[2]};
         const glm::vec3 maxs{e->model->maxs[0], e->model->maxs[1], e->model->maxs[2]};
-        const float width = std::max(maxs.x - mins.x, maxs.y - mins.y) * scale;
+        const float width = za::max(maxs.x - mins.x, maxs.y - mins.y) * scale;
         if(width < 4.f)
         {
             continue; // nails, gibs' bits
         }
-        const float radius = std::clamp(width * 0.45f, 4.f, 40.f);
+        const float radius = za::clamp(width * 0.45f, 4.f, 40.f);
 
         // Away from the light, the more so the more directional it is.
         const glm::vec4 light = modellight::direction(e);
@@ -90,7 +92,7 @@ void entityBlobs()
         // From the origin: a monster's is its middle, an item's its base (the model's own bounds
         // may reach below the floor).
         const glm::vec3 from{e->origin[0], e->origin[1], e->origin[2] + 8.f};
-        blob(from, radius, 128.f, 0.6f, shift, 8.f + std::max(0.f, -mins.z * scale));
+        blob(from, radius, 128.f, 0.6f, shift, 8.f + za::max(0.f, -mins.z * scale));
     }
 }
 

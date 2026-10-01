@@ -8,8 +8,9 @@
 
 #include "vr_engine.hpp"
 
-#include <string>
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+
 
 namespace qvr::worldtext
 {
@@ -23,7 +24,7 @@ enum class HAlign : int
 
 struct WorldText
 {
-    std::string text;
+    za::String text;
     glm::vec3 pos{0.f};
     glm::vec3 angles{0.f};
     HAlign hAlign{HAlign::Left};
@@ -35,7 +36,7 @@ struct WorldText
 // client); the client keeps them for floatTextLife seconds.
 struct FloatText
 {
-    std::string text;
+    za::String text;
     glm::vec3 pos{0.f};
     glm::vec3 color{1.f};
     float scale{1.f};
@@ -60,9 +61,9 @@ void clientReset();
 void clientParse(int subcmd); // QVR_SVC_WORLDTEXT_*
 void clientParseFloatText();  // QVR_SVC_FLOATTEXT
 void clientWriteAll(sizebuf_t* msg); // the client's texts, for a demo recorded mid-game
-[[nodiscard]] const std::vector<WorldText>& clientTexts();
+[[nodiscard]] const za::Vector<WorldText>& clientTexts();
 
 // The floating texts still showing at client time `now` (those done are dropped).
-[[nodiscard]] const std::vector<FloatText>& clientFloatTexts(double now);
+[[nodiscard]] const za::Vector<FloatText>& clientFloatTexts(double now);
 
 } // namespace qvr::worldtext

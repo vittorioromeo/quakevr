@@ -25,12 +25,17 @@
 #include "vr_progs.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <array>
-#include <span>
-#include <cmath>
-#include <cstdarg>
-#include <cstring>
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+#include "vr_zancle.hpp"
+
+#include <stdarg.h>
+#include <string.h>
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -48,7 +53,7 @@ struct Edge
 struct Blade
 {
     const char* model;
-    std::array<Edge, 2> edges;
+    za::Array<Edge, 2> edges;
     glm::vec3 head;   // the head's middle on the handle's axis (the blade's width: from it to the edge)
     glm::vec3 handle; // the handle's far end
 };
@@ -128,7 +133,7 @@ void store(const glm::vec3& v, float* out)
 
 [[nodiscard]] float degrees(const glm::vec3& a, const glm::vec3& b)
 {
-    return glm::degrees(std::acos(std::clamp(glm::dot(a, b), -1.f, 1.f)));
+    return glm::degrees(za::acos(za::clamp(glm::dot(a, b), -1.f, 1.f)));
 }
 
 // The frame of what an axe is in (`kind`, `anchor` for a model's triangle): where its origin is and its axes, now.
@@ -175,7 +180,7 @@ struct DrawnEdge
 
 [[nodiscard]] DrawnEdge drawnEdge(edict_t* ent, const Blade& blade, int e)
 {
-    const Edge& edge = blade.edges[static_cast<std::size_t>(e)];
+    const Edge& edge = blade.edges[static_cast<za::SizeT>(e)];
     DrawnEdge d;
     d.a = held::drawnModelPoint(ent, edge.a);
     d.b = held::drawnModelPoint(ent, edge.b);
@@ -183,7 +188,7 @@ struct DrawnEdge
     const glm::vec3 head = held::drawnModelPoint(ent, blade.head);
     const glm::vec3 out = held::drawnModelPoint(ent, blade.head + edge.out) - head;
     d.out = glm::length(out) > 1e-6f ? glm::normalize(out) : glm::vec3{1.f, 0.f, 0.f};
-    d.width = std::max(0.f, glm::dot(d.mid - head, d.out));
+    d.width = za::max(0.f, glm::dot(d.mid - head, d.out));
     return d;
 }
 
@@ -234,7 +239,7 @@ void sweep(edict_t* ent, int edge, const glm::vec3& local, const glm::vec3& from
 {
     // (Fractions of the step: 0 where the point is, negative behind it, more than 1 past this step.)
     const float total = glm::length(to - from);
-    const auto stepShare = [=](float fraction) { return (fraction * total - back) / std::max(1e-3f, step); };
+    const auto stepShare = [=](float fraction) { return (fraction * total - back) / za::max(1e-3f, step); };
     vec3_t start, end, zero{0.f, 0.f, 0.f};
     store(from, start);
     store(to, end);
@@ -310,14 +315,14 @@ void sweep(edict_t* ent, int edge, const glm::vec3& local, const glm::vec3& from
     const glm::vec3 local = glm::transpose(held::axesFromAngles(ent->v.angles, false)) * (p - vec(ent->v.origin));
     const auto toSegment = [&](const glm::vec3& a, const glm::vec3& b) {
         const glm::vec3 ab = b - a;
-        const float t = std::clamp(glm::dot(local - a, ab) / std::max(1e-6f, glm::dot(ab, ab)), 0.f, 1.f);
+        const float t = za::clamp(glm::dot(local - a, ab) / za::max(1e-6f, glm::dot(ab, ab)), 0.f, 1.f);
         return glm::distance(local, a + ab * t);
     };
     float edge = 1e9f;
     for(int e = 0; e < 2; e++)
     {
         const DrawnEdge d = drawnEdge(ent, blade, e);
-        edge = std::min(edge, toSegment(d.a, d.b));
+        edge = za::min(edge, toSegment(d.a, d.b));
     }
     const glm::vec3 head = held::drawnModelPoint(ent, blade.head);
     const glm::vec3 handle = held::drawnModelPoint(ent, blade.handle);
@@ -348,7 +353,7 @@ void callStuck(func_t fn, edict_t* ent, edict_t* host, int kind, float speed)
 void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm::mat3& axes)
 {
     const FieldOffsets& f = fields();
-    const DrawnEdge e = drawnEdge(ent, blade, std::clamp(static_cast<int>(fieldFloat(ent, f.vr_stick_edge)), 0, 1));
+    const DrawnEdge e = drawnEdge(ent, blade, za::clamp(static_cast<int>(fieldFloat(ent, f.vr_stick_edge)), 0, 1));
     glm::vec3 o = origin;
     glm::mat3 r = axes;
     const float wiggle = fieldFloatOr(ent, f.vr_stick_wiggle, 0.f);
@@ -426,7 +431,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     }
 
     const float m2u = units::metresToUnits();
-    const float minSpeed = std::max(0.1f, vr_axestick_speed.value) * m2u;
+    const float minSpeed = za::max(0.1f, vr_axestick_speed.value) * m2u;
     if(glm::length(vel) + glm::length(spin) * 40.f < minSpeed) // (a blade 40 units from its centre at most)
     {
         return false;
@@ -452,9 +457,9 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     // `ahead` units past this step's move (the edge about to meet what the body meets first: the handle's butt or the
     // head's side a moment before it; Box3D's hull, one convex hull, also fills the beard's hollow, between the blade's
     // lower corner and the handle), and the angles wider (below).
-    const float leniency = std::clamp(vr_axestick_leniency.value, 0.f, 2.f);
+    const float leniency = za::clamp(vr_axestick_leniency.value, 0.f, 2.f);
     const float ahead = aheadUnits * leniency;
-    const std::span<const float> points = leniency > 0.f ? std::span<const float>{morePoints} : std::span<const float>{fewPoints};
+    const za::Span<const float> points = leniency > 0.f ? za::Span<const float>{morePoints} : za::Span<const float>{fewPoints};
 
     Strike best;
     DrawnEdge edges[2];
@@ -494,7 +499,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
                     continue;
                 }
                 const glm::vec3 dir = (to - at) / len;
-                sweep(ent, e, local, at - dir * sweepBack, to + dir * std::max(lookAhead, ahead), sweepBack, len, true, best);
+                sweep(ent, e, local, at - dir * sweepBack, to + dir * za::max(lookAhead, ahead), sweepBack, len, true, best);
             }
         }
     }
@@ -506,7 +511,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     // As it strikes: its turn, where it is, the edge's velocity (relative to what it strikes) and facing.
     edict_t* host = best.host;
     const DrawnEdge& edge = edges[best.edge];
-    const float at = std::clamp(best.fraction, 0.f, 1.f); // (of the step; a monster further on: its end)
+    const float at = za::clamp(best.fraction, 0.f, 1.f); // (of the step; a monster further on: its end)
     const glm::mat3 turnAt = rotation(spin, dt * at);
     const glm::mat3 axesAt = turnAt * axes;
     const glm::vec3 originAt = com + move * at + turnAt * (origin - com);
@@ -525,11 +530,11 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     // within vr_axestick_angle, as before.
     const glm::vec3 across = glm::normalize(axesAt * glm::cross(edge.b - edge.a, edge.out));
     const glm::vec3 relDir = speed > 1e-3f ? rel / speed : -facing;
-    const float sideOn = glm::degrees(std::asin(std::clamp(std::abs(glm::dot(relDir, across)), 0.f, 1.f)));
+    const float sideOn = glm::degrees(za::asin(za::clamp(qza::abs(glm::dot(relDir, across)), 0.f, 1.f)));
     const glm::vec3 inPlane = relDir - across * glm::dot(relDir, across);
     const float slant = glm::length(inPlane) > 1e-4f ? degrees(facing, glm::normalize(inPlane)) : 90.f;
-    const float spinShare = glm::length(glm::cross(spin, pointAt - com)) / std::max(glm::length(edgeVel), 1e-3f);
-    const float slantMax = vr_axestick_angle.value + slantLeniency * leniency * std::clamp(spinShare * 3.f, 0.f, 1.f);
+    const float spinShare = glm::length(glm::cross(spin, pointAt - com)) / za::max(glm::length(edgeVel), 1e-3f);
+    const float slantMax = vr_axestick_angle.value + slantLeniency * leniency * za::clamp(spinShare * 3.f, 0.f, 1.f);
     const float incidenceMax = vr_axestick_incidence.value + incidenceLeniency * leniency;
     const char* hostName = host == qcvm->edicts ? "the level" : PR_GetString(host->v.classname);
 
@@ -560,9 +565,9 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     }
 
     // How deep: the depth at twice the least speed, half as deep at it, never more than 60% of the blade.
-    const float depthMax = std::max(0.f, vr_axestick_depth.value) * 0.01f * m2u;
-    const float depth = std::min(depthMax * std::clamp(speed / (2.f * minSpeed), 0.5f, 1.f), 0.6f * edge.width);
-    const float along = depth / std::max(0.35f, glm::dot(facing, -best.normal));
+    const float depthMax = za::max(0.f, vr_axestick_depth.value) * 0.01f * m2u;
+    const float depth = za::min(depthMax * za::clamp(speed / (2.f * minSpeed), 0.5f, 1.f), 0.6f * edge.width);
+    const float along = depth / za::max(0.35f, glm::dot(facing, -best.normal));
     glm::vec3 stuckOrigin = originAt + (best.point - pointAt) + facing * along;
     glm::mat3 stuckAxes = axesAt;
     float tilted = 0.f;

@@ -3,8 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#ifdef __CLANGD__
+#if defined(__CLANGD__) || defined(_MSC_VER)
 
+    // Quake VR (local change): `_MSC_VER` too. MSVC's STL lays std::initializer_list out as two pointers, not as the
+    // pointer and size below: a program that also uses MSVC's STL got two std::initializer_list<T> of different
+    // layouts in different files (an ODR violation: the linker keeps one instantiation of, say, std::vector<int>'s
+    // initializer-list constructor, and a caller built with the other layout passes it a pointer as the size). The
+    // real header there. (libstdc++'s and libc++'s are a pointer and a size, as this one.)
     #include <initializer_list> // IWYU pragma: export
 
 #elif !defined(_LIBCPP_INITIALIZER_LIST) && !defined(_INITIALIZER_LIST) && !defined(_INITIALIZER_LIST_)

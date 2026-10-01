@@ -13,9 +13,21 @@
 #include "vr_progs.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <cstdio>
-#include <cmath>
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Tan.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+
+#include <stdio.h>
 
 namespace qvr
 {
@@ -179,9 +191,9 @@ struct PlayButton
     char control[64];
     bool on;
 };
-std::vector<PlayKey> playKeys[HAND_COUNT + 1];
-std::vector<PlayButton> playButtons;
-std::size_t playNextButton = 0;
+za::Vector<PlayKey> playKeys[HAND_COUNT + 1];
+za::Vector<PlayButton> playButtons;
+za::SizeT playNextButton = 0;
 double playStart = -1.0;
 double playEnd = 0.0;
 
@@ -218,8 +230,8 @@ void mockPlay_f()
         {
             PlayButton b{t, -1, {}, true};
             q_strlcpy(b.control, command, sizeof(b.control));
-            playButtons.push_back(b);
-            playEnd = std::max(playEnd, t);
+            playButtons.pushBack(b);
+            playEnd = za::max(playEnd, t);
             continue;
         }
         if(sscanf(line, "%lf button %15s %15s %d", &t, what, a, &on) == 4)
@@ -228,8 +240,8 @@ void mockPlay_f()
             q_strlcpy(b.control, a, sizeof(b.control));
             if(b.hand >= 0)
             {
-                playButtons.push_back(b);
-                playEnd = std::max(playEnd, t);
+                playButtons.pushBack(b);
+                playEnd = za::max(playEnd, t);
             }
             continue;
         }
@@ -243,16 +255,16 @@ void mockPlay_f()
         {
             continue;
         }
-        playKeys[target].push_back({t, {x, y, z}, n == 8,
+        playKeys[target].pushBack({t, {x, y, z}, n == 8,
             n == 8 ? mockRotation(pitch, yaw, roll) : glm::quat{1.f, 0.f, 0.f, 0.f}});
-        playEnd = std::max(playEnd, t);
+        playEnd = za::max(playEnd, t);
     }
     fclose(file);
-    std::stable_sort(playButtons.begin(), playButtons.end(),
+    za::insertionSort(playButtons.begin(), playButtons.end(),
         [](const PlayButton& l, const PlayButton& r) { return l.t < r.t; });
     for(auto& keys : playKeys)
     {
-        std::stable_sort(keys.begin(), keys.end(), [](const PlayKey& l, const PlayKey& r) { return l.t < r.t; });
+        za::insertionSort(keys.begin(), keys.end(), [](const PlayKey& l, const PlayKey& r) { return l.t < r.t; });
     }
     playStart = realtime;
 }
@@ -268,12 +280,12 @@ void playFrame(double now, glm::vec3* vel, glm::vec3* angVel, bool* played)
     const double t = now - playStart;
     for(int target = 0; target <= HAND_COUNT; target++)
     {
-        const std::vector<PlayKey>& keys = playKeys[target];
+        const za::Vector<PlayKey>& keys = playKeys[target];
         if(keys.empty())
         {
             continue;
         }
-        std::size_t i = 0;
+        za::SizeT i = 0;
         while(i + 1 < keys.size() && keys[i + 1].t <= t)
         {
             i++;
@@ -281,7 +293,7 @@ void playFrame(double now, glm::vec3* vel, glm::vec3* angVel, bool* played)
         const PlayKey& k0 = keys[i];
         const PlayKey& k1 = i + 1 < keys.size() ? keys[i + 1] : keys[i];
         const double span = k1.t - k0.t;
-        const float s = span > 0.0 ? static_cast<float>(std::clamp((t - k0.t) / span, 0.0, 1.0)) : 1.f;
+        const float s = span > 0.0 ? static_cast<float>(za::clamp((t - k0.t) / span, 0.0, 1.0)) : 1.f;
         mockHandPos[target] = glm::mix(k0.pos, k1.pos, s);
         mockHandSet[target] = true;
         if(target == mockHead)
@@ -378,7 +390,7 @@ bool weaponPoint(float fraction, float height, glm::vec3& out)
             bestDist = d;
         }
     }
-    std::vector<glm::vec3> verts;
+    za::Vector<glm::vec3> verts;
     const bool found = best && held::drawnVertices(best, verts) && !verts.empty();
     const char* name = found ? PR_GetString(best->v.netname) : "";
     if(found)
@@ -423,10 +435,10 @@ bool weaponPoint(float fraction, float height, glm::vec3& out)
     int n = 0;
     for(const glm::vec3& v : verts)
     {
-        if(std::fabs(glm::dot(v - at, axis)) <= 1.5f)
+        if(za::fabs(glm::dot(v - at, axis)) <= 1.5f)
         {
             mid += v;
-            top = std::fmax(top, v.z);
+            top = za::fmax(top, v.z);
             n++;
         }
     }
@@ -520,14 +532,14 @@ void swing(Pose& hand, double time, float period)
     constexpr float amplitude = 0.9f;
 
     const float w = 2.f * 3.14159265f / period;
-    const float phase = static_cast<float>(std::fmod(time, static_cast<double>(period))) * w;
-    const float theta = centre + amplitude * std::sin(phase);
-    const float thetaRate = amplitude * w * std::cos(phase);
+    const float phase = static_cast<float>(za::fmod(time, static_cast<double>(period))) * w;
+    const float theta = centre + amplitude * za::sin(phase);
+    const float thetaRate = amplitude * w * za::cos(phase);
 
     // theta 0 is straight up; increasing theta brings the hand forward (-z) and down.
-    hand.position = shoulder + radius * glm::vec3{0.f, std::cos(theta), -std::sin(theta)};
+    hand.position = shoulder + radius * glm::vec3{0.f, za::cos(theta), -za::sin(theta)};
     hand.orientation = glm::angleAxis(-(theta - 1.2f), glm::vec3{1.f, 0.f, 0.f});
-    hand.linearVelocity = radius * thetaRate * glm::vec3{0.f, -std::sin(theta), -std::cos(theta)};
+    hand.linearVelocity = radius * thetaRate * glm::vec3{0.f, -za::sin(theta), -za::cos(theta)};
     hand.angularVelocity = glm::vec3{-thetaRate, 0.f, 0.f};
     hand.velocityValid = true;
 }
@@ -545,7 +557,7 @@ struct ScriptedMotion
     {
         if(pos != lastPos)
         {
-            velocity = lastMove > 0.0 ? (pos - lastPos) / static_cast<float>(std::clamp(now - lastMove, 0.004, 0.05))
+            velocity = lastMove > 0.0 ? (pos - lastPos) / static_cast<float>(za::clamp(now - lastMove, 0.004, 0.05))
                                       : glm::vec3{0.f};
             lastPos = pos;
             lastMove = now;
@@ -628,9 +640,9 @@ public:
             const float t = static_cast<float>(realtime - shakeStart);
             const float a = glm::radians(vr_mock_shake.value);
             const auto wave = [t](float f1, float f2, float f3, float phase) {
-                return 0.5f * std::sin(6.2831853f * f1 * t + phase) +
-                       0.3f * std::sin(6.2831853f * f2 * t + 2.1f * phase + 1.f) +
-                       0.2f * std::sin(6.2831853f * f3 * t + 3.7f * phase + 2.f);
+                return 0.5f * za::sin(6.2831853f * f1 * t + phase) +
+                       0.3f * za::sin(6.2831853f * f2 * t + 2.1f * phase + 1.f) +
+                       0.2f * za::sin(6.2831853f * f3 * t + 3.7f * phase + 2.f);
             };
             const float yaw = glm::radians(vr_mock_shake_turn.value) * t + a * wave(5.3f, 8.9f, 12.7f, 0.3f);
             const float pitch = a * wave(6.1f, 9.7f, 13.1f, 1.7f);
@@ -791,7 +803,7 @@ private:
         }
         // vr_mock_eye_size: other sizes, to measure the resample (vr_upscale) at a headset's.
         const int size = vr_mock_eye_size.value > 0.f
-            ? std::clamp(static_cast<int>(vr_mock_eye_size.value), 256, maxImageSize)
+            ? za::clamp(static_cast<int>(vr_mock_eye_size.value), 256, maxImageSize)
             : imageWidth;
         for(gfx::Texture& tex : textures)
         {
@@ -808,22 +820,22 @@ private:
     {
         constexpr int segments = 64; // a multiple of 8: the corners' rays are among them
         constexpr float radius = 1.04f;
-        const float tangent = std::tan(Fov{}.right);
+        const float tangent = za::tan(Fov{}.right);
         for(int i = 0; i < segments; i++)
         {
             const float a = 2.f * 3.14159265f * static_cast<float>(i) / segments;
-            const glm::vec2 dir{std::cos(a), std::sin(a)};
-            const float toEdge = 1.f / std::max(std::fabs(dir.x), std::fabs(dir.y));
-            hidden_.vertices.push_back(dir * std::min(radius, toEdge) * tangent); // inner
-            hidden_.vertices.push_back(dir * toEdge * tangent);                      // outer
+            const glm::vec2 dir{za::cos(a), za::sin(a)};
+            const float toEdge = 1.f / za::max(za::fabs(dir.x), za::fabs(dir.y));
+            hidden_.vertices.pushBack(dir * za::min(radius, toEdge) * tangent); // inner
+            hidden_.vertices.pushBack(dir * toEdge * tangent);                      // outer
         }
         for(int i = 0; i < segments; i++)
         {
-            const std::uint32_t in0 = 2 * i, out0 = 2 * i + 1;
-            const std::uint32_t in1 = 2 * ((i + 1) % segments), out1 = in1 + 1;
-            for(std::uint32_t v : {in0, out0, out1, in0, out1, in1})
+            const za::U32 in0 = 2 * i, out0 = 2 * i + 1;
+            const za::U32 in1 = 2 * ((i + 1) % segments), out1 = in1 + 1;
+            for(za::U32 v : {in0, out0, out1, in0, out1, in1})
             {
-                hidden_.indices.push_back(v);
+                hidden_.indices.pushBack(v);
             }
         }
     }
@@ -864,9 +876,9 @@ void registerMockCommands()
     Cmd_AddCommand("vr_mock_play", mockPlay_f);
 }
 
-std::unique_ptr<Backend> makeMockBackend()
+za::UniquePtr<Backend> makeMockBackend()
 {
-    return std::make_unique<MockBackend>();
+    return za::makeUnique<MockBackend>();
 }
 
 } // namespace qvr

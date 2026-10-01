@@ -7,8 +7,10 @@
 #include "vr_twohand.hpp"
 #include "vr_view.hpp"
 
-#include <algorithm>
-#include <cmath>
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+
 #include <random>
 
 namespace qvr::meleehud
@@ -25,7 +27,7 @@ float lastCounter = 0.f;   // the window's share left last frame
 float emberDue[2] = {0.f}; // each hand's embers owed (a fraction of one carried over)
 double lastQueue = -1.0;
 
-std::minstd_rand rng{0x5C0FFEEu};
+std::minstd_rand rng{0x5C0FFEEu}; // ZANCLE-TODO: no random engines or distributions (these sequences kept)
 
 [[nodiscard]] float rnd(float lo, float hi)
 {
@@ -81,7 +83,7 @@ void ember(const hands::State& s, int hand, float bright)
         return;
     }
     // The knuckles: about 9 cm from the wrist towards the fingers, 2 cm over the back of the hand, 8 cm across.
-    const float cm = std::max(0.1f, vr_world_scale.value) / 3.81f; // units a centimetre (a unit is 1.5 inches)
+    const float cm = za::max(0.1f, vr_world_scale.value) / 3.81f; // units a centimetre (a unit is 1.5 inches)
     const glm::vec3 knuckles = h.wrist + h.forward * (9.f * cm) + h.back * (2.f * cm) + h.up * (rnd(-4.f, 4.f) * cm);
     particles::counterEmber(knuckles, h.back * rnd(1.f, 4.f) + glm::vec3{rnd(-1.f, 1.f), rnd(-1.f, 1.f), rnd(2.f, 7.f)},
         bright);
@@ -98,17 +100,17 @@ State state()
     }
     const int bits = cl.stats[protocol::STAT_QVR_MELEE];
     out.stamina = (bits & 128) != 0;
-    out.left = out.stamina ? static_cast<float>(std::clamp(bits & 127, 0, 100)) / 100.f : 1.f;
+    out.left = out.stamina ? static_cast<float>(za::clamp(bits & 127, 0, 100)) / 100.f : 1.f;
     out.low = (bits & 256) != 0;
     out.recovering = (bits & 512) != 0;
-    out.counter = static_cast<float>(std::clamp((bits >> 10) & 63, 0, 63)) / 63.f;
+    out.counter = static_cast<float>(za::clamp((bits >> 10) & 63, 0, 63)) / 63.f;
     out.draining = out.stamina && (bits & 65536) != 0;
     return out;
 }
 
 void queue(const hands::State& s)
 {
-    const float dt = lastQueue < 0.0 ? 0.f : static_cast<float>(std::clamp(realtime - lastQueue, 0.0, 0.1));
+    const float dt = lastQueue < 0.0 ? 0.f : static_cast<float>(za::clamp(realtime - lastQueue, 0.0, 0.1));
     lastQueue = realtime;
 
     const float counter = state().counter;
@@ -122,10 +124,10 @@ void queue(const hands::State& s)
     float target = 0.f;
     if(counter > 0.f)
     {
-        const float flare = openedAt >= 0.0 ? std::max(0.f, 1.f - static_cast<float>(realtime - openedAt) / 0.25f) : 0.f;
-        target = std::min(1.f, 0.25f + 0.5f * counter + 0.4f * flare);
+        const float flare = openedAt >= 0.0 ? za::max(0.f, 1.f - static_cast<float>(realtime - openedAt) / 0.25f) : 0.f;
+        target = za::min(1.f, 0.25f + 0.5f * counter + 0.4f * flare);
     }
-    glow = target >= glow ? target : std::max(target, glow - dt / glowFadeOut);
+    glow = target >= glow ? target : za::max(target, glow - dt / glowFadeOut);
 
     if(!vr_counter_glow.value || counter <= 0.f)
     {
@@ -160,8 +162,8 @@ float entityGlow(const entity_t* e)
         return 0.f;
     }
     // A weapon's whole length; a bare fist less (the whole hand would glow).
-    const float breathe = 0.85f + 0.15f * static_cast<float>(std::sin(realtime * 11.0));
-    return std::clamp(glow * breathe * (weapon ? 1.f : 0.6f), 0.f, 1.f);
+    const float breathe = 0.85f + 0.15f * static_cast<float>(za::sin(realtime * 11.0));
+    return za::clamp(glow * breathe * (weapon ? 1.f : 0.6f), 0.f, 1.f);
 }
 
 } // namespace qvr::meleehud

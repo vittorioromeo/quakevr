@@ -4,7 +4,8 @@
 
 #include "vr_hands.hpp"
 
-#include <array>
+#include "Zancle/Container/Array.hpp"
+
 
 namespace qvr::body
 {
@@ -39,7 +40,7 @@ enum Hotspot : int
 
 // Holster positions follow the body's lean and crouch (vr_avatar) with vr_body_anchors, else the
 // old engine's placement. For several holsters, holsterPositions solves the body once.
-using HolsterPositions = std::array<glm::vec3, HolsterCount>;
+using HolsterPositions = za::Array<glm::vec3, HolsterCount>;
 [[nodiscard]] glm::vec3 holsterPosition(const hands::State& s, Holster holster);
 
 // Where a holster rests on the drawn body (vr_body_mode, vr_body_anchors: the hips and upper
@@ -52,7 +53,7 @@ struct HolsterPlate
     glm::vec3 up{0.f, 0.f, 1.f};
     float clearance{0.f};
 };
-using HolsterPlates = std::array<HolsterPlate, HolsterCount>;
+using HolsterPlates = za::Array<HolsterPlate, HolsterCount>;
 [[nodiscard]] HolsterPositions holsterPositions(const hands::State& s, HolsterPlates* plates = nullptr);
 
 // The grenade pouch (vr_handgrenade, vr_grenade_pouch_*; ROUND21.md, "Hand grenades from the back pouch"): on the belt

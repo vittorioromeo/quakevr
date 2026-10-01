@@ -3,10 +3,13 @@
 #include "vr_anchor.hpp"
 #include "vr_engine.hpp"
 
-#include <cstring>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 
 namespace qvr::anchor
 {
@@ -26,13 +29,13 @@ struct Triangle
 class StripBuilder
 {
 public:
-    explicit StripBuilder(const std::vector<Triangle>& tris) : triangles(tris), used(tris.size(), 0)
+    explicit StripBuilder(const za::Vector<Triangle>& tris) : triangles(tris), used(tris.size(), 0)
     {
     }
 
-    [[nodiscard]] std::vector<int> buildVertexOrder()
+    [[nodiscard]] za::Vector<int> buildVertexOrder()
     {
-        std::vector<int> order;
+        za::Vector<int> order;
         const int numtris = static_cast<int>(triangles.size());
 
         for(int i = 0; i < numtris; i++)
@@ -73,7 +76,7 @@ public:
 
             for(int j = 0; j < bestlen + 2; j++)
             {
-                order.push_back(bestverts[j]);
+                order.pushBack(bestverts[j]);
             }
         }
 
@@ -81,8 +84,8 @@ public:
     }
 
 private:
-    const std::vector<Triangle>& triangles;
-    std::vector<int> used;
+    const za::Vector<Triangle>& triangles;
+    za::Vector<int> used;
     int stripverts[128];
     int striptris[128];
     int stripcount{0};
@@ -216,9 +219,9 @@ private:
 };
 
 // Reads the triangle list of an MDL file (the in-memory model no longer has it).
-[[nodiscard]] std::vector<Triangle> loadTriangles(const char* modelName)
+[[nodiscard]] za::Vector<Triangle> loadTriangles(const char* modelName)
 {
-    std::vector<Triangle> tris;
+    za::Vector<Triangle> tris;
 
     byte* data = COM_LoadMallocFile(modelName, nullptr);
     if(!data)
@@ -291,19 +294,19 @@ private:
 // the name it was built for, should the model's slot be reused).
 struct VertexOrder
 {
-    std::string name;
-    std::vector<int> order;
+    za::String name;
+    za::Vector<int> order;
 };
 
-std::unordered_map<const qmodel_t*, VertexOrder> vertexOrders;
+ankerl::unordered_dense::map<const qmodel_t*, za::UniquePtr<VertexOrder>> vertexOrders; // (references into it are kept)
 
-[[nodiscard]] const std::vector<int>& vertexOrder(const qmodel_t* model)
+[[nodiscard]] const za::Vector<int>& vertexOrder(const qmodel_t* model)
 {
-    VertexOrder& v = vertexOrders[model];
+    VertexOrder& v = qza::stableAt<VertexOrder>(vertexOrders, model);
     if(v.name != model->name)
     {
         v.name = model->name;
-        const std::vector<Triangle> tris = loadTriangles(model->name);
+        const za::Vector<Triangle> tris = loadTriangles(model->name);
         v.order = StripBuilder{tris}.buildVertexOrder();
     }
 
@@ -389,7 +392,7 @@ glm::vec3 posedVertex(const entity_t& ent, int anchorIndex, float zeroBlend)
         return glm::vec3{0.f};
     }
 
-    const std::vector<int>& order = vertexOrder(ent.model);
+    const za::Vector<int>& order = vertexOrder(ent.model);
     int vertex = 0;
     if(!order.empty())
     {
@@ -406,7 +409,7 @@ glm::vec3 posedVertex(const entity_t& ent, int anchorIndex, float zeroBlend)
     return glm::mix(posed, poseVertex(hdr, zeroPose(hdr), vertex), zeroBlend);
 }
 
-bool posedVertices(const entity_t& ent, float zeroBlend, std::vector<glm::vec3>& rest, std::vector<glm::vec3>& now)
+bool posedVertices(const entity_t& ent, float zeroBlend, za::Vector<glm::vec3>& rest, za::Vector<glm::vec3>& now)
 {
     rest.clear();
     now.clear();
@@ -471,7 +474,7 @@ void anchorInfo_f()
     {
         return;
     }
-    const std::vector<int>& order = vertexOrder(model);
+    const za::Vector<int>& order = vertexOrder(model);
     const int index = Q_atoi(Cmd_Argv(2));
     if(index < 0 || index >= static_cast<int>(order.size()))
     {
@@ -496,7 +499,7 @@ void anchorNearest_f()
         return;
     }
     const glm::vec3 target{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
-    const std::vector<int>& order = vertexOrder(model);
+    const za::Vector<int>& order = vertexOrder(model);
     int best = -1;
     float bestDistance = 1e9f;
     for(int i = 0; i < static_cast<int>(order.size()); i++)

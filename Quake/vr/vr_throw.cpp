@@ -21,9 +21,14 @@
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "vr_zancle.hpp"
+
 
 namespace qvr::throwing
 {
@@ -44,7 +49,7 @@ constexpr int capacity = 128;
 
 struct History
 {
-    std::array<Sample, capacity> samples;
+    za::Array<Sample, capacity> samples;
     int count{0};
     int next{0};
 
@@ -70,7 +75,7 @@ constexpr double peakFit = 0.03;
     for(int i = 0; i < h.count; i++)
     {
         const double x = h.at(i).time - peakTime;
-        if(std::abs(x) > peakFit)
+        if(qza::abs(x) > peakFit)
         {
             continue;
         }
@@ -99,7 +104,7 @@ constexpr double peakFit = 0.03;
                a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
     };
     const double d = det3(m);
-    if(std::abs(d) < 1e-18)
+    if(qza::abs(d) < 1e-18)
     {
         return 0.f;
     }
@@ -121,9 +126,9 @@ constexpr double peakFit = 0.03;
     {
         return 0.f; // not a peak
     }
-    const double x = std::clamp(-b / (2.0 * c), -peakFit, peakFit);
+    const double x = za::clamp(-b / (2.0 * c), -peakFit, peakFit);
     const double top = a + b * x + c * x * x;
-    return static_cast<float>(std::clamp(top, 0.8 * bestSpeed, 1.2 * bestSpeed));
+    return static_cast<float>(za::clamp(top, 0.8 * bestSpeed, 1.2 * bestSpeed));
 }
 
 // vr_throw_pitch: `vel` tilted up (down if negative) by that many degrees, about the level line square to it, its speed
@@ -136,10 +141,10 @@ constexpr double peakFit = 0.03;
         return vel;
     }
     const float most = glm::radians(89.9f);
-    const float up = CLAMP(-most, std::atan2(vel.z, level) + glm::radians(vr_throw_pitch.value), most);
+    const float up = CLAMP(-most, za::atan2(vel.z, level) + glm::radians(vr_throw_pitch.value), most);
     const float speed = glm::length(vel);
     const glm::vec2 way = glm::vec2{vel.x, vel.y} / level;
-    return glm::vec3{way * (speed * std::cos(up)), speed * std::sin(up)};
+    return glm::vec3{way * (speed * za::cos(up)), speed * za::sin(up)};
 }
 
 // The peak of the controller's speed around the release.
@@ -147,9 +152,9 @@ constexpr double peakFit = 0.03;
 // its spin's velocity there (none for two hands: their samples are the object's own).
 [[nodiscard]] Estimate releasePeak(const History& h, double releaseTime, float leverArm)
 {
-    const double from = releaseTime - std::max(vr_throw_window.value, 0.f);
-    const double to = releaseTime + std::max(vr_throw_lookahead.value, 0.f);
-    const double span = std::max(vr_throw_peak_span.value, 0.f);
+    const double from = releaseTime - za::max(vr_throw_window.value, 0.f);
+    const double to = releaseTime + za::max(vr_throw_lookahead.value, 0.f);
+    const double span = za::max(vr_throw_peak_span.value, 0.f);
 
     int best = -1;
     float bestSpeed = -1.f;
@@ -177,7 +182,7 @@ constexpr double peakFit = 0.03;
     int nVel = 0, nAng = 0;
     for(int i = 0; i < h.count; i++)
     {
-        const double dt = std::abs(h.at(i).time - peak.time);
+        const double dt = qza::abs(h.at(i).time - peak.time);
         if(dt <= span)
         {
             vel += h.at(i).vel;
@@ -197,7 +202,7 @@ constexpr double peakFit = 0.03;
     // one can be well off the peak (throws came out up to 8% slower at 45 fps than at 72).
     if(const float fitted = peakSpeedFit(h, peak.time, bestSpeed); fitted > 0.f && glm::length(vel) > 1e-4f)
     {
-        vel = glm::normalize(vel) * std::max(glm::length(vel), fitted);
+        vel = glm::normalize(vel) * za::max(glm::length(vel), fitted);
     }
 
     // The direction from the samples leading up to the peak: at the peak itself an overarm throw
@@ -261,7 +266,7 @@ void sample(int hand, double time, const glm::vec3& pos, const glm::vec3& vel, c
 
     h.samples[h.next] = s;
     h.next = (h.next + 1) % capacity;
-    h.count = std::min(h.count + 1, capacity);
+    h.count = za::min(h.count + 1, capacity);
 }
 
 Estimate estimate(int hand)
@@ -321,7 +326,7 @@ Estimate estimateBothAt(double releaseTime, const glm::vec3& centre)
         s.forward = (a.forward + b.forward) * 0.5f;
         both.samples[both.next] = s;
         both.next = (both.next + 1) % capacity;
-        both.count = std::min(both.count + 1, capacity);
+        both.count = za::min(both.count + 1, capacity);
     }
     if(both.count == 0)
     {
@@ -358,7 +363,7 @@ void filterGrips(TrackingState& t)
         }
         else
         {
-            g.peak = std::max(g.peak, in.gripValue);
+            g.peak = za::max(g.peak, in.gripValue);
 
             const Pose& pose = t.hands[hand];
             const bool throwing = pose.velocityValid && glm::length(pose.linearVelocity) > vr_throw_release_speed.value;

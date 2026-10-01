@@ -10,11 +10,12 @@
 
 #pragma once
 
+#include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
+
 #include <glm/glm.hpp>
 
-#include <span>
 
-#include <string_view>
 
 namespace qvr::text3d
 {
@@ -30,7 +31,7 @@ enum class Align : int
 // angles), each character is 8 * scale units. Lines are separated by '\n'. With `screen`, the
 // text sits on a small screen (a bezel box with a lit face, in the wrist gadget's colours), as on
 // the weapons' ammo counters.
-void queue(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
+void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
     bool screen = false);
 
 // A filled bar in an overlay text (the profiler's panel): on line `line` (0 the first), from character `column`, `cells`
@@ -48,8 +49,8 @@ struct OverlayBar
 // white on a dark backing), centred: a notice that nothing in the scene may hide (the motion recorder's).
 // Each line is centred: lines of one length line up as a table. `bars` are drawn over the backing (of opacity
 // `backing`), under the text.
-void queueOverlay(std::string_view text, const glm::vec3& pos, const glm::vec3& angles, float scale,
-    std::span<const OverlayBar> bars = {}, float backing = 0.55f);
+void queueOverlay(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, float scale,
+    za::Span<const OverlayBar> bars = {}, float backing = 0.55f);
 
 // Once per frame, after the eyes (and the flat view) are drawn.
 void clear();

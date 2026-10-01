@@ -8,7 +8,6 @@
 
 #include "vr_engine.hpp"
 
-#include <vector>
 
 namespace qvr::ropesim
 {

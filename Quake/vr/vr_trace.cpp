@@ -4,15 +4,17 @@
 #include "vr_engine.hpp"
 #include "vr_hull.hpp"
 
+#include "Zancle/Vocabulary/Optional.hpp"
+
 namespace qvr::worldtrace
 {
 
-std::optional<trace_t> move(
+za::Optional<trace_t> move(
     const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type)
 {
     if(!sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
     {
-        return std::nullopt;
+        return za::nullOpt;
     }
 
     qcvm_t* oldvm = nullptr;
@@ -25,7 +27,7 @@ std::optional<trace_t> move(
     const trace_t tr = SV_Move(a, lo, hi, b, type, svs.clients[0].edict);
 
     PR_PopQCVM(oldvm);
-    return tr;
+    return za::makeOptional(tr);
 }
 
 namespace

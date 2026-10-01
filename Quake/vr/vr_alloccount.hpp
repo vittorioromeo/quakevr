@@ -1,13 +1,14 @@
 #pragma once
 
+#include "Zancle/Base/IntTypes.hpp"
+
 // vr_alloccount.cpp: the C++ allocations (operator new) the calling thread has made so far (the profiler's per-frame
 // "allocations", read on the main thread).
 
-#include <cstdint>
 
 namespace qvr::alloccount
 {
 
-[[nodiscard]] std::uint64_t thisThread();
+[[nodiscard]] za::U64 thisThread();
 
 } // namespace qvr::alloccount

@@ -5,9 +5,8 @@
 
 #include "vr_engine.hpp"
 
-#include <cstring>
-#include <string>
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -24,25 +23,25 @@ namespace
 
 struct Mark
 {
-    std::string name;
+    za::String name;
     double ms;
     double at; // seconds since the process started
 };
 
 struct Group
 {
-    std::string title;
-    std::vector<Mark> marks;
+    za::String title;
+    za::Vector<Mark> marks;
     double start = 0.0; // Sys_DoubleTime
     double last = 0.0;
     double nestedMs = 0.0; // map loads inside it (a start-up whose autoexec loads a map)
     struct Sum
     {
-        std::string what;
+        za::String what;
         double ms;
         int count;
     };
-    std::vector<Sum> sums; // VR_TimeAdd: kinds of work, across the stages
+    za::Vector<Sum> sums; // VR_TimeAdd: kinds of work, across the stages
     bool open = false;
 };
 
@@ -51,7 +50,7 @@ double lastWall = -1.0;     // vr_walltime's previous call
 double lastCpu = 0.0;
 Group startup;
 Group load;
-std::vector<std::string> loads; // every load's one-line summary
+za::Vector<za::String> loads; // every load's one-line summary
 
 double sinceProcess(double t)
 {
@@ -65,23 +64,23 @@ Group* current()
 
 void mark(Group& g, const char* stage, double now)
 {
-    g.marks.push_back({stage, (now - g.last) * 1000.0, sinceProcess(now)});
+    g.marks.pushBack({stage, (now - g.last) * 1000.0, sinceProcess(now)});
     g.last = now;
 }
 
 void print(const Group& g)
 {
-    Con_Printf("%s\n", g.title.c_str());
+    Con_Printf("%s\n", g.title.cStr());
     for(const Mark& m : g.marks)
     {
-        Con_Printf("  %-40s %8.1f ms  (at %.3f s)\n", m.name.c_str(), m.ms, m.at);
+        Con_Printf("  %-40s %8.1f ms  (at %.3f s)\n", m.name.cStr(), m.ms, m.at);
     }
     if(!g.sums.empty())
     {
         Con_Printf("  work across the stages (the lines indented under a line are part of it):\n");
         for(const Group::Sum& w : g.sums)
         {
-            Con_Printf("    %-50s %8.1f ms  (%d)\n", w.what.c_str(), w.ms, w.count);
+            Con_Printf("    %-50s %8.1f ms  (%d)\n", w.what.cStr(), w.ms, w.count);
         }
     }
     if(!g.marks.empty())
@@ -105,9 +104,9 @@ void times_f()
     {
         print(load);
     }
-    for(const std::string& s : loads)
+    for(const za::String& s : loads)
     {
-        Con_Printf("%s\n", s.c_str());
+        Con_Printf("%s\n", s.cStr());
     }
 }
 
@@ -190,7 +189,7 @@ extern "C" void VR_TimeAdd(const char* what, double seconds)
             return;
         }
     }
-    g->sums.push_back({what, seconds * 1000.0, 1});
+    g->sums.pushBack({what, seconds * 1000.0, 1});
 }
 
 extern "C" void VR_TimeLoadBegin(const char* what)
@@ -205,7 +204,7 @@ extern "C" void VR_TimeLoadBegin(const char* what)
         mark(startup, "(until the map load)", now);
     }
     load = Group{};
-    load.title = std::string("vr_startup_times: the last map load (") + what + "), to its first frame drawn";
+    load.title = za::String("vr_startup_times: the last map load (") + what + "), to its first frame drawn";
     load.start = load.last = now;
     load.open = true;
     VR_FileCacheEnable(1);
@@ -228,13 +227,13 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
         VR_ImagePrefetchEnd();
         VR_FileCacheEnable(0);
         const double ms = (load.last - load.start) * 1000.0;
-        loads.push_back(va("vr_startup_times: load %d: %.1f ms (%s)", static_cast<int>(loads.size()) + 1, ms,
-            load.title.c_str() + load.title.find('(')));
+        loads.pushBack(va("vr_startup_times: load %d: %.1f ms (%s)", static_cast<int>(loads.size()) + 1, ms,
+            load.title.cStr() + load.title.find('(')));
         if(startup.open)
         {
             startup.nestedMs += ms;
             startup.last = now;
-            startup.marks.push_back({"map load (below)", ms, sinceProcess(now)});
+            startup.marks.pushBack({"map load (below)", ms, sinceProcess(now)});
         }
         if(developer.value)
         {

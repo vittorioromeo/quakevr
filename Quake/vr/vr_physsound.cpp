@@ -29,13 +29,18 @@
 #include "vr_progs.hpp"
 #include "vr_profile.hpp"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstdlib>
-#include <cstring>
-#include <tuple>
-#include <vector>
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Log.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+
+#include <stdlib.h>
+#include <string.h>
 
 using namespace qvr;
 
@@ -110,7 +115,7 @@ constexpr float materialGain[materialCount] = {0.f, 1.f, 0.85f, 1.f, 1.f, 0.9f, 
 // A set's recordings' precache indices (this server's; 0: not precached) and the one played last.
 struct Indices
 {
-    std::array<int, 5> index{};
+    za::Array<int, 5> index{};
     int last{-1};
 };
 
@@ -149,10 +154,10 @@ struct State
     Indices impacts[materialCount][3];
     Indices scrapes[materialCount];
     Indices grabs[static_cast<int>(GrabKind::Count)];
-    std::vector<Body> bodies;   // by edict number
-    std::vector<int> scraping;  // the props scraping now
-    std::vector<Hit> hits;      // this frame's, the hardest per prop
-    std::vector<Slide> slides;  // this frame's
+    za::Vector<Body> bodies;   // by edict number
+    za::Vector<int> scraping;  // the props scraping now
+    za::Vector<Hit> hits;      // this frame's, the hardest per prop
+    za::Vector<Slide> slides;  // this frame's
     uint32_t frames{1};
     int played{0}, skipped{0};  // the frame's impacts (vr_debug_physsound 2)
 };
@@ -161,8 +166,8 @@ State state;
 // The frame's buffers (the main thread).
 struct PhysSoundScratch
 {
-    std::vector<int> stillScraping; // (frameEnd)
-    auto members() { return std::tie(stillScraping); }
+    za::Vector<int> stillScraping; // (frameEnd)
+    auto members() { return qvr::mem::list(stillScraping); }
 };
 mem::Scratch<PhysSoundScratch> scratch{"physsound"};
 
@@ -173,7 +178,7 @@ mem::Scratch<PhysSoundScratch> scratch{"physsound"};
 
 [[nodiscard]] float master()
 {
-    return std::clamp(vr_physsound.value, 0.f, 1.f);
+    return za::clamp(vr_physsound.value, 0.f, 1.f);
 }
 
 [[nodiscard]] Body& bodyOf(int num)
@@ -194,7 +199,7 @@ int precacheName(const char* name)
         {
             sv.sound_precache[i] = name;
         }
-        if(!std::strcmp(sv.sound_precache[i], name))
+        if(!ZA_STRCMP(sv.sound_precache[i], name))
         {
             return i;
         }
@@ -218,7 +223,7 @@ void precacheSet(const Set& set, Indices& out)
     {
         return 0;
     }
-    int k = set.count > 1 ? std::rand() % (ind.last >= 0 ? set.count - 1 : set.count) : 0;
+    int k = set.count > 1 ? rand() % (ind.last >= 0 ? set.count - 1 : set.count) : 0;
     if(ind.last >= 0 && set.count > 1 && k >= ind.last)
     {
         k++;
@@ -234,7 +239,7 @@ void precacheSet(const Set& set, Indices& out)
 // A sound from entity `ent` on `channel` (0: any free one) at `at`, as SV_StartSound sends it (by precache index).
 bool emit(int ent, int channel, int index, float volume, float attenuation, const glm::vec3& at)
 {
-    const int vol = static_cast<int>(std::lround(std::clamp(volume, 0.f, 1.f) * 255.f));
+    const int vol = static_cast<int>(za::lround(za::clamp(volume, 0.f, 1.f) * 255.f));
     if(index <= 0 || vol <= 0 || sv.datagram.cursize > MAX_DATAGRAM - 24)
     {
         return false;
@@ -316,37 +321,37 @@ void stop(int ent, int channel)
 // Heavier is louder: 0.5 at 0.1 kg and less, 0.7 at 1 kg, all of it from 20 kg.
 [[nodiscard]] float massGain(float mass)
 {
-    return std::clamp(0.7f + 0.1f * std::log(std::max(mass, 0.01f)), 0.5f, 1.f);
+    return za::clamp(0.7f + 0.1f * za::log(za::max(mass, 0.01f)), 0.5f, 1.f);
 }
 
 // How far `v` is from `lo` to `hi` (0 .. 1).
 [[nodiscard]] float ramp(float v, float lo, float hi)
 {
-    return std::clamp((v - lo) / std::max(hi - lo, 0.01f), 0.f, 1.f);
+    return za::clamp((v - lo) / za::max(hi - lo, 0.01f), 0.f, 1.f);
 }
 
 [[nodiscard]] float impactVolume(Material m, float mass, float speed)
 {
-    const float lo = std::max(vr_physsound_min_speed.value, 0.f);
+    const float lo = za::max(vr_physsound_min_speed.value, 0.f);
     if(speed < lo)
     {
         return 0.f;
     }
     const float t = ramp(speed, lo, vr_physsound_full_speed.value);
-    return master() * std::max(vr_physsound_impact.value, 0.f) * materialGain[static_cast<int>(m)] * massGain(mass) *
+    return master() * za::max(vr_physsound_impact.value, 0.f) * materialGain[static_cast<int>(m)] * massGain(mass) *
            (0.1f + 0.9f * t);
 }
 
 [[nodiscard]] float scrapeVolume(Material m, float mass, float slip, float press)
 {
-    const float lo = std::max(vr_physsound_scrape_min.value, 0.f);
+    const float lo = za::max(vr_physsound_scrape_min.value, 0.f);
     if(slip < lo || press < 0.2f)
     {
         return 0.f;
     }
     const float t = ramp(slip, lo, vr_physsound_scrape_full.value);
-    return master() * std::max(vr_physsound_scrape.value, 0.f) * materialGain[static_cast<int>(m)] * massGain(mass) *
-           std::sqrt(std::min(press, 1.f)) * (0.15f + 0.85f * t);
+    return master() * za::max(vr_physsound_scrape.value, 0.f) * materialGain[static_cast<int>(m)] * massGain(mass) *
+           za::sqrt(za::min(press, 1.f)) * (0.15f + 0.85f * t);
 }
 
 void stopScrape(int num, Body& b, const char* why)
@@ -558,7 +563,7 @@ void hit(int num, Material material, float mass, float speed, const glm::vec3& a
             return;
         }
     }
-    state.hits.push_back({num, material, mass, speed, at, 0.f});
+    state.hits.pushBack({num, material, mass, speed, at, 0.f});
 }
 
 bool scrapesWanted()
@@ -570,7 +575,7 @@ void slide(int num, Material material, float mass, float slip, float press, cons
 {
     if(material != Material::None)
     {
-        state.slides.push_back({num, material, mass, slip, press, at});
+        state.slides.pushBack({num, material, mass, slip, press, at});
     }
 }
 
@@ -581,12 +586,12 @@ void frameEnd()
     const uint32_t frame = state.frames;
 
     // The hits, the loudest first.
-    std::vector<Hit>& hits = state.hits;
+    za::Vector<Hit>& hits = state.hits;
     for(Hit& h : hits)
     {
         h.volume = impactVolume(h.material, h.mass, h.speed);
     }
-    std::sort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) { return a.volume > b.volume || (a.volume == b.volume && a.num < b.num); });
+    za::quickSort(hits.begin(), hits.end(), [](const Hit& a, const Hit& b) { return a.volume > b.volume || (a.volume == b.volume && a.num < b.num); });
     int played = 0;
     for(const Hit& h : hits)
     {
@@ -598,7 +603,7 @@ void frameEnd()
         // Too soon after its last knock (unless twice as loud); or, a little later, a bounce's tail (a small hop after a
         // landing: far quieter than the knock).
         const double since = now - b.lastHit;
-        const float interval = std::max(vr_physsound_interval.value, 0.f);
+        const float interval = za::max(vr_physsound_interval.value, 0.f);
         const bool soon = since < interval && h.volume < 2.f * b.lastVolume;
         const bool bounce = since < bounceWindow * interval && h.volume < bounceShare * b.lastVolume;
         if(played >= maxImpactsAFrame || soon || bounce)
@@ -658,7 +663,7 @@ void frameEnd()
             b.scraping = true;
             b.nextGrain = now;
             b.channel = 0;
-            state.scraping.push_back(s.num);
+            state.scraping.pushBack(s.num);
             if(debug())
             {
                 Con_Printf("physsound: %.2f %d %s scrape starts, %s at %.2f m/s (pressed %.2f): volume %.2f\n", qcvm->time, s.num,
@@ -683,7 +688,7 @@ void frameEnd()
     state.slides.clear();
 
     // The scrapes whose prop didn't slide this frame stop.
-    std::vector<int>& still = scratch.stillScraping;
+    za::Vector<int>& still = scratch.stillScraping;
     still.clear();
     for(const int num : state.scraping)
     {
@@ -697,7 +702,7 @@ void frameEnd()
             stopScrape(num, b, b.slideFrame != frame ? "not sliding" : "gone");
             continue;
         }
-        still.push_back(num);
+        still.pushBack(num);
     }
     state.scraping.swap(still);
     state.frames++;
@@ -705,7 +710,7 @@ void frameEnd()
 
 void grab(edict_t* player, const glm::vec3& at, edict_t* holdEnt)
 {
-    const float volume = master() * std::max(vr_physsound_grab.value, 0.f);
+    const float volume = master() * za::max(vr_physsound_grab.value, 0.f);
     if(volume <= 0.f || !sv.active)
     {
         return;

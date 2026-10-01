@@ -4,7 +4,11 @@
 #include "vr_move.hpp"
 #include "vr_engine.hpp"
 
-#include <cmath>
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
+#include "vr_zancle.hpp"
+
 
 namespace qvr
 {
@@ -27,7 +31,7 @@ struct Reader
     [[nodiscard]] float real()
     {
         const float f = MSG_ReadFloat();
-        finite = finite && std::isfinite(f);
+        finite = finite && qza::isfinite(f);
         return f;
     }
 
@@ -78,7 +82,7 @@ void writeVrMove(sizebuf_t* buf, const VrMove& move)
     writeVec3(buf, move.shotRot[1]);
 }
 
-std::optional<VrMove> readVrMove()
+za::Optional<VrMove> readVrMove()
 {
     Reader in;
     VrMove move;
@@ -102,14 +106,14 @@ std::optional<VrMove> readVrMove()
     move.headVel = in.vec3();
     move.muzzlePos[0] = in.vec3();
     move.muzzlePos[1] = in.vec3();
-    move.vrBits0 = static_cast<std::uint16_t>(MSG_ReadShort());
+    move.vrBits0 = static_cast<za::U16>(MSG_ReadShort());
     move.teleportTarget = in.vec3();
-    move.hotspots[0] = static_cast<std::uint8_t>(MSG_ReadByte());
-    move.hotspots[1] = static_cast<std::uint8_t>(MSG_ReadByte());
+    move.hotspots[0] = static_cast<za::U8>(MSG_ReadByte());
+    move.hotspots[1] = static_cast<za::U8>(MSG_ReadByte());
     move.roomscaleMove = in.vec3();
-    move.buttons = static_cast<std::uint8_t>(MSG_ReadByte());
-    move.sawCord = static_cast<std::uint8_t>(MSG_ReadByte());
-    move.handDrop = static_cast<std::uint8_t>(MSG_ReadByte());
+    move.buttons = static_cast<za::U8>(MSG_ReadByte());
+    move.sawCord = static_cast<za::U8>(MSG_ReadByte());
+    move.handDrop = static_cast<za::U8>(MSG_ReadByte());
     move.origin = in.vec3();
     move.headPos = in.vec3();
     move.shotRot[0] = in.vec3();
@@ -117,9 +121,9 @@ std::optional<VrMove> readVrMove()
 
     if(!in.finite)
     {
-        return std::nullopt;
+        return za::nullOpt;
     }
-    return move;
+    return za::makeOptional(ZA_MOVE(move));
 }
 
 } // namespace qvr

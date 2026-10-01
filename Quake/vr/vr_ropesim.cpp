@@ -24,9 +24,15 @@
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <unordered_map>
+#include "Zancle/Algorithm/Remove.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
 
 using namespace qvr;
 
@@ -41,21 +47,21 @@ constexpr int searchSteps = 10;      // halvings of the frame searching for when
 
 struct Rope
 {
-    std::vector<glm::vec3> corners; // from the gun's end to the hook's
+    za::Vector<glm::vec3> corners; // from the gun's end to the hook's
     glm::vec3 lastA{0.f};           // last frame's ends: the gun, the hook
     glm::vec3 lastB{0.f};
     int frame{-1};                  // the server frame stepped last (sv.qcvm.time's)
     double time{0.0};
     int blocked{0};                 // pieces left blocked last step (no corner found: a last resort, drawn through)
     ropesim::Shape shape;
-    std::vector<glm::vec3> sent;    // the corners as last sent, and when
+    za::Vector<glm::vec3> sent;    // the corners as last sent, and when
     double sentAt{-1.0};
     int emptySends{0};              // no corners, sent this many times since (twice: a lost datagram)
     int sentOwner{-1};              // the beam they were sent for (a new one: sent at once, whatever changed)
     int sentBeam{-1};
 };
 
-std::unordered_map<int, Rope> ropes;
+ankerl::unordered_dense::map<int, Rope> ropes;
 int countedFrame = -1;
 int countRopes = 0;
 int countPoints = 0;
@@ -66,7 +72,7 @@ int netFrames = 0, netMax = 0, netFrame = -1, netThisFrame = 0;
 
 [[nodiscard]] float radius()
 {
-    return std::clamp(vr_grapple_rope_radius.value, 0.1f, 8.f);
+    return za::clamp(vr_grapple_rope_radius.value, 0.1f, 8.f);
 }
 
 [[nodiscard]] float sightRadius()
@@ -162,21 +168,21 @@ bool findCorner(const glm::vec3& s0, const glm::vec3& e0, const glm::vec3& s, co
 // against the edge the rope goes round); one the straight line doesn't need goes.
 void tighten(Rope& r, const glm::vec3& a, const glm::vec3& b, int skipA, int skipB)
 {
-    std::vector<glm::vec3>& c = r.corners;
+    za::Vector<glm::vec3>& c = r.corners;
     for(int pass = 0; pass < 2 && !c.empty(); pass++)
     {
-        for(std::size_t k = 0; k < c.size();)
+        for(za::SizeT k = 0; k < c.size();)
         {
             const glm::vec3 prev = k == 0 ? a : c[k - 1];
             const glm::vec3 next = k + 1 == c.size() ? b : c[k + 1];
             if(sees(prev, next, skipA, skipB))
             {
-                c.erase(c.begin() + static_cast<std::ptrdiff_t>(k));
+                c.erase(c.begin() + static_cast<za::PtrDiffT>(k));
                 continue;
             }
             const glm::vec3 pn = next - prev;
             const float pn2 = glm::dot(pn, pn);
-            const float t = pn2 > 1e-4f ? std::clamp(glm::dot(c[k] - prev, pn) / pn2, 0.f, 1.f) : 0.f;
+            const float t = pn2 > 1e-4f ? za::clamp(glm::dot(c[k] - prev, pn) / pn2, 0.f, 1.f) : 0.f;
             const glm::vec3 target = prev + pn * t;
             float lo = 0.f, hi = 1.f;
             for(int step = 0; step < 6; step++)
@@ -201,20 +207,20 @@ void tighten(Rope& r, const glm::vec3& a, const glm::vec3& b, int skipA, int ski
 // This frame's corners for the rope from `a` (the gun) to `b` (the hook).
 void update(Rope& r, const glm::vec3& a, const glm::vec3& b, int skipA, int skipB)
 {
-    std::vector<glm::vec3>& c = r.corners;
+    za::Vector<glm::vec3>& c = r.corners;
     // Corners something moved into.
-    c.erase(std::remove_if(c.begin(), c.end(),
+    c.erase(za::removeIf(c.begin(), c.end(),
                 [&](const glm::vec3& q) { return box3d::ropeOverlaps(q, 0.5f * sightRadius(), skipA, skipB); }),
         c.end());
 
     // Unwrap: a corner the rope no longer needs.
-    for(std::size_t k = 0; k < c.size();)
+    for(za::SizeT k = 0; k < c.size();)
     {
         const glm::vec3 prev = k == 0 ? a : c[k - 1];
         const glm::vec3 next = k + 1 == c.size() ? b : c[k + 1];
         if(sees(prev, next, skipA, skipB))
         {
-            c.erase(c.begin() + static_cast<std::ptrdiff_t>(k));
+            c.erase(c.begin() + static_cast<za::PtrDiffT>(k));
             k = k > 0 ? k - 1 : 0;
             continue;
         }
@@ -227,7 +233,7 @@ void update(Rope& r, const glm::vec3& a, const glm::vec3& b, int skipA, int skip
     if(!box3d::ropeOverlaps(a, 0.5f * sightRadius(), skipA, skipB))
     {
         int budget = 3 * maxCorners;
-        for(std::size_t i = 0; i <= c.size() && budget > 0; budget--)
+        for(za::SizeT i = 0; i <= c.size() && budget > 0; budget--)
         {
             const bool first = i == 0, last = i == c.size();
             const glm::vec3 s = first ? a : c[i - 1];
@@ -247,7 +253,7 @@ void update(Rope& r, const glm::vec3& a, const glm::vec3& b, int skipA, int skip
                 i++;
                 continue;
             }
-            c.insert(c.begin() + static_cast<std::ptrdiff_t>(i), corner); // (the piece up to it is looked at again)
+            c.insert(c.begin() + static_cast<za::PtrDiffT>(i), corner); // (the piece up to it is looked at again)
         }
     }
     tighten(r, a, b, skipA, skipB);
@@ -285,7 +291,7 @@ void count(int points)
 
 void netCount(int bytes)
 {
-    const int frame = static_cast<int>(std::lround(sv.qcvm.time * 1000.0));
+    const int frame = static_cast<int>(za::lround(sv.qcvm.time * 1000.0));
     if(frame != netFrame)
     {
         netFrame = frame;
@@ -294,7 +300,7 @@ void netCount(int bytes)
     }
     netThisFrame += bytes;
     netBytes += bytes;
-    netMax = std::max(netMax, netThisFrame);
+    netMax = za::max(netMax, netThisFrame);
 }
 
 // vr_grapple_rope_netstats [reset]: the rope messages' bytes so far, and the server frames they went in.
@@ -326,7 +332,7 @@ void dump_f()
             inside += box3d::ropeOverlaps(q, 0.5f * sightRadius(), 0, 0) ? 1 : 0;
         }
         Con_Printf("rope %d: %d corners inside the world or a prop, %d pieces blocked\n", num, inside, r.blocked);
-        for(std::size_t i = 0; i < r.corners.size(); i++)
+        for(za::SizeT i = 0; i < r.corners.size(); i++)
         {
             Con_Printf("rope %d corner %d: %.1f %.1f %.1f\n", num, static_cast<int>(i), static_cast<double>(r.corners[i].x),
                 static_cast<double>(r.corners[i].y), static_cast<double>(r.corners[i].z));
@@ -374,7 +380,7 @@ Shape step(edict_t* hook, const glm::vec3& gun, const glm::vec3& game, const glm
     int skipB)
 {
     Rope& r = ropes[NUM_FOR_EDICT(hook)];
-    const int frame = static_cast<int>(std::lround(sv.qcvm.time * 1000.0));
+    const int frame = static_cast<int>(za::lround(sv.qcvm.time * 1000.0));
     if(r.frame == frame)
     {
         return r.shape;
@@ -413,14 +419,14 @@ glm::vec3 retract(edict_t* hook, const glm::vec3& gun, const glm::vec3& end, flo
     glm::vec3 at = gun;
     glm::vec3 out = end;
     float walked = 0.f;
-    const std::size_t n = r.corners.size();
-    for(std::size_t i = 0; i <= n; i++)
+    const za::SizeT n = r.corners.size();
+    for(za::SizeT i = 0; i <= n; i++)
     {
         const glm::vec3 next = i < n ? r.corners[i] : end;
         const float piece = glm::distance(at, next);
         if(walked + piece >= remaining)
         {
-            const float along = std::max(0.f, remaining - walked);
+            const float along = za::max(0.f, remaining - walked);
             out = piece > 0.001f ? at + (next - at) * (along / piece) : at;
             r.corners.resize(i); // (the corners past it: the rope has come off them)
             break;
@@ -428,7 +434,7 @@ glm::vec3 retract(edict_t* hook, const glm::vec3& gun, const glm::vec3& end, flo
         walked += piece;
         at = next;
     }
-    r.frame = static_cast<int>(std::lround(sv.qcvm.time * 1000.0));
+    r.frame = static_cast<int>(za::lround(sv.qcvm.time * 1000.0));
     r.time = sv.qcvm.time;
     r.lastA = gun;
     r.lastB = out;
@@ -451,10 +457,10 @@ void send(edict_t* hook, edict_t* owner, int beamId)
         return;
     }
     Rope& r = it->second;
-    const std::vector<glm::vec3>& c = r.corners;
+    const za::Vector<glm::vec3>& c = r.corners;
     const int ownerNum = NUM_FOR_EDICT(owner);
     bool changed = c.size() != r.sent.size() || ownerNum != r.sentOwner || beamId != r.sentBeam;
-    for(std::size_t i = 0; i < c.size() && !changed; i++)
+    for(za::SizeT i = 0; i < c.size() && !changed; i++)
     {
         changed = glm::distance(c[i], r.sent[i]) > sentMoved;
     }
@@ -491,12 +497,12 @@ void send(edict_t* hook, edict_t* owner, int beamId)
             // From the one before as the client has it (no error adds up): eighths of a unit.
             for(int k = 0; k < 3; k++)
             {
-                const int q = std::clamp(static_cast<int>(std::lround((c[static_cast<std::size_t>(i)][k] - at[k]) * 8.f)), -32767, 32767);
+                const int q = za::clamp(static_cast<int>(za::lround((c[static_cast<za::SizeT>(i)][k] - at[k]) * 8.f)), -32767, 32767);
                 MSG_WriteShort(&sv.datagram, q);
                 at[k] += static_cast<float>(q) / 8.f;
             }
         }
-        r.sent[static_cast<std::size_t>(i)] = c[static_cast<std::size_t>(i)];
+        r.sent[static_cast<za::SizeT>(i)] = c[static_cast<za::SizeT>(i)];
     }
     r.emptySends = n == 0 ? (changed ? 1 : r.emptySends + 1) : 0;
     r.sentAt = sv.qcvm.time;

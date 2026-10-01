@@ -5,10 +5,9 @@
 
 #include "vr_engine.hpp"
 
-#include <cfloat>
-#include <cmath>
-#include <cstdlib>
-#include <cstring>
+#include <float.h>
+#include <stdlib.h>
+#include <string.h>
 
 /*
 =================

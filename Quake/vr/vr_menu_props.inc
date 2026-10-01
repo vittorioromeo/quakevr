@@ -1,24 +1,30 @@
+
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "Zancle/String/ToString.hpp"
+
 // vr_menu_props.inc -- the weight's readouts and pages (included by vr_menu.cpp): Weapon Weights (the weight of the
 // weapon a hand holds: vr_weapons.inc's weight keys), and Held Object Offsets and Held Object Weights (the prop a hand
 // holds: vr_props.inc; its grip, fingers and melee points on one, its weight on the other), as Weapon Offsets is for a
 // weapon's placement. See docs/vr-port/ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes"
 // and "Spring only; Weapon Weights and Held Object Weights; weight and damage".
 
-[[nodiscard]] std::vector<Item> pageHeldObjectOffsets();
-[[nodiscard]] std::vector<Item> pageHeldObjectWeights();
-[[nodiscard]] std::vector<Item> pageWeaponWeights();
+[[nodiscard]] za::Vector<Item> pageHeldObjectOffsets();
+[[nodiscard]] za::Vector<Item> pageHeldObjectWeights();
+[[nodiscard]] za::Vector<Item> pageWeaponWeights();
 void showPage(int target);
 
 // "Main: 8.0 kg x1.00, 1.2 cm 3.4 deg": what a hand holds as the weight sees it (the spring's offset from the hand).
 [[nodiscard]] const char* weightReadout(int hand)
 {
-    std::string (&text)[2] = readouts.weight;
+    za::String (&text)[2] = readouts.weight;
     const weight::Load l = weight::load(hand);
     const char* name = hand == 1 ? "Main" : "Off";
     if(!l.valid)
     {
-        text[hand] = std::string(name) + ": nothing heavy (stamina x" + std::to_string(l.staminaMult).substr(0, 4) + ")";
-        return text[hand].c_str();
+        text[hand] = za::String(name) + ": nothing heavy (stamina x" + za::StringView{va("%f", l.staminaMult)}.substrByPosLen(0, 4) + ")"; // (std::to_string's %f, cut to 4)
+        return text[hand].cStr();
     }
     const weight::Offset o = weight::offset(hand);
     if(l.empty)
@@ -34,13 +40,13 @@ void showPage(int target);
     {
         text[hand] += va(", %.1f cm %.1f deg", o.distance, o.angle);
     }
-    return text[hand].c_str();
+    return text[hand].cStr();
 }
 
 // What a thing of `mass` kg with its own Melee and Throw Damage x deals, by the weight's curve (vr_weight_damage_*), and
 // its strikes' and throws' speed thresholds (heavy leniency, vr_weight_lenient*), on two lines: `line` 0 "Damage: melee
 // x1.90, thrown x1.90", 1 "Weight: damage x1.90, speeds x0.35".
-[[nodiscard]] std::string damageReadout(float mass, float ownMelee, float ownThrow, int line)
+[[nodiscard]] za::String damageReadout(float mass, float ownMelee, float ownThrow, int line)
 {
     const float curve = weight::damageMultiplier(mass);
     return line == 0 ? va("Damage: melee x%.2f, thrown x%.2f", curve * ownMelee, curve * ownThrow)
@@ -87,24 +93,24 @@ void weaponWeightsPrint()
 
 [[nodiscard]] const char* weaponWeightsDamageReadout(int line)
 {
-    std::string (&text)[2] = readouts.weaponWeightsDamage;
+    za::String (&text)[2] = readouts.weaponWeightsDamage;
     using weapons::Key;
     const int slot = weaponWeightsSlot;
     text[line] = damageReadout(weapons::value(slot, Key::Mass), weapons::value(slot, Key::MeleeDamage),
         weapons::value(slot, Key::ThrowDamage), line);
-    return text[line].c_str();
+    return text[line].cStr();
 }
 
 // Wrenched out: the edited weapon's limits (vr_weight_drop*), one hand and two.
 [[nodiscard]] const char* weaponWeightsDropReadout(int /* unused */)
 {
-    std::string& text = readouts.weaponWeightsDrop;
+    za::String& text = readouts.weaponWeightsDrop;
     const float mass = weapons::value(weaponWeightsSlot, weapons::Key::Mass);
     const float one = weight::dropLimit(mass, 0.f), two = weight::dropLimit(mass, 1.f);
     text = !vr_weight_drop.value ? "This weapon: never falls (off)"
            : one <= 0.f          ? va("This weapon: never falls (%.1f kg, lighter than %.1f)", mass, vr_weight_drop_from.value)
                                  : va("This weapon: falls turned faster than %.0f deg/s (%.0f with two hands)", one, two);
-    return text.c_str();
+    return text.cStr();
 }
 
 // A hand's weapon slot (the empty hand's: the hand model's; -1: not in a game).
@@ -118,11 +124,11 @@ void weaponWeightsPrint()
     return slot < 0 && cls.state == ca_connected ? weapons::fistSlot() : slot;
 }
 
-std::vector<Item> pageWeaponWeights()
+za::Vector<Item> pageWeaponWeights()
 {
     using weapons::Key;
-    std::string& title = pageTexts.weaponWeightsTitle;
-    std::string& inheritTitle = pageTexts.weaponWeightsInheritTitle;
+    za::String& title = pageTexts.weaponWeightsTitle;
+    za::String& inheritTitle = pageTexts.weaponWeightsInheritTitle;
     // Opened with the chosen hand empty and a weapon in the other: that one.
     if(!weaponWeightsKeepHand)
     {
@@ -135,19 +141,19 @@ std::vector<Item> pageWeaponWeights()
     weaponWeightsKeepHand = false;
     const int held = weaponWeightsSlotOf(weaponWeightsHand);
     const char* hand = weaponWeightsHand == 1 ? "Main hand" : "Off hand";
-    std::vector<Item> list;
+    za::Vector<Item> list;
     weaponWeightsSlot = held;
     if(held < 0)
     {
-        title = std::string(hand) + ": hold a weapon in a game to adjust it";
-        list.push_back(header(title.c_str()));
-        list.push_back(action("Edit the Other Hand's Weapon", weaponWeightsOtherHand));
+        title = za::String(hand) + ": hold a weapon in a game to adjust it";
+        list.pushBack(header(title.cStr()));
+        list.pushBack(action("Edit the Other Hand's Weapon", weaponWeightsOtherHand));
         return list;
     }
-    title = std::string(hand) + ": " + weapons::cvar(held, Key::ID)->string + " (_" + (held + 1 < 10 ? "0" : "") +
-            std::to_string(held + 1) + ")";
+    title = za::String(hand) + ": " + weapons::cvar(held, Key::ID)->string + " (_" + (held + 1 < 10 ? "0" : "") +
+            za::toString(held + 1) + ")";
     list = {
-        header(title.c_str()),
+        header(title.cStr()),
         action("Edit the Other Hand's Weapon", weaponWeightsOtherHand)
             .help("The page shows the weapon the hand held when it was opened: reopen it after changing weapons."),
     };
@@ -155,15 +161,15 @@ std::vector<Item> pageWeaponWeights()
     if(const int from = weapons::inheritsFrom(held); from >= 0)
     {
         weaponWeightsSlot = from;
-        inheritTitle = std::string("Settings of ") + weapons::cvar(from, Key::ID)->string + " (inherited)";
-        list.push_back(header(inheritTitle.c_str()));
-        list.push_back(info([]() -> const char* { return "Weapon Offsets: Inherit From None to give it its own."; }));
+        inheritTitle = za::String("Settings of ") + weapons::cvar(from, Key::ID)->string + " (inherited)";
+        list.pushBack(header(inheritTitle.cStr()));
+        list.pushBack(info([]() -> const char* { return "Weapon Offsets: Inherit From None to give it its own."; }));
     }
     const int slot = weaponWeightsSlot;
     const auto s = [&](const char* label, Key key, float min, float max, float step, const char* format) {
         return slider(label, weapons::cvar(slot, key), min, max, step, format);
     };
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         infoLine(weaponWeightsHandReadout, 0),
         header("Weight"),
         s("Mass", Key::Mass, 0.f, 20.f, 0.1f, "%.1f kg").extend(0.f, 200.f)
@@ -226,8 +232,8 @@ std::vector<Item> pageWeaponWeights()
             .help("Prints this weapon's weight settings that differ from the defaults, ready to be made the shipped "
                   "defaults (vr_weapons.inc)."),
         action("Reset This Weapon", weaponWeightsReset)
-            .help("This weapon's weight settings (this page's) back to their defaults. Its offsets stay."),
-    });
+            .help("This weapon's weight settings (this page's) back to their defaults. Its offsets stay.")
+    );
     return list;
 }
 
@@ -238,10 +244,10 @@ int heldObjectHand = 1; // 1 main hand, 0 off hand
 int heldObjectSlot = -1;
 bool heldObjectStale = true;
 bool heldObjectKeepHand = false; // Edit the Other Hand's Prop: that hand, even empty
-std::string heldObjectModel;
+za::String heldObjectModel;
 
 // The prop `hand` holds: a carried thing's model, or the flashlight's ("": none).
-[[nodiscard]] std::string heldPropModel(int hand)
+[[nodiscard]] za::String heldPropModel(int hand)
 {
     if(cls.state != ca_connected)
     {
@@ -256,7 +262,7 @@ std::string heldObjectModel;
 
 // The page's prop: the chosen hand's (opened with it empty and a prop in the other hand: that one), its slot claimed.
 // Pushes the page's title; false: no prop to edit (the page is its title and the other hand's action).
-bool heldObjectBegin(std::vector<Item>& list, std::string& title, void (*otherHand)())
+bool heldObjectBegin(za::Vector<Item>& list, za::String& title, void (*otherHand)())
 {
     if(!heldObjectKeepHand && heldPropModel(heldObjectHand).empty() && !heldPropModel(1 - heldObjectHand).empty())
     {
@@ -265,18 +271,18 @@ bool heldObjectBegin(std::vector<Item>& list, std::string& title, void (*otherHa
     heldObjectKeepHand = false;
     heldObjectModel = heldPropModel(heldObjectHand);
     const char* hand = heldObjectHand == 1 ? "Main hand" : "Off hand";
-    heldObjectSlot = heldObjectModel.empty() ? -1 : props::claimSlot(heldObjectModel.c_str());
+    heldObjectSlot = heldObjectModel.empty() ? -1 : props::claimSlot(heldObjectModel.cStr());
     if(heldObjectSlot < 0)
     {
-        title = std::string(hand) + (heldObjectModel.empty() ? ": hold a prop in a game to adjust it" : ": no free prop slot");
-        list.push_back(header(title.c_str()));
-        list.push_back(action("Edit the Other Hand's Prop", otherHand));
+        title = za::String(hand) + (heldObjectModel.empty() ? ": hold a prop in a game to adjust it" : ": no free prop slot");
+        list.pushBack(header(title.cStr()));
+        list.pushBack(action("Edit the Other Hand's Prop", otherHand));
         return false;
     }
     const int slot = heldObjectSlot;
-    title = std::string(hand) + ": " + heldObjectModel + " (_" + (slot + 1 < 10 ? "0" : "") + std::to_string(slot + 1) + ")";
-    list.push_back(header(title.c_str()));
-    list.push_back(action("Edit the Other Hand's Prop", otherHand)
+    title = za::String(hand) + ": " + heldObjectModel + " (_" + (slot + 1 < 10 ? "0" : "") + za::toString(slot + 1) + ")";
+    list.pushBack(header(title.cStr()));
+    list.pushBack(action("Edit the Other Hand's Prop", otherHand)
                        .help("The page shows what the hand held when it was opened: reopen it after taking something else."));
     return true;
 }
@@ -319,35 +325,35 @@ void heldObjectWeightsPrint()
 
 [[nodiscard]] const char* heldObjectMassReadout(int /* unused */)
 {
-    std::string& text = readouts.heldObjectMass;
+    za::String& text = readouts.heldObjectMass;
     const weight::Load l = weight::load(heldObjectHand);
-    if(!l.valid || strcmp(l.model, heldObjectModel.c_str()) != 0)
+    if(!l.valid || strcmp(l.model, heldObjectModel.cStr()) != 0)
     {
         return "Mass now: (let go of)";
     }
-    const bool set = props::valueFor(heldObjectModel.c_str(), props::Key::Mass) > 0.f;
+    const bool set = props::valueFor(heldObjectModel.cStr(), props::Key::Mass) > 0.f;
     text = va("Mass now: %.1f kg (%s)", l.mass, set ? "set" : "estimated");
-    return text.c_str();
+    return text.cStr();
 }
 
 [[nodiscard]] const char* heldObjectDamageReadout(int line)
 {
-    std::string (&text)[2] = readouts.heldObjectDamage;
+    za::String (&text)[2] = readouts.heldObjectDamage;
     const weight::Load l = weight::load(heldObjectHand);
-    if(!l.valid || strcmp(l.model, heldObjectModel.c_str()) != 0)
+    if(!l.valid || strcmp(l.model, heldObjectModel.cStr()) != 0)
     {
         return line == 0 ? "Damage: (let go of)" : "";
     }
     const int slot = heldObjectSlot;
     text[line] = damageReadout(l.mass, props::value(slot, props::Key::MeleeDamage), props::value(slot, props::Key::ThrowDamage), line);
-    return text[line].c_str();
+    return text[line].cStr();
 }
 
-std::vector<Item> pageHeldObjectOffsets()
+za::Vector<Item> pageHeldObjectOffsets()
 {
     using props::Key;
-    std::string& title = pageTexts.heldObjectOffsetsTitle;
-    std::vector<Item> list;
+    za::String& title = pageTexts.heldObjectOffsetsTitle;
+    za::Vector<Item> list;
     if(!heldObjectBegin(list, title, heldObjectOtherHand))
     {
         return list;
@@ -358,10 +364,10 @@ std::vector<Item> pageHeldObjectOffsets()
     };
     if(heldObjectModel == "progs/vrflashlight.mdl")
     {
-        list.push_back(info([]() -> const char* { return "Its grip and fingers: the Flashlight page; its weight: Held Object Weights."; }));
+        list.pushBack(info([]() -> const char* { return "Its grip and fingers: the Flashlight page; its weight: Held Object Weights."; }));
         return list;
     }
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         open("Held Object Weights", pageIndex(pageHeldObjectWeights)).help("Its mass, how it follows your hand and its damage."),
         s("Size", Key::Size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.05f, 10.f)
             .help("Every one of these props, drawn this much bigger or smaller, about its origin: its physics body and "
@@ -426,16 +432,16 @@ std::vector<Item> pageHeldObjectOffsets()
             .help("Prints this prop's offsets that differ from the defaults, ready to be made the shipped defaults "
                   "(vr_props.inc)."),
         action("Reset This Prop", heldObjectReset)
-            .help("This prop's offsets (this page's) back to their defaults. Its weight settings stay."),
-    });
+            .help("This prop's offsets (this page's) back to their defaults. Its weight settings stay.")
+    );
     return list;
 }
 
-std::vector<Item> pageHeldObjectWeights()
+za::Vector<Item> pageHeldObjectWeights()
 {
     using props::Key;
-    std::string& title = pageTexts.heldObjectWeightsTitle;
-    std::vector<Item> list;
+    za::String& title = pageTexts.heldObjectWeightsTitle;
+    za::Vector<Item> list;
     if(!heldObjectBegin(list, title, heldObjectWeightsOtherHand))
     {
         return list;
@@ -445,7 +451,7 @@ std::vector<Item> pageHeldObjectWeights()
         return slider(label, props::cvar(slot, key), min, max, step, format);
     };
     const bool flashlightProp = heldObjectModel == "progs/vrflashlight.mdl";
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         infoLine(heldObjectMassReadout, 0),
         header("Weight"),
         s("Mass", Key::Mass, 0.f, 100.f, 0.5f, "%.1f kg").extend(0.f, 2000.f)
@@ -458,15 +464,15 @@ std::vector<Item> pageHeldObjectWeights()
             .help("Units off the middle of its model, along its own axes: where its weight is (a torch's head). With "
                   "Sag, it droops about the hand towards it."),
         s("Centre of Mass Y", Key::ComY, -30.f, 30.f, 0.5f, "%+.1f").extend(-200.f, 200.f),
-        s("Centre of Mass Z", Key::ComZ, -30.f, 30.f, 0.5f, "%+.1f").extend(-200.f, 200.f),
-    });
+        s("Centre of Mass Z", Key::ComZ, -30.f, 30.f, 0.5f, "%+.1f").extend(-200.f, 200.f)
+    );
     if(!flashlightProp)
     {
-        list.push_back(s("Throw", Key::Throw, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        list.pushBack(s("Throw", Key::Throw, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 10.f)
                            .help("How much of your hand's throw it keeps. 0: from its mass (all of it up to 12 kg, less "
                                  "beyond: vr_weight_throw_mass)."));
     }
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         header("Spring (times the Aiming page's)"),
         springSlider("Stiffness", props::cvar(slot, Key::SpringStiffness), 4.f,
             "Times Aiming: Stiffness, for this prop: higher follows your hand more firmly."),
@@ -482,11 +488,11 @@ std::vector<Item> pageHeldObjectWeights()
             "Times Aiming: Two-Handed Help, for this prop: how much steadier both hands hold it."),
         springSlider("Snap Back Beyond", props::cvar(slot, Key::SpringSnap), 4.f,
             "Times Aiming: Snap Back Beyond, for this prop: how far behind it may fall before it is put back in your "
-            "hand."),
-    });
+            "hand.")
+    );
     if(!flashlightProp)
     {
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             header("Damage"),
             infoLine(heldObjectDamageReadout, 0),
             infoLine(heldObjectDamageReadout, 1),
@@ -494,25 +500,25 @@ std::vector<Item> pageHeldObjectWeights()
                 .help("Times its melee damage (a blow with it in hand), on top of the weight's (the readout above; "
                       "Aiming: Weight and Damage)."),
             s("Throw Damage", Key::ThrowDamage, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-                .help("Times its damage thrown, on top of the weight's."),
-        });
+                .help("Times its damage thrown, on top of the weight's.")
+        );
     }
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         header("Thrown"),
         s("Spin in the Air", Key::SpinAlign, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
             .help("Times Throwing and Physics: Spin Alignment for this prop thrown: how fast its tumble settles into a "
                   "clean spin end over end about its steadiest axis (a long flat thing the most, a long round one a "
-                  "tenth as much, a box not at all). 0: it tumbles as it left your hand."),
-    });
-    list.insert(list.end(), {
+                  "tenth as much, a box not at all). 0: it tumbles as it left your hand.")
+    );
+    list.pushBackMultiple(
         header("This Prop"),
         open("Held Object Offsets", pageIndex(pageHeldObjectOffsets)).help("Its grip, fingers and melee points."),
         action("Print Changes to Console", heldObjectWeightsPrint)
             .help("Prints this prop's weight settings that differ from the defaults, ready to be made the shipped "
                   "defaults (vr_props.inc)."),
         action("Reset This Prop", heldObjectWeightsReset)
-            .help("This prop's weight settings (this page's) back to their defaults. Its offsets stay."),
-    });
+            .help("This prop's weight settings (this page's) back to their defaults. Its offsets stay.")
+    );
     return list;
 }
 

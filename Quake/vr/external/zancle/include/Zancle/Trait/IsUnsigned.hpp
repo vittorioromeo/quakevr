@@ -1,0 +1,44 @@
+#pragma once
+// LICENSE AND COPYRIGHT (C) INFORMATION
+// https://github.com/vittorioromeo/Zancle/blob/master/license.md
+
+
+#if __has_builtin(__is_unsigned)
+
+    ////////////////////////////////////////////////////////////
+    #define ZA_IS_UNSIGNED(...) __is_unsigned(__VA_ARGS__)
+
+#else
+
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+    #include "Zancle/Trait/IsIntegral.hpp"
+
+
+namespace za::priv
+{
+////////////////////////////////////////////////////////////
+template <typename T, bool = ZA_IS_INTEGRAL(T)>
+inline constexpr bool isUnsignedImpl = false;
+
+
+////////////////////////////////////////////////////////////
+template <typename T>
+inline constexpr bool isUnsignedImpl<T, true> = T(0) < T(-1);
+
+} // namespace za::priv
+
+    ////////////////////////////////////////////////////////////
+    #define ZA_IS_UNSIGNED(...) ::za::priv::isUnsignedImpl<__VA_ARGS__>
+
+#endif
+
+
+namespace za
+{
+////////////////////////////////////////////////////////////
+template <typename T>
+inline constexpr bool isUnsigned = ZA_IS_UNSIGNED(T);
+
+} // namespace za

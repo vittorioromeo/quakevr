@@ -8,13 +8,29 @@
 #include "vr_mem.hpp"
 #include "vr_progs.hpp"
 
-#include <algorithm>
-#include <cctype>
-#include <cmath>
-#include <cstring>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "vr_zancle.hpp"
+
+#include <ctype.h>
+#include <string.h>
 
 namespace qvr::debris
 {
@@ -103,20 +119,20 @@ constexpr Rule rules[] = {
     {"window", Material::Other, false},
 };
 
-[[nodiscard]] std::string cleanName(const char* texture)
+[[nodiscard]] za::String cleanName(const char* texture)
 {
-    std::string s = texture ? texture : "";
+    za::String s = texture ? texture : "";
     if(!s.empty() && (s[0] == '+' || s[0] == '-') && s.size() > 2)
     {
-        s = s.substr(2); // an animation's frame: "+0lava"
+        s = s.substrByPosLen(2); // an animation's frame: "+0lava"
     }
     if(!s.empty() && s[0] == '{')
     {
-        s = s.substr(1);
+        s = s.substrByPosLen(1);
     }
     for(char& c : s)
     {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
     }
     return s;
 }
@@ -131,7 +147,7 @@ struct ModelInfo
     float weight;  // how often it is picked among its kind
     bool loaded{false};
     glm::vec3 lo{0.f}, hi{0.f};       // frame 0's box, model units
-    std::vector<glm::vec3> skinLab;   // each skin's average colour (OKLab)
+    za::Vector<glm::vec3> skinLab;   // each skin's average colour (OKLab)
 };
 
 ModelInfo models[] = {
@@ -145,7 +161,7 @@ ModelInfo models[] = {
     {"progs/vr_brick3.mdl", 2, 0.25f}, // a half
     {"progs/vr_brick4.mdl", 2, 0.2f},  // a broken piece
 };
-constexpr int numModels = static_cast<int>(std::size(models));
+constexpr int numModels = static_cast<int>(za::getArraySize(models));
 
 [[nodiscard]] glm::vec3 paletteRgb(int index)
 {
@@ -158,12 +174,12 @@ constexpr int numModels = static_cast<int>(std::size(models));
 {
     const auto lin = [](float c) {
         c /= 255.f;
-        return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f);
+        return c <= 0.04045f ? c / 12.92f : za::pow((c + 0.055f) / 1.055f, 2.4f);
     };
     const float r = lin(rgb.r), g = lin(rgb.g), b = lin(rgb.b);
-    const float l = std::cbrt(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b);
-    const float m = std::cbrt(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b);
-    const float s = std::cbrt(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b);
+    const float l = qza::cbrt(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b);
+    const float m = qza::cbrt(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b);
+    const float s = qza::cbrt(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b);
     return {0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s, 1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s,
         0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s};
 }
@@ -232,7 +248,7 @@ void loadModel(ModelInfo& m)
         {
             sum += paletteRgb(data[off + i]);
         }
-        m.skinLab.push_back(okLab(sum / static_cast<float>(std::max(w * h, 1))));
+        m.skinLab.pushBack(okLab(sum / static_cast<float>(za::max(w * h, 1))));
         off += w * h * count;
     }
     off += 12 * numVerts + 16 * numTris;
@@ -285,7 +301,7 @@ struct MapFace
 {
     glm::vec3 normal;
     float dist;
-    std::vector<glm::vec3> pts;
+    za::Vector<glm::vec3> pts;
     Material material;
     const texture_t* texture;
     int surf; // its msurface_t in the world model
@@ -295,9 +311,9 @@ struct MapFace
 struct StaticThing
 {
     glm::vec3 lo, hi;
-    std::string classname;
+    za::String classname;
 };
-std::vector<StaticThing> statics;
+za::Vector<StaticThing> statics;
 
 // How lit the floor at `p` on surface `surf` is: its lightmap there (all its styles at their normal brightness), 0 to
 // 255 (Quake's normal full light is about 128 in the models' terms, a bright spot 200 and more). 255 for a map without
@@ -315,9 +331,9 @@ std::vector<StaticThing> statics;
     }
     const float* v0 = sf.texinfo->vecs[0];
     const float* v1 = sf.texinfo->vecs[1];
-    const int ds = std::clamp(static_cast<int>(p.x * v0[0] + p.y * v0[1] + p.z * v0[2] + v0[3]) - sf.texturemins[0], 0,
+    const int ds = za::clamp(static_cast<int>(p.x * v0[0] + p.y * v0[1] + p.z * v0[2] + v0[3]) - sf.texturemins[0], 0,
         static_cast<int>(sf.extents[0]));
-    const int dt = std::clamp(static_cast<int>(p.x * v1[0] + p.y * v1[1] + p.z * v1[2] + v1[3]) - sf.texturemins[1], 0,
+    const int dt = za::clamp(static_cast<int>(p.x * v1[0] + p.y * v1[1] + p.z * v1[2] + v1[3]) - sf.texturemins[1], 0,
         static_cast<int>(sf.extents[1]));
     const int smax = (sf.extents[0] >> 4) + 1, tmax = (sf.extents[1] >> 4) + 1;
     const byte* lm = sf.samples + ((dt >> 4) * smax + (ds >> 4)) * 3;
@@ -326,7 +342,7 @@ std::vector<StaticThing> statics;
     {
         sum += (static_cast<float>(lm[0]) + lm[1] + lm[2]) / 3.f;
     }
-    return std::min(sum, 255.f);
+    return za::min(sum, 255.f);
 }
 
 struct Placement
@@ -341,7 +357,7 @@ struct Placement
     glm::vec2 out;    // the way out of the wall it lies by (vr_debug_debris)
 };
 
-std::vector<Placement> placements;
+za::Vector<Placement> placements;
 
 [[nodiscard]] glm::vec3 vec(const float* v)
 {
@@ -365,16 +381,16 @@ std::vector<Placement> placements;
 // keeps its slot while its textures are made anew).
 struct DebrisCache
 {
-    std::unordered_map<const texture_t*, glm::vec3> textureLab;
-    auto members() { return std::tie(textureLab); }
+    ankerl::unordered_dense::map<const texture_t*, glm::vec3> textureLab;
+    auto members() { return qvr::mem::list(textureLab); }
 };
 mem::Cache<DebrisCache> cache{"debris", mem::MapChange | mem::GameDirChange};
 
 // The placement's buffers (the server's spawn: the main thread).
 struct DebrisScratch
 {
-    std::vector<glm::vec3> verts; // a piece's drawn vertices (put)
-    auto members() { return std::tie(verts); }
+    za::Vector<glm::vec3> verts; // a piece's drawn vertices (put)
+    auto members() { return qvr::mem::list(verts); }
 };
 mem::Scratch<DebrisScratch> scratch{"debris"};
 
@@ -392,7 +408,7 @@ mem::Scratch<DebrisScratch> scratch{"debris"};
     glm::vec3 sum{0.f};
     const unsigned n = t->width * t->height;
     const byte* px = reinterpret_cast<const byte*>(t + 1);
-    const unsigned step = std::max(1u, n / 4096u);
+    const unsigned step = za::max(1u, n / 4096u);
     unsigned count = 0;
     for(unsigned i = 0; i < n; i += step, count++)
     {
@@ -407,7 +423,7 @@ mem::Scratch<DebrisScratch> scratch{"debris"};
 struct FloorGrid
 {
     static constexpr float cell = 128.f;
-    std::unordered_map<int64_t, std::vector<int>> cells;
+    ankerl::unordered_dense::map<int64_t, za::Vector<int>> cells;
 
     [[nodiscard]] static int64_t key(int x, int y) { return (static_cast<int64_t>(x) << 32) ^ static_cast<uint32_t>(y); }
 
@@ -419,18 +435,18 @@ struct FloorGrid
             lo = glm::min(lo, glm::vec2{p});
             hi = glm::max(hi, glm::vec2{p});
         }
-        for(int x = static_cast<int>(std::floor(lo.x / cell)); x <= static_cast<int>(std::floor(hi.x / cell)); x++)
+        for(int x = static_cast<int>(za::floor(lo.x / cell)); x <= static_cast<int>(za::floor(hi.x / cell)); x++)
         {
-            for(int y = static_cast<int>(std::floor(lo.y / cell)); y <= static_cast<int>(std::floor(hi.y / cell)); y++)
+            for(int y = static_cast<int>(za::floor(lo.y / cell)); y <= static_cast<int>(za::floor(hi.y / cell)); y++)
             {
-                cells[key(x, y)].push_back(index);
+                cells[key(x, y)].pushBack(index);
             }
         }
     }
 
-    [[nodiscard]] int at(const std::vector<MapFace>& faces, const glm::vec3& p) const
+    [[nodiscard]] int at(const za::Vector<MapFace>& faces, const glm::vec3& p) const
     {
-        auto it = cells.find(key(static_cast<int>(std::floor(p.x / cell)), static_cast<int>(std::floor(p.y / cell))));
+        auto it = cells.find(key(static_cast<int>(za::floor(p.x / cell)), static_cast<int>(za::floor(p.y / cell))));
         if(it == cells.end())
         {
             return -1;
@@ -438,7 +454,7 @@ struct FloorGrid
         for(const int i : it->second)
         {
             const MapFace& f = faces[static_cast<size_t>(i)];
-            if(std::abs(glm::dot(f.normal, p) - f.dist) > 1.f)
+            if(qza::abs(glm::dot(f.normal, p) - f.dist) > 1.f)
             {
                 continue;
             }
@@ -465,14 +481,14 @@ struct FloorGrid
     return !strncmp(s, prefix, strlen(prefix));
 }
 
-void obstaclesOf(std::vector<Obstacle>& out, float extra)
+void obstaclesOf(za::Vector<Obstacle>& out, float extra)
 {
     for(const StaticThing& t : statics)
     {
         // A static brush (a func_illusionary: fake walls, cobwebs, a secret's way through) only as a still brush is
         // for the crates (an `extra`); the rocks keep 40 from every static thing, as they always did.
-        const float margin = extra > 0.f && startsWith(t.classname.c_str(), "func_") ? 8.f : 40.f + extra;
-        out.push_back({t.lo - glm::vec3{margin}, t.hi + glm::vec3{margin}, t.classname.c_str()});
+        const float margin = extra > 0.f && startsWith(t.classname.cStr(), "func_") ? 8.f : 40.f + extra;
+        out.pushBack({t.lo - glm::vec3{margin}, t.hi + glm::vec3{margin}, t.classname.cStr()});
     }
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
@@ -506,7 +522,7 @@ void obstaclesOf(std::vector<Obstacle>& out, float extra)
                 reach = glm::min(size, glm::vec3{128.f});
                 if(startsWith(cls, "func_plat") || startsWith(cls, "func_new_plat") || startsWith(cls, "func_elvtr"))
                 {
-                    reach.z = std::max(reach.z, 256.f);
+                    reach.z = za::max(reach.z, 256.f);
                 }
             }
         }
@@ -533,7 +549,7 @@ void obstaclesOf(std::vector<Obstacle>& out, float extra)
         {
             continue; // lights, info_null, ambient sounds: nothing to keep off
         }
-        out.push_back({lo - glm::vec3{margin + extra} - reach, hi + glm::vec3{margin + extra} + reach, why});
+        out.pushBack({lo - glm::vec3{margin + extra} - reach, hi + glm::vec3{margin + extra} + reach, why});
     }
 }
 
@@ -557,7 +573,7 @@ void obstaclesOf(std::vector<Obstacle>& out, float extra)
         {
             return 1.f;
         }
-        const std::string key = com_token;
+        const za::String key = com_token;
         data = COM_Parse(data);
         if(!data)
         {
@@ -565,7 +581,7 @@ void obstaclesOf(std::vector<Obstacle>& out, float extra)
         }
         if(key == wanted)
         {
-            return std::max(static_cast<float>(atof(com_token)), 0.f);
+            return za::max(static_cast<float>(atof(com_token)), 0.f);
         }
     }
 }
@@ -612,9 +628,9 @@ constexpr const char* reasonNames[RCount] = {"no floor at the wall", "sloped", "
 struct Planner
 {
     Rng rng;
-    std::vector<MapFace> faces;
+    za::Vector<MapFace> faces;
     FloorGrid floors;
-    std::vector<Obstacle> obstacles;
+    za::Vector<Obstacle> obstacles;
     int rejected[RCount]{};
     float worldScale{1.25f};
 
@@ -623,9 +639,9 @@ struct Planner
     {
         const glm::vec3 half = (m.hi - m.lo) * 0.5f * scale;
         const float hx = half.x, hy = onSide ? half.z : half.y;
-        const float c = std::cos(glm::radians(yaw)), s = std::sin(glm::radians(yaw));
+        const float c = za::cos(glm::radians(yaw)), s = za::sin(glm::radians(yaw));
         const glm::vec2 ax{c, s}, ay{-s, c};
-        return std::abs(glm::dot(d, ax)) * hx + std::abs(glm::dot(d, ay)) * hy;
+        return qza::abs(glm::dot(d, ax)) * hx + qza::abs(glm::dot(d, ay)) * hy;
     }
 
     // Checks the place of a piece whose middle is over `p` (on the floor at z): room round it, a flat floor of the
@@ -647,7 +663,7 @@ struct Planner
             reason = RSlope;
             return false;
         }
-        const glm::vec3 mid = floor + glm::vec3{0.f, 0.f, std::max(height * 0.5f, 0.6f)};
+        const glm::vec3 mid = floor + glm::vec3{0.f, 0.f, za::max(height * 0.5f, 0.6f)};
         if(contents(floor + glm::vec3{0.f, 0.f, 0.5f}) != CONTENTS_EMPTY || contents(floor + glm::vec3{0.f, 0.f, height + 4.f}) != CONTENTS_EMPTY)
         {
             reason = RLiquid;
@@ -657,7 +673,7 @@ struct Planner
         for(int k = 0; k < 8; k++)
         {
             const float a = static_cast<float>(k) * 0.785398f;
-            const glm::vec2 d{std::cos(a), std::sin(a)};
+            const glm::vec2 d{za::cos(a), za::sin(a)};
             const float reach = halfAlong(m, scale, onSide, yaw, d) + 0.3f;
             if(traceLine(mid, mid + glm::vec3{d * reach, 0.f}).fraction < 1.f)
             {
@@ -666,14 +682,14 @@ struct Planner
             }
         }
         // Flat under all of it: the floor at its footprint's corners (a little in) as high as under its middle.
-        const float c = std::cos(glm::radians(yaw)), s = std::sin(glm::radians(yaw));
+        const float c = za::cos(glm::radians(yaw)), s = za::sin(glm::radians(yaw));
         const glm::vec3 half = (m.hi - m.lo) * 0.5f * scale;
         const float hx = half.x * 0.8f, hy = (onSide ? half.z : half.y) * 0.8f;
         for(const glm::vec2 corner : {glm::vec2{hx, hy}, glm::vec2{-hx, hy}, glm::vec2{hx, -hy}, glm::vec2{-hx, -hy}})
         {
             const glm::vec3 at = floor + glm::vec3{c * corner.x - s * corner.y, s * corner.x + c * corner.y, 0.f};
             const trace_t t = traceLine(at + glm::vec3{0.f, 0.f, 3.f}, at - glm::vec3{0.f, 0.f, 3.f});
-            if(t.fraction >= 1.f || t.startsolid || t.ent != qcvm->edicts || std::abs(t.endpos[2] - floor.z) > 1.f ||
+            if(t.fraction >= 1.f || t.startsolid || t.ent != qcvm->edicts || qza::abs(t.endpos[2] - floor.z) > 1.f ||
                 t.plane.normal[2] < 0.9f)
             {
                 reason = RUneven;
@@ -686,7 +702,7 @@ struct Planner
             reason = RLow;
             return false;
         }
-        const float r = std::max(half.x, std::max(half.y, half.z));
+        const float r = za::max(half.x, za::max(half.y, half.z));
         for(const Obstacle& o : obstacles)
         {
             if(floor.x + r > o.lo.x && floor.x - r < o.hi.x && floor.y + r > o.lo.y && floor.y - r < o.hi.y &&
@@ -733,13 +749,13 @@ struct Planner
     [[nodiscard]] int pickSkin(const ModelInfo& m, const glm::vec3& lab, bool keen)
     {
         const float sigma = keen ? 0.025f : 0.06f, floorWeight = keen ? 0.02f : 0.35f;
-        std::vector<float> w(m.skinLab.size());
+        za::Vector<float> w(m.skinLab.size());
         float total = 0.f;
         for(size_t k = 0; k < w.size(); k++)
         {
             glm::vec3 d = m.skinLab[k] - lab;
             d.x *= 0.3f; // lightness counts less than hue: the world's lightmaps and the models' shading differ
-            w[k] = floorWeight + std::exp(-glm::dot(d, d) / (sigma * sigma));
+            w[k] = floorWeight + za::exp(-glm::dot(d, d) / (sigma * sigma));
             total += w[k];
         }
         float u = rng.uniform() * total;
@@ -756,7 +772,7 @@ struct Planner
 
     [[nodiscard]] glm::vec3 pickScale(int kind)
     {
-        const float spread = std::clamp(vr_debris_size.value, 0.f, 0.6f) * (kind == 2 ? 0.4f : 1.f);
+        const float spread = za::clamp(vr_debris_size.value, 0.f, 0.6f) * (kind == 2 ? 0.4f : 1.f);
         const float k = 1.f + spread * (2.f * rng.uniform() - 1.f);
         const float axis = kind == 2 ? 0.02f : 0.07f; // a little more one way than another
         return glm::vec3{k * (1.f + rng.range(-axis, axis)), k * (1.f + rng.range(-axis, axis)), k * (1.f + rng.range(-axis, axis))} *
@@ -789,9 +805,9 @@ void list_f()
     struct Row
     {
         int num, light;
-        std::string text;
+        za::String text;
     };
-    std::vector<Row> rows;
+    za::Vector<Row> rows;
     lightcache_t cache{};
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
@@ -803,7 +819,7 @@ void list_f()
         }
         vec3_t at{e->v.origin[0], e->v.origin[1], e->v.origin[2] + 4.f};
         const int light = cl.worldmodel == sv.worldmodel ? R_LightPoint(at, 0.f, &cache) : -1;
-        rows.push_back({i, light,
+        rows.pushBack({i, light,
             va("%d %s %s skin %d at (%.1f %.1f %.1f) angles (%.0f %.0f %.0f)%s light %d", i, cls,
                 PR_GetString(e->v.model) + 6, static_cast<int>(e->v.skin), e->v.origin[0], e->v.origin[1], e->v.origin[2],
                 e->v.angles[0], e->v.angles[1], e->v.angles[2], (static_cast<int>(e->v.flags) & FL_ONGROUND) ? ", resting" : "",
@@ -812,18 +828,18 @@ void list_f()
     PR_PopQCVM(oldVm);
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "lit"))
     {
-        std::stable_sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) { return a.light > b.light; });
+        za::insertionSort(rows.begin(), rows.end(), [](const Row& a, const Row& b) { return a.light > b.light; });
     }
     for(const Row& r : rows)
     {
-        Con_Printf("debris: %s\n", r.text.c_str());
+        Con_Printf("debris: %s\n", r.text.cStr());
     }
     Con_Printf("debris: %d pieces\n", static_cast<int>(rows.size()));
 }
 
 } // namespace
 
-void gatherObstacles(std::vector<Obstacle>& out, float extra)
+void gatherObstacles(za::Vector<Obstacle>& out, float extra)
 {
     obstaclesOf(out, extra);
 }
@@ -840,15 +856,15 @@ bool inList(const char* list, const char* name)
 
 Material materialOf(const char* texture)
 {
-    const std::string s = cleanName(texture);
+    const za::String s = cleanName(texture);
     if(s.empty() || s[0] == '*' || s[0] == '!')
     {
         return Material::None; // liquids
     }
-    if(!strncmp(s.c_str(), "rock", 4) && s.size() > 4 && std::isdigit(static_cast<unsigned char>(s[4])))
+    if(!strncmp(s.cStr(), "rock", 4) && s.size() > 4 && isdigit(static_cast<unsigned char>(s[4])))
     {
         size_t i = 4;
-        while(i < s.size() && std::isdigit(static_cast<unsigned char>(s[i])))
+        while(i < s.size() && isdigit(static_cast<unsigned char>(s[i])))
         {
             i++;
         }
@@ -859,7 +875,7 @@ Material materialOf(const char* texture)
     }
     for(const Rule& r : rules)
     {
-        const bool hit = r.prefix ? !strncmp(s.c_str(), r.pattern, strlen(r.pattern)) : s.find(r.pattern) != std::string::npos;
+        const bool hit = r.prefix ? !strncmp(s.cStr(), r.pattern, strlen(r.pattern)) : s.find(r.pattern) != za::StringView::nPos;
         if(hit)
         {
             return r.material;
@@ -915,8 +931,8 @@ int plan()
 
     Planner pl;
     pl.rng.s = hashString(sv.name) ^ (static_cast<uint64_t>(static_cast<int64_t>(vr_debris_seed.value)) * 0x9E3779B97F4A7C15ull);
-    pl.worldScale = std::clamp(vr_world_scale.value, 0.5f, 3.f);
-    const float chance = std::max(vr_debris_chance.value, 0.f) * worldspawnValue("_vr_debris");
+    pl.worldScale = za::clamp(vr_world_scale.value, 0.5f, 3.f);
+    const float chance = za::max(vr_debris_chance.value, 0.f) * worldspawnValue("_vr_debris");
     const bool rocks = vr_debris_rocks.value != 0.f, bricks = vr_debris_bricks.value != 0.f;
 
     // The world's faces, their materials; the floors in a grid.
@@ -944,10 +960,10 @@ int plan()
         {
             const int e = map->surfedges[surf.firstedge + k];
             const int v = static_cast<int>(e >= 0 ? map->edges[e].v[0] : map->edges[-e].v[1]);
-            f.pts.push_back(vec(map->vertexes[v].position));
+            f.pts.pushBack(vec(map->vertexes[v].position));
         }
         f.surf = map->firstmodelsurface + i;
-        pl.faces.push_back(std::move(f));
+        pl.faces.pushBack(ZA_MOVE(f));
         if(pl.faces.back().normal.z >= 0.7f && pl.faces.back().material != Material::None)
         {
             pl.floors.add(static_cast<int>(pl.faces.size()) - 1, pl.faces.back());
@@ -956,7 +972,7 @@ int plan()
     gatherObstacles(pl.obstacles);
 
     // The spots: along each wall's bottom edge, every 16 units, where a floor meets it.
-    std::vector<Spot> spots;
+    za::Vector<Spot> spots;
     int edgesSeen = 0;
     for(size_t fi = 0; fi < pl.faces.size(); fi++)
     {
@@ -978,13 +994,13 @@ int plan()
         float lo = 1e9f;
         for(const glm::vec3& p : f.pts)
         {
-            lo = std::min(lo, p.z);
+            lo = za::min(lo, p.z);
         }
         const glm::vec2 out = glm::normalize(outFull);
         for(size_t k = 0; k < f.pts.size(); k++)
         {
             const glm::vec3 a = f.pts[k], b = f.pts[(k + 1) % f.pts.size()];
-            if(std::abs(a.z - lo) > 0.5f || std::abs(b.z - lo) > 0.5f || glm::length(b - a) < 8.f)
+            if(qza::abs(a.z - lo) > 0.5f || qza::abs(b.z - lo) > 0.5f || glm::length(b - a) < 8.f)
             {
                 continue;
             }
@@ -998,7 +1014,7 @@ int plan()
                 // The floor that meets it (a point just out from the wall, at the edge's height).
                 const glm::vec3 probe = at + glm::vec3{out * 2.f, 0.f};
                 const trace_t down = traceLine(probe + glm::vec3{0.f, 0.f, 4.f}, probe - glm::vec3{0.f, 0.f, 4.f});
-                if(down.fraction >= 1.f || down.startsolid || std::abs(down.endpos[2] - at.z) > 1.5f)
+                if(down.fraction >= 1.f || down.startsolid || qza::abs(down.endpos[2] - at.z) > 1.5f)
                 {
                     pl.rejected[RNoFloor]++;
                     continue;
@@ -1012,8 +1028,8 @@ int plan()
                 s.out = out;
                 s.along = along;
                 s.face = static_cast<int>(fi);
-                s.rockWeight = rocks ? std::max(wallRock, floorRock) : 0.f;
-                s.brickWeight = bricks ? std::max(wallBrick, floorBrick) : 0.f;
+                s.rockWeight = rocks ? za::max(wallRock, floorRock) : 0.f;
+                s.brickWeight = bricks ? za::max(wallBrick, floorBrick) : 0.f;
                 if(s.rockWeight <= 0.f && s.brickWeight <= 0.f)
                 {
                     continue;
@@ -1022,7 +1038,7 @@ int plan()
                 s.rockLab = textureLab(wallRock >= floorRock ? f.texture : floorTex);
                 s.brickLab = textureLab(wallBrick >= floorBrick ? f.texture : floorTex);
                 s.light = floorFace >= 0 ? floorLight(map, pl.faces[static_cast<size_t>(floorFace)].surf, s.at + glm::vec3{out * 4.f, 0.f}) : 255.f;
-                spots.push_back(s);
+                spots.pushBack(s);
             }
         }
     }
@@ -1030,17 +1046,17 @@ int plan()
     // In a random order (the same each load), so that the limits leave no part of the map favoured.
     for(size_t i = spots.size(); i > 1; i--)
     {
-        std::swap(spots[i - 1], spots[pl.rng.next() % i]);
+        za::genericSwap(spots[i - 1], spots[pl.rng.next() % i]);
     }
 
-    const int freeEdicts = qcvm->max_edicts - qcvm->num_edicts - static_cast<int>(std::max(vr_debris_edicts_left.value, 0.f));
-    const int most = std::min(static_cast<int>(std::max(vr_debris_max.value, 0.f)), std::max(freeEdicts, 0));
-    const float areaSize = std::max(vr_debris_area_size.value, 32.f);
-    const int areaMax = static_cast<int>(std::max(vr_debris_area_max.value, 1.f));
-    const float spacing = std::max(vr_debris_spacing.value, 0.f);
-    const int clusterMax = std::clamp(static_cast<int>(vr_debris_cluster.value), 1, 6);
-    std::unordered_map<int64_t, int> areas;
-    std::vector<glm::vec3> anchors;
+    const int freeEdicts = qcvm->max_edicts - qcvm->num_edicts - static_cast<int>(za::max(vr_debris_edicts_left.value, 0.f));
+    const int most = za::min(static_cast<int>(za::max(vr_debris_max.value, 0.f)), za::max(freeEdicts, 0));
+    const float areaSize = za::max(vr_debris_area_size.value, 32.f);
+    const int areaMax = static_cast<int>(za::max(vr_debris_area_max.value, 1.f));
+    const float spacing = za::max(vr_debris_spacing.value, 0.f);
+    const int clusterMax = za::clamp(static_cast<int>(vr_debris_cluster.value), 1, 6);
+    ankerl::unordered_dense::map<int64_t, int> areas;
+    za::Vector<glm::vec3> anchors;
     int corners = 0, rolled = 0;
 
     for(const Spot& s : spots)
@@ -1049,16 +1065,16 @@ int plan()
         {
             break;
         }
-        const float weight = std::max(s.rockWeight, s.brickWeight);
+        const float weight = za::max(s.rockWeight, s.brickWeight);
         // A corner: a wall beside the spot, along its own wall (either way).
         const glm::vec3 side = s.at + glm::vec3{s.out * 6.f, 5.f};
         const bool corner = traceLine(side, side + glm::vec3{s.along * 20.f, 0.f}).fraction < 1.f ||
                             traceLine(side, side - glm::vec3{s.along * 20.f, 0.f}).fraction < 1.f;
         // Fewer where it is dark (where nobody sees them: the foot of a wall is often the darkest of a room).
-        const float dark = std::clamp(vr_debris_dark.value, 0.f, 1.f);
-        const float lit = dark + (1.f - dark) * std::clamp((s.light - 8.f) / 32.f, 0.f, 1.f);
+        const float dark = za::clamp(vr_debris_dark.value, 0.f, 1.f);
+        const float lit = dark + (1.f - dark) * za::clamp((s.light - 8.f) / 32.f, 0.f, 1.f);
         const float roll = pl.rng.uniform();
-        if(roll >= chance * weight * lit * (corner ? std::max(vr_debris_corner.value, 0.f) : 1.f))
+        if(roll >= chance * weight * lit * (corner ? za::max(vr_debris_corner.value, 0.f) : 1.f))
         {
             continue;
         }
@@ -1066,10 +1082,10 @@ int plan()
         const int kind = pl.rng.uniform() * (s.rockWeight + s.brickWeight) < s.brickWeight ? 2 : 1;
         const glm::vec3 lab = kind == 2 ? s.brickLab : s.rockLab;
         bool first = true;
-        const int n = std::min(clusterMax, 1 + (pl.rng.uniform() < (corner ? 0.5f : 0.3f)) + (pl.rng.uniform() < (corner ? 0.25f : 0.1f)));
+        const int n = za::min(clusterMax, 1 + (pl.rng.uniform() < (corner ? 0.5f : 0.3f)) + (pl.rng.uniform() < (corner ? 0.25f : 0.1f)));
         glm::vec3 anchor{0.f};
         float anchorHalf = 0.f;
-        std::vector<std::pair<glm::vec3, float>> cluster;
+        za::Vector<qza::Pair<glm::vec3, float>> cluster;
         for(int piece = 0; piece < n && static_cast<int>(placements.size()) < most; piece++)
         {
             Placement p;
@@ -1081,7 +1097,7 @@ int plan()
             const ModelInfo& m = models[p.model];
             p.scale = pl.pickScale(kind);
             p.onSide = kind == 2 && pl.rng.uniform() < 0.2f;
-            const float wallYaw = glm::degrees(std::atan2(s.along.y, s.along.x));
+            const float wallYaw = glm::degrees(za::atan2(s.along.y, s.along.x));
             p.yaw = kind == 2 && pl.rng.uniform() < 0.5f ? wallYaw + pl.rng.range(-20.f, 20.f) : pl.rng.range(0.f, 360.f);
             const float half = Planner::halfAlong(m, p.scale, p.onSide, p.yaw, s.out);
             const float halfAlongWall = Planner::halfAlong(m, p.scale, p.onSide, p.yaw, s.along);
@@ -1096,14 +1112,14 @@ int plan()
                 const float dir = pl.rng.uniform() < 0.5f ? -1.f : 1.f;
                 const float gap = anchorHalf + halfAlongWall + pl.rng.range(0.3f, 2.5f);
                 at = anchor + glm::vec3{s.along * (dir * gap), 0.f} + glm::vec3{s.out * pl.rng.range(-0.5f, 2.f), 0.f};
-                at = s.at + glm::vec3{s.out * std::max(glm::dot(glm::vec2{at - s.at}, s.out), half + 0.3f), 0.f} +
+                at = s.at + glm::vec3{s.out * za::max(glm::dot(glm::vec2{at - s.at}, s.out), half + 0.3f), 0.f} +
                      glm::vec3{s.along * glm::dot(glm::vec2{at - s.at}, s.along), 0.f};
             }
             at.z = s.at.z;
-            p.yaw = std::fmod(p.yaw + 360.f, 360.f);
+            p.yaw = za::fmod(p.yaw + 360.f, 360.f);
             glm::vec3 floor, normal;
             int reason = RCount;
-            const float r = std::max(half, halfAlongWall);
+            const float r = za::max(half, halfAlongWall);
             bool ok = pl.fits(m, p.scale, p.onSide, p.yaw, at, floor, normal, reason);
             if(ok)
             {
@@ -1128,9 +1144,9 @@ int plan()
                     }
                 }
             }
-            const int64_t area = (static_cast<int64_t>(std::floor(floor.x / areaSize)) << 42) ^
-                                 (static_cast<int64_t>(std::floor(floor.y / areaSize)) << 21) ^
-                                 (static_cast<int64_t>(std::floor(floor.z / areaSize)) & 0x1fffff);
+            const int64_t area = (static_cast<int64_t>(za::floor(floor.x / areaSize)) << 42) ^
+                                 (static_cast<int64_t>(za::floor(floor.y / areaSize)) << 21) ^
+                                 (static_cast<int64_t>(za::floor(floor.z / areaSize)) & 0x1fffff);
             if(ok && areas[area] >= areaMax)
             {
                 ok = false;
@@ -1149,12 +1165,12 @@ int plan()
             p.normal = normal;
             p.out = s.out;
             p.skin = pl.pickSkin(m, lab, kind == 2);
-            placements.push_back(p);
+            placements.pushBack(p);
             areas[area]++;
-            cluster.emplace_back(floor, r);
+            cluster.emplaceBack(floor, r);
             if(first)
             {
-                anchors.push_back(floor);
+                anchors.pushBack(floor);
                 anchor = floor;
                 anchorHalf = halfAlongWall;
                 first = false;
@@ -1170,8 +1186,8 @@ int plan()
         for(const Placement& p : placements)
         {
             numRocks += models[p.model].kind == 1;
-            const int q[5] = {p.model, p.skin, static_cast<int>(std::lround(p.floor.x * 8.f)), static_cast<int>(std::lround(p.floor.y * 8.f)),
-                static_cast<int>(std::lround(p.yaw * 10.f))};
+            const int q[5] = {p.model, p.skin, static_cast<int>(za::lround(p.floor.x * 8.f)), static_cast<int>(za::lround(p.floor.y * 8.f)),
+                static_cast<int>(za::lround(p.yaw * 10.f))};
             for(const int v : q)
             {
                 layout = (layout ^ static_cast<uint32_t>(v)) * 1099511628211ull;
@@ -1185,7 +1201,7 @@ int plan()
         planMs = (Sys_DoubleTime() - t0) * 1000.0;
         if(vr_debug_debris.value >= 1)
         {
-            std::string why;
+            za::String why;
             for(int r = 0; r < RCount; r++)
             {
                 if(pl.rejected[r])
@@ -1193,7 +1209,7 @@ int plan()
                     why += va("%s%d %s", why.empty() ? "" : ", ", pl.rejected[r], reasonNames[r]);
                 }
             }
-            Con_Printf("debris: rejected: %s\n", why.empty() ? "none" : why.c_str());
+            Con_Printf("debris: rejected: %s\n", why.empty() ? "none" : why.cStr());
         }
         if(vr_debug_debris.value >= 2)
         {
@@ -1222,7 +1238,7 @@ namespace
 void restOn(edict_t* e, const glm::vec3& floor, const glm::vec3& n, const ModelInfo& m, const glm::vec3& scale)
 {
     const glm::mat3 drawn = held::axesFromAngles(e->v.angles, false);
-    std::vector<glm::vec3>& verts = scratch.verts;
+    za::Vector<glm::vec3>& verts = scratch.verts;
     glm::vec3 lo{1e9f}, hi{-1e9f};
     float lowest = 0.f;
     if(held::drawnVertices(e, verts) && !verts.empty())
@@ -1231,7 +1247,7 @@ void restOn(edict_t* e, const glm::vec3& floor, const glm::vec3& n, const ModelI
         for(const glm::vec3& v : verts)
         {
             const glm::vec3 w = drawn * v;
-            lowest = std::min(lowest, glm::dot(w, n));
+            lowest = za::min(lowest, glm::dot(w, n));
             lo = glm::min(lo, w);
             hi = glm::max(hi, w);
         }
@@ -1273,7 +1289,7 @@ int put(edict_t* e, int i)
     // Its turn: its base on the floor (up the floor's normal), turned by its yaw about it; a brick on its side has its
     // width up.
     const glm::vec3 n = glm::normalize(p.normal);
-    const glm::vec3 f0{std::cos(glm::radians(p.yaw)), std::sin(glm::radians(p.yaw)), 0.f};
+    const glm::vec3 f0{za::cos(glm::radians(p.yaw)), za::sin(glm::radians(p.yaw)), 0.f};
     const glm::vec3 fwd = glm::normalize(f0 - n * glm::dot(f0, n));
     const glm::mat3 axes = p.onSide ? glm::mat3{fwd, n, glm::cross(fwd, n)} : glm::mat3{fwd, glm::cross(n, fwd), n};
     held::anglesFromAxes(axes, e->v.angles, false);
@@ -1285,8 +1301,8 @@ int put(edict_t* e, int i)
 int putPlaced(edict_t* e)
 {
     const char* name = PR_GetString(e->v.model);
-    const auto m = std::find_if(std::begin(models), std::end(models), [&](const ModelInfo& info) { return !strcmp(info.name, name); });
-    if(m == std::end(models))
+    const auto m = za::findIf(models, models + za::getArraySize(models), [&](const ModelInfo& info) { return !strcmp(info.name, name); });
+    if(m == (models + za::getArraySize(models)))
     {
         return 0;
     }
@@ -1295,12 +1311,12 @@ int putPlaced(edict_t* e)
         loadModel(*m); // (its box, if its vertices can't be had)
     }
     // As big as the pieces lying about (pickScale's middle), level, turned by its "angle".
-    const glm::vec3 scale{std::clamp(vr_world_scale.value, 0.5f, 3.f)};
+    const glm::vec3 scale{za::clamp(vr_world_scale.value, 0.5f, 3.f)};
     progs::setFieldVec(e, fields().model_scale, scale - glm::vec3{1.f});
     e->v.frame = 0.f;
     const float yaw = glm::radians(e->v.angles[1]);
     const glm::vec3 up{0.f, 0.f, 1.f};
-    const glm::vec3 fwd{std::cos(yaw), std::sin(yaw), 0.f};
+    const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
     held::anglesFromAxes(glm::mat3{fwd, glm::cross(up, fwd), up}, e->v.angles, false);
     restOn(e, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]}, up, *m, scale);
     return m->kind;
@@ -1340,5 +1356,5 @@ extern "C" void VR_OnMakeStatic(edict_t* ent)
     }
     const glm::vec3 o = vec(ent->v.origin);
     const glm::vec3 lo = glm::min(vec(ent->v.mins), glm::vec3{-16.f}), hi = glm::max(vec(ent->v.maxs), glm::vec3{16.f});
-    statics.push_back({o + lo, o + hi, PR_GetString(ent->v.classname)});
+    statics.pushBack({o + lo, o + hi, PR_GetString(ent->v.classname)});
 }

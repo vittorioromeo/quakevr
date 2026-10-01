@@ -9,16 +9,18 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/ToString.hpp"
+
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <string.h>
 
 namespace qvr::envmap
 {
@@ -67,10 +69,10 @@ const glm::vec3 faceUp[6] = {{0.f, -1.f, 0.f}, {0.f, -1.f, 0.f}, {0.f, 0.f, 1.f}
 // The world's own attributes (glvert_t: position, texture and lightmap coordinates, the lightmap's offset to its
 // other styles, the styles), and each face's colours from the colour buffer.
 // (Made once, where the program is: returned by value, nothing kept.)
-[[nodiscard]] std::string vertexShader()
+[[nodiscard]] za::String vertexShader()
 {
     return "#version 430\n"
-           "#define NSTYLES " + std::to_string(numStyles) + "\n" + R"(
+           "#define NSTYLES " + za::toString(numStyles) + "\n" + R"(
 layout(location = 0) in vec3 in_pos;
 layout(location = 1) in vec4 in_uv;
 layout(location = 2) in float in_lmofs;
@@ -140,7 +142,7 @@ void main()
 }
 )";
 
-[[nodiscard]] std::uint32_t packColor(const glm::vec3& c)
+[[nodiscard]] za::U32 packColor(const glm::vec3& c)
 {
     const glm::uvec3 u = glm::uvec3(glm::clamp(c, 0.f, 1.f) * 255.f + 0.5f);
     return u.r | (u.g << 8) | (u.b << 16) | (255u << 24);
@@ -156,7 +158,7 @@ void main()
     }
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t->texnum);
     int level = 0;
-    int w = std::max<int>(1, t->width), h = std::max<int>(1, t->height);
+    int w = za::max<int>(1, t->width), h = za::max<int>(1, t->height);
     while(w > 1 || h > 1)
     {
         GLint next = 0;
@@ -166,8 +168,8 @@ void main()
             break;
         }
         level++;
-        w = std::max(1, w >> 1);
-        h = std::max(1, h >> 1);
+        w = za::max(1, w >> 1);
+        h = za::max(1, h >> 1);
     }
     glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_WIDTH, &w);
     glGetTexLevelParameteriv(GL_TEXTURE_2D, level, GL_TEXTURE_HEIGHT, &h);
@@ -175,7 +177,7 @@ void main()
     {
         return glm::vec4{0.5f, 0.5f, 0.5f, 1.f};
     }
-    std::vector<float> px(static_cast<size_t>(w) * h * 4);
+    za::Vector<float> px(static_cast<size_t>(w) * h * 4);
     glGetTexImage(GL_TEXTURE_2D, level, GL_RGBA, GL_FLOAT, px.data());
     glm::vec4 sum{0.f};
     for(size_t i = 0; i < px.size(); i += 4)
@@ -216,9 +218,13 @@ void buildWorld()
         return;
     }
 
-    std::unordered_map<const texture_t*, std::pair<std::uint32_t, std::uint32_t>> colors;
-    std::vector<std::uint32_t> perVertex(numVerts * 2, 0u);
-    std::vector<std::uint32_t> indices;
+    struct Colors
+    {
+        za::U32 albedo, emissive; // packed
+    };
+    ankerl::unordered_dense::map<const texture_t*, Colors> colors;
+    za::Vector<za::U32> perVertex(numVerts * 2, 0u);
+    za::Vector<za::U32> indices;
     for(int i = 0; i < m->nummodelsurfaces; i++)
     {
         const msurface_t* s = &m->surfaces[m->firstmodelsurface + i];
@@ -248,18 +254,18 @@ void buildWorld()
             {
                 emissive += glm::vec3{averageColor(t->fullbright)};
             }
-            it = colors.emplace(t, std::make_pair(packColor(albedo), packColor(emissive))).first;
+            it = colors.emplace(t, Colors{packColor(albedo), packColor(emissive)}).first;
         }
         for(int k = 0; k < s->numedges; k++)
         {
-            perVertex[(s->vbo_firstvert + k) * 2] = it->second.first;
-            perVertex[(s->vbo_firstvert + k) * 2 + 1] = it->second.second;
+            perVertex[(s->vbo_firstvert + k) * 2] = it->second.albedo;
+            perVertex[(s->vbo_firstvert + k) * 2 + 1] = it->second.emissive;
         }
         for(int k = 2; k < s->numedges; k++)
         {
-            indices.push_back(s->vbo_firstvert);
-            indices.push_back(s->vbo_firstvert + k - 1);
-            indices.push_back(s->vbo_firstvert + k);
+            indices.pushBack(s->vbo_firstvert);
+            indices.pushBack(s->vbo_firstvert + k - 1);
+            indices.pushBack(s->vbo_firstvert + k);
         }
     }
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
@@ -287,7 +293,7 @@ void buildWorld()
     {
         return !failed;
     }
-    program = gfx::glProgram(vertexShader().c_str(), fragmentShader, "vr envmap");
+    program = gfx::glProgram(vertexShader().cStr(), fragmentShader, "vr envmap");
     if(!program)
     {
         failed = true;
@@ -410,7 +416,7 @@ void update()
     glViewport(0, 0, size, size);
     GL_SetState(GLS_BLEND_OPAQUE | GLS_CULL_NONE | GLS_ATTRIBS(6));
     GL_UseProgram(program);
-    GL_Uniform1fFunc(1, std::clamp(vr_light_contrast.value, 0.5f, 3.f));
+    GL_Uniform1fFunc(1, za::clamp(vr_light_contrast.value, 0.5f, 3.f));
     for(int i = 0; i < numStyles; i++)
     {
         GL_Uniform1fFunc(2 + i, r_lightbuffer.lightstyles[i]);
@@ -430,7 +436,7 @@ void update()
     const int face = nextFace;
     renderFace(face);
     nextFace = (nextFace + 1) % 6;
-    facesDone = std::min(facesDone + 1, 1 << 20);
+    facesDone = za::min(facesDone + 1, 1 << 20);
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
     if(faceViews[face])
@@ -457,13 +463,13 @@ void dump_f()
         Con_Printf("vr_envmap_dump: no cube yet (hold a weapon, vr_weapon_reflections 1)\n");
         return;
     }
-    std::vector<float> face(size * size * 3);
-    std::vector<std::uint8_t> img(18 + size * 6 * size * 3, 0);
+    za::Vector<float> face(size * size * 3);
+    za::Vector<za::U8> img(18 + size * 6 * size * 3, 0);
     img[2] = 2; // uncompressed true colour
-    img[12] = static_cast<std::uint8_t>((size * 6) & 255);
-    img[13] = static_cast<std::uint8_t>((size * 6) >> 8);
-    img[14] = static_cast<std::uint8_t>(size & 255);
-    img[15] = static_cast<std::uint8_t>(size >> 8);
+    img[12] = static_cast<za::U8>((size * 6) & 255);
+    img[13] = static_cast<za::U8>((size * 6) >> 8);
+    img[14] = static_cast<za::U8>(size & 255);
+    img[15] = static_cast<za::U8>(size >> 8);
     img[16] = 24;
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_CUBE_MAP, cube);
     for(int f = 0; f < 6; f++)
@@ -474,10 +480,10 @@ void dump_f()
             for(int x = 0; x < size; x++)
             {
                 const float* c = &face[(y * size + x) * 3];
-                std::uint8_t* d = &img[18 + (y * size * 6 + f * size + x) * 3];
-                d[0] = static_cast<std::uint8_t>(std::clamp(c[2], 0.f, 1.f) * 255.f);
-                d[1] = static_cast<std::uint8_t>(std::clamp(c[1], 0.f, 1.f) * 255.f);
-                d[2] = static_cast<std::uint8_t>(std::clamp(c[0], 0.f, 1.f) * 255.f);
+                za::U8* d = &img[18 + (y * size * 6 + f * size + x) * 3];
+                d[0] = static_cast<za::U8>(za::clamp(c[2], 0.f, 1.f) * 255.f);
+                d[1] = static_cast<za::U8>(za::clamp(c[1], 0.f, 1.f) * 255.f);
+                d[2] = static_cast<za::U8>(za::clamp(c[0], 0.f, 1.f) * 255.f);
             }
         }
     }
@@ -610,7 +616,7 @@ extern "C" void VR_AliasSurface(const entity_t* e, float out[4])
 
     // Rim light: monsters and things full, held weapons less, your hands a little, your body not (seen from
     // inside, its edges are everywhere).
-    const float rim = std::clamp(vr_rim_light.value, 0.f, 1.f);
+    const float rim = za::clamp(vr_rim_light.value, 0.f, 1.f);
     if(self)
     {
         out[0] = 0.f;
@@ -632,7 +638,7 @@ extern "C" void VR_AliasSurface(const entity_t* e, float out[4])
 
     // Reflections: held weapons, and weapons lying close to the cube's place (its view of the room is roughly
     // theirs within a few metres).
-    const float strength = std::clamp(vr_weapon_reflections_strength.value, 0.f, 2.f);
+    const float strength = za::clamp(vr_weapon_reflections_strength.value, 0.f, 2.f);
     if(vr_weapon_reflections.value <= 0.f || strength <= 0.f)
     {
         return;

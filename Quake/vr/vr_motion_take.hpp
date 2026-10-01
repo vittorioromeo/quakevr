@@ -12,12 +12,14 @@
 
 #include "vr_backend.hpp"
 
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "vr_zancle.hpp"
+
 #include <glm/glm.hpp>
 
 #include <memory>
-#include <string>
-#include <utility>
-#include <vector>
 
 namespace qvr::motion
 {
@@ -29,20 +31,20 @@ inline constexpr int formatVersion = 1;
 // a value (damage, or a blow's strength), where (world), against what, a note.
 struct Event
 {
-    std::string kind;
-    std::string sub;
+    za::String kind;
+    za::String sub;
     int hand{-1};
     float value{0.f};
     bool hasAt{false};
     glm::vec3 at{0.f};
-    std::string target;
-    std::string detail;
+    za::String target;
+    za::String detail;
 };
 
 struct Point
 {
     glm::vec3 at{0.f};
-    std::string name;
+    za::String name;
 };
 
 // A server frame's view (VR_ServerFrameEnd), shared by the host frames until the next one.
@@ -56,18 +58,18 @@ struct ServerSample
 
     bool monster{false}; // the nearest monster (or the training dummy)
     int monEnt{0};
-    std::string monClass;
+    za::String monClass;
     glm::vec3 monOrigin{0.f};
     glm::vec3 monMins{0.f};
     glm::vec3 monMaxs{0.f};
-    std::string monTargetname;
+    za::String monTargetname;
     glm::vec3 monAngles{0.f};
     float monHealth{0.f};
 
     // VR_Motion_Sample (QC): the hands' striking points, and named values (parry, guard, ...).
     bool qc{false};
-    std::vector<Point> points[HAND_COUNT];
-    std::vector<std::pair<std::string, glm::vec3>> values;
+    za::Vector<Point> points[HAND_COUNT];
+    za::Vector<qza::Pair<za::String, glm::vec3>> values;
 
     [[nodiscard]] const glm::vec3* value(const char* key) const;
 };
@@ -85,7 +87,7 @@ struct HandRow
 
     int wid{0};            // QC weapon id (0: empty), its flags, and its model
     int wflags{0};
-    std::string model;
+    za::String model;
     bool helping{false};   // steadies the other hand's weapon
     int grip2h{0};         // this hand's weapon held two-handed: 0 no, 1 by the foregrip, 2 by the blade
     float twoHand{0.f};    // how far into the two-handed grip (0..1)
@@ -126,21 +128,21 @@ struct Row
     Pose rawHead;
     HandRow hands[HAND_COUNT];
 
-    std::shared_ptr<const ServerSample> sv;
-    std::vector<Event> events;
+    std::shared_ptr<const ServerSample> sv; // ZANCLE-TODO: no shared ownership (std::shared_ptr)
+    za::Vector<Event> events;
     bool dummyAttacks{false}; // the training dummy striking back (vr_dummy_attacks, or a replay of its strikes)
 };
 
 // What the header says about a take.
 struct TakeInfo
 {
-    std::string label;
-    std::string category; // the label's category ("": none of them), and the rest of it
-    std::string detail;
-    std::string note;
-    std::string date;     // YYYY-MM-DD HH:MM:SS
-    std::string map;
-    std::string source;   // "headset (<runtime>)", "mock", "replay of <file>"
+    za::String label;
+    za::String category; // the label's category ("": none of them), and the rest of it
+    za::String detail;
+    za::String note;
+    za::String date;     // YYYY-MM-DD HH:MM:SS
+    za::String map;
+    za::String source;   // "headset (<runtime>)", "mock", "replay of <file>"
     float yaw0{0.f};      // the player frame's heading: the head's world yaw at t = 0
     glm::vec3 origin0{0.f};
     double t0{0.0};       // realtime at t = 0
@@ -148,7 +150,7 @@ struct TakeInfo
 };
 
 // Writes a take (header and rows); false (with a console message) if it can't.
-[[nodiscard]] bool writeTake(const std::string& path, const TakeInfo& info, const std::vector<Row>& rows);
+[[nodiscard]] bool writeTake(const za::String& path, const TakeInfo& info, const za::Vector<Row>& rows);
 
 // The categories, named by the result expected (vr_motion_category indexes them), each with its
 // optional details (vr_motion_detail; the first, "", is none). A take's label is the category, or
@@ -161,25 +163,28 @@ struct Choice
 struct Category
 {
     Choice choice;
-    std::vector<Choice> details;
+    za::Vector<Choice> details;
 };
-[[nodiscard]] const std::vector<Category>& categories();
-[[nodiscard]] std::vector<int> categoryOrder(); // their indices in the menu's order
+[[nodiscard]] const za::Vector<Category>& categories();
+[[nodiscard]] za::Vector<int> categoryOrder(); // their indices in the menu's order
 [[nodiscard]] const Category& chosenCategory();
 [[nodiscard]] const Choice& chosenDetail();
-[[nodiscard]] std::string chosenLabel();
+[[nodiscard]] za::String chosenLabel();
 
 // The category of a label ("" if none: a label of vr_motion_record's own).
-[[nodiscard]] std::string categoryOf(const std::string& label);
+[[nodiscard]] za::String categoryOf(const za::String& label);
 
 // quakevr/motions (made if missing), and a label made safe for a file name.
-[[nodiscard]] std::string motionsDir();
-[[nodiscard]] std::string safeLabel(const std::string& label);
+[[nodiscard]] za::String motionsDir();
+[[nodiscard]] za::String safeLabel(const za::String& label);
 
 // The takes in quakevr/motions changed (moved, relabelled): the recorder's counts are counted again.
 void invalidateTakeCounts();
 
 // The latest server sample (null before the first), and the events of the frame so far.
-[[nodiscard]] std::shared_ptr<const ServerSample> latestSample();
+[[nodiscard]] std::shared_ptr<const ServerSample> latestSample(); // ZANCLE-TODO: no shared ownership (std::shared_ptr)
+
+// A take's file name, <label>_<YYYY-MM-DD_HH-MM-SS[-n]>.csv: its label and stamp (false: not a take's name).
+[[nodiscard]] bool parseTakeName(za::StringView name, za::StringView& label, za::StringView& stamp);
 
 } // namespace qvr::motion

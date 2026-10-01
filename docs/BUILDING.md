@@ -14,14 +14,15 @@ understand the code, start with [vr-port/PLAN.md](vr-port/PLAN.md) (design and s
 - Your Quake folder (with `id1`) to run the game.
 
 Everything else is in the repository: the OpenXR loader and headers (`Windows/OpenXR`), SDL2 and the codec
-libraries (`Windows/`), and GLM (`Quake/vr/external/glm`).
+libraries (`Windows/`), GLM (`Quake/vr/external/glm`) and Zancle (`Quake/vr/external/zancle`: the containers, strings
+and utilities the VR code is written on, instead of the C++ standard library).
 
 ## Where things are
 
 | Path | What |
 |---|---|
 | `Quake/` | The Ironwail engine (0.8.2). Changes to it are small hooks marked `// QVR`, so `git grep QVR` shows the engine's whole footprint. |
-| `Quake/vr/` | The VR module (C++20): OpenXR and mock backends, rendering, input, body, physics, menus, effects. The engine sees only `vr_api.h`. |
+| `Quake/vr/` | The VR module (C++23, on Zancle): OpenXR and mock backends, rendering, input, body, physics, menus, effects. The engine sees only `vr_api.h`. |
 | `Quake/vr/vr_cvars.inc` | Every `vr_*` variable, with its default and a comment |
 | `QC/` | Quake VR's QuakeC (Quake, Scourge of Armagon and Dissolution of Eternity in one progs, plus FrikBot) |
 | `quakevr/` | The game folder: models, sounds, textures, Quake VR's maps, configs. `progs.dat` is built here. |
@@ -61,6 +62,18 @@ loader are prebuilt DLLs, used as they are.
 Debugging in Visual Studio works as with MSVC (breakpoints, stepping, watches, `ironwail.natvis`), but there is no
 **Edit and Continue**: clang-cl can't. Precompiled headers (`quakedef.h`, the C files) work and save about a sixth of a
 clean build.
+
+**Zancle** (`Quake/vr/external/zancle`, its README) is built as its own static library (`zancle.vcxproj`, CMake's
+`qvr_zancle`, the Makefiles' `ZANCLE_CXXFLAGS`). In Release it is optimised with its asserts off (`NDEBUG`), as the
+engine. In Debug the switch **`QVR_ZANCLE_DEBUG`** chooses:
+
+| | Zancle's library in Debug |
+|---|---|
+| `QVR_ZANCLE_DEBUG` on (the default while the migration to Zancle settles) | Built as the engine's Debug: unoptimised, `_DEBUG`, Zancle's asserts on. A failed `ZA_ASSERT`, in Zancle's sources or the VR code, calls `vr_zancle.cpp`'s handler: a Quake error (a test run's crash report) |
+| `QVR_ZANCLE_DEBUG` off | Optimised, its asserts off (`NDEBUG`), as in Release: a faster Debug build; the asserts still run in the VR code's own files (the headers follow the engine's settings) |
+
+Set it with `msbuild ... -p:QVR_ZANCLE_DEBUG=false` (an MSBuild property: `zancle.vcxproj` defaults it to `true`),
+`cmake -DQVR_ZANCLE_DEBUG=OFF`, or `make DEBUG=1 QVR_ZANCLE_DEBUG=0`.
 
 **CMake** also works, for development: the top-level `CMakeLists.txt` includes `Quake/vr/vr.cmake`, which adds the
 VR module and, on Windows x64, OpenXR. On Windows configure it for clang-cl (`-T ClangCL`); MSVC's `cl` stops with a

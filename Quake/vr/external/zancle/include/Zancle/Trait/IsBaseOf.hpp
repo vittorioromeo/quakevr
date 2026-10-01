@@ -1,0 +1,31 @@
+#pragma once
+// LICENSE AND COPYRIGHT (C) INFORMATION
+// https://github.com/vittorioromeo/Zancle/blob/master/license.md
+
+
+#if __has_builtin(__is_base_of)
+
+    ////////////////////////////////////////////////////////////
+    #define ZA_IS_BASE_OF(b, d) __is_base_of(b, d)
+
+#else
+
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+    #include <type_traits>
+
+
+    ////////////////////////////////////////////////////////////
+    #define ZA_IS_BASE_OF(b, d) ::std::is_base_of_v<b, d>
+
+#endif
+
+
+namespace za
+{
+////////////////////////////////////////////////////////////
+template <typename B, typename D>
+inline constexpr bool isBaseOf = ZA_IS_BASE_OF(B, D);
+
+} // namespace za

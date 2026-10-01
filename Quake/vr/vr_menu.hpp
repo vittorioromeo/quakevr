@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <string>
-#include <string_view>
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
 
 namespace qvr::menu
 {
@@ -13,11 +13,11 @@ namespace qvr::menu
 // reads on the way ("Options > VR Settings > Advanced VR Options > Movement > Locomotion"); `spec` is the page's title,
 // or "<title> > <row label>" for a row on it. False when no page has that title, no link reaches it, or it has no row of
 // that label (the menus changed: the calibration room's boards, vr_setup.hpp).
-bool pathTo(std::string_view spec, std::string& out);
+bool pathTo(za::StringView spec, za::String& out);
 // `text` with each {menu:<spec>} replaced by pathTo's path, broken into lines of about `width` characters at its " > "s
 // (the maps' text boards: vr_worldtext.cpp). A spec not found is shown as "[menu? <spec>]", warned about in the console
 // (MENU PATH MISSING) and counted in `missing`.
-[[nodiscard]] std::string expandPaths(std::string_view text, int width, int* missing);
+[[nodiscard]] za::String expandPaths(za::StringView text, int width, int* missing);
 // vr_menu_path_check [file or text]: every {menu:...} in the loaded map's entities, a file or the text given; "menu paths: N
 // found, M missing".
 void pathCheck_f();

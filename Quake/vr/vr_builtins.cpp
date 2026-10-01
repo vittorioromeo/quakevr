@@ -23,8 +23,13 @@
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
 
-#include <algorithm>
-#include <vector>
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
 
 namespace qvr::progs
 {
@@ -108,7 +113,7 @@ void PF_tracebox()
 // ----------------------------------------------------------------------------
 // Cvar handles: QC resolves cvar names once per map, then reads them by index.
 
-std::vector<cvar_t*> cvarHandles;
+za::Vector<cvar_t*> cvarHandles;
 
 [[nodiscard]] cvar_t* cvarFromHandle(float handle)
 {
@@ -133,7 +138,7 @@ void PF_cvar_hmake()
         return;
     }
 
-    cvarHandles.push_back(var);
+    cvarHandles.pushBack(var);
     G_FLOAT(OFS_RETURN) = static_cast<float>(cvarHandles.size() - 1);
 }
 
@@ -264,7 +269,7 @@ void PF_WriteVec3()
 // woundevent. `e` hit at `org` going `dir` (unit), QVR_WOUND_* `kind`, `amount` (damage, 0..255), `extra` (pellets;
 // a liquid's: its surface's height is org_z). Unreliable, to every client, as particles.
 // The entities sent a wound this map: their removal is sent (onEdictFree).
-std::vector<std::uint8_t> woundsSent;
+za::Vector<za::U8> woundsSent;
 
 void PF_woundevent()
 {
@@ -296,9 +301,9 @@ void PF_woundevent()
     MSG_WriteByte(&sv.datagram, CLAMP(0, extra, 255));
     if(num >= static_cast<int>(woundsSent.size()))
     {
-        woundsSent.resize(static_cast<std::size_t>(num) + 1, 0);
+        woundsSent.resize(static_cast<za::SizeT>(num) + 1, 0);
     }
-    woundsSent[static_cast<std::size_t>(num)] = 1;
+    woundsSent[static_cast<za::SizeT>(num)] = 1;
 }
 
 // particle2(origin, direction, preset, count): unreliable, like vanilla particle().
@@ -871,8 +876,8 @@ void PF_hitmodel_segment()
     edict_t* e = G_EDICT(OFS_PARM0);
     const float* a = G_VECTOR(OFS_PARM1);
     const float* b = G_VECTOR(OFS_PARM2);
-    const float radius = std::max(0.f, G_FLOAT(OFS_PARM3));
-    const auto c = static_cast<hitmodel::Class>(std::clamp(static_cast<int>(G_FLOAT(OFS_PARM4)), 0, 3));
+    const float radius = za::max(0.f, G_FLOAT(OFS_PARM3));
+    const auto c = static_cast<hitmodel::Class>(za::clamp(static_cast<int>(G_FLOAT(OFS_PARM4)), 0, 3));
     if(!hitmodel::target(e))
     {
         G_FLOAT(OFS_RETURN) = -2.f;
@@ -892,7 +897,7 @@ void PF_hitmodel_any()
     edict_t* e = G_EDICT(OFS_PARM0);
     const float* a = G_VECTOR(OFS_PARM1);
     const float* b = G_VECTOR(OFS_PARM2);
-    const float radius = std::max(0.f, G_FLOAT(OFS_PARM3));
+    const float radius = za::max(0.f, G_FLOAT(OFS_PARM3));
     hitmodel::Hit h;
     const int index = static_cast<int>(e->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
@@ -1011,7 +1016,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_rest", PF_hitmodel_rest},
 };
 
-static_assert(firstVrBuiltin + std::size(vrBuiltins) < MAX_BUILTINS - 200,
+static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200,
     "VR builtins must not overlap Ironwail's downward-allocated builtins");
 
 } // namespace
@@ -1058,11 +1063,11 @@ void onEdictFree(edict_t* ed)
         physics::forgetEntity(num);
         ropesim::forget(num);
     }
-    if(num <= 0 || num >= static_cast<int>(woundsSent.size()) || !woundsSent[static_cast<std::size_t>(num)])
+    if(num <= 0 || num >= static_cast<int>(woundsSent.size()) || !woundsSent[static_cast<za::SizeT>(num)])
     {
         return;
     }
-    woundsSent[static_cast<std::size_t>(num)] = 0;
+    woundsSent[static_cast<za::SizeT>(num)] = 0;
     if(sv.reliable_datagram.cursize + 4 > sv.reliable_datagram.maxsize)
     {
         return;

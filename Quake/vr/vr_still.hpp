@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include "Zancle/Container/Vector.hpp"
+
 #include <glm/glm.hpp>
 
-#include <vector>
 
 namespace qvr::still
 {
@@ -48,7 +49,7 @@ public:
         float tolerance{0.f}; // units, or degrees for a direction
     };
 
-    explicit Window(std::vector<Channel> channels);
+    explicit Window(za::Vector<Channel> channels);
 
     void clear();
     // Changes channel `c`'s tolerance (units that change with the world's scale).
@@ -61,17 +62,17 @@ public:
 
     // Whether the samples of the last `seconds` (at least `minSamples` of them, reaching back that far) all stayed
     // within their channels' tolerances: then `mean` holds each channel's average (directions normalised).
-    [[nodiscard]] bool still(double now, double seconds, std::vector<glm::vec3>& mean, int minSamples = 3);
+    [[nodiscard]] bool still(double now, double seconds, za::Vector<glm::vec3>& mean, int minSamples = 3);
     // The largest deviation of each channel found by the last still() (units or degrees), to show or debug.
-    [[nodiscard]] const std::vector<float>& deviations() const { return devs; }
+    [[nodiscard]] const za::Vector<float>& deviations() const { return devs; }
     // The last sample's value of channel `c` (none: zero).
     [[nodiscard]] glm::vec3 last(int c) const;
 
 private:
-    std::vector<Channel> spec;
-    std::vector<double> times;
-    std::vector<glm::vec3> values; // times.size() * spec.size()
-    std::vector<float> devs;
+    za::Vector<Channel> spec;
+    za::Vector<double> times;
+    za::Vector<glm::vec3> values; // times.size() * spec.size()
+    za::Vector<float> devs;
 };
 
 [[nodiscard]] float degreesBetween(const glm::vec3& a, const glm::vec3& b);

@@ -18,13 +18,19 @@
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <cstring>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/Unique.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "vr_zancle.hpp"
+
+#include <stdlib.h>
+#include <string.h>
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -59,7 +65,7 @@ constexpr float easyHandTouchBonus = 4.5f;
 
 [[nodiscard]] bool finite(const glm::vec3& v)
 {
-    return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+    return qza::isfinite(v.x) && qza::isfinite(v.y) && qza::isfinite(v.z);
 }
 
 [[nodiscard]] bool hasFlag(edict_t* ent, int flag)
@@ -116,7 +122,7 @@ constexpr float easyHandTouchBonus = 4.5f;
 void debugBoxTouch(edict_t* target, edict_t* player, int which)
 {
     const int hand = which == HAND_OFF ? 0 : 1;
-    std::vector<glm::vec4> spheres;
+    za::Vector<glm::vec4> spheres;
     held::fistInWorld(hand, fieldVec(player, hand == 0 ? f().offhandpos : f().handpos),
         fieldVec(player, hand == 0 ? f().offhandrot : f().handrot), spheres);
     held::FistContact c;
@@ -153,7 +159,7 @@ constexpr float weaponDrawnReach = 48.f;
     }
     // (With vr_weapon_grab_slack more: a gun lying flat is thinner than the lowest the fist gets over the floor.)
     if(weaponByFist(target) && held::grabTouch(target, player, which == HAND_OFF ? 0 : 1,
-                                   std::max(vr_weapon_grab_slack.value, 0.f) * 0.01f * units::metresToUnits()))
+                                   za::max(vr_weapon_grab_slack.value, 0.f) * 0.01f * units::metresToUnits()))
     {
         return true; // (else by its box, as before: a weapon flying at the hand is caught as easily)
     }
@@ -450,7 +456,7 @@ extern "C" int VR_ClientTeleport(edict_t* ent)
     // The client picks the target: accept it only within the teleport range (with some slack for
     // the arc) and where the player fits. (Written to turn a NaN away too.)
     const glm::vec3 target = move->teleportTarget;
-    if(!(glm::distance(vec(ent->v.origin), target) <= std::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f))
+    if(!(glm::distance(vec(ent->v.origin), target) <= za::max(vr_teleport_range.value, 100.f) * 1.5f + 64.f))
     {
         return 0;
     }
@@ -485,7 +491,7 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
     }
 
     const glm::vec3 move = vrMove->roomscaleMove;
-    if((move.x == 0.f && move.y == 0.f) || !std::isfinite(move.x) || !std::isfinite(move.y))
+    if((move.x == 0.f && move.y == 0.f) || !qza::isfinite(move.x) || !qza::isfinite(move.y))
     {
         return;
     }
@@ -568,7 +574,7 @@ namespace
     glm::vec3 last = p;
     for(float d = 4.f; d < range + 4.f; d += 4.f)
     {
-        const glm::vec3 q = p + glm::vec3{0.f, 0.f, wet ? std::min(d, range) : -std::min(d, range)};
+        const glm::vec3 q = p + glm::vec3{0.f, 0.f, wet ? za::min(d, range) : -za::min(d, range)};
         const int c = contentsAt(q);
         if(c == CONTENTS_SOLID || c == CONTENTS_SKY)
         {
@@ -612,7 +618,7 @@ constexpr WaterSoundFiles waterSoundFiles[] = {
     {{"vr/slosh1.wav", "vr/slosh2.wav", "vr/slosh3.wav", "vr/slosh4.wav"}, 4},
     {{"vr/stroke1.wav", "vr/stroke2.wav", "vr/stroke3.wav", "vr/stroke4.wav"}, 4},
 };
-static_assert(std::size(waterSoundFiles) == static_cast<std::size_t>(WaterSound::Count));
+static_assert(za::getArraySize(waterSoundFiles) == static_cast<za::SizeT>(WaterSound::Count));
 
 int waterSoundIndices[static_cast<int>(WaterSound::Count)][4]{}; // this server's precache indices (0: none)
 int lastVariant[static_cast<int>(WaterSound::Count)]{-1, -1, -1, -1, -1, -1};
@@ -623,7 +629,7 @@ int lastVariant[static_cast<int>(WaterSound::Count)]{-1, -1, -1, -1, -1, -1};
     const int s = static_cast<int>(sound);
     const int count = waterSoundFiles[s].count;
     int& prev = lastVariant[s];
-    int k = count > 1 ? std::rand() % (prev >= 0 ? count - 1 : count) : 0;
+    int k = count > 1 ? rand() % (prev >= 0 ? count - 1 : count) : 0;
     if(prev >= 0 && count > 1 && k >= prev)
     {
         k++;
@@ -713,12 +719,12 @@ struct SentSplash
     float strength;
 };
 double splashFrame = -1.0;
-std::vector<SentSplash> splashesThisFrame;
+za::Vector<SentSplash> splashesThisFrame;
 
 bool sendSplash(const glm::vec3& at, const glm::vec3& dir, float strength)
 {
     // (Its figures go into the message as integers: none from a NaN or an infinity.)
-    if(!finite(at) || !finite(dir) || !std::isfinite(strength))
+    if(!finite(at) || !finite(dir) || !qza::isfinite(strength))
     {
         return false;
     }
@@ -734,7 +740,7 @@ bool sendSplash(const glm::vec3& at, const glm::vec3& dir, float strength)
             return false;
         }
     }
-    splashesThisFrame.push_back({at, strength});
+    splashesThisFrame.pushBack({at, strength});
     if(developer.value >= 2)
     {
         Con_Printf("VR splash: %.1f %.1f %.1f, strength %.1f\n", at.x, at.y, at.z, strength);
@@ -792,7 +798,7 @@ WaterFeel waterFeel[MAX_SCOREBOARD];
 [[nodiscard]] WaterFeel* feelOf(edict_t* ent)
 {
     const int client = NUM_FOR_EDICT(ent) - 1;
-    if(client < 0 || client >= std::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)))
+    if(client < 0 || client >= za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)))
     {
         return nullptr;
     }
@@ -856,7 +862,7 @@ void wading(edict_t* ent, WaterFeel& w, float dt)
         return; // a teleport
     }
     // The speed smoothed (moves come in unevenly, some frames none), and where it goes.
-    w.wadeSpeed += (distance / dt - w.wadeSpeed) * std::min(1.f, dt / 0.25f);
+    w.wadeSpeed += (distance / dt - w.wadeSpeed) * za::min(1.f, dt / 0.25f);
     if(distance > 0.01f)
     {
         w.wadeDir = moved / distance;
@@ -865,7 +871,7 @@ void wading(edict_t* ent, WaterFeel& w, float dt)
     const bool onBottom = hasFlag(ent, FL_ONGROUND) || contentsAt(feet) == CONTENTS_SOLID;
     if(w.wadeSpeed < 15.f || !onBottom) // slower than 0.6 m/s: standing, shuffling
     {
-        w.wade = std::min(w.wade, 0.6f); // the next step soon after moving again
+        w.wade = za::min(w.wade, 0.6f); // the next step soon after moving again
         return;
     }
     const float interval = CLAMP(0.3f, 0.62f - w.wadeSpeed / 600.f, 0.6f); // a step at a walk (1.4 m/s) about 0.55 s
@@ -1090,7 +1096,7 @@ void walkLeaves(LiquidWalk& w, int num, double f1, double f2)
         walkLeaves(w, node.children[1], f1, f2);
         return;
     }
-    const double mid = f1 + (f2 - f1) * std::clamp(t1 / (t1 - t2), 0.0, 1.0);
+    const double mid = f1 + (f2 - f1) * za::clamp(t1 / (t1 - t2), 0.0, 1.0);
     const int nearSide = t1 >= 0.0 ? 0 : 1;
     walkLeaves(w, node.children[nearSide], f1, mid);
     walkLeaves(w, node.children[1 - nearSide], mid, f2);
@@ -1120,7 +1126,7 @@ void precacheWaterSounds()
 {
     for(auto& indices : waterSoundIndices)
     {
-        std::fill(std::begin(indices), std::end(indices), 0);
+        qza::fill(indices, 0);
     }
     if(!active() || sv.state != ss_loading)
     {
@@ -1138,7 +1144,7 @@ void precacheWaterSounds()
                 {
                     sv.sound_precache[i] = name;
                 }
-                if(!std::strcmp(sv.sound_precache[i], name))
+                if(!ZA_STRCMP(sv.sound_precache[i], name))
                 {
                     waterSoundIndices[s][k] = i;
                     break;
@@ -1319,7 +1325,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     QVR_PROFILE("vr swim");
     const VrMove* move = swimmer(ent);
     const int client = NUM_FOR_EDICT(ent) - 1;
-    if(!move || client < 0 || client >= std::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)))
+    if(!move || client < 0 || client >= za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)))
     {
         return;
     }
@@ -1332,7 +1338,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     sw.time = now;
 
     const float dt = static_cast<float>(host_frametime);
-    const float minSpeed = std::max(0.f, vr_swim_stroke_min.value); // m/s
+    const float minSpeed = za::max(0.f, vr_swim_stroke_min.value); // m/s
     const float palmWeight = CLAMP(0.f, vr_swim_palm.value, 1.f);
     const float sideKept = 1.f - CLAMP(0.f, vr_swim_look.value, 1.f);
     const float recovery = CLAMP(0.f, vr_swim_recovery.value, 1.f);
@@ -1340,10 +1346,10 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     const float speedExp = CLAMP(0.5f, vr_swim_speed_exp.value, 3.f);
     const float palmDir = CLAMP(0.f, vr_swim_palm_dir.value, 1.f);
     const float againstPalm = CLAMP(0.f, vr_swim_against_palm.value, 1.f);
-    const float powerMin = std::max(0.f, vr_swim_power_threshold.value);
-    const float powerKnee = std::max(0.f, vr_swim_power_knee.value);
+    const float powerMin = za::max(0.f, vr_swim_power_threshold.value);
+    const float powerKnee = za::max(0.f, vr_swim_power_knee.value);
     const bool whole = vr_swim_power_whole.value != 0.f;
-    const float memory = std::max(0.f, vr_swim_intent_memory.value);
+    const float memory = za::max(0.f, vr_swim_intent_memory.value);
     const float reverseDamp = CLAMP(0.f, vr_swim_reverse_damp.value, 1.f);
     const float reverseSpeed = CLAMP(reverseWeakRange, vr_swim_reverse_speed.value, 3.f);
     glm::vec3 vel = vec(ent->v.velocity);
@@ -1406,11 +1412,11 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         }
         else
         {
-            const glm::vec3 way = glm::mix(stroke.way, dir, std::min(1.f, dt / strokeFollow));
+            const glm::vec3 way = glm::mix(stroke.way, dir, za::min(1.f, dt / strokeFollow));
             stroke.way = glm::length(way) > 0.f ? glm::normalize(way) : dir;
         }
         stroke.moved += hand.vel * dt;
-        stroke.peak = std::max(stroke.peak, speedMs);
+        stroke.peak = za::max(stroke.peak, speedMs);
 
         // The palm (and the back of the hand) faces the hand's side: how flat the hand meets the
         // water. Edge first it slices through (the recovery) and hardly pushes.
@@ -1418,8 +1424,8 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         AngleVectors(a, f, r, u);
         const glm::vec3 side{r[0], r[1], r[2]};
         const float facing = glm::dot(side, dir);
-        const float flat = std::abs(facing);
-        const float palm = (1.f - palmWeight) + palmWeight * std::pow(flat, flatExp);
+        const float flat = qza::abs(facing);
+        const float palm = (1.f - palmWeight) + palmWeight * za::pow(flat, flatExp);
         const float edge = recovery + (1.f - recovery) * glm::smoothstep(0.1f, 0.45f, flat);
 
         // Which side leads. The palm's normal is the drawn hand's: the calibrated hand's (hand.rot: Gun Angle and
@@ -1433,7 +1439,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         // As water's drag, the push grows with the square of the speed (vr_swim_speed_exp; as the
         // linear push at a brisk stroke): the stroke, faster, outdoes the return for the next one.
         const float beyond = (speedMs - minSpeed) * units::metresToUnits();
-        const float strength = beyond * std::pow(beyond / (strokeSpeed * units::metresToUnits()), speedExp - 1.f);
+        const float strength = beyond * za::pow(beyond / (strokeSpeed * units::metresToUnits()), speedExp - 1.f);
 
         // The body goes against the hand (or, vr_swim_palm_dir, away from where the palm faces).
         glm::vec3 push = -dir;
@@ -1443,7 +1449,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
             push = glm::length(blended) > 0.001f ? glm::normalize(blended) : -dir;
         }
         const float along = glm::dot(push, wishDir); // 1: the push goes where the stick points
-        const float steer = std::max(0.f, 1.f + assist * along);
+        const float steer = za::max(0.f, 1.f + assist * along);
 
         // Along where you look (ahead or back) it counts fully, sideways of it less.
         const float ahead = glm::dot(push, look);
@@ -1476,7 +1482,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         {
             give += stroke.raw * (factor - stroke.factor);
         }
-        stroke.factor = whole ? std::max(stroke.factor, factor) : factor;
+        stroke.factor = whole ? za::max(stroke.factor, factor) : factor;
         if(!stroke.heard && factor >= 0.5f)
         {
             stroke.heard = true;
@@ -1492,9 +1498,9 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         vel += give;
     }
 
-    const float maxSpeed = std::max(0.f, vr_swim_max_speed.value);
+    const float maxSpeed = za::max(0.f, vr_swim_max_speed.value);
     const float len = glm::length(vel);
-    if(!std::isfinite(len))
+    if(!qza::isfinite(len))
     {
         return; // (a hand's figures gone wrong: SV_WaterMove's velocity stands)
     }
@@ -1641,7 +1647,7 @@ extern "C" int VR_AllowWaterSplash(edict_t* ent)
     glm::vec3 at;
     const bool entering = ent->v.watertype == CONTENTS_EMPTY;
     const float speed = glm::length(vec(ent->v.velocity));
-    if(!surfaceOver(vec(ent->v.origin), std::max(48.f, speed * static_cast<float>(host_frametime) * 1.5f), at))
+    if(!surfaceOver(vec(ent->v.origin), za::max(48.f, speed * static_cast<float>(host_frametime) * 1.5f), at))
     {
         return 1;
     }
@@ -1679,8 +1685,8 @@ extern "C" int VR_TouchLinks(edict_t* ent)
             SV_AreaEdicts(lo, hi, list, &found, space);
         }
     }
-    std::sort(list, list + found); // edict order (the edicts are one array), each once
-    found = static_cast<int>(std::unique(list, list + found) - list);
+    za::quickSort(list, list + found); // edict order (the edicts are one array), each once
+    found = static_cast<int>(za::unique(list, list + found) - list);
 
     int count = 0;
     for(int i = 0; i < found; i++)

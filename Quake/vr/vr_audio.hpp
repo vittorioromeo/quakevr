@@ -12,8 +12,9 @@
 #include "vr_engine.hpp"
 #include "vr_steamaudio.hpp"
 
-#include <array>
-#include <vector>
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+
 
 namespace qvr::audio
 {
@@ -145,8 +146,8 @@ private:
         float lp[2]{0.f, 0.f};
         IPLBinauralEffect binaural{nullptr};
         IPLDirectEffect direct{nullptr};
-        std::vector<float> in0, mid, l, r;   // one frame
-        std::vector<float> outL, outR, send; // the call's
+        za::Vector<float> in0, mid, l, r;   // one frame
+        za::Vector<float> outL, outR, send; // the call's
     };
 
     void prepare(Voice& v, const Listener& l, const Features& f) const;
@@ -158,7 +159,7 @@ private:
     int frame{0};
     bool sofaLoaded{false};
     IPLHRTF hrtf{nullptr};
-    std::array<Voice, maxVoices> voices;
+    za::Array<Voice, maxVoices> voices;
 
     // The reverb.
     IPLReflectionEffect reflection{nullptr};
@@ -168,9 +169,9 @@ private:
     int reverbChannels{0};
     int irSize{0};
     int reverbSilence{1 << 30}; // samples since the reverb last had input
-    std::vector<float> reverbIn;
-    std::vector<std::vector<float>> reverbAmbi;
-    std::vector<float> reverbL, reverbR;
+    za::Vector<float> reverbIn;
+    za::Vector<za::Vector<float>> reverbAmbi;
+    za::Vector<float> reverbL, reverbR;
     IPLCoordinateSpace3 orientation{};
 };
 

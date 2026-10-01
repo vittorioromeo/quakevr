@@ -15,14 +15,29 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/Memcpy.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
 #include <glm/gtc/quaternion.hpp>
 
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <string.h>
 
 namespace qvr::sightalign
 {
@@ -79,9 +94,9 @@ constexpr const char* melee[] = {
 }
 
 // The model file's sight texels, as points on its first frame (model space, as the frames' vertices).
-[[nodiscard]] std::vector<glm::vec3> sightTexels(const char* modelName)
+[[nodiscard]] za::Vector<glm::vec3> sightTexels(const char* modelName)
 {
-    std::vector<glm::vec3> pts;
+    za::Vector<glm::vec3> pts;
     byte* data = COM_LoadMallocFile(modelName, nullptr);
     if(!data)
     {
@@ -90,12 +105,12 @@ constexpr const char* melee[] = {
     const int size = static_cast<int>(com_filesize);
     const auto readInt = [&](int o) {
         int v;
-        std::memcpy(&v, data + o, sizeof(v));
+        ZA_MEMCPY(&v, data + o, sizeof(v));
         return LittleLong(v);
     };
     const auto readFloat = [&](int o) {
         float v;
-        std::memcpy(&v, data + o, sizeof(v));
+        ZA_MEMCPY(&v, data + o, sizeof(v));
         return LittleFloat(v);
     };
     constexpr int headerSize = 84;
@@ -178,15 +193,15 @@ constexpr const char* melee[] = {
             uv[k] = {s + 0.5f, static_cast<float>(readInt(so + 8)) + 0.5f};
         }
         const float den = (uv[1].y - uv[2].y) * (uv[0].x - uv[2].x) + (uv[2].x - uv[1].x) * (uv[0].y - uv[2].y);
-        if(std::fabs(den) < 1e-9f)
+        if(za::fabs(den) < 1e-9f)
         {
             continue;
         }
         const glm::vec3 p0 = vertex(vi[0]), p1 = vertex(vi[1]), p2 = vertex(vi[2]);
-        const int x0 = std::max(0, static_cast<int>(std::floor(std::min({uv[0].x, uv[1].x, uv[2].x}))) - 1);
-        const int x1 = std::min(sw - 1, static_cast<int>(std::ceil(std::max({uv[0].x, uv[1].x, uv[2].x}))) + 1);
-        const int y0 = std::max(0, static_cast<int>(std::floor(std::min({uv[0].y, uv[1].y, uv[2].y}))) - 1);
-        const int y1 = std::min(sh - 1, static_cast<int>(std::ceil(std::max({uv[0].y, uv[1].y, uv[2].y}))) + 1);
+        const int x0 = za::max(0, static_cast<int>(za::floor(qza::minOf(uv[0].x, uv[1].x, uv[2].x))) - 1);
+        const int x1 = za::min(sw - 1, static_cast<int>(za::ceil(qza::maxOf(uv[0].x, uv[1].x, uv[2].x))) + 1);
+        const int y0 = za::max(0, static_cast<int>(za::floor(qza::minOf(uv[0].y, uv[1].y, uv[2].y))) - 1);
+        const int y1 = za::min(sh - 1, static_cast<int>(za::ceil(qza::maxOf(uv[0].y, uv[1].y, uv[2].y))) + 1);
         for(int ty = y0; ty <= y1; ty++)
         {
             for(int tx = x0; tx <= x1; tx++)
@@ -203,7 +218,7 @@ constexpr const char* melee[] = {
                 {
                     continue;
                 }
-                pts.push_back(l0 * p0 + l1 * p1 + l2 * p2);
+                pts.pushBack(l0 * p0 + l1 * p1 + l2 * p2);
             }
         }
     }
@@ -215,18 +230,18 @@ constexpr const char* melee[] = {
 // the front one (the last), where more than 1.5 units separate them.
 [[nodiscard]] SightLine fromTexels(const char* modelName, Rear rearKind)
 {
-    std::vector<glm::vec3> pts = sightTexels(modelName);
+    za::Vector<glm::vec3> pts = sightTexels(modelName);
     if(pts.size() < 8)
     {
         return {};
     }
-    std::sort(pts.begin(), pts.end(), [](const glm::vec3& a, const glm::vec3& b) { return a.x < b.x; });
-    std::size_t rearEnd = 1;
+    za::quickSort(pts.begin(), pts.end(), [](const glm::vec3& a, const glm::vec3& b) { return a.x < b.x; });
+    za::SizeT rearEnd = 1;
     while(rearEnd < pts.size() && pts[rearEnd].x - pts[rearEnd - 1].x <= 1.5f)
     {
         rearEnd++;
     }
-    std::size_t frontBegin = pts.size() - 1;
+    za::SizeT frontBegin = pts.size() - 1;
     while(frontBegin > 0 && pts[frontBegin].x - pts[frontBegin - 1].x <= 1.5f)
     {
         frontBegin--;
@@ -240,21 +255,21 @@ constexpr const char* melee[] = {
     SightLine line;
     glm::vec3 sum{0.f};
     float top = -1e9f;
-    for(std::size_t i = frontBegin; i < pts.size(); i++)
+    for(za::SizeT i = frontBegin; i < pts.size(); i++)
     {
         sum += pts[i];
-        top = std::fmax(top, pts[i].z);
+        top = za::fmax(top, pts[i].z);
     }
     const glm::vec3 mid = sum / static_cast<float>(pts.size() - frontBegin);
     line.front = {mid.x, mid.y, top};
 
     // The rear sight, near the middle (the double shotgun's skin has marks at the sides of the same face).
-    std::vector<glm::vec3> rear;
-    for(std::size_t i = 0; i < rearEnd; i++)
+    za::Vector<glm::vec3> rear;
+    for(za::SizeT i = 0; i < rearEnd; i++)
     {
-        if(std::fabs(pts[i].y - line.front.y) < 1.5f)
+        if(za::fabs(pts[i].y - line.front.y) < 1.5f)
         {
-            rear.push_back(pts[i]);
+            rear.pushBack(pts[i]);
         }
     }
     if(rear.size() < 4)
@@ -271,16 +286,16 @@ constexpr const char* melee[] = {
     if(rearKind == Rear::Notch)
     {
         // The widest gap across between the texels is the notch; its middle, at the posts' tops.
-        std::vector<float> ys;
+        za::Vector<float> ys;
         float rearTop = -1e9f;
         for(const glm::vec3& p : rear)
         {
-            ys.push_back(p.y);
-            rearTop = std::fmax(rearTop, p.z);
+            ys.pushBack(p.y);
+            rearTop = za::fmax(rearTop, p.z);
         }
-        std::sort(ys.begin(), ys.end());
+        za::quickSort(ys.begin(), ys.end());
         float gap = 0.f, gapMid = 0.f;
-        for(std::size_t i = 1; i < ys.size(); i++)
+        for(za::SizeT i = 1; i < ys.size(); i++)
         {
             if(ys[i] - ys[i - 1] > gap)
             {
@@ -315,10 +330,10 @@ constexpr const char* melee[] = {
             int pivot = c;
             for(int r = c + 1; r < 3; r++)
             {
-                pivot = std::fabs(m[r][c]) > std::fabs(m[pivot][c]) ? r : pivot;
+                pivot = za::fabs(m[r][c]) > za::fabs(m[pivot][c]) ? r : pivot;
             }
-            std::swap(m[c], m[pivot]);
-            if(std::fabs(m[c][c]) < 1e-12)
+            za::genericSwap(m[c], m[pivot]);
+            if(za::fabs(m[c][c]) < 1e-12)
             {
                 return {};
             }
@@ -341,7 +356,7 @@ constexpr const char* melee[] = {
     return line;
 }
 
-std::unordered_map<std::string, SightLine> lines;
+ankerl::unordered_dense::map<za::String, SightLine> lines;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Frames and angles
@@ -380,12 +395,12 @@ std::unordered_map<std::string, SightLine> lines;
     {
         return glm::mat3{1.f}; // already along it (never the opposite way here: the captures are checked)
     }
-    return glm::mat3_cast(glm::angleAxis(std::atan2(len, glm::dot(a, b)), axis / len));
+    return glm::mat3_cast(glm::angleAxis(za::atan2(len, glm::dot(a, b)), axis / len));
 }
 
 [[nodiscard]] float degreesBetween(const glm::vec3& a, const glm::vec3& b)
 {
-    return glm::degrees(std::atan2(glm::length(glm::cross(a, b)), glm::dot(a, b)));
+    return glm::degrees(za::atan2(glm::length(glm::cross(a, b)), glm::dot(a, b)));
 }
 
 // Distance from p to the line through a along the unit u.
@@ -414,13 +429,13 @@ std::unordered_map<std::string, SightLine> lines;
     return hand == HAND_MAIN ? "main" : "off";
 }
 
-[[nodiscard]] std::string modelBase(const qmodel_t* m)
+[[nodiscard]] za::String modelBase(const qmodel_t* m)
 {
     if(!m)
     {
         return "?";
     }
-    const char* s = std::strrchr(m->name, '/');
+    const char* s = strrchr(m->name, '/');
     return s ? s + 1 : m->name;
 }
 
@@ -568,10 +583,10 @@ struct State
         {still::Window::Kind::Point}, {still::Window::Kind::Point}, {still::Window::Kind::Averaged},
         {still::Window::Kind::AveragedDirection}, {still::Window::Kind::AveragedDirection}, {still::Window::Kind::Averaged}}};
     bool lastGripValid{false};
-    std::vector<Capture> captures;
+    za::Vector<Capture> captures;
     glm::vec3 refPos{0.f}, refFwd{1.f, 0.f, 0.f};
     bool refSet{false};
-    std::string message; // why it stopped
+    za::String message; // why it stopped
 };
 State st;
 Result result;
@@ -583,12 +598,12 @@ int versionCounter = 0;
 struct Written
 {
     cvar_t* cvar;
-    std::string before;
+    za::String before;
 };
-std::vector<Written> undoList;
-std::string savedTo;
+za::Vector<Written> undoList;
+za::String savedTo;
 
-std::string lineBuf[8];
+za::String lineBuf[8];
 
 void bump()
 {
@@ -640,10 +655,10 @@ glm::vec4 lastDev{0.f}; // the last window's largest moves (eye, hand: units; ha
     st.window.tolerance(2, stillDegrees);
     st.window.tolerance(3, settled);
     st.window.tolerance(4, settled);
-    std::vector<glm::vec3> m;
+    za::Vector<glm::vec3> m;
     const bool ok = st.window.still(now, stillSeconds, m);
-    const std::vector<float>& d = st.window.deviations();
-    lastDev = glm::vec4{d[0], d[1], d[2], std::fmax(d[3], d[4])};
+    const za::Vector<float>& d = st.window.deviations();
+    lastDev = glm::vec4{d[0], d[1], d[2], za::fmax(d[3], d[4])};
     if(!ok)
     {
         return false;
@@ -687,25 +702,25 @@ void solve()
     r.fist /= static_cast<float>(n);
 
     // Outliers: an eye further from the others' median than max(1.5 cm, 3 x the median distance).
-    std::vector<float> xs, ys, zs;
+    za::Vector<float> xs, ys, zs;
     for(const Capture& c : st.captures)
     {
-        xs.push_back(c.mean.eye.x);
-        ys.push_back(c.mean.eye.y);
-        zs.push_back(c.mean.eye.z);
+        xs.pushBack(c.mean.eye.x);
+        ys.pushBack(c.mean.eye.y);
+        zs.pushBack(c.mean.eye.z);
     }
-    const auto median = [](std::vector<float> v) {
-        std::sort(v.begin(), v.end());
-        const std::size_t m = v.size() / 2;
+    const auto median = [](za::Vector<float> v) {
+        za::quickSort(v.begin(), v.end());
+        const za::SizeT m = v.size() / 2;
         return v.size() % 2 ? v[m] : 0.5f * (v[m - 1] + v[m]);
     };
     const glm::vec3 med{median(xs), median(ys), median(zs)};
-    std::vector<float> dist;
+    za::Vector<float> dist;
     for(const Capture& c : st.captures)
     {
-        dist.push_back(glm::distance(c.mean.eye, med));
+        dist.pushBack(glm::distance(c.mean.eye, med));
     }
-    const float limit = std::fmax(cmToUnits(1.5f), 3.f * median(dist));
+    const float limit = za::fmax(cmToUnits(1.5f), 3.f * median(dist));
     glm::vec3 eye{0.f};
     for(int i = 0; i < n; i++)
     {
@@ -729,7 +744,7 @@ void solve()
             spread += a * a;
         }
     }
-    r.spreadDegrees = std::sqrt(spread / static_cast<float>(r.used));
+    r.spreadDegrees = za::sqrt(spread / static_cast<float>(r.used));
     r.offDegrees = degreesBetween(u, d);
     r.offCm = unitsToCm(lineDistance(r.eye, r.rear, u));
 
@@ -751,8 +766,8 @@ void solve()
     // The shots along the sight line: its direction in the hand's frame (the same before and after), as a pitch up and
     // a yaw left in the aim's frame (weapons::shotAngles).
     const glm::vec3 local = sightInHand;
-    float shotPitch = glm::degrees(std::asin(CLAMP(-1.f, local.z, 1.f)));
-    float shotYaw = glm::degrees(std::atan2(local.y, local.x));
+    float shotPitch = glm::degrees(za::asin(CLAMP(-1.f, local.z, 1.f)));
+    float shotYaw = glm::degrees(za::atan2(local.y, local.x));
     glm::vec3 pStore = pNew;
     if(r.hand == HAND_OFF)
     {
@@ -763,7 +778,7 @@ void solve()
     }
     const float oldShot[2]{weapons::value(r.slot, Key::ShotPitch), weapons::value(r.slot, Key::ShotYaw)};
     const float values[8]{pStore.x, pStore.y, pStore.z, aNew.x, aNew.y, aNew.z, shotPitch, shotYaw};
-    std::copy(values, values + 8, r.values);
+    za::copy(values, values + 8, r.values);
 
     // Two-handed: the aim then runs from the hand to the other hand (on the foregrip) moved by the weapon's Aim Offset,
     // turned by its Aim Pitch/Yaw/Roll (vr_twohand.cpp). Set so that taking the foregrip where it is drawn keeps the gun
@@ -798,14 +813,14 @@ void solve()
             off.y = -off.y;
         }
         const float more[6]{off.x, off.y, off.z, 0.f, 0.f, 0.f};
-        std::copy(more, more + 6, r.values + 8);
+        za::copy(more, more + 6, r.values + 8);
         r.count = 14;
     }
     {
         // The shots' turn, in the aim's frame (the off hand's yaw as applied: mirrored).
         const auto dir = [](float pitch, float yaw) {
             const float pr = glm::radians(pitch), yr = glm::radians(yaw);
-            return glm::vec3{std::cos(pr) * std::cos(yr), std::cos(pr) * std::sin(yr), std::sin(pr)};
+            return glm::vec3{za::cos(pr) * za::cos(yr), za::cos(pr) * za::sin(yr), za::sin(pr)};
         };
         const float mirror = r.hand == HAND_OFF ? -1.f : 1.f;
         r.shotDegrees = degreesBetween(dir(oldShot[0], oldShot[1] * mirror), dir(shotPitch, shotYaw * mirror));
@@ -816,7 +831,7 @@ void solve()
     undoList.clear();
     savedTo.clear();
 
-    Con_Printf("Align Sights (%s, %s hand): %d captures used, %d dropped, spread %.2f deg\n", modelBase(r.model).c_str(),
+    Con_Printf("Align Sights (%s, %s hand): %d captures used, %d dropped, spread %.2f deg\n", modelBase(r.model).cStr(),
         handName(r.hand), r.used, r.dropped, r.spreadDegrees);
     Con_Printf("  the sights were %.2f deg off the eye's ray, the eye %.2f cm off the sight line\n", r.offDegrees, r.offCm);
     Con_Printf("  the fix: turned %.2f deg about the fist, moved %.2f cm; shots turned %.2f deg\n", r.turnDegrees, r.moveCm,
@@ -843,10 +858,10 @@ void setEffective(int slot, Key key, float v)
         {
             return;
         }
-        undoList.push_back({c, c->string});
+        undoList.pushBack({c, c->string});
         Cvar_Set(c->name, va("%.7g", v));
         // Written into a slot's own key as its default value, it may inherit again: then it is written where it inherits.
-        if(std::fabs(weapons::value(slot, key) - v) <= 1e-5f * std::fmax(1.f, std::fabs(v)))
+        if(za::fabs(weapons::value(slot, key) - v) <= 1e-5f * za::fmax(1.f, za::fabs(v)))
         {
             return;
         }
@@ -866,7 +881,7 @@ void drawLine(const glm::vec3& rear, const glm::vec3& front, const glm::vec4& co
     lines::line(front, end, width * 0.7f, colour, glm::vec4{glm::vec3{colour}, colour.a * 0.4f});
     if(tr.fraction < 1.f)
     {
-        lines::point(end, std::fmax(0.8f, glm::distance(front, end) * 0.005f), colour);
+        lines::point(end, za::fmax(0.8f, glm::distance(front, end) * 0.005f), colour);
     }
     if(points)
     {
@@ -900,7 +915,7 @@ void check_f()
         const glm::vec3 fm{inv * glm::vec4{wf.fist, 1.f}}, hm{inv * glm::vec4{s.pos[hand], 1.f}};
         const glm::vec3 mm{inv * glm::vec4{s.muzzle[hand], 1.f}};
         Con_Printf("sightcheck %s model space: fist %.2f %.2f %.2f (%s), hand %.2f %.2f %.2f, muzzle %.2f %.2f %.2f\n",
-            modelBase(wf.model).c_str(), fm.x, fm.y, fm.z, wf.fistFromRig ? "rig" : "palm", hm.x, hm.y, hm.z, mm.x, mm.y, mm.z);
+            modelBase(wf.model).cStr(), fm.x, fm.y, fm.z, wf.fistFromRig ? "rig" : "palm", hm.x, hm.y, hm.z, mm.x, mm.y, mm.z);
     }
     Pose p;
     if(!poseOf(s, hand, p))
@@ -914,7 +929,7 @@ void check_f()
     const float apparent = degreesBetween(p.rear - p.eye, p.front - p.eye); // the rear and front sights seen apart
     Con_Printf("sightcheck %s %s: eye %s, sight line vs eye ray %.4f deg, eye to line %.4f units (%.3f mm), rear/front seen "
                "%.4f deg apart\n",
-        modelBase(p.model).c_str(), handName(hand), dominantEye() == 1 ? "right" : "left", rayDeg, eyeLine,
+        modelBase(p.model).cStr(), handName(hand), dominantEye() == 1 ? "right" : "left", rayDeg, eyeLine,
         unitsToCm(eyeLine) * 10.f, apparent);
     if(p.gripValid && twohand::transition(hand) <= 0.f)
     {
@@ -965,15 +980,15 @@ void check_f()
         const glm::vec2 ph = pixel(hit);
         Con_Printf("sightcheck pixels (%g): the laser at the wall %.1f %.1f: %.1f px from the sight line's, %.2f cm off it there\n",
             size, ph.x, ph.y, glm::distance(ph, pw), unitsToCm(lineDistance(hit, p.front, u)));
-        std::string ranges;
+        za::String ranges;
         for(const float m : {2.f, 5.f, 10.f, 20.f, 50.f})
         {
             const glm::vec3 at = s.muzzle[hand] + shot * (m * units::metresToUnits());
             ranges += va(" %gm %.2fcm (%.3f deg)", m, unitsToCm(lineDistance(at, p.front, u)),
-                glm::degrees(std::atan2(lineDistance(at, p.front, u), glm::distance(at, p.eye))));
+                glm::degrees(za::atan2(lineDistance(at, p.front, u), glm::distance(at, p.eye))));
         }
         Con_Printf("sightcheck laser vs sight line %.4f deg; the laser off the sight line at%s\n", degreesBetween(shot, u),
-            ranges.c_str());
+            ranges.cStr());
         Con_Printf("sightcheck muzzle %.3f %.3f %.3f shot %.5f %.5f %.5f\n", s.muzzle[hand].x, s.muzzle[hand].y, s.muzzle[hand].z,
             shot.x, shot.y, shot.z);
     }
@@ -984,8 +999,8 @@ void check_f()
         wholeFor(p.slot, hand, wp, wa);
         const glm::vec3 inC = glm::transpose(wholeTurn(wa)) * (glm::transpose(p.cBasis) * u);
         Con_Printf("sightcheck sights in the hand's frame: pitch %.4f yaw %.4f (via C and the whole turn: %.4f %.4f); shot keys %.4f %.4f\n",
-            glm::degrees(std::asin(inHand.z)), glm::degrees(std::atan2(inHand.y, inHand.x)), glm::degrees(std::asin(inC.z)),
-            glm::degrees(std::atan2(inC.y, inC.x)), weapons::value(p.slot, Key::ShotPitch), weapons::value(p.slot, Key::ShotYaw));
+            glm::degrees(za::asin(inHand.z)), glm::degrees(za::atan2(inHand.y, inHand.x)), glm::degrees(za::asin(inC.z)),
+            glm::degrees(za::atan2(inC.y, inC.x)), weapons::value(p.slot, Key::ShotPitch), weapons::value(p.slot, Key::ShotYaw));
     }
 }
 
@@ -1008,7 +1023,7 @@ void lines_f()
         const glm::vec3 u = glm::normalize(l.front - l.rear);
         Con_Printf("%-22s %s rear %.2f %.2f %.2f front %.2f %.2f %.2f (%.2f deg up, %.2f left of the model's x)\n", id,
             l.painted ? "sights" : "table ", l.rear.x, l.rear.y, l.rear.z, l.front.x, l.front.y, l.front.z,
-            glm::degrees(std::asin(u.z)), glm::degrees(std::atan2(u.y, u.x)));
+            glm::degrees(za::asin(u.z)), glm::degrees(za::atan2(u.y, u.x)));
     }
 }
 
@@ -1048,7 +1063,7 @@ SightLine sightLine(const qmodel_t* model)
     {
         return {};
     }
-    const std::string name = model->name;
+    const za::String name = model->name;
     if(const auto it = lines.find(name); it != lines.end())
     {
         return it->second;
@@ -1057,11 +1072,11 @@ SightLine sightLine(const qmodel_t* model)
     bool known = false;
     for(const char* m : melee)
     {
-        known = known || !q_strcasecmp(m, name.c_str());
+        known = known || !q_strcasecmp(m, name.cStr());
     }
     for(const Painted& p : painted)
     {
-        if(!known && !q_strcasecmp(p.model, name.c_str()))
+        if(!known && !q_strcasecmp(p.model, name.cStr()))
         {
             line = fromTexels(p.model, p.rear);
             known = true;
@@ -1073,7 +1088,7 @@ SightLine sightLine(const qmodel_t* model)
     }
     for(const Table& t : table)
     {
-        if(!line.valid && !q_strcasecmp(t.model, name.c_str()))
+        if(!line.valid && !q_strcasecmp(t.model, name.cStr()))
         {
             line.valid = true;
             line.painted = false;
@@ -1144,7 +1159,7 @@ bool start(int hand, int returnPage)
     }
     Con_Printf("Align Sights: %s, %s hand, dominant eye %s: %d captures. Close your eyes and lower the gun; at the high "
                "beep raise it as you would your own, and hold it still.\n",
-        modelBase(p.model).c_str(), handName(hand), dominantEye() == 1 ? "right" : "left", st.wanted);
+        modelBase(p.model).cStr(), handName(hand), dominantEye() == 1 ? "right" : "left", st.wanted);
     bump();
     return true;
 }
@@ -1169,12 +1184,12 @@ void apply()
     const int owner = weapons::ownerSlot(r.slot, Key::WholePitch);
     {
         const char* id = weapons::cvar(owner, Key::ID)->string;
-        const char* base = std::strrchr(id, '/');
-        savedTo = std::string(base ? base + 1 : id) + (owner == r.slot ? "" : " (inherited)");
+        const char* base = strrchr(id, '/');
+        savedTo = za::String(base ? base + 1 : id) + (owner == r.slot ? "" : " (inherited)");
     }
     applied = true;
     st.phase = Phase::Idle;
-    Con_Printf("Align Sights: applied to %s\n", savedTo.c_str());
+    Con_Printf("Align Sights: applied to %s\n", savedTo.cStr());
     sound("misc/menu2.wav");
     bump();
 }
@@ -1205,9 +1220,9 @@ void undo()
     {
         return;
     }
-    for(auto it = undoList.rbegin(); it != undoList.rend(); ++it)
+    for(za::SizeT k = undoList.size(); k-- > 0;) // (the last first)
     {
-        Cvar_Set(it->cvar->name, it->before.c_str());
+        Cvar_Set(undoList[k].cvar->name, undoList[k].before.cStr());
     }
     undoList.clear();
     applied = false;
@@ -1225,7 +1240,7 @@ int version()
 const char* statusLine(int i)
 {
     int n = 0;
-    const auto add = [&](const std::string& s) {
+    const auto add = [&](const za::String& s) {
         if(n < 8)
         {
             lineBuf[n++] = s;
@@ -1262,7 +1277,7 @@ const char* statusLine(int i)
                 // Inherit From: the page edits the settings inherited, so Apply does too (the other ammo's model shares
                 // them); a weapon that should keep its own is made to Stop Inheriting first.
                 const char* id = weapons::cvar(owner, Key::ID)->string;
-                const char* base = std::strrchr(id, '/');
+                const char* base = strrchr(id, '/');
                 add(va("Changes %s's (inherited)", base ? base + 1 : id));
             }
         }
@@ -1271,7 +1286,7 @@ const char* statusLine(int i)
     {
         add("Last try: " + st.message);
     }
-    return i >= 0 && i < n ? lineBuf[i].c_str() : nullptr;
+    return i >= 0 && i < n ? lineBuf[i].cStr() : nullptr;
 }
 
 void frame()
@@ -1317,13 +1332,13 @@ void frame()
     {
         return;
     }
-    std::string text = va("%c%c%c%c%c%c%c%c%c%c%c%c%c %s", 'A' | 0x80, 'L' | 0x80, 'I' | 0x80, 'G' | 0x80, 'N' | 0x80, ' ' | 0x80,
-        'S' | 0x80, 'I' | 0x80, 'G' | 0x80, 'H' | 0x80, 'T' | 0x80, 'S' | 0x80, ':' | 0x80, modelBase(st.model).c_str());
+    za::String text = va("%c%c%c%c%c%c%c%c%c%c%c%c%c %s", 'A' | 0x80, 'L' | 0x80, 'I' | 0x80, 'G' | 0x80, 'N' | 0x80, ' ' | 0x80,
+        'S' | 0x80, 'I' | 0x80, 'G' | 0x80, 'H' | 0x80, 'T' | 0x80, 'S' | 0x80, ':' | 0x80, modelBase(st.model).cStr());
     text += va("\n%d of %d taken\n", static_cast<int>(st.captures.size()), st.wanted);
     text += st.step == Step::Countdown   ? va("close your eyes, lower the gun: %d", st.countdown.remaining(now))
-            : st.step == Step::WaitRaise ? std::string(st.captures.empty() ? "raise it as you would your own, hold still"
+            : st.step == Step::WaitRaise ? za::String(st.captures.empty() ? "raise it as you would your own, hold still"
                                                                            : "lower it, then raise it again")
-                                         : std::string("hold still...");
+                                         : za::String("hold still...");
     text += "\nmenu button: stop";
     const float m2u = units::metresToUnits();
     const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
@@ -1438,7 +1453,7 @@ void viewFrame(const hands::State& s)
     {
         return;
     }
-    st.captures.push_back({mean});
+    st.captures.pushBack({mean});
     st.lastEvent = now;
     st.window.clear();
     const Sample& c = mean;

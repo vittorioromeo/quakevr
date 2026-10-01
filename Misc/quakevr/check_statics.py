@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fails on a mutable function-local `static std::...` or `thread_local` in Quake/vr (docs/vr-port/CODE_STYLE.md,
+"""Fails on a mutable function-local `static std::...` (or a Zancle container: `za::`, `ankerl::`) or `thread_local` in Quake/vr (docs/vr-port/CODE_STYLE.md,
 "Scratch buffers and caches"): a scratch buffer goes into its file's `mem::Scratch` set, a cache into a `mem::Cache`,
 other state into a named struct at file scope. Constants (`static const`, `static constexpr`) are fine, and so is a
 file-scope `thread_local` (not indented: a worker's state by design, `vr_decals.cpp`'s RNG).
@@ -15,11 +15,11 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[2] / "Quake" / "vr"
 EXTS = {".cpp", ".hpp", ".h", ".inc", ".c"}
 
-# Indented (inside a function or a class) `static`/`thread_local` of a `std::` type, not const, and a variable (its
+# Indented (inside a function or a class) `static`/`thread_local` of a `std::`, `za::` or `ankerl::` type, not const, and a variable (its
 # name followed by `;`, `=`, `{` or `[`), not a static member function (`static std::string name(`).
 STATIC_STD = re.compile(
     r"^\s+(?:static\s+thread_local|thread_local\s+static|static)\s+(?!const\b|constexpr\b|inline\b)"
-    r"(?:std::|::std::).*?\s[\*&]*\w+\s*(?:\[[^\]]*\]\s*)?(?:;|=|\{)"
+    r"(?:std::|::std::|za::|::za::|ankerl::).*?\s[\*&]*\w+\s*(?:\[[^\]]*\]\s*)?(?:;|=|\{)"
 )
 # Indented `thread_local` of any type that is not a constant.
 THREAD_LOCAL = re.compile(r"^\s+(?:static\s+)?thread_local\s+(?!const\b|constexpr\b)")

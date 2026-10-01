@@ -6,12 +6,18 @@
 #include "vr_evict.hpp"
 #include "vr_profile.hpp"
 
-#include <algorithm>
-#include <chrono>
-#include <cmath>
-#include <cstdint>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/UIntPtrT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
+#include "Zancle/Chrono/Time.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
 
 using namespace qvr;
 
@@ -72,7 +78,7 @@ const Rays& rays()
             float sum = 0.f;
             for(int i = 0; i < NUM_RAYS; i++)
             {
-                r.weight[i][f] = std::max(0.f, glm::dot(r.dir[i], AXES[f]));
+                r.weight[i][f] = za::max(0.f, glm::dot(r.dir[i], AXES[f]));
                 sum += r.weight[i][f];
             }
             for(int i = 0; i < NUM_RAYS; i++)
@@ -107,8 +113,8 @@ glm::vec3 lightmapAt(const msurface_t* surf, int ds, int dt)
 {
     const int smax = (surf->extents[0] >> 4) + 1;
     const int tmax = (surf->extents[1] >> 4) + 1;
-    const int s0 = std::min(ds >> 4, smax - 1), t0 = std::min(dt >> 4, tmax - 1);
-    const int s1 = std::min(s0 + 1, smax - 1), t1 = std::min(t0 + 1, tmax - 1);
+    const int s0 = za::min(ds >> 4, smax - 1), t0 = za::min(dt >> 4, tmax - 1);
+    const int s1 = za::min(s0 + 1, smax - 1), t1 = za::min(t0 + 1, tmax - 1);
     const float fs = static_cast<float>(ds & 15) / 16.f, ft = static_cast<float>(dt & 15) / 16.f;
     const byte* lightmap = surf->samples;
     glm::vec3 c00{0.f}, c01{0.f}, c10{0.f}, c11{0.f};
@@ -252,7 +258,7 @@ void traceProbe(const glm::vec3& p, Probe& out)
             {
                 const unsigned char style = out.hits[i].surf->styles[m];
                 out.animated |= style != 0;
-                if(out.numStyles >= 0 && std::find(out.styles, out.styles + out.numStyles, style) == out.styles + out.numStyles)
+                if(out.numStyles >= 0 && za::find(out.styles, out.styles + out.numStyles, style) == out.styles + out.numStyles)
                 {
                     out.numStyles = out.numStyles < MAX_PROBE_STYLES ? out.numStyles + 1 : -1;
                     if(out.numStyles > 0)
@@ -296,7 +302,7 @@ void shade(const Probe& probe, Cube& out)
     {
         if(probe.hits[i].kind == HitKind::Sky)
         {
-            light[i] = glm::vec3{std::max(luma(mean), 48.f) * 1.5f};
+            light[i] = glm::vec3{za::max(luma(mean), 48.f) * 1.5f};
         }
         else if(probe.hits[i].kind == HitKind::None)
         {
@@ -306,7 +312,7 @@ void shade(const Probe& probe, Cube& out)
 
     // The world's lightmap contrast (vr_light_contrast), so that the sides match how bright the
     // walls they face look.
-    const float curve = std::clamp(vr_light_contrast.value, 0.5f, 3.f);
+    const float curve = za::clamp(vr_light_contrast.value, 0.5f, 3.f);
     Cube faces{};
     for(int i = 0; i < NUM_RAYS; i++)
     {
@@ -326,9 +332,9 @@ void shade(const Probe& probe, Cube& out)
     {
         avg += f / 6.f;
     }
-    const float top = std::max(avg.r, std::max(avg.g, avg.b));
-    const glm::vec3 denom = glm::max(avg, glm::vec3{std::max(top * 0.3f, 1.f)});
-    const float contrast = std::clamp(vr_model_ambient_contrast.value, 0.f, 2.f);
+    const float top = za::max(avg.r, za::max(avg.g, avg.b));
+    const glm::vec3 denom = glm::max(avg, glm::vec3{za::max(top * 0.3f, 1.f)});
+    const float contrast = za::clamp(vr_model_ambient_contrast.value, 0.f, 2.f);
     float total = 0.f;
     for(int f = 0; f < 6; f++)
     {
@@ -407,7 +413,7 @@ const Cube& shadeMemo(ShadeMemo& m, const Probe& probe)
 
 const qmodel_t* loadedWorld = nullptr;
 int loadedGeneration = -1;
-std::unordered_map<const entity_t*, Cached> cache;
+ankerl::unordered_dense::map<const entity_t*, Cached> cache;
 Eviction eviction;
 int budgetFrame = -1;
 int tracedThisFrame = 0;
@@ -485,16 +491,16 @@ void show_f()
         const entity_t* e;
         const Cached* c;
     };
-    std::vector<Near> nearest;
+    za::Vector<Near> nearest;
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     for(const auto& [e, c] : cache)
     {
         if(c.tracedAt >= 0.0 && c.frame >= host_framecount - 2 && (Cmd_Argc() < 2 || !VR_IsViewEntity(e)))
         {
-            nearest.push_back({glm::distance(eye, c.samplePos), e, &c});
+            nearest.pushBack({glm::distance(eye, c.samplePos), e, &c});
         }
     }
-    std::sort(nearest.begin(), nearest.end(), [](const Near& a, const Near& b) { return a.dist < b.dist; });
+    za::quickSort(nearest.begin(), nearest.end(), [](const Near& a, const Near& b) { return a.dist < b.dist; });
     Con_Printf("AMB %lld samples, %.1f us each (%d rays), %d entities cached\n", samplesTaken,
                samplesTaken ? sampleSeconds * 1e6 / static_cast<double>(samplesTaken) : 0.0, NUM_RAYS,
                static_cast<int>(cache.size()));
@@ -561,7 +567,7 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         const bool fresh = c.tracedAt < 0.0;
         const float moved = fresh ? 0.f : glm::distance(p, c.samplePos);
         // Staggered between entities, so that they don't all come due in the same frame.
-        const double stagger = static_cast<double>(reinterpret_cast<std::uintptr_t>(e) % 97) * 0.005;
+        const double stagger = static_cast<double>(reinterpret_cast<za::UIntPtrT>(e) % 97) * 0.005;
         const bool due = fresh || moved > (view ? MOVE_UNITS_VIEW : MOVE_UNITS) ||
                          realtime - c.tracedAt > REFRESH_SECONDS + stagger;
         const bool allowed = fresh ? freshThisFrame < MAX_FRESH_PER_FRAME
@@ -575,7 +581,7 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         }
         else if(due && allowed)
         {
-            const auto t0 = std::chrono::steady_clock::now();
+            const za::Clock clock;
             if(fresh || moved > 128.f) // new, or teleported: no easing from where it was
             {
                 traceProbe(p, c.current);
@@ -593,7 +599,7 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
                 c.currentShaded.valid = false;
                 c.blend = 0.f;
             }
-            sampleSeconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+            sampleSeconds += static_cast<double>(clock.getElapsedTime().asMicroseconds()) / 1e6;
             samplesTaken++;
             c.samplePos = p;
             c.tracedAt = realtime;
@@ -604,7 +610,7 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
         {
             if(c.blend < 1.f)
             {
-                c.blend = 1.f - (1.f - c.blend) * std::exp(-static_cast<float>(host_frametime) * EASE_RATE);
+                c.blend = 1.f - (1.f - c.blend) * za::exp(-static_cast<float>(host_frametime) * EASE_RATE);
                 c.blend = c.blend > 0.995f ? 1.f : c.blend;
                 reshade = true;
             }
@@ -616,7 +622,7 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
             {
                 c.settings = settings;
                 const Cube& now = shadeMemo(c.currentShaded, c.current);
-                std::copy(std::begin(now), std::end(now), std::begin(c.cube));
+                za::copy(now, now + 6, c.cube); // (a Cube's six faces)
                 if(c.blend < 1.f)
                 {
                     const Cube& older = shadeMemo(c.previousShaded, c.previous);

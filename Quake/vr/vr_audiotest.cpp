@@ -19,12 +19,23 @@
 #include "vr_jobs.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
-#include <string>
-#include <vector>
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Log10.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
+#include <stdio.h>
 
 extern "C" int VR_SndSpatialize(channel_t* ch);
 
@@ -39,7 +50,7 @@ namespace
 
 float db(double meanSquare)
 {
-    return meanSquare > 1e-20 ? static_cast<float>(10.0 * std::log10(meanSquare / (32768.0 * 32768.0))) : -200.f;
+    return meanSquare > 1e-20 ? static_cast<float>(10.0 * za::log10(meanSquare / (32768.0 * 32768.0))) : -200.f;
 }
 
 } // namespace
@@ -52,8 +63,8 @@ Levels measure(const float* l, const float* r, int n, int rate)
         return lv;
     }
     // Four one-pole stages each (24 dB an octave): below 500 Hz, above 4 kHz.
-    const double aLow = 1.0 - std::exp(-2.0 * 3.14159265 * 500.0 / rate);
-    const double aHigh = 1.0 - std::exp(-2.0 * 3.14159265 * 4000.0 / rate);
+    const double aLow = 1.0 - za::exp(-2.0 * 3.14159265 * 500.0 / rate);
+    const double aHigh = 1.0 - za::exp(-2.0 * 3.14159265 * 4000.0 / rate);
     double sl = 0, sr = 0, low = 0, high = 0;
     double lp[2][4]{}, hp[2][4]{};
     for(int i = 0; i < n; i++)
@@ -94,7 +105,7 @@ constexpr int testRate = 44100;
 // A made mono sound, as Quake's cache holds one (16-bit).
 struct Sound
 {
-    std::vector<unsigned char> bytes;
+    za::Vector<unsigned char> bytes;
     [[nodiscard]] const sfxcache_t* cache() const
     {
         return reinterpret_cast<const sfxcache_t*>(bytes.data());
@@ -104,7 +115,8 @@ struct Sound
 Sound makeSound(int length, bool loop, float (*gen)(int i, unsigned& seed))
 {
     Sound s;
-    s.bytes.assign(sizeof(sfxcache_t) + static_cast<std::size_t>(length) * 2 + 16, 0);
+    s.bytes.clear();
+    s.bytes.resize(sizeof(sfxcache_t) + static_cast<za::SizeT>(length) * 2 + 16, 0);
     sfxcache_t* sc = reinterpret_cast<sfxcache_t*>(s.bytes.data());
     sc->length = length;
     sc->loopstart = loop ? 0 : -1;
@@ -115,7 +127,7 @@ Sound makeSound(int length, bool loop, float (*gen)(int i, unsigned& seed))
     unsigned seed = 12345;
     for(int i = 0; i < length; i++)
     {
-        data[i] = static_cast<short>(std::clamp(gen(i, seed), -32767.f, 32767.f));
+        data[i] = static_cast<short>(za::clamp(gen(i, seed), -32767.f, 32767.f));
     }
     return s;
 }
@@ -128,7 +140,7 @@ float noise(int, unsigned& seed)
 
 float sine1k(int i, unsigned&)
 {
-    return 8000.f * std::sin(2.f * 3.14159265f * 1000.f * static_cast<float>(i) / testRate);
+    return 8000.f * za::sin(2.f * 3.14159265f * 1000.f * static_cast<float>(i) / testRate);
 }
 
 float click(int i, unsigned&)
@@ -138,7 +150,7 @@ float click(int i, unsigned&)
 
 struct Render
 {
-    std::vector<float> l, r;
+    za::Vector<float> l, r;
 };
 
 // Voice 0 alone for `seconds`; `move` sets its input before each frame (t: seconds from the start).
@@ -152,8 +164,8 @@ Render renderVoice(Mixer& m, const sfxcache_t* sc, const Listener& lis, const Fe
         m.stop(v);
     }
     m.start(0, sc, 0.0);
-    const int blocks = static_cast<int>(std::ceil(seconds * testRate / frame));
-    std::vector<float> l(frame), r(frame);
+    const int blocks = static_cast<int>(za::ceil(seconds * testRate / frame));
+    za::Vector<float> l(frame), r(frame);
     for(int b = 0; b < blocks; b++)
     {
         VoiceInput in;
@@ -163,11 +175,11 @@ Render renderVoice(Mixer& m, const sfxcache_t* sc, const Listener& lis, const Fe
         {
             m.set(0, in);
         }
-        std::fill(l.begin(), l.end(), 0.f);
-        std::fill(r.begin(), r.end(), 0.f);
+        qza::fill(l.begin(), l.end(), 0.f);
+        qza::fill(r.begin(), r.end(), 0.f);
         m.render(1, lis, f, reverb, l.data(), r.data());
-        out.l.insert(out.l.end(), l.begin(), l.end());
-        out.r.insert(out.r.end(), r.begin(), r.end());
+        out.l.emplaceBackRange(l.data(), l.size());
+        out.r.emplaceBackRange(r.data(), r.size());
         if(!m.active(0) || m.ended(0))
         {
             m.stop(0);
@@ -178,19 +190,19 @@ Render renderVoice(Mixer& m, const sfxcache_t* sc, const Listener& lis, const Fe
 
 void writeWav(const char* name, const Render& r)
 {
-    std::string path = std::string{com_gamedir} + "/sound_tests/test_" + name + ".wav";
+    za::String path = za::String{com_gamedir} + "/sound_tests/test_" + name + ".wav";
     COM_CreatePath(path.data());
-    FILE* f = std::fopen(path.c_str(), "wb");
+    FILE* f = fopen(path.cStr(), "wb");
     if(!f)
     {
         return;
     }
-    const auto u32 = [&](unsigned v) { std::fwrite(&v, 4, 1, f); };
-    const auto u16 = [&](unsigned short v) { std::fwrite(&v, 2, 1, f); };
+    const auto u32 = [&](unsigned v) { fwrite(&v, 4, 1, f); };
+    const auto u16 = [&](unsigned short v) { fwrite(&v, 2, 1, f); };
     const unsigned n = static_cast<unsigned>(r.l.size());
-    std::fwrite("RIFF", 1, 4, f);
+    fwrite("RIFF", 1, 4, f);
     u32(36 + n * 4);
-    std::fwrite("WAVEfmt ", 1, 8, f);
+    fwrite("WAVEfmt ", 1, 8, f);
     u32(16);
     u16(1);
     u16(2);
@@ -198,15 +210,15 @@ void writeWav(const char* name, const Render& r)
     u32(testRate * 4);
     u16(4);
     u16(16);
-    std::fwrite("data", 1, 4, f);
+    fwrite("data", 1, 4, f);
     u32(n * 4);
     for(unsigned i = 0; i < n; i++)
     {
-        const short s[2] = {static_cast<short>(std::clamp(r.l[i], -32768.f, 32767.f)),
-            static_cast<short>(std::clamp(r.r[i], -32768.f, 32767.f))};
-        std::fwrite(s, 2, 2, f);
+        const short s[2] = {static_cast<short>(za::clamp(r.l[i], -32768.f, 32767.f)),
+            static_cast<short>(za::clamp(r.r[i], -32768.f, 32767.f))};
+        fwrite(s, 2, 2, f);
     }
-    std::fclose(f);
+    fclose(f);
 }
 
 // The interaural time difference: the lag (samples, within 1 ms) at which the right ear best matches the left one;
@@ -251,15 +263,15 @@ Octaves octaves(const Render& r, int from)
         }
         for(int k = 0; k < 24; k++)
         {
-            const double f = 1000.0 * std::pow(2.0, (k + 0.5) / 6.0);
-            const double coeff = 2.0 * std::cos(2.0 * 3.14159265 * f / testRate);
+            const double f = 1000.0 * za::pow(2.0, (k + 0.5) / 6.0);
+            const double coeff = 2.0 * za::cos(2.0 * 3.14159265 * f / testRate);
             for(int ear = 0; ear < 2; ear++)
             {
-                const std::vector<float>& x = ear == 0 ? r.l : r.r;
+                const za::Vector<float>& x = ear == 0 ? r.l : r.r;
                 double s1 = 0, s2 = 0;
                 for(int i = 0; i < n; i++)
                 {
-                    const double hann = 0.5 - 0.5 * std::cos(2.0 * 3.14159265 * i / (n - 1));
+                    const double hann = 0.5 - 0.5 * za::cos(2.0 * 3.14159265 * i / (n - 1));
                     const double s = x[start + i] * hann + coeff * s1 - s2;
                     s2 = s1;
                     s1 = s;
@@ -270,13 +282,13 @@ Octaves octaves(const Render& r, int from)
     }
     for(int b = 0; b < 4; b++)
     {
-        o.band[b] = static_cast<float>(10.0 * std::log10(std::max(power[b], 1e-9)));
+        o.band[b] = static_cast<float>(10.0 * za::log10(za::max(power[b], 1e-9)));
     }
     return o;
 }
 
 // Frequency by zero crossings (upwards) over [from, from + n).
-double pitch(const std::vector<float>& x, int from, int n)
+double pitch(const za::Vector<float>& x, int from, int n)
 {
     int first = -1;
     int last = -1;
@@ -304,7 +316,7 @@ double pitch(const std::vector<float>& x, int from, int n)
 float rt60(const Render& r, int from)
 {
     const int n = static_cast<int>(r.l.size());
-    std::vector<double> edc(n + 1, 0.0);
+    za::Vector<double> edc(n + 1, 0.0);
     for(int i = n - 1; i >= from; i--)
     {
         edc[i] = edc[i + 1] + static_cast<double>(r.l[i]) * r.l[i] + static_cast<double>(r.r[i]) * r.r[i];
@@ -317,7 +329,7 @@ float rt60(const Render& r, int from)
     int t25 = -1;
     for(int i = from; i < n; i++)
     {
-        const double level = 10.0 * std::log10(std::max(edc[i], 1e-30) / edc[from]);
+        const double level = 10.0 * za::log10(za::max(edc[i], 1e-30) / edc[from]);
         if(t5 < 0 && level <= -5.0)
         {
             t5 = i;
@@ -356,7 +368,7 @@ Features baseFeatures()
     Features f;
     f.hrtf = true;
     f.bilinear = vr_snd_hrtf_interp.value != 0.f;
-    f.hrtfGain = std::clamp(vr_snd_hrtf_gain.value, 0.f, 4.f);
+    f.hrtfGain = za::clamp(vr_snd_hrtf_gain.value, 0.f, 4.f);
     f.unitsPerMetre = units::perMetre;
     return f;
 }
@@ -386,7 +398,7 @@ void testCircle(Result& res)
     Octaves oct[8]{};
     int lag[8]{};
     const Levels mono = [&] {
-        std::vector<float> x(testRate);
+        za::Vector<float> x(testRate);
         const short* d = reinterpret_cast<const short*>(snd.cache()->data);
         for(int i = 0; i < testRate; i++)
         {
@@ -397,14 +409,14 @@ void testCircle(Result& res)
     for(int k = 0; k < 8; k++)
     {
         const float a = static_cast<float>(k) * 45.f * 3.14159265f / 180.f; // clockwise from ahead: 90 the right
-        const glm::vec3 at = r * (std::cos(a) * lis.fwd + std::sin(a) * lis.right);
+        const glm::vec3 at = r * (za::cos(a) * lis.fwd + za::sin(a) * lis.right);
         const Render out = renderVoice(m, snd.cache(), lis, f, nullptr, 0.5f, [&](double, VoiceInput& in) { in.pos = at; });
         const int from = testRate / 10;
         const int n = static_cast<int>(out.l.size()) - from;
         const Levels lv = measure(out.l.data() + from, out.r.data() + from, n, testRate);
         ild[k] = lv.right - lv.left;
         oct[k] = octaves(out, from);
-        lag[k] = itd(out, from, std::min(n, 8192));
+        lag[k] = itd(out, from, za::min(n, 8192));
         Con_Printf("snd_test circle: %3d deg: left %6.1f dB, right %6.1f dB, ILD %+5.1f dB, ITD %+4.0f us; octaves 1-2-4-8-16 "
                    "kHz %.1f %.1f %.1f %.1f dB (mono in: %.1f dB)\n",
             k * 45, lv.left, lv.right, ild[k], lag[k] * 1e6 / testRate, oct[k].band[0], oct[k].band[1], oct[k].band[2],
@@ -414,13 +426,13 @@ void testCircle(Result& res)
     {
         const Render turn = renderVoice(m, snd.cache(), lis, f, nullptr, 4.f, [&](double t, VoiceInput& in) {
             const float a = static_cast<float>(t / 4.0 * 2.0 * 3.14159265);
-            in.pos = r * (std::cos(a) * lis.fwd + std::sin(a) * lis.right);
+            in.pos = r * (za::cos(a) * lis.fwd + za::sin(a) * lis.right);
         });
         writeWav("circle", turn);
     }
     res.check("circle: the right louder on the right (ILD at 90 > 6 dB)", ild[2] > 6.f);
     res.check("circle: the left louder on the left (ILD at 270 < -6 dB)", ild[6] < -6.f);
-    res.check("circle: ahead and behind balanced (|ILD| < 3 dB)", std::abs(ild[0]) < 3.f && std::abs(ild[4]) < 3.f);
+    res.check("circle: ahead and behind balanced (|ILD| < 3 dB)", qza::abs(ild[0]) < 3.f && qza::abs(ild[4]) < 3.f);
     res.check("circle: the right ear first on the right, the left on the left (ITD)", lag[2] > 0 && lag[6] < 0);
     // Ahead and behind: the same level at each ear, told apart by the pinnae's colouring (behind: less of the highs).
     const float frontBack = (oct[0].band[2] - oct[4].band[2]) + (oct[0].band[3] - oct[4].band[3]);
@@ -456,11 +468,11 @@ void testOcclusion(Result& res)
     const Sound snd = makeSound(testRate, true, noise);
     const Listener lis = centred();
     Features f = baseFeatures();
-    f.occlusion = std::clamp(vr_snd_occlusion.value, 0.1f, 2.f);
+    f.occlusion = za::clamp(vr_snd_occlusion.value, 0.1f, 2.f);
     SimSettings ss;
     ss.occlusion = true;
     ss.occlusionSamples = static_cast<int>(vr_snd_occlusion_samples.value);
-    ss.occlusionRadius = std::clamp(vr_snd_occlusion_radius.value, 0.05f, 4.f);
+    ss.occlusionRadius = za::clamp(vr_snd_occlusion_radius.value, 0.05f, 4.f);
     const glm::vec3 at{5.f * upm, 0.f, 0.f};
     Simulation::Source src;
     src.active = true;
@@ -487,10 +499,10 @@ void testOcclusion(Result& res)
         SurfaceMaterial::Stone, upm);
     Mesh walled = open;
     addWall(walled, 2.5f, upm);
-    sim.buildSceneNow(std::move(open));
+    sim.buildSceneNow(ZA_MOVE(open));
     DirectResult dOpen, dWall, dMoved, dAway;
     const Levels a = measureWith("occl_open", dOpen);
-    sim.buildSceneNow(std::move(walled));
+    sim.buildSceneNow(ZA_MOVE(walled));
     const Levels b = measureWith("occl_wall", dWall);
     Con_Printf("snd_test occlusion: open: occlusion %.2f, %.1f dB (lows %.1f, highs %.1f); behind the wall: occlusion %.2f, "
                "transmission %.2f %.2f %.2f, %.1f dB (lows %.1f, highs %.1f); strength %.2f\n",
@@ -503,7 +515,7 @@ void testOcclusion(Result& res)
     Mesh floorOnly;
     floorOnly.addBox(glm::vec3{-20.f * upm, -20.f * upm, -2.f * upm}, glm::vec3{20.f * upm, 20.f * upm, -1.8f * upm}, false,
         SurfaceMaterial::Stone, upm);
-    sim.buildSceneNow(std::move(floorOnly));
+    sim.buildSceneNow(ZA_MOVE(floorOnly));
     const auto place = [&](float x, float up) {
         IPLMatrix4x4 t{};
         t.elements[0][0] = t.elements[1][1] = t.elements[2][2] = t.elements[3][3] = 1.f;
@@ -558,7 +570,7 @@ void testReverb(Result& res)
             Mesh room;
             const glm::vec3 half = rooms[k].size * 0.5f * upm;
             room.addBox(-half, half, true, SurfaceMaterial::Stone, upm);
-            sim.buildSceneNow(std::move(room));
+            sim.buildSceneNow(ZA_MOVE(room));
             SimSettings ss;
             ss.reverb = true;
             ss.rays = 4096;
@@ -577,7 +589,7 @@ void testReverb(Result& res)
             f.reverb = 1.f;
             const glm::vec3 at = lis.fwd * upm; // 1 m ahead
             const Render out = renderVoice(m, snd.cache(), lis, f, &p, 3.f, [&](double, VoiceInput& in) { in.pos = at; });
-            writeWav((std::string{"reverb_"} + typeNames[t] + "_" + rooms[k].name).c_str(), out);
+            writeWav((za::String{"reverb_"} + typeNames[t] + "_" + rooms[k].name).cStr(), out);
             const int from = testRate / 50; // (after the dry click: 20 ms)
             measured[k] = rt60(out, from);
             // The wet energy after 20 ms against the dry click's (its first 5 ms).
@@ -589,7 +601,7 @@ void testReverb(Result& res)
                 const double t = static_cast<double>(i) / testRate;
                 (t < 0.005 ? dry : t < 0.1 ? early : t < 0.5 ? mid : late) += e;
             }
-            const auto rel = [&](double e) { return 10.0 * std::log10(std::max(e, 1e-9) / std::max(dry, 1e-9)); };
+            const auto rel = [&](double e) { return 10.0 * za::log10(za::max(e, 1e-9) / za::max(dry, 1e-9)); };
             Con_Printf("snd_test reverb %s %s (%.0f x %.0f x %.0f m): simulated RT60 %.2f %.2f %.2f s, measured %.2f s; "
                        "energy after the click, 5-100 ms %+.1f dB, 0.1-0.5 s %+.1f dB, 0.5-3 s %+.1f dB\n",
                 typeNames[t], rooms[k].name, rooms[k].size.x, rooms[k].size.y, rooms[k].size.z, p.reverbTimes[0],
@@ -599,7 +611,7 @@ void testReverb(Result& res)
         q_snprintf(name, sizeof name, "reverb %s: the hall rings longer than the small room (x2)", typeNames[t]);
         // (Convolution has no decay times of its own: the measured one only.)
         const bool simulatedOk = types[t] == IPL_REFLECTIONEFFECTTYPE_CONVOLUTION || simulated[1] > 2.f * simulated[0];
-        res.check(name, simulatedOk && measured[1] > 2.f * std::max(measured[0], 0.01f));
+        res.check(name, simulatedOk && measured[1] > 2.f * za::max(measured[0], 0.01f));
     }
 }
 
@@ -641,9 +653,9 @@ void testDoppler(Result& res)
                "off: %.1f, %.1f Hz\n",
         speed, speed / upm, coming, expectComing, going, expectGoing, coming0, going0);
     res.check("doppler: higher coming, lower going (within 2%)",
-        std::abs(coming / expectComing - 1.0) < 0.02 && std::abs(going / expectGoing - 1.0) < 0.02);
-    res.check("doppler: off leaves the pitch (within 0.5%)", std::abs(coming0 / 1000.0 - 1.0) < 0.005 &&
-                                                                 std::abs(going0 / 1000.0 - 1.0) < 0.005);
+        qza::abs(coming / expectComing - 1.0) < 0.02 && qza::abs(going / expectGoing - 1.0) < 0.02);
+    res.check("doppler: off leaves the pitch (within 0.5%)", qza::abs(coming0 / 1000.0 - 1.0) < 0.005 &&
+                                                                 qza::abs(going0 / 1000.0 - 1.0) < 0.005);
 }
 
 void testNearField(Result& res)
@@ -666,13 +678,13 @@ void testNearField(Result& res)
         const Levels lv = measure(out.l.data() + from, out.r.data() + from, static_cast<int>(out.l.size()) - from, testRate);
         return lv.right - lv.left;
     };
-    const float strength = std::max(0.25f, std::clamp(vr_snd_nearfield.value, 0.f, 2.f));
+    const float strength = za::max(0.25f, za::clamp(vr_snd_nearfield.value, 0.f, 2.f));
     const float nearOn = ild(0.2f, strength);
     const float farOn = ild(2.f, strength);
     const float nearOff = ild(0.2f, 0.f);
     Con_Printf("snd_test nearfield: ILD at 0.2 m %+.1f dB (near field off: %+.1f), at 2 m %+.1f dB\n", nearOn, nearOff, farOn);
     res.check("nearfield: a sound at the ear has a larger ILD than at 2 m (> 4 dB more)", nearOn - farOn > 4.f);
-    res.check("nearfield: off, the same ILD near and far (within 1.5 dB)", std::abs(nearOff - farOn) < 1.5f);
+    res.check("nearfield: off, the same ILD near and far (within 1.5 dB)", qza::abs(nearOff - farOn) < 1.5f);
 }
 
 void testHands(Result& res)
@@ -701,7 +713,7 @@ void testHands(Result& res)
                    "head, %.1f to the right), left %d, right %d\n",
             h == HAND_MAIN ? "main" : "off", ch.entchannel, at.x, at.y, at.z, glm::length(at - hand), glm::length(at - head),
             side, ch.leftvol, ch.rightvol);
-        const bool panned = std::abs(side) < 2.f || (side > 0.f) == (ch.rightvol > ch.leftvol);
+        const bool panned = qza::abs(side) < 2.f || (side > 0.f) == (ch.rightvol > ch.leftvol);
         res.check(h == HAND_MAIN ? "hands: the main hand's weapon channel plays from it" : "hands: the off hand's from it",
             handled && glm::length(at - hand) < 0.5f && panned);
     }
@@ -724,7 +736,7 @@ void bench(Result& res)
     Mesh room;
     room.addBox(glm::vec3{-10.f, -8.f, -3.f} * upm, glm::vec3{10.f, 8.f, 5.f} * upm, true, SurfaceMaterial::Stone, upm);
     addWall(room, 3.f, upm);
-    sim.buildSceneNow(std::move(room));
+    sim.buildSceneNow(ZA_MOVE(room));
     SimSettings ss;
     ss.reverb = true;
     ss.occlusion = true;
@@ -734,18 +746,18 @@ void bench(Result& res)
     bool haveReverb = sim.reflections(reverb);
 
     constexpr int voices = 32;
-    std::vector<Sound> sounds;
+    za::Vector<Sound> sounds;
     for(int i = 0; i < 4; i++)
     {
-        sounds.push_back(makeSound(testRate + i * 1000, true, noise));
+        sounds.pushBack(makeSound(testRate + i * 1000, true, noise));
     }
-    std::array<Simulation::Source, voices> src{};
-    std::array<glm::vec3, voices> at{};
+    za::Array<Simulation::Source, voices> src{};
+    za::Array<glm::vec3, voices> at{};
     for(int i = 0; i < voices; i++)
     {
         const float a = static_cast<float>(i) * 2.399963f;
         const float r = (1.f + static_cast<float>(i % 8)) * upm;
-        at[i] = glm::vec3{std::cos(a) * r, std::sin(a) * r, static_cast<float>(i % 3 - 1) * 20.f};
+        at[i] = glm::vec3{za::cos(a) * r, za::sin(a) * r, static_cast<float>(i % 3 - 1) * 20.f};
         src[i].active = true;
         src[i].serial = 1;
         src[i].pos = toSteam(at[i], upm);
@@ -759,7 +771,7 @@ void bench(Result& res)
 
     const int perFrame = testRate / 90; // (a 90 Hz frame's samples: 490)
     const int blocksPerFrame = (perFrame + frame - 1) / frame;
-    std::vector<float> l(blocksPerFrame * frame), r(blocksPerFrame * frame);
+    za::Vector<float> l(blocksPerFrame * frame), r(blocksPerFrame * frame);
     const auto time = [&](const Features& f, bool withDirect, bool withReverb) {
         for(int i = 0; i < voices; i++)
         {
@@ -808,7 +820,7 @@ void bench(Result& res)
         other.create(testRate, frame, types[t], 1, 2.f, 2048);
         Mesh again;
         again.addBox(glm::vec3{-10.f, -8.f, -3.f} * upm, glm::vec3{10.f, 8.f, 5.f} * upm, true, SurfaceMaterial::Stone, upm);
-        other.buildSceneNow(std::move(again));
+        other.buildSceneNow(ZA_MOVE(again));
         SimSettings two = ss;
         two.duration = 2.f;
         other.runReflectionsNow(lc, two);
@@ -822,7 +834,7 @@ void bench(Result& res)
     }
 
     // Quake's own mixing of 32 16-bit channels over the same frame (snd_mix.c SND_PaintChannelFrom16).
-    std::vector<int> paint(perFrame * 2);
+    za::Vector<int> paint(perFrame * 2);
     double tQuake = 0.0;
     {
         const int frames = 300;
@@ -830,7 +842,7 @@ void bench(Result& res)
         const double start = Sys_DoubleTime();
         for(int k = 0; k < frames; k++)
         {
-            std::fill(paint.begin(), paint.end(), 0);
+            qza::fill(paint.begin(), paint.end(), 0);
             for(int c = 0; c < voices; c++)
             {
                 const short* sfx = reinterpret_cast<const short*>(sounds[c % 4].cache()->data) + (k * perFrame) % 20000;
@@ -865,34 +877,34 @@ void test_f()
         Con_Printf("snd_test: Steam Audio isn't loaded (%s)\n", steamaudio::status());
         return;
     }
-    const bool all = !std::strcmp(which, "all");
+    const bool all = !ZA_STRCMP(which, "all");
     Result res;
     const double start = Sys_DoubleTime();
-    if(all || !std::strcmp(which, "circle"))
+    if(all || !ZA_STRCMP(which, "circle"))
     {
         testCircle(res);
     }
-    if(all || !std::strcmp(which, "occlusion"))
+    if(all || !ZA_STRCMP(which, "occlusion"))
     {
         testOcclusion(res);
     }
-    if(all || !std::strcmp(which, "reverb"))
+    if(all || !ZA_STRCMP(which, "reverb"))
     {
         testReverb(res);
     }
-    if(all || !std::strcmp(which, "doppler"))
+    if(all || !ZA_STRCMP(which, "doppler"))
     {
         testDoppler(res);
     }
-    if(all || !std::strcmp(which, "nearfield"))
+    if(all || !ZA_STRCMP(which, "nearfield"))
     {
         testNearField(res);
     }
-    if(all || !std::strcmp(which, "hands"))
+    if(all || !ZA_STRCMP(which, "hands"))
     {
         testHands(res);
     }
-    if(all || !std::strcmp(which, "bench"))
+    if(all || !ZA_STRCMP(which, "bench"))
     {
         bench(res);
     }

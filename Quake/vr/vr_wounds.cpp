@@ -10,12 +10,24 @@
 #include "vr_view.hpp"
 #include "vr_avatar.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
-#include <cstring>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Remove.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+
+#include <string.h>
 
 extern "C" qboolean Image_WritePNG(const char* name, byte* data, int width, int height, int bpp, qboolean upsidedown); // image.c
 
@@ -79,15 +91,15 @@ struct Mask
     double dripNext{0.0};
 };
 
-std::vector<Event> events;
-std::vector<Mask> masks; // one a layer
-std::unordered_map<const entity_t*, int> maskOf;
+za::Vector<Event> events;
+za::Vector<Mask> masks; // one a layer
+ankerl::unordered_dense::map<const entity_t*, int> maskOf;
 GLuint array = 0;
 GLuint fbo = 0;
 int layers = 0;
 double lastTick = -1.0;
 int playerHealth = -1000;
-std::uint32_t rng = 0x9e3779b9u;
+za::U32 rng = 0x9e3779b9u;
 float lastPaintMs = 0.f;
 int paintsTotal = 0;
 bool painting = false;
@@ -131,7 +143,7 @@ bool chanOn[3]{true, true, true}; // vr_wounds, vr_wounds_burns, vr_wounds_wet a
 
 [[nodiscard]] int poolSize()
 {
-    return std::clamp(static_cast<int>(vr_wounds_pool.value), 8, 256);
+    return za::clamp(static_cast<int>(vr_wounds_pool.value), 8, 256);
 }
 
 void releaseTexture()
@@ -170,7 +182,8 @@ bool ensureTexture()
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, 0);
     GL_GenFramebuffersFunc(1, &fbo);
     layers = want;
-    masks.assign(static_cast<std::size_t>(want), Mask{});
+    masks.clear();
+    masks.resize(static_cast<za::SizeT>(want), Mask{});
     maskOf.clear();
     Con_DPrintf("wounds: %d masks of %dx%d (%.1f MB)\n", want, layerSize, layerSize,
         static_cast<double>(want) * layerSize * layerSize * 4.0 / (1024.0 * 1024.0));
@@ -215,7 +228,7 @@ void target(int layer, const Mask& m)
 void subtract(int layer, const glm::vec4& amount)
 {
     begin();
-    const Mask& m = masks[static_cast<std::size_t>(layer)];
+    const Mask& m = masks[static_cast<za::SizeT>(layer)];
     GL_FramebufferTextureLayerFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, array, 0, layer);
     glViewport(0, 0, amount == glm::vec4{1.f} ? layerSize : m.w, amount == glm::vec4{1.f} ? layerSize : m.h);
     GL_UseProgram(glprogs.viewblend);
@@ -227,22 +240,22 @@ void subtract(int layer, const glm::vec4& amount)
     glBlendFunc(GL_ONE, GL_ZERO);
 }
 
-void paint(int layer, entity_t* e, const std::vector<Splat>& splats)
+void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
 {
     if(splats.empty())
     {
         return;
     }
     begin();
-    target(layer, masks[static_cast<std::size_t>(layer)]);
-    for(std::size_t i = 0; i < splats.size(); i += maxSplats)
+    target(layer, masks[static_cast<za::SizeT>(layer)]);
+    for(za::SizeT i = 0; i < splats.size(); i += maxSplats)
     {
-        const int n = static_cast<int>(std::min<std::size_t>(maxSplats, splats.size() - i));
+        const int n = static_cast<int>(za::min<za::SizeT>(maxSplats, splats.size() - i));
         GL_BlendEquationFunc(GL_MAX);
         R_PaintAliasWounds(e, n, &splats[i].v[0].x);
     }
     GL_BlendEquationFunc(GL_FUNC_ADD);
-    masks[static_cast<std::size_t>(layer)].painted = realtime;
+    masks[static_cast<za::SizeT>(layer)].painted = realtime;
     paintsTotal++;
 }
 
@@ -269,9 +282,9 @@ void paint(int layer, entity_t* e, const std::vector<Splat>& splats)
     {
         return false;
     }
-    const float k = std::min(1.f, static_cast<float>(layerSize) / static_cast<float>(std::max(sw, sh)));
-    w = std::clamp(static_cast<int>(std::lround(sw * k)), 4, layerSize);
-    h = std::clamp(static_cast<int>(std::lround(sh * k)), 4, layerSize);
+    const float k = za::min(1.f, static_cast<float>(layerSize) / static_cast<float>(za::max(sw, sh)));
+    w = za::clamp(static_cast<int>(za::lround(sw * k)), 4, layerSize);
+    h = za::clamp(static_cast<int>(za::lround(sh * k)), 4, layerSize);
     return true;
 }
 
@@ -282,12 +295,12 @@ void paint(int layer, entity_t* e, const std::vector<Splat>& splats)
     {
         return true;
     }
-    return a && b && std::strncmp(a->name, "progs/vrbody", 12) == 0 && std::strncmp(b->name, "progs/vrbody", 12) == 0;
+    return a && b && ZA_STRNCMP(a->name, "progs/vrbody", 12) == 0 && ZA_STRNCMP(b->name, "progs/vrbody", 12) == 0;
 }
 
 void freeMask(int layer)
 {
-    Mask& m = masks[static_cast<std::size_t>(layer)];
+    Mask& m = masks[static_cast<za::SizeT>(layer)];
     if(m.ent)
     {
         maskOf.erase(m.ent);
@@ -305,7 +318,7 @@ int acquire(const entity_t* e, bool view, bool create)
     const auto it = maskOf.find(e);
     if(it != maskOf.end())
     {
-        Mask& m = masks[static_cast<std::size_t>(it->second)];
+        Mask& m = masks[static_cast<za::SizeT>(it->second)];
         if(sameLayout(m.model, e->model))
         {
             m.model = e->model;
@@ -329,7 +342,7 @@ int acquire(const entity_t* e, bool view, bool create)
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     for(int i = 0; i < layers; i++)
     {
-        const Mask& m = masks[static_cast<std::size_t>(i)];
+        const Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent)
         {
             best = i;
@@ -352,7 +365,7 @@ int acquire(const entity_t* e, bool view, bool create)
         return -1;
     }
     freeMask(best);
-    Mask& m = masks[static_cast<std::size_t>(best)];
+    Mask& m = masks[static_cast<za::SizeT>(best)];
     m.ent = e;
     m.model = e->model;
     m.w = w;
@@ -422,12 +435,12 @@ struct WoundSize
     const float a = static_cast<float>(amount);
     switch(kind)
     {
-        case KindShot: s.r = std::min(1.6f + 0.1f * a, 3.f); break;
+        case KindShot: s.r = za::min(1.6f + 0.1f * a, 3.f); break;
         case KindMelee:
-            s.r = std::min(2.4f + 0.05f * a, 5.f);
+            s.r = za::min(2.4f + 0.05f * a, 5.f);
             s.stretch = rnd(1.8f, 2.6f);
             break;
-        default: s.r = std::min(2.f + 0.07f * a, 3.8f); break;
+        default: s.r = za::min(2.f + 0.07f * a, 3.8f); break;
     }
     s.r *= rnd(0.85f, 1.15f);
     const float runChance = kind == KindShot ? 0.45f : kind == KindMelee ? 1.f : 0.75f;
@@ -446,7 +459,7 @@ constexpr glm::vec4 paintBlood{1.f, 0.f, 0.f, 0.f};
 
 struct Surface
 {
-    std::vector<glm::vec3> tris; // three corners each
+    za::Vector<glm::vec3> tris; // three corners each
     glm::vec3 lo{0.f}, hi{0.f};
 };
 
@@ -480,7 +493,7 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
     const glm::vec3 a0 = org - dir * 64.f;
     const glm::vec3 d = dir * 128.f;
     float bestT = 1e30f;
-    for(std::size_t i = 0; i + 2 < s.tris.size(); i += 3)
+    for(za::SizeT i = 0; i + 2 < s.tris.size(); i += 3)
     {
         const glm::vec3& a = s.tris[i];
         const glm::vec3 e1 = s.tris[i + 1] - a, e2 = s.tris[i + 2] - a;
@@ -508,7 +521,7 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
         {
             continue;
         }
-        if(std::fabs(t - 0.5f) < std::fabs(bestT - 0.5f))
+        if(za::fabs(t - 0.5f) < za::fabs(bestT - 0.5f))
         {
             bestT = t;
             at = a0 + d * t;
@@ -521,7 +534,7 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
     }
     // Missed (the box was struck, not the model): the facing triangle nearest the line.
     float best = 1e30f;
-    for(std::size_t i = 0; i + 2 < s.tris.size(); i += 3)
+    for(za::SizeT i = 0; i + 2 < s.tris.size(); i += 3)
     {
         const glm::vec3 n = outward(s.tris[i], s.tris[i + 1], s.tris[i + 2]);
         if(glm::dot(n, dir) > -0.2f)
@@ -531,7 +544,7 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
         const glm::vec3 c = (s.tris[i] + s.tris[i + 1] + s.tris[i + 2]) / 3.f;
         const glm::vec3 rel = c - org;
         const float along = glm::dot(rel, dir);
-        const float off = glm::length(rel - dir * along) + std::fabs(along) * 0.25f;
+        const float off = glm::length(rel - dir * along) + za::fabs(along) * 0.25f;
         if(off < best)
         {
             best = off;
@@ -542,17 +555,24 @@ bool strike(const Surface& s, const glm::vec3& org, const glm::vec3& dir, glm::v
     return best < 24.f;
 }
 
-// Up to `count` points of the model facing `from` (a blast's centre), nearer ones likelier.
-void facingPoints(const Surface& s, const glm::vec3& from, int count, std::vector<std::pair<glm::vec3, glm::vec3>>& out)
+// A point on a model's surface and the surface's outward normal there.
+struct SurfacePoint
 {
-    const std::size_t n = s.tris.size() / 3;
+    glm::vec3 p;
+    glm::vec3 n;
+};
+
+// Up to `count` points of the model facing `from` (a blast's centre), nearer ones likelier.
+void facingPoints(const Surface& s, const glm::vec3& from, int count, za::Vector<SurfacePoint>& out)
+{
+    const za::SizeT n = s.tris.size() / 3;
     if(!n)
     {
         return;
     }
     for(int tries = 0; tries < count * 12 && static_cast<int>(out.size()) < count; tries++)
     {
-        const std::size_t i = std::min(n - 1, static_cast<std::size_t>(rnd() * static_cast<float>(n))) * 3;
+        const za::SizeT i = za::min(n - 1, static_cast<za::SizeT>(rnd() * static_cast<float>(n))) * 3;
         const glm::vec3 c = (s.tris[i] + s.tris[i + 1] + s.tris[i + 2]) / 3.f;
         const glm::vec3 nrm = outward(s.tris[i], s.tris[i + 1], s.tris[i + 2]);
         const glm::vec3 to = from - c;
@@ -561,7 +581,7 @@ void facingPoints(const Surface& s, const glm::vec3& from, int count, std::vecto
         {
             continue;
         }
-        out.emplace_back(c, nrm);
+        out.pushBack({c, nrm});
     }
 }
 
@@ -576,15 +596,15 @@ struct Capsule
     float r{1.f};
 };
 
-std::vector<Capsule> playerCapsules(entity_t* const own[3])
+za::Vector<Capsule> playerCapsules(entity_t* const own[3])
 {
-    std::vector<Capsule> out;
+    za::Vector<Capsule> out;
     const glm::vec3 up{0.f, 0.f, 1.f};
     if(own[0])
     {
         const glm::vec3 pelvis{own[0]->origin[0], own[0]->origin[1], own[0]->origin[2]};
-        out.push_back({pelvis - up * 4.f, pelvis + up * 24.f, 7.5f}); // the torso
-        out.push_back({pelvis - up * 30.f, pelvis - up * 4.f, 6.f});  // the legs
+        out.pushBack({pelvis - up * 4.f, pelvis + up * 24.f, 7.5f}); // the torso
+        out.pushBack({pelvis - up * 30.f, pelvis - up * 4.f, 6.f});  // the legs
     }
     for(int hand = 0; hand < 2; hand++)
     {
@@ -593,13 +613,13 @@ std::vector<Capsule> playerCapsules(entity_t* const own[3])
         {
             avatar::ForearmFrame f;
             const float len = avatar::forearmFrame(hand, 1.f, f) && f.length > 1.f ? f.length : 10.f;
-            out.push_back({wrist - dir * len, wrist, 2.3f});
-            out.push_back({wrist + dir * 1.f, wrist + dir * 5.5f, 3.2f});
+            out.pushBack({wrist - dir * len, wrist, 2.3f});
+            out.pushBack({wrist + dir * 1.f, wrist + dir * 5.5f, 3.2f});
         }
         else if(own[1 + hand])
         {
             const glm::vec3 c{own[1 + hand]->origin[0], own[1 + hand]->origin[1], own[1 + hand]->origin[2]};
-            out.push_back({c, c, 3.5f});
+            out.pushBack({c, c, 3.5f});
         }
     }
     return out;
@@ -609,12 +629,12 @@ std::vector<Capsule> playerCapsules(entity_t* const own[3])
 {
     const glm::vec3 ab = b - a;
     const float l2 = glm::dot(ab, ab);
-    const float t = l2 > 1e-6f ? std::clamp(glm::dot(p - a, ab) / l2, 0.f, 1.f) : 0.f;
+    const float t = l2 > 1e-6f ? za::clamp(glm::dot(p - a, ab) / l2, 0.f, 1.f) : 0.f;
     return a + ab * t;
 }
 
 // The first capsule the line through `org` going `dir` goes into (48 units either side): where, and its normal there.
-bool strikeCapsules(const std::vector<Capsule>& caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+bool strikeCapsules(const za::Vector<Capsule>& caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
 {
     for(float s = -48.f; s <= 48.f; s += 0.4f)
     {
@@ -643,7 +663,7 @@ struct Target
     entity_t* ent{nullptr};
     int num{-1};     // its entity number (cl_entities), -1: the player's own body or hand
     bool view{false};
-    const std::vector<Capsule>* capsules{nullptr}; // the player's: where blows meet it
+    const za::Vector<Capsule>* capsules{nullptr}; // the player's: where blows meet it
     glm::vec3 shift{0.f}; // the player's: where the body is drawn off the player's box (room-scale), added to the blow
 };
 
@@ -660,8 +680,8 @@ void wound(const Target& t, const Event& ev)
     {
         return;
     }
-    Mask& m = masks[static_cast<std::size_t>(layer)];
-    std::vector<Splat> splats;
+    Mask& m = masks[static_cast<za::SizeT>(layer)];
+    za::Vector<Splat> splats;
     const glm::vec3 dir = glm::length(ev.dir) > 0.1f ? glm::normalize(ev.dir) : glm::vec3{0.f, 0.f, -1.f};
 
     Surface surf;
@@ -670,7 +690,7 @@ void wound(const Target& t, const Event& ev)
     // A blow at a point: where it meets the model (its triangles), else (the player's jointed body and hands) as it
     // goes, over what faces it within its radius of its line.
     // The player's own are seen close: smaller wounds; the hands' smaller still (a hand is a few units across).
-    const float own = !t.view ? 1.f : std::strncmp(t.ent->model->name, "progs/hand", 10) == 0 ? 0.65f : 0.75f;
+    const float own = !t.view ? 1.f : ZA_STRNCMP(t.ent->model->name, "progs/hand", 10) == 0 ? 0.65f : 0.75f;
     const auto blow = [&](const glm::vec3& org, const glm::vec3& way, int kind, const glm::vec4& what, float scale) {
         WoundSize ws = woundSize(kind, ev.amount);
         ws.run *= own;
@@ -682,7 +702,7 @@ void wound(const Target& t, const Event& ev)
             {
                 return;
             }
-            splats.push_back(woundSplat(at, r, n, way, ws.stretch, r * 0.9f + 1.f, -0.25f, ws.run, what));
+            splats.pushBack(woundSplat(at, r, n, way, ws.stretch, r * 0.9f + 1.f, -0.25f, ws.run, what));
         }
         else if(t.view && t.capsules)
         {
@@ -697,7 +717,7 @@ void wound(const Target& t, const Event& ev)
                 return;
             }
             // (the capsules are round, the body flatter: reach in to its surface under the point, facing it)
-            splats.push_back(woundSplat(at, r, n, way, ws.stretch, r * 0.9f + 6.f, 0.f, ws.run, what));
+            splats.pushBack(woundSplat(at, r, n, way, ws.stretch, r * 0.9f + 6.f, 0.f, ws.run, what));
         }
         if(vr_wounds_debug.value)
         {
@@ -721,7 +741,7 @@ void wound(const Target& t, const Event& ev)
     {
         case KindShot:
         {
-            const int pellets = std::max(1, ev.extra);
+            const int pellets = za::max(1, ev.extra);
             for(int i = 0; i < pellets; i++)
             {
                 blow(spread(ev.org, dir), dir, KindShot, paintBlood, 1.f);
@@ -734,14 +754,14 @@ void wound(const Target& t, const Event& ev)
         case KindBurn:
         {
             const bool zap = ev.kind == KindZap;
-            const float r = ((zap ? 3.f : 4.f) + std::min(static_cast<float>(ev.amount), 60.f) * 0.08f) * own;
+            const float r = ((zap ? 3.f : 4.f) + za::min(static_cast<float>(ev.amount), 60.f) * 0.08f) * own;
             const glm::vec3 org = spread(ev.org, dir);
             glm::vec3 at, n;
             if(mesh ? !strike(surf, org, dir, at, n) : !(t.capsules && strikeCapsules(*t.capsules, org + t.shift, dir, at, n)))
             {
                 break;
             }
-            splats.push_back(burnSplat(at, r, r * 0.25f, n, false, 0.1f, glm::vec4{0.f, zap ? 0.8f : 0.9f, 0.f, zap ? 0.6f : 0.9f}));
+            splats.pushBack(burnSplat(at, r, r * 0.25f, n, false, 0.1f, glm::vec4{0.f, zap ? 0.8f : 0.9f, 0.f, zap ? 0.6f : 0.9f}));
             if(!zap) // a small wound under it
             {
                 blow(org, dir, KindNail, paintBlood, 0.6f);
@@ -758,27 +778,27 @@ void wound(const Target& t, const Event& ev)
             {
                 for(const glm::vec3& p : surf.tris)
                 {
-                    nearest = std::min(nearest, glm::distance(centre, p));
+                    nearest = za::min(nearest, glm::distance(centre, p));
                 }
             }
             else
             {
-                nearest = std::max(0.f, glm::distance(centre, glm::vec3{t.ent->origin[0], t.ent->origin[1], t.ent->origin[2]}) - 10.f);
+                nearest = za::max(0.f, glm::distance(centre, glm::vec3{t.ent->origin[0], t.ent->origin[1], t.ent->origin[2]}) - 10.f);
             }
-            const float a = std::min(static_cast<float>(ev.amount), 120.f);
-            const float char_ = std::clamp(a / 120.f, 0.3f, 0.75f);
-            splats.push_back(burnSplat(centre, nearest + 14.f + a * 0.12f, nearest + 3.f + a * 0.05f, glm::vec3{0.f}, true, 0.05f,
+            const float a = za::min(static_cast<float>(ev.amount), 120.f);
+            const float char_ = za::clamp(a / 120.f, 0.3f, 0.75f);
+            splats.pushBack(burnSplat(centre, nearest + 14.f + a * 0.12f, nearest + 3.f + a * 0.05f, glm::vec3{0.f}, true, 0.05f,
                 glm::vec4{0.f, char_, 0.f, char_ * 0.8f}));
             m.hotLeft = coolTime;
-            const int bleeds = std::clamp(ev.amount / 14, 1, 7);
+            const int bleeds = za::clamp(ev.amount / 14, 1, 7);
             if(mesh)
             {
-                std::vector<std::pair<glm::vec3, glm::vec3>> pts;
+                za::Vector<SurfacePoint> pts;
                 facingPoints(surf, centre, bleeds, pts);
                 for(const auto& [p, n] : pts)
                 {
                     const WoundSize ws = woundSize(KindNail, ev.amount / 3);
-                    splats.push_back(woundSplat(p, ws.r, n, glm::normalize(p - centre), 1.f, ws.r + 1.f, -0.25f, ws.run, paintBlood));
+                    splats.pushBack(woundSplat(p, ws.r, n, glm::normalize(p - centre), 1.f, ws.r + 1.f, -0.25f, ws.run, paintBlood));
                 }
             }
             else
@@ -791,16 +811,16 @@ void wound(const Target& t, const Event& ev)
             break;
         }
         case KindLava:
-            splats.push_back(liquidSplat(ev.org.z, 14.f, 0.4f, glm::vec4{0.f, 0.9f, 0.f, 0.9f}));
+            splats.pushBack(liquidSplat(ev.org.z, 14.f, 0.4f, glm::vec4{0.f, 0.9f, 0.f, 0.9f}));
             m.hotLeft = coolTime;
             break;
-        case KindSlime: splats.push_back(liquidSplat(ev.org.z, 20.f, 0.5f, glm::vec4{0.f, 0.6f, 0.f, 0.f})); break;
+        case KindSlime: splats.pushBack(liquidSplat(ev.org.z, 20.f, 0.5f, glm::vec4{0.f, 0.6f, 0.f, 0.f})); break;
         case KindLiquid:
             if(ev.extra == 2) // lava: nothing wet (its burns come with its damage)
             {
                 break;
             }
-            splats.push_back(liquidSplat(ev.org.z, 30.f, 0.f, glm::vec4{0.f, 0.f, 1.f, 0.f}));
+            splats.pushBack(liquidSplat(ev.org.z, 30.f, 0.f, glm::vec4{0.f, 0.f, 1.f, 0.f}));
             if(vr_wounds_wet.value)
             {
                 m.wetLeft = dryTime;
@@ -810,7 +830,7 @@ void wound(const Target& t, const Event& ev)
         default: break;
     }
 
-    splats.erase(std::remove_if(splats.begin(), splats.end(), [](const Splat& s) { return !paintsAnything(s); }), splats.end());
+    splats.erase(za::removeIf(splats.begin(), splats.end(), [](const Splat& s) { return !paintsAnything(s); }), splats.end());
     paint(layer, t.ent, splats);
 }
 
@@ -821,7 +841,7 @@ void apply(const Event& ev)
         // Removed on the server: its mask freed (a new entity in the slot, with the same model, starts clean).
         if(ev.num > 0 && ev.num < cl_max_edicts)
         {
-            if(const auto it = maskOf.find(&cl_entities[ev.num]); it != maskOf.end() && !masks[static_cast<std::size_t>(it->second)].view)
+            if(const auto it = maskOf.find(&cl_entities[ev.num]); it != maskOf.end() && !masks[static_cast<za::SizeT>(it->second)].view)
             {
                 if(vr_wounds_debug.value)
                 {
@@ -837,7 +857,7 @@ void apply(const Event& ev)
         Con_Printf("wounds: event kind %d on entity %d%s, amount %d, extra %d, at %.1f %.1f %.1f going %.2f %.2f %.2f\n", ev.kind,
             ev.num, ev.num == cl.viewentity ? " (you)" : "", ev.amount, ev.extra, ev.org.x, ev.org.y, ev.org.z, ev.dir.x, ev.dir.y, ev.dir.z);
     }
-    std::vector<Capsule> caps;
+    za::Vector<Capsule> caps;
     Target targets[3];
     int count = 0;
     if(ev.num == cl.viewentity)
@@ -878,7 +898,7 @@ void apply(const Event& ev)
         }
     }
     // The same draws for each (the player's body and hands: the same point, the same wound).
-    const std::uint32_t seed = rng;
+    const za::U32 seed = rng;
     for(int i = 0; i < count; i++)
     {
         rng = seed;
@@ -896,12 +916,12 @@ void bloodyHead(entity_t& e, int num)
     {
         return;
     }
-    std::vector<Splat> splats;
+    za::Vector<Splat> splats;
     const float lowZ = surf.lo.z + (surf.hi.z - surf.lo.z) * 0.3f;
     for(int tries = 0; tries < 60 && splats.size() < 6; tries++)
     {
-        const std::size_t n = surf.tris.size() / 3;
-        const std::size_t i = std::min(n - 1, static_cast<std::size_t>(rnd() * static_cast<float>(n))) * 3;
+        const za::SizeT n = surf.tris.size() / 3;
+        const za::SizeT i = za::min(n - 1, static_cast<za::SizeT>(rnd() * static_cast<float>(n))) * 3;
         const glm::vec3 c = (surf.tris[i] + surf.tris[i + 1] + surf.tris[i + 2]) / 3.f;
         if(splats.size() < 3 && c.z > lowZ)
         {
@@ -909,7 +929,7 @@ void bloodyHead(entity_t& e, int num)
         }
         const glm::vec3 nrm = outward(surf.tris[i], surf.tris[i + 1], surf.tris[i + 2]);
         const WoundSize ws = woundSize(KindNail, 20);
-        splats.push_back(woundSplat(c, ws.r * 1.2f, nrm, -nrm, 1.f, ws.r + 1.f, -0.25f, ws.run, paintBlood));
+        splats.pushBack(woundSplat(c, ws.r * 1.2f, nrm, -nrm, 1.f, ws.r + 1.f, -0.25f, ws.run, paintBlood));
     }
     paint(layer, &e, splats);
 }
@@ -920,10 +940,10 @@ void bloodyHead(entity_t& e, int num)
 void steps(float dt)
 {
     // Drying: 1/255 of the wetness a step (dryTime from soaked); embers cooling; the player's heal.
-    const int n = std::max(1, static_cast<int>(dt / tick + 0.5f));
+    const int n = za::max(1, static_cast<int>(dt / tick + 0.5f));
     for(int i = 0; i < layers; i++)
     {
-        Mask& m = masks[static_cast<std::size_t>(i)];
+        Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent)
         {
             continue;
@@ -941,7 +961,7 @@ void steps(float dt)
         }
         if(m.heal > 0.f)
         {
-            const float h = std::min(m.heal, healRate * static_cast<float>(n));
+            const float h = za::min(m.heal, healRate * static_cast<float>(n));
             take.r = take.g = h;
             m.heal -= h;
         }
@@ -956,7 +976,7 @@ void checkEntities()
 {
     for(int i = 0; i < layers; i++)
     {
-        Mask& m = masks[static_cast<std::size_t>(i)];
+        Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent || m.view)
         {
             continue;
@@ -968,7 +988,7 @@ void checkEntities()
         }
         // Another model: its head flying off (the monster is its head now), or the slot taken by something else.
         const int num = static_cast<int>(e - cl_entities);
-        const bool head = e->model && std::strncmp(e->model->name, "progs/h_", 8) == 0;
+        const bool head = e->model && ZA_STRNCMP(e->model->name, "progs/h_", 8) == 0;
         const bool bled = vr_wounds.value && m.painted > -1e8;
         freeMask(i);
         if(head && bled && num > 0 && num < cl.num_entities)
@@ -985,7 +1005,7 @@ void playerState()
     const bool respawned = playerHealth <= 0 && playerHealth > -1000 && health > 0;
     const bool healed = playerHealth > 0 && health > playerHealth;
     const float heal = health >= 100 ? 1.f
-                                     : static_cast<float>(health - playerHealth) / static_cast<float>(std::max(1, 100 - playerHealth));
+                                     : static_cast<float>(health - playerHealth) / static_cast<float>(za::max(1, 100 - playerHealth));
     playerHealth = health;
     if(!respawned && !healed)
     {
@@ -993,7 +1013,7 @@ void playerState()
     }
     for(int i = 0; i < layers; i++)
     {
-        Mask& m = masks[static_cast<std::size_t>(i)];
+        Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent || !m.view)
         {
             continue;
@@ -1005,7 +1025,7 @@ void playerState()
         }
         else
         {
-            m.heal = std::min(1.f, m.heal + heal);
+            m.heal = za::min(1.f, m.heal + heal);
         }
     }
 }
@@ -1027,14 +1047,14 @@ void optionsChanged()
     {
         take.b = 1.f;
     }
-    std::copy(on, on + 3, chanOn);
+    za::copy(on, on + 3, chanOn);
     if(take == glm::vec4{0.f})
     {
         return;
     }
     for(int i = 0; i < layers; i++)
     {
-        if(masks[static_cast<std::size_t>(i)].ent)
+        if(masks[static_cast<za::SizeT>(i)].ent)
         {
             subtract(i, take);
         }
@@ -1050,7 +1070,7 @@ void drips(double now)
     }
     for(int i = 0; i < layers; i++)
     {
-        Mask& m = masks[static_cast<std::size_t>(i)];
+        Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent || m.wetLeft <= 0.f || now < m.dripNext || realtime - m.lastDrawn > 0.5)
         {
             continue;
@@ -1063,7 +1083,7 @@ void drips(double now)
         if(m.view)
         {
             // A hand (the body is under the view: its drips are the hands')
-            if(std::strncmp(m.ent->model->name, "progs/vrbody", 12) == 0)
+            if(ZA_STRNCMP(m.ent->model->name, "progs/vrbody", 12) == 0)
             {
                 continue;
             }
@@ -1079,10 +1099,10 @@ void drips(double now)
                 continue;
             }
             bool found = false;
-            const std::size_t n = surf.tris.size() / 3;
+            const za::SizeT n = surf.tris.size() / 3;
             for(int tries = 0; tries < 10 && !found; tries++)
             {
-                const std::size_t k = std::min(n - 1, static_cast<std::size_t>(rnd() * static_cast<float>(n))) * 3;
+                const za::SizeT k = za::min(n - 1, static_cast<za::SizeT>(rnd() * static_cast<float>(n))) * 3;
                 const glm::vec3 c = (surf.tris[k] + surf.tris[k + 1] + surf.tris[k + 2]) / 3.f;
                 const glm::vec3 nrm = outward(surf.tris[k], surf.tris[k + 1], surf.tris[k + 2]);
                 if(c.z < m.waterline && nrm.z < 0.3f)
@@ -1097,8 +1117,8 @@ void drips(double now)
             }
             floorZ = surf.lo.z;
         }
-        const float h = std::max(at.z - floorZ, 1.f);
-        particles::bloodDrip(at, std::sqrt(2.f * h / std::max(sv_gravity.value, 100.f)), floorZ, 0.35f, color);
+        const float h = za::max(at.z - floorZ, 1.f);
+        particles::bloodDrip(at, za::sqrt(2.f * h / za::max(sv_gravity.value, 100.f)), floorZ, 0.35f, color);
     }
 }
 
@@ -1125,7 +1145,7 @@ void parseEvent()
     }
     if(enabled() && events.size() < 512)
     {
-        events.push_back(ev);
+        events.pushBack(ev);
     }
 }
 
@@ -1140,7 +1160,7 @@ void parseClear()
     }
     if(enabled() && events.size() < 512)
     {
-        events.push_back(ev);
+        events.pushBack(ev);
     }
 }
 
@@ -1169,7 +1189,7 @@ void frame()
     checkEntities();
     playerState();
     const auto t1 = Sys_DoubleTime();
-    const std::size_t received = events.size();
+    const za::SizeT received = events.size();
     for(const Event& ev : events)
     {
         apply(ev);
@@ -1206,7 +1226,7 @@ void clear()
 {
     for(int i = 0; i < layers; i++)
     {
-        masks[static_cast<std::size_t>(i)] = Mask{};
+        masks[static_cast<za::SizeT>(i)] = Mask{};
     }
     maskOf.clear();
     events.clear();
@@ -1222,7 +1242,7 @@ void test_f()
                    "9 liquid> [amount] [right] [up] [extra]\n");
         return;
     }
-    if(std::strcmp(Cmd_Argv(1), "all") == 0) // every model drawn with an alias model (monsters, corpses, items): a stress test
+    if(ZA_STRCMP(Cmd_Argv(1), "all") == 0) // every model drawn with an alias model (monsters, corpses, items): a stress test
     {
         char args[256];
         q_snprintf(args, sizeof(args), "%s %s %s %s %s", Cmd_Argc() > 2 ? Cmd_Argv(2) : "1", Cmd_Argc() > 3 ? Cmd_Argv(3) : "20",
@@ -1232,7 +1252,7 @@ void test_f()
         {
             const entity_t& c = cl_entities[i];
             if(i != cl.viewentity && c.model && c.model->type == mod_alias && c.msgtime >= cl.mtime[1] - 0.2 &&
-                std::strncmp(c.model->name, "progs/v_", 8) != 0)
+                ZA_STRNCMP(c.model->name, "progs/v_", 8) != 0)
             {
                 Cbuf_InsertText(va("vr_wounds_test %d %s\n", i, args));
                 n++;
@@ -1242,9 +1262,9 @@ void test_f()
         return;
     }
     Event ev;
-    const bool self = std::strcmp(Cmd_Argv(1), "self") == 0;
-    ev.num = self ? cl.viewentity : std::atoi(Cmd_Argv(1));
-    if(std::strcmp(Cmd_Argv(1), "ahead") == 0) // the model nearest the view's line, ahead
+    const bool self = ZA_STRCMP(Cmd_Argv(1), "self") == 0;
+    ev.num = self ? cl.viewentity : atoi(Cmd_Argv(1));
+    if(ZA_STRCMP(Cmd_Argv(1), "ahead") == 0) // the model nearest the view's line, ahead
     {
         const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
         vec3_t fwd, right, upv;
@@ -1275,11 +1295,11 @@ void test_f()
             Con_Printf("vr_wounds_test: entity %d (%s) at %.0f %.0f %.0f\n", ev.num, c.model->name, c.origin[0], c.origin[1], c.origin[2]);
         }
     }
-    ev.kind = std::atoi(Cmd_Argv(2));
-    ev.amount = Cmd_Argc() > 3 ? std::atoi(Cmd_Argv(3)) : 20;
-    const float right = Cmd_Argc() > 4 ? static_cast<float>(std::atof(Cmd_Argv(4))) : 0.f;
-    const float up = Cmd_Argc() > 5 ? static_cast<float>(std::atof(Cmd_Argv(5))) : 0.f;
-    ev.extra = Cmd_Argc() > 6 ? std::atoi(Cmd_Argv(6)) : 0;
+    ev.kind = atoi(Cmd_Argv(2));
+    ev.amount = Cmd_Argc() > 3 ? atoi(Cmd_Argv(3)) : 20;
+    const float right = Cmd_Argc() > 4 ? static_cast<float>(atof(Cmd_Argv(4))) : 0.f;
+    const float up = Cmd_Argc() > 5 ? static_cast<float>(atof(Cmd_Argv(5))) : 0.f;
+    ev.extra = Cmd_Argc() > 6 ? atoi(Cmd_Argv(6)) : 0;
     if(ev.num <= 0 || ev.num >= cl.num_entities || !cl_entities[ev.num].model)
     {
         Con_Printf("vr_wounds_test: no entity %d\n", ev.num);
@@ -1294,7 +1314,7 @@ void test_f()
     if(self)
     {
         const float yaw = glm::radians(cl.viewangles[YAW]);
-        dir = -glm::vec3{std::cos(yaw), std::sin(yaw), 0.f}; // from ahead
+        dir = -glm::vec3{za::cos(yaw), za::sin(yaw), 0.f}; // from ahead
     }
     else
     {
@@ -1312,7 +1332,7 @@ void test_f()
     {
         ev.org = origin + glm::vec3{0.f, 0.f, e.model->mins[2] + up}; // the surface: `up` over the feet
     }
-    events.push_back(ev);
+    events.pushBack(ev);
 }
 
 void dump_f()
@@ -1322,15 +1342,15 @@ void dump_f()
         Con_Printf("vr_wounds_dump: no masks\n");
         return;
     }
-    std::vector<byte> rgba(static_cast<std::size_t>(layerSize) * layerSize * 4);
-    std::vector<byte> rgb(static_cast<std::size_t>(layerSize) * layerSize * 3);
+    za::Vector<byte> rgba(static_cast<za::SizeT>(layerSize) * layerSize * 4);
+    za::Vector<byte> rgb(static_cast<za::SizeT>(layerSize) * layerSize * 3);
     Sys_mkdir(va("%s/wounds", com_gamedir));
     GLint previous = 0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, fbo);
     for(int i = 0; i < layers; i++)
     {
-        const Mask& m = masks[static_cast<std::size_t>(i)];
+        const Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent)
         {
             continue;
@@ -1340,13 +1360,13 @@ void dump_f()
         for(int p = 0; p < m.w * m.h; p++)
         {
             // r blood, g char, b wetness; heat shown as white over them
-            const int heat = rgba[static_cast<std::size_t>(p) * 4 + 3];
+            const int heat = rgba[static_cast<za::SizeT>(p) * 4 + 3];
             for(int c = 0; c < 3; c++)
             {
-                rgb[static_cast<std::size_t>(p) * 3 + c] = static_cast<byte>(std::max<int>(rgba[static_cast<std::size_t>(p) * 4 + c], heat));
+                rgb[static_cast<za::SizeT>(p) * 3 + c] = static_cast<byte>(za::max<int>(rgba[static_cast<za::SizeT>(p) * 4 + c], heat));
             }
         }
-        const char* slash = std::strrchr(m.model->name, '/');
+        const char* slash = strrchr(m.model->name, '/');
         char name[MAX_OSPATH];
         q_snprintf(name, sizeof(name), "wounds/mask_%02d_%s.png", i, slash ? slash + 1 : m.model->name);
         Image_WritePNG(name, rgb.data(), m.w, m.h, 24, true);
@@ -1367,7 +1387,7 @@ void info_f()
         static_cast<double>(lastPaintMs));
     for(int i = 0; i < layers; i++)
     {
-        const Mask& m = masks[static_cast<std::size_t>(i)];
+        const Mask& m = masks[static_cast<za::SizeT>(i)];
         if(m.ent)
         {
             Con_Printf("  %2d %s%s %dx%d, drawn %.1f s ago%s%s\n", i, m.model ? m.model->name : "?", m.view ? " (you)" : "", m.w, m.h,
@@ -1391,7 +1411,7 @@ extern "C" void VR_AliasWound(const entity_t* e, float out[4])
     {
         return;
     }
-    Mask& m = masks[static_cast<std::size_t>(it->second)];
+    Mask& m = masks[static_cast<za::SizeT>(it->second)];
     if(!sameLayout(m.model, e->model))
     {
         return;
@@ -1400,7 +1420,7 @@ extern "C" void VR_AliasWound(const entity_t* e, float out[4])
     out[0] = static_cast<float>(it->second + 1);
     out[1] = static_cast<float>(m.w);
     out[2] = static_cast<float>(m.h);
-    out[3] = static_cast<float>(std::fmod(cl.time, 1000.0));
+    out[3] = static_cast<float>(za::fmod(cl.time, 1000.0));
 }
 
 extern "C" unsigned VR_WoundTexture(void)

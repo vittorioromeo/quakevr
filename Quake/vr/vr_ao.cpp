@@ -10,21 +10,30 @@
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 
-#include <algorithm>
-#include <array>
-#include <chrono>
-#include <deque>
-#include <memory>
-#include <mutex>
-#include <cmath>
-#include <cstdint>
-#include <cstring>
-#include <functional>
-#include <string>
-#include <string_view>
-#include <atomic>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/Memset.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Concurrency/AtomicMutex.hpp"
+#include "Zancle/Concurrency/LockGuard.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 
 extern "C" {
 extern cvar_t r_lerpmove; // gl_rmain.c
@@ -51,8 +60,8 @@ struct GpuBlock
 {
     float params[4];                    // x occluders
     float occ[MAX_OCCLUDERS * VECS][4]; // centre + reach; 3 rows into its own space; size + kind; strength, reach, -, group
-    std::uint32_t tiles[TILES / 2][4];  // two tiles' masks per uvec4
-    std::uint32_t slices[LIGHT_TILES_Z / 2][4]; // two depth slices' masks per uvec4
+    za::U32 tiles[TILES / 2][4];  // two tiles' masks per uvec4
+    za::U32 slices[LIGHT_TILES_Z / 2][4]; // two depth slices' masks per uvec4
 };
 static_assert(sizeof(GpuBlock) == 16 + MAX_OCCLUDERS * VECS * 16 + TILES * 8 + LIGHT_TILES_Z * 8);
 
@@ -73,15 +82,15 @@ struct Occluder
     const entity_t* owner{nullptr};
 };
 
-std::vector<Occluder> candidates;
-std::vector<Occluder> chosen;
+za::Vector<Occluder> candidates;
+za::Vector<Occluder> chosen;
 
 // The choice's buffers, each frame (build: the main thread; the bake's worker has its own).
 struct AoScratch
 {
-    std::vector<const entity_t*> owners; // each candidate's entity
-    std::vector<int> order;              // the candidates in view, nearest first
-    auto members() { return std::tie(owners, order); }
+    za::Vector<const entity_t*> owners; // each candidate's entity
+    za::Vector<int> order;              // the candidates in view, nearest first
+    auto members() { return qvr::mem::list(owners, order); }
 };
 mem::Scratch<AoScratch> scratch{"ao"};
 // The chosen occluders' models and their groups (a model's shapes share one: they don't darken the model itself), at
@@ -91,7 +100,7 @@ struct Group
     const entity_t* entity;
     float group;
 };
-std::array<Group, MAX_OCCLUDERS> groups;
+za::Array<Group, MAX_OCCLUDERS> groups;
 int groupCount = 0;
 
 [[nodiscard]] float groupOf(const entity_t* e)
@@ -111,9 +120,9 @@ double buildSeconds = 0.0; // vr_ao_show
 long long buildCount = 0;
 
 // Brush models the map's lighting saw ("_shadow"): only their movement adds occlusion. Keyed by submodel number.
-std::vector<bool> bakedSubmodels;
+za::Vector<bool> bakedSubmodels;
 int bakedGeneration = -1;
-std::unordered_map<const qmodel_t*, bool> brushDrawable; // not all liquid or sky
+ankerl::unordered_dense::map<const qmodel_t*, bool> brushDrawable; // not all liquid or sky
 int brushGeneration = -1;
 
 void parseBakedSubmodels()
@@ -123,7 +132,8 @@ void parseBakedSubmodels()
         return;
     }
     bakedGeneration = worldGeneration();
-    bakedSubmodels.assign(4096, false);
+    bakedSubmodels.clear();
+    bakedSubmodels.resize(4096, false);
     const char* data = cl.worldmodel ? cl.worldmodel->entities : nullptr;
     while(data)
     {
@@ -211,7 +221,7 @@ void shapeFromBox(const float m[16], const glm::vec3& lo, const glm::vec3& hi, c
         const glm::vec3 col{m[i * 4], m[i * 4 + 1], m[i * 4 + 2]};
         const float len = glm::length(col);
         o.axes[i] = len > 1e-6f ? col / len : glm::vec3{i == 0, i == 1, i == 2};
-        o.size[i] = std::max(half[i] * len * fill[i], 0.25f);
+        o.size[i] = za::max(half[i] * len * fill[i], 0.25f);
     }
     // Orthonormal (a mirrored or sheared matrix would not be).
     o.axes[0] = glm::normalize(o.axes[0]);
@@ -248,8 +258,8 @@ void lerpedTransform(const entity_t* e, vec3_t origin, vec3_t angles)
         start = e->movelerpstart;
     }
     const float blend = (e->lerpflags & LERP_FINISH)
-                            ? std::clamp(static_cast<float>(cl.time - start) / std::max(e->lerpfinish - start, 1e-4f), 0.f, 1.f)
-                            : std::clamp(static_cast<float>(cl.time - start) / 0.1f, 0.f, 1.f);
+                            ? za::clamp(static_cast<float>(cl.time - start) / za::max(e->lerpfinish - start, 1e-4f), 0.f, 1.f)
+                            : za::clamp(static_cast<float>(cl.time - start) / 0.1f, 0.f, 1.f);
     for(int i = 0; i < 3; i++)
     {
         origin[i] = from[i] + (to[i] - from[i]) * blend;
@@ -272,16 +282,16 @@ void aliasMatrix(const entity_t* e, const aliashdr_t* hdr, float m[16])
 
 void addEllipsoid(Occluder o, float strength, float reach, float group)
 {
-    if(std::max({o.size.x, o.size.y, o.size.z}) < 1.5f)
+    if(qza::maxOf(o.size.x, o.size.y, o.size.z) < 1.5f)
     {
         return;
     }
     o.box = false;
     o.strength = strength;
     o.reach = reach;
-    o.influence = std::max({o.size.x, o.size.y, o.size.z}) * reach;
+    o.influence = qza::maxOf(o.size.x, o.size.y, o.size.z) * reach;
     o.group = group;
-    candidates.push_back(o);
+    candidates.pushBack(o);
 }
 
 // An ellipsoid round the segment a..b, `radius` across, `extra` beyond each end.
@@ -296,7 +306,7 @@ void addLimb(const glm::vec3& a, const glm::vec3& b, float radius, float extra, 
     Occluder o;
     o.centre = (a + b) * 0.5f;
     o.axes[0] = d / len;
-    const glm::vec3 ref = std::abs(o.axes[0].z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
+    const glm::vec3 ref = qza::abs(o.axes[0].z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
     o.axes[1] = glm::normalize(glm::cross(ref, o.axes[0]));
     o.axes[2] = glm::cross(o.axes[0], o.axes[1]);
     o.size = {len * 0.5f + extra, radius, radius};
@@ -333,7 +343,7 @@ void addBody(const entity_t* e, const aliashdr_t* hdr, float strength, float rea
             out = transformPoint(m, posed);
             if(size) // a collapsed (undrawn) bone's matrix shrinks everything to a point
             {
-                *size = std::sqrt(s[0] * s[0] + s[4] * s[4] + s[8] * s[8]) + std::sqrt(s[1] * s[1] + s[5] * s[5] + s[9] * s[9]);
+                *size = za::sqrt(s[0] * s[0] + s[4] * s[4] + s[8] * s[8]) + za::sqrt(s[1] * s[1] + s[5] * s[5] + s[9] * s[9]);
             }
             return true;
         }
@@ -481,7 +491,7 @@ void addBrush(const entity_t* e, float strength)
         const int n = atoi(model->name + 1);
         if(n > 0 && n < static_cast<int>(bakedSubmodels.size()) && bakedSubmodels[n])
         {
-            strength *= std::clamp(VectorLength(e->origin) / 16.f, 0.f, 1.f);
+            strength *= za::clamp(VectorLength(e->origin) / 16.f, 0.f, 1.f);
         }
     }
     if(strength <= 0.f)
@@ -499,27 +509,27 @@ void addBrush(const entity_t* e, float strength)
         glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]}, glm::vec3{1.f}, o);
     o.box = true;
     o.strength = strength * 0.75f; // big boxes close by fill much of a wall's hemisphere: a little lighter than the ellipsoids
-    o.reach = std::clamp(std::max({o.size.x, o.size.y, o.size.z}) * 0.6f, 16.f, 64.f);
+    o.reach = za::clamp(qza::maxOf(o.size.x, o.size.y, o.size.z) * 0.6f, 16.f, 64.f);
     o.influence = glm::length(o.size) + o.reach;
     o.group = -1.f;
-    candidates.push_back(o);
+    candidates.pushBack(o);
 }
 
 // Chooses the frame's occluders (once, for both eyes): the nearest MAX_OCCLUDERS that can reach the view.
 void build()
 {
-    const auto t0 = std::chrono::steady_clock::now();
+    const auto t0 = qza::nowNs();
     candidates.clear();
     chosen.clear();
     groupCount = 0;
-    const float dynamic = std::clamp(vr_ao_dynamic.value, 0.f, 2.f);
-    const float brush = std::clamp(vr_ao_brush.value, 0.f, 2.f);
-    const float reach = std::clamp(vr_ao_dynamic_range.value, 1.25f, 5.f);
+    const float dynamic = za::clamp(vr_ao_dynamic.value, 0.f, 2.f);
+    const float brush = za::clamp(vr_ao_brush.value, 0.f, 2.f);
+    const float reach = za::clamp(vr_ao_dynamic_range.value, 1.25f, 5.f);
     if(!cl.worldmodel || (dynamic <= 0.f && brush <= 0.f))
     {
         return;
     }
-    std::vector<const entity_t*>& owners = scratch.owners;
+    za::Vector<const entity_t*>& owners = scratch.owners;
     owners.clear();
     for(int i = 0; i < cl_numvisedicts; i++)
     {
@@ -544,7 +554,7 @@ void build()
     vec3_t fwdv, rightv, upv;
     AngleVectors(r_refdef.viewangles, fwdv, rightv, upv);
     const glm::vec3 fwd{fwdv[0], fwdv[1], fwdv[2]};
-    std::vector<int>& order = scratch.order;
+    za::Vector<int>& order = scratch.order;
     order.clear();
     for(int i = 0; i < static_cast<int>(candidates.size()); i++)
     {
@@ -555,11 +565,11 @@ void build()
         {
             continue;
         }
-        order.push_back(i);
+        order.pushBack(i);
     }
-    const size_t keep = std::min(order.size(), static_cast<size_t>(MAX_OCCLUDERS));
-    std::partial_sort(order.begin(), order.begin() + static_cast<std::ptrdiff_t>(keep), order.end(),
-        [](int a, int b) { return candidates[a].distance < candidates[b].distance; });
+    const size_t keep = za::min(order.size(), static_cast<size_t>(MAX_OCCLUDERS));
+    // (All sorted: the first `keep` are std::partial_sort's, but for the order of equal distances.)
+    za::quickSort(order.begin(), order.end(), [](int a, int b) { return candidates[a].distance < candidates[b].distance; });
     float nextGroup = PLAYER_GROUP + 1.f;
     for(size_t k = 0; k < keep; k++)
     {
@@ -572,10 +582,10 @@ void build()
             if(o.group == 0.f) // (a chosen occluder's own group is never 0: they start at PLAYER_GROUP + 1)
             {
                 o.group = nextGroup++;
-                groups[static_cast<std::size_t>(groupCount++)] = {e, o.group};
+                groups[static_cast<za::SizeT>(groupCount++)] = {e, o.group};
             }
         }
-        chosen.push_back(o);
+        chosen.pushBack(o);
     }
 
     // The block's occluders (the tiles are each eye's).
@@ -609,7 +619,7 @@ void build()
         v[5][2] = 0.f;
         v[5][3] = o.group;
     }
-    buildSeconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    buildSeconds += qza::secondsSince(t0);
     buildCount++;
 }
 
@@ -617,9 +627,9 @@ void build()
 // when it reaches behind the eye).
 void binTiles()
 {
-    std::memset(block.tiles, 0, sizeof(block.tiles));
-    std::memset(block.slices, 0, sizeof(block.slices));
-    const float depthScale = std::sqrt(m_sq(r_matviewproj[3], r_matviewproj[7], r_matviewproj[11])); // w per unit along the view
+    ZA_MEMSET(block.tiles, 0, sizeof(block.tiles));
+    ZA_MEMSET(block.slices, 0, sizeof(block.slices));
+    const float depthScale = za::sqrt(m_sq(r_matviewproj[3], r_matviewproj[7], r_matviewproj[11])); // w per unit along the view
     const float* m = r_matviewproj;
     for(size_t i = 0; i < chosen.size(); i++)
     {
@@ -648,10 +658,10 @@ void binTiles()
             }
             const float x = (m[0] * p.x + m[4] * p.y + m[8] * p.z + m[12]) / w;
             const float y = (m[1] * p.x + m[5] * p.y + m[9] * p.z + m[13]) / w;
-            x0 = std::min(x0, x);
-            x1 = std::max(x1, x);
-            y0 = std::min(y0, y);
-            y1 = std::max(y1, y);
+            x0 = za::min(x0, x);
+            x1 = za::max(x1, x);
+            y0 = za::min(y0, y);
+            y1 = za::max(y1, y);
         }
         int tx0 = 0, tx1 = LIGHT_TILES_X - 1, ty0 = 0, ty1 = LIGHT_TILES_Y - 1;
         if(!whole)
@@ -660,18 +670,18 @@ void binTiles()
             {
                 continue;
             }
-            tx0 = std::clamp(static_cast<int>(std::floor((x0 * 0.5f + 0.5f) * LIGHT_TILES_X)), 0, LIGHT_TILES_X - 1);
-            tx1 = std::clamp(static_cast<int>(std::floor((x1 * 0.5f + 0.5f) * LIGHT_TILES_X)), 0, LIGHT_TILES_X - 1);
-            ty0 = std::clamp(static_cast<int>(std::floor((y0 * 0.5f + 0.5f) * LIGHT_TILES_Y)), 0, LIGHT_TILES_Y - 1);
-            ty1 = std::clamp(static_cast<int>(std::floor((y1 * 0.5f + 0.5f) * LIGHT_TILES_Y)), 0, LIGHT_TILES_Y - 1);
+            tx0 = za::clamp(static_cast<int>(za::floor((x0 * 0.5f + 0.5f) * LIGHT_TILES_X)), 0, LIGHT_TILES_X - 1);
+            tx1 = za::clamp(static_cast<int>(za::floor((x1 * 0.5f + 0.5f) * LIGHT_TILES_X)), 0, LIGHT_TILES_X - 1);
+            ty0 = za::clamp(static_cast<int>(za::floor((y0 * 0.5f + 0.5f) * LIGHT_TILES_Y)), 0, LIGHT_TILES_Y - 1);
+            ty1 = za::clamp(static_cast<int>(za::floor((y1 * 0.5f + 0.5f) * LIGHT_TILES_Y)), 0, LIGHT_TILES_Y - 1);
         }
-        const std::uint32_t bit = 1u << (i & 31);
+        const za::U32 bit = 1u << (i & 31);
         const int word = static_cast<int>(i >> 5);
         // The depth slices its reach spans (the light clusters' logarithmic slices: gl_rmain.c's ZLogScale, ZLogBias).
         const float wc = m[3] * o.centre.x + m[7] * o.centre.y + m[11] * o.centre.z + m[15];
         const auto slice = [](float w) {
             return w <= 1e-3f ? 0
-                              : std::clamp(static_cast<int>(std::floor(std::log2(w) * r_framedata.zlogscale + r_framedata.zlogbias)),
+                              : za::clamp(static_cast<int>(za::floor(qza::log2(w) * r_framedata.zlogscale + r_framedata.zlogbias)),
                                     0, LIGHT_TILES_Z - 1);
         };
         const int z0 = slice(wc - o.influence * depthScale), z1 = slice(wc + o.influence * depthScale);
@@ -697,30 +707,35 @@ constexpr int RAYS = 24;
 
 struct Baked
 {
-    std::uint64_t hash{0};
-    std::vector<unsigned char> vis;
+    za::U64 hash{0};
+    za::Vector<unsigned char> vis;
 };
-// By name; looked up by a model's name without making a std::string of it (a transparent hash).
+// By name; looked up by a model's name without making a za::String of it (a transparent hash).
 struct NameHash
 {
     using is_transparent = void;
-    [[nodiscard]] std::size_t operator()(std::string_view s) const { return std::hash<std::string_view>{}(s); }
+    [[nodiscard]] za::SizeT operator()(za::StringView s) const { return ankerl::unordered_dense::hash<za::StringView>{}(s); }
 };
-std::unordered_map<std::string, Baked, NameHash, std::equal_to<>> baked;
+struct NameEqual
+{
+    using is_transparent = void;
+    [[nodiscard]] bool operator()(za::StringView a, za::StringView b) const { return a == b; }
+};
+ankerl::unordered_dense::map<za::String, Baked, NameHash, NameEqual> baked;
 double bakeSeconds = 0.0; // vr_ao_show
 int bakeModels = 0;
 int bakeHits = 0;
 double queueSeconds = 0.0; // the main thread's share: hashing, copying the poses
-std::string slowestModel;
+za::String slowestModel;
 double slowestSeconds = 0.0;
 
-std::array<glm::vec3, RAYS> rayDirections()
+za::Array<glm::vec3, RAYS> rayDirections()
 {
     // Cosine-weighted over the hemisphere round +z (Hammersley points): each ray weighs the same.
-    std::array<glm::vec3, RAYS> d{};
+    za::Array<glm::vec3, RAYS> d{};
     for(int i = 0; i < RAYS; i++)
     {
-        std::uint32_t b = static_cast<std::uint32_t>(i);
+        za::U32 b = static_cast<za::U32>(i);
         b = (b << 16u) | (b >> 16u);
         b = ((b & 0x55555555u) << 1u) | ((b & 0xAAAAAAAAu) >> 1u);
         b = ((b & 0x33333333u) << 2u) | ((b & 0xCCCCCCCCu) >> 2u);
@@ -728,17 +743,17 @@ std::array<glm::vec3, RAYS> rayDirections()
         b = ((b & 0x00FF00FFu) << 8u) | ((b & 0xFF00FF00u) >> 8u);
         const float u = (static_cast<float>(i) + 0.5f) / RAYS;
         const float v = static_cast<float>(b) * 2.3283064365386963e-10f;
-        const float r = std::sqrt(u), phi = 6.2831853f * v;
-        d[i] = {r * std::cos(phi), r * std::sin(phi), std::sqrt(std::max(0.f, 1.f - u))};
+        const float r = za::sqrt(u), phi = 6.2831853f * v;
+        d[i] = {r * za::cos(phi), r * za::sin(phi), za::sqrt(za::max(0.f, 1.f - u))};
     }
     return d;
 }
 // Made before main and never changed: read by the bake's pose threads at once.
-const std::array<glm::vec3, RAYS> rayDirs = rayDirections();
+const za::Array<glm::vec3, RAYS> rayDirs = rayDirections();
 
 struct Tri
 {
-    std::uint16_t v[3];
+    za::U16 v[3];
 };
 
 struct PoseJob
@@ -746,29 +761,29 @@ struct PoseJob
     const trivertx_t* verts{nullptr}; // numposes x numverts
     int numverts{0};
     glm::vec3 scale{1.f}, origin{0.f};
-    const std::vector<Tri>* tris{nullptr};
-    const std::vector<std::vector<int>>* ring{nullptr}; // each vertex's neighbours (sharing a triangle)
+    const za::Vector<Tri>* tris{nullptr};
+    const za::Vector<za::Vector<int>>* ring{nullptr}; // each vertex's neighbours (sharing a triangle)
     float reach{1.f};
     unsigned char* out{nullptr};
-    const std::atomic<bool>* stop{nullptr}; // the game quitting: the bake given up at once
+    const za::Atomic<bool>* stop{nullptr}; // the game quitting: the bake given up at once
 };
 
 // One pose: for each vertex, the share of cosine-weighted rays over its hemisphere that the model's own triangles
 // stop within `reach` (a hit counts less the farther it is: 1 - t / reach).
-void bakePose(const PoseJob& job, int pose, std::vector<int>& cand)
+void bakePose(const PoseJob& job, int pose, za::Vector<int>& cand)
 {
-    const std::array<glm::vec3, RAYS>& dirs = rayDirs;
+    const za::Array<glm::vec3, RAYS>& dirs = rayDirs;
     const trivertx_t* tv = job.verts + static_cast<size_t>(pose) * job.numverts;
     const int nv = job.numverts;
-    std::vector<glm::vec3> p(nv);
+    za::Vector<glm::vec3> p(nv);
     for(int i = 0; i < nv; i++)
     {
         p[i] = glm::vec3{tv[i].v[0], tv[i].v[1], tv[i].v[2]} * job.scale + job.origin;
     }
-    const std::vector<Tri>& tris = *job.tris;
+    const za::Vector<Tri>& tris = *job.tris;
     const size_t nt = tris.size();
-    std::vector<glm::vec3> v0(nt), e1(nt), e2(nt), mid(nt);
-    std::vector<float> rad(nt);
+    za::Vector<glm::vec3> v0(nt), e1(nt), e2(nt), mid(nt);
+    za::Vector<float> rad(nt);
     for(size_t t = 0; t < nt; t++)
     {
         const glm::vec3 a = p[tris[t].v[0]], b = p[tris[t].v[1]], c = p[tris[t].v[2]];
@@ -776,15 +791,15 @@ void bakePose(const PoseJob& job, int pose, std::vector<int>& cand)
         e1[t] = b - a;
         e2[t] = c - a;
         mid[t] = (a + b + c) * (1.f / 3.f);
-        rad[t] = std::sqrt(std::max({glm::dot(a - mid[t], a - mid[t]), glm::dot(b - mid[t], b - mid[t]), glm::dot(c - mid[t], c - mid[t])}));
+        rad[t] = za::sqrt(qza::maxOf(glm::dot(a - mid[t], a - mid[t]), glm::dot(b - mid[t], b - mid[t]), glm::dot(c - mid[t], c - mid[t])));
     }
     const float reach = job.reach;
     const float tmin = reach * 0.02f;
     unsigned char* out = job.out + static_cast<size_t>(pose) * nv;
-    std::vector<int> mark(nv, -1);
+    za::Vector<int> mark(nv, -1);
     for(int i = 0; i < nv; i++)
     {
-        if(job.stop && job.stop->load(std::memory_order_relaxed))
+        if(job.stop && job.stop->loadRelaxed())
         {
             return;
         }
@@ -795,7 +810,7 @@ void bakePose(const PoseJob& job, int pose, std::vector<int>& cand)
         {
             mark[k] = i;
         }
-        const float* nn = r_avertexnormals[std::min<int>(tv[i].lightnormalindex, NUMVERTEXNORMALS - 1)];
+        const float* nn = r_avertexnormals[za::min<int>(tv[i].lightnormalindex, NUMVERTEXNORMALS - 1)];
         const glm::vec3 n{nn[0], nn[1], nn[2]};
         const glm::vec3 o = p[i] + n * (reach * 0.03f);
         cand.clear();
@@ -812,13 +827,13 @@ void bakePose(const PoseJob& job, int pose, std::vector<int>& cand)
             {
                 continue;
             }
-            cand.push_back(static_cast<int>(t));
+            cand.pushBack(static_cast<int>(t));
         }
         float occ = 0.f;
         if(!cand.empty())
         {
             // Duff et al.'s frame round the normal.
-            const float sign = std::copysign(1.f, n.z);
+            const float sign = qza::copysign(1.f, n.z);
             const float a = -1.f / (sign + n.z);
             const float b = n.x * n.y * a;
             const glm::vec3 tx{1.f + sign * n.x * n.x * a, sign * b, -sign * n.x};
@@ -831,7 +846,7 @@ void bakePose(const PoseJob& job, int pose, std::vector<int>& cand)
                 {
                     const glm::vec3 pv = glm::cross(d, e2[t]);
                     const float det = glm::dot(e1[t], pv);
-                    if(std::abs(det) < 1e-9f)
+                    if(qza::abs(det) < 1e-9f)
                     {
                         continue;
                     }
@@ -862,7 +877,7 @@ void bakePose(const PoseJob& job, int pose, std::vector<int>& cand)
             }
         }
         const float vis = 1.f - occ / RAYS;
-        out[i] = static_cast<unsigned char>(std::clamp(vis * 255.f + 0.5f, 0.f, 255.f));
+        out[i] = static_cast<unsigned char>(za::clamp(vis * 255.f + 0.5f, 0.f, 255.f));
     }
 }
 
@@ -879,27 +894,27 @@ constexpr int BAKE_THREADS = 4;
 
 struct BakeJob
 {
-    std::string name;
+    za::String name;
     qmodel_t* model{nullptr};
-    std::uint64_t hash{0};
+    za::U64 hash{0};
     int numverts{0};
     int numposes{0};
-    std::vector<trivertx_t> verts;
-    std::vector<Tri> tris;
+    za::Vector<trivertx_t> verts;
+    za::Vector<Tri> tris;
     glm::vec3 scale{1.f}, origin{0.f};
-    std::vector<unsigned char> vis;
+    za::Vector<unsigned char> vis;
     double seconds{0.0};
 };
 
 struct BakeQueue
 {
-    std::mutex mutex;
-    std::deque<std::unique_ptr<BakeJob>> pending;
-    std::vector<std::unique_ptr<BakeJob>> done;
-    std::unordered_map<std::string, std::uint64_t, NameHash, std::equal_to<>> queued; // queued or being baked: name, hash
+    za::AtomicMutex mutex;
+    za::Vector<za::UniquePtr<BakeJob>> pending; // (first in, first out)
+    za::Vector<za::UniquePtr<BakeJob>> done;
+    ankerl::unordered_dense::map<za::String, za::U64, NameHash, NameEqual> queued; // queued or being baked: name, hash
     bool running{false};            // a task bakes the queued models (until none is left)
     jobs::Future<void> runner;      // that task (the main thread's: waited for at shutdown, ao::shutdown)
-    std::atomic<bool> stop{false};  // set at shutdown: the bake under way gives up
+    za::Atomic<bool> stop{false};  // set at shutdown: the bake under way gives up
 };
 
 BakeQueue& bakeQueue()
@@ -909,9 +924,9 @@ BakeQueue& bakeQueue()
 }
 
 // FNV-1a of a model's poses, triangles and scale: the same name from another game folder is another model.
-std::uint64_t modelHash(const aliashdr_t* hdr)
+za::U64 modelHash(const aliashdr_t* hdr)
 {
-    std::uint64_t h = 1469598103934665603ull;
+    za::U64 h = 1469598103934665603ull;
     const auto mix = [&h](const void* data, size_t bytes) {
         const auto* b = static_cast<const unsigned char*>(data);
         for(size_t i = 0; i < bytes; i++)
@@ -946,7 +961,7 @@ struct BelowNormal
 
 void runBake(BakeJob& job)
 {
-    const auto t0 = std::chrono::steady_clock::now();
+    const auto t0 = qza::nowNs();
     // Reach: an eighth of the first pose's diagonal (a grunt's 9 units, a gun's few), within 1 .. 16 units.
     glm::vec3 lo{1e9f}, hi{-1e9f};
     for(int i = 0; i < job.numverts; i++)
@@ -955,47 +970,48 @@ void runBake(BakeJob& job)
         lo = glm::min(lo, p);
         hi = glm::max(hi, p);
     }
-    job.vis.assign(static_cast<size_t>(job.numposes) * job.numverts, 255);
+    job.vis.clear();
+    job.vis.resize(static_cast<size_t>(job.numposes) * job.numverts, 255);
     PoseJob pj;
     pj.verts = job.verts.data();
     pj.numverts = job.numverts;
     pj.scale = job.scale;
     pj.origin = job.origin;
     pj.tris = &job.tris;
-    std::vector<std::vector<int>> ring(job.numverts);
+    za::Vector<za::Vector<int>> ring(job.numverts);
     for(const Tri& t : job.tris)
     {
         for(int a = 0; a < 3; a++)
         {
             for(int b = 0; b < 3; b++)
             {
-                if(a != b && std::find(ring[t.v[a]].begin(), ring[t.v[a]].end(), t.v[b]) == ring[t.v[a]].end())
+                if(a != b && za::find(ring[t.v[a]].begin(), ring[t.v[a]].end(), t.v[b]) == ring[t.v[a]].end())
                 {
-                    ring[t.v[a]].push_back(t.v[b]);
+                    ring[t.v[a]].pushBack(t.v[b]);
                 }
             }
         }
     }
     pj.ring = &ring;
-    pj.reach = std::clamp(glm::distance(lo, hi) * 0.125f, 1.f, 16.f);
+    pj.reach = za::clamp(glm::distance(lo, hi) * 0.125f, 1.f, 16.f);
     pj.out = job.vis.data();
     pj.stop = &bakeQueue().stop;
 
     // The poses shared out between threads, every `threads`th to each (they only read the copy and write their own poses).
     const int poses = job.numposes;
-    const int threads = std::clamp(std::min(jobs::hardwareThreads() / 2, BAKE_THREADS), 1, poses);
-    jobs::parallelFor(static_cast<std::size_t>(threads), 1, [&pj, poses, threads](std::size_t t0, std::size_t t1) {
+    const int threads = za::clamp(za::min(jobs::hardwareThreads() / 2, BAKE_THREADS), 1, poses);
+    jobs::parallelFor(static_cast<za::SizeT>(threads), 1, [&pj, poses, threads](za::SizeT t0, za::SizeT t1) {
         const BelowNormal low;
-        std::vector<int> cand;
+        za::Vector<int> cand;
         for(int first = static_cast<int>(t0); first < static_cast<int>(t1); first++)
         {
-            for(int f = first; f < poses && !pj.stop->load(std::memory_order_relaxed); f += threads)
+            for(int f = first; f < poses && !pj.stop->loadRelaxed(); f += threads)
             {
                 bakePose(pj, f, cand);
             }
         }
     });
-    job.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    job.seconds = qza::secondsSince(t0);
 }
 
 // The bake task: the queued models baked in turn, until none is left (or the game stops).
@@ -1005,25 +1021,25 @@ void bakeQueued()
     const BelowNormal low;
     for(;;)
     {
-        std::unique_ptr<BakeJob> job;
+        za::UniquePtr<BakeJob> job;
         {
-            std::lock_guard<std::mutex> lock(q.mutex);
-            if(q.stop.load() || q.pending.empty())
+            za::LockGuard lock(q.mutex);
+            if(q.stop.loadSeqCst() || q.pending.empty())
             {
                 q.running = false;
                 return;
             }
-            job = std::move(q.pending.front());
-            q.pending.pop_front();
+            job = ZA_MOVE(q.pending.front());
+            q.pending.erase(q.pending.begin());
         }
         runBake(*job);
-        std::lock_guard<std::mutex> lock(q.mutex);
-        if(q.stop.load())
+        za::LockGuard lock(q.mutex);
+        if(q.stop.loadSeqCst())
         {
             q.running = false;
             return; // (given up part way)
         }
-        q.done.push_back(std::move(job));
+        q.done.pushBack(ZA_MOVE(job));
     }
 }
 
@@ -1031,9 +1047,9 @@ void bakeQueued()
 void integrateBakes()
 {
     BakeQueue& q = bakeQueue();
-    std::vector<std::unique_ptr<BakeJob>> finished;
+    za::Vector<za::UniquePtr<BakeJob>> finished;
     {
-        std::lock_guard<std::mutex> lock(q.mutex);
+        za::LockGuard lock(q.mutex);
         if(q.done.empty())
         {
             return;
@@ -1048,7 +1064,7 @@ void integrateBakes()
     {
         Baked& entry = baked[job->name];
         entry.hash = job->hash;
-        entry.vis = std::move(job->vis);
+        entry.vis = ZA_MOVE(job->vis);
         bakeSeconds += job->seconds;
         bakeModels++;
         if(job->seconds > slowestSeconds)
@@ -1057,15 +1073,15 @@ void integrateBakes()
             slowestModel = job->name;
         }
         double mean = 0.0;
-        std::uint32_t texels = 2166136261u; // (FNV-1a: the same bake whatever threads made it)
+        za::U32 texels = 2166136261u; // (FNV-1a: the same bake whatever threads made it)
         for(const unsigned char v : entry.vis)
         {
             mean += v;
             texels = (texels ^ v) * 16777619u;
         }
-        mean /= std::max<size_t>(entry.vis.size(), 1) * 255.0;
+        mean /= za::max<size_t>(entry.vis.size(), 1) * 255.0;
         Con_DPrintf("vr_ao: %s: %d poses x %d vertices, %d triangles baked in %.1f ms, open %.2f on average (%08x)\n",
-            job->name.c_str(), job->numposes, job->numverts, static_cast<int>(job->tris.size()), job->seconds * 1000.0, mean,
+            job->name.cStr(), job->numposes, job->numverts, static_cast<int>(job->tris.size()), job->seconds * 1000.0, mean,
             texels);
         qmodel_t* m = job->model;
         if(m && m->type == mod_alias && job->name == m->name)
@@ -1093,15 +1109,15 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
     {
         return nullptr; // a test run that doesn't draw (VR_SkipScreen): not seconds of every core's time at its start
     }
-    const auto t0 = std::chrono::steady_clock::now();
+    const auto t0 = qza::nowNs();
     struct Timer
     {
-        std::chrono::steady_clock::time_point start;
-        ~Timer() { queueSeconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count(); }
+        za::I64 start;
+        ~Timer() { queueSeconds += qza::secondsSince(start); }
     } timer{t0};
     const size_t count = static_cast<size_t>(hdr->numposes) * hdr->numverts;
-    const std::uint64_t h = modelHash(hdr);
-    const auto it = baked.find(std::string_view{model->name});
+    const za::U64 h = modelHash(hdr);
+    const auto it = baked.find(za::StringView{model->name});
     if(it != baked.end() && it->second.hash == h && it->second.vis.size() == count)
     {
         bakeHits++;
@@ -1109,19 +1125,19 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
     }
 
     BakeQueue& q = bakeQueue();
-    std::unique_lock<std::mutex> lock(q.mutex);
-    if(const auto qi = q.queued.find(std::string_view{model->name}); qi != q.queued.end() && qi->second == h)
+    qza::UniqueLock lock(q.mutex);
+    if(const auto qi = q.queued.find(za::StringView{model->name}); qi != q.queued.end() && qi->second == h)
     {
         return nullptr; // on its way
     }
-    auto job = std::make_unique<BakeJob>();
+    auto job = za::makeUnique<BakeJob>();
     job->name = model->name;
     job->model = model;
     job->hash = h;
     job->numverts = hdr->numverts;
     job->numposes = hdr->numposes;
     const auto* verts = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-    job->verts.assign(verts, verts + count);
+    job->verts.assignRange(verts, verts + count);
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
     const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
     job->tris.reserve(hdr->numindexes / 3);
@@ -1137,14 +1153,14 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
         }
         if(ok && t.v[0] != t.v[1] && t.v[1] != t.v[2] && t.v[0] != t.v[2])
         {
-            job->tris.push_back(t);
+            job->tris.pushBack(t);
         }
     }
     job->scale = {hdr->scale[0], hdr->scale[1], hdr->scale[2]};
     job->origin = {hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
     q.queued[model->name] = h;
-    q.pending.push_back(std::move(job));
-    if(q.running || q.stop.load())
+    q.pending.pushBack(ZA_MOVE(job));
+    if(q.running || q.stop.loadSeqCst())
     {
         return nullptr; // (the task under way takes it next)
     }
@@ -1157,7 +1173,7 @@ extern "C" const unsigned char* VR_AliasVertexAO(qmodel_t* model, const void* al
 extern "C" void VR_AliasAO(const entity_t* e, float out[4])
 {
     out[0] = 0.f;
-    out[1] = std::clamp(vr_ao_models.value, 0.f, 2.f);
+    out[1] = za::clamp(vr_ao_models.value, 0.f, 2.f);
     out[2] = out[3] = 0.f;
     if(!e)
     {
@@ -1186,7 +1202,7 @@ void show_f()
         buildCount ? buildSeconds * 1000.0 / static_cast<double>(buildCount) : 0.0);
     Con_Printf("vr_ao: models' own occlusion: %d baked in %.1f ms on the worker (slowest %s, %.1f ms), %d from the cache; "
                "%.1f ms on the main thread\n",
-        bakeModels, bakeSeconds * 1000.0, slowestModel.c_str(), slowestSeconds * 1000.0, bakeHits, queueSeconds * 1000.0);
+        bakeModels, bakeSeconds * 1000.0, slowestModel.cStr(), slowestSeconds * 1000.0, bakeHits, queueSeconds * 1000.0);
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     for(const Occluder& o : chosen)
     {
@@ -1206,8 +1222,8 @@ void ao::shutdown()
     BakeQueue& q = bakeQueue();
     bool busy = false;
     {
-        std::lock_guard<std::mutex> lock(q.mutex);
-        q.stop = true;
+        za::LockGuard lock(q.mutex);
+        q.stop.storeSeqCst(true);
         busy = !q.queued.empty();
         q.pending.clear();
     }

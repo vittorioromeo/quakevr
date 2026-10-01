@@ -14,7 +14,16 @@
 #include "vr_twohand.hpp"
 #include "vr_weapons.hpp"
 
-#include <cmath>
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Remainder.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+
 
 using namespace qvr;
 
@@ -178,12 +187,12 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
     const float calibrated = units::eyeHeight();
     const float height = t.head.position.y;
     // In the room's metres (vr_roomscale_move_mult scales the head's motion in the game, not the body's shape).
-    const float toMetres = 1.f / (m2u * std::max(0.1f, vr_roomscale_move_mult.value));
+    const float toMetres = 1.f / (m2u * za::max(0.1f, vr_roomscale_move_mult.value));
     const glm::vec2 off = glm::vec2{lean.x, lean.y} * toMetres;
     const float offLen = glm::length(off);
     const glm::vec2 dir = offLen > 1e-4f ? off / offLen : glm::vec2{0.f};
     constexpr float CENTRED = 0.05f; // metres: the head over the box's middle
-    const auto ease = [&](float tau) { return 1.f - std::exp(-dt / tau); };
+    const auto ease = [&](float tau) { return 1.f - za::exp(-dt / tau); };
 
     if(!ls.valid)
     {
@@ -199,14 +208,14 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
         ls.standing += (height - ls.standing) * ease(height > ls.standing ? 0.4f : 4.f);
     }
     ls.standing = CLAMP(0.8f * calibrated, ls.standing, 1.25f * calibrated);
-    ls.drop += (std::max(0.f, ls.standing - height) - ls.drop) * ease(0.15f);
+    ls.drop += (za::max(0.f, ls.standing - height) - ls.drop) * ease(0.15f);
 
     // A lean swings the head on an arc about the hips (about 0.43 of the eyes' height below them): how much lower that
     // puts it this far out. A step keeps the height (a walk bobs about a centimetre).
     const float arm = 0.43f * ls.standing;
-    const float reach = std::min(offLen, 0.9f * arm);
-    const float arcDrop = arm - std::sqrt(arm * arm - reach * reach);
-    const float dropCue = smoothstep01(std::max(0.015f, 0.35f * arcDrop), std::max(0.035f, 0.75f * arcDrop), ls.drop);
+    const float reach = za::min(offLen, 0.9f * arm);
+    const float arcDrop = arm - za::sqrt(arm * arm - reach * reach);
+    const float dropCue = smoothstep01(za::max(0.015f, 0.35f * arcDrop), za::max(0.035f, 0.75f * arcDrop), ls.drop);
 
     // The head tilted the way it is off: rolled towards it (sideways), or pitched towards it (forward only half: the
     // eyes look down walking too).
@@ -239,7 +248,7 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
         else if(ls.handsRefValid)
         {
             const float went = glm::dot(hands - ls.handsRef, dir) / offLen; // 1: as far as the head
-            const float low = std::max(t.hands[0].position.y, t.hands[1].position.y) < 0.62f * ls.standing ? 1.f : 0.5f;
+            const float low = za::max(t.hands[0].position.y, t.hands[1].position.y) < 0.62f * ls.standing ? 1.f : 0.5f;
             handsCue = low * smoothstep01(0.75f, 0.35f, went);
         }
     }
@@ -319,11 +328,11 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
         const LeanSense& ls = leanSense;
         const float going =
             ls.moving > 0.f ? smoothstep01(0.12f, 0.35f, ls.moving) * smoothstep01(0.15f, 0.35f, ls.speed) : 1.f;
-        speed = std::max(speed, length / 0.25f) * (1.f - ls.hold) * going;
+        speed = za::max(speed, length / 0.25f) * (1.f - ls.hold) * going;
     }
     if(length > 0.01f && speed > 0.f && !noclip_anglehack)
     {
-        const float step = std::min(length, speed * dt);
+        const float step = za::min(length, speed * dt);
         const glm::vec3 to = body + lean * (step / length);
         if(worldtrace::playerBoxFits(body, to) && worldtrace::line(to, to - glm::vec3{0.f, 0.f, 48.f}) < 1.f)
         {
@@ -398,15 +407,15 @@ void updateVelocities(const TrackingState* t)
 [[nodiscard]] float headYawBlended()
 {
     const float pitch = state.headAngles.x;
-    if(std::fabs(pitch) <= 50.f)
+    if(za::fabs(pitch) <= 50.f)
     {
         return state.headAngles.y;
     }
 
     glm::vec3 fwd, right, up;
     angleVectors(state.headAngles, fwd, right, up);
-    const glm::vec3 dir = glm::mix(fwd, pitch > 0.f ? up : -up, std::fabs(pitch) / 90.f);
-    return glm::degrees(std::atan2(dir.y, dir.x));
+    const glm::vec3 dir = glm::mix(fwd, pitch > 0.f ? up : -up, za::fabs(pitch) / 90.f);
+    return glm::degrees(za::atan2(dir.y, dir.x));
 }
 
 // The torso faces between the head and the hands (old engine's VR_GetBodyYawAngle): the head's
@@ -441,7 +450,7 @@ void updateVelocities(const TrackingState* t)
     }
 
     const glm::vec3 dir = glm::mix(headFwd, handDir, 0.8f);
-    return glm::length(dir) > 0.f ? glm::degrees(std::atan2(dir.y, dir.x)) : headYaw;
+    return glm::length(dir) > 0.f ? glm::degrees(za::atan2(dir.y, dir.x)) : headYaw;
 }
 
 // Round 21, third pass: the held weapon's Hand and Weapon Together offset (vr_wofs_whole_*: x forward, y left, z up;
@@ -671,7 +680,7 @@ void setServerYaw(float yaw)
 
 void addTurn(float degrees)
 {
-    turnYaw = std::remainder(turnYaw + degrees, 360.f);
+    turnYaw = za::remainder(turnYaw + degrees, 360.f);
     stateFrame = -1;
 }
 
@@ -690,7 +699,7 @@ void resetClientState()
 
 void setPlaySpaceYaw(float yaw)
 {
-    turnYaw = std::remainder(yaw, 360.f);
+    turnYaw = za::remainder(yaw, 360.f);
     pendingYawValid = false;
     stateFrame = -1;
 }
@@ -757,12 +766,12 @@ void angleVectors(const glm::vec3& angles, glm::vec3& fwd, glm::vec3& right, glm
 
 glm::vec3 anglesFromVectors(const glm::vec3& fwd, const glm::vec3& up)
 {
-    const float pitch = glm::degrees(std::asin(CLAMP(-1.f, -fwd.z, 1.f)));
-    const float yaw = glm::degrees(std::atan2(fwd.y, fwd.x));
+    const float pitch = glm::degrees(za::asin(CLAMP(-1.f, -fwd.z, 1.f)));
+    const float yaw = glm::degrees(za::atan2(fwd.y, fwd.x));
 
     glm::vec3 f0, r0, u0;
     angleVectors({pitch, yaw, 0.f}, f0, r0, u0);
-    const float roll = glm::degrees(std::atan2(glm::dot(up, r0), glm::dot(up, u0)));
+    const float roll = glm::degrees(za::atan2(glm::dot(up, r0), glm::dot(up, u0)));
 
     return {pitch, yaw, roll};
 }
@@ -770,8 +779,8 @@ glm::vec3 anglesFromVectors(const glm::vec3& fwd, const glm::vec3& up)
 glm::vec3 rotateYaw(const glm::vec3& v, float degrees)
 {
     const float r = glm::radians(degrees);
-    const float c = std::cos(r);
-    const float s = std::sin(r);
+    const float c = za::cos(r);
+    const float s = za::sin(r);
     return {v.x * c - v.y * s, v.x * s + v.y * c, v.z};
 }
 

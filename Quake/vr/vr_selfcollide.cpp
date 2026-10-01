@@ -18,13 +18,21 @@
 #include "vr_weapons.hpp"
 #include "vr_hands.hpp"
 
-#include <algorithm>
-#include <array>
-#include <chrono>
-#include <cmath>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_zancle.hpp"
+
 
 namespace qvr::selfcollide
 {
@@ -56,7 +64,7 @@ void finish(Cap& k)
     k.br = glm::distance(k.a, k.b) * 0.5f + k.r;
 }
 
-using Caps = std::vector<Cap>;
+using Caps = za::Vector<Cap>;
 
 struct Bound
 {
@@ -81,7 +89,7 @@ Bound boundOf(const Caps& caps)
     b.r = 0.f;
     for(const Cap& k : caps)
     {
-        b.r = std::max(b.r, glm::distance(k.c, b.c) + k.br);
+        b.r = za::max(b.r, glm::distance(k.c, b.c) + k.br);
     }
     return b;
 }
@@ -106,30 +114,30 @@ void closestPoints(const glm::vec3& p1, const glm::vec3& q1, const glm::vec3& p2
     }
     if(a <= eps)
     {
-        t = std::clamp(f / e, 0.f, 1.f);
+        t = za::clamp(f / e, 0.f, 1.f);
     }
     else
     {
         const float c = glm::dot(d1, r);
         if(e <= eps)
         {
-            s = std::clamp(-c / a, 0.f, 1.f);
+            s = za::clamp(-c / a, 0.f, 1.f);
         }
         else
         {
             const float b = glm::dot(d1, d2);
             const float denom = a * e - b * b;
-            s = denom > eps ? std::clamp((b * f - c * e) / denom, 0.f, 1.f) : 0.f;
+            s = denom > eps ? za::clamp((b * f - c * e) / denom, 0.f, 1.f) : 0.f;
             t = (b * s + f) / e;
             if(t < 0.f)
             {
                 t = 0.f;
-                s = std::clamp(-c / a, 0.f, 1.f);
+                s = za::clamp(-c / a, 0.f, 1.f);
             }
             else if(t > 1.f)
             {
                 t = 1.f;
-                s = std::clamp((b - c) / a, 0.f, 1.f);
+                s = za::clamp((b - c) / a, 0.f, 1.f);
             }
         }
     }
@@ -139,7 +147,7 @@ void closestPoints(const glm::vec3& p1, const glm::vec3& q1, const glm::vec3& p2
 
 [[nodiscard]] float smooth(float e0, float e1, float x)
 {
-    const float t = std::clamp((x - e0) / (e1 - e0), 0.f, 1.f);
+    const float t = za::clamp((x - e0) / (e1 - e0), 0.f, 1.f);
     return t * t * (3.f - 2.f * t);
 }
 
@@ -182,18 +190,18 @@ struct FitKey
 };
 struct FitKeyHash
 {
-    std::size_t operator()(const FitKey& k) const
+    za::SizeT operator()(const FitKey& k) const
     {
-        return std::hash<const void*>{}(k.model) ^ (static_cast<std::size_t>(k.frame) * 2654435761u);
+        return ankerl::unordered_dense::hash<const void*>{}(k.model) ^ (static_cast<za::SizeT>(k.frame) * 2654435761u);
     }
 };
 struct Fit
 {
-    std::string name;
+    za::String name;
     glm::vec3 axes{0.f};
     Caps caps; // the shape's axes, world units
 };
-std::unordered_map<FitKey, Fit, FitKeyHash> fits;
+ankerl::unordered_dense::map<FitKey, za::UniquePtr<Fit>, FitKeyHash> fits; // (pointers into it are kept)
 
 glm::vec3 principal(const glm::mat3& cov, const glm::vec3& start)
 {
@@ -211,18 +219,18 @@ glm::vec3 principal(const glm::mat3& cov, const glm::vec3& start)
     return v;
 }
 
-float percentile(std::vector<float>& v, float q)
+float percentile(za::Vector<float>& v, float q)
 {
     if(v.empty())
     {
         return 0.f;
     }
-    const std::size_t i = std::min(v.size() - 1, static_cast<std::size_t>(q * static_cast<float>(v.size() - 1) + 0.5f));
-    std::nth_element(v.begin(), v.begin() + static_cast<std::ptrdiff_t>(i), v.end());
+    const za::SizeT i = za::min(v.size() - 1, static_cast<za::SizeT>(q * static_cast<float>(v.size() - 1) + 0.5f));
+    za::quickSort(v.begin(), v.end()); // (sorted whole: v[i] is std::nth_element's, the same value)
     return v[i];
 }
 
-void fitCaps(const std::vector<glm::vec3>& pts, Caps& out)
+void fitCaps(const za::Vector<glm::vec3>& pts, Caps& out)
 {
     out.clear();
     if(pts.size() < 6)
@@ -248,42 +256,42 @@ void fitCaps(const std::vector<glm::vec3>& pts, Caps& out)
                                                              : glm::vec3{0.f, 0.f, 1.f};
     const glm::vec3 ax = principal(cov, start);
     const glm::mat3 deflated = cov - glm::outerProduct(ax, ax) * glm::dot(ax, cov * ax);
-    glm::vec3 guess = std::abs(ax.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{0.f, 1.f, 0.f};
+    glm::vec3 guess = qza::abs(ax.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{0.f, 1.f, 0.f};
     guess = glm::normalize(guess - ax * glm::dot(guess, ax));
     glm::vec3 bx = principal(deflated, guess);
     bx = glm::normalize(bx - ax * glm::dot(bx, ax));
     const glm::vec3 cx = glm::cross(ax, bx);
 
     float s0 = 1e30f, s1 = -1e30f;
-    std::vector<float> along(pts.size());
-    for(std::size_t i = 0; i < pts.size(); i++)
+    za::Vector<float> along(pts.size());
+    for(za::SizeT i = 0; i < pts.size(); i++)
     {
         along[i] = glm::dot(pts[i] - mean, ax);
-        s0 = std::min(s0, along[i]);
-        s1 = std::max(s1, along[i]);
+        s0 = za::min(s0, along[i]);
+        s1 = za::max(s1, along[i]);
     }
     // The slabs: about as long as the weapon is thick, 2 to 5 of them.
-    std::vector<float> us, vs;
-    for(std::size_t i = 0; i < pts.size(); i++)
+    za::Vector<float> us, vs;
+    for(za::SizeT i = 0; i < pts.size(); i++)
     {
-        us.push_back(glm::dot(pts[i] - mean, bx));
-        vs.push_back(glm::dot(pts[i] - mean, cx));
+        us.pushBack(glm::dot(pts[i] - mean, bx));
+        vs.pushBack(glm::dot(pts[i] - mean, cx));
     }
-    const float thick = std::max(percentile(us, 0.97f) - percentile(us, 0.03f), percentile(vs, 0.97f) - percentile(vs, 0.03f));
+    const float thick = za::max(percentile(us, 0.97f) - percentile(us, 0.03f), percentile(vs, 0.97f) - percentile(vs, 0.03f));
     const float length = s1 - s0;
-    const int slabs = std::clamp(static_cast<int>(std::lround(length / std::max(thick * 1.2f, 1e-3f))), 2, 5);
+    const int slabs = za::clamp(static_cast<int>(za::lround(length / za::max(thick * 1.2f, 1e-3f))), 2, 5);
     const float step = length / static_cast<float>(slabs);
     for(int k = 0; k < slabs; k++)
     {
         const float a0 = s0 + step * static_cast<float>(k), a1 = a0 + step;
         us.clear();
         vs.clear();
-        for(std::size_t i = 0; i < pts.size(); i++)
+        for(za::SizeT i = 0; i < pts.size(); i++)
         {
             if(along[i] >= a0 - 1e-4f && along[i] <= a1 + 1e-4f)
             {
-                us.push_back(glm::dot(pts[i] - mean, bx));
-                vs.push_back(glm::dot(pts[i] - mean, cx));
+                us.pushBack(glm::dot(pts[i] - mean, bx));
+                vs.pushBack(glm::dot(pts[i] - mean, cx));
             }
         }
         if(us.size() < 3)
@@ -295,10 +303,10 @@ void fitCaps(const std::vector<glm::vec3>& pts, Caps& out)
         const bool uLong = u1 - u0 >= v1 - v0;
         const float longLo = uLong ? u0 : v0, longHi = uLong ? u1 : v1;
         const float shortLo = uLong ? v0 : u0, shortHi = uLong ? v1 : u1;
-        const float r = std::max((shortHi - shortLo) * 0.5f, 0.05f);
-        const int count = std::clamp(static_cast<int>(std::ceil((longHi - longLo) / (2.f * r) - 0.25f)), 1, 3);
+        const float r = za::max((shortHi - shortLo) * 0.5f, 0.05f);
+        const int count = za::clamp(static_cast<int>(za::ceil((longHi - longLo) / (2.f * r) - 0.25f)), 1, 3);
         const float shortMid = (shortLo + shortHi) * 0.5f;
-        const float half = std::min(r, step * 0.5f);
+        const float half = za::min(r, step * 0.5f);
         for(int j = 0; j < count; j++)
         {
             const float l = count == 1 ? (longLo + longHi) * 0.5f
@@ -309,7 +317,7 @@ void fitCaps(const std::vector<glm::vec3>& pts, Caps& out)
             cap.a = across + ax * (a0 + half);
             cap.b = across + ax * (a1 - half);
             cap.r = r;
-            out.push_back(cap);
+            out.pushBack(cap);
         }
     }
 }
@@ -322,7 +330,7 @@ const Caps* weaponCaps(const entity_t& e, const glm::vec3& axes)
     {
         return nullptr;
     }
-    Fit& f = fits[FitKey{e.model, e.frame}];
+    Fit& f = qza::stableAt<Fit>(fits, FitKey{e.model, e.frame});
     if(f.name != e.model->name || glm::any(glm::greaterThan(glm::abs(f.axes - axes), glm::vec3{1e-4f})))
     {
         f.name = e.model->name;
@@ -330,11 +338,11 @@ const Caps* weaponCaps(const entity_t& e, const glm::vec3& axes)
         f.caps.clear();
         if(const grasp::Shape* shape = grasp::shapeOf(e, e.frame))
         {
-            std::vector<glm::vec3> pts;
+            za::Vector<glm::vec3> pts;
             pts.reserve(shape->tris.size() * 3);
             for(const grasp::Triangle& t : shape->tris)
             {
-                pts.insert(pts.end(), {t.p[0] * axes, t.p[1] * axes, t.p[2] * axes});
+                pts.pushBackMultiple(t.p[0] * axes, t.p[1] * axes, t.p[2] * axes);
             }
             fitCaps(pts, f.caps);
         }
@@ -416,7 +424,7 @@ struct Contact
     float pushed{0.f}; // how far the solve moved the hand (the two apart) along its way out
     bool on{false};   // tested this frame
 };
-std::array<Contact, contactCount> contacts;
+za::Array<Contact, contactCount> contacts;
 
 struct Scene
 {
@@ -445,7 +453,7 @@ bool viewOn = false; // this frame's beginView ran the solve (endView records)
 // The build's proportions (make_vrbody.py: muscularity; the torso a third as much).
 void buildScales(float& m, float& torso)
 {
-    const int build = std::clamp(static_cast<int>(vr_body_build.value), 0, 2);
+    const int build = za::clamp(static_cast<int>(vr_body_build.value), 0, 2);
     m = build == 0 ? 0.9f : build == 2 ? 1.5f : 1.2f;
     torso = 1.f + (m - 1.f) * 0.35f;
 }
@@ -457,7 +465,7 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
     k.b = b;
     k.r = r;
     finish(k);
-    out.push_back(k);
+    out.pushBack(k);
 }
 
 [[nodiscard]] bool bodyDrawn()
@@ -474,7 +482,7 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
     {
         return 0.f;
     }
-    return s.grip2HValid[1 - hand] ? 1.f - std::clamp(twohand::transition(1 - hand), 0.f, 1.f) : 1.f;
+    return s.grip2HValid[1 - hand] ? 1.f - za::clamp(twohand::transition(1 - hand), 0.f, 1.f) : 1.f;
 }
 
 // A hand holding nothing (it may be helping hold the other hand's gun).
@@ -506,7 +514,7 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
         }
         if(s.grip2HValid[k])
         {
-            w *= 1.f - std::clamp(twohand::transition(k), 0.f, 1.f);
+            w *= 1.f - za::clamp(twohand::transition(k), 0.f, 1.f);
             if(emptyHand(j)) // (coming to the grip, and still at it after letting go)
             {
                 const glm::vec3 from = s.grip2HPalm[k] ? hands::palmPoint(s, j) : s.pos[j];
@@ -533,12 +541,12 @@ void addCap(Caps& out, const glm::vec3& a, const glm::vec3& b, float r)
         const float reach = body::holsterReach(static_cast<body::Holster>(h));
         if(reach > 0.f)
         {
-            ratio = std::min(ratio, glm::distance(s.pos[hand], hp[static_cast<std::size_t>(h)]) / reach);
+            ratio = za::min(ratio, glm::distance(s.pos[hand], hp[static_cast<za::SizeT>(h)]) / reach);
         }
     }
     if(pouch && body::pouchReach() > 0.f) // the grenade pouch at the small of the back, as a holster
     {
-        ratio = std::min(ratio, glm::distance(s.pos[hand], *pouch) / body::pouchReach());
+        ratio = za::min(ratio, glm::distance(s.pos[hand], *pouch) / body::pouchReach());
     }
     return weapon ? smooth(1.f, 1.6f, ratio) : smooth(0.5f, 1.f, ratio);
 }
@@ -580,8 +588,8 @@ void evaluate(const Caps& A, const glm::vec3& oa, const Caps& B, const glm::vec3
             if(in)
             {
                 e.overlap = true;
-                const float len = std::sqrt(dd);
-                e.depth = std::max(e.depth, R - len);
+                const float len = za::sqrt(dd);
+                e.depth = za::max(e.depth, R - len);
                 if(len > 1e-4f)
                 {
                     e.m += d / len * (R - len);
@@ -596,14 +604,14 @@ void evaluate(const Caps& A, const glm::vec3& oa, const Caps& B, const glm::vec3
                 {
                     continue; // (that way it misses)
                 }
-                const float disc = std::sqrt(disc2);
+                const float disc = za::sqrt(disc2);
                 if(in)
                 {
-                    e.t = std::max(e.t, -dn + disc);
+                    e.t = za::max(e.t, -dn + disc);
                 }
                 if(through)
                 {
-                    e.back = std::max(e.back, dn + disc);
+                    e.back = za::max(e.back, dn + disc);
                 }
             }
         }
@@ -639,17 +647,17 @@ void buildScene(const hands::State& s)
         const Frame hf = handFrame(s.pos[h], s.rot[h]);
         for(const Cap& k : rec.hand[h])
         {
-            sc.hand[h].push_back(toWorld(hf, k));
+            sc.hand[h].pushBack(toWorld(hf, k));
         }
         if(rec.weaponModel[h] && rec.weaponModel[h] == weapons::heldModel(h) && !twohand::carrying(h))
         {
             const Frame wf = handFrame(s.pos[h], s.visualRot[h]);
             for(const Cap& k : rec.weapon[h])
             {
-                sc.weapon[h].push_back(toWorld(wf, k));
+                sc.weapon[h].pushBack(toWorld(wf, k));
                 if(!k.back)
                 {
-                    sc.front[h].push_back(sc.weapon[h].back());
+                    sc.front[h].pushBack(sc.weapon[h].back());
                 }
             }
         }
@@ -715,7 +723,7 @@ void buildScene(const hands::State& s)
         const Frame gf = rec.gadgetLocal ? handFrame(s.pos[g] + drawn[g], s.rot[g]) : Frame{};
         for(const Cap& k : rec.gadgetCaps)
         {
-            sc.part[Gadget][g].push_back(toWorld(gf, k));
+            sc.part[Gadget][g].pushBack(toWorld(gf, k));
         }
     }
     for(int p = 0; p < PartCount; p++)
@@ -740,13 +748,13 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
     out[0] = out[1] = glm::vec3{0.f};
     buildScene(s);
     const Scene& sc = scene;
-    const float passShare = std::clamp(vr_body_collide_pass.value, 0.05f, 1.f);
+    const float passShare = za::clamp(vr_body_collide_pass.value, 0.05f, 1.f);
     const float passCap = passShare * passDepth * 0.01f * units::metresToUnits();
     const float mob[2] = {mobility(s, 0), mobility(s, 1)};
     // Between the hands: back in over a third of a second once a grip or a hand-over is done (the helping hand's arm
     // swings back from the grip onto its controller meanwhile).
     static float lastBetween = 1.f;
-    const float between = std::min(betweenHands(s), lastBetween + dt / 0.3f);
+    const float between = za::min(betweenHands(s), lastBetween + dt / 0.3f);
     lastBetween = between;
     const bool freeH[2] = {freeHand(s, 0), freeHand(s, 1)};
     const bool brushes = vr_hand_collide.value > 0.f; // vr_view.cpp's pushOut takes a free hand against the other weapon
@@ -770,7 +778,7 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
     // Each contact's shapes and weight.
     for(int i = 0; i < contactCount; i++)
     {
-        Contact& c = contacts[static_cast<std::size_t>(i)];
+        Contact& c = contacts[static_cast<za::SizeT>(i)];
         c.A = c.B = nullptr;
         c.on = false;
         c.w = 0.f;
@@ -822,7 +830,7 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
             c.B = sb == SubHand ? &sc.hand[1] : &sc.weapon[1];
             ab = sa == SubHand ? &sc.handB[0] : &sc.weaponB[0];
             bb = sb == SubHand ? &sc.handB[1] : &sc.weaponB[1];
-            c.w = between * std::min(mob[0], mob[1]);
+            c.w = between * za::min(mob[0], mob[1]);
             if(brushes && ((sa == SubHand && sb == SubWeapon && freeH[0]) || (sa == SubWeapon && sb == SubHand && freeH[1])))
             {
                 c.A = nullptr; // vr_hand_collide's
@@ -894,7 +902,7 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
             {
                 const glm::vec3 side = c.n - c.n0 * d;
                 const float sl = glm::length(side);
-                c.n = sl > 1e-5f ? c.n0 * followCone + side / sl * std::sqrt(1.f - followCone * followCone) : c.n0;
+                c.n = sl > 1e-5f ? c.n0 * followCone + side / sl * za::sqrt(1.f - followCone * followCone) : c.n0;
             }
         }
         evaluate(*c.A, glm::vec3{0.f}, *c.B, glm::vec3{0.f}, &c.n, e, true);
@@ -965,7 +973,7 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
     // Never held out further than a contact lets go at: a hand that several contacts together hold out further (pressed
     // onto the gadget and into the forearm under it; two hands and their wrists pressed together) lets go of them all
     // from the next frame, and meanwhile is held out that far.
-    const float most = std::max(passCap, 2.f);
+    const float most = za::max(passCap, 2.f);
     for(int h = 0; h < 2; h++)
     {
         if(const float l = glm::length(out[h]); l > most)
@@ -987,16 +995,16 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
     }
 }
 
-std::string contactName(int i)
+za::String contactName(int i)
 {
     if(i < staticContacts)
     {
         const int h = i / (int{SubCount} * PartCount), sub = (i / PartCount) % SubCount, part = i % PartCount;
         const bool bodyPart = part == Torso || part == Head || part == Legs;
-        return std::string(h == HAND_MAIN ? "main " : "off ") + subNames[sub] + "/" + (bodyPart ? "" : "other ") + partNames[part];
+        return za::String(h == HAND_MAIN ? "main " : "off ") + subNames[sub] + "/" + (bodyPart ? "" : "other ") + partNames[part];
     }
     const int k = i - staticContacts;
-    return std::string("off ") + subNames[k / SubCount] + "/main " + subNames[k % SubCount];
+    return za::String("off ") + subNames[k / SubCount] + "/main " + subNames[k % SubCount];
 }
 
 void drawCaps(const Caps& caps, const glm::vec4& colour)
@@ -1070,11 +1078,11 @@ void trace(const hands::State& s, const Stats& stats)
     }
     for(int i = 0; i < contactCount; i++)
     {
-        const Contact& c = contacts[static_cast<std::size_t>(i)];
+        const Contact& c = contacts[static_cast<za::SizeT>(i)];
         const Mode now = c.on ? c.mode : Mode::None;
         if(now != shown[i])
         {
-            Con_Printf("body collide: t %.3f %s: %s -> %s (through %.2f, push %.1f cm)\n", cl.time, contactName(i).c_str(),
+            Con_Printf("body collide: t %.3f %s: %s -> %s (through %.2f, push %.1f cm)\n", cl.time, contactName(i).cStr(),
                 modeNames[static_cast<int>(shown[i])], modeNames[static_cast<int>(now)], c.share, cm(c.t0));
             shown[i] = now;
         }
@@ -1095,10 +1103,10 @@ void trace(const hands::State& s, const Stats& stats)
     }
     for(int i = 0; i < contactCount; i++)
     {
-        const Contact& c = contacts[static_cast<std::size_t>(i)];
+        const Contact& c = contacts[static_cast<za::SizeT>(i)];
         if(c.on && c.mode != Mode::None)
         {
-            fprintf(file, " | %s: %s w %.2f through %.2f push %.2f out %.2f %.2f %.2f", contactName(i).c_str(),
+            fprintf(file, " | %s: %s w %.2f through %.2f push %.2f out %.2f %.2f %.2f", contactName(i).cStr(),
                 modeNames[static_cast<int>(c.mode)], c.w, c.share, cm(c.t0), c.n.x, c.n.y, c.n.z);
         }
     }
@@ -1123,7 +1131,7 @@ void beginView(hands::State& s)
             }
         }
         appliedFrame = host_framecount;
-        const float dt = lastTime >= 0.0 ? static_cast<float>(std::clamp(realtime - lastTime, 0.0, 0.1)) : 0.f;
+        const float dt = lastTime >= 0.0 ? static_cast<float>(za::clamp(realtime - lastTime, 0.0, 0.1)) : 0.f;
         lastTime = realtime;
         viewOn = vr_body_collide.value != 0.f && s.valid && sightalign::phase() != sightalign::Phase::Capturing;
         Stats stats;
@@ -1147,7 +1155,7 @@ void beginView(hands::State& s)
             // Out at once (nearly); back as the hand comes out; through, once let go, a quick slide.
             const bool deeper = glm::dot(target[h] - drawn[h], target[h]) > 0.f;
             const float tau = deeper ? easeIn : realtime - passedAt[h] < passHold ? easePass : easeOut;
-            drawn[h] += (target[h] - drawn[h]) * (dt > 0.f ? 1.f - std::exp(-dt / tau) : 1.f);
+            drawn[h] += (target[h] - drawn[h]) * (dt > 0.f ? 1.f - za::exp(-dt / tau) : 1.f);
             if(glm::length(drawn[h]) < 1e-3f && glm::length(target[h]) == 0.f)
             {
                 drawn[h] = glm::vec3{0.f};
@@ -1183,11 +1191,11 @@ void endView(hands::State& s, const Drawn& d)
                 const int n = static_cast<int>(d.hand[h]->size());
                 for(int i = 0; i < n; i++)
                 {
-                    const glm::vec4& sp = (*d.hand[h])[static_cast<std::size_t>(i)];
+                    const glm::vec4& sp = (*d.hand[h])[static_cast<za::SizeT>(i)];
                     Cap k;
                     k.a = k.b = hf.local(glm::vec3{sp});
                     k.r = sp.w;
-                    rec.hand[h].push_back(k);
+                    rec.hand[h].pushBack(k);
                 }
             }
             rec.weapon[h].clear();
@@ -1207,7 +1215,7 @@ void endView(hands::State& s, const Drawn& d)
                         w.b = wf.local(glm::vec3{m * glm::vec4{k.b / axes, 1.f}});
                         w.r = k.r;
                         w.back = (w.a.x + w.b.x) * 0.5f < -backMargin;
-                        rec.weapon[h].push_back(w);
+                        rec.weapon[h].pushBack(w);
                     }
                     rec.weaponModel[h] = e->model;
                 }
@@ -1256,7 +1264,7 @@ void endView(hands::State& s, const Drawn& d)
                 c.a = gf.local(gp.origin + gp.axes * (glm::vec3{-1.5f, y, 0.03f} * gp.scale));
                 c.b = gf.local(gp.origin + gp.axes * (glm::vec3{1.5f, y, 0.03f} * gp.scale));
                 c.r = 0.4f * gp.scale;
-                rec.gadgetCaps.push_back(c);
+                rec.gadgetCaps.pushBack(c);
             }
         }
     }
@@ -1296,7 +1304,7 @@ float elbowSwing(const glm::vec3& shoulder, const glm::vec3& elbow, const glm::v
         {
             glm::vec3 a, b;
             closestPoints(p, p, k.a, k.b, a, b);
-            most = std::max(most, k.r + radius - slack - glm::distance(a, b));
+            most = za::max(most, k.r + radius - slack - glm::distance(a, b));
         }
         return most;
     };
@@ -1362,26 +1370,26 @@ void bench_f()
         Con_Printf("vr_body_collide_bench: no hands\n");
         return;
     }
-    const int n = Cmd_Argc() > 1 ? std::max(1, Q_atoi(Cmd_Argv(1))) : 1000;
+    const int n = Cmd_Argc() > 1 ? za::max(1, Q_atoi(Cmd_Argv(1))) : 1000;
     // The contacts' state is kept as it was (the bench mustn't let go of a contact).
-    const std::array<Contact, contactCount> kept = contacts;
+    const za::Array<Contact, contactCount> kept = contacts;
     const double keptPassed[2] = {passedAt[0], passedAt[1]};
-    std::vector<double> us;
-    us.reserve(static_cast<std::size_t>(n));
+    za::Vector<double> us;
+    us.reserve(static_cast<za::SizeT>(n));
     Stats stats;
     glm::vec3 out[2];
     for(int i = 0; i < n; i++)
     {
         contacts = kept;
         stats = Stats{};
-        const auto t0 = std::chrono::steady_clock::now();
+        const auto t0 = qza::nowNs();
         solve(s, 0.f, out, stats);
-        us.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - t0).count());
+        us.pushBack(qza::usSince(t0));
     }
     contacts = kept;
     passedAt[0] = keptPassed[0];
     passedAt[1] = keptPassed[1];
-    std::sort(us.begin(), us.end());
+    za::quickSort(us.begin(), us.end());
     int caps = 0;
     for(int h = 0; h < 2; h++)
     {

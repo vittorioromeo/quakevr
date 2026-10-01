@@ -26,7 +26,8 @@
 
 #include "vr_engine.hpp"
 
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+
 
 namespace qvr::grip
 {
@@ -69,7 +70,7 @@ void setHandFrame(int hand, const HandFrame& f);
 struct Prop
 {
     glm::vec3 lo{0.f}, hi{0.f};
-    std::vector<glm::vec3> vertices;
+    za::Vector<glm::vec3> vertices;
     bool brush{false};
     int slot{-1};
 };

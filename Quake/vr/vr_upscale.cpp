@@ -17,11 +17,16 @@
 
 #include "nis/NIS_Config.h"
 
-#include <algorithm>
-#include <iterator>
-#include <cmath>
-#include <cstdint>
-#include <string>
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Tan.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
 
 #ifndef GL_TEXTURE_FETCH_BARRIER_BIT
 #define GL_TEXTURE_FETCH_BARRIER_BIT 0x00000008
@@ -216,10 +221,10 @@ void main()
 }
 )";
 
-[[nodiscard]] GLuint compileShader(GLenum type, const std::string& source, const char* name)
+[[nodiscard]] GLuint compileShader(GLenum type, const za::String& source, const char* name)
 {
     const GLuint shader = GL_CreateShaderFunc(type);
-    const char* text = source.c_str();
+    const char* text = source.cStr();
     GL_ShaderSourceFunc(shader, 1, &text, nullptr);
     GL_CompileShaderFunc(shader);
     GLint ok = 0;
@@ -236,7 +241,7 @@ void main()
 }
 
 // A program of a vertex and a fragment shader, or of a compute shader (vertex null). 0 if it fails.
-[[nodiscard]] GLuint buildProgram(const char* vertex, GLenum type, const std::string& source, const char* name)
+[[nodiscard]] GLuint buildProgram(const char* vertex, GLenum type, const za::String& source, const char* name)
 {
     const GLuint vs = vertex ? compileShader(GL_VERTEX_SHADER, vertex, name) : 0;
     const GLuint s = compileShader(type, source, name);
@@ -278,10 +283,10 @@ void main()
     return p;
 }
 
-template <std::size_t N>
-[[nodiscard]] std::string joined(const char* const (&pieces)[N])
+template <za::SizeT N>
+[[nodiscard]] za::String joined(const char* const (&pieces)[N])
 {
-    std::string s;
+    za::String s;
     for(const char* p : pieces)
     {
         s += p;
@@ -303,7 +308,7 @@ Program easuProgram, composeProgram, nisProgram;
     {
         return p.id;
     }
-    const std::string source = std::string{prelude} + ffxA + joined(fsrHeader) + main;
+    const za::String source = za::String{prelude} + ffxA + joined(fsrHeader) + main;
     p.id = buildProgram(fullscreenVs, GL_FRAGMENT_SHADER, source, name);
     p.failed = !p.id;
     return p.id;
@@ -325,7 +330,7 @@ Program easuProgram, composeProgram, nisProgram;
     {
         return nisProgram.id;
     }
-    const std::string source = std::string{nisPrelude} + joined(nisHeader) + nisMain;
+    const za::String source = za::String{nisPrelude} + joined(nisHeader) + nisMain;
     nisProgram.id = buildProgram(nullptr, GL_COMPUTE_SHADER, source, "vr nis");
     nisProgram.failed = !nisProgram.id;
     return nisProgram.id;
@@ -413,13 +418,13 @@ void easuConstants(float inW, float inH, float outW, float outH, float con[16])
 // vr_upscale_sharpness (0 none .. 1 most) as RCAS's stops of reduction (0 = RCAS's most): 1 -> 0, 0.5 -> 1, 0.1 -> 1.8.
 [[nodiscard]] float rcasConstant(float sharpness)
 {
-    const float stops = 2.f * (1.f - std::clamp(sharpness, 0.f, 1.f));
-    return std::exp2(-stops); // FsrRcasCon's con[0] (as its float)
+    const float stops = 2.f * (1.f - za::clamp(sharpness, 0.f, 1.f));
+    return qza::exp2(-stops); // FsrRcasCon's con[0] (as its float)
 }
 
 [[nodiscard]] float sharpness()
 {
-    return std::clamp(vr_upscale_sharpness.value, 0.f, 1.f);
+    return za::clamp(vr_upscale_sharpness.value, 0.f, 1.f);
 }
 
 void blit(GLuint sourceFbo, int width, int height, GLuint target, int imageWidth, int imageHeight)
@@ -447,7 +452,7 @@ bool warned = false;
 Lens lens(int eye, int width, int height)
 {
     const Fov& fov = frameState().eyes[eye & 1].fov;
-    const float l = std::tan(fov.left), r = std::tan(fov.right), u = std::tan(fov.up), d = std::tan(fov.down);
+    const float l = za::tan(fov.left), r = za::tan(fov.right), u = za::tan(fov.up), d = za::tan(fov.down);
     Lens out;
     if(r - l <= 0.f || u - d <= 0.f)
     {
@@ -472,13 +477,13 @@ float radiusTangent()
     {
         return 0.f;
     }
-    return std::tan(glm::radians(degrees));
+    return za::tan(glm::radians(degrees));
 }
 
 void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, GLuint target, int imageWidth,
     int imageHeight)
 {
-    int mode = std::clamp(static_cast<int>(vr_upscale.value), 0, 2);
+    int mode = za::clamp(static_cast<int>(vr_upscale.value), 0, 2);
     const bool upscaling = width < imageWidth && height < imageHeight;
     const bool native = width == imageWidth && height == imageHeight;
     if(!(upscaling && mode > 0) && !(native && sharpenAtNative()))
@@ -517,15 +522,15 @@ void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, G
     const Lens l = lens(eye, imageWidth, imageHeight);
     const float radius = radiusTangent();
     const glm::vec2 invPpt = 1.f / l.pixelsPerTangent;
-    const float margin = 3.f * std::max(invPpt.x, invPpt.y); // 3 pixels, as a tangent
+    const float margin = 3.f * za::max(invPpt.x, invPpt.y); // 3 pixels, as a tangent
     int x0 = 0, y0 = 0, x1 = imageWidth, y1 = imageHeight;
     if(radius > 0.f)
     {
         const glm::vec2 half = (radius + margin) * l.pixelsPerTangent;
-        x0 = std::clamp(static_cast<int>(std::floor(l.centre.x - half.x)), 0, imageWidth);
-        x1 = std::clamp(static_cast<int>(std::ceil(l.centre.x + half.x)), 0, imageWidth);
-        y0 = std::clamp(static_cast<int>(std::floor(l.centre.y - half.y)), 0, imageHeight);
-        y1 = std::clamp(static_cast<int>(std::ceil(l.centre.y + half.y)), 0, imageHeight);
+        x0 = za::clamp(static_cast<int>(za::floor(l.centre.x - half.x)), 0, imageWidth);
+        x1 = za::clamp(static_cast<int>(za::ceil(l.centre.x + half.x)), 0, imageWidth);
+        y0 = za::clamp(static_cast<int>(za::floor(l.centre.y - half.y)), 0, imageHeight);
+        y1 = za::clamp(static_cast<int>(za::ceil(l.centre.y + half.y)), 0, imageHeight);
     }
 
     sourceSampling(source);
@@ -574,7 +579,7 @@ void resample(int eye, GLuint source, GLuint sourceFbo, int width, int height, G
                 config.kRatioNorm, config.kContrastBoost, config.kEps, config.kSharpStartY, config.kSharpScaleY,
                 config.kSharpStrengthMin, config.kSharpStrengthScale, config.kSharpLimitMin, config.kSharpLimitScale,
                 config.kScaleX, config.kScaleY, config.kDstNormX, config.kDstNormY, config.kSrcNormX, config.kSrcNormY};
-            for(int i = 0; i < static_cast<int>(std::size(values)); i++)
+            for(int i = 0; i < static_cast<int>(za::getArraySize(values)); i++)
             {
                 GL_Uniform1fFunc(i, values[i]);
             }

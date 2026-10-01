@@ -8,13 +8,14 @@
 
 #include "vr_engine.hpp"
 
-#include <optional>
+#include "Zancle/Vocabulary/Optional.hpp"
+
 
 namespace qvr::worldtrace
 {
 
 // A box swept from `start` to `end`, ignoring the local player; nothing when not hosting.
-[[nodiscard]] std::optional<trace_t> move(
+[[nodiscard]] za::Optional<trace_t> move(
     const glm::vec3& start, const glm::vec3& mins, const glm::vec3& maxs, const glm::vec3& end, int type);
 
 // A line through the world's geometry and, with `brushEntities`, the moving brush models the

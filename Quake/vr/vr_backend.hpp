@@ -5,13 +5,14 @@
 
 #pragma once
 
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-#include <cmath>
-#include <cstdint>
-#include <memory>
-#include <vector>
 
 namespace qvr
 {
@@ -49,7 +50,7 @@ constexpr float runtimePanelDistance = 1.4f;
     Pose p;
     p.position = head.position + fwd * runtimePanelDistance;
     p.position.y = head.position.y;
-    p.orientation = glm::angleAxis(std::atan2(-fwd.x, -fwd.z), glm::vec3{0.f, 1.f, 0.f});
+    p.orientation = glm::angleAxis(za::atan2(-fwd.x, -fwd.z), glm::vec3{0.f, 1.f, 0.f});
     p.valid = true;
     return p;
 }
@@ -145,8 +146,8 @@ struct FrameState
 // z = -1 of the eye's view), mapped to the image by the eye's Fov.
 struct HiddenArea
 {
-    std::vector<glm::vec2> vertices;
-    std::vector<std::uint32_t> indices; // three per triangle
+    za::Vector<glm::vec2> vertices;
+    za::Vector<za::U32> indices; // three per triangle
 };
 
 // Eye sizes: the runtime's recommended and largest, and the eye images' (the recommended; they
@@ -241,8 +242,8 @@ public:
     }
 };
 
-[[nodiscard]] std::unique_ptr<Backend> makeMockBackend();
-[[nodiscard]] std::unique_ptr<Backend> makeOpenXrBackend(); // null if not built in
+[[nodiscard]] za::UniquePtr<Backend> makeMockBackend();
+[[nodiscard]] za::UniquePtr<Backend> makeOpenXrBackend(); // null if not built in
 
 // A standing player holding both hands in front of the chest (what the mock backend reports).
 [[nodiscard]] TrackingState standingPose();

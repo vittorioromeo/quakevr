@@ -8,17 +8,22 @@
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
 
-#include <algorithm>
-#include <atomic>
-#include <chrono>
-#include <cmath>
-#include <cstring>
-#include <memory>
-#include <set>
-#include <stdexcept>
-#include <string>
-#include <thread>
-#include <vector>
+#include "Zancle/Algorithm/Count.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
+#include "Zancle/Chrono/Time.hpp"
+#include "Zancle/Concurrency/Atomic.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/ToString.hpp"
+
+#include <stdexcept> // ZANCLE-TODO: no exception transport (the self-test throws std:: exceptions through the pool)
 
 namespace qvr::jobs
 {
@@ -29,12 +34,23 @@ namespace
 template <typename F>
 void postOnly(Pool& p, F&& f)
 {
-    p.post(std::make_shared<detail::JobOf<void, std::decay_t<F>>>(std::forward<F>(f)));
+    p.post(detail::JobPtr<detail::Job>{new detail::JobOf<void, ZA_DECAY(F)>(ZA_FORWARD(f))});
 }
 
 void sleepMs(int ms)
 {
-    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+    za::ThisThread::sleepFor(za::milliseconds(ms));
+}
+
+// How many different threads ran the items (and whether `self` was one).
+[[nodiscard]] za::SizeT distinctThreads(const za::Vector<za::ThreadId>& by)
+{
+    ankerl::unordered_dense::set<za::U64> ids;
+    for(const za::ThreadId id : by)
+    {
+        ids.insert(id.value());
+    }
+    return ids.size();
 }
 
 } // namespace
@@ -48,7 +64,7 @@ void onThreads(cvar_t* var)
 {
     if(pool())
     {
-        restart(std::clamp(static_cast<int>(var->value), 0, 64));
+        restart(za::clamp(static_cast<int>(var->value), 0, 64));
         Con_Printf("vr_jobs: %d workers\n", workers());
     }
 }
@@ -63,14 +79,14 @@ void onParallel(cvar_t* var)
 // -jobs <n>: the pool's workers from the start (vr_jobs_threads is read after the pool is made).
 namespace
 {
-std::thread::id mainThread; // (start's: VR_Init runs on the main thread)
+za::ThreadId mainThread; // (start's: VR_Init runs on the main thread)
 } // namespace
 
 void start()
 {
-    mainThread = std::this_thread::get_id();
+    mainThread = za::ThisThread::getId();
     const int i = COM_CheckParm("-jobs");
-    init(i && i + 1 < com_argc ? std::clamp(Q_atoi(com_argv[i + 1]), 0, 64) : 0);
+    init(i && i + 1 < com_argc ? za::clamp(Q_atoi(com_argv[i + 1]), 0, 64) : 0);
 }
 
 void registerCommands()
@@ -96,46 +112,46 @@ void info_f()
 void test_f()
 {
     int passed = 0, failed = 0;
-    const auto check = [&](bool ok, const std::string& what) {
-        Con_Printf("vr_jobs_test: %s %s\n", ok ? "ok  " : "FAIL", what.c_str());
+    const auto check = [&](bool ok, const za::String& what) {
+        Con_Printf("vr_jobs_test: %s %s\n", ok ? "ok  " : "FAIL", what.cStr());
         (ok ? passed : failed)++;
     };
-    const std::thread::id self = std::this_thread::get_id();
-    const auto t0 = std::chrono::steady_clock::now();
+    const za::ThreadId self = za::ThisThread::getId();
+    const za::Clock clock;
 
     // Start and shutdown: every posted task run before the destructor returns, by more than one worker.
     for(const int n : {1, 2, 3, 8})
     {
-        std::atomic<int> ran{0};
-        std::vector<std::thread::id> by(64);
+        za::Atomic<int> ran{0};
+        za::Vector<za::ThreadId> by(64);
         {
             Pool p{n};
             for(int i = 0; i < 64; i++)
             {
                 postOnly(p, [&ran, &by, i] {
                     sleepMs(1);
-                    by[static_cast<std::size_t>(i)] = std::this_thread::get_id();
-                    ran++;
+                    by[static_cast<za::SizeT>(i)] = za::ThisThread::getId();
+                    ran.fetchAddSeqCst(1);
                 });
             }
         }
-        const std::set<std::thread::id> threads(by.begin(), by.end());
-        check(ran == 64 && (n == 1 ? threads.size() == 1 : threads.size() >= 2) && !threads.count(self),
-            va("%d workers: 64 posted tasks all run by the join, on %d worker threads", n, static_cast<int>(threads.size())));
+        const za::SizeT threads = distinctThreads(by);
+        check(ran.loadSeqCst() == 64 && (n == 1 ? threads == 1 : threads >= 2) && za::count(by.begin(), by.end(), self) == 0,
+            va("%d workers: 64 posted tasks all run by the join, on %d worker threads", n, static_cast<int>(threads)));
     }
     {
         bool ok = true;
         for(int i = 0; i < 50; i++)
         {
-            std::atomic<int> ran{0};
+            za::Atomic<int> ran{0};
             {
                 Pool p{1 + i % 4};
                 for(int k = 0; k < i; k++)
                 {
-                    postOnly(p, [&ran] { ran++; });
+                    postOnly(p, [&ran] { ran.fetchAddSeqCst(1); });
                 }
             }
-            ok = ok && ran == i;
+            ok = ok && ran.loadSeqCst() == i;
         }
         check(ok, "50 pools made and destroyed at once, with 0..49 tasks queued: every task run");
     }
@@ -145,32 +161,28 @@ void test_f()
     // Every index covered exactly once, whatever the count and the chunk.
     {
         bool ok = true;
-        for(const std::size_t count : {std::size_t{0}, std::size_t{1}, std::size_t{2}, std::size_t{7}, std::size_t{100},
-                std::size_t{1000}, std::size_t{100003}})
+        for(const za::SizeT count : {za::SizeT{0}, za::SizeT{1}, za::SizeT{2}, za::SizeT{7}, za::SizeT{100},
+                za::SizeT{1000}, za::SizeT{100003}})
         {
-            for(const std::size_t chunk : {std::size_t{0}, std::size_t{1}, std::size_t{3}, std::size_t{64}, std::size_t{1000000}})
+            for(const za::SizeT chunk : {za::SizeT{0}, za::SizeT{1}, za::SizeT{3}, za::SizeT{64}, za::SizeT{1000000}})
             {
-                std::unique_ptr<std::atomic<unsigned char>[]> seen{new std::atomic<unsigned char>[count + 1]};
-                for(std::size_t i = 0; i <= count; i++)
-                {
-                    seen[i] = 0;
-                }
-                std::atomic<bool> bad{false};
-                pool.parallelFor(count, chunk, [&](std::size_t b, std::size_t e) {
+                za::Vector<za::Atomic<unsigned char>> seen(count + 1); // (each 0)
+                za::Atomic<bool> bad{false};
+                pool.parallelFor(count, chunk, [&](za::SizeT b, za::SizeT e) {
                     if(b >= e || e > count)
                     {
-                        bad = true;
+                        bad.storeSeqCst(true);
                     }
-                    for(std::size_t i = b; i < e; i++)
+                    for(za::SizeT i = b; i < e; i++)
                     {
-                        seen[i]++;
+                        seen[i].fetchAddSeqCst(1);
                     }
                 });
-                for(std::size_t i = 0; i < count; i++)
+                for(za::SizeT i = 0; i < count; i++)
                 {
-                    ok = ok && seen[i] == 1;
+                    ok = ok && seen[i].loadSeqCst() == 1;
                 }
-                ok = ok && !bad && seen[count] == 0;
+                ok = ok && !bad.loadSeqCst() && seen[count].loadSeqCst() == 0;
             }
         }
         check(ok, "parallelFor: counts 0..100003, chunks auto..1000000: every index once, every range in bounds");
@@ -178,58 +190,58 @@ void test_f()
 
     // The calling thread takes part, and so do the workers.
     {
-        std::vector<std::thread::id> by(64);
-        pool.parallelFor(64, 1, [&](std::size_t b, std::size_t e) {
-            for(std::size_t i = b; i < e; i++)
+        za::Vector<za::ThreadId> by(64);
+        pool.parallelFor(64, 1, [&](za::SizeT b, za::SizeT e) {
+            for(za::SizeT i = b; i < e; i++)
             {
                 sleepMs(1);
-                by[i] = std::this_thread::get_id();
+                by[i] = za::ThisThread::getId();
             }
         });
-        const std::size_t mine = static_cast<std::size_t>(std::count(by.begin(), by.end(), self));
-        const std::set<std::thread::id> threads(by.begin(), by.end());
-        check(mine > 0 && mine < 64 && threads.size() >= 3,
-            va("the calling thread ran %d of 64 chunks, %d threads in all", static_cast<int>(mine), static_cast<int>(threads.size())));
+        const za::SizeT mine = static_cast<za::SizeT>(za::count(by.begin(), by.end(), self));
+        const za::SizeT threads = distinctThreads(by);
+        check(mine > 0 && mine < 64 && threads >= 3,
+            va("the calling thread ran %d of 64 chunks, %d threads in all", static_cast<int>(mine), static_cast<int>(threads)));
     }
 
     // Every worker busy (blocked): parallelFor still returns, the caller having run every chunk; its helpers, run
     // later, are called off.
     {
-        std::atomic<int> gate{0};
-        std::atomic<int> blocked{0};
+        za::Atomic<int> gate{0};
+        za::Atomic<int> blocked{0};
         for(int i = 0; i < pool.workers(); i++)
         {
             postOnly(pool, [&] {
-                blocked++;
-                while(gate.load() == 0)
+                blocked.fetchAddSeqCst(1);
+                while(gate.loadSeqCst() == 0)
                 {
-                    gate.wait(0);
+                    gate.waitOnceSeqCst(0);
                 }
             });
         }
-        while(blocked.load() < pool.workers())
+        while(blocked.loadSeqCst() < pool.workers())
         {
-            std::this_thread::yield();
+            za::ThisThread::yield();
         }
         const Stats before = stats();
-        std::atomic<int> mine{0}, total{0};
-        pool.parallelFor(1000, 10, [&](std::size_t b, std::size_t e) {
-            total += static_cast<int>(e - b);
-            if(std::this_thread::get_id() == self)
+        za::Atomic<int> mine{0}, total{0};
+        pool.parallelFor(1000, 10, [&](za::SizeT b, za::SizeT e) {
+            total.fetchAddSeqCst(static_cast<int>(e - b));
+            if(za::ThisThread::getId() == self)
             {
-                mine += static_cast<int>(e - b);
+                mine.fetchAddSeqCst(static_cast<int>(e - b));
             }
         });
-        const bool returned = total == 1000 && mine == 1000;
-        gate = 1;
-        gate.notify_all();
+        const bool returned = total.loadSeqCst() == 1000 && mine.loadSeqCst() == 1000;
+        gate.storeSeqCst(1);
+        gate.notifyAll();
         Stats after = stats();
-        for(int i = 0; i < 1000 && after.helpersCalledOff < before.helpersCalledOff + static_cast<std::size_t>(pool.workers()); i++)
+        for(int i = 0; i < 1000 && after.helpersCalledOff < before.helpersCalledOff + static_cast<za::SizeT>(pool.workers()); i++)
         {
             sleepMs(1); // (the workers free again: the helpers queued behind the blocking tasks run now)
             after = stats();
         }
-        check(returned && after.helpersCalledOff >= before.helpersCalledOff + static_cast<std::size_t>(pool.workers()),
+        check(returned && after.helpersCalledOff >= before.helpersCalledOff + static_cast<za::SizeT>(pool.workers()),
             va("every worker blocked: the caller ran all 1000 items; %d helpers called off once freed",
                 static_cast<int>(after.helpersCalledOff - before.helpersCalledOff)));
     }
@@ -237,18 +249,18 @@ void test_f()
     // Exceptions: the lowest chunk's, after every chunk ran; the same without threads; async's through get().
     for(const bool par : {true, false})
     {
-        std::atomic<int> ran{0};
-        std::string what;
+        za::Atomic<int> ran{0};
+        za::String what;
         try
         {
             pool.parallelFor(
                 64, 1,
-                [&](std::size_t b, std::size_t) {
-                    ran++;
+                [&](za::SizeT b, za::SizeT) {
+                    ran.fetchAddSeqCst(1);
                     if(b == 5 || b == 17 || b == 40)
                     {
                         sleepMs(b == 5 ? 3 : 0); // (the lowest thrown last)
-                        throw std::runtime_error("chunk " + std::to_string(b)); // (va isn't thread-safe)
+                        throw std::runtime_error(("chunk " + za::toString(b)).cStr()); // (va isn't thread-safe)
                     }
                 },
                 par);
@@ -257,13 +269,13 @@ void test_f()
         {
             what = e.what();
         }
-        check(what == "chunk 5" && ran == 64,
+        check(what == "chunk 5" && ran.loadSeqCst() == 64,
             va("parallelFor%s: chunks 5, 17, 40 threw: \"%s\" came back, %d of 64 chunks ran", par ? "" : " (serial)",
-                what.c_str(), ran.load()));
+                what.cStr(), ran.loadSeqCst()));
     }
     {
         Future<int> f = pool.async([]() -> int { throw std::logic_error("async threw"); });
-        std::string what;
+        za::String what;
         try
         {
             (void)f.get();
@@ -275,44 +287,44 @@ void test_f()
         {
             Future<int> dropped = pool.async([]() -> int { throw std::logic_error("dropped"); }); // (never got: no terminate)
         }
-        std::atomic<long long> sum{0};
-        pool.parallelFor(1000, 0, [&](std::size_t b, std::size_t e) {
-            for(std::size_t i = b; i < e; i++)
+        za::Atomic<long long> sum{0};
+        pool.parallelFor(1000, 0, [&](za::SizeT b, za::SizeT e) {
+            for(za::SizeT i = b; i < e; i++)
             {
-                sum += static_cast<long long>(i);
+                sum.fetchAddSeqCst(static_cast<long long>(i));
             }
         });
-        check(what == "async threw" && sum == 499500, "async: get() rethrew; a Future dropped with an exception is quiet; the pool works after");
+        check(what == "async threw" && sum.loadSeqCst() == 499500, "async: get() rethrew; a Future dropped with an exception is quiet; the pool works after");
     }
 
     // Nested waits: parallelFor in parallelFor (three deep), async waited for inside chunks and tasks, every worker
     // waiting for a task queued behind it (the waiter runs it).
     {
-        std::atomic<long long> sum{0};
-        pool.parallelFor(8, 1, [&](std::size_t, std::size_t) {
-            pool.parallelFor(8, 1, [&](std::size_t, std::size_t) {
+        za::Atomic<long long> sum{0};
+        pool.parallelFor(8, 1, [&](za::SizeT, za::SizeT) {
+            pool.parallelFor(8, 1, [&](za::SizeT, za::SizeT) {
                 Future<int> inner = pool.async([&] {
                     int s = 0;
-                    pool.parallelFor(10, 1, [&](std::size_t b, std::size_t e) { sum += static_cast<long long>(e - b); });
+                    pool.parallelFor(10, 1, [&](za::SizeT b, za::SizeT e) { sum.fetchAddSeqCst(static_cast<long long>(e - b)); });
                     return s + 1;
                 });
-                sum += inner.get();
+                sum.fetchAddSeqCst(inner.get());
             });
         });
-        check(sum == 8 * 8 * 11, va("nested parallelFor x3 with async waits inside: %lld of 704", sum.load()));
+        check(sum.loadSeqCst() == 8 * 8 * 11, va("nested parallelFor x3 with async waits inside: %lld of 704", sum.loadSeqCst()));
     }
     {
         Pool two{2};
         const Stats before = stats();
-        std::atomic<int> started{0};
-        std::vector<Future<int>> outer;
+        za::Atomic<int> started{0};
+        za::Vector<Future<int>> outer;
         for(int i = 0; i < 2; i++)
         {
-            outer.push_back(two.async([&two, &started, i] {
-                started++;
-                while(started.load() < 2)
+            outer.pushBack(two.async([&two, &started, i] {
+                started.fetchAddSeqCst(1);
+                while(started.loadSeqCst() < 2)
                 {
-                    std::this_thread::yield(); // both workers taken
+                    za::ThisThread::yield(); // both workers taken
                 }
                 Future<int> inner = two.async([i] { return 10 + i; }); // queued: no worker free
                 return inner.get();
@@ -326,14 +338,14 @@ void test_f()
     // The same results whatever the thread count (partial sums per item, reduced in order).
     {
         const auto run = [](Pool* p, bool par) {
-            std::vector<float> part(997);
-            const auto body = [&](std::size_t b, std::size_t e) {
-                for(std::size_t i = b; i < e; i++)
+            za::Vector<float> part(997);
+            const auto body = [&](za::SizeT b, za::SizeT e) {
+                for(za::SizeT i = b; i < e; i++)
                 {
                     float s = 0.f;
                     for(int k = 1; k < 2000; k++)
                     {
-                        s += std::sin(static_cast<float>(i * 7919 + static_cast<std::size_t>(k))) / static_cast<float>(k);
+                        s += za::sin(static_cast<float>(i * 7919 + static_cast<za::SizeT>(k))) / static_cast<float>(k);
                     }
                     part[i] = s;
                 }
@@ -365,7 +377,7 @@ void test_f()
 
     // A pool destroyed with work queued: all of it run, a Future made before still gives its value.
     {
-        std::atomic<int> ran{0};
+        za::Atomic<int> ran{0};
         Future<int> kept;
         {
             Pool p{2};
@@ -373,12 +385,12 @@ void test_f()
             {
                 postOnly(p, [&ran] {
                     sleepMs(1);
-                    ran++;
+                    ran.fetchAddSeqCst(1);
                 });
             }
             kept = p.async([] { return 42; });
         }
-        check(ran == 100 && kept.ready() && kept.get() == 42, "destroyed with 100 tasks queued: every one run, its Future ready");
+        check(ran.loadSeqCst() == 100 && kept.ready() && kept.get() == 42, "destroyed with 100 tasks queued: every one run, its Future ready");
     }
 
     // The game's pool.
@@ -393,7 +405,7 @@ void test_f()
     }
 
     Con_Printf("vr_jobs_test: %d passed, %d failed (%.0f ms)\n", passed, failed,
-        std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() * 1e3);
+        static_cast<double>(clock.getElapsedTime().asMicroseconds()) / 1e3);
 }
 
 } // namespace qvr::jobs
@@ -401,5 +413,5 @@ void test_f()
 extern "C" int VR_OnMainThread(void)
 {
     // (before VR_Init, only the main thread runs)
-    return qvr::jobs::mainThread == std::thread::id{} || std::this_thread::get_id() == qvr::jobs::mainThread;
+    return qvr::jobs::mainThread == za::ThreadId{} || za::ThisThread::getId() == qvr::jobs::mainThread;
 }

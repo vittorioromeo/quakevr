@@ -31,10 +31,13 @@
 #include "vr_water.hpp"
 #include "vr_window.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
-#include <vector>
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Tan.hpp"
+
 
 namespace qvr::stereo
 {
@@ -439,7 +442,7 @@ void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height)
 // 1 with Ironwail's reversed Z, 0 without) right after the scene's clear: every later depth-tested
 // fragment there fails early, so the world's, models' and particles' shaders skip those pixels,
 // and bloom and the mirror see black.
-std::vector<gfx::Vertex> hiddenTriangles;
+za::Vector<gfx::Vertex> hiddenTriangles;
 
 void drawHiddenArea()
 {
@@ -452,20 +455,20 @@ void drawHiddenArea()
     QVR_GPU_PROFILE("hidden area");
 
     const Fov& fov = frameState().eyes[currentEye].fov;
-    const float l = std::tan(fov.left), r = std::tan(fov.right), u = std::tan(fov.up), d = std::tan(fov.down);
+    const float l = za::tan(fov.left), r = za::tan(fov.right), u = za::tan(fov.up), d = za::tan(fov.down);
     if(r - l <= 0.f || u - d <= 0.f)
     {
         return;
     }
     const float z = gl_clipcontrol_able ? 1.f : -1.f;
     hiddenTriangles.clear();
-    for(const std::uint32_t i : h->indices)
+    for(const za::U32 i : h->indices)
     {
         const glm::vec2 t = h->vertices[i];
         gfx::Vertex v;
         v.pos = {(2.f * t.x - (r + l)) / (r - l), (2.f * t.y - (u + d)) / (u - d), z};
         v.color = glm::vec4{0.f};
-        hiddenTriangles.push_back(v);
+        hiddenTriangles.pushBack(v);
     }
 
     gfx::State state;
@@ -526,15 +529,15 @@ SpectatorPace spectatorPace;
     {
         return false;
     }
-    p.owed = std::clamp(p.owed - period, 0.0, period);
+    p.owed = za::clamp(p.owed - period, 0.0, period);
     return true;
 }
 
 void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
 {
     const float scale = window::spectatorScale();
-    const int width = std::max(16, static_cast<int>(std::lround(windowWidth * scale)));
-    const int height = std::max(16, static_cast<int>(std::lround(windowHeight * scale)));
+    const int width = za::max(16, static_cast<int>(za::lround(windowWidth * scale)));
+    const int height = za::max(16, static_cast<int>(za::lround(windowHeight * scale)));
     const float fsaa = spectatorFsaa();
     if(!spectatorDue(sceneTargetsFit(spectatorTargets, width, height, fsaa)))
     {
@@ -876,10 +879,10 @@ extern "C" void VR_OverrideProjection(float matrix[16])
     else
     {
         const Fov& fov = frameState().eyes[stereo::currentEye].fov;
-        l = std::tan(fov.left);
-        r = std::tan(fov.right);
-        u = std::tan(fov.up);
-        d = std::tan(fov.down);
+        l = za::tan(fov.left);
+        r = za::tan(fov.right);
+        u = za::tan(fov.up);
+        d = za::tan(fov.down);
     }
 
     matrix[1 * 4 + 0] = -2.f / (r - l);   // clip x from -y (right)

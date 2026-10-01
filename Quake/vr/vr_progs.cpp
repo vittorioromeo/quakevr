@@ -18,9 +18,11 @@
 #include "vr_walltorch.hpp"
 #include "vr_props.hpp"
 
-#include <algorithm>
-#include <cstring>
-#include <vector>
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
+#include <string.h>
 
 namespace qvr::progs
 {
@@ -30,14 +32,14 @@ namespace
 Bindings sv_bindings;
 
 // Level-start values of parm17..parm40, per client (parm1..parm16 live in client_t).
-std::vector<float> extSpawnParms;
+za::Vector<float> extSpawnParms;
 
 // Set while Host_Loadgame_f respawns the server, for `spawnServerFromSaveFile`.
 bool loadingSaveGame = false;
 
 [[nodiscard]] float* clientExtSpawnParms(int client)
 {
-    const std::size_t needed = (client + 1) * numExtSpawnParms;
+    const za::SizeT needed = (client + 1) * numExtSpawnParms;
     if(extSpawnParms.size() < needed)
     {
         extSpawnParms.resize(needed, 0.f);
@@ -387,8 +389,8 @@ void rebindLoadedModels()
         {
             index = VR_LatePrecacheModel(name);
         }
-        Con_DPrintf("load: entity %d's model %s: index %d -> %d\n", num, name, saved, std::max(index, 0));
-        ent->v.modelindex = static_cast<float>(std::max(index, 0));
+        Con_DPrintf("load: entity %d's model %s: index %d -> %d\n", num, name, saved, za::max(index, 0));
+        ent->v.modelindex = static_cast<float>(za::max(index, 0));
         SV_LinkEdict(ent, false);
     }
     // Everything precached while loading is in the serverinfo that clients receive (none is connected yet).

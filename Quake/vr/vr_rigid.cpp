@@ -20,9 +20,10 @@
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
 
-#include <tuple>
-#include <unordered_map>
-#include <vector>
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -127,7 +128,7 @@ struct FreePlace
     double lastPutBack = -1.0; // (the server's time)
     int putBacks = 0;          // put back each within putBackStreakTime of the last
 };
-std::vector<FreePlace> freePlaces; // by entity number, for this server
+za::Vector<FreePlace> freePlaces; // by entity number, for this server
 
 // Put back this many times in a row, each within this long of the last: it is not buried but held there (Box3D pushing
 // it out of what it rests against as it is put back), and it is left to Box3D.
@@ -137,8 +138,8 @@ constexpr double putBackStreakTime = 0.25;
 // The buried test's buffers (the server's frame: the main thread).
 struct RigidScratch
 {
-    std::vector<glm::vec3> vertices; // a rigid body's drawn corners (buried)
-    auto members() { return std::tie(vertices); }
+    za::Vector<glm::vec3> vertices; // a rigid body's drawn corners (buried)
+    auto members() { return qvr::mem::list(vertices); }
 };
 mem::Scratch<RigidScratch> scratch{"rigid"};
 
@@ -171,7 +172,7 @@ enum class Depth
     glm::vec3 lo, hi;
     localBox(ent, lo, hi);
     const bool box = inSolid((lo + hi) * 0.5f);
-    std::vector<glm::vec3>& vertices = scratch.vertices;
+    za::Vector<glm::vec3>& vertices = scratch.vertices;
     if(!held::drawnVertices(ent, vertices) || vertices.empty())
     {
         return box ? Depth::Buried : Depth::Free;
@@ -255,7 +256,7 @@ void keepInWorld(edict_t* ent, bool rigid)
 // Held objects (QC's carryangles): the object keeps the turn it had in the hand when gripped. At
 // the grip (`grab`), the object's rotation relative to the hand's is kept; after, the object's
 // angles are the hand's rotation times that, in the object's own convention (brush or alias).
-std::unordered_map<int, glm::mat3> carried; // entity -> its axes in the hand's frame
+ankerl::unordered_dense::map<int, glm::mat3> carried; // entity -> its axes in the hand's frame
 
 // For physics tests: "vr_rigid_place <entity> <x> <y> <z> [<pitch> <yaw> <roll> [<vx> <vy> <vz> [<sx> <sy> <sz>]]]"
 // puts a rigid body there, turned so, moving so and spinning so (radians per second), awake;
@@ -435,7 +436,7 @@ void forgetEntity(int num)
 {
     if(num >= 0 && num < static_cast<int>(freePlaces.size()))
     {
-        freePlaces[static_cast<std::size_t>(num)] = FreePlace{};
+        freePlaces[static_cast<za::SizeT>(num)] = FreePlace{};
     }
     carried.erase(num);
     carry2h::forgetEntity(num);

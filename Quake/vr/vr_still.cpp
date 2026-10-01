@@ -3,8 +3,17 @@
 #include "vr_still.hpp"
 #include "vr_engine.hpp"
 
-#include <algorithm>
-#include <cmath>
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Fmax.hpp"
+#include "Zancle/Math/Fmin.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "vr_zancle.hpp"
+
 
 namespace qvr::still
 {
@@ -16,7 +25,7 @@ float degreesBetween(const glm::vec3& a, const glm::vec3& b)
     {
         return 0.f;
     }
-    return glm::degrees(std::acos(std::fmax(-1.f, std::fmin(1.f, glm::dot(a, b) / (la * lb)))));
+    return glm::degrees(za::acos(za::fmax(-1.f, za::fmin(1.f, glm::dot(a, b) / (la * lb)))));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -40,9 +49,9 @@ bool Countdown::update(double now)
     {
         return false;
     }
-    const int total = std::max(1, static_cast<int>(std::lround(length)));
+    const int total = za::max(1, static_cast<int>(za::lround(length)));
     const int due = static_cast<int>((now - started) / (length / total)) + 1;
-    while(beeps < std::min(due, total))
+    while(beeps < za::min(due, total))
     {
         S_LocalSound("misc/menu1.wav");
         beeps++;
@@ -62,12 +71,12 @@ int Countdown::remaining(double now) const
     {
         return 0;
     }
-    return std::max(1, static_cast<int>(std::ceil(length - (now - started))));
+    return za::max(1, static_cast<int>(za::ceil(length - (now - started))));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-Window::Window(std::vector<Channel> channels) : spec(std::move(channels)), devs(spec.size(), 0.f)
+Window::Window(za::Vector<Channel> channels) : spec(ZA_MOVE(channels)), devs(spec.size(), 0.f)
 {
 }
 
@@ -83,8 +92,8 @@ void Window::add(double time, const glm::vec3* v, double keep)
     {
         return; // the second eye's pass
     }
-    times.push_back(time);
-    values.insert(values.end(), v, v + spec.size());
+    times.pushBack(time);
+    values.emplaceBackRange(v, spec.size());
     size_t drop = 0;
     while(drop < times.size() && time - times[drop] > keep)
     {
@@ -92,8 +101,8 @@ void Window::add(double time, const glm::vec3* v, double keep)
     }
     if(drop)
     {
-        times.erase(times.begin(), times.begin() + static_cast<std::ptrdiff_t>(drop));
-        values.erase(values.begin(), values.begin() + static_cast<std::ptrdiff_t>(drop * spec.size()));
+        times.erase(times.begin(), times.begin() + static_cast<za::PtrDiffT>(drop));
+        values.erase(values.begin(), values.begin() + static_cast<za::PtrDiffT>(drop * spec.size()));
     }
 }
 
@@ -102,15 +111,15 @@ glm::vec3 Window::last(int c) const
     return times.empty() ? glm::vec3{0.f} : values[(times.size() - 1) * spec.size() + static_cast<size_t>(c)];
 }
 
-bool Window::still(double now, double seconds, std::vector<glm::vec3>& mean, int minSamples)
+bool Window::still(double now, double seconds, za::Vector<glm::vec3>& mean, int minSamples)
 {
     const size_t nc = spec.size();
-    std::fill(devs.begin(), devs.end(), 0.f);
+    qza::fill(devs.begin(), devs.end(), 0.f);
     if(times.empty() || now - times.front() < seconds - 1e-3)
     {
         return false;
     }
-    std::vector<glm::vec3> m(nc, glm::vec3{0.f});
+    za::Vector<glm::vec3> m(nc, glm::vec3{0.f});
     int n = 0;
     for(size_t i = 0; i < times.size(); i++)
     {
@@ -149,13 +158,13 @@ bool Window::still(double now, double seconds, std::vector<glm::vec3>& mean, int
             }
             const glm::vec3& v = values[i * nc + c];
             const float d = ch.kind == Kind::Direction ? degreesBetween(v, m[c]) : glm::distance(v, m[c]);
-            devs[c] = std::fmax(devs[c], d);
+            devs[c] = za::fmax(devs[c], d);
             ok = ok && d <= ch.tolerance;
         }
     }
     if(ok)
     {
-        mean = std::move(m);
+        mean = ZA_MOVE(m);
     }
     return ok;
 }

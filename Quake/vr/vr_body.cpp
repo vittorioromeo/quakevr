@@ -9,6 +9,13 @@
 #include "vr_lines.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Round.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "vr_zancle.hpp"
+
 #include <glm/gtc/quaternion.hpp>
 
 namespace qvr::body
@@ -133,7 +140,7 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
     hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
     const float x = glm::dot(pos - standing.head, fwd) - t.axis;
     const float y = glm::dot(pos - standing.head, right);
-    const float e = std::sqrt((x / ring.x) * (x / ring.x) + (y / ring.y) * (y / ring.y));
+    const float e = za::sqrt((x / ring.x) * (x / ring.x) + (y / ring.y) * (y / ring.y));
     if(e >= 1.f)
     {
         return pos;
@@ -176,15 +183,15 @@ constexpr float SURFACE_CLEARANCE = 1.5f; // units the holster (a hand's reach t
     hands::angleVectors({0.f, standing.bodyYaw, 0.f}, fwd, right, up);
     const float x = glm::dot(pos - standing.head, fwd) - axis; // (behind the spine: the plate faces back)
     const float y = glm::dot(pos - standing.head, right);
-    const glm::vec3 flat = std::abs(x) + std::abs(y) > 1e-3f
+    const glm::vec3 flat = qza::abs(x) + qza::abs(y) > 1e-3f
                                ? glm::normalize(fwd * (x / (depth * depth)) + right * (y / (width * width)))
                                : fwd;
 
     HolsterPlate p;
-    p.out = flat * std::cos(slope) + up * std::sin(slope);
-    p.up = up * std::cos(slope) - flat * std::sin(slope);
-    const float e = std::sqrt((x / depth) * (x / depth) + (y / width) * (y / width));
-    p.clearance = std::sqrt(x * x + y * y) * (1.f - 1.f / e); // along the ring's radius
+    p.out = flat * za::cos(slope) + up * za::sin(slope);
+    p.up = up * za::cos(slope) - flat * za::sin(slope);
+    const float e = za::sqrt((x / depth) * (x / depth) + (y / width) * (y / width));
+    p.clearance = za::sqrt(x * x + y * y) * (1.f - 1.f / e); // along the ring's radius
     return p;
 }
 
@@ -235,7 +242,7 @@ void onTheThigh(const avatar::Follower& follow, Holster holster, glm::vec3& pos,
     }
 
     const float strap = THIGH_STRAP * units::metresToUnits() * units::bodyScale();
-    const glm::vec3 anchor = pos + m.down * std::max(0.f, strap - glm::dot(pos - m.joint, m.down));
+    const glm::vec3 anchor = pos + m.down * za::max(0.f, strap - glm::dot(pos - m.joint, m.down));
     pos += (m.joint + m.turn * (anchor - m.joint) - anchor) * amount;
     if(plate)
     {
@@ -428,11 +435,11 @@ void migrateHolsters()
         const glm::vec3 pos = legacyHolsterPosition(standing, h);
         const float now = glm::dot(pos - standing.head, fwd);
         const float front = frontOfTheBody(standing, h, pos);
-        const float x = var.value + (h == RightHip ? HIP_X_DEFAULT : UPPER_X_DEFAULT) - front + std::max(now, front) - now;
-        if(std::abs(x - var.value) > 1e-3f)
+        const float x = var.value + (h == RightHip ? HIP_X_DEFAULT : UPPER_X_DEFAULT) - front + za::max(now, front) - now;
+        if(qza::abs(x - var.value) > 1e-3f)
         {
             Con_DPrintf("VR: %s %s is now %.2f (the same place on the body)\n", var.name, var.string, x);
-            Cvar_SetValueQuick(&var, std::round(x * 100.f) / 100.f);
+            Cvar_SetValueQuick(&var, za::round(x * 100.f) / 100.f);
         }
     }
 }

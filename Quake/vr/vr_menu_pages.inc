@@ -1,3 +1,7 @@
+
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Round.hpp"
+
 // vr_menu_pages.inc -- the old Quake VR settings pages (Quake VR's menu.cpp, "Quake VR -
 // Settings"), under VR Settings > Advanced VR Options: every setting that still exists in the
 // port, with its old range and help. Included by vr_menu.cpp. Settings that do nothing any more
@@ -6,7 +10,7 @@
 // seven; Immersion's screens and force grab moved to the Screens and Force Grab pages).
 
 // Old Quake VR settings: "Menu Settings".
-[[nodiscard]] std::vector<Item> pageMenuSettings()
+[[nodiscard]] za::Vector<Item> pageMenuSettings()
 {
     return {
         slider("Menu Scale", "vr_menu_scale", 0.05f, 0.6f, 0.01f, "%.2f").extend(0.02f, 1.5f).help("Scale multiplier for the menu: the size of one of its pixels, in world units."),
@@ -23,7 +27,7 @@
 }
 
 // Old Quake VR settings: "Crosshair Settings".
-[[nodiscard]] std::vector<Item> pageCrosshairSettings()
+[[nodiscard]] za::Vector<Item> pageCrosshairSettings()
 {
     return {
         cycle("Crosshair", "vr_crosshair", {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}}),
@@ -36,7 +40,7 @@
 }
 
 // Old Quake VR settings: "Particle Settings".
-[[nodiscard]] std::vector<Item> pageParticleSettings()
+[[nodiscard]] za::Vector<Item> pageParticleSettings()
 {
     return {
         toggle("Particle Effects", "r_particles").help("Enable or disable all particle effects."),
@@ -48,7 +52,7 @@
 }
 
 // Old Quake VR settings: "Locomotion Settings" (climbing on its own page; the swimming toggle on Swimming).
-[[nodiscard]] std::vector<Item> pageLocomotionSettings()
+[[nodiscard]] za::Vector<Item> pageLocomotionSettings()
 {
     return {
         cycle("Movement Mode", "vr_movement_mode", {{1.f, "Follow Head"}, {0.f, "Follow Off Hand"}}).help("Movement options for smooth locomotion."),
@@ -75,10 +79,10 @@
     };
 }
 
-[[nodiscard]] std::vector<Item> pageStamina();
+[[nodiscard]] za::Vector<Item> pageStamina();
 
 // Split from Locomotion: climbing ledges and rungs.
-[[nodiscard]] std::vector<Item> pageClimbing()
+[[nodiscard]] za::Vector<Item> pageClimbing()
 {
     return {
         toggle("Climbing", "vr_climb").help("Grip a ledge or a rung with either empty hand, or both, to hang from it; pull to climb hand over hand, shimmy along a ledge, pull up onto it. Edges only, not flat walls."),
@@ -124,7 +128,7 @@ void resetSwimming()
     }
 }
 
-[[nodiscard]] std::vector<Item> pageSwimSettings()
+[[nodiscard]] za::Vector<Item> pageSwimSettings()
 {
     return {
         toggle("Swimming", "vr_swim").help("In water the stick slows and strokes of your hands move you."),
@@ -200,7 +204,7 @@ void matchControllerPreview()
         cvar_t& y = hand == HAND_MAIN ? vr_handcal_y : vr_handcal_off_y;
         cvar_t& z = hand == HAND_MAIN ? vr_handcal_z : vr_handcal_off_z;
         const auto set = [](cvar_t& var, float v) {
-            Cvar_SetQuick(&var, va("%.2f", std::round((var.value + v) * 100.f) / 100.f + 0.f));
+            Cvar_SetQuick(&var, va("%.2f", za::round((var.value + v) * 100.f) / 100.f + 0.f));
         };
         set(x, local.x);
         set(y, local.y);
@@ -224,13 +228,13 @@ void resetHandMoves()
 }
 
 // Old Quake VR settings: "Hand/Gun Calibration", with the hand calibration first.
-[[nodiscard]] std::vector<Item> pageHandGunCalibration()
+[[nodiscard]] za::Vector<Item> pageHandGunCalibration()
 {
     const char* moveHelp = "Moves the whole hand, and what it holds (its aim, muzzle and melee with it), along the controller's "
                            "own axes: X along the handle, Y left, Z up (Show Controller's red, green, blue). Centimetres.";
     const char* rollHelp = "Turns the whole hand, and what it holds, about where it points, through the controller's grip "
                            "(the handle's middle): the right side down. Doesn't change where it aims.";
-    std::vector<Item> list{
+    za::Vector<Item> list{
         open("Fingers and Collisions", pageIndex(pageFingersCollisions))
             .help("The jointed hand's fingers fitting what it holds, and hands and weapons stopping at walls, weapons and models."),
         header("Hand Calibration"),
@@ -261,7 +265,7 @@ void resetHandMoves()
     handCalPageOwn = vr_handcal_off_mirror.value == 0.f ? 1 : 0;
     if(handCalPageOwn)
     {
-        list.insert(list.end(), {
+        list.pushBackMultiple(
             slider("Off Hand X (forward)", "vr_handcal_off_x", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
             slider("Off Hand Y (left)", "vr_handcal_off_y", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
             slider("Off Hand Z (up)", "vr_handcal_off_z", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
@@ -271,10 +275,10 @@ void resetHandMoves()
             slider("Off Hand Yaw (left)", "vr_offhandyaw", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f)
                 .help("Off-Hand Yaw (vr_offhandyaw): turns the whole hand, and what it holds, left about the "
                       "controller's tracked point. Changes where it aims."),
-            slider("Off Hand Roll", "vr_handcal_off_roll", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f).help(rollHelp),
-        });
+            slider("Off Hand Roll", "vr_handcal_off_roll", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f).help(rollHelp)
+        );
     }
-    list.insert(list.end(), {
+    list.pushBackMultiple(
         action("Match Controller Preview", matchControllerPreview)
             .help("Moves each hand (X, Y, Z only) so that the middle of its empty fist is on the preview's point (the "
                   "middle of the handle, where OpenXR puts the fist). Then turn it (Pitch, Yaw, Roll) to fit, and move "
@@ -288,13 +292,13 @@ void resetHandMoves()
         slider("Gun Model Z Offset", "vr_gunmodely", -10.f, 10.f, 0.1f, "%.1f").extend(-50.f, 50.f).help("Z offset for gun models. Does NOT affect aiming."),
         slider("Gun Z Offset", "vr_gun_z_offset", -30.f, 30.f, 0.25f, "%.1f").extend(-150.f, 150.f).help("Z offset for guns/hands. Affects aiming."),
         slider("Finger Grip Bias", "vr_finger_grip_bias", 0.f, 1.f, 0.05f, "%.2f"),
-        toggle("Auto close thumb", "vr_finger_auto_close_thumb"),
-    });
+        toggle("Auto close thumb", "vr_finger_auto_close_thumb")
+    );
     return list;
 }
 
 // Split from Hand/Gun Calibration: the jointed hand's fingers, and hands and weapons against models.
-[[nodiscard]] std::vector<Item> pageFingersCollisions()
+[[nodiscard]] za::Vector<Item> pageFingersCollisions()
 {
     return {
         header("Fingers"),
@@ -345,7 +349,7 @@ void resetHandMoves()
 }
 
 // Old Quake VR settings: "Player Calibration".
-[[nodiscard]] std::vector<Item> pagePlayerCalibration()
+[[nodiscard]] za::Vector<Item> pagePlayerCalibration()
 {
     return {
         slider("World Scale", "vr_world_scale", 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f).help("Scale of the world. Affects movement, height, and hand positions."),
@@ -354,7 +358,7 @@ void resetHandMoves()
 }
 
 // Old Quake VR settings: "Melee Settings" (its parry settings are on Parry and Bash); and the headbutt.
-[[nodiscard]] std::vector<Item> pageMeleeSettings()
+[[nodiscard]] za::Vector<Item> pageMeleeSettings()
 {
     return {
         slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").extend().help("How fast the striking hand must move to hit: a punch, a pommel strike; a weapon's swing a quarter faster, a stab three quarters of it. Any part of the blade then hits. At this speed a hit is weak; twice it, a full hit; faster, harder still."),
@@ -378,7 +382,7 @@ void resetHandMoves()
 }
 
 // Old Quake VR settings: "Aiming Settings"; and how weight feels (its damage on Weight and Damage).
-[[nodiscard]] std::vector<Item> pageAimingSettings()
+[[nodiscard]] za::Vector<Item> pageAimingSettings()
 {
     return {
         cycle("2H Aiming", "vr_2h_mode", {{0.f, "Disabled"}, {1.f, "Basic"}, {2.f, "Virtual Stock"}}).help("'Basic' aims between the two hands; 'Virtual Stock' also uses the shoulder when the weapon is close to it (see Hotspots)."),
@@ -444,7 +448,7 @@ void resetHandMoves()
 }
 
 // Split from Aiming: the weight of what you strike with or throw, and its damage.
-[[nodiscard]] std::vector<Item> pageWeightDamage()
+[[nodiscard]] za::Vector<Item> pageWeightDamage()
 {
     return {
         slider("Weight Damage Exponent", vr_weight_damage_exp, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 3.f)
@@ -473,7 +477,7 @@ void resetHandMoves()
 
 // Old Quake VR settings: "Immersion Settings" (its weapons' ammo screens and map boards are on the
 // Screens page now, its force grab settings on Force Grab, its weapon drops on World).
-[[nodiscard]] std::vector<Item> pageImmersionSettings()
+[[nodiscard]] za::Vector<Item> pageImmersionSettings()
 {
     return {
         toggle("Body Picks Up Items", "vr_body_interactions").help("Pick up items and level weapons by walking over them. Thrown and dropped weapons still need your hands."),
@@ -497,18 +501,18 @@ void resetHandMoves()
     };
 }
 
-[[nodiscard]] std::vector<Item> pageGraphicsLights();
-[[nodiscard]] std::vector<Item> pageGraphicsShadows();
-[[nodiscard]] std::vector<Item> pageGraphicsSurfaces();
-[[nodiscard]] std::vector<Item> pageGraphicsLiquids();
-[[nodiscard]] std::vector<Item> pageGraphicsPost();
-[[nodiscard]] std::vector<Item> pageGraphicsModels();
-[[nodiscard]] std::vector<Item> pageTransparencyOptions();
-[[nodiscard]] std::vector<Item> pageRecording(); // vr_menu_recording.inc
+[[nodiscard]] za::Vector<Item> pageGraphicsLights();
+[[nodiscard]] za::Vector<Item> pageGraphicsShadows();
+[[nodiscard]] za::Vector<Item> pageGraphicsSurfaces();
+[[nodiscard]] za::Vector<Item> pageGraphicsLiquids();
+[[nodiscard]] za::Vector<Item> pageGraphicsPost();
+[[nodiscard]] za::Vector<Item> pageGraphicsModels();
+[[nodiscard]] za::Vector<Item> pageTransparencyOptions();
+[[nodiscard]] za::Vector<Item> pageRecording(); // vr_menu_recording.inc
 
 // Old Quake VR settings: "Graphical Settings", in pages: this one, the preset and the image, and links
 // to the others (Memory Log is on Debug).
-[[nodiscard]] std::vector<Item> pageGraphics()
+[[nodiscard]] za::Vector<Item> pageGraphics()
 {
     return {
         cycle("Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})
@@ -540,7 +544,7 @@ void resetHandMoves()
 }
 
 // Graphics: the light, dynamic lights and the things that make them.
-[[nodiscard]] std::vector<Item> pageGraphicsLights()
+[[nodiscard]] za::Vector<Item> pageGraphicsLights()
 {
     return {
         slider("Light Contrast", "vr_light_contrast", 1.f, 2.5f, 0.02f, "%.2f").extend().help("Darker shade, lamps as bright: the level's own light sources carry the scene (1: Quake's)."),
@@ -569,7 +573,7 @@ void resetHandMoves()
 }
 
 // Graphics: shadows, and the blob shadows standing in for them.
-[[nodiscard]] std::vector<Item> pageGraphicsShadows()
+[[nodiscard]] za::Vector<Item> pageGraphicsShadows()
 {
     return {
         slider("Shadowed Dynamic Lights", "vr_shadow_dlights", 0.f, 12.f, 1.f, "%.0f").extend()
@@ -608,7 +612,7 @@ void resetHandMoves()
 }
 
 // Graphics: the walls' and models' surfaces: sheen, bumps, parallax, detail.
-[[nodiscard]] std::vector<Item> pageGraphicsSurfaces()
+[[nodiscard]] za::Vector<Item> pageGraphicsSurfaces()
 {
     return {
         slider("Light Sheen", "vr_specular", 0.f, 0.5f, 0.025f, "%.3f").extend().help("Dynamic lights glint off walls and models (0 off)."),
@@ -635,7 +639,7 @@ void resetHandMoves()
 }
 
 // Graphics: water, slime and lava.
-[[nodiscard]] std::vector<Item> pageGraphicsLiquids()
+[[nodiscard]] za::Vector<Item> pageGraphicsLiquids()
 {
     return {
         slider("Waves", "vr_water_waves", 0.f, 2.f, 0.1f, "%.1f").extend().help("Waves on water, slime and lava, in the lighting (the surfaces stay flat). 0: Quake's flat liquids."),
@@ -668,7 +672,7 @@ void resetHandMoves()
 }
 
 // Graphics: over the whole image: bloom, tone mapping, the colour grade, dither.
-[[nodiscard]] std::vector<Item> pageGraphicsPost()
+[[nodiscard]] za::Vector<Item> pageGraphicsPost()
 {
     return {
         slider("Bloom", "vr_bloom", 0.f, 1.5f, 0.02f, "%.2f").extend().help("Glow around lamps, glowing panels and buttons, flashes and explosions (0 off)."),
@@ -689,7 +693,7 @@ void resetHandMoves()
 }
 
 // Graphics: models' light and reflections, glowing screens and sights, particles and decals.
-[[nodiscard]] std::vector<Item> pageGraphicsModels()
+[[nodiscard]] za::Vector<Item> pageGraphicsModels()
 {
     return {
         toggle("Model Lighting", "vr_model_lighting").help("Monsters, items and weapons are shaded from the map's lights, not one fixed direction."),
@@ -718,7 +722,7 @@ void resetHandMoves()
 }
 
 // Old Quake VR settings: "Hud Configuration".
-[[nodiscard]] std::vector<Item> pageHudConfiguration()
+[[nodiscard]] za::Vector<Item> pageHudConfiguration()
 {
     return {
         cycle("HUD", "vr_hud_mode", {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}).help("The settings below apply to the status bar."),
@@ -734,7 +738,7 @@ void resetHandMoves()
 }
 
 // Old Quake VR settings: "Hotspot Settings" (the hip holsters on Hip Holsters).
-[[nodiscard]] std::vector<Item> pageHotspotSettings()
+[[nodiscard]] za::Vector<Item> pageHotspotSettings()
 {
     return {
         header("Virtual Stock"),
@@ -766,7 +770,7 @@ void resetHandMoves()
 }
 
 // Split from Hotspots: the hip holsters and their slots' models.
-[[nodiscard]] std::vector<Item> pageHipHolsters()
+[[nodiscard]] za::Vector<Item> pageHipHolsters()
 {
     return {
         toggle("Show Hip Holsters", "vr_show_hip_holsters"),
@@ -801,7 +805,7 @@ void resetHandMoves()
 }
 
 // Old Quake VR settings: "Transparency Options".
-[[nodiscard]] std::vector<Item> pageTransparencyOptions()
+[[nodiscard]] za::Vector<Item> pageTransparencyOptions()
 {
     return {
         toggle("(!) No Vis", "r_novis").help("NOT RECOMMENDED: water transparency in maps without vis data, by drawing the whole map every frame. Vispatch maps instead."),

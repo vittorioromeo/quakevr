@@ -10,25 +10,28 @@
 //
 //     struct ClimbScratch
 //     {
-//         std::vector<int> nearby;         // holds near a hand (nearbyHolds)
-//         std::vector<edict_t*> movers;    // (findHolds)
-//         auto members() { return std::tie(nearby, movers); }
+//         za::Vector<int> nearby;          // holds near a hand (nearbyHolds)
+//         za::Vector<edict_t*> movers;     // (findHolds)
+//         auto members() { return qvr::mem::list(nearby, movers); }
 //     };
 //     mem::Scratch<ClimbScratch> scratch{"climb"};
 //
 //     void findHolds(...)
 //     {
-//         std::vector<int>& nearby = scratch.nearby; // cleared by its user: it keeps its capacity between calls
+//         za::Vector<int>& nearby = scratch.nearby; // cleared by its user: it keeps its capacity between calls
 //         nearby.clear();
 
-#include <array>
-#include <cstddef>
-#include <string>
-#include <tuple>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
-#include <vector>
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/InPlaceVector.hpp"
+#include "Zancle/Container/SmallVector.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Trait/DeclVal.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+
 
 namespace qvr::mem
 {
@@ -51,100 +54,105 @@ enum class Kind
 // The heap memory a container holds (its capacity, and what its elements hold in turn). Every overload is declared
 // first, so that each finds the others for its elements.
 template <class T>
-[[nodiscard]] std::size_t heldBytes(const T&);
-[[nodiscard]] inline std::size_t heldBytes(const std::string& s);
+[[nodiscard]] za::SizeT heldBytes(const T&);
+[[nodiscard]] inline za::SizeT heldBytes(const za::String& s);
 template <class A, class B>
-[[nodiscard]] std::size_t heldBytes(const std::pair<A, B>& p);
-template <class T, class Alloc>
-[[nodiscard]] std::size_t heldBytes(const std::vector<T, Alloc>& v);
-template <class Alloc>
-[[nodiscard]] std::size_t heldBytes(const std::vector<bool, Alloc>& v);
-template <class T, std::size_t N>
-[[nodiscard]] std::size_t heldBytes(const std::array<T, N>& a);
-template <class T, std::size_t N>
-[[nodiscard]] std::size_t heldBytes(const T (&a)[N]);
-template <class K, class V, class H, class E, class A>
-[[nodiscard]] std::size_t heldBytes(const std::unordered_map<K, V, H, E, A>& m);
-template <class K, class H, class E, class A>
-[[nodiscard]] std::size_t heldBytes(const std::unordered_set<K, H, E, A>& s);
+[[nodiscard]] za::SizeT heldBytes(const ankerl::unordered_dense::detail::pair<A, B>& p);
+template <class T>
+[[nodiscard]] za::SizeT heldBytes(const za::Vector<T>& v);
+template <class T, za::SizeT N>
+[[nodiscard]] za::SizeT heldBytes(const za::SmallVector<T, N>& v);
+template <class T, za::SizeT N>
+[[nodiscard]] za::SizeT heldBytes(const za::InPlaceVector<T, N>& v);
+template <class T, za::SizeT N>
+[[nodiscard]] za::SizeT heldBytes(const za::Array<T, N>& a);
+template <class T, za::SizeT N>
+[[nodiscard]] za::SizeT heldBytes(const T (&a)[N]);
+template <class K, class V, class H, class E>
+[[nodiscard]] za::SizeT heldBytes(const ankerl::unordered_dense::map<K, V, H, E>& m);
+template <class K, class H, class E>
+[[nodiscard]] za::SizeT heldBytes(const ankerl::unordered_dense::set<K, H, E>& s);
+template <class T>
+[[nodiscard]] za::SizeT heldBytes(const za::UniquePtr<T>& p);
 
 template <class T>
-std::size_t heldBytes(const T&)
+za::SizeT heldBytes(const T&)
 {
     return 0; // a value that holds no heap memory
 }
 
-inline std::size_t heldBytes(const std::string& s)
+inline za::SizeT heldBytes(const za::String& s)
 {
-    return s.capacity() > std::string{}.capacity() ? s.capacity() + 1 : 0; // (within the small-string buffer: none)
+    return s.capacity() > za::String{}.capacity() ? s.capacity() + 1 : 0; // (within the small-string buffer: none)
 }
 
 template <class A, class B>
-std::size_t heldBytes(const std::pair<A, B>& p)
+za::SizeT heldBytes(const ankerl::unordered_dense::detail::pair<A, B>& p)
 {
     return heldBytes(p.first) + heldBytes(p.second);
 }
 
-template <class T, class Alloc>
-std::size_t heldBytes(const std::vector<T, Alloc>& v)
+template <class Range>
+za::SizeT heldBytesOfElements(const Range& r)
 {
-    std::size_t n = v.capacity() * sizeof(T);
-    for(const T& e : v)
+    za::SizeT n = 0;
+    for(const auto& e : r)
     {
         n += heldBytes(e);
     }
     return n;
 }
 
-template <class Alloc>
-std::size_t heldBytes(const std::vector<bool, Alloc>& v)
+template <class T>
+za::SizeT heldBytes(const za::Vector<T>& v)
 {
-    return (v.capacity() + 7) / 8;
+    return v.capacity() * sizeof(T) + heldBytesOfElements(v);
 }
 
-template <class T, std::size_t N>
-std::size_t heldBytes(const std::array<T, N>& a)
+template <class T, za::SizeT N>
+za::SizeT heldBytes(const za::SmallVector<T, N>& v)
 {
-    std::size_t n = 0;
-    for(const T& e : a)
-    {
-        n += heldBytes(e);
-    }
-    return n;
+    return (v.capacity() > N ? v.capacity() * sizeof(T) : 0) + heldBytesOfElements(v); // (within its own buffer: none)
 }
 
-template <class T, std::size_t N>
-std::size_t heldBytes(const T (&a)[N])
+template <class T, za::SizeT N>
+za::SizeT heldBytes(const za::InPlaceVector<T, N>& v)
 {
-    std::size_t n = 0;
-    for(const T& e : a)
-    {
-        n += heldBytes(e);
-    }
-    return n;
+    return heldBytesOfElements(v);
 }
 
-// A node container: its buckets, and each node's value and two links (an estimate: the library's nodes are about that).
-template <class K, class V, class H, class E, class A>
-std::size_t heldBytes(const std::unordered_map<K, V, H, E, A>& m)
+template <class T, za::SizeT N>
+za::SizeT heldBytes(const za::Array<T, N>& a)
 {
-    std::size_t n = m.bucket_count() * sizeof(void*) + m.size() * (sizeof(std::pair<const K, V>) + 2 * sizeof(void*));
-    for(const auto& [k, v] : m)
-    {
-        n += heldBytes(k) + heldBytes(v);
-    }
-    return n;
+    return heldBytesOfElements(a);
 }
 
-template <class K, class H, class E, class A>
-std::size_t heldBytes(const std::unordered_set<K, H, E, A>& s)
+template <class T, za::SizeT N>
+za::SizeT heldBytes(const T (&a)[N])
 {
-    std::size_t n = s.bucket_count() * sizeof(void*) + s.size() * (sizeof(K) + 2 * sizeof(void*));
-    for(const K& k : s)
-    {
-        n += heldBytes(k);
-    }
-    return n;
+    return heldBytesOfElements(a);
+}
+
+template <class T>
+za::SizeT heldBytes(const za::UniquePtr<T>& p)
+{
+    return p ? sizeof(T) + heldBytes(*p) : 0;
+}
+
+// A dense map: its values' vector and its buckets.
+template <class K, class V, class H, class E>
+za::SizeT heldBytes(const ankerl::unordered_dense::map<K, V, H, E>& m)
+{
+    using Map = ankerl::unordered_dense::map<K, V, H, E>;
+    return m.values().capacity() * sizeof(typename Map::value_type) +
+           m.bucket_count() * sizeof(ankerl::unordered_dense::bucket_type::standard) + heldBytesOfElements(m);
+}
+
+template <class K, class H, class E>
+za::SizeT heldBytes(const ankerl::unordered_dense::set<K, H, E>& s)
+{
+    return s.values().capacity() * sizeof(K) + s.bucket_count() * sizeof(ankerl::unordered_dense::bucket_type::standard) +
+           heldBytesOfElements(s);
 }
 
 // Emptied, its memory given back.
@@ -152,7 +160,7 @@ template <class T>
 void release(T& c)
 {
     T empty{};
-    std::swap(c, empty);
+    za::genericSwap(c, empty);
 }
 
 // A registered set (the list is walked by the events and the reports). Static storage only: made before main (other
@@ -168,7 +176,7 @@ public:
     [[nodiscard]] const char* system() const { return system_; }
     [[nodiscard]] Kind kind() const { return kind_; }
     [[nodiscard]] unsigned events() const { return events_; }
-    [[nodiscard]] virtual std::size_t bytes() = 0;
+    [[nodiscard]] virtual za::SizeT bytes() = 0;
     virtual void release() = 0;
 
     [[nodiscard]] static Registration* first();
@@ -181,37 +189,43 @@ private:
     Registration* next_;
 };
 
-namespace detail
+// A scratch or cache struct's members, as its members() lists them: `return qvr::mem::list(a, b, c);`.
+template <class Visit, class... M>
+struct List
 {
-
-template <class Tuple>
-struct ListedSize;
+    Visit visit; // visit(f): f(a, b, c)
+    static constexpr za::SizeT listedBytes = (sizeof(M) + ... + 0);
+};
 
 template <class... M>
-struct ListedSize<std::tuple<M&...>>
+[[nodiscard]] auto list(M&... m)
 {
-    static constexpr std::size_t value = (sizeof(M) + ... + 0);
-};
+    const auto visit = [&m...](auto&& f) -> decltype(auto) { return f(m...); };
+    return List<decltype(visit), M...>{visit};
+}
+
+namespace detail
+{
 
 // A set: T's members, as its members() lists them (every member listed: checked by their sizes adding up to T's).
 template <class T>
 class Set : public T, public Registration
 {
-    static constexpr std::size_t listed = ListedSize<decltype(std::declval<T&>().members())>::value;
+    static constexpr za::SizeT listed = decltype(za::declVal<T&>().members())::listedBytes;
     static_assert(listed <= sizeof(T) && sizeof(T) - listed < alignof(T),
         "a scratch or cache struct lists every member in members()");
 
 public:
     Set(const char* system, Kind kind, unsigned events) noexcept : Registration(system, kind, events) {}
 
-    [[nodiscard]] std::size_t bytes() override
+    [[nodiscard]] za::SizeT bytes() override
     {
-        return std::apply([](auto&... m) { return (heldBytes(m) + ... + std::size_t{0}); }, T::members());
+        return T::members().visit([](auto&... m) { return (heldBytes(m) + ... + za::SizeT{0}); });
     }
 
     void release() override
     {
-        std::apply([](auto&... m) { (mem::release(m), ...); }, T::members());
+        T::members().visit([](auto&... m) { (mem::release(m), ...); });
     }
 };
 
@@ -240,8 +254,8 @@ void on(Event event);
 // Their bytes: the total of each kind, and the sets that hold the most (vr_memstats, vr_limits).
 struct Totals
 {
-    std::size_t scratchBytes{0};
-    std::size_t cacheBytes{0};
+    za::SizeT scratchBytes{0};
+    za::SizeT cacheBytes{0};
     int scratchSets{0};
     int cacheSets{0};
 };

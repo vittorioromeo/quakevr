@@ -61,16 +61,24 @@
 #include "vr_water.hpp"
 #include "vr_wounds.hpp"
 
-#include <chrono>
-#include <cstdarg>
-#include <cstdlib>
-#include <cmath>
-#include <cstring>
-#include <ctime>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
+#include "Zancle/Base/Abort.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Base/Strncmp.hpp"
+#include "Zancle/Chrono/Clock.hpp"
+#include "Zancle/Chrono/Time.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/Tan.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 
 using namespace qvr;
 
@@ -86,7 +94,7 @@ namespace
 
 struct State
 {
-    std::unique_ptr<qvr::Backend> backend;
+    za::UniquePtr<qvr::Backend> backend{nullptr};
     qvr::TrackingState tracking;
     qvr::FrameState frame;
     bool restartRequested{false};
@@ -94,7 +102,7 @@ struct State
 
 State* state = nullptr;
 
-[[nodiscard]] std::unique_ptr<qvr::Backend> createBackend(const char* name)
+[[nodiscard]] za::UniquePtr<qvr::Backend> createBackend(const char* name)
 {
     if(!strcmp(name, "mock"))
     {
@@ -132,7 +140,7 @@ void startBackend()
 {
     // -vrmock: the mock headset whatever vr_backend says (the review's re-evaluation runs a second copy of the game
     // beside the one in the headset: it must never open the runtime's session).
-    std::unique_ptr<qvr::Backend> backend = createBackend(COM_CheckParm("-vrmock") ? "mock" : vr_backend.string);
+    za::UniquePtr<qvr::Backend> backend = createBackend(COM_CheckParm("-vrmock") ? "mock" : vr_backend.string);
     if(!backend)
     {
         return;
@@ -146,7 +154,7 @@ void startBackend()
     }
 
     Con_Printf("VR: started %s backend\n", backend->name());
-    state->backend = std::move(backend);
+    state->backend = ZA_MOVE(backend);
 }
 
 void onBackendSettingChanged(cvar_t* /* var */)
@@ -235,15 +243,15 @@ void VR_Status_f()
             break;
         }
         const qvr::Fov& fov = state->frame.eyes[eye].fov;
-        const float l = std::tan(fov.left), r = std::tan(fov.right), u = std::tan(fov.up), d = std::tan(fov.down);
+        const float l = za::tan(fov.left), r = za::tan(fov.right), u = za::tan(fov.up), d = za::tan(fov.down);
         double area = 0.0;
         glm::vec2 lo{1e9f}, hi{-1e9f};
-        for(std::size_t i = 0; i + 2 < h->indices.size(); i += 3)
+        for(za::SizeT i = 0; i + 2 < h->indices.size(); i += 3)
         {
             const glm::vec2 a = h->vertices[h->indices[i]];
             const glm::vec2 b = h->vertices[h->indices[i + 1]];
             const glm::vec2 c = h->vertices[h->indices[i + 2]];
-            area += 0.5 * std::fabs(static_cast<double>((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)));
+            area += 0.5 * za::fabs(static_cast<double>((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)));
         }
         for(const glm::vec2& v : h->vertices)
         {
@@ -285,7 +293,7 @@ struct ProcessMemoryCounters
 {
     unsigned long cb;
     unsigned long pageFaultCount;
-    std::size_t peakWorkingSetSize, workingSetSize, quotaPeakPagedPoolUsage, quotaPagedPoolUsage,
+    za::SizeT peakWorkingSetSize, workingSetSize, quotaPeakPagedPoolUsage, quotaPagedPoolUsage,
         quotaPeakNonPagedPoolUsage, quotaNonPagedPoolUsage, pagefileUsage, peakPagefileUsage, privateUsage;
 };
 extern "C" __declspec(dllimport) void* __stdcall GetCurrentProcess();
@@ -376,7 +384,7 @@ MemSample sampleMemory(bool scanGl = true)
     {
         return m;
     }
-    const auto scanStart = std::chrono::steady_clock::now();
+    const za::Clock scanClock;
     static GlIsFn isBuffer = nullptr, isFramebuffer = nullptr, isQuery = nullptr, isProgram = nullptr;
     if(!isBuffer)
     {
@@ -392,7 +400,7 @@ MemSample sampleMemory(bool scanGl = true)
     m.framebuffers = count(isFramebuffer);
     m.queries = count(isQuery);
     m.programs = count(isProgram);
-    m.scanMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - scanStart).count();
+    m.scanMs = static_cast<double>(scanClock.getElapsedTime().asMicroseconds()) / 1e3;
     return m;
 }
 
@@ -519,19 +527,19 @@ EdictCounts countEdicts()
         const char* model = modelindex > 0 && modelindex < MAX_MODELS && sv.model_precache[modelindex]
                                 ? sv.model_precache[modelindex]
                                 : "";
-        if(!std::strncmp(classname, "monster_", 8))
+        if(!ZA_STRNCMP(classname, "monster_", 8))
         {
             (ent->v.deadflag != 0.f || ent->v.health <= 0.f ? e.corpses : e.monsters)++;
         }
-        else if(!std::strncmp(model, "progs/h_", 8))
+        else if(!ZA_STRNCMP(model, "progs/h_", 8))
         {
             e.heads++;
         }
-        else if(!std::strncmp(model, "progs/gib", 9))
+        else if(!ZA_STRNCMP(model, "progs/gib", 9))
         {
             e.gibs++;
         }
-        else if(!std::strcmp(classname, "thrown_weapon"))
+        else if(!ZA_STRCMP(classname, "thrown_weapon"))
         {
             e.thrown++;
         }
@@ -545,7 +553,7 @@ EdictCounts countEdicts()
 }
 
 // A row's (or the command's) numbers: named columns, the old ones first.
-using Columns = std::vector<std::pair<std::string, std::string>>;
+using Columns = za::Vector<gpustats::Column>;
 
 void column(Columns& c, const char* name, const char* fmt, ...)
 {
@@ -554,7 +562,7 @@ void column(Columns& c, const char* name, const char* fmt, ...)
     va_start(args, fmt);
     q_vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
-    c.emplace_back(name, buf);
+    c.pushBack(gpustats::Column{name, buf});
 }
 
 // The phases' and counts' columns, per frame over what `r` gathered since it was last reset.
@@ -635,7 +643,7 @@ void timingColumns(Columns& c, const Readers& r)
     text3d::counts(texts, boards);
     column(c, "boards", "%d", boards);
     column(c, "static_sounds", "%d", q_max(0, total_channels - MAX_DYNAMIC_CHANNELS - NUM_AMBIENTS));
-    column(c, "targets_by_name", "%s", gfx::targetsMadeByName().c_str());
+    column(c, "targets_by_name", "%s", gfx::targetsMadeByName().cStr());
 }
 
 void VR_MemStats_f()
@@ -678,7 +686,7 @@ void VR_MemStats_f()
     Con_Printf("  textures (managed) %d, %d of them normal maps, %.1f MB\n", m.textures, m.normalmaps, m.textureMb);
     Con_Printf("  GL    %d textures (%d not managed), %d buffers, %d framebuffers, %d queries, %d programs (%.1f ms to count)\n",
         m.glTextures, m.glTextures - m.textures, m.buffers, m.framebuffers, m.queries, m.programs, m.scanMs);
-    Con_Printf("  VR    render targets (re)made %d times so far (%s); ", gfx::targetsMade, gfx::targetsMadeByName().c_str());
+    Con_Printf("  VR    render targets (re)made %d times so far (%s); ", gfx::targetsMade, gfx::targetsMadeByName().cStr());
     decals::count_f();
     const mem::Totals held = mem::totals();
     Con_Printf("  VR    scratch buffers %.1f KiB (%d sets), caches %.1f KiB (%d sets); the largest:\n",
@@ -691,24 +699,24 @@ void VR_MemStats_f()
     Columns c;
     timingColumns(c, commandReader);
     commandReader = Readers{};
-    std::string line;
+    za::String line;
     for(const auto& [name, value] : c)
     {
         if(name == "targets_by_name")
         {
             continue;
         }
-        const std::string word = name + " " + value;
+        const za::String word = name + " " + value;
         if(line.size() + word.size() + 2 > 100)
         {
-            Con_Printf("  %s\n", line.c_str());
+            Con_Printf("  %s\n", line.cStr());
             line.clear();
         }
         line += (line.empty() ? "" : ", ") + word;
     }
     if(!line.empty())
     {
-        Con_Printf("  %s\n", line.c_str());
+        Con_Printf("  %s\n", line.cStr());
     }
 }
 
@@ -718,7 +726,7 @@ void VR_DebugCrash_f()
 {
     if(Cmd_Argc() > 1 && q_strcasecmp(Cmd_Argv(1), "abort") == 0)
     {
-        std::abort();
+        za::abort();
     }
     int* volatile nowhere = nullptr; // (volatile: the compiler can't see it is null)
     *nowhere = 1;
@@ -730,7 +738,7 @@ void VR_DebugCrash_f()
 // CPU or the GPU, or the runtime's waits), and what there was to draw.
 struct MemLog
 {
-    std::string path;
+    za::String path;
     double lastTime{0.0};
     int lastFrames{0};
     const void* lastWorld{nullptr};
@@ -770,9 +778,9 @@ void writeMemLogRow(const char* reason)
     m.programs = glCounted.programs;
     m.scanMs = glCounted.scanMs;
 
-    const std::time_t now = std::time(nullptr);
+    const time_t now = time(nullptr);
     char clock[32];
-    std::strftime(clock, sizeof(clock), "%H:%M:%S", std::localtime(&now));
+    strftime(clock, sizeof(clock), "%H:%M:%S", localtime(&now));
     Columns c;
     column(c, "clock", "%s", clock);
     column(c, "seconds", "%.1f", realtime);
@@ -807,32 +815,32 @@ void writeMemLogRow(const char* reason)
     if(memLog.path.empty())
     {
         char stamp[64];
-        std::strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", std::localtime(&now));
-        const std::string dir = std::string{com_gamedir} + "/profile";
-        Sys_mkdir(dir.c_str());
+        strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&now));
+        const za::String dir = za::String{com_gamedir} + "/profile";
+        Sys_mkdir(dir.cStr());
         memLog.path = dir + "/memstats_" + stamp + ".csv";
-        if(FILE* f = std::fopen(memLog.path.c_str(), "w"))
+        if(FILE* f = fopen(memLog.path.cStr(), "w"))
         {
-            for(std::size_t i = 0; i < c.size(); i++)
+            for(za::SizeT i = 0; i < c.size(); i++)
             {
-                std::fprintf(f, "%s%s", i ? "," : "", c[i].first.c_str());
+                fprintf(f, "%s%s", i ? "," : "", c[i].name.cStr());
             }
-            std::fprintf(f, "\n");
-            std::fclose(f);
+            fprintf(f, "\n");
+            fclose(f);
         }
-        Con_DPrintf("vr_memstats_log: %s\n", memLog.path.c_str());
+        Con_DPrintf("vr_memstats_log: %s\n", memLog.path.cStr());
     }
-    FILE* f = std::fopen(memLog.path.c_str(), "a");
+    FILE* f = fopen(memLog.path.cStr(), "a");
     if(!f)
     {
         return;
     }
-    for(std::size_t i = 0; i < c.size(); i++)
+    for(za::SizeT i = 0; i < c.size(); i++)
     {
-        std::fprintf(f, "%s%s", i ? "," : "", c[i].second.c_str());
+        fprintf(f, "%s%s", i ? "," : "", c[i].value.cStr());
     }
-    std::fprintf(f, "\n");
-    std::fclose(f);
+    fprintf(f, "\n");
+    fclose(f);
 }
 
 void memLogFrame()
@@ -956,7 +964,7 @@ bool frameRate(FrameRate& out)
 int scaledEyeSize(int image, int max)
 {
     const float scale = CLAMP(0.25f, vr_render_scale.value, 2.f);
-    int size = static_cast<int>(std::lround(static_cast<double>(image) * scale));
+    int size = static_cast<int>(za::lround(static_cast<double>(image) * scale));
     if(max > 0)
     {
         size = q_min(size, max);
@@ -1010,7 +1018,7 @@ extern "C" void VR_NewMap()
     // atlas (0.4 s: the first mark's frame), the view's own models (0.3 s the first time), the liquids' volume and mesh
     // (20-100 ms each map), the particles' atlas, the detail textures, the torch's shape, the casings' model and sounds.
     QVR_PROFILE("vr prewarm");
-    std::string times; // developer 1: what each took
+    za::String times; // developer 1: what each took
     double total = 0.0;
     const auto step = [&](const char* name, void (*prepare)()) {
         QVR_PROFILE(name);
@@ -1028,7 +1036,7 @@ extern "C" void VR_NewMap()
     step("view models", view::prepareModels);
     step("torch", flashlight::prepare);
     step("casings", shells::prepare);
-    Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.c_str());
+    Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.cStr());
 
     countGlForLog(); // the memory log's GL objects, in the load (12-13 ms)
     VR_TimeMark("VR_NewMap: GL object count");

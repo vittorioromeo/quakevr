@@ -8,11 +8,19 @@
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
+#include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+
 #include <random>
-#include <vector>
 
 namespace qvr::bodyblood
 {
@@ -26,7 +34,7 @@ constexpr float elbowRadius = 0.04f;
 constexpr float wristRadius = 0.027f;
 constexpr float handRadius = 0.022f;
 
-constexpr std::size_t maxDrops = 64;
+constexpr za::SizeT maxDrops = 64;
 
 // Drops per second from each arm, by the damage skin (0..3); a hit adds more for a while.
 constexpr float dripRate[4] = {0.f, 0.35f, 0.9f, 1.8f};
@@ -44,13 +52,13 @@ struct Limb
     float m2w{1.f};
 };
 
-enum Segment : std::uint8_t
+enum Segment : za::U8
 {
     Forearm,
     Hand
 };
 
-enum class Phase : std::uint8_t
+enum class Phase : za::U8
 {
     Hanging, // gathering under the limb, carried by it
     Falling,
@@ -60,7 +68,7 @@ enum class Phase : std::uint8_t
 struct Drop
 {
     Phase phase{Phase::Hanging};
-    std::uint8_t hand{0};
+    za::U8 hand{0};
     Segment segment{Forearm};
     float along{0.f}; // 0..1 along the segment (towards the knuckles)
     glm::vec3 pos{0.f};
@@ -72,8 +80,8 @@ struct Drop
     bool gone{false};
 };
 
-std::vector<Drop> drops;
-std::vector<Drop> splashes; // thrown up this frame, added after the others move
+za::Vector<Drop> drops;
+za::Vector<Drop> splashes; // thrown up this frame, added after the others move
 Limb limbs[2];
 glm::vec3 lastWrist[2]{glm::vec3{0.f}, glm::vec3{0.f}};
 glm::vec3 handVel[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // world units per second
@@ -85,7 +93,7 @@ double lastTime = -1.0;
 int lastFrame = -1;
 const qmodel_t* lastWorld = nullptr;
 
-std::mt19937 rng{std::random_device{}()};
+std::mt19937 rng{std::random_device{}()}; // ZANCLE-TODO: no random engines or distributions
 
 [[nodiscard]] float rnd(float lo, float hi)
 {
@@ -143,7 +151,7 @@ bool pickSpot(const Limb& l, Segment& segment, float& along)
     const glm::vec3 top = l.forearm ? l.elbow : l.wrist;
     const glm::vec3 bottom = l.hand ? l.knuckles : l.armWrist;
     const float slope = safeNormalize(bottom - top, glm::vec3{0.f}).z; // < 0: the fingers are lower
-    const float steep = std::clamp((std::fabs(slope) - 0.35f) / 0.5f, 0.f, 1.f);
+    const float steep = za::clamp((za::fabs(slope) - 0.35f) / 0.5f, 0.f, 1.f);
     if(rnd(0.f, 1.f) < steep)
     {
         if(slope < 0.f)
@@ -176,8 +184,8 @@ void addDrop(const hands::State& s, int hand, bool flung)
     {
         return;
     }
-    d.hand = static_cast<std::uint8_t>(hand);
-    d.size = rnd(0.006f, 0.01f) * l.m2w * std::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
+    d.hand = static_cast<za::U8>(hand);
+    d.size = rnd(0.006f, 0.01f) * l.m2w * za::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
     if(flung)
     {
         // Thrown off the swung arm at once, a little behind its speed.
@@ -189,7 +197,7 @@ void addDrop(const hands::State& s, int hand, bool flung)
         // It hangs a moment, swelling; less just after a hit, when the blood runs faster.
         d.life = rnd(0.35f, 0.8f) / (1.f + burst);
     }
-    drops.push_back(d);
+    drops.pushBack(d);
 }
 
 // A drop reaches a surface: specks thrown up off a floor, and a mark on it (vr_body_blood_marks: the
@@ -203,13 +211,13 @@ void land(const Drop& d, const glm::vec3& where, const glm::vec3& normal, float 
     {
         return; // a wall: it runs down out of sight
     }
-    const float amount = std::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
-    if(rnd(0.f, 1.f) < std::clamp(vr_body_blood_marks.value, 0.f, 1.f) && (cl.time < lastMark || cl.time - lastMark > 0.08))
+    const float amount = za::clamp(vr_body_blood_amount.value, 0.25f, 4.f);
+    if(rnd(0.f, 1.f) < za::clamp(vr_body_blood_marks.value, 0.f, 1.f) && (cl.time < lastMark || cl.time - lastMark > 0.08))
     {
         lastMark = cl.time;
-        decals::drop(where, rnd(3.5f, 6.5f) * std::clamp(vr_body_blood_mark_size.value, 0.25f, 4.f) * std::sqrt(amount));
+        decals::drop(where, rnd(3.5f, 6.5f) * za::clamp(vr_body_blood_mark_size.value, 0.25f, 4.f) * za::sqrt(amount));
     }
-    const int specks = static_cast<int>((2.f + rnd(0.f, 2.99f)) * std::sqrt(amount));
+    const int specks = static_cast<int>((2.f + rnd(0.f, 2.99f)) * za::sqrt(amount));
     for(int i = 0; i < specks && drops.size() + splashes.size() < maxDrops; i++)
     {
         Drop sp;
@@ -217,11 +225,11 @@ void land(const Drop& d, const glm::vec3& where, const glm::vec3& normal, float 
         sp.pos = where + normal * 0.1f;
         const float a = rnd(0.f, 6.2831853f);
         const float out = rnd(0.2f, 0.6f) * m2w;
-        sp.vel = {std::cos(a) * out, std::sin(a) * out, rnd(0.4f, 0.9f) * m2w};
+        sp.vel = {za::cos(a) * out, za::sin(a) * out, rnd(0.4f, 0.9f) * m2w};
         sp.size = d.size * rnd(0.3f, 0.5f);
         sp.life = rnd(0.15f, 0.3f);
         sp.floorZ = where.z;
-        splashes.push_back(sp);
+        splashes.pushBack(sp);
     }
 }
 
@@ -246,7 +254,7 @@ void simulate(float dt, float m2w)
                     d.age = 0.f;
                     break;
                 }
-                const float grow = std::min(1.f, d.age / std::max(0.05f, d.life));
+                const float grow = za::min(1.f, d.age / za::max(0.05f, d.life));
                 d.pos = at + glm::vec3{0.f, 0.f, -0.5f * d.size * grow};
                 if(d.age >= d.life || swung)
                 {
@@ -258,7 +266,7 @@ void simulate(float dt, float m2w)
             }
             case Phase::Falling:
             {
-                d.vel.z = std::max(d.vel.z - gravity * dt, -terminal);
+                d.vel.z = za::max(d.vel.z - gravity * dt, -terminal);
                 const glm::vec3 next = d.pos + d.vel * dt;
                 const trace_t tr = worldtrace::world(d.pos, next);
                 if(tr.startsolid || tr.allsolid)
@@ -284,8 +292,8 @@ void simulate(float dt, float m2w)
                 break;
         }
     }
-    std::erase_if(drops, [](const Drop& d) { return d.gone; });
-    drops.insert(drops.end(), splashes.begin(), splashes.end());
+    za::vectorEraseIf(drops, [](const Drop& d) { return d.gone; });
+    drops.emplaceBackRange(splashes.data(), splashes.size());
     splashes.clear();
 }
 
@@ -301,7 +309,7 @@ void simulate(float dt, float m2w)
     const glm::vec3 p = (s.pos[0] + s.pos[1]) * 0.5f;
     vec3_t v = {p.x, p.y, p.z};
     const float light = static_cast<float>(R_LightPoint(v, 0.f, &cache)); // 128: Quake's full light
-    return std::clamp(std::max(light, 24.f) / 110.f, 0.2f, 1.4f);
+    return za::clamp(za::max(light, 24.f) / 110.f, 0.2f, 1.4f);
 }
 
 void draw(const hands::State& s)
@@ -322,7 +330,7 @@ void draw(const hands::State& s)
             case Phase::Hanging:
             {
                 // A drop swelling under the skin, with a thin neck while it is big.
-                const float grow = std::min(1.f, d.age / std::max(0.05f, d.life));
+                const float grow = za::min(1.f, d.age / za::max(0.05f, d.life));
                 glm::vec3 at;
                 if(grow > 0.4f && underside(limbs[d.hand], d.segment, d.along, at))
                 {
@@ -338,7 +346,7 @@ void draw(const hands::State& s)
                 const float len = glm::length(trail);
                 const float lo = d.size * 0.8f;
                 const float hi = 0.1f * units::metresToUnits();
-                trail = len > 1e-4f ? trail * (std::clamp(len, lo, hi) / len) : glm::vec3{0.f, 0.f, lo};
+                trail = len > 1e-4f ? trail * (za::clamp(len, lo, hi) / len) : glm::vec3{0.f, 0.f, lo};
                 lines::line(d.pos, d.pos + trail, d.size * 0.8f, solid, faded);
                 lines::point(d.pos, d.size, solid);
                 break;
@@ -397,7 +405,7 @@ void update(const hands::State& s, const avatar::HandPose* const drawnHands[2], 
             l.armWrist = wrist;
             avatar::ForearmFrame fa;
             const float along = avatar::forearmFrame(hand, 0.f, fa) ? fa.length // (as solved: calibrated arms their own)
-                                                                    : forearmLength * m2w * std::max(0.5f, vr_body_arm_length.value);
+                                                                    : forearmLength * m2w * za::max(0.5f, vr_body_arm_length.value);
             l.elbow = wrist - safeNormalize(direction, glm::vec3{0.f, 0.f, 1.f}) * along;
         }
         if(const avatar::HandPose* hp = drawnHands[hand])
@@ -428,14 +436,14 @@ void update(const hands::State& s, const avatar::HandPose* const drawnHands[2], 
     const int health = cl.stats[STAT_HEALTH];
     if(lastHealth > 0 && health > 0 && health < lastHealth)
     {
-        burst = std::min(2.5f, burst + static_cast<float>(lastHealth - health) / 15.f);
+        burst = za::min(2.5f, burst + static_cast<float>(lastHealth - health) / 15.f);
     }
     lastHealth = health;
-    burst *= std::exp(-dt / 1.2f);
+    burst *= za::exp(-dt / 1.2f);
 
     // New drops, from the wounds the skins show.
-    damage = std::clamp(damage, 0, 3);
-    const float mult = std::clamp(vr_body_blood.value, 0.f, 4.f);
+    damage = za::clamp(damage, 0, 3);
+    const float mult = za::clamp(vr_body_blood.value, 0.f, 4.f);
     for(int hand = 0; hand < 2; hand++)
     {
         if(damage == 0 || dt <= 0.f)

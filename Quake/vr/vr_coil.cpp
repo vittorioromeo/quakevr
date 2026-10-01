@@ -5,8 +5,16 @@
 #include "vr_mem.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <cmath>
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "vr_zancle.hpp"
+
 
 namespace qvr::coil
 {
@@ -31,7 +39,7 @@ constexpr int springs = segments - 2;
 float relaxedLength(const Style& style)
 {
     // Turns touching: the wire's thickness a turn; a plain cable as long as the coiled one relaxed.
-    return static_cast<float>(std::max(style.turns, 64)) * 2.f * style.wireRadius;
+    return static_cast<float>(za::max(style.turns, 64)) * 2.f * style.wireRadius;
 }
 
 glm::vec3 catmullRom(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3, float t)
@@ -42,7 +50,7 @@ glm::vec3 catmullRom(const glm::vec3& p0, const glm::vec3& p1, const glm::vec3& 
 
 glm::vec3 anyPerpendicular(const glm::vec3& t)
 {
-    const glm::vec3 ref = std::fabs(t.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
+    const glm::vec3 ref = za::fabs(t.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
     return glm::normalize(glm::cross(ref, t));
 }
 
@@ -79,14 +87,14 @@ struct NearLight
 // Cord::build's buffers (drawn on the main thread; every cord in turn).
 struct CoilScratch
 {
-    std::vector<glm::vec3> line;     // the spline through the nodes, sampled finely
-    std::vector<float> along;        // its length at each sample
-    std::vector<glm::vec3> tangent;  // its frames
-    std::vector<glm::vec3> normal;
-    std::vector<NearLight> lights;   // the dynamic lights reaching it
-    std::vector<glm::vec3> mid;      // the rings' middles
-    std::vector<glm::vec3> radial;   // and axes
-    auto members() { return std::tie(line, along, tangent, normal, lights, mid, radial); }
+    za::Vector<glm::vec3> line;     // the spline through the nodes, sampled finely
+    za::Vector<float> along;        // its length at each sample
+    za::Vector<glm::vec3> tangent;  // its frames
+    za::Vector<glm::vec3> normal;
+    za::Vector<NearLight> lights;   // the dynamic lights reaching it
+    za::Vector<glm::vec3> mid;      // the rings' middles
+    za::Vector<glm::vec3> radial;   // and axes
+    auto members() { return qvr::mem::list(line, along, tangent, normal, lights, mid, radial); }
 };
 mem::Scratch<CoilScratch> scratch{"coil"};
 
@@ -94,8 +102,10 @@ mem::Scratch<CoilScratch> scratch{"coil"};
 
 void Cord::reset(const glm::vec3& a, const glm::vec3& b)
 {
-    pos_.assign(segments + 1, a);
-    vel_.assign(segments + 1, glm::vec3{0.f});
+    pos_.clear();
+    pos_.resize(segments + 1, a);
+    vel_.clear();
+    vel_.resize(segments + 1, glm::vec3{0.f});
     for(int i = 0; i <= segments; i++)
     {
         pos_[i] = glm::mix(a, b, static_cast<float>(i) / segments);
@@ -112,7 +122,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
     const float m2u = units::metresToUnits();
     const float dt = static_cast<float>(realtime - time_);
     // Afresh: first drawn, a long pause, or an end jumping away from the other (a teleport of one, a respawn).
-    if(!valid_ || dt > 0.25f || glm::distance(b - lastB_, a - lastA_) > 1.f * m2u || !std::isfinite(pos_[segments / 2].x))
+    if(!valid_ || dt > 0.25f || glm::distance(b - lastB_, a - lastA_) > 1.f * m2u || !qza::isfinite(pos_[segments / 2].x))
     {
         reset(a, b);
         return;
@@ -130,7 +140,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
         p += carry;
     }
     const glm::vec3 fromB = lastB_ + carry;
-    const glm::vec3 vb = (b - fromB) / std::max(dt, 1e-4f); // the free end's velocity relative to the body
+    const glm::vec3 vb = (b - fromB) / za::max(dt, 1e-4f); // the free end's velocity relative to the body
     lastA_ = a;
     lastB_ = b;
     time_ = realtime;
@@ -139,7 +149,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
     const float nodeMass = mass / (segments - 3); // the free nodes 2 .. segments - 2
     const float k = stiffness * springs / nodeMass;
     const glm::vec3 down{0.f, 0.f, -gravity * m2u};
-    const int steps = std::clamp(static_cast<int>(std::ceil(dt / substep)), 1, 60);
+    const int steps = za::clamp(static_cast<int>(za::ceil(dt / substep)), 1, 60);
     const float h = dt / steps;
     for(int step = 1; step <= steps; step++)
     {
@@ -182,7 +192,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
     }
 }
 
-bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sides) const
+bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& sides) const
 {
     rings_ = 0;
     if(!valid_ || pos_.size() != static_cast<size_t>(segments + 1))
@@ -193,8 +203,8 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
 
     // The line: a Catmull-Rom spline through the nodes, sampled finely, with its length along it.
     constexpr int perSegment = 6;
-    std::vector<glm::vec3>& line = scratch.line;
-    std::vector<float>& along = scratch.along;
+    za::Vector<glm::vec3>& line = scratch.line;
+    za::Vector<float>& along = scratch.along;
     line.clear();
     along.clear();
     for(int i = 0; i < segments; i++)
@@ -205,10 +215,10 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
         const glm::vec3 p3 = i + 2 <= segments ? pos_[i + 2] : 2.f * p2 - p1;
         for(int j = 0; j < perSegment; j++)
         {
-            line.push_back(catmullRom(p0, p1, p2, p3, static_cast<float>(j) / perSegment));
+            line.pushBack(catmullRom(p0, p1, p2, p3, static_cast<float>(j) / perSegment));
         }
     }
-    line.push_back(pos_[segments]);
+    line.pushBack(pos_[segments]);
     along.resize(line.size());
     along[0] = 0.f;
     for(size_t i = 1; i < line.size(); i++)
@@ -222,13 +232,13 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
     }
 
     // Frames carried along the line without twisting (parallel transport).
-    std::vector<glm::vec3>& tangent = scratch.tangent;
-    std::vector<glm::vec3>& normal = scratch.normal;
+    za::Vector<glm::vec3>& tangent = scratch.tangent;
+    za::Vector<glm::vec3>& normal = scratch.normal;
     tangent.resize(line.size());
     normal.resize(line.size());
     for(size_t i = 0; i < line.size(); i++)
     {
-        const glm::vec3 d = line[std::min(i + 1, line.size() - 1)] - line[i > 0 ? i - 1 : 0];
+        const glm::vec3 d = line[za::min(i + 1, line.size() - 1)] - line[i > 0 ? i - 1 : 0];
         tangent[i] = glm::length(d) > 1e-6f ? glm::normalize(d) : (i > 0 ? tangent[i - 1] : glm::vec3{0.f, 0.f, -1.f});
     }
     normal[0] = anyPerpendicular(tangent[0]);
@@ -242,27 +252,27 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
     float nearest = 1e9f;
     for(const glm::vec3& p : pos_)
     {
-        nearest = std::min(nearest, glm::distance(p, eye));
+        nearest = za::min(nearest, glm::distance(p, eye));
     }
     const float metres = nearest / m2u;
     const int perTurn = metres < 0.6f ? 8 : metres < 1.2f ? 6 : 4;
     const int sidesAt = metres < 0.6f ? 6 : metres < 1.2f ? 5 : 4;
     const bool coiled = style_.turns > 0;
-    const int turns = std::max(style_.turns, 1);
-    const int rings = coiled ? turns * perTurn : std::max(static_cast<int>(line.size()) - 1, 1);
+    const int turns = za::max(style_.turns, 1);
+    const int rings = coiled ? turns * perTurn : za::max(static_cast<int>(line.size()) - 1, 1);
     rings_ = rings + 1;
 
     // The coil keeps its wire's length a turn: stretched, it opens out and narrows.
     const float pitch = length / static_cast<float>(turns);
     const float wireTurn = 2.f * pi * style_.coilRadius * m2u;
     const float coilRadius =
-        coiled ? std::sqrt(std::max(wireTurn * wireTurn - pitch * pitch, 0.04f * wireTurn * wireTurn)) / (2.f * pi) : 0.f;
+        coiled ? za::sqrt(za::max(wireTurn * wireTurn - pitch * pitch, 0.04f * wireTurn * wireTurn)) / (2.f * pi) : 0.f;
     const float wire = style_.wireRadius * m2u;
 
     // The light: the world's at three points along it, and the dynamic lights that reach it.
     const glm::vec3 lightAt[3] = {worldLight(line[line.size() / 6]), worldLight(line[line.size() / 2]),
         worldLight(line[line.size() * 5 / 6])};
-    std::vector<NearLight>& lights = scratch.lights;
+    za::Vector<NearLight>& lights = scratch.lights;
     lights.clear();
     glm::vec3 centre{0.f};
     for(const glm::vec3& p : pos_)
@@ -281,19 +291,19 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
         const glm::vec3 lp{l.pos[0], l.pos[1], l.pos[2]};
         if(glm::distance(lp, centre) < l.radius + reach)
         {
-            lights.push_back({&l, lp, glm::vec3{l.color[0], l.color[1], l.color[2]} / 128.f, l.radius});
+            lights.pushBack({&l, lp, glm::vec3{l.color[0], l.color[1], l.color[2]} / 128.f, l.radius});
         }
     }
 
     // The rings: their middles on the helix, the wire's direction and an axis across it, and the light reaching them
     // (the dynamic lights' summed, from their mean direction by strength). The GPU makes the wire round them and
     // shades it (gfx::drawTube).
-    std::vector<glm::vec3>& mid = scratch.mid;
-    std::vector<glm::vec3>& radial = scratch.radial;
+    za::Vector<glm::vec3>& mid = scratch.mid;
+    za::Vector<glm::vec3>& radial = scratch.radial;
     mid.resize(rings + 1);
     radial.resize(rings + 1);
     out.resize(rings + 1);
-    const int numLights = std::min(static_cast<int>(lights.size()), 4);
+    const int numLights = za::min(static_cast<int>(lights.size()), 4);
     size_t seg = 0;
     for(int r = 0; r <= rings; r++)
     {
@@ -303,17 +313,17 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
         {
             seg++;
         }
-        const float span = std::max(along[seg + 1] - along[seg], 1e-6f);
-        const float f = std::clamp((s - along[seg]) / span, 0.f, 1.f);
+        const float span = za::max(along[seg + 1] - along[seg], 1e-6f);
+        const float f = za::clamp((s - along[seg]) / span, 0.f, 1.f);
         const glm::vec3 c = glm::mix(line[seg], line[seg + 1], f);
         const glm::vec3 t = glm::normalize(glm::mix(tangent[seg], tangent[seg + 1], f));
         glm::vec3 n = glm::mix(normal[seg], normal[seg + 1], f);
         n = glm::normalize(n - t * glm::dot(n, t));
         const glm::vec3 b = glm::cross(t, n);
         const float phi = 2.f * pi * static_cast<float>(turns) * u;
-        radial[r] = coiled ? std::cos(phi) * n + std::sin(phi) * b : n;
-        const float edge = std::min(s, length - s) / (taper * m2u);
-        const float narrow = coiled ? std::clamp(edge, 0.f, 1.f) : 0.f;
+        radial[r] = coiled ? za::cos(phi) * n + za::sin(phi) * b : n;
+        const float edge = za::min(s, length - s) / (taper * m2u);
+        const float narrow = coiled ? za::clamp(edge, 0.f, 1.f) : 0.f;
         mid[r] = c + radial[r] * (coilRadius * narrow * narrow * (3.f - 2.f * narrow));
 
         gfx::TubeRing& ring = out[r];
@@ -341,7 +351,7 @@ bool Cord::build(const glm::vec3& eye, std::vector<gfx::TubeRing>& out, int& sid
     for(int r = 0; r <= rings; r++)
     {
         // The wire's own direction (along the helix), and the axis across it from the line out to the wire.
-        const glm::vec3 t = glm::normalize(mid[std::min(r + 1, rings)] - mid[std::max(r - 1, 0)]);
+        const glm::vec3 t = glm::normalize(mid[za::min(r + 1, rings)] - mid[za::max(r - 1, 0)]);
         glm::vec3 e = radial[r] - t * glm::dot(radial[r], t);
         e = glm::length(e) > 1e-6f ? glm::normalize(e) : anyPerpendicular(t);
         out[r].mid = glm::vec4{mid[r], wire};

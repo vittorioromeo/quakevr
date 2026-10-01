@@ -6,11 +6,14 @@
 #include "vr_profile.hpp"
 #include "vr_upscale.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <iterator>
-#include <vector>
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Tan.hpp"
+
 
 #ifndef GL_SHADING_RATE_IMAGE_NV
 #define GL_SHADING_RATE_IMAGE_NV 0x9563
@@ -65,11 +68,11 @@ void radii(float& inner, float& outer)
 {
     // conservative, balanced, aggressive
     constexpr float presets[3][2] = {{45.f, 60.f}, {35.f, 50.f}, {25.f, 40.f}};
-    const int preset = std::clamp(static_cast<int>(vr_foveated.value), 1, 3) - 1;
+    const int preset = za::clamp(static_cast<int>(vr_foveated.value), 1, 3) - 1;
     inner = vr_foveated_inner.value > 0.f ? vr_foveated_inner.value : presets[preset][0];
     outer = vr_foveated_outer.value > 0.f ? vr_foveated_outer.value : presets[preset][1];
-    inner = std::clamp(inner, 5.f, 89.f);
-    outer = std::clamp(outer, inner, 89.f);
+    inner = za::clamp(inner, 5.f, 89.f);
+    outer = za::clamp(outer, inner, 89.f);
 }
 
 [[nodiscard]] bool sameLens(const upscale::Lens& a, const upscale::Lens& b)
@@ -108,21 +111,21 @@ RateImage& rateImage(int eye, int width, int height)
     }
 
     // Each tile's rate from its point nearest the lens centre (so no pixel is shaded coarser than its angle asks).
-    const float tanInner = std::tan(glm::radians(inner));
-    const float tanOuter = std::tan(glm::radians(outer));
-    std::vector<unsigned char> texels(static_cast<std::size_t>(tilesX) * tilesY);
+    const float tanInner = za::tan(glm::radians(inner));
+    const float tanOuter = za::tan(glm::radians(outer));
+    za::Vector<unsigned char> texels(static_cast<za::SizeT>(tilesX) * tilesY);
     double pixels[3] = {0.0, 0.0, 0.0};
     for(int ty = 0; ty < tilesY; ty++)
     {
         for(int tx = 0; tx < tilesX; tx++)
         {
             const float x0 = static_cast<float>(tx * tileWidth), y0 = static_cast<float>(ty * tileHeight);
-            const float x1 = std::min(x0 + tileWidth, static_cast<float>(width));
-            const float y1 = std::min(y0 + tileHeight, static_cast<float>(height));
-            const glm::vec2 nearest{std::clamp(lens.centre.x, x0, x1), std::clamp(lens.centre.y, y0, y1)};
+            const float x1 = za::min(x0 + tileWidth, static_cast<float>(width));
+            const float y1 = za::min(y0 + tileHeight, static_cast<float>(height));
+            const glm::vec2 nearest{za::clamp(lens.centre.x, x0, x1), za::clamp(lens.centre.y, y0, y1)};
             const float t = glm::length((nearest - lens.centre) / lens.pixelsPerTangent);
             const unsigned char rate = t < tanInner ? 0 : t < tanOuter ? 1 : 2;
-            texels[static_cast<std::size_t>(ty) * tilesX + tx] = rate;
+            texels[static_cast<za::SizeT>(ty) * tilesX + tx] = rate;
             pixels[rate] += static_cast<double>(x1 - x0) * (y1 - y0);
         }
     }
@@ -238,7 +241,7 @@ bool supported()
     for(GLint i = 0; i < count && !found; i++)
     {
         const auto* name = reinterpret_cast<const char*>(GL_GetStringiFunc(GL_EXTENSIONS, static_cast<GLuint>(i)));
-        found = name && !std::strcmp(name, "GL_NV_shading_rate_image");
+        found = name && !ZA_STRCMP(name, "GL_NV_shading_rate_image");
     }
     if(found)
     {
@@ -274,7 +277,7 @@ void beginScene(int eye, int width, int height)
     QVR_PROFILE("foveation");
     const RateImage& img = rateImage(eye, width, height);
     bindShadingRateImage(img.texture);
-    shadingRateImagePalette(0, 0, static_cast<GLsizei>(std::size(palette)), palette);
+    shadingRateImagePalette(0, 0, static_cast<GLsizei>(za::getArraySize(palette)), palette);
 
     if(GL_NeedsSceneEffects())
     {

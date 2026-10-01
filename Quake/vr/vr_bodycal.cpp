@@ -3,6 +3,7 @@
 #include "vr_bodycal.hpp"
 #include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
+#include "vr_files.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
@@ -14,18 +15,32 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/IsNan.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Strlen.hpp"
+#include "Zancle/Base/Strstr.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fmin.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "vr_zancle.hpp"
+
 #include <glm/gtc/quaternion.hpp>
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <vector>
+#include <stdio.h>
+#include <time.h>
 
 namespace qvr::bodycal
 {
@@ -127,8 +142,8 @@ struct StepData
 {
     bool taken{false};
     float yaw{0.f};          // the body's facing (degrees, world)
-    std::vector<Raw> raw;    // Static: the capture (averaged); Motion: every frame
-    std::vector<Local> local; // (a synthetic session file's, already in the chest's frame)
+    za::Vector<Raw> raw;    // Static: the capture (averaged); Motion: every frame
+    za::Vector<Local> local; // (a synthetic session file's, already in the chest's frame)
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -148,7 +163,7 @@ struct StepQuality
     float value{0.f};   // cm: Static, the reach's residual (the worse arm); Motion, the rms of the samples kept
     float kept{1.f};    // Motion: the share of the samples kept
     float coverage{0.f}; // Motion: how much the moves spread (degrees or cm)
-    std::string note;
+    za::String note;
 };
 
 struct Result
@@ -175,7 +190,7 @@ struct Result
     float rms{0.f};
     float dropped{0.f};
     int iterations{0};
-    std::string when;
+    za::String when;
 };
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -195,18 +210,18 @@ struct Session
     int returnPage{-1};
     int world{0};
     bool seated{false};
-    std::vector<int> todo; // the steps still to take
+    za::Vector<int> todo; // the steps still to take
     Sub sub{Sub::Read};
     double subStart{0.0};
     still::Countdown countdown;
     still::Window window{{{still::Window::Kind::Point}, {still::Window::Kind::Point}, {still::Window::Kind::Point},
         {still::Window::Kind::AveragedDirection}}};
-    std::vector<Raw> recent; // the window's frames (the capture averages them)
-    std::vector<Raw> recording;
+    za::Vector<Raw> recent; // the window's frames (the capture averages them)
+    za::Vector<Raw> recording;
     float yaw{0.f};
     double gotIt{-1.0};
-    std::string hint;
-    std::string message; // why it stopped
+    za::String hint;
+    za::String message; // why it stopped
     int lastFrame{-1};
     StepData data[StepCount];
     float eyeHeight{0.f}; // the height the chest frames are for (the Stand capture's, or the setting)
@@ -215,9 +230,9 @@ Session ses;
 Result result;
 bool applied = false;
 int versionCounter = 0;
-std::string lineBuf[24];
-std::string rowBuf[StepCount];
-std::string savedFile;
+za::String lineBuf[24];
+za::String rowBuf[StepCount];
+za::String savedFile;
 
 void bump()
 {
@@ -296,17 +311,17 @@ struct ChestFrame
     return l;
 }
 
-[[nodiscard]] std::vector<Local> localsOf(const StepData& d, float eyeHeight)
+[[nodiscard]] za::Vector<Local> localsOf(const StepData& d, float eyeHeight)
 {
     if(!d.local.empty())
     {
         return d.local;
     }
-    std::vector<Local> out;
+    za::Vector<Local> out;
     out.reserve(d.raw.size());
     for(const Raw& r : d.raw)
     {
-        out.push_back(toLocal(r, d.yaw, eyeHeight));
+        out.pushBack(toLocal(r, d.yaw, eyeHeight));
     }
     return out;
 }
@@ -337,8 +352,8 @@ struct Settings
     const float length = CLAMP(0.5f, vr_body_arm_length.value, 2.f);
     // As avatar.cpp's armLengths: measured (or the model's times Arm Length), the tweak on top.
     const float mu = measuredArmCm(0), mf = measuredArmCm(1);
-    s.upper = std::max(0.05f, (mu > 0.f ? mu * 0.01f : bu * s.scale * length) + t * armTweakCm(0) * 0.01f);
-    s.fore = std::max(0.05f, (mf > 0.f ? mf * 0.01f : bf * s.scale * length) + t * armTweakCm(1) * 0.01f);
+    s.upper = za::max(0.05f, (mu > 0.f ? mu * 0.01f : bu * s.scale * length) + t * armTweakCm(0) * 0.01f);
+    s.fore = za::max(0.05f, (mf > 0.f ? mf * 0.01f : bf * s.scale * length) + t * armTweakCm(1) * 0.01f);
     s.raise = shoulderRise() - (1.f - t) * vr_body_tweak_shoulder_rise.value;
     s.swing = shoulderSwing() - (1.f - t) * vr_body_tweak_shoulder_swing.value;
     s.calibrated = calibrated();
@@ -409,22 +424,22 @@ constexpr double priorElbowSd = 1.0;   // metres: the elbows only where the Elbo
 struct FitInput
 {
     float scale{1.f};
-    std::vector<Obs> obs;
+    za::Vector<Obs> obs;
     glm::vec3 elbow0[2]{};
 };
 
 struct FitOutput
 {
-    std::array<double, ParamCount> p{};
-    std::array<double, ParamCount> se{};
-    std::vector<double> residual; // per observation, cm
-    std::vector<double> weight;   // the robust weight at the end (0: dropped)
+    za::Array<double, ParamCount> p{};
+    za::Array<double, ParamCount> se{};
+    za::Vector<double> residual; // per observation, cm
+    za::Vector<double> weight;   // the robust weight at the end (0: dropped)
     double upperSe{0.0};
     int iterations{0};
     bool ok{false};
 };
 
-[[nodiscard]] avatar::ShoulderModel modelOf(const std::array<double, ParamCount>& p, float scale)
+[[nodiscard]] avatar::ShoulderModel modelOf(const za::Array<double, ParamCount>& p, float scale)
 {
     avatar::ShoulderModel m;
     m.scale = scale;
@@ -437,7 +452,7 @@ struct FitOutput
 }
 
 // The residuals of the observations (not weighted), then the priors'.
-void residuals(const FitInput& in, const std::array<double, ParamCount>& p, std::vector<double>& out)
+void residuals(const FitInput& in, const za::Array<double, ParamCount>& p, za::Vector<double>& out)
 {
     const avatar::ShoulderModel m = modelOf(p, in.scale);
     const glm::dvec3 elbow[2] = {{p[PElbowL], p[PElbowL + 1], p[PElbowL + 2]}, {p[PElbowR], p[PElbowR + 1], p[PElbowR + 2]}};
@@ -481,19 +496,19 @@ void residuals(const FitInput& in, const std::array<double, ParamCount>& p, std:
 }
 
 // Solves A x = b (n x n, row-major) by Gaussian elimination with partial pivoting; false if singular.
-[[nodiscard]] bool solve(std::vector<double> a, std::vector<double> b, int n, std::vector<double>& x)
+[[nodiscard]] bool solve(za::Vector<double> a, za::Vector<double> b, int n, za::Vector<double>& x)
 {
     for(int c = 0; c < n; c++)
     {
         int best = c;
         for(int r = c + 1; r < n; r++)
         {
-            if(std::abs(a[r * n + c]) > std::abs(a[best * n + c]))
+            if(qza::abs(a[r * n + c]) > qza::abs(a[best * n + c]))
             {
                 best = r;
             }
         }
-        if(std::abs(a[best * n + c]) < 1e-300)
+        if(qza::abs(a[best * n + c]) < 1e-300)
         {
             return false;
         }
@@ -501,9 +516,9 @@ void residuals(const FitInput& in, const std::array<double, ParamCount>& p, std:
         {
             for(int k = 0; k < n; k++)
             {
-                std::swap(a[c * n + k], a[best * n + k]);
+                za::genericSwap(a[c * n + k], a[best * n + k]);
             }
-            std::swap(b[c], b[best]);
+            za::genericSwap(b[c], b[best]);
         }
         for(int r = c + 1; r < n; r++)
         {
@@ -519,7 +534,8 @@ void residuals(const FitInput& in, const std::array<double, ParamCount>& p, std:
             b[r] -= f * b[c];
         }
     }
-    x.assign(n, 0.0);
+    x.clear();
+    x.resize(n, 0.0);
     for(int r = n - 1; r >= 0; r--)
     {
         double v = b[r];
@@ -538,20 +554,20 @@ void residuals(const FitInput& in, const std::array<double, ParamCount>& p, std:
 }
 
 // Levenberg-Marquardt on the weighted residuals; returns the last Jacobian's normal matrix (for the covariance).
-void levenberg(const FitInput& in, const std::vector<double>& weights, std::array<double, ParamCount>& p, std::vector<double>& jtj,
+void levenberg(const FitInput& in, const za::Vector<double>& weights, za::Array<double, ParamCount>& p, za::Vector<double>& jtj,
     double& cost, int& iterations)
 {
     const int n = ParamCount;
     const size_t no = in.obs.size();
-    std::vector<double> r, rp, rm;
-    const auto weighted = [&](const std::array<double, ParamCount>& q, std::vector<double>& out) {
+    za::Vector<double> r, rp, rm;
+    const auto weighted = [&](const za::Array<double, ParamCount>& q, za::Vector<double>& out) {
         residuals(in, q, out);
         for(size_t i = 0; i < no; i++)
         {
             out[i] *= weights[i];
         }
     };
-    const auto sumSq = [](const std::vector<double>& v) {
+    const auto sumSq = [](const za::Vector<double>& v) {
         double s = 0.0;
         for(double x : v)
         {
@@ -563,13 +579,13 @@ void levenberg(const FitInput& in, const std::vector<double>& weights, std::arra
     cost = sumSq(r);
     double lambda = 1e-3;
     const size_t m = r.size();
-    std::vector<double> J(m * n);
+    za::Vector<double> J(m * n);
     for(int it = 0; it < 80; it++)
     {
         iterations++;
         for(int j = 0; j < n; j++)
         {
-            std::array<double, ParamCount> a = p, b = p;
+            za::Array<double, ParamCount> a = p, b = p;
             const double h = stepOf(j);
             a[j] += h;
             b[j] -= h;
@@ -580,8 +596,9 @@ void levenberg(const FitInput& in, const std::vector<double>& weights, std::arra
                 J[i * n + j] = (rp[i] - rm[i]) / (2.0 * h);
             }
         }
-        jtj.assign(n * n, 0.0);
-        std::vector<double> g(n, 0.0);
+        jtj.clear();
+        jtj.resize(n * n, 0.0);
+        za::Vector<double> g(n, 0.0);
         for(size_t i = 0; i < m; i++)
         {
             const double* row = &J[i * n];
@@ -605,7 +622,7 @@ void levenberg(const FitInput& in, const std::vector<double>& weights, std::arra
         double largest = 0.0;
         for(int tries = 0; tries < 12; tries++)
         {
-            std::vector<double> A = jtj, rhs(n), step;
+            za::Vector<double> A = jtj, rhs(n), step;
             for(int a = 0; a < n; a++)
             {
                 A[a * n + a] += lambda * (jtj[a * n + a] + 1e-9);
@@ -616,27 +633,27 @@ void levenberg(const FitInput& in, const std::vector<double>& weights, std::arra
                 lambda *= 4.0;
                 continue;
             }
-            std::array<double, ParamCount> q = p;
+            za::Array<double, ParamCount> q = p;
             largest = 0.0;
             for(int a = 0; a < n; a++)
             {
                 q[a] += step[a];
-                largest = std::max(largest, std::abs(step[a]) / stepOf(a));
+                largest = za::max(largest, qza::abs(step[a]) / stepOf(a));
             }
-            q[PReach] = std::max(q[PReach], 0.2);
+            q[PReach] = za::max(q[PReach], 0.2);
             q[PFore] = CLAMP(0.08, q[PFore], q[PReach] - 0.08);
             q[PRaise] = CLAMP(0.0, q[PRaise], 45.0);
             q[PSwing] = CLAMP(0.0, q[PSwing], 45.0);
-            std::vector<double> rq;
+            za::Vector<double> rq;
             weighted(q, rq);
             const double c = sumSq(rq);
             if(c < cost)
             {
                 p = q;
-                r = std::move(rq);
+                r = ZA_MOVE(rq);
                 const double drop = cost - c;
                 cost = c;
-                lambda = std::max(lambda / 3.0, 1e-9);
+                lambda = za::max(lambda / 3.0, 1e-9);
                 improved = drop > 1e-9 * cost;
                 break;
             }
@@ -649,19 +666,19 @@ void levenberg(const FitInput& in, const std::vector<double>& weights, std::arra
     }
 }
 
-[[nodiscard]] FitOutput fit(const FitInput& in, const std::array<double, ParamCount>& start)
+[[nodiscard]] FitOutput fit(const FitInput& in, const za::Array<double, ParamCount>& start)
 {
     FitOutput out;
     out.p = start;
     const size_t no = in.obs.size();
-    std::vector<double> weights(no);
+    za::Vector<double> weights(no);
     for(size_t i = 0; i < no; i++)
     {
         weights[i] = in.obs[i].weight;
     }
-    std::vector<double> jtj;
+    za::Vector<double> jtj;
     double cost = 0.0;
-    std::vector<double> r;
+    za::Vector<double> r;
     for(int round = 0; round < 4; round++)
     {
         levenberg(in, weights, out.p, jtj, cost, out.iterations);
@@ -669,40 +686,40 @@ void levenberg(const FitInput& in, const std::vector<double>& weights, std::arra
         // Tukey's biweight on the moves' samples (weight 1), by kind: the spread from their median absolute deviation.
         for(int kind : {ObsReach, ObsElbow})
         {
-            std::vector<double> vals;
+            za::Vector<double> vals;
             for(size_t i = 0; i < no; i++)
             {
                 if(in.obs[i].kind == kind && in.obs[i].weight == 1.0)
                 {
-                    vals.push_back(r[i]);
+                    vals.pushBack(r[i]);
                 }
             }
             if(vals.size() < 10)
             {
                 continue;
             }
-            std::vector<double> sorted = vals;
-            std::nth_element(sorted.begin(), sorted.begin() + sorted.size() / 2, sorted.end());
+            za::Vector<double> sorted = vals; // (sorted whole: the middle one is std::nth_element's, the same value)
+            za::quickSort(sorted.begin(), sorted.end());
             const double med = sorted[sorted.size() / 2];
             for(double& v : sorted)
             {
-                v = std::abs(v - med);
+                v = qza::abs(v - med);
             }
-            std::nth_element(sorted.begin(), sorted.begin() + sorted.size() / 2, sorted.end());
-            const double spread = std::max(1.4826 * sorted[sorted.size() / 2], 0.3);
+            za::quickSort(sorted.begin(), sorted.end());
+            const double spread = za::max(1.4826 * sorted[sorted.size() / 2], 0.3);
             for(size_t i = 0; i < no; i++)
             {
                 if(in.obs[i].kind == kind && in.obs[i].weight == 1.0)
                 {
                     const double u = r[i] / (4.685 * spread);
-                    weights[i] = std::abs(u) < 1.0 ? (1.0 - u * u) * (1.0 - u * u) : 0.0;
+                    weights[i] = qza::abs(u) < 1.0 ? (1.0 - u * u) * (1.0 - u * u) : 0.0;
                 }
             }
         }
     }
     levenberg(in, weights, out.p, jtj, cost, out.iterations);
     residuals(in, out.p, r);
-    out.residual.assign(r.begin(), r.begin() + static_cast<std::ptrdiff_t>(no));
+    out.residual.assignRange(r.begin(), r.begin() + static_cast<za::PtrDiffT>(no));
     out.weight = weights;
 
     // The covariance: (J'J)^-1 times the residuals' variance.
@@ -711,14 +728,14 @@ void levenberg(const FitInput& in, const std::vector<double>& weights, std::arra
     {
         used += weights[i] > 0.0 ? 1.0 : 0.0;
     }
-    const double dof = std::max(1.0, used + 11.0 - static_cast<double>(ParamCount));
+    const double dof = za::max(1.0, used + 11.0 - static_cast<double>(ParamCount));
     const double s2 = cost / dof;
     const int n = ParamCount;
-    std::vector<double> cov(n * n, 0.0);
+    za::Vector<double> cov(n * n, 0.0);
     bool okCov = true;
     for(int c = 0; c < n && okCov; c++)
     {
-        std::vector<double> e(n, 0.0), col;
+        za::Vector<double> e(n, 0.0), col;
         e[c] = 1.0;
         okCov = solve(jtj, e, n, col);
         for(int k = 0; k < n && okCov; k++)
@@ -730,11 +747,11 @@ void levenberg(const FitInput& in, const std::vector<double>& weights, std::arra
     {
         for(int k = 0; k < n; k++)
         {
-            out.se[k] = std::sqrt(std::max(0.0, cov[k * n + k]));
+            out.se[k] = za::sqrt(za::max(0.0, cov[k * n + k]));
         }
-        out.upperSe = std::sqrt(std::max(0.0, cov[PReach * n + PReach] + cov[PFore * n + PFore] - 2.0 * cov[PReach * n + PFore]));
+        out.upperSe = za::sqrt(za::max(0.0, cov[PReach * n + PReach] + cov[PFore * n + PFore] - 2.0 * cov[PReach * n + PFore]));
     }
-    out.ok = std::isfinite(out.p[PReach]) && out.p[PReach] > 0.3 && out.p[PReach] < 1.2 && out.p[PFore] > 0.1;
+    out.ok = qza::isfinite(out.p[PReach]) && out.p[PReach] > 0.3 && out.p[PReach] < 1.2 && out.p[PFore] > 0.1;
     return out;
 }
 
@@ -750,10 +767,10 @@ struct Pivot
     float spread{0.f};               // degrees: the smaller of the turns' two widest spreads
 };
 
-[[nodiscard]] Pivot pivot(const std::vector<Local>& ls, int side)
+[[nodiscard]] Pivot pivot(const za::Vector<Local>& ls, int side)
 {
     Pivot pv;
-    std::vector<double> A(36, 0.0), b(6, 0.0), x;
+    za::Vector<double> A(36, 0.0), b(6, 0.0), x;
     int n = 0;
     for(const Local& l : ls)
     {
@@ -792,7 +809,7 @@ struct Pivot
     double sq = 0.0;
     glm::vec3 drawn{0.f}, offset{0.f};
     glm::mat3 ref = ls.front().gripRot[side];
-    std::vector<glm::vec3> turns;
+    za::Vector<glm::vec3> turns;
     for(const Local& l : ls)
     {
         const glm::mat3& R = l.gripRot[side];
@@ -803,15 +820,15 @@ struct Pivot
         const glm::mat3 handInGrip = glm::transpose(R) * l.hand[side];
         offset += glm::transpose(handInGrip) * (d - pv.real);
         const glm::quat q = glm::quat_cast(R * glm::transpose(ref));
-        const float angle = 2.f * std::acos(std::fmin(1.f, std::abs(q.w)));
+        const float angle = 2.f * za::acos(za::fmin(1.f, qza::abs(q.w)));
         const glm::vec3 axis = glm::length(glm::vec3{q.x, q.y, q.z}) > 1e-6f ? glm::normalize(glm::vec3{q.x, q.y, q.z}) * (q.w < 0.f ? -1.f : 1.f)
                                                                            : glm::vec3{0.f};
-        turns.push_back(axis * glm::degrees(angle));
+        turns.pushBack(axis * glm::degrees(angle));
     }
     const float k = 1.f / static_cast<float>(ls.size());
     pv.drawn = drawn * k;
     pv.offsetHand = offset * k;
-    pv.rms = static_cast<float>(std::sqrt(sq / static_cast<double>(ls.size())));
+    pv.rms = static_cast<float>(za::sqrt(sq / static_cast<double>(ls.size())));
     // The turns' spread: the covariance's two largest eigenvalues (a 3x3 by power iteration, deflated).
     glm::vec3 mean{0.f};
     for(const glm::vec3& t : turns)
@@ -840,13 +857,13 @@ struct Pivot
         eig[e] = glm::dot(v, C * v);
         C -= eig[e] * glm::outerProduct(v, v);
     }
-    pv.spread = std::sqrt(std::max(0.f, eig[1]));
+    pv.spread = za::sqrt(za::max(0.f, eig[1]));
     pv.ok = true;
     return pv;
 }
 
 // The two largest spreads (standard deviations) of a set of points or directions.
-void spreads(const std::vector<glm::vec3>& pts, float& first, float& second)
+void spreads(const za::Vector<glm::vec3>& pts, float& first, float& second)
 {
     first = second = 0.f;
     if(pts.size() < 3)
@@ -880,28 +897,28 @@ void spreads(const std::vector<glm::vec3>& pts, float& first, float& second)
         eig[e] = glm::dot(v, C * v);
         C -= eig[e] * glm::outerProduct(v, v);
     }
-    first = std::sqrt(std::max(0.f, eig[0]));
-    second = std::sqrt(std::max(0.f, eig[1]));
+    first = za::sqrt(za::max(0.f, eig[0]));
+    second = za::sqrt(za::max(0.f, eig[1]));
 }
 
 // How well a recorded move covers what the step needs (Circles: the arms' directions, degrees; Elbows: the wrists'
 // sweep, cm; Wrists: the hands' turns, degrees), the least of both arms.
-[[nodiscard]] float coverage(int step, const std::vector<Local>& ls, const avatar::ShoulderModel& m)
+[[nodiscard]] float coverage(int step, const za::Vector<Local>& ls, const avatar::ShoulderModel& m)
 {
     float least = 1e9f;
     for(int side = 0; side < 2; side++)
     {
-        std::vector<glm::vec3> pts;
+        za::Vector<glm::vec3> pts;
         for(const Local& l : ls)
         {
             if(step == Circles)
             {
                 const glm::vec3 d = l.wrist[side] - restShoulder(side, m);
-                pts.push_back(glm::degrees(1.f) * glm::normalize(d));
+                pts.pushBack(glm::degrees(1.f) * glm::normalize(d));
             }
             else if(step == Elbows)
             {
-                pts.push_back(l.wrist[side] * 100.f);
+                pts.pushBack(l.wrist[side] * 100.f);
             }
         }
         float a = 0.f, b = 0.f;
@@ -914,7 +931,7 @@ void spreads(const std::vector<glm::vec3>& pts, float& first, float& second)
         {
             spreads(pts, a, b);
         }
-        least = std::min(least, b);
+        least = za::min(least, b);
     }
     return least;
 }
@@ -943,7 +960,7 @@ constexpr float wristsNeed = 8.f;   // degrees
     const glm::vec3 s = restShoulder(0, m); // forward, left, up
     const glm::vec3 world = c.pos + (c.rot[2] * s.x - c.rot[1] * s.y + c.rot[0] * s.z) * units::metresToUnits();
     const glm::vec3 rel = (world - r.head) / units::metresToUnits() * 100.f;
-    return {-rel.x, -rel.z, std::abs(rel.y)};
+    return {-rel.x, -rel.z, qza::abs(rel.y)};
 }
 
 [[nodiscard]] Grade gradeStatic(float cm)
@@ -981,7 +998,7 @@ void analyse()
     const Settings now = current(r.eyeHeightNow);
     r.upperNow = now.upper * 100.f;
     r.foreNow = now.fore * 100.f;
-    r.stretchNow = std::max(1.f, vr_body_arm_stretch.value);
+    r.stretchNow = za::max(1.f, vr_body_arm_stretch.value);
     r.raiseNow = now.raise;
     r.swingNow = now.swing;
     r.eyeToShoulderNow = eyeToShoulder(modelOf(now), r.eyeHeightNow);
@@ -992,7 +1009,7 @@ void analyse()
     ref.scale = r.scale;
     const avatar::ShoulderModel refModel = modelOf(ref);
     const float reach0 = ref.upper + ref.fore;
-    std::vector<Local> locals[StepCount];
+    za::Vector<Local> locals[StepCount];
     for(int st = 0; st < StepCount; st++)
     {
         if(ses.data[st].taken)
@@ -1006,7 +1023,7 @@ void analyse()
     glm::vec3 elbowMean[2]{};
     for(int st = 0; st < StepCount; st++)
     {
-        const std::vector<Local>& ls = locals[st];
+        const za::Vector<Local>& ls = locals[st];
         if(ls.empty())
         {
             continue;
@@ -1015,7 +1032,7 @@ void analyse()
         {
             for(int side = 0; side < 2; side++)
             {
-                in.obs.push_back({ObsReach, st, side, ls.front().wrist[side], captureWeight});
+                in.obs.pushBack({ObsReach, st, side, ls.front().wrist[side], captureWeight});
             }
             continue;
         }
@@ -1024,7 +1041,7 @@ void analyse()
             continue;
         }
         // At most 240 samples an arm, evenly.
-        const size_t every = std::max<size_t>(1, ls.size() / 240);
+        const size_t every = za::max<size_t>(1, ls.size() / 240);
         int counted[2]{};
         for(size_t i = 0; i < ls.size(); i += every)
         {
@@ -1039,7 +1056,7 @@ void analyse()
                     {
                         continue;
                     }
-                    in.obs.push_back({ObsReach, st, side, w, 1.0});
+                    in.obs.pushBack({ObsReach, st, side, w, 1.0});
                 }
                 else
                 {
@@ -1048,7 +1065,7 @@ void analyse()
                     {
                         continue;
                     }
-                    in.obs.push_back({ObsElbow, st, side, w, 1.0});
+                    in.obs.pushBack({ObsElbow, st, side, w, 1.0});
                     elbowMean[side] += w;
                     counted[side]++;
                 }
@@ -1061,18 +1078,18 @@ void analyse()
                 if(counted[side] > 20)
                 {
                     elbowMean[side] /= static_cast<float>(counted[side]);
-                    in.obs.push_back({ObsLink, st, side, elbowMean[side], captureWeight});
+                    in.obs.pushBack({ObsLink, st, side, elbowMean[side], captureWeight});
                 }
             }
         }
     }
 
     // The start: the body as it is (at the new height), the elbows under the shoulders.
-    std::array<double, ParamCount> p0{};
+    za::Array<double, ParamCount> p0{};
     p0[PBack] = ref.offset.x;
     p0[PUp] = ref.offset.y;
     p0[POut] = ref.offset.z;
-    p0[PReach] = std::max(0.35f, reach0);
+    p0[PReach] = za::max(0.35f, reach0);
     p0[PFore] = priorForeShare * p0[PReach];
     p0[PRaise] = priorRaise;
     p0[PSwing] = priorSwing;
@@ -1145,7 +1162,7 @@ void analyse()
             }
             s2 += w * f.residual[i] * f.residual[i];
             w2 += w;
-            worst = std::max(worst, std::abs(f.residual[i]));
+            worst = za::max(worst, qza::abs(f.residual[i]));
             if(o.kind == ObsReach)
             {
                 sideSum[o.side] += w * f.residual[i];
@@ -1163,7 +1180,7 @@ void analyse()
         }
         else if(st != Wrists)
         {
-            q.value = w2 > 0.0 ? static_cast<float>(std::sqrt(s2 / w2) * resUnit * 100.0) : 99.f;
+            q.value = w2 > 0.0 ? static_cast<float>(za::sqrt(s2 / w2) * resUnit * 100.0) : 99.f;
             q.kept = n ? static_cast<float>(kept) / static_cast<float>(n) : 0.f;
             q.coverage = coverage(st, locals[st], modelOf(p, r.scale));
             const bool covered = q.coverage >= coverageNeeded(st);
@@ -1178,7 +1195,7 @@ void analyse()
         sq += s2;
         sw += w2;
     }
-    r.rms = sw > 0.0 ? static_cast<float>(std::sqrt(sq / sw) * resUnit * 100.0) : 0.f;
+    r.rms = sw > 0.0 ? static_cast<float>(za::sqrt(sq / sw) * resUnit * 100.0) : 0.f;
     r.dropped = moves ? static_cast<float>(dropped) / static_cast<float>(moves) : 0.f;
     for(int side = 0; side < 2; side++)
     {
@@ -1201,7 +1218,7 @@ void analyse()
                 r.wristOff[side] = glm::length(pv.offsetHand) * 100.f;
                 r.wristOffHand[side] = pv.offsetHand * 100.f;
                 r.wristRms[side] = pv.rms * 100.f;
-                worstRms = std::max(worstRms, pv.rms * 100.f);
+                worstRms = za::max(worstRms, pv.rms * 100.f);
             }
         }
         q.value = worstRms;
@@ -1220,8 +1237,8 @@ void analyse()
     }
 
     char stamp[32];
-    const std::time_t t = std::time(nullptr);
-    std::strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M", std::localtime(&t));
+    const time_t t = time(nullptr);
+    strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M", localtime(&t));
     r.when = stamp;
     result = r;
 }
@@ -1232,14 +1249,14 @@ void analyse()
 struct Setting
 {
     cvar_t* cvar;
-    std::string value;
+    za::String value;
 };
 
-[[nodiscard]] std::vector<Setting> candidate()
+[[nodiscard]] za::Vector<Setting> candidate()
 {
     const Result& r = result;
-    std::vector<Setting> list;
-    const auto add = [&](cvar_t& c, const char* fmt, float v) { list.push_back({&c, va(fmt, v)}); };
+    za::Vector<Setting> list;
+    const auto add = [&](cvar_t& c, const char* fmt, float v) { list.pushBack({&c, va(fmt, v)}); };
     if(!r.seated)
     {
         add(vr_height_calibration, "%.4f", r.eyeHeight);
@@ -1257,30 +1274,30 @@ struct Setting
             &vr_body_tweak_shoulders_up, &vr_body_tweak_shoulders_out, &vr_body_tweak_shoulder_rise,
             &vr_body_tweak_shoulder_swing})
     {
-        list.push_back({c, calibrated() ? std::string(c->string) : std::string("0")});
+        list.pushBack({c, calibrated() ? za::String(c->string) : za::String("0")});
     }
     return list;
 }
 
-[[nodiscard]] std::vector<Setting> snapshot(const std::vector<Setting>& of)
+[[nodiscard]] za::Vector<Setting> snapshot(const za::Vector<Setting>& of)
 {
-    std::vector<Setting> list;
+    za::Vector<Setting> list;
     for(const Setting& s : of)
     {
-        list.push_back({s.cvar, s.cvar->string});
+        list.pushBack({s.cvar, s.cvar->string});
     }
     return list;
 }
 
-void write(const std::vector<Setting>& list)
+void write(const za::Vector<Setting>& list)
 {
     for(const Setting& s : list)
     {
-        Cvar_SetQuick(s.cvar, s.value.c_str());
+        Cvar_SetQuick(s.cvar, s.value.cStr());
     }
 }
 
-std::vector<Setting> originals;   // the settings before the preview
+za::Vector<Setting> originals;   // the settings before the preview
 bool previewOn = false;           // the result's values set for the preview
 bool calibratedBefore = false;    // the settings before the preview: calibrated, tweaked (the page's note)
 bool tweakedBefore = false;
@@ -1322,14 +1339,14 @@ void showBody(bool on)
 }
 
 // vr_bodycal_undo: the settings before the last Apply ("name value;..."), kept with the config.
-void saveUndo(const std::vector<Setting>& before)
+void saveUndo(const za::Vector<Setting>& before)
 {
-    std::string s;
+    za::String s;
     for(const Setting& b : before)
     {
-        s += std::string(b.cvar->name) + " " + b.value + ";";
+        s += za::String(b.cvar->name) + " " + b.value + ";";
     }
-    Cvar_SetQuick(&vr_bodycal_undo, s.c_str());
+    Cvar_SetQuick(&vr_bodycal_undo, s.cStr());
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1337,13 +1354,13 @@ void saveUndo(const std::vector<Setting>& before)
 
 void saveSession()
 {
-    const std::string dir = std::string(com_gamedir) + "/bodycal";
-    Sys_mkdir(dir.c_str());
+    const za::String dir = za::String(com_gamedir) + "/bodycal";
+    Sys_mkdir(dir.cStr());
     char stamp[32];
-    const std::time_t t = std::time(nullptr);
-    std::strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", std::localtime(&t));
-    const std::string path = dir + "/" + stamp + ".txt";
-    FILE* f = fopen(path.c_str(), "w");
+    const time_t t = time(nullptr);
+    strftime(stamp, sizeof(stamp), "%Y-%m-%d_%H-%M-%S", localtime(&t));
+    const za::String path = dir + "/" + stamp + ".txt";
+    FILE* f = fopen(path.cStr(), "w");
     if(!f)
     {
         return;
@@ -1423,37 +1440,39 @@ void saveSession()
         r.reachSide[0], r.reachSide[1], r.wristOff[0], r.wristOff[1]);
     fclose(f);
     savedFile = path;
-    Con_Printf("Body Calibration: saved %s\n", path.c_str());
+    Con_Printf("Body Calibration: saved %s\n", path.cStr());
 }
 
-[[nodiscard]] bool loadSession(const char* name, std::string& error)
+[[nodiscard]] bool loadSession(const char* name, za::String& error)
 {
-    std::string path = name;
-    std::ifstream in(path);
-    if(!in)
+    za::String path = name;
+    za::String text;
+    bool opened = files::readText(path.cStr(), text);
+    if(!opened)
     {
-        path = std::string(com_gamedir) + "/" + name;
-        in.open(path);
+        path = za::String(com_gamedir) + "/" + name;
+        opened = files::readText(path.cStr(), text);
     }
-    if(!in)
+    if(!opened)
     {
-        path = std::string(com_gamedir) + "/bodycal/" + name;
-        in.open(path);
+        path = za::String(com_gamedir) + "/bodycal/" + name;
+        opened = files::readText(path.cStr(), text);
     }
-    if(!in)
+    if(!opened)
     {
-        error = std::string("can't open ") + name;
+        error = za::String("can't open ") + name;
         return false;
     }
     Session s;
     s.eyeHeight = units::eyeHeight();
     int st = -1;
-    std::string line;
+    za::Vector<za::StringView> lines;
+    files::forLines(text, [&](za::StringView l) { lines.pushBack(l); });
     const float m2u = units::metresToUnits();
-    while(std::getline(in, line))
+    for(const za::StringView line : lines)
     {
-        std::istringstream w(line);
-        std::string key;
+        files::Words w{line};
+        za::String key;
         if(!(w >> key) || key[0] == '#')
         {
             continue;
@@ -1470,7 +1489,7 @@ void saveSession()
         }
         else if(key == "step")
         {
-            std::string n, y;
+            za::String n, y;
             w >> n >> y;
             st = -1;
             for(int i = 0; i < StepCount; i++)
@@ -1511,17 +1530,17 @@ void saveSession()
             }
             if(w)
             {
-                s.data[st].raw.push_back(r);
+                s.data[st].raw.pushBack(r);
             }
         }
         else if(key == "l" && st >= 0)
         {
             Local l;
-            std::vector<float> v;
+            za::Vector<float> v;
             float x;
             while(w >> x)
             {
-                v.push_back(x);
+                v.pushBack(x);
             }
             if(v.size() == 6)
             {
@@ -1550,7 +1569,7 @@ void saveSession()
             {
                 continue;
             }
-            s.data[st].local.push_back(l);
+            s.data[st].local.pushBack(l);
         }
     }
     for(int i = 0; i < StepCount; i++)
@@ -1561,7 +1580,7 @@ void saveSession()
         }
     }
     const int page = ses.returnPage;
-    ses = std::move(s);
+    ses = ZA_MOVE(s);
     ses.returnPage = page;
     return true;
 }
@@ -1606,7 +1625,7 @@ void finish()
         S_LocalSound("misc/menu3.wav");
         ses.phase = Phase::Idle;
         ses.message = "couldn't measure: redo the poses";
-        Con_Printf("Body Calibration: couldn't measure (%s)\n", result.when.c_str());
+        Con_Printf("Body Calibration: couldn't measure (%s)\n", result.when.cStr());
     }
     bump();
     if(ses.returnPage >= 0 && key_dest != key_menu)
@@ -1640,7 +1659,7 @@ void nextStep(double now)
     beginStep(now);
 }
 
-bool begin(std::vector<int> todo, int returnPage)
+bool begin(za::Vector<int> todo, int returnPage)
 {
     if(!vrActive() || cls.state != ca_connected)
     {
@@ -1661,7 +1680,7 @@ bool begin(std::vector<int> todo, int returnPage)
     ses.returnPage = returnPage;
     ses.world = worldGeneration();
     ses.phase = Phase::Capturing;
-    ses.todo = std::move(todo);
+    ses.todo = ZA_MOVE(todo);
     ses.message.clear();
     ses.lastFrame = -1;
     beginStep(realtime);
@@ -1672,18 +1691,18 @@ bool begin(std::vector<int> todo, int returnPage)
     return true;
 }
 
-[[nodiscard]] std::vector<int> allSteps(bool seated)
+[[nodiscard]] za::Vector<int> allSteps(bool seated)
 {
-    std::vector<int> v;
+    za::Vector<int> v;
     for(int i = seated ? TPose : Stand; i < StepCount; i++)
     {
-        v.push_back(i);
+        v.pushBack(i);
     }
     return v;
 }
 
 // Why the pose held isn't the step's (empty: it is), from the averaged frame.
-[[nodiscard]] std::string wrongPose(int step, const Raw& r)
+[[nodiscard]] za::String wrongPose(int step, const Raw& r)
 {
     const Local l = toLocal(r, ses.yaw, ses.eyeHeight);
     Settings now = current(ses.eyeHeight);
@@ -1698,7 +1717,7 @@ bool begin(std::vector<int> todo, int returnPage)
         switch(step)
         {
             case Stand:
-                if(std::abs(r.headAngles.x) > 25.f)
+                if(qza::abs(r.headAngles.x) > 25.f)
                 {
                     return "look ahead";
                 }
@@ -1753,7 +1772,7 @@ bool begin(std::vector<int> todo, int returnPage)
 }
 
 // The average of frames (positions averaged, axes of the middle one).
-[[nodiscard]] Raw average(const std::vector<Raw>& rs)
+[[nodiscard]] Raw average(const za::Vector<Raw>& rs)
 {
     Raw m = rs[rs.size() / 2];
     const float k = 1.f / static_cast<float>(rs.size());
@@ -1797,14 +1816,14 @@ void ghostArm(int step, int side, float t, glm::vec3& upper, glm::vec3& fore, gl
         case Circles:
         {
             const float w = glm::two_pi<float>() / 2.6f;
-            upper = fore = hand = glm::normalize(F + 0.45f * (std::cos(w * t) * U + std::sin(w * t) * sg * L));
+            upper = fore = hand = glm::normalize(F + 0.45f * (za::cos(w * t) * U + za::sin(w * t) * sg * L));
             break;
         }
         case Elbows:
         {
             upper = -U;
-            const float flex = 90.f + 35.f * std::sin(glm::two_pi<float>() * t / 2.2f);
-            fore = rot(U, 30.f * std::sin(glm::two_pi<float>() * t / 3.1f) * sg, rot(-L, flex, -U));
+            const float flex = 90.f + 35.f * za::sin(glm::two_pi<float>() * t / 2.2f);
+            fore = rot(U, 30.f * za::sin(glm::two_pi<float>() * t / 3.1f) * sg, rot(-L, flex, -U));
             hand = fore;
             break;
         }
@@ -1812,8 +1831,8 @@ void ghostArm(int step, int side, float t, glm::vec3& upper, glm::vec3& fore, gl
         {
             upper = -U;
             fore = F;
-            hand = rot(U, 20.f * std::sin(glm::two_pi<float>() * t / 2.7f) * sg,
-                rot(-L, 40.f * std::sin(glm::two_pi<float>() * t / 1.9f), F));
+            hand = rot(U, 20.f * za::sin(glm::two_pi<float>() * t / 2.7f) * sg,
+                rot(-L, 40.f * za::sin(glm::two_pi<float>() * t / 1.9f), F));
             break;
         }
     }
@@ -1839,7 +1858,7 @@ void drawGhost(const hands::State& s, int step, float t)
     for(int i = 0; i < 12; i++)
     {
         const float a0 = glm::two_pi<float>() * static_cast<float>(i) / 12.f, a1 = glm::two_pi<float>() * static_cast<float>(i + 1) / 12.f;
-        seg(head + glm::vec3{0.f, 0.1f * std::cos(a0), 0.11f * std::sin(a0)}, head + glm::vec3{0.f, 0.1f * std::cos(a1), 0.11f * std::sin(a1)}, body);
+        seg(head + glm::vec3{0.f, 0.1f * za::cos(a0), 0.11f * za::sin(a0)}, head + glm::vec3{0.f, 0.1f * za::cos(a1), 0.11f * za::sin(a1)}, body);
     }
     seg(neck, glm::vec3{0.f, 0.f, 1.49f}, body);
     seg(neck, chest, body);
@@ -1863,9 +1882,9 @@ void drawGhost(const hands::State& s, int step, float t)
     }
 }
 
-[[nodiscard]] std::string gold(const char* s)
+[[nodiscard]] za::String gold(const char* s)
 {
-    std::string out;
+    za::String out;
     for(const char* c = s; *c; c++)
     {
         out += static_cast<char>(*c | 0x80);
@@ -1878,13 +1897,13 @@ void drawText(const hands::State& s, int step, double now)
     int index = 1, total = static_cast<int>(ses.todo.size());
     for(int i = 0; i < StepCount; i++)
     {
-        if(ses.data[i].taken && ses.todo.end() == std::find(ses.todo.begin(), ses.todo.end(), i))
+        if(ses.data[i].taken && ses.todo.end() == za::find(ses.todo.begin(), ses.todo.end(), i))
         {
             index++;
             total++;
         }
     }
-    std::string text = gold("BODY CALIBRATION") + va("  %d of %d\n", index, total);
+    za::String text = gold("BODY CALIBRATION") + va("  %d of %d\n", index, total);
     text += gold(steps[step].title);
     text += "\n";
     text += steps[step].text;
@@ -1903,14 +1922,14 @@ void drawText(const hands::State& s, int step, double now)
     }
     else if(ses.sub == Sub::Wait)
     {
-        text += ses.hint.empty() ? std::string("hold still") : ses.hint;
+        text += ses.hint.empty() ? za::String("hold still") : ses.hint;
     }
     else
     {
         const double length = steps[step].seconds;
         const double t = now - ses.subStart;
         const int bars = CLAMP(0, static_cast<int>(20.0 * t / length), 20);
-        text += std::string(static_cast<size_t>(bars), '=') + std::string(static_cast<size_t>(20 - bars), '.');
+        text += qza::repeated(static_cast<za::SizeT>(bars), '=') + qza::repeated(static_cast<za::SizeT>(20 - bars), '.');
         if(!ses.hint.empty())
         {
             text += "\n" + ses.hint;
@@ -1969,7 +1988,7 @@ void print_f()
         {
             const StepQuality& q = r.quality[i];
             Con_Printf("bodycal step %s grade %d value %.2f kept %.3f coverage %.1f %s\n", steps[i].name, q.grade, q.value, q.kept,
-                q.coverage, q.note.c_str());
+                q.coverage, q.note.cStr());
         }
     }
 }
@@ -1985,10 +2004,10 @@ void refit_f()
     {
         return;
     }
-    std::string error;
+    za::String error;
     if(!loadSession(Cmd_Argv(1), error))
     {
-        Con_Printf("Body Calibration: %s\n", error.c_str());
+        Con_Printf("Body Calibration: %s\n", error.cStr());
         return;
     }
     setPreview(false);
@@ -2032,9 +2051,9 @@ void debug_f()
 // The menu's texts, valid until the same function's next call (the menu draws them at once).
 struct BodycalReadouts
 {
-    std::string stepHelp;
-    std::string measured[4]; // measuredLine's
-    auto members() { return std::tie(stepHelp, measured); }
+    za::String stepHelp;
+    za::String measured[4]; // measuredLine's
+    auto members() { return qvr::mem::list(stepHelp, measured); }
 };
 mem::Scratch<BodycalReadouts> readouts{"bodycal readouts"};
 
@@ -2062,12 +2081,12 @@ Phase phase()
 bool start(int returnPage)
 {
     ses.seated = vr_bodycal_seated.value != 0.f;
-    std::vector<int> todo;
+    za::Vector<int> todo;
     for(int i : allSteps(ses.seated))
     {
         if(!ses.data[i].taken)
         {
-            todo.push_back(i);
+            todo.pushBack(i);
         }
     }
     if(todo.empty())
@@ -2120,7 +2139,7 @@ void apply()
         return;
     }
     setPreview(false);
-    const std::vector<Setting> list = candidate();
+    const za::Vector<Setting> list = candidate();
     saveUndo(snapshot(list));
     write(list);
     applied = true;
@@ -2175,17 +2194,14 @@ void undo()
         return;
     }
     setPreview(false);
-    std::istringstream in(vr_bodycal_undo.string);
-    std::string item;
-    while(std::getline(in, item, ';'))
-    {
-        std::istringstream w(item);
-        std::string name, value;
+    files::forPieces(vr_bodycal_undo.string, ';', [](za::StringView item) {
+        files::Words w{item};
+        za::String name, value;
         if(w >> name >> value)
         {
-            Cvar_Set(name.c_str(), value.c_str());
+            Cvar_Set(name.cStr(), value.cStr());
         }
-    }
+    });
     Cvar_SetQuick(&vr_bodycal_undo, "");
     applied = false;
     Con_Printf("Body Calibration: the settings from before it are back\n");
@@ -2223,7 +2239,7 @@ int version()
 const char* statusLine(int i)
 {
     int n = 0;
-    const auto add = [&](const std::string& s) {
+    const auto add = [&](const za::String& s) {
         if(n < 24)
         {
             lineBuf[n++] = s;
@@ -2242,7 +2258,7 @@ const char* statusLine(int i)
             add(va("The poses disagree (%.1f cm):", r.rms));
             add("redo those marked REDO below");
         }
-        add(applied ? va("Applied (%s):", r.when.c_str()) : std::string("Measured:        now     new"));
+        add(applied ? va("Applied (%s):", r.when.cStr()) : za::String("Measured:        now     new"));
         if(!r.seated)
         {
             add(va("Eye height    %6.2f  %6.2f m ", r.eyeHeightNow, r.eyeHeight));
@@ -2276,7 +2292,7 @@ const char* statusLine(int i)
     {
         add("Stopped: " + ses.message);
     }
-    return i >= 0 && i < n ? lineBuf[i].c_str() : nullptr;
+    return i >= 0 && i < n ? lineBuf[i].cStr() : nullptr;
 }
 
 int stepCount()
@@ -2296,7 +2312,7 @@ const char* stepRow(int i)
         return "";
     }
     const StepQuality& q = result.quality[i];
-    std::string state;
+    za::String state;
     if(!ses.data[i].taken)
     {
         state = "not taken";
@@ -2310,8 +2326,8 @@ const char* stepRow(int i)
         const char* grade = q.grade == Good ? "good" : q.grade == Fair ? "fair" : q.grade == Redo ? "REDO" : "";
         state = va("%.1f cm %s", q.value, grade);
     }
-    rowBuf[i] = va("Redo %d %-13s %s", i + 1, steps[i].title, state.c_str());
-    return rowBuf[i].c_str();
+    rowBuf[i] = va("Redo %d %-13s %s", i + 1, steps[i].title, state.cStr());
+    return rowBuf[i].cStr();
 }
 
 const char* stepHelp(int i)
@@ -2321,10 +2337,10 @@ const char* stepHelp(int i)
         return "";
     }
     const StepQuality& q = result.quality[i];
-    std::string& buf = readouts.stepHelp;
-    buf = std::string(steps[i].help) + (q.note.empty() ? "" : std::string(" Last time: ") + q.note + ".") +
+    za::String& buf = readouts.stepHelp;
+    buf = za::String(steps[i].help) + (q.note.empty() ? "" : za::String(" Last time: ") + q.note + ".") +
           " Takes this pose again; the others are kept.";
-    return buf.c_str();
+    return buf.cStr();
 }
 
 void frame()
@@ -2381,7 +2397,7 @@ void frame()
     else if(ses.sub == Sub::Wait && now - ses.subStart > giveUpSeconds)
     {
         S_LocalSound("misc/menu3.wav");
-        Con_Printf("Body Calibration: %s not taken (%s)\n", steps[step].title, ses.hint.c_str());
+        Con_Printf("Body Calibration: %s not taken (%s)\n", steps[step].title, ses.hint.cStr());
         nextStep(now);
         return;
     }
@@ -2429,7 +2445,7 @@ void viewFrame(const hands::State& s)
 
     if(ses.sub == Sub::Record)
     {
-        ses.recording.push_back(r);
+        ses.recording.pushBack(r);
         const double t = now - ses.subStart;
         const double length = steps[step].seconds;
         if(t < length)
@@ -2452,7 +2468,7 @@ void viewFrame(const hands::State& s)
             ses.hint = step == Circles ? "bigger circles" : step == Elbows ? "wave the forearms further" : "bend the wrists further";
             return;
         }
-        ses.data[step] = std::move(d);
+        ses.data[step] = ZA_MOVE(d);
         ses.gotIt = now;
         S_LocalSound(cov >= coverageNeeded(step) ? "weapons/pkup.wav" : "misc/menu3.wav");
         Con_Printf("Body Calibration: %s recorded, %d frames, coverage %.1f (%.1f needed)\n", steps[step].title,
@@ -2468,12 +2484,12 @@ void viewFrame(const hands::State& s)
     ses.window.tolerance(2, stillWristCm * 0.01f * m2u);
     const glm::vec3 channels[] = {r.head, r.wrist[0], r.wrist[1], hands::forward(glm::vec3{0.f, r.headAngles.y, 0.f})};
     ses.window.add(now, channels, stillSeconds + 0.25);
-    ses.recent.push_back(r);
+    ses.recent.pushBack(r);
     while(!ses.recent.empty() && now - ses.recent.front().t > stillSeconds + 1e-3)
     {
         ses.recent.erase(ses.recent.begin());
     }
-    std::vector<glm::vec3> mean;
+    za::Vector<glm::vec3> mean;
     const bool still = ses.window.still(now, stillSeconds, mean);
     if(!still)
     {
@@ -2486,8 +2502,8 @@ void viewFrame(const hands::State& s)
     Raw capture = average(ses.recent);
     // The body faces where the head looked while held (averaged).
     const glm::vec3 look = mean[3];
-    ses.yaw = glm::degrees(std::atan2(look.y, look.x));
-    const std::string wrong = wrongPose(step, capture);
+    ses.yaw = glm::degrees(za::atan2(look.y, look.x));
+    const za::String wrong = wrongPose(step, capture);
     if(!wrong.empty())
     {
         if(now - ses.subStart > hintAfter)
@@ -2500,7 +2516,7 @@ void viewFrame(const hands::State& s)
     d = StepData{};
     d.taken = true;
     d.yaw = ses.yaw;
-    d.raw.push_back(capture);
+    d.raw.pushBack(capture);
     if(step == Stand)
     {
         ses.eyeHeight = capture.headHeight; // the chest frames of the steps after it
@@ -2532,7 +2548,7 @@ struct Split
     cvar_t* tweak;
 };
 // (Addresses of the cvars: made at compile time.)
-constexpr std::array<Split, 7> splitList{{
+constexpr za::Array<Split, 7> splitList{{
     {&vr_body_upper_arm, &vr_bodycal_upper_arm, &vr_body_tweak_upper_arm},
     {&vr_body_forearm, &vr_bodycal_forearm, &vr_body_tweak_forearm},
     {&vr_body_shoulders_back, &vr_bodycal_shoulders_back, &vr_body_tweak_shoulders_back},
@@ -2541,7 +2557,7 @@ constexpr std::array<Split, 7> splitList{{
     {&vr_body_shoulder_up, &vr_bodycal_shoulder_rise, &vr_body_tweak_shoulder_rise},
     {&vr_body_shoulder_forward, &vr_bodycal_shoulder_swing, &vr_body_tweak_shoulder_swing},
 }};
-[[nodiscard]] const std::array<Split, 7>& splits()
+[[nodiscard]] const za::Array<Split, 7>& splits()
 {
     return splitList;
 }
@@ -2553,7 +2569,7 @@ constexpr std::array<Split, 7> splitList{{
     return d[i];
 }
 
-[[nodiscard]] std::string number(float v)
+[[nodiscard]] za::String number(float v)
 {
     return va("%.6g", v);
 }
@@ -2565,16 +2581,16 @@ void split(const float (&old)[7], float (&measured)[7], float (&tweak)[7])
 {
     for(int i = 0; i < 2; i++)
     {
-        if(!std::isnan(old[i]))
+        if(!ZA_ISNAN(old[i]))
         {
-            measured[i] = std::max(0.f, old[i]);
+            measured[i] = za::max(0.f, old[i]);
             tweak[i] = 0.f;
         }
     }
     const bool cal = measured[0] > 0.f && measured[1] > 0.f;
     for(int i = 2; i < 7; i++)
     {
-        if(!std::isnan(old[i]))
+        if(!ZA_ISNAN(old[i]))
         {
             measured[i] = cal ? old[i] : 0.f;
             tweak[i] = cal ? 0.f : old[i] - defaultOf(i);
@@ -2588,38 +2604,35 @@ void migrateUndo()
     bool oldNames = false; // (the old names end in a space there: "vr_body_forearm " isn't in "vr_body_forearm_twist")
     for(const Split& sp : splits())
     {
-        const char* at = std::strstr(vr_bodycal_undo.string, sp.old->name);
-        oldNames = oldNames || (at && at[std::strlen(sp.old->name)] == ' ');
+        const char* at = ZA_STRSTR(vr_bodycal_undo.string, sp.old->name);
+        oldNames = oldNames || (at && at[ZA_STRLEN(sp.old->name)] == ' ');
     }
     if(!oldNames)
     {
         return;
     }
-    const std::string text = vr_bodycal_undo.string;
+    const za::String text = vr_bodycal_undo.string;
     float old[7], measured[7], tweak[7];
     for(int i = 0; i < 7; i++)
     {
-        old[i] = std::nanf("");
+        old[i] = qza::nanF;
         measured[i] = 0.f; // what the Undo puts back is complete: nothing measured, no tweak, unless it says
         tweak[i] = 0.f;
     }
-    std::string rest;
-    std::istringstream in(text);
-    std::string item;
-    while(std::getline(in, item, ';'))
-    {
-        std::istringstream w(item);
-        std::string name, value;
+    za::String rest;
+    files::forPieces(text, ';', [&](za::StringView item) {
+        files::Words w{item};
+        za::String name, value;
         if(!(w >> name >> value))
         {
-            continue;
+            return;
         }
         bool known = false;
         for(int i = 0; i < 7; i++)
         {
             if(name == splits()[i].old->name)
             {
-                old[i] = static_cast<float>(std::atof(value.c_str()));
+                old[i] = static_cast<float>(atof(value.cStr()));
                 known = true;
             }
         }
@@ -2627,15 +2640,15 @@ void migrateUndo()
         {
             rest += name + " " + value + ";";
         }
-    }
+    });
     split(old, measured, tweak);
     for(int i = 0; i < 7; i++)
     {
-        rest += std::string(splits()[i].measured->name) + " " + number(measured[i]) + ";";
-        rest += std::string(splits()[i].tweak->name) + " " + number(tweak[i]) + ";";
+        rest += za::String(splits()[i].measured->name) + " " + number(measured[i]) + ";";
+        rest += za::String(splits()[i].tweak->name) + " " + number(tweak[i]) + ";";
     }
-    Con_DPrintf("VR: vr_bodycal_undo in the new settings: %s\n", rest.c_str());
-    Cvar_SetQuick(&vr_bodycal_undo, rest.c_str());
+    Con_DPrintf("VR: vr_bodycal_undo in the new settings: %s\n", rest.cStr());
+    Cvar_SetQuick(&vr_bodycal_undo, rest.cStr());
 }
 
 } // namespace
@@ -2711,7 +2724,7 @@ void resetTweaks()
 
 const char* measuredLine(int i)
 {
-    std::string (&lines)[4] = readouts.measured;
+    za::String (&lines)[4] = readouts.measured;
     int n = 0;
     if(!calibrated())
     {
@@ -2727,7 +2740,7 @@ const char* measuredLine(int i)
         lines[n++] = va("rise %.0f, swing %.0f deg. Tweaks add on.", vr_bodycal_shoulder_rise.value,
             vr_bodycal_shoulder_swing.value);
     }
-    return i >= 0 && i < n ? lines[i].c_str() : nullptr;
+    return i >= 0 && i < n ? lines[i].cStr() : nullptr;
 }
 
 void migrate()
@@ -2739,7 +2752,7 @@ void migrate()
     {
         const Split& sp = splits()[i];
         any = any || sp.old->string[0] != 0;
-        old[i] = sp.old->string[0] != 0 ? static_cast<float>(std::atof(sp.old->string)) : std::nanf("");
+        old[i] = sp.old->string[0] != 0 ? static_cast<float>(atof(sp.old->string)) : qza::nanF;
         measured[i] = sp.measured->value;
         tweak[i] = sp.tweak->value;
     }
@@ -2751,12 +2764,12 @@ void migrate()
     for(int i = 0; i < 7; i++)
     {
         const Split& sp = splits()[i];
-        if(!std::isnan(old[i]))
+        if(!ZA_ISNAN(old[i]))
         {
             Con_DPrintf("VR: %s %s is now %s %s, %s %s\n", sp.old->name, sp.old->string, sp.measured->name,
-                number(measured[i]).c_str(), sp.tweak->name, number(tweak[i]).c_str());
-            Cvar_SetQuick(sp.measured, number(measured[i]).c_str());
-            Cvar_SetQuick(sp.tweak, number(tweak[i]).c_str());
+                number(measured[i]).cStr(), sp.tweak->name, number(tweak[i]).cStr());
+            Cvar_SetQuick(sp.measured, number(measured[i]).cStr());
+            Cvar_SetQuick(sp.tweak, number(tweak[i]).cStr());
             Cvar_SetQuick(sp.old, "");
         }
     }

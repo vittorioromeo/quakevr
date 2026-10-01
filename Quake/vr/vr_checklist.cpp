@@ -4,15 +4,18 @@
 
 #include "vr_checklist.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_mem.hpp"
 
-#include <cstdio>
-#include <filesystem>
-#include <string>
-#include <tuple>
-#include <unordered_set>
-#include <utility>
-#include <vector>
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
+#include "vr_zancle.hpp"
+
+#include <stdio.h>
 
 namespace qvr::checklist
 {
@@ -23,14 +26,14 @@ namespace
 // The list as read, and the ticks (the main thread's; the menu's pages point at none of it: they ask by index).
 struct State
 {
-    std::vector<std::string> sections;
-    std::vector<std::string> texts;                // each item's text as in the file (its key in the ticks)
-    std::vector<std::string> shown;                // as drawn: characters the menu's font lacks replaced
-    std::vector<int> section;                      // each item's (-1: none)
-    std::vector<int> firstLine;                    // each item's first wrapped line in `lines`
-    std::vector<std::pair<int, int>> lines;        // start and length in its `shown` text
-    std::unordered_set<std::string> tickedTexts;   // every ticked item's text, those no longer listed too
-    auto members() { return std::tie(sections, texts, shown, section, firstLine, lines, tickedTexts); }
+    za::Vector<za::String> sections;
+    za::Vector<za::String> texts;                // each item's text as in the file (its key in the ticks)
+    za::Vector<za::String> shown;                // as drawn: characters the menu's font lacks replaced
+    za::Vector<int> section;                      // each item's (-1: none)
+    za::Vector<int> firstLine;                    // each item's first wrapped line in `lines`
+    za::Vector<qza::Pair<int, int>> lines;        // start and length in its `shown` text
+    ankerl::unordered_dense::set<za::String> tickedTexts;   // every ticked item's text, those no longer listed too
+    auto members() { return qvr::mem::list(sections, texts, shown, section, firstLine, lines, tickedTexts); }
 };
 mem::Cache<State> state{"checklist", mem::Never};
 
@@ -39,20 +42,20 @@ bool fileFound = false;
 int gen = 0;
 int open = 0;
 double lastLook = -1e9;
-std::filesystem::file_time_type fileTime{};
+za::I64 fileTime{0}; // (files::lastWriteTime's stamp)
 char lineText[64];
 
-[[nodiscard]] std::string listPath()
+[[nodiscard]] za::String listPath()
 {
-    return std::string{com_gamedir} + "/checklist.txt";
+    return za::String{com_gamedir} + "/checklist.txt";
 }
 
-[[nodiscard]] std::string ticksPath()
+[[nodiscard]] za::String ticksPath()
 {
-    return std::string{com_gamedir} + "/checklist_ticks.txt";
+    return za::String{com_gamedir} + "/checklist_ticks.txt";
 }
 
-[[nodiscard]] std::string trimmed(const std::string& s)
+[[nodiscard]] za::String trimmed(za::StringView s)
 {
     size_t a = 0;
     size_t b = s.size();
@@ -64,18 +67,18 @@ char lineText[64];
     {
         b--;
     }
-    return s.substr(a, b - a);
+    return za::String{s.substrByPosLen(a, b - a)};
 }
 
 // The file's lines, trimmed (false: no file).
-[[nodiscard]] bool readLines(const std::string& path, std::vector<std::string>& out)
+[[nodiscard]] bool readLines(const za::String& path, za::Vector<za::String>& out)
 {
-    FILE* f = fopen(path.c_str(), "rb");
+    FILE* f = fopen(path.cStr(), "rb");
     if(!f)
     {
         return false;
     }
-    std::string text;
+    za::String text;
     char buf[4096];
     for(size_t n; (n = fread(buf, 1, sizeof(buf), f)) > 0;)
     {
@@ -90,17 +93,17 @@ char lineText[64];
     for(size_t start = 0; start <= text.size();)
     {
         size_t end = text.find('\n', start);
-        end = end == std::string::npos ? text.size() : end;
-        out.push_back(trimmed(text.substr(start, end - start)));
+        end = end == za::StringView::nPos ? text.size() : end;
+        out.pushBack(trimmed(text.substrByPosLen(start, end - start)));
         start = end + 1;
     }
     return true;
 }
 
 // As the menu's font draws it: tabs as spaces, each other character outside ASCII (a UTF-8 sequence) as one '?'.
-[[nodiscard]] std::string drawable(const std::string& s)
+[[nodiscard]] za::String drawable(const za::String& s)
 {
-    std::string out;
+    za::String out;
     for(size_t i = 0; i < s.size(); i++)
     {
         const auto c = static_cast<unsigned char>(s[i]);
@@ -125,7 +128,7 @@ char lineText[64];
 }
 
 // `text` in lines of `columns` at most, broken at spaces (a longer word cut).
-void wrap(const std::string& text, std::vector<std::pair<int, int>>& out)
+void wrap(const za::String& text, za::Vector<qza::Pair<int, int>>& out)
 {
     const int n = static_cast<int>(text.size());
     int p = 0;
@@ -152,7 +155,7 @@ void wrap(const std::string& text, std::vector<std::pair<int, int>>& out)
         {
             len--;
         }
-        out.emplace_back(p, len);
+        out.emplaceBack(p, len);
         p += len;
         while(p < n && text[p] == ' ')
         {
@@ -164,7 +167,7 @@ void wrap(const std::string& text, std::vector<std::pair<int, int>>& out)
 void countOpen()
 {
     open = 0;
-    for(const std::string& t : state.texts)
+    for(const za::String& t : state.texts)
     {
         open += state.tickedTexts.count(t) ? 0 : 1;
     }
@@ -174,14 +177,14 @@ void readTicks()
 {
     ticksRead = true;
     state.tickedTexts.clear();
-    std::vector<std::string> lines;
+    za::Vector<za::String> lines;
     if(readLines(ticksPath(), lines))
     {
-        for(std::string& l : lines)
+        for(za::String& l : lines)
         {
             if(!l.empty())
             {
-                state.tickedTexts.insert(std::move(l));
+                state.tickedTexts.insert(ZA_MOVE(l));
             }
         }
     }
@@ -189,27 +192,27 @@ void readTicks()
 
 void writeTicks()
 {
-    const std::string path = ticksPath();
-    FILE* f = fopen(path.c_str(), "wb");
+    const za::String path = ticksPath();
+    FILE* f = fopen(path.cStr(), "wb");
     if(!f)
     {
-        Con_Printf("vr_checklist: couldn't write %s\n", path.c_str());
+        Con_Printf("vr_checklist: couldn't write %s\n", path.cStr());
         return;
     }
     // In the list's order, then those no longer listed: a stable file to look at.
-    std::unordered_set<std::string> written;
-    for(const std::string& t : state.texts)
+    ankerl::unordered_dense::set<za::String> written;
+    for(const za::String& t : state.texts)
     {
         if(state.tickedTexts.count(t) && written.insert(t).second)
         {
-            fprintf(f, "%s\n", t.c_str());
+            fprintf(f, "%s\n", t.cStr());
         }
     }
-    for(const std::string& t : state.tickedTexts)
+    for(const za::String& t : state.tickedTexts)
     {
         if(!written.count(t))
         {
-            fprintf(f, "%s\n", t.c_str());
+            fprintf(f, "%s\n", t.cStr());
         }
     }
     fclose(f);
@@ -224,10 +227,10 @@ void readList()
     state.firstLine.clear();
     state.lines.clear();
 
-    std::vector<std::string> lines;
+    za::Vector<za::String> lines;
     fileFound = readLines(listPath(), lines);
     int current = -1;
-    for(const std::string& l : lines)
+    for(const za::String& l : lines)
     {
         if(l.empty() || l[0] == '#' || (l.size() >= 2 && l[0] == '/' && l[1] == '/'))
         {
@@ -235,17 +238,17 @@ void readList()
         }
         if(l.size() >= 2 && l.front() == '[' && l.back() == ']')
         {
-            state.sections.push_back(drawable(trimmed(l.substr(1, l.size() - 2))));
+            state.sections.pushBack(drawable(trimmed(l.substrByPosLen(1, l.size() - 2))));
             current = static_cast<int>(state.sections.size()) - 1;
             continue;
         }
-        state.texts.push_back(l);
-        state.shown.push_back(drawable(l));
-        state.section.push_back(current);
-        state.firstLine.push_back(static_cast<int>(state.lines.size()));
+        state.texts.pushBack(l);
+        state.shown.pushBack(drawable(l));
+        state.section.pushBack(current);
+        state.firstLine.pushBack(static_cast<int>(state.lines.size()));
         wrap(state.shown.back(), state.lines);
     }
-    state.firstLine.push_back(static_cast<int>(state.lines.size())); // (the end of the last item's)
+    state.firstLine.pushBack(static_cast<int>(state.lines.size())); // (the end of the last item's)
     countOpen();
     gen++;
 }
@@ -265,12 +268,11 @@ void refresh(bool force)
     }
     lastLook = realtime;
 
-    std::error_code ec;
-    const auto t = std::filesystem::last_write_time(listPath(), ec);
-    const bool found = !ec;
+    const za::I64 t = files::lastWriteTime(listPath().cStr());
+    const bool found = t != 0;
     if(force || found != fileFound || (found && t != fileTime))
     {
-        fileTime = found ? t : std::filesystem::file_time_type{};
+        fileTime = t;
         readList();
     }
 }
@@ -302,7 +304,7 @@ int sectionOf(int item)
 
 const char* sectionName(int section)
 {
-    return section >= 0 && section < static_cast<int>(state.sections.size()) ? state.sections[section].c_str() : "";
+    return section >= 0 && section < static_cast<int>(state.sections.size()) ? state.sections[section].cStr() : "";
 }
 
 bool ticked(int item)
@@ -316,7 +318,7 @@ void toggle(int item)
     {
         return;
     }
-    const std::string& t = state.texts[item];
+    const za::String& t = state.texts[item];
     if(!state.tickedTexts.erase(t))
     {
         state.tickedTexts.insert(t);
@@ -339,7 +341,7 @@ const char* line(int item, int l)
     }
     const auto [start, len] = state.lines[state.firstLine[item] + l];
     const char* prefix = l > 0 ? "    " : ticked(item) ? "[x] " : "[ ] ";
-    q_snprintf(lineText, sizeof(lineText), "%s%.*s", prefix, len, state.shown[item].c_str() + start);
+    q_snprintf(lineText, sizeof(lineText), "%s%.*s", prefix, len, state.shown[item].cStr() + start);
     return lineText;
 }
 
@@ -368,7 +370,7 @@ void command_f()
         static_cast<int>(state.sections.size()));
     for(int i = 0; i < itemCount(); i++)
     {
-        Con_Printf("CLITEM|%d|%s|%s|%s\n", i, ticked(i) ? "x" : " ", sectionName(sectionOf(i)), state.shown[i].c_str());
+        Con_Printf("CLITEM|%d|%s|%s|%s\n", i, ticked(i) ? "x" : " ", sectionName(sectionOf(i)), state.shown[i].cStr());
     }
 }
 

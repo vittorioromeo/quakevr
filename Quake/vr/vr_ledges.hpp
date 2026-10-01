@@ -5,9 +5,9 @@
 
 #include "vr_engine.hpp"
 
-#include <cstdint>
-#include <utility>
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+#include "vr_zancle.hpp"
+
 
 namespace qvr::ledges
 {
@@ -57,13 +57,13 @@ struct Sample
 class Map
 {
 public:
-    std::vector<Edge> edges;
-    std::vector<Sample> samples;
+    za::Vector<Edge> edges;
+    za::Vector<Sample> samples;
 
     // The sample nearest `t` along `e`.
     [[nodiscard]] const Sample& sampleAt(const Edge& e, float t) const;
     // The edges whose boxes touch mins..maxs (each once), appended to `out`.
-    void nearby(const glm::vec3& mins, const glm::vec3& maxs, std::vector<int>& out) const;
+    void nearby(const glm::vec3& mins, const glm::vec3& maxs, za::Vector<int>& out) const;
 
     // How it was made: faces looked at, lip pieces found on them, lines they joined into, the ledges, the time.
     int faces{0}, pieces{0}, lines{0};
@@ -74,8 +74,8 @@ public:
 
 private:
     static constexpr float cellSize = 64.f;
-    std::vector<std::pair<uint64_t, int>> cells; // (cell, edge), sorted
-    mutable std::vector<uint32_t> seen;         // nearby(): an edge already listed this query
+    za::Vector<qza::Pair<uint64_t, int>> cells; // (cell, edge), sorted
+    mutable za::Vector<uint32_t> seen;         // nearby(): an edge already listed this query
     mutable uint32_t stamp{0};
 };
 

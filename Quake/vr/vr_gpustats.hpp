@@ -4,12 +4,18 @@
 
 #pragma once
 
-#include <string>
-#include <utility>
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/String/String.hpp"
 
 namespace qvr::gpustats
 {
+
+// A column of the log: its header and this row's value.
+struct Column
+{
+    za::String name;
+    za::String value;
+};
 
 // Starts the sampling thread (a sample every second) on first use; stops it.
 void start();
@@ -17,6 +23,6 @@ void stop();
 
 // The columns since the last call: averages of the samples (clocks, temperature, power, engine use by
 // process), the slowdown reasons seen, and the programs using the GPU most.
-void columns(std::vector<std::pair<std::string, std::string>>& c);
+void columns(za::Vector<Column>& c);
 
 } // namespace qvr::gpustats

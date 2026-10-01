@@ -7,10 +7,12 @@
 #include "vr_main.hpp"
 #include "vr_units.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <cstring>
+#include "Zancle/Base/Strcmp.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+
+#include <stdlib.h>
 
 namespace qvr::painknock
 {
@@ -42,7 +44,7 @@ double printedAt = -1.0;
     {
         return 0.f;
     }
-    const float rise = std::min(riseMax, duration * riseShare);
+    const float rise = za::min(riseMax, duration * riseShare);
     if(t < rise)
     {
         const float u = t / rise;
@@ -57,7 +59,7 @@ double printedAt = -1.0;
 [[nodiscard]] float handSide(const hands::State& s, int hand, const glm::vec3& right)
 {
     const float rel = glm::dot(s.pos[hand] - s.pos[1 - hand], right);
-    if(std::fabs(rel) > 1.f)
+    if(za::fabs(rel) > 1.f)
     {
         return rel > 0.f ? 1.f : -1.f;
     }
@@ -85,7 +87,7 @@ void hit(float damage, const glm::vec3& from, bool directed, const char* what)
     {
         level = glm::normalize(level);
         dir = -level;
-        side = std::clamp(glm::dot(level, right), -1.f, 1.f);
+        side = za::clamp(glm::dot(level, right), -1.f, 1.f);
     }
     else if(directed && glm::length(toSource) > noDirection)
     {
@@ -99,8 +101,8 @@ void hit(float damage, const glm::vec3& from, bool directed, const char* what)
     }
 
     // The knock.
-    const float cm = std::min(std::max(vr_pain_knock_max.value, 0.f), std::max(vr_pain_knock_strength.value, 0.f) * damage);
-    const float duration = std::max(vr_pain_knock_time.value, 0.f);
+    const float cm = za::min(za::max(vr_pain_knock_max.value, 0.f), za::max(vr_pain_knock_strength.value, 0.f) * damage);
+    const float duration = za::max(vr_pain_knock_time.value, 0.f);
     const bool knocked = vr_pain_knock.value != 0.f && cm > 0.f && duration > 0.f;
     if(knocked)
     {
@@ -116,15 +118,15 @@ void hit(float damage, const glm::vec3& from, bool directed, const char* what)
     }
 
     // The buzz: harder and longer the harder the hit, more in the hand on its side.
-    const float amp = std::min(1.f, 0.35f + damage / 40.f) * std::max(vr_pain_haptics.value, 0.f);
-    const float seconds = std::min(0.5f, 0.12f + damage / 60.f);
+    const float amp = za::min(1.f, 0.35f + damage / 40.f) * za::max(vr_pain_haptics.value, 0.f);
+    const float seconds = za::min(0.5f, 0.12f + damage / 60.f);
     if(amp > 0.f && !vr_disablehaptics.value)
     {
         if(Backend* be = backend())
         {
             for(int hand = 0; hand < 2; hand++)
             {
-                be->haptic(hand, seconds, 30.f, std::min(1.f, amp * weight[hand]));
+                be->haptic(hand, seconds, 30.f, za::min(1.f, amp * weight[hand]));
             }
         }
     }
@@ -147,9 +149,9 @@ void test_f()
         return;
     }
     const hands::State& s = hands::current();
-    const float damage = static_cast<float>(std::atof(Cmd_Argv(1)));
-    const bool directed = Cmd_Argc() < 3 || std::strcmp(Cmd_Argv(2), "none") != 0;
-    const float degrees = Cmd_Argc() < 3 || !directed ? 0.f : static_cast<float>(std::atof(Cmd_Argv(2)));
+    const float damage = static_cast<float>(atof(Cmd_Argv(1)));
+    const bool directed = Cmd_Argc() < 3 || ZA_STRCMP(Cmd_Argv(2), "none") != 0;
+    const float degrees = Cmd_Argc() < 3 || !directed ? 0.f : static_cast<float>(atof(Cmd_Argv(2)));
     const glm::vec3 from = s.playerOrigin + hands::rotateYaw(hands::forward({0.f, s.bodyYaw, 0.f}), degrees) * 100.f;
     hit(damage, from, directed, "test");
 }
@@ -184,7 +186,7 @@ void offset(int hand, glm::vec3& pos, glm::vec3& angles)
         pos += k.dir * (k.size[hand] * e);
     }
     // Hits adding up go no further than one at the cap.
-    const float cap = std::max(vr_pain_knock_max.value, 0.f) * 0.01f * units::metresToUnits();
+    const float cap = za::max(vr_pain_knock_max.value, 0.f) * 0.01f * units::metresToUnits();
     const float len = glm::length(pos);
     if(len > cap)
     {

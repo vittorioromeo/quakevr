@@ -12,12 +12,23 @@
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <string>
-#include <tuple>
-#include <vector>
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/Lround.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/String/String.hpp"
+#include "vr_zancle.hpp"
+
+#include <string.h>
 
 namespace qvr::crates
 {
@@ -36,7 +47,7 @@ constexpr CrateModel models[] = {
     {"progs/vr_crate1.mdl", {16.f, 16.f, 16.f}}, // small (the small explosive box's size)
     {"progs/vr_crate2.mdl", {20.f, 20.f, 24.f}}, // large
 };
-constexpr int numModels = static_cast<int>(std::size(models));
+constexpr int numModels = static_cast<int>(za::getArraySize(models));
 constexpr int numSkins = 3; // pine, brown, weathered
 
 // Random numbers: a seed from the map's name, the same sequence at every load (vr_debris.cpp's).
@@ -120,7 +131,7 @@ struct Orient
     // Its half extent along the horizontal unit vector `d`.
     [[nodiscard]] float along(const glm::vec2& d) const
     {
-        return std::abs(glm::dot(d, glm::vec2{fwd})) * hf + std::abs(glm::dot(d, glm::vec2{left})) * hl;
+        return qza::abs(glm::dot(d, glm::vec2{fwd})) * hf + qza::abs(glm::dot(d, glm::vec2{left})) * hl;
     }
 };
 
@@ -138,7 +149,7 @@ struct Orient
     Orient o;
     o.yaw = yawDeg;
     const float y = glm::radians(yawDeg);
-    o.fwd = {std::cos(y), std::sin(y), 0.f};
+    o.fwd = {za::cos(y), za::sin(y), 0.f};
     const glm::vec3 up{0.f, 0.f, 1.f};
     o.left = glm::cross(up, o.fwd);
     o.axes = glm::mat3{o.fwd, o.left, up} * glm::transpose(glm::mat3{mFwd, mLeft, mUp});
@@ -162,7 +173,7 @@ struct Placement
     int ringOpen;      // of the 12 places round it the player fits (Planner::arcs; a stacked one: its base's)
 };
 
-std::vector<Placement> placements;
+za::Vector<Placement> placements;
 
 // A crowbar lying on a crate's top (vr_crate_crowbar): the crate (the top one of a stack), its yaw, where on the top
 // (-1 .. 1 of the room left along the top's forward and left: put fits it there by its drawn box).
@@ -172,7 +183,7 @@ struct CrowbarOn
     float yaw;
     float u, v;
 };
-std::vector<CrowbarOn> crowbars;
+za::Vector<CrowbarOn> crowbars;
 
 // Rolls the crowbars on the crates' tops (after the plan): each top (a crate with none on it) at vr_crate_crowbar's
 // chance, at most vr_crate_crowbar_max; a random way and place. Its own random numbers (from the map's name and
@@ -181,13 +192,13 @@ void planCrowbars(uint64_t seed)
 {
     crowbars.clear();
     const float chance = vr_crate_crowbar.value;
-    const int most = static_cast<int>(std::max(vr_crate_crowbar_max.value, 0.f));
+    const int most = static_cast<int>(za::max(vr_crate_crowbar_max.value, 0.f));
     if(chance <= 0.f || most <= 0)
     {
         return;
     }
     Rng rng{seed ^ 0x6A09E667F3BCC909ull};
-    std::vector<bool> covered(placements.size(), false);
+    za::Vector<bool> covered(placements.size(), false);
     for(const Placement& p : placements)
     {
         if(p.below >= 0)
@@ -202,7 +213,7 @@ void planCrowbars(uint64_t seed)
             continue;
         }
         const float yaw = rng.range(0.f, 360.f), u = rng.range(-1.f, 1.f), v = rng.range(-1.f, 1.f);
-        crowbars.push_back({static_cast<int>(i), yaw, u, v});
+        crowbars.pushBack({static_cast<int>(i), yaw, u, v});
     }
 }
 
@@ -235,15 +246,15 @@ struct Spot
 struct SightCache
 {
     double time{-1.0};
-    std::vector<int> fixed;
-    auto members() { return std::tie(time, fixed); }
+    za::Vector<int> fixed;
+    auto members() { return qvr::mem::list(time, fixed); }
 };
 mem::Cache<SightCache> sightCache{"crates", mem::MapChange};
 
 struct Planner
 {
     Rng rng{0};
-    std::vector<debris::Obstacle> obstacles;
+    za::Vector<debris::Obstacle> obstacles;
     int rejected[RCount]{};
 
     // The footprint's corners (inset) and its sides' middles, at height z.
@@ -279,7 +290,7 @@ struct Planner
             for(const glm::vec3& p : pts)
             {
                 const trace_t t = traceLine(p + glm::vec3{0.f, 0.f, 4.f}, p - glm::vec3{0.f, 0.f, 4.f});
-                if(t.fraction >= 1.f || t.startsolid || t.ent != qcvm->edicts || std::abs(t.endpos[2] - floorZ) > 1.5f ||
+                if(t.fraction >= 1.f || t.startsolid || t.ent != qcvm->edicts || qza::abs(t.endpos[2] - floorZ) > 1.5f ||
                     t.plane.normal[2] < 0.95f)
                 {
                     reason = RUneven;
@@ -330,8 +341,8 @@ struct Planner
             }
         }
         // Clear of the entities (their boxes grown by their margins).
-        const float rx = std::abs(o.fwd.x) * o.hf + std::abs(o.left.x) * o.hl;
-        const float ry = std::abs(o.fwd.y) * o.hf + std::abs(o.left.y) * o.hl;
+        const float rx = qza::abs(o.fwd.x) * o.hf + qza::abs(o.left.x) * o.hl;
+        const float ry = qza::abs(o.fwd.y) * o.hf + qza::abs(o.left.y) * o.hl;
         for(const debris::Obstacle& ob : obstacles)
         {
             if(c.x + rx > ob.lo.x && c.x - rx < ob.hi.x && c.y + ry > ob.lo.y && c.y - ry < ob.hi.y &&
@@ -373,14 +384,14 @@ struct Planner
     [[nodiscard]] static int arcs(const Orient& o, const glm::vec3& c, float floorZ, int& free)
     {
         constexpr int n = 12;
-        const float r = std::sqrt(o.hf * o.hf + o.hl * o.hl) + 18.f;
+        const float r = za::sqrt(o.hf * o.hf + o.hl * o.hl) + 18.f;
         glm::vec3 pts[n];
         bool open[n];
         free = 0;
         for(int k = 0; k < n; k++)
         {
             const float a = static_cast<float>(k) * (6.2831853f / n);
-            pts[k] = glm::vec3{c.x + std::cos(a) * r, c.y + std::sin(a) * r, floorZ + 25.f};
+            pts[k] = glm::vec3{c.x + za::cos(a) * r, c.y + za::sin(a) * r, floorZ + 25.f};
             const trace_t t = tracePlayer(pts[k], pts[k]);
             open[k] = !t.startsolid && !t.allsolid;
             free += open[k];
@@ -412,13 +423,13 @@ struct Planner
     // its two ends): how far across the room one could pass it. 0: no room for the player there.
     [[nodiscard]] static float clearance(const Orient& o, const glm::vec3& c, float floorZ, const Spot& s)
     {
-        const float front = o.along(s.out), side = std::max(o.along(s.along) - 16.f, 0.f);
+        const float front = o.along(s.out), side = za::max(o.along(s.along) - 16.f, 0.f);
         float least = 1e9f;
         for(const float k : {0.f, -1.f, 1.f})
         {
             const glm::vec3 p = glm::vec3{c.x, c.y, floorZ + 25.f} + glm::vec3{s.out * (front + 17.f) + s.along * (k * side), 0.f};
             const trace_t t = tracePlayer(p, p + glm::vec3{s.out * 256.f, 0.f});
-            least = std::min(least, t.startsolid || t.allsolid ? 0.f : 17.f + t.fraction * 256.f + 16.f);
+            least = za::min(least, t.startsolid || t.allsolid ? 0.f : 17.f + t.fraction * 256.f + 16.f);
         }
         return least;
     }
@@ -477,11 +488,11 @@ void goto_f()
         }
         // Above it and 64 units out (setpos: noclip, floating), looking down at it.
         const int k = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : gotoCrowbar++;
-        const CrowbarOn& c = crowbars[static_cast<size_t>(std::max(k, 0)) % crowbars.size()];
+        const CrowbarOn& c = crowbars[static_cast<size_t>(za::max(k, 0)) % crowbars.size()];
         const Placement& p = placements[static_cast<size_t>(c.crate)];
         const glm::vec2 out = p.out;
         const glm::vec2 at = glm::vec2{p.centre} + out * 64.f;
-        const float yaw = glm::degrees(std::atan2(-out.y, -out.x));
+        const float yaw = glm::degrees(za::atan2(-out.y, -out.x));
         Con_Printf("vr_crates_goto crowbar: crate %d, looking at the crowbar at yaw %.0f, pitch 30\n", c.crate, yaw);
         Cbuf_InsertText(va("setpos %.1f %.1f %.1f 30 %.1f 0\n", at.x, at.y, p.centre.z + p.o.hu + 15.f, yaw));
         return;
@@ -493,7 +504,7 @@ void goto_f()
     }
     const Placement& p = placements[static_cast<size_t>(i)];
     const glm::vec2 at = glm::vec2{p.centre} + p.out * 110.f;
-    const float yaw = glm::degrees(std::atan2(-p.out.y, -p.out.x));
+    const float yaw = glm::degrees(za::atan2(-p.out.y, -p.out.x));
     Cbuf_InsertText(va("setpos %.1f %.1f %.1f 12 %.1f 0\n", at.x, at.y, p.floorZ + 30.f, yaw));
 }
 
@@ -534,8 +545,8 @@ int plan()
     Planner pl;
     const uint64_t seed = hashString(sv.name) ^ (static_cast<uint64_t>(static_cast<int64_t>(vr_crates_seed.value)) * 0xD1B54A32D192ED03ull);
     pl.rng.s = seed;
-    const float margin = std::max(vr_crates_margin.value, 0.f);
-    debris::gatherObstacles(pl.obstacles, std::max(margin - 24.f, 0.f));
+    const float margin = za::max(vr_crates_margin.value, 0.f);
+    debris::gatherObstacles(pl.obstacles, za::max(margin - 24.f, 0.f));
     // The player's start: well clear (where the map begins, and the way out of it).
     for(debris::Obstacle& ob : pl.obstacles)
     {
@@ -548,7 +559,7 @@ int plan()
 
     // The spots: along each wall's bottom edge, every 24 units, where a floor of the world meets it.
     const qmodel_t* map = sv.worldmodel;
-    std::vector<Spot> spots;
+    za::Vector<Spot> spots;
     int noFloor = 0;
     for(int i = 0; i < map->nummodelsurfaces; i++)
     {
@@ -564,7 +575,7 @@ int plan()
         }
         const int texnum = surf.texinfo->texnum;
         const texture_t* tex = texnum >= 0 && texnum < map->numtextures ? map->textures[texnum] : nullptr;
-        if(std::abs(n.z) > 0.3f || glm::length(glm::vec2{n}) < 0.9f || debris::materialOf(tex ? tex->name : "") == debris::Material::None)
+        if(qza::abs(n.z) > 0.3f || glm::length(glm::vec2{n}) < 0.9f || debris::materialOf(tex ? tex->name : "") == debris::Material::None)
         {
             continue;
         }
@@ -573,7 +584,7 @@ int plan()
         {
             const int e = map->surfedges[surf.firstedge + k];
             const int v = static_cast<int>(e >= 0 ? map->edges[e].v[0] : map->edges[-e].v[1]);
-            lo = std::min(lo, map->vertexes[v].position[2]);
+            lo = za::min(lo, map->vertexes[v].position[2]);
         }
         const glm::vec2 out = glm::normalize(glm::vec2{n});
         for(int k = 0; k < surf.numedges; k++)
@@ -583,7 +594,7 @@ int plan()
             const int va = static_cast<int>(e0 >= 0 ? map->edges[e0].v[0] : map->edges[-e0].v[1]);
             const int vb = static_cast<int>(e1 >= 0 ? map->edges[e1].v[0] : map->edges[-e1].v[1]);
             const glm::vec3 a = vec(map->vertexes[va].position), b = vec(map->vertexes[vb].position);
-            if(std::abs(a.z - lo) > 0.5f || std::abs(b.z - lo) > 0.5f || glm::length(b - a) < 32.f)
+            if(qza::abs(a.z - lo) > 0.5f || qza::abs(b.z - lo) > 0.5f || glm::length(b - a) < 32.f)
             {
                 continue;
             }
@@ -595,29 +606,29 @@ int plan()
                 const glm::vec3 at = a + edge * (t / len);
                 const glm::vec3 probe = at + glm::vec3{out * 2.f, 0.f};
                 const trace_t down = traceLine(probe + glm::vec3{0.f, 0.f, 4.f}, probe - glm::vec3{0.f, 0.f, 4.f});
-                if(down.fraction >= 1.f || down.startsolid || down.ent != qcvm->edicts || std::abs(down.endpos[2] - at.z) > 1.5f)
+                if(down.fraction >= 1.f || down.startsolid || down.ent != qcvm->edicts || qza::abs(down.endpos[2] - at.z) > 1.5f)
                 {
                     noFloor++;
                     continue;
                 }
-                spots.push_back({vec(down.endpos), out, along});
+                spots.pushBack({vec(down.endpos), out, along});
             }
         }
     }
     // In a random order (the same each load), so that the limits leave no part of the map favoured.
     for(size_t i = spots.size(); i > 1; i--)
     {
-        std::swap(spots[i - 1], spots[pl.rng.next() % i]);
+        za::genericSwap(spots[i - 1], spots[pl.rng.next() % i]);
     }
 
-    const int freeEdicts = qcvm->max_edicts - qcvm->num_edicts - static_cast<int>(std::max(vr_debris_edicts_left.value, 0.f));
-    const int most = std::min(static_cast<int>(std::max(vr_crates_max.value, 0.f)), std::max(freeEdicts, 0));
-    const float chance = std::max(vr_crates_chance.value, 0.f) * worldspawn;
-    const float cornerMult = std::max(vr_crates_corner.value, 0.f);
-    const float spacing = std::max(vr_crates_spacing.value, 0.f);
-    const float needClear = std::max(vr_crates_clearance.value, 0.f);
-    const float largeShare = std::clamp(vr_crates_large.value, 0.f, 1.f);
-    const float stackChance = std::clamp(vr_crates_stack.value, 0.f, 1.f);
+    const int freeEdicts = qcvm->max_edicts - qcvm->num_edicts - static_cast<int>(za::max(vr_debris_edicts_left.value, 0.f));
+    const int most = za::min(static_cast<int>(za::max(vr_crates_max.value, 0.f)), za::max(freeEdicts, 0));
+    const float chance = za::max(vr_crates_chance.value, 0.f) * worldspawn;
+    const float cornerMult = za::max(vr_crates_corner.value, 0.f);
+    const float spacing = za::max(vr_crates_spacing.value, 0.f);
+    const float needClear = za::max(vr_crates_clearance.value, 0.f);
+    const float largeShare = za::clamp(vr_crates_large.value, 0.f, 1.f);
+    const float stackChance = za::clamp(vr_crates_stack.value, 0.f, 1.f);
     int rolled = 0, stacks = 0;
 
     for(const Spot& s : spots)
@@ -636,7 +647,7 @@ int plan()
             continue;
         }
         rolled++;
-        const float wallYaw = glm::degrees(std::atan2(s.along.y, s.along.x));
+        const float wallYaw = glm::degrees(za::atan2(s.along.y, s.along.x));
         bool placed = false;
         int reason = RCount;
         for(int attempt = 0; attempt < 4 && !placed; attempt++)
@@ -704,7 +715,7 @@ int plan()
             }
             Placement p{model, static_cast<int>(pl.rng.next() % numSkins), o, glm::vec3{c.x, c.y, floorZ + o.hu}, floorZ, clear,
                 -1, corner, s.out, ringFree};
-            placements.push_back(p);
+            placements.pushBack(p);
             placed = true;
 
             // Another on it: no bigger than it, turned a little, off its middle a little (its weight well over the
@@ -714,14 +725,14 @@ int plan()
                 const int topModel = model == 1 && pl.rng.uniform() < 0.4f ? 1 : 0;
                 const Orient t = orient(topModel, static_cast<int>(pl.rng.next() % 6), static_cast<int>(pl.rng.next() & 3),
                     o.yaw + pl.rng.range(-25.f, 25.f));
-                const float room = std::max(std::min(o.hf, o.hl) * 0.3f, 0.f);
+                const float room = za::max(za::min(o.hf, o.hl) * 0.3f, 0.f);
                 const glm::vec3 off = o.fwd * pl.rng.range(-room, room) + o.left * pl.rng.range(-room, room);
                 float topZ = floorZ + o.hu * 2.f + 0.05f;
                 const glm::vec3 tc = glm::vec3{c.x, c.y, 0.f} + off;
                 int topReason = RCount;
                 if(pl.fits(t, tc, false, topZ, 8.f, topReason))
                 {
-                    placements.push_back({topModel, pl.rng.uniform() < 0.7f ? p.skin : static_cast<int>(pl.rng.next() % numSkins), t,
+                    placements.pushBack({topModel, pl.rng.uniform() < 0.7f ? p.skin : static_cast<int>(pl.rng.next() % numSkins), t,
                         glm::vec3{tc.x, tc.y, topZ + t.hu}, topZ, clear, static_cast<int>(placements.size()) - 1, corner, s.out, ringFree});
                     stacks++;
                 }
@@ -744,9 +755,9 @@ int plan()
         {
             large += p.model == 1;
             corners += p.below < 0 && p.corner;
-            leastClear = std::min(leastClear, p.clearance);
-            const int q[5] = {p.model, p.skin, static_cast<int>(std::lround(p.centre.x * 8.f)), static_cast<int>(std::lround(p.centre.y * 8.f)),
-                static_cast<int>(std::lround(p.o.yaw * 10.f))};
+            leastClear = za::min(leastClear, p.clearance);
+            const int q[5] = {p.model, p.skin, static_cast<int>(za::lround(p.centre.x * 8.f)), static_cast<int>(za::lround(p.centre.y * 8.f)),
+                static_cast<int>(za::lround(p.o.yaw * 10.f))};
             for(const int v : q)
             {
                 layout = (layout ^ static_cast<uint32_t>(v)) * 1099511628211ull;
@@ -759,7 +770,7 @@ int plan()
             placements.empty() ? 0.f : leastClear, (Sys_DoubleTime() - t0) * 1000.0, static_cast<unsigned>(layout ^ (layout >> 32)));
         if(vr_debug_crates.value >= 1)
         {
-            std::string why;
+            za::String why;
             for(int r = 0; r < RCount; r++)
             {
                 if(pl.rejected[r])
@@ -767,7 +778,7 @@ int plan()
                     why += va("%s%d %s", why.empty() ? "" : ", ", pl.rejected[r], reasonNames[r]);
                 }
             }
-            Con_Printf("crates: rolled spots rejected: %s (%d wall points had no floor)\n", why.empty() ? "none" : why.c_str(), noFloor);
+            Con_Printf("crates: rolled spots rejected: %s (%d wall points had no floor)\n", why.empty() ? "none" : why.cStr(), noFloor);
             for(const CrowbarOn& c : crowbars)
             {
                 Con_Printf("crates: a crowbar on crate %d (yaw %.0f, place %.2f %.2f)\n", c.crate, c.yaw, c.u, c.v);
@@ -791,7 +802,7 @@ int plan()
 
 bool hasCrowbar(int i)
 {
-    return std::any_of(crowbars.begin(), crowbars.end(), [i](const CrowbarOn& c) { return c.crate == i; });
+    return za::anyOf(crowbars.begin(), crowbars.end(), [i](const CrowbarOn& c) { return c.crate == i; });
 }
 
 const char* modelOf(int i)
@@ -855,7 +866,7 @@ int put(edict_t* e, int i)
 
 bool putCrowbar(edict_t* e, int i)
 {
-    const auto it = std::find_if(crowbars.begin(), crowbars.end(), [i](const CrowbarOn& c) { return c.crate == i; });
+    const auto it = za::findIf(crowbars.begin(), crowbars.end(), [i](const CrowbarOn& c) { return c.crate == i; });
     const int index = static_cast<int>(e->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
     if(it == crowbars.end() || !model)
@@ -878,7 +889,7 @@ bool putCrowbar(edict_t* e, int i)
     Fit best{};
     for(int k = 0; k < 2; k++)
     {
-        const float yaw = std::fmod(c.yaw + 90.f * static_cast<float>(k), 360.f);
+        const float yaw = za::fmod(c.yaw + 90.f * static_cast<float>(k), 360.f);
         const float angles[3] = {0.f, yaw, 90.f};
         const glm::mat3 axes = held::axesFromAngles(angles, false);
         Fit fit{yaw, 1e9f, -1e9f, 1e9f, -1e9f, 1e9f, 0.f};
@@ -886,21 +897,21 @@ bool putCrowbar(edict_t* e, int i)
         {
             const glm::vec3 w = axes * glm::vec3{(n & 1) ? hi.x : lo.x, (n & 2) ? hi.y : lo.y, (n & 4) ? hi.z : lo.z};
             const float fw = glm::dot(w, p.o.fwd), lf = glm::dot(w, p.o.left);
-            fit.fLo = std::min(fit.fLo, fw);
-            fit.fHi = std::max(fit.fHi, fw);
-            fit.lLo = std::min(fit.lLo, lf);
-            fit.lHi = std::max(fit.lHi, lf);
-            fit.zLo = std::min(fit.zLo, w.z);
+            fit.fLo = za::min(fit.fLo, fw);
+            fit.fHi = za::max(fit.fHi, fw);
+            fit.lLo = za::min(fit.lLo, lf);
+            fit.lHi = za::max(fit.lHi, lf);
+            fit.zLo = za::min(fit.zLo, w.z);
         }
-        fit.over = std::max(0.f, (fit.fHi - fit.fLo) * 0.5f - p.o.hf) + std::max(0.f, (fit.lHi - fit.lLo) * 0.5f - p.o.hl);
+        fit.over = za::max(0.f, (fit.fHi - fit.fLo) * 0.5f - p.o.hf) + za::max(0.f, (fit.lHi - fit.lLo) * 0.5f - p.o.hl);
         if(k == 0 || fit.over < best.over - 0.01f)
         {
             best = fit;
         }
     }
     // Somewhere on the top it stays within (the plan's u, v of the room left; none left: in the middle).
-    const float roomF = std::max(0.f, p.o.hf - (best.fHi - best.fLo) * 0.5f);
-    const float roomL = std::max(0.f, p.o.hl - (best.lHi - best.lLo) * 0.5f);
+    const float roomF = za::max(0.f, p.o.hf - (best.fHi - best.fLo) * 0.5f);
+    const float roomL = za::max(0.f, p.o.hl - (best.lHi - best.lLo) * 0.5f);
     const float atF = c.u * roomF * 0.9f - (best.fLo + best.fHi) * 0.5f;
     const float atL = c.v * roomL * 0.9f - (best.lLo + best.lHi) * 0.5f;
     const float topZ = p.centre.z + p.o.hu;
@@ -943,7 +954,7 @@ int putPlaced(edict_t* e)
         const trace_t down = traceLine(p + glm::vec3{0.f, 0.f, 1.f}, p - glm::vec3{0.f, 0.f, 128.f});
         if(!down.startsolid && down.fraction < 1.f)
         {
-            top = std::max(top, down.endpos[2]);
+            top = za::max(top, down.endpos[2]);
         }
     }
     const float floorZ = top > -1e9f ? top : at.z;
@@ -974,7 +985,7 @@ int sightBlocked(const glm::vec3& start, const glm::vec3& end, int ignoreA, int 
             edict_t* e = EDICT_NUM(i);
             if(!e->free && progs::fieldFloat(e, field) > 0.f && static_cast<int>(e->v.solid) == SOLID_BBOX && !box3d::isBox3DProp(i))
             {
-                c.fixed.push_back(i);
+                c.fixed.pushBack(i);
             }
         }
     }
@@ -996,7 +1007,7 @@ int sightBlocked(const glm::vec3& start, const glm::vec3& end, int ignoreA, int 
         for(int k = 0; k < 3 && hit; k++)
         {
             const float lo = e->v.absmin[k], hi = e->v.absmax[k];
-            if(std::abs(d[k]) < 1e-6f)
+            if(qza::abs(d[k]) < 1e-6f)
             {
                 hit = start[k] >= lo && start[k] <= hi;
                 continue;
@@ -1004,10 +1015,10 @@ int sightBlocked(const glm::vec3& start, const glm::vec3& end, int ignoreA, int 
             float u = (lo - start[k]) / d[k], v = (hi - start[k]) / d[k];
             if(u > v)
             {
-                std::swap(u, v);
+                za::genericSwap(u, v);
             }
-            t0 = std::max(t0, u);
-            t1 = std::min(t1, v);
+            t0 = za::max(t0, u);
+            t1 = za::min(t1, v);
             hit = t0 <= t1;
         }
         if(hit)

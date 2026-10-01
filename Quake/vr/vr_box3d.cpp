@@ -62,17 +62,38 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 
+#include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Rotate.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/BitCast.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/Swap.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Array.hpp"
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Ceil.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_zancle.hpp"
+
 #include <box3d/box3d.h>
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstdint>
-#include <cstring>
-#include <map>
-#include <memory>
-#include <tuple>
-#include <vector>
+#include <string.h>
 
 using namespace qvr;
 using namespace qvr::progs;
@@ -83,11 +104,11 @@ namespace
 // The sync's buffers (the server's frame: the main thread; Box3D steps with one worker, the caller's).
 struct Box3dScratch
 {
-    std::vector<glm::vec3> propVerts;   // a prop's drawn vertices, its hull made (propHull)
-    std::vector<glm::vec3> actorVerts;  // an actor's (actorHull)
-    std::vector<glm::vec3> corners;     // a body's shapes' corners (floorDepth)
-    std::vector<uint8_t> carried;       // by edict: carried by a player (syncEntities)
-    auto members() { return std::tie(propVerts, actorVerts, corners, carried); }
+    za::Vector<glm::vec3> propVerts;   // a prop's drawn vertices, its hull made (propHull)
+    za::Vector<glm::vec3> actorVerts;  // an actor's (actorHull)
+    za::Vector<glm::vec3> corners;     // a body's shapes' corners (floorDepth)
+    za::Vector<uint8_t> carried;       // by edict: carried by a player (syncEntities)
+    auto members() { return qvr::mem::list(propVerts, actorVerts, corners, carried); }
 };
 mem::Scratch<Box3dScratch> scratch{"box3d"};
 
@@ -259,7 +280,7 @@ constexpr float sinkDensity = 0.5f;
         const float mid = (under + above) * 0.5f;
         (wetAt(c.x, c.y, mid) ? under : above) = mid;
     }
-    return CLAMP(0.f, ((under + above) * 0.5f - lo) / std::max(hi - lo, 0.01f), 1.f);
+    return CLAMP(0.f, ((under + above) * 0.5f - lo) / za::max(hi - lo, 0.01f), 1.f);
 }
 
 // Weapons (thrown, dropped, or a map's weapon pickup) and keys: hard, detailed shapes.
@@ -310,13 +331,13 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
 // density: a crowbar's hull made it 0.6 kg of its 2.2, and it landed with the light metal sounds).
 [[nodiscard]] float propMassSetting(const qmodel_t* model)
 {
-    return model ? std::max(props::valueFor(model, props::Key::Mass), 0.f) : 0.f;
+    return model ? za::max(props::valueFor(model, props::Key::Mass), 0.f) : 0.f;
 }
 
 [[nodiscard]] float weaponMassSetting(edict_t* ent, const qmodel_t* model)
 {
     const int slot = model && isWeaponLike(ent) ? weapons::slotForModel(model) : -1;
-    return slot >= 0 && slot != weapons::fistSlot() ? std::max(weapons::value(slot, weapons::Key::Mass), 0.f) : 0.f;
+    return slot >= 0 && slot != weapons::fistSlot() ? za::max(weapons::value(slot, weapons::Key::Mass), 0.f) : 0.f;
 }
 
 [[nodiscard]] float massSetting(edict_t* ent, const qmodel_t* model)
@@ -344,7 +365,7 @@ struct Slot // what one edict is in the world (by its number)
     // What the body was made from: made again when it changes.
     const qmodel_t* model{nullptr};
     int frame{0};
-    std::array<float, 9> scale{};   // props: model_scale, model_scale_origin, model_offset
+    za::Array<float, 9> scale{};   // props: model_scale, model_scale_origin, model_offset
     glm::vec3 mins{0.f}, maxs{0.f}; // actors: Quake's box; props: the drawn box
     float radius{0.f};              // players: the capsule's
 
@@ -380,8 +401,22 @@ struct PropHullKey
 {
     const qmodel_t* model;
     int frame;
-    std::array<float, 6> box;
-    auto operator<=>(const PropHullKey&) const = default;
+    za::Array<float, 6> box;
+    bool operator==(const PropHullKey&) const = default;
+};
+
+struct PropHullKeyHash
+{
+    [[nodiscard]] za::U64 operator()(const PropHullKey& k) const
+    {
+        za::U64 h = ankerl::unordered_dense::hash<const void*>{}(k.model) ^ (static_cast<za::U64>(static_cast<za::U32>(k.frame)) * 0x9E3779B97F4A7C15ull);
+        for(const float f : k.box)
+        {
+            // (+ 0.f: -0 and +0 are one key, as they are equal)
+            h = (h ^ ZA_BIT_CAST(za::U32, f + 0.f)) * 0x100000001B3ull;
+        }
+        return h;
+    }
 };
 
 // A prop's hardest hit in a frame, for its .vr_impact (an explosive box dropped or thrown).
@@ -408,10 +443,10 @@ struct World
     float friction{-1.f}, restitution{-1.f};
     b3MeshData* mesh{nullptr}; // (meshCache's)
     b3ShapeId worldShape{b3_nullShapeId};
-    std::vector<std::pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
-    std::vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
-    std::vector<Pushed> pushed; // the props near the hands' bodies before this step (kept: no allocation a frame)
-    std::vector<Slot> slots; // by edict number
+    za::Vector<qza::Pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
+    za::Vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
+    za::Vector<Pushed> pushed; // the props near the hands' bodies before this step (kept: no allocation a frame)
+    za::Vector<Slot> slots; // by edict number
     // The players' hands (by client, [0] off, [1] main): kinematic spheres at their fists that push solid props; and
     // their reach bodies (syncReach): the empty hand's, or the held weapon's.
     struct ReachKey
@@ -439,12 +474,12 @@ struct World
         glm::vec3 at{0.f};
         b3BodyId reach{b3_nullBodyId};
         ReachKey key{};
-        std::vector<int> ignore; // props the reach body passes through until clear of them (inside it as it was made)
+        za::Vector<int> ignore; // props the reach body passes through until clear of them (inside it as it was made)
         int held{0};             // the prop the hand carried last frame (0: none)
         float weaponMass{0.f};   // the held weapon's own mass (kg: Weapon Weights' Mass; 0: none, or not a weapon)
-        std::vector<glm::vec4> fist; // the push body's spheres (the drawn fist, in the hand's frame; empty: the one sphere)
+        za::Vector<glm::vec4> fist; // the push body's spheres (the drawn fist, in the hand's frame; empty: the one sphere)
     };
-    std::vector<std::array<HandBody, 2>> hands;
+    za::Vector<za::Array<HandBody, 2>> hands;
     // Throws (vr_box3d_throw_grace, noteThrows): what was thrown passes through its thrower's hands' bodies a moment.
     struct Grace
     {
@@ -457,8 +492,8 @@ struct World
         glm::vec3 spin{0.f};
         int skipped{0};         // the hands' contacts it passed through (steps)
     };
-    std::vector<Grace> graces;
-    std::vector<int> made; // the props whose bodies were made this frame (createBody): what may have been thrown
+    za::Vector<Grace> graces;
+    za::Vector<int> made; // the props whose bodies were made this frame (createBody): what may have been thrown
     // The players standing on solid props (by client; vr_box3d_player_stand, "Standing on props" below).
     struct Stand
     {
@@ -472,7 +507,7 @@ struct World
         float pushForce{0.f};   // N, down
         float pushLeft{0.f};    // s
     };
-    std::vector<Stand> stands;
+    za::Vector<Stand> stands;
     // A player's move blocked by a solid prop's side this frame (VR_PlayerBumps): he shoves it (shoveBumped).
     struct Bump
     {
@@ -481,16 +516,16 @@ struct World
         glm::vec3 dir{0.f};     // horizontal, into the prop
         float speed{0.f};       // units/s, his speed into it
     };
-    std::vector<Bump> bumps;
-    std::map<PropHullKey, b3HullData*> propHulls;      // nullptr: no hull (a box instead)
-    std::map<const qmodel_t*, std::vector<b3HullData*>> moverHulls;
+    za::Vector<Bump> bumps;
+    ankerl::unordered_dense::map<PropHullKey, b3HullData*, PropHullKeyHash> propHulls; // nullptr: no hull (a box instead)
+    ankerl::unordered_dense::map<const qmodel_t*, za::Vector<b3HullData*>> moverHulls;
     int steps{0};
 
     [[nodiscard]] b3Vec3 toM(const glm::vec3& u) const { return b3Vec3{u.x / m2u, u.y / m2u, u.z / m2u}; }
     [[nodiscard]] glm::vec3 toU(const b3Vec3& m) const { return glm::vec3{m.x, m.y, m.z} * m2u; }
 };
 
-std::unique_ptr<World> world;
+za::UniquePtr<World> world{nullptr};
 
 [[nodiscard]] b3Quat toB3(const glm::quat& q)
 {
@@ -569,9 +604,9 @@ struct MeshStats
         int first, count; // into corners
         glm::vec3 normal;
     };
-    std::vector<Face> faces;
-    std::vector<int> corners; // BSP vertex numbers, each face's outline in order
-    std::vector<uint8_t> used(static_cast<size_t>(map->numvertexes), 0);
+    za::Vector<Face> faces;
+    za::Vector<int> corners; // BSP vertex numbers, each face's outline in order
+    za::Vector<uint8_t> used(static_cast<size_t>(map->numvertexes), 0);
     const auto position = [&](int v) { return vec(map->vertexes[v].position); };
     for(int i = 0; i < map->nummodelsurfaces; i++)
     {
@@ -585,12 +620,12 @@ struct MeshStats
         {
             normal = -normal;
         }
-        faces.push_back({static_cast<int>(corners.size()), surf.numedges, normal});
+        faces.pushBack({static_cast<int>(corners.size()), surf.numedges, normal});
         for(int k = 0; k < surf.numedges; k++)
         {
             const int e = map->surfedges[surf.firstedge + k];
             const int v = static_cast<int>(e >= 0 ? map->edges[e].v[0] : map->edges[-e].v[1]);
-            corners.push_back(v);
+            corners.pushBack(v);
             used[static_cast<size_t>(v)] = 1;
         }
     }
@@ -603,26 +638,26 @@ struct MeshStats
         const auto part = [](int v) { return static_cast<uint64_t>(static_cast<uint32_t>(v) & 0x1fffffu); };
         return (part(c.x) << 42) | (part(c.y) << 21) | part(c.z);
     };
-    std::vector<std::pair<uint64_t, int>> grid;
+    za::Vector<qza::Pair<uint64_t, int>> grid;
     for(int v = 0; v < map->numvertexes; v++)
     {
         if(used[static_cast<size_t>(v)])
         {
-            grid.emplace_back(keyOf(cellOf(position(v))), v);
+            grid.emplaceBack(keyOf(cellOf(position(v))), v);
         }
     }
-    std::sort(grid.begin(), grid.end());
+    za::quickSort(grid.begin(), grid.end());
 
-    std::vector<int32_t> remap(static_cast<size_t>(map->numvertexes), -1);
-    std::vector<b3Vec3> vertices;
-    std::vector<int32_t> indices;
+    za::Vector<int32_t> remap(static_cast<size_t>(map->numvertexes), -1);
+    za::Vector<b3Vec3> vertices;
+    za::Vector<int32_t> indices;
     const auto index = [&](int v) {
         int32_t& r = remap[static_cast<size_t>(v)];
         if(r < 0)
         {
             r = static_cast<int32_t>(vertices.size());
             const glm::vec3 p = position(v) / m2u;
-            vertices.push_back(b3Vec3{p.x, p.y, p.z});
+            vertices.pushBack(b3Vec3{p.x, p.y, p.z});
         }
         return r;
     };
@@ -635,16 +670,16 @@ struct MeshStats
         }
         if(glm::dot(n, normal) < 0.f)
         {
-            std::swap(b, c);
+            za::genericSwap(b, c);
         }
-        indices.push_back(a);
-        indices.push_back(b);
-        indices.push_back(c);
+        indices.pushBack(a);
+        indices.pushBack(b);
+        indices.pushBack(c);
     };
 
-    std::vector<int> outline;
-    std::vector<uint8_t> corner; // per outline entry: one of the face's own corners (else a T-junction put in)
-    std::vector<std::pair<float, int>> between;
+    za::Vector<int> outline;
+    za::Vector<uint8_t> corner; // per outline entry: one of the face's own corners (else a T-junction put in)
+    za::Vector<qza::Pair<float, int>> between;
     for(const Face& f : faces)
     {
         outline.clear();
@@ -653,8 +688,8 @@ struct MeshStats
         for(int k = 0; k < f.count; k++)
         {
             const int a = corners[static_cast<size_t>(f.first + k)], b = corners[static_cast<size_t>(f.first + (k + 1) % f.count)];
-            outline.push_back(a);
-            corner.push_back(1);
+            outline.pushBack(a);
+            corner.pushBack(1);
             if(!junctions)
             {
                 continue;
@@ -669,7 +704,7 @@ struct MeshStats
             const glm::vec3 dir = d / length;
             // The cells along the edge (and those round them), in steps of half a cell.
             between.clear();
-            const int steps = std::max(1, static_cast<int>(std::ceil(length / (cell * 0.5f))));
+            const int steps = za::max(1, static_cast<int>(za::ceil(length / (cell * 0.5f))));
             glm::ivec3 last{INT32_MIN};
             for(int step = 0; step <= steps; step++)
             {
@@ -686,7 +721,7 @@ struct MeshStats
                         for(int dx = -1; dx <= 1; dx++)
                         {
                             const uint64_t key = keyOf(c + glm::ivec3{dx, dy, dz});
-                            for(auto it = std::lower_bound(grid.begin(), grid.end(), std::make_pair(key, INT32_MIN));
+                            for(auto it = qza::lowerBound(grid.begin(), grid.end(), qza::makePair(key, INT32_MIN));
                                 it != grid.end() && it->first == key; ++it)
                             {
                                 const int v = it->second;
@@ -698,7 +733,7 @@ struct MeshStats
                                 const float t = glm::dot(p - pa, dir);
                                 if(t > 2.f * onEdge && t < length - 2.f * onEdge && glm::length(p - (pa + dir * t)) <= onEdge)
                                 {
-                                    between.emplace_back(t, v);
+                                    between.emplaceBack(t, v);
                                 }
                             }
                         }
@@ -709,7 +744,7 @@ struct MeshStats
             {
                 continue;
             }
-            std::sort(between.begin(), between.end());
+            za::quickSort(between.begin(), between.end());
             float lastT = 0.f;
             for(const auto& [t, v] : between)
             {
@@ -718,8 +753,8 @@ struct MeshStats
                     continue; // (found from two cells, or two BSP vertices at one place)
                 }
                 lastT = t;
-                outline.push_back(v);
-                corner.push_back(0);
+                outline.pushBack(v);
+                corner.pushBack(0);
                 stats.junctions++;
                 split = true;
             }
@@ -765,7 +800,7 @@ struct MeshStats
         }
         middle /= static_cast<float>(outline.size());
         const int32_t m = static_cast<int32_t>(vertices.size());
-        vertices.push_back(b3Vec3{middle.x / m2u, middle.y / m2u, middle.z / m2u});
+        vertices.pushBack(b3Vec3{middle.x / m2u, middle.y / m2u, middle.z / m2u});
         for(size_t k = 0; k < outline.size(); k++)
         {
             const int a = outline[k], b = outline[(k + 1) % outline.size()];
@@ -807,7 +842,7 @@ struct MeshCache
     b3MeshData* mesh{nullptr};
     MeshStats stats;
 };
-std::vector<MeshCache> meshCache; // this map's, the latest used last
+za::Vector<MeshCache> meshCache; // this map's, the latest used last
 constexpr size_t meshCacheScales = 4;
 
 [[nodiscard]] bool sameMap(const MeshCache& c, const qmodel_t* map)
@@ -859,7 +894,7 @@ MeshCache& addMesh(const MeshCache& made, const qmodel_t* map)
             ++it;
         }
     }
-    MeshCache& c = meshCache.emplace_back(made);
+    MeshCache& c = meshCache.emplaceBack(made);
     if(vr_debug_box3d.value)
     {
         // (its bytes' hash, FNV-1a: the same made on the pool or not)
@@ -904,7 +939,7 @@ void settleMesh()
 {
     if(MeshCache* found = findMesh(map, m2u))
     {
-        std::rotate(found, found + 1, meshCache.data() + meshCache.size()); // the latest used last
+        za::rotate(found, found + 1, meshCache.data() + meshCache.size()); // the latest used last
         return meshCache.back().mesh;
     }
     MeshCache made;
@@ -925,9 +960,9 @@ struct HalfSpace
     double d;
 };
 
-[[nodiscard]] std::vector<b3Vec3> corners(const std::vector<HalfSpace>& planes, float m2u)
+[[nodiscard]] za::Vector<b3Vec3> corners(const za::Vector<HalfSpace>& planes, float m2u)
 {
-    std::vector<glm::dvec3> points;
+    za::Vector<glm::dvec3> points;
     const size_t count = planes.size();
     for(size_t i = 0; i < count; i++)
     {
@@ -941,7 +976,7 @@ struct HalfSpace
             for(size_t k = j + 1; k < count; k++)
             {
                 const double det = glm::dot(ij, planes[k].n);
-                if(std::abs(det) < 1e-9)
+                if(qza::abs(det) < 1e-9)
                 {
                     continue;
                 }
@@ -953,35 +988,35 @@ struct HalfSpace
                 {
                     inside = glm::dot(planes[m].n, p) <= planes[m].d + 0.01;
                 }
-                if(inside && std::none_of(points.begin(), points.end(), [&](const glm::dvec3& q) { return glm::distance(p, q) < 0.05; }))
+                if(inside && !za::anyOf(points.begin(), points.end(), [&](const glm::dvec3& q) { return glm::distance(p, q) < 0.05; }))
                 {
-                    points.push_back(p);
+                    points.pushBack(p);
                 }
             }
         }
     }
-    std::vector<b3Vec3> out;
+    za::Vector<b3Vec3> out;
     out.reserve(points.size());
     for(const glm::dvec3& p : points)
     {
-        out.push_back(b3Vec3{static_cast<float>(p.x / m2u), static_cast<float>(p.y / m2u), static_cast<float>(p.z / m2u)});
+        out.pushBack(b3Vec3{static_cast<float>(p.x / m2u), static_cast<float>(p.y / m2u), static_cast<float>(p.z / m2u)});
     }
     return out;
 }
 
 // The solid leaves of a brush model's hull 0 (the drawn brushes' space, split by the BSP), each a convex region.
-void solidLeaves(const hull_t& hull, int num, std::vector<HalfSpace>& path, float m2u, std::vector<b3HullData*>& out, int depth)
+void solidLeaves(const hull_t& hull, int num, za::Vector<HalfSpace>& path, float m2u, za::Vector<b3HullData*>& out, int depth)
 {
     if(num < 0)
     {
         if(num == CONTENTS_SOLID)
         {
-            const std::vector<b3Vec3> points = corners(path, m2u);
+            const za::Vector<b3Vec3> points = corners(path, m2u);
             if(points.size() >= 4)
             {
                 if(b3HullData* h = b3CreateHull(points.data(), static_cast<int>(points.size()), 64))
                 {
-                    out.push_back(h);
+                    out.pushBack(h);
                 }
             }
         }
@@ -994,56 +1029,56 @@ void solidLeaves(const hull_t& hull, int num, std::vector<HalfSpace>& path, floa
     const mclipnode_t& node = hull.clipnodes[num];
     const mplane_t& plane = hull.planes[node.planenum];
     const glm::dvec3 n{plane.normal[0], plane.normal[1], plane.normal[2]};
-    path.push_back({-n, -static_cast<double>(plane.dist)}); // in front: dot(n, p) >= dist
+    path.pushBack({-n, -static_cast<double>(plane.dist)}); // in front: dot(n, p) >= dist
     solidLeaves(hull, node.children[0], path, m2u, out, depth + 1);
     path.back() = {n, static_cast<double>(plane.dist)}; // behind
     solidLeaves(hull, node.children[1], path, m2u, out, depth + 1);
-    path.pop_back();
+    path.popBack();
 }
 
-[[nodiscard]] const std::vector<b3HullData*>& moverHulls(qmodel_t* model)
+[[nodiscard]] const za::Vector<b3HullData*>& moverHulls(qmodel_t* model)
 {
     auto it = world->moverHulls.find(model);
     if(it != world->moverHulls.end())
     {
         return it->second;
     }
-    std::vector<b3HullData*> hulls;
+    za::Vector<b3HullData*> hulls;
     const hull_t& hull = model->hulls[0];
     if(hull.clipnodes && hull.planes)
     {
-        std::vector<HalfSpace> path;
+        za::Vector<HalfSpace> path;
         for(int i = 0; i < 3; i++) // the model's bounds close the leaves open to the outside
         {
             glm::dvec3 n{0.0};
             n[i] = 1.0;
-            path.push_back({n, static_cast<double>(model->maxs[i]) + 1.0});
-            path.push_back({-n, -static_cast<double>(model->mins[i]) + 1.0});
+            path.pushBack({n, static_cast<double>(model->maxs[i]) + 1.0});
+            path.pushBack({-n, -static_cast<double>(model->mins[i]) + 1.0});
         }
         solidLeaves(hull, hull.firstclipnode, path, world->m2u, hulls, 0);
     }
     if(hulls.empty()) // nothing solid found: its bounds
     {
         const glm::vec3 lo = vec(model->mins), hi = vec(model->maxs);
-        std::array<b3Vec3, 8> points;
+        za::Array<b3Vec3, 8> points;
         for(int i = 0; i < 8; i++)
         {
             points[i] = world->toM(glm::vec3{(i & 1) ? hi.x : lo.x, (i & 2) ? hi.y : lo.y, (i & 4) ? hi.z : lo.z});
         }
         if(b3HullData* h = b3CreateHull(points.data(), 8, 8))
         {
-            hulls.push_back(h);
+            hulls.pushBack(h);
         }
     }
     if(vr_debug_box3d.value)
     {
         Con_Printf("box3d: %s: %d convex pieces\n", model->name, static_cast<int>(hulls.size()));
     }
-    return world->moverHulls.emplace(model, std::move(hulls)).first->second;
+    return world->moverHulls.emplace(model, ZA_MOVE(hulls)).first->second;
 }
 
 // How far the drawn corners reach out of a hull made of some of them (the most any is beyond one of its faces).
-[[nodiscard]] float hullShortfall(const b3HullData* hull, const std::vector<b3Vec3>& points)
+[[nodiscard]] float hullShortfall(const b3HullData* hull, const za::Vector<b3Vec3>& points)
 {
     const b3Plane* planes = b3GetHullPlanes(hull);
     float most = 0.f;
@@ -1052,9 +1087,9 @@ void solidLeaves(const hull_t& hull, int num, std::vector<HalfSpace>& path, floa
         float out = -1e9f;
         for(int i = 0; i < hull->faceCount; i++)
         {
-            out = std::max(out, b3Dot(planes[i].normal, p) - planes[i].offset);
+            out = za::max(out, b3Dot(planes[i].normal, p) - planes[i].offset);
         }
-        most = std::max(most, out);
+        most = za::max(most, out);
     }
     return most;
 }
@@ -1062,13 +1097,13 @@ void solidLeaves(const hull_t& hull, int num, std::vector<HalfSpace>& path, floa
 // A hull of the drawn corners (metres) with at least `budget` vertices, more as needed to leave none of them further
 // out than hullTolerance units (Box3D's limit is 128).
 constexpr float hullTolerance = 0.2f;
-[[nodiscard]] b3HullData* fittedHull(const std::vector<b3Vec3>& points, int budget)
+[[nodiscard]] b3HullData* fittedHull(const za::Vector<b3Vec3>& points, int budget)
 {
     b3HullData* hull = b3CreateHull(points.data(), static_cast<int>(points.size()), budget);
     while(hull && budget < B3_MAX_HULL_VERTICES && hull->vertexCount >= budget &&
           hullShortfall(hull, points) * world->m2u > hullTolerance)
     {
-        budget = std::min(budget * 3 / 2, B3_MAX_HULL_VERTICES);
+        budget = za::min(budget * 3 / 2, B3_MAX_HULL_VERTICES);
         b3HullData* more = b3CreateHull(points.data(), static_cast<int>(points.size()), budget);
         if(!more)
         {
@@ -1091,14 +1126,14 @@ constexpr float hullTolerance = 0.2f;
         return it->second;
     }
     b3HullData* hull = nullptr;
-    std::vector<glm::vec3>& vertices = scratch.propVerts;
+    za::Vector<glm::vec3>& vertices = scratch.propVerts;
     if(held::drawnVertices(ent, vertices) && vertices.size() >= 4)
     {
-        std::vector<b3Vec3> points;
+        za::Vector<b3Vec3> points;
         points.reserve(vertices.size());
         for(const glm::vec3& v : vertices)
         {
-            points.push_back(world->toM(v));
+            points.pushBack(world->toM(v));
         }
         // A weapon's shape in detail (it rests on its side, its grip, its magazine); the rest a little blockier
         // (a backpack, a gib: a rounded hull rolls down a slope, a real one's give stops it). But never short of
@@ -1136,18 +1171,18 @@ constexpr float hullTolerance = 0.2f;
         return it->second;
     }
     b3HullData* hull = nullptr;
-    std::vector<glm::vec3>& vertices = scratch.actorVerts;
+    za::Vector<glm::vec3>& vertices = scratch.actorVerts;
     const float frame = ent->v.frame;
     ent->v.frame = 0.f;
     const bool drawn = held::drawnVertices(ent, vertices);
     ent->v.frame = frame;
     if(drawn && vertices.size() >= 4)
     {
-        std::vector<b3Vec3> points;
+        za::Vector<b3Vec3> points;
         points.reserve(vertices.size());
         for(const glm::vec3& v : vertices)
         {
-            points.push_back(world->toM(v));
+            points.pushBack(world->toM(v));
         }
         hull = b3CreateHull(points.data(), static_cast<int>(points.size()), 24);
         if(hull && hull->innerRadius * world->m2u < 2.f)
@@ -1171,7 +1206,7 @@ constexpr float hullTolerance = 0.2f;
     def.userData = userOf(num);
     def.filter.categoryBits = category;
     def.filter.maskBits = mask;
-    def.baseMaterial.friction = std::max(vr_throw_friction.value, 0.f);
+    def.baseMaterial.friction = za::max(vr_throw_friction.value, 0.f);
     def.baseMaterial.restitution = 0.f;
     def.density = 1.f;
     return def;
@@ -1205,7 +1240,7 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     if(const float mass = massSetting(ent, model); mass > 0.f)
     {
         const float volume = hull ? hull->volume : 8.f * half.x * half.y * half.z;
-        def.density = mass / std::max(volume, 1e-6f);
+        def.density = mass / za::max(volume, 1e-6f);
     }
     if(hull)
     {
@@ -1222,7 +1257,7 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     return ofs >= 0 && fieldFloat(ent, ofs) != 0.f;
 }
 
-[[nodiscard]] Kind kindOf(edict_t* ent, int num, const std::vector<uint8_t>& carried)
+[[nodiscard]] Kind kindOf(edict_t* ent, int num, const za::Vector<uint8_t>& carried)
 {
     const int movetype = static_cast<int>(ent->v.movetype);
     qmodel_t* model = modelOf(ent);
@@ -1264,7 +1299,7 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     return Kind::None;
 }
 
-[[nodiscard]] std::array<float, 9> scaleFields(edict_t* ent)
+[[nodiscard]] za::Array<float, 9> scaleFields(edict_t* ent)
 {
     const FieldOffsets& f = fields();
     const glm::vec3 a = fieldVec(ent, f.model_scale), b = fieldVec(ent, f.model_scale_origin), c = fieldVec(ent, f.model_offset);
@@ -1273,7 +1308,7 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
 
 [[nodiscard]] float playerRadius()
 {
-    return std::max(vr_box3d_player_radius.value, 1.f) * 0.01f; // metres
+    return za::max(vr_box3d_player_radius.value, 1.f) * 0.01f; // metres
 }
 
 // What a prop's drawn box and Mass are made from besides its entity (localBox, massSetting): the weapon and prop
@@ -1390,7 +1425,7 @@ void writeProp(edict_t* ent, Slot& s);
     const b3WorldTransform xf = b3Body_GetTransform(body);
     b3ShapeId shapes[4];
     const int n = b3Body_GetShapes(body, shapes, 4);
-    std::vector<glm::vec3>& corners = scratch.corners;
+    za::Vector<glm::vec3>& corners = scratch.corners;
     corners.clear();
     float lo = 1e9f, hi = -1e9f;
     for(int i = 0; i < n; i++)
@@ -1400,9 +1435,9 @@ void writeProp(edict_t* ent, Slot& s);
         for(int k = 0; points && k < hull->vertexCount; k++)
         {
             const glm::vec3 p = world->toU(b3Add(b3RotateVector(xf.q, points[k]), xf.p));
-            corners.push_back(p);
-            lo = std::min(lo, p.z);
-            hi = std::max(hi, p.z);
+            corners.pushBack(p);
+            lo = za::min(lo, p.z);
+            hi = za::max(hi, p.z);
         }
     }
     const float middle = (lo + hi) * 0.5f;
@@ -1422,7 +1457,7 @@ void writeProp(edict_t* ent, Slot& s);
         const trace_t tr = SV_Move(from, vec3_origin, vec3_origin, at, MOVE_NOMONSTERS, ent);
         if(!tr.startsolid && tr.fraction < 1.f && tr.plane.normal[2] > 0.7f)
         {
-            depth = std::max(depth, tr.endpos[2] - c.z);
+            depth = za::max(depth, tr.endpos[2] - c.z);
         }
     }
     return depth;
@@ -1439,7 +1474,7 @@ float liftOutOfFloor(edict_t* ent, Slot& s, const char* when)
     {
         return 0.f;
     }
-    const float lift = std::min(depth + 0.05f, 64.f);
+    const float lift = za::min(depth + 0.05f, 64.f);
     b3WorldTransform xf = b3Body_GetTransform(s.body);
     xf.p.z += lift / world->m2u;
     b3Body_SetTransform(s.body, xf.p, xf.q);
@@ -1476,7 +1511,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.born = qcvm->time;
     if(kind == Kind::Prop)
     {
-        world->made.push_back(num); // (noteThrows)
+        world->made.pushBack(num); // (noteThrows)
     }
 
     b3BodyDef def = b3DefaultBodyDef();
@@ -1491,7 +1526,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
         def.isAwake = !resting || resized;
         s.gravityScale = gravityScaleOf(ent);
         def.gravityScale = s.gravityScale;
-        def.angularDamping = std::max(vr_throw_spin_drag.value, 0.f);
+        def.angularDamping = za::max(vr_throw_spin_drag.value, 0.f);
     }
     s.body = b3CreateBody(world->id, &def);
 
@@ -1554,7 +1589,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
         s.maxs = vec(ent->v.maxs);
         s.radius = playerRadius();
         const float r = s.radius;
-        const float bottom = s.mins.z / world->m2u + r, top = std::max(s.maxs.z / world->m2u - r, bottom + 0.01f);
+        const float bottom = s.mins.z / world->m2u + r, top = za::max(s.maxs.z / world->m2u - r, bottom + 0.01f);
         const b3Capsule capsule{b3Vec3{0.f, 0.f, bottom}, b3Vec3{0.f, 0.f, top}, r};
         b3ShapeDef def2 = shapeDef(num, catPlayer, catProp);
         def2.enablePreSolveEvents = true; // (preSolve: not what it stands on, standOn)
@@ -1624,7 +1659,7 @@ void follow(edict_t* ent, Slot& s, float dt)
         // the props it then overlaps are eased out of it (Box3D's contact softness, a few metres a second), rather
         // than kicked ahead at a run's speed (Quake's 320 units a second is 8 m/s). Props don't stop players (they
         // are not solid in Quake's movement): walking into a stack pushes through it, not into a wall of boxes.
-        const float most = std::max(vr_box3d_player_push_speed.value, 0.1f) * world->m2u * dt;
+        const float most = za::max(vr_box3d_player_push_speed.value, 0.1f) * world->m2u * dt;
         if(s.kind == Kind::Player && distance > most)
         {
             const glm::vec3 from = origin - (origin - s.origin) * (most / distance);
@@ -1653,7 +1688,7 @@ void follow(edict_t* ent, Slot& s, float dt)
     const int spinOfs = h ? f.handavel : f.offhandavel;
     const float linear = velOfs >= 0 ? glm::length(fieldVec(player, velOfs)) : 0.f;
     const float turn = spinOfs >= 0 ? glm::length(fieldVec(player, spinOfs)) * reach : 0.f;
-    return std::max(linear, turn);
+    return za::max(linear, turn);
 }
 
 // Whether prop `num` passes through the hands' bodies of client `player` now (a throw's grace).
@@ -1676,9 +1711,9 @@ void follow(edict_t* ent, Slot& s, float dt)
 // VR_Carry_Release), from the hand nearest it.
 void noteThrows()
 {
-    const float grace = std::max(vr_box3d_throw_grace.value, 0.f);
+    const float grace = za::max(vr_box3d_throw_grace.value, 0.f);
     const bool debug = vr_debug_box3d.value != 0.f;
-    std::erase_if(world->graces, [debug](const World::Grace& g) {
+    za::vectorEraseIf(world->graces, [debug](const World::Grace& g) {
         const bool same = g.num < static_cast<int>(world->slots.size()) && world->slots[g.num].kind == Kind::Prop &&
                           world->slots[g.num].born == g.born;
         if(same && qcvm->time < g.until)
@@ -1713,7 +1748,7 @@ void noteThrows()
         }
         edict_t* ent = EDICT_NUM(num);
         const b3AABB box = b3Body_ComputeAABB(s.body);
-        const float reach = std::min(0.5f * glm::length(glmv(box.upperBound) - glmv(box.lowerBound)), 0.5f); // m
+        const float reach = za::min(0.5f * glm::length(glmv(box.upperBound) - glmv(box.lowerBound)), 0.5f); // m
         int thrower = 0;
         float speed = 0.f;
         for(int i = 1; i <= svs.maxclients && i < static_cast<int>(world->hands.size()); i++)
@@ -1723,7 +1758,7 @@ void noteThrows()
                 if(world->hands[static_cast<size_t>(i)][static_cast<size_t>(h)].held == num)
                 {
                     thrower = i;
-                    speed = std::max(speed, throwSpeed(EDICT_NUM(i), h, reach));
+                    speed = za::max(speed, throwSpeed(EDICT_NUM(i), h, reach));
                 }
             }
         }
@@ -1762,7 +1797,7 @@ void noteThrows()
             g.until = qcvm->time + (g.skips ? grace : 0.2);
             g.velocity = glmv(b3Body_GetLinearVelocity(s.body));
             g.spin = glmv(b3Body_GetAngularVelocity(s.body));
-            world->graces.push_back(g);
+            world->graces.pushBack(g);
         }
     }
     world->made.clear();
@@ -1777,16 +1812,16 @@ void noteThrows()
 // grab's spheres), turned with the hand: a box is pushed where the fist meets it, and the fist that pushes it touches it
 // to take it (the sphere at the hand's point met a box up to 7 cm before the drawn fist did).
 // The same fist within a twentieth of a unit (the view makes it again each frame, through the hand's placement).
-[[nodiscard]] bool sameFist(const std::vector<glm::vec4>& a, const std::vector<glm::vec4>& b)
+[[nodiscard]] bool sameFist(const za::Vector<glm::vec4>& a, const za::Vector<glm::vec4>& b)
 {
     if(a.size() != b.size())
     {
         return false;
     }
-    for(std::size_t k = 0; k < a.size(); k++)
+    for(za::SizeT k = 0; k < a.size(); k++)
     {
         const glm::vec4 d = glm::abs(a[k] - b[k]);
-        if(std::max(std::max(d.x, d.y), std::max(d.z, d.w)) > 0.05f)
+        if(za::max(za::max(d.x, d.y), za::max(d.z, d.w)) > 0.05f)
         {
             return false;
         }
@@ -1800,7 +1835,7 @@ void syncHands(float dt)
     const FieldOffsets& f = fields();
     world->hands.resize(static_cast<size_t>(svs.maxclients) + 1);
     const float radius = 0.045f; // m: a fist's
-    static const std::vector<glm::vec4> noFist;
+    static const za::Vector<glm::vec4> noFist;
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
@@ -1816,7 +1851,7 @@ void syncHands(float dt)
             const glm::vec3 angles = fieldVec(player, h ? f.handrot : f.offhandrot);
             vec3_t in{angles.x, angles.y, angles.z}, fwd, right, up;
             AngleVectors(in, fwd, right, up);
-            const std::vector<glm::vec4>& fist = i == 1 && vr_box3d_hand_push_fist.value ? held::fist(h) : noFist;
+            const za::Vector<glm::vec4>& fist = i == 1 && vr_box3d_hand_push_fist.value ? held::fist(h) : noFist;
             const bool byFist = !fist.empty();
             const glm::vec3 at = byFist ? point : point - vec(fwd) * (radius * world->m2u);
             const b3Quat turn = byFist ? toB3(glm::quat_cast(held::axesFromAngles(&angles[0], true))) : b3Quat_identity;
@@ -1884,7 +1919,7 @@ void syncHands(float dt)
                 if(byFist)
                 {
                     const glm::mat3 axes = held::axesFromAngles(&angles[0], true);
-                    for(std::size_t k = 0; k < fist.size() && !overlaps; k++)
+                    for(za::SizeT k = 0; k < fist.size() && !overlaps; k++)
                     {
                         test(point + axes * glm::vec3{fist[k]}, fist[k].w / world->m2u);
                     }
@@ -1916,7 +1951,7 @@ void syncHands(float dt)
                 // weapon taken moves the hand at once, a punch goes faster than a heavy box should fly), and what it
                 // then overlaps is eased out of it.
                 const float distance = glm::distance(at, hb.at);
-                const float most = std::max(vr_box3d_hand_push_speed.value, 0.1f) * world->m2u * dt;
+                const float most = za::max(vr_box3d_hand_push_speed.value, 0.1f) * world->m2u * dt;
                 if(distance > 0.5f * world->m2u) // a jump
                 {
                     b3Body_SetTransform(hb.body, world->toM(at), turn);
@@ -1985,7 +2020,7 @@ constexpr float restUp = 0.3f;         // a prop rests on a hand where their con
     const char* name = h ? PR_GetString(player->v.weaponmodel)
                          : (f.weaponmodel2 >= 0 ? PR_GetString(fieldInt(player, f.weaponmodel2)) : "");
     const int slot = name && *name ? weapons::slotForName(name) : -1;
-    return slot >= 0 ? std::max(weapons::value(slot, weapons::Key::Mass), 0.f) : 0.f;
+    return slot >= 0 ? za::max(weapons::value(slot, weapons::Key::Mass), 0.f) : 0.f;
 }
 
 // What hand `h` of client `i` is now (`last`: what it was), and for a drawn weapon its entity in the hand's frame.
@@ -2055,10 +2090,10 @@ constexpr float restUp = 0.3f;         // a prop rests on a hand where their con
 void ignoreInside(World::HandBody& hb, uint64_t category, int letGo)
 {
     hb.ignore.clear();
-    std::array<b3ShapeId, 4> shapes;
+    za::Array<b3ShapeId, 4> shapes;
     const int count = b3Body_GetShapes(hb.reach, shapes.data(), static_cast<int>(shapes.size()));
     const b3WorldTransform xf = b3Body_GetTransform(hb.reach);
-    std::array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
+    za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
     for(int i = 0; i < count; i++)
     {
         int n = 0;
@@ -2068,14 +2103,14 @@ void ignoreInside(World::HandBody& hb, uint64_t category, int letGo)
             const b3HullData* hull = b3Shape_GetHull(shapes[i]);
             const b3Vec3* p = b3GetHullPoints(hull);
             const b3Vec3 c = hull->center;
-            n = std::min(hull->vertexCount, static_cast<int>(points.size()));
+            n = za::min(hull->vertexCount, static_cast<int>(points.size()));
             for(int k = 0; k < n; k++)
             {
                 // Each corner in by the sink along each axis (not past the middle).
                 b3Vec3 q = p[k];
-                q.x = q.x > c.x ? std::max(c.x, q.x - reachSink) : std::min(c.x, q.x + reachSink);
-                q.y = q.y > c.y ? std::max(c.y, q.y - reachSink) : std::min(c.y, q.y + reachSink);
-                q.z = q.z > c.z ? std::max(c.z, q.z - reachSink) : std::min(c.z, q.z + reachSink);
+                q.x = q.x > c.x ? za::max(c.x, q.x - reachSink) : za::min(c.x, q.x + reachSink);
+                q.y = q.y > c.y ? za::max(c.y, q.y - reachSink) : za::min(c.y, q.y + reachSink);
+                q.z = q.z > c.z ? za::max(c.z, q.z - reachSink) : za::min(c.z, q.z + reachSink);
                 points[static_cast<size_t>(k)] = b3RotateVector(xf.q, q);
             }
         }
@@ -2085,7 +2120,7 @@ void ignoreInside(World::HandBody& hb, uint64_t category, int letGo)
             points[0] = b3RotateVector(xf.q, c.center1);
             points[1] = b3RotateVector(xf.q, c.center2);
             n = 2;
-            radius = std::max(0.f, c.radius - reachSink);
+            radius = za::max(0.f, c.radius - reachSink);
         }
         if(n == 0)
         {
@@ -2097,7 +2132,7 @@ void ignoreInside(World::HandBody& hb, uint64_t category, int letGo)
         filter.maskBits = catProp;
         struct Context
         {
-            std::vector<int>& ignore;
+            za::Vector<int>& ignore;
             int placed; // (let go of onto the hand)
         } context{hb.ignore, 0};
         if(letGo > 0 && letGo < static_cast<int>(world->slots.size()) && world->slots[letGo].kind == Kind::Prop &&
@@ -2111,9 +2146,9 @@ void ignoreInside(World::HandBody& hb, uint64_t category, int letGo)
                 const int num = numOf(shape);
                 if(num > 0 && num != c.placed && num < static_cast<int>(world->slots.size()) &&
                     world->slots[num].kind == Kind::Prop &&
-                    std::find(c.ignore.begin(), c.ignore.end(), num) == c.ignore.end())
+                    za::find(c.ignore.begin(), c.ignore.end(), num) == c.ignore.end())
                 {
-                    c.ignore.push_back(num);
+                    c.ignore.pushBack(num);
                 }
                 return true;
             },
@@ -2172,14 +2207,14 @@ void makeReach(
     }
     case Key::Weapon:
     {
-        std::vector<glm::vec3>& vertices = scratch.propVerts;
+        za::Vector<glm::vec3>& vertices = scratch.propVerts;
         if(held::modelVertices(key.model, key.mirrored, vertices) && vertices.size() >= 4)
         {
-            std::vector<b3Vec3> points;
+            za::Vector<b3Vec3> points;
             points.reserve(vertices.size());
             for(const glm::vec3& v : vertices)
             {
-                points.push_back(world->toM(v));
+                points.pushBack(world->toM(v));
             }
             if(b3HullData* hull = fittedHull(points, 32))
             {
@@ -2222,7 +2257,7 @@ void makeReach(
 // inside the gun).
 [[nodiscard]] bool reachSkips(const World::HandBody& hb, int player, int num)
 {
-    if(std::find(hb.ignore.begin(), hb.ignore.end(), num) != hb.ignore.end() || graced(player, num))
+    if(za::find(hb.ignore.begin(), hb.ignore.end(), num) != hb.ignore.end() || graced(player, num))
     {
         return true;
     }
@@ -2277,7 +2312,7 @@ struct ReachPose
     float keep = pushShare(pusher, m);
     if(shove && pusher > 0.f && m > 0.f && gain > 0.f && vr_box3d_push_force.value > 0.f)
     {
-        keep = std::min(keep, vr_box3d_push_force.value * dt / (m * gain));
+        keep = za::min(keep, vr_box3d_push_force.value * dt / (m * gain));
     }
     return keep;
 }
@@ -2287,7 +2322,7 @@ struct ReachPose
 [[nodiscard]] float reachMass(const World::HandBody& hb)
 {
     const bool weapon = hb.key.what == World::ReachKey::Weapon || hb.key.what == World::ReachKey::Capsule;
-    return weapon ? std::max(vr_box3d_weapon_arm_mass.value, 0.f) + hb.weaponMass : std::max(vr_box3d_hand_mass.value, 0.f);
+    return weapon ? za::max(vr_box3d_weapon_arm_mass.value, 0.f) + hb.weaponMass : za::max(vr_box3d_hand_mass.value, 0.f);
 }
 
 // A fast move of the reach body of `hb` over a step `dt` (a swing): Box3D collides once a step, at its start, so a
@@ -2300,20 +2335,20 @@ struct ReachPose
 void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, const ReachPose& to, float dt)
 {
     constexpr float piece = 0.015f; // m
-    std::array<b3ShapeId, 1> shapes;
+    za::Array<b3ShapeId, 1> shapes;
     if(b3Body_GetShapes(hb.reach, shapes.data(), 1) < 1)
     {
         return;
     }
     // The shape's points (its frame, m) and radius.
-    std::array<b3Vec3, 64> local;
+    za::Array<b3Vec3, 64> local;
     int count = 0;
     float radius = 0.f;
     if(b3Shape_GetType(shapes[0]) == b3_hullShape)
     {
         const b3HullData* hull = b3Shape_GetHull(shapes[0]);
-        count = std::min(hull->vertexCount, static_cast<int>(local.size()));
-        std::copy_n(b3GetHullPoints(hull), count, local.begin());
+        count = za::min(hull->vertexCount, static_cast<int>(local.size()));
+        za::copy(b3GetHullPoints(hull), b3GetHullPoints(hull) + count, local.begin());
     }
     else if(b3Shape_GetType(shapes[0]) == b3_capsuleShape)
     {
@@ -2332,9 +2367,9 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
     for(int i = 0; i < count; i++)
     {
         const glm::vec3 v = glmv(local[static_cast<size_t>(i)]);
-        most = std::max(most, glm::distance(p0 + from.rot * v, p1 + to.rot * v));
+        most = za::max(most, glm::distance(p0 + from.rot * v, p1 + to.rot * v));
     }
-    const int pieces = std::min(static_cast<int>(std::ceil(most / piece)), 24);
+    const int pieces = za::min(static_cast<int>(za::ceil(most / piece)), 24);
     if(pieces <= 1 || dt <= 0.f)
     {
         return;
@@ -2344,10 +2379,10 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
         return ReachPose{glm::mix(from.pos, to.pos, t), glm::slerp(from.rot, to.rot, t)};
     };
     // What it meets over the points of two poses (their convex hull: the swept piece), relative to the second's place.
-    std::vector<int> found;
+    za::Vector<int> found;
     const uint64_t category = b3Shape_GetFilter(shapes[0]).categoryBits;
     const auto meets = [&](const ReachPose& a, const ReachPose& b) {
-        std::array<b3Vec3, 128> points;
+        za::Array<b3Vec3, 128> points;
         const glm::vec3 origin = glmv(world->toM(b.pos)), shift = glmv(world->toM(a.pos)) - origin;
         for(int i = 0; i < count; i++)
         {
@@ -2362,18 +2397,18 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
         found.clear();
         b3World_OverlapShape(world->id, b3v(origin), &proxy, filter,
             [](b3ShapeId shape, void* context) {
-                auto& out = *static_cast<std::vector<int>*>(context);
+                auto& out = *static_cast<za::Vector<int>*>(context);
                 const int num = numOf(shape);
-                if(std::find(out.begin(), out.end(), num) == out.end())
+                if(za::find(out.begin(), out.end(), num) == out.end())
                 {
-                    out.push_back(num);
+                    out.pushBack(num);
                 }
                 return true;
             },
             &found);
     };
     meets(from, from);
-    std::vector<int> struck = found; // (touching it at the start: Box3D's contact)
+    za::Vector<int> struck = found; // (touching it at the start: Box3D's contact)
 
     // The body's motion over the step: its origin's velocity, and its spin (m/s, rad/s).
     const glm::vec3 linear = (p1 - p0) / dt;
@@ -2382,8 +2417,8 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
     {
         turn = -turn;
     }
-    const float angle = 2.f * std::acos(std::min(turn.w, 1.f));
-    const float sine = std::sqrt(std::max(0.f, 1.f - turn.w * turn.w));
+    const float angle = 2.f * za::acos(za::min(turn.w, 1.f));
+    const float sine = za::sqrt(za::max(0.f, 1.f - turn.w * turn.w));
     const glm::vec3 spin = sine > 1e-6f ? glm::vec3{turn.x, turn.y, turn.z} / sine * (angle / dt) : glm::vec3{0.f};
     const glm::quat rot0 = from.rot;
     for(int k = 1; k <= pieces; k++)
@@ -2394,13 +2429,13 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
         {
             if(num <= svs.maxclients || num >= static_cast<int>(world->slots.size()) ||
                 world->slots[num].kind != Kind::Prop ||
-                std::find(struck.begin(), struck.end(), num) != struck.end() || reachSkips(hb, player, num))
+                za::find(struck.begin(), struck.end(), num) != struck.end() || reachSkips(hb, player, num))
             {
                 continue;
             }
-            struck.push_back(num);
+            struck.pushBack(num);
             const b3BodyId prop = world->slots[num].body;
-            std::array<b3ShapeId, 1> propShape;
+            za::Array<b3ShapeId, 1> propShape;
             if(b3Body_GetShapes(prop, propShape.data(), 1) < 1)
             {
                 continue;
@@ -2500,7 +2535,7 @@ void syncReach(float dt)
             if(!hb.ignore.empty())
             {
                 const b3AABB mine = b3Body_ComputeAABB(hb.reach);
-                std::erase_if(hb.ignore, [&](int num) {
+                za::vectorEraseIf(hb.ignore, [&](int num) {
                     if(num >= static_cast<int>(world->slots.size()) || world->slots[num].kind != Kind::Prop)
                     {
                         return true;
@@ -2516,7 +2551,7 @@ void syncReach(float dt)
             // once for a jump (a teleport).
             const b3WorldTransform now = b3Body_GetTransform(hb.reach);
             const glm::vec3 at = world->toU(now.p);
-            const bool moved = glm::distance(at, pos) > 0.01f || std::fabs(glm::dot(fromB3(now.q), rot)) < 0.999999f;
+            const bool moved = glm::distance(at, pos) > 0.01f || za::fabs(glm::dot(fromB3(now.q), rot)) < 0.999999f;
             if(!moved && !b3Body_IsAwake(hb.reach))
             {
                 continue;
@@ -2600,8 +2635,9 @@ void feedProp(edict_t* ent, Slot& s)
 void syncEntities(float dt)
 {
     const FieldOffsets& f = fields();
-    std::vector<uint8_t>& carried = scratch.carried;
-    carried.assign(static_cast<size_t>(qcvm->num_edicts), 0);
+    za::Vector<uint8_t>& carried = scratch.carried;
+    carried.clear();
+    carried.resize(static_cast<size_t>(qcvm->num_edicts), 0);
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
@@ -2718,8 +2754,8 @@ void eigenSymmetric(const glm::mat3& m, glm::vec3& values, glm::mat3& vectors)
                     continue;
                 }
                 const float theta = (a[q][q] - a[p][p]) / (2.f * a[p][q]);
-                const float t = (theta >= 0.f ? 1.f : -1.f) / (std::abs(theta) + std::sqrt(theta * theta + 1.f));
-                const float c = 1.f / std::sqrt(t * t + 1.f), sn = t * c;
+                const float t = (theta >= 0.f ? 1.f : -1.f) / (qza::abs(theta) + za::sqrt(theta * theta + 1.f));
+                const float c = 1.f / za::sqrt(t * t + 1.f), sn = t * c;
                 for(int k = 0; k < 3; k++) // a J: its columns p and q
                 {
                     const float akp = a[k][p], akq = a[k][q];
@@ -2742,7 +2778,7 @@ void eigenSymmetric(const glm::mat3& m, glm::vec3& values, glm::mat3& vectors)
         }
     }
     int order[3]{0, 1, 2};
-    std::sort(std::begin(order), std::end(order), [&](int x, int y) { return a[x][x] < a[y][y]; });
+    za::quickSort(order, order + za::getArraySize(order), [&](int x, int y) { return a[x][x] < a[y][y]; });
     for(int i = 0; i < 3; i++)
     {
         values[i] = a[order[i]][order[i]];
@@ -2759,9 +2795,9 @@ void eigenSymmetric(const glm::mat3& m, glm::vec3& values, glm::mat3& vectors)
     }
     if(const int slot = weapons::slotForModel(model); slot >= 0)
     {
-        return std::max(weapons::value(slot, weapons::Key::SpinAlign), 0.f);
+        return za::max(weapons::value(slot, weapons::Key::SpinAlign), 0.f);
     }
-    return std::max(props::valueFor(model, props::Key::SpinAlign), 0.f);
+    return za::max(props::valueFor(model, props::Key::SpinAlign), 0.f);
 }
 
 // A throw in the air (Slot::flight: from the hand until it first touches anything, so Box3D's contacts are left alone):
@@ -2777,7 +2813,7 @@ void eigenSymmetric(const glm::mat3& m, glm::vec3& values, glm::mat3& vectors)
 void spinAlign(edict_t* ent, Slot& s, float dt, bool end)
 {
     const int debug = static_cast<int>(vr_debug_spin_align.value);
-    const float strength = std::max(vr_throw_spin_align.value, 0.f) * spinAlignOf(s.model);
+    const float strength = za::max(vr_throw_spin_align.value, 0.f) * spinAlignOf(s.model);
     if((strength <= 0.f && !debug) || dt <= 0.f)
     {
         return;
@@ -2791,9 +2827,9 @@ void spinAlign(edict_t* ent, Slot& s, float dt, bool end)
     {
         return;
     }
-    const float elong = 1.f - std::max(moments.x, 0.f) / moments.z;
+    const float elong = 1.f - za::max(moments.x, 0.f) / moments.z;
     const float distinct = (moments.z - moments.y) / moments.z;
-    const float flat = std::clamp((distinct - 0.02f) / 0.1f, 0.f, 1.f);
+    const float flat = za::clamp((distinct - 0.02f) / 0.1f, 0.f, 1.f);
     const float k = strength * elong * elong * (0.1f + 0.9f * flat);
     const float middle = k * flat;
     const glm::mat3 r = glm::mat3_cast(fromB3(b3Body_GetRotation(s.body)));
@@ -2804,7 +2840,7 @@ void spinAlign(edict_t* ent, Slot& s, float dt, bool end)
     if(debug)
     {
         const float t = static_cast<float>(qcvm->time - s.born);
-        const float off = rate > 1e-4f ? glm::degrees(std::acos(std::clamp(std::abs(c.z) / rate, 0.f, 1.f))) : 0.f;
+        const float off = rate > 1e-4f ? glm::degrees(za::acos(za::clamp(qza::abs(c.z) / rate, 0.f, 1.f))) : 0.f;
         if(end)
         {
             // (Its spin now is the touch's: the flight's last step's.)
@@ -2830,14 +2866,14 @@ void spinAlign(edict_t* ent, Slot& s, float dt, bool end)
     // the steadiest axis is slower by the ratio of the inertias (an axe spun about its handle ends turning end over end
     // at a fifth of the rate).
     const float momentum = glm::length(moments * c);
-    c.x *= std::exp(-k * dt);
-    c.y *= std::exp(-middle * dt);
+    c.x *= za::exp(-k * dt);
+    c.y *= za::exp(-middle * dt);
     const float left = glm::length(moments * c);
     if(left < 1e-9f)
     {
         return;
     }
-    c *= std::min(momentum / left, 1.5f);
+    c *= za::min(momentum / left, 1.5f);
     b3Body_SetAngularVelocity(s.body, b3v(r * (axes[0] * c.x + axes[1] * c.y + axes[2] * c.z)));
 }
 
@@ -2896,13 +2932,13 @@ void beforeStep(float dt)
         bool touching = false;
         if(b3Body_GetContactCapacity(s.body) > 0)
         {
-            std::array<b3ContactData, 8> contacts;
+            za::Array<b3ContactData, 8> contacts;
             if(b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size())) > 0)
             {
                 touching = true;
                 const bool slow = glm::length(vel) < 0.5f * world->m2u;
                 const b3Vec3 w = b3Body_GetAngularVelocity(s.body);
-                const float k = std::exp((slow || s.soft ? -6.f : -1.f) * (s.soft ? 2.f : 1.f) * dt);
+                const float k = za::exp((slow || s.soft ? -6.f : -1.f) * (s.soft ? 2.f : 1.f) * dt);
                 b3Body_SetAngularVelocity(s.body, b3Vec3{w.x * k, w.y * k, w.z * k});
             }
         }
@@ -2930,8 +2966,8 @@ void beforeStep(float dt)
         }
         const float density = waterDensity(ent);
         const bool floats = density > 1.f;
-        const float halfHeight = std::max((hi - lo) * 0.5f, 0.5f);
-        const float bob = floats ? 1.f + 0.04f * std::sin(static_cast<float>(qcvm->time) * 2.1f + static_cast<float>(num)) : 1.f;
+        const float halfHeight = za::max((hi - lo) * 0.5f, 0.5f);
+        const float bob = floats ? 1.f + 0.04f * za::sin(static_cast<float>(qcvm->time) * 2.1f + static_cast<float>(num)) : 1.f;
         // The lift is a force through the step, against the gravity (Box3D's, in the same sub-steps: at rest, where
         // they balance, nothing moves and the velocity stays nought). The drag is on the velocity before the step, so
         // that after the step's lift and gravity it is the old solver's: the drag on (velocity + lift - gravity),
@@ -2940,21 +2976,21 @@ void beforeStep(float dt)
         const float lift = gs * density * part * bob / world->m2u; // m/s^2
         b3Body_ApplyForceToCenter(s.body, b3Vec3{0.f, 0.f, b3Body_GetMass(s.body) * lift}, true);
         const float stiffness = gs * density / (2.f * halfHeight);
-        const float restingPart = std::min(1.f, 1.f / density);
-        const float drag = 2.4f * std::sqrt(std::max(stiffness, 0.f)) * std::min(1.f, part / restingPart);
-        const float e = std::exp(-drag * dt);
+        const float restingPart = za::min(1.f, 1.f / density);
+        const float drag = 2.4f * za::sqrt(za::max(stiffness, 0.f)) * za::min(1.f, part / restingPart);
+        const float e = za::exp(-drag * dt);
         vel.z = vel.z * e + (e - 1.f) * (gs * density * part * bob - gs) * dt;
-        const float drift = std::exp(-1.5f * part * dt);
+        const float drift = za::exp(-1.5f * part * dt);
         vel.x *= drift;
         vel.y *= drift;
-        glm::vec3 spin = glmv(b3Body_GetAngularVelocity(s.body)) * std::exp(-8.f * part * dt);
+        glm::vec3 spin = glmv(b3Body_GetAngularVelocity(s.body)) * za::exp(-8.f * part * dt);
         if(floats) // the side nearest the surface turns up to it
         {
             const glm::mat3 axes = glm::mat3_cast(fromB3(b3Body_GetRotation(s.body)));
             int axis = 0;
             for(int i = 1; i < 3; i++)
             {
-                if(std::abs(axes[i].z) > std::abs(axes[axis].z))
+                if(qza::abs(axes[i].z) > qza::abs(axes[axis].z))
                 {
                     axis = i;
                 }
@@ -2971,7 +3007,7 @@ void beforeStep(float dt)
 // from the other to it), else the world.
 [[nodiscard]] edict_t* supportOf(const Slot& s)
 {
-    std::array<b3ContactData, 16> contacts;
+    za::Array<b3ContactData, 16> contacts;
     const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
     edict_t* best = qcvm->edicts;
     float bestUp = 0.7f;
@@ -3005,7 +3041,7 @@ void beforeStep(float dt)
 // `dt`: the step's (the frame's last piece).
 void noteSlide(int num, const Slot& s, float dt)
 {
-    std::array<b3ContactData, 16> contacts;
+    za::Array<b3ContactData, 16> contacts;
     const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
     if(count <= 0)
     {
@@ -3053,7 +3089,7 @@ void noteSlide(int num, const Slot& s, float dt)
             }
             slip /= static_cast<float>(points);
             const float press = weightImpulse > 0.f ? impulse / weightImpulse : 0.f;
-            if(slip * std::min(press, 1.f) > bestSlip * std::min(bestPress, 1.f))
+            if(slip * za::min(press, 1.f) > bestSlip * za::min(bestPress, 1.f))
             {
                 bestSlip = slip;
                 bestPress = press;
@@ -3154,7 +3190,7 @@ void writeProp(edict_t* ent, Slot& s)
 // QC's sounds). Cheap: Box3D reports only the contacts that met faster than its hit threshold (1 m/s).
 void soundHits(const b3ContactEvents& events)
 {
-    const float least = std::max(vr_physsound_min_speed.value, 1.f);
+    const float least = za::max(vr_physsound_min_speed.value, 1.f);
     for(int i = 0; i < events.hitCount; i++)
     {
         const b3ContactHitEvent& e = events.hitEvents[i];
@@ -3186,7 +3222,7 @@ void soundHits(const b3ContactEvents& events)
 // The step's touches, as the old solver's: a prop meeting another entity's body (a monster, a door) touches it
 // (QC's damage, sounds); props hitting each other hard touch each other (a thrown box into a pile: its knock, the
 // throw over). Landing on the world touches nothing (as before).
-void touches(std::vector<std::pair<int, int>>& out)
+void touches(za::Vector<qza::Pair<int, int>>& out)
 {
     const b3ContactEvents events = b3World_GetContactEvents(world->id);
     const auto kindAt = [](int n) { return n > 0 && n < static_cast<int>(world->slots.size()) ? world->slots[n].kind : Kind::None; };
@@ -3200,12 +3236,12 @@ void touches(std::vector<std::pair<int, int>>& out)
         int a = numOf(e.shapeIdA), b = numOf(e.shapeIdB);
         if(kindAt(a) != Kind::Prop)
         {
-            std::swap(a, b);
+            za::genericSwap(a, b);
         }
         const Kind other = kindAt(b);
         if(kindAt(a) == Kind::Prop && (other == Kind::Mover || other == Kind::Actor))
         {
-            out.emplace_back(a, b);
+            out.emplaceBack(a, b);
         }
     }
     for(int i = 0; i < events.hitCount; i++)
@@ -3218,7 +3254,7 @@ void touches(std::vector<std::pair<int, int>>& out)
         const int a = numOf(e.shapeIdA), b = numOf(e.shapeIdB);
         if(kindAt(a) == Kind::Prop && kindAt(b) == Kind::Prop)
         {
-            out.emplace_back(a, b);
+            out.emplaceBack(a, b);
         }
     }
     soundHits(events);
@@ -3243,10 +3279,10 @@ void touches(std::vector<std::pair<int, int>>& out)
             {
                 continue;
             }
-            auto it = std::find_if(world->shocks.begin(), world->shocks.end(), [a](const Shock& s) { return s.num == a; });
+            auto it = za::findIf(world->shocks.begin(), world->shocks.end(), [a](const Shock& s) { return s.num == a; });
             if(it == world->shocks.end())
             {
-                world->shocks.push_back({a, b, e.approachSpeed});
+                world->shocks.pushBack({a, b, e.approachSpeed});
             }
             else if(e.approachSpeed > it->speed)
             {
@@ -3420,7 +3456,7 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
 [[nodiscard]] float pusherMass(b3ShapeId shape)
 {
     const uint64_t category = b3Shape_GetFilter(shape).categoryBits;
-    const float hand = std::max(vr_box3d_hand_mass.value, 0.f);
+    const float hand = za::max(vr_box3d_hand_mass.value, 0.f);
     if(category & catReach)
     {
         const World::HandBody* hb = reachOf(b3Shape_GetBody(shape), numOf(shape));
@@ -3441,7 +3477,7 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
                 hands += hb.held == num ? 1 : 0;
             }
         }
-        return hand * static_cast<float>(std::max(hands, 1)) + qvr::box3d::propMass(EDICT_NUM(num));
+        return hand * static_cast<float>(za::max(hands, 1)) + qvr::box3d::propMass(EDICT_NUM(num));
     }
     return 0.f;
 }
@@ -3477,10 +3513,10 @@ void notePushed(float dt)
                     return true;
                 }
                 auto& out = world->pushed;
-                if(std::none_of(out.begin(), out.end(), [num](const Pushed& p) { return p.num == num; }))
+                if(!za::anyOf(out.begin(), out.end(), [num](const Pushed& p) { return p.num == num; }))
                 {
                     const b3BodyId prop = world->slots[num].body;
-                    out.push_back({num, glmv(b3Body_GetLinearVelocity(prop)), glmv(b3Body_GetAngularVelocity(prop))});
+                    out.pushBack({num, glmv(b3Body_GetLinearVelocity(prop)), glmv(b3Body_GetAngularVelocity(prop))});
                 }
                 return true;
             },
@@ -3509,7 +3545,7 @@ void notePushed(float dt)
 // and stops them at full strength.
 void limitPushes(float dt)
 {
-    std::array<b3ContactData, 16> contacts;
+    za::Array<b3ContactData, 16> contacts;
     for(const Pushed& p : world->pushed)
     {
         const Slot& s = world->slots[static_cast<size_t>(p.num)];
@@ -3522,7 +3558,7 @@ void limitPushes(float dt)
         float pusher = 0.f, strongest = 0.f;
         bool full = false;
         glm::vec3 normal{0.f};
-        std::array<b3BodyId, 8> counted;
+        za::Array<b3BodyId, 8> counted;
         size_t countedN = 0;
         for(int c = 0; c < count && !full; c++)
         {
@@ -3562,7 +3598,7 @@ void limitPushes(float dt)
                     full = true;
                     break;
                 }
-                if(std::none_of(counted.begin(), counted.begin() + static_cast<std::ptrdiff_t>(countedN),
+                if(!za::anyOf(counted.begin(), counted.begin() + static_cast<za::PtrDiffT>(countedN),
                        [body](b3BodyId b) { return B3_ID_EQUALS(b, body); }))
                 {
                     pusher += mass;
@@ -3611,7 +3647,7 @@ void updateSettings()
         b3World_SetGravity(world->id, b3Vec3{0.f, 0.f, -g / world->m2u});
         world->gravity = g;
     }
-    const float friction = std::max(vr_throw_friction.value, 0.f), restitution = CLAMP(0.f, vr_throw_restitution.value, 1.f);
+    const float friction = za::max(vr_throw_friction.value, 0.f), restitution = CLAMP(0.f, vr_throw_restitution.value, 1.f);
     if(friction == world->friction && restitution == world->restitution)
     {
         return;
@@ -3629,7 +3665,7 @@ void updateSettings()
     {
         b3Shape_SetFriction(world->worldShape, friction);
     }
-    std::array<b3ShapeId, 64> shapes;
+    za::Array<b3ShapeId, 64> shapes;
     for(Slot& s : world->slots)
     {
         if(s.kind == Kind::None)
@@ -3647,7 +3683,7 @@ void updateSettings()
         }
         if(s.kind == Kind::Prop)
         {
-            b3Body_SetAngularDamping(s.body, std::max(vr_throw_spin_drag.value, 0.f));
+            b3Body_SetAngularDamping(s.body, za::max(vr_throw_spin_drag.value, 0.f));
         }
     }
 }
@@ -3685,11 +3721,11 @@ void destroyWorld()
 
 void buildWorld()
 {
-    world = std::make_unique<World>();
+    world = za::makeUnique<World>();
     world->map = sv.worldmodel;
     world->m2u = units::metresToUnits();
     world->gravity = sv_gravity.value;
-    world->friction = std::max(vr_throw_friction.value, 0.f);
+    world->friction = za::max(vr_throw_friction.value, 0.f);
     world->restitution = CLAMP(0.f, vr_throw_restitution.value, 1.f);
 
     b3WorldDef def = b3DefaultWorldDef();
@@ -3706,8 +3742,8 @@ void buildWorld()
     // of Box3D's arrays) in the frame a pile collapses.
     def.capacity.staticBodyCount = 1;
     def.capacity.staticShapeCount = 1;
-    def.capacity.dynamicBodyCount = std::max(qcvm->num_edicts, 256);
-    def.capacity.dynamicShapeCount = std::max(qcvm->num_edicts, 256) + 256;
+    def.capacity.dynamicBodyCount = za::max(qcvm->num_edicts, 256);
+    def.capacity.dynamicShapeCount = za::max(qcvm->num_edicts, 256) + 256;
     def.capacity.contactCount = 4096;
     world->id = b3CreateWorld(&def);
     b3World_SetCustomFilterCallback(world->id, shouldCollide, nullptr);
@@ -3735,15 +3771,15 @@ void buildWorld()
 // Test commands (either engine: they only move entities)
 
 // The entities `which` names: a number, a classname (every one), or "props" (every rigid body).
-[[nodiscard]] std::vector<edict_t*> entitiesNamed(const char* which)
+[[nodiscard]] za::Vector<edict_t*> entitiesNamed(const char* which)
 {
-    std::vector<edict_t*> out;
+    za::Vector<edict_t*> out;
     if(which[0] >= '0' && which[0] <= '9')
     {
         const int num = Q_atoi(which);
         if(num > 0 && num < qcvm->num_edicts && !EDICT_NUM(num)->free)
         {
-            out.push_back(EDICT_NUM(num));
+            out.pushBack(EDICT_NUM(num));
         }
         return out;
     }
@@ -3752,7 +3788,7 @@ void buildWorld()
         edict_t* e = EDICT_NUM(i);
         if(!e->free && (!strcmp(which, "props") ? isRigid(e) && modelOf(e) : !strcmp(PR_GetString(e->v.classname), which)))
         {
-            out.push_back(e);
+            out.pushBack(e);
         }
     }
     return out;
@@ -3810,8 +3846,8 @@ void stack_f()
         return;
     }
     const VmScope vm;
-    std::vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
-    const size_t count = std::min(list.size(), static_cast<size_t>(std::max(0, Q_atoi(Cmd_Argv(2)))));
+    za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
+    const size_t count = za::min(list.size(), static_cast<size_t>(za::max(0, Q_atoi(Cmd_Argv(2)))));
     glm::vec3 at{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
     const float yaw = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 0.f;
     const float gap = Cmd_Argc() > 7 ? Q_atof(Cmd_Argv(7)) : 0.5f;
@@ -3837,11 +3873,11 @@ void pyramid_f()
         return;
     }
     const VmScope vm;
-    std::vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
-    const int rows = std::max(1, Q_atoi(Cmd_Argv(2)));
+    za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
+    const int rows = za::max(1, Q_atoi(Cmd_Argv(2)));
     const glm::vec3 centre{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
     const float yaw = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 0.f;
-    const glm::vec3 side{std::cos(glm::radians(yaw + 90.f)), std::sin(glm::radians(yaw + 90.f)), 0.f};
+    const glm::vec3 side{za::cos(glm::radians(yaw + 90.f)), za::sin(glm::radians(yaw + 90.f)), 0.f};
     size_t next = 0;
     float z = centre.z;
     for(int row = 0; row < rows && next < list.size(); row++)
@@ -3856,7 +3892,7 @@ void pyramid_f()
             const float width = (hi.y - lo.y) + 1.f;
             const glm::vec3 at = centre + side * ((static_cast<float>(k) - (n - 1) * 0.5f) * width);
             placeStill(e, glm::vec3{at.x, at.y, z - lo.z + 0.25f}, yaw);
-            height = std::max(height, hi.z - lo.z);
+            height = za::max(height, hi.z - lo.z);
             Con_Printf("vr_physics_pyramid: %d %s at %.1f %.1f %.1f\n", NUM_FOR_EDICT(e), PR_GetString(e->v.classname), e->v.origin[0],
                 e->v.origin[1], e->v.origin[2]);
         }
@@ -3874,8 +3910,8 @@ void pile_f()
         return;
     }
     const VmScope vm;
-    const std::vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
-    const size_t per = static_cast<size_t>(std::max(1, Q_atoi(Cmd_Argv(2))));
+    const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(1));
+    const size_t per = static_cast<size_t>(za::max(1, Q_atoi(Cmd_Argv(2))));
     const glm::vec3 base{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
     const float spacing = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 24.f;
     glm::vec3 at = base;
@@ -3972,7 +4008,7 @@ void list_f()
         return;
     }
     const VmScope vm;
-    const std::vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props");
+    const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props");
     Con_Printf("%d, %s:\n", static_cast<int>(list.size()), world ? "Box3D" : "no Box3D world");
     for(edict_t* e : list)
     {
@@ -4008,7 +4044,7 @@ void list_f()
                 float m[16];
                 R_EntityMatrix(m, o, a, ce.scale);
                 VR_BrushTransform(&ce, m);
-                drawn = std::sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
+                drawn = za::sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
             }
             Con_Printf("    size x%.2f: body %.1f %.1f %.1f, box %.1f %.1f %.1f, drawn x%.3f\n",
                 model ? qvr::props::drawnSize(model) : 1.f, body.x, body.y, body.z, e->v.size[0], e->v.size[1], e->v.size[2],
@@ -4102,7 +4138,7 @@ void fling_f()
     }
     const VmScope vm;
     edict_t* player = EDICT_NUM(1);
-    std::vector<edict_t*> list;
+    za::Vector<edict_t*> list;
     if(!strcmp(Cmd_Argv(1), "nearest"))
     {
         float best = 1e9f;
@@ -4122,7 +4158,7 @@ void fling_f()
         }
         if(found)
         {
-            list.push_back(found);
+            list.pushBack(found);
         }
     }
     else
@@ -4134,7 +4170,7 @@ void fling_f()
     const float up = Cmd_Argc() > 4 ? static_cast<float>(Q_atof(Cmd_Argv(4))) : 0.f;
     for(edict_t* e : list)
     {
-        store(glm::vec3{std::cos(yaw) * speed, std::sin(yaw) * speed, up}, e->v.velocity);
+        store(glm::vec3{za::cos(yaw) * speed, za::sin(yaw) * speed, up}, e->v.velocity);
         setFlag(e, FL_ONGROUND, false);
         Con_Printf("vr_physics_fling: %d %s at %.0f %.0f %.0f u/s\n", NUM_FOR_EDICT(e), PR_GetString(e->v.classname),
             e->v.velocity[0], e->v.velocity[1], e->v.velocity[2]);
@@ -4158,8 +4194,8 @@ void sink_f()
         return;
     }
     const VmScope vm;
-    const std::vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props");
-    std::vector<glm::vec3> vertices; // (a debug command's: made each call)
+    const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "props");
+    za::Vector<glm::vec3> vertices; // (a debug command's: made each call)
     float worst = 0.f, total = 0.f;
     int counted = 0;
     for(edict_t* e : list)
@@ -4176,7 +4212,7 @@ void sink_f()
         for(glm::vec3& v : vertices)
         {
             v = origin + axes * v;
-            low = std::min(low, v.z);
+            low = za::min(low, v.z);
         }
         // The floor under the lowest corners (those within 2 units of the lowest: a gun on its side rests on several).
         float sunk = -1e9f;
@@ -4196,7 +4232,7 @@ void sink_f()
             const trace_t tr = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, e);
             if(tr.fraction < 1.f && !tr.startsolid && tr.plane.normal[2] > 0.7f)
             {
-                sunk = std::max(sunk, tr.endpos[2] - v.z);
+                sunk = za::max(sunk, tr.endpos[2] - v.z);
             }
         }
         float hullLow = 1e9f;
@@ -4214,7 +4250,7 @@ void sink_f()
                 for(int k = 0; points && k < hull->vertexCount; k++)
                 {
                     const b3Vec3 p = b3RotateVector(xf.q, points[k]);
-                    hullLow = std::min(hullLow, (p.z + xf.p.z) * world->m2u);
+                    hullLow = za::min(hullLow, (p.z + xf.p.z) * world->m2u);
                 }
             }
         }
@@ -4229,7 +4265,7 @@ void sink_f()
         Con_Printf(" %s (%s)\n", hasFlag(e, FL_ONGROUND) ? "asleep" : "awake", kind);
         if(onFloor && sunk > -4.f)
         {
-            worst = std::max(worst, sunk);
+            worst = za::max(worst, sunk);
             total += sunk;
             counted++;
         }
@@ -4253,7 +4289,7 @@ void player_f()
     edict_t* p = EDICT_NUM(1);
     if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(1), "onto"))
     {
-        const std::vector<edict_t*> list = entitiesNamed(Cmd_Argv(2));
+        const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(2));
         if(list.empty())
         {
             Con_Printf("vr_physics_player: no %s\n", Cmd_Argv(2));
@@ -4275,7 +4311,7 @@ void player_f()
     {
         // near <number | classname> <direction> <distance>: on the floor the entity's box stands on, <distance> units
         // from its middle towards <direction> (degrees of yaw), facing it (a run-up at a prop from a side).
-        const std::vector<edict_t*> list = entitiesNamed(Cmd_Argv(2));
+        const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(2));
         if(list.empty())
         {
             Con_Printf("vr_physics_player: no %s\n", Cmd_Argv(2));
@@ -4283,8 +4319,8 @@ void player_f()
         }
         const edict_t* e = list.front();
         const float a = glm::radians(Q_atof(Cmd_Argv(3))), d = Q_atof(Cmd_Argv(4));
-        p->v.origin[0] = (e->v.absmin[0] + e->v.absmax[0]) * 0.5f + d * std::cos(a);
-        p->v.origin[1] = (e->v.absmin[1] + e->v.absmax[1]) * 0.5f + d * std::sin(a);
+        p->v.origin[0] = (e->v.absmin[0] + e->v.absmax[0]) * 0.5f + d * za::cos(a);
+        p->v.origin[1] = (e->v.absmin[1] + e->v.absmax[1]) * 0.5f + d * za::sin(a);
         p->v.origin[2] = e->v.absmin[2] - p->v.mins[2] + 1.f;
         p->v.angles[0] = p->v.angles[2] = 0.f;
         p->v.angles[1] = anglemod(Q_atof(Cmd_Argv(3)) + 180.f);
@@ -4439,8 +4475,8 @@ void blast(const glm::vec3& at, float damage)
         }
         glm::vec3 dir = distance > 0.01f ? (centre - at) / distance : glm::vec3{0.f, 0.f, 1.f};
         dir = glm::normalize(dir + glm::vec3{0.f, 0.f, 0.35f});
-        const float mass = std::max(b3Body_GetMass(s.body), 1e-3f);
-        const float speed = std::min(4.f * points * CLAMP(0.5f, std::sqrt(referenceMass / mass), 2.f), 600.f); // u/s
+        const float mass = za::max(b3Body_GetMass(s.body), 1e-3f);
+        const float speed = za::min(4.f * points * CLAMP(0.5f, za::sqrt(referenceMass / mass), 2.f), 600.f); // u/s
         // Through a point under the middle: the push along the floor turns it over (spin), a lift from under does not.
         const glm::vec3 low = centre - glm::vec3{0.f, 0.f, 0.3f * b3Body_GetMinExtent(s.body) * world->m2u};
         b3Body_ApplyLinearImpulse(s.body, world->toM(dir * (speed * mass)), world->toM(low), true);
@@ -4502,14 +4538,14 @@ void drawCapsule(const b3Capsule& c, const b3WorldTransform& xf, const glm::vec4
         for(int i = 0; i < sides; i++)
         {
             const float t0 = 2.f * glm::pi<float>() * static_cast<float>(i) / sides, t1 = 2.f * glm::pi<float>() * static_cast<float>(i + 1) / sides;
-            lines::line(centre + r * glm::vec3{std::cos(t0), std::sin(t0), 0.f}, centre + r * glm::vec3{std::cos(t1), std::sin(t1), 0.f}, width,
+            lines::line(centre + r * glm::vec3{za::cos(t0), za::sin(t0), 0.f}, centre + r * glm::vec3{za::cos(t1), za::sin(t1), 0.f}, width,
                 colour, colour);
         }
     }
     for(int i = 0; i < 4; i++)
     {
         const float t = glm::half_pi<float>() * static_cast<float>(i);
-        const glm::vec3 o = r * glm::vec3{std::cos(t), std::sin(t), 0.f};
+        const glm::vec3 o = r * glm::vec3{za::cos(t), za::sin(t), 0.f};
         lines::line(a + o, b + o, width, colour, colour);
     }
 }
@@ -4522,8 +4558,8 @@ void debugDraw()
     {
         return;
     }
-    std::array<b3ShapeId, 64> shapes;
-    std::array<b3ContactData, 16> contacts;
+    za::Array<b3ShapeId, 64> shapes;
+    za::Array<b3ContactData, 16> contacts;
     constexpr float width = 0.15f;
     for(int num = 1; num < static_cast<int>(world->slots.size()); num++)
     {
@@ -4743,7 +4779,7 @@ bool contactPoint(int num, glm::vec3& point)
     {
         return false;
     }
-    std::array<b3ContactData, 8> contacts;
+    za::Array<b3ContactData, 8> contacts;
     const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
     const b3Vec3 centre = b3Body_GetWorldCenter(s.body);
     float best = -1.f;
@@ -4814,7 +4850,7 @@ bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin,
     const b3BodyId body = world->slots[num].body;
     const b3Vec3 lv = b3Body_GetLinearVelocity(body);
     const glm::vec3 v = glm::vec3{lv.x, lv.y, lv.z} * world->m2u; // units/s
-    glm::vec3 rel = (v - relativeTo) * std::clamp(keep, 0.f, 1.f);
+    glm::vec3 rel = (v - relativeTo) * za::clamp(keep, 0.f, 1.f);
     const float speed = glm::length(rel);
     if(maxSpeed > 0.f && speed > maxSpeed)
     {
@@ -4831,7 +4867,7 @@ bool damp(edict_t* ent, const glm::vec3& relativeTo, float keep, float keepSpin,
         }
     }
     const b3Vec3 w = b3Body_GetAngularVelocity(body);
-    const float ks = std::clamp(keepSpin, 0.f, 1.f);
+    const float ks = za::clamp(keepSpin, 0.f, 1.f);
     if(ks < 1.f)
     {
         b3Body_SetAngularVelocity(body, b3Vec3{w.x * ks, w.y * ks, w.z * ks});
@@ -4921,7 +4957,7 @@ bool castAt(int num, const glm::vec3& from, const glm::vec3& to, float radius, f
 {
     fraction = 1.f;
     hasBody = world && num > 0 && num < static_cast<int>(world->slots.size()) &&
-              B3_IS_NON_NULL(world->slots[static_cast<std::size_t>(num)].body);
+              B3_IS_NON_NULL(world->slots[static_cast<za::SizeT>(num)].body);
     if(!hasBody || glm::distance(from, to) < 1e-3f)
     {
         return false;
@@ -4933,7 +4969,7 @@ bool castAt(int num, const glm::vec3& from, const glm::vec3& to, float radius, f
         bool any;
     } q{num, 1.f, false};
     const b3Vec3 zero = b3Vec3_zero;
-    const b3ShapeProxy proxy{&zero, 1, std::max(radius, 0.01f) / world->m2u};
+    const b3ShapeProxy proxy{&zero, 1, za::max(radius, 0.01f) / world->m2u};
     b3World_CastShape(world->id, world->toM(from), &proxy, world->toM(to - from), ropeFilter(),
         [](b3ShapeId shape, b3Pos, b3Vec3, float f, uint64_t, int, int, void* context) -> float {
             Query& cq = *static_cast<Query*>(context);
@@ -4960,17 +4996,17 @@ bool restsOnHand(int num, int player, int hand)
     {
         return false;
     }
-    const Slot& s = world->slots[static_cast<std::size_t>(num)];
-    const World::HandBody& hb = world->hands[static_cast<std::size_t>(player)][static_cast<std::size_t>(hand)];
+    const Slot& s = world->slots[static_cast<za::SizeT>(num)];
+    const World::HandBody& hb = world->hands[static_cast<za::SizeT>(player)][static_cast<za::SizeT>(hand)];
     if(s.kind != Kind::Prop || !b3Body_IsValid(s.body))
     {
         return false;
     }
-    std::array<b3ContactData, 16> contacts;
+    za::Array<b3ContactData, 16> contacts;
     const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
     for(int i = 0; i < count; i++)
     {
-        const b3ContactData& c = contacts[static_cast<std::size_t>(i)];
+        const b3ContactData& c = contacts[static_cast<za::SizeT>(i)];
         const bool isA = B3_ID_EQUALS(b3Shape_GetBody(c.shapeIdA), s.body);
         const b3BodyId other = b3Shape_GetBody(isA ? c.shapeIdB : c.shapeIdA);
         if(!(B3_IS_NON_NULL(hb.reach) && B3_ID_EQUALS(other, hb.reach)) && !(B3_IS_NON_NULL(hb.body) && B3_ID_EQUALS(other, hb.body)))
@@ -5003,9 +5039,9 @@ namespace
     return filter;
 }
 
-[[nodiscard]] std::array<b3Vec3, 8> boxCorners(const glm::vec3& lo, const glm::vec3& hi, const glm::quat& rot, float in)
+[[nodiscard]] za::Array<b3Vec3, 8> boxCorners(const glm::vec3& lo, const glm::vec3& hi, const glm::quat& rot, float in)
 {
-    std::array<b3Vec3, 8> out;
+    za::Array<b3Vec3, 8> out;
     const glm::vec3 a = glm::min(lo + glm::vec3{in}, 0.5f * (lo + hi)), b = glm::max(hi - glm::vec3{in}, 0.5f * (lo + hi));
     for(int k = 0; k < 8; k++)
     {
@@ -5031,7 +5067,7 @@ void ownBox(const Slot& s, glm::vec3& lo, glm::vec3& hi)
 [[nodiscard]] bool boxInLevel(const glm::vec3& lo, const glm::vec3& hi, const glm::vec3& at, const glm::quat& rot, float in = 1.f)
 {
     // (`in` units inside its surface: touching isn't in.)
-    const std::array<b3Vec3, 8> corners = boxCorners(lo, hi, rot, in);
+    const za::Array<b3Vec3, 8> corners = boxCorners(lo, hi, rot, in);
     const b3ShapeProxy proxy{corners.data(), 8, 0.f};
     bool any = false;
     b3World_OverlapShape(world->id, world->toM(at), &proxy, levelFilter(),
@@ -5176,7 +5212,7 @@ void inLevel_f()
         }
         const glm::quat rot = turnOf(e->v.angles, s.brush);
         const glm::vec3 at = vec(e->v.origin);
-        const float most = 0.5f * std::min({hi.x - lo.x, hi.y - lo.y, hi.z - lo.z});
+        const float most = 0.5f * qza::minOf(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z);
         float depth = 0.f;
         for(float in = 0.5f; in < most; in += 0.5f)
         {
@@ -5232,7 +5268,7 @@ constexpr float unstickSpeed = 1.f;
 void beforeStanding()
 {
     world->stands.resize(static_cast<size_t>(svs.maxclients) + 1);
-    const float mass = std::max(vr_box3d_player_mass.value, 0.f);
+    const float mass = za::max(vr_box3d_player_mass.value, 0.f);
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
@@ -5315,7 +5351,7 @@ namespace
 void shoveBumped(float dt)
 {
     const float share = vr_box3d_player_shove.value;
-    const float mp = std::max(vr_box3d_player_mass.value, 1.f);
+    const float mp = za::max(vr_box3d_player_mass.value, 1.f);
     const float g = -b3World_GetGravity(world->id).z;
     for(const World::Bump& b : world->bumps)
     {
@@ -5324,18 +5360,18 @@ void shoveBumped(float dt)
             continue;
         }
         const b3BodyId body = world->slots[b.num].body;
-        const float mb = std::max(b3Body_GetMass(body), 0.1f);
+        const float mb = za::max(b3Body_GetMass(body), 0.1f);
         // His effort: his speed into it, against a frame's acceleration at full stick (Quake stopped him at it last
         // frame: what he has is what this frame's move gave him, less the ground's friction), up to all of it.
-        const float full = std::max(0.5f * sv_accelerate.value * sv_maxspeed.value * dt, 1.f);
-        const float u = std::max(vr_box3d_player_push_speed.value, 0.1f) * std::min(b.speed / full, 1.f);
+        const float full = za::max(0.5f * sv_accelerate.value * sv_maxspeed.value * dt, 1.f);
+        const float u = za::max(vr_box3d_player_push_speed.value, 0.1f) * za::min(b.speed / full, 1.f);
         const float target = u * share * mp / (share * mp + mb); // (his shove's mass and its own)
         const float along = glm::dot(glmv(b3Body_GetLinearVelocity(body)), b.dir);
         if(target <= along)
         {
             continue;
         }
-        const float impulse = std::min(mb * (target - along), share * mp * g * dt); // N s
+        const float impulse = za::min(mb * (target - along), share * mp * g * dt); // N s
         // (Low, a quarter of its height up, under its centre: the floor's friction, at its bottom, doesn't tip a tall box
         // over as pushed at its centre it did.)
         edict_t* ent = EDICT_NUM(b.num);
@@ -5379,7 +5415,7 @@ void unstickProps()
         }
         const glm::vec3 lo = glm::vec3{mins[0], mins[1], mins[2]} + glm::vec3{1.f}, hi = glm::vec3{maxs[0], maxs[1], maxs[2]} - glm::vec3{1.f};
         const glm::vec3 origin = vec(player->v.origin);
-        std::array<b3Vec3, 8> corners;
+        za::Array<b3Vec3, 8> corners;
         for(int k = 0; k < 8; k++)
         {
             corners[static_cast<size_t>(k)] = world->toM(glm::vec3{k & 1 ? hi.x : lo.x, k & 2 ? hi.y : lo.y, k & 4 ? hi.z : lo.z});
@@ -5391,7 +5427,7 @@ void unstickProps()
         struct Query
         {
             int ground;
-            std::array<int, 8> nums;
+            za::Array<int, 8> nums;
             int count;
         } q{standingOn(player), {}, 0};
         b3World_OverlapShape(world->id, world->toM(origin), &proxy, filter,
@@ -5399,7 +5435,7 @@ void unstickProps()
                 Query& oq = *static_cast<Query*>(context);
                 const int num = numOf(shape);
                 if(num != oq.ground && solidProp(num) && oq.count < static_cast<int>(oq.nums.size()) &&
-                   std::find(oq.nums.begin(), oq.nums.begin() + oq.count, num) == oq.nums.begin() + oq.count)
+                   za::find(oq.nums.begin(), oq.nums.begin() + oq.count, num) == oq.nums.begin() + oq.count)
                 {
                     oq.nums[static_cast<size_t>(oq.count++)] = num;
                 }
@@ -5415,7 +5451,7 @@ void unstickProps()
             }
             const b3BodyId body = world->slots[q.nums[static_cast<size_t>(k)]].body;
             glm::vec3 away = world->toU(b3Body_GetWorldCenter(body)) - middle;
-            away.z = std::max(away.z, 0.f);
+            away.z = za::max(away.z, 0.f);
             away = glm::length(away) > 0.1f ? glm::normalize(away) : glm::vec3{0.f, 0.f, 1.f};
             const float along = glm::dot(glmv(b3Body_GetLinearVelocity(body)), away);
             if(along < unstickSpeed)
@@ -5442,7 +5478,7 @@ constexpr float weightFadeSpeed = 1.f; // m/s
 [[nodiscard]] float underFeet(b3BodyId body, b3Vec3 local)
 {
     const float down = -b3Body_GetLocalPointVelocity(body, local).z;
-    return std::clamp(1.f - down / weightFadeSpeed, 0.f, 1.f);
+    return za::clamp(1.f - down / weightFadeSpeed, 0.f, 1.f);
 }
 
 // Each piece of the step: the weight of each player standing on a prop (vr_box3d_player_mass) where he stands. Not
@@ -5459,7 +5495,7 @@ void pressStanding(float dt)
         const b3BodyId pushed = standBody(st.pushed);
         if(st.pushLeft > 0.f && B3_IS_NON_NULL(pushed))
         {
-            const float share = std::min(dt, st.pushLeft) / dt * underFeet(pushed, st.pushLocal);
+            const float share = za::min(dt, st.pushLeft) / dt * underFeet(pushed, st.pushLocal);
             b3Body_ApplyForce(pushed, b3Vec3{0.f, 0.f, -st.pushForce * share}, b3Body_GetWorldPoint(pushed, st.pushLocal), true);
             st.pushLeft -= dt;
         }
@@ -5482,7 +5518,7 @@ void pressStanding(float dt)
         {
             if(world->slots[st.ground].wet)
             {
-                const float most = std::min(mass, 0.5f * b3Body_GetMass(body));
+                const float most = za::min(mass, 0.5f * b3Body_GetMass(body));
                 b3Body_ApplyForceToCenter(body, b3Vec3{0.f, 0.f, -most * g}, false);
             }
             else
@@ -5569,11 +5605,11 @@ constexpr double traceEpsilon = 0.03125; // DIST_EPSILON (world.c): how far shor
 struct PropShape
 {
     glm::dvec3 centre{0.0};      // the prop's drawn box: its centre, its axes, half its size
-    std::array<glm::dvec3, 3> axes{};
+    za::Array<glm::dvec3, 3> axes{};
     glm::dvec3 half{0.0};
-    std::array<glm::dvec2, columnSides> ring{}; // the player's column round his origin: its corners across ...
+    za::Array<glm::dvec2, columnSides> ring{}; // the player's column round his origin: its corners across ...
     double bottom{0.0}, top{0.0};               // ... from his feet to his head
-    std::array<glm::dvec3, 2 * (4 + columnSides / 2 + 3 * (1 + columnSides / 2))> normals{};
+    za::Array<glm::dvec3, 2 * (4 + columnSides / 2 + 3 * (1 + columnSides / 2))> normals{};
     int count{0};
 };
 
@@ -5587,7 +5623,7 @@ void addNormal(PropShape& p, glm::dvec3 n)
     n /= length;
     for(int k = 0; k < 3; k++)
     {
-        n[k] = std::abs(n[k]) < 1e-7 ? 0.0 : n[k]; // (a wall's normal is flat: Quake's step up needs normal z 0)
+        n[k] = qza::abs(n[k]) < 1e-7 ? 0.0 : n[k]; // (a wall's normal is flat: Quake's step up needs normal z 0)
     }
     n = glm::normalize(n);
     p.normals[static_cast<size_t>(p.count++)] = n;
@@ -5613,21 +5649,21 @@ void addNormal(PropShape& p, glm::dvec3 n)
     for(int k = 0; k < 3; k++)
     {
         p.axes[static_cast<size_t>(k)] = glm::normalize(glm::dvec3{axes[k]});
-        if(std::abs(axes[k].z) > std::abs(axes[up].z))
+        if(qza::abs(axes[k].z) > qza::abs(axes[up].z))
         {
             up = k;
         }
     }
     // The column turned with the prop's sides (its yaw): an upright box's faces meet its flats, at exactly his half-width.
     const glm::dvec3 side = p.axes[static_cast<size_t>((up + 1) % 3)];
-    const double yaw = std::atan2(side.y, side.x);
-    const double r = 0.5 * std::min(maxs[0] - mins[0], maxs[1] - mins[1]);
-    const double corner = r / std::cos(glm::pi<double>() / columnSides);
+    const double yaw = za::atan2(side.y, side.x);
+    const double r = 0.5 * za::min(maxs[0] - mins[0], maxs[1] - mins[1]);
+    const double corner = r / za::cos(glm::pi<double>() / columnSides);
     const glm::dvec2 at{0.5 * (mins[0] + maxs[0]), 0.5 * (mins[1] + maxs[1])};
     for(int k = 0; k < columnSides; k++)
     {
         const double a = yaw + (k + 0.5) * 2.0 * glm::pi<double>() / columnSides;
-        p.ring[static_cast<size_t>(k)] = at + corner * glm::dvec2{std::cos(a), std::sin(a)};
+        p.ring[static_cast<size_t>(k)] = at + corner * glm::dvec2{za::cos(a), za::sin(a)};
     }
     p.bottom = mins[2];
     p.top = maxs[2];
@@ -5641,7 +5677,7 @@ void addNormal(PropShape& p, glm::dvec3 n)
     for(int k = 0; k < columnSides / 2; k++)
     {
         const double a = yaw + k * 2.0 * glm::pi<double>() / columnSides;
-        const glm::dvec3 flat{std::cos(a), std::sin(a), 0.0}, edge{-std::sin(a), std::cos(a), 0.0};
+        const glm::dvec3 flat{za::cos(a), za::sin(a), 0.0}, edge{-za::sin(a), za::cos(a), 0.0};
         addNormal(p, flat);
         for(const glm::dvec3& b : p.axes)
         {
@@ -5657,14 +5693,14 @@ void addNormal(PropShape& p, glm::dvec3 n)
     double box = glm::dot(n, p.centre);
     for(int k = 0; k < 3; k++)
     {
-        box += p.half[k] * std::abs(glm::dot(n, p.axes[static_cast<size_t>(k)]));
+        box += p.half[k] * qza::abs(glm::dot(n, p.axes[static_cast<size_t>(k)]));
     }
     double ring = -1e300;
     for(const glm::dvec2& v : p.ring)
     {
-        ring = std::max(ring, -(n.x * v.x + n.y * v.y));
+        ring = za::max(ring, -(n.x * v.x + n.y * v.y));
     }
-    return box + ring + std::max(-n.z * p.bottom, -n.z * p.top);
+    return box + ring + za::max(-n.z * p.bottom, -n.z * p.top);
 }
 
 // Quake 3's brush trace of the player's origin from start to end against the sum's half-spaces. False: missed.
@@ -5701,7 +5737,7 @@ void addNormal(PropShape& p, glm::dvec3 n)
         }
         else
         {
-            leave = std::min(leave, (d1 + traceEpsilon) / (d1 - d2));
+            leave = za::min(leave, (d1 + traceEpsilon) / (d1 - d2));
         }
     }
     if(!startOut)
@@ -5716,7 +5752,7 @@ void addNormal(PropShape& p, glm::dvec3 n)
     {
         return false;
     }
-    const double f = std::max(enter, 0.0);
+    const double f = za::max(enter, 0.0);
     trace.fraction = static_cast<float>(f);
     for(int k = 0; k < 3; k++)
     {
@@ -5739,9 +5775,9 @@ void addNormal(PropShape& p, glm::dvec3 n)
         for(int i = 0; i < 3; i++)
         {
             const double t = glm::dot(d, p.axes[static_cast<size_t>(i)]);
-            out[i] = std::max(std::abs(t) - p.half[i], 0.0);
+            out[i] = za::max(qza::abs(t) - p.half[i], 0.0);
         }
-        best = std::min(best, glm::length(out));
+        best = za::min(best, glm::length(out));
     }
     return best;
 }
@@ -5780,7 +5816,7 @@ void approach_f()
         return;
     }
     const VmScope vm;
-    const std::vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "misc_explobox");
+    const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argc() > 1 ? Cmd_Argv(1) : "misc_explobox");
     edict_t* prop = list.empty() ? nullptr : list.front();
     if(!prop || !solidProp(NUM_FOR_EDICT(prop)))
     {
@@ -5802,7 +5838,7 @@ void approach_f()
     for(int k = 0; k < 16; k++)
     {
         const float a = static_cast<float>(k) * glm::pi<float>() / 8.f;
-        vec3_t s{static_cast<float>(shape.centre.x) + std::cos(a) * reach, static_cast<float>(shape.centre.y) + std::sin(a) * reach, z};
+        vec3_t s{static_cast<float>(shape.centre.x) + za::cos(a) * reach, static_cast<float>(shape.centre.y) + za::sin(a) * reach, z};
         vec3_t e{static_cast<float>(shape.centre.x), static_cast<float>(shape.centre.y), z};
         if(SV_Move(s, p->v.mins, p->v.maxs, s, MOVE_NORMAL, p).startsolid)
         {
@@ -5816,8 +5852,8 @@ void approach_f()
             continue;
         }
         const double gap = columnGap(shape, glm::dvec3{tr.endpos[0], tr.endpos[1], tr.endpos[2]});
-        lo = std::min(lo, gap);
-        hi = std::max(hi, gap);
+        lo = za::min(lo, gap);
+        hi = za::max(hi, gap);
         met++;
         if(vr_debug_box3d.value)
         {
@@ -5839,7 +5875,7 @@ struct InsideWatch
     bool on{false};
     int frames{0}, inside{0}, times{0}, longest{0};
     double deepest{0.0};
-    std::array<int, MAX_SCOREBOARD + 1> in{}, run{}; // (the prop each player is in, 0: none; for how many frames)
+    za::Array<int, MAX_SCOREBOARD + 1> in{}, run{}; // (the prop each player is in, 0: none; for how many frames)
 };
 InsideWatch insideWatch;
 
@@ -5850,7 +5886,7 @@ InsideWatch insideWatch;
     for(int k = 0; k < p.count; k++)
     {
         const glm::dvec3& n = p.normals[static_cast<size_t>(k)];
-        depth = std::min(depth, propSupport(p, n) - glm::dot(n, o));
+        depth = za::min(depth, propSupport(p, n) - glm::dot(n, o));
     }
     return depth;
 }
@@ -5956,7 +5992,7 @@ void watchInside()
         if(in)
         {
             insideWatch.inside++;
-            insideWatch.deepest = std::max(insideWatch.deepest, depth);
+            insideWatch.deepest = za::max(insideWatch.deepest, depth);
             if(insideWatch.in[k] != in)
             {
                 insideWatch.times++;
@@ -5972,7 +6008,7 @@ void watchInside()
         }
         insideWatch.in[k] = in;
         insideWatch.run[k] = in ? insideWatch.run[k] + 1 : 0;
-        insideWatch.longest = std::max(insideWatch.longest, insideWatch.run[k]);
+        insideWatch.longest = za::max(insideWatch.longest, insideWatch.run[k]);
     }
 }
 
@@ -6045,7 +6081,7 @@ extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal
             return;
         }
     }
-    world->bumps.push_back({num, g, dir, speed});
+    world->bumps.pushBack({num, g, dir, speed});
 }
 
 // SV_ClipToLinks: a player's move that starts inside a solid prop's box (toppled onto him) goes on, out of it; not in the
@@ -6169,12 +6205,12 @@ extern "C" void VR_PhysicsFrameEnd(void)
     const double t1 = Sys_DoubleTime();
 
     // Box3D's step, in pieces of at most 1/45 s (a slow server frame).
-    std::vector<std::pair<int, int>>& impacts = world->impacts;
+    za::Vector<qza::Pair<int, int>>& impacts = world->impacts;
     impacts.clear();
     world->shocks.clear();
     // (At most three: after a hitch (a level's load, a saved game, a slow frame; Quake's frame time is at most a tenth of
     // a second) the step catches up in pieces of up to 1/30 s rather than adding more steps to the slow frame.)
-    const int pieces = CLAMP(1, static_cast<int>(std::ceil(dt * 45.f - 0.01f)), 3);
+    const int pieces = CLAMP(1, static_cast<int>(za::ceil(dt * 45.f - 0.01f)), 3);
     const int substeps = CLAMP(1, static_cast<int>(vr_box3d_substeps.value), 8);
     {
         QVR_PROFILE("box3d step");
@@ -6229,7 +6265,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     for(size_t i = 0; i < impacts.size(); i++)
     {
         const auto [a, b] = impacts[i];
-        if(std::find(impacts.begin(), impacts.begin() + static_cast<std::ptrdiff_t>(i), impacts[i]) != impacts.begin() + static_cast<std::ptrdiff_t>(i))
+        if(za::find(impacts.begin(), impacts.begin() + static_cast<za::PtrDiffT>(i), impacts[i]) != impacts.begin() + static_cast<za::PtrDiffT>(i))
         {
             continue;
         }

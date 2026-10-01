@@ -17,7 +17,8 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 
-#include <cstdint>
+#include "Zancle/Base/IntTypes.hpp"
+
 
 namespace qvr::chainsaw
 {
@@ -38,7 +39,7 @@ void drawOpaque();
 [[nodiscard]] bool holds(int hand);
 
 // The move's cord bits (QC .sawcord, VR_SAWCORD_*): which hand holds the other's cord, and a pull.
-[[nodiscard]] std::uint8_t moveBits();
+[[nodiscard]] za::U8 moveBits();
 
 // vr_modelcollide.cpp: how deep (units) the bar of the chainsaw `model` drawn in `hand` may sink into a monster's model
 // now (its chain running: the server's QVR_WPNFLAG_SAW_CHAIN; vr_chainsaw_overlap), 0 none; and where the bar starts

@@ -14,7 +14,8 @@
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
 
-#include <algorithm>
+#include "Zancle/Math/Clamp.hpp"
+
 
 namespace qvr::hue
 {
@@ -35,7 +36,7 @@ namespace qvr::hue
 // player's hue (0: white, 1: as made, up to 2).
 [[nodiscard]] inline float saturation(const cvar_t& own, float s)
 {
-    return follows(own) ? std::clamp(s * std::clamp(vr_player_saturation.value, 0.f, 2.f), 0.f, 1.f) : s;
+    return follows(own) ? za::clamp(s * za::clamp(vr_player_saturation.value, 0.f, 2.f), 0.f, 1.f) : s;
 }
 
 // An effect's colour: its hue (own or the player's), saturation `s` and value `v`.
@@ -55,9 +56,9 @@ namespace qvr::hue
 // (vr_forcegrab_saturation).
 [[nodiscard]] inline float saturation(const cvar_t& own, const cvar_t& ownSaturation, float s)
 {
-    const float k = std::clamp(ownSaturation.value, 0.f, 2.f) *
-                     (follows(own) ? std::clamp(vr_player_saturation.value, 0.f, 2.f) : 1.f);
-    return std::clamp(s * k, 0.f, 1.f);
+    const float k = za::clamp(ownSaturation.value, 0.f, 2.f) *
+                     (follows(own) ? za::clamp(vr_player_saturation.value, 0.f, 2.f) : 1.f);
+    return za::clamp(s * k, 0.f, 1.f);
 }
 
 [[nodiscard]] inline glm::vec3 color(const cvar_t& own, const cvar_t& ownSaturation, float s, float v)

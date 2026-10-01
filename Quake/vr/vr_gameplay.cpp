@@ -6,7 +6,8 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
-#include <array>
+#include "Zancle/Container/Array.hpp"
+
 
 using namespace qvr;
 
@@ -28,7 +29,7 @@ namespace
 }
 
 // The centre and the four corners of the entity's box, as x and y offsets from its origin.
-[[nodiscard]] std::array<glm::vec2, 5> bottomPoints(const edict_t* ent)
+[[nodiscard]] za::Array<glm::vec2, 5> bottomPoints(const edict_t* ent)
 {
     return {{
         {0.f, 0.f},

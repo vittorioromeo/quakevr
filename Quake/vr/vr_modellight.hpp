@@ -10,7 +10,8 @@
 
 #include "vr_engine.hpp"
 
-#include <vector>
+#include "Zancle/Container/Vector.hpp"
+
 
 namespace qvr::modellight
 {
@@ -24,7 +25,7 @@ struct MapLight
 };
 
 // The current map's lights, parsed when it loads.
-[[nodiscard]] const std::vector<MapLight>& mapLights();
+[[nodiscard]] const za::Vector<MapLight>& mapLights();
 
 // The game directory changed (VR_OnGameDirChanged): Mod_ResetAll reuses the models' slots for other models, and the
 // files are another game's; the map's lights and the entities' cached directions (and the world they came from).
