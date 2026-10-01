@@ -56,6 +56,10 @@ Your tuned values are now defaults (Distance Falloff 0.75, HRTF Volume 1.5, Phys
 Throw or drop a running chainsaw: engine follows it in the air and dies after ~3 s (Combat > Enemy Weapons > Runs On When Let Go); pick it back up within 3 s: still running
 Throw the lightning gun while firing: the beam vanishes the instant it leaves your hand
 
+Gib speed by cause (Gore > Gib Speed: Melee 0.45, Light Weapons 0.65, Explosives 1): axe, shotgun, rocket gibs feel right? (lightning gun counts as explosive-level)
+Monster-dropped guns and backpacks can't hurt you for 0.5 s (Flung Props > Monster Drops Harmless For)
+Debug > Views > Show Damage Numbers: floating numbers on monsters, props, crates, secret walls; console lines like the dummy's
+
 [Decide or give feedback]
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
