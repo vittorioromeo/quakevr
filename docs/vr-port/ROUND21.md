@@ -18431,3 +18431,47 @@ NOTES.md vrfiringrange_2026-10-01_11-38-49. Branch `agent/enforcergun`.
 - [ ] Are the lower top and the short post on the band good to look at and quick to pick up?
 - [ ] Is the kick enough (Weapon Offsets > Effects: Recoil Strength 0.5)? Are the flashes right on your rifle and on
   the enforcers'?
+
+## The thumb round a hand grenade; the empty hand meets a weapon as a held prop does (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_12-08-49 and _12-12-28. Branch `agent/handfix`.
+
+- **The thumb round the grenade** (`vr_grasp.cpp` `chooseThumb`, `thumbTurns`' wide turns; `vr_hand_fit_thumb_wide` 1,
+  Hands page "Thumb Opens Wide Round Them", under Thumb Round In-Palm Props). The grenade (In the Palm, its long side
+  across the palm, through the fist's grip channel) passes where the thumb's first bone lies at every usual turn: each
+  of the ten turns "lay along it" open, sunk 0.56-0.71 hand units (about 0.7-0.85 cm) into its side, the clipping he
+  saw. Its place in the hand is not wrong: moving it in the hand cleared the thumb only 2-3 hand units off the palm (a
+  gap). Now In-the-Palm props also try five wide turns (opposition 0-30, swung 45-60 degrees up and away from the
+  index), taken only when no usual turn holds it cleanly from outside (met, not in it nor tucked, lying no deeper than
+  0.1 hand units) and one of them does: the grenade's thumb opens wide and closes round its outside (turn 0/-60, curls
+  0.77, from "lying, sunk 0.63"). Bricks lie sunk as deep (0.43-0.67) at their usual turns, so they change too: turn
+  0/-45, curled 1.47 round the brick's side. Rocks met from open at a usual turn already: unchanged. The menu row is
+  the way back (off: as before).
+- **Empty hand against the other hand's weapon** (`vr_view.cpp` `pushAgainst`'s `share`, `view::handPress`,
+  `vr_modelcollide.cpp` `pressed`): as a prop held there meets that weapon (meetFrame): the hand and the weapon are each
+  drawn moved back by half how deep the hand would be, at most `vr_hand_collide` cm each (5, was the hand alone, 4;
+  `vr_cfg_version` 70 moves a config's 4), a buzz in both hands as they meet; pressed further the hand sinks in by the
+  rest (no more letting it through all at once past 4 cm), held out by the face it went in by however deep (each
+  point's plane is kept while it is behind it), the hand tested against the weapon where it would be unpressed (no
+  feedback). A sudden drop (part of the hand through to the far side) is eased over 0.08 s. The prop path
+  (`vr_hand_collide_props`) is unchanged.
+
+### Tests (mock)
+
+- Grenade from the pouch (`setpos 190 -560 41 0 90 0`, `give r 10`, the hand at `0 1.0 0.2`, `+grabmain`, grip 1):
+  thumb choice 0 lying sunk 0.63 before, choice 12 (0/-60) met from open, curls 0.77 after; four views side by side:
+  the thumb now round the grenade's outside, before hidden in it. Brick (`vr_rigid_place vr_brick main`): choice 0
+  lying 0.54 before, 10 (0/-45) curled 1.47 after.
+- Shotgun in the main hand (`impulse 154`), the empty off hand swept across its barrel in 0.5 cm steps
+  (`vr_debug_hand_collide 1`, his config: 4 cm): hand and weapon each held back half the depth, 0.08 ... 4.00 cm, then
+  the hand in it by the rest (drawn -0.3 ... -1.6 cm at 9 cm deep), no pass-through; the knuckle through to the far
+  side eased 3.84 ... 3.01 cm over a few frames. The off hand then grips the shotgun's foregrip (two-handed 1.00).
+  Health box in the off hand, the main hand lowered onto it (heldself `empdown.sh`): held 1:1 to his 10 cm, then
+  through, as before. Melee canary: 48/53, no differences. `vr_menu_path_check`: 0 missing.
+
+### In the headset
+
+- [ ] Take a grenade from the pouch: the thumb wraps round its outside, not into it. Bricks and rocks still look right
+      (Hands > Thumb Opens Wide Round Them off brings back the old thumb).
+- [ ] Empty hand into the gun in your other hand: both give a little, a buzz, and it holds firm like a held box does;
+      push much further and the hand sinks in rather than popping through.

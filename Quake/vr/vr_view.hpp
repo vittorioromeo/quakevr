@@ -123,6 +123,11 @@ struct DrawnWeapon
 };
 [[nodiscard]] const DrawnWeapon& drawnWeapon(int hand);
 
+// The weapon in `hand` drawn pressed back by the other, free hand pushed into it (vr_hand_collide: each drawn moved back
+// by half how deep they meet, as a prop in that hand and the weapon do), last frame's: the model collision moves the
+// weapon hand by it (vr_modelcollide.cpp, with held::drawnPush).
+[[nodiscard]] glm::vec3 handPress(int hand);
+
 // vr_hotspots_legacy [print]: the slots' hotspots worked out from their round-20 two-handed grip keys (their defaults),
 // printed as vr_weapons.inc lines (round 21's migration of the shipped defaults).
 void hotspotsLegacy_f();

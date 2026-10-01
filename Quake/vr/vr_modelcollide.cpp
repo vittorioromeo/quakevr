@@ -16,6 +16,7 @@
 #include "vr_profile.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
@@ -1096,7 +1097,7 @@ void beginView(hands::State& s)
             {
                 drawDebug(s, hand, res);
             }
-            pressed[hand] = held::drawnPush(hand);
+            pressed[hand] = held::drawnPush(hand) + view::handPress(hand);
             if(vr_debug_model_collide.value >= 1.f && glm::length(pressed[hand]) > 0.f)
             {
                 Con_Printf("model collide %s: pressed by the prop in the other hand %.2f (%.2f %.2f %.2f)\n",
