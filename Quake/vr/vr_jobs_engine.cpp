@@ -9,6 +9,7 @@
 #include "vr_jobs.hpp"
 
 #include "Zancle/Algorithm/Count.hpp"
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Chrono/Clock.hpp"

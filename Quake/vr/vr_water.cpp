@@ -38,7 +38,6 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
-#include <chrono>
 
 extern "C" size_t gl_bmodel_vbo_size; // r_brush.c
 

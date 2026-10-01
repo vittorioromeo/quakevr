@@ -18,7 +18,6 @@
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 
-#include <mutex>
 
 namespace qvr::audio
 {

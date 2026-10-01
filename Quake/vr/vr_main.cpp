@@ -75,8 +75,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
-#include <chrono>
-#include <cstdarg>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>

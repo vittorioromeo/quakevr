@@ -6,7 +6,6 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 
-
 namespace qvr::menu
 {
 

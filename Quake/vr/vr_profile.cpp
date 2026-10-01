@@ -25,7 +25,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
-#include <cstdarg>
+#include <stdarg.h>
 #include <stdio.h>
 #include <time.h>
 

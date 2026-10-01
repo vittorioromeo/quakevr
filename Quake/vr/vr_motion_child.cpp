@@ -13,7 +13,7 @@
 #define NOMINMAX
 #include <windows.h>
 #else
-#include <csignal>
+#include <signal.h>
 #include <spawn.h>
 #include <sys/wait.h>
 #include <unistd.h>

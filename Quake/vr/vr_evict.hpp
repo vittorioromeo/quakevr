@@ -6,7 +6,6 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-
 namespace qvr
 {
 

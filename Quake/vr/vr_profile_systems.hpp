@@ -14,7 +14,6 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/String/String.hpp"
 
-
 namespace qvr::profile::systems
 {
 

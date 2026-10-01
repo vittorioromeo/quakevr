@@ -16,7 +16,6 @@
 
 #endif
 
-#include <mutex>
 
 namespace qvr::steamaudio
 {

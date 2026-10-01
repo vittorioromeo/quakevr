@@ -34,7 +34,7 @@
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_zancle.hpp"
 
-#include <cstdarg>
+#include <stdarg.h>
 #include <string.h>
 
 using namespace qvr;

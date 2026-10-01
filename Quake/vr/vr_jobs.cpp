@@ -3,11 +3,17 @@
 #include "vr_jobs.hpp"
 
 #include "Zancle/Base/CpuRelax.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/AtomicMutex.hpp"
 #include "Zancle/Concurrency/LockGuard.hpp"
 #include "Zancle/Concurrency/ThreadPool.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Vocabulary/Optional.hpp"
+#include "Zancle/Vocabulary/UniquePtr.hpp"
 
 namespace qvr::jobs
 {

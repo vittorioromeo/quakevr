@@ -18,7 +18,6 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
-#include <chrono>
 
 using namespace qvr;
 

@@ -24,6 +24,7 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/String/StringView.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 
 extern "C" unsigned char* Image_DecodeMemory(const unsigned char* bytes, int length, int* width, int* height); // image.c

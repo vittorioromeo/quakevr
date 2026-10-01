@@ -5,6 +5,7 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Macros.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_zancle.hpp"
 
