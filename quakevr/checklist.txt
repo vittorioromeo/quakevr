@@ -117,6 +117,8 @@ Crates: dogs and grunts running into them only push them (no breaks, no damage);
 
 Push the free hand into a held shotgun and laser cannon (side, top, along the barrel): stops at the surface, held back ~4 cm, then goes in
 
+Topple the big box onto yourself against a wall with hands under it: it slides off, not thrown; walk into the big box with hands ahead: it slides, stays upright; take a small box with fists on its sides
+
 [Decide or give feedback]
 Crouching makes you a smaller target for all bullets and missiles (Player Hitbox > hit box only up to your head, on by default): keep?
 Explosive boxes as shields too (vr_crate_shield 2: they blow up in your hands)? Off by default
