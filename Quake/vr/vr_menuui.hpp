@@ -64,4 +64,7 @@ bool scrollStick(float y);
 // style: Quake's slider is drawn instead.
 bool drawSlider(int x, int y, float range, int past, const char* desc);
 
+// An open drop-down list's highlighted choice (vr_menu.cpp): a bar from x0 to x1 on the row at y, in either menu style.
+void drawListHighlight(float x0, float x1, int y);
+
 } // namespace qvr::menuui

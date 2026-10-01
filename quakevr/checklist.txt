@@ -48,6 +48,8 @@ Controller spin frame fix (Throwing > Controller Spin Frame, auto): Debug > Cont
 
 Stand on a box leaning more than 30 deg: you slide off promptly (Standing on Props > Steepest Face to Stand On 30; 46 = old); under 30 deg standing, walking and jumping unchanged
 
+Drop-down lists: point the laser at a setting with many choices (Player Hitbox > Width Against Walls, Motion Recorder > Category) and pull the trigger: a list opens by it; point at a choice and pull to pick, pull outside or press B to close; the stick moves the highlight, A picks; thumbstick left/right still steps (HUD and Menus > Menu > Drop-Down Lists)
+
 [Decide or give feedback]
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?

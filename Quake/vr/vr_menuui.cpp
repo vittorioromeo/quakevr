@@ -146,6 +146,7 @@ constexpr glm::vec4 switchOff{0.30f, 0.27f, 0.24f, 1.f};
 constexpr glm::vec4 knobOff{0.62f, 0.58f, 0.52f, 1.f};
 constexpr glm::vec4 highlight{1.f, 0.72f, 0.35f, 0.14f};
 constexpr glm::vec4 highlightEdge{1.f, 0.70f, 0.30f, 0.9f};
+constexpr glm::vec4 listHover{1.f, 0.72f, 0.35f, 0.28f}; // a drop-down list's highlighted choice
 constexpr glm::vec4 boxBorder{0.60f, 0.40f, 0.18f, 1.f};
 constexpr glm::vec4 boxFill{0.07f, 0.055f, 0.04f, 0.92f};
 constexpr glm::vec4 scrollThumb{0.86f, 0.55f, 0.18f, 0.9f};
@@ -1037,6 +1038,14 @@ extern "C" int VR_MenuDrawHighlight(int cx, int cy)
     p.rounded(left, right, yc, 5.5f, 2.f, colors::highlight);
     p.rect(left, left + 1.5f, yc, 4.5f, colors::highlightEdge);
     return 0;
+}
+
+void qvr::menuui::drawListHighlight(float x0, float x1, int y)
+{
+    const Painter p;
+    const float yc = y + 4.f;
+    p.rounded(x0, x1, yc, 4.5f, 2.f, colors::listHover);
+    p.rect(x0, x0 + 1.5f, yc, 3.5f, colors::highlightEdge);
 }
 
 // The vertical Quake plaque on the options pages: with the VR style's taller panel the rows reach

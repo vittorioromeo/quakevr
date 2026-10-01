@@ -18855,3 +18855,24 @@ Edge cases decided:
 - [ ] Carrying a gun by its body, grip it with the other hand too: both hold it as a box; let go with either.
 - [ ] Strike and throw with a gun held by its body; holster it from there and draw it again.
 - [ ] Anywhere: Away From Grips (12 cm): the handle and the pump still easy to take?
+
+## Drop-down lists in the VR menus (2026-10-01)
+
+His words (NOTES.md vrfiringrange_2026-10-01_16-36-40): rows with many choices are hard to go through by cycling; a
+click should open a little list to pick from with the mouse or the laser.
+
+- A VR page's choice row (`Item::Cycle`, not an Off/On switch) with `vr_menu_dropdown` choices or more (default 4; 0
+  never) opens a list of its choices on a click (mouse or laser trigger) or Enter / A, instead of stepping to the next.
+  Left and right (keyboard, gamepad, the off hand's stick) still step through them without opening it.
+- The list (vr_menu.cpp, "Drop-down lists") opens by the row: its labels where the row shows its value, the current
+  choice level with the row (moved to stay inside the menu), shifted left at the canvas's right edge. At most 12 rows;
+  longer lists scroll (a scrollbar thumb, draggable; the wheel; the main stick moves the highlight and the list follows).
+  The current choice is white with a marker; the highlighted one has a bar (`menuui::drawListHighlight`, both styles).
+- Pointing at a choice highlights it, a click picks it and closes the list; a click outside, Back (Escape, B, right
+  mouse) closes it unchanged; up/down move the highlight, Enter / A pick it. Showing another page, the corner's
+  buttons taking the selection, or the row's page rebuilt with a different row there closes it.
+- Setting: VR Settings > Advanced VR Options > HUD and Menus > Menu > Drop-Down Lists (Never, 3+ .. 8+).
+- Test aid: `menu_vr pos` prints a second line while a list is open (its row, choices, highlighted choice, scroll, box).
+  Checked with the mock laser: a click on Player Hitbox's Width Against Walls row opens it (8 choices), a click on
+  "8 units" sets `vr_hull_width` 8, a click outside closes it unchanged, A + stick + A picks, B closes, the off hand's
+  stick right still steps 16 to 20; Motion Recorder's Category (13 choices) scrolls; the flat style draws Quake's box.

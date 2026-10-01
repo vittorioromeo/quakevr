@@ -4596,8 +4596,11 @@ void noteLeft(int p, const za::Vector<Item>& list)
 
 // Shows `target`, with its cursor on a setting: where it was left (pages built anew as they are
 // shown, for what the hand holds now, keep the same row by its label).
+void closeDropDown(); // (the drop-down lists, below: a page shown closes the one open)
+
 void showPage(int target)
 {
+    closeDropDown();
     page = target;
     weightPageShown(pages[page].build); // a weight page: what is in the hand now
     if(pages[page].build == pageWeaponOffsets)
@@ -4886,6 +4889,315 @@ void setSliderAt(const Item& item, float cx)
             S_LocalSound("misc/menu1.wav");
         }
     }
+}
+
+// ----------------------------------------------------------------------------
+// Drop-down lists: a choice row with many choices (vr_menu_dropdown or more) opens a list of them
+// next to it on a click (or Enter / A) instead of stepping to the next one; the mouse or the laser
+// picks one (up and down, the stick, Enter / A likewise), a click outside or Back closes it. Left
+// and right still step through the choices without it.
+// ----------------------------------------------------------------------------
+
+struct DropDown
+{
+    bool open{false};
+    int page{-1};
+    int row{-1};               // the row's index in the page's list
+    const cvar_t* cvar{nullptr}; // its setting and how many choices it had (a rebuilt page checked against them)
+    int count{0};
+    int hover{0};  // the choice highlighted
+    int scroll{0}; // the first choice shown
+    bool scrollGrab{false};
+    // Laid out as it opened: the inside's left, width and top (menu coordinates), its rows, its width in
+    // characters (M_DrawTextBox), the longest label's.
+    int x{0}, width{0}, top{0}, rows{0}, chars{0}, labelChars{0};
+};
+DropDown dropDown;
+
+constexpr int dropDownBar = 16; // the scrollbar's column, inside the box's right edge
+
+[[nodiscard]] bool opensDropDown(const Item& item)
+{
+    return item.kind == Item::Cycle && vr_menu_dropdown.value >= 2.f && item.cvar &&
+           static_cast<int>(item.choices.size()) >= static_cast<int>(vr_menu_dropdown.value) && !isToggle(item);
+}
+
+void closeDropDown()
+{
+    dropDown.open = false;
+    dropDown.scrollGrab = false;
+}
+
+// The open list's row, or null (closed now if its page or row is gone, or the corner's buttons took the selection).
+[[nodiscard]] const Item* dropDownItem()
+{
+    if(!dropDown.open)
+    {
+        return nullptr;
+    }
+    if(m_state != m_vr || page != dropDown.page || menuui::toolbarFocused())
+    {
+        closeDropDown();
+        return nullptr;
+    }
+    const auto& list = items(page);
+    if(dropDown.row >= static_cast<int>(list.size()))
+    {
+        closeDropDown();
+        return nullptr;
+    }
+    const Item& item = list[dropDown.row];
+    if(item.kind != Item::Cycle || item.cvar != dropDown.cvar || static_cast<int>(item.choices.size()) != dropDown.count)
+    {
+        closeDropDown();
+        return nullptr;
+    }
+    return &item;
+}
+
+void dropDownShowHover()
+{
+    if(dropDown.hover < dropDown.scroll)
+    {
+        dropDown.scroll = dropDown.hover;
+    }
+    else if(dropDown.hover >= dropDown.scroll + dropDown.rows)
+    {
+        dropDown.scroll = dropDown.hover - dropDown.rows + 1;
+    }
+    dropDown.scroll = CLAMP(0, dropDown.scroll, q_max(dropDown.count - dropDown.rows, 0));
+}
+
+// The list of `item`'s choices (the page's row `row`), opened by its row: as wide as its longest
+// label, as many rows as fit (12 at most; it scrolls past that), the current choice over the row
+// where the screen allows, kept inside the menu.
+void openDropDown(const Item& item, int row)
+{
+    const Layout l = layout();
+    const int n = static_cast<int>(item.choices.size());
+    int longest = 1;
+    for(const Choice& c : item.choices)
+    {
+        longest = q_max(longest, static_cast<int>(strlen(c.label)));
+    }
+    longest = q_min(longest, 30);
+
+    DropDown& d = dropDown;
+    d.open = true;
+    d.scrollGrab = false;
+    d.page = page;
+    d.row = row;
+    d.cvar = item.cvar;
+    d.count = n;
+    d.labelChars = longest;
+    d.rows = q_min(n, CLAMP(4, (l.bottom - l.top - 32) / 8, 12));
+    const int cur = currentChoice(item);
+    d.hover = cur;
+    d.scroll = CLAMP(0, cur - d.rows / 2, q_max(n - d.rows, 0));
+
+    // Across: a marker's column, then the labels where the row shows its value, the scrollbar's column if it scrolls.
+    const int inner = 12 + longest * 8 + 4 + (n > d.rows ? dropDownBar : 0);
+    d.chars = (inner + 7) / 8;
+    d.width = ((d.chars + 1) / 2) * 16; // as M_DrawTextBox draws it
+    const int right = static_cast<int>(glcanvas.right) - 12;
+    const int left = static_cast<int>(glcanvas.left) + 12;
+    d.x = midPos - 12;
+    if(d.x + d.width > right)
+    {
+        d.x = q_max(right - d.width, left);
+    }
+
+    // Up and down: the current choice level with the row, the box inside the menu.
+    const int rowY = l.listTop + (row - scrolls[page]) * 8;
+    d.top = rowY - (cur - d.scroll) * 8;
+    d.top = CLAMP(l.top + 12, d.top, q_max(l.top + 12, l.bottom - 12 - d.rows * 8));
+    S_LocalSound("misc/menu3.wav");
+}
+
+// Sets the hovered choice and closes the list.
+void pickDropDown(const Item& item)
+{
+    const float v = item.choices[CLAMP(0, dropDown.hover, dropDown.count - 1)].value;
+    cvar_t* const cvar = item.cvar;
+    closeDropDown();
+    Cvar_SetValueQuick(cvar, v); // (`item` may be gone after this: a page rebuilt by the setting's change)
+    S_LocalSound("misc/menu3.wav");
+}
+
+[[nodiscard]] bool insideDropDown(float cx, float cy)
+{
+    const DropDown& d = dropDown;
+    return cx >= d.x - 6 && cx < d.x + d.width + 6 && cy >= d.top - 6 && cy < d.top + d.rows * 8 + 6;
+}
+
+[[nodiscard]] bool onDropDownBar(float cx, float cy)
+{
+    const DropDown& d = dropDown;
+    return d.count > d.rows && insideDropDown(cx, cy) && cx >= d.x + d.width - dropDownBar;
+}
+
+// The choice under the mouse, or -1.
+[[nodiscard]] int dropDownChoiceAt(float cx, float cy)
+{
+    const DropDown& d = dropDown;
+    if(!insideDropDown(cx, cy) || onDropDownBar(cx, cy) || cy < d.top || cy >= d.top + d.rows * 8)
+    {
+        return -1;
+    }
+    const int i = d.scroll + static_cast<int>(za::floor((cy - d.top) / 8.f));
+    return i < d.count ? i : -1;
+}
+
+// The scrollbar's thumb: its top (pixels below the list's top) and height (rows).
+void dropDownThumb(int& y, int& height)
+{
+    const DropDown& d = dropDown;
+    height = q_max(static_cast<int>(d.rows * d.rows / static_cast<float>(d.count) + 0.5f), 2);
+    y = static_cast<int>(d.scroll * 8 / static_cast<float>(d.count - d.rows) * (d.rows - height) + 0.5f);
+}
+
+void dropDownScrollTo(float cy)
+{
+    DropDown& d = dropDown;
+    if(d.count <= d.rows)
+    {
+        return;
+    }
+    int y, height;
+    dropDownThumb(y, height);
+    const float yrel = cy - d.top - height * 4.f;
+    d.scroll = CLAMP(0, static_cast<int>(yrel * (d.count - d.rows) / ((d.rows - height) * 8) + 0.5f), d.count - d.rows);
+}
+
+void drawDropDown()
+{
+    const Item* item = dropDownItem();
+    if(!item)
+    {
+        return;
+    }
+    const DropDown& d = dropDown;
+    M_DrawTextBox(d.x - 8, d.top - 8, d.chars, d.rows);
+    const int cur = currentChoice(*item);
+    const int textRight = d.x + d.width - (d.count > d.rows ? dropDownBar : 0);
+    char text[32];
+    for(int i = d.scroll; i < d.count && i < d.scroll + d.rows; i++)
+    {
+        const int y = d.top + (i - d.scroll) * 8;
+        if(i == d.hover)
+        {
+            menuui::drawListHighlight(d.x - 3.f, static_cast<float>(textRight) + 1.f, y);
+        }
+        q_strlcpy(text, item->choices[i].label, q_min(static_cast<int>(sizeof(text)), d.labelChars + 1));
+        if(i == cur)
+        {
+            M_DrawCharacter(d.x, y, 13); // the choice set now
+            M_PrintWhite(d.x + 12, y, text);
+        }
+        else
+        {
+            M_Print(d.x + 12, y, text);
+        }
+    }
+    if(d.count > d.rows)
+    {
+        int y, height;
+        dropDownThumb(y, height);
+        M_DrawTextBox(d.x + d.width - dropDownBar - 2, d.top + y - 4, 0, height - 1);
+    }
+}
+
+// A key while the list is open: all of them are its (true), but a corner button's.
+bool dropDownKey(int key)
+{
+    const Item* item = dropDownItem();
+    if(!item)
+    {
+        return false;
+    }
+    DropDown& d = dropDown;
+    switch(key)
+    {
+        case K_ESCAPE:
+        case K_BBUTTON:
+        case K_MOUSE2:
+        case K_MOUSE4:
+            closeDropDown();
+            S_LocalSound("misc/menu2.wav");
+            break;
+        case K_UPARROW:
+        case K_DOWNARROW:
+            d.hover = CLAMP(0, d.hover + (key == K_DOWNARROW ? 1 : -1), d.count - 1);
+            dropDownShowHover();
+            S_LocalSound("misc/menu1.wav");
+            break;
+        case K_MWHEELUP:
+        case K_MWHEELDOWN:
+        {
+            d.scroll = CLAMP(0, d.scroll + (key == K_MWHEELDOWN ? 1 : -1), q_max(d.count - d.rows, 0));
+            const int i = dropDownChoiceAt(m_mousex, m_mousey);
+            if(i >= 0)
+            {
+                d.hover = i;
+            }
+            break;
+        }
+        case K_ENTER:
+        case K_KP_ENTER:
+        case K_ABUTTON: pickDropDown(*item); break;
+        case K_MOUSE1:
+        {
+            if(onDropDownBar(m_mousex, m_mousey))
+            {
+                d.scrollGrab = true;
+                dropDownScrollTo(m_mousey);
+                break;
+            }
+            const int i = dropDownChoiceAt(m_mousex, m_mousey);
+            if(i >= 0)
+            {
+                d.hover = i;
+                pickDropDown(*item);
+            }
+            else if(!insideDropDown(m_mousex, m_mousey))
+            {
+                closeDropDown(); // a click outside: closed, nothing else done
+                S_LocalSound("misc/menu2.wav");
+            }
+            break;
+        }
+        default: break; // (left and right too: the list's choice is picked, not stepped)
+    }
+    return true;
+}
+
+// The mouse while the list is open: the choice under it highlighted, or its scrollbar dragged.
+bool dropDownMousemove(float cx, float cy)
+{
+    if(!dropDownItem())
+    {
+        return false;
+    }
+    DropDown& d = dropDown;
+    if(d.scrollGrab)
+    {
+        if(keydown[K_MOUSE1])
+        {
+            dropDownScrollTo(cy);
+            return true;
+        }
+        d.scrollGrab = false;
+    }
+    const int i = dropDownChoiceAt(cx, cy);
+    if(i >= 0 && i != d.hover)
+    {
+        d.hover = i;
+        if(ui_mouse_sound.value)
+        {
+            S_LocalSound("misc/menu1.wav");
+        }
+    }
+    return true;
 }
 
 void drawItem(const Item& item, int y, bool selected)
@@ -5408,6 +5720,12 @@ void qvr::menu::command_f()
         Con_Printf("menu_vr pos: page %d \"%s\" (back to %d), row %d \"%s\" under \"%s\", scroll %d of %d rows%s\n", page,
             pages[page].title, page == PageMain ? -1 : parentPage[page], cursor, rowLabel(list[cursor]), rowSection(list, cursor),
             scrolls[page], static_cast<int>(list.size()), corner);
+        if(const Item* open = dropDownItem())
+        {
+            const DropDown& d = dropDown;
+            Con_Printf("menu_vr pos: list open on row %d, %d choices, highlighted %d \"%s\", shows %d from %d, box x %d..%d y %d..%d\n",
+                d.row, d.count, d.hover, open->choices[d.hover].label, d.rows, d.scroll, d.x, d.x + d.width, d.top, d.top + d.rows * 8);
+        }
         return;
     }
     VR_Menu_Open();
@@ -5539,6 +5857,13 @@ bool qvr::menu::scroll(int rows)
     if(m_state != m_vr || sliderGrab || scrollGrab)
     {
         return false;
+    }
+    if(dropDownItem())
+    {
+        // The stick moves the open list's highlight, the list scrolling with it.
+        dropDown.hover = CLAMP(0, dropDown.hover + rows, dropDown.count - 1);
+        dropDownShowHover();
+        return true;
     }
     const auto& list = items(page);
     const int n = static_cast<int>(list.size());
@@ -5688,6 +6013,8 @@ extern "C" void VR_Menu_Draw()
             drawHelp(help);
         }
     }
+
+    drawDropDown(); // over the rows and the help
 }
 
 extern "C" void VR_Menu_Key(int key, int repeat)
@@ -5701,6 +6028,11 @@ extern "C" void VR_Menu_Key(int key, int repeat)
         {
             sliderGrab = scrollGrab = false;
         }
+        return;
+    }
+
+    if(dropDownKey(key))
+    {
         return;
     }
 
@@ -5790,13 +6122,22 @@ extern "C" void VR_Menu_Key(int key, int repeat)
                 }
                 break;
             }
+            if(opensDropDown(list[cursor]))
+            {
+                openDropDown(list[cursor], cursor);
+                break;
+            }
             change(list[cursor], 1);
             break;
 
         case K_ENTER:
         case K_KP_ENTER:
         case K_ABUTTON:
-            if(list[cursor].kind != Item::Slider)
+            if(opensDropDown(list[cursor]))
+            {
+                openDropDown(list[cursor], cursor);
+            }
+            else if(list[cursor].kind != Item::Slider)
             {
                 change(list[cursor], 1);
             }
@@ -5810,6 +6151,11 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 // slider.
 extern "C" void VR_Menu_Mousemove(float cx, float cy)
 {
+    if(dropDownMousemove(cx, cy))
+    {
+        return;
+    }
+
     const auto& list = items(page);
     int& cursor = cursors[page];
 
