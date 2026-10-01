@@ -2988,6 +2988,10 @@ za::Vector<Item> pageHitbox()
         toggle("Stand on Boxes", vr_box3d_player_stand)
             .help("Explosive boxes and other solid props are ground: you stand still on them, walk and jump from them, "
                   "and ride them as they move; your body doesn't shove the one under you (vr_box3d_player_stand)."),
+        slider("Steepest Face to Stand On", vr_box3d_player_slope, 0.f, 46.f, 1.f, "%.0f deg")
+            .help("A solid prop's face tilted more than this isn't ground: you slide off it, as off a slope too steep to "
+                  "walk, and your weight doesn't press it. 46: Quake's own limit (you stood on steeper faces, creeping "
+                  "down slowly) (vr_box3d_player_slope)."),
         slider("Your Weight on Them", vr_box3d_player_mass, 0.f, 150.f, 5.f, "%.0f kg")
             .help("What you press the prop you stand on down with (a floating box sinks lower: at most half its own "
                   "weight there). 0: none."),

@@ -286,7 +286,7 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 		if (trace.plane.normal[2] > 0.7)
 		{
 			blocked |= 1;		// floor
-			if (trace.ent->v.solid == SOLID_BSP || VR_StandsOn (ent, trace.ent)) // QVR: a player on a solid prop
+			if (trace.ent->v.solid == SOLID_BSP || VR_StandsOn (ent, trace.ent, trace.plane.normal)) // QVR: a player on a solid prop
 			{
 				ent->v.flags =	(int)ent->v.flags | FL_ONGROUND;
 				ent->v.groundentity = EDICT_TO_PROG(trace.ent);
@@ -310,6 +310,20 @@ int SV_FlyMove (edict_t *ent, float time, trace_t *steptrace)
 
 
 		time_left -= time_left * trace.fraction;
+
+	// QVR: the same plane again, not moved since: as Quake 3's slide move, nudge the velocity out of it (1 unit a second)
+	// and go on; with itself as a crease it stopped dead. Only a solid prop's trace (Quake 3's brush trace,
+	// vr_box3d_player_shape) does this: sliding along its face from DIST_EPSILON off it, ClipVelocity's STOP_EPSILON
+	// leaves the velocity a hair into it, which its trace meets at once (a player sliding down a steep box was stopped
+	// every few frames: ROUND21.md, "Sliding off steep boxes"). Quake's hull traces only meet a plane they cross.
+		for (i=0 ; i<numplanes ; i++)
+			if (DotProduct (trace.plane.normal, planes[i]) > 0.99)
+				break;
+		if (i < numplanes)
+		{
+			VectorAdd (trace.plane.normal, ent->v.velocity, ent->v.velocity);
+			continue;
+		}
 
 	// cliped to another plane
 		if (numplanes >= MAX_CLIP_PLANES)
