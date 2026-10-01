@@ -17096,3 +17096,98 @@ that channel. Mock: 30 gibbed enforcers, 2 to 5 heads with flies, each `misc/fly
   blasts 0 every time. The effect itself is kept: a head lying about still has its flies.
 - Test aid: `vr_test_spawn_dead 2` gibs the monster `impulse 241` puts (health + 100 damage); the Debug menu's "As a
   Corpse" row is a toggle (0/1), so 2 is console-only for now.
+## Thrown axes: the blade decides (2026-10-01)
+
+From his notes vrfiringrange_2026-09-30_23-57 and 23-59: sticking felt random even with every tolerance opened (his
+config: Stick Angle 90, Incidence 90, Leniency 2, Speed 1); "spear-like", the blade in front, it stuck; upright or
+like a throwing knife it barely did. "Figure out the rectangle that makes up the blade [...] and use that as the
+condition of sticking. It shouldn't be just angle based."
+
+**Why it felt random** (measured, the old test):
+- A throw spun off its steadiest axis (a real wrist's twist) turns its spin about in the air (Box3D's gyroscopic step,
+  Spin Alignment) by more than 2 rad/s a step: the old "it hit something" check (its spin changed by 2 rad/s) took that
+  for a hit, and the axe never stuck after, mid-air. `vr_test_axe 7`, spin 12/12/5 rad/s and 20/6/0: both "hit
+  something with ? (13 u/s, spin 2.5 rad/s changed): never sticks now" in the air.
+- The old test swept the two edges alone and judged them by angles (the blade facing the way the edge goes, square
+  to the surface). Nothing knew what else of the axe was about to meet the wall: a handle-first or flat throw whose
+  edge reached it a moment later could pass; a spear-like throw (the head's top first, the edge square to the way it
+  goes) was 90 degrees "off its edge" and failed unless the angles were opened all the way.
+
+**What it does now** (`vr_axestick.cpp`). The axe as drawn is sampled once from its model (`samplesOf`, about 75
+points for `progs/v_axe.mdl`): each blade's edge at sevenths (both corners among them), every vertex (1.5 units
+apart), and the sides of the triangles that reach into a blade every 3 units (the blade's outline: its top and bottom
+edges in from the corners; and its faces). Each point knows what it is: on a blade, how far behind its edge (a share of
+the blade's width), where along it; or the handle, its end, the head's middle. Each step every point is swept along its
+move (velocity and spin, from 3 units behind it, a little ahead with leniency), against the level, brush entities,
+monsters (their drawn models) and props, after a cheap broad phase (a box round the axe swept along its move, and
+Box3D's sphere cast: most steps of a flight meet nothing). **Whichever point goes in first decides**: the blade's cutting
+part sticks; anything else bounces, and (if it meets it this step) the axe never sticks after. Then only sanity checks:
+something an axe sticks in, the point fast enough into it (Stick Speed), going into it, not its side first (Stick
+Angle: now the way it goes out of the blade's plane, 45), not glancing (Stick Incidence: now its way off straight into
+the surface, 65; + 10 a leniency). It sticks pushed the way that point went, in the blade's plane (a corner along the
+way it came, the edge straight in), Stick Depth deep, its handle kept out of the wall as before.
+
+"First contact" is now Box3D's own: a contact that pushed in its last step (`box3d::contactPoint`, now only contacts
+with an impulse), or a change of flight beyond gravity's; no longer its spin.
+
+**Blade Leniency** (0..2, 1) now says how much of the blade cuts: 0 the edge and its corners (a tenth of the blade's
+width back); 1 45% of its width (the blade's top and bottom edges in from the corners); 2 80% (never the head's middle,
+the handle or its end). Also, times it: the blade may come 1 unit after what goes in first, the axe is looked for 4
+units past the step's move, 10 degrees more glancing, 25 degrees of turn to keep the handle out.
+
+**Settings**: Stick Angle and Stick Incidence keep their names, ranges and defaults with the meanings above. Config
+migration 63: a config holding 90 in either (his: opened all the way for the old test) takes the default, or flat
+throws would stick. His Leniency 2, Speed 1, Depth 5.5 are kept.
+
+**Measured** (`Misc/quakevr/axe_stick_rates.sh <agent> <out>`: 60 synthetic hand throws of each kind at vrfiringrange's
+target wall, 3-7 m, 7-12 m/s, lofted to meet it at eye level, `vr_test_axe` 4-12; the same distances, speeds and
+offsets before and after; throws that went wild excluded):
+
+| Throw (60 each) | Before, defaults | After, defaults | Before, his config | After, his config (angles reset) |
+|---|---|---|---|---|
+| Overhand (end over end 8-16 rad/s) | 42% | **63%** | 77% | 65% |
+| Sidearm (blade level, spun about the upright) | 52% | **67%** | 68% | 63% |
+| Sloppy (any way) | 42% | **68%** | 68% | 75% |
+| Upright (pushed, up to 3 rad/s either way) | 57% | **60%** | 90% | 67% |
+| Knife-style (handle ahead, flicked) | 58% | **77%** | 78% | 80% |
+| Spear-like (head ahead) | 8% | **93%** | 77% | 95% |
+| Flat (the blade's side first) | 0% | **0%** | 37% | 5% |
+| Handle first | 7% | **7%** | 13% | 5% |
+
+"His config": Angle 90, Incidence 90, Leniency 2, Speed 1, Depth 5.5 before; after, migration 63 resets the two
+angles (45, 65). What the rest is now: overhand, 18 of 60 the handle's end first and 2 the head first (a random
+phase of an end-over-end spin: the butt is the axe's farthest point for about a third of the ways it can face the
+wall), 1 Box3D first; upright, 20 the handle's end first (its backward turn: the mode's own up to 3 rad/s) and 7
+"glancing, not turning" (45-64 degrees off straight in). The handle-first throws that stick fall short and land
+bit-down on the floor, spinning. Old "his config" numbers were higher on the spinning throws because the old test
+never looked at the rest of the axe: an edge reaching the wall a moment after the handle's end still stuck (as did a
+third of the flat throws).
+
+A skid rule from the measurements: a blow more glancing than Stick Incidence - 20 (45 degrees) skids unless the axe
+turns (its spin a tenth of the point's speed): handle-first throws falling bit-down onto the floor hit at 47-56 degrees
+without spin (they stuck, 7 of 60); the realistic throws' corner hits run 4-60 degrees, nearly all spinning.
+
+Other checks: mock hand throws through the real release (`throw_plays.py`'s overhand, still-wrist overhand and push,
+150 and 250 units from the wall): the same outcomes as before (stuck 4 of 6; the still-wrist one at 150 and the push at
+250 hit the floor handle first). `vr_test_axe 7` spun 12/12/5 and 20/6/0 rad/s (off its steadiest axis): before,
+"never sticks now" in mid-air both times; now both stick. Blade first at e1m1's grunt (kind 3, in its model) and door
+(kind 1), at an explosive box (kind 2). Cost (`vr_profile`, 8 overhand throws): the axe stick scope 0.001 ms a frame
+on average, 0.065 ms at worst (the broad phase skips all but the last steps). Migration 63: angle and incidence 90 ->
+45 and 65 (Leniency 2 kept), 60 kept. `eval.sh` canary: no differences.
+
+New test throws (Debug > Tests > Thrown Axe > Axe Throw, `vr_test_axe`): 8 upright (the handle upright, the blade
+ahead, pushed, up to 3 rad/s either way end over end), 9 knife-style (held by the head: the handle ahead, the edge up,
+flicked end over end 6-14 rad/s), 10 spear-like (the head ahead, the blade turned any way about the handle), 11 flat
+(the blade's side ahead, spun in its plane), 12 handle first (hardly turning). The hand's throws are no longer lofted
+when nothing is ahead (it went up at 140 m/s and stuck in the ceiling).
+
+Debug (`vr_debug_axestick`): 1 each first contact: what part struck what first (with how far behind the blade came),
+or the blade's strike, stuck or why it bounced (side on, off straight in, off its facing); 2 also each step, the part
+and the band; 3 also each sweep that met something.
+
+**In the headset:**
+- [ ] Throw the axe the ways you throw it (upright, spear-like, knife-style, overhand, sidearm): it sticks whenever
+  the blade (its edge, a corner, the blade just behind them) goes in first; the handle's end or the head's middle
+  first, it bounces. Is it predictable now? Blade Leniency 0..2 says how much of the blade counts.
+- [ ] A flat throw (the blade's side first) still bounces. Stick Angle/Incidence were reset to 45/65 if you had 90.
+- [ ] A spear-like or corner hit: the axe goes in along the way it came, a corner in the wall: does it look right?

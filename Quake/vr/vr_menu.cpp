@@ -1585,7 +1585,8 @@ void hologramTestMessage()
             .help("How far out of its own plane the blade may go in: more, and flat throws (the blade's side first) "
                   "stick too."),
         slider("Stick Incidence", vr_axestick_incidence, 10.f, 90.f, 5.f, "%.0f deg")
-            .help("How far from straight into the surface the blade may go in: more, and glancing blows stick too."),
+            .help("How far from straight into the surface the blade may go in: more, and glancing blows stick too. An "
+                  "axe that hardly turns skids 20 degrees sooner."),
         slider("Stick Depth", vr_axestick_depth, 0.f, 12.f, 0.5f, "%.1f cm").extend()
             .help("How deep the edge goes in at a hard throw (half as deep at the Stick Speed)."),
         slider("Force Grab Tug", vr_axestick_tug, 0.f, 1.f, 0.05f, "%.2f s")
