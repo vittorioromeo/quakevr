@@ -122,8 +122,17 @@ const DefaultChange defaultChanges[] = {
     {61, &vr_gruntgun_ammo, "10"},            // 30
     // 62: no cap on crowbars on crates (the author, 2026-10-01).
     {62, &vr_crate_crowbar_max, "1"},       // 64
+    // 63: the author's (NOTES.md 2026-10-01): Grab Leniency 2 cm, "you have to touch the thing" (vrclimb 00-32-03), and
+    // his two-handed grips' stickiness while swinging (vrfiringrange 00-08-01).
+    {63, &vr_climb_leniency, "6"},          // 2
+    {63, &vr_2h_sticky_fast, "1"},          // 3.5
+    {63, &vr_2h_sticky_fast_hold, "0.4"},   // 0.6
+    // and his pain knock (NOTES.md vrfiringrange_2026-10-01_00-19-04; ROUND21.md, "Pain feedback, second pass").
+    {63, &vr_pain_knock_strength, "0.3"},   // 0.75
+    {63, &vr_pain_knock_max, "5"},          // 7.5
+    {63, &vr_pain_knock_time, "0.35"},      // 0.6
 };
-constexpr int configVersion = 62;
+constexpr int configVersion = 63;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

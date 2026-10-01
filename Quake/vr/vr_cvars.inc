@@ -384,10 +384,10 @@ QVR_CVAR(vr_2h_virtual_stock_factor, "0.5", CVAR_ARCHIVE)
 // times vr_2h_sticky, and times 1 + vr_2h_sticky_fast more while the hands move fast (a swing: the faster hand's speed
 // from vr_2h_sticky_fast_from to vr_2h_sticky_fast_full m/s), fading over vr_2h_sticky_fast_hold seconds once they slow.
 QVR_CVAR(vr_2h_sticky, "1", CVAR_ARCHIVE)              // times the let-go distance and angle, always (1: as before)
-QVR_CVAR(vr_2h_sticky_fast, "1", CVAR_ARCHIVE)         // and up to this many times more while swinging (0: never)
+QVR_CVAR(vr_2h_sticky_fast, "3.5", CVAR_ARCHIVE)       // and up to this many times more while swinging (0: never)
 QVR_CVAR(vr_2h_sticky_fast_from, "1.5", CVAR_ARCHIVE)  // m/s: the faster hand's speed it starts from
 QVR_CVAR(vr_2h_sticky_fast_full, "4", CVAR_ARCHIVE)    // m/s: all of it from this speed
-QVR_CVAR(vr_2h_sticky_fast_hold, "0.4", CVAR_ARCHIVE)  // seconds it fades over once the hands slow
+QVR_CVAR(vr_2h_sticky_fast_hold, "0.6", CVAR_ARCHIVE)  // seconds it fades over once the hands slow
 QVR_CVAR(vr_debug_2h_grip, "0", CVAR_NONE)             // 1: prints a helping hand taking a weapon's grip, and why it let go (and the stickiness then); 2: and where the grip is, four times a second
 // Weight (vr_weight.cpp; ROUND21.md, "Weight: spring model, stamina, held object offsets; explosive boxes" and "Spring
 // only; Weapon Weights and Held Object Weights; weight and damage"): what a hand holds (a weapon, a carried prop, the
@@ -453,7 +453,7 @@ QVR_CVAR(vr_debug_weight_drop, "0", CVAR_NONE)         // 1: prints each hand's 
 QVR_CVAR(vr_debug_weight_stamina, "-1", CVAR_NONE)      // tests: the stamina the weight takes as left (0..1) instead of the game's (-1: the game's)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
 QVR_CVAR(vr_debug_fatigue, "0", CVAR_NONE)               // 1: the tired arms' shake printed four times a second; 2: and each frame the aim, the muzzle and the drawn weapon ("fatigueaim")
-QVR_CVAR(vr_debug_pain, "0", CVAR_NONE)                  // 1: each hit ("painhit": damage, side, knock, buzz) and the hands' knock each frame ("painknock", cm along the body)
+QVR_CVAR(vr_debug_pain, "0", CVAR_NONE)                  // 1: each hit ("painhit": damage, side, knock, buzz) and the hands' knock each frame ("painknock", cm along the body); 2: also where each hand and its weapon are drawn ("painview")
 QVR_CVAR(vr_debug_weight, "0", CVAR_NONE)                // 1: each hand's target and drawn pose, a line a frame in weight_trace.txt; 2: and printed
 QVR_CVAR(vr_props_version, "49", CVAR_ARCHIVE)           // the held object settings' changes the config has taken (vr_props.cpp)
 // Explosive boxes (misc_explobox, misc_explobox2) as physics props.
@@ -904,7 +904,8 @@ QVR_CVAR(vr_headshot_sound, "0.5", CVAR_ARCHIVE)      // volume of the tick on a
 QVR_CVAR(vr_climb, "0", CVAR_ARCHIVE)                 // on as shipped (vr_defaults.cfg): either empty hand gripping a ledge or rung hangs from it; hand over hand, shimmy, mantle (vr_climb.cpp)
 QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a ledge must be to take hold of
 QVR_CVAR(vr_climb_fling, "1", CVAR_ARCHIVE)           // how much letting go flings you with the hands' motion (capped; 0 none)
-QVR_CVAR(vr_climb_leniency, "6", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
+QVR_CVAR(vr_climb_leniency, "2", CVAR_ARCHIVE)       // cm: how far from a hold a grip still takes it (the nearest one this close; 0: the hand touching it, vr_climb_touch)
+QVR_CVAR(vr_climb_leniency_air, "2.5", CVAR_ARCHIVE) // cm: and this much further in mid-air (neither on the ground nor holding on: after a jump, falling)
 QVR_CVAR(vr_climb_touch, "4.5", CVAR_ARCHIVE)        // cm: the hand this close to a ledge's top or the face under its lip touches it (the whole reach at leniency 0)
 QVR_CVAR(vr_climb_over_top, "16", CVAR_ARCHIVE)      // units: a hand over a ledge's top still holds it this far in from the drop (as far as the top goes)
 QVR_CVAR(vr_climb_slide, "1", CVAR_ARCHIVE)          // a holding hand the body can't follow along the ledge (past the arm's reach, a wall) slides along it, the drawn hand staying on the controller (0: it stays put, the two drift apart)
@@ -932,9 +933,10 @@ QVR_CVAR(vr_fatigue_shake_always, "0", CVAR_ARCHIVE)  // 0: only while a hand ho
 // Hits knock the hands (vr_painknock.cpp; ROUND21.md, "Pain feedback: hits knock the hands"): looks only, both drawn hands
 // pushed away from the hit, more the one on its side, and eased back; the aim and the shots stay steady.
 QVR_CVAR(vr_pain_knock, "1", CVAR_ARCHIVE)             // being hit knocks the drawn hands, arms and what they hold
-QVR_CVAR(vr_pain_knock_strength, "0.3", CVAR_ARCHIVE)  // cm the hands are pushed for each point of damage (armour's share too)
-QVR_CVAR(vr_pain_knock_max, "5", CVAR_ARCHIVE)         // cm at most (a rocket; hits in quick succession add up to no more)
-QVR_CVAR(vr_pain_knock_time, "0.35", CVAR_ARCHIVE)     // s the knock takes, out and back
+QVR_CVAR(vr_pain_knock_strength, "0.75", CVAR_ARCHIVE) // cm the hands are pushed for each point of damage (armour's share too), for small hits
+QVR_CVAR(vr_pain_knock_max, "7.5", CVAR_ARCHIVE)       // cm harder hits curve towards (a rocket nearly; hits in quick succession add up to no more)
+QVR_CVAR(vr_pain_knock_time, "0.6", CVAR_ARCHIVE)      // s the knock takes: out, held a moment, eased back
+QVR_CVAR(vr_pain_knock_tip, "2", CVAR_ARCHIVE)         // degrees the hands (and what they hold) tip up for each cm they are knocked
 QVR_CVAR(vr_pain_haptics, "1", CVAR_ARCHIVE)           // strength of the buzz a hit gives each controller (more the harder and the nearer its side; 0: none)
 QVR_CVAR(vr_climb_debug, "0", CVAR_NONE)              // print holds, releases and mantles (2: and "climbtrace" and "climbreach" lines every frame: the body, the hands, the pull, the holds' reach; 3: the shoulders, estimated and drawn)
 QVR_CVAR(vr_swim, "1", CVAR_ARCHIVE)                  // VR swimming: the stick slows in water, strokes of the hands move you
@@ -1267,7 +1269,7 @@ QVR_CVAR(vr_debug_gun_wall, "0", CVAR_NONE)          // 1: print each frame a he
 QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
-QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse)
+QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse); 2: killed hard enough to gib (QC weapons.qc: 100 damage past its health)
 QVR_CVAR(vr_test_axe, "0", CVAR_NONE)               // impulse 209 (tests): an axe thrown ahead from the eyes: 0 blade first, 1 flat, 2 handle first, 3 spinning end over end; a hand's throw at random: 4 overhand, 5 sidearm, 6 sloppy; 7 as the next set
 QVR_CVAR(vr_test_axe_roll, "0", CVAR_NONE)          // ... 7: from blade first, degrees turned about the way it goes (90: the blade level)
 QVR_CVAR(vr_test_axe_pitch, "0", CVAR_NONE)         // ... then about your left (its head forward)

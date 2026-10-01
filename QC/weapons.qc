@@ -2303,6 +2303,27 @@ void(vector xMuzzle, vector xEnd) VR_LGWater_Beam =
     trace_fraction = oldFraction;
 };
 
+// VR: a bolt from the open into water, slime or lava splashes where it goes in (NOTES.md vrfiringrange_2026-10-01_00-20),
+// harder than a shot's (8: between a shot's 4 and a hand's), each bolt; its plip at most every 0.3 s (a bolt is every 0.1).
+// The trace globals stay as the bolt's.
+.float vr_lg_splash_time;
+void(vector xMuzzle, vector xEnd) VR_LGWater_Splash =
+{
+    vector at = liquidentry(xMuzzle, xEnd);
+    if(at == xMuzzle)
+    {
+        return;
+    }
+    float snd = QVR_SPLASH_SILENT;
+    if(time >= self.vr_lg_splash_time)
+    {
+        snd = QVR_SPLASH_SHOT;
+        self.vr_lg_splash_time = time + 0.3;
+    }
+    dprint(sprintf("lgsplash: at %v%s\n", at, snd == QVR_SPLASH_SHOT ? ", plip" : ""));
+    watersplash(at, normalize(xEnd - xMuzzle), 8, snd);
+};
+
 void(float xHand) W_FireLightning =
 {
     if(getCurrentAmmoOrClip(xHand) < 1)
@@ -2354,6 +2375,7 @@ void(float xHand) W_FireLightning =
     {
         VR_LGWater_Beam(org, trace_endpos); // into water from the open: electrified
     }
+    VR_LGWater_Splash(org, trace_endpos); // and a splash where it goes in
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);

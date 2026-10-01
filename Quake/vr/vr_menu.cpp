@@ -750,11 +750,15 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Being hit knocks your hands, arms and what they hold away from where the hit came from, more the "
                   "hand on that side, and they ease back. Looks only: your aim and your shots don't move."),
         slider("Knock per Damage", vr_pain_knock_strength, 0.f, 1.f, 0.05f, "%.2f cm").extend(0.f, 5.f)
-            .help("How far the hands are knocked for each point of damage (a grunt's shot: about 10)."),
+            .help("How far the hands are knocked for each point of damage, for small hits (a grunt's volley: about 16); "
+                  "harder ones curve towards Largest Knock."),
         slider("Largest Knock", vr_pain_knock_max, 0.f, 15.f, 0.5f, "%.1f cm").extend(0.f, 50.f)
-            .help("How far a hit knocks the hands at most (a rocket; hits in quick succession add up to no more)."),
-        slider("Knock Time", vr_pain_knock_time, 0.1f, 1.f, 0.05f, "%.2f s").extend(0.05f, 3.f)
-            .help("How long the knock takes, out and back."),
+            .help("How far the hardest hits knock the hands (a rocket nearly that far; a harder hit always a little "
+                  "further; hits in quick succession add up to no more). Away from the hit and up."),
+        slider("Knock Tip", vr_pain_knock_tip, 0.f, 5.f, 0.25f, "%.2f deg/cm").extend(0.f, 20.f)
+            .help("How much the hands and what they hold tip up for each cm they are knocked (a gun's barrel kicks up)."),
+        slider("Knock Time", vr_pain_knock_time, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.05f, 3.f)
+            .help("How long the knock takes: out quickly, held a moment, then eased back."),
         slider("Hit Buzz", vr_pain_haptics, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("How hard the controllers buzz when you're hit: more the harder the hit, and in the hand on the side it "
                   "came from (0: none)."),
@@ -2123,6 +2127,10 @@ za::Vector<Item> pageDebugViews()
             .help("The torch's reach zones (as on the Flashlight page): not in a hand, a capsule round it, green while a hand's "
                   "grip there takes it, and a dot where the game reads each hand near it (the drawn hand may be held out "
                   "of the body elsewhere)."),
+        command("Flashlight to Left Hand", "vr_flashlight_give left")
+            .help("vr_flashlight_give left: the chest flashlight into the left controller's hand, as if gripped there (that "
+                  "hand's grip lets go of it). Its buttons are then that controller's, with either Main Hand."),
+        command("Flashlight to Right Hand", "vr_flashlight_give right").help("vr_flashlight_give right: the same, the right hand."),
         cycle("Show Model Collisions", vr_debug_model_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
             .help("Held weapons and props stopping at the models' triangles: each hand's push printed; drawn: the rays (grey as tracked, "
                   "green or red as drawn) and the push (yellow)."),
@@ -2398,7 +2406,9 @@ za::Vector<Item> pageDebugTests()
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"}})
             .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
-        toggle("As a Corpse", vr_test_spawn_dead).help("A monster killed at once: a corpse, to test gibbing and carrying."),
+        cycle("As a Corpse", vr_test_spawn_dead, {{0.f, "Off"}, {1.f, "Corpse"}, {2.f, "Gibbed"}})
+            .help("A monster killed at once: a corpse, to test gibbing and carrying; Gibbed: killed hard enough to gib (its "
+                  "gibs and head to pick up)."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
         command("Go to a Crowbar on a Crate", "vr_crates_goto crowbar")
             .help("vr_crates_goto crowbar: you in front of the next crate with a crowbar lying on it (Crates: Crowbar on Crates)."),
