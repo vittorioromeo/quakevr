@@ -696,7 +696,7 @@ void appendf(za::String& out, const char* fmt, ...)
     appendf(c, "# eye_resolution,%dx%d\n", w, h);
     appendf(c, "# window,%dx%d\n", vid.width, vid.height);
     appendf(c, "# gl_renderer,%s\n", gl_renderer ? gl_renderer : "?");
-    static const char* const cvars[] = {"vr_graphics_preset", "vid_fsaa", "r_scale", "vr_render_scale",
+    static constexpr const char* cvars[] = {"vr_graphics_preset", "vid_fsaa", "r_scale", "vr_render_scale",
         "vr_visibility_mask", "r_oit", "vr_mirror",
         "host_maxfps", "vr_shadow_dlights", "vr_shadow_dlight_size", "vr_shadow_precision", "vr_shadow_muzzleflash",
         "vr_shadow_maplights", "vr_shadow_maplight_size", "vr_shadow_self", "vr_shadow_filter", "vr_shadow_atlas",
@@ -1018,6 +1018,11 @@ void overlay()
 
 using namespace qvr;
 
+namespace
+{
+unsigned gpuFrameCount = 0; // VR_ProfileFrame's frames: the GPU is timed on one in vr_profile_gpu
+} // namespace
+
 extern "C" void VR_ProfileFrame()
 {
     using namespace qvr::profile;
@@ -1132,7 +1137,6 @@ extern "C" void VR_ProfileFrame()
     vr_profile_fine = want && vr_profile_detail.value >= 2.f ? 1 : 0;
     // The GPU's times on one frame in vr_profile_gpu: each timer query stalls the GPU's pipeline a little (about 0.12 ms
     // of the mock's eyes a frame for all the scopes' queries), so by default one frame in 4 is timed, and averaged.
-    static unsigned gpuFrameCount = 0;
     const int gpuEvery = static_cast<int>(vr_profile_gpu.value);
     gpuOk = GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc && GL_GenQueriesFunc &&
             gpuEvery >= 1 && gpuFrameCount++ % static_cast<unsigned>(gpuEvery) == 0;

@@ -341,8 +341,8 @@ static void TexMgr_Slopes (const float *img, int w, int h, int x, int y, float d
 
 static void TexMgr_SkinToNormals (byte *data, int width, int height, float scale, qboolean heights, float texelsperunit)
 {
-	static const int	radius[SKIN_FORMS] = {1, 3, 5};			// sigma 1.4, 3.5, 5.5 texels (of the model's skin)
-	static const float	formweight[SKIN_FORMS] = {0.8f, 0.9f, 0.7f};
+	static constexpr int	radius[SKIN_FORMS] = {1, 3, 5};			// sigma 1.4, 3.5, 5.5 texels (of the model's skin)
+	static constexpr float	formweight[SKIN_FORMS] = {0.8f, 0.9f, 0.7f};
 	int		i, x, y, s, mark, count = width * height, hist[256], seen, below;
 	float	*col, *blurred, *wgt, *gx, *gy, *jt, *tmp, *lum, *h = NULL, *fine, *forms;
 	float	noise, d[6];
@@ -762,7 +762,7 @@ extern "C" void VR_LoadNormalMap (gltexture_t *glt, const char *image, const cha
 	int worldwidth, int flags)
 {
 	int heights = flags & NORMALMAP_HEIGHTS, n;
-	static const struct { const char *suffix; int kind; } authored[] = {
+	static constexpr struct { const char *suffix; int kind; } authored[] = {
 		{"_norm", NORMALMAP_AUTHORED},
 		{"_bump", NORMALMAP_SHADING},
 	};

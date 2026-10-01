@@ -47,46 +47,51 @@ namespace qvr::motion
 // Labels
 // ----------------------------------------------------------------------------
 
+namespace
+{
+// Built before main (no first-call guard).
+const Choice any{"", "-"};
+const za::Vector<Category> categoryList = {
+    {{"slash", "Expected Slash"},
+        {any, {"overhead", "Overhead"}, {"horizontal_ltr", "Horizontal L-R"}, {"horizontal_rtl", "Horizontal R-L"},
+            {"diagonal_down_left", "Diagonal Down-L"}, {"diagonal_down_right", "Diagonal Down-R"},
+            {"backswing_up_left", "Backswing Up-L"}, {"backswing_up_right", "Backswing Up-R"}}},
+    {{"stab", "Expected Stab"}, {any, {"one_hand", "One Hand"}, {"two_hands", "Two Hands"}}},
+    {{"no_hit", "No Hit"},
+        {any, {"wiggling", "Wiggling"}, {"weak", "Weak Motion"}, {"idle", "Idle"}, {"slow_waving", "Slow Waving"},
+            {"reloading", "Reloading"}, {"aiming", "Aiming"}, {"walking", "Walking"}, {"reaching", "Reaching"}}},
+    {{"bash", "Expected Bash"}, {any, {"sword_1h", "Sword 1H"}, {"sword_2h", "Sword 2H"}, {"gun", "Gun"}}},
+    {{"parry_pose", "Expected Parry Pose"},
+        {any, {"sword_1h", "Sword 1H"}, {"sword_2h_blade", "Sword 2H on Blade"}, {"sword_2h", "Sword 2H"},
+            {"gun", "Gun"}}},
+    {{"parry_bash", "Expected Parry Bash"},
+        {any, {"sword_1h", "Sword 1H"}, {"sword_2h_blade", "Sword 2H on Blade"}, {"sword_2h", "Sword 2H"},
+            {"gun", "Gun"}}},
+    {{"hilt_pommel", "Expected Hilt/Pommel"}, {any}},
+    {{"punch", "Expected Punch"},
+        {any, {"straight", "Straight"}, {"jab", "Jab"}, {"hook", "Hook"}, {"uppercut", "Uppercut"},
+            {"overhead", "Overhead"}}},
+    {{"palm_shove_1h", "Expected Palm Shove 1H"}, {any}},
+    {{"palm_shove_2h", "Expected Palm Shove 2H"}, {any}},
+    {{"gun_strike", "Expected Gun Strike"}, {any, {"swing", "Swing"}, {"butt", "Butt"}}},
+    {{"other", "Other (vr_motion_note)"}, {any}},
+    // Added later: at the end, so vr_motion_category's saved index keeps its category (the menu shows them in
+    // categoryOrder's order).
+    {{"not_parry_pose", "Not Parry Pose"},
+        {any, {"weapon_angled", "Weapon Angled"}, {"hands_up", "Hands Up"}, {"resting", "Resting"},
+            {"aiming", "Aiming"}, {"other", "Other"}}},
+};
+} // namespace
+
 const za::Vector<Category>& categories()
 {
-    static const Choice any{"", "-"};
-    static const za::Vector<Category> list = {
-        {{"slash", "Expected Slash"},
-            {any, {"overhead", "Overhead"}, {"horizontal_ltr", "Horizontal L-R"}, {"horizontal_rtl", "Horizontal R-L"},
-                {"diagonal_down_left", "Diagonal Down-L"}, {"diagonal_down_right", "Diagonal Down-R"},
-                {"backswing_up_left", "Backswing Up-L"}, {"backswing_up_right", "Backswing Up-R"}}},
-        {{"stab", "Expected Stab"}, {any, {"one_hand", "One Hand"}, {"two_hands", "Two Hands"}}},
-        {{"no_hit", "No Hit"},
-            {any, {"wiggling", "Wiggling"}, {"weak", "Weak Motion"}, {"idle", "Idle"}, {"slow_waving", "Slow Waving"},
-                {"reloading", "Reloading"}, {"aiming", "Aiming"}, {"walking", "Walking"}, {"reaching", "Reaching"}}},
-        {{"bash", "Expected Bash"}, {any, {"sword_1h", "Sword 1H"}, {"sword_2h", "Sword 2H"}, {"gun", "Gun"}}},
-        {{"parry_pose", "Expected Parry Pose"},
-            {any, {"sword_1h", "Sword 1H"}, {"sword_2h_blade", "Sword 2H on Blade"}, {"sword_2h", "Sword 2H"},
-                {"gun", "Gun"}}},
-        {{"parry_bash", "Expected Parry Bash"},
-            {any, {"sword_1h", "Sword 1H"}, {"sword_2h_blade", "Sword 2H on Blade"}, {"sword_2h", "Sword 2H"},
-                {"gun", "Gun"}}},
-        {{"hilt_pommel", "Expected Hilt/Pommel"}, {any}},
-        {{"punch", "Expected Punch"},
-            {any, {"straight", "Straight"}, {"jab", "Jab"}, {"hook", "Hook"}, {"uppercut", "Uppercut"},
-                {"overhead", "Overhead"}}},
-        {{"palm_shove_1h", "Expected Palm Shove 1H"}, {any}},
-        {{"palm_shove_2h", "Expected Palm Shove 2H"}, {any}},
-        {{"gun_strike", "Expected Gun Strike"}, {any, {"swing", "Swing"}, {"butt", "Butt"}}},
-        {{"other", "Other (vr_motion_note)"}, {any}},
-        // Added later: at the end, so vr_motion_category's saved index keeps its category (the menu shows them in
-        // categoryOrder's order).
-        {{"not_parry_pose", "Not Parry Pose"},
-            {any, {"weapon_angled", "Weapon Angled"}, {"hands_up", "Hands Up"}, {"resting", "Resting"},
-                {"aiming", "Aiming"}, {"other", "Other"}}},
-    };
-    return list;
+    return categoryList;
 }
 
 za::Vector<int> categoryOrder()
 {
     // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
-    static const char* const order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
+    static constexpr const char* order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
         "hilt_pommel", "punch", "palm_shove_1h", "palm_shove_2h", "gun_strike", "other"};
     const auto& list = categories();
     za::Vector<int> out;
@@ -230,7 +235,7 @@ public:
     // A position in the player's frame: units, then metres.
     void pos(const za::String& prefix, bool ok, const glm::vec3& units, float u2m)
     {
-        static const char* const axes[] = {"x", "y", "z"};
+        static constexpr const char* axes[] = {"x", "y", "z"};
         for(int unit = 0; unit < 2; unit++)
         {
             for(int i = 0; i < 3; i++)
@@ -433,7 +438,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         const int buttons = (hr.input.trigger ? 1 : 0) | (hr.input.grip ? 2 : 0) | (hr.input.primary ? 4 : 0) |
                             (hr.input.secondary ? 8 : 0) | (hr.input.stickClick ? 16 : 0) | (hr.input.menu ? 32 : 0);
         s.integer(name("buttons").cStr(), buttons);
-        static const char* const fingers[] = {"curl_thumb", "curl_index", "curl_middle", "curl_ring", "curl_pinky"};
+        static constexpr const char* fingers[] = {"curl_thumb", "curl_index", "curl_middle", "curl_ring", "curl_pinky"};
         for(int f = 0; f < 5; f++)
         {
             s.num(name(fingers[f]).cStr(), hr.curl[f], 3);
@@ -621,7 +626,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 // The settings the melee reads, for the header.
 [[nodiscard]] za::String meleeSettings()
 {
-    static const char* const prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
+    static constexpr const char* prefixes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
         "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult"};
     za::String out;

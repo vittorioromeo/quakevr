@@ -90,9 +90,11 @@ constexpr int glowLightKey = -0x5C11;
 }
 
 // Status bar pictures (gfx.wad) by name.
+char digitPicName[16]; // digitPic's answer: valid until its next call
+
 [[nodiscard]] const char* digitPic(int digit, bool red)
 {
-    static char name[16];
+    char(&name)[16] = digitPicName;
     if(digit < 0)
     {
         return red ? "anum_minus" : "num_minus";
@@ -103,7 +105,7 @@ constexpr int glowLightKey = -0x5C11;
 
 [[nodiscard]] const char* facePic(int level) // 0 hurt .. 4 healthy
 {
-    static const char* const names[5] = {"face5", "face4", "face3", "face2", "face1"};
+    static constexpr const char* names[5] = {"face5", "face4", "face3", "face2", "face1"};
     return names[level];
 }
 
@@ -841,6 +843,19 @@ void addMessage(HoloMessage m)
 // line pieced together from several prints, as a pickup's, taken whole within its first second), the queue's dead
 // ones dropped; then the newest that fit, oldest first, beyond holoRows lines or holoMessagesMax messages left out
 // (the ones waiting to be seen kept first).
+// collectMessages's buffers (the main thread's frame).
+struct CollectScratch
+{
+    NotifyLine line;          // a console line read
+    HoloMessage continuation; // a queued message's text, laid out again (continued since)
+    auto members() { return qvr::mem::list(line, continuation); }
+};
+[[nodiscard]] za::SizeT heldBytes(const HoloMessage& m) // (vr_mem.hpp)
+{
+    return mem::heldBytes(m.text);
+}
+mem::Scratch<CollectScratch> collectScratch{"gadget messages"};
+
 void collectMessages()
 {
     if(holoCollected == host_framecount)
@@ -855,8 +870,8 @@ void collectMessages()
         return;
     }
 
-    static NotifyLine line;          // (scratch kept between frames: its text's buffer)
-    static HoloMessage continuation; // (likewise)
+    NotifyLine& line = collectScratch.line;
+    HoloMessage& continuation = collectScratch.continuation;
     for(int age = 0; age < 16; age++)
     {
         if(!notifyLine(age, line))
@@ -1714,6 +1729,11 @@ void setPose(const Pose& pose)
     }
 }
 
+namespace
+{
+int nextTestMessage = 0; // testMessage's next (vr_test_message: the console)
+} // namespace
+
 bool testMessage()
 {
     if(!hologramOn())
@@ -1730,7 +1750,7 @@ bool testMessage()
         {"You found a secret area!", true}, {"Quad Damage is wearing off", false},
         {"Are you sure you want to exit now?\nYou left something important behind.", true},
         {"A secret cave has opened...", true}};
-    static int next = 0;
+    int& next = nextTestMessage;
     const Test& t = tests[next];
     next = (next + 1) % static_cast<int>(za::getArraySize(tests));
 
@@ -1768,6 +1788,11 @@ void screenRect(glm::vec3& corner, glm::vec2& size)
     size = {3.f, 1.86f};
 }
 
+namespace
+{
+bool testCommandsRegistered = false; // (vr_message_test, vr_gadget_info: registered on the first call)
+} // namespace
+
 void renderScreen()
 {
     QVR_GPU_PROFILE("gadget screen");
@@ -1784,9 +1809,9 @@ void renderScreen()
     renderHologram();
     renderFps();
 
-    if(static bool registered = false; !registered) // a test command (the module has no init hook here)
+    if(!testCommandsRegistered) // a test command (the module has no init hook here)
     {
-        registered = true;
+        testCommandsRegistered = true;
         Cmd_AddCommand("vr_message_test", messageTest_f);
         Cmd_AddCommand("vr_gadget_info", gadgetInfo_f);
         Cmd_AddCommand("vr_gadget_screen_dump", screenDump_f);

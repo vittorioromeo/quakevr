@@ -190,6 +190,8 @@ void buildVolume(qmodel_t* m)
         ny, nz, cell, volumeOrigin[0], volumeOrigin[1], volumeOrigin[2], ms, jobs::workers(), hash);
 }
 
+int volumeGeneration = -1; // the map's (worldGeneration) the volume was built for (ensureVolume)
+
 void ensureVolume()
 {
     qmodel_t* m = cl.worldmodel;
@@ -197,7 +199,7 @@ void ensureVolume()
     {
         return;
     }
-    static int generation = -1;
+    int& generation = volumeGeneration;
     if(m != volumeModel || ZA_STRCMP(m->name, volumeName) != 0 || generation != worldGeneration()) // the same model can hold another map: a map name loaded again (vr_relit_maps switched)
     {
         buildVolume(m);
@@ -280,6 +282,15 @@ int distancesFrame = -1; // r_framecount the current one is for (one a view: eac
 
 // This view's distances from the depth texture `source` (made now if not yet: then `restore` puts back the framebuffer
 // drawn to), 0 if there is none.
+// What makeDistances last sized its target for, per slot (the eyes', the spectator camera's).
+struct SizedDistances
+{
+    GLuint source[2] = {0, 0};
+    GLint sourceWidth[2] = {0, 0}, sourceHeight[2] = {0, 0};
+    int vidWidth[2] = {0, 0}, vidHeight[2] = {0, 0};
+};
+SizedDistances sizedDistances;
+
 GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
 {
     bool& failed = multisampled ? distanceFailedMs : distanceFailed;
@@ -314,9 +325,11 @@ GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
     // come back under the same name.
     // (One for the eyes' size, one for the spectator camera's.)
     const int slot = stereo::isSpectator() ? 1 : 0;
-    static GLuint sizedSourceFor[2] = {0, 0};
-    static GLint sourceWidthFor[2] = {0, 0}, sourceHeightFor[2] = {0, 0};
-    static int sizedVidWidthFor[2] = {0, 0}, sizedVidHeightFor[2] = {0, 0};
+    GLuint(&sizedSourceFor)[2] = sizedDistances.source;
+    GLint(&sourceWidthFor)[2] = sizedDistances.sourceWidth;
+    GLint(&sourceHeightFor)[2] = sizedDistances.sourceHeight;
+    int(&sizedVidWidthFor)[2] = sizedDistances.vidWidth;
+    int(&sizedVidHeightFor)[2] = sizedDistances.vidHeight;
     GLuint& sizedSource = sizedSourceFor[slot];
     GLint& sourceWidth = sourceWidthFor[slot];
     GLint& sourceHeight = sourceHeightFor[slot];
@@ -733,6 +746,7 @@ void freeMesh()
 }
 
 using GetBufferSubDataFn = void(APIENTRY*)(GLenum, GLintptr, GLsizeiptr, void*);
+GetBufferSubDataFn getBufferSubData = nullptr; // (buildMesh: looked up on its first use)
 
 void buildMesh(qmodel_t* m, float cell)
 {
@@ -742,7 +756,6 @@ void buildMesh(qmodel_t* m, float cell)
     mesh.cell = cell;
     mesh.built = true;
 
-    static GetBufferSubDataFn getBufferSubData = nullptr;
     if(!getBufferSubData)
     {
         getBufferSubData = reinterpret_cast<GetBufferSubDataFn>(SDL_GL_GetProcAddress("glGetBufferSubData"));

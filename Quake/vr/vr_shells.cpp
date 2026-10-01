@@ -417,6 +417,15 @@ void tink(Shell& s, float impact)
 // a quiet plip (the recorded plips pitched up, make_sounds.py), louder the faster it goes in; the liquid takes most of
 // its speed and spin. Many can land at once (a flick reload's pair, a burst of shots): at most a few splashes and two
 // sounds each tenth of a second.
+// enterLiquid's limits: at most a few splashes and two sounds each tenth of a second (cl.time), never the same plip twice.
+struct Landings
+{
+    double window = -1.0;
+    int splashes = 0, sounds = 0;
+    int lastPlip = -1;
+};
+Landings landings;
+
 void enterLiquid(Shell& s, glm::vec3 dry, glm::vec3 wet)
 {
     for(int i = 0; i < 8; i++)
@@ -430,8 +439,9 @@ void enterLiquid(Shell& s, glm::vec3 dry, glm::vec3 wet)
     const float strength = za::clamp((speed / upm - 0.5f) / 3.5f, 0.f, 1.f); // 0.5 .. 4 m/s
     const glm::vec3 dir = speed > 1e-3f ? s.vel / speed : glm::vec3{0.f, 0.f, -1.f};
 
-    static double window = -1.0;
-    static int splashes = 0, sounds = 0;
+    double& window = landings.window;
+    int& splashes = landings.splashes;
+    int& sounds = landings.sounds;
     if(cl.time - window > 0.1 || cl.time < window)
     {
         window = cl.time;
@@ -452,7 +462,7 @@ void enterLiquid(Shell& s, glm::vec3 dry, glm::vec3 wet)
     }
     if(sounds < 2 && volume > 0.f)
     {
-        static int last = -1;
+        int& last = landings.lastPlip;
         int k = rng.getI(0, 1);
         k += last >= 0 && k >= last ? 1 : 0; // never the one played last
         last = k;

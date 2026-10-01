@@ -1322,6 +1322,8 @@ extern "C" float VR_WaterStickScale(edict_t* ent, int swimming)
 // full stroke for vr_swim_intent_memory seconds: a stroke against it, slower than it, is damped by
 // vr_swim_reverse_damp (a deliberate reverse stroke, as brisk -- vr_swim_reverse_speed -- is not).
 // vr_swim_debug 1 prints each stroke (peak speed, flatness, power, push) to tune these by.
+extern "C" cvar_t sv_friction; // sv_phys.c
+
 extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemove, float upmove)
 {
     QVR_PROFILE("vr swim");
@@ -1360,8 +1362,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     const float glide = CLAMP(0.f, vr_swim_glide.value, 1.f);
     if(glide > 0.f && !(static_cast<int>(ent->v.flags) & FL_ONGROUND))
     {
-        static const cvar_t* friction = Cvar_FindVar("sv_friction");
-        const float lost = dt * (friction ? friction->value : 4.f);
+        const float lost = dt * sv_friction.value;
         if(lost > 0.f && lost < 0.9f)
         {
             vel *= (1.f - lost * (1.f - glide)) / (1.f - lost);

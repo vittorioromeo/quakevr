@@ -1940,13 +1940,14 @@ void noteThrows()
     return true;
 }
 
+const za::Vector<glm::vec4> noFist; // (syncHands: a hand that pushes no fist's spheres)
+
 void syncHands(float dt)
 {
     QVR_PROFILE("box3d hands");
     const FieldOffsets& f = fields();
     world->hands.resize(static_cast<size_t>(svs.maxclients) + 1);
     const float radius = 0.045f; // m: a fist's
-    static const za::Vector<glm::vec4> noFist;
     for(int i = 1; i <= svs.maxclients && i < qcvm->num_edicts; i++)
     {
         edict_t* player = EDICT_NUM(i);
@@ -2350,7 +2351,7 @@ void makeReach(
     }
     if(vr_debug_box3d.value)
     {
-        static const char* const names[] = {"none", "open hand", "fist", "weapon", "capsule"};
+        static constexpr const char* names[] = {"none", "open hand", "fist", "weapon", "capsule"};
         const glm::vec3 palm = glm::mat3_cast(rot) * glm::vec3{0.f, h ? 1.f : -1.f, 0.f};
         const b3AABB box = b3Body_ComputeAABB(hb.reach);
         const glm::vec3 lo = world->toU(box.lowerBound), hi = world->toU(box.upperBound);
@@ -4615,9 +4616,11 @@ void approach_f(); // (below, with the players' shape against props)
 void inside_f();
 void watchInside();
 
+bool commandsRegistered = false; // (registerCommands: once)
+
 void registerCommands()
 {
-    static bool registered = false;
+    bool& registered = commandsRegistered;
     if(!registered)
     {
         registered = true;

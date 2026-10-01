@@ -583,10 +583,29 @@ ankerl::unordered_dense::map<const qmodel_t*, int> clipSizes;
 
 // Floating ammo counter on a weapon (old engine's V_SetupWpnTextViewEnt and the weapon text
 // in R_DrawViewModels): clip/clip size over the ammo left when reloading is on, else the ammo.
+// What is done once a frame however often the view is set up: the frame each last ran in (host_framecount).
+struct OncePerFrame
+{
+    int weaponText[2]{-1, -1}; // queueWeaponText, per hand
+    int quadArcs = -1;         // quadArcs
+    int idleTexts = -1;        // VR_SetupViewEntities: the guns not in a hand show their screens
+};
+OncePerFrame oncePerFrame;
+
+// vr_grapple_debug's memory: what was printed last, and when the next print may come.
+struct GrappleDebug
+{
+    int drawnFrame[2]{-1, -1};  // each hand's grappling gun's frame as drawn (setupWeapon)
+    bool holsteredOut = false;  // the holstered gun drawn empty (holsteredGrappleOut)
+    double idleLogAt = 0.0;     // idleAttachments (vr_grapple_debug 3)
+    double frontLogAt = 0.0;    // setupFrontButton (likewise)
+};
+GrappleDebug grappleDebug;
+
 void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const view::ViewEntity& ve, int slot)
 {
     // The view may be set up more than once per frame; queue once.
-    static int queuedFrame[2]{-1, -1};
+    int(&queuedFrame)[2] = oncePerFrame.weaponText;
     if(!vr_show_weapon_text.value || !ve.visible || weapons::value(slot, Key::WpnTextMode) == 0.f ||
         queuedFrame[hand] == host_framecount)
     {
@@ -1127,7 +1146,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         recordDrawnWeapon(s, hand); // (for its body in Box3D)
     }
     // (vr_grapple_debug: the grappling gun's frame as drawn, when it changes: 0 the hook in it, 2 out.)
-    static int drawnFrame[2] = {-1, -1};
+    int(&drawnFrame)[2] = grappleDebug.drawnFrame;
     if(vr_grapple_debug.value && developer.value && model && !strcmp(model->name, "progs/v_grpple.mdl") &&
         frame != drawnFrame[hand])
     {
@@ -1529,7 +1548,7 @@ constexpr int rigFinger[handrig::FingerCount] = {FingerThumb, FingerIndex, Finge
 // A rig point as drawn, moved and turned by the palm's fit, in the rig's space before them.
 [[nodiscard]] glm::vec3 drawnInRig(const RigHand& rh, const glm::vec3& p)
 {
-    static const glm::vec3 c = grasp::palmCentre();
+    const glm::vec3 c = grasp::palmCentre();
     return c + rh.palm + glm::mat3_cast(rh.turn) * (p - c);
 }
 
@@ -2163,15 +2182,17 @@ void updateFist(const hands::State& s, int hand)
     held::setFist(hand, local);
 }
 
+bool gripFrameCommandRegistered = false; // (vr_grip_frame: registered on the first call)
+
 // Held props' grips (grip::setHandFrame): where the empty hand's palm and grip channel are in its frame (the move's place
 // and angles), every frame; not measured without the jointed hand (the default hand's are used).
 void gripFrame_f();
 
 void updateGripFrame(const hands::State& s, int hand)
 {
-    if(static bool registered = false; !registered) // a test command (no init hook here)
+    if(!gripFrameCommandRegistered) // a test command (no init hook here)
     {
-        registered = true;
+        gripFrameCommandRegistered = true;
         Cmd_AddCommand("vr_grip_frame", gripFrame_f);
     }
     grip::HandFrame f;
@@ -2232,6 +2253,8 @@ void gripFrame_f()
             f.channelDir.y, f.channelDir.z, f.channelRadius);
     }
 }
+
+FILE* graspTrace = nullptr; // vr_debug_grasp_trace's file (setupRigHand)
 
 bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
     const glm::mat4& motion)
@@ -2346,7 +2369,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     if(glm::length(rh.palm) > 1e-4f || glm::angle(rh.turn) > 1e-4f)
     {
         const glm::mat3 q = glm::mat3_cast(rh.turn);
-        static const glm::vec3 c = grasp::palmCentre();
+        const glm::vec3 c = grasp::palmCentre();
         const glm::mat3 l = glm::mat3{rigToWorld} / ts.x; // R * [mirror] * k
         const glm::vec3 offset = t.active ? t.offset : glm::vec3{0.f};
         const glm::vec3 o{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]};
@@ -2487,7 +2510,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         render::entityMatrix(ve.ent, mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
         rh.drawnToWorld = toMat4(m);
     }
-    static FILE* trace = nullptr;
+    FILE*& trace = graspTrace;
     if(!vr_debug_grasp_trace.value && trace)
     {
         fclose(trace);
@@ -2720,6 +2743,8 @@ void migrateCups(const hands::State& s, int hand)
 
 void drawHand(int hand, glm::vec3 pos, glm::vec3 handRot, bool mirrored, bool hide, const Held& held, const glm::mat4& motion);
 
+entity_t placedTorch[2]; // (setupHand: the torch as it is placed this frame, per hand)
+
 void setupHand(const hands::State& s, int hand)
 {
     QVR_PROFILE("hand");
@@ -2940,7 +2965,7 @@ void setupHand(const hands::State& s, int hand)
     else if(flashlight::holds(hand) && entities.flashlight.ent.model)
     {
         // The torch as it is placed this frame (it is set up after the hands).
-        static entity_t torch[2];
+        entity_t(&torch)[2] = placedTorch;
         torch[hand] = entities.flashlight.ent;
         glm::vec3 origin, angles;
         if(flashlight::heldPlace(s, hand, origin, angles))
@@ -3643,7 +3668,7 @@ HolsterSeen holsterSeen[HolsterCount];
         out = out || (b.model && b.starttime <= cl.time && b.endtime >= cl.time && (b.entity & 0xFFFF) != cl.viewentity &&
                          glm::distance(glm::vec3{b.start[0], b.start[1], b.start[2]}, at) < 24.f);
     }
-    static bool was = false;
+    bool& was = grappleDebug.holsteredOut;
     if(out != was && vr_grapple_debug.value && developer.value)
     {
         Con_Printf("grapple: the holstered gun drawn %s\n", out ? "empty (its hook out)" : "with its hook");
@@ -3690,7 +3715,7 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
         place(front, viewModel("progs/wpnbutton.mdl"), pos,
             glm::vec3{button.ent.angles[0], button.ent.angles[1], button.ent.angles[2]}, 0, mirrored);
         front.ent.alpha = e.alpha;
-        static double logAt = 0.0;
+        double& logAt = grappleDebug.idleLogAt;
         if(vr_grapple_debug.value >= 3 && developer.value && realtime >= logAt)
         {
             logAt = realtime + 0.5;
@@ -4160,7 +4185,7 @@ void setupGadget(const hands::State& s)
 // in both eyes); now and then a longer one jumps between the fingers and the elbow (vr_shock.cpp).
 void quadArcs(const hands::State& s)
 {
-    static int lastFrame = -1;
+    int& lastFrame = oncePerFrame.quadArcs;
     if(host_framecount == lastFrame)
     {
         return; // once per frame, however often the view is set up
@@ -4439,7 +4464,7 @@ void setupFrontButton(int hand)
     const view::ViewEntity& back = entities.button[hand];
     place(ve, viewModel("progs/wpnbutton.mdl"), pos, glm::vec3{back.ent.angles[0], back.ent.angles[1], back.ent.angles[2]}, 0,
         mirrored);
-    static double logAt = 0.0;
+    double& logAt = grappleDebug.frontLogAt;
     if(vr_grapple_debug.value >= 3 && developer.value && realtime >= logAt)
     {
         logAt = realtime + 0.5;
@@ -4656,9 +4681,14 @@ static void applyEyeView(const hands::State& s)
 // them when they loaded. Some of its heads (the dog's, the fiend's, the shambler's, the zombie's)
 // lack the gib flag, so they left no blood trail: a head with no trail bleeds like a gib (the
 // zombie's like a zombie's gibs).
+namespace
+{
+const qmodel_t* flagsPatchedFor = nullptr; // the world patchModelFlags last ran for
+} // namespace
+
 static void patchModelFlags()
 {
-    static const qmodel_t* world = nullptr;
+    const qmodel_t*& world = flagsPatchedFor;
     if(cl.worldmodel == world)
     {
         return;
@@ -5105,6 +5135,11 @@ static void debugHandOffsets(const hands::State& s, const glm::vec3 knock[2], co
     }
 }
 
+namespace
+{
+hands::State unposedHands; // (VR_SetupViewEntities: the game's hands, put back after the posing mode's)
+} // namespace
+
 extern "C" void VR_SetupViewEntities()
 {
     QVR_PROFILE("view entities");
@@ -5142,7 +5177,7 @@ extern "C" void VR_SetupViewEntities()
 
     // The weapon posing mode (vr_posing.cpp) moves the hands for the view only: the game's put back after it.
     const bool posingNow = posing::active();
-    static hands::State unposed;
+    hands::State& unposed = unposedHands;
     if(posingNow)
     {
         unposed = s;
@@ -5228,7 +5263,7 @@ extern "C" void VR_SetupViewEntities()
         drawHandBones();
     }
     // The guns not in a hand (holstered, lying round) show their screens (queued once a frame).
-    static int idleTextFrame = -1;
+    int& idleTextFrame = oncePerFrame.idleTexts;
     const bool idleTexts = idleTextFrame != host_framecount;
     idleTextFrame = host_framecount;
     setupHolsters(s, idleTexts);

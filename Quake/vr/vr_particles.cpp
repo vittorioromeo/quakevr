@@ -1296,9 +1296,11 @@ void teleportSplash(const glm::vec3& org)
 
 // How lit the place is (the lightmap under it): the drops take no light of their own, and white
 // ones would glow in a dark pool.
+lightcache_t shadeLight{}; // shadeAt's light lookup (the client's frame)
+
 [[nodiscard]] float shadeAt(const glm::vec3& org)
 {
-    static lightcache_t cache{};
+    lightcache_t& cache = shadeLight;
     if(!cl.worldmodel)
     {
         return 1.f;

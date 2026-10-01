@@ -81,7 +81,7 @@ bool ensureProgram()
     {
         return true;
     }
-    static const char* vs = R"(#version 430
+    static constexpr const char* vs = R"(#version 430
 layout(location = 0) uniform mat4 MVP;
 layout(location = 0) in vec3 Pos;
 void main()
@@ -942,10 +942,12 @@ float pack(za::Vector<Request>& requests, int atlasSize)
 bool frameEnabled = false;
 int renderedFrame = -1;
 double lastTime = 0.0;
+double lastPrint = 0.0;        // vr_shadow_stats's last print (VR_RenderShadowMaps)
+bool clipControlWarned = false; // (shadowsSupported: once)
 
 bool shadowsSupported()
 {
-    static bool warned = false;
+    bool& warned = clipControlWarned;
     if(!gl_clipcontrol_able)
     {
         if(!warned)
@@ -1222,7 +1224,6 @@ extern "C" void VR_RenderShadowMaps(void)
         }
         timerIndex = (timerIndex + 1) % timerFrames;
 
-        static double lastPrint = 0.0;
         if(realtime - lastPrint > 1.0)
         {
             lastPrint = realtime;

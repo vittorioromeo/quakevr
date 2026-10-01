@@ -181,6 +181,9 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     return hs.pos[h] + hands::forward(hs.rot[h]) * 8.f;
 }
 
+// The weapon posing mode's held move: the hands as they were when it began (buildMove, the client's frame).
+VrMove unposed;
+
 [[nodiscard]] VrMove buildMove()
 {
     VrMove move;
@@ -335,7 +338,6 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
     // The weapon posing mode (vr_posing.cpp): the game sees the hands held still where they were when it began (with the
     // player, who may walk round the weapon), their buttons as they were, no two-handed aim, no teleport and no attack:
     // no shot, blow, grab, holster or throw while the hands pose.
-    static VrMove unposed;
     if(posing::active())
     {
         const glm::vec3 walked = move.origin - unposed.origin;
@@ -912,6 +914,17 @@ extern "C" void VR_TuneDlight(int kind, int ent, void* dlight)
 // (`key`: the beam's), unless another gun's rope starts nearer it: that gun is the other rope's. (A gun just taken or
 // gone, its rope still drawn a moment, went from the gun lying nearest: a phantom rope from another gun to this hook,
 // NOTES.md vrfiringrange_2026-09-30_02-56-42.)
+namespace
+{
+// thrownGunRopeStart's memory (the client's frame).
+struct RopeStartState
+{
+    glm::vec3 lastOut{0.f}; // the start we put: the server's sent again only with its next beam
+    double logAt = 0.0;     // vr_grapple_debug 2's next print
+};
+RopeStartState ropeStart;
+} // namespace
+
 void thrownGunRopeStart(int key, float* start)
 {
     const glm::vec3 s{start[0], start[1], start[2]};
@@ -956,12 +969,12 @@ void thrownGunRopeStart(int key, float* start)
     const glm::vec3 along = muzzle - handle;
     const float len = glm::length(along);
     const glm::vec3 at = len > 1e-3f ? muzzle - along * (za::max(0.f, vr_grapple_rope_depth.value) / len) : muzzle;
-    static glm::vec3 lastOut{0.f}; // (the start we put: the server's sent again only with its next beam)
+    glm::vec3& lastOut = ropeStart.lastOut;
     const bool fromServer = glm::distance(s, lastOut) > 0.01f;
     lastOut = at;
     if(vr_grapple_debug.value >= 2 && developer.value && fromServer)
     {
-        static double logAt = 0.0;
+        double& logAt = ropeStart.logAt;
         if(realtime >= logAt)
         {
             logAt = realtime + 0.5;

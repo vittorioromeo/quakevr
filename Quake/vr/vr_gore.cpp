@@ -70,9 +70,11 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(qza::nowNs())}; // a new sequence 
 
 // The colour of a drop falling through `p`: blood, as lit as the place is (a particle takes no light
 // of its own; the lightmap under it).
+lightcache_t dropLight{}; // dropColor's light lookup (the client's frame)
+
 [[nodiscard]] glm::vec3 dropColor(const glm::vec3& p)
 {
-    static lightcache_t cache{};
+    lightcache_t& cache = dropLight;
     vec3_t v = {p.x, p.y, p.z};
     const float light = cl.worldmodel ? static_cast<float>(R_LightPoint(v, 0.f, &cache)) : 110.f; // 128: full light
     const float k = za::clamp(za::max(light, 40.f) / 100.f, 0.4f, 1.4f);

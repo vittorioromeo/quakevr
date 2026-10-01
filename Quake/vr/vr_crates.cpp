@@ -525,11 +525,16 @@ void reset()
     gotoCrowbar = 0;
 }
 
+namespace
+{
+bool commandsRegistered = false; // (vr_crates_list, vr_crates_goto: registered on the first call)
+} // namespace
+
 int plan()
 {
-    if(static bool registered = false; !registered) // (no init hook of its own)
+    if(!commandsRegistered) // (no init hook of its own)
     {
-        registered = true;
+        commandsRegistered = true;
         Cmd_AddCommand("vr_crates_list", list_f);
         Cmd_AddCommand("vr_crates_goto", goto_f);
     }

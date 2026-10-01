@@ -933,6 +933,8 @@ Ghost ghost;
     return s;
 }
 
+const za::String noCell; // (loadGhost: a column the table does not have)
+
 [[nodiscard]] bool loadGhost(const za::String& path, za::String& error)
 {
     if(!files::isFile(path.cStr()))
@@ -978,9 +980,8 @@ Ghost ghost;
             continue;
         }
         const auto str = [&](const za::String& name) -> const za::String& {
-            static const za::String none;
             const auto it = col.find(name);
-            return it != col.end() && it->second < static_cast<int>(cells.size()) ? cells[it->second] : none;
+            return it != col.end() && it->second < static_cast<int>(cells.size()) ? cells[it->second] : noCell;
         };
         const auto has = [&](const za::String& name) { return !str(name).empty(); };
         const auto f = [&](const za::String& name) { return strtof(str(name).cStr(), nullptr); };
@@ -1703,7 +1704,7 @@ const char* evalLine()
 const char* listTitle()
 {
     ensure();
-    static const char* const names[ShowCount] = {"To Review", "Failing", "Suspect", "Not Evaluated", "Reviewed", "All", "Discarded"};
+    static constexpr const char* names[ShowCount] = {"To Review", "Failing", "Suspect", "Not Evaluated", "Reviewed", "All", "Discarded"};
     za::String& text = readouts.listTitle;
     const auto& list = categories();
     const int c = shownCategory;

@@ -132,67 +132,69 @@ struct Bind
     glm::vec3 toe[2];
 };
 
+// Built before main (no first-call guard): read by any thread.
+const Bind bindPose = [] {
+    Bind r{};
+    r.pos[Pelvis] = {0.f, 0.f, 0.95f};
+    r.pos[Spine] = {-0.01f, 0.f, 1.10f};
+    r.pos[Chest] = {-0.01f, 0.f, 1.28f};
+    r.pos[Neck] = {-0.01f, 0.f, 1.47f};
+    r.pos[Head] = {0.f, 0.f, 1.57f};
+
+    const float s30 = za::sin(glm::radians(30.f));
+    const float c30 = za::cos(glm::radians(30.f));
+    for(int side = 0; side < 2; side++)
+    {
+        const float sy = side == 0 ? 1.f : -1.f;
+        const int clav = side == 0 ? ClavicleL : ClavicleR;
+        r.pos[clav] = {0.f, 0.03f * sy, 1.43f};
+        r.pos[clav + 1] = {-0.01f, 0.19f * sy, 1.42f};
+        r.pos[clav + 2] = r.pos[clav + 1] + glm::vec3{0.f, 0.29f * s30 * sy, -0.29f * c30};
+        r.pos[clav + 3] = r.pos[clav + 2] + glm::vec3{0.f, 0.26f * s30 * sy, -0.26f * c30};
+
+        const int thigh = side == 0 ? ThighL : ThighR;
+        r.pos[thigh] = {0.f, 0.09f * sy, 0.92f};
+        r.pos[thigh + 1] = {0.f, 0.09f * sy, 0.50f};
+        r.pos[thigh + 2] = {-0.02f, 0.09f * sy, 0.08f};
+        r.toe[side] = {0.15f, 0.09f * sy, 0.02f};
+    }
+
+    for(int j : {Pelvis, Spine, Chest, Neck})
+    {
+        r.rot[j] = basis(r.pos[j + 1] - r.pos[j], FWD);
+    }
+    r.rot[Head] = basis(UP, FWD);
+    for(int side = 0; side < 2; side++)
+    {
+        const int clav = side == 0 ? ClavicleL : ClavicleR;
+        r.rot[clav] = basis(r.pos[clav + 1] - r.pos[clav], UP);
+        r.rot[clav + 1] = basis(r.pos[clav + 2] - r.pos[clav + 1], BACK);
+        r.rot[clav + 2] = basis(r.pos[clav + 3] - r.pos[clav + 2], BACK);
+        r.rot[clav + 3] = basis(r.pos[clav + 3] - r.pos[clav + 2], BACK);
+        for(int k = 0; k <= twistJoints; k++)
+        {
+            const int j = foreHelpers(side) + k;
+            r.pos[j] = glm::mix(r.pos[clav + 2], r.pos[clav + 3], k < twistJoints ? twistPlaces[k] : 1.f);
+            r.rot[j] = r.rot[clav + 2];
+        }
+
+        const int thigh = side == 0 ? ThighL : ThighR;
+        r.rot[thigh] = basis(r.pos[thigh + 1] - r.pos[thigh], FWD);
+        r.rot[thigh + 1] = basis(r.pos[thigh + 2] - r.pos[thigh + 1], FWD);
+        r.rot[thigh + 2] = basis(r.toe[side] - r.pos[thigh + 2], UP);
+    }
+
+    for(int j = Pelvis + 1; j < JointCount; j++)
+    {
+        const int p = parentOf[j];
+        r.offset[j] = glm::transpose(r.rot[p]) * (r.pos[j] - r.pos[p]);
+    }
+    return r;
+}();
+
 const Bind& bind()
 {
-    static const Bind b = [] {
-        Bind r{};
-        r.pos[Pelvis] = {0.f, 0.f, 0.95f};
-        r.pos[Spine] = {-0.01f, 0.f, 1.10f};
-        r.pos[Chest] = {-0.01f, 0.f, 1.28f};
-        r.pos[Neck] = {-0.01f, 0.f, 1.47f};
-        r.pos[Head] = {0.f, 0.f, 1.57f};
-
-        const float s30 = za::sin(glm::radians(30.f));
-        const float c30 = za::cos(glm::radians(30.f));
-        for(int side = 0; side < 2; side++)
-        {
-            const float sy = side == 0 ? 1.f : -1.f;
-            const int clav = side == 0 ? ClavicleL : ClavicleR;
-            r.pos[clav] = {0.f, 0.03f * sy, 1.43f};
-            r.pos[clav + 1] = {-0.01f, 0.19f * sy, 1.42f};
-            r.pos[clav + 2] = r.pos[clav + 1] + glm::vec3{0.f, 0.29f * s30 * sy, -0.29f * c30};
-            r.pos[clav + 3] = r.pos[clav + 2] + glm::vec3{0.f, 0.26f * s30 * sy, -0.26f * c30};
-
-            const int thigh = side == 0 ? ThighL : ThighR;
-            r.pos[thigh] = {0.f, 0.09f * sy, 0.92f};
-            r.pos[thigh + 1] = {0.f, 0.09f * sy, 0.50f};
-            r.pos[thigh + 2] = {-0.02f, 0.09f * sy, 0.08f};
-            r.toe[side] = {0.15f, 0.09f * sy, 0.02f};
-        }
-
-        for(int j : {Pelvis, Spine, Chest, Neck})
-        {
-            r.rot[j] = basis(r.pos[j + 1] - r.pos[j], FWD);
-        }
-        r.rot[Head] = basis(UP, FWD);
-        for(int side = 0; side < 2; side++)
-        {
-            const int clav = side == 0 ? ClavicleL : ClavicleR;
-            r.rot[clav] = basis(r.pos[clav + 1] - r.pos[clav], UP);
-            r.rot[clav + 1] = basis(r.pos[clav + 2] - r.pos[clav + 1], BACK);
-            r.rot[clav + 2] = basis(r.pos[clav + 3] - r.pos[clav + 2], BACK);
-            r.rot[clav + 3] = basis(r.pos[clav + 3] - r.pos[clav + 2], BACK);
-            for(int k = 0; k <= twistJoints; k++)
-            {
-                const int j = foreHelpers(side) + k;
-                r.pos[j] = glm::mix(r.pos[clav + 2], r.pos[clav + 3], k < twistJoints ? twistPlaces[k] : 1.f);
-                r.rot[j] = r.rot[clav + 2];
-            }
-
-            const int thigh = side == 0 ? ThighL : ThighR;
-            r.rot[thigh] = basis(r.pos[thigh + 1] - r.pos[thigh], FWD);
-            r.rot[thigh + 1] = basis(r.pos[thigh + 2] - r.pos[thigh + 1], FWD);
-            r.rot[thigh + 2] = basis(r.toe[side] - r.pos[thigh + 2], UP);
-        }
-
-        for(int j = Pelvis + 1; j < JointCount; j++)
-        {
-            const int p = parentOf[j];
-            r.offset[j] = glm::transpose(r.rot[p]) * (r.pos[j] - r.pos[p]);
-        }
-        return r;
-    }();
-    return b;
+    return bindPose;
 }
 
 // A joint's offset from its parent, in the parent's bind frame, in metres.
@@ -470,6 +472,15 @@ bool easeWrists = true;
 // solved forearm (and against the pole's), with its strain. 1: printed once; 2: every frame into arm_trace.txt (the
 // game directory), whether a take plays (vr_motion_play) and the client's time.
 glm::vec3 debugHead{0.f}; // the head this frame
+
+// The debug traces' open files (vr_debug_arm 2, vr_debug_lean: the main thread's frame).
+struct Traces
+{
+    FILE* arm = nullptr;  // arm_trace.txt (traceArm)
+    FILE* lean = nullptr; // lean_trace.txt (traceLean)
+};
+Traces traces;
+
 void traceArm(const Body& b, int side, const glm::vec3& shoulder, const glm::vec3& poleElbow, const glm::vec3& poleBend,
     const glm::vec3& elbow, const glm::vec3& bend, const glm::vec3& wrist, const glm::mat3& handRot, float swivel)
 {
@@ -498,7 +509,7 @@ void traceArm(const Body& b, int side, const glm::vec3& shoulder, const glm::vec
         glm::degrees(t0.twist), wristStrain(t0, limits));
     if(vr_debug_arm.value >= 2.f)
     {
-        static FILE* file = nullptr;
+        FILE*& file = traces.arm;
         if(!file && !(file = fopen(va("%s/arm_trace.txt", com_gamedir), "w")))
         {
             return;
@@ -555,6 +566,17 @@ struct ArmLengths
         glm::angleAxis(glm::radians(forwardDegrees * swingAmount), safeNormalize(glm::cross(lateral, cFwd), cUp));
     return glm::mat3_cast(raise * swing);
 }
+
+// The arms' easing from one frame to the next, per side (solveArm: the main thread's frame).
+struct ArmEase
+{
+    float swivel[2]{0.f, 0.f};         // the elbow's swing about the shoulder-wrist line (easing the wrist)
+    double swivelTime[2]{-1.0, -1.0};  // when it was set (-1: never)
+    float out[2]{0.f, 0.f};            // the elbow's swing out of the torso
+    double outTime[2]{-1.0, -1.0};
+    float twist[2]{0.f, 0.f};          // the forearm's twist (kept continuous past a half turn)
+};
+ArmEase armEase;
 
 void solveArm(Body& b, int side, const HandPose& handPose)
 {
@@ -643,8 +665,8 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     // turns up, up or down when the hand points away from the forearm (easeWrist); it follows the best swing in about
     // a twentieth of a second.
     const glm::vec3 poleElbow = elbow, poleBend = bend; // (vr_debug_arm)
-    static float lastSwivel[2]{0.f, 0.f};
-    static double lastSwivelTime[2]{-1.0, -1.0};
+    float(&lastSwivel)[2] = armEase.swivel;
+    double(&lastSwivelTime)[2] = armEase.swivelTime;
     float swivel = 0.f;
     if(const float limits = easeWrists ? vr_body_wrist_limits.value : 0.f; limits > 0.f && glm::length(handPose.forward) > 0.5f)
     {
@@ -664,8 +686,8 @@ void solveArm(Body& b, int side, const HandPose& handPose)
 
     // An elbow in the torso (the hand across the chest, the pole down and back) swings out of it about the same line,
     // as little as takes it out (vr_body_collide_elbows: the torso's capsules, vr_selfcollide.cpp), eased as above.
-    static float lastOut[2]{0.f, 0.f};
-    static double lastOutTime[2]{-1.0, -1.0};
+    float(&lastOut)[2] = armEase.out;
+    double(&lastOutTime)[2] = armEase.outTime;
     if(easeWrists)
     {
         // (Its joint kept 2 cm out: 3 cm of its flesh's 5.5, less the centimetre an arm at rest lies against the torso
@@ -706,7 +728,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
     float twist = 2.f * za::atan2(glm::dot(glm::vec3{turn.x, turn.y, turn.z}, foreDir), turn.w);
     // Kept continuous past a half turn (the nearest to the last frame's, up to 1.25 turns either way): a hand
     // held upside down would otherwise flip the forearm's twist from one side to the other as it shakes.
-    static float lastTwist[2]{0.f, 0.f};
+    float(&lastTwist)[2] = armEase.twist;
     twist -= glm::two_pi<float>() * za::round((twist - lastTwist[side]) / glm::two_pi<float>());
     if(qza::abs(twist) > glm::radians(225.f))
     {
@@ -763,9 +785,11 @@ void solveArm(Body& b, int side, const HandPose& handPose)
 
 // The legs' clock: seconds since they were last posed (0 the first time, and for a second pose in
 // the same frame).
+double legsPosedAt = -1.0; // legsDeltaTime's last call (realtime; -1: never)
+
 [[nodiscard]] float legsDeltaTime()
 {
-    static double lastTime = -1.0;
+    double& lastTime = legsPosedAt;
     const double now = realtime;
     const float dt = lastTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - lastTime, 0.1)) : 0.f;
     lastTime = now;
@@ -1313,7 +1337,7 @@ int debugFrame = -1;
 // lift in metres); whether each is stepping; the walk's amount; and the lean's hold and cues (hands::State).
 void traceLean(const Body& b, const hands::State& s)
 {
-    static FILE* file = nullptr;
+    FILE*& file = traces.lean;
     if(!vr_debug_lean.value)
     {
         if(file)

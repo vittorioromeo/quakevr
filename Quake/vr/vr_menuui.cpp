@@ -778,11 +778,23 @@ void useTool(int tool, int hand)
     }
 }
 
+namespace
+{
+// scrollStick's stick (the menu's frame).
+struct ScrollStick
+{
+    bool pushed = false;
+    double carry = 0.0;
+    double last = 0.0;
+};
+ScrollStick scrollStickState;
+} // namespace
+
 bool scrollStick(float y)
 {
-    static bool pushed = false;
-    static double carry = 0.0;
-    static double last = 0.0;
+    bool& pushed = scrollStickState.pushed;
+    double& carry = scrollStickState.carry;
+    double& last = scrollStickState.last;
     const double dt = realtime - last;
     last = realtime;
 

@@ -137,11 +137,22 @@ void onSightColorChanged(cvar_t*)
 
 } // namespace
 
+namespace
+{
+// VR_SightPalette's state (the main thread: textures load there).
+struct SightPalette
+{
+    bool callbacks = false;       // the cvars' callbacks set
+    unsigned int recolored[256]; // the palette handed back (TexMgr_LoadImage8 converts the texture with it at once)
+};
+SightPalette sightPalette;
+} // namespace
+
 extern "C" unsigned int* VR_SightPalette(const char* texname, unsigned int* palette)
 {
     // The cvars' callbacks, once they are registered (Cvar_RegisterVariable clears a callback): the
     // first sighted skin loads with a map, long after.
-    static bool callbacks = false;
+    bool& callbacks = sightPalette.callbacks;
     if(!callbacks && Cvar_FindVar(vr_sight_hue.name) == &vr_sight_hue)
     {
         Cvar_SetCallback(&vr_sight_hue, onSightColorChanged);
@@ -165,7 +176,7 @@ extern "C" unsigned int* VR_SightPalette(const char* texname, unsigned int* pale
     }
 
     // TexMgr_LoadImage8 converts the texture with it straight away: one copy is enough.
-    static unsigned int recolored[256];
+    unsigned int(&recolored)[256] = sightPalette.recolored;
     ZA_MEMCPY(recolored, palette, sizeof(recolored));
     for(int i = 0; i < 256; ++i)
     {

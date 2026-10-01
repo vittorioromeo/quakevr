@@ -337,6 +337,22 @@ struct MemSample
     double scanMs{0.0}; // what counting the GL objects took
 };
 
+// The GL functions sampleMemory counts objects with (looked up on its first scan).
+struct GlIsFns
+{
+    GlIsFn isBuffer = nullptr, isFramebuffer = nullptr, isQuery = nullptr, isProgram = nullptr;
+};
+GlIsFns glIsFns;
+
+// vr_memstats's last call (the time and frames since it are printed).
+struct MemStatsCalls
+{
+    double lastTime = 0.0;
+    int lastFrames = 0;
+    int calls = 0;
+};
+MemStatsCalls memStatsCalls;
+
 MemSample sampleMemory(bool scanGl = true)
 {
     MemSample m;
@@ -388,7 +404,10 @@ MemSample sampleMemory(bool scanGl = true)
         return m;
     }
     const za::Clock scanClock;
-    static GlIsFn isBuffer = nullptr, isFramebuffer = nullptr, isQuery = nullptr, isProgram = nullptr;
+    GlIsFn& isBuffer = glIsFns.isBuffer;
+    GlIsFn& isFramebuffer = glIsFns.isFramebuffer;
+    GlIsFn& isQuery = glIsFns.isQuery;
+    GlIsFn& isProgram = glIsFns.isProgram;
     if(!isBuffer)
     {
         isBuffer = reinterpret_cast<GlIsFn>(SDL_GL_GetProcAddress("glIsBuffer"));
@@ -655,9 +674,9 @@ void VR_MemStats_f()
     {
         return;
     }
-    static double lastTime = 0.0;
-    static int lastFrames = 0;
-    static int calls = 0;
+    double& lastTime = memStatsCalls.lastTime;
+    int& lastFrames = memStatsCalls.lastFrames;
+    int& calls = memStatsCalls.calls;
     const double seconds = realtime - lastTime;
     const int frames = host_framecount - lastFrames;
 
@@ -905,9 +924,21 @@ int worldGeneration()
     return worldGen;
 }
 
+const TrackingState fallbackTracking = standingPose(); // (tracking: without a headset; built before main)
+const FrameState noFrame;                               // (frameState: likewise)
+
+// The wrist gadget's FPS counter's window (frameRate).
+struct RateWindow
+{
+    double start = -1.0;
+    FrameRate last;
+    bool valid = false;
+};
+RateWindow rateWindow;
+
 const TrackingState& tracking()
 {
-    static const TrackingState fallback = standingPose();
+    const TrackingState& fallback = fallbackTracking;
     return state && state->backend ? state->tracking : fallback;
 }
 
@@ -928,15 +959,14 @@ bool backendRestartPending()
 
 const FrameState& frameState()
 {
-    static const FrameState none;
-    return state && state->backend ? state->frame : none;
+    return state && state->backend ? state->frame : noFrame;
 }
 
 bool frameRate(FrameRate& out)
 {
-    static double windowStart = -1.0;
-    static FrameRate last;
-    static bool valid = false;
+    double& windowStart = rateWindow.start;
+    FrameRate& last = rateWindow.last;
+    bool& valid = rateWindow.valid;
     if(windowStart < 0.0 || realtime < windowStart)
     {
         drainPhases(); // (what came before is not this window's)
@@ -1223,11 +1253,22 @@ extern "C" int VR_SkipScreen()
     return VR_Unpaced() && vr_mock_fast.value >= 2.f;
 }
 
+namespace
+{
+// vr_mock_fast's presents and vsync (VR_SkipSwap, applyUnpacedSwap: the main thread).
+struct UnpacedSwap
+{
+    double lastPresent = 0.0; // the last frame presented (Sys_DoubleTime)
+    bool vsyncOff = false;    // vsync turned off for unpaced frames
+};
+UnpacedSwap unpacedSwap;
+} // namespace
+
 extern "C" int VR_SkipSwap()
 {
     // vr_mock_fast: a present waits for the display's refresh (vsync off or not: the compositor's pace in a window),
     // most of an unpaced frame. Present ten times a second: the window still shows the run.
-    static double lastPresent = 0.0;
+    double& lastPresent = unpacedSwap.lastPresent;
     if(!VR_Unpaced())
     {
         return 0;
@@ -1244,7 +1285,7 @@ extern "C" int VR_SkipSwap()
 // vr_mock_fast: no vsync either while the frames run unpaced (the window's vid_vsync again after).
 static void applyUnpacedSwap()
 {
-    static bool off = false;
+    bool& off = unpacedSwap.vsyncOff;
     const bool unpaced = VR_Unpaced();
     if(unpaced != off)
     {

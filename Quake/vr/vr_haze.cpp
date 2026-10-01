@@ -180,16 +180,17 @@ Copy copies[2];
 }
 
 // The scene colour texture's format (asked of GL only for another texture or another size of vid), for each slot.
+struct SizedScene
+{
+    GLuint color = 0;
+    int samples = 0, w = 0, h = 0;
+    GLint format = 0;
+};
+SizedScene sizedFor[2]; // (sceneFormat, the main thread's drawing)
+
 GLint sceneFormat(GLuint color, int samples)
 {
-    struct Sized
-    {
-        GLuint color = 0;
-        int samples = 0, w = 0, h = 0;
-        GLint format = 0;
-    };
-    static Sized sizedFor[2];
-    Sized& z = sizedFor[viewSlot()];
+    SizedScene& z = sizedFor[viewSlot()];
     if(color != z.color || samples != z.samples || vid.width != z.w || vid.height != z.h)
     {
         const GLenum target = samples > 1 ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;

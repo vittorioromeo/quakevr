@@ -300,9 +300,11 @@ void simulate(float dt, float m2w)
 
 // How lit the player's surroundings are (the lightmap under the hands), for the drops' colour:
 // the lines they are drawn with take no light of their own.
+lightcache_t shadeLight{}; // shade's light lookup (the client's frame)
+
 [[nodiscard]] float shade(const hands::State& s)
 {
-    static lightcache_t cache{};
+    lightcache_t& cache = shadeLight;
     if(!cl.worldmodel)
     {
         return 1.f;

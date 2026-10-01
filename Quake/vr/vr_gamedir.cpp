@@ -127,7 +127,7 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
         return 0;
     }
 
-    static const char* const campaigns[] = {"id1", "hipnotic", "rogue"};
+    static constexpr const char* campaigns[] = {"id1", "hipnotic", "rogue"};
     const int idx = (static_cast<int>(qvr::vr_activestartpaknameidx.value) % 3 + 3) % 3;
     const char* selected = campaigns[idx];
     if(idx > 0 && !gameDirAlreadyAdded(selected))
@@ -152,6 +152,11 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
 // in any game folder (the script writes into quakevr), replaces maps/<map>.bsp when that comes
 // from <game>; its .lit sits next to it. Per game, since id1, hipnotic and rogue all have a
 // start.bsp and an end.bsp; a mod's own version of a map is left alone.
+namespace
+{
+char relitPath[MAX_QPATH * 2]; // VR_ModelFile's answer: valid until its next call (the main thread)
+} // namespace
+
 extern "C" const char* VR_ModelFile(const char* name)
 {
     if(!qvr::vr_relit_maps.value || strncmp(name, "maps/", 5) != 0)
@@ -180,7 +185,7 @@ extern "C" const char* VR_ModelFile(const char* name)
 
     char game[MAX_OSPATH];
     gameFolderName(folder, game, sizeof(game));
-    static char relit[MAX_QPATH * 2];
+    char(&relit)[MAX_QPATH * 2] = relitPath;
     q_snprintf(relit, sizeof(relit), "relit/%s/%s", game, name);
     return COM_FileExists(relit, nullptr) ? relit : name;
 }

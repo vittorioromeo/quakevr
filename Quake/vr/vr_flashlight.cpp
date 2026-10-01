@@ -463,6 +463,8 @@ struct State
     // body, vr_body_collide; out of models; knocked, shaken): what a press is judged on, so what lights the lamp too.
     hands::State game;
     int gameFrame{-1};
+    int viewFrame{-1};      // the frame setupView last ran in (once a frame)
+    int viewGeneration{-1}; // the map's (worldGeneration) setupView last saw
 
     float beamLength{-1.f}; // the visible beam's length, eased towards where the beam lands (<0: none yet)
     double beamTime{0.0};
@@ -1784,7 +1786,7 @@ void noteGameHands(const hands::State& s)
 
 void setupView(const hands::State& s, view::ViewEntity& ve)
 {
-    static int lastFrame = -1;
+    int& lastFrame = st.viewFrame;
     if(lastFrame == host_framecount)
     {
         return; // once per frame, however often the view is set up
@@ -1796,7 +1798,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     noteIntent(game);
 
     // A new map: back on the belt (switched as it was).
-    static int generation = -1;
+    int& generation = st.viewGeneration;
     if(cl.worldmodel != st.world || worldGeneration() != generation)
     {
         st.world = cl.worldmodel;

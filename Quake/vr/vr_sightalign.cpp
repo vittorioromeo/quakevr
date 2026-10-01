@@ -1346,6 +1346,11 @@ void frame()
     text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.045f);
 }
 
+namespace
+{
+int waitDebugFrames = 0; // viewFrame's waiting frames (developer 2 prints one in 20)
+} // namespace
+
 void viewFrame(const hands::State& s)
 {
     // Show Sight Line: each held gun's.
@@ -1435,8 +1440,7 @@ void viewFrame(const hands::State& s)
     // WaitStill.
     Sample mean;
     const bool still = stillMean(now, mean);
-    static int debugFrames = 0;
-    if(developer.value >= 2 && ++debugFrames % 20 == 0)
+    if(developer.value >= 2 && ++waitDebugFrames % 20 == 0)
     {
         Con_Printf("Align Sights: waiting: still %d, plausible %d, two-handed %.2f, moves %.3f %.3f %.3f %.3f\n", still ? 1 : 0,
             still && plausible(mean) ? 1 : 0, twohand::transition(st.hand), lastDev.x, lastDev.y, lastDev.z, lastDev.w);

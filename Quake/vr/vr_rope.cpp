@@ -1052,6 +1052,11 @@ bool hookTail(const glm::vec3& b, glm::vec3& out, glm::vec3& dir)
     return glm::distance(out, b) > 0.5f;
 }
 
+namespace
+{
+bool ropeCommandsRegistered = false; // (VR_DrawRope: once)
+} // namespace
+
 extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const float* end)
 {
     const auto it = slacks.find(ent);
@@ -1065,7 +1070,7 @@ extern "C" int VR_DrawRope(int ent, qmodel_t* model, const float* start, const f
         return 0;
     }
     QVR_PROFILE("grapple rope");
-    static bool registered = false;
+    bool& registered = ropeCommandsRegistered;
     if(!registered)
     {
         registered = true;

@@ -69,10 +69,19 @@ namespace
     return found;
 }
 
+// Whether XR_RUNTIME_JSON is ours to change (not one the game was started with): checked once, before the first
+// change (chooseRuntime, the main thread).
+struct RuntimeChoice
+{
+    bool ours = false;
+    bool checked = false;
+};
+RuntimeChoice runtimeChoice;
+
 void chooseRuntime()
 {
-    static bool ours = false; // XR_RUNTIME_JSON is ours to change (not one the game was started with)
-    static bool checked = false;
+    bool& ours = runtimeChoice.ours;
+    bool& checked = runtimeChoice.checked;
     if(!checked)
     {
         checked = true;
@@ -490,6 +499,7 @@ private:
     XrSession session{XR_NULL_HANDLE};
     XrSpace worldSpace{XR_NULL_HANDLE};
     XrSpace viewSpace{XR_NULL_HANDLE};
+    bool formatLogged{false}; // the swapchain's format printed (createSwapchains: once)
     XrActionSet actionSet{XR_NULL_HANDLE};
     XrAction gripPose{XR_NULL_HANDLE};
     XrAction triggerAction{XR_NULL_HANDLE};
@@ -1200,7 +1210,6 @@ private:
             : format == 0x881A                             ? "GL_RGBA16F"
             : format == 0x8059                             ? "GL_RGB10_A2"
                                                            : "?";
-        static bool formatLogged = false;
         if(!formatLogged)
         {
             formatLogged = true;

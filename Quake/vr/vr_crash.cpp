@@ -32,13 +32,15 @@ typedef BOOL (WINAPI *qvr_StackWalk64_t) (DWORD, HANDLE, HANDLE, LPSTACKFRAME64,
 typedef BOOL (WINAPI *qvr_MiniDumpWriteDump_t) (HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, PMINIDUMP_EXCEPTION_INFORMATION,
 	PMINIDUMP_USER_STREAM_INFORMATION, PMINIDUMP_CALLBACK_INFORMATION);
 
+static volatile LONG crashEntered = 0; // PL_CrashReport: a report under way (any thread)
+static bool crashHandlerInstalled = false; // VR_InstallCrashHandler: once
+
 static void PL_CrashReport (EXCEPTION_POINTERS *ep, const char *what)
 {
-	static volatile LONG entered = 0;
 	HMODULE dbg;
 	HANDLE proc = GetCurrentProcess (), thread = GetCurrentThread ();
 	FILE *f;
-	if (InterlockedExchange (&entered, 1)) // a second thread crashing meanwhile: leave the first one's report
+	if (InterlockedExchange (&crashEntered, 1)) // a second thread crashing meanwhile: leave the first one's report
 		return;
 	dbg = LoadLibraryA ("dbghelp.dll");
 	f = fopen ("qvr_crash.txt", "w");
@@ -203,7 +205,7 @@ static int __cdecl PL_CrtReportHook (int type, char *message, int *returnValue)
 
 extern "C" void VR_InstallCrashHandler (void)
 {
-	static bool installed = false;
+	bool &installed = crashHandlerInstalled;
 	if (!installed && getenv ("QVR_NO_ERROR_DIALOG"))
 	{
 		installed = true;

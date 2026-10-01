@@ -61,6 +61,7 @@ struct History
 };
 
 History histories[2];
+History bothHistory; // estimateBothAt's samples (scratch: 7 kB, off the stack)
 
 // The peak of a quadratic fitted (least squares) to the speeds within peakFit seconds of `peakTime`
 // (the fastest sample, `bestSpeed`), kept within 20% of it; 0 when it doesn't fit (fewer than three
@@ -290,7 +291,7 @@ Estimate estimateBothAt(double releaseTime, const glm::vec3& centre)
     // The hands' samples of the same frames, as the held object's: its centre's velocity (the middle's, and its spin
     // about the middle) and its spin (the hands' own about the line between them, and the line's turn: a rigid
     // body's). Not across a hand's gap (a frame one hand missed).
-    static History both;
+    History& both = bothHistory;
     both = History{};
     const History &h0 = histories[0], &h1 = histories[1];
     const float m2u = units::metresToUnits();

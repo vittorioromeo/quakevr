@@ -115,7 +115,7 @@
 // the return of the arms for the next one.
 void resetSwimming()
 {
-    static const char* const names[] = {"vr_swim", "vr_swim_shallow_speed", "vr_swim_wade_speed",
+    static constexpr const char* names[] = {"vr_swim", "vr_swim_shallow_speed", "vr_swim_wade_speed",
         "vr_swim_stick_speed", "vr_swim_stroke", "vr_swim_stroke_min", "vr_swim_palm", "vr_swim_stroke_assist",
         "vr_swim_max_speed", "vr_swim_look", "vr_swim_recovery", "vr_swim_glide", "vr_swim_power_threshold",
         "vr_swim_power_knee", "vr_swim_power_whole", "vr_swim_intent_memory", "vr_swim_reverse_damp", "vr_swim_reverse_speed",

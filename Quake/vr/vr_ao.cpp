@@ -919,10 +919,12 @@ struct BakeQueue
     za::Atomic<bool> stop{false};  // set at shutdown: the bake under way gives up
 };
 
+// Made before main and never destroyed (its task is finished before the game exits: ao::shutdown).
+BakeQueue* const theBakeQueue = new BakeQueue;
+
 BakeQueue& bakeQueue()
 {
-    static auto* q = new BakeQueue; // never destroyed (its task is finished before the game exits: ao::shutdown)
-    return *q;
+    return *theBakeQueue;
 }
 
 // FNV-1a of a model's poses, triangles and scale: the same name from another game folder is another model.

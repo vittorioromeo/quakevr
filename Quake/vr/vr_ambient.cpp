@@ -55,40 +55,42 @@ struct Rays
     float weight[NUM_RAYS][6]; // each face's cosine lobe over the rays, summing to 1 per face
 };
 
-const Rays& rays()
-{
-    static const Rays table = [] {
-        Rays r{};
-        int n = 0;
-        for(int x = -1; x <= 1; x++)
+// Built before main (no first-call guard): read by any thread.
+const Rays rayTable = [] {
+    Rays r{};
+    int n = 0;
+    for(int x = -1; x <= 1; x++)
+    {
+        for(int y = -1; y <= 1; y++)
         {
-            for(int y = -1; y <= 1; y++)
+            for(int z = -1; z <= 1; z++)
             {
-                for(int z = -1; z <= 1; z++)
+                if(x || y || z)
                 {
-                    if(x || y || z)
-                    {
-                        r.dir[n++] = glm::normalize(glm::vec3{x, y, z});
-                    }
+                    r.dir[n++] = glm::normalize(glm::vec3{x, y, z});
                 }
             }
         }
-        for(int f = 0; f < 6; f++)
+    }
+    for(int f = 0; f < 6; f++)
+    {
+        float sum = 0.f;
+        for(int i = 0; i < NUM_RAYS; i++)
         {
-            float sum = 0.f;
-            for(int i = 0; i < NUM_RAYS; i++)
-            {
-                r.weight[i][f] = za::max(0.f, glm::dot(r.dir[i], AXES[f]));
-                sum += r.weight[i][f];
-            }
-            for(int i = 0; i < NUM_RAYS; i++)
-            {
-                r.weight[i][f] /= sum;
-            }
+            r.weight[i][f] = za::max(0.f, glm::dot(r.dir[i], AXES[f]));
+            sum += r.weight[i][f];
         }
-        return r;
-    }();
-    return table;
+        for(int i = 0; i < NUM_RAYS; i++)
+        {
+            r.weight[i][f] /= sum;
+        }
+    }
+    return r;
+}();
+
+const Rays& rays()
+{
+    return rayTable;
 }
 
 enum class HitKind
@@ -504,7 +506,7 @@ void show_f()
     Con_Printf("AMB %lld samples, %.1f us each (%d rays), %d entities cached\n", samplesTaken,
                samplesTaken ? sampleSeconds * 1e6 / static_cast<double>(samplesTaken) : 0.0, NUM_RAYS,
                static_cast<int>(cache.size()));
-    static const char* names[6] = {"+X", "-X", "+Y", "-Y", "+Z", "-Z"};
+    static constexpr const char* names[6] = {"+X", "-X", "+Y", "-Y", "+Z", "-Z"};
     for(size_t i = 0; i < nearest.size() && i < 6; i++)
     {
         const Cached& c = *nearest[i].c;
@@ -520,13 +522,18 @@ void show_f()
 
 } // namespace
 
+namespace
+{
+bool showCommandRegistered = false; // (vr_model_ambient_show: registered on the first call)
+} // namespace
+
 void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const void* aliashdr, bool enabled,
                          float out[6][4])
 {
     setOff(out);
-    if(static bool registered = false; !registered) // a tuning command (no init hook of its own)
+    if(!showCommandRegistered) // a tuning command (no init hook of its own)
     {
-        registered = true;
+        showCommandRegistered = true;
         Cmd_AddCommand("vr_model_ambient_show", show_f);
     }
     if(!enabled || vr_model_ambient_dir.value == 0.f || !cl.worldmodel || !cl.worldmodel->lightdata || !e ||

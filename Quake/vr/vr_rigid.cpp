@@ -344,14 +344,19 @@ void place_f()
 
 } // namespace
 
+namespace
+{
+bool placeCommandRegistered = false; // (vr_rigid_place: registered on the first call)
+} // namespace
+
 // SV_Physics_Toss, after the think. Items and rigid bodies are kept in the world first; a rigid body is then
 // Box3D's (nonzero: Quake's toss leaves it), and everything else goes on with Quake's toss (zero).
 extern "C" int VR_RigidToss(edict_t* ent)
 {
     QVR_PROFILE("rigid bodies");
-    if(static bool registered = false; !registered) // a test command (no init hook of its own)
+    if(!placeCommandRegistered) // a test command (no init hook of its own)
     {
-        registered = true;
+        placeCommandRegistered = true;
         Cmd_AddCommand("vr_rigid_place", place_f);
     }
     const FieldOffsets& f = fields();

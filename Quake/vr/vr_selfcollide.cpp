@@ -743,6 +743,8 @@ struct Stats
     int tested{0}, blocking{0}, passing{0};
 };
 
+float lastBetween = 1.f; // solve's between-hands easing (the client's frame)
+
 void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
 {
     out[0] = out[1] = glm::vec3{0.f};
@@ -753,7 +755,6 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
     const float mob[2] = {mobility(s, 0), mobility(s, 1)};
     // Between the hands: back in over a third of a second once a grip or a hand-over is done (the helping hand's arm
     // swings back from the grip onto its controller meanwhile).
-    static float lastBetween = 1.f;
     const float between = za::min(betweenHands(s), lastBetween + dt / 0.3f);
     lastBetween = between;
     const bool freeH[2] = {freeHand(s, 0), freeHand(s, 1)};
@@ -1063,10 +1064,18 @@ void debugDraw(const hands::State& s)
 // body_collide_trace.txt (the game directory) while any is on or a hand is pushed: the time; per hand (main, off) its
 // tracked place (world units), its drawn offset (x y z and length, cm) and this frame's target (cm); then each contact
 // on: its name, block or pass, its weight, how far through (0..1) and the push the tracked pose needs (cm).
+// vr_debug_body_collide's trace: its file (2) and each contact's mode last printed (trace).
+struct Trace
+{
+    FILE* file = nullptr;
+    Mode shown[contactCount]{};
+};
+Trace traceState;
+
 void trace(const hands::State& s, const Stats& stats)
 {
-    static FILE* file = nullptr;
-    static Mode shown[contactCount]{};
+    FILE*& file = traceState.file;
+    Mode(&shown)[contactCount] = traceState.shown;
     if(vr_debug_body_collide.value < 1.f)
     {
         if(file)

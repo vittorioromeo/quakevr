@@ -402,9 +402,11 @@ void testAim_f()
     PR_PopQCVM(oldVm);
 }
 
+bool commandsRegistered = false; // (registerCommands: once)
+
 void registerCommands()
 {
-    static bool registered = false;
+    bool& registered = commandsRegistered;
     if(!registered)
     {
         registered = true;
@@ -486,11 +488,15 @@ glm::vec3 retract(edict_t* hook, const glm::vec3& gun, const glm::vec3& end, flo
     return out;
 }
 
+namespace
+{
+const Shape noShape; // (shape: a hook without a rope)
+} // namespace
+
 const Shape& shape(edict_t* hook)
 {
-    static const Shape none;
     const auto it = ropes.find(NUM_FOR_EDICT(hook));
-    return it == ropes.end() ? none : it->second.shape;
+    return it == ropes.end() ? noShape : it->second.shape;
 }
 
 void send(edict_t* hook, edict_t* owner, int beamId)

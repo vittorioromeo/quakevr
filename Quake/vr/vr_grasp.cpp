@@ -22,6 +22,7 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
+#include "vr_mem.hpp"
 #include "vr_zancle.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
@@ -93,11 +94,23 @@ Kinematics buildKinematics()
     return k;
 }
 
-// Built again when another rig is put in use (vr_hand_reload).
+// Built again when another rig is put in use (vr_hand_reload): keyed by the rig's generation.
+struct KinematicsCache
+{
+    Kinematics k;
+    unsigned built = 0; // the rig's generation k is of (0: none yet)
+    auto members() { return mem::list(k, built); }
+};
+[[nodiscard]] za::SizeT heldBytes(const Kinematics& k) // (vr_mem.hpp)
+{
+    return mem::heldBytes(k.bone) + mem::heldBytes(k.palm) + mem::heldBytes(k.thenar);
+}
+mem::Cache<KinematicsCache> kinematicsCache{"grasp kinematics", mem::Never};
+
 const Kinematics& kinematics()
 {
-    static Kinematics k;
-    static unsigned built = 0;
+    Kinematics& k = kinematicsCache.k;
+    unsigned& built = kinematicsCache.built;
     if(built != handrig::generation())
     {
         k = buildKinematics();

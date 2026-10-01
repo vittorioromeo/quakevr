@@ -236,19 +236,25 @@ void update(const FrameState& frame, const hands::State& s)
     filter.position = position;
 }
 
+namespace
+{
+// mirrorMap's widest crop and what it was made for (the main thread's drawing).
+struct WidestCrop
+{
+    Fov fov;
+    float aspect = 0.f;
+    const HiddenArea* hidden = nullptr;
+    za::SizeT count = 0;
+    float tx = 0.f, ty = 0.f;
+};
+WidestCrop widest;
+} // namespace
+
 glm::mat3 mirrorMap(const Fov& fov, float aspect, const HiddenArea* hidden)
 {
     // The widest crop of the window's shape about the eye's forward axis: within the image and, with a hidden area,
     // within what the lenses show (made again only when the eye's field of view, the hidden area or the window's shape
     // change); narrowed by the zoom.
-    static struct
-    {
-        Fov fov;
-        float aspect = 0.f;
-        const HiddenArea* hidden = nullptr;
-        za::SizeT count = 0;
-        float tx = 0.f, ty = 0.f;
-    } widest;
     const za::SizeT count = hidden ? hidden->indices.size() : 0;
     if(widest.aspect != aspect || widest.hidden != hidden || widest.count != count || widest.fov.left != fov.left ||
         widest.fov.right != fov.right || widest.fov.up != fov.up || widest.fov.down != fov.down)

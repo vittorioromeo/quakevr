@@ -817,7 +817,7 @@ void renderScreens()
         image.drawnAlign = static_cast<int>(q.align);
         image.drawnFace = face;
         image.drawnText = text;
-        static const char* const names[maxScreenImages] = {"ammo screen 1", "ammo screen 2", "ammo screen 3",
+        static constexpr const char* names[maxScreenImages] = {"ammo screen 1", "ammo screen 2", "ammo screen 3",
             "ammo screen 4", "ammo screen 5", "ammo screen 6", "ammo screen 7", "ammo screen 8", "ammo screen 9",
             "ammo screen 10", "ammo screen 11", "ammo screen 12", "ammo screen 13", "ammo screen 14", "ammo screen 15",
             "ammo screen 16"};

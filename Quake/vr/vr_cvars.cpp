@@ -570,9 +570,14 @@ void saveConfigNow()
     }
 }
 
+namespace
+{
+bool configMenuWasOpen = false; // configFrame: the menu or the console was open last frame
+} // namespace
+
 void configFrame()
 {
-    static bool wasOpen = false;
+    bool& wasOpen = configMenuWasOpen;
     const bool open = key_dest == key_menu || key_dest == key_console;
     if(wasOpen && !open)
     {

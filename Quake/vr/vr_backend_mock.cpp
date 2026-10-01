@@ -630,8 +630,8 @@ public:
             // A shaky head (vr_mock_shake): quick small turns (a few incommensurate sines on each axis) and a small
             // wobble of the position (4 mm a degree), over a slow turn (vr_mock_shake_turn), from when it starts. Driven
             // by realtime, which vr_fixed_frames steps by 1/72 s a frame: the same poses every run.
-            static double shakeStart = -1.0;
-            static int shakeFrame = -10;
+            double& shakeStart = shake.start;
+            int& shakeFrame = shake.frame;
             if(host_framecount > shakeFrame + 1)
             {
                 shakeStart = realtime; // the shake's time from when it starts
@@ -841,6 +841,11 @@ private:
     }
     ScriptedMotion handMotion[HAND_COUNT];
     ScriptedMotion headMotion; // headbutts
+    struct
+    {
+        double start{-1.0}; // realtime when the shake started (vr_mock_shake)
+        int frame{-10};      // the last frame it moved the head (host_framecount): a gap starts it again
+    } shake;
 };
 
 } // namespace

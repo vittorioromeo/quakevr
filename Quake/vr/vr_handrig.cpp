@@ -123,16 +123,20 @@ Rig compiledRig()
 }
 
 // The shipped hand: the reference edits are measured against.
+// Built before main (no first-call guard): only constexpr data goes in (vr_handrig_data.inc).
+const Rig referenceRig = compiledRig();
+
+// The rig in use: the shipped one, or a reloaded one (vr_hand_reload; the main thread).
+Rig currentRig = compiledRig();
+
 const Rig& reference()
 {
-    static const Rig r = compiledRig();
-    return r;
+    return referenceRig;
 }
 
 Rig& current()
 {
-    static Rig r = compiledRig();
-    return r;
+    return currentRig;
 }
 
 unsigned rigGeneration = 1;

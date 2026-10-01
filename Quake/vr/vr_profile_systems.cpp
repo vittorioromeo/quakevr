@@ -42,6 +42,8 @@
 #include <string.h>
 #include <time.h>
 
+extern "C" cvar_t host_maxfps; // host.c
+
 namespace qvr::profile::systems
 {
 namespace
@@ -372,10 +374,9 @@ void appendf(za::String& out, const char* fmt, ...)
     {
         return display;
     }
-    static const cvar_t* maxfps = Cvar_FindVar("host_maxfps");
-    if(!vrActive() && maxfps && maxfps->value > 0.f)
+    if(!vrActive() && host_maxfps.value > 0.f)
     {
-        return 1000.0 / maxfps->value;
+        return 1000.0 / host_maxfps.value;
     }
     return 1000.0 / 90.0;
 }

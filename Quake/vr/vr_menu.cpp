@@ -345,10 +345,13 @@ struct MenuReadouts
     za::String heldObjectMass;
     za::String heldObjectDamage[2];    // by line
     za::String weaponWeightsDrop;      // weaponWeightsDropReadout
+    char checklistSummary[48];         // checklistSummary
+    char stamina[96];                  // staminaReadout
+    char renderScaleHelp[192];         // renderScaleHelp
     auto members()
     {
         return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
-            weaponWeightsDrop);
+            weaponWeightsDrop, checklistSummary, stamina, renderScaleHelp);
     }
 };
 mem::Scratch<MenuReadouts> readouts{"menu readouts"};
@@ -1242,7 +1245,7 @@ void bodycalRedo(int step)
 
 const char* bodycalIntro(int i)
 {
-    static const char* const lines[] = {"Measures your shoulders and arms from", "a few poses and moves, so that the drawn",
+    static constexpr const char* lines[] = {"Measures your shoulders and arms from", "a few poses and moves, so that the drawn",
         "arm bends and straightens with yours."};
     return lines[i];
 }
@@ -2068,7 +2071,7 @@ int checklistHidden = -1;     // and Hide Ticked's
 
 [[nodiscard]] const char* checklistSummary()
 {
-    static char text[48];
+    char(&text)[48] = readouts.checklistSummary;
     if(!checklist::loaded())
     {
         return "No quakevr/checklist.txt";
@@ -2502,7 +2505,7 @@ za::Vector<Item> pageDebugTools()
 // "Stamina 0.40: heavy x1.35, empty hand 0.8 kg, shake 0.21, run x0.98": the tired arms and legs now (Tests page).
 [[nodiscard]] const char* staminaReadout()
 {
-    static char text[96];
+    char(&text)[96] = readouts.stamina;
     q_snprintf(text, sizeof(text), "Stamina %.2f: heavy x%.2f, empty hand %.1f kg, shake %.2f, run x%.2f",
         fatigue::staminaLeft(), weight::staminaMultiplier(), za::max(vr_weight_stamina_empty.value, 0.f) * weight::staminaShare(),
         fatigue::shakeLevel(), fatigue::speedScaleFor(fatigue::staminaLeft()));
@@ -2982,7 +2985,7 @@ za::Vector<Item> pageMonsterHitbox()
 {
     auto widths = [](float quake)
     {
-        static const char* const labels[] = {"16 units", "24 units", "32 units", "40 units", "48 units", "56 units"};
+        static constexpr const char* labels[] = {"16 units", "24 units", "32 units", "40 units", "48 units", "56 units"};
         za::Vector<Choice> c{{-1.f, "Its Box"}, {0.f, quake == 32.f ? "Quake's Hull (32)" : "Quake's Hull (64)"}};
         for(int i = 0; 16.f + 8.f * static_cast<float>(i) < quake; ++i)
         {
@@ -4524,13 +4527,22 @@ void openInTree(int target)
 // (then it comes onto the limit at once). An extendable slider stops at the bar's end first: a new
 // press goes past, or holding on there for a moment; past the ends, holding steps faster the longer
 // it is held (2x after a second, then 5x, then 10x), on multiples of those steps.
+struct SliderHold
+{
+    const cvar_t* endCvar = nullptr; // stopped at a bar's end: which, which way, since when
+    int endDir = 0;
+    double endSince = 0.0;
+    double outsideSince = 0.0; // held past the ends since
+};
+SliderHold sliderHold; // (stepSlider: the menu's keys)
+
 float stepSlider(const Item& item, int dir, bool repeat)
 {
     constexpr double endHold = 0.6;
-    static const cvar_t* endCvar = nullptr; // stopped at a bar's end: which, which way, since when
-    static int endDir = 0;
-    static double endSince = 0.0;
-    static double outsideSince = 0.0; // held past the ends since
+    const cvar_t*& endCvar = sliderHold.endCvar;
+    int& endDir = sliderHold.endDir;
+    double& endSince = sliderHold.endSince;
+    double& outsideSince = sliderHold.outsideSince;
 
     const float cur = item.cvar->value;
     const float eps = item.step * 0.01f;
@@ -4819,7 +4831,7 @@ void drawItem(const Item& item, int y, bool selected)
 // Render Scale's help: the size the eyes are rendered at, and the headset's images'.
 [[nodiscard]] const char* renderScaleHelp()
 {
-    static char text[192];
+    char(&text)[192] = readouts.renderScaleHelp;
     const Backend* be = backend();
     const EyeSizes s = be ? be->eyeSizes() : EyeSizes{};
     if(s.width <= 0 || s.height <= 0)
@@ -5446,6 +5458,16 @@ extern "C" void VR_MenuSavePositions()
     }
 }
 
+namespace
+{
+// Where VR_Menu_Draw last noted the page to be (vr_menu_positions is written on a change only).
+struct NotedPlace
+{
+    int page = -1, cursor = -1, scroll = -1, build = -1;
+};
+NotedPlace notedPlace;
+} // namespace
+
 extern "C" void VR_Menu_Draw()
 {
     const auto& list = items(page);
@@ -5477,7 +5499,10 @@ extern "C" void VR_Menu_Draw()
     scroll = CLAMP(0, scroll, q_max(n - rows, 0));
 
     // Where the page is, to keep (on a change only: no strings built every frame).
-    static int notedPage = -1, notedCursor = -1, notedScroll = -1, notedBuild = -1;
+    int& notedPage = notedPlace.page;
+    int& notedCursor = notedPlace.cursor;
+    int& notedScroll = notedPlace.scroll;
+    int& notedBuild = notedPlace.build;
     if(page != notedPage || cursor != notedCursor || scroll != notedScroll || builds[page] != notedBuild)
     {
         notedPage = page;

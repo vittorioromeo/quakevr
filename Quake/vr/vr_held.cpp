@@ -443,6 +443,7 @@ bool nearDrawnBox(edict_t* ent, const glm::vec3& p, float margin)
 
 // The fists in their hands' frames (setFist).
 za::Vector<glm::vec4> fists[2];
+const za::Vector<glm::vec4> noFist; // (fist: a hand that is neither)
 
 // A sphere round all of `spheres`: its middle, and its radius.
 float bounds(const za::Vector<glm::vec4>& spheres, glm::vec3& centre)
@@ -507,8 +508,7 @@ void setFist(int hand, const za::Vector<glm::vec4>& spheres)
 
 const za::Vector<glm::vec4>& fist(int hand)
 {
-    static const za::Vector<glm::vec4> none;
-    return hand == 0 || hand == 1 ? fists[hand] : none;
+    return hand == 0 || hand == 1 ? fists[hand] : noFist;
 }
 
 void fistInWorld(int hand, const glm::vec3& pos, const glm::vec3& angles, za::Vector<glm::vec4>& out)
@@ -1728,9 +1728,11 @@ void easeFrame(Easing& ea)
 // vr_debug_carry 2: one line a frame into carry_trace.txt (the game directory): the time; what is held (2 both hands,
 // 1 the main hand, 0 the off hand, -1 nothing or easing back) and its entity; its drawn place and turn (x y z, then
 // the quaternion w x y z of its axes); each hand's controller and drawn place and turn (main, then off).
+FILE* carryTrace = nullptr; // carry_trace.txt, open while vr_debug_carry is 2 (trace)
+
 void trace(const hands::State& s)
 {
-    static FILE* file = nullptr;
+    FILE*& file = carryTrace;
     if(vr_debug_carry.value < 2.f)
     {
         if(file)

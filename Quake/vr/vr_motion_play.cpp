@@ -412,12 +412,12 @@ struct Take
 // `recorded`, the melee's own too.
 [[nodiscard]] bool placingSetting(const za::String& name, bool melee)
 {
-    static const char* const placing[] = {"vr_world_scale", "vr_height_calibration", "vr_floor_offset", "vr_lefthanded",
+    static constexpr const char* placing[] = {"vr_world_scale", "vr_height_calibration", "vr_floor_offset", "vr_lefthanded",
         "vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_handcal_", "vr_gunmodel", "vr_weapon_grip_mode", "vr_2h_",
         "vr_lean_", "vr_roomscale_", "vr_body_", "vr_throw_release", "vr_throw_grab_press", "vr_wofs_",
         "vr_controller_legacy_pose", "vr_weapon_cycle_mode", "vr_hull_"};
     // (Every setting the QC's melee, damage and hit reactions read.)
-    static const char* const meleeOnes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
+    static constexpr const char* meleeOnes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
         "vr_headshot_mult", "vr_limbshot_mult", "vr_legshot_mult"};
     for(const char* p : placing)

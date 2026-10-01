@@ -88,12 +88,14 @@ void hit(int limit)
     }
 }
 
+double lastTimeCommand = 0.0; // "vr_limits time"'s last (Sys_DoubleTime; 0: none)
+
 void command_f()
 {
     // "vr_limits time": the time since the last one (a stress test's timing: vr_limits time; exec big.cfg; vr_limits time).
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "time"))
     {
-        static double last = 0.0;
+        double& last = lastTimeCommand;
         const double now = Sys_DoubleTime();
         Con_Printf("vr_limits time: %.1f ms since the last\n", last > 0.0 ? (now - last) * 1000.0 : 0.0);
         last = now;

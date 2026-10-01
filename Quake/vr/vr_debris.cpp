@@ -906,11 +906,16 @@ bool enabledHere()
            worldspawnValue("_vr_debris") > 0.f;
 }
 
+namespace
+{
+bool commandsRegistered = false; // (vr_debris_list: registered on the first call)
+} // namespace
+
 int plan()
 {
-    if(static bool registered = false; !registered) // (no init hook of its own)
+    if(!commandsRegistered) // (no init hook of its own)
     {
-        registered = true;
+        commandsRegistered = true;
         Cmd_AddCommand("vr_debris_list", list_f);
     }
     placements.clear();

@@ -162,7 +162,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
         vel_[0] = vel_[1] = glm::vec3{0.f};
         vel_[segments] = vel_[segments - 1] = vb;
 
-        static glm::vec3 force[segments + 1];
+        glm::vec3 force[segments + 1];
         for(int i = 0; i <= segments; i++)
         {
             force[i] = down;

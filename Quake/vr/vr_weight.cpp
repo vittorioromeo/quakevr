@@ -345,9 +345,11 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
 
 // vr_debug_weight: a line a frame per hand holding something: where it is tracked (target, body frame metres) and
 // drawn, how far apart (cm, degrees; the drawn turn's pitch, yaw and roll less the target's) and the drawn speed.
+FILE* traceFile = nullptr; // vr_debug_weight's weight_trace file (trace)
+
 void trace(int h, const Load& l, const glm::vec3& xt, const glm::quat& qt, const glm::vec3& x, const glm::quat& q, float speed)
 {
-    static FILE* file = nullptr;
+    FILE*& file = traceFile;
     if(!vr_debug_weight.value)
     {
         if(file)

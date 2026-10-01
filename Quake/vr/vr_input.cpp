@@ -278,10 +278,14 @@ void init()
     Cmd_AddCommand("vr_checkbindings", checkBindings_f);
 }
 
+namespace
+{
+const InputState released; // (update: without VR, everything is released)
+} // namespace
+
 void update(const InputState& tracked)
 {
     // Without VR, everything is released (keys held when the session ends must come up).
-    static const InputState released;
     const bool active = vrActive();
     const InputState& in = active ? tracked : released;
 
@@ -503,9 +507,13 @@ extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove
 namespace qvr::input
 {
 
+namespace
+{
+bool jumping = false; // roomscaleJump: the jump key held (the head rising)
+} // namespace
+
 void roomscaleJump(const hands::State& s)
 {
-    static bool jumping = false;
     const bool rising = vr_roomscale_jump.value && vrActive() && s.valid && key_dest == key_game && !posing::active() &&
                         s.headVel.z > vr_roomscale_jump_threshold.value && s.headHeight > vr_height_calibration.value;
     if(rising != jumping)

@@ -532,7 +532,7 @@ all the armours' 12), else skin 0's name (its made map then).
 */
 static void Mod_MD5SharedNormalMap (const char *shader, int skin, char *out, size_t size)
 {
-	static const char *const suffixes[] = {"_norm.png", "_norm.tga", "_bump.png", "_bump.tga"};
+	static constexpr const char *const suffixes[] = {"_norm.png", "_norm.tga", "_bump.png", "_bump.tga"};
 	char	path[MAX_QPATH];
 	int		k, i;
 

@@ -29,46 +29,48 @@ za::Array<double, MAX_SCOREBOARD + 1> nextTry{}; // per client: no search before
 
 // The spots tried, nearest first: 26 directions (sideways, then up, then down: a player is not sunk into the floor
 // while a spot as near is free elsewhere) at growing distances, finely at first (a mover's few units).
+// Built before main (no first-call guard): read by any thread.
+const za::Vector<glm::vec3> spotOffsets = [] {
+    za::Vector<glm::vec3> dirs;
+    const auto add = [&](float x, float y, float z) { dirs.pushBack(glm::normalize(glm::vec3{x, y, z})); };
+    add(1, 0, 0), add(-1, 0, 0), add(0, 1, 0), add(0, -1, 0); // sideways
+    add(0, 0, 1);                                              // up
+    add(1, 1, 0), add(1, -1, 0), add(-1, 1, 0), add(-1, -1, 0);
+    add(1, 0, 1), add(-1, 0, 1), add(0, 1, 1), add(0, -1, 1);
+    add(1, 1, 1), add(1, -1, 1), add(-1, 1, 1), add(-1, -1, 1);
+    add(0, 0, -1); // down, last
+    add(1, 0, -1), add(-1, 0, -1), add(0, 1, -1), add(0, -1, -1);
+    add(1, 1, -1), add(1, -1, -1), add(-1, 1, -1), add(-1, -1, -1);
+
+    za::Vector<float> dists{0.125f, 0.25f, 0.5f, 0.75f};
+    for(float d = 1.f; d <= 4.f; d += 0.5f)
+    {
+        dists.pushBack(d);
+    }
+    for(float d = 5.f; d <= 16.f; d += 1.f)
+    {
+        dists.pushBack(d);
+    }
+    for(float d = 18.f; d <= 48.f; d += 2.f)
+    {
+        dists.pushBack(d);
+    }
+
+    za::Vector<glm::vec3> out;
+    out.reserve(dists.size() * dirs.size());
+    for(const float d : dists)
+    {
+        for(const glm::vec3& dir : dirs)
+        {
+            out.pushBack(dir * d);
+        }
+    }
+    return out;
+}();
+
 const za::Vector<glm::vec3>& offsets()
 {
-    static const za::Vector<glm::vec3> list = [] {
-        za::Vector<glm::vec3> dirs;
-        const auto add = [&](float x, float y, float z) { dirs.pushBack(glm::normalize(glm::vec3{x, y, z})); };
-        add(1, 0, 0), add(-1, 0, 0), add(0, 1, 0), add(0, -1, 0); // sideways
-        add(0, 0, 1);                                              // up
-        add(1, 1, 0), add(1, -1, 0), add(-1, 1, 0), add(-1, -1, 0);
-        add(1, 0, 1), add(-1, 0, 1), add(0, 1, 1), add(0, -1, 1);
-        add(1, 1, 1), add(1, -1, 1), add(-1, 1, 1), add(-1, -1, 1);
-        add(0, 0, -1); // down, last
-        add(1, 0, -1), add(-1, 0, -1), add(0, 1, -1), add(0, -1, -1);
-        add(1, 1, -1), add(1, -1, -1), add(-1, 1, -1), add(-1, -1, -1);
-
-        za::Vector<float> dists{0.125f, 0.25f, 0.5f, 0.75f};
-        for(float d = 1.f; d <= 4.f; d += 0.5f)
-        {
-            dists.pushBack(d);
-        }
-        for(float d = 5.f; d <= 16.f; d += 1.f)
-        {
-            dists.pushBack(d);
-        }
-        for(float d = 18.f; d <= 48.f; d += 2.f)
-        {
-            dists.pushBack(d);
-        }
-
-        za::Vector<glm::vec3> out;
-        out.reserve(dists.size() * dirs.size());
-        for(const float d : dists)
-        {
-            for(const glm::vec3& dir : dirs)
-            {
-                out.pushBack(dir * d);
-            }
-        }
-        return out;
-    }();
-    return list;
+    return spotOffsets;
 }
 
 const char* nameOf(const edict_t* e)
