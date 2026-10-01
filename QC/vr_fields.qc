@@ -9,6 +9,7 @@
 .void(float) think2ArgFn;
 .float thinkArg;
 .float vr_gib; // a gib or head that can be carried (VR_MakeGibGrabbable)
+.float vr_flies; // a severed head's flies buzz round it (HeadThink, player.qc; VR_Head_StopFlies)
 .float think2Arg;
 
 //
