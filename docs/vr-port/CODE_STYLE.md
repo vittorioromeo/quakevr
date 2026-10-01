@@ -1,7 +1,37 @@
 # Code conventions (Quake/vr)
 
-How the VR module keeps state. The rest of the style (formatting, naming, comments) is the surrounding code's: read a
-neighbouring file and write like it.
+How the VR module keeps state, and what it builds on. The rest of the style (formatting, naming, comments) is the
+surrounding code's: read a neighbouring file and write like it.
+
+## Zancle, not the standard library
+
+The VR code is written on Zancle (`Quake/vr/external/zancle`, its README; ROUND21.md, "Zancle migration"), not on the
+C++ standard library: Zancle's types compile faster and run faster in Debug. Use:
+
+- `za::Vector` (a list whose size has no small bound), `za::SmallVector<T, N>` (usually small, may grow),
+  `za::InPlaceVector<T, N>` (never more than N: a hard bound, aborts past it), `za::Array<T, N>`, `za::Bitset<N>`;
+  `ankerl::unordered_dense::map` / `set` for hashing. A dense map's values **move** when it grows or loses an entry:
+  where a pointer or a reference into one is kept past the next insertion (a cache that hands out pointers), hold the
+  values in `za::UniquePtr` (`qza::stableAt`). Its order is the insertion order (not sorted, not std's hash order):
+  where the old `std::map`'s order was printed or summed, loop over `qza::sortedByKey(map)`.
+- `za::String`, `za::StringView` (`substrByPosLen` returns a view: `za::String{...}` to keep it), `za::toString` for an
+  integer (a float's text through `va`/`snprintf`, whose formats the code already uses), `za::Optional`, `za::Span`,
+  `za::UniquePtr` / `za::makeUnique`, `za::FunctionRef` (a callback for the call's length), `za::FixedFunction`.
+- `za::min` / `za::max` / `za::clamp`, `za::sin` and the rest of `Zancle/Math` (exactly `float`, `double` or `long
+  double`: a mixed call that std promoted needs its cast), `ZA_MEMCPY` / `ZA_STRCMP` and the other builtin macros,
+  `ZA_MOVE`, `ZA_FORWARD`, `ZA_ASSERT` (on in Debug: its handler is `vr_zancle.cpp`'s).
+- `za::quickSort` (unstable: equal elements may come out in another order than `std::sort` left them; where that
+  matters, a key that orders them all or `za::insertionSort`, stable), `za::find`, `za::anyOf`, `za::count`, ...
+- `za::Atomic`, `za::AtomicMutex` with `za::LockGuard` (`qza::UniqueLock` to unlock early), `za::Thread`,
+  `za::ThisThread`; `za::Clock` / `za::Time` (microseconds; `qza::nowNs` for nanoseconds).
+- Files: `qvr::files` (`vr_files.hpp`: whole files read and written, directories listed, std::filesystem's path parts),
+  through the engine's `Sys_*` calls (UTF-8 paths).
+- What Zancle lacks: `vr_zancle.hpp` (namespace `qza`: `abs`, `hypot` and the other missing math, `fill`, `iota`,
+  `lowerBound`, `stablePartition`, `Pair`, `minOf` / `maxOf`, `rbegin` / `rend`, ...), each a proposal for Zancle. Add
+  a missing piece there (marked `ZANCLE-TODO`) rather than reach for `std::`. `std::` stays only where Zancle has no
+  such thing and a stand-in would not do (random engines whose sequences matter, exception transport, an ordered map
+  with stable nodes, `std::shared_ptr` across threads, `std::nth_element` where its partition must stay as it was):
+  each such place says `// ZANCLE-TODO: <what's missing>` (the list: ROUND21.md, "Zancle migration").
 
 ## Scratch buffers and caches
 
@@ -18,15 +48,15 @@ and nothing says which thread may touch it. It goes into its system's state inst
    // The hold search's buffers (the server's frame: the main thread).
    struct ClimbScratch
    {
-       std::vector<int> nearby;      // the ledges of one model near the hand (gather)
-       std::vector<Candidate> found; // (findHold)
-       auto members() { return std::tie(nearby, found); }
+       za::Vector<int> nearby;      // the ledges of one model near the hand (gather)
+       za::Vector<Candidate> found; // (findHold)
+       auto members() { return mem::list(nearby, found); }
    };
    mem::Scratch<ClimbScratch> scratch{"climb"};
 
    void gather(...)
    {
-       std::vector<int>& nearby = scratch.nearby;
+       za::Vector<int>& nearby = scratch.nearby;
        nearby.clear();
    ```
 
@@ -46,14 +76,14 @@ and nothing says which thread may touch it. It goes into its system's state inst
 3. **Per-frame state that is not a buffer** (what a frame built once and every view draws: `flashlight.cpp`'s
    `CordDraw`, `rope.cpp`'s `RopeDraw`; a debug command's totals): a named struct at file scope in the anonymous
    namespace, next to the system's other state. A debug command's working buffer is a plain local.
-4. **Constants** built once (`static const std::array` of fixed data, a `std::regex`): `constexpr` when the type allows
+4. **Constants** built once (`static const za::Array` of fixed data): `constexpr` when the type allows
    (`bodycal`'s `splitList`), else a namespace-scope `const` (made before `main`, read by any thread: `ao`'s `rayDirs`)
    or a function-local `static const` (its initialisation is thread-safe). Never mutable.
 
 `vr_memstats` prints the registered sets' bytes (totals and the largest), `vr_limits` the totals.
 
 `Misc/quakevr/check_statics.py` (run by the kit's `build.sh`, which fails on it) rejects a mutable function-local
-`static std::...` or an indented `thread_local` in `Quake/vr`; a worker's own buffer that must stay ends with
+`static` of a `std::`, `za::` or `ankerl::` type or an indented `thread_local` in `Quake/vr`; a worker's own buffer that must stay ends with
 `// statics-ok: <why>`.
 
 ## Threads
@@ -61,8 +91,8 @@ and nothing says which thread may touch it. It goes into its system's state inst
 Work for other threads goes to the game's thread pool (`vr_jobs.hpp`, Zancle's): `jobs::parallelFor` to share a loop
 out (the calling thread takes part and returns when every chunk ran; each chunk writes only its own items, reduced in a
 fixed order after, so the results never depend on the thread count), `jobs::async` for a task whose result comes later
-(a `jobs::Future`; waiting runs it on the waiting thread if no worker has started it). No `std::thread` or `std::async`
-of a system's own: a dedicated thread only for a loop that blocks or sleeps for its whole life (`gpustats`'s sampler),
+(a `jobs::Future`; waiting runs it on the waiting thread if no worker has started it). No thread (`za::Thread`) or async
+call of a system's own: a dedicated thread only for a loop that blocks or sleeps for its whole life (`gpustats`'s sampler),
 which would hold a worker. A task never waits for anything but its own sub-tasks; `vr_jobs_parallel 0` runs every
 `parallelFor` on its caller alone (the reference to compare with).
 
