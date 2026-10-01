@@ -110,6 +110,16 @@ struct WeaponHotspot
 // point, a blade's zone's middle. False for none or a cup (tests: vr_mock_hand_to <hand> spot).
 [[nodiscard]] bool groundHotspotPoint(int entity, int index, glm::vec3& out);
 
+// A weapon carried off its handle by `hand` (vr_twohand.cpp: the hand-off, a hotspot, anywhere), as drawn last: the pose
+// it is drawn from (`pos`: its handle's place; `rot`: its entity's angles, the pitch negated, as QC gives a thrown weapon
+// (MakeThrown negates it back); `mirrored`: as the off hand holds it) and its tip (the muzzle's anchor: the melee's line, QC's throw from where it is). False if it carries none.
+[[nodiscard]] bool carriedWeaponPose(int hand, glm::vec3& pos, glm::vec3& rot, bool& mirrored, glm::vec3& tip);
+
+// A point in the weapon `hand` holds or carries, as drawn last: `fraction` of the way from its handle to its tip (the
+// middle of its drawn points within a unit and a half of the way there), `cm` over it (tests: vr_mock_hand_to <hand>
+// held). False if it has none.
+[[nodiscard]] bool heldWeaponPoint(int hand, float fraction, float cm, glm::vec3& out);
+
 // The weapon in `hand` as drawn last (the local player's): its model, whether mirrored (the off hand's), and its
 // entity's place and turn relative to the hand's pose (hands::State pos and rot: held::axesFromAngles' forward, left,
 // up) -- rigid; the model's vertices go in it as the view draws them (mirrored, then weapons::ModelTransform). For the

@@ -163,6 +163,13 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
         muzzleOffsets[slot * 2 + (h == HAND_OFF ? 1 : 0)] = {true, {glm::dot(d, f), glm::dot(d, r), glm::dot(d, u)}};
         return hs.muzzle[h];
     }
+    // Carried off its handle: its tip as drawn (anywhere on it, it may never have been held by its handle).
+    glm::vec3 carriedPos, carriedRot, carriedTip;
+    bool carriedMirrored = false;
+    if(twohand::carrying(h) && view::carriedWeaponPose(h, carriedPos, carriedRot, carriedMirrored, carriedTip))
+    {
+        return carriedTip;
+    }
     twohand::HeldAs held{hs.pos[h], hs.visualRot[h], h == HAND_OFF};
     if(twohand::carrying(h) && twohand::carriedWeapon(hs, h, held))
     {

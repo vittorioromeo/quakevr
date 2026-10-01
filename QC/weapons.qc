@@ -5331,7 +5331,7 @@ void(float xHand, entity ent, entity entPlayer,
     {
         dprint(sprintf("weapon: %s taken into the %s hand, %g units from its handle%s\n", ent.netname,
             xHand == cVR_MainHand ? "main" : "off", vlen(VRGetEntHandPos(entPlayer, xHand) - ent.origin),
-            spot ? sprintf(", by its hotspot %g", spot - 1) : ""));
+            spot == 5 ? ", anywhere on it" : spot ? sprintf(", by its hotspot %g", spot - 1) : ""));
     }
 
     VR_Saw_PropTaken(ent); // a chainsaw still running: its fuel as burnt, its sound the hand's from now on
@@ -5972,6 +5972,22 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
         }
     }
 
+    // Carried off its handle (the hand-off, a hotspot, anywhere: QVR_WPNFLAG_FOREGRIP_CARRIED): it leaves from where it
+    // is drawn, not as if held by its handle (the local player's view knows; else from the hand).
+    vector throwRot = VRGetHandRot(xHand);
+    if((xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED) && weapondrawnpose(ent, xHand, 2) != '0 0 0')
+    {
+        vector carriedAt = origin + (weapondrawnpose(ent, xHand, 0) - handNow);
+        traceline(origin, carriedAt, TRUE, ent); // never inside a wall
+        origin = trace_endpos;
+        if(trace_fraction < 1)
+        {
+            origin = origin - normalize(carriedAt - handNow) * 2;
+        }
+        throwRot = weapondrawnpose(ent, xHand, 1);
+        dprint(sprintf("thrown: carried off its handle, from %v (the hand at %v), angles %v\n", origin, handNow, throwRot));
+    }
+
     if(xVelScale == 1)
     {
         throwVelUnits = VRThrowAssist(ent, origin, throwVelUnits, throwGravity);
@@ -5994,7 +6010,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
     if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_IMMERSIVE)
     {
         thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, xWeaponClip,
-            origin, VRGetHandRot(xHand),
+            origin, throwRot,
             throwVelUnits, '0 0 0',
             FALSE /* disappear on hit */,
             TRUE  /* deal damage */,
@@ -6003,7 +6019,7 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
     else if(getWeaponThrowMode() == QVR_WEAPONTHROWMODE_DISAPPEARONHIT)
     {
         thrown = CreateThrownWeapon(ent, xWeapon, xWeaponFlags, xWeaponClip,
-            origin, VRGetHandRot(xHand),
+            origin, throwRot,
             throwVelUnits, '0 0 0',
             TRUE /* disappear on hit */,
             TRUE /* deal damage */,
@@ -6231,12 +6247,15 @@ void(entity ent, float xHand) VRHandStopFiring =
 // hands; a gun, held by its foregrip, hangs from it as it was held (QVR_WPNFLAG_FOREGRIP_CARRIED: the
 // client draws it there; it doesn't fire or reload) until a hand takes its handle again. A hand that
 // holds a weapon of its own is never helping, so dual wielding keeps dropping as before.
+// Weapons held anywhere (vr_weapon_grab_anywhere, the engine's weaponanygrip 2): the other hand holding it anywhere on it
+// (whatever its mode, and on a weapon carried off its handle too) carries it there, a sword or a crowbar too.
 float(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponClip) VRTryHandOff =
 {
     float other = VRGetOtherHand(xHand);
+    float anywhere = weaponanygrip(ent, other) == 2;
     if(!cvar_hget(cvarh_vr_2h_handoff) ||
-       (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED) ||
-       !(VRGet2HAiming(ent) || time - ent.last_2h_time < 0.1) ||
+       ((xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED) && !anywhere) ||
+       !(VRGet2HAiming(ent) || time - ent.last_2h_time < 0.1 || anywhere) ||
        !VR_HandGrabUtil_IsHandGrabbing(ent, other) ||
        !VRIsHandEmpty(ent, other))
     {
@@ -6244,10 +6263,12 @@ float(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponC
     }
 
     float flags = xWeaponFlags - (xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED);
-    if(xWeapon != WID_SWORD && xWeapon != WID_CROWBAR)
+    if((xWeapon != WID_SWORD && xWeapon != WID_CROWBAR) || anywhere)
     {
         flags = flags | QVR_WPNFLAG_FOREGRIP_CARRIED;
     }
+    dprint(sprintf("weapon: %g handed off to the %s hand%s\n", xWeapon, other == cVR_MainHand ? "main" : "off",
+        anywhere ? ", held anywhere" : ""));
 
     VRSetEntWeapon(ent, other, xWeapon);
     VRSetEntWeaponFlags(ent, other, flags);

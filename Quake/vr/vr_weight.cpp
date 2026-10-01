@@ -315,13 +315,14 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
     l.model = weapons::cvar(slot, weapons::Key::ID)->string;
     rodLoad(l, mass, weapons::value(slot, weapons::Key::Balance) * 0.01f, za::max(weapons::value(slot, weapons::Key::Span), 1.f) * 0.01f,
         0.06f);
-    l.twoHanded = za::clamp(twohand::transition(h), 0.f, 1.f);
+    l.twoHanded = za::clamp(twohand::support(h), 0.f, 1.f); // (a hotspot's grip, or the other hand anywhere on it)
     l.tune = weaponTuning(slot);
-    if(s && l.twoHanded > 0.f && s->grip2HValid[h])
+    const float onGrip = za::clamp(twohand::transition(h), 0.f, 1.f); // (a hotspot's: its point)
+    if(s && onGrip > 0.f && s->grip2HValid[h])
     {
         // Held by its handle and a foregrip: it turns about between them (as far as the grip is taken).
         const glm::mat3 hand = held::axesFromAngles(&s->rot[h][0], true);
-        const glm::vec3 pivot = glm::transpose(hand) * (s->grip2H[h] - s->pos[h]) * (0.5f * u2m * l.twoHanded);
+        const glm::vec3 pivot = glm::transpose(hand) * (s->grip2H[h] - s->pos[h]) * (0.5f * u2m * onGrip);
         l.com -= pivot;
         const float across = l.mass * (glm::pow(weapons::value(slot, weapons::Key::Span) * 0.01f, 2.f) / 12.f);
         const glm::vec3 r = l.com;

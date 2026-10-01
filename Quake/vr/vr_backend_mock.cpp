@@ -369,7 +369,9 @@ void mockLook_f()
 // kept out of the floor lands short of a point under it; run it again (or a few frames on) to follow a weapon.
 // "vr_mock_hand_to <main|off> spot <index> [<height cm>]": at its hotspot `index` (a grip's point, a blade's zone's middle:
 // view::groundHotspotPoint), `height` cm over it (vr_weapon_grab_hotspots tests). "vr_mock_hand_to <main|off> carried": at
-// the handle of the weapon the other hand carries (taking it back).
+// the handle of the weapon the other hand carries (taking it back). "vr_mock_hand_to <main|off> held <fraction> [<cm>]": in the
+// weapon the other hand holds or carries, `fraction` of the way from its handle to its tip, `cm` over it
+// (view::heldWeaponPoint; vr_weapon_grab_anywhere tests).
 
 // The thrown_weapon nearest the player (the server's: its qcvm pushed), or null.
 edict_t* nearestThrownWeapon()
@@ -490,16 +492,18 @@ void mockHandTo_f()
     const bool weapon = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "weapon");
     const bool spot = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "spot");
     const bool carried = Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "carried");
-    if(hand < 0 || (!weapon && !spot && !carried && Cmd_Argc() != 5))
+    const bool inHeld = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "held");
+    if(hand < 0 || (!weapon && !spot && !carried && !inHeld && Cmd_Argc() != 5))
     {
         Con_Printf("usage: vr_mock_hand_to <main|off> <x> <y> <z>\n"
                    "       vr_mock_hand_to <main|off> weapon <fraction> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> spot <hotspot index> [<height cm>]\n"
-                   "       vr_mock_hand_to <main|off> carried\n");
+                   "       vr_mock_hand_to <main|off> carried\n"
+                   "       vr_mock_hand_to <main|off> held <fraction> [<cm>]\n");
         return;
     }
     glm::vec3 target{0.f};
-    if(!carried && !weapon && !spot)
+    if(!carried && !weapon && !spot && !inHeld)
     {
         target = glm::vec3{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
     }
@@ -513,6 +517,16 @@ void mockHandTo_f()
     {
         Con_Printf("vr_mock_hand_to: no weapon lying about\n");
         return;
+    }
+    if(inHeld)
+    {
+        if(!view::heldWeaponPoint(1 - hand, Q_atof(Cmd_Argv(3)), height, target))
+        {
+            Con_Printf("vr_mock_hand_to: the other hand holds no weapon\n");
+            return;
+        }
+        Con_Printf("vr_mock_hand_to: the other hand's weapon, %.2f of the way to its tip: %.1f %.1f %.1f\n",
+            Q_atof(Cmd_Argv(3)), target.x, target.y, target.z);
     }
     if(spot && !weaponSpot(Q_atoi(Cmd_Argv(3)), height, target))
     {

@@ -18777,3 +18777,81 @@ leaning back), then a push with both hands on the gun, leaning in. Parry it as a
 Not verified: in the headset (the push's comfort at 64 units, readability of the 0.3 s wind-up), against stairs and
 ledges (the slide steps up and goes over edges as walking does), climbing (a shove while you hang from a hold: the climb
 probably overrides the slide's velocity).
+
+## Weapons held anywhere (2026-10-01)
+
+His spec: weapons held from any part of their model as props are (away from the handle and the hotspots, which keep
+priority); a hand on the handle fires whatever the other hand does; no hand on the handle: no fire, but melee and throws,
+otherwise a prop that keeps its weapon settings. Shared paths: the hotspot carry (`QVR_WPNFLAG_FOREGRIP_CARRIED`, the
+hand-off), carry2h's two-handed solve, the grasp (fingers wrap where the hand is). `vr_weapon_grab_anywhere` 1 (VR
+Settings > Advanced VR Options > Carrying and Throwing > Carrying: Weapons Anywhere).
+
+| State | What happens |
+|---|---|
+| Lying about, gripped away from its handle and hotspots | carried as it lies (`weapongrabspot` 5: the carry's poses are the weapon's as it lies and the hand where it is; checked: drawn at the lying entity's place and angles to 0.1 unit / 0.1 degree) |
+| Held by its handle, the other hand anywhere on it | `vr_weapon_anygrip_mode` (Carrying: Other Hand Anywhere), per weapon `vr_wofs_anygrip_mode_NN` (Weapon Offsets (Held Weapon) > Other Hand's Grips: Other Hand Anywhere; -1 the global): 0 **as a foregrip** (default: the least turn putting where it took hold on the line from the holding hand through it; two-handed aiming for the server), 1 **support only** (aim unchanged, weight shared, no two-handed aiming), 2 **rigid** (carry2h's solve of both hands; its turn is the aim). A weapon with Two-Handed: Not Allowed is supported only. It fires as always. |
+| Carried off its handle, the other hand anywhere but the handle | both hands hold it as a prop held in both (carry2h solve; the handle within 6 units still takes it back) |
+| The holding/carrying hand lets go | hand-off: the other hand carries it where it holds it (QC `VRTryHandOff` asks `weaponanygrip`: 2 carries a sword or crowbar too, and lets a carried weapon change hands) |
+| Carried: the other hand takes the handle | it fires again; the carrying hand, still gripping, goes on holding it anywhere (no fresh press needed for 0.5 s) |
+| Carried: let go at a holster | holstered (the flag is stripped as before); drawn by its handle |
+| Carried: thrown | from where it is drawn (`weapondrawnpose`: the handle's place and the entity's angles), not as if held by its handle |
+| Carried: melee | along its line from the hand to its tip as drawn (`view::carriedWeaponPose`; it may never have been held by its handle) |
+| Force grab | the handle, as before |
+
+Rules: a free grip starts only at a fresh press (0.3 s) with the hand's point within 6 cm of the drawn surface (a lying
+weapon: plus `vr_weapon_grab_slack`), at least `vr_weapon_grab_anywhere_min` (12 cm; Anywhere: Away From Grips) from the
+handle and every grip and blade hotspot (cups too); a hotspot in reach is taken first. It holds while the hand grips,
+until the hand is off its place on the weapon by more than Two-Handed Hand Drift + detach (11 cm; as a foregrip: the
+hotspots' 20 units, both times the grips' stickiness). Not a hand holding the flashlight. `vr_2h_mode 0` turns it off
+with the rest of two-handed holding.
+
+Code: `vr_twohand.cpp` (FreeGrip per holding hand: `startFree`, `updateFree`, `applyCarried`; `freeHand` gives the
+view the hand's place on the weapon, taken from its first drawn frame; `helpKind`; `support` for vr_weight.cpp);
+`vr_view.cpp` (`updateFreeSpots` after the weapons are placed; `updateGroundSpots`' anywhere spot; the helping hand drawn
+via its controller's place, not pushed out of the weapon, its fingers solved on the other hand's weapon; `recordHelp`
+now takes the pose the weapon is drawn from, so a carried weapon hands off where it is); builtins `weaponanygrip`,
+`weapondrawnpose`; QC `VRTryHandOff`, `DropWeaponInHandScaled`, `wpnthrow_handtouch_impl` (prints "anywhere on it").
+
+Debug: `vr_debug_2h_grip 1` prints a free grip taken, let go (why) and carried; 2 also, four times a second, where an empty
+hand is on a weapon held, carried or lying about (surface, handle, nearest hotspot, its pose). `vr_status` says
+"anywhere: as a foregrip / supporting / rigid / both hands on the carried weapon". Mock:
+`vr_mock_hand_to <hand> held <fraction> [<cm>]` puts the hand in the other hand's weapon, that far from its handle to its
+tip (TESTING.md).
+
+### Checked
+
+`scratch/anygrip/run_all.sh` (kit scratch; e1m1 and vrfiringrange, the mock): PASS.
+
+| Test | Result |
+|---|---|
+| Dropped shotgun gripped at its middle (5.1 units from the handle) | "taken ..., anywhere on it"; the trigger: no shot |
+| Held shotgun, off hand at 0.4 of the way (6.1 units, between the handle and the pump), each mode, 3 shots | 3 shots each; off hand moved 6 units up: aim (0.01 1.00 -0.02) -> (-0.06 0.73 0.68) as a foregrip and rigid, unchanged supported (which lets go there: 5.9 > 3.6) |
+| The handle hand lets go | "handed off to the off hand, held anywhere"; the off trigger: no shot; the main hand back on the handle: fires, the off hand holds it anywhere again |
+| Carried shotgun, the off hand at 0.9 | both hands hold it; the off hand moved, the weapon turned (pitch 1 -> 48); the carrying hand lets go: carried by the off hand where it was (within 0.1 unit, 1.2 degrees) |
+| Melee: carried anywhere, a slash through a grunt | "gun ... swing with the muzzle, 9.1 m/s ... monster_army", 14.5 damage |
+| Throw: carried anywhere | "thrown: carried off its handle, from ..." (the drawn handle, 2.5 units from the hand) |
+| Holster: carried anywhere, let go at the right thigh | holstered; drawn again: held by its handle |
+| Enemy rifle on the floor at 0.3 | taken anywhere |
+| Crowbar (hotspots cover its bar), held | no point on it is anywhere (the blade and grip hotspots are all nearer than 12 cm): unchanged |
+| Crowbar by its blade off the floor, then the handle with the other hand (the hotspot grab) | as before |
+| Melee canary | 48/53, no differences |
+
+Edge cases decided:
+- The support mode is not two-handed aiming for the server (no spread reduction, no two-handed melee); its weight is
+  shared. Foregrip and rigid are. Both hands on a carried weapon are not (nothing to aim).
+- A weapon picked up anywhere is drawn as it lay, unmirrored, whichever hand took it; the other hand taking its handle
+  holds it as that hand holds weapons (mirrored or not). A carried, mirrored weapon thrown flips (the world model isn't
+  mirrored).
+- Rigid mode keeps the holding hand where it is (the aim's turn only), so the muzzle stays at the hand.
+- Remote players (not the listen server's) get the old hand-off (their client's free grips are drawn, but the server
+  doesn't know them): a sword changes hands.
+- On a held weapon the hand anywhere must start gripping on it (a hand gripping already, slid onto it, does not take it).
+
+- [ ] Grip a shotgun lying on the floor by its middle: it comes up as it lay; it doesn't fire; take its handle with the
+  other hand: it fires.
+- [ ] Hold a gun by its handle, grip its body away from the pump with the other hand: aim with both (try Support Only and
+  Rigid in Carrying: Other Hand Anywhere, and per weapon in Weapon Offsets). Let go of the handle: it hangs from the
+  other hand; take the handle back.
+- [ ] Carrying a gun by its body, grip it with the other hand too: both hold it as a box; let go with either.
+- [ ] Strike and throw with a gun held by its body; holster it from there and draw it again.
+- [ ] Anywhere: Away From Grips (12 cm): the handle and the pump still easy to take?

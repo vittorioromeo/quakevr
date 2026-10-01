@@ -312,6 +312,9 @@ QVR_WEAPON_KEY(TracerOwnColour, "fx_tr_owncol")
 QVR_WEAPON_KEY(TracerRed, "fx_tr_r")
 QVR_WEAPON_KEY(TracerGreen, "fx_tr_g")
 QVR_WEAPON_KEY(TracerBlue, "fx_tr_b")
+// The other hand gripping the weapon held by its handle away from its hotspots (vr_weapon_grab_anywhere): -1 as
+// vr_weapon_anygrip_mode, 0 steers the aim as a foregrip, 1 supports its weight only, 2 a rigid two-handed hold.
+QVR_WEAPON_KEY(AnyGripMode, "anygrip_mode")
 #endif
 
 #ifdef QVR_WEAPON_RETIRED

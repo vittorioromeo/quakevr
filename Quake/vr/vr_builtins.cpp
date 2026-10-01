@@ -809,8 +809,40 @@ void PF_weapongrabspot()
     edict_t* weapon = G_EDICT(OFS_PARM2);
     const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
     const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
-    G_FLOAT(OFS_RETURN) =
-        local && vr_weapon_grab_hotspots.value ? static_cast<float>(twohand::groundSpot(hand, NUM_FOR_EDICT(weapon))) : 0.f;
+    G_FLOAT(OFS_RETURN) = local && (vr_weapon_grab_hotspots.value || vr_weapon_grab_anywhere.value)
+                              ? static_cast<float>(twohand::groundSpot(hand, NUM_FOR_EDICT(weapon)))
+                              : 0.f;
+}
+
+// float(entity player, float hand) weaponanygrip: how `player`'s empty `hand` holds the weapon in its other hand: 0 not,
+// 1 by a hotspot, 2 anywhere on it (vr_weapon_grab_anywhere: a free grip, or both hands on a carried weapon; or a moment
+// ago). QC VRTryHandOff: letting go of the other hand leaves the weapon carried by this one where it holds it. The local
+// player's only (others' are 0).
+void PF_weaponanygrip()
+{
+    edict_t* player = G_EDICT(OFS_PARM0);
+    const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
+    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
+    G_FLOAT(OFS_RETURN) = local ? static_cast<float>(twohand::helpKind(hand)) : 0.f;
+}
+
+// vector(entity player, float hand, float what) weapondrawnpose: the weapon `player`'s `hand` carries off its handle (the
+// hand-off, a hotspot, anywhere), as the local player's view draws it: what 0 its handle's place, 1 its angles as a thrown
+// weapon is given them (MakeThrown negates the pitch: then drawn as it was), 2 '1 0 0' if known ('0 0 0': not carried, or another player). QC: thrown from where it is drawn.
+void PF_weapondrawnpose()
+{
+    edict_t* player = G_EDICT(OFS_PARM0);
+    const int hand = static_cast<int>(G_FLOAT(OFS_PARM1)) == 0 ? 0 : 1;
+    const int what = static_cast<int>(G_FLOAT(OFS_PARM2));
+    const bool local = sv.active && cls.state == ca_connected && NUM_FOR_EDICT(player) == 1;
+    glm::vec3 pos{0.f}, rot{0.f}, tip{0.f};
+    bool mirrored = false;
+    const bool known = local && twohand::carrying(hand) && view::carriedWeaponPose(hand, pos, rot, mirrored, tip);
+    const glm::vec3 out = !known ? glm::vec3{0.f} : what == 0 ? pos : what == 1 ? rot : glm::vec3{1.f, 0.f, 0.f};
+    for(int i = 0; i < 3; i++)
+    {
+        G_VECTOR(OFS_RETURN)[i] = out[i];
+    }
 }
 
 // Rocks and bricks lying about (vr_debris.cpp, QC vr_debris.qc). float() debrisplan: places them (after the map's
@@ -996,6 +1028,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponhotspot", PF_weaponhotspot},
     {"weaponhotspotinfo", PF_weaponhotspotinfo},
     {"weapongrabspot", PF_weapongrabspot},
+    {"weaponanygrip", PF_weaponanygrip},
+    {"weapondrawnpose", PF_weapondrawnpose},
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
     {"forcegrabpoint", PF_forcegrabpoint},

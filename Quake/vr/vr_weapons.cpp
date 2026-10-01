@@ -535,6 +535,12 @@ void registerCvars()
         cvarAt(slot, Key::TracerBlue).string = "0.45";
     }
 
+    // The other hand anywhere on it: as the global setting (vr_weapon_anygrip_mode).
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        cvarAt(slot, Key::AnyGripMode).string = "-1";
+    }
+
 #define QVR_WEAPON_DEFAULT(slot, key, value) cvarAt(slot, Key::key).string = value;
 #include "vr_weapons.inc"
 #undef QVR_WEAPON_DEFAULT

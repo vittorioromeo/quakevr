@@ -1825,6 +1825,19 @@ void hologramTestMessage()
                   "a crowbar's bar, a sword's blade, a gun's pump) and you carry it by that grip, as when your other hand "
                   "lets go of a weapon held in both: grip its handle with the other hand to use it. Not a pistol's "
                   "two-handed cup grip. A force grab always takes the handle. Off: always by the handle."),
+        toggle("Weapons Anywhere", vr_weapon_grab_anywhere)
+            .help("Grip a weapon anywhere away from its handle and its other grips and you hold it there, as a box or a gib: "
+                  "off the floor as it lies, with your other hand on one you hold (Other Hand Anywhere), with both hands "
+                  "on one you carry. Held off its handle it doesn't fire, but strikes and throws; grip its handle to use "
+                  "it. Holstered, it is drawn by its handle. Off: only by the handle and the other grips."),
+        slider("Anywhere: Away From Grips", vr_weapon_grab_anywhere_min, 0.f, 30.f, 1.f, "%.0f cm")
+            .help("How far from a weapon's handle and its other grips (a foregrip, a pump, a blade) you must grip it to hold "
+                  "it anywhere: nearer, the handle or that grip takes it, so they stay easy to take."),
+        cycle("Other Hand Anywhere", vr_weapon_anygrip_mode, {{0.f, "As a Foregrip"}, {1.f, "Support Only"}, {2.f, "Rigid"}})
+            .help("Your other hand gripping a weapon you hold by its handle, away from its grips. As a Foregrip: both hands "
+                  "aim it, from wherever it holds it. Support Only: it bears the weight, the aim stays your weapon hand's. "
+                  "Rigid: the weapon follows both hands as a box held in both. Each weapon may override it (Weapon "
+                  "Offsets: Other Hand Anywhere)."),
         toggle("Drawn In the Hand", vr_carry_local)
             .help("What you carry is drawn in your hand as it is this frame: no lag or lead as you walk or turn. Off: where the server has it."),
         toggle("Two-Handed Carrying", vr_carry_two_hands)
@@ -2416,7 +2429,9 @@ za::Vector<Item> pageDebugLogging()
         cycle("Two-Handed Grip", vr_debug_2h_grip, {{0.f, "Off"}, {1.f, "Taken and Let Go"}, {2.f, "And Where"}})
             .help("Each grip the helping hand takes (a sword's or the crowbar's: below the hand or along the blade) and why "
                   "it let go of a weapon (the check, its number and limit), the stickiness then (Aiming: 2H Grip "
-                  "Stickiness); And Where: also where the grip is from it, and how far along a blade it holds it."),
+                  "Stickiness), and weapons held anywhere (taken, let go, carried); And Where: also where the grip is "
+                  "from it, how far along a blade it holds it, and where an empty hand is on a weapon held, carried or "
+                  "lying about (its surface, handle and nearest hotspot: Weapons Anywhere)."),
         toggle("Bot Chatter", vr_verbosebots).help("The bots' thoughts, with bots in the game."),
         header("Trace Files (game folder)"),
         cycle("Grasp Trace", vr_debug_grasp_trace, {{0.f, "Off"}, {1.f, "Main Hand"}, {2.f, "Off Hand"}, {3.f, "Both Hands"}})
@@ -4043,6 +4058,12 @@ za::Vector<Item> pageWeaponOffsets()
                 .help("Whether the other hand may hold this weapon. Not Allowed ignores its hotspots (giving it a "
                       "hotspot allows it). No Stock: never steadied at the shoulder. Sword: the other hand below "
                       "the holding hand or on the blade."),
+            cycle("Other Hand Anywhere", weapons::cvar(slot, Key::AnyGripMode),
+                {{-1.f, "As Carrying Setting"}, {0.f, "As a Foregrip"}, {1.f, "Support Only"}, {2.f, "Rigid"}})
+                .help("The other hand gripping this weapon away from its handle and hotspots (Carrying: Weapons "
+                      "Anywhere): both hands aim it from there, it only bears the weight, or the weapon follows both "
+                      "hands rigidly. As Carrying Setting: Carrying's Other Hand Anywhere. Two-Handed Not Allowed: "
+                      "support only."),
             cycle("Hotspot", vr_weapon_hotspot, {{1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}})
                 .help("Where the other hand may hold the weapon: it takes the one nearest it, less its bias. Pick one to edit."),
             cycle("Type", hk(0), {{0.f, "None"}, {1.f, "Grip"}, {2.f, "Blade"}, {3.f, "Cup"}})
