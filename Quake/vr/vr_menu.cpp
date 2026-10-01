@@ -1509,6 +1509,13 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Blood dripping from splats on the ceiling and from gibs stuck there: how long and how much (0 none)."),
         slider("Gibs Stick", vr_gore_stick, 0.f, 30.f, 1.f, "%.0f s").extend()
             .help("Gibs flung into a ceiling or a wall may stick there about this long, dripping, then fall (0 never)."),
+        slider("Gib Speed: Melee", vr_gib_speed_melee, 0.05f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 3.f)
+            .help("How fast the gibs fly when a melee blow gibs a monster or a corpse (a swing, a bash, a shove, a headbutt): "
+                  "times Quake's speed."),
+        slider("Gib Speed: Light Weapons", vr_gib_speed_light, 0.05f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 3.f)
+            .help("And when a thrown thing, the shotguns, nails or an enforcer's laser gib it."),
+        slider("Gib Speed: Explosives", vr_gib_speed_heavy, 0.05f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 3.f)
+            .help("And everything else: explosions, rockets, grenades, lightning, plasma, monsters' blows (1: Quake's)."),
         header("Wounds on Models"),
         toggle("Dynamic Wounds", vr_wounds)
             .help("Blood painted on monsters, corpses and you where the hits land, in the skins' own pixels. Your body and hands show your wounds this way instead of the wound skins, and healing washes them off."),
@@ -1703,6 +1710,9 @@ void hologramTestMessage()
         toggle("Flung Props Hurt Players", vr_prop_impact_players)
             .help("They hurt players too (never you as you let go of it, bat it or while your grapple holds it). Off: "
                   "monsters only."),
+        slider("Monster Drops Harmless For", vr_prop_drop_grace, 0.f, 2.f, 0.1f, "%.1f s")
+            .help("A weapon or a backpack a monster drops as it dies can't hurt players for this long (it may land on "
+                  "you); after it, as any flung prop."),
         slider("Least Speed", vr_prop_impact_min_speed, 2.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 50.f)
             .help("How fast it must fly into what it hits to hurt it: less for things over 10 kg. The damage grows with "
                   "the speed over it."),
@@ -2206,6 +2216,9 @@ void checklistReload()
 za::Vector<Item> pageDebugViews()
 {
     return {
+        toggle("Show Damage Numbers", vr_debug_damage_numbers)
+            .help("Every hit on anything that takes damage (monsters, corpses, gibs, crates, props, shootable walls): its "
+                  "damage floating where it struck, and printed as the training dummy's (what struck, where, what's left)."),
         toggle("Show Grapple Rope", vr_debug_rope)
             .help("Each grappling hook rope: its drawn chain (points white, pieces green), the corners it wraps round "
                   "(red) and its taut path (yellow), the ends (orange)."),

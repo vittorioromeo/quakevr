@@ -393,6 +393,85 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
 };
 
 // ----------------------------------------------------------------------------
+// Debug: Show Damage Numbers (vr_debug_damage_numbers; vrfiringrange_2026-10-01_11-41-53)
+//
+// Every hit on anything that takes damage, in normal play, as the dummy reports its own: the number floating where it
+// struck (never over a player: it would be in your face) and the dummy's line in the console, to the player who dealt
+// it or took it (else with `developer`). From T_DamageDeal: `xTake` as taken, after armour (`xSaved` what armour took);
+// a gib's, a crate piece's or a corpse's hit as dealt (`xSaved` -1: their own damage follows).
+
+void(entity targ, entity inflictor, entity attacker, float xTake, float xSaved, float isVRMelee) VR_DamageNumber =
+{
+    if(!cvar_hget(cvarh_vr_debug_damage_numbers) || targ.classname == "vr_dummy")
+    {
+        return;
+    }
+
+    // The callers may still need these.
+    vector oldForward = v_forward;
+    vector oldRight = v_right;
+    vector oldUp = v_up;
+
+    string kind = VR_Dummy_Kind(inflictor, attacker, isVRMelee);
+    string part = VR_Dummy_Part(targ, isVRMelee);
+    vector at = VR_Dummy_HitPoint(targ, inflictor, attacker);
+    float shown = rint(xTake * 10) / 10;
+
+    string what = targ.classname;
+    string state = "";
+    if(targ.flags & FL_CLIENT)
+    {
+        what = targ == attacker ? "yourself" : "you";
+    }
+    if(xSaved < 0)
+    {
+        if(targ.vr_corpse == 2)
+        {
+            what = sprintf("corpse of %s", targ.classname);
+        }
+        else if(targ.vr_cratekind == 3)
+        {
+            what = "crate piece";
+        }
+        else if(targ.vr_gib)
+        {
+            what = substring(targ.classname, 0, 8) == "monster_" ? "head" : "gib";
+        }
+    }
+    else
+    {
+        state = sprintf(" (%g left%s)", rint((targ.health - xTake) * 10) / 10,
+            xSaved > 0 ? sprintf(", armour took %g", xSaved) : "");
+    }
+
+    string line = sprintf("Damage: %g to %s%s - %s%s\n", shown, what, state, kind, part);
+    if(attacker.flags & FL_CLIENT)
+    {
+        sprint(attacker, line);
+    }
+    if((targ.flags & FL_CLIENT) && targ != attacker)
+    {
+        sprint(targ, line);
+    }
+    if(!(attacker.flags & FL_CLIENT) && !(targ.flags & FL_CLIENT))
+    {
+        dprint(line); // monsters' blows on each other, a trap's
+    }
+
+    if(!(targ.flags & FL_CLIENT))
+    {
+        // The number, a little apart from the last one.
+        at_x = at_x + crandom() * 3;
+        at_y = at_y + crandom() * 3;
+        floattext(at, ftos(shown), vr_dummy_colour, 0.45 + min(0.5, xTake / 160));
+    }
+
+    v_forward = oldForward;
+    v_right = oldRight;
+    v_up = oldUp;
+};
+
+// ----------------------------------------------------------------------------
 // Attacks (parry practice)
 //
 // With vr_dummy_attacks on, it strikes at the nearest living player within vr_dummy_attack_reach (units, origin to

@@ -753,6 +753,12 @@ vector(float dm) VelocityForDamage =
     else
         v = v * 10;
 
+    // VR: slower for a melee blow, a thrown thing or a light weapon (vr_gib_speed_*: combat.qc VR_GibSpeedScale).
+    if(vr_gib_speed > 0)
+    {
+        v = v * vr_gib_speed;
+    }
+
     return v;
 };
 
@@ -801,6 +807,7 @@ void() HeadThink =
 
 void(string gibname, float dm) ThrowHead =
 {
+    dprint(sprintf("gibbed: %s (gib speed x%.2f)\n", self.classname, vr_gib_speed > 0 ? vr_gib_speed : 1));
     VR_Gore_Gibbed(); // VR: blood all round (vr_gore, vr_carry.qc)
     setmodel(self, gibname);
     self.frame = 0;

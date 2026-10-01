@@ -63,6 +63,7 @@ QVR_CVAR(vr_debug_throw, "0", CVAR_NONE)           // print each throw's estimat
 QVR_CVAR(vr_debug_axestick, "0", CVAR_NONE)       // print each thrown axe's blade meeting something: stuck (how deep, at what angles) or why not
 QVR_CVAR(vr_debug_missiles, "0", CVAR_NONE)        // print each missile's hit (rockets, nails, grenades...): what it met, where, the surface's normal; a solid prop met: its drawn box as it stands
 QVR_CVAR(vr_debug_shots, "0", CVAR_NONE)           // print each hitscan shot: where it starts, its direction, what its pellets hit; each prop a shot pushes
+QVR_CVAR(vr_debug_damage_numbers, "0", CVAR_NONE)  // every hit on anything that takes damage: its number floating where it struck, and a line in the console (as the training dummy's)
 // Release: the runtime's grip button lets go late. With vr_throw_release 1 the analog grip lets
 // go once it drops vr_throw_release_drop below its peak while the hand moves faster than
 // vr_throw_release_speed m/s (a throw), or below vr_throw_release_floor anyway; it grabs again
@@ -853,6 +854,10 @@ QVR_CVAR(vr_decal_life, "120", CVAR_ARCHIVE)           // seconds a mark stays (
 QVR_CVAR(vr_gib_blood, "1", CVAR_ARCHIVE)              // gibs and heads bleed: Quake VR's blood trail, drops on the floor, splats where they hit (0: Quake's trail)
 QVR_CVAR(vr_gib_blood_trail, "1", CVAR_ARCHIVE)        // how dense their trail of blood and drops is (0 none)
 QVR_CVAR(vr_gore, "2", CVAR_ARCHIVE)                   // gore (vr_gore.cpp): 0 Quake VR's blood only, 1 more, 2 over the top (sprays on walls, pools under corpses, gibs stuck to ceilings dripping)
+// Gib speed by what gibbed it (player.qc VelocityForDamage, combat.qc VR_GibSpeedScale): every gibbing, monsters' and corpses'.
+QVR_CVAR(vr_gib_speed_melee, "0.45", CVAR_ARCHIVE)   // a melee blow (a swing, a bash, a shove, a headbutt, a stomp)
+QVR_CVAR(vr_gib_speed_light, "0.65", CVAR_ARCHIVE)   // a thrown thing, the shotguns, nails, a stuck axe's bleeding
+QVR_CVAR(vr_gib_speed_heavy, "1", CVAR_ARCHIVE)      // explosions, rockets, grenades, lightning, everything else (Quake's)
 QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit or a gibbing sprays onto the walls, floor and ceiling round it (0 none)
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
@@ -1103,6 +1108,7 @@ QVR_CVAR(vr_gib_throw_damage, "4", CVAR_ARCHIVE)      // and of a gib or head
 // vr_prop_impact_speed_max) and (mass / vr_prop_impact_weight_ref)^vr_prop_impact_weight_curve (at most _weight_max).
 QVR_CVAR(vr_prop_impact_damage, "1", CVAR_ARCHIVE)        // on
 QVR_CVAR(vr_prop_impact_players, "1", CVAR_ARCHIVE)       // 1: players too (never the one who just let go of it), 0: monsters only
+QVR_CVAR(vr_prop_drop_grace, "0.5", CVAR_ARCHIVE)         // s a weapon or backpack a monster just dropped can't hurt players (vr_prop_impact_players)
 QVR_CVAR(vr_prop_impact_min_mass, "1", CVAR_ARCHIVE)      // kg: lighter props never hurt so
 QVR_CVAR(vr_prop_impact_min_speed, "8", CVAR_ARCHIVE)     // m/s towards what it meets (less for things over 10 kg: heavy leniency)
 QVR_CVAR(vr_prop_impact_mult, "1", CVAR_ARCHIVE)          // the damage times this

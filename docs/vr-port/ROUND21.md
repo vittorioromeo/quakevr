@@ -18210,3 +18210,35 @@ Checked in the mock (vrfiringrange, `vr_debug_chainsaw 1`): started, dropped: "l
 engine stopped" at 98.25 (3 s of 0.5 %/s); dropped, regripped and taken back (impulse 229) 1 s later: "taken back
 running", impulse 228 "running 1"; `vr_chainsaw_drop_run 0`: taken back stopped, as before. The lightning gun fired
 and dropped with the trigger held: "beam: the main hand's lightning ended" in the beam's lifetime.
+## Gib speed by what gibbed it; monster drops harmless at first; damage numbers everywhere (2026-10-01)
+
+From his notes vrfiringrange_2026-10-01_11-35-41, 11-51-45 and 11-41-53.
+
+**Gib speed** ("melee about 50-60 % less, thrown things and simple weapons 30-40 %, explosives as they are; every
+corpse and every gibbing"). `T_DamageImpl` (combat.qc) is now a wrapper: it sets `vr_gib_speed` from
+`VR_GibSpeedScale` for the length of the damage (`T_DamageDeal`, the old body) and puts it back after, so whatever
+that blow gibs (a monster's death code's `ThrowGib`/`ThrowHead`, a corpse's `VR_Corpse_Gib`, a zombie) throws its
+gibs at that speed; `VelocityForDamage` (player.qc) multiplies by it (0, between blows: Quake's). The kind
+(`VR_GibKind`): melee (`vr_hitkind` MELEE, HEADBUTT, BASH, SHOVE or `isVRMelee`: the chainsaw, a flat-screen swing),
+light (a hitscan shot that isn't lightning: the shotguns, the grunts' guns; nails and lava nails, an enforcer's laser;
+thrown weapons, gibs, boxes and flung props, deflected things; a stuck axe bleeding it; a player's own blow with
+nothing between), heavy (splash, rockets and grenades by their inflictor, lightning and Mjolnir, plasma, the laser
+cannon, monsters' attacks, anything else). Cvars, Gore page ("Hits, Gibs and Corpses"): `vr_gib_speed_melee` 0.45,
+`vr_gib_speed_light` 0.65, `vr_gib_speed_heavy` 1 (each 0.05-3). `developer 1` prints `gibbed: <class> (gib speed
+xN)` and the corpse's `corpse: ... gibbed (kills: N, gib speed xN)`. Measured: the super shotgun on a grunt x0.65,
+an axe chop (mock swing) x0.45, a rocket x1.00.
+
+**Monster drops** (his loot hurting him as it fell). A weapon (`CreateThrownWeapon` with a monster thrower: the
+grunts' guns, swords, the chainsaw, `TryEnemyDrop`'s) or a backpack (`DropBackpack` from a monster) carries
+`.vr_monster_drop` (its time); `VR_Prop_Flung` won't hurt a player with it for `vr_prop_drop_grace` s (0.5; Throwing
+and Physics > Flung Props > Monster Drops Harmless For), then as any flung prop. Monsters can still be hit by it.
+`developer 1`: `prop: <class> a monster dropped 0.41 s ago met player: no harm yet`. Measured (a dead grunt's
+15 kg backpack flung at you, `impulse 232`): blocked at 0.41-0.49 s, 26.9 damage after.
+
+**Damage numbers** (Debug > Views > Show Damage Numbers, `vr_debug_damage_numbers` 0, not archived). Every hit on
+anything that takes damage, in normal play, as the training dummy's: the number floating where it struck (its
+colours, `floattext`) and a console line, `Damage: 84 to monster_army (-54 left) - weapon fire: Double-barrelled
+Shotgun, 14 pellets, 14 head (x1.50)` (the dummy's `VR_Dummy_Kind`/`_Part`/`_HitPoint`), to the player who dealt or
+took it (monsters on each other: `developer`). Health after the hit, what armour took; a corpse, gib or crate
+piece's hit as dealt ("corpse of monster_army", "head", "gib"). Never floated over a player (in your face): your
+own hits taken are printed only. The dummy keeps its own report.
