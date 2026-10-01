@@ -55,7 +55,11 @@ Weapons anywhere follow-ups: sword with the off hand on its grip, let go of the 
 Mantle grunt when you mantle (Climbing > Mantle Grunt 0.6); Debug > Tests > Spawn a Big Prop Pile (300 props), then Physics Step Time with threads on and off
 Empty hand against a held prop now works like against a held weapon (both pushed back half, 5 cm each, buzz, then sinks in); settings in Carrying (Empty Hand Against Held Things)
 
+Enemy shoves: your values are defaults (range 50, delay 0.5, cooldown 1.5, distance 128); enforcers 1.5x damage and distance (192 units: too far?); parried shove now short (Parry Reduction 0.75 = takes 75% off: grunt 32, enforcer 48 units); shoved while hanging: you let go and slide; a blast of 30+ throws you off a hold (Climbing > blast threshold; Debug > Tests > Enemy Shoves > A Blast in 3 Seconds)
+Elbows: palms down near the face (your 45 deg repro) and near the chest: elbows spread out; palm up facing the face: still tucked; rolling palm side to down: smooth (Body > Arms > Elbows Spread 1; try 0.5 if too high)
+
 [Decide or give feedback]
+Axe sticking: make your values defaults? (speed 1 vs 4, depth 5.5 vs 5, leniency 2 vs 1)
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
