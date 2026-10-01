@@ -60,6 +60,10 @@ QVR_PROP_KEY(Size, "size", "1")
 // Round 21, "Thrown axes: blade leniency, spin in the air": times Throwing and Physics' Spin Alignment
 // (vr_throw_spin_align) for it thrown (0: its tumble as it left the hand).
 QVR_PROP_KEY(SpinAlign, "spin_align", "1")
+// Round 21, "Prop settings for a held weapon; estimated mass x; the thumb round a rock": times its estimated mass (Mass 0:
+// its volume, which follows its Size, times its material's density), as the hands weigh it and as Box3D's body. A Mass
+// set is used as set (neither this nor the Size scales it).
+QVR_PROP_KEY(MassScale, "mass_scale", "1")
 #endif
 
 #ifdef QVR_PROP_RETIRED
@@ -150,37 +154,44 @@ QVR_PROP_DEFAULT(47, Mass, "12")
 // middle in the palm's, the fingers round it). The whole bricks and the broken piece were fixed (by an end) before the
 // author moved them In the Palm (2026-09-29; vr_props_version 45). Their Grip X and Z (the fixed grip's, kept as an
 // offset) went back to 0 when he found the palm needs none (NOTES.md start_2026-09-29_23-01-20; vr_props_version 48):
-// every rock and brick In the Palm at the default offsets.
+// every rock and brick In the Palm at the default offsets. Every one drawn 1.25 times its model's size (the author's,
+// NOTES.md vrfiringrange_2026-10-01_00-25-50; vr_props_version 50), which makes its estimated mass 1.95 times its model's.
 QVR_PROP_DEFAULT(17, ID, "progs/vr_rock1.mdl")
 QVR_PROP_DEFAULT(17, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(17, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(17, TwoHands, "0")
 QVR_PROP_DEFAULT(17, GripMode, "2")
+QVR_PROP_DEFAULT(17, Size, "1.25")
 QVR_PROP_DEFAULT(18, ID, "progs/vr_rock2.mdl")
 QVR_PROP_DEFAULT(18, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(18, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(18, TwoHands, "0")
 QVR_PROP_DEFAULT(18, GripMode, "2")
+QVR_PROP_DEFAULT(18, Size, "1.25")
 QVR_PROP_DEFAULT(19, ID, "progs/vr_rock3.mdl")
 QVR_PROP_DEFAULT(19, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(19, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(19, TwoHands, "0")
 QVR_PROP_DEFAULT(19, GripMode, "2")
+QVR_PROP_DEFAULT(19, Size, "1.25")
 QVR_PROP_DEFAULT(20, ID, "progs/vr_rock4.mdl")
 QVR_PROP_DEFAULT(20, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(20, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(20, TwoHands, "0")
 QVR_PROP_DEFAULT(20, GripMode, "2")
+QVR_PROP_DEFAULT(20, Size, "1.25")
 QVR_PROP_DEFAULT(21, ID, "progs/vr_rock5.mdl")
 QVR_PROP_DEFAULT(21, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(21, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(21, TwoHands, "0")
 QVR_PROP_DEFAULT(21, GripMode, "2")
+QVR_PROP_DEFAULT(21, Size, "1.25")
 QVR_PROP_DEFAULT(22, ID, "progs/vr_brick1.mdl")
 QVR_PROP_DEFAULT(22, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(22, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(22, TwoHands, "1")
 QVR_PROP_DEFAULT(22, GripMode, "2")
+QVR_PROP_DEFAULT(22, Size, "1.25")
 QVR_PROP_DEFAULT(22, TipX, "2.4")
 QVR_PROP_DEFAULT(22, ButtX, "-2.4")
 QVR_PROP_DEFAULT(23, ID, "progs/vr_brick2.mdl")
@@ -188,6 +199,7 @@ QVR_PROP_DEFAULT(23, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(23, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(23, TwoHands, "1")
 QVR_PROP_DEFAULT(23, GripMode, "2")
+QVR_PROP_DEFAULT(23, Size, "1.25")
 QVR_PROP_DEFAULT(23, TipX, "2.4")
 QVR_PROP_DEFAULT(23, ButtX, "-2.4")
 QVR_PROP_DEFAULT(24, ID, "progs/vr_brick3.mdl")
@@ -195,11 +207,13 @@ QVR_PROP_DEFAULT(24, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(24, MeleeDamage, "1.4")
 QVR_PROP_DEFAULT(24, TwoHands, "0")
 QVR_PROP_DEFAULT(24, GripMode, "2")
+QVR_PROP_DEFAULT(24, Size, "1.25")
 QVR_PROP_DEFAULT(25, ID, "progs/vr_brick4.mdl")
 QVR_PROP_DEFAULT(25, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(25, MeleeDamage, "2.1")
 QVR_PROP_DEFAULT(25, TwoHands, "1")
 QVR_PROP_DEFAULT(25, GripMode, "2")
+QVR_PROP_DEFAULT(25, Size, "1.25")
 QVR_PROP_DEFAULT(25, TipX, "1.6")
 QVR_PROP_DEFAULT(25, ButtX, "-1.6")
 // The wooden crates (vr_crates.qc; ROUND21.md, "Wooden crates"): as heavy as the explosive boxes of their size, carried

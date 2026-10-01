@@ -375,6 +375,7 @@ struct Slot // what one edict is in the world (by its number)
     glm::vec3 arrival{0.f}; // props: the velocity this frame's step began with (0 asleep): what a touch after it sees
     float gravityScale{1.f};
     float massSetting{0.f}; // props: the Mass set for its model when it was made (vr_props.inc; 0: none)
+    float massScale{1.f};   // props: its estimate's Mass x when it was made (props::massScale)
     float size{1.f};        // props: its model's Size when it was made (Held Object Offsets: props::drawnSize)
     bool asleep{false};
     bool wet{false};      // floating: kept awake (it bobs)
@@ -1339,6 +1340,10 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
         const float volume = hull ? hull->volume : 8.f * half.x * half.y * half.z;
         def.density = mass / za::max(volume, 1e-6f);
     }
+    else
+    {
+        def.density *= props::massScale(model); // its estimate's Mass x (Held Object Weights)
+    }
     if(hull)
     {
         b3CreateHullShape(body, &def, hull);
@@ -1460,7 +1465,7 @@ void updateShapeGeneration()
         {
             return false;
         }
-        if(s.massSetting != massSetting(ent, model))
+        if(s.massSetting != massSetting(ent, model) || s.massScale != props::massScale(model))
         {
             return true;
         }
@@ -1601,6 +1606,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     s.brush = model && model->type == mod_brush;
     s.spins = kind == Kind::Fixture && model && (model->flags & EF_ROTATE);
     s.massSetting = massSetting(ent, model);
+    s.massScale = props::massScale(model);
     s.soft = model && isSoft(ent, model);
     s.sound = physsound::materialOf(ent, model);
     s.origin = vec(ent->v.origin);
@@ -5114,7 +5120,7 @@ float propMass(edict_t* ent)
     localBox(ent, model, lo, hi);
     const b3HullData* hull = propHull(ent, model, lo, hi);
     const glm::vec3 size = (hi - lo) / world->m2u;
-    return (hull ? hull->volume : size.x * size.y * size.z) * densityOf(ent, model);
+    return (hull ? hull->volume : size.x * size.y * size.z) * densityOf(ent, model) * props::massScale(model);
 }
 
 namespace
