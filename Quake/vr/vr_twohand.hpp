@@ -42,6 +42,9 @@ void recordGroundSpot(int hand, int entity, int index, const glm::vec3& trackedP
     const glm::vec3& holderPos, const glm::vec3& holderRot, bool holderMirrored, const glm::vec3& drawnPos,
     const glm::vec3& drawnRot);
 void clearGroundSpot(int hand);
+// The `index` of a weapon taken anywhere on it (vr_weapon_grab_anywhere: away from its handle and hotspots): carried as it
+// lay (groundSpot: anywhereSpot + 1).
+inline constexpr int anywhereSpot = 4;
 // The handle of the weapon `hand` carries (where the other hand takes it back), as drawn last; false if none.
 [[nodiscard]] bool carriedHandle(int hand, glm::vec3& out);
 [[nodiscard]] int groundSpot(int hand, int entity);
@@ -71,11 +74,48 @@ struct HeldAs
 
 // The view, each frame: the helping hand as drawn on the other's weapon (for the hand-off), and the
 // carried gun's handle (where the hand that takes it back closes).
-void recordHelp(const hands::State& s, int hand, const glm::vec3& drawnPos, const glm::vec3& drawnRot);
+// (`holderPos`, `holderRot`, `holderMirrored`: the pose the other hand's weapon is drawn from: its hand's, or the pose
+// it is carried at.)
+void recordHelp(const hands::State& s, int hand, const glm::vec3& drawnPos, const glm::vec3& drawnRot,
+    const glm::vec3& holderPos, const glm::vec3& holderRot, bool holderMirrored);
 void setCarriedHandle(int hand, const glm::vec3& pos);
 
 // After the hotspots: the empty hand at the handle of the gun the other hand carries is at
 // HS_CARRIED_GRIP (grabbing there takes the gun back).
 void updateHotspots(hands::State& s);
+// Units from a carried weapon's handle (as drawn) the other, empty hand takes it back.
+inline constexpr float carriedGripRadius = 6.f;
+
+// Weapons held anywhere (vr_weapon_grab_anywhere; ROUND21.md, "Weapons held anywhere"): the empty hand gripping the
+// other hand's weapon away from its handle and hotspots holds it there, as a prop is held. On a weapon held by its handle
+// it steers the aim as a foregrip, supports it only, or holds it rigidly with the other hand (vr_weapon_anygrip_mode, the
+// weapon's Other Hand Anywhere); on one carried off its handle (the hand-off, a hotspot, a free grip) both hands hold it
+// as a prop held in both (carry2h's solve). Letting go of the holding (or carrying) hand leaves it carried by the other,
+// where it holds it (the hand-off, QC VRTryHandOff with weaponanygrip 2).
+enum FreeMode : int
+{
+    FREE_FOREGRIP = 0, // the aim from the holding hand through where the other hand holds it
+    FREE_SUPPORT = 1,  // the aim stays the holding hand's
+    FREE_RIGID = 2,    // both hands hold it rigidly (the weapon turns as a prop held in both)
+};
+
+// The view, each frame: whether the empty `hand`'s palm is on the other hand's weapon (held or carried), far enough from
+// its handle and (held by its handle) from its grip and blade hotspots (vr_weapon_grab_anywhere_min).
+void setFreeCandidate(int hand, bool on);
+// Whether `hand` holds the other hand's weapon anywhere (a free grip), and as what (FreeMode; -1 none).
+[[nodiscard]] bool freeHelping(int hand);
+[[nodiscard]] int freeMode(int holding);
+// Where `hand` is drawn holding it: its controller's pose as if it were there (the view then draws it as an empty hand
+// there, its fingers wrapping the weapon), given the pose the other hand's weapon is drawn from (`holderPos`,
+// `holderRot`: the view's drawnAs). `trackedPos`, `trackedRot`: the hand as tracked (its place on the weapon is taken
+// from the first frame drawn). False if it holds none.
+[[nodiscard]] bool freeHand(int hand, const glm::vec3& trackedPos, const glm::vec3& trackedRot, const glm::vec3& holderPos,
+    const glm::vec3& holderRot, glm::vec3& pos, glm::vec3& rot);
+// How `hand` helps hold the other hand's weapon (QC weaponanygrip): 0 not, 1 by a hotspot (or the old anywhere 5-25
+// units), 2 anywhere (a free grip; or a moment ago).
+[[nodiscard]] int helpKind(int hand);
+// How much the weapon in `hand` is held two-handed (its weight shared, vr_weight.cpp): the hotspot grip's transition, a
+// free grip's.
+[[nodiscard]] float support(int hand);
 
 } // namespace qvr::twohand

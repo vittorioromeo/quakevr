@@ -279,12 +279,18 @@ void VR_Status_f()
     {
         for(int h : {qvr::HAND_OFF, qvr::HAND_MAIN})
         {
-            Con_Printf("  %-5s angles (%.1f %.1f %.1f), weapon %d, hotspot %d%s%s%s\n", h == qvr::HAND_MAIN ? "main" : "off",
+            const int freeMode = twohand::freeHelping(h) ? twohand::freeMode(1 - h) : -1;
+            Con_Printf("  %-5s angles (%.1f %.1f %.1f), weapon %d, hotspot %d%s%s%s%s\n", h == qvr::HAND_MAIN ? "main" : "off",
                 hs.rot[h].x, hs.rot[h].y, hs.rot[h].z,
                 cl.stats[h == qvr::HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2], hs.hotspot[h],
                 client::grabbing(h) ? ", grabbing" : "",
                 twohand::helping(h) ? ", helping two-handed" : "",
-                twohand::carrying(h) ? ", carrying by the foregrip" : "");
+                freeMode < 0                        ? ""
+                : twohand::carrying(1 - h)          ? " (anywhere: both hands on the carried weapon)"
+                : freeMode == twohand::FREE_SUPPORT ? " (anywhere: supporting)"
+                : freeMode == twohand::FREE_RIGID   ? " (anywhere: rigid)"
+                                                    : " (anywhere: as a foregrip)",
+                twohand::carrying(h) ? ", carrying off its handle" : "");
         }
         Con_Printf("  two-handed aiming: %s\n", twohand::aiming() ? "yes" : "no");
     }

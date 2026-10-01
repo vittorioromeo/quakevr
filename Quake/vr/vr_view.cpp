@@ -592,6 +592,9 @@ struct OncePerFrame
     int idleTexts = -1;        // VR_SetupViewEntities: the guns not in a hand show their screens
 };
 OncePerFrame oncePerFrame;
+glm::vec3 carriedTip[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // a carried weapon's tip as drawn (setupWeapon)
+bool carriedTipValid[2]{false, false};
+glm::vec3 carriedAngles[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // and its entity's angles, the pitch negated (QC's thrown weapon's)
 double carriedPrintAt = -1.0; // vr_debug_2h_grip 2: the next print of a carried weapon's hotspots off its hand
 
 // vr_grapple_debug's memory: what was printed last, and when the next print may come.
@@ -1214,6 +1217,9 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     {
         // vr_debug_2h_grip 2: how far the hand carrying it is drawn from each of its grip and blade hotspots.
         carriedPrintAt = realtime + 0.5;
+        Con_Printf("2h grip: %s hand carrying %s: drawn at %.1f %.1f %.1f, angles %.1f %.1f %.1f%s\n",
+            hand == HAND_MAIN ? "main" : "off", model->name, ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2],
+            ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2], mirrored ? ", mirrored" : "");
         glm::vec3 handPos, handRot;
         if(twohand::carryingHand(s, hand, handPos, handRot))
         {
@@ -1239,10 +1245,16 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
             }
         }
     }
+    carriedTipValid[hand] = false;
     if(carried && model && slot >= 0)
     {
         // Where the hand that takes it back closes: its handle.
         twohand::setCarriedHandle(hand, glm::vec3{ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2]});
+        // Its tip, as drawn (view::carriedWeaponPose: the melee's line).
+        carriedTip[hand] = view::anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+            weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+        carriedTipValid[hand] = true;
+        carriedAngles[hand] = glm::vec3{-ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2]};
     }
     if(s.grip2HValid[hand])
     {
@@ -2878,16 +2890,41 @@ constexpr float groundSpotFromHandleCm = 10.f;
     return true;
 }
 
+double groundPrintAt = -1.0; // vr_debug_2h_grip 2: the next print of where an empty hand is on a weapon lying about
+
+// Weapons held anywhere (vr_weapon_grab_anywhere): a hand whose point (the middle of its grip, where a handle lies) is this
+// near (cm) a weapon's drawn surface (or in it) is on it; one lying about, with vr_weapon_grab_slack more (as the server
+// takes it: a gun lying flat is thinner than the lowest the fist gets over it).
+constexpr float anywhereReachCm = 6.f;
+
+// How far (units) the world point `p` is from the drawn surface of `e` (its model's shape as drawn, mirrored or not):
+// 0 inside it; `reach` or more if not within it.
+[[nodiscard]] float surfaceDistance(const entity_t& e, bool mirrored, const glm::vec3& p, float reach)
+{
+    const grasp::Shape* shape = grasp::shapeOf(e, -1);
+    float d = 0.f;
+    glm::vec3 on, normal;
+    if(!shape || !grasp::signedDistance(*shape, grasp::shapeToWorld(e, mirrored), p, reach, d, on, normal))
+    {
+        return reach;
+    }
+    return za::max(d, 0.f);
+}
+
 // Each frame, before the weapons are placed: for each empty hand, the weapon lying nearest it, and the hotspot it would
 // take it by (twohand::recordGroundSpot), if any.
 void updateGroundSpots(const hands::State& s)
 {
     const float reach = groundSpotReachCm * 0.01f * units::metresToUnits();
     const float fromHandle = groundSpotFromHandleCm * 0.01f * units::metresToUnits();
+    const float anywhereMin = za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * units::metresToUnits();
+    const float anywhereReach = (anywhereReachCm + za::max(vr_weapon_grab_slack.value, 0.f)) * 0.01f * units::metresToUnits();
+    bool printedGround = false; // (vr_debug_2h_grip 2)
     for(int hand = 0; hand < 2; hand++)
     {
         twohand::clearGroundSpot(hand);
-        if(!vr_weapon_grab_hotspots.value || !s.valid || !held::handEmpty(hand) || twohand::helping(hand) ||
+        if((!vr_weapon_grab_hotspots.value && !vr_weapon_grab_anywhere.value) || !s.valid || !held::handEmpty(hand) ||
+            twohand::helping(hand) ||
             twohand::carrying(hand))
         {
             continue;
@@ -2914,6 +2951,7 @@ void updateGroundSpots(const hands::State& s)
             // Its hotspots as it lies: a grip's point, the nearest point of a blade's zone.
             int spot = -1;
             float closest = handle;
+            float nearestSpot = 1e30f; // (unbiased: for anywhere)
             for(int k = 0; k < weapons::maxHotspots; k++)
             {
                 const weapons::Hotspot h = weapons::hotspot(slot, k);
@@ -2924,12 +2962,33 @@ void updateGroundSpots(const hands::State& s)
                 }
                 const float len2 = glm::dot(b - a, b - a);
                 const glm::vec3 p = len2 > 0.f ? a + (b - a) * za::clamp(glm::dot(at - a, b - a) / len2, 0.f, 1.f) : a;
+                nearestSpot = za::min(nearestSpot, glm::distance(at, p));
                 const float d = glm::distance(at, p) - h.bias;
-                if(d < closest && d < reach)
+                if(vr_weapon_grab_hotspots.value && d < closest && d < reach)
                 {
                     closest = d;
                     spot = k;
                 }
+            }
+            // Anywhere on it (vr_weapon_grab_anywhere): no hotspot taken, the hand on its drawn shape, away from its handle
+            // and its hotspots (vr_weapon_grab_anywhere_min).
+            if(spot < 0 && vr_weapon_grab_anywhere.value && handle >= anywhereMin && nearestSpot >= anywhereMin)
+            {
+                const float surface = surfaceDistance(*e, false, at, anywhereReach);
+                if(surface < anywhereReach && surface < closest)
+                {
+                    closest = surface;
+                    spot = twohand::anywhereSpot;
+                }
+            }
+            if(vr_debug_2h_grip.value >= 2.f && realtime >= groundPrintAt)
+            {
+                Con_Printf("anywhere: %s hand %.1f units off the lying %s's surface, %.1f from its handle, %.1f from its "
+                           "nearest hotspot: %s (it lies at %.1f %.1f %.1f, angles %.1f %.1f %.1f)\n", hand == HAND_MAIN ? "main" : "off",
+                    surfaceDistance(*e, false, at, anywhereReach), e->model->name, handle, nearestSpot < 1e29f ? nearestSpot : -1.f,
+                    spot == twohand::anywhereSpot ? "anywhere" : spot >= 0 ? "a hotspot" : "the handle", e->origin[0],
+                    e->origin[1], e->origin[2], e->angles[0], e->angles[1], e->angles[2]);
+                printedGround = true;
             }
             const float d = za::min(closest, handle);
             if(d < bestDist)
@@ -2948,6 +3007,17 @@ void updateGroundSpots(const hands::State& s)
         // The hand as an empty hand is drawn (the fist's angle offsets), and as it would be drawn on the hotspot.
         const glm::mat3 fistTurn = anglesBasis(weaponAngleOffsets(weapons::fistSlot(), mirrored));
         const glm::vec3 handRot = basisAngles(anglesBasis(s.rot[hand]) * fistTurn);
+        if(bestSpot == twohand::anywhereSpot)
+        {
+            // Carried as it lies, where the hand holds it: from the pose that draws it there (its handle's, unmirrored:
+            // setupWeapon's place and weaponTurn undone), the hand drawn where it is.
+            const glm::vec3 o = weaponAngleOffsets(slot, false);
+            const glm::vec3 holderRot{o.x - best->angles[0], best->angles[1] - o.y, best->angles[2] - o.z};
+            const glm::vec3 holderPos{best->origin[0], best->origin[1], best->origin[2]};
+            twohand::recordGroundSpot(hand, static_cast<int>(best - cl_entities), bestSpot, at, s.rot[hand], holderPos,
+                holderRot, false, at, handRot);
+            continue;
+        }
         glm::vec3 drawnPos, drawnRot;
         if(!groundSpotPose(*best, slot, weapons::hotspot(slot, bestSpot), hand, at, handRot, drawnPos, drawnRot))
         {
@@ -2959,9 +3029,128 @@ void updateGroundSpots(const hands::State& s)
         twohand::recordGroundSpot(hand, static_cast<int>(best - cl_entities), bestSpot, drawnPos, trackedRot, glm::vec3{0.f},
             glm::vec3{0.f}, hand == HAND_MAIN, drawnPos, drawnRot);
     }
+    if(printedGround)
+    {
+        groundPrintAt = realtime + 0.25;
+    }
+}
+
+// The distance from `p` to the segment from `a` to `b`.
+[[nodiscard]] float segmentPointDistance(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b)
+{
+    const float len2 = glm::dot(b - a, b - a);
+    return glm::distance(p, len2 > 0.f ? a + (b - a) * za::clamp(glm::dot(p - a, b - a) / len2, 0.f, 1.f) : a);
+}
+
+double freeSpotPrintAt = -1.0; // vr_debug_2h_grip 2: the next print of where an empty hand is on the other's weapon
+
+// Each frame, after the weapons are placed: whether each empty hand is on the other hand's weapon (held or carried) where
+// gripping holds it anywhere (vr_weapon_grab_anywhere; twohand::setFreeCandidate): within anywhereReachCm of its drawn
+// surface, at least vr_weapon_grab_anywhere_min from its handle and (held by its handle) from its grip and blade hotspots,
+// which take priority.
+void updateFreeSpots(const hands::State& s)
+{
+    const float minAway = za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * units::metresToUnits();
+    const float reach = anywhereReachCm * 0.01f * units::metresToUnits();
+    const bool print = vr_debug_2h_grip.value >= 2.f && realtime >= freeSpotPrintAt;
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const int other = 1 - hand;
+        const view::ViewEntity& w = entities.weapon[other];
+        const int slot = weapons::slotForModel(w.ent.model);
+        bool on = false;
+        if(vr_weapon_grab_anywhere.value && s.valid && held::handEmpty(hand) && !twohand::carrying(hand) &&
+            !flashlight::holds(hand) && w.visible &&
+            w.ent.model && w.ent.model->type == mod_alias && slot >= 0 && slot != weapons::fistSlot() &&
+            !isHandModel(w.ent.model))
+        {
+            const glm::vec3 at = s.pos[hand];
+            const float handle = glm::distance(at, drawnAs[other].pos);
+            float nearestSpot = 1e30f;
+            if(!weaponCarried[other])
+            {
+                for(const WorldHotspot& h : worldHotspots[other])
+                {
+                    if(weapons::isGripType(h.type) || h.type == weapons::HotspotType::Blade)
+                    {
+                        nearestSpot = za::min(nearestSpot, segmentPointDistance(at, h.pos, h.end));
+                    }
+                }
+            }
+            const float surface = handle < 64.f ? surfaceDistance(w.ent, w.mirrored, at, reach) : reach;
+            // (A carried weapon's handle: where gripping takes it back, HS_CARRIED_GRIP.)
+            const float fromHandle = weaponCarried[other] ? za::max(minAway, twohand::carriedGripRadius) : minAway;
+            on = surface < reach && handle >= fromHandle && nearestSpot >= minAway;
+            if(print)
+            {
+                Con_Printf("anywhere: %s hand %.1f units off the %s weapon's surface, %.1f from its handle, %.1f from its "
+                           "nearest hotspot: %s\n", hand == HAND_MAIN ? "main" : "off", surface,
+                    weaponCarried[other] ? "carried" : "held", handle, nearestSpot < 1e29f ? nearestSpot : -1.f,
+                    on ? "on it" : "no");
+            }
+        }
+        twohand::setFreeCandidate(hand, on);
+    }
+    if(print)
+    {
+        freeSpotPrintAt = realtime + 0.25;
+    }
 }
 
 } // namespace
+
+bool view::carriedWeaponPose(int hand, glm::vec3& pos, glm::vec3& rot, bool& mirrored, glm::vec3& tip)
+{
+    if(hand < 0 || hand > 1 || !weaponCarried[hand] || !carriedTipValid[hand])
+    {
+        return false;
+    }
+    pos = drawnAs[hand].pos;
+    rot = carriedAngles[hand];
+    mirrored = drawnAs[hand].mirrored;
+    tip = carriedTip[hand];
+    return true;
+}
+
+bool view::heldWeaponPoint(int hand, float fraction, float cm, glm::vec3& out)
+{
+    const view::ViewEntity& w = entities.weapon[hand];
+    const int slot = weapons::slotForModel(w.ent.model);
+    if(hand < 0 || hand > 1 || !w.ent.model || w.ent.model->type != mod_alias || slot < 0 || slot == weapons::fistSlot())
+    {
+        return false;
+    }
+    const glm::vec3 handle = drawnAs[hand].pos;
+    const glm::vec3 tip = view::anchorPosition(w, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
+        weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
+    const glm::vec3 at = glm::mix(handle, tip, fraction);
+    const glm::vec3 axis = glm::normalize(tip - handle + glm::vec3{0.f, 0.f, 1e-6f});
+    // Its drawn triangles' corners within a unit and a half of that point along it: their middle (where a hand holding it
+    // there is: inside it, as a handle is in the hand).
+    const grasp::Shape* shape = grasp::shapeOf(w.ent, -1);
+    if(!shape)
+    {
+        return false;
+    }
+    const glm::mat4 m = grasp::shapeToWorld(w.ent, w.mirrored);
+    glm::vec3 mid{0.f};
+    int n = 0;
+    for(const grasp::Triangle& t : shape->tris)
+    {
+        for(const glm::vec3& p : t.p)
+        {
+            const glm::vec3 v{m * glm::vec4{p, 1.f}};
+            if(za::fabs(glm::dot(v - at, axis)) <= 1.5f)
+            {
+                mid += v;
+                n++;
+            }
+        }
+    }
+    out = n ? mid / static_cast<float>(n) : at;
+    out.z += cm * 0.01f * units::metresToUnits();
+    return true;
+}
 
 bool view::groundHotspotPoint(int entity, int index, glm::vec3& out)
 {
@@ -3061,6 +3250,10 @@ void setupHand(const hands::State& s, int hand)
     // A prop held in both hands (vr_held.cpp): the hand is drawn on its grip on it, as if its controller were there.
     glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
     held::drawnHand(hand, controllerPos, controllerRot);
+    // Holding the other hand's weapon anywhere on it (vr_twohand.cpp's free grips): drawn where it holds it, as if its
+    // controller were there (the weapon drawn from drawnAs: as held by its handle, or carried), its fingers wrapping it.
+    const bool freeHelp = twohand::freeHand(hand, s.pos[hand], s.rot[hand], drawnAs[1 - hand].pos, drawnAs[1 - hand].rot,
+        controllerPos, controllerRot);
     glm::vec3 lightShift{0.f}; // a hand holding a ledge or a rung: drawn on it, facing it (vr_climb.cpp), lit as without the looks' offset
     const float onHold = climb::drawnHand(s, hand, anglesBasis(weaponAngleOffsets(fist, mirrored)), controllerPos, controllerRot, lightShift);
     if(onHold > 0.f)
@@ -3181,14 +3374,14 @@ void setupHand(const hands::State& s, int hand)
 
     // A free hand pushed into the other hand's weapon stops at its surface (drawn only), held back a few centimetres at
     // most: past that it passes into it until it is out again (vr_hand_collide).
-    pushOut(hand, gripBlend <= 0.f && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand), pos,
+    pushOut(hand, gripBlend <= 0.f && !freeHelp && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand), pos,
         handRot, mirrored);
 
     // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a
     // hand carrying one is drawn so.
     if(twohand::helping(hand))
     {
-        twohand::recordHelp(s, hand, pos, handRot);
+        twohand::recordHelp(s, hand, pos, handRot, drawnAs[other].pos, drawnAs[other].rot, drawnAs[other].mirrored);
     }
     else if(twohand::carryingHand(s, hand, pos, handRot))
     {
@@ -3221,6 +3414,12 @@ void setupHand(const hands::State& s, int hand)
                 }
             }
         }
+    }
+    else if(freeHelp && entities.weapon[other].ent.model)
+    {
+        // The other hand's weapon, held anywhere: wrapped where the hand is on it.
+        held = {&entities.weapon[other].ent, entities.weapon[other].mirrored, 0, true};
+        held.overlap = otherSlot >= 0 ? CLAMP(0.f, weapons::value(otherSlot, Key::GripOverlap), 1.f) * weapons::maxOverlapCm : -1.f;
     }
     else if(slot >= 0 && slot != fist)
     {
@@ -5529,6 +5728,7 @@ extern "C" void VR_SetupViewEntities()
         setupWeapon(s, HAND_OFF, precachedModel(cl.stats[STAT_QVR_WEAPONMODEL2]),
             cl.stats[STAT_QVR_WEAPONFRAME2]);
         setupGhosts();
+        updateFreeSpots(s); // (after the weapons: where an empty hand is on the other's, for the next frame's grip)
 
         setupHand(s, HAND_MAIN);
         setupHand(s, HAND_OFF);
