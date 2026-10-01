@@ -100,7 +100,7 @@ void(entity xTarget) VR_Motion_Sample =
     for(hand = 0; hand < 2; ++hand)
     {
         entity pb = VR_Blow(hand);
-        VR_Melee_Layout(pb.mh_thing);
+        VR_Melee_LayoutOf(pb);
         // Constant indices (a variable one reads a vector array's element wrong: its x alone).
 #define VR_MOTION_POINT(k) \
         if(k < pb.mh_n) \

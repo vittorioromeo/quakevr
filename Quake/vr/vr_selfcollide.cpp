@@ -340,6 +340,9 @@ void fitCaps(const za::Vector<glm::vec3>& pts, Caps& out)
     }
 }
 
+constexpr float densifySteps = 24.f; // a triangle longer than the shape's size over this is sampled across (fitCaps)
+constexpr int densifyMost = 24;      // in at most this many steps a side
+
 // `axes`: the world units each of the shape's axes is drawn at (an alias model's raw vertices are scaled per axis):
 // the capsules are fitted in the shape's axes at those units, so that they are round in the world.
 const Caps* weaponCaps(const entity_t& e, const glm::vec3& axes)
@@ -359,9 +362,38 @@ const Caps* weaponCaps(const entity_t& e, const glm::vec3& axes)
             za::Vector<glm::vec3>& pts = fitScratch.pts;
             pts.clear();
             pts.reserve(shape->tris.size() * 3);
+            glm::vec3 lo{1e30f}, hi{-1e30f};
             for(const grasp::Triangle& t : shape->tris)
             {
                 pts.pushBackMultiple(t.p[0] * axes, t.p[1] * axes, t.p[2] * axes);
+                for(int i = 0; i < 3; i++)
+                {
+                    lo = glm::min(lo, t.p[i] * axes);
+                    hi = glm::max(hi, t.p[i] * axes);
+                }
+            }
+            // Long triangles sampled across too: a sword's blade is a few triangles from its guard to its tip, with no
+            // corner between them, so the slabs between had no points and no capsule (the middle of the blade went
+            // through the other hand's weapon: NOTES.md vrfiringrange_2026-10-01_22-47-18).
+            const float spacing = za::max(glm::length(hi - lo) / densifySteps, 0.25f);
+            const za::SizeT corners = pts.size();
+            for(za::SizeT ti = 0; ti < corners; ti += 3)
+            {
+                const glm::vec3 p0 = pts[ti], p1 = pts[ti + 1], p2 = pts[ti + 2];
+                const float longest = za::max(glm::distance(p0, p1), za::max(glm::distance(p1, p2), glm::distance(p2, p0)));
+                const int n = za::min(static_cast<int>(za::ceil(longest / spacing)), densifyMost);
+                for(int i = 0; n > 1 && i <= n; i++)
+                {
+                    for(int j = 0; i + j <= n; j++)
+                    {
+                        if((i == 0 && j == 0) || (i == n && j == 0) || (i == 0 && j == n))
+                        {
+                            continue; // (its corners: in already)
+                        }
+                        const float u = static_cast<float>(i) / static_cast<float>(n), v = static_cast<float>(j) / static_cast<float>(n);
+                        pts.pushBack(p0 + (p1 - p0) * u + (p2 - p0) * v);
+                    }
+                }
             }
             fitCaps(pts, f.caps);
         }
