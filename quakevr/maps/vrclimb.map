@@ -339,6 +339,14 @@
 ( 8 496 48 ) ( 9 496 48 ) ( 8 496 49 ) qvr_trim [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
 ( 8 496 48 ) ( 8 496 49 ) ( 8 497 48 ) qvr_trim [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
+{
+( 0 -370 0 ) ( 0 -369 0 ) ( 0 -370 1 ) qvr_wall [ 0 -1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 0 -370 0 ) ( 0 -370 1 ) ( 1 -370 0 ) qvr_wall [ 1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 0 -370 0 ) ( 1 -370 0 ) ( 0 -369 0 ) qvr_wall [ -1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 64 -250 96 ) ( 64 -249 96 ) ( 65 -250 96 ) qvr_floor [ 1 0 0 0 ] [ 0 -1 0 0 ] 0 1 1
+( 64 -250 96 ) ( 65 -250 96 ) ( 64 -250 97 ) qvr_wall [ -1 0 0 0 ] [ 0 0 -1 0 ] 0 1 1
+( 64 -250 96 ) ( 64 -250 97 ) ( 64 -249 96 ) qvr_wall [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
+}
 }
 // entity 1
 {
@@ -523,13 +531,20 @@
 }
 // entity 27
 {
+"classname" "light"
+"origin" "-40 -310 150"
+"light" "250"
+"_color" "1 0.95 0.85"
+}
+// entity 28
+{
 "classname" "path_corner"
 "targetname" "lift1_a"
 "target" "lift1_b"
 "origin" "-300 40 0"
 "wait" "1"
 }
-// entity 28
+// entity 29
 {
 "classname" "path_corner"
 "targetname" "lift1_b"
@@ -537,7 +552,7 @@
 "origin" "-300 40 80"
 "wait" "2"
 }
-// entity 29
+// entity 30
 {
 "classname" "func_train"
 "targetname" "lift1"
@@ -552,7 +567,7 @@
 ( -236 136 40 ) ( -236 136 41 ) ( -236 137 40 ) qvr_trim [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 30
+// entity 31
 {
 "classname" "trigger_once"
 "target" "lift1"
@@ -565,7 +580,7 @@
 ( -306 116 64 ) ( -306 116 65 ) ( -306 117 64 ) qvr_trim [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 31
+// entity 32
 {
 "classname" "func_plat"
 "targetname" "plat1"
@@ -580,7 +595,7 @@
 ( -136 104 48 ) ( -136 104 49 ) ( -136 105 48 ) qvr_trim [ 0 1 0 0 ] [ 0 0 -1 0 ] 0 1 1
 }
 }
-// entity 32
+// entity 33
 {
 "classname" "trigger_once"
 "target" "plat1"

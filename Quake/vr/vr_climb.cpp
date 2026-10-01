@@ -14,7 +14,9 @@
 // Of the ledges the hand is at, it takes (takenBefore) one it is over the top of before one it is in front of,
 // the higher top (a rung above before the one below), the lip facing the body more (a rung's front, not its end; the
 // near side of a thin wall), the nearer hold. The grip must be pressed at the hold (a press elsewhere, dragged onto
-// one, does nothing), with no weapon, carried object, locked force grab or flashlight in that hand, and not at a
+// one, does nothing; but in the air, not holding on, a press at no hold keeps looking while it stays pressed, for
+// vr_climb_air_grab_time seconds: a ledge jumped at is in reach only as the hand passes its lip), with no weapon,
+// carried object, locked force grab or flashlight in that hand, and not at a
 // holster that holds a weapon while standing (the grip draws it; an empty holster, or any while hanging, gives way to
 // the hold). The hold is on the lip's line: the hand's place along it, on the top, `holdInset` units in from the
 // lip; the hand is drawn there (its palm's middle, moved by vr_climb_hand_out/up/side: display only) while it holds,
@@ -865,6 +867,7 @@ struct Climber
     double noGrabUntil{0.0};
     double lastTime{-1.0};
     bool pressedLastFrame[2]{false, false};
+    double missedAt[2]{-1.0, -1.0}; // a grip pressed at no hold, when: in the air it keeps looking (vr_climb_air_grab_time)
     glm::vec3 lastOrigin{0.f}; // where the climb put the body (moved otherwise: let go)
     glm::vec3 owed{0.f};       // the pull the body couldn't make (made up first by a pull the other way)
     bool noRoom{false};        // pulling over the top of a ledge with no room to mantle (felt once)
@@ -1646,6 +1649,16 @@ static void climbPreThink(edict_t* ent)
         const bool pressed = move && (move->vrBits0 & grabBit[h]);
         const bool pressEdge = pressed && !c.pressedLastFrame[h];
         c.pressedLastFrame[h] = pressed;
+        // A grip pressed in the air at no hold keeps looking while it stays pressed and the player is in the air (not
+        // holding on with the other hand), for vr_climb_air_grab_time seconds: a ledge jumped at is in the hand's reach
+        // for a frame or three as it passes the lip on the way up and again on the way down (the hand's point in front of
+        // the face: the line from the chest holds it off the top); a press anywhere in the jump takes it as it comes.
+        if(!pressed || pressEdge || g.active || !midAir(ent, c.grips[1 - h].active) ||
+            time - c.missedAt[h] > static_cast<double>(vr_climb_air_grab_time.value))
+        {
+            c.missedAt[h] = -1.0;
+        }
+        const bool retry = c.missedAt[h] >= 0.0;
         g.ownedLastFrame = g.owned;
         if(!pressed)
         {
@@ -1662,7 +1675,7 @@ static void climbPreThink(edict_t* ent)
             }
         }
 
-        if(!enabled || !pressEdge || g.active || c.mantling)
+        if(!enabled || !(pressEdge || retry) || g.active || c.mantling)
         {
             continue;
         }
@@ -1672,7 +1685,7 @@ static void climbPreThink(edict_t* ent)
         const char* busy = handBusy(ent, move, h);
         if(time < c.noGrabUntil || atHolster || busy)
         {
-            if(debug())
+            if(debug() && pressEdge)
             {
                 Con_Printf("climb: %s hand grips: %s%s\n", handName(h),
                     time < c.noGrabUntil ? "too soon" : atHolster ? "at a holster" : "not empty: ",
@@ -1682,6 +1695,7 @@ static void climbPreThink(edict_t* ent)
         }
         if(!hanging && tooTired(ent))
         {
+            c.missedAt[h] = -1.0; // (refused: no buzz again while the grip stays pressed)
             // Too little stamina left to hang (parries, shoves, blows, the last hang): no new hang until more comes back
             // (a hand joining the other on a hold is let: two hands tire less). A soft buzz says why; the gadget shows it.
             if(!(time - c.tiredAt < 0.5))
@@ -1702,7 +1716,7 @@ static void climbPreThink(edict_t* ent)
         const int traces0 = traceCount;
         bool lenient = false, fromTracked = false;
         const za::Optional<Ledge> ledge = gripHold(ent, *move, h, hanging, lenient, fromTracked, &st);
-        if(debug() && vr_climb_debug.value >= 3.f)
+        if(debug() && vr_climb_debug.value >= 3.f && (pressEdge || ledge))
         {
             Con_Printf("climb: hold search: %d ledges looked at, %d traces in %.4f ms\n", st.points, traceCount - traces0,
                 (Sys_DoubleTime() - t0) * 1000.0);
@@ -1712,7 +1726,11 @@ static void climbPreThink(edict_t* ent)
                                         : "";
         if(!ledge)
         {
-            if(debug())
+            if(pressEdge)
+            {
+                c.missedAt[h] = time; // (in the air: it keeps looking)
+            }
+            if(debug() && pressEdge)
             {
                 const glm::vec3 own = move->hands[h].tracked;
                 Con_Printf("climb: %s hand at (%.1f %.1f %.1f): no hold (the controller at %.1f %.1f %.1f)\n", handName(h), hand.x,
@@ -1745,9 +1763,10 @@ static void climbPreThink(edict_t* ent)
         physsound::grab(ent, ledge->hold, ledge->ent); // a slap and a tap of the hold's material
         if(debug())
         {
-            Con_Printf("climb: %s hand holds at %.1f (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s\n",
+            Con_Printf("climb: %s hand holds at %.1f (out %.2f %.2f; hand %.1f %.1f %.1f, hold %.1f %.1f %.1f) from (%.1f %.1f %.1f)%s%s%s\n",
                 handName(h), ledge->top, ledge->out.x, ledge->out.y, hand.x, hand.y, hand.z, ledge->hold.x, ledge->hold.y,
-                ledge->hold.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], hanging ? ", both hands" : "", how);
+                ledge->hold.z, ent->v.origin[0], ent->v.origin[1], ent->v.origin[2], hanging ? ", both hands" : "", how,
+                retry ? va(", pressed %.0f ms before, in the air", (time - c.missedAt[h]) * 1000.0) : "");
         }
         if(vr_climb_debug.value >= 2.f)
         {

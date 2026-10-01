@@ -74,6 +74,8 @@ Controller spin frame fix (Throwing > Controller Spin Frame, auto): Debug > Cont
 
 Stand on a box leaning more than 30 deg: you slide off promptly (Standing on Props > Steepest Face to Stand On 30; 46 = old); under 30 deg standing, walking and jumping unchanged
 
+Climbing: stand against a wall (vrclimb jump wall: Debug > Tests > Climbing > To the Jump Wall), jump, press grip anytime on the way up: grabs as the hand reaches the lip (Climbing > Mid-Air Grab Window 0.3 s; lower if too sticky)
+
 [Decide or give feedback]
 Hand Collide (empty hand vs weapon) and Collide Give (held prop) are separate settings, both 5 cm: merge them into one?
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?

@@ -2618,6 +2618,11 @@ za::Vector<Item> pageDebugTests()
         command("Chainsaw Fit", "vr_chainsaw_fit")
             .help("vr_chainsaw_fit: with the chainsaw in the main hand, prints where the off hand must move to take its "
                   "cord and each of its hotspots (two, on the front handle), and how many it has."),
+        header("Climbing"),
+        command("Climbing Test Map", "map vrclimb").help("map vrclimb: rungs, ledges, a jump wall, moving and floating ledges."),
+        command("To the Jump Wall", "setpos -40 -310 24 0 0 0; noclip")
+            .help("In vrclimb: you facing a wall 96 high, 40 units ahead: walk into it, jump and grab its top (Climbing: "
+                  "Mid-Air Grab Window)."),
         header("Crowbar"),
         command("A Crowbar in Your Hand", "impulse 167").help("A crowbar in the main hand (impulse 187: the off hand)."),
         command("Drop a Crowbar Ahead", "impulse 217")
