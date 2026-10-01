@@ -162,6 +162,12 @@ static void PL_FatalReport (const char *what)
 	TerminateProcess (GetCurrentProcess (), 0xc0000409);
 }
 
+// A fatal error found by the game's own checks (a failed Zancle assert, vr_zancle.cpp): reported as the CRT's are.
+extern "C" void VR_FatalReport (const char *what)
+{
+	PL_FatalReport (what);
+}
+
 static void PL_AbortSignal (int sig)
 {
 	(void)sig;
@@ -260,6 +266,11 @@ extern "C" int VR_ErrorDialogSuppressed (const char *errorMsg)
 
 extern "C" void VR_InstallCrashHandler (void)
 {
+}
+
+extern "C" void VR_FatalReport (const char *what)
+{
+	(void) what;
 }
 
 extern "C" int VR_ErrorDialogSuppressed (const char *errorMsg)

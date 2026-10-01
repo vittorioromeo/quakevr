@@ -1402,7 +1402,7 @@ extern "C" int VR_BulletHoleSprite(int ent)
     if(host_framecount - holesPrunedFrame > 100 || host_framecount < holesPrunedFrame)
     {
         holesPrunedFrame = host_framecount;
-        za::vectorEraseIf(holes, [](const auto& kv) {
+        erase_if(holes, [](const auto& kv) { // (ankerl's, by ADL: std::erase_if's for its maps)
             const qmodel_t* m = kv.first < cl.num_entities ? cl_entities[kv.first].model : nullptr;
             return !m || strcmp(m->name, "progs/s_bullet.spr");
         });
@@ -1439,7 +1439,7 @@ extern "C" int VR_GibTrail(int ent, int zombie)
     if(host_framecount - gibsPrunedFrame > 100 || host_framecount < gibsPrunedFrame)
     {
         gibsPrunedFrame = host_framecount;
-        za::vectorEraseIf(gibs, [](const auto& kv) { return cl.time - kv.second.seen > 1.0 || cl.time < kv.second.seen; });
+        erase_if(gibs, [](const auto& kv) { return cl.time - kv.second.seen > 1.0 || cl.time < kv.second.seen; });
     }
 
     // A new one (or a new gib in the slot, or a teleport): from here.

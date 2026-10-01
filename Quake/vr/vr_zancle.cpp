@@ -16,11 +16,20 @@
 
 #ifdef ZA_DEBUG
 
+extern "C" void VR_FatalReport(const char* what); // vr_crash.cpp (test runs: the report, then the process ends)
+
 namespace za::priv
 {
 
 void assertFailure(const char* code, const char* file, const int line)
 {
+    // A test run (QVR_NO_ERROR_DIALOG): the crash report, with the stack that failed it (vr_crash.cpp).
+    if(getenv("QVR_NO_ERROR_DIALOG"))
+    {
+        char what[1024];
+        q_snprintf(what, sizeof(what), "Zancle assertion failed: ZA_ASSERT(%s) at %s:%d", code, file, line);
+        VR_FatalReport(what);
+    }
     Sys_Error("Zancle assertion failed: ZA_ASSERT(%s) at %s:%d", code, file, line);
 }
 
