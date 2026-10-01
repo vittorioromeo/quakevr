@@ -758,6 +758,8 @@ private:
         raw.position = grip.position + grip.orientation * (rInv * -offset);
         if(grip.velocityValid)
         {
+            // With the runtime's angular velocity as it came: vr_angvel.cpp redoes this lever term once it has put that in
+            // the tracking space (VirtualDesktopXR gives it in the controller's frame). Takes record it as it is here.
             raw.linearVelocity = grip.linearVelocity + glm::cross(grip.angularVelocity, raw.position - grip.position);
             raw.gripVelocity = grip.linearVelocity;
             raw.gripVelocityValid = true;

@@ -13,6 +13,7 @@
 #include "vr_gore.hpp"
 #include "vr_envmap.hpp"
 #include "vr_lighting.hpp"
+#include "vr_angvel.hpp"
 #include "vr_backend.hpp"
 #include "vr_throw.hpp"
 #include "vr_client.hpp"
@@ -1216,6 +1217,8 @@ extern "C" void VR_BeginFrame()
     if(state->backend)
     {
         motion::afterTracking(state->tracking, state->frame); // the recorder's copy; a playback's poses
+        // The runtime's angular velocity into the tracking space (a take's too: it holds the runtime's numbers).
+        angvel::fix(state->tracking, motion::playing() ? motion::playSource() : state->backend->runtimeName());
     }
 
     sampleCounts(); // vr_memstats: the last frame's, before its texts are cleared

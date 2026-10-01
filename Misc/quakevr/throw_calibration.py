@@ -12,6 +12,9 @@ import csv, math, os, sys
 from statistics import median
 
 LEVER, FACTOR, THRESHOLD, SPAN, LOOKBACK = 0.1, 0.7, 6.0, 0.017, 0.04
+# The runtime's angular velocity (raw_m_w*) as the game reads it (vr_angvel.cpp, vr_angvel_frame -1): VirtualDesktopXR
+# gives it in the controller's frame: the grip pose (GRIP_TURN below) turned LOCAL_PITCH degrees about x.
+LOCAL_PITCH = -57.5
 
 
 def qmul(a, b):
@@ -84,15 +87,18 @@ def estimate(rows, peak, cal, fixed):
 
 def take(path):
     with open(path, encoding="utf-8") as fh:
-        lines = [l for l in fh if not l.startswith("#")]
+        text = fh.readlines()
+    lines = [l for l in text if not l.startswith("#")]
+    local = any(l.startswith("# source:") and "VirtualDesktopXR" in l for l in text)
+    turn = qmul(GRIP_TURN, axis((1, 0, 0), LOCAL_PITCH))
     rows = []
     for r in csv.DictReader(lines):
         try:
             if r.get("raw_m_gvalid", "0") not in ("1", "1.0"):
                 continue
-            rows.append({"t": float(r["t"]),
-                         "q": tuple(float(r[f"raw_m_q{c}"]) for c in "wxyz"),
-                         "w": tuple(float(r[f"raw_m_w{c}"]) for c in "xyz"),
+            q = tuple(float(r[f"raw_m_q{c}"]) for c in "wxyz")
+            w = tuple(float(r[f"raw_m_w{c}"]) for c in "xyz")
+            rows.append({"t": float(r["t"]), "q": q, "w": qrot(qmul(q, turn), w) if local else w,
                          "g": tuple(float(r[f"raw_m_g{c}"]) for c in "xyz")})
         except (KeyError, ValueError):
             continue

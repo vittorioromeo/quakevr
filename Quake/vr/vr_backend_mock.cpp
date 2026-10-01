@@ -4,6 +4,7 @@
 // its own textures (the left eye is mirrored to the window), so the VR code paths -- including
 // stereo rendering -- can run and be tested without a headset.
 
+#include "vr_angvel.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -631,6 +632,12 @@ public:
         return "mock";
     }
 
+    // vr_mock_angvel_local stands for VirtualDesktopXR's angular velocity (vr_angvel_frame -1 starts from the name).
+    [[nodiscard]] const char* runtimeName() const override
+    {
+        return vr_mock_angvel_local.value ? "mock (VirtualDesktopXR angular velocity)" : "mock";
+    }
+
     [[nodiscard]] bool start() override
     {
         ensureTextures();
@@ -742,10 +749,15 @@ public:
             hand.gripVelocity = hand.gripVelocityValid
                                     ? hand.linearVelocity - glm::cross(hand.angularVelocity, -(hand.orientation * tracking.gripInHand[h].offset))
                                     : glm::vec3{0.f};
-            // vr_mock_angvel_local: the angular velocity in the controller's own frame, as VirtualDesktopXR reports it.
+            // vr_mock_angvel_local: the angular velocity in the controller's own frame, as VirtualDesktopXR reports it,
+            // and the legacy pose's velocity the OpenXR backend's toLegacyPose makes with it (vr_angvel.cpp fixes both).
             if(vr_mock_angvel_local.value)
             {
-                hand.angularVelocity = glm::inverse(hand.orientation) * hand.angularVelocity;
+                hand.angularVelocity = glm::inverse(angvel::controllerFrame(hand, tracking.gripInHand[h])) * hand.angularVelocity;
+                if(hand.gripVelocityValid)
+                {
+                    hand.linearVelocity = hand.gripVelocity + glm::cross(hand.angularVelocity, -(hand.orientation * tracking.gripInHand[h].offset));
+                }
             }
         }
 

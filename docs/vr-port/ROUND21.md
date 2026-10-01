@@ -18347,6 +18347,47 @@ the handle; 180 backwards).
   180; the runtime's angular velocity in the world or the controller's frame; before and after): with the
   controller's frame and `vr_throw_spin_from_pose 0`, 0 / 90 / 180 degrees off end over end (the bug); every other
   case 0.0, spin 8.0-8.3 rad/s. PASS.
+## The runtime's angular velocity frame, fixed for every consumer (2026-10-01)
+
+Follow-up to the axe's spin above; his call: fix it globally. **One fix, after the tracking** (`vr_angvel.cpp`,
+`angvel::fix`, right after `motion::afterTracking` in vr_main.cpp, for live tracking and a take's playback alike): the
+hands' `angularVelocity` is put in the tracking space, and the legacy pose's velocity lever term
+(`gripVelocity + cross(w, raw - grip)`, the backend's `toLegacyPose`) is redone with it. So every reader agrees: the hands'
+`angVel` (sent to QC, throws with `vr_throw_spin_from_pose 0`), the calibrated hand's point (`cross(angularVelocity, off)`),
+the hands' velocity (melee's `handvel`, chainsaw, flashlight, shells). Flick reload reads only `|w|`: unchanged (but
+for vr_angvel_frame 2). The head's angular velocity is left as it comes (nothing reads it).
+
+**The frame, fitted** on his 177 takes of 2026-09-29 (VirtualDesktopXR 1.0.10, Touch; ~10 000 samples with the
+pose turning over 6 rad/s; pose's turn against the runtime's vector two samples later, its best lag): the grip pose
+turned -57.5 degrees about its x axis (the legacy pose turned -36.9): median cosine 0.98; read as the legacy pose's own
+frame 0.83, as the tracking space 0.50.
+
+`vr_angvel_frame` (Settings > Throwing: Controller Spin Frame): -1 auto (default), 0 the tracking space as OpenXR says
+(the old behavior), 1 the controller's frame, 2 from the controller's turn (the runtime's ignored).
+`vr_angvel_local_pitch -57.5` (the fitted turn). Auto starts from the runtime's name (VirtualDesktopXR: the
+controller's frame; a take's `source` while it plays) and counts, on samples turning over 4 rad/s, which reading
+points along the turn (when they differ by over 0.3 in cosine); 60 net samples against switch it (console: `VR: the
+controllers' angular velocity: ... (detected ...)`), so a runtime or a later VirtualDesktopXR that follows OpenXR is
+taken as it comes. Simulated on 59 takes: as recorded it never wavers (evidence never below its start); converted to
+the tracking space (a runtime that follows OpenXR, wrongly seeded) it switches within the take in 16 of the 59 (takes
+of 3-4 s). Debug > Controller Spin (`vr_debug_angvel 1`): the frame, the evidence, the runtime's and the fixed vector
+against the turn, the hand's speed before and after.
+
+Takes still record the runtime's own numbers (`raw_m_w*`, and `raw_m_v*` with the old lever term): replays go through
+the same fix, so old and new takes replay alike. `throw_calibration.py` turns `raw_m_w*` into the tracking space for
+VirtualDesktopXR takes. The mock's `vr_mock_angvel_local 1` now uses the same frame and makes the legacy velocity as
+toLegacyPose would on Virtual Desktop, and reports a VirtualDesktopXR runtime name.
+
+### Checked
+
+- Melee eval: canary 0 differences; full set 172/177 (as before), 1 differs from the baseline:
+  slash_backswing_up_right_2026-09-29_23-12-35 PASS -> PASS, 27.0 -> 26.9: the same with `vr_angvel_frame 0`, so not
+  from this. Melee's strike speeds come from the strike points' positions, not the runtime's velocities: no takes to
+  re-record. (Punch hook replayed: the hand's speed at a fast wrist turn 0.84 -> 1.07 m/s, events unchanged.)
+- `Misc/quakevr/throw_spin_test.sh` (now also with vr_angvel_frame 0 / -1 / 2): only local + from_pose 0 + frame 0 is
+  off (0 / 90 / 180); every other case 0.0, 8.0-8.6 rad/s. PASS.
+- Mock swing (tracking space): no false detection, cosine 1.00.
+
 ## Crates: wood dust, stacks, a grittier texture (2026-10-01)
 
 **Wood dust, not blood** (NOTES.md e1m1_2026-10-01_12-10-47). Only the shots' and thrown things' touches

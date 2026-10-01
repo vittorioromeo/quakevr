@@ -61,8 +61,21 @@ QVR_CVAR(vr_throw_ang_factor, "0.7", CVAR_ARCHIVE)
 // (vr_hands.cpp poseSpin); 0: the runtime's angular velocity, which OpenXR gives in the tracking space but
 // VirtualDesktopXR 1.0.10 gives in the controller's own frame (takes of 2026-09-29: 0.97 against the turn in the
 // controller's frame, 0.3-0.5 in the tracking space): a flick facing anywhere but the play space's front then spun
-// the throw about another axis (an upright axe flicked end over end left the hand cartwheeling sideways).
+// the throw about another axis (an upright axe flicked end over end left the hand cartwheeling sideways). vr_angvel_frame
+// now puts the runtime's in the tracking space too (both agree on any runtime; the turn leads the runtime's by about 2 samples).
 QVR_CVAR(vr_throw_spin_from_pose, "1", CVAR_ARCHIVE)
+// The frame of the controllers' angular velocity from the runtime (vr_angvel.cpp; ROUND21.md, "The runtime's angular
+// velocity frame"): -1 auto (the runtime's name, then its samples: VirtualDesktopXR 1.0.10 gives the controller's own
+// frame), 0 the tracking space as OpenXR says (as before 2026-10-01), 1 the controller's frame, 2 none: from the
+// controller's turn between samples. Every consumer (melee's hand velocity, the hand calibration, flick reload, throws)
+// gets it in the tracking space.
+QVR_CVAR(vr_angvel_frame, "-1", CVAR_ARCHIVE)
+// The controller's frame (vr_angvel_frame 1): the grip pose turned this many degrees about its x axis (fitted on the
+// author's VirtualDesktopXR takes, Quest Touch).
+QVR_CVAR(vr_angvel_local_pitch, "-57.5", CVAR_ARCHIVE)
+// Prints each hand's angular velocity fix while it turns faster than 4 rad/s: the frame in use, the detection's
+// evidence, the runtime's vector and the fixed one against the pose's turn (cosines), the hand's speed before and after.
+QVR_CVAR(vr_debug_angvel, "0", CVAR_NONE)
 QVR_CVAR(vr_throw_pitch, "0", CVAR_ARCHIVE)        // degrees every throw's direction is tilted up (negative: down), its speed kept
 QVR_CVAR(vr_throw_gravity, "9.81", CVAR_ARCHIVE)   // m/s^2 on thrown weapons, bounces included (0: sv_gravity)
 QVR_CVAR(vr_debug_throw, "0", CVAR_NONE)           // print each throw's estimate (2: and its timing)
@@ -127,8 +140,9 @@ QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
 // Mock backend: 1 reports the grip's (the palm's) velocity too, as the OpenXR backend does for a Touch controller with
 // vr_controller_legacy_pose (throws then go with the palm, as in the headset); 0 (the default): the raw pose's only.
 QVR_CVAR(vr_mock_grip_velocity, "0", CVAR_NONE)
-// Mock backend: 1 reports the hands' angular velocity in the controller's own frame, as VirtualDesktopXR 1.0.10 does
-// (vr_throw_spin_from_pose); 0 (the default): in the tracking space, as OpenXR says.
+// Mock backend: 1 reports the hands' angular velocity in the controller's own frame (vr_angvel_local_pitch), and the
+// legacy pose's velocity made with it, as VirtualDesktopXR 1.0.10 with the OpenXR backend's toLegacyPose does; its
+// runtime name then says VirtualDesktopXR (vr_angvel_frame -1); 0 (the default): in the tracking space, as OpenXR says.
 QVR_CVAR(vr_mock_angvel_local, "0", CVAR_NONE)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
