@@ -103,6 +103,8 @@ Weapon effects (Weapons > Weapon Effects): burst rifle recoil kick and return, m
 
 Grapple a tilted explosive box: hook its corners and the empty corners of its bounding box (should miss those); a hooked heavy prop keeps the hook on its surface as it turns
 
+Topple the long box in both hands onto its side, let go, walk into it from every side: it shoves, never lets you through; a thrown box is solid to you while it flies
+
 [Decide or give feedback]
 Rockets and nails still hit a turned box's bigger bounding box: make them use its real shape too?
 Physics threads: default 150-body threshold and 4-thread cap OK?
