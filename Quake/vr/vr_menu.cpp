@@ -2256,6 +2256,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Thread Pool Self-Test", "vr_jobs_test")
             .help("vr_jobs_test: the pool's checks (start and stop, every item once, the main thread helping, busy workers, "
                   "exceptions, nested waits, the same results whatever the threads), a line each (under a second)."),
+        command("Zancle Math Self-Test", "vr_zancle_math_test")
+            .help("vr_zancle_math_test: Zancle's math (and the angle wrap) against the standard library's on edge values "
+                  "(signed zeros, halves, wrap angles, infinities, NaN), to the last bit; one line."),
         command("Grasp Bench", "vr_grasp_bench")
             .help("vr_grasp_bench: each hand's grasp solve on what it holds, timed (afresh, and again 1000 times)."),
         command("Grasp Sweep", "vr_grasp_sweep 5")

@@ -17,9 +17,12 @@
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Cbrt.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Exp2.hpp"
 #include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Log2.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Round.hpp"
@@ -690,7 +693,7 @@ mem::Scratch<ShadowScratch> shadowScratch{"shadow lights"};
 
 [[nodiscard]] float pow2Floor(float v)
 {
-    return qza::exp2(za::floor(qza::log2(za::max(v, 1.f))));
+    return za::exp2(za::floor(za::log2(za::max(v, 1.f))));
 }
 
 // The viewer's PVS, or null for everything visible (Mod_LeafPVS decompresses it on every call).
@@ -1549,7 +1552,7 @@ extern "C" float VR_ParallaxDepth(const entity_t* e, const float matrix[16], con
     {
         det /= za::max(qza::abs(modelscale[0] * modelscale[1] * modelscale[2]), 1e-12f);
     }
-    const float scale = qza::cbrt(det);
+    const float scale = za::cbrt(det);
     float depth = world;
     if(modelscale)
     {

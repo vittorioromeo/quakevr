@@ -5,6 +5,7 @@
 #include "vr_mem.hpp"
 #include "vr_units.hpp"
 
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -13,7 +14,6 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "vr_zancle.hpp"
 
 
 namespace qvr::coil
@@ -122,7 +122,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
     const float m2u = units::metresToUnits();
     const float dt = static_cast<float>(realtime - time_);
     // Afresh: first drawn, a long pause, or an end jumping away from the other (a teleport of one, a respawn).
-    if(!valid_ || dt > 0.25f || glm::distance(b - lastB_, a - lastA_) > 1.f * m2u || !qza::isfinite(pos_[segments / 2].x))
+    if(!valid_ || dt > 0.25f || glm::distance(b - lastB_, a - lastA_) > 1.f * m2u || !ZA_ISFINITE(pos_[segments / 2].x))
     {
         reset(a, b);
         return;

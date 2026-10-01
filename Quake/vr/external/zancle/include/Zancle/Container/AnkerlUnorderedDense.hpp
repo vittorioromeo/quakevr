@@ -34,7 +34,9 @@
 // NOLINTBEGIN(readability-identifier-naming)
 
 #pragma once
-#pragma GCC system_header
+#if defined(__GNUC__)
+#    pragma GCC system_header
+#endif
 
 
 #if defined(__GNUC__)
@@ -46,6 +48,7 @@
 #endif
 
 #include "Zancle/Base/Abort.hpp"
+#include "Zancle/Base/Limits.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/Exchange.hpp"
@@ -495,7 +498,7 @@ template <typename Float>
             return hash(za::U64{0});
 
         za::U64 buf[2]{};
-#    if defined(__LDBL_MANT_DIG__) && __LDBL_MANT_DIG__ == 64
+#    if ZA_LONG_DOUBLE_MANT_DIG == 64
         // x87 80-bit extended precision: only the first 10 bytes hold the value,
         // the rest is padding with unspecified contents that must not be hashed.
         constexpr za::SizeT valueBytes = ZA_IS_SAME(Float, long double) ? 10u : sizeof(Float);

@@ -30,6 +30,7 @@
 #include "vr_checklist.hpp"
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
+#include "vr_zancle.hpp"
 #include "vr_posing.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_bigfont.hpp"
@@ -1097,6 +1098,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_model_reload", view::modelReload_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_hitmodel_bench", hitmodel::bench_f);
+    Cmd_AddCommand("vr_zancle_math_test", qza::mathTest_f);
     Cmd_AddCommand("vr_hitmodel_stats", hitmodel::stats_f);
     Cmd_AddCommand("vr_hitmodel_check", hitmodel::check_f);
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);

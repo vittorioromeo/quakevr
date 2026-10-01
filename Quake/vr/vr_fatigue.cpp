@@ -13,10 +13,10 @@
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmod.hpp"
+#include "Zancle/Math/Hypot.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
-#include "vr_zancle.hpp"
 
 #include <glm/gtc/constants.hpp>
 
@@ -239,7 +239,7 @@ extern "C" float VR_StaminaSpeedScale(edict_t* ent)
     {
         fatigue::speedPrintedAt = realtime;
         Con_Printf("stamina speed: stamina %.2f cap %.0f (x%.3f) ground speed %.1f\n", left, sv_maxspeed.value * scale, scale,
-            qza::hypot(ent->v.velocity[0], ent->v.velocity[1]));
+            za::hypot(ent->v.velocity[0], ent->v.velocity[1]));
     }
     return scale;
 }

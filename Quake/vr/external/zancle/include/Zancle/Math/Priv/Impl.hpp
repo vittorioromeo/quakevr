@@ -35,6 +35,8 @@
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
 #include "Zancle/Trait/IsSame.hpp"
 
 
@@ -42,7 +44,7 @@
 // Checks the `__builtin_`-prefixed names (the ones actually used), not the plain library names:
 // the latter are not builtins under `-fno-builtin`/`-ffreestanding`, while the former still are.
 #define ZA_PRIV_HAS_MATH_BUILTIN(name) \
-    (__has_builtin(__builtin_##name) && __has_builtin(__builtin_##name##f) && __has_builtin(__builtin_##name##l))
+    (ZA_HAS_BUILTIN(__builtin_##name) && ZA_HAS_BUILTIN(__builtin_##name##f) && ZA_HAS_BUILTIN(__builtin_##name##l))
 
 
 ////////////////////////////////////////////////////////////

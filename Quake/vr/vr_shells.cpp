@@ -24,6 +24,7 @@
 #include "vr_water.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -33,9 +34,10 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Random/FastNonCryptoRng.hpp"
+#include "vr_zancle.hpp"
 
 #include <string.h>
-#include <random>
 
 namespace qvr::shells
 {
@@ -140,11 +142,11 @@ Track tracks[2];
 double lastRun = -1.0;
 int lastFrame = -1;
 
-std::mt19937 rng{std::random_device{}()}; // ZANCLE-TODO: no random engines or distributions
+za::FastNonCryptoRng rng{static_cast<za::U64>(qza::nowNs())}; // a new sequence every run
 
 [[nodiscard]] float rnd(float lo, float hi)
 {
-    return std::uniform_real_distribution<float>{lo, hi}(rng);
+    return lo + (hi - lo) * rng.getF(0.f, 1.f); // (lo > hi too)
 }
 
 [[nodiscard]] glm::vec3 onSphere()
@@ -400,7 +402,7 @@ void tink(Shell& s, float impact)
     s.tinks++;
     s.nextTink = cl.time + 0.06;
 
-    sfx_t* sfx = S_PrecacheSound(tinkSounds[std::uniform_int_distribution<int>{0, 2}(rng)]);
+    sfx_t* sfx = S_PrecacheSound(tinkSounds[rng.getI(0, 2)]);
     if(!sfx)
     {
         return;
@@ -451,7 +453,7 @@ void enterLiquid(Shell& s, glm::vec3 dry, glm::vec3 wet)
     if(sounds < 2 && volume > 0.f)
     {
         static int last = -1;
-        int k = std::uniform_int_distribution<int>{0, 1}(rng);
+        int k = rng.getI(0, 1);
         k += last >= 0 && k >= last ? 1 : 0; // never the one played last
         last = k;
         if(sfx_t* sfx = S_PrecacheSound(plipSounds[k]))

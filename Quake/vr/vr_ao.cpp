@@ -23,8 +23,10 @@
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Copysign.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Floor.hpp"
+#include "Zancle/Math/Log2.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
@@ -681,7 +683,7 @@ void binTiles()
         const float wc = m[3] * o.centre.x + m[7] * o.centre.y + m[11] * o.centre.z + m[15];
         const auto slice = [](float w) {
             return w <= 1e-3f ? 0
-                              : za::clamp(static_cast<int>(za::floor(qza::log2(w) * r_framedata.zlogscale + r_framedata.zlogbias)),
+                              : za::clamp(static_cast<int>(za::floor(za::log2(w) * r_framedata.zlogscale + r_framedata.zlogbias)),
                                     0, LIGHT_TILES_Z - 1);
         };
         const int z0 = slice(wc - o.influence * depthScale), z1 = slice(wc + o.influence * depthScale);
@@ -833,7 +835,7 @@ void bakePose(const PoseJob& job, int pose, za::Vector<int>& cand)
         if(!cand.empty())
         {
             // Duff et al.'s frame round the normal.
-            const float sign = qza::copysign(1.f, n.z);
+            const float sign = za::copysign(1.f, n.z);
             const float a = -1.f / (sign + n.z);
             const float b = n.x * n.y * a;
             const glm::vec3 tx{1.f + sign * n.x * n.x * a, sign * b, -sign * n.x};

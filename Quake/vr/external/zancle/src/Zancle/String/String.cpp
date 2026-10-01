@@ -14,6 +14,7 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Memmove.hpp"
+#include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
 
@@ -64,11 +65,13 @@ void String::grow(const SizeT minCapacity)
 ////////////////////////////////////////////////////////////
 void String::createFrom(const char* const cStr, const SizeT count)
 {
-    ZA_ASSERT(cStr != nullptr);
+    ZA_ASSERT(cStr != nullptr || count == 0u); // empty views may have no storage
 
     if (count <= maxSsoSize)
     {
-        ZA_MEMCPY(m_rep.sso.buffer, cStr, count);
+        if (count != 0u) // avoid `memcpy(dst, null, 0)` (UB)
+            ZA_MEMCPY(m_rep.sso.buffer, cStr, count);
+
         setSizeAndTerminate(count);
     }
     else
@@ -111,7 +114,7 @@ String::String(const String& other) : String{other.data(), other.size()}
 String::String(String&& other) noexcept : m_rep{}
 {
     ZA_MEMCPY(&m_rep, &other.m_rep, sizeof(m_rep));
-    other.setSsoSize(0); // prevent double-free
+    other.resetToEmptySso(); // prevent double-free, and keep `other.cStr()` terminated
 }
 
 
@@ -136,7 +139,7 @@ String& String::operator=(String&& other) noexcept
         priv::VectorUtils::deallocate(m_rep.heap.data, getHeapCapacity() + 1u);
 
     ZA_MEMCPY(&m_rep, &other.m_rep, sizeof(m_rep));
-    other.setSsoSize(0); // prevent double-free
+    other.resetToEmptySso(); // prevent double-free, and keep `other.cStr()` terminated
 
     return *this;
 }
@@ -155,31 +158,18 @@ String& String::operator=(const StringView view)
 
     if (srcInsideThis)
     {
-        const auto offset = static_cast<SizeT>(src - myData);
+        // A view of our own contents is no longer than them: shift it to the front (overlap-safe)
+        ZA_ASSERT(newSize <= mySize - static_cast<SizeT>(src - myData));
 
-        // If it fits in current capacity we can memmove in-place (safe for overlap).
-        if (newSize <= capacity())
-        {
-            ZA_MEMMOVE(data(), data() + offset, newSize);
-            setSizeAndTerminate(newSize);
-            return *this;
-        }
-
-        // Need a new allocation; copy from the old buffer before deallocating it.
-        char* const newData = priv::VectorUtils::allocate<char>(newSize + 1u);
-        ZA_MEMCPY(newData, myData + offset, newSize);
-        newData[newSize] = '\0';
-
-        if (!isSso())
-            priv::VectorUtils::deallocate(m_rep.heap.data, getHeapCapacity() + 1u);
-
-        setHeap(newData, newSize, newSize);
+        ZA_MEMMOVE(data(), src, newSize);
+        setSizeAndTerminate(newSize);
         return *this;
     }
 
     if (!isSso() && view.size() <= getHeapCapacity())
     {
-        ZA_MEMCPY(m_rep.heap.data, view.data(), view.size());
+        if (!view.empty()) // avoid `memcpy(dst, null, 0)` (UB)
+            ZA_MEMCPY(m_rep.heap.data, view.data(), view.size());
         m_rep.heap.size         = view.size();
         data()[m_rep.heap.size] = '\0';
         return *this;
@@ -318,7 +308,7 @@ String& String::append(const char* const cStr)
 ////////////////////////////////////////////////////////////
 String& String::append(const char* const cStr, const SizeT count)
 {
-    ZA_ASSERT(cStr != nullptr);
+    ZA_ASSERT(cStr != nullptr || count == 0u);
     return append(StringView{cStr, count});
 }
 
@@ -346,10 +336,7 @@ void String::resize(const SizeT newSize, const char c)
     {
         reserve(newSize);
 
-        char* const d = data();
-        for (SizeT i = currentSize; i < newSize; ++i)
-            d[i] = c;
-
+        ZA_MEMSET(data() + currentSize, c, newSize - currentSize);
         setSizeAndTerminate(newSize);
     }
 }
@@ -361,8 +348,8 @@ void String::erase(const SizeT index, SizeT count)
     const SizeT currentSize = size();
     ZA_ASSERT(index <= currentSize && "Index is out of bounds");
 
-    // If count is nPos or goes past the end, clamp it to erase until the end.
-    if (count == nPos || index + count > currentSize)
+    // Clamp `count` (e.g. `nPos`) to erase until the end. Not `index + count > currentSize`: it can wrap around.
+    if (count > currentSize - index)
         count = currentSize - index;
 
     if (count == 0u)
@@ -378,7 +365,7 @@ void String::erase(const SizeT index, SizeT count)
 ////////////////////////////////////////////////////////////
 void String::assign(const char* const cStr, const SizeT count)
 {
-    ZA_ASSERT(cStr != nullptr);
+    ZA_ASSERT(cStr != nullptr || count == 0u);
     this->operator=(StringView{cStr, count});
 }
 
@@ -409,10 +396,17 @@ void String::insert(const SizeT pos, const char c)
 ////////////////////////////////////////////////////////////
 void String::insert(const SizeT pos, const char* const cStr)
 {
-    ZA_ASSERT(pos <= size() && "Insertion position is out of bounds");
     ZA_ASSERT(cStr != nullptr);
+    insert(pos, StringView{cStr});
+}
 
-    const SizeT insertCount = ZA_STRLEN(cStr);
+
+////////////////////////////////////////////////////////////
+void String::insert(const SizeT pos, const StringView view)
+{
+    ZA_ASSERT(pos <= size() && "Insertion position is out of bounds");
+
+    const SizeT insertCount = view.size();
     if (insertCount == 0u)
         return;
 
@@ -420,12 +414,13 @@ void String::insert(const SizeT pos, const char* const cStr)
     const SizeT newSize = oldSize + insertCount;
 
     const char* const myData        = data();
-    const bool        srcInsideThis = (cStr >= myData) && (cStr < myData + oldSize);
+    const bool        srcInsideThis = (view.data() >= myData) && (view.data() < myData + oldSize);
 
+    // Shifting (or reallocating) would clobber a view of our own contents: insert a copy
     if (srcInsideThis)
     {
-        const String insertedCopy{cStr, insertCount};
-        insert(pos, insertedCopy.cStr());
+        const String insertedCopy{view};
+        insert(pos, insertedCopy.toStringView());
         return;
     }
 
@@ -443,7 +438,7 @@ void String::insert(const SizeT pos, const char* const cStr)
     }
 
     // Copy new content into the created space and update size
-    ZA_MEMCPY(d + pos, cStr, insertCount);
+    ZA_MEMCPY(d + pos, view.data(), insertCount);
     setSizeAndTerminate(newSize);
 }
 
@@ -454,8 +449,8 @@ void String::replace(const SizeT pos, SizeT count, const StringView replacement)
     const SizeT oldSize = size();
     ZA_ASSERT(pos <= oldSize && "Replacement position is out of bounds");
 
-    // Clamp `count` to the rest of the string (matches `erase` semantics).
-    if (count == nPos || pos + count > oldSize)
+    // Clamp `count` to the rest of the string (matches `erase` semantics, and cannot wrap around).
+    if (count > oldSize - pos)
         count = oldSize - pos;
 
     // Self-aliasing: if `replacement` views into our own buffer, copy it first
@@ -513,30 +508,32 @@ SizeT String::replaceAllOccurrences(const StringView target, const StringView re
     if (target.empty())
         return 0u;
 
-    // Either input might view into our own buffer. The buffer can move
-    // mid-loop (any expanding `replace` may reallocate), so copy aliasing
-    // inputs into stable storage once before iterating.
-    const char* const myData = data();
-    const SizeT       myLen  = size();
-    const auto aliasesUs     = [&](const StringView v) { return (v.data() >= myData) && (v.data() < myData + myLen); };
+    const StringView self = toStringView();
 
-    if (aliasesUs(target) || aliasesUs(replacement))
-    {
-        const String targetCopy{target};
-        const String replacementCopy{replacement};
-        return replaceAllOccurrences(targetCopy.toStringView(), replacementCopy.toStringView());
-    }
-
+    // First pass: count the (non-overlapping) occurrences, to size the result exactly
     SizeT count = 0u;
-    SizeT pos   = 0u;
-
-    while ((pos = toStringView().find(target, pos)) != nPos)
-    {
-        replace(pos, target.size(), replacement);
-        pos += replacement.size(); // skip past the just-inserted replacement to avoid re-matching it
+    for (SizeT pos = self.find(target); pos != nPos; pos = self.find(target, pos + target.size()))
         ++count;
+
+    if (count == 0u)
+        return 0u;
+
+    // Second pass: build the result in a separate buffer. `*this` is untouched until the
+    // end, so `target` and `replacement` may freely view into it.
+    String result;
+    result.reserve(self.size() - count * target.size() + count * replacement.size());
+
+    SizeT copiedUpTo = 0u;
+    for (SizeT pos = self.find(target); pos != nPos; pos = self.find(target, pos + target.size()))
+    {
+        result.append(self.substrByPosLen(copiedUpTo, pos - copiedUpTo));
+        result.append(replacement);
+        copiedUpTo = pos + target.size();
     }
 
+    result.append(self.substrByPosLen(copiedUpTo));
+
+    swap(*this, result);
     return count;
 }
 

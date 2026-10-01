@@ -10,9 +10,12 @@
 
 #include "Zancle/Base/Assert.hpp"
 #include "Zancle/Base/LifetimeAttributes.hpp"
+#include "Zancle/Base/Memchr.hpp"
 #include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strlen.hpp"
+
+#include "Zancle/Trait/IsConvertible.hpp"
 
 
 namespace za
@@ -99,7 +102,14 @@ public:
     [[nodiscard, gnu::always_inline]] constexpr StringView(const char* const cStr) noexcept :
         theData{[cStr]
     {
-        ZA_ASSERT(cStr != nullptr); // assert before strlen to avoid UB
+        // Null checks here are runtime-only: GCC cannot constant-evaluate `pointerToGlobal != nullptr`
+        // under `-fsanitize=null` / `-fsanitize=nonnull-attribute`, and in constant evaluation any access
+        // through a null pointer is a compile error anyway
+        if !consteval
+        {
+            ZA_ASSERT(cStr != nullptr); // assert before strlen to avoid UB
+        }
+
         return cStr;
     }()},
         theSize{constexprStrLen(cStr)}
@@ -112,20 +122,28 @@ public:
         theData{cStr},
         theSize{len}
     {
-        ZA_ASSERT(cStr != nullptr || (cStr == nullptr && len == 0u));
+        if !consteval // see the null-terminated constructor
+        {
+            ZA_ASSERT(cStr != nullptr || (cStr == nullptr && len == 0u));
+        }
     }
 
 
     ////////////////////////////////////////////////////////////
+    // Any contiguous sequence of `char` (e.g. `za::String`, `za::Vector<char>`, `std::string`)
     template <typename StringLike>
     [[nodiscard, gnu::always_inline]] constexpr StringView(const StringLike& stringLike) noexcept
         requires(requires {
                     stringLike.data();
                     stringLike.size();
-                })
+                } && isConvertible<decltype(stringLike.data()), const char*>)
         : theData{stringLike.data()}, theSize{stringLike.size()}
     {
-        ZA_ASSERT(stringLike.data() != nullptr);
+        // Empty containers may legitimately have no storage
+        if !consteval // see the null-terminated constructor
+        {
+            ZA_ASSERT(theData != nullptr || theSize == 0u);
+        }
     }
 
 
@@ -191,6 +209,28 @@ public:
 
         const char* const lastPossibleStart = theData + theSize - v.theSize;
 
+        if !consteval
+        {
+            // Jump between candidates with `memchr` (much faster than a byte loop, especially at `-O0`)
+            const char* p = theData + startPos;
+
+            while (true)
+            {
+                p = static_cast<const char*>(ZA_MEMCHR(p, v.theData[0], static_cast<SizeT>(lastPossibleStart - p) + 1u));
+
+                if (p == nullptr)
+                    return nPos;
+
+                if (ZA_MEMCMP(p + 1, v.theData + 1, v.theSize - 1u) == 0)
+                    return static_cast<SizeT>(p - theData);
+
+                if (p == lastPossibleStart)
+                    return nPos;
+
+                ++p;
+            }
+        }
+
         for (const char* p = theData + startPos; p <= lastPossibleStart; ++p)
             if (constexprMemCmp(p, v.theData, v.theSize) == 0)
                 return static_cast<SizeT>(p - theData);
@@ -204,6 +244,12 @@ public:
     {
         if (startPos >= theSize)
             return nPos;
+
+        if !consteval
+        {
+            const void* const p = ZA_MEMCHR(theData + startPos, c, theSize - startPos);
+            return p == nullptr ? nPos : static_cast<SizeT>(static_cast<const char*>(p) - theData);
+        }
 
         for (SizeT i = startPos; i < theSize; ++i)
             if (theData[i] == c)
@@ -363,7 +409,9 @@ public:
     ////////////////////////////////////////////////////////////
     [[nodiscard, gnu::always_inline, gnu::pure]] constexpr bool startsWith(const StringView prefix) const noexcept
     {
-        return theSize >= prefix.theSize && constexprMemCmp(theData, prefix.theData, prefix.theSize) == 0;
+        // (empty operands may have no storage: don't pass null pointers to `memcmp`)
+        return prefix.theSize == 0u ||
+               (theSize >= prefix.theSize && constexprMemCmp(theData, prefix.theData, prefix.theSize) == 0);
     }
 
 
@@ -377,8 +425,9 @@ public:
     ////////////////////////////////////////////////////////////
     [[nodiscard, gnu::always_inline, gnu::pure]] constexpr bool endsWith(const StringView suffix) const noexcept
     {
-        return theSize >= suffix.theSize &&
-               constexprMemCmp(theData + theSize - suffix.theSize, suffix.theData, suffix.theSize) == 0;
+        return suffix.theSize == 0u ||
+               (theSize >= suffix.theSize &&
+                constexprMemCmp(theData + theSize - suffix.theSize, suffix.theData, suffix.theSize) == 0);
     }
 
 
@@ -497,7 +546,11 @@ public:
     ////////////////////////////////////////////////////////////
     [[nodiscard, gnu::always_inline, gnu::pure]] constexpr const char& operator[](const SizeT i) const noexcept
     {
-        ZA_ASSERT(theData != nullptr);
+        if !consteval // see the null-terminated constructor
+        {
+            ZA_ASSERT(theData != nullptr);
+        }
+
         ZA_ASSERT(i < theSize);
 
         return theData[i];
@@ -591,14 +644,6 @@ public:
                                                                                          const StringView& rhs) noexcept
     {
         return rhs <= lhs;
-    }
-
-
-    ////////////////////////////////////////////////////////////
-    template <typename StringLike>
-    [[nodiscard, gnu::always_inline]] StringLike toString() const
-    {
-        return StringLike{theData, theSize};
     }
 
 

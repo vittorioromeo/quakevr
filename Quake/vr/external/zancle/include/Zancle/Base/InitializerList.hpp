@@ -8,8 +8,10 @@
     // Quake VR (local change): `_MSC_VER` too. MSVC's STL lays std::initializer_list out as two pointers, not as the
     // pointer and size below: a program that also uses MSVC's STL got two std::initializer_list<T> of different
     // layouts in different files (an ODR violation: the linker keeps one instantiation of, say, std::vector<int>'s
-    // initializer-list constructor, and a caller built with the other layout passes it a pointer as the size). The
-    // real header there. (libstdc++'s and libc++'s are a pointer and a size, as this one.)
+    // initializer-list constructor, and a caller built with the other layout passes it a pointer as the size). Sharing
+    // the STL's include guard (`_INITIALIZER_LIST_`, upstream) only settles which one a file gets: the one whose header
+    // came first, so still both in one program. The real header there. (libstdc++'s and libc++'s are a pointer and a
+    // size, as this one.) Quake/vr/external/zancle/README.md.
     #include <initializer_list> // IWYU pragma: export
 
 #elif !defined(_LIBCPP_INITIALIZER_LIST) && !defined(_INITIALIZER_LIST) && !defined(_INITIALIZER_LIST_)
@@ -48,6 +50,16 @@ public:
         m_size(s)
     {
     }
+
+    #if defined(_MSC_VER) && !defined(__clang__)
+    ////////////////////////////////////////////////////////////
+    // MSVC constructs braced lists through a `(first, last)` constructor (clang-cl uses the member layout)
+    [[nodiscard, gnu::always_inline]] constexpr initializer_list(const T* const first, const T* const last) noexcept :
+        m_begin(first),
+        m_size(static_cast<size_type>(last - first))
+    {
+    }
+    #endif
 
 
     ////////////////////////////////////////////////////////////

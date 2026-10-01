@@ -6,6 +6,7 @@
 #include "vr_api_render.h"
 
 #include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -230,7 +231,7 @@ struct Shape::Space
             first[c + 1] = first[c] + counts[c];
         }
         items.resize(first[cells]);
-        qza::fill(counts.begin(), counts.end(), 0u);
+        za::fill(counts.begin(), counts.end(), 0u);
         for(za::SizeT i = 0; i < tris.size(); i++)
         {
             each(tris[i], [&](za::SizeT c, za::U32 firsts) {
@@ -1038,7 +1039,7 @@ void reset()
 
 void forgetSolves()
 {
-    qza::fill(remembered, Remembered{});
+    za::fill(remembered.begin(), remembered.end(), Remembered{});
     rememberedNext = 0;
     rememberedUsed = 0;
 }

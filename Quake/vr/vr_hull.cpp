@@ -8,6 +8,7 @@
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/StablePartition.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memcmp.hpp"
@@ -21,12 +22,12 @@
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
 
 #include <string.h>
-#include <random>
 
 namespace qvr::hull
 {
@@ -1650,7 +1651,7 @@ private:
                 ++facing_[t];
             }
         }
-        qza::stablePartition(cands_.begin(), cands_.end(),
+        za::stablePartition(cands_.begin(), cands_.end(),
             [this](int c) { return planeAt(c).type < 3; });
         const za::SizeT step = za::max<za::SizeT>(1, cands_.size() * frags.size() / chooseBudget);
         int best = cands_.front();
@@ -2670,9 +2671,9 @@ void bench_f()
     const hull_t& hull0 = world->hulls[0];
     const glm::vec3 wmins{world->mins[0], world->mins[1], world->mins[2]};
     const glm::vec3 wmaxs{world->maxs[0], world->maxs[1], world->maxs[2]};
-    std::mt19937 rng{1234u}; // ZANCLE-TODO: no random engines or distributions (the bench's inputs kept)
-    std::uniform_real_distribution<float> u01{0.f, 1.f};
-    auto randomPoint = [&] { return wmins + (wmaxs - wmins) * glm::vec3{u01(rng), u01(rng), u01(rng)}; };
+    za::FastNonCryptoRng rng{1234u}; // the same points every run
+    const auto u01 = [&rng] { return rng.getF(0.f, 1.f); };
+    auto randomPoint = [&] { return wmins + (wmaxs - wmins) * glm::vec3{u01(), u01(), u01()}; };
 
     za::Vector<glm::vec3> starts, ends;
     int tries = 0;
@@ -2685,13 +2686,13 @@ void bench_f()
         {
             continue;
         }
-        glm::vec3 dir{u01(rng) * 2.f - 1.f, u01(rng) * 2.f - 1.f, u01(rng) * 2.f - 1.f};
+        glm::vec3 dir{u01() * 2.f - 1.f, u01() * 2.f - 1.f, u01() * 2.f - 1.f};
         if(glm::length(dir) < 0.1f)
         {
             continue;
         }
         starts.pushBack(p);
-        ends.pushBack(p + glm::normalize(dir) * (u01(rng) * 256.f));
+        ends.pushBack(p + glm::normalize(dir) * (u01() * 256.f));
     }
     const int n = static_cast<int>(starts.size());
     if(!n)

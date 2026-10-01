@@ -3,7 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__is_assignable) && __has_builtin(__add_lvalue_reference) && __has_builtin(__add_rvalue_reference)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__is_assignable) && ZA_HAS_BUILTIN(__add_lvalue_reference) && ZA_HAS_BUILTIN(__add_rvalue_reference)
 
     ////////////////////////////////////////////////////////////
     #define ZA_IS_MOVE_ASSIGNABLE(...) \

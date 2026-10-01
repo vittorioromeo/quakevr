@@ -18,6 +18,7 @@
 #include "vr_view.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Replace.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -25,7 +26,6 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/String/ToString.hpp"
@@ -586,7 +586,7 @@ void rebuild()
         return t.stamp;
     }
     za::String hms{t.stamp.substrByPosLen(11, 8)};
-    qza::replace(hms.begin(), hms.end(), '-', ':');
+    za::replace(hms.begin(), hms.end(), '-', ':');
     return multiDay ? t.stamp.substrByPosLen(8, 2) + " " + hms.substrByPosLen(0, 5) : hms;
 }
 
@@ -1146,7 +1146,7 @@ void anchorGhost(const hands::State& s)
 
 [[nodiscard]] float lerpAngle(float a, float b, float f)
 {
-    return a + za::remainder(b - a, 360.f) * f;
+    return a + qza::remainder(b - a, 360.f) * f;
 }
 
 [[nodiscard]] glm::vec3 lerpAngles(const glm::vec3& a, const glm::vec3& b, float f)
@@ -1355,7 +1355,7 @@ void makeDetails()
     if(when.size() >= 19)
     {
         when = when.substrByPosLen(0, 10) + " " + when.substrByPosLen(11);
-        qza::replace(when.begin() + 11, when.end(), '-', ':');
+        za::replace(when.begin() + 11, when.end(), '-', ':');
     }
     wrapInto(details, t->label);
     wrapInto(details, "recorded " + when + (t->discarded ? "  DISCARDED" : ""));

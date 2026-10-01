@@ -16,7 +16,6 @@
 
 #include "Zancle/Base/Assert.hpp"
 #include "Zancle/Base/LifetimeAttributes.hpp"
-#include "Zancle/Base/Memcmp.hpp"
 #include "Zancle/Base/SizeT.hpp"
 
 #include "Zancle/Trait/EnableTrivialRelocation.hpp"
@@ -165,6 +164,19 @@ private:
 
 
     ////////////////////////////////////////////////////////////
+    /// \brief Make `*this` an empty SSO string (without freeing any heap buffer)
+    ///
+    /// Used on moved-from strings: the heap representation's bytes are left
+    /// in the SSO buffer, so the terminator must be rewritten too.
+    ///
+    ////////////////////////////////////////////////////////////
+    [[gnu::always_inline]] constexpr void resetToEmptySso() noexcept
+    {
+        setSsoSize(0u);
+        m_rep.sso.buffer[0] = '\0';
+    }
+
+
     void createFrom(const char* cStr, SizeT count);
     void grow(SizeT minCapacity);
 
@@ -421,6 +433,7 @@ public:
     void assign(const char* cStr, SizeT count);
     void insert(SizeT pos, char c);
     void insert(SizeT pos, const char* cStr);
+    void insert(SizeT pos, StringView view);
 
 
     ////////////////////////////////////////////////////////////
@@ -510,10 +523,7 @@ public:
 ////////////////////////////////////////////////////////////
 [[nodiscard, gnu::flatten, gnu::always_inline]] inline constexpr bool operator==(const String& lhs, const StringView rhs) noexcept
 {
-    if (lhs.size() != rhs.size())
-        return false;
-
-    return ZA_MEMCMP(lhs.data(), rhs.data(), lhs.size()) == 0;
+    return lhs.toStringView() == rhs; // handles empty views without storage
 }
 
 
@@ -571,6 +581,31 @@ public:
 {
     return lhs.toStringView() >= rhs.toStringView();
 }
+
+
+////////////////////////////////////////////////////////////
+// Ordering against C strings. Without these, the only viable overload
+// would take two `String`s, constructing (and possibly allocating) a
+// temporary `String` from the C string on every comparison. (Comparisons
+// against `StringView` use `StringView`'s own operators.)
+////////////////////////////////////////////////////////////
+#define ZA_PRIV_DEFINE_STRING_CSTR_ORDERING(op)                                                                            \
+    [[nodiscard, gnu::always_inline]] inline constexpr bool operator op(const String& lhs, const char* const rhs) noexcept \
+    {                                                                                                                      \
+        return lhs.toStringView() op StringView{rhs};                                                                      \
+    }                                                                                                                      \
+                                                                                                                           \
+    [[nodiscard, gnu::always_inline]] inline constexpr bool operator op(const char* const lhs, const String& rhs) noexcept \
+    {                                                                                                                      \
+        return StringView{lhs} op rhs.toStringView();                                                                      \
+    }
+
+ZA_PRIV_DEFINE_STRING_CSTR_ORDERING(<)
+ZA_PRIV_DEFINE_STRING_CSTR_ORDERING(<=)
+ZA_PRIV_DEFINE_STRING_CSTR_ORDERING(>)
+ZA_PRIV_DEFINE_STRING_CSTR_ORDERING(>=)
+
+#undef ZA_PRIV_DEFINE_STRING_CSTR_ORDERING
 
 } // namespace za
 

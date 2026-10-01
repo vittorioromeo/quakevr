@@ -17,8 +17,10 @@
 #include "vr_units.hpp"
 
 #include "Zancle/Algorithm/Count.hpp"
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -29,8 +31,8 @@
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/Hypot.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
@@ -985,8 +987,8 @@ void gpuFrameDone(int queries)
             addMax(s->gpuViewSum[v], s->gpuViewMax[v], frameViewGpu[v]);
         }
     }
-    qza::fill(frameGpu, 0.0);
-    qza::fill(frameViewGpu, 0.0);
+    za::fill(frameGpu, frameGpu + za::getArraySize(frameGpu), 0.0);
+    za::fill(frameViewGpu, frameViewGpu + za::getArraySize(frameViewGpu), 0.0);
 }
 
 void profilerTime(za::I64 ns)
@@ -1065,8 +1067,8 @@ void frameEnd(za::I64 now, za::I64 periodNs, za::I64 hostNs, const Counts& count
             addMax(s->countSum[c], s->countMax[c], n[c]);
         }
     }
-    qza::fill(frameCpu, za::I64{0});
-    qza::fill(frameViewCpu, za::I64{0});
+    za::fill(frameCpu, frameCpu + za::getArraySize(frameCpu), za::I64{0});
+    za::fill(frameViewCpu, frameViewCpu + za::getArraySize(frameViewCpu), za::I64{0});
 
     // A second's end: into the ring (and a row of the CSV).
     if(now - secondStart >= 1'000'000'000)
@@ -1117,10 +1119,10 @@ void start(za::I64 now)
     second = half = lastHalf = Sum{};
     secondStart = halfStart = now;
     ringCount = ringNext = 0;
-    qza::fill(frameCpu, za::I64{0});
-    qza::fill(frameViewCpu, za::I64{0});
-    qza::fill(frameGpu, 0.0);
-    qza::fill(frameViewGpu, 0.0);
+    za::fill(frameCpu, frameCpu + za::getArraySize(frameCpu), za::I64{0});
+    za::fill(frameViewCpu, frameViewCpu + za::getArraySize(frameViewCpu), za::I64{0});
+    za::fill(frameGpu, frameGpu + za::getArraySize(frameGpu), 0.0);
+    za::fill(frameViewGpu, frameViewGpu + za::getArraySize(frameViewGpu), 0.0);
     qcProgs = nullptr;
     panelText.clear();
     panelBars.clear();
@@ -1169,7 +1171,7 @@ void overlay()
                              glm::vec3{0.f, 0.f, 0.06f * m2u + 0.5f * lineCount * charSize};
         const glm::vec3 d = at - s.head;
         const float yaw = za::atan2(d.y, d.x) * 180.f / static_cast<float>(M_PI);
-        const float pitch = -za::atan2(d.z, qza::hypot(d.x, d.y)) * 180.f / static_cast<float>(M_PI);
+        const float pitch = -za::atan2(d.z, za::hypot(d.x, d.y)) * 180.f / static_cast<float>(M_PI);
         text3d::queueOverlay(panelText, at, glm::vec3{pitch, yaw, 0.f}, charSize / 8.f, panelBars, 0.8f);
         return;
     }
@@ -1180,7 +1182,7 @@ void overlay()
         panelYaw = headYaw;
         panelPlaced = true;
     }
-    float off = za::remainder(headYaw - panelYaw, 360.f);
+    float off = qza::remainder(headYaw - panelYaw, 360.f);
     if(za::fabs(off) > 30.f)
     {
         const float step = za::min(za::fabs(off) - 30.f, za::max(1.f, 120.f * static_cast<float>(host_frametime)));
@@ -1190,7 +1192,7 @@ void overlay()
     const glm::vec3 dir{za::cos(yawRad), za::sin(yawRad), 0.f};
     const glm::vec3 at = s.head + dir * (0.9f * m2u) - glm::vec3{0.f, 0.f, 0.12f * m2u};
     const glm::vec3 d = at - s.head;
-    const float pitch = -za::atan2(d.z, qza::hypot(d.x, d.y)) * 180.f / static_cast<float>(M_PI);
+    const float pitch = -za::atan2(d.z, za::hypot(d.x, d.y)) * 180.f / static_cast<float>(M_PI);
     const float charSize = 0.0095f * m2u; // 9.5 mm at 0.9 m: about the menu's text
     text3d::queueOverlay(panelText, at, glm::vec3{pitch, panelYaw, 0.f}, charSize / 8.f, panelBars, 0.8f);
 }

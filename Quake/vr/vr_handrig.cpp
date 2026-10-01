@@ -30,6 +30,7 @@
 #include "Zancle/Algorithm/Count.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Swap.hpp"
@@ -328,7 +329,7 @@ public:
         {
             fail(format("expected a number, found \"%s\"", t.cStr()));
         }
-        else if(!qza::isfinite(v))
+        else if(!ZA_ISFINITE(v))
         {
             fail(format("%s is not a finite number", t.cStr()));
         }
@@ -1051,7 +1052,7 @@ bool readRig(const char* meshText, Rig& out, za::String& error, Report& report)
             return false;
         }
         out_v.pos = restPlace(m, mv);
-        if(!qza::isfinite(out_v.pos.x) || !qza::isfinite(out_v.pos.y) || !qza::isfinite(out_v.pos.z) || glm::length(out_v.pos) > 100.f)
+        if(!ZA_ISFINITE(out_v.pos.x) || !ZA_ISFINITE(out_v.pos.y) || !ZA_ISFINITE(out_v.pos.z) || glm::length(out_v.pos) > 100.f)
         {
             error = format("%s: vertex %ld is at (%g %g %g), nowhere near the hand", meshFile, v, out_v.pos.x, out_v.pos.y, out_v.pos.z);
             return false;

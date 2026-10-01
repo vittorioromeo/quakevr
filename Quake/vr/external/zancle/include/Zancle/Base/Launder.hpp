@@ -4,6 +4,12 @@
 
 
 ////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+////////////////////////////////////////////////////////////
 /// \brief `std::launder` replacement, prefers `__builtin_launder` to avoid `<new>`
 ///
 /// `std::launder` tells the optimizer that a pointer obtained by some
@@ -12,7 +18,7 @@
 /// dereferences well-defined.
 ///
 ////////////////////////////////////////////////////////////
-#if __has_builtin(__builtin_launder)
+#if ZA_HAS_BUILTIN(__builtin_launder)
 
     #define ZA_LAUNDER __builtin_launder
 

@@ -19,11 +19,11 @@
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Copysign.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/String/ToString.hpp"
-#include "vr_zancle.hpp"
 
 #include <string.h>
 
@@ -681,7 +681,7 @@ void sticks(const glm::vec2& off, const glm::vec2& main)
     }
     const glm::vec2 stick = confirmHand() == HAND_MAIN ? main : off;
     const auto dz = [](float v) {
-        return za::fabs(v) < stickDeadzone ? 0.f : (v - qza::copysign(stickDeadzone, v)) / (1.f - stickDeadzone);
+        return za::fabs(v) < stickDeadzone ? 0.f : (v - za::copysign(stickDeadzone, v)) / (1.f - stickDeadzone);
     };
     const float dt = static_cast<float>(CLAMP(0.0, host_frametime, 0.1));
     turn(-dz(stick.x) * turnSpeed * dt, dz(stick.y) * turnSpeed * dt);

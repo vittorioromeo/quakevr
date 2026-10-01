@@ -16,6 +16,7 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Cbrt.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -177,9 +178,9 @@ constexpr int numModels = static_cast<int>(za::getArraySize(models));
         return c <= 0.04045f ? c / 12.92f : za::pow((c + 0.055f) / 1.055f, 2.4f);
     };
     const float r = lin(rgb.r), g = lin(rgb.g), b = lin(rgb.b);
-    const float l = qza::cbrt(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b);
-    const float m = qza::cbrt(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b);
-    const float s = qza::cbrt(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b);
+    const float l = za::cbrt(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b);
+    const float m = za::cbrt(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b);
+    const float s = za::cbrt(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b);
     return {0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s, 1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s,
         0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s};
 }

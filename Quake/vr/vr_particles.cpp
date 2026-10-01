@@ -16,6 +16,7 @@
 
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/Limits.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Bitset.hpp"
@@ -25,16 +26,15 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
-#include "Zancle/Math/FloatMax.hpp"
 #include "Zancle/Math/Floor.hpp"
 #include "Zancle/Math/Log.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "vr_zancle.hpp"
 
 #include <string.h>
-#include <random>
 
 namespace qvr::particles
 {
@@ -116,16 +116,16 @@ constexpr za::SizeT maxParticles = 32768;
 za::Vector<Particle> pool; // reserved to maxParticles at startup (init): it never reallocates in play
 double lastRun = -1.0;
 
-std::mt19937 rng{std::random_device{}()}; // ZANCLE-TODO: no random engines or distributions
+za::FastNonCryptoRng rng{static_cast<za::U64>(qza::nowNs())}; // a new sequence every run (vr_particle_seed: a fixed one)
 
 [[nodiscard]] float rnd(float lo, float hi)
 {
-    return std::uniform_real_distribution<float>{lo, hi}(rng);
+    return lo + (hi - lo) * rng.getF(0.f, 1.f); // (lo > hi too)
 }
 
 [[nodiscard]] int rndi(int lo, int hiExclusive)
 {
-    return std::uniform_int_distribution<int>{lo, hiExclusive - 1}(rng);
+    return rng.getI(lo, hiExclusive - 1);
 }
 
 [[nodiscard]] float rndAngle()
@@ -1613,7 +1613,7 @@ void clear()
     // Tests: the same particles every run (vr_particle_seed; 0: random).
     if(vr_particle_seed.value != 0.f)
     {
-        rng.seed(static_cast<za::U32>(vr_particle_seed.value));
+        rng = za::FastNonCryptoRng{static_cast<za::U32>(vr_particle_seed.value)};
     }
 }
 

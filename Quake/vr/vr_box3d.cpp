@@ -66,6 +66,7 @@
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/LowerBound.hpp"
 #include "Zancle/Algorithm/Rotate.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/BitCast.hpp"
@@ -721,7 +722,7 @@ struct MeshStats
                         for(int dx = -1; dx <= 1; dx++)
                         {
                             const uint64_t key = keyOf(c + glm::ivec3{dx, dy, dz});
-                            for(auto it = qza::lowerBound(grid.begin(), grid.end(), qza::makePair(key, INT32_MIN));
+                            for(auto it = za::lowerBound(grid.begin(), grid.end(), qza::makePair(key, INT32_MIN));
                                 it != grid.end() && it->first == key; ++it)
                             {
                                 const int v = it->second;

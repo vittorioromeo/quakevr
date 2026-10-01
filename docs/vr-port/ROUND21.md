@@ -16899,7 +16899,7 @@ after.** By category (`count_std.py` in the session's scratchpad; comments and s
 | math (sin, sqrt, fabs, atan2, abs, isfinite...) | 1108 | 0 | `za::sin`... (`Zancle/Math`), `qza::abs` / `hypot` / `cbrt` / `isfinite`..., `ZA_ISNAN` |
 | int types (size_t, uint32_t...) | 1069 | 0 | `za::SizeT`, `za::U32`... |
 | strings (string, string_view, to_string...) | 1065 | 0 | `za::String`, `za::StringView`, `za::toString` (integers; a float's text through `va`, as `std::to_string`'s `%f`) |
-| algorithms (sort, find, fill, copy, any_of, lower_bound...) | 289 | 2 | `za::quickSort` / `insertionSort` / `find` / `anyOf` / `copy`..., `qza::fill` / `iota` / `lowerBound` / `stablePartition`; 2 `std::nth_element` kept |
+| algorithms (sort, find, fill, copy, any_of, lower_bound...) | 289 | 2 | `za::quickSort` / `insertionSort` / `find` / `anyOf` / `copy` / `fill` / `iota` / `replace` / `lowerBound` / `stablePartition`...; 2 `std::nth_element` kept |
 | files (filesystem, fstream, sstream, printf...) | 164 | 0 | `qvr::files` (`vr_files.hpp`, new), the C stdio functions |
 | utility / bit (move, forward, swap, bit_cast...) | 148 | 0 | `ZA_MOVE`, `ZA_FORWARD`, `za::genericSwap`, `ZA_BIT_CAST` |
 | C library (strcmp, memcpy, strtof...) | 141 | 0 | `ZA_STRCMP`, `ZA_MEMCPY`... (builtins), the C functions themselves |
@@ -16907,7 +16907,7 @@ after.** By category (`count_std.py` in the session's scratchpad; comments and s
 | chrono / time | 132 | 3 | `za::Clock` / `za::Time`, `qza::nowNs` (its `std::chrono` the 3 left, in `vr_zancle.cpp`) |
 | vocabulary (optional, span, unique_ptr, function, shared_ptr) | 84 | 7 | `za::Optional`, `za::Span`, `za::UniquePtr`, `za::FunctionRef`; the pool's `std::shared_ptr` an intrusive count (`jobs::detail::JobPtr`); 7 kept (motion samples) |
 | type traits, limits | 39 | 0 | Zancle's traits, `ZA_FLOAT_MAX`..., `<limits.h>` |
-| random | 22 | 22 | kept (ZANCLE-TODO) |
+| random | 22 | 0 | `za::FastNonCryptoRng` (Zancle/Random; "Zancle update" below) |
 | exceptions | 19 | 19 | kept (ZANCLE-TODO) |
 | regex | 12 | 0 | parsed by hand (the take names: `motion::parseTakeName`; vr_motion_eval's globs: `files::globMatch`) |
 | other | 21 | 0 | |
@@ -16961,9 +16961,8 @@ a mixed-type math call...), fixed by hand. What a compiler can't see was audited
 ### What Zancle lacks: `vr_zancle.hpp` (namespace `qza`) and the `std::` kept
 
 Small stand-ins written the way Zancle writes its own (builtins behind always-inline templates), each marked
-`ZANCLE-TODO` and each a proposal: `abs` (integers too), `hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign`,
-`trunc`, `isfinite`, `nanF`, `nowNs` (+ `nsSince`...: a nanosecond clock), `fill`, `iota`, `replace`, `lowerBound`,
-`stablePartition`, `minOf` / `maxOf` (min/max of a list), `lexicographicLess` (Array's `<`), `sizeBytes` (Span's
+`ZANCLE-TODO` and each a proposal: `abs` (integers too), `remainder` (std's, rounding to nearest: below), `nanF`,
+`nowNs` (+ `nsSince`...: a nanosecond clock), `minOf` / `maxOf` (min/max of a list), `lexicographicLess` (Array's `<`), `sizeBytes` (Span's
 `size_bytes`), `repeated` (String's `(count, char)`), `Pair`, `UniqueLock`, `ReverseIterator` / `rbegin` / `rend`,
 `stableAt` (a map whose values stay put), `sortedByKey` (an ordered map's loop).
 
@@ -16971,7 +16970,6 @@ Small stand-ins written the way Zancle writes its own (builtins behind always-in
 
 | Where | What | Missing in Zancle |
 |---|---|---|
-| vr_particles, vr_shells, vr_gore, vr_bodyblood, vr_meleehud, vr_hull (bench), vr_hitmodel (test) | `std::mt19937`, `std::minstd_rand`, the uniform distributions | random engines and distributions (the seeded ones' sequences must stay) |
 | vr_jobs, vr_jobs_engine | `std::exception_ptr`, `current_exception`, `rethrow_exception`; the self-test's `std::runtime_error` | exception transport |
 | vr_motion, vr_motion_take.hpp | `std::shared_ptr` (samples and rows shared with the saving thread) | shared ownership |
 | vr_motion_review | `std::map` (the verdicts and marks: written in name order, and the takes keep pointers into them) | an ordered map with nodes that stay put |
@@ -16998,10 +16996,13 @@ Small stand-ins written the way Zancle writes its own (builtins behind always-in
    `subspan`. **`Array`**: no `fill`, `front`, `back`, ordering operators.
 8. **`getArraySize` is `consteval`**: not usable on an array reached through a reference parameter.
 9. The math wrappers take exactly `float`, `double` or `long double` (good: every mixed call std promoted is now
-   explicit); missing: `abs` for integers, `hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign`, `trunc`, `isfinite`.
-10. Missing algorithms the code used: `fill`, `iota`, `replace`, `lower_bound`, `stable_partition`, `nth_element`, a
-    stable sort for large ranges (`insertionSort` is O(n²)), `min`/`max` of a list.
-11. Missing: an ordered (flat) map, shared ownership, a unique lock, random engines, a nanosecond clock, a wide string.
+   explicit); missing: `abs` for integers. (`hypot`, `cbrt`, `log2`, `exp2`, `llround`, `copysign`, `trunc`,
+   `ZA_ISFINITE`: in Zancle since 4ed9c3cc, used.) **`za::remainder` is not `std::remainder`** ("Zancle update" below).
+10. Missing algorithms the code used: `nth_element`, a stable sort for large ranges (`insertionSort` is O(n²)),
+    `min`/`max` of a list, a range overload of `fill` (22 calls fill a whole array). (`fill`, `iota`, `replace`,
+    `lowerBound`, `stablePartition`: in Zancle since 4ed9c3cc, used.)
+11. Missing: an ordered (flat) map, shared ownership, a unique lock, a nanosecond clock, a wide string. (Random
+    engines: Zancle/Random since 4ed9c3cc, used.)
 
 ### Debug: Zancle with its asserts (`QVR_ZANCLE_DEBUG`); test runs never wait on a dialog
 

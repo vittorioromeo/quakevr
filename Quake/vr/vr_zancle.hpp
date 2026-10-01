@@ -11,61 +11,31 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Priv/Impl.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Trait/IsFloatingPoint.hpp"
+#include "Zancle/Trait/IsSame.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
-
-// ZANCLE-TODO: Math lacks hypot, cbrt, log2, exp2, llround, copysign and trunc (the same ZA_MATH_* macro and wrapper
-// pattern as its sin or fmax; the builtins below exist on GCC and Clang).
-#define QZA_PRIV_MATH_1ARG(name)                                                                                    \
-    template <typename T>                                                                                           \
-    [[nodiscard, gnu::always_inline, gnu::flatten, gnu::const]] inline constexpr auto name(const T arg) noexcept    \
-    {                                                                                                               \
-        if constexpr (ZA_IS_SAME(T, float))                                                                         \
-            return __builtin_##name##f(arg);                                                                        \
-        else if constexpr (ZA_IS_SAME(T, double))                                                                   \
-            return __builtin_##name(arg);                                                                           \
-        else if constexpr (ZA_IS_SAME(T, long double))                                                              \
-            return __builtin_##name##l(arg);                                                                        \
-        else                                                                                                        \
-            static_assert(false);                                                                                   \
-    }
-
-#define QZA_PRIV_MATH_2ARG(name)                                                                                    \
-    template <typename T>                                                                                           \
-    [[nodiscard, gnu::always_inline, gnu::flatten, gnu::const]] inline constexpr auto name(const T a, const T b) noexcept \
-    {                                                                                                               \
-        if constexpr (ZA_IS_SAME(T, float))                                                                         \
-            return __builtin_##name##f(a, b);                                                                       \
-        else if constexpr (ZA_IS_SAME(T, double))                                                                   \
-            return __builtin_##name(a, b);                                                                          \
-        else if constexpr (ZA_IS_SAME(T, long double))                                                              \
-            return __builtin_##name##l(a, b);                                                                       \
-        else                                                                                                        \
-            static_assert(false);                                                                                   \
-    }
 
 namespace qza
 {
 
-QZA_PRIV_MATH_1ARG(cbrt)
-QZA_PRIV_MATH_1ARG(log2)
-QZA_PRIV_MATH_1ARG(exp2)
-QZA_PRIV_MATH_1ARG(llround)
-QZA_PRIV_MATH_1ARG(trunc)
-QZA_PRIV_MATH_2ARG(hypot)
-QZA_PRIV_MATH_2ARG(copysign)
-
 // ZANCLE-TODO: no quiet NaN constant (std::nanf(""), std::numeric_limits<float>::quiet_NaN()).
 inline constexpr float nanF = __builtin_nanf("");
 
-// ZANCLE-TODO: IsNan.hpp / IsInf.hpp have no IsFinite (`__builtin_isfinite`).
+// ZANCLE-TODO: za::remainder is not std::remainder: it truncates the quotient (fmod's result, through an int: -360..360
+// for a wrap by 360, and wrong past INT_MAX quotients), where std::remainder rounds it to the nearest (IEEE remainder:
+// -180..180, the angle wraps here). The IEEE one, on the builtin (vr_zancle.cpp's vr_zancle_math_test checks it).
 template <typename T>
-[[nodiscard, gnu::always_inline, gnu::const]] inline constexpr bool isfinite(const T x) noexcept
+[[nodiscard, gnu::always_inline, gnu::const]] inline auto remainder(const T a, const T b) noexcept
 {
-    static_assert(ZA_IS_FLOATING_POINT(T));
-    return __builtin_isfinite(x);
+    if constexpr (ZA_IS_SAME(T, float))
+        return __builtin_remainderf(a, b);
+    else if constexpr (ZA_IS_SAME(T, double))
+        return __builtin_remainder(a, b);
+    else if constexpr (ZA_IS_SAME(T, long double))
+        return __builtin_remainderl(a, b);
+    else
+        static_assert(false);
 }
 
 // ZANCLE-TODO: no `abs` (std::abs's overloads: the integers' as well as fabs): the same result types as std::abs (a
@@ -87,6 +57,9 @@ template <typename T>
 // since a reading in seconds, milliseconds, microseconds or nanoseconds (as std::chrono::duration<double, ...> gives it).
 [[nodiscard]] za::I64 nowNs() noexcept;
 
+// vr_zancle_math_test (vr_zancle.cpp): Zancle's math against the standard library's, on edge values.
+void mathTest_f();
+
 [[nodiscard]] inline double nsSince(const za::I64 startNs) noexcept
 {
     return static_cast<double>(nowNs() - startNs);
@@ -105,37 +78,6 @@ template <typename T>
 [[nodiscard]] inline double secondsSince(const za::I64 startNs) noexcept
 {
     return static_cast<double>(nowNs() - startNs) / 1e9;
-}
-
-// ZANCLE-TODO: Algorithm has no stable partition (std::stable_partition): the elements for which `pred` holds first,
-// each group in its order (one result: the same as std's); the rest moved through a buffer. Returns the first of the
-// rest.
-template <typename T, typename Pred>
-T* stablePartition(T* const first, T* const last, Pred&& pred)
-{
-    za::Vector<T> rest;
-    T* out = first;
-    for(T* it = first; it != last; ++it)
-    {
-        if(pred(*it))
-        {
-            if(out != it)
-            {
-                *out = static_cast<T&&>(*it);
-            }
-            ++out;
-        }
-        else
-        {
-            rest.pushBack(static_cast<T&&>(*it));
-        }
-    }
-    T* const split = out;
-    for(T& e : rest)
-    {
-        *out++ = static_cast<T&&>(e);
-    }
-    return split;
 }
 
 // ZANCLE-TODO: MinMax takes two values: std::min and std::max over an initializer list (the first smallest, the first
@@ -172,35 +114,6 @@ template <typename T, typename... Ts>
     return s;
 }
 
-// ZANCLE-TODO: no binary search (std::lower_bound): the first element of the sorted [first, last) that is not less
-// than `value` (less(element, value) false).
-template <typename It, typename T, typename Less>
-[[nodiscard]] constexpr It lowerBound(It first, const It last, const T& value, Less&& less)
-{
-    auto count = last - first;
-    while(count > 0)
-    {
-        const auto half = count / 2;
-        const It mid = first + half;
-        if(less(*mid, value))
-        {
-            first = mid + 1;
-            count -= half + 1;
-        }
-        else
-        {
-            count = half;
-        }
-    }
-    return first;
-}
-
-template <typename It, typename T>
-[[nodiscard]] constexpr It lowerBound(const It first, const It last, const T& value)
-{
-    return lowerBound(first, last, value, [](const auto& a, const auto& b) { return a < b; });
-}
-
 // ZANCLE-TODO: Array (and Vector) have no ordering operators (std::array's <): a before b, element by element.
 template <typename A, typename B>
 [[nodiscard]] constexpr bool lexicographicLess(const A& a, const B& b)
@@ -226,49 +139,6 @@ template <typename Span>
 [[nodiscard, gnu::always_inline]] constexpr auto sizeBytes(const Span& s) noexcept
 {
     return s.size() * sizeof(*s.data());
-}
-
-// ZANCLE-TODO: Algorithm has no fill (std::fill): every element of [first, last), or of a range (an array, a
-// container), set to `value`.
-template <typename It, typename T>
-constexpr void fill(It first, const It last, const T& value)
-{
-    for(; first != last; ++first)
-    {
-        *first = value;
-    }
-}
-
-template <typename Range, typename T>
-constexpr void fill(Range& range, const T& value)
-{
-    for(auto& e : range)
-    {
-        e = value;
-    }
-}
-
-// ZANCLE-TODO: Algorithm has no iota (std::iota): value, value + 1, ... into [first, last).
-template <typename It, typename T>
-constexpr void iota(It first, const It last, T value)
-{
-    for(; first != last; ++first, ++value)
-    {
-        *first = value;
-    }
-}
-
-// ZANCLE-TODO: Algorithm has no replace (std::replace): every element equal to `from` set to `to`.
-template <typename It, typename T>
-constexpr void replace(It first, const It last, const T& from, const T& to)
-{
-    for(; first != last; ++first)
-    {
-        if(*first == from)
-        {
-            *first = to;
-        }
-    }
 }
 
 // ZANCLE-TODO: no map whose values stay where they are (std::unordered_map's nodes): a dense map's values move when it
@@ -389,6 +259,3 @@ template <typename Map>
 }
 
 } // namespace qza
-
-#undef QZA_PRIV_MATH_1ARG
-#undef QZA_PRIV_MATH_2ARG

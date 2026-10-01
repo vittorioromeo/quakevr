@@ -3,7 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__make_unsigned)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__make_unsigned)
 
     ////////////////////////////////////////////////////////////
     #define ZA_MAKE_UNSIGNED(...) __make_unsigned(__VA_ARGS__)

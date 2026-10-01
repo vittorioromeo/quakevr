@@ -3,7 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__underlying_type)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__underlying_type)
 
     ////////////////////////////////////////////////////////////
     #define ZA_UNDERLYING_TYPE(...) __underlying_type(__VA_ARGS__)

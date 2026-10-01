@@ -13,8 +13,10 @@
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
@@ -334,7 +336,7 @@ void endPhaseFrame(za::I64 now, za::I64 start, za::I64 end)
         s.sample = at;
         s.serial = frameSerial;
     }
-    qza::fill(phaseFrameNs, za::I64{0});
+    za::fill(phaseFrameNs, phaseFrameNs + za::getArraySize(phaseFrameNs), za::I64{0});
     s.pending = keep && s.recCount > 0;
 
     if(!phaseGpuMade && GL_QueryCounterFunc && GL_GetQueryObjectui64vFunc && GL_GetQueryObjectivFunc &&

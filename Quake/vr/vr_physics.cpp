@@ -18,9 +18,11 @@
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -65,7 +67,7 @@ constexpr float easyHandTouchBonus = 4.5f;
 
 [[nodiscard]] bool finite(const glm::vec3& v)
 {
-    return qza::isfinite(v.x) && qza::isfinite(v.y) && qza::isfinite(v.z);
+    return ZA_ISFINITE(v.x) && ZA_ISFINITE(v.y) && ZA_ISFINITE(v.z);
 }
 
 [[nodiscard]] bool hasFlag(edict_t* ent, int flag)
@@ -491,7 +493,7 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
     }
 
     const glm::vec3 move = vrMove->roomscaleMove;
-    if((move.x == 0.f && move.y == 0.f) || !qza::isfinite(move.x) || !qza::isfinite(move.y))
+    if((move.x == 0.f && move.y == 0.f) || !ZA_ISFINITE(move.x) || !ZA_ISFINITE(move.y))
     {
         return;
     }
@@ -724,7 +726,7 @@ za::Vector<SentSplash> splashesThisFrame;
 bool sendSplash(const glm::vec3& at, const glm::vec3& dir, float strength)
 {
     // (Its figures go into the message as integers: none from a NaN or an infinity.)
-    if(!finite(at) || !finite(dir) || !qza::isfinite(strength))
+    if(!finite(at) || !finite(dir) || !ZA_ISFINITE(strength))
     {
         return false;
     }
@@ -1126,7 +1128,7 @@ void precacheWaterSounds()
 {
     for(auto& indices : waterSoundIndices)
     {
-        qza::fill(indices, 0);
+        za::fill(indices, indices + za::getArraySize(waterSoundIndices[0]), 0);
     }
     if(!active() || sv.state != ss_loading)
     {
@@ -1500,7 +1502,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
 
     const float maxSpeed = za::max(0.f, vr_swim_max_speed.value);
     const float len = glm::length(vel);
-    if(!qza::isfinite(len))
+    if(!ZA_ISFINITE(len))
     {
         return; // (a hand's figures gone wrong: SV_WaterMove's velocity stands)
     }

@@ -27,7 +27,7 @@
 #include "Zancle/Base/Exchange.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Exp.hpp"
-#include "Zancle/Math/Remainder.hpp"
+#include "vr_zancle.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -268,7 +268,7 @@ void drawHud(const hands::State& s, const glm::vec4& mask)
     {
         const float t = 1.f - za::exp(-dt * 10.f);
         hudAngles.x += (head.x - hudAngles.x) * t;
-        hudAngles.y += za::remainder(head.y - hudAngles.y, 360.f) * t;
+        hudAngles.y += qza::remainder(head.y - hudAngles.y, 360.f) * t;
     }
 
     drawFacing(s, {hudAngles.x, hudAngles.y, 0.f}, 200.f * vr_menu_scale.value, mask);

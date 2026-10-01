@@ -27,6 +27,7 @@
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Find.hpp"
+#include "Zancle/Algorithm/Replace.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -39,7 +40,6 @@
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
@@ -621,7 +621,7 @@ void resample(Take& take, float hz)
         {
             blend(f.tracking.hands[h], a.tracking.hands[h], b.tracking.hands[h]);
         }
-        f.playYaw = a.playYaw + za::remainder(b.playYaw - a.playYaw, 360.f) * s;
+        f.playYaw = a.playYaw + qza::remainder(b.playYaw - a.playYaw, 360.f) * s;
         // The source frames' events up to this one.
         for(; nextEvents < in.size() && in[nextEvents].t <= t; nextEvents++)
         {
@@ -774,7 +774,7 @@ void workOutPlacement(edict_t* player)
             const float bearing = glm::degrees(za::atan2(monPF.y, monPF.x));
             yawP = tYaw + 180.f - bearing;
         }
-        delta = za::remainder(yawP - take.yaw0, 360.f);
+        delta = qza::remainder(yawP - take.yaw0, 360.f);
         placeOrigin = tOrigin - hands::rotateYaw(glm::vec3{monPF.x, monPF.y, 0.f}, yawP);
         placeOrigin.z = tOrigin.z - (f0.hasMon ? monPF.z : 0.f);
         if(!f0.hasMon)
@@ -1619,7 +1619,7 @@ za::String expectPath;
 
 [[nodiscard]] za::String underscores(za::String s)
 {
-    qza::replace(s.begin(), s.end(), ' ', '_');
+    za::replace(s.begin(), s.end(), ' ', '_');
     return s;
 }
 
@@ -2054,7 +2054,7 @@ void writeResults()
             static_cast<int>(results.size()), pass, fail, na, none, evalMap.cStr(), expectPath.cStr());
         fprintf(f, "file,label,weapons,expected,verdict,reason,events,recorded_events,same_hits_as_recorded,frames,hand_error_u\n");
         const auto cell = [](za::String s) {
-            qza::replace(s.begin(), s.end(), ',', ' ');
+            za::replace(s.begin(), s.end(), ',', ' ');
             return s;
         };
         for(const Result& r : results)

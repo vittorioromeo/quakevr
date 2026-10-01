@@ -24,12 +24,13 @@
 #include "vr_voicenotes.hpp"
 #include "vr_flashlight.hpp"
 
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Swap.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Copysign.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/String/String.hpp"
-#include "vr_zancle.hpp"
 
 
 extern "C" qboolean keydown[MAX_KEYS]; // keys.c
@@ -181,7 +182,7 @@ za::Vector<PendingHaptic> pendingHaptics;
     {
         return 0.f;
     }
-    return (v - qza::copysign(dz, v)) / (1.f - dz);
+    return (v - za::copysign(dz, v)) / (1.f - dz);
 }
 
 void stickKey(StickKey& k, float value, bool menu)
@@ -525,7 +526,7 @@ void parseHaptic()
     // At most 10 s ahead (a NaN or a huge delay would never come due: kept for ever), at most 64 waiting.
     if((hand == HAND_OFF || hand == HAND_MAIN) && pendingHaptics.size() < 64)
     {
-        const double wait = qza::isfinite(delay) ? CLAMP(0.0, static_cast<double>(delay), 10.0) : 0.0;
+        const double wait = ZA_ISFINITE(delay) ? CLAMP(0.0, static_cast<double>(delay), 10.0) : 0.0;
         pendingHaptics.pushBack({realtime + wait, hand, duration, frequency, amplitude});
     }
 }

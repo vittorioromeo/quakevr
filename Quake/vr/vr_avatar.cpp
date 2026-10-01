@@ -17,11 +17,11 @@
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Copysign.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "Zancle/Math/Remainder.hpp"
 #include "Zancle/Math/Round.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
@@ -962,7 +962,7 @@ constexpr float STEP_DISTANCE = 0.25f; // metres the body may move from the feet
 // Degrees from `from` to `to`, -180 .. 180.
 [[nodiscard]] float yawDelta(float to, float from)
 {
-    return za::remainder(to - from, 360.f);
+    return qza::remainder(to - from, 360.f);
 }
 
 [[nodiscard]] glm::vec3 yawForward(float yaw)
@@ -1049,7 +1049,7 @@ void updateStance(const Body& b, const glm::vec3& stand, float dt)
         const float lag = yawDelta(bodyYaw, f.yaw);
         if(f.step < 0.f && qza::abs(lag) > maxLag)
         {
-            f.yaw = bodyYaw - qza::copysign(maxLag, lag);
+            f.yaw = bodyYaw - za::copysign(maxLag, lag);
         }
     }
 

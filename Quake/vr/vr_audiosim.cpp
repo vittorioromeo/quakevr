@@ -5,6 +5,7 @@
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Erase.hpp"
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memcmp.hpp"
@@ -14,7 +15,6 @@
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "vr_zancle.hpp"
 
 #include <ctype.h>
 
@@ -234,7 +234,7 @@ bool Simulation::create(int rate, int frameSize, IPLReflectionEffectType reflect
     sa->iplSimulatorCommit(simulator);
     {
         const za::LockGuard lock{mutex};
-        qza::fill(directValid, false);
+        za::fill(directValid.begin(), directValid.end(), false);
         reflectionsValid = false;
     }
     lastDirect = lastReflections = -1e9;
@@ -378,7 +378,7 @@ void Simulation::useBuilt(Built b)
         sa->iplSimulatorCommit(simulator);
     }
     const za::LockGuard lock{mutex};
-    qza::fill(directValid, false);
+    za::fill(directValid.begin(), directValid.end(), false);
     reflectionsValid = false;
 }
 

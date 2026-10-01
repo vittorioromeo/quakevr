@@ -3,7 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__is_floating_point)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__is_floating_point)
 
     ////////////////////////////////////////////////////////////
     #define ZA_IS_FLOATING_POINT(...) __is_floating_point(__VA_ARGS__)

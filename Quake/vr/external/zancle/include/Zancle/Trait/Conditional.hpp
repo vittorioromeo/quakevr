@@ -3,8 +3,14 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
 // GCC also provides `__type_pack_element`, but rejects builtin traits appearing in function signatures
-#if defined(__clang__) && __has_builtin(__type_pack_element)
+#if defined(__clang__) && ZA_HAS_BUILTIN(__type_pack_element)
 
 namespace za
 {

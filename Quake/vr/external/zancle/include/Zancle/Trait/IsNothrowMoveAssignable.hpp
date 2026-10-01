@@ -3,8 +3,14 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__is_nothrow_assignable) && __has_builtin(__add_lvalue_reference) && \
-    __has_builtin(__add_rvalue_reference)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__is_nothrow_assignable) && ZA_HAS_BUILTIN(__add_lvalue_reference) && \
+    ZA_HAS_BUILTIN(__add_rvalue_reference)
 
     ////////////////////////////////////////////////////////////
     #define ZA_IS_NOTHROW_MOVE_ASSIGNABLE(...) \

@@ -15,11 +15,11 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Algorithm/Iota.hpp"
 #include "Zancle/Algorithm/MaxElement.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
-#include "vr_zancle.hpp"
 
 #include <string.h>
 
@@ -58,7 +58,7 @@ za::Vector<int> knightSword(const aliashdr_t* hdr, const stvert_t* st, const dtr
 za::Vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tris, const trivertx_t* pose)
 {
     za::Vector<int> parent(hdr->numverts);
-    qza::iota(parent.begin(), parent.end(), 0);
+    za::iota(parent.begin(), parent.end(), 0);
     const auto find = [&](int a) {
         while(parent[a] != a)
         {
@@ -142,13 +142,13 @@ const KnownSword knownSwords[] = {
     {"progs/hknight.mdl", 538, 1000, {43, 45, 46, 47, 48, 526, 527, 531, 532}, -1, -1},
     {"progs/ogre.mdl", 497, 1290, [] {
          za::Vector<int> v(81);
-         qza::iota(v.begin(), v.end(), 416);
+         za::iota(v.begin(), v.end(), 416);
          return v;
      }(),
         -1, -1},
     {"progs/soldier.mdl", 555, 810, [] {
          za::Vector<int> v(86);
-         qza::iota(v.begin(), v.end(), 463);
+         za::iota(v.begin(), v.end(), 463);
          return v;
      }(),
         8, 28},

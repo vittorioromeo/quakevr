@@ -14,6 +14,8 @@
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
+#include "Zancle/Algorithm/Fill.hpp"
+#include "Zancle/Algorithm/Iota.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -27,12 +29,12 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
 
 #include <algorithm>
-#include <random>
 
 namespace qvr::hitmodel
 {
@@ -169,7 +171,7 @@ void build(Mesh& m, const aliashdr_t* hdr)
         }
     }
     za::Vector<za::U32> order(n);
-    qza::iota(order.begin(), order.end(), 0u);
+    za::iota(order.begin(), order.end(), 0u);
     m.nodes.reserve(n / 2 + 1);
     const auto split = [&](auto&& self, za::U32 lo, za::U32 hi) -> void {
         const auto idx = static_cast<za::U32>(m.nodes.size());
@@ -517,7 +519,7 @@ struct VertCache
         }
         if(++now == 0u)
         {
-            qza::fill(stamp.begin(), stamp.end(), 0u);
+            za::fill(stamp.begin(), stamp.end(), 0u);
             now = 1u;
         }
     }
@@ -1176,8 +1178,8 @@ void afterLoad()
 
 void reset()
 {
-    qza::fill(byIndex, nullptr);
-    qza::fill(byIndexModel, nullptr);
+    za::fill(byIndex.begin(), byIndex.end(), nullptr);
+    za::fill(byIndexModel.begin(), byIndexModel.end(), nullptr);
     tracks.clear();
     last = Last{};
     events.clear();
@@ -1365,8 +1367,8 @@ void bench_f()
     {
         Cvar_SetQuick(&vr_hit_precise, "1");
     }
-    std::mt19937 rng{1234u}; // ZANCLE-TODO: no random engines or distributions (the test's inputs kept)
-    std::uniform_real_distribution<float> uni{0.f, 1.f};
+    za::FastNonCryptoRng rng{1234u}; // the same rays every run
+    const auto uni = [&rng] { return rng.getF(0.f, 1.f); };
     const float saveDebug = vr_debug_hits.value;
     vr_debug_hits.value = 0.f;
     Con_Printf("vr_hitmodel_bench: %d rays a monster, tolerance %.1f\n", rays, tol);
@@ -1398,9 +1400,9 @@ void bench_f()
         vec3_t zero{0.f, 0.f, 0.f};
         for(int r = 0; r < rays; r++)
         {
-            const float z = uni(rng) * 2.f - 1.f, phi = uni(rng) * 6.2831853f, s = za::sqrt(za::max(0.f, 1.f - z * z));
+            const float z = uni() * 2.f - 1.f, phi = uni() * 6.2831853f, s = za::sqrt(za::max(0.f, 1.f - z * z));
             const glm::vec3 from = c + glm::vec3{s * za::cos(phi), s * za::sin(phi), z} * reach;
-            const glm::vec3 aim = lo + (hi - lo) * glm::vec3{uni(rng), uni(rng), uni(rng)};
+            const glm::vec3 aim = lo + (hi - lo) * glm::vec3{uni(), uni(), uni()};
             const glm::vec3 to = from + (aim - from) * 2.f;
             vec3_t a{from.x, from.y, from.z}, b{to.x, to.y, to.z};
             auto t0 = qza::nowNs();

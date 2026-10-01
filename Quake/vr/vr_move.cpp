@@ -5,9 +5,9 @@
 #include "vr_engine.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
-#include "vr_zancle.hpp"
 
 
 namespace qvr
@@ -31,7 +31,7 @@ struct Reader
     [[nodiscard]] float real()
     {
         const float f = MSG_ReadFloat();
-        finite = finite && qza::isfinite(f);
+        finite = finite && ZA_ISFINITE(f);
         return f;
     }
 

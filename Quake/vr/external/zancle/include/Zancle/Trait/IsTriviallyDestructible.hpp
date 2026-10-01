@@ -3,12 +3,18 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__is_trivially_destructible)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__is_trivially_destructible)
 
     ////////////////////////////////////////////////////////////
     #define ZA_IS_TRIVIALLY_DESTRUCTIBLE(...) __is_trivially_destructible(__VA_ARGS__)
 
-#elif __has_builtin(__has_trivial_destructor) // e.g. GCC 15, which lacks `__is_trivially_destructible`
+#elif ZA_HAS_BUILTIN(__has_trivial_destructor) // e.g. GCC 15, which lacks `__is_trivially_destructible`
 
 namespace za::priv
 {

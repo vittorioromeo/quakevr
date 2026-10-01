@@ -14,13 +14,13 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/StringView.hpp"
-#include "vr_zancle.hpp"
 
 #include <stdlib.h>
 #include <string.h>
@@ -156,7 +156,7 @@ void paint(const GlyphDef& g, int column, const za::Array<Picture, za::getArrayS
 void build()
 {
     font.built = true;
-    qza::fill(font.column, -1);
+    za::fill(font.column.begin(), font.column.end(), -1);
 
     za::Array<byte*, za::getArraySize(picNames)> files{};
     za::Array<Picture, za::getArraySize(picNames)> pics{};

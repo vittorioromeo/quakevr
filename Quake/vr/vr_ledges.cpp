@@ -32,6 +32,8 @@
 #include "vr_lines.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
+#include "Zancle/Algorithm/Fill.hpp"
+#include "Zancle/Algorithm/LowerBound.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -42,6 +44,7 @@
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Llround.hpp"
 #include "Zancle/Math/Lround.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
@@ -360,7 +363,7 @@ void joinPieces(const za::Vector<Piece>& pieces, za::Vector<Line>& lines)
         l.z0 = za - l.slope * a;
         l.s0 = a;
         l.s1 = b;
-        const auto q = [](float v, float scale) { return static_cast<int64_t>(qza::llround(v * scale)); };
+        const auto q = [](float v, float scale) { return static_cast<int64_t>(za::llround(v * scale)); };
         keyed.pushBack(Keyed{{q(za::atan2(p.out.y, p.out.x), 2000.f), q(l.offset, 8.f), q(l.z0, 8.f), q(l.slope, 1000.f)}, l});
     }
     za::quickSort(keyed.begin(), keyed.end(), [](const Keyed& x, const Keyed& y) {
@@ -678,7 +681,7 @@ void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, za::Vector<int>& 
     }
     if(++stamp == 0)
     {
-        qza::fill(seen.begin(), seen.end(), 0u);
+        za::fill(seen.begin(), seen.end(), 0u);
         stamp = 1;
     }
     const glm::ivec3 lo = cellOf(mins, cellSize), hi = cellOf(maxs, cellSize);
@@ -689,7 +692,7 @@ void Map::nearby(const glm::vec3& mins, const glm::vec3& maxs, za::Vector<int>& 
             for(int z = lo.z; z <= hi.z; z++)
             {
                 const uint64_t key = keyOf(glm::ivec3{x, y, z});
-                auto it = qza::lowerBound(cells.begin(), cells.end(), qza::makePair(key, 0));
+                auto it = za::lowerBound(cells.begin(), cells.end(), qza::makePair(key, 0));
                 for(; it != cells.end() && it->first == key; ++it)
                 {
                     const Edge& e = edges[static_cast<size_t>(it->second)];

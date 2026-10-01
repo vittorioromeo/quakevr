@@ -6,6 +6,7 @@
 #include "vr_hands.hpp"
 #include "vr_protocol.hpp"
 
+#include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -14,7 +15,6 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
-#include "vr_zancle.hpp"
 
 #include <string.h>
 
@@ -842,8 +842,8 @@ glm::vec3 shotAngles(const glm::vec3& aimRot, int slot, bool mirrored)
     }
     float pitch = value(slot, Key::ShotPitch);
     float yaw = value(slot, Key::ShotYaw) * (mirrored ? -1.f : 1.f);
-    pitch = qza::isfinite(pitch) ? pitch : 0.f;
-    yaw = qza::isfinite(yaw) ? yaw : 0.f;
+    pitch = ZA_ISFINITE(pitch) ? pitch : 0.f;
+    yaw = ZA_ISFINITE(yaw) ? yaw : 0.f;
     if(pitch == 0.f && yaw == 0.f)
     {
         return aimRot;

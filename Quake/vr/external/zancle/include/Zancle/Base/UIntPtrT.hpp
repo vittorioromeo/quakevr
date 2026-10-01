@@ -6,10 +6,14 @@
 namespace za
 {
 ////////////////////////////////////////////////////////////
-#ifdef __UINTPTR_TYPE__
+#if defined(__UINTPTR_TYPE__) // GCC, Clang
 using UIntPtrT = __UINTPTR_TYPE__;
+#elif defined(_WIN64) // MSVC
+using UIntPtrT = unsigned long long;
+#elif defined(_WIN32) // MSVC
+using UIntPtrT = unsigned int;
 #else
-    #error "Could not determine a uintptr equivalent type (GCC/Clang)."
+    #error "Could not determine a uintptr equivalent type"
 #endif
 
 } // namespace za

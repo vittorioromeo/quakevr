@@ -16,6 +16,22 @@
 #include "Zancle/Trait/IsIntegral.hpp"
 
 
+namespace za::priv
+{
+////////////////////////////////////////////////////////////
+/// \brief Buffer size for `toChars` output of any `T` value (at the default precision)
+///
+/// 64-bit integers take at most 20 characters (19 digits and a sign).
+/// Floating-point values take a sign, up to 309 integer digits (`DBL_MAX`),
+/// the decimal point, and the fractional digits.
+///
+////////////////////////////////////////////////////////////
+template <typename T>
+inline constexpr SizeT toStringBufferSize = isFloatingPoint<T> ? 1u + 309u + 1u + 10u : 32u;
+
+} // namespace za::priv
+
+
 namespace za
 {
 ////////////////////////////////////////////////////////////
@@ -26,13 +42,9 @@ template <typename T>
 [[nodiscard]] String toString(const T value)
     requires(isIntegral<T> || isFloatingPoint<T>)
 {
-    // A buffer large enough for 64-bit integers and floating point numbers.
-    // long long: -9,223,372,036,854,775,808 (19 digits + sign)
-    // double: sign + integer part + '.' + fractional part (e.g., 9 digits) + null
+    char buffer[priv::toStringBufferSize<T>];
 
-    char buffer[64];
-
-    const char* const end = toChars(buffer, buffer + 64, value);
+    const char* const end = toChars(buffer, buffer + sizeof(buffer), value);
     ZA_ASSERT(end != nullptr);
 
     return String{buffer, static_cast<SizeT>(end - buffer)};
@@ -57,9 +69,9 @@ template <typename T>
 void appendToString(String& str, const T value)
     requires(isIntegral<T> || isFloatingPoint<T>)
 {
-    char buffer[64];
+    char buffer[priv::toStringBufferSize<T>];
 
-    const char* const end = toChars(buffer, buffer + 64, value);
+    const char* const end = toChars(buffer, buffer + sizeof(buffer), value);
     ZA_ASSERT(end != nullptr);
 
     str.append(buffer, static_cast<SizeT>(end - buffer));

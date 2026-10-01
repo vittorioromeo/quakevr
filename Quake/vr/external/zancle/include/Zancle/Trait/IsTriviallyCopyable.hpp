@@ -3,7 +3,13 @@
 // https://github.com/vittorioromeo/Zancle/blob/master/license.md
 
 
-#if __has_builtin(__is_trivially_copyable)
+////////////////////////////////////////////////////////////
+// Headers
+////////////////////////////////////////////////////////////
+#include "Zancle/HasBuiltin.hpp"
+
+
+#if ZA_HAS_BUILTIN(__is_trivially_copyable)
 
     ////////////////////////////////////////////////////////////
     #define ZA_IS_TRIVIALLY_COPYABLE(...) __is_trivially_copyable(__VA_ARGS__)

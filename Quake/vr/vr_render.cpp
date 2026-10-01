@@ -16,13 +16,13 @@
 #include "vr_props.hpp"
 #include "vr_weapons.hpp"
 
+#include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
-#include "vr_zancle.hpp"
 
 
 using namespace qvr;
@@ -241,7 +241,7 @@ extern "C" void VR_AliasFlameRefs(const void* aliashdr, unsigned short* refs)
 {
     const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
     const int n = hdr->numverts_vbo;
-    qza::fill(refs, refs + n, static_cast<unsigned short>(0));
+    za::fill(refs, refs + n, static_cast<unsigned short>(0));
     if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || hdr->numframes < 1 || hdr->numposes < 2 || n <= 0)
     {
         return;
