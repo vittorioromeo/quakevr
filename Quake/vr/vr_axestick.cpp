@@ -360,6 +360,7 @@ constexpr float tieUnits = 1.f;
 constexpr float bandBase = 0.1f;
 constexpr float bandLeniency = 0.35f;
 constexpr float incidenceLeniency = 10.f;
+constexpr float stillGlance = 20.f; // degrees less glancing an axe that hardly turns may be (beforeStep)
 constexpr float handleLeniency = 25.f;
 
 void report(edict_t* ent, const char* fmt, ...)
@@ -723,7 +724,12 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     const float sideOn = glm::degrees(za::asin(za::clamp(qza::abs(glm::dot(relDir, across)), 0.f, 1.f)));
     const float incidence = degrees(relDir, -best.normal);
     const float offFacing = degrees(facing, relDir); // (the debug's: the old test's angle)
+    const float spinIn = glm::dot(glm::cross(spin, pointAt - com), -best.normal); // (u/s the spin drives the point in)
     const float incidenceMax = vr_axestick_incidence.value + incidenceLeniency * leniency;
+    // A blow more glancing than vr_axestick_incidence - stillGlance (45 degrees) skids unless the axe turns (its spin a
+    // tenth of the point's speed): the spin drives the point in, a still blade slides along (a handle-first throw
+    // falling bit down onto the floor).
+    const float spinShare = glm::length(glm::cross(spin, pointAt - com)) / za::max(glm::length(edgeVel), 1e-3f);
     const char* hostName = host == qcvm->edicts ? "the level" : PR_GetString(host->v.classname);
     const char* partLabel = partName(ent, *blade, part);
 
@@ -743,6 +749,10 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     else if(!why && incidence > incidenceMax)
     {
         why = "too glancing";
+    }
+    else if(!why && incidence > vr_axestick_incidence.value - stillGlance && spinShare < 0.1f)
+    {
+        why = "glancing, not turning";
     }
 
     // How deep: the depth at twice the least speed, half as deep at it, never more than 60% of the blade; pushed the
@@ -840,10 +850,10 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
         box3d::push(host, best.point, edgeVel, box3d::propMass(ent));
     }
     report(ent, "blade %d stuck in %s (%d, kind %d) by %s (%.0f%% behind its edge) at %.0f u/s (%.1f m/s), %.0f deg side on, "
-                "%.0f deg off straight in (%.0f off its facing), %.2f of the step, %.2f units deep (%.1f cm; the blade %.2f "
-                "wide)%s",
+                "%.0f deg off straight in (%.0f off its facing), spin in %.0f u/s, %.2f of the step, %.2f units deep (%.1f cm; the "
+                "blade %.2f wide)%s",
         part.bit, hostName, NUM_FOR_EDICT(host), kind, partLabel, part.back * 100.f, speed, speed / m2u, sideOn, incidence,
-        offFacing, best.fraction, depth, depth / m2u * 100.f, edge.width,
+        offFacing, spinIn, best.fraction, depth, depth / m2u * 100.f, edge.width,
         tilted > 0.f ? va(", turned %.0f deg to keep its handle out", tilted) : "");
 
     callStuck(stuckFn, ent, host, kind, speed);
