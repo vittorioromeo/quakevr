@@ -53,6 +53,9 @@ Shoot a tipped-over explosive box with the shotgun, nails and rockets: shots pas
 Big prop pile: Debug > Profiling and Memory > Physics Step Time (Threads section) with Physics on Threads on and off
 Your tuned values are now defaults (Distance Falloff 0.75, HRTF Volume 1.5, Physics Sounds 2, scrape 0.8, grab 0.7, Mid-Air Leniency 4 cm): fresh config feels the same as yours
 
+Throw or drop a running chainsaw: engine follows it in the air and dies after ~3 s (Combat > Enemy Weapons > Runs On When Let Go); pick it back up within 3 s: still running
+Throw the lightning gun while firing: the beam vanishes the instant it leaves your hand
+
 [Decide or give feedback]
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
