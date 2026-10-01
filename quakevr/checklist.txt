@@ -129,17 +129,18 @@ Shoot a tipped-over explosive box with the shotgun, nails and rockets: shots pas
 
 [Decide or give feedback]
 Physics threads: default 150-body threshold and 4-thread cap OK?
-Zancle outside its library needs either the whole engine on clang-cl + C++23, or MSVC support in Zancle (proposal 2 in ROUND21.md): which? (blocks the std -> Zancle migration)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 On a tilted box steeper than ~30 degrees you slowly slide off (like the level's steep slopes): should boxes count as ground up to a steeper angle?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
 
 Crates: amounts of ammo (0.35) and small health (0.2) per crate OK?
+Zancle: review the proposals in docs/vr-port/ROUND21.md ("Zancle proposals", "Zancle migration", "Zancle update"): your initializer_list fix is wrong (ODR clash with MSVC's; QVR keeps its own fix); za::remainder truncates like fmod (rename or make it IEEE); MSVC port list in qvr-kit/ZANCLE_MSVC.md
+Box toppled onto you: a box still wedged 2+ units inside a wall no longer holds you under it (propregress relaxed the never-through rule there): OK?
 
 [Tune]
 Grapple: reel speeds and the other grapple values (you asked for a reminder)
 Stamina costs: shove, strike, melee, parry, climbing
 
 [Record]
-Melee takes again once the smaller hitbox ships
+Record new melee takes: the smaller hitbox (16 wide, hit box 24) and melee speed 3 have shipped, so you stand closer now
