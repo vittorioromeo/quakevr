@@ -50,6 +50,11 @@ Stand on a box leaning more than 30 deg: you slide off promptly (Standing on Pro
 
 Drop-down lists: point the laser at a setting with many choices (Player Hitbox > Width Against Walls, Motion Recorder > Category) and pull the trigger: a list opens by it; point at a choice and pull to pick, pull outside or press B to close; the stick moves the highlight, A picks; thumbstick left/right still steps (HUD and Menus > Menu > Drop-Down Lists)
 
+Running chainsaw: faint smoke from the engine's right side, hand shake (less with two hands), shakes and drifts a little when dropped running (Combat > Enemy Weapons > Chainsaw Engine; Debug > Tests > Chainsaw > Drop the Chainsaws)
+Weapons anywhere follow-ups: sword with the off hand on its grip, let go of the handle: stays where the off hand holds it (no flip); let go at a holster while the other hand holds it: no holster; off hand anywhere near the handle: no jump to it; retake the handle with the off hand anywhere: it stays on; support mode counts as two-handed; weight anywhere feels like the pump?
+Mantle grunt when you mantle (Climbing > Mantle Grunt 0.6); Debug > Tests > Spawn a Big Prop Pile (300 props), then Physics Step Time with threads on and off
+Empty hand against a held prop now works like against a held weapon (both pushed back half, 5 cm each, buzz, then sinks in); settings in Carrying (Empty Hand Against Held Things)
+
 [Decide or give feedback]
 Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
 Physics threads: default 150-body threshold and 4-thread cap OK?
