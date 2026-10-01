@@ -18745,7 +18745,7 @@ leaning back), then a push with both hands on the gun, leaning in. Parry it as a
   damage as any parry's. Damage 0: no parry possible (the parry runs inside `T_Damage`). `vr/shove.wav` (half volume
   parried), a rumble in both hands when it lands.
 - **The push** (`VR_EnemyShove_Push`): a slide of the player's, `vr_enemy_shove_distance` (64 units, about 2 m) away
-  from it, times `vr_enemy_shove_parried` (0.35) when parried; decelerating at 1200 u/s/s (64 units: 0.33 s), set every
+  from it, times `vr_enemy_shove_parried` (0.35) when parried (now Parry Push Reduction: see the follow-up below); decelerating at 1200 u/s/s (64 units: 0.33 s), set every
   player frame before the move (`client.qc` `PlayerPreThink` -> `VR_EnemyShove_PlayerFrame`). Not the player shove's
   impulse (`VR_Push`): on the ground Quake's friction eats an impulse unevenly (a 0.35x impulse goes about a fifth as
   far), so the setting is a distance and the parried one is 0.35x of it. Not scaled by `vr_push`. For a shove the
@@ -18777,6 +18777,48 @@ leaning back), then a push with both hands on the gun, leaning in. Parry it as a
 Not verified: in the headset (the push's comfort at 64 units, readability of the 0.3 s wind-up), against stairs and
 ledges (the slide steps up and goes over edges as walking does), climbing (a shove while you hang from a hold: the climb
 probably overrides the slide's velocity).
+
+## Enemy shoves: parry, enforcers, knocked off a hold (2026-10-01)
+
+NOTES.md vrfiringrange_2026-10-01_16-59-13, _17-00-33, _17-00-52.
+
+- **His values are the defaults** (config 71 moves a config still at the old ones): Too Close 50 (was 52), Delay 0.5
+  (0.6), Cooldown 1.5 (3), Push Distance 128 (64); Damage 5 as before.
+- **Parry and the push.** The reduction was applied in every path tried in the mock: the crowbar across (32.0 units
+  of 128), and his own recorded parries played against a grunt (`vr_motion_play <take> target monster_army`): the
+  sword (`parry_pose_2026-09-29_23-14-13`), the shotgun (`parry_pose_gun_..._23-15-24`), crossed arms
+  (`parry_pose_..._23-16-27`); his whole config too, and on the real clock. What he met is the setting: Parried Push
+  (`vr_enemy_shove_parried`) was the share of the push left, and he had raised it to 0.75 (as Parry Damage Reduction,
+  where more blocks more): a parried shove went 96 of his 128 units. It is now **Parry Push Reduction**
+  (`vr_enemy_shove_parry_reduction`, 0.75: his 0.75 read as he meant it): the share a parry takes off, as Parry Damage
+  Reduction takes off the damage. A parried grunt's shove goes 32 units, an enforcer's 48.
+- **Enforcers:** Enforcer Damage and Enforcer Push (`vr_enemy_shove_enforcer_damage`, `_distance`, 1.5x each, Combat >
+  Enemy Shoves): an enforcer's shove does 7.5 and pushes 192 units (parried: 1.9 and 48).
+- **Knocked off a hold.** Hanging from a ledge or a rung (or pulling up onto one), the climb owns the body's move and
+  zeroes its velocity every frame, so a shove's slide and a blast's push did nothing. Now the QC sets
+  `.vr_climb_knockoff` on the player (`combat.qc` `VR_Climb_KnockOff`), and at its next frame the engine
+  (`vr_climb.cpp` `climbPreThink`) lets go of every hold before the frame's grips (no release fling; 0.4 s before a new
+  hold, and only a fresh press takes one), keeping the velocity: a shove that lands always does it (the slide then
+  runs as on the ground, in the air); a blast does when its damage to you is at least **Blasts Knock You Off**
+  (`vr_climb_blast_letgo`, 30; 0 never; Climbing page), then throws you as on the ground (Quake's push, 8 units/s a
+  point). `developer 1`: "climb: knocked off the hold by ...", `vr_climb_debug 1`: "climb: knocked off at (...),
+  velocity (...)".
+- **Debug > Tests > Enemy Shoves:** A Blast in 3 Seconds (`impulse 221`): 60 at your feet, 12 units ahead (about 47 to
+  you), to try it hanging.
+
+| Test (mock) | Result |
+|---|---|
+| Grunt / enforcer, unparried | 128.0 / 192.0 units, 5 / 7.5 damage |
+| Grunt / enforcer, crowbar across | parried, 32.0 / 48.0 units |
+| His parry takes vs a grunt (vrfiringrange, defaults) | sword, shotgun, crossed arms: all parried, pushed 32 (slid 21-28: the take holds the body) |
+| Before the change, his values (0.35 / 0.75) | parried 44.8 / 96 units of 128 |
+| vrclimb rung 56, both hands, blast 47.9, Blasts Knock You Off 30 | knocked off at velocity (-197 0 329), landed 199 units back |
+| same, Knock Off 50 | still hanging, not moved |
+| Hanging, a grunt beside (40 units) shoves | knocked off, slid 128 units along the wall, on the floor |
+| Melee canary | 48/53, no differences |
+
+Seen once each, not reproduced: in vrfiringrange a grunt resting 0.1 unit over the floor without FL_ONGROUND (velocity
+0) logged "can't shove: off the floor" for seconds (the "can't shove" line now prints its place and velocity).
 
 ## Weapons held anywhere (2026-10-01)
 

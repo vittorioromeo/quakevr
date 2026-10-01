@@ -170,8 +170,13 @@ const DefaultChange defaultChanges[] = {
     {71, &vr_pain_knock_strength, "0.75"},  // 1
     {71, &vr_pain_knock_max, "7.5"},        // 15
     {71, &vr_pain_knock_tip, "2"},          // 3
+    // 72: the author's enemy shove settings (NOTES.md vrfiringrange_2026-10-01_16-59-13).
+    {72, &vr_enemy_shove_range, "52"},      // 50
+    {72, &vr_enemy_shove_delay, "0.6"},     // 0.5
+    {72, &vr_enemy_shove_cooldown, "3"},    // 1.5
+    {72, &vr_enemy_shove_distance, "64"},   // 128
 };
-constexpr int configVersion = 71;
+constexpr int configVersion = 72;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

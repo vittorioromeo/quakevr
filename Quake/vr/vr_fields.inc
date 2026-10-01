@@ -130,3 +130,4 @@ QVR_FIELD(vr_stamina_used) // the stamina pool (vr_melee.qc): what is spent, whe
 QVR_FIELD(vr_stamina_time)
 QVR_FIELD(vr_stamina_said)
 QVR_FIELD(vr_climb_drain) // 1 while a hang drains the pool (the gadget shows it: VR_Melee_Hud)
+QVR_FIELD(vr_climb_knockoff) // set by the QC: a blast or a shove knocks the player off its holds (vr_climb.cpp lets go, keeps the velocity)

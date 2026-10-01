@@ -4666,6 +4666,10 @@ void() ImpulseCommands =
     {
         VR_EnemyShove_TestShoveNearest();
     }
+    if(self.impulse == 221 && !deathmatch && !coop) // QVR: a blast at your feet in 3 s (knocked off a hold; vr_enemyshove.qc)
+    {
+        VR_Climb_TestBlast();
+    }
     if(self.impulse == 249 && !deathmatch && !coop) // QVR: does the pose parry a blow from ahead? (developer 1)
     {
         VR_Parry_Probe();
