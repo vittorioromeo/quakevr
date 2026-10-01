@@ -428,13 +428,13 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
             grip[holding] == GRIP_BLADE ? bladeDist : foreDist);
     }
     if(vr_debug_2h_grip.value >= 2 && shouldAim[holding] && grip[holding] == GRIP_BLADE && length > 0.f &&
-        realtime >= debugPrintAt)
+        vr_gametime >= debugPrintAt)
     {
         // Where along the blade the helping hand holds it: a share of the way from the holding hand to the tip.
         const glm::vec3 toTip = s.muzzle[holding] - holdingPos;
         Con_Printf("2h grip: on the blade at %.2f of the way to the tip\n",
             glm::dot(s.pos[helping] - holdingPos, toTip) / glm::dot(toTip, toTip));
-        debugPrintAt = realtime + 0.25;
+        debugPrintAt = vr_gametime + 0.25;
     }
 
     const float t = aimTransition[holding];
@@ -491,14 +491,14 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
 // The view says the hand is on the other hand's weapon, this frame or the last few.
 [[nodiscard]] bool candidate(int hand)
 {
-    return freeCandidate[hand] && realtime - candidateTime[hand] < 0.25;
+    return freeCandidate[hand] && vr_gametime - candidateTime[hand] < 0.25;
 }
 
 // A grip that may take hold anywhere: just started (not slid onto the weapon gripping), or the hand carried the weapon a
 // moment ago (the other hand took its handle: this one goes on holding it where it is).
 [[nodiscard]] bool freshGrab(int hand)
 {
-    return realtime - grabStart[hand] < 0.3 || (!carrying(hand) && realtime - carryLast[hand] < 0.5);
+    return vr_gametime - grabStart[hand] < 0.3 || (!carrying(hand) && vr_gametime - carryLast[hand] < 0.5);
 }
 
 [[nodiscard]] carry2h::Frame handsFrame(const hands::State& s, const glm::vec3 (&rots)[2], int h)
@@ -586,7 +586,7 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         return false;
     }
 
-    g.lastOn = realtime;
+    g.lastOn = vr_gametime;
     helpingHand[helping] = true;
     shouldAim[holding] = false;
     transition(aimTransition[holding], false, 5.f);
@@ -624,7 +624,7 @@ bool startFree(const hands::State& s, const glm::vec3 (&originalRots)[2], int ho
     }
     const carry2h::Frame both[2]{handsFrame(s, originalRots, HAND_OFF), handsFrame(s, originalRots, HAND_MAIN)};
     g.hold = carry2h::record(frameOf(s.pos[holding], originalRots[holding]), both);
-    g.lastOn = realtime;
+    g.lastOn = vr_gametime;
     if(vr_debug_2h_grip.value)
     {
         Con_Printf("2h grip: %s hand took the weapon anywhere (%s), %.1f units from its handle (%.1f %.1f %.1f)\n",
@@ -644,7 +644,7 @@ bool startRetake(const hands::State& s, const glm::vec3 (&originalRots)[2], int 
 {
     if(!vr_weapon_grab_anywhere.value || slot < 0 || shouldAim[holding] || aimTransition[holding] > 0.f ||
         !client::grabbing(helping) || !held::handEmpty(helping) || carrying(helping) || !carryPoseValid[helping] ||
-        !carryPose[helping].free || realtime - carryLast[helping] >= 0.5 || retakeFrom[helping] == carryLast[helping])
+        !carryPose[helping].free || vr_gametime - carryLast[helping] >= 0.5 || retakeFrom[helping] == carryLast[helping])
     {
         return false;
     }
@@ -696,7 +696,7 @@ bool startRetake(const hands::State& s, const glm::vec3 (&originalRots)[2], int 
     g.hand = hand;
     const carry2h::Frame both[2]{handsFrame(s, originalRots, HAND_OFF), handsFrame(s, originalRots, HAND_MAIN)};
     g.hold = carry2h::record(frameOf(s.pos[holding], originalRots[holding]), both);
-    g.lastOn = realtime;
+    g.lastOn = vr_gametime;
     if(vr_debug_2h_grip.value)
     {
         Con_Printf("2h grip: %s hand goes on holding the weapon anywhere (%s) as the other hand took its handle, %.1f units "
@@ -789,13 +789,13 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     {
         Con_Printf("2h grip: %s hand took it (%.1f units off its grip)\n", holding == HAND_MAIN ? "off" : "main", gripDist);
     }
-    if(vr_debug_2h_grip.value >= 2 && fixedMode && realtime >= debugPrintAt)
+    if(vr_debug_2h_grip.value >= 2 && fixedMode && vr_gametime >= debugPrintAt)
     {
         // Where its grip is from the helping hand (units, world), to place a test's hand on it.
         const glm::vec3 d = s.grip2H[holding] - (s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping]);
         Con_Printf("2h grip: %s hand %.1f units off the grip (%.1f %.1f %.1f), held %d, keep %.1f\n",
             holding == HAND_MAIN ? "off" : "main", gripDist, d.x, d.y, d.z, shouldAim[holding] ? 1 : 0, keep);
-        debugPrintAt = realtime + 0.25;
+        debugPrintAt = vr_gametime + 0.25;
     }
     if(wasHeld && !shouldAim[holding])
     {
@@ -918,7 +918,7 @@ void apply(hands::State& s)
         const bool grab = client::grabbing(h);
         if(grab && !grabWas[h])
         {
-            grabStart[h] = realtime;
+            grabStart[h] = vr_gametime;
         }
         grabWas[h] = grab;
         const int id = weaponId(h);
@@ -934,7 +934,7 @@ void apply(hands::State& s)
         }
         if(carried)
         {
-            carryLast[h] = realtime;
+            carryLast[h] = vr_gametime;
         }
     }
     applyHand(s, originalRots, HAND_MAIN, HAND_OFF, mode);
@@ -1054,8 +1054,8 @@ void recordHelp(const hands::State& s, int hand, const glm::vec3& drawnPos, cons
 {
     const int holder = 1 - hand;
     HelpRecord& r = help[hand];
-    const bool going = r.valid && realtime - r.time < 0.1; // helping since the last frames
-    r.time = realtime;
+    const bool going = r.valid && vr_gametime - r.time < 0.1; // helping since the last frames
+    r.time = vr_gametime;
     if(going && !client::grabbing(holder))
     {
         return; // the holding hand let go: the pose at the release (it moves away before the server hands off)
@@ -1080,7 +1080,7 @@ namespace
     {
         const HelpRecord& ground = groundSpots[hand].record;
         const HelpRecord& from = ground.valid && (!help[hand].valid || ground.time > help[hand].time) ? ground : help[hand];
-        carryPoseValid[hand] = from.valid && realtime - from.time < 0.5;
+        carryPoseValid[hand] = from.valid && vr_gametime - from.time < 0.5;
         carryPose[hand] = from;
         if(vr_debug_2h_grip.value && &from == &ground)
         {
@@ -1120,7 +1120,7 @@ void applyCarried(hands::State& s, int holding, int helping)
         const bool gripping = client::grabbing(helping) && held::handEmpty(helping);
         if(gripping && off <= freeKeep())
         {
-            g.lastOn = realtime;
+            g.lastOn = vr_gametime;
             helpingHand[helping] = true;
             transition(g.t, true, 5.f);
             return;
@@ -1153,7 +1153,7 @@ void applyCarried(hands::State& s, int holding, int helping)
     const carry2h::Frame both[2]{frameOf(s.pos[HAND_OFF], s.rot[HAND_OFF]), frameOf(s.pos[HAND_MAIN], s.rot[HAND_MAIN])};
     g.hold = carry2h::record(frameOf(holderPos, holderRot), both);
     g.carrier = relativeTo(holderPos, holderRot, drawnPos, drawnRot);
-    g.lastOn = realtime;
+    g.lastOn = vr_gametime;
     helpingHand[helping] = true;
     if(vr_debug_2h_grip.value)
     {
@@ -1209,7 +1209,7 @@ void setFreeCandidate(int hand, bool on)
     freeCandidate[hand] = on;
     if(on)
     {
-        candidateTime[hand] = realtime;
+        candidateTime[hand] = vr_gametime;
     }
 }
 
@@ -1247,7 +1247,7 @@ int helpKind(int hand)
     {
         return g.on ? 2 : 1;
     }
-    return realtime - g.lastOn < 0.2 ? 2 : 0;
+    return vr_gametime - g.lastOn < 0.2 ? 2 : 0;
 }
 
 bool freeGripPoint(const hands::State& s, int hand, glm::vec3& out, float& t)
@@ -1290,7 +1290,7 @@ void recordGroundSpot(int hand, int entity, int index, const glm::vec3& trackedP
     g.index = index;
     g.recordIndex = index;
     g.record.valid = true;
-    g.record.time = realtime;
+    g.record.time = vr_gametime;
     g.record.holder = relativeTo(trackedPos, trackedRot, holderPos, holderRot);
     g.record.holderMirrored = holderMirrored;
     g.record.drawnHand = relativeTo(trackedPos, trackedRot, drawnPos, drawnRot);
@@ -1318,7 +1318,7 @@ int groundSpot(int hand, int entity)
 {
     const GroundSpot& g = groundSpots[hand];
     // (Seen this frame or the last few: the server runs before the view in a frame.)
-    return entity > 0 && g.entity == entity && g.index >= 0 && realtime - g.record.time < 0.25 ? g.index + 1 : 0;
+    return entity > 0 && g.entity == entity && g.index >= 0 && vr_gametime - g.record.time < 0.25 ? g.index + 1 : 0;
 }
 
 void updateHotspots(hands::State& s)

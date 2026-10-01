@@ -879,10 +879,10 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
             if(c.mode == Mode::Blocking && c.t0 > 0.5f * 0.01f * units::metresToUnits())
             {
                 // Out of the far side in one go (held out until then): through, eased as a let go.
-                passedAt[c.a] = realtime;
+                passedAt[c.a] = vr_gametime;
                 if(c.b >= 0)
                 {
-                    passedAt[c.b] = realtime;
+                    passedAt[c.b] = vr_gametime;
                 }
             }
             c.mode = Mode::None;
@@ -944,10 +944,10 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
         if(c.share > passShare || c.pushed > passCap * (c.b >= 0 ? 2.f : 1.f)) // (two hands: each moves half)
         {
             c.mode = Mode::Passing; // pushed through: let go
-            passedAt[c.a] = realtime;
+            passedAt[c.a] = vr_gametime;
             if(c.b >= 0)
             {
-                passedAt[c.b] = realtime;
+                passedAt[c.b] = vr_gametime;
             }
         }
     }
@@ -1004,10 +1004,10 @@ void solve(const hands::State& s, float dt, glm::vec3 out[2], Stats& stats)
                 if(c.on && c.mode == Mode::Blocking && (c.a == h || c.b == h))
                 {
                     c.mode = Mode::Passing;
-                    passedAt[c.a] = realtime;
+                    passedAt[c.a] = vr_gametime;
                     if(c.b >= 0)
                     {
-                        passedAt[c.b] = realtime;
+                        passedAt[c.b] = vr_gametime;
                     }
                 }
             }
@@ -1159,8 +1159,8 @@ void beginView(hands::State& s)
             }
         }
         appliedFrame = host_framecount;
-        const float dt = lastTime >= 0.0 ? static_cast<float>(za::clamp(realtime - lastTime, 0.0, 0.1)) : 0.f;
-        lastTime = realtime;
+        const float dt = lastTime >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - lastTime, 0.0, 0.1)) : 0.f;
+        lastTime = vr_gametime;
         viewOn = vr_body_collide.value != 0.f && s.valid && sightalign::phase() != sightalign::Phase::Capturing;
         Stats stats;
         if(viewOn)
@@ -1182,7 +1182,7 @@ void beginView(hands::State& s)
         {
             // Out at once (nearly); back as the hand comes out; through, once let go, a quick slide.
             const bool deeper = glm::dot(target[h] - drawn[h], target[h]) > 0.f;
-            const float tau = deeper ? easeIn : realtime - passedAt[h] < passHold ? easePass : easeOut;
+            const float tau = deeper ? easeIn : vr_gametime - passedAt[h] < passHold ? easePass : easeOut;
             drawn[h] += (target[h] - drawn[h]) * (dt > 0.f ? 1.f - za::exp(-dt / tau) : 1.f);
             if(glm::length(drawn[h]) < 1e-3f && glm::length(target[h]) == 0.f)
             {

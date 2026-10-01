@@ -309,9 +309,9 @@ void offset(int hand, glm::vec3& pos, glm::vec3& angles)
         pos += (wristBack * 0.01f * units::metresToUnits()) * ((za::cos(a) - 1.f) * f + za::sin(a) * u);
     }
 
-    if(vr_debug_pain.value && hand == HAND_MAIN && cmNow > 0.f && realtime != printedAt)
+    if(vr_debug_pain.value && hand == HAND_MAIN && cmNow > 0.f && vr_gametime != printedAt)
     {
-        printedAt = realtime;
+        printedAt = vr_gametime;
         const hands::State& s = hands::current();
         glm::vec3 fwd, right, up;
         hands::angleVectors({0.f, s.bodyYaw, 0.f}, fwd, right, up);

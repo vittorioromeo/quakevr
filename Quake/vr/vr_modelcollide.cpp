@@ -379,7 +379,7 @@ enum class Kind
 
 // A loose prop lying on `hand` (held up by the hand's body in the physics: box3d::restsOnHand), or a moment ago: it
 // doesn't push the hand from under it (the palm stays under what it holds up; the physics keeps them apart).
-za::Vector<double> restSeen; // by entity: realtime it last lay on a hand
+za::Vector<double> restSeen; // by entity: vr_gametime it last lay on a hand
 [[nodiscard]] bool restsOn(int num, int hand)
 {
     if(restSeen.size() <= static_cast<za::SizeT>(num))
@@ -389,10 +389,10 @@ za::Vector<double> restSeen; // by entity: realtime it last lay on a hand
     double& seen = restSeen[static_cast<za::SizeT>(num)];
     if(box3d::restsOnHand(num, cl.viewentity, hand))
     {
-        seen = realtime;
+        seen = vr_gametime;
         return true;
     }
-    return seen >= 0.0 && realtime - seen < restGrace;
+    return seen >= 0.0 && vr_gametime - seen < restGrace;
 }
 
 // While hosting (the server's entities: its flags say what a thing is); else by the model.
@@ -1065,8 +1065,8 @@ void beginView(hands::State& s)
     if(!again)
     {
         appliedFrame = host_framecount;
-        const float dt = lastTime >= 0.0 ? static_cast<float>(za::clamp(realtime - lastTime, 0.0, 0.1)) : 0.f;
-        lastTime = realtime;
+        const float dt = lastTime >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - lastTime, 0.0, 0.1)) : 0.f;
+        lastTime = vr_gametime;
         for(int hand = 0; hand < 2; hand++)
         {
             Result res;

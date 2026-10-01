@@ -848,6 +848,10 @@ static void Host_AdvanceTime (double dt)
 		host_frametime = host_framerate.value;
 	else if (host_maxfps.value)// don't allow really long or short frames
 		host_frametime = CLAMP (0.0001, host_frametime, 0.1); //johnfitz -- use CLAMP
+
+	VR_AdvanceTime (dt); // QVR: slow motion (vr_timescale): the whole simulation's time scaled, vr_gametime
+	if (VR_TimeScale () != 1.0)
+		host_frametime *= VR_TimeScale ();
 }
 
 /*
@@ -1314,6 +1318,8 @@ void _Host_Frame (double time)
 		}
 		else
 			accumtime -= host_netinterval;
+		if ((vrserver >= 0 || host_netinterval) && VR_TimeScale () != 1.0)
+			host_frametime *= VR_TimeScale (); // QVR: slow motion: the server's frames (as many, each shorter)
 		VR_ProfileBegin ("client send"); // QVR: profile
 		CL_SendCmd ();
 		VR_ProfileEnd (); // QVR

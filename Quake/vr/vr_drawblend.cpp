@@ -112,7 +112,7 @@ void start(Blend& b, const Pose& from, const Pose& to, float time, int source)
     b.startAngle = glm::degrees(2.f * za::acos(za::min(b.offset.rot.w, 1.f)));
     b.rawAngle = raw;
     b.on = true;
-    b.start = realtime;
+    b.start = vr_gametime;
     b.time = time;
     b.from = source;
 }
@@ -125,7 +125,7 @@ void start(Blend& b, const Pose& from, const Pose& to, float time, int source)
     {
         return 0.f;
     }
-    const double u = b.time > 0.f ? (realtime - b.start) / b.time : 1.0;
+    const double u = b.time > 0.f ? (vr_gametime - b.start) / b.time : 1.0;
     if(u >= 1.0 || u < 0.0)
     {
         b.on = false;
@@ -149,7 +149,7 @@ void logFrame(const char* what, const qmodel_t* model, const Blend& b, float k, 
     {
         Con_Printf("draw blend: %s, %s: %.3f s, left %.3f; turn to go %.1f deg (from %.1f; unflipped %.1f), "
                    "%.2f units to go (from %.2f)\n",
-            what, model ? model->name : "-", realtime - b.start, k, angleBetween(drawn.rot, to.rot), b.startAngle,
+            what, model ? model->name : "-", vr_gametime - b.start, k, angleBetween(drawn.rot, to.rot), b.startAngle,
             b.rawAngle, glm::distance(drawn.pos, to.pos), glm::length(b.offset.pos));
     }
 }
@@ -207,23 +207,23 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
     if(const int h = holsterAt(s, hand); h >= 0)
     {
         st.hovered = h;
-        st.hoveredAt = realtime;
+        st.hoveredAt = vr_gametime;
     }
-    const int recent = realtime - st.hoveredAt <= pairing ? st.hovered : -1;
+    const int recent = vr_gametime - st.hoveredAt <= pairing ? st.hovered : -1;
 
     if(model != st.model && !sameGun(model, st.model)) // (a morph to the other ammo's model is the same gun)
     {
         st.blend.on = false;
         if(model)
         {
-            st.gainedAt = realtime;
+            st.gainedAt = vr_gametime;
         }
         if(st.model)
         {
             // Let go of (holstered, thrown, passed): a holster that takes it at once eases it in from here.
             st.lost = st.model;
             st.lostPose = st.drawn;
-            st.lostAt = realtime;
+            st.lostAt = vr_gametime;
             st.lostHolster = recent;
         }
         const float time = vr_weapon_draw_blend.value;
@@ -231,7 +231,7 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
         {
             // Taken from the holster the hand is at, which showed this gun a moment ago.
             const HolsterState& from = holsterStates[recent];
-            if(sameGun(from.model, model) && realtime - from.shownAt <= pairing)
+            if(sameGun(from.model, model) && vr_gametime - from.shownAt <= pairing)
             {
                 start(st.blend, from.drawn, poseOf(e), time, recent);
             }
@@ -242,11 +242,11 @@ void hand(const hands::State& s, int hand, entity_t& e, bool gun)
     // Caught from a force grab (the catch and the gun's stats come in the same update, either first): eased in from
     // where the weapon flew.
     Catch& c = catches[hand];
-    if(c.on && za::fabs(realtime - c.at) > pairing)
+    if(c.on && za::fabs(vr_gametime - c.at) > pairing)
     {
         c.on = false;
     }
-    if(c.on && model && !st.blend.on && realtime - st.gainedAt <= pairing)
+    if(c.on && model && !st.blend.on && vr_gametime - st.gainedAt <= pairing)
     {
         if(const float time = vr_forcegrab_catch_blend.value; time > 0.f)
         {
@@ -284,7 +284,7 @@ void holster(const hands::State& s, int holster, entity_t* e, bool live)
     const qmodel_t* const model = live && e ? e->model : nullptr;
     if(model != st.model)
     {
-        st.changedAt = realtime;
+        st.changedAt = vr_gametime;
         st.blend.on = false;
     }
 
@@ -295,8 +295,8 @@ void holster(const hands::State& s, int holster, entity_t* e, bool live)
     for(int hand = 0; hand < 2 && model && time > 0.f && !st.blend.on; hand++)
     {
         HandState& h = handStates[hand];
-        if(h.lostHolster == holster && sameGun(h.lost, model) && realtime - h.lostAt <= pairing &&
-            (quickSlots || realtime - st.changedAt <= pairing))
+        if(h.lostHolster == holster && sameGun(h.lost, model) && vr_gametime - h.lostAt <= pairing &&
+            (quickSlots || vr_gametime - st.changedAt <= pairing))
         {
             start(st.blend, h.lostPose, poseOf(*e), time, hand);
             h.lost = nullptr; // once
@@ -316,7 +316,7 @@ void holster(const hands::State& s, int holster, entity_t* e, bool live)
     if(model)
     {
         st.drawn = poseOf(*e);
-        st.shownAt = realtime;
+        st.shownAt = vr_gametime;
     }
 }
 
@@ -345,7 +345,7 @@ void parseCatch()
                        glm::distance(glm::vec3{cl_entities[ent].origin[0], cl_entities[ent].origin[1], cl_entities[ent].origin[2]},
                            glm::vec3{origin[0], origin[1], origin[2]}) < 48.f;
     c.from = drawn ? poseOf(cl_entities[ent]) : poseOf(origin, angles);
-    c.at = realtime;
+    c.at = vr_gametime;
     c.on = true;
     if(vr_debug_draw_blend.value)
     {

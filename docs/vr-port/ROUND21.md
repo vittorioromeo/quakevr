@@ -19446,3 +19446,68 @@ knight, at 1 s too).
 - Melee canary: no differences.
 - Open: a weapon thrown up hard and falling back on you bounces off your Box3D capsule (`vr_box3d.cpp` `touches`
   sends no player touches), so it never hurts you; a prop (health box) does. Unchanged from combat 4.
+
+## Slow motion (2026-10-02)
+
+His request: a slow motion / bullet time mode for recording trailer footage to speed up in editing; later (phase 2)
+a gameplay bullet time on the wrist gadget and a Sandevistan mode. This is phase 1, the recording mode.
+
+### What it does
+
+- **One time scale for the whole simulation** (`vr_timescale`, 1; 0.05 .. 4, single player, not saved). Host.c's
+  `Host_AdvanceTime` multiplies `host_frametime` by it (`VR_TimeScale`), and the server's frames too (`_Host_Frame`,
+  the `host_netinterval` and motion-take branches): the server still runs at 72 Hz of real time, each frame shorter
+  (`0.25/72` s), so nothing is quantized to game-time steps and nothing stutters at small scales. That slows
+  everything on Quake's clocks: QC (`time`, `frametime`, every think and timer, monster AI, missiles), Quake's
+  movement, Box3D (stepped by `host_frametime`), the client's time (`cl.time`: entity and animation lerping,
+  particles, decals, light styles, the view's effects). VR's own client simulations that stepped on `realtime` now
+  step on **`vr_gametime`** (vr_api.h): realtime slowed by the scale, bit-identical to realtime until slow motion is
+  first used (`realtime - 0.0`). Switched: avatar (legs), chainsaw, climb, coil, drawblend, fatigue, flashlight, flick,
+  handpose (fingers), hands (velocities), held, hitmodel, lighting (shadow lights), modelcollide, painknock, rope,
+  selfcollide, torso, twohand, view (morphs, held weapons' bodies; and box3d's read of them), weight, wounds. Left on
+  realtime (real time on purpose): menus, the wrist gadget and the melee HUD, haptics, the spectator camera and the
+  window's smoothing, profiling and memory logs, spatial audio's simulation, caches.
+- **The head is never slowed**: the camera follows the headset at the full frame rate.
+- **The hands are slowed with the world** (`timescale::filterHands`, right after the tracking in `VR_BeginFrame`):
+  in tracking space, each hand follows its controller as fast as the slowed world allows, at most
+  `vr_timescale_hand_speed` (8 m/s of game time; 2 m/s real at 0.25x) and `vr_timescale_hand_spin` (20 rad/s). A
+  slow move is followed exactly; its velocity in the game's time is the controller's divided by the scale (a move
+  made at a quarter speed is a normal blow in the quarter-speed world). A real-speed swing trails at the limit: a
+  hard blow, never a supersonic one. The runtime's clock is slowed the same way (`t.time`), so the throws' and spins'
+  velocities measured on it are in the game's time too. Nothing is changed at a scale of 1 once the hands have caught
+  up, nor with a menu open (the laser follows the controller).
+- **Sounds** (`vr_timescale_sound` 1): played slower and lower, resampled (linear), so a slowed recording sped up in
+  editing sounds right. Quake's mixer: `SND_PaintChannelRate` (snd_mix.c; a channel's end then counts output
+  samples, put back when the scale returns to 1; `channel_t.frac`, `.resampled`); spatial audio: the voice's Doppler
+  rate times the scale (eased as the Doppler is). Off: normal speed and pitch. Music is never slowed.
+- **Ease** (`vr_timescale_ramp` 0.3 s for the whole way from 1 to 0): the scale slides, linearly in real time.
+- **Bindable:** `vr_slowmo` toggles between 1 and `vr_slowmo_scale` (0.25); `vr_slowmo 0.5` sets a scale.
+- **Menu:** Graphics > Recording > Slow Motion (Time Scale, Toggle's Time Scale, Ease In and Out, Slow Sounds, Hand
+  Speed Limit, Hand Turn Limit); Debug > Slow Motion (the time scale). No HUD change.
+- **Test aid:** `vr_slowmo_probe [classname | number]` (Debug > Reports > Slow Motion Clocks) prints the clocks (server, realtime, `vr_gametime`, client),
+  the player's origin and velocity, the main hand's speed and lag, and an entity's origin, velocity, nextthink.
+
+### Results (mock, `vr_fixed_frames 1`, e1m1)
+
+- Clocks: per probe interval (0.125 game s) the server's time advances 0.125 at every scale; realtime 0.125, 0.25, 0.5.
+- An ogre's grenade (MOVETYPE_BOUNCE, `impulse 246`) at 1, 0.5, 0.25: the same 519.6/-300 u/s, gravity 800 u/s²,
+  apex 138 units; height at the same x within 0.6 (0.5x) and 1.2 units (0.25x; Quake's per-frame integration, finer
+  steps); it lands at the same spot. Knockback on the player: 7.9 units at 1x, 11.2 at 0.5x and 0.25x (the explosion's
+  distance at 8 vs 2 units of flight a frame).
+- A Box3D prop flung (`vr_physics_fling 32 200 90 300`): the same apex (y 2412, z 116.7), bounce off the wall and rest
+  height (66.6) at all three; where it settles after the bounces differs by up to 8 units (contacts).
+- Hands at 0.25: the mock hand jumped 0.5 m: the in-game hand moves at 8.00 m/s (game time) and catches up in 0.0625
+  game s (lag 0.47, 0.44, 0.39, 0.28, 0.06, 0 m); at 1x it jumps at once (unchanged). Moved 5 mm a frame (0.36 m/s
+  real): 1.44 m/s game time at 0.25x, no lag; 0.36 at 1x.
+- Sounds (`-Sound -RealTime`, `vr_snd_capture`): the shotgun's cock lasts 1.3 s at 1x and 5.2 s at 0.25x, in both
+  Quake's mixer and spatial audio.
+- Smoke: slow motion in combat, a menu opened and changed in it, a map change: no errors. Melee canary at 1: no
+  differences.
+
+### Known limits
+
+- The head's velocity stays real (melee speeds are taken relative to the head: a head moved fast in slow motion counts
+  4x at 0.25x). Snap and smooth turns, the thumbstick's moves and jumps are the player's and are slowed with the world.
+- Single player only (a remote server keeps its own time; `vr_slowmo` says so).
+- A few UI animations stepped by `host_frametime` slow down with it. Steam Audio's reverb and occlusion update in real
+  time. The window's spectator camera smoothing is in real time (as the head).

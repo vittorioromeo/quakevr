@@ -230,6 +230,11 @@ context and screenshot, ready to paste or to point me at.
     1080p). Record the window with OBS (Window Capture, "Windows 10 (1903 and up)", the window sized to the video,
     1920 x 1080); the OBSMirror layer can't capture this OpenGL game. Try Smoothing, Level Horizon, and the spectator's
     Resolution Scale while watching the headset's frame rate.
+  - **Slow motion for recording** (ROUND21.md, "Slow motion"): Graphics > Recording > Slow Motion, or bind a key to
+    `vr_slowmo` (toggles 0.25x). Everything slows (monsters, missiles, physics, effects, sounds lower) but your view;
+    your hands follow your controllers as fast as the slowed world allows. Try moving at a quarter speed while
+    recording, then speed the footage up 4x: does it look and sound natural? Try a real-speed swing in slow motion
+    (Hand Speed Limit), Slow Sounds off, Ease In and Out.
   - **Grappling hook: rope, reel on demand, props and monsters** (ROUND21.md, same title): the hook bites and the rope
     just holds you at its length (swing on it, walk closer; nothing pulls). Hold that hand's **B** (right) or **Y**
     (left) with the trigger to reel in; let go and the rope keeps its length. Walls and ceilings, heavy props (100 kg

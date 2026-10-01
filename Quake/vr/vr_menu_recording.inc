@@ -2,7 +2,8 @@
 #include "Zancle/Container/Vector.hpp"
 
 // vr_menu_recording.inc -- the Recording page (Graphics > Recording): what the desktop window shows while in VR, for
-// recording it with OBS (vr_window.cpp; ROUND21.md, "Recording: smoothed mirror and spectator camera"). Included by
+// recording it with OBS (vr_window.cpp; ROUND21.md, "Recording: smoothed mirror and spectator camera"); and slow motion
+// (vr_timescale.cpp; ROUND21.md, "Slow motion"). Included by
 // vr_menu.cpp; self-contained, so it can move with a reorganized menu.
 
 [[nodiscard]] za::Vector<Item> pageRecording()
@@ -52,5 +53,25 @@
         slider("Position Smoothing", "vr_spectator_pos_smooth", 0.f, 0.3f, 0.01f, "%.2f s")
             .help("How much your head's small movements are smoothed out (its lag). Walking, turning and teleporting are "
                   "never smoothed."),
+        header("Slow Motion"),
+        slider("Time Scale", "vr_timescale", 0.1f, 1.f, 0.05f, "%.2fx").extend(0.05f, 4.f)
+            .help("The game's speed, for footage to speed up in editing (0.25: record at a quarter speed, play it back 4x "
+                  "faster): monsters, missiles, physics, animations, effects and timers all slowed alike. Your view "
+                  "follows your head in real time; your hands move with the slowed world. Single player. Not saved. "
+                  "Bindable: bind a key to vr_slowmo (toggles to the scale below) or vr_slowmo 0.5."),
+        slider("Toggle's Time Scale", "vr_slowmo_scale", 0.1f, 1.f, 0.05f, "%.2fx").extend(0.05f, 4.f)
+            .help("The time scale the vr_slowmo command toggles to (and back to 1)."),
+        slider("Ease In and Out", "vr_timescale_ramp", 0.f, 2.f, 0.1f, "%.1f s")
+            .help("Seconds the time scale takes to slide all the way from 1 to 0: a gradual slow-down and speed-up; 0 "
+                  "switches at once."),
+        toggle("Slow Sounds", "vr_timescale_sound")
+            .help("On: sounds play slowed and lower with the game, as a slowed recording sounds (sped up in editing, "
+                  "they're right again). Off: at their normal speed and pitch. Music is never slowed."),
+        slider("Hand Speed Limit", "vr_timescale_hand_speed", 0.f, 20.f, 0.5f, "%.1f m/s")
+            .help("In slow motion, your hands follow your controllers as fast as the slowed world allows: at most this "
+                  "fast in the game's time (a quarter of it in real time at 0.25x). A slow move is followed exactly; "
+                  "a real-speed swing lands as a hard blow, not a supersonic one. 0: no limit (the hands keep up)."),
+        slider("Hand Turn Limit", "vr_timescale_hand_spin", 0.f, 40.f, 1.f, "%.0f rad/s")
+            .help("Likewise, the most your hands turn per second of the game's time in slow motion. 0: no limit."),
     };
 }

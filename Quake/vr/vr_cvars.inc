@@ -260,6 +260,14 @@ QVR_CVAR(vr_spectator_scale, "0.75", CVAR_ARCHIVE)    // spectator camera: its r
 QVR_CVAR(vr_spectator_rate, "60", CVAR_ARCHIVE)        // spectator camera: drawn every frame (1), every 2nd or 3rd (2, 3), or at most this many times a second (more than 3); the window shows the last between
 QVR_CVAR(vr_spectator_aa, "1", CVAR_ARCHIVE)           // spectator camera: 1 the window's MSAA (vid_fsaa), as the eyes; 0 none
 QVR_CVAR(vr_spectator_pos_smooth, "0.05", CVAR_ARCHIVE) // spectator camera: seconds, the steadied position's lag (0 none .. 0.3)
+// Slow motion (vr_timescale.cpp; ROUND21.md, "Slow motion"): the whole simulation slowed (the server, the client's time,
+// VR's own simulations on vr_gametime); the headset's view in real time; the hands follow their controllers slowed.
+QVR_CVAR(vr_timescale, "1", CVAR_NONE)                 // the game's time per real second (0.05 .. 4; 1 normal); single player. Not saved: a game never starts slowed
+QVR_CVAR(vr_slowmo_scale, "0.25", CVAR_ARCHIVE)        // the time scale vr_slowmo toggles to (bindable: bind x vr_slowmo)
+QVR_CVAR(vr_timescale_ramp, "0.3", CVAR_ARCHIVE)       // real seconds the time scale takes to go all the way from 1 to 0 (or back), linearly (0: at once)
+QVR_CVAR(vr_timescale_sound, "1", CVAR_ARCHIVE)        // 1: sounds play slowed and lower with the time scale (resampled); 0: at their normal speed and pitch
+QVR_CVAR(vr_timescale_hand_speed, "8", CVAR_ARCHIVE)   // m/s of the game's time: the most a hand moves in slow motion (a real-speed swing is no supersonic blow); 0: no limit
+QVR_CVAR(vr_timescale_hand_spin, "20", CVAR_ARCHIVE)   // rad/s of the game's time: the most a hand turns in slow motion; 0: no limit
 // The flat HUD (the status bar, hudstyle) over the window's view while in VR: over the mirror (Left Eye, Smoothed
 // Mirror) and over the spectator camera (off: the headset's view, the wrist gadget its HUD, for recording).
 QVR_CVAR(vr_window_hud_mirror, "1", CVAR_ARCHIVE)

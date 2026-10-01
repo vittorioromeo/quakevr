@@ -706,14 +706,14 @@ Morph morphs[2];
         const int kind = morphKind(m.last, model);
         m.from = kind >= 0 && time > 0.f ? const_cast<qmodel_t*>(m.last) : nullptr;
         m.kind = za::max(kind, 0);
-        m.start = realtime;
+        m.start = vr_gametime;
         m.last = model;
     }
     if(!m.from)
     {
         return 1.f;
     }
-    const float t = time > 0.f ? static_cast<float>((realtime - m.start) / time) : 1.f;
+    const float t = time > 0.f ? static_cast<float>((vr_gametime - m.start) / time) : 1.f;
     if(t >= 1.f || t < 0.f)
     {
         m.from = nullptr;
@@ -820,7 +820,7 @@ void recordDrawnWeapon(const hands::State& s, int hand)
         d.model = ve.ent.model;
         d.mirrored = ve.mirrored;
         d.inHand = glm::inverse(handPose) * entity;
-        d.when = realtime;
+        d.when = vr_gametime;
     }
 }
 
@@ -1218,11 +1218,11 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     }
 
     s.grip2HValid[hand] = fixed2H && !carried;
-    if(model && slot >= 0 && slot != weapons::fistSlot() && vr_debug_2h_grip.value >= 2.f && realtime >= carriedPrintAt[hand])
+    if(model && slot >= 0 && slot != weapons::fistSlot() && vr_debug_2h_grip.value >= 2.f && vr_gametime >= carriedPrintAt[hand])
     {
         // vr_debug_2h_grip 2: where its weapon is drawn (held or carried: a hand-off's continuity); carried, how far the
         // hand carrying it is drawn from each of its grip and blade hotspots.
-        carriedPrintAt[hand] = realtime + 0.5;
+        carriedPrintAt[hand] = vr_gametime + 0.5;
         Con_Printf("2h grip: %s hand %s %s: drawn at %.1f %.1f %.1f, angles %.1f %.1f %.1f%s\n",
             hand == HAND_MAIN ? "main" : "off", carried ? "carrying" : "holding", model->name, ve.ent.origin[0], ve.ent.origin[1], ve.ent.origin[2],
             ve.ent.angles[0], ve.ent.angles[1], ve.ent.angles[2], mirrored ? ", mirrored" : "");
@@ -1621,7 +1621,7 @@ void printGrasp(int hand, const Grasp& g, float rigUnit)
 {
     Con_Printf("grasp (%.2f s): %s hand, %s: %d triangles within reach; the palm moved %.2f cm (%.1f %.1f %.1f), the thumb "
                "turned %.0f (choice %d), the palm %.0f; %.1f us%s; held at (%.3f %.3f %.3f) in the hand\n",
-        realtime, hand == HAND_MAIN ? "main" : "off", g.model ? g.model->name : "-", g.solution.triangles,
+        vr_gametime, hand == HAND_MAIN ? "main" : "off", g.model ? g.model->name : "-", g.solution.triangles,
         glm::length(g.solution.palm) * rigUnit / units::metresToUnits() * 100.f, g.solution.palm.x, g.solution.palm.y,
         g.solution.palm.z, glm::degrees(glm::angle(g.solution.thumbTurn)), g.solution.thumbChoice,
         glm::degrees(glm::angle(g.solution.palmTurn)), g.solution.seconds * 1e6, g.rested ? ", afresh at rest" : "",
@@ -2430,7 +2430,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
             const grasp::Solution& solution = rh.brush;
             if(vr_debug_grasp.value)
             {
-                Con_Printf("brush (%.2f s): %s hand on %s: solve %d, %.1f us, %d triangles; fingers", realtime,
+                Con_Printf("brush (%.2f s): %s hand on %s: solve %d, %.1f us, %d triangles; fingers", vr_gametime,
                     hand == HAND_MAIN ? "main" : "off", rh.brushEnt->model ? rh.brushEnt->model->name : "-", brushSolves[hand],
                     solution.seconds * 1e6, solution.triangles);
                 for(const grasp::FingerStop& st : solution.finger)
@@ -2957,7 +2957,7 @@ void updateGroundSpots(const hands::State& s)
                     spot = twohand::anywhereSpot;
                 }
             }
-            if(vr_debug_2h_grip.value >= 2.f && realtime >= groundPrintAt)
+            if(vr_debug_2h_grip.value >= 2.f && vr_gametime >= groundPrintAt)
             {
                 Con_Printf("anywhere: %s hand %.1f units off the lying %s's surface, %.1f from its handle, %.1f from its "
                            "nearest hotspot: %s (it lies at %.1f %.1f %.1f, angles %.1f %.1f %.1f)\n", hand == HAND_MAIN ? "main" : "off",
@@ -3007,7 +3007,7 @@ void updateGroundSpots(const hands::State& s)
     }
     if(printedGround)
     {
-        groundPrintAt = realtime + 0.25;
+        groundPrintAt = vr_gametime + 0.25;
     }
 }
 
@@ -3028,7 +3028,7 @@ void updateFreeSpots(const hands::State& s)
 {
     const float minAway = za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * units::metresToUnits();
     const float reach = anywhereReachCm * 0.01f * units::metresToUnits();
-    const bool print = vr_debug_2h_grip.value >= 2.f && realtime >= freeSpotPrintAt;
+    const bool print = vr_debug_2h_grip.value >= 2.f && vr_gametime >= freeSpotPrintAt;
     for(int hand = 0; hand < 2; hand++)
     {
         const int other = 1 - hand;
@@ -3069,7 +3069,7 @@ void updateFreeSpots(const hands::State& s)
     }
     if(print)
     {
-        freeSpotPrintAt = realtime + 0.25;
+        freeSpotPrintAt = vr_gametime + 0.25;
     }
 }
 
@@ -4185,9 +4185,9 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
             glm::vec3{button.ent.angles[0], button.ent.angles[1], button.ent.angles[2]}, 0, mirrored);
         front.ent.alpha = e.alpha;
         double& logAt = grappleDebug.idleLogAt;
-        if(vr_grapple_debug.value >= 3 && developer.value && realtime >= logAt)
+        if(vr_grapple_debug.value >= 3 && developer.value && vr_gametime >= logAt)
         {
-            logAt = realtime + 0.5;
+            logAt = vr_gametime + 0.5;
             Con_Printf("grapple: a gun not in a hand: its back button at %.1f %.1f %.1f, the front one at %.1f %.1f %.1f\n",
                 static_cast<double>(button.ent.origin[0]), static_cast<double>(button.ent.origin[1]),
                 static_cast<double>(button.ent.origin[2]), static_cast<double>(pos.x), static_cast<double>(pos.y),
@@ -4693,7 +4693,7 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
         return;
     }
 
-    const float pulse = 0.5f + 0.5f * static_cast<float>(za::sin(realtime * 6.0));
+    const float pulse = 0.5f + 0.5f * static_cast<float>(za::sin(vr_gametime * 6.0));
     if(cl.items & IT_INVULNERABILITY)
     {
         ve.lightMultiply = true;
@@ -4934,9 +4934,9 @@ void setupFrontButton(int hand)
     place(ve, viewModel("progs/wpnbutton.mdl"), pos, glm::vec3{back.ent.angles[0], back.ent.angles[1], back.ent.angles[2]}, 0,
         mirrored);
     double& logAt = grappleDebug.frontLogAt;
-    if(vr_grapple_debug.value >= 3 && developer.value && realtime >= logAt)
+    if(vr_grapple_debug.value >= 3 && developer.value && vr_gametime >= logAt)
     {
-        logAt = realtime + 0.5;
+        logAt = vr_gametime + 0.5;
         Con_Printf("grapple: hand %d's gun: the back button at %.1f %.1f %.1f, the front one at %.1f %.1f %.1f\n", hand,
             static_cast<double>(back.ent.origin[0]), static_cast<double>(back.ent.origin[1]), static_cast<double>(back.ent.origin[2]),
             static_cast<double>(pos.x), static_cast<double>(pos.y), static_cast<double>(pos.z));
@@ -5787,7 +5787,7 @@ extern "C" void VR_SetupViewEntities()
     {
         // Tests: the aim and the muzzle the game uses against the drawn weapon (the shake moves only the latter).
         const entity_t& we = entities.weapon[HAND_MAIN].ent;
-        Con_Printf("fatigueaim %.4f aim %.5f %.5f %.5f muzzle %.4f %.4f %.4f drawn %.4f %.4f %.4f ang %.4f %.4f %.4f\n", realtime,
+        Con_Printf("fatigueaim %.4f aim %.5f %.5f %.5f muzzle %.4f %.4f %.4f drawn %.4f %.4f %.4f ang %.4f %.4f %.4f\n", vr_gametime,
             cl.viewangles[0], cl.viewangles[1], cl.viewangles[2], s.muzzle[HAND_MAIN].x, s.muzzle[HAND_MAIN].y, s.muzzle[HAND_MAIN].z,
             we.origin[0], we.origin[1], we.origin[2], we.angles[0], we.angles[1], we.angles[2]);
     }

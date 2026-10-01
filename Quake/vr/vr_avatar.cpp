@@ -747,7 +747,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         const glm::vec3 axis = safeNormalize(wrist - u.pos);
         const float best = easeWrist(u.pos, wrist, elbow, bend, handRot, side, limits, lastSwivel[side], cUp, lateral, cFwd,
             a, za::max(0.f, vr_body_elbow_lift.value), 0.03f * b.m2w, spreadBy);
-        const double now = realtime;
+        const double now = vr_gametime;
         const double since = lastSwivelTime[side] >= 0.0 ? CLAMP(0.0, now - lastSwivelTime[side], 0.1) : -1.0;
         swivel = since < 0.0 ? best
                              : glm::mix(lastSwivel[side], best, 1.f - za::exp(-static_cast<float>(since) / 0.05f));
@@ -768,7 +768,7 @@ void solveArm(Body& b, int side, const HandPose& handPose)
         // (Its joint kept 2 cm out: 3 cm of its flesh's 5.5, less the centimetre an arm at rest lies against the torso
         // by; a relaxed arm hanging at the side is 2.5 cm out.)
         const float want = selfcollide::elbowSwing(u.pos, elbow, wrist, 0.03f * b.m2w);
-        const double now = realtime;
+        const double now = vr_gametime;
         const double since = lastOutTime[side] >= 0.0 ? CLAMP(0.0, now - lastOutTime[side], 0.1) : -1.0;
         const float out = since < 0.0 ? want : glm::mix(lastOut[side], want, 1.f - za::exp(-static_cast<float>(since) / 0.05f));
         lastOut[side] = za::abs(out) < 1e-4f ? 0.f : out;
@@ -860,12 +860,12 @@ void solveArm(Body& b, int side, const HandPose& handPose)
 
 // The legs' clock: seconds since they were last posed (0 the first time, and for a second pose in
 // the same frame).
-double legsPosedAt = -1.0; // legsDeltaTime's last call (realtime; -1: never)
+double legsPosedAt = -1.0; // legsDeltaTime's last call (vr_gametime; -1: never)
 
 [[nodiscard]] float legsDeltaTime()
 {
     double& lastTime = legsPosedAt;
-    const double now = realtime;
+    const double now = vr_gametime;
     const float dt = lastTime >= 0.0 ? static_cast<float>(CLAMP(0.0, now - lastTime, 0.1)) : 0.f;
     lastTime = now;
     return dt;
@@ -1432,7 +1432,7 @@ void traceLean(const Body& b, const hands::State& s)
     fprintf(file,
         "%.4f %.3f %.3f %.3f %.4f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %d %d %.3f %.3f %.4f "
         "%.4f %.4f %.4f\n",
-        realtime, s.head.x, s.head.y, s.head.z, s.headHeight, s.playerOrigin.x, s.playerOrigin.y, s.lean.x, s.lean.y, p.x,
+        vr_gametime, s.head.x, s.head.y, s.head.z, s.headHeight, s.playerOrigin.x, s.playerOrigin.y, s.lean.x, s.lean.y, p.x,
         p.y, p.z, l.pos.x, l.pos.y, l.lift, r.pos.x, r.pos.y, r.lift, l.step >= 0.f, r.step >= 0.f, gait.amount,
         s.leanHold, s.leanCues.x, s.leanCues.y, s.leanCues.z, s.leanCues.w);
     fflush(file);

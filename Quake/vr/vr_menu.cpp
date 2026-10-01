@@ -2367,6 +2367,9 @@ void checklistReload()
             .help("What to test in the headset or give feedback on (quakevr/checklist.txt), ticked as you go. Also the "
                   "menu's corner button."),
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
+        slider("Slow Motion", vr_timescale, 0.1f, 1.f, 0.05f, "%.2fx").extend(0.05f, 4.f)
+            .help("The game's time scale (vr_timescale; single player, not saved): everything slowed but your view. Its "
+                  "other settings: Graphics > Recording > Slow Motion. Bindable: vr_slowmo."),
         header("Debug"),
         open("Views", pageIndex(pageDebugViews))
             .help("Drawn in the world: physics shapes, hand bones, ledges, grab tests, the skeleton, collisions, foveation, entity boxes."),
@@ -2639,6 +2642,9 @@ za::Vector<Item> pageDebugReports()
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
         command("Player", "vr_dumpplayer").help("vr_dumpplayer [client]: a player's VR fields in the game (hands, weapons, hotspots)."),
         command("View", "vr_dumpview").help("vr_dumpview: the hands, grips, palms, fingers and every entity drawn in the view (long)."),
+        command("Slow Motion Clocks", "vr_slowmo_probe")
+            .help("vr_slowmo_probe [classname | number]: the time scale, the server's, real, slowed and client's clocks, the "
+                  "player's origin and velocity, the main hand's speed and lag behind the controller (and an entity's)."),
         command("Body Calibration", "vr_bodycal_print").help("vr_bodycal_print: the body calibration's state and result."),
         command("Wrists and Grips", "vr_bodycal_debug").help("vr_bodycal_debug: one line a hand, next frame: the wrist and the grip."),
         header("World and Physics"),

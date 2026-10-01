@@ -85,7 +85,7 @@ struct Body
     Offset off;
     const char* model{nullptr}; // what it holds (another: taken afresh)
     int entity{0};
-    double jumpUntil{-1.0}; // realtime: put back in the hand, the move says so until then (dropBits: the melee's jump)
+    double jumpUntil{-1.0}; // vr_gametime: put back in the hand, the move says so until then (dropBits: the melee's jump)
 };
 Body bodies[2];
 
@@ -98,7 +98,7 @@ struct Wrench
     glm::quat q[size]{};
     int count{0}, newest{-1};
     double clock{0.0};
-    double until{-1.0};   // realtime: the move says "wrenched out" until then (the server reads it once a frame)
+    double until{-1.0};   // vr_gametime: the move says "wrenched out" until then (the server reads it once a frame)
     double printAt{-1.0}; // vr_debug_weight_drop: the next print
     float peak{0.f}, peakLimit{0.f};
 };
@@ -407,7 +407,7 @@ void trace(int h, const Load& l, const glm::vec3& xt, const glm::quat& qt, const
     fprintf(file,
         "%.4f %s %s mass %.2f mult %.3f 2h %.2f target %.4f %.4f %.4f drawn %.4f %.4f %.4f off_cm %.2f ang_deg %.2f dpitch %.2f dyaw %.2f "
         "droll %.2f speed %.3f model %s\n",
-        realtime, h == HAND_MAIN ? "main" : "off", l.model, l.mass, l.staminaMult, l.twoHanded, xt.x, xt.y, xt.z, x.x, x.y, x.z, off, ang,
+        vr_gametime, h == HAND_MAIN ? "main" : "off", l.model, l.mass, l.staminaMult, l.twoHanded, xt.x, xt.y, xt.z, x.x, x.y, x.z, off, ang,
         wrap(da.x - ta.x), wrap(da.y - ta.y), wrap(da.z - ta.z), speed, "spring");
     if(vr_debug_weight.value >= 2)
     {
@@ -927,7 +927,7 @@ void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, flo
         w.peak = speed;
         w.peakLimit = limit;
     }
-    if(vr_debug_weight_drop.value && realtime >= w.printAt)
+    if(vr_debug_weight_drop.value && vr_gametime >= w.printAt)
     {
         if(w.peak > 0.5f * w.peakLimit)
         {
@@ -935,11 +935,11 @@ void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, flo
                 l.model, w.peak, w.peakLimit, l.mass, l.twoHanded);
         }
         w.peak = w.peakLimit = 0.f;
-        w.printAt = realtime + 0.5;
+        w.printAt = vr_gametime + 0.5;
     }
     if(speed > limit)
     {
-        w.until = realtime + wrenchLatch;
+        w.until = vr_gametime + wrenchLatch;
         w.count = 0;
         Con_DPrintf("weight drop: %s %s wrenched out: %.0f deg/s over %.3f s, limit %.0f (%.1f kg, two hands %.2f)\n",
             h == HAND_MAIN ? "main" : "off", l.model, speed, span, limit, l.mass, l.twoHanded);
@@ -955,19 +955,19 @@ void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, flo
 za::U8 dropBits()
 {
     za::U8 bits = 0;
-    if(realtime < wrenches[HAND_OFF].until)
+    if(vr_gametime < wrenches[HAND_OFF].until)
     {
         bits |= 1; // QC VR_HANDDROP_OFF
     }
-    if(realtime < wrenches[HAND_MAIN].until)
+    if(vr_gametime < wrenches[HAND_MAIN].until)
     {
         bits |= 2; // VR_HANDDROP_MAIN
     }
-    if(realtime < bodies[HAND_OFF].jumpUntil)
+    if(vr_gametime < bodies[HAND_OFF].jumpUntil)
     {
         bits |= 4; // VR_HANDJUMP_OFF
     }
-    if(realtime < bodies[HAND_MAIN].jumpUntil)
+    if(vr_gametime < bodies[HAND_MAIN].jumpUntil)
     {
         bits |= 8; // VR_HANDJUMP_MAIN
     }
@@ -1058,13 +1058,13 @@ float staminaCurve(float left)
 
 float staminaShare()
 {
-    if(easedAt == realtime)
+    if(easedAt == vr_gametime)
     {
         return easedShare;
     }
     const float target = staminaShareFor(fatigue::staminaLeft());
-    const float dt = easedAt >= 0.0 ? static_cast<float>(za::clamp(realtime - easedAt, 0.0, 0.25)) : 1.f;
-    easedAt = realtime;
+    const float dt = easedAt >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - easedAt, 0.0, 0.25)) : 1.f;
+    easedAt = vr_gametime;
     easedShare = target + (easedShare - target) * za::exp(-dt / 0.25f);
     if(za::fabs(easedShare - target) < 1e-4f)
     {
@@ -1151,7 +1151,7 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame)
                 {
                     // The melee takes it for a jump, not a swing (the other put-backs, as they were: a hand's own jump
                     // is one already).
-                    b.jumpUntil = realtime + jumpLatch;
+                    b.jumpUntil = vr_gametime + jumpLatch;
                 }
                 if((snapped || flipped) && vr_debug_weight.value)
                 {

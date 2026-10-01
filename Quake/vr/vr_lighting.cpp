@@ -976,8 +976,8 @@ extern "C" void VR_RenderShadowMaps(void)
     renderedFrame = host_framecount;
     QVR_GPU_PROFILE("shadow maps");
     const double cpuStart = Sys_DoubleTime();
-    const float dt = static_cast<float>(za::clamp(realtime - lastTime, 0.0, 0.1));
-    lastTime = realtime;
+    const float dt = static_cast<float>(za::clamp(vr_gametime - lastTime, 0.0, 0.1));
+    lastTime = vr_gametime;
 
     frameEnabled = (vr_shadow_dlights.value > 0.f || vr_shadow_maplights.value > 0.f) && cl.worldmodel &&
                    r_drawworld_cheatsafe && shadowsSupported() && ensureProgram();
@@ -1225,9 +1225,9 @@ extern "C" void VR_RenderShadowMaps(void)
         }
         timerIndex = (timerIndex + 1) % timerFrames;
 
-        if(realtime - lastPrint > 1.0)
+        if(vr_gametime - lastPrint > 1.0)
         {
-            lastPrint = realtime;
+            lastPrint = vr_gametime;
             int dl = 0, ml = 0;
             for(const DlightSlot& s : dlightSlots)
             {

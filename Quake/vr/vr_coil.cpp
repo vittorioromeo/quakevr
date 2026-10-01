@@ -112,7 +112,7 @@ void Cord::reset(const glm::vec3& a, const glm::vec3& b)
     }
     lastA_ = a;
     lastB_ = b;
-    time_ = realtime;
+    time_ = vr_gametime;
     valid_ = true;
 }
 
@@ -120,7 +120,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
 {
     style_ = style;
     const float m2u = units::metresToUnits();
-    const float dt = static_cast<float>(realtime - time_);
+    const float dt = static_cast<float>(vr_gametime - time_);
     // Afresh: first drawn, a long pause, or an end jumping away from the other (a teleport of one, a respawn).
     if(!valid_ || dt > 0.25f || glm::distance(b - lastB_, a - lastA_) > 1.f * m2u || !ZA_ISFINITE(pos_[segments / 2].x))
     {
@@ -143,7 +143,7 @@ void Cord::update(const glm::vec3& a, const glm::vec3& aDir, const glm::vec3& b,
     const glm::vec3 vb = (b - fromB) / za::max(dt, 1e-4f); // the free end's velocity relative to the body
     lastA_ = a;
     lastB_ = b;
-    time_ = realtime;
+    time_ = vr_gametime;
 
     const float rest = relaxedLength(style) * m2u / springs;
     const float nodeMass = mass / (segments - 3); // the free nodes 2 .. segments - 2

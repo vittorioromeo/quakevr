@@ -81,8 +81,8 @@ struct Mask
     const qmodel_t* model{nullptr};
     int w{0}, h{0};               // its region of its layer (from the corner)
     bool view{false};             // the player's own body or hand: never taken for another
-    double lastDrawn{-1e9};       // realtime
-    double painted{-1e9};         // realtime of its last paint
+    double lastDrawn{-1e9};       // vr_gametime
+    double painted{-1e9};         // vr_gametime of its last paint
     float wetLeft{0.f};           // seconds it may still be drying
     float hotLeft{0.f};           // seconds its embers may still glow
     float heal{0.f};              // blood and char still to take off (a heal), 0..1
@@ -255,7 +255,7 @@ void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
         R_PaintAliasWounds(e, n, &splats[i].v[0].x);
     }
     GL_BlendEquationFunc(GL_FUNC_ADD);
-    masks[static_cast<za::SizeT>(layer)].painted = realtime;
+    masks[static_cast<za::SizeT>(layer)].painted = vr_gametime;
     paintsTotal++;
 }
 
@@ -348,12 +348,12 @@ int acquire(const entity_t* e, bool view, bool create)
             best = i;
             break;
         }
-        if(m.view || m.painted == realtime)
+        if(m.view || m.painted == vr_gametime)
         {
             continue;
         }
         const glm::vec3 at{m.ent->origin[0], m.ent->origin[1], m.ent->origin[2]};
-        const float score = static_cast<float>(realtime - m.lastDrawn) + glm::distance(at, eye) / 300.f;
+        const float score = static_cast<float>(vr_gametime - m.lastDrawn) + glm::distance(at, eye) / 300.f;
         if(score > bestScore)
         {
             bestScore = score;
@@ -371,7 +371,7 @@ int acquire(const entity_t* e, bool view, bool create)
     m.w = w;
     m.h = h;
     m.view = view;
-    m.lastDrawn = realtime;
+    m.lastDrawn = vr_gametime;
     maskOf[e] = best;
     subtract(best, glm::vec4{1.f}); // empty
     return best;
@@ -1071,7 +1071,7 @@ void drips(double now)
     for(int i = 0; i < layers; i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
-        if(!m.ent || m.wetLeft <= 0.f || now < m.dripNext || realtime - m.lastDrawn > 0.5)
+        if(!m.ent || m.wetLeft <= 0.f || now < m.dripNext || vr_gametime - m.lastDrawn > 0.5)
         {
             continue;
         }
@@ -1391,7 +1391,7 @@ void info_f()
         if(m.ent)
         {
             Con_Printf("  %2d %s%s %dx%d, drawn %.1f s ago%s%s\n", i, m.model ? m.model->name : "?", m.view ? " (you)" : "", m.w, m.h,
-                realtime - m.lastDrawn, m.wetLeft > 0.f ? ", wet" : "", m.hotLeft > 0.f ? ", hot" : "");
+                vr_gametime - m.lastDrawn, m.wetLeft > 0.f ? ", wet" : "", m.hotLeft > 0.f ? ", hot" : "");
         }
     }
 }
@@ -1416,7 +1416,7 @@ extern "C" void VR_AliasWound(const entity_t* e, float out[4])
     {
         return;
     }
-    m.lastDrawn = realtime;
+    m.lastDrawn = vr_gametime;
     out[0] = static_cast<float>(it->second + 1);
     out[1] = static_cast<float>(m.w);
     out[2] = static_cast<float>(m.h);

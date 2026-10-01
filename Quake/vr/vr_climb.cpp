@@ -2664,8 +2664,8 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
         return 0.f;
     }
     Pin& pin = pins[hand];
-    const float dt = pin.last >= 0.0 ? static_cast<float>(CLAMP(0.0, realtime - pin.last, 0.1)) : 0.f;
-    pin.last = realtime;
+    const float dt = pin.last >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - pin.last, 0.1)) : 0.f;
+    pin.last = vr_gametime;
     const int bits = cl.stats[STAT_QVR_CLIMB];
     if(bits & (1 << hand))
     {

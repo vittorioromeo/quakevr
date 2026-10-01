@@ -2173,7 +2173,7 @@ constexpr float restUp = 0.3f;         // a prop rests on a hand where their con
     if(i == 1 && cls.state == ca_connected) // the local player: the weapon as drawn
     {
         const view::DrawnWeapon& d = view::drawnWeapon(h);
-        if(!d.model || realtime - d.when > 0.5 || strcmp(d.model->name, name) != 0)
+        if(!d.model || vr_gametime - d.when > 0.5 || strcmp(d.model->name, name) != 0)
         {
             return key; // (not drawn yet)
         }
