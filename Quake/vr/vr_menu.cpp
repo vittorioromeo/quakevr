@@ -986,6 +986,15 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Returned Grenades Hit Like Yours", vr_grenade_return_full)
             .help("A grenade you throw or bat back (an ogre's or your own) goes off as your grenade launcher's: its damage and "
                   "radius, credited to you, with your Quad. Off: an ogre's keeps its own, weaker blast."),
+        toggle("Shoot Grenades", vr_grenade_shoot)
+            .help("A shot, a nail, a rocket, the lightning, a thrown thing or another blast sets a grenade off where it is: "
+                  "an ogre's in flight, yours on the ground, a hand grenade's dud left as a trap. Whoever set it off gets "
+                  "the kills. Not one in your hand."),
+        slider("Grenade Shot Size", vr_grenade_shoot_pad, 0.f, 8.f, 0.5f, "%.1f units").extend(0.f, 12.f)
+            .help("How far beyond the grenade's model a shot still hits it (0: the model's own box, a few units across)."),
+        toggle("Blows Set Grenades Off", vr_grenade_shoot_melee)
+            .help("A melee blow sets off a grenade lying or rolling. One in flight is still batted by a weapon and caught by "
+                  "an empty hand."),
         header("Hand Grenades"),
         toggle("Hand Grenades", vr_handgrenade)
             .help("Reach behind the small of your back with an empty hand and grip: a grenade from your pouch, while you have "
@@ -2697,6 +2706,16 @@ za::Vector<Item> pageDebugTests()
             .help("Degrees to your left of ahead it comes from (negative: from the right)."),
         command("Fire at Me", "impulse 246").help("Fires the Projectile at you now."),
         command("Make an Ogre Throw", "impulse 240").help("The nearest ogre or zombie throws at you now."),
+        cycle("Grenade Shot", vr_test_grenade_shot, {{10.f, "Pellet"}, {1.f, "Nail"}, {0.f, "Rocket"}, {4.f, "Laser"}})
+            .help("What Shoot the Nearest Grenade fires from your eyes (Shoot Grenades, on Batting and Catching)."),
+        command("Shoot the Nearest Grenade", "developer 1; impulse 210")
+            .help("Fires the Grenade Shot at the nearest grenade (an ogre's in flight: Fire at Me with the Ogre's Grenade "
+                  "first; yours; a dud). Prints what it shot, how far, its shot box (impulse 210)."),
+        slider("Dud Distance", vr_test_grenade_dist, 64.f, 1024.f, 32.f, "%.0f units")
+            .help("How far ahead Drop a Dud Ahead puts the grenade."),
+        command("Drop a Dud Ahead", "developer 1; impulse 211")
+            .help("Takes a hand grenade from your pouch into your empty off hand, lets go of it unarmed (a dud), and puts it "
+                  "on the floor ahead: a trap to shoot from afar (impulse 211)."),
         header("Getting Hit"),
         command("Hit Me From the Left", "vr_pain_test 15 90")
             .help("vr_pain_test 15 90: a 15 point hit from your left (no damage): the hands knocked right, the left one more; "

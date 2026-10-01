@@ -79,8 +79,17 @@ void(vector org, float damage) SpawnBloodSplash;
 // goes through these (fists, held weapons and things, the crowbar, a torch, a bash, a headbutt, the chainsaw, the
 // grapple, the lightning gun), so a crate never bleeds (NOTES.md e1m1_2026-10-01_12-10-47). It may come after T_Damage:
 // a crate the blow broke is still wood (VR_Crate_Wooden).
+// A grenade shots set off (vr_grenade.qc): sparks, not blood.
+float(entity g) VR_GrenShot_Is;
+void(vector xAt) VR_GrenShot_Sparks;
+
 void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
 {
+    if(targ.vr_shootnade)
+    {
+        VR_GrenShot_Sparks(org);
+        return;
+    }
     if(VR_Crate_Wooden(targ))
     {
         dprint(sprintf("hit: %s is wood: splinters at %v\n", targ.classname, org));
@@ -93,6 +102,11 @@ void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
 // The same, sprayed every way (SpawnBloodSplash).
 void(entity targ, vector org, float damage) VR_HitBloodSplash =
 {
+    if(targ.vr_shootnade)
+    {
+        VR_GrenShot_Sparks(org);
+        return;
+    }
     if(VR_Crate_Wooden(targ))
     {
         dprint(sprintf("hit: %s is wood: splinters at %v\n", targ.classname, org));

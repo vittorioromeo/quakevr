@@ -18631,3 +18631,51 @@ sternum, rolled: (10, 26, 2) -> (22, -3, -16). The price: in those poses the wri
 His takes (53: no-hit, guards, punches, shoves; 45,406 arm-frames replayed with `vr_debug_arm 2`): 0.9% of frames move
 more than 2 cm; in those the wrist strain falls (mean 5.04 -> 4.11), elbows across the chest > 15 cm 89 -> 56, elbow
 jumps (> 6 cm in a frame with the wrist still) 72 -> 63. Melee canary: no differences.
+
+## Shooting grenades (2026-10-01)
+
+His note: shoot grenades to set them off, live or untriggered: an enemy grenade flying at you, your own in the air or on
+the ground, a trap of a dropped unarmed hand grenade shot from afar.
+
+### What changed
+
+- **QC** (`vr_grenade.qc`, "Shooting grenades"): `VR_GrenShot_Make` marks a grenade (`.vr_shootnade`) when it is
+  thrown: the launcher's and the ogres' (in `VR_Grenade_Make`, so caught or not, `vr_grenade_catch` 0..2), the
+  multi-grenade ogre's, rogue's multi-grenade launcher's (`W_FireMultiGrenade`), hand grenades (`VR_HandGrenade_Take`;
+  a dud lying about too), `VR_Test_Fire`'s grenade (now made as the launcher's). It takes damage (`DAMAGE_YES`, not
+  `DAMAGE_AIM`: no autoaim, Quake's grenades bounce off it; health 1 for Hipnotic's laser's touch) while it is not in a
+  hand or an open palm (`VR_GrenShot_Update`, every tick of a catchable one). `T_DamageImpl` hands any damage on it to
+  `VR_GrenShot_Damage`: set off by the attacker, who becomes its owner (`T_RadiusDamage`'s attacker: the kills are his),
+  with its own blast (an ogre's stays 40 over 80). A catchable one goes off at its tick (its fuse set to now; a dud is
+  armed first), Quake's at its think (`VR_GrenShot_Boom`, which logs it). A blast's damage (`vr_hitkind` splash) sets it
+  off `VR_GRENSHOT_CHAIN` (0.12 s) later: a chain ripples, and never runs a blast inside another's `findradius` loop.
+  Not set off by its own blast (inflictor), nor by a melee blow while it flies (vr_deflect on: a weapon bats it, an
+  empty hand catches it, as before) or with `vr_grenade_shoot_melee 0`. Its hits spark (TraceAttack, spawn_touchblood,
+  VR_HitBlood, VR_HitBloodSplash), no blood. `VR_Deflect_IsProjectile` still bats it (it takes damage now). Minis of a
+  multi-grenade are not shootable (a cluster would set itself off at once). Hipnotic's proximity mines already were.
+- **Engine** (`vr_hitmodel.cpp` `VR_ShotTargetClip`, called from `SV_ClipToLinks`): Quake's grenades are points (and
+  the catchable ones touchable non-solids) that no shot meets. A grenade with `.vr_shot_radius` (half the model's
+  largest size plus `vr_grenade_shoot_pad`, 2 units: 6 for grenade.mdl) and takedamage is met by shots and missiles at
+  a cube that size round its middle: MOVE_MISSILE moves (nails, rockets, lasers, spit, vore pods), MOVE_HITGIBS
+  traces (pellets, lightning, grunts' shots), the guns' MOVE_HITMODEL class, thrown things' hit traces, and melee
+  blows' (`vr_grenade_shoot_melee`); not a tossed thing's move (grenades, gibs, props bounce past it as before), nor
+  the grappling hook's, nor nomonsters traces. Its owner's own shots meet it too (Quake skips your own missiles) from
+  `.vr_shot_ownfrom`, 0.15 s after it leaves his launcher or hand. A shot's move box grows by 16 units
+  (`VR_SHOT_TARGET_REACH`) for the area nodes; the clip runs only for things that take damage and whose box the move's
+  overlaps.
+- Settings (Advanced VR Options > Combat > Batting and Catching > Grenades): **Shoot Grenades** (`vr_grenade_shoot` 1),
+  **Grenade Shot Size** (`vr_grenade_shoot_pad` 2 units), **Blows Set Grenades Off** (`vr_grenade_shoot_melee` 1).
+  Debug > Tests > At You: **Grenade Shot** (`vr_test_grenade_shot`), **Shoot the Nearest Grenade** (`impulse 210`),
+  **Dud Distance** (`vr_test_grenade_dist`), **Drop a Dud Ahead** (`impulse 211`).
+
+### Results (mock, e1m1, `developer 1`)
+
+- An ogre's grenade (Fire at Me) shot with a pellet 202 units from you, at 602 u/s: set off by the player, 2.31 s
+  before its fuse; the same with `vr_grenade_catch 0` (Quake's grenade). The multi-grenade ogre's (impulse 240,
+  `vr_test_projectile 6`): set off at 526 u/s, catch 2 and 0.
+- Your launcher's grenade lying 0.69 s before its fuse, 690 units away: set off (also with `vr_grenade_catch 0`). Shot
+  as it leaves the launcher (one frame after): the pellet goes past it (the 0.15 s grace).
+- A dud from the pouch on the floor 608 units ahead, left 300 frames (it never went off): set off by a pellet, a nail,
+  a rocket and a laser. Two duds 40 units apart: the second set off by the first's blast 0.12 s later (flung by it
+  first). A grunt 32 units past a dud: 97 damage by the grenade, credited to the player, gibbed.
+- `vr_grenade_shoot 0`: nothing to shoot. Melee canary: no differences.

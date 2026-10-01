@@ -1307,6 +1307,9 @@ QVR_CVAR(vr_grenade_fuse_regrab, "0", CVAR_ARCHIVE)      // 1: every catch sets 
 QVR_CVAR(vr_grenade_catch_radius, "15", CVAR_ARCHIVE)   // cm round the palm an empty hand, not striking, catches a grenade in flight in (grip held or closing; QC vr_grenade.qc)
 QVR_CVAR(vr_grenade_catch_window, "0.15", CVAR_ARCHIVE) // s an open palm holds a grenade that flies into it for the grip to close on it (else it drops from the hand)
 QVR_CVAR(vr_grenade_return_full, "1", CVAR_ARCHIVE)     // a grenade you throw or bat back goes off as your grenade launcher's (120 damage, 160 units round), not its thrower's (an ogre's 40)
+QVR_CVAR(vr_grenade_shoot, "1", CVAR_ARCHIVE)          // shots, blows and blasts set grenades off (live or a hand grenade's dud; the ogres', yours): the one who hit it gets the kills (QC vr_grenade.qc)
+QVR_CVAR(vr_grenade_shoot_pad, "2", CVAR_ARCHIVE)     // units a grenade's shot box reaches beyond its model's half size (0: the model's box as it is)
+QVR_CVAR(vr_grenade_shoot_melee, "1", CVAR_ARCHIVE)   // melee blows set grenades off too (a lying or rolling one: one in flight a weapon bats, an empty hand catches)
 QVR_CVAR(vr_handgrenade, "1", CVAR_ARCHIVE)             // hand grenades: an empty hand gripping at the grenade pouch (the small of the back) takes one while you have rockets
 QVR_CVAR(vr_handgrenade_fuse, "2.5", CVAR_ARCHIVE)      // s from arming a hand grenade to its going off (the launcher's is 2.5)
 QVR_CVAR(vr_handgrenade_arm, "0", CVAR_ARCHIVE)         // 0: the trigger pulls the pin (let go of unarmed, it is a dud); 1: letting go arms it (the lever flies off)
@@ -1394,6 +1397,8 @@ QVR_CVAR(vr_test_fling_speed, "12", CVAR_NONE)        // impulse 232 (tests): th
 QVR_CVAR(vr_test_fling_at, "0", CVAR_NONE)            // and at: 0 the nearest monster, 1 you (from ahead)
 QVR_CVAR(vr_test_fling_away, "0", CVAR_NONE)          // 1: from inside the edge of its box, away from it (a prop batted away, still in your box)
 QVR_CVAR(vr_test_projectile, "0", CVAR_NONE)          // impulse 246 (tests): the projectile fired at you: 0 a knight's spike, 1 a laser, 2 a scrag's spit, 3 a vore's ball, 4 an ogre's grenade, 5 a zombie's flesh (6: impulse 240's ogre throws a multi-grenade)
+QVR_CVAR(vr_test_grenade_shot, "10", CVAR_NONE)       // impulse 210 (tests): what shoots the nearest grenade from your eyes (vr_physics_fire's kinds: 10 a shotgun pellet, 1 a nail, 0 a rocket, 4 a laser)
+QVR_CVAR(vr_test_grenade_dist, "256", CVAR_NONE)      // impulse 211 (tests): units ahead a dud hand grenade is put on the floor
 QVR_CVAR(vr_test_projectile_side, "0", CVAR_NONE)     // and from how many degrees to your left of ahead
 QVR_CVAR(vr_hand_collide, "5", CVAR_ARCHIVE)          // cm a free hand and the weapon in the other hand are each drawn moved back at most as the hand meets its surface (vr_hand_collide_props_margin off it), by half how deep it would be, as a prop held there and that weapon (vr_held_collide_max); pressed further, the hand sinks in by the rest (0: it always passes through)
 QVR_CVAR(vr_hand_collide_fingers, "1", CVAR_ARCHIVE)  // with it: the free hand's fingers react to the other hand's weapon: they rest on it or bend out of it (0: only the hand is pushed, by its fingertips too)

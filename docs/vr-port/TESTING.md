@@ -179,6 +179,15 @@ context and screenshot, ready to paste or to point me at.
     Under it too, **Grenade In Hand Pitch/Yaw/Roll**: how a grenade from the pouch is turned in your palm (a held one
     turns as you drag them). A health box, ammo box or power-up you carry, let go of at the pouch, is taken as at a
     holster.
+  - **Shooting grenades** (ROUND21.md, same title): shoot a grenade and it goes off where it is: an ogre's while it
+    flies at you, your own (launcher or hand grenade) in the air or lying on the ground, or a hand grenade's dud you
+    left as a trap, shot from afar. Shotguns, nails, rockets, the lightning, a grunt's or an enforcer's shot, a thrown
+    thing, another blast (a chain: each a moment after the last) all set it off; a melee blow too when it lies or
+    rolls (one in flight is still batted by a weapon and caught by an empty hand). Whoever set it off gets the kills.
+    Not one in your hand. Batting and Catching > Grenades > **Shoot Grenades**, **Grenade Shot Size** (how far beyond
+    the model a shot still hits it: 2 units), **Blows Set Grenades Off**. Debug > Tests > At You: **Drop a Dud Ahead**,
+    **Shoot the Nearest Grenade** (with Fire at Me's Ogre's Grenade for one in flight). **Tell me if grenades are
+    too hard (or too easy) to hit.**
   - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
     grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
     touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,
@@ -1451,6 +1460,13 @@ frame (`drawn in the hand ...`): the same for any turn of the hand reaching in (
 `vr_rigid_place item_health main 0 3 0; +grabright; vr_mock_button main grip 1`, the hand to the pouch as above, then
 `vr_mock_button main grip 0; -grabright`: `carry: into the pack` and the pickup's message.
 
+Shooting grenades (ROUND21.md, same title): `impulse 210` shoots the nearest grenade from your eyes
+(`vr_test_grenade_shot`: 10 a pellet, 1 a nail, 0 a rocket, 4 a laser); `impulse 211` puts a dud hand grenade on the floor
+`vr_test_grenade_dist` ahead (taken from the pouch into the empty off hand and let go of unarmed). `developer 1`
+prints `grenade: <class> set off by <who> (<how>) ... (<fuse left or a dud>, <speed>)` and `... goes off at ...`. The
+three cases: `vr_test_projectile 4;impulse 246;wait12;impulse 210` (an ogre's in flight); the launcher
+(`vr_weapon_grip_mode 1;impulse 9;impulse 158;wait60;vr_mock_hand main 0.10 1.40 -0.32 70 0 0;wait30;+attack;wait3;
+-attack;wait110;impulse 210`); `vr_test_grenade_dist 600;impulse 211;wait300;impulse 210` (a dud from 600 units).
 Debug menu; quad sound; grenade catch default; no empty-hand deflection (ROUND21.md, same title): the scratchpad's
 `misc23/` has the scripts and logs.
 - `t.py N|W|Q` prints the console script and writes the play (it uses `projfix/t.py`'s poses and `r20/gen.py`):

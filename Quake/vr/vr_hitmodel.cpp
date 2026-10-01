@@ -1528,3 +1528,160 @@ extern "C" int VR_HitModelMoveFlags(edict_t* ent)
     }
     return MOVE_HITMODEL | ((cls & 3) << MOVE_HITMODEL_CLASS_SHIFT);
 }
+
+// ----------------------------------------------------------------------------
+// Small things shots set off (vr_grenade_shoot; QC vr_grenade.qc, "Shooting grenades"; ROUND21.md, "Shooting
+// grenades"): a grenade with .vr_shot_radius (and takedamage) is met by shots and missiles at a cube that big round its
+// middle (its model's half size and vr_grenade_shoot_pad; Quake's grenades are points, which a shot never meets), its
+// owner's own shots too once .vr_shot_ownfrom has passed (not as it leaves his launcher). Any other move (a body's, a
+// grenade's own, a gib's) meets it by Quake's rules.
+
+namespace
+{
+
+// Whether a move (SV_Move's type, with its flags; `mover` the passedict) is a shot's or a missile's that sets a grenade
+// off: a missile's move (MOVE_MISSILE: nails, rockets, lasers, spit, Vore pods), a gun's trace (MOVE_HITGIBS: the
+// pellets, the lightning; MOVE_HITMODEL of the guns' class), a thrown thing's hit (MOVE_HITGIBS with the thrown class),
+// and a melee blow's (vr_grenade_shoot_melee). Not a tossed thing's move (a grenade's own, a gib's, a prop's: they
+// bounce past it as before), nor the grappling hook's.
+[[nodiscard]] bool shotTargetMove(const edict_t* mover, int type)
+{
+    if(mover && mover != qcvm->edicts)
+    {
+        const int m = static_cast<int>(mover->v.movetype);
+        if(m == MOVETYPE_BOUNCE || m == MOVETYPE_TOSS || m == MOVETYPE_GIB)
+        {
+            return false;
+        }
+    }
+    const int base = type & ~(MOVE_HITGIBS | MOVE_HITMODEL | MOVE_HITMODEL_CLASS);
+    if(base == MOVE_MISSILE)
+    {
+        return true;
+    }
+    if(base == MOVE_NOMONSTERS)
+    {
+        return false;
+    }
+    if(type & MOVE_HITMODEL)
+    {
+        const auto c = static_cast<qvr::hitmodel::Class>((type & MOVE_HITMODEL_CLASS) >> MOVE_HITMODEL_CLASS_SHIFT);
+        if(c == qvr::hitmodel::Class::Melee)
+        {
+            return qvr::vr_grenade_shoot_melee.value != 0.f;
+        }
+        if(c == qvr::hitmodel::Class::Thrown)
+        {
+            return (type & MOVE_HITGIBS) != 0;
+        }
+        return c == qvr::hitmodel::Class::Guns;
+    }
+    return (type & MOVE_HITGIBS) != 0;
+}
+
+} // namespace
+
+extern "C" int VR_ShotTargetClip(edict_t* mover, edict_t* touch, const float* start, const float* mins, const float* maxs,
+    const float* end, int type, trace_t* trace)
+{
+    const auto& f = qvr::progs::fields();
+    if(f.vr_shot_radius < 0 || touch->v.takedamage == 0.f)
+    {
+        return -1;
+    }
+    const float r = za::min(qvr::progs::fieldFloat(touch, f.vr_shot_radius), static_cast<float>(VR_SHOT_TARGET_REACH));
+    if(r <= 0.f || !shotTargetMove(mover, type))
+    {
+        return -1;
+    }
+    if(mover && mover != qcvm->edicts)
+    {
+        if(PROG_TO_EDICT(touch->v.owner) == mover &&
+           qcvm->time < static_cast<double>(qvr::progs::fieldFloatOr(touch, f.vr_shot_ownfrom, 0.f)))
+        {
+            return 0; // (just left his launcher or hand)
+        }
+        if(PROG_TO_EDICT(mover->v.owner) == touch)
+        {
+            return 0;
+        }
+    }
+
+    // The cube round its middle, grown by the move's box: the move's origin's path against it (slabs).
+    float lo[3], hi[3];
+    for(int i = 0; i < 3; i++)
+    {
+        const float mid = touch->v.origin[i] + 0.5f * (touch->v.mins[i] + touch->v.maxs[i]);
+        lo[i] = mid - r - maxs[i];
+        hi[i] = mid + r - mins[i];
+    }
+    float enter = -1.f, exit = 1.f;
+    int axis = -1;
+    float sign = 0.f;
+    for(int i = 0; i < 3; i++)
+    {
+        const float d = end[i] - start[i];
+        if(za::fabs(d) < 1e-6f)
+        {
+            if(start[i] < lo[i] || start[i] > hi[i])
+            {
+                return 0;
+            }
+            continue;
+        }
+        float t0 = (lo[i] - start[i]) / d, t1 = (hi[i] - start[i]) / d;
+        float s = -1.f; // (entering by the low face: its normal points down the axis)
+        if(t0 > t1)
+        {
+            const float t = t0;
+            t0 = t1;
+            t1 = t;
+            s = 1.f;
+        }
+        if(t0 > enter)
+        {
+            enter = t0;
+            axis = i;
+            sign = s;
+        }
+        exit = za::min(exit, t1);
+        if(enter > exit)
+        {
+            return 0;
+        }
+    }
+    if(exit < 0.f || enter > 1.f)
+    {
+        return 0;
+    }
+
+    memset(trace, 0, sizeof(*trace));
+    trace->inopen = true;
+    trace->ent = touch;
+    if(enter <= 0.f || axis < 0)
+    {
+        // (The move starts in it: met where it starts, facing back along the move.)
+        trace->fraction = 0.f;
+        VectorCopy(start, trace->endpos);
+        float d[3]{end[0] - start[0], end[1] - start[1], end[2] - start[2]};
+        const float len = za::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+        for(int i = 0; i < 3; i++)
+        {
+            trace->plane.normal[i] = len > 0.f ? -d[i] / len : 0.f;
+        }
+    }
+    else
+    {
+        float d[3]{end[0] - start[0], end[1] - start[1], end[2] - start[2]};
+        const float len = za::sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+        trace->fraction = za::max(0.f, enter - (len > 0.f ? 0.03125f / len : 0.f)); // (DIST_EPSILON short of it)
+        for(int i = 0; i < 3; i++)
+        {
+            trace->endpos[i] = start[i] + d[i] * trace->fraction;
+        }
+        trace->plane.normal[axis] = sign;
+    }
+    trace->plane.dist = trace->endpos[0] * trace->plane.normal[0] + trace->endpos[1] * trace->plane.normal[1] +
+                        trace->endpos[2] * trace->plane.normal[2];
+    return 1;
+}
