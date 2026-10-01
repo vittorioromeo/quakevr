@@ -22,6 +22,7 @@
 #include "vr_lines.hpp"
 #include "vr_limits.hpp"
 #include "vr_text3d.hpp"
+#include "vr_torso.hpp"
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
@@ -1110,6 +1111,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
     Cmd_AddCommand("vr_hotspot_fit", view::hotspotFit_f);
     anchor::registerCommands();
+    Cmd_AddCommand("vr_torso_report", torso::report_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_limits", limits::command_f);
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);

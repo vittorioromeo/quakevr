@@ -9,6 +9,7 @@
 #include "vr_handpose.hpp"
 #include "vr_main.hpp"
 #include "vr_throw.hpp"
+#include "vr_torso.hpp"
 #include "vr_profile.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
@@ -418,41 +419,6 @@ void updateVelocities(const TrackingState* t)
     return glm::degrees(za::atan2(dir.y, dir.x));
 }
 
-// The torso faces between the head and the hands (old engine's VR_GetBodyYawAngle): the head's
-// yaw, pulled towards where the hands are relative to the shoulders.
-[[nodiscard]] float bodyYaw(const TrackingState& t)
-{
-    const float headYaw = headYawBlended();
-    if(!t.hands[HAND_OFF].valid || !t.hands[HAND_MAIN].valid)
-    {
-        return headYaw;
-    }
-
-    glm::vec3 headFwd, headRight, headUp;
-    angleVectors({0.f, headYaw, 0.f}, headFwd, headRight, headUp);
-
-    const glm::vec3 chest = state.playerOrigin + state.lean - headFwd * 10.f;
-    const glm::vec3 shoulders[2]{chest - headRight * 6.5f, chest + headRight * 6.5f};
-
-    glm::vec3 handDir{0.f};
-    for(int h = 0; h < HAND_COUNT; h++)
-    {
-        glm::vec3 hand = state.pos[h];
-        hand.z = shoulders[HAND_OFF].z;
-        handDir += (hand - shoulders[h]) * 0.5f;
-    }
-    handDir /= 10.f;
-
-    // Hands behind the body pull only a little.
-    if(glm::dot(handDir, headFwd) < 0.f && glm::length(handDir) > 0.1f)
-    {
-        handDir = glm::normalize(handDir) * 0.1f;
-    }
-
-    const glm::vec3 dir = glm::mix(headFwd, handDir, 0.8f);
-    return glm::length(dir) > 0.f ? glm::degrees(za::atan2(dir.y, dir.x)) : headYaw;
-}
-
 // Round 21, third pass: the held weapon's Hand and Weapon Together offset (vr_wofs_whole_*: x forward, y left, z up;
 // pitch up, yaw left, roll), applied to the hand as tracked and calibrated, in its aim frame, about its point: the
 // weapon, the hand, the muzzle, the aim and the melee all follow. As for the main hand, mirrored for the off hand (as
@@ -474,6 +440,7 @@ void update()
     {
         previous.valid = false;
         lastHeadValid = false;
+        torso::reset();
         roomscaleMove = glm::vec3{0.f};
         resetLean();
         return;
@@ -620,7 +587,10 @@ void update()
     updateVelocities(vrActive() ? &t : nullptr);
     flick::update(state);
 
-    state.bodyYaw = vrActive() ? bodyYaw(t) : yaw;
+    // The torso's direction (vr_torso.cpp): the head's, pulled a little by the hands in front of it.
+    state.bodyYaw = vrActive() ? torso::estimate(state, headYawBlended(), turnYaw,
+                                                 t.hands[HAND_OFF].valid && t.hands[HAND_MAIN].valid)
+                               : yaw;
 
     state.crouchRatio = state.headHeight > 0.f
                             ? CLAMP(0.f, vr_height_calibration.value / state.headHeight - 1.f, 1.f)

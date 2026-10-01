@@ -981,6 +981,32 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         toggle("Elbows Out of the Torso", vr_body_collide_elbows)
             .help("With Body Collisions: an elbow that would go into your torso (a hand across your chest) swings out "
                   "round the line from the shoulder to the wrist."),
+        header("Torso Direction"),
+        cycle("Torso Follows", vr_torso_mode, {{1.f, "Mostly the head"}, {0.f, "The hands (old)"}})
+            .help("Nothing tracks your torso: it is guessed. Mostly the head: it faces where your head has been facing, "
+                  "the hands pulling it a little, only those in front of you (not one behind your back or far off to a "
+                  "side); old: four fifths of the way towards the hands, wherever they are."),
+        slider("Head Weight", vr_torso_head, 0.f, 5.f, 0.1f, "%.1f")
+            .help("The torso faces a weighted mean of directions. This one: where your head faces now."),
+        slider("Head History Weight", vr_torso_head_history, 0.f, 5.f, 0.1f, "%.1f")
+            .help("Where your head has faced lately: higher, a glance turns the torso less (and a turn follows later)."),
+        slider("Head History Span", vr_torso_head_lag, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 5.f)
+            .help("How long \"lately\" is."),
+        slider("Both Hands Weight", vr_torso_hands, 0.f, 10.f, 0.1f, "%.1f")
+            .help("The middle of your hands, when both are in front of you (holding a gun out, reaching for something)."),
+        slider("One Hand Weight", vr_torso_one_hand, 0.f, 5.f, 0.1f, "%.1f")
+            .help("One hand alone in front, the other behind your back or hanging down."),
+        slider("Hands Down Weight", vr_torso_hands_down, 0.f, 5.f, 0.1f, "%.1f")
+            .help("Both hands hanging by your sides: square to the line between them (they turn with your body, not with "
+                  "a glance)."),
+        slider("Side Reach", vr_torso_side_angle, 10.f, 90.f, 5.f, "%.0f deg")
+            .help("A hand further off to a side than this pulls less, and not at all 35 degrees further."),
+        slider("Turn Deadzone", vr_torso_deadzone, 0.f, 30.f, 1.f, "%.0f deg")
+            .help("How far off the guess must be before the torso turns (then it turns all the way)."),
+        slider("Turn Speed", vr_torso_speed, 0.f, 30.f, 1.f, "%.0f").extend(0.f, 100.f)
+            .help("How quickly it turns then (0: at once)."),
+        slider("Neck Turn", vr_torso_neck_max, 30.f, 120.f, 5.f, "%.0f deg")
+            .help("How far your head turns from the torso at most: past it the torso turns with the head."),
         header("Placement"),
         slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
             .help("How far the torso sits behind your neck (negative: in front)."),
@@ -2110,6 +2136,8 @@ za::Vector<Item> pageDebugViews()
         cycle("Show Body Skeleton", vr_body_debug, {{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
             .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
                   "its pose and calibration without a mirror)."),
+        command("Print Torso Direction", "vr_torso_report")
+            .help("vr_torso_report: the head's yaw, the old and the new torso guesses, the hands' pull and weights."),
         cycle("Show Body Collisions", vr_debug_body_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
             .help("The drawn hands and weapons stopping at each other and the body: each contact printed (and "
                   "body_collide_trace.txt); drawn: the capsules and the pushes."),

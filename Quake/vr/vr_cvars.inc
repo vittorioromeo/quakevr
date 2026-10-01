@@ -598,6 +598,18 @@ QVR_CVAR(vr_body_eye_forward, "0.08", CVAR_ARCHIVE)   // metres from the top of 
 QVR_CVAR(vr_body_eye_up, "0.08", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_crouch_tilt, "25", CVAR_ARCHIVE)    // degrees the back tilts forward in a full crouch
 QVR_CVAR(vr_body_torso_back, "0", CVAR_ARCHIVE)       // metres the torso sits further behind the neck (negative: in front)
+// Which way the torso faces (vr_torso.cpp; ROUND21.md, "Torso direction"): guessed from the head and the hands.
+QVR_CVAR(vr_torso_mode, "1", CVAR_ARCHIVE)            // 1 mostly the head, the hands in front pulling a little; 0 the old engine's (0.8 towards the hands)
+QVR_CVAR(vr_torso_head, "1", CVAR_ARCHIVE)            // its weights: the head's yaw now,
+QVR_CVAR(vr_torso_head_history, "1", CVAR_ARCHIVE)    // ... where the head faced lately (a glance turns the torso less),
+QVR_CVAR(vr_torso_hands, "2.5", CVAR_ARCHIVE)         // ... both hands' midpoint, when both are in front,
+QVR_CVAR(vr_torso_one_hand, "0.3", CVAR_ARCHIVE)      // ... one hand alone in front (the other behind the back or hanging down)
+QVR_CVAR(vr_torso_hands_down, "2", CVAR_ARCHIVE)     // ... and both hands hanging by the sides (square to the line between them)
+QVR_CVAR(vr_torso_head_lag, "0.3", CVAR_ARCHIVE)      // seconds "lately" spans (the eased head's time constant)
+QVR_CVAR(vr_torso_side_angle, "45", CVAR_ARCHIVE)     // a hand further off to the torso's side than this (degrees from the chest) counts less, none 35 degrees on
+QVR_CVAR(vr_torso_deadzone, "8", CVAR_ARCHIVE)        // degrees the estimate must be off before the torso turns (then it turns all the way)
+QVR_CVAR(vr_torso_speed, "12", CVAR_ARCHIVE)          // how quickly it turns then (1/s; 0: at once)
+QVR_CVAR(vr_torso_neck_max, "70", CVAR_ARCHIVE)       // degrees the head turns from the torso at most: past it the torso turns with the head at once
 QVR_CVAR(vr_body_legs_back, "0", CVAR_ARCHIVE)        // metres the feet stand behind the head (negative: in front)
 QVR_CVAR(vr_body_pauldrons, "1", CVAR_ARCHIVE)        // pauldrons on the body's shoulders, after the Quake ranger's (make_pauldron.py)
 QVR_CVAR(vr_body_pauldron_style, "0", CVAR_ARCHIVE)   // 0 the ranger's brown leather, 1 the colour of the armour worn (leather without), 2 steel
