@@ -5914,7 +5914,7 @@ entity(entity thrower, float xWeapon, float xWeaponFlags, entity xInst,
         xDealDamage,
         xBaseDamage);
 
-    if(thrower.flags & FL_MONSTER)
+    if((thrower.flags & FL_MONSTER) || thrower.vr_was_monster) // (a gibbed one's head: TryEnemyDrop after ThrowHead)
     {
         newmis.vr_monster_drop = time; // dropped by a monster: it can't hurt players just yet (vr_prop_drop_grace)
     }

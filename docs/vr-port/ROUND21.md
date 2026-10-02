@@ -22317,3 +22317,46 @@ their own; quetoo-data publishes the files under CC BY-SA 4.0, which is what we 
 Test in VR:
 - [ ] A new game with your config: Graphics > Surfaces > External Maps on, the walls as with your downloaded folder.
 - [ ] Debug > Views > External Maps A/B on e1m1 by a lamp: the shipped maps drawn.
+
+## Monster drops flung into you (2026-10-03)
+
+Seen by two agents: a monster gibbed or killed at your feet (smallgibs tests 16, 17) flung its 15 kg backpack or its gun
+into you, `prop: flung (15.0 kg) into player at 280 u/s: 19 damage, by nobody`.
+
+**Root cause.** Two things. (1) A gibbed monster's drops were never marked as a monster's (`.vr_monster_drop`), so
+`vr_prop_drop_grace` never applied: ThrowHead turns the monster into its head and VR_MakeGibGrabbable clears its
+FL_MONSTER, and SoldierDrop (DropBackpack, TryEnemyDrop) runs after ThrowHead. The backpack, made 24 units under the
+grunt's origin with DropBackpack's toss (300 u/s up), hit you standing over it 0.03 s later at 280 u/s: 19 damage in
+every run. (2) Killed but not gibbed, its gun is made inside you (at its hands, where you stand) and Box3D pushed it
+out of you; once the grace was over, that push (70 to 104 u/s) hurt you (5 to 8 damage, 3 of 4 runs).
+
+**Fix.**
+- QC: a monster's head keeps `.vr_was_monster` (VR_MakeGibGrabbable); DropBackpack and CreateThrownWeapon count it as a
+  monster, so its drops get the grace.
+- `vr_prop_drop_falls_only` (1; Throwing > Flung Props: Monster Drops Hurt Only Falling): past the grace a monster's
+  drop hurts a player only falling on him (moving mostly down) or once a hand threw it (let go of: `.carry_letgo`; on a
+  grapple's rope). Never its toss up into you, nor a push out of you. Monsters are untouched (a batted drop still hurts
+  them).
+- `vr_prop_drop_pass_inside` (1; Monster Drops Pass Through Bodies): a monster's drop made inside a player or a monster
+  (in the frame it is dropped) passes through it until clear, as small gibs do (vr_box3d.cpp noteBornInside;
+  `vr_debug_box3d` prints `box3d: monster drop N made inside 1 bodies`). Engine field `vr_monster_drop`.
+- `vr_prop_drop_grace` (0.5 s) unchanged.
+
+**Tests** (Debug > Gore Tests): `vr_smallgibs_test 16`, `17` and new `19` (the grunt put under your feet and killed,
+not gibbed) now also print `underfoot drops: flung hits on you N, spared M`; new `20` drops a monster's backpack
+2 x vr_smallgibs_test_dist units over you (its fall still hurts past the grace). Grunt 100 units away, god off:
+
+| | 16 (blow, gibbed) | 17 (shot, gibbed) | 19 (killed underfoot) |
+|---|---|---|---|
+| before | 6 of 6 runs hurt you (19 to 20) | (the same path as 16) | |
+| both new settings 0 (marking fix only) | 0 of 4 | | 3 of 4 (5, 7, 8) |
+| pass inside only | 0 of 4 | | 0 of 4 |
+| falls only only | 0 of 4 | | 0 of 4 |
+| both (default) | 0 of 6 | 0 of 4 | 0 of 8 |
+
+Test 20 at 200 units: the backpack lands on you past the grace, 310 u/s, 21 damage (as before). Melee canary unchanged.
+
+### In VR
+
+- Stand on a grunt and kill it (and gib it) with a blow and with the shotgun at your feet: its backpack and gun don't hurt you.
+- A backpack dropped by a monster on a ledge over you still hurts if it falls on you; one you throw still hurts.
