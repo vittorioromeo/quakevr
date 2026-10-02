@@ -61,3 +61,5 @@ seconds, with fly particles buzzing round it as well as the sound.
   per-limb pieces); Box3D joints and their cost with many corpses (the thread benchmarks: physbench); blending from
   the death animation into the ragdoll; severing limbs/heads where hit (ties into small gibs, ThrowHead, wounds and
   blood decals); networking/saves; and which monsters first.
+- **Vore shove** (the author, 2026-10-02: "I would like the vore to also have a shove attack when the player is
+  close, later on"): extend the enemy shove (QC/vr_enemyshove.qc) to the vore (shalrath), with its own animation.
