@@ -1763,6 +1763,27 @@ gltexture_t *TexMgr_ShareNormalMap (gltexture_t *base, const char *name, int kin
 
 /*
 ================
+TexMgr_LoadExtNormalMap -- QVR: an external pack's normal map (`name`, a "vrext/" file: vr/vr_extmaps.cpp) for `base`,
+authored, with heights in its alpha, kept beside base's own (TexMgr_NormalMap stays the made one: the pack's is drawn
+instead by choice, vr_extmaps_normals). `data` NULL: only one already made from that file for another texture, or NULL.
+================
+*/
+gltexture_t *TexMgr_LoadExtNormalMap (gltexture_t *base, const char *name, int width, int height, byte *data, int worldwidth)
+{
+	const int kind = NORMALMAP_AUTHORED | NORMALMAP_FILE | NORMALMAP_HEIGHTS | NORMALMAP_EXT;
+	gltexture_t *own, *glt;
+
+	if (!base || !gltextures_base)
+		return NULL;
+	own = normalmap_of[base - gltextures_base];
+	glt = data ? TexMgr_LoadNormalMap (base, name, width, height, SRC_RGBA, data, name, 0, kind, worldwidth)
+		: TexMgr_ShareNormalMap (base, name, kind);
+	normalmap_of[base - gltextures_base] = own;
+	return glt;
+}
+
+/*
+================
 TexMgr_IndexedSmooth -- QVR: whether Quake's own (8-bit) textures are drawn smooth (vr_texture_smooth 2, or a linear
 gl_texturemode). Only then do they get heights for parallax mapping: drawn sharp, its shifts bend their texels.
 ================

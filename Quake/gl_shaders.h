@@ -386,17 +386,21 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	uvec2	txhandle;\n"\
 "	uvec2	fbhandle;\n"\
 "	uvec2	nmhandle; // QVR: the normal map (vr_normalmaps)\n"\
+"	uvec2	sphandle; // QVR: an external pack's specular map (vr/vr_extmaps.cpp; CF_SPECMAP)\n"\
+"	uvec2	sppadding;\n"\
 "#else\n"\
 "	int		baseinstance;\n"\
 "	int		padding;\n"\
 "#endif // BINDLESS\n"\
 "	vec4	uvclamp; // QVR: parallax mapping's rays stay in s .x to .z, t .y to .w, repeating (none where .z <= .x)\n"\
 "	vec4	detail; // QVR: the texture's detail (vr/vr_detail.cpp): s and t scales (s < 0: axes swapped), strength (0 none), layer\n"\
+"	vec4	extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp): y the specular map's brightness, z its hardness\n"\
 "};\n"\
 "const uint\n"\
 "	CF_USE_POLYGON_OFFSET = 1u,\n"\
 "	CF_USE_FULLBRIGHT = 2u,\n"\
-"	CF_NOLIGHTMAP = 4u\n"\
+"	CF_NOLIGHTMAP = 4u,\n"\
+"	CF_SPECMAP = 64u // QVR: a specular map (vr/vr_extmaps.cpp; 8 to 32: the liquid's kind)\n"\
 ";\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer CallBuffer\n"\
@@ -564,6 +568,7 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	out_pdepth = instance.parallax; // QVR\n"
 "	out_uvclamp = call.uvclamp; // QVR\n"
 "	out_detail = call.detail; // QVR\n"
+"	out_extmat = call.extmat; // QVR\n"
 "	out_aoself = instance.aoself; // QVR\n"
 "	out_styles.x = GetLightStyle(in_styles.x);\n"
 "	if (in_styles.y == 255)\n"
@@ -586,7 +591,7 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "		out_samplers.zw = call.fbhandle;\n"
 "	else\n"
 "		out_samplers.zw = out_samplers.xy;\n"
-"	out_nmsampler = call.nmhandle; // QVR\n"
+"	out_nmsampler = uvec4(call.nmhandle, call.sphandle); // QVR: and the specular map\n"
 "#endif\n"
 "}\n";
 
@@ -599,6 +604,7 @@ static const char world_fragment_shader[] =
 "	layout(binding=0) uniform sampler2D Tex;\n"
 "	layout(binding=1) uniform sampler2D FullbrightTex;\n"
 "	layout(binding=3) uniform sampler2D NormalTex; // QVR\n"
+"	layout(binding=11) uniform sampler2D SpecTex; // QVR: an external pack's specular map (CF_SPECMAP)\n"
 "#endif\n"
 "layout(binding=2) uniform sampler2D LMTex;\n"
 "layout(binding=9) uniform sampler2D LuxTex; // QVR: the baked light's directions (deluxemaps: r_brush.c), as LMTex\n"
@@ -652,8 +658,10 @@ QVR_WORLD_FS_FUNCTIONS // QVR: detail, parallax, specular anti-aliasing, the bak
 "	vec3 facing = normalize(cross(dpdx, dpdy)); // QVR: the surface's normal, towards the viewer\n"
 "	facing = dot(facing, EyePos - in_pos) < 0. ? -facing : facing;\n"
 "	vec3 specular_light = vec3(0.); // QVR: dynamic lights' sheen, added over the texture\n"
+"	vec3 specular_map = vec3(1.); // QVR: an external pack's specular map's colour here (QVR_WORLD_FS_LIGHT)\n"
 "#if BINDLESS\n"
-"	sampler2D NormalTex = sampler2D(in_nmsampler); // QVR\n"
+"	sampler2D NormalTex = sampler2D(in_nmsampler.xy); // QVR\n"
+"	sampler2D SpecTex = sampler2D(in_nmsampler.zw); // QVR\n"
 "	sampler2D Tex = sampler2D(in_samplers.xy);\n"
 "	sampler2D FullbrightTex = sampler2D(in_samplers.zw); // the texture itself without a fullbright one\n"
 "#endif\n"
@@ -788,7 +796,7 @@ QVR_WORLD_FS_LIGHT_SHADOW // QVR: a light's shadow and spot cone
 "#else\n"
 "	result.rgb *= total_light;\n"
 "#endif\n"
-"	result.rgb += specular_light; // QVR\n"
+"	result.rgb += specular_light * specular_map; // QVR\n"
 "	result.rgb += fullbright;\n"
 QVR_WORLD_FS_GLOW_LIQUID // QVR: force grab's glow; the liquid's look
 "	result = clamp(result, vec4(0.0), vec4(vec3(SceneTone.x), 1.0)); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"

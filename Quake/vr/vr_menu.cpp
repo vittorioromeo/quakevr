@@ -2678,6 +2678,9 @@ void checklistReload()
 za::Vector<Item> pageDebugViews()
 {
     return {
+        toggle("External Maps A/B", vr_extmaps_ab)
+            .help("Hides the external pack's normal, specular and glow maps (Graphics: External Maps) at once, to compare "
+                  "with the made bumps and Quake's glow; off again shows them. Without a reload."),
         toggle("Show Damage Numbers", vr_debug_damage_numbers)
             .help("Every hit on anything that takes damage (monsters, corpses, gibs, crates, props, shootable walls): its "
                   "damage floating where it struck, and printed as the training dummy's (what struck, where, what's left)."),
@@ -2996,6 +2999,9 @@ za::Vector<Item> pageDebugReports()
             .help("vr_limits: every hardcoded limit's usage against its maximum (cvars, memory, models, edicts, lights...)."),
         command("Microphones", "vr_note_devices").help("vr_note_devices: the microphones Voice Notes can record from."),
         command("Detail Textures", "vr_detail_list").help("vr_detail_list: each texture's detail kind (long)."),
+        command("External Maps", "vr_extmaps_stats all")
+            .help("vr_extmaps_stats all: each texture of the map and what it got from the external pack (Graphics: External "
+                  "Maps): its picture's match, normal, specular and glow maps (long; without 'all' only the totals)."),
         command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };
 }

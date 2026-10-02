@@ -50,6 +50,7 @@
 #include "vr_view.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_detail.hpp"
+#include "vr_extmaps.hpp"
 #include "vr_flashlight.hpp"
 #include "vr_grasp.hpp"
 #include "vr_modelcollide.hpp"
@@ -1152,6 +1153,7 @@ extern "C" void VR_Init()
     flashlight::init();
     chainsaw::init();
     detail::init();
+    extmaps::init();
     hull::init();
     unstick::init();
     particles::init();

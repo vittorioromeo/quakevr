@@ -1185,6 +1185,15 @@ QVR_CVAR(vr_detail_distance, "144", CVAR_ARCHIVE)      // ... how far it reaches
 QVR_CVAR(vr_detail_fine, "1", CVAR_ARCHIVE)            // ... a second, finer grain within half that distance (one more texture read there)
 QVR_CVAR(vr_parallax_models, "0", CVAR_ARCHIVE)       // parallax depth of models whose heights are made from their skins (monsters, pickups, id's weapons without a baked map), in their own units (0 off: on Quake's blocky skins it bends the texels; 0.5 to 0.75 for smooth skins)
 QVR_CVAR(vr_parallax_authored, "1", CVAR_ARCHIVE)     // round 21: parallax depth of models with authored normal maps carrying heights (our hands, body, gadget, flashlight, weapons: bake_normals.py), times their baked depth (1 as baked, 0 off)
+QVR_CVAR(vr_extmaps, "0", CVAR_ARCHIVE)                // external material maps for the world's textures (vr_extmaps.cpp: a pack's <name>_norm, _spec, _luma/_glow and .mat, e.g. Quetoo's) read from vr_extmaps_dir as a map loads (next map; 0 off: none read)
+QVR_CVAR(vr_extmaps_dir, "textures_ext", CVAR_ARCHIVE) // ... the folder: relative, in the game's folders (quakevr/textures_ext/); or a full path (C:/.../quetoo-data/target/default/textures/quake)
+QVR_CVAR(vr_extmaps_normals, "1", CVAR_ARCHIVE)        // ... their normal maps instead of those made from the textures' shading (0: the made ones; at once: both kept)
+QVR_CVAR(vr_extmaps_spec, "1", CVAR_ARCHIVE)           // ... their specular maps: the sheen (vr_specular) per texel, its colour, and the .mat's specularity and hardness (0 off: the same sheen everywhere)
+QVR_CVAR(vr_extmaps_spec_scale, "4", CVAR_ARCHIVE)     // ... how bright the specular maps make the sheen (Quetoo's average about 0.15: 4 keeps the walls' average about as before)
+QVR_CVAR(vr_extmaps_luma, "1", CVAR_ARCHIVE)           // ... their glow maps (_luma, _glow) on textures that glow nowhere (neither a pack's _luma nor Quake's fullbright colours)
+QVR_CVAR(vr_extmaps_green, "0", CVAR_ARCHIVE)          // ... their normal maps' green: 0 turned to ours where their heights (alpha) say it runs the other way (Quetoo's does), 1 as it is, 2 turned (next map)
+QVR_CVAR(vr_extmaps_match, "0.5", CVAR_ARCHIVE)        // ... used only where the pack's own picture (<name>.jpg/png beside them) matches the texture drawn this well (correlation of their detail, 0..1; 0: always): a repainted picture's bumps would not fit (next map)
+QVR_CVAR(vr_extmaps_ab, "0", CVAR_NONE)                // Debug A/B: 1 hides the external maps (as vr_extmaps 0) without reloading
 QVR_CVAR(vr_model_light_parity, "1", CVAR_ARCHIVE)     // models as bright as the floor under them, on average (0: Quake's brighter models)
 QVR_CVAR(vr_viewmodel_minlight, "8", CVAR_ARCHIVE)     // least light on your hands and weapons (Quake's: 24)
 QVR_CVAR(vr_texture_smooth, "1", CVAR_ARCHIVE)         // smooth filtering: 1 replacement textures (textures/*.tga), 2 every texture, 0 as gl_texturemode

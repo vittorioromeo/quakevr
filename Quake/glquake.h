@@ -456,6 +456,8 @@ typedef struct gpuframedata_s {
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin
 struct gltexture_s *TexMgr_NormalMap (struct gltexture_s *glt); // its normal map, or a flat one
+struct gltexture_s *TexMgr_LoadExtNormalMap (struct gltexture_s *base, const char *name, int width, int height, byte *data,
+	int worldwidth); // QVR: an external pack's normal map for base (vr/vr_extmaps.cpp), not made its own; data NULL: only one already made
 qboolean TexMgr_IndexedSmooth (void); // Quake's own textures filtered smoothly (only then do they get heights)
 
 extern gpulightbuffer_t r_lightbuffer;

@@ -98,6 +98,10 @@ typedef struct texture_s
 	struct texture_s	*anim_next;		// in the animation sequence
 	struct texture_s	*alternate_anims;	// bmodels in frmae 1 use these
 	float				uvclamp[4];	// QVR: the part of it an item box's faces show (VR_ItemTextureClamp): s and t from .xy to .zw, repeating; none on an axis whose .z <= .x
+	struct gltexture_s	*extnormal;	// QVR: an external pack's normal map (vr/vr_extmaps.cpp), beside the made one
+	struct gltexture_s	*extspec;	// QVR: ... its specular map
+	float				extmat[4];	// QVR: ... its .mat's numbers: 1, specularity, hardness, 0
+	qboolean			extluma;	// QVR: fullbright is the pack's glow map
 } texture_t;
 
 
