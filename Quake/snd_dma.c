@@ -69,6 +69,22 @@ portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
 static sfx_t	*known_sfx = NULL;	// hunk allocated [MAX_SFX]
 static int	num_sfx;
 int S_KnownSfxCount (void) { return num_sfx; } // QVR (vr_limits)
+// QVR: vr_snd_bench: the sounds in the cache now, the bytes of their samples as Quake mixes them and of their band-limited
+// copies (vr_snd_fullband)
+void S_SfxMemory (int *loaded, int *heldBytes, int *fullBytes)
+{
+	int i;
+	*loaded = *heldBytes = *fullBytes = 0;
+	for (i = 0; i < num_sfx; i++)
+	{
+		const sfxcache_t *sc = (const sfxcache_t *) Cache_Check (&known_sfx[i].cache);
+		if (!sc)
+			continue;
+		(*loaded)++;
+		*heldBytes += sc->length * sc->width;
+		*fullBytes += sc->fullband ? sc->length * 2 : 0;
+	}
+}
 int S_KnownSfxMax (void) { return MAX_SFX; }
 
 static sfx_t	*ambient_sfx[NUM_AMBIENTS];

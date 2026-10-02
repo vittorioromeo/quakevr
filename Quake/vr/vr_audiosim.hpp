@@ -165,6 +165,15 @@ public:
     // vr_snd_info
     [[nodiscard]] double directMs() const;
     [[nodiscard]] double reflectionsMs() const;
+    // vr_snd_bench: the runs so far and the last one's time, each kind.
+    struct Runs
+    {
+        int direct{0};
+        double directMs{0.0};
+        int reflections{0};
+        double reflectionsMs{0.0};
+    };
+    [[nodiscard]] Runs runs() const;
     void saveObj(const char* baseName);
 
 private:
@@ -246,6 +255,8 @@ private:
     bool reflectionsSecondValid{false};
     double directTaskMs{0.0};
     double reflectionsTaskMs{0.0};
+    int directRuns{0};
+    int reflectionsRuns{0};
 };
 
 // The brush entities the client sees (doors, lifts, trains, func_walls), placed in the simulation's scene; returns how

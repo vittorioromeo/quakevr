@@ -461,6 +461,12 @@ static void S_UpdateLevels (int endtime)
 		snd_lofreqlevel = LERP (snd_lofreqlevel, sample, 1e-3f);
 		snd_hifreqlevel = LERP (snd_hifreqlevel, sample, 1e-2f);
 	}
+	// QVR: in silence they ease down into denormals and then stay at the smallest one (its step rounds to 0), each
+	// sample then 10-100 times slower to work out (vr_snd_bench: a quiet map's mix 3x dearer); 0 instead
+	if (snd_lofreqlevel < 1e-20f)
+		snd_lofreqlevel = 0.f;
+	if (snd_hifreqlevel < 1e-20f)
+		snd_hifreqlevel = 0.f;
 }
 
 float S_GetLoFreqLevel (void)
@@ -502,6 +508,8 @@ void S_PaintChannels (int endtime)
 	float	rate = VR_SndRate (); // QVR: slow motion: the sounds' playback rate (1 normal)
 	int	fullband = VR_SndFullBand (); // QVR: vr_snd_fullband (2: Quake's channels band-limited, no 11 kHz lowpass)
 
+	double	bench = VR_SndBenchNow (), benchStage; // QVR: vr_snd_bench's stages (0 when it isn't recording)
+
 	snd_vol = sfxvolume.value * 256;
 
 	while (paintedtime < endtime)
@@ -516,6 +524,7 @@ void S_PaintChannels (int endtime)
 		VR_SndPaint (paintbuffer, paintedtime, end); // QVR: spatial audio's voices (vr/vr_audio.cpp)
 
 	// paint in the channels.
+		benchStage = VR_SndBenchNow ();
 		ch = snd_channels;
 		for (i = 0; i < total_channels; i++, ch++)
 		{
@@ -581,6 +590,9 @@ void S_PaintChannels (int endtime)
 			}
 		}
 
+		VR_SndBenchAdd (VR_SNDBENCH_QUAKE, benchStage);
+		benchStage = VR_SndBenchNow ();
+
 	// clip each sample to 0dB, then reduce by 6dB (to leave some headroom for
 	// the lowpass filter and the music). the lowpass will smooth out the
 	// clipping
@@ -598,6 +610,7 @@ void S_PaintChannels (int endtime)
 
 		S_UnderwaterFilter (end - paintedtime);
 		S_UpdateLevels (end - paintedtime);
+		VR_SndBenchAdd (VR_SNDBENCH_FILTERS, benchStage);
 		VR_SndShadow (end - paintedtime); // QVR: the game-time render (vr_timescale_wav; vr/vr_audio.cpp)
 
 	// paint in the music
@@ -627,6 +640,7 @@ void S_PaintChannels (int endtime)
 		S_TransferPaintBuffer(end);
 		paintedtime = end;
 	}
+	VR_SndBenchAdd (VR_SNDBENCH_PAINT, bench);
 }
 
 void SND_InitScaletable (void)

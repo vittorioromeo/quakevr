@@ -21,6 +21,7 @@ int ED_FindFieldOffset (const char *name);			// pr_edict.c
 trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end); // world.c
 int S_KnownSfxCount (void);							// snd_dma.c (vr_limits)
 int S_KnownSfxMax (void);							// snd_dma.c
+void S_SfxMemory (int *loaded, int *heldBytes, int *fullBytes);	// snd_dma.c (vr_snd_bench)
 int Mod_KnownCount (void);							// gl_model.c
 int Mod_KnownMax (void);							// gl_model.c
 qboolean Mod_CheckFullbrights (byte *pixels, int count);	// gl_model.c (vr_modelload.cpp)

@@ -12,6 +12,7 @@
 #include "vr_engine.hpp"
 #include "vr_steamaudio.hpp"
 
+#include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 
@@ -42,6 +43,7 @@ struct Features
     float unitsPerMetre{26.25f};
     float rate{1.f};         // slow motion's playback rate (VR_SndRate: slower and lower; 1 normal)
     bool fullBand{false};    // the voices read their sounds' band-limited copies (vr_snd_fullband; sfxcache_t::fullband)
+    bool reverbBeside{true}; // the reverb rendered beside the voices' HRTF, not after it (vr_snd_reverb_beside: the same sound)
 };
 [[nodiscard]] Features featuresFromCvars();
 
@@ -60,6 +62,8 @@ struct VoiceInput
 };
 
 // Voices rendering mono sounds (Quake's sfxcache_t) to stereo, and the reverb, in Steam Audio's frames.
+class AntiAlias;
+
 class Mixer
 {
 public:
@@ -134,8 +138,25 @@ public:
 
     // `blocks` frames of every active voice, added to outL/outR (blocks x frameSize samples, paint buffer units).
     // `reverb`: the room's (null: no reverb, its tail ringing out), added to roomL/R when given, else to outL/R.
+    // `blocks` frames of every voice added to outL/outR, and the reverb (when on) to roomL/roomR if given (else to
+    // outL/outR), `roomFilter` then applied to roomL/roomR (renderVoices' anti-aliasing). The voices go in two passes on
+    // the pool: their sounds read and filtered (the reverb's input), each on any thread; then the reverb's convolution
+    // (on the calling thread) and its decode (a block behind, on another) while the lanes do the voices' HRTF
+    // (vr_snd_bench: the reverb's convolution is the longest single part of the mix).
     void render(int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb, float* outL,
-        float* outR, float* roomL = nullptr, float* roomR = nullptr);
+        float* outR, float* roomL = nullptr, float* roomR = nullptr, AntiAlias* roomFilter = nullptr);
+
+    // vr_snd_bench (vr_audiobench.hpp): the last render's wall time in the voices and in the reverb (seconds), and the
+    // voices' own time in each part (read, direct effect, binaural, the rest) summed over threads since the last take.
+    struct Times
+    {
+        double voices{0.0};
+        double reverb{0.0};
+        double reverbConv{0.0};
+        double reverbDecode{0.0};
+        double cpu[5]{}; // (and [4]: the voices' tasks' allocations, a count)
+    };
+    [[nodiscard]] Times takeTimes();
 
 private:
     struct Voice
@@ -162,10 +183,16 @@ private:
         IPLDirectEffect direct{nullptr};
         za::Vector<float> in0, mid, l, r;   // one frame
         za::Vector<float> outL, outR, send; // the call's
+        double cpu[5]{};                    // vr_snd_bench: read, direct, binaural, the rest (seconds); allocations
+        double lapStart{0.0};               // (vr_snd_bench: the part's start)
+        bool bad{false};                    // made not-numbers this call (dropped, its effects reset)
     };
 
     void prepare(Voice& v, const Listener& l, const Features& f) const;
-    void process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf);
+    void processSource(Voice& v, int blocks, const Features& f);              // read, gain, direct effect: v.send
+    void processEars(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf); // HRTF, near field: v.outL, v.outR
+    void reverbConvolve(int blocks, const int* list, int active, const IPLReflectionEffectParams& params);
+    void reverbDecode(int blocks, const Features& f, float* toL, float* toR, float* roomL, float* roomR, AntiAlias* roomFilter);
     void read(Voice& v, float* out, float step0, float step1, bool fullBand);
 
     const steamaudio::Api* sa{nullptr};
@@ -173,10 +200,12 @@ private:
     int frame{0};
     bool sofaLoaded{false};
     IPLHRTF hrtf{nullptr};
+    IPLHRTF reverbHrtf{nullptr}; // the reverb's decode's own copy (it runs beside the lanes)
     // The voices are rendered in lanes (a pool task each, its voices one after another), each lane with an HRTF of
     // its own (the first: `hrtf`): Steam Audio's bilinear interpolation works in the HRTF's own buffers, so two voices
     // interpolating one HRTF at once on two threads made not-numbers (the author's crackling, ROUND21.md).
     static constexpr int maxLanes = 8;
+    static constexpr int lanesBesideReverb = 4; // (render: the lanes while the reverb's convolution runs)
     za::Array<IPLHRTF, maxLanes> laneHrtfs{};
     int lanes{0};
     za::Array<Voice, maxVoices> voices;
@@ -185,13 +214,19 @@ private:
     IPLReflectionEffect reflection{nullptr};
     IPLAmbisonicsDecodeEffect decode{nullptr};
     IPLReflectionEffectType reverbType{IPL_REFLECTIONEFFECTTYPE_PARAMETRIC};
+    Times times;        // (vr_snd_bench)
+    bool timing{false}; // (vr_snd_bench: this render timed, read by its tasks)
     int reverbOrder{-1};
     int reverbChannels{0};
     int irSize{0};
     int reverbSilence{1 << 30}; // samples since the reverb last had input
     za::Vector<float> reverbIn;
-    za::Vector<za::Vector<float>> reverbAmbi;
+    za::Vector<za::Vector<float>> reverbAmbi; // each channel: the call's blocks (the decode a block behind the convolution)
+    za::Array<bool, maxSamples / 256 + 1> reverbRan{}; // each block: convolved (not rung out)
+    za::Atomic<int> reverbConvolved{0};                // blocks convolved this call (reverbConvolve to reverbDecode)
+    double reverbStarted{0.0};                         // (vr_snd_bench)
     za::Vector<float> reverbL, reverbR;
+    za::Vector<float> reverbOutL, reverbOutR; // the call's reverb, when it goes to outL/outR (after the voices' sum)
     IPLCoordinateSpace3 orientation{};
 };
 
@@ -213,11 +248,13 @@ public:
     void apply(float* l, float* r, int n);
 
 private:
-    void applyOne(float* x, za::Vector<float>& history, int n);
+    void applyOne(float* x, za::Vector<float>& history, int& quiet, int n);
 
     za::Vector<float> kernel;          // (made at the first call)
     za::Vector<float> histL, histR;    // the last taps - 1 inputs
     za::Vector<float> work;            // history and block
+    int quietL{taps}, quietR{taps};    // zeros in a row at the end of the input so far (taps - 1 or more: a silent
+                                       // block comes out silent, unfiltered)
 };
 
 // Whether Quake low-passes the mix to 11 kHz (sndspeed 11025 at 44100: snd_mix.c), and the voices are to be filtered

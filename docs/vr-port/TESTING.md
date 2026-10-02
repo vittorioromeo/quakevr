@@ -763,6 +763,13 @@ between frames. Under `screen/3D`, `eye L` and `eye R` hold each eye's `scene` (
 `postprocess`, the `hud panel` and the `mirror` to the window; the shadow maps (`dlight shadows`, `map light
 shadows`) are drawn once, in the left eye's `setup view`. `self` columns leave out the parts inside a part.
 
+**Spatial audio:** Debug > Tests > Spatial Audio > *Spatial Audio Benchmark* (`vr_snd_bench <seconds> [label] [sounds a
+second] [orbit units/s]`) plays monsters', weapons' and explosions' sounds round you while the listener circles, then
+prints each stage of the mix (the voices, the reverb's convolution and decode, Quake's channels, the limiter, the
+game-time render...) a frame: median, 95th and 99th percentiles, worst, ms per second of sound; the simulations' runs;
+the sounds' memory. Rows also go to `quakevr/sound_tests/bench.csv`. `vr_snd_test golden` checks a change leaves the
+mix's sound as it was (ROUND21.md, "Spatial audio: optimised").
+
 **If it gets slower the longer you play:** `vr_memstats` (in the console) prints the GPU's memory (NVIDIA: used by
 all programs, and how often the driver had to move things out of it: "evictions"), the game's RAM, its textures and
 every live OpenGL object, and the average frame time since the last `vr_memstats`. Type it at the start, again after

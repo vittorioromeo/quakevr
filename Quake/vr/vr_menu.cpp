@@ -3136,6 +3136,12 @@ za::Vector<Item> pageDebugTests()
         command("32 Sounds Around You", "vr_snd_bench_spawn 32")
             .help("vr_snd_bench_spawn: 32 looping sounds in a ring round you (till the map changes): a load for the "
                   "profiler's sound line, with Spatial Audio on and off."),
+        command("Spatial Audio Benchmark (12 s)", "vr_snd_bench 12 menu 8 400")
+            .help("vr_snd_bench <seconds> [label] [sounds a second] [orbit units/s]: for 12 s, monsters', weapons' and "
+                  "explosions' sounds round you (8 a second) while the listener goes round a circle (every voice moving "
+                  "against it); then each stage of the mix's time a frame (median, 95th and 99th percentiles, worst, ms per "
+                  "second of sound), the simulations' runs and the sounds' memory, in the console and sound_tests/bench.csv. "
+                  "32 Sounds Around You first for more voices (ROUND21.md, \"Spatial audio: optimised\")."),
         command("Record the Mix (2 s)", "vr_snd_capture 2 menu")
             .help("vr_snd_capture: the next 2 seconds of the final mix to the game folder's sound_tests (capture_menu.wav), and its levels "
                   "in the console."),

@@ -623,6 +623,7 @@ void Simulation::runDirect(const DirectJob& job)
     directValid = valid;
     directSerial = serial;
     directTaskMs = ms;
+    directRuns++;
 }
 
 void Simulation::runReflections(const ReflectionsJob& job)
@@ -665,6 +666,7 @@ void Simulation::runReflections(const ReflectionsJob& job)
     reflectionsSecondOut = o2.reflections;
     reflectionsSecondValid = job.settings.second;
     reflectionsTaskMs = ms;
+    reflectionsRuns++;
 }
 
 void Simulation::update(const IPLCoordinateSpace3& listener, const Source* src, int count, const SimSettings& s, double now)
@@ -786,6 +788,12 @@ double Simulation::reflectionsMs() const
 {
     const za::LockGuard lock{mutex};
     return reflectionsTaskMs;
+}
+
+Simulation::Runs Simulation::runs() const
+{
+    const za::LockGuard lock{mutex};
+    return Runs{directRuns, directTaskMs, reflectionsRuns, reflectionsTaskMs};
 }
 
 void Simulation::saveObj(const char* baseName)
