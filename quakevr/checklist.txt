@@ -122,6 +122,10 @@ Flashlight Head Clip Range: try a larger value for clipping onto the helmet
 Flashlight Clip on Head When Let Go: release the torch at the helmet, it clips on without B/Y
 Flashlight Clip on Gun When Let Go: release the torch at a gun's mount, it clips on without B/Y
 
+Flashlight Gun Clip Range (Advanced VR Options > Flashlight > Taking and Clipping On): at 2 the torch clips onto a gun from further away
+Weapon Offsets > Flashlight: the cyan outline follows Forward/Up/Out/Pitch/Yaw/Roll; Clip the Flashlight on It puts the torch there
+Weapon Offsets > Flashlight: a second weapon keeps its own torch place (and the off hand mirrors it correctly)
+
 [Decide or give feedback]
 Flashlight head zone: make your values the defaults (zone up 0.175, forward 0.015; shipped 0.04, 0)?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
