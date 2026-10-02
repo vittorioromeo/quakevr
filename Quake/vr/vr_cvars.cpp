@@ -260,8 +260,11 @@ const DefaultChange defaultChanges[] = {
     {79, &vr_smallgibs_up, "5"},                 // 7
     {79, &vr_smallgibs_speed_guns, "1"},         // 0.85
     {79, &vr_smallgibs_up_guns, "1"},            // 0.9
+    // 80: the author's answer on the outliers (2026-10-02): his wound detail and burns relief.
+    {80, &vr_wounds_own_res, "1024"},          // 0 (the chunky masks)
+    {80, &vr_wounds_bump_burns, "1"},          // 3
 };
-constexpr int configVersion = 79;
+constexpr int configVersion = 80;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
