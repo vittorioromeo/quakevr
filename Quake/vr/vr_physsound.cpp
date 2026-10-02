@@ -302,6 +302,7 @@ bool emit(int ent, int channel, int index, float volume, float attenuation, cons
     {
         MSG_WriteCoord(&sv.datagram, at[i], sv.protocolflags);
     }
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
     return true;
 }
 
@@ -312,6 +313,7 @@ void stop(int ent, int channel)
     {
         MSG_WriteByte(&sv.datagram, svc_stopsound);
         MSG_WriteShort(&sv.datagram, (ent << 3) | channel);
+        VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
     }
 }
 

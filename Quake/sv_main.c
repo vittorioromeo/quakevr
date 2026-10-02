@@ -243,6 +243,7 @@ void SV_StartParticle (vec3_t org, vec3_t dir, int color, int count)
 	}
 	MSG_WriteByte (&sv.datagram, count);
 	MSG_WriteByte (&sv.datagram, color);
+	VR_BroadcastMessageEnd (); // QVR: a boundary (vr/vr_server.cpp)
 }
 
 /*
@@ -340,6 +341,7 @@ void SV_StartSound (edict_t *entity, int channel, const char *sample, int volume
 
 	for (i = 0; i < 3; i++)
 		MSG_WriteCoord (&sv.datagram, entity->v.origin[i]+0.5*(entity->v.mins[i]+entity->v.maxs[i]), sv.protocolflags);
+	VR_BroadcastMessageEnd (); // QVR: a boundary (vr/vr_server.cpp)
 }
 
 /*
@@ -567,7 +569,7 @@ SV_ClearDatagram
 */
 void SV_ClearDatagram (void)
 {
-	SZ_Clear (&sv.datagram);
+	VR_BroadcastClear (); // QVR: clears it (and its message boundaries)
 }
 
 /*
@@ -1196,6 +1198,8 @@ qboolean SV_SendClientDatagram (client_t *client)
 	//johnfitz -- if client is nonlocal, use smaller max size so packets aren't fragmented
 	if (Q_strcmp(NET_QSocketGetAddressString(client->netconnection), "LOCAL") != 0)
 		msg.maxsize = DATAGRAM_MTU;
+	else // QVR: the loopback's one buffer takes this and the reliable message sent after it (whose overflow is a Sys_Error)
+		msg.maxsize = q_max (1024, q_min (msg.maxsize, NET_MAXMESSAGE - 16 - client->message.cursize));
 	//johnfitz
 
 	MSG_WriteByte (&msg, svc_time);
@@ -1207,8 +1211,12 @@ qboolean SV_SendClientDatagram (client_t *client)
 	SV_WriteEntitiesToClient (client->edict, &msg);
 
 // copy the server datagram if there is space
-	if (msg.cursize + sv.datagram.cursize < msg.maxsize)
-		SZ_Write (&msg, sv.datagram.data, sv.datagram.cursize);
+	{
+		// QVR: as much of it as fits, whole messages (it was all or none: a frame of many effects lost them all)
+		int sendable = VR_BroadcastSendable (msg.cursize, msg.maxsize - msg.cursize - 1);
+		if (sendable > 0)
+			SZ_Write (&msg, sv.datagram.data, sendable);
+	}
 
 // send the datagram
 	if (NET_SendUnreliableMessage (client->netconnection, &msg) == -1)
@@ -1331,6 +1339,7 @@ void SV_UpdateToReliableMessages (void)
 		}
 	}
 
+	VR_ReliableSent (); // QVR: vr_debug_net 2
 	for (j=0, client = svs.clients ; j<svs.maxclients ; j++, client++)
 	{
 		if (!client->active)
@@ -1998,6 +2007,7 @@ static void SV_SpawnServerRun (const char *server)
 	sv.datagram.maxsize = sizeof(sv.datagram_buf);
 	sv.datagram.cursize = 0;
 	sv.datagram.data = sv.datagram_buf;
+	VR_BroadcastClear (); // QVR: and its message boundaries
 
 	sv.reliable_datagram.maxsize = sizeof(sv.reliable_datagram_buf);
 	sv.reliable_datagram.cursize = 0;

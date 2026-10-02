@@ -4,6 +4,7 @@
 #include "vr_axestick.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_climb.hpp"
+#include "vr_cvars.hpp"
 #include "vr_ledges.hpp"
 #include "vr_move.hpp"
 #include "vr_motion.hpp"
@@ -197,7 +198,242 @@ void sweepWeaponInsts()
     }
 }
 
+// The unreliable broadcast's room (sv.datagram; ROUND21.md, "A full broadcast drops whole messages").
+//
+// sv.datagram (particles, sounds, temp entities, QuakeC's MSG_BROADCAST writes, the VR events) goes to each client
+// after its entities. The engine's writers check its room and skip a message that does not fit; QuakeC's writes could
+// not, and a frame of many shotgun pellets (TE_GUNSHOT each) overflowed it into a Host_Error. A message cut short
+// garbles the rest of the stream, so its message boundaries are kept: the start of each QuakeC run from the engine (not
+// one nested in a builtin), each point where QuakeC writes after the engine has (the engine writes whole messages, and
+// only between QuakeC's: one in the middle of QuakeC's would garble it anyway), and the end of each temp entity QuakeC
+// writes from a boundary (their lengths are the client's, CL_ParseTEnt; a run of TE_GUNSHOTs has no other boundaries;
+// another message QuakeC writes leaves the next boundary to the others). A QuakeC write that does not fit
+// takes the buffer back to the last boundary, and QuakeC's broadcast writes then go nowhere until the next one. A
+// client's datagram takes the longest part of it that ends on a boundary and fits after its entities (it was all of it
+// or none).
+struct BroadcastRoom
+{
+    static constexpr int maxMarks = 1024; // full: every other one is dropped (spread evenly, the last kept)
+
+    int marks[maxMarks]; // ascending boundaries past 0 (0 and the end at sending are boundaries too)
+    int numMarks;
+    int qcEnd;  // where QuakeC's last write ended (-1: none since the last boundary QuakeC's run made)
+    int dropAt; // >= 0: QuakeC's writes go to the sink while sv.datagram stays this long (-1: they go to it)
+    int msgAt;  // where QuakeC's message being written began, at a boundary (-1: not known)
+
+    sizebuf_t sink; // a dropped write's bytes (cleared before each)
+    byte sinkBuf[MAX_DATAGRAM];
+
+    // vr_debug_net: this frame's
+    int qcDropped; // bytes QuakeC wrote that went nowhere (and those taken back)
+    int qcDrops;   // times QuakeC's writes overflowed
+    int unsent;    // bytes a client's datagram had no room for (each client's)
+    int entities;  // the most a client's datagram had before it (svc_time, the client's data, the entities)
+    // ... and the most in the second
+    double since;
+    int peakSize, peakReliable, peakEntities;
+};
+
+BroadcastRoom broadcastRoom{};
+
+// The length of the temp entity QuakeC began at `at`, as CL_ParseTEnt reads it (0: not one, not known, or its type not
+// written yet).
+[[nodiscard]] int tempEntityLength(int at)
+{
+    if(sv.datagram.cursize - at < 2 || sv.datagram.data[at] != svc_temp_entity)
+    {
+        return 0;
+    }
+    int coord = 0; // a coordinate's bytes in the protocol
+    {
+        byte bytes[8];
+        sizebuf_t probe{};
+        probe.data = bytes;
+        probe.maxsize = sizeof(bytes);
+        MSG_WriteCoord(&probe, 0.f, sv.protocolflags);
+        coord = probe.cursize;
+    }
+    switch(sv.datagram.data[at + 1])
+    {
+        case TE_SPIKE:
+        case TE_SUPERSPIKE:
+        case TE_GUNSHOT:
+        case TE_EXPLOSION:
+        case TE_TAREXPLOSION:
+        case TE_WIZSPIKE:
+        case TE_KNIGHTSPIKE:
+        case TE_LAVASPLASH:
+        case TE_TELEPORT: return 2 + 3 * coord;              // where
+        case TE_EXPLOSION2: return 2 + 3 * coord + 2;        // where, the colours
+        case TE_LIGHTNING1:
+        case TE_LIGHTNING2:
+        case TE_LIGHTNING3:
+        case TE_BEAM: return 2 + 2 + 6 * coord;              // the entity, from, to
+        default: return 0;
+    }
+}
+
+void broadcastMark(int at)
+{
+    BroadcastRoom& b = broadcastRoom;
+    b.msgAt = at;
+    if(at <= 0 || (b.numMarks > 0 && b.marks[b.numMarks - 1] >= at))
+    {
+        return;
+    }
+    if(b.numMarks == BroadcastRoom::maxMarks)
+    {
+        for(int i = 0; i < BroadcastRoom::maxMarks / 2; i++)
+        {
+            b.marks[i] = b.marks[2 * i + 1];
+        }
+        b.numMarks = BroadcastRoom::maxMarks / 2;
+    }
+    b.marks[b.numMarks++] = at;
+}
+
 } // namespace
+
+// SV_ClearDatagram: the frame's broadcast starts empty (vr_debug_net: the last frame's numbers).
+extern "C" void VR_BroadcastClear()
+{
+    BroadcastRoom& b = broadcastRoom;
+    if(qvr::vr_debug_net.value && (b.qcDrops || b.unsent))
+    {
+        Con_Printf("vr_debug_net: broadcast full (%d bytes, %d boundaries): QuakeC's writes dropped %d times, %d bytes; "
+                   "%d not sent (%d before it)\n",
+            sv.datagram.cursize, b.numMarks, b.qcDrops, b.qcDropped, b.unsent, b.entities);
+    }
+    if(qvr::vr_debug_net.value >= 2.f)
+    {
+        b.peakSize = q_max(b.peakSize, sv.datagram.cursize);
+        b.peakEntities = q_max(b.peakEntities, b.entities);
+        if(realtime - b.since >= 1.0)
+        {
+            Con_Printf("vr_debug_net: the second's most: broadcast %d, reliable %d, a client's datagram before it %d (of %d)\n",
+                b.peakSize, b.peakReliable, b.peakEntities, MAX_DATAGRAM);
+            b.since = realtime;
+            b.peakSize = b.peakReliable = b.peakEntities = 0;
+        }
+    }
+
+    b.numMarks = 0;
+    b.qcEnd = -1;
+    b.dropAt = -1;
+    b.msgAt = 0;
+    b.qcDropped = b.qcDrops = b.unsent = b.entities = 0;
+    SZ_Clear(&sv.datagram);
+}
+
+// PR_ExecuteProgram, a run of the server's QuakeC from the engine (not nested in a builtin): QuakeC is between messages.
+extern "C" void VR_BroadcastQCRun()
+{
+    broadcastRoom.dropAt = -1;
+    broadcastMark(sv.datagram.cursize);
+}
+
+// WriteDest's MSG_BROADCAST (pr_cmds.c, vr_builtins.cpp): where a QuakeC write of at most `len` bytes goes, sv.datagram
+// or the sink. VR_BroadcastWritten after it.
+extern "C" sizebuf_t* VR_BroadcastDest(int len)
+{
+    BroadcastRoom& b = broadcastRoom;
+    sizebuf_t& dg = sv.datagram;
+    if(b.dropAt >= 0)
+    {
+        if(dg.cursize == b.dropAt)
+        {
+            b.qcDropped += len;
+            b.sink.data = b.sinkBuf;
+            b.sink.maxsize = sizeof(b.sinkBuf);
+            SZ_Clear(&b.sink);
+            return &b.sink;
+        }
+        b.dropAt = -1; // the engine wrote since: QuakeC is between messages
+    }
+    if(dg.cursize != b.qcEnd)
+    {
+        broadcastMark(dg.cursize); // the engine wrote since QuakeC's last write (or this run's first)
+    }
+    if(dg.cursize + len > dg.maxsize)
+    {
+        const int back = b.numMarks > 0 ? b.marks[b.numMarks - 1] : 0;
+        b.qcDropped += dg.cursize - back + len;
+        b.qcDrops++;
+        dg.cursize = back;
+        b.dropAt = back;
+        b.qcEnd = -1;
+        b.msgAt = -1;
+        b.sink.data = b.sinkBuf;
+        b.sink.maxsize = sizeof(b.sinkBuf);
+        SZ_Clear(&b.sink);
+        return &b.sink;
+    }
+    return &dg;
+}
+
+extern "C" void VR_BroadcastWritten(sizebuf_t* dest)
+{
+    BroadcastRoom& b = broadcastRoom;
+    if(dest != &sv.datagram)
+    {
+        return;
+    }
+    b.qcEnd = sv.datagram.cursize;
+    if(b.msgAt >= 0)
+    {
+        const int len = tempEntityLength(b.msgAt);
+        if(len > 0 && b.qcEnd - b.msgAt == len)
+        {
+            broadcastMark(b.qcEnd); // a whole temp entity: the next message begins here
+        }
+        else if((len > 0 && b.qcEnd - b.msgAt > len) || (len == 0 && b.qcEnd - b.msgAt >= 2))
+        {
+            b.msgAt = -1; // not a temp entity known (or not as known): the next boundary is the others'
+        }
+    }
+}
+
+extern "C" void VR_BroadcastMessageEnd()
+{
+    broadcastMark(sv.datagram.cursize);
+}
+
+// SV_SendClientDatagram: how much of sv.datagram goes into a client's datagram with `room` bytes left (`before`: its
+// bytes so far): all of it, or the longest part ending on a boundary.
+extern "C" int VR_BroadcastSendable(int before, int room)
+{
+    BroadcastRoom& b = broadcastRoom;
+    const int size = sv.datagram.cursize;
+    b.entities = q_max(b.entities, before);
+    if(size <= room)
+    {
+        return size;
+    }
+    // the last mark <= room
+    int lo = 0;
+    int hi = b.numMarks; // marks[lo..hi) unsearched; the answer is marks[lo - 1]
+    while(lo < hi)
+    {
+        const int mid = (lo + hi) / 2;
+        if(b.marks[mid] <= room)
+        {
+            lo = mid + 1;
+        }
+        else
+        {
+            hi = mid;
+        }
+    }
+    const int sendable = lo > 0 ? b.marks[lo - 1] : 0;
+    b.unsent += size - sendable;
+    return sendable;
+}
+
+// SV_SendClientMessages, before sv.reliable_datagram is copied to the clients (vr_debug_net 2).
+extern "C" void VR_ReliableSent()
+{
+    broadcastRoom.peakReliable = q_max(broadcastRoom.peakReliable, sv.reliable_datagram.cursize);
+}
 
 extern "C" void VR_ReadMoveExtras(client_t* client)
 {
@@ -692,6 +928,10 @@ void sendShock(edict_t* player, int kind, const float org[3], float radius, floa
     }
     MSG_WriteShort(msg, CLAMP(0, static_cast<int>(radius), 32767));
     MSG_WriteByte(msg, CLAMP(0, static_cast<int>(duration * 50.f + 0.5f), 255));
+    if(msg == &sv.datagram)
+    {
+        VR_BroadcastMessageEnd(); // a boundary
+    }
 }
 
 void sendFired(edict_t* shooter, int hand)
@@ -704,6 +944,7 @@ void sendFired(edict_t* shooter, int hand)
     MSG_WriteByte(&sv.datagram, QVR_SVC_FIRED);
     MSG_WriteShort(&sv.datagram, NUM_FOR_EDICT(shooter));
     MSG_WriteByte(&sv.datagram, hand == 0 || hand == 1 ? hand : 255); // (HAND_OFF, HAND_MAIN)
+    VR_BroadcastMessageEnd(); // a boundary
 }
 
 void sendTracer(edict_t* shooter, int hand, const float from[3], const float to[3])
@@ -725,6 +966,7 @@ void sendTracer(edict_t* shooter, int hand, const float from[3], const float to[
     {
         MSG_WriteCoord(&sv.datagram, to[i], sv.protocolflags);
     }
+    VR_BroadcastMessageEnd(); // a boundary
 }
 
 void init()

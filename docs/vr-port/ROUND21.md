@@ -20895,7 +20895,8 @@ lie 2.5 s on; the gibbings also print the old flight). `smallgibs_tests.sh` runs
 (1 m/s = 32.8 u/s at world scale 1.25. "Lies": the mean distance across from where each was made, 2.5 s on.)
 
 `smallgibs_tests.sh`'s corpse run (the chainsaw, then 200 super shotgun blasts in one frame) sometimes ends in
-`Host_Error: SZ_GetSpace: overflow` before the blasts print: already so at ec1146b3 (4 of 4 runs), 1 in 3 here.
+`Host_Error: SZ_GetSpace: overflow` before the blasts print: already so at ec1146b3 (4 of 4 runs), 1 in 3 here (fixed:
+"A full broadcast drops whole messages").
 
 Test in VR:
 - [ ] Sword and axe cuts, punches: the chunks drop near the enemy (half a metre), not past you.
@@ -21462,3 +21463,45 @@ flag), the weapon flags that are the weapon's rather than the hand's (secondary 
 - [ ] Throw a bloody weapon, pick it up, hand it to the other hand, hold it two-handed and let go with one hand: blood
       stays with that weapon.
 - [ ] Magazines: shoot a few, holster, draw, throw, pick up, switch hands: the rounds left are as before.
+## A full broadcast drops whole messages (szoverflow, 2026-10-02)
+
+`smallgibs_tests.sh`'s corpse run (200 super shotgun blasts in one frame) ended in `Host_Error: SZ_GetSpace: overflow
+without allowoverflow set` (4 of 4 at the base, 1 in 3 after sgibvel). The buffer: `sv.datagram`, the unreliable
+broadcast (64000 bytes, cleared each server frame), full at 63998. The writer that overflowed it: QuakeC's
+`BroadcastGunshotEffect` (`WriteByte(MSG_BROADCAST, ...)` from `TraceAttack`). What had filled it: per pellet the VR
+events, a blood `particle2` (20 bytes), a `woundevent` (22) and a bullet tracer (29), about 70 bytes a pellet against
+vanilla's 14; 2800 pellets ask for some 200 KB. The engine's writers check the room and skip what does not fit (each
+leaves a little slack: 24, 32, 64 bytes); QuakeC's `MSG_BROADCAST` writes had no check (Quake's `WriteDest` hands out
+`sv.datagram`, `allowoverflow` false), so a 14-byte temp entity into the last few bytes was the Host_Error. And a
+`sv.datagram` too big for a client's datagram after its entities went whole or not at all.
+
+Now (`vr_server.cpp`, "The unreliable broadcast's room"):
+- **Message boundaries**: the start of each server QuakeC run from the engine (`PR_ExecuteProgram` at depth 0), the end
+  of every whole message the engine writes (`VR_BroadcastMessageEnd`: particles, sounds, the VR events, ropes, tracers,
+  shocks, float texts), each point where QuakeC writes after the engine has, and the end of each standard temp entity
+  QuakeC writes from a boundary (its length as `CL_ParseTEnt` reads it). Up to 1024 a frame (full: every other one
+  dropped, evenly).
+- **QuakeC's writes**: a `MSG_BROADCAST` write that would not fit takes `sv.datagram` back to the last boundary and
+  QuakeC's broadcast writes go to a sink until the next boundary: whole messages lost, never part of one (no garbled
+  stream). The write builtins pass their length (`WriteDest(len)`; `WriteVec3` too).
+- **Sending**: a client's datagram takes the longest part of `sv.datagram` that ends on a boundary and fits after its
+  own data and entities (it was all or none). The local client's datagram also leaves room in the loopback's one
+  buffer for the reliable message sent after it (`NET_MAXMESSAGE - 16 -` its size: that overflow is a `Sys_Error`).
+- Reliable messages: untouched. Their most in the stress tests below: 96 bytes a frame (64000 the limit).
+
+What is lost when full: the frame's last effects (the newest pellets' puffs, blood, tracers), and only beyond 64000
+bytes in a frame. `vr_debug_net` (Debug > Network Messages): 1 prints each frame the broadcast was full (QuakeC's
+writes dropped, bytes not sent, the bytes before it); 2 also each second the most sent (the broadcast, the reliable
+messages, a client's own data and entities).
+
+Tests: the 200-blast corpse step 10 of 10 without an error (full at 63991-63999 bytes, about 657 boundaries,
+QuakeC's writes dropped 0-1 times, 84-182 bytes; 1675-2064 bytes not sent to the client, as many as its entities
+took). A stress like real play, `vr_smallgibs_test 14` (Debug > Gore Tests > Blow Up a Crowd): 24 or 64 grunts and
+half as many explosive boxes in rings, a rocket's blast in the middle and the boxes' chain: the broadcast's most in a
+frame 15-18 KB (a quarter of the room), no frame full; 40 or 400 blasts in the frame: no more (the crowd gibs in the
+first). `vr_smallgibs_test_crowd` (24) and `vr_smallgibs_test_blasts` (1) set its size.
+
+### In VR
+
+- [ ] A rocket into a crowd beside explosive boxes: every gib, blood burst and explosion drawn as before.
+- [ ] Super shotgun into a corpse at point blank, fast: nothing different (a frame never fills in play).

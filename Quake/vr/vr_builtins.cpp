@@ -248,8 +248,9 @@ void PF_highlight()
 // ----------------------------------------------------------------------------
 // Messages
 
-// Same destinations as Ironwail's (static) WriteDest in pr_cmds.c.
-[[nodiscard]] sizebuf_t* writeDest()
+// Same destinations as Ironwail's (static) WriteDest in pr_cmds.c (`len`: the most bytes the write takes, for
+// MSG_BROADCAST's room; VR_BroadcastWritten after it).
+[[nodiscard]] sizebuf_t* writeDest(int len)
 {
     enum
     {
@@ -261,7 +262,7 @@ void PF_highlight()
 
     switch(static_cast<int>(G_FLOAT(OFS_PARM0)))
     {
-        case MSG_BROADCAST: return &sv.datagram;
+        case MSG_BROADCAST: return VR_BroadcastDest(len); // sv.datagram, or nowhere when full (vr_server.cpp)
         case MSG_ONE:
         {
             edict_t* ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
@@ -280,12 +281,13 @@ void PF_highlight()
 
 void PF_WriteVec3()
 {
-    sizebuf_t* dest = writeDest();
+    sizebuf_t* dest = writeDest(12);
     const float* v = G_VECTOR(OFS_PARM1);
     for(int i = 0; i < 3; i++)
     {
         MSG_WriteCoord(dest, v[i], sv.protocolflags);
     }
+    VR_BroadcastWritten(dest);
 }
 
 // ----------------------------------------------------------------------------
@@ -325,6 +327,7 @@ void PF_woundevent()
     MSG_WriteByte(&sv.datagram, CLAMP(0, kind, 255));
     MSG_WriteByte(&sv.datagram, CLAMP(0, amount, 255));
     MSG_WriteByte(&sv.datagram, CLAMP(0, extra, 255));
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
     if(num >= static_cast<int>(woundsSent.size()))
     {
         woundsSent.resize(static_cast<za::SizeT>(num) + 1, 0);
@@ -357,6 +360,7 @@ void PF_particle2()
     }
     MSG_WriteByte(&sv.datagram, preset);
     MSG_WriteShort(&sv.datagram, count);
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
 }
 
 // entity findflags(entity start, .float field, float flags): the next entity after `start` (in edict order, free ones

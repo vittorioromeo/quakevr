@@ -14,6 +14,10 @@
 //     monster's blow, gibbed by a blow, gibbed by a rocket (a corpse: a corpse's gibbing), a large gib burst) some are
 //     torn out (to the side: not at you), their launch speeds out and up, and 2.5 s later how far they lie from where
 //     they were made. The gibbings also print the old flight (the gibs' at 0.6, no Speed or Up)
+//  14 a crowd blown up among explosive boxes (a stress of the unreliable broadcast's room: ROUND21.md, "A full broadcast
+//     drops whole messages"): vr_smallgibs_test_crowd grunts (24) and half as many boxes in rings round a point 160
+//     units ahead, a rocket's blast there 1 s on (the boxes go off in a chain), what is left 3 s on (vr_debug_net 1
+//     prints each frame the broadcast was full); vr_smallgibs_test_blasts: that many blasts in that frame (round the point)
 
 float vr_sgib_test;       // the test running, its step, when the step began
 float vr_sgib_test_step;
@@ -288,7 +292,7 @@ void(float xCase) VR_SmallGib_TestStart =
     float dmg = cvar("vr_smallgibs_test_dmg");
     dmg = dmg > 0 ? dmg : 35;
     entity m = vr_sgib_test_m;
-    if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12)
+    if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14)
     {
         bprint("sgibtest: no monster or corpse near\n");
         vr_sgib_test = 0;
@@ -507,6 +511,45 @@ void(float xCase) VR_SmallGib_TestStart =
         m.nextthink = -1;
         m.velocity = '0 0 0';
     }
+    if(xCase == 14)
+    {
+        float crowd = cvar("vr_smallgibs_test_crowd");
+        crowd = crowd > 0 ? crowd : 24;
+        entity p = self;
+        makevectors('0 1 0' * p.v_viewangle_y);
+        vector c = p.origin + v_forward * 160;
+        vr_sgib_test_e = spawn();
+        setorigin(vr_sgib_test_e, c);
+        vr_sgib_test_a = vr_sgib_made;
+        for(float i = 0; i < crowd * 1.5; i++)
+        {
+            // Rings of 12 (every third a box), 36 units apart.
+            float ring = floor(i / 12);
+            float ang = (i - ring * 12) * 30 + ring * 15;
+            makevectors('0 1 0' * ang);
+            vector at = c + v_forward * (40 + ring * 36);
+            self = spawn();
+            if(i - floor(i / 3) * 3 == 2)
+            {
+                setorigin(self, at - '16 16 0'); // (a box's origin is its corner)
+                misc_explobox();
+            }
+            else
+            {
+                entity d = self;
+                d.weapon = 0;
+                setorigin(d, at);
+                activator = p;
+                func_enemy_dispenser_use();
+                if(self != d)
+                {
+                    self.angles_y = ang + 180;
+                }
+                remove(d);
+            }
+            self = p;
+        }
+    }
     if(xCase <= 5)
     {
         vr_sgib_test = 0;
@@ -553,6 +596,46 @@ void() VR_SmallGib_TestFrame =
                 bprint(sprintf("sgibtest: chainsaw on %s (corpse %d): %d ticks in %.2f s, %d small gibs (one each %.2f s at most)\n",
                     m.classname, m.vr_corpse, vr_sgib_test_b, t, vr_sgib_made - vr_sgib_test_a,
                     cvar_hget(cvarh_vr_smallgibs_saw_interval)));
+                vr_sgib_test = 0;
+            }
+        }
+        else if(vr_sgib_test == 14)
+        {
+            if(vr_sgib_test_step == 0 && t >= 1)
+            {
+                // A rocket's blast in the middle (vr_smallgibs_test_blasts: that many in the frame, the others round it).
+                vector c = vr_sgib_test_e.origin;
+                float blasts = max(1, cvar("vr_smallgibs_test_blasts"));
+                for(float i = 0; i < blasts; i++)
+                {
+                    makevectors('0 1 0' * (i * 360 / blasts));
+                    setorigin(vr_sgib_test_e, c + v_forward * (i > 0 ? 64 : 0));
+                    T_RadiusDamage(vr_sgib_test_e, world, 250, world);
+                    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+                    WriteByte(MSG_BROADCAST, TE_EXPLOSION);
+                    WriteVec3(MSG_BROADCAST, vr_sgib_test_e.origin);
+                }
+                setorigin(vr_sgib_test_e, c);
+                vr_sgib_test_step = 1;
+            }
+            else if(vr_sgib_test_step == 1 && t >= 4)
+            {
+                float standing = 0;
+                float boxes = 0;
+                for(entity e = nextent(world); e; e = nextent(e))
+                {
+                    if(e.classname == "monster_army" && e.health > 0)
+                    {
+                        standing++;
+                    }
+                    if(e.classname == "explo_box")
+                    {
+                        boxes++;
+                    }
+                }
+                bprint(sprintf("sgibtest: crowd: %d grunts standing, %d boxes left, %d small gibs\n", standing, boxes,
+                    vr_sgib_made - vr_sgib_test_a));
+                remove(vr_sgib_test_e);
                 vr_sgib_test = 0;
             }
         }
