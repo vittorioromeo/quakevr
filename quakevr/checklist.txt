@@ -56,7 +56,6 @@ Your values are now the defaults: mantle grunt is the pain grunt, ripcord smoke 
 Head flies are off (Gore > Flies on Heads); revisit later (docs/vr-port/BACKLOG.md)
 
 [Decide or give feedback]
-Throws by weight: your tuned values (light up to 1.5 kg, falloff 0.9) are now defaults; the 2 kg axe is now slightly below full speed: OK, or exempt the axe?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
