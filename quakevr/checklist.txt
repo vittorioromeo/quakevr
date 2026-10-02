@@ -82,6 +82,11 @@ Small gibs: size (half a rock to a rock), how they fly out (Speed, Up) and the c
 Gibs squish when they land or stick (new squish sounds); a gib or small gib thrown into a wall at a medium speed sticks (Gore > Thrown Gibs Stick)
 Small gibs: the chances by weapon (Gore > Small Gibs > Chance by Weapon), Least Damage 12, Damage for a Sure One 60, Chance Curve 1.5
 
+Spawn buttons (firing range): pressed by a hand or a throw, the pressed one now shows its green (on) texture
+Grunts: their gun puffs muzzle smoke at each shot, as enforcers' rifles
+Throws: damage halved (Combat > Weapon Damage > All Throws, 0.5): a weak throw no longer near 100
+Swimming: Stroke Pitch Offset (Movement > Swimming): a few degrees down if strokes carry you up
+
 [Decide or give feedback]
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
@@ -98,7 +103,8 @@ Weapon Damage page (Combat > Weapon Damage): tune every weapon's base damage; cr
 Enforcer rifle: ammo screen values and sight lines (you asked for a reminder)
 Grapple: reel speeds and the other grapple values (you asked for a reminder)
 Stamina costs: shove, strike, melee, parry, climbing
-Roll Weight: tune the other guns (laser cannon at 4 done; global Roll Weight default is being raised)
+Roll Weight: global now 2.5 (Weapons > Aiming > Spring > Roll Weight); the laser cannon's own 4 multiplies it (10x in all, was 4x): set the laser's own to about 1.6 to keep its feel, then tune the other guns
+Laser cannon after the Roll Weight change: still right, or too slow to roll?
 Throw damage: revisit as a whole (now halved globally)
 
 [Record]

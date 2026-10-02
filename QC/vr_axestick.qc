@@ -232,8 +232,9 @@ void() VR_AxeStick_Think =
 // vr_test_axe_speed m/s, turned by vr_test_axe: 0 its blade first (the edge upright), 1 flat (the blade's side first),
 // 2 handle first, 3 blade first and spinning end over end. vr_test_axe_damage 0: it doesn't hurt what it strikes;
 // vr_test_axe_dist: you are moved first to that many units from what is ahead; vr_test_axe_at: at the nearest live
-// monster (1), door (2) or loose prop (3) instead, from its side facing you, level with its middle.
-// The nearest target of the axe test's kind (vr_test_axe_at: 1 a live monster, 2 a door, 3 a loose prop), or world.
+// monster (1), door (2), loose prop (3) or wall button (4) instead, from its side facing you, level with its middle.
+// The nearest target of the axe test's kind (vr_test_axe_at: 1 a live monster, 2 a door, 3 a loose prop, 4 a wall button
+// pressed by touch), or world.
 entity(float xKind) VR_AxeStick_TestTarget =
 {
     entity best = world;
@@ -252,6 +253,10 @@ entity(float xKind) VR_AxeStick_TestTarget =
         else if(xKind == 3)
         {
             ok = (e.vr_rigid && (e.movetype == MOVETYPE_TOSS || e.movetype == MOVETYPE_BOUNCE) && e.classname != "thrown_weapon");
+        }
+        else if(xKind == 4)
+        {
+            ok = (e.classname == "func_button" && !e.health); // (a shot button: shot, not pressed by a throw)
         }
         float d = vlen((e.absmin + e.absmax) * 0.5 - self.origin);
         if(ok && d < bestDist)
@@ -316,7 +321,11 @@ void() VR_AxeStick_TestThrow =
         }
         vector c = (target.absmin + target.absmax) * 0.5;
         F = c - eye;
-        if(atKind == 2)
+        if(atKind == 4 && (target.movedir_x || target.movedir_y))
+        {
+            F = target.movedir; // (into the wall: the way it is pressed)
+        }
+        else if(atKind == 2)
         {
             if(target.size_x <= target.size_y)
             {

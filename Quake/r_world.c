@@ -551,7 +551,7 @@ static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin
 		if (!numtex)
 			continue;
 
-		for (numinst = 1; i < count && ents[i]->model == model && numinst < MAX_BMODEL_INSTANCES; i++)
+		for (numinst = 1; i < count && ents[i]->model == model && !ents[i]->frame == !frame && numinst < MAX_BMODEL_INSTANCES; i++) // QVR: one frame a batch (a pressed button's alternate textures: docs/vr-port/ROUND21.md)
 			numinst += (ents[i]->model->texofs[texend] - ents[i]->model->texofs[texbegin]) > 0;
 
 		for (j = model->texofs[texbegin]; j < model->texofs[texend]; j++)
@@ -742,7 +742,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		if (!R_EntHasWater (e, translucent))
 			continue;
 
-		for (numinst = 1; i < count && ents[i]->model == model && numinst < MAX_BMODEL_INSTANCES; i++)
+		for (numinst = 1; i < count && ents[i]->model == model && !ents[i]->frame == !frame && numinst < MAX_BMODEL_INSTANCES; i++) // QVR: one frame a batch
 			numinst += R_EntHasWater (ents[i], translucent);
 
 		if (isworld && VR_WaterMeshActive ()) // QVR

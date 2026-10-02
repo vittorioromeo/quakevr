@@ -238,8 +238,9 @@ void playerFired(int hand)
     }
 }
 
-// An enforcer's rifle fired: a puff of gun smoke out of its muzzle (as your guns' make, QC particle2 GUNSMOKE;
-// vr_muzzle_smoke_enemies). The grunts' guns have none (their tracers and flash say enough).
+// An enforcer's rifle or a grunt's gun fired: a puff of gun smoke out of its muzzle (as your guns' make, QC particle2
+// GUNSMOKE; vr_muzzle_smoke_enemies; the grunts' since NOTES.md vrfiringrange_2026-10-02_15-52-01). Each of a burst's
+// rounds is a shot (weapons.qc), and a puff.
 void monsterSmoke(int ent)
 {
     if(!vr_muzzle_smoke_enemies.value || ent <= 0 || ent >= cl.num_entities)
@@ -247,7 +248,7 @@ void monsterSmoke(int ent)
         return;
     }
     const entity_t& e = cl_entities[ent];
-    if(!e.model || strcmp(e.model->name, "progs/enforcer.mdl") != 0)
+    if(!e.model || (strcmp(e.model->name, "progs/enforcer.mdl") != 0 && strcmp(e.model->name, "progs/soldier.mdl") != 0))
     {
         return;
     }

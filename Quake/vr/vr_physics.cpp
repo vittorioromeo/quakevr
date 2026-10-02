@@ -28,8 +28,10 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
 
 #include <stdlib.h>
@@ -1326,6 +1328,33 @@ extern "C" float VR_WaterStickScale(edict_t* ent, int swimming)
 // vr_swim_debug 1 prints each stroke (peak speed, flatness, power, push) to tune these by.
 extern "C" cvar_t sv_friction; // sv_phys.c
 
+namespace
+{
+// A stroke's push tilted up by `pitch` radians (negative: down) in its own vertical plane, its size kept: the last
+// adjustment of each (vr_swim_stroke_pitch; "every stroke brings me upward a bit too much", NOTES.md
+// vrstart_2026-10-02_15-17-43). A push straight up or down turns towards where you look (up: back over the top as it
+// rises further; down: ahead), as if it were a hair that way.
+[[nodiscard]] glm::vec3 pitchStroke(const glm::vec3& push, const glm::vec3& look, float pitch)
+{
+    if(pitch == 0.f)
+    {
+        return push;
+    }
+    glm::vec2 flat{push.x, push.y};
+    if(glm::length(flat) < 1e-4f * glm::length(push))
+    {
+        flat = glm::vec2{look.x, look.y};
+    }
+    if(glm::length(flat) < 1e-6f)
+    {
+        return push; // (no way to tilt it: nothing pushed, or looking straight up or down at a vertical push)
+    }
+    // About the horizontal axis across it: Rodrigues' turn of a vector square to its axis.
+    const glm::vec3 axis = glm::normalize(glm::cross(glm::vec3{flat, 0.f}, glm::vec3{0.f, 0.f, 1.f}));
+    return push * za::cos(pitch) + glm::cross(axis, push) * za::sin(pitch);
+}
+} // namespace
+
 extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemove, float upmove)
 {
     QVR_PROFILE("vr swim");
@@ -1358,6 +1387,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
     const float memory = za::max(0.f, vr_swim_intent_memory.value);
     const float reverseDamp = CLAMP(0.f, vr_swim_reverse_damp.value, 1.f);
     const float reverseSpeed = CLAMP(reverseWeakRange, vr_swim_reverse_speed.value, 3.f);
+    const float strokePitch = glm::radians(CLAMP(-90.f, vr_swim_stroke_pitch.value, 90.f));
     glm::vec3 vel = vec(ent->v.velocity);
 
     // The glide: SV_WaterMove's friction took dt * sv_friction of the speed; give part of it back.
@@ -1487,6 +1517,7 @@ extern "C" void VR_AfterWaterMove(edict_t* ent, float forwardmove, float sidemov
         {
             give += stroke.raw * (factor - stroke.factor);
         }
+        give = pitchStroke(give, look, strokePitch);
         stroke.factor = whole ? za::max(stroke.factor, factor) : factor;
         if(!stroke.heard && factor >= 0.5f)
         {

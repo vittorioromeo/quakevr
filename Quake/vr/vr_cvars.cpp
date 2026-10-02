@@ -197,8 +197,17 @@ const DefaultChange defaultChanges[] = {
     {75, &vr_crate_impact, "14"},           // 16
     {75, &vr_crate_pieces, "6"},            // 12
     {75, &vr_crate_piece_time, "30"},       // 60
+    // 76: the author's (NOTES.md 2026-10-02): his pain knock, "happy with them now" (vrfiringrange 15-21-40); throws hurt
+    // half as much, "way too high" (vrfiringrange 15-30-01); heavier rolls of the wrist for every weapon, "the default
+    // value of 1 is way too small" (vrfiringrange 15-40-14). ROUND21.md, "Defaults: pain knock, throw damage, roll weight".
+    {76, &vr_pain_knock_strength, "1"},     // 0.75
+    {76, &vr_pain_knock_max, "15"},         // 10
+    {76, &vr_pain_knock_time, "0.6"},       // 0.35
+    {76, &vr_weapon_throw_damage_mult, "1.0"}, // 0.5 (the old default as written)
+    {76, &vr_weapon_throw_damage_mult, "1"}, // 0.5 (as the menu writes it)
+    {76, &vr_weight_spring_roll, "1"},      // 2.5
 };
-constexpr int configVersion = 75;
+constexpr int configVersion = 76;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
