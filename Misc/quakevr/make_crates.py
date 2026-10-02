@@ -44,6 +44,27 @@ HIRES = 4  # the full-colour skins' (and the relief's) texels per texel of the m
 # the bumps the engine makes from the texture pack's wood (QRP's wood1_1, crate0_side at his vr_normalmap_strength 1.5:
 # mean tilt 0.6; ROUND21.md, "Grittier debris, crates and crowbar").
 WOOD_DEPTH = 5.5
+# The crates' structure in the relief (units), deepened against the pack's wood (NOTES.md
+# vrfiringrange_2026-10-02_15-27-29; ROUND21.md, "Crates: deeper gaps, edges and nails"): the planks sunk under the
+# battens, each up to PLANK_STEP proud of or below its neighbours and crowned PLANK_CROWN; their gaps GAP_W from each
+# plank's edge (twice that wide) and GAP_DEPTH deep; the planks' and the battens' edges rounded over that far in.
+PLANK_SINK = 1.2
+PLANK_STEP = 0.25
+PLANK_CROWN = 0.35
+GAP_W = 0.45
+GAP_DEPTH = 3.0
+PLANK_ROUND = 0.8
+BATTEN_ROUND = 0.8
+BOARD_ROUND = 0.7  # the loose boards' long edges
+NAIL_HEAD = 0.45  # a nail's domed head: how high
+NAIL_DIMPLE = 0.3  # the hammer's dimple round it: how deep
+# The relief's shading painted into the skins, as the pack's textures have theirs (whose bumps the engine makes from
+# that shading): darker where the relief is under its surroundings (CAVITY per unit, about CAVITY_R units round: the
+# gaps, the creases under the battens, the nails' dimples), lighter on its crests; and lit from above (LIGHT per unit
+# of slope: the edges rounded over towards the light lighter, those turned away and the nails' undersides darker).
+CAVITY = 0.8
+CAVITY_R = 0.7
+LIGHT = 0.55
 
 
 def v3(x):
@@ -231,6 +252,7 @@ def finish(fig, N, P, seed, res, regions):
         c = mix(c, RUST, regions["rust"] * 0.65)
         c = c * regions["ao"][..., None]
         c = mix(c, IRON * (0.75 + 0.5 * regions["nailhi"])[..., None], regions["nail"])
+        c = c * regions["shade"][..., None]
         out.append(np.clip(c, 0, 1))
     return out
 
@@ -239,6 +261,56 @@ def rust_run(ox, oy):
     """Rust run down from a nail (ox across, oy up from it, units): 0..1."""
     w = np.maximum(-oy, 0.0)
     return np.where(oy < 0, np.exp(oy / 5.0) * (1 - md.smoothstep(np.abs(ox), 0.18 + 0.07 * w, 0.45 + 0.1 * w)), 0.0)
+
+
+def round_over(x, radius):
+    """How far an edge rounded over drops (units) at `x` units in from it: a quarter ellipse `radius` wide, steep at
+    the edge (not quite upright: the normal map's texels would make a sharp edge a one-texel line)."""
+    t = 1 - np.clip(x / radius, 0, 1)
+    return radius * (1 - np.sqrt(1 - 0.9 * t * t))
+
+
+def nail_relief(nd, r, on):
+    """A nail's relief at `nd` units from its middle (head radius `r`) where `on`: its domed head standing proud, in
+    the dimple the hammer left round it."""
+    head = NAIL_HEAD * np.sqrt(np.clip(1 - (nd / r) ** 2, 0, 1))
+    dimple = -NAIL_DIMPLE * np.sin(np.pi * np.clip((nd - r) / (1.2 * r), 0, 1))
+    return np.where(on, np.where(nd < r, head + 0.05, dimple), 0.0)
+
+
+def shading(h, F, P, N, res):
+    """The skins' shading from relief `h` ((h, w) units; F the texels' faces, P their points, N their faces' normals,
+    `res` texels a unit): a factor, darker where the relief is under its surroundings (about CAVITY_R units round, on
+    the same face), lighter on its crests, and lit from above (on a top or bottom face: from +x +y)."""
+    rad = max(1, int(round(CAVITY_R * res)))
+    on = F >= 0
+    blur = h
+    for axis in (0, 1, 0, 1):  # two box passes each way, within each face's island
+        total = np.zeros_like(h)
+        weight = np.zeros_like(h)
+        for d in range(-rad, rad + 1):
+            same = (np.roll(F, d, axis) == F) & on
+            total += np.where(same, np.roll(blur, d, axis), 0.0)
+            weight += same
+        blur = np.where(on, total / np.maximum(weight, 1), h)
+    # The relief's slope (per unit) towards the light, from its differences across the texels on the same face.
+    def diff(a, axis):
+        same = (np.roll(F, -1, axis) == F) & (np.roll(F, 1, axis) == F) & on
+        return np.where(same[..., None] if a.ndim == 3 else same, (np.roll(a, -1, axis) - np.roll(a, 1, axis)) * 0.5, 0.0)
+    hx, hy, px, py = diff(h, 1), diff(h, 0), diff(P, 1), diff(P, 0)
+    a11, a12, a22 = np.sum(px * px, -1), np.sum(px * py, -1), np.sum(py * py, -1)
+    det = a11 * a22 - a12 * a12
+    ok = det > 1e-12
+    det = np.where(ok, det, 1.0)
+    ga, gb = (a22 * hx - a12 * hy) / det, (a11 * hy - a12 * hx) / det
+    grad = np.where(ok[..., None], ga[..., None] * px + gb[..., None] * py, 0.0)
+    flat = np.abs(N[..., 2]) > 0.9
+    light = np.where(flat[..., None], np.array([0.8, 0.6, 0.0]), np.array([0.0, 0.0, 1.0]))
+    light = light - np.sum(light * N, -1, keepdims=True) * N
+    light /= np.maximum(np.linalg.norm(light, axis=-1, keepdims=True), 1e-6)
+    slope = np.sum(grad * light, -1)
+    lit = np.clip(1 - LIGHT * slope, 0.55, 1.4)
+    return np.clip(1 + CAVITY * (h - blur), 0.4, 1.2) * lit
 
 
 def crate_paint(faces, P, F, E, seed, batten, brace, res):
@@ -286,7 +358,7 @@ def crate_paint(faces, P, F, E, seed, batten, brace, res):
     idx = np.floor(t)
     fr = t - idx
     edge_d = np.minimum(fr, 1 - fr) * pw  # to the plank's own edge (its gap)
-    gap = planks & (edge_d < 0.3)
+    gap = planks & (edge_d < GAP_W)
     pid = (idx.astype(np.int64) * 7 + Fi * 13) % 64
     # Each board its own: a little lighter or darker, warmer or greyer.
     shade = rng.uniform(0.84, 1.12, 96)
@@ -337,28 +409,35 @@ def crate_paint(faces, P, F, E, seed, batten, brace, res):
 
     # Its own shadow: in the gaps, at the planks' edges beside the raised frame and brace and their own gaps; under it.
     to_raised = np.minimum(np.minimum(da, db) - batten, np.where(side & brace, np.abs(p_diag) - batten * 0.5, 99.0))
-    ao = 1.0 - 0.38 * np.exp(-np.maximum(to_raised, 0) / 0.9) * planks
+    ao = 1.0 - 0.5 * np.exp(-np.maximum(to_raised, 0) / 0.7) * planks
     ao = ao - 0.25 * np.exp(-np.maximum(edge_d, 0) / 0.35) * planks
-    ao = np.where(gap, 0.22 + 0.25 * md.smoothstep(edge_d, 0.0, 0.3), ao)
+    ao = np.where(gap, 0.22 + 0.25 * md.smoothstep(edge_d, 0.0, GAP_W), ao)
     ao = ao * np.where(N[..., 2] < -0.9, 0.8, 1.0)
     zmin = min(p[2] for f in faces for p in f.pts)
     lowdirt = md.fbm(P * 0.3, seed + 91, 3)
     low = np.where(np.abs(N[..., 2]) < 0.9, (1 - md.smoothstep(P[..., 2] - zmin, 0.0, 5.0 + 4.0 * lowdirt)), 0.0)
 
+    # Relief (units): the planks well under the frame and the brace (a dark crease where they meet), each a little proud
+    # of or below its neighbours, crowned, their edges rounded over into deep gaps; the battens' edges rounded over;
+    # the grain (late wood standing, as on old wood whose soft early wood wore away), fibres, pores, checks,
+    # scratches, dents; the nails' domed heads, each in the dimple its hammer left (NOTES.md
+    # vrfiringrange_2026-10-02_15-27-29: the gaps, ridges and nails were too flat beside the texture pack's wood).
+    proud = rng.uniform(-PLANK_STEP, PLANK_STEP, 96)
+    crown = 1 - (2 * fr - 1) ** 2
+    h = np.where(planks, -PLANK_SINK + proud[pid] + PLANK_CROWN * crown, 0.0)
+    h = h - np.where(planks, round_over(edge_d - GAP_W, PLANK_ROUND), 0.0)
+    h = h - np.where(planks, 0.45 * np.exp(-np.maximum(to_raised, 0) / 0.3), 0.0)  # the crease under the frame
+    h = np.where(gap, -GAP_DEPTH + 0.4 * md.smoothstep(edge_d, 0.0, GAP_W), h)
+    h = h + np.where(frame, proud[bid] * 0.5 + 0.12 * (1 - (np.minimum(db, np.where(vert, da, 99.0)) / batten * 2 - 1) ** 2), 0.0)
+    h = h - round_over(np.minimum(frame_edge, brace_edge), BATTEN_ROUND)
+    h = h + WOOD_DEPTH * (0.09 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.2 * checks - 0.06 * scratch)
+    h = h - 0.45 * md.smoothstep(md.vnoise(P * 0.45 + 3.0, seed + 81), 0.86, 0.97)  # dents
+    h = h + nail_relief(nd, r, nailed)
+
     regions = {"ao": ao, "wear": wear, "scratch": scratch, "checks": checks, "rust": rust,
                "nail": np.clip((r - nd) / 0.12, 0, 1), "nailhi": np.clip(1 - nd / (r * 0.6), 0, 1), "low": low,
-               "fresh": np.zeros_like(a)}
+               "fresh": np.zeros_like(a), "shade": shading(h, F, P, N, res)}
     skins = finish((late, fib, pores, tint), N, P, seed, res, regions)
-
-    # Relief (units): the planks under the frame and the brace, cupped, their edges rounded into the gaps; the battens'
-    # edges rounded; the grain (late wood standing), fibres, pores, checks, scratches, dents; the nails' heads.
-    h = np.where(planks, -0.45 + 0.08 * (1 - (2 * fr - 1) ** 2), 0.0)
-    h = h - np.where(planks, 0.3 * (1 - md.smoothstep(edge_d, 0.15, 0.55)), 0.0)
-    h = np.where(gap, -1.1, h)
-    h = h - 0.25 * (1 - md.smoothstep(np.minimum(frame_edge, brace_edge), 0.0, 0.45)) ** 2
-    h = h + WOOD_DEPTH * (0.06 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.12 * checks - 0.05 * scratch)
-    h = h - 0.3 * md.smoothstep(md.vnoise(P * 0.45 + 3.0, seed + 81), 0.86, 0.97)  # dents
-    h = h + np.where(nd < r, 0.14 * (1 - (nd / r) ** 2), np.where(nd < r * 1.8, -0.04 * (1 - (nd - r) / (r * 0.8)), 0.0))
     return skins, h
 
 
@@ -392,11 +471,15 @@ def board_paint(faces, P, F, E, seed, nails, res):
                "nail": np.clip((r - nd) / 0.12, 0, 1), "nailhi": np.clip(1 - nd / (r * 0.6), 0, 1),
                "low": np.zeros_like(x), "fresh": np.where(fresh, 0.85, 0.0)}
     tint = np.ones(x.shape + (3,))
+    # Relief as a crate's planks': the grain, its long edges rounded over, the nails in their dimples; torn fibres on
+    # a break, the end grain's rings.
+    h = WOOD_DEPTH * (0.09 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.2 * checks - 0.06 * scratch)
+    h = h - np.where(fresh | end, 0.0, round_over(E, BOARD_ROUND))
+    h = np.where(fresh, 0.7 * (fibres - 0.5), h)  # torn fibres
+    h = np.where(end, WOOD_DEPTH * (0.07 * late - 0.05 * pores), h)
+    h = h + nail_relief(nd, r, nd < 2.2 * r)
+    regions["shade"] = shading(h, F, P, N, res)
     skins = finish((late, fib, pores, tint), N, P, seed, res, regions)
-    h = WOOD_DEPTH * (0.06 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.12 * checks - 0.05 * scratch)
-    h = np.where(fresh, 0.36 * (fibres - 0.5), h)  # torn fibres
-    h = np.where(end, WOOD_DEPTH * (0.05 * late - 0.04 * pores), h)
-    h = h + np.where(nd < r, 0.14 * (1 - (nd / r) ** 2), 0.0)
     return skins, h
 
 

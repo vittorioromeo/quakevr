@@ -20266,6 +20266,44 @@ bricks 0.11-0.13 / 0.25-0.29, crates 0.26 / 0.45, planks 0.16 / 0.35, crowbar 0.
 - [ ] Crates and their planks: deeper grain, in keeping with the walls.
 - [ ] The crowbar in hand: chipped paint, pitted steel, the tape's weave under a light.
 
+## Crates: deeper gaps, edges and nails (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_15-27-29: the crates better, but still flat beside the other textures: the ridges, the
+gaps between the boards, the nails. (Rocks, bricks and the crowbar untouched: approved.)
+
+- **Relief** (`make_crates.py`, constants at the top): the planks sunk deeper under the battens (`PLANK_SINK` 0.9,
+  was 0.45) with a crease where they meet; each plank up to `PLANK_STEP` 0.25 proud of or below its neighbours,
+  crowned `PLANK_CROWN` 0.35 (was 0.08); the gaps twice as wide (`GAP_W` 0.45 from each edge, was 0.3) and `GAP_DEPTH`
+  3.0 deep (was 1.1), the planks' and battens' edges rounded over 0.8 units (`round_over`: a quarter ellipse, was
+  0.25-0.3 units of smoothstep); the battens a little crowned and stepped too; the grain's ridges (late wood) 1.5x,
+  checks 1.7x, dents 1.5x; nails (`nail_relief`): a domed head 0.45 high (was 0.14) in a hammer's dimple 0.3 deep. The
+  loose boards: the same grain, their long edges rounded over (`BOARD_ROUND` 0.7), the nails in dimples, torn
+  fibres on breaks 2x.
+- **Skins**: the relief's shading painted in, as the pack's textures carry theirs (`shading()`): darker in hollows
+  (`CAVITY` 0.8 per unit under its surroundings, `CAVITY_R` 0.7 units round, within each face), lighter on crests,
+  and lit from above (`LIGHT` 0.55 per unit of slope; top faces from +x +y). The crease under the battens darker
+  (AO 0.5, was 0.38). Mean brightness unchanged (crate1 skin 0: 58.0 -> 57.2), contrast up 20-40% (std 23.5 -> 29.4).
+- **Measured** (the tilt, tan of the normal's angle, mean / 90th percentile; ours at `vr_normalmap_authored` 1, the
+  pack's made bumps at his `vr_normalmap_strength` 1.5, 2 texels a unit). "Fine": our maps at their own resolution
+  (8-30 texels a unit); "coarse": their normals averaged to the pack's 2 texels a unit (what reads from a metre or
+  two: where the crates were flat).
+
+| | fine before | fine after | coarse before | coarse after |
+|---|---|---|---|---|
+| vr_crate1 | 0.54 / 1.31 | 0.84 / 1.96 | 0.30 / 0.67 | 0.46 / 1.04 |
+| vr_crate2 | 0.53 / 1.26 | 0.83 / 1.91 | 0.32 / 0.68 | 0.47 / 1.04 |
+| vr_plank1..4 | 0.23-0.40 / 0.65-1.08 | 0.53-0.81 / 1.47-2.14 | 0.15-0.22 / 0.42-0.54 | 0.33-0.50 / 1.04-1.26 |
+| pack: wood1_1, crate0_side, crate0_top | | | 0.61 / 1.15, 0.61 / 1.37, 0.49 / 1.30 | |
+
+  (The coarse average cancels narrow symmetric grooves and fine grain, so it reads lower than what is seen; the
+  numbers before differ from the section above's, measured another way.) Sizes unchanged.
+- Checked: crates beside the riveted QRP wall in vrfiringrange (`vr_test_spawn 109`), before and after: the gaps dark
+  and deep, the step down from the battens lit along its top and shaded under, the nails domed in dimples.
+
+- [ ] Crates beside the pack's walls: gaps, the battens' edges and the nails as deep as the walls' bumps; not
+  painted-on looking under a moving light (the flashlight).
+- [ ] Their pieces when broken: rounded edges, nails, torn fibres.
+
 ## Slow motion's sound for editing: the game-time sound file (2026-10-02)
 
 His report: slow-motion recordings look perfect sped up in Resolve, but the sound (1) had the wrong pitch (fixed by hand)
