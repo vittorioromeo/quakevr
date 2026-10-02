@@ -21847,3 +21847,55 @@ e1m2, a torch in the off hand before the nailgun): 0.5 plays it at 111/127 (L/R;
 In VR:
 - [ ] Stand on a burning corpse and look about, down and up: no black or flat patches; the air over it still shimmers.
 - [ ] Fire nails through a torch's flame: a short fizz as each catches. Nail Sizzle Volume to taste.
+## Defaults: the author's config, 2026-10-02 evening
+
+Your `quakevr/ironwail.cfg` as of 19:34 (`vr_cfg_version` 78, `vr_wofs_version` 33, `vr_props_version` 55), loaded by
+this build and read back (`writeconfig`), against a first start's: 70 settings, 62 weapon settings and one Held Object
+slot differ. Branch `agent/defaults7`.
+
+### Adopted (configs still holding the old default take the new one: `vr_cfg_version` 79, `vr_wofs_version` 34)
+
+- **Swimming and breath:** Breath Under Water (`vr_air_supply`) 1.5 -> 2; `vr_swim_look` 0.2 -> 0.3 (`vr_defaults.cfg`);
+  Stroke Pitch (`vr_swim_stroke_pitch`) 0 -> -8.
+- **Chainsaw on the ground** (`vr_chainsaw_shake_ground`) 0.5 -> 0.85.
+- **Wrist FPS counter off** (`vr_gadget_fps`) 2 -> 0 (its `vr_defaults.cfg` line removed).
+- **Checklist:** ticked items hidden (`vr_checklist_hide_ticked` 1).
+- **Your wounds:** blood opacity 0.8 -> 0.75, Wounds' Depth 1 -> 1.5.
+- **Small gibs** (`vr_smallgibs_*`): Blades 1.5 -> 1.7, Burst 3 -> 4, Curve 1.5 -> 1.7, Damage per Gib 40 -> 30,
+  Destroy on, Full Damage 60 -> 35, With a Gibbing 6 -> 12, Grace 0.15 -> 0.1, Most Lying About 40 -> 64, Least Damage
+  12 -> 10, Nails 0 -> 0.4, Per Hit 4 -> 6, Hits on You on, Props 1 -> 1.2, Chainsaw Interval 0.2 -> 0.1 s, Size 0.5-1
+  -> 0.65-1.15, Speed 4 -> 3 m/s, Up 5 -> 7 m/s, Guns 1 -> 0.85 (Up 1 -> 0.9).
+- **Weapons (`vr_weapons.inc`, 61 values):** Weapon Weights of 15 weapons (masses: axe 2.5, shotgun 3.5, Mjolnir 5.5,
+  hook 2.5, swords 4 and 6.5, crowbar 4; balances and lengths), the laser cannon's Roll Weight 1.5, grip bias 1.5 and
+  ammo screen; the lightning gun's second hotspot (taken whole only where a config has none there); the grunts' gun's
+  Virtual Stock pitch 10; the enforcers' rifle's ammo screen hidden; the crowbar's hip and chest holstered poses.
+
+### Not adopted: to ask you (they look like test values)
+
+- `vr_bullettime_duration` 20 (6): a meter of 20 real seconds, from testing the flashlight in bullet time?
+- `vr_wounds_bump_burns` 3 (1): the slider's end. `vr_wounds_own_res` 0 (1024): your wounds chunky, in the pool, the
+  opposite of your "too pixelated" note.
+- The recording group: Window View spectator camera (0 -> 2), Smoothing 0.5 (the end), Level 0.5, no HUD on the mirror,
+  spectator FOV 130 and Resolution 1 (0.75 since config 34, for its cost): defaults for everyone, or your recording
+  setup? The camera draws the scene a third time.
+- Left to the gib-sticking and small-gib-speed work: `vr_gore_stick_speed` 20 and `_thrown` 0.75 ("took the values all
+  the way down"), the melee and chainsaw small gibs' speeds at the sliders' ends (0.05, up 0.25 and 0.05).
+
+### Not adopted: yours
+
+Body (Elbow Lift, `vr_bodycal_*`, height), floor offset and world scale ("personal settings", your note), the menu's
+remembered rows, the motion recorder's, the OpenXR runtime, the desktop's (`scr_*scale` 3, `scr_centerprintbg`,
+`scr_menubgstyle`, `vid_*`), and Held Object slot `vr_prop_id_33` set to the crowbar with every value the default (no effect).
+
+### Checks
+
+- A config holding the old defaults (a first start's from the previous build, versions 78 and 33) through this build:
+  every setting equal to a first start's (the weapons' after a map load runs their migration).
+- Your config through this build: unchanged but the two versions.
+- `smallgibs_tests.sh`: runs clean with the new defaults (guns 0.85x / 0.9x, a chainsaw gib each 0.1 s, nails 0.4).
+  Melee eval canary 48/53, no differences. Smoke (e1m1, firing range, weapons): no errors.
+
+### In VR
+
+- [ ] Weapon weights feel as you set them on a fresh config (axe, shotguns, swords, hook, crowbar).
+- [ ] The lightning gun's second hotspot; the crowbar in both holsters.

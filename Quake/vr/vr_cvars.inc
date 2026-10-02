@@ -484,7 +484,7 @@ QVR_CVAR(vr_menu_height, "1.35", CVAR_ARCHIVE)         // with it, the menus' he
 QVR_CVAR(vr_menu_remember, "1", CVAR_ARCHIVE)          // opening the menu after "Back to game" (the panel's top-left button, or holding the menu button) returns to the page it closed on
 QVR_CVAR(vr_menu_dropdown, "4", CVAR_ARCHIVE)          // a VR page's choice row with this many choices or more opens a list of them on a click or Enter / A (vr_menu.cpp; left and right still step; 0: never, a click steps)
 QVR_CVAR(vr_menu_positions, "", CVAR_ARCHIVE)          // where each VR Settings page was left, for the next start (vr_menu.cpp, written with the config): "title|section|row|index|line;..."
-QVR_CVAR(vr_checklist_hide_ticked, "0", CVAR_ARCHIVE)   // Checklist page (the menu's corner button): ticked items left out
+QVR_CVAR(vr_checklist_hide_ticked, "1", CVAR_ARCHIVE)   // Checklist page (the menu's corner button): ticked items left out
 QVR_CVAR(vr_melee_dmg_multiplier, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_melee_range_multiplier, "1.0", CVAR_ARCHIVE)
 // Quad Damage on melee, on top of the x4 every damage gets while Quad lasts (T_Damage): extra damage and extra reach.
@@ -783,8 +783,8 @@ QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where 
 QVR_CVAR(vr_wounds_pool, "64", CVAR_ARCHIVE)          // how many models keep their wounds at once (256 KB each; the least seen give theirs up)
 QVR_CVAR(vr_wounds_own_res, "1024", CVAR_ARCHIVE)     // your own body's and hands' wound masks: texels on a side, smooth (512, 1024, 2048: 5, 20, 80 MB: per side, and the blood not yours); 0 in the pool, chunky as the monsters'
 QVR_CVAR(vr_wounds_bump_burns, "1", CVAR_ARCHIVE)     // ... the relief of their burns and char (crusted, cracked), times the default (0 flat)
-QVR_CVAR(vr_wounds_bump_blood, "1", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
-QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)  // how opaque painted blood is over the skins (0..1)
+QVR_CVAR(vr_wounds_bump_blood, "1.5", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
+QVR_CVAR(vr_wounds_blood_alpha, "0.75", CVAR_ARCHIVE)  // how opaque painted blood is over the skins (0..1)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
 // Gore: bloody hands and washing (vr_wounds.cpp; ROUND21.md, "Gore: bloody hands, washing, dying bodies, blood mist").
 QVR_CVAR(vr_gore_hands, "1", CVAR_ARCHIVE)            // grabbing a gib or a head bloodies the hand holding it: how much (0 none; the wound skins: 1 a bloody hand)
@@ -1089,31 +1089,31 @@ QVR_CVAR(vr_head_flies, "0", CVAR_ARCHIVE)
 // Small gibs (QC vr_smallgibs.qc; ROUND21.md, "Small gibs"): chunks of meat torn out by hits, the gibs' models scaled
 // down to a rock's size or half of it; carried, thrown, bleeding as the gibs do, gone after a while (not while held).
 QVR_CVAR(vr_smallgibs, "1", CVAR_ARCHIVE)                  // hits on monsters tear small gibs out of them
-QVR_CVAR(vr_smallgibs_player, "0", CVAR_ARCHIVE)           // and hits on you
-QVR_CVAR(vr_smallgibs_min_damage, "12", CVAR_ARCHIVE)      // a hit's damage (a shotgun blast's pellets summed) under which none come
-QVR_CVAR(vr_smallgibs_full_damage, "60", CVAR_ARCHIVE)     // the damage from which one always comes (the chance rises from 0 at the least)
-QVR_CVAR(vr_smallgibs_curve, "1.5", CVAR_ARCHIVE)          // the chance's rise from the least damage to the sure one: to this power (1 straight; more: rarer for light hits)
-QVR_CVAR(vr_smallgibs_damage_per_gib, "40", CVAR_ARCHIVE)  // one gib more for each this much damage (with a random part)
-QVR_CVAR(vr_smallgibs_per_hit, "4", CVAR_ARCHIVE)          // most small gibs from one hit
+QVR_CVAR(vr_smallgibs_player, "1", CVAR_ARCHIVE)           // and hits on you
+QVR_CVAR(vr_smallgibs_min_damage, "10", CVAR_ARCHIVE)      // a hit's damage (a shotgun blast's pellets summed) under which none come
+QVR_CVAR(vr_smallgibs_full_damage, "35", CVAR_ARCHIVE)     // the damage from which one always comes (the chance rises from 0 at the least)
+QVR_CVAR(vr_smallgibs_curve, "1.7", CVAR_ARCHIVE)          // the chance's rise from the least damage to the sure one: to this power (1 straight; more: rarer for light hits)
+QVR_CVAR(vr_smallgibs_damage_per_gib, "30", CVAR_ARCHIVE)  // one gib more for each this much damage (with a random part)
+QVR_CVAR(vr_smallgibs_per_hit, "6", CVAR_ARCHIVE)          // most small gibs from one hit
 QVR_CVAR(vr_smallgibs_shots, "1", CVAR_ARCHIVE)            // the chance times this: the shotguns, a grunt's gun
-QVR_CVAR(vr_smallgibs_nails, "0", CVAR_ARCHIVE)            // nails, lasers
-QVR_CVAR(vr_smallgibs_blades, "1.5", CVAR_ARCHIVE)         // a blade's edge or point: the axe, a sword, swung or thrown
+QVR_CVAR(vr_smallgibs_nails, "0.4", CVAR_ARCHIVE)            // nails, lasers
+QVR_CVAR(vr_smallgibs_blades, "1.7", CVAR_ARCHIVE)         // a blade's edge or point: the axe, a sword, swung or thrown
 QVR_CVAR(vr_smallgibs_blunt, "0.3", CVAR_ARCHIVE)          // punches, a pommel or hilt, a gun or the crowbar swung, Mjolnir, bashes, headbutts
-QVR_CVAR(vr_smallgibs_props, "1", CVAR_ARCHIVE)            // a rock, brick or other thing thrown or swung in the fist
+QVR_CVAR(vr_smallgibs_props, "1.2", CVAR_ARCHIVE)            // a rock, brick or other thing thrown or swung in the fist
 QVR_CVAR(vr_smallgibs_explosions, "1", CVAR_ARCHIVE)       // rockets, grenades, every blast
 QVR_CVAR(vr_smallgibs_other, "0.5", CVAR_ARCHIVE)          // lightning, monsters' blows, the rest
-QVR_CVAR(vr_smallgibs_saw_interval, "0.2", CVAR_ARCHIVE)   // s: the chainsaw tears one out of what it cuts at most this often (always: monster or corpse)
-QVR_CVAR(vr_smallgibs_gibbing, "6", CVAR_ARCHIVE)          // small gibs with a monster's (or corpse's) gibs when it is gibbed
-QVR_CVAR(vr_smallgibs_burst, "3", CVAR_ARCHIVE)            // small gibs a large gib bursts into (a head half as many again)
-QVR_CVAR(vr_smallgibs_speed, "4", CVAR_ARCHIVE)            // m/s they fly out from the hit (randomized by a third)
-QVR_CVAR(vr_smallgibs_up, "5", CVAR_ARCHIVE)               // m/s up (randomized by a third; Quake falls three times as fast as the world)
+QVR_CVAR(vr_smallgibs_saw_interval, "0.1", CVAR_ARCHIVE)   // s: the chainsaw tears one out of what it cuts at most this often (always: monster or corpse)
+QVR_CVAR(vr_smallgibs_gibbing, "12", CVAR_ARCHIVE)          // small gibs with a monster's (or corpse's) gibs when it is gibbed
+QVR_CVAR(vr_smallgibs_burst, "4", CVAR_ARCHIVE)            // small gibs a large gib bursts into (a head half as many again)
+QVR_CVAR(vr_smallgibs_speed, "3", CVAR_ARCHIVE)            // m/s they fly out from the hit (randomized by a third)
+QVR_CVAR(vr_smallgibs_up, "7", CVAR_ARCHIVE)               // m/s up (randomized by a third; Quake falls three times as fast as the world)
 // Speed and Up times these, by what tore them out (QC VR_SmallGib_Situation):
 QVR_CVAR(vr_smallgibs_speed_melee, "0.35", CVAR_ARCHIVE)    // Speed times this: a hand's blow: a blade, a punch, a pommel, a thing in the fist; a bash, a headbutt
 QVR_CVAR(vr_smallgibs_up_melee, "0.5", CVAR_ARCHIVE)        // Up times this
 QVR_CVAR(vr_smallgibs_speed_saw, "0.5", CVAR_ARCHIVE)       // Speed times this: the chainsaw's chain or swing
 QVR_CVAR(vr_smallgibs_up_saw, "0.6", CVAR_ARCHIVE)          // Up times this
-QVR_CVAR(vr_smallgibs_speed_guns, "1", CVAR_ARCHIVE)        // Speed times this: shotguns, nails, lasers, lightning, a grunt's gun
-QVR_CVAR(vr_smallgibs_up_guns, "1", CVAR_ARCHIVE)           // Up times this
+QVR_CVAR(vr_smallgibs_speed_guns, "0.85", CVAR_ARCHIVE)        // Speed times this: shotguns, nails, lasers, lightning, a grunt's gun
+QVR_CVAR(vr_smallgibs_up_guns, "0.9", CVAR_ARCHIVE)           // Up times this
 QVR_CVAR(vr_smallgibs_speed_explosions, "1", CVAR_ARCHIVE)  // Speed times this: rockets, grenades, every blast
 QVR_CVAR(vr_smallgibs_up_explosions, "1", CVAR_ARCHIVE)     // Up times this
 QVR_CVAR(vr_smallgibs_speed_thrown, "1", CVAR_ARCHIVE)      // Speed times this: a thrown weapon, rock, brick or gib; a projectile batted back
@@ -1126,13 +1126,13 @@ QVR_CVAR(vr_smallgibs_speed_corpse, "1", CVAR_ARCHIVE)      // Speed times this:
 QVR_CVAR(vr_smallgibs_up_corpse, "0.7", CVAR_ARCHIVE)       // Up times this
 QVR_CVAR(vr_smallgibs_speed_burst, "1", CVAR_ARCHIVE)       // Speed times this: a large gib or head burst
 QVR_CVAR(vr_smallgibs_up_burst, "1", CVAR_ARCHIVE)          // Up times this
-QVR_CVAR(vr_smallgibs_size_min, "0.5", CVAR_ARCHIVE)       // their size: from this times a rock's
-QVR_CVAR(vr_smallgibs_size_max, "1", CVAR_ARCHIVE)         // to this
+QVR_CVAR(vr_smallgibs_size_min, "0.65", CVAR_ARCHIVE)       // their size: from this times a rock's
+QVR_CVAR(vr_smallgibs_size_max, "1.15", CVAR_ARCHIVE)         // to this
 QVR_CVAR(vr_smallgibs_mass, "0.3", CVAR_ARCHIVE)           // kg each (light: thrown, they hurt little)
-QVR_CVAR(vr_smallgibs_grace, "0.15", CVAR_ARCHIVE)         // s they pass through the body they came from
-QVR_CVAR(vr_smallgibs_max, "40", CVAR_ARCHIVE)             // most lying about at once: the oldest go first (not one in a hand)
+QVR_CVAR(vr_smallgibs_grace, "0.1", CVAR_ARCHIVE)         // s they pass through the body they came from
+QVR_CVAR(vr_smallgibs_max, "64", CVAR_ARCHIVE)             // most lying about at once: the oldest go first (not one in a hand)
 QVR_CVAR(vr_smallgibs_time, "20", CVAR_ARCHIVE)            // s one lies about before it fades away (held, and until it lands again, it waits)
-QVR_CVAR(vr_smallgibs_destroy, "0", CVAR_ARCHIVE)          // they can be shot or struck to a mist (off: shots and blows pass them)
+QVR_CVAR(vr_smallgibs_destroy, "1", CVAR_ARCHIVE)          // they can be shot or struck to a mist (off: shots and blows pass them)
 QVR_CVAR(vr_gore_stick_thrown, "0.5", CVAR_ARCHIVE)        // a gib or head thrown into a wall or a ceiling (slower than vr_gib_splat_speed) sticks there: the chance (0 never)
 QVR_CVAR(vr_gore_stick_speed, "180", CVAR_ARCHIVE)         // units/s a gib must strike a wall or a ceiling at to stick (flung or thrown)
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
@@ -1302,8 +1302,8 @@ QVR_CVAR(vr_swim_flat_exp, "1", CVAR_ARCHIVE)         // how sharply the palm's 
 QVR_CVAR(vr_swim_speed_exp, "2", CVAR_ARCHIVE)        // push over hand speed: 1 linear, 2 as water's drag (fast strokes outweigh slow ones more), up to 3
 QVR_CVAR(vr_swim_palm_dir, "0", CVAR_ARCHIVE)         // 0: the push goes against the hand's motion; 1: along the palm's facing (sweeping palms-in pushes sideways)
 QVR_CVAR(vr_swim_against_palm, "0.25", CVAR_ARCHIVE) // how much a stroke counts with the back of the hand leading (moving away from where the palm faces; 1: as a palm stroke)
-QVR_CVAR(vr_swim_stroke_pitch, "0", CVAR_ARCHIVE)     // degrees each stroke's push is tilted up (negative: down) in its own vertical plane, last of all (NOTES.md vrstart_2026-10-02_15-17-43)
-QVR_CVAR(vr_air_supply, "1.5", CVAR_ARCHIVE)        // the breath under water before drowning, times Quake's 12 seconds (1 to 4; biosuit and wetsuit as ever)
+QVR_CVAR(vr_swim_stroke_pitch, "-8", CVAR_ARCHIVE)     // degrees each stroke's push is tilted up (negative: down) in its own vertical plane, last of all (NOTES.md vrstart_2026-10-02_15-17-43)
+QVR_CVAR(vr_air_supply, "2", CVAR_ARCHIVE)        // the breath under water before drowning, times Quake's 12 seconds (1 to 4; biosuit and wetsuit as ever)
 QVR_CVAR(vr_swim_debug, "0", CVAR_NONE)               // print each stroke: peak speed, power gate, reverse damping and the push it gave
 QVR_CVAR(vr_sword_drop, "1", CVAR_NONE)               // retired (knights and hell knights always drop their sword: ROUND21.md, "Simplification"): kept so saved configs load silently
 QVR_CVAR(vr_sword_damage_mult, "1.5", CVAR_ARCHIVE)   // a knight's sword: its swing's damage over the axe's
@@ -1349,7 +1349,7 @@ QVR_CVAR(vr_chainsaw_smoke, "12", CVAR_ARCHIVE)        // puffs of exhaust smoke
 QVR_CVAR(vr_chainsaw_smoke_alpha, "0.6", CVAR_ARCHIVE) // each puff's opacity as it leaves the exhaust (0..1), fading out over 2 s
 QVR_CVAR(vr_chainsaw_shake, "2.5", CVAR_ARCHIVE)        // mm the hand holding it shakes, held in one hand (and 0.2 degrees a mm); its chain running 1.6x
 QVR_CVAR(vr_chainsaw_shake_2h, "1.25", CVAR_ARCHIVE)   // mm, held in both hands (the other steadying it)
-QVR_CVAR(vr_chainsaw_shake_ground, "0.5", CVAR_ARCHIVE) // m/s of the kicks (20 a second) that rock and walk it about as it lies running (0: none)
+QVR_CVAR(vr_chainsaw_shake_ground, "0.85", CVAR_ARCHIVE) // m/s of the kicks (20 a second) that rock and walk it about as it lies running (0: none)
 // A pull of the cord of a chainsaw not running, with fuel (NOTES.md vrfiringrange_2026-10-01_22-54-54): the engine turns
 // over, a feedback. A short shake of the hand holding it, a puff of exhaust smoke and a few sparks (vr_chainsaw.cpp); a
 // weak pull (too slow) half as much. With an empty tank, nothing but the sound.
