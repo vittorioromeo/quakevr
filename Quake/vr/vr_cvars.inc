@@ -352,8 +352,16 @@ QVR_CVAR(vr_highlights_min_score, "2", CVAR_ARCHIVE)  // the least score a momen
 QVR_CVAR(vr_highlights_multikill, "3", CVAR_ARCHIVE)  // game seconds at most between two kills of one multi-kill
 QVR_CVAR(vr_debug_highlights, "0", CVAR_NONE)         // 1: each highlight printed as it is logged
 
-// Near clipping plane in the headset, in units (the desktop's is up to 4).
-QVR_CVAR(vr_nearclip, "1", CVAR_ARCHIVE)
+// Near clipping plane in the headset, in units (the desktop's is up to 4; a unit is 3 cm at World Scale 1.25):
+// 0.02 .. 4 with the eyes' float depth (vr_depth_float), 1 .. 4 without (a 24-bit depth's precision far away).
+QVR_CVAR(vr_nearclip, "0.1", CVAR_ARCHIVE)
+// What you hold (weapons, hands) right at the eyes: 0 cut by the near plane like the rest, 1 never cut (depth clamp:
+// parts nearer than the plane are drawn at it), 2 also both sides of it while an eye is inside its bounds (the
+// inside of a gun pushed into your face blocks the view instead of showing through).
+QVR_CVAR(vr_nearclip_held, "2", CVAR_ARCHIVE)
+// The eyes' depth buffer: 1 32-bit float (with reversed Z, precise at any distance with a small near plane), 0 24-bit
+// fixed point as the window's. Applies when the eyes' framebuffers are next made (vr_restart).
+QVR_CVAR(vr_depth_float, "1", CVAR_ARCHIVE)
 
 // Eye image size: the runtime's recommended size (SteamVR's supersampling included) times this,
 // per side (0.5 .. 1.5; pixels go with its square), within the runtime's largest.

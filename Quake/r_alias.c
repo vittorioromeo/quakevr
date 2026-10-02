@@ -41,6 +41,11 @@ extern vec3_t	lightcolor; //johnfitz -- replaces "float shadelight" for lit supp
 
 static float	entalpha; //johnfitz
 static qboolean	aliasdepth; // QVR: drawing the shadow maps' casters (R_DrawAliasModelsDepth)
+static int		aliasnear; // QVR: the batch's VR_AliasNearEye flags (1 depth clamp, 2 both sides)
+
+#ifndef GL_DEPTH_CLAMP
+#define GL_DEPTH_CLAMP 0x864F
+#endif
 
 //johnfitz -- struct for passing lerp information to drawing functions
 typedef struct {
@@ -364,6 +369,10 @@ void R_FlushAliasInstances (qboolean showtris)
 		state = GLS_CULL_BACK | GLS_ATTRIBS (1);
 	if (VR_AliasMirrored (ibuf.ent)) // QVR: mirroring flips the winding
 		state = (state & ~GLS_MASK_CULL) | GLS_CULL_FRONT;
+	if (aliasnear & 2) // QVR: an eye inside a held item: its inside blocks the view (vr_nearclip_held 2)
+		state = (state & ~GLS_MASK_CULL) | GLS_CULL_NONE;
+	if (aliasnear & 1) // QVR: a held item nearer than the near plane is drawn at it, not cut (vr_nearclip_held)
+		glEnable (GL_DEPTH_CLAMP);
 
 	opaque_state = (state | GLS_BLEND_OPAQUE) & ~(GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE);
 	transparent_state = (state | GLS_BLEND_ALPHA) & ~(GLS_BLEND_OPAQUE | GLS_CULL_BACK);
@@ -508,6 +517,9 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	}
 
+	if (aliasnear & 1) // QVR
+		glDisable (GL_DEPTH_CLAMP);
+
 	ibuf.count = 0;
 	GL_EndGroup ();
 }
@@ -622,6 +634,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	float		model_matrix[16];
 	aliasinstance_t	*instance;
 	int			totalverts;
+	int			nearflags; // QVR
 
 	//
 	// setup pose/lerp data -- do it first so we don't miss updates due to culling
@@ -701,11 +714,15 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	if (mode == ALIAS_SHOWTRIS)
 		entalpha = 1.f;
 
-	if (!R_Alias_CanAddToBatch (e))
+	nearflags = mode == ALIAS_STANDARD ? VR_AliasNearEye (e, model_matrix, paliashdr) : 0; // QVR
+	if (!R_Alias_CanAddToBatch (e) || (ibuf.count && aliasnear != nearflags)) // QVR: near the eyes: its own batch
 		R_FlushAliasInstances (mode == ALIAS_SHOWTRIS);
 
 	if (!ibuf.count)
+	{
 		ibuf.ent = e;
+		aliasnear = nearflags; // QVR
+	}
 
 	instance = &ibuf.inst[ibuf.count++];
 

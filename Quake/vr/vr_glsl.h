@@ -1431,7 +1431,7 @@ SPECULAR_AA_FUNCTIONS
 "	ivec3 cluster_coord;\n" \
 "	cluster_coord.x = int(floor(in_coord.x));\n" \
 "	cluster_coord.y = int(floor(in_coord.y));\n" \
-"	cluster_coord.z = int(floor(log2(in_depth) * ZLogScale + ZLogBias));\n" \
+"	cluster_coord.z = max(int(floor(log2(in_depth) * ZLogScale + ZLogBias)), 0); /* nearer than the first slice (a held gun): in it */\n" \
 "	uvec2 clusterdata = imageLoad(LightClusters, cluster_coord).xy;\n" \
 "	if ((clusterdata.x | clusterdata.y) == 0u)\n" \
 "		return vec3(0.);\n" \

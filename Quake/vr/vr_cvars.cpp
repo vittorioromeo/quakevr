@@ -216,8 +216,10 @@ const DefaultChange defaultChanges[] = {
     {76, &vr_flashlight_low_bias_pinky, "-0.36"},   // 0
     {76, &vr_flashlight_low_thumb_x, "0.5"},        // 0.6
     {76, &vr_flashlight_low_thumb_y, "0"},          // 0.15
+    // 77: the near clip for a gun at the eye (ROUND21.md, "Near clip: a gun at the eye").
+    {77, &vr_nearclip, "1"},                // 0.1 (float depth for the eyes)
 };
-constexpr int configVersion = 76;
+constexpr int configVersion = 77;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

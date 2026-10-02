@@ -667,7 +667,9 @@ context and screenshot, ready to paste or to point me at.
   - **Pickups:** weapons, armour, powerups and keys are smaller and lie on the floor (`vr_pickup_scale` 0.6 in
     `quakevr.cfg`), so you crouch to take them.
   - **Physics:** thrown weapons and backpacks are real rigid bodies. `vr_physics_list` prints their state.
-  - **Near clipping:** things close to your face are no longer cut away (`vr_nearclip`).
+  - **Near clipping:** things close to your face are no longer cut away (`vr_nearclip` 0.1 units, 3 mm, with the eyes'
+    float depth `vr_depth_float`; held weapons and hands never cut, and their inside drawn with an eye in them:
+    `vr_nearclip_held`; ROUND21.md, "Near clip: a gun at the eye").
 
 - **Body** (new): the old floating torso is replaced by a body whose arms reach your hands and which crouches and
   leans with your head (Options > VR Settings > Body: Off / Torso / Torso and arms / Full body). To see the whole

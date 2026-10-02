@@ -68,6 +68,7 @@ int VR_MenuCanvas (float *scalex, float *scaley);		// Draw_GetCanvasTransform, C
 int VR_HideViewModel (void);							// R_IsViewModelVisible: VR draws its own weapons
 int VR_IsViewEntity (const struct entity_s *e);		// gets the view model's minimum light
 int VR_AliasMirrored (const struct entity_s *e);		// mirrored instances batch and cull separately
+int VR_AliasNearEye (const struct entity_s *e, const float matrix[16], const void *aliashdr); // R_DrawAliasModel: a held item at the eyes: 1 depth clamp, 2 both sides (vr_nearclip_held)
 void VR_AliasPreTransform (const struct entity_s *e, float matrix[16]);	// after R_EntityMatrix
 void VR_AliasPostTransform (const struct entity_s *e, float matrix[16]);	// after the model scale
 void VR_BrushTransform (const struct entity_s *e, float matrix[16]);		// brush entities: the networked scale and offset
@@ -180,6 +181,7 @@ unsigned int* VR_SightPalette(const char* texname, unsigned int* palette);
 
 // The eyes' tone curve, grade and dither (vr_tonemap.cpp; see vr_tonemap.h).
 unsigned VR_SceneColorFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's colour format (the eyes' float one with vr_tonemap)
+unsigned VR_SceneDepthFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's depth/stencil format (the eyes' float one: vr_depth_float)
 int VR_SceneSamples (int samples);	// GL_CreateFrameBuffers: the scene's MSAA samples (the spectator camera's: vr_spectator_aa)
 float VR_SceneTone (void);						// R_SetupView: the brightest the world and models write (1: Quake's clamp)
 float VR_SceneDither (float dither);			// R_SetupView: the scene's screen dither (0 in the eyes with vr_dither: the post-process dithers last)
