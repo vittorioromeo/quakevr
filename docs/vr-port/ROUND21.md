@@ -21382,3 +21382,112 @@ what each spatter reaches; 3 every subtract (drying, healing, washing).
 - [ ] Get hurt: marks run down your arms; one arm's marks no longer show on the other.
 - [ ] Take health: your wounds fade, the enemies' blood stays until you wash.
 - [ ] Blood Opacity 0.8 against 1.
+
+## Spatial audio: optimised (2026-10-02)
+
+Task: the spatial audio (vr_audio.cpp, vr_audiosim.cpp, snd_mix.c) as fast as it can be without changing how it
+sounds (branch `agent/audioperf`). Everything here is the same sound bit for bit except the band-limited copies read
+between their samples (slow motion, Doppler), within a few units in the last place (SNR 113-115 dB).
+
+### Measuring: `vr_snd_bench`, `vr_snd_test golden`
+
+- **`vr_snd_bench <seconds> [label] [sounds a second] [orbit units/s]`** (vr_audiobench.cpp; Debug > Tests > Spatial
+  Audio > Spatial Audio Benchmark): records each sound frame's time in each stage (main thread: the listener's update,
+  the movers, the simulation's update, Quake's paint, the voices' share, the choice of voices, the mutex, the voices'
+  render, the reverb (and its convolution and decode alone), the anti-aliasing, Quake's channels, the filters, the
+  game-time render, the limiter; summed over the pool's threads: the voices' reading, direct effect, HRTF, the rest;
+  C++ allocations), then the median, p95, p99, worst and the load (ms per second of sound), the simulations' runs
+  (direct, reflections) and the sounds' memory; rows to `sound_tests/bench.csv`. While it runs it plays a combat-like
+  scene: id's monster, weapon and explosion sounds started round the listener at random (a fixed seed), and the
+  listener going round a 96-unit circle (each voice moving against it: Doppler, the HRTF's directions changing).
+- **Scenes** (`Misc/quakevr/audiobench/scenes.sh <agent> <tag>`: each its own run alone on the machine, the mock at 90
+  fps in real time with sound, 12 s; `compare.py` makes the tables): idle (e1m1's start), combat32 (16 loops + 8
+  sounds a second, 32 voices), move32 (32 loops + 4/s, orbiting at 400 u/s), combat64 (e2m1, 64 voices, 48 loops +
+  16/s, orbiting), slow025 (32 loops, `vr_timescale 0.25`), slow025wav (the same with the game-time render on:
+  `vr_snd_capture_game`). The mix paints in whole voice frames: ~1024 samples every other 90 fps frame with SDL's
+  dummy driver (the stages' times are a painting frame's).
+- **`vr_snd_test golden`**: fixed renders through renderVoices (24 moving voices of made sounds loaded as S_LoadSound
+  does, every feature, the parametric reverb with fixed times; at 1x, at 0.25x, without full band, with Quake's
+  panning; and the band-limited copies) written to `sound_tests/golden_<case>.f32`, compared with `_ref` copies
+  from an earlier build: bit-identical or the SNR (PASS over 60 dB). (Not the convolution reverb: its simulated
+  response differs run to run, Steam Audio's random rays; it goes through the same calls.)
+
+### What changed (in order of gain)
+
+1. **The reverb beside the voices' HRTF** (`Mixer::render`): the voices go in two passes, their sources first (read,
+   gain, direct effect: the reverb's input, `processSource`), then the reverb's convolution on the calling thread
+   while the lanes do the voices' HRTF and near field (`processEars`). It was after them, on the critical path: the
+   convolution (Steam Audio's, 2 s of response) is the mix's longest single part, ~0.4 ms of each 1024 samples.
+   Each task takes whichever part is left (the caller the convolution: a pool worker can be one of the i9's E-cores,
+   where it took 1.5x as long), at most 4 lanes beside it (`Mixer::lanesBesideReverb`: 8 slowed the convolution
+   itself, its p95 0.70 -> 0.56 ms with 4). `vr_snd_reverb_beside 0` puts it after the voices again (the same sound;
+   lower tails with 32 voices in one A/B, higher median and load).
+2. **The reverb's decode a block behind its convolution** (`reverbConvolve`, `reverbDecode`): on another thread,
+   waiting for each block (parallelFor hands out its tasks in order and the decode is never taken before the
+   convolution, which never waits); the reverb's anti-aliasing (`AntiAlias`, with full-band sound) there too, block by
+   block, off the main thread. The decode has its own HRTF copy (`reverbHrtf`: it runs beside the lanes).
+3. **The sources on every thread of the pool** (one task a voice; only the HRTF needs a lane's own HRTF).
+4. **`fullBandAt` in SSE2** (the band-limited copies between samples: slow motion, Doppler, and Quake's own channels
+   with `vr_snd_fullband 2`): 8 taps at a time. The voices' reading 0.79 -> 0.37-0.43 ms of CPU a painting frame in
+   the moving and slow scenes (combat64 1.40 -> 0.77). The one change that isn't bit-identical: the 32 taps summed in
+   another order (golden slow: SNR 112.9 dB, the largest difference 0.05 of 32768).
+5. **`AntiAlias` in SSE2**, four outputs at a time, each lane the scalar loop's own sums in its order (bit-identical):
+   0.072 -> 0.002 ms; and nothing done on silence after silence (the reverb rung out, no voices: zeros in, zeros out).
+6. **Quake's sound levels out of denormals** (`S_UpdateLevels`, snd_mix.c: the gamepad rumble's levels): in silence
+   they eased into the smallest denormal and stayed there (its step rounds to 0), every sample then 10-100x slower:
+   a quiet map's whole paint 0.178 -> 0.043 ms (with 5). Flushed to 0 under 1e-20.
+7. **Band-limited copies at load** (`VR_SndBandLimit`): the taps' table made once a rate (`bandLimitTables`, a
+   `mem::Cache`: it was made again for every sound, 16k sines and 32k cosines) and the samples shared out on the pool:
+   e1m1's 284 sounds 240 -> 46 ms of the map's load, the worst sound 8.7 -> 0.5 ms (a sound loading mid-game: a hitch
+   gone). Bit-identical.
+8. NaN checks of each voice moved into its own tasks (four sums, not one long chain on the main thread); the voices'
+   sum unchanged.
+
+### Measured (vr_snd_bench, 12 s each, the mock at 90 fps, i9-13900K, 31 workers; ms of a painting frame, ~1024 samples)
+
+S_PaintChannels (all of the mix on the main thread), base -> optimised:
+
+| scene | median | p95 | p99 | load (ms per s of sound) |
+|---|---|---|---|---|
+| idle (e1m1's start, no voices) | 0.178 -> 0.043 | 0.222 -> 0.066 | 1.109 -> 0.125 | 8.4 -> 2.0 |
+| combat32 (16 loops, 8 sounds/s) | 0.777 -> 0.584 | 0.915 -> 0.729 | 1.005 -> 0.805 | 33.9 -> 26.0 |
+| move32 (32 loops, orbiting 400 u/s) | 0.979 -> 0.686 | 1.116 -> 0.862 | 1.179 -> 1.027 | 42.5 -> 30.6 |
+| combat64 (e2m1, 64 voices, orbiting) | 1.176 -> 0.825 | 1.396 -> 1.030 | 1.489 -> 1.121 | 51.5 -> 36.6 |
+| slow025 (32 loops, 0.25x) | 1.006 -> 0.692 | 1.155 -> 0.865 | 1.279 -> 1.063 | 43.8 -> 30.7 |
+| slow025wav (and the game-time render) | 1.323 -> 0.952 | 1.618 -> 1.189 | 1.759 -> 1.319 | 58.4 -> 42.1 |
+
+By stage (combat64; median / p95): the voices' render (wall, less the reverb) 0.578 / 0.767 -> 0.265 / 0.461; the
+reverb's anti-aliasing 0.072 / 0.080 -> 0.002 / 0.002; the voices' reading (CPU, all threads) 1.399 / 1.539 -> 0.768
+/ 1.027; the reverb's convolution 0.372 / 0.496 -> 0.429 / 0.603 (beside the lanes now: a little slower, off the
+voices' path); the game-time render (slow025wav) 0.319 / 0.452 -> 0.275 / 0.381. Unchanged: choosing the voices
+0.004-0.015, the listener's update 0.01-0.03, the movers 0.001, the simulation's update 0.005 ms, its mutex 0.001; the
+filters 0.024, the limiter 0.008 ms; on a worker the direct paths 0.06-0.09 ms a run (30 a second), the reflections
+15-21 ms (4 a second). Memory: 22 MB of band-limited copies beside 14.5 MB of Quake's (e1m1, 295 sounds). C++
+allocations: none in the mix; ~27 a second, the simulations' `jobs::async` tasks. The A/B runs vary by ~10% in the
+tails (a run where untouched stages, the reflections and the listener, came out 1.5x slower was run again).
+
+Checks: `vr_snd_test all` 45 passed (golden: copies, mix, nofull bit-identical to the base build; slow 112.9 dB,
+panning 115.0 dB, both the interpolation's sums), the same with `vr_snd_reverb_beside 0`; the offline bench's every
+feature 0.305 -> 0.233 ms.
+
+### Not done
+
+- **Culling quiet voices**: what Quake's falloff leaves at zero is never voiced already; anything above it is heard
+  (an occluded voice at -80 dB is still 3 LSBs), and dropping one cuts its HRTF's and reverb's tails: not the same sound.
+- **A shorter or coarser reverb** (its response trimmed by the simulated RT60, a 1024-sample frame for it alone,
+  Steam Audio's hybrid): each changes the sound (its tail, a later reverb, 13-20 dB quieter tails). The convolution
+  stays the mix's longest part (0.4 ms of each 1024 samples).
+- **The mix off the main thread** (painted a frame ahead on a worker): another frame of latency for every sound.
+- **The direct effect's EQ and the HRTF**: Steam Audio's own; the direct effect runs only where there is occlusion or
+  air (eq or air under 0.999).
+- **The simulations' allocations** (`jobs::async`'s job, ~27 a second): the job system's design; negligible.
+- **The first start's 62 ms** (`Mixer::create`: 10 HRTFs and 64 voices' effects, once, inside the first map's load;
+  the game-time render's own mixer the same when it first runs): HRTFs made in parallel would need Steam Audio's
+  context to be safe for that, untested.
+- **The band-limited copies' memory** (2 bytes a sample at 44.1 kHz, 1.5x Quake's): made on the fly instead they would
+  cost 64 taps a sample per voice, every frame.
+
+### In VR
+
+- Nothing should sound different. Play a fight with explosions, slow motion, a sound passing by: as before.
+- Debug > Tests > Spatial Audio > Spatial Audio Benchmark on your machine: send the console's table.

@@ -461,6 +461,12 @@ static void S_UpdateLevels (int endtime)
 		snd_lofreqlevel = LERP (snd_lofreqlevel, sample, 1e-3f);
 		snd_hifreqlevel = LERP (snd_hifreqlevel, sample, 1e-2f);
 	}
+	// QVR: in silence they ease down into denormals and then stay at the smallest one (its step rounds to 0), each
+	// sample then 10-100 times slower to work out (vr_snd_bench: a quiet map's mix 3x dearer); 0 instead
+	if (snd_lofreqlevel < 1e-20f)
+		snd_lofreqlevel = 0.f;
+	if (snd_hifreqlevel < 1e-20f)
+		snd_hifreqlevel = 0.f;
 }
 
 float S_GetLoFreqLevel (void)

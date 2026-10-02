@@ -38,6 +38,7 @@
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_main.hpp"
+#include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_units.hpp"
 
@@ -48,6 +49,7 @@
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -64,6 +66,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
+#include <emmintrin.h> // (SSE2: x64's baseline)
 #include <stdio.h>
 
 namespace qvr::audio
@@ -86,6 +89,7 @@ Features featuresFromCvars()
     f.unitsPerMetre = units::metresToUnits();
     f.rate = VR_SndRate();
     f.fullBand = VR_SndFullBand() >= 1;
+    f.reverbBeside = vr_snd_reverb_beside.value != 0.f;
     return f;
 }
 
@@ -181,6 +185,20 @@ bool Mixer::create(int rate, int frameSize, const char* sofa)
         }
         laneHrtfs[lanes++] = h;
     }
+    {
+        IPLHRTFSettings copy = hs;
+        if(sofaLoaded)
+        {
+            copy.type = IPL_HRTFTYPE_SOFA;
+            copy.sofaFileName = sofa;
+        }
+        if(sa->iplHRTFCreate(steamaudio::context(), &as, &copy, &reverbHrtf) != IPL_STATUS_SUCCESS || !reverbHrtf)
+        {
+            reverbHrtf = nullptr;
+            destroy();
+            return false;
+        }
+    }
     for(Voice& v : voices)
     {
         IPLBinauralEffectSettings bs{hrtf};
@@ -246,6 +264,11 @@ void Mixer::destroy()
     }
     laneHrtfs = {};
     lanes = 0;
+    if(reverbHrtf)
+    {
+        sa->iplHRTFRelease(&reverbHrtf);
+    }
+    reverbHrtf = nullptr;
     if(hrtf)
     {
         sa->iplHRTFRelease(&hrtf);
@@ -284,7 +307,7 @@ void Mixer::setReverb(IPLReflectionEffectType type, int order, float duration)
     }
     IPLAmbisonicsDecodeEffectSettings ds{};
     ds.speakerLayout.type = IPL_SPEAKERLAYOUTTYPE_STEREO;
-    ds.hrtf = hrtf;
+    ds.hrtf = reverbHrtf;
     ds.maxOrder = order;
     if(sa->iplAmbisonicsDecodeEffectCreate(steamaudio::context(), &as, &ds, &decode) != IPL_STATUS_SUCCESS)
     {
@@ -296,11 +319,15 @@ void Mixer::setReverb(IPLReflectionEffectType type, int order, float duration)
     reverbIn.clear();
     reverbIn.resize(frame, 0.f);
     reverbAmbi.clear();
-    reverbAmbi.resize(reverbChannels, za::Vector<float>(frame, 0.f));
+    reverbAmbi.resize(reverbChannels, za::Vector<float>(maxSamples, 0.f));
     reverbL.clear();
     reverbL.resize(frame, 0.f);
     reverbR.clear();
     reverbR.resize(frame, 0.f);
+    reverbOutL.clear();
+    reverbOutL.resize(maxSamples, 0.f);
+    reverbOutR.clear();
+    reverbOutR.resize(maxSamples, 0.f);
     reverbSilence = 1 << 30;
 }
 
@@ -477,20 +504,28 @@ void Mixer::read(Voice& v, float* out, float step0, float step1, bool fullBand)
     v.pos = pos;
 }
 
-void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
+namespace
+{
+
+// vr_snd_bench: the time since the voice's last lap into its part `part` (when this render is timed).
+void lap(bool timed, double& since, double* cpu, int part)
+{
+    if(timed)
+    {
+        const double now = Sys_DoubleTime();
+        cpu[part] += now - since;
+        since = now;
+    }
+}
+
+} // namespace
+
+void Mixer::processSource(Voice& v, int blocks, const Features& f)
 {
     const int n = frame;
     const bool timed = timing; // (vr_snd_bench)
-    double t = timed ? Sys_DoubleTime() : 0.0;
+    v.lapStart = timed ? Sys_DoubleTime() : 0.0;
     const za::U64 allocs = timed ? alloccount::thisThread() : 0;
-    const auto lap = [&](int part) {
-        if(timed)
-        {
-            const double now = Sys_DoubleTime();
-            v.cpu[part] += now - t;
-            t = now;
-        }
-    };
     for(int b = 0; b < blocks; b++)
     {
         // Doppler: the rate eased towards its target (half the way each frame), ramped within the frame.
@@ -498,7 +533,7 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
         const float step1 = v.doppler + (v.dopplerTarget - v.doppler) * 0.5f;
         read(v, v.in0.data(), step0, step1, f.fullBand);
         v.doppler = step1;
-        lap(0);
+        lap(timed, v.lapStart, v.cpu, 0);
 
         // The volume ramped to its new value over the first frame.
         const float g0 = v.gain;
@@ -549,8 +584,45 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
             src = v.mid.data();
         }
         za::copy(src, src + n, v.send.data() + b * n);
-        lap(1);
+        lap(timed, v.lapStart, v.cpu, 1);
+    }
+    // Not-numbers (it never should make them) kept out of the reverb: they would stay in its convolution and crackle on
+    // and on. The voice is dropped from this call (render).
+    float check[4]{};
+    const float* send = v.send.data();
+    const int count = blocks * n;
+    int i = 0;
+    for(; i + 4 <= count; i += 4)
+    {
+        for(int k = 0; k < 4; k++)
+        {
+            check[k] += send[i + k] * 0.f;
+        }
+    }
+    for(; i < count; i++)
+    {
+        check[0] += send[i] * 0.f;
+    }
+    v.bad = (check[0] + check[1]) + (check[2] + check[3]) != 0.f;
+    if(v.bad)
+    {
+        za::fill(v.send.begin(), v.send.begin() + count, 0.f);
+    }
+    if(timed)
+    {
+        v.cpu[4] += static_cast<double>(alloccount::thisThread() - allocs);
+    }
+}
 
+void Mixer::processEars(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
+{
+    const int n = frame;
+    const bool timed = timing; // (vr_snd_bench)
+    v.lapStart = timed ? Sys_DoubleTime() : 0.0;
+    const za::U64 allocs = timed ? alloccount::thisThread() : 0;
+    for(int b = 0; b < blocks; b++)
+    {
+        float* src = v.send.data() + b * n; // (the direct sound: the reverb's input too)
         if(f.hrtf)
         {
             IPLBinauralEffectParams p{};
@@ -584,7 +656,7 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
                 v.r[i] = src[i] * gr;
             }
         }
-        lap(2);
+        lap(timed, v.lapStart, v.cpu, 2);
 
         // The near field: the nearer ear louder, the farther one quieter and duller (the head's shadow), by how near
         // (within a metre) and how much to the side.
@@ -616,8 +688,27 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
 
         za::copy(v.l.data(), v.l.data() + n, v.outL.data() + b * n);
         za::copy(v.r.data(), v.r.data() + n, v.outR.data() + b * n);
-        lap(3);
+        lap(timed, v.lapStart, v.cpu, 3);
     }
+    // Not-numbers (it never should make them): the voice is dropped from this call and its effects reset (render), or
+    // they would stay in the HRTF's convolution and crackle on and on.
+    float check[4]{};
+    const int count = blocks * n;
+    const float* l = v.outL.data();
+    const float* r = v.outR.data();
+    int i = 0;
+    for(; i + 4 <= count; i += 4)
+    {
+        for(int k = 0; k < 4; k++)
+        {
+            check[k] += l[i + k] * 0.f + r[i + k] * 0.f;
+        }
+    }
+    for(; i < count; i++)
+    {
+        check[0] += l[i] * 0.f + r[i] * 0.f;
+    }
+    v.bad = v.bad || (check[0] + check[1]) + (check[2] + check[3]) != 0.f;
     if(timed)
     {
         v.cpu[4] += static_cast<double>(alloccount::thisThread() - allocs);
@@ -639,11 +730,100 @@ Mixer::Times Mixer::takeTimes()
     return out;
 }
 
+// The reverb in two tasks one block behind the other: its convolution (reverbConvolve: the voices' sends summed, the
+// reflection effect into reverbAmbi's block) and its decode (reverbDecode: the ambisonics decoded to the ears, added at
+// its wet mix to toL/toR, then `roomFilter` on that block of roomL/roomR). The decode waits for each block's convolution
+// (reverbConvolved); the convolution never waits, and parallelFor hands out its tasks in order (the convolution's, task 0,
+// is taken first), so the wait always ends. Run on one thread, one after the other, it is the same.
+void Mixer::reverbConvolve(int blocks, const int* list, int active, const IPLReflectionEffectParams& params)
+{
+    reverbStarted = timing ? Sys_DoubleTime() : 0.0;
+    IPLReflectionEffectParams p = params; // (Steam Audio's takes it mutable: one copy for the call, as it was)
+    for(int b = 0; b < blocks; b++)
+    {
+        bool silent = true;
+        za::fill(reverbIn, 0.f);
+        for(int k = 0; k < active; k++)
+        {
+            const float* s = voices[list[k]].send.data() + b * frame;
+            for(int i = 0; i < frame; i++)
+            {
+                reverbIn[i] += s[i];
+            }
+            silent = false;
+        }
+        // Nothing in for longer than the response: the tail has rung out (the effect keeps saying it hasn't).
+        reverbSilence = silent ? za::min(reverbSilence + frame, 1 << 30) : 0;
+        reverbRan[b] = reverbSilence <= irSize + frame;
+        if(reverbRan[b])
+        {
+            float* ambiPtr[16]{};
+            for(int c = 0; c < reverbChannels && c < 16; c++)
+            {
+                ambiPtr[c] = reverbAmbi[c].data() + b * frame;
+            }
+            float* inPtr[1] = {reverbIn.data()};
+            IPLAudioBuffer in{1, frame, inPtr};
+            IPLAudioBuffer ambi{reverbChannels, frame, ambiPtr};
+            const double convStart = timing ? Sys_DoubleTime() : 0.0;
+            sa->iplReflectionEffectApply(reflection, &p, &in, &ambi, nullptr);
+            times.reverbConv += timing ? Sys_DoubleTime() - convStart : 0.0;
+        }
+        reverbConvolved.storeRelease(b + 1);
+    }
+}
+
+void Mixer::reverbDecode(int blocks, const Features& f, float* toL, float* toR, float* roomL, float* roomR,
+    AntiAlias* roomFilter)
+{
+    for(int b = 0; b < blocks; b++)
+    {
+        while(reverbConvolved.loadAcquire() <= b)
+        {
+            _mm_pause();
+        }
+        if(reverbRan[b])
+        {
+            float* ambiPtr[16]{};
+            for(int c = 0; c < reverbChannels && c < 16; c++)
+            {
+                ambiPtr[c] = reverbAmbi[c].data() + b * frame;
+            }
+            IPLAudioBuffer ambi{reverbChannels, frame, ambiPtr};
+            const double decodeStart = timing ? Sys_DoubleTime() : 0.0;
+            IPLAmbisonicsDecodeEffectParams dp{};
+            dp.order = reverbOrder;
+            dp.hrtf = reverbHrtf;
+            dp.orientation = orientation;
+            dp.binaural = f.hrtf ? IPL_TRUE : IPL_FALSE;
+            float* stereoPtr[2] = {reverbL.data(), reverbR.data()};
+            IPLAudioBuffer stereo{2, frame, stereoPtr};
+            sa->iplAmbisonicsDecodeEffectApply(decode, &dp, &ambi, &stereo);
+            times.reverbDecode += timing ? Sys_DoubleTime() - decodeStart : 0.0;
+            const float mix = f.reverb;
+            for(int i = 0; i < frame; i++)
+            {
+                toL[b * frame + i] += reverbL[i] * mix;
+                toR[b * frame + i] += reverbR[i] * mix;
+            }
+        }
+        if(roomFilter && roomL)
+        {
+            roomFilter->apply(roomL + b * frame, roomR + b * frame, frame);
+        }
+    }
+    times.reverb += timing ? Sys_DoubleTime() - reverbStarted : 0.0;
+}
+
 void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb,
-    float* outL, float* outR, float* roomL, float* roomR)
+    float* outL, float* outR, float* roomL, float* roomR, AntiAlias* roomFilter)
 {
     if(!valid() || blocks <= 0)
     {
+        if(roomFilter && roomL && blocks > 0)
+        {
+            roomFilter->apply(roomL, roomR, blocks * frame);
+        }
         return;
     }
     blocks = za::min(blocks, maxSamples / frame);
@@ -660,38 +840,137 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
             list[active++] = i;
         }
     }
-    // Lane j renders the voices j, j + lanes, ... with its own HRTF (never two threads on one).
-    const int used = za::min(active, lanes);
-    if(used == 1)
+    const bool reverbOn = f.reverb > 0.f && reflection && decode && reverb;
+    if(!reverbOn)
     {
-        for(int k = 0; k < active; k++)
+        reverbSilence = 1 << 30;
+    }
+    // The reverb into the room's buffers, or its own (added to outL/outR after the voices' sum, as it was).
+    float* revToL = roomL ? roomL : reverbOutL.data();
+    float* revToR = roomR ? roomR : reverbOutR.data();
+    IPLReflectionEffectParams params{};
+    if(reverbOn)
+    {
+        params = *reverb;
+        params.type = reverbType;
+        params.numChannels = reverbChannels;
+        params.irSize = irSize;
+        orientation = coordinates(l.pos, l.fwd, l.right, l.up, f.unitsPerMetre);
+        if(!roomL)
         {
-            process(voices[list[k]], blocks, f, laneHrtfs[0]);
+            za::fill(reverbOutL.begin(), reverbOutL.begin() + count, 0.f);
+            za::fill(reverbOutR.begin(), reverbOutR.begin() + count, 0.f);
         }
     }
-    else if(used > 1)
+    bool filtered = false; // (roomFilter applied)
+    // First the sources (read, gain, direct effect: the reverb's input), each voice a task of its own on any of the
+    // pool's threads (no HRTF in them). Then the ears: lane j renders the voices j, j + lanes, ... with its own HRTF
+    // (never two threads on one); beside them the reverb (task 0, the longest: started first) and the room's filter
+    // after it on its thread.
+    if(active == 1)
     {
-        jobs::parallelFor(static_cast<za::SizeT>(used), 1, [&](za::SizeT begin, za::SizeT end) {
-            for(za::SizeT j = begin; j < end; j++)
+        processSource(voices[list[0]], blocks, f);
+    }
+    else if(active > 1)
+    {
+        jobs::parallelFor(static_cast<za::SizeT>(active), 1, [&](za::SizeT begin, za::SizeT end) {
+            for(za::SizeT k = begin; k < end; k++)
             {
-                for(int k = static_cast<int>(j); k < active; k += used)
-                {
-                    process(voices[list[k]], blocks, f, laneHrtfs[j]);
-                }
+                processSource(voices[list[k]], blocks, f);
             }
         });
+    }
+    const int used = za::min(active, lanes);
+    // A pass: the reverb (its convolution, then its decode a block behind) and/or the lanes (the voices' HRTF).
+    const auto pass = [&](bool withReverb, bool withLanes) {
+        reverbConvolved.storeRelaxed(0);
+        // (Beside the reverb, at most lanesBesideReverb lanes: more of them slow the reverb's convolution down, the
+        // longest part, more than they save; vr_snd_bench: its p95 0.70 -> 0.56 ms with 4 of the 8.)
+        const int laneCount = withLanes ? (withReverb ? za::min(used, lanesBesideReverb) : used) : 0;
+        const int units = laneCount + (withReverb ? 2 : 0);
+        if(units <= 1 || active == 0)
+        {
+            if(withReverb)
+            {
+                reverbConvolve(blocks, list, active, params);
+                reverbDecode(blocks, f, revToL, revToR, roomL, roomR, roomFilter);
+                filtered = true;
+            }
+            for(int k = 0; k < active && laneCount > 0; k++)
+            {
+                processEars(voices[list[k]], blocks, f, laneHrtfs[0]);
+            }
+            return;
+        }
+        // Each task one part, whichever is left: the calling thread takes the reverb's convolution first (the longest
+        // single part: on the thread that waits for them all anyway, not on a slower core of the pool's), a helper its
+        // decode once the convolution is taken (it waits for each block), the others a lane each. The decode is never
+        // taken before the convolution, which never waits: its wait always ends.
+        const za::ThreadId caller = za::ThisThread::getId();
+        za::Atomic<int> convTaken{withReverb ? 0 : 1};
+        za::Atomic<int> decodeTaken{withReverb ? 0 : 1};
+        za::Atomic<int> nextLane{0};
+        const auto takeConv = [&]() {
+            if(convTaken.loadAcquire() != 0 || convTaken.exchangeSeqCst(1) != 0)
+            {
+                return false;
+            }
+            reverbConvolve(blocks, list, active, params);
+            return true;
+        };
+        const auto takeDecode = [&]() {
+            if(convTaken.loadAcquire() == 0 || decodeTaken.loadAcquire() != 0 || decodeTaken.exchangeSeqCst(1) != 0)
+            {
+                return false;
+            }
+            reverbDecode(blocks, f, revToL, revToR, roomL, roomR, roomFilter);
+            return true;
+        };
+        const auto takeLane = [&]() {
+            const int lane = nextLane.fetchAddRelaxed(1);
+            if(lane >= laneCount)
+            {
+                return false;
+            }
+            for(int k = lane; k < active; k += laneCount)
+            {
+                processEars(voices[list[k]], blocks, f, laneHrtfs[lane]);
+            }
+            return true;
+        };
+        jobs::parallelFor(static_cast<za::SizeT>(units), 1, [&](za::SizeT begin, za::SizeT end) {
+            for(za::SizeT j = begin; j < end; j++)
+            {
+                bool took = false;
+                if(za::ThisThread::getId() == caller)
+                {
+                    took = takeConv() || takeLane() || takeDecode();
+                }
+                else
+                {
+                    took = takeDecode() || takeLane() || takeConv() || takeDecode();
+                }
+                ZA_ASSERT(took);
+                (void)took;
+            }
+        });
+        filtered = filtered || withReverb;
+    };
+    if(reverbOn && !f.reverbBeside)
+    {
+        pass(false, true); // (the lanes, then the reverb alone: vr_snd_reverb_beside 0)
+        pass(true, false);
+    }
+    else
+    {
+        pass(reverbOn, true);
     }
     for(int k = 0; k < active; k++)
     {
         Voice& v = voices[list[k]];
         // A voice that made not-numbers (it never should) is dropped from this call and its effects reset: one would
         // stay in the reverb's and the HRTF's convolutions and crackle on and on.
-        float check = 0.f;
-        for(int i = 0; i < count; i++)
-        {
-            check += v.outL[i] * 0.f + v.outR[i] * 0.f;
-        }
-        if(check != 0.f)
+        if(v.bad)
         {
             sa->iplBinauralEffectReset(v.binaural);
             sa->iplDirectEffectReset(v.direct);
@@ -704,69 +983,22 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
             outR[i] += v.outR[i];
         }
     }
-
-    const double reverbStart = timing ? Sys_DoubleTime() : 0.0;
-    times.voices += reverbStart - voicesStart;
-    if(f.reverb <= 0.f || !reflection || !decode || !reverb)
+    if(reverbOn && !roomL)
     {
-        reverbSilence = 1 << 30;
-        return;
-    }
-    IPLReflectionEffectParams p = *reverb;
-    p.type = reverbType;
-    p.numChannels = reverbChannels;
-    p.irSize = irSize;
-    orientation = coordinates(l.pos, l.fwd, l.right, l.up, f.unitsPerMetre);
-    float* ambiPtr[16]{};
-    for(int c = 0; c < reverbChannels && c < 16; c++)
-    {
-        ambiPtr[c] = reverbAmbi[c].data();
-    }
-    for(int b = 0; b < blocks; b++)
-    {
-        bool silent = true;
-        za::fill(reverbIn, 0.f);
-        for(int k = 0; k < active; k++)
+        for(int i = 0; i < count; i++)
         {
-            const float* s = voices[list[k]].send.data() + b * frame;
-            for(int i = 0; i < frame; i++)
-            {
-                reverbIn[i] += s[i];
-            }
-            silent = false;
-        }
-        // Nothing in for longer than the response: the tail has rung out (the effect keeps saying it hasn't).
-        reverbSilence = silent ? za::min(reverbSilence + frame, 1 << 30) : 0;
-        if(reverbSilence > irSize + frame)
-        {
-            continue;
-        }
-        float* inPtr[1] = {reverbIn.data()};
-        IPLAudioBuffer in{1, frame, inPtr};
-        IPLAudioBuffer ambi{reverbChannels, frame, ambiPtr};
-        const double convStart = timing ? Sys_DoubleTime() : 0.0;
-        sa->iplReflectionEffectApply(reflection, &p, &in, &ambi, nullptr);
-        const double decodeStart = timing ? Sys_DoubleTime() : 0.0;
-        times.reverbConv += decodeStart - convStart;
-        IPLAmbisonicsDecodeEffectParams dp{};
-        dp.order = reverbOrder;
-        dp.hrtf = hrtf;
-        dp.orientation = orientation;
-        dp.binaural = f.hrtf ? IPL_TRUE : IPL_FALSE;
-        float* stereoPtr[2] = {reverbL.data(), reverbR.data()};
-        IPLAudioBuffer stereo{2, frame, stereoPtr};
-        sa->iplAmbisonicsDecodeEffectApply(decode, &dp, &ambi, &stereo);
-        times.reverbDecode += timing ? Sys_DoubleTime() - decodeStart : 0.0;
-        const float mix = f.reverb;
-        float* toL = roomL ? roomL : outL;
-        float* toR = roomR ? roomR : outR;
-        for(int i = 0; i < frame; i++)
-        {
-            toL[b * frame + i] += reverbL[i] * mix;
-            toR[b * frame + i] += reverbR[i] * mix;
+            outL[i] += reverbOutL[i];
+            outR[i] += reverbOutR[i];
         }
     }
-    times.reverb += timing ? Sys_DoubleTime() - reverbStart : 0.0;
+    if(timing)
+    {
+        times.voices += Sys_DoubleTime() - voicesStart - times.reverb;
+    }
+    if(roomFilter && roomL && !filtered)
+    {
+        roomFilter->apply(roomL, roomR, count);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -794,8 +1026,7 @@ void renderVoices(Mixer& m, int blocks, const Listener& l, const Features& f, co
     {
         za::fill(revL.begin(), revL.begin() + rendered, 0.f);
         za::fill(revR.begin(), revR.begin() + rendered, 0.f);
-        m.render(blocks, l, f, reverb, mixL.data(), mixR.data(), revL.data(), revR.data());
-        aa.apply(revL.data(), revR.data(), rendered);
+        m.render(blocks, l, f, reverb, mixL.data(), mixR.data(), revL.data(), revR.data(), &aa); // (aa: after the reverb, on its thread)
         for(int i = 0; i < rendered; i++)
         {
             mixL[i] += revL[i];
@@ -823,6 +1054,7 @@ void AntiAlias::reset()
 {
     za::fill(histL, 0.f);
     za::fill(histR, 0.f);
+    quietL = quietR = taps;
 }
 
 void AntiAlias::apply(float* l, float* r, int n)
@@ -849,13 +1081,25 @@ void AntiAlias::apply(float* l, float* r, int n)
         histL.resize(taps - 1, 0.f);
         histR.resize(taps - 1, 0.f);
     }
-    applyOne(l, histL, n);
-    applyOne(r, histR, n);
+    applyOne(l, histL, quietL, n);
+    applyOne(r, histR, quietR, n);
 }
 
-void AntiAlias::applyOne(float* x, za::Vector<float>& history, int n)
+void AntiAlias::applyOne(float* x, za::Vector<float>& history, int& quiet, int n)
 {
     const int h = taps - 1;
+    // Silence in, after silence for the filter's length (the reverb rung out, no voices): silence out, as it is.
+    int trailing = 0;
+    while(trailing < n && x[n - 1 - trailing] == 0.f)
+    {
+        trailing++;
+    }
+    const int quietBefore = quiet;
+    quiet = trailing == n ? za::min(quiet + n, 1 << 30) : trailing;
+    if(trailing == n && quietBefore >= h)
+    {
+        return; // (the history: zeros, as it would have been)
+    }
     if(static_cast<int>(work.size()) < h + n)
     {
         work.resize(h + n, 0.f);
@@ -863,7 +1107,33 @@ void AntiAlias::applyOne(float* x, za::Vector<float>& history, int n)
     za::copy(history.begin(), history.end(), work.begin());
     za::copy(x, x + n, work.begin() + h);
     const float* c = kernel.data();
-    for(int i = 0; i < n; i++)
+    int i = 0;
+    // Four outputs at a time, each lane the scalar loop's own sums in its order (the same results, bit for bit).
+    for(; i + 4 <= n; i += 4)
+    {
+        const float* in = work.data() + i;
+        __m128 s[8];
+        for(int j = 0; j < 8; j++)
+        {
+            s[j] = _mm_setzero_ps();
+        }
+        int k = 0;
+        for(; k + 8 <= taps; k += 8)
+        {
+            for(int j = 0; j < 8; j++)
+            {
+                s[j] = _mm_add_ps(s[j], _mm_mul_ps(_mm_set1_ps(c[k + j]), _mm_loadu_ps(in + k + j)));
+            }
+        }
+        __m128 y = _mm_add_ps(_mm_add_ps(_mm_add_ps(s[0], s[1]), _mm_add_ps(s[2], s[3])),
+            _mm_add_ps(_mm_add_ps(s[4], s[5]), _mm_add_ps(s[6], s[7])));
+        for(; k < taps; k++)
+        {
+            y = _mm_add_ps(y, _mm_mul_ps(_mm_set1_ps(c[k]), _mm_loadu_ps(in + k)));
+        }
+        _mm_storeu_ps(x + i, y);
+    }
+    for(; i < n; i++)
     {
         // (symmetric: the kernel the same reversed; eight sums, for the compiler to keep in lanes)
         const float* in = work.data() + i;
@@ -1862,6 +2132,8 @@ void benchFinish()
     if(csv)
     {
         fprintf(csv, "%s,memory_kib,%d,%d,%d,0,0,0\n", b.label.cStr(), loaded, held / 1024, full / 1024);
+        fprintf(csv, "%s,bandlimit_since_start,%d,%.4f,%.4f,0,0,0\n", b.label.cStr(), bandLimitStats.sounds,
+            bandLimitStats.ms, bandLimitStats.worstMs);
         fclose(csv);
     }
 }
@@ -2520,6 +2792,86 @@ extern "C" int VR_SndFullBand(void)
     return za::clamp(static_cast<int>(vr_snd_fullband.value), 0, 2);
 }
 
+namespace qvr::audio
+{
+namespace
+{
+
+// VR_SndBandLimit's tables of taps, one for each fracstep (each depends on it alone, and every sound of a rate has the
+// same one): made at the first sound of the rate, kept. A table: 256 phases of 2 x half taps.
+struct BandLimitTables
+{
+    za::Vector<int> fracsteps;
+    za::Vector<int> halves;
+    za::Vector<za::SizeT> offsets; // into rows
+    za::Vector<float> rows;
+    auto members() { return mem::list(fracsteps, halves, offsets, rows); }
+};
+mem::Cache<BandLimitTables> bandLimitTables{"spatial audio band-limiting", mem::Never};
+
+constexpr int bandLimitPhases = 256;
+
+// The table for `fracstep` (made now if it isn't there): its rows, and `half` its taps each side.
+const float* bandLimitTable(int fracstep, int& half)
+{
+    BandLimitTables& t = bandLimitTables;
+    for(za::SizeT k = 0; k < t.fracsteps.size(); k++)
+    {
+        if(t.fracsteps[k] == fracstep)
+        {
+            half = t.halves[k];
+            return t.rows.data() + t.offsets[k];
+        }
+    }
+    constexpr double pi = 3.14159265358979;
+    constexpr int phases = bandLimitPhases;
+    const double ratio = fracstep / 256.0;                     // the sound's samples an output sample
+    const double cutoff = 0.475 / za::max(1.0, ratio);         // cycles a sample of the sound
+    half = static_cast<int>(za::ceil(15.2 / cutoff));          // samples of the sound each side
+    const int taps = 2 * half;
+    const za::SizeT offset = t.rows.size();
+    t.rows.resize(offset + static_cast<za::SizeT>(phases) * taps, 0.f);
+    const int h = half;
+    float* table = t.rows.data() + offset;
+    // (Each phase on its own: the pool's threads share them.)
+    jobs::parallelFor(static_cast<za::SizeT>(phases), 16, [&](za::SizeT begin, za::SizeT end) {
+        for(za::SizeT pp = begin; pp < end; pp++)
+        {
+            const int p = static_cast<int>(pp);
+            float* row = table + static_cast<za::SizeT>(p) * taps;
+            double sum = 0.0;
+            for(int j = 0; j < taps; j++)
+            {
+                const double tt = p / static_cast<double>(phases) + (h - 1 - j); // the output's time minus the sample's
+                const double sinc = tt == 0.0 ? 2.0 * cutoff : za::sin(2.0 * pi * cutoff * tt) / (pi * tt);
+                const double x = tt / h;
+                const double w = za::abs(x) >= 1.0 ? 0.0 : 0.42 + 0.5 * za::cos(pi * x) + 0.08 * za::cos(2.0 * pi * x);
+                row[j] = static_cast<float>(sinc * w);
+                sum += sinc * w;
+            }
+            for(int j = 0; j < taps; j++)
+            {
+                row[j] = static_cast<float>(row[j] / sum);
+            }
+        }
+    });
+    t.fracsteps.pushBack(fracstep);
+    t.halves.pushBack(half);
+    t.offsets.pushBack(offset);
+    return table;
+}
+
+// VR_SndBandLimit's samples as floats (scratch: the main thread, as sounds load).
+struct BandLimitScratch
+{
+    za::Vector<float> src;
+    auto members() { return mem::list(src); }
+};
+mem::Scratch<BandLimitScratch> bandLimitScratch{"spatial audio band-limiting"};
+
+} // namespace
+} // namespace qvr::audio
+
 // A sound resampled to the mix's rate band-limited, beside Quake's copy (ResampleSfx: each sample held, so an 11 kHz
 // sound's spectrum repeats above 5.5 kHz: images that Quake's 11 kHz lowpass takes out and a mix without it plays as
 // hiss and aliasing). A windowed sinc (Blackman, ~30 zero crossings a side): -6 dB at 0.475 of the lower of the two
@@ -2528,7 +2880,8 @@ extern "C" int VR_SndFullBand(void)
 // and a voice where it was), so its fraction is one of 256 phases, each with its own row of taps. A looping sound's
 // samples past its end are its loop's start again, and before its loop (from the loop on) the loop's end. Kept at
 // 1/S_FULLBAND_SCALE: a sound clipped at full scale (id's explosions) overshoots it band-limited, and clipped again it
-// was hiss (r_exp3: its share above 5.8 kHz -54 dB, -89 kept whole).
+// was hiss (r_exp3: its share above 5.8 kHz -54 dB, -89 kept whole). The taps' table is made once a rate
+// (bandLimitTable); the samples are shared out among the pool's threads (each output on its own).
 extern "C" void VR_SndBandLimit(const unsigned char* data, int width, int samples, int loopstart, int fracstep,
     short* out, int outcount)
 {
@@ -2537,34 +2890,13 @@ extern "C" void VR_SndBandLimit(const unsigned char* data, int width, int sample
         return;
     }
     const double started = Sys_DoubleTime();
-    constexpr double pi = 3.14159265358979;
-    constexpr int phases = 256;
-    const double ratio = fracstep / 256.0;                    // the sound's samples an output sample
-    const double cutoff = 0.475 / za::max(1.0, ratio);         // cycles a sample of the sound
-    const int half = static_cast<int>(za::ceil(15.2 / cutoff)); // samples of the sound each side
+    int half = 0;
+    const float* table = bandLimitTable(fracstep, half);
     const int taps = 2 * half;
 
-    za::Vector<float> table(static_cast<za::SizeT>(phases) * taps, 0.f);
-    for(int p = 0; p < phases; p++)
-    {
-        float* row = table.data() + static_cast<za::SizeT>(p) * taps;
-        double sum = 0.0;
-        for(int j = 0; j < taps; j++)
-        {
-            const double t = p / static_cast<double>(phases) + (half - 1 - j); // the output's time minus the sample's
-            const double sinc = t == 0.0 ? 2.0 * cutoff : za::sin(2.0 * pi * cutoff * t) / (pi * t);
-            const double x = t / half;
-            const double w = za::abs(x) >= 1.0 ? 0.0 : 0.42 + 0.5 * za::cos(pi * x) + 0.08 * za::cos(2.0 * pi * x);
-            row[j] = static_cast<float>(sinc * w);
-            sum += sinc * w;
-        }
-        for(int j = 0; j < taps; j++)
-        {
-            row[j] = static_cast<float>(row[j] / sum);
-        }
-    }
-
-    za::Vector<float> src(static_cast<za::SizeT>(samples), 0.f);
+    za::Vector<float>& src = bandLimitScratch.src;
+    src.clear();
+    src.resize(static_cast<za::SizeT>(samples), 0.f);
     for(int n = 0; n < samples; n++)
     {
         src[n] = width == 2 ? static_cast<float>(static_cast<short>(data[2 * n] | (data[2 * n + 1] << 8)))
@@ -2580,31 +2912,33 @@ extern "C" void VR_SndBandLimit(const unsigned char* data, int width, int sample
         return n < 0 || n >= samples ? 0.f : src[static_cast<za::SizeT>(n)];
     };
 
-    for(int i = 0; i < outcount; i++)
-    {
-        const long long pos = static_cast<long long>(i) * fracstep; // in 256ths of the sound's samples
-        const long long base = pos >> 8;
-        const float* row = table.data() + static_cast<za::SizeT>(pos & 255) * taps;
-        const long long first = base - half + 1;
-        float y = 0.f;
-        const bool inLoop = loopLen > 0 && base >= loopstart;
-        if(first >= (inLoop ? loopstart : 0) && first + taps <= samples)
+    jobs::parallelFor(static_cast<za::SizeT>(outcount), 4096, [&](za::SizeT begin, za::SizeT end) {
+        for(int i = static_cast<int>(begin); i < static_cast<int>(end); i++)
         {
-            const float* x = src.data() + first;
-            for(int j = 0; j < taps; j++)
+            const long long pos = static_cast<long long>(i) * fracstep; // in 256ths of the sound's samples
+            const long long base = pos >> 8;
+            const float* row = table + static_cast<za::SizeT>(pos & 255) * taps;
+            const long long first = base - half + 1;
+            float y = 0.f;
+            const bool inLoop = loopLen > 0 && base >= loopstart;
+            if(first >= (inLoop ? loopstart : 0) && first + taps <= samples)
             {
-                y += row[j] * x[j];
+                const float* x = src.data() + first;
+                for(int j = 0; j < taps; j++)
+                {
+                    y += row[j] * x[j];
+                }
             }
-        }
-        else
-        {
-            for(int j = 0; j < taps; j++)
+            else
             {
-                y += row[j] * at(first + j, inLoop);
+                for(int j = 0; j < taps; j++)
+                {
+                    y += row[j] * at(first + j, inLoop);
+                }
             }
+            out[i] = static_cast<short>(za::clamp(static_cast<int>(za::floor(y / S_FULLBAND_SCALE + 0.5f)), -32768, 32767));
         }
-        out[i] = static_cast<short>(za::clamp(static_cast<int>(za::floor(y / S_FULLBAND_SCALE + 0.5f)), -32768, 32767));
-    }
+    });
     const double ms = (Sys_DoubleTime() - started) * 1000.0;
     bandLimitStats.sounds++;
     bandLimitStats.ms += ms;
@@ -2666,12 +3000,24 @@ float fullBandAt(const short* x, int length, int loop, double pos)
     float y = 0.f;
     if(first >= 0 && first + interpTaps <= length)
     {
+        // Eight taps at a time (SSE2): two sums of four lanes, added at the end (the same taps as one by one, summed in
+        // another order: within a few units in the last place).
+        static_assert(interpTaps % 8 == 0);
         const short* s = x + first;
-        for(int j = 0; j < interpTaps; j++)
+        __m128 acc0 = _mm_setzero_ps();
+        __m128 acc1 = _mm_setzero_ps();
+        for(int j = 0; j < interpTaps; j += 8)
         {
-            y += row[j] * static_cast<float>(s[j]);
+            const __m128i v = _mm_loadu_si128(reinterpret_cast<const __m128i*>(s + j));
+            const __m128 lo = _mm_cvtepi32_ps(_mm_srai_epi32(_mm_unpacklo_epi16(v, v), 16));
+            const __m128 hi = _mm_cvtepi32_ps(_mm_srai_epi32(_mm_unpackhi_epi16(v, v), 16));
+            acc0 = _mm_add_ps(acc0, _mm_mul_ps(_mm_loadu_ps(row + j), lo));
+            acc1 = _mm_add_ps(acc1, _mm_mul_ps(_mm_loadu_ps(row + j + 4), hi));
         }
-        return y;
+        __m128 sum = _mm_add_ps(acc0, acc1);
+        sum = _mm_add_ps(sum, _mm_movehl_ps(sum, sum));
+        sum = _mm_add_ss(sum, _mm_shuffle_ps(sum, sum, 1));
+        return _mm_cvtss_f32(sum);
     }
     // Past the end: the loop's start again (or silence); before the start: a loop from 0's end (or silence).
     const int loopLen = loop >= 0 && loop < length ? length - loop : 0;

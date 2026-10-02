@@ -7,7 +7,7 @@ AGENT="$1"; TAG="$2"; shift 2
 KIT="C:/OHWorkspace/qvr-kit"
 CSV="$KIT/bases/$AGENT/qbase/quakevr/sound_tests/bench.csv"
 SCENES="$*"; [ -z "$SCENES" ] && SCENES="idle combat32 move32 combat64 slow025 slow025wav"
-COMMON="god;notarget;host_maxfps 90;vr_snd_voices 32"
+COMMON="god;notarget;host_maxfps 90;vr_snd_voices 32${EXTRA:+;$EXTRA}" # (EXTRA: more commands for every scene)
 SECONDS_RUN=12
 for s in $SCENES; do
     L="${TAG}_$s"
