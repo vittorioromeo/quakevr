@@ -19769,3 +19769,31 @@ defaults (`resetall; writeconfig`) against his live config: no difference left i
 mass or prop settings but his untouched crowbar slot. Crate Cover on vrfiringrange: the large crate 48 units tall, the
 grunt 288 units away; head 28 units up (crouched): "can't see you", asleep after 300 frames; head 60 up: "SEES you",
 awake. `vr_menu_path_check maps/vrcalibration.map`: 0 missing. eval canary 48/53, no difference from the baseline.
+## Lightning arcs, enforcer rifle smoke, the chainsaw's handle in the hand (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_01-11-17, _01-21-23, _01-42-48.
+
+- **Quad Damage's arcs along the lightning** (`vr_shock.cpp` drawBeamArcs; `cl_tent.c` -> `VR_BeamDrawn`): every beam
+  drawn with Quake's bolt models (`progs/bolt*.mdl`: the lightning gun's, a shambler's, Chthon's, and Mjolnir's, the
+  mission pack's lightning and the gremlins', which are TE_LIGHTNING2 beams too) gets the same jagged arcs Quad Damage
+  crackles over the forearms: short crackles hugging the beam (none in its first 12 units: the muzzle), some longer
+  ones weaving along it, a few out of where it strikes; reshaped every frame, some flickering out. `vr_beam_arcs` (1:
+  about one every 24 units of beam; 0 off), `vr_beam_arcs_spread` (6 units: how far they reach from the beam),
+  `vr_beam_arcs_width` (1: Quad's thickness). Graphics > Lights, under Lightning Beam Lights. Unlike Quad's (drawn
+  with the UI, over everything), these are depth-tested in the scene's translucent pass (new `lines::sceneLine` /
+  `sceneGlow` / `drawInScene`), so a shambler's beam behind a pillar does not show its arcs through it. Eye images with
+  lines need `vr_eyeshot 1` for these (scene) and `vr_eyeshot 3` for the UI ones (Quad's arms, the lasers).
+- **Enforcer rifle smoke**: the held rifle puffs gun smoke at the muzzle as it fires (QC `VR_FireEnforcerRifle`, as the
+  other guns' `particle2 ... GUNSMOKE`); an enforcer's own shot puffs it at its drawn muzzle on the client
+  (`vr_weaponfx.cpp` monsterSmoke, `vr_muzzle_smoke_enemies` 1; Weapons > Weapon Effects > Muzzle Flash). The grunts' guns
+  get none (their tracers and flash say enough): one line to change if wanted.
+- **The chainsaw's cord handle in the hand is the model's own**: `make_chainsaw.py` appends frame 10 (`handle`): the
+  handle alone, every other vertex collapsed onto its middle (frames 0..9 byte-identical). In a fist (and flying
+  back) the view draws `v_chainsaw.mdl` frame 10 (`vr_view.cpp` setupSawHandle; placement `chainsaw::handleEntity`):
+  the saw's own transform turned about the seat, so the handle is the very block seated on the saw, mirrored, scaled
+  and lit as the saw. Taken, it eases from its seat into the fist's turn over 0.1 s (its x along the fist's channel,
+  whichever way is nearer, its underside towards the cord's hole); let go, it turns back into its seated turn as it
+  flies home. `vr_chainsaw_model_handle` 1 (0: the old plain tube); Enemy Weapons > Chainsaw Engine, Pulling the
+  Cord. `vr_debug_chainsaw 2` prints the drawn handle's distance from its seat, its turn and the angles' round-trip
+  error. Tested: `chainsaw_pull.mock` positions: 0.0 cm / 0 deg at the grab, easing to 3.7 cm / 16 deg in 0.1 s,
+  angles error 0.0000.

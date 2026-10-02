@@ -16,8 +16,16 @@ void point(const glm::vec3& p, float size, const glm::vec4& color);
 void glow(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB);
 void glowPoint(const glm::vec3& p, float size, const glm::vec4& color);
 
-// Draws the frame's queue into the bound framebuffer, facing `eye`.
+// The same in the scene: hidden behind what is in front of them (depth-tested, in the translucent pass; the others are
+// drawn over everything with the UI).
+void sceneLine(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB);
+void sceneGlow(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB);
+
+// Draws the frame's queue (but the scene's) into the bound framebuffer, facing `eye`.
 void drawInEye(const glm::vec3& eye);
+
+// Draws the scene's lines (sceneLine, sceneGlow) in the scene's translucent pass, facing its camera.
+void drawInScene();
 
 // Empties the queue (once per frame, after both eyes).
 void clear();

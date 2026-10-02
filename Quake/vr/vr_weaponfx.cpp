@@ -8,6 +8,7 @@
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_mem.hpp"
+#include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_render.hpp"
 #include "vr_units.hpp"
@@ -237,8 +238,39 @@ void playerFired(int hand)
     }
 }
 
+// An enforcer's rifle fired: a puff of gun smoke out of its muzzle (as your guns' make, QC particle2 GUNSMOKE;
+// vr_muzzle_smoke_enemies). The grunts' guns have none (their tracers and flash say enough).
+void monsterSmoke(int ent)
+{
+    if(!vr_muzzle_smoke_enemies.value || ent <= 0 || ent >= cl.num_entities)
+    {
+        return;
+    }
+    const entity_t& e = cl_entities[ent];
+    if(!e.model || strcmp(e.model->name, "progs/enforcer.mdl") != 0)
+    {
+        return;
+    }
+    glm::vec3 muzzle, dir;
+    float gunLength = 0.f;
+    if(!monsterMuzzle(e, muzzle, dir, gunLength))
+    {
+        return;
+    }
+    if(!particles::spawn(muzzle, glm::vec3{0.f}, particles::Preset::GunSmoke, 1))
+    {
+        vec3_t org{muzzle.x, muzzle.y, muzzle.z}, still{0.f, 0.f, 0.f};
+        R_RunParticleEffect(org, still, 4, 1); // (vr_particles 0: Quake's, as the QC's GUNSMOKE then)
+    }
+    if(vr_debug_weaponfx.value)
+    {
+        Con_Printf("weaponfx monster smoke ent %d at %.1f %.1f %.1f\n", ent, muzzle.x, muzzle.y, muzzle.z);
+    }
+}
+
 void monsterFired(int ent)
 {
+    monsterSmoke(ent);
     if(!vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || ent <= 0 || ent >= cl.num_entities ||
         !monsterGun(cl_entities[ent]))
     {

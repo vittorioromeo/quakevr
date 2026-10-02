@@ -19,6 +19,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 
+#include <string.h>
+
 
 namespace qvr::shock
 {
@@ -42,6 +44,17 @@ double selfStart = 0.0;
 double selfUntil = 0.0;
 
 int lastFrame = -1; // effects drawn once a frame, however often the view is set up
+
+// The lightning's beams as CL_UpdateTEnts drew them (VR_BeamDrawn), by beam slot: Quad's arcs along them (vr_beam_arcs).
+struct BeamSeen
+{
+    glm::vec3 a{0.f}, b{0.f};
+    int frame{-10}; // host_framecount it was drawn in
+};
+BeamSeen beamsSeen[MAX_BEAMS];
+constexpr float beamArcSpacing = 24.f; // units of beam an arc at vr_beam_arcs 1
+constexpr float beamArcClear = 12.f;   // units from the beam's start without arcs (the gun's muzzle)
+constexpr int maxBeamArcs = 96;        // a beam's at most
 
 // A frame's random numbers: 0..1, the same sequence for the same seed.
 struct Random
@@ -70,10 +83,12 @@ struct Random
 // A jagged arc from `a` to `target`: `segments`, each end but the last pushed off by up to `jitter` units (`flat`: only
 // sideways and up, over a surface). `fade` dims it.
 // `width` scales the lines (1: Quad's, on the arms); `lit`: a bright halo added onto the scene round it too (the world's
-// arcs, seen from further).
+// arcs, seen from further); `scene`: hidden behind what is in front of it (lines::sceneLine; else drawn over all).
 void arc(Random& rnd, glm::vec3 a, const glm::vec3& target, int segments, float jitter, float fade, bool flat = false,
-    float width = 1.f, bool lit = false)
+    float width = 1.f, bool lit = false, bool scene = false)
 {
+    const auto line = scene ? lines::sceneLine : lines::line;
+    const auto glowLine = scene ? lines::sceneGlow : lines::glow;
     const float bright = (0.6f + 0.4f * rnd()) * fade;
     const glm::vec4 core{0.75f, 0.85f, 1.f, 0.95f * bright};
     const glm::vec4 glow{0.3f, 0.45f, 1.f, 0.35f * bright};
@@ -95,10 +110,10 @@ void arc(Random& rnd, glm::vec3 a, const glm::vec3& target, int segments, float 
         if(lit)
         {
             const glm::vec4 halo{0.25f * bright, 0.4f * bright, 0.9f * bright, 1.f};
-            lines::glow(a, b, 1.2f * width, halo, halo);
+            glowLine(a, b, 1.2f * width, halo, halo);
         }
-        lines::line(a, b, 0.6f * width, glow, glow);
-        lines::line(a, b, 0.15f * width, core, core);
+        line(a, b, 0.6f * width, glow, glow);
+        line(a, b, 0.15f * width, core, core);
         a = b;
     }
 }
@@ -165,6 +180,59 @@ void drawSurface(int index, const Effect& e, Random& rnd)
         arc(rnd, at, at + rnd.flatDir() * (6.f + 10.f * rnd()), 3, 3.f, fade * 0.7f, true, 1.6f, true);
     }
     light(index, e.org, za::clamp(e.radius, 100.f, 300.f), fade, rnd);
+}
+
+// Quad Damage's arcs along a lightning beam from `a` to `b`, round Quake's bolt models: short crackles hugging it here and
+// there (as Quad's on the forearms, bigger), some longer ones running along it, a few out of where it strikes. Reshaped
+// every frame; some flicker out.
+void drawBeamArcs(int index, const glm::vec3& a, const glm::vec3& b)
+{
+    const float len = glm::distance(a, b);
+    const float amount = za::max(0.f, vr_beam_arcs.value);
+    if(len < 1.f || amount <= 0.f)
+    {
+        return;
+    }
+    const glm::vec3 along = (b - a) / len;
+    const float spread = za::clamp(vr_beam_arcs_spread.value, 0.5f, 128.f);
+    const float width = za::clamp(vr_beam_arcs_width.value, 0.1f, 8.f);
+    Random rnd{static_cast<unsigned>(host_framecount) * 2246822519u + static_cast<unsigned>(index) * 374761393u + 11u};
+    const int count = za::clamp(static_cast<int>(len / beamArcSpacing * amount + 0.5f), 1, maxBeamArcs);
+    const float from0 = za::min(beamArcClear / len, 0.5f); // (not on the gun the beam comes out of)
+    for(int bolt = 0; bolt < count; bolt++)
+    {
+        if(rnd() < 0.3f)
+        {
+            continue; // flicker
+        }
+        const glm::vec3 from = glm::mix(a, b, from0 + (1.f - from0) * rnd()) + rnd.dir() * (spread * 0.3f * rnd());
+        const float reach = spread * (0.8f + 1.6f * rnd());
+        const glm::vec3 dir = glm::normalize(along * ((rnd() - 0.5f) * 1.6f) + rnd.dir());
+        arc(rnd, from, from + dir * reach, 5, reach * 0.18f, 1.f, false, width, true, true);
+    }
+    // Longer ones along the beam, weaving round it.
+    const int runs = za::clamp(static_cast<int>(len / (beamArcSpacing * 4.f) * amount + 0.5f), 0, maxBeamArcs / 4);
+    for(int run = 0; run < runs; run++)
+    {
+        if(rnd() < 0.4f)
+        {
+            continue;
+        }
+        const float t0 = from0 + (1.f - from0) * rnd();
+        const float t1 = za::min(1.f, t0 + (spread * (3.f + 5.f * rnd())) / len);
+        const glm::vec3 p0 = glm::mix(a, b, t0) + rnd.dir() * (spread * 0.4f);
+        const glm::vec3 p1 = glm::mix(a, b, t1) + rnd.dir() * (spread * 0.4f);
+        arc(rnd, p0, p1, 8, spread * 0.5f, 0.9f, false, width, true, true);
+    }
+    // Out of where it strikes.
+    for(int k = 0; k < 3; k++)
+    {
+        if(rnd() < 0.35f * amount)
+        {
+            const float reach = spread * (1.f + 1.5f * rnd());
+            arc(rnd, b, b + glm::normalize(rnd.dir() - along * 0.5f) * reach, 5, reach * 0.2f, 1.f, false, width, true, true);
+        }
+    }
 }
 
 // Arcs out from a point in the liquid, every way (the shock's source).
@@ -413,6 +481,14 @@ void frame(const hands::State& s)
 
     Random rnd{static_cast<unsigned>(host_framecount) * 2246822519u + 7u};
     drawSelf(s, rnd);
+    for(int i = 0; i < MAX_BEAMS; i++)
+    {
+        const BeamSeen& b = beamsSeen[i];
+        if(host_framecount - b.frame <= 1) // (drawn this frame, or the last if the view comes first)
+        {
+            drawBeamArcs(i, b.a, b.b);
+        }
+    }
     const double now = cl.time;
     for(int i = 0; i < maxEffects; i++)
     {
@@ -438,6 +514,10 @@ void clear()
     {
         e = Effect{};
     }
+    for(BeamSeen& b : beamsSeen)
+    {
+        b = BeamSeen{};
+    }
     selfStart = selfUntil = 0.0;
 }
 
@@ -447,3 +527,17 @@ void registerCommands()
 }
 
 } // namespace qvr::shock
+
+// A lightning beam (Quake's bolt models: the lightning gun's, a shambler's, Chthon's) drawn this frame between these ends:
+// Quad Damage's arcs along it in the next view (vr_beam_arcs).
+extern "C" void VR_BeamDrawn(int index, qmodel_t* model, const float* start, const float* end)
+{
+    if(index < 0 || index >= MAX_BEAMS || !model || strncmp(model->name, "progs/bolt", 10) != 0)
+    {
+        return;
+    }
+    qvr::shock::BeamSeen& b = qvr::shock::beamsSeen[index];
+    b.a = glm::vec3{start[0], start[1], start[2]};
+    b.b = glm::vec3{end[0], end[1], end[2]};
+    b.frame = host_framecount;
+}

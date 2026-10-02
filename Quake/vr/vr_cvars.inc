@@ -819,6 +819,7 @@ QVR_CVAR(vr_recoil_kick, "1.5", CVAR_ARCHIVE)          // cm the drawn weapon is
 QVR_CVAR(vr_recoil_rise, "4", CVAR_ARCHIVE)            // degrees its muzzle tips up at Strength 1 (looks only: the aim stays)
 QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)
 QVR_CVAR(vr_muzzle_flash_enemies, "1", CVAR_ARCHIVE)   // the grunts' and enforcers' guns flash at their muzzles as they fire
+QVR_CVAR(vr_muzzle_smoke_enemies, "1", CVAR_ARCHIVE)   // puffs of gun smoke out of an enforcer's rifle's muzzle as it fires (as your guns'; 0 none; NOTES.md vrfiringrange_2026-10-02_01-21-23)
 QVR_CVAR(vr_muzzle_flash_enemy_size, "1", CVAR_ARCHIVE) // their flashes' size (times a third of their gun's length)
 QVR_CVAR(vr_tracers, "1", CVAR_ARCHIVE)                // bullet tracers for hitscan shots (the shotguns, the burst rifle; a weapon's Tracers may differ)
 QVR_CVAR(vr_tracers_enemies, "1", CVAR_ARCHIVE)        // the monsters' hitscan shots (the grunts') too
@@ -971,6 +972,11 @@ QVR_CVAR(vr_lavagun_light_radius, "72", CVAR_ARCHIVE)  // how far that light rea
 QVR_CVAR(vr_lavagun_light_flicker, "0.35", CVAR_ARCHIVE) // how much it flickers (0 steady, 1 a lot)
 QVR_CVAR(vr_lavagun_light_idle, "0.4", CVAR_ARCHIVE)   // the same guns in holsters or lying on the floor, dimmer: their brightness over a held one's (0 none)
 QVR_CVAR(vr_beam_lights, "6", CVAR_ARCHIVE)          // the lightning (gun, shambler, Chthon) lights the room along its beam: how many lights per beam, unshadowed (0 off)
+// Quad Damage's electric arcs (vr_shock.cpp) crackling along the lightning's beams (gun, shambler, Chthon) round Quake's
+// bolt models (NOTES.md vrfiringrange_2026-10-02_01-11-17).
+QVR_CVAR(vr_beam_arcs, "1", CVAR_ARCHIVE)            // how many: 1 about one every 24 units of beam (0 off)
+QVR_CVAR(vr_beam_arcs_spread, "6", CVAR_ARCHIVE)     // how far they reach from the beam, units (each 0.8..2.4 of it long)
+QVR_CVAR(vr_beam_arcs_width, "1", CVAR_ARCHIVE)      // their thickness, x Quad's on the arms
 QVR_CVAR(vr_torch_lights, "8", CVAR_ARCHIVE)         // torches and flames flicker a small warm light onto the room: how many at once, the nearest in view (0 off)
 QVR_CVAR(vr_torch_light_scale, "1", CVAR_ARCHIVE)    // their brightness (on top of the baked light)
 QVR_CVAR(vr_torch_light_shadows, "0", CVAR_ARCHIVE)  // how many of them (the nearest) may cast shadows, taking vr_shadow_dlights' slots (0 none)
@@ -1160,6 +1166,7 @@ QVR_CVAR(vr_chainsaw_pull_shake, "3", CVAR_ARCHIVE)      // mm the chainsaw's ha
 QVR_CVAR(vr_chainsaw_pull_shake_time, "0.35", CVAR_ARCHIVE) // seconds it shakes for
 QVR_CVAR(vr_chainsaw_pull_smoke, "12", CVAR_ARCHIVE)      // puffs of exhaust smoke at the pull (as Smoke's; 0: none)
 QVR_CVAR(vr_chainsaw_pull_sparks, "24", CVAR_ARCHIVE)     // tiny sparks out of the exhaust at the pull (0: none)
+QVR_CVAR(vr_chainsaw_model_handle, "1", CVAR_ARCHIVE)    // the cord's handle in the fist is the model's own, the one seated on the saw (v_chainsaw.mdl frame 10; NOTES.md vrfiringrange_2026-10-02_01-42-48); 0: a plain tube
 QVR_CVAR(vr_gruntgun_damage, "5", CVAR_ARCHIVE)      // a grunt's dropped burst rifle (QC vr_enemyguns.qc): each round's damage (3 a trigger pull)
 QVR_CVAR(vr_gruntgun_ammo, "30", CVAR_ARCHIVE)       // the rounds a grunt's dropped burst rifle holds (its own: never refilled; a multiple of 3)
 QVR_CVAR(vr_grunt_burst, "1", CVAR_ARCHIVE)          // 1: grunts fire 3-round bursts of single bullets (QC orig_mon_soldier.qc army_fire); 0: id's shotgun (4 pellets), their dropped guns too

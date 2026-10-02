@@ -55,7 +55,10 @@ Crate cover, for a definite answer: Debug > Tests > Ahead of You > Crate Cover (
 Your values are now the defaults: mantle grunt is the pain grunt, ripcord smoke 12 and sparks 24, crates (Health 75, Breaks On Impact 16 m/s, 12 Pieces, Pieces Last 60 s), every prop weight and size you set (explosive boxes 80.5 and 40 kg, crates 40 and 65, gibs and heads heavier, rocks and bricks Mass x 1.25, your ammo, health, armour and mission-pack head slots), Throws by Weight Light Up To 1.5 kg and Heavy Falloff 0.9: a fresh config feels the same as yours
 Head flies are off (Gore > Flies on Heads); revisit later (docs/vr-port/BACKLOG.md)
 
+Lightning gun, Shambler and Mjolnir beams: Quad-style arcs along the beam (Graphics - Lights > Beam Arcs, spread, width); enforcer rifle smoke when you and enforcers fire; chainsaw cord handle in the fist is the same block as on the saw
+
 [Decide or give feedback]
+Grunts' shotguns have no muzzle smoke: add it?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?

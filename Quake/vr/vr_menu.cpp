@@ -679,6 +679,9 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Puffs of exhaust smoke each pull makes (as Smoke's, at Smoke Opacity). A weak pull, half. 0: none."),
         slider("Pull Sparks", vr_chainsaw_pull_sparks, 0.f, 40.f, 1.f, "%.0f").extend(0.f, 60.f)
             .help("Tiny sparks out of the exhaust at each pull. A weak pull, half. 0: none."),
+        toggle("Model Handle in the Hand", vr_chainsaw_model_handle)
+            .help("The cord's handle in your fist is the chainsaw model's own, the one seated on it, easing from its seat "
+                  "into the fist's turn as you take it. Off: a plain round handle."),
     };
 }
 
@@ -3755,6 +3758,7 @@ za::Vector<Item> pageWeaponEffects()
             .help("The shotgun's flash at the muzzle of the weapons whose Muzzle Flash is on (Weapon Offsets > Effects: the "
                   "grunts' burst rifle), following the gun."),
         toggle("Enemies' Muzzle Flashes", vr_muzzle_flash_enemies).help("The grunts' and enforcers' guns flash at their muzzles as they fire."),
+        toggle("Enemies' Muzzle Smoke", vr_muzzle_smoke_enemies).help("Puffs of gun smoke out of an enforcer's rifle's muzzle as it fires, as out of your guns'."),
         slider("Enemies' Flash Size", vr_muzzle_flash_enemy_size, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f),
         header("Bullet Tracers"),
         toggle("Bullet Tracers", vr_tracers)

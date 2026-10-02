@@ -10,7 +10,8 @@
 // before the next. Let go (or pulled out past the cord's length), the handle flies back into its seat.
 //
 // The handle is read from the model as it loads: the vertices that differ between its frames 0 and 9 are the handle
-// (their middle in frame 0: where the hand takes it), and where they meet in frame 9 is the cord's hole.
+// (their middle in frame 0: where the hand takes it), and where they meet in frame 9 is the cord's hole. Its frame 10
+// is the handle alone: what is drawn in the fist (handleEntity), so it is the same handle as on the saw.
 
 #pragma once
 
@@ -19,6 +20,11 @@
 
 #include "Zancle/Base/IntTypes.hpp"
 
+
+namespace qvr::view
+{
+struct ViewEntity;
+}
 
 namespace qvr::chainsaw
 {
@@ -30,6 +36,12 @@ void setupView(const hands::State& s);
 
 // The cord and the handle in the hand, in each eye's opaque scene: lit, depth-tested.
 void drawOpaque();
+
+// The cord's handle out of its seat this frame (in a fist, or flying back), drawn as the model's own (its frame `frame`:
+// the handle alone; vr_chainsaw_model_handle): the chainsaw it belongs to, and the origin and angles to draw that
+// model at (as the chainsaw, mirrored and scaled as it is). False when the handle is seated or the model has no such
+// frame (drawOpaque draws a plain tube then).
+[[nodiscard]] bool handleEntity(const view::ViewEntity*& saw, glm::vec3& origin, glm::vec3& angles, int& frame);
 
 // The grip of `hand` pressed or released (vr_input.cpp): true when the cord takes it (the game does not see it). A press
 // it takes, it also takes the release of.

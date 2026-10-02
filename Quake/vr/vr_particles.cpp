@@ -8,6 +8,7 @@
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hue.hpp"
+#include "vr_lines.hpp"
 #include "vr_mem.hpp"
 #include "vr_text3d.hpp"
 #include "vr_flashlight.hpp"
@@ -2229,6 +2230,7 @@ extern "C" void VR_DrawSceneTranslucent()
     text3d::drawTranslucent(); // the floating texts, the wrist log (vr_text3d.cpp)
     flashlight::drawTranslucent(); // the flashlight's visible beam (vr_flashlight.cpp)
     weaponfx::drawTranslucent(); // the bullet tracers (vr_weaponfx.cpp)
+    lines::drawInScene();          // the lightning's arcs (vr_shock.cpp), depth-tested
 
     if(!drawn)
     {

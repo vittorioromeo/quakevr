@@ -270,6 +270,7 @@ struct Entities
     view::ViewEntity gadgetStrap[2]; // round the forearm under its lugs (the elbow's side, the wrist's)
     view::ViewEntity flashlight; // vr_flashlight.cpp
     view::ViewEntity pouch;      // the grenade pouch at the small of the back (vr_handgrenade)
+    view::ViewEntity sawHandle;  // the chainsaw's cord's handle out of its seat (vr_chainsaw.cpp handleEntity)
     view::ViewEntity button[2];
     view::ViewEntity frontButton[2]; // the grappling gun's second button, near the muzzle (the reel-in)
     view::ViewEntity ghost[2]; // the motion review's ghost of a take's weapons (view::setGhost)
@@ -317,6 +318,7 @@ void forEachEntity(F&& f)
     f(entities.gadgetStrap[1]);
     f(entities.flashlight);
     f(entities.pouch);
+    f(entities.sawHandle);
     for(view::ViewEntity& ve : entities.button)
     {
         f(ve);
@@ -4419,6 +4421,28 @@ void setupPouch(const hands::State& s)
     highlight(ve, s.hotspot[HAND_OFF] == body::HS_GRENADE_POUCH || s.hotspot[HAND_MAIN] == body::HS_GRENADE_POUCH);
 }
 
+// The chainsaw's cord's handle in a fist (or flying back to its seat): the chainsaw's model, its frame of the handle
+// alone, placed by vr_chainsaw.cpp, mirrored, scaled and lit as the chainsaw.
+void setupSawHandle()
+{
+    view::ViewEntity& ve = entities.sawHandle;
+    const view::ViewEntity* saw = nullptr;
+    glm::vec3 origin, angles;
+    int frame = 0;
+    if(!chainsaw::handleEntity(saw, origin, angles, frame))
+    {
+        ve.visible = false;
+        return;
+    }
+    place(ve, saw->ent.model, origin, angles, frame, saw->mirrored);
+    ve.ent.lerpflags |= LERP_RESETANIM; // (never blended with the whole saw's frames)
+    ve.scale = saw->scale;
+    ve.lightMultiply = saw->lightMultiply;
+    ve.lightMod = saw->lightMod;
+    // Lit as the chainsaw (sampled where its light is): no change of shade as it leaves its seat.
+    ve.lightShift = glm::vec3{saw->ent.origin[0], saw->ent.origin[1], saw->ent.origin[2]} + saw->lightShift - origin;
+}
+
 // The weapons lying in the world (map pickups are the guns themselves in Quake VR: thrown weapons,
 // func_weapon_grabbable) near the player carry their ammo screen and button too (vr_weapon_screen_idle): the nearest
 // maxWorldWeapons within reach; a lava gun among them glows (dimmer, vr_lavagun_light_idle).
@@ -5769,6 +5793,7 @@ extern "C" void VR_SetupViewEntities()
     setupGadget(s);
     flashlight::setupView(s, entities.flashlight);
     chainsaw::setupView(s); // the chainsaw's starter cord (vr_chainsaw.cpp)
+    setupSawHandle();
     setupPouch(s);
     dripBlood(s);
     shock::frame(s); // the lightning gun in water's arcs and flash (vr_lg_water)

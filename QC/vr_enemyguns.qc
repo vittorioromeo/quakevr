@@ -206,6 +206,7 @@ void(float xHand) VR_FireEnforcerRifle =
     VR_ShotPlace(laser, xHand);
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.2, 90, 0.6);
+    particle2(VRGetMuzzlePos(xHand), '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 1); // its smoke, as your other guns'
     if(cvar_hget(cvarh_vr_debug_shots))
     {
         dprint(sprintf("rifle laser: fired at %g from %v, %g u/s\n", time, laser.origin, vlen(laser.velocity)));

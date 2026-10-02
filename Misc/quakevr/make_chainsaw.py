@@ -21,6 +21,8 @@
 # hole): the game shows frame 9 while a hand holds the cord, and draws the handle and the cord there itself. The
 # engine reads the handle from the model as it loads it: the vertices that differ between frames 0 and 9 are the
 # handle, their middle in frame 0 is where the hand takes it, and the point they collapse onto is the cord's hole.
+# Frame 10 ("handle", appended after the polish) is the handle alone (every other vertex collapsed onto its middle):
+# the game draws the handle in the fist with it, so the handle there is the very one seated on the saw.
 #
 # Cleaned for close-up viewing (round 21, as make_enemyguns.py the grunts' and enforcers' guns): the ogre's degenerate
 # triangles dropped, then `polish` (mdlpolish.py) appends a starter housing under the cord's handle, two nuts on the
@@ -42,8 +44,9 @@ BAR = range(416, 434)           # the bar
 REAR = range(451, 469)          # the rear handle (a loop behind the block, in the saw's upright plane)
 LOOP = range(469, 489)          # the front handle's loop round the block
 LENGTH = 68.0                   # model units, the rear handle's back to the bar's tip (x 0.34 x 1.1667: 27 units, 82 cm)
-FRAMES = 10                     # 0..8 the handle seated; 9 the handle out
+FRAMES = 10                     # 0..8 the handle seated; 9 the handle out (then HANDLE_ONLY appended)
 PULLED = 9
+HANDLE_ONLY = 10                # the handle alone (vr_chainsaw.cpp soloFrame)
 
 # The cord's T-handle, in the saw's frame (model units, after scaling): its middle, half its length (along x),
 # half its thickness; and the cord's hole below it (on the block's top).
@@ -182,6 +185,7 @@ def main():
     added = polish(path, out.p, [index[v] for v in BAR], blk_verts, hole, mid)
     after = strip_order(mp.Model(path).tris)
     assert after[:len(order)] == order, 'the polish moved the anchors'
+    handle_only(path, handle, mid)
     guard.finish()
     print('v_chainsaw.mdl: %d vertices, %d triangles (%d degenerate dropped), %d frames; scale %.3f of the ogre\'s' % (
         len(out.p), len(out.tris), degenerate, FRAMES, scale))
@@ -192,6 +196,27 @@ def main():
     print('  the front handle\'s top: x %.2f..%.2f, z %.2f' % (min(p[0] for p in loop), max(p[0] for p in loop),
                                                            max(p[2] for p in loop)))
     print('  bounds %.1f %.1f %.1f .. %.1f %.1f %.1f' % (*lo, *hi))
+
+
+def handle_only(path, handle, mid):
+    """Appends frame HANDLE_ONLY: frame 0 with every vertex but the cord's handle's (the polish's too) collapsed onto
+    the handle's middle, their triangles gone. The frames before it are left as they are."""
+    m = mp.Model(path)
+    assert len(m.frames) == FRAMES and m.frames[0][0] == 'simple'
+    _, hdr, verts = m.frames[0]
+    q = bytes(max(0, min(255, round((mid[k] - m.origin[k]) / m.scale[k]))) for k in range(3))
+    vb = bytearray(verts)
+    for i in range(len(m.st)):
+        if i not in handle:
+            vb[4 * i:4 * i + 3] = q
+    arr = [vb[4 * i:4 * i + 3] for i in range(len(m.st))]
+    hdr = bytearray(hdr)
+    hdr[0:3] = bytes(min(v[k] for v in arr) for k in range(3))
+    hdr[4:7] = bytes(max(v[k] for v in arr) for k in range(3))
+    hdr[8:24] = b'handle'.ljust(16, b'\0')
+    m.frames.append(['simple', hdr, vb])
+    m.h[17] = len(m.frames)
+    m.write(path)
 
 
 def polish(path, P, bar, block, hole, handle):
