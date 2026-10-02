@@ -82,6 +82,9 @@ Small gibs: size (half a rock to a rock), how they fly out (Speed, Up) and the c
 Gibs squish when they land or stick (new squish sounds); a gib or small gib thrown into a wall at a medium speed sticks (Gore > Thrown Gibs Stick)
 Small gibs: the chances by weapon (Gore > Small Gibs > Chance by Weapon), Least Damage 12, Damage for a Sure One 60, Chance Curve 1.5
 
+Shotgun wiggled fast at the dummy: no hit and no whoosh
+Gun butt strikes still land (Melee Settings > Gun Butt Travel 0.45 m; lower if too strict)
+
 [Decide or give feedback]
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
