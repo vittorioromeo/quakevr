@@ -696,6 +696,8 @@ void() VR_WallTorch_Setup =
     precache_sound("vr/torch_out.wav");
     precache_sound("vr/torch_light.wav");
     precache_sound("vr/torch_hit.wav");
+    precache_sound("vr/nail_sizzle1.wav"); // a nail through its flame (vr_burning.qc)
+    precache_sound("vr/nail_sizzle2.wav");
     precache_sound("ambience/fire1.wav");
     precache_sound("misc/null.wav");
     self.wt_state = 0;

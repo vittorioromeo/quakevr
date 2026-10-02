@@ -149,6 +149,10 @@ void main()
     }
     if (amount < 0.003 && dot(push, push) < 1e-6)
         discard;
+    // The bend is measured at q at least a unit from the eye: with the eye in the hot air the densest point may be the
+    // eye itself (the chord starts there), where the projection divides by zero and the shift ran off to the copy's
+    // edge (large flat patches of one colour over the view: standing in a burning corpse's flames).
+    q = eye + dir * max(dot(q - eye, dir), 1.0);
 
     // The bend: a shift of q in the world (an angle of up to about a degree), projected.
     vec3 w = (Shimmer(q, Eye.w) * amount + push) * (Params.x * 0.012 * distance(q, eye));

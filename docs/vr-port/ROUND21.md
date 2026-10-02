@@ -21774,3 +21774,44 @@ Checklist:
   the switch's ridges and the fins catch your light; the lens still where the beam starts.
 - [ ] Body > Flashlight > Cord: Chain: swing it about; the links hang and swing as the cord did, lit by your torch.
 - [ ] Coiled and Plain unchanged.
+
+## Black patches standing in flames; nails' fizz (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_19-33-17, _19-33-57: standing on a burning corpse's flames, large black triangles
+and rectangles flickered over the view. _19-34-31: a short fizz when a nail turns into a lava nail in a torch's flame.
+
+**Cause: the heat haze** (`vr_haze.cpp`), not the flames, their lights or the near plane. Each flame near the eye has a
+hot-air ellipsoid (flame2: 30 x 30 x 68 units over its origin); standing on a burning corpse puts the eye in one. The
+shader then takes the view ray's chord from the eye, and the point where it measures the bend is the chord's densest
+point, `clamp(tc, t0, t1)`: for every pixel looking away from the ellipsoid's middle (tc < 0) that is t0 = 0, the eye
+itself. Projecting the eye divides by zero (its clip w is 0), so the shift ran off to infinity or NaN and the read was
+clamped to the copied rectangle's edge: one colour over every such pixel, a half of the view cut by a straight line
+through the box's faces (the "triangles and rectangles"), flickering as the flames spread, moved and shimmered. Torch
+flames are on walls, out of reach: the corpses' flames on the floor are the first an eye gets into. With
+`vr_heat_haze 0` none showed.
+
+**Fix:** the bend is measured at least a unit along the ray from the eye (`q = eye + dir * max(.., 1)`); elsewhere
+unchanged (a point a unit or more away was used before too).
+
+**Checked** (`Misc/quakevr/haze_in_flames_test.sh <agent>`: a grunt's corpse burning under you, 8 head poses, an eye
+image with the haze on and one with it off, the share of pixels differing by more than 48/255):
+
+| pose (left eye) | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| before | 0.84% | 4.43% | **25.7%** | 2.37% | **16.5%** | 0.00% | 38.7% | 0.00% |
+| after | 0.45% | 4.03% | 4.86% | 2.43% | 0.44% | 0.67% | 43.6% | 44.5% |
+| haze off in both (the frames' own noise) | 0.21% | 3.69% | 4.88% | 2.20% | 0.26% | 0.00% | 44.5% | 44.5% |
+
+(Poses 7 and 8 put the arm in the face: its motion between the frames.) Before, pose 3 showed a flat grey-violet
+patch over the right half of the view; after, the range as without the haze.
+
+**Nails' fizz** (`vr_burning.qc` `VR_Burn_NailToLava`): a nail becoming a lava nail in a torch's flame plays
+`vr/nail_sizzle1.wav` or `2` (0.13 s: a bright hiss, 3 to 9 kHz, snapping on and falling in pitch, a pop or two;
+`Misc/quakevr/make_sounds.py` `nail_sizzle`) from the torch, idle attenuation, at **`vr_burn_nail_sound`** (default
+0.5; 0 none). Menu: Combat > Burning, **Nail Sizzle Volume** (after Flame's Reach for Nails). Checked (`snd_show 2`,
+e1m2, a torch in the off hand before the nailgun): 0.5 plays it at 111/127 (L/R; the torch's own fire loop 107/123),
+1 at 223/256, 0 not at all; the nails still turned.
+
+In VR:
+- [ ] Stand on a burning corpse and look about, down and up: no black or flat patches; the air over it still shimmers.
+- [ ] Fire nails through a torch's flame: a short fizz as each catches. Nail Sizzle Volume to taste.

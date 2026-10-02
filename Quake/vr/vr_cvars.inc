@@ -701,6 +701,7 @@ QVR_CVAR(vr_burn_crate_flames, "6", CVAR_ARCHIVE)        // flames a crate's fir
 QVR_CVAR(vr_burn_crate_flame_size, "1.25", CVAR_ARCHIVE) // a crate's flames' size, times a body's
 QVR_CVAR(vr_burn_nail_convert, "1", CVAR_ARCHIVE)        // 1: a nail passing through a lit torch's flame (held, thrown, lying, on its wall) becomes a lava nail
 QVR_CVAR(vr_burn_nail_reach, "10", CVAR_ARCHIVE)         // units from a torch's flame a nail must pass to catch fire
+QVR_CVAR(vr_burn_nail_sound, "0.5", CVAR_ARCHIVE)        // the volume of the short fizz a nail makes catching fire in a torch's flame (0: none)
 QVR_CVAR(vr_burn_test, "0", CVAR_NONE)                   // the QC sets the nearest monster or corpse on fire: 1 as a torch's blow, 2 a lava nail, 3 a touch; 4 prints how it burns; 5 loads lava nails in the main hand's nailgun; 6 shoots a nail through the nearest lit torch's flame (Debug)
 QVR_CVAR(vr_offhandpitch, "40.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_offhandyaw, "-4", CVAR_ARCHIVE)
