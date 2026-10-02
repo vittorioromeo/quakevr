@@ -41,6 +41,7 @@ struct Features
     float nearfield{0.f};    // strength (0 off)
     float unitsPerMetre{26.25f};
     float rate{1.f};         // slow motion's playback rate (VR_SndRate: slower and lower; 1 normal)
+    bool fullBand{false};    // the voices read their sounds' band-limited copies (vr_snd_fullband; sfxcache_t::fullband)
 };
 [[nodiscard]] Features featuresFromCvars();
 
@@ -132,9 +133,9 @@ public:
     [[nodiscard]] int activeCount() const;
 
     // `blocks` frames of every active voice, added to outL/outR (blocks x frameSize samples, paint buffer units).
-    // `reverb`: the room's (null: no reverb, its tail ringing out).
+    // `reverb`: the room's (null: no reverb, its tail ringing out), added to roomL/R when given, else to outL/R.
     void render(int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb, float* outL,
-        float* outR);
+        float* outR, float* roomL = nullptr, float* roomR = nullptr);
 
 private:
     struct Voice
@@ -165,7 +166,7 @@ private:
 
     void prepare(Voice& v, const Listener& l, const Features& f) const;
     void process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf);
-    void read(Voice& v, float* out, float step0, float step1);
+    void read(Voice& v, float* out, float step0, float step1, bool fullBand);
 
     const steamaudio::Api* sa{nullptr};
     int sampleRate{0};
@@ -220,8 +221,26 @@ private:
 };
 
 // Whether Quake low-passes the mix to 11 kHz (sndspeed 11025 at 44100: snd_mix.c), and the voices are to be filtered
-// for it (vr_snd_antialias).
+// for it (vr_snd_antialias; not with vr_snd_fullband, which keeps the voices out of that lowpass).
 [[nodiscard]] bool antiAliasWanted();
+
+// Whether Quake's 11 kHz lowpass is on (sndspeed 11025 at 44100; vr_snd_fullband 2 skips it, its sounds band-limited).
+[[nodiscard]] bool quakeLowpassOn();
+
+// The voices' render (Mixer::render) into mixL/mixR (blocks x frame samples, cleared first), filtered for Quake's
+// 11 kHz lowpass: with vr_snd_fullband 0, all of it anti-aliased (vr_snd_antialias), to go through that lowpass; else
+// the direct sound as it is and the reverb anti-aliased (revL/revR its room; as before: its own highs above 5.5 kHz,
+// even from Quake's 11 kHz sounds, are Steam Audio's parametric reverb's, up to -32 dB of it), to go round it.
+void renderVoices(Mixer& m, int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb,
+    za::Vector<float>& mixL, za::Vector<float>& mixR, za::Vector<float>& revL, za::Vector<float>& revR, AntiAlias& aa);
+
+// A sound's band-limited copy (sfxcache_t::fullband: snd_mem.c, VR_SndBandLimit), or null when it is at the mix's rate.
+[[nodiscard]] const short* fullBandData(const sfxcache_t* sc);
+
+// A band-limited copy (`length` samples, its loop from `loop`, -1 none) at a fractional position, windowed-sinc
+// interpolated (slow motion and Doppler read it so; vr_audio.cpp, VR_SndFullBandAt). At the copy's scale.
+[[nodiscard]] float fullBandAt(const short* x, int length, int loop, double pos);
+void makeInterpTable(); // (init)
 
 // Levels of a stereo signal, in dB (full scale 32768): all of it, each side, below 500 Hz and above 4 kHz.
 struct Levels

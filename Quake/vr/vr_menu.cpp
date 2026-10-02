@@ -832,8 +832,14 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
                   "turn: in front, behind, above and below, not just left or right. Off: Quake's panning."),
         cycle("HRTF Smoothing", vr_snd_hrtf_interp, {{1.f, "Smooth (Bilinear)"}, {0.f, "Nearest (Cheaper)"}})
             .help("Between the measured directions: blended (moving sounds glide), or the nearest one."),
+        cycle("Full-Band Sound", vr_snd_fullband,
+            {{0.f, "Off (Quake's 11 kHz)"}, {1.f, "Binaural Sounds"}, {2.f, "All Sounds"}})
+            .help("Quake's 11 kHz low-pass (sndspeed 11025, the default) cuts everything above 5.5 kHz, where the "
+                  "binaural sounds' cues for ahead, behind, above and below are. Binaural Sounds: those skip it, each "
+                  "resampled cleanly (no hiss from Quake's old 11 kHz sounds; the 22 and 44 kHz ones keep their highs). "
+                  "All Sounds: the panned ones too. Off: everything through it, as Quake."),
         toggle("HRTF Anti-Aliasing", vr_snd_antialias)
-            .help("With Quake's 11 kHz sound (sndspeed 11025, the default), the binaural sounds are filtered before "
+            .help("With Full-Band Sound off and Quake's 11 kHz sound, the binaural sounds are filtered before "
                   "Quake's own low-pass, which keeps every fourth sample and so folds their highs down into the lows: "
                   "off, a sound at your side is far more one-sided than its HRTF and the balance near the front jumps "
                   "about. Off only to compare."),
@@ -2987,6 +2993,15 @@ za::Vector<Item> pageDebugTests()
         command("A Sound 45 Degrees Left", "vr_snd_play_dir misc/r_tele1.wav -45")
             .help("vr_snd_play_dir: the same sound 45 degrees left: it should sound as far to the left as the other did to "
                   "the right."),
+        command("A 22 kHz Sound Behind You", "vr_snd_play_dir vr/torch_out.wav 180")
+            .help("vr_snd_play_dir: the torch going out (a 22 kHz sound, with highs) behind your head. With Sound > "
+                  "Full-Band Sound on it should sound behind, and duller than ahead; off (Quake's 11 kHz low-pass) it "
+                  "loses the highs that tell (ROUND21.md, \"Full-band sound\")."),
+        command("A 22 kHz Sound Ahead", "vr_snd_play_dir vr/torch_out.wav 0")
+            .help("vr_snd_play_dir: the same sound straight ahead, to compare."),
+        command("Save a Sound's Two Copies", "vr_snd_dump weapons/r_exp3.wav")
+            .help("vr_snd_dump <sample>: a loaded sound as Quake holds it (each sample repeated up to the mix's rate) and "
+                  "its band-limited copy (what Full-Band Sound plays), to sound_tests (dump_*_held.wav, _full.wav)."),
         command("Save the Sound Scene", "vr_snd_scene_obj")
             .help("vr_snd_scene_obj: the map as Steam Audio sees it, to the game folder's sound_tests (scene.obj)."),
         header("Ahead of You"),

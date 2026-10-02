@@ -1473,6 +1473,294 @@ void bench(Result& res)
 
 } // namespace
 
+// ----------------------------------------------------------------------------
+// Full band (vr_snd_fullband)
+
+// A sound of `inrate` loaded as S_LoadSound does (snd_mem.c): Quake's held samples at the mix's rate, and the
+// band-limited copy after them (VR_SndBandLimit).
+struct Loaded
+{
+    za::Vector<unsigned char> bytes;
+    [[nodiscard]] const sfxcache_t* cache() const
+    {
+        return reinterpret_cast<const sfxcache_t*>(bytes.data());
+    }
+};
+
+Loaded loadAt(int inrate, int samples, int width, bool loop, float (*gen)(int i, unsigned& seed))
+{
+    za::Vector<unsigned char> raw(static_cast<za::SizeT>(samples * width), 0);
+    unsigned seed = 4321;
+    for(int i = 0; i < samples; i++)
+    {
+        const int v = static_cast<int>(za::clamp(gen(i, seed), -32767.f, 32767.f));
+        if(width == 2)
+        {
+            raw[2 * i] = static_cast<unsigned char>(v & 255);
+            raw[2 * i + 1] = static_cast<unsigned char>((v >> 8) & 255);
+        }
+        else
+        {
+            raw[i] = static_cast<unsigned char>(za::clamp(v / 256 + 128, 0, 255));
+        }
+    }
+    const float stepscale = static_cast<float>(inrate) / testRate;
+    const int outcount = static_cast<int>(static_cast<float>(samples) / stepscale);
+    const int fb = (outcount * width + 3) & ~3;
+    Loaded s;
+    s.bytes.resize(sizeof(sfxcache_t) + static_cast<za::SizeT>(fb + 2 * outcount + 16), 0);
+    sfxcache_t* sc = reinterpret_cast<sfxcache_t*>(s.bytes.data());
+    sc->length = outcount;
+    sc->loopstart = loop ? 0 : -1;
+    sc->speed = testRate;
+    sc->width = width;
+    sc->fullband = fb;
+    const int fracstep = static_cast<int>(stepscale * 256);
+    int src = 0;
+    int frac = 0;
+    for(int i = 0; i < outcount; i++) // (ResampleSfx's)
+    {
+        if(width == 2)
+        {
+            reinterpret_cast<short*>(sc->data)[i] = static_cast<short>(raw[2 * src] | (raw[2 * src + 1] << 8));
+        }
+        else
+        {
+            reinterpret_cast<signed char*>(sc->data)[i] = static_cast<signed char>(static_cast<int>(raw[src]) - 128);
+        }
+        frac += fracstep;
+        src += frac >> 8;
+        frac &= 255;
+    }
+    VR_SndBandLimit(raw.data(), width, samples, loop ? 0 : -1, fracstep, reinterpret_cast<short*>(sc->data + fb),
+        outcount);
+    return s;
+}
+
+za::Vector<float> samplesOf(const sfxcache_t* sc, bool full)
+{
+    za::Vector<float> x(static_cast<za::SizeT>(sc->length), 0.f);
+    const short* f = fullBandData(sc);
+    for(int i = 0; i < sc->length; i++)
+    {
+        x[i] = full ? static_cast<float>(f[i] * S_FULLBAND_SCALE)
+               : sc->width == 2 ? static_cast<float>(reinterpret_cast<const short*>(sc->data)[i])
+                                : static_cast<float>(static_cast<signed char>(sc->data[i])) * 256.f;
+    }
+    return x;
+}
+
+// Through Quake's 11 kHz lowpass (S_LowpassTest), a mono sound or one ear (`side` its filter's memory).
+void quakeLowpass(za::Vector<float>& x, int side)
+{
+    const int n = static_cast<int>(x.size());
+    za::Vector<int> buf(static_cast<za::SizeT>(n));
+    for(int i = 0; i < n; i++)
+    {
+        buf[i] = static_cast<int>(x[i] * 256.f);
+    }
+    S_LowpassTest(buf.data(), 1, n, side, 1);
+    for(int i = 0; i < n; i++)
+    {
+        x[i] = static_cast<float>(buf[i]) / 256.f;
+    }
+}
+
+// dB per Hz in [f0, f1) (earBand's power over the band's width).
+float density(const za::Vector<float>& x, int from, float f0, float f1)
+{
+    return earBand(x, from, f0, f1) - 10.f * za::log10(f1 - f0);
+}
+
+float sine441(int i, unsigned&)
+{
+    return 8000.f * za::sin(2.f * 3.14159265f * 441.f * static_cast<float>(i) / 11025.f);
+}
+
+// The voices without Quake's 11 kHz lowpass (vr_snd_fullband; ROUND21.md, "Full-band sound"): each sound resampled
+// band-limited (VR_SndBandLimit) instead of Quake's held samples. An id-style 8-bit 11025 Hz noise and a 16-bit 22050 Hz
+// one: the copy's images (above the sound's own Nyquist) gone where the held samples' are loud, its level below 4.5 kHz
+// Quake's (through its lowpass), the 22 kHz sound's 6-10 kHz kept. Then as a voice (HRTF; 60 degrees right, ahead,
+// behind): no images; the 22 kHz sound's highs reach the ears (the cues that tell ahead from behind); the 11 kHz sound's
+// level at each ear as through the anti-aliasing and Quake's lowpass below 1.5 kHz, and up to ~1 dB brighter above (a
+// voice read the held samples, whose response droops to -3.9 dB at 5.5 kHz; Quake's own channels never had that). And a looping sound's seam: a 441 Hz sine whose
+// loop is whole periods comes out as the sine all through, the wrap included.
+void testFullBand(Result& res)
+{
+    const int from = 4096;
+    const Loaded id11 = loadAt(11025, 11025 * 2, 1, true, noise);
+    const Loaded mod22 = loadAt(22050, 22050 * 2, 2, true, noise);
+
+    // The sounds alone.
+    {
+        const za::Vector<float> held = samplesOf(id11.cache(), false);
+        const za::Vector<float> full = samplesOf(id11.cache(), true);
+        za::Vector<float> quake = held;
+        quakeLowpass(quake, 0);
+        const float heldImg = density(held, from, 5800.f, 22000.f) - density(held, from, 250.f, 4500.f);
+        const float fullImg = density(full, from, 5800.f, 22000.f) - density(full, from, 250.f, 4500.f);
+        const float quakeImg = density(quake, from, 5800.f, 22000.f) - density(quake, from, 250.f, 4500.f);
+        const float pass = earBand(full, from, 250.f, 4500.f) - earBand(quake, from, 250.f, 4500.f);
+        Con_Printf("snd_test fullband: 11 kHz sound, 5.8-22 kHz against 0.25-4.5 (dB/Hz): held %.1f, Quake's lowpass "
+                   "%.1f, band-limited %.1f; 0.25-4.5 kHz band-limited minus Quake's lowpass %+.2f dB\n",
+            heldImg, quakeImg, fullImg, pass);
+        res.check("fullband: the held 11 kHz sound has images (> -25 dB)", heldImg > -25.f);
+        res.check("fullband: the band-limited copy has none (< -65 dB)", fullImg < -65.f);
+        res.check("fullband: its 0.25-4.5 kHz as through Quake's lowpass (within 0.5 dB)", za::abs(pass) < 0.5f);
+
+        const za::Vector<float> held22 = samplesOf(mod22.cache(), false);
+        const za::Vector<float> full22 = samplesOf(mod22.cache(), true);
+        za::Vector<float> quake22 = held22;
+        quakeLowpass(quake22, 1);
+        const float kept = density(full22, from, 6000.f, 10000.f) - density(full22, from, 1000.f, 4000.f);
+        const float keptQuake = density(quake22, from, 6000.f, 10000.f) - density(quake22, from, 1000.f, 4000.f);
+        const float img22 = density(full22, from, 11700.f, 22000.f) - density(full22, from, 1000.f, 4000.f);
+        const float heldImg22 = density(held22, from, 11700.f, 22000.f) - density(held22, from, 1000.f, 4000.f);
+        Con_Printf("snd_test fullband: 22 kHz sound, 6-10 kHz against 1-4 (dB/Hz): band-limited %+.1f, Quake's lowpass "
+                   "%+.1f; 11.7-22 kHz: held %.1f, band-limited %.1f\n",
+            kept, keptQuake, heldImg22, img22);
+        res.check("fullband: the 22 kHz sound keeps 6-10 kHz (within 1 dB)", za::abs(kept) < 1.f);
+        res.check("fullband: and none of its images (< -65 dB)", img22 < -65.f);
+    }
+
+    // As voices.
+    Mixer m;
+    if(!m.create(testRate, testFrame(), ""))
+    {
+        res.check("fullband (no Steam Audio)", false);
+        return;
+    }
+    const Listener lis = centred();
+    const float r = 2.f * units::perMetre;
+    const auto render = [&](const sfxcache_t* sc, float az, bool fullBand, float rate = 1.f) {
+        Features f = baseFeatures();
+        f.fullBand = fullBand;
+        f.rate = rate;
+        const float a = az * 3.14159265f / 180.f;
+        const glm::vec3 pos = r * (za::cos(a) * lis.fwd + za::sin(a) * lis.right);
+        return renderVoice(m, sc, lis, f, nullptr, 1.5f, [&](double, VoiceInput& in) { in.pos = pos; });
+    };
+    const auto throughQuake = [](Render& x) {
+        AntiAlias aa;
+        aa.apply(x.l.data(), x.r.data(), static_cast<int>(x.l.size()));
+        quakeLowpass(x.l, 0);
+        quakeLowpass(x.r, 1);
+    };
+    {
+        const Render full = render(id11.cache(), 60.f, true);
+        Render quake = render(id11.cache(), 60.f, false);
+        throughQuake(quake);
+        float worstImg = -200.f;
+        float worstLevel = 0.f;
+        float worstLow = 0.f;
+        for(int ear = 0; ear < 2; ear++)
+        {
+            const za::Vector<float>& x = ear ? full.r : full.l;
+            const za::Vector<float>& y = ear ? quake.r : quake.l;
+            worstImg = za::max(worstImg, density(x, from, 5800.f, 22000.f) - density(x, from, 250.f, 4500.f));
+            const float d = earBand(x, from, 250.f, 4500.f) - earBand(y, from, 250.f, 4500.f);
+            worstLevel = za::abs(d) > za::abs(worstLevel) ? d : worstLevel;
+            const float low = earBand(x, from, 250.f, 1500.f) - earBand(y, from, 250.f, 1500.f);
+            worstLow = za::abs(low) > za::abs(worstLow) ? low : worstLow;
+        }
+        Con_Printf("snd_test fullband: 11 kHz voice at 60 degrees: 5.8-22 kHz against 0.25-4.5 %.1f dB/Hz (worse ear); "
+                   "minus anti-aliased and Quake's lowpass: 0.25-1.5 kHz %+.2f dB, 0.25-4.5 %+.2f (worse ear; the held "
+                   "samples' droop gone)\n",
+            worstImg, worstLow, worstLevel);
+        res.check("fullband: an 11 kHz voice has no images (< -55 dB)", worstImg < -55.f);
+        res.check("fullband: an 11 kHz voice as loud as through Quake's lowpass (0.25-1.5 kHz, within 0.5 dB)",
+            za::abs(worstLow) < 0.5f);
+        res.check("fullband: and no duller (0.25-4.5 kHz, 0..+1.5 dB)", worstLevel >= 0.f && worstLevel < 1.5f);
+    }
+    {
+        const Render ahead = render(mod22.cache(), 0.f, true);
+        const Render behind = render(mod22.cache(), 180.f, true);
+        Render aheadQ = render(mod22.cache(), 0.f, false);
+        Render behindQ = render(mod22.cache(), 180.f, false);
+        throughQuake(aheadQ);
+        throughQuake(behindQ);
+        const auto highs = [&](const Render& x) {
+            return 0.5f * (earBand(x.l, from, 6000.f, 10000.f) + earBand(x.r, from, 6000.f, 10000.f)) -
+                   0.5f * (earBand(x.l, from, 1000.f, 4000.f) + earBand(x.r, from, 1000.f, 4000.f));
+        };
+        Con_Printf("snd_test fullband: 22 kHz voice, 6-10 kHz against 1-4 kHz: ahead %+.1f, behind %+.1f dB (through "
+                   "Quake's lowpass: %+.1f, %+.1f)\n",
+            highs(ahead), highs(behind), highs(aheadQ), highs(behindQ));
+        res.check("fullband: a 22 kHz voice's highs reach the ears (6-10 kHz > -15 dB of 1-4)", highs(ahead) > -15.f);
+        res.check("fullband: ahead brighter than behind (6-10 kHz, > 2 dB)", highs(ahead) - highs(behind) > 2.f);
+    }
+
+    // Slow motion (a quarter speed): read between the copy's samples, windowed-sinc (linearly, the 22 kHz sound's
+    // highs left images at 8-14 kHz).
+    {
+        const Render slow = render(mod22.cache(), 30.f, true, 0.25f);
+        const float img = za::max(density(slow.l, from, 3500.f, 20000.f) - density(slow.l, from, 250.f, 2500.f),
+            density(slow.r, from, 3500.f, 20000.f) - density(slow.r, from, 250.f, 2500.f));
+        Con_Printf("snd_test fullband: 22 kHz voice at a quarter speed, 3.5-20 kHz against 0.25-2.5 %.1f dB/Hz (worse "
+                   "ear)\n",
+            img);
+        res.check("fullband: slowed, no images (< -50 dB)", img < -50.f);
+    }
+
+    // The cost: 32 moving voices (Doppler: read between samples), HRTF, a 90 Hz frame's 490 samples, held samples read
+    // linearly against the copies read windowed-sinc.
+    {
+        const int frame = m.frameSize();
+        const int blocks = (testRate / 90 + frame - 1) / frame;
+        za::Vector<float> bl(static_cast<za::SizeT>(blocks * frame)), br(static_cast<za::SizeT>(blocks * frame));
+        double ms[2]{};
+        for(int full = 0; full < 2; full++)
+        {
+            Features f = baseFeatures();
+            f.doppler = 1.f;
+            f.fullBand = full != 0;
+            for(int v = 0; v < Mixer::maxVoices; v++)
+            {
+                m.start(v, mod22.cache(), static_cast<double>(v * 1000));
+                VoiceInput in;
+                const float a = static_cast<float>(v) * 0.7f;
+                in.pos = r * 2.f * (za::cos(a) * lis.fwd + za::sin(a) * lis.right);
+                in.vel = glm::vec3{300.f, 0.f, 0.f};
+                in.gain = 0.1f;
+                m.set(v, in);
+            }
+            for(int k = 0; k < 10; k++)
+            {
+                m.render(blocks, lis, f, nullptr, bl.data(), br.data());
+            }
+            const double start = Sys_DoubleTime();
+            constexpr int frames = 200;
+            for(int k = 0; k < frames; k++)
+            {
+                m.render(blocks, lis, f, nullptr, bl.data(), br.data());
+            }
+            ms[full] = (Sys_DoubleTime() - start) * 1000.0 / frames;
+        }
+        for(int v = 0; v < Mixer::maxVoices; v++)
+        {
+            m.stop(v);
+        }
+        Con_Printf("snd_test fullband: 32 moving voices a 90 Hz frame: held samples (linear) %.3f ms, copies "
+                   "(windowed sinc) %.3f ms\n",
+            ms[0], ms[1]);
+    }
+
+    // The loop's seam.
+    {
+        const Loaded sine = loadAt(11025, 2500, 2, true, sine441); // 100 periods
+        const za::Vector<float> x = samplesOf(sine.cache(), true);
+        float worst = 0.f;
+        for(int i = 0; i < static_cast<int>(x.size()); i++)
+        {
+            const float ideal = 8000.f * za::sin(2.f * 3.14159265f * static_cast<float>(i % 100) / 100.f);
+            worst = za::max(worst, za::abs(x[i] - ideal));
+        }
+        Con_Printf("snd_test fullband: looping 441 Hz sine, the copy's largest error %.1f of 8000 (its seam included)\n",
+            worst);
+        res.check("fullband: a loop's copy goes round its seam (error < 1%)", worst < 80.f);
+    }
+}
+
 void test_f()
 {
     const char* which = Cmd_Argc() > 1 ? Cmd_Argv(1) : "all";
@@ -1491,6 +1779,10 @@ void test_f()
     if(all || !ZA_STRCMP(which, "ild"))
     {
         testIld(res);
+    }
+    if(all || !ZA_STRCMP(which, "fullband"))
+    {
+        testFullBand(res);
     }
     if(all || !ZA_STRCMP(which, "clicks"))
     {
