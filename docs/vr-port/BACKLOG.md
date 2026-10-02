@@ -55,3 +55,9 @@ seconds, with fly particles buzzing round it as well as the sound.
 - **`.rtlights` support** (round 20 discussion): load DarkPlaces' hand-authored light lists where they exist to
   drive the shadowed map lights (better placed than the map's light entities).
 - **Distance-field AO** (round 20 discussion): only if capsule/box AO leaves obvious gaps.
+- **Ragdoll physics for corpses and dismemberment** (the author, 2026-10-02: "research ragdoll physics for enemy
+  corpses and dismemberment"): research only, nothing built yet. Questions to answer: how to rig Quake's vertex-animated
+  .mdl monsters (no skeletons) for ragdolls (derived bone chains per model, skinning the last death frame, or
+  per-limb pieces); Box3D joints and their cost with many corpses (the thread benchmarks: physbench); blending from
+  the death animation into the ragdoll; severing limbs/heads where hit (ties into small gibs, ThrowHead, wounds and
+  blood decals); networking/saves; and which monsters first.
