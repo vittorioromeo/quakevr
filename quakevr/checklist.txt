@@ -127,6 +127,14 @@ Nails through a torch flame: hold a torch just past the nailgun's muzzle and fir
 Small gibs from sword/axe cuts and punches land about half a metre from the enemy, not flying past him
 Small gibs from gibbing a corpse lying down scatter a couple of metres round it (Gore > Small Gibs > Flight by Situation)
 
+Blood: chainsaw a monster a few seconds: hands and forearms well bloodied, the saw too (Gore > Blood on You and Your Gear)
+Blood: punches, sword, axe, rock or brick hits leave some blood on hands and the held thing
+Blood: shooting from a step or two away spatters a few drops on the gun and arms
+Blood: a wound on one arm no longer appears on the other (mirror fix)
+Blood: throw a bloody weapon, pick it up, holster and draw it: blood stays; dunk it: washed
+Blood: get hurt, then a health pickup: your wounds fade, others' blood stays until water
+Blood Opacity 0.8 vs 1: pick one
+
 [Decide or give feedback]
 Explosive boxes catching fire and blowing up from it: add?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
