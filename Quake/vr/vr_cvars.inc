@@ -301,7 +301,7 @@ QVR_CVAR(vr_sandevistan, "0", CVAR_ARCHIVE)            // 1: in any slow motion 
 QVR_CVAR(vr_sandevistan_missiles, "1", CVAR_ARCHIVE)   // in Sandevistan, the player's missiles (rockets, grenades, nails, thrown weapons, the hook) fly and think in its time too; 0: they join the slowed world
 // Bullet time (vr_bullettime.cpp; ROUND21.md, "Slow motion: bullet time and Sandevistan"): the gadget's button slows the
 // world for as long as the meter lasts.
-QVR_CVAR(vr_bullettime_enabled, "1", CVAR_ARCHIVE)     // 1: the wrist gadget's button (the inner one on its lower edge) and vr_bullettime start and stop it; 0: off
+QVR_CVAR(vr_bullettime_enabled, "1", CVAR_ARCHIVE)     // 1: a tap on the gadget's wrist (vr_bullettime_tap), the gadget's button (the inner one on its lower edge: vr_bullettime_button) and vr_bullettime start and stop it; 0: off
 QVR_CVAR(vr_bullettime_scale, "0.3", CVAR_ARCHIVE)     // the world's time scale while it runs (0.05 .. 1)
 QVR_CVAR(vr_bullettime_duration, "6", CVAR_ARCHIVE)    // real seconds a full meter lasts
 QVR_CVAR(vr_bullettime_recharge, "20", CVAR_ARCHIVE)   // real seconds the meter takes to fill from empty (after the cooldown)
@@ -314,10 +314,21 @@ QVR_CVAR(vr_bullettime_fx_vignette, "0.5", CVAR_ARCHIVE) // ... how dark the vie
 QVR_CVAR(vr_bullettime_fx_tint, "0.85 0.95 1.15", CVAR_ARCHIVE) // ... the colour it multiplies by (red green blue)
 QVR_CVAR(vr_bullettime_button_radius, "1.5", CVAR_ARCHIVE) // units: how near the fingertip must come to the button's middle to press it
 QVR_CVAR(vr_bullettime_button_reach, "1", CVAR_ARCHIVE) // units: the fingertip, ahead of the hand's place
+QVR_CVAR(vr_bullettime_button, "1", CVAR_ARCHIVE)     // 1: the gadget's button starts and stops it; 0: not
+// The wrist tap: the other hand (its own middle, never what it holds) struck against the gadget's wrist, hard enough.
+QVR_CVAR(vr_bullettime_tap, "1", CVAR_ARCHIVE)        // 1: a tap on the gadget's wrist starts and stops it; 0: not
+QVR_CVAR(vr_bullettime_tap_radius, "15", CVAR_ARCHIVE) // cm: how near the gadget's middle the other hand's middle must come
+QVR_CVAR(vr_bullettime_tap_speed, "1", CVAR_ARCHIVE)  // m/s: the least speed of the hands towards each other (resting and brushing hands don't tap)
+QVR_CVAR(vr_bullettime_tap_stop, "0.5", CVAR_ARCHIVE) // the impact: the hands' speed must fall to this much of its peak in the zone (a hand passing by doesn't tap); 1: on arrival
+QVR_CVAR(vr_bullettime_tap_window, "0.25", CVAR_ARCHIVE) // seconds after the peak speed the impact may come
+QVR_CVAR(vr_bullettime_tap_holding, "1", CVAR_ARCHIVE) // 1: the tapping hand may hold something (its hand taps, not what it holds); 0: only an empty hand
+QVR_CVAR(vr_bullettime_tap_twohanded, "0", CVAR_ARCHIVE) // 1: taps count while both hands hold one weapon; 0: ignored then (the off hand on a foregrip)
+QVR_CVAR(vr_bullettime_trigger_cooldown, "0.5", CVAR_ARCHIVE) // real seconds after a press or tap before the next counts (no double triggers)
+QVR_CVAR(vr_bullettime_haptic, "1", CVAR_ARCHIVE)     // the tick in both hands when a press or tap counts (0 off .. 2)
 QVR_CVAR(vr_bullettime_sound_on, "items/inv1.wav", CVAR_ARCHIVE)     // its sounds (empty: none)
 QVR_CVAR(vr_bullettime_sound_off, "items/inv2.wav", CVAR_ARCHIVE)
 QVR_CVAR(vr_bullettime_sound_denied, "misc/menu2.wav", CVAR_ARCHIVE) // pressed with the meter too low or cooling down
-QVR_CVAR(vr_debug_bullettime, "0", CVAR_NONE)          // 1: prints it starting, stopping and refused; 2: the fingertip's distance to the button every frame
+QVR_CVAR(vr_debug_bullettime, "0", CVAR_NONE)          // 1: prints it starting, stopping and refused, and each press and tap; 2: also the fingertip's distance to the button every frame; 3: the wrist tap's distance and speeds every frame
 // The flat HUD (the status bar, hudstyle) over the window's view while in VR: over the mirror (Left Eye, Smoothed
 // Mirror) and over the spectator camera (off: the headset's view, the wrist gadget its HUD, for recording).
 QVR_CVAR(vr_window_hud_mirror, "1", CVAR_ARCHIVE)

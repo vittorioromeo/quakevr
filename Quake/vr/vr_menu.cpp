@@ -2519,9 +2519,10 @@ za::Vector<Item> pageDebugLogging()
             .help("The game's developer messages: needed by Shots and Damage and the Grappling Hook's log below, and many "
                   "others (melee events, grenades, deflections). Verbose: every frame's melee detail too."),
         header("Logs"),
-        cycle("Bullet Time", vr_debug_bullettime, {{0.f, "Off"}, {1.f, "On, Off, Refused"}, {2.f, "And the Button's Distance"}})
-            .help("Bullet time starting, stopping and refused (the meter, the cooldown); and every frame, how far your "
-                  "fingertip is from the gadget's button."),
+        cycle("Bullet Time", vr_debug_bullettime, {{0.f, "Off"}, {1.f, "On, Off, Refused"}, {2.f, "And the Button's Distance"}, {3.f, "And the Wrist Tap"}})
+            .help("Bullet time starting, stopping and refused (the meter, the cooldown), each tap and press; and every "
+                  "frame, how far your fingertip is from the gadget's button, or (And the Wrist Tap) how far your other "
+                  "hand is from the gadget and how fast the hands come together."),
         cycle("Chainsaw", vr_debug_chainsaw, {{0.f, "Off"}, {1.f, "Pulls and Cuts"}, {2.f, "And the Bar in Monsters"}})
             .help("The chainsaws' cords (taken, pulled, too slow, let go), their engines (started, stalled) and cuts; "
                   "And the Bar: also each cut's test against what is near, how deep the drawn bar sinks into a monster, "

@@ -102,9 +102,10 @@
 {
     return {
         toggle("Bullet Time", "vr_bullettime_enabled")
-            .help("Press the inner button on your wrist gadget's lower edge with your other hand's fingertip: the world "
-                  "slows for as long as the meter on the gadget's screen (TIME) lasts; press again to stop. Then a "
-                  "cooldown, and the meter fills again. Bindable: vr_bullettime. Single player."),
+            .help("Tap your gadget's wrist hard with your other hand (or press the inner button on the gadget's lower "
+                  "edge with its fingertip): the world slows for as long as the meter on the gadget's screen (TIME) "
+                  "lasts; tap again to stop. Then a cooldown, and the meter fills again. Bindable: vr_bullettime. "
+                  "Single player."),
         command("Start or Stop It Now", "vr_bullettime").help("vr_bullettime: as the gadget's button."),
         slider("Time Scale", "vr_bullettime_scale", 0.1f, 1.f, 0.05f, "%.2fx").extend(0.05f, 1.f)
             .help("How fast the world runs while it lasts (0.3: under a third of its speed)."),
@@ -128,10 +129,38 @@
                   "with the recording's Time Scale (Graphics > Recording)."),
         slider("Colour Drained", "vr_bullettime_fx_desat", 0.f, 1.f, 0.05f, "%.2f"),
         slider("Darkened Edges", "vr_bullettime_fx_vignette", 0.f, 1.f, 0.05f, "%.2f"),
+        header("Wrist Tap"),
+        toggle("Tap the Wrist", "vr_bullettime_tap")
+            .help("Strike your other hand (the hand itself, not what it holds) against the wrist wearing the gadget, "
+                  "anywhere near it: no button to find. It must come at it fast enough and stop there, so resting or "
+                  "brushing hands do nothing."),
+        slider("Tap Zone Size", "vr_bullettime_tap_radius", 5.f, 30.f, 1.f, "%.0f cm").extend(1.f, 60.f)
+            .help("How near the gadget's middle your other hand's middle must come."),
+        slider("Tap Force", "vr_bullettime_tap_speed", 0.3f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
+            .help("How fast your hands must come together (either may move). Higher: harder taps only."),
+        slider("Tap Must Stop", "vr_bullettime_tap_stop", 0.1f, 1.f, 0.05f, "%.2f")
+            .help("The impact: the hands' speed must drop to this much of its peak in the zone (a hand swinging past "
+                  "keeps its speed). 1: counts as it arrives, stopped or not."),
+        slider("Tap Window", "vr_bullettime_tap_window", 0.05f, 1.f, 0.05f, "%.2f s")
+            .help("How soon after its fastest the hand must stop on the wrist."),
+        toggle("Tap While Holding", "vr_bullettime_tap_holding")
+            .help("On: the tapping hand may hold a weapon or a prop (its hand taps, never what it holds). Off: only "
+                  "an empty hand taps."),
+        toggle("Tap During Two-Handed Holds", "vr_bullettime_tap_twohanded")
+            .help("Off: no taps while both hands hold one weapon (your gadget hand on its foregrip), against accidents. "
+                  "Moving together, the hands never tap anyway."),
         header("Button"),
-        slider("Button Size", "vr_bullettime_button_radius", 0.5f, 4.f, 0.25f, "%.2f units")
+        toggle("Gadget Button", "vr_bullettime_button")
+            .help("The inner button on the gadget's lower edge, pressed with your other hand's fingertip."),
+        slider("Button Size", "vr_bullettime_button_radius", 0.5f, 8.f, 0.25f, "%.2f units")
             .help("How near your fingertip must come to the button's middle to press it (a unit is about 3.8 cm)."),
         slider("Fingertip Reach", "vr_bullettime_button_reach", -2.f, 6.f, 0.25f, "%.2f units")
             .help("Where your fingertip is taken to be, ahead of your hand's point."),
+        header("Both"),
+        slider("Ignore Repeats For", "vr_bullettime_trigger_cooldown", 0.f, 2.f, 0.1f, "%.1f s")
+            .help("After a tap or press counts, how long before the next one does (a tap and a press together, or a "
+                  "bounce, are one)."),
+        slider("Haptic Tick", "vr_bullettime_haptic", 0.f, 2.f, 0.25f, "%.2f")
+            .help("The tick in both hands when a tap or press counts (0: none)."),
     };
 }
