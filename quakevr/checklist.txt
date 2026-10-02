@@ -115,7 +115,13 @@ Retro textures on your hands and held weapons: steady as you move them close to 
 Retro overrides: Graphics > Retro Textures > Pick: Point, 3 Seconds: point at a crate: outlined, then its Override page: Block Size Times 2, Quake Palette Set 1: only that crate changes; restart: still so (quakevr/retro_overrides.txt)
 Retro overrides: pick a wall: the page edits that texture everywhere; on an ammo box, Override For switches between the box's model and the texture
 
+Sword and axe slashes and stabs on grunts and corpses: small gibs pop up and land near the wound, not batted across the room
+Bat a small gib that has lain a moment: it still flies (Small Gibs > Not Batted Away For 0.3 s)
+Stand on a corpse and gib it with a blow and with the shotgun at your feet: no damage to you (Flung Props > Fresh Gibs Harmless For)
+Throw a gib at a monster after picking it up: it still hurts
+
 [Decide or give feedback]
+A blade passing through a small gib it just made doesn't burst it (0.3 s grace): OK, or should fresh gibs still burst?
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?
 Grappling hook: allow the flashlight to clip on it? (on now)
