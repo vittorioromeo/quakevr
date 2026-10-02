@@ -21282,8 +21282,25 @@ so a mark on one arm showed on the other. Your body's fine mask is now two layer
 heaviest bone's (bones ending in `_r`, sent per instance in `InstanceData.WoundSide.xy` as two 24-bit whole numbers;
 `QVR_ALIAS_VS_WOUNDSIDE`, flat `out_woundside`, location 14); no triangle mixes sides. Painting draws the body twice,
 each side into its layer (the other side's triangles pushed off the target: `WoundSide.z`); every subtract, wash, dump
-and count does both. The skins and the model are untouched. Chunky mode (`vr_wounds_own_res 0`: in the pool) keeps the
-old mirrored marks.
+and count does both. The skins and the model are untouched. Chunky mode (`vr_wounds_own_res 0`: in the pool) kept the
+old mirrored marks (fixed below, "Chunky arms on their own texels").
+
+### Chunky arms on their own texels
+
+Chunky mode (`vr_wounds_own_res 0`, the default) now splits your body's mask by side too: the pool has one extra
+256 x 256 layer, its last (`vr_wounds_pool` + 1 layers, +256 KB), never given to another model, holding your body's
+right side; its left side and middle stay in its own pool layer. The chunky read (`texelFetch` on the skin's grid,
+the 4x4 dither, Quake's reds) is unchanged but for the layer: `in_woundside` picks the pool's last. Monsters, hands,
+weapons and props: one layer, as before. Painting your body draws it twice (each side), as in fine mode.
+Test aid: `vr_gore_spatter_test arm [main|off] [count]` (Debug > Test Effects: Marks on Your Main Forearm) puts
+bleeding marks on one forearm alone.
+
+Checked (firing range, mock hands where the eyeshots see both forearms, four marks on the right forearm): before, the
+body mask held 3133 texels, shown on both forearms; after, the left layer 0 and the right 3133, the per-texel maximum
+of the two equal to the old mask in every texel. Eyeshot: the left forearm clean; the right forearm's marks the same
+(red texels differing in 33 pixels of 107k, run-to-run noise between two runs of one build 14; no pixel off by more
+than 8 on the arm). A torso shot in chunky mode: 2023 texels left/middle, 1095 right; a monster's (a torch's) wound
+in its own layer; fine mode unchanged.
 
 ### What bloodies what (`vr_wounds.cpp`, "Blood on you and your gear")
 
@@ -21376,7 +21393,8 @@ what each spatter reaches; 3 every subtract (drying, healing, washing).
 - [ ] Shoot a monster from a step or two: a few drops on the gun and the arms; farther, none.
 - [ ] Gib something next to you: blood where the gibs hit you.
 - [ ] Throw a bloody weapon and pick it up: still bloody; holster and draw it: still bloody; dunk it: clean.
-- [ ] Get hurt: marks run down your arms; one arm's marks no longer show on the other.
+- [ ] Get hurt: marks run down your arms; one arm's marks no longer show on the other (both Your Wounds' Detail
+  settings: chunky and fine).
 - [ ] Take health: your wounds fade, the enemies' blood stays until you wash.
 - [ ] Blood Opacity 0.8 against 1.
 

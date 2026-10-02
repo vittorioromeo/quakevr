@@ -93,7 +93,7 @@ struct Mask
     float waterline{0.f};         // its last liquid's surface (drips under it)
     int liquid{0};                // 0 water, 1 slime (the drips' colour)
     double dripNext{0.0};
-    float sides[2]{0.f, 0.f};     // your body's: the bones of its right side (bits 0..23, 24..47), painted into the last fine
+    float sides[2]{0.f, 0.f};     // your body's: the bones of its right side (bits 0..23, 24..47), painted into the twin
                                   // layer (its arms and legs share their skin's texels, mirrored): 0 none
     bool gear{false};             // a weapon's or a prop's you held: washed, kept dropped and held again (vr_gore_gear)
     int weapon{0};                // a weapon's: its id (QC vr_weaponinst.qc), whatever shows it (0: an entity's own mask)
@@ -104,7 +104,7 @@ za::Vector<Mask> masks; // one a layer
 ankerl::unordered_dense::map<const entity_t*, int> maskOf;
 GLuint array = 0;
 GLuint fbo = 0;
-int layers = 0;       // the pool's (array): masks 0 .. layers - 1
+int layers = 0;       // the pool's (array): masks 0 .. layers - 1 (chunky mode: the last your body's right side)
 GLuint fineArray = 0; // your own body's and hands' finer masks (vr_wounds_own_res): masks layers .. layers + ownSlots - 1
 GLuint bloodArray = 0; // ... and the blood on them that isn't theirs (spatter, gibs: one channel, as fine): healing leaves it
 bool foreign = false;  // painting blood that isn't yours (paintOnYou's): into bloodArray, for the fine masks
@@ -230,16 +230,17 @@ void resetGear()
     return isFine(layer) ? fineSize : layerSize;
 }
 
-// The last fine layer: your body's right side (-1: none, your body in the pool, one layer, both arms on the same texels).
+// Your body's right side's layer: the last fine one, or with your body in the pool (vr_wounds_own_res 0, chunky) the
+// pool's last, an extra one (-1: none). Never another model's.
 [[nodiscard]] int twinLayer()
 {
-    return fineSize > 0 ? layers + ownSlots - 1 : -1;
+    return fineSize > 0 ? layers + ownSlots - 1 : layers - 1;
 }
 
 [[nodiscard]] bool isSided(int layer)
 {
     const Mask& m = masks[static_cast<za::SizeT>(layer)];
-    return isFine(layer) && twinLayer() >= 0 && m.sides[0] + m.sides[1] > 0.f;
+    return layer != twinLayer() && m.sides[0] + m.sides[1] > 0.f;
 }
 
 // The layers mask `layer` is drawn in and the side each takes (-1 all of it): two for your body's, one for the rest.
@@ -329,8 +330,8 @@ void releaseTexture()
 // The texture array and its framebuffer, `poolSize()` layers, and the fine masks (made again, empty, when either changes).
 bool ensureTexture()
 {
-    const int want = poolSize();
     const int wantFine = ownRes();
+    const int want = poolSize() + (wantFine > 0 ? 0 : 1); // (chunky: your body's right side, an extra layer)
     if(array && layers == want && fineSize == wantFine)
     {
         return true;
@@ -601,7 +602,8 @@ int acquire(const entity_t* e, bool view, bool create, bool box = false)
     int best = -1;
     float bestScore = -1.f;
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    for(int i = fine ? layers : 0; i < (fine ? twinLayer() : layers); i++) // (not the last fine one: your body's right side)
+    const int end = fine || fineSize == 0 ? twinLayer() : layers; // (not your body's right side's layer)
+    for(int i = fine ? layers : 0; i < end; i++)
     {
         const Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent)
@@ -633,9 +635,9 @@ int acquire(const entity_t* e, bool view, bool create, bool box = false)
     m.h = h;
     m.view = view;
     m.lastDrawn = vr_gametime;
-    if(fine)
+    if(view)
     {
-        rightBones(e->model, m.sides);
+        rightBones(e->model, m.sides); // (your body's: one layer a side, fine or chunky)
     }
     maskOf[e] = best;
     subtract(best, glm::vec4{1.f}); // empty

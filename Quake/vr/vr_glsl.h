@@ -1826,7 +1826,8 @@ SPECULAR_AA_FUNCTIONS
 "		vec2 size = vec2(textureSize(Tex, 0));\n" \
 "		vec2 grid = all(lessThanEqual(size, wi.yz * 2.0)) ? size : wi.yz;\n" \
 "		vec2 t = floor(clamp(uv, 0.0, 0.99999) * grid);\n" \
-"		m = texelFetch(WoundMasks, ivec3(ivec2((t + 0.5) / grid * wi.yz), int(wi.x) - 1), 0);\n" \
+"		int layer = in_woundside > 0.5 ? textureSize(WoundMasks, 0).z - 1 : int(wi.x) - 1; // your body's right side: the pool's last layer\n" \
+"		m = texelFetch(WoundMasks, ivec3(ivec2((t + 0.5) / grid * wi.yz), layer), 0);\n" \
 "		if (m == vec4(0.0))\n" \
 "			return w;\n" \
 "		ivec2 it = ivec2(t) & 3;\n" \
