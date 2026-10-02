@@ -9866,7 +9866,7 @@ Recording (Window View)** (also Advanced VR Options > Graphics > Recording; page
   (`vr_window_level`, 0: how much of your head's sideways tilt is taken out; 1 keeps the horizon level).
 - **Smoothed Mirror: Zoom** (`vr_window_zoom`, 1.2x): 1 is the widest crop of the window's shape that the lenses show;
   more crops closer and leaves the margin the steadied view turns in.
-- **Spectator Camera:** **Field of View** (`vr_spectator_fov`, 90 degrees across; the height follows the window's
+- **Spectator Camera:** **Field of View** (`vr_spectator_fov`, 90 degrees across, 60-150 on the slider; the height follows the window's
   shape), **Resolution Scale** (`vr_spectator_scale`, 1: the window's own resolution; 0.5-0.75 cost less; 2
   supersamples), **Position Smoothing** (`vr_spectator_pos_smooth`, 0.05 s: your head's small movements; walking,
   turning and teleporting are never smoothed).
@@ -19644,3 +19644,24 @@ Time Now**. Mock: `vr_mock_hand_to <main|off> button` puts the fingertip on the 
 - Hands at 0.25 with the head-relative follower: as phase 1 (0.5 m jump followed at 8 m/s; slow move exact); the head
   and hand moved 0.3 m together: 0.07 m behind for one frame, then none.
 
+
+## Spectator camera: the eyes' glow ghost, a wider field of view (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_01-32-14 and _01-33-48: a faint, offset ghost of the hands and arms over the
+spectator camera, turning with the head.
+
+- **Cause:** the spectator camera is drawn at its own pace (`vr_spectator_rate`, 60 fps by default); on the frames
+  between, the window shows its last image again (`vr_stereo.cpp` `renderSpectator`). That redraw added the glow of
+  the last view rendered, the right eye's (`bloom::result`), not the spectator image's own: the bright parts of the
+  right eye's view (the hands lit by the flashlight, the HUD's text), blurred, at the right eye's place in its image,
+  so offset and following the head. At 90 Hz a third of the window's frames had it (all but every 2nd or 3rd with
+  Every 2nd/3rd Frame); Every Frame (`vr_spectator_rate 1`) never did. The underwater wobble used the eye's view axes
+  there too.
+- **Fix:** the window's view takes what it adds from the view it shows (`SceneLook`: the glow and the view axes),
+  taken right after that view's scene; the spectator camera keeps its image's for the frames it shows it again.
+- **Field of View** (`vr_spectator_fov`): the slider goes 60-150 (was 60-120), typed or overflowed 40-160 (was
+  40-130); the camera clamps to 40-160.
+- Tested: the mock head shaking (`vr_mock_shake 3`, `vr_mock_shake_turn 90`) over the firing range with the hands in
+  view: the ghosts gone; a still head, the image drawn anew (`vr_spectator_rate 1`) and shown again
+  (`vr_spectator_rate 60`): the same (mean difference 0.003 of 255 over the hands' part); 150 and 160 degrees drawn
+  in vrfiringrange and e1m1.

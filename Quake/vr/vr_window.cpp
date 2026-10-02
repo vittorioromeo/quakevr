@@ -320,7 +320,7 @@ const Camera& spectator(float aspect)
     const glm::mat3 turn = filter.worldTurn * glm::mat3_cast(leveled(filter.q2));
     camera.angles = anglesOf(turn);
     camera.origin = filter.worldHead + filter.worldTurn * quakeFromTracking(filter.p2 - filter.position) * units::metresToUnits();
-    camera.tanX = za::tan(glm::radians(0.5f * za::clamp(vr_spectator_fov.value, 40.f, 130.f)));
+    camera.tanX = za::tan(glm::radians(0.5f * za::clamp(vr_spectator_fov.value, 40.f, 160.f)));
     camera.tanY = camera.tanX / za::max(aspect, 0.1f);
     log("spectator", camera.angles, 1.f);
     return camera;
