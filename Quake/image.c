@@ -139,14 +139,18 @@ static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum
 	{
 		const char *ext = stbi_formats[i];
 		q_snprintf (loadfilename, sizeof(loadfilename), "%s.%s", name, ext);
-		COM_FOpenFile (loadfilename, &f, NULL);
+		if (VR_ExtMapsIsPath (loadfilename)) // QVR: vr_extmaps_dir's files (vr/vr_extmaps.cpp), not prefetched
+			f = VR_ExtMapsOpen (loadfilename);
+		else
+			COM_FOpenFile (loadfilename, &f, NULL);
 		if (f)
 		{
 			double t0 = Sys_DoubleTime (); // QVR
-			byte *data = VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp)
+			qboolean extmap = VR_ExtMapsIsPath (loadfilename); // QVR
+			byte *data = extmap ? NULL : VR_ImagePrefetchTake (loadfilename, f, com_filesize, width, height); // QVR: decoded ahead (vr_imgprefetch.cpp)
 			if (!data)
 				data = stbi_load_from_file (f, width, height, NULL, 4);
-			if (data)
+			if (data && !extmap)
 				VR_ImagePrefetchNote (loadfilename, Sys_DoubleTime () - t0); // QVR: the next session's list
 			if (data)
 			{

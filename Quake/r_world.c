@@ -166,8 +166,11 @@ typedef struct bmodel_bindless_gpu_call_s {
 	GLuint64	texture;
 	GLuint64	fullbright;
 	GLuint64	normalmap;	// QVR: vr_normalmaps
+	GLuint64	specmap;	// QVR: an external pack's specular map (vr/vr_extmaps.cpp; CF_SPECMAP)
+	GLuint64	padding;	// QVR: (uvclamp on 16 bytes, as std430 places it)
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
+	GLfloat		extmat[4];	// QVR: the external maps' numbers (VR_ExtMapsCall)
 } bmodel_bindless_gpu_call_t;
 
 typedef struct bmodel_bound_gpu_call_s {
@@ -177,6 +180,7 @@ typedef struct bmodel_bound_gpu_call_s {
 	GLint		padding;
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
+	GLfloat		extmat[4];	// QVR: the external maps' numbers (VR_ExtMapsCall)
 } bmodel_bound_gpu_call_t;
 
 typedef struct bmodel_gpu_call_remap_s {
@@ -191,7 +195,7 @@ static union {
 	} bindless;
 	struct {
 		bmodel_bound_gpu_call_t		params[MAX_BMODEL_DRAWS];
-		gltexture_t					*textures[MAX_BMODEL_DRAWS][3];	// QVR: and the normal map
+		gltexture_t					*textures[MAX_BMODEL_DRAWS][4];	// QVR: and the normal and specular maps
 	} bound;
 } bmodel_calls;
 static bmodel_gpu_call_remap_t		bmodel_call_remap[MAX_BMODEL_DRAWS];
@@ -286,6 +290,7 @@ static void R_FlushBModelCalls (void)
 			GL_Uniform1iFunc (0, i);
 			GL_BindTextures (0, 2, bmodel_calls.bound.textures[i]);
 			GL_Bind (GL_TEXTURE3, bmodel_calls.bound.textures[i][2]); // QVR: the normal map
+			GL_Bind (GL_TEXTURE11, bmodel_calls.bound.textures[i][3]); // QVR: the specular map (SpecTex)
 			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)(dstcmdofs + i * sizeof (bmodel_draw_indirect_t)));
 		}
 	}
@@ -304,6 +309,9 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 	GLuint		flags;
 	float		alpha;
 	gltexture_t	*tx, *fb;
+	gltexture_t	*nm, *spec; // QVR
+	float		extmat[4]; // QVR
+	unsigned	extflags; // QVR
 
 	if (num_bmodel_calls == MAX_BMODEL_DRAWS)
 		R_FlushBModelCalls ();
@@ -325,7 +333,9 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 	if (!gl_zfix.value || map_checks.value)
 		zfix = 0;
 
-	flags = zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != false) << 2);
+	nm = TexMgr_NormalMap (tx); // QVR: or an external pack's, its specular map, its glow hidden (vr/vr_extmaps.cpp)
+	extflags = VR_ExtMapsCall (tx && t ? t : NULL, &nm, &spec, &fb, extmat);
+	flags = zfix | ((fb != NULL) << 1) | ((r_fullbright_cheatsafe != false) << 2) | extflags;
 	if (t && TEXTYPE_ISLIQUID (t->type)) // QVR: the liquid's kind for its look (gl_shaders.h LiquidKind)
 		flags |= (t->type - TEXTYPE_FIRSTLIQUID + 1) << 3;
 	alpha = t ? GL_WaterAlphaForTextureType (t->type) : 1.f;
@@ -337,9 +347,12 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		call->alpha = alpha;
 		call->texture = tx ? tx->bindless_handle : greytexture->bindless_handle;
 		call->fullbright = fb ? fb->bindless_handle : blacktexture->bindless_handle;
-		call->normalmap = TexMgr_NormalMap (tx)->bindless_handle; // QVR
+		call->normalmap = nm->bindless_handle; // QVR
+		call->specmap = (spec ? spec : whitetexture)->bindless_handle; // QVR
+		call->padding = 0;
 		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
 		VR_DetailCall (tx ? t : NULL, call->detail); // QVR
+		memcpy (call->extmat, extmat, sizeof (call->extmat)); // QVR
 	}
 	else
 	{
@@ -351,9 +364,11 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		call->padding = 0;
 		textures[0] = tx ? tx : greytexture;
 		textures[1] = fb ? fb : blacktexture;
-		textures[2] = TexMgr_NormalMap (tx); // QVR
+		textures[2] = nm; // QVR
+		textures[3] = spec ? spec : whitetexture; // QVR
 		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
 		VR_DetailCall (tx ? t : NULL, call->detail); // QVR
+		memcpy (call->extmat, extmat, sizeof (call->extmat)); // QVR
 	}
 
 	SDL_assert (num_instances > 0);
@@ -607,6 +622,7 @@ static void R_FlushLiquidMeshCalls (void)
 			GL_Uniform1iFunc (0, i);
 			GL_BindTextures (0, 2, bmodel_calls.bound.textures[i]);
 			GL_Bind (GL_TEXTURE3, bmodel_calls.bound.textures[i][2]);
+			GL_Bind (GL_TEXTURE11, bmodel_calls.bound.textures[i][3]); // QVR: the specular map
 			GL_DrawElementsIndirectFunc (GL_TRIANGLES, GL_UNSIGNED_INT, (const byte *)ofs + i * sizeof (bmodel_draw_indirect_t));
 		}
 	}

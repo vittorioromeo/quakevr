@@ -699,6 +699,8 @@ extern "C" int VR_MakeNormalMap (gltexture_t *glt, byte *data, int kind, int wor
 {
 	const int normalmap = NORMALMAP_TYPE (kind);
 	const qboolean heights = (kind & NORMALMAP_HEIGHTS) != 0;
+	if (kind & NORMALMAP_EXT) // an external pack's: its green as ours (vr/vr_extmaps.cpp)
+		VR_ExtMapsGreen (data, glt->width, glt->height, glt->name);
 	if (heights && normalmap == NORMALMAP_AUTHORED) // an authored map's heights (its alpha, as baked)
 		TexMgr_AuthoredHeights (glt, data, &kind);
 	if (normalmap == NORMALMAP_SHADING)

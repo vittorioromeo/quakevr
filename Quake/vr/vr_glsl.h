@@ -959,25 +959,27 @@ LIQUID_SWELL \
 
 // the world vertex shader's Quake VR outputs
 #define QVR_WORLD_VS_OUTPUTS \
-"	layout(location=11) flat out uvec2 out_nmsampler; // QVR\n" \
+"	layout(location=11) flat out uvec4 out_nmsampler; // QVR: the normal map, the specular map\n" \
 "#endif\n" \
 "layout(location=10) flat out float out_glow; // QVR\n" \
 "layout(location=12) flat out float out_pdepth; // QVR: parallax mapping\n" \
 "layout(location=13) flat out vec4 out_uvclamp; // QVR\n" \
 "layout(location=14) flat out vec4 out_detail; // QVR: detail textures (vr/vr_detail.cpp)\n" \
 "layout(location=15) flat out float out_aoself; // QVR: dynamic ambient occlusion (vr/vr_ao.cpp)\n" \
+"layout(location=16) flat out vec4 out_extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp)\n" \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
 "	layout(location=20) out float out_rim; // QVR: 1 + the distance to the shore (the swells' mesh), 0 unknown: the foam\n"
 
 // the world fragment shader's Quake VR inputs
 #define QVR_WORLD_FS_INPUTS \
-"	layout(location=11) flat in uvec2 in_nmsampler; // QVR\n" \
+"	layout(location=11) flat in uvec4 in_nmsampler; // QVR: the normal map, the specular map\n" \
 "#endif\n" \
 "layout(location=10) flat in float in_glow; // QVR\n" \
 "layout(location=12) flat in float in_pdepth; // QVR: parallax mapping\n" \
 "layout(location=13) flat in vec4 in_uvclamp; // QVR\n" \
 "layout(location=14) flat in vec4 in_detail; // QVR: detail textures (vr/vr_detail.cpp)\n" \
 "layout(location=15) flat in float in_aoself; // QVR: dynamic ambient occlusion's own group (vr/vr_ao.cpp)\n" \
+"layout(location=16) flat in vec4 in_extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp)\n" \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
 "	layout(location=20) in float in_rim; // QVR: the shoreline foam's distance (LiquidFoam)\n"
 
@@ -1113,6 +1115,14 @@ SPECULAR_AA_FUNCTIONS \
 "	SpecularAA(0.0); // QVR: the normal map's spread only (no derivatives after the discard)\n" \
 "#else\n" \
 "	SpecularAA(Parallax.w > 0. ? NormalSpread(bumped) : 0.0); // QVR: the sheen's lobe widened by the bumps under the pixel (vr_specular_aa)\n" \
+"#endif\n" \
+"#if MODE != " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
+"	if ((in_flags & CF_SPECMAP) != 0u) // QVR: an external pack's specular map (vr/vr_extmaps.cpp): the sheen's colour and\n" \
+"	{ // brightness per texel, its lobe narrowed by the .mat's hardness (as bright on the whole)\n" \
+"		specular_map = textureGrad(SpecTex, puv, duvdx, duvdy).rgb * in_extmat.y;\n" \
+"		float hard = SpecLobe.x * in_extmat.z;\n" \
+"		SpecLobe = vec2(hard, SpecLobe.y * (hard + 1.0) / (SpecLobe.x + 1.0));\n" \
+"	}\n" \
 "#endif\n" \
 "	// QVR: the baked light's sheen, from its real direction (deluxemaps), as the dynamic lights' (vr_specular, the lobe\n" \
 "	// SpecularAA sets) at a quarter of their strength: a lamp's glint on the bumps near it (at half, rough walls by\n" \

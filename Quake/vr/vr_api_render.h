@@ -133,8 +133,10 @@ float VR_ViewModelMinLight (void);						// R_SetupAliasLighting: least light on 
 // models (vr_normalmap_authored). NORMALMAP_SKIN: made from a model skin's colours (TexMgr_SkinToNormals: edges,
 // materials and larger forms, not brightness as height). NORMALMAP_TYPE: the first three. NORMALMAP_FLAT (set on
 // loading): an authored map with NORMALMAP_HEIGHTS whose alpha is all 255, no heights (no parallax on it).
+// NORMALMAP_EXT: an external pack's (vr/vr_extmaps.cpp), its green turned to ours where its heights say it runs the
+// other way (vr_extmaps_green).
 enum { NORMALMAP_NONE, NORMALMAP_SHADING, NORMALMAP_AUTHORED, NORMALMAP_HEIGHTS = 4, NORMALMAP_FILE = 8, NORMALMAP_SKIN = 16,
-	NORMALMAP_FLAT = 32 };
+	NORMALMAP_FLAT = 32, NORMALMAP_EXT = 64 };
 #define NORMALMAP_TYPE(kind) ((kind) & 3)
 struct gltexture_s;
 void VR_NormalMapMipSize (int worldwidth, int *mipwidth, int *mipheight);	// a made one's size (NORMALMAP_SHADING): mipmapped down to at most this
@@ -147,6 +149,19 @@ void VR_SetHeightMaskLazy (const float *corners, int numtris, int width, int hei
 void VR_LoadNormalMap (struct gltexture_s *glt, const char *image, const char *shared, unsigned char *data, enum srcformat format,
 	int worldwidth, int flags);								// Mod_LoadTextures, skins: a texture's normal map (authored beside `image` or `shared`, or made from `data`)
 unsigned char *VR_NormalMapSource (unsigned char *data, enum srcformat fmt, int width, int height); // Mod_LoadTextures: an RGBA image kept whole for it
+
+// External material maps for the world's textures (vr_extmaps.cpp, vr_extmaps: a pack's <name>_norm, _spec, _luma/_glow
+// and .mat, read from vr_extmaps_dir through "vrext/<file>" paths).
+struct texture_s;
+struct qmodel_s;
+int VR_ExtMapsIsPath (const char *path);					// Image_LoadImage: a "vrext/<file>" path
+FILE *VR_ExtMapsOpen (const char *path);					// ... that file in vr_extmaps_dir (com_filesize set), or NULL
+int VR_ExtMapsPrepare (const struct qmodel_s *mod, const char *texname, const unsigned char *data, enum srcformat fmt,
+	int width, int height);									// Mod_LoadTextures, before the upload: 1 if the pack's maps fit this picture
+void VR_ExtMapsAttach (struct texture_s *tx, struct qmodel_s *mod, int glows); // ... after it: its maps loaded onto tx
+void VR_ExtMapsGreen (unsigned char *data, int width, int height, const char *name); // VR_MakeNormalMap: its green as ours (NORMALMAP_EXT)
+unsigned VR_ExtMapsCall (const struct texture_s *t, struct gltexture_s **normalmap, struct gltexture_s **spec,
+	struct gltexture_s **fullbright, float extmat[4]);		// R_AddBModelCall: the maps drawn; CF_SPECMAP if a specular map
 
 // The scene's framebuffers, for the module's passes over it (vr_gfx_gl.cpp; Ironwail's framebufs).
 unsigned VR_OpaqueSceneTexture (void);					// the opaque scene's colours translucent liquids can read (0: none)

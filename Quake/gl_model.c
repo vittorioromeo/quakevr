@@ -735,6 +735,7 @@ static void Mod_LoadTextures (lump_t *l)
 				if (data) //load external image
 				{
 					char filename2[MAX_OSPATH];
+					int extmaps = VR_ExtMapsPrepare (loadmodel, tx->name, data, fmt, fwidth, fheight); // QVR: an external pack's maps fit it (vr/vr_extmaps.cpp)
 					byte *pristine = VR_NormalMapSource (data, fmt, fwidth, fheight); // QVR: the upload mipmaps an RGBA image in place: the normal map needs it whole
 					tx->gltexture = TexMgr_LoadImage (loadmodel, filename, fwidth, fheight,
 						fmt, data, filename, 0, TEXPREF_MIPMAP | extraflags );
@@ -753,12 +754,16 @@ static void Mod_LoadTextures (lump_t *l)
 					if (data)
 						tx->fullbright = TexMgr_LoadImage (loadmodel, filename2, fwidth, fheight,
 							fmt, data, filename2, 0, TEXPREF_MIPMAP | extraflags );
+					Hunk_FreeToLowMark (mark);
+					if (extmaps) // QVR: its normal, specular and (if it has none) glow maps
+						VR_ExtMapsAttach (tx, loadmodel, tx->fullbright != NULL);
 				}
 				else //use the texture from the bsp file
 				{
+					qboolean fullbrights = Mod_CheckFullbrights ((byte *)(tx+1), pixels); // QVR: kept for the external maps
 					q_snprintf (texturename, sizeof(texturename), "%s:%s", loadmodel->name, tx->name);
 					offset = (src_offset_t)(mt+1) - (src_offset_t)mod_base;
-					if (Mod_CheckFullbrights ((byte *)(tx+1), pixels))
+					if (fullbrights)
 					{
 						if (tx->type != TEXTYPE_CUTOUT)
 						{
@@ -783,6 +788,8 @@ static void Mod_LoadTextures (lump_t *l)
 					// health boxes (the expansions' have no replacement textures), whose depth is a texel or two
 					VR_LoadNormalMap (tx->gltexture, NULL, NULL, (byte *)(tx+1), SRC_INDEXED, tx->width,
 						TexMgr_IndexedSmooth () || !q_strncasecmp (loadmodel->name, "maps/b_", 7) ? NORMALMAP_HEIGHTS : 0);
+					if (VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height)) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
+						VR_ExtMapsAttach (tx, loadmodel, fullbrights);
 				}
 				Hunk_FreeToLowMark (mark);
 			}

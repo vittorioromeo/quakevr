@@ -21505,3 +21505,68 @@ first). `vr_smallgibs_test_crowd` (24) and `vr_smallgibs_test_blasts` (1) set it
 
 - [ ] A rocket into a crowd beside explosive boxes: every gib, blood burst and explosion drawn as before.
 - [ ] Super shotgun into a corpse at point blank, fast: nothing different (a frame never fills in play).
+## External material maps: Quetoo's normal, specular and glow maps (2026-10-02)
+
+jdolan (Quetoo) offered his normal maps for the Rygel/QRP Quake textures. `quetoo-data/target/default/textures/quake`
+(downloaded with permission into `qvr-kit/external/`, not in the repo): 542 pictures (jpg/png), 391 `_norm` (height in
+alpha), 506 `_spec` (RGB specular colour, mostly grey, average about 0.15), 93 `_luma` + 4 `_glow`, 344 `.mat`.
+
+**Do the pictures match ours?** Quetoo's are QRP/Rygel art at half the resolution (305 of the 434 shared names
+exactly half, 99 a quarter), on the same layout (only 6 shifted, by a texel or half a tile). Compared at 64 x 64 on
+their detail (luminance less a 5 x 5 blur, correlation): 208 above 0.9, 59 0.8-0.9, about 100 below 0.3: those are
+repainted (adoor03_*, bodies*, city5_*, slip*, door05_3...), and their bumps would not fit the wall we draw. The
+engine does the same comparison at load (`vr_extmaps_match` 0.5) and uses a pack's maps only where they match.
+
+**Coverage, all 38 id1 maps** (524 world textures, sky, liquids and clip left out; 523 have a QRP replacement): 432 have
+a Quetoo picture, 316 match at 0.5 (300 at 0.6, 386 at 0): 225 of those get a normal map, 297 a specular map, 7 a glow
+they had none of. In game (`vr_extmaps_stats`): e1m1 52 of 77 textures used (48 normal, 49 specular, 4 glow), 14
+differ, 11 not in the pack; e1m3 22 of 49 (12 differ, 15 not in it); e2m1 48 of 76 (16, 12). Item boxes (b_*): none
+(Quetoo has no `+0_med100` etc.).
+
+**The engine** (`vr_extmaps.cpp`; default off, nothing read):
+- `vr_extmaps 1` (next map) reads `vr_extmaps_dir` (default `textures_ext`: `quakevr/textures_ext/`, gitignored; or a
+  full path, e.g. `C:/OHWorkspace/qvr-kit/external/quetoo-data/target/default/textures/quake`). Image_LoadImage reads
+  a `vrext/<file>` path from that folder, so the textures reload like any other (vid_restart).
+- Names: lower case, `*` dropped, `+0button` is `button+0`; an animation the pack has one picture of (`floorsw` for
+  `+0floorsw`) uses it for every frame that matches. A `.mat`'s `diffusemap`, `normalmap` (dem5_3 uses dem4_4's),
+  `specularmap`, `specularity` and `hardness` are read; its stages, `roughness` (0 on textures that name a normal map,
+  so not a bump scale), `parallax` and `shadow` are not.
+- Normal maps: loaded beside the made ones (`TexMgr_LoadExtNormalMap`, NORMALMAP_EXT; 22 MB more textures on e1m1),
+  drawn instead of them with `vr_extmaps_normals 1`. Their alpha is the height parallax mapping walks. Quetoo's green
+  runs down the rows (against its own heights: correlation -0.9 over its maps, red +0.92): `vr_extmaps_green` 0 judges
+  each map from its heights and turns it (1 as is, 2 always turned).
+- Specular maps (`vr_extmaps_spec 1`): the world shader multiplies all sheen (dynamic lights' and the baked light's)
+  by the map's colour times the .mat's specularity times `vr_extmaps_spec_scale` (4: the walls' average brightness as
+  before: e1m1 58.9 to 60.1, e2m1 76.0 to 75.6 with a test light), and narrows Blinn's lobe by the .mat's hardness
+  (energy kept). New: `CF_SPECMAP` (64), a spec handle and `extmat` in the world call (96 bytes bindless), `SpecTex`
+  on unit 11 without bindless, `in_nmsampler` a uvec4, `in_extmat` at location 16.
+- Glow: a pack's `_luma`/`_glow` only on textures with no glow at all (no QRP `_luma`, no fullbright colours).
+- Debug > Views: **External Maps A/B** (`vr_extmaps_ab 1`) shows the made bumps, no specular maps, no added glow, at
+  once. Debug > Reports: **External Maps** (`vr_extmaps_stats all`). Graphics > Surfaces: the settings.
+
+**Cost.** GPU (`--exclusive`, 2048 eyes, e1m1 by a wall with a test light, alternating three times): world+brush 0.44
+ms made, 0.45 ms external: within the noise (one more texture read where a specular map is). Load: +246 ms on e1m1
+(159 textures: the pack's jpgs decoded, 64 x 64 comparisons), +97 textures, +22 MB. Off: nothing read; the shader's
+extra varying and the multiply by 1 only.
+
+**Look** (eyeshots, A/B with a test light): Quetoo's bumps are cleaner: round cobbles on e1m3's floors where ours
+are noisy, smooth plaster and metal on e2m1 where ours make an orange-peel grain, rivets and panel bevels sharper;
+our made maps show more relief on dirty textures. Scenes about 2-15% darker on average with the external normals in
+the map's light (their bevels tilt further).
+
+**If ever shipped** (it isn't; nothing is committed): the maps are CC-BY-SA 4.0 (`LICENSE.md` there): credit
+"Quetoo game data, jdolan and contributors" with the licence's link, say what we changed (green turned, the shader's
+use), and anything we make from them (resized, turned maps) must also be CC-BY-SA, no extra restrictions (no DRM, no
+"non-commercial" on them). Their source is Rygel's "Texturepack Ultra for Quake/DarkPlaces"
+(`docs/textures-rygel.txt` in quetoo-data): it gives no licence, only credits (QRP and its team, hfx/Yves Allaire,
+Starbuck's Debaser set, Aerowalk's Pez/Mortuality, woodsk7's CTF pak, Randy's QExpo textures, _argv[-1], William
+Smith, Mayang Murni Adnin), and the art is derived from id's textures. So the safe course is what the setting does
+now: the player downloads quetoo-data and points `vr_extmaps_dir` at it; shipping would need Rygel's and QRP's
+consent besides CC-BY-SA's terms.
+
+Test in VR:
+- [ ] `vr_extmaps_dir` to the quetoo folder, Graphics > Surfaces > External Maps on, a new map: walls look cleaner, not
+  wrong-lit (bumps lit from the light's side, not the opposite: the green).
+- [ ] Debug > Views > External Maps A/B, toggled by a lamp and with the flashlight: which you prefer.
+- [ ] External Specular Brightness 4 against 0 (no sheen on matched walls) and 8.
+- [ ] External Maps: Match 0: the repainted textures' bumps no longer match their picture (why it is 0.5).
