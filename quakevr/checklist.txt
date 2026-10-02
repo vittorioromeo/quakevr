@@ -106,6 +106,10 @@ Throws: damage halved (Combat > Weapon Damage > All Throws, 0.5): a weak throw n
 Swimming: Stroke Pitch Offset (Movement > Swimming): a few degrees down if strokes carry you up
 Laser cannon after the Roll Weight change: still right, or too slow to roll?
 
+Your wounds up close (Debug > Tools > Test Effects > Burn / Wound / Soak Your Arms): burns smooth and crusted, blood soft-edged and sunk in, wet edge smooth
+Your Wounds' Detail 512 vs 2048 (Gore > Wounds on Models): pick one
+Your Burns' Relief and Your Wounds' Depth sliders: pick values
+
 [Decide or give feedback]
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
