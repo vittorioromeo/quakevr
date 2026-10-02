@@ -91,7 +91,11 @@ Thread Pool Sites (Debug > Profiling and Memory) after a fight: times look sane;
 Small gibs from melee and the chainsaw: slow enough now, with finer control (fix in progress)
 Gib sticking: thrown gibs stick to walls (fix in progress)
 
+Flashlight clip-on: held facing backwards, clipped onto a gun or the head: it swings round onto the mount (Taking and Clipping On > Clip-On Transition 0.15 s; try 0.3 and 0)
+Flashlight Can Clip On (Weapon Offsets > Flashlight): axe, Mjolnir, swords, chainsaw and crowbar get no zone and refuse it
+
 [Decide or give feedback]
+Grappling hook: allow the flashlight to clip on it? (on now)
 Flashlight cord: make Chain the default?
 Quetoo maps: ship them (needs Quetoo credit + CC-BY-SA, and Rygel's and QRP's consent) or only offer as a player download?
 Explosive boxes catching fire and blowing up from it: add?
