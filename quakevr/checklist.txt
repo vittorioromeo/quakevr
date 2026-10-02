@@ -145,6 +145,9 @@ Quetoo maps: console vr_extmaps_dir C:/OHWorkspace/qvr-kit/external/quetoo-data/
 Quetoo maps: Debug > Views > External Maps A/B by a lamp and with the flashlight: better than ours?
 Quetoo maps: Specular brightness 0 / 4 / 8: pick one
 
+Spatial audio after optimisation: fights, explosions, slow motion and sounds passing by sound exactly as before
+Debug > Tests > Spatial Audio > Spatial Audio Benchmark: run it on your machine and send me the table
+
 [Decide or give feedback]
 Quetoo maps: ship them (needs Quetoo credit + CC-BY-SA, and Rygel's and QRP's consent) or only offer as a player download?
 Explosive boxes catching fire and blowing up from it: add?
