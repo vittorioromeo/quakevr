@@ -940,16 +940,27 @@ float(float xHand, entity b) VR_Melee_Track =
     {
         same = FALSE;
     }
+    // What the hand holds jumped, not the hand: put back in it at once by the weight (left too far behind it), or its far
+    // end jumping (a weapon taken). No speed of its points from the jump and no blow, but the hand's own way is still its
+    // way: the grip's history goes on (round 21 wigglefix: a gun wiggled at the dummy, lagging the wrist's roll, is put
+    // back in the hand at about every turn of the wiggle; each put-back forgot the wiggle, and the next flick passed for a
+    // fresh blow, a butt strike).
+    float jumped = FALSE;
+    vector vgripOwn = '0 0 0';
     if(same)
     {
-        // A jump (a teleport, the play space re-based, a weapon taken) is faster than a hand goes.
-        if(vlen(rgrip - b.mh_rgrip) > max(0.3, VR_MELEE_JUMP * dt) || vlen(rfar - b.mh_rfar) > max(0.6, VR_MELEE_TIPJUMP * dt) ||
-           (self.handdrop & (xHand == cVR_MainHand ? VR_HANDJUMP_MAIN : VR_HANDJUMP_OFF)))
+        // A jump (a teleport, the play space re-based) is faster than a hand goes.
+        if(vlen(rgrip - b.mh_rgrip) > max(0.3, VR_MELEE_JUMP * dt))
         {
             same = FALSE;
         }
+        else if(vlen(rfar - b.mh_rfar) > max(0.6, VR_MELEE_TIPJUMP * dt) ||
+                (self.handdrop & (xHand == cVR_MainHand ? VR_HANDJUMP_MAIN : VR_HANDJUMP_OFF)))
+        {
+            jumped = TRUE;
+        }
     }
-    if(same)
+    if(same && !jumped)
     {
         b.mh_vnear = (rnear - b.mh_rnear) * (1 / dt);
         b.mh_vgrip = (rgrip - b.mh_rgrip) * (1 / dt);
@@ -959,6 +970,10 @@ float(float xHand, entity b) VR_Melee_Track =
     else
     {
         b.mh_vnear = b.mh_vgrip = b.mh_vfar = '0 0 0';
+        if(jumped)
+        {
+            vgripOwn = (rgrip - b.mh_rgrip) * (1 / dt);
+        }
     }
     b.mh_rnear = rnear;
     b.mh_rgrip = rgrip;
@@ -967,13 +982,16 @@ float(float xHand, entity b) VR_Melee_Track =
     b.mh_near = vr_mline_near;
     b.mh_grip = vr_mline_grip;
     b.mh_far = vr_mline_far;
-    b.mh_dt = same ? dt : 0;
+    b.mh_dt = (same && !jumped) ? dt : 0;
     b.mh_time = now;
     b.mh_thing = thing;
     b.mh_wid = wid;
     b.mh_lenient = VR_Weight_Leniency(self, xHand);
     b.mh_curve = VR_Weight_MeleeCurve(self, xHand);
-    b.mh_fast = max(vlen(b.mh_vfar), vlen(b.mh_vgrip));
+    if(!jumped)
+    {
+        b.mh_fast = max(vlen(b.mh_vfar), vlen(b.mh_vgrip)); // (a jump: as it was, no news)
+    }
     if(same)
     {
         b.mh_hi = b.mh_hi + 1;
@@ -981,8 +999,8 @@ float(float xHand, entity b) VR_Melee_Track =
         {
             b.mh_hi = 0;
         }
-        b.mh_hfar[b.mh_hi] = b.mh_vfar;
-        b.mh_hgrip[b.mh_hi] = b.mh_vgrip;
+        b.mh_hfar[b.mh_hi] = b.mh_vfar; // (a jump: none)
+        b.mh_hgrip[b.mh_hi] = jumped ? vgripOwn : b.mh_vgrip;
         b.mh_hwrist[b.mh_hi] = vwrist;
         b.mh_hdt[b.mh_hi] = dt;
     }
@@ -1356,6 +1374,17 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         if(vgrip < minSpeed * (b.mh_thing == VR_MTHING_GUN ? VR_MELEE_GUN_BUTT : 1))
         {
             return FALSE; // the arm drives it too (a sword waved round swings its guard fast)
+        }
+        // A gun's butt is struck with by carrying the gun at the thing (vr_melee_butt_run): a gun wiggled turns about the
+        // hand, which hardly travels, and flings its butt round faster than the hand (round 21 wigglefix). Not a sword's
+        // pommel: turned hilt first from close by, the author's pommel strikes come 0.36-0.54 m.
+        if(b.mh_thing == VR_MTHING_GUN && VR_Melee_Run(b, TRUE) < cvar_hget(cvarh_vr_melee_butt_run))
+        {
+            if(cvar("developer") >= 2)
+            {
+                dprint(sprintf("melee debug: the butt came %.2f m, under vr_melee_butt_run: no butt strike\n", VR_Melee_Run(b, TRUE)));
+            }
+            return FALSE;
         }
         weight = VR_Melee_PommelWeight(b.mh_thing);
     }
