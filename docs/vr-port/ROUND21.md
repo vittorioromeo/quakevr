@@ -21056,7 +21056,7 @@ burnt, cut and wet): frame 0.894 ms (`vr_wounds_own_res 0`) against 0.910 ms (10
 
 - The body's skin maps both arms onto the same texels (mirrored): a wound, burn or wetness on one arm shows on the
   other too, and liquids' wetness is the higher of the two arms' (straight-edged shapes where the two arms' triangles
-  meet). Older than this change; the fine masks only show it more clearly.
+  meet). Older than this change; the fine masks only show it more clearly. Fixed: "Blood on you, your weapons and props" (your body's mask is one a side).
 - Bilinear reads pull in the empty texels between the skin's islands: a faint half-texel lighter line along a UV seam
   where a mark crosses it (on the forearms' undersides).
 
@@ -21264,3 +21264,121 @@ the nearest crate too; `vr_burn_test 6` shoots a nail through the nearest lit to
 **For the author in VR:** set a crate on fire and watch it spread along a row and break (Crate Burn Time, Fire Spreads
 After); hold a torch in front of the nailgun and fire through it (Flame's Reach for Nails: is 10 units easy enough?).
 Explosive boxes don't catch fire (they could: a fire setting one off).
+
+## Blood on you, your weapons and props (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_16-24-34 .. 16-31-03: a chainsaw on an enemy makes the hands and arms really bloody,
+melee (fists, swords, axes, rocks, bricks) some; close shots splat the held weapon, the arms and the body; gibs
+flying into you bloody the hands and the weapon; blood on held weapons and props stays (dropped, taken again) until
+water washes it; blood over the arms and a little the body and legs, not only the hands (fighting, hurt, gibs, near
+splats); the painted blood a little transparent (0.75-0.8); all of it in the Gore menu.
+
+### Your arms on their own texels (the bodytex limit)
+
+The body's skin maps both arms (and legs, bracers, boots) onto the same texels, mirrored (make_vrbody.py's blocks),
+so a mark on one arm showed on the other. Your body's fine mask is now two layers: its left side with the middle
+(torso, head) in its own layer, its right side in the fine array's last layer (`ownSlots` 4). A vertex's side is its
+heaviest bone's (bones ending in `_r`, sent per instance in `InstanceData.WoundSide.xy` as two 24-bit whole numbers;
+`QVR_ALIAS_VS_WOUNDSIDE`, flat `out_woundside`, location 14); no triangle mixes sides. Painting draws the body twice,
+each side into its layer (the other side's triangles pushed off the target: `WoundSide.z`); every subtract, wash, dump
+and count does both. The skins and the model are untouched. Chunky mode (`vr_wounds_own_res 0`: in the pool) keeps the
+old mirrored marks.
+
+### What bloodies what (`vr_wounds.cpp`, "Blood on you and your gear")
+
+- **Spatter** (`spatterFrom`): every bleeding wound on a monster or corpse (shot, nail, blow) near you throws drops
+  onto what of you faces it (`PaintSpatter`, paint shape 4: all covered within a core, a share falling with the square
+  of the distance beyond, drops in a jittered lattice, round and a little drawn out along the throw, the dense parts run
+  together): your body (both sides as they face it), your hands, and what they hold. A blow (a melee wound within 40 u
+  of a hand or what it holds): some on the blade or fist and drops round it, and now and then a patch on that hand
+  (`vr_gore_spatter_melee`). A chainsaw's cut (the hand holds `v_chainsaw.mdl`): spray out past the hands, both hands
+  on it bloodied, bleeding marks up the forearm now and then (`vr_gore_spatter_saw`, by cut, not by damage: about six
+  cuts a second). A shot hitting within `vr_gore_spatter_range` (64 u) of your hands or eyes: a few drops, fewer
+  farther (`vr_gore_spatter_shots`). One spatter a frame per place (a blast's pellets).
+- **Gibs striking you** (`gibContacts`): a gib or head moving faster than 40 u/s within its size of the capsules round
+  your torso, legs, forearms and hands bloodies you there (and what you hold), once in 0.75 s each
+  (`vr_gore_spatter_gibs`).
+- **Over your arms** (`armMarks`, `vr_gore_spread`): bleeding marks (a wound star, most with a run downwards) along the
+  upper arm and forearm, on their top and outside, now and then a leg: with each of your bleeding wounds (more for a
+  harder hit), up the wrist taking a gib, over the arms as your wounds re-open after a wash.
+- **Healing** takes off your own wounds' blood only: the blood on you that isn't yours (spatter, gibs, a blow's on your
+  hand) is a second, one-channel mask (`bloodArray`, R8, binding 10 `WoundBloodFine`), read with the fine masks and
+  washed by water, not healed. (Chunky mode: one mask, healed as before.)
+
+### Weapons and props keep their blood
+
+A carried prop is the world's entity: its mask (in the pool, 256 x 256 at most, the monsters' chunky look) is its own,
+kept dropped and taken again. A weapon in a hand is drawn by the hand's view entity, so its mask moves with it
+(`gearFrame`): let go by the hand (thrown, holstered, another drawn) it is kept (`Loose`, 6 at most); thrown, QC's
+`DropWeaponInHandScaled` sends `woundevent(thrown, .., QVR_WOUND_GEAR = 10, 0, hand)` and the kept mask goes onto the
+weapon lying in the world once it arrives; taken from the world (removed there: its clear comes), it goes back to the
+hand that took it; drawn from a holster, the kept one of its model comes back. Gear lying in the world that jumps far
+at once (another entity in its slot) gives its blood up; one removed and not taken within 3 s too. Out of sight (not
+sent, its model none) it keeps it. Water washes held weapons, carried props and gear lying about where they are under
+it (`washGear`, with Water Washes Blood and Wash Time).
+
+### Opacity
+
+`vr_wounds_blood_alpha` (0.8): the painted blood's colour, sheen and bump-flattening mixed at that much over the skin,
+every model (the instance's `WoundSide.w`). Free: no extra fetch or pass.
+
+### Settings
+
+| Row (Gore page) | Cvar | Default |
+|---|---|---|
+| Wounds on Models > Blood Opacity | `vr_wounds_blood_alpha` | 0.8 |
+| Blood on You and Your Gear > Blood Spatter | `vr_gore_spatter` | 1 (0 none) |
+| From Your Blows | `vr_gore_spatter_melee` | 1 |
+| From the Chainsaw | `vr_gore_spatter_saw` | 2 |
+| From Close Shots | `vr_gore_spatter_shots` | 1 |
+| Close Shot Range | `vr_gore_spatter_range` | 64 u |
+| Gibs Striking You | `vr_gore_spatter_gibs` | 1 |
+| Blood on Weapons and Props | `vr_gore_gear` | 1 |
+| Blood over Your Arms | `vr_gore_spread` | 1 |
+
+Your Wounds' Detail's labels now give 5, 20 and 80 MB. Debug > Tools > Test Effects: Blood from a Blow, from a
+Chainsaw Cut, from a Close Shot, Gib Strikes Your Hand (`vr_gore_spatter_test blow|saw|shot|gib [distance]`). Debug >
+Reports > Bloody Hands and Washing (`vr_gore_hands_info`) counts the blood not yours too and lists your gear's (held,
+carried, lying about, kept). `vr_wounds_debug 1` prints spatters, gib strikes, arm marks and the gear's moves; 2 also
+what each spatter reaches; 3 every subtract (drying, healing, washing).
+
+### Costs
+
+- Memory (default 1024): the fine array 4 layers instead of 3 (+4 MB) and the R8 blood array (4 MB): 20 MB instead of
+  12 (512: 5 MB; 2048: 80 MB). Weapons and props use pool layers (64 x 256 KB, unchanged).
+- GPU (`run.sh --exclusive`, 1024x1024 mock eyes, firing range, bloody arms filling the lower half): alias models
+  0.032 ms an eye with your fine masks against 0.029 chunky (the per-side read and the second fetch included); a
+  chainsaw cut's paint frame (body both sides, two hands, the saw, the shambler's own wound, arm marks) 0.217 ms worst,
+  0.003 ms a frame on average while cutting; CPU 0.13 ms worst, 0.004 average.
+
+### Checked (mock headset, firing range)
+
+- Mirror: a blow and a shot on your right arm: the right layer holds the arms' marks (11204 texels in the arm block),
+  the torso only in the left one; in the eyeshot only the right forearm shows the wound. Chunky mode: both arms.
+- A shambler cut for 2 s with the chainsaw (12 cuts): hands 175k / 400k texels, body 194k, the saw 2030; arms covered
+  in drops.
+- Thrown (`impulse 220`): "blood taken by the weapon thrown", lying in the world 2030 texels; taken (`impulse 229`):
+  "entity removed, kept for a hand", back in the main hand 2030; swapped for the axe and back: kept, then restored.
+- The pool (`setpos 612 474 -180`), 1.5 s under: the off hand 0, the body 323 (of 160861), the saw 9 (of 1677).
+- A rock carried (`vr_rigid_place 195 main 0 0 0` with the grip held): 2486 texels, kept on it let go.
+- A grunt gibbed 16 u ahead: 3 or 4 gibs strike, hands 228k / 284k texels.
+- Melee eval canary: 48/53, no differences from the baseline. Menu paths on vrcalibration: 0 missing.
+
+### Limits
+
+- A spatter paints every surface facing the hit within reach, also one hidden behind another (the far side of a
+  blade against your fist).
+- The held weapons' masks are pool masks: chunky, as the monsters'.
+- A kept weapon's blood goes to the next weapon of the same model a hand takes from a holster or the world.
+- Mock hands past about 0.8 m aren't drawn as hands (the tests hold them closer).
+
+### In VR
+
+- [ ] Chainsaw a monster a few seconds: hands and forearms covered in drops; the saw bloody.
+- [ ] Punch, sword, axe, a rock or a brick into a monster: some blood on what struck and on the hand, not over the top.
+- [ ] Shoot a monster from a step or two: a few drops on the gun and the arms; farther, none.
+- [ ] Gib something next to you: blood where the gibs hit you.
+- [ ] Throw a bloody weapon and pick it up: still bloody; holster and draw it: still bloody; dunk it: clean.
+- [ ] Get hurt: marks run down your arms; one arm's marks no longer show on the other.
+- [ ] Take health: your wounds fade, the enemies' blood stays until you wash.
+- [ ] Blood Opacity 0.8 against 1.

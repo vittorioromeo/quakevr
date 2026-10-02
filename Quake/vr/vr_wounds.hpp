@@ -16,6 +16,12 @@
 // and char stay (on corpses for good). The player's own body and jointed hands take the wounds where the blow came
 // from, instead of the wound skins (the armour skins stay), and heal: blood and char fade as health comes back, and all
 // of it goes on respawning. A new map starts clean, as does a loaded game (the masks are the client's only).
+//
+// Your body's fine mask is one a side (its arms and legs share their skin's texels, mirrored), and the blood on your
+// body and hands that isn't yours (spatter from hits near you, gibs striking you: vr_gore_spatter*) is a mask of its
+// own, healing leaving it. What your hands hold (weapons, props) takes that blood too and keeps it, moving with a
+// weapon thrown, taken again, holstered (vr_gore_gear); water washes it all (ROUND21.md, "Blood on you, your weapons
+// and props").
 
 #pragma once
 
@@ -60,7 +66,13 @@ void info_f();
 // vr_gore_hands_test [off|main] [amount]: a gib's blood on a hand, as taking one (the main hand; vr_gore_hands).
 void handsTest_f();
 
-// vr_gore_hands_info: the player's wounds kept to re-open, the wash, and the blood on the hands and the body (texels).
+// vr_gore_hands_info: the player's wounds kept to re-open, the wash, the blood on the hands and the body (texels), and
+// on your gear (vr_gore_gear: the weapons and props you hold or held).
 void handsInfo_f();
+
+// vr_gore_spatter_test [blow|saw|shot|gib] [distance]: blood thrown onto you as by a blow `distance` units ahead of what
+// the main hand holds (6), a chainsaw's cut there, a shot hitting `distance` ahead of the eyes (40), a gib striking the
+// main hand (vr_gore_spatter*; ROUND21.md, "Blood on you, your weapons and props").
+void spatterTest_f();
 
 } // namespace qvr::wounds

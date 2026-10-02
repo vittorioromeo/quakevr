@@ -1038,6 +1038,13 @@ box (100 health, 101 shells, 102 an explosive box, 103 a small one, 104 an explo
 (`vr_test_spawn_dead 1`: a corpse; `2`: gibbed, its head left lying: the flies' test, `bash Misc/quakevr/flies/flies_test.sh <worktree> [runs]`, ROUND21.md, "Flies round a severed head"); `impulse 232` flings the loose prop nearest you at the nearest monster
 (`vr_test_fling_speed` m/s; `vr_test_fling_at 1` at you, `vr_test_fling_away 1` away from inside its box: ROUND21.md,
 "Flung props: settings, and never you");
+Blood on you and your gear (ROUND21.md, "Blood on you, your weapons and props"): `vr_gore_spatter_test blow|saw|shot|gib [distance]`
+throws a blow's, a cut's, a close shot's or a gib's blood onto you and what the main hand holds; `vr_gore_hands_info` counts
+each hand's, the body's and your gear's blood (texels); `vr_wounds_debug 1` prints spatters, gib strikes and the gear's
+moves. A real chainsaw cut: firing range, `vr_weapon_grip_mode 1; impulse 164; vr_test_spawn 3; impulse 241; impulse 230;
+vr_mock_hand main 0.0 1.1 -0.62 70 0 0; +attack` (a shambler: about six cuts a second); a gibbing next to you:
+`vr_test_spawn 0; vr_test_spawn_dist 16; vr_test_spawn_dead 2; impulse 241`; hands held where the eyeshots show their
+backs and forearms: `vr_mock_look 50 0; vr_mock_hand off -0.18 1.05 -0.45 20 0 0; vr_mock_hand main 0.18 1.05 -0.45 20 0 0`.
 The ogres' chainsaw (ROUND21.md, "The ogres' chainsaw"): `impulse 164` puts a full one in the main hand (with
 `vr_weapon_grip_mode 1`), `impulse 229` takes the one lying nearest into an empty hand, `impulse 227` leaves 5% fuel,
 `impulse 228` prints fuel, engine, chain and cord. `vr_chainsaw_fit` prints where the off hand's fist must move (metres,
