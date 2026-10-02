@@ -65,6 +65,12 @@ enum class Button
 // grip let go, the flashlight has it now.
 [[nodiscard]] bool tookGrip(int hand);
 
+// Once a frame (vr_input.cpp, after the buttons): a grip pressed just before the hand reached the lamp, or while it was
+// still moving there (in slow motion, the hand following its controller), takes it as the hand comes to rest at it
+// with the grip still held (the late grip, ROUND21.md "Flashlight: lit, gripped, nothing"). Then tookGrip(hand) is
+// true: the game saw that press and must see it let go.
+void lateGrips();
+
 // A new game, a map started afresh (the map command, the menus) or a save loaded, not a level
 // changed in the game: the flashlight switched off, on the chest.
 void reset();

@@ -263,6 +263,16 @@ float current()
     return scaleClock.scale;
 }
 
+float handScale()
+{
+    return scaleClock.sandevistan ? 1.f : scaleClock.scale;
+}
+
+float handLag(int hand)
+{
+    return hand >= 0 && hand < HAND_COUNT ? slowHands.lag[hand] : 0.f;
+}
+
 bool sandevistan()
 {
     return scaleClock.sandevistan;

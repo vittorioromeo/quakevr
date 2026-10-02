@@ -19769,3 +19769,43 @@ defaults (`resetall; writeconfig`) against his live config: no difference left i
 mass or prop settings but his untouched crowbar slot. Crate Cover on vrfiringrange: the large crate 48 units tall, the
 grunt 288 units away; head 28 units up (crouched): "can't see you", asleep after 300 frames; head 60 up: "SEES you",
 awake. `vr_menu_path_check maps/vrcalibration.map`: 0 missing. eval canary 48/53, no difference from the baseline.
+
+## Flashlight: lit, gripped, nothing (2026-10-02)
+
+His note: the torch is still hard to take from the body; lit up, a grip sometimes does nothing, worse in bullet time.
+Branch `agent/flashgrab`. The earlier fix ("Flashlight: lit but not taken", above) made the lamp light by the same
+place test the press uses; what remained was the press's *intent gate* (`deliberate`, "Deliberate presses only"),
+which the light doesn't show, and the single press edge.
+
+- **Cause 1 (the timing):** a grip took the torch only if, at the instant of the press edge, the hand was already at
+  the lamp *and* still (under 1 m/s, and so for 0.15 s). A natural reach closes the hand as it arrives: the squeeze
+  lands a few frames before the hand is in reach, or while it is still decelerating there. Either way the press went
+  to the game, and with no new edge nothing happened while the lamp stayed lit under the closed hand.
+- **Cause 2 (slow motion):** the gate measured the hand's speed in the game's time (the slowed hands' velocities are
+  sped up by 1 over the scale: at 0.3 a hand at 0.3 m/s counted as moving) and timed its holds on vr_gametime (the
+  0.15 s still and 0.15 s open stretched to 0.5 s real). In bullet time no reach took it at all.
+- **Fix:** the gate is in the player's real time and speed (`realtime`, `timescale::handScale`). And a **late grip**
+  (`flashlight::lateGrips`, every frame after the buttons): a grip the lamp didn't take, pressed from an open hand
+  within 25 cm of it (plus a slowed hand's lag behind its controller), takes it as soon as the hand is at the lamp
+  (`reachesLamp`, what lights it) and still, the grip still held, within 0.6 s of the press (longer while a slowed hand
+  catches up). The game saw the press: it gets the release then (`tookGrip`), the controller's release is the torch's.
+  It ends if the grip is let go, the hand moves 10 cm back out from its nearest, punches (2.5 m/s, also in the 0.3 s
+  before the press), or the game took the grip (a weapon drawn, something carried, a climb hold, a force grab locked or
+  pulling). A press where a holster is nearer still draws.
+- **Test:** `Misc/quakevr/flashgrab/flash_grab_test.py <agent> timing` (~70 s): the off hand reaches the lamp from 33 cm
+  in front at 0.4, 0.8, 1.5 and 2.2 m/s, the grip pressed at 8 moments round the arrival (from 20 cm out to 0.4 s after
+  it stopped), for 3 torso turns, at scale 1, vr_timescale 0.3 and bullet time; and 3 controls each that must not take
+  it (a punch out of the guard and back, the grip pressed on the way out; pressed while passing, then 15 cm past;
+  pressed 33 cm out, the hand arriving closed). Before: 51 of 90 reaches taken at scale 1, 0 of 90 at 0.3 and in
+  bullet time. After: 90 of 90 at each, controls 9 of 9 at each.
+- `developer 1` prints "flashlight: the off hand's grip may take it late", "late grip, 0.xx s after the press" and why
+  a late grip ended.
+- Unchanged: a hand reaching the lamp with the grip closed from further out (33 cm) doesn't take it: open and grip
+  again. The lamp also lights for a hand holding a weapon (its trigger switches the lamp; its grip can't take it).
+
+### To test in VR
+
+- [ ] Reach for the belt torch and close the hand as you get there, quickly and slowly: it is taken every time it lit.
+- [ ] The same in bullet time and with vr_timescale 0.3.
+- [ ] Punch and guard next to the belt with fists clenched: the torch stays put.
+- [ ] Draw the axe from the left hip holster beside it: the axe, not the torch.
