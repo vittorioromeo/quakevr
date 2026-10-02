@@ -20,12 +20,15 @@
 # The bar is a loft of rings along its centre line (8 points: the hexagon's 6 corners and the middles of the two flats
 # facing the bend's way, so the claw's end can be forked), each flat its own strip of vertices: flat-shaded across the
 # bar (the hexagon's facets, as the id models), smooth along it (the bend). The skin (512 x 64) unrolls the bar: s along
-# its length, t round it; the two end faces sample the bare steel.
+# its length, t round it; the two end faces sample the bare steel. What the engine draws is its full-colour skin,
+# progs/v_crowbar.mdl_0.png (FULL, 4, times the size: 2048 x 256; paint_full()), painted with its relief (the normal
+# map's: the paint chipped to the steel, pits, scratches, dents, the tape's turns and weave); the 8-bit skin is that
+# one in Quake's palette.
 # Nine identical frames (a weapon's frame numbers).
 #
 # Usage: python Misc/quakevr/make_crowbar.py [output progs folder] [--keep-edited | --force]
-# Then: python Misc/quakevr/bake_normals.py v_crowbar.mdl (its normal map), and check the anchor printed below against
-# vr_weapons.inc's slot 23 MuzzleAnchorVertex (200).
+# Then: python Misc/quakevr/bake_normals.py v_crowbar.mdl (its normal map, from relief()), and check the anchor printed
+# below against vr_weapons.inc's slot 23 MuzzleAnchorVertex (200).
 
 import math
 import os
@@ -347,6 +350,128 @@ def paint(st):
     return bytes(px)
 
 
+# ----------------------------------------------------------------------------
+# The full-colour skin (progs/v_crowbar.mdl_0.png, FULL times the 8-bit skin's size: what the engine draws) and its
+# relief (the normal map's: bake_normals.py, normaltiles.py's "relief" recipe). The regions are paint()'s; the 8-bit
+# skin is this one in Quake's palette, for a renderer without external skins.
+
+FULL = 4
+# How deep the relief is (skin texels, 1.6 mm each): the paint's chipped edge a step, the steel pitted and ground, the
+# tape's turns and weave; deep, as the bumps the engine makes from the texture pack's walls (ROUND21.md, "Grittier
+# debris, crates and crowbar").
+DEPTH = 3.0
+
+
+def paint_full(st, k=FULL):
+    """The skin in full colour ((64 k, 512 k, 3) sRGB 0..1) and its relief ((64 k, 512 k) skin texels). Noise is
+    taken on the bar's cylinder (round it, seamless at the skin's seam): the paint chipped along the edges and in
+    flakes, its rim dark, scratched to the steel, dented, grimy by the tape and the claw; the ground steel at the ends
+    streaked, pitted and rusty where the paint gave out; the cloth tape's turns and weave, scuffed."""
+    import numpy as np
+    import make_debris as md
+    ys, xs = np.mgrid[0:SKIN_H * k, 0:SKIN_W * k]
+    s = (xs + 0.5) / k - 0.5
+    t = (ys + 0.5) / k - 0.5
+    period = T_BAR[1] - T_BAR[0]
+    R = period / (2 * math.pi)
+    th = 2 * math.pi * (t - T_BAR[0]) / period
+    cy, sy = R * np.cos(th), R * np.sin(th)
+
+    def q(cell, stretch=1.0):  # the cylinder in cells of `cell` texels (`stretch` times longer along the bar)
+        return np.stack([s / (cell * stretch), cy / cell, sy / cell], -1)
+
+    def ramp(r, x):
+        return md.ramp_rgb(r, np.clip(x, 0, 1))
+
+    s_tip = S0
+    s_end = S0 + st[-1].s * S_PER_CM
+    s_neck = s_end - CLAW_LEN * S_PER_CM
+    tape0, tape1 = S0 + TAPE[0] * S_PER_CM, S0 + TAPE[1] * S_PER_CM
+    corners = np.array([ring_t(c) for c in (1, 2, 3, 5, 6, 7)])
+    tt = np.clip(t + 0.5, T_BAR[0], T_BAR[1])
+    edge = np.min(np.abs(tt[..., None] - corners), -1)
+    corner = 1 - md.smoothstep(edge, 0.4, 1.0)
+    bar = (t >= T_BAR[0] - 1) & (t < T_BAR[1] + 2)
+    ragged = 5.0 * md.vnoise(q(4.0), 11)
+    lo_end, hi_end = s_tip + 4.5 * S_PER_CM + ragged, s_neck + 1.2 * S_PER_CM - ragged
+    steel = ~bar | (s < lo_end) | (s > hi_end)
+    tape = ~steel & (s >= tape0) & (s <= tape1)
+
+    # The steel: forged, ground at the ends (streaks along the bar), pitted, rust in the pits and where the paint ends.
+    far = np.minimum(s - s_tip, s_end - s) / S_PER_CM
+    streak = md.vnoise(q(0.45, 30.0), 3) * 0.6 + md.vnoise(q(1.2, 12.0), 4) * 0.4
+    pits = md.smoothstep(md.vnoise(q(0.8), 7), 0.72, 0.9) * (0.35 + 0.65 * md.smoothstep(md.fbm(q(6.0), 9, 2), 0.4, 0.7))
+    border = np.minimum(np.abs(s - lo_end), np.abs(s - hi_end))
+    rust = np.maximum(md.smoothstep(md.fbm(q(2.5), 21, 3), 0.6, 0.75) * 0.6,
+                      (1 - md.smoothstep(border, 1.0, 4.0)) * md.smoothstep(md.fbm(q(1.5), 22, 3), 0.4, 0.6))
+    rust = np.clip(rust + 0.6 * pits, 0, 1)
+    lit_steel = (0.36 + 0.36 * (md.fbm(q(3.0), 5, 3) - 0.5) + 0.22 * (streak - 0.5) + np.clip(2.0 - far, 0, 2) * 0.07
+                 + 0.14 * corner - 0.3 * pits)
+    c_steel = md.mix(ramp(STEEL, lit_steel), ramp(RUST, 0.25 + 0.45 * md.vnoise(q(0.7), 23) - 0.15 * pits), 0.85 * rust)
+
+    # The paint: chipped where it wore (the bar's corners first), its broken rim dark, flakes off the flats.
+    patchy = md.fbm(q(7.0), 14, 3)  # where it is knocked about most
+    wear = 0.55 * md.fbm(q(3.0), 13, 3) + 0.45 * md.fbm(q(9.0), 17, 2)
+    wear = wear + np.maximum(0.0, 1.6 - edge) * 0.2 * md.smoothstep(patchy, 0.35, 0.65)  # the corners, in stretches
+    wear = wear + 0.25 * md.smoothstep(md.vnoise(q(1.6), 15), 0.8, 0.95) * md.smoothstep(patchy, 0.3, 0.6)  # flakes
+    chipped = md.smoothstep(wear, 0.775, 0.79)
+    rim = md.smoothstep(wear, 0.715, 0.77) * (1 - chipped)
+    sc = np.zeros_like(s)
+    for j, (ang, spacing, keep) in enumerate(((0.0, 7.0, 0.3), (0.35, 11.0, 0.2), (-0.6, 13.0, 0.15))):
+        u = s * math.cos(ang) + t * math.sin(ang)
+        v = -s * math.sin(ang) + t * math.cos(ang)
+        w = v / spacing + (md.fbm(np.stack([u * 0.02, v * 0.05, np.full_like(u, j * 7.0)], -1), 41 + j, 2) - 0.5) * 2.0
+        row = np.floor(w)
+        d = np.abs(w - row - 0.5) * spacing
+        on = md.vnoise(np.stack([u * 0.06, row * 3.1, np.full_like(u, j * 5.0)], -1), 43 + j) > 1.0 - keep
+        sc = np.maximum(sc, np.where(on, 1.0 - md.smoothstep(d, 0.08, 0.3), 0.0))
+    grime = np.exp(-np.abs(s - tape1) / 10.0) + np.exp(-np.abs(s - tape0) / 10.0) + np.exp(-np.abs(s - hi_end) / 14.0)
+    grime = np.clip(grime, 0, 1) * (0.4 + 0.6 * md.fbm(q(2.0), 27, 3))
+    lit_paint = 0.42 + 0.34 * (md.fbm(q(6.0), 19, 3) - 0.5) + 0.12 * (md.vnoise(q(0.6), 25) - 0.5) + 0.12 * corner
+    c_paint = ramp(PAINT, lit_paint)
+    c_paint = md.mix(c_paint, ramp(PAINT_EDGE, 0.3 + 0.4 * md.vnoise(q(0.5), 26)), rim)
+    c_paint = md.mix(c_paint, ramp(STEEL, 0.45 + 0.2 * md.vnoise(q(0.4), 28)), sc * (1 - chipped) * 0.8)
+    c_paint = md.mix(c_paint, np.array((0.07, 0.05, 0.04)), 0.6 * grime)
+    blister = md.smoothstep(md.vnoise(q(1.2), 45), 0.78, 0.9)
+    speck = md.smoothstep(md.vnoise(q(0.35), 47), 0.6, 0.9)  # dirt and soot ground into it
+    c_paint = md.mix(c_paint, np.array((0.06, 0.04, 0.035)), 0.35 * speck + 0.25 * md.smoothstep(md.fbm(q(4.0), 49, 3), 0.5, 0.75))
+    c_paint = c_paint * (1.0 + 0.25 * blister)[..., None]
+    c_paint = md.mix(c_paint, c_steel, chipped)
+
+    # The tape: black cloth wound on a slant, each turn's edge over the last, a fine weave, scuffs, grime.
+    phase = np.mod(s - tape0 + (tt - T_BAR[0]) * 0.55, 9.0)
+    weave = np.sin(2 * math.pi * s / 1.1) * np.sin(2 * math.pi * (tt - T_BAR[0]) / 1.1)
+    scuff = md.smoothstep(md.vnoise(q(3.0), 5), 0.72, 0.9)
+    lit_tape = 0.34 + 0.24 * (md.fbm(q(2.0), 31, 3) - 0.5) + 0.1 * weave + 0.3 * scuff
+    lit_tape = np.where(phase < 0.8, lit_tape + 0.35, np.where(phase < 1.6, lit_tape - 0.25, lit_tape))
+    c_tape = ramp(TAPE_RAMP, lit_tape)
+    c_tape = md.mix(c_tape, np.array((0.09, 0.075, 0.06)), 0.4 * md.smoothstep(md.fbm(q(1.5), 33, 3), 0.5, 0.7))
+
+    rgb = np.where(steel[..., None], c_steel, np.where(tape[..., None], c_tape, c_paint))
+
+    # The relief (skin texels).
+    dents = md.smoothstep(md.vnoise(q(5.0), 35), 0.8, 0.95)
+    h_steel = -0.5 * pits + 0.12 * (streak - 0.5) + 0.2 * rust * (md.fbm(q(0.6), 37, 2) - 0.35)
+    h_paint = (0.35 * (1 - chipped) + 0.12 * (md.fbm(q(0.5), 39, 2) - 0.5) - 0.18 * sc * (1 - chipped)
+               + 0.15 * blister * (1 - chipped) - 0.05 * speck
+               + chipped * h_steel - 0.1 * rim)
+    h_tape = (0.32 * (1.0 - phase / 9.0) - 0.12 * md.smoothstep(phase, 0.0, 0.6) * (1 - md.smoothstep(phase, 0.6, 1.4))
+              + 0.08 * weave + 0.06 * (md.fbm(q(1.0), 41, 2) - 0.5) - 0.1 * scuff)
+    h = np.where(steel, h_steel, np.where(tape, h_tape, h_paint))
+    h = (h - 0.35 * dents * ~tape) * DEPTH
+    return np.clip(rgb, 0, 1), h
+
+
+_relief = {}
+
+
+def relief(name):
+    """The crowbar's relief for its normal map (normaltiles.py): (heights in skin texels, 1, FULL)."""
+    if name not in _relief:
+        _relief[name] = (paint_full(stations())[1], 1.0, FULL)
+    return _relief[name]
+
+
 def outward_check(mesh):
     """Triangles facing into the bar: each side face's normal must point away from the centre line near it."""
     return mesh.check_winding()
@@ -356,7 +481,7 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     out_dir = args[0] if args else os.path.join(HERE, "..", "..", "quakevr", "progs")
     path = os.path.join(out_dir, "v_crowbar.mdl")
-    guard = genguard.Guard("make_crowbar.py", [path])
+    guard = genguard.Guard("make_crowbar.py", [path, path + "_0.png"])
     mesh, st = build()
     local = [v[0] for v in mesh.verts]
     tip_st = next(s for s in st if s.t != (0.0, 1.0) and abs(math.degrees(math.atan2(s.t[0], s.t[1])) - tip_angle()) < 1e-6)
@@ -366,8 +491,15 @@ def main():
     bad = outward_check(mesh)
     if bad:
         raise SystemExit("%d triangles wound the wrong way" % bad)
-    skin = paint(st)
-    mdlgen.write_mdl(path, mesh, [skin], "crowbar", frames=[mesh] * (FRAMES - 1))
+    import numpy as np
+    import make_debris as md
+    from PIL import Image
+    rgb, _ = paint_full(st)
+    skin = md.to_palette(rgb, SKIN_W, PAINT + PAINT_EDGE + STEEL + TAPE_RAMP + RUST).tobytes()
+    if path not in guard.kept:
+        mdlgen.write_mdl(path, mesh, [skin], "crowbar", frames=[mesh] * (FRAMES - 1))
+    if path + "_0.png" not in guard.kept:
+        Image.fromarray(np.round(rgb * 255).astype(np.uint8)).save(path + "_0.png", optimize=True)
     # The anchors, in the engine's strip order (vr_anchor.cpp; improve_weapons.strip_order), and the hotspots' places.
     from improve_weapons import strip_order
     order = strip_order([(1,) + t for t in mesh.tris])
