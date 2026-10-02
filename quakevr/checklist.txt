@@ -68,6 +68,8 @@ Sword: off hand on the blade, let go, main hand on the blade, swing, then close 
 Physics threads: spawn the 500-rock pile (Debug > Tests > Physics Stress), Physics Step Time with threads on and off; watch for occasional hitch frames (benchmark: threads ~2x faster above 150 awake bodies)
 Highlight markers for trailers: Graphics > Recording > Highlight Markers > Log Highlights while recording with OBS; check the sync flash is captured and the beep audible; import into Resolve (docs/vr-port/TRAILER.md: File > Import > Timeline for the FCPXML, or Timeline Markers from EDL); try Misc/quakevr/trailer/rough_cut.py
 
+Rocks, bricks, crates, planks and crowbar: much deeper gritty relief, rocks/bricks/crowbar new full-colour skins (no visible texels up close; Debug > Tests > Thing > Rocks and Bricks); skins still match nearby walls? mossy rock green too saturated? brick creases look artificial? crowbar in hand under a light
+
 [Decide or give feedback]
 Flashlight: a hand gripping as the returning lamp flies into it now catches it (new): OK?
 Wall buttons and parry: should the spawn's leap and the dragon be parriable? (included for consistency)
