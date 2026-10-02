@@ -7180,6 +7180,23 @@ extern "C" void VR_PhysicsFrameEnd(void)
         {
             continue;
         }
+        if(world->slots[a].kind == Kind::Prop && world->slots[b].kind == Kind::Mover)
+        {
+            // A prop meeting a door, a lift or a button: as two props below, its touch sees the speed it came at, not
+            // what the bounce left (a rock thrown at a wall button presses it from vr_button_throw_speed: QC buttons.qc).
+            const glm::vec3 after = vec(ea->v.velocity), before = world->slots[a].arrival;
+            const bool faster = glm::length(before) > glm::length(after);
+            if(faster)
+            {
+                store(before, ea->v.velocity);
+            }
+            SV_Impact(ea, eb);
+            if(faster && !ea->free && vec(ea->v.velocity) == before)
+            {
+                store(after, ea->v.velocity);
+            }
+            continue;
+        }
         if(world->slots[a].kind != Kind::Prop || world->slots[b].kind != Kind::Prop)
         {
             SV_Impact(ea, eb);

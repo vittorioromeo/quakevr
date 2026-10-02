@@ -2802,6 +2802,7 @@ void() PlayerVRMelee =
     PlayerVRMeleeHeadbutt();
     VR_Heartbeat();
     VR_Melee_Frame(); // both hands' new poses (vr_melee.qc)
+    VR_Buttons_WeaponFrame(); // a held weapon touching a wall button presses it, all of it (buttons.qc)
     VR_Gib_HeldFrame(); // a gib held in one hand struck by the other (vr_carry.qc)
     VR_Bash();
 
