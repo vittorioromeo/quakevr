@@ -19721,3 +19721,51 @@ Verified (grunts' gun, `_22`, held two-handed at its foregrip, the stock forced 
 (57.69 85.62 -4.33); Stock Pitch 10: 47.69 (10 up); Stock Yaw 10: yaw 95.62; Stock Roll 10: roll 5.67; with the stock
 off (threshold 0.1) "virtual stock 0.00" and Stock Pitch has no effect. `menu_vr 84..91` each open with the weapon's rows
 (36, 13, 13, 36, 14, 11, 13, 20 rows; the main page 22).
+## Defaults: chainsaw pull, mantle grunt, prop weights, crates (2026-10-02)
+
+The author's values from his live config made the shipped defaults (NOTES.md 2026-10-02: vrfiringrange 00-17-30
+chainsaw, start 00-18-45 mantle grunt, vrfiringrange 00-55-03 prop weights and sizes, 01-41-30 crates). Configs that
+still hold the old default take the new one (`vr_cfg_version` 75, `vr_props_version` 55).
+
+| Setting | Was | Now |
+|---|---|---|
+| Pull Smoke `vr_chainsaw_pull_smoke` | 4 | 12 |
+| Pull Sparks `vr_chainsaw_pull_sparks` (slider now 0..40) | 6 | 24 |
+| Mantle Grunt Sound `vr_climb_mantle_grunt_sound` | 1 (hard landing) | 4 (pain grunt) |
+| Light Up To `vr_throw_mass_light` | 2 kg | 1.5 kg |
+| Heavy Falloff `vr_throw_mass_exp` | 0.75 | 0.9 |
+| Crate Health `vr_crate_health` | 25 | 75 |
+| Breaks On Impact `vr_crate_impact` | 14 m/s | 16 m/s |
+| Pieces `vr_crate_pieces` | 6 | 12 |
+| Pieces Last `vr_crate_piece_time` | 30 s | 60 s |
+
+The two Throws by Weight values were changed in his config after that feature landed (2026-10-01 23:49) and before
+"make the weights the defaults"; they go with his heavier props (taken as part of them).
+
+Props (`vr_props.inc`; slot numbers as the cvars', `vr_prop_*_NN`): Mass of the explosive boxes 40 -> 80.5 (01) and
+25 -> 40 (02); the torch 0.9 -> 0 (estimated, 17); the crates 25 -> 40 (27) and 40 -> 65 (28); boards 0.6 -> 4 (29),
+0.4 -> 2.5 (30), 0.45 -> 3 (32); gibs 0.8 -> 8, 2.5 -> 20, 2 -> 12 (34-36); heads: guard 5 -> 10, dog 3 -> 12, mega
+5 -> 16, knight 5 -> 12, hell knight 6 -> 17, ogre 9 -> 30, wizard 3 -> 10, zombie 4 -> 8, shalrath 6 -> 12, shambler
+15 -> 70, demon 12 -> 28 (38-48; the player's head stays 5). Mass x 1.25 for rocks 1-5 and bricks 1, 2 and 4 (18-24,
+26; brick 3 he left at 1). Handle Tilt 25 -> 0 for bricks 1 and 2 (23, 24). Slots 06-16, which he gave items in Held
+Object Offsets, ship with them: b_rock0 (Size 1.25, Mass x 1.25), b_plas1 (Mass x 1.25), h_grem (Mass 18), h_scourg
+(Mass 50), armor.mdl (Mass x 0.6), b_bh100 (Mass x 1.25), b_bh10 (Mass x 1.15), b_shell0, b_nail0, b_lnail0 (Mass x
+1.25), b_mrock1 (Size 1.25, Mass x 1.25); a config with the slot free (and the item in no other) takes them. His slot
+33 (`progs/v_crowbar.mdl`, every key at its default) is not shipped. That left one free slot of 48, so `props::numSlots`
+is 64 now (16 more for Held Object Offsets; configs gain the empty slots on their next save).
+
+Head flies (Scourge of Armagon's HeadThink: one head in ten loops `misc/flys.wav`) are off: `vr_head_flies` 0, Gore >
+Flies on Heads (NOTES.md vrfiringrange_2026-10-02_01-29-37). BACKLOG.md, "Flies on corpses and gibs", keeps the idea to
+revisit.
+
+Crate cover test (NOTES.md vrfiringrange_2026-10-02_01-39-38): Debug > Tests > Ahead of You > **Crate Cover** (impulse
+223: a large crate square to you 56 units ahead, a small one 48 units to your right, a grunt 320 units ahead or short
+of a wall, facing you and asleep) and **Can the Grunt See You?** (impulse 224: `visible()` from the grunt now, your
+head's height, awake or not). The checklist's crate cover line points to it.
+
+Results (mock): an old config (vr_cfg_version 34, vr_props_version 26) loads with every new value (slots 06-16 his
+items, explosive box 80.5, the brick's Handle Tilt 0, the demon's head 28; brick 3's Mass x stays 1). A fresh config's
+defaults (`resetall; writeconfig`) against his live config: no difference left in the chainsaw, mantle, crate, throw
+mass or prop settings but his untouched crowbar slot. Crate Cover on vrfiringrange: the large crate 48 units tall, the
+grunt 288 units away; head 28 units up (crouched): "can't see you", asleep after 300 frames; head 60 up: "SEES you",
+awake. `vr_menu_path_check maps/vrcalibration.map`: 0 missing. eval canary 48/53, no difference from the baseline.

@@ -51,6 +51,10 @@ Spectator camera at the default 60 fps rate with the flashlight on your hands: n
 
 Spectator view: pickup messages and other head-locked text show in the headset but not in the window (Recording > Hide Head Text on the Spectator Camera, default on; same option for the mirror, default off)
 
+Crate cover, for a definite answer: Debug > Tests > Ahead of You > Crate Cover (a large crate to crouch behind, a small one at your right, a grunt beyond, asleep): crouched it stays asleep and can't see you; stand up, or hold the small crate up: it sees you and shoots (Can the Grunt See You? reports it)
+Your values are now the defaults: mantle grunt is the pain grunt, ripcord smoke 12 and sparks 24, crates (Health 75, Breaks On Impact 16 m/s, 12 Pieces, Pieces Last 60 s), every prop weight and size you set (explosive boxes 80.5 and 40 kg, crates 40 and 65, gibs and heads heavier, rocks and bricks Mass x 1.25, your ammo, health, armour and mission-pack head slots), Throws by Weight Light Up To 1.5 kg and Heavy Falloff 0.9: a fresh config feels the same as yours
+Head flies are off (Gore > Flies on Heads); revisit later (docs/vr-port/BACKLOG.md)
+
 [Decide or give feedback]
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)

@@ -794,7 +794,9 @@ void() HeadThink =
     self.nextthink = time + 10;
     self.think = monster_check_remove_corpse;
 
-   if(world.worldtype != 2)
+   // QVR: off unless vr_head_flies (the author, NOTES.md vrfiringrange_2026-10-02_01-29-37: pointless as it is;
+   // BACKLOG.md, "Flies on corpses and gibs").
+   if(world.worldtype != 2 && cvar("vr_head_flies"))
       {
       if(random()<0.1)
          {
