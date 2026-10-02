@@ -633,8 +633,14 @@ void(entity t, vector xHead, entity xBy) VR_Burn_TorchTouch =
 
 .entity burn_tnext; // the lit torches, this frame (VR_Burn_NailFrame)
 
-void(entity n, vector xFlame) VR_Burn_NailToLava =
+void(entity n, vector xFlame, entity xTorch) VR_Burn_NailToLava =
 {
+    // A very short fizz from the torch's flame (vr_burn_nail_sound: its volume, 0 none).
+    float vol = cvar_hget(cvarh_vr_burn_nail_sound);
+    if(vol > 0)
+    {
+        sound(xTorch, CHAN_AUTO, random() < 0.5 ? "vr/nail_sizzle1.wav" : "vr/nail_sizzle2.wav", min(1, vol), ATTN_IDLE);
+    }
     n.classname = "lava_spike";
     n.touch = n.touch == superspike_touch ? superlavaspike_touch : lavaspike_touch;
     setmodel(n, "progs/lspike.mdl");
@@ -672,7 +678,7 @@ void(entity n, entity xTorches, vector a, vector b) VR_Burn_NailCheck =
         vector fl = VR_WallTorch_Head(t) + '0 0 8';
         if(VR_WallTorch_SegmentDist(fl, a, b) <= reach)
         {
-            VR_Burn_NailToLava(n, fl);
+            VR_Burn_NailToLava(n, fl, t);
             return;
         }
         t = t.burn_tnext;

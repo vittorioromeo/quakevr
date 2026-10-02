@@ -2397,6 +2397,8 @@ void hologramTestMessage()
                   "lava nail: more damage, and it sets what it hits on fire."),
         slider("Flame's Reach for Nails", vr_burn_nail_reach, 2.f, 30.f, 1.f, "%.0f").extend(0.f, 80.f)
             .help("How near a torch's flame a nail must pass, in units (a hand is about 4)."),
+        slider("Nail Sizzle Volume", vr_burn_nail_sound, 0.f, 1.f, 0.1f, "%.1f")
+            .help("Volume of the short fizz a nail makes as it catches fire in a torch's flame (0 off)."),
         header("Crates"),
         toggle("Crates Burn", vr_burn_crates)
             .help("Wooden crates catch fire: a lit torch's blow or touch, a lava nail, a burning crate touching them."),

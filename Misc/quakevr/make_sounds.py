@@ -21,6 +21,8 @@
 #   torch_pull.wav, torch_out.wav, torch_light.wav, torch_hit.wav  wall torches (QC vr_walltorch.qc): pulled out of
 #                 its holder (a wooden scrape and a knock), its fire going out (a puff and a hiss), fire catching (a
 #                 whoosh and crackles), a burning torch's blow (a burst of flame)
+#   nail_sizzle1..2.wav  a nail turning into a lava nail in a torch's flame (QC vr_burning.qc, vr_burn_nail_sound): a
+#                 very short fizz (a bright hiss snapping on and falling in pitch as it dies, a pop or two); two, apart
 #   sync_beep.wav  the highlight log's sync mark (vr_highlights.cpp): a 1 kHz tone, 0.25 s
 #   grapple_reel.wav, grapple_taut.wav, grapple_unreel.wav  the grappling hook (QC vr_grapple.qc): the reel winding in
 #                 (a ratchet's clicks over a whirr, played back to back while it reels), the rope snapping taut (a low
@@ -795,6 +797,26 @@ def torch_hit():
     return finish(out, 0.8)
 
 
+def nail_sizzle(pitch, seed):
+    """A nail catching fire in a torch's flame as it flies through: a very short fizz, about a tenth of a second (a
+    bright hiss, 3 to 9 kHz, snapping on and falling in pitch as it dies away, with a pop or two at its start)."""
+    rng = random.Random(seed)
+    n = int(RATE * 0.13)
+    lp, hp = OnePole(9000 * pitch), OnePole(3000 * pitch)
+    pops = crackles(rng, 180, n, 6000)
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        lp.a = 1.0 - math.exp(-2 * math.pi * pitch * (9000 - 4500 * min(1.0, t / 0.1)) / RATE)
+        hiss = lp(noise)
+        hiss -= hp(hiss)
+        env = min(1.0, t / 0.003) * math.exp(-t / 0.035) * (0.75 + 0.25 * math.sin(2 * math.pi * 90 * t))
+        pop = pops[i] * math.exp(-t / 0.02)
+        out.append(math.tanh((hiss * env * 2.6 + pop * 1.2) * 1.2))
+    return finish(out, 0.8, 0.015)
+
+
 # ---- Grappling hook (QC vr_grapple.qc; docs/vr-port/ROUND21.md, "Grappling hook: rope, reel on demand...") -------------
 
 
@@ -982,6 +1004,11 @@ def main():
     for k, pitch in enumerate((1.0, 0.92, 1.09)):
         name = "shell_tink%d.wav" % (k + 1)
         write_wav(os.path.join(out, name), shell_tink(pitch, 31 + k))
+        print(name + " -> " + os.path.normpath(out))
+    # Nails catching fire (QC vr_burning.qc): two, a little apart in pitch, picked at random.
+    for k, pitch in enumerate((1.0, 0.85)):
+        name = "nail_sizzle%d.wav" % (k + 1)
+        write_wav(os.path.join(out, name), nail_sizzle(pitch, 341 + k))
         print(name + " -> " + os.path.normpath(out))
     # Pommel, hilt and butt strikes (QC vr_melee.qc): three, a little apart in pitch, picked at random.
     for k, pitch in enumerate((1.0, 0.89, 1.12)):
