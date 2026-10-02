@@ -21899,3 +21899,40 @@ remembered rows, the motion recorder's, the OpenXR runtime, the desktop's (`scr_
 
 - [ ] Weapon weights feel as you set them on a fresh config (axe, shotguns, swords, hook, crowbar).
 - [ ] The lightning gun's second hotspot; the crowbar in both holsters.
+## Blood on every prop you hold: boxes too (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_19-25-00: bricks and rocks got bloody as melee weapons, ammo boxes (and other props)
+didn't; every prop should, as the guns do, and wash as they do.
+
+**Why.** The gear's blood (`vr_wounds.cpp`, "Blood on you and your gear") is a mask laid out by the model's skin, so
+only alias models took it: `gearOf` skipped anything else, `regionOf` had no layout for it, and only
+`R_PaintAliasWounds` could paint. The ammo, health and explosive boxes are brush models (`maps/b_*.bsp`): no skin.
+The crates (`progs/vr_crate*.mdl`) already took blood; a blow on their far side doesn't show from where you stand.
+
+**Brush models: a box mask.** A held brush model's mask (in the pool, as the props': `acquire(..., box)`, only from
+the gear's paint, so doors and lifts never get one) is laid out on its box: six cells, 3 x 2 (+x -x +y -y +z -z), each
+the side of the box facing that way, its other two axes across the cell over the box's largest side (2.5 texels a
+unit, at most 85 a cell: a shells box 80 x 80 a cell, the monsters' chunky look).
+- Painting (`R_PaintBrushWounds`, r_world.c): no vertices; 36 from `gl_VertexID` (`QVR_BOX_WOUND_PAINT_VS`): each side
+  of the box, where the entity is drawn (its matrix as `R_InitBModelInstance`'s), over its cell, with its world
+  position and normal for the same paint fragment shader (spatters, blows, gibs; a liquid for the wash). The box's sides
+  stand for its faces (an item's box is its box).
+- Reading (`BoxWounds`, `QVR_WORLD_FS_WOUNDS`, world shader, solid pass): the instance carries the mask
+  (`Instance.wound`: layer + 1, size, opacity) and the box (`woundbox`: centre, 1 / largest side); the vertex shader
+  passes where in the box (`out_boxpos`, location 17) and the mask (`out_wound`, 18). A pixel takes the cell of its
+  normal's largest axis in the model's frame (from the position's derivatives) and the side of the centre it is on,
+  dithered and coloured as the monsters' masks (Quake's reds; char; wet darker; fullbrights covered; Blood Opacity).
+  Binding 13 (`WoundMasks`) is bound for the world's solid passes.
+- Washing (`washGear`): a brush model's middle is looked at for the water (its origin is its corner).
+
+**Tests.** Debug > Tests > Ahead of You > **Into the Main Hand** (`vr_test_spawn_hold 1`, with `+grabmain` held): the
+box or crate put there goes into your empty main hand. Debug > Tests > **Blood from a Blow on Your Prop**
+(`vr_gore_spatter_test prop [distance]`): a blow just past the held thing's corners on its side facing you. Measured
+(`vr_gore_hands_info`, four blows): shells box 707 texels, health box 1444, small crate 869; an explosive box under
+water 609 -> 0 in 100 frames, dry it keeps them (604, held and let go).
+
+### To test in VR
+
+- [ ] Hit a monster with an ammo box, a health box, an explosive box: blood on the side that hit, as on a brick.
+- [ ] Drop it and take it again: the blood stays; under water it washes off.
+- [ ] A box lying about that you never held: clean, and a door or a lift never bloodied.

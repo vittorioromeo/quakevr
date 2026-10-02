@@ -373,6 +373,7 @@ void GL_CreateShaders (void)
 		glprogs.alias_depth[poseverttype] = GL_CreateProgram (alias_vertex_shader, NULL, "alias depth|POSEVERTTYPE %d", poseverttype);
 	for (poseverttype = 0; poseverttype < 3; poseverttype++) // QVR: wounds painted on models (vr/vr_wounds.cpp)
 		glprogs.woundpaint[poseverttype] = GL_CreateProgram (alias_vertex_shader, wound_paint_fragment_shader, "wound paint|POSEVERTTYPE %d; WOUNDPAINT 1", poseverttype);
+	glprogs.woundpaintbox = GL_CreateProgram (wound_paint_box_vertex_shader, wound_paint_fragment_shader, "wound paint box"); // QVR: a held brush model's (vr/vr_wounds.cpp)
 
 	glprogs.debug3d = GL_CreateProgram (debug3d_vertex_shader, debug3d_fragment_shader, "debug3d");
 

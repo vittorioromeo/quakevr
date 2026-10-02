@@ -4493,7 +4493,7 @@ void() ImpulseCommands =
         {
             // A crate (vr_crates.qc), turned 30 degrees off facing you; 109: a large one with a small one on it.
             traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, self); // (on the floor)
-            VR_Crate_TestSpawn(trace_endpos, spawnKind == 107 ? 1 : 2, spawnPlayer.v_viewangle_y + 30, spawnKind == 109);
+            spawned = VR_Crate_TestSpawn(trace_endpos, spawnKind == 107 ? 1 : 2, spawnPlayer.v_viewangle_y + 30, spawnKind == 109);
         }
         else if(spawnKind == 110)
         {
@@ -4579,6 +4579,19 @@ void() ImpulseCommands =
             spawned.takedamage = DAMAGE_AIM; // (walkmonster_start gives it a moment later)
             // 2: gibbed (its head left lying: the flies' tests, VR_Head_StopFlies)
             T_Damage(spawned, world, world, spawned.health + (cvar("vr_test_spawn_dead") >= 2 ? 100 : 1));
+        }
+        // A box or a crate put into the empty main hand (vr_test_spawn_hold: held props' tests, the blood on them).
+        if(spawned != world && spawnKind >= 100 && cvar("vr_test_spawn_hold"))
+        {
+            if(spawned.handtouch == VR_Carry_Handtouch && spawned.carry_player == world && VRIsHandEmpty(self, cVR_MainHand))
+            {
+                setorigin(spawned, VRGetHandPos(cVR_MainHand) - (spawned.mins + spawned.maxs) * 0.5);
+                VR_Carry_Start(self, cVR_MainHand, spawned);
+            }
+            else
+            {
+                bprint(sprintf("test spawn: %s not put in the main hand (not a carried prop, or the hand is full)\n", spawned.classname));
+            }
         }
     }
     if(self.impulse == 245 && !deathmatch && !coop) // QVR: a gib in the empty off hand (held gib tests)

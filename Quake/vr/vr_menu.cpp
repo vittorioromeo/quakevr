@@ -3054,6 +3054,7 @@ za::Vector<Item> pageDebugTools()
         command("Blood Mist", "vr_gore_mist_test").help("vr_gore_mist_test: a bleed's blood mist 64 units ahead (Gore > Blood Mist)."),
         command("Gib Blood on Hand", "vr_gore_hands_test main").help("vr_gore_hands_test main: a gib's blood on the main hand, as taking one (Gore > Bloody Hands and Washing)."),
         command("Blood from a Blow", "vr_gore_spatter_test blow").help("vr_gore_spatter_test blow: a blow's blood thrown onto what the main hand holds, the hand and the arm (Gore > Blood on You and Your Gear)."),
+        command("Blood from a Blow on Your Prop", "vr_gore_spatter_test prop").help("vr_gore_spatter_test prop: a blow on what the main hand holds (a weapon, a box, a crate, a brick), on its side facing you: the blood on held props (Gore > Blood on You and Your Gear)."),
         command("Blood from a Chainsaw Cut", "vr_gore_spatter_test saw").help("vr_gore_spatter_test saw: a chainsaw cut's spray just ahead of the main hand."),
         command("Blood from a Close Shot", "vr_gore_spatter_test shot").help("vr_gore_spatter_test shot: a shot hitting 40 units ahead of your eyes."),
         command("Gib Strikes Your Hand", "vr_gore_spatter_test gib").help("vr_gore_spatter_test gib: a gib flying into your main hand."),
@@ -3201,6 +3202,9 @@ za::Vector<Item> pageDebugTests()
              {110.f, "Rocks and Bricks"}})
             .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed."),
         slider("Distance", vr_test_spawn_dist, 32.f, 256.f, 8.f, "%.0f units").extend().help("How far ahead."),
+        toggle("Into the Main Hand", vr_test_spawn_hold)
+            .help("A box or a crate (Health Box .. Explosive Box, the crates) put into your empty main hand, as if gripped: "
+                  "to test held props (the blood on what you hold: vr_gore_spatter_test, vr_gore_hands_info)."),
         cycle("As a Corpse", vr_test_spawn_dead, {{0.f, "Off"}, {1.f, "Corpse"}, {2.f, "Gibbed"}})
             .help("A monster killed at once: a corpse, to test gibbing and carrying; Gibbed: killed hard enough to gib (its "
                   "gibs and head to pick up)."),

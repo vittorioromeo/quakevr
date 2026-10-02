@@ -424,6 +424,8 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	float	glow; // QVR: the force grab glow (vr/vr_fgfx.cpp)\n"\
 "	float	parallax; // QVR: parallax mapping's depth in units (0 off)\n"\
 "	float	aoself; // QVR: its own dynamic occlusion group (vr/vr_ao.cpp; 0 none)\n"\
+"	vec4	wound; // QVR: a held prop's blood (vr/vr_wounds.cpp, BoxWounds): x its box mask's layer + 1 (0 none), yz its size in texels, w the blood's opacity\n"\
+"	vec4	woundbox; // QVR: xyz its box's centre (the model's frame), w 1 / its largest side\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=2) restrict readonly buffer InstanceBuffer\n"\
@@ -570,6 +572,8 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	out_detail = call.detail; // QVR\n"
 "	out_extmat = call.extmat; // QVR\n"
 "	out_aoself = instance.aoself; // QVR\n"
+"	out_wound = instance.wound; // QVR: a held prop's blood (BoxWounds)\n"
+"	out_boxpos = (in_pos - instance.woundbox.xyz) * instance.woundbox.w; // QVR\n"
 "	out_styles.x = GetLightStyle(in_styles.x);\n"
 "	if (in_styles.y == 255)\n"
 "		out_styles.yzw = vec3(-1.);\n"
@@ -703,6 +707,7 @@ QVR_WORLD_FS_FUNCTIONS // QVR: detail, parallax, specular anti-aliasing, the bak
 "		discard;\n"
 "#endif\n"
 QVR_WORLD_FS_DETAIL // QVR: detail textures close by; a liquid's unlit texture
+QVR_WORLD_FS_WOUNDS // QVR: a held prop's blood (vr/vr_wounds.cpp)
 "\n"
 "	vec2 lmuv = in_lmuv;\n"
 "#if DITHER\n"
@@ -1288,6 +1293,10 @@ QVR_ALIAS_VS_WOUNDSIDE // QVR: which side's wound mask it reads (your body's: on
 
 static const char wound_paint_fragment_shader[] =
 QVR_WOUND_PAINT_FS // QVR: wounds painted on models (vr/vr_wounds.cpp)
+;
+
+static const char wound_paint_box_vertex_shader[] =
+QVR_BOX_WOUND_PAINT_VS // QVR: a held brush model's blood: its box drawn into its mask (vr/vr_wounds.cpp)
 ;
 
 ////////////////////////////////////////////////////////////////

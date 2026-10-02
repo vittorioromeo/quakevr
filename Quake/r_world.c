@@ -158,6 +158,8 @@ typedef struct bmodel_gpu_instance_s {
 	float		world[12];	// world matrix (transposed mat4x3)
 	float		alpha;
 	float		padding[3];
+	float		wound[4];	// QVR: a held prop's blood (vr/vr_wounds.cpp: its box mask)
+	float		woundbox[4];	// QVR: its box's centre, 1 / its largest side
 } bmodel_gpu_instance_t;
 
 typedef struct bmodel_bindless_gpu_call_s {
@@ -207,10 +209,9 @@ static GLuint						bmodel_batch_program;
 R_InitBModelInstance
 =============
 */
-static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
+static void R_BModelMatrix (entity_t *ent, float mat[16]) // QVR: (R_PaintBrushWounds too)
 {
 	vec3_t angles;
-	float mat[16];
 
 	angles[0] = -ent->angles[0];
 	angles[1] =  ent->angles[1];
@@ -218,6 +219,13 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	R_EntityMatrix (mat, ent->origin, angles, ent == &cl_entities[0] ? ENTSCALE_DEFAULT : ent->scale);
 	if (ent != &cl_entities[0]) // QVR
 		VR_BrushTransform (ent, mat); // QVR
+}
+
+static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
+{
+	float mat[16];
+
+	R_BModelMatrix (ent, mat); // QVR: (shared with R_PaintBrushWounds)
 
 	MatrixTranspose4x3 (mat, inst->world);
 
@@ -226,6 +234,74 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	inst->padding[0] = ent == &cl_entities[0] ? 0.f : VR_EntityGlow (ent); // QVR: the shader's glow
 	inst->padding[1] = VR_ParallaxDepth (ent, mat, NULL, 1); // QVR: its parallax depth in units (vr_parallax)
 	inst->padding[2] = ent == &cl_entities[0] ? 0.f : VR_BrushAOSelf (ent); // QVR: its own dynamic occlusion group (vr/vr_ao.cpp)
+	if (ent == &cl_entities[0]) // QVR: a held prop's blood (vr/vr_wounds.cpp)
+	{
+		memset (inst->wound, 0, sizeof (inst->wound));
+		memset (inst->woundbox, 0, sizeof (inst->woundbox));
+	}
+	else
+		VR_BrushWound (ent, inst->wound, inst->woundbox);
+}
+
+/*
+=================
+R_BModelCentre -- QVR
+
+Where the middle of brush model `e`'s box is drawn this frame (vr/vr_wounds.cpp's tests).
+=================
+*/
+void R_BModelCentre (entity_t *e, float out[3])
+{
+	float	mat[16];
+	vec3_t	mid;
+	int		i;
+
+	R_BModelMatrix (e, mat);
+	for (i = 0; i < 3; i++)
+		mid[i] = 0.5f * (e->model->mins[i] + e->model->maxs[i]);
+	for (i = 0; i < 3; i++)
+		out[i] = mat[i] * mid[0] + mat[4 + i] * mid[1] + mat[8 + i] * mid[2] + mat[12 + i];
+}
+
+/*
+=================
+R_PaintBrushWounds -- QVR
+
+A held prop's blood (vr/vr_wounds.cpp): brush model `e`'s box, as it is drawn this frame, drawn into the bound
+framebuffer (its box mask's layer; the viewport: its region), each side of the box into its cell (vr_glsl.h's
+QVR_BOX_WOUND_PAINT_VS), with `numsplats` splats (five vec4 each: the wound paint's fragment shader). The caller sets
+the blending.
+=================
+*/
+qboolean R_PaintBrushWounds (entity_t *e, int numsplats, const float *splats)
+{
+	float	mat[16], world[12], centre[4], half[4];
+	int		i;
+
+	if (!e->model || e->model->type != mod_brush || numsplats <= 0)
+		return false;
+	R_BModelMatrix (e, mat);
+	MatrixTranspose4x3 (mat, world);
+	centre[3] = 0.f;
+	for (i = 0; i < 3; i++)
+	{
+		centre[i] = 0.5f * (e->model->mins[i] + e->model->maxs[i]);
+		half[i] = 0.5f * (e->model->maxs[i] - e->model->mins[i]);
+		centre[3] = q_max (centre[3], 2.f * half[i]);
+	}
+	half[3] = 0.f;
+	if (centre[3] <= 0.f)
+		return false;
+
+	GL_UseProgram (glprogs.woundpaintbox);
+	GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (0));
+	GL_Uniform1iFunc (0, numsplats);
+	GL_Uniform4fvFunc (1, numsplats * 5, splats);
+	GL_Uniform4fvFunc (81, 3, world);
+	GL_Uniform4fvFunc (84, 1, centre);
+	GL_Uniform4fvFunc (85, 1, half);
+	glDrawArrays (GL_TRIANGLES, 0, 36);
+	return true;
 }
 
 /*
@@ -510,6 +586,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	{ // QVR: and the deluxemaps
 		GL_Bind (GL_TEXTURE2, r_fullbright_cheatsafe ? greytexture : lightmap_texture);
 		GL_Bind (GL_TEXTURE9, lux_texture); // QVR: the light's directions (deluxemaps: LuxTex; read only with ShadowFlags 128)
+		GL_BindNative (GL_TEXTURE13, GL_TEXTURE_2D_ARRAY, VR_WoundTexture ()); // QVR: a held prop's blood (WoundMasks: BoxWounds)
 	}
 	else if (pass == BP_SKYCUBEMAP)
 		GL_Bind (GL_TEXTURE2, skybox->cubemap);

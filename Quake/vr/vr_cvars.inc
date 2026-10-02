@@ -1679,6 +1679,7 @@ QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): wh
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
 QVR_CVAR(vr_test_pile_count, "500", CVAR_NONE)       // Debug > Tests > Physics Stress: the props a pile of rocks, bricks or both has (vr_physics_bigpile without a count)
 QVR_CVAR(vr_test_pile_crates, "80", CVAR_NONE)       // and the crates its Wall of Crates has (vr_physics_bigpile crates)
+QVR_CVAR(vr_test_spawn_hold, "0", CVAR_NONE)          // 1: a box or a crate (vr_test_spawn 100..104, 107..109) put into the empty main hand (QC weapons.qc)
 QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse); 2: killed hard enough to gib (QC weapons.qc: 100 damage past its health)
 QVR_CVAR(vr_test_spawn_yaw, "0", CVAR_NONE)           // 100..104: a box let loose (a physics prop), turned this many degrees about its upright (grappling hook tests: a turned box's empty corners)
 QVR_CVAR(vr_test_spawn_tilt, "0", CVAR_NONE)          // ... and tipped this many degrees about the way you face, its lowest corner on the floor (it topples: sv_gravity 0 holds it so)
