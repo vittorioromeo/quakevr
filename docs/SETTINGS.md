@@ -149,21 +149,28 @@ Each weapon model has its own set of settings: where it sits in the hand, where 
 where the other hand holds it two-handed, the ammo screen, and its weight. **VR Settings > Weapon Offsets (Held
 Weapon)** edits the weapon your main hand is holding. Open it while holding the weapon in a game.
 
-- *Edit the Other Hand's Weapon* switches to the off hand. The page shows the weapon held when it was opened, so
-  reopen it after changing weapons. With an empty hand, it edits the hand model itself.
-- **Weapon in the Hand:** offset X (forward), Y (left), Z (up), pitch, yaw, roll, scale. These move the model, not
-  where it aims. The drawn hand stays on the weapon's grip, so the offsets move the hand with the weapon.
-- **Weapon Only (Hand Stays):** Weapon Only X, Y, Z move just the weapon while the drawn hand stays where it is. Each
-  one changes the offset and the hand's place on the weapon together (by 7/6 of the step, the other way), as if you
-  had moved both sliders yourself, so the muzzle, the two-handed grip and the ammo screen move with the weapon.
-  They show how far you have moved it since the page opened, and start at 0 each time. Not shown for an empty hand.
-- **Hand on the Weapon:** where the drawn hand sits on the grip, or hide it.
-- **Muzzle:** where shots and the flash start.
-- **Two-Handed:** where the other hand grips the weapon, and where that hand is drawn.
-- **Ammo Screen:** position, angles and scale.
-- **This Weapon:** *Weight* (how much it lags your hand), **Print Changes to Console** (prints this weapon's
-  settings that differ from the defaults, as `vr_wofs_...` lines to copy into a config or send to the author), and
-  **Reset This Weapon**.
+The main page has the weapon's title, *Edit the Other Hand's Weapon* (every page has it), *Inherit From* (use
+another weapon's settings), **Posing Mode** (pose the weapon in your hand, its hotspots, or it in a holster), and a
+page for each part of its settings:
+
+- *Edit the Other Hand's Weapon* switches to the off hand. The pages show the weapon held when they were opened, so
+  reopen them after changing weapons. With an empty hand, only **The Hand** is offered: it moves the hand model.
+- **Hand and Grip:** where the weapon sits in the hand (offset, angles, scale, hide the hand), the tuning aids (Show
+  Controller, its laser, the controller preview), the hand and weapon moved together, and the hand moved alone.
+- **Fingers:** how the fingers wrap the weapon (automatic or manual curls), each finger's bias, the thumb's place.
+- **Muzzle and Sights:** *Align Sights to My Aim*, the dominant eye, the sight line, where shots start (Muzzle) and
+  where they go (Shot Pitch and Yaw).
+- **Two-Handed and Hotspots:** whether the other hand may hold it, its hotspots (grip, blade, cup) and how that hand is
+  drawn there, and the two-handed aim.
+- **Virtual Stock:** how the aim turns while the weapon is steadied at your shoulder (*Stock Pitch*, *Yaw*, *Roll*,
+  0 by default; `vr_wofs_stock_pitch|yaw|roll_NN`), how far the stock steadies it now, and the virtual stock's
+  settings for every weapon.
+- **Ammo Screen:** position, angles and scale, shown or hidden.
+- **Holstered:** how it lies in each kind of holster, with a preview.
+- **Effects:** recoil, muzzle flash and tracers for a model without its own.
+- **Weight, Melee and Throwing** opens Weapon Weights: its mass, balance, spring, melee and throw damage.
+- **This Weapon:** **Print Changes to Console** (prints this weapon's settings that differ from the defaults, as
+  `vr_wofs_...` lines to copy into a config or send to the author), and **Reset This Weapon**.
 
 In the console these are the `vr_wofs_<setting>_<NN>` variables, where `NN` is the weapon's slot. They are saved in
 your config like everything else.

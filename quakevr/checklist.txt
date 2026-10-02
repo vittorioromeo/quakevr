@@ -62,6 +62,8 @@ Melee with a weapon held anywhere: hilt and pommel of a sword held upside down, 
 Slow motion for recording (Graphics > Recording > Slow Motion; vr_slowmo bindable, 0.25 default): record at 0.25 moving at quarter speed, speed footage up 4x: looks and sounds natural?; a real-speed swing is capped at 8 m/s (Hand Speed cap): feels right?; Slow Sounds off/on
 
 Bullet time (Combat > Bullet Time): press the inner button on the gadget's lower edge with the other fingertip: world 0.3x for 6 s, TIME bar on the gadget, 2 s cooldown, 20 s refill; look (desaturate, vignette, tint) strength; button easy to find? (Button Size, Fingertip Reach); try Sandevistan (you, hands, your shots at full speed); turning stays real time by default: OK?; start/stop sounds are placeholders
+Weapon Offsets split into pages (Hand and Grip, Fingers, Muzzle and Sights, Two-Handed and Hotspots, Virtual Stock, Ammo Screen, Holstered, Effects; Weight, Melee and Throwing opens Weapon Weights): every old row still there? easy to find?
+Virtual stock per weapon (Weapon Offsets > Virtual Stock, 2H Aiming: Virtual Stock): shoulder a two-handed gun, the "Now" line shows the stock engaged; Stock Pitch/Yaw/Roll turn the aim only while shouldered
 
 [Decide or give feedback]
 Parry cooldown: blows inside it also cost no parry stamina (else an ogre swing exhausts you every time): OK?

@@ -19644,3 +19644,49 @@ Time Now**. Mock: `vr_mock_hand_to <main|off> button` puts the fingertip on the 
 - Hands at 0.25 with the head-relative follower: as phase 1 (0.5 m jump followed at 8 m/s; slow move exact); the head
   and hand moved 0.3 m together: 0.07 m behind for one frame, then none.
 
+
+## Weapon Offsets split; the virtual stock's turn (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_01-17-49: (1) per-weapon virtual stock orientation offsets; (2) the Weapon Offsets page
+was too large: split it.
+
+**Virtual stock turn.** Three new per-weapon keys, `vr_wofs_stock_pitch|yaw|roll_NN` (`Key::StockPitch|Yaw|Roll`, 0 by
+default: a config without them takes 0, so no settings migration and `settingsVersion` stays). `vr_twohand.cpp`
+`applyHotspots` adds them to the two-handed aim on top of the weapon's Aim Pitch/Yaw/Roll, times the two-handed share
+and the stock's share (`stockTransition`: eased in as the holding hand comes within `vr_virtual_stock_thresh` of the
+shoulder with `vr_2h_mode 2`): pitch up, yaw left, roll right; the off hand's yaw and roll mirrored. Inherited like the
+other keys. `twohand::stock(hand)` is the share now; `vr_dumpview` prints it ("virtual stock 1.00") and the Virtual Stock
+page shows it ("Now: two-handed 100%, at the shoulder 100%").
+
+**Menu tree.** Weapon Offsets (`menu_vr 23`, its title and every link to it unchanged) keeps the title, Edit the Other
+Hand's Weapon, Inherit From (Stop Inheriting), Posing Mode (with Shot Pitch/Yaw), then a "Settings" list of its parts
+and This Weapon (Print, Reset):
+
+- Hand and Grip (84; "The Hand" for the empty hand, its only part): Weapon in the Hand, Tuning Aids, Controller
+  Preview, Hand and Weapon Together, Hand Only.
+- Fingers (85): Fingers on the Weapon (manual curls or Overlap, biases, thumb place).
+- Muzzle and Sights (86): Align Sights to My Aim (Dominant Eye, Captures, Show Sight Line), Muzzle, Shot Pitch/Yaw.
+- Two-Handed and Hotspots (87, titled "Weapon Offsets - Two-Handed"): Other Hand's Grips (Hotspots), Two-Handed Aim.
+- Virtual Stock (88): new: the readout, Two-Handed (the weapon's, also on 87), Stock Pitch/Yaw/Roll; every weapon's
+  2H Aiming, Stock Factor, Stock Distance (`vr_virtual_stock_thresh`), Show Virtual Stock, a link to Hotspots.
+- Ammo Screen (89), Holstered (90; the holster preview only on this page), Effects (91).
+- Weight, Melee and Throwing: opens Weapon Weights (the old "Weapon Weights" link), which already holds the weights,
+  the melee and throw damage and the spin thrown.
+
+Every old row is on one of these (a label count of the old page against the new ones: none missing). Each part begins
+with the weapon's title and Edit the Other Hand's Weapon (it stays on the same part), and is built anew as it is shown.
+The page state that rebuilds a page (the edited hotspot and its type, the Fingers choices, the preview's own off hand,
+the holster) is reset by each part and set by the part that shows it; the sight-alignment refresh and its cursor focus
+belong to Muzzle and Sights. Each part has its own title strings (`PageTexts`, by `WeaponOffsetsPart`).
+
+To add a part (another agent's per-weapon rows): a builder beginning with `weaponOffsetsBegin(list, <part>)`, a
+`WeaponOffsetsPart`, a line at the end of `pages` (home `pageWeaponOffsets`) and one in `weaponOffsetsPartPages` (its
+link and help); the main page lists it by itself. Rows for an existing part go in that part's builder.
+
+The calibration boards name only "Weapon Offsets" (unchanged): `vr_menu_path_check maps/vrcalibration.map` 13 found,
+0 missing.
+
+Verified (grunts' gun, `_22`, held two-handed at its foregrip, the stock forced on): the main hand's angles
+(57.69 85.62 -4.33); Stock Pitch 10: 47.69 (10 up); Stock Yaw 10: yaw 95.62; Stock Roll 10: roll 5.67; with the stock
+off (threshold 0.1) "virtual stock 0.00" and Stock Pitch has no effect. `menu_vr 84..91` each open with the weapon's rows
+(36, 13, 13, 36, 14, 11, 13, 20 rows; the main page 22).
