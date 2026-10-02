@@ -20604,3 +20604,45 @@ Test in VR:
 - [ ] Chainsaw or shoot a monster as it falls dead: it takes the hits and gibs with enough of them; its backpack and weapon
   drop once; the kill counts once.
 - [ ] The blood mist round hits: faint enough? (Gore > Blood Mist).
+
+## Melee: a wiggled gun's butt strike (wigglefix, 2026-10-02)
+
+`no_hit_wiggling_2026-09-29_23-07-20` (the gun waved back and forth at the dummy: no hit wanted) failed on vr-cleanup:
+two butt strikes (9.5, 15.4) and a whoosh. First-parent bisect over vr-cleanup's merges (only that take): good at
+3abc2d2d (throw2), bad from a6bc3503 (**wristweight**; meleereach, anygrip, angvel and throwweight were before it and
+pass). `vr_weight_spring_roll 0` at HEAD passes too.
+
+Why: the wrist's roll now weighs, so the shotgun lags the wrist's turns more, and in this wiggle it is put back in the
+hand at once (left too far behind, `weight: put back in the hand`) 8 times in 4 s instead of 2. Each put-back is a
+jump to the melee (`.handdrop`, or the muzzle moving 0.5-0.85 m in a frame), and a jump wiped the hand's whole blow
+history. The wiggle filter (`VR_Melee_Wiggled`: the grip went back the other way within 0.25 s) then had nothing to
+look back through, and the next half-wiggle passed for a fresh blow. The butt is what struck because a wiggled gun
+turns about the hand and flings its butt round faster than the hand (the butt 1.04-1.73 times the grip's speed in the
+wiggles, before and after; the author's butt strikes 0.61-0.92): with the old weights the same butt "strikes" happened
+and were all caught by the wiggle filter. The muzzle the moves carry is the last rendered frame's (moves are sent
+before rendering), not this; placing it on the move's hand changed nothing here (tried, not kept).
+
+Fix (the weights as they are; the melee's detection):
+- `VR_Melee_Track`: what the hand holds jumping (a weight put-back, its far end jumping) is not the hand jumping: no
+  speed and no blow that frame, as before, but the grip's history goes on (its own velocity stored), and the re-arm
+  speed (`mh_fast`) stays. Only the grip itself jumping (a teleport, the play space re-based) still starts afresh.
+- `vr_melee_butt_run` (0.45 m; Melee Settings > Gun Butt Travel): a gun's butt strikes only if the grip came that far
+  towards the blow within 0.3 s (the blow's travel, as the author suggested: a wiggle spins the gun in place). His butt
+  strikes come 0.54-0.73 m, the butts his gun swings land 0.41-1.06 (swings, not gated), the wiggles' butt tries
+  0.18-0.34. Not a sword's pommel (his pommel strikes 0.36-0.54). 0.2: as any blow (the old behaviour).
+
+Eval (full, 177 takes): 172 pass (the 5 known failures), the wiggle take PASS (was FAIL). Against the kit's baseline
+(2026-09-30), 11 differ, all PASS -> PASS or FAIL -> FAIL:
+- 9 from wristweight (bisected: they match the baseline at throw2, differ at a6bc3503; the drawn weapons' roll moves
+  their points): damage +-0.1-0.5, two parry bashes a frame later, slash_horizontal_rtl 11-05 mid-blade 28.8 for the
+  tip 28.3.
+- slash_backswing_up_right 12-35 (27.0 -> 26.9): differs at the baseline's own commit (ea2ddfb8): the eval's, not code's.
+- slash_horizontal_rtl 11-02 (this fix): the off hand's sword put back in the hand just before the slash no longer
+  wipes its run: the blow lands at the first contact (0.627 s, mid-blade 19.5) instead of a frame later at the tip
+  (0.644, 23.9).
+The kit baseline is refreshed from this build (the old one: `eval_baseline_pre_wigglefix.csv`).
+
+Test in VR:
+- [ ] Wiggle the shotgun fast at the dummy (by its handle): no hit, no whoosh.
+- [ ] Butt strikes with a gun (stepping the gun at the dummy, butt first): still land. Too strict? Melee Settings > Gun
+  Butt Travel lower (0.2 as before).
