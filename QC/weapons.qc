@@ -2793,6 +2793,7 @@ void(float xHand) W_FireSuperSpikes =
     setsize(newmis, VEC_ORIGIN, VEC_ORIGIN);
 
     newmis.velocity += vrProjectileVelocity(xHand, 1.0);
+    VR_Burn_NailLaunched(newmis); // VR: through a torch's flame, a lava nail (vr_burning.qc)
 
     self.punchangle_x = -2;
 
@@ -2827,6 +2828,7 @@ void(float xHand, float ox) W_FireSpikes =
     VR_ShotPlace(newmis, xHand); // behind what the muzzle is inside (VR_ShotPlace)
 
     newmis.velocity += vrProjectileVelocity(xHand, 1.0);
+    VR_Burn_NailLaunched(newmis); // VR: through a torch's flame, a lava nail (vr_burning.qc)
 
     self.punchangle_x = -2;
 
