@@ -1454,6 +1454,11 @@ fire as a blow, a lava nail or a touch would; `4` prints how it burns; `5` loads
 vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait5; vr_test_spawn_dead 0` (the wait: the impulse runs next
 frame). Touch: e1m2's torch 52 in the main hand (as above), `setpos 1740 -175 290 0 30 0; vr_burn_touch 1;
 vr_mock_hand_to main 1775 -150 320` puts it in the ogre. The kit's `scratch/burn_torch2.sh`, `burn_lava.sh`.
+Crates and nails (part 2): `vr_test_spawn 109` puts a crate with one on it ahead (`107` a small one), `vr_burn_test 1`
+lights the nearest (`vr_burn_crate_time`, `vr_burn_crate_spread` short to see it spread and break; `developer 1`:
+`lit (a burning crate)`, `burnt through: it breaks`). `vr_burn_test 6` shoots a nail through the nearest lit torch's
+flame (`a nail through a flame ...: a lava nail`), `7` prints where that flame is. A torch in the off hand past the
+nailgun's muzzle: the kit's `scratch/burn_nailtorch.sh "vr_mock_hand_to off 1768 -162 298"` (e1m2, at the ogre).
 Hands and weapons as bodies (ROUND21.md): `vr_debug_box3d 1` prints each reach body made (`main hand's reach body:
 weapon at ... (its box), the palm facing ...`) and each swing's strike (`... strikes 199 ogre_grenade at 235 u/s: 340
 u/s after`); `2` each frame's move and each contact. A palm turned up: the main hand `vr_mock_hand main 0.1 1.2 -0.45 0

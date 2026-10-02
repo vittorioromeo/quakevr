@@ -2306,7 +2306,8 @@ void hologramTestMessage()
     };
 }
 
-// Combat > Burning (QC vr_burning.qc): what a lit torch, a thrown one or a lava nail sets on fire.
+// Combat > Burning (QC vr_burning.qc): what a lit torch, a thrown one or a lava nail sets on fire; crates; nails through
+// a torch's flame.
 [[nodiscard]] za::Vector<Item> pageBurning()
 {
     return {
@@ -2342,6 +2343,26 @@ void hologramTestMessage()
                   "Off: a lit torch's blow, or one thrown into it."),
         toggle("Lava Nails", vr_burn_lava_nails)
             .help("Your lava nails (the nailgun's and super nailgun's lava ammo) set what they hit on fire."),
+        toggle("Nails Through a Flame", vr_burn_nail_convert)
+            .help("A nail fired through a lit torch's flame (one in your other hand, thrown, lying or on its wall) becomes a "
+                  "lava nail: more damage, and it sets what it hits on fire."),
+        slider("Flame's Reach for Nails", vr_burn_nail_reach, 2.f, 30.f, 1.f, "%.0f").extend(0.f, 80.f)
+            .help("How near a torch's flame a nail must pass, in units (a hand is about 4)."),
+        header("Crates"),
+        toggle("Crates Burn", vr_burn_crates)
+            .help("Wooden crates catch fire: a lit torch's blow or touch, a lava nail, a burning crate touching them."),
+        slider("Crate Burn Time", vr_burn_crate_time, 1.f, 60.f, 1.f, "%.0f s").extend(0.5f, 300.f)
+            .help("How long a crate burns before it breaks (or its fire goes out)."),
+        toggle("Burnt Crates Break", vr_burn_crate_break)
+            .help("A crate that has burnt its time breaks into its pieces. Off: its fire goes out."),
+        slider("Fire Spreads After", vr_burn_crate_spread, 0.f, 20.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("How long a crate burns before the crates touching it catch fire. 0: fire never spreads."),
+        slider("Touching Within", vr_burn_crate_gap, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 64.f)
+            .help("How far apart two crates still count as touching, in units."),
+        slider("Crate Flames", vr_burn_crate_flames, 1.f, 12.f, 1.f, "%.0f").extend(1.f, 30.f)
+            .help("Flames a crate's fire spreads to (Most Flames caps it)."),
+        slider("Crate Flame Size", vr_burn_crate_flame_size, 0.5f, 2.5f, 0.05f, "%.2fx").extend(0.1f, 5.f)
+            .help("A crate's flames, times a body's (Flame Size)."),
     };
 }
 
@@ -2982,11 +3003,12 @@ za::Vector<Item> pageDebugTools()
         command("List Small Gibs", "vr_smallgibs_test 11").help("vr_smallgibs_test 11: how many lie about, their size, how many are rigid bodies, asleep, stuck, held."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
-            .help("vr_burn_test 1: the nearest monster or corpse set on fire as a lit torch's blow would, where it faces you "
+            .help("vr_burn_test 1: the nearest monster, corpse or crate set on fire as a lit torch's blow would, where it faces you "
                   "(A Grunt Ahead, A Grunt's Corpse Ahead above). Again: a flame more, the same damage."),
         command("Set It on Fire (a Lava Nail)", "vr_burn_test 2"),
         command("Set It on Fire (a Touch)", "vr_burn_test 3"),
         command("Load Lava Nails", "vr_burn_test 5").help("vr_burn_test 5: the nailgun or super nailgun in the main hand loaded with lava nails (impulse 156 or 157 gives one)."),
+        command("A Nail Through a Torch's Flame", "vr_burn_test 6").help("vr_burn_test 6: a nail shot through the flame of the lit torch nearest you: it becomes a lava nail (Nails Through a Flame)."),
         command("How It Burns", "vr_burn_test 4").help("vr_burn_test 4: the nearest monster or corpse: where, its health, its flames and the time it burns yet."),
         header("VR Calibration"),
         command("Run the Calibration Here", "vr_setup here")
@@ -4006,7 +4028,7 @@ za::Vector<Item> pageCombat()
             .help("The wrist gadget's button slows the world for as long as its meter lasts; Sandevistan; its look."),
         open("Burning", pageIndex(pageBurning))
             .help("What lit torches and lava nails set on fire: the damage (it never stacks), how long, the flames, "
-                  "corpses, setting things on fire by touch."),
+                  "corpses and crates, setting things on fire by touch, nails through a torch's flame."),
     };
 }
 

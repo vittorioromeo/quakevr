@@ -690,7 +690,16 @@ QVR_CVAR(vr_burn_corpse_time, "8", CVAR_ARCHIVE)         // s a corpse burns
 QVR_CVAR(vr_burn_corpse_damage, "0", CVAR_ARCHIVE)       // a burning corpse's damage, times a monster's (it gibs at vr_corpse_health; 0: it just burns)
 QVR_CVAR(vr_burn_touch, "0", CVAR_ARCHIVE)               // 1: a lit torch (held, thrown or lying) touching a monster or a corpse sets it on fire, no blow needed
 QVR_CVAR(vr_burn_lava_nails, "1", CVAR_ARCHIVE)          // 1: your lava nails (the nailguns' lava ammo) set what they hit on fire
-QVR_CVAR(vr_burn_test, "0", CVAR_NONE)                   // the QC sets the nearest monster or corpse on fire: 1 as a torch's blow, 2 a lava nail, 3 a touch; 4 prints how it burns; 5 loads lava nails in the main hand's nailgun (Debug)
+QVR_CVAR(vr_burn_crates, "1", CVAR_ARCHIVE)              // 1: wooden crates catch fire (a torch's blow or touch, a lava nail, a burning crate touching them)
+QVR_CVAR(vr_burn_crate_time, "10", CVAR_ARCHIVE)         // s a crate burns before it breaks (vr_burn_crate_break) or goes out
+QVR_CVAR(vr_burn_crate_break, "1", CVAR_ARCHIVE)         // 1: a crate breaks when it has burnt its time (0: its fire goes out)
+QVR_CVAR(vr_burn_crate_spread, "3", CVAR_ARCHIVE)        // s a burning crate takes to set the crates touching it on fire (0: fire doesn't spread)
+QVR_CVAR(vr_burn_crate_gap, "2", CVAR_ARCHIVE)           // units apart two crates still count as touching
+QVR_CVAR(vr_burn_crate_flames, "6", CVAR_ARCHIVE)        // flames a crate's fire spreads to (Most Flames caps it)
+QVR_CVAR(vr_burn_crate_flame_size, "1.25", CVAR_ARCHIVE) // a crate's flames' size, times a body's
+QVR_CVAR(vr_burn_nail_convert, "1", CVAR_ARCHIVE)        // 1: a nail passing through a lit torch's flame (held, thrown, lying, on its wall) becomes a lava nail
+QVR_CVAR(vr_burn_nail_reach, "10", CVAR_ARCHIVE)         // units from a torch's flame a nail must pass to catch fire
+QVR_CVAR(vr_burn_test, "0", CVAR_NONE)                   // the QC sets the nearest monster or corpse on fire: 1 as a torch's blow, 2 a lava nail, 3 a touch; 4 prints how it burns; 5 loads lava nails in the main hand's nailgun; 6 shoots a nail through the nearest lit torch's flame (Debug)
 QVR_CVAR(vr_offhandpitch, "40.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_offhandyaw, "-4", CVAR_ARCHIVE)
 // Hand calibration (Hand/Gun Calibration > Hand Calibration; hands::calibration): each hand's place on its controller,
