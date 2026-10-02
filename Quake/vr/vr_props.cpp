@@ -49,8 +49,8 @@ constexpr const char* keyDefaults[numKeys] = {
 // and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's; 45: the author's bricks and torch
 // (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0; 49: the crates' slots; 50:
 // the rocks and bricks at Size 1.25; 51: the crates' small pieces in the palm; 53: the multi-grenade's as the grenade's;
-// 54: the author's grenade and multi-grenade fits.
-constexpr int settingsVersion = 54;
+// 54: the author's grenade and multi-grenade fits; 55: the author's weights and sizes (slots 6-16 his items).
+constexpr int settingsVersion = 55;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -357,6 +357,56 @@ void migrate()
                 Cvar_SetQuick(&var, var.default_string);
                 Con_DPrintf("Held Object Offsets: %s: %s %s (was %s)\n", cvarAt(c.slot, Key::ID).string, var.name, var.string,
                     before);
+            }
+        }
+    }
+    // 55: the author's weights and sizes (NOTES.md vrfiringrange_2026-10-02_00-55-03, "make them the defaults"). The
+    // items he gave slots 6-16 (vr_prop_*_06 to _16): a config with the slot free, and the item in no other slot, takes
+    // them (one that gave the slot or the item another place keeps its own). The shipped props' new masses, Mass x and
+    // Handle Tilt: a slot still its model's that holds the old default takes the new one.
+    if(from < 55)
+    {
+        for(int slot = 5; slot <= 15; slot++)
+        {
+            const char* shipped = cvarAt(slot, Key::ID).default_string;
+            bool elsewhere = false;
+            for(int other = 0; other < numSlots && !elsewhere; other++)
+            {
+                elsewhere = other != slot && !strcmp(cvarAt(other, Key::ID).string, shipped);
+            }
+            if(freeId(cvarAt(slot, Key::ID).string) && !elsewhere)
+            {
+                resetSlot(slot);
+            }
+            else if(strcmp(cvarAt(slot, Key::ID).string, shipped) != 0)
+            {
+                Con_Printf("Held Object Offsets: slot %d is %s's in this config; %s keeps its own settings\n", slot + 1,
+                    cvarAt(slot, Key::ID).string, shipped);
+            }
+        }
+        struct Change
+        {
+            int slot;
+            Key key;
+            float before;
+        };
+        constexpr Change changes[] = {{0, Key::Mass, 40.f}, {1, Key::Mass, 25.f}, {16, Key::Mass, 0.9f},
+            {17, Key::MassScale, 1.f}, {18, Key::MassScale, 1.f}, {19, Key::MassScale, 1.f}, {20, Key::MassScale, 1.f},
+            {21, Key::MassScale, 1.f}, {22, Key::MassScale, 1.f}, {23, Key::MassScale, 1.f}, {25, Key::MassScale, 1.f},
+            {22, Key::HandleTilt, 25.f}, {23, Key::HandleTilt, 25.f}, {26, Key::Mass, 25.f}, {27, Key::Mass, 40.f},
+            {28, Key::Mass, 0.6f}, {29, Key::Mass, 0.4f}, {31, Key::Mass, 0.45f}, {33, Key::Mass, 0.8f},
+            {34, Key::Mass, 2.5f}, {35, Key::Mass, 2.f}, {37, Key::Mass, 5.f}, {38, Key::Mass, 3.f}, {39, Key::Mass, 5.f},
+            {40, Key::Mass, 5.f}, {41, Key::Mass, 6.f}, {42, Key::Mass, 9.f}, {43, Key::Mass, 3.f}, {44, Key::Mass, 4.f},
+            {45, Key::Mass, 6.f}, {46, Key::Mass, 15.f}, {47, Key::Mass, 12.f}};
+        for(const Change& c : changes)
+        {
+            cvar_t& var = cvarAt(c.slot, c.key);
+            if(!strcmp(cvarAt(c.slot, Key::ID).string, cvarAt(c.slot, Key::ID).default_string) &&
+                za::fabs(static_cast<float>(atof(var.string)) - c.before) < 1e-4f)
+            {
+                Cvar_SetQuick(&var, var.default_string);
+                Con_DPrintf("Held Object Offsets: %s: %s %s (was %g)\n", cvarAt(c.slot, Key::ID).string, var.name, var.string,
+                    static_cast<double>(c.before));
             }
         }
     }

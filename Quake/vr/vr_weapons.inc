@@ -324,6 +324,12 @@ QVR_WEAPON_KEY(TracerBlue, "fx_tr_b")
 // The other hand gripping the weapon held by its handle away from its hotspots (vr_weapon_grab_anywhere): -1 as
 // vr_weapon_anygrip_mode, 0 steers the aim as a foregrip, 1 supports its weight only, 2 a rigid two-handed hold.
 QVR_WEAPON_KEY(AnyGripMode, "anygrip_mode")
+// The virtual stock (vr_2h_mode 2; vr_twohand.cpp applyHotspots; Weapon Offsets > Virtual Stock): degrees turned on top of
+// the two-handed aim (and its Aim Pitch, Yaw and Roll) as far as the stock is engaged (the holding hand at the shoulder):
+// pitch up, yaw left, roll right (the off hand's yaw and roll mirrored). 0 by default (registerCvars): no migration.
+QVR_WEAPON_KEY(StockPitch, "stock_pitch")
+QVR_WEAPON_KEY(StockYaw, "stock_yaw")
+QVR_WEAPON_KEY(StockRoll, "stock_roll")
 #endif
 
 #ifdef QVR_WEAPON_RETIRED

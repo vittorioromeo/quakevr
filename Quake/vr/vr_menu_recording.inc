@@ -22,6 +22,14 @@
         toggle("Flat HUD on the Spectator Camera", "vr_window_hud_spectator")
             .help("The flat status bar over the Spectator Camera (off by default: the recording shows the game as the "
                   "headset does, with the wrist gadget as its HUD)."),
+        toggle("Hide Head Text on the Mirror", "vr_mirror_hide_hud_text")
+            .help("Hides the text that floats in front of your head (pickup messages, centre prints, notify lines) in the "
+                  "window's Left Eye and Smoothed Mirror views (off by default; in the Left Eye view also the window's own "
+                  "copy of that text, at its top). The headset still shows it."),
+        toggle("Hide Head Text on the Spectator Camera", "vr_spectator_hide_hud_text")
+            .help("Hides the text that floats in front of your head (pickup messages, centre prints, notify lines) in the "
+                  "Spectator Camera (on by default: clean footage for trailers). The headset still shows it; menus "
+                  "and the wrist gadget stay."),
         header("Steadying"),
         slider("Smoothing", "vr_window_smooth", 0.f, 0.5f, 0.01f, "%.2f s")
             .help("How much the head's shake is smoothed out: the view's lag behind your head. 0.1-0.2 s takes out the "
@@ -34,7 +42,7 @@
                   "closer and leaves a margin for the steadied view to turn in. Past the margin, the view follows your "
                   "head: raise it if quick turns show the view catching up."),
         header("Spectator Camera"),
-        slider("Field of View", "vr_spectator_fov", 60.f, 120.f, 1.f, "%.0f deg").extend(40.f, 130.f)
+        slider("Field of View", "vr_spectator_fov", 60.f, 150.f, 1.f, "%.0f deg").extend(40.f, 160.f)
             .help("The window's horizontal field of view (90 as a flat game; the vertical one follows the window's shape)."),
         cycle("Frame Rate", "vr_spectator_rate", {{1.f, "Every Frame"}, {2.f, "Every 2nd Frame"}, {3.f, "Every 3rd Frame"},
                                                  {60.f, "60 fps"}})

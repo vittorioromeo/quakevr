@@ -4042,6 +4042,72 @@ void() VR_GrenShot_TestDud =
         vlen(g.origin - self.origin), g.vr_hgren_armed, g.vr_gren_fuse));
 };
 
+// QVR test: crate cover (Debug > Tests > Crate Cover; NOTES.md vrfiringrange_2026-10-02_01-39-38, "set up a scenario"):
+// a large crate square to you just ahead to crouch behind, a small one at your right to hold up, and a grunt beyond the
+// crate facing you, not yet awake (Quake's monsters wake when they see you: vr_crate_sight, VR_Crate_HidesFrom).
+// Crouched behind the crate it should stay asleep; standing up, or holding the small crate up, it should see you.
+entity vr_test_cover_grunt; // the last one it put there (impulse 224 reports on it)
+
+void() VR_Test_CrateCover =
+{
+    entity player = self;
+    float yaw = player.v_viewangle_y;
+    makevectors('0 1 0' * yaw);
+    vector fwd = v_forward;
+    vector right = v_right;
+    // The large crate, its face square to you.
+    vector at = player.origin + fwd * 56;
+    traceline(at + '0 0 8', at - '0 0 256', TRUE, player); // (on the floor)
+    entity cover = VR_Crate_TestSpawn(trace_endpos, 2, yaw, FALSE);
+    // The small one, at your right, to pick up and hold in front of you.
+    at = player.origin + right * 48 + fwd * 8;
+    traceline(at + '0 0 8', at - '0 0 256', TRUE, player);
+    VR_Crate_TestSpawn(trace_endpos, 1, yaw + 15, FALSE);
+    // The grunt 320 units ahead (short of a wall there), facing you.
+    vector from = player.origin + '0 0 16';
+    traceline(from, from + fwd * 320, TRUE, player);
+    at = trace_endpos - fwd * 32 - '0 0 16';
+    entity dispenser = spawn();
+    dispenser.weapon = 0;
+    setorigin(dispenser, at);
+    self = dispenser;
+    activator = player;
+    func_enemy_dispenser_use();
+    entity grunt = self;
+    self = player;
+    remove(dispenser);
+    if(grunt == dispenser)
+    {
+        vr_test_cover_grunt = world;
+        return;
+    }
+    grunt.angles_y = yaw + 180;
+    vr_test_cover_grunt = grunt;
+    dprint(sprintf("cover test: large crate at %v (box %v .. %v), grunt at %v, %.0f units away\n", cover.origin,
+        cover.mins, cover.maxs, grunt.origin, vlen(grunt.origin - player.origin)));
+    centerprint(player, "Crouch behind the large crate:\nthe grunt shouldn't see you.\nStand up, or hold up the small one:\nit should.");
+};
+
+// QVR test: whether the cover test's grunt sees you now, and whether it woke (impulse 224).
+void() VR_Test_CrateCoverReport =
+{
+    entity player = self;
+    entity grunt = vr_test_cover_grunt;
+    if(grunt == world || grunt.classname != "monster_army" || grunt.health <= 0)
+    {
+        sprint(player, "cover test: no grunt (Crate Cover first)\n");
+        return;
+    }
+    self = grunt;
+    float sees = visible(player);
+    self = player;
+    vector head = VRGetHeadPos(player);
+    string msg = sprintf("cover test: the grunt %s you (your head %.0f units up), %s\n", sees ? "SEES" : "can't see",
+        head_z - (player.origin_z + player.mins_z), grunt.enemy == player ? "awake, after you" : "asleep");
+    sprint(player, msg);
+    centerprint(player, msg);
+};
+
 void() ImpulseCommands =
 {
     // Development and tests (single player): impulse 150 + a weapon id puts that weapon, loaded, in
@@ -4339,6 +4405,14 @@ void() ImpulseCommands =
     if(self.impulse == 208) // QVR test: each thrown axe, stuck or not (vr_axestick.qc)
     {
         VR_AxeStick_TestReport();
+    }
+    if(self.impulse == 223 && !deathmatch && !coop) // QVR test: crate cover (a crate to crouch behind, a grunt beyond)
+    {
+        VR_Test_CrateCover();
+    }
+    if(self.impulse == 224 && !deathmatch && !coop) // QVR test: whether the crate cover test's grunt sees you
+    {
+        VR_Test_CrateCoverReport();
     }
     if(self.impulse == 241 && !deathmatch && !coop) // QVR: a monster or a box ahead, facing you (vr_test_spawn; weapons against models)
     {
