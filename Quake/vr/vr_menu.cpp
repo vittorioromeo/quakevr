@@ -3059,6 +3059,7 @@ za::Vector<Item> pageDebugTools()
         command("Blood from a Blow on Your Prop", "vr_gore_spatter_test prop").help("vr_gore_spatter_test prop: a blow on what the main hand holds (a weapon, a box, a crate, a brick), on its side facing you: the blood on held props (Gore > Blood on You and Your Gear)."),
         command("Blood from a Chainsaw Cut", "vr_gore_spatter_test saw").help("vr_gore_spatter_test saw: a chainsaw cut's spray just ahead of the main hand."),
         command("Blood from a Close Shot", "vr_gore_spatter_test shot").help("vr_gore_spatter_test shot: a shot hitting 40 units ahead of your eyes."),
+        command("Marks on Your Main Forearm", "vr_gore_spatter_test arm main").help("vr_gore_spatter_test arm main: three bleeding marks on the main forearm alone: none on the other arm (chunky or fine)."),
         command("Gib Strikes Your Hand", "vr_gore_spatter_test gib").help("vr_gore_spatter_test gib: a gib flying into your main hand."),
         command("Burn Your Arms", "vr_wounds_test self 4 90 0 12").help("vr_wounds_test self 4 90 0 12: an explosion's burns on your front and the arms held before you (Gore > Your Wounds' Detail)."),
         command("Wound Your Arms", "vr_wounds_test self 1 20 4 14").help("vr_wounds_test self 1 20 4 14: a shot's bleeding wound at your arms' height, held before your chest."),

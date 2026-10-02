@@ -2681,6 +2681,14 @@ void spatterTest_f()
         Con_Printf("vr_gore_spatter_test: Dynamic Wounds are off\n");
         return;
     }
+    if(ZA_STRCMP(what, "arm") == 0)
+    {
+        const int hand = Cmd_Argc() > 2 && ZA_STRCMP(Cmd_Argv(2), "off") == 0 ? 0 : 1;
+        armMarks(hand, Cmd_Argc() > 3 ? atoi(Cmd_Argv(3)) : 3, 1.f, 0.f, true);
+        end();
+        Con_Printf("vr_gore_spatter_test: bleeding marks on the %s forearm\n", hand ? "main" : "off");
+        return;
+    }
     entity_t* own[3]{};
     view::woundTargets(own);
     vec3_t fwd, right, upv;

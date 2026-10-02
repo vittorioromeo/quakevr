@@ -74,7 +74,9 @@ void handsInfo_f();
 
 // vr_gore_spatter_test [blow|saw|shot|gib] [distance]: blood thrown onto you as by a blow `distance` units ahead of what
 // the main hand holds (6), a chainsaw's cut there, a shot hitting `distance` ahead of the eyes (40), a gib striking the
-// main hand (vr_gore_spatter*; ROUND21.md, "Blood on you, your weapons and props").
+// main hand (vr_gore_spatter*; ROUND21.md, "Blood on you, your weapons and props"). `arm [main|off] [count]`: `count`
+// (3) bleeding marks on that forearm alone, as wounds spread them (one arm's never on the other: ROUND21.md, "Chunky
+// arms on their own texels").
 void spatterTest_f();
 
 } // namespace qvr::wounds
