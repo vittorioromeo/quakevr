@@ -112,6 +112,7 @@ void S_BeginPrecaching (void);
 void S_EndPrecaching (void);
 void S_PaintChannels (int endtime);
 void S_ShadowFilters (portable_samplepair_t *buffer, int count);	/* QVR: the game-time render's lowpass and underwater filter (vr/vr_audio.cpp) */
+void S_LowpassTest (int *data, int stride, int count, int side, int reset);	/* QVR: the 11 kHz lowpass on a test buffer (vr/vr_audiotest.cpp) */
 float S_GetLoFreqLevel (void);
 float S_GetHiFreqLevel (void);
 void S_ClearFilteredLevels (void);

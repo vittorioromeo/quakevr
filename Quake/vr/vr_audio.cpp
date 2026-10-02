@@ -20,6 +20,8 @@
 //   nearer ear louder and the farther one shadowed, by how much it is to the side), a send to the reverb.
 // - The reverb: Steam Audio's reflections simulated from the listener (vr_audiosim.cpp), its effect on the sum of the
 //   voices' sends, decoded binaurally with the head's orientation, vr_snd_reverb loud.
+// - The voices' sum (and the reverb) low-passed before it joins Quake's paint buffer when Quake's 11 kHz lowpass is on
+//   (AntiAlias, vr_snd_antialias): that lowpass keeps every fourth sample, which folded the HRTF's highs into the lows.
 // - The simulations (vr_audiosim.hpp): the map's scene built on the pool at each new map; doors and lifts moved in
 //   it; the direct paths 30 times a second and the reverb every vr_snd_reverb_interval, each a pool task, their
 //   results taken under a mutex.
@@ -703,6 +705,81 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
 }
 
 // ----------------------------------------------------------------------------
+// The voices' anti-aliasing (before Quake's 11 kHz lowpass)
+
+bool antiAliasWanted()
+{
+    return vr_snd_antialias.value != 0.f && shm && sndspeed.value == 11025 && shm->speed == 44100;
+}
+
+void AntiAlias::reset()
+{
+    za::fill(histL, 0.f);
+    za::fill(histR, 0.f);
+}
+
+void AntiAlias::apply(float* l, float* r, int n)
+{
+    if(kernel.empty())
+    {
+        // A Blackman-windowed sinc at 5650 Hz of 44100 (its sum 1).
+        kernel.resize(taps, 0.f);
+        constexpr double fc = 5650.0 / 44100.0;
+        constexpr double pi = 3.14159265358979;
+        double sum = 0.0;
+        for(int k = 0; k < taps; k++)
+        {
+            const double t = k - delay;
+            const double sinc = t == 0.0 ? 2.0 * fc : za::sin(2.0 * pi * fc * t) / (pi * t);
+            const double w = 0.42 - 0.5 * za::cos(2.0 * pi * k / (taps - 1)) + 0.08 * za::cos(4.0 * pi * k / (taps - 1));
+            kernel[k] = static_cast<float>(sinc * w);
+            sum += sinc * w;
+        }
+        for(float& c : kernel)
+        {
+            c = static_cast<float>(c / sum);
+        }
+        histL.resize(taps - 1, 0.f);
+        histR.resize(taps - 1, 0.f);
+    }
+    applyOne(l, histL, n);
+    applyOne(r, histR, n);
+}
+
+void AntiAlias::applyOne(float* x, za::Vector<float>& history, int n)
+{
+    const int h = taps - 1;
+    if(static_cast<int>(work.size()) < h + n)
+    {
+        work.resize(h + n, 0.f);
+    }
+    za::copy(history.begin(), history.end(), work.begin());
+    za::copy(x, x + n, work.begin() + h);
+    const float* c = kernel.data();
+    for(int i = 0; i < n; i++)
+    {
+        // (symmetric: the kernel the same reversed; eight sums, for the compiler to keep in lanes)
+        const float* in = work.data() + i;
+        float s[8]{};
+        int k = 0;
+        for(; k + 8 <= taps; k += 8)
+        {
+            for(int j = 0; j < 8; j++)
+            {
+                s[j] += c[k + j] * in[k + j];
+            }
+        }
+        float y = ((s[0] + s[1]) + (s[2] + s[3])) + ((s[4] + s[5]) + (s[6] + s[7]));
+        for(; k < taps; k++)
+        {
+            y += c[k] * in[k];
+        }
+        x[i] = y;
+    }
+    za::copy(work.begin() + n, work.begin() + n + h, history.begin());
+}
+
+// ----------------------------------------------------------------------------
 // The game's mixer
 
 namespace
@@ -813,6 +890,7 @@ struct Shadow
     za::Vector<float> mixL, mixR;
     za::Vector<float> carryL, carryR;
     int carryLen{0};
+    AntiAlias antiAlias; // its voices' (before its own 11 kHz lowpass)
     za::Vector<portable_samplepair_t> buffer;
     double ms{0.0}; // a paint call's share of it, averaged
 };
@@ -856,6 +934,7 @@ struct Live
     bool haveReverbSecond{false};
 
     za::Vector<float> mixL, mixR;
+    AntiAlias antiAlias; // the voices' (vr_snd_antialias)
     za::Array<float, 1024> carryL{}, carryR{};
     int carryStart{0};
     int carryLen{0};
@@ -910,6 +989,7 @@ void releaseAll()
     }
     live->carryLen = 0;
     live->voicesUsed = 0;
+    live->antiAlias.reset();
 }
 
 za::String sofaPath()
@@ -1234,9 +1314,11 @@ void report()
         const channel_t* ch = &snd_channels[c];
         const glm::vec3 d{ch->origin[0] - L.listener.pos.x, ch->origin[1] - L.listener.pos.y, ch->origin[2] - L.listener.pos.z};
         const float* eq = L.mixer.equaliser(v);
-        Con_Printf("  %2d ch %3d ent %4d/%d %-24s %5.1f m  eq %.2f %.2f %.2f  doppler %.3f\n", v, c, ch->entnum,
-            ch->entchannel, ch->sfx ? ch->sfx->name : "-", glm::length(d) / f.unitsPerMetre, eq[0], eq[1], eq[2],
-            L.mixer.dopplerFactor(v));
+        const IPLVector3 dir = L.mixer.direction(v);
+        Con_Printf("  %2d ch %3d ent %4d/%d %-24s %5.1f m  az %+6.1f el %+5.1f  eq %.2f %.2f %.2f  doppler %.3f\n", v, c,
+            ch->entnum, ch->entchannel, ch->sfx ? ch->sfx->name : "-", glm::length(d) / f.unitsPerMetre,
+            za::atan2(dir.x, -dir.z) * 180.f / 3.14159265f, za::atan2(dir.y, glm::length(glm::vec2{dir.x, dir.z})) * 180.f / 3.14159265f,
+            eq[0], eq[1], eq[2], L.mixer.dopplerFactor(v));
     }
 }
 
@@ -1463,6 +1545,30 @@ void play_f()
     S_StartSound(0, 0, sfx, at, volume, attenuation);
 }
 
+// A sound from a direction (vr_snd_play_dir <sample> <azimuth> [elevation] [metres] [volume] [attenuation]): degrees
+// clockwise from where the listener faces (90 the right), up from level, at that distance (2 m) from the listener. For
+// the left/right balance against the angle (ROUND21.md, "HRTF balance").
+void playDir_f()
+{
+    if(Cmd_Argc() < 3 || cls.state != ca_connected || !live)
+    {
+        Con_Printf("vr_snd_play_dir <sample> <azimuth> [elevation] [metres] [volume] [attenuation]: a sound from that "
+                   "direction (degrees, 90 the right) and distance (2 m)\n");
+        return;
+    }
+    sfx_t* sfx = S_PrecacheSound(Cmd_Argv(1));
+    const float a = Q_atof(Cmd_Argv(2)) * 3.14159265f / 180.f;
+    const float e = (Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 0.f) * 3.14159265f / 180.f;
+    const float distance = (Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 2.f) * units::metresToUnits();
+    const float volume = Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 1.f;
+    const float attenuation = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 1.f;
+    const Listener& l = live->listener;
+    const glm::vec3 p =
+        l.pos + distance * (za::cos(e) * (za::cos(a) * l.fwd + za::sin(a) * l.right) + za::sin(e) * l.up);
+    vec3_t at{p.x, p.y, p.z};
+    S_StartSound(-1, 0, sfx, at, volume, attenuation);
+}
+
 // Copies of a sound at once (vr_snd_burst <sample> [count] [distance] [spread] [volume]): ahead of the listener,
 // spread round a circle, all started this frame as explosive boxes blowing up together are (Quake's S_StartSound
 // offsets identical sounds started together a little). For the effects' bus's limiter (vr_snd_limiter).
@@ -1525,6 +1631,7 @@ void init()
     Cmd_AddCommand("vr_snd_liquid", liquid_f);
     Cmd_AddCommand("vr_snd_play", play_f);
     Cmd_AddCommand("vr_snd_burst", burst_f);
+    Cmd_AddCommand("vr_snd_play_dir", playDir_f);
 }
 
 void shutdown()
@@ -1936,6 +2043,14 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     za::fill(L.mixL.begin(), L.mixL.begin() + rendered, 0.f);
     za::fill(L.mixR.begin(), L.mixR.begin() + rendered, 0.f);
     L.mixer.render(blocks, L.listener, f, L.haveReverb ? &L.reverb : nullptr, L.mixL.data(), L.mixR.data());
+    if(antiAliasWanted())
+    {
+        L.antiAlias.apply(L.mixL.data(), L.mixR.data(), rendered);
+    }
+    else
+    {
+        L.antiAlias.reset();
+    }
 
     // The channels as Quake would have left them at the end of what was rendered.
     const int renderedEnd = time + rendered;
@@ -2374,6 +2489,7 @@ void shadowReset(Shadow& sh)
     }
     sh.owed = 0.0;
     sh.carryLen = 0;
+    sh.antiAlias.reset();
 }
 
 // `count` samples of the game-time mix (at most a paint call's) into sh.buffer.
@@ -2462,6 +2578,14 @@ void shadowRender(Shadow& sh, int count)
             za::fill(sh.mixR.begin(), sh.mixR.begin() + rendered, 0.f);
             sh.mixer.render(blocks, L.listener, f, L.haveReverbSecond ? &L.reverbSecond : nullptr, sh.mixL.data(),
                 sh.mixR.data());
+            if(antiAliasWanted())
+            {
+                sh.antiAlias.apply(sh.mixL.data(), sh.mixR.data(), rendered);
+            }
+            else
+            {
+                sh.antiAlias.reset();
+            }
             for(int i = 0; i < remain; i++)
             {
                 out[written + i].left += static_cast<int>(sh.mixL[i]);

@@ -386,6 +386,23 @@ static void S_UnderwaterFilter (int endtime)
 }
 
 /*
+QVR: the 11 kHz lowpass on a buffer of the tests' (vr/vr_audiotest.cpp: the voices through it), with its own memories
+(side 0 or 1; `reset`: cleared first).
+*/
+void S_LowpassTest (int *data, int stride, int count, int side, int reset)
+{
+	static filter_t	test[2];
+	filter_t	*f = &test[side & 1];
+
+	if (reset && f->memory)
+	{
+		memset (f->memory, 0, f->kernelsize * sizeof(float));
+		f->parity = 0;
+	}
+	S_LowpassFilter (data, stride, count, f);
+}
+
+/*
 QVR: the game-time render's (vr/vr_audio.cpp, VR_SndShadow) lowpass and underwater filter: as the live mix's, with
 their own memories (its samples are another stream: the effects at their normal speed in the game's time).
 */
