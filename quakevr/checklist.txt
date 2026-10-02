@@ -94,6 +94,9 @@ Gib sticking: thrown gibs stick to walls (fix in progress)
 Flashlight clip-on: held facing backwards, clipped onto a gun or the head: it swings round onto the mount (Taking and Clipping On > Clip-On Transition 0.15 s; try 0.3 and 0)
 Flashlight Can Clip On (Weapon Offsets > Flashlight): axe, Mjolnir, swords, chainsaw and crowbar get no zone and refuse it
 
+Stand on a burning corpse and look around: no black patches, the air still shimmers
+Nails through a torch flame fizz as they turn to lava nails (Combat > Burning > Nail Sizzle Volume)
+
 [Decide or give feedback]
 Grappling hook: allow the flashlight to clip on it? (on now)
 Flashlight cord: make Chain the default?
