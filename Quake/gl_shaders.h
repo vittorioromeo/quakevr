@@ -395,6 +395,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	vec4	uvclamp; // QVR: parallax mapping's rays stay in s .x to .z, t .y to .w, repeating (none where .z <= .x)\n"\
 "	vec4	detail; // QVR: the texture's detail (vr/vr_detail.cpp): s and t scales (s < 0: axes swapped), strength (0 none), layer\n"\
 "	vec4	extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp): y the specular map's brightness, z its hardness\n"\
+"	vec4	retro; // QVR: retro textures (vr_retro.h): xy the texture's Quake size, z its set (0: the instance's)\n"\
 "};\n"\
 "const uint\n"\
 "	CF_USE_POLYGON_OFFSET = 1u,\n"\
@@ -426,6 +427,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	float	aoself; // QVR: its own dynamic occlusion group (vr/vr_ao.cpp; 0 none)\n"\
 "	vec4	wound; // QVR: a held prop's blood (vr/vr_wounds.cpp, BoxWounds): x its box mask's layer + 1 (0 none), yz its size in texels, w the blood's opacity\n"\
 "	vec4	woundbox; // QVR: xyz its box's centre (the model's frame), w 1 / its largest side\n"\
+"	vec4	retro; // QVR: retro textures (vr_retro.h): x its set (0 none)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=2) restrict readonly buffer InstanceBuffer\n"\
@@ -574,6 +576,7 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	out_aoself = instance.aoself; // QVR\n"
 "	out_wound = instance.wound; // QVR: a held prop's blood (BoxWounds)\n"
 "	out_boxpos = (in_pos - instance.woundbox.xyz) * instance.woundbox.w; // QVR\n"
+"	out_retro = vec4(call.retro.xy, call.retro.z > 0.0 ? call.retro.z : instance.retro.x, 0.0); // QVR: retro textures (vr_retro.h)\n"
 "	out_styles.x = GetLightStyle(in_styles.x);\n"
 "	if (in_styles.y == 255)\n"
 "		out_styles.yzw = vec3(-1.);\n"
@@ -616,6 +619,7 @@ static const char world_fragment_shader[] =
 FRAMEDATA_BUFFER
 LIGHT_BUFFER
 LIGHT_CLUSTER_IMAGE("readonly")
+QVR_RETRO_GLSL(QS_STRINGIFY (QVR_RETRO_LUT_UNIT_WORLD)) // QVR: retro textures (vr_retro.h)
 SHADOW_FUNCTIONS // QVR
 AO_FUNCTIONS // QVR
 WORLD_CALLDATA_BUFFER
@@ -679,9 +683,14 @@ QVR_WORLD_FS_FUNCTIONS // QVR: detail, parallax, specular anti-aliasing, the bak
 "#else\n"
 "	const bool parallax = false;\n" // QVR: no parallax mapping here
 "#endif\n"
+"	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none)
 "	if ((in_flags & CF_USE_FULLBRIGHT) != 0u)\n" // QVR: parallax: the moved coordinates
-"		fullbright = parallax ? textureGrad(FullbrightTex, puv, duvdx, duvdy).rgb : texture(FullbrightTex, uv).rgb;\n"
+"		fullbright = Retro > 0 ? RetroSample(FullbrightTex, puv, duvdx, duvdy, false).rgb : parallax ? textureGrad(FullbrightTex, puv, duvdx, duvdy).rgb : texture(FullbrightTex, uv).rgb;\n"
 "	vec4 result;\n"
+"	if (Retro > 0)\n" // QVR
+"		result = RetroSample(Tex, puv, duvdx, duvdy, true);\n"
+"	else\n"
+"	{\n"
 "#if DITHER >= 2\n"
 "	if (parallax)\n"
 "		result = textureGrad(Tex, puv, duvdx * 0.5, duvdy * 0.5); // QVR: a mip bias of -1\n"
@@ -698,6 +707,7 @@ QVR_WORLD_FS_FUNCTIONS // QVR: detail, parallax, specular anti-aliasing, the bak
 "	else\n"
 "		result = texture(Tex, uv);\n"
 "#endif\n"
+"	}\n" // QVR
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n"
 "	// QVR: alpha to coverage (vr_alpha_coverage with MSAA: ShadowFlags 64; opaque draws): the alpha sharpened to\n"
 "	// about a pixel's width round the cutoff gives the samples covered (smooth edges); without it, Quake's test\n"
