@@ -110,6 +110,14 @@ Your wounds up close (Debug > Tools > Test Effects > Burn / Wound / Soak Your Ar
 Your Wounds' Detail 512 vs 2048 (Gore > Wounds on Models): pick one
 Your Burns' Relief and Your Wounds' Depth sliders: pick values
 
+Burning: a torch hit starts one flame at the hit and smaller flames spread over the monster; they follow it as it dies and falls
+Burning: hit again: more flames up to a cap, damage stays the same (Combat > Burning)
+Burning: a torch hit on a corpse sets it on fire (burns ~8 s, leaves burn marks)
+Burning: Torch Touch on: touching a monster or corpse with a lit torch (held, thrown, lying) sets it on fire
+Burning: your lava nails set monsters on fire
+Wall torch: close the fist on the way to it: it comes when the hand arrives (Carrying > Wall Torches > Grab Window 0.6 s)
+Wall torch: punch it with a closed fist: a blow, not a grab
+
 [Decide or give feedback]
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
