@@ -295,6 +295,10 @@ QVR_CVAR(vr_debug_bullettime, "0", CVAR_NONE)          // 1: prints it starting,
 // Mirror) and over the spectator camera (off: the headset's view, the wrist gadget its HUD, for recording).
 QVR_CVAR(vr_window_hud_mirror, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_window_hud_spectator, "0", CVAR_ARCHIVE)
+// The head-locked text (centre prints, notify lines: pickups, messages) out of the window's view, for recording; the
+// headset still shows it. The spectator camera's (on: trailers) and the mirror's (Left Eye, Smoothed Mirror; off).
+QVR_CVAR(vr_spectator_hide_hud_text, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_mirror_hide_hud_text, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_window_log, "0", CVAR_NONE)               // 1: print the head's and the window camera's angles every frame (tests)
 
 // Near clipping plane in the headset, in units (the desktop's is up to 4).

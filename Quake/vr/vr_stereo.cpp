@@ -432,14 +432,16 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
 }
 
 // The UI in an eye, into `fbo` (width x height): the lasers, the HUD panel or the menu (with its pointer), the wrist
-// gadget's log. Not depth tested: over whatever the fbo holds.
-void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height)
+// gadget's log. Not depth tested: over whatever the fbo holds. Without `headText`, not the head-locked text (centre
+// prints, notify lines): the spectator camera's and the mirror's choice (vr_spectator_hide_hud_text,
+// vr_mirror_hide_hud_text), for recording.
+void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool headText = true)
 {
     QVR_GPU_PROFILE("ui");
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
     glViewport(0, 0, width, height);
     lines::drawInEye(viewOrigin);
-    panel::drawInEye(hands::current());
+    panel::drawInEye(hands::current(), headText);
     text3d::drawOverlay();
 }
 
@@ -594,7 +596,7 @@ void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
     V_RenderView();
     bloom::apply(framebufs.composite.color_tex, width, height);
     spectatorPace.look = sceneLook();
-    drawUi(camera.origin, framebufs.composite.fbo, width, height);
+    drawUi(camera.origin, framebufs.composite.fbo, width, height, vr_spectator_hide_hud_text.value == 0.f);
     spectatorView = false;
     renderingEye = false;
 
@@ -748,7 +750,8 @@ extern "C" int VR_RenderView()
         }
         if(stereo::mirrored(eye))
         {
-            stereo::drawUi(hands::current().eyeOrigin[eye], framebufs.composite.fbo, width, height);
+            stereo::drawUi(hands::current().eyeOrigin[eye], framebufs.composite.fbo, width, height,
+                vr_mirror_hide_hud_text.value == 0.f);
         }
 
         stereo::renderingEye = false;
