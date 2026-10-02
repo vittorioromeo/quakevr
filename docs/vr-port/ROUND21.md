@@ -19696,9 +19696,9 @@ orchestrates: its wait went from 0.19 to 0.07 ms a frame, the step 3-5% faster: 
 workers' priority (above normal, highest) while they run Box3D's tasks.
 
 **Hitches.** With threads, a run now and then has a frame of 5-70 ms (a worker preempted while it holds a block of a
-solver stage: the others spin until it comes back); one thread had at most ~3 ms outside the 1000-body falls. Over
-all runs: 4-20% of the threaded runs had a frame over 5 ms, against 0-8% on one thread, with no clear order between 2,
-4 and 8 workers and none of the tries above curing it. The background builds here make it worse than a game-only
+solver stage: the others spin until it comes back; the stepping thread alone gets preempted too, more rarely). Over
+all runs, the runs with a frame over 5 ms: one thread 6 of 136 (4%, two of them the 1000-rock falls), 4 workers 8 of
+136 (6%), 8 workers 13 of 136 (10%); no clear order between 2, 3, 4 and 6, and none of the tries above curing it. The background builds here make it worse than a game-only
 machine; it's the risk of threads (and a reason not to use them under ~150 awake, where they gain nothing).
 
 **Defaults (unchanged, now measured):** Physics on Threads on (`vr_box3d_threads 1`); Physics Threads 4
