@@ -1031,6 +1031,37 @@ QVR_CVAR(vr_gore_stick, "8", CVAR_ARCHIVE)             // gibs flung into a ceil
 // Scourge of Armagon's flies round a severed head (player.qc HeadThink: one in ten buzz, looping). Off: the author found
 // them pointless as they are (NOTES.md vrfiringrange_2026-10-02_01-29-37); BACKLOG.md, "Flies on corpses and gibs".
 QVR_CVAR(vr_head_flies, "0", CVAR_ARCHIVE)
+// Small gibs (QC vr_smallgibs.qc; ROUND21.md, "Small gibs"): chunks of meat torn out by hits, the gibs' models scaled
+// down to a rock's size or half of it; carried, thrown, bleeding as the gibs do, gone after a while (not while held).
+QVR_CVAR(vr_smallgibs, "1", CVAR_ARCHIVE)                  // hits on monsters tear small gibs out of them
+QVR_CVAR(vr_smallgibs_player, "0", CVAR_ARCHIVE)           // and hits on you
+QVR_CVAR(vr_smallgibs_min_damage, "12", CVAR_ARCHIVE)      // a hit's damage (a shotgun blast's pellets summed) under which none come
+QVR_CVAR(vr_smallgibs_full_damage, "60", CVAR_ARCHIVE)     // the damage from which one always comes (the chance rises from 0 at the least)
+QVR_CVAR(vr_smallgibs_curve, "1.5", CVAR_ARCHIVE)          // the chance's rise from the least damage to the sure one: to this power (1 straight; more: rarer for light hits)
+QVR_CVAR(vr_smallgibs_damage_per_gib, "40", CVAR_ARCHIVE)  // one gib more for each this much damage (with a random part)
+QVR_CVAR(vr_smallgibs_per_hit, "4", CVAR_ARCHIVE)          // most small gibs from one hit
+QVR_CVAR(vr_smallgibs_shots, "1", CVAR_ARCHIVE)            // the chance times this: the shotguns, a grunt's gun
+QVR_CVAR(vr_smallgibs_nails, "0", CVAR_ARCHIVE)            // nails, lasers
+QVR_CVAR(vr_smallgibs_blades, "1.5", CVAR_ARCHIVE)         // a blade's edge or point: the axe, a sword, swung or thrown
+QVR_CVAR(vr_smallgibs_blunt, "0.3", CVAR_ARCHIVE)          // punches, a pommel or hilt, a gun or the crowbar swung, Mjolnir, bashes, headbutts
+QVR_CVAR(vr_smallgibs_props, "1", CVAR_ARCHIVE)            // a rock, brick or other thing thrown or swung in the fist
+QVR_CVAR(vr_smallgibs_explosions, "1", CVAR_ARCHIVE)       // rockets, grenades, every blast
+QVR_CVAR(vr_smallgibs_other, "0.5", CVAR_ARCHIVE)          // lightning, monsters' blows, the rest
+QVR_CVAR(vr_smallgibs_saw_interval, "0.2", CVAR_ARCHIVE)   // s: the chainsaw tears one out of what it cuts at most this often (always: monster or corpse)
+QVR_CVAR(vr_smallgibs_gibbing, "6", CVAR_ARCHIVE)          // small gibs with a monster's (or corpse's) gibs when it is gibbed
+QVR_CVAR(vr_smallgibs_burst, "3", CVAR_ARCHIVE)            // small gibs a large gib bursts into (a head half as many again)
+QVR_CVAR(vr_smallgibs_speed, "4", CVAR_ARCHIVE)            // m/s they fly out from the hit (randomized by a third)
+QVR_CVAR(vr_smallgibs_up, "5", CVAR_ARCHIVE)               // m/s up (randomized by a third; Quake falls three times as fast as the world)
+QVR_CVAR(vr_smallgibs_size_min, "0.5", CVAR_ARCHIVE)       // their size: from this times a rock's
+QVR_CVAR(vr_smallgibs_size_max, "1", CVAR_ARCHIVE)         // to this
+QVR_CVAR(vr_smallgibs_mass, "0.3", CVAR_ARCHIVE)           // kg each (light: thrown, they hurt little)
+QVR_CVAR(vr_smallgibs_grace, "0.15", CVAR_ARCHIVE)         // s they pass through the body they came from
+QVR_CVAR(vr_smallgibs_max, "40", CVAR_ARCHIVE)             // most lying about at once: the oldest go first (not one in a hand)
+QVR_CVAR(vr_smallgibs_time, "20", CVAR_ARCHIVE)            // s one lies about before it fades away (held, and until it lands again, it waits)
+QVR_CVAR(vr_smallgibs_destroy, "0", CVAR_ARCHIVE)          // they can be shot or struck to a mist (off: shots and blows pass them)
+QVR_CVAR(vr_gore_stick_thrown, "0.5", CVAR_ARCHIVE)        // a gib or head thrown into a wall or a ceiling (slower than vr_gib_splat_speed) sticks there: the chance (0 never)
+QVR_CVAR(vr_gore_stick_speed, "180", CVAR_ARCHIVE)         // units/s a gib must strike a wall or a ceiling at to stick (flung or thrown)
+QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
 QVR_CVAR(vr_body_blood_amount, "1", CVAR_ARCHIVE)      // how big the drops from your wounds are, and how much they splash
 QVR_CVAR(vr_body_blood_marks, "1", CVAR_ARCHIVE)       // the chance a drop from your wounds marks the floor (0..1)
 QVR_CVAR(vr_body_blood_mark_size, "1", CVAR_ARCHIVE)   // how big those marks are

@@ -20604,3 +20604,115 @@ Test in VR:
 - [ ] Chainsaw or shoot a monster as it falls dead: it takes the hits and gibs with enough of them; its backpack and weapon
   drop once; the kill counts once.
 - [ ] The blood mist round hits: faint enough? (Gore > Blood Mist).
+
+## Small gibs (2026-10-02)
+
+The author's spec (2026-10-02, verbatim; the "Miscellaneous enhancements" half is another agent's section):
+
+> "Small gibs" feature:
+>
+> * Dealing damage to enemies has a chance to spawn small gibs to simulate chunks of meat being ripped out of their models.
+> * The small gibs use the same models as the normal gibs (perhaps a subset of them: the smaller models), but scaled down significantly (scale should be randomized to match something in between half the size of a rock and the size of a rock).
+> * The small gibs are physical entities that can be grabbed and leave blood trails just like normal gibs. Like crate destruction debris, they disappear after a set amount of time. If the player is holding one, the timer is reset until they fall back on the ground.
+> * Small gibs should fly out and a bit upwards from the hit enemy, but not too much. Initial velocity and "upwards speed" should be customizable. The location where small gibs spawn from should be the same location where the damage was dealt at. Small gibs should collide with enemy models, so to avoid overlap they should have a 0.1-0.2s grace period upon spawn where collisions with the enemy they spawned from are disabled.
+> * The player itself should also be subject to this feature, optionally.
+> * There should be a global max small gibs configurable limit, when the max is reached the oldest gibs will be removed in a circular buffer fashion.
+> * The small gibs should have collision and be throwable, but their weight and damage should be low.
+> * There should be a damage threshold under which no small gibs can spawn.
+> * The higher the damage dealt, the more likely and the more amount of gibs spawn.
+> * Some particular interactions will always spawn small gibs: e.g. using a chainsaw against an enemy or a corpse, or the normal "gibbing" procedure caused by very high damage or explosions. Destroying "large gibs" should also result in spawning small gibs, as if they were being broken down in smaller pieces.
+> * Every aspect of this feature should be tweakable via a menu under "Gore".
+> * In terms of initial values: basic shotgun shots should rarely create a small gib. Double-barrel shotgun shots should frequently create small gibs -- some care might be necessary here as these guns shoot multiple pellets, but the damage should be counted as a whole, not per pellet. Fired nails should probably not create small gibs. Sword/axe attacks/throws with decent speed and that hit with the blade (not the pommel or hilt) should create small gibs. Strong punches should rarely create small gibs. With quad damage enabled, everything should create small gibs. Thrown rocks/bricks at a decent speed or melee hits with held rocks/bricks and similar props should also cause small gibs.
+> * Both large gibs and small gibs should have squishing sounds and should be able to stick to walls/ceilings.
+
+**What it does.** `QC/vr_smallgibs.qc`. A hit on a monster, a corpse or (Gore > Small Gibs > From You Too) the player
+weighs its damage (before armour, after Quad and the damage multipliers; a shotgun blast's pellets summed into one hit:
+`VR_SmallGib_BlastBegin/Pellet/BlastEnd` around `FireBulletsImpl`'s pellets, whatever order `AddMultiDamage` applies
+them in) and may tear small gibs out where it landed (the pellets' middle, a melee blow's contact `b.mh_c_pos`, a
+missile's or blast's nearest point on the body). Chance: 0 under Least Damage, rising to 1 at Damage for a Sure One, to
+the power Chance Curve, times the hit's kind (`VR_SmallGib_Kind`: shotguns and grunts' guns; nails and lasers; blades,
+the axe's and a sword's edge or point swung or thrown, by `vr_melee_blunt` (client.qc: the blow's part, pommel or not)
+and the hand's weapon; blunt: punches, pommels, hilts, gun and crowbar swings, Mjolnir, bashes, headbutts; props: a
+thing in the fist, a thrown rock, brick, gun or gib; explosions; the rest: lightning, monsters' blows). How many:
+damage / One More Each plus a random part, 1 to Most From a Hit. Always: under Quad Damage; the chainsaw's chain or
+swing (a monster or a corpse, one each Chainsaw: One Each); a gibbing (`ThrowHead`, a headless corpse's gibbing: With a
+Gibbing, flung as the gibs at 0.6 of their speed); a large gib or head bursting (`VR_Gib_Burst`: A Large Gib Bursts
+Into, a head 1.5x). Statues and the training dummy never bleed them.
+
+A small gib is `progs/gib1.mdl` or `gib3.mdl` (the smaller two) at `model_scale` for a size between Smallest and Largest
+times a rock's (the five rocks' mean longest side, 3.0 units, times `vr_world_scale`: 3.8), grabbable and bleeding as a
+gib (`VR_MakeGibGrabbable`: carried, thrown, force grabbed, its blood trail), classname `vr_smallgib`. Its mass is its
+own (`.vr_prop_mass`, a new engine field: `vr_box3d.cpp massSetting` reads it before the model's Held Object Offsets
+mass, so Box3D, the throw's share, the weight's damage and the physics sounds all see 0.3 kg), and it sleeps sooner
+(Box3D `sleepThreshold` 0.15 m/s for such props, 3x the default). It flies out from the hit (away from the body's middle
+across, a little at random, at Speed and Up, each from two thirds to four thirds) in Quake's bounce, passing through
+the body it came from for Pass Through the Body (its `.owner`); then it is a rigid body in flight too (Box3D meets the
+monsters' bodies, which Quake's bounce of a touchable non-solid passes through). Fading as a crate's pieces do (Last,
+then a two second fade); held, and after it is let go of until it lands (`FL_ONGROUND`: asleep), its time starts again.
+A ring of 256 slots keeps them in the order made (serials: a reused entity is never mistaken for one); past Most Lying
+About the oldest not in a hand is removed. They take no damage (Can Be Destroyed off): shots and blows pass through
+them (a gib that takes damage stops pellets: `MOVE_HITGIBS`); on, a hit bursts one into a small puff.
+
+**Squishes and sticking (all gibs).** `make_sounds.py squish()`: a wet slap, a soft thud and bubbles popping in a
+grainy slop; `vr/squish1..4.wav` (gibs) and `vr/squish_s1..4.wav` (small: higher, shorter). Played when a gib lands
+from Quake's bounce (`VR_Gib_Touch`, Quake's `zombie/z_miss.wav` one time in four; a small gib also at slower speeds)
+and when one sticks; the physics sounds' flesh sets (`vr_physsound.cpp`) mix them in (light, under 1.5 kg: the small
+squishes only). Thrown gibs now stick too: `VR_Gib_Think2` follows a thrown gib's flight (a small gib's as well, which
+can't burst) and a hit on a wall or a ceiling at Speed to Stick or more but under Gib Splat Speed sticks it at Thrown
+Gibs Stick's chance (a harder one bursts it as before). A stuck gib that was a rigid body settles where it stuck
+(`.vr_gib_stuckat`, `.vr_gib_stuckpos`: the rigid bodies' last step gave it a velocity, which read as a knock and
+dropped it at once). Speed to Stick replaces the flung gibs' fixed 180 units/s.
+
+| Setting | cvar | Default |
+|---|---|---|
+| Gore > Small Gibs > Small Gibs | `vr_smallgibs` | 1 |
+| > From You Too | `vr_smallgibs_player` | 0 |
+| > When > Least Damage | `vr_smallgibs_min_damage` | 12 |
+| > When > Damage for a Sure One | `vr_smallgibs_full_damage` | 60 |
+| > When > Chance Curve | `vr_smallgibs_curve` | 1.5 |
+| > When > One More Each | `vr_smallgibs_damage_per_gib` | 40 |
+| > When > Most From a Hit | `vr_smallgibs_per_hit` | 4 |
+| > Chance by Weapon > Shotguns, Nails, Blades, Blunt Blows, Props, Explosions, Everything Else | `vr_smallgibs_shots`, `_nails`, `_blades`, `_blunt`, `_props`, `_explosions`, `_other` | 1, 0, 1.5, 0.3, 1, 1, 0.5 |
+| > Chance by Weapon > Chainsaw: One Each | `vr_smallgibs_saw_interval` | 0.2 s |
+| > Chance by Weapon > With a Gibbing | `vr_smallgibs_gibbing` | 6 |
+| > Chance by Weapon > A Large Gib Bursts Into | `vr_smallgibs_burst` | 3 |
+| > Flight and Size > Speed, Up | `vr_smallgibs_speed`, `vr_smallgibs_up` | 4, 5 m/s |
+| > Flight and Size > Pass Through the Body | `vr_smallgibs_grace` | 0.15 s |
+| > Flight and Size > Smallest, Largest | `vr_smallgibs_size_min`, `_max` | 0.5, 1 (x a rock) |
+| > Flight and Size > Mass | `vr_smallgibs_mass` | 0.3 kg |
+| > How Many and How Long > Most Lying About | `vr_smallgibs_max` | 40 |
+| > How Many and How Long > Last | `vr_smallgibs_time` | 20 s |
+| > How Many and How Long > Can Be Destroyed | `vr_smallgibs_destroy` | 0 |
+| Gore > Hits, Gibs and Corpses > Thrown Gibs Stick | `vr_gore_stick_thrown` | 0.5 |
+| Gore > Hits, Gibs and Corpses > Speed to Stick | `vr_gore_stick_speed` | 180 u/s |
+
+Menu: a new page, Small Gibs (`menu_vr 93`, 30 rows), linked from Gore after Gib Speed: Explosives; the two sticking
+rows on Gore after Gibs Stick. `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
+
+**Tests.** `QC/vr_smallgibs_test.qc`: `vr_smallgibs_test <n>` on the nearest monster or corpse (its AI stopped, its
+first frame), `sgibtest:` lines; Debug > Small Gibs Tests (a grunt or its corpse ahead, each test, List Small Gibs).
+`bash Misc/quakevr/smallgibs_tests.sh <agent>` (the agent kit's run.sh) runs them all (about a minute). Results (a grunt 97 units ahead, 200
+of each):
+
+- Shotgun blast (24 damage, its 6 pellets summed): 12% tore any out. Super shotgun (42): 54%; on a corpse (56): 87%.
+  (A pose with the arms ahead takes the pellets as limbs', 0.6: 14.4 a blast, about 1%.)
+- Nails (9) and super nails (18): 0%. Under Quad: nails, super nails and a light punch (8): 100%.
+- Blows of 35: axe blade 46%, sword blade 50%, axe pommel 8%; a strong punch (25): 3%.
+- The chainsaw for a second (62 ticks): 5 small gibs, from a live grunt and from a corpse.
+- A gib and an ogre's head shot to bursting: 8 small gibs (3 + 5).
+- Most Lying About 10, 15 made: 10 lie about, the oldest is the sixth made, none of the first five left.
+- Held in the off hand 3 s at Last 1 s: there, opaque; let go: landed (asleep) 1.3 s later, gone 2.7 s after landing.
+- Pass Through the Body: one from just behind the grunt through it at 300 u/s: with the grace, 71 units in front of it
+  at 0.3 s; without, stopped 22 units behind it (it bounced off).
+- Thrown into a wall at 220 u/s: a gib and a small gib stick (Thrown Gibs Stick 1 for the test); a gib at 400 bursts.
+- After a gibbing: 10 to 12 small gibs, 4.0 to 5.7 units across (their boxes turned), all rigid, asleep within 2 s.
+- `eval.sh`: the same table as the round's starting commit 0cb46140 (171/177; the canary's 5 differences from the
+  baseline file are the starting commit's too, the same lines).
+
+Test in VR:
+- [ ] Shotgun at a grunt: now and then a chunk; the double-barrel often; nails never (under Quad: everything).
+- [ ] Axe and sword cuts tear chunks out, pommel strikes and punches rarely; the chainsaw keeps tearing them out of a
+  monster and a corpse.
+- [ ] Their size (half a rock to a rock), how they fly (Speed, Up), the cap and how long they last; pick one up and
+  hold it past Last.
+- [ ] Gibs squish when they land and stick; throw a gib or a small gib into a wall at a medium speed: it sticks.

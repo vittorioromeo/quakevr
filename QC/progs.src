@@ -26,6 +26,7 @@ vr_juice.qc
 vr_grenade.qc
 vr_debris.qc
 vr_crates.qc
+vr_smallgibs.qc
 vr_walltorch.qc
 // The grapple after vr_carry.qc and vr_walltorch.qc: it reads their fields.
 vr_grapple.qc
@@ -47,6 +48,7 @@ vr_crowbar.qc
 vr_axestick.qc
 vr_liquids.qc
 vr_wounds.qc
+vr_smallgibs_test.qc
 world.qc
 vr_dummy.qc
 vr_motion.qc

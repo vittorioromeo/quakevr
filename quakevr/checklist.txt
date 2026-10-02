@@ -136,6 +136,13 @@ Jump into water unhurt (only gib blood): washes off and stays clean
 Chainsaw or shoot a monster while it falls dying: it takes damage and can gib mid-fall (Gore > Dying Bodies)
 Blood mist: faint large clouds on every bleeding hit; faint enough? (Gore > Blood Mist)
 
+Small gibs (Gore > Small Gibs): shotgun rarely, super shotgun often, nails never, axe/sword blade often, pommel and punches rarely
+Small gibs: the chainsaw tears them out of a monster and a corpse; gibbing and bursting a large gib throw many
+Small gibs: pick one up, hold it past Last (20 s): it stays; throw it: it fades 20 s after it lands
+Small gibs: size (half a rock to a rock), how they fly out (Speed, Up) and the cap (Most Lying About 40)
+Gibs squish when they land or stick (new squish sounds); a gib or small gib thrown into a wall at a medium speed sticks (Gore > Thrown Gibs Stick)
+Small gibs: the chances by weapon (Gore > Small Gibs > Chance by Weapon), Least Damage 12, Damage for a Sure One 60, Chance Curve 1.5
+
 [Decide or give feedback]
 Quake's 11 kHz lowpass still removes everything above ~5.5 kHz from spatial voices (front/back and up/down cues): let spatial voices bypass it?
 Flashlight head zone: make your values the defaults (zone up 0.175, forward 0.015; shipped 0.04, 0)?

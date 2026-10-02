@@ -1650,6 +1650,50 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
     };
 }
 
+// Small gibs (QC vr_smallgibs.qc; ROUND21.md, "Small gibs"): chunks torn out by hits, carried and thrown as the gibs.
+[[nodiscard]] za::Vector<Item> pageSmallGibs()
+{
+    return {
+        toggle("Small Gibs", vr_smallgibs)
+            .help("Hits tear small chunks of meat out of monsters and corpses: the gibs' models, a rock's size or half of it. They bleed, can be picked up and thrown, and fade away after a while."),
+        toggle("From You Too", vr_smallgibs_player).help("Hits on you tear them out of you as well."),
+        header("When"),
+        slider("Least Damage", vr_smallgibs_min_damage, 0.f, 100.f, 1.f, "%.0f").extend(0.f, 500.f)
+            .help("A hit with less damage tears none out (a shotgun blast's pellets count as one hit). Above it the chance rises."),
+        slider("Damage for a Sure One", vr_smallgibs_full_damage, 1.f, 200.f, 5.f, "%.0f").extend(1.f, 1000.f)
+            .help("From this damage a hit always tears some out (times the weapon's chance below). Quad Damage, the chainsaw, gibbing and bursting a large gib always do."),
+        slider("Chance Curve", vr_smallgibs_curve, 0.5f, 3.f, 0.1f, "%.1f")
+            .help("How the chance rises between the two: 1 straight, more makes light hits rarer (a plain shotgun blast) while hard ones stay sure."),
+        slider("One More Each", vr_smallgibs_damage_per_gib, 5.f, 200.f, 5.f, "%.0f damage").extend(1.f, 1000.f)
+            .help("Harder hits tear more out: one more for about each this much damage."),
+        slider("Most From a Hit", vr_smallgibs_per_hit, 1.f, 10.f, 1.f, "%.0f"),
+        header("Chance by Weapon"),
+        slider("Shotguns", vr_smallgibs_shots, 0.f, 3.f, 0.1f, "%.1fx")
+            .help("The shotgun's blast rarely tears one out, the double-barrelled one's often (their pellets' damage summed). A grunt's gun too."),
+        slider("Nails", vr_smallgibs_nails, 0.f, 3.f, 0.1f, "%.1fx").help("Nails and lasers (0: never, but under Quad Damage)."),
+        slider("Blades", vr_smallgibs_blades, 0.f, 3.f, 0.1f, "%.1fx").help("The axe's and a sword's edge or point, swung or thrown fast."),
+        slider("Blunt Blows", vr_smallgibs_blunt, 0.f, 3.f, 0.1f, "%.1fx")
+            .help("Punches, a pommel or hilt, a gun or the crowbar swung, Mjolnir, bashes and headbutts: only strong ones, rarely."),
+        slider("Props", vr_smallgibs_props, 0.f, 3.f, 0.1f, "%.1fx").help("A rock, a brick or another thing thrown hard or swung in the fist."),
+        slider("Explosions", vr_smallgibs_explosions, 0.f, 3.f, 0.1f, "%.1fx"),
+        slider("Everything Else", vr_smallgibs_other, 0.f, 3.f, 0.1f, "%.1fx").help("Lightning, monsters' blows and the rest."),
+        slider("Chainsaw: One Each", vr_smallgibs_saw_interval, 0.05f, 1.f, 0.05f, "%.2f s").help("The running chain tears one out of a monster or a corpse this often."),
+        slider("With a Gibbing", vr_smallgibs_gibbing, 0.f, 20.f, 1.f, "%.0f").help("How many fly with a body's gibs when it is gibbed."),
+        slider("A Large Gib Bursts Into", vr_smallgibs_burst, 0.f, 10.f, 1.f, "%.0f").help("How many a gib breaks into when it is destroyed (a head half as many again)."),
+        header("Flight and Size"),
+        slider("Speed", vr_smallgibs_speed, 0.f, 10.f, 0.5f, "%.1f m/s").extend(0.f, 30.f).help("How fast they fly out from where the hit landed."),
+        slider("Up", vr_smallgibs_up, 0.f, 10.f, 0.5f, "%.1f m/s").extend(0.f, 30.f).help("And upwards."),
+        slider("Pass Through the Body", vr_smallgibs_grace, 0.f, 0.5f, 0.05f, "%.2f s").help("For this long they don't collide with the body they came from."),
+        slider("Smallest", vr_smallgibs_size_min, 0.1f, 2.f, 0.05f, "%.2fx rock"),
+        slider("Largest", vr_smallgibs_size_max, 0.1f, 2.f, 0.05f, "%.2fx rock"),
+        slider("Mass", vr_smallgibs_mass, 0.05f, 5.f, 0.05f, "%.2f kg").help("Light: thrown, they hurt little."),
+        header("How Many and How Long"),
+        slider("Most Lying About", vr_smallgibs_max, 1.f, 128.f, 1.f, "%.0f").extend(1.f, 256.f).help("Past it, the oldest go first (not one in your hand)."),
+        slider("Last", vr_smallgibs_time, 0.f, 120.f, 5.f, "%.0f s").help("Then they fade away (0: never). Held, and in the air after, they wait."),
+        toggle("Can Be Destroyed", vr_smallgibs_destroy).help("Shots and blows burst them into a puff of blood. Off: they pass through them."),
+    };
+}
+
 // Gore (vr_gore.cpp, vr_decals.cpp, vr_bodyblood.cpp; the QC's gibs sticking: vr_carry.qc).
 [[nodiscard]] za::Vector<Item> pageGore()
 {
@@ -1665,6 +1709,10 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Blood dripping from splats on the ceiling and from gibs stuck there: how long and how much (0 none)."),
         slider("Gibs Stick", vr_gore_stick, 0.f, 30.f, 1.f, "%.0f s").extend()
             .help("Gibs flung into a ceiling or a wall may stick there about this long, dripping, then fall (0 never)."),
+        slider("Thrown Gibs Stick", vr_gore_stick_thrown, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The chance a gib or head (or a small gib) you throw into a wall or a ceiling sticks there (faster than Gib Splat Speed it bursts instead)."),
+        slider("Speed to Stick", vr_gore_stick_speed, 50.f, 500.f, 10.f, "%.0f u/s").extend(20.f, 1000.f)
+            .help("How fast a gib must strike a wall or a ceiling to stick (flung from a body or thrown)."),
         toggle("Flies on Heads", vr_head_flies)
             .help("Flies buzzing round some severed heads (Scourge of Armagon's: about one head in ten). Off "
                   "by default."),
@@ -1675,6 +1723,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("And when a thrown thing, the shotguns, nails or an enforcer's laser gib it."),
         slider("Gib Speed: Explosives", vr_gib_speed_heavy, 0.05f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 3.f)
             .help("And everything else: explosions, rockets, grenades, lightning, plasma, monsters' blows (1: Quake's)."),
+        open("Small Gibs", pageIndex(pageSmallGibs)).help("Chunks of meat torn out by hits: when, how many, how they fly, how long they last."),
         header("Wounds on Models"),
         toggle("Dynamic Wounds", vr_wounds)
             .help("Blood painted on monsters, corpses and you where the hits land, in the skins' own pixels. Your body and hands show your wounds this way instead of the wound skins, and healing washes them off."),
@@ -2846,6 +2895,21 @@ za::Vector<Item> pageDebugTools()
         command("Electrified Water", "vr_shock_test 1").help("vr_shock_test 1 [radius] [seconds]: arcs on the water below the point 128 units ahead."),
         command("Mjolnir's Lightning", "impulse 215").help("impulse 215: Mjolnir in the main hand strikes its lightning now, "
                                                             "as a blow does (15 cells). In water: the shock, with its damage."),
+        header("Small Gibs Tests (developer 1 for each hit)"),
+        command("A Grunt Ahead", "vr_test_spawn 0; vr_test_spawn_dist 96; impulse 241").help("A grunt 96 units ahead, facing you: the tests' target (the nearest monster or corpse)."),
+        command("A Grunt's Corpse Ahead", "vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; vr_test_spawn_dead 0"),
+        command("Shotgun Blasts", "vr_smallgibs_test 1").help("vr_smallgibs_test 1: 200 shotgun blasts at it (vr_smallgibs_test_n), the share that tore small gibs out."),
+        command("Super Shotgun Blasts", "vr_smallgibs_test 2"),
+        command("Nails", "vr_smallgibs_test 3"),
+        command("Axe, Pommel, Sword, Punch", "vr_smallgibs_test 4").help("vr_smallgibs_test 4: blows of 35 (vr_smallgibs_test_dmg) by the axe's blade and pommel, a sword, and punches of 25."),
+        command("Quad Damage", "vr_smallgibs_test 5"),
+        command("Chainsaw a Second", "vr_smallgibs_test 6"),
+        command("Burst a Gib and a Head", "vr_smallgibs_test 7"),
+        command("Most Lying About", "vr_smallgibs_test 8").help("vr_smallgibs_test 8: 15 made with Most Lying About 10: the five oldest go."),
+        command("Held, Then Let Go", "vr_smallgibs_test 9").help("vr_smallgibs_test 9: one in the off hand for 3 s with Last 1 s, then let go: it waits until it lands."),
+        command("Pass Through the Body", "vr_smallgibs_test 10").help("vr_smallgibs_test 10: one from just behind the monster through it at 300 u/s, with the grace and without."),
+        command("Throw Gibs at a Wall", "vr_smallgibs_test 12").help("vr_smallgibs_test 12: a gib and a small gib thrown at 220 u/s into the nearest wall stick (Thrown Gibs Stick 1 for it), a gib at 400 bursts."),
+        command("List Small Gibs", "vr_smallgibs_test 11").help("vr_smallgibs_test 11: how many lie about, their size, how many are rigid bodies, asleep, stuck, held."),
         header("VR Calibration"),
         command("Run the Calibration Here", "vr_setup here")
             .help("vr_setup here: VR Calibration's steps (height, body, main hand) in this map, now."),
@@ -3646,6 +3710,7 @@ const Page pages[] = {
     {"Weapon Offsets - Holstered", pageWofsHolstered, pageWeaponOffsets},          // 90
     {"Weapon Offsets - Effects", pageWofsEffects, pageWeaponOffsets},              // 91
     {"Weapon Offsets - Flashlight", pageWofsFlashlight, pageWeaponOffsets},        // 92
+    {"Small Gibs", pageSmallGibs, pageGore},                                       // 93
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

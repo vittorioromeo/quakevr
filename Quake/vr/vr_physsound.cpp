@@ -88,9 +88,11 @@ constexpr Set impactSets[materialCount][3] = {
     {{{"vr/phys/soft_m1.wav", "vr/phys/soft_m2.wav", "vr/phys/soft_m3.wav", "vr/phys/soft_m4.wav"}, 4},
      {{"vr/phys/soft_m1.wav", "vr/phys/soft_m2.wav", "vr/phys/soft_m3.wav", "vr/phys/soft_m4.wav"}, 4},
      {{"vr/phys/soft_h1.wav", "vr/phys/soft_h2.wav", "vr/phys/soft_h3.wav", "vr/phys/soft_h4.wav"}, 4}},
-    {{{"vr/phys/flesh_m1.wav", "vr/phys/flesh_m2.wav", "vr/phys/flesh_m3.wav", "vr/phys/flesh_m4.wav"}, 4},
-     {{"vr/phys/flesh_m1.wav", "vr/phys/flesh_m2.wav", "vr/phys/flesh_m3.wav", "vr/phys/flesh_m4.wav", "zombie/z_miss.wav"}, 5},
-     {{"vr/phys/flesh_h1.wav", "vr/phys/flesh_h2.wav", "vr/phys/flesh_h3.wav", "vr/phys/flesh_h4.wav", "zombie/z_miss.wav"}, 5}},
+    // Flesh squishes (ROUND21.md, "Small gibs": make_sounds.py's squish*.wav): a small gib's (light) only them, the gibs'
+    // and heads' the punches' thuds and the squishes in turn.
+    {{{"vr/squish_s1.wav", "vr/squish_s2.wav", "vr/squish_s3.wav", "vr/squish_s4.wav"}, 4},
+     {{"vr/phys/flesh_m1.wav", "vr/squish1.wav", "vr/phys/flesh_m2.wav", "vr/squish2.wav", "zombie/z_miss.wav"}, 5},
+     {{"vr/phys/flesh_h1.wav", "vr/squish3.wav", "vr/phys/flesh_h2.wav", "vr/squish4.wav", "zombie/z_miss.wav"}, 5}},
 };
 constexpr Set scrapeSets[materialCount] = {
     {{}, 0},

@@ -506,6 +506,10 @@ float(entity targ) VR_Corpse_PositionalFactor =
     return max(0.1, f);
 };
 
+// Small gibs (vr_smallgibs.qc): torn out by a hit; with a gibbing.
+void(entity targ, entity inflictor, entity attacker, float xDamage) VR_SmallGib_Hit;
+void(float dm) VR_SmallGib_Gibbed;
+
 // Its damage, from T_Damage (instead of Quake's): gibbed at no health.
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Damage =
 {
@@ -529,6 +533,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     }
     damage = damage / VR_Corpse_PositionalFactor(targ);
 
+    VR_SmallGib_Hit(targ, inflictor, attacker, damage); // (the chainsaw always; Quad always)
     targ.vr_corpse_hp = targ.vr_corpse_hp - damage;
     dprint("corpse: "); dprint(targ.classname); dprint(" hit by "); dprint(inflictor.classname); dprint(" for ");
     dprint(ftos(damage)); dprint(", "); dprint(ftos(max(0, targ.vr_corpse_hp))); dprint(" left\n");
@@ -581,6 +586,7 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
     }
     else
     {
+        VR_SmallGib_Gibbed(dm); // (ThrowHead's, with a head)
         self.solid = SOLID_NOT;
         self.model = string_null;
         self.modelindex = 0;
@@ -1190,6 +1196,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // VR: gore: blood sprayed onto the walls, floor and ceiling behind the hit (vr_gore, vr_carry.qc).
     VR_DamageNumber(targ, inflictor, attacker, take, save, isVRMelee); // VR: Debug: Show Damage Numbers
     VR_Gore_Hit(targ, inflictor, take);
+    VR_SmallGib_Hit(targ, inflictor, attacker, damage); // VR: small gibs torn out (vr_smallgibs.qc)
     VR_Wound_Hit(targ, inflictor, attacker, take); // VR: painted on its model (vr_wounds.qc)
 
     // do the damage

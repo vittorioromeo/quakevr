@@ -306,6 +306,8 @@ constexpr float sinkDensity = 0.5f;
     return model->type == mod_alias && (!strcmp(model->name, "progs/grenade.mdl") || !strcmp(model->name, "progs/mervup.mdl"));
 }
 
+constexpr float smallPropSleepThreshold = 0.15f; // m/s: a prop with its own mass (a small gib) sleeps under it (Box3D's: 0.05)
+
 constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel ball on stone)
 
 // Densities (kg/m^3) of the props' hulls: only their ratios matter (what knocks what how far).
@@ -350,6 +352,11 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
 
 [[nodiscard]] float massSetting(edict_t* ent, const qmodel_t* model)
 {
+    // Its own (QC .vr_prop_mass: a small gib, the gibs' models scaled down) over its model's.
+    if(const float own = ent && fields().vr_prop_mass >= 0 ? fieldFloat(ent, fields().vr_prop_mass) : 0.f; own > 0.f)
+    {
+        return own;
+    }
     const float prop = propMassSetting(model);
     return prop > 0.f ? prop : weaponMassSetting(ent, model);
 }
@@ -1646,6 +1653,10 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
         s.gravityScale = gravityScaleOf(ent);
         def.gravityScale = s.gravityScale;
         def.angularDamping = za::max(vr_throw_spin_drag.value, 0.f);
+        if(fields().vr_prop_mass >= 0 && fieldFloat(ent, fields().vr_prop_mass) > 0.f)
+        {
+            def.sleepThreshold = smallPropSleepThreshold; // a small gib: asleep sooner (they come by the dozen)
+        }
     }
     s.body = b3CreateBody(world->id, &def);
 
