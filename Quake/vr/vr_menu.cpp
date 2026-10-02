@@ -1700,6 +1700,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Still inside a monster, you, a hand or a blade after that (melee, the chainsaw), they pass through it until clear, not pushed out at 2 to 3 m/s."),
         slider("Not Batted Away For", vr_smallgibs_blow_grace, 0.f, 1.f, 0.05f, "%.2f s")
             .help("For this long after it is torn out, your hands, weapons and what they hold pass through a small gib: the blade that tore it out doesn't bat it away. After it you can bat it."),
+        toggle("Burst by Blows Meanwhile", vr_smallgibs_blow_burst)
+            .help("In that time a blow still bursts one (the blade that tore it out too, going on through it), with Can Be Destroyed on; it is never batted or pushed. Off: blows pass through it."),
         slider("Smallest", vr_smallgibs_size_min, 0.1f, 2.f, 0.05f, "%.2fx rock"),
         slider("Largest", vr_smallgibs_size_max, 0.1f, 2.f, 0.05f, "%.2fx rock"),
         slider("Mass", vr_smallgibs_mass, 0.05f, 5.f, 0.05f, "%.2f kg").help("Light: thrown, they hurt little."),

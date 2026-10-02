@@ -1132,6 +1132,7 @@ QVR_CVAR(vr_smallgibs_size_max, "1.15", CVAR_ARCHIVE)         // to this
 QVR_CVAR(vr_smallgibs_mass, "0.3", CVAR_ARCHIVE)           // kg each (light: thrown, they hurt little)
 QVR_CVAR(vr_smallgibs_grace, "0.1", CVAR_ARCHIVE)         // s they pass through the body they came from
 QVR_CVAR(vr_smallgibs_blow_grace, "0.3", CVAR_ARCHIVE)   // s after it is made a small gib isn't struck, nudged or pushed by a hand, a weapon or a held thing (the blow that tore it out batted it away)
+QVR_CVAR(vr_smallgibs_blow_burst, "1", CVAR_ARCHIVE)    // in that time a blow (the blade that tore it out too) still bursts it, with vr_smallgibs_destroy; never batted or pushed (0: blows pass it)
 QVR_CVAR(vr_smallgibs_max, "64", CVAR_ARCHIVE)             // most lying about at once: the oldest go first (not one in a hand)
 QVR_CVAR(vr_smallgibs_time, "20", CVAR_ARCHIVE)            // s one lies about before it fades away (held, and until it lands again, it waits)
 QVR_CVAR(vr_smallgibs_destroy, "1", CVAR_ARCHIVE)          // they can be shot or struck to a mist (off: shots and blows pass them)

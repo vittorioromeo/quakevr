@@ -1616,9 +1616,11 @@ float(float xHand, entity b) VR_Melee_Sweep =
     entity e = findradius(mid, reach + r + 96);
     while(e)
     {
-        if(VR_Blow_Strikable(e) && (e.solid == SOLID_SLIDEBOX || e.solid == SOLID_BBOX ||
-                                    (e.solid == SOLID_NOT_BUT_TOUCHABLE && (e.vr_gib || e.vr_cratekind == 3) && e.carry_player == world &&
-                                     !VR_SmallGib_BlowSpared(e))))
+        // A small gib just torn out: struck only to burst (vr_smallgibs_blow_burst), never batted (VR_SmallGib_BlowSpared).
+        if((VR_Blow_Strikable(e) || VR_SmallGib_BlowBursts(e)) &&
+           (e.solid == SOLID_SLIDEBOX || e.solid == SOLID_BBOX ||
+            (e.solid == SOLID_NOT_BUT_TOUCHABLE && (e.vr_gib || e.vr_cratekind == 3) && e.carry_player == world &&
+             (!VR_SmallGib_BlowSpared(e) || VR_SmallGib_BlowBursts(e)))))
         {
             vector lo = e.origin + e.mins;
             vector hi = e.origin + e.maxs;
