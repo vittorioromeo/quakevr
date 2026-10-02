@@ -11,7 +11,7 @@ at the lamp as the game reads it, moving).
   mounted    the lamp on the body (the belt/chest mount)
   timing     a reach to the lamp at several speeds, the grip pressed at several moments round the arrival, at a
              time scale of 1, 0.3 (vr_timescale) and in bullet time; and presses that must not take it (a punch)
-  options    vr_flashlight_grab_range, _head_range, _auto_head and _auto_gun
+  options    vr_flashlight_grab_range, _head_range, _gun_range, _auto_head and _auto_gun
   moving     the same reaches and a still hand at the lamp while the thumbsticks move and turn the player
   returning  the lamp let go of and springing home: the main hand, still, at spots along its way, grips at several
              moments of the flight (a catch)
@@ -349,7 +349,7 @@ def options(agent):
     vr_flashlight_grab_range (the off hand 6, 12 and 15 cm in front of the lamp (inwards, a hotspot of the game's is nearer), gripped: at 1 only the first is taken, at 2
     all); vr_flashlight_head_range (the held torch moved out from the left temple: the reach that lights the head's zone
     grows with it) and vr_flashlight_auto_head (let go in the zone: on the head with it, home without); the same with
-    a shotgun in the main hand and vr_flashlight_auto_gun."""
+    a shotgun in the main hand, vr_flashlight_gun_range and vr_flashlight_auto_gun."""
     cen = centres(agent)
     cx, cy, cz, _ = cen[0]
     zone = ["vr_flashlight_head_zone_forward 0", "vr_flashlight_head_zone_up 0.04", "vr_flashlight_head_zone_out 0",
@@ -377,18 +377,17 @@ def options(agent):
     gun = [(0.17 - 0.025 * k, 1.3, -0.5) for k in range(14)]  # out to the left of the shotgun held ahead
     gunCmds = ["vr_weapon_grip_mode 1", "vr_mock_hand main 0.25 1.3 -0.35 0 0 0", "vr_mock_button main grip 1",
                "impulse 154"] + waits(30)
-    for what, pts, extra, cvar in (("head", head, [], "vr_flashlight_head_range"), ("gun", gun, gunCmds, None)):
+    for what, pts, extra, cvar in (("head", head, [], "vr_flashlight_head_range"), ("gun", gun, gunCmds, "vr_flashlight_gun_range")):
         for rng in (1, 2):
-            if cvar:
-                cmds += [f"{cvar} {rng}"]
-            elif rng == 2:
-                continue  # (the gun's zone has no multiplier)
+            cmds += [f"{cvar} {rng}"]
             cmds += take() + extra + ["vr_mock_look 0 0"]
             for j, q in enumerate(pts):
                 cmds += [f"vr_mock_hand off {q[0]:.4f} {q[1]:.4f} {q[2]:.4f} 0 0 0"] + waits(6) + [
                     f"vr_flashlight_probe s{what}{rng}_{j}"]
             cmds += release(f"s{what}{rng}_x")
-        cmds += [f"{cvar} 1"] if cvar else []
+        cmds += [f"{cvar} 1"]
+        if extra:
+            cmds += ["vr_mock_button main grip 0", "impulse 1", "vr_mock_hand main"] + waits(10)
     cmds += ["vr_mock_button main grip 0", "impulse 1", "vr_mock_hand main"]
     got = parse(run(agent, "fg_sweep", cmds))
     ok = True
@@ -404,14 +403,15 @@ def options(agent):
         return max(lit) if lit else -1
 
     h1, h2 = reach("head", 1, "nearhead"), reach("head", 2, "nearhead")
-    g1 = reach("gun", 1, "neargun")
+    g1, g2 = reach("gun", 1, "neargun"), reach("gun", 2, "neargun")
     print(f"  head zone lit out to {head[h1][0] if h1 >= 0 else 0:.2f} m (range 1), {head[h2][0] if h2 >= 0 else 0:.2f} m "
-          f"(range 2); gun zone out to {gun[g1][0] if g1 >= 0 else 0:.3f} m")
-    ok = ok and 0 <= h1 < h2 and g1 >= 0
+          f"(range 2); gun zone out to {gun[g1][0] if g1 >= 0 else 0:.3f} m (range 1), {gun[g2][0] if g2 >= 0 else 0:.3f} m "
+          f"(range 2)")
+    ok = ok and 0 <= h1 < h2 and 0 <= g1 < g2
     # Let go in the zone: clipped on with the option, home without; range 1 at range 2's farthest spot: not lit, home.
     cmds = setup() + zone
     trials = []
-    if h2 >= 0 and g1 >= 0:
+    if h2 >= 0 and g2 >= 0:
         for auto in (0, 1):
             for rng, j in ((2, h2), (1, h2), (1, max(h1, 0))):
                 tag = f"ah{auto}_{rng}_{j}"
@@ -420,12 +420,14 @@ def options(agent):
                 q = head[j]
                 cmds += [f"vr_flashlight_auto_head {auto}", f"vr_flashlight_head_range {rng}"] + take() + [
                     "vr_mock_look 0 0", f"vr_mock_hand off {q[0]:.4f} {q[1]:.4f} {q[2]:.4f} 0 0 0"] + waits(12) + release(tag)
-            q = gun[g1]
-            tag = f"ag{auto}"
-            trials.append((tag, "ongun" if auto else "returning"))
-            cmds += ["vr_flashlight_head_range 1", f"vr_flashlight_auto_gun {auto}"] + take() + gunCmds + [
-                "vr_mock_look 0 0", f"vr_mock_hand off {q[0]:.4f} {q[1]:.4f} {q[2]:.4f} 0 0 0"] + waits(12) + release(tag) + [
-                "vr_mock_button main grip 0", "impulse 1", "vr_mock_hand main"] + waits(10)
+            for rng, j in ((2, g2), (1, g2), (1, max(g1, 0))):
+                q = gun[j]
+                tag = f"ag{auto}_{rng}_{j}"
+                trials.append((tag, "ongun" if auto and (rng == 2 or j <= g1) else "returning"))
+                cmds += ["vr_flashlight_head_range 1", f"vr_flashlight_gun_range {rng}", f"vr_flashlight_auto_gun {auto}"] + take() + gunCmds + [
+                    "vr_mock_look 0 0", f"vr_mock_hand off {q[0]:.4f} {q[1]:.4f} {q[2]:.4f} 0 0 0"] + waits(12) + release(tag) + [
+                    "vr_mock_button main grip 0", "impulse 1", "vr_mock_hand main"] + waits(10)
+        cmds += ["vr_flashlight_gun_range 1"]
         got = parse(run(agent, "fg_auto", cmds))
     for tag, want in trials:
         mode = got.get(tag, {}).get("mode")

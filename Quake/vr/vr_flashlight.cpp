@@ -902,7 +902,7 @@ struct HeadZone
 
 // The gun's reach zone (round 21; the author's tuning notes: vr_flashlight_gun_zone_*): where a held torch's middle clips
 // it on the gun: a capsule round the gun's line from the hand to 3 cm past the muzzle, moved along the gun, up and out
-// (away from the body), `radius` world units across.
+// (away from the body), `radius` world units across (vr_flashlight_gun_zone_radius times vr_flashlight_gun_range).
 struct GunZone
 {
     glm::vec3 a, b;
@@ -922,7 +922,7 @@ struct GunZone
     GunZone z;
     z.a = m.pos + shift;
     z.b = m.muzzle + (len > 1e-3f ? along * (0.03f * m2u / len) : glm::vec3{0.f}) + shift;
-    z.radius = za::fmax(vr_flashlight_gun_zone_radius.value, 0.f) * m2u;
+    z.radius = za::fmax(vr_flashlight_gun_zone_radius.value, 0.f) * za::clamp(vr_flashlight_gun_range.value, 0.25f, 4.f) * m2u;
     return z;
 }
 

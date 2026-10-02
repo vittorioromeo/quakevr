@@ -1538,6 +1538,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("How far from the torch your hand reaches it (it lights up, a grip takes it): times 9 cm from its middle line. Higher is more lenient."),
         slider("Head Clip Range", vr_flashlight_head_range, 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
             .help("How far from your temple the held torch clips on your head, and a hand takes it off there: times Head Zone Radius (On a Gun or Head)."),
+        slider("Gun Clip Range", vr_flashlight_gun_range, 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
+            .help("How far from the gun in your other hand the held torch clips on it (B or Y, or letting go with Clip on Gun When Let Go): times Gun Zone Radius (On a Gun or Head)."),
         toggle("Clip on Head When Let Go", vr_flashlight_auto_head)
             .help("Let go of the torch where it lights up by your head and it clips on there, no B or Y needed."),
         toggle("Clip on Gun When Let Go", vr_flashlight_auto_gun)
