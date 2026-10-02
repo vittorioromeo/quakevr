@@ -32,7 +32,7 @@ Enemy guns: grunts drop a shotgun, enforcers a laser rifle (both death animation
 
 Crowbar (vrfiringrange): fist on the tape (offsets), both two-handed grips incl. sliding up the bar, hook vs bar hits, parry, throwing it
 Crates break to shotgun, axe, thrown things and hard drops; pieces don't block you and burst into dust when hit; crack and dust sound OK?
-Crouch behind a crate with a grunt about: it can't see you; carrying the crate, it sees you
+Crate cover, for a definite answer: Debug > Tests > Ahead of You > Crate Cover (a large crate to crouch behind, a small one at your right, a grunt beyond, asleep): crouched it stays asleep and can't see you; stand up, or hold the small crate up: it sees you and shoots (Can the Grunt See You? reports it)
 
 After the Zancle follow-ups (no exceptions, fewer allocations): record a few takes, fire and reel the grapple around corners often, switch weapons
 
@@ -43,6 +43,8 @@ Grip a dropped crowbar by its bar, a sword by its blade, the chainsaw by its fro
 Chainsaw: your smoke and shake values are the defaults; each ripcord pull (with fuel) shakes, puffs smoke and throws a few sparks (weak pull: half); empty tank: sound only (Chainsaw Engine > Pulling the Cord)
 
 Mantle grunt now not the jump's: the hard landing's "oof" (Climbing > Mantle Grunt Sound; Hear Mantle Grunt to compare the 5, two are Quake's played deeper)
+Your values are now the defaults: mantle grunt is the pain grunt, ripcord smoke 12 and sparks 24, crates (Health 75, Breaks On Impact 16 m/s, 12 Pieces, Pieces Last 60 s), every prop weight and size you set (explosive boxes 80.5 and 40 kg, crates 40 and 65, gibs and heads heavier, rocks and bricks Mass x 1.25, your ammo, health, armour and mission-pack head slots), Throws by Weight Light Up To 1.5 kg and Heavy Falloff 0.9: a fresh config feels the same as yours
+Head flies are off (Gore > Flies on Heads); revisit later (docs/vr-port/BACKLOG.md)
 Physics stress: Debug > Tests > Physics Stress (first section): Pile of Rocks / Pile of Bricks / Wall of Crates / Mixed Pile (Pile Size, Crates in the Wall), Clear the Piles; Physics Step Time before and after, threads on and off
 Axe sticking: your Stick Speed 2.5 m/s is the default now
 

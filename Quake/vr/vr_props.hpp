@@ -18,7 +18,8 @@
 namespace qvr::props
 {
 
-inline constexpr int numSlots = 48;
+// 48 until vr_props_version 55, whose shipped items took 11 of the 12 free slots: 16 more for Held Object Offsets.
+inline constexpr int numSlots = 64;
 
 enum class Key : int
 {

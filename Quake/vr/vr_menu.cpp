@@ -660,7 +660,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How long a pull's shake lasts."),
         slider("Pull Smoke", vr_chainsaw_pull_smoke, 0.f, 12.f, 1.f, "%.0f puffs").extend(0.f, 40.f)
             .help("Puffs of exhaust smoke each pull makes (as Smoke's, at Smoke Opacity). A weak pull, half. 0: none."),
-        slider("Pull Sparks", vr_chainsaw_pull_sparks, 0.f, 20.f, 1.f, "%.0f").extend(0.f, 60.f)
+        slider("Pull Sparks", vr_chainsaw_pull_sparks, 0.f, 40.f, 1.f, "%.0f").extend(0.f, 60.f)
             .help("Tiny sparks out of the exhaust at each pull. A weak pull, half. 0: none."),
     };
 }
@@ -1623,6 +1623,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Blood dripping from splats on the ceiling and from gibs stuck there: how long and how much (0 none)."),
         slider("Gibs Stick", vr_gore_stick, 0.f, 30.f, 1.f, "%.0f s").extend()
             .help("Gibs flung into a ceiling or a wall may stick there about this long, dripping, then fall (0 never)."),
+        toggle("Flies on Heads", vr_head_flies)
+            .help("Flies buzzing round some severed heads (Scourge of Armagon's: about one head in ten). Off "
+                  "by default."),
         slider("Gib Speed: Melee", vr_gib_speed_melee, 0.05f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 3.f)
             .help("How fast the gibs fly when a melee blow gibs a monster or a corpse (a swing, a bash, a shove, a headbutt): "
                   "times Quake's speed."),
@@ -1791,10 +1794,12 @@ void hologramTestMessage()
         slider("Light Things' Top Speed", vr_throw_max_speed, 10.f, 40.f, 1.f, "%.0f m/s").extend(5.f, 100.f)
             .help("The fastest anything leaves your hand: a grenade, the axe (28: about 80 m at 45 degrees)."),
         slider("Light Up To", vr_throw_mass_light, 0.5f, 5.f, 0.1f, "%.1f kg").extend(0.1f, 50.f)
-            .help("Things up to this heavy can reach the top speed (the axe: 2 kg, a grenade 1.2); heavier, less."),
+            .help("Things up to this heavy can reach the top speed (a grenade: 1.2 kg; the axe, 2 kg, a little less); "
+                  "heavier, less."),
         slider("Heavy Falloff", vr_throw_mass_exp, 0.f, 1.5f, 0.05f, "%.2f")
             .help("How fast the limit falls with mass beyond it: (light / mass) to this power. 0.5: the same energy, 1: "
-                  "the same impulse. 0.75: the super nailgun (7 kg) at most 11 m/s, the laser cannon (15 kg) 6."),
+                  "the same impulse. 0.9 (with Light Up To 1.5): the super nailgun (7 kg) at most 7 m/s, the laser "
+                  "cannon (15 kg) 3.5."),
         slider("Soft Limit From", vr_throw_mass_knee, 0.f, 1.f, 0.05f, "%.2f")
             .help("Below this share of a thing's limit a throw is as fast as your hand's; above, it eases towards the "
                   "limit (1: a hard cap)."),
@@ -2806,6 +2811,12 @@ za::Vector<Item> pageDebugTests()
             .help("vr_crates_goto crowbar: you in front of the next crate with a crowbar lying on it (Crates: Crowbar on Crates)."),
         command("Go to the Next Crate", "vr_crates_goto")
             .help("vr_crates_goto [n]: you in front of the next of the crates placed in this map (or crate n), to look at it."),
+        command("Crate Cover", "impulse 223")
+            .help("impulse 223: a large crate just ahead to crouch behind, a small one at your right to hold up, and a "
+                  "grunt beyond, facing you and not yet awake. Crouched behind the crate it shouldn't see you (it stays "
+                  "asleep); standing up, or holding the small crate up, it should (Crates Hide You)."),
+        command("Can the Grunt See You?", "impulse 224")
+            .help("impulse 224: whether Crate Cover's grunt sees you now, how high your head is, and whether it woke."),
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "

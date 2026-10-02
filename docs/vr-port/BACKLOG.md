@@ -29,6 +29,13 @@ stop at contact. Risks: the visual hand drifting from the controller (caps), thi
 matching the body's arms, multiplayer (finger poses are client-side). Supersedes round 20's per-weapon finger
 sliders for what it covers (they stay as overrides).
 
+### Flies on corpses and gibs (the author, 2026-10-02: "add it to the to-do list")
+
+Scourge of Armagon's head flies (one severed head in ten loops `misc/flys.wav`, player.qc HeadThink) were pointless
+as they were, so they are off (`vr_head_flies` 0, Gore > Flies on Heads; NOTES.md vrfiringrange_2026-10-02_01-29-37).
+To revisit and make interesting: flies on every corpse and gib (not only heads), arriving after it has lain a few
+seconds, with fly particles buzzing round it as well as the sound.
+
 ### Repository chores
 
 - **Funding links** (the author, after round 20): copy `.github/FUNDING.yml` from `master` to the port's branch

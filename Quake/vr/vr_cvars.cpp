@@ -185,8 +185,20 @@ const DefaultChange defaultChanges[] = {
     // 74: the author's axe sticking, tuned again (NOTES.md
     // vrfiringrange_2026-10-01_23-04-14): a slower throw sticks.
     {74, &vr_axestick_speed, "4"},          // 2.5
+    // 75: the author's (NOTES.md 2026-10-02): the ripcord pull's smoke and sparks (vrfiringrange 00-17-30), the pain
+    // grunt as the mantle's (start 00-18-45), throws by weight with his heavier props (vrfiringrange 00-55-03) and the
+    // crates (vrfiringrange 01-41-30). ROUND21.md, "Defaults: chainsaw pull, mantle grunt, prop weights, crates".
+    {75, &vr_chainsaw_pull_smoke, "4"},     // 12
+    {75, &vr_chainsaw_pull_sparks, "6"},    // 24
+    {75, &vr_climb_mantle_grunt_sound, "1"}, // 4
+    {75, &vr_throw_mass_light, "2"},        // 1.5
+    {75, &vr_throw_mass_exp, "0.75"},       // 0.9
+    {75, &vr_crate_health, "25"},           // 75
+    {75, &vr_crate_impact, "14"},           // 16
+    {75, &vr_crate_pieces, "6"},            // 12
+    {75, &vr_crate_piece_time, "30"},       // 60
 };
-constexpr int configVersion = 74;
+constexpr int configVersion = 75;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
