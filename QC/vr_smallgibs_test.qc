@@ -10,6 +10,10 @@
 //  10 the grace: one from just behind the monster through it, with the grace and without
 //  11 the ones lying about: how many, their size, rigid, asleep, stuck, held
 //  12 thrown into the nearest wall: a gib and a small gib at 220 u/s stick (Thrown Gibs Stick 1), a gib at 400 bursts
+//  13 flight by situation (Flight by Situation): for each in turn (melee, chainsaw, guns, explosions, thrown, a
+//     monster's blow, gibbed by a blow, gibbed by a rocket (a corpse: a corpse's gibbing), a large gib burst) some are
+//     torn out (to the side: not at you), their launch speeds out and up, and 2.5 s later how far they lie from where
+//     they were made. The gibbings also print the old flight (the gibs' at 0.6, no Speed or Up)
 
 float vr_sgib_test;       // the test running, its step, when the step began
 float vr_sgib_test_step;
@@ -108,6 +112,169 @@ float(entity g) VR_SmallGib_TestInBox =
     entity m = vr_sgib_test_m;
     vector o = (g.absmin + g.absmax) * 0.5;
     return o_x > m.absmin_x && o_x < m.absmax_x && o_y > m.absmin_y && o_y < m.absmax_y && o_z > m.absmin_z && o_z < m.absmax_z;
+};
+
+// Test 13: what step `xStep` (1..9) tears out (QVR_SGIB_SIT_*).
+float(entity m, float xStep) VR_SmallGib_TestSpeedSit =
+{
+    if(xStep == 1) { return QVR_SGIB_SIT_MELEE; }
+    if(xStep == 2) { return QVR_SGIB_SIT_SAW; }
+    if(xStep == 3) { return QVR_SGIB_SIT_GUNS; }
+    if(xStep == 4) { return QVR_SGIB_SIT_EXPLOSIONS; }
+    if(xStep == 5) { return QVR_SGIB_SIT_THROWN; }
+    if(xStep == 6) { return QVR_SGIB_SIT_OTHER; }
+    if(xStep == 9) { return QVR_SGIB_SIT_BURST; }
+    return m.vr_corpse == 2 ? QVR_SGIB_SIT_CORPSE : QVR_SGIB_SIT_GIBBED;
+};
+
+string(float xStep) VR_SmallGib_TestSpeedName =
+{
+    if(xStep == 1) { return "melee (a sword's blade, 35)"; }
+    if(xStep == 2) { return "chainsaw"; }
+    if(xStep == 3) { return "guns (a super shotgun blast, 42)"; }
+    if(xStep == 4) { return "explosions (a rocket's blast, 60)"; }
+    if(xStep == 5) { return "thrown (an axe, 40)"; }
+    if(xStep == 6) { return "other (a monster's blow, 20)"; }
+    if(xStep == 7) { return "gibbed by a blow"; }
+    if(xStep == 8) { return "gibbed by a rocket"; }
+    return "a large gib burst";
+};
+
+// Test 13's step `xStep`: some torn out of `m` (self is the player), to its side.
+void(entity m, float xStep) VR_SmallGib_TestSpeedLaunch =
+{
+    float sit = VR_SmallGib_TestSpeedSit(m, xStep);
+    vr_sgib_st_n[sit] = 0;
+    vr_sgib_st_h[sit] = 0;
+    vr_sgib_st_v[sit] = 0;
+    vector mid = (m.absmin + m.absmax) * 0.5;
+    vector fwd = normalize(mid - self.origin);
+    fwd_z = 0;
+    fwd = normalize(fwd);
+    vector side = '1 0 0' * fwd_y - '0 1 0' * fwd_x; // to the side: a blow from there flings them back
+    m.health = 100000;
+    if(m.vr_corpse == 2)
+    {
+        m.vr_corpse_hp = 100000;
+    }
+    float oldWeapon = self.weapon;
+    float oldQuad = self.super_damage_finished;
+    self.super_damage_finished = time + 30; // every hit tears them out
+    entity e = world;
+    if(xStep == 4 || xStep == 5 || xStep == 6 || xStep == 8)
+    {
+        e = spawn();
+        e.classname = (xStep == 4 || xStep == 8) ? "missile" : (xStep == 5 ? "thrown_weapon" : "monster_test");
+        e.weapon = WID_AXE;
+        e.super_damage_finished = time + 30;
+        setorigin(e, mid + side * (m.maxs_x + 8));
+        e.velocity = side * -1000;
+    }
+    if(xStep == 7 || xStep == 8)
+    {
+        // A gibbing (its gibs' push: from the player, or a rocket flying at it), and the old flight sampled.
+        float dm = xStep == 7 ? -40 : -100;
+        float oldGibSpeed = vr_gib_speed;
+        vr_gib_speed = cvar_hget(xStep == 7 ? cvarh_vr_gib_speed_melee : cvarh_vr_gib_speed_heavy);
+        damage_inflictor = xStep == 7 ? self : e;
+        float oh = 0, ov = 0;
+        entity p = self;
+        self = m;
+        for(float j = 0; j < 100; j++)
+        {
+            vector ovel = VR_Gore_Fling(VelocityForDamage(dm)) * 0.6;
+            ov = ov + ovel_z;
+            ovel_z = 0;
+            oh = oh + vlen(ovel);
+        }
+        vr_sgib_corpsegib = m.vr_corpse == 2;
+        for(float k = 0; k < 3; k++)
+        {
+            VR_SmallGib_Gibbed(dm);
+        }
+        vr_sgib_corpsegib = FALSE;
+        self = p;
+        vr_gib_speed = oldGibSpeed;
+        bprint(sprintf("sgibtest: speeds: %s: old: out %.0f u/s, up %.0f u/s\n",
+            VR_SmallGib_TestSpeedName(xStep), oh / 100, ov / 100));
+    }
+    else if(xStep == 9)
+    {
+        makevectors('0 1 0' * self.v_viewangle_y);
+        for(float b = 0; b < 4; b++)
+        {
+            VR_SmallGib_Burst(self.origin + v_forward * 48 + side * (b * 8 - 12) - '0 0 16', side, 1);
+        }
+    }
+    else
+    {
+        for(float i = 0; i < 8; i++)
+        {
+            m.vr_sgib_sawtime = -100;
+            VR_ClearHitKind();
+            if(xStep == 1 || xStep == 2)
+            {
+                self.weapon = xStep == 1 ? WID_SWORD : WID_CHAINSAW;
+                VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, -side);
+                VR_SmallGib_Hit(m, self, self, 35);
+            }
+            else if(xStep == 3)
+            {
+                VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, mid, -side);
+                VR_SmallGib_Hit(m, self, self, 42);
+            }
+            else if(xStep == 4)
+            {
+                VR_SetHitKind(QVR_HITKIND_SPLASH, -1, '0 0 0', -side);
+                VR_SmallGib_Hit(m, e, self, 60);
+            }
+            else if(xStep == 5)
+            {
+                VR_SmallGib_Hit(m, e, self, 40);
+            }
+            else
+            {
+                VR_SmallGib_Hit(m, e, e, 20);
+            }
+            VR_ClearHitKind();
+        }
+    }
+    if(e != world)
+    {
+        remove(e);
+    }
+    self.weapon = oldWeapon;
+    self.super_damage_finished = oldQuad;
+};
+
+// Test 13's step `xStep` 2.5 s on: its launches, and how far they lie from where they were made (then gone).
+void(entity m, float xStep) VR_SmallGib_TestSpeedLanded =
+{
+    float sit = VR_SmallGib_TestSpeedSit(m, xStep);
+    float m2u = VRMetersToUnits();
+    float n = max(1, vr_sgib_st_n[sit]);
+    float h = vr_sgib_st_h[sit] / n;
+    float v = vr_sgib_st_v[sit] / n;
+    float cnt = 0, dist = 0, most = 0;
+    entity g = find(world, classname, "vr_smallgib");
+    while(g)
+    {
+        entity next = find(g, classname, "vr_smallgib");
+        if(g.vr_sgib_sit == sit && g.vr_sgib_id)
+        {
+            vector d = g.origin - g.vr_sgib_org;
+            d_z = 0;
+            cnt++;
+            dist = dist + vlen(d);
+            most = max(most, vlen(d));
+            VR_SmallGib_Remove(g);
+        }
+        g = next;
+    }
+    bprint(sprintf("sgibtest: speeds: %s [%s %.2fx, up %.2fx]\n", VR_SmallGib_TestSpeedName(xStep),
+        VR_SmallGib_SitName(sit), VR_SmallGib_SitMult(sit, FALSE), VR_SmallGib_SitMult(sit, TRUE)));
+    bprint(sprintf("sgibtest: speeds:   %d: out %.0f u/s %.1f m/s, up %.0f u/s %.1f m/s; lie %.2f m, max %.2f m\n",
+        vr_sgib_st_n[sit], h, h / m2u, v, v / m2u, dist / max(1, cnt) / m2u, most / m2u));
 };
 
 void(float xCase) VR_SmallGib_TestStart =
@@ -326,6 +493,14 @@ void(float xCase) VR_SmallGib_TestStart =
             cnt > 0 ? propvalue(vr_sgib_ring[last], "mass") : 0));
         vr_sgib_test = 0;
     }
+    else if(xCase == 13)
+    {
+        vr_sgib_test_a = 0;
+        if(cvar("vr_smallgibs_max") < 128)
+        {
+            cvar_set("vr_smallgibs_max", "128"); // (each step's lie about together)
+        }
+    }
     else if(xCase == 10)
     {
         m.think = SUB_Null; // (still: its AI stopped)
@@ -447,6 +622,26 @@ void() VR_SmallGib_TestFrame =
                     cvar_hget(cvarh_vr_gib_splat_speed), g3.vr_gib_stuck != 0, !g3.vr_gib));
                 cvar_set("vr_gore_stick_thrown", "0.5");
                 vr_sgib_test = 0;
+            }
+        }
+        else if(vr_sgib_test == 13)
+        {
+            // Each situation in turn: torn out, then 2.5 s later where they lie.
+            if(!vr_sgib_test_a)
+            {
+                VR_SmallGib_TestSpeedLaunch(m, vr_sgib_test_step + 1);
+                vr_sgib_test_a = 1;
+                vr_sgib_test_t = time;
+            }
+            else if(t >= 2.5)
+            {
+                VR_SmallGib_TestSpeedLanded(m, vr_sgib_test_step + 1);
+                vr_sgib_test_a = 0;
+                vr_sgib_test_step++;
+                if(vr_sgib_test_step >= 9)
+                {
+                    vr_sgib_test = 0;
+                }
             }
         }
         else if(vr_sgib_test == 10)

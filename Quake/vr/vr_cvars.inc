@@ -1093,6 +1093,25 @@ QVR_CVAR(vr_smallgibs_gibbing, "6", CVAR_ARCHIVE)          // small gibs with a 
 QVR_CVAR(vr_smallgibs_burst, "3", CVAR_ARCHIVE)            // small gibs a large gib bursts into (a head half as many again)
 QVR_CVAR(vr_smallgibs_speed, "4", CVAR_ARCHIVE)            // m/s they fly out from the hit (randomized by a third)
 QVR_CVAR(vr_smallgibs_up, "5", CVAR_ARCHIVE)               // m/s up (randomized by a third; Quake falls three times as fast as the world)
+// Speed and Up times these, by what tore them out (QC VR_SmallGib_Situation):
+QVR_CVAR(vr_smallgibs_speed_melee, "0.35", CVAR_ARCHIVE)    // Speed times this: a hand's blow: a blade, a punch, a pommel, a thing in the fist; a bash, a headbutt
+QVR_CVAR(vr_smallgibs_up_melee, "0.5", CVAR_ARCHIVE)        // Up times this
+QVR_CVAR(vr_smallgibs_speed_saw, "0.5", CVAR_ARCHIVE)       // Speed times this: the chainsaw's chain or swing
+QVR_CVAR(vr_smallgibs_up_saw, "0.6", CVAR_ARCHIVE)          // Up times this
+QVR_CVAR(vr_smallgibs_speed_guns, "1", CVAR_ARCHIVE)        // Speed times this: shotguns, nails, lasers, lightning, a grunt's gun
+QVR_CVAR(vr_smallgibs_up_guns, "1", CVAR_ARCHIVE)           // Up times this
+QVR_CVAR(vr_smallgibs_speed_explosions, "1", CVAR_ARCHIVE)  // Speed times this: rockets, grenades, every blast
+QVR_CVAR(vr_smallgibs_up_explosions, "1", CVAR_ARCHIVE)     // Up times this
+QVR_CVAR(vr_smallgibs_speed_thrown, "1", CVAR_ARCHIVE)      // Speed times this: a thrown weapon, rock, brick or gib; a projectile batted back
+QVR_CVAR(vr_smallgibs_up_thrown, "1", CVAR_ARCHIVE)         // Up times this
+QVR_CVAR(vr_smallgibs_speed_other, "1", CVAR_ARCHIVE)       // Speed times this: monsters' blows, the rest
+QVR_CVAR(vr_smallgibs_up_other, "1", CVAR_ARCHIVE)          // Up times this
+QVR_CVAR(vr_smallgibs_speed_gibbing, "1", CVAR_ARCHIVE)     // Speed times this: a living monster gibbed (with its gibs' flight at 0.6)
+QVR_CVAR(vr_smallgibs_up_gibbing, "0.7", CVAR_ARCHIVE)      // Up times this
+QVR_CVAR(vr_smallgibs_speed_corpse, "1", CVAR_ARCHIVE)      // Speed times this: a corpse gibbed (with its gibs' flight at 0.6)
+QVR_CVAR(vr_smallgibs_up_corpse, "0.7", CVAR_ARCHIVE)       // Up times this
+QVR_CVAR(vr_smallgibs_speed_burst, "1", CVAR_ARCHIVE)       // Speed times this: a large gib or head burst
+QVR_CVAR(vr_smallgibs_up_burst, "1", CVAR_ARCHIVE)          // Up times this
 QVR_CVAR(vr_smallgibs_size_min, "0.5", CVAR_ARCHIVE)       // their size: from this times a rock's
 QVR_CVAR(vr_smallgibs_size_max, "1", CVAR_ARCHIVE)         // to this
 QVR_CVAR(vr_smallgibs_mass, "0.3", CVAR_ARCHIVE)           // kg each (light: thrown, they hurt little)
