@@ -93,6 +93,10 @@ Shoulder a gun and bring it to the eye: nothing cut away, the world never shows 
 Push the gun into your face: its inside blocks the view (Headset > Held Items at the Eyes: Block the view; Never clipped if gaps bother you)
 Far walls, decals and sky: no flicker with the new near clip and float depth
 
+Crates next to pack walls: gaps, board edges and nails now look as deep as the walls?
+Crates under the flashlight: the shading painted into the skin doesn't look painted-on
+Break a crate: the pieces have rounded edges, nails in dents, rough torn ends
+
 [Decide or give feedback]
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
