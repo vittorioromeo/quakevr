@@ -6316,9 +6316,9 @@ void graspSweep_f()
         }
         jobs::setParallel(was);
         Con_Printf("gsweep time h%d %s: %d solves (%d the same on one thread, largest curl difference %g); afresh as held, "
-                   "%d times: pool (%d workers; the caller ran %zu chunks, helpers %zu, %zu called off) min %.3f median %.3f ms, one thread min %.3f median %.3f ms\n",
+                   "%d times: pool (%d workers; the caller ran %zu chunks, helpers %zu) min %.3f median %.3f ms, one thread min %.3f median %.3f ms\n",
             hand, model, solves, identical, maxDiff, runs, jobs::workers(), after.chunksCaller - before.chunksCaller,
-            after.chunksHelpers - before.chunksHelpers, after.helpersCalledOff - before.helpersCalledOff, least[0], median[0],
+            after.chunksHelpers - before.chunksHelpers, least[0], median[0],
             least[1], median[1]);
     }
 }

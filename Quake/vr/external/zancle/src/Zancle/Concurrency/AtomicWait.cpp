@@ -19,8 +19,9 @@
 ////////////////////////////////////////////////////////////
 // Platform backend selection
 //
-// Every backend except Win32 and Emscripten waits on 32-bit words
-// only: 64-bit waits then wait on the lower half (see `platformWait64`).
+// Every backend except Win32, Emscripten, and the spin fallback waits
+// on 32-bit words only: 64-bit waits then sleep on a per-slot version
+// counter instead (see `atomicWait64`).
 ////////////////////////////////////////////////////////////
 #if defined(ZA_SYSTEM_LINUX) || defined(ZA_SYSTEM_ANDROID)
     #define ZA_PRIV_WAIT_LINUX_FUTEX 1 // `futex(2)`
@@ -36,6 +37,12 @@
     #define ZA_PRIV_WAIT_OPENBSD_FUTEX 1 // `futex(2)`
 #else
     #define ZA_PRIV_WAIT_SPIN 1 // yield-based busy wait (e.g. NetBSD)
+#endif
+
+#if ZA_PRIV_WAIT_WIN32 || ZA_PRIV_WAIT_EMSCRIPTEN || ZA_PRIV_WAIT_SPIN
+    #define ZA_PRIV_WAIT_NATIVE_64 1 // waits on 64-bit words directly
+#else
+    #define ZA_PRIV_WAIT_NATIVE_64 0
 #endif
 
 
@@ -106,10 +113,15 @@ namespace
 /// avoid false sharing between unrelated atomics whose addresses
 /// happen to hash to neighbouring entries.
 ///
+/// `version` is what 64-bit waiters sleep on where the platform only
+/// waits on 32-bit words: every 64-bit notification targeting the slot
+/// increments it (see `atomicWait64`).
+///
 ////////////////////////////////////////////////////////////
 struct alignas(za::hardwareDestructiveInterferenceSize) ContentionSlot
 {
     Atomic<za::U32> waiters{0u};
+    alignas(4) za::U32 version{0u}; // accessed with the `__atomic` builtins, as its address is waited on
 };
 
 
@@ -228,32 +240,24 @@ void platformWait32(const za::U32* const addr, const za::U32 expected) noexcept
 }
 
 
+#if ZA_PRIV_WAIT_NATIVE_64
+
 ////////////////////////////////////////////////////////////
 void platformWait64(const za::U64* const addr, const za::U64 expected) noexcept
 {
-#if ZA_PRIV_WAIT_WIN32
+    #if ZA_PRIV_WAIT_WIN32
     za::U64 compare = expected;
     WaitOnAddress(const_cast<za::U64*>(addr), &compare, sizeof(compare), INFINITE);
 
-#elif ZA_PRIV_WAIT_EMSCRIPTEN
+    #elif ZA_PRIV_WAIT_EMSCRIPTEN
     emscripten_atomic_wait_u64(const_cast<za::U64*>(addr), expected, /* maxWaitNanoseconds */ -1);
 
-#elif ZA_PRIV_WAIT_SPIN
+    #elif ZA_PRIV_WAIT_SPIN
     spinWait(addr, expected);
-
-#else
-    // The other backends only wait on 32-bit words: wait on the lower 32
-    // bits of the storage (at the same address, on little-endian
-    // targets). Correctness is preserved because:
-    //   - if the lower 32 bits no longer match, the wait returns immediately
-    //   - notify wakes regardless of value
-    // Spurious wakeups (caused by upper-32-bit changes) are absorbed by
-    // the caller's predicate loop.
-    static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "platformWait64 assumes little-endian");
-
-    platformWait32(reinterpret_cast<const za::U32*>(addr), static_cast<za::U32>(expected & 0xFF'FF'FF'FFu));
-#endif
+    #endif
 }
+
+#endif
 
 
 ////////////////////////////////////////////////////////////
@@ -354,27 +358,54 @@ void atomicWait64(const za::U64* const addr, const za::U64 expected) noexcept
 
     slot.waiters.fetchAddSeqCst(1u);
 
+#if ZA_PRIV_WAIT_NATIVE_64
     if (__atomic_load_n(addr, __ATOMIC_SEQ_CST) == expected)
         platformWait64(addr, expected);
+#else
+    // The platform only waits on 32-bit words. Waiting on half of the value
+    // would lose wakeups: if only the other half changed (e.g. a `double`
+    // going from `1.0` to `2.0`) between the check below and the kernel's
+    // compare, the notification would find nobody parked, and the waiter
+    // would then sleep on an unchanged half. Instead, sleep on the slot's
+    // version, which every 64-bit notification targeting the slot changes:
+    // reading it before checking the value means that a notification after
+    // the check makes the kernel's compare fail (or wakes the sleeper).
+    const za::U32 version = __atomic_load_n(&slot.version, __ATOMIC_SEQ_CST);
+
+    if (__atomic_load_n(addr, __ATOMIC_SEQ_CST) == expected)
+        platformWait32(&slot.version, version);
+#endif
 
     slot.waiters.fetchSubRelease(1u);
 }
 
 
 ////////////////////////////////////////////////////////////
-void atomicNotifyOne(const void* const addr) noexcept
+void atomicNotify32(const void* const addr, const bool wakeAll) noexcept
 {
     // Skip the syscall when no thread is parked on this address
     if (mayHaveWaiters(addr))
-        platformWake(addr, /* wakeOne */ true);
+        platformWake(addr, /* wakeOne */ !wakeAll);
 }
 
 
 ////////////////////////////////////////////////////////////
-void atomicNotifyAll(const void* const addr) noexcept
+void atomicNotify64(const void* const addr, const bool wakeAll) noexcept
 {
-    if (mayHaveWaiters(addr))
-        platformWake(addr, /* wakeOne */ false);
+    if (!mayHaveWaiters(addr))
+        return;
+
+#if ZA_PRIV_WAIT_NATIVE_64
+    platformWake(addr, /* wakeOne */ !wakeAll);
+#else
+    // 64-bit waiters sleep on the slot's version (see `atomicWait64`), shared by every address
+    // hashing to the slot: wake them all, as waking one could pick a waiter for another address
+    (void)wakeAll;
+
+    auto& slot = slotFor(addr);
+    __atomic_fetch_add(&slot.version, 1u, __ATOMIC_SEQ_CST);
+    platformWake(&slot.version, /* wakeOne */ false);
+#endif
 }
 
 } // namespace za::priv

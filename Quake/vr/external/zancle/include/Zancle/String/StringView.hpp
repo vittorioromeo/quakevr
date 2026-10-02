@@ -169,6 +169,13 @@ public:
 
 
     ////////////////////////////////////////////////////////////
+    /// \brief View of the up to `len` characters starting at `startPos` (like `std::string_view::substr`)
+    ///
+    /// `startPos` must be at most `size()`; `len` is clamped to the
+    /// characters available. The result views the same characters as
+    /// `*this`, so it has the same lifetime requirements.
+    ///
+    ////////////////////////////////////////////////////////////
     [[nodiscard, gnu::always_inline, gnu::pure]] constexpr StringView substrByPosLen(const SizeT startPos = 0u,
                                                                                      const SizeT len      = nPos) const
     {

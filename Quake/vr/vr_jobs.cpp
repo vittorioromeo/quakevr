@@ -2,15 +2,13 @@
 
 #include "vr_jobs.hpp"
 
-#include "Zancle/Base/CpuRelax.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
-#include "Zancle/Concurrency/AtomicMutex.hpp"
-#include "Zancle/Concurrency/LockGuard.hpp"
+#include "Zancle/Concurrency/ParallelFor.hpp"
+#include "Zancle/Concurrency/Thread.hpp"
 #include "Zancle/Concurrency/ThreadPool.hpp"
-#include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
@@ -22,7 +20,7 @@ namespace
 
 struct Counters
 {
-    za::Atomic<za::SizeT> tasks, claimedByWaiter, loops, serialLoops, chunksCaller, chunksHelpers, helpersCalledOff;
+    za::Atomic<za::SizeT> tasks, claimedByWaiter, loops, serialLoops, chunksCaller, chunksHelpers;
 };
 Counters counters; // every pool's, since start-up (vr_jobs_info)
 
@@ -30,66 +28,14 @@ za::Atomic<Pool*> game{nullptr};
 za::Atomic<bool> parallelOn{true};
 
 using MO = za::MemoryOrder;
-constexpr za::U32 closed = 0x80000000u;
-
-// A parallelFor's state, shared by the caller and its helpers; reused (a pool's own list). A helper that starts after
-// the caller has finished (it was queued behind other work) finds the gate closed and only lets go of it: the caller's
-// frame (the body) may be gone by then, this is not.
-struct Loop
-{
-    za::Atomic<za::U32> refs;  // the caller and the helpers not yet run
-    za::Atomic<za::U32> gate;  // helpers running chunks; `closed` once the caller has run out of chunks
-    za::Atomic<za::SizeT> next; // the next chunk to take
-    za::SizeT count{0}, chunk{0}, chunks{0};
-    const FunctionRef<void(za::SizeT, za::SizeT)>* body{nullptr}; // the caller's (read only inside the gate)
-    Pool::Impl* owner{nullptr};
-};
-
-// Runs chunks until none is left; returns how many.
-za::SizeT runChunks(Loop& l) noexcept
-{
-    za::SizeT ran = 0;
-    for(za::SizeT c; (c = l.next.fetchAddRelaxed(1u)) < l.chunks;)
-    {
-        const za::SizeT begin = c * l.chunk;
-        (*l.body)(begin, za::min(begin + l.chunk, l.count));
-        ran++;
-    }
-    return ran;
-}
 
 } // namespace
 
 struct Pool::Impl
 {
     int workers{1};
-    za::AtomicMutex loopsMutex;
-    za::Vector<za::UniquePtr<Loop>> loops; // every one made (a few: one per parallelFor under way at once)
-    za::Vector<Loop*> spare;
+    za::ParallelForSlots loops;           // parallelFor's gates (Zancle's: a helper that starts late finds its gate shut)
     za::Optional<za::ThreadPool> threads; // reset first (~Pool): every task run, the workers joined
-
-    Loop* acquire()
-    {
-        const za::LockGuard lock{loopsMutex};
-        if(spare.empty())
-        {
-            loops.pushBack(za::makeUnique<Loop>());
-            loops.back()->owner = this;
-            return loops.back().get();
-        }
-        Loop* l = spare.back();
-        spare.popBack();
-        return l;
-    }
-
-    void release(Loop* l)
-    {
-        if(l->refs.fetchSubAcqRel(1u) == 1u)
-        {
-            const za::LockGuard lock{loopsMutex};
-            spare.pushBack(l);
-        }
-    }
 };
 
 // ----------------------------------------------------------------------------
@@ -131,7 +77,7 @@ Pool::Pool(int workers) : impl{za::makeUnique<Impl>()}
 
 Pool::~Pool()
 {
-    impl->threads.reset(); // (the helpers still queued let go of their loops here)
+    impl->threads.reset(); // (the helpers still queued run here: they find their gates shut; then the gates go)
 }
 
 int Pool::workers() const noexcept
@@ -195,12 +141,11 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
     const za::SizeT threads = static_cast<za::SizeT>(impl->workers) + 1;
     if(chunk == 0)
     {
-        chunk = za::max<za::SizeT>(count / (threads * 4), 1);
+        chunk = za::max<za::SizeT>(count / (threads * 4), 1); // (as za::parallelFor's own default)
     }
     const za::SizeT chunks = (count - 1) / chunk + 1;
-    const za::SizeT helpers = parallel ? za::min(chunks - 1, threads - 1) : 0;
 
-    if(helpers == 0)
+    if(!parallel || chunks == 1)
     {
         // The same chunks, in order, on this thread.
         counters.serialLoops.fetchAddRelaxed(1u);
@@ -212,69 +157,36 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
         return;
     }
 
+    // Zancle's (B4, upstream bef08e826): the caller takes chunks too and, once none is left, waits only for the helpers
+    // running one; a helper that starts later (queued behind other work) finds its gate shut and returns. The caller
+    // never runs anyone else's task. With every gate taken (64 calls under way at once), the caller runs it alone.
     counters.loops.fetchAddRelaxed(1u);
-    Loop* l = impl->acquire();
-    l->refs.storeRelaxed(static_cast<za::U32>(helpers + 1));
-    l->gate.storeRelaxed(0u);
-    l->next.storeRelaxed(0u);
-    l->count = count;
-    l->chunk = chunk;
-    l->chunks = chunks;
-    l->body = &body;
-
-    impl->threads->postCopies(
-        [l] {
-            za::U32 g = l->gate.loadRelaxed();
-            bool entered = false;
-            while(!(g & closed))
+    const za::ThreadId caller = za::ThisThread::getId();
+    za::SizeT mine = 0; // (chunks run by the caller, which alone writes it; by its helpers:)
+    za::Atomic<za::SizeT> helped{0};
+    za::parallelFor(
+        *impl->threads, impl->loops, count,
+        [&](za::SizeT begin, za::SizeT end) {
+            body(begin, end);
+            if(za::ThisThread::getId() == caller)
             {
-                if(l->gate.compareExchangeWeak<MO::Acquire, MO::Relaxed>(g, g + 1))
-                {
-                    entered = true;
-                    break;
-                }
-            }
-            if(entered)
-            {
-                counters.chunksHelpers.fetchAddRelaxed(runChunks(*l));
-                if(l->gate.fetchSubRelease(1u) - 1 == closed)
-                {
-                    l->gate.notifyAll(); // the caller waits for the last one inside
-                }
+                mine++;
             }
             else
             {
-                counters.helpersCalledOff.fetchAddRelaxed(1u);
+                helped.fetchAddRelaxed(1u);
             }
-            l->owner->release(l);
         },
-        static_cast<za::SizeT>(helpers));
-
-    counters.chunksCaller.fetchAddRelaxed(runChunks(*l));
-
-    // No chunk left: helpers not yet in are called off; those running chunks finish them.
-    za::U32 g = l->gate.fetchOrAcqRel(closed) | closed;
-    for(int spin = 0; g != closed; spin++)
-    {
-        if(spin < 2048)
-        {
-            ZA_CPU_RELAX();
-            g = l->gate.loadAcquire();
-        }
-        else
-        {
-            l->gate.waitOnceAcquire(g);
-            g = l->gate.loadAcquire();
-        }
-    }
-    impl->release(l);
+        chunk);
+    counters.chunksCaller.fetchAddRelaxed(mine);
+    counters.chunksHelpers.fetchAddRelaxed(helped.loadRelaxed());
 }
 
 // ----------------------------------------------------------------------------
 
 int hardwareThreads() noexcept
 {
-    return static_cast<int>(za::ThreadPool::getHardwareWorkerCount());
+    return static_cast<int>(za::ThreadPool::getOptimalThreadCount());
 }
 
 void init(int workers)
@@ -283,7 +195,7 @@ void init(int workers)
     {
         return;
     }
-    const int n = workers > 0 ? workers : za::min(static_cast<int>(za::ThreadPool::getHardwareWorkerCountExcludingCallingThread()), 31);
+    const int n = workers > 0 ? workers : za::min(static_cast<int>(za::ThreadPool::getOptimalWorkerCount()), 31);
     game.storeSeqCst(new Pool{n});
 }
 
@@ -329,7 +241,6 @@ Stats stats() noexcept
     s.serialLoops = counters.serialLoops.loadRelaxed();
     s.chunksCaller = counters.chunksCaller.loadRelaxed();
     s.chunksHelpers = counters.chunksHelpers.loadRelaxed();
-    s.helpersCalledOff = counters.helpersCalledOff.loadRelaxed();
     return s;
 }
 

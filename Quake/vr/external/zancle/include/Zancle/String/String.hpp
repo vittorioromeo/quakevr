@@ -35,6 +35,12 @@ namespace za
 /// for formatted append. Include `<Zancle/Fmt/FmtAppendMixin.hpp>`
 /// at the call site to bring in the template body.
 ///
+/// Differences from `std::string` that are easy to miss:
+/// - `substrByPosLen` returns a `StringView` into the string, not a
+///   new `String` (unlike `std::string::substr`).
+/// - Construction from a `StringView` is explicit: `String s{view};`,
+///   not `String s = view;`.
+///
 ////////////////////////////////////////////////////////////
 class [[nodiscard]] ZA_GSL_OWNER(char) ZA_SYSTEM_API String : public FmtAppendMixin
 {
@@ -192,6 +198,18 @@ public:
     ////////////////////////////////////////////////////////////
     /* implicit */ String(const char* cStr);
     explicit String(const char* cStr, SizeT count);
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Copy of the characters of `view`
+    ///
+    /// Explicit (like `std::string`'s), so that a view is never silently
+    /// copied into a temporary `String`, e.g. when passed to a
+    /// `const String&` parameter: `String s = view;` does not compile,
+    /// write `String s{view};`. Assigning and appending a view
+    /// (`s = view;`, `s += view;`) are implicit.
+    ///
+    ////////////////////////////////////////////////////////////
     explicit String(StringView view);
 
 
@@ -496,8 +514,20 @@ public:
                                                                                 \
     static_assert(true)
 
+    ////////////////////////////////////////////////////////////
+    /// \brief View of the up to `len` characters starting at `startPos`
+    ///
+    /// Returns a `StringView` into this string, not a new `String`
+    /// (unlike `std::string::substr`): no allocation, but the view
+    /// dangles once this string is modified or destroyed. For an owning
+    /// copy, construct a `String` from it: `String{s.substrByPosLen(pos, len)}`.
+    ///
+    ////////////////////////////////////////////////////////////
     [[nodiscard, gnu::always_inline, gnu::flatten, gnu::pure]] ZA_PRIV_DEFINE_STRING_VIEW_BRIDGE(substrByPosLen,
                                                                                                  ZA_LIFETIMEBOUND);
+
+
+    ////////////////////////////////////////////////////////////
     [[nodiscard, gnu::always_inline, gnu::flatten, gnu::pure]] ZA_PRIV_DEFINE_STRING_VIEW_BRIDGE(find);
     [[nodiscard, gnu::always_inline, gnu::flatten, gnu::pure]] ZA_PRIV_DEFINE_STRING_VIEW_BRIDGE(rfind);
     [[nodiscard, gnu::always_inline, gnu::flatten, gnu::pure]] ZA_PRIV_DEFINE_STRING_VIEW_BRIDGE(findFirstOf);

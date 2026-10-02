@@ -8,6 +8,8 @@
 ////////////////////////////////////////////////////////////
 #include "Zancle/Concurrency/Atomic.hpp"
 
+#include "Zancle/Base/CpuRelax.hpp"
+
 
 namespace za
 {
@@ -26,6 +28,9 @@ namespace za
 /// waiter announced itself. This matches what the standard library does
 /// for `std::mutex` and avoids the per-unlock `futex(WAKE)` /
 /// `WakeByAddressSingle` overhead of the naive 2-state encoding.
+///
+/// A contended `lock` spins briefly before sleeping, as the owner of a
+/// short critical section usually releases it within microseconds.
 ///
 /// No recursion, no priority inheritance, no fairness guarantees --
 /// LIFO-ish under contention.
@@ -110,12 +115,26 @@ private:
     ////////////////////////////////////////////////////////////
     [[gnu::noinline]] void lockSlow(unsigned int expected) noexcept
     {
-        // `expected` holds the observed value from the failed fast-path
-        // CAS (1 or 2). Inflate the state to 2 ("locked, has waiters")
+        // Critical sections are usually short: while nobody sleeps (state 1), spin briefly before
+        // announcing a waiter, which would cost a sleep here and a wake syscall in `unlock`. Back off
+        // exponentially between checks: spinners all retrying as soon as the owner releases the mutex
+        // would make its cache line bounce between them.
+        for (int pauses = 1; pauses <= maxSpinPauses && expected == 1u; pauses *= 2)
+        {
+            for (int i = 0; i < pauses; ++i)
+                ZA_CPU_RELAX();
+
+            expected = m_state.loadRelaxed();
+
+            if (expected == 0u && m_state.compareExchangeStrong<MemoryOrder::Acquire, MemoryOrder::Relaxed>(expected, 1u))
+                return;
+        }
+
+        // `expected` holds the last observed value (1 or 2). Inflate the state to 2 ("locked, has waiters")
         // so the current owner's eventual unlock issues a wake.
         // `exchange` does this unconditionally and returns the *previous*
-        // value: if it was 0 (the owner released between our fast-path
-        // CAS and this exchange) we just acquired and we're done --
+        // value: if it was 0 (the owner released between our last check
+        // and this exchange) we just acquired and we're done --
         // otherwise we park.
         if (expected != 2u)
             expected = m_state.exchange<MemoryOrder::Acquire>(2u);
@@ -133,6 +152,9 @@ private:
             expected = m_state.exchange<MemoryOrder::Acquire>(2u);
         }
     }
+
+    ////////////////////////////////////////////////////////////
+    static constexpr int maxSpinPauses = 64; //!< Longest backoff before sleeping (about 127 `pause`s in total)
 
     ////////////////////////////////////////////////////////////
     // 4-byte atomic so it's compatible with `wait` (which requires 4 or 8 bytes

@@ -104,8 +104,7 @@ void info_f()
         parallel() ? "split between threads" : "on the caller alone (vr_jobs_parallel 0)");
     Con_Printf("  async tasks %zu (%zu run by their waiter); parallelFor %zu split, %zu on the caller alone\n", s.tasks,
         s.claimedByWaiter, s.loops, s.serialLoops);
-    Con_Printf("  chunks: %zu by callers, %zu by helpers; %zu helpers called off (the caller done first)\n", s.chunksCaller,
-        s.chunksHelpers, s.helpersCalledOff);
+    Con_Printf("  chunks: %zu by callers, %zu by helpers\n", s.chunksCaller, s.chunksHelpers);
 }
 
 void test_f()
@@ -203,8 +202,8 @@ void test_f()
             va("the calling thread ran %d of 64 chunks, %d threads in all", static_cast<int>(mine), static_cast<int>(threads)));
     }
 
-    // Every worker busy (blocked): parallelFor still returns, the caller having run every chunk; its helpers, run
-    // later, are called off.
+    // Every worker busy (blocked): parallelFor still returns, the caller having run every chunk and no other task; its
+    // helpers, run later, find their gate shut.
     {
         za::Atomic<int> gate{0};
         za::Atomic<int> blocked{0};
@@ -222,6 +221,9 @@ void test_f()
         {
             za::ThisThread::yield();
         }
+        // An unrelated task queued behind the blocked ones: the caller must not run it while it waits (B4).
+        za::Atomic<int> unrelated{0}; // 1: run by a worker, 2: by the caller
+        postOnly(pool, [&] { unrelated.storeSeqCst(za::ThisThread::getId() == self ? 2 : 1); });
         const Stats before = stats();
         za::Atomic<int> mine{0}, total{0};
         pool.parallelFor(1000, 10, [&](za::SizeT b, za::SizeT e) {
@@ -231,18 +233,23 @@ void test_f()
                 mine.fetchAddSeqCst(static_cast<int>(e - b));
             }
         });
+        const Stats after = stats();
         const bool returned = total.loadSeqCst() == 1000 && mine.loadSeqCst() == 1000;
+        const bool untouched = unrelated.loadSeqCst() == 0;
         gate.storeSeqCst(1);
         gate.notifyAll();
-        Stats after = stats();
-        for(int i = 0; i < 1000 && after.helpersCalledOff < before.helpersCalledOff + static_cast<za::SizeT>(pool.workers()); i++)
+        for(int i = 0; i < 1000 && unrelated.loadSeqCst() == 0; i++)
         {
-            sleepMs(1); // (the workers free again: the helpers queued behind the blocking tasks run now)
-            after = stats();
+            sleepMs(1); // (the workers free again: the queued task and the stale helpers run now)
         }
-        check(returned && after.helpersCalledOff >= before.helpersCalledOff + static_cast<za::SizeT>(pool.workers()),
-            va("every worker blocked: the caller ran all 1000 items; %d helpers called off once freed",
-                static_cast<int>(after.helpersCalledOff - before.helpersCalledOff)));
+        // The stale helpers found their gate shut: the next call (the gate reused) still covers every item once.
+        za::Atomic<int> again{0};
+        pool.parallelFor(1000, 10, [&](za::SizeT b, za::SizeT e) { again.fetchAddSeqCst(static_cast<int>(e - b)); });
+        check(returned && untouched && unrelated.loadSeqCst() == 1 && again.loadSeqCst() == 1000 &&
+                  after.chunksCaller - before.chunksCaller == 100 && after.chunksHelpers == before.chunksHelpers,
+            va("every worker blocked: the caller ran all 1000 items (%d chunks) and not the task queued behind (%s); then "
+               "%d of 1000 once freed",
+                static_cast<int>(after.chunksCaller - before.chunksCaller), untouched ? "not run" : "RUN", again.loadSeqCst()));
     }
 
     // Nested waits: parallelFor in parallelFor (three deep), async waited for inside chunks and tasks, every worker

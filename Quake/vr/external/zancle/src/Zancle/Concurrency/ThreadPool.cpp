@@ -75,7 +75,7 @@ void enqueueCopies(TaskQueue& queue, const ThreadPool::Task& task, const SizeT c
 ///   as its main loop dequeues one, so each worker consumes exactly one,
 ///   no matter how the tasks are distributed.
 /// - Stop tasks dequeued elsewhere (by `tryRunPendingTask`, e.g. from a
-///   `parallelFor` inside a task that runs during destruction) are put back.
+///   task that runs during destruction) are put back.
 /// - After joining the workers, the destructor runs any remaining task
 ///   (queued by other threads behind the stop tasks, or posted by tasks
 ///   during shutdown) on the destroying thread.
@@ -214,17 +214,18 @@ SizeT ThreadPool::getWorkerCount() const noexcept
 
 
 ////////////////////////////////////////////////////////////
-SizeT ThreadPool::getHardwareWorkerCount() noexcept
+SizeT ThreadPool::getOptimalThreadCount() noexcept
 {
-    return static_cast<SizeT>(za::Thread::hardwareConcurrency());
+    const SizeT hardwareThreads = za::Thread::usableHardwareConcurrency(); // `0` if unknown
+    return hardwareThreads > 0u ? hardwareThreads : 1u;
 }
 
 
 ////////////////////////////////////////////////////////////
-SizeT ThreadPool::getHardwareWorkerCountExcludingCallingThread() noexcept
+SizeT ThreadPool::getOptimalWorkerCount() noexcept
 {
-    const SizeT hardwareThreads = getHardwareWorkerCount(); // `0` if unknown
-    return hardwareThreads > 1u ? hardwareThreads - 1u : 1u;
+    const SizeT threads = getOptimalThreadCount();
+    return threads > 1u ? threads - 1u : 1u;
 }
 
 } // namespace za

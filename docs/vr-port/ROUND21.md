@@ -19894,3 +19894,36 @@ Hand swept towards a button 3 units a step (hand x where it fired, new / old): s
 flat across a button, 1 unit a step: -551 / -552. Rocket launcher and shotgun pointed away, butt into the button: pressed
 / never. Thrown with a hand (`vr_mock_play`, 8 m/s): the rocket launcher at 273 u/s and a rock at 377 u/s pressed it; a
 rock at 3 m/s didn't; `vr_button_throw 0` didn't.
+## Zancle update to 304ea6c3 (2026-10-02)
+
+The author's six commits after 534219bf, for `docs/vr-port/ZANCLE_REPORT.md`'s items, vendored with
+`zancle_vendor.py --update` (188 files: `Concurrency/ParallelFor.hpp` and `.cpp` added; no local changes).
+
+| Commit | What | Report item |
+|---|---|---|
+| `bef08e826` | `za::parallelFor(pool, slots, count, f, chunk)` in `Concurrency/ParallelFor.hpp`: helpers enter a gate in a user-owned `ParallelForSlots` (64, generation-tagged); the caller closes it once every chunk is claimed, waits only for the helpers inside, never runs queued tasks, allocates nothing. `ThreadPool::parallelFor` removed | B4 (fixed) |
+| `b95575f0f` | 64-bit atomic waits on 32-bit-wait platforms (Linux, macOS) lost wakeups when only the upper half changed: they sleep on a per-slot version now; `atomicNotify32`/`64`. `AtomicMutex` spins with backoff before sleeping | B8 (new, found upstream; Windows unaffected) |
+| `76cb40ad4` | docs: `substrByPosLen` returns a view, `String(StringView)` is explicit; the math wrappers take exactly float/double/long double (and their `static_assert`s say so) | A4, A7 (documented) |
+| `ce3ce1c34` | `Span::subspan` renamed `subspanByPosLen` (clamps `len`, as `StringView`'s) | A5 (QVR has no call) |
+| `d434aaac5` | `parallelFor` wakes helpers as a tree on POSIX (each wakes two); Windows still posts them all at once | B4 (speed) |
+| `304ea6c3b` | `Thread::usableHardwareConcurrency` (affinity on Linux); `getHardwareWorkerCount` -> `getOptimalThreadCount`, `...ExcludingCallingThread` -> `getOptimalWorkerCount` | A9 (part) |
+
+- **`jobs::Pool::parallelFor` on `za::parallelFor`** (`vr_jobs.cpp`): QVR's own gate (`Loop`, the pool's list of them,
+  `postCopies` of a gated lambda, the spin-then-wait) is gone; the pool holds a `za::ParallelForSlots` beside its
+  `za::ThreadPool` (the pool is joined first, so no helper is still queued when the gates go). Kept: the serial path
+  (`vr_jobs_parallel 0`, one chunk), the same default chunk, `Stats`' chunk counts (by comparing each chunk's thread
+  with the caller's). Gone: `Stats::helpersCalledOff` (`za::parallelFor` does not report it; `vr_jobs_info` and
+  `gsweep time` no longer print it). Difference: more than 64 calls under way at once run the extra ones on their
+  callers (QVR's made more gates); the game never nests that deep.
+- **`vr_jobs_test`'s "every worker blocked" check** now proves B4 directly: a task queued behind the blocked workers
+  is not run by the caller while it does all 1000 items (100 chunks, 0 by helpers); once freed, the queued task runs on
+  a worker, and the next call (on the reused gate, after the stale helpers ran) covers 1000 of 1000.
+- The renames: `vr_jobs.cpp`'s `getOptimalThreadCount` / `getOptimalWorkerCount` (still capped at 31 workers).
+- **Not covered yet** (the shims and `std::` stay): no ordered or node-stable map (`qza::sortedByKey`, `qza::stableAt`,
+  `vr_motion_review.cpp`'s three `std::map`s), no `async`/`Future` or re-postable task (`vr_jobs`), no worker names or
+  worker cap, `Optional`'s explicit constructor (A1), the cl items.
+
+Verified: Release and Debug (`QVR_ZANCLE_DEBUG`) 0 warnings; `vr_zancle_math_test` 105050 checks, 0 failed, and
+`vr_jobs_test` 13 of 13, in both; smoke (e1m1, e2m1, vrfiringrange) clean in Release and with the Debug exe (Zancle's
+asserts on: none fired; `vr_jobs_info` after it: 839 loops split, 32491 chunks by callers, 108827 by helpers in
+Release); the eval canary 48/53, 0 differ from the baseline.

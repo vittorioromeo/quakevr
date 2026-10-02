@@ -197,8 +197,24 @@ public:
     /// \brief Number of concurrent threads supported by the
     ///        implementation, or 0 if the value is undetermined
     ///
+    /// Like `std::thread::hardware_concurrency`: every online processor,
+    /// including those the process is not allowed to run on. To size a
+    /// pool of threads, prefer `usableHardwareConcurrency`.
+    ///
     ////////////////////////////////////////////////////////////
     [[nodiscard]] static unsigned int hardwareConcurrency() noexcept;
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Number of processors this process may run on, or 0 if undetermined
+    ///
+    /// Like `hardwareConcurrency`, but on Linux it only counts the
+    /// processors in the process's CPU affinity (e.g. limited by
+    /// `taskset`, cpusets, or containers): more threads than those would
+    /// only oversubscribe them. Elsewhere, same as `hardwareConcurrency`.
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard]] static unsigned int usableHardwareConcurrency() noexcept;
 
 
 private:

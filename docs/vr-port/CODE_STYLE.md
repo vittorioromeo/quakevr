@@ -36,8 +36,8 @@ C++ standard library: Zancle's types compile faster and run faster in Debug. Use
   `za::nanosecondsToSeconds` / `ToMilliseconds` / `ToMicroseconds` for nanoseconds.
 - Files: `qvr::files` (`vr_files.hpp`: whole files read and written, directories listed, std::filesystem's path parts),
   through the engine's `Sys_*` calls (UTF-8 paths).
-- What Zancle lacks: `vr_zancle.hpp` (namespace `qza`: `stableAt` and `sortedByKey`, for the maps), each a proposal
-  for Zancle. Add a missing piece there (marked `ZANCLE-TODO`) rather than reach for `std::`. `std::` stays only where
+- What Zancle lacks: `vr_zancle.hpp` (namespace `qza`: `stableAt` and `sortedByKey`, for the maps; still lacking at
+  Zancle 304ea6c3), each a proposal for Zancle. Add a missing piece there (marked `ZANCLE-TODO`) rather than reach for `std::`. `std::` stays only where
   Zancle has no such thing and a stand-in would not do (an ordered map with stable nodes, `std::map` in
   `vr_motion_review.cpp`): each such place says `// ZANCLE-TODO: <what's missing>` (the list: ROUND21.md, "Zancle
   migration", "Zancle follow-ups" and the Zancle updates). The vendored Zancle has no local changes: update it with
@@ -125,8 +125,8 @@ reads the source's scopes (comments, strings and raw strings skipped), so it nee
 
 ## Threads
 
-Work for other threads goes to the game's thread pool (`vr_jobs.hpp`, Zancle's): `jobs::parallelFor` to share a loop
-out (the calling thread takes part and returns when every chunk ran; each chunk writes only its own items, reduced in a
+Work for other threads goes to the game's thread pool (`vr_jobs.hpp`, Zancle's): `jobs::parallelFor` (on `za::parallelFor`) to share a
+loop out (the calling thread takes part and returns when every chunk ran; each chunk writes only its own items, reduced in a
 fixed order after, so the results never depend on the thread count), `jobs::async` for a task whose result comes later
 (a `jobs::Future`; waiting runs it on the waiting thread if no worker has started it). No thread (`za::Thread`) or async
 call of a system's own: a dedicated thread only for a loop that blocks or sleeps for its whole life (`gpustats`'s sampler),
