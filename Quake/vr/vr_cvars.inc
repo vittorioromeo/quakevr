@@ -1016,8 +1016,9 @@ QVR_CVAR(vr_head_flies, "0", CVAR_ARCHIVE)
 // down to a rock's size or half of it; carried, thrown, bleeding as the gibs do, gone after a while (not while held).
 QVR_CVAR(vr_smallgibs, "1", CVAR_ARCHIVE)                  // hits on monsters tear small gibs out of them
 QVR_CVAR(vr_smallgibs_player, "0", CVAR_ARCHIVE)           // and hits on you
-QVR_CVAR(vr_smallgibs_min_damage, "15", CVAR_ARCHIVE)      // a hit's damage (a shotgun blast's pellets summed) under which none come
+QVR_CVAR(vr_smallgibs_min_damage, "12", CVAR_ARCHIVE)      // a hit's damage (a shotgun blast's pellets summed) under which none come
 QVR_CVAR(vr_smallgibs_full_damage, "60", CVAR_ARCHIVE)     // the damage from which one always comes (the chance rises from 0 at the least)
+QVR_CVAR(vr_smallgibs_curve, "1.5", CVAR_ARCHIVE)          // the chance's rise from the least damage to the sure one: to this power (1 straight; more: rarer for light hits)
 QVR_CVAR(vr_smallgibs_damage_per_gib, "40", CVAR_ARCHIVE)  // one gib more for each this much damage (with a random part)
 QVR_CVAR(vr_smallgibs_per_hit, "4", CVAR_ARCHIVE)          // most small gibs from one hit
 QVR_CVAR(vr_smallgibs_shots, "1", CVAR_ARCHIVE)            // the chance times this: the shotguns, a grunt's gun

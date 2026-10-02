@@ -49,6 +49,8 @@ void(entity m, float xPellets, float xDmg, vector xSpread, float n, string xName
     float made = vr_sgib_made;
     vector src = self.origin + '0 0 22';
     m.health = 100000;
+    vr_sgib_rolls = 0;
+    vr_sgib_rolldmg = 0;
     for(float i = 0; i < n; i++)
     {
         vector dir = normalize((m.absmin + m.absmax) * 0.5 - src);
@@ -63,8 +65,10 @@ void(entity m, float xPellets, float xDmg, vector xSpread, float n, string xName
             withGibs++;
         }
     }
-    bprint(sprintf("sgibtest: %s: %d blasts at %s, %d tore small gibs out (%.0f%%), %d small gibs\n", xName, n,
-        m.classname, withGibs, 100 * withGibs / max(1, n), vr_sgib_made - made));
+    bprint(sprintf("sgibtest: %s: %d blasts at %s %.0f units away: %d hits weighed, %.1f damage each\n", xName, n, m.classname,
+        vlen(m.origin - self.origin), vr_sgib_rolls, vr_sgib_rolldmg / max(1, vr_sgib_rolls)));
+    bprint(sprintf("sgibtest: %s: %d tore small gibs out (%.0f%%), %d small gibs\n", xName, withGibs,
+        100 * withGibs / max(1, n), vr_sgib_made - made));
 };
 
 // `n` blows of `xDmg` on `m` by `inflictor` (the player's hand `xKind` with weapon `xWeapon`, `xBlunt` its pommel), the
@@ -124,6 +128,15 @@ void(float xCase) VR_SmallGib_TestStart =
         return;
     }
     bprint(sprintf("sgibtest: test %d on %s (corpse %d)\n", xCase, m.classname, m.vr_corpse));
+    if(m != world && m.vr_corpse != 2 && (m.flags & FL_MONSTER))
+    {
+        // Still, standing (its first frame): the same pose every run (a pose with the arms ahead takes the pellets
+        // as limbs', 0.6 of their damage).
+        m.think = SUB_Null;
+        m.nextthink = -1;
+        m.frame = 0;
+        m.velocity = '0 0 0';
+    }
     if(xCase == 1)
     {
         VR_SmallGib_TestBlasts(m, 6, cvar_hget(cvarh_vr_dmg_shotgun), '0.01 0.01 0', n, "shotgun");

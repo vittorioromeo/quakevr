@@ -126,6 +126,12 @@ Flashlight Gun Clip Range (Advanced VR Options > Flashlight > Taking and Clippin
 Weapon Offsets > Flashlight: the cyan outline follows Forward/Up/Out/Pitch/Yaw/Roll; Clip the Flashlight on It puts the torch there
 Weapon Offsets > Flashlight: a second weapon keeps its own torch place (and the off hand mirrors it correctly)
 
+Small gibs (Gore > Small Gibs): shotgun rarely, super shotgun often, nails never, axe/sword blade often, pommel and punches rarely
+Small gibs: the chainsaw tears them out of a monster and a corpse; gibbing and bursting a large gib throw many
+Small gibs: pick one up, hold it past Last (20 s): it stays; throw it: it fades 20 s after it lands
+Small gibs: size (half a rock to a rock), how they fly out (Speed, Up) and the cap (Most Lying About 40)
+Gibs squish when they land or stick (new squish sounds); a gib or small gib thrown into a wall at a medium speed sticks (Gore > Thrown Gibs Stick)
+
 [Decide or give feedback]
 Flashlight head zone: make your values the defaults (zone up 0.175, forward 0.015; shipped 0.04, 0)?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
@@ -146,6 +152,7 @@ Weapon Damage page (Combat > Weapon Damage): tune every weapon's base damage; cr
 Enforcer rifle: ammo screen values and sight lines (you asked for a reminder)
 Grapple: reel speeds and the other grapple values (you asked for a reminder)
 Stamina costs: shove, strike, melee, parry, climbing
+Small gibs: the chances by weapon (Gore > Small Gibs > Chance by Weapon), Least Damage 12, Damage for a Sure One 60, Chance Curve 1.5
 
 [Record]
 Record new melee takes: the smaller hitbox (16 wide, hit box 24) and melee speed 3 have shipped, so you stand closer now

@@ -1657,6 +1657,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("A hit with less damage tears none out (a shotgun blast's pellets count as one hit). Above it the chance rises."),
         slider("Damage for a Sure One", vr_smallgibs_full_damage, 1.f, 200.f, 5.f, "%.0f").extend(1.f, 1000.f)
             .help("From this damage a hit always tears some out (times the weapon's chance below). Quad Damage, the chainsaw, gibbing and bursting a large gib always do."),
+        slider("Chance Curve", vr_smallgibs_curve, 0.5f, 3.f, 0.1f, "%.1f")
+            .help("How the chance rises between the two: 1 straight, more makes light hits rarer (a plain shotgun blast) while hard ones stay sure."),
         slider("One More Each", vr_smallgibs_damage_per_gib, 5.f, 200.f, 5.f, "%.0f damage").extend(1.f, 1000.f)
             .help("Harder hits tear more out: one more for about each this much damage."),
         slider("Most From a Hit", vr_smallgibs_per_hit, 1.f, 10.f, 1.f, "%.0f"),

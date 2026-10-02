@@ -41,6 +41,8 @@ float vr_sgib_ringid[256];
 float vr_sgib_serial;     // the last one's serial
 float vr_sgib_next;       // the ring's next slot to try
 float vr_sgib_made;       // how many were made (the tests)
+float vr_sgib_rolls;      // hits weighed, and their damage summed (the tests)
+float vr_sgib_rolldmg;
 float vr_sgib_rocksize;   // a rock's size (its longest side, units, at vr_world_scale 1): measured once
 
 float vr_sgib_blast;       // inside a shotgun blast
@@ -48,6 +50,7 @@ float vr_sgib_blastserial;
 entity vr_sgib_blastlist;
 entity vr_sgib_blastinf;
 entity vr_sgib_blastby;
+entity vr_sgib_blastself; // who fires it (its pellets' inflictor: not a barrel it sets off)
 float vr_sgib_flushing;    // rolling a blast's hits (VR_SmallGib_Kind: shots)
 vector vr_sgib_at;         // a melee blow's contact (client.qc PlayerVRMeleeImpl; '0 0 0' none)
 
@@ -447,7 +450,8 @@ float(float xKind) VR_SmallGib_KindMult =
     return max(0, cvar_hget(h));
 };
 
-// The chance a hit of `xDamage` tears any out: none under the threshold, rising to a sure one at Full Damage.
+// The chance a hit of `xDamage` tears any out: none under the threshold, rising to a sure one at Full Damage (to the
+// power of vr_smallgibs_curve: light hits rarer).
 float(float xDamage) VR_SmallGib_Chance =
 {
     float lo = max(0, cvar_hget(cvarh_vr_smallgibs_min_damage));
@@ -456,7 +460,7 @@ float(float xDamage) VR_SmallGib_Chance =
     {
         return 0;
     }
-    return min(1, (xDamage - lo) / (hi - lo));
+    return pow(min(1, (xDamage - lo) / (hi - lo)), max(0.1, cvar_hget(cvarh_vr_smallgibs_curve)));
 };
 
 // Where on `targ` the hit landed: `xAt` if it is on it (within its box grown by 16), else the point of its box nearest
@@ -528,6 +532,8 @@ void(entity targ, vector xAt, vector xBlow, float n) VR_SmallGib_Tear =
 // A hit of `xDamage` on `targ` landing at `xAt`: whether any are torn out, and how many.
 void(entity targ, entity inflictor, entity attacker, float xDamage, vector xAt) VR_SmallGib_Roll =
 {
+    vr_sgib_rolls++;
+    vr_sgib_rolldmg = vr_sgib_rolldmg + xDamage;
     float kind = VR_SmallGib_Kind(inflictor, attacker);
     float quad = attacker.super_damage_finished > time;
     float n = 0;
@@ -568,7 +574,7 @@ void(entity targ, entity inflictor, entity attacker, float xDamage) VR_SmallGib_
     {
         return;
     }
-    if(vr_sgib_blast)
+    if(vr_sgib_blast && inflictor == vr_sgib_blastself)
     {
         // A pellet's: summed with the blast's others (VR_SmallGib_BlastEnd).
         if(targ.vr_sgib_bmark != vr_sgib_blastserial)
@@ -597,6 +603,7 @@ void(entity targ, entity inflictor, entity attacker, float xDamage) VR_SmallGib_
 void() VR_SmallGib_BlastBegin =
 {
     vr_sgib_blast = TRUE;
+    vr_sgib_blastself = self;
     vr_sgib_blastserial++;
     vr_sgib_blastlist = world;
 };

@@ -228,6 +228,7 @@ float cvarh_vr_smallgibs_player;
 float cvarh_vr_smallgibs_min_damage;
 float cvarh_vr_smallgibs_full_damage;
 float cvarh_vr_smallgibs_damage_per_gib;
+float cvarh_vr_smallgibs_curve;
 float cvarh_vr_smallgibs_per_hit;
 float cvarh_vr_smallgibs_shots;
 float cvarh_vr_smallgibs_nails;
@@ -606,6 +607,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_smallgibs_min_damage);
     VR_CVAR_HMAKE(vr_smallgibs_full_damage);
     VR_CVAR_HMAKE(vr_smallgibs_damage_per_gib);
+    VR_CVAR_HMAKE(vr_smallgibs_curve);
     VR_CVAR_HMAKE(vr_smallgibs_per_hit);
     VR_CVAR_HMAKE(vr_smallgibs_shots);
     VR_CVAR_HMAKE(vr_smallgibs_nails);
