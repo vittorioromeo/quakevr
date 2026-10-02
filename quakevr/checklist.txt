@@ -109,6 +109,9 @@ Retro textures (Graphics > Retro Textures, on; QRP or a pack): walls and floors 
 Retro textures, World page: Block Size 2 and 0.5, Edge Softness 0 vs 1, Smooth Beyond: where distant floors turn smooth; Debug > Views > Retro Textures A/B to compare
 Retro textures, World page: Quake Palette 1, Dither 0.5 and 1, Bumps 0 vs 1, Detail Textures 0 vs 1
 
+Retro textures, every kind (Graphics > Retro Textures: Item Pickups, Props and Debris, Gibs, Small Gibs, Weapons in the World, Held Weapons, Monsters, Your Body and Hands, Other Models): each its own settings; Debug > Views > Retro Textures: List says what is what
+Retro textures on your hands and held weapons: steady as you move them close to your eyes?
+
 [Decide or give feedback]
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?

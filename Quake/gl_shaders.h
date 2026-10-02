@@ -1170,6 +1170,7 @@ NOISE_FUNCTIONS
 "	vec4	AO; // QVR: dynamic ambient occlusion (vr/vr_ao.cpp): x its own group (0 none), y how much of its baked per-vertex occlusion applies; z its normal map's strength\n"\
 "	vec4	Wound; // QVR: wounds painted on it (vr/vr_wounds.cpp): x its mask's layer + 1 (0 none), yz the mask's size in texels, w the time\n"\
 "	vec4	WoundSide; // QVR: (vr/vr_wounds.cpp) xy the bones of its right side (bits 0..23, 24..47, as whole numbers: your body's mask is one a side), z painting only side z - 1 (0: all), w the blood's opacity\n"\
+"	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1344,7 +1345,9 @@ QVR_ALIAS_FS_FUNCTIONS // QVR: per-pixel lights, normal maps, ambient, wounds, m
 "	vec4 result = textureLod(Tex, uv, 0.);\n"
 "#else\n"
 QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights
-"	vec4 result = textureGrad(Tex, uv, duvdx, duvdy);\n"
+"	vec4 retro = instances[in_instance].Retro; // QVR: retro textures (vr_retro.h)\n"
+"	RetroBegin(retro.x, retro.y > 0.0 ? retro.yz : vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
+"	vec4 result = Retro > 0 ? RetroSample(Tex, uv, duvdx, duvdy, true) : textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
 "#if ALPHATEST\n"
 "	// QVR: alpha to coverage (vr_alpha_coverage with MSAA; opaque draws): the alpha sharpened to about a pixel's\n"
@@ -1375,7 +1378,7 @@ QVR_ALIAS_FS_LIGHT // QVR: wounds, normal maps, occlusion, the model's light
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
 "	vec3 fullbright = textureLod(FullbrightTex, uv, 0.).rgb;\n" // QVR: fullbright: dimmed or boosted (QVR_ALIAS_FS_GLOW)
 "#else\n"
-"	vec3 fullbright = textureGrad(FullbrightTex, uv, duvdx, duvdy).rgb; // QVR: uv moved by parallax mapping\n"
+"	vec3 fullbright = Retro > 0 ? RetroSample(FullbrightTex, uv, duvdx, duvdy, false).rgb : textureGrad(FullbrightTex, uv, duvdx, duvdy).rgb; // QVR: uv moved by parallax mapping; retro textures\n"
 "#endif\n"
 QVR_ALIAS_FS_GLOW // QVR: fullbrights, wounds' glow, force grab's glow, morphs
 "	result.rgb = clamp(result.rgb, 0.0, SceneTone.x); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"

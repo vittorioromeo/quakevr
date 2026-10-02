@@ -520,7 +520,6 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsPost();
 [[nodiscard]] za::Vector<Item> pageGraphicsModels();
 [[nodiscard]] za::Vector<Item> pageGraphicsRetro();
-[[nodiscard]] za::Vector<Item> pageRetroWorld();
 [[nodiscard]] za::Vector<Item> pageTransparencyOptions();
 [[nodiscard]] za::Vector<Item> pageRecording(); // vr_menu_recording.inc
 
@@ -664,35 +663,52 @@ void resetHandMoves()
 }
 
 // Graphics: retro textures (vr_retro.cpp): high-resolution textures drawn in Quake's chunky look, each kind of thing
-// with its own settings (a page each).
+// with its own settings (a page each: pageRetroCategory).
+template <retro::Category C>
+[[nodiscard]] za::Vector<Item> pageRetroCategory();
+
 [[nodiscard]] za::Vector<Item> pageGraphicsRetro()
 {
-    return {
+    using retro::Category;
+    za::Vector<Item> items{
         toggle("Retro Textures", vr_retro)
             .help("High-resolution textures (QRP's, a pack's) drawn in Quake's look: on a coarse grid of blocks, each the average of "
                   "the texels under it, with crisp edges that don't crawl as your head moves, optionally in Quake's 256 colours. "
                   "Each kind of thing has its own settings below. Not a filter over the image: the textures themselves."),
         header("Kinds"),
-        open("World", pageIndex(pageRetroWorld))
-            .help("The map's walls, floors, ceilings and liquids."),
-        header("All Kinds"),
-        command("Reset All to Defaults", "vr_retro_reset all").help("vr_retro_reset all: every kind's settings back to their defaults."),
     };
+    const auto kind = [&items](Category c, int page) { items.pushBack(open(retro::categoryLabel(c), page).help(retro::categoryHelp(c))); };
+    kind(Category::World, pageIndex(pageRetroCategory<Category::World>));
+    kind(Category::Brush, pageIndex(pageRetroCategory<Category::Brush>));
+    kind(Category::Items, pageIndex(pageRetroCategory<Category::Items>));
+    kind(Category::Props, pageIndex(pageRetroCategory<Category::Props>));
+    kind(Category::Gibs, pageIndex(pageRetroCategory<Category::Gibs>));
+    kind(Category::SmallGibs, pageIndex(pageRetroCategory<Category::SmallGibs>));
+    kind(Category::Weapons, pageIndex(pageRetroCategory<Category::Weapons>));
+    kind(Category::Held, pageIndex(pageRetroCategory<Category::Held>));
+    kind(Category::Monsters, pageIndex(pageRetroCategory<Category::Monsters>));
+    kind(Category::Body, pageIndex(pageRetroCategory<Category::Body>));
+    kind(Category::Other, pageIndex(pageRetroCategory<Category::Other>));
+    items.pushBack(header("All Kinds"));
+    items.pushBack(command("Reset All to Defaults", "vr_retro_reset all").help("vr_retro_reset all: every kind's settings back to their defaults."));
+    return items;
 }
 
 // A retro textures category's settings (vr_retro.hpp's Param), the same on every kind's page.
-[[nodiscard]] za::Vector<Item> retroCategoryItems(retro::Category c, const char* resetCommand)
+[[nodiscard]] za::Vector<Item> retroCategoryItems(retro::Category c, void (*reset)())
 {
+    using retro::Category;
     using retro::Param;
     const auto var = [c](Param p) -> cvar_t& { return retro::cvarOf(c, p); };
-    return {
+    za::Vector<Item> items{
         toggle(retro::categoryLabel(c), var(Param::On)).help("Retro textures on these (with Graphics > Retro Textures on)."),
         header("Blocks"),
         toggle("Snap to Blocks", var(Param::Snap))
             .help("The texture is read on a grid of blocks, each one colour. Off: as it was (only the palette and dither below)."),
         slider("Block Size", var(Param::Block), 0.25f, 8.f, 0.25f, "%.2f").extend(0.0625f, 64.f)
-            .help("How big a block is: in the texture's own Quake texels (1: Quake's own pixels, a world unit at the usual "
-                  "scale; 2: twice as chunky; 0.5: finer than Quake), or in world units (Block Size In)."),
+            .help("How big a block is: in the texture's own Quake texels (1: Quake's own pixels: on the world a unit at the "
+                  "usual scale, on a Quake model its skin's; on our own models their textures' pixels; 2: twice as chunky; 0.5: "
+                  "finer than Quake), or in world units (Block Size In)."),
         cycle("Block Size In", var(Param::Units), {{0.f, "Texture's Texels"}, {1.f, "World Units"}})
             .help("Texture's Texels: the blocks follow each texture's own pixels, as Quake drew it (a texture scaled up in the "
                   "map gets bigger blocks). World Units: the same size everywhere, whatever the texture's scale."),
@@ -717,16 +733,27 @@ void resetHandMoves()
         slider("Bumps: Smooth to Blocky", var(Param::Bump), 0.f, 1.f, 0.05f, "%.2f")
             .help("The bump and specular maps: 0 smooth (the high-resolution ones), 1 snapped to the same blocks as the "
                   "colour, between: a blend."),
-        slider("Detail Textures", var(Param::Detail), 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much of the detail textures' fine grain (Graphics > Surfaces) stays on these: 0 none (flat blocks, as "
-                  "Quake), 1 all of it."),
-        command("Reset to Defaults", resetCommand),
     };
+    if(c == Category::World || c == Category::Brush || c == Category::Items || c == Category::Props) // brush models
+    {
+        items.pushBack(slider("Detail Textures", var(Param::Detail), 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of the detail textures' fine grain (Graphics > Surfaces) stays on these: 0 none (flat blocks, as "
+                  "Quake), 1 all of it. Brush models only (the boxes among Item Pickups and Props)."));
+    }
+    items.pushBack(action("Reset to Defaults", reset).help("This kind's settings back to their defaults (vr_retro_reset <kind>)."));
+    return items;
 }
 
-[[nodiscard]] za::Vector<Item> pageRetroWorld()
+template <retro::Category C>
+void retroResetCategory()
 {
-    return retroCategoryItems(retro::Category::World, "vr_retro_reset world");
+    Cbuf_AddText(va("vr_retro_reset %s\n", retro::categoryKey(C)));
+}
+
+template <retro::Category C>
+za::Vector<Item> pageRetroCategory()
+{
+    return retroCategoryItems(C, retroResetCategory<C>);
 }
 
 // Graphics: water, slime and lava.

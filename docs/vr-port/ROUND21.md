@@ -22095,3 +22095,64 @@ That is +0.02 to 0.04 ms at the defaults and +0.05 to 0.09 ms with the palette a
   Beyond).
 - Snapped bumps (Bumps 1) show bevels at the block edges; Bumps 0 keeps the HQ relief on flat blocks: which reads
   better.
+
+## Retro textures, phase 2: every kind of thing drawn (2026-10-02)
+
+Every textured thing the world and model shaders draw now has a category with its own full set of the phase 1
+settings (`vr_retro_<key>`, `_snap`, `_block`, `_units`, `_average`, `_soft`, `_fade`, `_palette`, `_dither`,
+`_dither_scale`, `_bump`, `_detail`), and a page under Graphics > Retro Textures (pages 96-106).
+
+| Category (`<key>`) | Menu page | What is in it (`vr_retro.cpp`, `categoryOf`) |
+|---|---|---|
+| `world` | World | worldspawn's surfaces and liquids |
+| `brush` | Brush Entities | brush submodels (`*N`): doors, lifts, buttons, moving walls |
+| `items` | Item Pickups | `maps/b_*.bsp` boxes (ammo, health), alias models that rotate (`EF_ROTATE`), armour, keys, powerups, runes, backpacks |
+| `props` | Props and Debris | `b_explob`/`b_exbox` and other `.bsp` props, `vr_crate*`, `vr_rock*`, `vr_brick*`, `vr_plank*`, `vr_shell`, torches you carry, lanterns, candles, barrels |
+| `gibs` | Gibs | `gib1-3`, `zom_gib`, `statgib*`, `h_*` heads |
+| `smallgibs` | Small Gibs | a gib model scaled below 0.8 (`vr_smallgibs.qc`'s) |
+| `weapons` | Weapons in the World | `v_*`/`g_*` models that are not yours: dropped, thrown, pickups |
+| `held` | Held Weapons | a weapon among the view entities (`view::find`): in your hands and holsters |
+| `monsters` | Monsters | Quake's and the mission packs' monsters, their corpses, `player.mdl` |
+| `body` | Your Body and Hands | your other view entities and `vrbody*`, `hand*`, `finger_*`, the gadget, the flashlight, pauldrons, pouches, leg holsters |
+| `other` | Other Models | everything else: projectiles, torches and flames, beams |
+
+Not covered (not drawn by these shaders): sprites (explosions, `s_*.spr`), particles, decals, the sky, the HUD and
+menus.
+
+- **Models:** the alias shader reads `InstanceData.Retro` (x the set, yz the skin's size). A Quake `.mdl`'s grid is its
+  own skin size (`skinwidth`, `skinheight`), so QRP's or a pack's 4x skins keep Quake's texels. Our own models'
+  textures are painted about four times as densely as a Quake skin, so a quarter of their texture's size is used: a
+  block is about a Quake texel there too. The palette's table is on unit 3 there (`VR_RetroBind` in
+  `R_FlushAliasInstances`). The `NOPERSP` (affine, `r_softemu`) variant is left as it was.
+- **Brush entities:** `R_AddBModelCall` now gets the batch's entity (for phase 3's per-texture sets). The instance's
+  set comes from `categoryOf`.
+- `vr_retro_list` (Debug > Views > Retro Textures: List) prints each model drawn now with its category, set, skin and
+  texture size, and scale.
+
+### Costs (`run.sh --exclusive`, QRP, 2048 x 2048 eyes, both eyes, ms a frame; the profiler's GPU rows)
+
+e1m1 start: a grunt 72 units ahead, a small crate 48 units off to the side, the shotgun in the main hand, looking down
+30 degrees. Each row turns on only that category (`vr_retro 1`, every other category's switch 0).
+
+| On | `models` | `world` |
+|---|---|---|
+| Nothing (`vr_retro 0`) | 0.171 | 0.440 |
+| World | 0.167 | 0.465 (+0.025) |
+| Props and Debris (the crate) | 0.182 (+0.011) | 0.435 |
+| Monsters (the grunt) | 0.171 (+0.000) | 0.435 |
+| Held Weapons | 0.177 (+0.006) | 0.437 |
+| Your Body and Hands | 0.186 (+0.015) | 0.437 |
+| Every category, defaults (second run; off was 0.171 / 0.440) | 0.196 (+0.025) | 0.467 (+0.027) |
+| Every category, palette 1 and dither 1 | 0.242 (+0.071) | 0.499 (+0.059) |
+
+The cost follows the pixels a category covers (about ±0.005 ms of noise). The categories not on screen here cost
+nothing: a set of 0 is one branch.
+
+### Tests
+
+- Eyeshots (QRP, `r_fullbright 1` for even light, left eye): the small crate (`vr_crate2`, a 256 skin with a 1024
+  texture: blocks of its Quake texels), a grunt 72 units ahead, the shotgun in the hand (its LQ skin gets the
+  anti-aliased nearest look) and the forearm and gadget. Each is shown off, at the defaults, and at block 2 with
+  palette 0.6 and dither 0.5.
+- `vr_retro_list` on e1m1 with test spawns lists the right category for every model drawn.
+- `vr_menu_path_check maps/vrcalibration.map`: 13 found, 0 missing; pages 95-106 open.

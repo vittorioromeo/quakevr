@@ -449,6 +449,7 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	if (!translucent)
 		GL_SetState (opaque_state);
+	VR_RetroBind (QVR_RETRO_LUT_UNIT_ALIAS); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
 	a2c = alphatest && !translucent && VR_AlphaToCoverage (); // QVR: holey skins' edges by alpha to coverage (vr_alpha_coverage, MSAA)
 	if (a2c)
 	{

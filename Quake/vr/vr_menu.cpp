@@ -2691,6 +2691,9 @@ za::Vector<Item> pageDebugViews()
         toggle("Retro Textures A/B", vr_retro_ab)
             .help("Hides the retro textures (Graphics > Retro Textures) at once, to compare with the textures as they "
                   "were; off again shows them."),
+        command("Retro Textures: List", "vr_retro_list")
+            .help("vr_retro_list: prints each model drawn now with its retro textures kind (Graphics > Retro Textures), its "
+                  "set and its skin's size, to the console."),
         toggle("Show Damage Numbers", vr_debug_damage_numbers)
             .help("Every hit on anything that takes damage (monsters, corpses, gibs, crates, props, shootable walls): its "
                   "damage floating where it struck, and printed as the training dummy's (what struck, where, what's left)."),
@@ -3952,7 +3955,17 @@ const Page pages[] = {
     {"Small Gibs", pageSmallGibs, pageGore},                                       // 93
     {"Burning", pageBurning, pageCombat},                                          // 94
     {"Graphics - Retro Textures", pageGraphicsRetro, pageGraphics},                // 95
-    {"Retro Textures - World", pageRetroWorld, pageGraphicsRetro},                 // 96
+    {"Retro Textures - World", pageRetroCategory<retro::Category::World>, pageGraphicsRetro}, // 96
+    {"Retro Textures - Brush Entities", pageRetroCategory<retro::Category::Brush>, pageGraphicsRetro}, // 97
+    {"Retro Textures - Item Pickups", pageRetroCategory<retro::Category::Items>, pageGraphicsRetro}, // 98
+    {"Retro Textures - Props and Debris", pageRetroCategory<retro::Category::Props>, pageGraphicsRetro}, // 99
+    {"Retro Textures - Gibs", pageRetroCategory<retro::Category::Gibs>, pageGraphicsRetro}, // 100
+    {"Retro Textures - Small Gibs", pageRetroCategory<retro::Category::SmallGibs>, pageGraphicsRetro}, // 101
+    {"Retro Textures - Weapons in the World", pageRetroCategory<retro::Category::Weapons>, pageGraphicsRetro}, // 102
+    {"Retro Textures - Held Weapons", pageRetroCategory<retro::Category::Held>, pageGraphicsRetro}, // 103
+    {"Retro Textures - Monsters", pageRetroCategory<retro::Category::Monsters>, pageGraphicsRetro}, // 104
+    {"Retro Textures - Your Body and Hands", pageRetroCategory<retro::Category::Body>, pageGraphicsRetro}, // 105
+    {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro}, // 106
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

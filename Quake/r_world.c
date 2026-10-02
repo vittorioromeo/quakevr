@@ -384,7 +384,7 @@ static void R_FlushBModelCalls (void)
 R_AddBModelCall
 =============
 */
-static void R_AddBModelCall (int index, int first_instance, int num_instances, texture_t *t, qboolean zfix)
+static void R_AddBModelCall (int index, int first_instance, int num_instances, texture_t *t, qboolean zfix, entity_t *ent) // QVR: ent, the batch's first (retro textures)
 {
 	static const float noclamp[4] = {0.f, 0.f, 0.f, 0.f}; // QVR
 	GLuint		flags;
@@ -434,7 +434,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
 		VR_DetailCall (tx ? t : NULL, call->detail); // QVR
 		memcpy (call->extmat, extmat, sizeof (call->extmat)); // QVR
-		VR_RetroCall (tx ? t : NULL, call->retro); // QVR
+		VR_RetroCall (ent, tx ? t : NULL, call->retro); // QVR
 	}
 	else
 	{
@@ -451,7 +451,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
 		VR_DetailCall (tx ? t : NULL, call->detail); // QVR
 		memcpy (call->extmat, extmat, sizeof (call->extmat)); // QVR
-		VR_RetroCall (tx ? t : NULL, call->retro); // QVR
+		VR_RetroCall (ent, tx ? t : NULL, call->retro); // QVR
 	}
 
 	SDL_assert (num_instances > 0);
@@ -656,7 +656,7 @@ static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin
 		for (j = model->texofs[texbegin]; j < model->texofs[texend]; j++)
 		{
 			texture_t *t = model->textures[model->usedtextures[j]];
-			R_AddBModelCall (model->firstcmd + j, baseinst, numinst, pass != BP_SHOWTRIS ? R_TextureAnimation (t, frame) : 0, zfix);
+			R_AddBModelCall (model->firstcmd + j, baseinst, numinst, pass != BP_SHOWTRIS ? R_TextureAnimation (t, frame) : 0, zfix, e);
 		}
 
 		baseinst += numinst;
@@ -745,7 +745,7 @@ static void R_DrawLiquidMesh (int baseinst, qboolean translucent, unsigned state
 			cmd->instanceCount = 1;
 			cmd->baseVertex = 0;
 			cmd->baseInstance = baseinst;
-			R_AddBModelCall (0, baseinst, 1, R_TextureAnimation (t, 0), false);
+			R_AddBModelCall (0, baseinst, 1, R_TextureAnimation (t, 0), false, &cl_entities[0]);
 		}
 	}
 	R_FlushLiquidMeshCalls ();
@@ -857,7 +857,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 			texture_t *t = model->textures[model->usedtextures[j]];
 			if ((GL_WaterAlphaForEntityTextureType (e, t->type) < 1.f) != translucent)
 				continue;
-			R_AddBModelCall (model->firstcmd + j, baseinst, numinst, R_TextureAnimation (t, frame), !isworld);
+			R_AddBModelCall (model->firstcmd + j, baseinst, numinst, R_TextureAnimation (t, frame), !isworld, e);
 		}
 
 		baseinst += numinst;

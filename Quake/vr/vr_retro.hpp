@@ -2,8 +2,8 @@
 // in Quake's chunky low-resolution look by the shaders that read them (vr_retro.h has the GLSL and how it works).
 //
 // Each kind of thing drawn is a category with its own full set of settings, cvars vr_retro_<key><suffix> (World:
-// vr_retro_world, vr_retro_world_block, ...), made here from the tables below; vr_retro is the switch for them all.
-// A category is a set in the shaders' block (its index + 1; 0: none).
+// vr_retro_world, vr_retro_world_block, ...), made here from the tables in vr_retro.cpp; vr_retro is the switch for
+// them all. A category is a set in the shaders' block (its index + 1; 0: none).
 
 #pragma once
 
@@ -14,7 +14,17 @@ namespace qvr::retro
 
 enum class Category
 {
-    World, // the world's own surfaces (worldspawn), its liquids
+    World,     // the world's own surfaces (worldspawn), its liquids
+    Brush,     // brush entities: doors, lifts, buttons, moving walls
+    Items,     // pickups: the ammo and health boxes (maps/b_*.bsp), armour, keys, powerups, backpacks
+    Props,     // crates, explosive boxes, rocks, bricks, planks, shell casings, lanterns
+    Gibs,      // gibs and heads
+    SmallGibs, // the small gibs torn out by hits (gibs scaled down)
+    Weapons,   // weapons in the world: dropped, thrown, lying as pickups
+    Held,      // the weapons in your hands and holsters
+    Monsters,  // monsters, their corpses, other players
+    Body,      // your body, hands, the wrist gadget, the flashlight, pauldrons and pouches
+    Other,     // every other model: projectiles, torches and flames, ...
     Count
 };
 
@@ -22,8 +32,8 @@ enum class Param
 {
     On,          // the category's switch (with vr_retro)
     Snap,        // texel snapping: the texture read on a grid of blocks
-    Block,       // a block's size: Quake texels of the texture (or world units with Units)
-    Units,       // 1: Block in world units, whatever the texture's scale on the face
+    Block,       // a block's size: Quake texels of the texture (a model's skin's), or world units with Units
+    Units,       // 1: Block in world units, whatever the texture's scale on the surface
     Average,     // 1: a block's colour is the average of the texels under it (0: the one at its centre)
     Soft,        // the blocks' edges blended over this many pixels (0: hard, aliased)
     Fade,        // blocks a pixel spans where it is plain mipmapping again (fading from half that)
@@ -31,17 +41,19 @@ enum class Param
     Dither,      // an ordered dither before that, fixed to the blocks, 0..1
     DitherScale, // the dither's cell, in blocks
     Bump,        // bump and specular maps: 0 smooth (the high-resolution ones), 1 the blocks', between: a blend
-    Detail,      // how much of the detail textures' grain (vr_detail) stays on these, 0..1
+    Detail,      // how much of the detail textures' grain (vr_detail) stays on these, 0..1 (the world's and brushes')
     Count
 };
 
 constexpr int categoryCount = static_cast<int>(Category::Count);
 constexpr int paramCount = static_cast<int>(Param::Count);
 
-// VR_Init: the categories' cvars and the vr_retro_reset command.
+// VR_Init: the categories' cvars and the commands (vr_retro_reset, vr_retro_list).
 void registerCvars();
 
 [[nodiscard]] cvar_s& cvarOf(Category c, Param p);
 [[nodiscard]] const char* categoryLabel(Category c);
+[[nodiscard]] const char* categoryHelp(Category c);
+[[nodiscard]] const char* categoryKey(Category c);
 
 } // namespace qvr::retro
