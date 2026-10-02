@@ -12,6 +12,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
+#include "vr_twohand.hpp"
 
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fmax.hpp"
@@ -38,7 +39,7 @@ double lastSpinTime = -1.0; // vr_gametime of the last spin step: every rendered
     const int weapon = cl.stats[main ? STAT_QVR_WEAPON : STAT_QVR_WEAPON2];
     const int clip = cl.stats[main ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2];
     const int clipSize = cl.stats[main ? STAT_QVR_WEAPONCLIPSIZE : STAT_QVR_WEAPONCLIPSIZE2];
-    return weapon == widSuperShotgun && clip != clipSize;
+    return weapon == widSuperShotgun && clip != clipSize && twohand::flickAllowed(hand);
 }
 
 } // namespace
@@ -95,6 +96,11 @@ void update(hands::State& s)
 bool flicking(int hand)
 {
     return current[hand];
+}
+
+bool allowed(int hand)
+{
+    return twohand::flickAllowed(hand);
 }
 
 void spin(int hand)

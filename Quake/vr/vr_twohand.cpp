@@ -81,6 +81,7 @@ float aimTransition[2]{0.f, 0.f};   // per holding hand, 0..1
 float stockTransition[2]{0.f, 0.f}; // per holding hand, 0..1
 bool shouldAim[2]{false, false};    // per holding hand
 bool helpingHand[2]{false, false};
+bool cupHeld[2]{false, false};        // per holding hand: the other hand holds it by a cup hotspot (flickAllowed)
 
 // A weapon's two-handed grips (round 18): where on it the helping hand may take hold. The nearest
 // within reach takes it; once held, that grip holds on until the hand lets go or moves off it.
@@ -785,6 +786,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     const bool goodDot = cup || dotNeed <= -1.f || glm::dot(handDir, origDir) > dotNeed;
 
     shouldAim[holding] = canGrab && goodDistance && goodDot;
+    cupHeld[holding] = shouldAim[holding] && fixedMode && s.grip2HPalm[holding]; // (a cup hotspot itself: grip2HPalm)
     if(vr_debug_2h_grip.value && fixedMode && !wasHeld && shouldAim[holding])
     {
         Con_Printf("2h grip: %s hand took it (%.1f units off its grip)\n", holding == HAND_MAIN ? "off" : "main", gripDist);
@@ -850,6 +852,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
 
 void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int mode)
 {
+    cupHeld[holding] = false;
     // A weapon carried off its handle is not aimed, with one hand or two (the other hand may hold it too: applyCarried).
     if(carrying(holding))
     {
@@ -960,6 +963,18 @@ float transition(int hand)
 bool helping(int hand)
 {
     return helpingHand[hand];
+}
+
+bool flickAllowed(int holding)
+{
+    // One-handed always; with the other hand on it, only by a cup (a two-handed pistol grip, round the holding hand's
+    // grip): not on its barrel, a foregrip or anywhere on it (NOTES.md vrfiringrange_2026-10-02_01-08-19), nor carried
+    // off its handle.
+    if(carrying(holding) || freeGrips[holding].on)
+    {
+        return false;
+    }
+    return !helpingHand[1 - holding] || cupHeld[holding];
 }
 
 bool bladeGrip(int hand)

@@ -153,6 +153,8 @@ QVR_CVAR(vr_bindings_version, "0", CVAR_ARCHIVE)
 
 // Mock backend: swing the main hand in an overhand arc with this period, in seconds (0: still).
 QVR_CVAR(vr_mock_swing, "0", CVAR_NONE)
+// Mock backend: 1 moves the off hand with the swing too, rigidly (as it was from the main hand): both hands on one weapon.
+QVR_CVAR(vr_mock_swing_both, "0", CVAR_NONE)
 // Mock backend: 1 reports the grip's (the palm's) velocity too, as the OpenXR backend does for a Touch controller with
 // vr_controller_legacy_pose (throws then go with the palm, as in the headset); 0 (the default): the raw pose's only.
 QVR_CVAR(vr_mock_grip_velocity, "0", CVAR_NONE)

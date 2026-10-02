@@ -6537,6 +6537,15 @@ void(entity ent, float xHand,
             }
         }
     }
+    // The empty hand closing on the handle of the weapon the other hand carries off its handle (the hand-off, a hotspot,
+    // anywhere): it takes it back, the trigger pulled or not. A hand that held the blade in a fist (the trigger pulled with
+    // the grip: a sword's does nothing) closed on the handle the same way, and the force grab's branch below took the grip,
+    // so nothing did (NOTES.md vrfiringrange_2026-10-02_00-34-04).
+    else if(handEmpty && startedHandGrabbing && xHotspot == QVR_HS_CARRIED_GRIP &&
+            VRIsHandCarryingByForegrip(ent, VRGetOtherHand(xHand)))
+    {
+        VRTakeCarriedWeapon(ent, xHand);
+    }
     // Not holding a weapon, grabbing the controller, and pressing the trigger.
     else if(handEmpty && triggerPressed)
     {
@@ -6556,16 +6565,10 @@ void(entity ent, float xHand,
     // Not holding a weapon (nor carrying a box) and started grabbing the controller.
     else if(handEmpty && startedHandGrabbing)
     {
-        // The handle of the gun the other hand carries by its foregrip: take it.
-        if(xHotspot == QVR_HS_CARRIED_GRIP)
-        {
-            if(VRIsHandCarryingByForegrip(ent, VRGetOtherHand(xHand)))
-            {
-                VRTakeCarriedWeapon(ent, xHand);
-            }
-        }
+        // (The handle of the weapon the other hand carries: taken above.)
         // Not a holster. Do nothing.
-        else if(xHotspot == QVR_HS_NONE ||
+        if(xHotspot == QVR_HS_NONE ||
+           xHotspot == QVR_HS_CARRIED_GRIP ||
            xHotspot == QVR_HS_OFFHAND_2H_GRAB ||
            xHotspot == QVR_HS_MAINHAND_2H_GRAB ||
            xHotspot == QVR_HS_HAND_SWITCH ||

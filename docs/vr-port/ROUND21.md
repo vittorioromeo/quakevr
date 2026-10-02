@@ -19644,3 +19644,25 @@ Time Now**. Mock: `vr_mock_hand_to <main|off> button` puts the fingertip on the 
 - Hands at 0.25 with the head-relative follower: as phase 1 (0.5 m jump followed at 8 m/s; slow move exact); the head
   and hand moved 0.3 m together: 0.07 m behind for one frame, then none.
 
+
+## Taking a carried sword back with the trigger pulled; no flick reload in two hands (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_00-32-29, _00-34-04: a sword handed off to the off hand (held by its blade), taken by
+its blade by the main hand too, swung, then the main hand on its handle: nothing. Root cause (QC DoHandImpl): the
+empty hand's branches tested "the trigger pulled" (the force grab's, which does nothing here) before "the grip just
+closed", so a hand closing on the carried weapon's handle (HS_CARRIED_GRIP) with the trigger pulled never took it back.
+A sword's trigger does nothing, so a hand that has held its blade in a fist (grip and trigger together) closes on the
+handle the same way, while a hand that just let go of the handle re-closes the grip alone: hence "only after the main
+hand held the blade". The engine side (the handle's place, HS_CARRIED_GRIP, the free grips' state) was checked in the
+mock with the exact sequence (rigid two-handed swings with vr_mock_swing_both, blows on the firing range's dummy, the
+author's config, his recorded positions, the off hand letting go and taking it again): it always took it back with the
+grip alone, and never with the trigger pulled. Now the take comes before the force grab's branch.
+
+NOTES.md vrfiringrange_2026-10-02_01-08-19 (and the author's clarification): the double-barrelled shotgun no longer
+flick-reloads while the other hand holds it on its barrel's grip or anywhere on it (or carries it off its handle); in
+one hand, or with the other hand on its cup hotspot, it does as before (twohand::flickAllowed; the gesture and the
++flickreload commands alike). vr_dumpview's hand line now prints the weapon, its clip and whether it may flick-reload.
+
+Test aids: vr_mock_swing_both 1 (the off hand swings rigidly with vr_mock_swing's main hand), vr_mock_hand_to <hand>
+heldspot <index> (at a hotspot of the other hand's weapon). Misc/quakevr/twohand/grip_state_test.py checks both (the
+retake with the grip alone and with the trigger, each hand; the flick in one hand, on the barrel, the cup, anywhere).

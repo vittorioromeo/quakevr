@@ -6724,8 +6724,11 @@ void dumpView_f()
             Con_Printf("%s weapon foregrip (%.1f %.1f %.1f)\n", h == HAND_MAIN ? "main" : "off", s.grip2H[h].x,
                 s.grip2H[h].y, s.grip2H[h].z);
         }
-        Con_Printf("%s hand: two-handed %.2f, helping %d, empty %d\n", h == HAND_MAIN ? "main" : "off", twohand::transition(h),
-            twohand::helping(h) ? 1 : 0, held::handEmpty(h) ? 1 : 0);
+        Con_Printf("%s hand: two-handed %.2f, helping %d, empty %d, weapon %d clip %d, flick reload %s\n",
+            h == HAND_MAIN ? "main" : "off", twohand::transition(h), twohand::helping(h) ? 1 : 0, held::handEmpty(h) ? 1 : 0,
+            cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2],
+            cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPONCLIP : protocol::STAT_QVR_WEAPONCLIP2],
+            twohand::flickAllowed(h) ? "allowed" : "not allowed");
         if(s.muzzleValid[h])
         {
             Con_Printf("%s weapon muzzle (%.4f %.4f %.4f), %.1f units from the hand%s\n", h == HAND_MAIN ? "main" : "off",
