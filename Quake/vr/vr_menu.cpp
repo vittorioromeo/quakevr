@@ -1984,6 +1984,12 @@ void hologramTestMessage()
         slider("Two-Handed Throws: Spared", vr_throw_2h_melee_immune, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
             .help("What you throw with both hands can't be struck by your hands for this long (a gib burst by your own "
                   "follow-through). 0: off."),
+        slider("Gibs Let Go: Other Hand Spares", vr_gib_letgo_spare, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("A gib you let go of with one hand can't be burst by your other hand's touch for this long (the hand "
+                  "alongside the throw); the hand that let go of it: 0.4 s. Toss it up and punch it after. 0: off."),
+        toggle("Thrown Gibs Burst on You", vr_gib_burst_on_thrower)
+            .help("A gib you throw that meets your own body or hands (and no wall) bursts as on a wall. Off: it bounces "
+                  "off you whole."),
         slider("Your Throws Spare You For", vr_throw_self_grace, 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 5.f)
             .help("What you throw passes through you and can't hurt you for this long after it leaves your hand; after "
                   "it, it hurts you as it would a monster (a backpack thrown high falling back on you)."),
@@ -3163,6 +3169,12 @@ za::Vector<Item> pageDebugTests()
         command("Two-Handed Throw", "developer 1; impulse 204")
             .help("A gib ahead of you as if just thrown with both hands: prints (2h test:) whether each hand may strike "
                   "and the gib can be struck, now and 0.5 s later (Throwing and Physics: Two-Handed Throws)."),
+        command("Gib in the Off Hand", "developer 1; impulse 252")
+            .help("A gib or head (each press the next kind) in your off hand: take it with the other hand too and "
+                  "throw it with both. 'gib:' lines say what burst it (Real Gib, below)."),
+        toggle("Real Gib", vr_test_held_destroy)
+            .help("vr_test_held_destroy: the off hand's test gib can be burst as a real one (shot, struck, thrown hard "
+                  "at a wall). Misc/quakevr/gib_2h_throw_test.sh throws it with both hands along several arcs."),
         command("Fling the Nearest Prop", "impulse 232")
             .help("Sends the loose prop nearest you (put a box there first) at it, as if batted or knocked flying; "
                   "developer 1 prints the hit (prop: flung ...)."),

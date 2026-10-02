@@ -19296,6 +19296,38 @@ Open: heavy props (explosive boxes 40 kg, crates 25 kg) can no longer be thrown 
 missile threshold; two hands 5-7 m/s): their own Throw (Held Object Offsets) multiplies the result, or lower Heavy
 Falloff. The weight spring (the drawn weapon lagging the hand) is not used for the throw.
 
+## Two-handed gib throws that burst (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_15-38-26: gibs still burst sometimes when thrown with both hands, after "Two-handed
+throws" below. **Cause** (logged in the mock: `gib: struck by the off hand's touch at 3.3-7.3 m/s, 0.01-0.03 s after
+it was let go of (by the main hand)`): not the melee sweep (VR_Blow_Strikable spares it) but the hand's touch
+(VR_Carry_Nudge -> VR_Gib_Struck, the Quake-side hand touch), which spared only the hand that let go last
+(.vr_gib_releasehand); the other hand, moving with the throw, touched it and struck it at its own speed. The same with
+one hand holding and the other alongside (the second hand out of reach: a small gib). His theory, the body: with
+`vr_box3d_throw_grace 0` a gib thrown back into the chest did burst ("struck the world" 0.02 s after, 23 units from him:
+the capsule stopped it); with the grace (0.2 s, the default) it passes through, and the arcs below never met the body.
+
+**Now** (QC/vr_carry.qc):
+- VR_Gib_Struck spares what both hands threw (VR_Throw_SparedBlows, VR_Throw_HandMayStrike), a gib let go of by this
+  player for `vr_gib_letgo_spare` (0.2 s; the hand that let go: 0.4 s as before), and strikes at the hand's speed
+  against the gib's (at most the hand's own: a hand moving with it doesn't strike it).
+- VR_Carry_Nudge: what both hands just threw isn't shoved by their follow-through either.
+- VR_Gib_Think2: a thrown gib's sharp turn at its thrower's box (+12 units) or a hand (16) with no wall just ahead
+  (traceline along its old velocity) is his body or hands, not an impact: `gib: turned by its thrower's body or hands
+  ... kept` (`vr_gib_burst_on_thrower 1`: bursts as before). "struck the world" prints the time since the throw and the
+  distance from the thrower.
+
+Menu: Throwing and Physics: Gibs Let Go: Other Hand Spares, Thrown Gibs Burst on You (after Two-Handed Throws: Spared).
+Debug > Tests: Gib in the Off Hand (impulse 252), Real Gib (`vr_test_held_destroy`: the test gib destroyable as a real one).
+
+Test `Misc/quakevr/gib_2h_throw_test.sh <agent> [out] [console commands]` (KINDS=gib|small, THROWS, HALF: the hands' x
+off the middle): a gib in the off hand, taken by the main, thrown by both along 7 arcs (push 6 m/s, hard 9, up 50
+degrees, vertical, overhead throw-in, underarm, down across the body), let go together or the off hand 40 ms first.
+Before -> after: gibs 7/14 burst (all the other hand's touch) -> 0/14; small gibs (`vr_smallgibs_destroy 1`, HALF=0)
+9/14 (7 touch, 2 the floor) -> 6/14, all on the floor or a wall 0.22-1.12 s later, 87-357 units off (a light gib thrown
+hard lands faster than Gib Splat Speed). `THROWS=back` (into the chest; grace 0): 2/2 -> 0/2 ("kept"). Small gibs often
+can't be taken by the second hand (out of reach: "both 0"); those runs are one-handed with the other hand alongside.
+
 ## Heavy throws' hits, spin and two-handed throws (2026-10-02)
 
 NOTES.md vrfiringrange_2026-10-02_00-54-03, _01-09-50, _01-12-39, _01-22-37.

@@ -48,7 +48,6 @@ Spectator view: pickup messages and other head-locked text show in the headset b
 Wall buttons: walking past with a long gun doesn't press by accident (6 cm reach)
 Wall buttons: hand presses now buzz
 
-Throw a gib with both hands: no punch bursts it
 Bullet time wrist tap: smack the gadget wrist with the other hand (1 m/s, must stop on it): toggles (Combat > Bullet Time > Wrist Tap)
 Bullet time wrist tap: resting, brushing, two-handed holds and melee swings ending near the wrist don't toggle
 Bullet time button: still works with leniency (Combat > Bullet Time > Button)
@@ -117,6 +116,9 @@ Burning: Torch Touch on: touching a monster or corpse with a lit torch (held, th
 Burning: your lava nails set monsters on fire
 Wall torch: close the fist on the way to it: it comes when the hand arrives (Carrying > Wall Torches > Grab Window 0.6 s)
 Wall torch: punch it with a closed fist: a blow, not a grab
+
+Two-handed gib throws from chest height, forward and upward: the gib never bursts in your hands
+Toss a gib up with one hand, punch it with the other after ~0.2 s: it still bursts
 
 [Decide or give feedback]
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?

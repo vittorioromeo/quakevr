@@ -152,6 +152,13 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         return;
     }
 
+    // Just thrown with both hands: their follow-through neither strikes nor shoves it (NOTES.md
+    // vrfiringrange_2026-10-02_15-38-26: the hand that let go first touched the gib as it left, and burst it).
+    if(VR_Throw_SparedBlows(xBox, xPlayer))
+    {
+        return;
+    }
+
     // A gib or head struck with a swing bursts (VR_Gib_Struck).
     if(xBox.vr_gib)
     {
@@ -1365,6 +1372,30 @@ void(entity xGib, float xHealthMult) VR_Gib_MakeDestroyable =
 float vr_gore_stick_thrown; // VR_Gore_Stick's chance for a thrown gib (0: by the gore's level)
 float(entity g, vector at, vector normal, float xSpeed) VR_Gore_Stick;
 
+// Whether a thrown gib's sharp turn (VR_Gib_Think2) was its thrower meeting it, not a wall: it is at his box or a hand
+// of his (Box3D's capsule and hands' bodies, Quake's box), and no wall is just ahead of where it was going (NOTES.md
+// vrfiringrange_2026-10-02_15-38-26: a gib thrown with both hands burst on the thrower's own body). Not with
+// vr_gib_burst_on_thrower.
+float(entity g) VR_Gib_TurnedByThrower =
+{
+    entity p = g.carry_letgo;
+    if(p == world || !(p.flags & FL_CLIENT) || cvar_hget(cvarh_vr_gib_burst_on_thrower))
+    {
+        return FALSE;
+    }
+    vector m = '12 12 12';
+    vector o = g.origin;
+    float at = o_x >= p.absmin_x - m_x && o_y >= p.absmin_y - m_y && o_z >= p.absmin_z - m_z &&
+               o_x <= p.absmax_x + m_x && o_y <= p.absmax_y + m_y && o_z <= p.absmax_z + m_z;
+    if(!at && vlen(o - VRGetEntHandPos(p, cVR_MainHand)) > 16 && vlen(o - VRGetEntHandPos(p, cVR_OffHand)) > 16)
+    {
+        return FALSE;
+    }
+    float ahead = vlen(g.vr_gib_lastvel) * 0.03 + 12;
+    traceline(o, o + normalize(g.vr_gib_lastvel) * ahead, TRUE, g);
+    return trace_fraction >= 1 && !trace_startsolid;
+};
+
 // Arms it, and follows a thrown one's flight (VR_Gib_Released). A thrown gib is a rigid body, whose
 // landing on the world touches nothing: a hard hit is seen in its velocity, turned sharply between
 // two frames: bursting it (one that can be destroyed), or slower sticking it (Thrown Gibs Stick).
@@ -1403,10 +1434,18 @@ void() VR_Gib_Think2 =
         float splat = cvar_hget(cvarh_vr_gib_splat_speed);
         vector change = self.velocity - self.vr_gib_lastvel;
         float lastSpeed = vlen(self.vr_gib_lastvel);
+        if(vlen(change) >= min(splat, lastSpeed * 0.5) && VR_Gib_TurnedByThrower(self))
+        {
+            dprint(sprintf("gib: turned by its thrower's body or hands at %.1f, %.2f s after it was let go of: kept\n",
+                lastSpeed, time - self.vr_gib_releasetime));
+            self.vr_gib_lastvel = self.velocity;
+            self.nextthink2 = time + 0.01;
+            return;
+        }
         if(destroyable && lastSpeed >= splat && vlen(change) >= splat)
         {
-            dprint("gib: struck the world at "); dprint(ftos(lastSpeed)); dprint(", now ");
-            dprint(vtos(self.velocity)); dprint("\n");
+            dprint(sprintf("gib: struck the world at %.1f, %.2f s after it was let go of, %.0f units from you, now %v\n",
+                lastSpeed, time - self.vr_gib_releasetime, vlen(self.origin - self.carry_letgo.origin), self.velocity));
             VR_Gib_Burst(self, self.vr_gib_lastvel);
             return;
         }
@@ -1438,7 +1477,7 @@ void() VR_Gib_Think2 =
 };
 
 // Let go of by `xHand` (VR_Carry_Release): that hand does not strike it as it follows through
-// (VR_Gib_Struck; the other one may: toss it up and punch it). Thrown hard (`xHard`), for a few
+// (VR_Gib_Struck; the other one may, after vr_gib_letgo_spare: toss it up and punch it). Thrown hard (`xHard`), for a few
 // seconds a hard hit on a wall bursts it, a softer one may stick it (vr_gore_stick_thrown: one that
 // can't be destroyed too, a small gib).
 void(entity xGib, float xHard, float xHand) VR_Gib_Released =
@@ -1939,15 +1978,23 @@ void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blo
 };
 
 // A hand or a gun striking it at a swing's speed (vr_melee_speed). Not by the hand that just let go
-// of it: a throw's follow-through is not a blow.
+// of it, nor by either hand just after a two-handed throw (VR_Throw_SparedBlows, VR_Throw_HandMayStrike): a throw's
+// follow-through is not a blow. Its speed is the hand's against the gib's (at most the hand's own): a hand moving along
+// with a gib it just threw, or the other hand alongside, doesn't strike it (NOTES.md vrfiringrange_2026-10-02_15-38-26).
 void(entity xPlayer, float xHand, entity xGib) VR_Gib_Struck =
 {
-    float speed = vlen(VRGetEntHandVel(xPlayer, xHand));
+    vector handVel = VRGetEntHandVel(xPlayer, xHand);
+    float speed = min(vlen(handVel), vlen(handVel - xGib.velocity * (1 / VRMetersToUnits())));
     if(speed < max(0.1, cvar_hget(cvarh_vr_melee_speed)) || !VR_Gib_IsDestroyable(xGib) || !xGib.takedamage ||
-       (time < xGib.vr_gib_releasetime + 0.4 && xHand == xGib.vr_gib_releasehand))
+       (time < xGib.vr_gib_releasetime + 0.4 && xHand == xGib.vr_gib_releasehand) ||
+       (xGib.carry_letgo == xPlayer && time < xGib.carry_letgo_time + cvar_hget(cvarh_vr_gib_letgo_spare)) ||
+       VR_Throw_SparedBlows(xGib, xPlayer) || !VR_Throw_HandMayStrike(xPlayer, xHand))
     {
         return;
     }
+    dprint(sprintf("gib: struck by the %s hand's touch at %.2f m/s, %.2f s after it was let go of (by the %s hand)\n",
+        xHand == cVR_MainHand ? "main" : "off", speed, time - xGib.vr_gib_releasetime,
+        xGib.vr_gib_releasehand == cVR_MainHand ? "main" : "off"));
     T_Damage(xGib, xPlayer, xPlayer, VR_Gib_StrikeDamage(speed));
 };
 

@@ -144,6 +144,10 @@ QVR_CVAR(vr_throw_hit_ramp_floor, "0.6", CVAR_ARCHIVE) // share of the damage at
 // vr_throw_2h_melee_immune s. 0: off.
 QVR_CVAR(vr_throw_2h_nomelee, "0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_2h_melee_immune, "0.35", CVAR_ARCHIVE)
+// A gib let go of by one hand: the other hand's touch doesn't burst it for vr_gib_letgo_spare s (NOTES.md
+// vrfiringrange_2026-10-02_15-38-26: the other hand alongside the throw; the hand that let go: 0.4 s). 0: off.
+QVR_CVAR(vr_gib_letgo_spare, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_gib_burst_on_thrower, "0", CVAR_ARCHIVE) // a thrown gib turned by its thrower's body or hands (no wall ahead) bursts as on a wall (0: kept, the same notes)
 // Thrown axes stick (vr_axestick.cpp, QC/vr_axestick.qc): one whose blade goes into something first, fast enough and
 // square enough, sticks in it (the level, a door, a prop, a monster: it rides with it); a hand or a force grab pulls it out.
 QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE)             // on
@@ -1642,6 +1646,7 @@ QVR_CVAR(vr_test_axe_damage, "1", CVAR_NONE)        // ... hurting what it hits 
 QVR_CVAR(vr_test_axe_weapon, "0", CVAR_NONE)        // ... this weapon (QC WID_*: 7 the super nailgun, 4 the shotgun) thrown instead of the axe (0: the axe)
 QVR_CVAR(vr_test_axe_dist, "0", CVAR_NONE)          // ... you moved first to this many units from what is ahead of your eyes (0: where you are)
 QVR_CVAR(vr_test_axe_at, "0", CVAR_NONE)            // ... at the nearest live monster (1), door (2), loose prop (3) or wall button (4), from its side facing you, level with its middle
+QVR_CVAR(vr_test_held_destroy, "0", CVAR_NONE)       // impulse 252 (tests): its gib or head can be destroyed, as a real one (VR_Gib_MakeDestroyable; gib_2h_throw_test.sh)
 QVR_CVAR(vr_test_fling_speed, "12", CVAR_NONE)        // impulse 232 (tests): the prop nearest you sent at the nearest monster at this many m/s (VR_Test_Fling)
 QVR_CVAR(vr_test_fling_at, "0", CVAR_NONE)            // and at: 0 the nearest monster, 1 you (from ahead)
 QVR_CVAR(vr_test_fling_away, "0", CVAR_NONE)          // 1: from inside the edge of its box, away from it (a prop batted away, still in your box)
