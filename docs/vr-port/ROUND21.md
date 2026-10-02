@@ -19295,6 +19295,65 @@ nailgun 9.7 / 12.0, laser cannon 6.2 / 9.4, explosive box 3.0 / 5.0 m/s (before:
 Open: heavy props (explosive boxes 40 kg, crates 25 kg) can no longer be thrown far (one hand 3-4 m/s, under their
 missile threshold; two hands 5-7 m/s): their own Throw (Held Object Offsets) multiplies the result, or lower Heavy
 Falloff. The weight spring (the drawn weapon lagging the hand) is not used for the throw.
+
+## Heavy throws' hits, spin and two-handed throws (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_00-54-03, _01-09-50, _01-12-39, _01-22-37.
+
+**Why a hard super nailgun throw did 0.** A thrown thing hurts only at `vr_throw_hit_min_speed` (200 u/s, 6.1 m/s)
+times its heavy leniency ((5 / mass)^0.5: 0.845 for 7 kg, so 5.2 m/s), and then does base x speed / (700/120 m/s x
+leniency): about 1.05x its base at once. Throws by weight cap a one-handed 7 kg throw at 7.0 m/s (his 1.5 kg / 0.9),
+eased from 4.9, times the QC weight influence 0.9: 4.4-6.3 m/s. So most hard throws were under 5.2 (0), and the ones
+lofted onto the dummy (gravity) or headshots went over (30-50).
+
+**Now** (weight::throwScale, throwHitSpeed, throwDamage; QC VR_Thrown_Lenient, _HitSpeed, _Damage through the one
+builtin `throwweight`: the VR builtin range is full): the scale on a thrown thing's hit speed and damage speed is
+min(heavy leniency, its one-handed top speed / `vr_throw_hit_top` (15 m/s)), at least `vr_weight_lenient_min`: a hard
+throw of a heavy thing hurts as a hard throw of a light one. Light things (top 15+ m/s: the axe, the shotguns) keep
+theirs. Just over the hit speed the damage eases in (`vr_throw_hit_ramp` 0.5 of the hit speed, from
+`vr_throw_hit_ramp_floor` 0.6): no cliff. `vr_throw_hit_top 0; vr_throw_hit_ramp 0` is the old model exactly. The missile
+threshold (who a throw spares) and flung props use the same scale.
+
+Measured (impulse 209 with `vr_test_axe_weapon`, at the firing range's dummy, 40 units off, body hits; damage by speed
+at the hit):
+
+| m/s | 3 | 4 | 5 | 6 | 7 | 8 | 10 | 13.5 |
+|---|---|---|---|---|---|---|---|---|
+| axe before | 0 | 0 | 0 | 0 | 42 | 48 | 60 | 81 |
+| axe now | 0 | 0 | 0 | 0 | 29 | 42 | 60 | 81 |
+| shotgun before | 0 | 0 | 0 | 0 | 24 | 27 | 34 | 46 |
+| shotgun now | 0 | 0 | 0 | 0 | 16 | 24 | 34 | 46 |
+| super nailgun before | 0 | 0 | 0 | 30 | 36 | 41 | 51 | 68 |
+| super nailgun now | 17 | 35 | 46 | 55 | 64 | 74 | 92 | 124 |
+
+(The super nailgun hurts from 2.8 m/s; one-handed it reaches 4.4-6.3: 35-58. Two-handed (up to ~11.8 m/s) 90-110.)
+
+**Spin by mass** (weight::throwSpin, QC VR_Throw_Spin; thrown weapons and props): the spin is held under
+`vr_throw_spin_max` (20 rad/s) x (`vr_throw_flick_mass` 2.5 / mass)^`vr_throw_spin_mass_exp` (1: a wrist's torque on
+its inertia), two hands as if `vr_throw_2h_strength` times lighter, soft from `vr_throw_mass_knee`. Most spin one hand /
+two: axe 20 / 20, shotgun 16 / 20, super nailgun 7.1 / 14.2, explosive box 40 kg 1.2 / 2.5 (before: 20 / 20), crate 25
+kg 2.0 / 4.0. Mock flick (throw_spin_test.sh's): axe 8.1 rad/s either way; super nailgun 8.2 -> 6.9.
+
+**Two-handed throws:** a prop let go of by both hands (VR_Carry_Release, hands 2) or a weapon held in both: neither hand
+strikes for `vr_throw_2h_nomelee` (0.3 s); the hand that let go first of a thing held in both strikes nothing while the
+other may still throw it with both (`vr_carry_two_hands_window` + 0.05). And what was thrown can't be struck by the
+thrower's hands for `vr_throw_2h_melee_immune` (0.35 s; VR_Blow_Strikable). Before, a gib thrown slower than the missile
+speed (9.5 m/s) was nobody's, and the follow-through's punch burst it. Debug > Tests > Two-Handed Throw (impulse 204):
+first hand let go: main 1 off 0; just thrown: both 0, gib not strikable; 0.5 s on: all 1.
+
+**Per weapon** (Weapon Weights: "Damage Thresholds and Curves", keys `w_throwmin`, `w_throwcurve`, `w_meleemin`,
+`w_meleecurve`, 1 by default): times its throw's hit speed, its throw damage's rise with speed, every speed a blow with
+it needs (VR_Weight_Leniency), and how fast a blow's strength rises over that (VR_Melee_Decide). Two readout lines show
+the thrown weapon's hit speed and its damage factor at 5, 8 and 12 m/s.
+
+Menu: Throwing and Physics: Heavy Spin Falloff (Throws by Weight); Heavy Hits Scale Below, Damage Eases In Over, Damage
+at Hit Min Speed, Two-Handed Throws: No Blows, Two-Handed Throws: Spared (Physics, after Hit Min Speed). Debug: Throws by
+Weight (`vr_throw_table`) now prints each thing's hit speed, scale and spin limits; Tests: Weapon Instead
+(`vr_test_axe_weapon`) for Throw an Axe; Two-Handed Throw.
+
+Open: two-handed heavy throws hit hard (the super nailgun 90-110 at 10-12 m/s); a cap would be `vr_throw_hit_top`
+higher or Throw Damage Curve lower per weapon.
+
 ## The laser cannon re-mapped and carved (2026-10-01)
 
 NOTES.md vrfiringrange_2026-10-01_22-38-05. New `Misc/quakevr/refine_laserg.py`, run by `polish_weapons.py` (POST, as

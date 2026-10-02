@@ -4382,6 +4382,10 @@ void() ImpulseCommands =
     {
         VR_Test_Fling();
     }
+    if(self.impulse == 204 && !deathmatch && !coop) // QVR test: a two-handed throw's sparing of blows (VR_Throw_Test2H)
+    {
+        VR_Throw_Test2H();
+    }
     if(self.impulse == 222 && !deathmatch && !coop) // QVR test: the nearest prop thrown up as yours (VR_Throw_TestUp)
     {
         VR_Throw_TestUp();
@@ -5298,6 +5302,51 @@ void() VR_Test_Fling =
     dprint(sprintf("fling test: %s (%.1f kg) at %s, %.1f m/s (%.0f u/s)%s; its health %.0f\n", prop.classname,
         VR_Thrown_Mass(prop), target.classname, cvar("vr_test_fling_speed"), speed,
         cvar("vr_test_fling_away") ? ", away from it" : "", target.health));
+};
+
+// Tests (impulse 204; Debug > Tests > Two-Handed Throw): a two-handed throw's sparing of blows (VR_Throw_TwoHanded): a
+// gib ahead of you, as if just thrown with both hands, and the hand that let go first a moment before: whether each
+// hand may strike and the gib can be struck, now and 0.5 s later ("2h test:" lines).
+void() VR_Throw_Test2H_Print =
+{
+    entity g = self;
+    entity p = g.vr_2h_thrower;
+    self = p;
+    dprint(sprintf("2h test: %.2f s after the throw: main hand strikes %g, off hand %g, the gib strikable %g\n",
+        time - g.vr_2h_thrown, VR_Throw_HandMayStrike(p, cVR_MainHand), VR_Throw_HandMayStrike(p, cVR_OffHand),
+        VR_Blow_Strikable(g)));
+    self = g;
+    if(g.cnt)
+    {
+        remove(g);
+        return;
+    }
+    g.cnt = 1;
+    g.nextthink = time + 0.5;
+};
+
+void() VR_Throw_Test2H =
+{
+    makevectors(self.v_angle);
+    entity g = spawn();
+    g.classname = "test_gib";
+    setmodel(g, "progs/gib1.mdl");
+    setsize(g, '0 0 0', '0 0 0');
+    g.movetype = MOVETYPE_NONE;
+    g.solid = SOLID_NOT_BUT_TOUCHABLE;
+    g.takedamage = DAMAGE_YES;
+    g.health = 10;
+    g.vr_gib = 1;
+    setorigin(g, self.origin + v_forward * 40 + '0 0 16');
+    dprint(sprintf("2h test: before: main hand strikes %g, off hand %g, the gib strikable %g\n",
+        VR_Throw_HandMayStrike(self, cVR_MainHand), VR_Throw_HandMayStrike(self, cVR_OffHand), VR_Blow_Strikable(g)));
+    self.vr_2h_letgo_hand = cVR_OffHand + 1;
+    self.vr_2h_letgo_time = time;
+    dprint(sprintf("2h test: the off hand let go first: main hand strikes %g, off hand %g\n",
+        VR_Throw_HandMayStrike(self, cVR_MainHand), VR_Throw_HandMayStrike(self, cVR_OffHand)));
+    VR_Throw_TwoHanded(self, g);
+    g.think = VR_Throw_Test2H_Print;
+    g.nextthink = time + 0.01;
 };
 
 // Tests (impulse 222; Debug > Tests > Flung Props): the loose prop nearest you (a rigid body not carried, within 512

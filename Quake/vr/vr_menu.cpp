@@ -2914,6 +2914,9 @@ za::Vector<Item> pageDebugTests()
         toggle("Fling Away From It", vr_test_fling_away)
             .help("The prop starts inside the edge of its box and flies away from it (a prop batted away from you): it "
                   "must never hurt."),
+        command("Two-Handed Throw", "developer 1; impulse 204")
+            .help("A gib ahead of you as if just thrown with both hands: prints (2h test:) whether each hand may strike "
+                  "and the gib can be struck, now and 0.5 s later (Throwing and Physics: Two-Handed Throws)."),
         command("Fling the Nearest Prop", "impulse 232")
             .help("Sends the loose prop nearest you (put a box there first) at it, as if batted or knocked flying; "
                   "developer 1 prints the hit (prop: flung ...)."),
