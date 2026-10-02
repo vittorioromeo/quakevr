@@ -11,26 +11,6 @@
 # remove items freely; changing an item's wording un-ticks it.
 
 [Test in VR]
-Main menu at start (before a map): the laser's dot follows your hand on the flat panel, trigger picks a row
-Flung prop damage feels right (Throwing and Physics > Flung Props: Damage, Reference Mass)
-
-Stuck anywhere (wall, door, lift)? You should pop out to the nearest free spot (Debug > Tests > Stuck Info says where)
-
-Grapple: reel a heavy box while walking away: you're slowed like towing
-
-Held weapon pushed into a wall and a corner slides out as before (statics cleanup)
-
-Spectator view has no flat HUD (Graphics > Recording to show it)
-
-Reach for an explosive box: pushed and grabbed only when the fist is on it
-
-Enemy guns: Combat > Enemy Weapons values
-
-Crates: crack and dust sound OK?
-
-After the Zancle follow-ups (no exceptions, fewer allocations): record a few takes, fire and reel the grapple around corners often, switch weapons
-
-Your tuned values are now defaults (Distance Falloff 0.75, HRTF Volume 1.5, Physics Sounds 2, scrape 0.8, grab 0.7, Mid-Air Leniency 4 cm): fresh config feels the same as yours
 
 Slow motion for recording (Graphics > Recording > Slow Motion; vr_slowmo bindable, 0.25 default): record at 0.25 moving at quarter speed, speed footage up 4x: looks and sounds natural?
 Slow motion for recording: a real-speed swing is capped at 8 m/s (Hand Speed cap): feels right?
@@ -45,24 +25,15 @@ Spectator camera at the default 60 fps rate with the flashlight on your hands: n
 
 Spectator view: pickup messages and other head-locked text show in the headset but not in the window (Recording > Hide Head Text on the Spectator Camera, default on; same option for the mirror, default off)
 
-Wall buttons: walking past with a long gun doesn't press by accident (6 cm reach)
-Wall buttons: hand presses now buzz
-
 Bullet time wrist tap: smack the gadget wrist with the other hand (1 m/s, must stop on it): toggles (Combat > Bullet Time > Wrist Tap)
 Bullet time wrist tap: resting, brushing, two-handed holds and melee swings ending near the wrist don't toggle
 Bullet time button: still works with leniency (Combat > Bullet Time > Button)
-Belt flashlight: punching or guarding near the belt doesn't take it
-Belt flashlight: drawing the axe from the left hip gives the axe
 Highlight markers for trailers: Graphics > Recording > Highlight Markers > Log Highlights while recording with OBS; check the sync flash is captured and the beep audible
 Highlight markers for trailers: import into Resolve (docs/vr-port/TRAILER.md: File > Import > Timeline for the FCPXML, or Timeline Markers from EDL)
 Highlight markers for trailers: try Misc/quakevr/trailer/rough_cut.py
 
 Slow-motion recording sound: Graphics > Recording > Slow Motion > Game-Time Sound File on, Log Highlights on, record a take at 0.25; in Resolve Change Clip Speed 400% with Pitch Correction off, put highlights/<log>_gametime.wav under it (aligned on the sync beep, docs/vr-port/TRAILER.md): sounds like normal play?
 Slow-motion recording sound: Game-Time Sound File on: headset sound unchanged?
-
-Flashlight Gun Clip Range (Advanced VR Options > Flashlight > Taking and Clipping On): at 2 the torch clips onto a gun from further away
-Weapon Offsets > Flashlight: the cyan outline follows Forward/Up/Out/Pitch/Yaw/Roll; Clip the Flashlight on It puts the torch there
-Weapon Offsets > Flashlight: a second weapon keeps its own torch place (and the off hand mirrors it correctly)
 
 Sound > HRTF Anti-Aliasing (only matters with Full-Band Sound off): toggle off/on with a monster to one side: on, its side is clearer and steadier
 Sound > Full-Band Sound (Binaural Sounds, the default): Debug > A 22 kHz Sound Behind You / Ahead: behind sounds behind and duller; Off loses that
@@ -71,43 +42,7 @@ Full-Band Sound > All Sounds: your own sounds (pain, pickups) a little brighter,
 Debug: A Sound 45 Degrees Right / Left: each clearly comes from its side, straight ahead sounds centred
 HRTF Volume 1.5 was tuned with the old folded highs: may want a touch more now
 
-Grab a gib: the hand gets bloody, more the longer you hold it (Gore > Bloody Hands and Washing)
-Jump into water hurt: blood washes off; ~4 s after leaving, wounds re-open and the hands get bloody again
-Jump into water unhurt (only gib blood): washes off and stays clean
-Chainsaw or shoot a monster while it falls dying: it takes damage and can gib mid-fall (Gore > Dying Bodies)
-Blood mist: faint large clouds on every bleeding hit; faint enough? (Gore > Blood Mist)
-
-Small gibs (Gore > Small Gibs): shotgun rarely, super shotgun often, nails never, axe/sword blade often, pommel and punches rarely
-Small gibs: the chainsaw tears them out of a monster and a corpse; gibbing and bursting a large gib throw many
-Small gibs: pick one up, hold it past Last (20 s): it stays; throw it: it fades 20 s after it lands
-Small gibs: size (half a rock to a rock), how they fly out (Speed, Up) and the cap (Most Lying About 40)
 Gibs squish when they land or stick (new squish sounds); a gib or small gib thrown into a wall at a medium speed sticks (Gore > Thrown Gibs Stick)
-Small gibs: the chances by weapon (Gore > Small Gibs > Chance by Weapon), Least Damage 12, Damage for a Sure One 60, Chance Curve 1.5
-
-Shotgun wiggled fast at the dummy: no hit and no whoosh
-Gun butt strikes still land (Melee Settings > Gun Butt Travel 0.45 m; lower if too strict)
-
-Flashlight on a gun: letting go by the shotgun's butt or grip sends it home; near the muzzle it clips on (orange ball at the mount)
-Flashlight grab: a soft knock when you take it; hovering is silent
-Fresh config: flashlight behaves as you tuned it (auto-clip on head and gun, head zone, late grip)
-
-Shoulder a gun and bring it to the eye: nothing cut away, the world never shows through it
-Push the gun into your face: its inside blocks the view (Headset > Held Items at the Eyes: Block the view; Never clipped if gaps bother you)
-Far walls, decals and sky: no flicker with the new near clip and float depth
-
-Crates next to pack walls: gaps, board edges and nails now look as deep as the walls?
-Crates under the flashlight: the shading painted into the skin doesn't look painted-on
-Break a crate: the pieces have rounded edges, nails in dents, rough torn ends
-
-Spawn buttons (firing range): pressed by a hand or a throw, the pressed one now shows its green (on) texture
-Grunts: their gun puffs muzzle smoke at each shot, as enforcers' rifles
-Throws: damage halved (Combat > Weapon Damage > All Throws, 0.5): a weak throw no longer near 100
-Swimming: Stroke Pitch Offset (Movement > Swimming): a few degrees down if strokes carry you up
-Laser cannon after the Roll Weight change: still right, or too slow to roll?
-
-Your wounds up close (Debug > Tools > Test Effects > Burn / Wound / Soak Your Arms): burns smooth and crusted, blood soft-edged and sunk in, wet edge smooth
-Your Wounds' Detail 512 vs 2048 (Gore > Wounds on Models): pick one
-Your Burns' Relief and Your Wounds' Depth sliders: pick values
 
 Burning: a torch hit starts one flame at the hit and smaller flames spread over the monster; they follow it as it dies and falls
 Burning: hit again: more flames up to a cap, damage stays the same (Combat > Burning)
@@ -153,23 +88,20 @@ Flashlight model: thumb on the new switch and fingers on the grip ridges feel ri
 Flashlight Cord: Chain (Body > Flashlight > Cord): links swing and catch the light well
 Thread Pool Sites (Debug > Profiling and Memory) after a fight: times look sane; holding a prop the fingers follow as before
 
+Small gibs from melee and the chainsaw: slow enough now, with finer control (fix in progress)
+Gib sticking: thrown gibs stick to walls (fix in progress)
+
 [Decide or give feedback]
 Flashlight cord: make Chain the default?
 Quetoo maps: ship them (needs Quetoo credit + CC-BY-SA, and Rygel's and QRP's consent) or only offer as a player download?
 Explosive boxes catching fire and blowing up from it: add?
-Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
 
-Zancle: read docs/vr-port/ZANCLE_REPORT.md (all bugs, MSVC portability, missing features, API proposals, prioritized actions)
-Zancle: your initializer_list fix is wrong (QVR keeps its own)
-Zancle: za::remainder truncates like fmod
-
 [Tune]
 Weapon Damage page (Combat > Weapon Damage): tune every weapon's base damage; crowbar now 20 (hook ~25)
-Enforcer rifle: ammo screen values and sight lines (you asked for a reminder)
 Grapple: reel speeds and the other grapple values (you asked for a reminder)
 Stamina costs: shove, strike, melee, parry, climbing
 Roll Weight: tune the other guns (laser cannon at 4 done; global Roll Weight default is being raised)
