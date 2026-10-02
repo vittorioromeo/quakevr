@@ -132,6 +132,8 @@ Blood: punches, sword, axe, rock or brick hits leave some blood on hands and the
 Blood: shooting from a step or two away spatters a few drops on the gun and arms
 Blood: a wound on one arm no longer appears on the other (mirror fix)
 Blood: throw a bloody weapon, pick it up, holster and draw it: blood stays; dunk it: washed
+Blood: a bloody shotgun holstered, a clean one picked up stays clean; the bloody one drawn is still bloody (weapon instances)
+Magazines: shoot a few, holster, draw, throw, pick up, switch hands: rounds left as before (each weapon one record now)
 Blood: get hurt, then a health pickup: your wounds fade, others' blood stays until water
 Blood Opacity 0.8 vs 1: pick one
 

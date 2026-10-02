@@ -21308,14 +21308,10 @@ old mirrored marks.
 ### Weapons and props keep their blood
 
 A carried prop is the world's entity: its mask (in the pool, 256 x 256 at most, the monsters' chunky look) is its own,
-kept dropped and taken again. A weapon in a hand is drawn by the hand's view entity, so its mask moves with it
-(`gearFrame`): let go by the hand (thrown, holstered, another drawn) it is kept (`Loose`, 6 at most); thrown, QC's
-`DropWeaponInHandScaled` sends `woundevent(thrown, .., QVR_WOUND_GEAR = 10, 0, hand)` and the kept mask goes onto the
-weapon lying in the world once it arrives; taken from the world (removed there: its clear comes), it goes back to the
-hand that took it; drawn from a holster, the kept one of its model comes back. Gear lying in the world that jumps far
-at once (another entity in its slot) gives its blood up; one removed and not taken within 3 s too. Out of sight (not
-sent, its model none) it keeps it. Water washes held weapons, carried props and gear lying about where they are under
-it (`washGear`, with Water Washes Blood and Wash Time).
+kept dropped and taken again. A weapon's mask goes with the weapon itself, by its id (superseded the same day: "Weapon
+instances", below; the first version matched a kept mask to the next weapon of the same model). Water washes held
+weapons, carried props and gear lying about where they are under it (`washGear`, with Water Washes Blood and Wash
+Time).
 
 ### Opacity
 
@@ -21369,7 +21365,7 @@ what each spatter reaches; 3 every subtract (drying, healing, washing).
 - A spatter paints every surface facing the hit within reach, also one hidden behind another (the far side of a
   blade against your fist).
 - The held weapons' masks are pool masks: chunky, as the monsters'.
-- A kept weapon's blood goes to the next weapon of the same model a hand takes from a holster or the world.
+- (Fixed by "Weapon instances", below: a kept weapon's blood went to the next weapon of the same model a hand took.)
 - Mock hands past about 0.8 m aren't drawn as hands (the tests hold them closer).
 
 ### In VR
@@ -21382,3 +21378,87 @@ what each spatter reaches; 3 every subtract (drying, healing, washing).
 - [ ] Get hurt: marks run down your arms; one arm's marks no longer show on the other.
 - [ ] Take health: your wounds fade, the enemies' blood stays until you wash.
 - [ ] Blood Opacity 0.8 against 1.
+
+## Weapon instances: each weapon one record, its id and its magazine; its blood goes with it (2026-10-02)
+
+Weapons had no identity: a held one was hand state (`.weapon`, `.weaponflags`, `.weaponclip`), a holstered one holster
+fields, a dropped one a prop whose fields were copied in and out. So a weapon's blood (kept client-side) was matched by
+model: a bloody shotgun holstered gave its blood to the next shotgun picked up. His decision: a real identity, and
+(asked whether the magazine belongs there too) yes: one record a weapon instead of copying fields about; no save
+compatibility needed.
+
+### The record (`QC/vr_weaponinst.qc`)
+
+- Every weapon is one entity of its own, classname `weapon_inst`, no model (never sent, never drawn): `.wi_uid` its id
+  (> 0, unique on the server), `.wi_clip` its magazine (a chainsaw's fuel, an enemy gun's only ammo). Room for more
+  per-weapon state later (its flags still live where the weapon is, as its id `.weapon` does).
+- What has the weapon refers to it: a hand (`.weaponinst`, `.weaponinst2`), a holster (`.holsterweaponinst0..5`), the
+  prop it lies as (`.weaponinst`). The per-location magazines (`.weaponclip`, `.weaponclip2`, `.holsterweaponclip0..5`)
+  are gone; `VRGetWeaponClip`/`VRSetWeaponClip`/`VRGetEntWeaponClip`/`VRSetEntWeaponClip` read and write the hand's
+  record.
+- Moving a weapon moves the reference: `VRHolsterHandWeapon`, `VRDrawHolsterWeapon`, `VRSwitchWeaponHands`,
+  `VRHandOffWeapon` (the two-handed hand-off), `VRTakeCarriedWeapon`, `DropWeaponInHand` (the prop takes the hand's
+  record: `CreateThrownWeapon`'s 4th argument is a record now), `wpnthrow_handtouch_impl` (a hand takes the prop's).
+  DoHandImpl's holster, switch and draw branches call the first three (no more clip pointers).
+- New weapons get new records: `WeaponInst_New(clip)` (a monster's dropped gun loaded, a dispenser's, a placed
+  weapon's), `VRGiveEntWeapon` (a cheat, a weapon item taken, a motion take's equip). Weapon cycling (B/Y, impulses
+  1-8) gives the hand a weapon of its own with the magazine as it was (`VRCycleEntWeaponInst`: so its blood isn't the
+  last one's). Quick-slot holsters keep and give copies (`WeaponInst_Clone`: new ids, the same magazine).
+- Freed by the engine: at the end of each server frame a record nothing refers to (discarded, replaced by a cheat, a
+  removed prop's, a quick slot's old copy) is freed and the clients told its id is gone (`QVR_SVC_WEAPONGONE`;
+  `vr_server.cpp` `sweepWeaponInsts`, `developer 1` prints `weapon #n gone`).
+- Saves keep the records (entities) and the next id (`qvr_weaponinst_next`). A level change carries each hand's and
+  holster's magazine (parm31..38 as before) and id (parm41..48) and the next id (parm49; the engine's ext parms now go
+  to 49): `DecodeLevelParms` makes their records again, each keeping its id unless taken (a coop player respawning with
+  the level's start parms while his old weapon lies about gets a new one). An old save loads: its weapons get records
+  with empty magazines (`WeaponInst_EnsureAll`, OnLoadGame; reload as ever).
+
+### Networking
+
+- `STAT_QVR_WEAPONUID`, `STAT_QVR_WEAPONUID2`: each hand's weapon id (0 none). The clip stats (hands, holsters) read the
+  records.
+- `U_QVR_WEAPONUID` (entity update bit 28, a long): a weapon prop's id (not players'). `VR_ENTITY_UPDATE_MAXSIZE` 40.
+
+### Blood (`vr_wounds.cpp`)
+
+A weapon's mask is keyed by its id (`Mask::weapon`, `maskOfWeapon`): `gearFrame` puts it each frame on whatever shows
+that id (a hand's drawn weapon by the stat, a prop by its entity's id), and keeps it parked (16 keys at most, the
+oldest giving its up) while nothing drawn does (holstered, just taken); `QVR_SVC_WEAPONGONE` frees it. Painting a hand's
+weapon binds its mask to the hand's id. The model heuristic (`Loose`, the `QVR_WOUND_GEAR` event on a throw, "gone
+far" and "removed and not taken in 3 s") is gone. Carried props keep their own entity masks as before. Blood isn't
+saved: a load or a level change starts clean, as every wound.
+
+### Test steps
+
+`vr_test_weaponinst <step>; impulse 120` (Debug > Tests > Weapon Instances; `vr_test_weaponinst_slot` the holster, 0 the
+right hip): 0 lists your hands, holsters and the weapons lying near you, each `weapon <WID> #<id> clip <n>`, and the
+records' count; 1 holster the main hand's, 2 draw it, 3 drop the main hand's, 4 take the nearest lying, 5 hand off to
+the off hand, 6 take it back, 7 switch hands, 8 back, 9 drop the off hand's. (Use `vr_test_weaponinst 2`, not
+`set ...`: `set` leaves a registered cvar alone.) `vr_gore_hands_info` lists each weapon's mask as `gear #<id>`.
+
+### Checked (mock headset)
+
+- e1m1, the shotgun (impulse 154, `vr_weapon_grip_mode 1`), one shot (clip 8 -> 7): holster, draw, drop, take, hand
+  off, take back, switch, back, drop, save, load, take, `changelevel e1m2`: always `#6 clip 7`; the starting axe and
+  shotgun keep #4, #5 into e1m2; impulse 156 replaces it: `weapon #6 gone`.
+- Blood: the shotgun bloodied (`vr_gore_spatter_test blow`: 869 texels), holstered (`kept`), a new shotgun dropped and
+  taken: clean (no mask), #6 still kept; #6 drawn: in the main hand, 869 texels; dropped: in the world; taken, handed
+  off (off hand), taken back: 869 each time; replaced by a cheat: `weapon #6 gone, its mask freed`.
+- Chainsaw at 5% (impulse 227) dropped (220) and taken (229): fuel 5; a grunt's gun with one shot (214) dropped and
+  taken (212): 1 left; a grunt killed by a rocket drops its gun with 30.
+- An old save (records and their fields stripped, `weaponclip` fields added): loads, no error, its weapons get records
+  with empty magazines.
+- Melee eval, full set: identical to the base commit's table in every row (172/177; the kit's baseline differs in 18
+  rows' events on the base commit too).
+
+### Magazine in the record
+
+Done here (his answer was yes). What else could live in the record later: the blood amount (a server-side "bloody"
+flag), the weapon flags that are the weapon's rather than the hand's (secondary ammo loaded, a sword's kind), wear.
+
+### In VR
+
+- [ ] Bloody shotgun holstered, a clean one picked up: it stays clean; draw the bloody one: still bloody.
+- [ ] Throw a bloody weapon, pick it up, hand it to the other hand, hold it two-handed and let go with one hand: blood
+      stays with that weapon.
+- [ ] Magazines: shoot a few, holster, draw, throw, pick up, switch hands: the rounds left are as before.
