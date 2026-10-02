@@ -51,4 +51,16 @@ void dump_f();
 // vr_wounds_info: the pool (layers used, what they are on) and the last paint's cost.
 void info_f();
 
+// The gore's bloody hands and washing (vr_gore_hands, vr_gore_wash*, vr_gore_reopen*; vr_wounds.cpp): with the wound
+// skins (vr_wounds 0), the damage skin the player's `part` (0 the off hand, 1 the main hand, 2 the body), drawn at
+// `origin` (null: unknown), shows for the damage skin `level`: none after a wash until the wounds re-open (or a new
+// hit), at least a bloody one while a gib's blood is on a hand.
+[[nodiscard]] int skinLevel(int part, int level, const float* origin);
+
+// vr_gore_hands_test [off|main] [amount]: a gib's blood on a hand, as taking one (the main hand; vr_gore_hands).
+void handsTest_f();
+
+// vr_gore_hands_info: the player's wounds kept to re-open, the wash, and the blood on the hands and the body (texels).
+void handsInfo_f();
+
 } // namespace qvr::wounds

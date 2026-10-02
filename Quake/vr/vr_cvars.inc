@@ -742,6 +742,24 @@ QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted 
 QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where water or slime came, drying (and dripping) in about 25 s
 QVR_CVAR(vr_wounds_pool, "64", CVAR_ARCHIVE)          // how many models keep their wounds at once (256 KB each; the least seen give theirs up)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)             // 1: print each wound painted
+// Gore: bloody hands and washing (vr_wounds.cpp; ROUND21.md, "Gore: bloody hands, washing, dying bodies, blood mist").
+QVR_CVAR(vr_gore_hands, "1", CVAR_ARCHIVE)            // grabbing a gib or a head bloodies the hand holding it: how much (0 none; the wound skins: 1 a bloody hand)
+QVR_CVAR(vr_gore_wash, "1", CVAR_ARCHIVE)             // water washes the blood off your body and hands, where they are under it
+QVR_CVAR(vr_gore_wash_time, "1.5", CVAR_ARCHIVE)      // seconds under water to wash the blood off fully
+QVR_CVAR(vr_gore_reopen, "1", CVAR_ARCHIVE)           // hurt, your wounds re-open after a wash (healed ones don't; a gib's blood doesn't come back)
+QVR_CVAR(vr_gore_reopen_delay, "4", CVAR_ARCHIVE)     // seconds out of the water, clean, before they re-open
+QVR_CVAR(vr_gore_reopen_time, "1.5", CVAR_ARCHIVE)    // seconds over which they re-open, one after another (0: all at once)
+// Gore: blood mist (vr_particles.cpp): large, faint clouds wherever something bleeds (every blood particle effect).
+QVR_CVAR(vr_gore_mist, "1", CVAR_ARCHIVE)             // how many clouds a bleed makes (0 none)
+QVR_CVAR(vr_gore_mist_size, "1", CVAR_ARCHIVE)        // how big they are (1: about 1.5 m across as they fade)
+QVR_CVAR(vr_gore_mist_alpha, "0.06", CVAR_ARCHIVE)    // how opaque they start (0..1)
+QVR_CVAR(vr_gore_mist_life, "2.5", CVAR_ARCHIVE)      // seconds they take to fade
+QVR_CVAR(vr_gore_mist_grow, "1", CVAR_ARCHIVE)        // how fast they spread as they fade
+QVR_CVAR(vr_gore_mist_speed, "1", CVAR_ARCHIVE)       // how fast they drift along the blow and apart
+QVR_CVAR(vr_gore_mist_rise, "-2", CVAR_ARCHIVE)       // units/s they rise (negative: sink)
+QVR_CVAR(vr_gore_mist_dark, "0.4", CVAR_ARCHIVE)      // how dark their red is (0 bright, 1 nearly black)
+QVR_CVAR(vr_gore_mist_near, "40", CVAR_ARCHIVE)       // none closer to the eyes than this many units (your own bleeding not in your face)
+QVR_CVAR(vr_corpse_dying, "1", CVAR_ARCHIVE)          // a monster dying takes a corpse's damage during its death animation (QC combat.qc: gibbed by it, never killed again)
 QVR_CVAR(vr_body_anchors, "1", CVAR_ARCHIVE)          // holsters, virtual stock and hand collisions follow the body's lean and crouch
 QVR_CVAR(vr_body_debug, "0", CVAR_NONE)               // 1 draw the skeleton; 2, 3 also show the body in front of you, facing you or from its left
 QVR_CVAR(vr_body_eye_forward, "0.08", CVAR_ARCHIVE)   // metres from the top of the neck to the eyes, forward and up

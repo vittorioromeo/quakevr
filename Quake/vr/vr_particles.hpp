@@ -99,6 +99,11 @@ void lavaNailTrail(const glm::vec3& from, const glm::vec3& to);
 // 0..1 (its first alpha). Nothing with vr_particles 0.
 void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright);
 
+// The gore's blood mist (vr_gore_mist*): the large, faint clouds every blood effect makes, at `org` drifting along `dir`,
+// as for a blood effect `count` strong. Nothing with vr_particles 0 or vr_gore_mist 0.
+void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count);
+// vr_gore_mist_test [distance]: a bleed's mist that far ahead (64), drifting right.
+void mistTest_f();
 // Live particles (vr_memstats).
 [[nodiscard]] int liveCount();
 [[nodiscard]] int capacity(); // the pool's size (vr_limits)

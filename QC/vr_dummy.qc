@@ -425,7 +425,7 @@ void(entity targ, entity inflictor, entity attacker, float xTake, float xSaved, 
     }
     if(xSaved < 0)
     {
-        if(targ.vr_corpse == 2)
+        if(targ.vr_corpse == 2 || targ.vr_corpse_dying)
         {
             what = sprintf("corpse of %s", targ.classname);
         }

@@ -20516,3 +20516,91 @@ interpolation, the near field, the limiter, a second copy of the sound (HRTF Vol
   monster growling to one side, and the Debug menu's A Sound 45 Degrees Right / Left.
 - Listen for the overall level of sounds at the side (a little less one-sided now) and Sound > HRTF Volume:
   1.5 was set with the old, folded highs; it may want a touch more.
+## Gore: bloody hands, washing, dying bodies, blood mist (2026-10-02)
+
+The author's spec (2026-10-02, verbatim), "Miscellaneous enhancements" (the "Small gibs" part is another agent's,
+`smallgibs`):
+
+> * Grabbing a gib with your hands should make the hands look bloody. We already have a feature for this, used for player damage.
+> * If the player jumps in a pool of water, the blood should wash away. However, if the player was bleeding due to having taken damage, the wounds should re-open and arms/hands should become bloody again after a few seconds of cleanliness. Make the values/timings customizable.
+> * It should be possible to start damaging an enemy's corpse even during its death animation, not only after it has completed. This is noticeable for example with the chainsaw, as it doesn't damage the enemy corpse until it fully completes the death animation, which is jarring.
+> * Larger, more faint, and very transparent blood mist particles should be added in every interaction that causes bleeding. Make every aspect of these particles customizable in the "Gore" menu.
+
+**Bloody hands from gibs** (`vr_wounds.cpp`, `gibHands`, `smearHand`). The client sees what each hand carries
+(`STAT_QVR_CARRYMAIN/OFF`); a gib or a head (model `progs/h_*` or with `gib` in its name) taken into a hand smears its
+blood over that hand: with Dynamic Wounds (`vr_wounds 1`, the default) into the hand's wound mask, as ragged patches
+(the liquids' paint in patches: where its noise is over a threshold, so it covers the hand as drawn whatever its pose),
+`vr_gore_hands x 4` patches at once and one more each second it is held (4 more at most a hold). With the wound skins
+(`vr_wounds 0`) the hand shows a bloody skin (level `vr_gore_hands x 2`, 1..3) instead (`wounds::skinLevel`, used for the
+jointed hand, the finger models and the body in `vr_view.cpp`).
+
+**Washing.** Every 0.1 s the body and the hands are washed where they are under water (`wash`: the water's surface over
+each, found by its leaves' contents; slime and lava don't wash): the blood comes off under the surface, all of it in
+`vr_gore_wash_time` (a reverse-subtract paint of the liquid splat, `washUnder`). The player's blood wounds (shots, nails,
+blows, blasts, burns' wounds) are kept as they are painted (where they struck, from the player's origin, and the draws they
+were painted with; 48 at most), healing forgets a share of them (as it fades their blood), respawning all. Washed while
+some are kept, they re-open `vr_gore_reopen_delay` seconds after the last wash (out of the water), one after another over
+`vr_gore_reopen_time`, blood only (no char again), and their blood runs onto both hands (a few patches). A gib's blood
+washed off doesn't come back; unhurt, the player stays clean. Wound skins: a part washed shows no damage skin until the
+delay is over (or a new hit).
+
+**Dying bodies** (QC `combat.qc`, `vr_corpse_dying`). A watched dying monster (`VR_Corpse_Watch`) takes a corpse's damage
+from the frame its death code makes it not solid (the same frame it drops its backpack and weapon: the grunt's, the
+enforcer's, the ogre's death frame 3; the ogre's chainsaw drops when it dies) until it lies still (`VR_Corpse_ArmDying`:
+`vr_corpse_dying 1`, touchable not solid as a corpse, its standing box kept, `vr_corpse_hp` its corpse health). Its
+damage goes to `VR_Corpse_Damage` (`T_DamageImpl`, `T_Damage`'s no hit push, `VR_Corpse_StrikeFrame`'s blows), so it is
+gibbed by enough of it and never killed again (no second kill credit, no second drop: everything was dropped before);
+the death animation plays until then (a single small hit doesn't gib it: 80 x toughness by default). Lying still, the
+damage it took dying counts (`VR_Corpse_Arm`). Gibbed dying, `ThrowHead`'s think replaces the death code's. Watched no
+more before it lies still (the option off, 15 s, brought back), it is Quake's dying body again.
+
+**Blood mist** (`vr_particles.cpp`, `mist`). Every blood effect (Preset::Blood: hits, cuts, gibs bursting, the player's
+own) adds 2 to 6 large, faint clouds (`CellBloodMist`, `Custom` particles: they fade, spread, slow and turn), drifting
+along the blow and apart, lit by the place's light. One bleed's several effects in one place in one frame make one
+bleed's clouds; none closer to the eyes than `vr_gore_mist_near`.
+
+Settings (menu: Advanced VR Options > Gore; new sections after Your Wounds):
+
+| Row | Cvar | Default |
+|---|---|---|
+| Bloody Hands and Washing > Gib Blood on Hands | `vr_gore_hands` | 1 (0..3) |
+| Water Washes Blood | `vr_gore_wash` | 1 |
+| Wash Time | `vr_gore_wash_time` | 1.5 s |
+| Wounds Re-open | `vr_gore_reopen` | 1 |
+| Re-open Delay | `vr_gore_reopen_delay` | 4 s |
+| Re-open Spread | `vr_gore_reopen_time` | 1.5 s |
+| Blood Mist > Mist Amount | `vr_gore_mist` | 1 (0 off) |
+| Mist Size | `vr_gore_mist_size` | 1 |
+| Mist Opacity | `vr_gore_mist_alpha` | 0.06 |
+| Mist Lifetime | `vr_gore_mist_life` | 2.5 s |
+| Mist Spreading | `vr_gore_mist_grow` | 1 |
+| Mist Drift | `vr_gore_mist_speed` | 1 |
+| Mist Rise | `vr_gore_mist_rise` | -2 u/s (sinks slowly) |
+| Mist Darkness | `vr_gore_mist_dark` | 0.4 |
+| Mist Clear of Eyes | `vr_gore_mist_near` | 40 u |
+| Dying Bodies > Hit While Dying | `vr_corpse_dying` | 1 (needs Gib Corpses) |
+
+Debug: Debug > Reports > Bloody Hands and Washing (`vr_gore_hands_info`: the blood on each hand and the body in texels,
+the wounds kept, the wash and the re-opening); Debug > Tools > Test Effects > Blood Mist (`vr_gore_mist_test [distance]`) and Gib
+Blood on Hand (`vr_gore_hands_test [off|main] [amount]`). `vr_wounds_debug 1` prints smears, washes and re-openings.
+
+Tests (mock, `vrfiringrange`'s pool at `setpos 612 474 -180; noclip`, out at `612 474 60`):
+- Three wounds on the player, a gib in the off hand (`+graboff; vr_mock_button off grip 1; impulse 252`): off hand 0 ->
+  18891 bloody texels; in the water 1 s: body 9406 -> 0, off hand -> 0; out 2 s: still 0; at 4 s "3 wounds re-open":
+  body 4750, off hand 23372, main hand 11488.
+- No wounds, the same: the gib's blood (15355 texels) washed to 0 and still 0 six seconds out.
+- Wound skins (`vr_wounds 0`): the gib hand's skin 2, washed 0.
+- A grunt killed at once (`vr_test_spawn_dead 1`) with a running chainsaw at the bar's height: "dying, 80 to gib", five
+  cuts during the fall (80 -> 43), "lies still, 43 to gib"; with `vr_corpse_health 30`: gibbed mid-fall ("kills: 1", no
+  "lies still"). `vr_corpse_dying 0`: no cuts until it lies still.
+- Mist: `vr_gore_mist_test 80` in e1m1: 4 clouds, 14.9% of the pixels change, mean red 11.3 -> 13.7 (faint).
+- Melee eval: 171/177; one take differs from the kit baseline (no_hit_wiggling, now hit by the gun's butt) the same with
+  `vr_corpse_dying 0`: not this change's.
+
+Test in VR:
+- [ ] Take a gib or a head: the hand gets bloody, more the longer you hold it.
+- [ ] Hurt, wade or dunk into water: the blood washes off under the surface; out of it, after about 4 s the wounds come
+  back one by one and blood runs onto the hands. Unhurt (or healed), you stay clean.
+- [ ] Chainsaw or shoot a monster as it falls dead: it takes the hits and gibs with enough of them; its backpack and weapon
+  drop once; the kill counts once.
+- [ ] The blood mist round hits: faint enough? (Gore > Blood Mist).

@@ -220,6 +220,7 @@ float cvarh_vr_gib_health;
 float cvarh_vr_gib_splat_speed;
 float cvarh_vr_corpse_gib;
 float cvarh_vr_corpse_health;
+float cvarh_vr_corpse_dying;
 float cvarh_vr_gib_blood;
 float cvarh_vr_gore;
 float cvarh_vr_gore_stick;
@@ -571,6 +572,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_gib_splat_speed);
     VR_CVAR_HMAKE(vr_corpse_gib);
     VR_CVAR_HMAKE(vr_corpse_health);
+    VR_CVAR_HMAKE(vr_corpse_dying);
     VR_CVAR_HMAKE(vr_gib_blood);
     VR_CVAR_HMAKE(vr_gore);
     VR_CVAR_HMAKE(vr_gore_stick);

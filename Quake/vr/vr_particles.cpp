@@ -295,8 +295,11 @@ void bulletPuff(const glm::vec3& org, const glm::vec3& dir, int color, int count
     });
 }
 
+void mist(const glm::vec3& org, const glm::vec3& dir, int count); // the gore's blood mist (below)
+
 void blood(const glm::vec3& org, const glm::vec3& dir, int count)
 {
+    mist(org, dir, count);
     constexpr int colors[] = {247, 248, 249, 250, 251};
     make(count * 2.f, [&](Particle& p, int) {
         p.cell = CellBlood;
@@ -1312,6 +1315,59 @@ lightcache_t shadeLight{}; // shadeAt's light lookup (the client's frame)
     return za::clamp(za::max(light, 20.f) / 120.f, 0.18f, 1.3f);
 }
 
+// The gore's blood mist (vr_gore_mist*; ROUND21.md, "Gore: bloody hands, washing, dying bodies, blood mist"): with every
+// blood effect (a hit, a cut, a gib bursting: whatever bleeds), a few large, faint clouds of blood hanging in the air,
+// spreading and drifting along the blow as they fade. A bleed's several blood effects in one place in one frame (a gib
+// bursting sends eight) make one bleed's clouds. None close to the eyes (vr_gore_mist_near): the player's own bleeding
+// is not in his face.
+glm::vec3 lastMistOrg{0.f}; // the last clouds' place and time
+double lastMistTime = -1.0;
+
+void mist(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    const float amount = za::clamp(vr_gore_mist.value, 0.f, 10.f);
+    const float alpha = za::clamp(vr_gore_mist_alpha.value, 0.f, 1.f);
+    if(amount <= 0.f || alpha <= 0.f)
+    {
+        return;
+    }
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    if(glm::distance(org, eye) < vr_gore_mist_near.value)
+    {
+        return;
+    }
+    if(cl.time == lastMistTime && glm::distance(org, lastMistOrg) < 24.f)
+    {
+        return;
+    }
+    lastMistTime = cl.time;
+    lastMistOrg = org;
+
+    const float size = za::max(0.05f, vr_gore_mist_size.value);
+    const float life = za::max(0.2f, vr_gore_mist_life.value);
+    const float speed = za::max(0.f, vr_gore_mist_speed.value);
+    const float dark = za::clamp(vr_gore_mist_dark.value, 0.f, 1.f);
+    const glm::vec3 colour = glm::vec3{0.62f, 0.05f, 0.035f} * (1.f - 0.8f * dark) * shadeAt(org);
+    const float len = glm::length(dir);
+    const glm::vec3 way = len > 1e-3f ? dir / len : glm::vec3{0.f};
+    constexpr float drag = 1.2f; // the part of their speed lost a second: they hang in the air
+    make(amount * za::clamp(2.f + static_cast<float>(count) / 10.f, 2.f, 6.f) + rnd(0.f, 1.f), [&](Particle& p, int) {
+        p.cell = CellBloodMist;
+        p.color = glm::vec4{colour, alpha * rnd(0.7f, 1.f)};
+        p.type = Custom;
+        const float lives = life * rnd(0.8f, 1.2f);
+        p.fade = -p.color.a / lives;
+        p.die = cl.time + lives;
+        p.scale = rnd(1.6f, 2.6f) * 15.f * size;
+        p.grow = rnd(22.f, 34.f) * size * za::max(0.f, vr_gore_mist_grow.value);
+        p.drag = drag;
+        p.spin = rnd(-0.4f, 0.4f);
+        p.acc = glm::vec3{0.f, 0.f, vr_gore_mist_rise.value * drag}; // (rising at that speed, once its push is spent)
+        p.org = org + inBox(8.f * size);
+        p.vel = (way * rnd(12.f, 36.f) + onSphere() * rnd(4.f, 14.f)) * speed;
+    });
+}
+
 // Something hitting a liquid's surface at `org` going `dir`, `count` hard (see Preset::Splash). Drops thrown up in a
 // crown and a jet, streaked along their motion, a fine spray round them, clouds of spray and a mist, foam spreading
 // on the surface and rings riding the ripples' crest (the geometric ripples are vr_water.cpp's). vr_water_splash: how
@@ -1596,6 +1652,26 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 bool enabled()
 {
     return (cl.protocolflags & PRFL_QUAKEVR) && vr_particles.value && ensureAtlas();
+}
+
+void bloodMist(const glm::vec3& org, const glm::vec3& dir, int count)
+{
+    if(enabled())
+    {
+        lastMistTime = -1.0; // (asked for: never merged with the last)
+        mist(org, dir, count);
+    }
+}
+
+void mistTest_f()
+{
+    vec3_t fwd, right, up;
+    AngleVectors(r_refdef.viewangles, fwd, right, up);
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const float dist = Cmd_Argc() > 1 ? static_cast<float>(atof(Cmd_Argv(1))) : 64.f;
+    const int before = liveCount();
+    bloodMist(eye + glm::vec3{fwd[0], fwd[1], fwd[2]} * dist, glm::vec3{right[0], right[1], right[2]}, 20);
+    Con_Printf("vr_gore_mist_test: %d clouds %.0f units ahead\n", liveCount() - before, static_cast<double>(dist));
 }
 
 void init()

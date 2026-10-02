@@ -2671,7 +2671,8 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
         }
     }
     ve.zeroBlend = 0.f;
-    ve.ent.skinnum = wounds::replacesSkins() ? 0 : damageLevel(); // wounds painted instead (vr_wounds.cpp)
+    // wounds painted instead (vr_wounds.cpp); the wound skins washed and a gib's blood (wounds::skinLevel)
+    ve.ent.skinnum = wounds::replacesSkins() ? 0 : wounds::skinLevel(hand, damageLevel(), ve.ent.origin);
     ve.visible = !hide;
     for(int finger = FingerBase + 1; finger < FingerCount; finger++)
     {
@@ -3487,7 +3488,7 @@ void drawHand(int hand, glm::vec3 pos, glm::vec3 handRot, bool mirrored, bool hi
     movePose(motion, pos, handRot);
 
     const float offsetScale = weapons::offsetScale();
-    const int skin = damageLevel();
+    const int skin = wounds::skinLevel(hand, damageLevel(), &pos.x); // (washed, a gib's blood: vr_wounds.cpp)
     for(int finger = 0; finger < FingerCount; finger++)
     {
         view::ViewEntity& ve = entities.hand[hand][finger];
@@ -4722,7 +4723,8 @@ void showPlayerState(view::ViewEntity& ve, const hands::State& s)
 {
     if(vr_body_state.value)
     {
-        ve.ent.skinnum = armorWorn() * 4 + (wounds::replacesSkins() ? 0 : damageLevel()); // wounds painted instead (vr_wounds.cpp)
+        // wounds painted instead (vr_wounds.cpp); the wound skins washed (wounds::skinLevel)
+        ve.ent.skinnum = armorWorn() * 4 + (wounds::replacesSkins() ? 0 : wounds::skinLevel(2, damageLevel(), ve.ent.origin));
     }
     else
     {
