@@ -128,6 +128,7 @@ void() lavaspike_touch =
     if(other.takedamage)
     {
         spawn_touchblood (9);
+        VR_Burn_LavaNail(); // VR: yours set it on fire (vr_burning.qc)
         if(other.classname == "player")
         {
             // old_armortype = other.armortype;
@@ -197,6 +198,7 @@ void() superlavaspike_touch =
     if(other.takedamage)
     {
         spawn_touchblood (18);
+        VR_Burn_LavaNail(); // VR: yours set it on fire (vr_burning.qc)
 
         // halve the effectiveness of the armor for players..
         if(other.classname == "player")

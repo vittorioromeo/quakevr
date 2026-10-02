@@ -658,11 +658,24 @@ QVR_CVAR(vr_walltorch_forcegrab, "1", CVAR_ARCHIVE)      // 1: torches are force
 QVR_CVAR(vr_walltorch_hits, "5", CVAR_ARCHIVE)           // blows a torch lands before its fire starts dying, even held (0: blows never use it up)
 QVR_CVAR(vr_walltorch_die_time, "6", CVAR_ARCHIVE)       // s a dying torch's fire takes to go out (dropped, thrown, or out of blows); held, it never dies otherwise
 QVR_CVAR(vr_walltorch_damage, "12", CVAR_ARCHIVE)        // a torch's blow: its base damage, times the blow's strength (a gun's is 12, the axe's 20)
-QVR_CVAR(vr_walltorch_burn, "4", CVAR_ARCHIVE)           // damage a second a lit torch's blow sets burning (0: no burning)
-QVR_CVAR(vr_walltorch_burn_time, "3", CVAR_ARCHIVE)      // s it burns (a monster catches fire)
 QVR_CVAR(vr_walltorch_relight, "1", CVAR_ARCHIVE)        // 1: a dying or burnt-out torch held in a burning torch's flame, the map's flames (light_flame_*) or lava lights again
 QVR_CVAR(vr_walltorch_flame, "1", CVAR_ARCHIVE)          // a taken torch's flame's size (1: the wall torch's)
 QVR_CVAR(vr_walltorch_shadows, "1", CVAR_ARCHIVE)        // 1: a taken torch's light casts shadows (one of vr_shadow_dlights' slots), whatever vr_torch_light_shadows says
+// Burning (QC vr_burning.qc; ROUND21.md, "Burning"; Combat > Burning): a lit torch's blow, a thrown lit torch, a lava nail.
+QVR_CVAR(vr_burn_damage, "4", CVAR_ARCHIVE)              // damage a second a fire does, however many flames or hits (0: nothing alive is set on fire)
+QVR_CVAR(vr_burn_time, "3", CVAR_ARCHIVE)                // s a monster burns from the last hit that lit it
+QVR_CVAR(vr_burn_flames, "4", CVAR_ARCHIVE)              // flames a fire spreads to over the body on its own (1: just the first)
+QVR_CVAR(vr_burn_flames_max, "7", CVAR_ARCHIVE)          // most flames on one body: more hits add one each up to this (the damage stays one fire's)
+QVR_CVAR(vr_burn_spread, "0.5", CVAR_ARCHIVE)            // s between flames spreading
+QVR_CVAR(vr_burn_flame_size, "0.8", CVAR_ARCHIVE)        // the first flame's scale (id's small flame, progs/flame2.mdl)
+QVR_CVAR(vr_burn_flame_small, "0.7", CVAR_ARCHIVE)       // the other flames' size, times the first's (each a little more or less)
+QVR_CVAR(vr_burn_flame_tilt, "12", CVAR_ARCHIVE)         // degrees the other flames lean, at most (upright: 0)
+QVR_CVAR(vr_burn_corpses, "1", CVAR_ARCHIVE)             // 1: corpses catch fire too (Gibs and Corpses' corpses), and a monster dying burning burns on
+QVR_CVAR(vr_burn_corpse_time, "8", CVAR_ARCHIVE)         // s a corpse burns
+QVR_CVAR(vr_burn_corpse_damage, "0", CVAR_ARCHIVE)       // a burning corpse's damage, times a monster's (it gibs at vr_corpse_health; 0: it just burns)
+QVR_CVAR(vr_burn_touch, "0", CVAR_ARCHIVE)               // 1: a lit torch (held, thrown or lying) touching a monster or a corpse sets it on fire, no blow needed
+QVR_CVAR(vr_burn_lava_nails, "1", CVAR_ARCHIVE)          // 1: your lava nails (the nailguns' lava ammo) set what they hit on fire
+QVR_CVAR(vr_burn_test, "0", CVAR_NONE)                   // the QC sets the nearest monster or corpse on fire: 1 as a torch's blow, 2 a lava nail, 3 a touch; 4 prints how it burns; 5 loads lava nails in the main hand's nailgun (Debug)
 QVR_CVAR(vr_offhandpitch, "40.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_offhandyaw, "-4", CVAR_ARCHIVE)
 // Hand calibration (Hand/Gun Calibration > Hand Calibration; hands::calibration): each hand's place on its controller,

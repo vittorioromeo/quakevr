@@ -663,6 +663,13 @@ void(float xHand) VR_Corpse_StrikeFrame =
     VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
     T_Damage(c, self, self, dmg);
     VR_ClearHitKind();
+
+    // A lit torch sets it on fire (vr_burning.qc).
+    entity t = VR_Carry_Held(self, xHand);
+    if(t != world && VR_WallTorch_IsTorch(t) && t.wt_state == 1 && t.wt_fire > 0)
+    {
+        VR_Burn_Ignite(c, self, at, dir, VR_BURN_BLOW);
+    }
 };
 
 float() getVRMeleeBloodlust =
