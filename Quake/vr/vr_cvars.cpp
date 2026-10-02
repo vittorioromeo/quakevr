@@ -227,8 +227,41 @@ const DefaultChange defaultChanges[] = {
     {78, &vr_weapon_throw_damage_mult, "1.0"}, // 0.5 (the old default as written)
     {78, &vr_weapon_throw_damage_mult, "1"}, // 0.5 (as the menu writes it)
     {78, &vr_weight_spring_roll, "1"},      // 2.5
+    // 79: the author's settings (his config of 2026-10-02 19:34; ROUND21.md, "Defaults: the author's config, 2026-10-02
+    // evening"): breath, swimming, the chainsaw on the ground, the wrist FPS counter off, his wounds and small gibs (the
+    // melee and chainsaw small gibs' speeds are not his yet: the sliders' ends, being fixed), the checklist's ticked
+    // items hidden.
+    {79, &vr_air_supply, "1.5"},                 // 2
+    {79, &vr_swim_look, "0.2"},                  // 0.3 (vr_defaults.cfg)
+    {79, &vr_swim_stroke_pitch, "0"},            // -8
+    {79, &vr_chainsaw_shake_ground, "0.5"},      // 0.85
+    {79, &vr_gadget_fps, "2"},                   // 0 (vr_defaults.cfg had 2)
+    {79, &vr_checklist_hide_ticked, "0"},        // 1
+    {79, &vr_wounds_blood_alpha, "0.8"},         // 0.75
+    {79, &vr_wounds_bump_blood, "1"},            // 1.5
+    {79, &vr_smallgibs_blades, "1.5"},           // 1.7
+    {79, &vr_smallgibs_burst, "3"},              // 4
+    {79, &vr_smallgibs_curve, "1.5"},            // 1.7
+    {79, &vr_smallgibs_damage_per_gib, "40"},    // 30
+    {79, &vr_smallgibs_destroy, "0"},            // 1
+    {79, &vr_smallgibs_full_damage, "60"},       // 35
+    {79, &vr_smallgibs_gibbing, "6"},            // 12
+    {79, &vr_smallgibs_grace, "0.15"},           // 0.1
+    {79, &vr_smallgibs_max, "40"},               // 64
+    {79, &vr_smallgibs_min_damage, "12"},        // 10
+    {79, &vr_smallgibs_nails, "0"},              // 0.4
+    {79, &vr_smallgibs_per_hit, "4"},            // 6
+    {79, &vr_smallgibs_player, "0"},             // 1
+    {79, &vr_smallgibs_props, "1"},              // 1.2
+    {79, &vr_smallgibs_saw_interval, "0.2"},     // 0.1
+    {79, &vr_smallgibs_size_max, "1"},           // 1.15
+    {79, &vr_smallgibs_size_min, "0.5"},         // 0.65
+    {79, &vr_smallgibs_speed, "4"},              // 3
+    {79, &vr_smallgibs_up, "5"},                 // 7
+    {79, &vr_smallgibs_speed_guns, "1"},         // 0.85
+    {79, &vr_smallgibs_up_guns, "1"},            // 0.9
 };
-constexpr int configVersion = 78;
+constexpr int configVersion = 79;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

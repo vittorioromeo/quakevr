@@ -153,9 +153,12 @@ namespace
 // author's, 2026-10-01: 1, 1 and 1.5, 1.5), each key only where the config still held its old default. 32: slot 21's ammo screen hidden (WpnTextMode 0, where
 // the config still shows it; its new weapon effects' keys take their defaults by themselves). 33: slot 22 (the enforcers' rifle: its
 // shots along its barrel, Shot Pitch 7; Recoil on at half strength, Muzzle Flash on), each key only where the config still
-// held its old default. A first start (no saved config) takes this
+// held its old default. 34: the author's, 2026-10-02 evening (his weights of 15 weapons, the crowbar's holstered poses, the
+// lightning gun's second hotspot, the laser cannon's grip bias, roll weight and ammo screen, the grunts' gun's stock pitch,
+// the enforcers' rifle's ammo screen hidden), each key only where the config still held its old default (the hotspot
+// whole, where the config has none there). A first start (no saved config) takes this
 // version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 33;
+constexpr int settingsVersion = 34;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -472,6 +475,41 @@ void migrate()
         const OldDefault fx[] = {{22, Key::ShotPitch, 0.f}, {22, Key::Recoil, 0.f}, {22, Key::RecoilStrength, 1.f},
             {22, Key::Flash, 0.f}};
         takeWhereOld(fx);
+    }
+    if(vr_wofs_version.value < 34) // the author's, 2026-10-02 evening: where still the old ones
+    {
+        const OldDefault changes[] = {
+            // The crowbar's holstered poses.
+            {23, Key::HipHolsterX, 0.5f}, {23, Key::HipHolsterY, 5.f}, {23, Key::HipHolsterZ, 1.5f},
+            {23, Key::HipHolsterPitch, 0.f}, {23, Key::HipHolsterYaw, 0.f}, {23, Key::HipHolsterRoll, -50.f},
+            {23, Key::UpperHolsterX, -1.5f}, {23, Key::UpperHolsterY, 6.f}, {23, Key::UpperHolsterZ, -3.5f},
+            {23, Key::UpperHolsterPitch, 15.f}, {23, Key::UpperHolsterYaw, 25.f}, {23, Key::UpperHolsterRoll, -70.f},
+            // The laser cannon's grip bias, roll weight and ammo screen; the grunts' gun's stock pitch; the enforcers'
+            // rifle's ammo screen hidden.
+            {9, Key::Hotspot1Bias, 0.f}, {9, Key::SpringRoll, 1.f}, {9, Key::WpnTextPitch, 0.f},
+            {9, Key::WpnTextX, -31.200014f}, {9, Key::WpnTextY, -0.5f}, {21, Key::StockPitch, 0.f},
+            {22, Key::WpnTextMode, 1.f},
+            // Weights: masses, balances and lengths.
+            {0, Key::Mass, 2.f}, {1, Key::Mass, 3.f}, {8, Key::Mass, 5.f}, {17, Key::Mass, 1.5f}, {18, Key::Mass, 1.8f},
+            {19, Key::Mass, 2.5f}, {23, Key::Mass, 2.2f},
+            {0, Key::Balance, 35.f}, {1, Key::Balance, 12.f}, {2, Key::Balance, 10.f}, {3, Key::Balance, 10.f},
+            {4, Key::Balance, 12.f}, {7, Key::Balance, 12.f}, {8, Key::Balance, 30.f}, {9, Key::Balance, 40.f},
+            {18, Key::Balance, 25.f}, {19, Key::Balance, 28.f}, {21, Key::Balance, 14.f}, {22, Key::Balance, 16.f},
+            {0, Key::Span, 75.f}, {1, Key::Span, 80.f}, {2, Key::Span, 75.f}, {3, Key::Span, 70.f}, {4, Key::Span, 80.f},
+            {5, Key::Span, 70.f}, {7, Key::Span, 80.f}, {9, Key::Span, 90.f}, {10, Key::Span, 70.f}, {18, Key::Span, 100.f},
+            {19, Key::Span, 110.f}, {22, Key::Span, 90.f}};
+        takeWhereOld(changes);
+        // The lightning gun's second hotspot: taken whole, where the config has none there.
+        if(cvarAt(7, Key::Hotspot2Type).value == 0.f)
+        {
+            for(const Key key : {Key::Hotspot2Type, Key::Hotspot2X, Key::Hotspot2Y, Key::Hotspot2Z, Key::Hotspot2Pitch,
+                     Key::Hotspot2Yaw, Key::Hotspot2Roll, Key::Hotspot2Overlap, Key::Hotspot2VisualX, Key::Hotspot2VisualY,
+                     Key::Hotspot2VisualZ})
+            {
+                cvar_t& var = cvarAt(7, key);
+                Cvar_SetQuick(&var, var.default_string);
+            }
+        }
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }
