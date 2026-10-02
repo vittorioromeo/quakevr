@@ -124,6 +124,9 @@ Burning crates: light a row of touching crates: fire spreads one after another, 
 Burning crates: charred burn marks under the flames
 Nails through a torch flame: hold a torch just past the nailgun's muzzle and fire: lava nails that set targets on fire (Nail Reach 10 easy enough?)
 
+Small gibs from sword/axe cuts and punches land about half a metre from the enemy, not flying past him
+Small gibs from gibbing a corpse lying down scatter a couple of metres round it (Gore > Small Gibs > Flight by Situation)
+
 [Decide or give feedback]
 Explosive boxes catching fire and blowing up from it: add?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
