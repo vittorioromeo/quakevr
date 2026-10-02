@@ -1545,7 +1545,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Head Clip Range", vr_flashlight_head_range, 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
             .help("How far from your temple the held torch clips on your head, and a hand takes it off there: times Head Zone Radius (On a Gun or Head)."),
         slider("Gun Clip Range", vr_flashlight_gun_range, 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
-            .help("How far from the gun in your other hand the held torch clips on it (B or Y, or letting go with Clip on Gun When Let Go): times Gun Zone Radius (On a Gun or Head)."),
+            .help("How far from its place on the gun in your other hand the held torch clips on it (B or Y, or letting go with Clip on Gun When Let Go): times Gun Zone Radius (On a Gun or Head)."),
         toggle("Clip on Head When Let Go", vr_flashlight_auto_head)
             .help("Let go of the torch where it lights up by your head and it clips on there, no B or Y needed."),
         toggle("Clip on Gun When Let Go", vr_flashlight_auto_gun)
@@ -1615,8 +1615,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
     return {
         header("Reach Zones"),
         toggle("Show Flashlight Zones", vr_show_flashlight_zones)
-            .help("Draws where holding the torch clips it on (yellow balls at your temples and forehead, an orange capsule round "
-                  "each gun) and the held torch's middle (white), which they measure. Green: in reach, B or Y clips it on (on "
+            .help("Draws where holding the torch clips it on (yellow balls at your temples and forehead, an orange ball on "
+                  "each gun, where the torch sits on it) and the held torch's middle (white), which they measure. Green: in reach, B or Y clips it on (on "
                   "your head: a hand there takes it off). The torch not in a hand: a capsule round it, green while a "
                   "hand's grip there takes it, and a dot where the game reads each hand near it (the hand may be drawn "
                   "elsewhere)."),
@@ -1627,12 +1627,13 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("On Gun Up", vr_flashlight_gun_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
         slider("On Gun Out", vr_flashlight_gun_out, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Away from your body."),
         slider("Gun Zone Along", vr_flashlight_gun_zone_forward, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
-            .help("Where the torch held by the gun in your other hand lets B or Y clip it on: round the gun's line from your hand "
-                  "to its muzzle, moved along the gun (forward), up and out. Apart from where it then sits (On Gun)."),
+            .help("Where the torch held by the gun in your other hand lets B or Y (or letting go) clip it on: a ball round the "
+                  "middle of the torch where it would sit on that gun (On Gun, and the weapon's own place: Weapon Offsets > "
+                  "Flashlight), moved along the gun (forward), up and out. Not elsewhere along the gun (its butt)."),
         slider("Gun Zone Up", vr_flashlight_gun_zone_up, -0.2f, 0.2f, 0.005f, "%.3f m").extend(),
         slider("Gun Zone Out", vr_flashlight_gun_zone_out, -0.2f, 0.2f, 0.005f, "%.3f m").extend().help("Away from your body."),
         slider("Gun Zone Radius", vr_flashlight_gun_zone_radius, 0.02f, 0.3f, 0.005f, "%.3f m").extend()
-            .help("How far from that line the torch's middle may be."),
+            .help("How far from that place the held torch's middle may be (times Gun Clip Range)."),
         header("On the Head"),
         slider("On Head Forward", vr_flashlight_head_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend()
             .help("Where the torch sits once clipped on your head, lighting where you look."),

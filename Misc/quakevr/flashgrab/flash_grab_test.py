@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""flash_grab_test.py <agent> [mounted|returning|timing|moving|options|pergun|all]
+"""flash_grab_test.py <agent> [mounted|returning|timing|moving|options|gunzone|pergun|all]
 
 "Highlighted implies grabbable" for the flashlight (ROUND21.md, "Flashlight: lit but not taken"): in the mock, with
 the torso turned several ways (the head's yaw, the main hand held out or across: the torso faces between the head and
@@ -12,6 +12,9 @@ at the lamp as the game reads it, moving).
   timing     a reach to the lamp at several speeds, the grip pressed at several moments round the arrival, at a
              time scale of 1, 0.3 (vr_timescale) and in bullet time; and presses that must not take it (a punch)
   options    vr_flashlight_grab_range, _head_range, _gun_range, _auto_head and _auto_gun
+  gunzone    the gun's clip zone round the torch's place on it (not along the whole gun): the held torch swept along
+             the shotgun, lit only there; let go there it clips on (Clip on Gun When Let Go, on by default), at the
+             butt or mid-gun it goes home; the weapon's own Torch Forward moves the zone
   pergun     each weapon's own place for the torch clipped on it (Weapon Offsets > Flashlight, vr_wofs_torch_*):
              the shotgun and the nailgun set apart, the super nailgun inheriting the nailgun's
   moving     the same reaches and a still hand at the lamp while the thumbsticks move and turn the player
@@ -89,6 +92,9 @@ def parse(lines):
             d["nearhead"], d["neargun"] = int(rest[2]), int(rest[4])
         elif rest[0] == "move":
             d["move"], d["turn"] = float(rest[1]), float(rest[2])
+        elif rest[0] == "gunzone":  # gunzone at along up out radius R muzzle M grip G (metres, from the zone's middle)
+            d["zone"], d["zoner"], d["zonemuzzle"], d["zonegrip"] = [float(x) for x in rest[2:5]], float(rest[6]), \
+                float(rest[8]), float(rest[10])
         elif rest[0] == "gunmount":  # gunmount slot N at fwd up out turn pitch yaw roll
             d["gunslot"], d["gunat"], d["gunturn"] = int(rest[2]), [float(x) for x in rest[4:7]], [float(x) for x in rest[8:11]]
         elif rest[0] == "torso":
@@ -357,7 +363,8 @@ def options(agent):
     cen = centres(agent)
     cx, cy, cz, _ = cen[0]
     zone = ["vr_flashlight_head_zone_forward 0", "vr_flashlight_head_zone_up 0.04", "vr_flashlight_head_zone_out 0",
-            "vr_flashlight_head_zone_radius 0.1"]  # (the defaults, not the config's)
+            "vr_flashlight_head_zone_radius 0.1"]  # (fixed: the head sweep's path; the shipped zone is higher)
+    solve, _ = gun_calib(agent, cen)
     cmds = setup() + zone + config_cmds(CONFIGS[0])
     samples = []
     for rng in (1, 2):
@@ -378,9 +385,9 @@ def options(agent):
 
     # The head: the held torch out from the left temple (looking ahead), its zone lit or not, per range.
     head = [(-0.06 - 0.02 * k, 1.74, -0.08) for k in range(14)]  # (the torch's middle 11 cm behind and 3 cm over the hand)
-    gun = [(0.17 - 0.025 * k, 1.3, -0.5) for k in range(14)]  # out to the left of the shotgun held ahead
-    gunCmds = ["vr_weapon_grip_mode 1", "vr_mock_hand main 0.25 1.3 -0.35 0 0 0", "vr_mock_button main grip 1",
-               "impulse 154"] + waits(30)
+    gunOut = [0.02 * k for k in range(14)]  # from the shotgun's zone's middle in towards the body
+    gun = [solve((0.0, 0.0, -o)) for o in gunOut]
+    gunCmds = GUN_CMDS
     for what, pts, extra, cvar in (("head", head, [], "vr_flashlight_head_range"), ("gun", gun, gunCmds, "vr_flashlight_gun_range")):
         for rng in (1, 2):
             cmds += [f"{cvar} {rng}"]
@@ -409,8 +416,8 @@ def options(agent):
     h1, h2 = reach("head", 1, "nearhead"), reach("head", 2, "nearhead")
     g1, g2 = reach("gun", 1, "neargun"), reach("gun", 2, "neargun")
     print(f"  head zone lit out to {head[h1][0] if h1 >= 0 else 0:.2f} m (range 1), {head[h2][0] if h2 >= 0 else 0:.2f} m "
-          f"(range 2); gun zone out to {gun[g1][0] if g1 >= 0 else 0:.3f} m (range 1), {gun[g2][0] if g2 >= 0 else 0:.3f} m "
-          f"(range 2)")
+          f"(range 2); gun zone {gunOut[g1] if g1 >= 0 else 0:.2f} m in from its middle (range 1), "
+          f"{gunOut[g2] if g2 >= 0 else 0:.2f} m (range 2)")
     ok = ok and 0 <= h1 < h2 and 0 <= g1 < g2
     # Let go in the zone: clipped on with the option, home without; range 1 at range 2's farthest spot: not lit, home.
     cmds = setup() + zone
@@ -438,6 +445,113 @@ def options(agent):
         print(f"  {tag}: let go, {mode} (want {want})")
         ok = ok and mode == want
     return ok and bool(trials)
+
+
+GUN_CMDS = ["vr_weapon_grip_mode 1", "vr_mock_hand main 0.25 1.3 -0.35 0 0 0", "vr_mock_button main grip 1",
+            "impulse 154"] + waits(30)  # the shotgun held ahead in the main hand
+GUN_DROP = ["vr_mock_button main grip 0", "impulse 1", "vr_mock_hand main"] + waits(10)
+
+
+def take_cmds(cen):
+    """The off hand takes the belt torch (the first torso turn), the shotgun in the main hand, looking ahead."""
+    cx, cy, cz, _ = cen[0]
+    return config_cmds(CONFIGS[0]) + [f"vr_mock_hand off {cx:.4f} {cy:.4f} {cz:.4f} {HAND_ROT}"] + waits(24) + [
+        "vr_mock_button off grip 1"] + waits(3) + GUN_CMDS + ["vr_mock_look 0 0"]
+
+
+def solve3(m, v):
+    """x with m x = v (3x3, Cramer)."""
+    def det(a):
+        return (a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) +
+                a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]))
+    d = det(m)
+    out = []
+    for c in range(3):
+        mc = [[v[r] if k == c else m[r][k] for k in range(3)] for r in range(3)]
+        out.append(det(mc) / d)
+    return out
+
+
+def gun_calib(agent, cen):
+    """The off hand (turned 0 0 0) holding the torch by the shotgun: where it puts the torch's middle from the gun's
+    zone's middle (along the gun, up, out), from the hand at four places (the torch is rigid in the hand: linear).
+    Returns solve(target) -> the hand's place putting the middle at `target` from the zone's middle, and the probe at
+    the first place (the zone's radius, the muzzle and the grip along the gun from the middle). Also the zone moved by
+    the shotgun's own Torch Forward (-0.15 m): {"own": probe}."""
+    p0 = (0.15, 1.25, -0.6)
+    steps = [(0, 0, 0), (0.05, 0, 0), (0, 0.05, 0), (0, 0, 0.05)]
+    cmds = setup() + take_cmds(cen)
+    for k, d in enumerate(steps):
+        cmds += [f"vr_mock_hand off {p0[0] + d[0]:.4f} {p0[1] + d[1]:.4f} {p0[2] + d[2]:.4f} 0 0 0"] + waits(6) + [
+            f"vr_flashlight_probe gc{k}"]
+    cmds += ["vr_wofs_torch_fwd_02 -0.15"] + waits(3) + ["vr_flashlight_probe gcown", "vr_wofs_torch_fwd_02 0"] + GUN_DROP
+    got = parse(run(agent, "fg_guncal", cmds))
+    z = [got.get(f"gc{k}", {}).get("zone") for k in range(4)]
+    if not all(z):
+        raise RuntimeError("gun_calib: no gunzone probe (the torch not held, or no gun in the main hand)")
+    jac = [[(z[c + 1][r] - z[0][r]) / 0.05 for c in range(3)] for r in range(3)]  # d(zone coords) / d(hand), per axis
+
+    def solve(target):
+        dx = solve3(jac, [target[r] - z[0][r] for r in range(3)])
+        return tuple(p0[c] + dx[c] for c in range(3))
+    return solve, {"base": got["gc0"], "own": got.get("gcown", {})}
+
+
+def gunzone(agent):
+    """The gun's clip zone (NOTES.md vrfiringrange_2026-10-02_15-46-47): only round the torch's place on the gun. The
+    held torch's middle swept along the shotgun's line through the zone's middle, from 30 cm behind the gun's hand (its
+    butt) to 15 cm past the muzzle: lit (near gun) only within the zone's radius of its middle, nowhere by the hand or
+    the butt. Then let go (Clip on Gun When Let Go, left at its default) at the middle: on the gun; at the butt and
+    mid-gun (between the hand and the zone): home. And the shotgun's own Torch Forward moves the zone with the torch."""
+    cen = centres(agent)
+    solve, cal = gun_calib(agent, cen)
+    base = cal["base"]
+    r, muzzle, grip = base["zoner"], base["zonemuzzle"], base["zonegrip"]
+    print(f"  zone radius {r:.3f} m; from its middle the muzzle {muzzle:+.3f} m, the gun's hand {grip:+.3f} m along the gun")
+    ok = r > 0.05 and grip < -r  # (the hand outside the zone: the gun is longer than the zone)
+    own = cal["own"].get("zonemuzzle")
+    moved = own - muzzle if own is not None else 0.0
+    good = abs(moved - 0.15) < 0.003
+    print(f"  Torch Forward -0.15 m: the zone's middle moved {-moved:+.3f} m along the gun: {'ok' if good else 'WRONG'}")
+    ok = ok and good
+    alongs = [grip - 0.30 + 0.03 * k for k in range(int((muzzle + 0.15 - (grip - 0.30)) / 0.03) + 1)]
+    cmds = setup() + take_cmds(cen)
+    for j, a in enumerate(alongs):
+        q = solve((a, 0.0, 0.0))
+        cmds += [f"vr_mock_hand off {q[0]:.4f} {q[1]:.4f} {q[2]:.4f} 0 0 0"] + waits(6) + [f"vr_flashlight_probe gz{j}"]
+    cmds += ["vr_mock_button off grip 0"] + waits(3) + GUN_DROP
+    # Let go: at the middle, at the butt (20 cm behind the hand), mid-gun (half way from the hand to the zone's edge).
+    trials = [("lmid", 0.0, "ongun"), ("lbutt", grip - 0.20, "returning"), ("lhalf", 0.5 * (grip - r), "returning")]
+    for tag, a, _ in trials:
+        q = solve((a, 0.0, 0.0))
+        cmds += ["vr_flashlight 0"] + waits(2) + ["vr_flashlight 1"] + waits(2) + take_cmds(cen) + [
+            f"vr_mock_hand off {q[0]:.4f} {q[1]:.4f} {q[2]:.4f} 0 0 0"] + waits(12) + [
+            "vr_mock_button off grip 0"] + waits(3) + [f"vr_flashlight_probe {tag}"] + GUN_DROP
+    got = parse(run(agent, "fg_gunzone", cmds))
+    lit, wrong, byHand = [], 0, 0
+    for j, a in enumerate(alongs):
+        g = got.get(f"gz{j}", {})
+        if "zone" not in g:
+            print(f"  gz{j}: no probe")
+            ok = False
+            continue
+        dist = sum(x * x for x in g["zone"]) ** 0.5
+        if g["neargun"]:
+            lit.append(a)
+        want = dist < r
+        if abs(dist - r) > 0.01 and bool(g["neargun"]) != want:
+            wrong += 1
+            print(f"  along {a:+.3f} (middle {dist:.3f} m from the zone's): lit {g['neargun']} (want {int(want)})")
+        if g["neargun"] and a < grip + 0.05:
+            byHand += 1
+    print(f"  swept {len(alongs)} spots along the gun ({alongs[0]:+.2f} to {alongs[-1]:+.2f} m): lit from "
+          f"{min(lit) if lit else 0:+.3f} to {max(lit) if lit else 0:+.3f} m; wrong {wrong}, lit by the hand or the butt {byHand}")
+    ok = ok and bool(lit) and wrong == 0 and byHand == 0
+    for tag, a, want in trials:
+        mode = got.get(tag, {}).get("mode")
+        print(f"  let go {a:+.3f} m along the gun ({tag}): {mode} (want {want})")
+        ok = ok and mode == want
+    return ok
 
 
 # Weapon Offsets > Flashlight (vr_wofs_torch_*): (impulse, slot, the weapon's own offsets: metres forward, up, out;
@@ -559,6 +673,9 @@ def main():
     if what in ("options", "all"):
         print("== options (grab range, head range, clipping on when let go)")
         ok = options(agent) and ok
+    if what in ("gunzone", "all"):
+        print("== gunzone (the gun's clip zone round the torch's place on it)")
+        ok = gunzone(agent) and ok
     if what in ("pergun", "all"):
         print("== pergun (each weapon's own place for the flashlight)")
         ok = pergun(agent) and ok

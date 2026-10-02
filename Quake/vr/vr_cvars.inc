@@ -874,8 +874,9 @@ QVR_CVAR(vr_flashlight_high_thumb_z, "0", CVAR_ARCHIVE)
 // up), moved forward, up and out (away from the head: to the side at the temples, ahead at the forehead) by these metres,
 // _radius across. Up defaults to 4 cm higher than the first zone (the author: it felt too low). Apart from the
 // torch's own place on the head (vr_flashlight_head_forward/_up/_out). The gun's: where a held torch's middle clips it on
-// the other hand's gun (B/Y): a capsule round the gun's line from the hand to 3 cm past the muzzle, moved along the
-// gun, up and out (away from the body) by these metres, _radius across.
+// the other hand's gun (B/Y, or let go): a ball round the middle of the torch as it would sit on that gun (its mount:
+// vr_flashlight_gun_* and the weapon's own vr_wofs_torch_*; round 21, 2026-10-02: a capsule along the whole gun before),
+// moved along the gun, up and out (away from the body) by these metres, _radius across (times vr_flashlight_gun_range).
 QVR_CVAR(vr_flashlight_head_zone_forward, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_head_zone_up, "0.04", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_head_zone_out, "0", CVAR_ARCHIVE)
