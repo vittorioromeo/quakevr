@@ -1692,40 +1692,42 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("With a Gibbing", vr_smallgibs_gibbing, 0.f, 20.f, 1.f, "%.0f").help("How many fly with a body's gibs when it is gibbed."),
         slider("A Large Gib Bursts Into", vr_smallgibs_burst, 0.f, 10.f, 1.f, "%.0f").help("How many a gib breaks into when it is destroyed (a head half as many again)."),
         header("Flight and Size"),
-        slider("Speed", vr_smallgibs_speed, 0.f, 10.f, 0.5f, "%.1f m/s").extend(0.f, 30.f).help("How fast they fly out from where the hit landed (times Flight by Situation below)."),
-        slider("Up", vr_smallgibs_up, 0.f, 10.f, 0.5f, "%.1f m/s").extend(0.f, 30.f).help("And upwards (times Flight by Situation below)."),
+        slider("Speed", vr_smallgibs_speed, 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f).help("How fast they fly out from where the hit landed (times Flight by Situation below)."),
+        slider("Up", vr_smallgibs_up, 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f).help("And upwards (times Flight by Situation below)."),
         slider("Pass Through the Body", vr_smallgibs_grace, 0.f, 0.5f, 0.05f, "%.2f s").help("For this long they don't collide with the body they came from."),
+        toggle("Not Pushed Out of Bodies", vr_smallgibs_pass_inside)
+            .help("Still inside a monster, you, a hand or a blade after that (melee, the chainsaw), they pass through it until clear, not pushed out at 2 to 3 m/s."),
         slider("Smallest", vr_smallgibs_size_min, 0.1f, 2.f, 0.05f, "%.2fx rock"),
         slider("Largest", vr_smallgibs_size_max, 0.1f, 2.f, 0.05f, "%.2fx rock"),
         slider("Mass", vr_smallgibs_mass, 0.05f, 5.f, 0.05f, "%.2f kg").help("Light: thrown, they hurt little."),
         header("Flight by Situation"),
-        slider("Melee: Speed", vr_smallgibs_speed_melee, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        slider("Melee: Speed", vr_smallgibs_speed_melee, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f)
             .help("Speed times this. A hand's blow: a blade, a punch, a pommel or hilt, a rock or brick in the fist; bashes and headbutts."),
-        slider("Melee: Up", vr_smallgibs_up_melee, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
-        slider("Chainsaw: Speed", vr_smallgibs_speed_saw, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        slider("Melee: Up", vr_smallgibs_up_melee, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
+        slider("Chainsaw: Speed", vr_smallgibs_speed_saw, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f)
             .help("Speed times this. The chainsaw's running chain or a swing of it."),
-        slider("Chainsaw: Up", vr_smallgibs_up_saw, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
-        slider("Guns: Speed", vr_smallgibs_speed_guns, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        slider("Chainsaw: Up", vr_smallgibs_up_saw, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
+        slider("Guns: Speed", vr_smallgibs_speed_guns, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f)
             .help("Speed times this. Shotguns, nails, lasers, lightning, a grunt's gun."),
-        slider("Guns: Up", vr_smallgibs_up_guns, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
-        slider("Explosions: Speed", vr_smallgibs_speed_explosions, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        slider("Guns: Up", vr_smallgibs_up_guns, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
+        slider("Explosions: Speed", vr_smallgibs_speed_explosions, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f)
             .help("Speed times this. Rockets, grenades, every blast."),
-        slider("Explosions: Up", vr_smallgibs_up_explosions, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
-        slider("Thrown: Speed", vr_smallgibs_speed_thrown, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        slider("Explosions: Up", vr_smallgibs_up_explosions, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
+        slider("Thrown: Speed", vr_smallgibs_speed_thrown, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f)
             .help("Speed times this. A thrown axe, sword, rock, brick or gib; a projectile batted back."),
-        slider("Thrown: Up", vr_smallgibs_up_thrown, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
-        slider("Everything Else: Speed", vr_smallgibs_speed_other, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        slider("Thrown: Up", vr_smallgibs_up_thrown, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
+        slider("Everything Else: Speed", vr_smallgibs_speed_other, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f)
             .help("Speed times this. Monsters' blows and the rest."),
-        slider("Everything Else: Up", vr_smallgibs_up_other, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
-        slider("Gibbing a Live One: Speed", vr_smallgibs_speed_gibbing, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        slider("Everything Else: Up", vr_smallgibs_up_other, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
+        slider("Gibbing a Live One: Speed", vr_smallgibs_speed_gibbing, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f)
             .help("Speed times this. A living monster gibbed: they fly out of its whole body, with its gibs' push."),
-        slider("Gibbing a Live One: Up", vr_smallgibs_up_gibbing, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
-        slider("Gibbing a Corpse: Speed", vr_smallgibs_speed_corpse, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        slider("Gibbing a Live One: Up", vr_smallgibs_up_gibbing, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
+        slider("Gibbing a Corpse: Speed", vr_smallgibs_speed_corpse, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f)
             .help("Speed times this. A corpse gibbed where it lies (struck, shot, blown up)."),
-        slider("Gibbing a Corpse: Up", vr_smallgibs_up_corpse, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
-        slider("A Large Gib Bursts: Speed", vr_smallgibs_speed_burst, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+        slider("Gibbing a Corpse: Up", vr_smallgibs_up_corpse, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
+        slider("A Large Gib Bursts: Speed", vr_smallgibs_speed_burst, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f)
             .help("Speed times this. A gib or head destroyed breaks into them."),
-        slider("A Large Gib Bursts: Up", vr_smallgibs_up_burst, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
+        slider("A Large Gib Bursts: Up", vr_smallgibs_up_burst, 0.f, 3.f, 0.01f, "%.2fx").extend(0.f, 10.f).help("Up times this."),
         header("How Many and How Long"),
         slider("Most Lying About", vr_smallgibs_max, 1.f, 128.f, 1.f, "%.0f").extend(1.f, 256.f).help("Past it, the oldest go first (not one in your hand)."),
         slider("Last", vr_smallgibs_time, 0.f, 120.f, 5.f, "%.0f s").help("Then they fade away (0: never). Held, and in the air after, they wait."),
@@ -3082,6 +3084,8 @@ za::Vector<Item> pageDebugTools()
         command("Held, Then Let Go", "vr_smallgibs_test 9").help("vr_smallgibs_test 9: one in the off hand for 3 s with Last 1 s, then let go: it waits until it lands."),
         command("Pass Through the Body", "vr_smallgibs_test 10").help("vr_smallgibs_test 10: one from just behind the monster through it at 300 u/s, with the grace and without."),
         command("Throw Gibs at a Wall", "vr_smallgibs_test 12").help("vr_smallgibs_test 12: a gib and a small gib thrown at 220 u/s into the nearest wall stick (Thrown Gibs Stick 1 for it), a gib at 400 bursts."),
+        command("Step Up to the Wall Ahead", "vr_smallgibs_test 15")
+            .help("vr_smallgibs_test 15: puts you 64 units (vr_smallgibs_test_dist) from the wall you face, to throw gibs at it (Gibs and Corpses: Thrown Gibs Stick, Speed to Stick)."),
         command("Flight by Situation", "vr_smallgibs_test 13")
             .help("vr_smallgibs_test 13: on the grunt or corpse ahead, each situation in turn (melee, chainsaw, guns, explosions, thrown, a monster's blow, gibbed by a blow and by a rocket, a large gib burst): launch speeds out and up, and how far they lie 2.5 s on (the console)."),
         command("Blow Up a Crowd", "vr_smallgibs_test 14")

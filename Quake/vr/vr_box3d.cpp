@@ -308,6 +308,9 @@ constexpr float sinkDensity = 0.5f;
 
 constexpr float smallPropSleepThreshold = 0.15f; // m/s: a prop with its own mass (a small gib) sleeps under it (Box3D's: 0.05)
 
+// A small gib (vr_smallgibs.qc): a prop with its own mass (.vr_prop_mass).
+[[nodiscard]] bool isSmallGib(edict_t* ent);
+
 constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel ball on stone)
 
 // Densities (kg/m^3) of the props' hulls: only their ratios matter (what knocks what how far).
@@ -556,6 +559,15 @@ struct World
     };
     za::Vector<Grace> graces;
     za::Vector<int> made; // the props whose bodies were made this frame (createBody): what may have been thrown
+    // Small gibs whose bodies were made inside a monster's or a player's (noteBornInside): they pass through it until
+    // clear of it (shouldCollide), as a hand's reach body passes through what was inside it (HandBody::ignore).
+    struct Inside
+    {
+        int prop{0};      // the small gib
+        int other{0};     // the monster or player
+        double born{0.0}; // the small gib's body's (Slot::born): the same body still
+    };
+    za::Vector<Inside> inside;
     // The players standing on solid props (by client; vr_box3d_player_stand, "Standing on props" below).
     struct Stand
     {
@@ -1355,6 +1367,10 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
         def.baseMaterial.restitution = grenadeRestitution;
         def.enableCustomFiltering = !held; // (shouldCollide: not with its thrower)
     }
+    else if(!held && isSmallGib(ent))
+    {
+        def.enableCustomFiltering = true; // (shouldCollide: not the body it was made inside, until clear: noteBornInside)
+    }
     b3HullData* hull = propHull(ent, model, lo, hi);
     const glm::vec3 half = (hi - lo) * 0.5f / world->m2u;
     // A Mass set for its model: the density that gives it (Held Object Offsets).
@@ -1841,6 +1857,132 @@ void follow(edict_t* ent, Slot& s, float dt)
     return false;
 }
 
+bool isSmallGib(edict_t* ent)
+{
+    const int f = fields().vr_prop_mass;
+    return f >= 0 && fieldFloat(ent, f) > 0.f;
+}
+
+[[nodiscard]] bool boxesApart(const b3AABB& a, const b3AABB& b)
+{
+    return a.upperBound.x < b.lowerBound.x || b.upperBound.x < a.lowerBound.x || a.upperBound.y < b.lowerBound.y ||
+           b.upperBound.y < a.lowerBound.y || a.upperBound.z < b.lowerBound.z || b.upperBound.z < a.lowerBound.z;
+}
+
+// A small gib's body, just made (at the end of its grace, vr_smallgibs_grace: a rigid body from then), inside a
+// monster's or a player's body, or a hand's or held weapon's reach body (torn out where the blade or the chainsaw's
+// chain struck): it passes through each until clear of it, as a reach body passes through what was inside it as it was
+// made (ignoreInside). Box3D pushed it out at 2 to 3 m/s, many times what Melee and Chainsaw Speed gave it (NOTES.md
+// vrfiringrange_2026-10-02_19-11-19 and 19-18-12; ROUND21.md, "Small gibs pushed out of the body they came from").
+// A body its shape is sunk in (deeper than 1 cm, not one it is only touching: a gib made just outside a monster
+// meets it, Pass Through the Body 0); a reach body its box overlaps, a little grown (a blade a step away still passes).
+void noteBornInside(int num, const Slot& s)
+{
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.categoryBits = catProp;
+    filter.maskBits = catActor | catPlayer;
+    struct Context
+    {
+        int num;
+        double born;
+    } context{num, s.born};
+    constexpr float sink = 0.01f; // m (reachSink's)
+    za::Array<b3ShapeId, 4> shapes;
+    const int count = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
+    const b3WorldTransform xf = b3Body_GetTransform(s.body);
+    za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
+    for(int k = 0; k < count; k++)
+    {
+        if(b3Shape_GetType(shapes[k]) != b3_hullShape)
+        {
+            continue;
+        }
+        const b3HullData* hull = b3Shape_GetHull(shapes[k]);
+        const b3Vec3* p = b3GetHullPoints(hull);
+        const b3Vec3 c = hull->center;
+        const int n = za::min(hull->vertexCount, static_cast<int>(points.size()));
+        for(int v = 0; v < n; v++)
+        {
+            b3Vec3 q = p[v]; // (each corner in by the sink along each axis, not past the middle: as ignoreInside)
+            q.x = q.x > c.x ? za::max(c.x, q.x - sink) : za::min(c.x, q.x + sink);
+            q.y = q.y > c.y ? za::max(c.y, q.y - sink) : za::min(c.y, q.y + sink);
+            q.z = q.z > c.z ? za::max(c.z, q.z - sink) : za::min(c.z, q.z + sink);
+            points[static_cast<size_t>(v)] = b3RotateVector(xf.q, q);
+        }
+        const b3ShapeProxy proxy{points.data(), n, 0.f};
+        b3World_OverlapShape(world->id, xf.p, &proxy, filter,
+            [](b3ShapeId shape, void* raw) {
+                const auto& c = *static_cast<const Context*>(raw);
+                const int other = numOf(shape);
+                auto& in = world->inside;
+                if(other > 0 && other != c.num &&
+                    !za::anyOf(in.begin(), in.end(), [&](const World::Inside& i) { return i.prop == c.num && i.other == other; }))
+                {
+                    in.pushBack({c.num, other, c.born});
+                }
+                return true;
+            },
+            &context);
+    }
+    constexpr float margin = 0.05f; // m
+    b3AABB box = b3Body_ComputeAABB(s.body);
+    box.lowerBound = b3v(glmv(box.lowerBound) - glm::vec3{margin});
+    box.upperBound = b3v(glmv(box.upperBound) + glm::vec3{margin});
+    int reaches = 0;
+    for(size_t i = 1; i < world->hands.size() && i <= static_cast<size_t>(svs.maxclients); i++)
+    {
+        for(World::HandBody& hb : world->hands[i])
+        {
+            if(!B3_IS_NULL(hb.reach) && !boxesApart(box, b3Body_ComputeAABB(hb.reach)) &&
+                za::find(hb.ignore.begin(), hb.ignore.end(), num) == hb.ignore.end())
+            {
+                hb.ignore.pushBack(num);
+                reaches++;
+            }
+        }
+    }
+    if(vr_debug_box3d.value)
+    {
+        int bodies = 0;
+        for(const World::Inside& i : world->inside)
+        {
+            bodies += i.prop == num;
+        }
+        if(bodies || reaches)
+        {
+            Con_Printf("box3d: small gib %d made inside %d bodies and %d hands' or weapons': passes through until clear\n",
+                num, bodies, reaches);
+        }
+    }
+}
+
+// The small gibs made inside a body that are clear of it now (their boxes apart), or gone, or held: they meet it again.
+void pruneInside()
+{
+    za::vectorEraseIf(world->inside, [](const World::Inside& i) {
+        const int n = static_cast<int>(world->slots.size());
+        if(i.prop >= n || i.other >= n || i.prop >= qcvm->num_edicts || i.other >= qcvm->num_edicts)
+        {
+            return true;
+        }
+        const Slot& p = world->slots[static_cast<size_t>(i.prop)];
+        const Slot& o = world->slots[static_cast<size_t>(i.other)];
+        if(p.kind != Kind::Prop || p.born != i.born || B3_IS_NULL(p.body) ||
+            (o.kind != Kind::Actor && o.kind != Kind::Player) || B3_IS_NULL(o.body))
+        {
+            return true;
+        }
+        return boxesApart(b3Body_ComputeAABB(p.body), b3Body_ComputeAABB(o.body));
+    });
+}
+
+// Whether entities `a` and `b` don't meet: a small gib and the body it was made inside (noteBornInside).
+[[nodiscard]] bool bornInside(int a, int b)
+{
+    return za::anyOf(world->inside.begin(), world->inside.end(),
+        [a, b](const World::Inside& i) { return (i.prop == a && i.other == b) || (i.prop == b && i.other == a); });
+}
+
 // Once a frame, before the hands' bodies follow the hands (syncReach: `hb.held` is still what each hand carried last
 // frame): the throws of the props made this frame (createBody), and the graces over. A throw: a prop let go of by a
 // hand (thrown or dropped), or one whose .owner is a player (a thrown weapon: CreateThrownWeapon; a box thrown hard:
@@ -1849,6 +1991,7 @@ void noteThrows()
 {
     const float grace = za::max(vr_box3d_throw_grace.value, 0.f);
     const bool debug = vr_debug_box3d.value != 0.f;
+    pruneInside();
     za::vectorEraseIf(world->graces, [debug](const World::Grace& g) {
         const bool same = g.num < static_cast<int>(world->slots.size()) && world->slots[g.num].kind == Kind::Prop &&
                           world->slots[g.num].born == g.born;
@@ -1883,6 +2026,10 @@ void noteThrows()
             continue;
         }
         edict_t* ent = EDICT_NUM(num);
+        if(vr_smallgibs_pass_inside.value && isSmallGib(ent))
+        {
+            noteBornInside(num, s);
+        }
         const b3AABB box = b3Body_ComputeAABB(s.body);
         const float reach = za::min(0.5f * glm::length(glmv(box.upperBound) - glmv(box.lowerBound)), 0.5f); // m
         int thrower = 0;
@@ -3505,6 +3652,10 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
     if(na <= 0 || nb <= 0 || na >= qcvm->num_edicts || nb >= qcvm->num_edicts)
     {
         return true;
+    }
+    if(!world->inside.empty() && bornInside(na, nb))
+    {
+        return false; // (a small gib made inside this body: noteBornInside)
     }
     const edict_t* ea = EDICT_NUM(na);
     const edict_t* eb = EDICT_NUM(nb);

@@ -22,6 +22,8 @@
 .float vr_sgib_sawtime;   // (a monster or corpse) when the chainsaw last tore one out of it
 .float vr_sgib_sit;       // what tore it out (QVR_SGIB_SIT_*: the tests)
 .vector vr_sgib_org;      // where it was made (the tests)
+.float vr_sgib_peak;      // its fastest across in its first second, and when (s after it was made: the tests)
+.float vr_sgib_peakt;
 
 // A shotgun blast's pellets (FireBulletsImpl: VR_SmallGib_BlastBegin .. BlastEnd), summed on each thing they hit.
 .float vr_sgib_bmark;     // the blast it was last hit by (vr_sgib_blastserial)

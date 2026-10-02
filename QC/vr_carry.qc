@@ -691,7 +691,7 @@ void(float xHand, entity xBox) VR_Carry_Release =
     {
         VR_Throw_TwoHanded(self, xBox);
     }
-    VR_Gib_Released(xBox, vlen(v) > 250, xHand); // a gib or head thrown hard bursts on a wall
+    VR_Gib_Released(xBox, vlen(v), xHand); // a gib or head thrown hard bursts on a wall, softer may stick
     VR_Grenade_Released(xBox, xHand); // a live grenade is the player's (vr_grenade.qc)
 };
 
@@ -1465,6 +1465,8 @@ void() VR_Gib_Think2 =
                     return; // (VR_Gib_StuckThink2 has it now)
                 }
             }
+            dprint(sprintf("gib: struck the world at %.1f (turned by %.1f), %.2f s after it was let go of: not stuck%s\n",
+                lastSpeed, vlen(change), time - self.vr_gib_releasetime, trace_fraction < 1 ? "" : " (no wall ahead)"));
         }
         self.vr_gib_lastvel = self.velocity;
         next = time + 0.01; // the next frame
@@ -1477,18 +1479,28 @@ void() VR_Gib_Think2 =
 };
 
 // Let go of by `xHand` (VR_Carry_Release): that hand does not strike it as it follows through
-// (VR_Gib_Struck; the other one may, after vr_gib_letgo_spare: toss it up and punch it). Thrown hard (`xHard`), for a few
-// seconds a hard hit on a wall bursts it, a softer one may stick it (vr_gore_stick_thrown: one that
-// can't be destroyed too, a small gib).
-void(entity xGib, float xHard, float xHand) VR_Gib_Released =
+// (VR_Gib_Struck; the other one may, after vr_gib_letgo_spare: toss it up and punch it). Thrown at `xSpeed` (units/s) as
+// fast as it could burst (vr_gib_splat_speed) or stick (vr_gore_stick_speed, with vr_gore_stick_thrown), for a few
+// seconds a hard hit on a wall bursts it, a softer one may stick it (vr_gore_stick_thrown: one that can't be destroyed
+// too, a small gib). (Watched only from 250 u/s until 2026-10-02: a gib of the author's 8 to 20 kg leaves the hand at
+// 6 m/s at most, about 200 u/s, so a thrown gib never stuck: NOTES.md vrfiringrange_2026-10-02_19-22-07.)
+void(entity xGib, float xSpeed, float xHand) VR_Gib_Released =
 {
-    if(!VR_Gib_IsDestroyable(xGib) && !(xGib.vr_gib && cvar_hget(cvarh_vr_gore_stick_thrown) > 0))
+    float stick = xGib.vr_gib && cvar_hget(cvarh_vr_gore_stick_thrown) > 0 && cvar_hget(cvarh_vr_gore) > 0 &&
+                  cvar_hget(cvarh_vr_gore_stick) > 0;
+    float destroyable = VR_Gib_IsDestroyable(xGib);
+    if(!destroyable && !stick)
     {
         return;
     }
     xGib.vr_gib_releasetime = time;
     xGib.vr_gib_releasehand = xHand;
-    if(!xHard)
+    float watch = destroyable ? cvar_hget(cvarh_vr_gib_splat_speed) : 100000;
+    if(stick)
+    {
+        watch = min(watch, cvar_hget(cvarh_vr_gore_stick_speed));
+    }
+    if(xSpeed < max(1, watch))
     {
         return;
     }

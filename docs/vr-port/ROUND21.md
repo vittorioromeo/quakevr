@@ -21936,3 +21936,62 @@ water 609 -> 0 in 100 frames, dry it keeps them (604, held and let go).
 - [ ] Hit a monster with an ammo box, a health box, an explosive box: blood on the side that hit, as on a brick.
 - [ ] Drop it and take it again: the blood stays; under water it washes off.
 - [ ] A box lying about that you never held: clean, and a door or a lift never bloodied.
+## Small gibs pushed out of the body they came from; thrown gibs that never stuck (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_19-11-19, 19-18-12 (melee and chainsaw small gibs too fast even at the lowest Melee
+and Chainsaw Speed) and 19-22-07 (Speed to Stick at its lowest, the chance raised: a gib thrown at a wall never sticks).
+
+**Too fast.** A melee or chainsaw small gib is torn out where the blade or chain struck, inside the monster's body (and
+inside the blade's or hand's reach body). Its grace (Pass Through the Body, Quake's bounce) ends 0.1 s later still inside:
+it becomes a rigid body there, and Box3D pushed it out of the monster's kinematic hull (and the swinging blade batted it)
+at 1 to 3 m/s, against the 0.15 m/s that Speed 3 x Melee 0.05 gave it. Fixed in vr_box3d.cpp (`noteBornInside`): a small
+gib's body made sunk in a monster's or a player's (its hull in theirs deeper than 1 cm: Box3D's shape overlap, not the
+boxes, so a gib made just outside still meets it) passes through it until their boxes are apart (`World::inside`,
+`shouldCollide`, the small gib's shapes ask for the custom filter); one in a hand's or held weapon's reach body joins
+that body's `ignore` (passed through until clear, as ignoreInside's). `vr_smallgibs_pass_inside` (1; Gore > Small Gibs:
+Not Pushed Out of Bodies) turns it off. The Flight by Situation sliders step by 0.01 (were 0.05), Speed and Up by 0.1 m/s
+(were 0.5).
+
+Test 13 (`vr_smallgibs_test 13`, a grunt 96 units ahead, his config's gib values: Speed 3, Up 7, Melee 0.05/0.25,
+Chainsaw 0.05/0.05, grace 0.1). It now also prints how fast they really flew across in their first second
+("flew across at", the mean of each one's fastest, and when): their launch alone did not show the push.
+
+| situation | lie (m), pass_inside 0 | lie (m), 1 | fastest across (u/s), 0 | 1 |
+|---|---|---|---|---|
+| melee (launched 5 u/s across) | 0.62 (max 0.85) | 0.12 (max 0.33) | 60 at 0.22 s | 33 at 0.36 s (landing) |
+| chainsaw (5 u/s) | 0.39 (max 0.62) | 0.14 (max 0.27) | 58 at 0.16 s | 44 at 0.31 s (landing) |
+| guns, explosions, thrown, other, gibbings, burst | 1.7 to 2.9 | the same (within run noise) | | |
+
+`vr_smallgibs_test_hand 1` tears the melee and chainsaw ones at the main hand (put into the body with
+`vr_mock_hand_to`; a grunt at `vr_test_spawn_dist 44`); with `vr_mock_swing 0.5` (the hand swinging through them)
+chainsaw ones lay 1.07 m away (max 2.41) with it off, 0.28 m (max 0.42) on. What is left after the fix is their landing:
+they drop from the hit's height at 200+ u/s and a tumbling hull lands on a corner, skidding a few centimetres (lower Up
+lowers it). The test cvars (`vr_smallgibs_test_n`, `_dmg`, `_crowd`, `_blasts` were never registered, so unusable from the
+console) are registered now, with `_hand` and `_dist`.
+
+**Never stuck.** A gib let go of was only watched for its hit on a wall (VR_Gib_Released) when thrown faster than 250
+u/s; his gibs weigh 8, 20 and 12 kg (Held Object Offsets Mass), which leave the hand at 6.2 m/s (about 200 u/s) at most
+(`throw weight: 8.0 kg ... lim 6.2`), so a thrown gib was never watched and never stuck; a small gib (0.3 kg) thrown
+faster than 250 mostly burst. Now it is watched when thrown as fast as it could stick (Speed to Stick, with Thrown Gibs
+Stick and gore on) or burst (Gib Splat Speed). Real off-hand throws in the mock, at the wall 64 units ahead
+(`vr_smallgibs_test 15`, new: puts you that far from the wall you face, Debug > Gore Tests > Step Up to the Wall Ahead),
+his values (Speed to Stick 20, Thrown Gibs Stick 0.75; the runs with 1):
+
+| throw (hand peak) | gib 8 kg, before | after | small gib, before | after |
+|---|---|---|---|---|
+| 3 m/s (110 u/s) | not stuck | stuck (after a floor bounce) | not stuck | stuck (after a floor bounce) |
+| 4 m/s (167 u/s) | not stuck | stuck | not stuck | stuck |
+| 5 m/s (198 / 233 u/s) | not stuck | stuck | not stuck | stuck |
+| 6 m/s (203 / 293 u/s) | not stuck | stuck | not stuck | not stuck (struck at 294: the 0.75 roll) |
+| 8 m/s (204 / 391 u/s) | not stuck | stuck | burst | burst (faster than Gib Splat Speed) |
+
+A ceiling (e1m1's start, straight up, Gib Splat Speed 1000 so it doesn't burst): a small gib at 6 and 8 m/s and a gib
+(its Mass 1 kg) at 6 m/s stuck. `gib: struck the world at ... not stuck` (developer 1) now says when a hard turn didn't
+stick it (the roll, or no wall ahead: a floor). His 8 to 20 kg gibs can't reach Gib Splat Speed 250 by hand, so a thrown
+gib never bursts on a wall either: lower Gib Splat Speed or their Mass for that.
+
+### In VR
+
+- Melee and chainsaw small gibs at Melee and Chainsaw Speed 0.05: they drop near the wound, not shot a metre away;
+  Not Pushed Out of Bodies off brings the old push back for comparison.
+- Throw a gib softly at a wall and at a ceiling (Speed to Stick low, Thrown Gibs Stick 1): it sticks; a small gib too.
