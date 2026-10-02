@@ -1685,6 +1685,33 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("While wounded, blood drips from your body round your feet, faster when badly hurt or just hit (0 none)."),
         slider("Drops Mark Floor", vr_body_blood_marks, 0.f, 1.f, 0.05f, "%.2f").help("The chance a drop leaves a mark on the floor."),
         slider("Floor Mark Size", vr_body_blood_mark_size, 0.5f, 4.f, 0.25f, "%.2fx").extend(),
+        header("Bloody Hands and Washing"),
+        slider("Gib Blood on Hands", vr_gore_hands, 0.f, 3.f, 0.25f, "%.2fx").extend()
+            .help("Taking a gib or a head bloodies the hand holding it, more the longer you hold it (0 none)."),
+        toggle("Water Washes Blood", vr_gore_wash).help("Water washes the blood off your body and hands, where they are under it."),
+        slider("Wash Time", vr_gore_wash_time, 0.25f, 10.f, 0.25f, "%.2f s").extend(0.05f, 60.f)
+            .help("How long under water washes the blood off fully."),
+        toggle("Wounds Re-open", vr_gore_reopen)
+            .help("Hurt, your wounds re-open after a wash and bleed onto your arms and hands again (healed ones don't, nor a gib's blood)."),
+        slider("Re-open Delay", vr_gore_reopen_delay, 0.f, 30.f, 0.5f, "%.1f s").extend(0.f, 120.f)
+            .help("How long you stay clean out of the water before they re-open."),
+        slider("Re-open Spread", vr_gore_reopen_time, 0.f, 10.f, 0.25f, "%.2f s").extend()
+            .help("Over how long they re-open, one after another (0: all at once)."),
+        header("Blood Mist"),
+        slider("Mist Amount", vr_gore_mist, 0.f, 3.f, 0.25f, "%.2fx").extend(0.f, 10.f)
+            .help("Large, faint clouds of blood hanging in the air wherever something bleeds: how many (0 none)."),
+        slider("Mist Size", vr_gore_mist_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.05f, 6.f).help("How big the clouds are."),
+        slider("Mist Opacity", vr_gore_mist_alpha, 0.f, 0.3f, 0.01f, "%.2f").extend(0.f, 1.f).help("How opaque they start (very transparent: 0.06)."),
+        slider("Mist Lifetime", vr_gore_mist_life, 0.25f, 8.f, 0.25f, "%.2f s").extend(0.2f, 30.f).help("How long they take to fade."),
+        slider("Mist Spreading", vr_gore_mist_grow, 0.f, 3.f, 0.1f, "%.1fx").extend().help("How fast they spread as they fade."),
+        slider("Mist Drift", vr_gore_mist_speed, 0.f, 3.f, 0.1f, "%.1fx").extend().help("How fast they drift along the blow and apart."),
+        slider("Mist Rise", vr_gore_mist_rise, -20.f, 20.f, 1.f, "%.0f u/s").extend(-100.f, 100.f).help("How fast they rise (negative: sink)."),
+        slider("Mist Darkness", vr_gore_mist_dark, 0.f, 1.f, 0.05f, "%.2f").help("How dark their red is (0 bright, 1 nearly black)."),
+        slider("Mist Clear of Eyes", vr_gore_mist_near, 0.f, 128.f, 4.f, "%.0f u").extend(0.f, 512.f)
+            .help("No mist closer to your eyes than this: your own bleeding is not in your face."),
+        header("Dying Bodies"),
+        toggle("Hit While Dying", vr_corpse_dying)
+            .help("A monster dying takes damage as a corpse while it falls (once it drops what it drops): a chainsaw, a blow or a shot can gib it. Never killed twice. Needs Gib Corpses (Carrying and Throwing > Gibs and Corpses)."),
         header("Marks"),
         toggle("Decals", vr_decals).help("Blood, scorch marks and bullet chips on walls and floors (the gore needs them)."),
         slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many: 1024 or more."),
@@ -2761,6 +2788,8 @@ za::Vector<Item> pageDebugReports()
         command("Crates", "vr_crates_list").help("vr_crates_list: the crates in this map (health, resting) and how many pieces lie about."),
         command("Hit Detection", "vr_hitmodel_stats").help("vr_hitmodel_stats: precise hit detection's tests so far (hits, shots through a box beside the model) and their cost."),
         command("Wounds", "vr_wounds_info").help("vr_wounds_info: the wound masks in use."),
+        command("Bloody Hands and Washing", "vr_gore_hands_info")
+            .help("vr_gore_hands_info: the blood on your hands and body (texels), the wounds kept to re-open, the wash and its re-opening."),
         command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),
         command("Model Lighting", "vr_model_ambient_show").help("vr_model_ambient_show: the six nearest entities' ambient light."),
         command("Ambient Occlusion", "vr_ao_show").help("vr_ao_show: the ambient occlusion's occluders and bake."),
@@ -2803,6 +2832,8 @@ za::Vector<Item> pageDebugTools()
         header("Test Effects"),
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
+        command("Blood Mist", "vr_gore_mist_test").help("vr_gore_mist_test: a bleed's blood mist 64 units ahead (Gore > Blood Mist)."),
+        command("Gib Blood on Hand", "vr_gore_hands_test main").help("vr_gore_hands_test main: a gib's blood on the main hand, as taking one (Gore > Bloody Hands and Washing)."),
         command("Test Light", "vr_light_test").help("vr_light_test: a white light 48 units ahead for 5 seconds."),
         command("Test Message", "vr_message_test").help("vr_message_test: a message in the gadget's hologram (once the gadget has been drawn)."),
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),

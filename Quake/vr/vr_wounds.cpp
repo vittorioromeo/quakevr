@@ -18,6 +18,7 @@
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -104,6 +105,7 @@ float lastPaintMs = 0.f;
 int paintsTotal = 0;
 bool painting = false;
 bool chanOn[3]{true, true, true}; // vr_wounds, vr_wounds_burns, vr_wounds_wet as last seen
+bool bloodOnly = false;           // re-opening the player's wounds (reopen): their blood only, no char, no heat
 
 [[nodiscard]] float rnd()
 {
@@ -830,9 +832,18 @@ void wound(const Target& t, const Event& ev)
         default: break;
     }
 
+    if(bloodOnly)
+    {
+        for(Splat& s : splats)
+        {
+            s.v[2] = glm::vec4{s.v[2].r, 0.f, 0.f, 0.f};
+        }
+    }
     splats.erase(za::removeIf(splats.begin(), splats.end(), [](const Splat& s) { return !paintsAnything(s); }), splats.end());
     paint(layer, t.ent, splats);
 }
+
+void logPlayerWound(const Event& ev); // (below: the player's wounds, to re-open after a wash)
 
 void apply(const Event& ev)
 {
@@ -862,6 +873,7 @@ void apply(const Event& ev)
     int count = 0;
     if(ev.num == cl.viewentity)
     {
+        logPlayerWound(ev);
         // The player: its own body and jointed hands, as drawn.
         entity_t* own[3]{};
         view::woundTargets(own);
@@ -932,6 +944,353 @@ void bloodyHead(entity_t& e, int num)
         splats.pushBack(woundSplat(c, ws.r * 1.2f, nrm, -nrm, 1.f, ws.r + 1.f, -0.25f, ws.run, paintBlood));
     }
     paint(layer, &e, splats);
+}
+
+// ----------------------------------------------------------------------------
+// Gore: bloody hands, washing, wounds re-opening (vr_gore_hands, vr_gore_wash*, vr_gore_reopen*; ROUND21.md, "Gore:
+// bloody hands, washing, dying bodies, blood mist").
+//
+// A hand that takes a gib or a head (what it carries: STAT_QVR_CARRYMAIN/OFF, a gib's or a head's model) is smeared
+// with its blood: patches over the hand (blood in its mask, as its wounds), more the longer it holds it. Water washes
+// the blood (wounds' and gibs') off the body and the hands where they are under it, in vr_gore_wash_time. Hurt (wounds
+// taken and not healed), the wounds re-open vr_gore_reopen_delay seconds after the last wash, one after another over
+// vr_gore_reopen_time: the player's wounds are kept (where they were struck, from the player's origin) until healing
+// takes them off, and painted again, their blood only, and their blood runs onto both hands (a few patches). A gib's
+// blood washed off does not come back. With the wound skins (vr_wounds 0) instead: the hands' skin
+// is a bloody one while a gib's blood is on it, and a part washed shows no wounds until they re-open (skinLevel).
+
+struct LoggedWound
+{
+    Event ev;
+    glm::vec3 rel{0.f}; // its point from the player's origin
+    za::U32 seed{0};    // the draws' state it was painted with (re-opened: the same draws, the same wounds where it was)
+};
+
+constexpr za::SizeT maxLogged = 48;
+constexpr float gibBlotEvery = 1.f; // seconds a held gib smears its hand again
+constexpr int gibBlotsMore = 4;     // and how many more times at most, a hold
+constexpr float reopenHandBlood = 1.f; // the hands' blood (as vr_gore_hands) when the wounds re-open
+
+za::Vector<LoggedWound> playerWounds; // the player's wounds not healed yet, oldest first
+int heldGib[2]{0, 0};                 // the gib each hand held at the last look (0: none)
+double heldGibNext[2]{0.0, 0.0};      // when it smears the hand again
+int heldGibBlots[2]{0, 0};            // the times it did, this hold
+double lastWash = -1e9;               // cl.time the player was last being washed
+bool reopenPending = false;           // washed while hurt: the wounds re-open
+double reopenStart = -1.0;            // cl.time they began to (-1: not yet)
+za::SizeT reopened = 0;               // how many of them have
+
+// The wound skins (vr_wounds 0): per part (0 the off hand, 1 the main hand, 2 the body).
+struct SkinPart
+{
+    double seen{-1e9};   // cl.time of the last look
+    double washed{-1e9}; // cl.time it was last under water (-1e9: not washed)
+    int washedLevel{0};  // the damage skin it showed then
+    int gib{0};          // a gib's blood on it: the skin it shows at least
+    int gibEnt{0};       // the gib it held at the last look
+};
+
+SkinPart skinParts[3];
+
+[[nodiscard]] bool isBlood(int kind)
+{
+    return kind == KindShot || kind == KindNail || kind == KindMelee || kind == KindBlast || kind == KindBurn;
+}
+
+// Entity `num` (client side) is a gib or a head: by its model (progs/gib*, progs/h_*, and the mission packs' and the
+// zombies' gibs).
+[[nodiscard]] bool isGib(int num)
+{
+    if(num <= 0 || num >= cl.num_entities || !cl_entities[num].model)
+    {
+        return false;
+    }
+    const char* name = cl_entities[num].model->name;
+    return ZA_STRNCMP(name, "progs/h_", 8) == 0 || strstr(name, "gib") != nullptr;
+}
+
+[[nodiscard]] bool inWater(const glm::vec3& p)
+{
+    if(!cl.worldmodel)
+    {
+        return false;
+    }
+    vec3_t v{p.x, p.y, p.z};
+    return Mod_PointInLeaf(v, cl.worldmodel)->contents == CONTENTS_WATER;
+}
+
+// The water's surface over `p`, looked for `reach` units under and over it: false if none of that is under water. Under
+// water all the way up: a surface well over it.
+bool waterSurface(const glm::vec3& p, float reach, float& surface)
+{
+    constexpr float step = 3.f;
+    float top = 0.f;
+    bool any = false;
+    for(float z = -reach; z <= reach; z += step)
+    {
+        if(inWater(p + glm::vec3{0.f, 0.f, z}))
+        {
+            any = true;
+            top = z;
+        }
+    }
+    if(!any)
+    {
+        return false;
+    }
+    float lo = top, hi = top + step;
+    if(inWater(p + glm::vec3{0.f, 0.f, hi}))
+    {
+        surface = p.z + hi + 64.f;
+        return true;
+    }
+    for(int i = 0; i < 4; i++)
+    {
+        const float mid = (lo + hi) * 0.5f;
+        (inWater(p + glm::vec3{0.f, 0.f, mid}) ? lo : hi) = mid;
+    }
+    surface = p.z + (lo + hi) * 0.5f;
+    return true;
+}
+
+// `amount` of the blood taken off mask `layer` (entity `e`, as drawn) under `surface`.
+void washUnder(int layer, entity_t* e, float surface, float amount)
+{
+    const Splat s = liquidSplat(surface, 1.f, 0.f, glm::vec4{amount, 0.f, 0.f, 0.f});
+    if(!paintsAnything(s))
+    {
+        return;
+    }
+    begin();
+    target(layer, masks[static_cast<za::SizeT>(layer)]);
+    // (the state's blending set first: R_PaintAliasWounds sets the same, leaving the function as it is)
+    GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
+    glBlendFunc(GL_ONE, GL_ONE);
+    GL_BlendEquationFunc(GL_FUNC_REVERSE_SUBTRACT);
+    R_PaintAliasWounds(e, 1, &s.v[0].x);
+    GL_BlendEquationFunc(GL_FUNC_ADD);
+    glBlendFunc(GL_ONE, GL_ZERO);
+}
+
+// A gib's blood smeared over `hand` (0 off, 1 main): `blots` ragged patches of blood over all of it (the liquids' paint,
+// in patches: where its noise is over a threshold), `amount` (vr_gore_hands) how much of the hand each covers.
+void smearHand(int hand, int blots, float amount)
+{
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    entity_t* e = own[1 + hand];
+    if(!e || amount <= 0.f || blots <= 0)
+    {
+        return;
+    }
+    const int layer = acquire(e, true, true);
+    if(layer < 0)
+    {
+        return;
+    }
+    za::Vector<Splat> splats;
+    const float k = za::clamp(amount, 0.f, 3.f);
+    for(int i = 0; i < blots; i++)
+    {
+        // a patch threshold of the noise (0..1, about 0.5 on average): 0.6 covers about a fifth, 0.5 half
+        const float patch = za::clamp(0.68f - 0.06f * k + rnd(-0.03f, 0.03f), 0.4f, 0.9f);
+        splats.pushBack(liquidSplat(e->origin[2] + 64.f, 1.f, patch, glm::vec4{rnd(0.85f, 1.f), 0.f, 0.f, 0.f}));
+    }
+    splats.erase(za::removeIf(splats.begin(), splats.end(), [](const Splat& s) { return !paintsAnything(s); }), splats.end());
+    if(vr_wounds_debug.value)
+    {
+        Con_Printf("wounds: blood smeared on the %s hand, %d patches\n", hand ? "main" : "off", static_cast<int>(splats.size()));
+    }
+    paint(layer, e, splats);
+}
+
+// Each frame: a gib taken into a hand smears it, and again now and then while it is held.
+void gibHands(double now)
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const int ent = cl.stats[hand == 1 ? protocol::STAT_QVR_CARRYMAIN : protocol::STAT_QVR_CARRYOFF];
+        const bool gib = vr_gore_hands.value > 0.f && cl.stats[STAT_HEALTH] > 0 && isGib(ent);
+        if(!gib)
+        {
+            heldGib[hand] = 0;
+            continue;
+        }
+        if(heldGib[hand] != ent)
+        {
+            heldGib[hand] = ent;
+            heldGibBlots[hand] = 0;
+            heldGibNext[hand] = now + gibBlotEvery;
+            smearHand(hand, za::max(1, static_cast<int>(vr_gore_hands.value * 4.f + 0.5f)), vr_gore_hands.value);
+        }
+        else if(now >= heldGibNext[hand] && heldGibBlots[hand] < gibBlotsMore)
+        {
+            heldGibBlots[hand]++;
+            heldGibNext[hand] = now + gibBlotEvery;
+            smearHand(hand, 1, vr_gore_hands.value);
+        }
+    }
+}
+
+void logPlayerWound(const Event& ev)
+{
+    if(bloodOnly || !isBlood(ev.kind))
+    {
+        return;
+    }
+    const entity_t& pl = cl_entities[cl.viewentity];
+    if(playerWounds.size() >= maxLogged)
+    {
+        playerWounds.erase(playerWounds.begin());
+    }
+    playerWounds.pushBack({ev, ev.org - glm::vec3{pl.origin[0], pl.origin[1], pl.origin[2]}, rng});
+}
+
+// Healing takes a share of the wounds off (`share` of them, the oldest first): they won't re-open.
+void forgetPlayerWounds(float share)
+{
+    const auto n = static_cast<za::SizeT>(za::ceil(share * static_cast<float>(playerWounds.size()) - 1e-4f));
+    if(n >= playerWounds.size())
+    {
+        playerWounds.clear();
+    }
+    else if(n > 0)
+    {
+        playerWounds.erase(playerWounds.begin(), playerWounds.begin() + n);
+    }
+    reopened = za::min(reopened, playerWounds.size());
+}
+
+// Every tick (`n` steps of it): the player's body and hands washed where they are under water.
+void wash(int n)
+{
+    if(!vr_gore_wash.value || !vr_wounds.value || cl.stats[STAT_HEALTH] <= 0)
+    {
+        return;
+    }
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    bool washing = false;
+    const float amount = static_cast<float>(n) * tick / za::max(0.05f, vr_gore_wash_time.value);
+    for(int k = 0; k < 3; k++)
+    {
+        if(!own[k])
+        {
+            continue;
+        }
+        const glm::vec3 at{own[k]->origin[0], own[k]->origin[1], own[k]->origin[2]};
+        float surface;
+        if(!waterSurface(at, k == 0 ? 40.f : 9.f, surface))
+        {
+            continue;
+        }
+        washing = true;
+        const int layer = acquire(own[k], true, false);
+        if(layer >= 0)
+        {
+            washUnder(layer, own[k], surface, amount);
+        }
+    }
+    if(!washing)
+    {
+        return;
+    }
+    if(vr_wounds_debug.value && cl.time - lastWash > 1.0)
+    {
+        Con_Printf("wounds: washing (%d wounds to re-open)\n", static_cast<int>(playerWounds.size()));
+    }
+    lastWash = cl.time;
+    reopenStart = -1.0;
+    reopened = 0;
+    if(!vr_gore_reopen.value)
+    {
+        playerWounds.clear(); // washed for good
+    }
+    reopenPending = !playerWounds.empty();
+}
+
+// Each frame: washed while hurt, the wounds re-open (their blood only) once clean long enough, one after another.
+void reopen(double now)
+{
+    if(!reopenPending || !vr_gore_reopen.value || now - lastWash < vr_gore_reopen_delay.value)
+    {
+        return;
+    }
+    if(playerWounds.empty() || cl.stats[STAT_HEALTH] <= 0)
+    {
+        reopenPending = false;
+        return;
+    }
+    if(reopenStart < 0.0)
+    {
+        reopenStart = now;
+        reopened = 0;
+        if(vr_wounds_debug.value)
+        {
+            Con_Printf("wounds: %d wounds re-open\n", static_cast<int>(playerWounds.size()));
+        }
+        // Their blood runs down the arms onto the hands (wherever the wounds land again).
+        const int blots = za::clamp(static_cast<int>(playerWounds.size() / 2), 2, 4);
+        smearHand(0, blots, reopenHandBlood);
+        smearHand(1, blots, reopenHandBlood);
+    }
+    const float spread = vr_gore_reopen_time.value;
+    const za::SizeT total = playerWounds.size();
+    const float done = spread <= 0.f ? 1.f : za::min(1.f, static_cast<float>(now - reopenStart) / spread);
+    const za::SizeT want = za::min(total, static_cast<za::SizeT>(za::ceil(done * static_cast<float>(total))));
+    const entity_t& pl = cl_entities[cl.viewentity];
+    const glm::vec3 origin{pl.origin[0], pl.origin[1], pl.origin[2]};
+    const za::U32 draws = rng; // (the replays' draws are theirs: the sequence goes on after them as it was)
+    bloodOnly = true;
+    for(; reopened < want; reopened++)
+    {
+        Event ev = playerWounds[reopened].ev;
+        rng = playerWounds[reopened].seed;
+        ev.org = origin + playerWounds[reopened].rel;
+        ev.num = cl.viewentity;
+        apply(ev);
+    }
+    bloodOnly = false;
+    rng = draws;
+    if(reopened >= total)
+    {
+        reopenPending = false;
+        reopenStart = -1.0;
+    }
+}
+
+// The view masks' blood (off hand, main hand, body): texels with any (-1: no mask), and their blood summed (1 a texel
+// full).
+void viewBlood(int count[3], double sum[3])
+{
+    entity_t* own[3]{};
+    view::woundTargets(own);
+    za::Vector<byte> rgba(static_cast<za::SizeT>(layerSize) * layerSize * 4);
+    GLint previous = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, fbo);
+    for(int part = 0; part < 3; part++)
+    {
+        entity_t* e = own[part < 2 ? 1 + part : 0];
+        count[part] = -1;
+        sum[part] = 0.0;
+        const int layer = e && array ? acquire(e, true, false) : -1;
+        if(layer < 0)
+        {
+            continue;
+        }
+        const Mask& m = masks[static_cast<za::SizeT>(layer)];
+        GL_FramebufferTextureLayerFunc(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, array, 0, layer);
+        glReadPixels(0, 0, m.w, m.h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
+        count[part] = 0;
+        for(int p = 0; p < m.w * m.h; p++)
+        {
+            const int r = rgba[static_cast<za::SizeT>(p) * 4];
+            count[part] += r > 0 ? 1 : 0;
+            sum[part] += r / 255.0;
+        }
+    }
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, static_cast<GLuint>(previous));
 }
 
 // ----------------------------------------------------------------------------
@@ -1011,6 +1370,7 @@ void playerState()
     {
         return;
     }
+    forgetPlayerWounds(respawned ? 1.f : za::clamp(heal, 0.f, 1.f));
     for(int i = 0; i < layers; i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
@@ -1195,16 +1555,20 @@ void frame()
         apply(ev);
     }
     events.clear();
+    const double now = cl.time;
+    gibHands(now);
+    reopen(now);
     const auto t2 = Sys_DoubleTime();
 
-    const double now = cl.time;
     if(lastTick < 0.0 || now < lastTick || now - lastTick > 5.0)
     {
         lastTick = now;
     }
     if(now - lastTick >= tick)
     {
-        steps(static_cast<float>(now - lastTick));
+        const float dt = static_cast<float>(now - lastTick);
+        steps(dt);
+        wash(za::max(1, static_cast<int>(dt / tick + 0.5f)));
         lastTick = now;
     }
     end();
@@ -1232,6 +1596,128 @@ void clear()
     events.clear();
     lastTick = -1.0;
     playerHealth = -1000;
+    playerWounds.clear();
+    heldGib[0] = heldGib[1] = 0;
+    lastWash = -1e9;
+    reopenPending = false;
+    reopenStart = -1.0;
+    reopened = 0;
+    for(SkinPart& p : skinParts)
+    {
+        p = SkinPart{};
+    }
+}
+
+int skinLevel(int part, int level, const float* origin)
+{
+    if(part < 0 || part > 2)
+    {
+        return level;
+    }
+    SkinPart& s = skinParts[part];
+    const double now = cl.time;
+    if(now < s.seen - 1.0)
+    {
+        s = SkinPart{}; // time went back: another map, a loaded game
+    }
+    s.seen = now;
+    const bool alive = cl.stats[STAT_HEALTH] > 0;
+    if(!alive)
+    {
+        s = SkinPart{};
+        s.seen = now;
+        return level;
+    }
+    if(part < 2)
+    {
+        const int ent = cl.stats[part == 1 ? protocol::STAT_QVR_CARRYMAIN : protocol::STAT_QVR_CARRYOFF];
+        const bool gib = vr_gore_hands.value > 0.f && isGib(ent);
+        if(gib && s.gibEnt != ent)
+        {
+            s.gib = za::max(s.gib, za::clamp(static_cast<int>(za::lround(vr_gore_hands.value * 2.f)), 1, 3));
+        }
+        s.gibEnt = gib ? ent : 0;
+    }
+    if(vr_gore_wash.value && origin && inWater(glm::vec3{origin[0], origin[1], origin[2]}))
+    {
+        if(s.washed < -1e8)
+        {
+            s.washedLevel = level;
+        }
+        s.washed = now;
+        s.gib = 0;
+    }
+    int shown = level;
+    if(s.washed > -1e8)
+    {
+        const bool reopened_ = vr_gore_reopen.value && now - s.washed >= vr_gore_reopen_delay.value;
+        if(reopened_ || level > s.washedLevel) // re-opened, or hurt again since
+        {
+            s.washed = -1e9;
+        }
+        else
+        {
+            shown = 0;
+            s.washedLevel = za::min(s.washedLevel, level); // (healed meanwhile: a later hit shows)
+        }
+    }
+    return za::max(shown, s.gib);
+}
+
+void handsTest_f()
+{
+    const int hand = Cmd_Argc() > 1 && ZA_STRCMP(Cmd_Argv(1), "off") == 0 ? 0 : 1;
+    const float amount = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : za::max(0.25f, vr_gore_hands.value);
+    if(!vr_wounds.value)
+    {
+        skinParts[hand].gib = za::clamp(static_cast<int>(za::lround(amount * 2.f)), 1, 3);
+        Con_Printf("vr_gore_hands_test: the %s hand's skin %d (the wound skins)\n", hand ? "main" : "off", skinParts[hand].gib);
+        return;
+    }
+    if(!ensureTexture())
+    {
+        return;
+    }
+    smearHand(hand, za::max(1, static_cast<int>(amount * 4.f + 0.5f)), amount);
+    end();
+    Con_Printf("vr_gore_hands_test: a gib's blood on the %s hand\n", hand ? "main" : "off");
+}
+
+void handsInfo_f()
+{
+    const double now = cl.time;
+    Con_Printf("gore hands: %d wounds kept, %s, last wash %.1f s ago, re-open %s", static_cast<int>(playerWounds.size()),
+        lastWash > -1e8 && now - lastWash < 0.25 ? "washing" : "dry", lastWash > -1e8 ? now - lastWash : -1.0,
+        !reopenPending ? "none" : reopenStart < 0.0 ? "pending" : "under way");
+    if(reopenPending && reopenStart < 0.0)
+    {
+        Con_Printf(" (in %.1f s)", static_cast<double>(vr_gore_reopen_delay.value) - (now - lastWash));
+    }
+    const int carried[2]{cl.stats[protocol::STAT_QVR_CARRYOFF], cl.stats[protocol::STAT_QVR_CARRYMAIN]};
+    Con_Printf(", carried %d %s, %d %s\n", carried[0], isGib(carried[0]) ? "(a gib)" : "", carried[1], isGib(carried[1]) ? "(a gib)" : "");
+    if(vr_wounds.value && array)
+    {
+        int count[3];
+        double sum[3];
+        viewBlood(count, sum);
+        static constexpr const char* names[3] = {"off hand", "main hand", "body"};
+        for(int i = 0; i < 3; i++)
+        {
+            if(count[i] < 0)
+            {
+                Con_Printf("  %s: no mask\n", names[i]);
+            }
+            else
+            {
+                Con_Printf("  %s: blood on %d texels (%.1f)\n", names[i], count[i], sum[i]);
+            }
+        }
+    }
+    else
+    {
+        Con_Printf("  wound skins: off hand %d, main hand %d (gib %d %d), body washed %s\n", skinParts[0].gib, skinParts[1].gib,
+            skinParts[0].gibEnt, skinParts[1].gibEnt, skinParts[2].washed > -1e8 ? "yes" : "no");
+    }
 }
 
 void test_f()

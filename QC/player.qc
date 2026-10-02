@@ -829,6 +829,7 @@ void(string gibname, float dm) ThrowHead =
     self.gorging = TRUE;
     self.think = HeadThink;
     self.vr_corpse = 0; // VR: a head, no longer a corpse (vr_corpse_gib; a gremlin gorged on it)
+    self.vr_corpse_dying = 0; // (nor a body dying: vr_corpse_dying)
     VR_MakeGibGrabbable(self);
     VR_Gib_MakeDestroyable(self, 1.5);
     VR_Gore_WatchFling(self); // VR: it may stick to a ceiling or a wall (vr_gore_stick)

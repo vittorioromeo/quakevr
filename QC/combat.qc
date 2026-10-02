@@ -185,6 +185,11 @@ void(entity targ, entity attacker) Killed =
 .float vr_corpse_since;   // when it died
 .float vr_corpse_model;   // its modelindex when it died (the death code gibbing it changes it)
 .float vr_corpse_struck;  // when a hand last struck it (a swing strikes once)
+// VR: dying bodies (vr_corpse_dying): from the frame its death code makes it not solid (what it drops is dropped by
+// then) to lying still, a dying monster takes a corpse's damage (VR_Corpse_Damage: gibbed by enough of it, never killed
+// again), so a chainsaw or a blow cuts it as it falls. Touchable, not solid, as a corpse; its standing box kept (it is
+// still falling: the precise hits test its model as drawn).
+.float vr_corpse_dying;   // 1: dying, and taking damage as a corpse
 
 // The monsters' death code (their th_die), to know what gibs they make.
 void() army_die;
@@ -321,12 +326,44 @@ void(entity e) VR_Corpse_Watch =
 
 void(entity e) VR_Corpse_Unwatch =
 {
+    if(e.vr_corpse_dying)
+    {
+        // Watched no more before it lay still (the option off, 15 s on, brought back): as Quake's dying (not a head:
+        // VR_Corpse_Gib clears the flag first).
+        e.vr_corpse_dying = 0;
+        if(e.health <= 0 && !e.vr_gib)
+        {
+            e.takedamage = DAMAGE_NO;
+            e.solid = SOLID_NOT;
+            setorigin(e, e.origin);
+        }
+    }
     e.vr_corpse = 0;
     if(e.think2 == VR_Corpse_Think2)
     {
         e.think2 = SUB_Null;
         e.nextthink2 = 0;
     }
+};
+
+// Dying, not solid now (vr_corpse_dying): it takes damage as a corpse (VR_Corpse_Damage), as much as it will lying
+// still (vr_corpse_health times its toughness, VR_Corpse_Parts set by VR_Corpse_Watch), touchable as a corpse.
+void(entity e) VR_Corpse_ArmDying =
+{
+    if(!e.vr_corpse_dying)
+    {
+        VR_Corpse_Parts(e);
+        e.vr_corpse_dying = 1;
+        e.vr_corpse_hp = max(1, cvar_hget(cvarh_vr_corpse_health) * vr_corpse_toughness);
+        if(e.health >= 0)
+        {
+            e.health = -1; // dead meat (as VR_Corpse_Arm)
+        }
+        e.takedamage = DAMAGE_YES; // not DAMAGE_AIM: no autoaim at it
+        dprint("corpse: "); dprint(e.classname); dprint(" dying, "); dprint(ftos(e.vr_corpse_hp)); dprint(" to gib\n");
+    }
+    e.solid = SOLID_NOT_BUT_TOUCHABLE;
+    setorigin(e, e.origin);
 };
 
 // Dying, a few times a second: once it is not solid (the death code has dropped what it drops),
@@ -341,10 +378,17 @@ void() VR_Corpse_Think2 =
         return;
     }
 
+    // Not solid (the death code dropped what it drops): it takes damage now, as a corpse (vr_corpse_dying). The death
+    // code making it not solid again (an eel's last frame loops) leaves it touchable.
+    if(self.solid == SOLID_NOT && cvar_hget(cvarh_vr_corpse_dying))
+    {
+        VR_Corpse_ArmDying(self);
+    }
+
     float still = self.frame == self.vr_corpse_frame;
     self.vr_corpse_frame = self.frame;
     float resting = (self.flags & FL_ONGROUND) || self.velocity == '0 0 0' || time > self.vr_corpse_since + 3;
-    if(self.solid == SOLID_NOT && still && resting)
+    if((self.solid == SOLID_NOT || self.vr_corpse_dying) && still && resting)
     {
         VR_Corpse_Arm(self);
         return;
@@ -362,6 +406,8 @@ float(entity e, vector xFrom, vector xDir, float xMax) VR_Corpse_Clear =
 // It lies still: it takes damage now, in a box that lies on the floor.
 void(entity e) VR_Corpse_Arm =
 {
+    float dyingHp = e.vr_corpse_dying ? e.vr_corpse_hp : -1; // the damage it took dying counts
+    e.vr_corpse_dying = 0; // (before VR_Corpse_Unwatch: it is a corpse now, not undone)
     VR_Corpse_Unwatch(e);
 
     vector lo = e.mins;
@@ -398,6 +444,10 @@ void(entity e) VR_Corpse_Arm =
 
     e.vr_corpse = 2;
     e.vr_corpse_hp = max(1, cvar_hget(cvarh_vr_corpse_health) * vr_corpse_toughness);
+    if(dyingHp >= 0)
+    {
+        e.vr_corpse_hp = min(e.vr_corpse_hp, dyingHp);
+    }
     if(e.health >= 0)
     {
         e.health = -1; // dead meat: a rocket's direct hit looks for some health (T_MissileTouch)
@@ -462,6 +512,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     if(!cvar_hget(cvarh_vr_corpse_gib))
     {
         targ.vr_corpse = 0;
+        targ.vr_corpse_dying = 0;
         targ.takedamage = DAMAGE_NO;
         targ.solid = SOLID_NOT;
         setorigin(targ, targ.origin);
@@ -507,6 +558,7 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
     self = c;
 
     self.vr_corpse = 0;
+    self.vr_corpse_dying = 0; // (gibbed dying: its death code stops, ThrowHead's think instead)
     self.vr_corpse_hp = 0;
     self.takedamage = DAMAGE_NO;
     damage_inflictor = inflictor; // the gibs fly away from it (VelocityForDamage)
@@ -571,7 +623,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
 
     // The hand, along its swing.
     traceline(hand - dir * 6, hand + dir * 8, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self); // VR: the corpse's model (vr_hit_precise)
-    if(trace_ent.vr_corpse == 2)
+    if(trace_ent.vr_corpse == 2 || trace_ent.vr_corpse_dying)
     {
         c = trace_ent;
         at = trace_endpos;
@@ -580,7 +632,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
     else if(!VRIsHandWeaponless(self, xHand))
     {
         traceline(hand, VRGetMuzzlePos(xHand) + dir * 4, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self);
-        if(trace_ent.vr_corpse == 2)
+        if(trace_ent.vr_corpse == 2 || trace_ent.vr_corpse_dying)
         {
             c = trace_ent;
             at = trace_endpos;
@@ -927,7 +979,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     // VR: Debug: Show Damage Numbers (vr_debug_damage_numbers, vr_dummy.qc VR_DamageNumber): a gib's, a crate piece's or
     // a corpse's hit as dealt (their own damage below); everything else's as taken (after armour).
-    if(targ.th_die == VR_Gib_Die || targ.vr_cratekind == 3 || targ.vr_corpse == 2)
+    if(targ.th_die == VR_Gib_Die || targ.vr_cratekind == 3 || targ.vr_corpse == 2 || targ.vr_corpse_dying)
     {
         VR_DamageNumber(targ, inflictor, attacker, damage, 0, isVRMelee);
     }
@@ -944,8 +996,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         return VR_CratePiece_Damage(targ, inflictor, attacker, damage);
     }
 
-    // VR: a corpse is only ever gibbed (vr_corpse_gib), never killed again.
-    if(targ.vr_corpse == 2)
+    // VR: a corpse is only ever gibbed (vr_corpse_gib), never killed again; a body still dying too (vr_corpse_dying).
+    if(targ.vr_corpse == 2 || targ.vr_corpse_dying)
     {
         return VR_Corpse_Damage(targ, inflictor, attacker, damage);
     }
@@ -1714,7 +1766,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 {
     float parried = VR_Parry(targ, inflictor, attacker, damage);
-    float corpse = targ.vr_corpse == 2;
+    float corpse = targ.vr_corpse == 2 || targ.vr_corpse_dying;
     float r = T_DamageImpl(targ, inflictor, attacker, parried, 0);
     if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
     {
