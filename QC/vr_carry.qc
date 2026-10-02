@@ -157,8 +157,23 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 
     // Just thrown with both hands: their follow-through neither strikes nor shoves it (NOTES.md
     // vrfiringrange_2026-10-02_15-38-26: the hand that let go first touched the gib as it left, and burst it).
-    if(VR_Throw_SparedBlows(xBox, xPlayer) || VR_SmallGib_BlowSpared(xBox))
+    if(VR_Throw_SparedBlows(xBox, xPlayer))
     {
+        return;
+    }
+    // A small gib just torn out is never nudged: struck at a swing's speed it may burst (vr_smallgibs_blow_burst).
+    if(VR_SmallGib_BlowSpared(xBox))
+    {
+        if(VR_SmallGib_BlowBursts(xBox))
+        {
+            VR_Gib_Struck(xPlayer, xHand, xBox);
+            if(cvar_hget(cvarh_vr_smallgibs_trace))
+            {
+                bprint(sprintf("sgibtrace: #%g %.3f s: struck by the %s hand in its blow grace (%.2f m/s): %s\n",
+                    xBox.vr_sgib_id, time - xBox.vr_sgib, xHand == cVR_MainHand ? "main" : "off",
+                    vlen(VRGetEntHandVel(xPlayer, xHand)), xBox.vr_gib ? "not burst" : "burst"));
+            }
+        }
         return;
     }
 
@@ -432,6 +447,8 @@ float(entity e) VR_SmallGib_BlowSpared =
 {
     return e.vr_sgib > 0 && time < e.vr_sgib + max(0, cvar_hget(cvarh_vr_smallgibs_blow_grace));
 };
+
+float(entity e) VR_SmallGib_BlowBursts;
 
 float(entity e, entity p) VR_Throw_SparedBlows =
 {
@@ -1395,6 +1412,36 @@ float(entity xGib) VR_Gib_IsDestroyable =
     return xGib.th_die == VR_Gib_Die && cvar_hget(cvarh_vr_gib_destroy);
 };
 
+// A small gib in its blow grace (VR_SmallGib_BlowSpared) that a blow still bursts (vr_smallgibs_blow_burst; Can Be
+// Destroyed): the blade that tore it out bursts it as it goes on through, from its making (not only once armed,
+// VR_Gib_Think2), and a blow that falls short of bursting it leaves it be (VR_Gib_Damage: never knocked away).
+float(entity e) VR_SmallGib_BlowBursts =
+{
+    return VR_SmallGib_BlowSpared(e) && cvar_hget(cvarh_vr_smallgibs_blow_burst) && cvar_hget(cvarh_vr_smallgibs_destroy) &&
+           VR_Gib_IsDestroyable(e) && e.carry_player == world;
+};
+
+float vr_sgib_graceblow; // set round a blow's T_Damage on a small gib in its blow grace (VR_Gib_Hit): it bursts or stays put
+
+// A hand's blow or strike of `xDmg` on a loose gib or head (VR_Gib_Blow, VR_Gib_Struck). A small gib in its blow grace
+// (VR_SmallGib_BlowBursts) takes it before it is armed, and isn't knocked away by it.
+void(entity xGib, entity xPlayer, float xDmg) VR_Gib_Hit =
+{
+    float grace = VR_SmallGib_BlowBursts(xGib);
+    float armedNow = grace && !xGib.takedamage;
+    if(armedNow)
+    {
+        xGib.takedamage = DAMAGE_YES;
+    }
+    vr_sgib_graceblow = grace;
+    T_Damage(xGib, xPlayer, xPlayer, xDmg);
+    vr_sgib_graceblow = FALSE;
+    if(armedNow && xGib.vr_gib)
+    {
+        xGib.takedamage = DAMAGE_NO; // armed as before (VR_Gib_Think2)
+    }
+};
+
 // From ThrowGib and ThrowHead, after VR_MakeGibGrabbable: `xHealthMult` of vr_gib_health.
 void(entity xGib, float xHealthMult) VR_Gib_MakeDestroyable =
 {
@@ -1587,6 +1634,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Gib_Damag
     {
         VR_Gib_Burst(targ, dir);
         return TRUE;
+    }
+    if(vr_sgib_graceblow)
+    {
+        return TRUE; // a small gib in its blow grace: never batted away (VR_Gib_Hit)
     }
 
     // Knocked away (a rigid body lying asleep wakes as it moves).
@@ -2034,8 +2085,16 @@ void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blo
     VRMeleeHapticByHand(xHand);
     sound(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
     VR_SetHitKind(QVR_HITKIND_MELEE, xHand, xAt, xDir);
-    T_Damage(xGib, self, self, VR_Gib_StrikeDamage(xSpeed) * VR_Blow_Exhaust(xHand));
+    float sgib = xGib.vr_sgib;
+    float sgibId = xGib.vr_sgib_id;
+    float grace = VR_SmallGib_BlowSpared(xGib);
+    VR_Gib_Hit(xGib, self, VR_Gib_StrikeDamage(xSpeed) * VR_Blow_Exhaust(xHand));
     VR_ClearHitKind();
+    if(sgib > 0 && cvar_hget(cvarh_vr_smallgibs_trace))
+    {
+        bprint(sprintf("sgibtrace: #%g %.3f s: struck by a blow at %.2f m/s%s: %s\n", sgibId, time - sgib, xSpeed,
+            grace ? " in its blow grace" : "", xGib.vr_gib ? "not burst" : "burst"));
+    }
 };
 
 // A hand or a gun striking it at a swing's speed (vr_melee_speed). Not by the hand that just let go
@@ -2046,7 +2105,8 @@ void(entity xPlayer, float xHand, entity xGib) VR_Gib_Struck =
 {
     vector handVel = VRGetEntHandVel(xPlayer, xHand);
     float speed = min(vlen(handVel), vlen(handVel - xGib.velocity * (1 / VRMetersToUnits())));
-    if(speed < max(0.1, cvar_hget(cvarh_vr_melee_speed)) || !VR_Gib_IsDestroyable(xGib) || !xGib.takedamage ||
+    if(speed < max(0.1, cvar_hget(cvarh_vr_melee_speed)) || !VR_Gib_IsDestroyable(xGib) ||
+       (!xGib.takedamage && !VR_SmallGib_BlowBursts(xGib)) ||
        (time < xGib.vr_gib_releasetime + 0.4 && xHand == xGib.vr_gib_releasehand) ||
        (xGib.carry_letgo == xPlayer && time < xGib.carry_letgo_time + cvar_hget(cvarh_vr_gib_letgo_spare)) ||
        VR_Throw_SparedBlows(xGib, xPlayer) || !VR_Throw_HandMayStrike(xPlayer, xHand))
@@ -2056,7 +2116,7 @@ void(entity xPlayer, float xHand, entity xGib) VR_Gib_Struck =
     dprint(sprintf("gib: struck by the %s hand's touch at %.2f m/s, %.2f s after it was let go of (by the %s hand)\n",
         xHand == cVR_MainHand ? "main" : "off", speed, time - xGib.vr_gib_releasetime,
         xGib.vr_gib_releasehand == cVR_MainHand ? "main" : "off"));
-    T_Damage(xGib, xPlayer, xPlayer, VR_Gib_StrikeDamage(speed));
+    VR_Gib_Hit(xGib, xPlayer, VR_Gib_StrikeDamage(speed));
 };
 
 // ----------------------------------------------------------------------------

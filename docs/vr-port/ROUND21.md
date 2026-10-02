@@ -22261,3 +22261,24 @@ from a monster spawned dead at your feet (not changed).
 - Slash and stab grunts and corpses with the sword and the axe: small gibs drop near the wound, never shot across the room.
 - Bat a small gib that has lain a moment: it still flies.
 - Stand on a corpse and gib it with a blow, and with the shotgun at your feet: no damage. Throw a gib at a monster: it hurts.
+
+### Follow-up: fresh small gibs still burst by blows (2026-10-03)
+
+The author: during the blow grace a blade passing through a small gib it just made no longer bursts it; it should, as an
+option, while the gib is still never batted, nudged or pushed. New `vr_smallgibs_blow_burst` (1; Gore > Small Gibs: Burst
+by Blows Meanwhile, under Not Batted Away For; needs Can Be Destroyed): in `vr_smallgibs_blow_grace` a blow bursts a
+small gib, from its making (not only once armed, 0.2 s on: the arming kept the rest of the blow that made it off it).
+- QC VR_SmallGib_BlowBursts: the melee sweep takes such a gib as a target (VR_Gib_Blow), and a hand's or weapon's touch
+  (VR_Carry_Nudge) strikes it (VR_Gib_Struck) but never nudges it.
+- VR_Gib_Hit: the blow's damage on it, armed for that call only; a blow short of bursting it doesn't knock it away
+  (VR_Gib_Damage; `vr_sgib_graceblow`). Box3D's reach bodies and held things still pass through it (smallGibSpared).
+- `vr_smallgibs_trace` prints each blow on a small gib (`struck by a blow at N m/s in its blow grace: burst`).
+0 is sgibbat's behaviour exactly.
+
+**Measured** with his sword takes (the 33 of weapon 13; his gib settings), how often the blade bursts a gib it just made
+is low either way (the gibs rise out of its path): a grunt, on: 1 of 14 melee gibs burst by a blow (at 0.022 s, before
+arming); gibs left at the wound (Speed 0, Up 0): on 2 of 12, off 0 of 18; a corpse, on: 2 burst; blow grace 0 (the old
+rule, armed at 0.2 s): 0 of 15. No blow in the grace left a gib unburst or moved; the rest lay as before (across: mean
+7.4, max 28 units, grunt; corpse mean 6.5, max 33). Tests 1-18 and the melee canary unchanged.
+
+In VR: slash a grunt twice quickly, the second swing through the first's gibs: they burst into blood, none flies off.

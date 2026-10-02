@@ -292,6 +292,7 @@ float cvarh_vr_smallgibs_mass;
 float cvarh_vr_smallgibs_grace;
 float cvarh_vr_smallgibs_trace;
 float cvarh_vr_smallgibs_blow_grace;
+float cvarh_vr_smallgibs_blow_burst;
 float cvarh_vr_gib_spawn_harmless;
 float cvarh_vr_smallgibs_max;
 float cvarh_vr_smallgibs_time;
@@ -718,6 +719,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_smallgibs_grace);
     VR_CVAR_HMAKE(vr_smallgibs_trace);
     VR_CVAR_HMAKE(vr_smallgibs_blow_grace);
+    VR_CVAR_HMAKE(vr_smallgibs_blow_burst);
     VR_CVAR_HMAKE(vr_gib_spawn_harmless);
     VR_CVAR_HMAKE(vr_smallgibs_max);
     VR_CVAR_HMAKE(vr_smallgibs_time);
