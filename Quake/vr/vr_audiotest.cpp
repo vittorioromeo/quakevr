@@ -14,6 +14,8 @@
 //   nearfield  a noise at the right ear (0.2 m) and 2 m to the right: the level difference between the ears
 //   distance   (in a map) how loud by the distance, in sight of the head: Quake's panning against the spatial mix
 //   hands      (in a map, in VR) the player's weapon channels' origins and panning: the hands'
+//   golden     fixed renders of the whole mix path (24 moving voices, every feature; slowed; the band-limited copies)
+//              against a reference copy (sound_tests/golden_<case>_ref.f32): bit-identical, or the SNR
 //   bench      32 voices, every feature on, then off; and Quake's own mixing of 32 channels: ms per 90 Hz frame
 //   all        each of them
 
@@ -1761,6 +1763,172 @@ void testFullBand(Result& res)
     }
 }
 
+// ----------------------------------------------------------------------------
+// golden: fixed renders through the mix's whole path, kept to check that an optimisation leaves the sound as it was.
+// renderVoices with 24 voices of made sounds loaded as S_LoadSound loads them (their band-limited copies), moving round
+// the head (Doppler, the HRTF's directions, the near field), each with its occlusion EQ and air, the reverb, the
+// anti-aliasing; at the normal speed and slowed to 0.25; and the band-limited copies themselves. Each is written raw
+// (float32, left and right) to sound_tests/golden_<case>.f32 and, when golden_<case>_ref.f32 is there (a copy of an
+// earlier build's), compared with it: bit-identical, else the SNR (PASS over 60 dB) and the largest difference.
+
+void writeRaw(const char* name, const za::Vector<float>& x)
+{
+    za::String path = za::String{com_gamedir} + "/sound_tests/golden_" + name + ".f32";
+    COM_CreatePath(path.data());
+    FILE* f = fopen(path.cStr(), "wb");
+    if(f)
+    {
+        fwrite(x.data(), sizeof(float), x.size(), f);
+        fclose(f);
+    }
+}
+
+void compareRaw(Result& res, const char* name, const za::Vector<float>& x)
+{
+    writeRaw(name, x);
+    const za::String path = za::String{com_gamedir} + "/sound_tests/golden_" + name + "_ref.f32";
+    FILE* f = fopen(path.cStr(), "rb");
+    if(!f)
+    {
+        Con_Printf("snd_test golden %s: %d samples written (no _ref to compare)\n", name, static_cast<int>(x.size()));
+        return;
+    }
+    za::Vector<float> ref(x.size(), 0.f);
+    const za::SizeT got = fread(ref.data(), sizeof(float), ref.size(), f);
+    fclose(f);
+    double signal = 0.0;
+    double noiseSum = 0.0;
+    double worst = 0.0;
+    int differ = 0;
+    for(za::SizeT i = 0; i < x.size(); i++)
+    {
+        const double d = static_cast<double>(x[i]) - static_cast<double>(ref[i]);
+        signal += static_cast<double>(ref[i]) * ref[i];
+        noiseSum += d * d;
+        worst = za::max(worst, za::abs(d));
+        differ += x[i] != ref[i] ? 1 : 0;
+    }
+    const double snr = noiseSum > 0.0 ? 10.0 * za::log10(signal / noiseSum) : 999.0;
+    Con_Printf("snd_test golden %s: %s, %d of %d samples differ, SNR %.1f dB, largest difference %.3g (of 32768)\n", name,
+        differ == 0 && got == x.size() ? "bit-identical" : "differs", differ, static_cast<int>(x.size()), snr, worst);
+    res.check((za::String{"golden "} + name + ": as the reference (SNR over 60 dB)").cStr(), got == x.size() && snr > 60.0);
+}
+
+// The scene: 24 voices round the head, moving, for 200 calls of two frames.
+za::Vector<float> goldenMix(const za::Vector<Loaded>& sounds, float rate, int fullBand, const IPLReflectionEffectParams* reverb,
+    IPLReflectionEffectType type, bool hrtf)
+{
+    za::Vector<float> out;
+    Mixer m;
+    const int frame = testFrame();
+    if(!m.create(testRate, frame, ""))
+    {
+        return out;
+    }
+    m.setReverb(type, 1, 2.0f);
+    const float upm = units::perMetre;
+    Features f = baseFeatures();
+    f.hrtf = hrtf;
+    f.occlusion = 1.f;
+    f.air = true;
+    f.reverb = 0.5f;
+    f.doppler = 1.f;
+    f.nearfield = 1.f;
+    f.rate = rate;
+    f.fullBand = fullBand >= 1;
+    const float savedFullBand = vr_snd_fullband.value;
+    const float savedAntiAlias = vr_snd_antialias.value;
+    Cvar_SetValueQuick(&vr_snd_fullband, static_cast<float>(fullBand));
+    Cvar_SetValueQuick(&vr_snd_antialias, 1.f);
+    const Listener lis = centred();
+    AntiAlias aa;
+    za::Vector<float> mixL(Mixer::maxSamples, 0.f), mixR(Mixer::maxSamples, 0.f);
+    za::Vector<float> revL(Mixer::maxSamples, 0.f), revR(Mixer::maxSamples, 0.f);
+    constexpr int voices = 24;
+    const int count = static_cast<int>(sounds.size());
+    for(int i = 0; i < voices; i++)
+    {
+        m.start(i, sounds[i % count].cache(), i * 37.0);
+    }
+    const int blocks = 2;
+    const double dt = static_cast<double>(blocks * frame) / testRate;
+    for(int k = 0; k < 200; k++)
+    {
+        for(int i = 0; i < voices; i++)
+        {
+            if(!m.active(i) || m.ended(i))
+            {
+                m.start(i, sounds[i % count].cache(), 0.0);
+            }
+            const float speed = 0.6f * static_cast<float>(1 + i % 3);
+            const float a = static_cast<float>(i) * 2.399963f + static_cast<float>(k * dt) * speed;
+            const float r = (0.3f + static_cast<float>(i % 6)) * upm;
+            VoiceInput in;
+            in.pos = glm::vec3{za::cos(a) * r, za::sin(a) * r, static_cast<float>(i % 3 - 1) * 20.f};
+            in.vel = glm::vec3{-za::sin(a) * r * speed, za::cos(a) * r * speed, 0.f};
+            in.gain = 0.15f;
+            in.attached = i % 7 == 0;
+            in.hasDirect = true;
+            in.direct.occlusion = static_cast<float>(i % 4) / 3.f;
+            in.direct.transmission[0] = 0.5f;
+            in.direct.transmission[1] = 0.3f;
+            in.direct.transmission[2] = 0.1f;
+            in.direct.air[0] = 1.f;
+            in.direct.air[1] = 0.9f - 0.02f * static_cast<float>(i % 5);
+            in.direct.air[2] = 0.7f - 0.05f * static_cast<float>(i % 5);
+            m.set(i, in);
+        }
+        renderVoices(m, blocks, lis, f, reverb, mixL, mixR, revL, revR, aa);
+        for(int s = 0; s < blocks * frame; s++)
+        {
+            out.pushBack(mixL[s]);
+            out.pushBack(mixR[s]);
+        }
+    }
+    Cvar_SetValueQuick(&vr_snd_fullband, savedFullBand);
+    Cvar_SetValueQuick(&vr_snd_antialias, savedAntiAlias);
+    return out;
+}
+
+float sine3k(int i, unsigned&)
+{
+    return 12000.f * za::sin(2.f * 3.14159265f * 3000.f * static_cast<float>(i) / 11025.f);
+}
+
+void testGolden(Result& res)
+{
+    za::Vector<Loaded> sounds;
+    sounds.pushBack(loadAt(11025, 11025, 1, false, noise));     // id's: 8-bit, 11 kHz
+    sounds.pushBack(loadAt(22050, 22050 * 2, 2, true, noise));  // a 22 kHz loop
+    sounds.pushBack(loadAt(11025, 11025 * 2, 2, true, sine3k)); // a tone near the top of an 11 kHz sound
+    sounds.pushBack(loadAt(32000, 16000, 2, false, noise));
+    // The copies themselves.
+    za::Vector<float> copies;
+    for(const Loaded& s : sounds)
+    {
+        const short* full = fullBandData(s.cache());
+        for(int i = 0; full && i < s.cache()->length; i++)
+        {
+            copies.pushBack(static_cast<float>(full[i]));
+        }
+    }
+    compareRaw(res, "copies", copies);
+
+    IPLReflectionEffectParams parametric{};
+    parametric.type = IPL_REFLECTIONEFFECTTYPE_PARAMETRIC;
+    parametric.reverbTimes[0] = 1.4f;
+    parametric.reverbTimes[1] = 1.1f;
+    parametric.reverbTimes[2] = 0.7f;
+    parametric.eq[0] = parametric.eq[1] = parametric.eq[2] = 1.f;
+    compareRaw(res, "mix", goldenMix(sounds, 1.f, 1, &parametric, IPL_REFLECTIONEFFECTTYPE_PARAMETRIC, true));
+    compareRaw(res, "slow", goldenMix(sounds, 0.25f, 1, &parametric, IPL_REFLECTIONEFFECTTYPE_PARAMETRIC, true));
+    compareRaw(res, "nofull", goldenMix(sounds, 1.f, 0, &parametric, IPL_REFLECTIONEFFECTTYPE_PARAMETRIC, true));
+    compareRaw(res, "panning", goldenMix(sounds, 0.5f, 1, &parametric, IPL_REFLECTIONEFFECTTYPE_PARAMETRIC, false));
+
+    // (Not the convolution reverb: its response is simulated with Steam Audio's random rays, a little different each
+    // run. It goes through the same calls as the parametric one above.)
+}
+
 void test_f()
 {
     const char* which = Cmd_Argc() > 1 ? Cmd_Argv(1) : "all";
@@ -1812,6 +1980,10 @@ void test_f()
     if(all || !ZA_STRCMP(which, "hands"))
     {
         testHands(res);
+    }
+    if(all || !ZA_STRCMP(which, "golden"))
+    {
+        testGolden(res);
     }
     if(all || !ZA_STRCMP(which, "bench"))
     {
