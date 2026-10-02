@@ -2651,6 +2651,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
         {
             VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
             vr_melee_blunt = b.mh_kind == VR_MKIND_POMMEL; // its own sound (VR_Melee_HitSound)
+            vr_sgib_at = b.mh_c_pos; // where small gibs are torn out (vr_smallgibs.qc)
             if(!DoXHandMelee(xHand, WID_FIST, "", W_FistMelee))
                 if(!DoXHandMelee(xHand, WID_AXE, "", W_FireAxe))
                     if(!DoXHandMelee(xHand, WID_MJOLNIR, "", HIP_FireMjolnir))
@@ -2659,6 +2660,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
                     if(!DoXHandMelee(xHand, WID_CROWBAR, "", W_CrowbarMelee))
                         DoXHandMeleeImpl(xHand, "", W_GunMelee);
             vr_melee_blunt = FALSE;
+            vr_sgib_at = '0 0 0';
             VR_ClearHitKind();
         }
 

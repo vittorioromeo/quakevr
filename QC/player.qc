@@ -811,6 +811,7 @@ void(string gibname, float dm) ThrowHead =
 {
     dprint(sprintf("gibbed: %s (gib speed x%.2f)\n", self.classname, vr_gib_speed > 0 ? vr_gib_speed : 1));
     VR_Gore_Gibbed(); // VR: blood all round (vr_gore, vr_carry.qc)
+    VR_SmallGib_Gibbed(dm); // VR: and small gibs (vr_smallgibs.qc)
     setmodel(self, gibname);
     self.frame = 0;
 //   self.nextthink = -1;

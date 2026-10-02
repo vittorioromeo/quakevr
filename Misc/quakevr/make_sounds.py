@@ -34,6 +34,9 @@
 #                 stone and the bar ringing on); a little apart in pitch
 #   rock1..3.wav, brick1..3.wav  a rock's thud and a brick's clack (QC vr_debris.qc): landing, knocked, thrown into
 #                 something or struck with; three each, a little apart in pitch
+#   squish1..4.wav, squish_s1..4.wav  a gib landing or sticking (QC vr_carry.qc VR_Gib_Touch, vr_smallgibs.qc;
+#                 vr_physsound.cpp's flesh): a wet slap, a soft low thud and the squelch of bubbles popping in it; the
+#                 small gibs' (_s) higher, shorter and lighter
 #
 # The water sounds in the same folder (splash_small*, splash_big*, splash_out*, plip*, slosh*, stroke*) are not
 # made here: they are recordings (docs/vr-port/CREDITS.md), kept in the repository as they are.
@@ -526,6 +529,46 @@ def stone_knock(pitch, seed, brick):
     return finish(out, 0.9)
 
 
+# ---- Gibs (QC vr_carry.qc, vr_smallgibs.qc; docs/vr-port/ROUND21.md, "Small gibs"): wet meat landing.
+
+
+def squish(pitch, seed, small):
+    """A gib landing: a wet slap (band-passed noise, a few ms), a soft low thud, then the squelch: short bubbles popping
+    (sines rising in pitch as they burst) in a low-passed, grainy slop that dies away. Small: higher, shorter, lighter."""
+    rng = random.Random(seed)
+    n = int(RATE * (0.26 if small else 0.42))
+    slap_lp, slap_hp = OnePole(3200 if small else 2400), OnePole(700 if small else 450)
+    slop_lp = OnePole(1500 if small else 900)
+    phase = [0.0]
+    bubbles = []
+    for _ in range(rng.randint(4, 7) if small else rng.randint(6, 10)):
+        at = rng.uniform(0.006, 0.12 if small else 0.22)
+        f = rng.uniform(700, 1600) if small else rng.uniform(260, 800)
+        bubbles.append((at, f * pitch, rng.uniform(0.012, 0.03), rng.uniform(0.3, 1.0), rng.uniform(0, 6.28)))
+    grains = [(rng.uniform(0.0, 0.2 if small else 0.32), rng.uniform(0.2, 0.7)) for _ in range(rng.randint(8, 14))]
+    out = []
+    for i in range(n):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        sl = slap_lp(noise)
+        sl -= slap_hp(sl)
+        slap = sl * math.exp(-t / (0.004 if small else 0.007)) * min(1.0, t / 0.0005)
+        body = thud(t, phase, (95 if small else 55) * pitch, (90 if small else 70) * pitch, 0.03 if small else 0.06)
+        pops = 0.0
+        for at, f, life, level, ph in bubbles:
+            if at <= t < at + life:
+                u = t - at
+                pops += level * math.sin(ph + 2 * math.pi * f * u * (1 + 0.8 * u / life)) * math.exp(-u / (life * 0.35)) *                     min(1.0, u / 0.0015)
+        grain = 0.0
+        for at, level in grains:
+            if t >= at:
+                grain += level * math.exp(-(t - at) / 0.012)
+        slop = slop_lp(noise) * (0.35 + grain) * math.exp(-t / (0.06 if small else 0.11))
+        s = slap * (1.4 if small else 1.6) + body * (0.35 if small else 0.8) + pops * 0.32 + slop * 1.3
+        out.append(math.tanh(s * 1.3))
+    return finish(out, 0.8 if small else 0.9, 0.03)
+
+
 # ---- Caught grenades (QC vr_grenade.qc; docs/vr-port/ROUND21.md, "Deflection by blows and bashes; catching grenades;
 # ogre aim"): a caught grenade is lit (its fuse set again) and ticks until it goes off.
 
@@ -959,6 +1002,12 @@ def main():
         for k, pitch in enumerate((1.0, 0.9, 1.11)):
             name = "%s%d.wav" % (kind, k + 1)
             write_wav(os.path.join(out, name), stone_knock(pitch, seed + k, brick))
+            print(name + " -> " + os.path.normpath(out))
+    # Gibs landing (QC vr_carry.qc, vr_smallgibs.qc; vr_physsound.cpp): four each, a little apart in pitch.
+    for kind, small, seed in (("squish", False, 631), ("squish_s", True, 731)):
+        for k, pitch in enumerate((1.0, 0.9, 1.1, 0.95)):
+            name = "%s%d.wav" % (kind, k + 1)
+            write_wav(os.path.join(out, name), squish(pitch, seed + k, small))
             print(name + " -> " + os.path.normpath(out))
     # And dropping into water (vr_shells.cpp): the recordings' plips higher, from the folder they are in.
     for k, (plip, factor) in enumerate((("plip1.wav", 1.5), ("plip3.wav", 1.4), ("plip4.wav", 1.65))):

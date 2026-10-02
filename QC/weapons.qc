@@ -1849,6 +1849,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
     string targetName = "";
 
     ClearMultiDamage();
+    VR_SmallGib_BlastBegin(); // VR: the blast's pellets one hit for the small gibs (vr_smallgibs.qc)
     while(shotcount > 0)
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
@@ -1878,6 +1879,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
         //JIM
         {
             posDmgType = PositionalDamage(trace_ent, trace_endpos, direction);
+            VR_SmallGib_Pellet(trace_ent, trace_endpos);
             if(debugShots && posDmgType == 1) { hitsHead++; }
             adjDmg = (vr_pellet_damage ? vr_pellet_damage : 4) * PositionalDamageFactor(posDmgType);
 
@@ -1893,6 +1895,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
         shotcount = shotcount - 1;
     }
     ApplyMultiDamage();
+    VR_SmallGib_BlastEnd();
     if(debugShots)
     {
         dprint(sprintf("shot: from %v dir %v: %d on %s (%d head), %d world, %d nothing\n", src, dir, hitsTarget,

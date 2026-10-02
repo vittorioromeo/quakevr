@@ -274,6 +274,7 @@ void() worldspawn =
     VR_Crowbar_Precache(); // VR: the crowbar (vr_crowbar.qc)
     VR_EnemyGuns_Precache(); // VR: the grunts' shotguns and the enforcers' laser rifles (vr_enemyguns.qc)
     VR_Debris_Precache(); // VR: rocks and bricks lying about (vr_debris.qc)
+    VR_SmallGib_Precache(); // VR: small gibs' squishes (vr_smallgibs.qc)
     VR_Crates_Precache(); // VR: wooden crates (vr_crates.qc)
 
     // setup precaches allways needed
@@ -529,6 +530,7 @@ void() StartFrame =
     VR_Wounds_Frame(); // VR: wet up to where the liquid comes (vr_wounds.qc)
     VR_Crates_Frame(); // VR: at a new map's first frame, its crates (vr_crates.qc; before the rocks and bricks: they keep clear)
     VR_Debris_Frame(); // VR: at a new map's first frame, its rocks and bricks (vr_debris.qc)
+    VR_SmallGib_TestFrame(); // VR: the small gibs' tests (vr_smallgibs_test, vr_smallgibs_test.qc)
     VR_Grapple_WorldFrame(); // VR: the grappling hooks whose guns lie about (vr_grapple.qc)
     VR_Throw_SelfFrame(); // VR: things you threw hurt you once vr_throw_self_grace is over (vr_carry.qc)
     framecount = framecount + 1;
