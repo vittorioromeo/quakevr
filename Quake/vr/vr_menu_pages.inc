@@ -445,6 +445,10 @@ void resetHandMoves()
             .help("How much heavy things droop under their weight (more at arm's length)."),
         slider("Swing", vr_weight_spring_inertia, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 5.f)
             .help("How much a moving hand swings what it holds about the grip (its weight trailing behind)."),
+        slider("Roll Weight", vr_weight_spring_roll, 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 20.f)
+            .help("Times the weight of what you hold about its length, for a roll of your wrist (palm up, palm down): "
+                  "higher follows it more slowly (2: 41% slower). A weapon is turned by the forearm's twist, weaker than "
+                  "the wrist's bend; Weapon Weights has each weapon's own."),
         slider("Two-Handed Help", vr_weight_spring_2h, 1.f, 8.f, 0.5f, "%.1fx").extend(1.f, 20.f)
             .help("Times the stiffness and strength with both hands on it (4: twice as quick)."),
         slider("Snap Back Beyond", vr_weight_spring_snap, 10.f, 100.f, 5.f, "%.0f cm").extend(1.f, 1000.f)

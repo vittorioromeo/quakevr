@@ -19986,3 +19986,35 @@ Verified: Release and Debug (`QVR_ZANCLE_DEBUG`) 0 warnings; `vr_zancle_math_tes
 `vr_jobs_test` 13 of 13, in both; smoke (e1m1, e2m1, vrfiringrange) clean in Release and with the Debug exe (Zancle's
 asserts on: none fired; `vr_jobs_info` after it: 839 loops split, 32491 chunks by callers, 108827 by helpers in
 Release); the eval canary 48/53, 0 differ from the baseline.
+
+## Weight: the wrist's roll (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_01-14-49 and _01-16-14: one-handed, the laser cannon lags and springs on pitch and yaw,
+but turning the palm up and down (a roll about the forearm, the weapon's length) was instant. The spring did take the
+roll axis, but a weapon's inertia about its barrel was a 6 cm rod's (7 kg: 0.025 kg m^2) against the whole wrist's
+stiffness (425 N m/rad): sqrt(kA / I) above the spring's cap (120 rad/s), the same as no weight.
+
+Now (vr_weight.cpp, gunLoad; every weapon, not props, the flashlight or the empty hand): a weapon turns about the
+forearm's axis, which runs through the hand below its body, so its inertia about the forward axis is
+m (6 cm girth^2 + 8 cm above the forearm^2) (laser cannon 0.07 kg m^2), and the forearm's twist that turns it is a
+quarter of the wrist's stiffness and torque (forearmTwist; two hands still multiply it by Two-Handed Help). Roll Weight
+multiplies that inertia (2: 41% slower): `vr_weight_spring_roll` (Aiming: Spring, 1) and each weapon's `w_roll` (Weapon
+Weights > Spring, 1).
+
+`vr_weight_test`'s new "wrist step" table (the hand turns 45 or 90 degrees in one 90 fps frame; ms to 90%, overshoot %),
+roll before -> after (pitch and yaw unchanged):
+
+| weapon | 45 deg | 90 deg | pitch 45 / 90 |
+|---|---|---|---|
+| pistol 1.2 kg | 35 -> 47 | 42 -> 54 | 35 / 42 |
+| grapple 1.5 kg | 35 -> 53 | 42 -> 61 | 37 / 43 |
+| shotgun 3 kg | 35 -> 74 | 42 -> 85 | 96 / 109 |
+| laser cannon 7 kg | 36 -> 110 | 42 -> 127 | 158 / 182 |
+| laser cannon 2H | 36 -> 56 | 42 -> 65 | 75 / 86 |
+| rocket launcher 8 kg | 36 -> 117 | 43 -> 135 | 190 / 219 |
+
+Overshoot is 0% on every axis before and after: the damping is critical and against the hand's own turn, so a turn that
+stops is not overshot (the springing felt on pitch is the sag and the swing of the centre of mass, which a roll about the
+barrel has none of). The wrist-snap table's "long" column counted a put-back as a turn the long way when the hand had
+moved on more than half a turn by the frame's end; a put-back is now a jump (the laser 2H case at 90 fps with the weaker
+twist). It still turns the short way or is put back: 0 long everywhere.

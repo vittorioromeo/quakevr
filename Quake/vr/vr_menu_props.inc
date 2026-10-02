@@ -210,6 +210,9 @@ za::Vector<Item> pageWeaponWeights()
             "Times Aiming: Sag, for this weapon: how much it droops under its weight."),
         springSlider("Swing", weapons::cvar(slot, Key::SpringSwing), 4.f,
             "Times Aiming: Swing, for this weapon: how much a moving hand swings it about the grip."),
+        springSlider("Roll Weight", weapons::cvar(slot, Key::SpringRoll), 4.f,
+            "Times Aiming: Roll Weight, for this weapon: how slowly it follows a roll of your wrist (palm up, palm "
+            "down), its weight about its barrel. 2: 41% slower."),
         springSlider("Two-Handed Help", weapons::cvar(slot, Key::SpringTwoHanded), 4.f,
             "Times Aiming: Two-Handed Help, for this weapon: how much steadier both hands hold it."),
         springSlider("Snap Back Beyond", weapons::cvar(slot, Key::SpringSnap), 4.f,
