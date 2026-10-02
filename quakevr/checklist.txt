@@ -97,6 +97,10 @@ Flashlight Can Clip On (Weapon Offsets > Flashlight): axe, Mjolnir, swords, chai
 Stand on a burning corpse and look around: no black patches, the air still shimmers
 Nails through a torch flame fizz as they turn to lava nails (Combat > Burning > Nail Sizzle Volume)
 
+Fresh config: weapon weights feel as you tuned them (axe 2.5, shotgun 3.5, swords 4 and 6.5, crowbar 4, hook 2.5 kg)
+Lightning gun: its new second hotspot
+Crowbar in the hip and chest holsters: your poses
+
 [Decide or give feedback]
 Grappling hook: allow the flashlight to clip on it? (on now)
 Flashlight cord: make Chain the default?
