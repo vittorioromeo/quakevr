@@ -137,6 +137,10 @@ Magazines: shoot a few, holster, draw, throw, pick up, switch hands: rounds left
 Blood: get hurt, then a health pickup: your wounds fade, others' blood stays until water
 Blood Opacity 0.8 vs 1: pick one
 
+Weapon blood follows the weapon: holster a bloody shotgun, pick up a clean one: stays clean; draw the bloody one: still bloody
+Weapon blood through throw, pick up and a two-handed hand-off: stays on the same weapon
+Magazine: shoot a few, then holster, draw, throw and switch hands: rounds left unchanged
+
 [Decide or give feedback]
 Explosive boxes catching fire and blowing up from it: add?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
