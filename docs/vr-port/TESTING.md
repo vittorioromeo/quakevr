@@ -1298,6 +1298,11 @@ player's capsules). `give h 30` then `give h 100` checks the heal fade. `vr_phys
 wound events (they go out in the next server frame's datagram, cleared first): test explosions with
 `vr_wounds_test ahead 4 <damage>`. Screenshots comparable run to run: `host_framerate 0.0111; vr_particle_seed 7;
 vr_body_blood 0; vr_body_blood_floor 0` (the wrist gadget's readout still changes).
+Your own arms close up (ROUND21.md, "Your own wounds: finer, smooth, with relief"): `vr_mock_eye_size 1440; vr_restart`
+before the map, then `vr_mock_hand off 0.10 1.22 -0.34 0 -75 0; vr_mock_hand main -0.08 1.02 -0.30 0 75 0;
+vr_mock_hand head 0 1.6 0 -45 0 0` (the forearms crossed before the chest, looked down at), `vr_wounds_test self 4 90 0 12`
+(burns), `vr_wounds_test self 1 20 4 14` (a wound), `vr_wounds_test self 9 0 0 52` (wet to mid-forearm), then
+`vr_eyeshot 1`. `vr_wounds_own_res 0` shows the old chunky look for comparison.
 Liquids (ROUND21.md, "Enemies hurt by liquids"): `vr_debug_shots 1; developer 1` logs each burn (`liquid: ... health`);
 with `vr_enemy_liquid_damage 0` it logs a "not burnt" line each second instead. Run `god; notarget` first, then:
 - a grunt in e1m1's slime: `setpos 200 2820 -60; wait5; vr_test_spawn 0; vr_test_spawn_dist 64; impulse 241`;

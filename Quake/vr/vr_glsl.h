@@ -133,6 +133,7 @@ QVR_TONE_GLSL
 "	vec4	FrameCausticsScale;\n"\
 "	vec4	FrameDetail;\n"\
 "	vec4	SceneTone; // QVR: x the brightest models write (vr/vr_tonemap.cpp), yzw the force grab glow's colour\n"\
+"	vec4	FrameWater3; // QVR: zw your own wounds' relief, burns' and blood's (vr/vr_wounds.cpp: vr_wounds_bump_burns, vr_wounds_bump_blood)\n"\
 "};\n"\
 "\n"\
 
@@ -1583,8 +1584,11 @@ SPECULAR_AA_FUNCTIONS
 "// QVR: wounds painted on the model (vr/vr_wounds.cpp: vr_wounds, vr_wounds_burns, vr_wounds_wet): its mask, in the\n" \
 "// skin's layout (r blood, g char, b wetness, a heat: a fresh burn's embers), read at the skin's texel (the mask's on a\n" \
 "// skin finer than twice it) and shown with a 4x4 ordered dither over the values' edges: sharp-edged, chunky marks on\n" \
-"// the skin's own grid, in Quake's palette colours, as the skins' painted ones.\n" \
+"// the skin's own grid, in Quake's palette colours, as the skins' painted ones. Your own body's and hands' (the fine\n" \
+"// masks, vr_wounds_own_res; the instance's Wound.x negative) are finer than their skin and read smoothly: soft edges,\n" \
+"// the same colours, and a relief (char crusted and cracked, blood sunk into the skin).\n" \
 "layout(binding=13) uniform sampler2DArray WoundMasks;\n" \
+"layout(binding=15) uniform sampler2DArray WoundMasksFine;\n" \
 "\n" \
 "struct Wounds\n" \
 "{\n" \
@@ -1595,6 +1599,7 @@ SPECULAR_AA_FUNCTIONS
 "	float gloss;   // a wet sheen's strength\n" \
 "	float flatten; // how much of the normal map's bumps they hide\n" \
 "	vec3 glow;	 // embers (unlit)\n" \
+"	vec2 slope;	// the relief's slope along the skin's u and v (units a whole skin across; the fine masks')\n" \
 "};\n" \
 "\n" \
 "float WoundHash(vec2 p)\n" \
@@ -1602,32 +1607,87 @@ SPECULAR_AA_FUNCTIONS
 "	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);\n" \
 "}\n" \
 "\n" \
+"// Smooth value noise on a grid of unit cells (the fine masks' char and embers).\n" \
+"float WoundNoise(vec2 p)\n" \
+"{\n" \
+"	vec2 i = floor(p), f = fract(p);\n" \
+"	f = f * f * (3.0 - 2.0 * f);\n" \
+"	return mix(mix(WoundHash(i), WoundHash(i + vec2(1.0, 0.0)), f.x), mix(WoundHash(i + vec2(0.0, 1.0)), WoundHash(i + vec2(1.0)), f.x), f.y);\n" \
+"}\n" \
+"\n" \
+"// A fine mask (wi.x: -(its layer + 1)) read bilinearly, kept inside its region (wi.yz texels from the corner).\n" \
+"vec4 WoundFine(vec2 uv, vec4 wi)\n" \
+"{\n" \
+"	vec2 p = clamp(clamp(uv, 0.0, 1.0) * wi.yz, vec2(0.5), wi.yz - 0.5) / vec2(textureSize(WoundMasksFine, 0).xy);\n" \
+"	return texture(WoundMasksFine, vec3(p, -wi.x - 1.0));\n" \
+"}\n" \
+"\n" \
+"// A fine mask's relief in units: blood sunk into the skin (a little at its edge, most at a wound's core), char\n" \
+"// crusted and cracked (FrameWater3.zw: their strengths).\n" \
+"float WoundHeight(vec2 uv, vec4 wi)\n" \
+"{\n" \
+"	vec4 m = WoundFine(uv, wi);\n" \
+"	float burn = smoothstep(0.16, 0.44, m.g);\n" \
+"	float crust = WoundNoise(uv * 150.0) * 0.6 + WoundNoise(uv * 380.0 + 3.1) * 0.4;\n" \
+"	float blood = smoothstep(0.2, 0.44, m.r) * 0.35 + smoothstep(0.5, 0.95, m.r) * 0.65;\n" \
+"	return FrameWater3.z * burn * (1.0 - 0.6 * smoothstep(0.2, 0.44, m.r)) * (0.3 * crust - 0.1) - FrameWater3.w * 0.2 * blood; // (blood over char smooths it)\n" \
+"}\n" \
+"\n" \
 "Wounds WoundsAt(vec2 uv, vec3 skin)\n" \
 "{\n" \
 "	Wounds w;\n" \
-"	w.blood = 0.0; w.burn = 0.0; w.wet = 0.0; w.look = skin; w.gloss = 0.0; w.flatten = 0.0; w.glow = vec3(0.0);\n" \
-"	vec4 wi = instances[in_instance].Wound; // x its layer + 1 (0 none), yz its size in texels, w the time\n" \
-"	if (wi.x < 0.5)\n" \
+"	w.blood = 0.0; w.burn = 0.0; w.wet = 0.0; w.look = skin; w.gloss = 0.0; w.flatten = 0.0; w.glow = vec3(0.0); w.slope = vec2(0.0);\n" \
+"	vec4 wi = instances[in_instance].Wound; // x its layer + 1 (0 none; negative: -(its layer + 1) in the fine masks), yz its size in texels, w the time\n" \
+"	if (abs(wi.x) < 0.5)\n" \
 "		return w;\n" \
-"	vec2 size = vec2(textureSize(Tex, 0));\n" \
-"	vec2 grid = all(lessThanEqual(size, wi.yz * 2.0)) ? size : wi.yz;\n" \
-"	vec2 t = floor(clamp(uv, 0.0, 0.99999) * grid);\n" \
-"	vec4 m = texelFetch(WoundMasks, ivec3(ivec2((t + 0.5) / grid * wi.yz), int(wi.x) - 1), 0);\n" \
-"	if (m == vec4(0.0))\n" \
-"		return w;\n" \
-"	ivec2 it = ivec2(t) & 3;\n" \
-"	const float bayer[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);\n" \
-"	float d = (bayer[it.y * 4 + it.x] + 0.5) / 16.0;\n" \
-"	float h = WoundHash(t);\n" \
-"	w.burn = step(0.16 + 0.28 * d, m.g);\n" \
-"	w.blood = step(0.2 + 0.24 * d, m.r);\n" \
-"	w.wet = step(0.06 + 0.4 * d, m.b);\n" \
+"	bool fine = wi.x < 0.0;\n" \
+"	vec4 m;\n" \
+"	float h, spot, flick, soft;\n" \
+"	if (fine) // smooth: the values' own ramps over their edges, noise for the char's colour and the embers\n" \
+"	{\n" \
+"		m = WoundFine(uv, wi);\n" \
+"		if (m == vec4(0.0))\n" \
+"			return w;\n" \
+"		w.burn = smoothstep(0.16, 0.44, m.g);\n" \
+"		w.blood = smoothstep(0.2, 0.44, m.r);\n" \
+"		w.wet = smoothstep(0.06, 0.46, m.b);\n" \
+"		h = WoundNoise(uv * 128.0);\n" \
+"		spot = smoothstep(0.7, 0.78, WoundNoise(uv * 420.0 + 7.7));\n" \
+"		flick = WoundNoise(uv * 160.0 + floor(wi.w * 7.0) * 1.37);\n" \
+"		soft = 1.0;\n" \
+"		if (FrameWater3.z + FrameWater3.w > 0.0 && m.r + m.g > 0.0)\n" \
+"		{\n" \
+"			vec2 e = 1.5 / wi.yz; // central differences, a texel and a half each way (soft rims)\n" \
+"			w.slope = vec2(WoundHeight(uv + vec2(e.x, 0.0), wi) - WoundHeight(uv - vec2(e.x, 0.0), wi),\n" \
+"				WoundHeight(uv + vec2(0.0, e.y), wi) - WoundHeight(uv - vec2(0.0, e.y), wi)) / (2.0 * e);\n" \
+"		}\n" \
+"	}\n" \
+"	else\n" \
+"	{\n" \
+"		vec2 size = vec2(textureSize(Tex, 0));\n" \
+"		vec2 grid = all(lessThanEqual(size, wi.yz * 2.0)) ? size : wi.yz;\n" \
+"		vec2 t = floor(clamp(uv, 0.0, 0.99999) * grid);\n" \
+"		m = texelFetch(WoundMasks, ivec3(ivec2((t + 0.5) / grid * wi.yz), int(wi.x) - 1), 0);\n" \
+"		if (m == vec4(0.0))\n" \
+"			return w;\n" \
+"		ivec2 it = ivec2(t) & 3;\n" \
+"		const float bayer[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);\n" \
+"		float d = (bayer[it.y * 4 + it.x] + 0.5) / 16.0;\n" \
+"		h = WoundHash(t);\n" \
+"		w.burn = step(0.16 + 0.28 * d, m.g);\n" \
+"		w.blood = step(0.2 + 0.24 * d, m.r);\n" \
+"		w.wet = step(0.06 + 0.4 * d, m.b);\n" \
+"		spot = step(0.85, h);\n" \
+"		flick = WoundHash(t + floor(wi.w * 7.0) * 1.37);\n" \
+"		soft = 0.0;\n" \
+"	}\n" \
 "	float lum = dot(skin, vec3(0.3, 0.59, 0.11));\n" \
 "	// char: the skin's shading darkened and browned; the deepest near black (Quake's palette 16..17)\n" \
-"	vec3 charred = m.g > 0.72 ? mix(vec3(15., 11., 7.), vec3(31., 23., 15.), h) / 255.0\n" \
-"							  : vec3(0.26, 0.2, 0.15) * (0.35 + 0.9 * lum) * (0.8 + 0.4 * h);\n" \
+"	vec3 charred = mix(vec3(0.26, 0.2, 0.15) * (0.35 + 0.9 * lum) * (0.8 + 0.4 * h), mix(vec3(15., 11., 7.), vec3(31., 23., 15.), h) / 255.0,\n" \
+"		soft > 0.0 ? smoothstep(0.66, 0.78, m.g) : step(0.7201, m.g));\n" \
 "	// blood: Quake's reds, as the body's painted wounds: as the monsters' own (palette 69..75): 69 in the middle, 71 round it, 74 at the tips and runs\n" \
-"	vec3 red = vec3(m.r > 0.82 ? 47. : m.r > 0.62 ? 63. : 87., 0., 0.) / 255.0;\n" \
+"	vec3 red = vec3(soft > 0.0 ? mix(mix(87., 63., smoothstep(0.58, 0.66, m.r)), 47., smoothstep(0.78, 0.86, m.r))\n" \
+"		: m.r > 0.82 ? 47. : m.r > 0.62 ? 63. : 87., 0., 0.) / 255.0;\n" \
 "	vec3 c = mix(skin, charred, w.burn);\n" \
 "	c = mix(c, red * (0.75 + 0.5 * lum), w.blood); // a little of the skin's shading through it\n" \
 "	c *= 1.0 - 0.5 * w.wet; // wet: darker\n" \
@@ -1636,10 +1696,7 @@ SPECULAR_AA_FUNCTIONS
 "	w.flatten = max(w.blood * 0.75, w.wet * 0.5);\n" \
 "	// embers: a fresh burn glows in its cracks, flickering (Quake's fullbright oranges, 232..236)\n" \
 "	if (m.a > 0.0 && w.burn > 0.0)\n" \
-"	{\n" \
-"		float flick = WoundHash(t + floor(wi.w * 7.0) * 1.37);\n" \
-"		w.glow = step(0.85, h) * step(0.6, m.g) * step(flick, m.a) * mix(vec3(183., 51., 15.), vec3(219., 127., 59.), flick) / 255.0 * (0.8 * m.a);\n" \
-"	}\n" \
+"		w.glow = spot * step(0.6, m.g) * step(flick, m.a) * mix(vec3(183., 51., 15.), vec3(219., 127., 59.), flick) / 255.0 * (0.8 * m.a);\n" \
 "	return w;\n" \
 "}\n" \
 "\n" \
@@ -1654,6 +1711,18 @@ SPECULAR_AA_FUNCTIONS
 "	float s = pow(max(dot(n, normalize(l + v)), 0.0), 48.0);\n" \
 "	float f = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 4.0);\n" \
 "	return min(in_color.rgb, vec3(1.0)) * (w.gloss * s * 0.35 + w.wet * (pow(max(dot(n, normalize(l + v)), 0.0), 24.0) * 0.15 + f * 0.05));\n" \
+"}\n" \
+"\n" \
+"// QVR: the normal n tilted by a relief's slope along the skin (WoundsAt's slope: units a uv unit), from the derivatives\n" \
+"// of the position and the skin's coordinates: the relief's screen slopes, onto the surface (Mikkelsen's surface gradient).\n" \
+"vec3 WoundBump(vec3 n, vec2 slope, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy)\n" \
+"{\n" \
+"	vec3 r1 = cross(dpdy, n), r2 = cross(n, dpdx);\n" \
+"	float det = dot(dpdx, r1);\n" \
+"	if (abs(det) < 1e-12)\n" \
+"		return n;\n" \
+"	vec3 grad = (r1 * dot(slope, duvdx) + r2 * dot(slope, duvdy)) * sign(det);\n" \
+"	return normalize(abs(det) * n - grad);\n" \
 "}\n" \
 "\n" \
 "bool Morph(out vec3 seam)\n" \
@@ -1703,6 +1772,8 @@ SPECULAR_AA_FUNCTIONS
 "	vec3 bumped = bumpk > 0. && (in_bumplight.w > 0. || NumLights > 0u || instances[in_instance].Ambient[0].w > 0.) ? BumpedNormalK(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, n, bumpk) : n;\n" \
 "	if (wounds.flatten > 0.) // QVR: blood and water fill the bumps\n" \
 "		bumped = normalize(mix(bumped, n, wounds.flatten));\n" \
+"	if (wounds.slope != vec2(0.)) // QVR: your own wounds' relief (the fine masks): char crusted, blood sunk in\n" \
+"		bumped = WoundBump(bumped, wounds.slope, duvdx, duvdy, dpdx, dpdy);\n" \
 "#if ALPHATEST\n" \
 "	SpecularAA(0.0); // QVR: the normal map's spread only (no derivatives after the discard)\n" \
 "#else\n" \
