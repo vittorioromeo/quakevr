@@ -1,0 +1,21 @@
+# retro_overrides_default.txt -- the shipped retro textures overrides (Graphics > Retro Textures; vr_retro.cpp).
+# Read at the start; yours are in retro_overrides.txt (written by the in-game editor: Pick, then the Override page), and
+# your line for a model or texture replaces the line here for it whole.
+#
+# Each line: model <name> | texture <name>, then any of these settings, each with =<value> (instead of the kind's) or
+# *<value> (the kind's times this):
+#   on snap block units average soft fade palette dither dither_scale bump detail
+# A model's override goes on top of its kind's settings (Graphics > Retro Textures > <kind>), a texture's on top of
+# that. Textures go by their name in the map (an animation's frames together: "+0button" is "button").
+#
+# Examples:
+#   model progs/vr_crate2.mdl block *2 palette =0.5     (a high-resolution crate: twice as chunky, half way to Quake's colours)
+#   model progs/soldier.mdl on =0                      (grunts as they are)
+#   texture metal1_1 block =2                          (that wall texture in blocks of 2 Quake texels)
+
+# Flashes and beams glow: blocks and the palette dull them.
+model progs/vr_muzzleflash.mdl on =0
+model progs/bolt.mdl on =0
+model progs/bolt2.mdl on =0
+model progs/bolt3.mdl on =0
+model progs/beam.mdl on =0

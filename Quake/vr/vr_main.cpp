@@ -1279,6 +1279,7 @@ extern "C" void VR_BeginFrame()
     hands::migrateHandedness(); // the retired vr_lefthanded, vr_gadget_hand typed in the console
     bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
     setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
+    retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved
     configFrame();       // the config saved as the menu closes, if a setting changed (the preview taken off above)
     memLogFrame();
     profile::overlay();  // the profiler's panel (vr_profile_overlay)

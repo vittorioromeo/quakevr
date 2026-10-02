@@ -576,7 +576,7 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	out_aoself = instance.aoself; // QVR\n"
 "	out_wound = instance.wound; // QVR: a held prop's blood (BoxWounds)\n"
 "	out_boxpos = (in_pos - instance.woundbox.xyz) * instance.woundbox.w; // QVR\n"
-"	out_retro = vec4(call.retro.xy, call.retro.z > 0.0 ? call.retro.z : instance.retro.x, 0.0); // QVR: retro textures (vr_retro.h)\n"
+"	out_retro = vec4(call.retro.xy, call.retro.z > 0.0 ? call.retro.z - 1.0 : instance.retro.x, 0.0); // QVR: retro textures (vr_retro.h)\n"
 "	out_styles.x = GetLightStyle(in_styles.x);\n"
 "	if (in_styles.y == 255)\n"
 "		out_styles.yzw = vec3(-1.);\n"

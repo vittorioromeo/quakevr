@@ -3966,6 +3966,7 @@ const Page pages[] = {
     {"Retro Textures - Monsters", pageRetroCategory<retro::Category::Monsters>, pageGraphicsRetro}, // 104
     {"Retro Textures - Your Body and Hands", pageRetroCategory<retro::Category::Body>, pageGraphicsRetro}, // 105
     {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro}, // 106
+    {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro}, // 107
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -6644,6 +6645,11 @@ void qvr::menu::pathCheck_f()
 int qvr::menu::bodyCalibrationPage()
 {
     return pageIndex(pageBodyCalibration);
+}
+
+int qvr::menu::retroOverridePage()
+{
+    return pageIndex(pageRetroOverride);
 }
 
 extern "C" void VR_Menu_Open()

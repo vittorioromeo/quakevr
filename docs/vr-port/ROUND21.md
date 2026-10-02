@@ -22156,3 +22156,51 @@ nothing: a set of 0 is one branch.
   palette 0.6 and dither 0.5.
 - `vr_retro_list` on e1m1 with test spawns lists the right category for every model drawn.
 - `vr_menu_path_check maps/vrcalibration.map`: 13 found, 0 missing; pages 95-106 open.
+
+## Retro textures, phase 3: per-object overrides and the in-game editor (2026-10-02)
+
+One model or one world texture can have its own settings on top of its category's. A high-resolution prop can get
+bigger blocks than a low-resolution one, a grunt can be left alone, and a glowing effect can be turned off.
+
+- **Keys:** `model <name>` (an alias model; `maps/b_*.bsp` boxes and other `.bsp` models by name) or `texture <name>`
+  (the world's and brush entities' surfaces; animation frames `+0x`/`+1x`/`+ax` all go under `x`; brush submodels `*N`
+  take texture overrides only).
+- **Each setting is inherited, replaced (`=v`) or multiplied (`*v`).** For the toggles a multiplier works as an AND. A
+  model's override goes on top of its category's settings, a texture's on top of that. An override can turn the effect
+  on (`on =1`) for one thing whose category is off, or off for one thing.
+- **Files:** `quakevr/retro_overrides_default.txt` is shipped (committed: the muzzle flash and lightning beams are off
+  by default; examples in its comments). `quakevr/retro_overrides.txt` is yours (git-ignored, written by the editor a
+  second after the last change). Both are read at start-up (and again when the game folder changes, or with
+  `vr_retro_overrides_reload`). Your line for a key replaces the shipped line for it whole.
+- **Sets:** each distinct (category, model override, texture override) in view gets a set of its own after the
+  categories' (`QVR_RETRO_MAX_SETS` 64: 52 at once; past that, its category's, said once). Sets are made as draws need
+  them (the block is uploaded again then) and dropped when the overrides change. A world or brush texture's set goes
+  in `Call.retro.z` (1 + the set, so 1 means off); a model's in its instance.
+- **Picking** (`vr_retro_pick [hand|head] [seconds]`): a ray from the main hand's aim, or from the head, to the
+  nearest world surface (its texture), brush entity surface (texture and model) or model box (alias models: their
+  bounds over every frame, yaw-only bounds where they are only turned about the vertical). With a delay, the menu
+  closes, what the ray meets is outlined in yellow with a countdown label, and then the Override page opens. Boxes
+  the ray starts in are skipped (the hand's own weapon). The head's ray leaves out your own view entities (body,
+  holsters, hands).
+- **Editor** (Graphics > Retro Textures > Override, page 107): the target's name, category and whose override it is
+  (yours, shipped, none). For a brush model, Override For picks between the model and the texture pointed at. For
+  each setting there is a Mode (Inherit / Set / Times) and a Value; editing writes your entry. Use the Shipped One
+  removes your entry; No Override makes yours inherit everything; Save Now. The page shows the cvars
+  `vr_retro_edit_<setting>`, `vr_retro_edit_<setting>_mode` and `vr_retro_edit_kind` (not archived).
+- **Console:** `vr_retro_override list`, and `vr_retro_override <model|texture> <name> [<setting> <=v|*v> ...]` (no
+  settings: removes your entry).
+
+### Tests
+
+- `vr_retro_override list` reads the shipped file (5 entries). `vr_retro_override model progs/vr_crate1.mdl block *4
+  palette =1`: that crate alone gets 4x blocks in Quake's palette (eyeshot; `vr_retro_list` marks it "(override)",
+  set 12).
+- `vr_retro_pick head` at a wall picked `texture tech08_1 (World)`. `vr_retro_edit_block_mode 1;
+  vr_retro_edit_block 4` gave that texture blocks of 4 while the walls round it stayed at 1 (eyeshot). The file was
+  written a second later (`texture tech08_1 block =4`).
+- After a restart both entries were back. A hand pick with a 1 s delay picked (`texture slipbot`) and opened the page.
+  Removing both entries by command left the file empty. Head picks found `progs/vr_crate1.mdl (Props and Debris)` and
+  `progs/soldier.mdl (Monsters)`.
+- The countdown's outline and label show in `vr_eyeshot 3` (with the UI). The Override page opens with and without a
+  target. `vr_menu_path_check maps/vrcalibration.map`: 13 found, 0 missing.
+- GPU: the override sets are the same shader work as the categories' (a set is one more index into the block).

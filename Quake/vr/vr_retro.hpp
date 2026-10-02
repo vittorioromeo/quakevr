@@ -48,8 +48,37 @@ enum class Param
 constexpr int categoryCount = static_cast<int>(Category::Count);
 constexpr int paramCount = static_cast<int>(Param::Count);
 
-// VR_Init: the categories' cvars and the commands (vr_retro_reset, vr_retro_list).
+// VR_Init: the categories' and the editor's cvars and the commands (vr_retro_reset, vr_retro_list, vr_retro_pick,
+// vr_retro_override, vr_retro_overrides_reload).
 void registerCvars();
+
+// Each frame (VR_Frame): a pick's countdown and outline; your overrides written a second after the last edit.
+void frame();
+
+// ---- Per-object overrides: by model name (alias models, maps/b_*.bsp boxes and other .bsp models) or by world texture
+// (the world's and brush entities' surfaces; an animation's frames together), each setting inherited from the object's
+// category, replaced or multiplied. Shipped ones in quakevr/retro_overrides_default.txt (committed), yours in
+// quakevr/retro_overrides.txt (written by the editor; yours for a model or texture replaces the shipped one whole). A
+// model's override goes on top of its category, a texture's on top of that.
+enum class OverrideMode
+{
+    Inherit,
+    Replace,
+    Multiply
+};
+
+// The editor (Graphics > Retro Textures > Override): what was picked (vr_retro_pick), its override in these cvars
+// (vr_retro_edit_<setting> and _mode; editing them writes it to your file), keyed by the model or the texture
+// (vr_retro_edit_kind) when it has both.
+[[nodiscard]] cvar_s& editValue(Param p);
+[[nodiscard]] cvar_s& editMode(Param p);
+[[nodiscard]] cvar_s& editKindCvar();
+[[nodiscard]] bool hasTarget();
+[[nodiscard]] bool targetHasBoth();
+[[nodiscard]] const char* targetText();
+void useShipped();    // your entry for it removed: the shipped one (if any) applies again
+void clearOverride(); // your entry for it inherits everything (hides a shipped one)
+void saveNow();
 
 [[nodiscard]] cvar_s& cvarOf(Category c, Param p);
 [[nodiscard]] const char* categoryLabel(Category c);

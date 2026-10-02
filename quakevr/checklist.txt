@@ -112,6 +112,9 @@ Retro textures, World page: Quake Palette 1, Dither 0.5 and 1, Bumps 0 vs 1, Det
 Retro textures, every kind (Graphics > Retro Textures: Item Pickups, Props and Debris, Gibs, Small Gibs, Weapons in the World, Held Weapons, Monsters, Your Body and Hands, Other Models): each its own settings; Debug > Views > Retro Textures: List says what is what
 Retro textures on your hands and held weapons: steady as you move them close to your eyes?
 
+Retro overrides: Graphics > Retro Textures > Pick: Point, 3 Seconds: point at a crate: outlined, then its Override page: Block Size Times 2, Quake Palette Set 1: only that crate changes; restart: still so (quakevr/retro_overrides.txt)
+Retro overrides: pick a wall: the page edits that texture everywhere; on an ammo box, Override For switches between the box's model and the texture
+
 [Decide or give feedback]
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?

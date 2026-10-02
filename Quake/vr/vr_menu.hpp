@@ -23,6 +23,7 @@ bool pathTo(za::StringView spec, za::String& out);
 void pathCheck_f();
 // The Body Calibration page's number (menu::reopen).
 [[nodiscard]] int bodyCalibrationPage();
+[[nodiscard]] int retroOverridePage(); // Graphics > Retro Textures > Override (vr_retro.cpp's picks)
 
 // menu_vr [page [row]]: the VR Settings, or one of its pages (1: Advanced VR Options); menu_vr list: the
 // pages; menu_vr pos: the menu shown, and on a VR page its selected row and scroll (tests).

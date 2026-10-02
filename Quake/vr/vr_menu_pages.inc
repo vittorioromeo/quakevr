@@ -666,6 +666,7 @@ void resetHandMoves()
 // with its own settings (a page each: pageRetroCategory).
 template <retro::Category C>
 [[nodiscard]] za::Vector<Item> pageRetroCategory();
+[[nodiscard]] za::Vector<Item> pageRetroOverride();
 
 [[nodiscard]] za::Vector<Item> pageGraphicsRetro()
 {
@@ -691,6 +692,89 @@ template <retro::Category C>
     kind(Category::Other, pageIndex(pageRetroCategory<Category::Other>));
     items.pushBack(header("All Kinds"));
     items.pushBack(command("Reset All to Defaults", "vr_retro_reset all").help("vr_retro_reset all: every kind's settings back to their defaults."));
+    items.pushBack(header("One Thing: Overrides"));
+    items.pushBack(command("Pick: Point, 3 Seconds", "vr_retro_pick hand 3")
+        .help("Closes the menu; point your main hand at a model or a wall: what it meets is outlined, and after 3 seconds "
+              "its override page opens. A model (a crate, a monster, a gun) or a world texture gets settings of its own "
+              "on top of its kind's: stronger on a high-resolution prop, off on one. vr_retro_pick [hand|head] [seconds]."));
+    items.pushBack(command("Pick: Look, 3 Seconds", "vr_retro_pick head 3")
+        .help("As Pick: Point, with what you look at (the middle of your view)."));
+    items.pushBack(open("Edit the Last Picked", pageIndex(pageRetroOverride))
+        .help("The override page of what you picked last."));
+    items.pushBack(command("List Overrides", "vr_retro_override list")
+        .help("vr_retro_override list: the shipped overrides (quakevr/retro_overrides_default.txt) and yours "
+              "(quakevr/retro_overrides.txt), to the console."));
+    items.pushBack(command("Reload the Override Files", "vr_retro_overrides_reload")
+        .help("Reads both files again (after editing them by hand)."));
+    return items;
+}
+
+[[nodiscard]] const char* retroTargetText()
+{
+    return retro::targetText();
+}
+
+// Graphics > Retro Textures > Override: the picked model's or texture's override, a mode and a value for each setting
+// (Inherit: its kind's; Set: this value; Times: its kind's times this value). Saved to quakevr/retro_overrides.txt a
+// second after the last change.
+[[nodiscard]] za::Vector<Item> pageRetroOverride()
+{
+    using retro::Param;
+    struct Row
+    {
+        Param p;
+        const char* label;
+        float min, max, step;
+        const char* format;
+        bool toggle;
+    };
+    const Row rows[] = {
+        {Param::On, "On", 0.f, 1.f, 1.f, "", true},
+        {Param::Snap, "Snap to Blocks", 0.f, 1.f, 1.f, "", true},
+        {Param::Block, "Block Size", 0.25f, 8.f, 0.25f, "%.2f", false},
+        {Param::Units, "Block Size in World Units", 0.f, 1.f, 1.f, "", true},
+        {Param::Average, "Block Colour: Average", 0.f, 1.f, 1.f, "", true},
+        {Param::Soft, "Edge Softness", 0.f, 3.f, 0.25f, "%.2f", false},
+        {Param::Fade, "Smooth Beyond", 0.25f, 4.f, 0.25f, "%.2f", false},
+        {Param::Palette, "Quake Palette", 0.f, 1.f, 0.05f, "%.2f", false},
+        {Param::Dither, "Dither", 0.f, 2.f, 0.05f, "%.2f", false},
+        {Param::DitherScale, "Dither Size", 1.f, 8.f, 1.f, "%.0f", false},
+        {Param::Bump, "Bumps: Smooth to Blocky", 0.f, 1.f, 0.05f, "%.2f", false},
+        {Param::Detail, "Detail Textures", 0.f, 1.f, 0.05f, "%.2f", false},
+    };
+    za::Vector<Item> items{info(retroTargetText)};
+    if(retro::targetHasBoth())
+    {
+        items.pushBack(cycle("Override For", retro::editKindCvar(), {{0.f, "The Model"}, {1.f, "The Texture"}})
+            .help("A brush model (an ammo box, an explosive box) can be overridden as a whole (by its model's name) or "
+                  "by the texture you pointed at (everywhere that texture is: the world, other boxes)."));
+    }
+    if(retro::hasTarget())
+    {
+        for(const Row& r : rows)
+        {
+            items.pushBack(header(r.label));
+            items.pushBack(cycle("Mode", retro::editMode(r.p), {{0.f, "Inherit"}, {1.f, "Set"}, {2.f, "Times"}})
+                .help("Inherit: the kind's setting. Set: the value below instead. Times: the kind's setting times the value "
+                      "below (a toggle: both on)."));
+            if(r.toggle)
+            {
+                items.pushBack(toggle("Value", retro::editValue(r.p)));
+            }
+            else
+            {
+                items.pushBack(slider("Value", retro::editValue(r.p), r.min, r.max, r.step, r.format).extend(0.f, 64.f));
+            }
+        }
+        items.pushBack(header("This Override"));
+        items.pushBack(action("Use the Shipped One", retro::useShipped)
+            .help("Removes your override for it: the shipped one (quakevr/retro_overrides_default.txt), if any, applies again."));
+        items.pushBack(action("No Override", retro::clearOverride)
+            .help("Your override for it inherits every setting (hides a shipped one)."));
+        items.pushBack(action("Save Now", retro::saveNow).help("Writes quakevr/retro_overrides.txt now (it is written a second after each change anyway)."));
+    }
+    items.pushBack(command("Pick Again: Point, 3 Seconds", "vr_retro_pick hand 3"));
+    items.pushBack(command("Pick Again: Look, 3 Seconds", "vr_retro_pick head 3"));
     return items;
 }
 
