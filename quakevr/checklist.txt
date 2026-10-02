@@ -126,7 +126,12 @@ Flashlight Gun Clip Range (Advanced VR Options > Flashlight > Taking and Clippin
 Weapon Offsets > Flashlight: the cyan outline follows Forward/Up/Out/Pitch/Yaw/Roll; Clip the Flashlight on It puts the torch there
 Weapon Offsets > Flashlight: a second weapon keeps its own torch place (and the off hand mirrors it correctly)
 
+Sound > HRTF Anti-Aliasing: toggle off/on with a monster to one side: on, its side is clearer and steadier
+Debug: A Sound 45 Degrees Right / Left: each clearly comes from its side, straight ahead sounds centred
+HRTF Volume 1.5 was tuned with the old folded highs: may want a touch more now
+
 [Decide or give feedback]
+Quake's 11 kHz lowpass still removes everything above ~5.5 kHz from spatial voices (front/back and up/down cues): let spatial voices bypass it?
 Flashlight head zone: make your values the defaults (zone up 0.175, forward 0.015; shipped 0.04, 0)?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Flashlight: a hand gripping as the returning lamp flies into it now catches it (new): OK?
