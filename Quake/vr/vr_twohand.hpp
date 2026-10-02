@@ -16,6 +16,10 @@ void apply(hands::State& s);
 // How far into a two-handed grip `hand` (holding the weapon) is, 0..1.
 [[nodiscard]] float transition(int hand);
 
+// How far the virtual stock steadies the two-handed aim of the weapon in `hand` (vr_2h_mode 2, the hand at the shoulder),
+// 0..1: its weapon's Stock Pitch, Yaw and Roll turn the aim this much.
+[[nodiscard]] float stock(int hand);
+
 // Whether `hand` is the helping hand of a two-handed grip (it follows the weapon).
 [[nodiscard]] bool helping(int hand);
 

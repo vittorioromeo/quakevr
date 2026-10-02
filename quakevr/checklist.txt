@@ -32,7 +32,6 @@ Enemy guns: grunts drop a shotgun, enforcers a laser rifle (both death animation
 
 Crowbar (vrfiringrange): fist on the tape (offsets), both two-handed grips incl. sliding up the bar, hook vs bar hits, parry, throwing it
 Crates break to shotgun, axe, thrown things and hard drops; pieces don't block you and burst into dust when hit; crack and dust sound OK?
-Crouch behind a crate with a grunt about: it can't see you; carrying the crate, it sees you
 
 After the Zancle follow-ups (no exceptions, fewer allocations): record a few takes, fire and reel the grapple around corners often, switch weapons
 
@@ -40,33 +39,24 @@ Your tuned values are now defaults (Distance Falloff 0.75, HRTF Volume 1.5, Phys
 
 Grip a dropped crowbar by its bar, a sword by its blade, the chainsaw by its front handle: it hangs from that hand until the other hand takes the handle (Carrying > Weapons by Their Hotspots); 15 cm reach OK? more annoying in play?
 
-Chainsaw: your smoke and shake values are the defaults; each ripcord pull (with fuel) shakes, puffs smoke and throws a few sparks (weak pull: half); empty tank: sound only (Chainsaw Engine > Pulling the Cord)
-
-Mantle grunt now not the jump's: the hard landing's "oof" (Climbing > Mantle Grunt Sound; Hear Mantle Grunt to compare the 5, two are Quake's played deeper)
-Physics stress: Debug > Tests > Physics Stress (first section): Pile of Rocks / Pile of Bricks / Wall of Crates / Mixed Pile (Pile Size, Crates in the Wall), Clear the Piles; Physics Step Time before and after, threads on and off
-Axe sticking: your Stick Speed 2.5 m/s is the default now
-
-Sword with both hands on the blade, let go, take the shotgun or super shotgun: pump, other hotspots and arbitrary points behave as with no sword before (grip state now resets with the weapon)
-Main Hand is gone: Swap Stick Functions, Wrist Gadget Arm, Flashlight Side (VR Settings, Body and Display; calibration room west wall buttons SWAP STICKS / GADGET ARM / TORCH SIDE); VR Calibration now ends after the body step
-Several boxes exploding together: no crackle (Sound > Advanced > Mix Limiter on; off = old for A/B); single explosions and gunfire no quieter; music not noticeably ducked; explosions may feel louder (Limiter Ceiling -1 dB)
-
-Throws by weight (Throwing and Physics > Throws by Weight): axe and grenades exactly as before; super nailgun ~10 m hard one-handed, laser cannon ~4 m, much farther with two hands; explosive boxes and crates much weaker one-handed (40 kg box can't reach a damaging throw one-handed: raise the prop's Throw or lower Heavy Falloff if wanted)
-Laser cannon: vents and grooves carved in, keel/bottom/grip no longer stretched, both sides match: look close up, from below, lying on the floor
-
-Let go of the chainsaw or laser cannon at your body (no throw): it never hurts you; a real throw falling back still can
-Parry the ogre's chainsaw and a charging knight: one ring and one counter per attack, every blow's damage still cut, stamina no longer drained within one swing (Parry and Bash > Parry Cooldown 0.4 s)
-After the Zancle update (vendored = upstream 534219bf, no local changes): model ambient lighting on monsters and items, a general play pass
-
-Melee with a weapon held anywhere: hilt and pommel of a sword held upside down, butt of the rocket launcher and laser cannon held backwards all hit (pommel/butt strikes); cross a held sword's mid-blade with a gun or another sword: it blocks; one-handed muzzle-end swings of heavy guns may feel weak (weight lag)
+Throws by weight (Throwing and Physics > Throws by Weight): grenades as before, axe a touch slower (your Throws by Weight values: light up to 1.5 kg, falloff 0.9); super nailgun ~10 m hard one-handed, laser cannon ~4 m, much farther with two hands; explosive boxes and crates much weaker one-handed (40 kg box can't reach a damaging throw one-handed: raise the prop's Throw or lower Heavy Falloff if wanted)
 
 Slow motion for recording (Graphics > Recording > Slow Motion; vr_slowmo bindable, 0.25 default): record at 0.25 moving at quarter speed, speed footage up 4x: looks and sounds natural?; a real-speed swing is capped at 8 m/s (Hand Speed cap): feels right?; Slow Sounds off/on
 
 Bullet time (Combat > Bullet Time): press the inner button on the gadget's lower edge with the other fingertip: world 0.3x for 6 s, TIME bar on the gadget, 2 s cooldown, 20 s refill; look (desaturate, vignette, tint) strength; button easy to find? (Button Size, Fingertip Reach); try Sandevistan (you, hands, your shots at full speed); turning stays real time by default: OK?; start/stop sounds are placeholders
+Weapon Offsets split into pages (Hand and Grip, Fingers, Muzzle and Sights, Two-Handed and Hotspots, Virtual Stock, Ammo Screen, Holstered, Effects; Weight, Melee and Throwing opens Weapon Weights): every old row still there? easy to find?
+Virtual stock per weapon (Weapon Offsets > Virtual Stock, 2H Aiming: Virtual Stock): shoulder a two-handed gun, the "Now" line shows the stock engaged; Stock Pitch/Yaw/Roll turn the aim only while shouldered
+
+Spectator camera at the default 60 fps rate with the flashlight on your hands: no ghost of hands/HUD following your head; FOV up to 150 (typed up to 160)
+
+Spectator view: pickup messages and other head-locked text show in the headset but not in the window (Recording > Hide Head Text on the Spectator Camera, default on; same option for the mirror, default off)
+
+Crate cover, for a definite answer: Debug > Tests > Ahead of You > Crate Cover (a large crate to crouch behind, a small one at your right, a grunt beyond, asleep): crouched it stays asleep and can't see you; stand up, or hold the small crate up: it sees you and shoots (Can the Grunt See You? reports it)
+Your values are now the defaults: mantle grunt is the pain grunt, ripcord smoke 12 and sparks 24, crates (Health 75, Breaks On Impact 16 m/s, 12 Pieces, Pieces Last 60 s), every prop weight and size you set (explosive boxes 80.5 and 40 kg, crates 40 and 65, gibs and heads heavier, rocks and bricks Mass x 1.25, your ammo, health, armour and mission-pack head slots), Throws by Weight Light Up To 1.5 kg and Heavy Falloff 0.9: a fresh config feels the same as yours
+Head flies are off (Gore > Flies on Heads); revisit later (docs/vr-port/BACKLOG.md)
 
 [Decide or give feedback]
-Parry cooldown: blows inside it also cost no parry stamina (else an ogre swing exhausts you every time): OK?
-Head flies: 10% chance per gibbed head (heard within ~10 m): raise it?
-Physics threads: default 150-body threshold and 4-thread cap OK?
+Throws by weight: your tuned values (light up to 1.5 kg, falloff 0.9) are now defaults; the 2 kg axe is now slightly below full speed: OK, or exempt the axe?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?

@@ -9866,7 +9866,7 @@ Recording (Window View)** (also Advanced VR Options > Graphics > Recording; page
   (`vr_window_level`, 0: how much of your head's sideways tilt is taken out; 1 keeps the horizon level).
 - **Smoothed Mirror: Zoom** (`vr_window_zoom`, 1.2x): 1 is the widest crop of the window's shape that the lenses show;
   more crops closer and leaves the margin the steadied view turns in.
-- **Spectator Camera:** **Field of View** (`vr_spectator_fov`, 90 degrees across; the height follows the window's
+- **Spectator Camera:** **Field of View** (`vr_spectator_fov`, 90 degrees across, 60-150 on the slider; the height follows the window's
   shape), **Resolution Scale** (`vr_spectator_scale`, 1: the window's own resolution; 0.5-0.75 cost less; 2
   supersamples), **Position Smoothing** (`vr_spectator_pos_smooth`, 0.05 s: your head's small movements; walking,
   turning and teleporting are never smoothed).
@@ -19644,3 +19644,128 @@ Time Now**. Mock: `vr_mock_hand_to <main|off> button` puts the fingertip on the 
 - Hands at 0.25 with the head-relative follower: as phase 1 (0.5 m jump followed at 8 m/s; slow move exact); the head
   and hand moved 0.3 m together: 0.07 m behind for one frame, then none.
 
+
+## Spectator camera: the eyes' glow ghost, a wider field of view (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_01-32-14 and _01-33-48: a faint, offset ghost of the hands and arms over the
+spectator camera, turning with the head.
+
+- **Cause:** the spectator camera is drawn at its own pace (`vr_spectator_rate`, 60 fps by default); on the frames
+  between, the window shows its last image again (`vr_stereo.cpp` `renderSpectator`). That redraw added the glow of
+  the last view rendered, the right eye's (`bloom::result`), not the spectator image's own: the bright parts of the
+  right eye's view (the hands lit by the flashlight, the HUD's text), blurred, at the right eye's place in its image,
+  so offset and following the head. At 90 Hz a third of the window's frames had it (all but every 2nd or 3rd with
+  Every 2nd/3rd Frame); Every Frame (`vr_spectator_rate 1`) never did. The underwater wobble used the eye's view axes
+  there too.
+- **Fix:** the window's view takes what it adds from the view it shows (`SceneLook`: the glow and the view axes),
+  taken right after that view's scene; the spectator camera keeps its image's for the frames it shows it again.
+- **Field of View** (`vr_spectator_fov`): the slider goes 60-150 (was 60-120), typed or overflowed 40-160 (was
+  40-130); the camera clamps to 40-160.
+- Tested: the mock head shaking (`vr_mock_shake 3`, `vr_mock_shake_turn 90`) over the firing range with the hands in
+  view: the ghosts gone; a still head, the image drawn anew (`vr_spectator_rate 1`) and shown again
+  (`vr_spectator_rate 60`): the same (mean difference 0.003 of 255 over the hands' part); 150 and 160 degrees drawn
+  in vrfiringrange and e1m1.
+
+## Head-locked text out of the recording (2026-10-02)
+
+- The text that follows the head (centre prints and notify lines on the canvas's head panel, `panel::drawHud`) is
+  left out of the window's view, the headset unchanged: `vr_spectator_hide_hud_text` (1: hidden from the spectator
+  camera, for trailers) and `vr_mirror_hide_hud_text` (0; the mirrored eye's own UI pass, Left Eye and Smoothed
+  Mirror; in the Left Eye view it also drops the window's flat copy of the in-game canvas, which then holds only that
+  text). Menus, the console, the lasers, the hand's status bar and the wrist gadget stay. VR Settings > Graphics >
+  Recording (Window View): "Hide Head Text on the Mirror", "Hide Head Text on the Spectator Camera".
+- Tested: e1m1 with `vr_notify_wrist 0` and notify lines up, the window's screenshot in each view with the option
+  on and off: spectator, Left Eye and Smoothed Mirror show the text with it off and none with it on.
+## Weapon Offsets split; the virtual stock's turn (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_01-17-49: (1) per-weapon virtual stock orientation offsets; (2) the Weapon Offsets page
+was too large: split it.
+
+**Virtual stock turn.** Three new per-weapon keys, `vr_wofs_stock_pitch|yaw|roll_NN` (`Key::StockPitch|Yaw|Roll`, 0 by
+default: a config without them takes 0, so no settings migration and `settingsVersion` stays). `vr_twohand.cpp`
+`applyHotspots` adds them to the two-handed aim on top of the weapon's Aim Pitch/Yaw/Roll, times the two-handed share
+and the stock's share (`stockTransition`: eased in as the holding hand comes within `vr_virtual_stock_thresh` of the
+shoulder with `vr_2h_mode 2`): pitch up, yaw left, roll right; the off hand's yaw and roll mirrored. Inherited like the
+other keys. `twohand::stock(hand)` is the share now; `vr_dumpview` prints it ("virtual stock 1.00") and the Virtual Stock
+page shows it ("Now: two-handed 100%, at the shoulder 100%").
+
+**Menu tree.** Weapon Offsets (`menu_vr 23`, its title and every link to it unchanged) keeps the title, Edit the Other
+Hand's Weapon, Inherit From (Stop Inheriting), Posing Mode (with Shot Pitch/Yaw), then a "Settings" list of its parts
+and This Weapon (Print, Reset):
+
+- Hand and Grip (84; "The Hand" for the empty hand, its only part): Weapon in the Hand, Tuning Aids, Controller
+  Preview, Hand and Weapon Together, Hand Only.
+- Fingers (85): Fingers on the Weapon (manual curls or Overlap, biases, thumb place).
+- Muzzle and Sights (86): Align Sights to My Aim (Dominant Eye, Captures, Show Sight Line), Muzzle, Shot Pitch/Yaw.
+- Two-Handed and Hotspots (87, titled "Weapon Offsets - Two-Handed"): Other Hand's Grips (Hotspots), Two-Handed Aim.
+- Virtual Stock (88): new: the readout, Two-Handed (the weapon's, also on 87), Stock Pitch/Yaw/Roll; every weapon's
+  2H Aiming, Stock Factor, Stock Distance (`vr_virtual_stock_thresh`), Show Virtual Stock, a link to Hotspots.
+- Ammo Screen (89), Holstered (90; the holster preview only on this page), Effects (91).
+- Weight, Melee and Throwing: opens Weapon Weights (the old "Weapon Weights" link), which already holds the weights,
+  the melee and throw damage and the spin thrown.
+
+Every old row is on one of these (a label count of the old page against the new ones: none missing). Each part begins
+with the weapon's title and Edit the Other Hand's Weapon (it stays on the same part), and is built anew as it is shown.
+The page state that rebuilds a page (the edited hotspot and its type, the Fingers choices, the preview's own off hand,
+the holster) is reset by each part and set by the part that shows it; the sight-alignment refresh and its cursor focus
+belong to Muzzle and Sights. Each part has its own title strings (`PageTexts`, by `WeaponOffsetsPart`).
+
+To add a part (another agent's per-weapon rows): a builder beginning with `weaponOffsetsBegin(list, <part>)`, a
+`WeaponOffsetsPart`, a line at the end of `pages` (home `pageWeaponOffsets`) and one in `weaponOffsetsPartPages` (its
+link and help); the main page lists it by itself. Rows for an existing part go in that part's builder.
+
+The calibration boards name only "Weapon Offsets" (unchanged): `vr_menu_path_check maps/vrcalibration.map` 13 found,
+0 missing.
+
+Verified (grunts' gun, `_22`, held two-handed at its foregrip, the stock forced on): the main hand's angles
+(57.69 85.62 -4.33); Stock Pitch 10: 47.69 (10 up); Stock Yaw 10: yaw 95.62; Stock Roll 10: roll 5.67; with the stock
+off (threshold 0.1) "virtual stock 0.00" and Stock Pitch has no effect. `menu_vr 84..91` each open with the weapon's rows
+(36, 13, 13, 36, 14, 11, 13, 20 rows; the main page 22).
+## Defaults: chainsaw pull, mantle grunt, prop weights, crates (2026-10-02)
+
+The author's values from his live config made the shipped defaults (NOTES.md 2026-10-02: vrfiringrange 00-17-30
+chainsaw, start 00-18-45 mantle grunt, vrfiringrange 00-55-03 prop weights and sizes, 01-41-30 crates). Configs that
+still hold the old default take the new one (`vr_cfg_version` 75, `vr_props_version` 55).
+
+| Setting | Was | Now |
+|---|---|---|
+| Pull Smoke `vr_chainsaw_pull_smoke` | 4 | 12 |
+| Pull Sparks `vr_chainsaw_pull_sparks` (slider now 0..40) | 6 | 24 |
+| Mantle Grunt Sound `vr_climb_mantle_grunt_sound` | 1 (hard landing) | 4 (pain grunt) |
+| Light Up To `vr_throw_mass_light` | 2 kg | 1.5 kg |
+| Heavy Falloff `vr_throw_mass_exp` | 0.75 | 0.9 |
+| Crate Health `vr_crate_health` | 25 | 75 |
+| Breaks On Impact `vr_crate_impact` | 14 m/s | 16 m/s |
+| Pieces `vr_crate_pieces` | 6 | 12 |
+| Pieces Last `vr_crate_piece_time` | 30 s | 60 s |
+
+The two Throws by Weight values were changed in his config after that feature landed (2026-10-01 23:49) and before
+"make the weights the defaults"; they go with his heavier props (taken as part of them).
+
+Props (`vr_props.inc`; slot numbers as the cvars', `vr_prop_*_NN`): Mass of the explosive boxes 40 -> 80.5 (01) and
+25 -> 40 (02); the torch 0.9 -> 0 (estimated, 17); the crates 25 -> 40 (27) and 40 -> 65 (28); boards 0.6 -> 4 (29),
+0.4 -> 2.5 (30), 0.45 -> 3 (32); gibs 0.8 -> 8, 2.5 -> 20, 2 -> 12 (34-36); heads: guard 5 -> 10, dog 3 -> 12, mega
+5 -> 16, knight 5 -> 12, hell knight 6 -> 17, ogre 9 -> 30, wizard 3 -> 10, zombie 4 -> 8, shalrath 6 -> 12, shambler
+15 -> 70, demon 12 -> 28 (38-48; the player's head stays 5). Mass x 1.25 for rocks 1-5 and bricks 1, 2 and 4 (18-24,
+26; brick 3 he left at 1). Handle Tilt 25 -> 0 for bricks 1 and 2 (23, 24). Slots 06-16, which he gave items in Held
+Object Offsets, ship with them: b_rock0 (Size 1.25, Mass x 1.25), b_plas1 (Mass x 1.25), h_grem (Mass 18), h_scourg
+(Mass 50), armor.mdl (Mass x 0.6), b_bh100 (Mass x 1.25), b_bh10 (Mass x 1.15), b_shell0, b_nail0, b_lnail0 (Mass x
+1.25), b_mrock1 (Size 1.25, Mass x 1.25); a config with the slot free (and the item in no other) takes them. His slot
+33 (`progs/v_crowbar.mdl`, every key at its default) is not shipped. That left one free slot of 48, so `props::numSlots`
+is 64 now (16 more for Held Object Offsets; configs gain the empty slots on their next save).
+
+Head flies (Scourge of Armagon's HeadThink: one head in ten loops `misc/flys.wav`) are off: `vr_head_flies` 0, Gore >
+Flies on Heads (NOTES.md vrfiringrange_2026-10-02_01-29-37). BACKLOG.md, "Flies on corpses and gibs", keeps the idea to
+revisit.
+
+Crate cover test (NOTES.md vrfiringrange_2026-10-02_01-39-38): Debug > Tests > Ahead of You > **Crate Cover** (impulse
+223: a large crate square to you 56 units ahead, a small one 48 units to your right, a grunt 320 units ahead or short
+of a wall, facing you and asleep) and **Can the Grunt See You?** (impulse 224: `visible()` from the grunt now, your
+head's height, awake or not). The checklist's crate cover line points to it.
+
+Results (mock): an old config (vr_cfg_version 34, vr_props_version 26) loads with every new value (slots 06-16 his
+items, explosive box 80.5, the brick's Handle Tilt 0, the demon's head 28; brick 3's Mass x stays 1). A fresh config's
+defaults (`resetall; writeconfig`) against his live config: no difference left in the chainsaw, mantle, crate, throw
+mass or prop settings but his untouched crowbar slot. Crate Cover on vrfiringrange: the large crate 48 units tall, the
+grunt 288 units away; head 28 units up (crouched): "can't see you", asleep after 300 frames; head 60 up: "SEES you",
+awake. `vr_menu_path_check maps/vrcalibration.map`: 0 missing. eval canary 48/53, no difference from the baseline.

@@ -34,6 +34,7 @@
 #include "vr_props.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_weight.hpp"
+#include "vr_twohand.hpp"
 
 #include "Zancle/Algorithm/Count.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
@@ -349,22 +350,38 @@ struct MenuReadouts
     za::String heldObjectMass;
     za::String heldObjectDamage[2];    // by line
     za::String weaponWeightsDrop;      // weaponWeightsDropReadout
+    za::String weaponOffsetsStock;     // weaponOffsetsStockReadout
     char checklistSummary[48];         // checklistSummary
     char stamina[96];                  // staminaReadout
     char renderScaleHelp[192];         // renderScaleHelp
     auto members()
     {
         return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
-            weaponWeightsDrop, checklistSummary, stamina, renderScaleHelp);
+            weaponWeightsDrop, weaponOffsetsStock, checklistSummary, stamina, renderScaleHelp);
     }
 };
 mem::Scratch<MenuReadouts> readouts{"menu readouts"};
 
 // - the pages' titles and choice names: the built pages' items point into them (a page writes its own only as it is
 //   built again, its old items replaced), so they are kept as long as the built pages (MenuPages): never released.
+// The Weapon Offsets pages: the main one and its parts (weaponOffsetsPartPages lists them in this order).
+enum WeaponOffsetsPart
+{
+    WofsMain,
+    WofsHand,
+    WofsFingers,
+    WofsSights,
+    WofsTwoHanded,
+    WofsStock,
+    WofsScreen,
+    WofsHolstered,
+    WofsEffects,
+    WofsParts
+};
+
 struct PageTexts
 {
-    za::String weaponOffsetsTitle, weaponOffsetsInheritTitle;
+    za::String weaponOffsetsTitle[WofsParts], weaponOffsetsInheritTitle[WofsParts]; // by WeaponOffsetsPart
     za::Vector<za::Pair<float, za::String>> weaponOffsetsInheritNames; // the Inherit From choice's
     za::String weaponWeightsTitle, weaponWeightsInheritTitle;
     za::String heldObjectOffsetsTitle, heldObjectWeightsTitle;
@@ -660,7 +677,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How long a pull's shake lasts."),
         slider("Pull Smoke", vr_chainsaw_pull_smoke, 0.f, 12.f, 1.f, "%.0f puffs").extend(0.f, 40.f)
             .help("Puffs of exhaust smoke each pull makes (as Smoke's, at Smoke Opacity). A weak pull, half. 0: none."),
-        slider("Pull Sparks", vr_chainsaw_pull_sparks, 0.f, 20.f, 1.f, "%.0f").extend(0.f, 60.f)
+        slider("Pull Sparks", vr_chainsaw_pull_sparks, 0.f, 40.f, 1.f, "%.0f").extend(0.f, 60.f)
             .help("Tiny sparks out of the exhaust at each pull. A weak pull, half. 0: none."),
     };
 }
@@ -1623,6 +1640,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Blood dripping from splats on the ceiling and from gibs stuck there: how long and how much (0 none)."),
         slider("Gibs Stick", vr_gore_stick, 0.f, 30.f, 1.f, "%.0f s").extend()
             .help("Gibs flung into a ceiling or a wall may stick there about this long, dripping, then fall (0 never)."),
+        toggle("Flies on Heads", vr_head_flies)
+            .help("Flies buzzing round some severed heads (Scourge of Armagon's: about one head in ten). Off "
+                  "by default."),
         slider("Gib Speed: Melee", vr_gib_speed_melee, 0.05f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 3.f)
             .help("How fast the gibs fly when a melee blow gibs a monster or a corpse (a swing, a bash, a shove, a headbutt): "
                   "times Quake's speed."),
@@ -1791,10 +1811,12 @@ void hologramTestMessage()
         slider("Light Things' Top Speed", vr_throw_max_speed, 10.f, 40.f, 1.f, "%.0f m/s").extend(5.f, 100.f)
             .help("The fastest anything leaves your hand: a grenade, the axe (28: about 80 m at 45 degrees)."),
         slider("Light Up To", vr_throw_mass_light, 0.5f, 5.f, 0.1f, "%.1f kg").extend(0.1f, 50.f)
-            .help("Things up to this heavy can reach the top speed (the axe: 2 kg, a grenade 1.2); heavier, less."),
+            .help("Things up to this heavy can reach the top speed (a grenade: 1.2 kg; the axe, 2 kg, a little less); "
+                  "heavier, less."),
         slider("Heavy Falloff", vr_throw_mass_exp, 0.f, 1.5f, 0.05f, "%.2f")
             .help("How fast the limit falls with mass beyond it: (light / mass) to this power. 0.5: the same energy, 1: "
-                  "the same impulse. 0.75: the super nailgun (7 kg) at most 11 m/s, the laser cannon (15 kg) 6."),
+                  "the same impulse. 0.9 (with Light Up To 1.5): the super nailgun (7 kg) at most 7 m/s, the laser "
+                  "cannon (15 kg) 3.5."),
         slider("Soft Limit From", vr_throw_mass_knee, 0.f, 1.f, 0.05f, "%.2f")
             .help("Below this share of a thing's limit a throw is as fast as your hand's; above, it eases towards the "
                   "limit (1: a hard cap)."),
@@ -2806,6 +2828,12 @@ za::Vector<Item> pageDebugTests()
             .help("vr_crates_goto crowbar: you in front of the next crate with a crowbar lying on it (Crates: Crowbar on Crates)."),
         command("Go to the Next Crate", "vr_crates_goto")
             .help("vr_crates_goto [n]: you in front of the next of the crates placed in this map (or crate n), to look at it."),
+        command("Crate Cover", "impulse 223")
+            .help("impulse 223: a large crate just ahead to crouch behind, a small one at your right to hold up, and a "
+                  "grunt beyond, facing you and not yet awake. Crouched behind the crate it shouldn't see you (it stays "
+                  "asleep); standing up, or holding the small crate up, it should (Crates Hide You)."),
+        command("Can the Grunt See You?", "impulse 224")
+            .help("impulse 224: whether Crate Cover's grunt sees you now, how high your head is, and whether it woke."),
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
@@ -3372,6 +3400,14 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageAdvanced();
 [[nodiscard]] za::Vector<Item> pageWeaponOffsets();
+[[nodiscard]] za::Vector<Item> pageWofsHand();
+[[nodiscard]] za::Vector<Item> pageWofsFingers();
+[[nodiscard]] za::Vector<Item> pageWofsSights();
+[[nodiscard]] za::Vector<Item> pageWofsTwoHanded();
+[[nodiscard]] za::Vector<Item> pageWofsStock();
+[[nodiscard]] za::Vector<Item> pageWofsScreen();
+[[nodiscard]] za::Vector<Item> pageWofsHolstered();
+[[nodiscard]] za::Vector<Item> pageWofsEffects();
 [[nodiscard]] za::Vector<Item> pageCombat();
 [[nodiscard]] za::Vector<Item> pageMovement();
 [[nodiscard]] za::Vector<Item> pageCarryingHub();
@@ -3470,8 +3506,61 @@ const Page pages[] = {
     {"Enemy Shoves", pageEnemyShoves, pageCombat},                          // 81
     {"Chainsaw Engine", pageChainsawEngine, pageEnemyWeapons},              // 82
     {"Bullet Time", pageBulletTime, pageCombat},                            // 83 (vr_menu_recording.inc)
+    // Weapon Offsets' parts (ROUND21.md, "Weapon Offsets split; the virtual stock's turn"): its main page links them.
+    {"Weapon Offsets - Hand and Grip", pageWofsHand, pageWeaponOffsets},           // 84
+    {"Weapon Offsets - Fingers", pageWofsFingers, pageWeaponOffsets},              // 85
+    {"Weapon Offsets - Muzzle and Sights", pageWofsSights, pageWeaponOffsets},     // 86
+    {"Weapon Offsets - Two-Handed", pageWofsTwoHanded, pageWeaponOffsets},        // 87
+    {"Weapon Offsets - Virtual Stock", pageWofsStock, pageWeaponOffsets},          // 88
+    {"Weapon Offsets - Ammo Screen", pageWofsScreen, pageWeaponOffsets},           // 89
+    {"Weapon Offsets - Holstered", pageWofsHolstered, pageWeaponOffsets},          // 90
+    {"Weapon Offsets - Effects", pageWofsEffects, pageWeaponOffsets},              // 91
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
+
+// Weapon Offsets' parts, as its main page links them (in WeaponOffsetsPart's order). A new part: its builder, a
+// WeaponOffsetsPart, a line in `pages` (last) and one here.
+struct WeaponOffsetsPartPage
+{
+    PageBuilder build;
+    const char* link;
+    const char* help;
+};
+const WeaponOffsetsPartPage weaponOffsetsPartPages[] = {
+    {pageWofsHand, "Hand and Grip",
+        "Where the weapon sits in the hand and how it is turned; the hand and the weapon moved together, or the hand alone; "
+        "the controller preview to tune them by."},
+    {pageWofsFingers, "Fingers",
+        "How the fingers wrap the weapon (on their own or set by hand), each finger's bias, the thumb's place."},
+    {pageWofsSights, "Muzzle and Sights",
+        "Align Sights to My Aim, where the shots start (Muzzle) and where they go (Shot Pitch and Yaw)."},
+    {pageWofsTwoHanded, "Two-Handed and Hotspots",
+        "Whether the other hand may hold it, where (its hotspots: grips, the blade, a cup) and how that hand is drawn "
+        "there; the two-handed aim."},
+    {pageWofsStock, "Virtual Stock",
+        "How the aim turns while the weapon is steadied at your shoulder (2H Aiming: Virtual Stock)."},
+    {pageWofsScreen, "Ammo Screen", "The ammunition screen on the weapon: where, how big, shown or hidden."},
+    {pageWofsHolstered, "Holstered", "How it lies in each kind of holster (hips, chest, back), with a preview."},
+    {pageWofsEffects, "Effects", "Recoil, a muzzle flash and tracers, for a model without its own; a test."},
+};
+static_assert(sizeof(weaponOffsetsPartPages) / sizeof(weaponOffsetsPartPages[0]) == WofsParts - 1);
+
+// Whether `build` is a Weapon Offsets page (the main one or a part): the weapon in hand, its state.
+[[nodiscard]] bool weaponOffsetsPage(PageBuilder build)
+{
+    if(build == pageWeaponOffsets)
+    {
+        return true;
+    }
+    for(const WeaponOffsetsPartPage& part : weaponOffsetsPartPages)
+    {
+        if(part.build == build)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 za::Vector<Item> pageMain()
 {
@@ -3768,7 +3857,7 @@ void weaponOffsetsOtherHand()
 {
     weaponOffsetsHand = 1 - weaponOffsetsHand;
     weaponOffsetsStale = true;
-    showPage(pageIndex(pageWeaponOffsets));
+    showPage(qvr::menu::currentPage()); // (the same part of Weapon Offsets)
 }
 
 int weaponOffsetsHeldSlot = -1; // the weapon in the hand (weaponOffsetsSlot: the one edited: what it inherits from)
@@ -3958,10 +4047,27 @@ void weaponOffsetsTestEffects()
     Cbuf_AddText(va("vr_weaponfx_test %d 3\n", weaponOffsetsHand == 1 ? 1 : 0));
 }
 
-za::Vector<Item> pageWeaponOffsets()
+// After the posing test: Shot Pitch and Yaw, under Posing Mode and under Muzzle (weapons::shotAngles).
+constexpr const char* weaponOffsetsShotHelp = "Turns where the weapon's shots, projectiles and beams go (the red line, from the "
+                                              "muzzle) without moving the weapon: line the red line up with the sights. "
+                                              "Degrees, as you hold it (the off hand's yaw mirrored).";
+
+// A slider of the page's weapon's setting (weaponOffsetsSlot's).
+[[nodiscard]] Item weaponOffsetsSlider(const char* label, weapons::Key key, float min, float max, float step, const char* format)
+{
+    return slider(label, weapons::cvar(weaponOffsetsSlot, key), min, max, step, format);
+}
+
+// Every Weapon Offsets page begins so (the main page and its parts, WeaponOffsetsPart): the weapon the hand holds now (an
+// empty hand: the hand model), its title and Edit the Other Hand's Weapon; the main page also Inherit From. Returns the
+// slot edited (weaponOffsetsSlot: the one the weapon inherits from, if it does), -1 if none (the page says so). What the
+// page shows that rebuilds it (the hotspot, the Fingers choices, the holster...) is set again by the part showing it.
+[[nodiscard]] int weaponOffsetsBegin(za::Vector<Item>& list, int part)
 {
     using weapons::Key;
-    za::String& title = pageTexts.weaponOffsetsTitle;
+    za::String& title = pageTexts.weaponOffsetsTitle[part];
+    weaponOffsetsHotspot = weaponOffsetsHotspotType = weaponOffsetsManual = weaponOffsetsPreviewOwn =
+        weaponOffsetsHotspotManual = weaponOffsetsHolster = -1;
     int slot = vrActive() || cls.state == ca_connected ? weapons::heldSlot(weaponOffsetsHand) : -1;
     if(slot < 0 && cls.state == ca_connected)
     {
@@ -3970,14 +4076,13 @@ za::Vector<Item> pageWeaponOffsets()
     weaponOffsetsSlot = slot;
     weaponOffsetsSightVersion = sightalign::version();
 
-    za::Vector<Item> list;
     const char* hand = weaponOffsetsHand == 1 ? "Main hand" : "Off hand";
     if(slot < 0)
     {
         title = za::String(hand) + ": hold a weapon in a game to adjust it";
         list.pushBack(header(title.cStr()));
         list.pushBack(action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand));
-        return list;
+        return -1;
     }
 
     const char* model = weapons::cvar(slot, Key::ID)->string;
@@ -3987,14 +4092,27 @@ za::Vector<Item> pageWeaponOffsets()
     const int heldSlot = slot;
     weaponOffsetsHeldSlot = heldSlot;
     weaponOffsetsInherit = weapons::inheritsFrom(heldSlot);
-    za::String& inheritTitle = pageTexts.weaponOffsetsInheritTitle;
-    za::Vector<za::Pair<float, za::String>>& inheritNames = pageTexts.weaponOffsetsInheritNames;
+    za::String& inheritTitle = pageTexts.weaponOffsetsInheritTitle[part];
     if(weaponOffsetsInherit >= 0)
     {
         slot = weaponOffsetsInherit;
         weaponOffsetsSlot = slot;
         inheritTitle = za::String("Settings of ") + weapons::cvar(slot, Key::ID)->string + " (inherited)";
     }
+    list = {
+        header(title.cStr()),
+        action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand)
+            .help("The page shows the weapon the hand held when it was opened: reopen it after changing weapons."),
+    };
+    if(part != WofsMain || slot == weapons::fistSlot())
+    {
+        if(weaponOffsetsInherit >= 0)
+        {
+            list.pushBack(header(inheritTitle.cStr()));
+        }
+        return slot;
+    }
+    za::Vector<za::Pair<float, za::String>>& inheritNames = pageTexts.weaponOffsetsInheritNames;
     inheritNames.clear();
     inheritNames.pushBack({0.f, "None"});
     for(int other = 0; other < weapons::numSlots; other++)
@@ -4006,79 +4124,54 @@ za::Vector<Item> pageWeaponOffsets()
             inheritNames.pushBack({static_cast<float>(other + 1), base ? base + 1 : id});
         }
     }
+    za::Vector<Choice> choices;
+    for(const auto& [v, name] : inheritNames)
+    {
+        choices.pushBack({v, name.cStr()});
+    }
+    list.pushBack(cycle("Inherit From", weapons::cvar(heldSlot, Key::InheritFrom), ZA_MOVE(choices))
+                       .help("Use another weapon's settings (its placement, fingers, hotspots, muzzle, screen): the other "
+                             "ammo's model, set once for both. These pages then edit that weapon's."));
+    if(weaponOffsetsInherit >= 0)
+    {
+        list.pushBack(header(inheritTitle.cStr()));
+        list.pushBack(action("Stop Inheriting (Copy Them Here)", weaponOffsetsStopInheriting)
+                           .help("This weapon gets its own copy of the settings it inherits, to change apart."));
+    }
+    return slot;
+}
 
-    const auto s = [&](const char* label, Key key, float min, float max, float step, const char* format) {
-        return slider(label, weapons::cvar(slot, key), min, max, step, format);
-    };
+// A part of Weapon Offsets with nothing for the empty hand (its own settings: Hand and Grip), or no weapon held.
+[[nodiscard]] const char* weaponOffsetsFistNote()
+{
+    return "The empty hand: its placement is under Hand and Grip";
+}
+
+[[nodiscard]] za::Vector<Item> weaponOffsetsNoWeapon(za::Vector<Item>& list, int slot)
+{
+    if(slot >= 0)
+    {
+        list.pushBack(info(weaponOffsetsFistNote));
+        list.pushBack(open("Hand and Grip", pageIndex(pageWofsHand)));
+    }
+    return ZA_MOVE(list);
+}
+
+// Weapon Offsets: the posing mode, the parts' pages (weaponOffsetsPartPages) and the weapon's own actions.
+za::Vector<Item> pageWeaponOffsets()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsMain);
+    if(slot < 0)
+    {
+        return list;
+    }
+    const auto s = weaponOffsetsSlider;
     const bool fist = slot == weapons::fistSlot(); // the empty hand's "weapon" is the hand model
-    // After the posing test: Shot Pitch and Yaw, under Posing Mode and under Muzzle (weapons::shotAngles).
-    const char* shotHelp = "Turns where the weapon's shots, projectiles and beams go (the red line, from the muzzle) "
-                           "without moving the weapon: line the red line up with the sights. Degrees, as you hold it "
-                           "(the off hand's yaw mirrored).";
-    list = {
-        header(title.cStr()),
-        action("Edit the Other Hand's Weapon", weaponOffsetsOtherHand)
-            .help("The page shows the weapon the hand held when it was opened: reopen it after changing weapons."),
-    };
+    const char* shotHelp = weaponOffsetsShotHelp;
     if(!fist)
     {
-        za::Vector<Choice> choices;
-        for(const auto& [v, name] : inheritNames)
-        {
-            choices.pushBack({v, name.cStr()});
-        }
-        list.pushBack(cycle("Inherit From", weapons::cvar(heldSlot, Key::InheritFrom), ZA_MOVE(choices))
-                           .help("Use another weapon's settings (its placement, fingers, hotspots, muzzle, screen): the other "
-                                 "ammo's model, set once for both. This page then edits that weapon's."));
-        if(weaponOffsetsInherit >= 0)
-        {
-            list.pushBack(header(inheritTitle.cStr()));
-            list.pushBack(action("Stop Inheriting (Copy Them Here)", weaponOffsetsStopInheriting)
-                               .help("This weapon gets its own copy of the settings it inherits, to change apart."));
-        }
-        // Align Sights to My Aim (vr_sightalign.cpp).
-        list.pushBack(header("Align Sights to My Aim"));
-        if(sightalign::alignable(weaponOffsetsHand))
-        {
-            if(sightalign::phase() == sightalign::Phase::Result)
-            {
-                list.pushBack(action("Apply", sightAlignApply)
-                                   .help("Turns the hand and the gun together about your fist (Hand and Weapon Together) so "
-                                         "that the sights line up in front of your dominant eye, and the shots onto the "
-                                         "sight line (Shot Pitch and Yaw). Undo puts the values back."));
-                list.pushBack(action("Cancel", sightAlignCancel).help("Nothing changes."));
-            }
-            else
-            {
-                list.pushBack(action("Align Sights to My Aim", sightAlignStart)
-                                   .help("Close your eyes and lower the gun. After three beeps and a high one, raise it as you "
-                                         "raise your own gun, and hold still: a click takes it. Lower it and raise it again "
-                                         "after each click, until the chime. Then open your eyes: Apply or Cancel. The menu "
-                                         "button stops."));
-                if(sightalign::canUndo())
-                {
-                    list.pushBack(action("Undo", sightAlignUndo).help("Puts back the values from before Apply, exactly."));
-                }
-            }
-            for(int i = 0; sightalign::statusLine(i); i++)
-            {
-                list.pushBack(infoLine(sightAlignLine, i));
-            }
-        }
-        else
-        {
-            list.pushBack(info(sightAlignNone));
-        }
-        list.pushBackMultiple(
-            cycle("Dominant Eye", vr_dominant_eye, {{0.f, "Right"}, {1.f, "Left"}})
-                .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
-                      "it when you close the other."),
-            cycle("Captures", vr_sight_align_captures, {{3.f, "3"}, {4.f, "4"}, {5.f, "5"}})
-                .help("How many times the aim is taken: averaged, one that stands apart from the others dropped."),
-            toggle("Show Sight Line", vr_show_sight_line)
-                .help("Draws each held gun's sight line: its rear point (yellow), its front one (cyan), and the line through "
-                      "them to the wall. Painted sights: the shotguns, the lightning gun; the others a line along the top.")
-        );
         // The weapon posing mode (vr_posing.cpp).
         list.pushBackMultiple(
             header("Posing Mode"),
@@ -4096,6 +4189,39 @@ za::Vector<Item> pageWeaponOffsets()
             s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp)
         );
     }
+    list.pushBack(header("Settings"));
+    for(const WeaponOffsetsPartPage& part : weaponOffsetsPartPages)
+    {
+        if(!fist || part.build == pageWofsHand)
+        {
+            list.pushBack(open(fist ? "The Hand" : part.link, pageIndex(part.build)).help(part.help));
+        }
+    }
+    list.pushBackMultiple(
+        open("Weight, Melee and Throwing", pageIndex(pageWeaponWeights))
+            .help("Weapon Weights: its mass, balance and length, how it follows your hand, its melee and throw damage, "
+                  "its spin thrown."),
+        header("This Weapon"),
+        action("Print Changes to Console", weaponOffsetsPrint)
+            .help("Prints this weapon's offsets that differ from the defaults, ready to be made the shipped defaults."),
+        action("Reset This Weapon", weaponOffsetsReset)
+            .help("This weapon's offsets (every Weapon Offsets page's) back to their defaults. Its weight settings (Weapon "
+                  "Weights) stay.")
+    );
+    return list;
+}
+
+za::Vector<Item> pageWofsHand()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsHand);
+    if(slot < 0)
+    {
+        return list;
+    }
+    const auto s = weaponOffsetsSlider;
+    const bool fist = slot == weapons::fistSlot(); // the empty hand's "weapon" is the hand model
     list.pushBackMultiple(
         header(fist ? "The Hand" : "Weapon in the Hand"),
         s("Offset X (forward)", Key::OffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f)
@@ -4124,7 +4250,7 @@ za::Vector<Item> pageWeaponOffsets()
             toggle("Show Controller Laser", vr_show_controller_laser)
                 .help("White: where the controller points (Gun Angle included). Red: where the weapon's shots go, from "
                       "its muzzle. Green: the weapon's barrel, as drawn. Turn the weapon (Pitch, Yaw) until green runs "
-                      "along red, or the shots (Shot Pitch, Shot Yaw, under Muzzle) until red meets the sights.")
+                      "along red, or the shots (Shot Pitch, Shot Yaw: Muzzle and Sights) until red meets the sights.")
         );
         // After the posing test: the preview's offsets, to match the real controllers (drawControllerPreview).
         const char* previewHelp = "Moves the Show Controller preview (not the hands or weapons) to match your real controller: "
@@ -4176,247 +4302,412 @@ za::Vector<Item> pageWeaponOffsets()
             s("Hand Yaw (left)", Key::HandOnlyYaw, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f),
             s("Hand Roll", Key::HandOnlyRoll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f)
         );
-        const char* fingerHelp = "Closes (+) or opens (-) this finger on top of how it wraps the weapon on its own "
-                                 "(a share of a full curl).";
-        list.pushBackMultiple(
-            header("Fingers on the Weapon"),
-            cycle("Fingers", weapons::cvar(slot, Key::FingerManual), {{0.f, "Automatic"}, {1.f, "Manual"}})
-                .help("Automatic: the fingers wrap the weapon on their own. Manual: they take the curls set below (no "
-                      "fitting); the index finger still pulls the trigger.")
-        );
-        weaponOffsetsManual = weapons::value(slot, Key::FingerManual) >= 0.5f ? 1 : 0;
-        if(weaponOffsetsManual)
-        {
-            const char* curlHelp = "How far this finger is curled: 0 open, 1 a fist (the controller's grip still opens it).";
-            list.pushBackMultiple(
-                s("Thumb Curl", Key::FingerCurlThumb, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-                s("Thumb Across", Key::FingerThumbAcross, 0.f, 1.f, 0.02f, "%.2f")
-                    .help("How far the thumb turns across the palm: 0 beside the hand, 1 across it."),
-                s("Index Curl", Key::FingerCurlIndex, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-                s("Middle Curl", Key::FingerCurlMiddle, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-                s("Ring Curl", Key::FingerCurlRing, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-                s("Little Curl", Key::FingerCurlPinky, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp)
-            );
-        }
-        else
-        {
-            list.pushBack(s("Overlap", Key::GripOverlap, 0.f, 1.f, 0.05f, "%.2f")
-                               .help("How far the fingers and palm may sink into the weapon: 0 they stop on its surface, 1 a "
-                                     "centimetre in."));
-        }
-        list.pushBackMultiple(
-            s("Thumb", Key::FingerThumbBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            s("Index Finger", Key::FingerIndexBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            s("Middle Finger", Key::FingerMiddleBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            s("Ring Finger", Key::FingerRingBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            s("Little Finger", Key::FingerPinkyBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
-            s("Thumb X (forward)", Key::FingerThumbX, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f).help("Moves the thumb on the hand."),
-            s("Thumb Y (palm)", Key::FingerThumbY, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f),
-            s("Thumb Z (up)", Key::FingerThumbZ, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f),
-            header("Muzzle"),
-            s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f).help("Where shots and the muzzle flash start, from the muzzle vertex."),
-            s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
-            s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
-            s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
-            s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp)
-        );
+    }
+    return list;
+}
 
-        // The two-handed grips: the hotspot being edited.
-        const int index = editedHotspot();
-        const weapons::Hotspot h = weapons::hotspot(slot, index);
-        weaponOffsetsHotspot = index;
-        weaponOffsetsHotspotType = static_cast<int>(h.type);
-        const auto hk = [&](int field) { return weapons::cvar(slot, weapons::hotspotKey(index, field)); };
+za::Vector<Item> pageWofsFingers()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsFingers);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return weaponOffsetsNoWeapon(list, slot);
+    }
+    const auto s = weaponOffsetsSlider;
+    const char* fingerHelp = "Closes (+) or opens (-) this finger on top of how it wraps the weapon on its own "
+                             "(a share of a full curl).";
+    list.pushBackMultiple(
+        header("Fingers on the Weapon"),
+        cycle("Fingers", weapons::cvar(slot, Key::FingerManual), {{0.f, "Automatic"}, {1.f, "Manual"}})
+            .help("Automatic: the fingers wrap the weapon on their own. Manual: they take the curls set below (no "
+                  "fitting); the index finger still pulls the trigger.")
+    );
+    weaponOffsetsManual = weapons::value(slot, Key::FingerManual) >= 0.5f ? 1 : 0;
+    if(weaponOffsetsManual)
+    {
+        const char* curlHelp = "How far this finger is curled: 0 open, 1 a fist (the controller's grip still opens it).";
         list.pushBackMultiple(
-            header("Other Hand's Grips (Hotspots)"),
-            cycle("Two-Handed", weapons::cvar(slot, Key::TwoHMode),
-                {{0.f, "Allowed"}, {1.f, "Allowed, No Stock"}, {2.f, "Not Allowed"}, {3.f, "Sword"}})
-                .help("Whether the other hand may hold this weapon. Not Allowed ignores its hotspots (giving it a "
-                      "hotspot allows it). No Stock: never steadied at the shoulder. Sword: the other hand below "
-                      "the holding hand or on the blade."),
-            cycle("Other Hand Anywhere", weapons::cvar(slot, Key::AnyGripMode),
-                {{-1.f, "As Carrying Setting"}, {0.f, "As a Foregrip"}, {1.f, "Support Only"}, {2.f, "Rigid"}})
-                .help("The other hand gripping this weapon away from its handle and hotspots (Carrying: Weapons "
-                      "Anywhere): both hands aim it from there, it only bears the weight, or the weapon follows both "
-                      "hands rigidly. As Carrying Setting: Carrying's Other Hand Anywhere. Two-Handed Not Allowed: "
-                      "support only."),
-            cycle("Hotspot", vr_weapon_hotspot, {{1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}})
-                .help("Where the other hand may hold the weapon: it takes the one nearest it, less its bias. Pick one to edit."),
-            cycle("Type", hk(0), {{0.f, "None"}, {1.f, "Grip"}, {2.f, "Blade"}, {3.f, "Cup"}})
-                .help("Grip: a point (a foregrip, a pump, a magazine) the hand is drawn on; the two hands aim the weapon. "
-                      "Blade: the half-sword grip along the blade. Cup: a two-handed pistol grip, the hand under and "
-                      "round the holding hand (it doesn't aim)."),
-            action("Pose This Hotspot", weaponOffsetsPoseHotspot)
-                .help("Posing mode on this hotspot (a grip if it has no type): the weapon floats, held by the weapon "
-                      "hand; put the other hand where it should hold it and press the weapon hand's A/X."),
-            action("Pose a New Hotspot", weaponOffsetsPoseNewHotspot).help("The same on the first free hotspot.")
-        );
-        if(h.type == weapons::HotspotType::Blade)
-        {
-            list.pushBack(slider("Along the Blade", hk(1), 0.f, 1.f, 0.01f, "%.2f")
-                               .help("Where on the blade the grip is centred: a share of the way from the hand to the tip."));
-            list.pushBack(slider("Blade Grip Ends At", hk(2), 0.f, 1.05f, 0.01f, "%.2f")
-                               .help("How far towards the tip the hand may hold it and slide along it: a share of the way "
-                                     "from the hand to the tip (0: just past the tip). The crowbar's ends short of its hook."));
-        }
-        else
-        {
-            list.pushBackMultiple(
-                slider("Hotspot X", hk(1), -40.f, 40.f, 0.1f, "%.2f")
-                    .extend(-200.f, 200.f)
-                    .help(h.type == weapons::HotspotType::Cup
-                              ? "Where the helping hand's palm sits, in the weapon's model units: it is taken there (by the "
-                                "palm) and drawn there."
-                              : "The grip's point, in the weapon's model units."),
-                slider("Hotspot Y", hk(2), -40.f, 40.f, 0.1f, "%.2f").extend(-200.f, 200.f),
-                slider("Hotspot Z", hk(3), -40.f, 40.f, 0.1f, "%.2f").extend(-200.f, 200.f),
-                action("Put It Where the Other Hand Is", weaponOffsetsHotspotAtHand)
-                    .help("Makes this hotspot a grip at the other hand, as it is now (a cup: at its palm).")
-            );
-        }
-        list.pushBackMultiple(
-            slider("Hand Pitch", hk(5), -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f).help("How the hand holding it is turned there."),
-            slider("Hand Yaw", hk(6), -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f),
-            slider("Hand Roll", hk(7), -180.f, 180.f, 1.f, "%.0f"),
-            cycle("Thumb", hk(8), {{0.f, "Wraps round"}, {1.f, "Along the top"}})
-                .help("Whether the thumb wraps round it with the fingers, or lies along its top."),
-            cycle("Fingers There", hk(16), {{0.f, "Automatic"}, {1.f, "Manual"}})
-                .help("Automatic: the hand holding it wraps it on its own. Manual: its fingers take the curls set here.")
-        );
-        weaponOffsetsHotspotManual = h.manual ? 1 : 0;
-        if(h.manual)
-        {
-            const char* curlHelp = "How far this finger is curled: 0 open, 1 a fist.";
-            list.pushBackMultiple(
-                slider("Thumb Curl There", hk(17), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-                slider("Thumb Across There", hk(22), 0.f, 1.f, 0.02f, "%.2f")
-                    .help("How far the thumb turns across the palm: 0 beside the hand, 1 across it."),
-                slider("Index Curl There", hk(18), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-                slider("Middle Curl There", hk(19), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-                slider("Ring Curl There", hk(20), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
-                slider("Little Curl There", hk(21), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp)
-            );
-        }
-        else
-        {
-            list.pushBack(slider("Overlap There", hk(9), 0.f, 1.f, 0.05f, "%.2f")
-                               .help("How far the hand holding it may sink into the weapon: 0 not at all, 1 a centimetre (into "
-                                     "the other hand, on a cup: Hand/Gun Calibration's Fit Overlap: Hands)."));
-        }
-        list.pushBackMultiple(
-            slider("Held Hand X (forward)", hk(10), -10.f, 10.f, 0.1f, "%+.1f").extend()
-                .help("Moves the hand drawn on this hotspot once it holds it (visual only: where it is taken, and the "
-                      "aim, don't change). In the holding hand's aim frame, units; as for the off hand helping."),
-            slider("Held Hand Y (left)", hk(11), -10.f, 10.f, 0.1f, "%+.1f").extend(),
-            slider("Held Hand Z (up)", hk(12), -10.f, 10.f, 0.1f, "%+.1f").extend(),
-            slider("Held Hand Pitch (up)", hk(13), -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help("Turns it there, about its palm."),
-            slider("Held Hand Yaw (left)", hk(14), -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f),
-            slider("Held Hand Roll", hk(15), -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f)
-        );
-        list.pushBackMultiple(
-            slider("Bias", hk(4), 0.f, 10.f, 0.1f, "%.1f").extend(0.f, 50.f).help("Units taken off its distance: larger, easier to take than the others."),
-            slider("Stickiness", hk(23), 0.5f, 4.f, 0.05f, "%.2fx").extend(0.1f, 20.f)
-                .help("Once your other hand holds it, times how far it may go off it (20 units), out of line (Aiming: 2H "
-                      "Aiming Threshold) and past the muzzle before it lets go; times Aiming: 2H Grip Stickiness too, more "
-                      "while swinging. For heavy weapons swung with two hands."),
-            action("Remove This Hotspot", weaponOffsetsHotspotRemove),
-            toggle("Show Hotspots", vr_show_weapon_hotspots).help("Marks the held weapons' hotspots (the edited one white)."),
-            header("Two-Handed Aim"),
-            s("Aim Offset X", Key::TwoHOffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f)
-                .help("Moves the point the aim is taken from, in the holding hand's frame (nothing drawn moves)."),
-            s("Aim Offset Y", Key::TwoHOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
-            s("Aim Offset Z", Key::TwoHOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
-            s("Aim Pitch", Key::TwoHPitch, -180.f, 180.f, 0.5f, "%.1f")
-                .help("Turns the two-handed aim (a sword: its blade's direction in the model)."),
-            s("Aim Yaw", Key::TwoHYaw, -180.f, 180.f, 0.5f, "%.1f"),
-            s("Aim Roll", Key::TwoHRoll, -180.f, 180.f, 0.5f, "%.1f"),
-            header("Ammo Screen"),
-            s("Screen X", Key::WpnTextX, -20.f, 20.f, 0.05f, "%.2f").extend(-100.f, 100.f),
-            s("Screen Y", Key::WpnTextY, -20.f, 20.f, 0.05f, "%.2f").extend(-100.f, 100.f),
-            s("Screen Z", Key::WpnTextZ, -20.f, 20.f, 0.05f, "%.2f").extend(-100.f, 100.f),
-            s("Screen Pitch", Key::WpnTextPitch, -180.f, 180.f, 0.5f, "%.1f"),
-            s("Screen Yaw", Key::WpnTextYaw, -180.f, 180.f, 0.5f, "%.1f"),
-            s("Screen Roll", Key::WpnTextRoll, -180.f, 180.f, 0.5f, "%.1f"),
-            s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f").extend(0.01f, 10.f),
-            cycle("Ammo Screen", weapons::cvar(slot, Key::WpnTextMode), {{1.f, "Shown"}, {0.f, "Hidden"}})
-                .help("Whether this weapon shows its ammunition screen (every weapon's: Screens, Weapon Ammo Screen)."),
-            // The programmatic weapon effects (vr_weaponfx.cpp; their global settings: Weapon Effects).
-            header("Effects"),
-            cycle("Recoil", weapons::cvar(slot, Key::Recoil), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
-                .help("Each shot kicks the drawn weapon back and tips it up, then it comes back to rest: for a model without "
-                      "a recoil animation of its own. Looks only: the aim and the shots don't move."),
-            s("Recoil Strength", Key::RecoilStrength, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-                .help("Times Weapon Effects' Kick Back and Muzzle Rise."),
-            s("Recoil Return Time", Key::RecoilTime, 0.03f, 0.6f, 0.01f, "%.2f s").extend(0.02f, 3.f)
-                .help("How long a shot's kick takes to come back to rest."),
-            cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
-                .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
-                      "the gun; gone when it leaves your hand."),
-            s("Flash Size", Key::FlashSize, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Times the shotgun's flash."),
-            s("Flash Time", Key::FlashTime, 0.02f, 0.2f, 0.01f, "%.2f s").extend(0.01f, 1.f).help("How long it shows."),
-            cycle("Tracers", weapons::cvar(slot, Key::Tracers), {{0.f, "As Weapon Effects"}, {1.f, "Never"}, {2.f, "Always"}})
-                .help("Bullet tracers of this weapon's hitscan shots (the shotguns, the burst rifle): as Weapon Effects' "
-                      "Bullet Tracers, never, or always."),
-            s("Tracer Speed", Key::TracerSpeed, 0.1f, 5.f, 0.05f, "%.2fx").extend(0.01f, 20.f).help("Times Weapon Effects'."),
-            s("Tracer Length", Key::TracerLength, 0.1f, 5.f, 0.05f, "%.2fx").extend(0.01f, 20.f).help("Times Weapon Effects'."),
-            s("Tracer Thickness", Key::TracerWidth, 0.1f, 5.f, 0.05f, "%.2fx").extend(0.01f, 20.f).help("Times Weapon Effects'."),
-            s("Tracer Chance", Key::TracerChance, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
-                .help("Times Weapon Effects' Chance a Pellet (at most every pellet)."),
-            cycle("Tracer Colour", weapons::cvar(slot, Key::TracerOwnColour), {{0.f, "Weapon Effects'"}, {1.f, "Its Own"}})
-                .help("Its Own: the Red, Green and Blue below."),
-            s("Tracer Red", Key::TracerRed, 0.f, 1.f, 0.05f, "%.2f"),
-            s("Tracer Green", Key::TracerGreen, 0.f, 1.f, 0.05f, "%.2f"),
-            s("Tracer Blue", Key::TracerBlue, 0.f, 1.f, 0.05f, "%.2f"),
-            action("Test the Effects", weaponOffsetsTestEffects)
-                .help("This weapon kicks and flashes as if it fired, with 3 tracers (no shot: vr_weaponfx_test)."),
-            open("Weapon Effects (All Weapons)", pageIndex(pageWeaponEffects))
+            s("Thumb Curl", Key::FingerCurlThumb, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            s("Thumb Across", Key::FingerThumbAcross, 0.f, 1.f, 0.02f, "%.2f")
+                .help("How far the thumb turns across the palm: 0 beside the hand, 1 across it."),
+            s("Index Curl", Key::FingerCurlIndex, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            s("Middle Curl", Key::FingerCurlMiddle, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            s("Ring Curl", Key::FingerCurlRing, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            s("Little Curl", Key::FingerCurlPinky, 0.f, 1.f, 0.02f, "%.2f").help(curlHelp)
         );
     }
-    if(!fist)
+    else
     {
-        // The weapon in a holster (weapons::holsteredPose), per kind of holster: the page's weapon drawn in both holsters
-        // of that kind while one of these is chosen (view: setupHolsters, menu::holsterPreview).
-        const weapons::HolsterKind kind = editedHolster();
-        weaponOffsetsHolster = static_cast<int>(kind);
-        const auto hs = [&](const char* label, int field, float min, float max, float step, const char* format) {
-            return slider(label, weapons::cvar(slot, weapons::holsteredKey(kind, field)), min, max, step, format);
-        };
-        const char* moveHelp = "Moves this weapon in the holster (units): X off your body (negative: into it), Y outwards, "
-                               "away from your middle, Z up. The left holster mirrors the right. Only how it is drawn: "
-                               "where you reach for the holster doesn't change.";
-        const char* turnHelp = "Turns this weapon in the holster about its grip, on top of the holster's own turn (Hotspots): "
-                               "Pitch tips its top off your body, Yaw turns it outwards, Roll tips its top outwards (a "
-                               "hanging gun's muzzle goes the other way). The left holster mirrors the right.";
+        list.pushBack(s("Overlap", Key::GripOverlap, 0.f, 1.f, 0.05f, "%.2f")
+                           .help("How far the fingers and palm may sink into the weapon: 0 they stop on its surface, 1 a "
+                                 "centimetre in."));
+    }
+    list.pushBackMultiple(
+        s("Thumb", Key::FingerThumbBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+        s("Index Finger", Key::FingerIndexBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+        s("Middle Finger", Key::FingerMiddleBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+        s("Ring Finger", Key::FingerRingBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+        s("Little Finger", Key::FingerPinkyBias, -1.f, 1.f, 0.02f, "%+.2f").help(fingerHelp),
+        s("Thumb X (forward)", Key::FingerThumbX, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f).help("Moves the thumb on the hand."),
+        s("Thumb Y (palm)", Key::FingerThumbY, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f),
+        s("Thumb Z (up)", Key::FingerThumbZ, -4.f, 4.f, 0.05f, "%+.2f").extend(-20.f, 20.f)
+    );
+    return list;
+}
+
+za::Vector<Item> pageWofsSights()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsSights);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return weaponOffsetsNoWeapon(list, slot);
+    }
+    const auto s = weaponOffsetsSlider;
+    const char* shotHelp = weaponOffsetsShotHelp;
+    // Align Sights to My Aim (vr_sightalign.cpp).
+    list.pushBack(header("Align Sights to My Aim"));
+    if(sightalign::alignable(weaponOffsetsHand))
+    {
+        if(sightalign::phase() == sightalign::Phase::Result)
+        {
+            list.pushBack(action("Apply", sightAlignApply)
+                               .help("Turns the hand and the gun together about your fist (Hand and Weapon Together) so "
+                                     "that the sights line up in front of your dominant eye, and the shots onto the "
+                                     "sight line (Shot Pitch and Yaw). Undo puts the values back."));
+            list.pushBack(action("Cancel", sightAlignCancel).help("Nothing changes."));
+        }
+        else
+        {
+            list.pushBack(action("Align Sights to My Aim", sightAlignStart)
+                               .help("Close your eyes and lower the gun. After three beeps and a high one, raise it as you "
+                                     "raise your own gun, and hold still: a click takes it. Lower it and raise it again "
+                                     "after each click, until the chime. Then open your eyes: Apply or Cancel. The menu "
+                                     "button stops."));
+            if(sightalign::canUndo())
+            {
+                list.pushBack(action("Undo", sightAlignUndo).help("Puts back the values from before Apply, exactly."));
+            }
+        }
+        for(int i = 0; sightalign::statusLine(i); i++)
+        {
+            list.pushBack(infoLine(sightAlignLine, i));
+        }
+    }
+    else
+    {
+        list.pushBack(info(sightAlignNone));
+    }
+    list.pushBackMultiple(
+        cycle("Dominant Eye", vr_dominant_eye, {{0.f, "Right"}, {1.f, "Left"}})
+            .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
+                  "it when you close the other."),
+        cycle("Captures", vr_sight_align_captures, {{3.f, "3"}, {4.f, "4"}, {5.f, "5"}})
+            .help("How many times the aim is taken: averaged, one that stands apart from the others dropped."),
+        toggle("Show Sight Line", vr_show_sight_line)
+            .help("Draws each held gun's sight line: its rear point (yellow), its front one (cyan), and the line through "
+                  "them to the wall. Painted sights: the shotguns, the lightning gun; the others a line along the top.")
+    );
+    list.pushBackMultiple(
+        header("Muzzle"),
+        s("Muzzle X", Key::MuzzleOffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f).help("Where shots and the muzzle flash start, from the muzzle vertex."),
+        s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
+        s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
+        s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
+        s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp)
+    );
+    return list;
+}
+
+za::Vector<Item> pageWofsTwoHanded()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsTwoHanded);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return weaponOffsetsNoWeapon(list, slot);
+    }
+    const auto s = weaponOffsetsSlider;
+    // The two-handed grips: the hotspot being edited.
+    const int index = editedHotspot();
+    const weapons::Hotspot h = weapons::hotspot(slot, index);
+    weaponOffsetsHotspot = index;
+    weaponOffsetsHotspotType = static_cast<int>(h.type);
+    const auto hk = [&](int field) { return weapons::cvar(slot, weapons::hotspotKey(index, field)); };
+    list.pushBackMultiple(
+        header("Other Hand's Grips (Hotspots)"),
+        cycle("Two-Handed", weapons::cvar(slot, Key::TwoHMode),
+            {{0.f, "Allowed"}, {1.f, "Allowed, No Stock"}, {2.f, "Not Allowed"}, {3.f, "Sword"}})
+            .help("Whether the other hand may hold this weapon. Not Allowed ignores its hotspots (giving it a "
+                  "hotspot allows it). No Stock: never steadied at the shoulder. Sword: the other hand below "
+                  "the holding hand or on the blade."),
+        cycle("Other Hand Anywhere", weapons::cvar(slot, Key::AnyGripMode),
+            {{-1.f, "As Carrying Setting"}, {0.f, "As a Foregrip"}, {1.f, "Support Only"}, {2.f, "Rigid"}})
+            .help("The other hand gripping this weapon away from its handle and hotspots (Carrying: Weapons "
+                  "Anywhere): both hands aim it from there, it only bears the weight, or the weapon follows both "
+                  "hands rigidly. As Carrying Setting: Carrying's Other Hand Anywhere. Two-Handed Not Allowed: "
+                  "support only."),
+        cycle("Hotspot", vr_weapon_hotspot, {{1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}})
+            .help("Where the other hand may hold the weapon: it takes the one nearest it, less its bias. Pick one to edit."),
+        cycle("Type", hk(0), {{0.f, "None"}, {1.f, "Grip"}, {2.f, "Blade"}, {3.f, "Cup"}})
+            .help("Grip: a point (a foregrip, a pump, a magazine) the hand is drawn on; the two hands aim the weapon. "
+                  "Blade: the half-sword grip along the blade. Cup: a two-handed pistol grip, the hand under and "
+                  "round the holding hand (it doesn't aim)."),
+        action("Pose This Hotspot", weaponOffsetsPoseHotspot)
+            .help("Posing mode on this hotspot (a grip if it has no type): the weapon floats, held by the weapon "
+                  "hand; put the other hand where it should hold it and press the weapon hand's A/X."),
+        action("Pose a New Hotspot", weaponOffsetsPoseNewHotspot).help("The same on the first free hotspot.")
+    );
+    if(h.type == weapons::HotspotType::Blade)
+    {
+        list.pushBack(slider("Along the Blade", hk(1), 0.f, 1.f, 0.01f, "%.2f")
+                           .help("Where on the blade the grip is centred: a share of the way from the hand to the tip."));
+        list.pushBack(slider("Blade Grip Ends At", hk(2), 0.f, 1.05f, 0.01f, "%.2f")
+                           .help("How far towards the tip the hand may hold it and slide along it: a share of the way "
+                                 "from the hand to the tip (0: just past the tip). The crowbar's ends short of its hook."));
+    }
+    else
+    {
         list.pushBackMultiple(
-            header("Holstered"),
-            cycle("Holster", vr_weapon_holster, {{1.f, "Hip"}, {2.f, "Upper (Chest)"}, {3.f, "Shoulder (Back)"}})
-                .help("The holsters whose pose of this weapon the sliders below edit: a weapon lies differently on the hips, "
-                      "the chest and the back, so each has its own."),
-            action("Pose in This Holster", weaponOffsetsPoseHolster)
-                .help("Posing mode in these holsters: the right one floats in front of you, this weapon in it as the "
-                      "sliders below put it. Take the weapon with either grip, carry it, let go where it should sit (it "
-                      "stays there); A/X sets it (B/Y undoes), the menu button sets it and comes back here. The trigger "
-                      "goes on to the next kind of holster, the stick turns it all."),
-            toggle("Preview in Holster", vr_weapon_holster_preview)
-                .help("While a setting of this section is chosen, this weapon is drawn in both holsters of that kind (in place "
-                      "of what they hold): look down at them, or at the body preview, as you tune it."),
-            hs("Holstered X (off body)", 0, -10.f, 10.f, 0.1f, "%+.1f").extend().help(moveHelp),
-            hs("Holstered Y (outwards)", 1, -10.f, 10.f, 0.1f, "%+.1f").extend().help(moveHelp),
-            hs("Holstered Z (up)", 2, -10.f, 10.f, 0.1f, "%+.1f").extend().help(moveHelp),
-            hs("Holstered Pitch", 3, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
-            hs("Holstered Yaw", 4, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
-            hs("Holstered Roll", 5, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
-            action("Holstered Back to 0", weaponOffsetsHolsteredReset)
-                .help("This weapon's pose in these holsters back to 0: as the holster alone places it.")
+            slider("Hotspot X", hk(1), -40.f, 40.f, 0.1f, "%.2f")
+                .extend(-200.f, 200.f)
+                .help(h.type == weapons::HotspotType::Cup
+                          ? "Where the helping hand's palm sits, in the weapon's model units: it is taken there (by the "
+                            "palm) and drawn there."
+                          : "The grip's point, in the weapon's model units."),
+            slider("Hotspot Y", hk(2), -40.f, 40.f, 0.1f, "%.2f").extend(-200.f, 200.f),
+            slider("Hotspot Z", hk(3), -40.f, 40.f, 0.1f, "%.2f").extend(-200.f, 200.f),
+            action("Put It Where the Other Hand Is", weaponOffsetsHotspotAtHand)
+                .help("Makes this hotspot a grip at the other hand, as it is now (a cup: at its palm).")
         );
     }
     list.pushBackMultiple(
-        header("This Weapon"),
-        open("Weapon Weights", pageIndex(pageWeaponWeights)).help("Its mass, balance and length, how it follows your hand, and its damage."),
-        action("Print Changes to Console", weaponOffsetsPrint)
-            .help("Prints this weapon's offsets that differ from the defaults, ready to be made the shipped defaults."),
-        action("Reset This Weapon", weaponOffsetsReset)
-            .help("This weapon's offsets (this page's) back to their defaults. Its weight settings (Weapon Weights) stay.")
+        slider("Hand Pitch", hk(5), -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f).help("How the hand holding it is turned there."),
+        slider("Hand Yaw", hk(6), -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f),
+        slider("Hand Roll", hk(7), -180.f, 180.f, 1.f, "%.0f"),
+        cycle("Thumb", hk(8), {{0.f, "Wraps round"}, {1.f, "Along the top"}})
+            .help("Whether the thumb wraps round it with the fingers, or lies along its top."),
+        cycle("Fingers There", hk(16), {{0.f, "Automatic"}, {1.f, "Manual"}})
+            .help("Automatic: the hand holding it wraps it on its own. Manual: its fingers take the curls set here.")
+    );
+    weaponOffsetsHotspotManual = h.manual ? 1 : 0;
+    if(h.manual)
+    {
+        const char* curlHelp = "How far this finger is curled: 0 open, 1 a fist.";
+        list.pushBackMultiple(
+            slider("Thumb Curl There", hk(17), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            slider("Thumb Across There", hk(22), 0.f, 1.f, 0.02f, "%.2f")
+                .help("How far the thumb turns across the palm: 0 beside the hand, 1 across it."),
+            slider("Index Curl There", hk(18), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            slider("Middle Curl There", hk(19), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            slider("Ring Curl There", hk(20), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp),
+            slider("Little Curl There", hk(21), 0.f, 1.f, 0.02f, "%.2f").help(curlHelp)
+        );
+    }
+    else
+    {
+        list.pushBack(slider("Overlap There", hk(9), 0.f, 1.f, 0.05f, "%.2f")
+                           .help("How far the hand holding it may sink into the weapon: 0 not at all, 1 a centimetre (into "
+                                 "the other hand, on a cup: Hand/Gun Calibration's Fit Overlap: Hands)."));
+    }
+    list.pushBackMultiple(
+        slider("Held Hand X (forward)", hk(10), -10.f, 10.f, 0.1f, "%+.1f").extend()
+            .help("Moves the hand drawn on this hotspot once it holds it (visual only: where it is taken, and the "
+                  "aim, don't change). In the holding hand's aim frame, units; as for the off hand helping."),
+        slider("Held Hand Y (left)", hk(11), -10.f, 10.f, 0.1f, "%+.1f").extend(),
+        slider("Held Hand Z (up)", hk(12), -10.f, 10.f, 0.1f, "%+.1f").extend(),
+        slider("Held Hand Pitch (up)", hk(13), -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help("Turns it there, about its palm."),
+        slider("Held Hand Yaw (left)", hk(14), -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f),
+        slider("Held Hand Roll", hk(15), -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f)
+    );
+    list.pushBackMultiple(
+        slider("Bias", hk(4), 0.f, 10.f, 0.1f, "%.1f").extend(0.f, 50.f).help("Units taken off its distance: larger, easier to take than the others."),
+        slider("Stickiness", hk(23), 0.5f, 4.f, 0.05f, "%.2fx").extend(0.1f, 20.f)
+            .help("Once your other hand holds it, times how far it may go off it (20 units), out of line (Aiming: 2H "
+                  "Aiming Threshold) and past the muzzle before it lets go; times Aiming: 2H Grip Stickiness too, more "
+                  "while swinging. For heavy weapons swung with two hands."),
+        action("Remove This Hotspot", weaponOffsetsHotspotRemove),
+        toggle("Show Hotspots", vr_show_weapon_hotspots).help("Marks the held weapons' hotspots (the edited one white).")
+    );
+    list.pushBackMultiple(
+        header("Two-Handed Aim"),
+        s("Aim Offset X", Key::TwoHOffsetX, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f)
+            .help("Moves the point the aim is taken from, in the holding hand's frame (nothing drawn moves)."),
+        s("Aim Offset Y", Key::TwoHOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
+        s("Aim Offset Z", Key::TwoHOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
+        s("Aim Pitch", Key::TwoHPitch, -180.f, 180.f, 0.5f, "%.1f")
+            .help("Turns the two-handed aim (a sword: its blade's direction in the model)."),
+        s("Aim Yaw", Key::TwoHYaw, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Aim Roll", Key::TwoHRoll, -180.f, 180.f, 0.5f, "%.1f")
+    );
+    return list;
+}
+
+// Virtual Stock: how far the virtual stock steadies the page's hand's aim now (twohand::stock).
+[[nodiscard]] const char* weaponOffsetsStockReadout(int /* unused */)
+{
+    za::String& text = readouts.weaponOffsetsStock;
+    text = static_cast<int>(vr_2h_mode.value) != 2
+               ? za::String("Now: off (2H Aiming below is not Virtual Stock)")
+               : za::String(va("Now: two-handed %.0f%%, at the shoulder %.0f%%", 100.f * twohand::transition(weaponOffsetsHand),
+                     100.f * twohand::stock(weaponOffsetsHand)));
+    return text.cStr();
+}
+
+za::Vector<Item> pageWofsStock()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsStock);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return weaponOffsetsNoWeapon(list, slot);
+    }
+    const auto s = weaponOffsetsSlider;
+    const char* turnHelp = "Turns the aim (and the weapon) while it is steadied at your shoulder, on top of the two-handed aim, "
+                           "as far as the stock is engaged: degrees, up, left and clockwise as you hold it (the off hand's "
+                           "yaw and roll mirrored). For a weapon that points off where it should when shouldered.";
+    list.pushBackMultiple(
+        header("Virtual Stock: This Weapon"),
+        infoLine(weaponOffsetsStockReadout, 0),
+        cycle("Two-Handed", weapons::cvar(slot, Key::TwoHMode),
+            {{0.f, "Allowed"}, {1.f, "Allowed, No Stock"}, {2.f, "Not Allowed"}, {3.f, "Sword"}})
+            .help("Whether the other hand may hold this weapon; No Stock: never steadied at the shoulder (as on Two-Handed "
+                  "and Hotspots)."),
+        s("Stock Pitch (up)", Key::StockPitch, -30.f, 30.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(turnHelp),
+        s("Stock Yaw (left)", Key::StockYaw, -30.f, 30.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(turnHelp),
+        s("Stock Roll (right)", Key::StockRoll, -45.f, 45.f, 0.5f, "%+.1f").extend(-180.f, 180.f).help(turnHelp),
+        header("Every Weapon"),
+        cycle("2H Aiming", "vr_2h_mode", {{0.f, "Disabled"}, {1.f, "Basic"}, {2.f, "Virtual Stock"}})
+            .help("Virtual Stock: a two-handed weapon whose holding hand comes near your shoulder aims from the shoulder "
+                  "(as on Aiming)."),
+        slider("Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much the shoulder counts in the aim against the hands (as on Aiming)."),
+        slider("Stock Distance", "vr_virtual_stock_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
+            .help("How near the shoulder the holding hand must be (units; Virtual Stock Thresh. on Hotspots)."),
+        toggle("Show Virtual Stock", "vr_show_virtual_stock").help("Marks the shoulders the stock is taken at."),
+        open("Hotspots (the Shoulders)", pageIndex(pageHotspotSettings))
+    );
+    return list;
+}
+
+za::Vector<Item> pageWofsScreen()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsScreen);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return weaponOffsetsNoWeapon(list, slot);
+    }
+    const auto s = weaponOffsetsSlider;
+    list.pushBackMultiple(
+        header("Ammo Screen"),
+        s("Screen X", Key::WpnTextX, -20.f, 20.f, 0.05f, "%.2f").extend(-100.f, 100.f),
+        s("Screen Y", Key::WpnTextY, -20.f, 20.f, 0.05f, "%.2f").extend(-100.f, 100.f),
+        s("Screen Z", Key::WpnTextZ, -20.f, 20.f, 0.05f, "%.2f").extend(-100.f, 100.f),
+        s("Screen Pitch", Key::WpnTextPitch, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Screen Yaw", Key::WpnTextYaw, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Screen Roll", Key::WpnTextRoll, -180.f, 180.f, 0.5f, "%.1f"),
+        s("Screen Scale", Key::WpnTextScale, 0.05f, 3.f, 0.05f, "%.2f").extend(0.01f, 10.f),
+        cycle("Ammo Screen", weapons::cvar(slot, Key::WpnTextMode), {{1.f, "Shown"}, {0.f, "Hidden"}})
+            .help("Whether this weapon shows its ammunition screen (every weapon's: Screens, Weapon Ammo Screen).")
+    );
+    return list;
+}
+
+za::Vector<Item> pageWofsHolstered()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsHolstered);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return weaponOffsetsNoWeapon(list, slot);
+    }
+    // The weapon in a holster (weapons::holsteredPose), per kind of holster: the page's weapon drawn in both holsters
+    // of that kind while one of these is chosen (view: setupHolsters, menu::holsterPreview).
+    const weapons::HolsterKind kind = editedHolster();
+    weaponOffsetsHolster = static_cast<int>(kind);
+    const auto hs = [&](const char* label, int field, float min, float max, float step, const char* format) {
+        return slider(label, weapons::cvar(slot, weapons::holsteredKey(kind, field)), min, max, step, format);
+    };
+    const char* moveHelp = "Moves this weapon in the holster (units): X off your body (negative: into it), Y outwards, "
+                           "away from your middle, Z up. The left holster mirrors the right. Only how it is drawn: "
+                           "where you reach for the holster doesn't change.";
+    const char* turnHelp = "Turns this weapon in the holster about its grip, on top of the holster's own turn (Hotspots): "
+                           "Pitch tips its top off your body, Yaw turns it outwards, Roll tips its top outwards (a "
+                           "hanging gun's muzzle goes the other way). The left holster mirrors the right.";
+    list.pushBackMultiple(
+        header("Holstered"),
+        cycle("Holster", vr_weapon_holster, {{1.f, "Hip"}, {2.f, "Upper (Chest)"}, {3.f, "Shoulder (Back)"}})
+            .help("The holsters whose pose of this weapon the sliders below edit: a weapon lies differently on the hips, "
+                  "the chest and the back, so each has its own."),
+        action("Pose in This Holster", weaponOffsetsPoseHolster)
+            .help("Posing mode in these holsters: the right one floats in front of you, this weapon in it as the "
+                  "sliders below put it. Take the weapon with either grip, carry it, let go where it should sit (it "
+                  "stays there); A/X sets it (B/Y undoes), the menu button sets it and comes back here. The trigger "
+                  "goes on to the next kind of holster, the stick turns it all."),
+        toggle("Preview in Holster", vr_weapon_holster_preview)
+            .help("While a setting of this section is chosen, this weapon is drawn in both holsters of that kind (in place "
+                  "of what they hold): look down at them, or at the body preview, as you tune it."),
+        hs("Holstered X (off body)", 0, -10.f, 10.f, 0.1f, "%+.1f").extend().help(moveHelp),
+        hs("Holstered Y (outwards)", 1, -10.f, 10.f, 0.1f, "%+.1f").extend().help(moveHelp),
+        hs("Holstered Z (up)", 2, -10.f, 10.f, 0.1f, "%+.1f").extend().help(moveHelp),
+        hs("Holstered Pitch", 3, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
+        hs("Holstered Yaw", 4, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
+        hs("Holstered Roll", 5, -90.f, 90.f, 1.f, "%+.0f deg").extend(-180.f, 180.f).help(turnHelp),
+        action("Holstered Back to 0", weaponOffsetsHolsteredReset)
+            .help("This weapon's pose in these holsters back to 0: as the holster alone places it.")
+    );
+    return list;
+}
+
+za::Vector<Item> pageWofsEffects()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsEffects);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return weaponOffsetsNoWeapon(list, slot);
+    }
+    const auto s = weaponOffsetsSlider;
+    list.pushBackMultiple(
+        // The programmatic weapon effects (vr_weaponfx.cpp; their global settings: Weapon Effects).
+        header("Effects"),
+        cycle("Recoil", weapons::cvar(slot, Key::Recoil), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
+            .help("Each shot kicks the drawn weapon back and tips it up, then it comes back to rest: for a model without "
+                  "a recoil animation of its own. Looks only: the aim and the shots don't move."),
+        s("Recoil Strength", Key::RecoilStrength, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Times Weapon Effects' Kick Back and Muzzle Rise."),
+        s("Recoil Return Time", Key::RecoilTime, 0.03f, 0.6f, 0.01f, "%.2f s").extend(0.02f, 3.f)
+            .help("How long a shot's kick takes to come back to rest."),
+        cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
+            .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
+                  "the gun; gone when it leaves your hand."),
+        s("Flash Size", Key::FlashSize, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Times the shotgun's flash."),
+        s("Flash Time", Key::FlashTime, 0.02f, 0.2f, 0.01f, "%.2f s").extend(0.01f, 1.f).help("How long it shows."),
+        cycle("Tracers", weapons::cvar(slot, Key::Tracers), {{0.f, "As Weapon Effects"}, {1.f, "Never"}, {2.f, "Always"}})
+            .help("Bullet tracers of this weapon's hitscan shots (the shotguns, the burst rifle): as Weapon Effects' "
+                  "Bullet Tracers, never, or always."),
+        s("Tracer Speed", Key::TracerSpeed, 0.1f, 5.f, 0.05f, "%.2fx").extend(0.01f, 20.f).help("Times Weapon Effects'."),
+        s("Tracer Length", Key::TracerLength, 0.1f, 5.f, 0.05f, "%.2fx").extend(0.01f, 20.f).help("Times Weapon Effects'."),
+        s("Tracer Thickness", Key::TracerWidth, 0.1f, 5.f, 0.05f, "%.2fx").extend(0.01f, 20.f).help("Times Weapon Effects'."),
+        s("Tracer Chance", Key::TracerChance, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("Times Weapon Effects' Chance a Pellet (at most every pellet)."),
+        cycle("Tracer Colour", weapons::cvar(slot, Key::TracerOwnColour), {{0.f, "Weapon Effects'"}, {1.f, "Its Own"}})
+            .help("Its Own: the Red, Green and Blue below."),
+        s("Tracer Red", Key::TracerRed, 0.f, 1.f, 0.05f, "%.2f"),
+        s("Tracer Green", Key::TracerGreen, 0.f, 1.f, 0.05f, "%.2f"),
+        s("Tracer Blue", Key::TracerBlue, 0.f, 1.f, 0.05f, "%.2f"),
+        action("Test the Effects", weaponOffsetsTestEffects)
+            .help("This weapon kicks and flashes as if it fired, with 3 tracers (no shot: vr_weaponfx_test)."),
+        open("Weapon Effects (All Weapons)", pageIndex(pageWeaponEffects))
     );
     return list;
 }
@@ -4560,15 +4851,17 @@ void loadPositions()
 {
     za::Vector<Item> (&built)[pageCount] = menuPages.built;
     bool (&done)[pageCount] = menuPages.done;
-    if(pages[page].build == pageWeaponOffsets && weaponOffsetsSlot >= 0 && editedHotspot() == weaponOffsetsHotspot &&
+    const bool weaponOffsets = weaponOffsetsPage(pages[page].build);
+    if(weaponOffsets && weaponOffsetsSlot >= 0 && editedHotspot() == weaponOffsetsHotspot &&
         weaponOffsetsHotspotType == static_cast<int>(weapons::HotspotType::None) &&
         weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type != weapons::HotspotType::None)
     {
         allowTwoHands(weaponOffsetsSlot); // a hotspot's Type set from None
     }
-    if(pages[page].build == pageWeaponOffsets && weaponOffsetsSlot >= 0 &&
-        (editedHotspot() != weaponOffsetsHotspot ||
-            static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType ||
+    if(weaponOffsets && weaponOffsetsSlot >= 0 &&
+        ((weaponOffsetsHotspot >= 0 && editedHotspot() != weaponOffsetsHotspot) ||
+            (weaponOffsetsHotspotType >= 0 &&
+                static_cast<int>(weapons::hotspot(weaponOffsetsSlot, editedHotspot()).type) != weaponOffsetsHotspotType) ||
             weapons::inheritsFrom(weaponOffsetsHeldSlot) != weaponOffsetsInherit ||
             (weaponOffsetsHolster >= 0 && static_cast<int>(editedHolster()) != weaponOffsetsHolster) ||
             (weaponOffsetsManual >= 0 && (weapons::value(weaponOffsetsSlot, weapons::Key::FingerManual) >= 0.5f ? 1 : 0) != weaponOffsetsManual) ||
@@ -4578,7 +4871,7 @@ void loadPositions()
     {
         weaponOffsetsStale = true; // another hotspot picked, its type changed, what the weapon inherits, or a Fingers choice
     }
-    if(pages[page].build == pageWeaponOffsets && weaponOffsetsSightVersion != sightalign::version())
+    if(pages[page].build == pageWofsSights && weaponOffsetsSightVersion != sightalign::version())
     {
         weaponOffsetsStale = true; // Align Sights to My Aim: its phase or its result changed
         weaponOffsetsSightFocus = true;
@@ -4604,7 +4897,7 @@ void loadPositions()
     {
         done[page] = false;
     }
-    if(pages[page].build == pageWeaponOffsets && weaponOffsetsStale)
+    if(weaponOffsets && weaponOffsetsStale)
     {
         weaponOffsetsStale = false;
         done[page] = false;
@@ -4669,7 +4962,7 @@ void loadPositions()
         }
     }
     // Once the page is shown again (the menu reopened on it, its cursor restored): the cursor on Apply or Undo.
-    if(pages[page].build == pageWeaponOffsets && weaponOffsetsSightFocus && key_dest == key_menu && m_state == m_vr &&
+    if(pages[page].build == pageWofsSights && weaponOffsetsSightFocus && key_dest == key_menu && m_state == m_vr &&
         page == qvr::menu::currentPage())
     {
         weaponOffsetsSightFocus = false;
@@ -4779,7 +5072,7 @@ void showPage(int target)
     closeDropDown();
     page = target;
     weightPageShown(pages[page].build); // a weight page: what is in the hand now
-    if(pages[page].build == pageWeaponOffsets)
+    if(weaponOffsetsPage(pages[page].build))
     {
         weaponOffsetsStale = true; // the weapon in hand now
     }
@@ -5913,7 +6206,7 @@ void qvr::menu::command_f()
             openInTree(target); // (the VR Settings: already shown)
             // menu_vr <page> <row>: the cursor on that row (counted from 0, headers and lines of text included), if it
             // can rest there (scripts, screenshots); or on the first setting whose label starts with <row>'s text
-            // (menu_vr 23 "Holstered X").
+            // (menu_vr 90 "Holstered X").
             const auto& list = items(page);
             int row = Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : -1;
             if(Cmd_Argc() > 2 && (Cmd_Argv(2)[0] < '0' || Cmd_Argv(2)[0] > '9'))
@@ -5937,7 +6230,7 @@ void qvr::menu::command_f()
 
 bool qvr::menu::holsterPreview(int& hand, int& kind)
 {
-    if(m_state != m_vr || pages[page].build != pageWeaponOffsets || vr_weapon_holster_preview.value == 0.f ||
+    if(m_state != m_vr || pages[page].build != pageWofsHolstered || vr_weapon_holster_preview.value == 0.f ||
         weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weaponOffsetsHolster < 0 ||
         weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
     {

@@ -276,10 +276,34 @@ enum class Sampling
     Bilinear,   // the spectator camera above the window's size
 };
 
+// What the window's view adds to a scene's colours from the view it was rendered from: its glow (0: none) and its
+// view axes (the underwater wobble's). Taken right after that view is rendered (sceneLook), as the next view rendered
+// replaces both: the spectator camera keeps its own for the frames it shows its last image again (NOTES.md
+// vrfiringrange_2026-10-02_01-32-14: with the eyes' glow there instead, the hands and the HUD's text showed through
+// faintly, offset, turning with the head).
+struct SceneLook
+{
+    GLuint glow = 0;
+    glm::vec4 proj{0.f};
+    glm::vec3 forward{0.f}, left{0.f}, up{0.f};
+};
+
+[[nodiscard]] SceneLook sceneLook()
+{
+    SceneLook l;
+    unsigned glow = 0;
+    l.glow = bloom::result(glow) ? glow : 0;
+    l.proj = {r_matproj[0], r_matproj[4], r_matproj[1], r_matproj[9]};
+    l.forward = {vpn[0], vpn[1], vpn[2]};
+    l.left = {-vright[0], -vright[1], -vright[2]};
+    l.up = {vup[0], vup[1], vup[2]};
+    return l;
+}
+
 // Draws the scene `source` (its colours, width x height) into the window's rectangle dx0..dx1 by windowHeight through
-// `map`, with this view's glow (bloom::result) and underwater wobble.
-void drawToWindow(const SceneTargets& source, const glm::mat3& map, Sampling sampling, GLuint windowTarget, int dx0,
-    int dx1, int windowHeight)
+// `map`, with its view's glow and underwater wobble (`look`).
+void drawToWindow(const SceneTargets& source, const SceneLook& look, const glm::mat3& map, Sampling sampling,
+    GLuint windowTarget, int dx0, int dx1, int windowHeight)
 {
     if(!mirrorProgram && !mirrorFailed)
     {
@@ -299,14 +323,13 @@ void drawToWindow(const SceneTargets& source, const glm::mat3& map, Sampling sam
         return;
     }
 
-    unsigned glow = 0;
-    const bool hasGlow = bloom::result(glow);
+    const bool hasGlow = look.glow != 0;
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, windowTarget);
     glViewport(dx0, 0, dx1 - dx0, windowHeight);
     GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
     GL_UseProgram(mirrorProgram);
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, source.fb.composite.color_tex);
-    GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, hasGlow ? glow : 0);
+    GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, look.glow);
     const bool filtered = sampling != Sampling::Nearest;
     if(filtered)
     {
@@ -327,10 +350,10 @@ void drawToWindow(const SceneTargets& source, const glm::mat3& map, Sampling sam
     GL_Uniform4fFunc(4, sampling == Sampling::Nearest ? 0.f : sampling == Sampling::CatmullRom ? 1.f : 2.f, 0.f, 0.f, 0.f);
     const glm::vec3 water = filtered ? water::viewWobble() : glm::vec3{0.f};
     GL_Uniform4fFunc(5, water.x, water.y, water.z, 0.f);
-    GL_Uniform4fFunc(6, r_matproj[0], r_matproj[4], r_matproj[1], r_matproj[9]);
-    GL_Uniform3fFunc(7, vpn[0], vpn[1], vpn[2]);
-    GL_Uniform3fFunc(8, -vright[0], -vright[1], -vright[2]);
-    GL_Uniform3fFunc(9, vup[0], vup[1], vup[2]);
+    GL_Uniform4fFunc(6, look.proj.x, look.proj.y, look.proj.z, look.proj.w);
+    GL_Uniform3fFunc(7, look.forward.x, look.forward.y, look.forward.z);
+    GL_Uniform3fFunc(8, look.left.x, look.left.y, look.left.z);
+    GL_Uniform3fFunc(9, look.up.x, look.up.y, look.up.z);
     GL_Uniform3fFunc(10, map[0].x, map[0].y, map[0].z);
     GL_Uniform3fFunc(11, map[1].x, map[1].y, map[1].z);
     GL_Uniform3fFunc(12, map[2].x, map[2].y, map[2].z);
@@ -368,7 +391,7 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
         }
         const glm::mat3 map = window::mirrorMap(frameState().eyes[0].fov,
             static_cast<float>(windowWidth) / static_cast<float>(windowHeight), hidden);
-        drawToWindow(eyeTargets, map, Sampling::CatmullRom, windowTarget, 0, windowWidth, windowHeight);
+        drawToWindow(eyeTargets, sceneLook(), map, Sampling::CatmullRom, windowTarget, 0, windowWidth, windowHeight);
         return;
     }
 
@@ -404,19 +427,21 @@ void mirrorToWindow(int eye, GLuint windowTarget, int windowWidth, int windowHei
     }
     const float ew = static_cast<float>(eyeTargets.width);
     const float eh = static_cast<float>(eyeTargets.height);
-    drawToWindow(eyeTargets, cropMap(x0 / ew, y0 / eh, (x1 - x0) / ew, (y1 - y0) / eh), Sampling::Nearest, windowTarget,
+    drawToWindow(eyeTargets, sceneLook(), cropMap(x0 / ew, y0 / eh, (x1 - x0) / ew, (y1 - y0) / eh), Sampling::Nearest, windowTarget,
         dx0, dx1, windowHeight);
 }
 
 // The UI in an eye, into `fbo` (width x height): the lasers, the HUD panel or the menu (with its pointer), the wrist
-// gadget's log. Not depth tested: over whatever the fbo holds.
-void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height)
+// gadget's log. Not depth tested: over whatever the fbo holds. Without `headText`, not the head-locked text (centre
+// prints, notify lines): the spectator camera's and the mirror's choice (vr_spectator_hide_hud_text,
+// vr_mirror_hide_hud_text), for recording.
+void drawUi(const glm::vec3& viewOrigin, GLuint fbo, int width, int height, bool headText = true)
 {
     QVR_GPU_PROFILE("ui");
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, fbo);
     glViewport(0, 0, width, height);
     lines::drawInEye(viewOrigin);
-    panel::drawInEye(hands::current());
+    panel::drawInEye(hands::current(), headText);
     text3d::drawOverlay();
 }
 
@@ -493,6 +518,7 @@ struct SpectatorPace
     double owed = 0.0;       // seconds since the last image, less the cap's period (at most one period)
     int frames = 0;          // frames since the last image (every 2nd or 3rd)
     bool shown = false;      // the targets hold an image of this window view (made since the view came back)
+    SceneLook look;          // that image's glow and view axes
 };
 SpectatorPace spectatorPace;
 
@@ -543,8 +569,8 @@ void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
     {
         // Its last image again.
         QVR_GPU_PROFILE("window view");
-        drawToWindow(spectatorTargets, cropMap(0.f, 0.f, 1.f, 1.f), scale > 1.f ? Sampling::Bilinear : Sampling::CatmullRom,
-            windowTarget, 0, windowWidth, windowHeight);
+        drawToWindow(spectatorTargets, spectatorPace.look, cropMap(0.f, 0.f, 1.f, 1.f),
+            scale > 1.f ? Sampling::Bilinear : Sampling::CatmullRom, windowTarget, 0, windowWidth, windowHeight);
         return;
     }
     QVR_GPU_PROFILE("spectator");
@@ -569,13 +595,14 @@ void renderSpectator(GLuint windowTarget, int windowWidth, int windowHeight)
     firstEye = false; // the eyes' entities, as they set them up
     V_RenderView();
     bloom::apply(framebufs.composite.color_tex, width, height);
-    drawUi(camera.origin, framebufs.composite.fbo, width, height);
+    spectatorPace.look = sceneLook();
+    drawUi(camera.origin, framebufs.composite.fbo, width, height, vr_spectator_hide_hud_text.value == 0.f);
     spectatorView = false;
     renderingEye = false;
 
     QVR_GPU_PROFILE("window view");
-    drawToWindow(spectatorTargets, cropMap(0.f, 0.f, 1.f, 1.f), scale > 1.f ? Sampling::Bilinear : Sampling::CatmullRom,
-        windowTarget, 0, windowWidth, windowHeight);
+    drawToWindow(spectatorTargets, spectatorPace.look, cropMap(0.f, 0.f, 1.f, 1.f),
+        scale > 1.f ? Sampling::Bilinear : Sampling::CatmullRom, windowTarget, 0, windowWidth, windowHeight);
 }
 
 } // namespace
@@ -723,7 +750,8 @@ extern "C" int VR_RenderView()
         }
         if(stereo::mirrored(eye))
         {
-            stereo::drawUi(hands::current().eyeOrigin[eye], framebufs.composite.fbo, width, height);
+            stereo::drawUi(hands::current().eyeOrigin[eye], framebufs.composite.fbo, width, height,
+                vr_mirror_hide_hud_text.value == 0.f);
         }
 
         stereo::renderingEye = false;
