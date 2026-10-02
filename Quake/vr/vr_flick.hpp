@@ -14,6 +14,10 @@ void update(hands::State& s);
 // Whether `hand` is flicking this frame (VRBITS0_*_RELOADFLICKING).
 [[nodiscard]] bool flicking(int hand);
 
+// Whether the weapon in `hand` may be flick-reloaded now, by the gesture or the +flickreload commands: not held two-handed
+// but by a cup (twohand::flickAllowed).
+[[nodiscard]] bool allowed(int hand);
+
 // Starts the spin without the gesture (the +flickreload commands).
 void spin(int hand);
 

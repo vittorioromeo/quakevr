@@ -377,6 +377,8 @@ void mockLook_f()
 // vr_bullettime_tap). "vr_mock_hand_to <main|off> carried": at
 // the handle of the weapon the other hand carries (taking it back). "vr_mock_hand_to <main|off> held <fraction> [<cm>]": in the
 // weapon the other hand holds or carries, `fraction` of the way from its handle to its tip, `cm` over it
+// "vr_mock_hand_to <main|off> heldspot <index>": at hotspot `index` of the weapon the other hand holds, as drawn
+// (view::weaponHotspot; the flick reload test).
 // (view::heldWeaponPoint; vr_weapon_grab_anywhere tests).
 
 // The thrown_weapon nearest the player (the server's: its qcvm pushed), or null.
@@ -501,18 +503,35 @@ void mockHandTo_f()
     const bool inHeld = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "held");
     const bool button = (Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "button");
     const bool wrist = Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "wrist");
-    if(hand < 0 || (!weapon && !spot && !carried && !inHeld && !button && !wrist && Cmd_Argc() != 5))
+    const bool heldSpot = Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "heldspot");
+    if(hand < 0 || (!weapon && !spot && !carried && !inHeld && !button && !wrist && !heldSpot && Cmd_Argc() != 5))
     {
         Con_Printf("usage: vr_mock_hand_to <main|off> <x> <y> <z>\n"
                    "       vr_mock_hand_to <main|off> weapon <fraction> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> spot <hotspot index> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> carried\n"
                    "       vr_mock_hand_to <main|off> held <fraction> [<cm>]\n"
-                   "       vr_mock_hand_to <main|off> button [<units off its face>]\n"
-                   "       vr_mock_hand_to <main|off> wrist <cm>\n");
+                   "       vr_mock_hand_to <main|off> button [<units off its face>]
+"
+                   "       vr_mock_hand_to <main|off> wrist <cm>
+"
+                   "       vr_mock_hand_to <main|off> heldspot <hotspot index>
+");
         return;
     }
     glm::vec3 target{0.f};
+    if(heldSpot)
+    {
+        const view::WeaponHotspot h = view::weaponHotspot(1 - hand, Q_atoi(Cmd_Argv(3)));
+        if(h.type == 0)
+        {
+            Con_Printf("vr_mock_hand_to: the other hand holds no weapon, or it has no such hotspot\n");
+            return;
+        }
+        target = h.pos;
+        Con_Printf("vr_mock_hand_to: the other hand's weapon's hotspot %d (type %d): %.1f %.1f %.1f\n",
+            Q_atoi(Cmd_Argv(3)), h.type, target.x, target.y, target.z);
+    }
     if(button && !bullettime::buttonHandTarget(hand, target))
     {
         Con_Printf("vr_mock_hand_to: no gadget shown\n");
@@ -527,7 +546,7 @@ void mockHandTo_f()
         Con_Printf("vr_mock_hand_to: no gadget shown\n");
         return;
     }
-    if(!carried && !weapon && !spot && !inHeld && !button && !wrist)
+    if(!carried && !weapon && !spot && !inHeld && !button && !wrist && !heldSpot)
     {
         target = glm::vec3{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
     }
@@ -615,7 +634,8 @@ void mockStick_f()
 }
 
 // vr_mock_swing: the main hand swings on a 60cm arm around the shoulder, from behind the head
-// to in front of the chest and back, with exact velocities (as a runtime reports them).
+// to in front of the chest and back, with exact velocities (as a runtime reports them). vr_mock_swing_both: the off hand
+// too, rigidly with it.
 void swing(Pose& hand, double time, float period)
 {
     const glm::vec3 shoulder{0.2f, 1.45f, 0.f};
@@ -752,16 +772,31 @@ public:
             tracking.head.position += m * glm::vec3{wave(5.7f, 9.1f, 12.1f, 0.9f), wave(6.7f, 8.3f, 11.9f, 2.3f),
                                               wave(4.3f, 7.9f, 10.9f, 1.1f)};
         }
+        const bool swingBoth = vr_mock_swing.value > 0.f && vr_mock_swing_both.value != 0.f;
         if(vr_mock_swing.value > 0.f)
         {
+            // vr_mock_swing_both: the off hand goes with it rigidly, as it was from the main hand (both hands on one
+            // weapon swinging it).
+            const Pose before = tracking.hands[HAND_MAIN];
             swing(tracking.hands[HAND_MAIN], realtime, vr_mock_swing.value);
+            if(swingBoth)
+            {
+                const Pose& m = tracking.hands[HAND_MAIN];
+                Pose& o = tracking.hands[HAND_OFF];
+                const glm::quat turn = m.orientation * glm::inverse(before.orientation);
+                o.position = m.position + turn * (o.position - before.position);
+                o.orientation = turn * o.orientation;
+                o.linearVelocity = m.linearVelocity + glm::cross(m.angularVelocity, o.position - m.position);
+                o.angularVelocity = m.angularVelocity;
+                o.velocityValid = true;
+            }
         }
 
         // Hands moved by vr_mock_hand report the velocity of the motion, as a runtime would.
         for(int h = 0; h < HAND_COUNT; h++)
         {
             Pose& hand = tracking.hands[h];
-            if(h == HAND_MAIN && vr_mock_swing.value > 0.f)
+            if((h == HAND_MAIN && vr_mock_swing.value > 0.f) || (h == HAND_OFF && swingBoth))
             {
                 continue; // exact velocities
             }

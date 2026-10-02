@@ -297,8 +297,11 @@ VrMove unposed;
     set(handButtons(HAND_MAIN).grab, VRBITS0_MAINHAND_GRABBING);
     set(handButtons(HAND_OFF).reload, VRBITS0_OFFHAND_RELOADING);
     set(handButtons(HAND_MAIN).reload, VRBITS0_MAINHAND_RELOADING);
-    set(handButtons(HAND_OFF).flickReload || flick::flicking(HAND_OFF), VRBITS0_OFFHAND_RELOADFLICKING);
-    set(handButtons(HAND_MAIN).flickReload || flick::flicking(HAND_MAIN), VRBITS0_MAINHAND_RELOADFLICKING);
+    // (Not with the other hand on its barrel or anywhere on it: flick::allowed.)
+    set((handButtons(HAND_OFF).flickReload || flick::flicking(HAND_OFF)) && flick::allowed(HAND_OFF),
+        VRBITS0_OFFHAND_RELOADFLICKING);
+    set((handButtons(HAND_MAIN).flickReload || flick::flicking(HAND_MAIN)) && flick::allowed(HAND_MAIN),
+        VRBITS0_MAINHAND_RELOADFLICKING);
     set(twohand::aiming(), VRBITS0_2H_AIMING);
     set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
     move.vrBits0 = static_cast<za::U16>(bits);

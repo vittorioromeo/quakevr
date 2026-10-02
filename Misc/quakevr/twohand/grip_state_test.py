@@ -7,7 +7,15 @@ and the shotgun again, each gripped by its foregrip, its blade or anywhere, one 
 it. No gun may be held "by its blade" (vr_dumpview), and the helping hand on the shotgun's pump is drawn as it is
 without a sword before (a control run). Both ways round: the main hand holding, then the off hand.
 
-Runs e1m1 (id1) in the kit's mock (about 10 s a run, three runs). Exit status 1 on a failure.
+Taking a carried sword back (NOTES.md vrfiringrange_2026-10-02_00-32-29, _00-34-04): the other hand on its blade, the
+holding hand lets go (it stays in the other), takes the blade by that hand, both swing it (vr_mock_swing_both) and let
+go; the hand closes on the handle and holds the sword by it again: with the grip alone, then with the trigger pulled
+with it (a fist: the force grab's branch took that grip, and nothing happened).
+
+Flick reload (NOTES.md vrfiringrange_2026-10-02_01-08-19): the double-barrelled shotgun flick-reloads in one hand and
+with the other hand on its cup hotspot, not with it on its barrel's grip or anywhere on it.
+
+Runs e1m1 (id1) in the kit's mock (about 10 s a run, six runs). Exit status 1 on a failure.
 """
 import os
 import re
@@ -26,7 +34,7 @@ HANDS = {
     "off": dict(grab="left", other="main", ograb="right", pose="vr_mock_hand off -0.15 1.2 -0.45 70 0 0;vr_mock_hand main 0.1 1.0 -0.3;",
                 row=10, base=170),
 }
-SWORD, SHOTGUN, CROWBAR = 13, 4, 17
+SWORD, SHOTGUN, CROWBAR, SUPER_SHOTGUN = 13, 4, 17, 5
 PUMP, BLADE, ANYWHERE = 0.75, 0.6, 0.4
 
 
@@ -64,6 +72,46 @@ def chain(h):
     return s
 
 
+def retake(h):
+    """The sword carried by the other hand off its blade, taken back by its handle: twice (the second time the trigger
+    pulled with the grip)."""
+    d = HANDS[h]
+    o, og = d["other"], d["ograb"]
+    trig = "+attack;" if h == "main" else "+offhandattack;"
+    s = SETUP + take(h, SWORD) + grip(h, BLADE, "retake_blade")
+    for n, pull in (("retake_grip", ""), ("retake_trigger", trig)):
+        s += let_go(h, d["grab"])  # (handed off to the other hand, on the blade)
+        s += f"vr_mock_hand_to {h} held 0.45;wait5;vr_mock_hand_to {h} held 0.45;wait5;+grab{d['grab']};vr_mock_button {h} grip 1;wait30;"
+        s += "vr_mock_swing_both 1;vr_mock_swing 0.3;wait120;vr_mock_swing 0;vr_mock_swing_both 0;wait10;" + let_go(h, d["grab"])
+        s += f"echo === {n};vr_mock_hand_to {h} carried;wait5;vr_mock_hand_to {h} carried;wait5;{pull}"
+        s += f"+grab{d['grab']};vr_mock_button {h} grip 1;wait30;{trig.replace('+', '-')}vr_dumpview;"
+    return s
+
+
+def flick():
+    """The double-barrelled shotgun in the main hand, a shot fired, flicked (+flickreloadright): alone, the off hand on
+    its barrel's grip (hotspot 0), on its cup (1), anywhere on it."""
+    s = SETUP + "god;give s 50;" + take("main", SUPER_SHOTGUN)
+    fire, flk = "+attack;wait3;-attack;wait60;", "+flickreloadright;wait3;-flickreloadright;wait60;"
+    off_on = lambda where: (f"vr_mock_hand_to off {where};wait5;vr_mock_hand_to off {where};wait5;+grableft;"
+                            "vr_mock_button off grip 1;wait30;")
+    s += f"echo === flick_one;{fire}vr_dumpview;{flk}vr_dumpview;"
+    s += f"echo === flick_barrel;{off_on('heldspot 0')}{fire}vr_dumpview;{flk}vr_dumpview;" + let_go("off", "left")
+    s += f"echo === flick_cup;{off_on('heldspot 1')}vr_dumpview;{flk}vr_dumpview;" + let_go("off", "left")
+    s += f"echo === flick_anywhere;{fire}{off_on('held ' + str(ANYWHERE))}vr_dumpview;{flk}vr_dumpview;"
+    return s
+
+
+def clips(lines, hand):
+    """The (weapon, clip, flick reload allowed) of each vr_dumpview of `hand`."""
+    out = []
+    for line in lines:
+        m = re.match(rf"{hand} hand: two-handed .*weapon (\d+) clip (\d+), flick reload (allowed|not allowed)", line)
+        if m:
+            out.append((int(m.group(1)), int(m.group(2)), m.group(3) == "allowed"))
+    return out
+
+
 def control():
     s = SETUP
     for h in ("main", "off"):
@@ -75,7 +123,7 @@ def control():
 
 def run(agent, script):
     out = subprocess.run([BASH, f"{KIT}/run.sh", agent, "-Script", script + "toggleconsole;quit", "-Filter",
-                          r"^=== |grips reset|by its blade|2h grip|^ ?(4|10) progs/hand_rig|rror"],
+                          r"^=== |grips reset|by its blade|2h grip|^ ?(4|10) progs/hand_rig|hand: two-handed|rror"],
                          capture_output=True, text=True).stdout
     sections, name = {}, None
     for line in out.splitlines():
@@ -128,6 +176,23 @@ def main():
             same = ref is not None and got is not None and all(abs(a - b) < 0.5 for a, b in zip(ref[0] + ref[1], got[0] + got[1]))
             check(same, f"{n}: the helping hand drawn as without the sword before ({got} vs {ref})")
         print(f"  (crowbar by its blade: {'yes' if blade('crowbar_blade') else 'no'})")
+        text, sec = run(agent, retake(h))
+        if keep:
+            open(f"grip_retake_{h}.txt", "w").write(text)
+        check(any("both hands hold it" in l for l in text.splitlines()), "retake: both hands held the carried blade")
+        for n in ("retake_grip", "retake_trigger"):
+            got = clips(sec.get(n, []), h)
+            check(bool(got) and got[-1][0] == SWORD,
+                  f"{n}: the {h} hand holds the sword by its handle again ({got})")
+    print("== flick reload (main hand)")
+    text, sec = run(agent, flick())
+    if keep:
+        open("grip_flick.txt", "w").write(text)
+    for n, allowed in (("flick_one", True), ("flick_barrel", False), ("flick_cup", True), ("flick_anywhere", False)):
+        got = clips(sec.get(n, []), "main")
+        ok = len(got) == 2 and got[0][0] == SUPER_SHOTGUN and got[0][1] < 2 and got[0][2] == allowed and (
+            got[1][1] == 2) == allowed
+        check(ok, f"{n}: flick reload {'reloads' if allowed else 'does nothing'} ({got})")
     print("PASS" if not fails else f"FAIL ({len(fails)})")
     return 1 if fails else 0
 

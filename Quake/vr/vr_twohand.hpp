@@ -23,6 +23,10 @@ void apply(hands::State& s);
 // Whether `hand` is the helping hand of a two-handed grip (it follows the weapon).
 [[nodiscard]] bool helping(int hand);
 
+// Whether the weapon in `holding` may be flick-reloaded (vr_flick.cpp): held in that hand alone, or the other hand holds
+// it by a cup only (not its barrel, a foregrip or anywhere on it), and not carried off its handle.
+[[nodiscard]] bool flickAllowed(int holding);
+
 // Whether the weapon in `hand` is held two-handed by its blade (a sword's half-sword grip: the other
 // hand towards the tip), rather than by its foregrip or grip.
 [[nodiscard]] bool bladeGrip(int hand);
