@@ -137,6 +137,18 @@ public:
     void render(int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb, float* outL,
         float* outR, float* roomL = nullptr, float* roomR = nullptr);
 
+    // vr_snd_bench (vr_audiobench.hpp): the last render's wall time in the voices and in the reverb (seconds), and the
+    // voices' own time in each part (read, direct effect, binaural, the rest) summed over threads since the last take.
+    struct Times
+    {
+        double voices{0.0};
+        double reverb{0.0};
+        double reverbConv{0.0};
+        double reverbDecode{0.0};
+        double cpu[5]{}; // (and [4]: the voices' tasks' allocations, a count)
+    };
+    [[nodiscard]] Times takeTimes();
+
 private:
     struct Voice
     {
@@ -162,6 +174,7 @@ private:
         IPLDirectEffect direct{nullptr};
         za::Vector<float> in0, mid, l, r;   // one frame
         za::Vector<float> outL, outR, send; // the call's
+        double cpu[5]{};                    // vr_snd_bench: read, direct, binaural, the rest (seconds); allocations
     };
 
     void prepare(Voice& v, const Listener& l, const Features& f) const;
@@ -185,6 +198,8 @@ private:
     IPLReflectionEffect reflection{nullptr};
     IPLAmbisonicsDecodeEffect decode{nullptr};
     IPLReflectionEffectType reverbType{IPL_REFLECTIONEFFECTTYPE_PARAMETRIC};
+    Times times;        // (vr_snd_bench)
+    bool timing{false}; // (vr_snd_bench: this render timed, read by its tasks)
     int reverbOrder{-1};
     int reverbChannels{0};
     int irSize{0};

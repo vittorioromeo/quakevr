@@ -31,6 +31,8 @@
 //   results taken under a mutex.
 
 #include "vr_audio.hpp"
+#include "vr_alloccount.hpp"
+#include "vr_audiobench.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_hands.hpp"
@@ -42,6 +44,7 @@
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/NthElement.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/Memset.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -477,6 +480,17 @@ void Mixer::read(Voice& v, float* out, float step0, float step1, bool fullBand)
 void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
 {
     const int n = frame;
+    const bool timed = timing; // (vr_snd_bench)
+    double t = timed ? Sys_DoubleTime() : 0.0;
+    const za::U64 allocs = timed ? alloccount::thisThread() : 0;
+    const auto lap = [&](int part) {
+        if(timed)
+        {
+            const double now = Sys_DoubleTime();
+            v.cpu[part] += now - t;
+            t = now;
+        }
+    };
     for(int b = 0; b < blocks; b++)
     {
         // Doppler: the rate eased towards its target (half the way each frame), ramped within the frame.
@@ -484,6 +498,7 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
         const float step1 = v.doppler + (v.dopplerTarget - v.doppler) * 0.5f;
         read(v, v.in0.data(), step0, step1, f.fullBand);
         v.doppler = step1;
+        lap(0);
 
         // The volume ramped to its new value over the first frame.
         const float g0 = v.gain;
@@ -534,6 +549,7 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
             src = v.mid.data();
         }
         za::copy(src, src + n, v.send.data() + b * n);
+        lap(1);
 
         if(f.hrtf)
         {
@@ -568,6 +584,7 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
                 v.r[i] = src[i] * gr;
             }
         }
+        lap(2);
 
         // The near field: the nearer ear louder, the farther one quieter and duller (the head's shadow), by how near
         // (within a metre) and how much to the side.
@@ -599,7 +616,27 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
 
         za::copy(v.l.data(), v.l.data() + n, v.outL.data() + b * n);
         za::copy(v.r.data(), v.r.data() + n, v.outR.data() + b * n);
+        lap(3);
     }
+    if(timed)
+    {
+        v.cpu[4] += static_cast<double>(alloccount::thisThread() - allocs);
+    }
+}
+
+Mixer::Times Mixer::takeTimes()
+{
+    Times out = times;
+    for(Voice& v : voices)
+    {
+        for(int k = 0; k < 5; k++)
+        {
+            out.cpu[k] += v.cpu[k];
+            v.cpu[k] = 0.0;
+        }
+    }
+    times = Times{};
+    return out;
 }
 
 void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb,
@@ -611,6 +648,8 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
     }
     blocks = za::min(blocks, maxSamples / frame);
     const int count = blocks * frame;
+    timing = bench::on;
+    const double voicesStart = timing ? Sys_DoubleTime() : 0.0;
     int list[maxVoices];
     int active = 0;
     for(int i = 0; i < maxVoices; i++)
@@ -666,6 +705,8 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
         }
     }
 
+    const double reverbStart = timing ? Sys_DoubleTime() : 0.0;
+    times.voices += reverbStart - voicesStart;
     if(f.reverb <= 0.f || !reflection || !decode || !reverb)
     {
         reverbSilence = 1 << 30;
@@ -703,7 +744,10 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
         float* inPtr[1] = {reverbIn.data()};
         IPLAudioBuffer in{1, frame, inPtr};
         IPLAudioBuffer ambi{reverbChannels, frame, ambiPtr};
+        const double convStart = timing ? Sys_DoubleTime() : 0.0;
         sa->iplReflectionEffectApply(reflection, &p, &in, &ambi, nullptr);
+        const double decodeStart = timing ? Sys_DoubleTime() : 0.0;
+        times.reverbConv += decodeStart - convStart;
         IPLAmbisonicsDecodeEffectParams dp{};
         dp.order = reverbOrder;
         dp.hrtf = hrtf;
@@ -712,6 +756,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
         float* stereoPtr[2] = {reverbL.data(), reverbR.data()};
         IPLAudioBuffer stereo{2, frame, stereoPtr};
         sa->iplAmbisonicsDecodeEffectApply(decode, &dp, &ambi, &stereo);
+        times.reverbDecode += timing ? Sys_DoubleTime() - decodeStart : 0.0;
         const float mix = f.reverb;
         float* toL = roomL ? roomL : outL;
         float* toR = roomR ? roomR : outR;
@@ -719,9 +764,9 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
         {
             toL[b * frame + i] += reverbL[i] * mix;
             toR[b * frame + i] += reverbR[i] * mix;
-           
         }
     }
+    times.reverb += timing ? Sys_DoubleTime() - reverbStart : 0.0;
 }
 
 // ----------------------------------------------------------------------------
@@ -959,6 +1004,35 @@ struct Shadow
     double ms{0.0}; // a paint call's share of it, averaged
 };
 
+// vr_snd_bench: the scene it plays while it records (vr_audiobench.hpp has the recorder): combat's sounds started round
+// the listener at random (a fixed seed), and the listener taken round a circle (each voice moving against it: Doppler).
+struct BenchRun
+{
+    bool running{false};
+    double end{0.0};
+    double nextShot{0.0};
+    float shotsPerSecond{0.f};
+    float orbitSpeed{0.f}; // units a second
+    float orbitRadius{96.f};
+    double orbitStart{0.0};
+    unsigned rng{1};
+    za::String label;
+    Simulation::Runs runs;
+    za::Vector<float> directMs, reflectionsMs; // each simulation run's in the bench
+    int bandLimited{0};                         // VR_SndBandLimit's count and time at its start
+    double bandLimitMs{0.0};
+};
+
+// VR_SndBandLimit's work since the start (the band-limited copies made as sounds load: the main thread).
+struct BandLimitStats
+{
+    int sounds{0};
+    double ms{0.0};
+    double worstMs{0.0};
+    long long bytes{0};
+};
+BandLimitStats bandLimitStats;
+
 struct Live
 {
     Mixer mixer;
@@ -1014,6 +1088,7 @@ struct Live
     BusLimiter gameBus;   // the game-time mix's own limiter (its capture and WAV)
     GameWav wav;
     Shadow shadow;        // the game-time render (the WAV's and vr_snd_capture_game's mix)
+    BenchRun bench;       // vr_snd_bench
 };
 
 Live* live{nullptr};
@@ -1328,7 +1403,9 @@ VoiceInput channelInput(int c, int v, const Features& f, float volume)
     {
         in.vel = L.follow[c].vel;
     }
+    const double lockStart = bench::now();
     in.hasDirect = L.sim.direct(v, L.serial[v], in.direct);
+    bench::add(bench::Lock, lockStart);
     if(!in.hasDirect && f.occlusion > 0.f && L.sim.hasScene() && cl.worldmodel)
     {
         // Until the simulation's first result (a frame or two): the world's own line of sight (hull 0), so that a
@@ -1703,6 +1780,172 @@ void burst_f()
     }
 }
 
+// vr_snd_bench <seconds> [label] [sounds a second] [orbit units/s]: records each sound frame's time in each stage of
+// the mix for that long (real time), playing a combat-like scene meanwhile (random sounds of id's monsters, weapons and
+// explosions round the listener, and the listener going round a circle), then prints each stage's median, 95th and 99th
+// percentiles, worst and load, the simulations' runs and the sounds' memory, and appends them to
+// sound_tests/bench.csv. Load the scene's other parts first (vr_snd_bench_spawn, vr_snd_voices, vr_timescale, ...).
+} // namespace
+
+// The calling thread's allocations in its scope into the bench's count (vr_snd_bench).
+struct BenchAllocs
+{
+    za::U64 at{bench::on ? alloccount::thisThread() : 0};
+    BenchAllocs() = default;
+    BenchAllocs(const BenchAllocs&) = delete;
+    BenchAllocs& operator=(const BenchAllocs&) = delete;
+    ~BenchAllocs()
+    {
+        if(bench::on)
+        {
+            bench::addCount(bench::Allocs, static_cast<double>(alloccount::thisThread() - at));
+        }
+    }
+};
+
+namespace
+{
+
+void benchFinish()
+{
+    Live& L = *live;
+    BenchRun& b = L.bench;
+    b.running = false;
+    bench::frame();
+    bench::stop();
+    const int rate = shm ? shm->speed : 44100;
+    const long long samples = bench::samples();
+    Con_Printf("vr_snd_bench %s: %d frames, %.1f s of sound, %.1f voices (the frames that painted, mean), %d workers\n", b.label.cStr(),
+        bench::frames(), static_cast<double>(samples) / rate, bench::meanVoices(), jobs::workers());
+    Con_Printf("  %-12s %7s %7s %7s %7s  %8s\n", "stage (ms)", "median", "p95", "p99", "max", "ms/s");
+    za::String csvPath = za::String{com_gamedir} + "/sound_tests/bench.csv";
+    COM_CreatePath(csvPath.data());
+    FILE* csv = fopen(csvPath.cStr(), "ab");
+    for(int st = 0; st < bench::Count; st++)
+    {
+        const bench::Stats x = bench::stats(st, rate);
+        Con_Printf("  %-12s %7.3f %7.3f %7.3f %7.3f  %8.3f\n", bench::stageName(st), x.median, x.p95, x.p99, x.max,
+            x.perSecond);
+        if(csv)
+        {
+            fprintf(csv, "%s,%s,%d,%.4f,%.4f,%.4f,%.4f,%.4f\n", b.label.cStr(), bench::stageName(st), x.n, x.median, x.p95,
+                x.p99, x.max, x.perSecond);
+        }
+    }
+    const auto runLine = [&](const char* name, za::Vector<float>& ms) {
+        if(ms.empty())
+        {
+            Con_Printf("  sim %s: no runs\n", name);
+            return;
+        }
+        za::quickSort(ms.begin(), ms.end(), [](float a, float b) { return a < b; });
+        const int n = static_cast<int>(ms.size());
+        const auto at = [&](double q) { return ms[za::min(n - 1, static_cast<int>(q * (n - 1) + 0.5))]; };
+        Con_Printf("  sim %s (a worker): %d runs, median %.3f ms, p95 %.3f, max %.3f\n", name, n, at(0.5), at(0.95),
+            ms[n - 1]);
+        if(csv)
+        {
+            fprintf(csv, "%s,sim_%s,%d,%.4f,%.4f,%.4f,%.4f,0\n", b.label.cStr(), name, n, at(0.5), at(0.95), at(0.99),
+                ms[n - 1]);
+        }
+    };
+    runLine("direct", b.directMs);
+    runLine("reflections", b.reflectionsMs);
+    int loaded = 0;
+    int held = 0;
+    int full = 0;
+    S_SfxMemory(&loaded, &held, &full);
+    Con_Printf("  sounds: %d in the cache, %d KiB as Quake mixes them, %d KiB band-limited copies; band-limiting: %d "
+               "sounds in the bench (%.2f ms), %d since the start (%.1f ms, worst %.2f ms, %lld KiB)\n",
+        loaded, held / 1024, full / 1024, bandLimitStats.sounds - b.bandLimited, bandLimitStats.ms - b.bandLimitMs,
+        bandLimitStats.sounds, bandLimitStats.ms, bandLimitStats.worstMs, bandLimitStats.bytes / 1024);
+    if(csv)
+    {
+        fprintf(csv, "%s,memory_kib,%d,%d,%d,0,0,0\n", b.label.cStr(), loaded, held / 1024, full / 1024);
+        fclose(csv);
+    }
+}
+
+// The bench's sounds (id's: never shipped, played from the game's own data).
+constexpr const char* benchSounds[] = {"weapons/r_exp3.wav", "weapons/rocket1i.wav", "weapons/guncock.wav",
+    "weapons/grenade.wav", "weapons/spike2.wav", "weapons/sgun1.wav", "weapons/lhit.wav", "soldier/sight1.wav",
+    "soldier/pain1.wav", "soldier/death1.wav", "dog/dattack1.wav", "ogre/ogwake.wav", "ogre/ogsawatk.wav",
+    "ogre/ogdrag.wav", "knight/sword1.wav", "knight/khurt.wav", "zombie/z_idle.wav", "enforcer/enfire.wav",
+    "wizard/wattack.wav", "demon/dhit2.wav", "shambler/sattck1.wav", "player/pain1.wav"};
+constexpr int benchSoundCount = static_cast<int>(sizeof benchSounds / sizeof benchSounds[0]);
+
+void benchFrame()
+{
+    Live& L = *live;
+    BenchRun& b = L.bench;
+    if(!b.running)
+    {
+        return;
+    }
+    bench::frame();
+    const Simulation::Runs r = L.sim.runs();
+    if(r.direct != b.runs.direct)
+    {
+        b.directMs.pushBack(static_cast<float>(r.directMs));
+    }
+    if(r.reflections != b.runs.reflections)
+    {
+        b.reflectionsMs.pushBack(static_cast<float>(r.reflectionsMs));
+    }
+    b.runs = r;
+    if(realtime >= b.end)
+    {
+        benchFinish();
+        return;
+    }
+    // The combat: a sound every 1 / shotsPerSecond, at random, 100-900 units away.
+    const auto random = [&]() {
+        b.rng = b.rng * 1664525u + 1013904223u;
+        return static_cast<float>(b.rng >> 8) / static_cast<float>(1u << 24);
+    };
+    while(b.shotsPerSecond > 0.f && realtime >= b.nextShot && cls.state == ca_connected)
+    {
+        b.nextShot += 1.0 / b.shotsPerSecond;
+        sfx_t* sfx = S_PrecacheSound(benchSounds[za::min(benchSoundCount - 1, static_cast<int>(random() * benchSoundCount))]);
+        const float a = random() * 6.2831853f;
+        const float d = 100.f + random() * 800.f;
+        vec3_t at{L.lastPos.x + za::cos(a) * d, L.lastPos.y + za::sin(a) * d, L.lastPos.z + (random() - 0.5f) * 128.f};
+        S_StartSound(0, 0, sfx, at, 1.f, 1.f);
+    }
+}
+
+void bench_f()
+{
+    if(!live || !shm)
+    {
+        Con_Printf("vr_snd_bench: needs sound\n");
+        return;
+    }
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_snd_bench <seconds> [label] [sounds a second] [orbit units/s]: each sound frame's time by stage "
+                   "(median, p95, p99), with a combat scene\n");
+        return;
+    }
+    BenchRun& b = live->bench;
+    const double seconds = za::clamp(static_cast<double>(Q_atof(Cmd_Argv(1))), 0.5, 600.0);
+    b.running = true;
+    b.end = realtime + seconds;
+    b.label = Cmd_Argc() > 2 ? Cmd_Argv(2) : "bench";
+    b.shotsPerSecond = Cmd_Argc() > 3 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(3))), 0.f, 200.f) : 0.f;
+    b.orbitSpeed = Cmd_Argc() > 4 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(4))), 0.f, 4000.f) : 0.f;
+    b.orbitStart = realtime;
+    b.nextShot = realtime;
+    b.rng = 12345u;
+    b.runs = live->sim.runs();
+    b.directMs.clear();
+    b.reflectionsMs.clear();
+    b.bandLimited = bandLimitStats.sounds;
+    b.bandLimitMs = bandLimitStats.ms;
+    bench::start(static_cast<int>(seconds * 1000.0));
+    Con_Printf("vr_snd_bench %s: %.1f s\n", b.label.cStr(), seconds);
+}
+
 // A point in a liquid (the first water, slime or lava leaf's middle): for the underwater tests.
 void liquid_f()
 {
@@ -1741,6 +1984,7 @@ void init()
     Cmd_AddCommand("vr_snd_burst", burst_f);
     Cmd_AddCommand("vr_snd_play_dir", playDir_f);
     Cmd_AddCommand("vr_snd_dump", dump_f);
+    Cmd_AddCommand("vr_snd_bench", bench_f);
     makeInterpTable();
 }
 
@@ -1775,6 +2019,9 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
     QVR_PROFILE("spatial audio");
     steamaudio::flushLog();
     Live& L = *live;
+    benchFrame(); // (vr_snd_bench: the last frame's row; its scene)
+    const bench::Timed timedListener{bench::Listener};
+    const BenchAllocs allocs;
 
     // The head, in VR.
     const hands::State& hs = hands::current();
@@ -1790,6 +2037,13 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
             right[i] = r[i];
             up[i] = u[i];
         }
+    }
+    if(L.bench.running && L.bench.orbitSpeed > 0.f)
+    {
+        // (vr_snd_bench: round a circle)
+        const double a = (realtime - L.bench.orbitStart) * L.bench.orbitSpeed / L.bench.orbitRadius;
+        origin[0] += static_cast<float>(za::cos(a) - 1.0) * L.bench.orbitRadius;
+        origin[1] += static_cast<float>(za::sin(a)) * L.bench.orbitRadius;
     }
     const glm::vec3 pos{origin[0], origin[1], origin[2]};
     const double dt = realtime - L.lastTime;
@@ -1846,6 +2100,7 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
         }
         if(f.occlusion > 0.f || f.reverb > 0.f)
         {
+            const bench::Timed timed{bench::Brush};
             L.brushSeen = trackBrushEntities(L.sim, f.unitsPerMetre);
         }
         int n = 0;
@@ -1915,6 +2170,7 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
         ss.order = q.order;
         ss.reverbInterval = za::clamp(static_cast<double>(vr_snd_reverb_interval.value), 0.05, 5.0);
         ss.second = ss.reverb && (L.shadow.running || vr_timescale_wav.value != 0.f);
+        const bench::Timed timed{bench::SimUpdate};
         L.sim.update(coordinates(L.listener.pos, L.listener.fwd, L.listener.right, L.listener.up, f.unitsPerMetre),
             L.sources.data(), n, ss, realtime);
         IPLReflectionEffectParams p{};
@@ -2106,6 +2362,8 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     }
     QVR_PROFILE("spatial audio mix");
     const double t0 = Sys_DoubleTime();
+    const double benchStart = bench::now();
+    const BenchAllocs allocs;
     const int count = end - start;
     // vr_snd_fullband: the voices are added after Quake's 11 kHz lowpass (VR_SndBypass), not to its input.
     if(VR_SndFullBand() >= 1)
@@ -2141,6 +2399,7 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
         return;
     }
     const int time = start + written;
+    const double selectStart = bench::now();
     selectVoices(time);
 
     const Features f = featuresFromCvars();
@@ -2157,13 +2416,30 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
         L.mixer.set(v, channelInput(c, v, f, volume));
     }
     L.voicesUsed = used;
+    bench::add(bench::Select, selectStart);
 
     const int remain = count - written;
     const int frame = L.frame;
     const int blocks = (remain + frame - 1) / frame;
     const int rendered = blocks * frame;
+    const double renderStart = bench::now();
     renderVoices(L.mixer, blocks, L.listener, f, L.haveReverb ? &L.reverb : nullptr, L.mixL, L.mixR, L.revL, L.revR,
         L.antiAlias);
+    if(bench::on)
+    {
+        const Mixer::Times mt = L.mixer.takeTimes();
+        bench::addSeconds(bench::Voices, mt.voices);
+        bench::addSeconds(bench::Reverb, mt.reverb);
+        bench::addSeconds(bench::ReverbConv, mt.reverbConv);
+        bench::addSeconds(bench::ReverbDecode, mt.reverbDecode);
+        bench::addSeconds(bench::AntiAlias, Sys_DoubleTime() - renderStart - mt.voices - mt.reverb);
+        for(int k = 0; k < 4; k++)
+        {
+            bench::addSeconds(bench::CpuRead + k, mt.cpu[k]);
+        }
+        bench::addCount(bench::Allocs, mt.cpu[4]);
+        bench::painted(rendered, used);
+    }
 
     // The channels as Quake would have left them at the end of what was rendered.
     const int renderedEnd = time + rendered;
@@ -2202,6 +2478,7 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     }
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     L.mixMs += (ms - L.mixMs) * 0.05;
+    bench::add(bench::Spatial, benchStart);
 }
 
 namespace
@@ -2259,6 +2536,7 @@ extern "C" void VR_SndBandLimit(const unsigned char* data, int width, int sample
     {
         return;
     }
+    const double started = Sys_DoubleTime();
     constexpr double pi = 3.14159265358979;
     constexpr int phases = 256;
     const double ratio = fracstep / 256.0;                    // the sound's samples an output sample
@@ -2327,6 +2605,11 @@ extern "C" void VR_SndBandLimit(const unsigned char* data, int width, int sample
         }
         out[i] = static_cast<short>(za::clamp(static_cast<int>(za::floor(y / S_FULLBAND_SCALE + 0.5f)), -32768, 32767));
     }
+    const double ms = (Sys_DoubleTime() - started) * 1000.0;
+    bandLimitStats.sounds++;
+    bandLimitStats.ms += ms;
+    bandLimitStats.worstMs = za::max(bandLimitStats.worstMs, ms);
+    bandLimitStats.bytes += static_cast<long long>(outcount) * 2;
 }
 
 namespace qvr::audio
@@ -2547,6 +2830,8 @@ extern "C" void VR_SndLimit(portable_samplepair_t* buffer, int count)
     {
         return;
     }
+    const bench::Timed timed{bench::Limit};
+    const BenchAllocs allocs;
     BusLimiter& b = live->bus;
     Capture& c = live->capture;
     const int measured = c.running ? za::max(0, za::min(count, c.wanted - static_cast<int>(c.left.size()))) : 0;
@@ -3040,6 +3325,8 @@ extern "C" void VR_SndShadow(int count)
     sh.owed -= due;
     QVR_PROFILE("game-time sound render");
     const double t0 = Sys_DoubleTime();
+    const bench::Timed timed{bench::Shadow};
+    const BenchAllocs allocs;
     while(due > 0)
     {
         const int n = za::min(due, 2048);

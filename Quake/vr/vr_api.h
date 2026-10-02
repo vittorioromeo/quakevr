@@ -333,6 +333,9 @@ int VR_SndFullBand (void);							// vr_snd_fullband: 0 Quake's 11 kHz lowpass on
 void VR_SndBypass (portable_samplepair_t *buffer, int count);	// S_PaintChannels, after Quake's lowpass: the voices held out of it (vr_snd_fullband) added, halved as VR_SndBus
 float VR_SndFullBandAt (const short *data, int length, int loopstart, double pos);	// SND_PaintChannelRate, vr_snd_fullband 2: a band-limited copy between its samples (windowed sinc)
 void VR_SndBandLimit (const unsigned char *data, int width, int samples, int loopstart, int fracstep, short *out, int outcount);	// S_LoadSound: the sound resampled band-limited (ResampleSfx's timing: `fracstep`/256 of its samples an output sample)
+double VR_SndBenchNow (void);						// vr_snd_bench (vr_audiobench.cpp): the time, 0 when no bench is recording
+void VR_SndBenchAdd (int stage, double since);		// vr_snd_bench: now - since into this frame's stage (VR_SNDBENCH_*: vr_audiobench.hpp's Stage)
+enum { VR_SNDBENCH_PAINT = 3, VR_SNDBENCH_QUAKE = 12, VR_SNDBENCH_FILTERS = 13 };
 
 #ifdef __cplusplus
 }
