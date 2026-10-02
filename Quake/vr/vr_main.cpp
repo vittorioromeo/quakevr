@@ -1177,6 +1177,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_wounds_info", wounds::info_f);
     Cmd_AddCommand("vr_gore_hands_test", wounds::handsTest_f);
     Cmd_AddCommand("vr_gore_hands_info", wounds::handsInfo_f);
+    Cmd_AddCommand("vr_gore_spatter_test", wounds::spatterTest_f);
     Cmd_AddCommand("vr_gore_mist_test", particles::mistTest_f);
     Cmd_AddCommand("vr_wounds_dump", wounds::dump_f);
     Cmd_AddCommand("vr_test_remove", progs::testRemove_f);

@@ -1220,7 +1220,26 @@ SPECULAR_AA_FUNCTIONS \
 "layout(location=10) flat out int out_instance; // QVR: its directional ambient (Ambient) for the fragment shader\n" \
 "layout(location=11) out vec3 out_morphpos; // QVR: a gun morphing into its other ammo's model (vr/vr_render.cpp): where in its own units\n" \
 "layout(location=12) flat out float out_morph; // QVR: and how far (Ambient[2].w; 0 not morphing)\n" \
-"layout(location=13) out float out_vao; // QVR: the model's own occlusion here (vr/vr_ao.cpp), times its strength: 1 none\n"
+"layout(location=13) out float out_vao; // QVR: the model's own occlusion here (vr/vr_ao.cpp), times its strength: 1 none\n" \
+"layout(location=14) flat out float out_woundside; // QVR: 1 on its right side (its wound mask's other layer: vr/vr_wounds.cpp)\n"
+
+// which side's wound mask a vertex reads (vr/vr_wounds.cpp): your body's arms and legs share their skin's texels,
+// mirrored, so its mask is two layers, the left side's (with the middle's) and the right side's; a vertex's side is its
+// heaviest bone's (InstanceData's WoundSide.xy: the right side's bones). A triangle's corners are all on one side.
+#define QVR_ALIAS_VS_WOUNDSIDE \
+"	out_woundside = 0.0;\n" \
+"#if POSEVERTTYPE == 1\n" \
+"	if (inst.WoundSide.x + inst.WoundSide.y > 0.5)\n" \
+"	{\n" \
+"		int bone = in_indices.x;\n" \
+"		float most = in_weights.x;\n" \
+"		if (in_weights.y > most) { bone = in_indices.y; most = in_weights.y; }\n" \
+"		if (in_weights.z > most) { bone = in_indices.z; most = in_weights.z; }\n" \
+"		if (in_weights.w > most) { bone = in_indices.w; }\n" \
+"		uint bits = bone < 24 ? uint(inst.WoundSide.x) >> uint(bone) : bone < 48 ? uint(inst.WoundSide.y) >> uint(bone - 24) : 0u;\n" \
+"		out_woundside = float(bits & 1u);\n" \
+"	}\n" \
+"#endif\n"
 
 // the model's light direction and shade (vr_model_light_parity), its outputs
 #define QVR_ALIAS_VS_SHADE \
@@ -1369,6 +1388,44 @@ SPECULAR_AA_FUNCTIONS \
 "	return val;\n" \
 "}\n" \
 "\n" \
+"// A spatter's drops in the cells of x (a lattice of unit cells): one in a cell by chance `chance`, round, a little\n" \
+"// drawn out along `dir` (thrown that way), its middle darker (a thick drop's). 0 where none.\n" \
+"float SpatterDrops(vec3 x, vec3 dir, float chance)\n" \
+"{\n" \
+"	vec3 c = floor(x);\n" \
+"	if (PaintHash3(c + 0.37) >= chance)\n" \
+"		return 0.0;\n" \
+"	vec3 o = vec3(PaintHash3(c + 1.13), PaintHash3(c + 2.31), PaintHash3(c + 3.77)) * 0.4 + 0.3;\n" \
+"	float r = mix(0.12, 0.3, PaintHash3(c + 4.91));\n" \
+"	vec3 q = x - c - o;\n" \
+"	float along = dot(q, dir);\n" \
+"	float dd = sqrt(max(dot(q, q) - along * along, 0.0) + along * along / 2.4); // (drawn out half as long again)\n" \
+"	return dd < r ? mix(0.5, 0.9, 1.0 - dd / r) : 0.0;\n" \
+"}\n" \
+"\n" \
+"// A spatter (shape 4): blood thrown from its centre onto what faces it: all of it covered within s4.x of the centre,\n" \
+"// past it a share s4.w x (s4.x / distance)^2 (none at the radius) as drops, s4.z cells a unit (big ones about a third\n" \
+"// of a cell across, specks a third of that), where it is dense smeared together; s4.y the least the surface faces it.\n" \
+"float PaintSpatter(vec3 v, vec3 p, vec3 nrm, vec4 s0, vec4 s3, vec4 s4)\n" \
+"{\n" \
+"	float d = length(v);\n" \
+"	vec3 dir = v / max(d, 1e-3);\n" \
+"	if (d >= s0.w || dot(nrm, -dir) < s4.y)\n" \
+"		return 0.0;\n" \
+"	float q = d / max(s4.x, 0.1);\n" \
+"	float share = clamp(d <= s4.x ? 1.0 : s4.w / (q * q), 0.0, 1.0) * clamp((s0.w - d) / max(s0.w * 0.15, 1e-3), 0.0, 1.0);\n" \
+"	vec3 x = p * s4.z + s3.w;\n" \
+"	float val = max(SpatterDrops(x, dir, min(1.0, share * 6.0)), SpatterDrops(x * 2.7 + 11.3, dir, min(1.0, share * 3.0)) * 0.9);\n" \
+"	if (share > 0.3) // dense: run together\n" \
+"	{\n" \
+"		float n = PaintNoise(x * 0.8) * 0.7 + PaintNoise(x * 2.3 + 3.7) * 0.3;\n" \
+"		float cut = mix(0.75, 0.2, (share - 0.3) / 0.7);\n" \
+"		if (n > cut)\n" \
+"			val = max(val, mix(0.5, 0.95, clamp((n - cut) * 5.0, 0.0, 1.0)));\n" \
+"	}\n" \
+"	return val;\n" \
+"}\n" \
+"\n" \
 "void main()\n" \
 "{\n" \
 "	vec3 p = in_pos;\n" \
@@ -1388,6 +1445,8 @@ SPECULAR_AA_FUNCTIONS \
 "			val = PaintWound(v, nrm, s0, s1, s3, s4);\n" \
 "		else if (shape == 3)\n" \
 "			val = PaintLiquid(p, s0, s3, s4);\n" \
+"		else if (shape == 4)\n" \
+"			val = PaintSpatter(v, p, nrm, s0, s3, s4);\n" \
 "		else\n" \
 "			val = PaintBurn(v, p, nrm, s0, s1, s3, s4, shape == 2);\n" \
 "		total = max(total, s2 * val);\n" \
@@ -1417,7 +1476,8 @@ SPECULAR_AA_FUNCTIONS
 "layout(location=10) flat in int in_instance; // QVR: for its Ambient\n" \
 "layout(location=11) in vec3 in_morphpos; // QVR: a gun's morph (vr/vr_render.cpp)\n" \
 "layout(location=12) flat in float in_morph; // QVR\n" \
-"layout(location=13) in float in_vao; // QVR: the model's own occlusion (vr/vr_ao.cpp)\n"
+"layout(location=13) in float in_vao; // QVR: the model's own occlusion (vr/vr_ao.cpp)\n" \
+"layout(location=14) flat in float in_woundside; // QVR: 1 on its right side (vr/vr_wounds.cpp: your body's mask, one a side)\n"
 
 // per-pixel lights, normal maps, ambient, wounds, morphs
 #define QVR_ALIAS_FS_FUNCTIONS \
@@ -1589,6 +1649,7 @@ SPECULAR_AA_FUNCTIONS
 "// the same colours, and a relief (char crusted and cracked, blood sunk into the skin).\n" \
 "layout(binding=13) uniform sampler2DArray WoundMasks;\n" \
 "layout(binding=15) uniform sampler2DArray WoundMasksFine;\n" \
+"layout(binding=10) uniform sampler2DArray WoundBloodFine; // the blood on them that isn't theirs (spatter, gibs): healing leaves it\n" \
 "\n" \
 "struct Wounds\n" \
 "{\n" \
@@ -1615,11 +1676,21 @@ SPECULAR_AA_FUNCTIONS
 "	return mix(mix(WoundHash(i), WoundHash(i + vec2(1.0, 0.0)), f.x), mix(WoundHash(i + vec2(0.0, 1.0)), WoundHash(i + vec2(1.0)), f.x), f.y);\n" \
 "}\n" \
 "\n" \
-"// A fine mask (wi.x: -(its layer + 1)) read bilinearly, kept inside its region (wi.yz texels from the corner).\n" \
+"// A fine mask (wi.x: -(its layer + 1)) read bilinearly, kept inside its region (wi.yz texels from the corner). Your\n" \
+"// body's right side reads its other layer, the last (vr/vr_wounds.cpp: its arms and legs share their skin's texels).\n" \
 "vec4 WoundFine(vec2 uv, vec4 wi)\n" \
 "{\n" \
-"	vec2 p = clamp(clamp(uv, 0.0, 1.0) * wi.yz, vec2(0.5), wi.yz - 0.5) / vec2(textureSize(WoundMasksFine, 0).xy);\n" \
-"	return texture(WoundMasksFine, vec3(p, -wi.x - 1.0));\n" \
+"	ivec3 size = textureSize(WoundMasksFine, 0);\n" \
+"	vec2 p = clamp(clamp(uv, 0.0, 1.0) * wi.yz, vec2(0.5), wi.yz - 0.5) / vec2(size.xy);\n" \
+"	return texture(WoundMasksFine, vec3(p, in_woundside > 0.5 ? float(size.z - 1) : -wi.x - 1.0));\n" \
+"}\n" \
+"\n" \
+"// The blood on a fine mask that isn't its own (WoundBloodFine: the same layers).\n" \
+"float WoundOther(vec2 uv, vec4 wi)\n" \
+"{\n" \
+"	ivec3 size = textureSize(WoundBloodFine, 0);\n" \
+"	vec2 p = clamp(clamp(uv, 0.0, 1.0) * wi.yz, vec2(0.5), wi.yz - 0.5) / vec2(size.xy);\n" \
+"	return texture(WoundBloodFine, vec3(p, in_woundside > 0.5 ? float(size.z - 1) : -wi.x - 1.0)).r;\n" \
 "}\n" \
 "\n" \
 "// A fine mask's relief in units: blood sunk into the skin (a little at its edge, most at a wound's core), char\n" \
@@ -1646,6 +1717,7 @@ SPECULAR_AA_FUNCTIONS
 "	if (fine) // smooth: the values' own ramps over their edges, noise for the char's colour and the embers\n" \
 "	{\n" \
 "		m = WoundFine(uv, wi);\n" \
+"		m.r = max(m.r, WoundOther(uv, wi)); // (its relief its own wounds' alone: the rest lies on the skin)\n" \
 "		if (m == vec4(0.0))\n" \
 "			return w;\n" \
 "		w.burn = smoothstep(0.16, 0.44, m.g);\n" \
@@ -1689,11 +1761,11 @@ SPECULAR_AA_FUNCTIONS
 "	vec3 red = vec3(soft > 0.0 ? mix(mix(87., 63., smoothstep(0.58, 0.66, m.r)), 47., smoothstep(0.78, 0.86, m.r))\n" \
 "		: m.r > 0.82 ? 47. : m.r > 0.62 ? 63. : 87., 0., 0.) / 255.0;\n" \
 "	vec3 c = mix(skin, charred, w.burn);\n" \
-"	c = mix(c, red * (0.75 + 0.5 * lum), w.blood); // a little of the skin's shading through it\n" \
+"	c = mix(c, red * (0.75 + 0.5 * lum), w.blood * instances[in_instance].WoundSide.w); // a little of the skin's shading through it; the skin itself as much as vr_wounds_blood_alpha leaves\n" \
 "	c *= 1.0 - 0.5 * w.wet; // wet: darker\n" \
 "	w.look = c;\n" \
-"	w.gloss = w.blood * 0.55;\n" \
-"	w.flatten = max(w.blood * 0.75, w.wet * 0.5);\n" \
+"	w.gloss = w.blood * 0.55 * instances[in_instance].WoundSide.w;\n" \
+"	w.flatten = max(w.blood * 0.75 * instances[in_instance].WoundSide.w, w.wet * 0.5);\n" \
 "	// embers: a fresh burn glows in its cracks, flickering (Quake's fullbright oranges, 232..236)\n" \
 "	if (m.a > 0.0 && w.burn > 0.0)\n" \
 "		w.glow = spot * step(0.6, m.g) * step(flick, m.a) * mix(vec3(183., 51., 15.), vec3(219., 127., 59.), flick) / 255.0 * (0.8 * m.a);\n" \

@@ -432,6 +432,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_EnvCubeTexture ()); // QVR: the reflections' cube map (EnvCube)
 	GL_BindNative (GL_TEXTURE13, GL_TEXTURE_2D_ARRAY, VR_WoundTexture ()); // QVR: the wound masks (WoundMasks)
 	GL_BindNative (GL_TEXTURE15, GL_TEXTURE_2D_ARRAY, VR_WoundFineTexture ()); // QVR: your own finer ones (WoundMasksFine)
+	GL_BindNative (GL_TEXTURE10, GL_TEXTURE_2D_ARRAY, VR_WoundBloodTexture ()); // QVR: the blood on them not yours (WoundBloodFine)
 
 	if (poseverttype == PV_IQM)
 	{
@@ -763,11 +764,12 @@ Wounds painted on models (vr/vr_wounds.cpp): `e` as it is drawn this frame (its 
 skeleton's bones), drawn into the bound framebuffer (its wound mask's layer; the viewport: its region) laid out by its
 skin's coordinates, with `numsplats` splats (five vec4 each: gl_shaders.h's wound_paint_fragment_shader). The caller
 sets the blending (the most of what is there and what is painted). Its first surface only (the one its mask is for).
+`side` 0 or 1: only that side of a mask kept per side (your body's: its left and middle, its right), -1 all of it.
 Its triangles, then their edges as lines: a texel a triangle's edge crosses without covering its middle is painted too
 (the skin is read there at the edges of its islands).
 =================
 */
-qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats)
+qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, int side)
 {
 	aliashdr_t	*hdr, *surf;
 	lerpdata_t	lerpdata;
@@ -827,6 +829,7 @@ qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats)
 		data.inst.pose2 *= totalverts;
 	}
 	data.inst.padding = VR_AliasZeroBlend (e, hdr, totalverts);
+	VR_AliasWoundPaintSide (e, side, data.inst.vr.woundside);
 
 	GL_UseProgram (glprogs.woundpaint[hdr->poseverttype]);
 	GL_SetState (GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (hdr->poseverttype == PV_IQM ? 5 : 1));

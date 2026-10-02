@@ -83,6 +83,7 @@ typedef struct vraliasinstance_s
 	float		surface[4]; // rim light, reflections' strength and blur (vr_envmap.cpp)
 	float		ao[4]; // dynamic ambient occlusion: its own group, its per-vertex occlusion's strength (vr_ao.cpp); z the normal map's strength
 	float		wound[4]; // its wound mask (vr_wounds.cpp): layer + 1 (0 none), its size in texels, the time
+	float		woundside[4]; // its right side's bones (your body's mask is one a side; bits 0..23, 24..47 as whole numbers), the side painted + 1 (0 all), the blood's opacity
 } vraliasinstance_t;
 void VR_AliasInstance (const struct entity_s *e, const float matrix[16], const void *aliashdr, int kind, vraliasinstance_t *out); // R_DrawAliasModel_Real: kind 1 standard, 0 showtris/showskel, 2 depth only (all zero)
 void VR_AliasFlameRefs (const void *aliashdr, unsigned short *refs); // GLMesh_LoadVertexBuffer: per VBO vertex, 0 or 1 + the gun vertex a muzzle flash's vertex rides on
@@ -104,9 +105,11 @@ void VR_DlightShadow (int index, struct gpulight_s *out);	// R_PushDlights, per 
 float VR_SpotCone (const struct gpulight_s *l, const float point[3]); // how much of a light its cone lets reach a point (1: a point light)
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
-void VR_AliasWound (const struct entity_s *e, float out[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none; negative: -(layer + 1) in the fine masks), size in texels, time
+void VR_AliasWound (const struct entity_s *e, float out[4], float side[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none; negative: -(layer + 1) in the fine masks), size in texels, time; side: vraliasinstance_t's woundside
+void VR_AliasWoundPaintSide (const struct entity_s *e, int side, float out[4]);	// R_PaintAliasWounds: its woundside, painting side `side` alone (-1: all of it)
 unsigned VR_WoundTexture (void);							// the wound masks' texture array (0: none; vr_wounds.cpp)
 unsigned VR_WoundFineTexture (void);						// your own body's and hands' finer masks (vr_wounds_own_res; 0: none)
+unsigned VR_WoundBloodTexture (void);						// ... the blood on them that isn't yours (one channel; 0: none)
 void VR_WoundFrameData (float out[2]);						// the fine masks' relief: burns', blood's (Water3.zw in the frame data)
 
 // The DarkPlaces look (vr_lighting.cpp; docs/vr-port/LIGHTING.md, round 10).

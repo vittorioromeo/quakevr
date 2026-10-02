@@ -1739,13 +1739,15 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         cycle("Models Kept", vr_wounds_pool, {{32.f, "32 (8 MB)"}, {64.f, "64 (16 MB)"}, {128.f, "128 (32 MB)"}})
             .help("How many models keep their wounds at once: past it, the ones seen longest ago give theirs up."),
         cycle("Your Wounds' Detail", vr_wounds_own_res,
-            {{0.f, "Chunky (as monsters)"}, {512.f, "Fine (3 MB)"}, {1024.f, "Finer (12 MB)"}, {2048.f, "Finest (48 MB)"}})
+            {{0.f, "Chunky (as monsters)"}, {512.f, "Fine (5 MB)"}, {1024.f, "Finer (20 MB)"}, {2048.f, "Finest (80 MB)"}})
             .help("Your own body's and hands' wounds, burns and wetness: finer than their skin and smooth-edged, with a relief "
                   "(Chunky: in the skin's own pixels, as the monsters')."),
         slider("Your Burns' Relief", vr_wounds_bump_burns, 0.f, 3.f, 0.25f, "%.2fx")
             .help("How crusted and cracked the char on your arms looks in the light (Finer detail only; 0 flat)."),
         slider("Your Wounds' Depth", vr_wounds_bump_blood, 0.f, 3.f, 0.25f, "%.2fx")
             .help("How deep your bleeding wounds look sunk into the skin (Finer detail only; 0 flat)."),
+        slider("Blood Opacity", vr_wounds_blood_alpha, 0.2f, 1.f, 0.05f, "%.2f")
+            .help("How opaque the painted blood is over the skins: a little of the skin shows through below 1."),
         header("Your Wounds"),
         slider("Arm Drip Rate", vr_body_blood, 0.f, 4.f, 0.25f, "%.2fx").extend()
             .help("How often blood drips from your wounded arms and hands (the body's wounds: Show Armour and Wounds; 0 none)."),
@@ -1766,6 +1768,23 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("How long you stay clean out of the water before they re-open."),
         slider("Re-open Spread", vr_gore_reopen_time, 0.f, 10.f, 0.25f, "%.2f s").extend()
             .help("Over how long they re-open, one after another (0: all at once)."),
+        header("Blood on You and Your Gear"),
+        slider("Blood Spatter", vr_gore_spatter, 0.f, 3.f, 0.25f, "%.2fx").extend()
+            .help("Blood thrown from hits near you onto your hands, arms, body and what you hold, as drops: how much (0 none)."),
+        slider("From Your Blows", vr_gore_spatter_melee, 0.f, 3.f, 0.25f, "%.2fx").extend()
+            .help("A punch, a blade, a prop or a gun swung into a monster bloodies what struck and the hand a little."),
+        slider("From the Chainsaw", vr_gore_spatter_saw, 0.f, 6.f, 0.25f, "%.2fx").extend()
+            .help("A chainsaw cutting a monster sprays your hands and arms: a lot."),
+        slider("From Close Shots", vr_gore_spatter_shots, 0.f, 3.f, 0.25f, "%.2fx").extend()
+            .help("A shot hitting close to you throws a few drops onto your weapon, hands and arms."),
+        slider("Close Shot Range", vr_gore_spatter_range, 16.f, 160.f, 8.f, "%.0f u").extend(0.f, 512.f)
+            .help("How close to your hands or eyes a shot must hit for its blood to reach you."),
+        slider("Gibs Striking You", vr_gore_spatter_gibs, 0.f, 3.f, 0.25f, "%.2fx").extend()
+            .help("Gibs flying into you bloody you where they strike: how much (0 none)."),
+        toggle("Blood on Weapons and Props", vr_gore_gear)
+            .help("What you hold takes blood and keeps it: dropped, thrown and taken again, holstered and drawn, until water washes it."),
+        slider("Blood over Your Arms", vr_gore_spread, 0.f, 3.f, 0.25f, "%.2fx").extend()
+            .help("Hurt, holding a gib, or as your wounds re-open, blood runs over your arms too (a little your legs): how much (0 none)."),
         header("Blood Mist"),
         slider("Mist Amount", vr_gore_mist, 0.f, 3.f, 0.25f, "%.2fx").extend(0.f, 10.f)
             .help("Large, faint clouds of blood hanging in the air wherever something bleeds: how many (0 none)."),
@@ -2858,7 +2877,7 @@ za::Vector<Item> pageDebugReports()
         command("Hit Detection", "vr_hitmodel_stats").help("vr_hitmodel_stats: precise hit detection's tests so far (hits, shots through a box beside the model) and their cost."),
         command("Wounds", "vr_wounds_info").help("vr_wounds_info: the wound masks in use."),
         command("Bloody Hands and Washing", "vr_gore_hands_info")
-            .help("vr_gore_hands_info: the blood on your hands and body (texels), the wounds kept to re-open, the wash and its re-opening."),
+            .help("vr_gore_hands_info: the blood on your hands and body (texels), the wounds kept to re-open, the wash and its re-opening, and the blood on your weapons and props."),
         command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),
         command("Model Lighting", "vr_model_ambient_show").help("vr_model_ambient_show: the six nearest entities' ambient light."),
         command("Ambient Occlusion", "vr_ao_show").help("vr_ao_show: the ambient occlusion's occluders and bake."),
@@ -2903,6 +2922,10 @@ za::Vector<Item> pageDebugTools()
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
         command("Blood Mist", "vr_gore_mist_test").help("vr_gore_mist_test: a bleed's blood mist 64 units ahead (Gore > Blood Mist)."),
         command("Gib Blood on Hand", "vr_gore_hands_test main").help("vr_gore_hands_test main: a gib's blood on the main hand, as taking one (Gore > Bloody Hands and Washing)."),
+        command("Blood from a Blow", "vr_gore_spatter_test blow").help("vr_gore_spatter_test blow: a blow's blood thrown onto what the main hand holds, the hand and the arm (Gore > Blood on You and Your Gear)."),
+        command("Blood from a Chainsaw Cut", "vr_gore_spatter_test saw").help("vr_gore_spatter_test saw: a chainsaw cut's spray just ahead of the main hand."),
+        command("Blood from a Close Shot", "vr_gore_spatter_test shot").help("vr_gore_spatter_test shot: a shot hitting 40 units ahead of your eyes."),
+        command("Gib Strikes Your Hand", "vr_gore_spatter_test gib").help("vr_gore_spatter_test gib: a gib flying into your main hand."),
         command("Burn Your Arms", "vr_wounds_test self 4 90 0 12").help("vr_wounds_test self 4 90 0 12: an explosion's burns on your front and the arms held before you (Gore > Your Wounds' Detail)."),
         command("Wound Your Arms", "vr_wounds_test self 1 20 4 14").help("vr_wounds_test self 1 20 4 14: a shot's bleeding wound at your arms' height, held before your chest."),
         command("Soak Your Arms", "vr_wounds_test self 9 0 0 52").help("vr_wounds_test self 9 0 0 52: wet as from water up to your chest; dries in about 25 seconds."),

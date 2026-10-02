@@ -751,10 +751,11 @@ QVR_CVAR(vr_wounds, "1", CVAR_ARCHIVE)                // blood painted on models
 QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted on models (explosions, fire, lightning, lava, slime), embers while fresh
 QVR_CVAR(vr_wounds_wet, "1", CVAR_ARCHIVE)            // models wet up to where water or slime came, drying (and dripping) in about 25 s
 QVR_CVAR(vr_wounds_pool, "64", CVAR_ARCHIVE)          // how many models keep their wounds at once (256 KB each; the least seen give theirs up)
-QVR_CVAR(vr_wounds_own_res, "1024", CVAR_ARCHIVE)     // your own body's and hands' wound masks: texels on a side, smooth (512, 1024, 2048: 3, 12, 48 MB); 0 in the pool, chunky as the monsters'
+QVR_CVAR(vr_wounds_own_res, "1024", CVAR_ARCHIVE)     // your own body's and hands' wound masks: texels on a side, smooth (512, 1024, 2048: 5, 20, 80 MB: per side, and the blood not yours); 0 in the pool, chunky as the monsters'
 QVR_CVAR(vr_wounds_bump_burns, "1", CVAR_ARCHIVE)     // ... the relief of their burns and char (crusted, cracked), times the default (0 flat)
 QVR_CVAR(vr_wounds_bump_blood, "1", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
-QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)             // 1: print each wound painted
+QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)  // how opaque painted blood is over the skins (0..1)
+QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
 // Gore: bloody hands and washing (vr_wounds.cpp; ROUND21.md, "Gore: bloody hands, washing, dying bodies, blood mist").
 QVR_CVAR(vr_gore_hands, "1", CVAR_ARCHIVE)            // grabbing a gib or a head bloodies the hand holding it: how much (0 none; the wound skins: 1 a bloody hand)
 QVR_CVAR(vr_gore_wash, "1", CVAR_ARCHIVE)             // water washes the blood off your body and hands, where they are under it
@@ -762,6 +763,15 @@ QVR_CVAR(vr_gore_wash_time, "1.5", CVAR_ARCHIVE)      // seconds under water to 
 QVR_CVAR(vr_gore_reopen, "1", CVAR_ARCHIVE)           // hurt, your wounds re-open after a wash (healed ones don't; a gib's blood doesn't come back)
 QVR_CVAR(vr_gore_reopen_delay, "4", CVAR_ARCHIVE)     // seconds out of the water, clean, before they re-open
 QVR_CVAR(vr_gore_reopen_time, "1.5", CVAR_ARCHIVE)    // seconds over which they re-open, one after another (0: all at once)
+// Gore: blood on you and your gear (vr_wounds.cpp; ROUND21.md, "Blood on you, your weapons and props").
+QVR_CVAR(vr_gore_spatter, "1", CVAR_ARCHIVE)          // blood thrown from hits near you onto your hands, arms, body and what you hold: how much (0 none)
+QVR_CVAR(vr_gore_spatter_melee, "1", CVAR_ARCHIVE)    // ... from your blows (fists, blades, props, guns as clubs): times
+QVR_CVAR(vr_gore_spatter_saw, "2", CVAR_ARCHIVE)      // ... from a chainsaw's cuts: times
+QVR_CVAR(vr_gore_spatter_shots, "1", CVAR_ARCHIVE)    // ... from shots hitting close to you: times
+QVR_CVAR(vr_gore_spatter_range, "64", CVAR_ARCHIVE)   // ... a shot's hit this close to your hands or eyes at most (units)
+QVR_CVAR(vr_gore_spatter_gibs, "1", CVAR_ARCHIVE)     // gibs flying into you bloody you where they strike: how much (0 none)
+QVR_CVAR(vr_gore_gear, "1", CVAR_ARCHIVE)             // the weapons and props you hold take blood: kept dropped and taken again, until water washes it
+QVR_CVAR(vr_gore_spread, "1", CVAR_ARCHIVE)           // blood over your arms (a little your body and legs) when hurt, holding gibs, as wounds re-open: how much (0 none)
 // Gore: blood mist (vr_particles.cpp): large, faint clouds wherever something bleeds (every blood particle effect).
 QVR_CVAR(vr_gore_mist, "1", CVAR_ARCHIVE)             // how many clouds a bleed makes (0 none)
 QVR_CVAR(vr_gore_mist_size, "1", CVAR_ARCHIVE)        // how big they are (1: about 1.5 m across as they fade)

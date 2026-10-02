@@ -6254,6 +6254,9 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
             VR_Saw_PropRuns(thrown);
         }
 
+        // Its blood goes with it (the clients' masks: the hand's weapon's onto the one thrown; vr_wounds.qc QVR_WOUND_GEAR).
+        woundevent(thrown, origin, '0 0 0', 10, 0, xHand);
+
         // The same damage for the same hand speed as the old x120 scaling.
         thrown.throwdmgspeed = 700 * m2u / 120;
 

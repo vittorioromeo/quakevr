@@ -259,11 +259,12 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
     out->ao[2] = VR_ModelNormalMapScale(authored); // how much its normal map bends the normal (authored ones their own strength)
     if(standard) // wounds painted on it (vr_wounds.cpp)
     {
-        VR_AliasWound(e, out->wound);
+        VR_AliasWound(e, out->wound, out->woundside);
     }
     else
     {
         ZA_MEMSET(out->wound, 0, sizeof(out->wound));
+        ZA_MEMSET(out->woundside, 0, sizeof(out->woundside));
     }
 }
 
