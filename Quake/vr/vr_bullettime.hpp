@@ -1,5 +1,6 @@
 // vr_bullettime.hpp -- bullet time for play (ROUND21.md, "Slow motion: bullet time and Sandevistan"): a physical
-// button on the wrist gadget (the inner of the two on its lower edge; or the bindable vr_bullettime) slows the world to
+// button on the wrist gadget (the inner of the two on its lower edge), a hard tap on the gadget's wrist with the other
+// hand (or the bindable vr_bullettime) slows the world to
 // vr_bullettime_scale for as long as its meter lasts (vr_bullettime_duration real seconds when full), then a cooldown,
 // then the meter fills again (vr_bullettime_recharge). The gadget's screen shows the meter. While it runs, the eyes get
 // its look (vr_bullettime_fx: desaturated, tinted, vignetted; never with the recording's vr_timescale). With
@@ -17,7 +18,8 @@ void init(); // vr_bullettime
 // VR_AdvanceTime (real seconds): the meter drains while on, the cooldown runs, the meter fills; the look eases.
 void advance(double dt);
 
-// VR_BeginFrame, after the input: the gadget's button pressed by the other hand's fingertip.
+// VR_BeginFrame, after the input: the gadget's button pressed by the other hand's fingertip (vr_bullettime_button), the
+// gadget's wrist tapped hard by the other hand (vr_bullettime_tap).
 void frame();
 
 // The time scale bullet time asks for: vr_bullettime_scale while on, else 1.
@@ -51,6 +53,13 @@ struct Look
 
 // Where `hand`'s place (hands::State::pos) must be for its fingertip to be on the button (vr_mock_hand_to ... button).
 [[nodiscard]] bool buttonHandTarget(int hand, glm::vec3& out);
+
+// The wrist tap's zone: its middle (world; the gadget's middle); false while the gadget isn't shown.
+[[nodiscard]] bool tapZone(glm::vec3& centre);
+
+// Where `hand`'s place must be for its middle (hands::palmPoint) to be `cm` from the tap zone's middle, on the line from
+// there to where it is now (vr_mock_hand_to ... wrist <cm>: steps along it make a tap).
+[[nodiscard]] bool tapHandTarget(int hand, float cm, glm::vec3& out);
 
 // Starts it (if the meter allows) or stops it: the button's and vr_bullettime's action.
 void toggle();

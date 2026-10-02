@@ -19769,3 +19769,48 @@ defaults (`resetall; writeconfig`) against his live config: no difference left i
 mass or prop settings but his untouched crowbar slot. Crate Cover on vrfiringrange: the large crate 48 units tall, the
 grunt 288 units away; head 28 units up (crouched): "can't see you", asleep after 300 frames; head 60 up: "SEES you",
 awake. `vr_menu_path_check maps/vrcalibration.map`: 0 missing. eval canary 48/53, no difference from the baseline.
+
+## Bullet time: the wrist tap (2026-10-02)
+
+The gadget's small button was awkward to find and press, worse with a weapon in hand. Bullet time now also starts and
+stops with a **wrist tap**: the other hand struck against the gadget's wrist, anywhere near it (`vr_bullettime.cpp`
+`tapWrist`). The button stays, as an alternative.
+
+- **The zone:** the other hand's middle (`hands::palmPoint`: the hand itself, never what it holds) within
+  `vr_bullettime_tap_radius` (15 cm) of the gadget's middle. `vr_bullettime_tap_holding` 1: the tapping hand may hold a
+  weapon or prop (its hand taps); 0: only an empty hand.
+- **The force:** the hands' speed towards each other (the runtime's velocities, the tapping hand's less the gadget
+  hand's: either may move, the player's own movement and turns don't count) at `vr_bullettime_tap_speed` (1 m/s) or
+  more within 1.5x the zone arms it (its peak kept); then **the impact**: inside the zone the hands' relative speed must
+  fall to `vr_bullettime_tap_stop` (0.5) of that peak within `vr_bullettime_tap_window` (0.25 s) of it. A resting or
+  brushing hand is too slow; a hand swinging past keeps its speed. `_tap_stop 1`: it counts on arrival.
+- **Two-handed holds** (the gadget hand on a foregrip, near the other hand): hands holding one weapon move together,
+  so their relative speed is about 0 (mock: both hands moving at 2 m/s together read 0.00 m/s); and taps are ignored
+  outright while any two-handed grip holds (`twohand::helping`, `helpKind`, `support` of either hand), unless
+  `vr_bullettime_tap_twohanded 1`. The button is not affected by it (a deliberate fingertip press).
+- **Both triggers:** `vr_bullettime_tap` 1 and `vr_bullettime_button` 1 toggle each; a press or tap that counts gives
+  the tick in both hands (`vr_bullettime_haptic` 1: its strength, 0 off) and starts the shared
+  `vr_bullettime_trigger_cooldown` (0.5 s; was a fixed 0.3 s for the button) in which another press or tap is ignored
+  (a tap ending on the button is one toggle). The button's leniency: Button Size (`vr_bullettime_button_radius`,
+  slider now to 8 units) and Fingertip Reach, as before.
+- **Menus:** Combat > Bullet Time: new **Wrist Tap** header (Tap the Wrist, Tap Zone Size, Tap Force, Tap Must Stop,
+  Tap Window, Tap While Holding, Tap During Two-Handed Holds), **Gadget Button** toggle under Button, and a **Both**
+  header (Ignore Repeats For, Haptic Tick). Debug > Logging > Bullet Time: new level 3 **And the Wrist Tap** (the hand's
+  distance, closing and relative speed, the peak every frame, or why taps are off); level 1 also logs each tap and
+  press (and those ignored).
+- **Mock:** `vr_mock_hand_to <main|off> wrist <cm>` puts the hand's middle `cm` from the zone's middle on the line to
+  where it is (steps along it make a tap); `vr_mock_hand_to <main|off> button <units>`: the fingertip that far off the
+  button's face.
+
+### Results (mock, `vr_fixed_frames 1`, e1m1, steps a frame)
+
+- Hard tap (25 cm to 4 cm, 3 cm a frame: 2.16 m/s, then held): on; again: off. Slow touch (0.5 cm a frame, 0.36 m/s; and
+  1 cm, 0.72 m/s) to 3 cm and resting there 2 s: nothing. A hand passing through at 2.16 m/s (30 cm to -30 cm): nothing.
+- Two-handed (shotgun in the main hand, the off hand on its foregrip at 0.75): "tap off (two-handed)"; a hard tap of
+  the main hand at the off wrist: nothing; the same with `_tap_twohanded 1`: on. Both hands moving together at 2 m/s
+  (`_tap_twohanded 1`, a 60 cm zone): relative speed 0.00, nothing; the main hand alone: 2.00.
+- Button: fingertip 3 units off its face at Button Size 1.5: nothing; at 4: on, then off; `vr_bullettime_button 0`:
+  nothing at 0. In that two-handed approach the fingertip also met the button: the button and the tap 0.10-0.15 s
+  apart counted once.
+- In bullet time with fixed frames the mock's scripted moves read about 1/0.3 faster (7.2 m/s for 2.16): the mock's
+  per-frame moves, not the detection (it uses the runtime's velocities and the real clock).
