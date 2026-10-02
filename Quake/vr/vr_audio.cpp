@@ -20,8 +20,12 @@
 //   nearer ear louder and the farther one shadowed, by how much it is to the side), a send to the reverb.
 // - The reverb: Steam Audio's reflections simulated from the listener (vr_audiosim.cpp), its effect on the sum of the
 //   voices' sends, decoded binaurally with the head's orientation, vr_snd_reverb loud.
-// - The voices' sum (and the reverb) low-passed before it joins Quake's paint buffer when Quake's 11 kHz lowpass is on
-//   (AntiAlias, vr_snd_antialias): that lowpass keeps every fourth sample, which folded the HRTF's highs into the lows.
+// - Quake's 11 kHz lowpass (sndspeed 11025): by default (vr_snd_fullband 1) the voices go round it (held out of the
+//   paint buffer and added after it: VR_SndBypass), each reading its sound's band-limited copy (VR_SndBandLimit, made
+//   as it loads; between samples windowed-sinc: fullBandAt), not Quake's held samples, whose images would be hiss; their
+//   reverb anti-aliased (renderVoices). With vr_snd_fullband 0 the voices' sum (and the reverb) is low-passed before it
+//   joins Quake's paint buffer (AntiAlias, vr_snd_antialias): that lowpass keeps every fourth sample, which folded the
+//   HRTF's highs into the lows.
 // - The simulations (vr_audiosim.hpp): the map's scene built on the pool at each new map; doors and lifts moved in
 //   it; the direct paths 30 times a second and the reverb every vr_snd_reverb_interval, each a pool task, their
 //   results taken under a mutex.
@@ -78,6 +82,7 @@ Features featuresFromCvars()
     f.nearfield = za::clamp(vr_snd_nearfield.value, 0.f, 2.f);
     f.unitsPerMetre = units::metresToUnits();
     f.rate = VR_SndRate();
+    f.fullBand = VR_SndFullBand() >= 1;
     return f;
 }
 
@@ -393,7 +398,7 @@ void Mixer::prepare(Voice& v, const Listener& l, const Features& f) const
     }
 }
 
-void Mixer::read(Voice& v, float* out, float step0, float step1)
+void Mixer::read(Voice& v, float* out, float step0, float step1, bool fullBand)
 {
     const int n = frame;
     const sfxcache_t* sc = v.sc;
@@ -406,7 +411,13 @@ void Mixer::read(Voice& v, float* out, float step0, float step1)
     const int length = sc->length;
     const int loop = sc->loopstart;
     const bool wide = sc->width == 2;
+    // The band-limited copy (vr_snd_fullband: the voices not low-passed by Quake), when it was resampled.
+    const short* full = fullBand ? fullBandData(sc) : nullptr;
     const auto sample = [&](int i) -> float {
+        if(full)
+        {
+            return static_cast<float>(full[i] * S_FULLBAND_SCALE);
+        }
         return wide ? static_cast<float>(reinterpret_cast<const short*>(sc->data)[i])
                     : static_cast<float>(static_cast<signed char>(sc->data[i])) * 256.f;
     };
@@ -446,11 +457,18 @@ void Mixer::read(Voice& v, float* out, float step0, float step1)
             }
             pos = loop + za::fmod(pos - length, static_cast<double>(length - loop));
         }
-        const int i0 = static_cast<int>(pos);
-        const float frac = static_cast<float>(pos - i0);
-        const int i1 = i0 + 1 < length ? i0 + 1 : (loop >= 0 ? loop : i0);
-        const float s0 = sample(i0);
-        out[i] = s0 + (sample(i1) - s0) * frac;
+        if(full) // (band-limited: read so, not linearly, or its highs' images come back)
+        {
+            out[i] = fullBandAt(full, length, loop, pos) * S_FULLBAND_SCALE;
+        }
+        else
+        {
+            const int i0 = static_cast<int>(pos);
+            const float frac = static_cast<float>(pos - i0);
+            const int i1 = i0 + 1 < length ? i0 + 1 : (loop >= 0 ? loop : i0);
+            const float s0 = sample(i0);
+            out[i] = s0 + (sample(i1) - s0) * frac;
+        }
         pos += step0 + (step1 - step0) * (static_cast<float>(i) / static_cast<float>(n));
     }
     v.pos = pos;
@@ -464,7 +482,7 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
         // Doppler: the rate eased towards its target (half the way each frame), ramped within the frame.
         const float step0 = v.doppler;
         const float step1 = v.doppler + (v.dopplerTarget - v.doppler) * 0.5f;
-        read(v, v.in0.data(), step0, step1);
+        read(v, v.in0.data(), step0, step1, f.fullBand);
         v.doppler = step1;
 
         // The volume ramped to its new value over the first frame.
@@ -585,7 +603,7 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
 }
 
 void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb,
-    float* outL, float* outR)
+    float* outL, float* outR, float* roomL, float* roomR)
 {
     if(!valid() || blocks <= 0)
     {
@@ -695,10 +713,12 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
         IPLAudioBuffer stereo{2, frame, stereoPtr};
         sa->iplAmbisonicsDecodeEffectApply(decode, &dp, &ambi, &stereo);
         const float mix = f.reverb;
+        float* toL = roomL ? roomL : outL;
+        float* toR = roomR ? roomR : outR;
         for(int i = 0; i < frame; i++)
         {
-            outL[b * frame + i] += reverbL[i] * mix;
-            outR[b * frame + i] += reverbR[i] * mix;
+            toL[b * frame + i] += reverbL[i] * mix;
+            toR[b * frame + i] += reverbR[i] * mix;
            
         }
     }
@@ -707,9 +727,51 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
 // ----------------------------------------------------------------------------
 // The voices' anti-aliasing (before Quake's 11 kHz lowpass)
 
+bool quakeLowpassOn()
+{
+    return shm && sndspeed.value == 11025 && shm->speed == 44100 && VR_SndFullBand() < 2;
+}
+
 bool antiAliasWanted()
 {
-    return vr_snd_antialias.value != 0.f && shm && sndspeed.value == 11025 && shm->speed == 44100;
+    return vr_snd_antialias.value != 0.f && VR_SndFullBand() == 0 && quakeLowpassOn();
+}
+
+void renderVoices(Mixer& m, int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb,
+    za::Vector<float>& mixL, za::Vector<float>& mixR, za::Vector<float>& revL, za::Vector<float>& revR, AntiAlias& aa)
+{
+    const int rendered = blocks * m.frameSize();
+    za::fill(mixL.begin(), mixL.begin() + rendered, 0.f);
+    za::fill(mixR.begin(), mixR.begin() + rendered, 0.f);
+    const bool fullBand = VR_SndFullBand() >= 1;
+    const bool lowpass = shm && sndspeed.value == 11025 && shm->speed == 44100; // (Quake's, or skipped by mode 2)
+    if(fullBand && lowpass)
+    {
+        za::fill(revL.begin(), revL.begin() + rendered, 0.f);
+        za::fill(revR.begin(), revR.begin() + rendered, 0.f);
+        m.render(blocks, l, f, reverb, mixL.data(), mixR.data(), revL.data(), revR.data());
+        aa.apply(revL.data(), revR.data(), rendered);
+        for(int i = 0; i < rendered; i++)
+        {
+            mixL[i] += revL[i];
+            mixR[i] += revR[i];
+        }
+        return;
+    }
+    m.render(blocks, l, f, reverb, mixL.data(), mixR.data());
+    if(antiAliasWanted())
+    {
+        aa.apply(mixL.data(), mixR.data(), rendered);
+    }
+    else
+    {
+        aa.reset();
+    }
+}
+
+const short* fullBandData(const sfxcache_t* sc)
+{
+    return sc->fullband != 0 ? reinterpret_cast<const short*>(sc->data + sc->fullband) : nullptr;
 }
 
 void AntiAlias::reset()
@@ -892,6 +954,8 @@ struct Shadow
     int carryLen{0};
     AntiAlias antiAlias; // its voices' (before its own 11 kHz lowpass)
     za::Vector<portable_samplepair_t> buffer;
+    za::Vector<portable_samplepair_t> held; // its voices, kept out of its 11 kHz lowpass (vr_snd_fullband)
+    za::Vector<float> revL, revR;           // their reverb (renderVoices)
     double ms{0.0}; // a paint call's share of it, averaged
 };
 
@@ -935,6 +999,9 @@ struct Live
 
     za::Vector<float> mixL, mixR;
     AntiAlias antiAlias; // the voices' (vr_snd_antialias)
+    za::Vector<portable_samplepair_t> held; // the voices, kept out of Quake's 11 kHz lowpass (vr_snd_fullband: VR_SndBypass)
+    za::Vector<float> revL, revR;           // their reverb (renderVoices)
+    int heldLen{0};
     za::Array<float, 1024> carryL{}, carryR{};
     int carryStart{0};
     int carryLen{0};
@@ -1056,6 +1123,8 @@ void ensure()
     za::fill(live->channelOf, -1);
     live->mixL.clear();
     live->mixL.resize(Mixer::maxSamples, 0.f);
+    live->revL.resize(Mixer::maxSamples, 0.f);
+    live->revR.resize(Mixer::maxSamples, 0.f);
     live->mixR.clear();
     live->mixR.resize(Mixer::maxSamples, 0.f);
     createSim();
@@ -1545,6 +1614,45 @@ void play_f()
     S_StartSound(0, 0, sfx, at, volume, attenuation);
 }
 
+// A loaded sound as the mixers read it (vr_snd_dump <sample>): Quake's held samples and the band-limited copy
+// (vr_snd_fullband), each a WAV at the mix's rate in sound_tests/ (dump_<sample>_held.wav, _full.wav), at half volume.
+void dump_f()
+{
+    if(Cmd_Argc() < 2 || !shm)
+    {
+        Con_Printf("vr_snd_dump <sample>: the sound's held samples and band-limited copy to sound_tests/\n");
+        return;
+    }
+    sfx_t* sfx = S_PrecacheSound(Cmd_Argv(1));
+    const sfxcache_t* sc = sfx ? S_LoadSound(sfx) : nullptr;
+    if(!sc)
+    {
+        Con_Printf("vr_snd_dump: %s isn't loaded\n", Cmd_Argv(1));
+        return;
+    }
+    const short* full = fullBandData(sc);
+    za::Vector<float> held(static_cast<za::SizeT>(sc->length)), copy(static_cast<za::SizeT>(sc->length));
+    for(int i = 0; i < sc->length; i++)
+    {
+        // (both at the copy's scale, 1/S_FULLBAND_SCALE: its overshoot of a clipped sound not clipped in the file)
+        held[i] = (sc->width == 2 ? static_cast<float>(reinterpret_cast<const short*>(sc->data)[i])
+                                  : static_cast<float>(static_cast<signed char>(sc->data[i])) * 256.f) /
+                  S_FULLBAND_SCALE;
+        copy[i] = full ? static_cast<float>(full[i]) : held[i];
+    }
+    za::String name = Cmd_Argv(1);
+    for(char& c : name)
+    {
+        c = c == '/' || c == '\\' || c == '.' ? '_' : c;
+    }
+    const za::String base = za::String{com_gamedir} + "/sound_tests/dump_" + name;
+    COM_CreatePath((base + "_held.wav").data());
+    writeWav16((base + "_held.wav").cStr(), held, held, shm->speed);
+    writeWav16((base + "_full.wav").cStr(), copy, copy, shm->speed);
+    Con_Printf("vr_snd_dump %s: %d samples at %d Hz, %d-bit, %s (%s_held.wav, _full.wav)\n", Cmd_Argv(1), sc->length,
+        shm->speed, sc->width * 8, full ? "band-limited copy" : "no copy (loaded at the mix's rate)", base.cStr());
+}
+
 // A sound from a direction (vr_snd_play_dir <sample> <azimuth> [elevation] [metres] [volume] [attenuation]): degrees
 // clockwise from where the listener faces (90 the right), up from level, at that distance (2 m) from the listener. For
 // the left/right balance against the angle (ROUND21.md, "HRTF balance").
@@ -1632,6 +1740,8 @@ void init()
     Cmd_AddCommand("vr_snd_play", play_f);
     Cmd_AddCommand("vr_snd_burst", burst_f);
     Cmd_AddCommand("vr_snd_play_dir", playDir_f);
+    Cmd_AddCommand("vr_snd_dump", dump_f);
+    makeInterpTable();
 }
 
 void shutdown()
@@ -1985,6 +2095,7 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
         return;
     }
     Live& L = *live;
+    L.heldLen = 0;
     if(!running())
     {
         if(L.ok)
@@ -1996,6 +2107,17 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     QVR_PROFILE("spatial audio mix");
     const double t0 = Sys_DoubleTime();
     const int count = end - start;
+    // vr_snd_fullband: the voices are added after Quake's 11 kHz lowpass (VR_SndBypass), not to its input.
+    if(VR_SndFullBand() >= 1)
+    {
+        if(static_cast<int>(L.held.size()) < count)
+        {
+            L.held.resize(count);
+        }
+        ZA_MEMSET(L.held.data(), 0, sizeof(portable_samplepair_t) * static_cast<za::SizeT>(count));
+        L.heldLen = count;
+        buffer = L.held.data();
+    }
     int written = 0;
     if(L.carryLen > 0 && L.carryStart == start)
     {
@@ -2040,17 +2162,8 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
     const int frame = L.frame;
     const int blocks = (remain + frame - 1) / frame;
     const int rendered = blocks * frame;
-    za::fill(L.mixL.begin(), L.mixL.begin() + rendered, 0.f);
-    za::fill(L.mixR.begin(), L.mixR.begin() + rendered, 0.f);
-    L.mixer.render(blocks, L.listener, f, L.haveReverb ? &L.reverb : nullptr, L.mixL.data(), L.mixR.data());
-    if(antiAliasWanted())
-    {
-        L.antiAlias.apply(L.mixL.data(), L.mixR.data(), rendered);
-    }
-    else
-    {
-        L.antiAlias.reset();
-    }
+    renderVoices(L.mixer, blocks, L.listener, f, L.haveReverb ? &L.reverb : nullptr, L.mixL, L.mixR, L.revL, L.revR,
+        L.antiAlias);
 
     // The channels as Quake would have left them at the end of what was rendered.
     const int renderedEnd = time + rendered;
@@ -2122,6 +2235,184 @@ extern "C" const char* VR_SndDerived(const char* name, float* rate)
         }
     }
     return nullptr;
+}
+
+// vr_snd_fullband: 0 Quake's 11 kHz lowpass on every sound (as it was), 1 not on the voices (the default), 2 on none.
+extern "C" int VR_SndFullBand(void)
+{
+    return za::clamp(static_cast<int>(vr_snd_fullband.value), 0, 2);
+}
+
+// A sound resampled to the mix's rate band-limited, beside Quake's copy (ResampleSfx: each sample held, so an 11 kHz
+// sound's spectrum repeats above 5.5 kHz: images that Quake's 11 kHz lowpass takes out and a mix without it plays as
+// hiss and aliasing). A windowed sinc (Blackman, ~30 zero crossings a side): -6 dB at 0.475 of the lower of the two
+// rates (5.24 kHz for an 11025 Hz sound, 10.5 for 22050), flat to ~0.43 of it, under -70 dB from ~0.52; DC gain 1.
+// Output i is at the sound's sample i x fracstep / 256, ResampleSfx's timing (so a channel passes between Quake's mix
+// and a voice where it was), so its fraction is one of 256 phases, each with its own row of taps. A looping sound's
+// samples past its end are its loop's start again, and before its loop (from the loop on) the loop's end. Kept at
+// 1/S_FULLBAND_SCALE: a sound clipped at full scale (id's explosions) overshoots it band-limited, and clipped again it
+// was hiss (r_exp3: its share above 5.8 kHz -54 dB, -89 kept whole).
+extern "C" void VR_SndBandLimit(const unsigned char* data, int width, int samples, int loopstart, int fracstep,
+    short* out, int outcount)
+{
+    if(samples <= 0 || outcount <= 0 || fracstep <= 0)
+    {
+        return;
+    }
+    constexpr double pi = 3.14159265358979;
+    constexpr int phases = 256;
+    const double ratio = fracstep / 256.0;                    // the sound's samples an output sample
+    const double cutoff = 0.475 / za::max(1.0, ratio);         // cycles a sample of the sound
+    const int half = static_cast<int>(za::ceil(15.2 / cutoff)); // samples of the sound each side
+    const int taps = 2 * half;
+
+    za::Vector<float> table(static_cast<za::SizeT>(phases) * taps, 0.f);
+    for(int p = 0; p < phases; p++)
+    {
+        float* row = table.data() + static_cast<za::SizeT>(p) * taps;
+        double sum = 0.0;
+        for(int j = 0; j < taps; j++)
+        {
+            const double t = p / static_cast<double>(phases) + (half - 1 - j); // the output's time minus the sample's
+            const double sinc = t == 0.0 ? 2.0 * cutoff : za::sin(2.0 * pi * cutoff * t) / (pi * t);
+            const double x = t / half;
+            const double w = za::abs(x) >= 1.0 ? 0.0 : 0.42 + 0.5 * za::cos(pi * x) + 0.08 * za::cos(2.0 * pi * x);
+            row[j] = static_cast<float>(sinc * w);
+            sum += sinc * w;
+        }
+        for(int j = 0; j < taps; j++)
+        {
+            row[j] = static_cast<float>(row[j] / sum);
+        }
+    }
+
+    za::Vector<float> src(static_cast<za::SizeT>(samples), 0.f);
+    for(int n = 0; n < samples; n++)
+    {
+        src[n] = width == 2 ? static_cast<float>(static_cast<short>(data[2 * n] | (data[2 * n + 1] << 8)))
+                            : static_cast<float>((static_cast<int>(data[n]) - 128) * 256);
+    }
+    const int loopLen = loopstart >= 0 && loopstart < samples ? samples - loopstart : 0;
+    const auto at = [&](long long n, bool inLoop) -> float {
+        if(loopLen > 0 && (n >= samples || (inLoop && n < loopstart)))
+        {
+            long long k = (n - loopstart) % loopLen;
+            n = loopstart + (k < 0 ? k + loopLen : k);
+        }
+        return n < 0 || n >= samples ? 0.f : src[static_cast<za::SizeT>(n)];
+    };
+
+    for(int i = 0; i < outcount; i++)
+    {
+        const long long pos = static_cast<long long>(i) * fracstep; // in 256ths of the sound's samples
+        const long long base = pos >> 8;
+        const float* row = table.data() + static_cast<za::SizeT>(pos & 255) * taps;
+        const long long first = base - half + 1;
+        float y = 0.f;
+        const bool inLoop = loopLen > 0 && base >= loopstart;
+        if(first >= (inLoop ? loopstart : 0) && first + taps <= samples)
+        {
+            const float* x = src.data() + first;
+            for(int j = 0; j < taps; j++)
+            {
+                y += row[j] * x[j];
+            }
+        }
+        else
+        {
+            for(int j = 0; j < taps; j++)
+            {
+                y += row[j] * at(first + j, inLoop);
+            }
+        }
+        out[i] = static_cast<short>(za::clamp(static_cast<int>(za::floor(y / S_FULLBAND_SCALE + 0.5f)), -32768, 32767));
+    }
+}
+
+namespace qvr::audio
+{
+namespace
+{
+
+// The band-limited copies read between their samples (slow motion, Doppler; vr_snd_fullband): a 32-tap windowed sinc
+// (Blackman, -6 dB at 0.47 of the rate) at 512 fractions of a sample. Linear interpolation, read at a quarter speed,
+// left images of the sound's highs at -21 to -40 dB (8-14 kHz), which Quake's 11 kHz lowpass used to take out.
+constexpr int interpTaps = 32;
+constexpr int interpHalf = interpTaps / 2;
+constexpr int interpPhases = 512;
+za::Vector<float> interpTable; // (made at init)
+
+} // namespace
+
+void makeInterpTable()
+{
+    constexpr double pi = 3.14159265358979;
+    constexpr double cutoff = 0.47;
+    interpTable.resize(static_cast<za::SizeT>(interpPhases + 1) * interpTaps, 0.f);
+    for(int p = 0; p <= interpPhases; p++)
+    {
+        float* row = interpTable.data() + static_cast<za::SizeT>(p) * interpTaps;
+        double sum = 0.0;
+        for(int j = 0; j < interpTaps; j++)
+        {
+            const double t = p / static_cast<double>(interpPhases) + (interpHalf - 1 - j);
+            const double sinc = t == 0.0 ? 2.0 * cutoff : za::sin(2.0 * pi * cutoff * t) / (pi * t);
+            const double x = t / interpHalf;
+            const double w = za::abs(x) >= 1.0 ? 0.0 : 0.42 + 0.5 * za::cos(pi * x) + 0.08 * za::cos(2.0 * pi * x);
+            row[j] = static_cast<float>(sinc * w);
+            sum += sinc * w;
+        }
+        for(int j = 0; j < interpTaps; j++)
+        {
+            row[j] = static_cast<float>(row[j] / sum);
+        }
+    }
+}
+
+float fullBandAt(const short* x, int length, int loop, double pos)
+{
+    const int i0 = static_cast<int>(pos);
+    const double frac = pos - i0;
+    if(interpTable.empty())
+    {
+        const int i1 = i0 + 1 < length ? i0 + 1 : (loop >= 0 ? loop : i0);
+        return static_cast<float>(x[i0] + (x[i1] - x[i0]) * frac);
+    }
+    const float* row = interpTable.data() + static_cast<za::SizeT>(frac * interpPhases + 0.5) * interpTaps;
+    const int first = i0 - interpHalf + 1;
+    float y = 0.f;
+    if(first >= 0 && first + interpTaps <= length)
+    {
+        const short* s = x + first;
+        for(int j = 0; j < interpTaps; j++)
+        {
+            y += row[j] * static_cast<float>(s[j]);
+        }
+        return y;
+    }
+    // Past the end: the loop's start again (or silence); before the start: a loop from 0's end (or silence).
+    const int loopLen = loop >= 0 && loop < length ? length - loop : 0;
+    for(int j = 0; j < interpTaps; j++)
+    {
+        int n = first + j;
+        if(n >= length)
+        {
+            n = loopLen > 0 ? loop + (n - length) % loopLen : -1;
+        }
+        else if(n < 0)
+        {
+            n = loop == 0 && loopLen > 0 ? n + length : -1;
+        }
+        y += n >= 0 && n < length ? row[j] * static_cast<float>(x[n]) : 0.f;
+    }
+    return y;
+}
+
+} // namespace qvr::audio
+
+extern "C" float VR_SndFullBandAt(const short* data, int length, int loopstart, double pos)
+{
+    return qvr::audio::fullBandAt(data, length, loopstart, pos);
 }
 
 namespace qvr::audio
@@ -2206,9 +2497,11 @@ extern "C" void VR_SndBus(portable_samplepair_t* buffer, int count)
     {
         Capture& c = live->capture;
         const int measured = za::max(0, za::min(count, c.wanted - c.busSeen));
+        const portable_samplepair_t* held = live->heldLen >= measured ? live->held.data() : nullptr; // (vr_snd_fullband)
         for(int i = 0; i < measured; i++)
         {
-            const int peak = za::max(za::abs(buffer[i].left), za::abs(buffer[i].right));
+            const int peak = held ? za::max(za::abs(buffer[i].left + held[i].left), za::abs(buffer[i].right + held[i].right))
+                                  : za::max(za::abs(buffer[i].left), za::abs(buffer[i].right));
             c.busPeak = za::max(c.busPeak, static_cast<float>(peak));
             c.busOver += peak > ceiling ? 1 : 0;
         }
@@ -2224,6 +2517,28 @@ extern "C" void VR_SndBus(portable_samplepair_t* buffer, int count)
         buffer[i].left = za::clamp(buffer[i].left, lo, hi) / 2;
         buffer[i].right = za::clamp(buffer[i].right, lo, hi) / 2;
     }
+}
+
+extern "C" void VR_SndBypass(portable_samplepair_t* buffer, int count)
+{
+    if(!live || live->heldLen <= 0)
+    {
+        return;
+    }
+    // VR_SndBus's clip and halving, on the voices held out of Quake's lowpass (vr_snd_fullband), then added.
+    constexpr int ceiling = 32767 * 256;
+    constexpr int bottom = -32768 * 256;
+    const bool limit = shm && vr_snd_limiter.value != 0.f;
+    const int hi = limit ? ceiling * 8 : ceiling;
+    const int lo = limit ? bottom * 8 : bottom;
+    const portable_samplepair_t* held = live->held.data();
+    const int n = za::min(count, live->heldLen);
+    for(int i = 0; i < n; i++)
+    {
+        buffer[i].left += za::clamp(held[i].left, lo, hi) / 2;
+        buffer[i].right += za::clamp(held[i].right, lo, hi) / 2;
+    }
+    live->heldLen = 0;
 }
 
 extern "C" void VR_SndLimit(portable_samplepair_t* buffer, int count)
@@ -2498,6 +2813,14 @@ void shadowRender(Shadow& sh, int count)
     Live& L = *live;
     portable_samplepair_t* out = sh.buffer.data();
     ZA_MEMSET(out, 0, sizeof(portable_samplepair_t) * static_cast<za::SizeT>(count));
+    // vr_snd_fullband: the voices kept out of its lowpass (as the live mix's, VR_SndBypass), Quake's mix in `out`.
+    const int fullBand = VR_SndFullBand();
+    portable_samplepair_t* voicesOut = out;
+    if(fullBand >= 1)
+    {
+        voicesOut = sh.held.data();
+        ZA_MEMSET(voicesOut, 0, sizeof(portable_samplepair_t) * static_cast<za::SizeT>(count));
+    }
 
     // New sounds, sounds stopped (S_StopSound, S_StopAllSounds: no end left).
     for(int c = 0; c < MAX_CHANNELS; c++)
@@ -2563,8 +2886,8 @@ void shadowRender(Shadow& sh, int count)
         int written = za::min(count, sh.carryLen);
         for(int i = 0; i < written; i++)
         {
-            out[i].left += static_cast<int>(sh.carryL[i]);
-            out[i].right += static_cast<int>(sh.carryR[i]);
+            voicesOut[i].left += static_cast<int>(sh.carryL[i]);
+            voicesOut[i].right += static_cast<int>(sh.carryR[i]);
         }
         za::copy(sh.carryL.begin() + written, sh.carryL.begin() + sh.carryLen, sh.carryL.begin());
         za::copy(sh.carryR.begin() + written, sh.carryR.begin() + sh.carryLen, sh.carryR.begin());
@@ -2574,22 +2897,12 @@ void shadowRender(Shadow& sh, int count)
         {
             const int blocks = (remain + frame - 1) / frame;
             const int rendered = blocks * frame;
-            za::fill(sh.mixL.begin(), sh.mixL.begin() + rendered, 0.f);
-            za::fill(sh.mixR.begin(), sh.mixR.begin() + rendered, 0.f);
-            sh.mixer.render(blocks, L.listener, f, L.haveReverbSecond ? &L.reverbSecond : nullptr, sh.mixL.data(),
-                sh.mixR.data());
-            if(antiAliasWanted())
-            {
-                sh.antiAlias.apply(sh.mixL.data(), sh.mixR.data(), rendered);
-            }
-            else
-            {
-                sh.antiAlias.reset();
-            }
+            renderVoices(sh.mixer, blocks, L.listener, f, L.haveReverbSecond ? &L.reverbSecond : nullptr, sh.mixL, sh.mixR,
+                sh.revL, sh.revR, sh.antiAlias);
             for(int i = 0; i < remain; i++)
             {
-                out[written + i].left += static_cast<int>(sh.mixL[i]);
-                out[written + i].right += static_cast<int>(sh.mixR[i]);
+                voicesOut[written + i].left += static_cast<int>(sh.mixL[i]);
+                voicesOut[written + i].right += static_cast<int>(sh.mixR[i]);
             }
             sh.carryLen = rendered - remain;
             for(int i = 0; i < sh.carryLen; i++)
@@ -2644,6 +2957,7 @@ void shadowRender(Shadow& sh, int count)
             continue;
         }
         const bool wide = sc->width == 2;
+        const short* full = fullBand == 2 ? fullBandData(sc) : nullptr; // (as SND_PaintChannelFull)
         const float lv = static_cast<float>(wide ? ch->leftvol : za::min(ch->leftvol, 255)) * sfxvolume.value;
         const float rv = static_cast<float>(wide ? ch->rightvol : za::min(ch->rightvol, 255)) * sfxvolume.value;
         const int loop = sc->loopstart >= 0 && sc->loopstart < sc->length ? sc->loopstart : -1;
@@ -2658,8 +2972,9 @@ void shadowRender(Shadow& sh, int count)
                 }
                 s.pos = loop;
             }
-            const float data = wide ? static_cast<float>(reinterpret_cast<const short*>(sc->data)[s.pos])
-                                    : static_cast<float>(static_cast<signed char>(sc->data[s.pos])) * 256.f;
+            const float data = full ? static_cast<float>(full[s.pos] * S_FULLBAND_SCALE)
+                               : wide ? static_cast<float>(reinterpret_cast<const short*>(sc->data)[s.pos])
+                                      : static_cast<float>(static_cast<signed char>(sc->data[s.pos])) * 256.f;
             out[i].left += static_cast<int>(data * lv);
             out[i].right += static_cast<int>(data * rv);
             s.pos++;
@@ -2677,7 +2992,15 @@ void shadowRender(Shadow& sh, int count)
         out[i].left = za::clamp(out[i].left, lo, hi) / 2;
         out[i].right = za::clamp(out[i].right, lo, hi) / 2;
     }
-    S_ShadowFilters(out, count);
+    if(voicesOut != out)
+    {
+        for(int i = 0; i < count; i++)
+        {
+            voicesOut[i].left = za::clamp(voicesOut[i].left, lo, hi) / 2;
+            voicesOut[i].right = za::clamp(voicesOut[i].right, lo, hi) / 2;
+        }
+    }
+    S_ShadowFilters(out, voicesOut != out ? voicesOut : nullptr, count);
 }
 
 } // namespace
@@ -2701,8 +3024,11 @@ extern "C" void VR_SndShadow(int count)
         if(sh.buffer.empty())
         {
             sh.buffer.resize(2048);
+            sh.held.resize(2048);
             sh.mixL.resize(Mixer::maxSamples, 0.f);
             sh.mixR.resize(Mixer::maxSamples, 0.f);
+            sh.revL.resize(Mixer::maxSamples, 0.f);
+            sh.revR.resize(Mixer::maxSamples, 0.f);
             sh.carryL.resize(Mixer::maxSamples, 0.f);
             sh.carryR.resize(Mixer::maxSamples, 0.f);
             za::fill(sh.channelOf, -1);

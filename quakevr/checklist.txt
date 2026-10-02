@@ -126,7 +126,10 @@ Flashlight Gun Clip Range (Advanced VR Options > Flashlight > Taking and Clippin
 Weapon Offsets > Flashlight: the cyan outline follows Forward/Up/Out/Pitch/Yaw/Roll; Clip the Flashlight on It puts the torch there
 Weapon Offsets > Flashlight: a second weapon keeps its own torch place (and the off hand mirrors it correctly)
 
-Sound > HRTF Anti-Aliasing: toggle off/on with a monster to one side: on, its side is clearer and steadier
+Sound > HRTF Anti-Aliasing (only matters with Full-Band Sound off): toggle off/on with a monster to one side: on, its side is clearer and steadier
+Sound > Full-Band Sound (Binaural Sounds, the default): Debug > A 22 kHz Sound Behind You / Ahead: behind sounds behind and duller; Off loses that
+Full-Band Sound: no new hiss or crackle on Quake's sounds (explosions, monsters), in slow motion too; overall loudness the same as before
+Full-Band Sound > All Sounds: your own sounds (pain, pickups) a little brighter, nothing else changes
 Debug: A Sound 45 Degrees Right / Left: each clearly comes from its side, straight ahead sounds centred
 HRTF Volume 1.5 was tuned with the old folded highs: may want a touch more now
 

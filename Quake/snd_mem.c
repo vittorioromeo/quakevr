@@ -35,6 +35,7 @@ static void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 	float	stepscale;
 	int		i;
 	int		sample, samplefrac, fracstep;
+	int		insamples, inloop;
 	sfxcache_t	*sc;
 
 	sc = (sfxcache_t *) Cache_Check (&sfx->cache);
@@ -43,6 +44,8 @@ static void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 
 	stepscale = (float)inrate / shm->speed;	// this is usually 0.5, 1, or 2
 
+	insamples = sc->length; // QVR: (the band-limited copy's)
+	inloop = sc->loopstart;
 	outcount = sc->length / stepscale;
 	sc->length = outcount;
 	if (sc->loopstart != -1)
@@ -83,6 +86,11 @@ static void ResampleSfx (sfx_t *sfx, int inrate, int inwidth, byte *data)
 			samplefrac &= 255;
 		}
 	}
+
+// QVR: and band-limited (vr_snd_fullband): the samples held as above repeat the sound's spectrum above its own
+// Nyquist (an 11 kHz sound's images over 5.5 kHz), which Quake's 11 kHz lowpass takes out and a mix without it doesn't
+	if (sc->fullband)
+		VR_SndBandLimit (data, inwidth, insamples, inloop, (int)(stepscale * 256), (short *)(sc->data + sc->fullband), outcount);
 }
 
 //=============================================================================
@@ -100,6 +108,7 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	int		len;
 	float	stepscale;
 	float	ratescale;
+	int	fullband;
 	sfxcache_t	*sc;
 
 // see if still in memory
@@ -166,12 +175,15 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 		return NULL;
 	}
 
-	sc = (sfxcache_t *) Cache_Alloc ( &s->cache, len + sizeof(sfxcache_t), s->name);
+	// QVR: room for the band-limited copy (16-bit, after the held samples; ResampleSfx) when it is resampled
+	fullband = info.rate != shm->speed ? (len + 3) & ~3 : 0;
+	sc = (sfxcache_t *) Cache_Alloc ( &s->cache, (fullband ? fullband + 2 * (int)(info.samples / stepscale) : len) + sizeof(sfxcache_t), s->name);
 	if (!sc)
 	{
 		free (data);
 		return NULL;
 	}
+	sc->fullband = fullband;
 
 	sc->length = info.samples;
 	sc->loopstart = info.loopstart;

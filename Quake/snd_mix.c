@@ -406,16 +406,24 @@ void S_LowpassTest (int *data, int stride, int count, int side, int reset)
 QVR: the game-time render's (vr/vr_audio.cpp, VR_SndShadow) lowpass and underwater filter: as the live mix's, with
 their own memories (its samples are another stream: the effects at their normal speed in the game's time).
 */
-void S_ShadowFilters (portable_samplepair_t *buffer, int count)
+void S_ShadowFilters (portable_samplepair_t *buffer, const portable_samplepair_t *fullband, int count)
 {
 	static filter_t	shadow_l, shadow_r;
 	static float	accum[2];
 	int		i;
 
-	if (sndspeed.value == 11025 && shm->speed == 44100)
+	if (sndspeed.value == 11025 && shm->speed == 44100 && VR_SndFullBand () < 2)
 	{
 		S_LowpassFilter((int *)buffer,       2, count, &shadow_l);
 		S_LowpassFilter(((int *)buffer) + 1, 2, count, &shadow_r);
+	}
+	if (fullband) // the voices held out of the lowpass (vr_snd_fullband)
+	{
+		for (i = 0; i < count; i++)
+		{
+			buffer[i].left += fullband[i].left;
+			buffer[i].right += fullband[i].right;
+		}
 	}
 	if (!underwater.intensity)
 	{
@@ -481,7 +489,8 @@ CHANNEL MIXING
 
 static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
 static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
-static void SND_PaintChannelRate (channel_t *ch, sfxcache_t *sc, int start, int end, float rate); // QVR
+static void SND_PaintChannelRate (channel_t *ch, sfxcache_t *sc, int start, int end, float rate, const short *full); // QVR
+static void SND_PaintChannelFull (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart); // QVR
 
 void S_PaintChannels (int endtime)
 {
@@ -491,6 +500,7 @@ void S_PaintChannels (int endtime)
 	sfxcache_t	*sc;
 
 	float	rate = VR_SndRate (); // QVR: slow motion: the sounds' playback rate (1 normal)
+	int	fullband = VR_SndFullBand (); // QVR: vr_snd_fullband (2: Quake's channels band-limited, no 11 kHz lowpass)
 
 	snd_vol = sfxvolume.value * 256;
 
@@ -521,7 +531,7 @@ void S_PaintChannels (int endtime)
 
 			if (rate != 1.f) // QVR: slow motion (vr_timescale_sound): read slower, interpolated
 			{
-				SND_PaintChannelRate (ch, sc, paintedtime, end, rate);
+				SND_PaintChannelRate (ch, sc, paintedtime, end, rate, fullband == 2 ? S_FullBandData (sc) : NULL);
 				continue;
 			}
 			if (ch->resampled) // QVR: back from slow motion: the end in the sound's own samples again
@@ -544,7 +554,9 @@ void S_PaintChannels (int endtime)
 				{
 					// the last param to SND_PaintChannelFrom is the index
 					// to start painting to in the paintbuffer, usually 0.
-					if (sc->width == 1)
+					if (fullband == 2 && sc->fullband) // QVR: the band-limited copy
+						SND_PaintChannelFull(ch, sc, count, ltime - paintedtime);
+					else if (sc->width == 1)
 						SND_PaintChannelFrom8(ch, sc, count, ltime - paintedtime);
 					else
 						SND_PaintChannelFrom16(ch, sc, count, ltime - paintedtime);
@@ -576,12 +588,13 @@ void S_PaintChannels (int endtime)
 		VR_SndBus (paintbuffer, end - paintedtime);
 
 	// apply a lowpass filter
-		if (sndspeed.value == 11025 && shm->speed == 44100)
+		if (sndspeed.value == 11025 && shm->speed == 44100 && fullband < 2) // QVR: not with vr_snd_fullband 2
 		{
 			static filter_t memory_l, memory_r;
 			S_LowpassFilter((int *)paintbuffer,       2, end - paintedtime, &memory_l);
 			S_LowpassFilter(((int *)paintbuffer) + 1, 2, end - paintedtime, &memory_r);
 		}
+		VR_SndBypass (paintbuffer, end - paintedtime); // QVR: the voices held out of it (vr_snd_fullband)
 
 		S_UnderwaterFilter (end - paintedtime);
 		S_UpdateLevels (end - paintedtime);
@@ -697,10 +710,11 @@ static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, in
 
 /*
 QVR: slow motion (vr_timescale_sound): paints the channel from output sample `start` to `end`, reading its sound at
-`rate` of its samples per output sample (slower and lower under 1), linearly interpolated; loops as the others do. Its
+`rate` of its samples per output sample (slower and lower under 1), linearly interpolated (from `full`, the band-limited
+copy, when not NULL: vr_snd_fullband 2); loops as the others do. Its
 end is kept in output samples at that rate (the channel's life, S_StartSound's choice of a channel to reuse).
 */
-static void SND_PaintChannelRate (channel_t *ch, sfxcache_t *sc, int start, int end, float rate)
+static void SND_PaintChannelRate (channel_t *ch, sfxcache_t *sc, int start, int end, float rate, const short *full)
 {
 	const int	length = sc->length;
 	const int	loop = sc->loopstart >= 0 && sc->loopstart < length ? sc->loopstart : -1;
@@ -726,7 +740,11 @@ static void SND_PaintChannelRate (channel_t *ch, sfxcache_t *sc, int start, int 
 		i0 = (int)pos;
 		i1 = i0 + 1 < length ? i0 + 1 : (loop >= 0 ? loop : i0);
 		f = (float)(pos - i0);
-		if (sc->width == 1) // 8-bit samples as 16-bit ones (the scale table's * 256)
+		if (full) // (windowed sinc: linearly, its highs' images would be heard without the 11 kHz lowpass)
+		{
+			s0 = s1 = VR_SndFullBandAt (full, length, loop, pos) * S_FULLBAND_SCALE;
+		}
+		else if (sc->width == 1) // 8-bit samples as 16-bit ones (the scale table's * 256)
 		{
 			s0 = (float)((signed char)sc->data[i0] * 256);
 			s1 = (float)((signed char)sc->data[i1] * 256);
@@ -746,4 +764,23 @@ static void SND_PaintChannelRate (channel_t *ch, sfxcache_t *sc, int start, int 
 	ch->frac = (float)(pos - ch->pos);
 	ch->end = end + (int)((length - pos) / rate);
 	ch->resampled = 1;
+}
+
+/*
+QVR: vr_snd_fullband 2: paints the channel from its sound's band-limited copy (S_FullBandData; 16-bit, the 8-bit
+sounds' samples * 256 as the scale table's), at SND_PaintChannelFrom8/16's volumes.
+*/
+static void SND_PaintChannelFull (channel_t *ch, sfxcache_t *sc, int count, int paintbufferstart)
+{
+	const short	*sfx = S_FullBandData (sc) + ch->pos;
+	const int	leftvol = (sc->width == 1 ? q_min (ch->leftvol, 255) : ch->leftvol) * snd_vol / 256 * S_FULLBAND_SCALE;
+	const int	rightvol = (sc->width == 1 ? q_min (ch->rightvol, 255) : ch->rightvol) * snd_vol / 256 * S_FULLBAND_SCALE;
+	int		i;
+
+	for (i = 0; i < count; i++)
+	{
+		paintbuffer[paintbufferstart + i].left += sfx[i] * leftvol;
+		paintbuffer[paintbufferstart + i].right += sfx[i] * rightvol;
+	}
+	ch->pos += count;
 }

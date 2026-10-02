@@ -20516,6 +20516,84 @@ interpolation, the near field, the limiter, a second copy of the sound (HRTF Vol
   monster growling to one side, and the Debug menu's A Sound 45 Degrees Right / Left.
 - Listen for the overall level of sounds at the side (a little less one-sided now) and Sound > HRTF Volume:
   1.5 was set with the old, folded highs; it may want a touch more.
+## Full-band sound: the voices round Quake's 11 kHz lowpass (2026-10-02)
+
+Follow-up on "HRTF balance" (branch `agent/lpbypass`). With `sndspeed 11025` (the default) Quake low-passes the whole
+mix at ~5.3 kHz (`S_LowpassFilter`, snd_mix.c), so the binaural voices lost everything above it: the HRTF's cues for
+ahead/behind and above/below are mostly there. His decision: the spatial voices skip that lowpass, by default.
+
+### What changed
+
+- **`vr_snd_fullband`** (1; Sound > Direction > **Full-Band Sound**: Off (Quake's 11 kHz) / Binaural Sounds / All
+  Sounds). 1: the voices are held out of the paint buffer (`VR_SndPaint` paints them into `Live::held`) and added after
+  Quake's lowpass (`VR_SndBypass`, snd_mix.c, halved and clipped as `VR_SndBus`); the underwater filter, limiter and
+  capture still see them. 2: Quake's own channels too (painted from the copies, `SND_PaintChannelFull`; the lowpass
+  skipped). 0: as before (`vr_snd_antialias` applies only then). The game-time mix (`VR_SndShadow`, the slow-motion
+  WAV) does the same (`S_ShadowFilters` takes the held voices).
+- **Non-spatial sounds** (decided): with 1 they keep Quake's lowpass, as asked (the player's own non-hand sounds, the
+  sounds beyond the 32 voices, everything with spatial audio off). Music was never low-passed (added after it). 2 is
+  there for whoever wants it.
+- **Band-limited copies** (`VR_SndBandLimit`, vr_audio.cpp, called from `ResampleSfx`): Quake resamples a sound to the
+  mix's rate by holding each sample (an 11 kHz sound: each four times), which repeats its spectrum above its own
+  Nyquist (images: -17 dB for an id explosion) and droops it (-3.9 dB at 5.5 kHz). Each sound not at the mix's rate now
+  also gets a windowed-sinc resampled copy (16-bit, after the held samples in the same cache block,
+  `sfxcache_t::fullband`): -6 dB at 0.475 of the lower rate (5.24 kHz for 11025 Hz, 10.5 for 22050), flat to ~0.43,
+  under -70 dB from ~0.52; ResampleSfx's timing (a channel passes between Quake's mix and a voice where it was); a loop
+  wraps (a looping sine through its seam: error 2 of 8000). Kept at half scale (`S_FULLBAND_SCALE`): id's explosions are
+  clipped at full scale and the band-limited copy overshoots it; clipped again, r_exp3 came out at -54 dB of highs
+  (hiss), -83 kept whole. Memory: 2 bytes a sample at the mix's rate (an 8-bit 11 kHz sound: 3x its held data).
+- **Between samples** (Doppler, slow motion): a copy is read with a 32-tap windowed sinc (`fullBandAt`, 512
+  fractions), not linearly: at a quarter speed, linear left the 22 kHz sound's highs' images at -21..-40 dB (8-14 kHz).
+  Cost: 32 moving voices a 90 Hz frame 0.24 -> 0.32 ms. `SND_PaintChannelRate` does the same for mode 2.
+- **The reverb** stays as it was: anti-aliased (`AntiAlias`) when Quake's lowpass is on (`renderVoices`). Steam
+  Audio's parametric reverb makes highs above 5.5 kHz even from band-limited input (its parameter updates: in the
+  game-time mix a burst up to -32 dB of the explosion, live -53 dB); filtered, -65 dB or under.
+- The voices are no longer 2.9 ms late (the anti-aliasing's delay); Quake's own channels keep the lowpass's 2.5 ms.
+- Debug > Tests > Spatial Audio: **A 22 kHz Sound Behind You / Ahead** (`vr_snd_play_dir vr/torch_out.wav 180|0`),
+  **Save a Sound's Two Copies** (`vr_snd_dump <sample>`: the held samples and the copy to sound_tests, half volume).
+
+### Measured
+
+Sounds alone (`vr_snd_dump`; highs against 0.25-4.5 kHz): id r_exp3 (11025 Hz, 8-bit) 5.8-20 kHz held -16.8 dB, copy
+-82.9. vr/torch_out (22050 Hz) 11.6-20 kHz held -4.3, copy -70.8; its 5.8-11 kHz kept.
+
+In the game (e1m1, `vr_snd_play_dir <sample> 60`, `vr_snd_capture`, the near ear; each band's change from
+`vr_snd_fullband 0` to 1, dB):
+
+| sound | 0.25-1.5 | 1.5-4.5 | 4.5-5.5 | 5.8-8 | 8-11 | 11.5-16 | 16-20 kHz | rms |
+|---|---|---|---|---|---|---|---|---|
+| r_exp3 (id, 11 kHz), live | 0.0 | +0.5 | +2.5 | +5.1 | +4.5 | +7.2 | +6.5 | +0.1 |
+| the same, game-time mix | -0.1 | +0.5 | +2.3 | +8.2 | +6.8 | +9.0 | +7.8 | +0.1 |
+| torch_out (22 kHz), live | -0.7 | 0.0 | +1.9 | +76.0 | +72.4 | +9.2 | +7.3 | +1.7 |
+| the same, game-time mix | -0.5 | +0.1 | +1.7 | +75.7 | +71.7 | +12.0 | +9.5 | +2.0 |
+| holster0 (48 kHz), live | -0.1 | -0.3 | +0.8 | +72.1 | +65.8 | +67.2 | +56.9 | +1.9 |
+
+- The id sound's rise above 5.8 kHz is in the floor: -75 dB of its 0.25-1.5 kHz band after, -80 before. Its 4.5-5.5
+  kHz +2.5 dB is the held samples' droop gone (Quake's own channels never had it: the lowpass's every fourth sample
+  is the sound's own). Loudness: +0.1 dB, so HRTF Volume (1.5) stays.
+- The 22 and 48 kHz sounds get their highs back (+70 dB: from nothing to about the level of their lows), so they are
+  1.7-2 dB louder overall: their natural level.
+- Mode 2, Quake's own channels (spatial audio off): r_exp3 +0.2 dB in every band; torch_out 5.8-11 kHz +69.5, and
+  0.25-4.5 kHz -2.7 (its highs had been folded down there by the lowpass).
+- Slow motion (0.25x, torch_out): 4.5-5.5 kHz against 0.25-1.5 kHz: a voice with mode 0 -18 dB (the held samples'
+  images, slowed into the band: no lowpass can take those), mode 1 -78; a Quake channel with mode 2 -80.
+
+### Tests
+
+`vr_snd_test fullband` (new, 12 checks): an 8-bit 11 kHz noise and a 16-bit 22 kHz noise loaded as S_LoadSound does;
+the held 11 kHz sound's images -11 dB/Hz, the copy's -84 (Quake's lowpass -90), its 0.25-4.5 kHz -0.01 dB from
+Quake's; the 22 kHz copy's 6-10 kHz +0.1 dB against 1-4 kHz (through Quake's lowpass -89), images -81. As voices (HRTF,
+60 degrees): no images (-83); 0.25-1.5 kHz +0.09 dB against anti-aliasing and Quake's lowpass (0.25-4.5 +0.94: the
+droop); the 22 kHz voice's 6-10 kHz -4.8 dB of 1-4 kHz ahead, -7.5 behind (through the lowpass -88, -91: no cue left);
+at a quarter speed no images (-88); the loop's seam; the cost line. `vr_snd_test all`: 0 failed (ild unchanged).
+
+### In VR
+
+- Debug > Tests > Spatial Audio > A 22 kHz Sound Behind You, then Ahead: behind should sound behind (and duller);
+  switch Sound > Full-Band Sound to Off and compare.
+- Play a while (monsters, explosions, slow motion): no new hiss or crackle; loudness as before.
+- Sound > Full-Band Sound > All Sounds: your own sounds a little brighter, nothing else.
+
 ## Gore: bloody hands, washing, dying bodies, blood mist (2026-10-02)
 
 The author's spec (2026-10-02, verbatim), "Miscellaneous enhancements" (the "Small gibs" part is another agent's,

@@ -46,8 +46,15 @@ typedef struct
 	int	speed;
 	int	width;
 	int	stereo;
+	int	fullband;	/* QVR: byte offset in data of the sound band-limited to its own rate (16-bit, length samples: VR_SndBandLimit), 0 when loaded at the mix's rate */
 	byte	data[1];	/* variable sized	*/
 } sfxcache_t;
+
+/* QVR: the sound as it is without Quake's sample-and-hold resampling (vr_snd_fullband), or NULL when data is that.
+   It holds the sound at 1/S_FULLBAND_SCALE (room for the band-limiting's overshoot of a sound clipped at full scale,
+   id's explosions: clipped again, that came out as hiss): its samples times S_FULLBAND_SCALE are data's. */
+#define S_FullBandData(sc)	((sc)->fullband ? (const short *)((sc)->data + (sc)->fullband) : NULL)
+#define S_FULLBAND_SCALE	2
 
 typedef struct
 {
@@ -111,7 +118,7 @@ void S_ClearPrecache (void);
 void S_BeginPrecaching (void);
 void S_EndPrecaching (void);
 void S_PaintChannels (int endtime);
-void S_ShadowFilters (portable_samplepair_t *buffer, int count);	/* QVR: the game-time render's lowpass and underwater filter (vr/vr_audio.cpp) */
+void S_ShadowFilters (portable_samplepair_t *buffer, const portable_samplepair_t *fullband, int count);	/* QVR: the game-time render's lowpass and underwater filter (vr/vr_audio.cpp); `fullband` (or NULL) added after the lowpass */
 void S_LowpassTest (int *data, int stride, int count, int side, int reset);	/* QVR: the 11 kHz lowpass on a test buffer (vr/vr_audiotest.cpp) */
 float S_GetLoFreqLevel (void);
 float S_GetHiFreqLevel (void);
