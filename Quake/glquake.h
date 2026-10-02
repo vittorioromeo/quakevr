@@ -571,6 +571,7 @@ typedef struct glprogs_s {
 	GLuint		alias[2][3][2][3];	// [OIT][mode:standard/dithered/noperspective][alpha test][poseverttype]
 	GLuint		alias_depth[3];		// QVR: [poseverttype] the shadow maps' casters: depth only (no fragment shader)
 	GLuint		woundpaint[3];		// QVR: [poseverttype] a model drawn into its wound mask (vr/vr_wounds.cpp)
+	GLuint		woundpaintbox;		// QVR: a held brush model's box drawn into its wound mask (vr/vr_wounds.cpp)
 	GLuint		sprites[2];			// [dither]
 	GLuint		particles[2][2];	// [OIT][dither]
 	GLuint		debug3d;

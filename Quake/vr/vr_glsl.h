@@ -967,6 +967,8 @@ LIQUID_SWELL \
 "layout(location=14) flat out vec4 out_detail; // QVR: detail textures (vr/vr_detail.cpp)\n" \
 "layout(location=15) flat out float out_aoself; // QVR: dynamic ambient occlusion (vr/vr_ao.cpp)\n" \
 "layout(location=16) flat out vec4 out_extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp)\n" \
+"layout(location=17) out vec3 out_boxpos; // QVR: a held prop's blood (BoxWounds): where in its box, a unit its largest side\n" \
+"layout(location=18) flat out vec4 out_wound; // QVR: its box mask (Instance.wound)\n" \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
 "	layout(location=20) out float out_rim; // QVR: 1 + the distance to the shore (the swells' mesh), 0 unknown: the foam\n"
 
@@ -980,14 +982,89 @@ LIQUID_SWELL \
 "layout(location=14) flat in vec4 in_detail; // QVR: detail textures (vr/vr_detail.cpp)\n" \
 "layout(location=15) flat in float in_aoself; // QVR: dynamic ambient occlusion's own group (vr/vr_ao.cpp)\n" \
 "layout(location=16) flat in vec4 in_extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp)\n" \
+"layout(location=17) in vec3 in_boxpos; // QVR: a held prop's blood (BoxWounds)\n" \
+"layout(location=18) flat in vec4 in_wound; // QVR: its box mask: x its layer + 1 (0 none), yz its size in texels, w the blood's opacity\n" \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
 "	layout(location=20) in float in_rim; // QVR: the shoreline foam's distance (LiquidFoam)\n"
+
+// QVR: blood on a brush model you held (vr/vr_wounds.cpp, "Blood on your props": an ammo or health box, an explosive
+// box): its mask has no skin to follow, so it is laid out on its box, six cells (3 x 2: +x -x +y -y +z -z), each the side
+// of the box facing that way, its two other axes across it over the box's largest side (q: where in the box from its
+// centre, a unit that side). A surface reads the cell of the way it faces most (its normal's largest axis, in the
+// model's own frame) and of the side of the centre it is on. Read and dithered as the monsters' masks (WoundsAt): sharp,
+// chunky, Quake's reds. x blood, y char, z wet (0 or 1), w the blood's red.
+#define QVR_BOX_WOUNDS \
+"layout(binding=13) uniform sampler2DArray WoundMasks; // QVR: (vr/vr_wounds.cpp)\n" \
+"vec4 BoxWounds(vec3 q, vec4 wi)\n" \
+"{\n" \
+"	vec3 n = abs(cross(dFdx(q), dFdy(q)));\n" \
+"	int a = n.x >= n.y && n.x >= n.z ? 0 : n.y >= n.z ? 1 : 2;\n" \
+"	int r = a * 2 + (q[a] >= 0.0 ? 0 : 1);\n" \
+"	vec2 uv = (a == 0 ? q.yz : a == 1 ? q.xz : q.xy) + 0.5;\n" \
+"	vec2 c = (vec2(float(r % 3), float(r / 3)) + clamp(uv, 0.0, 0.999)) / vec2(3.0, 2.0);\n" \
+"	ivec2 t = ivec2(c * wi.yz);\n" \
+"	vec4 m = texelFetch(WoundMasks, ivec3(t, int(wi.x) - 1), 0);\n" \
+"	if (m.rgb == vec3(0.0))\n" \
+"		return vec4(0.0);\n" \
+"	ivec2 it = t & 3;\n" \
+"	const float bayer[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);\n" \
+"	float d = (bayer[it.y * 4 + it.x] + 0.5) / 16.0;\n" \
+"	return vec4(step(0.2 + 0.24 * d, m.r), step(0.16 + 0.28 * d, m.g), step(0.06 + 0.4 * d, m.b),\n" \
+"		(m.r > 0.82 ? 47. : m.r > 0.62 ? 63. : 87.) / 255.0);\n" \
+"}\n"
+
+// QVR: a held prop's blood (BoxWounds) on its texture, before its light: char, blood (as much as vr_wounds_blood_alpha
+// leaves of the texture), wet darker; its fullbrights covered
+#define QVR_WORLD_FS_WOUNDS \
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n" \
+"	if (in_wound.x > 0.5)\n" \
+"	{\n" \
+"		vec4 bw = BoxWounds(in_boxpos, in_wound);\n" \
+"		float lum = dot(result.rgb, vec3(0.3, 0.59, 0.11));\n" \
+"		result.rgb = mix(result.rgb, vec3(0.26, 0.2, 0.15) * (0.35 + 0.9 * lum), bw.y);\n" \
+"		result.rgb = mix(result.rgb, vec3(bw.w, 0.0, 0.0) * (0.75 + 0.5 * lum), bw.x * in_wound.w);\n" \
+"		result.rgb *= 1.0 - 0.5 * bw.z;\n" \
+"		fullbright *= 1.0 - max(bw.x, bw.y);\n" \
+"	}\n" \
+"#endif\n"
+
+// QVR: a brush model drawn into its box mask (BoxWounds; vr/vr_wounds.cpp): no vertices, 36 (two triangles a side of its
+// box, gl_VertexID), each side over its cell, with where it is in the world and its normal for the wound paint's
+// fragment shader (QVR_WOUND_PAINT_FS). The box's sides stand for its surfaces (an item's box is its box).
+#define QVR_BOX_WOUND_PAINT_VS \
+"layout(location=81) uniform vec4 BoxWorld[3]; // its world matrix (transposed 4x3, as the world's Instance.mat)\n" \
+"layout(location=84) uniform vec4 BoxCentre; // xyz its box's centre (the model's frame), w its largest side\n" \
+"layout(location=85) uniform vec4 BoxHalf; // xyz half its sides\n" \
+"\n" \
+"layout(location=0) out vec2 out_texcoord;\n" \
+"layout(location=2) out vec3 out_pos;\n" \
+"layout(location=3) out vec3 out_nor;\n" \
+"\n" \
+"void main()\n" \
+"{\n" \
+"	const vec2 corner[6] = vec2[6](vec2(0.0, 0.0), vec2(1.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 0.0), vec2(1.0, 1.0), vec2(0.0, 1.0));\n" \
+"	int r = gl_VertexID / 6;\n" \
+"	vec2 uv = corner[gl_VertexID % 6];\n" \
+"	int a = r / 2;\n" \
+"	float s = (r % 2) == 0 ? 1.0 : -1.0;\n" \
+"	vec2 w = (uv - 0.5) * BoxCentre.w;\n" \
+"	vec3 q = a == 0 ? vec3(s * BoxHalf.x, w) : a == 1 ? vec3(w.x, s * BoxHalf.y, w.y) : vec3(w, s * BoxHalf.z);\n" \
+"	vec3 nrm = a == 0 ? vec3(s, 0.0, 0.0) : a == 1 ? vec3(0.0, s, 0.0) : vec3(0.0, 0.0, s);\n" \
+"	mat4x3 world = transpose(mat3x4(BoxWorld[0], BoxWorld[1], BoxWorld[2]));\n" \
+"	mat3 rot = mat3(world[0], world[1], world[2]);\n" \
+"	out_pos = rot * (BoxCentre.xyz + q) + world[3];\n" \
+"	out_nor = normalize(rot * nrm);\n" \
+"	out_texcoord = uv;\n" \
+"	vec2 c = (vec2(float(r % 3), float(r / 3)) + uv) / vec2(3.0, 2.0);\n" \
+"	gl_Position = vec4(c * 2.0 - 1.0, 0.0, 1.0);\n" \
+"}\n"
 
 // detail, parallax, specular anti-aliasing, the baked light's bumps
 #define QVR_WORLD_FS_FUNCTIONS \
 DETAIL_FUNCTIONS \
 PARALLAX_FUNCTIONS \
 SPECULAR_AA_FUNCTIONS \
+QVR_BOX_WOUNDS \
 "// QVR: the screen derivatives of the baked light's brightness lum, for its bumps (BakedBump): the lightmap's slope\n" \
 "// here, from its luxels in full precision, times how its coordinates change across the screen. dFdx of the filtered\n" \
 "// light itself was 0 between steps of the filter's 8-bit weights (1/256 of a luxel) and of the 8-bit light, and a\n" \

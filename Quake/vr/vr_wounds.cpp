@@ -444,6 +444,20 @@ void subtract(int layer, const glm::vec4& amount, bool ownOnly = false)
     }
 }
 
+// `n` splats painted on `e` into the bound layer (the blending set): an alias model by its skin, a held brush model (a
+// box) by its box (r_world.c's R_PaintBrushWounds).
+void paintModel(entity_t* e, int n, const float* splats, int side)
+{
+    if(e->model && e->model->type == mod_brush)
+    {
+        R_PaintBrushWounds(e, n, splats);
+    }
+    else
+    {
+        R_PaintAliasWounds(e, n, splats, side);
+    }
+}
+
 void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
 {
     if(splats.empty())
@@ -465,7 +479,7 @@ void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
         {
             const int n = static_cast<int>(za::min<za::SizeT>(maxSplats, splats.size() - i));
             GL_BlendEquationFunc(GL_MAX);
-            R_PaintAliasWounds(e, n, &splats[i].v[0].x, side[k]);
+            paintModel(e, n, &splats[i].v[0].x, side[k]);
         }
     }
     GL_BlendEquationFunc(GL_FUNC_ADD);
@@ -476,11 +490,27 @@ void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
 // ----------------------------------------------------------------------------
 // The masks.
 
+// A brush model's box mask (a held prop's, `box`: an ammo or health box, an explosive box; vr_glsl.h's BoxWounds): six
+// cells, 3 x 2, a side of its box each, its largest side boxTexels texels across a cell (at most a third of a layer).
+constexpr float boxTexels = 2.5f; // a unit (the monsters' skins' about 2)
+
 // Its skin's shape: the region of a layer its mask takes (the skin's size up to 256 on its longer side; a fine mask's:
-// its longer side `fine`, finer than the skin). False for a model its mask can't be for (not an alias model, several
-// surfaces: several skins over one layout).
-[[nodiscard]] bool regionOf(const qmodel_t* model, int& w, int& h, int fine)
+// its longer side `fine`, finer than the skin; a held brush model's, `box`: its box's six cells). False for a model its
+// mask can't be for (not an alias model nor such a brush model, several surfaces: several skins over one layout).
+[[nodiscard]] bool regionOf(const qmodel_t* model, int& w, int& h, int fine, bool box = false)
 {
+    if(model && model->type == mod_brush && box && fine <= 0)
+    {
+        const float side = za::max(model->maxs[0] - model->mins[0], za::max(model->maxs[1] - model->mins[1], model->maxs[2] - model->mins[2]));
+        if(side <= 0.f)
+        {
+            return false;
+        }
+        const int cell = za::clamp(static_cast<int>(za::lround(side * boxTexels)), 8, layerSize / 3);
+        w = cell * 3;
+        h = cell * 2;
+        return true;
+    }
     if(!model || model->type != mod_alias)
     {
         return false;
@@ -532,8 +562,8 @@ void freeMask(int layer)
     m = Mask{};
 }
 
-// The mask of `e` (made, empty, when `create`), or -1.
-int acquire(const entity_t* e, bool view, bool create)
+// The mask of `e` (made, empty, when `create`), or -1. `box`: a brush model too (a held prop: its box mask).
+int acquire(const entity_t* e, bool view, bool create, bool box = false)
 {
     if(!ensureTexture())
     {
@@ -561,7 +591,7 @@ int acquire(const entity_t* e, bool view, bool create)
     // Yours in the fine masks (vr_wounds_own_res), the rest in the pool.
     const bool fine = view && fineSize > 0;
     int w = 0, h = 0;
-    if(!regionOf(e->model, w, h, fine ? fineSize : 0))
+    if(!regionOf(e->model, w, h, fine ? fineSize : 0, box))
     {
         return -1;
     }
@@ -1341,7 +1371,7 @@ void washUnder(int layer, entity_t* e, float surface, float amount)
         GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
         glBlendFunc(GL_ONE, GL_ONE);
         GL_BlendEquationFunc(GL_FUNC_REVERSE_SUBTRACT);
-        R_PaintAliasWounds(e, 1, &s.v[0].x, side[k % n]);
+        paintModel(e, 1, &s.v[0].x, side[k % n]);
         GL_BlendEquationFunc(GL_FUNC_ADD);
         glBlendFunc(GL_ONE, GL_ZERO);
     }
@@ -1615,7 +1645,7 @@ void viewBlood(int count[3], double sum[3])
 }
 
 // What `hand` holds that takes blood: its weapon (the drawn one), else a prop it carries (not a gib: that bleeds its
-// own). Null: nothing.
+// own; a brush model, an ammo or health box, an explosive box: its box mask). Null: nothing.
 [[nodiscard]] entity_t* gearOf(int hand)
 {
     if(const view::ViewEntity* ve = view::heldWeapon(hand))
@@ -1623,7 +1653,8 @@ void viewBlood(int count[3], double sum[3])
         return const_cast<entity_t*>(&ve->ent);
     }
     const int n = cl.stats[hand == 1 ? protocol::STAT_QVR_CARRYMAIN : protocol::STAT_QVR_CARRYOFF];
-    if(n > 0 && n < cl.num_entities && n != cl.viewentity && cl_entities[n].model && cl_entities[n].model->type == mod_alias && !isGib(n))
+    const qmodel_t* model = n > 0 && n < cl.num_entities ? cl_entities[n].model : nullptr;
+    if(model && n != cl.viewentity && (model->type == mod_alias || model->type == mod_brush) && !isGib(n))
     {
         return &cl_entities[n];
     }
@@ -1841,7 +1872,7 @@ void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reac
         {
             continue;
         }
-        const int layer = acquire(g, false, true);
+        const int layer = acquire(g, false, true, true);
         if(layer < 0)
         {
             continue;
@@ -2144,8 +2175,15 @@ void washGear(float amount)
         {
             continue;
         }
+        glm::vec3 at = originOf(*m.ent);
+        if(m.ent->model && m.ent->model->type == mod_brush) // (a box's origin is its corner: its middle)
+        {
+            float c[3];
+            R_BModelCentre(const_cast<entity_t*>(m.ent), c);
+            at = glm::vec3{c[0], c[1], c[2]};
+        }
         float surface;
-        if(waterSurface(originOf(*m.ent), 16.f, surface))
+        if(waterSurface(at, 16.f, surface))
         {
             washUnder(i, const_cast<entity_t*>(m.ent), surface, amount);
         }
@@ -2652,6 +2690,7 @@ void spatterTest_f()
     entity_t* g = gearOf(1);
     const glm::vec3 hand = g ? originOf(*g) : own[2] ? originOf(*own[2]) : eye + ahead * 16.f;
     const bool shot = ZA_STRCMP(what, "shot") == 0, gib = ZA_STRCMP(what, "gib") == 0, saw = ZA_STRCMP(what, "saw") == 0;
+    const bool prop = ZA_STRCMP(what, "prop") == 0;
     const float dist = Cmd_Argc() > 2 ? static_cast<float>(atof(Cmd_Argv(2))) : shot ? 40.f : gib ? 0.f : 6.f;
     Event ev;
     ev.num = 0;
@@ -2659,6 +2698,23 @@ void spatterTest_f()
     ev.amount = 30;
     ev.kind = shot ? KindShot : KindMelee;
     ev.org = shot ? eye + ahead * dist : hand + ahead * dist;
+    if(prop) // a blow on what the main hand holds, on its side facing you (`distance` units past its bounding sphere, -4 by default): the blood seen on it
+    {
+        if(!g)
+        {
+            Con_Printf("vr_gore_spatter_test: the main hand holds nothing\n");
+            return;
+        }
+        glm::vec3 mid = originOf(*g);
+        if(g->model && g->model->type == mod_brush)
+        {
+            float c[3];
+            R_BModelCentre(g, c);
+            mid = glm::vec3{c[0], c[1], c[2]};
+        }
+        const glm::vec3 toEye = glm::normalize(eye - mid);
+        ev.org = mid + toEye * (modelRadius(g->model) + (Cmd_Argc() > 2 ? dist : -4.f)); // (just past its corners)
+    }
     if(gib)
     {
         const glm::vec3 at = (own[2] ? originOf(*own[2]) : hand) + ahead * dist;
@@ -2669,7 +2725,7 @@ void spatterTest_f()
     {
         spatteredNow.clear();
         spatterFrom(ev, shot ? -1 : saw ? 1 : 0);
-        Con_Printf("vr_gore_spatter_test: a %s's blood from %.0f %.0f %.0f\n", shot ? "shot" : saw ? "chainsaw cut" : "blow", ev.org.x,
+        Con_Printf("vr_gore_spatter_test: a %s's blood from %.0f %.0f %.0f\n", shot ? "shot" : saw ? "chainsaw cut" : prop ? "blow on your prop" : "blow", ev.org.x,
             ev.org.y, ev.org.z);
     }
     end();
@@ -2878,6 +2934,40 @@ extern "C" void VR_AliasWound(const entity_t* e, float out[4], float side[4])
         side[0] = m.sides[0];
         side[1] = m.sides[1];
     }
+}
+
+extern "C" void VR_BrushWound(const entity_t* e, float wound[4], float box[4])
+{
+    using namespace qvr::wounds;
+    wound[0] = wound[1] = wound[2] = wound[3] = 0.f;
+    box[0] = box[1] = box[2] = box[3] = 0.f;
+    if(!array || maskOf.empty())
+    {
+        return;
+    }
+    const auto it = maskOf.find(e);
+    if(it == maskOf.end() || isFine(it->second))
+    {
+        return;
+    }
+    Mask& m = masks[static_cast<za::SizeT>(it->second)];
+    const qmodel_t* model = e->model;
+    if(m.model != model || !model || model->type != mod_brush)
+    {
+        return;
+    }
+    m.lastDrawn = vr_gametime;
+    float side = 0.f;
+    for(int i = 0; i < 3; i++)
+    {
+        box[i] = 0.5f * (model->mins[i] + model->maxs[i]);
+        side = za::max(side, model->maxs[i] - model->mins[i]);
+    }
+    box[3] = side > 0.f ? 1.f / side : 0.f;
+    wound[0] = static_cast<float>(it->second + 1);
+    wound[1] = static_cast<float>(m.w);
+    wound[2] = static_cast<float>(m.h);
+    wound[3] = za::clamp(qvr::vr_wounds_blood_alpha.value, 0.f, 1.f);
 }
 
 extern "C" void VR_AliasWoundPaintSide(const entity_t* e, int side, float out[4])
