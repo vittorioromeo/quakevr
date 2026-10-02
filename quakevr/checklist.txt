@@ -144,7 +144,6 @@ Gibs squish when they land or stick (new squish sounds); a gib or small gib thro
 Small gibs: the chances by weapon (Gore > Small Gibs > Chance by Weapon), Least Damage 12, Damage for a Sure One 60, Chance Curve 1.5
 
 [Decide or give feedback]
-Quake's 11 kHz lowpass still removes everything above ~5.5 kHz from spatial voices (front/back and up/down cues): let spatial voices bypass it?
 Flashlight head zone: make your values the defaults (zone up 0.175, forward 0.015; shipped 0.04, 0)?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Flashlight: a hand gripping as the returning lamp flies into it now catches it (new): OK?
