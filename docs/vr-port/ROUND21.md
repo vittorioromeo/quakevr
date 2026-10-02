@@ -21098,3 +21098,54 @@ blow, a lava nail or a touch would; `4` prints how it burns; `5` loads lava nail
 **For the author in VR:** hit a grunt with a lit torch and watch the flames spread (Flame Size, Spread Flames' Size,
 Spread Time to taste); burn a corpse; turn on Torch Touch and brush a monster; fire lava nails. Does a dying monster's
 flames follow its fall well enough?
+
+### Burning, part 2: crates; nails through a torch's flame (2026-10-02)
+
+The author's notes (`vrfiringrange_2026-10-02_16-03-21`, `_16-03-56`): crates can be set on fire, fire spreads over time
+between wooden crates that touch, burning crates break after a while, burn marks on them; nails fired through a held
+torch's flame become lava nails (more damage, and they set things on fire).
+
+**Crates** (`vr_burning.qc`, `vr_burn_crates` 1). A crate (`VR_Crate_Is`: not its pieces, not explosive boxes) catches
+fire as a monster does: a lit torch's blow or touch (Torch Touch), a thrown lit torch, a lava nail. Its flames turn
+with it (it tips and rolls: their places are kept in its model's own axes, `modelpoint`) and sit on its box, turned with
+it (`VR_Burn_CrateCast`: `hitmodel_any` missed a crate that had moved since it was spawned, the drawn model's tracking
+lagging it; a crate is a box anyway): on its top half from above unless something lies on it (a stacked crate: the
+flames would be hidden under it), else on its sides; `vr_burn_crate_flames` 6 of them, `vr_burn_crate_flame_size` 1.25
+times a body's. It takes no fire damage: it burns `vr_burn_crate_time` 10 s from when it caught (more hits add flames,
+never time), then breaks into its pieces in a burst of embers and smoke (`vr_burn_crate_break` 1; 0: its fire goes
+out). After `vr_burn_crate_spread` 3 s of burning (0: never), every 0.5 s, the crates touching it (boxes within
+`vr_burn_crate_gap` 2 units) catch fire where they are nearest it: a stack or a row burns through one after another.
+Burns are painted under its flames as on bodies (the wound system paints any alias model; extra 1: no wound; a blow's
+scorch on wood has no wound either).
+
+**Nails through a flame** (`vr_burn_nail_convert` 1). A nail (the nailgun's, the super nailgun's, a trap's) passing
+within `vr_burn_nail_reach` 10 units of a lit torch's flame (8 units over its head; held, thrown, lying or on its wall)
+becomes a lava nail: `lava_spike`, its model, glow and trail, `lavaspike_touch`/`superlavaspike_touch` (a lava nail's
+damage, Weapon Damage; it sets what it hits on fire, Lava Nails). Checked as it is fired (its first two frames' way:
+`W_FireSpikes`, `W_FireSuperSpikes`: a torch held just past the muzzle, a monster just past the torch, hit in the frame
+it was fired) and every frame (`VR_Burn_NailFrame`: from where it was to where it will be).
+
+**Menu.** Combat > Burning: Nails Through a Flame, Flame's Reach for Nails; Crates: Crates Burn, Crate Burn Time, Burnt
+Crates Break, Fire Spreads After, Touching Within, Crate Flames, Crate Flame Size. Debug > Burning Tests: the tests pick
+the nearest crate too; `vr_burn_test 6` shoots a nail through the nearest lit torch's flame, `7` prints where it is.
+
+**Verification** (mock headset; the kit's `scratch/burn_*.sh`):
+- **Spread and break** (e1m1, `vr_test_spawn 109`: a crate with one on it; `vr_burn_crate_time 6; vr_burn_crate_spread
+  2; vr_burn_test 1`): the lower crate lit, 4 flames on its top's uncovered front (before the cover check they sat
+  hidden under the top crate); 2 s on, `vr_crate lit (a burning crate)`, its flames on the top crate's sides and top;
+  at 6 s each `burnt through: it breaks`, `crate: breaks`, pieces and its health box left (`burn_crate.png`).
+- **Burn marks** (`vr_wounds_debug 1`): kind 5, extra 1 events on the crate; its top charred after (`burn_cmarks.png`).
+- **Lava nails into a crate** (vrfiringrange, `impulse 156`, `vr_burn_test 5`): `lava_spike hit vr_crate`, `lit (a
+  missile)`; later hits added flames, its time stayed (`burns till 14.1` each).
+- **Touch** (e1m2, torch 52 in the main hand, `vr_burn_touch 1`, the hand on a crate): `lit (a touch)` 1, 2, 4 flames;
+  broke at its time.
+- **Nails through a held torch** (e1m2: torch 52 in the off hand put just past the main hand's nailgun's muzzle with
+  `vr_mock_hand_to off 1768 -162 298`, firing at the ogre): `a nail through a flame ...: a lava nail`, `lava_spike hit
+  monster_ogre`, `lit (a missile)`; the torch 30 units to the side (`1745 -200 298`): plain `spike` hits; Nails Through a
+  Flame off: plain spikes. `vr_burn_test 6` at e1m2's wall torch: a lava nail; off: a spike.
+- eval: 172/177, the same as the round's base commit f08161c8 (its 18 detail differences from the baseline too).
+- Not driven by the mock: a torch's blow on a crate (the same call as on a monster, `VR_WallTorch_Melee`).
+
+**For the author in VR:** set a crate on fire and watch it spread along a row and break (Crate Burn Time, Fire Spreads
+After); hold a torch in front of the nailgun and fire through it (Flame's Reach for Nails: is 10 units easy enough?).
+Explosive boxes don't catch fire (they could: a fire setting one off).
