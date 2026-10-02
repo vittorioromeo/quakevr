@@ -20,6 +20,7 @@
 #include "vr_client.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
+#include "vr_highlights.hpp"
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
 #include "vr_limits.hpp"
@@ -1142,6 +1143,7 @@ extern "C" void VR_Init()
     registerMockCommands();
     input::init();
     voicenotes::init();
+    highlights::init();
     posing::init();
     sightalign::init();
     bodycal::init();
@@ -1206,6 +1208,7 @@ extern "C" void VR_Shutdown()
     imgprefetch::shutdown(); // (the decoding tasks finished)
     ao::shutdown(); // (the models' occlusion bakes, VR or not)
     gpustats::stop();
+    highlights::shutdown(); // a log still open: its JSON and EDL written
     if(state)
     {
         voicenotes::shutdown();
@@ -1261,6 +1264,7 @@ extern "C" void VR_BeginFrame()
     lines::clear(); // queued anew every frame (teleport aim, crosshairs)
     text3d::clear();
     voicenotes::frame(); // after the clear: its indicator is queued anew each frame
+    highlights::frame(); // the game's clock against realtime, a multi-kill's end
     motion::frame();     // the motion recorder's indicator, likewise
     posing::frame();     // the weapon posing mode's text, likewise
     sightalign::frame(); // Align Sights to My Aim: its countdown, text and state

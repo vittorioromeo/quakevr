@@ -64,6 +64,7 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
     self.vr_spin = '0 0 0';
     self.flags = self.flags - (self.flags & FL_ONGROUND);
 
+    VR_Highlight_AxeStick(xSpeed);
     if(VR_AxeStick_InMonster(self))
     {
         sound(self, CHAN_AUTO, "player/axhit1.wav", 1, ATTN_NORM);

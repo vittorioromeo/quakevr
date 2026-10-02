@@ -10,6 +10,7 @@
 #include "vr_debris.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
+#include "vr_highlights.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
@@ -38,8 +39,9 @@ namespace qvr::progs
 namespace
 {
 
-// Ironwail numbers its unnumbered builtins downwards from MAX_BUILTINS - 2.
-constexpr int firstVrBuiltin = 1000;
+// Ironwail numbers its unnumbered builtins downwards from MAX_BUILTINS - 2 (none today: its highest numbered one is
+// #627). The VR ones from 900 (1000 until they filled the 80 slots below the 200 kept for Ironwail's).
+constexpr int firstVrBuiltin = 900;
 
 // ----------------------------------------------------------------------------
 // Math and vectors
@@ -219,6 +221,28 @@ void PF_floattext()
 void PF_fileexists()
 {
     G_FLOAT(OFS_RETURN) = COM_FileExists(G_STRING(OFS_PARM0), nullptr) ? 1.f : 0.f;
+}
+
+// ----------------------------------------------------------------------------
+// Highlight markers (vr_highlights.cpp; QC vr_highlights.qc)
+
+// float() highlighting: whether a highlight log is running (the QC skips its work when not).
+void PF_highlighting()
+{
+    G_FLOAT(OFS_RETURN) = highlights::active() ? 1.f : 0.f;
+}
+
+// highlight(kind, score, subject, detail, since): a moment for the log; `subject`'s classname (world: none); `score` 0:
+// the kind's own; `since` the game time it began (0: now).
+void PF_highlight()
+{
+    if(!highlights::active())
+    {
+        return;
+    }
+    const edict_t* subject = G_EDICT(OFS_PARM2);
+    const char* name = subject != qcvm->edicts && !subject->free ? PR_GetString(subject->v.classname) : "";
+    highlights::event(G_STRING(OFS_PARM0), G_FLOAT(OFS_PARM1), name, G_STRING(OFS_PARM3), G_FLOAT(OFS_PARM4));
 }
 
 // ----------------------------------------------------------------------------
@@ -1117,6 +1141,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
     {"fileexists", PF_fileexists},
+    {"highlighting", PF_highlighting},
+    {"highlight", PF_highlight},
     {"motionevent", PF_motionevent},
     {"motionpoint", PF_motionpoint},
     {"motionvalue", PF_motionvalue},

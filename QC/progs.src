@@ -50,6 +50,7 @@ vr_wounds.qc
 world.qc
 vr_dummy.qc
 vr_motion.qc
+vr_highlights.qc
 
 orig_mon_boss.qc
 orig_mon_demon.qc

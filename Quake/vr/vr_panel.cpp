@@ -17,6 +17,7 @@
 #include "vr_gadget.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_highlights.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_menuui.hpp"
@@ -416,7 +417,11 @@ extern "C" void VR_End2D(void (*windowHud)())
         drawCanvas(toNdc, wholeCanvas, sbar.rows > 0.f ? sbar.uv : noMask);
     }
 
-    if(!stereoThisFrame)
+    if(stereoThisFrame)
+    {
+        highlights::drawFlash(); // the sync mark's flash, over everything the window shows (never the headset)
+    }
+    else
     {
         copyToRuntimePanel();
     }

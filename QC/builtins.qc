@@ -314,6 +314,10 @@ void(vector org, string text, vector colour, float scale) floattext = #0; // a t
 
 void(float to, vector v) WriteVec3 = #0; // three WriteCoords
 
+float() highlighting = #0; // a highlight log is running (vr_highlights; vr_highlights.qc)
+// A moment for the highlight log: its kind, score (0: the kind's own), what it was done to, with what, and the game time
+// it began (0: now).
+void(string kind, float score, entity subject, string detail, float since) highlight = #0;
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
 
 // Water splashes (vr_physics.cpp): where a segment first goes into water, slime or lava from the
