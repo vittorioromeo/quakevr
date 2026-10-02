@@ -492,6 +492,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
 // or, with no head (a fish), the body gone.
 void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
 {
+    VR_Highlight_CorpseGib(c, inflictor, attacker);
     VR_Corpse_Parts(c);
 
     vector dir = '0 0 0';
@@ -1156,7 +1157,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             }
         }
 
+        float hlScore = VR_Highlight_Kill(targ, inflictor, attacker, isVRMelee); // VR: the highlight log (vr_highlights.qc)
+        string hlWhat = vr_hl_what;
         Killed (targ, attacker);
+        VR_Highlight_Killed(targ, hlScore, hlWhat);
         return TRUE;
     }
     else
@@ -1627,6 +1631,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         dprint("parry: "); dprint(attacker.classname); dprint(" with crossed arms\n");
         VR_Motion_Event("parry", "arms", -1, damage, VRGetHandPos(cVR_MainHand), attacker, "");
         vr_parried = 2;
+        VR_Highlight_Parry(targ, attacker, -1);
         VR_Counter_Open(targ, -1);
         damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_unarmed_reduction))));
     }
@@ -1695,6 +1700,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
                 "The blow knocks the weapon out of your hand!\n");
             self = oldSelf;
         }
+        VR_Highlight_Parry(targ, attacker, hand);
         VR_Counter_Open(targ, hand);
         damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_reduction))));
     }
@@ -1827,6 +1833,8 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
     vector    org;
 
     IsExplosionDamage = 1;
+    float hlKills = vr_hl_kills; // VR: the highlight log: the kills it makes (vr_highlights.qc)
+    vr_hl_blast_depth = vr_hl_blast_depth + 1;
 
     head = findradius(inflictor.origin, damage+40);
 
@@ -1860,6 +1868,8 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
         }
         head = head.chain;
     }
+    vr_hl_blast_depth = vr_hl_blast_depth - 1;
+    VR_Highlight_Blast(inflictor, attacker, vr_hl_kills - hlKills);
 };
 
 /*

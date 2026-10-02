@@ -94,6 +94,30 @@
             .help("Bullet time (Combat > Bullet Time) drains, tints and darkens the eyes' view while it runs; the window's "
                   "Left Eye and Smoothed Mirror show it, the Spectator Camera doesn't. Set 0 to record bullet time "
                   "without it. The Time Scale above never has it."),
+        header("Highlight Markers"),
+        toggle("Log Highlights", "vr_highlights")
+            .help("For trailers (docs/vr-port/TRAILER.md): logs the cool moments as they happen (gibs, multi-kills, parries, "
+                  "counters, bullet time, explosions and chains, shot grenades, stuck axes, hook swings...), each scored, "
+                  "in real time (right in slow motion). Turned on: a sync mark (a white flash over the window, never the "
+                  "headset, and a beep) to line the log up with the recording: start recording first. Turned off: the "
+                  "log's DaVinci Resolve markers are written. Files: quakevr/highlights/. Bindable: vr_highlights_start, "
+                  "vr_highlights_stop. Not saved."),
+        command("Sync Mark Now", "vr_highlights_sync")
+            .help("Another flash and beep in the running log (vr_highlights_sync): a recording started after the log."),
+        command("Mark This Moment", "vr_highlight_mark")
+            .help("A moment of your own in the running log (score 5). Bindable: vr_highlight_mark [score] [words]."),
+        slider("Sync Flash", "vr_highlights_flash", 0.f, 1.f, 0.05f, "%.2f s")
+            .help("How long the sync mark's flash lasts over the window (0: none)."),
+        slider("Sync Beep", "vr_highlights_beep", 0.f, 1.f, 0.1f, "%.1f")
+            .help("The sync mark's beep's volume (0: none): a 1 kHz tone the trailer script can find in the recording."),
+        cycle("Markers' Frame Rate", "vr_highlights_fps", {{24.f, "24 fps"}, {25.f, "25 fps"}, {30.f, "30 fps"},
+                                                         {50.f, "50 fps"}, {60.f, "60 fps"}, {120.f, "120 fps"}})
+            .help("The marker file's (EDL) frame rate: the recording's and the Resolve timeline's."),
+        slider("Least Score for a Marker", "vr_highlights_min_score", 0.f, 10.f, 0.5f, "%.1f")
+            .help("Moments scoring less are left out of the marker file (the CSV and JSON keep them all): 2 leaves out "
+                  "plain kills."),
+        slider("Multi-Kill Window", "vr_highlights_multikill", 0.5f, 10.f, 0.5f, "%.1f s")
+            .help("Kills at most this far apart (game seconds) make one multi-kill."),
     };
 }
 

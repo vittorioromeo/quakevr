@@ -340,6 +340,15 @@ QVR_CVAR(vr_window_hud_spectator, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_spectator_hide_hud_text, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_mirror_hide_hud_text, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_window_log, "0", CVAR_NONE)               // 1: print the head's and the window camera's angles every frame (tests)
+// Highlight markers for trailers (vr_highlights.cpp; docs/vr-port/TRAILER.md): the game's cool moments logged in real
+// time from a sync mark to <game dir>/highlights/ (CSV as they happen; JSON and Resolve's marker EDL as the log stops).
+QVR_CVAR(vr_highlights, "0", CVAR_NONE)               // 1: logging (set: a new log and its sync mark; cleared: its JSON and EDL written). Not saved
+QVR_CVAR(vr_highlights_flash, "0.2", CVAR_ARCHIVE)    // the sync mark's white flash over the desktop window (never the headset): real seconds (0: none)
+QVR_CVAR(vr_highlights_beep, "1", CVAR_ARCHIVE)       // the sync mark's beep (vr/sync_beep.wav, 1 kHz): its volume (0: none)
+QVR_CVAR(vr_highlights_fps, "60", CVAR_ARCHIVE)       // the marker EDL's frame rate: the recording's (OBS's) and the Resolve timeline's
+QVR_CVAR(vr_highlights_min_score, "2", CVAR_ARCHIVE)  // the least score a moment needs to be a marker in the EDL (the CSV and JSON keep every one)
+QVR_CVAR(vr_highlights_multikill, "3", CVAR_ARCHIVE)  // game seconds at most between two kills of one multi-kill
+QVR_CVAR(vr_debug_highlights, "0", CVAR_NONE)         // 1: each highlight printed as it is logged
 
 // Near clipping plane in the headset, in units (the desktop's is up to 4).
 QVR_CVAR(vr_nearclip, "1", CVAR_ARCHIVE)

@@ -6,6 +6,7 @@
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
 #include "vr_held.hpp"
+#include "vr_highlights.hpp"
 #include "vr_main.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
@@ -66,6 +67,7 @@ void stop(bool quiet)
         return;
     }
     state.active = false;
+    highlights::bulletTime(false, 1.f);
     state.cooldown = za::max(0.f, vr_bullettime_cooldown.value);
     if(!quiet)
     {
@@ -233,6 +235,7 @@ void toggle()
         return;
     }
     state.active = true;
+    highlights::bulletTime(true, scale());
     playSound(vr_bullettime_sound_on);
     if(vr_debug_bullettime.value)
     {

@@ -21,6 +21,7 @@
 #   torch_pull.wav, torch_out.wav, torch_light.wav, torch_hit.wav  wall torches (QC vr_walltorch.qc): pulled out of
 #                 its holder (a wooden scrape and a knock), its fire going out (a puff and a hiss), fire catching (a
 #                 whoosh and crackles), a burning torch's blow (a burst of flame)
+#   sync_beep.wav  the highlight log's sync mark (vr_highlights.cpp): a 1 kHz tone, 0.25 s
 #   grapple_reel.wav, grapple_taut.wav, grapple_unreel.wav  the grappling hook (QC vr_grapple.qc): the reel winding in
 #                 (a ratchet's clicks over a whirr, played back to back while it reels), the rope snapping taut (a low
 #                 twang, a chink) and the unreel paying it out (the ratchet backwards: reversed clicks, lighter, quicker)
@@ -892,6 +893,17 @@ def shell_plip(source, factor, length):
     return [v * min(1.0, (n - i) / fade) for i, v in enumerate(s)]
 
 
+# ---- The highlight log's sync mark (vr_highlights.cpp; docs/vr-port/TRAILER.md) ------------------------------------
+# A plain 1 kHz tone, 0.25 s, with 5 ms ramps (no click): the trailer script finds its start in a recording's sound
+# (Misc/quakevr/trailer/sync_detect.py: the energy at 1 kHz).
+
+
+def sync_beep():
+    n = int(RATE * 0.25)
+    ramp = int(RATE * 0.005)
+    return [0.8 * math.sin(2 * math.pi * 1000.0 * i / RATE) * min(1.0, i / ramp, (n - 1 - i) / ramp) for i in range(n)]
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr", "sound", "vr")
@@ -916,6 +928,7 @@ def main():
         "grapple_reel.wav": grapple_reel,
         "grapple_taut.wav": grapple_taut,
         "grapple_unreel.wav": grapple_unreel,
+        "sync_beep.wav": sync_beep,
     }
     only = sys.argv[2:]  # optional: just these
     for name, make in sounds.items():

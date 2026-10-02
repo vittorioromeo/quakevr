@@ -20192,3 +20192,29 @@ Crates in the Wall 80 (was 40): two walls; standing crates cost little (under 0.
 as they settle) and don't reach Physics Threads From unless several walls are knocked down together.
 Tests: build, the piles (500 rocks and 80 crates made, 580 cleared), `vr_physics_mtbench 500` the same hash with every
 worker count, e1m1 0.03 ms a step, melee canary unchanged (48/53, 0 differ), `vr_menu_path_check` 0 missing.
+## Trailer tools: highlight markers and a rough cut (2026-10-02)
+
+The author records footage and cuts trailers in DaVinci Resolve. Usage, the kinds and their scores, the files and the
+exact Resolve import steps: [TRAILER.md](TRAILER.md).
+
+- **Highlight log** (`vr_highlights.cpp`, QC `vr_highlights.qc`; Graphics > Recording > Highlight Markers > Log
+  Highlights, `vr_highlights 1`, `vr_highlights_start`/`_stop`): the QC reports its moments through two new builtins
+  (`highlighting()`, `highlight(kind, score, subject, detail, since)`): kills and gibs (from T_Damage around Killed:
+  the score and detail worked out before Killed, the gib known after it from `.vr_gib`), corpse gibs, parries and
+  enemy shoves parried (VR_Parry), counters (VR_Counter_Use), grenades set off by shots, blows and blasts
+  (VR_GrenShot_Damage), explosions killing 2+, barrels and chains (T_RadiusDamage counts its kills; a blast inside a
+  blast is a chain), axes stuck in monsters, the hook reeling a monster in, and hook swings (VR_Grapple_PlayerFrame:
+  off the floor, anchored, over 250 u/s for 0.6 s; logged at its end with its start's game time, which the engine
+  maps to real time through a history of the game's clock against realtime). The engine adds bullet time (one row as
+  long as it ran) and multi-kills (kills within `vr_highlights_multikill` game seconds).
+- Times are `realtime` from the sync mark (right in slow motion: in the mock session bullet time ran 2.4 real s while
+  the game clock moved 0.72 s). The sync mark: a white quad over the window's whole 2D layer (`VR_End2D`, stereo
+  frames only: never the headset) for `vr_highlights_flash` s, and `vr/sync_beep.wav` (1 kHz, 0.25 s; made by
+  `make_sounds.py`). The window's post-process tints the white to 156 230 255 (luma 210) at the default settings:
+  `sync_detect.py` takes a jump to over 170.
+- The VR builtins now start at #900 (were #1000): the 80 slots under Ironwail's reserved 200 were full. They are bound
+  by name, so nothing saved depends on the numbers; Ironwail's highest numbered builtin is #627.
+- Tested (mock, e1m1): two grunts and a rocket, crossed-arms parries of a knight's blows (`impulse 242`), bullet time,
+  a hand mark: the CSV `sync 0.000, gib 3.710 rocket, gib 3.710 rocket blast, multikill 3.710 (2 kills), parry 7.987,
+  parry 8.470, bullettime 10.390 (2.405 s, 0.30x), mark 13.274`; the JSON parses; the EDL is Resolve's marker form.
+  The flash: the screenshot taken during it is uniform 156 230 255. Melee canary: no differences.

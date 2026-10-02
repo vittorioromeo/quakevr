@@ -2543,6 +2543,9 @@ za::Vector<Item> pageDebugLogging()
         toggle("Controller Spin", vr_debug_angvel)
             .help("While a controller turns fast: which frame its angular velocity is read in (Controller Spin Frame), "
                   "how well the runtime's and the fixed one follow the turn, the hand's speed before and after."),
+        toggle("Highlights", vr_debug_highlights)
+            .help("Each moment the highlight log takes (Graphics > Recording > Log Highlights): its time from the sync "
+                  "mark, kind, score and what it was done to and with."),
         toggle("Axe Sticks", vr_debug_axestick)
             .help("Each thrown axe's blade striking something: stuck (how fast, how deep, at what angles) or why it bounced; "
                   "its bleeding, its fall, its pull. Needs Developer Messages for the last."),

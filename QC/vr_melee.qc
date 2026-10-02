@@ -2221,6 +2221,7 @@ float(string xWhat, entity xOn) VR_Counter_Use =
     dprint(sprintf("counter: %s on %s, x%.2f, %.2f s after the parry\n", xWhat, xOn.classname, mult,
         time - self.vr_counter_since));
     self.vr_counter_until = 0;
+    VR_Highlight_Counter(xWhat, xOn);
     float volume = min(1, max(0, cvar_hget(cvarh_vr_counter_sound)));
     if(volume > 0)
     {

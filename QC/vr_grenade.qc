@@ -302,6 +302,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float xMelee
     {
         how = inflictor.classname;
     }
+    VR_Highlight_GrenShot(targ, attacker, how);
     VR_GrenShot_SetOff(targ, attacker, delay, how);
     return TRUE;
 };

@@ -1132,6 +1132,7 @@ void(entity h, entity t, vector xAt) VR_Grapple_Bite =
         else
         {
             h.gh_kind = GH_MONSTER;
+            highlight("grapplepull", 0, t, "", 0); // (the highlight log: vr_highlights.qc)
             if(h.gh_class == GH_SMALL)
             {
                 h.gh_speed = cvar_hget(cvarh_vr_grapple_small_speed);
@@ -3119,6 +3120,7 @@ void() VR_Grapple_PlayerFrame =
     VR_Grapple_Rearm(cVR_OffHand);
     VR_Grapple_Rearm(cVR_MainHand);
     float hand = cVR_OffHand;
+    float hooked = FALSE; // (a hook holds the player from something that stays: the highlight log's swing)
     while(hand <= cVR_MainHand)
     {
         entity h = getHook(hand);
@@ -3129,9 +3131,14 @@ void() VR_Grapple_PlayerFrame =
                 VRSetWeaponFrame(hand, 2); // (a gun taken with its hook out)
             }
             VR_Grapple_Service(h);
+            if(h.gh_state == GS_BITTEN && h.gh_kind == GH_ANCHOR)
+            {
+                hooked = TRUE;
+            }
         }
         hand = hand + 1;
     }
+    VR_Highlight_SwingFrame(hooked);
     float s = VR_Grapple_NextHolster(0);
     while(s)
     {
