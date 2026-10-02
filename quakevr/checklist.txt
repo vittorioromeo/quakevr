@@ -76,7 +76,6 @@ Weapon blood follows the weapon: holster a bloody shotgun, pick up a clean one: 
 Weapon blood through throw, pick up and a two-handed hand-off: stays on the same weapon
 Magazine: shoot a few, then holster, draw, throw and switch hands: rounds left unchanged
 
-Quetoo maps: console vr_extmaps_dir C:/OHWorkspace/qvr-kit/external/quetoo-data/target/default/textures/quake, Graphics > Surfaces > External Maps on, load a new map
 Quetoo maps: Debug > Views > External Maps A/B by a lamp and with the flashlight: better than ours?
 Quetoo maps: Specular brightness 0 / 4 / 8: pick one
 
@@ -122,12 +121,14 @@ Throw a gib at a monster after picking it up: it still hurts
 
 Slash a grunt twice quickly: the second swing bursts the first swing's small gibs into blood, none shoot off (Small Gibs > Burst by Blows Meanwhile)
 
+Quetoo maps are on by default (no console): your walls look as with your downloaded folder
+Debug > Views > External Maps A/B by a lamp: Quetoo's maps vs ours
+
 [Decide or give feedback]
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?
 Grappling hook: allow the flashlight to clip on it? (on now)
 Flashlight cord: make Chain the default?
-Quetoo maps: ship them (needs Quetoo credit + CC-BY-SA, and Rygel's and QRP's consent) or only offer as a player download?
 Explosive boxes catching fire and blowing up from it: add?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): vr_melee_speed a server rule or personal?
