@@ -39,7 +39,7 @@ Your tuned values are now defaults (Distance Falloff 0.75, HRTF Volume 1.5, Phys
 
 Grip a dropped crowbar by its bar, a sword by its blade, the chainsaw by its front handle: it hangs from that hand until the other hand takes the handle (Carrying > Weapons by Their Hotspots); 15 cm reach OK? more annoying in play?
 
-Throws by weight (Throwing and Physics > Throws by Weight): axe and grenades exactly as before; super nailgun ~10 m hard one-handed, laser cannon ~4 m, much farther with two hands; explosive boxes and crates much weaker one-handed (40 kg box can't reach a damaging throw one-handed: raise the prop's Throw or lower Heavy Falloff if wanted)
+Throws by weight (Throwing and Physics > Throws by Weight): grenades as before, axe a touch slower (your Throws by Weight values: light up to 1.5 kg, falloff 0.9); super nailgun ~10 m hard one-handed, laser cannon ~4 m, much farther with two hands; explosive boxes and crates much weaker one-handed (40 kg box can't reach a damaging throw one-handed: raise the prop's Throw or lower Heavy Falloff if wanted)
 
 Slow motion for recording (Graphics > Recording > Slow Motion; vr_slowmo bindable, 0.25 default): record at 0.25 moving at quarter speed, speed footage up 4x: looks and sounds natural?; a real-speed swing is capped at 8 m/s (Hand Speed cap): feels right?; Slow Sounds off/on
 
@@ -56,6 +56,7 @@ Your values are now the defaults: mantle grunt is the pain grunt, ripcord smoke 
 Head flies are off (Gore > Flies on Heads); revisit later (docs/vr-port/BACKLOG.md)
 
 [Decide or give feedback]
+Throws by weight: your tuned values (light up to 1.5 kg, falloff 0.9) are now defaults; the 2 kg axe is now slightly below full speed: OK, or exempt the axe?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
