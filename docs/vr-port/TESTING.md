@@ -329,7 +329,7 @@ context and screenshot, ready to paste or to point me at.
     replays have the dummy strike at the same moments.
   - **After the posing test** (ROUND21.md, "After the posing test"): hold a gun into a monster's head and fire (a
     headshot now); while posing, the hand passes through the weapon (the solved grip shows for 1.5 s after A/X);
-    Weapon Offsets > Tuning Aids: Show Controller is drawn in your palm as a Quest 3 controller, **Controller Preview**
+    Weapon Offsets > Hand and Grip > Tuning Aids: Show Controller is drawn in your palm as a Quest 3 controller, **Controller Preview**
     sliders line it up with your real one; **Shot Pitch / Shot Yaw** (under Muzzle and Posing Mode) turn where shots go
     without moving the gun: with Show Controller Laser, put the red line through the sights.
   - **Physics: Box3D only** (ROUND21.md, "Simplification: Box3D only, knights always drop swords"): the Physics
@@ -1261,11 +1261,17 @@ grip 1`) and letting go of it in front. Holster a test gun with the grip held: `
 impulse 160` in front, then at the holster `-grabright; vr_mock_button main grip 0`. The main hand doesn't reach the left
 chest holster (`-0.12 1.3 -0.15` gives the two-handed grab): holster there with the off hand (`impulse 176`, `+grableft`,
 `vr_mock_button off grip`); the right chest holster is `vr_mock_hand main 0.12 1.3 -0.15`. The preview: hold the gun,
-`menu_vr 23 "Holstered X"` (menu_vr's row may now be a label's start), `vr_weapon_holster 1..3` picks the kind. The mock
+`menu_vr 90 "Holstered X"` (Weapon Offsets - Holstered; menu_vr's row may now be a label's start), `vr_weapon_holster 1..3` picks the kind. The mock
 draws the menu over the whole view: `scr_menubgalpha 0` and the camera off to a side (`vr_mock_camera 0.6 1.2 -0.4 4 0`
 with `vr_body_debug 2`) leave the body preview visible on the left. `vr_dumpview` lists each holstered gun's place.
 Runs aren't pixel-identical (particles, the arms' easing, lighting by ones): compare the holstered guns' lines of
 `vr_dumpview`.
+Weapon Offsets' pages (ROUND21.md, "Weapon Offsets split; the virtual stock's turn"): `menu_vr 23` is the main page,
+its parts `menu_vr 84` (Hand and Grip) .. `91` (Effects); `menu_vr pos` names each. The per-weapon virtual stock turn:
+`vr_weapon_grip_mode 1; vr_2h_mode 2; vr_virtual_stock_thresh 1000` (always shouldered), `impulse 165` (the grunts'
+gun, `_22`), `vr_mock_hand main 0.15 1.2 -0.45 0 0 0; vr_mock_hand off 0.074 0.982 -0.571` (its foregrip), `+graboff;
+vr_mock_button off grip 1`: `vr_dumpview`'s "main hand: two-handed 1.00, virtual stock 1.00", and `vr_wofs_stock_pitch_22
+10` turns "main hand at ... angles" up 10 (Quake's pitch 10 lower; yaw and roll +10 as they are).
 Draw and holster blend (ROUND21.md, "Holster draw blend; holster defaults; body calibration kept"):
 - **The log:** `vr_debug_draw_blend 1` prints each frame of a blend: the turn and distance left, the start, and the turn
   without the sign flip.

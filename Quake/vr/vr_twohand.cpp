@@ -839,13 +839,17 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
 
     glm::vec3 angles = hands::anglesFromVectors(dir, up);
 
-    glm::vec3 offsets = weapons::vec(slot, Key::TwoHPitch, Key::TwoHYaw, Key::TwoHRoll);
+    // The weapon's two-handed turn, and its virtual stock's (Weapon Offsets > Virtual Stock: pitch up, yaw left, roll
+    // right) as far as the stock is engaged; Quake's pitch is down.
+    glm::vec3 offsets = weapons::vec(slot, Key::TwoHPitch, Key::TwoHYaw, Key::TwoHRoll) * t +
+                        glm::vec3{-1.f, 1.f, 1.f} * weapons::vec(slot, Key::StockPitch, Key::StockYaw, Key::StockRoll) *
+                            (t * stockTransition[holding]);
     if(holding == HAND_OFF) // mirrored
     {
         offsets.y = -offsets.y;
         offsets.z = -offsets.z;
     }
-    s.rot[holding] = angles + offsets * t;
+    s.rot[holding] = angles + offsets;
 }
 
 void applyHand(hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int mode)
@@ -955,6 +959,11 @@ bool aiming()
 float transition(int hand)
 {
     return aimTransition[hand];
+}
+
+float stock(int hand)
+{
+    return aimTransition[hand] * stockTransition[hand];
 }
 
 bool helping(int hand)
