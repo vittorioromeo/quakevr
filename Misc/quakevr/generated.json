@@ -907,6 +907,10 @@
   "sha256": "777c8a1b80c303e1565ff161158d424d8c82777e35b716cc9d559dcd51614c8a",
   "by": "make_flashlight.py"
  },
+ "quakevr/sound/vr/flashlight_grab.wav": {
+  "sha256": "eab35f4789713a80e8705e7ea316709517571e1134a5a6b5bbe227260c28b668",
+  "by": "make_flashlight.py"
+ },
  "quakevr/sound/vr/flashlight_off.wav": {
   "sha256": "07129350309809ec144612c0c2a0bee8d4a191e3d2959942347d0199acfb61d9",
   "by": "make_flashlight.py"

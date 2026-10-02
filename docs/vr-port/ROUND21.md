@@ -20716,3 +20716,37 @@ Test in VR:
 - [ ] Their size (half a rock to a rock), how they fly (Speed, Up), the cap and how long they last; pick one up and
   hold it past Last.
 - [ ] Gibs squish when they land and stick; throw a gib or a small gib into a wall at a medium speed: it sticks.
+
+## Flashlight: the gun's zone at its mount; a grab sound; the author's defaults (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_15-42-04, _15-42-14, _15-46-47, _15-50-31 (after flashgrab2 and flashmount). Branch
+`agent/flash3`.
+
+- **The gun's clip zone** (`gunZone`, vr_flashlight.cpp) was a capsule round the gun's line from the hand to 3 cm past
+  the muzzle: the torch let go by a shotgun's butt (or anywhere along it) clipped on. Now a ball round the middle of the
+  torch as it would sit on that gun (`gunPose`: the muzzle, the fitted spot, `vr_flashlight_gun_forward/_up/_out` and the
+  weapon's own `vr_wofs_torch_*`), moved by `vr_flashlight_gun_zone_*`, radius Gun Zone Radius (0.12 m) times Gun Clip
+  Range. B/Y clipping on and Clip on Gun When Let Go both use it. The zone drawings (Show Flashlight Zones, the Weapon
+  Offsets > Flashlight preview) draw the ball there. `vr_flashlight_probe` prints, while held with a gun in the other
+  hand, "gunzone at along up out radius R muzzle M grip G" (metres from the zone's middle).
+- **Grab sound** `vr/flashlight_grab.wav` (`make_flashlight.py` `grab()`: a soft palm scuff and a muted knock, quieter
+  than the clamp): taken off the belt or on its way home, and passed to the other hand. Not on hover; off the head or a
+  gun the clamp's detach sound plays as before.
+- **Defaults** (vr_defaults.cfg; config version 76 moves values still at the old default): Clip on Head / Gun When Let
+  Go on (`vr_flashlight_auto_head`, `_auto_gun` 1); Head Clip Range 1.5; head zone forward 0.05 (0.015), up 0.19
+  (0.175), radius 0.105 (0.1); the low grip: x -1 (0.5), y -1.5 (-1), z -1.5 (-0.5), pitch -65 (-50), overlap 0.6
+  (0.45), bias thumb -0.02 (-0.06), index 0.08 (0.02), pinky 0 (-0.36), thumb x 0.6 (0.5), thumb y 0.15 (0).
+- Test: `flash_grab_test.py <agent> gunzone` (~12 s, new): the held torch swept along the shotgun (30 spots, 30 cm
+  behind the hand to 15 cm past the muzzle; the zone's middle 8.5 cm behind the muzzle, the hand 36 cm behind it): lit
+  from -0.09 to +0.09 m only, none by the hand or the butt; let go at the middle on the gun, at the butt and mid-gun home;
+  the shotgun's Torch Forward -0.15 moves the zone -0.150 m. `options`' gun sweep now runs out from the zone's middle
+  (lit to 0.10 m at range 1, 0.22 at 2). `all` passes with the new defaults (timing 90/90 at each scale, moving 126/126,
+  returning lit-not-taken 0).
+
+### To test in VR
+
+- [ ] Shotgun in one hand, torch in the other: let go of it by the butt or the grip: it goes home; by the muzzle, under
+  the barrel where it sits: it clips on (no B/Y).
+- [ ] Show Flashlight Zones: the orange ball sits where the torch goes on each gun (Weapon Offsets > Flashlight moves it).
+- [ ] Taking the torch off the belt (and passing it hand to hand) gives a soft knock; hovering is silent.
+- [ ] A fresh config: clipping on the head by letting go, the head zone, the low grip all as you tuned them.

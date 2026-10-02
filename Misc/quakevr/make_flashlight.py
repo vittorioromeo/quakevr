@@ -10,6 +10,7 @@
 #   quakevr/sound/vr/flashlight_on.wav, flashlight_off.wav  its switch's clicks
 #   quakevr/sound/vr/flashlight_attach.wav, flashlight_detach.wav  its clamp clipping onto a gun, and off
 #   quakevr/sound/vr/flashlight_flip.wav  the hand turning it round in the fist (B/Y: the low and overhead grips)
+#   quakevr/sound/vr/flashlight_grab.wav  a hand closing round it as it takes it (off the belt, or from the other hand)
 #
 # Usage: python Misc/quakevr/make_flashlight.py [output game folder] [--keep-edited | --force]
 # (genguard.py: it stops rather than overwrite a file edited since it wrote it: the model edited in Blender.)
@@ -301,6 +302,31 @@ def regrip(seed):
     return [s * 0.6 / peak for s in out]
 
 
+def grab(seed):
+    """A hand closing round the torch: a short soft scuff of the palm on the tube (low-passed noise over 25 ms), then
+    the fingers seating: a muted low knock and a faint tick of the metal. Quieter than the clamp's snap: a cue, not a
+    clatter."""
+    rng = random.Random(seed)
+    n = int(RATE * 0.1)
+    out = [0.0] * n
+    lp = hp = 0.0
+    for i in range(int(RATE * 0.025)):
+        t = i / RATE
+        noise = rng.uniform(-1, 1)
+        lp += 0.2 * (noise - lp)
+        hp += 0.04 * (lp - hp)
+        out[i] += (lp - hp) * 0.6 * math.sin(math.pi * t / 0.025)
+    at = int(RATE * 0.018)
+    for i in range(n - at):
+        t = i / RATE
+        knock = math.sin(2 * math.pi * 140 * t) * math.exp(-t / 0.014) * 0.8
+        body = math.sin(2 * math.pi * 410 * t) * math.exp(-t / 0.006) * 0.25
+        tick = math.sin(2 * math.pi * 3100 * t) * math.exp(-t / 0.002) * 0.12
+        out[at + i] += (knock + body + tick) * min(1.0, t / 0.0015)
+    peak = max(abs(s) for s in out) or 1.0
+    return [s * 0.5 / peak for s in out]
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     game = sys.argv[1] if len(sys.argv) > 1 else os.path.join(here, "..", "..", "quakevr")
@@ -310,7 +336,7 @@ def main():
     sounds = os.path.join(game, "sound", "vr")
     # The files edited by hand since this wrote them are not overwritten (genguard.py: --keep-edited, --force).
     guard = genguard.Guard("make_flashlight.py", [path] + [os.path.join(sounds, n + ".wav") for n in (
-        "flashlight_on", "flashlight_off", "flashlight_attach", "flashlight_detach", "flashlight_flip")])
+        "flashlight_on", "flashlight_off", "flashlight_attach", "flashlight_detach", "flashlight_flip", "flashlight_grab")])
     mdlgen.write_mdl(path, mesh, [paint(False), paint(True)], "flashlight")
     print("vrflashlight.mdl: %d vertices, %d triangles -> %s" % (len(mesh.verts), len(mesh.tris), os.path.normpath(path)))
     print("  lens at (%.3f %.3f %.3f) units, radius %.4f; tail at %.3f; switch at (%.3f %.3f %.3f)" %
@@ -328,6 +354,9 @@ def main():
     wav = os.path.join(sounds, "flashlight_flip.wav")
     write_wav(wav, regrip(15))
     print("flashlight_flip.wav -> %s" % os.path.normpath(wav))
+    wav = os.path.join(sounds, "flashlight_grab.wav")
+    write_wav(wav, grab(16))
+    print("flashlight_grab.wav -> %s" % os.path.normpath(wav))
     guard.finish()
 
 

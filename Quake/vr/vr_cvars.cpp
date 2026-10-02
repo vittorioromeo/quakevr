@@ -197,8 +197,27 @@ const DefaultChange defaultChanges[] = {
     {75, &vr_crate_impact, "14"},           // 16
     {75, &vr_crate_pieces, "6"},            // 12
     {75, &vr_crate_piece_time, "30"},       // 60
+    // 76: the author's flashlight (NOTES.md vrfiringrange_2026-10-02_15-46-47, _15-50-31): clipping on when let go (head
+    // and gun), the head's zone and its range, the low grip's place and fingers. ROUND21.md, "Flashlight: the gun's zone
+    // at its mount; a grab sound; the author's defaults".
+    {76, &vr_flashlight_auto_head, "0"},            // 1
+    {76, &vr_flashlight_auto_gun, "0"},             // 1
+    {76, &vr_flashlight_head_range, "1"},           // 1.5
+    {76, &vr_flashlight_head_zone_forward, "0.015"}, // 0.05
+    {76, &vr_flashlight_head_zone_up, "0.175"},     // 0.19
+    {76, &vr_flashlight_head_zone_radius, "0.1"},   // 0.105
+    {76, &vr_flashlight_low_x, "0.5"},              // -1
+    {76, &vr_flashlight_low_y, "-1"},               // -1.5
+    {76, &vr_flashlight_low_z, "-0.5"},             // -1.5
+    {76, &vr_flashlight_low_pitch, "-50"},          // -65
+    {76, &vr_flashlight_low_overlap, "0.45"},       // 0.6
+    {76, &vr_flashlight_low_bias_thumb, "-0.06"},   // -0.02
+    {76, &vr_flashlight_low_bias_index, "0.02"},    // 0.08
+    {76, &vr_flashlight_low_bias_pinky, "-0.36"},   // 0
+    {76, &vr_flashlight_low_thumb_x, "0.5"},        // 0.6
+    {76, &vr_flashlight_low_thumb_y, "0"},          // 0.15
 };
-constexpr int configVersion = 75;
+constexpr int configVersion = 76;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

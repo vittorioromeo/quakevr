@@ -932,31 +932,31 @@ struct HeadZone
 }
 
 // The gun's reach zone (round 21; the author's tuning notes: vr_flashlight_gun_zone_*): where a held torch's middle clips
-// it on the gun: a capsule round the gun's line from the hand to 3 cm past the muzzle, moved along the gun, up and out
-// (away from the body; and as the weapon's own Torch Forward, Up and Out move the torch), `radius` world units across
-// (vr_flashlight_gun_zone_radius times vr_flashlight_gun_range).
+// it on the gun. A ball round the middle of the torch as it would sit there (gunPose: the muzzle, the fitted spot under
+// or beside the gun, vr_flashlight_gun_forward/_up/_out and the weapon's own Torch Forward, Up and Out), moved along
+// the gun, up and out (away from the body) by these metres, `radius` world units across (vr_flashlight_gun_zone_radius
+// times vr_flashlight_gun_range). Before (NOTES.md vrfiringrange_2026-10-02_15-46-47) a capsule round the whole gun,
+// from the hand to past the muzzle: the torch clipped on from a shotgun's butt.
 struct GunZone
 {
-    glm::vec3 a, b;
+    glm::vec3 a, b;    // the ends of its line (one point: a ball)
     float radius;
+    glm::vec3 along;   // the gun's forward (the drawn ball's axis)
 };
 
-[[nodiscard]] GunZone gunZone(const view::WeaponMount& m)
+[[nodiscard]] GunZone gunZone(const view::WeaponMount& m, const GunSpot& spot)
 {
     glm::vec3 fwd, right, up;
     hands::angleVectors(m.rot, fwd, right, up);
-    const float m2u = units::metresToUnits();
     const float out = m.mirrored ? -1.f : 1.f;
-    const glm::vec3 move = gunMountOwn(m).move; // (the weapon's own place for the torch: the zone goes with it)
-    const glm::vec3 shift = (fwd * (vr_flashlight_gun_zone_forward.value + move.x) + up * (vr_flashlight_gun_zone_up.value + move.y) +
-                                right * (out * (vr_flashlight_gun_zone_out.value + move.z))) *
-                            m2u;
-    const glm::vec3 along = m.muzzle - m.pos;
-    const float len = glm::length(along);
+    const glm::vec3 shift = (fwd * vr_flashlight_gun_zone_forward.value + up * vr_flashlight_gun_zone_up.value +
+                                right * (out * vr_flashlight_gun_zone_out.value)) *
+                            units::metresToUnits();
     GunZone z;
-    z.a = m.pos + shift;
-    z.b = m.muzzle + (len > 1e-3f ? along * (0.03f * m2u / len) : glm::vec3{0.f}) + shift;
-    z.radius = za::fmax(vr_flashlight_gun_zone_radius.value, 0.f) * za::clamp(vr_flashlight_gun_range.value, 0.25f, 4.f) * m2u;
+    z.a = z.b = modelPointAt(gunPose(m, spot), glm::vec3{0.f}) + shift;
+    z.radius = za::fmax(vr_flashlight_gun_zone_radius.value, 0.f) * za::clamp(vr_flashlight_gun_range.value, 0.25f, 4.f) *
+               units::metresToUnits();
+    z.along = fwd;
     return z;
 }
 
@@ -1318,9 +1318,15 @@ void chooseGrip(int hand)
     Con_DPrintf("flashlight: %s grip (%s)\n", overhead ? "overhead" : "low", why);
 }
 
+// Taken from the belt or on its way home: a soft knock of the hand closing round it (NOTES.md vrfiringrange_2026-10-02_
+// 15-42-04: a cue that it was grabbed; none on hover). Off the head or a gun, the clamp's own sound plays instead.
 void take(int hand)
 {
     Con_DPrintf("flashlight: taken in the %s hand\n", hand == HAND_MAIN ? "main" : "off");
+    if(st.mode == Mode::Mounted || st.mode == Mode::Returning)
+    {
+        sound("vr/flashlight_grab.wav", glm::vec3{0.f});
+    }
     chooseGrip(hand);
     st.mode = Mode::Held;
     st.holder = hand;
@@ -1337,6 +1343,7 @@ void handOver(const hands::State& s, int hand)
     {
         haptic(st.holder, 0.03f, 0.3f);
     }
+    sound("vr/flashlight_grab.wav", glm::vec3{0.f}); // (taken by the other hand: the same cue)
     chooseGrip(hand);
     st.mode = Mode::Held;
     st.holder = hand;
@@ -1718,11 +1725,13 @@ void zoneBall(const glm::vec3& centre, float radius, const glm::vec3& x, const g
     lines::point(centre, 2.f * radius, glm::vec4{glm::vec3{color}, 0.12f});
 }
 
-// A capsule: its line, rings round both ends and the middle, four lines along it, and its ends' half rings.
-void zoneCapsule(const glm::vec3& a, const glm::vec3& b, float radius, const glm::vec3& up, const glm::vec4& color)
+// A capsule: its line, rings round both ends and the middle, four lines along it, and its ends' half rings (a and b one
+// point: a ball about `axis`).
+void zoneCapsule(const glm::vec3& a, const glm::vec3& b, float radius, const glm::vec3& up, const glm::vec4& color,
+    const glm::vec3& axis = glm::vec3{1.f, 0.f, 0.f})
 {
     const float width = 0.003f * units::metresToUnits();
-    const glm::vec3 along = glm::length(b - a) > 1e-3f ? glm::normalize(b - a) : glm::vec3{1.f, 0.f, 0.f};
+    const glm::vec3 along = glm::length(b - a) > 1e-3f ? glm::normalize(b - a) : axis;
     glm::vec3 u = up - along * glm::dot(up, along);
     u = glm::length(u) > 1e-3f ? glm::normalize(u) : glm::normalize(glm::cross(along, glm::vec3{0.f, 0.f, 1.f}) + glm::vec3{1e-3f, 0.f, 0.f});
     const glm::vec3 v = glm::cross(along, u);
@@ -1772,8 +1781,8 @@ void drawMountPreview()
     lines::line(lens, lens + beam * (0.5f * m2u), 0.004f * m2u, cyan, glm::vec4{cyan.r, cyan.g, cyan.b, 0.f});
     glm::vec3 gf, gr, gu;
     hands::angleVectors(m.rot, gf, gr, gu);
-    const GunZone z = gunZone(m);
-    zoneCapsule(z.a, z.b, z.radius, gu, glm::vec4{1.f, 0.55f, 0.15f, 0.9f});
+    const GunZone z = gunZone(m, spot);
+    zoneCapsule(z.a, z.b, z.radius, gu, glm::vec4{1.f, 0.55f, 0.15f, 0.9f}, z.along);
 }
 
 // The head's zones and the held torch's middle, placed by `to` (the world, or the body's preview) and seen from `eye`;
@@ -1807,7 +1816,7 @@ void drawZones(const hands::State& s, const glm::mat4& to, const glm::vec3& eye,
         zoneBall(at(hz.forehead), hz.radius, fwd, right, up, eye, st.nearHead ? inReach : idle);
     }
 
-    // The guns': round each gun in a hand, while the torch is off it (the one the held torch would clip on green).
+    // The guns': at the torch's place on each gun in a hand, while the torch is off it (the one the held torch would clip on green).
     for(int hand = 0; guns && hand < 2; hand++)
     {
         view::WeaponMount m;
@@ -1817,9 +1826,9 @@ void drawZones(const hands::State& s, const glm::mat4& to, const glm::vec3& eye,
         }
         glm::vec3 gf, gr, gu;
         hands::angleVectors(m.rot, gf, gr, gu);
-        const GunZone z = gunZone(m);
+        const GunZone z = gunZone(m, findGunSpot(m));
         const bool lit = st.mode == Mode::Held && st.nearGun && hand == 1 - st.holder;
-        zoneCapsule(z.a, z.b, z.radius, gu, lit ? inReach : glm::vec4{1.f, 0.55f, 0.15f, 0.9f});
+        zoneCapsule(z.a, z.b, z.radius, gu, lit ? inReach : glm::vec4{1.f, 0.55f, 0.15f, 0.9f}, z.along);
     }
 
     // The lamp's own reach, not held (on the body, on its way home, on a gun, on the head): what lights it up for a hand,
@@ -1952,6 +1961,21 @@ void probe_f()
             glm::dot(d, up), glm::dot(d, outward), glm::degrees(za::asin(za::clamp(glm::dot(beam, up), -1.f, 1.f))),
             glm::degrees(za::atan2(glm::dot(beam, outward), glm::dot(beam, fwd))),
             glm::degrees(za::atan2(-glm::dot(sw, up), glm::dot(sw, outward))));
+    }
+    // Held, a gun in the other hand: the held torch's middle from the middle of the gun's zone (metres along the gun, up,
+    // out from the body), the zone's radius, and the muzzle and the gun's hand from that middle along the gun (metres;
+    // flash_grab_test.py gunzone).
+    if(st.mode == Mode::Held && view::weaponMount(1 - st.holder, gm))
+    {
+        glm::vec3 fwd, right, up;
+        hands::angleVectors(gm.rot, fwd, right, up);
+        const glm::vec3 outward = right * (gm.mirrored ? -1.f : 1.f);
+        const float u2m = 1.f / units::metresToUnits();
+        const GunZone z = gunZone(gm, findGunSpot(gm));
+        const glm::vec3 d = (modelPointAt(lampFor(s), glm::vec3{0.f}) - z.a) * u2m;
+        Con_Printf("torchprobe %s gunzone at %.3f %.3f %.3f radius %.3f muzzle %.3f grip %.3f\n", tag, glm::dot(d, fwd),
+            glm::dot(d, up), glm::dot(d, outward), z.radius * u2m, glm::dot(gm.muzzle - z.a, fwd) * u2m,
+            glm::dot(gm.pos - z.a, fwd) * u2m);
     }
     for(int hand = 0; hand < 2; hand++)
     {
@@ -2094,7 +2118,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
         bool inReach = false;
         if(key_dest == key_game && view::weaponMount(1 - st.holder, other))
         {
-            const GunZone z = gunZone(other);
+            const GunZone z = gunZone(other, findGunSpot(other));
             inReach = gunDistance(p, z) < z.radius;
         }
         if(inReach && !st.nearGun)

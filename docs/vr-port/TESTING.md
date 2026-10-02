@@ -1304,7 +1304,7 @@ with `vr_enemy_liquid_damage 0` it logs a "not burnt" line each second instead. 
 - a grunt in e1m7's lava: `setpos -50 48 20 0 0 0; vr_test_spawn_dist 200; impulse 241`.
 
 Flashlight tuning (ROUND21.md, "Flashlight tuning"): `vr_show_flashlight_zones 1` draws the reach zones (the head's
-balls, each gun's capsule; green in reach) and the held torch's middle; `vr_flashlight_head_zone_*` and
+balls, each gun's ball at the torch's place on it; green in reach) and the held torch's middle; `vr_flashlight_head_zone_*` and
 `vr_flashlight_gun_zone_*` move them, and `vr_flashlight_low_*` / `_high_*` `fingers`, `curl_*`, `thumb_across`,
 `overlap`, `bias_*`, `thumb_x/y/z` set each grip's fingers. `vr_debug_grasp 2` prints the torch grasp's finger stops.
 With `developer 1` a take logs the grip chosen ("flashlight: overhead grip (from the belt)"). In the mock (e1m1 start)
