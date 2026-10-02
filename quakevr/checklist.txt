@@ -89,6 +89,10 @@ Flashlight on a gun: letting go by the shotgun's butt or grip sends it home; nea
 Flashlight grab: a soft knock when you take it; hovering is silent
 Fresh config: flashlight behaves as you tuned it (auto-clip on head and gun, head zone, late grip)
 
+Shoulder a gun and bring it to the eye: nothing cut away, the world never shows through it
+Push the gun into your face: its inside blocks the view (Headset > Held Items at the Eyes: Block the view; Never clipped if gaps bother you)
+Far walls, decals and sky: no flicker with the new near clip and float depth
+
 [Decide or give feedback]
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
