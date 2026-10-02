@@ -1521,7 +1521,7 @@ MESSAGE WRITING
 ===============================================================================
 */
 
-static sizebuf_t *WriteDest (void)
+static sizebuf_t *WriteDest (int len) // QVR: len, the most bytes the write takes (MSG_BROADCAST's room)
 {
 	int		entnum;
 	int		dest;
@@ -1531,7 +1531,7 @@ static sizebuf_t *WriteDest (void)
 	switch (dest)
 	{
 	case MSG_BROADCAST:
-		return &sv.datagram;
+		return VR_BroadcastDest (len); // QVR: sv.datagram, or nowhere when full (was an overflow's Host_Error)
 
 	case MSG_ONE:
 		ent = PROG_TO_EDICT(pr_global_struct->msg_entity);
@@ -1556,42 +1556,59 @@ static sizebuf_t *WriteDest (void)
 
 static void PF_WriteByte (void)
 {
-	MSG_WriteByte (WriteDest(), G_FLOAT(OFS_PARM1));
+	sizebuf_t *dest = WriteDest (1);
+	MSG_WriteByte (dest, G_FLOAT(OFS_PARM1));
+	VR_BroadcastWritten (dest); // QVR
 }
 
 static void PF_WriteChar (void)
 {
-	MSG_WriteChar (WriteDest(), G_FLOAT(OFS_PARM1));
+	sizebuf_t *dest = WriteDest (1);
+	MSG_WriteChar (dest, G_FLOAT(OFS_PARM1));
+	VR_BroadcastWritten (dest); // QVR
 }
 
 static void PF_WriteShort (void)
 {
-	MSG_WriteShort (WriteDest(), G_FLOAT(OFS_PARM1));
+	sizebuf_t *dest = WriteDest (2);
+	MSG_WriteShort (dest, G_FLOAT(OFS_PARM1));
+	VR_BroadcastWritten (dest); // QVR
 }
 
 static void PF_WriteLong (void)
 {
-	MSG_WriteLong (WriteDest(), G_FLOAT(OFS_PARM1));
+	sizebuf_t *dest = WriteDest (4);
+	MSG_WriteLong (dest, G_FLOAT(OFS_PARM1));
+	VR_BroadcastWritten (dest); // QVR
 }
 
 static void PF_WriteAngle (void)
 {
-	MSG_WriteAngle (WriteDest(), G_FLOAT(OFS_PARM1), sv.protocolflags);
+	sizebuf_t *dest = WriteDest (4);
+	MSG_WriteAngle (dest, G_FLOAT(OFS_PARM1), sv.protocolflags);
+	VR_BroadcastWritten (dest); // QVR
 }
 
 static void PF_WriteCoord (void)
 {
-	MSG_WriteCoord (WriteDest(), G_FLOAT(OFS_PARM1), sv.protocolflags);
+	sizebuf_t *dest = WriteDest (4);
+	MSG_WriteCoord (dest, G_FLOAT(OFS_PARM1), sv.protocolflags);
+	VR_BroadcastWritten (dest); // QVR
 }
 
 static void PF_WriteString (void)
 {
-	MSG_WriteString (WriteDest(), LOC_GetString(G_STRING(OFS_PARM1)));
+	const char *str = LOC_GetString(G_STRING(OFS_PARM1));
+	sizebuf_t *dest = WriteDest ((int) strlen (str) + 1);
+	MSG_WriteString (dest, str);
+	VR_BroadcastWritten (dest); // QVR
 }
 
 static void PF_WriteEntity (void)
 {
-	MSG_WriteShort (WriteDest(), G_EDICTNUM(OFS_PARM1));
+	sizebuf_t *dest = WriteDest (2);
+	MSG_WriteShort (dest, G_EDICTNUM(OFS_PARM1));
+	VR_BroadcastWritten (dest); // QVR
 }
 
 //=============================================================================

@@ -2817,6 +2817,10 @@ za::Vector<Item> pageDebugLogging()
         cycle("Spatial Audio", vr_debug_snd, {{0.f, "Off"}, {1.f, "Each Second"}, {2.f, "And Each Voice"}})
             .help("Each second: the voices in use, their mix's time and the simulations' (the walls, the room's reverb); or "
                   "also each voice: its sound, distance, occlusion (low, middle, high) and Doppler."),
+        cycle("Network Messages", vr_debug_net, {{0.f, "Off"}, {1.f, "When the Broadcast Is Full"}, {2.f, "And Each Second"}})
+            .help("vr_debug_net: each frame the unreliable broadcast (particles, sounds, temp entities, wounds, tracers) "
+                  "was full: how much QuakeC's writes lost and how much a client was not sent (whole messages only); or "
+                  "also each second the most sent: the broadcast, the reliable messages, a client's own data and entities."),
         cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
             .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot). Also each throw: how "
                   "fast, whether it passes through your hands, and how much its velocity and spin changed by the grace's end "
@@ -3053,6 +3057,10 @@ za::Vector<Item> pageDebugTools()
         command("Throw Gibs at a Wall", "vr_smallgibs_test 12").help("vr_smallgibs_test 12: a gib and a small gib thrown at 220 u/s into the nearest wall stick (Thrown Gibs Stick 1 for it), a gib at 400 bursts."),
         command("Flight by Situation", "vr_smallgibs_test 13")
             .help("vr_smallgibs_test 13: on the grunt or corpse ahead, each situation in turn (melee, chainsaw, guns, explosions, thrown, a monster's blow, gibbed by a blow and by a rocket, a large gib burst): launch speeds out and up, and how far they lie 2.5 s on (the console)."),
+        command("Blow Up a Crowd", "vr_smallgibs_test 14")
+            .help("vr_smallgibs_test 14: 24 grunts (vr_smallgibs_test_crowd) and 12 explosive boxes in rings ahead, a rocket's "
+                  "blast among them 1 s on: what is left 3 s on; with Network Messages on (Debug), each frame the broadcast "
+                  "was full."),
         command("List Small Gibs", "vr_smallgibs_test 11").help("vr_smallgibs_test 11: how many lie about, their size, how many are rigid bodies, asleep, stuck, held."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")

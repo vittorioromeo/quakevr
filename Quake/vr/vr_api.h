@@ -210,6 +210,14 @@ void VR_OnClientClearState (void);						// CL_ParseServerInfo, after CL_ClearSta
 void VR_OnSetAngle (float yaw);							// svc_setangle: the server turned the view
 void VR_WriteClientSpawnState (struct sizebuf_s *msg);	// Host_Spawn_f, before the client data
 void VR_ServerFrameEnd (void);							// Host_ServerFrame, before sending
+// The unreliable broadcast's room (vr_server.cpp): a full sv.datagram drops whole messages, never part of one.
+void VR_BroadcastClear (void);							// SV_ClearDatagram: clears sv.datagram
+void VR_BroadcastQCRun (void);							// PR_ExecuteProgram, a server QuakeC run from the engine (not nested)
+struct sizebuf_s *VR_BroadcastDest (int len);			// WriteDest's MSG_BROADCAST: where a QuakeC write of at most len bytes goes
+void VR_BroadcastWritten (struct sizebuf_s *dest);		// ... after it
+void VR_BroadcastMessageEnd (void);						// after the engine wrote a whole message to sv.datagram: a boundary
+int VR_BroadcastSendable (int before, int room);		// SV_SendClientDatagram: how much of sv.datagram fits in a datagram with room bytes left (before: its bytes so far)
+void VR_ReliableSent (void);								// SV_SendClientMessages, before sv.reliable_datagram goes to the clients
 
 // Server physics (sv_phys.c, sv_user.c, world.c).
 int VR_RunThink2 (struct edict_s *ent);				// start of SV_RunThink: 0 if the entity was freed

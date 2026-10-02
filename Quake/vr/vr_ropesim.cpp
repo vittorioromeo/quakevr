@@ -559,6 +559,7 @@ void send(edict_t* hook, edict_t* owner, int beamId)
     r.sentOwner = ownerNum;
     r.sentBeam = beamId;
     netCount(sv.datagram.cursize - before);
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
 }
 
 void sendEnded(edict_t* owner, int beamId)
@@ -572,6 +573,7 @@ void sendEnded(edict_t* owner, int beamId)
     MSG_WriteShort(&sv.datagram, NUM_FOR_EDICT(owner));
     MSG_WriteByte(&sv.datagram, beamId);
     MSG_WriteByte(&sv.datagram, protocol::ropeEnded);
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
 }
 
 void forget(int num)

@@ -4380,11 +4380,15 @@ void blast_f()
     G_INT(OFS_PARM3) = EDICT_TO_PROG(qcvm->edicts);
     PR_ExecuteProgram(static_cast<func_t>(fn - qcvm->functions));
     ED_Free(e);
-    MSG_WriteByte(&sv.datagram, svc_temp_entity);
-    MSG_WriteByte(&sv.datagram, TE_EXPLOSION);
-    for(const float c : at)
+    if(sv.datagram.cursize <= MAX_DATAGRAM - 16) // (an unreliable message: none when full)
     {
-        MSG_WriteCoord(&sv.datagram, c, sv.protocolflags);
+        MSG_WriteByte(&sv.datagram, svc_temp_entity);
+        MSG_WriteByte(&sv.datagram, TE_EXPLOSION);
+        for(const float c : at)
+        {
+            MSG_WriteCoord(&sv.datagram, c, sv.protocolflags);
+        }
+        VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
     }
     Con_Printf("vr_physics_blast: %.0f at %.0f %.0f %.0f\n", damage, at[0], at[1], at[2]);
 }

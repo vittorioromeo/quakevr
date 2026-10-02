@@ -714,6 +714,7 @@ bool soundAt(const glm::vec3& at, int sound, float volume, float attenuation = 1
     {
         MSG_WriteCoord(&sv.datagram, at[i], sv.protocolflags);
     }
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
     return true;
 }
 
@@ -767,6 +768,7 @@ bool sendSplash(const glm::vec3& at, const glm::vec3& dir, float strength)
     }
     MSG_WriteByte(&sv.datagram, static_cast<int>(particles::Preset::Splash));
     MSG_WriteShort(&sv.datagram, CLAMP(1, static_cast<int>(strength + 0.5f), 100));
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
     return true;
 }
 

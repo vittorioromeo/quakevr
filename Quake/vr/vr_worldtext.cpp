@@ -220,6 +220,7 @@ void serverFloatText(const glm::vec3& pos, const char* text, const glm::vec3& co
     }
     MSG_WriteByte(msg, CLAMP(1, static_cast<int>(scale * 32.f + 0.5f), 255));
     MSG_WriteString(msg, text);
+    VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
 }
 
 void clientWriteAll(sizebuf_t* msg)
