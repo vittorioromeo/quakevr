@@ -290,6 +290,15 @@ QVR_WEAPON_KEY(Hotspot4Sticky, "hs4_sticky")
 // Round 21, "Thrown axes: blade leniency, spin in the air": times Throwing and Physics' Spin Alignment
 // (vr_throw_spin_align) for the weapon thrown (Weapon Weights; 1 by default: registerCvars).
 QVR_WEAPON_KEY(SpinAlign, "w_spinalign")
+// Round 21, "Heavy throws' hits, spin and two-handed throws" (NOTES.md vrfiringrange_2026-10-02_01-12-39): the weapon's
+// own multipliers of its hits' speed thresholds and damage curves (Weapon Weights: Damage Thresholds and Curves): thrown
+// (the least speed it hurts at, weight::throwHitSpeed; the damage's rise with speed, weight::throwDamage) and in melee
+// (every speed a blow with it needs, QC VR_Weight_Leniency; how fast its strength rises over that, VR_Melee_Decide).
+// 1 by default (registerCvars).
+QVR_WEAPON_KEY(ThrowMinSpeed, "w_throwmin")
+QVR_WEAPON_KEY(ThrowCurve, "w_throwcurve")
+QVR_WEAPON_KEY(MeleeMinSpeed, "w_meleemin")
+QVR_WEAPON_KEY(MeleeCurve, "w_meleecurve")
 // Weapon effects (vr_weaponfx.cpp; ROUND21.md, "Weapon effects: recoil, muzzle flash, tracers"; Weapon Offsets >
 // Effects), for weapons whose models have none of their own: a programmatic recoil of the drawn weapon (looks only: the
 // aim and the shots stay; 0 off, 1 on), how hard (times vr_recoil_kick cm and vr_recoil_rise degrees) and the seconds it

@@ -101,6 +101,25 @@ void weaponWeightsPrint()
     return text[line].cStr();
 }
 
+// Damage Thresholds and Curves: the edited weapon thrown (weight::throwHitSpeed, throwDamage; its own Throw Speed Needed
+// and Throw Damage Curve): line 0 the least speed it hurts at, 1 its damage factor (times its base) at a few speeds.
+[[nodiscard]] const char* weaponWeightsHitsReadout(int line)
+{
+    za::String(&text)[2] = readouts.weaponWeightsHits;
+    using weapons::Key;
+    const int slot = weaponWeightsSlot;
+    const float mass = weapons::value(slot, Key::Mass), minMult = weapons::value(slot, Key::ThrowMinSpeed);
+    const float curve = weapons::value(slot, Key::ThrowCurve);
+    const float m2u = units::metresToUnits(), full = 700.f / 120.f * m2u; // (a thrown weapon's: DropWeaponInHandScaled)
+    const float own = weight::damageMultiplier(mass) * weapons::value(slot, Key::ThrowDamage) *
+                      vr_weapon_throw_damage_mult.value;
+    const auto at = [&](float ms) { return weight::throwDamage(ms * m2u, full, mass, minMult, curve) * own; };
+    text[line] = line == 0 ? va("Thrown: hurts from %.1f m/s (one hand's top %.1f)",
+                                weight::throwHitSpeed(mass, minMult) / m2u, weight::throwLimit(mass, 1))
+                           : va("Thrown damage: x%.2f at 5 m/s, x%.2f at 8, x%.2f at 12", at(5.f), at(8.f), at(12.f));
+    return text[line].cStr();
+}
+
 // Wrenched out: the edited weapon's limits (vr_weight_drop*), one hand and two.
 [[nodiscard]] const char* weaponWeightsDropReadout(int /* unused */)
 {
@@ -204,6 +223,21 @@ za::Vector<Item> pageWeaponWeights()
                   "above; Aiming: Weight and Damage)."),
         s("Throw Damage", Key::ThrowDamage, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
             .help("Times this weapon's damage thrown, on top of the weight's."),
+        header("Damage Thresholds and Curves"),
+        infoLine(weaponWeightsHitsReadout, 0),
+        infoLine(weaponWeightsHitsReadout, 1),
+        s("Throw Speed Needed", Key::ThrowMinSpeed, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Times the least speed this weapon thrown hurts at (Throwing and Physics: Hit Min Speed, lower for "
+                  "heavy weapons): lower, slower throws hurt too."),
+        s("Throw Damage Curve", Key::ThrowCurve, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Times how fast this weapon's thrown damage rises with its speed (the damage at every speed: higher, "
+                  "more for the same throw)."),
+        s("Melee Speed Needed", Key::MeleeMinSpeed, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Times every speed a blow with this weapon needs (lower for heavy weapons: Aiming: Heavy Leniency): "
+                  "lower, slower swings strike."),
+        s("Melee Damage Curve", Key::MeleeCurve, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("Times how fast a blow's strength rises with its speed over the speed needed (its weakest and "
+                  "strongest stay)."),
         header("Thrown"),
         s("Spin in the Air", Key::SpinAlign, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 20.f)
             .help("Times Throwing and Physics: Spin Alignment for this weapon thrown: how fast its tumble settles into a "

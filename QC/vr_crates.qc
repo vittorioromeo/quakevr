@@ -171,9 +171,8 @@ void(float xSpeed) VR_SolidProp_Impact =
     entity thrower = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace the player who threw it)
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT && thrower.classname == "player")
     {
-        float lenient = VR_Thrown_Lenient(self);
         float speed = max(vlen(self.velocity), xSpeed * VRMetersToUnits());
-        if(time - self.carry_thrown > VR_THROWN_BOX_TIME || speed < cvar_hget(cvarh_vr_throw_hit_min_speed) * lenient)
+        if(time - self.carry_thrown > VR_THROWN_BOX_TIME || speed < VR_Thrown_HitSpeed(self))
         {
             self.throwhit = QVR_THROWHIT_HIT;
             self.owner = world; // the throw is over: no longer the thrower's (his traces pass his own missiles)
@@ -181,7 +180,7 @@ void(float xSpeed) VR_SolidProp_Impact =
         else if(other != world && other.takedamage && other != self.owner)
         {
             self.throwhit = QVR_THROWHIT_HIT;
-            float dmg = VR_Thrown_Damage(self, speed, lenient);
+            float dmg = VR_Thrown_Damage(self, speed);
             dprint(sprintf("%s: thrown into %s at %.1f u/s (%.1f m/s against it): %.1f\n", self.classname, other.classname,
                 speed, xSpeed, dmg));
             sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);

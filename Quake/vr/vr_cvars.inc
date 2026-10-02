@@ -115,6 +115,11 @@ QVR_CVAR(vr_throw_mass_knee, "0.7", CVAR_ARCHIVE)     // 0..1: below this share 
 QVR_CVAR(vr_throw_2h_strength, "2", CVAR_ARCHIVE)     // two hands: as if the thing weighed 1 / this (1: no help)
 QVR_CVAR(vr_throw_flick_mass, "2.5", CVAR_ARCHIVE)    // kg: up to this heavy, a wrist flick's whole speed
 QVR_CVAR(vr_throw_wrist_dist, "0.07", CVAR_ARCHIVE)   // metres from the wrist to the controller's point (the flick's lever)
+// The spin a throw gives (the hand's turn; a prop held in both, its own), limited by mass as its speed is (weight::throwSpin):
+// up to vr_throw_flick_mass kg the whole vr_throw_spin_max, heavier things (flick mass / mass)^this of it (two hands: as if
+// vr_throw_2h_strength times lighter), soft from vr_throw_mass_knee. 1: a wrist's torque turning its inertia (the explosive
+// box, 40 kg, 1.3 rad/s one-handed, 2.5 two); 0: off.
+QVR_CVAR(vr_throw_spin_mass_exp, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_throw_hitbox, "6", CVAR_ARCHIVE)       // half-size (units) of a thrown weapon's box against monsters
 QVR_CVAR(vr_throw_hit_min_speed, "200", CVAR_ARCHIVE) // units/s a thrown thing must go at to hurt what it touches (slower: the throw is over)
 // Wall buttons (QC buttons.qc; ROUND21.md, "Wall buttons: weapons and thrown things press them"): a hand presses one, and
@@ -123,6 +128,22 @@ QVR_CVAR(vr_button_weapon_reach, "6", CVAR_ARCHIVE)    // cm round the weapon's 
 QVR_CVAR(vr_button_throw, "1", CVAR_ARCHIVE)           // 1: a thing thrown at a button (a weapon, a rock, a box, a gib) presses it; shot buttons are shot, as in Quake
 QVR_CVAR(vr_button_throw_speed, "150", CVAR_ARCHIVE)   // units/s it must hit the button at, at least
 QVR_CVAR(vr_debug_wallbuttons, "0", CVAR_NONE)         // print each wall button pressed: what pressed it and how (hand, weapon, thrown thing and its speed, stepped on); 2: also each held weapon's line every frame; needs developer
+// Throws' hits by weight (weight::throwHitSpeed, throwDamage; ROUND21.md, "Heavy throws' hits, spin and two-handed
+// throws"): the hit speed above and the damage's speed scale (a thrown weapon's base at 700/120 m/s, in proportion) are
+// times its heavy leniency (vr_weight_lenient*) and, for a thing too heavy to be thrown vr_throw_hit_top m/s one-handed
+// (vr_throw_mass_model), its top speed over that (at least vr_weight_lenient_min): a hard throw of a heavy thing hurts
+// as a hard throw of a light one. Just over the hit speed, the damage eases in: vr_throw_hit_ramp_floor of it at the hit
+// speed, all of it vr_throw_hit_ramp (a share of the hit speed) above. 0 and 0: as before 2026-10-02 (heavy leniency
+// only, the whole damage at once).
+QVR_CVAR(vr_throw_hit_top, "15", CVAR_ARCHIVE)        // m/s
+QVR_CVAR(vr_throw_hit_ramp, "0.5", CVAR_ARCHIVE)      // share of the hit speed the damage eases in over
+QVR_CVAR(vr_throw_hit_ramp_floor, "0.6", CVAR_ARCHIVE) // share of the damage at the hit speed
+// Two-handed throws (NOTES.md vrfiringrange_2026-10-02_00-54-03: a gib thrown with both hands burst on one's follow-through
+// punch): neither hand strikes for vr_throw_2h_nomelee s after a two-handed throw (the hand let go first from just before,
+// within vr_carry_two_hands_window), and what was thrown can't be struck by the thrower's hands for
+// vr_throw_2h_melee_immune s. 0: off.
+QVR_CVAR(vr_throw_2h_nomelee, "0.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_throw_2h_melee_immune, "0.35", CVAR_ARCHIVE)
 // Thrown axes stick (vr_axestick.cpp, QC/vr_axestick.qc): one whose blade goes into something first, fast enough and
 // square enough, sticks in it (the level, a door, a prop, a monster: it rides with it); a hand or a force grab pulls it out.
 QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE)             // on
@@ -1509,6 +1530,7 @@ QVR_CVAR(vr_test_axe_loft, "1", CVAR_NONE)          // ... 4-7: aimed up to meet
 QVR_CVAR(vr_test_axe_what, "0", CVAR_NONE)          // ... 1: a gib, 2 an explosive box (never blowing up) thrown the same way instead (the spin in the air's tests)
 QVR_CVAR(vr_test_axe_speed, "10", CVAR_NONE)        // ... at this many m/s
 QVR_CVAR(vr_test_axe_damage, "1", CVAR_NONE)        // ... hurting what it hits (0: no damage, to see a monster bleed)
+QVR_CVAR(vr_test_axe_weapon, "0", CVAR_NONE)        // ... this weapon (QC WID_*: 7 the super nailgun, 4 the shotgun) thrown instead of the axe (0: the axe)
 QVR_CVAR(vr_test_axe_dist, "0", CVAR_NONE)          // ... you moved first to this many units from what is ahead of your eyes (0: where you are)
 QVR_CVAR(vr_test_axe_at, "0", CVAR_NONE)            // ... at the nearest live monster (1), door (2) or loose prop (3), from its side facing you, level with its middle
 QVR_CVAR(vr_test_fling_speed, "12", CVAR_NONE)        // impulse 232 (tests): the prop nearest you sent at the nearest monster at this many m/s (VR_Test_Fling)

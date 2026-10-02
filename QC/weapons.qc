@@ -4382,6 +4382,10 @@ void() ImpulseCommands =
     {
         VR_Test_Fling();
     }
+    if(self.impulse == 204 && !deathmatch && !coop) // QVR test: a two-handed throw's sparing of blows (VR_Throw_Test2H)
+    {
+        VR_Throw_Test2H();
+    }
     if(self.impulse == 222 && !deathmatch && !coop) // QVR test: the nearest prop thrown up as yours (VR_Throw_TestUp)
     {
         VR_Throw_TestUp();
@@ -5300,6 +5304,51 @@ void() VR_Test_Fling =
         cvar("vr_test_fling_away") ? ", away from it" : "", target.health));
 };
 
+// Tests (impulse 204; Debug > Tests > Two-Handed Throw): a two-handed throw's sparing of blows (VR_Throw_TwoHanded): a
+// gib ahead of you, as if just thrown with both hands, and the hand that let go first a moment before: whether each
+// hand may strike and the gib can be struck, now and 0.5 s later ("2h test:" lines).
+void() VR_Throw_Test2H_Print =
+{
+    entity g = self;
+    entity p = g.vr_2h_thrower;
+    self = p;
+    dprint(sprintf("2h test: %.2f s after the throw: main hand strikes %g, off hand %g, the gib strikable %g\n",
+        time - g.vr_2h_thrown, VR_Throw_HandMayStrike(p, cVR_MainHand), VR_Throw_HandMayStrike(p, cVR_OffHand),
+        VR_Blow_Strikable(g)));
+    self = g;
+    if(g.cnt)
+    {
+        remove(g);
+        return;
+    }
+    g.cnt = 1;
+    g.nextthink = time + 0.5;
+};
+
+void() VR_Throw_Test2H =
+{
+    makevectors(self.v_angle);
+    entity g = spawn();
+    g.classname = "test_gib";
+    setmodel(g, "progs/gib1.mdl");
+    setsize(g, '0 0 0', '0 0 0');
+    g.movetype = MOVETYPE_NONE;
+    g.solid = SOLID_NOT_BUT_TOUCHABLE;
+    g.takedamage = DAMAGE_YES;
+    g.health = 10;
+    g.vr_gib = 1;
+    setorigin(g, self.origin + v_forward * 40 + '0 0 16');
+    dprint(sprintf("2h test: before: main hand strikes %g, off hand %g, the gib strikable %g\n",
+        VR_Throw_HandMayStrike(self, cVR_MainHand), VR_Throw_HandMayStrike(self, cVR_OffHand), VR_Blow_Strikable(g)));
+    self.vr_2h_letgo_hand = cVR_OffHand + 1;
+    self.vr_2h_letgo_time = time;
+    dprint(sprintf("2h test: the off hand let go first: main hand strikes %g, off hand %g\n",
+        VR_Throw_HandMayStrike(self, cVR_MainHand), VR_Throw_HandMayStrike(self, cVR_OffHand)));
+    VR_Throw_TwoHanded(self, g);
+    g.think = VR_Throw_Test2H_Print;
+    g.nextthink = time + 0.01;
+};
+
 // Tests (impulse 222; Debug > Tests > Flung Props): the loose prop nearest you (a rigid body not carried, within 512
 // units) thrown straight up as yours (VR_Carry_Throw) from over your head (vr_test_throw_up_body: at your chest) at
 // vr_test_throw_up_speed m/s (0: let go of gently, it never hurts you): it falls back
@@ -5369,18 +5418,19 @@ void() forcegrabbable_touch =
     // Too slow to hurt what bleeds (come to rest against it, or pushed slowly into it; a rigid
     // body's landing never touches the world, so it can still be "thrown"): no blow, no sound, no
     // blood, and the throw is over.
-    // (A heavy thing's lower: it can't be thrown as fast. VR_Thrown_Lenient.)
-    float lenient = VR_Thrown_Lenient(self);
-    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage &&
-       vlen(self.velocity) < cvar_hget(cvarh_vr_throw_hit_min_speed) * lenient)
+    // (A heavy thing's lower: it can't be thrown as fast. VR_Thrown_HitSpeed.)
+    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage && vlen(self.velocity) < VR_Thrown_HitSpeed(self))
     {
+        dprint(sprintf("throw hit: %s into %s at %.1f m/s, under %.1f: no damage, the throw is over\n",
+            self.netname != "" ? self.netname : self.classname, other.classname, vlen(self.velocity) / VRMetersToUnits(),
+            VR_Thrown_HitSpeed(self) / VRMetersToUnits()));
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = QVR_THROWHIT_HIT;
     }
 
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT)
     {
-        float finalDmg = VR_Thrown_Damage(self, vlen(self.velocity), lenient);
+        float finalDmg = VR_Thrown_Damage(self, vlen(self.velocity));
 
         // hit something that bleeds
         if(GetThrownWeaponDealDamage(self) && other.takedamage)
@@ -5392,6 +5442,9 @@ void() forcegrabbable_touch =
             float adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
 
             spawn_touchblood(adjDmg);
+            dprint(sprintf("throw hit: %s into %s at %.0f u/s (%.1f m/s; hurts from %.1f): %.1f damage (%.1f before where)\n",
+                self.netname != "" ? self.netname : self.classname, other.classname, vlen(self.velocity),
+                vlen(self.velocity) / VRMetersToUnits(), VR_Thrown_HitSpeed(self) / VRMetersToUnits(), adjDmg, finalDmg));
             entity thrower = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace the player who threw it)
             if(other == thrower)
             {
@@ -6187,9 +6240,14 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
             thrown.gravity = throwGravity / cvar_hget(cvarh_sv_gravity);
         }
 
+        if(throwHands == 2 && xVelScale == 1)
+        {
+            VR_Throw_TwoHanded(ent, thrown); // (neither hand strikes in its follow-through)
+        }
+
         // Flies, spins, bounces and settles as a rigid body (engine: vr_rigid.cpp).
         thrown.vr_rigid = 1;
-        thrown.vr_spin = VRThrowSpinCapped(VRGetHandAVel(xHand)) * xVelScale;
+        thrown.vr_spin = VR_Throw_Spin(VRThrowSpinCapped(VRGetHandAVel(xHand)), throwMass, throwHands) * xVelScale;
 
         // ("released": how long after the throw's estimate it left the hand, uncapped: throw_trigger_test.sh.)
         dprint(sprintf("thrown: velocity %v gravity %.2f spin %v age %.3f released %.3f scale %g of %v\n",

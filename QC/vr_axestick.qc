@@ -464,8 +464,18 @@ void() VR_AxeStick_TestThrow =
     vector from = self.origin + '0 0 22' + F * 40 + L * cvar("vr_test_axe_side"); // (clear of your body)
     float speed = cvar("vr_test_axe_speed") * VRMetersToUnits();
     float hurt = cvar("vr_test_axe_damage") != 0;
-    entity axe = CreateThrownWeapon(self, WID_AXE, 0, 0, from, a, F * speed - self.velocity, '0 0 0',
-        FALSE, hurt, WeaponIdToThrowDamage(WID_AXE));
+    // vr_test_axe_weapon: that weapon instead, hurting as a hand's throw does (its full-damage speed: DropWeaponInHandScaled).
+    float wid = cvar("vr_test_axe_weapon");
+    if(wid <= 0)
+    {
+        wid = WID_AXE;
+    }
+    entity axe = CreateThrownWeapon(self, wid, 0, 0, from, a, F * speed - self.velocity, '0 0 0',
+        FALSE, hurt, WeaponIdToThrowDamage(wid));
+    if(cvar("vr_test_axe_weapon") > 0)
+    {
+        axe.throwdmgspeed = 700 * VRMetersToUnits() / 120;
+    }
     if(mode >= 4 && cvar("vr_test_axe_loft") && speed > 0)
     {
         traceline(from, from + F * 4000, TRUE, self);
