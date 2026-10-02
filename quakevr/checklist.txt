@@ -60,7 +60,17 @@ Lightning gun, Shambler and Mjolnir beams: Quad-style arcs along the beam (Graph
 Parry the Overlord (firing range monster 17) and the phantom swordsman (15); against the Overlord's double smash or a fiend's two claws the second hit is silent and costs no stamina (Parry and Bash > Parry Cooldown: Whole Attack)
 Wall buttons: press with the sword's flat, edge and pommel, gun butts, the crowbar's bar; throw rocks and guns at them (150 u/s; Throwing and Physics > Wall Buttons); walking past with a long gun doesn't press by accident (6 cm reach); hand presses now buzz
 
+Throw the super nailgun at the dummy one- and two-handed: hard throws always hurt (35-58 one-handed), damage eases in with speed; two-handed heavy throws hit very hard (~90-110: Heavy Hits Scale Below or the weapon's Throw Damage Curve); throw a gib with both hands: no punch bursts it; wrist-snap or twist the explosive box: barely spins (Throws by Weight > Heavy Spin Falloff; per weapon: Weapon Weights > Damage Thresholds and Curves)
+Laser cannon one-handed: turning the palm up/down (roll) now lags with weight like pitch; shotgun and pistol still quick (Aiming > Spring > Roll Weight; per weapon in Weapon Weights)
+Bullet time wrist tap: smack the gadget wrist with the other hand (1 m/s, must stop on it): toggles; resting, brushing, two-handed holds and melee swings ending near the wrist don't; button still works with leniency (Combat > Bullet Time > Wrist Tap / Button)
+Belt flashlight: reach and close the hand as you arrive, fast and slow, also in bullet time: always taken; punching or guarding near the belt doesn't take it; drawing the axe from the left hip gives the axe
+Sword: off hand on the blade, let go, main hand on the blade, swing, then close the main hand on the handle with a full fist: it takes it back; double-barrel flick reload: works one-handed and with the off hand on the cup, not with the off hand on the barrel
+Physics threads: spawn the 500-rock pile (Debug > Tests > Physics Stress), Physics Step Time with threads on and off; watch for occasional hitch frames (benchmark: threads ~2x faster above 150 awake bodies)
+Highlight markers for trailers: Graphics > Recording > Highlight Markers > Log Highlights while recording with OBS; check the sync flash is captured and the beep audible; import into Resolve (docs/vr-port/TRAILER.md: File > Import > Timeline for the FCPXML, or Timeline Markers from EDL); try Misc/quakevr/trailer/rough_cut.py
+
 [Decide or give feedback]
+Flashlight: a hand gripping as the returning lamp flies into it now catches it (new): OK?
+Wall buttons and parry: should the spawn's leap and the dragon be parriable? (included for consistency)
 Grunts' shotguns have no muzzle smoke: add it?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
