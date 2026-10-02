@@ -63,3 +63,8 @@ seconds, with fly particles buzzing round it as well as the sound.
   blood decals); networking/saves; and which monsters first.
 - **Vore shove** (the author, 2026-10-02: "I would like the vore to also have a shove attack when the player is
   close, later on"): extend the enemy shove (QC/vr_enemyshove.qc) to the vore (shalrath), with its own animation.
+- **Flashlight optional; a brighter option** (the author, 2026-10-02): make the flashlight completely optional (off
+  with no belt torch, no zones, no gadget hints, nothing that assumes it), and give an easy way to raise ambient
+  lighting for players who don't want the moody atmosphere and prefer higher visibility (e.g. one "Brightness" or
+  "Visibility" preset/slider on the main VR page that raises ambient/minimum light, exposure and tone mapping
+  together, rather than many separate graphics settings).
