@@ -11,7 +11,8 @@
 // chain (a monster or a corpse; at most one each vr_smallgibs_saw_interval), a gibbing (vr_smallgibs_gibbing with the
 // gibs), a large gib or head bursting (vr_smallgibs_burst). They fly out from where the hit landed, and up
 // (vr_smallgibs_speed, vr_smallgibs_up, m/s); for vr_smallgibs_grace they pass through the body they came from (its
-// .owner: Quake's moves skip it; a rigid body only after it).
+// .owner: Quake's moves skip it; a rigid body only after it). Each situation scales both (vr_smallgibs_speed_<it>,
+// vr_smallgibs_up_<it>: melee, saw, guns, explosions, thrown, other, gibbing, corpse, burst; VR_SmallGib_Situation).
 
 .float vr_prop_mass;      // the engine's (vr_fields.inc): a prop's own mass, kg (Box3D's massSetting)
 .float vr_sgib_born;      // its time runs from here (held, and in the air after: now)
@@ -19,6 +20,8 @@
 .float vr_sgib_grace;     // until then it passes through its .owner (the body it came from)
 .float vr_sgib_rigidlater; // landed in its grace: a rigid body after it
 .float vr_sgib_sawtime;   // (a monster or corpse) when the chainsaw last tore one out of it
+.float vr_sgib_sit;       // what tore it out (QVR_SGIB_SIT_*: the tests)
+.vector vr_sgib_org;      // where it was made (the tests)
 
 // A shotgun blast's pellets (FireBulletsImpl: VR_SmallGib_BlastBegin .. BlastEnd), summed on each thing they hit.
 .float vr_sgib_bmark;     // the blast it was last hit by (vr_sgib_blastserial)
@@ -35,6 +38,20 @@ float QVR_SGIB_PROPS = 5;
 float QVR_SGIB_EXPLOSIONS = 6;
 float QVR_SGIB_OTHER = 7;
 float QVR_SGIB_SAW = 8;
+
+// What tore it out: its flight's multipliers (vr_smallgibs_speed_<situation>, vr_smallgibs_up_<situation>).
+float QVR_SGIB_SIT_MELEE = 1;      // a hand's blow (a blade, a punch, a pommel, a thing in the fist), a bash, a headbutt
+float QVR_SGIB_SIT_SAW = 2;        // the chainsaw's chain or swing
+float QVR_SGIB_SIT_GUNS = 3;       // shotguns, nails, lasers, lightning, a grunt's gun
+float QVR_SGIB_SIT_EXPLOSIONS = 4; // rockets, grenades, every blast
+float QVR_SGIB_SIT_THROWN = 5;     // a thrown weapon, rock, brick or gib; a projectile batted back
+float QVR_SGIB_SIT_OTHER = 6;      // monsters' blows, the rest
+float QVR_SGIB_SIT_GIBBED = 7;     // a living monster (or the player) gibbed
+float QVR_SGIB_SIT_CORPSE = 8;     // a corpse gibbed
+float QVR_SGIB_SIT_BURST = 9;      // a large gib or head bursting
+float vr_sgib_st_n[10];            // launches by situation, their speeds out and up summed (the tests)
+float vr_sgib_st_h[10];
+float vr_sgib_st_v[10];
 
 entity vr_sgib_ring[256]; // the small gibs, in the order they were made (a slot free: its id no longer matches)
 float vr_sgib_ringid[256];
@@ -286,6 +303,22 @@ entity(vector org, vector vel, entity from) VR_SmallGib_Spawn =
     return g;
 };
 
+// `g` (if made) was torn out by `xSit`: tagged, its launch counted (the tests).
+void(entity g, float xSit) VR_SmallGib_Tag =
+{
+    if(g == world)
+    {
+        return;
+    }
+    g.vr_sgib_sit = xSit;
+    g.vr_sgib_org = g.origin;
+    vector v = g.velocity;
+    vr_sgib_st_n[xSit] = vr_sgib_st_n[xSit] + 1;
+    vr_sgib_st_v[xSit] = vr_sgib_st_v[xSit] + v_z;
+    v_z = 0;
+    vr_sgib_st_h[xSit] = vr_sgib_st_h[xSit] + vlen(v);
+};
+
 // Its grace ends; held (and in the air after) its time waits; past it, it fades away over two seconds.
 void() VR_SmallGib_Think =
 {
@@ -452,6 +485,62 @@ float(float xKind) VR_SmallGib_KindMult =
 
 // The chance a hit of `xDamage` tears any out: none under the threshold, rising to a sure one at Full Damage (to the
 // power of vr_smallgibs_curve: light hits rarer).
+// The situation of a hit of kind `xKind` (vr_hitkind's: a hand's blow, a shot; else the kind's).
+float(float xKind) VR_SmallGib_Situation =
+{
+    float k = vr_hitkind;
+    if(xKind == QVR_SGIB_SAW)
+    {
+        return QVR_SGIB_SIT_SAW;
+    }
+    if(k == QVR_HITKIND_MELEE || k == QVR_HITKIND_HEADBUTT || k == QVR_HITKIND_BASH || k == QVR_HITKIND_SHOVE)
+    {
+        return QVR_SGIB_SIT_MELEE;
+    }
+    if(xKind == QVR_SGIB_SHOTS || xKind == QVR_SGIB_NAILS || k == QVR_HITKIND_SHOT)
+    {
+        return QVR_SGIB_SIT_GUNS;
+    }
+    if(xKind == QVR_SGIB_EXPLOSIONS)
+    {
+        return QVR_SGIB_SIT_EXPLOSIONS;
+    }
+    if(xKind == QVR_SGIB_BLADES || xKind == QVR_SGIB_PROPS)
+    {
+        return QVR_SGIB_SIT_THROWN;
+    }
+    return QVR_SGIB_SIT_OTHER;
+};
+
+string(float xSit) VR_SmallGib_SitName =
+{
+    if(xSit == QVR_SGIB_SIT_MELEE) { return "melee"; }
+    if(xSit == QVR_SGIB_SIT_SAW) { return "chainsaw"; }
+    if(xSit == QVR_SGIB_SIT_GUNS) { return "guns"; }
+    if(xSit == QVR_SGIB_SIT_EXPLOSIONS) { return "explosions"; }
+    if(xSit == QVR_SGIB_SIT_THROWN) { return "thrown"; }
+    if(xSit == QVR_SGIB_SIT_GIBBED) { return "gibbing"; }
+    if(xSit == QVR_SGIB_SIT_CORPSE) { return "corpse gibbing"; }
+    if(xSit == QVR_SGIB_SIT_BURST) { return "burst"; }
+    return "other";
+};
+
+// The situation's multiplier of Speed (`xUp` FALSE) or Up (TRUE).
+float(float xSit, float xUp) VR_SmallGib_SitMult =
+{
+    float h;
+    if(xSit == QVR_SGIB_SIT_MELEE) { h = xUp ? cvarh_vr_smallgibs_up_melee : cvarh_vr_smallgibs_speed_melee; }
+    else if(xSit == QVR_SGIB_SIT_SAW) { h = xUp ? cvarh_vr_smallgibs_up_saw : cvarh_vr_smallgibs_speed_saw; }
+    else if(xSit == QVR_SGIB_SIT_GUNS) { h = xUp ? cvarh_vr_smallgibs_up_guns : cvarh_vr_smallgibs_speed_guns; }
+    else if(xSit == QVR_SGIB_SIT_EXPLOSIONS) { h = xUp ? cvarh_vr_smallgibs_up_explosions : cvarh_vr_smallgibs_speed_explosions; }
+    else if(xSit == QVR_SGIB_SIT_THROWN) { h = xUp ? cvarh_vr_smallgibs_up_thrown : cvarh_vr_smallgibs_speed_thrown; }
+    else if(xSit == QVR_SGIB_SIT_GIBBED) { h = xUp ? cvarh_vr_smallgibs_up_gibbing : cvarh_vr_smallgibs_speed_gibbing; }
+    else if(xSit == QVR_SGIB_SIT_CORPSE) { h = xUp ? cvarh_vr_smallgibs_up_corpse : cvarh_vr_smallgibs_speed_corpse; }
+    else if(xSit == QVR_SGIB_SIT_BURST) { h = xUp ? cvarh_vr_smallgibs_up_burst : cvarh_vr_smallgibs_speed_burst; }
+    else { h = xUp ? cvarh_vr_smallgibs_up_other : cvarh_vr_smallgibs_speed_other; }
+    return max(0, cvar_hget(h));
+};
+
 float(float xDamage) VR_SmallGib_Chance =
 {
     float lo = max(0, cvar_hget(cvarh_vr_smallgibs_min_damage));
@@ -489,8 +578,8 @@ vector(entity targ, entity inflictor, vector xAt) VR_SmallGib_Where =
 };
 
 // Their flight out of `targ` from `xAt`: away from its middle across (or back along the blow), a little at random,
-// at about Speed, and up at about Up (each from two thirds to four thirds of it).
-vector(entity targ, vector xAt, vector xBlow) VR_SmallGib_Fling =
+// at about Speed, and up at about Up (each from two thirds to four thirds of it), times the situation's multipliers.
+vector(entity targ, vector xAt, vector xBlow, float xSit) VR_SmallGib_Fling =
 {
     vector mid = (targ.absmin + targ.absmax) * 0.5;
     vector out = xAt - mid;
@@ -508,12 +597,12 @@ vector(entity targ, vector xAt, vector xBlow) VR_SmallGib_Fling =
     out_z = 0;
     out = normalize(out);
     float m2u = VRMetersToUnits();
-    return out * (max(0, cvar_hget(cvarh_vr_smallgibs_speed)) * m2u * (0.67 + random() * 0.67)) +
-           '0 0 1' * (max(0, cvar_hget(cvarh_vr_smallgibs_up)) * m2u * (0.67 + random() * 0.67));
+    return out * (max(0, cvar_hget(cvarh_vr_smallgibs_speed)) * VR_SmallGib_SitMult(xSit, FALSE) * m2u * (0.67 + random() * 0.67)) +
+           '0 0 1' * (max(0, cvar_hget(cvarh_vr_smallgibs_up)) * VR_SmallGib_SitMult(xSit, TRUE) * m2u * (0.67 + random() * 0.67));
 };
 
 // `n` out of `targ` at `xAt` (pulled back out of any wall between it and its middle).
-void(entity targ, vector xAt, vector xBlow, float n) VR_SmallGib_Tear =
+void(entity targ, vector xAt, vector xBlow, float n, float xSit) VR_SmallGib_Tear =
 {
     vector mid = (targ.absmin + targ.absmax) * 0.5;
     traceline(mid, xAt, TRUE, targ);
@@ -524,8 +613,8 @@ void(entity targ, vector xAt, vector xBlow, float n) VR_SmallGib_Tear =
     }
     for(float i = 0; i < n; i++)
     {
-        VR_SmallGib_Spawn(at + '1 0 0' * crandom() + '0 1 0' * crandom() + '0 0 1' * crandom(),
-                          VR_SmallGib_Fling(targ, at, xBlow), targ);
+        VR_SmallGib_Tag(VR_SmallGib_Spawn(at + '1 0 0' * crandom() + '0 1 0' * crandom() + '0 0 1' * crandom(),
+                                          VR_SmallGib_Fling(targ, at, xBlow, xSit), targ), xSit);
     }
 };
 
@@ -559,11 +648,12 @@ void(entity targ, entity inflictor, entity attacker, float xDamage, vector xAt) 
             n = min(max(1, cvar_hget(cvarh_vr_smallgibs_per_hit)), max(1, n));
         }
     }
-    dprint(sprintf("smallgib: %s hit for %.1f (%s%s): chance %.2f, %d\n", targ.classname, xDamage,
-        VR_SmallGib_KindName(kind), quad ? ", quad" : "", chance, n));
+    float sit = VR_SmallGib_Situation(kind);
+    dprint(sprintf("smallgib: %s hit for %.1f (%s%s, %s): chance %.2f, %d\n", targ.classname, xDamage,
+        VR_SmallGib_KindName(kind), quad ? ", quad" : "", VR_SmallGib_SitName(sit), chance, n));
     if(n > 0)
     {
-        VR_SmallGib_Tear(targ, VR_SmallGib_Where(targ, inflictor, xAt), vr_hitdir, n);
+        VR_SmallGib_Tear(targ, VR_SmallGib_Where(targ, inflictor, xAt), vr_hitdir, n, sit);
     }
 };
 
@@ -651,7 +741,9 @@ void() VR_SmallGib_BlastEnd =
 };
 
 // From ThrowHead (self is the monster, corpse or player gibbed, `dm` its health: VelocityForDamage) and a headless
-// corpse's gibbing: Gibbing's many from all over its body, flung as its gibs are, slower.
+// corpse's gibbing: Gibbing's many from all over its body, flung out from its middle at Speed and up at Up (as a hit's)
+// and with its gibs' flight at 0.6 (the blow's push), across times the situation's Speed and up times its Up
+// (Gibbing a Live One, or Gibbing a Corpse: vr_sgib_corpsegib).
 void(float dm) VR_SmallGib_Gibbed =
 {
     if(!cvar_hget(cvarh_vr_smallgibs) || ((self.flags & FL_CLIENT) && !cvar_hget(cvarh_vr_smallgibs_player)) ||
@@ -660,14 +752,31 @@ void(float dm) VR_SmallGib_Gibbed =
         return;
     }
     float n = floor(max(0, cvar_hget(cvarh_vr_smallgibs_gibbing)) + 0.5);
-    dprint(sprintf("smallgib: %s gibbed: %d\n", self.classname, n));
+    float sit = vr_sgib_corpsegib ? QVR_SGIB_SIT_CORPSE : QVR_SGIB_SIT_GIBBED;
+    dprint(sprintf("smallgib: %s gibbed: %d (%s)\n", self.classname, n, VR_SmallGib_SitName(sit)));
+    float m2u = VRMetersToUnits();
+    float sm = VR_SmallGib_SitMult(sit, FALSE);
+    float um = VR_SmallGib_SitMult(sit, TRUE);
+    float speed = max(0, cvar_hget(cvarh_vr_smallgibs_speed)) * m2u;
+    float up = max(0, cvar_hget(cvarh_vr_smallgibs_up)) * m2u;
+    vector mid = (self.absmin + self.absmax) * 0.5;
     vector lo = self.absmin;
     vector size = self.absmax - self.absmin;
     for(float i = 0; i < n; i++)
     {
         vector at = lo + '1 0 0' * (size_x * (0.2 + random() * 0.6)) + '0 1 0' * (size_y * (0.2 + random() * 0.6)) +
                     '0 0 1' * (size_z * (0.3 + random() * 0.6));
-        VR_SmallGib_Spawn(at, VR_Gore_Fling(VelocityForDamage(dm)) * 0.6, self);
+        vector out = at - mid;
+        out_z = 0;
+        out = normalize(out) + ('1 0 0' * crandom() + '0 1 0' * crandom()) * 0.6;
+        out_z = 0;
+        out = normalize(out + '0.01 0 0');
+        vector v = VR_Gore_Fling(VelocityForDamage(dm)) * 0.6 + out * speed * (0.67 + random() * 0.67) +
+                   '0 0 1' * up * (0.67 + random() * 0.67);
+        v_x = v_x * sm;
+        v_y = v_y * sm;
+        v_z = v_z * um;
+        VR_SmallGib_Tag(VR_SmallGib_Spawn(at, v, self), sit);
     }
 };
 
@@ -681,14 +790,14 @@ void(vector org, vector xDir, float xSize) VR_SmallGib_Burst =
     float n = floor(max(0, cvar_hget(cvarh_vr_smallgibs_burst)) * max(1, xSize) + 0.5);
     dprint(sprintf("smallgib: a gib burst: %d\n", n));
     float m2u = VRMetersToUnits();
-    float speed = max(0, cvar_hget(cvarh_vr_smallgibs_speed)) * m2u;
-    float up = max(0, cvar_hget(cvarh_vr_smallgibs_up)) * m2u;
+    float speed = max(0, cvar_hget(cvarh_vr_smallgibs_speed)) * VR_SmallGib_SitMult(QVR_SGIB_SIT_BURST, FALSE) * m2u;
+    float up = max(0, cvar_hget(cvarh_vr_smallgibs_up)) * VR_SmallGib_SitMult(QVR_SGIB_SIT_BURST, TRUE) * m2u;
     vector along = xDir != '0 0 0' ? normalize(xDir) : '0 0 0';
     for(float i = 0; i < n; i++)
     {
         vector out = '1 0 0' * crandom() + '0 1 0' * crandom();
         out = normalize(out + '0.01 0 0') * speed * (0.67 + random() * 0.67) + along * speed * 0.5;
-        VR_SmallGib_Spawn(org + '1 0 0' * crandom() * 2 + '0 1 0' * crandom() * 2 + '0 0 1' * random() * 2,
-                          out + '0 0 1' * up * (0.67 + random() * 0.67), world);
+        VR_SmallGib_Tag(VR_SmallGib_Spawn(org + '1 0 0' * crandom() * 2 + '0 1 0' * crandom() * 2 + '0 0 1' * random() * 2,
+                                          out + '0 0 1' * up * (0.67 + random() * 0.67), world), QVR_SGIB_SIT_BURST);
     }
 };

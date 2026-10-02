@@ -509,6 +509,7 @@ float(entity targ) VR_Corpse_PositionalFactor =
 // Small gibs (vr_smallgibs.qc): torn out by a hit; with a gibbing.
 void(entity targ, entity inflictor, entity attacker, float xDamage) VR_SmallGib_Hit;
 void(float dm) VR_SmallGib_Gibbed;
+float vr_sgib_corpsegib; // inside VR_Corpse_Gib: a gibbing's small gibs are a corpse's (vr_smallgibs.qc)
 
 // Its damage, from T_Damage (instead of Quake's): gibbed at no health.
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Damage =
@@ -561,6 +562,7 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
 
     entity oldSelf = self;
     self = c;
+    vr_sgib_corpsegib = TRUE;
 
     self.vr_corpse = 0;
     self.vr_corpse_dying = 0; // (gibbed dying: its death code stops, ThrowHead's think instead)
@@ -595,6 +597,7 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
         self.nextthink = time + 0.1;
     }
 
+    vr_sgib_corpsegib = FALSE;
     self = oldSelf;
 };
 

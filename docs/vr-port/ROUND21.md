@@ -20716,6 +20716,44 @@ Test in VR:
 - [ ] Their size (half a rock to a rock), how they fly (Speed, Up), the cap and how long they last; pick one up and
   hold it past Last.
 - [ ] Gibs squish when they land and stick; throw a gib or a small gib into a wall at a medium speed: it sticks.
+
+### Small gibs: flight by situation (sgibvel, 2026-10-02)
+
+NOTES.md `vrfiringrange_2026-10-02_16-22-03`: melee flung small gibs away far too fast; gibbing a corpse on the ground
+left them far too slow. Speed and Up are now times a multiplier for what tore them out (`VR_SmallGib_Situation`: the
+hit's `vr_hitkind` and kind): `vr_smallgibs_speed_<s>` (across) and `vr_smallgibs_up_<s>` for `melee` (a hand's blow:
+blade, punch, pommel, a thing in the fist; bash, headbutt, shove), `saw` (chain or swing), `guns` (shotguns, nails,
+lasers, lightning, a grunt's gun), `explosions`, `thrown` (a thrown weapon, rock, brick, gib; a batted projectile),
+`other` (monsters' blows, the rest), `gibbing` (a live one gibbed), `corpse` (a corpse gibbed: `vr_sgib_corpsegib`, set
+inside `VR_Corpse_Gib`) and `burst` (a large gib or head). A gibbing's were its gibs' flight at 0.6 only, which a blow
+(`vr_gib_speed_melee` 0.15) left at 6 u/s across, popping straight up and falling in place: now out from the body's
+middle at Speed and up at Up (as a hit's) plus that flight, across times the situation's Speed, up times its Up.
+
+Defaults: melee 0.35 / 0.5, saw 0.5 / 0.6, gibbing and corpse 1 / 0.7, the rest 1 / 1. Menu: Gore > Small Gibs >
+Flight by Situation (18 rows, `<Situation>: Speed`, `<Situation>: Up`); Debug > Small Gibs Tests > Flight by Situation
+(`vr_smallgibs_test 13`: each situation in turn on the grunt or corpse ahead, to its side; launch speeds and where they
+lie 2.5 s on; the gibbings also print the old flight). `smallgibs_tests.sh` runs it.
+
+| Situation (test 13) | Before: out, up (m/s); lies | Now: out, up (m/s); lies |
+|---|---|---|
+| Melee (a sword's blade) | 3.6, 4.5; 1.9 m | 1.4, 2.5; 0.5 m |
+| Chainsaw | 4.2, 4.7; 2.4 m | 1.8, 2.9; 0.7 m |
+| Guns, explosions, thrown, other, burst | 3.6..4.5, 4.5..5.7; 1.8..2.4 m | unchanged |
+| A corpse gibbed by a blow | 0.2, 4.3; 0.1 m | 3.7, 6.5; 2.5 m |
+| A corpse gibbed by a rocket | 10.4, 11.1; 2.4 m | 10.9, 11.3; 2.7 m |
+| A live grunt gibbed by a blow | 0.2, 4.5; 0.4 m | 3.7, 6.7; 2.4 m |
+| A live grunt gibbed by a rocket | 10.7, 10.9; 2.7 m | 11.5, 10.9; 2.7 m |
+
+(1 m/s = 32.8 u/s at world scale 1.25. "Lies": the mean distance across from where each was made, 2.5 s on.)
+
+`smallgibs_tests.sh`'s corpse run (the chainsaw, then 200 super shotgun blasts in one frame) sometimes ends in
+`Host_Error: SZ_GetSpace: overflow` before the blasts print: already so at ec1146b3 (4 of 4 runs), 1 in 3 here.
+
+Test in VR:
+- [ ] Sword and axe cuts, punches: the chunks drop near the enemy (half a metre), not past you.
+- [ ] Gib a corpse lying down (sword, chainsaw, shotgun): the chunks scatter round it a couple of metres.
+- [ ] Tune in Gore > Small Gibs > Flight by Situation.
+
 ## Melee: a wiggled gun's butt strike (wigglefix, 2026-10-02)
 
 `no_hit_wiggling_2026-09-29_23-07-20` (the gun waved back and forth at the dummy: no hit wanted) failed on vr-cleanup:
