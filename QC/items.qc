@@ -1076,12 +1076,12 @@ void() weapon_touch =
         {
             if(VRIsHandEmpty(other, cVR_MainHand))
             {
-                VRSetWeapon(cVR_MainHand, weaponId);
+                VRGiveEntWeapon(other, cVR_MainHand, weaponId, 0, 0); // (a new one, its magazine empty as ever)
                 W_SetCurrentAmmoFor(cVR_MainHand);
             }
             else if(VRIsHandEmpty(other, cVR_OffHand))
             {
-                VRSetWeapon(cVR_OffHand, weaponId);
+                VRGiveEntWeapon(other, cVR_OffHand, weaponId, 0, 0);
                 W_SetCurrentAmmoFor(cVR_OffHand);
             }
             else
@@ -1093,8 +1093,7 @@ void() weapon_touch =
         {
             DropWeaponInHand(other, cVR_MainHand,
                 VRGetEntWeapon(other, cVR_MainHand),
-                VRGetEntWeaponFlags(other, cVR_MainHand),
-                VRGetEntWeaponClip(other, cVR_MainHand));
+                VRGetEntWeaponFlags(other, cVR_MainHand));
         }
     }
     else
@@ -1107,7 +1106,7 @@ void() weapon_touch =
             bprint("BUG: Attempting to pick weapon with full hand.");
         }
 
-        VRSetWeapon(touchinghand, weaponId);
+        VRGiveEntWeapon(other, touchinghand, weaponId, 0, 0);
         W_SetCurrentAmmoFor(touchinghand);
     }
 

@@ -66,14 +66,19 @@
 // Weapon reloading fields
 // ----------------------------------------------------------------------------
 
-.float weaponclip;  // Main hand
-.float weaponclip2; // Off-hand
-.float holsterweaponclip0;
-.float holsterweaponclip1;
-.float holsterweaponclip2;
-.float holsterweaponclip3;
-.float holsterweaponclip4;
-.float holsterweaponclip5;
+// Weapon instances (vr_weaponinst.qc): each weapon is one record entity (classname "weapon_inst": its id and its
+// magazine), which the hand holding it, the holster keeping it or the prop it lies as refers to. Moving a weapon moves
+// the reference; the engine frees a record nothing refers to any more (and tells the clients its id is gone).
+.entity weaponinst;  // Main hand; a weapon prop's (thrown, dropped, lying)
+.entity weaponinst2; // Off-hand
+.entity holsterweaponinst0;
+.entity holsterweaponinst1;
+.entity holsterweaponinst2;
+.entity holsterweaponinst3;
+.entity holsterweaponinst4;
+.entity holsterweaponinst5;
+.float wi_uid;  // A record's: its id (> 0, unique on the server; kept through saves, loads and map changes)
+.float wi_clip; // A record's: its magazine (rounds; a chainsaw's fuel)
 .float weaponclipsize;  // Main hand
 .float weaponclipsize2; // Off-hand
 

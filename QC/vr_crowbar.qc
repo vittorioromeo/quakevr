@@ -33,7 +33,7 @@ entity(entity xFrom, vector xOrg, vector xAngles, vector xVel) VR_Crowbar_Spawn 
     {
         xAngles = randomVec(180);
     }
-    return CreateThrownWeapon(xFrom, WID_CROWBAR, 0 /* weaponflags */, 0 /* weaponclip */,
+    return CreateThrownWeapon(xFrom, WID_CROWBAR, 0 /* weaponflags */, WeaponInst_New(0),
         xOrg, xAngles,
         xVel, xVel == '0 0 0' ? '0 0 0' : randomVec(60),
         FALSE /* disappear on hit */,

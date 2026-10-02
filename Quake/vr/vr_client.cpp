@@ -688,6 +688,7 @@ extern "C" void VR_ParseEntityUpdate(int num, int bits)
     data.scaleOrigin = (bits & U_QVR_SCALEORIGIN) ? readCoords3() : glm::vec3{0.f};
     data.offset = (bits & U_QVR_OFFSET) ? readCoords3() : glm::vec3{0.f};
     data.noRotate = (bits & U_QVR_NOROTATE) != 0;
+    data.weaponUid = (bits & U_QVR_WEAPONUID) ? MSG_ReadLong() : 0;
 }
 
 extern "C" void VR_DebugDrawnBoxes(void)
@@ -752,6 +753,7 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_EJECT: shells::parseEject(); break;
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;
+        case QVR_SVC_WEAPONGONE: wounds::parseWeaponGone(); break;
         case QVR_SVC_CATCHBLEND: drawblend::parseCatch(); break;
         case QVR_SVC_ROPE: rope::parseCorners(); break;
         case QVR_SVC_SHOCK: shock::parse(); break;

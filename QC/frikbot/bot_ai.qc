@@ -806,7 +806,7 @@ float(entity thing) priority_for_thing =
         {
             sound(self, VRGetGunChannel(cVR_MainHand), "forcegrab.wav", 0.75, ATTN_NORM);
             wpnthrow_handtouch_impl(cVR_MainHand, thing, self,
-                                    &self.weapon, &self.weaponflags, &self.weaponclip);
+                                    &self.weapon, &self.weaponflags);
             thisp = 0;
         }
     }

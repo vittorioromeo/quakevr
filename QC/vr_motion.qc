@@ -211,8 +211,6 @@ void(float xHand, float xWid, float xFlags) VR_Motion_Equip =
     {
         VR_WeaponUtil_EntAddWeapon(self, xWid);
     }
-    VRSetEntWeapon(self, xHand, xWid);
-    VRSetEntWeaponFlags(self, xHand, xFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO);
-    VRSetEntWeaponClip(self, xHand, WeaponIdToBaseClipSize(xWid));
+    VRGiveEntWeapon(self, xHand, xWid, xFlags & QVR_WPNFLAG_USE_SECONDARY_AMMO, WeaponIdToBaseClipSize(xWid));
     W_SetCurrentAmmoFor(xHand);
 };

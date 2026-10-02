@@ -117,6 +117,86 @@ void broadcastNewPrecaches(const char* const (&list)[N], int& known, int subcmd)
     return SV_ModelIndex(PR_GetString(fieldInt(ent, ofs)));
 }
 
+// ----------------------------------------------------------------------------
+// The weapons' records (QC vr_weaponinst.qc): each weapon is an entity of its own (no model) with its id (.wi_uid) and
+// its magazine (.wi_clip), which the hand, the holster or the prop that has the weapon refers to (.weaponinst,
+// .weaponinst2, .holsterweaponinst0..5). Moving a weapon moves the reference; a record nothing refers to at the end of a
+// frame (the weapon gone: discarded, replaced, its prop removed) is freed here, and the clients told its id is gone
+// (QVR_SVC_WEAPONGONE: its blood forgotten, vr_wounds.cpp).
+
+za::Vector<unsigned char> instReferenced; // per edict, this frame's sweep: something refers to it
+
+// The record `ent`'s field `refOfs` refers to, or null.
+[[nodiscard]] edict_t* weaponInst(edict_t* ent, int refOfs)
+{
+    if(refOfs < 0 || fields().wi_uid < 0)
+    {
+        return nullptr;
+    }
+    const int v = fieldInt(ent, refOfs);
+    if(v <= 0)
+    {
+        return nullptr;
+    }
+    edict_t* r = PROG_TO_EDICT(v);
+    return r->free ? nullptr : r;
+}
+
+[[nodiscard]] int weaponUid(edict_t* inst)
+{
+    return inst ? static_cast<int>(fieldFloat(inst, fields().wi_uid)) : 0;
+}
+
+void sweepWeaponInsts()
+{
+    const FieldOffsets& f = fields();
+    if(!bindings().isVrProgs || f.wi_uid < 0 || f.weaponinst < 0 || !sv.active)
+    {
+        return;
+    }
+    const int refs[] = {f.weaponinst, f.weaponinst2, f.holsterweaponinst0, f.holsterweaponinst1, f.holsterweaponinst2,
+        f.holsterweaponinst3, f.holsterweaponinst4, f.holsterweaponinst5};
+    const int count = qcvm->num_edicts;
+    instReferenced.clear();
+    instReferenced.resize(static_cast<za::SizeT>(count), 0);
+    for(int i = 1; i < count; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(e->free)
+        {
+            continue;
+        }
+        for(const int ofs : refs)
+        {
+            if(edict_t* r = weaponInst(e, ofs))
+            {
+                const int n = NUM_FOR_EDICT(r);
+                if(n > 0 && n < count)
+                {
+                    instReferenced[static_cast<za::SizeT>(n)] = 1;
+                }
+            }
+        }
+    }
+    for(int i = 1; i < count; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        const float uid = e->free ? 0.f : fieldFloat(e, f.wi_uid);
+        if(uid <= 0.f || instReferenced[static_cast<za::SizeT>(i)])
+        {
+            continue;
+        }
+        Con_DPrintf("weapon #%d gone (its record %d freed: nothing has it)\n", static_cast<int>(uid), i);
+        ED_Free(e);
+        if(vrProtocol() && sv.reliable_datagram.cursize + 6 <= sv.reliable_datagram.maxsize)
+        {
+            MSG_WriteByte(&sv.reliable_datagram, svc_quakevr);
+            MSG_WriteByte(&sv.reliable_datagram, QVR_SVC_WEAPONGONE);
+            MSG_WriteLong(&sv.reliable_datagram, static_cast<int>(uid));
+        }
+    }
+}
+
 } // namespace
 
 extern "C" void VR_ReadMoveExtras(client_t* client)
@@ -240,6 +320,9 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     const FieldOffsets& f = fields();
 
     const auto stat = [&](int index, int ofs) { statsf[index] = fieldFloatOr(ent, ofs, 0.f); };
+    // A weapon's record (QC vr_weaponinst.qc), from the field referring to it: its magazine, its id.
+    const auto inst = [&](int refOfs) -> edict_t* { return weaponInst(ent, refOfs); };
+    const auto clip = [&](int refOfs) { edict_t* r = inst(refOfs); return r ? fieldFloatOr(r, f.wi_clip, 0.f) : 0.f; };
 
     statsf[STAT_QVR_WEAPON] = ent->v.weapon;
 
@@ -256,8 +339,10 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     stat(STAT_QVR_AMMO2, f.currentammo2);
     stat(STAT_QVR_AMMOCOUNTER, f.ammocounter);
     stat(STAT_QVR_AMMOCOUNTER2, f.ammocounter2);
-    stat(STAT_QVR_WEAPONCLIP, f.weaponclip);
-    stat(STAT_QVR_WEAPONCLIP2, f.weaponclip2);
+    statsf[STAT_QVR_WEAPONCLIP] = clip(f.weaponinst);
+    statsf[STAT_QVR_WEAPONCLIP2] = clip(f.weaponinst2);
+    statsi[STAT_QVR_WEAPONUID] = weaponUid(inst(f.weaponinst));
+    statsi[STAT_QVR_WEAPONUID2] = weaponUid(inst(f.weaponinst2));
     stat(STAT_QVR_WEAPONCLIPSIZE, f.weaponclipsize);
     stat(STAT_QVR_WEAPONCLIPSIZE2, f.weaponclipsize2);
     stat(STAT_QVR_MELEE, f.vr_melee_hud);
@@ -270,9 +355,9 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     const int holsterFlags[numHolsters] = {f.holsterweaponflags0,
         f.holsterweaponflags1, f.holsterweaponflags2, f.holsterweaponflags3,
         f.holsterweaponflags4, f.holsterweaponflags5};
-    const int holsterClip[numHolsters] = {f.holsterweaponclip0, f.holsterweaponclip1,
-        f.holsterweaponclip2, f.holsterweaponclip3, f.holsterweaponclip4,
-        f.holsterweaponclip5};
+    const int holsterInst[numHolsters] = {f.holsterweaponinst0, f.holsterweaponinst1,
+        f.holsterweaponinst2, f.holsterweaponinst3, f.holsterweaponinst4,
+        f.holsterweaponinst5};
 
     // Force grab, per hand: what it points at (1), is locked on to (2), or pulls in flight (3).
     const auto entityField = [&](edict_t* e, int ofs) -> edict_t* {
@@ -308,7 +393,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
         stat(STAT_QVR_HOLSTERWEAPON0 + i, holsterWeapon[i]);
         statsi[STAT_QVR_HOLSTERWEAPONMODEL0 + i] = modelIndexOfField(ent, holsterModel[i]);
         stat(STAT_QVR_HOLSTERWEAPONFLAGS0 + i, holsterFlags[i]);
-        stat(STAT_QVR_HOLSTERWEAPONCLIP0 + i, holsterClip[i]);
+        statsf[STAT_QVR_HOLSTERWEAPONCLIP0 + i] = clip(holsterInst[i]);
     }
 }
 
@@ -337,6 +422,10 @@ extern "C" int VR_EntityUpdateBits(edict_t* ent)
     if(fieldFloatOr(ent, f.vr_rigid, 0.f) != 0.f)
     {
         bits |= U_QVR_NOROTATE;
+    }
+    if(NUM_FOR_EDICT(ent) > svs.maxclients && weaponUid(weaponInst(ent, f.weaponinst)) != 0)
+    {
+        bits |= U_QVR_WEAPONUID; // a weapon prop (not a player: his .weaponinst is his main hand's, sent as a stat)
     }
     return bits;
 }
@@ -370,6 +459,10 @@ extern "C" void VR_WriteEntityUpdate(sizebuf_t* msg, edict_t* ent, int bits)
     {
         writeCoords(f.model_offset);
     }
+    if(bits & U_QVR_WEAPONUID)
+    {
+        MSG_WriteLong(msg, weaponUid(weaponInst(ent, f.weaponinst)));
+    }
 }
 
 extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
@@ -382,6 +475,8 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
 
 extern "C" void VR_ServerFrameEnd()
 {
+    sweepWeaponInsts(); // the weapons' records nothing has any more: freed, their ids gone
+
     qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
     qvr::axestick::serverFrame(); // thrown axes stuck in things go with them (after the poses above)
 

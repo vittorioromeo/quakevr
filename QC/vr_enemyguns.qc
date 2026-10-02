@@ -103,7 +103,7 @@ void(float xWid) VR_DropEnemyGun =
     traceline(from, at, TRUE, self);
     at = trace_endpos + (from - trace_endpos) * 0.2 * (trace_fraction < 1);
     vector vel = v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70';
-    CreateThrownWeapon(self, xWid, 0, WeaponIdToBaseClipSize(xWid) /* its ammo */,
+    CreateThrownWeapon(self, xWid, 0, WeaponInst_New(WeaponIdToBaseClipSize(xWid)) /* its ammo */,
         at, self.angles, vel, randomVec(60),
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
@@ -357,7 +357,7 @@ void() VR_EnemyGuns_TakeNearest =
         return;
     }
     bprint(sprintf("enemy gun: taking the %s %g units away (%g left) into the %s hand\n", VR_EnemyGun_Name(best.weapon),
-        bestDist, best.weaponclip, hand == cVR_OffHand ? "off" : "main"));
+        bestDist, best.weaponinst.wi_clip, hand == cVR_OffHand ? "off" : "main"));
     entity oldSelf = self;
     entity oldOther = other;
     self.touchinghand = hand;

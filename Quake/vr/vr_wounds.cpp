@@ -9,6 +9,7 @@
 #include "vr_protocol.hpp"
 #include "vr_view.hpp"
 #include "vr_avatar.hpp"
+#include "vr_client.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
@@ -58,7 +59,7 @@ enum Kind : int
     KindLava = 7,
     KindSlime = 8,
     KindLiquid = 9,
-    KindGear = 10, // a weapon thrown from a hand (extra: 0 the off hand, 1 the main hand): its blood goes with it (QC DropWeaponInHand)
+    KindWeaponGone = -2, // QVR_SVC_WEAPONGONE: the weapon `num` (its id) is gone: its blood forgotten
 };
 
 struct Event
@@ -95,7 +96,7 @@ struct Mask
     float sides[2]{0.f, 0.f};     // your body's: the bones of its right side (bits 0..23, 24..47), painted into the last fine
                                   // layer (its arms and legs share their skin's texels, mirrored): 0 none
     bool gear{false};             // a weapon's or a prop's you held: washed, kept dropped and held again (vr_gore_gear)
-    glm::vec3 lastAt{0.f};        // gear in the world: where it was last frame (gone far: its slot is another's now)
+    int weapon{0};                // a weapon's: its id (QC vr_weaponinst.qc), whatever shows it (0: an entity's own mask)
 };
 
 za::Vector<Event> events;
@@ -117,28 +118,14 @@ bool painting = false;
 bool chanOn[3]{true, true, true}; // vr_wounds, vr_wounds_burns, vr_wounds_wet as last seen
 bool bloodOnly = false;           // re-opening the player's wounds (reopen): their blood only, no char, no heat
 
-// Blood on your gear (vr_gore_gear): a weapon's mask let go by a hand (thrown, holstered) or by a weapon taken from the
-// world (removed there), kept under a key of its own until a hand or the thrown weapon takes it.
-struct Loose
-{
-    int layer{-1};     // its mask (-1: this slot is free)
-    double since{0.0}; // cl.time it was let go
-    int hand{-1};      // the hand that let it go (-1: an entity removed in the world)
-    int ent{0};        // that entity's number
-};
-constexpr int maxLoose = 6;
-entity_t looseKeys[maxLoose]{}; // what each is kept under: its model, where it was
-Loose loose[maxLoose];
-entity_t* heldEnt[2]{nullptr, nullptr};        // the entity each hand's weapon was drawn with last frame (null: none)
-const qmodel_t* heldModel[2]{nullptr, nullptr}; // and its model
-double heldSince[2]{-1e9, -1e9};               // cl.time it was taken
-struct Drop
-{
-    int ent{0};  // the weapon thrown (QVR_WOUND_GEAR)
-    int hand{0}; // from which hand
-    double at{0.0};
-};
-za::Vector<Drop> drops; // weapons thrown whose entity has not come yet
+// Blood on your weapons (vr_gore_gear) goes with the weapon: its id (QC vr_weaponinst.qc; a hand's STAT_QVR_WEAPONUID*, a
+// weapon prop's U_QVR_WEAPONUID) keys its mask, put each frame on whatever shows that id (gearFrame), kept (parked,
+// under a key of its own) while nothing drawn does (holstered, its prop just taken), freed when the server says the
+// weapon is gone (QVR_SVC_WEAPONGONE).
+ankerl::unordered_dense::map<int, int> maskOfWeapon; // weapon id -> its mask
+constexpr int maxParked = 16;
+entity_t parkKeys[maxParked]{}; // the parked masks' keys (maskOf's): their model, where they were last shown
+double parkedSince[maxParked]{}; // cl.time each was parked
 struct GibSeen
 {
     glm::vec3 at{0.f};
@@ -148,21 +135,14 @@ struct GibSeen
 ankerl::unordered_dense::map<int, GibSeen> gibsSeen; // the gibs flying round you (vr_gore_spatter_gibs)
 za::Vector<glm::vec3> spatteredNow;                  // this frame's spatters' centres (a blast's pellets: one)
 
-[[nodiscard]] int looseIndex(const entity_t* e)
+[[nodiscard]] int parkIndex(const entity_t* e)
 {
-    return e >= looseKeys && e < looseKeys + maxLoose ? static_cast<int>(e - looseKeys) : -1;
+    return e >= parkKeys && e < parkKeys + maxParked ? static_cast<int>(e - parkKeys) : -1;
 }
 
 void resetGear()
 {
-    for(Loose& l : loose)
-    {
-        l = Loose{};
-    }
-    heldEnt[0] = heldEnt[1] = nullptr;
-    heldModel[0] = heldModel[1] = nullptr;
-    heldSince[0] = heldSince[1] = -1e9;
-    drops.clear();
+    maskOfWeapon.clear();
     gibsSeen.clear();
     spatteredNow.clear();
 }
@@ -540,10 +520,13 @@ void freeMask(int layer)
     Mask& m = masks[static_cast<za::SizeT>(layer)];
     if(m.ent)
     {
-        maskOf.erase(m.ent);
-        if(const int k = looseIndex(m.ent); k >= 0)
+        maskOf.erase(m.ent); // (a parked one's key free again)
+    }
+    if(m.weapon)
+    {
+        if(const auto it = maskOfWeapon.find(m.weapon); it != maskOfWeapon.end() && it->second == layer)
         {
-            loose[k].layer = -1;
+            maskOfWeapon.erase(it);
         }
     }
     m = Mask{};
@@ -1094,7 +1077,7 @@ void wound(const Target& t, const Event& ev)
 }
 
 void logPlayerWound(const Event& ev); // (below: the player's wounds, to re-open after a wash)
-void loosen(int layer, int hand, int ent, const glm::vec3& at); // (below: blood on you and your gear)
+void park(int layer); // (below: blood on you and your gear)
 void spatterFrom(const Event& ev, int saw);
 void hurtSpread(const Event& ev);
 void armMarks(int hand, int count, float size, float legs, bool lower);
@@ -1108,15 +1091,14 @@ void apply(const Event& ev)
         {
             if(const auto it = maskOf.find(&cl_entities[ev.num]); it != maskOf.end() && !masks[static_cast<za::SizeT>(it->second)].view)
             {
-                const bool gear = masks[static_cast<za::SizeT>(it->second)].gear;
+                const bool weapon = masks[static_cast<za::SizeT>(it->second)].weapon != 0;
                 if(vr_wounds_debug.value)
                 {
-                    Con_Printf("wounds: entity %d removed, its mask %s\n", ev.num, gear ? "kept for a hand taking it" : "freed");
+                    Con_Printf("wounds: entity %d removed, its mask %s\n", ev.num, weapon ? "kept for its weapon" : "freed");
                 }
-                if(gear) // a bloody weapon taken into a hand: its blood goes with it (gearFrame)
+                if(weapon) // a bloody weapon taken into a hand: its blood goes with it (gearFrame)
                 {
-                    const entity_t& e = cl_entities[ev.num];
-                    loosen(it->second, -1, ev.num, glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+                    park(it->second);
                 }
                 else
                 {
@@ -1126,11 +1108,15 @@ void apply(const Event& ev)
         }
         return;
     }
-    if(ev.kind == KindGear) // a weapon thrown from a hand: its blood onto it once it is here (gearFrame)
+    if(ev.kind == KindWeaponGone) // the weapon is gone (nothing has it on the server): its blood with it
     {
-        if(ev.num > 0 && ev.num < cl_max_edicts && drops.size() < 16)
+        if(const auto it = maskOfWeapon.find(ev.num); it != maskOfWeapon.end())
         {
-            drops.pushBack({ev.num, ev.extra ? 1 : 0, cl.time});
+            if(vr_wounds_debug.value)
+            {
+                Con_Printf("wounds: weapon #%d gone, its mask freed\n", ev.num);
+            }
+            freeMask(it->second);
         }
         return;
     }
@@ -1613,9 +1599,8 @@ void viewBlood(int count[3], double sum[3])
 // farther out): your blows near your hands some (vr_gore_spatter_melee), a chainsaw's cuts a lot (vr_gore_spatter_saw),
 // shots that hit close to you a few (vr_gore_spatter_shots, within vr_gore_spatter_range). A gib flying into you
 // bloodies you where it strikes. A weapon's or a prop's blood stays on it: a prop is the world's entity (its mask its
-// own); a weapon in a hand is the hand's drawn weapon, whose mask goes with it: thrown, to the weapon lying in the world
-// (QC's DropWeaponInHand sends QVR_WOUND_GEAR), taken again (removed in the world), back to a hand, holstered, kept for
-// the weapon drawn again (Loose). Water washes it all off. Hurt, holding a gib, or as your wounds re-open, blood runs
+// own); a weapon's goes with the weapon, by its id (QC vr_weaponinst.qc): a hand's, a holster's, the prop it lies as;
+// thrown, taken, holstered, drawn, handed over (gearFrame). Water washes it all off. Hurt, holding a gib, or as your wounds re-open, blood runs
 // over your arms (and a little your legs) too: bleeding marks along them (vr_gore_spread).
 
 [[nodiscard]] glm::vec3 originOf(const entity_t& e)
@@ -1645,174 +1630,174 @@ void viewBlood(int count[3], double sum[3])
     return nullptr;
 }
 
-// Mask `layer` let go: kept (Loose) until a hand or a weapon thrown takes it; the oldest kept gives its up.
-void loosen(int layer, int hand, int ent, const glm::vec3& at)
+// The weapon id of what `hand` holds (0: none).
+[[nodiscard]] int handWeapon(int hand)
 {
-    int slot = 0;
-    for(int i = 0; i < maxLoose; i++)
+    return cl.stats[hand == 1 ? protocol::STAT_QVR_WEAPONUID : protocol::STAT_QVR_WEAPONUID2];
+}
+
+// The weapon id of entity `num` as last sent (a weapon prop's; 0: none).
+[[nodiscard]] int entityWeapon(int num)
+{
+    const client::EntityVr* d = client::entityVr(num);
+    return d ? d->weaponUid : 0;
+}
+
+[[nodiscard]] bool inWorld(const entity_t* e)
+{
+    return e >= cl_entities && e < cl_entities + cl_max_edicts;
+}
+
+// Weapon mask `layer` shown by nothing drawn: kept under a key of its own (the one parked longest gives its up).
+void park(int layer)
+{
+    Mask& m = masks[static_cast<za::SizeT>(layer)];
+    if(parkIndex(m.ent) >= 0)
     {
-        if(loose[i].layer < 0)
+        return;
+    }
+    int slot = -1;
+    for(int i = 0; i < maxParked; i++)
+    {
+        if(maskOf.find(&parkKeys[i]) == maskOf.end())
         {
             slot = i;
             break;
         }
-        if(loose[i].since < loose[slot].since)
+        if(slot < 0 || parkedSince[i] < parkedSince[slot])
         {
             slot = i;
         }
     }
-    if(loose[slot].layer >= 0 && loose[slot].layer != layer)
+    if(const auto it = maskOf.find(&parkKeys[slot]); it != maskOf.end())
     {
-        freeMask(loose[slot].layer);
+        freeMask(it->second);
     }
+    entity_t& key = parkKeys[slot];
+    key.model = const_cast<qmodel_t*>(m.model);
+    if(m.ent)
+    {
+        key.origin[0] = m.ent->origin[0];
+        key.origin[1] = m.ent->origin[1];
+        key.origin[2] = m.ent->origin[2];
+        maskOf.erase(m.ent);
+    }
+    m.ent = &key;
+    maskOf[&key] = layer;
+    parkedSince[slot] = cl.time;
+    if(vr_wounds_debug.value)
+    {
+        Con_Printf("wounds: weapon #%d's blood kept (%s)\n", m.weapon, m.model ? m.model->name : "?");
+    }
+}
+
+// Weapon mask `layer` onto `e`, which shows its weapon now (a hand's drawn weapon, a weapon prop); what `e` showed before
+// kept for its own weapon, or freed.
+void show(int layer, entity_t* e)
+{
     Mask& m = masks[static_cast<za::SizeT>(layer)];
+    if(m.ent == e)
+    {
+        return;
+    }
+    if(const auto it = maskOf.find(e); it != maskOf.end())
+    {
+        if(masks[static_cast<za::SizeT>(it->second)].weapon)
+        {
+            park(it->second);
+        }
+        else
+        {
+            freeMask(it->second);
+        }
+    }
     if(m.ent)
     {
         maskOf.erase(m.ent);
     }
-    entity_t& key = looseKeys[slot];
-    key.model = const_cast<qmodel_t*>(m.model);
-    key.origin[0] = at.x;
-    key.origin[1] = at.y;
-    key.origin[2] = at.z;
-    m.ent = &key;
-    maskOf[&key] = layer;
-    loose[slot] = Loose{layer, cl.time, hand, ent};
-    if(vr_wounds_debug.value)
-    {
-        Con_Printf("wounds: %s's blood kept (%s %d)\n", m.model ? m.model->name : "?", hand >= 0 ? "let go by hand" : "removed entity",
-            hand >= 0 ? hand : ent);
-    }
-}
-
-// Kept mask `slot` onto `to` (a hand's weapon, a weapon thrown).
-void claim(int slot, entity_t* to)
-{
-    const int layer = loose[slot].layer;
-    if(const auto it = maskOf.find(to); it != maskOf.end() && it->second != layer)
-    {
-        freeMask(it->second);
-    }
-    Mask& m = masks[static_cast<za::SizeT>(layer)];
-    maskOf.erase(m.ent);
-    m.ent = to;
-    m.model = to->model;
+    m.ent = e;
     m.view = false;
     m.gear = true;
     m.lastDrawn = vr_gametime;
-    m.lastAt = originOf(*to);
-    maskOf[to] = layer;
-    loose[slot].layer = -1;
+    maskOf[e] = layer;
     if(vr_wounds_debug.value)
     {
-        Con_Printf("wounds: %s's blood taken by %s\n", to->model->name,
-            to >= cl_entities && to < cl_entities + cl_max_edicts ? "the weapon thrown" : "a hand");
+        Con_Printf("wounds: weapon #%d's blood on %s\n", m.weapon, inWorld(e) ? "its prop" : "a hand");
     }
 }
 
-// The kept mask for `model` likeliest to be this one's: the one from entity `ent` (removed: taken by a hand), else
-// from `hand`, else the latest; none older than `maxAge` seconds (0: any). -1: none.
-[[nodiscard]] int findLoose(const qmodel_t* model, int hand, int ent, double maxAge)
+// Mask `layer` (a hand's weapon's, just painted) is weapon `weapon`'s.
+void bindWeapon(int layer, int weapon)
 {
-    int best = -1;
-    double bestScore = -1e30;
-    for(int i = 0; i < maxLoose; i++)
+    Mask& m = masks[static_cast<za::SizeT>(layer)];
+    if(weapon == 0 || m.weapon == weapon)
     {
-        const Loose& l = loose[i];
-        if(l.layer < 0 || !sameLayout(masks[static_cast<za::SizeT>(l.layer)].model, model) || (maxAge > 0.0 && cl.time - l.since > maxAge))
-        {
-            continue;
-        }
-        const double score = l.since + (ent > 0 && l.ent == ent ? 1e6 : 0.0) + (hand >= 0 && l.hand == hand ? 1e5 : 0.0);
-        if(score > bestScore)
-        {
-            bestScore = score;
-            best = i;
-        }
+        return;
     }
-    return best;
+    if(const auto it = maskOfWeapon.find(weapon); it != maskOfWeapon.end() && it->second != layer)
+    {
+        freeMask(it->second); // (kept elsewhere a frame too long: this one's newer)
+    }
+    if(m.weapon)
+    {
+        maskOfWeapon.erase(m.weapon);
+    }
+    m.weapon = weapon;
+    maskOfWeapon[weapon] = layer;
 }
 
-// Each frame: the hands' weapons let go and taken, the weapons thrown, what was removed in the world and not taken.
-void gearFrame(double now)
+// Each frame: every weapon mask on whatever shows its weapon (a hand's, a prop), else kept.
+void gearFrame()
 {
+    // What no longer shows its mask's weapon (a hand that let it go or holds another, a prop's slot taken by another
+    // entity): kept.
+    entity_t* held[2]{};
     for(int hand = 0; hand < 2; hand++)
     {
-        const view::ViewEntity* ve = view::heldWeapon(hand);
-        entity_t* e = ve ? const_cast<entity_t*>(&ve->ent) : nullptr;
-        const qmodel_t* model = e ? e->model : nullptr;
-        if(heldEnt[hand] && heldModel[hand] && model != heldModel[hand])
+        if(const view::ViewEntity* ve = view::heldWeapon(hand))
         {
-            // Let go (thrown, holstered, another drawn): its blood kept for it.
-            if(const auto it = maskOf.find(heldEnt[hand]); it != maskOf.end() && masks[static_cast<za::SizeT>(it->second)].gear)
-            {
-                loosen(it->second, hand, 0, originOf(*heldEnt[hand]));
-            }
-        }
-        if(model && model != heldModel[hand])
-        {
-            heldSince[hand] = now;
-        }
-        // Taken (from the world, from a holster): its blood back, if it had any (removed in the world a moment ago,
-        // the removal maybe coming after).
-        if(model && vr_gore_gear.value && maskOf.find(e) == maskOf.end())
-        {
-            const int i = findLoose(model, hand, -1, 0.0);
-            if(i >= 0 && (model != heldModel[hand] || (now - heldSince[hand] < 1.5 && loose[i].hand < 0)))
-            {
-                claim(i, e);
-            }
-        }
-        heldEnt[hand] = e;
-        heldModel[hand] = model;
-    }
-    // Thrown: onto the weapon lying in the world once it is here.
-    for(za::SizeT i = 0; i < drops.size();)
-    {
-        const Drop d = drops[i];
-        entity_t& w = cl_entities[d.ent];
-        bool done = now - d.at > 1.5;
-        if(!done && d.ent < cl.num_entities && w.model && w.msgtime >= cl.mtime[0] - 0.001)
-        {
-            const int k = findLoose(w.model, d.hand, -1, 3.0);
-            if(k >= 0 && maskOf.find(&w) == maskOf.end())
-            {
-                claim(k, &w);
-            }
-            done = true;
-        }
-        if(done)
-        {
-            drops.erase(drops.begin() + i);
-        }
-        else
-        {
-            i++;
+            held[hand] = const_cast<entity_t*>(&ve->ent);
         }
     }
-    // Removed in the world and not taken by a hand: gone.
-    for(const Loose& l : loose)
-    {
-        if(l.layer >= 0 && l.hand < 0 && now - l.since > 3.0)
-        {
-            freeMask(l.layer);
-        }
-    }
-    // Gear lying in the world gone far at once: another entity in its slot now.
     for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
-        if(!m.gear || !m.ent || m.ent < cl_entities || m.ent >= cl_entities + cl_max_edicts || !m.ent->model)
+        if(!m.weapon || !m.ent || parkIndex(m.ent) >= 0)
         {
             continue;
         }
-        const glm::vec3 at = originOf(*m.ent);
-        if(glm::distance(at, m.lastAt) > 256.f)
+        const int hand = m.ent == held[0] ? 0 : m.ent == held[1] ? 1 : -1;
+        const int shows = hand >= 0 ? handWeapon(hand) : inWorld(m.ent) ? entityWeapon(static_cast<int>(m.ent - cl_entities)) : 0;
+        if(shows != m.weapon)
         {
-            freeMask(i);
-            continue;
+            park(i);
         }
-        m.lastAt = at;
+    }
+    if(maskOfWeapon.empty())
+    {
+        return;
+    }
+    // What shows a weapon with a mask: it gets it.
+    for(int hand = 0; hand < 2; hand++)
+    {
+        const int weapon = handWeapon(hand);
+        if(const auto it = maskOfWeapon.find(weapon); weapon && held[hand] && it != maskOfWeapon.end())
+        {
+            show(it->second, held[hand]);
+        }
+    }
+    for(int num = 1; num < cl.num_entities; num++)
+    {
+        const int weapon = entityWeapon(num);
+        entity_t& e = cl_entities[num];
+        if(!weapon || !e.model || e.msgtime < cl.mtime[0] - 0.001)
+        {
+            continue; // (not a weapon, or not here this frame)
+        }
+        if(const auto it = maskOfWeapon.find(weapon); it != maskOfWeapon.end())
+        {
+            show(it->second, &e);
+        }
     }
 }
 
@@ -1861,9 +1846,11 @@ void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reac
         {
             continue;
         }
-        Mask& m = masks[static_cast<za::SizeT>(layer)];
-        m.gear = true;
-        m.lastAt = originOf(*g);
+        masks[static_cast<za::SizeT>(layer)].gear = true;
+        if(const view::ViewEntity* ve = view::heldWeapon(hand); ve && &ve->ent == g)
+        {
+            bindWeapon(layer, handWeapon(hand)); // (its blood goes with the weapon)
+        }
         paint(layer, g, splats);
     }
 }
@@ -2153,7 +2140,7 @@ void washGear(float amount)
     for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
-        if(!m.gear || !m.ent || looseIndex(m.ent) >= 0 || vr_gametime - m.lastDrawn > 1.0)
+        if(!m.gear || !m.ent || parkIndex(m.ent) >= 0 || vr_gametime - m.lastDrawn > 1.0)
         {
             continue;
         }
@@ -2228,9 +2215,9 @@ void checkEntities()
     for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
-        if(!m.ent || m.view)
+        if(!m.ent || m.view || m.weapon)
         {
-            continue;
+            continue; // (a weapon's: on what shows its weapon, gearFrame; drawn where its model is)
         }
         const auto* e = const_cast<entity_t*>(m.ent);
         if(sameLayout(m.model, e->model) || (m.gear && !e->model))
@@ -2416,6 +2403,21 @@ void parseClear()
     }
 }
 
+void parseWeaponGone()
+{
+    Event ev;
+    ev.num = MSG_ReadLong();
+    ev.kind = KindWeaponGone;
+    if(vr_wounds_debug.value >= 2)
+    {
+        Con_Printf("wounds: received weapon #%d gone\n", ev.num);
+    }
+    if(enabled() && events.size() < 1024) // (past a full frame's wounds: never lost to them)
+    {
+        events.pushBack(ev);
+    }
+}
+
 void frame()
 {
     if(!enabled() || !glprogs.woundpaint[0])
@@ -2439,7 +2441,7 @@ void frame()
     }
     optionsChanged();
     spatteredNow.clear();
-    gearFrame(cl.time); // (before checkEntities: a hand's weapon let go keeps its blood)
+    gearFrame(); // (before checkEntities: a hand's weapon let go keeps its blood)
     checkEntities();
     playerState();
     const auto t1 = Sys_DoubleTime();
@@ -2625,13 +2627,11 @@ void handsInfo_f()
         int count;
         double sum;
         maskBlood(i, count, sum);
-        const int k = looseIndex(m.ent);
-        const char* where = k >= 0 ? (loose[k].hand >= 0 ? "kept (let go)" : "kept (taken from the world)")
-                            : m.ent == heldEnt[0] ? "in the off hand"
-                            : m.ent == heldEnt[1] ? "in the main hand"
-                            : m.ent == gearOf(0) || m.ent == gearOf(1) ? "carried"
-                                                  : "in the world";
-        Con_Printf("  gear %s %s: blood on %d texels (%.1f)\n", m.model ? m.model->name : "?", where, count, sum);
+        const char* where = parkIndex(m.ent) >= 0 ? "kept"
+                            : m.ent == gearOf(0) ? "in the off hand"
+                            : m.ent == gearOf(1) ? "in the main hand"
+                                                 : "in the world";
+        Con_Printf("  gear #%d %s %s: blood on %d texels (%.1f)\n", m.weapon, m.model ? m.model->name : "?", where, count, sum);
     }
 }
 

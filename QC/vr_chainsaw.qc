@@ -186,13 +186,14 @@ void(entity xProp) VR_Saw_PropRuns =
     xProp.vr_saw_kicks = 0;
     sound(xProp, CHAN_WEAPON, "vr/saw_idle.wav", 1, ATTN_NORM);
     VR_Saw_Debug(sprintf("chainsaw: let go running: runs on %g s, fuel %g\n", cvar_hget(cvarh_vr_chainsaw_drop_run),
-        xProp.weaponclip));
+        xProp.weaponinst.wi_clip));
 };
 
 // Its fuel as burnt idling since it was let go; it stops (not running, its flag cleared) when `xStop`.
 void(entity xProp, float xStop) VR_Saw_PropSettle =
 {
-    xProp.weaponclip = max(0, xProp.weaponclip - (time - xProp.vr_saw_prop_on) * cvar_hget(cvarh_vr_chainsaw_idle_fuel_use));
+    WeaponInst_SetClip(xProp.weaponinst,
+        max(0, xProp.weaponinst.wi_clip - (time - xProp.vr_saw_prop_on) * cvar_hget(cvarh_vr_chainsaw_idle_fuel_use)));
     if(xStop)
     {
         xProp.vr_saw_prop_on = 0;
@@ -215,14 +216,14 @@ void(entity xProp) VR_Saw_PropTaken =
 {
     if(xProp.vr_saw_prop_on)
     {
-        VR_Saw_PropSettle(xProp, xProp.weaponclip <= 0 || time >= xProp.vr_saw_prop_on + cvar_hget(cvarh_vr_chainsaw_drop_run));
+        VR_Saw_PropSettle(xProp, xProp.weaponinst.wi_clip <= 0 || time >= xProp.vr_saw_prop_on + cvar_hget(cvarh_vr_chainsaw_drop_run));
         if(xProp.weaponflags & QVR_WPNFLAG_SAW_RUNNING)
         {
             xProp.vr_saw_prop_on = 0; // (the hand runs it now)
         }
         sound(xProp, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM);
         VR_Saw_Debug(sprintf("chainsaw: taken back %s, fuel %g\n",
-            (xProp.weaponflags & QVR_WPNFLAG_SAW_RUNNING) ? "running" : "stopped", xProp.weaponclip));
+            (xProp.weaponflags & QVR_WPNFLAG_SAW_RUNNING) ? "running" : "stopped", xProp.weaponinst.wi_clip));
     }
 };
 
@@ -284,7 +285,7 @@ void() VR_Saw_PropThink =
     {
         return;
     }
-    float left = self.weaponclip - (time - self.vr_saw_prop_on) * cvar_hget(cvarh_vr_chainsaw_idle_fuel_use);
+    float left = self.weaponinst.wi_clip - (time - self.vr_saw_prop_on) * cvar_hget(cvarh_vr_chainsaw_idle_fuel_use);
     if(left > 0 && time < self.vr_saw_prop_on + cvar_hget(cvarh_vr_chainsaw_drop_run))
     {
         VR_Saw_PropEngine();
@@ -300,7 +301,7 @@ void() VR_Saw_PropThink =
     self.vr_saw_smoke_due = 0;
     VR_Saw_PropSettle(self, TRUE);
     sound(self, CHAN_WEAPON, "vr/saw_stall.wav", 1, ATTN_NORM); // (the engine dying: replaces the idle's loop)
-    VR_Saw_Debug(sprintf("chainsaw: let go: its engine stopped, fuel %g\n", self.weaponclip));
+    VR_Saw_Debug(sprintf("chainsaw: let go: its engine stopped, fuel %g\n", self.weaponinst.wi_clip));
 };
 
 // An ogre dies: its chainsaw falls where it held it (by its right side as it stands), 40-100% full (vr_chainsaw_drop_fuel_min).
@@ -313,7 +314,7 @@ void() VR_DropOgreChainsaw =
     at = trace_endpos + (from - trace_endpos) * 0.2 * (trace_fraction < 1);
     vector vel = v_forward * -15 - v_right * 20 + v_right * (crandom() * 15) + '0 0 60';
     float least = min(max(0, cvar_hget(cvarh_vr_chainsaw_drop_fuel_min)), VR_CHAINSAW_TANK); // Enemy Weapons: Fuel When Dropped
-    CreateThrownWeapon(self, WID_CHAINSAW, 0, floor(least + random() * (VR_CHAINSAW_TANK - least)) /* its fuel */,
+    CreateThrownWeapon(self, WID_CHAINSAW, 0, WeaponInst_New(floor(least + random() * (VR_CHAINSAW_TANK - least))) /* its fuel */,
         at, self.angles, vel, randomVec(40),
         FALSE /* disappear on hit */,
         FALSE /* deal damage */,
@@ -717,7 +718,7 @@ void() VR_Chainsaw_DropAll =
         float hand = h ? cVR_MainHand : cVR_OffHand;
         if(VRGetWeapon(hand) == WID_CHAINSAW)
         {
-            DropWeaponInHand(self, hand, VRGetWeapon(hand), VRGetWeaponFlags(hand), VRGetWeaponClip(hand));
+            DropWeaponInHand(self, hand, VRGetWeapon(hand), VRGetWeaponFlags(hand));
             VR_Saw_Silence(hand); // (the hand's loop: the prop plays its own)
         }
     }
@@ -745,7 +746,7 @@ void() VR_Chainsaw_TakeNearest =
         bprint("chainsaw: none lying within 1000 units, or no empty hand\n");
         return;
     }
-    bprint(sprintf("chainsaw: taking the one %g units away (fuel %g) into the %s hand\n", bestDist, best.weaponclip,
+    bprint(sprintf("chainsaw: taking the one %g units away (fuel %g) into the %s hand\n", bestDist, best.weaponinst.wi_clip,
         VR_Saw_HandName(hand)));
     entity oldSelf = self;
     entity oldOther = other;

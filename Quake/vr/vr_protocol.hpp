@@ -7,7 +7,8 @@
 //   - svc_quakevr (39) + sub-command for particles, late precaches, world text, floating texts
 //     (damage numbers), haptics, knocks on the drawn hands and spent casings;
 //   - an extra "beam id" byte in TE_LIGHTNING1-3 / TE_BEAM, so one entity can own two beams;
-//   - VR stats (weapons in both hands, holsters, clips) in stat slots 64+, sent through
+//   - entity updates: a weapon prop's weapon id in update bit 28 (QC vr_weaponinst.qc);
+//   - VR stats (weapons in both hands, holsters, clips, the hands' weapon ids) in stat slots 64+, sent through
 //     Ironwail's generic stat channel.
 
 #pragma once
@@ -20,6 +21,7 @@ inline constexpr int U_QVR_SCALE = 1 << 24;        // 3 floats
 inline constexpr int U_QVR_SCALEORIGIN = 1 << 25;  // 3 coords
 inline constexpr int U_QVR_OFFSET = 1 << 26;       // 3 coords
 inline constexpr int U_QVR_NOROTATE = 1 << 27;     // no data: a rigid body, whose EF_ROTATE model keeps its angles
+inline constexpr int U_QVR_WEAPONUID = 1 << 28;    // long: a weapon prop's weapon id (QC vr_weaponinst.qc: its record's)
 
 // Server -> client.
 inline constexpr int svc_quakevr = 39;
@@ -46,6 +48,7 @@ enum SvcQuakeVr : int
     QVR_SVC_SHOCK = 18,           // [byte kind][coord3 org][short radius][byte duration * 50]: the lightning gun in water (vr_shock.cpp): 0 the receiving player shocked (to that client only), 1 arcs on a liquid's surface, 2 a burst of arcs in it
     QVR_SVC_FIRED = 19,           // [short entity][byte hand, 255 a monster's gun]: a weapon fired (vr_weaponfx.cpp: its drawn kick, its muzzle flash)
     QVR_SVC_TRACER = 20,          // [short entity][byte hand, 255 a monster's][coord3 from][coord3 to]: a hitscan pellet's line, for a bullet tracer (vr_weaponfx.cpp)
+    QVR_SVC_WEAPONGONE = 21,      // [long weapon id]: that weapon is gone (its record freed: nothing has it any more): its blood forgotten (vr_wounds.cpp; reliable)
 };
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
 
@@ -91,6 +94,8 @@ enum Stat : int
     STAT_QVR_CLIMBOFFX, // each hand's hold, in eighths of a unit: the drawn hand is put on it
     STAT_QVR_CLIMBMAINX = STAT_QVR_CLIMBOFFX + 3,
     STAT_QVR_MELEE = STAT_QVR_CLIMBMAINX + 3, // parry stamina and the counter's window (QC .vr_melee_hud; vr_meleehud.cpp)
+    STAT_QVR_WEAPONUID,  // the main hand's weapon's id (QC vr_weaponinst.qc: its record's; 0 none): its blood (vr_wounds.cpp)
+    STAT_QVR_WEAPONUID2, // the off hand's
     STAT_QVR_END
 };
 

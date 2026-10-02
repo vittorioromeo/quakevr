@@ -1763,8 +1763,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         if(knocked)
         {
             self = targ;
-            DropWeaponInHand(self, hand, VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand),
-                VRGetEntWeaponClip(self, hand));
+            DropWeaponInHand(self, hand, VRGetEntWeapon(self, hand), VRGetEntWeaponFlags(self, hand));
             sprint(self, cvar_hget(cvarh_vr_parry_stamina) ? "Exhausted: the blow knocks the weapon out of your hand!\n" :
                 "The blow knocks the weapon out of your hand!\n");
             self = oldSelf;

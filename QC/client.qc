@@ -124,14 +124,24 @@ void() SetChangeParms =
     parm28 = self.holsterweaponflags3;
     parm29 = self.holsterweaponflags4;
     parm30 = self.holsterweaponflags5;
-    parm31 = self.weaponclip;
-    parm32 = self.weaponclip2;
-    parm33 = self.holsterweaponclip0;
-    parm34 = self.holsterweaponclip1;
-    parm35 = self.holsterweaponclip2;
-    parm36 = self.holsterweaponclip3;
-    parm37 = self.holsterweaponclip4;
-    parm38 = self.holsterweaponclip5;
+    // The weapons' records (vr_weaponinst.qc): their magazines and their ids.
+    parm31 = self.weaponinst.wi_clip;
+    parm32 = self.weaponinst2.wi_clip;
+    parm33 = self.holsterweaponinst0.wi_clip;
+    parm34 = self.holsterweaponinst1.wi_clip;
+    parm35 = self.holsterweaponinst2.wi_clip;
+    parm36 = self.holsterweaponinst3.wi_clip;
+    parm37 = self.holsterweaponinst4.wi_clip;
+    parm38 = self.holsterweaponinst5.wi_clip;
+    parm41 = self.weaponinst.wi_uid;
+    parm42 = self.weaponinst2.wi_uid;
+    parm43 = self.holsterweaponinst0.wi_uid;
+    parm44 = self.holsterweaponinst1.wi_uid;
+    parm45 = self.holsterweaponinst2.wi_uid;
+    parm46 = self.holsterweaponinst3.wi_uid;
+    parm47 = self.holsterweaponinst4.wi_uid;
+    parm48 = self.holsterweaponinst5.wi_uid;
+    parm49 = qvr_weaponinst_next;
     parm39 = self.weaponclipsize;
     parm40 = self.weaponclipsize2;
 };
@@ -163,6 +173,7 @@ void() OnSpawnServerAfterLoad =
 void() OnLoadGame =
 {
     VR_CVars_InitAllHandles();
+    WeaponInst_EnsureAll(); // (a save from before the weapons' records: their weapons get theirs, empty)
 }
 
 void() SetNewParms =
@@ -254,6 +265,15 @@ void() SetNewParms =
     parm36 = 0;
     parm37 = 0;
     parm38 = 0;
+    parm41 = 0; // (new weapons: new ids)
+    parm42 = 0;
+    parm43 = 0;
+    parm44 = 0;
+    parm45 = 0;
+    parm46 = 0;
+    parm47 = 0;
+    parm48 = 0;
+    parm49 = qvr_weaponinst_next;
 };
 
 void() DecodeLevelParms =
@@ -310,15 +330,17 @@ void() DecodeLevelParms =
     self.holsterweaponmodel5 = WeaponIdToModel(self.holsterweapon5, parm30);
 
     // ------------------------------------------------------------------------
-    // Weapon clips:
-    self.weaponclip = parm31;
-    self.weaponclip2 = parm32;
-    self.holsterweaponclip0 = parm33;
-    self.holsterweaponclip1 = parm34;
-    self.holsterweaponclip2 = parm35;
-    self.holsterweaponclip3 = parm36;
-    self.holsterweaponclip4 = parm37;
-    self.holsterweaponclip5 = parm38;
+    // The weapons' records (vr_weaponinst.qc): their magazines, and their ids where free (a coop player respawning
+    // with the level's start parms while his old weapon still lies about gets a new one).
+    qvr_weaponinst_next = max(qvr_weaponinst_next, parm49);
+    self.weaponinst = WeaponInst_Carried(self.weapon, parm31, parm41);
+    self.weaponinst2 = WeaponInst_Carried(self.weapon2, parm32, parm42);
+    self.holsterweaponinst0 = WeaponInst_Carried(self.holsterweapon0, parm33, parm43);
+    self.holsterweaponinst1 = WeaponInst_Carried(self.holsterweapon1, parm34, parm44);
+    self.holsterweaponinst2 = WeaponInst_Carried(self.holsterweapon2, parm35, parm45);
+    self.holsterweaponinst3 = WeaponInst_Carried(self.holsterweapon3, parm36, parm46);
+    self.holsterweaponinst4 = WeaponInst_Carried(self.holsterweapon4, parm37, parm47);
+    self.holsterweaponinst5 = WeaponInst_Carried(self.holsterweapon5, parm38, parm48);
 
     // ------------------------------------------------------------------------
     // Mission packs:

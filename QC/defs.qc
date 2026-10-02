@@ -148,16 +148,26 @@ float parm27; // Field: `.holsterweaponflags2`.
 float parm28; // Field: `.holsterweaponflags3`.
 float parm29; // Field: `.holsterweaponflags4`.
 float parm30; // Field: `.holsterweaponflags5`.
-float parm31; // Field: `.weaponclip`.
-float parm32; // Field: `.weaponclip2`.
-float parm33; // Field: `.holsterweaponclip0`.
-float parm34; // Field: `.holsterweaponclip1`.
-float parm35; // Field: `.holsterweaponclip2`.
-float parm36; // Field: `.holsterweaponclip3`.
-float parm37; // Field: `.holsterweaponclip4`.
-float parm38; // Field: `.holsterweaponclip5`.
+float parm31; // The main hand's weapon's magazine (`.weaponinst.wi_clip`).
+float parm32; // The off hand's (`.weaponinst2.wi_clip`).
+float parm33; // Holster 0's weapon's magazine (`.holsterweaponinst0.wi_clip`).
+float parm34; // Holster 1's weapon's magazine (`.holsterweaponinst1.wi_clip`).
+float parm35; // Holster 2's weapon's magazine (`.holsterweaponinst2.wi_clip`).
+float parm36; // Holster 3's weapon's magazine (`.holsterweaponinst3.wi_clip`).
+float parm37; // Holster 4's weapon's magazine (`.holsterweaponinst4.wi_clip`).
+float parm38; // Holster 5's weapon's magazine (`.holsterweaponinst5.wi_clip`).
 float parm39; // Field: `.weaponclipsize`.
 float parm40; // Field: `.weaponclipsize2`.
+// The weapons' ids (vr_weaponinst.qc: `.wi_uid` of their records), carried to the next level like their magazines.
+float parm41; // The main hand's.
+float parm42; // The off hand's.
+float parm43; // Holster 0's ...
+float parm44;
+float parm45;
+float parm46;
+float parm47;
+float parm48; // ... holster 5's.
+float parm49; // The next id to give (`qvr_weaponinst_next`): the next level's never collide with these.
 
 void() OnSpawnServerBeforeLoad; // Called when a new server
                                 // is spawned, before

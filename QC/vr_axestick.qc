@@ -480,7 +480,7 @@ void() VR_AxeStick_TestThrow =
     {
         wid = WID_AXE;
     }
-    entity axe = CreateThrownWeapon(self, wid, 0, 0, from, a, F * speed - self.velocity, '0 0 0',
+    entity axe = CreateThrownWeapon(self, wid, 0, WeaponInst_New(0), from, a, F * speed - self.velocity, '0 0 0',
         FALSE, hurt, WeaponIdToThrowDamage(wid));
     if(cvar("vr_test_axe_weapon") > 0)
     {

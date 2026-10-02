@@ -39,7 +39,7 @@ struct sizebuf_s;
 // its progs), and progs implementing Quake VR's gameplay (without it, VR in compatibility mode).
 #define PRFL_QUAKEVR				(1 << 16)
 #define PRFL_QUAKEVR_PROGS			(1 << 17)
-#define VR_ENTITY_UPDATE_MAXSIZE	36		// bytes VR_WriteEntityUpdate may add
+#define VR_ENTITY_UPDATE_MAXSIZE	40		// bytes VR_WriteEntityUpdate may add
 #define SOLID_NOT_BUT_TOUCHABLE		5		// Quake VR: not solid, but can be (hand) touched
 
 // Host lifetime and pacing (host.c, main_sdl.c, gl_screen.c).

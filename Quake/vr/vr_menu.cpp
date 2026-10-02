@@ -3205,6 +3205,23 @@ za::Vector<Item> pageDebugTests()
         command("Chainsaw Fit", "vr_chainsaw_fit")
             .help("vr_chainsaw_fit: with the chainsaw in the main hand, prints where the off hand must move to take its "
                   "cord and each of its hotspots (two, on the front handle), and how many it has."),
+        header("Weapon Instances"),
+        command("List Your Weapons", "vr_test_weaponinst 0; impulse 120")
+            .help("Prints what has which weapon: your hands, your holsters, the weapons lying near you, each with its id "
+                  "and magazine (each weapon is one record that goes where it goes: its blood with it), and how many "
+                  "records there are."),
+        cycle("Holster", vr_test_weaponinst_slot,
+            {{0.f, "Right Hip"}, {5.f, "Left Hip"}, {4.f, "Right Shoulder"}, {3.f, "Left Shoulder"}, {9.f, "Right Upper"},
+             {8.f, "Left Upper"}})
+            .help("The holster the two commands below use."),
+        command("Holster the Main Hand's", "vr_test_weaponinst 1; impulse 120").help("Into that holster, as letting go there does."),
+        command("Draw into the Main Hand", "vr_test_weaponinst 2; impulse 120").help("From that holster, as gripping there does."),
+        command("Drop the Main Hand's", "vr_test_weaponinst 3; impulse 120").help("As letting go does (a throw at the hand's speed)."),
+        command("Take the Nearest Weapon", "vr_test_weaponinst 4; impulse 120").help("The weapon lying nearest you into the main hand."),
+        command("Hand Off to the Off Hand", "vr_test_weaponinst 5; impulse 120")
+            .help("The main hand's weapon carried by the off hand, as letting go of a two-handed weapon does."),
+        command("Take It Back", "vr_test_weaponinst 6; impulse 120").help("The main hand takes the carried weapon's handle."),
+        command("Switch Hands", "vr_test_weaponinst 7; impulse 120").help("The main hand's weapon into the off hand (8: back)."),
         header("Climbing"),
         command("Climbing Test Map", "map vrclimb").help("map vrclimb: rungs, ledges, a jump wall, moving and floating ledges."),
         command("To the Jump Wall", "setpos -40 -310 24 0 0 0; noclip")

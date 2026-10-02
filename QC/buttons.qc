@@ -600,7 +600,7 @@ void() func_worldtext_banner =
 void() func_weapon_dispenser_use =
 {
     CreateThrownWeapon(self, self.weapon, 0 /* weaponflags */,
-        WeaponIdToBaseClipSize(self.weapon) /* weaponclip */,
+        WeaponInst_New(WeaponIdToBaseClipSize(self.weapon)) /* a new one, loaded */,
         self.origin, randomVec(180),
         '0 0 0', LegacyThrowSpin('0 0 0', randomVec(20)),
         FALSE /* disappear on hit */,
@@ -630,7 +630,7 @@ void() func_weapon_grabbable =
 
     // Turned any way, still: it falls and settles on its drawn shape (a rigid body, MakeThrown).
     CreateThrownWeapon(self, self.weapon, self.weaponflags,
-        WeaponIdToBaseClipSize(self.weapon) /* weaponclip */,
+        WeaponInst_New(WeaponIdToBaseClipSize(self.weapon)) /* a new one, loaded */,
         self.origin, randomVec(180),
         '0 0 0', '0 0 0',
         FALSE /* disappear on hit */,

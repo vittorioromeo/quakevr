@@ -179,6 +179,7 @@ float() GremlinAttemptWeaponSteal =
         self = victim;
         setHolsterWeapon(hotspot, WID_FIST);
         setHolsterWeaponModel(hotspot, WeaponIdToModel(WID_FIST, 0 /* weaponflags */));
+        VRSetEntHolsterWeaponInst(victim, hotspot, world); // (the weapon gone: its record freed)
         self = tmpSelf;
     }
     else

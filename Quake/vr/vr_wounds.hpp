@@ -34,6 +34,8 @@ namespace qvr::wounds
 void parseEvent();
 // QVR_SVC_WOUNDCLEAR: the entity's wounds forgotten (removed on the server: the next one in its slot starts clean).
 void parseClear();
+// QVR_SVC_WEAPONGONE: a weapon's record freed on the server (QC vr_weaponinst.qc): its blood forgotten.
+void parseWeaponGone();
 
 // Once a frame, after the view's entities are set up (VR_SetupViewEntities: the body and the hands posed): the wounds
 // received painted, drying, cooling and healing, the drips.

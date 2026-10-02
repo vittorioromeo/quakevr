@@ -18,8 +18,7 @@ float QVR_WOUND_ZAP   = 6; // lightning
 float QVR_WOUND_LAVA  = 7; // standing in lava (org_z: its surface)
 float QVR_WOUND_SLIME = 8; // in slime (org_z: its surface)
 float QVR_WOUND_WATER = 9; // in a liquid (org_z: its surface; extra: 0 water, 1 slime, 2 lava)
-float QVR_WOUND_GEAR  = 10; // a weapon thrown from a hand (extra: 0 the off hand, 1 the main): its blood goes with it (DropWeaponInHandScaled
-                            // sends it, as 10: weapons.qc comes first)
+// (10, a weapon thrown from a hand, is no more: a weapon's blood goes with its id, vr_weaponinst.qc.)
 
 .float vr_wound_liquid_next; // when a monster or a player in a liquid is next told about (VR_Wounds_Frame)
 

@@ -184,13 +184,7 @@ VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponFlags,
                           &self.weaponflags2,
                           &self.weaponflags);
 
-VR_IMPL_MAKE_FLOAT_GETTER(VRGetWeaponClip,
-                          self.weaponclip2,
-                          self.weaponclip);
-
-VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponClip,
-                          &self.weaponclip2,
-                          &self.weaponclip);
+// (The hands' magazines: VRGetWeaponClip, VRSetWeaponClip, vr_weaponinst.qc.)
 
 VR_IMPL_MAKE_FLOAT_SETTER(VRSetWeaponClipSize,
                           &self.weaponclipsize2,
@@ -275,12 +269,6 @@ void(entity e, float xHand, float v) VRSetEntWeaponFlags =
     else                     e.weaponflags = v;
 }
 
-void(entity e, float xHand, float v) VRSetEntWeaponClip =
-{
-    if(xHand == cVR_OffHand) e.weaponclip2 = v;
-    else                     e.weaponclip = v;
-}
-
 void(float xHand, float v) VRSetWeapon =
 {
     VRSetEntWeapon(self, xHand, v);
@@ -296,11 +284,6 @@ inline float(entity e, float xHand) VRGetEntWeaponFlags =
     return VR_IMPL_SELECT(xHand, e.weaponflags2, e.weaponflags);
 }
 
-inline float(entity e, float xHand) VRGetEntWeaponClip =
-{
-    return VR_IMPL_SELECT(xHand, e.weaponclip2, e.weaponclip);
-}
-
 float*(entity e, float xHand) VRGetEntWeaponPtr =
 {
     if(xHand == cVR_OffHand) return &e.weapon2;
@@ -311,12 +294,6 @@ float*(entity e, float xHand) VRGetEntWeaponFlagsPtr =
 {
     if(xHand == cVR_OffHand) return &e.weaponflags2;
     else                     return &e.weaponflags;
-}
-
-float*(entity e, float xHand) VRGetEntWeaponClipPtr =
-{
-    if(xHand == cVR_OffHand) return &e.weaponclip2;
-    else                     return &e.weaponclip;
 }
 
 // Whether `xHand` holds no weapon (its weapon is the fist). It may still carry a box, a gib, a torch (vr_carry.qc):
@@ -348,7 +325,7 @@ void(entity e, float xHand) VRSetHandEmpty =
 {
     VRSetEntWeapon(e, xHand, WID_FIST);
     VRSetEntWeaponFlags(e, xHand, 0);
-    VRSetEntWeaponClip(e, xHand, 0);
+    VRSetEntWeaponInst(e, xHand, world); // (its record: moved on first, else gone with it)
 }
 
 inline float(float xHand) VRGetWeapon =
