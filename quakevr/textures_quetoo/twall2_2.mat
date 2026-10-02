@@ -1,0 +1,8 @@
+{
+	diffusemap quake/twall2_2
+	{
+		texture quake/twall2_2_luma
+		blend src_alpha one
+		pulse 0.23
+	}
+}

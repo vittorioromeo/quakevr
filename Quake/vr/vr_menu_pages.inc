@@ -649,7 +649,7 @@ void resetHandMoves()
         slider("Parallax Models Depth", "vr_parallax_models", 0.f, 2.f, 0.125f, "%.3f").extend().help("How deep monsters, pickups and weapons without baked maps look carved, their heights guessed from the skin's paint, in their own units (0 off, the default: on Quake's blocky skins it bends the texels)."),
         slider("Parallax Depth: Authored Models", "vr_parallax_authored", 0.f, 2.f, 0.25f, "%.2f").extend().help("How deep models with authored bump maps look carved (your hands and body, the gadget, the flashlight, the weapons): their real baked relief, 1 as deep as baked, 0 off."),
         header("External Maps"),
-        toggle("External Maps", "vr_extmaps").help("A texture pack's own normal, specular and glow maps (e.g. Quetoo's), from the folder vr_extmaps_dir (not shipped), where its pictures match the textures drawn. Next map."),
+        toggle("External Maps", "vr_extmaps").help("Quetoo's normal, specular and glow maps for Quake's textures (shipped: quakevr/textures_quetoo, CC BY-SA 4.0; or another pack in vr_extmaps_dir), where its pictures match the textures drawn. Next map."),
         toggle("External Bump Maps", "vr_extmaps_normals").help("Its normal maps instead of the bumps made from the textures (where it has them)."),
         toggle("External Specular Maps", "vr_extmaps_spec").help("Its specular maps: how much and in what colour each texel glints (Light Sheen), and each material's hardness."),
         slider("External Specular Brightness", "vr_extmaps_spec_scale", 0.f, 8.f, 0.25f, "%.2f").extend().help("How bright its specular maps make the sheen (4: about as bright as without, on average)."),

@@ -1,0 +1,6 @@
+{
+	diffusemap quake/metal2_2
+	normalmap quake/m5_8_norm
+	specularmap quake/m5_8_spec
+	parallax 1.54
+}

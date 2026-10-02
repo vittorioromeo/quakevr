@@ -2,7 +2,8 @@
 // material maps"). A texture pack made for Quake's textures may come with maps of its own beside its pictures: Quetoo's
 // (jdolan's quetoo-data, textures/quake: CC-BY-SA 4.0) has <name>_norm (a normal map, its height in alpha), <name>_spec
 // (a specular colour), <name>_luma / _glow and <name>.mat (Quetoo's material: specularity, hardness, and which maps).
-// They are read from vr_extmaps_dir, never shipped: Image_LoadImage reads a "vrext/<file>" path from that folder
+// Quake VR ships a subset of them, unchanged (quakevr/textures_quetoo/: its README.md has the credits and licence;
+// Misc/quakevr/select_quetoo_maps.py picks them), the default vr_extmaps_dir. Image_LoadImage reads a "vrext/<file>" path from that folder
 // (VR_ExtMapsOpen), so the textures made from them reload like any other.
 //
 // A pack's name for a texture: lower case, a liquid's '*' dropped, an animation's frame moved to the end (+0button is

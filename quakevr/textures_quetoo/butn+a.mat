@@ -1,0 +1,9 @@
+{
+diffusemap quake/butn+a
+normalmap quake/butn+0_norm
+	{
+		texture quake/butn+a_luma
+		blend src_alpha one
+		pulse 0.30
+	}
+}

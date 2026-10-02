@@ -1,0 +1,5 @@
+{
+	diffusemap quake/door01_2
+	normalmap quake/adoor01_2_norm
+	specularmap quake/adoor01_2_spec
+}

@@ -1,0 +1,13 @@
+{
+	diffusemap quake/tele_top
+	roughness 1.18
+	hardness 1.50
+	specularity 1.47
+	parallax 2.46
+	shadow 4.00
+	{
+		texture quake/tele_top_luma
+		blend src_alpha one
+		pulse 0.67
+	}
+}

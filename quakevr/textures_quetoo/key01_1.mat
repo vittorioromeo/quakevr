@@ -1,0 +1,8 @@
+{
+	diffusemap quake/key01_1
+	{
+		texture quake/key01_1_luma
+		blend src_alpha one
+		pulse 0.22
+	}
+}

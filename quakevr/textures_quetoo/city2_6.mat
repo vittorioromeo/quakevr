@@ -1,0 +1,10 @@
+{
+	diffusemap quake/city2_6
+	normalmap quake/city2_1_norm
+	specularmap quake/city2_1_spec
+	roughness 0.42
+	hardness 1.01
+	specularity 0.49
+	parallax 4.02
+	shadow 8.00
+}

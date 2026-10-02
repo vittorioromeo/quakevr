@@ -1,0 +1,8 @@
+{
+	diffusemap quake/tech03_2
+	{
+		texture quake/tech03_2_luma
+		blend src_alpha one
+		pulse 0.40
+	}
+}

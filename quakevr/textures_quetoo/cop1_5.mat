@@ -1,0 +1,9 @@
+{
+	diffusemap quake/cop1_5
+	normalmap quake/cop1_4_norm
+	specularmap quake/cop1_4_spec
+	hardness 2.00
+	specularity 1.69
+	parallax 2.54
+	shadow 8.00
+}

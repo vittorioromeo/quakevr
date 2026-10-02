@@ -1,0 +1,15 @@
+{
+	diffusemap quake/rune2_5
+	normalmap quake/rune1_5_norm
+	specularmap quake/rune1_5_spec
+	roughness 1.53
+	hardness 3.99
+	specularity 1.51
+	parallax 3.04
+	shadow 8.00
+	{
+		texture quake/rune2_5_luma
+		blend src_alpha one
+		pulse 0.40
+	}
+}

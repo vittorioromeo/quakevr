@@ -263,8 +263,11 @@ const DefaultChange defaultChanges[] = {
     // 80: the author's answer on the outliers (2026-10-02): his wound detail and burns relief.
     {80, &vr_wounds_own_res, "1024"},          // 0 (the chunky masks)
     {80, &vr_wounds_bump_burns, "1"},          // 3
+    // 81: Quetoo's material maps shipped and on (quakevr/textures_quetoo; ROUND21.md, "Quetoo's maps shipped").
+    {81, &vr_extmaps, "0"},                    // 1
+    {81, &vr_extmaps_dir, "textures_ext"},     // textures_quetoo (an absolute Quetoo folder: below)
 };
-constexpr int configVersion = 80;
+constexpr int configVersion = 81;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -351,6 +354,22 @@ void trackConfig(const char* path)
 }
 
 void migrateConfig();
+
+// A full path to Quetoo's textures/quake folder (quetoo-data's, downloaded): config version 81 takes the shipped copy.
+[[nodiscard]] bool quetooFolder(const char* dir)
+{
+    za::String s{dir};
+    for(size_t i = 0; i < s.size(); i++)
+    {
+        s[i] = s[i] == '\\' ? '/': static_cast<char>(tolower(static_cast<unsigned char>(s[i])));
+    }
+    while(!s.empty() && s.back() == '/')
+    {
+        s.popBack();
+    }
+    const bool absolute = s.size() > 1 && (s[0] == '/' || s[1] == ':');
+    return absolute && s.find("quetoo") != za::StringView::nPos && s.endsWith("/textures/quake");
+}
 
 // Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()
@@ -509,6 +528,13 @@ void migrateConfig()
             Con_DPrintf("VR: %s: new default %s (was 0)\n", var->name, var->default_string);
             Cvar_SetQuick(var, var->default_string);
         }
+    }
+    // 81: a config pointing vr_extmaps_dir at a downloaded Quetoo folder (quetoo-data/.../textures/quake) takes the
+    // shipped copy (relative, in every install).
+    if(from < 81 && quetooFolder(vr_extmaps_dir.string))
+    {
+        Con_DPrintf("VR: vr_extmaps_dir: %s (was %s)\n", vr_extmaps_dir.default_string, vr_extmaps_dir.string);
+        Cvar_SetQuick(&vr_extmaps_dir, vr_extmaps_dir.default_string);
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }

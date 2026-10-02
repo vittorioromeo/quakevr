@@ -1,0 +1,5 @@
+{
+	diffusemap quake/wizmet1_8
+	normalmap quake/mmetal1_6_norm
+	specularmap quake/mmetal1_6_spec
+}

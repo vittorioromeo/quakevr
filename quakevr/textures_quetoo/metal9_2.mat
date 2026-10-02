@@ -1,0 +1,11 @@
+{
+	diffusemap quake/metal9_2
+	parallax 2.50
+	shadow 0.00
+	{
+		texture quake/metal9_2_luma
+		blend src_alpha one
+		color 1.50 1.50 1.50 1.00
+		pulse 0.38
+	}
+}

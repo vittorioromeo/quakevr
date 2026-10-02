@@ -1,0 +1,10 @@
+{
+	normalmap quake/rune1_1_norm
+	specularmap quake/rune1_1_spec
+	diffusemap quake/rune2_1
+	{
+		texture quake/rune2_1_luma
+		blend src_alpha one
+		pulse 0.20
+	}
+}

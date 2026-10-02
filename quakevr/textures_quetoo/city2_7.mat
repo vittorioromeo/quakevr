@@ -1,0 +1,6 @@
+{
+	diffusemap quake/city2_7
+	normalmap quake/city2_1_norm
+	hardness 0.44
+	parallax 2.50
+}

@@ -236,6 +236,11 @@ Quake VR is by **Vittorio Romeo**. It builds on:
   Szablewski's Oculus port, and Spike's QuakeSpasm-Spiked.
 - Hand models by [CrazyHairGuy](https://www.crazyhairguy.com/). Weapon models are based on
   [Authentic Model Improvements](https://github.com/NightFright2k19/authmdl).
+- The world's normal, specular and glow maps are from the [Quetoo](https://github.com/jdolan/quetoo) game data by
+  Jay Dolan (jdolan) and contributors, made for Rygel's Texturepack Ultra (from the Quake Retexture Project and
+  others; id Software's textures retextured), under
+  [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/): see
+  [quakevr/textures_quetoo/README.md](quakevr/textures_quetoo/README.md) for every author.
 - The OpenXR SDK (Khronos), SDL2, GLM, FTEQCC, and ericw-tools.
 
 The full list, with the research and techniques used, is in [docs/vr-port/CREDITS.md](docs/vr-port/CREDITS.md).

@@ -1,0 +1,8 @@
+{
+	diffusemap quake/elwall1_1
+	{
+		texture quake/elwall1_1_luma
+		blend src_alpha one
+		pulse 0.36
+	}
+}

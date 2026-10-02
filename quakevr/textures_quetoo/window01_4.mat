@@ -1,0 +1,13 @@
+{
+	diffusemap quake/window01_4
+	roughness 0.50
+	hardness 2.04
+	specularity 0.50
+	parallax 1.96
+	shadow 0.00
+	{
+		texture quake/window01_4
+		blend src_alpha one
+		color 1.50 1.50 1.50 0.35
+	}
+}

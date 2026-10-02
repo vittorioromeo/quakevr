@@ -1,0 +1,5 @@
+{
+	diffusemap quake/metal2_8
+	normalmap quake/m5_8_norm
+	specularmap quake/m5_8_spec
+}

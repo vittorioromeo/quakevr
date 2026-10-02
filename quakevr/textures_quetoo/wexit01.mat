@@ -1,0 +1,5 @@
+{
+	diffusemap quake/wexit01
+	normalmap quake/enter01_norm
+	specularmap quake/enter01_spec
+}

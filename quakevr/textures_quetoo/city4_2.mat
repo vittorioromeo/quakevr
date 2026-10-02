@@ -1,0 +1,8 @@
+{
+	diffusemap quake/city4_2
+	roughness 1.49
+	hardness 0.50
+	specularity 0.25
+	parallax 2.98
+	shadow 8.00
+}

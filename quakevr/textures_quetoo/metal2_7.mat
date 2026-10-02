@@ -1,0 +1,5 @@
+{
+	diffusemap quake/metal2_7
+	normalmap quake/metal1_4_norm
+	specularmap quake/metal1_4_spec
+}

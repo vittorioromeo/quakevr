@@ -22261,3 +22261,39 @@ from a monster spawned dead at your feet (not changed).
 - Slash and stab grunts and corpses with the sword and the axe: small gibs drop near the wound, never shot across the room.
 - Bat a small gib that has lain a moment: it still flies.
 - Stand on a corpse and gib it with a blow, and with the shotgun at your feet: no damage. Throw a gib at a monster: it hurts.
+
+## Quetoo's maps shipped: on by default (2026-10-03)
+
+The author's decision: Quetoo's material maps (above, "External material maps") are better than the made ones: ship
+them, on by default, credited. (That section's caution stands as a record: Rygel's pack and QRP give no licence of
+their own; quetoo-data publishes the files under CC BY-SA 4.0, which is what we rely on.)
+
+- **Shipped** in `quakevr/textures_quetoo/` (tracked): 1076 files, 46.4 MB (of the folder's 1880, 72.6 MB),
+  byte-for-byte quetoo-data's (commit `fcb502b3fa0a`), with `LICENSE.md` (CC BY-SA 4.0's text) and `README.md`
+  (source, authors, what we change, the obligations). Per texture: the picture (the engine needs it: a texture with
+  no picture in the folder gets nothing, and `vr_extmaps_match` compares it), `.mat`, `_norm`, `_spec`, the first of
+  `_luma`/`_glow` (as `vr_extmaps.cpp` resolves them; png before tga before jpg, as Image_LoadImage).
+- **Which**: `vr_extmaps_stats all` on all 71 maps (id1, hipnotic, rogue; `vr_extmaps_match 0.001` so each match is
+  measured) with id's textures (`-Base qbase`) and with QRP (`-Base qrp`); a name is kept when it matches at 0.5 in
+  either: 327 names. `Misc/quakevr/select_quetoo_maps.py <quetoo folder> <dest> <logs...>` redoes it. Sizes by
+  threshold: all Quake names in the pack 61.3 MB, 0.3 49.8 MB, 0.5 46.4 MB. Of the shipped bytes: normal maps 31.5 MB,
+  pictures 9.1, specular 5.5, glow 0.2. (Lossless PNG re-compression saves ~3%: not done, the files stay Quetoo's.)
+- **Defaults**: `vr_extmaps 1`, `vr_extmaps_dir textures_quetoo` (relative: found in the game's folders, so in every
+  install and with the mission packs); the rest unchanged (`vr_extmaps_spec 1`, `_spec_scale 4`, `_green 0` judged per
+  map, `_match 0.5`). Config version 81: a config holding `vr_extmaps 0` or `vr_extmaps_dir textures_ext` (the old
+  defaults) takes the new ones; a full path to a Quetoo `.../textures/quake` folder (the author's
+  `C:/OHWorkspace/qvr-kit/external/quetoo-data/...`; any case, either slash) becomes `textures_quetoo`.
+- **How much shows**: e1m1 with id's textures (a fresh install, nothing downloaded): 17 of 77 textures get the maps
+  (17 normal, 17 specular, 6 glow), 36 differ, 24 not in the pack; with QRP: 52 (48 normal, 49 specular, 4 glow).
+  Over all 71 maps: 412 of 3729 map-textures with id's, 1853 with QRP. Quetoo's pictures are QRP's art, and QRP
+  repaints many textures (other layouts: bricka2_2's stones, altar1_3's skulls, column1_2's marble), so their bumps
+  fit id's texels only where the layout is the same; coarser comparisons (16 or 32 a side, plain or band-passed) don't
+  separate them better (at the same false matches, no more true ones), so the matching is unchanged.
+- **Verified**: fresh config (no ironwail.cfg): `vr_extmaps 1`, `textures_quetoo`, version 81; e1m1 A/B eyeshots
+  (`vr_extmaps_ab`, a test light) with both bases: the external maps drawn (mean abs. difference 13-25 per channel;
+  rivets and plates cleaner). The author's config (version 80, the absolute Quetoo path) and a backslash path with
+  `vr_extmaps 0` both migrate to `textures_quetoo` and 1; the old baseline config (version 34) gets the defaults.
+
+Test in VR:
+- [ ] A new game with your config: Graphics > Surfaces > External Maps on, the walls as with your downloaded folder.
+- [ ] Debug > Views > External Maps A/B on e1m1 by a lamp: the shipped maps drawn.

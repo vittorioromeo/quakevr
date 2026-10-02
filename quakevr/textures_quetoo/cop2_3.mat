@@ -1,0 +1,5 @@
+{
+	diffusemap quake/cop2_3
+	normalmap quake/cop1_8_norm
+	specularmap quake/cop1_8_spec
+}

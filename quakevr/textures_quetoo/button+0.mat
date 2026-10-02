@@ -1,0 +1,12 @@
+{
+	diffusemap quake/button+0
+	roughness 2.01
+	hardness 4.96
+	parallax 2.49
+	shadow 8.00
+	{
+		texture quake/button+0_luma
+		blend src_alpha one
+		pulse 0.28
+	}
+}

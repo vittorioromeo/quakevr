@@ -1,0 +1,8 @@
+{
+	diffusemap quake/z_exit
+	{
+		texture quake/z_exit_luma
+		blend src_alpha one
+		pulse 0.20
+	}
+}

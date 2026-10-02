@@ -1,0 +1,8 @@
+{
+	diffusemap quake/dung01_3
+	normalmap quake/dung01_2_norm
+	specularmap quake/dung01_2_spec
+	roughness 2.02
+	parallax 1.99
+	shadow 8.00
+}

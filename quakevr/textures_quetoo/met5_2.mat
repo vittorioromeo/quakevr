@@ -1,0 +1,9 @@
+{
+	diffusemap quake/met5_2
+	normalmap quake/altar1_1_norm
+	specularmap quake/altar1_1_spec
+	roughness 1.51
+	hardness 1.53
+	parallax 4.01
+	shadow 8.00
+}

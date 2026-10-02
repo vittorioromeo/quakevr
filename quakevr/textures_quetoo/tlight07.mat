@@ -1,0 +1,13 @@
+{
+	diffusemap quake/tlight07
+	roughness 1.99
+	hardness 0.50
+	specularity 1.46
+	parallax 2.96
+	shadow 3.50
+	{
+		texture quake/tlight07_luma
+		blend src_alpha one
+		pulse 0.50
+	}
+}

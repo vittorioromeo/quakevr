@@ -1,0 +1,8 @@
+{
+	diffusemap quake/rune1_7
+	roughness 1.47
+	hardness 4.01
+	specularity 1.47
+	parallax 2.05
+	shadow 8.00
+}

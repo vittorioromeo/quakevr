@@ -1,0 +1,8 @@
+{
+	diffusemap quake/plat_top2
+	roughness 1.5
+	parallax 4
+	shadow 8
+	hardness 4
+	specularity 2
+}

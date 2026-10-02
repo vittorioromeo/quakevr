@@ -1,0 +1,10 @@
+{
+	diffusemap quake/key01_2
+	normalmap quake/key01_1_norm
+	specularmap quake/key01_1_spec
+	{
+		texture quake/key01_2_luma
+		blend src_alpha one
+		pulse 0.25
+	}
+}

@@ -1,0 +1,8 @@
+{
+	diffusemap quake/rune_a
+	{
+		texture quake/rune_a_luma
+		blend src_alpha one
+		pulse 0.21
+	}
+}

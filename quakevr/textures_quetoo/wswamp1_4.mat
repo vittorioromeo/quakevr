@@ -1,0 +1,8 @@
+{
+	diffusemap quake/wswamp1_4
+	roughness 0.99
+	hardness 0.78
+	specularity 0.79
+	parallax 3.50
+	shadow 8.00
+}

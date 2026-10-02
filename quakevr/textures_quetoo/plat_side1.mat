@@ -1,0 +1,8 @@
+{
+	diffusemap quake/plat_side1
+	{
+		texture quake/plat_side1_luma
+		blend src_alpha one
+		pulse 0.25
+	}
+}

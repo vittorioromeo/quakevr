@@ -1,0 +1,7 @@
+{
+	diffusemap quake/cop1_8
+	roughness 0.91
+	hardness 4.00
+	parallax 3.02
+	surface "phong"
+}
