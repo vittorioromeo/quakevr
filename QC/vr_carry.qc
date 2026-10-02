@@ -41,6 +41,11 @@
 .entity carry_letgo;     // the player who last let go of it (VR_Carry_Loose), and when: not hurt by it as it leaves the hand,
 .float carry_letgo_time; // and credited with its flung hits for a while (VR_Prop_Flung)
 .float vr_fling_hit;     // when it last hurt something flung (VR_Prop_Flung: one hit a VR_FLING_REHIT)
+.float vr_2h_nomelee;    // on a player: until then neither hand strikes (just after a two-handed throw: VR_Throw_TwoHanded)
+.float vr_2h_letgo_hand; // on a player: the hand (+1; 0 none) that let go first of a thing held in both, and when
+.float vr_2h_letgo_time;
+.entity vr_2h_thrower;   // the player who threw it with both hands, and when: his hands can't strike it for a moment
+.float vr_2h_thrown;     // (VR_Throw_SparedBlows)
 
 entity(entity xPlayer, float xHand) VR_Carry_Held =
 {
@@ -310,28 +315,100 @@ float(entity e) VR_Thrown_Mass =
     return propvalue(e, "mass");
 };
 
-// Heavy leniency: the factor on its throw's speed thresholds (weightleniency: 1 but for things heavier than every
-// weapon, which can't be thrown as fast).
+// The factor on its throw's speed thresholds (throwleniency: 1 but for heavy things, which can't be thrown as fast: their
+// heavy leniency, and lower still for one too heavy to be thrown vr_throw_hit_top m/s one-handed).
 float(entity e) VR_Thrown_Lenient =
 {
-    return weightleniency(VR_Thrown_Mass(e));
+    return throwweight(0, VR_Thrown_Mass(e));
 };
 
-// Its damage hitting something at `xSpeed` units/s: its base (GetThrownWeaponBaseDamage) times its speed over the
-// throw's full-damage speed (.throwdmgspeed; that times `xLenient` for a heavy thing, as its thresholds are), its own
-// Throw Damage x times the weight's curve (weightdamage), and vr_weapon_throw_damage_mult.
-float(entity e, float xSpeed, float xLenient) VR_Thrown_Damage =
+// A thrown weapon's own multiplier of its hit speed, or of its damage curve (Weapon Weights: Damage Thresholds and
+// Curves, `xKey` "w_throwmin" or "w_throwcurve"); a prop's 1.
+float(entity e, string xKey) VR_Thrown_Own =
+{
+    if(e.classname == "thrown_weapon")
+    {
+        return weaponvalue(e.model, xKey);
+    }
+    return 1;
+};
+
+// The least speed (units/s) it hurts what it meets at (throwhitspeed: vr_throw_hit_min_speed times VR_Thrown_Lenient
+// and the weapon's own).
+float(entity e) VR_Thrown_HitSpeed =
+{
+    return throwweight(1, VR_Thrown_Mass(e), VR_Thrown_Own(e, "w_throwmin"));
+};
+
+// Its damage hitting something at `xSpeed` units/s (0: too slow): its base (GetThrownWeaponBaseDamage) times its speed
+// over the throw's full-damage speed (.throwdmgspeed; that times VR_Thrown_Lenient for a heavy thing, as its thresholds
+// are; eased in just over its hit speed: throwdamage), its own Throw Damage x and Throw Damage Curve, the weight's curve
+// (weightdamage) and vr_weapon_throw_damage_mult.
+float(entity e, float xSpeed) VR_Thrown_Damage =
 {
     float dmgSpeed = e.throwdmgspeed;
     if(!dmgSpeed) dmgSpeed = 700;
     float weapon = e.classname == "thrown_weapon";
     float own = weapon ? weaponvalue(e.model, "w_throwdmg") : propvalue(e, "throw_dmg");
-    float curve = weightdamage(VR_Thrown_Mass(e));
-    return (xSpeed / (dmgSpeed * max(0.01, xLenient))) * GetThrownWeaponBaseDamage(e) * own * curve *
-           cvar_hget(cvarh_vr_weapon_throw_damage_mult);
+    float mass = VR_Thrown_Mass(e);
+    float curve = weightdamage(mass);
+    float bySpeed = throwweight(2, mass, VR_Thrown_Own(e, "w_throwmin"), VR_Thrown_Own(e, "w_throwcurve"), xSpeed, dmgSpeed);
+    return bySpeed * GetThrownWeaponBaseDamage(e) * own * curve * cvar_hget(cvarh_vr_weapon_throw_damage_mult);
 };
 
 float VR_THROW_MISSILE_SPEED = 250; // u/s (times VR_Thrown_Lenient): a thing let go of this fast is thrown, a missile
+
+// ----------------------------------------------------------------------------
+// Two-handed throws (NOTES.md vrfiringrange_2026-10-02_00-54-03: a gib thrown with both hands burst at once on one hand's
+// follow-through, taken for a punch). A throw with both hands (a prop let go of by both, VR_Carry_Release; a weapon held
+// in both, DropWeaponInHandScaled): neither hand strikes for vr_throw_2h_nomelee, and the hand that let go first does
+// not from its letting go (the other may still throw it with both, within vr_carry_two_hands_window). What was thrown
+// can't be struck by the thrower's hands for vr_throw_2h_melee_immune (VR_Blow_Strikable).
+
+// A throw's spin `xAVel` (rad/s) limited by the mass of what `xHands` hands throw (throwweight 3: vr_throw_spin_mass_exp;
+// NOTES.md vrfiringrange_2026-10-02_01-22-37: a heavy explosive box spun fast from a wrist snap).
+vector(vector xAVel, float xMass, float xHands) VR_Throw_Spin =
+{
+    float rate = vlen(xAVel);
+    if(rate <= 0)
+    {
+        return xAVel;
+    }
+    return xAVel * (throwweight(3, xMass, xHands, rate) / rate);
+};
+
+// `p` threw `xThing` (world: a weapon, nothing to spare) with both hands.
+void(entity p, entity xThing) VR_Throw_TwoHanded =
+{
+    p.vr_2h_nomelee = time + max(0, cvar_hget(cvarh_vr_throw_2h_nomelee));
+    p.vr_2h_letgo_hand = 0;
+    if(xThing != world)
+    {
+        xThing.vr_2h_thrower = p;
+        xThing.vr_2h_thrown = time;
+    }
+    dprint(sprintf("throw: two-handed, %s: no blows for %.2f s, it spared them for %.2f s\n",
+        xThing != world ? xThing.classname : "a weapon", max(0, cvar_hget(cvarh_vr_throw_2h_nomelee)),
+        xThing != world ? max(0, cvar_hget(cvarh_vr_throw_2h_melee_immune)) : 0));
+};
+
+// Whether `xHand` of `p` may strike now: not just after a two-handed throw, nor (the hand that let go first of a thing
+// held in both) while the other may still throw it with both.
+float(entity p, float xHand) VR_Throw_HandMayStrike =
+{
+    if(time < p.vr_2h_nomelee)
+    {
+        return FALSE;
+    }
+    return !(p.vr_2h_letgo_hand == xHand + 1 && cvar_hget(cvarh_vr_throw_2h_nomelee) > 0 &&
+             time - p.vr_2h_letgo_time <= cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05);
+};
+
+// Whether `e` can't be struck by `p`'s hands: he threw it with both a moment ago.
+float(entity e, entity p) VR_Throw_SparedBlows =
+{
+    return e.vr_2h_thrower == p && time - e.vr_2h_thrown < cvar_hget(cvarh_vr_throw_2h_melee_immune);
+};
 
 // ----------------------------------------------------------------------------
 // Your own throws (NOTES.md vrfiringrange_2026-10-01_16-41-40, _16-42-00; ROUND21.md, "Your own throws hurt you")
@@ -601,8 +678,12 @@ void(float xHand, entity xBox) VR_Carry_Release =
     v = v * propvalue(xBox, "throw"); // a heavy thing leaves the hand slower (Held Object Offsets: Throw, from its mass)
 
     VR_Carry_Loose(xBox);
-    xBox.vr_spin = VRThrowSpinCapped(VRGetHandAVel(xHand));
+    xBox.vr_spin = VR_Throw_Spin(VRThrowSpinCapped(VRGetHandAVel(xHand)), propvalue(xBox, "mass"), hands);
     VR_Carry_Throw(xBox, v);
+    if(hands == 2)
+    {
+        VR_Throw_TwoHanded(self, xBox);
+    }
     VR_Gib_Released(xBox, vlen(v) > 250, xHand); // a gib or head thrown hard bursts on a wall
     VR_Grenade_Released(xBox, xHand); // a live grenade is the player's (vr_grenade.qc)
 };
@@ -1026,6 +1107,8 @@ void() VR_Carry_TwoHandFrame =
         dprint(pulledOff ? "carry: one hand pulled off it, held in the other\n" : "carry: one hand let go, held in the other\n");
         box.carry_2h = FALSE;
         box.carry_2h_end = time;
+        self.vr_2h_letgo_hand = letGo + 1; // (it strikes nothing while the other may yet throw it with both)
+        self.vr_2h_letgo_time = time;
         VR_Carry_SetHeld(self, letGo, world);
         carry2hkeep(box, self, keep); // onto its grip in that hand (pulled off: carry2hoff has done it)
         VR_Carry_Regrip(keep, box);

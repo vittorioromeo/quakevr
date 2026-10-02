@@ -105,6 +105,19 @@ struct ThrowOut
 [[nodiscard]] ThrowOut throwVelocity(const glm::vec3& vel, const glm::vec3& flick, float mass, int hands);
 // The speed limit alone (m/s): a thing of `mass` kg thrown with `hands` hands (0: none, the model off).
 [[nodiscard]] float throwLimit(float mass, int hands);
+// The spin limit by mass (rad/s): a thing of `mass` kg turned by `hands` hands (vr_throw_spin_mass_exp; 0: none beyond
+// vr_throw_spin_max), and a throw's spin `angVel` (rad/s) limited by it (soft, as the speed: vr_throw_mass_knee).
+[[nodiscard]] float spinLimit(float mass, int hands);
+[[nodiscard]] glm::vec3 throwSpin(const glm::vec3& angVel, float mass, int hands);
+
+// Throws' hits by weight (vr_throw_hit_*): the factor on a thrown thing's speed thresholds and damage speed (its heavy
+// leniency, lower still for a thing too heavy to be thrown vr_throw_hit_top m/s), the least speed (units/s) it hurts at
+// (vr_throw_hit_min_speed times that and the weapon's own `minMult`), and its damage factor hitting at `speed` units/s
+// (0 under it): speed over `fullSpeed` (units/s: the base damage's) times that factor, times `curveMult`, eased in just
+// over the hit speed (vr_throw_hit_ramp*).
+[[nodiscard]] float throwScale(float mass);
+[[nodiscard]] float throwHitSpeed(float mass, float minMult);
+[[nodiscard]] float throwDamage(float speed, float fullSpeed, float mass, float minMult, float curveMult);
 
 // Wrenched out (experimental, vr_weight_drop*): a weapon at least vr_weight_drop_from kg falls out of a hand whose
 // controller turns faster than its limit (a snap or a twist of the wrist; the controller as tracked: turning with the

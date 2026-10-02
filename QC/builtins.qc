@@ -222,6 +222,13 @@ float(float mass) weightleniency = #0;
 // the hand's throw estimate `vel` (m/s) and the part of it the wrist's flick gives (VRGetHandThrowFlick): a heavy thing
 // keeps less of the flick, the gain of a real throw (vr_throw_gain_*), and its speed limited by its mass.
 vector(vector vel, vector flick, float mass, float hands) throwvelocity = #0;
+// Throws' hits and spin by weight (vr_throw_hit_*, vr_throw_spin_mass_exp), by `what`: 0 (mass) the factor on a thrown
+// thing's speed thresholds (its heavy leniency, lower for a thing too heavy to be thrown vr_throw_hit_top m/s); 1 (mass,
+// minmult) the least speed (units/s) it hurts at (times the weapon's own: Weapon Weights' Throw Speed Needed); 2 (mass,
+// minmult, curvemult, speed, fullspeed) its damage factor hitting at `speed` units/s, 0 under it (speed over `fullspeed`,
+// the base damage's, over that factor, times `curvemult`, eased in); 3 (mass, hands, rate) a throw's spin rate (rad/s)
+// limited by its mass. VR_Thrown_*, VR_Throw_Spin.
+float(float what, float mass, ...) throwweight = #0;
 // Rocks and bricks lying about (engine vr_debris.cpp; vr_debris.qc): placing them (after the map's entities: how
 // many), piece i's model, and putting piece i on an entity with its model set (its skin, size, turn, place on the floor
 // and box; its kind: 1 a rock, 2 a brick, 0 none).

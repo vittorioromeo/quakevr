@@ -5295,18 +5295,19 @@ void() forcegrabbable_touch =
     // Too slow to hurt what bleeds (come to rest against it, or pushed slowly into it; a rigid
     // body's landing never touches the world, so it can still be "thrown"): no blow, no sound, no
     // blood, and the throw is over.
-    // (A heavy thing's lower: it can't be thrown as fast. VR_Thrown_Lenient.)
-    float lenient = VR_Thrown_Lenient(self);
-    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage &&
-       vlen(self.velocity) < cvar_hget(cvarh_vr_throw_hit_min_speed) * lenient)
+    // (A heavy thing's lower: it can't be thrown as fast. VR_Thrown_HitSpeed.)
+    if(self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage && vlen(self.velocity) < VR_Thrown_HitSpeed(self))
     {
+        dprint(sprintf("throw hit: %s into %s at %.1f m/s, under %.1f: no damage, the throw is over\n",
+            self.netname != "" ? self.netname : self.classname, other.classname, vlen(self.velocity) / VRMetersToUnits(),
+            VR_Thrown_HitSpeed(self) / VRMetersToUnits()));
         self.solid = SOLID_NOT_BUT_TOUCHABLE;
         self.throwhit = QVR_THROWHIT_HIT;
     }
 
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT)
     {
-        float finalDmg = VR_Thrown_Damage(self, vlen(self.velocity), lenient);
+        float finalDmg = VR_Thrown_Damage(self, vlen(self.velocity));
 
         // hit something that bleeds
         if(GetThrownWeaponDealDamage(self) && other.takedamage)
@@ -5318,6 +5319,9 @@ void() forcegrabbable_touch =
             float adjDmg = finalDmg * PositionalDamageFactor(posDmgType);
 
             spawn_touchblood(adjDmg);
+            dprint(sprintf("throw hit: %s into %s at %.0f u/s (%.1f m/s; hurts from %.1f): %.1f damage (%.1f before where)\n",
+                self.netname != "" ? self.netname : self.classname, other.classname, vlen(self.velocity),
+                vlen(self.velocity) / VRMetersToUnits(), VR_Thrown_HitSpeed(self) / VRMetersToUnits(), adjDmg, finalDmg));
             entity thrower = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace the player who threw it)
             if(other == thrower)
             {
@@ -6113,9 +6117,14 @@ void(entity ent, float xHand, float xWeapon, float xWeaponFlags, float xWeaponCl
             thrown.gravity = throwGravity / cvar_hget(cvarh_sv_gravity);
         }
 
+        if(throwHands == 2 && xVelScale == 1)
+        {
+            VR_Throw_TwoHanded(ent, thrown); // (neither hand strikes in its follow-through)
+        }
+
         // Flies, spins, bounces and settles as a rigid body (engine: vr_rigid.cpp).
         thrown.vr_rigid = 1;
-        thrown.vr_spin = VRThrowSpinCapped(VRGetHandAVel(xHand)) * xVelScale;
+        thrown.vr_spin = VR_Throw_Spin(VRThrowSpinCapped(VRGetHandAVel(xHand)), throwMass, throwHands) * xVelScale;
 
         // ("released": how long after the throw's estimate it left the hand, uncapped: throw_trigger_test.sh.)
         dprint(sprintf("thrown: velocity %v gravity %.2f spin %v age %.3f released %.3f scale %g of %v\n",

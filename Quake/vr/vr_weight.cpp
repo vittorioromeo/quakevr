@@ -994,8 +994,10 @@ void throwTable_f()
         vr_throw_mass_exp.value, vr_throw_mass_knee.value);
     Con_Printf("  whole flick up to %.1f kg; two hands as %.1fx lighter; reach at 45 degrees, %.2f m/s^2\n",
         vr_throw_flick_mass.value, vr_throw_2h_strength.value, g);
-    Con_Printf("%-4s %-24s %5s | %11s | %11s %5s | %11s %5s\n", "slot", "model", "kg", "off m/s m", "1h m/s m", "lim",
-        "2h m/s m", "lim");
+    Con_Printf("  hits from (m/s): %.0f u/s times its scale (top %.0f m/s); spin limits (rad/s): %.0f, ^%.2f\n",
+        vr_throw_hit_min_speed.value, vr_throw_hit_top.value, vr_throw_spin_max.value, vr_throw_spin_mass_exp.value);
+    Con_Printf("%-4s %-24s %5s | %11s | %11s %5s | %11s %5s | %4s %5s | %5s %5s\n", "slot", "model", "kg", "off m/s m",
+        "1h m/s m", "lim", "2h m/s m", "lim", "hit", "scale", "spin1", "spin2");
     const auto row = [&](const char* slot, const char* model, float mass) {
         const float was = vr_throw_mass_model.value, debug = vr_debug_throw.value;
         vr_debug_throw.value = 0.f;
@@ -1006,9 +1008,12 @@ void throwTable_f()
         const float two = glm::length(throwVelocity(vel, fl, mass, 2).vel);
         const float lim1 = throwLimit(mass, 1), lim2 = throwLimit(mass, 2);
         vr_throw_mass_model.value = was;
+        const float spin1 = glm::length(throwSpin(glm::vec3{vr_throw_spin_max.value, 0.f, 0.f}, mass, 1));
+        const float spin2 = glm::length(throwSpin(glm::vec3{vr_throw_spin_max.value, 0.f, 0.f}, mass, 2));
         vr_debug_throw.value = debug;
-        Con_Printf("%-4s %-24s %5.1f | %5.1f %5.1f | %5.1f %5.1f %5.1f | %5.1f %5.1f %5.1f\n", slot, model, mass, off,
-            off * off / g, one, one * one / g, lim1, two, two * two / g, lim2);
+        Con_Printf("%-4s %-24s %5.1f | %5.1f %5.1f | %5.1f %5.1f %5.1f | %5.1f %5.1f %5.1f | %4.1f %5.2f | %5.1f %5.1f\n",
+            slot, model, mass, off, off * off / g, one, one * one / g, lim1, two, two * two / g, lim2,
+            throwHitSpeed(mass, 1.f) / units::metresToUnits(), throwScale(mass), spin1, spin2);
     };
     for(int slot = 0; slot < weapons::numSlots; slot++)
     {
@@ -1225,6 +1230,95 @@ float throwLimit(float mass, int hands)
     return m > light ? most * za::pow(light / m, za::max(vr_throw_mass_exp.value, 0.f)) : most;
 }
 
+namespace
+{
+
+// `s` (> 0) eased towards `limit`: as it is up to vr_throw_mass_knee of it, then a tanh towards it (the same slope at the
+// knee).
+[[nodiscard]] float softLimit(float s, float limit)
+{
+    const float knee = za::clamp(vr_throw_mass_knee.value, 0.f, 1.f) * limit;
+    if(s <= knee)
+    {
+        return s;
+    }
+    const float room = limit - knee;
+    if(room <= 1e-4f)
+    {
+        return limit;
+    }
+    const float x = (s - knee) / room;
+    return knee + room * (1.f - 2.f / (za::exp(2.f * x) + 1.f));
+}
+
+} // namespace
+
+float spinLimit(float mass, int hands)
+{
+    const float k = vr_throw_spin_mass_exp.value;
+    if(!vr_throw_mass_model.value || !(k > 0.f))
+    {
+        return 0.f;
+    }
+    const float m = throwMass(za::max(mass, 0.f), hands);
+    const float free = za::max(vr_throw_flick_mass.value, 0.01f);
+    return m > free ? za::max(vr_throw_spin_max.value, 0.f) * za::pow(free / m, k) : 0.f;
+}
+
+glm::vec3 throwSpin(const glm::vec3& angVel, float mass, int hands)
+{
+    const float limit = spinLimit(mass, hands);
+    const float rate = glm::length(angVel);
+    if(!(limit > 0.f) || rate < 1e-4f)
+    {
+        return angVel;
+    }
+    const glm::vec3 out = angVel * (softLimit(rate, limit) / rate);
+    if(vr_debug_throw.value)
+    {
+        Con_Printf("throw spin: %.1f kg %dh %.1f rad/s, limit %.1f: %.1f rad/s\n", mass, hands, rate, limit,
+            glm::length(out));
+    }
+    return out;
+}
+
+float throwScale(float mass)
+{
+    const float lenient = leniency(mass);
+    const float top = vr_throw_hit_top.value;
+    const float limit = throwLimit(mass, 1);
+    if(!(top > 0.f) || !(limit > 0.f) || !(mass > 0.f))
+    {
+        return lenient;
+    }
+    const float least = za::clamp(vr_weight_lenient_min.value, 0.01f, 1.f);
+    return za::clamp(za::min(lenient, limit / top), za::min(least, lenient), 1.f);
+}
+
+float throwHitSpeed(float mass, float minMult)
+{
+    return za::max(vr_throw_hit_min_speed.value, 0.f) * throwScale(mass) * za::max(minMult, 0.f);
+}
+
+float throwDamage(float speed, float fullSpeed, float mass, float minMult, float curveMult)
+{
+    const float hit = throwHitSpeed(mass, minMult);
+    if(!(speed > 0.f) || speed < hit)
+    {
+        return 0.f;
+    }
+    const float scale = za::max(throwScale(mass), 0.01f);
+    float f = speed * za::max(curveMult, 0.f) / (za::max(fullSpeed, 1e-3f) * scale);
+    const float ramp = za::max(vr_throw_hit_ramp.value, 0.f) * hit;
+    if(ramp > 1e-3f && speed < hit + ramp)
+    {
+        const float t = (speed - hit) / ramp;
+        const float floor = za::clamp(vr_throw_hit_ramp_floor.value, 0.f, 1.f);
+        f *= floor + (1.f - floor) * t * t * (3.f - 2.f * t);
+    }
+    return f;
+}
+
 ThrowOut throwVelocity(const glm::vec3& vel, const glm::vec3& flick, float mass, int hands)
 {
     ThrowOut out;
@@ -1251,22 +1345,7 @@ ThrowOut throwVelocity(const glm::vec3& vel, const glm::vec3& flick, float mass,
     if(out.limit > 0.f && speed > 1e-4f)
     {
         // Soft: as it was up to the knee, then easing towards the limit (tanh: the same slope at the knee).
-        const float knee = za::clamp(vr_throw_mass_knee.value, 0.f, 1.f) * out.limit;
-        float s = speed;
-        if(s > knee)
-        {
-            const float room = out.limit - knee;
-            if(room > 1e-4f)
-            {
-                const float x = (s - knee) / room;
-                s = knee + room * (1.f - 2.f / (za::exp(2.f * x) + 1.f));
-            }
-            else
-            {
-                s = out.limit;
-            }
-        }
-        v *= s / speed;
+        v *= softLimit(speed, out.limit) / speed;
     }
     out.vel = v;
 

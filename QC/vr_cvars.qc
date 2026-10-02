@@ -202,6 +202,8 @@ float cvarh_vr_prop_impact_min_mass;
 float cvarh_vr_prop_impact_players;
 float cvarh_vr_prop_drop_grace;
 float cvarh_vr_throw_self_grace;
+float cvarh_vr_throw_2h_nomelee;
+float cvarh_vr_throw_2h_melee_immune;
 float cvarh_vr_prop_impact_min_speed;
 float cvarh_vr_prop_impact_mult;
 float cvarh_vr_prop_impact_speed_max;
@@ -545,6 +547,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_prop_impact_players);
     VR_CVAR_HMAKE(vr_prop_drop_grace);
     VR_CVAR_HMAKE(vr_throw_self_grace);
+    VR_CVAR_HMAKE(vr_throw_2h_nomelee);
+    VR_CVAR_HMAKE(vr_throw_2h_melee_immune);
     VR_CVAR_HMAKE(vr_prop_impact_min_speed);
     VR_CVAR_HMAKE(vr_prop_impact_mult);
     VR_CVAR_HMAKE(vr_prop_impact_speed_max);

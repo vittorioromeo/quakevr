@@ -349,13 +349,14 @@ struct MenuReadouts
     za::String heldObjectMass;
     za::String heldObjectDamage[2];    // by line
     za::String weaponWeightsDrop;      // weaponWeightsDropReadout
+    za::String weaponWeightsHits[2];   // weaponWeightsHitsReadout, by line
     char checklistSummary[48];         // checklistSummary
     char stamina[96];                  // staminaReadout
     char renderScaleHelp[192];         // renderScaleHelp
     auto members()
     {
         return qvr::mem::list(motionNote, motionLastSaved, extendableHelp, weight, weaponWeightsDamage, heldObjectMass, heldObjectDamage,
-            weaponWeightsDrop, checklistSummary, stamina, renderScaleHelp);
+            weaponWeightsDrop, weaponWeightsHits, checklistSummary, stamina, renderScaleHelp);
     }
 };
 mem::Scratch<MenuReadouts> readouts{"menu readouts"};
@@ -1807,6 +1808,10 @@ void hologramTestMessage()
         slider("Wrist to Controller", vr_throw_wrist_dist, 0.f, 0.15f, 0.005f, "%.3f m")
             .help("From the wrist to the controller's point: the turn of the hand about the wrist gives the controller "
                   "this lever's speed, the part of a throw a heavy thing keeps less of."),
+        slider("Heavy Spin Falloff", vr_throw_spin_mass_exp, 0.f, 2.f, 0.05f, "%.2f")
+            .help("A heavy thing can't be made to spin fast either: past Full Wrist Flick Up To, its spin is held under "
+                  "Max Spin times (that / mass) to this power (two hands: as if Two-Hand Strength times lighter). 1: the "
+                  "explosive box (40 kg) at most about 1.3 rad/s one-handed, 2.5 with both; the super nailgun 7. 0: off."),
         toggle("Aim Assist", vr_throw_assist)
             .help("Throws close to an enemy's direction bend towards it."),
         slider("Assist Cone", vr_throw_assist_cone, 2.f, 30.f, 1.f, "%.0f deg").extend(),
@@ -1824,6 +1829,22 @@ void hologramTestMessage()
         slider("Hitbox", vr_throw_hitbox, 1.f, 12.f, 0.5f, "%.1f").extend().help("Half-size of a thrown weapon's box against monsters."),
         slider("Hit Min Speed", vr_throw_hit_min_speed, 0.f, 600.f, 25.f, "%.0f").extend()
             .help("Units/s a thrown weapon, box or gib must go at to hurt a monster; slower (at rest against it, pushed into it) it does nothing."),
+        slider("Heavy Hits Scale Below", vr_throw_hit_top, 0.f, 30.f, 0.5f, "%.1f m/s").extend(0.f, 100.f)
+            .help("A thing that can't be thrown this fast one-handed (Throws by Weight: its mass) hurts at lower speeds, "
+                  "in proportion: its Hit Min Speed and the speed its damage is measured against both times its top "
+                  "speed over this, so a hard throw of a heavy thing hurts as a hard throw of a light one. 0: only "
+                  "Aiming: Heavy Leniency, as before."),
+        slider("Damage Eases In Over", vr_throw_hit_ramp, 0.f, 2.f, 0.05f, "%.2fx")
+            .help("Just over its Hit Min Speed a throw does less: all its damage only this share of that speed above "
+                  "it (0: all of it at once, as before)."),
+        slider("Damage at Hit Min Speed", vr_throw_hit_ramp_floor, 0.f, 1.f, 0.05f, "%.2fx")
+            .help("The share of its damage a throw does at its Hit Min Speed, rising to all of it over the speed above."),
+        slider("Two-Handed Throws: No Blows", vr_throw_2h_nomelee, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("After a throw with both hands, neither hand strikes for this long (the hand that let go first, from "
+                  "its letting go): the follow-through is not a punch. 0: off."),
+        slider("Two-Handed Throws: Spared", vr_throw_2h_melee_immune, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("What you throw with both hands can't be struck by your hands for this long (a gib burst by your own "
+                  "follow-through). 0: off."),
         slider("Your Throws Spare You For", vr_throw_self_grace, 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 5.f)
             .help("What you throw passes through you and can't hurt you for this long after it leaves your hand; after "
                   "it, it hurts you as it would a monster (a backpack thrown high falling back on you)."),
@@ -2662,7 +2683,7 @@ za::Vector<Item> pageDebugReports()
         command("Weights", "vr_weight_table").help("vr_weight_table: the weapons' and props' masses (the level's props too)."),
         command("Throws by Weight", "vr_throw_table").help("vr_throw_table [hand m/s] [flick m/s]: how fast and far each "
             "weapon and prop is thrown, one hand and two, by a hard throw (8 m/s, 2 of it the wrist's flick), with "
-            "Throws by Weight off and on."),
+            "Throws by Weight off and on; the least speed each hurts at, and the most spin one hand and two give it."),
         command("Ledges Ahead", "vr_climb_probe").help("vr_climb_probe: the ledges 16 to 64 units ahead of you, and why each holds or not."),
         command("Rocks and Bricks", "vr_debris_list").help("vr_debris_list: the rocks and bricks placed in this map."),
         command("Crates", "vr_crates_list").help("vr_crates_list: the crates in this map (health, resting) and how many pieces lie about."),
@@ -2891,6 +2912,10 @@ za::Vector<Item> pageDebugTests()
         cycle("Throw Instead", vr_test_axe_what, {{0.f, "The Axe"}, {1.f, "A Gib"}, {2.f, "An Explosive Box"}})
             .help("Throws a gib or an explosive box (one that never blows up) the same way instead of the axe: to "
                   "compare their spin in the air (Debug: Spin in the Air)."),
+        cycle("Weapon Instead", vr_test_axe_weapon,
+            {{0.f, "The Axe"}, {2.f, "Axe (as a throw)"}, {4.f, "Shotgun"}, {7.f, "Super Nailgun"}, {12.f, "Laser Cannon"}})
+            .help("Throws that weapon instead of the axe, hurting as your hand's throws do (their damage by speed and "
+                  "weight; the training dummy shows it): Axe Speed is its speed."),
         toggle("Axe Hurts", vr_test_axe_damage).help("Off: its blow does no damage (to watch a monster bleed)."),
         cycle("Axe At", vr_test_axe_at, {{0.f, "Ahead"}, {1.f, "Nearest Monster"}, {2.f, "Nearest Door"}, {3.f, "Nearest Prop"}})
             .help("What Throw an Axe throws at: ahead of you, or the nearest live monster, door or loose prop (you are "

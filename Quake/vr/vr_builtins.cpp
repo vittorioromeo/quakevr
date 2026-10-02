@@ -566,6 +566,32 @@ void PF_throwvelocity()
     r[2] = out.vel.z;
 }
 
+// float(float what, float mass, ...) throwweight (one builtin: the VR builtins' range is full): a thrown thing's hits
+// and spin by weight. `what` 0 (mass): the factor on its speed thresholds (weight::throwScale); 1 (mass, minmult): the
+// least speed (units/s) it hurts at (throwHitSpeed); 2 (mass, minmult, curvemult, speed, fullspeed): its damage factor
+// hitting at `speed` units/s, 0 under it (throwDamage); 3 (mass, hands, rate): a throw's spin rate (rad/s) limited by its
+// mass (throwSpin).
+void PF_throwweight()
+{
+    const int what = static_cast<int>(G_FLOAT(OFS_PARM0));
+    const float mass = G_FLOAT(OFS_PARM1);
+    float r = 0.f;
+    switch(what)
+    {
+        case 0: r = weight::throwScale(mass); break;
+        case 1: r = weight::throwHitSpeed(mass, G_FLOAT(OFS_PARM2)); break;
+        case 2:
+            r = weight::throwDamage(G_FLOAT(OFS_PARM4), G_FLOAT(OFS_PARM5), mass, G_FLOAT(OFS_PARM2), G_FLOAT(OFS_PARM3));
+            break;
+        case 3:
+            r = glm::length(weight::throwSpin(
+                glm::vec3{G_FLOAT(OFS_PARM3), 0.f, 0.f}, mass, static_cast<int>(G_FLOAT(OFS_PARM2))));
+            break;
+        default: break;
+    }
+    G_FLOAT(OFS_RETURN) = r;
+}
+
 // vector(entity e, vector handangles, float lefthand) propgrip: a prop held the same way every time (Grip Mode 1): from
 // now on it turns with the hand as its Grip Pitch, Yaw and Roll say (its angles set now), and its origin's place in
 // the hand is returned (forward, right, up, as .carry_offset: Grip X, Y (left) and Z; the left hand's mirrored).
@@ -1063,6 +1089,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weightdamage", PF_weightdamage},
     {"weightleniency", PF_weightleniency},
     {"throwvelocity", PF_throwvelocity},
+    {"throwweight", PF_throwweight},
     {"debrisplan", PF_debrisplan},
     {"debrismodel", PF_debrismodel},
     {"debrisput", PF_debrisput},

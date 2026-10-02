@@ -197,6 +197,7 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .float mh_free_back;   // and how far its near end is behind its handle (a share of the handle to the tip)
 .float mh_fast;        // the part's fastest (m/s): the far end, or the grip if faster
 .float mh_lenient;     // heavy leniency: its speed thresholds' factor, from what the hand holds (VR_Weight_Leniency)
+.float mh_curve;       // its strength's rise over the speed needed, times this (VR_Weight_MeleeCurve)
 .float mh_whooshed;    // a whoosh played for this motion (until it slows)
 .entity mh_hit_ent;    // the last thing struck (world: none, or a bash or a held gib spent the motion),
 .vector mh_hit_dir;    // the struck part's way then (play space),
@@ -336,10 +337,31 @@ float(entity p, float xHand) VR_Weight_MeleeMult =
 };
 
 // Heavy leniency: the factor on its strikes' speed thresholds (weightleniency: 1 but for things heavier than every
-// weapon, which can't be swung as fast).
+// weapon, which can't be swung as fast), times a weapon's own (Weapon Weights: Melee Speed Needed).
 float(entity p, float xHand) VR_Weight_Leniency =
 {
-    return weightleniency(VR_Weight_HeldMass(p, xHand));
+    float own = 1;
+    if(VR_Carry_Held(p, xHand) == world)
+    {
+        own = weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand)), "w_meleemin");
+        if(own <= 0)
+        {
+            own = 1; // (no such weapon: the empty hand's)
+        }
+    }
+    return weightleniency(VR_Weight_HeldMass(p, xHand)) * own;
+};
+
+// A weapon's own multiplier of how fast a blow's strength rises over the speed it needs (Weapon Weights: Melee Damage
+// Curve); a prop's and the empty hand's 1.
+float(entity p, float xHand) VR_Weight_MeleeCurve =
+{
+    if(VR_Carry_Held(p, xHand) != world)
+    {
+        return 1;
+    }
+    float own = weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, xHand), VRGetEntWeaponFlags(p, xHand)), "w_meleecurve");
+    return own > 0 ? own : 1;
 };
 
 // The least speed of a strike by what blow `b`'s hand holds (m/s): lower for a heavy thing.
@@ -891,6 +913,7 @@ float(float xHand, entity b) VR_Melee_Track =
         b.mh_thing = thing;
         b.mh_free = FALSE;
         b.mh_lenient = VR_Weight_Leniency(self, xHand);
+        b.mh_curve = VR_Weight_MeleeCurve(self, xHand);
         b.mh_vnear = b.mh_vgrip = b.mh_vfar = '0 0 0';
         b.mh_fast = 0;
         b.mh_time = now;
@@ -949,6 +972,7 @@ float(float xHand, entity b) VR_Melee_Track =
     b.mh_thing = thing;
     b.mh_wid = wid;
     b.mh_lenient = VR_Weight_Leniency(self, xHand);
+    b.mh_curve = VR_Weight_MeleeCurve(self, xHand);
     b.mh_fast = max(vlen(b.mh_vfar), vlen(b.mh_vgrip));
     if(same)
     {
@@ -1014,11 +1038,11 @@ vector(entity b, float xF) VR_Melee_PointVel =
 };
 
 // Whether `e` can be struck by the hands of `self`: it bleeds (or breaks), it is solid, and it is not the player's
-// own (held or thrown).
+// own (held or thrown; thrown with both hands a moment ago, VR_Throw_SparedBlows).
 float(entity e) VR_Blow_Strikable =
 {
     return e != self && e != world && e.takedamage && e.solid != SOLID_NOT && e.solid != SOLID_TRIGGER &&
-           e.owner != self && e.carry_player != self;
+           e.owner != self && e.carry_player != self && !VR_Throw_SparedBlows(e, self);
 };
 
 // ----------------------------------------------------------------------------
@@ -1379,7 +1403,8 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         dprint("melee debug: a blow\n");
     }
 
-    float s = VR_MELEE_WEAKEST + (1 - VR_MELEE_WEAKEST) * (speed - need) / (need * (VR_MELEE_GOOD - 1));
+    float s = VR_MELEE_WEAKEST + (1 - VR_MELEE_WEAKEST) * (speed - need) / (need * (VR_MELEE_GOOD - 1)) *
+              (b.mh_curve > 0 ? b.mh_curve : 1);
     b.mh_kind = kind;
     b.mh_speed = speed;
     b.mh_strength = min(VR_MELEE_STRONGEST, max(VR_MELEE_WEAKEST, s)) * weight;
@@ -2977,6 +3002,10 @@ float(float xHand) VR_Melee_Strike =
     if(!b.mh_fresh || b.mh_thing == VR_MTHING_NONE)
     {
         return FALSE;
+    }
+    if(!VR_Throw_HandMayStrike(self, xHand))
+    {
+        return FALSE; // a two-handed throw's follow-through, not a blow (vr_throw_2h_nomelee)
     }
     VR_Melee_Whoosh(xHand, b);
     if(b.mh_pushing)
