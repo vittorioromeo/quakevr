@@ -278,6 +278,9 @@ QVR_WEAPON_KEY(SpringSag, "w_sag")
 QVR_WEAPON_KEY(SpringSwing, "w_swing")
 QVR_WEAPON_KEY(SpringTwoHanded, "w_2h")
 QVR_WEAPON_KEY(SpringSnap, "w_snap")
+// Times Aiming: Roll Weight (vr_weight_spring_roll) for the weapon: its inertia about its barrel, how slowly a roll of the
+// wrist turns it (NOTES.md vrfiringrange_2026-10-02_01-14-49; 1 by default: registerCvars).
+QVR_WEAPON_KEY(SpringRoll, "w_roll")
 QVR_WEAPON_KEY(MeleeDamage, "w_meleedmg")
 QVR_WEAPON_KEY(ThrowDamage, "w_throwdmg")
 // Sticky grips (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee"): each hotspot's Stickiness, times how

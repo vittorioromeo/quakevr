@@ -50,6 +50,7 @@ void spring(hands::State& s, float turnYaw, float dt, bool newFrame);
 struct Tuning
 {
     float stiffness{1.f}, damping{1.f}, strength{1.f}, sag{1.f}, swing{1.f}, twoHanded{1.f}, snap{1.f};
+    float roll{1.f}; // times the inertia about the forward axis (Roll Weight; a prop's: 1)
 };
 
 // What a hand holds, as the weight sees it (the menu's readout, the trace).
@@ -66,6 +67,7 @@ struct Load
     float twoHanded{0.f};      // 0..1: a two-handed grip (a weapon's transition; a prop in both hands: 1)
     glm::vec3 com{0.f};        // metres from the grip, in the hand's frame (forward, left, up)
     glm::vec3 inertia{0.f};    // kg m^2 about the grip, the hand's axes (forward: roll; left: pitch; up: yaw)
+    float twist{1.f};          // the wrist's stiffness and torque about the forward axis, a share (a weapon: the forearm's twist)
     Tuning tune;
 };
 [[nodiscard]] Load load(int hand);

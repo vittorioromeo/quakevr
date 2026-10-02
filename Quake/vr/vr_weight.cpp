@@ -6,7 +6,9 @@
 //   linear:  F = k (target - x) + c (target's velocity - v), |F| <= the arm's force;  a = F / m + sag
 //   angular: tau = kA e + C (target's spin - w), |tau| <= the wrist's torque, e the turn to the target; plus the
 //            centre of mass's weight and its trailing a moving grip: r x m (g sag - a_grip) (r from the grip to it);
-//            alpha = tau / I, per axis of the hand (I about the grip: a long thing is slow to pitch and yaw, quick to roll).
+//            alpha = tau / I, per axis of the hand (I about the grip: a long thing is slow to pitch and yaw, quicker to roll;
+//            a weapon rolls about the forearm, below its body, by the forearm's twist: a quarter of the wrist's kA and
+//            torque, gunLoad; its inertia about the forward axis times Roll Weight, vr_weight_spring_roll and w_roll).
 // k = 4000 N/m for everything (times vr_weight_spring_stiffness): a thing of m kg follows at sqrt(k / m) rad/s (a 3 kg
 // shotgun 37, an 8 kg rocket launcher 22, a 40 kg explosive box 10), capped at 120 (what weighs nothing follows at
 // once); the wrist's kA is 400 N m/rad plus 3 per N m of the weight's pull about the grip. c = 2 zeta sqrt(k m)
@@ -65,6 +67,15 @@ constexpr float wristStiffness = 400.f; // N m/rad
 constexpr float gripStiffening = 3.f;   // N m/rad more per N m of the weight's pull about the grip
 constexpr float armForce = 400.f;       // N, beyond holding it up
 constexpr float wristTorque = 100.f;    // N m, beyond holding it level
+// A weapon's turn about its barrel (a roll of the wrist, palm up and palm down; NOTES.md vrfiringrange_2026-10-02_01-14-49):
+// the forearm's twist turns it, weaker than the wrist's bend and the arm (a share of their stiffness and torque), and about
+// the forearm's axis, which runs through the hand below the weapon's body (its own girth, 6 cm, and its body 8 cm above
+// that axis). A 7 kg laser cannon: 0.07 kg m^2 against 106 N m/rad, 39 rad/s (pitch and yaw: 27); 0.025 and 425 before,
+// as quick as the spring goes (120), no weight at all.
+constexpr float forearmTwist = 0.25f;
+constexpr float gunGirth = 0.06f; // m
+constexpr float gunBore = 0.08f;  // m
+constexpr float gunRollRadius2 = gunGirth * gunGirth + gunBore * gunBore; // m^2: its inertia about the forearm, per kg
 constexpr float sagShare = 0.3f;        // of gravity's pull at arm's length (vr_weight_spring_sag 1)
 constexpr float gravity = 9.81f;        // m/s^2: the real world's, as the hands are
 constexpr float fastest = 120.f;        // rad/s: the quickest a spring follows (and the substeps' stability: 0.12 a step)
@@ -200,7 +211,7 @@ double easedAt = -1.0;
     using weapons::Key;
     return {weapons::value(slot, Key::SpringStiffness), weapons::value(slot, Key::SpringDamping),
         weapons::value(slot, Key::SpringStrength), weapons::value(slot, Key::SpringSag), weapons::value(slot, Key::SpringSwing),
-        weapons::value(slot, Key::SpringTwoHanded), weapons::value(slot, Key::SpringSnap)};
+        weapons::value(slot, Key::SpringTwoHanded), weapons::value(slot, Key::SpringSnap), weapons::value(slot, Key::SpringRoll)};
 }
 
 [[nodiscard]] Tuning propTuning(int slot)
@@ -225,6 +236,14 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
     l.com = {balance, 0.f, 0.f};
     const float across = mass * (length * length / 12.f + balance * balance);
     l.inertia = {mass * radius * radius, across, across};
+}
+
+// A weapon: a rod turned about the forearm's axis by its twist (forearmTwist).
+void gunLoad(Load& l, float mass, float balance, float length)
+{
+    rodLoad(l, mass, balance, length, 0.f);
+    l.inertia.x = mass * gunRollRadius2;
+    l.twist = forearmTwist;
 }
 
 // Tired, an empty hand weighs vr_weight_stamina_empty kg at none (on the stamina's curve): a fist. Not a hand holding a
@@ -314,8 +333,7 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
     }
     l.valid = true;
     l.model = weapons::cvar(slot, weapons::Key::ID)->string;
-    rodLoad(l, mass, weapons::value(slot, weapons::Key::Balance) * 0.01f, za::max(weapons::value(slot, weapons::Key::Span), 1.f) * 0.01f,
-        0.06f);
+    gunLoad(l, mass, weapons::value(slot, weapons::Key::Balance) * 0.01f, za::max(weapons::value(slot, weapons::Key::Span), 1.f) * 0.01f);
     l.twoHanded = za::clamp(twohand::support(h), 0.f, 1.f); // (a hotspot's grip, or the other hand anywhere on it)
     l.tune = weaponTuning(slot);
     if(!s)
@@ -357,11 +375,12 @@ void rodLoad(Load& l, float mass, float balance, float length, float radius)
     }
     if(gripped || carried)
     {
-        // A rod along `axis` (its own inertia: about its middle; 6 cm round), about the pivot (the parallel axes).
+        // A rod along `axis` (its own inertia: about its middle; about its length as gunLoad's), about the pivot (the
+        // parallel axes).
         const float length = za::max(weapons::value(slot, weapons::Key::Span), 1.f) * 0.01f;
         const glm::mat3 along = glm::outerProduct(axis, axis);
         const glm::vec3 r = l.com;
-        const glm::mat3 about = l.mass * 0.06f * 0.06f * along + l.mass * length * length / 12.f * (glm::mat3{1.f} - along) +
+        const glm::mat3 about = l.mass * gunRollRadius2 * along + l.mass * length * length / 12.f * (glm::mat3{1.f} - along) +
                                 l.mass * (glm::dot(r, r) * glm::mat3{1.f} - glm::outerProduct(r, r));
         l.inertia = {about[0][0], about[1][1], about[2][2]};
     }
@@ -451,17 +470,21 @@ constexpr float snapTurnMost = 165.f; // degrees
     const float c = 2.f * zeta * za::sqrt(k * m);
     // A heavy thing is gripped harder: the wrist's stiffness grows with the weight's pull about the grip (its own mass,
     // not what tiredness adds: a tired arm droops more).
+    // About the forward axis (a roll), the forearm's twist for a weapon (Load::twist).
     const float kA = (wristStiffness + gripStiffening * l.mass * gravity * glm::length(l.com)) * stiff;
+    const glm::vec3 kAxis{kA * l.twist, kA, kA};
     const float strength = za::max(vr_weight_spring_strength.value * t.strength, 0.f);
     const float force = strength > 0.f ? armForce * strength * grip2 : 0.f;
     const float torque = strength > 0.f ? wristTorque * strength * grip2 : 0.f;
     const float inert = za::max(vr_weight_spring_inertia.value * t.swing, 0.f);
 
+    // Roll Weight: times the inertia about the forward axis (Aiming: Spring, Weapon Weights).
+    const glm::vec3 own{l.inertia.x * za::max(vr_weight_spring_roll.value * t.roll, 0.f), l.inertia.y, l.inertia.z};
     glm::vec3 inertia, damping;
     for(int i = 0; i < 3; i++)
     {
-        inertia[i] = za::max(l.inertia[i], kA / (fastest * fastest));
-        damping[i] = 2.f * zeta * za::sqrt(kA * inertia[i]);
+        inertia[i] = za::max(own[i], kAxis[i] / (fastest * fastest));
+        damping[i] = 2.f * zeta * za::sqrt(kAxis[i] * inertia[i]);
     }
     const glm::vec3 sagAccel{0.f, 0.f, -gravity * sag};
     const glm::vec3 holdForce = -m * sagAccel; // holding it up takes this much: the strength is what is left for moving it
@@ -494,7 +517,11 @@ constexpr float snapTurnMost = 165.f; // degrees
         }
         const glm::vec3 dw = toHand * (wt - b.w);
         const glm::vec3 weightTorque = glm::cross(l.com, toHand * (m * sagAccel));
-        glm::vec3 tau = kA * e + damping * dw + weightTorque;
+        glm::vec3 tau = kAxis * e + damping * dw + weightTorque;
+        if(torque > 0.f)
+        {
+            tau.x = za::clamp(tau.x, -torque * l.twist, torque * l.twist); // the forearm's twist is weaker
+        }
         if(const float len = glm::length(tau); torque > 0.f && len > torque)
         {
             tau *= torque / len;
@@ -556,9 +583,9 @@ void test_f()
         {"empty 25%", empty * staminaShareFor(0.25f), 0.04f, 0.12f, 0.f, 0.25f, Tuning{}, true},
         {"empty 5%", empty * staminaShareFor(0.05f), 0.04f, 0.12f, 0.f, 0.05f, Tuning{}, true},
     };
-    Con_Printf("vr_weight_test: stiffness %.2f damping %.2f strength %.2f sag %.2f swing %.2f 2h %.1f\n",
+    Con_Printf("vr_weight_test: stiffness %.2f damping %.2f strength %.2f sag %.2f swing %.2f 2h %.1f roll %.2f\n",
         vr_weight_spring_stiffness.value, vr_weight_spring_damping.value, vr_weight_spring_strength.value,
-        vr_weight_spring_sag.value, vr_weight_spring_inertia.value, vr_weight_spring_2h.value);
+        vr_weight_spring_sag.value, vr_weight_spring_inertia.value, vr_weight_spring_2h.value, vr_weight_spring_roll.value);
     Con_Printf("%-14s %4s %5s | %6s %6s | %6s %6s | %6s | %6s %6s | %6s %5s\n", "case", "fps", "kg", "lag cm", "lagdeg", "overcm",
         "overdg", "settle", "sag cm", "sagdeg", "jitter", "snap");
     // A test case's load, and its mass as the spring has it (its stamina's).
@@ -567,14 +594,21 @@ void test_f()
         l.valid = true;
         if(tc.length > 0.f)
         {
-            rodLoad(l, za::max(tc.mass, 0.01f), tc.balance, tc.length, tc.empty ? 0.04f : 0.06f);
+            if(tc.empty)
+            {
+                rodLoad(l, za::max(tc.mass, 0.01f), tc.balance, tc.length, 0.04f);
+            }
+            else
+            {
+                gunLoad(l, za::max(tc.mass, 0.01f), tc.balance, tc.length);
+            }
             if(tc.twoHanded > 0.f)
             {
                 // Turning about between the handle and a foregrip 35 cm ahead.
                 const float d = tc.balance - 0.175f;
                 const float across = tc.mass * tc.length * tc.length / 12.f;
                 l.com = {d, 0.f, 0.f};
-                l.inertia = {tc.mass * 0.06f * 0.06f, across + tc.mass * d * d, across + tc.mass * d * d};
+                l.inertia = {tc.mass * gunRollRadius2, across + tc.mass * d * d, across + tc.mass * d * d};
             }
         }
         else
@@ -739,14 +773,20 @@ void test_f()
                             const glm::quat before = b.q;
                             if(putBack(b, x0, qt, snapCm) || step(b, l, m, x0, x0, prevQ, qt, dt, sag))
                             {
+                                // Put back in the hand: a jump, not a turn either way (it may be more than half a turn
+                                // off the hand by the frame's end, so the short way would count it as the long way).
                                 b.x = x0;
                                 b.q = qt;
                                 b.v = glm::vec3{0.f};
                                 b.w = glm::vec3{0.f};
                                 snapped = true;
+                                turned = want;
+                            }
+                            else
+                            {
+                                turned += glm::degrees(glm::dot(rotationVector(b.q * glm::conjugate(before)), dir));
                             }
                             prevQ = qt;
-                            turned += glm::degrees(glm::dot(rotationVector(b.q * glm::conjugate(before)), dir));
                             runMax = za::max(runMax, glm::degrees(glm::length(rotationVector(qt * glm::conjugate(b.q)))));
                             runExtra = za::max(runExtra, za::fabs(turned - want));
                         }
@@ -765,6 +805,59 @@ void test_f()
                 }
             }
             Con_Printf("%-14s %4.0f | %4d %6.1f %6.1f %4d %4d\n", tc.name, fps, runs, maxDeg, maxExtra, longWay, snaps);
+        }
+    }
+
+    // A step of the wrist (NOTES.md vrfiringrange_2026-10-02_01-14-49: a roll as quick as no weight): the hand turns 45
+    // or 90 degrees about one of its axes from one frame to the next (90 fps) and stays. Per weapon, step and axis: the time
+    // (ms) the held weapon takes to turn 90% of it, and how far it overshoots (% of the step).
+    Con_Printf("%-14s %5s %3s | %6s %5s | %6s %5s | %6s %5s\n", "wrist step", "kg", "deg", "p90ms", "p%", "y90ms", "y%", "r90ms",
+        "r%");
+    const TestCase stepCases[] = {{"pistol 1.2kg", 1.2f, 0.05f, 0.25f, 0.f, 1.f, Tuning{}}, gun("grapple 1H", 17, 0.f, 1.f),
+        gun("shotgun 1H", 1, 0.f, 1.f), gun("laser 1H", 9, 0.f, 1.f), gun("laser 2H", 9, 1.f, 1.f), gun("rocket 1H", 6, 0.f, 1.f)};
+    for(const TestCase& tc : stepCases)
+    {
+        for(const float stepDeg : {45.f, 90.f})
+        {
+            float m = 0.f;
+            const Load l = caseLoad(tc, m);
+            constexpr float fps = 90.f;
+            const float dt = 1.f / fps;
+            float t90[3]{-1.f, -1.f, -1.f}, over[3]{0.f, 0.f, 0.f};
+            for(int axis = 0; axis < 3; axis++)
+            {
+                // Hand axes: 0 pitch (about left), 1 yaw (about up), 2 roll (about forward). No sag: the turn alone.
+                glm::vec3 about{0.f};
+                about[axis == 0 ? 1 : axis == 1 ? 2 : 0] = 1.f;
+                const glm::vec3 x0{0.55f, -0.25f, 1.25f};
+                const glm::quat q0{1.f, 0.f, 0.f, 0.f};
+                const glm::quat qt = glm::angleAxis(glm::radians(stepDeg), about);
+                Body b;
+                b.x = x0;
+                b.q = q0;
+                glm::quat prevQ = q0;
+                float was = 0.f;
+                for(int f = 1; f <= static_cast<int>(1.5f * fps); f++)
+                {
+                    if(step(b, l, m, x0, x0, prevQ, qt, dt, 0.f))
+                    {
+                        b.q = qt;
+                        b.w = glm::vec3{0.f};
+                    }
+                    prevQ = qt;
+                    const float turned = glm::degrees(glm::dot(rotationVector(b.q), about));
+                    if(t90[axis] < 0.f && turned >= 0.9f * stepDeg)
+                    {
+                        // (between this frame and the last)
+                        const float part = (turned - 0.9f * stepDeg) / za::max(turned - was, 1e-4f);
+                        t90[axis] = (static_cast<float>(f) - za::clamp(part, 0.f, 1.f)) * dt * 1000.f;
+                    }
+                    was = turned;
+                    over[axis] = za::max(over[axis], (turned - stepDeg) / stepDeg * 100.f);
+                }
+            }
+            Con_Printf("%-14s %5.1f %3.0f | %6.0f %5.1f | %6.0f %5.1f | %6.0f %5.1f\n", tc.name, m, stepDeg, t90[0], over[0], t90[1],
+                over[1], t90[2], over[2]);
         }
     }
     if(out)

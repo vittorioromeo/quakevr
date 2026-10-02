@@ -515,7 +515,7 @@ void registerCvars()
     for(int slot = 0; slot < numSlots; slot++)
     {
         for(const Key key : {Key::SpringStiffness, Key::SpringDamping, Key::SpringStrength, Key::SpringSag, Key::SpringSwing,
-                Key::SpringTwoHanded, Key::SpringSnap, Key::MeleeDamage, Key::ThrowDamage, Key::SpinAlign})
+                Key::SpringTwoHanded, Key::SpringSnap, Key::SpringRoll, Key::MeleeDamage, Key::ThrowDamage, Key::SpinAlign})
         {
             cvarAt(slot, key).string = "1";
         }
@@ -683,6 +683,7 @@ bool weightKey(Key key)
         case Key::SpringSwing:
         case Key::SpringTwoHanded:
         case Key::SpringSnap:
+        case Key::SpringRoll:
         case Key::MeleeDamage:
         case Key::ThrowDamage:
         case Key::SpinAlign: return true;
