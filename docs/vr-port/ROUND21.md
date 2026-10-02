@@ -20716,3 +20716,49 @@ Test in VR:
 - [ ] Their size (half a rock to a rock), how they fly (Speed, Up), the cap and how long they last; pick one up and
   hold it past Last.
 - [ ] Gibs squish when they land and stick; throw a gib or a small gib into a wall at a medium speed: it sticks.
+
+## Wall torches: a grip on the way takes it (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_15-56-57 and 15-57-56: taking a torch off its wall by hand was hard again (a
+particular hand position; sometimes the grip didn't take at once); other props, and torches off the wall, fine.
+
+**What was found.** Nothing in the wall torch's grab changed since the lenient grab (0d7daa35, 2026-09-30): its QC
+(`VR_WallTorch_Handtouch`, `VR_WallTorch_NearHand`, `VR_WallTorch_HandFrame`, `VR_WallTorch_CanGrip`) has only two
+unrelated lines since (burning and blood), `VR_Carry_GripPressed`, the grab times (`vr_handgrabutil.qc`), the force
+grab's lock and the torch's model are unchanged, and the firing range's torches are where they were. The mock reaches
+(below) take it from every direction and place when the grip closes within 0.2 s of the hand getting there, also with
+the author's hand calibration and either hand. The misses all have one cause: the grip, like a box's, counts only for
+0.2 s after it closes (`VR_CARRY_GRIP_WINDOW`), and only the frames of that window look for a torch near the hand. A fist
+closed as the reach starts, 0.33 s before the hand gets there, never took it (24 of 30 such reaches missed); a box is
+big and is usually touched by then, a stick 3 cm thick is not. The flashlight's late grip, the climbing hold, a locked
+force grab and hand collision were ruled out: none takes the press near a torch on its wall in these reaches (no
+`flashlight:` or `climb:` line, `fwbusy 0` in a debug print of the near test, the drawn hand held out of the stick by at
+most 1.3 units).
+
+**The fix** (`QC/vr_walltorch.qc`, `VR_WallTorch_GripFresh`): besides that press window, a grip closed with the hand
+empty keeps reaching for a torch on its wall while it stays held, up to **`vr_walltorch_grab_time`** (default **0.6 s**,
+as the flashlight's late grip; 0: the press window only), unless the hand moves faster than a punch (2.5 m/s, the
+flashlight's: a fist swung through a torch strikes it, as before) or holds a ledge. Both the fist on the stick and the
+near test (`vr_walltorch_reach`) use it. The near test also measures from the fist's middle (6.5 cm ahead of the hand's
+point, which sits at the wrist's end of the palm), whichever of the two is nearer the stick. Menu: Carrying > Wall
+Torches, **Grab Window** (after Grab Reach). The grip's log line says how late it took it and how fast the hand was:
+`walltorch: gripped on its wall (near, 14.2 cm; 0.45 s after the press, the hand at 1.0 m/s)`.
+
+**Test:** `bash Misc/quakevr/walltorch_grab_test.sh <agent> ["<extra commands>"]` (mock, vrfiringrange's middle torch):
+6 approach directions x 5 places (on the handle, at the cup, 3 units to the side, 3 and 5 units behind it towards the
+wall) x 4 press times (as the 12-step reach starts, halfway, on arrival, after); `HAND=off` for the off hand.
+
+| | taken | press as the reach starts | halfway | on arrival | after |
+|---|---|---|---|---|---|
+| before (`vr_walltorch_grab_time 0`) | 96/120 | 6/30 | 30/30 | 30/30 | 30/30 |
+| now | 120/120 | 30/30 | 30/30 | 30/30 | 30/30 |
+| now, off hand (2 directions) | 40/40 | 10/10 | 10/10 | 10/10 | 10/10 |
+
+A punch (`vr_mock_play` motions, the grip closed 0.3 s before a sideways sweep through the handle): at 4 m/s it passes
+through, not taken; at 1 m/s taken 0.45 s after the press; at 1 m/s with `vr_walltorch_grab_time 0`, not taken.
+`eval.sh`: 171/177, the same two differences from the baseline file as this round's head without the change.
+
+Test in VR:
+- [ ] Reach for a wall torch closing your fist on the way: it comes when the hand gets there.
+- [ ] Hit a wall torch with a closed fist: a blow, not taken.
+- [ ] Grab Window (Carrying > Wall Torches): longer or shorter? Grab Reach still 15 cm?

@@ -1422,7 +1422,9 @@ misc_explobox main 0 3 0; +grabright; vr_mock_button main grip 1`, a grunt at `v
 vr_debug_shots 1; vr_debug_box3d 1` print `box3d: ... misc_explobox hit ... monster_army at <m/s>`, `explobox: thrown
 into monster_army at <u/s>: <damage>` and the damage. The scratchpad's `weights2/plays.py` writes the plays,
 `mkswing.sh` / `mkbox.sh` the scripts, `go.sh` runs one; `oldeval.sh` replays the canary takes with the old hand settings.
-Wall torches (ROUND21.md, "Wall torches you can take"): e1m2's torches are edicts 52 (1706 -206 316: pull it by hand
+Wall torches by hand from every side and press time: `bash Misc/quakevr/walltorch_grab_test.sh <agent>` (ROUND21.md,
+"Wall torches: a grip on the way takes it"; vrfiringrange's torch at -590 -760 75, `vr_mock_hand_to` reaches; prints
+taken of 120). Wall torches (ROUND21.md, "Wall torches you can take"): e1m2's torches are edicts 52 (1706 -206 316: pull it by hand
 from `setpos 1714 -190 312 0 243 0; noclip` with the main hand at `0.0 0.8 -0.6 70 0 0`, `+grabright; vr_mock_button
 main grip 1`, then the hand back 10 cm), 53 (2134 -34 316: force grab it from `setpos 2047 -84 312 0 30 0; noclip` with a
 `vr_mock_play` that points the hand at it, `cmd +attack`, flicks it up 0.3 m in 0.1 s, then `cmd +grabright` and the

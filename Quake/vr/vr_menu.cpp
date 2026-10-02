@@ -2253,8 +2253,12 @@ void hologramTestMessage()
         slider("Pull to Take", vr_walltorch_pull, 2.f, 30.f, 1.f, "%.0f cm").extend(0.f, 100.f)
             .help("How far a hand gripping a torch on its wall pulls it before it comes out."),
         slider("Grab Reach", vr_walltorch_reach, 0.f, 30.f, 1.f, "%.0f cm").extend(0.f, 60.f)
-            .help("A grip this near a torch on its wall (its stick's middle, from its butt to its flame) takes hold of "
-                  "it, though your fist isn't quite on it. 0: only a fist on it."),
+            .help("A grip this near a torch on its wall (its stick's middle, from its butt to its flame; your hand or "
+                  "your fist's middle, whichever is nearer) takes hold of it, though your fist isn't quite on it. 0: only "
+                  "a fist on it."),
+        slider("Grab Window", vr_walltorch_grab_time, 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("A grip closed on the way to a torch on its wall, still held, takes it as your hand gets there, up to "
+                  "this long after you closed it (not a punch: a fast fist goes through). 0: only a grip closed there."),
         toggle("Force Grab Torches", vr_walltorch_forcegrab)
             .help("Torches come off their walls, and from where they lie, to a force grab."),
         slider("Blows Before It Dies", vr_walltorch_hits, 0.f, 20.f, 1.f, "%.0f").extend(0.f, 100.f)

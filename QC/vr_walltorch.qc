@@ -210,11 +210,32 @@ void(entity t) VR_WallTorch_Ungrip =
     t.wt_gripper = world;
 };
 
-// Whether `xPlayer`'s hand `xHand` may take hold of torch `t` on its wall now (its grip just pressed, nothing in it).
+// A grip that may take a torch on its wall: pressed now or a moment ago (VR_Carry_GripPressed, as a box), or held since a
+// press at most vr_walltorch_grab_time ago with the hand slower than a punch: a fist closed on the way to the torch takes
+// it as it gets there (NOTES.md vrfiringrange_2026-10-02_15-56-57: a grip pressed before the hand was within reach, more
+// than the box's 0.2 s, never took it; the walltorch_grab_test.sh reaches pressed as they start missed 24 of 30).
+float VR_WALLTORCH_PUNCH_SPEED = 2.5; // m/s of the hand (the flashlight's late grip's punch)
+float(entity xPlayer, float xHand) VR_WallTorch_GripFresh =
+{
+    if(VR_Carry_GripPressed(xPlayer, xHand))
+    {
+        return TRUE;
+    }
+    if(!VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand) ||
+       time - VR_HandGrabUtil_Impl_GetLastGrabTime(xPlayer, xHand) > cvar_hget(cvarh_vr_walltorch_grab_time) ||
+       VRHasBit(xPlayer.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING : QVR_VRBITS0_OFFHAND_CLIMBING))
+    {
+        return FALSE; // (not a hand holding a ledge)
+    }
+    vector vel = xHand == cVR_OffHand ? xPlayer.offhandvel : xPlayer.handvel; // (m/s: the controller's, in the play space)
+    return vlen(vel) < VR_WALLTORCH_PUNCH_SPEED;
+};
+
+// Whether `xPlayer`'s hand `xHand` may take hold of torch `t` on its wall now (its grip fresh, nothing in it).
 float(entity t, entity xPlayer, float xHand) VR_WallTorch_CanGrip =
 {
     return t.wt_state == 0 && t.wt_gripper == world && cvar_hget(cvarh_vr_carry) &&
-           VR_Carry_GripPressed(xPlayer, xHand) && VRIsHandEmpty(xPlayer, xHand) &&
+           VR_WallTorch_GripFresh(xPlayer, xHand) && VRIsHandEmpty(xPlayer, xHand) &&
            !VR_Forcegrab_IsHandBusy(xPlayer, xHand) && VR_WallTorch_Gripped(xPlayer, xHand) == world;
 };
 
@@ -253,8 +274,18 @@ void() VR_WallTorch_Handtouch =
 
 // The torch on its wall nearest `self`'s hand `xHand` within vr_walltorch_reach cm of its stick (from its butt to the
 // flame's foot), world if none: a grip near it takes it though the fist isn't quite on it (NOTES.md
-// vrfiringrange_2026-09-30_11-22-44: torches were hard to take by hand). `vr_wt_near_dist`: how far it was (cm).
+// vrfiringrange_2026-09-30_11-22-44: torches were hard to take by hand). Measured from the hand's point (the game's,
+// behind the fist: at the wrist's end of the palm) or the fist's middle, whichever is nearer: a fist closed round the
+// stick from in front has its point a palm's length short of it. `vr_wt_near_dist`: how far it was (cm).
+float VR_WALLTORCH_FIST_MIDDLE = 0.065; // m from the hand's point along where it points (the fist's middle sphere)
 float vr_wt_near_dist;
+float(entity t, vector xAt) VR_WallTorch_StickDist =
+{
+    // Its stick upright: the butt 14 under its origin, the flame's foot 3 over it.
+    vector p = t.origin;
+    p_z = min(t.origin_z + 3, max(t.origin_z - 14, xAt_z));
+    return vlen(xAt - p);
+};
 entity(float xHand) VR_WallTorch_NearHand =
 {
     float reach = max(0, cvar_hget(cvarh_vr_walltorch_reach)) * VRMetersToUnits() / 100;
@@ -263,6 +294,12 @@ entity(float xHand) VR_WallTorch_NearHand =
         return world;
     }
     vector hand = VRGetHandPos(xHand);
+    vector oldForward = v_forward, oldRight = v_right, oldUp = v_up; // (the caller's, kept)
+    makevectors(VRGetHandRot(xHand));
+    vector fist = hand + v_forward * (VR_WALLTORCH_FIST_MIDDLE * VRMetersToUnits());
+    v_forward = oldForward;
+    v_right = oldRight;
+    v_up = oldUp;
     entity best = world;
     float bestD = reach;
     entity t = findradius(hand, reach + 20);
@@ -270,10 +307,7 @@ entity(float xHand) VR_WallTorch_NearHand =
     {
         if(t.classname == "light_torch_small_walltorch" && t.wt_state == 0)
         {
-            // Its stick upright: the butt 14 under its origin, the flame's foot 3 over it.
-            vector p = t.origin;
-            p_z = min(t.origin_z + 3, max(t.origin_z - 14, hand_z));
-            float d = vlen(hand - p);
+            float d = min(VR_WallTorch_StickDist(t, hand), VR_WallTorch_StickDist(t, fist));
             if(d <= bestD)
             {
                 bestD = d;
@@ -292,13 +326,14 @@ void(float xHand) VR_WallTorch_HandFrame =
     entity t = VR_WallTorch_Gripped(self, xHand);
     if(t == world)
     {
-        // Not quite on one: a grip near a torch takes it (vr_walltorch_reach).
-        if(self.health > 0 && VR_Carry_GripPressed(self, xHand) && VRIsHandEmpty(self, xHand))
+        // Not quite on one: a grip near a torch takes it (vr_walltorch_reach), or one closed on the way to it
+        // (vr_walltorch_grab_time).
+        if(self.health > 0 && VR_WallTorch_GripFresh(self, xHand) && VRIsHandEmpty(self, xHand))
         {
             t = VR_WallTorch_NearHand(xHand);
             if(t != world && VR_WallTorch_CanGrip(t, self, xHand))
             {
-                VR_WallTorch_Grip(t, self, xHand, sprintf("near, %.1f cm", vr_wt_near_dist));
+                VR_WallTorch_Grip(t, self, xHand, sprintf("near, %.1f cm; %.2f s after the press, the hand at %.1f m/s", vr_wt_near_dist, time - VR_HandGrabUtil_Impl_GetLastGrabTime(self, xHand), vlen(xHand == cVR_OffHand ? self.offhandvel : self.handvel)));
             }
         }
         return;

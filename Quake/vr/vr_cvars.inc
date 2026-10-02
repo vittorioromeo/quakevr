@@ -653,7 +653,8 @@ QVR_CVAR(vr_debug_item_sizes, "0", CVAR_NONE)            // 1: each ammo or heal
 // Wall torches taken off their walls (QC vr_walltorch.qc, vr_walltorch.cpp; ROUND21.md, "Wall torches you can take").
 QVR_CVAR(vr_walltorch, "1", CVAR_ARCHIVE)                // 1: id's wall torches can be pulled out (by hand or force grab) and held as a burning club; 0: fixed, as id's (next map)
 QVR_CVAR(vr_walltorch_pull, "8", CVAR_ARCHIVE)           // cm a hand gripping a torch on its wall pulls it before it comes out
-QVR_CVAR(vr_walltorch_reach, "15", CVAR_ARCHIVE)         // cm from a torch's stick (its axis, butt to flame) within which a hand's grip takes it off its wall though the fist isn't on it (0: only the fist on it)
+QVR_CVAR(vr_walltorch_reach, "15", CVAR_ARCHIVE)         // cm from a torch's stick (its axis, butt to flame) to the hand's point or its fist's middle within which a hand's grip takes it off its wall though the fist isn't on it (0: only the fist on it)
+QVR_CVAR(vr_walltorch_grab_time, "0.6", CVAR_ARCHIVE)    // s: a grip pressed with the hand empty keeps reaching for a torch on its wall while it stays held, this long after the press, the hand slower than a punch (a fist closed on the way takes the torch as it gets there); 0: only the press there (0.2 s, as a box)
 QVR_CVAR(vr_walltorch_forcegrab, "1", CVAR_ARCHIVE)      // 1: torches are force grabbed off their walls, and lying about
 QVR_CVAR(vr_walltorch_hits, "5", CVAR_ARCHIVE)           // blows a torch lands before its fire starts dying, even held (0: blows never use it up)
 QVR_CVAR(vr_walltorch_die_time, "6", CVAR_ARCHIVE)       // s a dying torch's fire takes to go out (dropped, thrown, or out of blows); held, it never dies otherwise
