@@ -715,6 +715,15 @@ void Mixer::processEars(Voice& v, int blocks, const Features& f, IPLHRTF laneHrt
     }
 }
 
+namespace
+{
+// (Their parallelFor calls: vr_jobs_sites.)
+jobs::Site audioSources{"audio sources"};
+jobs::Site audioLanes{"audio lanes"};
+jobs::Site audioTaps{"audio band-limit taps"};
+jobs::Site audioBandlimit{"audio band-limit"};
+} // namespace
+
 Mixer::Times Mixer::takeTimes()
 {
     Times out = times;
@@ -873,7 +882,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
     }
     else if(active > 1)
     {
-        jobs::parallelFor(static_cast<za::SizeT>(active), 1, [&](za::SizeT begin, za::SizeT end) {
+        jobs::parallelFor(audioSources, static_cast<za::SizeT>(active), 1, [&](za::SizeT begin, za::SizeT end) {
             for(za::SizeT k = begin; k < end; k++)
             {
                 processSource(voices[list[k]], blocks, f);
@@ -938,7 +947,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
             }
             return true;
         };
-        jobs::parallelFor(static_cast<za::SizeT>(units), 1, [&](za::SizeT begin, za::SizeT end) {
+        jobs::parallelFor(audioLanes, static_cast<za::SizeT>(units), 1, [&](za::SizeT begin, za::SizeT end) {
             for(za::SizeT j = begin; j < end; j++)
             {
                 bool took = false;
@@ -2834,7 +2843,7 @@ const float* bandLimitTable(int fracstep, int& half)
     const int h = half;
     float* table = t.rows.data() + offset;
     // (Each phase on its own: the pool's threads share them.)
-    jobs::parallelFor(static_cast<za::SizeT>(phases), 16, [&](za::SizeT begin, za::SizeT end) {
+    jobs::parallelFor(audioTaps, static_cast<za::SizeT>(phases), 16, [&](za::SizeT begin, za::SizeT end) {
         for(za::SizeT pp = begin; pp < end; pp++)
         {
             const int p = static_cast<int>(pp);
@@ -2912,7 +2921,7 @@ extern "C" void VR_SndBandLimit(const unsigned char* data, int width, int sample
         return n < 0 || n >= samples ? 0.f : src[static_cast<za::SizeT>(n)];
     };
 
-    jobs::parallelFor(static_cast<za::SizeT>(outcount), 4096, [&](za::SizeT begin, za::SizeT end) {
+    jobs::parallelFor(audioBandlimit, static_cast<za::SizeT>(outcount), 4096, [&](za::SizeT begin, za::SizeT end) {
         for(int i = static_cast<int>(begin); i < static_cast<int>(end); i++)
         {
             const long long pos = static_cast<long long>(i) * fracstep; // in 256ths of the sound's samples

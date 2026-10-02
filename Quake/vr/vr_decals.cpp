@@ -529,13 +529,15 @@ void encode(glm::vec3 f, unsigned char* out)
     out[3] = static_cast<unsigned char>(za::clamp(dim, 0.f, 1.f) * 255.f + 0.5f);
 }
 
+jobs::Site atlasSite{"decal atlas"}; // (its parallelFor: vr_jobs_sites)
+
 [[nodiscard]] za::Vector<unsigned char> buildAtlas()
 {
     za::Vector<unsigned char> rgba(atlasWidth * atlasHeight * 4, 0);
     // The cells shared out among the game's threads (vr_jobs.hpp): each writes its own texels, its random numbers seeded
     // by its number (the thread's own generator): the same atlas whatever ran it.
     const int cells = firstCell[KindCount - 1] + cellCount[KindCount - 1];
-    jobs::parallelFor(static_cast<za::SizeT>(cells), 1, [&](za::SizeT c0, za::SizeT c1) {
+    jobs::parallelFor(atlasSite, static_cast<za::SizeT>(cells), 1, [&](za::SizeT c0, za::SizeT c1) {
         for(int cell = static_cast<int>(c0); cell < static_cast<int>(c1); cell++)
         {
             int kind = KindCount - 1;

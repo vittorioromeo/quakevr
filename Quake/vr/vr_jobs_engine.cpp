@@ -1,6 +1,7 @@
 // vr_jobs_engine.cpp -- the game's thread pool (vr_jobs.hpp) on the engine's side: made at VR_Init, joined at
-// VR_Shutdown; vr_jobs_threads, vr_jobs_parallel, vr_jobs_info and vr_jobs_test (its self-test: pools made and joined,
-// every index covered once, the calling thread taking part, every worker busy, nested waits, results
+// VR_Shutdown; vr_jobs_threads, vr_jobs_parallel, vr_jobs_info, vr_jobs_sites (each parallelFor site's counters),
+// vr_jobs_bench (a small parallelFor split against the caller alone) and vr_jobs_test (its self-test: pools made and
+// joined, every index covered once, the calling thread taking part, every worker busy, nested waits, results
 // independent of the thread count, a pool destroyed with work queued, the game's pool: one line per check, then the
 // totals).
 
@@ -9,6 +10,7 @@
 #include "vr_jobs.hpp"
 
 #include "Zancle/Algorithm/Count.hpp"
+#include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -35,6 +37,8 @@ void postOnly(Pool& p, F&& f)
 {
     p.post(detail::JobPtr<detail::Job>{new detail::JobOf<void, ZA_DECAY(F)>(ZA_FORWARD(f))});
 }
+
+Site testSite{"vr_jobs_test"}; // (the self-test's chunks counted)
 
 void sleepMs(int ms)
 {
@@ -95,6 +99,8 @@ void registerCommands()
     setParallel(vr_jobs_parallel.value != 0.f);
     Cmd_AddCommand("vr_jobs_info", info_f);
     Cmd_AddCommand("vr_jobs_test", test_f);
+    Cmd_AddCommand("vr_jobs_sites", sites_f);
+    Cmd_AddCommand("vr_jobs_bench", bench_f);
 }
 
 void info_f()
@@ -105,6 +111,42 @@ void info_f()
     Con_Printf("  async tasks %zu (%zu run by their waiter); parallelFor %zu split, %zu on the caller alone\n", s.tasks,
         s.claimedByWaiter, s.loops, s.serialLoops);
     Con_Printf("  chunks: %zu by callers, %zu by helpers\n", s.chunksCaller, s.chunksHelpers);
+}
+
+// vr_jobs_sites [reset]: each parallelFor site's counters (vr_jobs.hpp, Site), or every one zeroed.
+void sites_f()
+{
+    const bool reset = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "reset");
+    if(!reset)
+    {
+        Con_Printf("vr_jobs_sites: %d workers, parallelFor %s\n", workers(), parallel() ? "on" : "off");
+        Con_Printf("  %-22s %7s %7s %7s %9s %9s %8s %8s\n", "site", "calls", "split", "items", "chk-call", "chk-help",
+            "avg us", "max us");
+    }
+    for(Site* s = sites(); s; s = s->next)
+    {
+        if(reset)
+        {
+            s->calls.storeRelaxed(0u);
+            s->split.storeRelaxed(0u);
+            s->items.storeRelaxed(0u);
+            s->chunksCaller.storeRelaxed(0u);
+            s->chunksHelpers.storeRelaxed(0u);
+            s->nanoseconds.storeRelaxed(0u);
+            s->worstNanoseconds.storeRelaxed(0u);
+            continue;
+        }
+        const za::SizeT calls = s->calls.loadRelaxed();
+        const double per = calls ? 1.0 / static_cast<double>(calls) : 0.0;
+        Con_Printf("  %-22s %7zu %7zu %7.1f %9zu %9zu %8.1f %8.1f\n", s->name, calls, s->split.loadRelaxed(),
+            static_cast<double>(s->items.loadRelaxed()) * per, s->chunksCaller.loadRelaxed(), s->chunksHelpers.loadRelaxed(),
+            static_cast<double>(s->nanoseconds.loadRelaxed()) * per / 1e3,
+            static_cast<double>(s->worstNanoseconds.loadRelaxed()) / 1e3);
+    }
+    if(reset)
+    {
+        Con_Printf("vr_jobs_sites: reset\n");
+    }
 }
 
 void test_f()
@@ -156,9 +198,12 @@ void test_f()
 
     Pool pool{4};
 
-    // Every index covered exactly once, whatever the count and the chunk.
+    // Every index covered exactly once, whatever the count and the chunk; the chunks counted by the caller and by the
+    // helpers (the helpers' as the rest) are exactly the chunks run.
     {
         bool ok = true;
+        const za::SizeT before = testSite.chunksCaller.loadRelaxed() + testSite.chunksHelpers.loadRelaxed();
+        za::Atomic<za::SizeT> ran{0};
         for(const za::SizeT count : {za::SizeT{0}, za::SizeT{1}, za::SizeT{2}, za::SizeT{7}, za::SizeT{100},
                 za::SizeT{1000}, za::SizeT{100003}})
         {
@@ -166,16 +211,20 @@ void test_f()
             {
                 za::Vector<za::Atomic<unsigned char>> seen(count + 1); // (each 0)
                 za::Atomic<bool> bad{false};
-                pool.parallelFor(count, chunk, [&](za::SizeT b, za::SizeT e) {
-                    if(b >= e || e > count)
-                    {
-                        bad.storeSeqCst(true);
-                    }
-                    for(za::SizeT i = b; i < e; i++)
-                    {
-                        seen[i].fetchAddSeqCst(1);
-                    }
-                });
+                pool.parallelFor(
+                    count, chunk,
+                    [&](za::SizeT b, za::SizeT e) {
+                        if(b >= e || e > count)
+                        {
+                            bad.storeSeqCst(true);
+                        }
+                        for(za::SizeT i = b; i < e; i++)
+                        {
+                            seen[i].fetchAddSeqCst(1);
+                        }
+                        ran.fetchAddSeqCst(1u);
+                    },
+                    true, &testSite);
                 for(za::SizeT i = 0; i < count; i++)
                 {
                     ok = ok && seen[i].loadSeqCst() == 1;
@@ -183,7 +232,10 @@ void test_f()
                 ok = ok && !bad.loadSeqCst() && seen[count].loadSeqCst() == 0;
             }
         }
-        check(ok, "parallelFor: counts 0..100003, chunks auto..1000000: every index once, every range in bounds");
+        const za::SizeT counted = testSite.chunksCaller.loadRelaxed() + testSite.chunksHelpers.loadRelaxed() - before;
+        check(ok && counted == ran.loadSeqCst(),
+            va("parallelFor: counts 0..100003, chunks auto..1000000: every index once, every range in bounds; %zu chunks "
+               "run, %zu counted", ran.loadSeqCst(), counted));
     }
 
     // The calling thread takes part, and so do the workers.
@@ -267,6 +319,36 @@ void test_f()
             });
         });
         check(sum.loadSeqCst() == 8 * 8 * 11, va("nested parallelFor x3 with async waits inside: %lld of 704", sum.loadSeqCst()));
+    }
+
+    // Every gate taken: calls nested 80 deep (each waits for the one inside), the innermost past Zancle's 64 gates run on
+    // their callers alone; the chunks counted (caller's, helpers' as the rest) are still the chunks run.
+    {
+        struct Deep
+        {
+            Pool& pool;
+            za::Atomic<za::SizeT> ran{0};
+            void go(int depth)
+            {
+                pool.parallelFor(
+                    2, 1,
+                    [&](za::SizeT b, za::SizeT) {
+                        ran.fetchAddSeqCst(1u);
+                        if(b == 0 && depth > 0)
+                        {
+                            go(depth - 1);
+                        }
+                    },
+                    true, &testSite);
+            }
+        };
+        Deep deep{pool};
+        const za::SizeT before = testSite.chunksCaller.loadRelaxed() + testSite.chunksHelpers.loadRelaxed();
+        deep.go(79);
+        const za::SizeT counted = testSite.chunksCaller.loadRelaxed() + testSite.chunksHelpers.loadRelaxed() - before;
+        check(deep.ran.loadSeqCst() == 160 && counted == 160,
+            va("parallelFor nested 80 deep (past the 64 gates): %zu of 160 chunks run, %zu counted", deep.ran.loadSeqCst(),
+                counted));
     }
     {
         Pool two{2};
@@ -361,6 +443,56 @@ void test_f()
 
     Con_Printf("vr_jobs_test: %d passed, %d failed (%.0f ms)\n", passed, failed,
         static_cast<double>(clock.getElapsedTime().asMicroseconds()) / 1e3);
+}
+
+// vr_jobs_bench [reps]: what a small parallelFor costs against the caller alone. For n items of w microseconds each
+// (busy work, chunks of one), the median wall time of a call, serial and split, with a 2 ms sleep between calls (the
+// workers asleep, as between a frame's calls); n and w as the game's small loops have them (vr_jobs_sites).
+void bench_f()
+{
+    Pool* const p = pool();
+    if(!p)
+    {
+        Con_Printf("vr_jobs_bench: no pool\n");
+        return;
+    }
+    const int reps = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 5, 2000) : 60;
+    const auto spin = [](int us) {
+        const za::I64 until = za::Clock::nowNanoseconds() + static_cast<za::I64>(us) * 1000;
+        while(za::Clock::nowNanoseconds() < until)
+        {
+        }
+    };
+    za::Vector<double> times;
+    const auto median = [&](int n, int w, bool split) {
+        times.clear();
+        for(int r = 0; r < reps; r++)
+        {
+            sleepMs(2);
+            const za::I64 t0 = za::Clock::nowNanoseconds();
+            p->parallelFor(static_cast<za::SizeT>(n), 1,
+                [&](za::SizeT b, za::SizeT e) {
+                    for(za::SizeT i = b; i < e; i++)
+                    {
+                        spin(w);
+                    }
+                },
+                split);
+            times.pushBack(static_cast<double>(za::Clock::nowNanoseconds() - t0) / 1e3);
+        }
+        za::quickSort(times.begin(), times.end(), [](double a, double b) { return a < b; });
+        return times[times.size() / 2];
+    };
+    Con_Printf("vr_jobs_bench: %d workers, median of %d calls (us)\n", p->workers(), reps);
+    Con_Printf("  %5s %5s %9s %9s %7s\n", "items", "w us", "serial", "split", "gain");
+    for(const int n : {2, 3, 4, 8, 21})
+    {
+        for(const int w : {0, 1, 2, 5, 10, 20, 50})
+        {
+            const double serial = median(n, w, false), split = median(n, w, true);
+            Con_Printf("  %5d %5d %9.1f %9.1f %+7.1f\n", n, w, serial, split, serial - split);
+        }
+    }
 }
 
 } // namespace qvr::jobs

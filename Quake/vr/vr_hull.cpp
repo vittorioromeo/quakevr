@@ -492,13 +492,15 @@ void splitTop(const hull_t& hull, int num, Poly&& poly, int depth, za::Vector<Wa
     }
 }
 
+jobs::Site walkSite{"hull walk"}; // (its parallelFor: vr_jobs_sites)
+
 // Each item walked (items[i]'s pieces to onSolid(num, side, piece, outs[i])), on the pool.
 template <class Out, class OnSolid>
 void walkItems(const hull_t& hull, za::Vector<WalkItem>& items, za::Vector<Out>& outs, const OnSolid& onSolid)
 {
     outs.clear();
     outs.resize(items.size());
-    jobs::parallelFor(items.size(), 1,
+    jobs::parallelFor(walkSite, items.size(), 1,
         [&](za::SizeT begin, za::SizeT end)
         {
             for(za::SizeT i = begin; i < end; ++i)
@@ -1852,6 +1854,8 @@ struct Merge
     }
 };
 
+jobs::Site speculateSite{"hull speculate"}; // (its parallelFor: vr_jobs_sites)
+
 // A unit of the tree's top (its pieces), over base; its sides' units at once below it.
 void speculate(Unit& u, const TreeBuilder& base, za::Vector<Frag>&& frags, int depth)
 {
@@ -1881,7 +1885,7 @@ void speculate(Unit& u, const TreeBuilder& base, za::Vector<Frag>&& frags, int d
             u.kids[side] = za::makeUnique<Unit>();
             u.kids[side]->parent = &u;
         }
-        jobs::parallelFor(2, 1,
+        jobs::parallelFor(speculateSite, 2, 1,
             [&](za::SizeT begin, za::SizeT end)
             {
                 for(za::SizeT i = begin; i < end; ++i)
@@ -2389,11 +2393,13 @@ void reportTree(const Tree& t, int rebounded)
         t.ext.x * 2.f, t.ext.z * 2.f, static_cast<int>(t.nodes.size()), static_cast<int>(t.planes.size()), t.ms, t.redone);
 }
 
+jobs::Site treesSite{"hull trees"}; // (its parallelFor: vr_jobs_sites)
+
 // These trees compiled at once on the pool (the main thread one of them), reported in their order.
 void compileTrees(const za::Vector<Tree*>& todo, const Brushes& b)
 {
     za::Vector<int> rebounded(todo.size(), 0);
-    jobs::parallelFor(todo.size(), 1,
+    jobs::parallelFor(treesSite, todo.size(), 1,
         [&](za::SizeT begin, za::SizeT end)
         {
             for(za::SizeT i = begin; i < end; ++i)

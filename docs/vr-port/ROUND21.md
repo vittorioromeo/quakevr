@@ -21678,3 +21678,48 @@ feature 0.305 -> 0.233 ms.
 
 - Nothing should sound different. Play a fight with explosions, slow motion, a sound passing by: as before.
 - Debug > Tests > Spatial Audio > Spatial Audio Benchmark on your machine: send the console's table.
+## parallelFor sites: what each costs, and the small ones on the caller (2026-10-02)
+
+- **One atomic fewer a chunk.** `jobs::Pool::parallelFor` counted the helpers' chunks with a shared atomic add in every
+  helper chunk (most calls have chunks of one item): only the caller counts its own now (a plain count, written by the
+  caller alone), and the helpers' are the rest. Exact: every chunk runs once, and `za::parallelFor` makes the same
+  `(count - 1) / chunk + 1` chunks for the chunk size passed (QVR works out the default itself, as Zancle does); with
+  every one of Zancle's 64 gates taken the caller runs them all (helpers 0). `vr_jobs_test` checks both (14 checks:
+  136482 chunks run, 136482 counted over every count and chunk size; 80 calls nested past the 64 gates: 160 of 160).
+  Within the noise in time (`vr_jobs_bench`, before and after).
+- **Each call site named** (`jobs::Site`, one at namespace scope a call: `jobs::parallelFor(site, ...)`): its calls, how
+  many split, its items, the chunks the caller and the helpers took, the caller's time a call (average, worst).
+  `vr_jobs_sites [reset]`, Debug > Profiling and Memory > Thread Pool Sites (and Reset). `vr_jobs_bench [reps]`: n items
+  of w microseconds split against the caller alone, the workers asleep between calls (Thread Pool Split Bench).
+- **What a split costs** (`vr_jobs_bench`, exclusive, 31 workers): the caller posts its helpers in 3-7 us (2-4 items of
+  nothing; 17-24 us for 21), and a sleeping helper starts 20-40 us later; a loop of under about 20-50 us in all is
+  faster on the caller alone (2 items of 20 us: 40 serial, 29-43 split; 8 of 5 us: 40 against 24-32; 21 of 50 us: 1050
+  against 127-218).
+- **Every site** (split / caller alone, us a call; e1m1 with sound in real time, the 500-rock pile in vrfiringrange, a
+  box held in the mock's hand):
+
+| Site | Items a call | Helpers' chunks | Split | Caller alone | Kept |
+|---|---|---|---|---|---|
+| audio lanes, e1m1 combat | 2.6-2.9 | 63% | 78-99 | 137 | split |
+| audio lanes, 500 rocks falling | 7 | 85% | 270-290 | 837 | split |
+| grasp fingers, afresh (health box) | 10 | 50% | 44-58 | 142 | split |
+| grasp fingers, solved again (health box / armor) | 5 | 0 now | 18.8 / 9.2 | 16.8 / 7.3 | **caller alone** (now 16.4 / 7.1) |
+| grasp place 21 / 8 (weapon grips) | 21 / 8 | - | (round 21: 3-7x faster split; items 50-400 us) | | split |
+| ledge lines (map load) | 13.6, chunks of 4 | 70% | 47-67 | 350 | split |
+| hull walk (load) | 185 | 93% | 9400-11600 | 22600 | split |
+| hull speculate (load) | 2 | 30% | 4400 (nested) | (not speculated) | split |
+| hitmodel build (load) | 77 | 97% | 4800-5800 | 12900 | split |
+| water volume (load) | 31 | 97% | 6100-7000 | 85900 | split |
+| decal atlas (start-up, a task) | 29 | 97% | 56000-70000 | | split |
+| ao bake (a task) | 2-3 | 50% | tens of ms an item | | split |
+| hull trees | - | not called in e1m1 | | | split |
+
+  Only the grasp's re-solve (every finger and the thumb from its stops before: 17 probes, 7-20 us in all) lost: it now
+  runs on the caller (`jobs::parallelFor`'s `split` false: the same chunks in order, the same stops: `vr_grasp_bench`'s
+  stops the same split and on one thread, health box and armor). Afresh, or the thumb's style changed, it splits.
+  Every other site's items are far over a split's cost. (The mock holds no weapon by its grip now, so the palm's place
+  search, `grasp place 21` and `8`, wasn't measured again.)
+
+### In VR
+- [ ] Hold a prop and move it in the hand: the fingers follow as before (re-solves now on the main thread alone).
+- [ ] Debug > Profiling and Memory > Thread Pool Sites after a fight: audio lanes and grasp fingers listed with their times.

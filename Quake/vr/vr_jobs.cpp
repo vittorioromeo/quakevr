@@ -5,6 +5,7 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Macros.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Concurrency/Atomic.hpp"
 #include "Zancle/Concurrency/ParallelFor.hpp"
 #include "Zancle/Concurrency/Thread.hpp"
@@ -132,12 +133,51 @@ void Task::wait() noexcept
 
 // ----------------------------------------------------------------------------
 
-void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel) noexcept
+namespace
+{
+
+// What a call adds to its site's counters (vr_jobs_sites).
+void record(Site* site, za::SizeT items, bool split, za::SizeT caller, za::SizeT helpers, za::I64 since)
+{
+    if(!site)
+    {
+        return;
+    }
+    const za::U64 ns = static_cast<za::U64>(za::max<za::I64>(za::Clock::nowNanoseconds() - since, 0));
+    site->calls.fetchAddRelaxed(1u);
+    site->split.fetchAddRelaxed(split ? 1u : 0u);
+    site->items.fetchAddRelaxed(items);
+    site->chunksCaller.fetchAddRelaxed(caller);
+    site->chunksHelpers.fetchAddRelaxed(helpers);
+    site->nanoseconds.fetchAddRelaxed(ns);
+    for(za::U64 worst = site->worstNanoseconds.loadRelaxed();
+        ns > worst && !site->worstNanoseconds.compareExchangeWeak<MO::Relaxed, MO::Relaxed>(worst, ns);)
+    {
+    }
+}
+
+Site* siteList = nullptr; // (constant-initialised: every Site's constructor, at static initialisation, finds it)
+
+} // namespace
+
+Site::Site(const char* name) noexcept : name{name}, next{siteList}
+{
+    siteList = this;
+}
+
+Site* sites() noexcept
+{
+    return siteList;
+}
+
+void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel,
+    Site* site) noexcept
 {
     if(count == 0)
     {
         return;
     }
+    const za::I64 since = site ? za::Clock::nowNanoseconds() : 0;
     const za::SizeT threads = static_cast<za::SizeT>(impl->workers) + 1;
     if(chunk == 0)
     {
@@ -154,16 +194,19 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
         {
             body(begin, za::min(begin + chunk, count));
         }
+        record(site, count, false, chunks, 0, since);
         return;
     }
 
     // Zancle's (B4, upstream bef08e826): the caller takes chunks too and, once none is left, waits only for the helpers
     // running one; a helper that starts later (queued behind other work) finds its gate shut and returns. The caller
     // never runs anyone else's task. With every gate taken (64 calls under way at once), the caller runs it alone.
+    // The helpers' chunks are the rest: every chunk runs exactly once, and za::parallelFor makes `chunks` of them (the
+    // same (count - 1) / chunk + 1 for the explicit chunk passed; with every gate taken the caller runs all of them).
+    // Only the caller writes `mine` (no atomic per chunk: most calls have chunk 1); a helper only reads the id.
     counters.loops.fetchAddRelaxed(1u);
     const za::ThreadId caller = za::ThisThread::getId();
-    za::SizeT mine = 0; // (chunks run by the caller, which alone writes it; by its helpers:)
-    za::Atomic<za::SizeT> helped{0};
+    za::SizeT mine = 0;
     za::parallelFor(
         *impl->threads, impl->loops, count,
         [&](za::SizeT begin, za::SizeT end) {
@@ -172,14 +215,12 @@ void Pool::parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::Si
             {
                 mine++;
             }
-            else
-            {
-                helped.fetchAddRelaxed(1u);
-            }
         },
         chunk);
+    ZA_ASSERT(mine <= chunks);
     counters.chunksCaller.fetchAddRelaxed(mine);
-    counters.chunksHelpers.fetchAddRelaxed(helped.loadRelaxed());
+    counters.chunksHelpers.fetchAddRelaxed(chunks - mine);
+    record(site, count, true, mine, chunks - mine, since);
 }
 
 // ----------------------------------------------------------------------------
@@ -244,23 +285,29 @@ Stats stats() noexcept
     return s;
 }
 
-void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body) noexcept
+void parallelFor(Site& site, za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool split) noexcept
 {
     if(Pool* p = pool())
     {
-        p->parallelFor(count, chunk, body, parallel());
+        p->parallelFor(count, chunk, body, split && parallel(), &site);
         return;
     }
     // No pool (before VR_Init, after VR_Shutdown): the caller alone, as Pool's serial path.
+    if(count == 0)
+    {
+        return;
+    }
+    const za::I64 since = za::Clock::nowNanoseconds();
     if(chunk == 0)
     {
-        chunk = za::max<za::SizeT>(count, 1);
+        chunk = count;
     }
     counters.serialLoops.fetchAddRelaxed(1u);
     for(za::SizeT begin = 0; begin < count; begin += chunk)
     {
         body(begin, za::min(begin + chunk, count));
     }
+    record(&site, count, false, (count - 1) / chunk + 1, 0, since);
 }
 
 } // namespace qvr::jobs

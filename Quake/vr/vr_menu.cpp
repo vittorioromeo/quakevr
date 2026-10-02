@@ -2920,6 +2920,16 @@ za::Vector<Item> pageDebugProfiling()
                   "time. More piles, a wall of crates and Clear the Piles: Debug > Tests > Physics Stress."),
         command("Thread Pool Info", "vr_jobs_info")
             .help("vr_jobs_info: the pool's workers and what it has run (tasks, loops, the chunks each side took)."),
+        command("Thread Pool Sites", "vr_jobs_sites")
+            .help("vr_jobs_sites: each shared-out loop's calls, how many split between threads, its items, the chunks "
+                  "the caller and the helpers took, and the caller's time a call (average, worst). Then Reset Sites "
+                  "and play to see one scene's."),
+        command("Thread Pool Sites Reset", "vr_jobs_sites reset")
+            .help("vr_jobs_sites reset: every loop's counters back to zero (Thread Pool Sites counts from here)."),
+        command("Thread Pool Split Bench", "vr_jobs_bench")
+            .help("vr_jobs_bench [reps]: a small shared-out loop (2 to 21 items of 0 to 50 microseconds) timed on the "
+                  "caller alone and split between threads, the workers asleep between calls: where splitting pays "
+                  "(about 15 seconds; the game stops meanwhile)."),
         command("Thread Pool Self-Test", "vr_jobs_test")
             .help("vr_jobs_test: the pool's checks (start and stop, every item once, the main thread helping, busy workers, "
                   "nested waits, the same results whatever the threads), a line each (under a second)."),
