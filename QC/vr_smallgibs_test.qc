@@ -14,10 +14,12 @@
 //     monster's blow, gibbed by a blow, gibbed by a rocket (a corpse: a corpse's gibbing), a large gib burst) some are
 //     torn out (to the side: not at you), their launch speeds out and up, and 2.5 s later how far they lie from where
 //     they were made. The gibbings also print the old flight (the gibs' at 0.6, no Speed or Up)
+//     (vr_smallgibs_test_hand 1: the melee and chainsaw ones at the main hand, put in the body's middle: the mock)
 //  14 a crowd blown up among explosive boxes (a stress of the unreliable broadcast's room: ROUND21.md, "A full broadcast
 //     drops whole messages"): vr_smallgibs_test_crowd grunts (24) and half as many boxes in rings round a point 160
 //     units ahead, a rocket's blast there 1 s on (the boxes go off in a chain), what is left 3 s on (vr_debug_net 1
 //     prints each frame the broadcast was full); vr_smallgibs_test_blasts: that many blasts in that frame (round the point)
+//  15 not a test: to the wall ahead, vr_smallgibs_test_dist units from it (64), to throw gibs at it
 
 float vr_sgib_test;       // the test running, its step, when the step began
 float vr_sgib_test_step;
@@ -164,6 +166,10 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLaunch =
     float oldWeapon = self.weapon;
     float oldQuad = self.super_damage_finished;
     self.super_damage_finished = time + 30; // every hit tears them out
+    if(xStep == 1 && cvar("vr_smallgibs_test_hand"))
+    {
+        bprint(sprintf("sgibtest: speeds: the main hand %.0f units from its middle\n", vlen(VRGetHandPos(cVR_MainHand) - mid)));
+    }
     entity e = world;
     if(xStep == 4 || xStep == 5 || xStep == 6 || xStep == 8)
     {
@@ -220,7 +226,16 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLaunch =
             {
                 self.weapon = xStep == 1 ? WID_SWORD : WID_CHAINSAW;
                 VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, -side);
-                VR_SmallGib_Hit(m, self, self, 35);
+                if(cvar("vr_smallgibs_test_hand"))
+                {
+                    // Torn out at the main hand (vr_smallgibs_test_hand 1: put in the body), in its reach body, as at a
+                    // blade's or the chain's contact.
+                    VR_SmallGib_Tear(m, VRGetHandPos(cVR_MainHand), -side, 1, VR_SmallGib_TestSpeedSit(m, xStep));
+                }
+                else
+                {
+                    VR_SmallGib_Hit(m, self, self, 35);
+                }
             }
             else if(xStep == 3)
             {
@@ -259,7 +274,7 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLanded =
     float n = max(1, vr_sgib_st_n[sit]);
     float h = vr_sgib_st_h[sit] / n;
     float v = vr_sgib_st_v[sit] / n;
-    float cnt = 0, dist = 0, most = 0;
+    float cnt = 0, dist = 0, most = 0, pk = 0, pkt = 0, pkmost = 0;
     entity g = find(world, classname, "vr_smallgib");
     while(g)
     {
@@ -271,6 +286,9 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLanded =
             cnt++;
             dist = dist + vlen(d);
             most = max(most, vlen(d));
+            pk = pk + g.vr_sgib_peak;
+            pkt = pkt + g.vr_sgib_peakt;
+            pkmost = max(pkmost, g.vr_sgib_peak);
             VR_SmallGib_Remove(g);
         }
         g = next;
@@ -279,6 +297,8 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLanded =
         VR_SmallGib_SitName(sit), VR_SmallGib_SitMult(sit, FALSE), VR_SmallGib_SitMult(sit, TRUE)));
     bprint(sprintf("sgibtest: speeds:   %d: out %.0f u/s %.1f m/s, up %.0f u/s %.1f m/s; lie %.2f m, max %.2f m\n",
         vr_sgib_st_n[sit], h, h / m2u, v, v / m2u, dist / max(1, cnt) / m2u, most / m2u));
+    bprint(sprintf("sgibtest: speeds:   flew across at %.0f u/s (most %.0f), fastest %.2f s after it was made\n",
+        pk / max(1, cnt), pkmost, pkt / max(1, cnt)));
 };
 
 void(float xCase) VR_SmallGib_TestStart =
@@ -292,6 +312,33 @@ void(float xCase) VR_SmallGib_TestStart =
     float dmg = cvar("vr_smallgibs_test_dmg");
     dmg = dmg > 0 ? dmg : 35;
     entity m = vr_sgib_test_m;
+    if(xCase == 15)
+    {
+        // To the wall ahead (the view's yaw), vr_smallgibs_test_dist units from it (default 64): gibs thrown from there
+        // strike it (sticking tests: Misc/quakevr/gib_stick_test.sh).
+        float wd = cvar("vr_smallgibs_test_dist");
+        wd = wd > 0 ? wd : 64;
+        makevectors('0 1 0' * self.v_viewangle_y);
+        vector weye = self.origin + '0 0 16';
+        traceline(weye, weye + v_forward * 2048, TRUE, self);
+        float wfrac = trace_fraction;
+        vector wto = self.origin + v_forward * max(0, 2048 * trace_fraction - wd - 16);
+        tracebox(self.origin + '0 0 2', self.mins, self.maxs, wto + '0 0 2', TRUE, self); // (off the floor)
+        if(wfrac >= 1 || trace_startsolid)
+        {
+            bprint(sprintf("sgibtest: no wall ahead within 2048 units (%.2f %d, yaw %.0f)\n", wfrac, trace_startsolid, self.v_viewangle_y));
+        }
+        else
+        {
+            setorigin(self, trace_endpos);
+            self.velocity = '0 0 0';
+            traceline(self.origin + '0 0 16', self.origin + '0 0 16' + v_forward * 2048, TRUE, self);
+            bprint(sprintf("sgibtest: at %v, the wall ahead %.0f units away (normal %v)\n", self.origin,
+                2048 * trace_fraction, trace_plane_normal));
+        }
+        vr_sgib_test = 0;
+        return;
+    }
     if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14)
     {
         bprint("sgibtest: no monster or corpse near\n");
@@ -461,7 +508,7 @@ void(float xCase) VR_SmallGib_TestStart =
                 tg.velocity = wallDir * (w == 0 ? 220 : 400);
             }
             tg.movetype = MOVETYPE_TOSS;
-            VR_Gib_Released(tg, TRUE, cVR_MainHand);
+            VR_Gib_Released(tg, vlen(tg.velocity), cVR_MainHand);
             if(w == 0) { vr_sgib_test_g = tg; }
             else if(w == 1) { vr_sgib_test_m = tg; }
             else { vr_sgib_test_e = tg; }
@@ -503,6 +550,12 @@ void(float xCase) VR_SmallGib_TestStart =
         if(cvar("vr_smallgibs_max") < 128)
         {
             cvar_set("vr_smallgibs_max", "128"); // (each step's lie about together)
+        }
+        if(cvar("vr_smallgibs_test_hand"))
+        {
+            // The main hand into the body's middle (the mock headset), half a second to get there.
+            localcmd(sprintf("vr_mock_hand_to main %v\n", (m.absmin + m.absmax) * 0.5));
+            vr_sgib_test_t = time + 0.5;
         }
     }
     else if(xCase == 10)
@@ -709,8 +762,25 @@ void() VR_SmallGib_TestFrame =
         }
         else if(vr_sgib_test == 13)
         {
-            // Each situation in turn: torn out, then 2.5 s later where they lie.
-            if(!vr_sgib_test_a)
+            // Each situation in turn: torn out, then 2.5 s later where they lie. Each frame, their fastest across in
+            // their first second (what they really fly at: a push out of a body or a hand shows here, not at launch).
+            entity pg = find(world, classname, "vr_smallgib");
+            while(pg)
+            {
+                vector pv = pg.velocity;
+                pv_z = 0;
+                if(pg.vr_sgib_id && time - pg.vr_sgib_born < 1 && pg.carry_player == world && vlen(pv) > pg.vr_sgib_peak)
+                {
+                    pg.vr_sgib_peak = vlen(pv);
+                    pg.vr_sgib_peakt = time - pg.vr_sgib_born;
+                }
+                pg = find(pg, classname, "vr_smallgib");
+            }
+            if(t < 0)
+            {
+                // (the hand on its way: vr_smallgibs_test_hand)
+            }
+            else if(!vr_sgib_test_a)
             {
                 VR_SmallGib_TestSpeedLaunch(m, vr_sgib_test_step + 1);
                 vr_sgib_test_a = 1;

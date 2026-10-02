@@ -1124,6 +1124,7 @@ QVR_CVAR(vr_smallgibs_speed_corpse, "1", CVAR_ARCHIVE)      // Speed times this:
 QVR_CVAR(vr_smallgibs_up_corpse, "0.7", CVAR_ARCHIVE)       // Up times this
 QVR_CVAR(vr_smallgibs_speed_burst, "1", CVAR_ARCHIVE)       // Speed times this: a large gib or head burst
 QVR_CVAR(vr_smallgibs_up_burst, "1", CVAR_ARCHIVE)          // Up times this
+QVR_CVAR(vr_smallgibs_pass_inside, "1", CVAR_ARCHIVE)      // made inside a monster, a player or a hand's or weapon's body (the melee and chainsaw ones), they pass through it until clear (0: Box3D pushes them out, at 2 to 3 m/s)
 QVR_CVAR(vr_smallgibs_size_min, "0.5", CVAR_ARCHIVE)       // their size: from this times a rock's
 QVR_CVAR(vr_smallgibs_size_max, "1", CVAR_ARCHIVE)         // to this
 QVR_CVAR(vr_smallgibs_mass, "0.3", CVAR_ARCHIVE)           // kg each (light: thrown, they hurt little)
@@ -1134,6 +1135,12 @@ QVR_CVAR(vr_smallgibs_destroy, "0", CVAR_ARCHIVE)          // they can be shot o
 QVR_CVAR(vr_gore_stick_thrown, "0.5", CVAR_ARCHIVE)        // a gib or head thrown into a wall or a ceiling (slower than vr_gib_splat_speed) sticks there: the chance (0 never)
 QVR_CVAR(vr_gore_stick_speed, "180", CVAR_ARCHIVE)         // units/s a gib must strike a wall or a ceiling at to stick (flung or thrown)
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
+QVR_CVAR(vr_smallgibs_test_n, "0", CVAR_NONE)              // its tests: how many of each (0: 200)
+QVR_CVAR(vr_smallgibs_test_dmg, "0", CVAR_NONE)            // a blow's damage (0: 35)
+QVR_CVAR(vr_smallgibs_test_crowd, "0", CVAR_NONE)          // test 14: grunts (0: 24)
+QVR_CVAR(vr_smallgibs_test_blasts, "0", CVAR_NONE)         // test 14: blasts in the one frame (0: 1)
+QVR_CVAR(vr_smallgibs_test_hand, "0", CVAR_NONE)           // test 13: the melee and chainsaw ones at the main hand, put in the body (the mock)
+QVR_CVAR(vr_smallgibs_test_dist, "0", CVAR_NONE)           // test 15: units from the wall ahead (0: 64)
 QVR_CVAR(vr_body_blood_amount, "1", CVAR_ARCHIVE)      // how big the drops from your wounds are, and how much they splash
 QVR_CVAR(vr_body_blood_marks, "1", CVAR_ARCHIVE)       // the chance a drop from your wounds marks the floor (0..1)
 QVR_CVAR(vr_body_blood_mark_size, "1", CVAR_ARCHIVE)   // how big those marks are
