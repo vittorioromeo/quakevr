@@ -511,12 +511,9 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> spot <hotspot index> [<height cm>]\n"
                    "       vr_mock_hand_to <main|off> carried\n"
                    "       vr_mock_hand_to <main|off> held <fraction> [<cm>]\n"
-                   "       vr_mock_hand_to <main|off> button [<units off its face>]
-"
-                   "       vr_mock_hand_to <main|off> wrist <cm>
-"
-                   "       vr_mock_hand_to <main|off> heldspot <hotspot index>
-");
+                   "       vr_mock_hand_to <main|off> button [<units off its face>]\n"
+                   "       vr_mock_hand_to <main|off> wrist <cm>\n"
+                   "       vr_mock_hand_to <main|off> heldspot <hotspot index>\n");
         return;
     }
     glm::vec3 target{0.f};
