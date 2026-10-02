@@ -21,6 +21,13 @@
 /// `ZA_MATH_<NAME>(F|L)` macro for `float`, `double`, or
 /// `long double`. Caller must define those macros before invoking.
 ///
+/// The wrappers take exactly `float`, `double`, or `long double` (both
+/// arguments of the same type, for the 2-arg ones), and return that
+/// type. Unlike `<cmath>`, integers are not converted to `double`, nor
+/// are mixed `float`/`double` arguments promoted: deliberately, so that
+/// every conversion (and its precision or performance cost) is visible
+/// at the call site, e.g. `za::sqrt(static_cast<float>(n))`.
+///
 /// \warning The generated wrappers are `constexpr`, but whether they can
 ///          actually be evaluated at compile time depends on the compiler's
 ///          constant folding of the underlying builtin: GCC can evaluate all
@@ -62,7 +69,7 @@
         else if constexpr (ZA_IS_SAME(T, long double))                                                           \
             return ZA_MATH_##NAME##L(arg);                                                                       \
         else                                                                                                     \
-            static_assert(false);                                                                                \
+            static_assert(false, "`za::" #name "` takes exactly `float`, `double`, or `long double`");           \
     }                                                                                                            \
                                                                                                                  \
     } // namespace za
@@ -82,7 +89,7 @@
         else if constexpr (ZA_IS_SAME(T, long double))                                                                          \
             return ZA_MATH_##NAME##L(arg0, arg1);                                                                               \
         else                                                                                                                    \
-            static_assert(false);                                                                                               \
+            static_assert(false, "`za::" #name "` takes two `float`, `double`, or `long double` of the same type");             \
     }                                                                                                                           \
                                                                                                                                 \
     } // namespace za

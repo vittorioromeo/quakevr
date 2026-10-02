@@ -5,9 +5,10 @@
 //
 // Two ways in, both from any thread:
 // - parallelFor(count, chunk, body): body(begin, end) over [0, count) in chunks; the calling thread takes chunks too and
-//   returns once every chunk ran. Only workers that are free help: a helper still queued when the caller has run out of
-//   chunks is called off, so the caller never waits for a task that has not started, and never runs anyone else's
-//   (a long bake queued ahead of it can't take a frame's time). Nested calls are safe.
+//   returns once every chunk ran. Zancle's za::parallelFor (Concurrency/ParallelFor.hpp): only workers that are free
+//   help; a helper still queued when the caller has run out of chunks finds its gate shut and returns, so the caller
+//   never waits for a task that has not started, and never runs anyone else's (a long bake queued ahead of it can't
+//   take a frame's time). Nested calls are safe (64 under way at once split; more run on their caller alone).
 // - async(f): f on a worker; Future::get() waits for it (running f itself if no worker has taken it yet), and a Future
 //   destroyed unfinished waits too (as std::async's).
 // Nothing here throws, and neither may a chunk or f: the engine is built without exceptions, and everything the pool
@@ -220,7 +221,6 @@ struct Stats
     za::SizeT serialLoops{0};   // parallelFor calls run on the caller alone (one chunk, no pool, or vr_jobs_parallel 0)
     za::SizeT chunksCaller{0};  // chunks run by the calling thread
     za::SizeT chunksHelpers{0}; // chunks run by helpers
-    za::SizeT helpersCalledOff{0}; // helpers that started after the caller had finished (nothing left to do)
 };
 
 class Pool

@@ -11,16 +11,22 @@ upstream).
 
 ## Summary
 
-- **Vendored commit:** `534219bfe992fb655b63e835556ca69a189440fa` (branch `rebrand_to_zancle`, 2026-10-01): 186
-  files, about 1.5 MB (`external/zancle/README.md`; before it, `4ed9c3cc`, 178 files). It was first vendored at `6b8c6106` (2026-09-28), the concurrency module
+- **Vendored commit:** `304ea6c3bfe209bb27f18c848b605c713c7bf8bd` (branch `rebrand_to_zancle`, 2026-10-02): 188
+  files, about 1.5 MB (`external/zancle/README.md`; before it, `534219bf`, 186 files, and `4ed9c3cc`, 178). It was first vendored at `6b8c6106` (2026-09-28), the concurrency module
   only (ROUND21, "Zancle, vendored"). `zancle_vendor.py` copies the include closure of what `Quake/vr` uses. It keeps
   files that are already there unless run with `--update`, which takes every file upstream changed.
-- **Local changes: none since 534219bf.** The three kept at 4ed9c3cc went upstream at `fad225a4`: `Base/InitializerList.hpp`
+- **Local changes: none since 534219bf** (none at 304ea6c3 either). The three kept at 4ed9c3cc went upstream at `fad225a4`: `Base/InitializerList.hpp`
   (B1), `Base/MaxAlignT.hpp` (B6) and `src/Zancle/Base/Assert.cpp` (A10, now `za::setAssertHandler`). `Config.hpp` went
   at 4ed9c3cc (B7).
 - **Upstream since 4ed9c3cc** (ROUND21, "Zancle update to 534219bf"): `fad225a4` (B1, B2, B3, B5, B6, A10), `8bb74612`
   (A2, A3, A6; M1-M3, M5, M6, M8, M11, M15, parts of A4 and A5), `00019de8` (docs: N3, N4, M9), `dbd1cfa4` (M4),
-  `8c3ac3b2` (A8), `534219bf` (M7, M10, M13, M14). Open: B4, M9 (a node-stable map), M12, A1, A9, P2-P13 but P8.
+  `8c3ac3b2` (A8), `534219bf` (M7, M10, M13, M14).
+- **Upstream since 534219bf** (ROUND21, "Zancle update to 304ea6c3"): `bef08e826` and `d434aaac5` (B4: `za::parallelFor`,
+  which QVR's pool now uses), `b95575f0f` (B8, found upstream: lost 64-bit wakeups off Windows; and `AtomicMutex`
+  spins before sleeping), `76cb40ad4` (A4's and A7's documentation), `ce3ce1c34` (A5: `Span::subspan` is now
+  `subspanByPosLen`, as `StringView`'s), `304ea6c3b` (part of A9: `getOptimalWorkerCount` /
+  `getOptimalThreadCount`, `Thread::usableHardwareConcurrency`). Open: M9 (a node-stable map), M12 (an ordered map),
+  M16/M17 (async, a re-postable task), A1, the rest of A9 (worker names, a cap), P2-P13 but P8.
 - **Scale** (ROUND21, "Zancle migration"): `std::` uses in `Quake/vr` went from 7454 to 60, and standard headers from
   708 to 16. After the follow-ups, 48 uses and 8 headers remain, and 19 `ZANCLE-TODO`s (ROUND21, "Zancle
   follow-ups"). The work took 18 commits over 169 files, about +9.5k/-8.4k lines, plus `vr_zancle.hpp` (394 lines)
@@ -111,7 +117,14 @@ upstream).
   - Nested calls stay safe, and nothing allocates once warm.
   - Reference implementation: `qvr::jobs::Pool::parallelFor` (`Quake/vr/vr_jobs.cpp`, about 80 lines, built on
     `postCopies`).
-- **Status:** worked around in QVR (its own `parallelFor`). Open upstream (`fad225a4` made it `noexcept` only).
+- **Status:** **fixed upstream** (`bef08e826`, "Move parallelFor to its own layer"; `d434aaac5` wakes the helpers as a
+  tree on POSIX). `za::parallelFor(pool, slots, count, f, chunk)` (`Concurrency/ParallelFor.hpp`): the helpers enter a
+  generation-tagged gate in a user-owned `za::ParallelForSlots` (64 gates; a call that finds none free runs on its
+  caller), the caller closes it once every chunk is claimed and waits only for the helpers inside, and never runs a
+  queued task. The design proposed here. QVR's `jobs::Pool::parallelFor` now calls it (its own gates and loop list
+  gone; the serial path, `vr_jobs_parallel` and the chunk counts kept). Lost in the move: the count of helpers called
+  off (`za::parallelFor` does not report it); `vr_jobs_test` checks instead that a task queued behind blocked workers
+  is not run by the caller, and that the gate's next call is right after the stale helpers ran.
 
 **B5. An exception out of `parallelFor`'s body is undefined behaviour** (Concurrency)
 - **What:**
@@ -139,6 +152,16 @@ upstream).
 - **Where found:** ROUND21, "Zancle proposals (for upstream)" #1; confirmed in MSVC audit, "Build and CI changes".
 - **Fix:** read `__cplusplus` whenever `__clang__` is defined.
 - **Status:** fixed upstream (taken by 4ed9c3cc; QVR's local change dropped).
+
+**B8. 64-bit atomic waits lose wakeups where the platform waits on 32-bit words** (Concurrency; found upstream)
+- **What:** on Linux, macOS and the BSDs a 64-bit wait slept on the value's lower half: a change of the upper half only
+  (a `double` from 1.0 to 2.0) racing with the wait was a lost wakeup (upstream: 472 stalls of about 1 s in 200k
+  handoffs on Linux).
+- **Where found:** upstream, not by QVR. Windows (`WaitOnAddress` takes 8 bytes) never had it, so QVR's Windows builds
+  were not affected; its Linux builds (the Makefiles, CMake) were.
+- **Status:** **fixed upstream** (`b95575f0f`): 64-bit waiters sleep on a per-slot version counter that each 64-bit
+  notification bumps (notifications are size-specific now). The same commit makes `AtomicMutex` spin with backoff
+  before it sleeps.
 
 ## 2. Portability (cl.exe and clang-cl)
 
@@ -248,7 +271,8 @@ None of it matters to QVR, which builds with clang-cl.
 ## 3. Missing features
 
 These were the `qza` shims in `Quake/vr/vr_zancle.hpp` (each marked `ZANCLE-TODO`) and the `std::` uses that remained.
-At 534219bf only `qza::stableAt` (M9), `qza::sortedByKey` and the `std::map`s (M12) remain.
+At 534219bf only `qza::stableAt` (M9), `qza::sortedByKey` and the `std::map`s (M12) remain; still so at 304ea6c3
+(no new container), and `vr_jobs`' `async`/`Future` and `Task` (M16, M17).
 Sources: ROUND21, "What Zancle lacks" and the second "Zancle proposals" list #9-11; "Zancle update"; "Zancle
 follow-ups".
 
@@ -298,18 +322,22 @@ The numbering below is from ROUND21's second proposal list, "Zancle proposals...
   - `String` has no `append(count, char)`, `compare(pos, n, ...)` or member `swap`.
   - `StringView` has no `front()`/`back()`.
   - Document that `substrByPosLen` returns a view and that `String s = view;` is explicit.
-  - **Partly fixed upstream** (`8bb74612`): the members above. The documentation point is open.
+  - **Fixed upstream** (`8bb74612`: the members above; `76cb40ad4`: the documentation, on the members, `String`'s
+    class docs and the migration guide).
 - **A5. `Vector`, `Span` and `Array`** (#7)
   - `Vector` has no `assign(count, value)` and no `insert(pos, first, last)` or `insert(pos, {list})`.
   - `Span` has no `subspan`.
   - `Array` has no `fill`, `front` or `back`.
   - Reverse iterators and ordering operators are covered in M7 and M11.
-  - **Fixed upstream** (`8bb74612`). QVR uses none of these members yet.
+  - **Fixed upstream** (`8bb74612`). QVR uses none of these members yet. `ce3ce1c34` renamed `Span::subspan` to
+    `subspanByPosLen` (as `StringView::substrByPosLen`: its `len` clamps, unlike `std::span::subspan`); QVR has no
+    call.
 - **A6. `getArraySize` is `consteval`** (#8)
   - It can't be used on an array reached through a reference parameter.
   - **Fixed upstream** (`8bb74612`, `constexpr`). With M15's array `fill`, QVR's two such places need neither.
 - **A7. Math wrappers take exactly `float`, `double` or `long double`** (#9)
   - Keep this: it made every implicit promotion visible.
+  - **Documented upstream** (`76cb40ad4`: `Math/Priv/Impl.hpp`, the migration guide; the `static_assert`s say so).
 - **A8. `FastNonCryptoRng.hpp` pulls in `Geometry/Priv/Vec2Base.hpp` for `getVec2f`** ("Zancle update", proposal 4)
   - Move that into a separate header, so that non-geometry users don't include it.
   - **Fixed upstream** (`8c3ac3b2`): its `Vec2` members are templates; Random no longer reaches `Geometry`
@@ -318,6 +346,10 @@ The numbering below is from ROUND21's second proposal list, "Zancle proposals...
   - Name the worker threads ("za worker N": `SetThreadDescription` / `pthread_setname_np`).
   - Add a cap parameter to `getHardwareWorkerCountExcludingCallingThread`. A 32-thread CPU gets 31 workers, which
     the game never fills; QVR caps at 31 and makes the count settable.
+  - **Partly fixed upstream** (`304ea6c3b`): the counts renamed, `getOptimalWorkerCount` (usable hardware threads
+    less one, at least one) and `getOptimalThreadCount`, and `Thread::usableHardwareConcurrency` (the process's CPU
+    affinity on Linux; the same as `hardwareConcurrency` on Windows). QVR's `vr_jobs` uses them (its cap of 31 kept).
+    Open: the worker names and the cap parameter.
 - **A10. Assert handler hook** (inferred from QVR's local change to `src/Zancle/Base/Assert.cpp`)
   - QVR has to edit `Assert.cpp` so that its own handler (`vr_zancle.cpp`) receives the library's assert failures.
   - The sources record only the local change, not a proposal. A user-settable handler would remove it.
@@ -371,14 +403,18 @@ The numbering below is from ROUND21's second proposal list, "Zancle proposals...
 
 Done upstream by 534219bf (were items 1-3, 5, 7, the ergonomics but A1, and the dense-map and sort docs): B1, B2, B3,
 B5, B6, A10 (`fad225a4`); the cheap gaps, A2, A3, A6 (`8bb74612`); N3, N4 (`00019de8`); M4 (`dbd1cfa4`); A8
-(`8c3ac3b2`); M7, M10, M13, M14 (`534219bf`). QVR's vendored tree has no local changes left. Still open:
+(`8c3ac3b2`); M7, M10, M13, M14 (`534219bf`). Done by 304ea6c3 (was item 1's first half and item 3's docs): B4
+(`bef08e826`, `d434aaac5`), B8 (`b95575f0f`), A4's and A7's docs (`76cb40ad4`), part of A9 (`304ea6c3b`). QVR's
+vendored tree has no local changes. Still open:
 
-1. **Fix B4 in `ThreadPool::parallelFor`.** Never run unrelated tasks; a gated helper control block. Then add
-   `async`/`Future` (M16) and thread names plus a worker cap (A9). QVR's `vr_jobs.cpp` is a reference implementation.
-2. **The maps:** an ordered flat map and a node-stable map (M12, M9). The last `std::` in QVR's code outside the
-   self-test is `vr_motion_review.cpp`'s `std::map` (3 of them).
-3. **Ergonomics:** the `Optional` implicit constructor and `operator=` (A1); document the view from `substrByPosLen`
-   and the explicit conversion from a view to `String` (A4) and the exact-type math wrappers (A7).
+1. **The maps:** an ordered flat map and a node-stable map (M12, M9). The last `std::` in QVR's code outside the
+   self-test is `vr_motion_review.cpp`'s `std::map` (3 of them); `qza::sortedByKey` and `qza::stableAt` are QVR's last
+   shims.
+2. **`ThreadPool::async` / `Future<T>` (M16) and a re-postable task (M17)**, on the pool's public API as
+   `za::parallelFor` is; then the rest of A9 (worker names, a cap on `getOptimalWorkerCount`). QVR's `vr_jobs.cpp`
+   (`detail::Job`, `Future`, `Task`) is a reference implementation.
+3. **Ergonomics:** the `Optional` implicit constructor and `operator=` (A1).
 4. **Decide on cl support.** Either work through the rest of `ZANCLE_MSVC.md`'s order (P1, P3, P5, P8, CpuRelax and
    `Path` are done; next P2's `Atomic` backend and P4), re-auditing against current upstream first, or document
-   "clang-cl on Windows" only.
+   "clang-cl on Windows" only. The new code adds to P2 (`AtomicWait.cpp`'s version counter, on the 32-bit-wait
+   backends only), P6 (8 `gnu::always_inline` in `ParallelFor.hpp`) and P12 (its `alignas` padding: C4324).

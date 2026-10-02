@@ -211,19 +211,20 @@ struct ZA_GSL_POINTER(T) Span
 
 
     ////////////////////////////////////////////////////////////
-    /// \brief View of `count` elements starting at `offset` (like `std::span::subspan`)
+    /// \brief View of the up to `len` elements starting at `startPos` (like `StringView::substrByPosLen`)
     ///
-    /// `offset` must be at most `size()`. Without `count` (or when it exceeds
-    /// what is left), the view extends to the end of the span.
+    /// `startPos` must be at most `size()`. Without `len` (or when it exceeds
+    /// what is left), the view extends to the end of the span: unlike
+    /// `std::span::subspan`, which requires the count to fit.
     ///
     ////////////////////////////////////////////////////////////
-    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr Span subspan(const SizeT offset,
-                                                                        const SizeT count = static_cast<SizeT>(-1)) const
+    [[nodiscard, gnu::always_inline, gnu::pure]] constexpr Span subspanByPosLen(const SizeT startPos,
+                                                                                const SizeT len = static_cast<SizeT>(-1)) const
     {
-        ZA_ASSERT(offset <= theSize);
+        ZA_ASSERT(startPos <= theSize);
 
-        const SizeT available = theSize - offset;
-        return Span{theData + offset, count < available ? count : available};
+        const SizeT available = theSize - startPos;
+        return Span{theData + startPos, len < available ? len : available};
     }
 
 

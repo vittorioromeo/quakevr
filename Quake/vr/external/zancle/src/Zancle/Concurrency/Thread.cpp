@@ -361,6 +361,21 @@ unsigned int Thread::hardwareConcurrency() noexcept
 
 
 ////////////////////////////////////////////////////////////
+unsigned int Thread::usableHardwareConcurrency() noexcept
+{
+#if defined(__linux__) && defined(CPU_COUNT) // GNU extensions (glibc, musl, bionic)
+    // The processors this process may run on (e.g. limited by `taskset`, cpusets, or containers)
+    cpu_set_t set;
+    if (sched_getaffinity(/* calling process */ 0, sizeof(set), &set) == 0)
+        if (const int n = CPU_COUNT(&set); n > 0)
+            return static_cast<unsigned int>(n);
+#endif
+
+    return hardwareConcurrency();
+}
+
+
+////////////////////////////////////////////////////////////
 ThreadId ThisThread::getId() noexcept
 {
     if (tlCurrentThreadId == 0u) [[unlikely]]

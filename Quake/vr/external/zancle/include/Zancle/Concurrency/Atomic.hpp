@@ -185,11 +185,15 @@ template <typename T>
 /// the value at that address differs bit-wise from `expected`, or a
 /// wake call targets the same address. Spurious wakeups are allowed.
 ///
+/// Notifications must use the size of the waits they target
+/// (`atomicNotify32` for `atomicWait32`, `atomicNotify64` for
+/// `atomicWait64`). `addr` is only used as a key: it may be dangling.
+///
 ////////////////////////////////////////////////////////////
 ZA_SYSTEM_API void atomicWait32(const za::U32* addr, za::U32 expected) noexcept;
 ZA_SYSTEM_API void atomicWait64(const za::U64* addr, za::U64 expected) noexcept;
-ZA_SYSTEM_API void atomicNotifyOne(const void* addr) noexcept;
-ZA_SYSTEM_API void atomicNotifyAll(const void* addr) noexcept;
+ZA_SYSTEM_API void atomicNotify32(const void* addr, bool wakeAll) noexcept;
+ZA_SYSTEM_API void atomicNotify64(const void* addr, bool wakeAll) noexcept;
 
 } // namespace priv
 
@@ -626,7 +630,10 @@ public:
     [[gnu::always_inline]] void notifyOne() noexcept
         requires(sizeof(T) == 4u || sizeof(T) == 8u)
     {
-        priv::atomicNotifyOne(static_cast<const void*>(&m_value));
+        if constexpr (sizeof(T) == 4u)
+            priv::atomicNotify32(static_cast<const void*>(&m_value), /* wakeAll */ false);
+        else
+            priv::atomicNotify64(static_cast<const void*>(&m_value), /* wakeAll */ false);
     }
 
 
@@ -637,7 +644,10 @@ public:
     [[gnu::always_inline]] void notifyAll() noexcept
         requires(sizeof(T) == 4u || sizeof(T) == 8u)
     {
-        priv::atomicNotifyAll(static_cast<const void*>(&m_value));
+        if constexpr (sizeof(T) == 4u)
+            priv::atomicNotify32(static_cast<const void*>(&m_value), /* wakeAll */ true);
+        else
+            priv::atomicNotify64(static_cast<const void*>(&m_value), /* wakeAll */ true);
     }
 };
 
