@@ -57,6 +57,9 @@ Head flies are off (Gore > Flies on Heads); revisit later (docs/vr-port/BACKLOG.
 
 Lightning gun, Shambler and Mjolnir beams: Quad-style arcs along the beam (Graphics - Lights > Beam Arcs, spread, width); enforcer rifle smoke when you and enforcers fire; chainsaw cord handle in the fist is the same block as on the saw
 
+Parry the Overlord (firing range monster 17) and the phantom swordsman (15); against the Overlord's double smash or a fiend's two claws the second hit is silent and costs no stamina (Parry and Bash > Parry Cooldown: Whole Attack)
+Wall buttons: press with the sword's flat, edge and pommel, gun butts, the crowbar's bar; throw rocks and guns at them (150 u/s; Throwing and Physics > Wall Buttons); walking past with a long gun doesn't press by accident (6 cm reach); hand presses now buzz
+
 [Decide or give feedback]
 Grunts' shotguns have no muzzle smoke: add it?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
