@@ -197,8 +197,9 @@ const DefaultChange defaultChanges[] = {
     {75, &vr_crate_impact, "14"},           // 16
     {75, &vr_crate_pieces, "6"},            // 12
     {75, &vr_crate_piece_time, "30"},       // 60
+    {76, &vr_nearclip, "1"},                // 0.1 (float depth for the eyes)
 };
-constexpr int configVersion = 75;
+constexpr int configVersion = 76;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

@@ -13,6 +13,7 @@
 #include "vr_anchor.hpp"
 #include "vr_avatar.hpp"
 #include "vr_client.hpp"
+#include "vr_cvars.hpp"
 #include "vr_props.hpp"
 #include "vr_weapons.hpp"
 
@@ -23,6 +24,8 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/MinMax.hpp"
+
+#include <glm/gtc/type_ptr.hpp>
 
 
 using namespace qvr;
@@ -137,6 +140,39 @@ extern "C" int VR_AliasMirrored(const entity_t* e)
 extern "C" int VR_IsViewEntity(const entity_t* e)
 {
     return view::find(e) != nullptr;
+}
+
+// What you hold, right at the eyes (vr_nearclip_held): 1 its parts nearer than the near plane are drawn at it (depth
+// clamp) rather than cut away, which showed the world through a shouldered gun; 2 also both sides of it while the eye
+// is inside its bounds, so a gun pushed into the face blocks the view with its inside. `matrix` maps its vertices to
+// the world (R_DrawAliasModel's, all of VR_AliasPreTransform's and VR_AliasPostTransform's in it).
+extern "C" int VR_AliasNearEye(const entity_t* e, const float matrix[16], const void* aliashdr)
+{
+    const int mode = static_cast<int>(vr_nearclip_held.value);
+    if(mode <= 0 || !VR_RenderingEye() || !VR_IsViewEntity(e))
+    {
+        return 0;
+    }
+    if(mode < 2)
+    {
+        return 1;
+    }
+
+    // The eye in the model's own space (the vertices' before their packing: scale and scale_origin), against its
+    // bounds over every frame.
+    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);
+    const glm::vec4 v = glm::inverse(glm::make_mat4(matrix)) *
+                        glm::vec4{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2], 1.f};
+    constexpr float margin = 0.25f; // model units: an eye just outside a face
+    for(int i = 0; i < 3; ++i)
+    {
+        const float p = v[i] * hdr->scale[i] + hdr->scale_origin[i];
+        if(p < e->model->mins[i] - margin || p > e->model->maxs[i] + margin)
+        {
+            return 1;
+        }
+    }
+    return 3;
 }
 
 extern "C" void VR_AliasPreTransform(const entity_t* e, float matrix[16])

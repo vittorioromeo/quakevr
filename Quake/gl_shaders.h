@@ -733,7 +733,7 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "		ivec3 cluster_coord;\n"
 "		cluster_coord.x = int(floor(in_coord.x));\n"
 "		cluster_coord.y = int(floor(in_coord.y));\n"
-"		cluster_coord.z = int(floor(log2(in_depth) * ZLogScale + ZLogBias));\n"
+"		cluster_coord.z = max(int(floor(log2(in_depth) * ZLogScale + ZLogBias)), 0);\n" // QVR: nearer than the first slice (the VR near plane is nearer): in it
 "		uvec2 clusterdata = imageLoad(LightClusters, cluster_coord).xy;\n"
 "		if ((clusterdata.x | clusterdata.y) != 0u)\n"
 "		{\n"

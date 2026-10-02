@@ -20716,3 +20716,43 @@ Test in VR:
 - [ ] Their size (half a rock to a rock), how they fly (Speed, Up), the cap and how long they last; pick one up and
   hold it past Last.
 - [ ] Gibs squish when they land and stick; throw a gib or a small gib into a wall at a medium speed: it sticks.
+
+## Near clip: a gun at the eye (2026-10-02)
+
+Note vrfiringrange_2026-10-02_15-23-33: a shouldered gun (virtual stock) right at the eye showed the world through it.
+
+**Cause.** Two things. The headset's near plane was `vr_nearclip` 1 unit (3 cm at World Scale 1.25): a gun's
+receiver and stock nearer than that were cut open, and with backface culling the cut showed the world behind. And
+with the eye inside the model (the gun pushed into the face) no near plane helps: only back faces are in front of
+the eye, and they are culled.
+
+**Fix.**
+- `vr_nearclip` default 0.1 (3 mm; range 0.02 .. 4). The eyes' depth buffer is now 32-bit float
+  (`GL_DEPTH32F_STENCIL8`, `vr_depth_float 1`): with the engine's reversed Z its precision is relative (about
+  z / 8M: 0.0002 units at 2000), whatever the near plane. The old 24-bit one has z^2 / (near * 16.7M): 0.24 units at
+  2000 with near 1, 2.4 with near 0.1 (decals are lifted 0.2 units: they would fight). Without float depth
+  (`vr_depth_float 0` or no clip control) the near plane stays at least 1 unit, as before. Only the eyes' (and the
+  spectator camera's) framebuffers change; the window's are as they were. Applies on `vr_restart`.
+- `vr_nearclip_held` (default 2) for held weapons and hands (`VR_IsViewEntity`), in the eyes only: 1 draws them with
+  `GL_DEPTH_CLAMP` (parts nearer than the near plane are drawn at it, not cut); 2 also draws them two-sided while
+  the eye is inside the model's bounds (the eye taken into the model's space through its whole matrix), so the gun's
+  inside blocks the view. Such entities batch apart (`aliasnear` in r_alias.c, `VR_AliasNearEye` in vr_render.cpp).
+  Shadow-map casters are unchanged.
+- The light clusters' first slice starts at the desktop near plane (up to 4 units): the world's and the models'
+  per-pixel dynamic lights now clamp nearer fragments into it (they read outside the cluster image before: no
+  muzzle flash light on a gun at the eye).
+- Menu: Headset page, Near Clip, Held Items at the Eyes (Clipped, Never clipped, Block the view), Float Depth.
+
+**Checked.** Eye images with the shotgun's rear sight 18, 9, 4.6 and 1.5 cm in front of the right eye: before, the
+4.6 and 1.5 cm ones cut the receiver and showed the floor through it; after, whole. With the gun raised so the eye
+is inside it: `vr_nearclip_held 0` sees through, 2 sees its inside. Far views (e1m1, vrfiringrange, sky) with float
+depth at 0.1 and 0.02 against the old 24-bit at 1: no z-fighting, sky unchanged. GPU time (e1m1, mock 1024 eyes):
+0.59 ms (24-bit) vs 0.60 (float).
+
+Test (mock): `vr_weapon_grip_mode 1; impulse 154; vr_mock_hand head 0 1.6 0 0 0 0; vr_mock_hand main 0.0132 1.5808
+0.0625 70 0 0; vr_sight_check main; vr_eyeshot 1` (rear sight 1.5 cm ahead of the right eye; y 1.6408 puts the eye
+inside the gun).
+
+- [ ] Shoulder a gun (virtual stock) and bring it to your eye: nothing of it is cut away, the world never shows
+  through it; push it into your face: its inside blocks the view (Held Items at the Eyes: Block the view).
+- [ ] Far walls, floors and decals don't flicker (Float Depth on); Near Clip 0.02 .. 1 changes nothing far away.

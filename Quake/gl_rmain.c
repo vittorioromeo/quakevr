@@ -224,7 +224,7 @@ GL_CreateFrameBuffers
 void GL_CreateFrameBuffers (void)
 {
 	GLenum color_format = VR_SceneColorFormat (GL_RGB10_A2); // QVR: the eyes' is float with vr_tonemap
-	GLenum depth_format = GL_DEPTH24_STENCIL8;
+	GLenum depth_format = VR_SceneDepthFormat (GL_DEPTH24_STENCIL8); // QVR: the eyes' is float (vr_depth_float)
 
 	/* query MSAA limits */
 	glGetIntegerv (GL_MAX_COLOR_TEXTURE_SAMPLES, &framebufs.max_color_tex_samples);

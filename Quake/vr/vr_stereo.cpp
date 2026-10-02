@@ -52,11 +52,13 @@ struct SceneTargets
     int height = 0;
     float fsaa = 0.f;    // the MSAA they were made with (vid_fsaa; the spectator camera's: vr_spectator_aa)
     unsigned format = 0; // their scene colour format (vr_tonemap: float)
+    unsigned depth = 0;  // their depth/stencil format (vr_depth_float)
 };
 SceneTargets eyeTargets;
 SceneTargets spectatorTargets;
 bool creatingSceneTargets = false; // VR_SceneColorFormat, VR_SceneSamples
 unsigned creatingFormat = 0;
+unsigned creatingDepth = 0;
 float creatingFsaa = 0.f;
 GLuint targetFbo = 0;
 
@@ -105,10 +107,18 @@ void ensureResampleTarget(int width, int height)
     return vr_spectator_aa.value > 0.f ? vid_fsaa.value : 0.f;
 }
 
+// The eyes' depth/stencil format: 32-bit float with reversed Z (clip control), for the small near plane's precision
+// far away (vr_nearclip); else the window's 24-bit fixed point.
+[[nodiscard]] unsigned sceneDepthFormat()
+{
+    return gl_clipcontrol_able && vr_depth_float.value != 0.f ? GL_DEPTH32F_STENCIL8 : GL_DEPTH24_STENCIL8;
+}
+
 // Whether `t` is already made for this size, MSAA and format.
 [[nodiscard]] bool sceneTargetsFit(const SceneTargets& t, int width, int height, float fsaa)
 {
-    return t.width == width && t.height == height && t.fsaa == fsaa && t.format == tonemap::sceneFormat();
+    return t.width == width && t.height == height && t.fsaa == fsaa && t.format == tonemap::sceneFormat() &&
+           t.depth == sceneDepthFormat();
 }
 
 void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
@@ -120,6 +130,7 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
     }
     t.fsaa = fsaa;
     t.format = format;
+    t.depth = sceneDepthFormat();
 
     const glframebufs_t windowFramebufs = framebufs;
     const int windowWidth = vid.width;
@@ -135,6 +146,7 @@ void ensureSceneTargets(SceneTargets& t, int width, int height, float fsaa)
     vid.height = height;
     creatingSceneTargets = true;
     creatingFormat = format;
+    creatingDepth = t.depth;
     creatingFsaa = fsaa;
     GL_CreateFrameBuffers();
     creatingSceneTargets = false;
@@ -871,6 +883,11 @@ extern "C" unsigned VR_SceneColorFormat(unsigned format)
     return stereo::creatingSceneTargets ? stereo::creatingFormat : format;
 }
 
+extern "C" unsigned VR_SceneDepthFormat(unsigned format)
+{
+    return stereo::creatingSceneTargets ? stereo::creatingDepth : format;
+}
+
 extern "C" int VR_SceneSamples(int samples)
 {
     return stereo::creatingSceneTargets ? Q_nextPow2(static_cast<int>(q_max(1.f, stereo::creatingFsaa))) : samples;
@@ -919,8 +936,11 @@ extern "C" void VR_OverrideProjection(float matrix[16])
     matrix[0 * 4 + 1] = -(u + d) / (u - d);
 
     // Hands, weapons and the body come much closer to the eyes than to a monitor's view: the
-    // desktop's near plane (up to 4 units, 12 cm) cut them open. Reversed Z keeps the precision.
-    const float n = CLAMP(0.1f, vr_nearclip.value, 4.f);
+    // desktop's near plane (up to 4 units, 12 cm) cut them open, and 1 unit (3 cm) still cut a shouldered gun's
+    // stock and receiver. Reversed Z in a float depth buffer keeps the precision far away at any near plane; a
+    // 24-bit one loses it below 1 unit (held items are never cut anyway: vr_nearclip_held).
+    const unsigned depth = (stereo::spectatorView ? stereo::spectatorTargets : stereo::eyeTargets).depth;
+    const float n = CLAMP(depth == GL_DEPTH32F_STENCIL8 ? 0.02f : 1.f, vr_nearclip.value, 4.f);
     const float f = gl_farclip.value;
     if(gl_clipcontrol_able)
     {
