@@ -2655,13 +2655,20 @@ za::Vector<Item> pageDebugProfiling()
                   "thread steps it alone (the same results: Box3D is deterministic whatever its threads)."),
         cycle("Physics Threads", vr_box3d_workers, {{0.f, "All"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {6.f, "6"}, {8.f, "8"}})
             .help("With Physics on Threads: at most this many threads step Box3D, the main thread one of them (All: every "
-                  "worker of the pool). Box3D does best on a few performance cores."),
+                  "worker of the pool). Measured on a 24-core CPU: 4 is as fast as 6 or 8 up to ~500 awake bodies (and "
+                  "leaves cores to the render thread and the headset's runtime); 8 gains another 20% only from ~1000. "
+                  "All is slower than 8."),
         cycle("Physics Threads From", vr_box3d_threads_bodies, {{0.f, "Always"}, {100.f, "100 Bodies"}, {150.f, "150 Bodies"}, {200.f, "200 Bodies"}, {300.f, "300 Bodies"}, {500.f, "500 Bodies"}, {1000.f, "1000 Bodies"}})
             .help("With Physics on Threads: shared out only while at least this many bodies are awake (a smaller step is "
-                  "faster on the main thread alone: handing it out costs more than it saves)."),
+                  "faster on the main thread alone: handing it out costs more than it saves). Measured: even at ~100 awake, "
+                  "4 threads 15% faster at 125, 25% at 150, 40-50% at 300-500, 2-3x at 1000."),
         command("Physics Step Time", "vr_physics_steptime")
-            .help("vr_physics_steptime: Box3D's step time a frame since the last time (average and worst, ms), the awake "
-                  "bodies and its threads. Run it, play, run it again."),
+            .help("vr_physics_steptime: Box3D's step time a frame since the last time (average, median, 95th and 99th "
+                  "percentiles, worst, ms), the awake bodies and its threads. Run it, play, run it again."),
+        command("Physics Step Time by Awake Bodies", "vr_physics_steptime bins")
+            .help("vr_physics_steptime bins: the same, then the frames by how many bodies were awake as they began (the "
+                  "median and 95th percentile of each range: where threads pay, against Physics Threads From) and Box3D's "
+                  "own profile (collide, solve and its stages). Misc/quakevr/box3dmt/pilebench.py runs it over the piles."),
         command("Spawn a Big Prop Pile", "vr_physics_bigpile")
             .help("vr_physics_bigpile [count] [distance] [rocks | bricks | crates | mixed]: Pile Size rocks and bricks "
                   "ahead of you in leaning columns that topple into a pile: more awake bodies than Physics Threads From "
@@ -2808,10 +2815,13 @@ za::Vector<Item> pageDebugTests()
         header("Physics Stress"),
         slider("Pile Size", vr_test_pile_count, 50.f, 1000.f, 50.f, "%.0f props")
             .extend(10.f, 2000.f)
-            .help("How many props Pile of Rocks, Pile of Bricks and Mixed Pile put ahead of you."),
+            .help("How many props Pile of Rocks, Pile of Bricks and Mixed Pile put ahead of you. 500: about 350 bodies "
+                  "awake as they fall (Physics on Threads at work: about twice as fast), one frame of ~9 ms as they "
+                  "appear; 1000: a 20+ ms frame as they appear, then 1-2 ms steps on threads."),
         slider("Crates in the Wall", vr_test_pile_crates, 8.f, 120.f, 8.f, "%.0f crates")
             .extend(1.f, 400.f)
-            .help("How many small crates Wall of Crates stacks ahead of you (walls 8 wide and 5 high, one behind another)."),
+            .help("How many small crates Wall of Crates stacks ahead of you (walls 8 wide and 5 high, one behind another; "
+                  "80: two walls). Standing walls cost little (under 0.1 ms a step); knocked over, a wall wakes its 40."),
         command("Pile of Rocks", "vr_physics_bigpile rocks")
             .help("vr_physics_bigpile rocks: Pile Size rocks 96 units ahead of you, in leaning columns that topple into "
                   "one pile (Physics on Threads at work while they fall). Clear the Piles takes them away."),
@@ -2824,8 +2834,9 @@ za::Vector<Item> pageDebugTests()
         command("Clear the Piles", "vr_physics_clearpiles")
             .help("vr_physics_clearpiles: every prop these put there taken away, and every broken crate's pieces."),
         command("Physics Step Time", "vr_physics_steptime")
-            .help("vr_physics_steptime: Box3D's step time a frame since the last time (average and worst, ms), the awake "
-                  "bodies and its threads. Run it, make a pile, play, run it again (Profiling and Memory: Physics Threads)."),
+            .help("vr_physics_steptime: Box3D's step time a frame since the last time (average, median, 95th and 99th "
+                  "percentiles, worst, ms), the awake bodies and its threads. Run it, make a pile, play, run it again "
+                  "(Profiling and Memory: Physics Threads, Physics Step Time by Awake Bodies)."),
         header("Spatial Audio"),
         command("Spatial Audio Tests", "vr_snd_test all")
             .help("vr_snd_test: offline renders through the spatial audio (a sound circling the head, behind a wall, a door "
