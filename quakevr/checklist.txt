@@ -22,105 +22,44 @@ Held weapon pushed into a wall and a corner slides out as before (statics cleanu
 
 Spectator view has no flat HUD (Graphics > Recording to show it)
 
-Chainsaw on the firing range (east of the explosive boxes): cut heads and gibs on the floor
-Chainsaw on the firing range: swing with the engine off (engine sound keeps playing)
-Chainsaw on the firing range: your hotspots are where you left them
-
 Reach for an explosive box: pushed and grabbed only when the fist is on it
 
-Pain feedback: hits from each side knock the hands (size and time feel right? Combat > Damage and Knockback > When You're Hit)
-Pain feedback: shots still land while knocked
-Pain feedback: the damage buzz feels as before at 1x
-
-Enemy guns: grunts drop a shotgun, enforcers a laser rifle (both death animations: corpse has no gun)
-Enemy guns: grip and foregrip placement
-Enemy guns: fire until empty, shell/cell pickups don't refill
 Enemy guns: Combat > Enemy Weapons values
 
-Crowbar (vrfiringrange): fist on the tape (offsets)
-Crowbar (vrfiringrange): both two-handed grips incl. sliding up the bar
-Crowbar (vrfiringrange): hook vs bar hits
-Crowbar (vrfiringrange): parry
-Crowbar (vrfiringrange): throwing it
-Crates break to shotgun, axe, thrown things and hard drops
-Crate pieces don't block you and burst into dust when hit
 Crates: crack and dust sound OK?
 
 After the Zancle follow-ups (no exceptions, fewer allocations): record a few takes, fire and reel the grapple around corners often, switch weapons
 
 Your tuned values are now defaults (Distance Falloff 0.75, HRTF Volume 1.5, Physics Sounds 2, scrape 0.8, grab 0.7, Mid-Air Leniency 4 cm): fresh config feels the same as yours
 
-Grip a dropped crowbar by its bar, a sword by its blade, the chainsaw by its front handle: it hangs from that hand until the other hand takes the handle (Carrying > Weapons by Their Hotspots)
-Carrying > Weapons by Their Hotspots: 15 cm reach OK? more annoying in play?
-
-Throws by weight (Throwing and Physics > Throws by Weight): grenades as before, axe a touch slower (your Throws by Weight values: light up to 1.5 kg, falloff 0.9)
-Throws by weight: super nailgun ~10 m hard one-handed, laser cannon ~4 m, much farther with two hands
-Throws by weight: explosive boxes and crates much weaker one-handed (40 kg box can't reach a damaging throw one-handed: raise the prop's Throw or lower Heavy Falloff if wanted)
-
 Slow motion for recording (Graphics > Recording > Slow Motion; vr_slowmo bindable, 0.25 default): record at 0.25 moving at quarter speed, speed footage up 4x: looks and sounds natural?
 Slow motion for recording: a real-speed swing is capped at 8 m/s (Hand Speed cap): feels right?
 Slow motion for recording: Slow Sounds off/on
 
 Bullet time (Combat > Bullet Time): press the inner button on the gadget's lower edge with the other fingertip: world 0.3x for 6 s, TIME bar on the gadget, 2 s cooldown, 20 s refill
-Bullet time: look (desaturate, vignette, tint) strength
 Bullet time: button easy to find? (Button Size, Fingertip Reach)
 Bullet time: try Sandevistan (you, hands, your shots at full speed)
-Bullet time: turning stays real time by default: OK?
 Bullet time: start/stop sounds are placeholders
-Weapon Offsets split into pages (Hand and Grip, Fingers, Muzzle and Sights, Two-Handed and Hotspots, Virtual Stock, Ammo Screen, Holstered, Effects; Weight, Melee and Throwing opens Weapon Weights): every old row still there? easy to find?
-Virtual stock per weapon (Weapon Offsets > Virtual Stock, 2H Aiming: Virtual Stock): shoulder a two-handed gun, the "Now" line shows the stock engaged; Stock Pitch/Yaw/Roll turn the aim only while shouldered
 
 Spectator camera at the default 60 fps rate with the flashlight on your hands: no ghost of hands/HUD following your head
-Spectator camera: FOV up to 150 (typed up to 160)
 
 Spectator view: pickup messages and other head-locked text show in the headset but not in the window (Recording > Hide Head Text on the Spectator Camera, default on; same option for the mirror, default off)
 
-Crate cover, for a definite answer: Debug > Tests > Ahead of You > Crate Cover (a large crate to crouch behind, a small one at your right, a grunt beyond, asleep): crouched it stays asleep and can't see you; stand up, or hold the small crate up: it sees you and shoots (Can the Grunt See You? reports it)
-Your values are now the defaults: mantle grunt is the pain grunt, ripcord smoke 12 and sparks 24, crates (Health 75, Breaks On Impact 16 m/s, 12 Pieces, Pieces Last 60 s), every prop weight and size you set (explosive boxes 80.5 and 40 kg, crates 40 and 65, gibs and heads heavier, rocks and bricks Mass x 1.25, your ammo, health, armour and mission-pack head slots), Throws by Weight Light Up To 1.5 kg and Heavy Falloff 0.9: a fresh config feels the same as yours
-Head flies are off (Gore > Flies on Heads); revisit later (docs/vr-port/BACKLOG.md)
-
-Enforcer rifle smoke when you and enforcers fire
-Chainsaw cord handle in the fist is the same block as on the saw
-
-Parry the Overlord (firing range monster 17) and the phantom swordsman (15)
-Parry: against the Overlord's double smash or a fiend's two claws the second hit is silent and costs no stamina (Parry and Bash > Parry Cooldown: Whole Attack)
-Wall buttons: press with the sword's flat, edge and pommel, gun butts, the crowbar's bar
-Wall buttons: throw rocks and guns at them (150 u/s; Throwing and Physics > Wall Buttons)
 Wall buttons: walking past with a long gun doesn't press by accident (6 cm reach)
 Wall buttons: hand presses now buzz
 
-Throw the super nailgun at the dummy one- and two-handed: hard throws always hurt (35-58 one-handed), damage eases in with speed (per weapon: Weapon Weights > Damage Thresholds and Curves)
-Throw the super nailgun at the dummy two-handed: heavy throws hit very hard (~90-110: Heavy Hits Scale Below or the weapon's Throw Damage Curve)
 Throw a gib with both hands: no punch bursts it
-Wrist-snap or twist the explosive box: barely spins (Throws by Weight > Heavy Spin Falloff)
-Laser cannon one-handed: turning the palm up/down (roll) now lags with weight like pitch; shotgun and pistol still quick (Aiming > Spring > Roll Weight; per weapon in Weapon Weights)
 Bullet time wrist tap: smack the gadget wrist with the other hand (1 m/s, must stop on it): toggles (Combat > Bullet Time > Wrist Tap)
 Bullet time wrist tap: resting, brushing, two-handed holds and melee swings ending near the wrist don't toggle
 Bullet time button: still works with leniency (Combat > Bullet Time > Button)
-Belt flashlight: reach and close the hand as you arrive, fast and slow, also in bullet time: always taken
 Belt flashlight: punching or guarding near the belt doesn't take it
 Belt flashlight: drawing the axe from the left hip gives the axe
-Sword: off hand on the blade, let go, main hand on the blade, swing, then close the main hand on the handle with a full fist: it takes it back
-Double-barrel flick reload: works one-handed and with the off hand on the cup, not with the off hand on the barrel
-Physics threads: spawn the 500-rock pile (Debug > Tests > Physics Stress), Physics Step Time with threads on and off; watch for occasional hitch frames (benchmark: threads ~2x faster above 150 awake bodies)
 Highlight markers for trailers: Graphics > Recording > Highlight Markers > Log Highlights while recording with OBS; check the sync flash is captured and the beep audible
 Highlight markers for trailers: import into Resolve (docs/vr-port/TRAILER.md: File > Import > Timeline for the FCPXML, or Timeline Markers from EDL)
 Highlight markers for trailers: try Misc/quakevr/trailer/rough_cut.py
 
-Rocks, bricks, crates, planks and crowbar: much deeper gritty relief, rocks/bricks/crowbar new full-colour skins (no visible texels up close; Debug > Tests > Thing > Rocks and Bricks)
-New rock/brick skins: still match nearby walls?
-New rock skins: mossy rock green too saturated?
-New brick skins: creases look artificial?
-New crowbar skin: check it in hand under a light
-
 Slow-motion recording sound: Graphics > Recording > Slow Motion > Game-Time Sound File on, Log Highlights on, record a take at 0.25; in Resolve Change Clip Speed 400% with Pitch Correction off, put highlights/<log>_gametime.wav under it (aligned on the sync beep, docs/vr-port/TRAILER.md): sounds like normal play?
 Slow-motion recording sound: Game-Time Sound File on: headset sound unchanged?
-
-Belt flashlight on the move: take it while walking, running, strafing and smooth turning
-Flashlight Grab Range (Advanced VR Options > Flashlight > Taking and Clipping On): try 1.5
-Flashlight Head Clip Range: try a larger value for clipping onto the helmet
-Flashlight Clip on Head When Let Go: release the torch at the helmet, it clips on without B/Y
-Flashlight Clip on Gun When Let Go: release the torch at a gun's mount, it clips on without B/Y
 
 Flashlight Gun Clip Range (Advanced VR Options > Flashlight > Taking and Clipping On): at 2 the torch clips onto a gun from further away
 Weapon Offsets > Flashlight: the cyan outline follows Forward/Up/Out/Pitch/Yaw/Roll; Clip the Flashlight on It puts the torch there
@@ -144,11 +83,7 @@ Gibs squish when they land or stick (new squish sounds); a gib or small gib thro
 Small gibs: the chances by weapon (Gore > Small Gibs > Chance by Weapon), Least Damage 12, Damage for a Sure One 60, Chance Curve 1.5
 
 [Decide or give feedback]
-Flashlight head zone: make your values the defaults (zone up 0.175, forward 0.015; shipped 0.04, 0)?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
-Flashlight: a hand gripping as the returning lamp flies into it now catches it (new): OK?
-Wall buttons and parry: should the spawn's leap and the dragon be parriable? (included for consistency)
-Grunts' shotguns have no muzzle smoke: add it?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
@@ -163,6 +98,8 @@ Weapon Damage page (Combat > Weapon Damage): tune every weapon's base damage; cr
 Enforcer rifle: ammo screen values and sight lines (you asked for a reminder)
 Grapple: reel speeds and the other grapple values (you asked for a reminder)
 Stamina costs: shove, strike, melee, parry, climbing
+Roll Weight: tune the other guns (laser cannon at 4 done; global Roll Weight default is being raised)
+Throw damage: revisit as a whole (now halved globally)
 
 [Record]
 Record new melee takes: the smaller hitbox (16 wide, hit box 24) and melee speed 3 have shipped, so you stand closer now
