@@ -100,6 +100,12 @@ Crates next to pack walls: gaps, board edges and nails now look as deep as the w
 Crates under the flashlight: the shading painted into the skin doesn't look painted-on
 Break a crate: the pieces have rounded edges, nails in dents, rough torn ends
 
+Spawn buttons (firing range): pressed by a hand or a throw, the pressed one now shows its green (on) texture
+Grunts: their gun puffs muzzle smoke at each shot, as enforcers' rifles
+Throws: damage halved (Combat > Weapon Damage > All Throws, 0.5): a weak throw no longer near 100
+Swimming: Stroke Pitch Offset (Movement > Swimming): a few degrees down if strokes carry you up
+Laser cannon after the Roll Weight change: still right, or too slow to roll?
+
 [Decide or give feedback]
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?

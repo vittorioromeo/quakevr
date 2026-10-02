@@ -343,7 +343,7 @@ float(entity e) VR_Thrown_HitSpeed =
 // Its damage hitting something at `xSpeed` units/s (0: too slow): its base (GetThrownWeaponBaseDamage) times its speed
 // over the throw's full-damage speed (.throwdmgspeed; that times VR_Thrown_Lenient for a heavy thing, as its thresholds
 // are; eased in just over its hit speed: throwdamage), its own Throw Damage x and Throw Damage Curve, the weight's curve
-// (weightdamage) and vr_weapon_throw_damage_mult.
+// (weightdamage) and vr_weapon_throw_damage_mult (every throw's, not only a weapon's: 0.5 since 2026-10-02).
 float(entity e, float xSpeed) VR_Thrown_Damage =
 {
     float dmgSpeed = e.throwdmgspeed;

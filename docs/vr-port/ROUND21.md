@@ -20995,3 +20995,43 @@ burnt, cut and wet): frame 0.894 ms (`vr_wounds_own_res 0`) against 0.910 ms (10
 Burn, cut and soak your arms (Debug > Tools > Test Effects, arms held before your chest), look at them close, turn
 them in the light: the char should look crusted, the wounds slightly sunk, the wet edge and its drying smooth. Try
 Your Wounds' Detail 512 and 2048, and the two relief sliders.
+## Defaults: pain knock, throw damage, roll weight; spawn buttons' green; grunts' smoke; swim pitch (misc11, 2026-10-02)
+
+Your notes (NOTES.md vrfiringrange_2026-10-02_15-21-40, _15-30-01, _15-35-39, _15-40-14, _15-41-02, _15-52-01,
+vrstart_2026-10-02_15-17-43).
+
+- **Defaults (config version 76; a config still at the old default takes the new one).** Pain knock, yours: Knock per
+  Damage 0.75 cm (was 1), Largest Knock 10 cm (15), Knock Time 0.35 s (0.6); Knock Tip 3 and Hit Buzz 1 were already
+  yours. Throws hurt half as much: `vr_weapon_throw_damage_mult` 0.5 (was 1). It already multiplied every throw's hit
+  (QC `VR_Thrown_Damage`: thrown weapons, rocks, boxes, crates, gibs), so it is the one global setting, renamed in the
+  menu: Combat > Weapon Damage > **All Throws** (also Weapons > Immersion > Throw Damage Mult.). Throw2's curves (hit
+  speed, ramp, weight, each weapon's Throw Damage and Curve) are unchanged; flung props (never thrown: Flung Props'
+  Damage) are not throws and keep theirs. Global **Roll Weight** 2.5 (was 1): VR Settings > Advanced VR Options >
+  Weapons > Aiming, under Spring (each weapon's own, in Weapon Weights, multiplies it; Weapon Weights now has a link,
+  "All Weapons' Spring (Aiming)"). Your laser cannon's own 4 is kept: 10 in all now (it was 4), so about 1.6 keeps what
+  you tuned.
+- **A pressed button's green (Ironwail's renderer, `r_world.c`).** The firing range's spawn buttons are 13 copies of
+  one model (`maps/vr_spawnbutton.bsp`); Ironwail draws copies of a brush model as one instanced batch with the first
+  copy's frame, and the copies sort frame 0 first, so the pressed one (frame 1: the `+abasebtn` texture) was drawn with
+  the others' red, whatever pressed it (in the mock, a hand too). Now a batch holds one frame (zero or not). The QC was
+  right: `button_wait` sets frame 1 for a throw as for a hand (`vr_debug_wallbuttons 1` now also prints "in, frame 1").
+  Brush buttons with their own model (`*4`...) were never affected.
+- **Grunts' muzzle smoke**: a grunt's gun (each round of a burst, or id's shotgun) puffs gun smoke at its muzzle as an
+  enforcer's rifle does (`vr_muzzle_smoke_enemies`, Enemies' Muzzle Smoke).
+- **Swimming: Stroke Pitch Offset** (`vr_swim_stroke_pitch`, degrees, default 0; Movement > Swimming, Direction and
+  Speed): each stroke's push, last of all, is tilted up (positive) or down (negative) in its own vertical plane, its
+  size kept (a push straight up or down tilts towards where you look).
+- **Debug > Tests > Thrown Axe: Axe At "Nearest Button"** (`vr_test_axe_at 4`): throws at the nearest touch-pressed
+  button, square to its wall.
+
+### Tests (mock)
+
+- Spawn button pressed by the mock hand, the button's middle sampled: before (252, 0, 0) red; held in, (144, 116, 42)
+  the green-yellow `+abasebtn` (before the fix (113, 52, 40), the red's dim frame); released, red again. An explosive
+  box thrown at it (`vr_test_axe_what 2; vr_test_axe_at 4`): pressed at 213 u/s, "in, frame 1, by player".
+- Swim, one palm pull in the pool (`swim_plays.py`'s first stroke): pitch 0 moved +63 x, 0 z; -20: +59 x, -21 z
+  (19.6 degrees down); +20: +59 x, +21 z; the push 261 each.
+- Migration: a version-75 config at 1 / 1.0 / 15 / 0.6 took 2.5 / 0.5 / 10 / 0.35; a Knock per Damage of 0.5 was kept.
+- e1m1 grunt (`impulse 241`): 13 smoke puffs at its shots (`vr_debug_weaponfx 1`).
+- eval --full: 172/177, the baseline's verdicts (no_hit_wiggling passes); 18 takes' details differ (sword and gun
+  contact points and damage a little: the heavier roll), none of a fist.

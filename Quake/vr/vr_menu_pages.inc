@@ -125,7 +125,7 @@ void resetSwimming()
         "vr_swim_stick_speed", "vr_swim_stroke", "vr_swim_stroke_min", "vr_swim_palm", "vr_swim_stroke_assist",
         "vr_swim_max_speed", "vr_swim_look", "vr_swim_recovery", "vr_swim_glide", "vr_swim_power_threshold",
         "vr_swim_power_knee", "vr_swim_power_whole", "vr_swim_intent_memory", "vr_swim_reverse_damp", "vr_swim_reverse_speed",
-        "vr_swim_flat_exp", "vr_swim_speed_exp", "vr_swim_palm_dir", "vr_swim_against_palm", "vr_air_supply"};
+        "vr_swim_flat_exp", "vr_swim_speed_exp", "vr_swim_palm_dir", "vr_swim_against_palm", "vr_swim_stroke_pitch", "vr_air_supply"};
     for(const char* name : names)
     {
         if(cvar_t* var = Cvar_FindVar(name))
@@ -173,6 +173,8 @@ void resetSwimming()
         header("Direction and Speed"),
         slider("Swim Where You Look", "vr_swim_look", 0.f, 1.f, 0.1f, "%.1f").help("You swim where you look (look up to rise): this much of a push sideways of it is lost."),
         slider("Stroke Steering", "vr_swim_stroke_assist", 0.f, 1.f, 0.1f, "%.1f").help("Strokes push this much more towards where the stick points, and as much less against it."),
+        slider("Stroke Pitch Offset", "vr_swim_stroke_pitch", -30.f, 30.f, 1.f, "%+.0f deg").extend(-90.f, 90.f)
+            .help("Tilts every stroke's push up (positive) or down (negative), as the last adjustment: if strokes carry you upward a little too much, a few degrees down. 0: as they are."),
         slider("Glide", "vr_swim_glide", 0.f, 1.f, 0.1f, "%.1f").help("How far you glide between strokes (less of the water's drag)."),
         slider("Swim Top Speed", "vr_swim_max_speed", 100.f, 800.f, 25.f, "%.0f").extend(),
         action("Reset Swimming to Defaults", resetSwimming).help("Every setting on this page back to its default."),
@@ -501,7 +503,7 @@ void resetHandMoves()
         slider("Holster Blend Time", "vr_weapon_holster_blend", 0.f, 1.f, 0.05f, "%.2f s").help("A gun put in a holster eases from your hand into its holstered pose over this time (0: at once)."),
         toggle("Weapon Cycle Mode", "vr_weapon_cycle_mode").help("Allows or disallows cycling weapons using controller buttons."),
         cycle("Weapon Throw Mode", "vr_weapon_throw_mode", {{0.f, "Immersive"}, {1.f, "Vanish on Hit"}, {2.f, "Discard"}}).help("Immersive: thrown weapons can be picked back up. Vanish on Hit and Discard avoid piles of weapons with Quick Slots."),
-        slider("Throw Damage Mult.", "vr_weapon_throw_damage_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for weapon throw damage."),
+        slider("Throw Damage Mult.", "vr_weapon_throw_damage_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Every throw's damage times this: weapons, rocks, boxes, gibs (0.5: half of what it was before 2026-10-02). Also on Weapon Damage."),
         slider("Throw Speed Mult.", "vr_weapon_throw_velocity_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for weapon throw velocity."),
         toggle("Dropped Wpn Particles", "vr_weapondrop_particles").help("Enable particle effects for weapons dropped/thrown on the ground."),
         header("Shell Casings"),

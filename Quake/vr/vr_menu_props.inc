@@ -218,6 +218,9 @@ za::Vector<Item> pageWeaponWeights()
         springSlider("Snap Back Beyond", weapons::cvar(slot, Key::SpringSnap), 4.f,
             "Times Aiming: Snap Back Beyond, for this weapon: how far behind it may fall before it is put back in your "
             "hand."),
+        open("All Weapons' Spring (Aiming)", pageIndex(pageAimingSettings))
+            .help("The global settings these multiply, for every weapon at once: Aiming's Spring (Roll Weight, Stiffness, "
+                  "Damping...)."),
         header("Damage"),
         infoLine(weaponWeightsDamageReadout, 0),
         infoLine(weaponWeightsDamageReadout, 1),

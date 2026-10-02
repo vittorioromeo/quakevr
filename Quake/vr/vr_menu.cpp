@@ -322,6 +322,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageBodyArms();
 [[nodiscard]] za::Vector<Item> pageBodyCalibration();
 [[nodiscard]] za::Vector<Item> pageWeightDamage();
+[[nodiscard]] za::Vector<Item> pageAimingSettings();
 [[nodiscard]] za::Vector<Item> pageWeaponDamage();
 [[nodiscard]] za::Vector<Item> pageDamage();
 [[nodiscard]] za::Vector<Item> pageFingersCollisions();
@@ -808,9 +809,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Enforcers always drop their laser rifle: it fires the enforcer's laser (the enforcer's: 15). As your "
                   "nails, it strikes corpses, gibs, props and breakables too."),
         header("Thrown"),
-        slider("Thrown Weapons", "vr_weapon_throw_damage_mult", 0.05f, 5.f, 0.05f, "%.2fx").extend()
-            .help("Every thrown weapon's damage (from 20 for a gun to 60 for a sword), more the faster it flies. Each "
-                  "weapon's own: Weapon Weights' Throw Damage."),
+        slider("All Throws", "vr_weapon_throw_damage_mult", 0.05f, 5.f, 0.05f, "%.2fx").extend()
+            .help("Every throw's damage times this: thrown weapons (from 20 for a gun to 60 for a sword at full speed, "
+                  "more the faster it flies), rocks, boxes and gibs. 0.5 (the default): half of what throws did before "
+                  "2026-10-02. Each weapon's own: Weapon Weights' Throw Damage."),
         header("More"),
         open("Damage and Knockback", pageIndex(pageDamage))
             .help("Damage to Enemies (all of these at once), Damage to You, headshots, knockback."),
@@ -3140,9 +3142,10 @@ za::Vector<Item> pageDebugTests()
             .help("Throws that weapon instead of the axe, hurting as your hand's throws do (their damage by speed and "
                   "weight; the training dummy shows it): Axe Speed is its speed."),
         toggle("Axe Hurts", vr_test_axe_damage).help("Off: its blow does no damage (to watch a monster bleed)."),
-        cycle("Axe At", vr_test_axe_at, {{0.f, "Ahead"}, {1.f, "Nearest Monster"}, {2.f, "Nearest Door"}, {3.f, "Nearest Prop"}})
-            .help("What Throw an Axe throws at: ahead of you, or the nearest live monster, door or loose prop (you are "
-                  "moved to face it, level with its middle)."),
+        cycle("Axe At", vr_test_axe_at, {{0.f, "Ahead"}, {1.f, "Nearest Monster"}, {2.f, "Nearest Door"}, {3.f, "Nearest Prop"},
+                                              {4.f, "Nearest Button"}})
+            .help("What Throw an Axe throws at: ahead of you, or the nearest live monster, door, loose prop or wall "
+                  "button (you are moved to face it, level with its middle; a button: square to its wall)."),
         slider("Axe Range", vr_test_axe_dist, 0.f, 400.f, 20.f, "%.0f units")
             .help("You are moved first to this far from what is ahead (0: where you are)."),
         command("Throw an Axe", "impulse 209").help("An axe thrown straight ahead from your eyes (not yours: a new one)."),
@@ -3985,7 +3988,7 @@ za::Vector<Item> pageWeaponEffects()
             .help("The shotgun's flash at the muzzle of the weapons whose Muzzle Flash is on (Weapon Offsets > Effects: the "
                   "grunts' burst rifle), following the gun."),
         toggle("Enemies' Muzzle Flashes", vr_muzzle_flash_enemies).help("The grunts' and enforcers' guns flash at their muzzles as they fire."),
-        toggle("Enemies' Muzzle Smoke", vr_muzzle_smoke_enemies).help("Puffs of gun smoke out of an enforcer's rifle's muzzle as it fires, as out of your guns'."),
+        toggle("Enemies' Muzzle Smoke", vr_muzzle_smoke_enemies).help("Puffs of gun smoke out of an enforcer's rifle's and a grunt's gun's muzzle as they fire, as out of your guns'."),
         slider("Enemies' Flash Size", vr_muzzle_flash_enemy_size, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f),
         header("Bullet Tracers"),
         toggle("Bullet Tracers", vr_tracers)

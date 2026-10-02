@@ -42,6 +42,10 @@ void() button_wait =
     activator = self.enemy;
     SUB_UseTargets();
     self.frame = 1;            // use alternate textures
+    if(cvar_hget(cvarh_vr_debug_wallbuttons))
+    {
+        dprint(sprintf("button: %s in, frame %.0f, by %s\n", self.model, self.frame, self.enemy.classname));
+    }
 };
 
 void() button_done =
