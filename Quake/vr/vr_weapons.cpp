@@ -540,6 +540,7 @@ void registerCvars()
     for(int slot = 0; slot < numSlots; slot++)
     {
         cvarAt(slot, Key::AnyGripMode).string = "-1";
+        cvarAt(slot, Key::TorchClip).string = "1"; // the flashlight clips on it (the melee weapons' 0: vr_weapons.inc)
     }
 
 #define QVR_WEAPON_DEFAULT(slot, key, value) cvarAt(slot, Key::key).string = value;

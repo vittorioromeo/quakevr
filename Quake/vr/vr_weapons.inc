@@ -343,6 +343,10 @@ QVR_WEAPON_KEY(TorchOut, "torch_out")
 QVR_WEAPON_KEY(TorchPitch, "torch_pitch")
 QVR_WEAPON_KEY(TorchYaw, "torch_yaw")
 QVR_WEAPON_KEY(TorchRoll, "torch_roll")
+// Whether the flashlight clips on this weapon at all (Weapon Offsets > Flashlight, Flashlight Can Clip On): 1 (every
+// slot's default, registerCvars) it can (its zone, B/Y, Clip on Gun When Let Go); 0 none of them. Off by default for the
+// melee weapons below (QVR_WEAPON_DEFAULT: the axe, Mjolnir, the swords, the chainsaw, the crowbar).
+QVR_WEAPON_KEY(TorchClip, "torch_clip")
 #endif
 
 #ifdef QVR_WEAPON_RETIRED
@@ -364,6 +368,13 @@ QVR_WEAPON_DEFAULT(12, InheritFrom, "5")
 QVR_WEAPON_DEFAULT(13, InheritFrom, "6")
 QVR_WEAPON_DEFAULT(14, InheritFrom, "7")
 QVR_WEAPON_DEFAULT(15, InheritFrom, "8")
+// No flashlight clipped on the melee weapons (TorchClip): the axe, Mjolnir, the two swords, the chainsaw, the crowbar.
+QVR_WEAPON_DEFAULT(0, TorchClip, "0")
+QVR_WEAPON_DEFAULT(8, TorchClip, "0")
+QVR_WEAPON_DEFAULT(18, TorchClip, "0")
+QVR_WEAPON_DEFAULT(19, TorchClip, "0")
+QVR_WEAPON_DEFAULT(20, TorchClip, "0")
+QVR_WEAPON_DEFAULT(23, TorchClip, "0")
 QVR_WEAPON_DEFAULT(0, TwoHDisplayMode, "0.0")
 QVR_WEAPON_DEFAULT(0, TwoHFixedHandPitch, "0.0")
 QVR_WEAPON_DEFAULT(0, TwoHFixedHandRoll, "0.0")

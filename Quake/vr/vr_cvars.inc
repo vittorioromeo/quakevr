@@ -857,6 +857,7 @@ QVR_CVAR(vr_flashlight_mount_preview, "1", CVAR_ARCHIVE) // Weapon Offsets > Fla
 QVR_CVAR(vr_flashlight_gun_range, "1", CVAR_ARCHIVE)  // times the gun's zone's radius (vr_flashlight_gun_zone_radius: clipping it on with B/Y or on letting go), 0.25..4
 QVR_CVAR(vr_flashlight_auto_head, "0", CVAR_ARCHIVE)  // 1: the held torch let go in the head's zone clips on the head (no B/Y)
 QVR_CVAR(vr_flashlight_auto_gun, "0", CVAR_ARCHIVE)   // 1: the held torch let go in the other hand's gun's zone clips on the gun (no B/Y)
+QVR_CVAR(vr_flashlight_clip_time, "0.15", CVAR_ARCHIVE) // seconds the drawn torch eases from where it was onto a gun or the head as it clips on (on at once; 0: jumps), 0..1
 QVR_CVAR(vr_flashlight_hand_forward, "-0.05", CVAR_ARCHIVE) // metres the torch sits forward in the fist (negative: back),
 QVR_CVAR(vr_flashlight_hand_up, "-0.04", CVAR_ARCHIVE)      // and up (negative: down; round 21: on top of the fitted grip)
 QVR_CVAR(vr_flashlight_gun_forward, "0", CVAR_ARCHIVE) // metres the torch clipped on a gun (B/Y) sits further forward (its lens: 1 cm behind the muzzle),

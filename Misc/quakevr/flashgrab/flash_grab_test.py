@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""flash_grab_test.py <agent> [mounted|returning|timing|moving|options|gunzone|pergun|all]
+"""flash_grab_test.py <agent> [mounted|returning|timing|moving|options|gunzone|pergun|clipon|all]
 
 "Highlighted implies grabbable" for the flashlight (ROUND21.md, "Flashlight: lit but not taken"): in the mock, with
 the torso turned several ways (the head's yaw, the main hand held out or across: the torso faces between the head and
@@ -17,6 +17,8 @@ at the lamp as the game reads it, moving).
              butt or mid-gun it goes home; the weapon's own Torch Forward moves the zone
   pergun     each weapon's own place for the torch clipped on it (Weapon Offsets > Flashlight, vr_wofs_torch_*):
              the shotgun and the nailgun set apart, the super nailgun inheriting the nailgun's
+  clipon     clipping on eased in (vr_flashlight_clip_time): on at once, drawn coming in from where it was (from the
+             hand, the belt, onto the head), at once with 0; Flashlight Can Clip On (vr_wofs_torch_clip_NN) off
   moving     the same reaches and a still hand at the lamp while the thumbsticks move and turn the player
   returning  the lamp let go of and springing home: the main hand, still, at spots along its way, grips at several
              moments of the flight (a catch)
@@ -97,6 +99,8 @@ def parse(lines):
                 float(rest[8]), float(rest[10])
         elif rest[0] == "gunmount":  # gunmount slot N at fwd up out turn pitch yaw roll
             d["gunslot"], d["gunat"], d["gunturn"] = int(rest[2]), [float(x) for x in rest[4:7]], [float(x) for x in rest[8:11]]
+        elif rest[0] == "clipease":  # clipease CM cm DEG deg (still off its place, easing in)
+            d["easecm"], d["easedeg"] = float(rest[1]), float(rest[3])
         elif rest[0] == "torso":
             v = [float(x) for x in rest[1::1] if re.match(r"^-?[0-9.]+$", x)]
             d["torso"], d["lamp"], d["offpos"], d["mainpos"] = v[0], v[1:4], v[4:7], v[7:10]
@@ -580,7 +584,7 @@ def pergun(agent):
         for imp, slot, own, inherit in PERGUN:
             cmds += ["vr_mock_button main grip 0", "impulse 1", "vr_mock_hand main"] + waits(10) + [
                 "vr_mock_hand main 0.25 1.3 -0.35 0 0 0", "vr_mock_button main grip 1", f"impulse {imp}"] + waits(30) + [
-                "vr_flashlight_clip_gun right"] + waits(6) + [f"vr_flashlight_probe {phase}{imp}"]
+                "vr_flashlight_clip_gun right"] + waits(30) + [f"vr_flashlight_probe {phase}{imp}"]  # (eased in)
         cmds += ["vr_mock_button main grip 0", "impulse 1", "vr_mock_hand main"]
         cmds += [f"vr_wofs_torch_{k}_{slot + 1:02d} 0" for _, slot, _, _ in PERGUN for k in TORCH_KEYS]
         cmds += [f"vr_wofs_inherit_{slot + 1:02d} 0" for _, slot, _, inherit in PERGUN if inherit is not None]
@@ -608,6 +612,86 @@ def pergun(agent):
               f"{b['gunat'][0]:+.3f} {b['gunat'][1]:+.3f} {b['gunat'][2]:+.3f} turn {b['gunturn'][0]:+.1f} "
               f"{b['gunturn'][1]:+.1f} {b['gunturn'][2]:+.1f}: {'ok' if good else 'WRONG'}")
         ok = ok and good
+    return ok
+
+
+def ease_series(got, prefix, n):
+    """The clipease probes prefix0..prefix{n-1}: [(mode, cm, deg)]."""
+    return [(got.get(f"{prefix}{k}", {}).get("mode"), got.get(f"{prefix}{k}", {}).get("easecm"),
+             got.get(f"{prefix}{k}", {}).get("easedeg")) for k in range(n)]
+
+
+def judge_ease(name, series, want_mode, eased):
+    """On at once (want_mode from the first frame); eased: starting off its place, coming in without going back, on its
+    place by the end. Not eased (vr_flashlight_clip_time 0): on its place at once."""
+    modes_ok = all(m == want_mode for m, _, _ in series)
+    cms = [c if c is not None else -1.0 for _, c, _ in series]
+    degs = [d if d is not None else -1.0 for _, _, d in series]
+    done = next((k for k, c in enumerate(cms) if c < 0.05 and degs[k] < 0.2), -1)
+    if eased:
+        mono = all(cms[k + 1] <= cms[k] + 0.01 and degs[k + 1] <= degs[k] + 0.05 for k in range(len(cms) - 1))
+        good = modes_ok and (cms[0] > 1.0 or degs[0] > 5.0) and mono and done > 1
+    else:
+        good = modes_ok and done == 0
+    print(f"  {name}: modes {'all ' + want_mode if modes_ok else [m for m, _, _ in series]}; first frame "
+          f"{cms[0]:.1f} cm {degs[0]:.0f} deg off its place, then " +
+          " ".join(f"{c:.1f}/{d:.0f}" for c, d in list(zip(cms, degs))[1:8]) +
+          f" ...; on it from frame {done}: {'ok' if good else 'WRONG'}")
+    return good
+
+
+def clipon(agent):
+    """Clipping on (NOTES.md vrfiringrange_2026-10-02_19-23-18, _19-24-04). The ease: the torch on the gun or the head at
+    once (the mode from the first frame after), drawn easing in from where it was over vr_flashlight_clip_time (the probe's
+    clipease: cm and degrees still off its place), not at all with 0. From the hand (B/Y at the zone's middle), from the
+    belt onto the gun and onto the head (vr_flashlight_clip_gun / _clip_head: a big turn). And Flashlight Can Clip On
+    (vr_wofs_torch_clip_NN) off on the shotgun: no zone, B/Y flips the grip, let go goes home, the command refuses; turned
+    off while on it, it goes home."""
+    cen = centres(agent)
+    solve, _ = gun_calib(agent, cen)
+    q = solve((0.0, 0.0, 0.0))
+    at_zone = [f"vr_mock_hand off {q[0]:.4f} {q[1]:.4f} {q[2]:.4f} 0 0 0"] + waits(6)
+    reset = ["vr_flashlight 0"] + waits(2) + ["vr_flashlight 1"] + waits(2)
+    n = 24
+
+    def series(prefix):
+        out = []
+        for k in range(n):
+            out += waits(1) + [f"vr_flashlight_probe {prefix}{k}"]
+        return out
+    cmds = setup() + ["vr_flashlight 1", "vr_flashlight_clip_time 0.15"]
+    cmds += take_cmds(cen) + at_zone + ["vr_flashlight_probe hpre", "vr_mock_button off secondary 1"] + series("h") + [
+        "vr_mock_button off secondary 0", "vr_mock_button off grip 0"] + waits(3) + GUN_DROP + reset
+    cmds += GUN_CMDS + ["vr_flashlight_clip_gun right"] + series("b") + GUN_DROP + reset
+    cmds += ["vr_flashlight_clip_time 0"] + GUN_CMDS + ["vr_flashlight_clip_gun right"] + series("z") + GUN_DROP + reset
+    cmds += ["vr_flashlight_clip_time 0.15", "vr_flashlight_clip_head right"] + series("d") + reset
+    # Flashlight Can Clip On off on the shotgun (slot 2).
+    cmds += ["vr_wofs_torch_clip_02 0", "vr_flashlight_auto_gun 1"] + take_cmds(cen) + at_zone + [
+        "vr_flashlight_probe nnear", "vr_mock_button off secondary 1"] + waits(3) + ["vr_mock_button off secondary 0"] + \
+        waits(3) + ["vr_flashlight_probe nby", "vr_mock_button off grip 0"] + waits(3) + ["vr_flashlight_probe nlet"] + \
+        waits(3) + ["vr_flashlight_clip_gun right"] + waits(3) + ["vr_flashlight_probe ncmd", "vr_wofs_torch_clip_02 1"] + \
+        waits(2) + ["vr_flashlight_clip_gun right"] + waits(3) + ["vr_flashlight_probe non", "vr_wofs_torch_clip_02 0"] + \
+        waits(3) + ["vr_flashlight_probe noff", "vr_wofs_torch_clip_02 1"] + GUN_DROP
+    got = parse(run(agent, "fg_clipon", cmds))
+    ok = got.get("hpre", {}).get("neargun") == 1
+    print(f"  held at the shotgun's zone: lit {got.get('hpre', {}).get('neargun')} (want 1)")
+    # (The press is read at the next frame's input, before its view: h0 is on the gun, its clipease the last view's.)
+    h = ease_series(got, "h", n)
+    print(f"  B/Y: on the gun at the first probe after it: {h[0][0]} (its view not drawn yet)")
+    ok = h[0][0] == "ongun" and judge_ease("B/Y from the hand onto the gun", h[1:], "ongun", True) and ok
+    ok = judge_ease("from the belt onto the gun", ease_series(got, "b", n), "ongun", True) and ok
+    ok = judge_ease("from the belt onto the gun, Clip-On Transition 0", ease_series(got, "z", n), "ongun", False) and ok
+    ok = judge_ease("from the belt onto the head", ease_series(got, "d", n), "onhead", True) and ok
+    checks = [("nnear", "neargun", 0, "held at the zone, Can Clip On off: lit"),
+              ("nby", "mode", "held", "B/Y there: still"),
+              ("nlet", "mode", "returning", "let go there (Clip on Gun When Let Go on):"),
+              ("ncmd", "mode", "returning", "vr_flashlight_clip_gun:"),
+              ("non", "mode", "ongun", "Can Clip On back on, vr_flashlight_clip_gun:"),
+              ("noff", "mode", "returning", "turned off while on it:")]
+    for tag, key, want, what in checks:
+        v = got.get(tag, {}).get(key)
+        print(f"  {what} {v} (want {want})")
+        ok = ok and v == want
     return ok
 
 
@@ -679,6 +763,9 @@ def main():
     if what in ("pergun", "all"):
         print("== pergun (each weapon's own place for the flashlight)")
         ok = pergun(agent) and ok
+    if what in ("clipon", "all"):
+        print("== clipon (easing onto a gun or the head; Flashlight Can Clip On)")
+        ok = clipon(agent) and ok
     if what in ("moving", "all"):
         print("== moving (thumbstick locomotion and turning)")
         ok = moving(agent) and ok

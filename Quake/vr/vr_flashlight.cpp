@@ -496,6 +496,14 @@ struct State
     // other hand catching it on its way home straight after is a hand-over too.
     Pose handOverFrom;
     double handOverAt{-10.0};
+    // Clipped on (a gun or the head; NOTES.md vrfiringrange_2026-10-02_19-23-18: it jumped there from the hand, turning up
+    // to 100 degrees at once): on at once, but drawn eased from where it was onto its place over vr_flashlight_clip_time
+    // from clipAt, relative to that place (so it follows the gun or the head as it eases in). Where it was is taken at the
+    // next view (clipPending), from the lamp as last placed moved with the body (lampFor), against that view's place.
+    Pose clipFrom;
+    double clipAt{-10.0};
+    bool clipPending{false};
+    float clipLeftCm{0.f}, clipLeftDeg{0.f}; // how far the drawn torch still was from its place at the last view (probe)
     int releasedBy{-1};
     double releasedAt{-10.0};
 };
@@ -844,6 +852,19 @@ struct GunMountOwn
     }
     return {weapons::vec(m.slot, Key::TorchForward, Key::TorchUp, Key::TorchOut),
         weapons::vec(m.slot, Key::TorchPitch, Key::TorchYaw, Key::TorchRoll)};
+}
+
+// Whether the torch may clip on this weapon (Weapon Offsets > Flashlight, Flashlight Can Clip On; vr_weapons.inc
+// TorchClip, off for the melee weapons): its zone, B/Y and Clip on Gun When Let Go.
+[[nodiscard]] bool canClipOn(const view::WeaponMount& m)
+{
+    return m.slot < 0 || weapons::value(m.slot, weapons::Key::TorchClip) != 0.f;
+}
+
+// The weapon in `hand` the torch may clip on (view::weaponMount, canClipOn).
+[[nodiscard]] bool clipMount(int hand, view::WeaponMount& m)
+{
+    return view::weaponMount(hand, m) && canClipOn(m);
 }
 
 // Clipped on the gun, parallel to its barrel (round 21; before, hanging below like a foregrip): the lens a little behind
@@ -1335,6 +1356,26 @@ void take(int hand)
 
 // Into the other hand, from the hand holding it (or just let go of): switched as it was, in the grip nearer its beam
 // (chooseGrip), eased from where it was onto the new grip over handOverTime; no trip to the belt.
+// `p` eased from `from` (where it was, relative to `p`) onto `p`, over `seconds` since `at` (smoothstep).
+void easeFrom(Pose& p, const Pose& from, double at, float seconds)
+{
+    const float k = seconds > 0.f ? static_cast<float>(vr_gametime - at) / seconds : 1.f;
+    if(k >= 1.f)
+    {
+        return;
+    }
+    const float e = k <= 0.f ? 0.f : k * k * (3.f - 2.f * k);
+    p.pos += p.rot * (from.pos * (1.f - e));
+    p.rot = glm::normalize(p.rot * glm::slerp(from.rot, glm::quat{1.f, 0.f, 0.f, 0.f}, e));
+}
+
+// Clipped on (clipOn, clipOnHead): the drawn torch eases onto its place from where it was (State::clipFrom).
+void startClipEase()
+{
+    st.clipAt = vr_gametime;
+    st.clipPending = st.placed;
+}
+
 void handOver(const hands::State& s, int hand)
 {
     const Pose from = lampFor(s);
@@ -1404,6 +1445,7 @@ void clipOn(int gunHand, const view::WeaponMount& m)
     st.gunModel = m.model;
     st.gunSpot = findGunSpot(m);
     st.nearGun = false;
+    startClipEase();
     Con_DPrintf("flashlight: clipped on the %s hand's gun\n", gunHand == HAND_MAIN ? "main" : "off");
     sound("vr/flashlight_attach.wav", glm::vec3{0.f});
     haptic(gunHand, 0.04f, 0.6f);
@@ -1421,6 +1463,7 @@ void clipOnHead(float side)
     st.holder = -1;
     st.headSide = side;
     st.nearHead = false;
+    startClipEase();
     Con_DPrintf("flashlight: on the head, the %s temple\n", side < 0.f ? "left" : "right");
     sound("vr/flashlight_attach.wav", glm::vec3{0.f});
     if(hand >= 0)
@@ -1793,8 +1836,11 @@ void drawMountPreview()
     lines::line(lens, lens + beam * (0.5f * m2u), 0.004f * m2u, cyan, glm::vec4{cyan.r, cyan.g, cyan.b, 0.f});
     glm::vec3 gf, gr, gu;
     hands::angleVectors(m.rot, gf, gr, gu);
-    const GunZone z = gunZone(m, spot);
-    zoneCapsule(z.a, z.b, z.radius, gu, glm::vec4{1.f, 0.55f, 0.15f, 0.9f}, z.along);
+    if(canClipOn(m)) // (Flashlight Can Clip On off: no zone)
+    {
+        const GunZone z = gunZone(m, spot);
+        zoneCapsule(z.a, z.b, z.radius, gu, glm::vec4{1.f, 0.55f, 0.15f, 0.9f}, z.along);
+    }
 }
 
 // The head's zones and the held torch's middle, placed by `to` (the world, or the body's preview) and seen from `eye`;
@@ -1832,7 +1878,7 @@ void drawZones(const hands::State& s, const glm::mat4& to, const glm::vec3& eye,
     for(int hand = 0; guns && hand < 2; hand++)
     {
         view::WeaponMount m;
-        if(st.mode == Mode::OnGun || !view::weaponMount(hand, m))
+        if(st.mode == Mode::OnGun || !clipMount(hand, m))
         {
             continue;
         }
@@ -1942,6 +1988,12 @@ void clipGun_f()
         Con_Printf("vr_flashlight_clip_gun <left|right> (a gun in that hand, the flashlight on: vr_flashlight 1)\n");
         return;
     }
+    if(!canClipOn(m))
+    {
+        Con_Printf("vr_flashlight_clip_gun: the flashlight doesn't clip on this weapon (Weapon Offsets > Flashlight, "
+                   "Flashlight Can Clip On)\n");
+        return;
+    }
     clipOn(hand, m);
 }
 
@@ -1975,6 +2027,11 @@ void probe_f()
     Con_Printf("torchprobe %s move %.0f %.0f\n", tag, glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]}), st.turnRate);
     // On a gun: the torch's middle from the muzzle (metres forward, up, out from the body) and its turn on the gun
     // (degrees: the beam's pitch up and yaw out, its roll out), the weapon's slot (Weapon Offsets > Flashlight).
+    // Clipped on: how far the drawn torch still was from its place at the last view (easing in: vr_flashlight_clip_time).
+    if(st.mode == Mode::OnGun || st.mode == Mode::OnHead)
+    {
+        Con_Printf("torchprobe %s clipease %.2f cm %.1f deg\n", tag, st.clipLeftCm, st.clipLeftDeg);
+    }
     view::WeaponMount gm;
     if(st.mode == Mode::OnGun && st.gunHand >= 0 && view::weaponMount(st.gunHand, gm))
     {
@@ -2132,7 +2189,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     // ammo): back to the belt.
     view::WeaponMount gun;
     if(st.mode == Mode::OnGun &&
-        (st.gunHand < 0 || !view::weaponMount(st.gunHand, gun) || !view::sameGun(gun.model, st.gunModel)))
+        (st.gunHand < 0 || !clipMount(st.gunHand, gun) || !view::sameGun(gun.model, st.gunModel)))
     {
         clipOff(s, -1);
     }
@@ -2141,19 +2198,14 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     if(st.mode == Mode::Held)
     {
         p = handPose(s, st.holder);
-        if(const float k = static_cast<float>(vr_gametime - st.handOverAt) / handOverTime; k < 1.f)
-        {
-            // Just passed over: from where it was in the other hand, onto this one's grip (relative to it, so it
-            // follows the hand as it eases in).
-            const float e = k <= 0.f ? 0.f : k * k * (3.f - 2.f * k);
-            p.pos += p.rot * (st.handOverFrom.pos * (1.f - e));
-            p.rot = glm::normalize(p.rot * glm::slerp(st.handOverFrom.rot, glm::quat{1.f, 0.f, 0.f, 0.f}, e));
-        }
+        // Just passed over: from where it was in the other hand, onto this one's grip (relative to it, so it follows
+        // the hand as it eases in).
+        easeFrom(p, st.handOverFrom, st.handOverAt, handOverTime);
 
         // Held near the gun in the other hand: a tap, the lamp lit up; B/Y clips it on.
         view::WeaponMount other;
         bool inReach = false;
-        if(key_dest == key_game && view::weaponMount(1 - st.holder, other))
+        if(key_dest == key_game && clipMount(1 - st.holder, other))
         {
             const GunZone z = gunZone(other, findGunSpot(other));
             inReach = gunDistance(p, z) < z.radius;
@@ -2191,6 +2243,25 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     else if(st.mode == Mode::OnHead)
     {
         p = headPose(s, st.headSide);
+    }
+    if(st.mode == Mode::OnGun || st.mode == Mode::OnHead)
+    {
+        // Just clipped on: eased in from where it was (on at once: only the drawn pose).
+        if(st.clipPending)
+        {
+            st.clipPending = false;
+            const Pose from = lampFor(s); // (st.pose: still the last frame's)
+            const glm::quat inv = glm::inverse(p.rot);
+            st.clipFrom = {inv * (from.pos - p.pos), glm::normalize(inv * from.rot)};
+            if(glm::length(from.pos - p.pos) > 2.5f * units::metresToUnits())
+            {
+                st.clipAt = -10.0; // far away (a teleport): straight there
+            }
+        }
+        const Pose target = p;
+        easeFrom(p, st.clipFrom, st.clipAt, za::clamp(vr_flashlight_clip_time.value, 0.f, 1.f));
+        st.clipLeftCm = glm::distance(p.pos, target.pos) / units::metresToUnits() * 100.f;
+        st.clipLeftDeg = glm::degrees(2.f * glm::acos(za::clamp(za::fabs(glm::dot(p.rot, target.rot)), 0.f, 1.f)));
     }
     else if(st.mode == Mode::Returning)
     {
@@ -2441,7 +2512,7 @@ bool button(int hand, Button b, bool pressed)
             }
             // Let go where B/Y would clip it on (lit up): with vr_flashlight_auto_gun / _auto_head, it clips on there
             // (the author's notes: no button press).
-            else if(vr_flashlight_auto_gun.value != 0.f && st.nearGun && view::weaponMount(other, gun))
+            else if(vr_flashlight_auto_gun.value != 0.f && st.nearGun && clipMount(other, gun))
             {
                 clipOn(other, gun);
             }
@@ -2477,7 +2548,7 @@ bool button(int hand, Button b, bool pressed)
     {
         // Held near the other hand's gun: either hand's B/Y clips it on.
         view::WeaponMount gun;
-        if(st.mode == Mode::Held && st.nearGun && view::weaponMount(1 - st.holder, gun))
+        if(st.mode == Mode::Held && st.nearGun && clipMount(1 - st.holder, gun))
         {
             clipOn(1 - st.holder, gun);
             swallowed = true;

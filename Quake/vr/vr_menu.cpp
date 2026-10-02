@@ -1558,6 +1558,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Let go of the torch where it lights up by your head and it clips on there, no B or Y needed."),
         toggle("Clip on Gun When Let Go", vr_flashlight_auto_gun)
             .help("Let go of the torch where it lights up by the gun in your other hand and it clips on the gun, no B or Y needed."),
+        slider("Clip-On Transition", vr_flashlight_clip_time, 0.f, 0.5f, 0.01f, "%.2f s").extend(0.f, 1.f)
+            .help("How long the torch takes to move and turn from where it was onto the gun or your head as it clips on. It is on at once (it follows the gun, lights where it aims); only how it is drawn eases in. 0: it jumps there."),
         header("On the Belt"),
         slider("Lean Out", vr_flashlight_tilt, -90.f, 90.f, 1.f, "%.0f deg").extend().help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
         slider("Forward", vr_flashlight_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
@@ -5176,6 +5178,9 @@ za::Vector<Item> pageWofsFlashlight()
                            "turns it out away from your body, Roll tips its top out (the off hand's mirrored).";
     list.pushBackMultiple(
         header("Flashlight on This Weapon"),
+        cycle("Flashlight Can Clip On", weapons::cvar(slot, Key::TorchClip), {{0.f, "No"}, {1.f, "Yes"}})
+            .help("Whether the flashlight clips on this weapon at all: its zone, B or Y by it, and letting go by it (Clip on Gun "
+                  "When Let Go). Off by default for the melee weapons (the axe, Mjolnir, the swords, the chainsaw, the crowbar)."),
         action("Clip the Flashlight on It", weaponOffsetsClipTorch)
             .help("Puts the flashlight (switched on) on this weapon now, to tune it in place (vr_flashlight_clip_gun)."),
         toggle("Show the Flashlight's Place", vr_flashlight_mount_preview)

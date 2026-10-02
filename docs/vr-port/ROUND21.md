@@ -21774,3 +21774,36 @@ Checklist:
   the switch's ridges and the fins catch your light; the lens still where the beam starts.
 - [ ] Body > Flashlight > Cord: Chain: swing it about; the links hang and swing as the cord did, lit by your torch.
 - [ ] Coiled and Plain unchanged.
+
+## Flashlight: easing onto a gun or the head; which weapons it clips on (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_19-23-18 and _19-24-04 (after flash3/flashmount/flashlook). Branch `agent/flash4`.
+
+- **Clip-On Transition** (`vr_flashlight_clip_time`, default 0.15 s, 0..1; Advanced VR Options > Flashlight > Taking and
+  Clipping On, after Clip on Gun When Let Go). Clipped on a gun or the head (B/Y, letting go there, the clip commands)
+  the torch is on at once (its mode, the light where the gun aims, taking it off), but drawn eased (smoothstep) from where
+  it was onto its place: the position, and the turn by slerp. Where it was is taken at the next view from the lamp as
+  last placed moved with the body (`lampFor`), relative to its place then (`State::clipFrom`), so it follows the gun or
+  the head as it eases in. Over 2.5 m away (a teleport): straight there. 0: jumps, as before. The hand-over's ease
+  shares the code (`easeFrom`). `vr_flashlight_probe` prints, on a gun or the head, "clipease C cm D deg": how far the
+  drawn torch still was from its place at the last view.
+- **Flashlight Can Clip On** (per weapon, `vr_wofs_torch_clip_NN`, key `TorchClip`, inherited as the others; Weapon
+  Offsets > Flashlight, first row). 0: no zone (none drawn, none in the page's preview), B/Y there flips the grip as
+  anywhere, letting go there sends it home, `vr_flashlight_clip_gun` refuses; turned off while the torch is on that
+  weapon, it goes home. Default 1, but 0 for the melee weapons: the axe (slot 0), Mjolnir (8), the knight's and the hell
+  knight's swords (18, 19), the chainsaw (20) and the crowbar (23). New cvars: no migration.
+- Test: `flash_grab_test.py <agent> clipon` (~25 s, new): B/Y with the held torch at the shotgun's zone: on the gun from
+  the first probe after the press, drawn 0.7 cm and 120 deg off its place at the first view, coming in steadily, on it
+  from the 11th frame (72 Hz: 0.15 s); from the belt onto the gun (63 cm, 78 deg) and onto the head (43 cm, 113 deg)
+  the same; with 0, on its place at the first view. Can Clip On off on the shotgun: not lit at the zone, B/Y leaves it
+  held, let go there (Clip on Gun When Let Go on) it goes home, the command refuses; on again: clips; off while on it:
+  home. `pergun` now probes 30 frames after clipping (eased in). `all` passes.
+
+### To test in VR
+
+- [ ] Hold the torch pointing back along your arm and clip it on the gun (B/Y or letting go): it swings round onto
+  the gun in a moment instead of jumping; the light is on the gun's aim at once.
+- [ ] The same onto the head.
+- [ ] Clip-On Transition 0.3 (slower) and 0 (a jump, as before).
+- [ ] Weapon Offsets > Flashlight with the axe, a sword, the chainsaw: Flashlight Can Clip On is No; no orange zone, it
+  doesn't clip on. Set it to No on a gun: the same; Yes again: clips on.
