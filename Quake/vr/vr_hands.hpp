@@ -15,6 +15,9 @@ struct State
 
     glm::vec3 playerOrigin{0.f}; // the player's box (its middle; the floor below the head less the lean)
     glm::vec3 lean{0.f};         // the head's horizontal offset from it (vr_lean_radius)
+    // The play space's turn about the vertical through playerOrigin + lean (hands::playSpaceYaw; flat screen: the aim's
+    // yaw): what the thumbstick's turn moves. A hand's place on the body is its offset from there turned back by it.
+    float turnYaw{0.f};
     glm::vec3 head{0.f};        // world eye position
     glm::vec3 headAngles{0.f};  // pitch, yaw, roll (view convention: pitch down is positive)
     float headHeight{0.f};      // metres above the play-space floor
