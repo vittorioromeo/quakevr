@@ -21382,3 +21382,55 @@ what each spatter reaches; 3 every subtract (drying, healing, washing).
 - [ ] Get hurt: marks run down your arms; one arm's marks no longer show on the other.
 - [ ] Take health: your wounds fade, the enemies' blood stays until you wash.
 - [ ] Blood Opacity 0.8 against 1.
+
+## Flashlight: a gritty, rusted torch; a chain for its cord (2026-10-02)
+
+His notes: the torch looked too pristine, its colours not Quake's; stronger bumps, visible buttons and ridges; keep
+the telephone cord as an option and add a rusty, grimy metal chain.
+
+### The torch (`make_flashlight.py`)
+
+Made over as an old army torch of pressed steel, the same size and the same anchors (lens centre 1.982 units, radius
+0.415 -> 0.417 as the engine reads it, tail -1.365, switch 0.840 0 0.373 -> 0.838 0 0.394; `checks.flashlight_report`:
+no problems; the grip still R_RING across, 2.78 cm, as the hands were tuned on):
+
+- **Shape** (24 sides round, was 12; 2800 triangles, was 608): seven rolled grip ridges on the tube (modelled, out to
+  R_RING), a fluted iron tail cap with chamfers round a domed rubber button with a lip, a riveted iron boss under the
+  switch with a rubber slide button on it and three ridges across it (no higher than the old switch), three fins cut
+  round the head, a fluted bezel standing proud of the lens.
+- **Skin**: a full-colour skin `progs/vrflashlight.mdl_0.png` (1024 x 512, four times the 8-bit skin's 256 x 128;
+  what the engine draws), painted on the torch's own surface in millimetres (seamless round it): dark umber paint
+  (Quake's 160-175 browns) chipped to the iron on every edge first (the ridges' crowns, the fins, the ends) and where the
+  fist holds it, its broken rim dark, scratched, blistered, rust bled over it, grime in the hollows; the iron under it
+  dull grey, pitted and rusty; the cap bare iron, knurled, rusted between its flutes; the bezel tarnished brass; the
+  rubber cracked; the lens a dented reflector behind dirty, scratched glass. The 8-bit skins are it in Quake's palette
+  (skin 1 with the lens fullbright, which is how the engine finds the lens).
+- **Relief**: its normal map is now the generator's own relief (`relief()`, normaltiles.py's "relief" recipe, as the
+  crowbar's), depth 3 skin texels a unit: the paint's chipped step, pits, scratches, blisters, dents, the cap's
+  knurling, the rubber's cracks, the boss's rivets. `flashlight_tiles` (the old knurling and ribs) is gone.
+
+### The chain (`vr_flashlight_cord 3`, Body > Flashlight > Cord: Chain)
+
+`coil::Style::chain` (vr_coil.cpp, `buildChain`): links of 3.2 mm iron wire, 13 x 7.5 mm inside, along the same
+simulated line as the coiled cord (its relaxed length kept: `Style::length` 0.243 m). Link k is counted from the torch
+(the links keep their places from it and pay out of the belt clip as the line stretches, as a reel's), lies in the
+plane of the line's normal (even) or binormal (odd), bent with the line, its wire's middle a stadium. Each link is a
+loop of tube rings in the same buffer as a cord's (`gfx::drawTube`, one draw), the links joined by rings of no radius
+(nothing drawn between them; each loop closed inside its wire). Lit as the cord (the world's light at three points,
+the dynamic lights and the torch's own beam per link, a key-light shade per vertex); each link rusted by its own amount
+and grimy (`TubeRing` ambient.w and lamp.w, new: the tube shader mixes its albedo towards a `rust` colour, its sheen
+gone with the rust; 0 for every other tube, which draw as before). Fewer half-circle segments and sides further away.
+
+Cost (e1m1, held in front, mock): 47-56 links, 611-728 rings x 6 sides, 7.3-8.7k triangles (the coiled cord: 513
+rings, 6.1k); `vr_profile` "flashlight cord" CPU 0.032 ms (coiled 0.027), GPU 0.057 ms both eyes (0.050).
+
+Test aids (Debug > Tools): `vr_flashlight_clip_head <left|right>` (Clip Flashlight on Head) and
+`vr_flashlight_cord_info` (Flashlight Cord Info: the line's length, rings, triangles, links). Eye images of the torch
+on the head: `vr_flashlight_head_forward 0.2; vr_flashlight_head_out -0.06` brings it into view.
+
+Checklist:
+
+- [ ] The torch on the belt, in the hand (lit and not), on a gun and on the head: rusty, worn, gritty; the ridges,
+  the switch's ridges and the fins catch your light; the lens still where the beam starts.
+- [ ] Body > Flashlight > Cord: Chain: swing it about; the links hang and swing as the cord did, lit by your torch.
+- [ ] Coiled and Plain unchanged.

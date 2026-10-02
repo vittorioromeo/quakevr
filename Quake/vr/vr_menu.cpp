@@ -1544,7 +1544,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
             .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
-        cycle("Cord", vr_flashlight_cord, {{0.f, "Off"}, {1.f, "Coiled"}, {2.f, "Plain"}}).help("The retracting cord from the clip on your belt to the torch while it is off the belt: coiled like an old telephone's, springy, or a plain cable (off: none drawn)."),
+        cycle("Cord", vr_flashlight_cord, {{0.f, "Off"}, {1.f, "Coiled"}, {2.f, "Plain"}, {3.f, "Chain"}}).help("The retracting cord from the clip on your belt to the torch while it is off the belt: coiled like an old telephone's, springy, a plain cable, or a rusty iron chain (off: none drawn)."),
         hueSlider("Beam Hue", vr_flashlight_hue).help("The beam's colour, with Beam Saturation (at 0 it is white): its light, the beam in the air and the lens. 40 warm, 200 cold blue; Player's: the Player Effects Hue."),
         slider("Beam Saturation", vr_flashlight_saturation, 0.f, 1.f, 0.05f, "%.2f").help("0 white (the default), 1 the Beam Hue in full."),
         header("Taking and Clipping On"),
@@ -2730,6 +2730,12 @@ za::Vector<Item> pageDebugViews()
         command("Clip Flashlight on Right Gun", "vr_flashlight_clip_gun right")
             .help("vr_flashlight_clip_gun right: the flashlight clipped on the gun in the right hand, from wherever it is "
                   "(left: the left hand's). Its place there: Weapon Offsets > Flashlight."),
+        command("Clip Flashlight on Head", "vr_flashlight_clip_head right")
+            .help("vr_flashlight_clip_head right: the flashlight clipped at your right temple, from wherever it is "
+                  "(left: the left one)."),
+        command("Flashlight Cord Info", "vr_flashlight_cord_info")
+            .help("vr_flashlight_cord_info: in the console, the cord's last frame (Body > Flashlight > Cord): its "
+                  "length, its rings and triangles, a chain's links."),
         command("Probe Flashlight", "vr_flashlight_probe menu")
             .help("vr_flashlight_probe: in the console, where the torch is, whether each hand is at it (lit, as the game "
                   "reads the hand, still), whether B/Y would clip it on the head or a gun, and the player's speed and turn."),

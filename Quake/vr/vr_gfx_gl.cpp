@@ -349,6 +349,7 @@ layout(location = 5) uniform vec3 Eye;
 layout(location = 6) uniform vec3 Albedo;
 layout(location = 7) uniform vec3 Key;
 layout(location = 8) uniform int Sides;
+layout(location = 9) uniform vec3 Rust;
 struct Ring
 {
     vec4 mid;
@@ -384,8 +385,10 @@ void main()
     x *= x;
     x *= x;
     x *= x;
-    float sheen = 0.45 * x * dot(g.ambient.rgb + g.lamp.rgb, vec3(0.3333));
-    color = vec4(clamp(Albedo * light + vec3(sheen), 0.0, 1.0), 1.0);
+    float rust = clamp(g.ambient.w, 0.0, 1.0); // (a chain's links: rusted that much, grimy by lamp.w)
+    float sheen = 0.45 * (1.0 - 0.85 * rust) * (1.0 - g.lamp.w) * x * dot(g.ambient.rgb + g.lamp.rgb, vec3(0.3333));
+    vec3 albedo = mix(Albedo, Rust, rust) * (1.0 - g.lamp.w);
+    color = vec4(clamp(albedo * light + vec3(sheen), 0.0, 1.0), 1.0);
     uv = vec2(0.0);
     soft = 0.0;
     gl_Position = MVP * vec4(pos, 1.0);
@@ -768,7 +771,7 @@ TubeBatch uploadTube(za::Span<const TubeRing> rings)
     return {buf, reinterpret_cast<za::SizeT>(ofs), rings.size()};
 }
 
-void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key)
+void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key, const glm::vec3& rust)
 {
     if(batch.count < 2 || !batch.buffer || sides < 3)
     {
@@ -796,6 +799,7 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     GL_Uniform3fFunc(6, albedo.x, albedo.y, albedo.z);
     GL_Uniform3fFunc(7, key.x, key.y, key.z);
     GL_Uniform1iFunc(8, sides);
+    GL_Uniform3fFunc(9, rust.x, rust.y, rust.z);
     // Binding 0 borrowed (the scene's lights, R_UploadFrameData): put back for what the view draws after.
     GLuint savedBuffer = 0;
     GLintptr savedOffset = 0;

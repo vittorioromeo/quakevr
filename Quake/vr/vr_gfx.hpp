@@ -125,14 +125,16 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
 // A lit tube made on the GPU from one record a ring (the flashlight's coiled cord, vr_coil.cpp): `sides` vertices round
 // each ring, consecutive rings joined; opaque, depth-tested and written, in the scene view. Each vertex is lit as the
 // cord's CPU shading was: the ring's ambient light shaded by the normal against `key` (0.6 .. 1.4), its lamps' light by
-// its angle to where it comes from, and a sheen towards the eye (each eye's own); times `albedo`.
+// its angle to where it comes from, and a sheen towards the eye (each eye's own); times `albedo`. A ring's ambient.w
+// mixes its albedo towards `rust` (and takes its sheen away), its lamp.w darkens it (grime): the flashlight's chain's
+// links (vr_coil.cpp); 0 for a plain tube.
 struct TubeRing
 {
     glm::vec4 mid;     // xyz the ring's middle, w the tube's radius
     glm::vec4 across;  // xyz a unit axis across the ring (the other: along x across)
     glm::vec4 along;   // xyz the tube's unit direction there
-    glm::vec4 ambient; // rgb the world's light (1: Quake's full light)
-    glm::vec4 lamp;    // rgb the dynamic lights' light reaching it
+    glm::vec4 ambient; // rgb the world's light (1: Quake's full light), w its rust (0 .. 1)
+    glm::vec4 lamp;    // rgb the dynamic lights' light reaching it, w its grime (0 .. 1)
     glm::vec4 lampDir; // xyz the unit direction it comes from
 };
 static_assert(sizeof(TubeRing) == 96);
@@ -144,7 +146,8 @@ struct TubeBatch
 };
 // Into the frame's upload buffer, valid until the frame ends (drawn from it in both eyes).
 [[nodiscard]] TubeBatch uploadTube(za::Span<const TubeRing> rings);
-void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key);
+void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key,
+    const glm::vec3& rust = glm::vec3{0.f});
 
 // A model's mesh bent along a curve, copy after copy (the grappling hook's rope, vr_rope.cpp: Rogue's chain links laid
 // end to end along the hanging rope, each bent with it, so that it is drawn in one piece): made on the GPU from one

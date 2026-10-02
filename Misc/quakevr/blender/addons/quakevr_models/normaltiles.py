@@ -5,10 +5,11 @@
 # Their shape: each face's normal as the model's facets stand for it (a faceted tube is round, a box stays a box:
 # normaldetail.smooth_normals), and the hard creases rounded a couple of texels wide (normaldetail.bevel_normals).
 # Their detail: the generated models map every face of a material onto that material's tile of the skin, so what a
-# tile carries is on every face drawn from it: each generator's own knowledge of its tiles (the knurling it paints
-# on the flashlight's tube, the ribs on its cap, the fins on its head, the strap's webbing and stitching) raised
-# in texel units, the same slope on every face. The view models' and the leather models' painted skins give theirs:
-# the dark seams painted into them as grooves, their painted rivets and stitches as bumps, the wood's grain.
+# tile carries is on every face drawn from it: each generator's own knowledge of its tiles (the gadget's parting
+# lines, the strap's webbing and stitching) raised in texel units, the same slope on every face. The view models' and
+# the leather models' painted skins give theirs: the dark seams painted into them as grooves, their painted rivets and
+# stitches as bumps, the wood's grain. Some generators give their own relief, painted with their full-colour skins
+# ("relief": the crowbar, the flashlight, the debris, the crates).
 
 import importlib
 import math
@@ -51,31 +52,6 @@ def dome(d, r):
 # Tiles: (s0, t0, s1, t1) as the generators lay them out (bake_normals.py checks them against the generators), and
 # for each a height in texels as a function of the texel's place in it: i across (s), j down (t), both from the
 # tile's corner, and its size (w, h).
-
-
-def flashlight_tiles():
-    def body(i, j, w, h):  # knurling: a diamond grid of cut lines, 4 texels apart (paint(): (i +- j) % 4 == 0)
-        return -0.9 * np.maximum(vgroove(modd(i + j, 4.0) / math.sqrt(2), 0.9), vgroove(modd(i - j, 4.0) / math.sqrt(2), 0.9))
-
-    def head(i, j, w, h):  # cooling fins: grooves every 5 texels across the axis, the flare smooth
-        u = (i + 0.5) / w
-        return -1.0 * vgroove(modd(i, 5.0), 1.1) * smooth((u - 0.3) * w / 1.5 + 0.5)
-
-    def cap(i, j, w, h):  # ribs round the cap: grooves 2 texels wide every 4
-        f = np.mod(i, 4.0)
-        return -0.8 * smooth((1.0 - np.abs(f - 1.0)) / 0.5)
-
-    def ring(i, j, w, h):  # the grip rings: crowned across
-        u = (i + 0.5) / w
-        return 2.5 * (1.0 - (2 * u - 1) ** 2)
-
-    def rubber(i, j, w, h):  # a stippled grip
-        return 0.45 * dome(np.hypot(modd(i, 3.0), modd(j + 1.5 * (np.floor(i / 3.0 + 0.5) % 2), 3.0)), 1.2)
-
-    return {"regions": {"body": (0, 0, 64, 32), "head": (64, 0, 96, 32), "cap": (96, 0, 128, 32),
-                        "ring": (0, 32, 32, 48), "bezel": (32, 32, 64, 48), "rubber": (64, 32, 96, 64),
-                        "lens": (96, 32, 128, 64), "face": (0, 48, 64, 64)},
-            "tiles": {"body": body, "head": head, "cap": cap, "ring": ring, "rubber": rubber}}
 
 
 GADGET_REGIONS = {"casing": (0, 0, 32, 32), "metal": (32, 0, 64, 32), "screen": (0, 32, 32, 64),
@@ -131,7 +107,6 @@ def relief_heights(low, hs, generator):
 # What each model gets. "tiles": a generator's tiles; "paint": its painted skin's seams, rivets and grain (not for
 # the dithered skins of mdlgen.py's models, whose speckle is no shape); "bevel": the creases' width in skin texels.
 MODELS = {
-    "vrflashlight.mdl": {"tiles": flashlight_tiles, "paint": False, "bevel": 1.6, "scale": 4},
     "vrgadget.mdl": {"tiles": gadget_tiles, "paint": False, "bevel": 1.6, "scale": 4},
     "vrgadget_strap.mdl": {"tiles": strap_tiles, "paint": False, "bevel": 1.2, "scale": 4},
     "vr_shell.mdl": {"tiles": shell_tiles, "paint": False, "bevel": 1.2, "scale": 4},
@@ -157,6 +132,9 @@ VIEW_MODEL = {"paint": True, "grain": 0.55, "bevel": 1.8, "scale": 2}
 # The crowbar (make_crowbar.py): its relief the generator's (the paint chipped to the steel, pits, scratches, the
 # tape's turns and weave), at its full-colour skin's size (four times the 8-bit skin's).
 MODELS["v_crowbar.mdl"] = {"relief": "make_crowbar", "bevel": 1.8, "scale": 4}
+# The flashlight (make_flashlight.py, round 21): its relief the generator's (the paint chipped to the iron, rust pits,
+# scratches, blisters, the cap's knurling, the rubber's cracks, the boss's rivets), at its full-colour skin's size.
+MODELS["vrflashlight.mdl"] = {"relief": "make_flashlight", "bevel": 1.2, "scale": 4}
 # The axe's head is painted with streaks of dried blood in the wood's own browns: only its handle is wood.
 MODELS["v_axe.mdl"] = dict(VIEW_MODEL, wood_rects=[(440, 0, 512, 130)])
 

@@ -1679,20 +1679,32 @@ void lightBeam(const Pose& p)
 }
 
 // The retracting cord from the clip on the belt to the lamp's tail, while it is off the belt (vr_flashlight_cord): a
-// coiled cord, as an old telephone's (vr_coil.cpp; 2: a plain cable), springy and sagging, swinging as the hand moves;
-// drawn lit in the opaque scene (drawOpaque), depth-tested. It leaves the clip where the torch hung (down along the
-// stored torch) and goes into the tail cap.
+// coiled cord, as an old telephone's (vr_coil.cpp; 2: a plain cable; 3: a rusty iron chain, round 21: its links along
+// the same line, paid out of the clip), springy and sagging, swinging as the hand moves; drawn lit in the opaque scene
+// (drawOpaque), depth-tested. It leaves the clip where the torch hung (down along the stored torch) and goes into the
+// tail cap.
 coil::Cord cord;
 
 void updateCord(const Pose& mount, const Pose& lamp)
 {
     coil::Style style;
-    if(vr_flashlight_cord.value >= 2.f)
+    style.albedo = glm::vec3{0.14f, 0.14f, 0.135f};
+    if(vr_flashlight_cord.value >= 3.f)
+    {
+        // The chain: the coil's line (its relaxed length kept), links of 3.2 mm iron wire 1.3 cm by 0.75 cm inside,
+        // dull iron rusting.
+        style.length = 0.243f;
+        style.chain = true;
+        style.turns = 0;
+        style.wireRadius = 0.0016f;
+        style.albedo = glm::vec3{0.2f, 0.19f, 0.175f};
+        style.rust = glm::vec3{0.3f, 0.13f, 0.05f};
+    }
+    else if(vr_flashlight_cord.value >= 2.f)
     {
         style.turns = 0;
         style.wireRadius = 0.002f;
     }
-    style.albedo = glm::vec3{0.14f, 0.14f, 0.135f};
     cord.update(modelPointAt(mount, shape().cap), glm::normalize(mount.rot * glm::vec3{1.f, 0.f, 0.f}),
         modelPointAt(lamp, shape().cap), glm::normalize(lamp.rot * glm::vec3{-1.f, 0.f, 0.f}), style);
 }
@@ -1933,6 +1945,20 @@ void clipGun_f()
     clipOn(hand, m);
 }
 
+// vr_flashlight_clip_head <left|right>: clips the torch at that temple, from wherever it is (a test aid: eye images of
+// it there, Debug > Tools).
+void clipHead_f()
+{
+    const char* which = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const float side = !q_strcasecmp(which, "left") ? -1.f : !q_strcasecmp(which, "right") ? 1.f : 0.f;
+    if(side == 0.f || !enabled())
+    {
+        Con_Printf("vr_flashlight_clip_head <left|right> (the flashlight on: vr_flashlight 1)\n");
+        return;
+    }
+    clipOnHead(side);
+}
+
 // vr_flashlight_probe [tag]: per hand, whether the lamp is lit up for it (the last view) and what a press there would
 // see on the hands the game reads (at the lamp, the game's grip winning and its hotspot, empty, still): "highlighted
 // implies grabbable" (Misc/quakevr/flashgrab). With developer 1, also the torso's yaw, the lamp's middle and the hands.
@@ -2009,6 +2035,15 @@ struct CordDraw
 };
 CordDraw cordDraw;
 
+// vr_flashlight_cord_info: the cord's last build (vr_flashlight_cord): its line's length, its rings (each drawn with
+// `sides` quads round it) and a chain's links: what it costs.
+void cordInfo_f()
+{
+    Con_Printf("flashlight cord: style %d, %s, line %.2f m, %d rings x %d sides (%d triangles), %d links\n",
+        static_cast<int>(vr_flashlight_cord.value), cord.visible() ? "drawn" : "not drawn", cord.length(), cord.rings(),
+        cordDraw.sides, za::max(cord.rings() - 1, 0) * cordDraw.sides * 2, cord.links());
+}
+
 // The draws' buffers (the main thread).
 struct FlashlightScratch
 {
@@ -2027,6 +2062,8 @@ void init()
     Cmd_AddCommand("vr_flashlight_probe", probe_f);
     Cmd_AddCommand("vr_flashlight_clip_gun", clipGun_f);
     Cmd_AddCommand("vr_flashlight_give", give_f);
+    Cmd_AddCommand("vr_flashlight_clip_head", clipHead_f);
+    Cmd_AddCommand("vr_flashlight_cord_info", cordInfo_f);
 }
 
 void prepare()
@@ -2256,7 +2293,7 @@ void drawOpaque()
                                                                                               : gfx::TubeBatch{};
     }
     QVR_GPU_PROFILE("flashlight cord draw");
-    gfx::drawTube(d.batch, d.sides, cord.albedo(), glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}));
+    gfx::drawTube(d.batch, d.sides, cord.albedo(), glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}), cord.rust());
 }
 
 // The lens lit, in the beam's colour: a disc over it, bright in the middle, added onto the scene (the skin's own
