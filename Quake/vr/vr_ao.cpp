@@ -965,6 +965,8 @@ struct BelowNormal
     BelowNormal& operator=(const BelowNormal&) = delete;
 };
 
+jobs::Site bakeSite{"ao bake"}; // (its parallelFor: vr_jobs_sites)
+
 void runBake(BakeJob& job)
 {
     const auto t0 = za::Clock::nowNanoseconds();
@@ -1006,7 +1008,7 @@ void runBake(BakeJob& job)
     // The poses shared out between threads, every `threads`th to each (they only read the copy and write their own poses).
     const int poses = job.numposes;
     const int threads = za::clamp(za::min(jobs::hardwareThreads() / 2, BAKE_THREADS), 1, poses);
-    jobs::parallelFor(static_cast<za::SizeT>(threads), 1, [&pj, poses, threads](za::SizeT t0, za::SizeT t1) {
+    jobs::parallelFor(bakeSite, static_cast<za::SizeT>(threads), 1, [&pj, poses, threads](za::SizeT t0, za::SizeT t1) {
         const BelowNormal low;
         za::Vector<int> cand;
         for(int first = static_cast<int>(t0); first < static_cast<int>(t1); first++)

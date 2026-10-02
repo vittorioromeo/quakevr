@@ -1106,6 +1106,11 @@ void serverFrame()
     }
 }
 
+namespace
+{
+qvr::jobs::Site buildSite{"hitmodel build"}; // (its parallelFor: vr_jobs_sites)
+} // namespace
+
 void afterLoad()
 {
     const auto t0 = za::Clock::nowNanoseconds();
@@ -1130,7 +1135,7 @@ void afterLoad()
             todo.emplaceBack(&m, hdr);
         }
     }
-    qvr::jobs::parallelFor(todo.size(), 1,
+    qvr::jobs::parallelFor(buildSite, todo.size(), 1,
         [&todo](za::SizeT begin, za::SizeT end)
         {
             for(za::SizeT k = begin; k < end; k++)

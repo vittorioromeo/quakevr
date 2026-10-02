@@ -476,6 +476,8 @@ void lineLedges(const Hull& h, const Line& line, za::Vector<Edge>& edges, za::Ve
     }
 }
 
+jobs::Site linesSite{"ledge lines"}; // (its parallelFor: vr_jobs_sites)
+
 [[nodiscard]] za::UniquePtr<Map> build(const qmodel_t* model)
 {
     auto map = za::makeUnique<Map>();
@@ -497,7 +499,7 @@ void lineLedges(const Hull& h, const Line& line, za::Vector<Edge>& edges, za::Ve
             za::Vector<Sample> samples;
         };
         za::Vector<Out> outs(lines.size());
-        jobs::parallelFor(lines.size(), 4,
+        jobs::parallelFor(linesSite, lines.size(), 4,
             [&](za::SizeT begin, za::SizeT end)
             {
                 LedgeScratch scratch;

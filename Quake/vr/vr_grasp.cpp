@@ -954,6 +954,9 @@ struct Place
     int probes{0};
 };
 
+jobs::Site placeFirstSite{"grasp place 21"}; // (its parallelFor: vr_jobs_sites)
+jobs::Site placeSecondSite{"grasp place 8"}; // (its parallelFor: vr_jobs_sites)
+
 glm::vec3 placeInside(const handrig::Pose& pose, const Target& target, const Settings& settings, int& tried, int& probes)
 {
     const auto value = [&](Target& t, const glm::vec3& move, int& n) {
@@ -1014,7 +1017,7 @@ glm::vec3 placeInside(const handrig::Pose& pose, const Target& target, const Set
     constexpr float dxs[4] = {-1.f, 0.f, 1.f, 2.f};
     constexpr float dzs[5] = {-3.f, -2.f, -1.f, 0.f, 1.f};
     Place first[21];
-    jobs::parallelFor(21, 1, [&](za::SizeT b, za::SizeT e) {
+    jobs::parallelFor(placeFirstSite, 21, 1, [&](za::SizeT b, za::SizeT e) {
         for(za::SizeT i = b; i < e; i++)
         {
             if(i == 0)
@@ -1040,7 +1043,7 @@ glm::vec3 placeInside(const handrig::Pose& pose, const Target& target, const Set
     constexpr float offsets[8][2] = {{-0.5f, -0.5f}, {-0.5f, 0.f}, {-0.5f, 0.5f}, {0.f, -0.5f}, {0.f, 0.5f}, {0.5f, -0.5f},
         {0.5f, 0.f}, {0.5f, 0.5f}};
     Place second[8];
-    jobs::parallelFor(8, 1, [&](za::SizeT b, za::SizeT e) {
+    jobs::parallelFor(placeSecondSite, 8, 1, [&](za::SizeT b, za::SizeT e) {
         for(za::SizeT i = b; i < e; i++)
         {
             consider(centre.x + offsets[i][0], centre.z + offsets[i][1], second[i]);
@@ -1302,6 +1305,11 @@ glm::vec3 palmCentre()
     return kinematics().palmCentre;
 }
 
+namespace
+{
+jobs::Site fingersSite{"grasp fingers"}; // (its parallelFor: vr_jobs_sites)
+} // namespace
+
 void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shapeToRig, const Settings& settings,
     const Solution* previous, Solution& out, Shape* extra, const glm::mat4& extraToRig, float extraOverlap)
 {
@@ -1461,7 +1469,10 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
     }
     FingerStop thumbs[thumbTurnCount];
     int jobProbes[thumbTurnCount + handrig::FingerCount - 1]{};
-    jobs::parallelFor(static_cast<za::SizeT>(count), 1, [&](za::SizeT b, za::SizeT e) {
+    // Solved again (every finger and the thumb from its stop before: a few probes each, 7-20 microseconds in all), on
+    // this thread alone: waking the helpers cost more than they saved (vr_jobs_sites, ROUND21.md "parallelFor sites").
+    // Afresh (or the thumb's style changed), split.
+    jobs::parallelFor(fingersSite, static_cast<za::SizeT>(count), 1, [&](za::SizeT b, za::SizeT e) {
         for(za::SizeT j = b; j < e; j++)
         {
             const int job = work[j];
@@ -1483,7 +1494,7 @@ void solve(const handrig::Pose& start, const Shape& shape, const glm::mat4& shap
                 solveFinger(ctx, f, true, previous ? &previous->finger[f] : nullptr, out.finger[f]);
             }
         }
-    });
+    }, !again);
     bool tucked[thumbTurnCount]{};
     if(outside(style))
     {

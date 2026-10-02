@@ -602,6 +602,11 @@ void Mixer::process(Voice& v, int blocks, const Features& f, IPLHRTF laneHrtf)
     }
 }
 
+namespace
+{
+jobs::Site audioLanes{"audio lanes"}; // (its parallelFor: vr_jobs_sites)
+} // namespace
+
 void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb,
     float* outL, float* outR, float* roomL, float* roomR)
 {
@@ -632,7 +637,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
     }
     else if(used > 1)
     {
-        jobs::parallelFor(static_cast<za::SizeT>(used), 1, [&](za::SizeT begin, za::SizeT end) {
+        jobs::parallelFor(audioLanes, static_cast<za::SizeT>(used), 1, [&](za::SizeT begin, za::SizeT end) {
             for(za::SizeT j = begin; j < end; j++)
             {
                 for(int k = static_cast<int>(j); k < active; k += used)

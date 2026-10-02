@@ -223,6 +223,23 @@ struct Stats
     za::SizeT chunksHelpers{0}; // chunks run by helpers
 };
 
+// A parallelFor call site (one at namespace scope per call, named): its counters since start-up or the last
+// `vr_jobs_sites reset` (`vr_jobs_sites` lists every site's). A split costs the caller a few microseconds to post its
+// helpers, and a sleeping helper starts 20-40 microseconds later (`vr_jobs_bench`): a loop of under about 50
+// microseconds in all is faster on the caller alone (every site's is far over that: ROUND21.md, "parallelFor sites").
+struct Site
+{
+    explicit Site(const char* name) noexcept;
+    Site(const Site&) = delete;
+    Site& operator=(const Site&) = delete;
+
+    const char* const name;
+    Site* const next; // (every site, newest first: sites())
+    za::Atomic<za::SizeT> calls{0}, split{0}, items{0}, chunksCaller{0}, chunksHelpers{0};
+    za::Atomic<za::U64> nanoseconds{0}, worstNanoseconds{0}; // the caller's wall time in the call
+};
+[[nodiscard]] Site* sites() noexcept;
+
 class Pool
 {
 public:
@@ -237,7 +254,8 @@ public:
 
     // body(begin, end) over [0, count) in chunks of `chunk` (0: about a quarter of an even share per thread), the
     // calling thread taking part; `parallel` false: every chunk on the calling thread (the same results).
-    void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel = true) noexcept;
+    void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body, bool parallel = true,
+        Site* site = nullptr) noexcept;
 
     template <typename F>
     [[nodiscard]] auto async(F&& f) -> Future<detail::ResultOf<F>>
@@ -289,8 +307,10 @@ void setParallel(bool on) noexcept;
 [[nodiscard]] bool parallel() noexcept;
 [[nodiscard]] Stats stats() noexcept;
 
-// On the game's pool; without one, on the calling thread (async: at once).
-void parallelFor(za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body) noexcept;
+// On the game's pool; without one, on the calling thread (async: at once). Counted at `site`; `split` false: the same
+// chunks in order on the caller alone (a call its site knows is small: the same results).
+void parallelFor(Site& site, za::SizeT count, za::SizeT chunk, FunctionRef<void(za::SizeT, za::SizeT)> body,
+    bool split = true) noexcept;
 
 template <typename F>
 [[nodiscard]] auto async(F&& f) -> Future<detail::ResultOf<F>>
@@ -310,8 +330,11 @@ template <typename F>
 
 // The engine's side (vr_jobs_engine.cpp).
 void start();            // VR_Init: the game's pool made
-void registerCommands(); // vr_jobs_threads, vr_jobs_parallel; vr_jobs_info, vr_jobs_test
+void registerCommands(); // vr_jobs_threads, vr_jobs_parallel; vr_jobs_info, vr_jobs_sites, vr_jobs_bench,
+                         // vr_jobs_test
 void info_f();
 void test_f();
+void sites_f();
+void bench_f();
 
 } // namespace qvr::jobs
