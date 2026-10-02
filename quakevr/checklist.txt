@@ -141,7 +141,12 @@ Weapon blood follows the weapon: holster a bloody shotgun, pick up a clean one: 
 Weapon blood through throw, pick up and a two-handed hand-off: stays on the same weapon
 Magazine: shoot a few, then holster, draw, throw and switch hands: rounds left unchanged
 
+Quetoo maps: console vr_extmaps_dir C:/OHWorkspace/qvr-kit/external/quetoo-data/target/default/textures/quake, Graphics > Surfaces > External Maps on, load a new map
+Quetoo maps: Debug > Views > External Maps A/B by a lamp and with the flashlight: better than ours?
+Quetoo maps: Specular brightness 0 / 4 / 8: pick one
+
 [Decide or give feedback]
+Quetoo maps: ship them (needs Quetoo credit + CC-BY-SA, and Rygel's and QRP's consent) or only offer as a player download?
 Explosive boxes catching fire and blowing up from it: add?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
