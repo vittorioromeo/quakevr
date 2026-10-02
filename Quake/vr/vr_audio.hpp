@@ -123,6 +123,11 @@ public:
     {
         return voices[v].eq;
     }
+    // The direction its HRTF was given last (Steam Audio's axes: x right, y up, -z ahead).
+    [[nodiscard]] IPLVector3 direction(int v) const
+    {
+        return voices[v].dir;
+    }
     void set(int v, const VoiceInput& in);
     [[nodiscard]] int activeCount() const;
 
@@ -188,6 +193,35 @@ private:
     za::Vector<float> reverbL, reverbR;
     IPLCoordinateSpace3 orientation{};
 };
+
+// The voices' anti-aliasing filter (vr_snd_antialias). Quake's 11 kHz sound (sndspeed 11025, mixed at 44100) low-passes
+// the whole mix by keeping every fourth sample and filtering that (snd_mix.c, S_ApplyFilter), so whatever is above
+// 5.5 kHz folds down below it. Quake's own sounds (11 kHz, each sample held four times) come back as they were; the
+// voices' HRTF output doesn't: its highs, much louder in the nearer ear, fold into the lows and mids of that ear (a
+// sound at the side came out up to 12 dB more one-sided below 2 kHz than its HRTF, and the balance changed with where
+// the fourth samples fell). A linear-phase low-pass (flat to 5.2 kHz, -6 dB at 5.65, under -70 dB from 6.1 kHz;
+// 2.9 ms late) on the voices' mix before it joins Quake's takes out what would fold.
+class AntiAlias
+{
+public:
+    static constexpr int taps = 257;
+    static constexpr int delay = (taps - 1) / 2; // samples
+
+    void reset();
+    // `n` samples of each side in place, as a stream (each call goes on from the last).
+    void apply(float* l, float* r, int n);
+
+private:
+    void applyOne(float* x, za::Vector<float>& history, int n);
+
+    za::Vector<float> kernel;          // (made at the first call)
+    za::Vector<float> histL, histR;    // the last taps - 1 inputs
+    za::Vector<float> work;            // history and block
+};
+
+// Whether Quake low-passes the mix to 11 kHz (sndspeed 11025 at 44100: snd_mix.c), and the voices are to be filtered
+// for it (vr_snd_antialias).
+[[nodiscard]] bool antiAliasWanted();
 
 // Levels of a stereo signal, in dB (full scale 32768): all of it, each side, below 500 Hz and above 4 kHz.
 struct Levels

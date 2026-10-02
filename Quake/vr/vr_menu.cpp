@@ -831,6 +831,11 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
                   "turn: in front, behind, above and below, not just left or right. Off: Quake's panning."),
         cycle("HRTF Smoothing", vr_snd_hrtf_interp, {{1.f, "Smooth (Bilinear)"}, {0.f, "Nearest (Cheaper)"}})
             .help("Between the measured directions: blended (moving sounds glide), or the nearest one."),
+        toggle("HRTF Anti-Aliasing", vr_snd_antialias)
+            .help("With Quake's 11 kHz sound (sndspeed 11025, the default), the binaural sounds are filtered before "
+                  "Quake's own low-pass, which keeps every fourth sample and so folds their highs down into the lows: "
+                  "off, a sound at your side is far more one-sided than its HRTF and the balance near the front jumps "
+                  "about. Off only to compare."),
         slider("HRTF Volume", vr_snd_hrtf_gain, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
             .help("The binaural sounds' volume against the others (1.25: as loud as Quake's panning, all round; 1.5 by default: a little louder)."),
         slider("Spatial Voices", vr_snd_voices, 4.f, 64.f, 4.f, "%.0f")
@@ -2861,6 +2866,13 @@ za::Vector<Item> pageDebugTests()
             .help("vr_snd_burst: five rocket explosions at once 2.5 m ahead of you (as explosive boxes blowing up together): "
                   "with the limiter on (Sound, Advanced: Mix Limiter) a loud bang, off a crackle; Record the Mix and "
                   "Spatial Audio Info tell how far over full scale it went."),
+        command("A Sound 45 Degrees Right", "vr_snd_play_dir misc/r_tele1.wav 45")
+            .help("vr_snd_play_dir <sample> <azimuth> [elevation] [metres]: a sound from that direction of your head, 2 m "
+                  "away (here the teleport's, 45 degrees right). With Record the Mix: its left/right balance (ROUND21.md, "
+                  "HRTF balance)."),
+        command("A Sound 45 Degrees Left", "vr_snd_play_dir misc/r_tele1.wav -45")
+            .help("vr_snd_play_dir: the same sound 45 degrees left: it should sound as far to the left as the other did to "
+                  "the right."),
         command("Save the Sound Scene", "vr_snd_scene_obj")
             .help("vr_snd_scene_obj: the map as Steam Audio sees it, to the game folder's sound_tests (scene.obj)."),
         header("Ahead of You"),

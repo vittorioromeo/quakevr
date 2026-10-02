@@ -20353,7 +20353,8 @@ for reference); the live mix is the old one (checked: the same numbers as before
 - No music in the file (the music isn't game time; the trailer has its own).
 - A take whose time scale changed only lines up with footage retimed to the game's time (the log's `game_time`).
 - Open: the live spatial mix's left/right balance at 2-8 kHz isn't monotonic with a source's angle near the front
-  (above); not looked into (the live mix wasn't to change).
+  (above); not looked into (the live mix wasn't to change). Found and fixed: "HRTF balance" below (Quake's 11 kHz
+  lowpass folded the voices' highs down).
 
 ### In VR
 
@@ -20361,3 +20362,76 @@ for reference); the live mix is the old one (checked: the same numbers as before
   gunfire, explosions, pickups; in Resolve speed the clip 400% and put the WAV under it (TRAILER.md section 3): it
   should sound like playing at normal speed. In the headset nothing changes.
 - Also try the recording's own audio with Change Clip Speed, Pitch Correction off, no manual pitch shift.
+
+## HRTF balance: Quake's 11 kHz lowpass folded the voices' highs down (2026-10-02)
+
+The slow-motion work found the live spatial mix's left/right balance at 2-8 kHz not steady with a source's angle (dead
+ahead right louder by ~4 dB, 7 degrees right left louder) and the game-time mix, given the same direction and input,
+balanced otherwise. Cause: Quake's "11 kHz" lowpass. With `sndspeed 11025` (Ironwail's default) at a 44.1 kHz mix,
+`S_ApplyFilter` (snd_mix.c) low-passes the whole paint buffer by keeping every fourth sample and filtering those: what
+is above 5.5 kHz folds down below it. Quake's own sounds (11 kHz, each sample held four times) come back as they were.
+The voices' HRTF output doesn't: its highs, far louder in the nearer ear, landed in that ear's lows and mids, and how
+they landed hung on where the fourth samples fell against the sound (so each sound, and the live and game-time mixes
+with their own filter memories, came out differently).
+
+Ruled out on the way (measured): the direction sent to Steam Audio (exact: `vr_debug_snd 2` now prints each voice's
+azimuth and elevation), Quake to Steam Audio axes (a proper rotation; Quake's panning through the same placement gives
+its exact law), listener pose, voices sharing HRTF or binaural state (15 other voices in the same lanes: 0.0 dB), the
+interpolation, the near field, the limiter, a second copy of the sound (HRTF Volume 0: silence).
+
+### The fix
+
+- **`vr_snd_antialias`** (1; Sound > Direction > **HRTF Anti-Aliasing**): when Quake's 11 kHz lowpass is on, the
+  voices' sum (and their reverb) goes through a linear-phase low-pass first (`AntiAlias`, vr_audio.cpp: Blackman sinc,
+  257 taps, flat to 5.2 kHz, -6 dB at 5.65, under -70 dB from 6.1), live and game-time mix alike. Nothing changes with
+  `sndspeed 44100` (no Quake lowpass) or with Quake's own channels. 0: as before, to compare.
+- The voices are 2.9 ms later than before (the filter's delay; Quake's channels unchanged).
+- Cost: 32 voices 0.71 -> 0.79 ms a paint call.
+- Level: Quake-style 11 kHz sounds (most of id's): -0.3 dB on average over the angles, within 0.4 dB by octave
+  (dead ahead -1.9 dB: it had got the folded highs on top). A full-band 44.1 kHz noise: -6 dB (three quarters of its
+  energy is above 5.5 kHz and used to fold down). The mod's own sounds are mostly 22 kHz with little above 5.5 kHz
+  (median 1%; holster, reload, torch_out 36-73%: those get quieter as voices).
+
+### Measured (e1m1 start, the mock head; a noise 2 m away, -90..90 degrees by 5; reverb, occlusion, air off unless said)
+
+2-8 kHz interaural level difference (right minus left, dB), from `vr_snd_capture`:
+
+| azimuth | -90 | -60 | -30 | -15 | -10 | -5 | 0 | 5 | 10 | 15 | 30 | 60 | 90 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 11 kHz noise (id's kind), before | -9.6 | -12.4 | -4.4 | -4.3 | -3.2 | -0.8 | **+4.1** | **-2.8** | +5.4 | +4.6 | +9.1 | +10.9 | +10.8 |
+| the same, after | -12.7 | -13.2 | -7.8 | -2.7 | -0.9 | -0.7 | **+0.1** | +1.4 | +3.0 | +6.1 | +9.2 | +13.9 | +14.7 |
+| the same, after, game-time mix | -12.9 | -13.2 | -7.7 | -2.7 | -0.9 | -0.7 | +0.2 | +1.4 | +3.0 | +6.1 | +9.2 | +14.0 | +14.8 |
+| 44.1 kHz noise, before | -19.5 | -17.3 | -10.7 | -4.0 | +0.4 | +1.0 | **+2.2** | +5.2 | +7.9 | +11.8 | +14.1 | +17.4 | +20.0 |
+| the same, after | -13.2 | -13.8 | -7.9 | -2.8 | -1.0 | -0.8 | +0.0 | +1.4 | +3.1 | +6.1 | +9.4 | +14.3 | +15.4 |
+| 11 kHz noise, after, reverb, occlusion and air on | -8.8 | -10.9 | -6.5 | -2.1 | -0.5 | -0.3 | +0.5 | +1.7 | +3.2 | +6.1 | +9.0 | +13.2 | +13.0 |
+
+- Live against game-time mix (11 kHz noise): before up to 7.7 dB apart (mean 3.9), after 0.2 (mean 0.1).
+- After: monotonic across +-30 degrees (no step back), dead ahead 0.0-0.1 dB. What's left: up to 3.4 dB between a
+  side and its mirror at 60-90 degrees and a 1-2 dB dip at 75-90: Steam Audio's default HRTF itself (the offline test
+  gives the same; it is a measured, not a symmetric, head).
+- Before, at 90 degrees the near ear was 12-16 dB louder below 1 kHz (the HRTF: 1.5-5.7 dB); after, as the HRTF.
+- 44.1 kHz above: everything over ~5.5 kHz is cut by Quake's lowpass either way; the 11 kHz kind of sound is what the
+  game plays.
+
+### Tests (vr_snd_test)
+
+- **`ild`** (new): the sweep offline, alone and among 15 silent turning voices (their HRTFs in the same lanes), each
+  interpolation, three elevations; and at 0.25-5 kHz through Quake's own lowpass (`S_LowpassTest`, snd_mix.c) without
+  and with the anti-aliasing: 8.2 dB off the voice's balance without, 0.1 with (PASS under 1). Its band measure is an
+  FFT over every bin now (a Goertzel at a few frequencies read an HRTF's notches as balance).
+- **`reverb`** adds a wall 1 m to one side, the listener turned four ways: the reverb leans to the wall (+0.4 dB right,
+  -0.5 left, -0.1 and 0.0 behind and ahead: Steam Audio's first-order listener-centred reverb leans only a little).
+  Its later, diffuse part is balanced overall, 2-8 kHz about 2.5 dB louder on the right: Steam Audio's ambisonic HRTF
+  decode, the same with the directional channels zeroed (a property of the HRTF, left as it is).
+- `vr_snd_test all` in a map: 28 passed.
+- Test aids: `vr_snd_play_dir <sample> <azimuth> [elevation] [metres] [volume] [attenuation]` (a sound from a
+  direction of the head; Debug > Tests > Spatial Audio > A Sound 45 Degrees Right / Left); `vr_debug_snd 2` lists each
+  voice's azimuth and elevation.
+
+### In VR
+
+- A sound straight ahead should sit in the middle; one a little to the right only a little right; turning the head
+  slowly past a sound should move it smoothly across. Try Sound > Direction > HRTF Anti-Aliasing off and on with a
+  monster growling to one side, and the Debug menu's A Sound 45 Degrees Right / Left.
+- Listen for the overall level of sounds at the side (a little less one-sided now) and Sound > HRTF Volume:
+  1.5 was set with the old, folded highs; it may want a touch more.

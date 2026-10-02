@@ -4,9 +4,12 @@
 // touched (the tests have their own mixer and simulator). The renders are written to <game>/sound_tests/test_<name>.wav.
 //
 //   circle     a noise circling the head at 2 m: left/right level and time differences, front/back brightness
+//   ild        a noise at -90..90 degrees by 5 (and +-30 up): the 2-8 kHz left/right balance alone and among 15
+//              voices, and at 0.25-5 kHz through Quake's 11 kHz lowpass, with the voices' anti-aliasing and without
 //   clicks     a tone turning round the head, each HRTF interpolation: steps at the frames' edges
 //   occlusion  a noise 5 m ahead, then behind a wall (a static one, then a brush model's instance moved in and out)
 //   reverb     a click in a small room and a big hall, each reverb quality: the simulated and the measured RT60
+//              and a wall 1 m to one side: the reverb's lean to it, the listener turned four ways
 //   doppler    a 1 kHz tone passing the head at 1000 units/s: the pitch coming and going
 //   nearfield  a noise at the right ear (0.2 m) and 2 m to the right: the level difference between the ears
 //   distance   (in a map) how loud by the distance, in sight of the head: Quake's panning against the spatial mix
@@ -142,7 +145,6 @@ float noise(int, unsigned& seed)
     seed = seed * 1664525u + 1013904223u;
     return (static_cast<float>(seed >> 9) / static_cast<float>(1u << 23) * 2.f - 1.f) * 8000.f;
 }
-
 float sine1k(int i, unsigned&)
 {
     return 8000.f * za::sin(2.f * 3.14159265f * 1000.f * static_cast<float>(i) / testRate);
@@ -443,6 +445,242 @@ void testCircle(Result& res)
     const float frontBack = (oct[0].band[2] - oct[4].band[2]) + (oct[0].band[3] - oct[4].band[3]);
     Con_Printf("snd_test circle: ahead minus behind, 4-16 kHz: %+.1f dB\n", frontBack);
     res.check("circle: behind duller than ahead (4-16 kHz, > 2 dB)", frontBack > 2.f);
+}
+
+// An in-place radix-2 FFT (n a power of two).
+void fft(za::Vector<double>& re, za::Vector<double>& im)
+{
+    const int n = static_cast<int>(re.size());
+    for(int i = 1, j = 0; i < n; i++)
+    {
+        int bit = n >> 1;
+        for(; j & bit; bit >>= 1)
+        {
+            j ^= bit;
+        }
+        j ^= bit;
+        if(i < j)
+        {
+            const double tr = re[i];
+            re[i] = re[j];
+            re[j] = tr;
+            const double ti = im[i];
+            im[i] = im[j];
+            im[j] = ti;
+        }
+    }
+    for(int len = 2; len <= n; len <<= 1)
+    {
+        const double a = -2.0 * 3.14159265358979 / len;
+        for(int i = 0; i < n; i += len)
+        {
+            for(int k = 0; k < len / 2; k++)
+            {
+                const double wr = za::cos(a * k);
+                const double wi = za::sin(a * k);
+                const int p = i + k;
+                const int q = p + len / 2;
+                const double xr = re[q] * wr - im[q] * wi;
+                const double xi = re[q] * wi + im[q] * wr;
+                re[q] = re[p] - xr;
+                im[q] = im[p] - xi;
+                re[p] += xr;
+                im[p] += xi;
+            }
+        }
+    }
+}
+
+// One ear's power (dB) in [f0, f1): every FFT bin of 4096-sample Hann windows from `from` (the whole band, not a few
+// frequencies of it: an HRTF's response is full of narrow peaks and notches).
+float earBand(const za::Vector<float>& x, int from, float f0, float f1)
+{
+    constexpr int n = 4096;
+    za::Vector<double> re(n), im(n);
+    double power = 0.0;
+    for(int start = from; start + n <= static_cast<int>(x.size()); start += n)
+    {
+        for(int i = 0; i < n; i++)
+        {
+            re[i] = x[start + i] * (0.5 - 0.5 * za::cos(2.0 * 3.14159265 * i / (n - 1)));
+            im[i] = 0.0;
+        }
+        fft(re, im);
+        const int k0 = za::max(1, static_cast<int>(za::ceil(f0 * n / testRate)));
+        const int k1 = za::min(n / 2, static_cast<int>(za::ceil(f1 * n / testRate)));
+        for(int k = k0; k < k1; k++)
+        {
+            power += re[k] * re[k] + im[k] * im[k];
+        }
+    }
+    return static_cast<float>(10.0 * za::log10(za::max(power, 1e-9)));
+}
+
+// A render's left/right balance (dB, right minus left) at 0.25-5 kHz after Quake's 11 kHz lowpass (snd_mix.c: every
+// fourth sample, filtered), with the voices' anti-aliasing before it or not.
+float ildThroughQuake(const Render& out, bool antiAlias, int from)
+{
+    Render x = out;
+    const int n = static_cast<int>(x.l.size());
+    if(antiAlias)
+    {
+        AntiAlias aa;
+        aa.apply(x.l.data(), x.r.data(), n);
+    }
+    za::Vector<int> side(n);
+    for(int ear = 0; ear < 2; ear++)
+    {
+        za::Vector<float>& y = ear == 0 ? x.l : x.r;
+        for(int i = 0; i < n; i++)
+        {
+            side[i] = static_cast<int>(y[i] * 256.f); // (paint buffer units)
+        }
+        S_LowpassTest(side.data(), 1, n, ear, 1);
+        for(int i = 0; i < n; i++)
+        {
+            y[i] = static_cast<float>(side[i]) / 256.f;
+        }
+    }
+    return earBand(x.r, from, 250.f, 5000.f) - earBand(x.l, from, 250.f, 5000.f);
+}
+
+// The left/right balance against a source's angle: a noise at 2 m, azimuth -90..90 in 5 degree steps (+ the right), at
+// three elevations, its interaural level difference (right minus left, dB) at 2-8 kHz. Alone (a fresh voice each angle,
+// as the circle) and among 15 other voices (silent, other directions, turning: their HRTFs in the same lanes), with each
+// interpolation: a voice's balance is its own direction's, whatever else plays. Level, also at 0.25-5 kHz as the voice
+// makes it, through Quake's 11 kHz lowpass, and through it after the voices' anti-aliasing (AntiAlias): that must keep
+// the voice's own balance (without it the highs fold down: ROUND21.md, "HRTF balance").
+void testIld(Result& res)
+{
+    Mixer m;
+    if(!m.create(testRate, testFrame(), ""))
+    {
+        res.check("ild (no Steam Audio)", false);
+        return;
+    }
+    const Sound snd = makeSound(testRate, true, noise);
+    const Listener lis = centred();
+    const float r = 2.f * units::perMetre;
+    const auto at = [&](float az, float el) {
+        const float a = az * 3.14159265f / 180.f;
+        const float e = el * 3.14159265f / 180.f;
+        return r * (za::cos(e) * (za::cos(a) * lis.fwd + za::sin(a) * lis.right) + za::sin(e) * lis.up);
+    };
+    constexpr int steps = 37;
+    constexpr int crowd = 16;
+    const int frame = m.frameSize();
+    const int from = 4096;
+    const int blocks = (from + 2 * 4096 + frame - 1) / frame;
+    float worstAhead = 0.f;
+    float worstSym = 0.f;
+    float worstCrowd = 0.f;
+    float worstStep = 0.f;
+    float worstAliased = 0.f;
+    float worstKept = 0.f;
+    for(int bilinear = 0; bilinear < 2; bilinear++)
+    {
+        Features f = baseFeatures();
+        f.bilinear = bilinear != 0;
+        for(const float el : {0.f, 30.f, -30.f})
+        {
+            float ild[2][steps]{};
+            float chain[3][steps]{}; // 0.25-5 kHz: the voice's, through Quake's lowpass, anti-aliased first
+            for(int withCrowd = 0; withCrowd < 2; withCrowd++)
+            {
+                for(int k = 0; k < steps; k++)
+                {
+                    const float az = -90.f + 5.f * static_cast<float>(k);
+                    for(int v = 0; v < Mixer::maxVoices; v++)
+                    {
+                        m.stop(v);
+                    }
+                    const int count = withCrowd ? crowd : 1;
+                    for(int v = 0; v < count; v++)
+                    {
+                        m.start(v, snd.cache(), static_cast<double>(v * 101));
+                    }
+                    Render out;
+                    za::Vector<float> l(frame), rr(frame);
+                    for(int b = 0; b < blocks; b++)
+                    {
+                        const double t = static_cast<double>(b) * frame / testRate;
+                        for(int v = 0; v < count; v++)
+                        {
+                            VoiceInput in;
+                            in.gain = v == 0 ? 1.f : 0.f;
+                            in.pos = v == 0 ? at(az, el)
+                                            : at(static_cast<float>(v * 360 / crowd + t * 200.0),
+                                                  static_cast<float>(50.0 * za::sin(t * 6.0 + v)));
+                            m.set(v, in);
+                        }
+                        za::fill(l, 0.f);
+                        za::fill(rr, 0.f);
+                        m.render(1, lis, f, nullptr, l.data(), rr.data());
+                        out.l.emplaceBackRange(l.data(), l.size());
+                        out.r.emplaceBackRange(rr.data(), rr.size());
+                    }
+                    ild[withCrowd][k] = earBand(out.r, from, 2000.f, 8000.f) - earBand(out.l, from, 2000.f, 8000.f);
+                    if(!withCrowd && el == 0.f)
+                    {
+                        chain[0][k] = earBand(out.r, from, 250.f, 5000.f) - earBand(out.l, from, 250.f, 5000.f);
+                        chain[1][k] = ildThroughQuake(out, false, from);
+                        chain[2][k] = ildThroughQuake(out, true, from);
+                        worstAliased = za::max(worstAliased, za::abs(chain[1][k] - chain[0][k]));
+                        worstKept = za::max(worstKept, za::abs(chain[2][k] - chain[0][k]));
+                    }
+                }
+                char line[512];
+                int len = 0;
+                for(int k = 0; k < steps; k++)
+                {
+                    len += snprintf(line + len, sizeof(line) - static_cast<za::SizeT>(len), "%s%.1f", k ? " " : "",
+                        ild[withCrowd][k]);
+                }
+                Con_Printf("snd_test ild: %s, elevation %+3.0f, %s; 2-8 kHz ILD at -90..90 by 5: %s\n",
+                    bilinear ? "bilinear" : "nearest", el, withCrowd ? "among 15 voices" : "alone", line);
+            }
+            if(el == 0.f)
+            {
+                const char* stage[3] = {"the voice", "Quake's lowpass", "anti-aliased, Quake's lowpass"};
+                for(int c = 0; c < 3; c++)
+                {
+                    char line[512];
+                    int len = 0;
+                    for(int k = 0; k < steps; k++)
+                    {
+                        len += snprintf(line + len, sizeof(line) - static_cast<za::SizeT>(len), "%s%.1f", k ? " " : "",
+                            chain[c][k]);
+                    }
+                    Con_Printf("snd_test ild: %s, elevation +0, %s; 0.25-5 kHz: %s\n", bilinear ? "bilinear" : "nearest",
+                        stage[c], line);
+                }
+            }
+            constexpr int mid = steps / 2;
+            for(int k = 0; k < steps; k++)
+            {
+                worstCrowd = za::max(worstCrowd, za::abs(ild[1][k] - ild[0][k]));
+            }
+            if(el == 0.f)
+            {
+                worstAhead = za::max(worstAhead, za::abs(ild[0][mid]));
+                for(int k = 1; k <= mid; k++)
+                {
+                    worstSym = za::max(worstSym, za::abs(ild[0][mid + k] + ild[0][mid - k]));
+                }
+                // Steady with the angle across the front (+-30): no step back against the turn.
+                for(int k = mid - 6; k < mid + 6; k++)
+                {
+                    worstStep = za::max(worstStep, ild[0][k] - ild[0][k + 1]);
+                }
+            }
+        }
+    }
+    Con_Printf("snd_test ild: ahead %.1f dB, worst asymmetry %.1f dB, worst step back (+-30) %.1f dB, crowd against alone "
+               "%.1f dB; 0.25-5 kHz through Quake's lowpass against the voice's: %.1f dB, anti-aliased first %.1f dB\n",
+        worstAhead, worstSym, worstStep, worstCrowd, worstAliased, worstKept);
+    res.check("ild: a voice's balance is its own (among other voices: within 0.5 dB)", worstCrowd < 0.5f);
+    res.check("ild: Quake's 11 kHz lowpass keeps the voices' balance, anti-aliased (within 1 dB at 0.25-5 kHz)",
+        worstKept < 1.f);
 }
 
 // A 4 m wide, 3 m tall, 0.3 m thick wall across the way ahead (x), centred at `x` metres.
@@ -765,6 +1003,70 @@ void testReverb(Result& res)
         const bool simulatedOk = types[t] == IPL_REFLECTIONEFFECTTYPE_CONVOLUTION || simulated[1] > 2.f * simulated[0];
         res.check(name, simulatedOk && measured[1] > 2.f * za::max(measured[0], 0.01f));
     }
+}
+
+// The reverb's left and right: a room with a wall 1 m to the listener's right (the others 4-9 m away). The reverb is
+// listener-centred (the same whatever a sound's direction), so its balance is the room's round the head: its first 50 ms
+// (the near wall's echo; the voice itself silent) louder in the right ear; with the listener turned (the wall behind, on
+// the left, ahead), balanced, in the left, balanced. (Later on the reverb is diffuse: balanced but for the HRTF's own
+// lean, its ambisonic decode a little louder on the right at 2-8 kHz.)
+void testReverbSide(Result& res)
+{
+    const float upm = units::perMetre;
+    const Sound snd = makeSound(testRate, false, click);
+    float side[4]{};
+    for(int turn = 0; turn < 4; turn++)
+    {
+        // Facing +x (the wall on the right), +y (behind), -x (on the left), -y (ahead).
+        Listener lis = centred();
+        const float yaw = static_cast<float>(turn) * 3.14159265f * 0.5f;
+        lis.fwd = glm::vec3{za::cos(yaw), za::sin(yaw), 0.f};
+        lis.right = glm::vec3{za::sin(yaw), -za::cos(yaw), 0.f};
+        Mixer m;
+        Simulation sim;
+        const int frame = testFrame();
+        if(!m.create(testRate, frame, "") || !sim.create(testRate, frame, IPL_REFLECTIONEFFECTTYPE_CONVOLUTION, 1, 1.f, 4096))
+        {
+            res.check("reverb side (no Steam Audio)", false);
+            return;
+        }
+        m.setReverb(IPL_REFLECTIONEFFECTTYPE_CONVOLUTION, 1, 1.f);
+        Mesh room;
+        room.addBox(glm::vec3{-5.f, -1.f, -1.5f} * upm, glm::vec3{5.f, 9.f, 1.5f} * upm, true, SurfaceMaterial::Stone, upm);
+        sim.buildSceneNow(ZA_MOVE(room));
+        SimSettings ss;
+        ss.reverb = true;
+        ss.rays = 4096;
+        ss.bounces = 16;
+        ss.duration = 1.f;
+        ss.order = 1;
+        sim.runReflectionsNow(coordinates(lis.pos, lis.fwd, lis.right, lis.up, upm), ss);
+        IPLReflectionEffectParams p{};
+        if(!sim.reflections(p))
+        {
+            res.check("reverb side (no simulation)", false);
+            return;
+        }
+        Features f = baseFeatures();
+        f.reverb = 1.f;
+        f.hrtfGain = 0.f; // (the reverb alone)
+        const glm::vec3 at = lis.fwd * upm;
+        const Render out = renderVoice(m, snd.cache(), lis, f, &p, 0.2f, [&](double, VoiceInput& in) { in.pos = at; });
+        double el = 0.0;
+        double er = 0.0;
+        for(int i = 0; i < testRate / 20; i++)
+        {
+            el += static_cast<double>(out.l[i]) * out.l[i];
+            er += static_cast<double>(out.r[i]) * out.r[i];
+        }
+        side[turn] = static_cast<float>(10.0 * za::log10(za::max(er, 1e-9) / za::max(el, 1e-9)));
+    }
+    Con_Printf("snd_test reverb side: the reverb's first 50 ms, right minus left, with a wall 1 m to the right %+.1f dB, "
+               "behind %+.1f, to the left %+.1f, ahead %+.1f\n",
+        side[0], side[1], side[2], side[3]);
+    // (Steam Audio's first-order listener-centred reverb leans only a little: about +-0.5 dB.)
+    res.check("reverb side: leans to the near wall (the wall right against left > 0.5 dB, behind and ahead within 1 dB)",
+        side[0] > 0.f && side[2] < 0.f && side[0] - side[2] > 0.5f && za::abs(side[1]) < 1.f && za::abs(side[3]) < 1.f);
 }
 
 void testDoppler(Result& res)
@@ -1186,6 +1488,10 @@ void test_f()
     {
         testCircle(res);
     }
+    if(all || !ZA_STRCMP(which, "ild"))
+    {
+        testIld(res);
+    }
     if(all || !ZA_STRCMP(which, "clicks"))
     {
         testClicks(res);
@@ -1197,6 +1503,7 @@ void test_f()
     if(all || !ZA_STRCMP(which, "reverb"))
     {
         testReverb(res);
+        testReverbSide(res);
     }
     if(all || !ZA_STRCMP(which, "doppler"))
     {
