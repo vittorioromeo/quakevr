@@ -148,7 +148,13 @@ Quetoo maps: Specular brightness 0 / 4 / 8: pick one
 Spatial audio after optimisation: fights, explosions, slow motion and sounds passing by sound exactly as before
 Debug > Tests > Spatial Audio > Spatial Audio Benchmark: run it on your machine and send me the table
 
+Flashlight model: rusted army torch: does the rust read too red under warm map lights?
+Flashlight model: thumb on the new switch and fingers on the grip ridges feel right
+Flashlight Cord: Chain (Body > Flashlight > Cord): links swing and catch the light well
+Thread Pool Sites (Debug > Profiling and Memory) after a fight: times look sane; holding a prop the fingers follow as before
+
 [Decide or give feedback]
+Flashlight cord: make Chain the default?
 Quetoo maps: ship them (needs Quetoo credit + CC-BY-SA, and Rygel's and QRP's consent) or only offer as a player download?
 Explosive boxes catching fire and blowing up from it: add?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
