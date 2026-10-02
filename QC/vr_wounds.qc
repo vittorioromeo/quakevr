@@ -13,7 +13,7 @@ float QVR_WOUND_SHOT  = 1; // a bullet or a pellet (extra: pellets in one event)
 float QVR_WOUND_NAIL  = 2; // a nail or a small missile
 float QVR_WOUND_MELEE = 3; // a blade, a fist, a bite, a claw (dir: the blow's way)
 float QVR_WOUND_BLAST = 4; // an explosion (org: its centre)
-float QVR_WOUND_BURN  = 5; // fire: a lava ball, a lava nail, a laser bolt
+float QVR_WOUND_BURN  = 5; // fire: a lava ball, a lava nail, a laser bolt, a fire's flame (extra 1: a burn alone, no wound under it)
 float QVR_WOUND_ZAP   = 6; // lightning
 float QVR_WOUND_LAVA  = 7; // standing in lava (org_z: its surface)
 float QVR_WOUND_SLIME = 8; // in slime (org_z: its surface)
@@ -67,7 +67,8 @@ void(entity e, vector at, vector dir, float damage) VR_Wound_Pellet =
 // From T_DamageImpl, as `take` is taken: the blow's kind, where it struck and which way it went.
 void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 {
-    if(take <= 0 || !VR_Wound_Takes(targ) || vr_hitkind == QVR_HITKIND_BLEED)
+    // (A fire paints its own burns, under its flames: vr_burning.qc.)
+    if(take <= 0 || !VR_Wound_Takes(targ) || vr_hitkind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn")
     {
         return;
     }
@@ -113,8 +114,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     {
         kind = QVR_WOUND_ZAP; // a hitscan shot that is not pellets: lightning
     }
-    else if(m == "progs/lavaball.mdl" || inflictor.classname == "lava_spike" || m == "progs/laser.mdl" ||
-            inflictor.classname == "vr_torch_burn") // (a torch's fire: vr_walltorch.qc)
+    else if(m == "progs/lavaball.mdl" || inflictor.classname == "lava_spike" || m == "progs/laser.mdl")
     {
         kind = QVR_WOUND_BURN;
     }

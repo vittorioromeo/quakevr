@@ -55,6 +55,7 @@ string(entity e) VR_Dummy_ProjectileName =
     if(c == "proximity_grenade") { return "proximity mine"; }
     if(c == "spike")             { return e.touch == superspike_touch ? "super nail" : "nail"; }
     if(c == "lava_spike")        { return "lava nail"; }
+    if(c == "vr_burn")           { return "fire"; }
     if(c == "plasma")            { return "plasma bolt"; }
     if(c == "hiplaser")          { return "laser"; }
     if(c == "hook")              { return "grappling hook"; }

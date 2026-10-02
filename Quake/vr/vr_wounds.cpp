@@ -840,7 +840,7 @@ void wound(const Target& t, const Event& ev)
                 break;
             }
             splats.pushBack(burnSplat(at, r, r * 0.25f, n, false, 0.1f, glm::vec4{0.f, zap ? 0.8f : 0.9f, 0.f, zap ? 0.6f : 0.9f}));
-            if(!zap) // a small wound under it
+            if(!zap && ev.extra != 1) // a small wound under it (extra 1: a fire's flame, a burn alone: QC vr_burning.qc)
             {
                 blow(org, dir, KindNail, paintBlood, 0.6f);
             }

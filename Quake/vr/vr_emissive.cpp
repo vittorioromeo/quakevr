@@ -306,6 +306,7 @@ constexpr float torchStandoff = 18.f;        // the light kept this far off wall
 struct TorchState
 {
     glm::vec3 pos{0.f};
+    glm::vec3 org{0.f}; // the entity's origin when its light was placed (a moving flame's is placed again)
     const TorchKind* kind = nullptr;
     float scale = 1.f;
     float weight = 0.f;
@@ -558,7 +559,9 @@ extern "C" void VR_TorchLights(void)
             return;
         }
         TorchState& st = torches[id];
-        if(st.kind != kind)
+        // A flame that moves (a burning monster's, QC vr_burning.qc): its light goes with it.
+        const bool moved = id >= torchDynamicId && !takenFire && st.kind == kind && glm::distance(org, st.org) > 0.5f;
+        if(st.kind != kind || moved)
         {
             // First seen (or another flame): place its light, seed its flicker by where it is.
             const float s = VR_EntityScale(&e);
@@ -567,11 +570,15 @@ extern "C" void VR_TorchLights(void)
                 kind->fire.x * za::sin(yaw) + kind->fire.y * za::cos(yaw), kind->fire.z};
             st.kind = kind;
             st.scale = s;
+            st.org = org;
             st.pos = placeTorchLight(org + off * s);
-            // (In unsigned arithmetic: it wraps, where signed overflow is undefined.)
-            st.seed = static_cast<unsigned>(static_cast<int>(org.x)) * 73856093u ^
-                      static_cast<unsigned>(static_cast<int>(org.y)) * 19349663u ^
-                      static_cast<unsigned>(static_cast<int>(org.z)) * 83492791u;
+            if(!moved)
+            {
+                // (In unsigned arithmetic: it wraps, where signed overflow is undefined.)
+                st.seed = static_cast<unsigned>(static_cast<int>(org.x)) * 73856093u ^
+                          static_cast<unsigned>(static_cast<int>(org.y)) * 19349663u ^
+                          static_cast<unsigned>(static_cast<int>(org.z)) * 83492791u;
+            }
         }
         // A taken wall torch (the wall torch's kind: its colour and brightness): at its flame wherever it is, placed
         // off the walls every frame as the wall torch's is once; as bright as its fire (its flicker's seed kept from
@@ -615,6 +622,10 @@ extern "C" void VR_TorchLights(void)
         {
             const entity_t& e = cl_entities[i];
             const TorchKind* kind = e.model && i != cl.viewentity ? torchKind(e) : nullptr;
+            if(kind && e.alpha == ENTALPHA_ONE)
+            {
+                kind = nullptr; // drawn opaque on purpose: a flame with no light of its own (a fire's spread flames, QC vr_burning.qc)
+            }
             if(!kind && walltorch::onWall(e))
             {
                 kind = &torchKinds[0]; // a wall torch on its wall drawn as our stick (vr_walltorch.cpp): id's torch's light

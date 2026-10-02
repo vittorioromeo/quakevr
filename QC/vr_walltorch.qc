@@ -17,9 +17,8 @@
 // dying or burnt-out torch lights again (vr_walltorch_relight).
 // In water it goes out at once.
 //
-// A lit torch's blow (and a thrown lit torch) sets what it hits burning: vr_walltorch_burn damage a second for
-// vr_walltorch_burn_time seconds, a small flame on it (flame2.mdl, which lights it), burns painted where the flame is
-// (the wounds' QVR_WOUND_BURN).
+// A lit torch's blow (and a thrown lit torch; with vr_burn_touch, its touch) sets what it hits on fire, a monster or a
+// corpse: vr_burning.qc (Combat > Burning).
 
 .float scale;           // (the engine's: an entity's drawn scale; a burning monster's flame)
 
@@ -35,7 +34,6 @@
 .float wt_grip_hand;    // which hand,
 .vector wt_grip_from;   // where that hand was as it gripped it,
 .float wt_grip_buzz;    // and the next haptic tick
-.entity wt_burner;      // on a monster or a player: the fire a torch lit on it
 .entity mainhand_wtgrip; // on a player: the torch each hand grips on its wall
 .entity offhand_wtgrip;
 
@@ -541,6 +539,12 @@ void() VR_WallTorch_Think =
         particle2(head, '0 0 12', QVR_PARTICLE_PRESET_SMOKE, 1); // out: a wisp of smoke a while
     }
 
+    // Lit, its head touching a monster or a corpse sets it on fire (vr_burn_touch).
+    if(t.wt_fire > 0)
+    {
+        VR_Burn_TorchTouch(t, head, t.carry_player != world ? t.carry_player : VR_Throw_Thrower(t));
+    }
+
     // In a fire: a dying (its blows spent) or burnt-out torch lights again, as new.
     if(cvar_hget(cvarh_vr_walltorch_relight) && (t.wt_fire <= 0 || t.wt_dying == 2))
     {
@@ -570,99 +574,15 @@ void(entity t) VR_WallTorch_Used =
 };
 
 // ----------------------------------------------------------------------------
-// Burning what it hits
+// Burning what it hits (vr_burning.qc)
 
-// What fire doesn't hurt (VR_Liquid_Immune's: what lives in lava or water, the bosses), but the training dummy burns.
-float(entity e) VR_WallTorch_Fireproof =
-{
-    return e.classname != "vr_dummy" && VR_Liquid_Immune(e);
-};
-
-// The fire a torch lit on a monster or a player: a small flame on it, moving about its upper body, hurting it every
-// half second (burns painted where the flame is: VR_Wound_Hit, "vr_torch_burn"); out when its time is up, when it dies,
-// or in water.
-void() VR_WallTorch_BurnThink =
-{
-    entity v = self.enemy;
-    if(v == world || v.wt_burner != self || v.health <= 0 || time >= self.wt_last || !v.takedamage ||
-       VR_Wound_Level(v) >= 2)
-    {
-        if(v.wt_burner == self)
-        {
-            v.wt_burner = world;
-        }
-        dprint(sprintf("walltorch: %s stops burning\n", v.classname));
-        remove(self);
-        return;
-    }
-    self.nextthink = time + 0.05;
-    // Its place on the body: the upper half, wandering slowly round it.
-    float a = time * 1.7 + self.wt_hits;
-    vector half = (v.maxs - v.mins) * 0.5;
-    vector at = (v.absmin + v.absmax) * 0.5;
-    at_x = at_x + cos(a) * half_x * 0.45;
-    at_y = at_y + sin(a) * half_y * 0.45;
-    at_z = at_z + half_z * (0.1 + 0.3 * (0.5 + 0.5 * sin(a * 0.63)));
-    setorigin(self, at);
-    if(time < self.wt_out_time)
-    {
-        return;
-    }
-    self.wt_out_time = time + 0.5;
-    float dmg = self.wt_fire * 0.5;
-    particle2(at, '0 0 40', QVR_PARTICLE_PRESET_LAVASPIKE, 4); // embers
-    particle2(at, '0 0 20', QVR_PARTICLE_PRESET_SMOKE, 2);
-    VR_SetHitKind(QVR_HITKIND_NONE, -1, at, '0 0 -1');
-    T_Damage(v, self, self.owner, dmg); // (vr_debug_shots logs it: "by vr_torch_burn")
-    VR_ClearHitKind();
-};
-
-void(entity xVictim, entity xAttacker, vector xAt, vector xDir) VR_WallTorch_Ignite =
-{
-    float dps = cvar_hget(cvarh_vr_walltorch_burn);
-    float len = cvar_hget(cvarh_vr_walltorch_burn_time);
-    if(!(xVictim.flags & (FL_MONSTER | FL_CLIENT)) || xVictim.health <= 0 || dps <= 0 || len <= 0 ||
-       VR_WallTorch_Fireproof(xVictim) || xVictim == xAttacker)
-    {
-        return;
-    }
-    if(xDir == '0 0 0')
-    {
-        xDir = '0 0 -1';
-    }
-    woundevent(xVictim, xAt, normalize(xDir), QVR_WOUND_BURN, 14, 0); // scorched where the head struck
-    entity f = xVictim.wt_burner;
-    if(f == world || f.classname != "vr_torch_burn" || f.enemy != xVictim)
-    {
-        f = spawn();
-        f.classname = "vr_torch_burn";
-        f.enemy = xVictim;
-        f.movetype = MOVETYPE_NONE;
-        f.solid = SOLID_NOT;
-        setmodel(f, "progs/flame2.mdl"); // id's small flame (it flickers its own light: vr_emissive.cpp)
-        f.frame = 0;
-        f.scale = 0.6;
-        f.wt_hits = random() * 6; // (where on the body it starts)
-        f.wt_out_time = time + 0.5;
-        f.think = VR_WallTorch_BurnThink;
-        f.nextthink = time;
-        setorigin(f, (xVictim.absmin + xVictim.absmax) * 0.5);
-        xVictim.wt_burner = f;
-        sound(xVictim, CHAN_AUTO, "vr/torch_light.wav", 0.6, ATTN_NORM);
-    }
-    f.owner = xAttacker;
-    f.wt_fire = dps;
-    f.wt_last = time + len;
-    dprint(sprintf("walltorch: %s burns for %g s at %g a second\n", xVictim.classname, len, dps));
-};
-
-// Thrown lit into a monster, it sets it burning too (and hurts it as a thrown box does: forcegrabbable_touch).
+// Thrown lit into a monster or a corpse, it sets it on fire too (and hurts it as a thrown box does: forcegrabbable_touch).
 void() VR_WallTorch_Touch =
 {
     if(self.wt_state == 1 && self.wt_fire > 0 && self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage &&
        other != self.owner)
     {
-        VR_WallTorch_Ignite(other, VR_Throw_Thrower(self), self.origin, self.velocity); // (yours, past the grace too)
+        VR_Burn_Ignite(other, VR_Throw_Thrower(self), self.origin, self.velocity, VR_BURN_BLOW); // (yours, past the grace too)
     }
     forcegrabbable_touch();
 };
@@ -710,7 +630,7 @@ float(float xHand) VR_WallTorch_Melee =
         }
         if(lit)
         {
-            VR_WallTorch_Ignite(trace_ent, self, org, v_forward);
+            VR_Burn_Ignite(trace_ent, self, org, v_forward, VR_BURN_BLOW);
             particle2(org, v_forward * -40, QVR_PARTICLE_PRESET_LAVASPIKE, 8);
         }
         return TRUE;

@@ -2259,6 +2259,8 @@ void hologramTestMessage()
     };
 }
 
+[[nodiscard]] za::Vector<Item> pageBurning();
+
 // Split from Carrying and Gibs: the wall torches you can take.
 [[nodiscard]] za::Vector<Item> pageWallTorches()
 {
@@ -2281,9 +2283,8 @@ void hologramTestMessage()
                   "it is out, a dropped torch burns up again; one out of blows goes on dying."),
         slider("Blow Damage", vr_walltorch_damage, 0.f, 40.f, 1.f, "%.0f").extend(0.f, 200.f)
             .help("A torch's blow, times the blow's strength (a gun's is 12, the axe's 20)."),
-        slider("Burn Damage", vr_walltorch_burn, 0.f, 20.f, 0.5f, "%.1f / s").extend(0.f, 100.f)
-            .help("A lit torch's blow sets what it hits burning: this much damage a second (monsters catch fire)."),
-        slider("Burn Time", vr_walltorch_burn_time, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f),
+        open("Burning", pageIndex(pageBurning))
+            .help("A lit torch's blow sets what it hits on fire: Combat > Burning (its damage, time and flames)."),
         toggle("Light Again", vr_walltorch_relight)
             .help("A dying or burnt-out torch held in another torch's flame (on a wall or in your other hand), in one of "
                   "the map's flames (braziers, flame balls) or dipped in lava lights again, as new."),
@@ -2292,6 +2293,45 @@ void hologramTestMessage()
         toggle("Taken Torch Casts Shadows", vr_walltorch_shadows)
             .help("A taken torch's light casts shadows (your hands and body, what is round you), whatever Graphics' Torch "
                   "Light Shadows says. Its brightness is the wall torch's: Graphics' Torch Light Brightness."),
+    };
+}
+
+// Combat > Burning (QC vr_burning.qc): what a lit torch, a thrown one or a lava nail sets on fire.
+[[nodiscard]] za::Vector<Item> pageBurning()
+{
+    return {
+        slider("Burn Damage", vr_burn_damage, 0.f, 20.f, 0.5f, "%.1f / s").extend(0.f, 100.f)
+            .help("A fire's damage a second, however many flames it has and however often it is lit again: it never "
+                  "stacks. 0: nothing alive is set on fire."),
+        slider("Burn Time", vr_burn_time, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
+            .help("How long a monster burns from the last hit that lit it (a hit while it burns starts it again)."),
+        slider("Flames Spread To", vr_burn_flames, 1.f, 10.f, 1.f, "%.0f").extend(1.f, 20.f)
+            .help("A fire starts as one flame where it was struck and spreads over the body, a smaller flame at a time, "
+                  "up to this many."),
+        slider("Most Flames", vr_burn_flames_max, 1.f, 12.f, 1.f, "%.0f").extend(1.f, 30.f)
+            .help("More hits add a flame each (a few a second at most), up to this many on one body. The damage stays "
+                  "one fire's."),
+        slider("Spread Time", vr_burn_spread, 0.1f, 3.f, 0.1f, "%.1f s").extend(0.05f, 10.f)
+            .help("Time between flames spreading."),
+        slider("Flame Size", vr_burn_flame_size, 0.2f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 4.f)
+            .help("The first flame's size (id's small flame: 1)."),
+        slider("Spread Flames' Size", vr_burn_flame_small, 0.2f, 1.f, 0.05f, "%.2fx").extend(0.05f, 2.f)
+            .help("The other flames' size, times the first's (each a little more or less)."),
+        slider("Spread Flames' Lean", vr_burn_flame_tilt, 0.f, 30.f, 1.f, "%.0f deg").extend(0.f, 60.f)
+            .help("How far the other flames lean, at most; they stay upright. 0: all straight up."),
+        header("Corpses"),
+        toggle("Corpses Burn", vr_burn_corpses)
+            .help("Corpses catch fire too, and a monster that dies burning burns on as a corpse. Corpses are the ones "
+                  "Gibs and Corpses' Gib Corpses keeps."),
+        slider("Corpse Burn Time", vr_burn_corpse_time, 0.f, 30.f, 0.5f, "%.1f s").extend(0.f, 120.f),
+        slider("Corpse Burn Damage", vr_burn_corpse_damage, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 10.f)
+            .help("A burning corpse's damage, times Burn Damage: enough of it gibs it (Corpse Health). 0: it just burns."),
+        header("What Sets Things on Fire"),
+        toggle("Torch Touch", vr_burn_touch)
+            .help("A lit torch, held or thrown, sets a monster or a corpse on fire just by touching it: no blow needed. "
+                  "Off: a lit torch's blow, or one thrown into it."),
+        toggle("Lava Nails", vr_burn_lava_nails)
+            .help("Your lava nails (the nailgun's and super nailgun's lava ammo) set what they hit on fire."),
     };
 }
 
@@ -2930,6 +2970,14 @@ za::Vector<Item> pageDebugTools()
         command("Pass Through the Body", "vr_smallgibs_test 10").help("vr_smallgibs_test 10: one from just behind the monster through it at 300 u/s, with the grace and without."),
         command("Throw Gibs at a Wall", "vr_smallgibs_test 12").help("vr_smallgibs_test 12: a gib and a small gib thrown at 220 u/s into the nearest wall stick (Thrown Gibs Stick 1 for it), a gib at 400 bursts."),
         command("List Small Gibs", "vr_smallgibs_test 11").help("vr_smallgibs_test 11: how many lie about, their size, how many are rigid bodies, asleep, stuck, held."),
+        header("Burning Tests (developer 1: burning: ...)"),
+        command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
+            .help("vr_burn_test 1: the nearest monster or corpse set on fire as a lit torch's blow would, where it faces you "
+                  "(A Grunt Ahead, A Grunt's Corpse Ahead above). Again: a flame more, the same damage."),
+        command("Set It on Fire (a Lava Nail)", "vr_burn_test 2"),
+        command("Set It on Fire (a Touch)", "vr_burn_test 3"),
+        command("Load Lava Nails", "vr_burn_test 5").help("vr_burn_test 5: the nailgun or super nailgun in the main hand loaded with lava nails (impulse 156 or 157 gives one)."),
+        command("How It Burns", "vr_burn_test 4").help("vr_burn_test 4: the nearest monster or corpse: where, its health, its flames and the time it burns yet."),
         header("VR Calibration"),
         command("Run the Calibration Here", "vr_setup here")
             .help("vr_setup here: VR Calibration's steps (height, body, main hand) in this map, now."),
@@ -3741,6 +3789,7 @@ const Page pages[] = {
     {"Weapon Offsets - Effects", pageWofsEffects, pageWeaponOffsets},              // 91
     {"Weapon Offsets - Flashlight", pageWofsFlashlight, pageWeaponOffsets},        // 92
     {"Small Gibs", pageSmallGibs, pageGore},                                       // 93
+    {"Burning", pageBurning, pageCombat},                                          // 94
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -3939,6 +3988,9 @@ za::Vector<Item> pageCombat()
             .help("Grunts and enforcers shove you away when you stand too close: how close, how soon, how hard."),
         open("Bullet Time", pageIndex(pageBulletTime))
             .help("The wrist gadget's button slows the world for as long as its meter lasts; Sandevistan; its look."),
+        open("Burning", pageIndex(pageBurning))
+            .help("What lit torches and lava nails set on fire: the damage (it never stacks), how long, the flames, "
+                  "corpses, setting things on fire by touch."),
     };
 }
 
