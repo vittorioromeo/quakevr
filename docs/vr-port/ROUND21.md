@@ -20716,3 +20716,66 @@ Test in VR:
 - [ ] Their size (half a rock to a rock), how they fly (Speed, Up), the cap and how long they last; pick one up and
   hold it past Last.
 - [ ] Gibs squish when they land and stick; throw a gib or a small gib into a wall at a medium speed: it sticks.
+
+## Burning: flames spreading over the body, corpses, touch, lava nails (2026-10-02)
+
+The author's notes (`vrfiringrange_2026-10-02_16-01-15`, `_16-03-56`; part 1 of 2): one flame on a burning monster is
+too little: a first flame where it was hit and smaller ones spreading over the body, a little turned but upright;
+corpses burn too (a torch's blow); a checkbox to set monsters and corpses on fire by just touching them with a torch
+held or thrown; lava nails set things on fire; it never stacks (hits may add flames up to a limit, the damage over time
+stays the same); everything tunable in a Burning menu under Combat; burn marks on what burns. Part 2 (later): crates
+catching fire and spreading it, burning crates breaking, normal nails through a torch's flame becoming lava nails.
+
+**What it does.** `QC/vr_burning.qc` (the burning that was in `vr_walltorch.qc` moved there and grown). A lit torch's
+blow, a thrown lit torch, your lava nails (`lavaspike_touch`, `superlavaspike_touch`: `vr_burn_lava_nails`) and, with
+`vr_burn_touch`, a lit torch's head touching a monster or a corpse (every 0.1 s in `VR_WallTorch_Think`, held, thrown or
+lying: its model as drawn, a ball of 8 units round the head) call `VR_Burn_Ignite`. What burns: a monster or a player
+alive, or (`vr_burn_corpses`) a monster's corpse, dying or lying (`vr_corpse`/`vr_corpse_dying`: Gib Corpses keeps
+them); fireproof as before (lava and water dwellers, bosses; the training dummy burns). Its fire (a `vr_burn`, the
+damage's inflictor) starts as one flame where it was struck (id's small flame, `progs/flame2.mdl`, `vr_burn_flame_size`
+0.8), a smaller one (`vr_burn_flame_small` 0.7x, each 0.8-1.2 of that) spreading a hand's width from one of its flames
+every `vr_burn_spread` 0.5 s up to `vr_burn_flames` 4, leaning up to `vr_burn_flame_tilt` 12 degrees; a hit while it
+burns adds one (at most one each 0.3 s: a super nailgun's stream) up to `vr_burn_flames_max` 7, and starts its time
+again (never longer than one lighting's: `vr_burn_time` 3 s from the last hit, `vr_burn_corpse_time` 8 s for a
+corpse). Its damage never stacks: `vr_burn_damage` 4 a second, every 0.5 s, whatever its flames or hits; a corpse
+takes `vr_burn_corpse_damage` (0: none) of it (its gib health). A monster dying burning burns on as a corpse (its time
+at least the corpse's). Flames sit on the model as drawn (`hitmodel_any`: standing, met level from outside towards
+its middle; lying, from above; missed, tried nearer its drawn middle with a fatter line), kept in the body's yaw axes
+and fitted again every 0.25 s (0.15 s dead: it falls); they grow in over 0.3 s and shrink away over 0.5 s at the end.
+Out in water (wound level 2), gibbed (its model changed), removed. Each damage tick paints a burn under every flame
+(`QVR_WOUND_BURN` with extra 1: a burn alone, no wound under it: `vr_wounds.cpp`), a little jittered and wider the
+longer it burns (the wounds' burn look, as lava and lava nails paint on you); a blow still scorches where it struck.
+The fire's own damage no longer paints through `VR_Wound_Hit` (it would bleed under every tick).
+
+**Lights.** Only the first flame lights the body: the others are sent with `alpha 1` (drawn as ever, opaque, but no
+longer "default"), which `vr_emissive.cpp` takes as a flame with no light of its own. A moving flame's light now follows
+it (it stayed where it was first seen: a burning monster walking away left its light behind).
+
+**Menu.** Combat > Burning: Burn Damage, Burn Time, Flames Spread To, Most Flames, Spread Time, Flame Size, Spread
+Flames' Size, Spread Flames' Lean; Corpses: Corpses Burn, Corpse Burn Time, Corpse Burn Damage; What Sets Things on
+Fire: Torch Touch (off), Lava Nails (on). Wall Torches' Burn Damage and Burn Time rows became a link to it; their cvars
+`vr_walltorch_burn` and `vr_walltorch_burn_time` are now `vr_burn_damage` and `vr_burn_time` (his values were the
+defaults, 4 and 3). Debug > Burning Tests: `vr_burn_test 1` / `2` / `3` set the nearest monster or corpse on fire as a
+blow, a lava nail or a touch would; `4` prints how it burns; `5` loads lava nails in the main hand's nailgun (no reload).
+
+**Verification** (mock headset; the kit's `scratch/burn_*.sh`):
+- **No stacking** (e1m1, a grunt; `vr_burn_test 1` and `2` seven times in 3.5 s): flames 1, 2, 3 (spread), 4..7 (hits),
+  then capped at 7; every tick `burns for 2` (health 30, 28, ... 2), whatever the flames; it died burning and burnt on
+  as a corpse.
+- **Corpse** (`vr_test_spawn_dead 1`, lying still): flames 1-4 "on it" over the lying body (from above), out after
+  8 s; the corpse's region of the screen 20% darker after (burns). Before the fallback nearer the middle a flame aimed at
+  the box's edge past a lying body's end sat off it.
+- **Touch** (e1m2, torch 52 in the main hand, `vr_burn_touch 1`, the hand put into the ogre by `vr_mock_hand_to`):
+  `monster_ogre lit (a touch)`, then the hand moved back made a blow (`lit (a blow)`, 200 -> 172); with the damage
+  raised it died burning and its corpse caught again from the torch (`lit (a touch)` on the corpse).
+- **Lava nails** (vrfiringrange, `impulse 156`, `vr_burn_test 5`, a grunt 46 ahead): `lava_spike hit monster_army`,
+  `lit (a missile)`; the next nail 0.1 s later added no flame (the 0.3 s gap); the second nail killed him and he burnt on as a corpse.
+- **Lights** (`vr_debug_torch_lights 1`, a grunt with 4 flames): one torch light, following him.
+- `vr_menu_path_check maps/vrcalibration.map`: 0 missing. eval: 171/177, the same two differences from the baseline as
+  the round's base commit (no_hit_wiggling, slash_horizontal_rtl).
+- Not driven by the mock: a torch's blow on a corpse (`VR_Corpse_StrikeFrame`: a lit torch sets it on fire) and a thrown
+  torch (unchanged but for the call).
+
+**For the author in VR:** hit a grunt with a lit torch and watch the flames spread (Flame Size, Spread Flames' Size,
+Spread Time to taste); burn a corpse; turn on Torch Touch and brush a monster; fire lava nails. Does a dying monster's
+flames follow its fall well enough?

@@ -1429,7 +1429,7 @@ main grip 1`, then the hand back 10 cm), 53 (2134 -34 316: force grab it from `s
 grip; the mock's trigger button doesn't lock on here, `+attack` does) and 156 (2134 -474 316). `vr_rigid_place 53 main 0
 0 0` then the grip puts a lying torch back in the hand. `developer 1` prints `walltorch: ...` (gripped, pulled out,
 blow n of 5, dying at t, out at t, taken again, lit again) and `wall torch: its wall's crackle ... silenced` (with
-`-Sound`); `vr_debug_shots 1` the blows and `by vr_torch_burn`; `vr_debug_torch_lights 1` every torch light (radius,
+`-Sound`); `vr_debug_shots 1` the blows and `by vr_burn` (its fire: Burning below); `vr_debug_torch_lights 1` every torch light (radius,
 colour, taken, shadowed). A monster to strike: `vr_test_spawn 0; vr_test_spawn_dist 34; impulse 241`; `god; notarget`
 and `gl_cshiftpercent 0` keep the screenshots clear of its shots. The scratchpad's `torches/go.sh <script> <out.png>`
 runs a multi-line script file. Two torches in hand: `vr_walltorch_pull 0` (the grip alone takes one), 52 by the main
@@ -1437,6 +1437,14 @@ hand as above, then `vr_rigid_place 53 off 0 0 0; +graboff; vr_mock_button off g
 hand); let go of with `vr_walltorch_die_time 0.3` it goes out; taken again the same way and held at `0.2 1.3 -0.4 70 0 0`
 (the main at `0.2 1.2 -0.4`), `developer 1` prints `walltorch: lit again from a burning torch` (the kit's
 `scratch/heldphys/torch.sh`).
+Burning (ROUND21.md, "Burning: flames spreading over the body ..."): `developer 1` prints `burning: <class>: flame n at
+<where> (on it | off it, scale s)`, `lit (a blow | a touch | a missile) by <who>: burns till <t>, n flames`, `burns for
+<damage> (n flames, health h)`, `died burning`, `out (<why>)`. `vr_burn_test 1|2|3` sets the nearest monster or corpse on
+fire as a blow, a lava nail or a touch would; `4` prints how it burns; `5` loads lava nails in the main hand's nailgun
+(`impulse 9; impulse 156; wait60`, then `vr_burn_test 5` and `+attack`). A corpse: `vr_test_spawn 0;
+vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait5; vr_test_spawn_dead 0` (the wait: the impulse runs next
+frame). Touch: e1m2's torch 52 in the main hand (as above), `setpos 1740 -175 290 0 30 0; vr_burn_touch 1;
+vr_mock_hand_to main 1775 -150 320` puts it in the ogre. The kit's `scratch/burn_torch2.sh`, `burn_lava.sh`.
 Hands and weapons as bodies (ROUND21.md): `vr_debug_box3d 1` prints each reach body made (`main hand's reach body:
 weapon at ... (its box), the palm facing ...`) and each swing's strike (`... strikes 199 ogre_grenade at 235 u/s: 340
 u/s after`); `2` each frame's move and each contact. A palm turned up: the main hand `vr_mock_hand main 0.1 1.2 -0.45 0
