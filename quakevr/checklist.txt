@@ -124,6 +124,9 @@ Slash a grunt twice quickly: the second swing bursts the first swing's small gib
 Quetoo maps are on by default (no console): your walls look as with your downloaded folder
 Debug > Views > External Maps A/B by a lamp: Quetoo's maps vs ours
 
+Stand on a grunt and kill it with a blow and with the shotgun at your feet, gibbed and not gibbed: no damage from its backpack or gun
+A monster's backpack falling on you from a ledge still hurts; a drop you throw still hurts
+
 [Decide or give feedback]
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?
