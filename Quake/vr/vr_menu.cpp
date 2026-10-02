@@ -960,6 +960,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
                   "but makes no sound or sparks, opens no new counter window (the first one runs on) and costs no "
                   "stamina: one parry for an attack of quick hits (the ogre's chainsaw, a knight's swing). Its next "
                   "attack is a full parry again. 0: every blow a full parry."),
+        toggle("Parry Cooldown: Whole Attack", vr_parry_cooldown_attack).extend()
+            .help("Every blow of the attack whose blow you last parried is a cooldown blow, however long between them "
+                  "(a fiend's two claws, the Overlord's double smash, a shambler's chained swings): one parry and one "
+                  "stamina cost per attack. Off: only the Parry Cooldown's time."),
         header("Bash and Shove"),
         toggle("Bash", vr_bash).help("The parry stance (a weapon level across in front, one hand or two) pushed straight forward bashes: knocks monsters back and staggers them. Open palms facing a monster pushed at it shove it. Two hands (a weapon held two-handed, a palm pushing on the blade, both palms) push harder and further."),
         slider("Bash Speed", vr_bash_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend().help("How fast the stance (a weapon level across, held half a second) must be pushed forward, both its ends going ahead. A swing passing through the stance doesn't bash."),
@@ -2811,7 +2815,7 @@ za::Vector<Item> pageDebugTests()
             {{0.f, "Grunt"}, {1.f, "Ogre"}, {2.f, "Zombie"}, {3.f, "Shambler"}, {4.f, "Scrag"}, {5.f, "Knight"},
              {6.f, "Hell Knight"}, {7.f, "Dog"}, {8.f, "Enforcer"}, {9.f, "Fiend"}, {10.f, "Vore"}, {11.f, "Spawn"},
              {12.f, "Gremlin"}, {13.f, "Centroid"}, {14.f, "Mummy"}, {15.f, "Phantom Swordsman"}, {16.f, "Wrath"},
-             {17.f, "Overlord"}, {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
+             {17.f, "Overlord"}, {18.f, "Guardian"}, {19.f, "Dragon"}, {20.f, "Marksman Ogre"}, {100.f, "Health Box"}, {101.f, "Shells Box"}, {102.f, "Explosive Box"},
              {103.f, "Small Explosive Box"}, {104.f, "Explosive Box (Never Blows Up)"}, {105.f, "Ogre's Head"},
              {106.f, "Gib"}, {107.f, "Small Crate"}, {108.f, "Large Crate"}, {109.f, "Two Crates Stacked"}})
             .help("What Put It There puts ahead of you, facing you. The mission packs' monsters need their game installed."),

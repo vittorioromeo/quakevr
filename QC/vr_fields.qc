@@ -199,6 +199,8 @@
 // ----------------------------------------------------------------------------
 
 .float vr_parry_last;    // (a monster) when a blow of its was last parried: within vr_parry_cooldown, no new parry (VR_Parry)
+.float vr_melee_begun;   // (a monster) when its melee attack running began (its th_melee called; 0: none, ai_run clears it):
+                         // a blow of the attack its last parried blow was in is no new parry (VR_Parry, vr_parry_cooldown_attack)
 .float vr_throw_self;    // a thing a player threw hard (his: .owner): 1 sparing him until vr_throw_self_at; 2 past it,
                          // .owner given up (it meets him) and the throw still his (VR_Throw_Thrower: .carry_letgo)
 .float vr_throw_self_at; // when it can hurt its thrower (vr_throw_self_grace after the throw)

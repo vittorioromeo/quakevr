@@ -131,6 +131,7 @@ float cvarh_vr_bash_damage;
 float cvarh_vr_bash_push;
 float cvarh_vr_bash_sound;
 float cvarh_vr_parry_cooldown;
+float cvarh_vr_parry_cooldown_attack;
 float cvarh_vr_bash_deflect_radius;
 float cvarh_vr_bash_deflect_window;
 float cvarh_vr_sword_damage_mult;
@@ -474,6 +475,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_bash_push);
     VR_CVAR_HMAKE(vr_bash_sound);
     VR_CVAR_HMAKE(vr_parry_cooldown);
+    VR_CVAR_HMAKE(vr_parry_cooldown_attack);
     VR_CVAR_HMAKE(vr_bash_deflect_radius);
     VR_CVAR_HMAKE(vr_bash_deflect_window);
     VR_CVAR_HMAKE(vr_sword_damage_mult);
