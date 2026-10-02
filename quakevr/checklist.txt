@@ -120,7 +120,12 @@ Wall torch: punch it with a closed fist: a blow, not a grab
 Two-handed gib throws from chest height, forward and upward: the gib never bursts in your hands
 Toss a gib up with one hand, punch it with the other after ~0.2 s: it still bursts
 
+Burning crates: light a row of touching crates: fire spreads one after another, each breaks after ~10 s (Combat > Burning > Crates)
+Burning crates: charred burn marks under the flames
+Nails through a torch flame: hold a torch just past the nailgun's muzzle and fire: lava nails that set targets on fire (Nail Reach 10 easy enough?)
+
 [Decide or give feedback]
+Explosive boxes catching fire and blowing up from it: add?
 Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): vr_melee_speed a server rule or personal?
