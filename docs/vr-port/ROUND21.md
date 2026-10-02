@@ -19665,3 +19665,14 @@ spectator camera, turning with the head.
   view: the ghosts gone; a still head, the image drawn anew (`vr_spectator_rate 1`) and shown again
   (`vr_spectator_rate 60`): the same (mean difference 0.003 of 255 over the hands' part); 150 and 160 degrees drawn
   in vrfiringrange and e1m1.
+
+## Head-locked text out of the recording (2026-10-02)
+
+- The text that follows the head (centre prints and notify lines on the canvas's head panel, `panel::drawHud`) is
+  left out of the window's view, the headset unchanged: `vr_spectator_hide_hud_text` (1: hidden from the spectator
+  camera, for trailers) and `vr_mirror_hide_hud_text` (0; the mirrored eye's own UI pass, Left Eye and Smoothed
+  Mirror; in the Left Eye view it also drops the window's flat copy of the in-game canvas, which then holds only that
+  text). Menus, the console, the lasers, the hand's status bar and the wrist gadget stay. VR Settings > Graphics >
+  Recording (Window View): "Hide Head Text on the Mirror", "Hide Head Text on the Spectator Camera".
+- Tested: e1m1 with `vr_notify_wrist 0` and notify lines up, the window's screenshot in each view with the option
+  on and off: spectator, Left Eye and Smoothed Mirror show the text with it off and none with it on.
