@@ -1171,6 +1171,7 @@ NOISE_FUNCTIONS
 "	vec4	Wound; // QVR: wounds painted on it (vr/vr_wounds.cpp): x its mask's layer + 1 (0 none), yz the mask's size in texels, w the time\n"\
 "	vec4	WoundSide; // QVR: (vr/vr_wounds.cpp) xy the bones of its right side (bits 0..23, 24..47, as whole numbers: your body's mask is one a side), z painting only side z - 1 (0: all), w the blood's opacity\n"\
 "	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own)\n"\
+"	vec4	RetroPart; // QVR: your body's parts by bone (vr/vr_retro.cpp bodyParts): xy the low bits of bones 0..23, 24..47, zw the high bits\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1293,6 +1294,7 @@ QVR_ALIAS_VS_SHADE // QVR: the model's light direction and shade (vr_model_light
 "	uint overbright = floatBitsToUint(Fog.w) >> 31;\n"
 "	out_color.rgb = ldexp(out_color.rgb, ivec3(overbright));\n"
 QVR_ALIAS_VS_WOUNDSIDE // QVR: which side's wound mask it reads (your body's: one a side, vr/vr_wounds.cpp)
+QVR_ALIAS_VS_RETRO // QVR: its retro textures' set (your body's: by part, vr/vr_retro.cpp)
 "#ifdef WOUNDPAINT // QVR: drawn into its wound mask (vr/vr_wounds.cpp), laid out by the skin's coordinates\n"
 "	gl_Position = vec4(in_uv * 2.0 - 1.0, 0.0, 1.0);\n"
 "	if (inst.WoundSide.z > 0.5 && abs(out_woundside - (inst.WoundSide.z - 1.0)) > 0.5) // the other side's: not in this layer\n"
@@ -1346,7 +1348,7 @@ QVR_ALIAS_FS_FUNCTIONS // QVR: per-pixel lights, normal maps, ambient, wounds, m
 "#else\n"
 QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights
 "	vec4 retro = instances[in_instance].Retro; // QVR: retro textures (vr_retro.h)\n"
-"	RetroBegin(retro.x, retro.y > 0.0 ? retro.yz : vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
+"	RetroBegin(in_retroset, retro.y > 0.0 ? retro.yz : vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
 "	vec4 result = Retro > 0 ? RetroSample(Tex, uv, duvdx, duvdy, true) : textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
 "#if ALPHATEST\n"

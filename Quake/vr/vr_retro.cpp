@@ -75,12 +75,22 @@ constexpr CategoryInfo categoryInfo[categoryCount] = {
     {"weapons", "Weapons in the World", "Weapons lying about: dropped, thrown, to pick up."},
     {"held", "Held Weapons", "The weapons in your hands and holsters."},
     {"monsters", "Monsters", "Monsters, their corpses, other players."},
-    {"body", "Your Body and Hands", "Your body, hands, the wrist gadget, the flashlight, pauldrons and pouches."},
+    {"hands", "Your Hands", "Your hands (the most detailed textures of you)."},
+    {"arms", "Your Arms", "Your body's arms, from the shoulders to the wrists."},
+    {"torso", "Your Torso", "Your body's torso, shoulders and neck."},
+    {"legs", "Your Legs", "Your body's legs and feet."},
+    {"gear", "Your Gear", "The wrist gadget, the flashlight, pauldrons, pouches, leg holsters."},
     {"other", "Other Models", "Everything else drawn with a texture: projectiles, torches and flames, ..."},
 };
 
 za::String names[categoryCount * paramCount];
 cvar_t cvars[categoryCount * paramCount];
+
+// Your Body and Hands (vr_retro_body<suffix>, before it was split into Hands, Arms, Torso, Legs and Gear): not archived,
+// kept so that a config that has them sets all five.
+constexpr Category bodySplit[] = {Category::Hands, Category::Arms, Category::Torso, Category::Legs, Category::Gear};
+za::String legacyNames[paramCount];
+cvar_t legacyBody[paramCount];
 
 // The block the shaders read (vr_retro.h's RetroUBO, std140).
 struct Block
@@ -348,7 +358,7 @@ void fillSet(int set, Category c, const Override* m, const Override* t)
     p2[0] = r(Param::Average) != 0.f ? 1.f : 0.f;
     p2[1] = r(Param::Units) != 0.f ? 1.f : 0.f;
     p2[2] = za::clamp(r(Param::Detail), 0.f, 1.f);
-    p2[3] = 0.f;
+    p2[3] = r(Param::On) != 0.f ? 0.f : 1.f; // off: a body part's set in a run (setRun) drawn as it was
 }
 
 // The sets made for overrides (after the categories'), each a category with a model's and a texture's overrides;
@@ -372,6 +382,16 @@ void upload()
     GL_Upload(GL_UNIFORM_BUFFER, &block, sizeof(block), &buf, &ofs);
     GL_BindBufferRange(GL_UNIFORM_BUFFER, QVR_RETRO_UBO_BINDING, buf, reinterpret_cast<GLintptr>(ofs),
         static_cast<GLsizeiptr>(sizeof(block)));
+}
+
+void sayFull()
+{
+    if(!combosFull)
+    {
+        combosFull = true;
+        Con_Printf("retro textures: more than %d overrides in sight; the rest drawn with their kind's settings\n",
+            QVR_RETRO_MAX_SETS - firstComboSet);
+    }
 }
 
 // The set for category c with those overrides (0: none, off).
@@ -399,18 +419,56 @@ void upload()
     }
     if(firstComboSet + static_cast<int>(combos.size()) >= QVR_RETRO_MAX_SETS)
     {
-        if(!combosFull)
-        {
-            combosFull = true;
-            Con_Printf("retro textures: more than %d overrides in sight; the rest drawn with their kind's settings\n",
-                QVR_RETRO_MAX_SETS - firstComboSet);
-        }
+        sayFull();
         return setOf(c);
     }
     combos.pushBack({c, m, t});
     const int set = firstComboSet + static_cast<int>(combos.size()) - 1;
     fillSet(set, c, m, t);
     upload(); // the draws still to come this view read it (bound again)
+    return set;
+}
+
+// The sets of categories first .. first + n - 1 with a model's override m, one after another (your body's parts: one
+// draw, each vertex adding its part to the first's set); without an override, or past the sets' end, the categories'
+// own (in the same order). A set whose On is off is marked so (fillSet): that part is drawn as it was.
+[[nodiscard]] int setRun(Category first, int n, const Override* m)
+{
+    if(!m)
+    {
+        return setOf(first);
+    }
+    if(combosGeneration != generation)
+    {
+        combos.clear();
+        combosGeneration = generation;
+    }
+    const int f = static_cast<int>(first);
+    for(za::SizeT i = 0; i + static_cast<za::SizeT>(n) <= combos.size(); i++)
+    {
+        bool match = true;
+        for(int k = 0; k < n && match; k++)
+        {
+            const Combo& co = combos[i + static_cast<za::SizeT>(k)];
+            match = co.c == static_cast<Category>(f + k) && co.m == m && co.t == nullptr;
+        }
+        if(match)
+        {
+            return firstComboSet + static_cast<int>(i);
+        }
+    }
+    if(firstComboSet + static_cast<int>(combos.size()) + n > QVR_RETRO_MAX_SETS)
+    {
+        sayFull();
+        return setOf(first);
+    }
+    const int set = firstComboSet + static_cast<int>(combos.size());
+    for(int k = 0; k < n; k++)
+    {
+        combos.pushBack({static_cast<Category>(f + k), m, nullptr});
+        fillSet(set + k, static_cast<Category>(f + k), m, nullptr);
+    }
+    upload();
     return set;
 }
 
@@ -448,8 +506,8 @@ template <za::SizeT N>
 }
 
 constexpr const char* gibPrefixes[] = {"gib1.", "gib2.", "gib3.", "zom_gib.", "statgib", "h_"};
-constexpr const char* bodyPrefixes[] = {"vrbody", "hand", "finger_", "vrgadget", "vrpauldron", "vrpouch", "legholster",
-    "vrflashlight"};
+constexpr const char* handPrefixes[] = {"hand", "finger_"};
+constexpr const char* gearPrefixes[] = {"vrgadget", "vrpauldron", "vrpouch", "legholster", "vrflashlight"};
 constexpr const char* propPrefixes[] = {"vr_crate", "vr_rock", "vr_brick", "vr_plank", "vr_shell", "vrtorch.", "lantern",
     "candle", "barrel"};
 // Quake's monsters, the mission packs' (hipnotic: scorpions, gremlins, the armagon; rogue: mummies, eels, lava men,
@@ -489,9 +547,17 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
     {
         return Category::Weapons;
     }
-    if(anyPrefix(f, bodyPrefixes))
+    if(startsWith(f, "vrbody"))
     {
-        return Category::Body;
+        return Category::Torso; // (by part: bodyParts)
+    }
+    if(anyPrefix(f, handPrefixes))
+    {
+        return Category::Hands;
+    }
+    if(anyPrefix(f, gearPrefixes))
+    {
+        return Category::Gear;
     }
     if(anyPrefix(f, propPrefixes))
     {
@@ -508,8 +574,8 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
     return Category::Other;
 }
 
-// An entity's category: its model's, but a weapon in your hands or holsters is Held, anything else of yours your
-// Body; a gib scaled down (the small gibs: vr_smallgibs.qc) a small gib.
+// An entity's category: its model's, but a weapon in your hands or holsters is Held, anything else of yours that is
+// not your body or hands your Gear; a gib scaled down (the small gibs: vr_smallgibs.qc) a small gib.
 [[nodiscard]] Category categoryOf(const entity_t* e)
 {
     if(e == &cl_entities[0])
@@ -519,7 +585,11 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
     const Category c = modelCategory(e->model);
     if(e->model->type == mod_alias && view::find(e) != nullptr)
     {
-        return c == Category::Weapons || c == Category::Held ? Category::Held : Category::Body;
+        if(c == Category::Weapons || c == Category::Held)
+        {
+            return Category::Held;
+        }
+        return c == Category::Torso || c == Category::Hands ? c : Category::Gear;
     }
     if(c == Category::Gibs && VR_EntityScale(e) < 0.8f)
     {
@@ -538,12 +608,88 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
     return overrideFor(e->model, false, e->model->name);
 }
 
-// The set an entity's textures are drawn with (0: none).
+// Your body's bones by their names (make_vrbody.py's, vr_avatar.cpp's jointNames): the hands' and wrists', the arms',
+// the legs'; the rest (pelvis, spine, chest, neck, head, clavicles) the torso's.
+constexpr const char* handBones[] = {"hand_", "wrist_", "finger", "thumb"};
+constexpr const char* armBones[] = {"upperarm_", "forearm_", "foretwist"};
+constexpr const char* legBones[] = {"thigh_", "calf_", "foot_", "toe"};
+
+[[nodiscard]] Category bonePart(const char* name)
+{
+    if(anyPrefix(name, handBones))
+    {
+        return Category::Hands;
+    }
+    if(anyPrefix(name, armBones))
+    {
+        return Category::Arms;
+    }
+    return anyPrefix(name, legBones) ? Category::Legs : Category::Torso;
+}
+
+// Your body's parts (progs/vrbody*, skinned): each bone's part (Hands .. Legs: 0 .. 3) as two bits, as InstanceData's
+// RetroPart has them: xy the low bits of bones 0..23 and 24..47, zw the high bits, as whole numbers (a vertex's part is
+// its heaviest bone's). False (all 0) for any other model, or a body without bones: drawn whole by its category.
+bool bodyParts(const qmodel_t* model, float out[4])
+{
+    out[0] = out[1] = out[2] = out[3] = 0.f;
+    if(!model || model->type != mod_alias || !startsWith(fileOf(model->name), "vrbody"))
+    {
+        return false;
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_IQM || hdr->numbones <= 0 || !hdr->boneinfo)
+    {
+        return false;
+    }
+    const auto* bones = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(hdr) + hdr->boneinfo);
+    za::U32 bits[4]{0u, 0u, 0u, 0u};
+    for(int i = 0; i < za::min(hdr->numbones, 48); i++)
+    {
+        const int part = static_cast<int>(bonePart(bones[i].name)) - static_cast<int>(Category::Hands);
+        if(part & 1)
+        {
+            bits[i / 24] |= 1u << (i % 24);
+        }
+        if(part & 2)
+        {
+            bits[2 + i / 24] |= 1u << (i % 24);
+        }
+    }
+    for(int k = 0; k < 4; k++)
+    {
+        out[k] = static_cast<float>(bits[k]);
+    }
+    return true;
+}
+
+[[nodiscard]] bool isBody(const entity_t* e)
+{
+    float unused[4];
+    return categoryOf(e) == Category::Torso && bodyParts(e->model, unused);
+}
+
+// Your body's sets: its parts' run (setRun), 0 when every part is off.
+[[nodiscard]] int bodySet(const Override* m)
+{
+    bool any = false;
+    for(int k = 0; k < bodyPartCount; k++)
+    {
+        any = any || resolve(static_cast<Category>(static_cast<int>(Category::Hands) + k), m, nullptr, Param::On) != 0.f;
+    }
+    return any ? setRun(Category::Hands, bodyPartCount, m) : 0;
+}
+
+// The set an entity's textures are drawn with (0: none; your body: the first of its parts' sets).
 [[nodiscard]] int entitySet(const entity_t* e)
 {
     if(!e || !e->model || !on())
     {
         return 0;
+    }
+    if(isBody(e))
+    {
+        return bodySet(modelOverride(e));
     }
     return setFor(categoryOf(e), modelOverride(e), nullptr);
 }
@@ -989,14 +1135,37 @@ void override_f()
     loadEditor();
 }
 
-// vr_retro_reset [category|all]: a category's settings (all: every one's) back to their defaults.
+void onLegacyBodyChanged(cvar_t* var)
+{
+    const int p = static_cast<int>(var - legacyBody);
+    for(Category c : bodySplit)
+    {
+        Cvar_SetQuick(&cvars[static_cast<int>(c) * paramCount + p], var->string);
+    }
+}
+
+[[nodiscard]] bool inBodySplit(int c)
+{
+    for(Category b : bodySplit)
+    {
+        if(static_cast<int>(b) == c)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// vr_retro_reset [category|body|all]: a category's settings (body: your hands', arms', torso's, legs' and gear's; all:
+// every one's) back to their defaults.
 void reset_f()
 {
     const char* which = Cmd_Argc() > 1 ? Cmd_Argv(1) : "all";
     bool any = false;
     for(int c = 0; c < categoryCount; c++)
     {
-        if(ZA_STRCMP(which, "all") != 0 && q_strcasecmp(which, categoryInfo[c].key) != 0)
+        if(ZA_STRCMP(which, "all") != 0 && q_strcasecmp(which, categoryInfo[c].key) != 0 &&
+            !(q_strcasecmp(which, "body") == 0 && inBodySplit(c)))
         {
             continue;
         }
@@ -1009,7 +1178,7 @@ void reset_f()
     }
     if(!any)
     {
-        Con_Printf("vr_retro_reset: no category \"%s\" (all, or one of:", which);
+        Con_Printf("vr_retro_reset: no category \"%s\" (all, body, or one of:", which);
         for(const CategoryInfo& ci : categoryInfo)
         {
             Con_Printf(" %s", ci.key);
@@ -1046,7 +1215,7 @@ void list_f()
         }
         const Category c = categoryOf(e);
         Con_Printf("%3d %-28s %-20s set %d%s  skin %gx%g  texture %dx%d  scale %.2f\n", i, e->model->name,
-            categoryInfo[static_cast<int>(c)].label, entitySet(e), modelOverride(e) ? " (override)" : "", w, h, tw, th,
+            isBody(e) ? "Your Body (by part)" : categoryInfo[static_cast<int>(c)].label, entitySet(e), modelOverride(e) ? " (override)" : "", w, h, tw, th,
             VR_EntityScale(e));
     }
 }
@@ -1059,7 +1228,193 @@ void reload_f()
         static_cast<int>(user.size()));
 }
 
+// ---- All Categories (Graphics > Retro Textures > All Categories): one set of values (vr_retro_all_<setting>, On's
+// vr_retro_all_on), which of them to apply (vr_retro_all_apply_<setting>) and to which categories
+// (vr_retro_all_to_<key>). Applying copies the checked settings to the checked categories' cvars; overrides untouched.
+za::String allNames[paramCount * 2 + categoryCount];
+cvar_t allValues[paramCount];
+cvar_t allApplies[paramCount];
+cvar_t allTargets[categoryCount];
+cvar_t allLive{"vr_retro_all_live", "0", CVAR_NONE}; // not archived: a config read at start-up never writes through
+cvar_t allFrom{"vr_retro_all_from", "0", CVAR_ARCHIVE};
+bool allCopying = false;       // copyFrom writing the values: not live
+za::String allSummaryText;
+
+// The checked settings (only setting `only`, if not -1) to the checked categories; how many cvars were written.
+int applyAll(int only)
+{
+    int written = 0;
+    for(int c = 0; c < categoryCount; c++)
+    {
+        if(allTargets[c].value == 0.f)
+        {
+            continue;
+        }
+        for(int p = 0; p < paramCount; p++)
+        {
+            if((only >= 0 && p != only) || allApplies[p].value == 0.f)
+            {
+                continue;
+            }
+            Cvar_SetQuick(&cvars[c * paramCount + p], allValues[p].string);
+            written++;
+        }
+    }
+    return written;
+}
+
+void copyFrom(int c)
+{
+    allCopying = true;
+    for(int p = 0; p < paramCount; p++)
+    {
+        Cvar_SetQuick(&allValues[p], cvars[c * paramCount + p].string);
+    }
+    allCopying = false;
+}
+
+void onAllValueChanged(cvar_t* var)
+{
+    if(allCopying || allLive.value == 0.f)
+    {
+        return;
+    }
+    applyAll(static_cast<int>(var - allValues));
+}
+
+[[nodiscard]] int checkedCount(const cvar_t* vars, int n)
+{
+    int count = 0;
+    for(int i = 0; i < n; i++)
+    {
+        count += vars[i].value != 0.f ? 1 : 0;
+    }
+    return count;
+}
+
+// vr_retro_all_apply: the checked settings of All Categories to the checked categories.
+void allApply_f()
+{
+    const int written = applyAll(-1);
+    Con_Printf("vr_retro_all_apply: %d settings to %d categories (%d values)\n", checkedCount(allApplies, paramCount),
+        checkedCount(allTargets, categoryCount), written);
+}
+
+// vr_retro_all_copy [category]: that category's values (none: vr_retro_all_from's) into All Categories' values.
+void allCopy_f()
+{
+    int c = za::clamp(static_cast<int>(allFrom.value), 0, categoryCount - 1);
+    if(Cmd_Argc() > 1)
+    {
+        c = -1;
+        for(int i = 0; i < categoryCount; i++)
+        {
+            if(q_strcasecmp(Cmd_Argv(1), categoryInfo[i].key) == 0)
+            {
+                c = i;
+            }
+        }
+        if(c < 0)
+        {
+            Con_Printf("vr_retro_all_copy: no category \"%s\"\n", Cmd_Argv(1));
+            return;
+        }
+    }
+    copyFrom(c);
+    Con_Printf("vr_retro_all_copy: the values of %s\n", categoryInfo[c].label);
+}
+
+void setAll(cvar_t* vars, int n, bool v)
+{
+    for(int i = 0; i < n; i++)
+    {
+        Cvar_SetValueQuick(&vars[i], v ? 1.f : 0.f);
+    }
+}
+
+void registerAll()
+{
+    for(int p = 0; p < paramCount; p++)
+    {
+        allNames[p * 2] = za::String("vr_retro_all_") + paramName(p);
+        allNames[p * 2 + 1] = za::String("vr_retro_all_apply_") + paramName(p);
+        allValues[p].name = allNames[p * 2].cStr();
+        allValues[p].string = paramInfo[p].def;
+        allValues[p].flags = CVAR_ARCHIVE;
+        allApplies[p].name = allNames[p * 2 + 1].cStr();
+        allApplies[p].string = p == static_cast<int>(Param::On) ? "0" : "1"; // the categories' switches: yours
+        allApplies[p].flags = CVAR_ARCHIVE;
+        Cvar_RegisterVariable(&allValues[p]);
+        Cvar_RegisterVariable(&allApplies[p]);
+        Cvar_SetCallback(&allValues[p], onAllValueChanged);
+    }
+    for(int c = 0; c < categoryCount; c++)
+    {
+        allNames[paramCount * 2 + c] = za::String("vr_retro_all_to_") + categoryInfo[c].key;
+        allTargets[c].name = allNames[paramCount * 2 + c].cStr();
+        allTargets[c].string = "1";
+        allTargets[c].flags = CVAR_ARCHIVE;
+        Cvar_RegisterVariable(&allTargets[c]);
+    }
+    Cvar_RegisterVariable(&allLive);
+    Cvar_RegisterVariable(&allFrom);
+    Cmd_AddCommand("vr_retro_all_apply", allApply_f);
+    Cmd_AddCommand("vr_retro_all_copy", allCopy_f);
+}
+
 } // namespace
+
+cvar_s& allValue(Param p)
+{
+    return allValues[static_cast<int>(p)];
+}
+
+cvar_s& allApply(Param p)
+{
+    return allApplies[static_cast<int>(p)];
+}
+
+cvar_s& allTarget(Category c)
+{
+    return allTargets[static_cast<int>(c)];
+}
+
+cvar_s& allLiveCvar()
+{
+    return allLive;
+}
+
+cvar_s& allFromCvar()
+{
+    return allFrom;
+}
+
+void allApplyNow()
+{
+    allApply_f();
+}
+
+void allCopyChosen()
+{
+    copyFrom(za::clamp(static_cast<int>(allFrom.value), 0, categoryCount - 1));
+}
+
+void allCheckSettings(bool on)
+{
+    setAll(allApplies, paramCount, on);
+}
+
+void allCheckCategories(bool on)
+{
+    setAll(allTargets, categoryCount, on);
+}
+
+const char* allSummary()
+{
+    allSummaryText = za::String{va("%d settings checked, %d categories checked%s", checkedCount(allApplies, paramCount),
+        checkedCount(allTargets, categoryCount), allLive.value != 0.f ? " (live)" : "")};
+    return allSummaryText.cStr();
+}
 
 cvar_t& cvarOf(Category c, Param p)
 {
@@ -1195,6 +1550,15 @@ void registerCvars()
     }
     for(int p = 0; p < paramCount; p++)
     {
+        legacyNames[p] = za::String("vr_retro_body") + paramInfo[p].suffix;
+        legacyBody[p].name = legacyNames[p].cStr();
+        legacyBody[p].string = paramInfo[p].def;
+        legacyBody[p].flags = CVAR_NONE;
+        Cvar_RegisterVariable(&legacyBody[p]);
+        Cvar_SetCallback(&legacyBody[p], onLegacyBodyChanged);
+    }
+    for(int p = 0; p < paramCount; p++)
+    {
         editNames[p * 2] = za::String("vr_retro_edit_") + paramName(p);
         editNames[p * 2 + 1] = editNames[p * 2] + "_mode";
         editValues[p].name = editNames[p * 2].cStr();
@@ -1215,6 +1579,7 @@ void registerCvars()
     Cmd_AddCommand("vr_retro_pick", pick_f);
     Cmd_AddCommand("vr_retro_override", override_f);
     Cmd_AddCommand("vr_retro_overrides_reload", reload_f);
+    registerAll();
 }
 
 } // namespace qvr::retro
@@ -1278,10 +1643,12 @@ extern "C" void VR_RetroInstance(entity_t* e, float out[4])
     out[1] = out[2] = out[3] = 0.f;
 }
 
-// VR_AliasInstance: the entity's set (0 none; none but in the standard draw) and its skin's Quake size.
-extern "C" void VR_RetroAlias(const entity_t* e, const void* aliashdr, int standard, float out[4])
+// VR_AliasInstance: the entity's set (0 none; none but in the standard draw) and its skin's Quake size; your body's
+// parts by bone (RetroPart: bodyParts).
+extern "C" void VR_RetroAlias(const entity_t* e, const void* aliashdr, int standard, float out[4], float part[4])
 {
     out[0] = out[1] = out[2] = out[3] = 0.f;
+    part[0] = part[1] = part[2] = part[3] = 0.f;
     if(!standard)
     {
         return;
@@ -1290,5 +1657,9 @@ extern "C" void VR_RetroAlias(const entity_t* e, const void* aliashdr, int stand
     if(out[0] > 0.f)
     {
         skinSize(static_cast<const aliashdr_t*>(aliashdr), e->skinnum, out[1], out[2]);
+        if(isBody(e))
+        {
+            bodyParts(e->model, part);
+        }
     }
 }

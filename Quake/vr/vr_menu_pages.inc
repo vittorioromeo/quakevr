@@ -667,6 +667,7 @@ void resetHandMoves()
 template <retro::Category C>
 [[nodiscard]] za::Vector<Item> pageRetroCategory();
 [[nodiscard]] za::Vector<Item> pageRetroOverride();
+[[nodiscard]] za::Vector<Item> pageRetroAll();
 
 [[nodiscard]] za::Vector<Item> pageGraphicsRetro()
 {
@@ -688,9 +689,16 @@ template <retro::Category C>
     kind(Category::Weapons, pageIndex(pageRetroCategory<Category::Weapons>));
     kind(Category::Held, pageIndex(pageRetroCategory<Category::Held>));
     kind(Category::Monsters, pageIndex(pageRetroCategory<Category::Monsters>));
-    kind(Category::Body, pageIndex(pageRetroCategory<Category::Body>));
+    kind(Category::Hands, pageIndex(pageRetroCategory<Category::Hands>));
+    kind(Category::Arms, pageIndex(pageRetroCategory<Category::Arms>));
+    kind(Category::Torso, pageIndex(pageRetroCategory<Category::Torso>));
+    kind(Category::Legs, pageIndex(pageRetroCategory<Category::Legs>));
+    kind(Category::Gear, pageIndex(pageRetroCategory<Category::Gear>));
     kind(Category::Other, pageIndex(pageRetroCategory<Category::Other>));
     items.pushBack(header("All Kinds"));
+    items.pushBack(open("All Categories", pageIndex(pageRetroAll))
+        .help("One set of values for every kind at once (or the ones you check), only the settings you check: a consistent "
+              "look to try. Copy From takes a kind's values to start from; Live writes each change as you make it."));
     items.pushBack(command("Reset All to Defaults", "vr_retro_reset all").help("vr_retro_reset all: every kind's settings back to their defaults."));
     items.pushBack(header("One Thing: Overrides"));
     items.pushBack(command("Pick: Point, 3 Seconds", "vr_retro_pick hand 3")
@@ -778,14 +786,13 @@ template <retro::Category C>
     return items;
 }
 
-// A retro textures category's settings (vr_retro.hpp's Param), the same on every kind's page.
-[[nodiscard]] za::Vector<Item> retroCategoryItems(retro::Category c, void (*reset)())
+// The retro textures settings after On (vr_retro.hpp's Param), each on the cvar var(p): a kind's page's and All
+// Categories'.
+template <typename Var>
+void retroSettingItems(za::Vector<Item>& items, const Var& var, bool detail)
 {
-    using retro::Category;
     using retro::Param;
-    const auto var = [c](Param p) -> cvar_t& { return retro::cvarOf(c, p); };
-    za::Vector<Item> items{
-        toggle(retro::categoryLabel(c), var(Param::On)).help("Retro textures on these (with Graphics > Retro Textures on)."),
+    const Item rows[] = {
         header("Blocks"),
         toggle("Snap to Blocks", var(Param::Snap))
             .help("The texture is read on a grid of blocks, each one colour. Off: as it was (only the palette and dither below)."),
@@ -818,12 +825,29 @@ template <retro::Category C>
             .help("The bump and specular maps: 0 smooth (the high-resolution ones), 1 snapped to the same blocks as the "
                   "colour, between: a blend."),
     };
-    if(c == Category::World || c == Category::Brush || c == Category::Items || c == Category::Props) // brush models
+    for(const Item& i : rows)
+    {
+        items.pushBack(i);
+    }
+    if(detail)
     {
         items.pushBack(slider("Detail Textures", var(Param::Detail), 0.f, 1.f, 0.05f, "%.2f")
             .help("How much of the detail textures' fine grain (Graphics > Surfaces) stays on these: 0 none (flat blocks, as "
                   "Quake), 1 all of it. Brush models only (the boxes among Item Pickups and Props)."));
     }
+}
+
+// A retro textures category's settings (vr_retro.hpp's Param), the same on every kind's page.
+[[nodiscard]] za::Vector<Item> retroCategoryItems(retro::Category c, void (*reset)())
+{
+    using retro::Category;
+    using retro::Param;
+    const auto var = [c](Param p) -> cvar_t& { return retro::cvarOf(c, p); };
+    za::Vector<Item> items{
+        toggle(retro::categoryLabel(c), var(Param::On)).help("Retro textures on these (with Graphics > Retro Textures on)."),
+    };
+    retroSettingItems(items, var,
+        c == Category::World || c == Category::Brush || c == Category::Items || c == Category::Props); // brush models
     items.pushBack(action("Reset to Defaults", reset).help("This kind's settings back to their defaults (vr_retro_reset <kind>)."));
     return items;
 }
@@ -838,6 +862,91 @@ template <retro::Category C>
 za::Vector<Item> pageRetroCategory()
 {
     return retroCategoryItems(C, retroResetCategory<C>);
+}
+
+void retroAllCheckSettings()
+{
+    retro::allCheckSettings(true);
+}
+
+void retroAllUncheckSettings()
+{
+    retro::allCheckSettings(false);
+}
+
+void retroAllCheckCategories()
+{
+    retro::allCheckCategories(true);
+}
+
+void retroAllUncheckCategories()
+{
+    retro::allCheckCategories(false);
+}
+
+// Graphics > Retro Textures > All Categories (vr_retro.hpp's "All Categories"): one set of values, the settings of it to
+// apply and the kinds to apply them to. Per-object overrides are untouched.
+[[nodiscard]] za::Vector<Item> pageRetroAll()
+{
+    using retro::Category;
+    using retro::Param;
+    za::Vector<Choice> kinds;
+    for(int c = 0; c < retro::categoryCount; c++)
+    {
+        kinds.pushBack({static_cast<float>(c), retro::categoryLabel(static_cast<Category>(c))});
+    }
+    za::Vector<Item> items{
+        info(retro::allSummary),
+        action("Apply to Checked Categories", retro::allApplyNow)
+            .help("Writes the checked settings below (Apply These Settings) to every checked kind (To These Categories). The "
+                  "kinds' pages show the result; per-object overrides stay. vr_retro_all_apply."),
+        toggle("Live", retro::allLiveCvar())
+            .help("While on, each change to a checked setting below is written to the checked kinds as you make it. Off "
+                  "again each time the game starts (vr_retro_all_live)."),
+        cycle("Copy From", retro::allFromCvar(), kinds).help("The kind whose values Copy Its Values takes."),
+        action("Copy Its Values", retro::allCopyChosen)
+            .help("The values below become that kind's (a starting point); nothing is applied (vr_retro_all_copy <kind>)."),
+        header("Values"),
+        toggle("On", retro::allValue(Param::On))
+            .help("The kinds' own switches (unchecked by default under Apply These Settings, so your kinds stay on or off)."),
+    };
+    retroSettingItems(items, [](Param p) -> cvar_t& { return retro::allValue(p); }, true);
+    struct Row
+    {
+        Param p;
+        const char* label;
+    };
+    const Row rows[] = {
+        {Param::On, "On"},
+        {Param::Snap, "Snap"},
+        {Param::Block, "Block Size"},
+        {Param::Units, "Block Size In (Units)"},
+        {Param::Average, "Block Colour (Average)"},
+        {Param::Soft, "Edge Softness"},
+        {Param::Fade, "Smooth Beyond"},
+        {Param::Palette, "Quake Palette"},
+        {Param::Dither, "Dither"},
+        {Param::DitherScale, "Dither Size"},
+        {Param::Bump, "Bumps"},
+        {Param::Detail, "Detail Textures"},
+    };
+    items.pushBack(header("Apply These Settings"));
+    for(const Row& r : rows)
+    {
+        items.pushBack(toggle(r.label, retro::allApply(r.p)).help("Checked: Apply (and Live) write this setting; unchecked: the kinds keep theirs."));
+    }
+    items.pushBack(action("Check All Settings", retroAllCheckSettings));
+    items.pushBack(action("Uncheck All Settings", retroAllUncheckSettings));
+    items.pushBack(header("To These Categories"));
+    for(int c = 0; c < retro::categoryCount; c++)
+    {
+        items.pushBack(toggle(retro::categoryLabel(static_cast<Category>(c)), retro::allTarget(static_cast<Category>(c)))
+            .help(retro::categoryHelp(static_cast<Category>(c))));
+    }
+    items.pushBack(action("Check All Categories", retroAllCheckCategories));
+    items.pushBack(action("Uncheck All Categories", retroAllUncheckCategories));
+    items.pushBack(action("Apply to Checked Categories", retro::allApplyNow).help("As at the top."));
+    return items;
 }
 
 // Graphics: water, slime and lava.

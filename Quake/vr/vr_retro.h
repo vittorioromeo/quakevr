@@ -43,7 +43,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //       again (it starts fading at half that), w 1 snapping (0: the texture as it was, only the palette and dither)
 //   P1: x palette strength (0..1), y dither strength, z dither cell (blocks), w bumps (0 smooth, 1 the blocks')
 //   P2: x 1 block colour = the average under it (its mip level; 0 the texel at its centre), y 1 block size in world
-//       units (0: in the texture's own texels), z how much of the detail textures' grain stays (vr_detail), w unused
+//       units (0: in the texture's own texels), z how much of the detail textures' grain stays (vr_detail), w 1: off (a
+//       part of your body whose category is off: one draw, a set a part)
 //
 // RetroBegin picks the pixel's set (Retro, 0 none) and its grid; RetroSample reads a texture through it (colour,
 // palette with quant), RetroAux a bump or specular map (blended by P1.w). Derivatives come from the caller (taken
@@ -69,6 +70,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "{\n" \
 "	int s = int(set + 0.5);\n" \
 "	if (s <= 0 || s >= 64 || RetroInfo.x <= 0.0 || lq.x <= 0.0 || lq.y <= 0.0)\n" \
+"		return;\n" \
+"	if (RetroSets[s * 3 + 2].w > 0.5) // off (a body part's set: vr_retro.cpp setRun)\n" \
 "		return;\n" \
 "	RetroP0 = RetroSets[s * 3];\n" \
 "	RetroP1 = RetroSets[s * 3 + 1];\n" \
