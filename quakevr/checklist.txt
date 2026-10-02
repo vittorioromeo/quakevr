@@ -70,7 +70,10 @@ Highlight markers for trailers: Graphics > Recording > Highlight Markers > Log H
 
 Rocks, bricks, crates, planks and crowbar: much deeper gritty relief, rocks/bricks/crowbar new full-colour skins (no visible texels up close; Debug > Tests > Thing > Rocks and Bricks); skins still match nearby walls? mossy rock green too saturated? brick creases look artificial? crowbar in hand under a light
 
+Slow-motion recording sound: Graphics > Recording > Slow Motion > Game-Time Sound File on, Log Highlights on, record a take at 0.25; in Resolve Change Clip Speed 400% with Pitch Correction off, put highlights/<log>_gametime.wav under it (aligned on the sync beep, docs/vr-port/TRAILER.md): sounds like normal play? headset sound unchanged?
+
 [Decide or give feedback]
+Live HRTF left/right balance jumps oddly at 2-8 kHz near straight ahead (found while measuring): investigate?
 Flashlight: a hand gripping as the returning lamp flies into it now catches it (new): OK?
 Wall buttons and parry: should the spawn's leap and the dragon be parriable? (included for consistency)
 Grunts' shotguns have no muzzle smoke: add it?
