@@ -101,6 +101,9 @@ Fresh config: weapon weights feel as you tuned them (axe 2.5, shotgun 3.5, sword
 Lightning gun: its new second hotspot
 Crowbar in the hip and chest holsters: your poses
 
+Blood on boxes: hit monsters with an ammo box, a health box and an explosive box: the side that hit gets bloody
+Blood on boxes: drop and pick up again: stays; water washes it; a box you never held stays clean
+
 [Decide or give feedback]
 Grappling hook: allow the flashlight to clip on it? (on now)
 Flashlight cord: make Chain the default?
