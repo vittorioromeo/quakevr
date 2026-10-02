@@ -1131,12 +1131,14 @@ QVR_CVAR(vr_smallgibs_size_min, "0.65", CVAR_ARCHIVE)       // their size: from 
 QVR_CVAR(vr_smallgibs_size_max, "1.15", CVAR_ARCHIVE)         // to this
 QVR_CVAR(vr_smallgibs_mass, "0.3", CVAR_ARCHIVE)           // kg each (light: thrown, they hurt little)
 QVR_CVAR(vr_smallgibs_grace, "0.1", CVAR_ARCHIVE)         // s they pass through the body they came from
+QVR_CVAR(vr_smallgibs_blow_grace, "0.3", CVAR_ARCHIVE)   // s after it is made a small gib isn't struck, nudged or pushed by a hand, a weapon or a held thing (the blow that tore it out batted it away)
 QVR_CVAR(vr_smallgibs_max, "64", CVAR_ARCHIVE)             // most lying about at once: the oldest go first (not one in a hand)
 QVR_CVAR(vr_smallgibs_time, "20", CVAR_ARCHIVE)            // s one lies about before it fades away (held, and until it lands again, it waits)
 QVR_CVAR(vr_smallgibs_destroy, "1", CVAR_ARCHIVE)          // they can be shot or struck to a mist (off: shots and blows pass them)
 QVR_CVAR(vr_gore_stick_thrown, "0.5", CVAR_ARCHIVE)        // a gib or head thrown into a wall or a ceiling (slower than vr_gib_splat_speed) sticks there: the chance (0 never)
 QVR_CVAR(vr_gore_stick_speed, "180", CVAR_ARCHIVE)         // units/s a gib must strike a wall or a ceiling at to stick (flung or thrown)
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
+QVR_CVAR(vr_smallgibs_trace, "0", CVAR_NONE)             // tests: 1 prints each small gib's first 2.5 s (sgibtrace: lines): where made, its speed, every jump in it, what hands, weapons and held things touch, nudge or strike it, how far it lay
 QVR_CVAR(vr_smallgibs_test_n, "0", CVAR_NONE)              // its tests: how many of each (0: 200)
 QVR_CVAR(vr_smallgibs_test_dmg, "0", CVAR_NONE)            // a blow's damage (0: 35)
 QVR_CVAR(vr_smallgibs_test_crowd, "0", CVAR_NONE)          // test 14: grunts (0: 24)
@@ -1430,6 +1432,7 @@ QVR_CVAR(vr_gib_throw_damage, "4", CVAR_ARCHIVE)      // and of a gib or head
 // vr_prop_impact_speed_max) and (mass / vr_prop_impact_weight_ref)^vr_prop_impact_weight_curve (at most _weight_max).
 QVR_CVAR(vr_prop_impact_damage, "1", CVAR_ARCHIVE)        // on
 QVR_CVAR(vr_prop_impact_players, "1", CVAR_ARCHIVE)       // 1: players too (never the one who just let go of it), 0: monsters only
+QVR_CVAR(vr_gib_spawn_harmless, "0.3", CVAR_ARCHIVE)      // s a gib, head or small gib just made can't hurt anyone as a flung prop (gibbing a body you stand on hurt you)
 QVR_CVAR(vr_prop_drop_grace, "0.5", CVAR_ARCHIVE)         // s a weapon or backpack a monster just dropped can't hurt players (vr_prop_impact_players)
 QVR_CVAR(vr_throw_self_grace, "0.35", CVAR_ARCHIVE)       // s after you throw or let go of a thing before it can hurt you (thrown up, falling back on you; 0: at once)
 QVR_CVAR(vr_prop_impact_min_mass, "1", CVAR_ARCHIVE)      // kg: lighter props never hurt so

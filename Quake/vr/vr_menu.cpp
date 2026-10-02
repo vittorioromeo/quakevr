@@ -1698,6 +1698,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Pass Through the Body", vr_smallgibs_grace, 0.f, 0.5f, 0.05f, "%.2f s").help("For this long they don't collide with the body they came from."),
         toggle("Not Pushed Out of Bodies", vr_smallgibs_pass_inside)
             .help("Still inside a monster, you, a hand or a blade after that (melee, the chainsaw), they pass through it until clear, not pushed out at 2 to 3 m/s."),
+        slider("Not Batted Away For", vr_smallgibs_blow_grace, 0.f, 1.f, 0.05f, "%.2f s")
+            .help("For this long after it is torn out, your hands, weapons and what they hold pass through a small gib: the blade that tore it out doesn't bat it away. After it you can bat it."),
         slider("Smallest", vr_smallgibs_size_min, 0.1f, 2.f, 0.05f, "%.2fx rock"),
         slider("Largest", vr_smallgibs_size_max, 0.1f, 2.f, 0.05f, "%.2fx rock"),
         slider("Mass", vr_smallgibs_mass, 0.05f, 5.f, 0.05f, "%.2f kg").help("Light: thrown, they hurt little."),
@@ -2078,6 +2080,9 @@ void hologramTestMessage()
         toggle("Flung Props Hurt Players", vr_prop_impact_players)
             .help("They hurt players too (never you as you let go of it, bat it or while your grapple holds it). Off: "
                   "monsters only."),
+        slider("Fresh Gibs Harmless For", vr_gib_spawn_harmless, 0.f, 2.f, 0.1f, "%.1f s")
+            .help("A gib, head or small gib just torn out can't hurt you or a monster as a flung prop for this long (gibbing a "
+                  "body you stand on). Thrown by you after it, it hurts as ever."),
         slider("Monster Drops Harmless For", vr_prop_drop_grace, 0.f, 2.f, 0.1f, "%.1f s")
             .help("A weapon or a backpack a monster drops as it dies can't hurt players for this long (it may land on "
                   "you); after it, as any flung prop."),
@@ -3101,6 +3106,14 @@ za::Vector<Item> pageDebugTools()
                   "blast among them 1 s on: what is left 3 s on; with Network Messages on (Debug), each frame the broadcast "
                   "was full."),
         command("List Small Gibs", "vr_smallgibs_test 11").help("vr_smallgibs_test 11: how many lie about, their size, how many are rigid bodies, asleep, stuck, held."),
+        command("Gib a Body Underfoot: a Blow", "vr_smallgibs_test 16")
+            .help("vr_smallgibs_test 16: the grunt or corpse nearest put under your feet and gibbed by your blow; 2 s on, the health you and the monsters near lost to its gibs (Fresh Gibs Harmless For; god off)."),
+        command("Gib a Body Underfoot: a Shot", "vr_smallgibs_test 17")
+            .help("vr_smallgibs_test 17: the same, gibbed by a super shotgun blast's damage."),
+        command("Throw a Gib Made 1 s Ago", "vr_smallgibs_test 18")
+            .help("vr_smallgibs_test 18: a gib made at your feet, thrown at the monster nearest 1 s later: it still hurts it."),
+        toggle("Trace Small Gibs", vr_smallgibs_trace)
+            .help("vr_smallgibs_trace: each small gib's first 2.5 s in the console (sgibtrace:): where made, its speed and every jump in it, what touches, nudges or strikes it, how far it lay."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
             .help("vr_burn_test 1: the nearest monster, corpse or crate set on fire as a lit torch's blow would, where it faces you "

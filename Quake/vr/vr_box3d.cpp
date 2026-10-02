@@ -1863,6 +1863,77 @@ bool isSmallGib(edict_t* ent)
     return f >= 0 && fieldFloat(ent, f) > 0.f;
 }
 
+// A small gib's age (s since it was made: its QC .vr_sgib), -1 for anything else.
+[[nodiscard]] float smallGibAge(edict_t* ent)
+{
+    const int f = fields().vr_sgib;
+    const float made = f >= 0 ? fieldFloat(ent, f) : 0.f;
+    return made > 0.f ? static_cast<float>(qcvm->time - made) : -1.f;
+}
+
+// Whether entity `num` is a small gib just torn out (vr_smallgibs_blow_grace): the hands' and weapons' reach bodies and
+// held things pass through it (reachSkips, shouldCollide), as the QC's blows, nudges and batting do
+// (VR_SmallGib_BlowSpared): the blade that tore it out went on through it and batted it away.
+[[nodiscard]] bool smallGibSpared(int num)
+{
+    if(num <= svs.maxclients || num >= qcvm->num_edicts)
+    {
+        return false;
+    }
+    const float age = smallGibAge(EDICT_NUM(num));
+    return age >= 0.f && age < vr_smallgibs_blow_grace.value;
+}
+
+// vr_smallgibs_trace (tests; ROUND21.md, "Small gibs batted by the blade"): after each step, the bodies touching each small
+// gib in its first second that aren't the world's or other props': a hand's or a weapon's reach body, a fist, a held
+// thing, a monster, a player.
+void traceGibContacts()
+{
+    if(!vr_smallgibs_trace.value)
+    {
+        return;
+    }
+    const int idField = fields().vr_sgib_id;
+    za::Array<b3ContactData, 16> contacts;
+    for(int num = svs.maxclients + 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+    {
+        const Slot& s = world->slots[num];
+        if(s.kind != Kind::Prop || B3_IS_NULL(s.body))
+        {
+            continue;
+        }
+        edict_t* ent = EDICT_NUM(num);
+        const float age = smallGibAge(ent);
+        if(age < 0.f || age > 1.f)
+        {
+            continue;
+        }
+        const int count = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
+        for(int i = 0; i < count; i++)
+        {
+            const b3ContactData& c = contacts[i];
+            const bool isA = B3_ID_EQUALS(b3Shape_GetBody(c.shapeIdA), s.body);
+            const b3ShapeId other = isA ? c.shapeIdB : c.shapeIdA;
+            bool touching = false;
+            for(int m = 0; m < c.manifoldCount; m++)
+            {
+                touching = touching || c.manifolds[m].pointCount > 0;
+            }
+            const uint64_t cat = b3Shape_GetFilter(other).categoryBits;
+            const char* what = (cat & catReach) ? "reach body" : (cat & catHand) ? "fist" : (cat & catHeld) ? "held thing"
+                             : (cat & catActor) ? "monster" : (cat & catPlayer) ? "player" : nullptr;
+            if(!touching || !what)
+            {
+                continue;
+            }
+            Con_Printf("sgibtrace: #%.0f %.3f s: Box3D contact with %s %d (%s), %.0f u/s\n",
+                idField >= 0 ? fieldFloat(ent, idField) : 0.f, age, what, numOf(other),
+                PR_GetString(EDICT_NUM(za::max(0, numOf(other)))->v.classname),
+                glm::length(glmv(b3Body_GetLinearVelocity(s.body))) * world->m2u);
+        }
+    }
+}
+
 [[nodiscard]] bool boxesApart(const b3AABB& a, const b3AABB& b)
 {
     return a.upperBound.x < b.lowerBound.x || b.upperBound.x < a.lowerBound.x || a.upperBound.y < b.lowerBound.y ||
@@ -2536,12 +2607,12 @@ void makeReach(
 }
 
 // Whether the reach body of `hb` (of client `player`) passes through prop `num` now: what it passes through until clear
-// (sunk in it as it was made: its ignore list), what its player just threw (graced), an empty hand a grenade (reachMeets), a prop flying to a hand (a force
-// grab's pull: .fg_state 1), the player's own grenade in its first quarter second (leaving the launcher's muzzle,
-// inside the gun).
+// (sunk in it as it was made: its ignore list), what its player just threw (graced), a small gib just torn out
+// (smallGibSpared), an empty hand a grenade (reachMeets), a prop flying to a hand (a force grab's pull: .fg_state 1),
+// the player's own grenade in its first quarter second (leaving the launcher's muzzle, inside the gun).
 [[nodiscard]] bool reachSkips(const World::HandBody& hb, int player, int num)
 {
-    if(za::find(hb.ignore.begin(), hb.ignore.end(), num) != hb.ignore.end() || graced(player, num))
+    if(za::find(hb.ignore.begin(), hb.ignore.end(), num) != hb.ignore.end() || graced(player, num) || smallGibSpared(num))
     {
         return true;
     }
@@ -2756,6 +2827,13 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
             const glm::vec3 now = was + normal * (gain * share);
             b3Body_SetLinearVelocity(prop, b3v(now));
             b3Body_SetAwake(prop, true);
+            if(vr_smallgibs_trace.value && smallGibAge(EDICT_NUM(num)) >= 0.f && smallGibAge(EDICT_NUM(num)) <= 1.f)
+            {
+                const int idField = fields().vr_sgib_id;
+                Con_Printf("sgibtrace: #%.0f %.3f s: struck by a swing's sweep (player %d), %.0f u/s after\n",
+                    idField >= 0 ? fieldFloat(EDICT_NUM(num), idField) : 0.f, smallGibAge(EDICT_NUM(num)), player,
+                    glm::length(now) * world->m2u);
+            }
             if(vr_debug_box3d.value)
             {
                 Con_Printf("box3d: a reach body's swing (%.1f cm and %.1f degrees this frame, piece %d of %d) strikes %d %s "
@@ -3643,6 +3721,11 @@ void callShocks()
 
 bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
 {
+    if(((b3Shape_GetFilter(a).categoryBits & catHeld) && smallGibSpared(numOf(b))) ||
+        ((b3Shape_GetFilter(b).categoryBits & catHeld) && smallGibSpared(numOf(a))))
+    {
+        return false; // (a held thing and a small gib just torn out: smallGibSpared)
+    }
     const bool aReach = (b3Shape_GetFilter(a).categoryBits & catReach) != 0;
     if(aReach || (b3Shape_GetFilter(b).categoryBits & catReach) != 0)
     {
@@ -7367,6 +7450,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             limitPushes(dt / static_cast<float>(pieces));
             world->steps++;
             touches(impacts);
+            traceGibContacts();
         }
     }
     const double t2 = Sys_DoubleTime();
