@@ -9,6 +9,7 @@
 // Held near the gun in the other hand, B or Y clips it along the gun's barrel (under it, or beside a
 // bulky gun): it lights where the gun aims until the free hand takes it off again (at the lamp, B or
 // Y) or the gun leaves the hand (holstered, dropped, thrown, switched), when it goes back to the chest.
+// Let go there instead, it clips on as well with vr_flashlight_auto_gun (the gun) or vr_flashlight_auto_head (the head).
 // Held at a temple, B or Y clips it on the head (round 21), a head torch lighting where the head looks, until a hand at
 // it takes it off (B or Y: back to the chest, or into the hand if it grips; or the grip alone: into the hand). On death,
 // at the intermission and on any map change it goes back to the chest, switched as it was; a fresh start switches it

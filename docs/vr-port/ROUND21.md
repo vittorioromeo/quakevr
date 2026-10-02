@@ -20361,3 +20361,44 @@ for reference); the live mix is the old one (checked: the same numbers as before
   gunfire, explosions, pickups; in Resolve speed the clip 400% and put the WAV under it (TRAILER.md section 3): it
   should sound like playing at normal speed. In the headset nothing changes.
 - Also try the recording's own audio with Change Clip Speed, Pitch Correction off, no manual pitch shift.
+## Flashlight: grabbing on the move; leniency and clipping on when let go (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_12-54-12 and _12-55-32 (follow-up on "Flashlight: lit, gripped, nothing"). Branch
+`agent/flashgrab2`. Standing still the belt torch was easy to take; moving with the thumbstick, it very often wasn't.
+
+- **Cause 1 (the hand "moving"):** the intent gate's stillness (`noteIntent`) also counted a hand as fast when its drawn
+  place jumped from frame to frame, measured in the world. Walking (80 u/s and up: 2.4 m/s), the body carries the hand
+  faster than the 1 m/s limit every frame, so every press and every late grip was "the off hand moving" while the lamp
+  lit up. Now measured on the body (`bodyLocal`: from the play space's pivot, the player's box and the lean, turned back
+  by the play space's turn, `hands::State::turnYaw`, new), as the hands' velocities already were.
+- **Cause 2 (the lamp a frame behind):** the lamp is placed once a frame by the view, but the buttons and the late grip
+  run before the next frame's view, on that frame's hands: the thumbsticks had moved the body and the hands, not the
+  lamp. At 320 u/s and 72 Hz that is 13 cm (11 cm at 90 Hz); the lamp is reached within 9 cm. Now every test of a hand
+  against the lamp (`lampDistance`, the holster test, `reachRatio`) and the hand-over and let-go places use `lampFor`:
+  the last placed lamp moved with the body (pivot and turn) to the hands it is judged on.
+- Measured (`flash_grab_test.py moving`, vrfiringrange, the player moving through the reach, the press and 20 frames
+  after it; walk 32-80 u/s, run 176-256, strafe 224-320, smooth turn 325 deg/s, run and turn 198-342 u/s at 195 deg/s):
+  before, 0 of 84 reaches taken on the move (21 of 21 standing, 21 of 21 turning on the spot); with the stillness fix
+  alone, 45 of 84; with both, 84 of 84, and the punch controls (18) untouched.
+- **Leniency:** `vr_flashlight_grab_range` (default 1): times the 9 cm a hand reaches the lamp at (lit, taken; the late
+  grip's 25 cm too). `vr_flashlight_head_range` (default 1): times the head's zone's radius (clipping it on, and taking
+  it off there). Both 0.25..4.
+- **Clipping on when let go:** `vr_flashlight_auto_head` and `vr_flashlight_auto_gun` (default 0): the held torch let go
+  where B/Y would clip it on (the head's zone, the other hand's gun's; lit up) clips on there. A hand-over (the other
+  hand gripping it) still comes first.
+- Menu: Advanced VR Options > Flashlight (under Body and Weapons), new group "Taking and Clipping On": Grab Range, Head
+  Clip Range, Clip on Head When Let Go, Clip on Gun When Let Go. Advanced VR Options > Debug: Probe Flashlight (vr_flashlight_probe, which
+  now also prints whether B/Y would clip it on and the player's speed and turn).
+- Test: `Misc/quakevr/flashgrab/flash_grab_test.py <agent> moving` (~25 s) and `options` (~20 s: 6 cm in front of the
+  lamp taken at range 1, 12 and 15 cm not; all three at 2; the head zone lit out to 16 cm left of the head at 1, 26 cm
+  at 2; let go there: on the head only with auto head and in range; on the gun only with auto gun). `all` passes
+  (mounted 1668/1668, timing 90/90 at each scale).
+- Noted: the author's ironwail.cfg has `vr_flashlight_head_zone_up 0.175` and `_forward 0.015` (shipped 0.04 and 0).
+
+### To test in VR
+
+- [ ] Walk, run and strafe with the stick and take the belt torch on the way: taken as when standing.
+- [ ] The same while smooth turning.
+- [ ] Grab Range 1.5: reaching a little short still takes it; punching by the belt still doesn't.
+- [ ] Clip on Head When Let Go on: let go of the torch by your temple (where it lights up): it stays on the head.
+- [ ] Clip on Gun When Let Go on: let go of it along the gun in the other hand: it clips on.

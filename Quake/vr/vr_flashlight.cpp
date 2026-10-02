@@ -422,6 +422,11 @@ struct State
     int holder{-1};
     Pose pose;               // as last placed
     bool placed{false};
+    // The body it was placed with (setupView): the play space's pivot (the player's box and the lean) and turn. A press
+    // between frames is judged on the hands moved since (the thumbsticks: the next frame's), with the lamp moved with
+    // the body as far (lampFor): moving at 320 units a second, a frame's lag was 13 cm, the lamp 9 cm across.
+    glm::vec3 placedPivot{0.f};
+    float placedYaw{0.f};
 
     // The flight home: the offset from the mount and its velocity at the release, and the turn.
     double flightStart{0.0};
@@ -453,8 +458,11 @@ struct State
     double openUntil[2][2]{};
     double fastUntil[2]{};
     double punchUntil[2]{}; // until when the hand counts as having just punched (lateGrips: no late grip)
-    glm::vec3 lastPos[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // where the hands were at the last frame (lastPosTime)
+    // Where the hands were on the body at the last frame (lastPosTime; bodyLocal: not moved by the thumbsticks).
+    glm::vec3 lastPos[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     double lastPosTime{-1.0};
+    float lastTurnYaw{0.f};
+    float turnRate{0.f}; // degrees per second the play space turned at the last frame (vr_flashlight_probe)
 
     // The late grip (lateGrips): a grip pressed near the lamp that didn't take it yet (the hand not there yet, or still
     // moving), taken as the hand comes to rest at the lamp with the grip held. Until when it may (realtime; <0: none),
@@ -545,6 +553,13 @@ BeamTrace beamTraces[beamRings][beamSides];
 [[nodiscard]] bool enabled()
 {
     return vr_flashlight.value != 0.f && vrActive();
+}
+
+// Metres from the torch's axis a hand reaches it at (lit, taken by a press): `reach` times vr_flashlight_grab_range (the
+// author's notes: more leniency).
+[[nodiscard]] float grabReach()
+{
+    return reach * za::clamp(vr_flashlight_grab_range.value, 0.25f, 4.f);
 }
 
 // Metres to world units for things sized with the body.
@@ -869,7 +884,7 @@ struct HeadZone
         z.temple[i] = s.head + (right * (side * (0.085f + out)) + up * (0.035f + lift) + fwd * (forward - 0.03f)) * m2w;
     }
     z.forehead = s.head + (fwd * (0.07f + forward + out) + up * (0.06f + lift)) * m2w;
-    z.radius = za::fmax(vr_flashlight_head_zone_radius.value, 0.f) * m2w;
+    z.radius = za::fmax(vr_flashlight_head_zone_radius.value, 0.f) * za::clamp(vr_flashlight_head_range.value, 0.25f, 4.f) * m2w;
     return z;
 }
 
@@ -941,6 +956,26 @@ constexpr float punchSpeed = 2.5f;
 constexpr double punchHold = 0.3;
 constexpr float lateLag = 0.02f; // metres a slowed hand is behind its controller that count as still catching up
 
+// A point relative to the body: from the play space's pivot (the player's box and the lean), turned back by its turn
+// (the thumbsticks' walk and turn do not move it).
+[[nodiscard]] glm::vec3 bodyLocal(const hands::State& s, const glm::vec3& p)
+{
+    return hands::rotateYaw(p - (s.playerOrigin + s.lean), -s.turnYaw);
+}
+
+// Where the lamp is for the hands `s`: as last placed, moved with the body since (the play space's pivot and turn).
+// The view places it once a frame; the buttons and the late grip run before the next frame's view, on the hands of that
+// frame: the thumbsticks have moved the body (and the hands) since (round 21, "grabbing on the move").
+[[nodiscard]] Pose lampFor(const hands::State& s)
+{
+    if(!st.placed || !s.valid)
+    {
+        return st.pose;
+    }
+    const glm::quat turn = glm::angleAxis(glm::radians(s.turnYaw - st.placedYaw), glm::vec3{0.f, 0.f, 1.f});
+    return {s.playerOrigin + s.lean + turn * (st.pose.pos - st.placedPivot), glm::normalize(turn * st.pose.rot)};
+}
+
 // A hand's speed in the player's real metres per second: in slow motion the hands' velocities are the game's
 // (timescale::filterHands: sped up by 1 over the scale; timescale::handScale).
 [[nodiscard]] float realSpeed(const hands::State& s, int hand)
@@ -973,11 +1008,14 @@ void noteIntent(const hands::State& s)
                 st.openSince[hand][k] = -1.0;
             }
         }
-        // Fast by the runtime's velocity, or by where it is drawn from frame to frame (a jump: a teleport, the
-        // tracking regained, a recorded take starting with the hand already somewhere).
+        // Fast by the runtime's velocity, or by where it is drawn from frame to frame (a jump: the tracking regained,
+        // a recorded take starting with the hand already somewhere). On the body, as the velocity is: the player's
+        // own movement (the thumbsticks' walk and turn, a teleport) moves the lamp with the hand (round 21, "grabbing
+        // on the move": in the world, a walk was a hand always moving, and no press took the lamp).
+        const glm::vec3 local = bodyLocal(s, s.pos[hand]);
         const float dt = static_cast<float>(realtime - st.lastPosTime);
         const bool jumped = st.lastPosTime >= 0.0 && dt > 0.f && dt < 0.25f &&
-                            glm::distance(s.pos[hand], st.lastPos[hand]) / units::metresToUnits() >= slowSpeed * za::max(dt, 1.f / 90.f);
+                            glm::distance(local, st.lastPos[hand]) / units::metresToUnits() >= slowSpeed * za::max(dt, 1.f / 90.f);
         const float speed = realSpeed(s, hand);
         if(s.valid && (speed >= slowSpeed || jumped))
         {
@@ -987,8 +1025,13 @@ void noteIntent(const hands::State& s)
         {
             st.punchUntil[hand] = realtime + punchHold;
         }
-        st.lastPos[hand] = s.pos[hand];
+        st.lastPos[hand] = local;
     }
+    const float dtTurn = static_cast<float>(realtime - st.lastPosTime);
+    const float turned = s.turnYaw - st.lastTurnYaw;
+    const float wrapped = turned > 180.f ? turned - 360.f : turned < -180.f ? turned + 360.f : turned;
+    st.turnRate = st.lastPosTime >= 0.0 && dtTurn > 0.f ? wrapped / dtTurn : 0.f;
+    st.lastTurnYaw = s.turnYaw;
     st.lastPosTime = s.valid ? realtime : -1.0;
 }
 
@@ -1045,8 +1088,9 @@ void noteIntent(const hands::State& s)
 // How far a hand is from the lamp's axis, from the tail to the lens (units).
 [[nodiscard]] float lampDistance(const hands::State& s, int hand)
 {
-    const glm::vec3 a = modelPointAt(st.pose, shape().cap);
-    const glm::vec3 ab = modelPointAt(st.pose, shape().lens) - a;
+    const Pose lamp = lampFor(s);
+    const glm::vec3 a = modelPointAt(lamp, shape().cap);
+    const glm::vec3 ab = modelPointAt(lamp, shape().lens) - a;
     const float t = za::clamp(glm::dot(s.pos[hand] - a, ab) / za::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
     return glm::distance(s.pos[hand], a + ab * t);
 }
@@ -1057,7 +1101,7 @@ void noteIntent(const hands::State& s)
     {
         return false;
     }
-    return lampDistance(s, hand) < reach * units::metresToUnits();
+    return lampDistance(s, hand) < grabReach() * units::metresToUnits();
 }
 
 // Whether a hand is at the head torch, to take it off: at the lamp, or its fist (where the torch's middle is when that
@@ -1156,8 +1200,9 @@ void noteIntent(const hands::State& s)
         case body::HS_GRENADE_POUCH: holster = body::HolsterCount; break; // (the pouch: nearer than the torch, a grenade)
         default: return false;
     }
-    const glm::vec3 a = modelPointAt(st.pose, shape().cap);
-    const glm::vec3 ab = modelPointAt(st.pose, shape().lens) - a;
+    const Pose lamp = lampFor(s);
+    const glm::vec3 a = modelPointAt(lamp, shape().cap);
+    const glm::vec3 ab = modelPointAt(lamp, shape().lens) - a;
     const float t = za::clamp(glm::dot(s.pos[hand] - a, ab) / za::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
     const glm::vec3 spot = holster == body::HolsterCount ? body::pouchPosition(s) : body::holsterPosition(s, holster);
     return glm::distance(s.pos[hand], spot) < glm::distance(s.pos[hand], a + ab * t);
@@ -1252,7 +1297,7 @@ void take(int hand)
 // (chooseGrip), eased from where it was onto the new grip over handOverTime; no trip to the belt.
 void handOver(const hands::State& s, int hand)
 {
-    const Pose from = st.pose;
+    const Pose from = lampFor(s);
     Con_DPrintf("flashlight: passed to the %s hand (%s)\n", hand == HAND_MAIN ? "main" : "off", st.on ? "on" : "off");
     if(st.mode == Mode::Held)
     {
@@ -1276,8 +1321,9 @@ void letGo(const hands::State& s, const Pose& mount)
     st.releasedBy = hand;
     st.releasedAt = vr_gametime;
     st.flightStart = vr_gametime;
-    st.flightOffset = st.pose.pos - mount.pos;
-    st.flightRot = st.pose.rot;
+    const Pose from = lampFor(s); // (where it is with the body as it is now: not a frame behind a walking player)
+    st.flightOffset = from.pos - mount.pos;
+    st.flightRot = from.rot;
     st.flightVel = glm::vec3{0.f};
     if(hand >= 0 && s.valid)
     {
@@ -1387,7 +1433,7 @@ void startLate(const hands::State& s, int hand)
     }
     const float m2u = units::metresToUnits();
     const float d = lampDistance(s, hand);
-    if(d > (lateReach + timescale::handLag(hand)) * m2u && !(st.mode == Mode::OnHead && handAt(s, hand)))
+    if(d > (lateReach * grabReach() / reach + timescale::handLag(hand)) * m2u && !(st.mode == Mode::OnHead && handAt(s, hand)))
     {
         return;
     }
@@ -1725,7 +1771,7 @@ void drawZones(const hands::State& s, const glm::mat4& to, const glm::vec3& eye,
     if(guns && st.mode != Mode::Held)
     {
         const float m2u = units::metresToUnits();
-        zoneCapsule(modelPointAt(st.pose, shape().cap), modelPointAt(st.pose, shape().lens), reach * m2u,
+        zoneCapsule(modelPointAt(st.pose, shape().cap), modelPointAt(st.pose, shape().lens), grabReach() * m2u,
             st.pose.rot * glm::vec3{0.f, 0.f, 1.f}, st.hovered[0] || st.hovered[1] ? inReach : idle);
         for(int hand = 0; st.gameFrame == host_framecount && hand < 2; hand++)
         {
@@ -1814,6 +1860,10 @@ void probe_f()
     static constexpr const char* modes[] = {"mounted", "held", "returning", "ongun", "onhead"};
     Con_Printf("torchprobe %s mode %s holder %d placed %d on %d overhead %d %d\n", tag, modes[static_cast<int>(st.mode)],
         st.holder, st.placed ? 1 : 0, st.on ? 1 : 0, st.overhead[HAND_OFF] ? 1 : 0, st.overhead[HAND_MAIN] ? 1 : 0);
+    // The player's own movement (the thumbsticks): units a second across the floor, the play space's turn in degrees a
+    // second (the moving test, flash_grab_test.py).
+    Con_Printf("torchprobe %s near head %d gun %d\n", tag, st.nearHead ? 1 : 0, st.nearGun ? 1 : 0); // (B/Y clips it on there)
+    Con_Printf("torchprobe %s move %.0f %.0f\n", tag, glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]}), st.turnRate);
     for(int hand = 0; hand < 2; hand++)
     {
         const bool at = st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand);
@@ -1824,7 +1874,7 @@ void probe_f()
     }
     if(developer.value)
     {
-        const glm::vec3 mid = modelPointAt(st.pose, 0.5f * (shape().cap + shape().lens));
+        const glm::vec3 mid = modelPointAt(lampFor(s), 0.5f * (shape().cap + shape().lens));
         Con_Printf("torchprobe %s torso %.1f lamp %.2f %.2f %.2f off %.2f %.2f %.2f main %.2f %.2f %.2f\n", tag, s.bodyYaw, mid.x,
             mid.y, mid.z, s.pos[HAND_OFF].x, s.pos[HAND_OFF].y, s.pos[HAND_OFF].z, s.pos[HAND_MAIN].x, s.pos[HAND_MAIN].y,
             s.pos[HAND_MAIN].z);
@@ -2008,6 +2058,8 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     }
     st.pose = p;
     st.placed = true;
+    st.placedPivot = s.playerOrigin + s.lean;
+    st.placedYaw = s.turnYaw;
 
     // A hand whose press reaches the lamp lights it up (and taps, once); on a gun, only the free hand. Judged as the
     // press is (reachesLamp), on the game's hands: a hand drawn at the lamp on the body but tracked inside the torso
@@ -2227,12 +2279,23 @@ bool button(int hand, Button b, bool pressed)
             // Let go with the other hand gripping at it (or with the hands together, as a weapon is passed at the
             // hand switch spot): that hand keeps it. If the game saw that hand's grip, it must see it let go.
             const int other = 1 - hand;
+            view::WeaponMount gun;
             if(st.gripDown[other] && canTakeOver(s, other))
             {
                 bool& otherGrip = st.swallowed[other][static_cast<int>(Button::Grip)];
                 st.tookGrip[other] = !otherGrip;
                 otherGrip = true;
                 handOver(s, other);
+            }
+            // Let go where B/Y would clip it on (lit up): with vr_flashlight_auto_gun / _auto_head, it clips on there
+            // (the author's notes: no button press).
+            else if(vr_flashlight_auto_gun.value != 0.f && st.nearGun && view::weaponMount(other, gun))
+            {
+                clipOn(other, gun);
+            }
+            else if(vr_flashlight_auto_head.value != 0.f && st.nearHead)
+            {
+                clipOnHead(st.nearHeadSide);
             }
             else
             {
@@ -2482,10 +2545,11 @@ float reachRatio(const hands::State& s, int hand)
         return 1e9f;
     }
     // As handNear: from the lamp's axis, tail to lens.
-    const glm::vec3 a = modelPointAt(st.pose, shape().cap);
-    const glm::vec3 ab = modelPointAt(st.pose, shape().lens) - a;
+    const Pose lamp = lampFor(s);
+    const glm::vec3 a = modelPointAt(lamp, shape().cap);
+    const glm::vec3 ab = modelPointAt(lamp, shape().lens) - a;
     const float t = za::clamp(glm::dot(s.pos[hand] - a, ab) / za::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
-    float ratio = glm::distance(s.pos[hand], a + ab * t) / (reach * units::metresToUnits());
+    float ratio = glm::distance(s.pos[hand], a + ab * t) / (grabReach() * units::metresToUnits());
     if(st.mode == Mode::OnHead)
     {
         // As handAtHeadTorch: or the fist in the head's zone on the torch's side.

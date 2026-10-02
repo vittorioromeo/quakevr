@@ -780,6 +780,10 @@ QVR_CVAR(vr_flashlight_forward, "0", CVAR_ARCHIVE)    // metres the belt clip si
 QVR_CVAR(vr_flashlight_up, "0", CVAR_ARCHIVE)         // up,
 QVR_CVAR(vr_flashlight_out, "0", CVAR_ARCHIVE)        // and out (towards its side)
 QVR_CVAR(vr_flashlight_side, "0", CVAR_ARCHIVE)       // the hip it hangs on: 0 the left, 1 the right
+QVR_CVAR(vr_flashlight_grab_range, "1", CVAR_ARCHIVE) // times how far from the torch a hand reaches it (lit, taken; 9 cm from its axis at 1), 0.25..4
+QVR_CVAR(vr_flashlight_head_range, "1", CVAR_ARCHIVE) // times the head's zone's radius (vr_flashlight_head_zone_radius: clipping it on, taking it off), 0.25..4
+QVR_CVAR(vr_flashlight_auto_head, "0", CVAR_ARCHIVE)  // 1: the held torch let go in the head's zone clips on the head (no B/Y)
+QVR_CVAR(vr_flashlight_auto_gun, "0", CVAR_ARCHIVE)   // 1: the held torch let go in the other hand's gun's zone clips on the gun (no B/Y)
 QVR_CVAR(vr_flashlight_hand_forward, "-0.05", CVAR_ARCHIVE) // metres the torch sits forward in the fist (negative: back),
 QVR_CVAR(vr_flashlight_hand_up, "-0.04", CVAR_ARCHIVE)      // and up (negative: down; round 21: on top of the fitted grip)
 QVR_CVAR(vr_flashlight_gun_forward, "0", CVAR_ARCHIVE) // metres the torch clipped on a gun (B/Y) sits further forward (its lens: 1 cm behind the muzzle),

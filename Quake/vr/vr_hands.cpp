@@ -543,6 +543,7 @@ void update()
             pendingYawValid = false;
             turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
         }
+        state.turnYaw = turnYaw;
 
         state.head = toWorld(t.head.position);
         state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
@@ -601,6 +602,7 @@ void update()
         angleVectors(aim, fwd, right, up);
 
         state.lean = glm::vec3{0.f};
+        state.turnYaw = yaw;
         state.leanHold = 0.f;
         state.standingHeight = units::eyeHeight();
         state.head = state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};
