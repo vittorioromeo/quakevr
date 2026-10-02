@@ -120,6 +120,8 @@ Bat a small gib that has lain a moment: it still flies (Small Gibs > Not Batted 
 Stand on a corpse and gib it with a blow and with the shotgun at your feet: no damage to you (Flung Props > Fresh Gibs Harmless For)
 Throw a gib at a monster after picking it up: it still hurts
 
+Slash a grunt twice quickly: the second swing bursts the first swing's small gibs into blood, none shoot off (Small Gibs > Burst by Blows Meanwhile)
+
 [Decide or give feedback]
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?
