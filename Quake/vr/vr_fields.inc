@@ -135,6 +135,8 @@ QVR_FIELD(vr_stamina_time)
 QVR_FIELD(vr_stamina_said)
 QVR_FIELD(vr_climb_drain) // 1 while a hang drains the pool (the gadget shows it: VR_Melee_Hud)
 QVR_FIELD(vr_climb_knockoff) // set by the QC: a blast or a shove knocks the player off its holds (vr_climb.cpp lets go, keeps the velocity)
+QVR_FIELD(vr_sgib) // a small gib: when it was made (QC vr_smallgibs.qc; vr_box3d.cpp: its blow grace, vr_smallgibs_blow_grace)
+QVR_FIELD(vr_sgib_id) // its serial (vr_smallgibs_trace's lines)
 QVR_FIELD(vr_prop_mass) // a prop's own mass, kg (0: its model's, Held Object Offsets): a small gib (QC vr_smallgibs.qc; vr_box3d.cpp massSetting)
 QVR_FIELD(attack_finished) // slow motion with the player in its own time (vr_timescale.cpp: vr_sandevistan, vr_timescale_move_realtime): its timers set in its frame run in its time
 QVR_FIELD(offhand_attack_finished)

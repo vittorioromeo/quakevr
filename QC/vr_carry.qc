@@ -40,6 +40,9 @@
                          // teleport, vr_physics.cpp): what it carries follows its hands from where it is (VR_Carry_Follow)
 .entity carry_letgo;     // the player who last let go of it (VR_Carry_Loose), and when: not hurt by it as it leaves the hand,
 .float carry_letgo_time; // and credited with its flung hits for a while (VR_Prop_Flung)
+.float vr_gib_made;      // when it became a gib (VR_MakeGibGrabbable; VR_Prop_Flung: harmless a while)
+.entity vr_gib_bornin;   // what it touched while just made, and when last (VR_Prop_Flung: harmless to it until they part)
+.float vr_gib_bornin_t;
 .float vr_fling_hit;     // when it last hurt something flung (VR_Prop_Flung: one hit a VR_FLING_REHIT)
 .float vr_2h_nomelee;    // on a player: until then neither hand strikes (just after a two-handed throw: VR_Throw_TwoHanded)
 .float vr_2h_letgo_hand; // on a player: the hand (+1; 0 none) that let go first of a thing held in both, and when
@@ -154,7 +157,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 
     // Just thrown with both hands: their follow-through neither strikes nor shoves it (NOTES.md
     // vrfiringrange_2026-10-02_15-38-26: the hand that let go first touched the gib as it left, and burst it).
-    if(VR_Throw_SparedBlows(xBox, xPlayer))
+    if(VR_Throw_SparedBlows(xBox, xPlayer) || VR_SmallGib_BlowSpared(xBox))
     {
         return;
     }
@@ -165,6 +168,11 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
         VR_Gib_Struck(xPlayer, xHand, xBox);
         if(!xBox.vr_gib)
         {
+            if(xBox.vr_sgib && cvar_hget(cvarh_vr_smallgibs_trace))
+            {
+                bprint(sprintf("sgibtrace: #%g %.3f s: struck by the %s hand: burst\n", xBox.vr_sgib_id, time - xBox.vr_sgib,
+                    xHand == cVR_MainHand ? "main" : "off"));
+            }
             return;
         }
     }
@@ -220,6 +228,12 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
     if(along >= speed)
     {
         return;
+    }
+    if(xBox.vr_sgib && cvar_hget(cvarh_vr_smallgibs_trace))
+    {
+        bprint(sprintf("sgibtrace: #%g %.3f s: nudged by the %s hand (VR_Carry_Nudge, rigid %g): %.0f u/s to %.0f\n",
+            xBox.vr_sgib_id, time - xBox.vr_sgib, xHand == cVR_MainHand ? "main" : "off", xBox.vr_rigid, vlen(xBox.velocity),
+            vlen(xBox.velocity + d * (speed - along))));
     }
     xBox.velocity = xBox.velocity + d * (speed - along);
     VR_Carry_Loose(xBox);
@@ -412,6 +426,13 @@ float(entity p, float xHand) VR_Throw_HandMayStrike =
 };
 
 // Whether `e` can't be struck by `p`'s hands: he threw it with both a moment ago.
+// A small gib just torn out (vr_smallgibs_blow_grace): no hand, weapon or held thing strikes, nudges or bats it yet (the
+// blow that tore it out went on through it). ROUND21.md, "Small gibs batted by the blade".
+float(entity e) VR_SmallGib_BlowSpared =
+{
+    return e.vr_sgib > 0 && time < e.vr_sgib + max(0, cvar_hget(cvarh_vr_smallgibs_blow_grace));
+};
+
 float(entity e, entity p) VR_Throw_SparedBlows =
 {
     return e.vr_2h_thrower == p && time - e.vr_2h_thrown < cvar_hget(cvarh_vr_throw_2h_melee_immune);
@@ -506,6 +527,9 @@ void() VR_Throw_SelfFrame =
 // lets go of it every frame it holds it) or whose grapple holds it (reeled in, it comes at the gun). The attacker is
 // who holds it on the rope, else who let go of it (within VR_FLING_CREDIT). TRUE if it hurt.
 float VR_FLING_REHIT = 0.5;       // s between a flung prop's hits
+float VR_GIB_BORNIN_FLIGHT = 2;   // s: a gib's first flight, harmless to what it met as it was made (VR_Prop_Flung)
+float vr_fling_gibhits;           // gibs' flung hits, and those spared as just made (vr_smallgibs_test 16, 17)
+float vr_fling_gibspared;
 float VR_FLING_CREDIT = 10;       // s
 
 // When a monster dropped it (a weapon, a backpack: CreateThrownWeapon, DropBackpack; 0 never): for vr_prop_drop_grace s
@@ -564,6 +588,25 @@ float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
     {
         return FALSE;
     }
+    // A gib, head or small gib just made (vr_gib_spawn_harmless): not yet (gibbing a body he stood on, its gibs pushed out
+    // of him hurt him; ROUND21.md, "Small gibs batted by the blade").
+    // Nor, after it, what it met then (him, standing on the body): while they still touch (a head lying at his feet,
+    // pushed out of him), and in its first flight (pushed out of him up, falling back on him), VR_GIB_BORNIN_FLIGHT s
+    // from its making unless a hand took it since (then its throw's rules).
+    float freshTouch = other == self.vr_gib_bornin &&
+                       (time < self.vr_gib_bornin_t + 0.1 || (time < self.vr_gib_made + VR_GIB_BORNIN_FLIGHT && self.carry_letgo == world));
+    if(self.vr_gib && (time < self.vr_gib_made + max(0, cvar_hget(cvarh_vr_gib_spawn_harmless)) || freshTouch))
+    {
+        if(other == self.vr_gib_bornin || self.vr_gib_bornin == world || (other.flags & FL_CLIENT))
+        {
+            self.vr_gib_bornin = other; // (one: a player before a monster)
+            self.vr_gib_bornin_t = time;
+        }
+        dprint(sprintf("prop: %s made %.2f s ago met %s: no harm yet (vr_gib_spawn_harmless)\n", self.classname,
+            time - self.vr_gib_made, other.classname));
+        vr_fling_gibspared++;
+        return FALSE;
+    }
     // In a throw (.throwhit QVR_THROWHIT_NEVER_HIT, 0, with a thrower: VR_Carry_Release, a thrown weapon's): its own hit.
     // A prop never thrown may have .throwhit 0 too (an explosive box), but no .owner.
     if((self.throwhit == QVR_THROWHIT_NEVER_HIT && VR_Throw_Thrower(self) != world) || self.carry_player != world ||
@@ -614,7 +657,12 @@ float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
     }
 
     self.vr_fling_hit = time;
-    dprint(sprintf("prop: flung %s (%.1f kg) into %s at %.0f u/s (its own %.0f): %.1f damage", self.classname, mass,
+    if(self.vr_gib)
+    {
+        vr_fling_gibhits++;
+    }
+    dprint(sprintf("prop: flung %s (%.1f kg, a gib made %.2f s ago) into %s at %.0f u/s (its own %.0f): %.1f damage", self.classname, mass,
+        self.vr_gib ? time - self.vr_gib_made : -1,
         other.classname, xSpeed, xOwnSpeed, dmg));
     dprint(sprintf(" (base %.1f x%.2f, speed x%.2f, weight x%.2f), by %s\n", base, own, speedMult, weightMult,
         attacker == world ? "nobody" : attacker.netname));
@@ -1307,6 +1355,7 @@ void(entity xGib) VR_MakeGibGrabbable =
     // target). Killed restores its solid after the death code (which often clears it).
     xGib.flags = (xGib.flags - (xGib.flags & FL_MONSTER)) | FL_FORCEGRABBABLE;
     xGib.vr_gib = TRUE;
+    xGib.vr_gib_made = time; // (harmless as a flung prop for vr_gib_spawn_harmless: VR_Prop_Flung)
     xGib.throwhit = QVR_THROWHIT_HIT;
     xGib.owner = world;
     SetThrownWeaponDealDamage(xGib, FALSE);

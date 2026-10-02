@@ -22013,3 +22013,61 @@ gib never bursts on a wall either: lower Gib Splat Speed or their Mass for that.
 - Melee and chainsaw small gibs at Melee and Chainsaw Speed 0.05: they drop near the wound, not shot a metre away;
   Not Pushed Out of Bodies off brings the old push back for comparison.
 - Throw a gib softly at a wall and at a ceiling (Speed to Stick low, Thrown Gibs Stick 1): it sticks; a small gib too.
+
+## Small gibs batted by the blade; fresh gibs that hurt you (2026-10-02)
+
+The author: small gibs still fly great distances when a blade swings through an enemy, in the swing's direction; and
+gibbing a body he stands on (a blow, a shot at his feet) hurts him.
+
+**Root cause (batting).** Not Box3D, nor the inside test: a small gib in its grace (`vr_smallgibs_grace`, his 0.3 s) has
+the monster it came from as its `.owner` (so Quake's moves pass it through the body), bounces (MOVETYPE_BOUNCE), has a
+touch and can't be hurt yet (VR_Gib_MakeDestroyable arms it 0.2 s on). That is exactly what VR_Deflect_IsProjectile
+takes for a monster's projectile (a zombie's flesh): the swing that tore it out batted it back at VR_BAT_MIN_SPEED to
+VR_BAT_MAX_SPEED (450 to 1500 u/s), aim assist and all; the replays' reports show `deflect/vr_smallgib main (swing)`. A
+corpse keeps FL_MONSTER, so on corpses too. Fixed in vr_juice.qc: a gib (`.vr_gib`) is never a projectile.
+A second, smaller one: VR_Carry_Nudge (a hand's or weapon's touch) set a gib still in Quake's bounce moving at least as
+fast as the hand (one take: 147 to 241 u/s at 0.10 s, 64 units off). Now a small gib is spared every blow, nudge and push
+of a hand, a weapon or a held thing for `vr_smallgibs_blow_grace` (0.3 s; Gore > Small Gibs: Not Batted Away For) from
+its making: QC VR_SmallGib_BlowSpared (VR_Carry_Nudge, the melee sweep's gib targets), vr_box3d.cpp smallGibSpared (the
+reach bodies' contacts and swept strikes: reachSkips; held things: shouldCollide). Older gibs are batted as before.
+
+**Measured** with his real sword takes (the 33 slash and stab takes of weapon 13), `vr_motion_play <take> target
+monster_army` against a live grunt (`notarget`, impulse 241 at 45 units) and a corpse (`vr_test_spawn_dead 1`), his gib
+settings (his config's vr_smallgibs_*, vr_gib_*, vr_carry_*, vr_box3d_*, vr_melee_*: Speed 3, Up 7, Melee 0.01/0.99,
+grace 0.3). `vr_smallgibs_trace 1` (new; Debug > Gore Tests: Trace Small Gibs) prints each small gib's making, speed jumps,
+samples, Quake touches, Box3D contacts with reach bodies, fists, held things, monsters and players, nudges and swept
+strikes, and where it lay 2.5 s on. Blade gibs (situation melee), how far across they lay (units; 31.5 a metre here):
+
+| run | gibs | mean | median | max | fastest (mean / max u/s) |
+|---|---|---|---|---|---|
+| grunt, before | 31 | 959 | 612 | 2921 | 1040 / 1883 |
+| grunt, deflect fix only (blow grace 0) | 26 | 12 | 8 | 64 | 331 / 405 |
+| grunt, both | 31 | 13 | 7 | 37 | 319 / 402 |
+| corpse, before | 11 | 75 | 8 | 372 | 401 / 571 |
+| corpse, both | 13 | 3 | 2 | 7 | 286 / 357 |
+
+What is left is his Up (7 m/s x 0.99: up about 0.8 m and back down near the wound).
+
+**Fresh gibs that hurt.** Gibbing a body you stand on: its gibs (8 to 20 kg by his Held Object Offsets) are pushed out
+of your capsule or land back on you and hurt you as flung props (VR_Prop_Flung: `prop: flung  (12.0 kg) into player at
+261 u/s ... 8.0 damage, by nobody`). Now a gib, head or small gib can't hurt anyone as a flung prop for
+`vr_gib_spawn_harmless` s after it is made (0.3; the Flung Props rows: Fresh Gibs Harmless For), nor afterwards what it
+met in that time (a player before a monster): while they still touch, and in its first flight (2 s, VR_GIB_BORNIN_FLIGHT)
+unless a hand took it since. 0 brings the old rule back. A throw is untouched (its own hit, forcegrabbable_touch).
+Tests (Debug > Gore Tests): `vr_smallgibs_test 16` (the grunt or corpse nearest put under your feet and gibbed by your
+blow), `17` (by a shot's damage: straight-down pellets miss a lying corpse's model under you), `18` (a gib made at your
+feet thrown at the monster nearest 1 s later). Six runs each (varied timing), a grunt 100 units away, god off:
+
+| | blow: runs that hurt you | shot | monsters near hurt | a gib thrown after 1 s, damage |
+|---|---|---|---|---|
+| 0 (before) | 1 of 6 (5) | 2 of 6 (7, 15) | 0 | 6, 0, 6 |
+| 0.3 | 0 of 6 | 0 of 6 | 0 | 6, 9, 9 |
+
+Unrelated, seen while testing: a grunt's dropped gun can hurt you once vr_prop_drop_grace (0.5 s) is over when it falls
+from a monster spawned dead at your feet (not changed).
+
+### In VR
+
+- Slash and stab grunts and corpses with the sword and the axe: small gibs drop near the wound, never shot across the room.
+- Bat a small gib that has lain a moment: it still flies.
+- Stand on a corpse and gib it with a blow, and with the shotgun at your feet: no damage. Throw a gib at a monster: it hurts.

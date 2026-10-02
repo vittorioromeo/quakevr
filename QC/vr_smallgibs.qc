@@ -24,6 +24,11 @@
 .vector vr_sgib_org;      // where it was made (the tests)
 .float vr_sgib_peak;      // its fastest across in its first second, and when (s after it was made: the tests)
 .float vr_sgib_peakt;
+.float vr_sgib_tstep;     // vr_smallgibs_trace: its next sample, its last speed, its fastest and when, done
+.float vr_sgib_tlast;
+.float vr_sgib_tpeak;
+.float vr_sgib_tpeakt;
+.float vr_sgib_tdone;
 
 // A shotgun blast's pellets (FireBulletsImpl: VR_SmallGib_BlastBegin .. BlastEnd), summed on each thing they hit.
 .float vr_sgib_bmark;     // the blast it was last hit by (vr_sgib_blastserial)
@@ -221,6 +226,11 @@ void() VR_SmallGib_Touch =
 {
     float wasRigid = self.vr_rigid;
     float speed = vlen(self.velocity);
+    if(other != world && cvar_hget(cvarh_vr_smallgibs_trace))
+    {
+        bprint(sprintf("sgibtrace: #%g %.3f s: Quake touch with %s, %.0f u/s\n", self.vr_sgib_id, time - self.vr_sgib,
+            other.classname, speed));
+    }
     if(!wasRigid && other.solid == SOLID_BSP && speed > 120 && speed <= 220)
     {
         VR_Gib_Squish(self, 0.8); // (VR_Gib_Touch squishes the faster ones)
@@ -314,6 +324,11 @@ void(entity g, float xSit) VR_SmallGib_Tag =
     }
     g.vr_sgib_sit = xSit;
     g.vr_sgib_org = g.origin;
+    if(cvar_hget(cvarh_vr_smallgibs_trace))
+    {
+        bprint(sprintf("sgibtrace: #%g made at %v (situation %g), %.0f u/s (%v), grace %.2f s, rigid %g\n", g.vr_sgib_id,
+            g.origin, xSit, vlen(g.velocity), g.velocity, g.vr_sgib_grace ? g.vr_sgib_grace - time : 0, g.vr_rigid));
+    }
     vector v = g.velocity;
     vr_sgib_st_n[xSit] = vr_sgib_st_n[xSit] + 1;
     vr_sgib_st_v[xSit] = vr_sgib_st_v[xSit] + v_z;

@@ -67,10 +67,12 @@ float(vector xA0, vector xA1, vector xB0, vector xB1) VR_SegmentDistance =
 };
 
 // Whether `e` is a monster's projectile in flight (a knight's spike, an enforcer's laser, a
-// scrag's spit, a vore's ball, an ogre's grenade, ...).
+// scrag's spit, a vore's ball, an ogre's grenade, ...). Never a gib: a small gib in its grace has the monster it came
+// from as its .owner (vr_smallgibs_grace), bounces and can't be hurt yet (VR_Gib_MakeDestroyable), so the swing that
+// tore it out batted it as a projectile at 450 to 1500 u/s (ROUND21.md, "Small gibs batted by the blade").
 float(entity e) VR_Deflect_IsProjectile =
 {
-    if(!(e.owner.flags & FL_MONSTER) || e.solid == SOLID_NOT || !e.touch || (e.takedamage && !e.vr_shootnade))
+    if(e.vr_gib || !(e.owner.flags & FL_MONSTER) || e.solid == SOLID_NOT || !e.touch || (e.takedamage && !e.vr_shootnade))
     {
         return FALSE;
     }

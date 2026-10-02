@@ -20,6 +20,11 @@
 //     units ahead, a rocket's blast there 1 s on (the boxes go off in a chain), what is left 3 s on (vr_debug_net 1
 //     prints each frame the broadcast was full); vr_smallgibs_test_blasts: that many blasts in that frame (round the point)
 //  15 not a test: to the wall ahead, vr_smallgibs_test_dist units from it (64), to throw gibs at it
+//  16 the monster or corpse put under your feet and gibbed by a blow; 2 s on, the health you and the monsters within
+//     160 units lost, and the gibs' flung hits and those spared as just made (vr_gib_spawn_harmless; god off)
+//  17 the same, gibbed by a shot (a super shotgun blast's damage at your feet)
+//  18 a gib made at your feet, thrown by you (from a step ahead) at the monster nearest 1 s later (vr_test_throw_up_speed, 10 m/s; Fresh
+//     Gibs Harmless For is over): 2.5 s on, the health it lost
 
 float vr_sgib_test;       // the test running, its step, when the step began
 float vr_sgib_test_step;
@@ -301,6 +306,22 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLanded =
         pk / max(1, cnt), pkmost, pkt / max(1, cnt)));
 };
 
+// Tests 16, 17: the health of the live monsters within 160 units of `p` but `m`, summed.
+float(entity p, entity m) VR_SmallGib_TestNearHealth =
+{
+    float sum = 0;
+    entity e = findradius(p.origin, 160);
+    while(e)
+    {
+        if(e != m && e != p && (e.flags & FL_MONSTER) && e.health > 0)
+        {
+            sum = sum + e.health;
+        }
+        e = e.chain;
+    }
+    return sum;
+};
+
 void(float xCase) VR_SmallGib_TestStart =
 {
     vr_sgib_test = xCase;
@@ -339,6 +360,33 @@ void(float xCase) VR_SmallGib_TestStart =
         vr_sgib_test = 0;
         return;
     }
+    if(xCase == 18 && m == world)
+    {
+        bprint("sgibtest: no monster near\n");
+        vr_sgib_test = 0;
+        return;
+    }
+    if(xCase == 18)
+    {
+        entity spot = spawn();
+        setorigin(spot, self.origin);
+        entity oself18 = self;
+        self = spot;
+        ThrowGib("progs/gib1.mdl", -10);
+        self = oself18;
+        vr_sgib_test_g = world;
+        for(entity lg = nextent(world); lg != world; lg = nextent(lg))
+        {
+            if(lg.vr_gib && lg.vr_gib_made == time && lg.carry_player == world)
+            {
+                vr_sgib_test_g = lg;
+            }
+        }
+        remove(spot);
+        vr_sgib_test_a = m.health;
+        bprint(sprintf("sgibtest: a gib made at your feet: %d\n", vr_sgib_test_g != world));
+        return;
+    }
     if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14)
     {
         bprint("sgibtest: no monster or corpse near\n");
@@ -346,6 +394,35 @@ void(float xCase) VR_SmallGib_TestStart =
         return;
     }
     bprint(sprintf("sgibtest: test %d on %s (corpse %d)\n", xCase, m.classname, m.vr_corpse));
+    if(xCase == 16 || xCase == 17)
+    {
+        // Under your feet, on the floor; gibbed by a blow, or by super shotgun blasts at your feet until it is.
+        traceline(self.origin, self.origin - '0 0 256', TRUE, self);
+        setorigin(m, trace_endpos - '0 0 1' * m.mins_z + '0 0 1');
+        m.velocity = '0 0 0';
+        vr_sgib_test_a = self.health;
+        vr_sgib_test_b = VR_SmallGib_TestNearHealth(self, m);
+        vr_fling_gibhits = 0;
+        vr_fling_gibspared = 0;
+        vector feet = (m.absmin + m.absmax) * 0.5;
+        vector from = self.origin + '0 0 22';
+        if(xCase == 16)
+        {
+            VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, feet, normalize(feet - from));
+            T_Damage(m, self, self, max(m.health, m.vr_corpse_hp) + 100);
+            VR_ClearHitKind();
+        }
+        else
+        {
+            // (A super shotgun's blast's damage, as a shot from you: a lying corpse's thin model under your feet is
+            // missed by straight-down pellets, so the hit is dealt as the blast's.)
+            VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, feet, normalize(feet - from));
+            T_Damage(m, self, self, max(m.health, m.vr_corpse_hp) + 100);
+            VR_ClearHitKind();
+        }
+        bprint(sprintf("sgibtest: underfoot: gibbed %d, %d small gibs\n", m.vr_gib != 0, vr_sgib_made));
+        return;
+    }
     if(m != world && m.vr_corpse != 2 && (m.flags & FL_MONSTER))
     {
         // Still, standing (its first frame): the same pose every run (a pose with the arms ahead takes the pellets
@@ -609,9 +686,75 @@ void(float xCase) VR_SmallGib_TestStart =
     }
 };
 
+// vr_smallgibs_trace: sample `n`'s age (s), 0 past the last.
+float(float n) VR_SmallGib_TraceAge =
+{
+    if(n < 1) { return 0.05; }
+    if(n < 2) { return 0.1; }
+    if(n < 3) { return 0.2; }
+    if(n < 4) { return 0.3; }
+    if(n < 5) { return 0.5; }
+    if(n < 6) { return 1; }
+    if(n < 7) { return 2.5; }
+    return 0;
+};
+
+// vr_smallgibs_trace (ROUND21.md, "Small gibs batted by the blade"): each small gib's speed at its samples' ages, each
+// jump in it (faster by 25 u/s or more in a frame), its fastest, and at 2.5 s how far it lay from where it was made.
+void() VR_SmallGib_TraceFrame =
+{
+    if(!cvar_hget(cvarh_vr_smallgibs_trace))
+    {
+        return;
+    }
+    for(float i = 0; i < 256; i++)
+    {
+        if(!VR_SmallGib_SlotLive(i))
+        {
+            continue;
+        }
+        entity g = vr_sgib_ring[i];
+        if(g.vr_sgib_tdone)
+        {
+            continue;
+        }
+        float age = time - g.vr_sgib;
+        float sp = vlen(g.velocity);
+        if(sp > g.vr_sgib_tpeak)
+        {
+            g.vr_sgib_tpeak = sp;
+            g.vr_sgib_tpeakt = age;
+        }
+        if(age > 0 && sp > g.vr_sgib_tlast + 25)
+        {
+            bprint(sprintf("sgibtrace: #%g %.3f s: speed jump %.0f to %.0f u/s (%v), rigid %g, held %g\n", g.vr_sgib_id, age,
+                g.vr_sgib_tlast, sp, g.velocity, g.vr_rigid, g.carry_player != world));
+        }
+        g.vr_sgib_tlast = sp;
+        float at = VR_SmallGib_TraceAge(g.vr_sgib_tstep);
+        if(at > 0 && age >= at)
+        {
+            g.vr_sgib_tstep = g.vr_sgib_tstep + 1;
+            vector d = g.origin - g.vr_sgib_org;
+            if(at >= 2.5)
+            {
+                g.vr_sgib_tdone = TRUE;
+                bprint(sprintf("sgibtrace: #%g done: lay %.1f units from where made (%.1f across), fastest %.0f u/s at %.3f s, situation %g\n",
+                    g.vr_sgib_id, vlen(d), vlen(d - '0 0 1' * d_z), g.vr_sgib_tpeak, g.vr_sgib_tpeakt, g.vr_sgib_sit));
+            }
+            else
+            {
+                bprint(sprintf("sgibtrace: #%g %.2f s: %.0f u/s, %.1f units from where made, rigid %g\n", g.vr_sgib_id, age, sp,
+                    vlen(d), g.vr_rigid));
+            }
+        }
+    }
+};
+
 // Every server frame (StartFrame): a test asked for (vr_smallgibs_test), or the next step of one running.
 void() VR_SmallGib_TestFrame =
 {
+    VR_SmallGib_TraceFrame();
     float ask = cvar("vr_smallgibs_test");
     entity p = find(world, classname, "player");
     if(p == world)
@@ -743,6 +886,46 @@ void() VR_SmallGib_TestFrame =
                     cvar_set("vr_smallgibs_time", "20");
                     vr_sgib_test = 0;
                 }
+            }
+        }
+        else if(vr_sgib_test == 18)
+        {
+            entity tg = vr_sgib_test_g;
+            if(vr_sgib_test_step == 0 && t >= 1 && tg != world && tg.vr_gib)
+            {
+                // Thrown at it as yours (let go of by you, from your eyes).
+                vr_sgib_test_step = 1;
+                tg.throwhit = QVR_THROWHIT_HIT;
+                tg.owner = world;
+                tg.vr_fling_hit = 0;
+                tg.flags = tg.flags - (tg.flags & FL_ONGROUND);
+                tg.vr_rigid = 1;
+                tg.carry_letgo = self;
+                tg.carry_letgo_time = time;
+                vector at = (vr_sgib_test_m.absmin + vr_sgib_test_m.absmax) * 0.5;
+                vector eye = self.origin + '0 0 22';
+                eye = eye + normalize(at - eye) * 32; // (ahead of you, out of your box)
+                setorigin(tg, eye - 0.5 * (tg.mins + tg.maxs));
+                tg.vr_spin = '0 0 0';
+                tg.avelocity = '0 0 0';
+                VR_Carry_Throw(tg, normalize(at - eye) * cvar("vr_test_throw_up_speed") * VRMetersToUnits());
+            }
+            if(t >= 3.5)
+            {
+                bprint(sprintf("sgibtest: a gib thrown at %s %.1f s after it was made: it lost %.0f health\n",
+                    vr_sgib_test_m.classname, 1, vr_sgib_test_a - vr_sgib_test_m.health));
+                vr_sgib_test = 0;
+            }
+        }
+        else if(vr_sgib_test == 16 || vr_sgib_test == 17)
+        {
+            if(t >= 2)
+            {
+                bprint(sprintf("sgibtest: underfoot (%s): you lost %.0f health, the monsters near %.0f; gibs' flung hits %d, spared as just made %d (Fresh Gibs Harmless For %.2f s)\n",
+                    vr_sgib_test == 16 ? "a blow" : "shotgun blasts", vr_sgib_test_a - self.health,
+                    vr_sgib_test_b - VR_SmallGib_TestNearHealth(self, world), vr_fling_gibhits, vr_fling_gibspared,
+                    cvar_hget(cvarh_vr_gib_spawn_harmless)));
+                vr_sgib_test = 0;
             }
         }
         else if(vr_sgib_test == 12)
