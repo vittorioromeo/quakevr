@@ -359,7 +359,7 @@ The generators in `Misc/quakevr` make the shipped models:
 | `polish_weapons.py` (from `src_models/r21`), and the earlier `improve_weapons*.py`, `make_swords.py`, `recolor_shotgun_sight.py` | the weapons |
 | `make_gadget.py` | `vrgadget.mdl`, `vrgadget_strap.mdl` |
 | `make_hand_rig.py` | the hand |
-| `make_flashlight.py` | `vrflashlight.mdl` and its sounds |
+| `make_flashlight.py` | `vrflashlight.mdl`, its full-colour skin (`vrflashlight.mdl_0.png`) and its sounds; then `bake_normals.py vrflashlight.mdl` |
 | `make_holster.py`, `make_pauldron.py`, `make_shell.py`, `make_pouch.py` | `legholster.mdl`; `vrpauldron.mdl`, `vrpauldron_arm.mdl`; `vr_shell.mdl`; `vrpouch.mdl` |
 | `make_bloody_hands.py` | the blood skins (1-3) of `hand_base.mdl` and `finger_*.mdl` |
 | `make_spawn_buttons.py` | `maps/vr_spawnpanel.bsp`, `maps/vr_spawnbutton.bsp` |

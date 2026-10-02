@@ -38,6 +38,10 @@ constexpr int springs = segments - 2;
 
 float relaxedLength(const Style& style)
 {
+    if(style.length > 0.f)
+    {
+        return style.length;
+    }
     // Turns touching: the wire's thickness a turn; a plain cable as long as the coiled one relaxed.
     return static_cast<float>(za::max(style.turns, 64)) * 2.f * style.wireRadius;
 }
@@ -97,6 +101,149 @@ struct CoilScratch
     auto members() { return qvr::mem::list(line, along, tangent, normal, lights, mid, radial); }
 };
 mem::Scratch<CoilScratch> scratch{"coil"};
+
+// The line (scratch.line, .along, .tangent, .normal) at arc length `s`: its point, direction and normal (before its
+// start and past its end: along its end's straight line).
+void lineAt(float s, glm::vec3& p, glm::vec3& t, glm::vec3& n)
+{
+    const za::Vector<glm::vec3>& line = scratch.line;
+    const za::Vector<float>& along = scratch.along;
+    const size_t last = line.size() - 1;
+    if(s <= 0.f || s >= along[last])
+    {
+        const size_t i = s <= 0.f ? 0 : last;
+        t = scratch.tangent[i];
+        n = scratch.normal[i];
+        p = line[i] + t * (s - along[i]);
+        return;
+    }
+    size_t lo = 0, hi = last; // the sample before s, and one at or after it
+    while(hi - lo > 1)
+    {
+        const size_t m = (lo + hi) / 2;
+        if(along[m] <= s)
+        {
+            lo = m;
+        }
+        else
+        {
+            hi = m;
+        }
+    }
+    const float f = (s - along[lo]) / za::max(along[hi] - along[lo], 1e-6f);
+    p = glm::mix(line[lo], line[hi], f);
+    t = glm::normalize(glm::mix(scratch.tangent[lo], scratch.tangent[hi], f));
+    n = glm::mix(scratch.normal[lo], scratch.normal[hi], f);
+    n = glm::normalize(n - t * glm::dot(n, t));
+}
+
+// The dynamic lights' light at `p` (the first `count` of scratch.lights), and the direction it comes from (by strength).
+glm::vec3 lampAt(const glm::vec3& p, int count, glm::vec3& from)
+{
+    glm::vec3 lamp{0.f};
+    from = glm::vec3{0.f};
+    for(int k = 0; k < count; k++)
+    {
+        const NearLight& l = scratch.lights[k];
+        const glm::vec3 d = l.pos - p;
+        const float dist = glm::length(d);
+        if(dist >= l.radius || dist < 1e-4f)
+        {
+            continue;
+        }
+        const float q[3] = {p.x, p.y, p.z};
+        const glm::vec3 add = l.color * ((l.radius - dist) * VR_SpotCone(l.l, q));
+        lamp += add;
+        from += d * ((add.x + add.y + add.z) / dist);
+    }
+    from = glm::length(from) > 1e-6f ? glm::normalize(from) : glm::vec3{0.f, 0.f, 1.f};
+    return lamp;
+}
+
+// 0 .. 1 from an integer (a link's own look).
+float hash01(unsigned x)
+{
+    x ^= x >> 16;
+    x *= 0x7feb352du;
+    x ^= x >> 15;
+    x *= 0x846ca68bu;
+    x ^= x >> 16;
+    return static_cast<float>(x & 0xffffffu) / static_cast<float>(0xffffff);
+}
+
+constexpr int maxLinks = 192;
+constexpr int maxBend = 4; // segments a link's half circle, near
+
+// A chain's rings along the line (scratch's, `length` units long): each link a loop of rings round its wire's middle
+// (a stadium: two half circles joined by straights), the links joined by rings of no radius (nothing drawn between
+// them: a ring of none in the loop's first ring's place closes each end of it inside the wire). Link k (counted from
+// the second end, the torch: the links keep their places from it, paid out of the first end as the line stretches)
+// lies in the plane of the line's normal (even) or binormal (odd) there, bent with the line; its light is taken at its
+// middle; its rust and grime (TubeRing ambient.w, lamp.w: gfx::drawTube) its own.
+void buildChain(const Style& style, float length, const glm::vec3 (&light)[3], int numLights, float metres,
+    za::Vector<gfx::TubeRing>& out, int& sides, int& links)
+{
+    const float m2u = units::metresToUnits();
+    const float wire = style.wireRadius * m2u;
+    const float pitch = style.linkLength * m2u;
+    const float halfLen = 0.5f * style.linkLength * m2u + wire; // the wire's middle: the link's middle to its end
+    const float halfWid = 0.5f * style.linkWidth * m2u + wire;  // and to its side
+    const float straight = za::max(halfLen - halfWid, 0.f);
+    const int bend = metres < 0.6f ? maxBend : metres < 1.2f ? 3 : 2;
+    sides = metres < 0.6f ? 6 : metres < 1.2f ? 5 : 4;
+    const int loop = 2 * (bend + 1); // the loop's rings (its first again closes it)
+    links = za::clamp(static_cast<int>(za::ceil((length + halfLen) / pitch)), 1, maxLinks);
+    out.resize(static_cast<size_t>(links) * static_cast<size_t>(loop + 3));
+    glm::vec3 mid[2 * (maxBend + 1)];
+    size_t at = 0;
+    for(int k = 0; k < links; k++)
+    {
+        const float c = length - (static_cast<float>(k) + 0.5f) * pitch;
+        glm::vec3 cp, ct, cn;
+        lineAt(c, cp, ct, cn);
+        const bool turned = (k & 1) != 0;
+        const glm::vec3 side = turned ? glm::cross(ct, cn) : cn;
+        const glm::vec3 plane = glm::cross(ct, side); // the normal to the link's plane
+        for(int j = 0; j < loop; j++)
+        {
+            const int end = j <= bend ? 0 : 1;
+            const float phi = pi * (static_cast<float>(j - end * (bend + 1)) / static_cast<float>(bend) - 0.5f + static_cast<float>(end));
+            const float u = (end ? -straight : straight) + halfWid * za::cos(phi);
+            glm::vec3 p, t, n;
+            lineAt(c + u, p, t, n);
+            mid[j] = p + (turned ? glm::cross(t, n) : n) * (halfWid * za::sin(phi));
+        }
+        const float w = za::clamp(c / za::max(length, 1e-3f), 0.f, 1.f) * 2.f;
+        const glm::vec3 ambient = w < 1.f ? glm::mix(light[0], light[1], w) : glm::mix(light[1], light[2], w - 1.f);
+        glm::vec3 from;
+        const glm::vec3 lamp = lampAt(cp, numLights, from);
+        const unsigned id = static_cast<unsigned>(k);
+        const float rust = 0.2f + 0.65f * hash01(id * 2u + 1u);
+        const float grime = 0.35f * hash01(id * 2u + 7919u);
+        const auto ring = [&](int j, float radius) {
+            const int a = (j + loop - 1) % loop, b = (j + 1) % loop;
+            const glm::vec3 along = glm::normalize(mid[b] - mid[a]);
+            glm::vec3 e = glm::cross(along, plane);
+            e = glm::length(e) > 1e-6f ? glm::normalize(e) : anyPerpendicular(along);
+            gfx::TubeRing& g = out[at++];
+            g.mid = glm::vec4{mid[j], radius};
+            g.across = glm::vec4{e, 0.f};
+            g.along = glm::vec4{along, 0.f};
+            const float patch =
+                za::clamp(rust + 0.3f * za::sin(static_cast<float>(j) * 1.9f + static_cast<float>(k) * 2.3f), 0.f, 1.f);
+            g.ambient = glm::vec4{ambient, patch};
+            g.lamp = glm::vec4{lamp, grime};
+            g.lampDir = glm::vec4{from, 0.f};
+        };
+        ring(0, 0.f);
+        for(int j = 0; j < loop; j++)
+        {
+            ring(j, wire);
+        }
+        ring(0, wire);
+        ring(0, 0.f);
+    }
+}
 
 } // namespace
 
@@ -226,6 +373,8 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
         along[i] = along[i - 1] + glm::distance(line[i - 1], line[i]);
     }
     const float length = along.back();
+    length_ = length / m2u;
+    links_ = 0;
     if(length < 0.5f)
     {
         return false;
@@ -295,6 +444,14 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
         }
     }
 
+    const int numLights = za::min(static_cast<int>(lights.size()), 4);
+    if(style_.chain)
+    {
+        buildChain(style_, length, lightAt, numLights, metres, out, sides, links_);
+        rings_ = static_cast<int>(out.size());
+        return true;
+    }
+
     // The rings: their middles on the helix, the wire's direction and an axis across it, and the light reaching them
     // (the dynamic lights' summed, from their mean direction by strength). The GPU makes the wire round them and
     // shades it (gfx::drawTube).
@@ -303,7 +460,6 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
     mid.resize(rings + 1);
     radial.resize(rings + 1);
     out.resize(rings + 1);
-    const int numLights = za::min(static_cast<int>(lights.size()), 4);
     size_t seg = 0;
     for(int r = 0; r <= rings; r++)
     {
@@ -330,23 +486,10 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
         const float w = u * 2.f;
         const glm::vec3 ambient = w < 1.f ? glm::mix(lightAt[0], lightAt[1], w) : glm::mix(lightAt[1], lightAt[2], w - 1.f);
         ring.ambient = glm::vec4{ambient, 0.f};
-        glm::vec3 lamp{0.f}, from{0.f};
-        for(int k = 0; k < numLights; k++)
-        {
-            const NearLight& l = lights[k];
-            const glm::vec3 d = l.pos - mid[r];
-            const float dist = glm::length(d);
-            if(dist >= l.radius || dist < 1e-4f)
-            {
-                continue;
-            }
-            const float p[3] = {mid[r].x, mid[r].y, mid[r].z};
-            const glm::vec3 add = l.color * ((l.radius - dist) * VR_SpotCone(l.l, p));
-            lamp += add;
-            from += d * ((add.x + add.y + add.z) / dist);
-        }
+        glm::vec3 from;
+        const glm::vec3 lamp = lampAt(mid[r], numLights, from);
         ring.lamp = glm::vec4{lamp, 0.f};
-        ring.lampDir = glm::vec4{glm::length(from) > 1e-6f ? glm::normalize(from) : glm::vec3{0.f, 0.f, 1.f}, 0.f};
+        ring.lampDir = glm::vec4{from, 0.f};
     }
     for(int r = 0; r <= rings; r++)
     {

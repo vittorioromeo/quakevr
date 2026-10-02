@@ -844,11 +844,15 @@
   "by": "make_vrbody.py"
  },
  "quakevr/progs/vrflashlight.mdl": {
-  "sha256": "c45218c22e2e01d2369006480f08a4491ec1b39e1ad9e57cdd843bc3ef7e4b86",
+  "sha256": "9f0b08711f4f2d44a8d7bb76faa1f42bf0954c956c64ca4126eedd3e7e91f145",
+  "by": "make_flashlight.py"
+ },
+ "quakevr/progs/vrflashlight.mdl_0.png": {
+  "sha256": "d80239136894f0dd788ce286d5be155176efc38b0cd76bff258eb9b733b4950a",
   "by": "make_flashlight.py"
  },
  "quakevr/progs/vrflashlight.mdl_0_norm.png": {
-  "sha256": "09e52279cd9ffa4c1e0d8530e88f86d1cffe251716cdee150ba4f1492ced510b",
+  "sha256": "bdb4a0a3863631847e68a77d5027643513988c1e609cbb7fb7b3a612aa7c58c5",
   "by": "bake_normals.py"
  },
  "quakevr/progs/vrgadget.mdl": {
