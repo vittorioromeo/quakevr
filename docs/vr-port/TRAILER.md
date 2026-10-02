@@ -1,12 +1,14 @@
-# Trailer tools: highlight markers and a rough cut
+# Trailer tools: highlight markers, a rough cut, slow motion's sound
 
-Two tools to save editing time on gameplay footage:
+Tools to save editing time on gameplay footage:
 
 1. **Highlight markers** (in the game): while you record, the game logs its cool moments with their times, and
    writes markers DaVinci Resolve imports onto the timeline.
 2. **Rough cut** (`Misc/quakevr/trailer/`): from the recordings, their logs and a music track, a first cut of the
    trailer (the best moments, trimmed, built up, cut on the beat) as a timeline Resolve imports over the original
    files (nothing re-encoded).
+3. **Slow motion's sound** (in the game): the game's sound as at normal speed, in the game's time, for footage
+   recorded slowed and sped up in editing; and how to speed the recording's own sound up in Resolve.
 
 ## 1. Highlight markers
 
@@ -118,6 +120,51 @@ refers to them by their full paths: keep them where they were).
 - `selftest.py <folder>`: makes a test recording (a flash and beep at 3 s), a 126 BPM music track and a log
   (`make_test_media.py`), and checks the sync (to the frame), the tempo and beats (within 25 ms), the EDL's
   timecodes, and a rough cut (valid, every cut on a beat). `--log <a real log.csv>` uses that log's rows.
+
+## 3. Slow-motion footage: the sound
+
+Recorded in slow motion (Graphics > Recording > Slow Motion, `vr_timescale` 0.25 say) and sped up 4x in editing, the
+picture is right; the sound needs care.
+
+### Best: the game-time sound file
+
+**Graphics > Recording > Slow Motion > Game-Time Sound File** (`vr_timescale_wav 1`). While Log Highlights runs, the
+game mixes its sound a second time, as it sounds at **normal speed**, on the game's clock, and writes it to
+`highlights/<log>_gametime.wav` (24-bit, the mix's rate, about 16 MB a minute). What you hear in the headset doesn't
+change. It is the whole mix the live one is (HRTF, occlusion, reverb from its own room response, Quake's lowpass,
+the underwater filter, the limiter), but no music.
+
+- It starts at the sync mark (its first sound is the sync beep) and ends when the log stops. **Sync Mark Now** starts
+  a new file (`_gametime_2.wav`, `_3`...), so each file starts at the sync mark of that number.
+- Its time is the **game's**: one second of it is one second of game time, whatever the time scale was. A take
+  recorded at one time scale lines up with the recording sped up by exactly 1 / scale (4x for 0.25).
+- In Resolve: put the WAV on its own audio track and line up its beep with the recording's own (sped-up) sync beep.
+  The beep in the WAV is at its very start; the flash is a few frames earlier in the recording (the sound's latency,
+  ~40 ms of real time, shorter by the time scale once sped up). Mute or delete the recording's own audio.
+- A take whose scale changed (Ease In and Out, bullet time, `vr_slowmo` during the take): the WAV is still the game's
+  time throughout, so it only lines up with footage retimed to the game's time. The log's `game_time` column against
+  `t` is that map; or start a new file (Sync Mark Now) after each change and cut the takes there.
+- Debug > Tests > Spatial Audio > Record the Game-Time Mix (`vr_snd_capture_game <seconds> [name]`): the same mix for a few
+  seconds to `sound_tests/capture_game_<name>.wav`, its levels in the console.
+
+### Otherwise: speed the recording's own sound up as varispeed
+
+The slowed sound in the recording (`vr_timescale_sound 1`: slower and lower) sped up by plain resampling is right in
+pitch and speed with no extra step. What breaks it is a **pitch-preserving time stretch** followed by a manual pitch
+shift: both add artefacts (a dull, phasey, "padded" sound; the bass smeared).
+
+In DaVinci Resolve:
+
+1. Right-click the clip on the timeline > **Change Clip Speed...**: Speed 400% (1 / the time scale: 200% for 0.5,
+   400% for 0.25), and **untick Pitch Correction**. The audio is then resampled with the picture: its pitch comes back
+   up by itself. Don't add a pitch shift afterwards.
+2. Changed another way (Retime Controls, a speed ramp), the audio may be pitch-corrected or left behind: use Change
+   Clip Speed's constant speeds for the audio, or the game-time file.
+
+Even sped up exactly, the slowed sound isn't the game at normal speed: everything after each sound's slowing (the
+HRTF, the near field, the reverb, Quake's 5 kHz lowpass for its 11 kHz sounds, the limiter) worked on the slowed
+sound, so sped up those effects land at the wrong frequencies and times (ROUND21.md, "Slow motion's sound for
+editing": measured). The game-time file has none of that.
 
 ## Notes
 

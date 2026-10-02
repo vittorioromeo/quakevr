@@ -52,7 +52,6 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
-#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
@@ -76,6 +75,7 @@ Features featuresFromCvars()
     f.doppler = za::clamp(vr_snd_doppler.value, 0.f, 4.f);
     f.nearfield = za::clamp(vr_snd_nearfield.value, 0.f, 2.f);
     f.unitsPerMetre = units::metresToUnits();
+    f.rate = VR_SndRate();
     return f;
 }
 
@@ -355,6 +355,7 @@ void Mixer::prepare(Voice& v, const Listener& l, const Features& f) const
         const float vl = za::clamp(glm::dot(l.vel, dir) * f.doppler, -0.5f * c, 0.5f * c);
         v.dopplerTarget = za::clamp((c + vl) / (c + vs), 0.5f, 2.f);
     }
+    v.dopplerTarget *= f.rate; // slow motion: read slower (lower), the rate eased as the Doppler's
 
     v.closeness = f.nearfield > 0.f ? za::clamp((1.f - metres) / 0.9f, 0.f, 1.f) * f.nearfield : 0.f;
 
@@ -696,6 +697,7 @@ void Mixer::render(int blocks, const Listener& l, const Features& f, const IPLRe
         {
             outL[b * frame + i] += reverbL[i] * mix;
             outR[b * frame + i] += reverbR[i] * mix;
+           
         }
     }
 }
@@ -771,7 +773,7 @@ struct BusLimiter
     long long over{0};       // samples over full scale coming in
 };
 
-// The game-time mix's WAV for a recording (vr_timescale_wav; S_PaintChannels, VR_SndGameMix): written as it is mixed,
+// The game-time render's WAV for a recording (vr_timescale_wav; VR_SndShadow, VR_SndGameMix): written as it is made,
 // 24-bit stereo, the sizes put in when it ends.
 struct GameWav
 {
@@ -781,15 +783,38 @@ struct GameWav
     za::Vector<unsigned char> bytes; // (a chunk's, to write)
 };
 
-// Slow motion's varispeed (VR_SndVarispeed): a Kaiser-windowed sinc, `zeros` zero crossings each side of a read, its
-// cut-off under the slower side's Nyquist frequency; tabulated (`steps` a crossing) when the commands are added.
-struct Varispeed
+// The game-time render (VR_SndShadow; vr_timescale_wav's WAV, vr_snd_capture_game): the effects mixed a second time,
+// at their normal speed on a clock of the game's time, beside the live mix (which slow motion plays slowed and lower,
+// and stays so). Its own cursors in the channels' sounds, its own voices (a second mixer: the same HRTF, reverb and
+// occlusion, rendering in the game's time), its own filters; the live channels and voices are only read. A sound
+// whose live channel ended goes on here to its own end (the live mix's ran a little ahead).
+struct ShadowChannel
 {
-    static constexpr int zeros = 24;
-    static constexpr int steps = 256;
-    static constexpr float cutoff = 0.95f;
-    static constexpr double beta = 9.0; // (the stop band ~90 dB down)
-    za::Array<float, zeros * steps + 2> table{};
+    sfx_t* sfx{nullptr};
+    int pos{0};      // in the sound's cache (samples)
+    int voice{-1};   // the shadow mixer's voice playing it
+    bool done{true};
+};
+
+struct Shadow
+{
+    bool running{false};
+    Mixer mixer;
+    bool tried{false};
+    int rate{0};
+    int frame{0};
+    za::String sofa;
+    int quality{-1};
+    double owed{0.0}; // game-time samples due (the output's samples times the time scale), the fraction kept
+    za::Array<ShadowChannel, MAX_CHANNELS> channels{};
+    za::Array<int, Mixer::maxVoices> channelOf{};
+    za::Array<bool, MAX_CHANNELS> started{};  // a new sound on the channel (VR_SndStarted) since the last render
+    za::Array<int, MAX_CHANNELS> startPos{};  // its position then (Quake's start offset)
+    za::Vector<float> mixL, mixR;
+    za::Vector<float> carryL, carryR;
+    int carryLen{0};
+    za::Vector<portable_samplepair_t> buffer;
+    double ms{0.0}; // a paint call's share of it, averaged
 };
 
 struct Live
@@ -827,6 +852,8 @@ struct Live
     bool worldNeeded{false};
     IPLReflectionEffectParams reverb{};
     bool haveReverb{false};
+    IPLReflectionEffectParams reverbSecond{}; // the game-time render's (Shadow)
+    bool haveReverbSecond{false};
 
     za::Vector<float> mixL, mixR;
     za::Array<float, 1024> carryL{}, carryR{};
@@ -840,7 +867,7 @@ struct Live
     Capture gameCapture;  // vr_snd_capture_game
     BusLimiter gameBus;   // the game-time mix's own limiter (its capture and WAV)
     GameWav wav;
-    Varispeed varispeed;
+    Shadow shadow;        // the game-time render (the WAV's and vr_snd_capture_game's mix)
 };
 
 Live* live{nullptr};
@@ -909,6 +936,7 @@ void createSim()
     live->mixer.setReverb(q.type, q.order, q.duration);
     live->worldGen = -1; // (the scene made again)
     live->haveReverb = false;
+    live->haveReverbSecond = false;
 }
 
 // Made (again) as the settings and the mix rate want it.
@@ -1115,8 +1143,10 @@ void selectVoices(int time)
         double pos = ch->pos;
         if(!L.fresh[c])
         {
-            // (In slow motion too: the channels' ends are on the paint clock while it mixes; snd_mix.c.)
-            pos = static_cast<double>(sc->length - (ch->end - time));
+            // (Slow motion: Quake painted it at VR_SndRate's rate, its end in output samples; snd_mix.c.)
+            const float rate = VR_SndRate();
+            pos = rate == 1.f ? static_cast<double>(sc->length - (ch->end - time))
+                              : static_cast<double>(sc->length) - static_cast<double>(ch->end - time) * rate;
             if(pos >= sc->length && sc->loopstart >= 0 && sc->loopstart < sc->length)
             {
                 pos = sc->loopstart + za::fmod(pos - sc->length, static_cast<double>(sc->length - sc->loopstart));
@@ -1131,6 +1161,51 @@ void selectVoices(int time)
     {
         L.fresh[i] = false;
     }
+}
+
+// A voiced channel's input: its place, volume and velocity, and the live voice `v`'s simulation result (the world's
+// own line of sight until its first). VR_SndPaint's voices; the game-time render's too.
+VoiceInput channelInput(int c, int v, const Features& f, float volume)
+{
+    Live& L = *live;
+    const channel_t* ch = &snd_channels[c];
+    VoiceInput in;
+    in.pos = glm::vec3{ch->origin[0], ch->origin[1], ch->origin[2]};
+    const float falloff =
+        za::max(0.f, 1.f - glm::length(in.pos - L.listener.pos) * ch->dist_mult * falloffScale());
+    in.gain = static_cast<float>(ch->master_vol) * falloff * volume;
+    in.attached = handOf(ch) >= 0;
+    if(c < dynamicChannels && L.follow[c].active && vr_snd_follow.value != 0.f)
+    {
+        in.vel = L.follow[c].vel;
+    }
+    in.hasDirect = L.sim.direct(v, L.serial[v], in.direct);
+    if(!in.hasDirect && f.occlusion > 0.f && L.sim.hasScene() && cl.worldmodel)
+    {
+        // Until the simulation's first result (a frame or two): the world's own line of sight (hull 0), so that a
+        // sound starting behind a wall doesn't start at full volume.
+        if(L.guessSerial[v] != L.serial[v])
+        {
+            L.guessSerial[v] = L.serial[v];
+            trace_t trace;
+            ZA_MEMSET(&trace, 0, sizeof trace);
+            trace.fraction = 1.f;
+            const glm::vec3 out = outOfSolid(in.pos, L.listener.pos);
+            vec3_t from{L.listener.pos.x, L.listener.pos.y, L.listener.pos.z};
+            vec3_t to{out.x, out.y, out.z};
+            SV_RecursiveHullCheck(cl.worldmodel->hulls, 0, 0.f, 1.f, from, to, &trace);
+            L.guess[v] = DirectResult{};
+            if(trace.fraction < 1.f || trace.allsolid)
+            {
+                const IPLMaterial& wall = material(SurfaceMaterial::Stone);
+                L.guess[v].occlusion = 0.f;
+                za::copy(wall.transmission, wall.transmission + 3, L.guess[v].transmission);
+            }
+        }
+        in.hasDirect = true;
+        in.direct = L.guess[v];
+    }
+    return in;
 }
 
 void report()
@@ -1196,33 +1271,6 @@ bool writeWav16(const char* path, const za::Vector<float>& l, const za::Vector<f
     }
     fclose(f);
     return true;
-}
-
-// The varispeed's kernel: sinc(u) times a Kaiser window, from u = 0 to `zeros` (and one more step, for the
-// interpolation).
-void buildVarispeed(Varispeed& v)
-{
-    const auto bessel0 = [](double x) {
-        double sum = 1.0;
-        double term = 1.0;
-        for(int k = 1; k < 50; k++)
-        {
-            const double h = x / (2.0 * k);
-            term *= h * h;
-            sum += term;
-        }
-        return sum;
-    };
-    constexpr double pi = 3.14159265358979323846;
-    const double norm = bessel0(Varispeed::beta);
-    for(int i = 0; i < static_cast<int>(v.table.size()); i++)
-    {
-        const double u = static_cast<double>(i) / Varispeed::steps;
-        const double t = u / Varispeed::zeros;
-        const double sinc = u == 0.0 ? 1.0 : za::sin(pi * u) / (pi * u);
-        const double window = t < 1.0 ? bessel0(Varispeed::beta * za::sqrt(1.0 - t * t)) / norm : 0.0;
-        v.table[i] = static_cast<float>(sinc * window);
-    }
 }
 
 // The game-time WAV's header: 24-bit stereo at `rate`, `frames` long.
@@ -1310,12 +1358,9 @@ void info_f()
         za::clamp(vr_snd_limiter_release.value, 0.02f, 1.f) * 1000.f,
         L.bus.minGain > 0.f ? 20.f * za::log10(L.bus.minGain) : -200.f, L.bus.over, L.bus.clipped);
     L.bus.minGain = 1.f;
-    int gameActive = 0;
-    float gameRate = 1.f;
-    double gameAhead = 0.0;
-    S_GameTimeState(&gameActive, &gameRate, &gameAhead);
-    Con_Printf("  slow motion's game-time mix: %s (rate %.3f, %.1f samples mixed ahead); game-time WAV: %s\n",
-        gameActive ? "on" : "off", gameRate, gameAhead, L.wav.file ? L.wav.path.cStr() : "none");
+    Con_Printf("  game-time render (vr_timescale_wav, vr_snd_capture_game): %s, %.3f ms a call; WAV: %s\n",
+        L.shadow.running ? (L.shadow.mixer.valid() ? "on, with its own voices" : "on, Quake's mix only") : "off",
+        L.shadow.ms, L.wav.file ? L.wav.path.cStr() : "none");
     const mleaf_t* leaf = cl.worldmodel ? Mod_PointInLeaf(&L.listener.pos.x, cl.worldmodel) : nullptr;
     Con_Printf("  listener: %s at %.0f %.0f %.0f (leaf contents %d), speed %.0f units/s\n", L.head ? "the head" : "the view",
         L.listener.pos.x, L.listener.pos.y, L.listener.pos.z, leaf ? leaf->contents : 0, glm::length(L.listener.vel));
@@ -1469,7 +1514,6 @@ void liquid_f()
 void init()
 {
     live = new Live{};
-    buildVarispeed(live->varispeed);
     za::fill(live->voiceOf, -1);
     za::fill(live->channelOf, -1);
     Cmd_AddCommand("vr_snd_info", info_f);
@@ -1488,6 +1532,7 @@ void shutdown()
     if(live)
     {
         stopGameWav();
+        live->shadow.mixer.destroy();
         live->sim.destroy();
         live->mixer.destroy();
         delete live;
@@ -1573,6 +1618,7 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
             L.worldUpm = f.unitsPerMetre;
             L.worldNeeded = need;
             L.haveReverb = false;
+            L.haveReverbSecond = false;
             L.sim.dropScene(); // (the last map's out at once: no sound hidden by its walls meanwhile)
             if(need)
             {
@@ -1651,6 +1697,7 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
         ss.duration = q.duration;
         ss.order = q.order;
         ss.reverbInterval = za::clamp(static_cast<double>(vr_snd_reverb_interval.value), 0.05, 5.0);
+        ss.second = ss.reverb && (L.shadow.running || vr_timescale_wav.value != 0.f);
         L.sim.update(coordinates(L.listener.pos, L.listener.fwd, L.listener.right, L.listener.up, f.unitsPerMetre),
             L.sources.data(), n, ss, realtime);
         IPLReflectionEffectParams p{};
@@ -1658,6 +1705,16 @@ extern "C" void VR_SndListener(float* origin, float* forward, float* right, floa
         {
             L.reverb = p;
             L.haveReverb = true;
+        }
+        IPLReflectionEffectParams p2{};
+        if(L.sim.reflectionsSecond(p2))
+        {
+            L.reverbSecond = p2;
+            L.haveReverbSecond = true;
+        }
+        else if(!ss.second)
+        {
+            L.haveReverbSecond = false;
         }
     }
     report();
@@ -1763,6 +1820,8 @@ extern "C" void VR_SndStarted(channel_t* ch)
         return;
     }
     live->fresh[index] = true;
+    live->shadow.started[index] = true; // (the game-time render: a new sound, from here)
+    live->shadow.startPos[index] = ch->pos;
     if(index >= dynamicChannels)
     {
         return;
@@ -1866,44 +1925,7 @@ extern "C" void VR_SndPaint(portable_samplepair_t* buffer, int start, int end)
             continue;
         }
         used++;
-        const channel_t* ch = &snd_channels[c];
-        VoiceInput in;
-        in.pos = glm::vec3{ch->origin[0], ch->origin[1], ch->origin[2]};
-        const float falloff =
-            za::max(0.f, 1.f - glm::length(in.pos - L.listener.pos) * ch->dist_mult * falloffScale());
-        in.gain = static_cast<float>(ch->master_vol) * falloff * volume;
-        in.attached = handOf(ch) >= 0;
-        if(c < dynamicChannels && L.follow[c].active && vr_snd_follow.value != 0.f)
-        {
-            in.vel = L.follow[c].vel;
-        }
-        in.hasDirect = L.sim.direct(v, L.serial[v], in.direct);
-        if(!in.hasDirect && f.occlusion > 0.f && L.sim.hasScene() && cl.worldmodel)
-        {
-            // Until the simulation's first result (a frame or two): the world's own line of sight (hull 0), so that a
-            // sound starting behind a wall doesn't start at full volume.
-            if(L.guessSerial[v] != L.serial[v])
-            {
-                L.guessSerial[v] = L.serial[v];
-                trace_t trace;
-                ZA_MEMSET(&trace, 0, sizeof trace);
-                trace.fraction = 1.f;
-                const glm::vec3 out = outOfSolid(in.pos, L.listener.pos);
-                vec3_t from{L.listener.pos.x, L.listener.pos.y, L.listener.pos.z};
-                vec3_t to{out.x, out.y, out.z};
-                SV_RecursiveHullCheck(cl.worldmodel->hulls, 0, 0.f, 1.f, from, to, &trace);
-                L.guess[v] = DirectResult{};
-                if(trace.fraction < 1.f || trace.allsolid)
-                {
-                    const IPLMaterial& wall = material(SurfaceMaterial::Stone);
-                    L.guess[v].occlusion = 0.f;
-                    za::copy(wall.transmission, wall.transmission + 3, L.guess[v].transmission);
-                }
-            }
-            in.hasDirect = true;
-            in.direct = L.guess[v];
-        }
-        L.mixer.set(v, in);
+        L.mixer.set(v, channelInput(c, v, f, volume));
     }
     L.voicesUsed = used;
 
@@ -2101,8 +2123,7 @@ extern "C" void VR_SndLimit(portable_samplepair_t* buffer, int count)
     const bool limit = vr_snd_limiter.value != 0.f;
     if(limit)
     {
-        // (Slow motion: the release in the game's time, as the mix sped up in editing would have it.)
-        configureBus(b, shm->speed, 1.f / za::clamp(VR_SndRate(), 0.05f, 4.f));
+        configureBus(b, shm->speed, 1.f);
     }
     else
     {
@@ -2167,76 +2188,7 @@ extern "C" void VR_SndCapture(const portable_samplepair_t* buffer, int count)
 }
 
 // ----------------------------------------------------------------------------
-// Slow motion's game-time mix (snd_mix.c, S_PaintGameTime)
-
-extern "C" void VR_SndRebase(int from, int to)
-{
-    if(live && live->carryLen > 0 && live->carryStart == from)
-    {
-        live->carryStart = to;
-    }
-}
-
-extern "C" int VR_SndVarispeedReach(float rate)
-{
-    const float fc = Varispeed::cutoff * za::min(1.f, 1.f / za::max(rate, 0.01f));
-    return static_cast<int>(za::ceil(static_cast<float>(Varispeed::zeros) / fc)) + 1;
-}
-
-// Each output sample is the windowed sinc's sum over the ring's samples within its reach of the read position,
-// normalised; the read position moves on by the rate (ramped from rate0 to rate1 across the chunk). Over a rate of 1
-// (the ring read faster than it was mixed) the cut-off comes down with it: no aliasing.
-extern "C" void VR_SndVarispeed(const float* ringL, const float* ringR, int mask, double* pos, float rate0, float rate1,
-                                portable_samplepair_t* out, int count)
-{
-    double p = *pos;
-    if(!live)
-    {
-        for(int i = 0; i < count; i++) // (no table: linear)
-        {
-            const int i0 = static_cast<int>(za::floor(p));
-            const float f = static_cast<float>(p - i0);
-            out[i].left = static_cast<int>(ringL[i0 & mask] + (ringL[(i0 + 1) & mask] - ringL[i0 & mask]) * f);
-            out[i].right = static_cast<int>(ringR[i0 & mask] + (ringR[(i0 + 1) & mask] - ringR[i0 & mask]) * f);
-            p += rate0 + (rate1 - rate0) * (static_cast<float>(i + 1) / static_cast<float>(count));
-        }
-        *pos = p;
-        return;
-    }
-    const float* table = live->varispeed.table.data();
-    constexpr int last = Varispeed::zeros * Varispeed::steps;
-    const float fc = Varispeed::cutoff * za::min(1.f, 1.f / za::max(za::max(rate0, rate1), 0.01f));
-    const double span = static_cast<double>(Varispeed::zeros) / fc;
-    const double perSample = static_cast<double>(fc) * Varispeed::steps; // table steps a sample of distance
-    for(int i = 0; i < count; i++)
-    {
-        const long long first = static_cast<long long>(za::ceil(p - span));
-        const long long final = static_cast<long long>(za::floor(p + span));
-        double sl = 0.0;
-        double sr = 0.0;
-        double sw = 0.0;
-        for(long long k = first; k <= final; k++)
-        {
-            const double d = za::abs(p - static_cast<double>(k)) * perSample;
-            const int at = static_cast<int>(d);
-            if(at >= last)
-            {
-                continue;
-            }
-            const float f = static_cast<float>(d - at);
-            const double w = table[at] + (table[at + 1] - table[at]) * f;
-            const int slot = static_cast<int>(k) & mask;
-            sl += w * ringL[slot];
-            sr += w * ringR[slot];
-            sw += w;
-        }
-        const double inv = sw > 1e-6 ? 1.0 / sw : 0.0;
-        out[i].left = static_cast<int>(za::floor(sl * inv + 0.5));
-        out[i].right = static_cast<int>(za::floor(sr * inv + 0.5));
-        p += rate0 + (rate1 - rate0) * (static_cast<float>(i + 1) / static_cast<float>(count));
-    }
-    *pos = p;
-}
+// The game-time mix (the recording's WAV, vr_snd_capture_game)
 
 extern "C" void VR_SndGameMix(const portable_samplepair_t* buffer, int count)
 {
@@ -2343,3 +2295,307 @@ void stopGameWav()
 }
 
 } // namespace qvr::audio
+
+// ----------------------------------------------------------------------------
+// The game-time render (Shadow; S_PaintChannels, VR_SndShadow)
+
+namespace qvr::audio
+{
+namespace
+{
+
+void shadowStopVoice(Shadow& sh, int v)
+{
+    const int c = sh.channelOf[v];
+    if(c >= 0)
+    {
+        sh.channels[c].voice = -1;
+    }
+    sh.channelOf[v] = -1;
+    sh.mixer.stop(v);
+}
+
+// Its mixer made as the live one is (rate, frames, HRTF, reverb); false while there is none.
+bool shadowMixer(Shadow& sh)
+{
+    Live& L = *live;
+    if(!running())
+    {
+        return false;
+    }
+    if(sh.tried && sh.rate == L.rate && sh.frame == L.frame && sh.sofa == L.sofa && sh.quality == L.quality)
+    {
+        return sh.mixer.valid();
+    }
+    for(int v = 0; v < Mixer::maxVoices; v++)
+    {
+        if(sh.channelOf[v] >= 0)
+        {
+            shadowStopVoice(sh, v);
+        }
+    }
+    sh.tried = true;
+    sh.rate = L.rate;
+    sh.frame = L.frame;
+    sh.sofa = L.sofa;
+    sh.quality = L.quality;
+    sh.mixer.destroy();
+    if(!sh.mixer.create(L.rate, L.frame, L.sofa.cStr()))
+    {
+        return false;
+    }
+    const Quality q = qualityPreset(L.quality);
+    sh.mixer.setReverb(q.type, q.order, q.duration);
+    sh.carryLen = 0;
+    return true;
+}
+
+// From the live channels as they are now (the render starting).
+void shadowReset(Shadow& sh)
+{
+    for(int v = 0; v < Mixer::maxVoices; v++)
+    {
+        if(sh.channelOf[v] >= 0)
+        {
+            shadowStopVoice(sh, v);
+        }
+    }
+    for(int c = 0; c < MAX_CHANNELS; c++)
+    {
+        ShadowChannel& s = sh.channels[c];
+        s = ShadowChannel{};
+        if(c < total_channels && snd_channels[c].sfx)
+        {
+            s.sfx = snd_channels[c].sfx;
+            s.pos = snd_channels[c].pos;
+            s.done = false;
+        }
+        sh.started[c] = false;
+    }
+    sh.owed = 0.0;
+    sh.carryLen = 0;
+}
+
+// `count` samples of the game-time mix (at most a paint call's) into sh.buffer.
+void shadowRender(Shadow& sh, int count)
+{
+    Live& L = *live;
+    portable_samplepair_t* out = sh.buffer.data();
+    ZA_MEMSET(out, 0, sizeof(portable_samplepair_t) * static_cast<za::SizeT>(count));
+
+    // New sounds, sounds stopped (S_StopSound, S_StopAllSounds: no end left).
+    for(int c = 0; c < MAX_CHANNELS; c++)
+    {
+        ShadowChannel& s = sh.channels[c];
+        const channel_t* ch = &snd_channels[c];
+        const bool fresh = sh.started[c] || (ch->sfx && ch->sfx != s.sfx);
+        const bool stopped = !ch->sfx && ch->end == 0;
+        if(fresh || (stopped && !s.done))
+        {
+            if(s.voice >= 0)
+            {
+                shadowStopVoice(sh, s.voice);
+            }
+            s.sfx = fresh ? ch->sfx : nullptr;
+            s.pos = sh.started[c] ? sh.startPos[c] : ch->pos;
+            s.done = !s.sfx;
+        }
+        sh.started[c] = false;
+    }
+
+    // The voices: the channels the live mix voices (the same sound), and those still sounding here whose live
+    // channel ended.
+    if(shadowMixer(sh))
+    {
+        Features f = featuresFromCvars();
+        f.rate = 1.f; // (the game's time: the normal speed)
+        const float volume = sfxvolume.value;
+        for(int c = 0; c < MAX_CHANNELS; c++)
+        {
+            ShadowChannel& s = sh.channels[c];
+            const channel_t* ch = &snd_channels[c];
+            const int liveVoice = c < total_channels ? L.voiceOf[c] : -1;
+            const bool voiced = !s.done && liveVoice >= 0 && ch->sfx == s.sfx;
+            const bool orphan = !s.done && s.voice >= 0 && !ch->sfx;
+            if(s.voice >= 0 && !voiced && !orphan)
+            {
+                s.pos = static_cast<int>(sh.mixer.position(s.voice)); // (Quake's mix goes on from there)
+                shadowStopVoice(sh, s.voice);
+            }
+            if(voiced && s.voice < 0)
+            {
+                const sfxcache_t* sc = S_LoadSound(s.sfx);
+                int v = 0;
+                while(v < Mixer::maxVoices && sh.channelOf[v] >= 0)
+                {
+                    v++;
+                }
+                if(sc && v < Mixer::maxVoices)
+                {
+                    sh.mixer.start(v, sc, s.pos);
+                    sh.channelOf[v] = c;
+                    s.voice = v;
+                }
+            }
+            if(voiced && s.voice >= 0)
+            {
+                sh.mixer.set(s.voice, channelInput(c, liveVoice, f, volume));
+            }
+        }
+
+        const int frame = sh.frame;
+        int written = za::min(count, sh.carryLen);
+        for(int i = 0; i < written; i++)
+        {
+            out[i].left += static_cast<int>(sh.carryL[i]);
+            out[i].right += static_cast<int>(sh.carryR[i]);
+        }
+        za::copy(sh.carryL.begin() + written, sh.carryL.begin() + sh.carryLen, sh.carryL.begin());
+        za::copy(sh.carryR.begin() + written, sh.carryR.begin() + sh.carryLen, sh.carryR.begin());
+        sh.carryLen -= written;
+        const int remain = count - written;
+        if(remain > 0)
+        {
+            const int blocks = (remain + frame - 1) / frame;
+            const int rendered = blocks * frame;
+            za::fill(sh.mixL.begin(), sh.mixL.begin() + rendered, 0.f);
+            za::fill(sh.mixR.begin(), sh.mixR.begin() + rendered, 0.f);
+            sh.mixer.render(blocks, L.listener, f, L.haveReverbSecond ? &L.reverbSecond : nullptr, sh.mixL.data(),
+                sh.mixR.data());
+            for(int i = 0; i < remain; i++)
+            {
+                out[written + i].left += static_cast<int>(sh.mixL[i]);
+                out[written + i].right += static_cast<int>(sh.mixR[i]);
+            }
+            sh.carryLen = rendered - remain;
+            for(int i = 0; i < sh.carryLen; i++)
+            {
+                sh.carryL[i] = sh.mixL[remain + i];
+                sh.carryR[i] = sh.mixR[remain + i];
+            }
+        }
+        for(int v = 0; v < Mixer::maxVoices; v++)
+        {
+            const int c = sh.channelOf[v];
+            if(c < 0)
+            {
+                continue;
+            }
+            ShadowChannel& s = sh.channels[c];
+            s.pos = static_cast<int>(sh.mixer.position(v));
+            if(sh.mixer.ended(v))
+            {
+                s.done = true;
+                shadowStopVoice(sh, v);
+            }
+        }
+    }
+    else
+    {
+        for(int v = 0; v < Mixer::maxVoices; v++)
+        {
+            if(sh.channelOf[v] >= 0)
+            {
+                ShadowChannel& s = sh.channels[sh.channelOf[v]];
+                s.pos = static_cast<int>(sh.mixer.position(v));
+                shadowStopVoice(sh, v);
+            }
+        }
+        sh.carryLen = 0;
+    }
+
+    // Quake's own mix of the rest (SND_PaintChannelFrom8/16's volumes, read at the normal speed).
+    for(int c = 0; c < MAX_CHANNELS; c++)
+    {
+        ShadowChannel& s = sh.channels[c];
+        const channel_t* ch = &snd_channels[c];
+        if(s.done || s.voice >= 0 || (!ch->leftvol && !ch->rightvol))
+        {
+            continue;
+        }
+        const sfxcache_t* sc = S_LoadSound(s.sfx);
+        if(!sc || sc->length <= 0)
+        {
+            s.done = true;
+            continue;
+        }
+        const bool wide = sc->width == 2;
+        const float lv = static_cast<float>(wide ? ch->leftvol : za::min(ch->leftvol, 255)) * sfxvolume.value;
+        const float rv = static_cast<float>(wide ? ch->rightvol : za::min(ch->rightvol, 255)) * sfxvolume.value;
+        const int loop = sc->loopstart >= 0 && sc->loopstart < sc->length ? sc->loopstart : -1;
+        for(int i = 0; i < count; i++)
+        {
+            if(s.pos >= sc->length)
+            {
+                if(loop < 0)
+                {
+                    s.done = true;
+                    break;
+                }
+                s.pos = loop;
+            }
+            const float data = wide ? static_cast<float>(reinterpret_cast<const short*>(sc->data)[s.pos])
+                                    : static_cast<float>(static_cast<signed char>(sc->data[s.pos])) * 256.f;
+            out[i].left += static_cast<int>(data * lv);
+            out[i].right += static_cast<int>(data * rv);
+            s.pos++;
+        }
+    }
+
+    // The effects' bus (VR_SndBus's, without its counts), Quake's lowpass and the underwater filter (their own).
+    constexpr int ceiling = 32767 * 256;
+    constexpr int bottom = -32768 * 256;
+    const bool limit = vr_snd_limiter.value != 0.f;
+    const int hi = limit ? ceiling * 8 : ceiling;
+    const int lo = limit ? bottom * 8 : bottom;
+    for(int i = 0; i < count; i++)
+    {
+        out[i].left = za::clamp(out[i].left, lo, hi) / 2;
+        out[i].right = za::clamp(out[i].right, lo, hi) / 2;
+    }
+    S_ShadowFilters(out, count);
+}
+
+} // namespace
+} // namespace qvr::audio
+
+extern "C" void VR_SndShadow(int count)
+{
+    if(!live || !shm)
+    {
+        return;
+    }
+    Shadow& sh = live->shadow;
+    if(!live->gameCapture.running && !live->wav.file)
+    {
+        sh.running = false;
+        return;
+    }
+    if(!sh.running)
+    {
+        sh.running = true;
+        if(sh.buffer.empty())
+        {
+            sh.buffer.resize(2048);
+            sh.mixL.resize(Mixer::maxSamples, 0.f);
+            sh.mixR.resize(Mixer::maxSamples, 0.f);
+            sh.carryL.resize(Mixer::maxSamples, 0.f);
+            sh.carryR.resize(Mixer::maxSamples, 0.f);
+            za::fill(sh.channelOf, -1);
+        }
+        shadowReset(sh);
+    }
+    sh.owed += static_cast<double>(count) * VR_TimeScale();
+    int due = static_cast<int>(za::floor(sh.owed));
+    sh.owed -= due;
+    QVR_PROFILE("game-time sound render");
+    const double t0 = Sys_DoubleTime();
+    while(due > 0)
+    {
+        const int n = za::min(due, 2048);
+        shadowRender(sh, n);
+        VR_SndGameMix(sh.buffer.data(), n);
+        due -= n;
+    }
+    sh.ms += ((Sys_DoubleTime() - t0) * 1000.0 - sh.ms) * 0.05;
+}

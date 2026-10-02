@@ -231,11 +231,14 @@ bool Simulation::create(int rate, int frameSize, IPLReflectionEffectType reflect
     reverb.flags = IPL_SIMULATIONFLAGS_REFLECTIONS;
     sa->iplSourceCreate(simulator, &reverb, &reverbSource);
     sa->iplSourceAdd(reverbSource, simulator);
+    sa->iplSourceCreate(simulator, &reverb, &reverbSecond);
+    sa->iplSourceAdd(reverbSecond, simulator);
     sa->iplSimulatorCommit(simulator);
     {
         const za::LockGuard lock{mutex};
         za::fill(directValid, false);
         reflectionsValid = false;
+        reflectionsSecondValid = false;
     }
     lastDirect = lastReflections = -1e9;
     return true;
@@ -325,6 +328,12 @@ void Simulation::destroy()
         sa->iplSourceRelease(&reverbSource);
     }
     reverbSource = nullptr;
+    if(reverbSecond)
+    {
+        sa->iplSourceRemove(reverbSecond, simulator);
+        sa->iplSourceRelease(&reverbSecond);
+    }
+    reverbSecond = nullptr;
     sa->iplSimulatorRelease(&simulator);
     simulator = nullptr;
 }
@@ -380,6 +389,7 @@ void Simulation::useBuilt(Built b)
     const za::LockGuard lock{mutex};
     za::fill(directValid, false);
     reflectionsValid = false;
+    reflectionsSecondValid = false;
 }
 
 void Simulation::buildScene(Mesh&& world)
@@ -636,13 +646,24 @@ void Simulation::runReflections(const ReflectionsJob& job)
     in.hybridReverbOverlapPercent = 0.25f;
     in.baked = IPL_FALSE;
     sa->iplSourceSetInputs(reverbSource, IPL_SIMULATIONFLAGS_REFLECTIONS, &in);
+    // The second response (the game-time render's): the same, simulated only while it is wanted.
+    IPLSimulationInputs second = in;
+    second.flags = job.settings.second ? IPL_SIMULATIONFLAGS_REFLECTIONS : static_cast<IPLSimulationFlags>(0);
+    sa->iplSourceSetInputs(reverbSecond, IPL_SIMULATIONFLAGS_REFLECTIONS, &second);
     sa->iplSimulatorRunReflections(simulator);
     IPLSimulationOutputs o{};
     sa->iplSourceGetOutputs(reverbSource, IPL_SIMULATIONFLAGS_REFLECTIONS, &o);
+    IPLSimulationOutputs o2{};
+    if(job.settings.second)
+    {
+        sa->iplSourceGetOutputs(reverbSecond, IPL_SIMULATIONFLAGS_REFLECTIONS, &o2);
+    }
     const double ms = (Sys_DoubleTime() - start) * 1000.0;
     const za::LockGuard lock{mutex};
     reflectionsOut = o.reflections;
     reflectionsValid = true;
+    reflectionsSecondOut = o2.reflections;
+    reflectionsSecondValid = job.settings.second;
     reflectionsTaskMs = ms;
 }
 
@@ -704,6 +725,17 @@ bool Simulation::direct(int slot, unsigned serial, DirectResult& out) const
         return false;
     }
     out = directOut[slot];
+    return true;
+}
+
+bool Simulation::reflectionsSecond(IPLReflectionEffectParams& out) const
+{
+    const za::LockGuard lock{mutex};
+    if(!reflectionsSecondValid)
+    {
+        return false;
+    }
+    out = reflectionsSecondOut;
     return true;
 }
 

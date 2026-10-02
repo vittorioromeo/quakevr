@@ -75,6 +75,8 @@ typedef struct
 	vec3_t	origin;			/* origin of sound effect			*/
 	vec_t	dist_mult;		/* distance multiplier (attenuation/clipK)	*/
 	int	master_vol;		/* 0-255 master volume				*/
+	float	frac;			/* QVR: slow motion: the fraction of a sample past pos (snd_mix.c, SND_PaintChannelRate) */
+	int	resampled;		/* QVR: ... and end counts output samples at that rate */
 } channel_t;
 
 #define WAV_FORMAT_PCM	1
@@ -109,7 +111,7 @@ void S_ClearPrecache (void);
 void S_BeginPrecaching (void);
 void S_EndPrecaching (void);
 void S_PaintChannels (int endtime);
-void S_GameTimeState (int *active, float *rate, double *ahead);	/* QVR: slow motion's game-time mix (vr_snd_info) */
+void S_ShadowFilters (portable_samplepair_t *buffer, int count);	/* QVR: the game-time render's lowpass and underwater filter (vr/vr_audio.cpp) */
 float S_GetLoFreqLevel (void);
 float S_GetHiFreqLevel (void);
 void S_ClearFilteredLevels (void);

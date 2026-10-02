@@ -85,6 +85,8 @@ struct SimSettings
     float hybridTransition{0.1f}; // s: convolution for this much, parametric after (hybrid)
     double directInterval{1.0 / 30.0};
     double reverbInterval{0.25};
+    bool second{false};        // a second room response, for the game-time render's own reverb (an effect takes each
+                               // new response from its source once: one source can't feed two)
 };
 
 class Simulation
@@ -154,6 +156,7 @@ public:
     // The latest results (any time).
     [[nodiscard]] bool direct(int slot, unsigned serial, DirectResult& out) const;
     [[nodiscard]] bool reflections(IPLReflectionEffectParams& out) const;
+    [[nodiscard]] bool reflectionsSecond(IPLReflectionEffectParams& out) const; // (SimSettings::second)
 
     // Tests: a simulation at once, on the calling thread (after the running tasks are done).
     void runDirectNow(const IPLCoordinateSpace3& listener, const Source* sources, int count, const SimSettings& s);
@@ -215,6 +218,7 @@ private:
     int order{0};
     za::Array<IPLSource, maxSources> sources{};
     IPLSource reverbSource{nullptr};
+    IPLSource reverbSecond{nullptr}; // (the same place: idle unless SimSettings::second)
 
     IPLScene scene{nullptr};
     IPLStaticMesh worldMesh{nullptr};
@@ -238,6 +242,8 @@ private:
     za::Array<unsigned, maxSources> directSerial{};
     IPLReflectionEffectParams reflectionsOut{};
     bool reflectionsValid{false};
+    IPLReflectionEffectParams reflectionsSecondOut{};
+    bool reflectionsSecondValid{false};
     double directTaskMs{0.0};
     double reflectionsTaskMs{0.0};
 };

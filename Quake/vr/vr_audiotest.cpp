@@ -989,76 +989,6 @@ void testDistance(Result& res)
     res.check("distance: in sight, as loud as Quake's mix (within 3 dB; a contact too)", worst < 3.f);
 }
 
-// Slow motion's varispeed (VR_SndVarispeed; snd_mix.c's game-time mix): tones in a ring read slower, ramped and faster,
-// against the exact tone at each read position; over a rate of 1, a tone that would alias is taken out.
-void testVarispeed(Result& res)
-{
-    constexpr int ring = 16384;
-    constexpr double amplitude = 1.0e6; // (paintbuffer's units)
-    constexpr double pi = 3.14159265358979323846;
-    za::Vector<float> left, right;
-    left.resize(ring);
-    right.resize(ring);
-    za::Vector<portable_samplepair_t> out;
-    out.resize(8192);
-    // The error (dB under the tone) reading `count` samples from `start` at rates ramped from r0 to r1.
-    const auto run = [&](double hz, float r0, float r1, int count, double& errorDb, double& levelDb) {
-        const double w = 2.0 * pi * hz / testRate;
-        for(int i = 0; i < ring; i++)
-        {
-            left[i] = static_cast<float>(amplitude * za::sin(w * i));
-            right[i] = static_cast<float>(amplitude * za::cos(w * i));
-        }
-        double pos = 2000.25;
-        za::Vector<double> at;
-        at.resize(count);
-        double p = pos;
-        for(int i = 0; i < count; i++)
-        {
-            at[i] = p;
-            p += r0 + (r1 - r0) * (static_cast<float>(i + 1) / static_cast<float>(count));
-        }
-        VR_SndVarispeed(left.data(), right.data(), ring - 1, &pos, r0, r1, out.data(), count);
-        double err = 0.0;
-        double level = 0.0;
-        for(int i = 0; i < count; i++)
-        {
-            const double el = out[i].left - amplitude * za::sin(w * at[i]);
-            const double er = out[i].right - amplitude * za::cos(w * at[i]);
-            err += el * el + er * er;
-            level += static_cast<double>(out[i].left) * out[i].left + static_cast<double>(out[i].right) * out[i].right;
-        }
-        const double ref = amplitude * amplitude * count; // (the tone's power, both sides)
-        errorDb = 10.0 * za::log10(za::max(err, 1e-30) / ref);
-        levelDb = 10.0 * za::log10(za::max(level, 1e-30) / ref);
-        if(za::abs(pos - p) > 1e-6)
-        {
-            errorDb = 0.0; // (the read position must end where the rates take it)
-        }
-    };
-    double e1 = 0, e2 = 0, e3 = 0, e4 = 0, l = 0, alias = 0, kept = 0;
-    run(1000.0, 0.25f, 0.25f, 4000, e1, l);
-    run(10000.0, 0.25f, 0.25f, 4000, e2, l);
-    run(3000.0, 0.25f, 1.f, 4000, e3, l);
-    run(5000.0, 2.f, 2.f, 3000, e4, kept);
-    double ea = 0;
-    run(15000.0, 2.f, 2.f, 3000, ea, alias);
-    const double start = Sys_DoubleTime();
-    double pos = 1000.0;
-    for(int k = 0; k < 11; k++) // (a second of output at 0.25)
-    {
-        VR_SndVarispeed(left.data(), right.data(), ring - 1, &pos, 0.25f, 0.25f, out.data(), 4009);
-        pos = 1000.0;
-    }
-    const double ms = (Sys_DoubleTime() - start) * 1000.0;
-    Con_Printf("snd_test varispeed: error at 0.25x 1 kHz %.1f dB, 10 kHz %.1f dB; ramped 0.25-1x 3 kHz %.1f dB; 2x 5 kHz "
-               "%.1f dB (level %.2f dB); 2x 15 kHz (would alias) %.1f dB; a second of output in %.1f ms\n",
-        e1, e2, e3, e4, kept, alias, ms);
-    res.check("varispeed: slowed and ramped tones exact (error under -80 dB)", e1 < -80.0 && e2 < -80.0 && e3 < -80.0);
-    res.check("varispeed: faster, a tone kept (error under -80 dB) and one past Nyquist taken out (under -60 dB)",
-        e4 < -80.0 && alias < -60.0);
-}
-
 void testHands(Result& res)
 {
     const hands::State& hs = hands::current();
@@ -1283,10 +1213,6 @@ void test_f()
     if(all || !ZA_STRCMP(which, "hands"))
     {
         testHands(res);
-    }
-    if(all || !ZA_STRCMP(which, "varispeed"))
-    {
-        testVarispeed(res);
     }
     if(all || !ZA_STRCMP(which, "bench"))
     {

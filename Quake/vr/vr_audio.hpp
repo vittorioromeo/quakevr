@@ -40,6 +40,7 @@ struct Features
     float doppler{0.f};      // scale (0 off)
     float nearfield{0.f};    // strength (0 off)
     float unitsPerMetre{26.25f};
+    float rate{1.f};         // slow motion's playback rate (VR_SndRate: slower and lower; 1 normal)
 };
 [[nodiscard]] Features featuresFromCvars();
 
@@ -206,8 +207,8 @@ void test_f();
 void init();
 void shutdown();
 
-// The game-time mix's WAV (vr_timescale_wav; the highlights log's sync marks): a new file from the next sample mixed
-// (the last one finished), and the end of it. Nothing without sound.
+// The game-time render's WAV (vr_timescale_wav; the highlights log's sync marks): a new file from the next sample
+// rendered (the last one finished), and the end of it. Nothing without sound.
 void startGameWav(const char* path);
 void stopGameWav();
 

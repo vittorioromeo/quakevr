@@ -294,8 +294,8 @@ QVR_CVAR(vr_spectator_pos_smooth, "0.05", CVAR_ARCHIVE) // spectator camera: sec
 QVR_CVAR(vr_timescale, "1", CVAR_NONE)                 // the game's time per real second (0.05 .. 4; 1 normal); single player. Not saved: a game never starts slowed
 QVR_CVAR(vr_slowmo_scale, "0.25", CVAR_ARCHIVE)        // the time scale vr_slowmo toggles to (bindable: bind x vr_slowmo)
 QVR_CVAR(vr_timescale_ramp, "0.3", CVAR_ARCHIVE)       // real seconds the time scale takes to go all the way from 1 to 0 (or back), linearly (0: at once)
-QVR_CVAR(vr_timescale_sound, "1", CVAR_ARCHIVE)        // 1: sounds play slowed and lower with the time scale (the whole mix made at normal speed in the game's time, then read slower: sped up in editing, it sounds as at normal speed); 0: at their normal speed and pitch
-QVR_CVAR(vr_timescale_wav, "0", CVAR_ARCHIVE)          // 1: while Log Highlights runs, the effects' mix as at normal speed (in the game's time, no music) to highlights/<log>_gametime.wav (24-bit), a new file at each sync mark
+QVR_CVAR(vr_timescale_sound, "1", CVAR_ARCHIVE)        // 1: sounds play slowed and lower with the time scale (resampled); 0: at their normal speed and pitch
+QVR_CVAR(vr_timescale_wav, "0", CVAR_ARCHIVE)          // 1: while Log Highlights runs, the game's sound also mixed a second time at normal speed in the game's time (no music; what you hear is unchanged) to highlights/<log>_gametime.wav (24-bit), a new file at each sync mark
 QVR_CVAR(vr_timescale_hand_speed, "8", CVAR_ARCHIVE)   // m/s of the game's time: the most a hand moves in slow motion (a real-speed swing is no supersonic blow); 0: no limit
 QVR_CVAR(vr_timescale_hand_spin, "20", CVAR_ARCHIVE)   // rad/s of the game's time: the most a hand turns in slow motion; 0: no limit
 QVR_CVAR(vr_timescale_turn_realtime, "1", CVAR_ARCHIVE) // 1: the smooth turn at its real-time speed in slow motion (footage sped up shows it faster); 0: slowed with the world

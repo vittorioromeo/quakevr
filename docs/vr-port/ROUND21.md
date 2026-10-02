@@ -20265,3 +20265,99 @@ bricks 0.11-0.13 / 0.25-0.29, crates 0.26 / 0.45, planks 0.16 / 0.35, crowbar 0.
   match the walls they lie by.
 - [ ] Crates and their planks: deeper grain, in keeping with the walls.
 - [ ] The crowbar in hand: chipped paint, pitted steel, the tape's weave under a light.
+
+## Slow motion's sound for editing: the game-time sound file (2026-10-02)
+
+His report: slow-motion recordings look perfect sped up in Resolve, but the sound (1) had the wrong pitch (fixed by hand)
+and (2) sounds muffled, dull, padded, bassy and somewhat distorted. Later constraint from him: what he hears in slow
+motion stays exactly as it is (he likes it); only the recording side changes.
+
+### Measured (the live slowed mix, sped up exactly)
+
+A scripted scene in e1m1 (`-Sound -RealTime`): an explosion 6 m ahead, the shotgun's cock, an armor pickup (spatial
+voices), `lhit` (Quake's own mixer), three explosions at once; captured (`vr_snd_capture`) at 1x and at 0.5x/0.25x,
+the slowed captures sped up offline by exact band-limited resampling (FFT), each event aligned (sub-sample) and
+compared with the 1x one: waveform SNR, and third-octave levels.
+
+| | SNR | < 300 Hz | 300 Hz-2 kHz | 2-6 kHz | 6-16 kHz | band RMS |
+|---|---|---|---|---|---|---|
+| 1x run against another 1x run | 40-47 dB | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 dB |
+| 0.5x sped up (live mix) | 0.7-3.6 dB | -0.2..+3.7 | -0.1..+3.1 | -2.6..-0.3 | **+52..+57** | 2.7-4.0 dB |
+| 0.25x sped up (live mix) | 0.3-1.0 dB | -1.2..+1.8 | -0.4..+4.6 | -2.4..+3.3 | **+52..+61** | 3.6-5.9 dB |
+
+(6-16 kHz: against a 1x mix that has almost nothing there.) Where it goes wrong: each sound is slowed on its own
+(Quake's mixer and the spatial voices read it slower), so everything after that works on the slowed sound and, sped up,
+lands at the wrong frequencies and times:
+
+- **Quake's lowpass** (`S_LowpassFilter`, ~5.3 kHz, for 11 kHz sounds mixed at 44.1 kHz) removes the 11 kHz sounds'
+  images at 1x; slowed, the images sit under it and pass: sped up, 6-16 kHz garbage ~50 dB over the 1x mix's (the
+  "distorted").
+- **HRTF and near field**: the ear's filters act on the slowed spectrum (an octave or two lower): sped up, the HRTF's
+  shaping is stretched up 2-4x; the 2-5 kHz presence lands at 8-20 kHz and the mids go plain ("dull", 2-6 kHz down
+  up to 2.5 dB at 0.25x; single low bands up to +5-7 dB).
+- **Reverb** (Steam Audio's, real-time): sped up it is 2-4x shorter, its damping stretched; Doppler, occlusion EQ and
+  air absorption likewise at the wrong frequencies.
+- **The limiter**: its release is real time, 4x faster once sped up (more pumping on loud piles).
+- Resampling itself (linear) costs little (-0.4 dB at 5 kHz). A pitch-preserving time stretch plus a manual pitch
+  shift in the editor adds its own smearing on top (TRAILER.md section 3).
+
+A live fix (the whole mix made at normal speed on a game-time clock and read slower by a band-limited varispeed) was
+built and measured first: sped up it matched 1x at 35-48 dB SNR, band RMS 0.0 dB, no clicks in and out of slow motion.
+It changes what slow motion sounds like in the headset, so it was taken out (commit `132a3700` on this branch keeps it,
+for reference); the live mix is the old one (checked: the same numbers as before, every event).
+
+### What was added: the game-time render (recording only)
+
+- **`vr_timescale_wav`** (0; Graphics > Recording > Slow Motion > **Game-Time Sound File**): while Log Highlights
+  runs, the game's sound is mixed a second time, at normal speed on the game's clock, and written as
+  `highlights/<log>_gametime.wav` (24-bit stereo, the mix's rate; a new file at each sync mark: `_2`, `_3`...; its
+  first sound is the sync beep). TRAILER.md section 3: lining it up in Resolve.
+- How (`Shadow`, vr_audio.cpp; `VR_SndShadow` from `S_PaintChannels`, after the live mix): each paint call owes
+  `count x VR_TimeScale()` game-time samples. Its own cursors in the channels' sounds (`VR_SndStarted` marks new
+  ones), its own voices on a second `Mixer` (the same HRTF, occlusion and air results, Doppler at rate 1), voicing
+  what the live mix voices (a sound whose live channel ended goes on here to its own end; one handed between a voice
+  and Quake's mix keeps its place), Quake's channels painted at their normal speed, the effects' bus, its own Quake
+  lowpass and underwater filter memories (`S_ShadowFilters`, snd_mix.c), its own limiter (`VR_SndGameMix`). The live
+  channels and voices are only read.
+- **Its own reverb**: a second listener-centred reverb source in the simulation (`SimSettings::second`; idle, inputs
+  flagged off, unless the WAV is on or the render runs). One Steam Audio convolution response can't feed two effects:
+  the effect that reads a new response first takes it and the other got silence (found: the game-time mix had no
+  reverb at all until then).
+- Cost: the render ~ the live spatial mix's (32 voices: 0.74 ms a paint call at 1x, 0.27 at 0.25x; profiler line "game-time
+  sound render"), and a second reflections trace on the simulation's thread, while it runs.
+- **Test aid:** `vr_snd_capture_game <seconds> [name]` (Debug > Tests > Spatial Audio > Record the Game-Time Mix (2 s)):
+  game seconds of it to `sound_tests/capture_game_<name>.wav`, its levels and limiter. `vr_snd_info`: its line
+  (on, ms, the WAV).
+
+### Results (the same scene; game-time captures)
+
+| | SNR | < 300 Hz | 300 Hz-2 kHz | 2-6 kHz | 6-16 kHz | band RMS |
+|---|---|---|---|---|---|---|
+| game-time mix at 0.25x against it at 1x (time-scale invariance) | 40-47 dB (explosion 11: its reverb response is real-time) | 0.0 | 0.0 | 0.0 | -0.2..+0.3 | 0.0 dB |
+| game-time mix at 0.5x / 0.25x against the live mix at 1x | 3.5-21 dB | 0.0 | -0.4..-0.1 | -2.3..-0.8 | -4.0..-1.1 | 0.5-1.4 dB |
+| the same with HRTF and reverb off | 37-50 dB | 0.0 | 0.0 | -0.4..-0.2 | -0.4..0.0 | 0.1-0.3 dB |
+| spatial audio off (Quake's mix only) | 66-79 dB | | | | | 0.0-0.2 dB |
+
+- Against the 0.25x live mix sped up (band RMS 3.6-5.9 dB, 6-16 kHz +52..+61 dB): the game-time file is the 1x mix.
+- What's left against the live 1x mix is the voices' HRTF: the same direction and input through the second mixer's
+  binaural effects give a different left/right balance at 2-8 kHz (a source dead ahead: live right louder by ~4 dB,
+  game-time left louder by ~2; 7 degrees right: live left louder 1.2, game-time right louder 1.4; 25 degrees right:
+  12.7 against 7.9). The game-time one is monotonic with the angle; the live one isn't (open question below). The reverb
+  is its own response (a separate ray trace), so its tail differs in detail.
+- Highlights flow: two files (start, Sync Mark Now) of 4.1 s and 1.8 s (game time) over a take with slow motion eased in
+  and out; the beep at 0-5 ms; no clicks (second differences over 12x the local level: only the beep's and an
+  explosion's onsets). `vr_snd_test all` in a map: 25 passed.
+
+### Known limits, open questions
+
+- No music in the file (the music isn't game time; the trailer has its own).
+- A take whose time scale changed only lines up with footage retimed to the game's time (the log's `game_time`).
+- Open: the live spatial mix's left/right balance at 2-8 kHz isn't monotonic with a source's angle near the front
+  (above); not looked into (the live mix wasn't to change).
+
+### In VR
+
+- Graphics > Recording > Slow Motion > Game-Time Sound File on, Log Highlights on, record a take at 0.25x with
+  gunfire, explosions, pickups; in Resolve speed the clip 400% and put the WAV under it (TRAILER.md section 3): it
+  should sound like playing at normal speed. In the headset nothing changes.
+- Also try the recording's own audio with Change Clip Speed, Pitch Correction off, no manual pitch shift.
