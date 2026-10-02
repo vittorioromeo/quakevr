@@ -7,8 +7,13 @@
 #   quakevr/progs/vr_brick1..4.mdl   a whole brick (19 x 9 x 6 cm), a chipped one, a half brick, a broken piece: worn
 #                                    edges, chips and a rough fracture face, mortar left on its beds and ends; six
 #                                    skins (red, brown, yellow, blue-grey, sooty, pale)
+#   quakevr/progs/<model>_<skin>.png each skin in full colour at HIRES (2) times the size (256 x 256): what the engine
+#                                    draws (an external skin); the model's own 8-bit skins are the same, in Quake's
+#                                    palette, for a renderer without them
 #
 # Usage: python Misc/quakevr/make_debris.py [output game folder] [--preview out.png]
+# Then bake the normal maps (python Misc/quakevr/bake_normals.py vr_rock1.mdl ... vr_brick4.mdl): their relief is this
+# file's (relief(), normaltiles.py's "relief" recipe).
 #   --preview: a contact sheet of every model's skins, and the shapes seen from above and the side (numpy, PIL).
 #
 # Model space: Quake units at vr_world_scale 1 (1 m = 1 / 0.0381 units), as make_shell.py: the engine scales each
@@ -17,9 +22,13 @@
 # (Box3D: the convex hull of the drawn model) is exactly what is drawn: a stone rests on its drawn facets.
 #
 # Skins: 128 x 128, every facet its own island of the skin (a shelf-packed atlas at one texel density, two texels
-# of bleed round each), so the baked normal map (bake_normals.py; normaltiles.py's "stone" recipe: relief from the
-# skin's shading, the facets' edges rounded) has a place for each. The engine picks a skin by the colour of the wall
-# or floor a piece lies by (vr_debris.cpp reads the skins' average colours from the files: repainting them works).
+# of bleed round each), so the baked normal map (bake_normals.py; normaltiles.py's "relief" recipe: this file's
+# relief, the facets' edges rounded) has a place for each. Painted at RELIEF (4) times the size with the relief
+# (lumps, crystalline ridges, grit, pits, cracks, chipped edges, strata; a brick's sand-struck clay, drag creases,
+# pores, mortar lumps, a rough fracture), the colour following it (the pits and cracks dark and grimy), as the texture
+# packs' walls look, whose bumps the engine makes from their shading; the relief as deep as those bumps (measured:
+# ROCK_DEPTH, BRICK_DEPTH). The engine picks a skin by the colour of the wall or floor a piece lies by (vr_debris.cpp
+# reads the 8-bit skins' average colours from the files: repainting them works).
 #
 # Deterministic: fixed seeds; the same files each run. genguard.py keeps it from overwriting models edited since.
 
@@ -35,6 +44,8 @@ import mdlgen
 UNITS = 1.0 / 0.0381
 SKIN = 128
 BLEED = 2  # texels round each island
+HIRES = 2  # the full-colour skins' texels per texel of the model's own 8-bit skin (256 x 256)
+RELIEF = 4  # the relief's (the baked normal map's): painted at this, the colour then averaged down to HIRES
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Convex shapes: a box cut by planes
@@ -279,13 +290,15 @@ def mesh_of(faces, uvs):
     return mesh
 
 
-def texel_points(faces, uvs):
-    """For each texel of the skin: the model-space point it shows, its face's number (-1: none, filled from a
-    neighbour so the islands bleed), and how far it is from its face's outline (units)."""
-    P = np.zeros((SKIN, SKIN, 3))
-    F = np.full((SKIN, SKIN), -1, dtype=np.int32)
-    E = np.zeros((SKIN, SKIN))
-    ys, xs = np.mgrid[0:SKIN, 0:SKIN]
+def texel_points(faces, uvs, k=1):
+    """For each texel of the skin at `k` times its size (the same atlas): the model-space point it shows, its face's
+    number (-1: none, filled from a neighbour so the islands bleed), and how far it is from its face's outline
+    (units)."""
+    size = SKIN * k
+    P = np.zeros((size, size, 3))
+    F = np.full((size, size), -1, dtype=np.int32)
+    E = np.zeros((size, size))
+    ys, xs = (np.mgrid[0:size, 0:size] + 0.5) / k - 0.5  # texel centres, in the skin's texels
     for fi, (f, st) in enumerate(zip(faces, uvs)):
         st = [v3(s) for s in st]
         edges3 = [(f.pts[i], f.pts[(i + 1) % len(f.pts)]) for i in range(len(f.pts))]
@@ -304,7 +317,7 @@ def texel_points(faces, uvs):
             F[m] = fi
             E[m] = np.min(np.stack([seg_dist(pts, e0, e1) for e0, e1 in edges3]), axis=0)
     # Bleed: empty texels take their nearest island's (a few passes of the 8 neighbours).
-    for _ in range(2 * BLEED + 2):
+    for _ in range((2 * BLEED + 2) * k):
         empty = F < 0
         if not empty.any():
             break
@@ -368,12 +381,55 @@ def smoothstep(x, a, b):
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16.0 - 0.47
 
 
-def quantize(light, ramp):
-    """Lightness 0..1 to the ramp's palette indices (dark to light), ordered dithering between neighbours."""
-    ramp = np.asarray(ramp)
-    ys, xs = np.mgrid[0:SKIN, 0:SKIN]
-    k = np.clip(np.floor(light * (len(ramp) - 1) + 0.5 + BAYER[ys % 4, xs % 4] * 0.9), 0, len(ramp) - 1).astype(int)
-    return ramp[k]
+def ramp_rgb(ramp, light):
+    """Lightness 0..1 along a palette ramp (dark to light) as full colour (sRGB 0..1): its colours blended."""
+    pal = np.array(palette(), dtype=np.float64)[np.asarray(ramp)] / 255.0
+    x = np.clip(light, 0, 1) * (len(ramp) - 1)
+    i = np.clip(np.floor(x).astype(np.int64), 0, len(ramp) - 2)
+    f = (x - i)[..., None]
+    return pal[i] * (1 - f) + pal[i + 1] * f
+
+
+def to_palette(img, size, idx):
+    """A full-colour skin ((h, w, 3) 0..1) as a model's own 8-bit one: its texels averaged down to `size` wide, then
+    the nearest of the palette's colours `idx` (no fullbrights), with ordered dithering."""
+    small = down(img, img.shape[1] // size)
+    idx = np.asarray(sorted(set(idx)))
+    pal = np.array(palette(), dtype=np.float64)[idx] / 255.0
+    ys, xs = np.mgrid[0:small.shape[0], 0:small.shape[1]]
+    c = small + BAYER[ys % 4, xs % 4][..., None] * 0.035
+    d = ((c[..., None, :] - pal[None, None]) ** 2).sum(-1)
+    return idx[np.argmin(d, -1)].astype(np.uint8)
+
+
+def down(img, k):
+    """An image averaged down k times (k x k texels to one)."""
+    h, w = img.shape[:2]
+    return img.reshape(h // k, k, w // k, k, -1).mean((1, 3)).reshape((h // k, w // k) + img.shape[2:])
+
+
+def mix(a, b, t):
+    t = np.asarray(t, dtype=np.float64)
+    return a + (b - a) * (t[..., None] if t.ndim else t)
+
+
+def ridged(p, seed, octaves=3):
+    """Ridged noise 0..1: sharp crests where value noise crosses its middle (a crystalline break's)."""
+    total, amp, norm = 0.0, 1.0, 0.0
+    for o in range(octaves):
+        n = 1.0 - np.abs(2.0 * vnoise(p * (2.0 ** o), seed + 17 * o) - 1.0)
+        total = total + amp * n * n
+        norm += amp
+        amp *= 0.5
+    return total / norm
+
+
+def cracks(p, seed, width, keep):
+    """Hairline cracks 0..1 where a noise crosses its middle (within `width` of it), broken into pieces (`keep`: the
+    share of their length kept)."""
+    n = fbm(p, seed, 3)
+    on = smoothstep(vnoise(p * 0.5 + 9.0, seed + 1), 1.0 - keep - 0.08, 1.0 - keep + 0.08)
+    return (1.0 - smoothstep(np.abs(n - 0.5), 0.0, width)) * on
 
 
 # Palette ramps, dark to light (gfx/palette.lmp's rows: greys 0-15, browns 16-31, blue-greys 32-47, reds and oranges
@@ -408,61 +464,122 @@ BRICK_SKINS = [  # (name, clay, fired patches (the kiln's flashing, darker), mor
     ("sooty", SOOT, list(range(16, 21)), PALEMORTAR),
     ("pale", BEIGE, BROWN, MORTAR),
 ]
+GRIME = np.array((0.075, 0.06, 0.045))  # dirt packed into the pits and cracks
+DARKEN = 0.86  # the skins a little darker and duller than the ramps: weathered, dirty, as the texture packs' stone
+
+# Relief depth (units) of the rocks' and the bricks' detail, at vr_normalmap_authored 1: matched by measurement to
+# the bumps the engine makes from the texture pack's walls (QRP's bricka2_1, rock1_2, rock3_8 at his
+# vr_normalmap_strength 1.5: mean tilt 0.6-1.1, the 90th percentile 1.2-2.1; ROUND21.md, "Grittier debris, crates
+# and crowbar").
+ROCK_DEPTH = 1.7
+BRICK_DEPTH = 1.9
 
 
-def rock_skins(faces, P, F, E, seed, strata):
+def rock_paint(faces, P, F, E, seed, strata, res):
+    """A rock's six skins ((h, w, 3) sRGB 0..1) and its relief ((h, w) units) at texels P, F, E (`res` texels a
+    unit). The relief: lumps over each facet, crystalline ridges, grit, pits, hairline cracks, edges chipped, the
+    strata's ledges; the colour follows it (the crests lighter, the pits and cracks dark and packed with grime), as
+    the texture packs' stone does, whose bumps the engine makes from their shading."""
     rng = np.random.default_rng(seed)
     face_shade = rng.uniform(-0.05, 0.05, len(faces) + 1)
     normals = np.array([f.n for f in faces] + [(0, 0, 1)])
     Fi = np.where(F < 0, len(faces), F)
+    N = normals[Fi]
     q = P * (1.0 / 1.1)
-    light = 0.47 + 0.34 * (fbm(q, seed, 3) - 0.5) * 2
-    light += 0.16 * (vnoise(P * 7.0, seed + 5) - 0.5)
-    pits = vnoise(P * 13.0, seed + 9)
-    light -= 0.28 * smoothstep(pits, 0.78, 0.9)
+    fine = min(18.0, 0.22 * res)  # the finest grain the relief holds (a few texels across)
+    lump = fbm(P * 0.9, seed + 101, 3) - 0.5
+    crys = ridged(P * 3.2, seed + 103, 3) - 0.45
+    grit = fbm(P * fine, seed + 105, 2) - 0.5
+    pits = smoothstep(vnoise(P * 6.5, seed + 9), 0.70, 0.9) + 0.6 * smoothstep(vnoise(P * 15.0, seed + 11), 0.78, 0.92)
+    crack = cracks(P * 1.4, seed + 107, 0.018, 0.55)
+    chipn = vnoise(P * 2.2, seed + 111)
+    chip = (1 - smoothstep(E, 0.0, 0.08 + 0.18 * chipn)) * smoothstep(chipn, 0.35, 0.65)
+    detail = 0.07 * crys + 0.016 * grit - 0.045 * pits - 0.06 * crack - 0.07 * chip
+    h = 0.10 * lump + detail
+    ledge = np.zeros_like(lump)
     if strata is not None:
-        light += 0.09 * np.sin(P @ v3(strata) * 5.5 + 3.0 * fbm(q, seed + 3, 2))
+        phase = (P @ v3(strata)) * 5.5 / (2 * math.pi) + 0.5 * fbm(q, seed + 3, 2)
+        ledge = smoothstep(phase - np.floor(phase), 0.0, 0.18) - 0.5  # a step at each layer, then a slope
+        h = h + 0.035 * ledge
+    h = h * ROCK_DEPTH
+    hd = detail / 0.07  # the detail, about -1.5..0.6: the colour's
+    light = 0.45 + 0.30 * (fbm(q, seed, 3) - 0.5) * 2
+    light += 0.10 * (vnoise(P * 7.0, seed + 5) - 0.5)
+    light += 0.22 * hd
+    light += 0.18 * (vnoise(P * fine * 1.7, seed + 13) - 0.5)  # salt-and-pepper grains
+    light += 0.08 * ledge
     light += face_shade[Fi]
-    light += 0.13 * (1 - smoothstep(E, 0.0, 0.09))  # worn edges catch the light
-    light -= 0.10 * (normals[Fi][..., 2] < -0.5)  # the underside, darker (it lay in the dirt)
+    light += 0.10 * (1 - smoothstep(E, 0.0, 0.09)) * (1 - chip)  # worn edges catch the light
+    light -= 0.10 * (N[..., 2] < -0.5)  # the underside, darker (it lay in the dirt)
     light = np.clip(light, 0, 1)
-    fleck = smoothstep(vnoise(P * 11.0, seed + 21), 0.84, 0.86)
-    moss_mask = smoothstep(normals[Fi][..., 2], -0.1, 0.5) * smoothstep(fbm(P * 0.9, seed + 31, 3), 0.42, 0.56)
+    fleck = smoothstep(vnoise(P * 11.0, seed + 21), 0.80, 0.88)
+    vein = smoothstep(fbm(P * 0.6, seed + 23, 3), 0.55, 0.75)
+    dirt = smoothstep(-hd, 0.3, 1.1)
+    moss_mask = smoothstep(N[..., 2], -0.1, 0.5) * smoothstep(fbm(P * 0.9, seed + 31, 3), 0.42, 0.56)
+    moss_mask = moss_mask * (0.6 + 0.4 * smoothstep(vnoise(P * fine, seed + 33), 0.3, 0.7))
     out = []
     for _, ramp, fleck_ramp, moss in ROCK_SKINS:
-        px = quantize(light, ramp)
-        px = np.where(fleck > 0.5, quantize(np.clip(light + 0.1, 0, 1), fleck_ramp), px)
+        c = ramp_rgb(ramp, light)
+        c = mix(c, ramp_rgb(fleck_ramp, light), 0.22 * vein)
+        c = mix(c, ramp_rgb(fleck_ramp, light + 0.1), 0.8 * fleck)
         if moss:
-            px = np.where(moss_mask > 0.5, quantize(np.clip(light * 0.8 + 0.1, 0, 1), MOSS), px)
-        out.append(px.astype(np.uint8).tobytes())
-    return out
+            c = mix(c, ramp_rgb(MOSS, light * 0.8 + 0.1), moss_mask)
+        c = mix(c, GRIME, 0.55 * dirt)
+        out.append(np.clip(c * DARKEN, 0, 1))
+    return out, h
 
 
-def brick_skins(faces, P, F, E, seed):
+def brick_paint(faces, P, F, E, seed, res):
+    """A brick's six skins and its relief, as rock_paint's: the clay's sand-struck skin (a shallow undulation, the
+    mould's drag creases along it, pores, pits, grit), hairline cracks, chipped edges, the fracture rough and deep,
+    mortar left in lumps on its beds and ends."""
     rng = np.random.default_rng(seed)
     face_shade = rng.uniform(-0.04, 0.04, len(faces) + 1)
     tags = [f.tag for f in faces] + ["side"]
     Fi = np.where(F < 0, len(faces), F)
     tag = np.array(tags)[Fi]
+    inner = tag == "break"
+    fine = min(18.0, 0.22 * res)
+    und = fbm(P * 0.9, seed + 201, 3) - 0.5
+    crease = 1 - smoothstep(np.abs(fbm(P * v3((0.5, 2.4, 2.4)), seed + 203, 3) - 0.5), 0.0, 0.03)
+    grit = fbm(P * fine, seed + 205, 2) - 0.5
+    pores = smoothstep(vnoise(P * 16.0, seed + 9), 0.74, 0.9)
+    pits = smoothstep(vnoise(P * 5.5, seed + 207), 0.78, 0.93)
+    crack = cracks(P * 1.1, seed + 209, 0.015, 0.4)
+    chipn = vnoise(P * 2.6, seed + 211)
+    chip = (1 - smoothstep(E, 0.0, 0.06 + 0.16 * chipn)) * smoothstep(chipn, 0.4, 0.7) * ~inner
+    rough = fbm(P * 3.0, seed + 213, 4) - 0.5
+    detail = -0.03 * crease + 0.014 * grit - 0.04 * pores - 0.05 * pits - 0.05 * crack - 0.07 * chip
+    detail = np.where(inner, 0.12 * rough + 0.025 * grit - 0.04 * pores, detail)
+    h = np.where(inner, 0.0, 0.05 * und) + detail
+    # Mortar left on the beds and the ends (where it was laid), in lumps; none on the breaks or the worn edges.
+    mlump = fbm(P * 4.5, seed + 215, 3)
+    mo = ((tag == "bed") | (tag == "end")) * smoothstep(fbm(P * 2.2, seed + 41, 3), 0.62, 0.7) * smoothstep(E, 0.05, 0.12)
+    h = h + mo * (0.04 + 0.07 * (mlump - 0.3) + 0.012 * grit)
+    h = h * BRICK_DEPTH
+    hd = detail / 0.06
     light = 0.42 + 0.22 * (fbm(P * 0.8, seed, 3) - 0.5) * 2
-    light += 0.12 * (vnoise(P * 9.0, seed + 5) - 0.5)
-    pores = vnoise(P * 16.0, seed + 9)
-    light -= 0.3 * smoothstep(pores, 0.8, 0.9)
+    light += 0.10 * (vnoise(P * 9.0, seed + 5) - 0.5)
+    light += 0.25 * hd
+    light += 0.16 * (vnoise(P * fine * 1.5, seed + 13) - 0.5)  # grains of sand and grog
     light += face_shade[Fi]
-    light += 0.10 * (1 - smoothstep(E, 0.0, 0.06))
-    inner = (tag == "break")
-    light = np.where(inner, light + 0.12, light)  # the fracture: fresher, lighter clay
+    light += 0.08 * (1 - smoothstep(E, 0.0, 0.06)) * (1 - chip)
+    light = np.where(inner, light + 0.10, light)  # the fracture: fresher, lighter clay
     light = np.clip(light, 0, 1)
-    fired = smoothstep(fbm(P * 1.6, seed + 13, 2), 0.66, 0.72)  # darker fired patches, the kiln's flash
-    # Mortar left on the beds and the ends (where it was laid), in patches; none on the breaks or the worn edges.
-    mortar = ((tag == "bed") | (tag == "end")) & (smoothstep(fbm(P * 2.2, seed + 41, 3), 0.64, 0.7) > 0.5) & (E > 0.08)
+    fired = smoothstep(fbm(P * 1.6, seed + 13, 2), 0.6, 0.74) * ~inner  # darker fired patches, the kiln's flash
+    salt = smoothstep(fbm(P * 1.2, seed + 17, 3), 0.62, 0.8) * smoothstep(vnoise(P * fine, seed + 19), 0.4, 0.8)
+    dirt = smoothstep(-hd, 0.3, 1.1)
+    mlight = np.clip(0.42 + 0.3 * (mlump - 0.5) + 0.12 * (vnoise(P * fine * 1.5, seed + 23) - 0.5), 0, 1)
     out = []
     for _, clay, spots, mortar_ramp in BRICK_SKINS:
-        px = quantize(light, clay)
-        px = np.where((fired > 0.5) & ~inner, quantize(np.clip(light * 0.8, 0, 1), spots), px)
-        px = np.where(mortar, quantize(np.clip(0.35 + 0.4 * (light - 0.5), 0, 1), mortar_ramp), px)
-        out.append(px.astype(np.uint8).tobytes())
-    return out
+        c = ramp_rgb(clay, light)
+        c = mix(c, ramp_rgb(spots, light * 0.8), 0.85 * fired)
+        c = mix(c, ramp_rgb(clay, light + 0.18), chip * 0.7)  # fresh clay where it chipped
+        c = mix(c, np.array((0.55, 0.52, 0.47)), 0.18 * salt)  # efflorescence: salts dried out of it
+        c = mix(c, GRIME, 0.5 * dirt)
+        c = mix(c, ramp_rgb(mortar_ramp, mlight), np.clip(mo * 1.4, 0, 1))
+        out.append(np.clip(c * DARKEN, 0, 1))
+    return out, h
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -485,6 +602,10 @@ BRICKS = [  # (file, seed, length, chamfer, chips, break planes)
 
 
 def build(kind, spec):
+    """A model: (name, faces, mesh, its 8-bit skins (bytes), the full-colour skins ((S, S, 3) uint8, S = HIRES times
+    the skin's size), the relief ((R, R) units, R = RELIEF times it), texels a unit of its own skin)."""
+    global SKIN
+    SKIN = 128  # (make_crates.py sets its own)
     if kind == "rock":
         name, seed, size, cuts, flat, strata = spec
         faces = rock_shape(seed, size, cuts, flat)
@@ -493,9 +614,29 @@ def build(kind, spec):
         faces = brick_shape(seed, length, chamfer, chips, breaks)
     uvs, density = atlas(faces)
     mesh = mesh_of(faces, uvs)
-    P, F, E = texel_points(faces, uvs)
-    skins = rock_skins(faces, P, F, E, seed, strata) if kind == "rock" else brick_skins(faces, P, F, E, seed)
-    return name, faces, mesh, skins, density
+    P, F, E = texel_points(faces, uvs, RELIEF)
+    if kind == "rock":
+        skins, h = rock_paint(faces, P, F, E, seed, strata, density * RELIEF)
+        idx = [r + f + (MOSS if m else []) for _, r, f, m in ROCK_SKINS]
+    else:
+        skins, h = brick_paint(faces, P, F, E, seed, density * RELIEF)
+        idx = [c + s + m for _, c, s, m in BRICK_SKINS]
+    full = [np.round(down(s, RELIEF // HIRES) * 255).astype(np.uint8) for s in skins]
+    own = [to_palette(s, SKIN, i).tobytes() for s, i in zip(skins, idx)]
+    return name, faces, mesh, own, full, h, density
+
+
+_relief = {}
+
+
+def relief(name):
+    """The relief of model `name` (vr_rock1.mdl...) for its normal map (normaltiles.py): (heights (R, R) in units, its
+    own skin's texels a unit, RELIEF)."""
+    if name not in _relief:
+        kind, spec = next((k, s) for k, specs in (("rock", ROCKS), ("brick", BRICKS)) for s in specs if s[0] == name)
+        m = build(kind, spec)
+        _relief[name] = (m[5], m[6], RELIEF)
+    return _relief[name]
 
 
 def volume(faces):
@@ -509,10 +650,9 @@ def volume(faces):
 
 def preview(models, path):
     from PIL import Image, ImageDraw
-    pal = np.array(palette(), dtype=np.uint8)
     rows = []
-    for name, faces, mesh, skins, _ in models:
-        row = [Image.fromarray(pal[np.frombuffer(s, np.uint8).reshape(SKIN, SKIN)]) for s in skins]
+    for name, faces, mesh, own, full, h, _ in models:
+        row = [Image.fromarray(s).resize((SKIN, SKIN), Image.LANCZOS) for s in full]
         rows.append((name, row, faces))
     W = 6 * (SKIN + 4) + 2 * 164
     img = Image.new("RGB", (W, len(rows) * (SKIN + 18)), (32, 32, 32))
@@ -550,16 +690,23 @@ def main():
     game = args[0] if args else os.path.join(here, "..", "..", "quakevr")
     models = [build("rock", s) for s in ROCKS] + [build("brick", s) for s in BRICKS]
     paths = [os.path.join(game, "progs", m[0]) for m in models]
-    guard = genguard.Guard("make_debris.py", paths)
-    for (name, faces, mesh, skins, density), path in zip(models, paths):
+    extra = [os.path.join(game, "progs", "%s_%d.png" % (m[0], k)) for m in models for k in range(len(m[4]))]
+    guard = genguard.Guard("make_debris.py", paths + extra)
+    from PIL import Image
+    for (name, faces, mesh, own, full, h, density), path in zip(models, paths):
         if path not in guard.kept:
-            mdlgen.write_mdl(path, mesh, skins, name.split(".")[0])
+            mdlgen.write_mdl(path, mesh, own, name.split(".")[0])
+        for k, s in enumerate(full):
+            out = "%s_%d.png" % (path, k)
+            if out not in guard.kept:
+                Image.fromarray(s).save(out, optimize=True)
         pts = np.array([p for f in faces for p in f.pts])
         size = (pts.max(axis=0) - pts.min(axis=0)) / UNITS * 100
         vol = volume(faces) / UNITS ** 3 * 1e3  # litres
         print("%s: %d faces, %d vertices, %d triangles; %.1f x %.1f x %.1f cm, %.2f l (%.2f kg of stone at 2600 kg/m^3, "
-              "%.2f of brick at 1900); %.1f texels/unit" % (name, len(faces), len(mesh.verts), len(mesh.tris), size[0],
-                                                           size[1], size[2], vol, vol * 2.6, vol * 1.9, density))
+              "%.2f of brick at 1900); %.1f texels/unit (%d x %d; full colour %d x %d)" % (
+                  name, len(faces), len(mesh.verts), len(mesh.tris), size[0], size[1], size[2], vol, vol * 2.6,
+                  vol * 1.9, density, SKIN, SKIN, SKIN * HIRES, SKIN * HIRES))
     guard.finish()
     if prev:
         preview(models, prev)

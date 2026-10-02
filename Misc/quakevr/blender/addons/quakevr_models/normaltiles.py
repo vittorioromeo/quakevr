@@ -10,6 +10,7 @@
 # in texel units, the same slope on every face. The view models' and the leather models' painted skins give theirs:
 # the dark seams painted into them as grooves, their painted rivets and stitches as bumps, the wood's grain.
 
+import importlib
 import math
 import os
 import sys
@@ -115,28 +116,14 @@ def shell_tiles():
             "tiles": {"hull": hull, "base": base}}
 
 
-def stone_heights(low, skin, depth, scale):
-    """A stone's or a brick's relief from its skin (make_debris.py paints them from 3D noise: dark is a pit or a pore,
-    light a knob): the shading's detail (a fine blur less a broad one), `depth` texels at most, at `scale`."""
-    rgb = skin.astype(np.float64)
-    cov = nb.coverage(low, 1)
-    lum = (rgb[..., 0] * 0.3 + rgb[..., 1] * 0.59 + rgb[..., 2] * 0.11) / 255.0
-    detail = nb.blur(lum, 0.6, cov) - nb.blur(lum, 3.0, cov)
-    h = depth * np.clip(detail / 0.12, -1.0, 1.0)
-    h = nb.dilate(np.dstack([h] * 3), cov, 6)[0][..., 0]
-    return nb.sampler(h)(np.stack(np.meshgrid((np.arange(low.W * scale) + 0.5) / scale,
-                                              (np.arange(low.H * scale) + 0.5) / scale), -1).reshape(-1, 2)
-                         ).reshape(low.H * scale, low.W * scale)
-
-
-def crate_heights(low, hs):
-    """make_crates.py's relief of a crate or one of its pieces (it paints them: the planks sunk under the battens, the
-    gaps, the grain, the nails...), in skin texels, at `hs` times the skin's size."""
+def relief_heights(low, hs, generator):
+    """A generator's own relief of its model (make_crates.py, make_debris.py, make_crowbar.py: relief(name) gives
+    (heights, skin texels a height unit, the heights' texels per skin texel): the planks sunk under a crate's battens,
+    a rock's pits and cracks, the crowbar's chipped paint...), in skin texels, at `hs` times the skin's size."""
     misc = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".."))
     if misc not in sys.path:
         sys.path.insert(0, misc)
-    import make_crates
-    h, density, k = make_crates.relief(low.name)
+    h, density, k = importlib.import_module(generator).relief(low.name)
     uv = np.stack(np.meshgrid((np.arange(low.W * hs) + 0.5) / hs, (np.arange(low.H * hs) + 0.5) / hs), -1).reshape(-1, 2)
     return nb.sampler(h * density, k)(uv).reshape(low.H * hs, low.W * hs)
 
@@ -153,19 +140,23 @@ MODELS = {
     "vrpauldron.mdl": {"paint": True, "grain": 0.3, "bevel": 1.6, "scale": 4},
     "vrpauldron_arm.mdl": {"paint": True, "grain": 0.3, "bevel": 1.6, "scale": 4},
 }
-# The rocks and bricks lying about (make_debris.py): their facets' edges rounded a little, their pits and pores from the
-# skin's shading ("stone": texels deep). A rock's facets meet at wide angles and stay sharp; a brick's worn edges round.
+# The rocks and bricks lying about (make_debris.py): their facets' edges rounded a little, their relief the generator's
+# ("relief": lumps, ridges, grit, pits, cracks, chips, mortar), at four times the 8-bit skin's size. A rock's facets meet
+# at wide angles and stay sharp; a brick's worn edges round.
 for _k in range(1, 6):
-    MODELS["vr_rock%d.mdl" % _k] = {"stone": 1.2, "bevel": 1.0, "scale": 4}
+    MODELS["vr_rock%d.mdl" % _k] = {"relief": "make_debris", "bevel": 1.0, "scale": 4}
 for _k in range(1, 5):
-    MODELS["vr_brick%d.mdl" % _k] = {"stone": 0.9, "bevel": 1.4, "scale": 4}
-# The wooden crates and their pieces (make_crates.py): their relief is the generator's ("crate": the planks sunk under the
-# frame, the gaps, the grain, checks, dents, the nails), at their full-colour skins' size (four times the 8-bit skin's).
+    MODELS["vr_brick%d.mdl" % _k] = {"relief": "make_debris", "bevel": 1.4, "scale": 4}
+# The wooden crates and their pieces (make_crates.py): their relief is the generator's (the planks sunk under the frame,
+# the gaps, the grain, checks, dents, the nails), at their full-colour skins' size (four times the 8-bit skin's).
 for _k in range(1, 3):
-    MODELS["vr_crate%d.mdl" % _k] = {"crate": True, "bevel": 1.2, "scale": 4}
+    MODELS["vr_crate%d.mdl" % _k] = {"relief": "make_crates", "bevel": 1.2, "scale": 4}
 for _k in range(1, 5):
-    MODELS["vr_plank%d.mdl" % _k] = {"crate": True, "bevel": 1.0, "scale": 4}
+    MODELS["vr_plank%d.mdl" % _k] = {"relief": "make_crates", "bevel": 1.0, "scale": 4}
 VIEW_MODEL = {"paint": True, "grain": 0.55, "bevel": 1.8, "scale": 2}
+# The crowbar (make_crowbar.py): its relief the generator's (the paint chipped to the steel, pits, scratches, the
+# tape's turns and weave), at its full-colour skin's size (four times the 8-bit skin's).
+MODELS["v_crowbar.mdl"] = {"relief": "make_crowbar", "bevel": 1.8, "scale": 4}
 # The axe's head is painted with streaks of dried blood in the wood's own browns: only its handle is wood.
 MODELS["v_axe.mdl"] = dict(VIEW_MODEL, wood_rects=[(440, 0, 512, 130)])
 
@@ -258,10 +249,8 @@ def bake(low, skin, rec=None, supersample=2, base=None, details=True):
             h += tile_heights(low, rec["tiles"](), hs)
         if rec.get("paint"):
             h += paint_heights(low, skin, rec.get("grain", 0.5), hs, rec.get("wood_rects"))
-        if rec.get("stone"):
-            h += stone_heights(low, skin, rec["stone"], hs)
-        if rec.get("crate"):
-            h += crate_heights(low, hs)
+        if rec.get("relief"):
+            h += relief_heights(low, hs, rec["relief"])
         detail = nb.tangent_uv(r, nb.sampler(h, hs), d=0.5 / hs)
         # the same heights for parallax mapping: texels up, in model units on each face
         heights = nb.sampler(h, hs)(r.uv) * nb.texel_size(r)

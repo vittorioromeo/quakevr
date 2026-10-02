@@ -13,7 +13,7 @@
 # Usage: python Misc/quakevr/make_crates.py [output game folder] [--preview out.png]
 #   --preview: a contact sheet of every model's skins.
 # Then bake the normal maps (python Misc/quakevr/bake_normals.py vr_crate1.mdl vr_crate2.mdl vr_plank1.mdl ...): their
-# relief is this file's (relief(), normaltiles.py's "crate" recipe).
+# relief is this file's (relief(), normaltiles.py's "relief" recipe; the grain WOOD_DEPTH deep).
 #
 # Model space: Quake units, unscaled (the crates are the explosive boxes' size, which are brush models Quake VR doesn't
 # scale with vr_world_scale); x along the longest side of a piece, z up, the origin in the middle of its box. Every
@@ -40,6 +40,10 @@ import make_debris as md
 
 CHAMFER = 1.0  # units: the crate's worn edges
 HIRES = 4  # the full-colour skins' (and the relief's) texels per texel of the model's own skin
+# How deep the wood's grain is in the relief (its rings, fibres, pores, checks, scratches): matched by measurement to
+# the bumps the engine makes from the texture pack's wood (QRP's wood1_1, crate0_side at his vr_normalmap_strength 1.5:
+# mean tilt 0.6; ROUND21.md, "Grittier debris, crates and crowbar").
+WOOD_DEPTH = 5.5
 
 
 def v3(x):
@@ -209,7 +213,7 @@ def finish(fig, N, P, seed, res, regions):
     out = []
     for _, early, latec, fresh, grime, weather, dirty in SKINS:
         c = mix(np.broadcast_to(early, late.shape + (3,)), latec, late * 0.6)
-        c = c * (0.5 + 0.8 * fib)[..., None] * (1.0 - 0.5 * pores)[..., None] * tint * (broad * rough)[..., None]
+        c = c * (0.42 + 0.95 * fib)[..., None] * (1.0 - 0.5 * pores)[..., None] * tint * (broad * rough)[..., None]
         if weather:
             grey = c.mean(-1, keepdims=True) * rgb((1.0, 0.97, 0.92))
             c = mix(c, grey, 0.55 * weather)
@@ -352,8 +356,8 @@ def crate_paint(faces, P, F, E, seed, batten, brace, res):
     h = h - np.where(planks, 0.3 * (1 - md.smoothstep(edge_d, 0.15, 0.55)), 0.0)
     h = np.where(gap, -1.1, h)
     h = h - 0.25 * (1 - md.smoothstep(np.minimum(frame_edge, brace_edge), 0.0, 0.45)) ** 2
-    h = h + 0.06 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.12 * checks - 0.05 * scratch
-    h = h - 0.15 * md.smoothstep(md.vnoise(P * 0.45 + 3.0, seed + 81), 0.86, 0.97)  # dents
+    h = h + WOOD_DEPTH * (0.06 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.12 * checks - 0.05 * scratch)
+    h = h - 0.3 * md.smoothstep(md.vnoise(P * 0.45 + 3.0, seed + 81), 0.86, 0.97)  # dents
     h = h + np.where(nd < r, 0.14 * (1 - (nd / r) ** 2), np.where(nd < r * 1.8, -0.04 * (1 - (nd - r) / (r * 0.8)), 0.0))
     return skins, h
 
@@ -389,34 +393,23 @@ def board_paint(faces, P, F, E, seed, nails, res):
                "low": np.zeros_like(x), "fresh": np.where(fresh, 0.85, 0.0)}
     tint = np.ones(x.shape + (3,))
     skins = finish((late, fib, pores, tint), N, P, seed, res, regions)
-    h = 0.06 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.12 * checks - 0.05 * scratch
-    h = np.where(fresh, 0.18 * (fibres - 0.5), h)  # torn fibres
-    h = np.where(end, 0.05 * late - 0.04 * pores, h)
+    h = WOOD_DEPTH * (0.06 * late + 0.045 * (fib - 0.5) - 0.05 * pores - 0.12 * checks - 0.05 * scratch)
+    h = np.where(fresh, 0.36 * (fibres - 0.5), h)  # torn fibres
+    h = np.where(end, WOOD_DEPTH * (0.05 * late - 0.04 * pores), h)
     h = h + np.where(nd < r, 0.14 * (1 - (nd / r) ** 2), 0.0)
     return skins, h
 
 
 def hires_texels(faces, uvs, size):
     """make_debris.texel_points at HIRES times the skin's size (the same atlas)."""
-    skin, bleed = md.SKIN, md.BLEED
-    md.SKIN, md.BLEED = size * HIRES, bleed * HIRES
-    try:
-        return md.texel_points(faces, [[(s * HIRES, t * HIRES) for s, t in st] for st in uvs])
-    finally:
-        md.SKIN, md.BLEED = skin, bleed
+    md.SKIN = size
+    return md.texel_points(faces, uvs, HIRES)
 
 
 def to_palette(img, size):
-    """A full-colour skin as the model's own 8-bit one: its texels averaged down to `size`, then the nearest of the
-    palette's greys, browns, rusts, tans and beiges (no fullbrights), with ordered dithering."""
-    k = img.shape[0] // size
-    small = img.reshape(size, k, size, k, 3).mean((1, 3))
-    pal = np.array(md.palette(), dtype=np.float64) / 255.0
-    idx = np.array(list(range(1, 32)) + list(range(96, 128)) + list(range(160, 176)))
-    ys, xs = np.mgrid[0:size, 0:size]
-    c = small + md.BAYER[ys % 4, xs % 4][..., None] * 0.035
-    d = ((c[..., None, :] - pal[idx][None, None]) ** 2).sum(-1)
-    return idx[np.argmin(d, -1)].astype(np.uint8)
+    """A full-colour skin as the model's own 8-bit one (make_debris.to_palette): the palette's greys, browns, rusts,
+    tans and beiges (no fullbrights)."""
+    return md.to_palette(img, size, list(range(1, 32)) + list(range(96, 128)) + list(range(160, 176)))
 
 
 # ---------------------------------------------------------------------------------------------------------------------

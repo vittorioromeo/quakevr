@@ -19644,3 +19644,51 @@ Time Now**. Mock: `vr_mock_hand_to <main|off> button` puts the fingertip on the 
 - Hands at 0.25 with the head-relative follower: as phase 1 (0.5 m jump followed at 8 m/s; slow move exact); the head
   and hand moved 0.3 m together: 0.07 m behind for one frame, then none.
 
+
+## Grittier debris, crates and crowbar (2026-10-02)
+
+NOTES.md start_2026-10-02_00-22-16, _00-23-24 (rocks, bricks, crates, crate debris cartoonish and flat beside the
+texture pack, pixels visible), vrfiringrange_2026-10-02_01-41-59 (the crowbar: grittier, stronger bumps).
+
+**Measured, not copied.** The QRP walls have no normal maps: the engine makes their bumps from their shading
+(`TexMgr_ShadingToNormals`: 2 texels a unit, 4 units deep black to white). Simulated in Python at his
+`vr_normalmap_strength 1.5`, the tilt of their normals (tan of the angle) averages 0.6-1.1, the 90th percentile
+1.2-2.1 (bricka2_1 0.81 / 1.60, wbrick1_5 0.63 / 1.16, rock1_2 0.83 / 1.61, rock3_8 1.10 / 2.07, wood1_1 0.61 / 1.15,
+crate0_side 0.61 / 1.37). Our baked maps (at `vr_normalmap_authored 1`) were 4-5 times flatter: rocks 0.19 / 0.36,
+bricks 0.11-0.13 / 0.25-0.29, crates 0.26 / 0.45, planks 0.16 / 0.35, crowbar 0.19 / 0.45. No QRP pixels are used
+(CREDITS.md: no licence file).
+
+- **Rocks and bricks** (`make_debris.py`): full-colour external skins (`vr_rock1..5.mdl_0..5.png`,
+  `vr_brick1..4.mdl_0..5.png`, 256 x 256, HIRES 2: no more dithered 8-bit texels) painted at 4x with a relief of
+  their own (RELIEF 4: the normal map's, 512 x 512 as before): rocks lumps, crystalline ridges, grit, pits, hairline
+  cracks, chipped edges, strata ledges; bricks the sand-struck clay's undulation, drag creases, pores, pits, cracks,
+  chips, a rough fracture, mortar lumps on beds and ends. The colour follows the relief (pits and cracks dark and
+  grimy, crests lighter: the packs' look), with mineral flecks, veins, efflorescence on bricks, and is a little darker
+  and duller (DARKEN 0.86) in the same palette ramps' hues (the engine still picks skins by the 8-bit skins' colour;
+  those are now the full-colour ones in the ramps' palette indices). Depth: `ROCK_DEPTH` 1.7, `BRICK_DEPTH` 1.9.
+  normaltiles.py's "stone" recipe (relief from the 8-bit skin's shading) is replaced by "relief" (the generator's).
+- **Crates and planks** (`make_crates.py`): the grain's relief (rings, fibres, pores, checks, scratches) `WOOD_DEPTH`
+  5.5 times deeper, dents twice, torn fibres on breaks twice; the fibres' colour contrast up (0.5 + 0.8 f ->
+  0.42 + 0.95 f). Resolution unchanged (1024 / 512: 10-13 texels a unit, finer than QRP's 8).
+- **Crowbar** (`make_crowbar.py`): a full-colour skin (`v_crowbar.mdl_0.png`, 2048 x 256; `paint_full()`, the same
+  regions as the 8-bit `paint()`, noise taken round the bar so the seam doesn't show) with its relief: the red paint a
+  step above the steel, chipped along the corners and in flakes with a dark rim, scratched to the metal, dented,
+  grimy by the tape and the claw; the ground ends streaked, pitted, rusty where the paint gave out; the tape's turns
+  and cloth weave, scuffed; dirt ground into the paint, blisters, its wear in patches (`DEPTH` 3.0). Its normal map is now 2048 x 256 (recipe "relief", was the view models'
+  painted recipe at 1024 x 128). The 8-bit skin is the full-colour one in the old ramps' indices.
+- normaltiles.py: `relief_heights(low, hs, generator)` (any generator with `relief(name)`) replaces `stone_heights`
+  and `crate_heights`. make_debris: `texel_points(..., k)`, `to_palette(img, width, idx)`, `ramp_rgb`, `down`.
+- **Test aid:** Debug > Tests > Thing > **Rocks and Bricks** (`vr_test_spawn 110`, impulse 241): rocks 1-5 in skins
+  0-4 and bricks 1-4 in skins 0-3, two rows ahead.
+
+**After** (`measure` as above): rocks 0.71-0.84 / 1.34-1.70, bricks 0.66-0.79 / 1.50-1.86, crates 0.64-0.66 /
+1.42, planks 0.58-0.76 / 1.20-1.67, crowbar 0.50 / 0.91 (painted steel and tape: smoother than stone).
+
+**Sizes** (VRAM as RGBA8 with mips): debris skins 54 x 256 x 256, 18.9 MB (2.9 MB on disk; before: none, 8-bit
+128 x 128 in the models); debris normal maps unchanged in size (12.6 MB); crates and planks unchanged in size
+(50.3 + 16.8 MB); crowbar skin 2.8 MB new and its normal map 2.8 MB (was 0.7). All in: +22 MB VRAM, +4.6 MB on disk.
+
+- [ ] Rocks and bricks up close (start, e1m1, QRP and not): gritty, deep bumps, no visible texels; the skins still
+  match the walls they lie by.
+- [ ] Crates and their planks: deeper grain, in keeping with the walls.
+- [ ] The crowbar in hand: chipped paint, pitted steel, the tape's weave under a light.

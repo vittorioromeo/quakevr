@@ -4403,6 +4403,25 @@ void() ImpulseCommands =
             traceline(spawnAt + '0 0 8', spawnAt - '0 0 256', TRUE, self); // (on the floor)
             VR_Crate_TestSpawn(trace_endpos, spawnKind == 107 ? 1 : 2, spawnPlayer.v_viewangle_y + 30, spawnKind == 109);
         }
+        else if(spawnKind == 110)
+        {
+            // The rocks and bricks (vr_debris.qc), a row of each across your view, each model in another skin (rocks
+            // 1-5: grey, beige, brown, mossy, red-brown; bricks 1-4: red, brown, yellow, blue-grey): their textures
+            // beside the map's.
+            makevectors('0 1 0' * spawnPlayer.v_viewangle_y);
+            for(float pieceIndex = 0; pieceIndex < 9; pieceIndex++)
+            {
+                float pieceRow = pieceIndex < 5 ? 0 : 1;
+                float pieceCol = pieceRow ? pieceIndex - 5 - 1.5 : pieceIndex - 2;
+                self = spawn();
+                self.model = pieceRow ? sprintf("progs/vr_brick%d.mdl", pieceIndex - 4) : sprintf("progs/vr_rock%d.mdl", pieceIndex + 1);
+                self.skin = pieceRow ? pieceIndex - 5 : pieceIndex;
+                self.angles = '0 1 0' * (spawnPlayer.v_viewangle_y + 90 + pieceIndex * 37);
+                setorigin(self, spawnAt + v_right * pieceCol * 12 + v_forward * pieceRow * 14 + '0 0 8');
+                vr_debris_piece();
+            }
+            self = spawnPlayer;
+        }
         else if(spawnKind >= 100)
         {
             self = spawn();
