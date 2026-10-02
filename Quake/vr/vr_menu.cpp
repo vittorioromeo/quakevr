@@ -2854,6 +2854,9 @@ za::Vector<Item> pageDebugTests()
         command("Record the Mix (2 s)", "vr_snd_capture 2 menu")
             .help("vr_snd_capture: the next 2 seconds of the final mix to the game folder's sound_tests (capture_menu.wav), and its levels "
                   "in the console."),
+        command("Record the Game-Time Mix (2 s)", "vr_snd_capture_game 2 menu")
+            .help("vr_snd_capture_game: the next 2 game seconds of the effects' mix as at normal speed (in slow motion: "
+                  "what the slowed sound sped up is; no music) to sound_tests (capture_game_menu.wav), and its levels."),
         command("Five Explosions at Once", "vr_snd_burst weapons/r_exp3.wav 5")
             .help("vr_snd_burst: five rocket explosions at once 2.5 m ahead of you (as explosive boxes blowing up together): "
                   "with the limiter on (Sound, Advanced: Mix Limiter) a loud bang, off a crackle; Record the Mix and "

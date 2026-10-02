@@ -52,6 +52,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
@@ -75,7 +76,6 @@ Features featuresFromCvars()
     f.doppler = za::clamp(vr_snd_doppler.value, 0.f, 4.f);
     f.nearfield = za::clamp(vr_snd_nearfield.value, 0.f, 2.f);
     f.unitsPerMetre = units::metresToUnits();
-    f.rate = VR_SndRate();
     return f;
 }
 
@@ -355,7 +355,6 @@ void Mixer::prepare(Voice& v, const Listener& l, const Features& f) const
         const float vl = za::clamp(glm::dot(l.vel, dir) * f.doppler, -0.5f * c, 0.5f * c);
         v.dopplerTarget = za::clamp((c + vl) / (c + vs), 0.5f, 2.f);
     }
-    v.dopplerTarget *= f.rate; // slow motion: read slower (lower), the rate eased as the Doppler's
 
     v.closeness = f.nearfield > 0.f ? za::clamp((1.f - metres) / 0.9f, 0.f, 1.f) * f.nearfield : 0.f;
 
@@ -772,6 +771,27 @@ struct BusLimiter
     long long over{0};       // samples over full scale coming in
 };
 
+// The game-time mix's WAV for a recording (vr_timescale_wav; S_PaintChannels, VR_SndGameMix): written as it is mixed,
+// 24-bit stereo, the sizes put in when it ends.
+struct GameWav
+{
+    FILE* file{nullptr};
+    za::String path;
+    long long frames{0};
+    za::Vector<unsigned char> bytes; // (a chunk's, to write)
+};
+
+// Slow motion's varispeed (VR_SndVarispeed): a Kaiser-windowed sinc, `zeros` zero crossings each side of a read, its
+// cut-off under the slower side's Nyquist frequency; tabulated (`steps` a crossing) when the commands are added.
+struct Varispeed
+{
+    static constexpr int zeros = 24;
+    static constexpr int steps = 256;
+    static constexpr float cutoff = 0.95f;
+    static constexpr double beta = 9.0; // (the stop band ~90 dB down)
+    za::Array<float, zeros * steps + 2> table{};
+};
+
 struct Live
 {
     Mixer mixer;
@@ -817,6 +837,10 @@ struct Live
     double lastReport{0.0};
     Capture capture;
     BusLimiter bus;
+    Capture gameCapture;  // vr_snd_capture_game
+    BusLimiter gameBus;   // the game-time mix's own limiter (its capture and WAV)
+    GameWav wav;
+    Varispeed varispeed;
 };
 
 Live* live{nullptr};
@@ -1091,10 +1115,8 @@ void selectVoices(int time)
         double pos = ch->pos;
         if(!L.fresh[c])
         {
-            // (Slow motion: Quake painted it at VR_SndRate's rate, its end in output samples; snd_mix.c.)
-            const float rate = VR_SndRate();
-            pos = rate == 1.f ? static_cast<double>(sc->length - (ch->end - time))
-                              : static_cast<double>(sc->length) - static_cast<double>(ch->end - time) * rate;
+            // (In slow motion too: the channels' ends are on the paint clock while it mixes; snd_mix.c.)
+            pos = static_cast<double>(sc->length - (ch->end - time));
             if(pos >= sc->length && sc->loopstart >= 0 && sc->loopstart < sc->length)
             {
                 pos = sc->loopstart + za::fmod(pos - sc->length, static_cast<double>(sc->length - sc->loopstart));
@@ -1176,18 +1198,72 @@ bool writeWav16(const char* path, const za::Vector<float>& l, const za::Vector<f
     return true;
 }
 
-void finishCapture()
+// The varispeed's kernel: sinc(u) times a Kaiser window, from u = 0 to `zeros` (and one more step, for the
+// interpolation).
+void buildVarispeed(Varispeed& v)
 {
-    Capture& c = live->capture;
+    const auto bessel0 = [](double x) {
+        double sum = 1.0;
+        double term = 1.0;
+        for(int k = 1; k < 50; k++)
+        {
+            const double h = x / (2.0 * k);
+            term *= h * h;
+            sum += term;
+        }
+        return sum;
+    };
+    constexpr double pi = 3.14159265358979323846;
+    const double norm = bessel0(Varispeed::beta);
+    for(int i = 0; i < static_cast<int>(v.table.size()); i++)
+    {
+        const double u = static_cast<double>(i) / Varispeed::steps;
+        const double t = u / Varispeed::zeros;
+        const double sinc = u == 0.0 ? 1.0 : za::sin(pi * u) / (pi * u);
+        const double window = t < 1.0 ? bessel0(Varispeed::beta * za::sqrt(1.0 - t * t)) / norm : 0.0;
+        v.table[i] = static_cast<float>(sinc * window);
+    }
+}
+
+// The game-time WAV's header: 24-bit stereo at `rate`, `frames` long.
+void writeWav24Header(FILE* f, int rate, long long frames)
+{
+    const auto u32 = [&](unsigned v) { fwrite(&v, 4, 1, f); };
+    const auto u16 = [&](unsigned short v) { fwrite(&v, 2, 1, f); };
+    const unsigned data = static_cast<unsigned>(frames * 6);
+    fwrite("RIFF", 1, 4, f);
+    u32(36 + data);
+    fwrite("WAVEfmt ", 1, 8, f);
+    u32(16);
+    u16(1);
+    u16(2);
+    u32(static_cast<unsigned>(rate));
+    u32(static_cast<unsigned>(rate) * 6);
+    u16(6);
+    u16(24);
+    fwrite("data", 1, 4, f);
+    u32(data);
+}
+
+// `game`: vr_snd_capture_game's (the game-time mix, at normal speed), else the final mix's.
+void finishCapture(Capture& c, bool game)
+{
     c.running = false;
     const int rate = shm ? shm->speed : 44100;
-    za::String path = za::String{com_gamedir} + "/sound_tests/capture_" + c.name + ".wav";
+    za::String path = za::String{com_gamedir} + (game ? "/sound_tests/capture_game_" : "/sound_tests/capture_") + c.name + ".wav";
     COM_CreatePath(path.data());
     writeWav16(path.cStr(), c.left, c.right, rate);
     const Levels lv = measure(c.left.data(), c.right.data(), static_cast<int>(c.left.size()), rate);
-    Con_Printf("vr_snd_capture %s: %d samples, rms %.1f dB, left %.1f dB, right %.1f dB, below 500 Hz %.1f dB, above 4 kHz "
+    Con_Printf("vr_snd_capture%s %s: %d samples, rms %.1f dB, left %.1f dB, right %.1f dB, below 500 Hz %.1f dB, above 4 kHz "
                "%.1f dB (%s)\n",
-        c.name.cStr(), static_cast<int>(c.left.size()), lv.rms, lv.left, lv.right, lv.low, lv.high, path.cStr());
+        game ? "_game" : "", c.name.cStr(), static_cast<int>(c.left.size()), lv.rms, lv.left, lv.right, lv.low, lv.high, path.cStr());
+    if(game)
+    {
+        Con_Printf("  the game-time limiter: deepest %.1f dB\n", c.minGain > 0.f ? 20.f * za::log10(c.minGain) : -200.f);
+        c.left.clear();
+        c.right.clear();
+        return;
+    }
     const auto db = [](float x) { return x > 0.f ? 20.f * za::log10(x) : -200.f; };
     Con_Printf("  effects: peak %.1f dB of full scale, %d samples over it; mix: peak %.1f dB, %d samples clipped; limiter %s, "
                "deepest %.1f dB\n",
@@ -1234,24 +1310,34 @@ void info_f()
         za::clamp(vr_snd_limiter_release.value, 0.02f, 1.f) * 1000.f,
         L.bus.minGain > 0.f ? 20.f * za::log10(L.bus.minGain) : -200.f, L.bus.over, L.bus.clipped);
     L.bus.minGain = 1.f;
+    int gameActive = 0;
+    float gameRate = 1.f;
+    double gameAhead = 0.0;
+    S_GameTimeState(&gameActive, &gameRate, &gameAhead);
+    Con_Printf("  slow motion's game-time mix: %s (rate %.3f, %.1f samples mixed ahead); game-time WAV: %s\n",
+        gameActive ? "on" : "off", gameRate, gameAhead, L.wav.file ? L.wav.path.cStr() : "none");
     const mleaf_t* leaf = cl.worldmodel ? Mod_PointInLeaf(&L.listener.pos.x, cl.worldmodel) : nullptr;
     Con_Printf("  listener: %s at %.0f %.0f %.0f (leaf contents %d), speed %.0f units/s\n", L.head ? "the head" : "the view",
         L.listener.pos.x, L.listener.pos.y, L.listener.pos.z, leaf ? leaf->contents : 0, glm::length(L.listener.vel));
 }
 
-void capture_f()
+void startCapture(bool game)
 {
+    const char* cmd = game ? "vr_snd_capture_game" : "vr_snd_capture";
     if(!live || !shm)
     {
-        Con_Printf("vr_snd_capture: no sound (-nosound?)\n");
+        Con_Printf("%s: no sound (-nosound?)\n", cmd);
         return;
     }
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("vr_snd_capture <seconds> [name]: the final mix to <game>/sound_tests/capture_<name>.wav, and its levels\n");
+        Con_Printf(game ? "%s <seconds> [name]: the mix in the game's time (as at normal speed in slow motion; no music) to "
+                          "<game>/sound_tests/capture_game_<name>.wav, and its levels\n"
+                        : "%s <seconds> [name]: the final mix to <game>/sound_tests/capture_<name>.wav, and its levels\n",
+            cmd);
         return;
     }
-    Capture& c = live->capture;
+    Capture& c = game ? live->gameCapture : live->capture;
     c.wanted = static_cast<int>(za::clamp(Q_atof(Cmd_Argv(1)), 0.05f, 60.f) * static_cast<float>(shm->speed));
     c.name = Cmd_Argc() > 2 ? Cmd_Argv(2) : "capture";
     c.left.clear();
@@ -1265,6 +1351,20 @@ void capture_f()
     c.outClipped = 0;
     c.minGain = 1.f;
     c.running = true;
+    if(game)
+    {
+        live->gameBus.look = 0; // (fresh: nothing of an old mix in its delay)
+    }
+}
+
+void capture_f()
+{
+    startCapture(false);
+}
+
+void captureGame_f()
+{
+    startCapture(true);
 }
 
 // Looping sounds in a ring round the listener (static sounds, till the map changes): a load for vr_profile.
@@ -1369,11 +1469,13 @@ void liquid_f()
 void init()
 {
     live = new Live{};
+    buildVarispeed(live->varispeed);
     za::fill(live->voiceOf, -1);
     za::fill(live->channelOf, -1);
     Cmd_AddCommand("vr_snd_info", info_f);
     Cmd_AddCommand("vr_snd_test", test_f);
     Cmd_AddCommand("vr_snd_capture", capture_f);
+    Cmd_AddCommand("vr_snd_capture_game", captureGame_f);
     Cmd_AddCommand("vr_snd_bench_spawn", benchSpawn_f);
     Cmd_AddCommand("vr_snd_scene_obj", sceneObj_f);
     Cmd_AddCommand("vr_snd_liquid", liquid_f);
@@ -1385,6 +1487,7 @@ void shutdown()
 {
     if(live)
     {
+        stopGameWav();
         live->sim.destroy();
         live->mixer.destroy();
         delete live;
@@ -1890,9 +1993,10 @@ namespace
 {
 
 // The limiter's settings from the rate and the release (cvar); its state reset when they change.
-void configureBus(BusLimiter& b, int rate)
+// `stretch`: the release times this (slow motion's output: its release in the game's time).
+void configureBus(BusLimiter& b, int rate, float stretch)
 {
-    const float release = za::clamp(vr_snd_limiter_release.value, 0.02f, 1.f);
+    const float release = za::clamp(vr_snd_limiter_release.value, 0.02f, 1.f) * stretch;
     const int look = za::clamp(static_cast<int>(static_cast<float>(rate) * 0.003f), 1, BusLimiter::maxLook); // 3 ms
     const float coef = 1.f - za::exp(-1.f / (static_cast<float>(rate) * release));
     if(b.look == look && b.rate == rate && b.releaseCoef == coef)
@@ -1915,6 +2019,42 @@ void configureBus(BusLimiter& b, int rate)
     b.dqFront = 0;
     b.dqCount = 0;
     b.gain = 1.f;
+}
+
+// One sample through the limiter: `l` and `r` in, the one from its look-ahead back out at the gain it needs.
+void limitStep(BusLimiter& b, float& l, float& r, float peak, float threshold)
+{
+    const int look = b.look;
+    // The gain this sample needs, into the sliding minimum over the look-ahead.
+    const float need = peak > threshold ? threshold / peak : 1.f;
+    while(b.dqCount > 0 && b.dqGain[(b.dqFront + b.dqCount - 1) % BusLimiter::maxLook] >= need)
+    {
+        b.dqCount--;
+    }
+    const int back = (b.dqFront + b.dqCount) % BusLimiter::maxLook;
+    b.dqGain[back] = need;
+    b.dqAt[back] = b.n;
+    b.dqCount++;
+    while(b.dqAt[b.dqFront] <= b.n - look)
+    {
+        b.dqFront = (b.dqFront + 1) % BusLimiter::maxLook;
+        b.dqCount--;
+    }
+    const float held = b.dqGain[b.dqFront];
+    // Averaged over the same length: smooth, and never above what the delayed sample needs.
+    const int slot = static_cast<int>(b.n % look);
+    b.boxSum += static_cast<double>(held) - static_cast<double>(b.box[slot]);
+    b.box[slot] = held;
+    const float smooth = za::min(1.f, static_cast<float>(b.boxSum / static_cast<double>(look)));
+    b.gain = smooth < b.gain ? smooth : b.gain + (smooth - b.gain) * b.releaseCoef;
+    b.minGain = za::min(b.minGain, b.gain);
+    // The delay: this sample in, the one look - 1 samples back out.
+    b.delayL[slot] = l;
+    b.delayR[slot] = r;
+    const int out = static_cast<int>((b.n + 1) % look);
+    l = b.delayL[out] * b.gain;
+    r = b.delayR[out] * b.gain;
+    b.n++;
 }
 
 } // namespace
@@ -1961,7 +2101,8 @@ extern "C" void VR_SndLimit(portable_samplepair_t* buffer, int count)
     const bool limit = vr_snd_limiter.value != 0.f;
     if(limit)
     {
-        configureBus(b, shm->speed);
+        // (Slow motion: the release in the game's time, as the mix sped up in editing would have it.)
+        configureBus(b, shm->speed, 1.f / za::clamp(VR_SndRate(), 0.05f, 4.f));
     }
     else
     {
@@ -1971,7 +2112,6 @@ extern "C" void VR_SndLimit(portable_samplepair_t* buffer, int count)
     constexpr int ceiling = 32767 * 256;
     constexpr int bottom = -32768 * 256;
     const float threshold = BusLimiter::fullScale * za::pow(10.f, za::clamp(vr_snd_limiter_ceiling.value, -12.f, 0.f) / 20.f);
-    const int look = b.look;
     for(int i = 0; i < count; i++)
     {
         float l = static_cast<float>(buffer[i].left);
@@ -1987,40 +2127,11 @@ extern "C" void VR_SndLimit(portable_samplepair_t* buffer, int count)
         }
         if(limit)
         {
-            // The gain this sample needs, into the sliding minimum over the look-ahead.
-            const float need = peak > threshold ? threshold / peak : 1.f;
-            while(b.dqCount > 0 && b.dqGain[(b.dqFront + b.dqCount - 1) % BusLimiter::maxLook] >= need)
-            {
-                b.dqCount--;
-            }
-            const int back = (b.dqFront + b.dqCount) % BusLimiter::maxLook;
-            b.dqGain[back] = need;
-            b.dqAt[back] = b.n;
-            b.dqCount++;
-            while(b.dqAt[b.dqFront] <= b.n - look)
-            {
-                b.dqFront = (b.dqFront + 1) % BusLimiter::maxLook;
-                b.dqCount--;
-            }
-            const float held = b.dqGain[b.dqFront];
-            // Averaged over the same length: smooth, and never above what the delayed sample needs.
-            const int slot = static_cast<int>(b.n % look);
-            b.boxSum += static_cast<double>(held) - static_cast<double>(b.box[slot]);
-            b.box[slot] = held;
-            const float smooth = za::min(1.f, static_cast<float>(b.boxSum / static_cast<double>(look)));
-            b.gain = smooth < b.gain ? smooth : b.gain + (smooth - b.gain) * b.releaseCoef;
-            b.minGain = za::min(b.minGain, b.gain);
+            limitStep(b, l, r, peak, threshold);
             if(i < measured)
             {
                 c.minGain = za::min(c.minGain, b.gain);
             }
-            // The delay: this sample in, the one look - 1 samples back out.
-            b.delayL[slot] = l;
-            b.delayR[slot] = r;
-            const int out = static_cast<int>((b.n + 1) % look);
-            l = b.delayL[out] * b.gain;
-            r = b.delayR[out] * b.gain;
-            b.n++;
         }
         const int li = static_cast<int>(l);
         const int ri = static_cast<int>(r);
@@ -2051,6 +2162,184 @@ extern "C" void VR_SndCapture(const portable_samplepair_t* buffer, int count)
     }
     if(static_cast<int>(c.left.size()) >= c.wanted)
     {
-        finishCapture();
+        finishCapture(c, false);
     }
 }
+
+// ----------------------------------------------------------------------------
+// Slow motion's game-time mix (snd_mix.c, S_PaintGameTime)
+
+extern "C" void VR_SndRebase(int from, int to)
+{
+    if(live && live->carryLen > 0 && live->carryStart == from)
+    {
+        live->carryStart = to;
+    }
+}
+
+extern "C" int VR_SndVarispeedReach(float rate)
+{
+    const float fc = Varispeed::cutoff * za::min(1.f, 1.f / za::max(rate, 0.01f));
+    return static_cast<int>(za::ceil(static_cast<float>(Varispeed::zeros) / fc)) + 1;
+}
+
+// Each output sample is the windowed sinc's sum over the ring's samples within its reach of the read position,
+// normalised; the read position moves on by the rate (ramped from rate0 to rate1 across the chunk). Over a rate of 1
+// (the ring read faster than it was mixed) the cut-off comes down with it: no aliasing.
+extern "C" void VR_SndVarispeed(const float* ringL, const float* ringR, int mask, double* pos, float rate0, float rate1,
+                                portable_samplepair_t* out, int count)
+{
+    double p = *pos;
+    if(!live)
+    {
+        for(int i = 0; i < count; i++) // (no table: linear)
+        {
+            const int i0 = static_cast<int>(za::floor(p));
+            const float f = static_cast<float>(p - i0);
+            out[i].left = static_cast<int>(ringL[i0 & mask] + (ringL[(i0 + 1) & mask] - ringL[i0 & mask]) * f);
+            out[i].right = static_cast<int>(ringR[i0 & mask] + (ringR[(i0 + 1) & mask] - ringR[i0 & mask]) * f);
+            p += rate0 + (rate1 - rate0) * (static_cast<float>(i + 1) / static_cast<float>(count));
+        }
+        *pos = p;
+        return;
+    }
+    const float* table = live->varispeed.table.data();
+    constexpr int last = Varispeed::zeros * Varispeed::steps;
+    const float fc = Varispeed::cutoff * za::min(1.f, 1.f / za::max(za::max(rate0, rate1), 0.01f));
+    const double span = static_cast<double>(Varispeed::zeros) / fc;
+    const double perSample = static_cast<double>(fc) * Varispeed::steps; // table steps a sample of distance
+    for(int i = 0; i < count; i++)
+    {
+        const long long first = static_cast<long long>(za::ceil(p - span));
+        const long long final = static_cast<long long>(za::floor(p + span));
+        double sl = 0.0;
+        double sr = 0.0;
+        double sw = 0.0;
+        for(long long k = first; k <= final; k++)
+        {
+            const double d = za::abs(p - static_cast<double>(k)) * perSample;
+            const int at = static_cast<int>(d);
+            if(at >= last)
+            {
+                continue;
+            }
+            const float f = static_cast<float>(d - at);
+            const double w = table[at] + (table[at + 1] - table[at]) * f;
+            const int slot = static_cast<int>(k) & mask;
+            sl += w * ringL[slot];
+            sr += w * ringR[slot];
+            sw += w;
+        }
+        const double inv = sw > 1e-6 ? 1.0 / sw : 0.0;
+        out[i].left = static_cast<int>(za::floor(sl * inv + 0.5));
+        out[i].right = static_cast<int>(za::floor(sr * inv + 0.5));
+        p += rate0 + (rate1 - rate0) * (static_cast<float>(i + 1) / static_cast<float>(count));
+    }
+    *pos = p;
+}
+
+extern "C" void VR_SndGameMix(const portable_samplepair_t* buffer, int count)
+{
+    if(!live || !shm)
+    {
+        return;
+    }
+    Capture& c = live->gameCapture;
+    GameWav& w = live->wav;
+    if(!c.running && !w.file)
+    {
+        return;
+    }
+    BusLimiter& b = live->gameBus;
+    const bool limit = vr_snd_limiter.value != 0.f;
+    if(limit)
+    {
+        configureBus(b, shm->speed, 1.f);
+    }
+    const float threshold = BusLimiter::fullScale * za::pow(10.f, za::clamp(vr_snd_limiter_ceiling.value, -12.f, 0.f) / 20.f);
+    constexpr float ceiling = 8388607.f; // (24 bits: paintbuffer's units are 16-bit samples times 256)
+    w.bytes.clear();
+    for(int i = 0; i < count; i++)
+    {
+        float l = static_cast<float>(buffer[i].left);
+        float r = static_cast<float>(buffer[i].right);
+        if(limit)
+        {
+            limitStep(b, l, r, za::max(za::abs(l), za::abs(r)), threshold);
+        }
+        l = za::clamp(l, -ceiling - 1.f, ceiling);
+        r = za::clamp(r, -ceiling - 1.f, ceiling);
+        if(c.running && static_cast<int>(c.left.size()) < c.wanted)
+        {
+            c.left.pushBack(l / 256.f);
+            c.right.pushBack(r / 256.f);
+            c.minGain = za::min(c.minGain, b.gain);
+        }
+        if(w.file)
+        {
+            const int s[2] = {static_cast<int>(l), static_cast<int>(r)};
+            for(const int v : s)
+            {
+                w.bytes.pushBack(static_cast<unsigned char>(v & 0xff));
+                w.bytes.pushBack(static_cast<unsigned char>((v >> 8) & 0xff));
+                w.bytes.pushBack(static_cast<unsigned char>((v >> 16) & 0xff));
+            }
+        }
+    }
+    if(c.running && static_cast<int>(c.left.size()) >= c.wanted)
+    {
+        finishCapture(c, true);
+    }
+    if(w.file && !w.bytes.empty())
+    {
+        constexpr long long most = 0x7fffffffLL / 6 - 64; // (a WAV's sizes are 32 bits)
+        const bool wrote = fwrite(w.bytes.data(), 1, w.bytes.size(), w.file) == w.bytes.size();
+        w.frames += count;
+        if(!wrote || w.frames >= most)
+        {
+            Con_Printf("vr_timescale_wav: %s ended (%s)\n", w.path.cStr(), wrote ? "2 GB" : "can't write");
+            stopGameWav();
+        }
+    }
+}
+
+namespace qvr::audio
+{
+
+void startGameWav(const char* path)
+{
+    stopGameWav();
+    if(!live || !shm)
+    {
+        return;
+    }
+    GameWav& w = live->wav;
+    w.file = fopen(path, "wb");
+    if(!w.file)
+    {
+        Con_Printf("vr_timescale_wav: can't write %s\n", path);
+        return;
+    }
+    w.path = path;
+    w.frames = 0;
+    writeWav24Header(w.file, shm->speed, 0);
+    live->gameBus.look = 0; // (fresh)
+    Con_Printf("vr_timescale_wav: the game-time mix to %s\n", path);
+}
+
+void stopGameWav()
+{
+    if(!live || !live->wav.file)
+    {
+        return;
+    }
+    GameWav& w = live->wav;
+    const int rate = shm ? shm->speed : 44100;
+    fseek(w.file, 0, SEEK_SET);
+    writeWav24Header(w.file, rate, w.frames);
+    fclose(w.file);
+    w.file = nullptr;
+    Con_Printf("vr_timescale_wav: %s, %.1f s\n", w.path.cStr(), static_cast<double>(w.frames) / rate);
+}
+
+} // namespace qvr::audio

@@ -326,6 +326,13 @@ int VR_SndOwns (const channel_t *ch);				// S_PaintChannels: nonzero for a chann
 void VR_SndBus (portable_samplepair_t *buffer, int count);		// S_PaintChannels, the effects' sum: clipped (wider with vr_snd_limiter), then halved
 void VR_SndLimit (portable_samplepair_t *buffer, int count);		// S_PaintChannels, the whole mix before the transfer: vr_snd_limiter
 void VR_SndCapture (const portable_samplepair_t *buffer, int count);	// S_PaintChannels, before the transfer: vr_snd_capture's recording
+// Slow motion's game-time mix (snd_mix.c, VR_SndRate under 1): the effects are mixed at their normal speed on a clock of
+// the game's time, then read slower (varispeed) into the output; sped up in editing, it is the mix at normal speed.
+void VR_SndRebase (int from, int to);				// the voices' carried samples, made for clock time `from`, now start at `to`
+int VR_SndVarispeedReach (float rate);				// samples of the game-time mix needed each side of a read at `rate`
+void VR_SndVarispeed (const float *ringL, const float *ringR, int mask, double *pos, float rate0, float rate1,
+	portable_samplepair_t *out, int count);			// `count` output samples read from the ring at *pos, the rate ramped
+void VR_SndGameMix (const portable_samplepair_t *buffer, int count);	// the effects' mix in the game's time (no music): vr_snd_capture_game, the recording's WAV
 const char *VR_SndDerived (const char *name, float *rate);	// S_LoadSound, no file of `name`: the Quake sound it is made from, played at `rate` (slower: lower), or NULL
 
 #ifdef __cplusplus

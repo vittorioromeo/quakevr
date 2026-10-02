@@ -1,6 +1,7 @@
 // vr_highlights.cpp -- see vr_highlights.hpp.
 
 #include "vr_highlights.hpp"
+#include "vr_audio.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
@@ -81,6 +82,7 @@ struct Session
     float bulletTimeScale = 1.f;
 
     double flashUntil = -1.0; // realtime: the sync mark's flash is drawn until then
+    int syncs = 0;            // sync marks made (vr_timescale_wav: a game-time WAV from each)
 };
 Session session;
 
@@ -362,6 +364,20 @@ void syncMark(const char* why)
             S_StartSound(cl.viewentity, -1, sfx, vec3_origin, za::min(1.f, vr_highlights_beep.value), 1.f);
         }
     }
+    // The game-time mix (as at normal speed: slow motion sped up in editing) from the beep on, a file a sync mark.
+    session.syncs++;
+    if(vr_timescale_wav.value != 0.f)
+    {
+        za::String path = session.base + "_gametime";
+        if(session.syncs > 1)
+        {
+            char n[16];
+            snprintf(n, sizeof(n), "_%d", session.syncs);
+            path += n;
+        }
+        path += ".wav";
+        audio::startGameWav(path.cStr());
+    }
     Event e = makeEvent("sync", 0.f, realtime);
     e.detail = why;
     add(ZA_MOVE(e));
@@ -395,6 +411,7 @@ void start()
     session.bulletTime = false;
     session.syncRealtime = realtime;
     session.syncGameTime = gameTime();
+    session.syncs = 0;
     syncMark("start");
     Con_Printf("highlights: logging to %s.csv\n", session.base.cStr());
 }
@@ -413,6 +430,7 @@ void stop()
     writeEdl(session.events);
     fclose(session.csv);
     session.csv = nullptr;
+    audio::stopGameWav();
     session.active = false;
     session.flashUntil = -1.0;
     int markers = 0;

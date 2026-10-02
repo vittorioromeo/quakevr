@@ -73,8 +73,15 @@
             .help("Seconds the time scale takes to slide all the way from 1 to 0: a gradual slow-down and speed-up; 0 "
                   "switches at once."),
         toggle("Slow Sounds", "vr_timescale_sound")
-            .help("On: sounds play slowed and lower with the game, as a slowed recording sounds (sped up in editing, "
-                  "they're right again). Off: at their normal speed and pitch. Music is never slowed."),
+            .help("On: sounds play slowed and lower with the game: the whole mix is made at normal speed in the game's "
+                  "time, then played slower, so a slowed recording sped up in editing (as varispeed: no pitch "
+                  "correction) sounds exactly as the game at normal speed. Off: at their normal speed and pitch. Music "
+                  "is never slowed."),
+        toggle("Game-Time Sound File", "vr_timescale_wav")
+            .help("On: while Log Highlights runs, the game's sound (no music) is also written as it sounds at normal "
+                  "speed, in the game's time, 24-bit: highlights/<log>_gametime.wav, from the sync mark's beep (a new file "
+                  "at each Sync Mark Now). It lines up with a recording sped up by the time scale "
+                  "(docs/vr-port/TRAILER.md). About 16 MB a minute."),
         slider("Hand Speed Limit", "vr_timescale_hand_speed", 0.f, 20.f, 0.5f, "%.1f m/s")
             .help("In slow motion, your hands follow your controllers as fast as the slowed world allows: at most this "
                   "fast in the game's time (a quarter of it in real time at 0.25x). A slow move is followed exactly; "

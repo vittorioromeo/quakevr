@@ -431,14 +431,239 @@ CHANNEL MIXING
 
 static void SND_PaintChannelFrom8 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
 static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int endtime, int paintbufferstart);
-static void SND_PaintChannelRate (channel_t *ch, sfxcache_t *sc, int start, int end, float rate); // QVR
+
+/*
+QVR: slow motion (vr_timescale_sound; ROUND21.md, "Slow motion: sound for speeding up in editing"). A slowed recording
+sped up in editing must sound as the game at normal speed, so the sounds are not slowed one by one (everything after
+them, the HRTF, the near field, the reverb, Quake's lowpass, the underwater filter, would act at the wrong frequencies
+and times): the effects are mixed at their normal speed on a clock of the game's time (gametime.clock: the paint
+clock, the channels' ends on it while it mixes), into a ring, and the ring is read slower into the output
+(VR_SndVarispeed: band-limited, the rate ramped across each chunk). Its read position is gametime.pos; the clock is
+ahead of it by the resampler's reach. Outside slow motion the paint clock is paintedtime's and the ring keeps what
+was put out (the resampler's history when slow motion starts). The music is added after, in real time.
+*/
+#define	GAMETIME_RING	16384	// samples (a power of two)
+#define	GAMETIME_HELD	512		// the most mixed ahead when leaving
+static struct
+{
+	qboolean	active;
+	int			clock;	// the paint clock's end: the samples mixed (paintedtime's clock while not active)
+	double		pos;	// the output's read position on it
+	float		rate;	// the last chunk's rate (the next ramps from it)
+	float		left[GAMETIME_RING], right[GAMETIME_RING];
+} gametime = {false, 0, 0.0, 1.f};
+
+/*
+QVR: the effects (the voices, Quake's channels, the effects' bus, the lowpass, the underwater filter) from `start` to
+`end` on the paint clock, into paintbuffer[0 .. end - start), and into the game-time ring.
+*/
+static void S_PaintMix (int start, int end)
+{
+	int		i, ltime, count;
+	channel_t	*ch;
+	sfxcache_t	*sc;
+
+	// clear the paint buffer
+	memset(paintbuffer, 0, (end - start) * sizeof(portable_samplepair_t));
+	VR_SndPaint (paintbuffer, start, end); // QVR: spatial audio's voices (vr/vr_audio.cpp)
+
+	// paint in the channels.
+	ch = snd_channels;
+	for (i = 0; i < total_channels; i++, ch++)
+	{
+		if (!ch->sfx)
+			continue;
+		if (!ch->leftvol && !ch->rightvol)
+			continue;
+		if (VR_SndOwns (ch)) // QVR: a spatial audio voice renders it
+			continue;
+		sc = S_LoadSound (ch->sfx);
+		if (!sc)
+			continue;
+
+		ltime = start;
+
+		while (ltime < end)
+		{	// paint up to end
+			if (ch->end < end)
+				count = ch->end - ltime;
+			else
+				count = end - ltime;
+
+			if (count > 0)
+			{
+				// the last param to SND_PaintChannelFrom is the index
+				// to start painting to in the paintbuffer, usually 0.
+				if (sc->width == 1)
+					SND_PaintChannelFrom8(ch, sc, count, ltime - start);
+				else
+					SND_PaintChannelFrom16(ch, sc, count, ltime - start);
+
+				ltime += count;
+			}
+
+		// if at end of loop, restart
+			if (ltime >= ch->end)
+			{
+				if (sc->loopstart >= 0)
+				{
+					ch->pos = sc->loopstart;
+					ch->end = ltime + sc->length - ch->pos;
+				}
+				else
+				{	// channel just stopped
+					ch->sfx = NULL;
+					break;
+				}
+			}
+		}
+	}
+
+	// clip each sample to 0dB, then reduce by 6dB (to leave some headroom for
+	// the lowpass filter and the music). the lowpass will smooth out the
+	// clipping
+	// QVR: vr_snd_limiter: the effects keep what is over (the limiter below brings the whole mix down; vr/vr_audio.cpp)
+	VR_SndBus (paintbuffer, end - start);
+
+	// apply a lowpass filter
+	if (sndspeed.value == 11025 && shm->speed == 44100)
+	{
+		static filter_t memory_l, memory_r;
+		S_LowpassFilter((int *)paintbuffer,       2, end - start, &memory_l);
+		S_LowpassFilter(((int *)paintbuffer) + 1, 2, end - start, &memory_r);
+	}
+
+	S_UnderwaterFilter (end - start);
+	S_UpdateLevels (end - start);
+
+	// QVR: the game-time ring, and the game-time mix's capture (vr_snd_capture_game, the recording's WAV)
+	for (i = 0; i < end - start; i++)
+	{
+		gametime.left[(start + i) & (GAMETIME_RING - 1)] = (float)paintbuffer[i].left;
+		gametime.right[(start + i) & (GAMETIME_RING - 1)] = (float)paintbuffer[i].right;
+	}
+	gametime.clock = end;
+	VR_SndGameMix (paintbuffer, end - start);
+}
+
+/*
+QVR: the channels' ends between the clocks: on the paint clock while it mixes, on the output's (paintedtime's:
+S_StartSound's new sounds and its choice of a channel to reuse) between chunks, mapped through the read position at
+`outstart` and `rate`. A channel Quake paints gets its exact end from its position; a voice's (mixed ahead) is mapped.
+*/
+static void S_ChannelsToPaintClock (int outstart, float rate)
+{
+	int		i, mapped;
+	channel_t	*ch;
+	sfxcache_t	*sc;
+
+	for (i = 0, ch = snd_channels; i < total_channels; i++, ch++)
+	{
+		if (!ch->sfx)
+			continue;
+		mapped = (int)floor (gametime.pos + (double)(ch->end - outstart) * rate + 0.5);
+		if (VR_SndOwns (ch) || (sc = S_LoadSound (ch->sfx)) == NULL)
+			ch->end = mapped;
+		else if (!ch->leftvol && !ch->rightvol) // (unpainted, so not moving on: its end where its time puts it)
+			ch->end = q_min (gametime.clock + sc->length - ch->pos, mapped);
+		else
+			ch->end = gametime.clock + sc->length - ch->pos;
+	}
+}
+
+static void S_ChannelsToOutputClock (int outstart, float rate)
+{
+	int		i;
+	channel_t	*ch;
+
+	for (i = 0, ch = snd_channels; i < total_channels; i++, ch++)
+	{
+		if (ch->sfx)
+			ch->end = outstart + (int)ceil (((double)ch->end - gametime.pos) / rate);
+	}
+}
+
+/*
+QVR: slow motion: `count` output samples (from paintedtime) into paintbuffer, read from the game-time mix at `rate`
+(ramped from the last chunk's). Leaving it (the rate back at 1 and the read position on a whole sample): what was
+mixed ahead goes out as it is, then the mix goes on on paintedtime's clock.
+*/
+static void S_PaintGameTime (int count, float rate)
+{
+	float	r0, r1;
+	double	posend, whole;
+	int		need, ahead, i;
+	qboolean	snap = false;
+
+	if (!gametime.active)
+	{
+		gametime.active = true;
+		gametime.pos = gametime.clock; // (== paintedtime: the ring holds what was put out)
+		gametime.rate = 1.f;
+	}
+	r0 = gametime.rate;
+	r1 = rate;
+	whole = floor (gametime.pos + 0.5);
+	if (r0 == 1.f && r1 == 1.f)
+	{
+		ahead = gametime.clock - (int)whole;
+		if (gametime.pos == whole && ahead >= 0 && ahead < count && ahead <= GAMETIME_HELD)
+		{
+			portable_samplepair_t	held[GAMETIME_HELD];
+			for (i = 0; i < ahead; i++)
+			{
+				held[i].left = (int)gametime.left[((int)whole + i) & (GAMETIME_RING - 1)];
+				held[i].right = (int)gametime.right[((int)whole + i) & (GAMETIME_RING - 1)];
+			}
+			// The channels' ends exact on the output's clock: the paint clock's end is paintedtime + ahead.
+			S_ChannelsToPaintClock (paintedtime, 1.f);
+			for (i = 0; i < total_channels; i++)
+				if (snd_channels[i].sfx)
+					snd_channels[i].end += paintedtime + ahead - gametime.clock;
+			VR_SndRebase (gametime.clock, paintedtime + ahead);
+			gametime.active = false;
+			S_PaintMix (paintedtime + ahead, paintedtime + count);
+			memmove (paintbuffer + ahead, paintbuffer, (count - ahead) * sizeof(portable_samplepair_t));
+			memcpy (paintbuffer, held, ahead * sizeof(portable_samplepair_t));
+			return;
+		}
+		if (gametime.pos != whole)
+		{
+			// Back onto a whole sample (at most 0.2% faster or slower: inaudible), then out of slow motion.
+			double	shift = whole - gametime.pos;
+			const double	most = 0.002 * count;
+			snap = fabs (shift) <= most;
+			shift = shift < -most ? -most : (shift > most ? most : shift);
+			r0 = r1 = (float)(1.0 + shift / count);
+		}
+	}
+
+	posend = gametime.pos + (double)count * r0 + (double)(r1 - r0) * (count + 1) * 0.5;
+	need = (int)floor (posend) + VR_SndVarispeedReach (q_max (r0, r1)) + 1;
+	if (need > gametime.clock)
+	{
+		S_ChannelsToPaintClock (paintedtime, r0);
+		while (gametime.clock < need)
+			S_PaintMix (gametime.clock, gametime.clock + q_min (PAINTBUFFER_SIZE, need - gametime.clock));
+		S_ChannelsToOutputClock (paintedtime, r0);
+	}
+	VR_SndVarispeed (gametime.left, gametime.right, GAMETIME_RING - 1, &gametime.pos, r0, r1, paintbuffer, count);
+	if (snap)
+		gametime.pos = floor (posend + 0.5); // (on the whole sample the nudge aimed for)
+	gametime.rate = rate;
+}
+
+void S_GameTimeState (int *active, float *rate, double *ahead) // QVR
+{
+	*active = gametime.active;
+	*rate = gametime.rate;
+	*ahead = gametime.active ? gametime.clock - gametime.pos : 0.0;
+}
 
 void S_PaintChannels (int endtime)
 {
 	int		i;
-	int		end, ltime, count;
-	channel_t	*ch;
-	sfxcache_t	*sc;
+	int		end;
 
 	float	rate = VR_SndRate (); // QVR: slow motion: the sounds' playback rate (1 normal)
 
@@ -451,90 +676,11 @@ void S_PaintChannels (int endtime)
 		if (endtime - paintedtime > PAINTBUFFER_SIZE)
 			end = paintedtime + PAINTBUFFER_SIZE;
 
-	// clear the paint buffer
-		memset(paintbuffer, 0, (end - paintedtime) * sizeof(portable_samplepair_t));
-		VR_SndPaint (paintbuffer, paintedtime, end); // QVR: spatial audio's voices (vr/vr_audio.cpp)
-
-	// paint in the channels.
-		ch = snd_channels;
-		for (i = 0; i < total_channels; i++, ch++)
-		{
-			if (!ch->sfx)
-				continue;
-			if (!ch->leftvol && !ch->rightvol)
-				continue;
-			if (VR_SndOwns (ch)) // QVR: a spatial audio voice renders it
-				continue;
-			sc = S_LoadSound (ch->sfx);
-			if (!sc)
-				continue;
-
-			if (rate != 1.f) // QVR: slow motion (vr_timescale_sound): read slower, interpolated
-			{
-				SND_PaintChannelRate (ch, sc, paintedtime, end, rate);
-				continue;
-			}
-			if (ch->resampled) // QVR: back from slow motion: the end in the sound's own samples again
-			{
-				ch->resampled = 0;
-				ch->frac = 0.f;
-				ch->end = paintedtime + sc->length - ch->pos;
-			}
-
-			ltime = paintedtime;
-
-			while (ltime < end)
-			{	// paint up to end
-				if (ch->end < end)
-					count = ch->end - ltime;
-				else
-					count = end - ltime;
-
-				if (count > 0)
-				{
-					// the last param to SND_PaintChannelFrom is the index
-					// to start painting to in the paintbuffer, usually 0.
-					if (sc->width == 1)
-						SND_PaintChannelFrom8(ch, sc, count, ltime - paintedtime);
-					else
-						SND_PaintChannelFrom16(ch, sc, count, ltime - paintedtime);
-
-					ltime += count;
-				}
-
-			// if at end of loop, restart
-				if (ltime >= ch->end)
-				{
-					if (sc->loopstart >= 0)
-					{
-						ch->pos = sc->loopstart;
-						ch->end = ltime + sc->length - ch->pos;
-					}
-					else
-					{	// channel just stopped
-						ch->sfx = NULL;
-						break;
-					}
-				}
-			}
-		}
-
-	// clip each sample to 0dB, then reduce by 6dB (to leave some headroom for
-	// the lowpass filter and the music). the lowpass will smooth out the
-	// clipping
-	// QVR: vr_snd_limiter: the effects keep what is over (the limiter below brings the whole mix down; vr/vr_audio.cpp)
-		VR_SndBus (paintbuffer, end - paintedtime);
-
-	// apply a lowpass filter
-		if (sndspeed.value == 11025 && shm->speed == 44100)
-		{
-			static filter_t memory_l, memory_r;
-			S_LowpassFilter((int *)paintbuffer,       2, end - paintedtime, &memory_l);
-			S_LowpassFilter(((int *)paintbuffer) + 1, 2, end - paintedtime, &memory_r);
-		}
-
-		S_UnderwaterFilter (end - paintedtime);
-		S_UpdateLevels (end - paintedtime);
+	// QVR: the effects (S_PaintMix), on paintedtime's clock, or in the game's time in slow motion
+		if (rate != 1.f || gametime.active)
+			S_PaintGameTime (end - paintedtime, rate);
+		else
+			S_PaintMix (paintedtime, end);
 
 	// paint in the music
 		if (s_rawend >= paintedtime)
@@ -642,57 +788,4 @@ static void SND_PaintChannelFrom16 (channel_t *ch, sfxcache_t *sc, int count, in
 	}
 
 	ch->pos += count;
-}
-
-/*
-QVR: slow motion (vr_timescale_sound): paints the channel from output sample `start` to `end`, reading its sound at
-`rate` of its samples per output sample (slower and lower under 1), linearly interpolated; loops as the others do. Its
-end is kept in output samples at that rate (the channel's life, S_StartSound's choice of a channel to reuse).
-*/
-static void SND_PaintChannelRate (channel_t *ch, sfxcache_t *sc, int start, int end, float rate)
-{
-	const int	length = sc->length;
-	const int	loop = sc->loopstart >= 0 && sc->loopstart < length ? sc->loopstart : -1;
-	const int	leftvol = ch->leftvol * snd_vol / 256;
-	const int	rightvol = ch->rightvol * snd_vol / 256;
-	double		pos = ch->pos + (double)ch->frac;
-	int		i;
-
-	for (i = start; i < end; i++)
-	{
-		int	i0, i1;
-		float	f, s0, s1, data;
-
-		if (pos >= length)
-		{
-			if (loop < 0)
-			{
-				ch->sfx = NULL;
-				return;
-			}
-			pos = loop + fmod (pos - length, (double)(length - loop));
-		}
-		i0 = (int)pos;
-		i1 = i0 + 1 < length ? i0 + 1 : (loop >= 0 ? loop : i0);
-		f = (float)(pos - i0);
-		if (sc->width == 1) // 8-bit samples as 16-bit ones (the scale table's * 256)
-		{
-			s0 = (float)((signed char)sc->data[i0] * 256);
-			s1 = (float)((signed char)sc->data[i1] * 256);
-		}
-		else
-		{
-			s0 = (float)((signed short *)sc->data)[i0];
-			s1 = (float)((signed short *)sc->data)[i1];
-		}
-		data = s0 + (s1 - s0) * f;
-		paintbuffer[i - paintedtime].left += (int)(data * leftvol);
-		paintbuffer[i - paintedtime].right += (int)(data * rightvol);
-		pos += rate;
-	}
-
-	ch->pos = (int)pos;
-	ch->frac = (float)(pos - ch->pos);
-	ch->end = end + (int)((length - pos) / rate);
-	ch->resampled = 1;
 }
