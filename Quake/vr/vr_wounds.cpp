@@ -38,6 +38,7 @@ namespace
 {
 
 constexpr int layerSize = 256;         // a mask's largest side, in texels
+constexpr int ownSlots = 3;            // the fine masks (vr_wounds_own_res): your body and two hands
 constexpr int maxSplats = 16;          // per draw (the shader's uniform array)
 constexpr float tick = 0.1f;           // seconds between the drying, cooling and healing steps
 constexpr float dryTime = 28.f;        // seconds a soaked model takes to dry (1/255 a step)
@@ -97,7 +98,9 @@ za::Vector<Mask> masks; // one a layer
 ankerl::unordered_dense::map<const entity_t*, int> maskOf;
 GLuint array = 0;
 GLuint fbo = 0;
-int layers = 0;
+int layers = 0;       // the pool's (array): masks 0 .. layers - 1
+GLuint fineArray = 0; // your own body's and hands' finer masks (vr_wounds_own_res): masks layers .. layers + ownSlots - 1
+int fineSize = 0;     // their side in texels (0: none; yours in the pool)
 double lastTick = -1.0;
 int playerHealth = -1000;
 za::U32 rng = 0x9e3779b9u;
@@ -148,6 +151,53 @@ bool bloodOnly = false;           // re-opening the player's wounds (reopen): th
     return za::clamp(static_cast<int>(vr_wounds_pool.value), 8, 256);
 }
 
+// vr_wounds_own_res: 0, or a power of two from 512 to 2048.
+[[nodiscard]] int ownRes()
+{
+    const int want = static_cast<int>(vr_wounds_own_res.value);
+    if(want <= 0)
+    {
+        return 0;
+    }
+    int res = 512;
+    while(res < want && res < 2048)
+    {
+        res *= 2;
+    }
+    return res;
+}
+
+[[nodiscard]] int maskCount()
+{
+    return static_cast<int>(masks.size());
+}
+
+// Where mask `layer` lives: the pool's array or the fine one, its layer there, its side.
+[[nodiscard]] bool isFine(int layer)
+{
+    return layer >= layers;
+}
+
+[[nodiscard]] GLuint textureOf(int layer)
+{
+    return isFine(layer) ? fineArray : array;
+}
+
+[[nodiscard]] int layerIn(int layer)
+{
+    return isFine(layer) ? layer - layers : layer;
+}
+
+[[nodiscard]] int sideOf(int layer)
+{
+    return isFine(layer) ? fineSize : layerSize;
+}
+
+void attach(GLenum target, int layer)
+{
+    GL_FramebufferTextureLayerFunc(target, GL_COLOR_ATTACHMENT0, textureOf(layer), 0, layerIn(layer));
+}
+
 void releaseTexture()
 {
     if(array)
@@ -155,6 +205,12 @@ void releaseTexture()
         glDeleteTextures(1, &array);
         array = 0;
     }
+    if(fineArray)
+    {
+        glDeleteTextures(1, &fineArray);
+        fineArray = 0;
+    }
+    fineSize = 0;
     if(fbo)
     {
         GL_DeleteFramebuffersFunc(1, &fbo);
@@ -165,11 +221,12 @@ void releaseTexture()
     maskOf.clear();
 }
 
-// The texture array and its framebuffer, `poolSize()` layers (made again, empty, when that changes).
+// The texture array and its framebuffer, `poolSize()` layers, and the fine masks (made again, empty, when either changes).
 bool ensureTexture()
 {
     const int want = poolSize();
-    if(array && layers == want)
+    const int wantFine = ownRes();
+    if(array && layers == want && fineSize == wantFine)
     {
         return true;
     }
@@ -181,14 +238,27 @@ bool ensureTexture()
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    if(wantFine > 0)
+    {
+        // Read smoothly (bilinear) on their own finer grid, not the skin's: soft edges, and a relief from their slopes.
+        glGenTextures(1, &fineArray);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, fineArray);
+        GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA8, wantFine, wantFine, ownSlots);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
     GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D_ARRAY, 0);
     GL_GenFramebuffersFunc(1, &fbo);
     layers = want;
+    fineSize = wantFine;
     masks.clear();
-    masks.resize(static_cast<za::SizeT>(want), Mask{});
+    masks.resize(static_cast<za::SizeT>(want + (wantFine > 0 ? ownSlots : 0)), Mask{});
     maskOf.clear();
-    Con_DPrintf("wounds: %d masks of %dx%d (%.1f MB)\n", want, layerSize, layerSize,
-        static_cast<double>(want) * layerSize * layerSize * 4.0 / (1024.0 * 1024.0));
+    Con_DPrintf("wounds: %d masks of %dx%d (%.1f MB), yours %dx%d (%.1f MB)\n", want, layerSize, layerSize,
+        static_cast<double>(want) * layerSize * layerSize * 4.0 / (1024.0 * 1024.0), wantFine, wantFine,
+        static_cast<double>(wantFine > 0 ? ownSlots : 0) * wantFine * wantFine * 4.0 / (1024.0 * 1024.0));
     return true;
 }
 
@@ -222,7 +292,7 @@ void end()
 
 void target(int layer, const Mask& m)
 {
-    GL_FramebufferTextureLayerFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, array, 0, layer);
+    attach(GL_DRAW_FRAMEBUFFER, layer);
     glViewport(0, 0, m.w, m.h);
 }
 
@@ -231,8 +301,8 @@ void subtract(int layer, const glm::vec4& amount)
 {
     begin();
     const Mask& m = masks[static_cast<za::SizeT>(layer)];
-    GL_FramebufferTextureLayerFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, array, 0, layer);
-    glViewport(0, 0, amount == glm::vec4{1.f} ? layerSize : m.w, amount == glm::vec4{1.f} ? layerSize : m.h);
+    attach(GL_DRAW_FRAMEBUFFER, layer);
+    glViewport(0, 0, amount == glm::vec4{1.f} ? sideOf(layer) : m.w, amount == glm::vec4{1.f} ? sideOf(layer) : m.h);
     GL_UseProgram(glprogs.viewblend);
     GL_SetState(GLS_BLEND_OPAQUE | GLS_NO_ZTEST | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS(0));
     glBlendFunc(GL_ONE, GL_ONE);
@@ -264,9 +334,10 @@ void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
 // ----------------------------------------------------------------------------
 // The masks.
 
-// Its skin's shape: the region of a layer its mask takes (the skin's size up to 256 on its longer side). False for a
-// model its mask can't be for (not an alias model, several surfaces: several skins over one layout).
-[[nodiscard]] bool regionOf(const qmodel_t* model, int& w, int& h)
+// Its skin's shape: the region of a layer its mask takes (the skin's size up to 256 on its longer side; a fine mask's:
+// its longer side `fine`, finer than the skin). False for a model its mask can't be for (not an alias model, several
+// surfaces: several skins over one layout).
+[[nodiscard]] bool regionOf(const qmodel_t* model, int& w, int& h, int fine)
 {
     if(!model || model->type != mod_alias)
     {
@@ -284,9 +355,11 @@ void paint(int layer, entity_t* e, const za::Vector<Splat>& splats)
     {
         return false;
     }
-    const float k = za::min(1.f, static_cast<float>(layerSize) / static_cast<float>(za::max(sw, sh)));
-    w = za::clamp(static_cast<int>(za::lround(sw * k)), 4, layerSize);
-    h = za::clamp(static_cast<int>(za::lround(sh * k)), 4, layerSize);
+    const int side = fine > 0 ? fine : layerSize;
+    const float k = fine > 0 ? static_cast<float>(fine) / static_cast<float>(za::max(sw, sh))
+                             : za::min(1.f, static_cast<float>(layerSize) / static_cast<float>(za::max(sw, sh)));
+    w = za::clamp(static_cast<int>(za::lround(sw * k)), 4, side);
+    h = za::clamp(static_cast<int>(za::lround(sh * k)), 4, side);
     return true;
 }
 
@@ -332,17 +405,20 @@ int acquire(const entity_t* e, bool view, bool create)
     {
         return -1;
     }
+    // Yours in the fine masks (vr_wounds_own_res), the rest in the pool.
+    const bool fine = view && fineSize > 0;
     int w = 0, h = 0;
-    if(!regionOf(e->model, w, h))
+    if(!regionOf(e->model, w, h, fine ? fineSize : 0))
     {
         return -1;
     }
 
-    // A free layer, else the one least worth keeping: drawn longest ago (and farther), never the player's own.
+    // A free layer, else the one least worth keeping: drawn longest ago (and farther), never the player's own (in the
+    // fine masks: the one drawn longest ago, a body or hand no longer drawn).
     int best = -1;
     float bestScore = -1.f;
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    for(int i = 0; i < layers; i++)
+    for(int i = fine ? layers : 0; i < (fine ? maskCount() : layers); i++)
     {
         const Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent)
@@ -350,12 +426,12 @@ int acquire(const entity_t* e, bool view, bool create)
             best = i;
             break;
         }
-        if(m.view || m.painted == vr_gametime)
+        if((m.view && !fine) || m.painted == vr_gametime)
         {
             continue;
         }
         const glm::vec3 at{m.ent->origin[0], m.ent->origin[1], m.ent->origin[2]};
-        const float score = static_cast<float>(vr_gametime - m.lastDrawn) + glm::distance(at, eye) / 300.f;
+        const float score = static_cast<float>(vr_gametime - m.lastDrawn) + (fine ? 0.f : glm::distance(at, eye) / 300.f);
         if(score > bestScore)
         {
             bestScore = score;
@@ -1265,7 +1341,8 @@ void viewBlood(int count[3], double sum[3])
 {
     entity_t* own[3]{};
     view::woundTargets(own);
-    za::Vector<byte> rgba(static_cast<za::SizeT>(layerSize) * layerSize * 4);
+    const za::SizeT side = static_cast<za::SizeT>(za::max(layerSize, fineSize));
+    za::Vector<byte> rgba(side * side * 4);
     GLint previous = 0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, fbo);
@@ -1280,7 +1357,7 @@ void viewBlood(int count[3], double sum[3])
             continue;
         }
         const Mask& m = masks[static_cast<za::SizeT>(layer)];
-        GL_FramebufferTextureLayerFunc(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, array, 0, layer);
+        attach(GL_READ_FRAMEBUFFER, layer);
         glReadPixels(0, 0, m.w, m.h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
         count[part] = 0;
         for(int p = 0; p < m.w * m.h; p++)
@@ -1300,7 +1377,7 @@ void steps(float dt)
 {
     // Drying: 1/255 of the wetness a step (dryTime from soaked); embers cooling; the player's heal.
     const int n = za::max(1, static_cast<int>(dt / tick + 0.5f));
-    for(int i = 0; i < layers; i++)
+    for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent)
@@ -1333,7 +1410,7 @@ void steps(float dt)
 
 void checkEntities()
 {
-    for(int i = 0; i < layers; i++)
+    for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent || m.view)
@@ -1371,7 +1448,7 @@ void playerState()
         return;
     }
     forgetPlayerWounds(respawned ? 1.f : za::clamp(heal, 0.f, 1.f));
-    for(int i = 0; i < layers; i++)
+    for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent || !m.view)
@@ -1412,7 +1489,7 @@ void optionsChanged()
     {
         return;
     }
-    for(int i = 0; i < layers; i++)
+    for(int i = 0; i < maskCount(); i++)
     {
         if(masks[static_cast<za::SizeT>(i)].ent)
         {
@@ -1428,7 +1505,7 @@ void drips(double now)
     {
         return;
     }
-    for(int i = 0; i < layers; i++)
+    for(int i = 0; i < maskCount(); i++)
     {
         Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent || m.wetLeft <= 0.f || now < m.dripNext || vr_gametime - m.lastDrawn > 0.5)
@@ -1588,7 +1665,7 @@ bool replacesSkins()
 
 void clear()
 {
-    for(int i = 0; i < layers; i++)
+    for(int i = 0; i < maskCount(); i++)
     {
         masks[static_cast<za::SizeT>(i)] = Mask{};
     }
@@ -1828,20 +1905,21 @@ void dump_f()
         Con_Printf("vr_wounds_dump: no masks\n");
         return;
     }
-    za::Vector<byte> rgba(static_cast<za::SizeT>(layerSize) * layerSize * 4);
-    za::Vector<byte> rgb(static_cast<za::SizeT>(layerSize) * layerSize * 3);
+    const za::SizeT side = static_cast<za::SizeT>(za::max(layerSize, fineSize));
+    za::Vector<byte> rgba(side * side * 4);
+    za::Vector<byte> rgb(side * side * 3);
     Sys_mkdir(va("%s/wounds", com_gamedir));
     GLint previous = 0;
     glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previous);
     GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, fbo);
-    for(int i = 0; i < layers; i++)
+    for(int i = 0; i < maskCount(); i++)
     {
         const Mask& m = masks[static_cast<za::SizeT>(i)];
         if(!m.ent)
         {
             continue;
         }
-        GL_FramebufferTextureLayerFunc(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, array, 0, i);
+        attach(GL_READ_FRAMEBUFFER, i);
         glReadPixels(0, 0, m.w, m.h, GL_RGBA, GL_UNSIGNED_BYTE, rgba.data());
         for(int p = 0; p < m.w * m.h; p++)
         {
@@ -1868,15 +1946,18 @@ void info_f()
     {
         used += m.ent ? 1 : 0;
     }
-    Con_Printf("wounds: %d of %d masks used (%dx%d layers, %.1f MB), %d paints so far, last frame's work %.3f ms (CPU)\n", used,
-        layers, layerSize, layerSize, static_cast<double>(layers) * layerSize * layerSize * 4.0 / (1024.0 * 1024.0), paintsTotal,
+    Con_Printf("wounds: %d of %d masks used (%dx%d layers, %.1f MB; yours %dx%d, %.1f MB), %d paints so far, last frame's work "
+               "%.3f ms (CPU)\n",
+        used, maskCount(), layerSize, layerSize, static_cast<double>(layers) * layerSize * layerSize * 4.0 / (1024.0 * 1024.0), fineSize,
+        fineSize, static_cast<double>(maskCount() - layers) * fineSize * fineSize * 4.0 / (1024.0 * 1024.0), paintsTotal,
         static_cast<double>(lastPaintMs));
-    for(int i = 0; i < layers; i++)
+    for(int i = 0; i < maskCount(); i++)
     {
         const Mask& m = masks[static_cast<za::SizeT>(i)];
         if(m.ent)
         {
-            Con_Printf("  %2d %s%s %dx%d, drawn %.1f s ago%s%s\n", i, m.model ? m.model->name : "?", m.view ? " (you)" : "", m.w, m.h,
+            Con_Printf("  %2d %s%s %dx%d, drawn %.1f s ago%s%s\n", i, m.model ? m.model->name : "?",
+                m.view ? (isFine(i) ? " (you, fine)" : " (you)") : "", m.w, m.h,
                 vr_gametime - m.lastDrawn, m.wetLeft > 0.f ? ", wet" : "", m.hotLeft > 0.f ? ", hot" : "");
         }
     }
@@ -1903,7 +1984,7 @@ extern "C" void VR_AliasWound(const entity_t* e, float out[4])
         return;
     }
     m.lastDrawn = vr_gametime;
-    out[0] = static_cast<float>(it->second + 1);
+    out[0] = isFine(it->second) ? -static_cast<float>(layerIn(it->second) + 1) : static_cast<float>(it->second + 1);
     out[1] = static_cast<float>(m.w);
     out[2] = static_cast<float>(m.h);
     out[3] = static_cast<float>(za::fmod(cl.time, 1000.0));
@@ -1912,4 +1993,15 @@ extern "C" void VR_AliasWound(const entity_t* e, float out[4])
 extern "C" unsigned VR_WoundTexture(void)
 {
     return qvr::wounds::array;
+}
+
+extern "C" unsigned VR_WoundFineTexture(void)
+{
+    return qvr::wounds::fineArray;
+}
+
+extern "C" void VR_WoundFrameData(float out[2])
+{
+    out[0] = za::clamp(qvr::vr_wounds_bump_burns.value, 0.f, 4.f);
+    out[1] = za::clamp(qvr::vr_wounds_bump_blood.value, 0.f, 4.f);
 }

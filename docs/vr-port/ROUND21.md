@@ -20947,3 +20947,51 @@ inside the gun).
 - [ ] Shoulder a gun (virtual stock) and bring it to your eye: nothing of it is cut away, the world never shows
   through it; push it into your face: its inside blocks the view (Held Items at the Eyes: Block the view).
 - [ ] Far walls, floors and decals don't flicker (Float Depth on); Near Clip 0.02 .. 1 changes nothing far away.
+
+## Your own wounds: finer, smooth, with relief (2026-10-02)
+
+NOTES.md vrfiringrange_2026-10-02_15-59-08: the body's burn and explosion scorches looked pixelated (wanted: more
+resolution, a bit of bump so burns and dark scorches look 3D); the bleeding wounds a tiny bit of bump (deeper into the
+skin); the wet very pixelated (wanted: smoother, no bump).
+
+### What changed
+
+- Your body and hands (the three view masks) no longer live in the shared 256x256 pool: they get their own texture
+  array (`WoundMasksFine`, binding 15), `vr_wounds_own_res` texels on a side (default 1024; 512, 2048; 0: the old way,
+  in the pool and chunky). The body's skin is 256x256, so its marks were read on that grid with a 4x4 ordered dither;
+  now each mark is four times finer, read bilinearly (`GL_LINEAR`), and the dither's thresholds became ramps over the
+  same ranges (burn 0.16..0.44, blood 0.2..0.44, wet 0.06..0.46: the dither's average coverage), so the edges and the
+  drying fade are smooth. The colours are the same (the char's deep near-black past 0.72 and the blood's three reds
+  blend over a narrow band instead of switching); the char's per-texel hash became a smooth value noise; embers glow in
+  noise spots.
+- Relief (`WoundHeight`, `WoundBump` in vr_glsl.h): a height in units from the fine mask (char: crusted, a two-octave
+  noise, a little sunk; blood: sunk 0.2 units at most, a third at its edge and the rest towards a wound's core; blood
+  over char smooths the crust), its slope taken by central differences 1.5 texels each way, put on the normal with the
+  position's and the coordinates' screen derivatives (Mikkelsen's surface gradient). Wet adds none (it still fills the
+  normal map's bumps, as before). Strengths: `vr_wounds_bump_burns`, `vr_wounds_bump_blood` (default 1; the frame
+  data's Water3.zw, now in the alias shaders' block too).
+- Monsters and corpses keep the chunky look (the old path, unchanged: with `vr_wounds_own_res 0` your arms match the
+  old build's image pixel for pixel, outside the wrist gadget's changing readout).
+- Menu: Gore > Wounds on Models: Your Wounds' Detail, Your Burns' Relief, Your Wounds' Depth. Debug > Tools > Test
+  Effects: Burn / Wound / Soak Your Arms (`vr_wounds_test self ...`). Changing the detail clears every wound (the
+  masks are made again). `vr_wounds_info` lists yours as "(you, fine)".
+
+### Measured
+
+Memory: 3 x 1024 x 1024 x 4 bytes = 12 MB at the default (512: 3 MB; 2048: 48 MB); the pool's own (64 x 256 KB) is
+unchanged and three of its layers are now free for monsters. GPU (1440x1440 eyes, the arms filling the lower half,
+burnt, cut and wet): frame 0.894 ms (`vr_wounds_own_res 0`) against 0.910 ms (1024); models 0.101 against 0.110 ms.
+
+### Known limits
+
+- The body's skin maps both arms onto the same texels (mirrored): a wound, burn or wetness on one arm shows on the
+  other too, and liquids' wetness is the higher of the two arms' (straight-edged shapes where the two arms' triangles
+  meet). Older than this change; the fine masks only show it more clearly.
+- Bilinear reads pull in the empty texels between the skin's islands: a faint half-texel lighter line along a UV seam
+  where a mark crosses it (on the forearms' undersides).
+
+### In VR
+
+Burn, cut and soak your arms (Debug > Tools > Test Effects, arms held before your chest), look at them close, turn
+them in the light: the char should look crusted, the wounds slightly sunk, the wet edge and its drying smooth. Try
+Your Wounds' Detail 512 and 2048, and the two relief sliders.

@@ -104,8 +104,10 @@ void VR_DlightShadow (int index, struct gpulight_s *out);	// R_PushDlights, per 
 float VR_SpotCone (const struct gpulight_s *l, const float point[3]); // how much of a light its cone lets reach a point (1: a point light)
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
-void VR_AliasWound (const struct entity_s *e, float out[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none), size in texels, time
+void VR_AliasWound (const struct entity_s *e, float out[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none; negative: -(layer + 1) in the fine masks), size in texels, time
 unsigned VR_WoundTexture (void);							// the wound masks' texture array (0: none; vr_wounds.cpp)
+unsigned VR_WoundFineTexture (void);						// your own body's and hands' finer masks (vr_wounds_own_res; 0: none)
+void VR_WoundFrameData (float out[2]);						// the fine masks' relief: burns', blood's (Water3.zw in the frame data)
 
 // The DarkPlaces look (vr_lighting.cpp; docs/vr-port/LIGHTING.md, round 10).
 float VR_PostProcessBloom (void);								// GL_PostProcess: an eye's glow bound to texture unit 2, and how much of it to add (0: none)

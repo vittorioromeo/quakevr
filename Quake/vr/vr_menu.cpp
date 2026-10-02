@@ -1738,6 +1738,14 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         toggle("Wet from Liquids", vr_wounds_wet).help("Monsters and you get wet up to where water or slime came, drip, and dry in about 25 seconds."),
         cycle("Models Kept", vr_wounds_pool, {{32.f, "32 (8 MB)"}, {64.f, "64 (16 MB)"}, {128.f, "128 (32 MB)"}})
             .help("How many models keep their wounds at once: past it, the ones seen longest ago give theirs up."),
+        cycle("Your Wounds' Detail", vr_wounds_own_res,
+            {{0.f, "Chunky (as monsters)"}, {512.f, "Fine (3 MB)"}, {1024.f, "Finer (12 MB)"}, {2048.f, "Finest (48 MB)"}})
+            .help("Your own body's and hands' wounds, burns and wetness: finer than their skin and smooth-edged, with a relief "
+                  "(Chunky: in the skin's own pixels, as the monsters')."),
+        slider("Your Burns' Relief", vr_wounds_bump_burns, 0.f, 3.f, 0.25f, "%.2fx")
+            .help("How crusted and cracked the char on your arms looks in the light (Finer detail only; 0 flat)."),
+        slider("Your Wounds' Depth", vr_wounds_bump_blood, 0.f, 3.f, 0.25f, "%.2fx")
+            .help("How deep your bleeding wounds look sunk into the skin (Finer detail only; 0 flat)."),
         header("Your Wounds"),
         slider("Arm Drip Rate", vr_body_blood, 0.f, 4.f, 0.25f, "%.2fx").extend()
             .help("How often blood drips from your wounded arms and hands (the body's wounds: Show Armour and Wounds; 0 none)."),
@@ -2895,6 +2903,9 @@ za::Vector<Item> pageDebugTools()
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
         command("Blood Mist", "vr_gore_mist_test").help("vr_gore_mist_test: a bleed's blood mist 64 units ahead (Gore > Blood Mist)."),
         command("Gib Blood on Hand", "vr_gore_hands_test main").help("vr_gore_hands_test main: a gib's blood on the main hand, as taking one (Gore > Bloody Hands and Washing)."),
+        command("Burn Your Arms", "vr_wounds_test self 4 90 0 12").help("vr_wounds_test self 4 90 0 12: an explosion's burns on your front and the arms held before you (Gore > Your Wounds' Detail)."),
+        command("Wound Your Arms", "vr_wounds_test self 1 20 4 14").help("vr_wounds_test self 1 20 4 14: a shot's bleeding wound at your arms' height, held before your chest."),
+        command("Soak Your Arms", "vr_wounds_test self 9 0 0 52").help("vr_wounds_test self 9 0 0 52: wet as from water up to your chest; dries in about 25 seconds."),
         command("Test Light", "vr_light_test").help("vr_light_test: a white light 48 units ahead for 5 seconds."),
         command("Test Message", "vr_message_test").help("vr_message_test: a message in the gadget's hologram (once the gadget has been drawn)."),
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
