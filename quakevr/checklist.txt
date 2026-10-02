@@ -130,6 +130,12 @@ Sound > HRTF Anti-Aliasing: toggle off/on with a monster to one side: on, its si
 Debug: A Sound 45 Degrees Right / Left: each clearly comes from its side, straight ahead sounds centred
 HRTF Volume 1.5 was tuned with the old folded highs: may want a touch more now
 
+Grab a gib: the hand gets bloody, more the longer you hold it (Gore > Bloody Hands and Washing)
+Jump into water hurt: blood washes off; ~4 s after leaving, wounds re-open and the hands get bloody again
+Jump into water unhurt (only gib blood): washes off and stays clean
+Chainsaw or shoot a monster while it falls dying: it takes damage and can gib mid-fall (Gore > Dying Bodies)
+Blood mist: faint large clouds on every bleeding hit; faint enough? (Gore > Blood Mist)
+
 [Decide or give feedback]
 Quake's 11 kHz lowpass still removes everything above ~5.5 kHz from spatial voices (front/back and up/down cues): let spatial voices bypass it?
 Flashlight head zone: make your values the defaults (zone up 0.175, forward 0.015; shipped 0.04, 0)?
