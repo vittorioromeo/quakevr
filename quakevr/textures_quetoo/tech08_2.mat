@@ -1,0 +1,7 @@
+{
+	diffusemap quake/tech08_2
+	normalmap quake/tech08_1_norm
+	hardness 0.50
+	specularity 1.96
+	parallax 3.02
+}

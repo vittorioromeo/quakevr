@@ -1,0 +1,8 @@
+{
+	diffusemap quake/basebtn+1
+	{
+		texture quake/basebtn+1_luma
+		blend src_alpha one
+		pulse 0.24
+	}
+}

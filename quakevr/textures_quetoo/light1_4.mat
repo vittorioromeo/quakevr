@@ -1,0 +1,10 @@
+{
+	diffusemap quake/light1_4
+	normalmap quake/cop1_7_norm
+	specularmap quake/cop1_7_spec
+	{
+		texture quake/light1_4_luma
+		blend src_alpha one
+		pulse 0.41
+	}
+}

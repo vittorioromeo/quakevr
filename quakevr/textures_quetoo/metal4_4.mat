@@ -1,0 +1,7 @@
+{
+	diffusemap quake/metal4_4
+	roughness 1.49
+	hardness 1.50
+	parallax 3.46
+	shadow 8.00
+}

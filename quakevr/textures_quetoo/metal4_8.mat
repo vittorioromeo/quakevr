@@ -1,0 +1,9 @@
+{
+	diffusemap quake/metal4_8
+	normalmap quake/metal4_7_norm
+	specularmap quake/metal4_7_spec
+	roughness 1.45
+	hardness 2.03
+	parallax 4.98
+	shadow 8.00
+}

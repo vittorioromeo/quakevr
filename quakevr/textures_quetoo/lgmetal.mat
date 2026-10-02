@@ -1,0 +1,7 @@
+{
+	diffusemap quake/lgmetal
+	hardness 2.50
+	specularity 1.50
+	parallax 4.00
+	shadow 0.00
+}

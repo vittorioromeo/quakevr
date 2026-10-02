@@ -1,0 +1,8 @@
+{
+	diffusemap quake/sfloor4_4
+	{
+		texture quake/sfloor4_4_luma
+		blend src_alpha one
+		pulse 0.22
+	}
+}

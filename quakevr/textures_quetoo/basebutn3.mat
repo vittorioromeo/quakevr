@@ -1,0 +1,9 @@
+{
+	diffusemap quake/basebutn3
+	parallax 1.75
+	{
+		texture quake/basebutn3_luma
+		blend src_alpha one
+		pulse 0.27
+	}
+}

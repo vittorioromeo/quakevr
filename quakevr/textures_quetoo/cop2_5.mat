@@ -1,0 +1,9 @@
+{
+	diffusemap quake/cop2_5
+	normalmap quake/cop1_1_norm
+	specularmap quake/cop1_1_spec
+	roughness 1.50
+	hardness 4.00
+	parallax 3.02
+	surface "phong"
+}

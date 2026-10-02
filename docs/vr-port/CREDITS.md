@@ -183,6 +183,29 @@ measurement (their mean colour and fine detail; ROUND21.md, "Crates: wood dust, 
 (Kenney's *Impact Sounds*, CC0), pitched down, over synthesised splinter crackle and a thump; `crate_dust1..2.wav` a
 light wood knock pitched up, a crackle and a synthesised hiss. Nothing downloaded.
 
+### Quetoo material maps (`quakevr/textures_quetoo/`; CC BY-SA 4.0)
+
+The world's normal, specular and glow maps and material files (`vr_extmaps`, on by default; ROUND21.md, "Quetoo's
+maps shipped") are from the **[Quetoo](https://github.com/jdolan/quetoo) game data** by **Jay Dolan (jdolan)** and
+the Quetoo contributors ([quetoo-data](https://github.com/jdolan/quetoo-data), `target/default/textures/quake/`,
+commit `fcb502b3fa0a`), under the
+[Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/) licence (its text is
+`quakevr/textures_quetoo/LICENSE.md`; the folder's `README.md` has the full credits).
+
+- Their pictures come from **Rygel's "Texturepack Ultra for Quake/DarkPlaces"**, which credits: Yves "evillair"
+  Allaire (hfx); Jon "Starbuck" Miles (Debaser Texture Set v1); the **Quake Retexture Project** (QRP: Urgefor, RaRe,
+  Up2nOgOoD[ROCK], Primevil, My-Key, Moon[Drunk], [Win]Elchtest and the QRP team); Pez/Mortuality (Aerowalk
+  textures); woodsk7 (CTF & EXMX Map Texture Pak); Randy's Quake Textures (QExpo style); Alexander "_argv[-1]";
+  William Smith and Mayang Murni Adnin (free textures, mayang.com); Filter Forge; MoonDrunk; Ruohis; n30g3n3s1s;
+  Jose "Jaj" Arcediano; LordHavoc; and **id Software**, whose Quake textures they retexture.
+- Shipped: 1076 of the folder's files, unchanged (46.4 MB): the 327 texture names of Quake and its mission packs whose
+  picture matches the texture drawn (id's or QRP's), picked by `Misc/quakevr/select_quetoo_maps.py`. The pictures are
+  only compared with the textures, never drawn. Changed at load only, never in the files: the normal maps' green
+  turned where it runs against their heights, the specular brightness scaled.
+- **Obligations** (CC BY-SA 4.0, these files only; the rest of Quake VR stays GPLv2): keep the attribution (authors,
+  licence and link, source) and say what was changed; a modified version of these files (resized, recoloured, turned
+  maps) must be shared under CC BY-SA 4.0 or a compatible licence; no added terms or DRM on them.
+
 ## Techniques, research and references
 
 ### Body IK

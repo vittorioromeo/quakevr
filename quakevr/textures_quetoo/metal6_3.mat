@@ -1,0 +1,11 @@
+{
+	diffusemap quake/metal6_3
+	parallax 3.50
+	shadow 1.50
+	contents "detail"
+	{
+		texture quake/metal6_3_luma
+		blend src_alpha one
+		pulse 0.32
+	}
+}

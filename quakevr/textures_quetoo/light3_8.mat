@@ -1,0 +1,17 @@
+{
+	diffusemap quake/light3_8
+	roughness 0.88
+	hardness 2.00
+	parallax 3.46
+	shadow 0.00
+	{
+		scale.s 0.500
+		scale.t 0.500
+		flare flare_1
+	}
+	{
+		texture quake/light3_8_luma
+		blend src_alpha one
+		pulse 0.44
+	}
+}

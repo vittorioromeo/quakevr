@@ -1,0 +1,5 @@
+{
+	diffusemap quake/crate1_side
+	normalmap quake/crate0_side_norm
+	specularmap quake/crate0_side_spec
+}

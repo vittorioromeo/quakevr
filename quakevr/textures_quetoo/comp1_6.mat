@@ -1,0 +1,13 @@
+{
+	diffusemap quake/comp1_6
+	roughness 1.86
+	hardness 2.78
+	specularity 1.72
+	parallax 3.00
+	shadow 6.00
+	{
+		texture quake/comp1_6_luma
+		blend src_alpha one
+		pulse 0.32
+	}
+}

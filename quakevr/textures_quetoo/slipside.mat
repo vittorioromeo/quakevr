@@ -1,0 +1,8 @@
+{
+	diffusemap quake/slipside
+	{
+		texture quake/slipside_luma
+		blend src_alpha one
+		pulse 0.51
+	}
+}

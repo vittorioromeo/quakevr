@@ -1,0 +1,8 @@
+{
+	diffusemap quake/metal6_1
+	roughness 1.00
+	hardness 4.00
+	specularity 2.02
+	parallax 3.47
+	shadow 8.00
+}

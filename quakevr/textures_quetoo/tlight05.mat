@@ -1,0 +1,10 @@
+{
+	normalmap quake/tlight03_norm
+	specularmap quake/tlight03_spec
+	diffusemap quake/tlight05
+	{
+		texture quake/tlight05_luma
+		blend src_alpha one
+		pulse 0.42
+	}
+}

@@ -482,8 +482,8 @@ context and screenshot, ready to paste or to point me at.
 - **Previous round** (`docs/vr-port/ROUND12.md`, your second batch of notes):
   - **Melee:** real blows only (no flicks or wiggles), punches/slaps/overheads balanced, one-hand palm shove.
   - **Parallax:** walls with depth (Graphics: Parallax, Depth, Distance).
-  - **External maps** (off by default; ROUND21.md, "External material maps"): `vr_extmaps 1; vr_extmaps_dir
-    C:/OHWorkspace/qvr-kit/external/quetoo-data/target/default/textures/quake` before the map, `-Base qrp`;
+  - **External maps** (on by default, Quetoo's shipped in `quakevr/textures_quetoo`; ROUND21.md, "External material
+    maps", "Quetoo's maps shipped"): `-Base qrp` for the most matches (id's textures match fewer);
     `vr_extmaps_stats [all]` prints what each texture got; `vr_extmaps_ab 1` (Debug > Views) shows the made maps at
     once. A/B eyeshots: `vr_mock_look 20 90; vr_light_test 350 60 72; wait40` (the light's shadow takes frames to
     settle: shoot after it), then `vr_extmaps_ab 1; vr_eyeshot 1; vr_extmaps_ab 0; vr_eyeshot 1`.
