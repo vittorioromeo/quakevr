@@ -28,6 +28,8 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 
+#include <glm/gtc/quaternion.hpp>
+
 #include <string.h>
 
 namespace qvr::chainsaw
@@ -37,6 +39,8 @@ namespace
 
 constexpr const char* modelName = "progs/v_chainsaw.mdl";
 constexpr int pulledFrame = 9;           // the model's frame without the handle (QC VR_SAW_PULLED_FRAME)
+constexpr int soloFrame = 10;            // and the handle alone (make_chainsaw.py HANDLE_ONLY): drawn in the fist
+constexpr double grabBlend = 0.1;        // seconds the handle takes from its seat into the fist's turn as it is taken
 constexpr float reach = 0.09f;           // metres from the handle's middle a fist takes it within
 constexpr float cordLength = 0.4f;       // metres the cord goes out past the pull's distance: then the hand lets go
 constexpr float rearm = 0.35f;           // the next pull once the hand is back within this share of the pull's distance
@@ -65,6 +69,7 @@ struct Handle
     const qmodel_t* model{nullptr};
     const void* data{nullptr}; // its alias header (read again after vr_model_reload)
     bool valid{false};
+    bool solo{false};    // the model has soloFrame (else the handle in the fist is a plain tube)
     glm::vec3 seat{0.f}; // the handle's middle, seated
     glm::vec3 hole{0.f}; // the cord's hole
     float barStart{0.f}; // x from which the model's vertices are its bar
@@ -83,6 +88,10 @@ struct State
     glm::vec3 retractStart{0.f};
     glm::vec3 handlePos{0.f}, handleAxis{0.f, 0.f, 1.f}; // drawn this frame (world)
     bool drawHandle{false};
+    glm::mat3 handleTurn{1.f}; // drawn this frame: the world turn from the handle seated to as drawn
+    glm::mat3 heldTurn{1.f};   // the last in the fist (flying back from it)
+    double heldFrom{-1.0};     // the hold began then (vr_gametime): the handle eases from its seat into the fist
+    float handleSign{0.f};     // the handle's x along (+1) or against (-1) the fist's channel (0: not chosen yet)
     glm::vec3 seatWorld[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's chainsaw's handle seat, as drawn last frame
     bool sawDrawn[2]{false, false};
     bool gripTaken[2]{false, false}; // a grip press the cord took (its release is taken too)
@@ -163,6 +172,7 @@ const Handle& handleOf(const qmodel_t* model)
         return handle;
     }
     handle.valid = true;
+    handle.solo = hdr->numframes > soloFrame;
     handle.seat = seat / static_cast<float>(n);
     handle.hole = hole / static_cast<float>(n);
     handle.barStart = lo + (hi - lo) * 0.58f; // (make_chainsaw.py: the bar out of the engine block)
@@ -305,6 +315,24 @@ void fistOf(const hands::State& s, int hand, glm::vec3& point, glm::vec3& dir)
     const glm::mat3 axes = held::axesFromAngles(&s.rot[hand][0], true);
     point = s.pos[hand] + axes * f.channelPoint;
     dir = glm::normalize(axes * f.channelDir);
+}
+
+// A right-handed frame from its x and (roughly) its z.
+[[nodiscard]] glm::mat3 frameOf(const glm::vec3& x, const glm::vec3& zHint)
+{
+    glm::vec3 z = zHint - x * glm::dot(zHint, x);
+    if(glm::length(z) < 1e-4f)
+    {
+        z = za::fabs(x.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f};
+        z = z - x * glm::dot(z, x);
+    }
+    z = glm::normalize(z);
+    return glm::mat3{x, glm::cross(z, x), z};
+}
+
+[[nodiscard]] glm::mat3 slerpTurn(const glm::mat3& a, const glm::mat3& b, float t)
+{
+    return glm::mat3_cast(glm::slerp(glm::quat_cast(a), glm::quat_cast(b), t));
 }
 
 [[nodiscard]] float metres(float m)
@@ -472,6 +500,8 @@ bool grip(int hand, bool pressed)
     st.armed = true;
     st.peakSpeed = 0.f;
     st.retractFrom = -1.0;
+    st.heldFrom = vr_gametime;
+    st.handleSign = 0.f;
     st.gripTaken[hand] = true;
     debugLog("taken", hand, 0.f, 0.f);
     return true;
@@ -601,16 +631,32 @@ void setupView(const hands::State& s)
         }
         else
         {
-            st.handlePos = p;
+            // The handle seated (the model's x and z there, world) turned into the fist: its x along the fist's
+            // channel (whichever way is nearer its seated one as it is taken), its underside towards the cord's hole.
+            // Eased from its seat over grabBlend.
+            const glm::vec3 seatW = st.seatWorld[sawHand];
+            const glm::vec3 xs = glm::normalize(view::modelPoint(*ve, handle.seat + glm::vec3{1.f, 0.f, 0.f}) - seatW);
+            const glm::vec3 zs = view::modelPoint(*ve, handle.seat + glm::vec3{0.f, 0.f, 1.f}) - seatW;
+            if(st.handleSign == 0.f)
+            {
+                st.handleSign = glm::dot(axis, xs) >= 0.f ? 1.f : -1.f;
+            }
+            const glm::vec3 up = glm::length(p - hole) > 1e-3f ? glm::normalize(p - hole) : sawUp;
+            const glm::mat3 turn = frameOf(axis * st.handleSign, up) * glm::transpose(frameOf(xs, zs));
+            const float b = static_cast<float>(za::clamp((vr_gametime - st.heldFrom) / grabBlend, 0.0, 1.0));
+            const float eased = b * b * (3.f - 2.f * b);
+            st.handlePos = glm::mix(seatW, p, eased);
             st.handleAxis = axis;
+            st.handleTurn = st.heldTurn = slerpTurn(glm::mat3{1.f}, turn, eased);
             st.drawHandle = true;
         }
     }
     if(st.holder < 0 && st.retractFrom >= 0.0)
     {
-        // Flying back: along the cord into its seat.
+        // Flying back: along the cord into its seat, turning back to its seated turn.
         const float t = static_cast<float>(za::clamp((vr_gametime - st.retractFrom) / retractTime, 0.0, 1.0));
         st.handlePos = glm::mix(st.retractStart, st.seatWorld[sawHand], t * t);
+        st.handleTurn = slerpTurn(st.heldTurn, glm::mat3{1.f}, t * t);
         st.drawHandle = t < 1.f;
     }
     if(!st.drawHandle)
@@ -630,6 +676,48 @@ void setupView(const hands::State& s)
     {
         lines::line(st.seatWorld[sawHand], hole, 0.2f, glm::vec4{1.f, 1.f, 0.f, 1.f}, glm::vec4{1.f, 0.5f, 0.f, 1.f});
     }
+}
+
+bool handleEntity(const view::ViewEntity*& saw, glm::vec3& origin, glm::vec3& angles, int& frame)
+{
+    const int sawHand = st.holder >= 0 ? 1 - st.holder : st.retractHand;
+    if(!st.drawHandle || sawHand < 0 || !st.sawDrawn[sawHand] || !vr_chainsaw_model_handle.value)
+    {
+        return false;
+    }
+    saw = sawIn(sawHand);
+    if(!saw || !handleOf(saw->ent.model).solo)
+    {
+        return false;
+    }
+    // The saw's own placing turned about the handle's seat by handleTurn, the seat moved to handlePos.
+    const entity_t& e = saw->ent;
+    float m[16];
+    vec3_t zero{0.f, 0.f, 0.f}, a;
+    VectorCopy(e.angles, a);
+    R_EntityMatrix(m, zero, a, ENTSCALE_DEFAULT);
+    const glm::mat3 rot{glm::vec3{m[0], m[1], m[2]}, glm::vec3{m[4], m[5], m[6]}, glm::vec3{m[8], m[9], m[10]}};
+    const glm::mat3 r = st.handleTurn * rot;
+    const glm::vec3 fa = hands::anglesFromVectors(glm::normalize(r[0]), glm::normalize(r[2]));
+    angles = glm::vec3{-fa.x, fa.y, fa.z}; // (an alias model's pitch: view's aliasAngles)
+    origin = st.handlePos - st.handleTurn * (st.seatWorld[sawHand] - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+    frame = soloFrame;
+    if(vr_debug_chainsaw.value >= 2.f)
+    {
+        // The angles back through the renderer's matrix: they must give the turn asked for.
+        float m2[16];
+        vec3_t a2{angles.x, angles.y, angles.z};
+        R_EntityMatrix(m2, zero, a2, ENTSCALE_DEFAULT);
+        float err = 0.f;
+        for(int c = 0; c < 3; c++)
+        {
+            err = za::max(err, glm::length(glm::vec3{m2[c * 4], m2[c * 4 + 1], m2[c * 4 + 2]} - glm::normalize(r[c])));
+        }
+        const float turned = glm::degrees(glm::angle(glm::quat_cast(st.handleTurn)));
+        Con_Printf("chainsaw handle: drawn %.1f cm from its seat, turned %.0f deg, angles error %.4f\n",
+            glm::distance(st.handlePos, st.seatWorld[sawHand]) / units::metresToUnits() * 100.f, turned, err);
+    }
+    return true;
 }
 
 void drawOpaque()
@@ -673,7 +761,13 @@ void drawOpaque()
     {
         gfx::drawTube(d.cord, d.sides, cord.albedo(), glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}));
     }
-    gfx::drawTube(d.handle, 12, glm::vec3{0.55f, 0.36f, 0.08f}, glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}));
+    const view::ViewEntity* saw = nullptr;
+    glm::vec3 origin, angles;
+    int frame = 0;
+    if(!handleEntity(saw, origin, angles, frame)) // (else the model's own handle: the view draws it)
+    {
+        gfx::drawTube(d.handle, 12, glm::vec3{0.55f, 0.36f, 0.08f}, glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}));
+    }
 }
 
 } // namespace qvr::chainsaw

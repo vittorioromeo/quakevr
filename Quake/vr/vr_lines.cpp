@@ -21,6 +21,7 @@ struct Line
     glm::vec4 colorA, colorB;
     bool point;
     bool additive{false};
+    bool scene{false}; // depth-tested, in the scene's translucent pass (drawInScene)
 };
 
 za::Vector<Line> queue;
@@ -60,18 +61,30 @@ void glowPoint(const glm::vec3& p, float size, const glm::vec4& color)
     queue.pushBack({p, p, size, {glm::vec3{color}, 0.f}, {glm::vec3{color}, 0.f}, true, true});
 }
 
-void drawInEye(const glm::vec3& eye)
+void sceneLine(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB)
 {
-    QVR_GPU_PROFILE("lines");
-    if(queue.empty())
-    {
-        return;
-    }
+    queue.pushBack({a, b, width, colorA, colorB, false, false, true});
+}
 
+void sceneGlow(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB)
+{
+    queue.pushBack({a, b, width, {glm::vec3{colorA}, 0.f}, {glm::vec3{colorB}, 0.f}, false, true, true});
+}
+
+namespace
+{
+
+// The queue's lines of the scene's (or not) into `vertices`, facing `eye`, and drawn: depth-tested in the scene.
+void drawQueued(const glm::vec3& eye, bool scene)
+{
     vertices[0].clear();
     vertices[1].clear();
     for(const Line& l : queue)
     {
+        if(l.scene != scene)
+        {
+            continue;
+        }
         za::Vector<gfx::Vertex>& out = vertices[l.additive];
         if(l.point)
         {
@@ -100,11 +113,45 @@ void drawInEye(const glm::vec3& eye)
             {{0.f, -1.f}, {0.f, -1.f}, {0.f, 1.f}, {0.f, 1.f}});
     }
 
+    if(vertices[0].empty() && vertices[1].empty())
+    {
+        return;
+    }
     const glm::mat4 viewProjection = gfx::sceneViewProjection();
-    gfx::draw(vertices[0], viewProjection,
-        {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
-    gfx::draw(vertices[1], viewProjection,
-        {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Premultiplied, .depthTest = false, .depthWrite = false});
+    if(!vertices[0].empty())
+    {
+        gfx::draw(vertices[0], viewProjection,
+            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Alpha, .depthTest = scene, .depthWrite = false});
+    }
+    if(!vertices[1].empty())
+    {
+        gfx::draw(vertices[1], viewProjection,
+            {.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Premultiplied, .depthTest = scene, .depthWrite = false});
+    }
+}
+
+} // namespace
+
+void drawInEye(const glm::vec3& eye)
+{
+    QVR_GPU_PROFILE("lines");
+    if(queue.empty())
+    {
+        return;
+    }
+    drawQueued(eye, false);
+}
+
+void drawInScene()
+{
+    if(queue.empty())
+    {
+        return;
+    }
+    QVR_GPU_PROFILE("scene lines");
+    glm::vec3 eye, right, up;
+    gfx::sceneCamera(eye, right, up);
+    drawQueued(eye, true);
 }
 
 void clear()

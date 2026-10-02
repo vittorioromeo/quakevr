@@ -3,7 +3,8 @@
 // flickering blue flash over the view, arcs in front of the eyes, over the hands, forearms and
 // body), fired into water from the open it electrifies it (arcs crawling over the surface round the
 // point the beam goes in, a flickering light). The QC says when (watershock(), QVR_SVC_SHOCK); the
-// client draws them as soft lines (vr_lines.hpp), reshaped every frame.
+// client draws them as soft lines (vr_lines.hpp), reshaped every frame. Quad's arcs also crackle along the lightning's
+// beams (vr_beam_arcs: CL_UpdateTEnts hands their ends over, VR_BeamDrawn), depth-tested in the scene.
 
 #pragma once
 

@@ -350,7 +350,10 @@ void CL_UpdateTEnts (void)
 		VectorCopy (b->end, bend);
 		rope = VR_UpdateBeam (b->entity, bstart, bend); // QVR
 		if (!rope)
+		{
 			VR_BeamLights (i, b->model, bstart, bend); // QVR: lights along the lightning
+			VR_BeamDrawn (i, b->model, bstart, bend); // QVR: and Quad Damage's arcs (vr/vr_shock.cpp)
+		}
 		if (VR_DrawRope (b->entity, b->model, bstart, bend)) // QVR: a grappling hook's rope, drawn in one piece (vr/vr_rope.cpp)
 			continue;
 

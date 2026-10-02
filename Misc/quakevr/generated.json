@@ -132,7 +132,7 @@
   "by": "bake_normals.py"
  },
  "quakevr/progs/v_chainsaw.mdl": {
-  "sha256": "b206a7c2129a75b39b5fedd7101d88e4fe8755faf03fa8d68823aa60e532de4b",
+  "sha256": "5323e6cfba68ff31b17611bd54cc759a6698fa713d842c278e2b399bd39e5927",
   "by": "make_chainsaw.py"
  },
  "quakevr/progs/v_chainsaw.mdl_0_norm.png": {
