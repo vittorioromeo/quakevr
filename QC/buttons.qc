@@ -19,14 +19,19 @@ void(entity entPlayer) VRButtonPressHaptic =
         return;
     }
 
+    // (haptic buzzes `self`'s controllers: the touch's self is the button.)
+    entity oldSelf = self;
+    self = entPlayer;
     if(VRIsTouchingHandFake(entPlayer))
     {
         haptic(0, 0.0, 0.3, 75, 1.0);
         haptic(1, 0.0, 0.3, 75, 1.0);
-        return;
     }
-
-    haptic(VRGetTouchingHand(entPlayer), 0.0, 0.3, 75, 1.0);
+    else
+    {
+        haptic(VRGetTouchingHand(entPlayer), 0.0, 0.3, 75, 1.0);
+    }
+    self = oldSelf;
 }
 
 void() button_wait =
@@ -68,6 +73,8 @@ void() button_blocked =
 };
 
 
+string vr_button_how; // what pressed the button now firing, for vr_debug_wallbuttons (button_fire clears it)
+
 void() button_fire =
 {
     if(self.state == STATE_UP || self.state == STATE_TOP || self.state == STATE_DISABLED)
@@ -75,6 +82,12 @@ void() button_fire =
         return;
     }
 
+    if(cvar_hget(cvarh_vr_debug_wallbuttons))
+    {
+        dprint(sprintf("button: %s (target \"%s\") pressed by %s: %s\n", self.model, self.target, self.enemy.classname,
+            vr_button_how != NULLSTR ? vr_button_how : "used or shot"));
+    }
+    vr_button_how = NULLSTR;
     particle2(realorigin(self), '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 64);
 
     sound(self, CHAN_VOICE, self.noise, 1, ATTN_NORM);
@@ -109,10 +122,215 @@ void() button_touch =
     {
         return;
     }
+    // VR: in, or coming out: not pressed again (nor a buzz each frame the hand rests on it).
+    if(self.state == STATE_UP || self.state == STATE_TOP || self.state == STATE_DISABLED)
+    {
+        vr_button_how = NULLSTR;
+        return;
+    }
 
     VRButtonPressHaptic(other);
 
     self.enemy = other;
+    button_fire();
+};
+
+// ----------------------------------------------------------------------------
+// VR: what presses a wall button besides a hand (NOTES.md vrfiringrange_2026-10-02_00-56-19, _01-01-58, _01-35-19;
+// ROUND21.md, "Wall buttons: weapons and thrown things press them"): all of a held weapon (VR_Buttons_WeaponFrame), and
+// a thing thrown at it (button_touch_any). Shot buttons (with health) are as Quake's: shot, or hit hard (T_Damage).
+
+// A hand on it (handtouch), or the engine's line from a hand to its gun's muzzle (vr_wpntouch).
+void() button_handtouch =
+{
+    if(other.classname == "player")
+    {
+        vr_button_how = VRIsTouchingHandFake(other) ? "the body (hands not tracked)" :
+            sprintf("hand %g", VRGetTouchingHand(other));
+    }
+    button_touch();
+};
+
+void() button_wpntouch =
+{
+    if(other.classname == "player")
+    {
+        vr_button_how = sprintf("the line from hand %g to its muzzle", VRGetTouchingHand(other));
+    }
+    button_touch();
+};
+
+// The wall buttons a held weapon presses (a chain through .vr_button_next), listed once a map (0: a new map, or a save
+// from before them: listed again).
+.entity vr_button_next;
+entity vr_buttons;
+float vr_buttons_listed;
+
+void() button_touch_any;
+
+void() VR_Buttons_List =
+{
+    vr_buttons = world;
+    entity b = find(world, classname, "func_button");
+    while(b != world)
+    {
+        if(b.vr_wpntouch == button_touch) // a save from before: its touches as func_button sets them now
+        {
+            b.touch = button_touch_any;
+            b.handtouch = button_handtouch;
+            b.vr_wpntouch = button_wpntouch;
+        }
+        if(b.vr_wpntouch == button_wpntouch)
+        {
+            b.vr_button_next = vr_buttons;
+            vr_buttons = b;
+        }
+        b = find(b, classname, "func_button");
+    }
+    vr_buttons_listed = TRUE;
+};
+
+// Whether the segment xA..xB, grown by xR all round, meets the box xLo..xHi (its shares within each axis's slab).
+float vr_seg_t0;
+float vr_seg_t1;
+float(float xA, float xD, float xLo, float xHi) VR_Seg_Slab =
+{
+    if(fabs(xD) < 0.001)
+    {
+        return xA >= xLo && xA <= xHi;
+    }
+    float ta = (xLo - xA) / xD;
+    float tb = (xHi - xA) / xD;
+    vr_seg_t0 = max(vr_seg_t0, min(ta, tb));
+    vr_seg_t1 = min(vr_seg_t1, max(ta, tb));
+    return vr_seg_t0 <= vr_seg_t1;
+};
+
+float(vector xA, vector xB, float xR, vector xLo, vector xHi) VR_SegmentMeetsBox =
+{
+    vector d = xB - xA;
+    vector r = '1 1 1' * xR;
+    xLo = xLo - r;
+    xHi = xHi + r;
+    vr_seg_t0 = 0;
+    vr_seg_t1 = 1;
+    if(!VR_Seg_Slab(xA_x, d_x, xLo_x, xHi_x))
+    {
+        return FALSE;
+    }
+    if(!VR_Seg_Slab(xA_y, d_y, xLo_y, xHi_y))
+    {
+        return FALSE;
+    }
+    return VR_Seg_Slab(xA_z, d_z, xLo_z, xHi_z);
+};
+
+// Each frame (PlayerVRMelee, after VR_Melee_Frame): a weapon held in either hand presses a wall button it touches, all
+// of it as its blows strike (VR_Melee_Line: from its pommel, handle's end or butt to its tip or muzzle; carried off its
+// handle, its two ends), grown by vr_button_weapon_reach. (The engine's test, a thin line from the hand to the muzzle
+// only, missed a sword laid against a button: its blade's middle line never reached into it.)
+void() VR_Buttons_WeaponFrame =
+{
+    if(!vr_buttons_listed)
+    {
+        VR_Buttons_List();
+    }
+    if(!cvar_hget(cvarh_vr_button_weapon) || !VRHandsTracked(self))
+    {
+        return;
+    }
+    if(vr_buttons == world)
+    {
+        return;
+    }
+    float reach = max(0, cvar_hget(cvarh_vr_button_weapon_reach)) * 0.01 * VRMetersToUnits();
+    entity p = self;
+    float h;
+    for(h = 0; h < 2; ++h)
+    {
+        float thing = VR_Melee_Thing(p, h);
+        if(!VR_Melee_HoldsWeapon(thing) || !VR_Melee_Line(p, h, thing))
+        {
+            continue;
+        }
+        vector lineNear = vr_mline_near;
+        vector lineFar = vr_mline_far;
+        if(cvar_hget(cvarh_vr_debug_wallbuttons) >= 2)
+        {
+            dprint(sprintf("button: hand %g weapon line %v to %v, reach %.1f\n", h, lineNear, lineFar, reach));
+        }
+        entity b;
+        for(b = vr_buttons; b != world; b = b.vr_button_next)
+        {
+            // (Freed, or no longer a button pressed by touch; or in, or coming out.)
+            if(b.solid != SOLID_BSP || b.vr_wpntouch != button_wpntouch || b.state == STATE_UP || b.state == STATE_TOP ||
+               b.state == STATE_DISABLED)
+            {
+                continue;
+            }
+            if(!VR_SegmentMeetsBox(lineNear, lineFar, reach, b.origin + b.mins, b.origin + b.maxs))
+            {
+                continue;
+            }
+            p.touchinghand = h; // the buzz's hand (VRButtonPressHaptic)
+            VRButtonPressHaptic(p);
+            vr_button_how = sprintf("the weapon in hand %g (all of it: %v to %v)", h, lineNear, lineFar);
+            self = b;
+            self.enemy = p;
+            button_fire();
+            self = p;
+        }
+    }
+};
+
+// A thing thrown at a wall button presses it (vr_button_throw): a weapon, a rock, a box, a gib or a head, going at
+// vr_button_throw_speed or faster (the physics' props touch it with the speed they came at: vr_box3d.cpp, touches).
+// Not a monster or a player, nor a missile (a shot: as Quake's, only a shot button minds it).
+float(entity xThing) VR_Button_Thrown =
+{
+    if((xThing.flags & (FL_CLIENT | FL_MONSTER)) || xThing.movetype == MOVETYPE_FLYMISSILE ||
+       xThing.movetype == MOVETYPE_BOUNCEMISSILE || xThing.movetype == MOVETYPE_FLY)
+    {
+        return FALSE;
+    }
+    return xThing.classname == "thrown_weapon" || xThing.vr_rigid || xThing.handtouch == VR_Carry_Handtouch;
+};
+
+// The touch of a button pressed by touch (not a shot one): a floor button stepped on (VR: as Quake's; a wall button
+// isn't pressed by the body, only by a hand), and anything thrown at it.
+void() button_touch_any =
+{
+    if(other.classname == "player")
+    {
+        if(self.movedir_z == -1 || self.movedir_z == -2)
+        {
+            vr_button_how = "stepped on";
+            button_touch();
+        }
+        return;
+    }
+    if(!cvar_hget(cvarh_vr_button_throw) || !VR_Button_Thrown(other))
+    {
+        return;
+    }
+    float speed = vlen(other.velocity);
+    if(speed < cvar_hget(cvarh_vr_button_throw_speed) || self.state == STATE_UP || self.state == STATE_TOP ||
+       self.state == STATE_DISABLED)
+    {
+        return;
+    }
+    // Who threw it is who pressed it (the targets' activator), else the thing itself.
+    entity who = other;
+    if(other.owner.flags & FL_CLIENT)
+    {
+        who = other.owner;
+    }
+    else if(other.carry_letgo.flags & FL_CLIENT)
+    {
+        who = other.carry_letgo;
+    }
+    vr_button_how = sprintf("%s thrown at it, %.0f u/s", other.classname, speed);
+    self.enemy = who;
     button_fire();
 };
 
@@ -185,14 +403,12 @@ void() func_button =
     else
     {
         // VR: For vertical button, let's enable normal touch as well so that
-        // they can activated by stepping on them.
-        if(self.movedir_z == -1 || self.movedir_z == -2)
-        {
-            self.touch = button_touch;
-        }
+        // they can activated by stepping on them; and every one is pressed by
+        // what is thrown at it (button_touch_any).
+        self.touch = button_touch_any;
 
-        self.handtouch = button_touch;
-        self.vr_wpntouch = button_touch;
+        self.handtouch = button_handtouch;
+        self.vr_wpntouch = button_wpntouch;
     }
 
     if(!self.speed)

@@ -19847,3 +19847,50 @@ for 2400 frames, `vr_parry_stamina 0`)
   Guardian 1 full (it mostly shoots); dragon (`notarget`, `impulse 242`): "parry: monster_dragon with hand 1". Marksman
   ogre: not spawnable here (no `mogre.mdl`); same chainsaw code as the ogre.
 - Fiend: 27 full + 2 same attack (off: 30 full). Ogre (regression): 22 full + 41 cooldown, as combat 5.
+## Wall buttons: weapons and thrown things press them (2026-10-02)
+
+Your notes (NOTES.md vrfiringrange_2026-10-02_00-56-19, _01-01-58, _01-35-19): guns didn't press wall buttons, then
+some did (the rocket launcher) and the sword didn't; and a thing thrown at a button should press it.
+
+### The difference
+
+A hand presses a button through its handtouch. A weapon pressed one only through the engine's `weaponTouches`
+(`vr_physics.cpp`): a trace one unit thick from the hand to the muzzle point (a sword's: its tip). So only that middle
+line counted: never the butt or the pommel behind the hand, and never the side of a blade or barrel laid against the
+button (the drawn weapon touches it while its middle line is still a centimetre or two out). A long barrel poked
+straight at a button gets its line in; a sword brought up against one, side or edge first, mostly doesn't. In the mock
+the old line does press when a sword's tip is pushed in (hand 29 units out); the side of the blade pressed only once its
+middle line was 1 unit into the button's box, and a gun's butt never.
+
+### Weapons: all of it (QC `buttons.qc`, `VR_Buttons_WeaponFrame`, from `PlayerVRMelee`)
+
+Each frame, for each hand holding a weapon (`VR_Melee_HoldsWeapon`: sword, axe, Mjolnir, guns, chainsaw, crowbar, a club
+such as a wall torch), the melee's own line (`VR_Melee_Line`: pommel, handle's end or butt to tip or muzzle; carried off
+its handle, its two ends) is tested against each wall button's box, grown by `vr_button_weapon_reach` (cm, default 6).
+The buttons are listed once a map (a chain through `.vr_button_next`; a save from before gets them listed again, and its buttons' touches set as now). The engine's line
+stays (it also nudges carried props). `vr_button_weapon 0`: only the engine's line, as before.
+
+### Thrown things (QC `button_touch_any`; engine `vr_box3d.cpp`)
+
+Every touch-pressed func_button now has a `.touch`: a player still presses only a floor button with the body (wall
+buttons: the hands, as before); a thrown weapon, a carriable prop (rock, brick, box, gib, head) or any rigid body going at
+`vr_button_throw_speed` (u/s, default 150) or faster presses it (`vr_button_throw 0`: off). Not monsters, players or
+missiles: buttons with health are still shot (or hit hard: their damage), as in Quake. The activator is the thrower.
+Box3D touches a prop and a mover (door, lift, button) after the step, when the bounce has spent the speed; now the
+prop's touch sees the speed it came at (as two props' touches already did), when that is faster.
+
+### Also
+
+- `VRButtonPressHaptic` buzzed nobody: `haptic` buzzes `self`'s controllers and a touch's self is the button. Now the
+  presser's; and once a press, not every frame a hand rests on a button that is in.
+- Menu: Throwing and Physics > Wall Buttons (Weapons Press Buttons, Weapon Press Reach, Thrown Things Press Buttons,
+  Thrown Press Min Speed); Debug > Logs > Wall Buttons (`vr_debug_wallbuttons`: 1 each press and what pressed it, 2 each
+  weapon's line every frame; developer messages).
+
+### Tests (mock, vrfiringrange, `vr_debug_wallbuttons 1`)
+
+Hand swept towards a button 3 units a step (hand x where it fired, new / old): sword poked -524 / -527, crowbar -540 /
+-540, shotgun -536 / -539, rocket launcher -536 / -539 (all pressed by the new test first, a step earlier). Sword laid
+flat across a button, 1 unit a step: -551 / -552. Rocket launcher and shotgun pointed away, butt into the button: pressed
+/ never. Thrown with a hand (`vr_mock_play`, 8 m/s): the rocket launcher at 273 u/s and a rock at 377 u/s pressed it; a
+rock at 3 m/s didn't; `vr_button_throw 0` didn't.

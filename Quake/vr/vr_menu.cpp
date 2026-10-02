@@ -1924,6 +1924,16 @@ void hologramTestMessage()
         slider("Shot Push Top Speed", vr_shot_push_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(0.1f, 100.f)
             .help("The fastest a shot makes what it hits go: light things (a gib, a small gun) fly off at most this fast, "
                   "heavy ones take the push."),
+        header("Wall Buttons"),
+        toggle("Weapons Press Buttons", vr_button_weapon)
+            .help("A weapon in your hand presses a wall button it touches: all of it, as its blows strike (a sword's "
+                  "blade, pommel and hilt; a gun's barrel and butt). Off: only the line from the hand to a gun's muzzle."),
+        slider("Weapon Press Reach", vr_button_weapon_reach, 0.f, 15.f, 0.5f, "%.1f cm")
+            .help("How far round the weapon's middle line a button is touched: its thickness, and some slack."),
+        toggle("Thrown Things Press Buttons", vr_button_throw)
+            .help("A weapon, rock, box or gib thrown at a wall button presses it. Buttons you must shoot are still shot."),
+        slider("Thrown Press Min Speed", vr_button_throw_speed, 0.f, 600.f, 25.f, "%.0f u/s").extend()
+            .help("How fast a thrown thing must hit a button to press it (slower, it only bumps it)."),
     };
 }
 
@@ -2495,6 +2505,10 @@ za::Vector<Item> pageDebugLogging()
             .help("The chainsaws' cords (taken, pulled, too slow, let go), their engines (started, stalled) and cuts; "
                   "And the Bar: also each cut's test against what is near, how deep the drawn bar sinks into a monster, "
                   "and the cord's hole drawn. The engine and cut lines need Developer Messages."),
+        cycle("Wall Buttons", vr_debug_wallbuttons, {{0.f, "Off"}, {1.f, "Each Press"}, {2.f, "And Weapon Lines"}})
+            .help("Each button pressed: what pressed it and how (a hand, a held weapon and its line, a thrown thing and "
+                  "its speed, stepped on). And Weapon Lines: every frame, each held weapon's line that presses buttons "
+                  "(from its pommel or butt to its tip or muzzle). Needs Developer Messages."),
         toggle("Shots and Damage", vr_debug_shots)
             .help("Each hitscan shot (where it starts, its direction, what its pellets hit, headshots), each damage you deal "
                   "(and when Quad's sound plays) and each prop a shot pushes. Needs Developer Messages."),
