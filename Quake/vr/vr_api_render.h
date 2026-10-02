@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifndef QVR_VR_API_RENDER_H
 #define QVR_VR_API_RENDER_H
 
+#include "vr_retro.h" // QVR_RETRO_LUT_UNIT_* (VR_RetroBind)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -44,6 +46,10 @@ void VR_WaterView (int contents, int *waterwarp);			// R_SetupView, after r_wate
 void VR_DetailView (void);								// R_SetupView: the detail textures' settings this view (frame data), their array on unit 12 (vr_detail.cpp)
 struct texture_s;
 void VR_DetailCall (const struct texture_s *t, float out[4]);	// R_AddBModelCall: a texture's detail (s and t scales, strength, layer; zero: none)
+void VR_RetroUpload (void);								// R_UploadFrameData: retro textures' settings (vr_retro.cpp), uniform block 3
+void VR_RetroBind (int unit);							// a world or model draw, program in use: the palette's table on that unit (vr_retro.h's QVR_RETRO_LUT_UNIT_*)
+void VR_RetroCall (const struct texture_s *t, float out[4]);	// R_AddBModelCall: a texture's Quake size and its own set (0: the instance's)
+void VR_RetroInstance (struct entity_s *e, float out[4]);	// R_InitBModelInstance: an entity's set (x; 0 none)
 void VR_WaterFog (float fog[4], float skyfog[4]);			// Fog_SetupFrame: an eye's fog in a liquid (vr_water.cpp)
 void VR_PostProcessWater (void);						// GL_PostProcess, program in use: an eye's underwater wobble and blur
 int VR_MapLiquidAlpha (void);							// R_UpdateLiquidAlpha: nonzero if a map's own liquid alphas (worldspawn) win over the settings (vr_map_liquid_alpha)

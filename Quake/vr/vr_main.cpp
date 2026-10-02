@@ -59,6 +59,7 @@
 #include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
 #include "vr_props.hpp"
+#include "vr_retro.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_weight.hpp"
 #include "vr_weapons.hpp"
@@ -1125,6 +1126,7 @@ extern "C" void VR_Init()
     jobs::registerCommands();
     weapons::registerCvars();
     props::registerCvars();
+    retro::registerCvars();
     weight::registerCommands();
     fatigue::registerCommands();
     painknock::registerCommands();

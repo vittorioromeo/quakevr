@@ -105,7 +105,12 @@ Blood on boxes: drop and pick up again: stays; water washes it; a box you never 
 Small gibs from melee and the chainsaw drop near the wound (no longer shoved out of the body; Small Gibs > Not Pushed Out of Bodies)
 Gib sticking: a gib or small gib thrown softly at a wall or ceiling sticks (Debug > Gore Tests > Step Up to the Wall Ahead)
 
+Retro textures (Graphics > Retro Textures, on; QRP or a pack): walls and floors in Quake-sized blocks; move your head: edges crisp, no crawl or shimmer
+Retro textures, World page: Block Size 2 and 0.5, Edge Softness 0 vs 1, Smooth Beyond: where distant floors turn smooth; Debug > Views > Retro Textures A/B to compare
+Retro textures, World page: Quake Palette 1, Dither 0.5 and 1, Bumps 0 vs 1, Detail Textures 0 vs 1
+
 [Decide or give feedback]
+Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?
 Grappling hook: allow the flashlight to clip on it? (on now)
 Flashlight cord: make Chain the default?

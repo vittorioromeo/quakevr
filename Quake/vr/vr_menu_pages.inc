@@ -519,6 +519,8 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsLiquids();
 [[nodiscard]] za::Vector<Item> pageGraphicsPost();
 [[nodiscard]] za::Vector<Item> pageGraphicsModels();
+[[nodiscard]] za::Vector<Item> pageGraphicsRetro();
+[[nodiscard]] za::Vector<Item> pageRetroWorld();
 [[nodiscard]] za::Vector<Item> pageTransparencyOptions();
 [[nodiscard]] za::Vector<Item> pageRecording(); // vr_menu_recording.inc
 
@@ -544,6 +546,7 @@ void resetHandMoves()
         open("Liquids", pageIndex(pageGraphicsLiquids)),
         open("Post-processing", pageIndex(pageGraphicsPost)),
         open("Models and Effects", pageIndex(pageGraphicsModels)),
+        open("Retro Textures", pageIndex(pageGraphicsRetro)),
         open("Particles", pageIndex(pageParticleSettings)),
         open("Transparency", pageIndex(pageTransparencyOptions)),
         open("Recording (Window View)", pageIndex(pageRecording)),
@@ -658,6 +661,72 @@ void resetHandMoves()
         slider("Detail Strength", "vr_detail_strength", 0.f, 2.f, 0.1f, "%.1f").extend().help("How strongly the detail textures show."),
         slider("Detail Distance", "vr_detail_distance", 64.f, 384.f, 16.f, "%.0f").extend().help("How far away, in Quake units, the detail textures still show (they fade in closer than this)."),
     };
+}
+
+// Graphics: retro textures (vr_retro.cpp): high-resolution textures drawn in Quake's chunky look, each kind of thing
+// with its own settings (a page each).
+[[nodiscard]] za::Vector<Item> pageGraphicsRetro()
+{
+    return {
+        toggle("Retro Textures", vr_retro)
+            .help("High-resolution textures (QRP's, a pack's) drawn in Quake's look: on a coarse grid of blocks, each the average of "
+                  "the texels under it, with crisp edges that don't crawl as your head moves, optionally in Quake's 256 colours. "
+                  "Each kind of thing has its own settings below. Not a filter over the image: the textures themselves."),
+        header("Kinds"),
+        open("World", pageIndex(pageRetroWorld))
+            .help("The map's walls, floors, ceilings and liquids."),
+        header("All Kinds"),
+        command("Reset All to Defaults", "vr_retro_reset all").help("vr_retro_reset all: every kind's settings back to their defaults."),
+    };
+}
+
+// A retro textures category's settings (vr_retro.hpp's Param), the same on every kind's page.
+[[nodiscard]] za::Vector<Item> retroCategoryItems(retro::Category c, const char* resetCommand)
+{
+    using retro::Param;
+    const auto var = [c](Param p) -> cvar_t& { return retro::cvarOf(c, p); };
+    return {
+        toggle(retro::categoryLabel(c), var(Param::On)).help("Retro textures on these (with Graphics > Retro Textures on)."),
+        header("Blocks"),
+        toggle("Snap to Blocks", var(Param::Snap))
+            .help("The texture is read on a grid of blocks, each one colour. Off: as it was (only the palette and dither below)."),
+        slider("Block Size", var(Param::Block), 0.25f, 8.f, 0.25f, "%.2f").extend(0.0625f, 64.f)
+            .help("How big a block is: in the texture's own Quake texels (1: Quake's own pixels, a world unit at the usual "
+                  "scale; 2: twice as chunky; 0.5: finer than Quake), or in world units (Block Size In)."),
+        cycle("Block Size In", var(Param::Units), {{0.f, "Texture's Texels"}, {1.f, "World Units"}})
+            .help("Texture's Texels: the blocks follow each texture's own pixels, as Quake drew it (a texture scaled up in the "
+                  "map gets bigger blocks). World Units: the same size everywhere, whatever the texture's scale."),
+        cycle("Block Colour", var(Param::Average), {{1.f, "Average"}, {0.f, "Centre Texel"}})
+            .help("Average: each block is the average of the high-resolution texels under it (steady, Quake-like). Centre "
+                  "Texel: the one texel at its centre (sharper, noisier)."),
+        slider("Edge Softness", var(Param::Soft), 0.f, 3.f, 0.25f, "%.2f px").extend()
+            .help("The blocks' edges are blended over this many pixels: 1 is crisp yet steady as your head moves; 0 hard "
+                  "(crawls and shimmers in the headset); more is softer."),
+        slider("Smooth Beyond", var(Param::Fade), 0.25f, 4.f, 0.25f, "%.2f").extend(0.05f, 16.f)
+            .help("Far off, where blocks get smaller than a pixel, the texture is drawn as usual (mipmapped) again: how "
+                  "many blocks to a pixel it takes (it fades from half that). Lower: smooth sooner."),
+        header("Palette"),
+        slider("Quake Palette", var(Param::Palette), 0.f, 1.f, 0.05f, "%.2f")
+            .help("How far the colours are pulled to Quake's own 256 (0 off, 1 only Quake's colours)."),
+        slider("Dither", var(Param::Dither), 0.f, 2.f, 0.05f, "%.2f").extend()
+            .help("An ordered dither before the palette, fixed to the blocks (steady, not on the screen): smoother "
+                  "gradients in Quake's colours (needs Quake Palette)."),
+        slider("Dither Size", var(Param::DitherScale), 1.f, 8.f, 1.f, "%.0f blocks").extend()
+            .help("The dither pattern's cell, in blocks."),
+        header("Bumps"),
+        slider("Bumps: Smooth to Blocky", var(Param::Bump), 0.f, 1.f, 0.05f, "%.2f")
+            .help("The bump and specular maps: 0 smooth (the high-resolution ones), 1 snapped to the same blocks as the "
+                  "colour, between: a blend."),
+        slider("Detail Textures", var(Param::Detail), 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of the detail textures' fine grain (Graphics > Surfaces) stays on these: 0 none (flat blocks, as "
+                  "Quake), 1 all of it."),
+        command("Reset to Defaults", resetCommand),
+    };
+}
+
+[[nodiscard]] za::Vector<Item> pageRetroWorld()
+{
+    return retroCategoryItems(retro::Category::World, "vr_retro_reset world");
 }
 
 // Graphics: water, slime and lava.

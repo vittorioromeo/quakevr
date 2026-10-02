@@ -980,6 +980,8 @@ void R_UploadFrameData (void)
 
 	GL_Upload (GL_UNIFORM_BUFFER, &r_framedata, sizeof (r_framedata), &buf, &ofs);
 	GL_BindBufferRange (GL_UNIFORM_BUFFER, 0, buf, (GLintptr)ofs, sizeof (r_framedata));
+
+	VR_RetroUpload (); // QVR: retro textures' settings (vr/vr_retro.cpp), uniform block 3
 }
 
 /*

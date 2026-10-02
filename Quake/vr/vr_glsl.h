@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #pragma once
 
 #include "vr_tonemap.h" // QVR_TONE_GLSL, the eyes' tone curve and grade (the post-process and the mirror)
+#include "vr_retro.h" // QVR_RETRO_GLSL, retro textures (the world and model shaders)
 
 // the eyes' bloom (vr_bloom.cpp), under-water view (vr/vr_water.cpp), tone curve, grade and dither (vr/vr_tonemap.cpp)
 #define QVR_POSTPROCESS_UNIFORMS \
@@ -320,7 +321,7 @@ QVR_TONE_GLSL
 "		b *= inversesqrt(max(dot(b, b), 1e-24));\n"\
 "		k = 1.0;\n"\
 "	}\n"\
-"	vec4 s = textureGrad(tex, uv, duvdx, duvdy);\n"\
+"	vec4 s = RetroAux(tex, uv, duvdx, duvdy); // QVR: smooth, or the retro textures' blocks (vr_retro.h)\n"\
 "	vec2 m = s.xy * 2.0 - 1.0; // x and y (RG8): z makes it unit length\n"\
 "	float z = sqrt(max(1.0 - dot(m, m), 0.0025));\n"\
 "	if (Parallax.w > 0. && s.z > 0.25) // QVR: RGBA maps keep z: the mip's averaged normal, shorter where the normals under it differ (SpecularAA)\n"\
@@ -969,6 +970,7 @@ LIQUID_SWELL \
 "layout(location=16) flat out vec4 out_extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp)\n" \
 "layout(location=17) out vec3 out_boxpos; // QVR: a held prop's blood (BoxWounds): where in its box, a unit its largest side\n" \
 "layout(location=18) flat out vec4 out_wound; // QVR: its box mask (Instance.wound)\n" \
+"layout(location=19) flat out vec4 out_retro; // QVR: retro textures (vr_retro.h): xy the texture's Quake size, z the set\n" \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
 "	layout(location=20) out float out_rim; // QVR: 1 + the distance to the shore (the swells' mesh), 0 unknown: the foam\n"
 
@@ -984,6 +986,7 @@ LIQUID_SWELL \
 "layout(location=16) flat in vec4 in_extmat; // QVR: the external maps' numbers (vr/vr_extmaps.cpp)\n" \
 "layout(location=17) in vec3 in_boxpos; // QVR: a held prop's blood (BoxWounds)\n" \
 "layout(location=18) flat in vec4 in_wound; // QVR: its box mask: x its layer + 1 (0 none), yz its size in texels, w the blood's opacity\n" \
+"layout(location=19) flat in vec4 in_retro; // QVR: retro textures (vr_retro.h): xy the texture's Quake size, z the set\n" \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
 "	layout(location=20) in float in_rim; // QVR: the shoreline foam's distance (LiquidFoam)\n"
 
@@ -1141,6 +1144,8 @@ QVR_BOX_WOUNDS \
 "	if (Detail.x > 0. && in_detail.z > 0.) // QVR: detail textures close by (vr/vr_detail.cpp); not on fullbright texels (alpha 0)\n" \
 "	{\n" \
 "		float detail = DetailFactor(in_detail, puv, duvdx, duvdy, distance(in_pos, EyePos));\n" \
+"		if (Retro > 0) // QVR: retro textures keep as much of the grain as their set says (vr_retro.h)\n" \
+"			detail = mix(1.0, detail, RetroP2.z);\n" \
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n" \
 "		detail = mix(1.0, detail, result.a);\n" \
 "#endif\n" \
@@ -1196,7 +1201,7 @@ QVR_BOX_WOUNDS \
 "#if MODE != " QS_STRINGIFY (WORLDSHADER_WATER) "\n" \
 "	if ((in_flags & CF_SPECMAP) != 0u) // QVR: an external pack's specular map (vr/vr_extmaps.cpp): the sheen's colour and\n" \
 "	{ // brightness per texel, its lobe narrowed by the .mat's hardness (as bright on the whole)\n" \
-"		specular_map = textureGrad(SpecTex, puv, duvdx, duvdy).rgb * in_extmat.y;\n" \
+"		specular_map = RetroAux(SpecTex, puv, duvdx, duvdy).rgb * in_extmat.y; // (the retro textures' blocks: vr_retro.h)\n" \
 "		float hard = SpecLobe.x * in_extmat.z;\n" \
 "		SpecLobe = vec2(hard, SpecLobe.y * (hard + 1.0) / (SpecLobe.x + 1.0));\n" \
 "	}\n" \
@@ -1546,6 +1551,7 @@ QVR_BOX_WOUNDS \
 ALIAS_FRAMEDATA_BUFFER \
 LIGHT_BUFFER \
 LIGHT_CLUSTER_IMAGE("readonly") \
+QVR_RETRO_GLSL(QS_STRINGIFY (QVR_RETRO_LUT_UNIT_ALIAS)) \
 SHADOW_FUNCTIONS \
 AO_FUNCTIONS \
 PARALLAX_FUNCTIONS \

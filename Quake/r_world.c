@@ -160,6 +160,7 @@ typedef struct bmodel_gpu_instance_s {
 	float		padding[3];
 	float		wound[4];	// QVR: a held prop's blood (vr/vr_wounds.cpp: its box mask)
 	float		woundbox[4];	// QVR: its box's centre, 1 / its largest side
+	float		retro[4];	// QVR: retro textures (vr/vr_retro.h): its set (VR_RetroInstance)
 } bmodel_gpu_instance_t;
 
 typedef struct bmodel_bindless_gpu_call_s {
@@ -173,6 +174,7 @@ typedef struct bmodel_bindless_gpu_call_s {
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
 	GLfloat		extmat[4];	// QVR: the external maps' numbers (VR_ExtMapsCall)
+	GLfloat		retro[4];	// QVR: retro textures (VR_RetroCall): the texture's Quake size, its set
 } bmodel_bindless_gpu_call_t;
 
 typedef struct bmodel_bound_gpu_call_s {
@@ -183,6 +185,7 @@ typedef struct bmodel_bound_gpu_call_s {
 	GLfloat		uvclamp[4];	// QVR: texture_t's (parallax mapping)
 	GLfloat		detail[4];	// QVR: its detail texture (vr/vr_detail.cpp)
 	GLfloat		extmat[4];	// QVR: the external maps' numbers (VR_ExtMapsCall)
+	GLfloat		retro[4];	// QVR: retro textures (VR_RetroCall)
 } bmodel_bound_gpu_call_t;
 
 typedef struct bmodel_gpu_call_remap_s {
@@ -234,6 +237,7 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 	inst->padding[0] = ent == &cl_entities[0] ? 0.f : VR_EntityGlow (ent); // QVR: the shader's glow
 	inst->padding[1] = VR_ParallaxDepth (ent, mat, NULL, 1); // QVR: its parallax depth in units (vr_parallax)
 	inst->padding[2] = ent == &cl_entities[0] ? 0.f : VR_BrushAOSelf (ent); // QVR: its own dynamic occlusion group (vr/vr_ao.cpp)
+	VR_RetroInstance (ent, inst->retro); // QVR: retro textures (vr/vr_retro.cpp)
 	if (ent == &cl_entities[0]) // QVR: a held prop's blood (vr/vr_wounds.cpp)
 	{
 		memset (inst->wound, 0, sizeof (inst->wound));
@@ -340,6 +344,7 @@ static void R_FlushBModelCalls (void)
 	GL_MemoryBarrierFunc (GL_COMMAND_BARRIER_BIT);
 
 	GL_UseProgram (bmodel_batch_program);
+	VR_RetroBind (QVR_RETRO_LUT_UNIT_WORLD); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
 	GL_BindBuffer (GL_ELEMENT_ARRAY_BUFFER, gl_bmodel_ibo);
 	GL_BindBuffer (GL_ARRAY_BUFFER, gl_bmodel_vbo);
 	GL_BindBuffer (GL_DRAW_INDIRECT_BUFFER, cmdbuf);
@@ -429,6 +434,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
 		VR_DetailCall (tx ? t : NULL, call->detail); // QVR
 		memcpy (call->extmat, extmat, sizeof (call->extmat)); // QVR
+		VR_RetroCall (tx ? t : NULL, call->retro); // QVR
 	}
 	else
 	{
@@ -445,6 +451,7 @@ static void R_AddBModelCall (int index, int first_instance, int num_instances, t
 		memcpy (call->uvclamp, t ? t->uvclamp : noclamp, sizeof (call->uvclamp)); // QVR
 		VR_DetailCall (tx ? t : NULL, call->detail); // QVR
 		memcpy (call->extmat, extmat, sizeof (call->extmat)); // QVR
+		VR_RetroCall (tx ? t : NULL, call->retro); // QVR
 	}
 
 	SDL_assert (num_instances > 0);

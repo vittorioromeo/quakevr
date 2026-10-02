@@ -22013,3 +22013,85 @@ gib never bursts on a wall either: lower Gib Splat Speed or their Mass for that.
 - Melee and chainsaw small gibs at Melee and Chainsaw Speed 0.05: they drop near the wound, not shot a metre away;
   Not Pushed Out of Bodies off brings the old push back for comparison.
 - Throw a gib softly at a wall and at a ceiling (Speed to Stick low, Thrown Gibs Stick 1): it sticks; a small gib too.
+
+## Retro textures, phase 1: the shader and the World (2026-10-02)
+
+High-resolution textures (QRP, external packs) drawn in Quake's chunky look by the shader that reads them, not as a
+filter over the image. Off by default (`vr_retro 0`). Phase 1 covers the world's own surfaces (worldspawn, its
+liquids). Brush entities, models, held weapons and the body come in phase 2. Per-object overrides and the in-game
+editor come in phase 3.
+
+### How it works (`Quake/vr/vr_retro.h`, `vr_retro.cpp`)
+
+- **Blocks:** the texture is read on a grid of blocks, Block Size of the texture's own Quake texels (`t->width`,
+  `t->height`: QRP's 4x textures keep Quake's grid) or of world units (`_units 1`: the face's texels a unit, from the
+  screen derivatives, rounded to an eighth of an octave so the grid is the same at every pixel of a face). A block's
+  colour is the mip level of its size read at its centre: the average of the high-resolution texels under it
+  (`_average 0`: the centre texel, lod 0).
+- **Edges:** anti-aliased nearest. The fractional block position is sharpened to a ramp `_soft` pixels wide (the
+  screen derivatives), so a pixel inside a block costs one read and an edge two or four. Edges are steady as the head
+  moves (no crawl); `_soft 0` is hard nearest and aliases.
+- **Distance:** where a pixel spans more than half of `_fade` blocks (the geometric mean of the two axes), it fades to
+  the ordinary `textureGrad` read (anisotropic, mipmapped); at `_fade` it is fully ordinary. The block reads' lod is
+  never below the pixel's footprint, so nothing aliases while it fades.
+- **Palette:** Ironwail's own 128^3 nearest-colour table (`gl_palette_lut`, rebuilt by `GLPalette_UpdateLookupTable`
+  each frame, the same metric as `r_softemu`) on unit 10 (world), with the palette in the uniform block; `_palette`
+  blends towards it. `_dither` adds a 4 x 4 Bayer offset (±1/32 at 1) before the lookup. The offset is per block
+  (`_dither_scale` blocks a cell), never per screen pixel, so it doesn't swim in VR, and it fades out with distance.
+  Fullbright (glow) textures are snapped but not quantized.
+- **Bumps:** the normal map and an external specular map are read through `RetroAux`, blended from the smooth read to
+  the blocks' read by `_bump` (the default 1 gives flat blocks with bevelled edges; 0 keeps the HQ relief).
+- **Detail textures:** `_detail` scales their grain on retro surfaces (default 0: a flat block, as Quake had).
+- **Plumbing:** the uniform block at binding 3 (`RetroUBO`: on, the palette, 64 sets of 3 vec4s; set 0 none, World is
+  set 1, later categories and overrides follow), uploaded in `R_UploadFrameData`. `Call.retro` holds the texture's
+  Quake size and its own set (for phase 3's per-texture overrides), `Instance.retro.x` the entity's set. The
+  functions are also in the model shader's header (the bump hook lives in `BumpedNormalFrame`; models read nothing yet,
+  and their table unit is 3).
+
+### Settings (Graphics > Retro Textures; Debug > Views > Retro Textures A/B)
+
+| Cvar | Default | Menu (Graphics > Retro Textures > World) |
+|---|---|---|
+| `vr_retro` | 0 | Retro Textures (the switch for every kind) |
+| `vr_retro_ab` | 0 | Debug > Views > Retro Textures A/B |
+| `vr_retro_world` | 1 | World |
+| `vr_retro_world_snap` | 1 | Snap to Blocks |
+| `vr_retro_world_block` | 1 | Block Size (0.25-8, typed 0.0625-64) |
+| `vr_retro_world_units` | 0 | Block Size In: Texture's Texels / World Units |
+| `vr_retro_world_average` | 1 | Block Colour: Average / Centre Texel |
+| `vr_retro_world_soft` | 1 | Edge Softness (pixels) |
+| `vr_retro_world_fade` | 1 | Smooth Beyond (blocks a pixel) |
+| `vr_retro_world_palette` | 0 | Quake Palette |
+| `vr_retro_world_dither` | 0 | Dither |
+| `vr_retro_world_dither_scale` | 1 | Dither Size (blocks) |
+| `vr_retro_world_bump` | 1 | Bumps: Smooth to Blocky |
+| `vr_retro_world_detail` | 0 | Detail Textures |
+
+`vr_retro_reset [world|all]` puts a kind's settings back to their defaults (Reset to Defaults on each page). The
+category cvars are made from tables in `vr_retro.cpp`, as `vr_prop_*` are: a new category is a row there plus a
+page.
+
+### Costs (`run.sh --exclusive`, QRP, 2048 x 2048 eyes, the profiler's `world` GPU row, both eyes, ms a frame)
+
+| e1m1 | off | on (defaults) | + palette 1, dither 1 | + world units | block 0.5, softness 2, palette, dither |
+|---|---|---|---|---|---|
+| A wall close by (look 5 180) | 0.320 | 0.342 | 0.368 | 0.373 | 0.389 |
+| The start, looking along the hall (look 0 0) | 0.387 | 0.424 | 0.473 | | |
+
+That is +0.02 to 0.04 ms at the defaults and +0.05 to 0.09 ms with the palette and dither, on the development GPU.
+
+### Tests
+
+- Eyeshots (QRP, left eye, centre crops): an e1m1 wall, its floor at a grazing angle and an e2m1 wall, each off /
+  defaults / block 2 with palette 0.6 and dither 0.5. Also block 1, 2 and 4, the palette, dither, softness 0 and
+  snapping off. The blocks are flat averages and the edges are clean; distant floor blocks turn smooth.
+- `-nobindless` (the bound-texture path) and `r_softemu 1` / `2` draw the same blocks; no shader errors in
+  `qconsole.log`.
+- `vr_menu_path_check maps/vrcalibration.map`: 13 found, 0 missing. The pages open (`menu_vr 95`, `96`).
+
+### In VR
+
+- The edges as the head moves (crawl, shimmer), at Edge Softness 1 and 0.5; where the floor turns smooth (Smooth
+  Beyond).
+- Snapped bumps (Bumps 1) show bevels at the block edges; Bumps 0 keeps the HQ relief on flat blocks: which reads
+  better.

@@ -32,6 +32,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_held.hpp"
 #include "vr_props.hpp"
+#include "vr_retro.hpp"
 #include "vr_fatigue.hpp"
 #include "vr_weight.hpp"
 #include "vr_twohand.hpp"
@@ -2687,6 +2688,9 @@ za::Vector<Item> pageDebugViews()
         toggle("External Maps A/B", vr_extmaps_ab)
             .help("Hides the external pack's normal, specular and glow maps (Graphics: External Maps) at once, to compare "
                   "with the made bumps and Quake's glow; off again shows them. Without a reload."),
+        toggle("Retro Textures A/B", vr_retro_ab)
+            .help("Hides the retro textures (Graphics > Retro Textures) at once, to compare with the textures as they "
+                  "were; off again shows them."),
         toggle("Show Damage Numbers", vr_debug_damage_numbers)
             .help("Every hit on anything that takes damage (monsters, corpses, gibs, crates, props, shootable walls): its "
                   "damage floating where it struck, and printed as the training dummy's (what struck, where, what's left)."),
@@ -3947,6 +3951,8 @@ const Page pages[] = {
     {"Weapon Offsets - Flashlight", pageWofsFlashlight, pageWeaponOffsets},        // 92
     {"Small Gibs", pageSmallGibs, pageGore},                                       // 93
     {"Burning", pageBurning, pageCombat},                                          // 94
+    {"Graphics - Retro Textures", pageGraphicsRetro, pageGraphics},                // 95
+    {"Retro Textures - World", pageRetroWorld, pageGraphicsRetro},                 // 96
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
