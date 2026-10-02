@@ -377,6 +377,7 @@ enum WeaponOffsetsPart
     WofsScreen,
     WofsHolstered,
     WofsEffects,
+    WofsFlashlight,
     WofsParts
 };
 
@@ -2510,6 +2511,9 @@ za::Vector<Item> pageDebugViews()
             .help("vr_flashlight_give left: the chest flashlight into the left controller's hand, as if gripped there (that "
                   "hand's grip lets go of it). Its buttons are then that controller's, with either Main Hand."),
         command("Flashlight to Right Hand", "vr_flashlight_give right").help("vr_flashlight_give right: the same, the right hand."),
+        command("Clip Flashlight on Right Gun", "vr_flashlight_clip_gun right")
+            .help("vr_flashlight_clip_gun right: the flashlight clipped on the gun in the right hand, from wherever it is "
+                  "(left: the left hand's). Its place there: Weapon Offsets > Flashlight."),
         command("Probe Flashlight", "vr_flashlight_probe menu")
             .help("vr_flashlight_probe: in the console, where the torch is, whether each hand is at it (lit, as the game "
                   "reads the hand, still), whether B/Y would clip it on the head or a gun, and the player's speed and turn."),
@@ -3490,6 +3494,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageWofsScreen();
 [[nodiscard]] za::Vector<Item> pageWofsHolstered();
 [[nodiscard]] za::Vector<Item> pageWofsEffects();
+[[nodiscard]] za::Vector<Item> pageWofsFlashlight();
 [[nodiscard]] za::Vector<Item> pageCombat();
 [[nodiscard]] za::Vector<Item> pageMovement();
 [[nodiscard]] za::Vector<Item> pageCarryingHub();
@@ -3597,6 +3602,7 @@ const Page pages[] = {
     {"Weapon Offsets - Ammo Screen", pageWofsScreen, pageWeaponOffsets},           // 89
     {"Weapon Offsets - Holstered", pageWofsHolstered, pageWeaponOffsets},          // 90
     {"Weapon Offsets - Effects", pageWofsEffects, pageWeaponOffsets},              // 91
+    {"Weapon Offsets - Flashlight", pageWofsFlashlight, pageWeaponOffsets},        // 92
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -3624,6 +3630,8 @@ const WeaponOffsetsPartPage weaponOffsetsPartPages[] = {
     {pageWofsScreen, "Ammo Screen", "The ammunition screen on the weapon: where, how big, shown or hidden."},
     {pageWofsHolstered, "Holstered", "How it lies in each kind of holster (hips, chest, back), with a preview."},
     {pageWofsEffects, "Effects", "Recoil, a muzzle flash and tracers, for a model without its own; a test."},
+    {pageWofsFlashlight, "Flashlight", "Where the flashlight sits clipped on this weapon and how it is turned, on top of "
+        "every weapon's place (Flashlight > On a Gun or Head), with a preview."},
 };
 static_assert(sizeof(weaponOffsetsPartPages) / sizeof(weaponOffsetsPartPages[0]) == WofsParts - 1);
 
@@ -4125,6 +4133,23 @@ void weaponOffsetsHotspotRemove()
 }
 
 // Effects: the page's weapon's effects as if it fired (vr_weaponfx_test).
+void weaponOffsetsClipTorch()
+{
+    Cbuf_AddText(va("vr_flashlight 1; vr_flashlight_clip_gun %s\n", weaponOffsetsHand == 1 ? "right" : "left"));
+}
+
+void weaponOffsetsTorchReset()
+{
+    using weapons::Key;
+    for(const Key key : {Key::TorchForward, Key::TorchUp, Key::TorchOut, Key::TorchPitch, Key::TorchYaw, Key::TorchRoll})
+    {
+        if(cvar_t* var = weapons::cvar(weaponOffsetsSlot, key))
+        {
+            Cvar_SetQuick(var, var->default_string);
+        }
+    }
+}
+
 void weaponOffsetsTestEffects()
 {
     Cbuf_AddText(va("vr_weaponfx_test %d 3\n", weaponOffsetsHand == 1 ? 1 : 0));
@@ -4791,6 +4816,42 @@ za::Vector<Item> pageWofsEffects()
         action("Test the Effects", weaponOffsetsTestEffects)
             .help("This weapon kicks and flashes as if it fired, with 3 tracers (no shot: vr_weaponfx_test)."),
         open("Weapon Effects (All Weapons)", pageIndex(pageWeaponEffects))
+    );
+    return list;
+}
+
+za::Vector<Item> pageWofsFlashlight()
+{
+    using weapons::Key;
+    za::Vector<Item> list;
+    const int slot = weaponOffsetsBegin(list, WofsFlashlight);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return weaponOffsetsNoWeapon(list, slot);
+    }
+    const auto s = weaponOffsetsSlider;
+    const char* moveHelp = "Moves the flashlight clipped on this weapon (metres): forward along the barrel, up, and out away "
+                           "from your body; on top of every weapon's On Gun Forward, Up and Out and the place fitted to the "
+                           "model. The zone that clips it on (B or Y, or letting go by the gun) moves with it.";
+    const char* turnHelp = "Turns the flashlight clipped on this weapon about its middle (degrees): Pitch tips the beam up, Yaw "
+                           "turns it out away from your body, Roll tips its top out (the off hand's mirrored).";
+    list.pushBackMultiple(
+        header("Flashlight on This Weapon"),
+        action("Clip the Flashlight on It", weaponOffsetsClipTorch)
+            .help("Puts the flashlight (switched on) on this weapon now, to tune it in place (vr_flashlight_clip_gun)."),
+        toggle("Show the Flashlight's Place", vr_flashlight_mount_preview)
+            .help("While this page is shown: the flashlight's outline and its beam's line on this weapon (cyan) and the zone "
+                  "that clips it on (orange), wherever the flashlight is. The flashlight must be on (Flashlight)."),
+        s("Flashlight Forward", Key::TorchForward, -0.2f, 0.2f, 0.005f, "%+.3f m").extend(-1.f, 1.f).help(moveHelp),
+        s("Flashlight Up", Key::TorchUp, -0.2f, 0.2f, 0.005f, "%+.3f m").extend(-1.f, 1.f).help(moveHelp),
+        s("Flashlight Out", Key::TorchOut, -0.2f, 0.2f, 0.005f, "%+.3f m").extend(-1.f, 1.f).help(moveHelp),
+        s("Flashlight Pitch (up)", Key::TorchPitch, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(turnHelp),
+        s("Flashlight Yaw (out)", Key::TorchYaw, -45.f, 45.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(turnHelp),
+        s("Flashlight Roll (out)", Key::TorchRoll, -90.f, 90.f, 0.5f, "%+.1f deg").extend(-180.f, 180.f).help(turnHelp),
+        action("Flashlight Back to 0", weaponOffsetsTorchReset).help("This weapon's own flashlight place back to 0: as every "
+                                                                     "weapon's."),
+        open("On a Gun or Head (Every Weapon)", pageIndex(pageFlashlightMounts))
+            .help("Every weapon's place for the flashlight and the zone that clips it on, its size (Flashlight).")
     );
     return list;
 }
@@ -6328,6 +6389,17 @@ bool qvr::menu::holsterPreview(int& hand, int& kind)
     hand = weaponOffsetsHand;
     kind = weaponOffsetsHolster;
     return on;
+}
+
+bool qvr::menu::flashlightMountPreview(int& hand)
+{
+    if(m_state != m_vr || pages[page].build != pageWofsFlashlight || vr_flashlight_mount_preview.value == 0.f ||
+        weaponOffsetsSlot < 0 || weaponOffsetsSlot == weapons::fistSlot() || weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
+    {
+        return false; // not on the page, off, the empty hand, or the hand holds another weapon now
+    }
+    hand = weaponOffsetsHand;
+    return true;
 }
 
 int qvr::menu::currentPage()

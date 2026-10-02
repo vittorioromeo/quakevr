@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""flash_grab_test.py <agent> [mounted|returning|timing|moving|options|all]
+"""flash_grab_test.py <agent> [mounted|returning|timing|moving|options|pergun|all]
 
 "Highlighted implies grabbable" for the flashlight (ROUND21.md, "Flashlight: lit but not taken"): in the mock, with
 the torso turned several ways (the head's yaw, the main hand held out or across: the torso faces between the head and
@@ -12,6 +12,8 @@ at the lamp as the game reads it, moving).
   timing     a reach to the lamp at several speeds, the grip pressed at several moments round the arrival, at a
              time scale of 1, 0.3 (vr_timescale) and in bullet time; and presses that must not take it (a punch)
   options    vr_flashlight_grab_range, _head_range, _gun_range, _auto_head and _auto_gun
+  pergun     each weapon's own place for the torch clipped on it (Weapon Offsets > Flashlight, vr_wofs_torch_*):
+             the shotgun and the nailgun set apart, the super nailgun inheriting the nailgun's
   moving     the same reaches and a still hand at the lamp while the thumbsticks move and turn the player
   returning  the lamp let go of and springing home: the main hand, still, at spots along its way, grips at several
              moments of the flight (a catch)
@@ -87,6 +89,8 @@ def parse(lines):
             d["nearhead"], d["neargun"] = int(rest[2]), int(rest[4])
         elif rest[0] == "move":
             d["move"], d["turn"] = float(rest[1]), float(rest[2])
+        elif rest[0] == "gunmount":  # gunmount slot N at fwd up out turn pitch yaw roll
+            d["gunslot"], d["gunat"], d["gunturn"] = int(rest[2]), [float(x) for x in rest[4:7]], [float(x) for x in rest[8:11]]
         elif rest[0] == "torso":
             v = [float(x) for x in rest[1::1] if re.match(r"^-?[0-9.]+$", x)]
             d["torso"], d["lamp"], d["offpos"], d["mainpos"] = v[0], v[1:4], v[4:7], v[7:10]
@@ -436,6 +440,63 @@ def options(agent):
     return ok and bool(trials)
 
 
+# Weapon Offsets > Flashlight (vr_wofs_torch_*): (impulse, slot, the weapon's own offsets: metres forward, up, out;
+# degrees pitch, yaw, roll; and a slot it inherits from, or None).
+PERGUN = [(154, 1, (0.05, 0.02, 0.03, 10, 0, 0), None),  # the shotgun
+          (156, 3, (-0.04, -0.01, 0.0, 0, 8, 20), None),  # the nailgun
+          (157, 4, None, 3)]  # the super nailgun, inheriting the nailgun's (its own at 0)
+TORCH_KEYS = ("fwd", "up", "out", "pitch", "yaw", "roll")
+
+
+def pergun(agent):
+    """The flashlight clipped on two weapons with different offsets of their own (and a third inheriting one's): each
+    sits at its weapon's spot and angle. vr_flashlight_clip_gun right clips it on the main hand's gun; the probe prints
+    its middle from the muzzle (along the gun, up, out) and its turn (beam pitch, yaw out, roll out). Run once with
+    every offset 0, once with them set: the difference is the weapon's offsets (the turn about the middle leaves it in
+    place; the roll read off the switch, after the yaw: atan(tan(roll) / cos(yaw)))."""
+    import math
+    got = []
+    for phase in ("base", "own"):
+        cmds = setup() + ["vr_flashlight 1", "vr_weapon_grip_mode 1", "vr_mock_look 0 0"]
+        for imp, slot, own, inherit in PERGUN:
+            vals = own if phase == "own" and own else (0, 0, 0, 0, 0, 0)
+            cmds += [f"vr_wofs_torch_{k}_{slot + 1:02d} {v}" for k, v in zip(TORCH_KEYS, vals)]
+            if inherit is not None:
+                cmds += [f"vr_wofs_inherit_{slot + 1:02d} {inherit + 1}"]
+        for imp, slot, own, inherit in PERGUN:
+            cmds += ["vr_mock_button main grip 0", "impulse 1", "vr_mock_hand main"] + waits(10) + [
+                "vr_mock_hand main 0.25 1.3 -0.35 0 0 0", "vr_mock_button main grip 1", f"impulse {imp}"] + waits(30) + [
+                "vr_flashlight_clip_gun right"] + waits(6) + [f"vr_flashlight_probe {phase}{imp}"]
+        cmds += ["vr_mock_button main grip 0", "impulse 1", "vr_mock_hand main"]
+        cmds += [f"vr_wofs_torch_{k}_{slot + 1:02d} 0" for _, slot, _, _ in PERGUN for k in TORCH_KEYS]
+        cmds += [f"vr_wofs_inherit_{slot + 1:02d} 0" for _, slot, _, inherit in PERGUN if inherit is not None]
+        got.append(parse(run(agent, f"fg_pergun_{phase}", cmds)))
+    base, own = got
+    ok = True
+    owns = {slot: o for _, slot, o, _ in PERGUN}
+    for imp, slot, o, inherit in PERGUN:
+        b, g = base.get(f"base{imp}", {}), own.get(f"own{imp}", {})
+        want = owns[inherit] if inherit is not None else o
+        if g.get("mode") != "ongun" or "gunat" not in b or "gunat" not in g:
+            print(f"  impulse {imp}: not on the gun ({g.get('mode')})")
+            ok = False
+            continue
+        d = [g["gunat"][i] - b["gunat"][i] for i in range(3)]
+        t = [g["gunturn"][i] - b["gunturn"][i] for i in range(3)]
+        wroll = math.degrees(math.atan2(math.sin(math.radians(want[5])),
+                                        math.cos(math.radians(want[5])) * math.cos(math.radians(want[4]))))
+        wt = [want[3], want[4], wroll]
+        good = (g["gunslot"] == slot and all(abs(d[i] - want[i]) < 0.002 for i in range(3)) and
+                all(abs(t[i] - wt[i]) < 0.5 for i in range(3)))
+        print(f"  impulse {imp} (slot {g['gunslot']}{', inheriting ' + str(inherit) if inherit is not None else ''}): "
+              f"moved {d[0]:+.3f} {d[1]:+.3f} {d[2]:+.3f} m, turned {t[0]:+.1f} {t[1]:+.1f} {t[2]:+.1f} deg "
+              f"(want {want[0]:+.3f} {want[1]:+.3f} {want[2]:+.3f}, {wt[0]:+.1f} {wt[1]:+.1f} {wt[2]:+.1f}); base at "
+              f"{b['gunat'][0]:+.3f} {b['gunat'][1]:+.3f} {b['gunat'][2]:+.3f} turn {b['gunturn'][0]:+.1f} "
+              f"{b['gunturn'][1]:+.1f} {b['gunturn'][2]:+.1f}: {'ok' if good else 'WRONG'}")
+        ok = ok and good
+    return ok
+
+
 def frames_through(a, b, c):
     return path(a, b, 1.5) + path(b, c, 1.5)
 
@@ -498,6 +559,9 @@ def main():
     if what in ("options", "all"):
         print("== options (grab range, head range, clipping on when let go)")
         ok = options(agent) and ok
+    if what in ("pergun", "all"):
+        print("== pergun (each weapon's own place for the flashlight)")
+        ok = pergun(agent) and ok
     if what in ("moving", "all"):
         print("== moving (thumbstick locomotion and turning)")
         ok = moving(agent) and ok

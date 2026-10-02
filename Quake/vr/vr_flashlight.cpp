@@ -11,6 +11,7 @@
 #include "vr_lighting.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
+#include "vr_menu.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
@@ -27,6 +28,8 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -823,19 +826,47 @@ ankerl::unordered_dense::map<za::String, GunSpot> gunSpots;
     return spot;
 }
 
+// The weapon's own place for the torch (Weapon Offsets > Flashlight; vr_weapons.inc Torch*, inherited as the other
+// keys), on top of the global vr_flashlight_gun_*: metres forward, up and out (`move`), degrees of pitch up, yaw out and
+// roll out (`turn`).
+struct GunMountOwn
+{
+    glm::vec3 move{0.f};
+    glm::vec3 turn{0.f};
+};
+
+[[nodiscard]] GunMountOwn gunMountOwn(const view::WeaponMount& m)
+{
+    using weapons::Key;
+    if(m.slot < 0)
+    {
+        return {};
+    }
+    return {weapons::vec(m.slot, Key::TorchForward, Key::TorchUp, Key::TorchOut),
+        weapons::vec(m.slot, Key::TorchPitch, Key::TorchYaw, Key::TorchRoll)};
+}
+
 // Clipped on the gun, parallel to its barrel (round 21; before, hanging below like a foregrip): the lens a little behind
 // the muzzle, the tube's axis just under the gun or beside it (findGunSpot; vr_flashlight_gun_forward, _up and _out move
-// it), running back along the gun, its switch out to the side (away from the body), the beam where the gun aims.
-[[nodiscard]] Pose gunPose(const view::WeaponMount& m)
+// it, and the weapon's own Torch Forward, Up and Out), running back along the gun, its switch out to the side (away from
+// the body), the beam where the gun aims; turned about its middle by the weapon's own Torch Pitch, Yaw and Roll.
+[[nodiscard]] Pose gunPose(const view::WeaponMount& m, const GunSpot& spot)
 {
     glm::vec3 fwd, right, up;
     hands::angleVectors(m.rot, fwd, right, up);
     const float out = m.mirrored ? -1.f : 1.f; // away from the body: right for the main hand
-    const glm::vec3 lens = m.muzzle + (fwd * (-lensBack + vr_flashlight_gun_forward.value) + up * (vr_flashlight_gun_up.value - st.gunSpot.down) +
-                                          right * (out * (st.gunSpot.out + vr_flashlight_gun_out.value))) *
+    const GunMountOwn own = gunMountOwn(m);
+    const glm::vec3 lens = m.muzzle + (fwd * (-lensBack + vr_flashlight_gun_forward.value + own.move.x) +
+                                          up * (vr_flashlight_gun_up.value + own.move.y - spot.down) +
+                                          right * (out * (spot.out + vr_flashlight_gun_out.value + own.move.z))) *
                                           units::metresToUnits();
     Pose p = poseFromAxes(glm::vec3{0.f}, fwd, up * out, right * out);
     p.pos = lens - p.rot * (shape().lens * units::worldScale());
+    // Turned about its middle (the pose's origin): about the gun's up (yaw; +left), its right (pitch; +up) and the beam
+    // (roll; +the top to the right), the yaw and roll mirrored to go out from the body.
+    const glm::quat turn = glm::angleAxis(glm::radians(-own.turn.y * out), up) * glm::angleAxis(glm::radians(own.turn.x), right) *
+                           glm::angleAxis(glm::radians(own.turn.z * out), fwd);
+    p.rot = glm::normalize(turn * p.rot);
     return p;
 }
 
@@ -902,7 +933,8 @@ struct HeadZone
 
 // The gun's reach zone (round 21; the author's tuning notes: vr_flashlight_gun_zone_*): where a held torch's middle clips
 // it on the gun: a capsule round the gun's line from the hand to 3 cm past the muzzle, moved along the gun, up and out
-// (away from the body), `radius` world units across (vr_flashlight_gun_zone_radius times vr_flashlight_gun_range).
+// (away from the body; and as the weapon's own Torch Forward, Up and Out move the torch), `radius` world units across
+// (vr_flashlight_gun_zone_radius times vr_flashlight_gun_range).
 struct GunZone
 {
     glm::vec3 a, b;
@@ -915,8 +947,10 @@ struct GunZone
     hands::angleVectors(m.rot, fwd, right, up);
     const float m2u = units::metresToUnits();
     const float out = m.mirrored ? -1.f : 1.f;
-    const glm::vec3 shift =
-        (fwd * vr_flashlight_gun_zone_forward.value + up * vr_flashlight_gun_zone_up.value + right * (out * vr_flashlight_gun_zone_out.value)) * m2u;
+    const glm::vec3 move = gunMountOwn(m).move; // (the weapon's own place for the torch: the zone goes with it)
+    const glm::vec3 shift = (fwd * (vr_flashlight_gun_zone_forward.value + move.x) + up * (vr_flashlight_gun_zone_up.value + move.y) +
+                                right * (out * (vr_flashlight_gun_zone_out.value + move.z))) *
+                            m2u;
     const glm::vec3 along = m.muzzle - m.pos;
     const float len = glm::length(along);
     GunZone z;
@@ -1719,6 +1753,29 @@ void zoneCapsule(const glm::vec3& a, const glm::vec3& b, float radius, const glm
     lines::line(a, b, width, color, color);
 }
 
+// Weapon Offsets > Flashlight's preview (menu::flashlightMountPreview, while the page is shown): where the torch sits on
+// the page's weapon (its outline and its beam's first half metre, cyan) and the zone that clips it on (orange).
+void drawMountPreview()
+{
+    int hand = -1;
+    view::WeaponMount m;
+    if(!menu::flashlightMountPreview(hand) || !view::weaponMount(hand, m))
+    {
+        return;
+    }
+    const float m2u = units::metresToUnits();
+    const GunSpot spot = st.mode == Mode::OnGun && st.gunHand == hand && st.gunModel == m.model ? st.gunSpot : findGunSpot(m);
+    const Pose p = gunPose(m, spot);
+    const glm::vec4 cyan{0.2f, 0.9f, 1.f, 1.f};
+    const glm::vec3 lens = modelPointAt(p, shape().lens), beam = p.rot * glm::vec3{1.f, 0.f, 0.f};
+    zoneCapsule(modelPointAt(p, shape().cap), lens, torchRadius(0.f) * m2u, p.rot * glm::vec3{0.f, 0.f, 1.f}, cyan);
+    lines::line(lens, lens + beam * (0.5f * m2u), 0.004f * m2u, cyan, glm::vec4{cyan.r, cyan.g, cyan.b, 0.f});
+    glm::vec3 gf, gr, gu;
+    hands::angleVectors(m.rot, gf, gr, gu);
+    const GunZone z = gunZone(m);
+    zoneCapsule(z.a, z.b, z.radius, gu, glm::vec4{1.f, 0.55f, 0.15f, 0.9f});
+}
+
 // The head's zones and the held torch's middle, placed by `to` (the world, or the body's preview) and seen from `eye`;
 // the guns' only in the world (the preview has no guns).
 void drawZones(const hands::State& s, const glm::mat4& to, const glm::vec3& eye, bool guns)
@@ -1850,6 +1907,23 @@ void give_f()
     take(hand);
 }
 
+// vr_flashlight_clip_gun <left|right>: clips the torch on the gun in that hand, from wherever it is (Weapon Offsets >
+// Flashlight's Clip the Torch on It; the per-weapon mount's test, flash_grab_test.py pergun).
+void clipGun_f()
+{
+    const char* which = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const int hand = !q_strcasecmp(which, "left")    ? HAND_OFF
+                     : !q_strcasecmp(which, "right") ? HAND_MAIN
+                                                     : -1;
+    view::WeaponMount m;
+    if(hand < 0 || !enabled() || !view::weaponMount(hand, m))
+    {
+        Con_Printf("vr_flashlight_clip_gun <left|right> (a gun in that hand, the flashlight on: vr_flashlight 1)\n");
+        return;
+    }
+    clipOn(hand, m);
+}
+
 // vr_flashlight_probe [tag]: per hand, whether the lamp is lit up for it (the last view) and what a press there would
 // see on the hands the game reads (at the lamp, the game's grip winning and its hotspot, empty, still): "highlighted
 // implies grabbable" (Misc/quakevr/flashgrab). With developer 1, also the torso's yaw, the lamp's middle and the hands.
@@ -1864,6 +1938,21 @@ void probe_f()
     // second (the moving test, flash_grab_test.py).
     Con_Printf("torchprobe %s near head %d gun %d\n", tag, st.nearHead ? 1 : 0, st.nearGun ? 1 : 0); // (B/Y clips it on there)
     Con_Printf("torchprobe %s move %.0f %.0f\n", tag, glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]}), st.turnRate);
+    // On a gun: the torch's middle from the muzzle (metres forward, up, out from the body) and its turn on the gun
+    // (degrees: the beam's pitch up and yaw out, its roll out), the weapon's slot (Weapon Offsets > Flashlight).
+    view::WeaponMount gm;
+    if(st.mode == Mode::OnGun && st.gunHand >= 0 && view::weaponMount(st.gunHand, gm))
+    {
+        glm::vec3 fwd, right, up;
+        hands::angleVectors(gm.rot, fwd, right, up);
+        const glm::vec3 outward = right * (gm.mirrored ? -1.f : 1.f);
+        const glm::vec3 d = (st.pose.pos - gm.muzzle) / units::metresToUnits();
+        const glm::vec3 beam = st.pose.rot * glm::vec3{1.f, 0.f, 0.f}, sw = st.pose.rot * glm::vec3{0.f, 0.f, 1.f};
+        Con_Printf("torchprobe %s gunmount slot %d at %.3f %.3f %.3f turn %.1f %.1f %.1f\n", tag, gm.slot, glm::dot(d, fwd),
+            glm::dot(d, up), glm::dot(d, outward), glm::degrees(za::asin(za::clamp(glm::dot(beam, up), -1.f, 1.f))),
+            glm::degrees(za::atan2(glm::dot(beam, outward), glm::dot(beam, fwd))),
+            glm::degrees(za::atan2(-glm::dot(sw, up), glm::dot(sw, outward))));
+    }
     for(int hand = 0; hand < 2; hand++)
     {
         const bool at = st.mode != Mode::Held && hand != st.gunHand && handAt(s, hand);
@@ -1912,6 +2001,7 @@ void init()
 {
     Cmd_AddCommand("vr_flashlight_toggle", toggle_f);
     Cmd_AddCommand("vr_flashlight_probe", probe_f);
+    Cmd_AddCommand("vr_flashlight_clip_gun", clipGun_f);
     Cmd_AddCommand("vr_flashlight_give", give_f);
 }
 
@@ -2035,7 +2125,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
             st.gunModel = gun.model; // the other ammo's model, after its button
             st.gunSpot = findGunSpot(gun);
         }
-        p = gunPose(gun);
+        p = gunPose(gun, st.gunSpot);
     }
     else if(st.mode == Mode::OnHead)
     {
@@ -2105,6 +2195,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     {
         drawZones(s, glm::mat4{1.f}, eyes, true);
     }
+    drawMountPreview();
     if(st.mode != Mode::Mounted && st.mode != Mode::OnHead && vr_flashlight_cord.value != 0.f) // (on the head, the cord runs behind the neck)
     {
         updateCord(drawnMount, drawn);

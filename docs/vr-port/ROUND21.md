@@ -20402,3 +20402,43 @@ NOTES.md vrfiringrange_2026-10-02_12-54-12 and _12-55-32 (follow-up on "Flashlig
 - [ ] Grab Range 1.5: reaching a little short still takes it; punching by the belt still doesn't.
 - [ ] Clip on Head When Let Go on: let go of the torch by your temple (where it lights up): it stays on the head.
 - [ ] Clip on Gun When Let Go on: let go of it along the gun in the other hand: it clips on.
+
+## Flashlight: gun clip range; each weapon's own place for it (2026-10-02)
+
+**Gun Clip Range.** `vr_flashlight_gun_range` (default 1, 0.25..4): times the gun's zone's radius
+(`vr_flashlight_gun_zone_radius`), so B/Y clipping on and Clip on Gun When Let Go (both read `nearGun`) reach further, as
+`vr_flashlight_head_range` does for the head. Menu: Advanced VR Options > Flashlight > Taking and Clipping On > Gun Clip
+Range (after Head Clip Range).
+
+**How the gun mount was defined (before this).** `gunPose` puts the lens at the weapon's muzzle point
+(`view::weaponMount`: the per-weapon Muzzle anchor vertex plus Muzzle X/Y/Z, `vr_weapons.inc`), then moves it in the
+drawn gun's axes (the hand's drawn pose, `drawnAs`): 1 cm back (`lensBack`), down by the spot fitted to the model's mesh
+once per model and size (`findGunSpot`: under the barrel, or beside a bulky one), plus the global
+`vr_flashlight_gun_forward/_up/_out` (metres; out mirrored for the off hand). The zone is a capsule from the hand
+(the drawn pose's origin) to 3 cm past the muzzle, moved by the global `vr_flashlight_gun_zone_*`. Nothing per weapon
+but the muzzle anchor and the fitted spot.
+
+**Each weapon's own place.** Six per-weapon keys (`vr_weapons.inc`, `Key::TorchForward|Up|Out|Pitch|Yaw|Roll`, cvars
+`vr_wofs_torch_fwd|up|out|pitch|yaw|roll_NN`, 0 by default: no migration), inherited as the other keys. `gunPose` adds
+the position (metres forward, up, out from the body) to the global ones, then turns the torch about its middle: pitch up,
+yaw out, roll out (its top away from the body); yaw and roll mirrored for the off hand. `gunZone` moves with the
+position. `view::WeaponMount` carries the weapon's `slot`.
+
+- Menu: Weapon Offsets > Flashlight (`menu_vr 92`, a new part: `WofsFlashlight`): Clip the Flashlight on It, Show the
+  Flashlight's Place (`vr_flashlight_mount_preview`, default 1), Flashlight Forward/Up/Out/Pitch/Yaw/Roll, Flashlight
+  Back to 0, a link to On a Gun or Head (every weapon's).
+- Preview (`menu::flashlightMountPreview`, `drawMountPreview`): while the page is shown and the hand still holds the
+  page's weapon, the torch's outline and its beam's first half metre on it (cyan) and its clip zone (orange), wherever
+  the torch is (the flashlight must be on).
+- `vr_flashlight_clip_gun <left|right>`: clips the torch on that hand's gun from wherever it is (the page's action; Debug:
+  Clip Flashlight on Right Gun). `vr_flashlight_probe` prints, on a gun, "gunmount slot N at fwd up out turn pitch yaw
+  roll" (the middle from the muzzle in metres, the beam's turn in degrees).
+- Test: `flash_grab_test.py <agent> pergun` (~20 s): shotgun (0.05, 0.02, 0.03 m, pitch 10) and nailgun (-0.04, -0.01, 0
+  m, yaw 8, roll 20) set apart, the super nailgun inheriting the nailgun's: each moved and turned by its own (the
+  roll read after the yaw: 20.2), within 2 mm and 0.5 deg. `options` now also checks Gun Clip Range (the zone lit out to
+  0.170 m at 1, 0.045 m at 2 along the sweep; let go there: on the gun only at 2 with Clip on Gun).
+
+Test in VR:
+- [ ] Gun Clip Range 2: the torch held near the gun in the other hand clips on (B/Y) from further away.
+- [ ] Weapon Offsets > Flashlight with a gun in hand: the cyan outline follows the sliders; Clip the Flashlight on It
+  puts it there; another weapon keeps its own place.

@@ -333,6 +333,16 @@ QVR_WEAPON_KEY(AnyGripMode, "anygrip_mode")
 QVR_WEAPON_KEY(StockPitch, "stock_pitch")
 QVR_WEAPON_KEY(StockYaw, "stock_yaw")
 QVR_WEAPON_KEY(StockRoll, "stock_roll")
+// The flashlight clipped on this weapon (vr_flashlight.cpp gunPose; Weapon Offsets > Flashlight), on top of the global
+// vr_flashlight_gun_forward/_up/_out and the spot fitted to the model: metres forward, up and out (away from the body),
+// and degrees turned about the torch's middle: pitch up, yaw out, roll out (its top away from the body; the off hand's
+// mirrored like the out). The gun's clip zone moves with the position. 0 by default (registerCvars): no migration.
+QVR_WEAPON_KEY(TorchForward, "torch_fwd")
+QVR_WEAPON_KEY(TorchUp, "torch_up")
+QVR_WEAPON_KEY(TorchOut, "torch_out")
+QVR_WEAPON_KEY(TorchPitch, "torch_pitch")
+QVR_WEAPON_KEY(TorchYaw, "torch_yaw")
+QVR_WEAPON_KEY(TorchRoll, "torch_roll")
 #endif
 
 #ifdef QVR_WEAPON_RETIRED

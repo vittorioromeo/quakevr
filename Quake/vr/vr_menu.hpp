@@ -58,5 +58,8 @@ bool scroll(int rows);
 // Weapon Offsets > Holstered: while one of its settings is chosen (Preview in Holster on), the hand whose weapon the page
 // edits and the kind of holster (weapons::HolsterKind: 0 hips, 1 chest, 2 back) it is to be drawn in; false otherwise.
 [[nodiscard]] bool holsterPreview(int& hand, int& kind);
+// Weapon Offsets > Flashlight: while it is shown (Show the Torch's Place on), the hand whose weapon the page edits (still
+// holding it): the flashlight draws the torch's place on it (vr_flashlight.cpp drawMountPreview); false otherwise.
+[[nodiscard]] bool flashlightMountPreview(int& hand);
 
 } // namespace qvr::menu

@@ -52,6 +52,7 @@ struct WeaponMount
     glm::vec3 rot{0.f};
     glm::vec3 muzzle{0.f};
     bool mirrored{false};
+    int slot{-1}; // its per-weapon settings' (weapons::slotForModel)
 };
 [[nodiscard]] bool weaponMount(int hand, WeaponMount& out);
 

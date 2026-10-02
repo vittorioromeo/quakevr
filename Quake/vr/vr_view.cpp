@@ -5080,6 +5080,7 @@ bool weaponMount(int hand, WeaponMount& out)
     out.pos = drawnAs[hand].pos;
     out.rot = drawnAs[hand].rot;
     out.mirrored = drawnAs[hand].mirrored;
+    out.slot = slot;
     out.muzzle = anchorPosition(ve, static_cast<int>(weapons::value(slot, Key::MuzzleAnchorVertex)),
         weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ));
     return true;
