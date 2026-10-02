@@ -47,6 +47,8 @@ Bullet time (Combat > Bullet Time): press the inner button on the gadget's lower
 
 Spectator camera at the default 60 fps rate with the flashlight on your hands: no ghost of hands/HUD following your head; FOV up to 150 (typed up to 160)
 
+Spectator view: pickup messages and other head-locked text show in the headset but not in the window (Recording > Hide Head Text on the Spectator Camera, default on; same option for the mirror, default off)
+
 [Decide or give feedback]
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay? vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
