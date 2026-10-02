@@ -2087,7 +2087,13 @@ void hologramTestMessage()
                   "body you stand on). Thrown by you after it, it hurts as ever."),
         slider("Monster Drops Harmless For", vr_prop_drop_grace, 0.f, 2.f, 0.1f, "%.1f s")
             .help("A weapon or a backpack a monster drops as it dies can't hurt players for this long (it may land on "
-                  "you); after it, as any flung prop."),
+                  "you); after it, see Monster Drops Hurt Only Falling."),
+        toggle("Monster Drops Hurt Only Falling", vr_prop_drop_falls_only)
+            .help("After that, a monster's weapon or backpack hurts you only falling on you or once a hand has thrown it: "
+                  "never pushed or tossed into you from under you (a monster killed at your feet). Off: as any flung prop."),
+        toggle("Monster Drops Pass Through Bodies", vr_prop_drop_pass_inside)
+            .help("A monster's drop made inside you or a monster (killed at your feet) passes through it until clear, "
+                  "instead of being pushed out hard."),
         slider("Least Speed", vr_prop_impact_min_speed, 2.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 50.f)
             .help("How fast it must fly into what it hits to hurt it: less for things over 10 kg. The damage grows with "
                   "the speed over it."),
@@ -3112,6 +3118,12 @@ za::Vector<Item> pageDebugTools()
             .help("vr_smallgibs_test 16: the grunt or corpse nearest put under your feet and gibbed by your blow; 2 s on, the health you and the monsters near lost to its gibs (Fresh Gibs Harmless For; god off)."),
         command("Gib a Body Underfoot: a Shot", "vr_smallgibs_test 17")
             .help("vr_smallgibs_test 17: the same, gibbed by a super shotgun blast's damage."),
+        command("Kill a Monster Underfoot", "vr_smallgibs_test 19")
+            .help("vr_smallgibs_test 19: the live grunt nearest put under your feet and killed (not gibbed) by your blow; "
+                  "4 s on, the health you lost and its drops' flung hits on you (Monster Drops rows; god off)."),
+        command("Drop a Monster's Backpack on You", "vr_smallgibs_test 20")
+            .help("vr_smallgibs_test 20: a monster's backpack dropped over your head: past Monster Drops Harmless For its "
+                  "fall on you still hurts; 3 s on, the health you lost (god off)."),
         command("Throw a Gib Made 1 s Ago", "vr_smallgibs_test 18")
             .help("vr_smallgibs_test 18: a gib made at your feet, thrown at the monster nearest 1 s later: it still hurts it."),
         toggle("Trace Small Gibs", vr_smallgibs_trace)

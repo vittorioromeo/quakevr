@@ -310,6 +310,8 @@ constexpr float smallPropSleepThreshold = 0.15f; // m/s: a prop with its own mas
 
 // A small gib (vr_smallgibs.qc): a prop with its own mass (.vr_prop_mass).
 [[nodiscard]] bool isSmallGib(edict_t* ent);
+// A weapon or backpack a monster dropped (.vr_monster_drop): s since; -1 for anything else.
+[[nodiscard]] float monsterDropAge(edict_t* ent);
 
 constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel ball on stone)
 
@@ -559,11 +561,12 @@ struct World
     };
     za::Vector<Grace> graces;
     za::Vector<int> made; // the props whose bodies were made this frame (createBody): what may have been thrown
-    // Small gibs whose bodies were made inside a monster's or a player's (noteBornInside): they pass through it until
-    // clear of it (shouldCollide), as a hand's reach body passes through what was inside it (HandBody::ignore).
+    // Small gibs and monster drops whose bodies were made inside a monster's or a player's (noteBornInside): they pass
+    // through it until clear of it (shouldCollide), as a hand's reach body passes through what was inside it
+    // (HandBody::ignore).
     struct Inside
     {
-        int prop{0};      // the small gib
+        int prop{0};      // the small gib or drop
         int other{0};     // the monster or player
         double born{0.0}; // the small gib's body's (Slot::born): the same body still
     };
@@ -1367,7 +1370,7 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
         def.baseMaterial.restitution = grenadeRestitution;
         def.enableCustomFiltering = !held; // (shouldCollide: not with its thrower)
     }
-    else if(!held && isSmallGib(ent))
+    else if(!held && (isSmallGib(ent) || monsterDropAge(ent) >= 0.f))
     {
         def.enableCustomFiltering = true; // (shouldCollide: not the body it was made inside, until clear: noteBornInside)
     }
@@ -1863,6 +1866,13 @@ bool isSmallGib(edict_t* ent)
     return f >= 0 && fieldFloat(ent, f) > 0.f;
 }
 
+float monsterDropAge(edict_t* ent)
+{
+    const int f = fields().vr_monster_drop;
+    const float made = f >= 0 ? fieldFloat(ent, f) : 0.f;
+    return made > 0.f ? static_cast<float>(qcvm->time - made) : -1.f;
+}
+
 // A small gib's age (s since it was made: its QC .vr_sgib), -1 for anything else.
 [[nodiscard]] float smallGibAge(edict_t* ent)
 {
@@ -1947,6 +1957,8 @@ void traceGibContacts()
 // vrfiringrange_2026-10-02_19-11-19 and 19-18-12; ROUND21.md, "Small gibs pushed out of the body they came from").
 // A body its shape is sunk in (deeper than 1 cm, not one it is only touching: a gib made just outside a monster
 // meets it, Pass Through the Body 0); a reach body its box overlaps, a little grown (a blade a step away still passes).
+// A monster's drop (a weapon, a backpack) made inside the player standing on it, or the monster, likewise
+// (vr_prop_drop_pass_inside): pushed out, it flew into him at 280 u/s.
 void noteBornInside(int num, const Slot& s)
 {
     b3QueryFilter filter = b3DefaultQueryFilter();
@@ -2021,8 +2033,8 @@ void noteBornInside(int num, const Slot& s)
         }
         if(bodies || reaches)
         {
-            Con_Printf("box3d: small gib %d made inside %d bodies and %d hands' or weapons': passes through until clear\n",
-                num, bodies, reaches);
+            Con_Printf("box3d: %s %d made inside %d bodies and %d hands' or weapons': passes through until clear\n",
+                isSmallGib(EDICT_NUM(num)) ? "small gib" : "monster drop", num, bodies, reaches);
         }
     }
 }
@@ -2097,7 +2109,12 @@ void noteThrows()
             continue;
         }
         edict_t* ent = EDICT_NUM(num);
-        if(vr_smallgibs_pass_inside.value && isSmallGib(ent))
+        // A monster's drop just made (as it died: not a body made again later, after a hold) inside a body (the player
+        // standing on the monster, the monster): Box3D flung it out of him at 280 u/s and it hurt him
+        // (vr_prop_drop_pass_inside; ROUND21.md, "Monster drops flung into you").
+        const float dropAge = monsterDropAge(ent);
+        if((vr_smallgibs_pass_inside.value && isSmallGib(ent)) ||
+            (vr_prop_drop_pass_inside.value && dropAge >= 0.f && dropAge < 0.1f))
         {
             noteBornInside(num, s);
         }

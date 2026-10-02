@@ -1435,6 +1435,8 @@ QVR_CVAR(vr_prop_impact_damage, "1", CVAR_ARCHIVE)        // on
 QVR_CVAR(vr_prop_impact_players, "1", CVAR_ARCHIVE)       // 1: players too (never the one who just let go of it), 0: monsters only
 QVR_CVAR(vr_gib_spawn_harmless, "0.3", CVAR_ARCHIVE)      // s a gib, head or small gib just made can't hurt anyone as a flung prop (gibbing a body you stand on hurt you)
 QVR_CVAR(vr_prop_drop_grace, "0.5", CVAR_ARCHIVE)         // s a weapon or backpack a monster just dropped can't hurt players (vr_prop_impact_players)
+QVR_CVAR(vr_prop_drop_falls_only, "1", CVAR_ARCHIVE)     // after it, it hurts a player only falling on him or thrown by a hand (0: as any flung prop)
+QVR_CVAR(vr_prop_drop_pass_inside, "1", CVAR_ARCHIVE)    // made inside a player or a monster (one killed underfoot), it passes through it until clear (0: Box3D pushes it out, flinging it)
 QVR_CVAR(vr_throw_self_grace, "0.35", CVAR_ARCHIVE)       // s after you throw or let go of a thing before it can hurt you (thrown up, falling back on you; 0: at once)
 QVR_CVAR(vr_prop_impact_min_mass, "1", CVAR_ARCHIVE)      // kg: lighter props never hurt so
 QVR_CVAR(vr_prop_impact_min_speed, "8", CVAR_ARCHIVE)     // m/s towards what it meets (less for things over 10 kg: heavy leniency)
