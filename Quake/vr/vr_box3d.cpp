@@ -71,6 +71,7 @@
 #include "Zancle/Algorithm/LowerBound.hpp"
 #include "Zancle/Algorithm/Rotate.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
+#include "Zancle/Algorithm/UpperBound.hpp"
 #include "Zancle/Base/BitCast.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -471,6 +472,14 @@ struct World
     double stepTime{0.0}, stepTimeMax{0.0}; // s, a frame's
     int stepFrames{0};
     za::U64 stepAwake{0}; // the awake bodies, summed over the frames
+    // vr_physics_steptime: each frame's step since it last printed (its median, 95th percentile; by awake bodies).
+    struct StepSample
+    {
+        float ms{0.f};
+        int awake{0}; // the awake bodies as the step began (what stepWorkers saw)
+    };
+    za::Vector<StepSample> stepSamples;
+    b3Profile stepProfile{}; // Box3D's own (ms), summed over the steps (vr_physics_steptime bins)
     const qmodel_t* map{nullptr};
     float m2u{1.f};      // units a metre
     float gravity{0.f};  // sv_gravity at the last update
@@ -572,6 +581,7 @@ struct World
 };
 
 za::UniquePtr<World> world;
+constexpr za::SizeT stepSamplesMax = 1u << 16; // vr_physics_steptime's frames kept (15 minutes at 72 Hz)
 
 void runStepTask(void* p)
 {
@@ -4133,7 +4143,7 @@ edict_t* spawnStressProp(func_t fn, const char* classname, const char* model, co
 
 // vr_physics_bigpile [<count>] [<distance>] [debris | rocks | bricks | crates | mixed]: a big pile of props for Box3D on
 // the pool (NOTES.md vrfiringrange_2026-10-01_16-36-40, _22-46-00; Debug > Tests > Physics Stress). `count` props
-// (vr_test_pile_count, 300, or for crates vr_test_pile_crates, 40; at most 2000) `distance` units (96) ahead of the
+// (vr_test_pile_count, 500, or for crates vr_test_pile_crates, 80; at most 2000) `distance` units (96) ahead of the
 // first player:
 // - debris (the default), rocks, bricks, mixed: in columns of 10 (small crates: 3) on a square grid 20 units apart (36
 //   with crates), each prop set a little further along than the one under it, so that the columns topple into one pile:
@@ -4392,8 +4402,31 @@ void hash_f()
     Con_Printf("vr_physics_hash: %d bodies, %016llx\n", count, static_cast<unsigned long long>(h));
 }
 
-// vr_physics_steptime: Box3D's step time a frame since it last printed (the average and the worst, ms), the awake bodies
-// on average, and its workers (vr_box3d_threads); then starts counting again. A bench: run it, play, run it again.
+// Box3D's profile b added to a (fields: floats only).
+void addProfile(b3Profile& a, const b3Profile& b)
+{
+    static_assert(sizeof(b3Profile) % sizeof(float) == 0);
+    float* const x = reinterpret_cast<float*>(&a);
+    const float* const y = reinterpret_cast<const float*>(&b);
+    for(za::SizeT i = 0; i < sizeof(b3Profile) / sizeof(float); i++)
+    {
+        x[i] += y[i];
+    }
+}
+
+// The q quantile (0..1) of sorted samples (0: none).
+[[nodiscard]] double quantile(const za::Vector<float>& sorted, double q)
+{
+    return sorted.empty() ? 0.0
+                          : static_cast<double>(sorted[za::min(static_cast<za::SizeT>(q * static_cast<double>(sorted.size())),
+                                sorted.size() - 1)]);
+}
+
+// vr_physics_steptime [bins]: Box3D's step time a frame since it last printed (the average, the median, the 95th
+// percentile and the worst, ms), the awake bodies on average, and its workers (vr_box3d_threads); then starts counting
+// again. A bench: run it, play, run it again (Misc/quakevr/box3dmt/pilebench.py). `bins`: also the frames by the awake
+// bodies as their step began (what Physics Threads From compares), each range's frames, median and 95th percentile; and
+// Box3D's own profile (ms a frame: where the step went).
 void steptime_f()
 {
     if(!world)
@@ -4402,9 +4435,52 @@ void steptime_f()
         return;
     }
     const int n = za::max(world->stepFrames, 1);
-    Con_Printf("vr_physics_steptime: %d frames, step %.3f ms (worst %.3f), %.1f bodies awake, %d bodies, %d workers\n",
-        world->stepFrames, world->stepTime * 1000.0 / n, world->stepTimeMax * 1000.0,
-        static_cast<double>(world->stepAwake) / n, b3World_GetCounters(world->id).bodyCount, world->tasks.workers);
+    za::Vector<float> ms;
+    ms.reserve(world->stepSamples.size());
+    for(const World::StepSample& x : world->stepSamples)
+    {
+        ms.pushBack(x.ms);
+    }
+    za::quickSort(ms.begin(), ms.end());
+    const za::SizeT over = static_cast<za::SizeT>(ms.end() - za::upperBound(ms.begin(), ms.end(), 2.f));
+    Con_Printf("vr_physics_steptime: %d frames, step %.3f ms (median %.3f, p95 %.3f, p99 %.3f, worst %.3f; %d over 2 ms), "
+               "%.1f bodies awake, %d bodies, %d workers\n",
+        world->stepFrames, world->stepTime * 1000.0 / n, quantile(ms, 0.5), quantile(ms, 0.95), quantile(ms, 0.99),
+        world->stepTimeMax * 1000.0, static_cast<int>(over), static_cast<double>(world->stepAwake) / n,
+        b3World_GetCounters(world->id).bodyCount, world->tasks.workers);
+    if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "bins"))
+    {
+        constexpr int edges[] = {0, 10, 25, 50, 75, 100, 125, 150, 200, 300, 500, 1000, 100000};
+        for(za::SizeT b = 0; b + 1 < sizeof(edges) / sizeof(edges[0]); b++)
+        {
+            ms.clear();
+            for(const World::StepSample& x : world->stepSamples)
+            {
+                if(x.awake >= edges[b] && x.awake < edges[b + 1])
+                {
+                    ms.pushBack(x.ms);
+                }
+            }
+            if(ms.empty())
+            {
+                continue;
+            }
+            za::quickSort(ms.begin(), ms.end());
+            Con_Printf("vr_physics_steptime bin %d %d: %d frames, median %.4f, p95 %.4f\n", edges[b], edges[b + 1],
+                static_cast<int>(ms.size()), quantile(ms, 0.5), quantile(ms, 0.95));
+        }
+        const b3Profile& p = world->stepProfile;
+        const float k = 1.f / static_cast<float>(n);
+        Con_Printf("vr_physics_steptime profile: step %.3f pairs %.3f collide %.3f solve %.3f (setup %.3f constraints %.3f "
+                   "[prepare %.3f intvel %.3f warm %.3f impulses %.3f intpos %.3f relax %.3f restitution %.3f store %.3f] "
+                   "transforms %.3f split %.3f refit %.3f bullets %.3f sleep %.3f)\n",
+            p.step * k, p.pairs * k, p.collide * k, p.solve * k, p.solverSetup * k, p.constraints * k,
+            p.prepareConstraints * k, p.integrateVelocities * k, p.warmStart * k, p.solveImpulses * k,
+            p.integratePositions * k, p.relaxImpulses * k, p.restitution * k, p.storeImpulses * k, p.transforms * k,
+            p.splitIslands * k, p.refit * k, p.bullets * k, p.sleepIslands * k);
+    }
+    world->stepProfile = b3Profile{};
+    world->stepSamples.clear();
     world->stepTime = 0.0;
     world->stepTimeMax = 0.0;
     world->stepFrames = 0;
@@ -7103,6 +7179,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         unstickProps();
     }
     const double t1 = Sys_DoubleTime();
+    const int awakeBefore = b3World_GetAwakeBodyCount(world->id);
 
     // Box3D's step, in pieces of at most 1/45 s (a slow server frame).
     za::Vector<za::Pair<int, int>>& impacts = world->impacts;
@@ -7120,6 +7197,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             pressStanding(dt / static_cast<float>(pieces));
             world->tasks.next.storeRelaxed(0);
             b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);
+            addProfile(world->stepProfile, b3World_GetProfile(world->id));
             limitPushes(dt / static_cast<float>(pieces));
             world->steps++;
             touches(impacts);
@@ -7130,6 +7208,10 @@ extern "C" void VR_PhysicsFrameEnd(void)
     world->stepTimeMax = za::max(world->stepTimeMax, t2 - t1);
     world->stepFrames++;
     world->stepAwake += static_cast<za::U64>(b3World_GetAwakeBodyCount(world->id));
+    if(world->stepSamples.size() < stepSamplesMax)
+    {
+        world->stepSamples.pushBack(World::StepSample{static_cast<float>((t2 - t1) * 1000.0), awakeBefore});
+    }
     // Slow frames (over a millisecond; vr_debug_box3d 3: over 0.2) with Box3D's own profile and counts.
     if((vr_debug_box3d.value || developer.value) && (t2 - t0) * 1000.0 > (vr_debug_box3d.value >= 3.f ? 0.2 : 1.0))
     {

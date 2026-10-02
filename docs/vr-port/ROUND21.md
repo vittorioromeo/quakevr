@@ -19644,3 +19644,72 @@ Time Now**. Mock: `vr_mock_hand_to <main|off> button` puts the fingertip on the 
 - Hands at 0.25 with the head-relative follower: as phase 1 (0.5 m jump followed at 8 m/s; slow move exact); the head
   and hand moved 0.3 m together: 0.07 m behind for one frame, then none.
 
+
+## Physics threads benchmarked; Physics Stress defaults (2026-10-02)
+
+NOTES.md start_2026-10-02_00-29-26 and vrfiringrange_2026-10-02_01-30-17: the author couldn't judge the physics
+thread settings or the pile sizes in game; benchmark them. Machine: i9-13900K (8 P-cores with HT + 16 E-cores, 32
+threads), mock headset, `--exclusive`, other agents' builds running (30-40% CPU load in the background).
+
+**Tools.** `vr_physics_steptime` now prints the median, 95th and 99th percentiles and the frames over 2 ms as well as
+the mean and worst; `vr_physics_steptime bins` adds the frames by awake bodies as their step began (median and p95
+of each range) and Box3D's own profile (collide, solve and its stages). Debug > Profiling and Memory: Physics Step
+Time by Awake Bodies. `Misc/quakevr/box3dmt/pilebench.py gen|parse`: Physics Stress piles on vrfiringrange, settings
+interleaved per repeat, each pile's fall (2 s) and settle (the next 4 s) measured, then cleared.
+
+**Step time by awake bodies** (rocks 50..1000, 4 repeats, every phase pooled; median of the runs' medians, ms):
+
+| awake      | 25    | 50    | 75    | 100   | 125   | 150   | 200   | 300   | 500   | 1000  |
+|------------|-------|-------|-------|-------|-------|-------|-------|-------|-------|-------|
+| 1 thread   | 0.037 | 0.099 | 0.148 | 0.195 | 0.257 | 0.333 | 0.443 | 0.698 | 1.241 | 3.618 |
+| 2          | 0.066 | 0.116 | 0.156 | 0.201 | 0.242 | 0.299 | 0.387 | 0.566 | 0.919 | 1.796 |
+| 4          | 0.078 | 0.130 | 0.168 | 0.190 | 0.217 | 0.248 | 0.322 | 0.430 | 0.663 | 1.237 |
+| 8          | 0.091 | 0.140 | 0.178 | 0.213 | 0.248 | 0.277 | 0.333 | 0.418 | 0.612 | 0.974 |
+| all (32)   | 0.120 | 0.187 | 0.223 | 0.253 | 0.296 | 0.360 | 0.420 | 0.533 | 0.752 | 1.124 |
+
+**By pile** (the fall, 2 s; median over 4 repeats of each run's mean / p95, ms; awake on average):
+
+| pile        | awake | 1 thread      | 2             | 4             | 8             | all           |
+|-------------|-------|---------------|---------------|---------------|---------------|---------------|
+| rocks 100   | 87    | 0.178 / 0.445 | 0.177 / 0.356 | 0.179 / 0.335 | 0.189 / 0.327 | 0.228 / 0.399 |
+| rocks 200   | 155   | 0.346 / 0.855 | 0.280 / 0.623 | 0.268 / 0.519 | 0.247 / 0.477 | 0.327 / 0.516 |
+| rocks 300   | 230   | 0.527 / 1.247 | 0.399 / 0.871 | 0.352 / 0.692 | 0.316 / 0.603 | 0.407 / 0.680 |
+| rocks 500   | 354   | 0.812 / 1.957 | 0.577 / 1.341 | 0.423 / 0.855 | 0.445 / 0.806 | 0.555 / 0.891 |
+| rocks 1000  | 650   | 1.792 / 5.226 | 1.189 / 3.197 | 0.837 / 1.958 | 0.642 / 1.361 | 0.823 / 1.478 |
+| bricks 300  | 210   | 0.436 / 1.163 |               | 0.277 / 0.520 | 0.243 / 0.453 |               |
+| mixed 300   | 197   | 0.403 / 1.045 |               | 0.245 / 0.476 | 0.236 / 0.397 |               |
+| mixed 1000  | 630   | 1.259 / 3.146 |               | 0.575 / 1.200 | 0.450 / 0.879 |               |
+| crates 40   | 40    | 0.041 / 0.076 |               | 0.067 / 0.119 | 0.068 / 0.135 |               |
+| crates 120  | 70    | 0.076 / 0.153 |               | 0.099 / 0.177 | 0.100 / 0.185 |               |
+
+Settled (30-40 awake), forced threads cost 0.02-0.05 ms more than one thread (rocks 300: 0.054 vs 0.081 with 4).
+
+**Why threads help only so much.** Box3D's step at these sizes is small: 300 rocks falling is ~0.5 ms on one thread,
+of which collide 0.14 and solve 0.36 (the solver's stages: 4 sub-steps, each stage a spin barrier across the
+workers). With 4 workers collide drops 1.7-2x, the solver only 1.4-1.6x: each stage's work per worker is a few
+microseconds, the same order as its barrier. The graph colouring never overflowed (0 overflow constraints), islands are
+not the limit. More workers add barrier cost and pull in E-cores: "all" (32) is slower than 8 everywhere.
+
+**Tried, not kept** (no clear win; measured on rocks 100/300, 6 repeats): the stepping thread spinning instead of
+sleeping while it waits for a worker's task, and never handing the solver's worker-0 slot to the pool (it then always
+orchestrates: its wait went from 0.19 to 0.07 ms a frame, the step 3-5% faster: noise level); raising the pool
+workers' priority (above normal, highest) while they run Box3D's tasks.
+
+**Hitches.** With threads, a run now and then has a frame of 5-70 ms (a worker preempted while it holds a block of a
+solver stage: the others spin until it comes back); one thread had at most ~3 ms outside the 1000-body falls. Over
+all runs: 4-20% of the threaded runs had a frame over 5 ms, against 0-8% on one thread, with no clear order between 2,
+4 and 8 workers and none of the tries above curing it. The background builds here make it worse than a game-only
+machine; it's the risk of threads (and a reason not to use them under ~150 awake, where they gain nothing).
+
+**Defaults (unchanged, now measured):** Physics on Threads on (`vr_box3d_threads 1`); Physics Threads 4
+(`vr_box3d_workers`: as fast as 6 and 8 up to ~500 awake, 8 gains another 20% only from ~1000, and 4 leaves P-cores to
+the render thread and the headset's runtime); Physics Threads From 150 (`vr_box3d_threads_bodies`: even at ~100,
+16% faster at 125, 26% at 150, 38% at 300, 47% at 500, 2.9x at 1000; back to one thread under 112).
+
+**Physics Stress defaults:** Pile Size 500 (was 300): ~350 awake while it falls, clearly on threads (one thread mean
+0.81 / p95 1.96 ms, 4 threads 0.42 / 0.86); whole frame (vr_profile, real time): one frame of ~9 ms CPU as the 500
+props spawn (QC's spawns 5.7 ms, the first step 3 ms), then 1-2 ms; 1000 spawns in a 24 ms frame (QC 12, Box3D 10).
+Crates in the Wall 80 (was 40): two walls; standing crates cost little (under 0.1 ms a step at 120: only ~70 awake
+as they settle) and don't reach Physics Threads From unless several walls are knocked down together.
+Tests: build, the piles (500 rocks and 80 crates made, 580 cleared), `vr_physics_mtbench 500` the same hash with every
+worker count, e1m1 0.03 ms a step, melee canary unchanged (48/53, 0 differ), `vr_menu_path_check` 0 missing.
