@@ -207,6 +207,11 @@ context and screenshot, ready to paste or to point me at.
     0.4 s from its last parried blow; replaces Parry Sound Once Per Burst). Let go of the chainsaw or the laser cannon
     at your body (not thrown): it never hurts you; throw a backpack up hard and it still can. Debug > Tests > Flung
     Props: **Throw Up Speed** 0 and **Throw Up From Your Body**, then **Throw the Nearest Prop Up**.
+  - **Every melee monster parries; one attack, one parry** (ROUND21.md, "Combat 6: every melee monster parries; one
+    attack, one parry"): parry the Overlord's smash (firing range, monster 17): it parries now, as do the phantom
+    swordsman, the scorpion, the spawn's leap, the Guardian, the dragon up close and the marksman ogre. The Overlord's
+    double smash, a fiend's two claws: the second blow is a quiet cooldown blow (no stamina, no new counter). Parry and
+    Bash > **Parry Cooldown: Whole Attack** (on). Debug > Tests > Ahead of You: Guardian, Dragon, Marksman Ogre.
   - **Hands: both work; props through teleporters; climbing stamina** (ROUND21.md, same title): a hand that force
     grabbed something and put it down could no longer take a ledge (fixed); a main-hand grip on a thing the off hand
     touched did nothing, and a prop held in both hands lost a hand when you moved fast (both fixed). Bricks (whole,

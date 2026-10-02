@@ -1247,13 +1247,22 @@ void(entity p, float hand) VR_Counter_Open;
 // own (VR_EnemyShove_Push), not the parry's nor a melee blow's.
 .float vr_eshove_striking;
 
-// Monsters that strike in melee (a blow comes from the monster itself, up close).
+// Monsters that strike in melee (a blow comes from the monster itself, up close: T_Damage(enemy, self, self)).
+// Combat 6 (NOTES.md vrfiringrange_2026-10-02_01-01-02, "not able to parry the Overlord's melee") added the ones
+// the list had missed: the Overlord's smash (Dissolution of Eternity's monster_super_wrath), the phantom swordsman's
+// sword (monster_sword), the Guardian's stab and smash (monster_morph), the dragon's bite and tail (monster_dragon,
+// up close: its tail reaches 250 units, the parry 150), Scourge of Armagon's scorpion's sting (monster_scourge), the
+// marksman ogre's chainsaw (monster_ogre_marksman: id1's maps, Honey) and the spawn's leap (monster_tarbaby, as the
+// fiend's and the rottweiler's). Not blows: the eel's zap, the zombie's and the mummy's thrown flesh, the lava man's
+// and the wraths' missiles, Armagon (no melee). The mummy (no melee of its own) stays listed, harmless.
 float(entity e) VR_Parry_MeleeMonster =
 {
     string c = e.classname;
     return c == "monster_knight" || c == "monster_hell_knight" || c == "monster_ogre" || c == "monster_demon1" ||
            c == "monster_dog" || c == "monster_shambler" || c == "monster_fish" || c == "monster_gremlin" ||
-           c == "monster_mummy" || e.vr_dummy_striking || e.vr_eshove_striking;
+           c == "monster_mummy" || c == "monster_super_wrath" || c == "monster_sword" || c == "monster_morph" ||
+           c == "monster_dragon" || c == "monster_scourge" || c == "monster_ogre_marksman" || c == "monster_tarbaby" ||
+           e.vr_dummy_striking || e.vr_eshove_striking;
 };
 
 // Whether `p`'s `hand` holds a weapon with the hand's forward across `toAttacker` (horizontal, unit):
@@ -1541,12 +1550,19 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     float quiet = FALSE;
     if((hand >= 0) || armsCrossed)
     {
+        // Combat 6 (vr_parry_cooldown_attack): a blow of the same melee attack as its last parried blow is a cooldown
+        // blow too, however long between them (the fiend's two claws 0.6 s apart, the Overlord's double smash 0.5 s,
+        // the shambler's chained swings): one attack, one parry, one stamina cost. The attack: from its th_melee call
+        // (.vr_melee_begun: ai.qc, fight.qc, hip_mon_grem.qc) until it runs again (ai_run clears it), 2 s at most (a
+        // monster with its own AI that never calls ai_run).
         float cooldown = max(0, cvar_hget(cvarh_vr_parry_cooldown));
-        quiet = (cooldown > 0 && attacker.vr_parry_last > 0 && time - attacker.vr_parry_last < cooldown);
+        float sameAttack = (cooldown > 0 && cvar_hget(cvarh_vr_parry_cooldown_attack) && attacker.vr_melee_begun > 0 &&
+                            time - attacker.vr_melee_begun < 2 && attacker.vr_parry_last >= attacker.vr_melee_begun);
+        quiet = ((cooldown > 0 && attacker.vr_parry_last > 0 && time - attacker.vr_parry_last < cooldown) || sameAttack);
         if(quiet)
         {
-            dprint(sprintf("parry: %s again %.2f s after its last parried blow: cooldown (damage cut, no sound, no "
-                "counter)\n", attacker.classname, time - attacker.vr_parry_last));
+            dprint(sprintf("parry: %s again %.2f s after its last parried blow%s: cooldown (damage cut, no sound, no "
+                "counter)\n", attacker.classname, time - attacker.vr_parry_last, sameAttack ? ", same attack" : ""));
         }
         attacker.vr_parry_last = time;
     }

@@ -426,6 +426,8 @@ void() func_weapon_grabbable =
 //   5 knight, 6 hell knight, 7 rottweiler, 8 enforcer, 9 fiend, 10 vore, 11 spawn,
 //   12 gremlin, 13 centroid (Scourge of Armagon), 14 mummy, 15 phantom swordsman, 16 wrath,
 //   17 overlord (Dissolution of Eternity).
+// Tests only (impulse 241's vr_test_spawn; no button): 18 the Guardian (Dissolution of Eternity's monster_morph, its
+// Egyptian look), 19 the dragon (Dissolution of Eternity), 20 the marksman ogre (Honey's model, progs/mogre.mdl).
 // The model of the second row's monsters: the mission packs' (and the registered game's) may not be
 // installed, and precaching a missing model is an error.
 string(float choice) VR_EnemyDispenser_Model =
@@ -443,6 +445,9 @@ string(float choice) VR_EnemyDispenser_Model =
     else if(choice == 15) { return "progs/sword.mdl"; }
     else if(choice == 16) { return "progs/wrath.mdl"; }
     else if(choice == 17) { return "progs/s_wrath.mdl"; }
+    else if(choice == 18) { return "progs/morph_eg.mdl"; }
+    else if(choice == 19) { return "progs/dragon.mdl"; }
+    else if(choice == 20) { return "progs/mogre.mdl"; }
 
     return NULLSTR;
 };
@@ -458,7 +463,11 @@ void() func_enemy_dispenser_use =
     {
         if(activator.classname == "player")
         {
-            if(choice >= 14)
+            if(choice == 20)
+            {
+                centerprint(activator, "Needs Honey's marksman ogre (progs/mogre.mdl)");
+            }
+            else if(choice >= 14)
             {
                 centerprint(activator, "Needs Dissolution of Eternity (rogue)");
             }
@@ -496,6 +505,9 @@ void() func_enemy_dispenser_use =
     else if(choice == 15) { self.classname = "monster_sword";       monster_sword(); }
     else if(choice == 16) { self.classname = "monster_wrath";       monster_wrath(); }
     else if(choice == 17) { self.classname = "monster_super_wrath"; monster_super_wrath(); }
+    else if(choice == 18) { self.classname = "monster_morph";       self.spawnflags = 4 /* MORPH_EGYPT */; monster_morph(); }
+    else if(choice == 19) { self.classname = "monster_dragon";      monster_dragon(); }
+    else if(choice == 20) { self.classname = "monster_ogre_marksman"; monster_ogre_marksman(); }
 
     setorigin(self, org);
 }

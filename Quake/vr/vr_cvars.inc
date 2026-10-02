@@ -1245,6 +1245,7 @@ QVR_CVAR(vr_bash_damage, "8", CVAR_ARCHIVE)            // a bash's damage (small
 QVR_CVAR(vr_bash_push, "1", CVAR_ARCHIVE)              // how far a bash throws what it hits
 QVR_CVAR(vr_bash_sound, "1", CVAR_ARCHIVE)             // volume of the shove, bash, counter bash and parry sounds (0: the old ones)
 QVR_CVAR(vr_parry_cooldown, "0.4", CVAR_ARCHIVE)        // s: a monster's blow parried within this long of its last parried blow is still parried (its damage cut, both pushed apart) but plays no sound or sparks, opens no new counter window and costs no stamina (one parry for a burst of quick hits: the ogre's chainsaw, a knight's swing; 0: every blow a full parry)
+QVR_CVAR(vr_parry_cooldown_attack, "1", CVAR_ARCHIVE)  // 1: also a blow of the same melee attack as the monster's last parried blow (begun up to 2 s ago) is a cooldown blow, however long between them (the demon's two claws, the Overlord's double smash: one parry, one stamina cost); 0: only vr_parry_cooldown's time
 QVR_CVAR(vr_parry_sound_burst, "0.3", CVAR_NONE)       // retired (vr_parry_cooldown): kept so saved configs load silently
 QVR_CVAR(vr_bash_deflect_radius, "24", CVAR_ARCHIVE)   // units around the guard (the weapon, the hands) a bash bats projectiles back within (vr_deflect)
 QVR_CVAR(vr_bash_deflect_window, "0.3", CVAR_ARCHIVE)  // s a bash (or a shove with a weapon in hand) goes on batting after the push
@@ -1469,7 +1470,7 @@ QVR_CVAR(vr_gun_wall_slide, "1", CVAR_ARCHIVE)       // a held weapon against th
 QVR_CVAR(vr_gun_wall_max, "40", CVAR_ARCHIVE)        // with vr_gun_wall_slide: cm, the most a held weapon and its hand are held out of the level (pushed further, they go in by the rest; the weapon keeps resting where it was held)
 QVR_CVAR(vr_debug_gun_wall, "0", CVAR_NONE)          // 1: print each frame a held weapon is held out of the level: the hand moved (up, across), its depth left, the muzzle over the surface below; 2: every frame (tests)
 QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
-QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up
+QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...; 18 the Guardian, 19 the dragon, 20 the marksman ogre: tests only), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)
 QVR_CVAR(vr_test_pile_count, "300", CVAR_NONE)       // Debug > Tests > Physics Stress: the props a pile of rocks, bricks or both has (vr_physics_bigpile without a count)
 QVR_CVAR(vr_test_pile_crates, "40", CVAR_NONE)       // and the crates its Wall of Crates has (vr_physics_bigpile crates)

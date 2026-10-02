@@ -19644,3 +19644,54 @@ Time Now**. Mock: `vr_mock_hand_to <main|off> button` puts the fingertip on the 
 - Hands at 0.25 with the head-relative follower: as phase 1 (0.5 m jump followed at 8 m/s; slow move exact); the head
   and hand moved 0.3 m together: 0.07 m behind for one frame, then none.
 
+
+## Combat 6: every melee monster parries; one attack, one parry (2026-10-02)
+
+His note vrfiringrange_2026-10-02_01-01-02: the Overlord's melee couldn't be parried.
+
+### Why
+
+`VR_Parry` (QC `combat.qc`) only takes blows from the monsters `VR_Parry_MeleeMonster` names. The Overlord
+(Dissolution of Eternity's `monster_super_wrath`, the firing range's dispenser 17) smashes with
+`T_Damage(enemy, self, self)` like any melee blow, but wasn't listed, so its blows never reached the parry (not even
+the "parry: none" print).
+
+### Audit (every `T_Damage(..., self, self, ...)` blow in id1, hipnotic, rogue, Honey)
+
+- Already parried: knight, hell knight, ogre (chainsaw), fiend (claws, leap), rottweiler (bite, leap), shambler
+  (claws; its lightning up to 110 units), rotfish, gremlin (claws, leap), the dummy, grunt and enforcer shoves.
+- **Added**: the Overlord's smash (`monster_super_wrath`), the phantom swordsman's sword (`monster_sword`), the
+  Guardian's stab and smash (`monster_morph`), the dragon's bite and tail (`monster_dragon`; its tail reaches 250
+  units, the parry 150, so only up close), the Scourge of Armagon scorpion's sting (`monster_scourge`), the marksman
+  ogre's chainsaw (`monster_ogre_marksman`: its own classname, so it had missed the ogre's entry) and the spawn's leap
+  (`monster_tarbaby`, as the fiend's and the rottweiler's leaps).
+- Not blows, left alone: the eel's zap (an electric discharge), the zombie's and the mummy's thrown flesh, the lava
+  man's and the wraths' missiles, the vore's ball; Armagon has no melee. The mummy has no melee of its own (it stays
+  listed, harmless).
+
+### Parry stamina: the first hit of a burst only
+
+Combat 5's cooldown already makes a cooldown blow free (the quiet path returns before `VR_Stamina_Parry` and
+`VR_Counter_Open`), but only within `vr_parry_cooldown` (0.4 s) of the last parried blow: two-blow attacks with longer
+gaps spent stamina twice: the Overlord's double smash (0.5 s), the fiend's two claws (0.6 s), the shambler's chained
+swings (about 1 s). Now (**Parry Cooldown: Whole Attack**, `vr_parry_cooldown_attack` 1, Parry and Bash) a blow of the
+same melee attack as the monster's last parried blow is a cooldown blow however long between them. The attack runs
+from its `th_melee` call (`.vr_melee_begun`, set in `ai.qc` `ai_run_melee`, `fight.qc` `CheckAttack`, `hip_mon_grem.qc`)
+until the monster runs again (`ai_run` clears it), 2 s at most (a monster with its own AI, the dragon). 0: combat 5's
+time rule only.
+
+### Tests
+
+`vr_test_spawn` 18 (the Guardian), 19 (the dragon), 20 (the marksman ogre, needs Honey's `progs/mogre.mdl`) for
+`impulse 241` (Debug > Tests > Ahead of You > Thing). The dispenser's map buttons are unchanged (0..17).
+
+### Results (mock, vrcalibration, `god`, the crowbar across: `vr_mock_hand main 0.15 1.35 -0.35 0 90 0`, real attacks
+for 2400 frames, `vr_parry_stamina 0`)
+
+- Overlord: before, no blow reached the parry. Now 33 full parries + 14 "same attack" cooldown blows (its double
+  smash's second, 0.50 s later); Whole Attack off: 38 full, none quiet. With parry stamina on: 4 full parries, then
+  "Exhausted: the blow knocks the weapon out of your hand!" (each a separate attack: 30 of 100 each).
+- Phantom swordsman 27 full + 21 cooldown; scorpion 33 full; spawn 2 full + 1 cooldown (a bounce of the same leap);
+  Guardian 1 full (it mostly shoots); dragon (`notarget`, `impulse 242`): "parry: monster_dragon with hand 1". Marksman
+  ogre: not spawnable here (no `mogre.mdl`); same chainsaw code as the ogre.
+- Fiend: 27 full + 2 same attack (off: 30 full). Ogre (regression): 22 full + 41 cooldown, as combat 5.

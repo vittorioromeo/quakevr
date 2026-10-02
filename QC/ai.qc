@@ -985,6 +985,7 @@ void() ai_run_melee =
 
     if(FacingIdeal())
     {
+        self.vr_melee_begun = time; // VR: one attack's blows, one parry (combat.qc VR_Parry)
         self.th_melee();
         self.attack_state = AS_STRAIGHT;
     }
@@ -1091,6 +1092,7 @@ void(float dist) ai_run =
     float    axis;
 
     movedist = dist;
+    self.vr_melee_begun = 0; // VR: running again, its melee attack (if any) is over (combat.qc VR_Parry)
 // see if the enemy is dead
    if(self.enemy.health <= 0 || (self.charmed && (self.charmer == self.enemy)))
     {
