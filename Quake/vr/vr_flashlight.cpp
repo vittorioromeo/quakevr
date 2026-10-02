@@ -13,6 +13,8 @@
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
+#include "vr_protocol.hpp"
+#include "vr_timescale.hpp"
 #include "vr_trace.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -445,13 +447,21 @@ struct State
 
     // Round 21, what a deliberate press is (intent): per hand, for the grip [0] and the trigger [1], since when the
     // analog value has been under openBelow (-1: it is not) and when it last was; and until when the hand counts as
-    // moving fast (a punch, a swing).
+    // moving fast (a punch, a swing). All in realtime, the player's own (not vr_gametime: slow motion stretched them).
     double openSince[2][2]{{-1.0, -1.0}, {-1.0, -1.0}};
     double openFrom[2][2]{};  // the last open stretch's start and end
     double openUntil[2][2]{};
     double fastUntil[2]{};
+    double punchUntil[2]{}; // until when the hand counts as having just punched (lateGrips: no late grip)
     glm::vec3 lastPos[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // where the hands were at the last frame (lastPosTime)
     double lastPosTime{-1.0};
+
+    // The late grip (lateGrips): a grip pressed near the lamp that didn't take it yet (the hand not there yet, or still
+    // moving), taken as the hand comes to rest at the lamp with the grip held. Until when it may (realtime; <0: none),
+    // and the hand's nearest to the lamp since (units: moving away from it ends it).
+    double lateUntil[2]{-1.0, -1.0};
+    double latePressed[2]{};
+    float lateNearest[2]{};
 
     bool swallowed[2][3]{}; // [hand][Button]: a press the flashlight took, whose release it takes too
     bool gripDown[2]{};
@@ -921,7 +931,26 @@ constexpr double squeezeWithin = 0.6;
 constexpr float slowSpeed = 1.f; // metres per second (a punch is 2.75 and up)
 constexpr double fastHold = 0.15;
 
-// Once a frame: the hands' analog grip and trigger and their speed, for deliberate().
+// The late grip (lateGrips): how long after the press the hand may still come to rest at the lamp (longer while a
+// slowed hand catches up with its controller), how near the lamp the press must be (metres, plus that lag), how far
+// back out from its nearest the hand may go, and the speed that is a punch, not a reach (none just before the press).
+constexpr double lateFor = 0.6;
+constexpr float lateReach = 0.25f;
+constexpr float lateBack = 0.1f;
+constexpr float punchSpeed = 2.5f;
+constexpr double punchHold = 0.3;
+constexpr float lateLag = 0.02f; // metres a slowed hand is behind its controller that count as still catching up
+
+// A hand's speed in the player's real metres per second: in slow motion the hands' velocities are the game's
+// (timescale::filterHands: sped up by 1 over the scale; timescale::handScale).
+[[nodiscard]] float realSpeed(const hands::State& s, int hand)
+{
+    return s.valid ? glm::length(s.vel[hand]) * timescale::handScale() : 0.f;
+}
+
+// Once a frame: the hands' analog grip and trigger and their speed, for deliberate(). In the player's real time and
+// speeds (realtime, realSpeed): in slow motion a hand at 0.3 m/s was "moving" at a scale of 0.3, and vr_gametime
+// stretched the holds 3 times (round 21, "Flashlight: lit, gripped, nothing").
 void noteIntent(const hands::State& s)
 {
     const InputState& in = tracking().input;
@@ -934,10 +963,10 @@ void noteIntent(const hands::State& s)
             {
                 if(st.openSince[hand][k] < 0.0)
                 {
-                    st.openSince[hand][k] = vr_gametime;
+                    st.openSince[hand][k] = realtime;
                 }
                 st.openFrom[hand][k] = st.openSince[hand][k];
-                st.openUntil[hand][k] = vr_gametime;
+                st.openUntil[hand][k] = realtime;
             }
             else
             {
@@ -946,25 +975,40 @@ void noteIntent(const hands::State& s)
         }
         // Fast by the runtime's velocity, or by where it is drawn from frame to frame (a jump: a teleport, the
         // tracking regained, a recorded take starting with the hand already somewhere).
-        const float dt = static_cast<float>(vr_gametime - st.lastPosTime);
+        const float dt = static_cast<float>(realtime - st.lastPosTime);
         const bool jumped = st.lastPosTime >= 0.0 && dt > 0.f && dt < 0.25f &&
                             glm::distance(s.pos[hand], st.lastPos[hand]) / units::metresToUnits() >= slowSpeed * za::max(dt, 1.f / 90.f);
-        if(s.valid && (glm::length(s.vel[hand]) >= slowSpeed || jumped))
+        const float speed = realSpeed(s, hand);
+        if(s.valid && (speed >= slowSpeed || jumped))
         {
-            st.fastUntil[hand] = vr_gametime + fastHold;
+            st.fastUntil[hand] = realtime + fastHold;
+        }
+        if(speed >= punchSpeed)
+        {
+            st.punchUntil[hand] = realtime + punchHold;
         }
         st.lastPos[hand] = s.pos[hand];
     }
-    st.lastPosTime = s.valid ? vr_gametime : -1.0;
+    st.lastPosTime = s.valid ? realtime : -1.0;
+}
+
+// Whether `hand` is still on the hands `s` (see noteIntent).
+[[nodiscard]] bool still(const hands::State& s, int hand)
+{
+    return realtime >= st.fastUntil[hand] && realSpeed(s, hand) < slowSpeed;
+}
+
+// Whether `hand`'s grip (k 0) or trigger (k 1), pressed now, was pressed from an open hand (see noteIntent).
+[[nodiscard]] bool pressedOpen(int hand, int k)
+{
+    return st.openUntil[hand][k] - st.openFrom[hand][k] >= openFor && realtime - st.openUntil[hand][k] <= squeezeWithin;
 }
 
 // Whether a press of `b` by `hand` is deliberate (see noteIntent): the hand still, and for the grip and the trigger,
 // pressed from an open hand. Why not, for developer 1.
 [[nodiscard]] bool deliberate(int hand, Button b)
 {
-    const hands::State& s = hands::current();
-    const bool still = vr_gametime >= st.fastUntil[hand] && (!s.valid || glm::length(s.vel[hand]) < slowSpeed);
-    if(!still)
+    if(!still(hands::current(), hand))
     {
         Con_DPrintf("torch press ignored: the %s hand moving\n", hand == HAND_MAIN ? "main" : "off");
         return false;
@@ -974,7 +1018,7 @@ void noteIntent(const hands::State& s)
         return true;
     }
     const int k = b == Button::Grip ? 0 : 1;
-    const bool opened = st.openUntil[hand][k] - st.openFrom[hand][k] >= openFor && vr_gametime - st.openUntil[hand][k] <= squeezeWithin;
+    const bool opened = pressedOpen(hand, k);
     if(!opened)
     {
         Con_DPrintf("torch press ignored: the %s hand's %s not from an open hand\n", hand == HAND_MAIN ? "main" : "off",
@@ -998,16 +1042,22 @@ void noteIntent(const hands::State& s)
 
 // Whether a hand is at the lamp: near its axis, anywhere from the tail to the lens (a long torch is taken by its
 // tube or by its head).
+// How far a hand is from the lamp's axis, from the tail to the lens (units).
+[[nodiscard]] float lampDistance(const hands::State& s, int hand)
+{
+    const glm::vec3 a = modelPointAt(st.pose, shape().cap);
+    const glm::vec3 ab = modelPointAt(st.pose, shape().lens) - a;
+    const float t = za::clamp(glm::dot(s.pos[hand] - a, ab) / za::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
+    return glm::distance(s.pos[hand], a + ab * t);
+}
+
 [[nodiscard]] bool handNear(const hands::State& s, int hand)
 {
     if(!st.placed || !s.valid)
     {
         return false;
     }
-    const glm::vec3 a = modelPointAt(st.pose, shape().cap);
-    const glm::vec3 ab = modelPointAt(st.pose, shape().lens) - a;
-    const float t = za::clamp(glm::dot(s.pos[hand] - a, ab) / za::max(glm::dot(ab, ab), 1e-4f), 0.f, 1.f);
-    return glm::distance(s.pos[hand], a + ab * t) < reach * units::metresToUnits();
+    return lampDistance(s, hand) < reach * units::metresToUnits();
 }
 
 // Whether a hand is at the head torch, to take it off: at the lamp, or its fist (where the torch's middle is when that
@@ -1304,6 +1354,48 @@ void clipOffHead(const hands::State& s, int hand)
     }
     st.holder = -1;
     letGo(s, mountPose(s));
+}
+
+// An empty hand's grip at the lamp, not held (on the body, on its way home, on the head): into that hand.
+void gripTake(const hands::State& s, int hand)
+{
+    if(st.mode == Mode::OnHead)
+    {
+        clipOffHead(s, hand);
+        return;
+    }
+    // Caught on its way home just after the other hand let it go: passed over, not taken afresh.
+    if(st.mode == Mode::Returning && st.releasedBy == 1 - hand && vr_gametime - st.releasedAt < catchWindow)
+    {
+        handOver(s, hand);
+        return;
+    }
+    take(hand);
+}
+
+// A grip press the lamp didn't take (button): a late grip (lateGrips) if it may yet. The empty hand pressed from open,
+// not just punching, within lateReach of the lamp (plus a slowed hand's lag behind its controller: where the player's
+// hand already is), and not where the game's grip wins (a holster nearer: it draws).
+void startLate(const hands::State& s, int hand)
+{
+    st.lateUntil[hand] = -1.0;
+    if(st.mode == Mode::Held || st.mode == Mode::OnGun || hand == st.gunHand || !s.valid || !handEmpty(hand) ||
+        held::heldEntity(hand) != 0 || realtime < st.punchUntil[hand] || !pressedOpen(hand, 0) ||
+        ((st.mode == Mode::Mounted || st.mode == Mode::Returning) && gameGripWins(s, hand)))
+    {
+        return;
+    }
+    const float m2u = units::metresToUnits();
+    const float d = lampDistance(s, hand);
+    if(d > (lateReach + timescale::handLag(hand)) * m2u && !(st.mode == Mode::OnHead && handAt(s, hand)))
+    {
+        return;
+    }
+    st.lateUntil[hand] = realtime + lateFor;
+    st.latePressed[hand] = realtime;
+    st.lateNearest[hand] = d;
+    Con_DPrintf("flashlight: the %s hand's grip may take it late (%.0f cm off)\n", hand == HAND_MAIN ? "main" : "off",
+        d / m2u * 100.f);
 }
 
 // Off the gun: into `hand` (its grip held at the lamp), or else back to the belt on its cord.
@@ -1728,7 +1820,7 @@ void probe_f()
         Con_Printf("torchprobe %s %s lit %d drawn %d at %d game %d hotspot %d empty %d still %d\n", tag,
             hand == HAND_MAIN ? "main" : "off", st.hovered[hand] ? 1 : 0, st.drawnAt[hand] ? 1 : 0, at ? 1 : 0,
             at && !reachesLamp(s, hand) ? 1 : 0, static_cast<int>(s.hotspot[hand]), handEmpty(hand) ? 1 : 0,
-            vr_gametime >= st.fastUntil[hand] ? 1 : 0);
+            still(s, hand) ? 1 : 0);
     }
     if(developer.value)
     {
@@ -2255,24 +2347,81 @@ bool button(int hand, Button b, bool pressed)
     // takes it off into the hand.
     if(grip && atLamp && st.mode != Mode::OnGun && handEmpty(hand) && deliberate(hand, b))
     {
-        if(st.mode == Mode::OnHead)
-        {
-            clipOffHead(hands::current(), hand);
-            swallowed = true;
-            return true;
-        }
-        // Caught on its way home just after the other hand let it go: passed over, not taken afresh.
-        if(st.mode == Mode::Returning && st.releasedBy == 1 - hand && vr_gametime - st.releasedAt < catchWindow)
-        {
-            handOver(s, hand);
-            swallowed = true;
-            return true;
-        }
-        take(hand);
+        gripTake(s, hand);
         swallowed = true;
         return true;
     }
+    // Not taken now: pressed on the way to the lamp, or at it still moving, it may take it as the hand comes to rest
+    // there with the grip held (lateGrips). The game sees the press meanwhile.
+    if(grip)
+    {
+        startLate(s, hand);
+    }
     return false;
+}
+
+void lateGrips()
+{
+    const hands::State& s = hands::current();
+    const InputState& in = tracking().input;
+    const float m2u = units::metresToUnits();
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(st.lateUntil[hand] < 0.0)
+        {
+            continue;
+        }
+        const auto end = [&](const char* why) {
+            Con_DPrintf("flashlight: the %s hand's late grip ended: %s\n", hand == HAND_MAIN ? "main" : "off", why);
+            st.lateUntil[hand] = -1.0;
+        };
+        if(!enabled() || key_dest != key_game || !st.placed || !s.valid || !in.hands[hand].grip)
+        {
+            end("let go");
+            continue;
+        }
+        // A slowed hand still catching up with its controller (slow motion) may take longer.
+        if(timescale::handLag(hand) > lateLag)
+        {
+            st.lateUntil[hand] = za::max(st.lateUntil[hand], realtime + lateFor);
+        }
+        if(realtime > st.lateUntil[hand])
+        {
+            end("too late");
+            continue;
+        }
+        const int fg = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_FGMAIN : protocol::STAT_QVR_FGOFF] & 3;
+        if(st.mode == Mode::Held || st.mode == Mode::OnGun || hand == st.gunHand || !handEmpty(hand) ||
+            held::heldEntity(hand) != 0 || (cl.stats[protocol::STAT_QVR_CLIMB] & (1 << hand)) != 0 || fg >= 2)
+        {
+            end("the game's (a weapon, a hold, a force grab) or the torch taken");
+            continue;
+        }
+        if(realtime < st.punchUntil[hand])
+        {
+            end("a punch");
+            continue;
+        }
+        const float d = lampDistance(s, hand);
+        st.lateNearest[hand] = za::min(st.lateNearest[hand], d);
+        if(d > st.lateNearest[hand] + lateBack * m2u)
+        {
+            end("moved away");
+            continue;
+        }
+        // What lights the lamp (reachesLamp, on the same hands), the hand come to rest at it.
+        if(!reachesLamp(s, hand) || !still(s, hand))
+        {
+            continue;
+        }
+        st.lateUntil[hand] = -1.0;
+        Con_DPrintf("flashlight: late grip, %.2f s after the press\n", realtime - st.latePressed[hand]);
+        gripTake(s, hand);
+        // The game saw the press: it must see the grip let go (vr_input.cpp); the release is the torch's.
+        bool& swallowed = st.swallowed[hand][static_cast<int>(Button::Grip)];
+        st.tookGrip[hand] = !swallowed;
+        swallowed = true;
+    }
 }
 
 bool tookGrip(int hand)

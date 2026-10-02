@@ -22,6 +22,11 @@ void init(); // the vr_slowmo command
 // The time scale in effect (1 unless slow motion): vr_timescale's or bullet time's (vr_bullettime.cpp), eased by
 // vr_timescale_ramp.
 [[nodiscard]] float current();
+// How much slower the hands move than their controllers (current(), or 1 in Sandevistan): a hand's velocity in the
+// game's time (filterHands) times this is its speed in the player's real time.
+[[nodiscard]] float handScale();
+// Metres `hand` (0 off, 1 main) is behind its controller in slow motion (filterHands: still catching up; 0 otherwise).
+[[nodiscard]] float handLag(int hand);
 
 // Whether the player runs in its own time in the slowed world (Sandevistan: vr_sandevistan, or bullet time's
 // vr_bullettime_sandevistan): its moves, turns, hands, weapons' timing and (vr_sandevistan_missiles) its missiles at

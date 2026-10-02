@@ -377,6 +377,17 @@ void update(const InputState& tracked)
         }
     }
 
+    // A grip pressed on the way to the flashlight takes it as the hand comes to rest there: the game saw the press,
+    // it sees the grip let go now (the release is the flashlight's).
+    flashlight::lateGrips();
+    for(int g = 0; g < HAND_COUNT; g++)
+    {
+        if(flashlight::tookGrip(g))
+        {
+            keyEvent(buttonKeys[1].key[g], false);
+        }
+    }
+
     const bool menu = key_dest != key_game;
     if(menu)
     {
