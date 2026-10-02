@@ -4609,6 +4609,10 @@ void() ImpulseCommands =
         testGib.think = SUB_Remove;
         testGib.nextthink = time + 60;
         VR_MakeGibGrabbable(testGib);
+        if(cvar("vr_test_held_destroy"))
+        {
+            VR_Gib_MakeDestroyable(testGib, (testModel == "progs/gib1.mdl" || testModel == "progs/gib2.mdl" || testModel == "progs/gib3.mdl") ? 1 : 1.5); // (a head 1.5)
+        }
         setorigin(testGib, VRGetHandPos(cVR_OffHand));
         VR_Carry_Start(self, cVR_OffHand, testGib);
         dprint("test: "); dprint(testModel); dprint(" in the off hand\n");
