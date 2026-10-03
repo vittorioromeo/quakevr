@@ -1848,7 +1848,8 @@ void addCorpseShapes(edict_t* ent, int num, qmodel_t* model, Slot& s)
 }
 
 // ----------------------------------------------------------------------------
-// Ragdolls (vr_ragdoll; experimental, the grunt and the knight; ROUND21.md, "Ragdolls", "Ragdolls 2", "Ragdolls 3"). A dying grunt (dead, not solid: his
+// Ragdolls (vr_ragdoll; experimental, the monsters with a rig: vr_ragdoll.cpp seedTables; ROUND21.md, "Ragdolls" to
+// "Ragdolls 4"). A dying grunt (dead, not solid: his
 // death code's third frame on), once his death animation is vr_ragdoll_start of the way through, becomes a ragdoll: one
 // dynamic body per bone of his rig (vr_ragdoll.cpp: derived from his model's animation), made where his drawn frame has
 // each bone and moving as the animation moved it, jointed at the rig's pivots (balls with cone and twist limits, hinges
@@ -1895,6 +1896,24 @@ const RagdollClass ragdollClasses[] = {
     {"monster_knight", {&vr_ragdoll_knight_start, &vr_ragdoll_knight_mass, &vr_ragdoll_knight_friction,
                            &vr_ragdoll_knight_joint_friction, &vr_ragdoll_knight_joint_stiffness, &vr_ragdoll_knight_limits,
                            &vr_ragdoll_knight_damping, &vr_ragdoll_knight_blast, &vr_ragdoll_knight_inherit}},
+    {"monster_ogre", {&vr_ragdoll_ogre_start, &vr_ragdoll_ogre_mass, &vr_ragdoll_ogre_friction,
+                &vr_ragdoll_ogre_joint_friction, &vr_ragdoll_ogre_joint_stiffness, &vr_ragdoll_ogre_limits,
+                &vr_ragdoll_ogre_damping, &vr_ragdoll_ogre_blast, &vr_ragdoll_ogre_inherit}},
+    {"monster_ogre_marksman", {&vr_ragdoll_ogre_start, &vr_ragdoll_ogre_mass, &vr_ragdoll_ogre_friction,
+                &vr_ragdoll_ogre_joint_friction, &vr_ragdoll_ogre_joint_stiffness, &vr_ragdoll_ogre_limits,
+                &vr_ragdoll_ogre_damping, &vr_ragdoll_ogre_blast, &vr_ragdoll_ogre_inherit}},
+    {"monster_enforcer", {&vr_ragdoll_enforcer_start, &vr_ragdoll_enforcer_mass, &vr_ragdoll_enforcer_friction,
+                &vr_ragdoll_enforcer_joint_friction, &vr_ragdoll_enforcer_joint_stiffness, &vr_ragdoll_enforcer_limits,
+                &vr_ragdoll_enforcer_damping, &vr_ragdoll_enforcer_blast, &vr_ragdoll_enforcer_inherit}},
+    {"monster_hell_knight", {&vr_ragdoll_hknight_start, &vr_ragdoll_hknight_mass, &vr_ragdoll_hknight_friction,
+                &vr_ragdoll_hknight_joint_friction, &vr_ragdoll_hknight_joint_stiffness, &vr_ragdoll_hknight_limits,
+                &vr_ragdoll_hknight_damping, &vr_ragdoll_hknight_blast, &vr_ragdoll_hknight_inherit}},
+    {"monster_dog", {&vr_ragdoll_dog_start, &vr_ragdoll_dog_mass, &vr_ragdoll_dog_friction,
+                &vr_ragdoll_dog_joint_friction, &vr_ragdoll_dog_joint_stiffness, &vr_ragdoll_dog_limits,
+                &vr_ragdoll_dog_damping, &vr_ragdoll_dog_blast, &vr_ragdoll_dog_inherit}},
+    {"monster_wizard", {&vr_ragdoll_wizard_start, &vr_ragdoll_wizard_mass, &vr_ragdoll_wizard_friction,
+                &vr_ragdoll_wizard_joint_friction, &vr_ragdoll_wizard_joint_stiffness, &vr_ragdoll_wizard_limits,
+                &vr_ragdoll_wizard_damping, &vr_ragdoll_wizard_blast, &vr_ragdoll_wizard_inherit}},
 };
 
 // The setting `t` for `ent`'s ragdoll: its class's own, else the global one.

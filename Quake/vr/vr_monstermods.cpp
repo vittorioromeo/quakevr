@@ -120,7 +120,8 @@ za::Vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tri
 }
 
 // Quake VR's own knight models (quakevr/progs, higher detail than id's): their swords' vertices,
-// found by hand (Misc/quakevr/make_swords.py uses the same lists). The knight's frames are numbered,
+// found by hand (Misc/quakevr/make_swords.py uses the same lists; the hell knight's here also has the blade's guard, a
+// piece his hand holds: hidden too, so his corpse and ragdoll hold nothing). The knight's frames are numbered,
 // not named: its death frames are id's (the last 21, death1 .. deathb11). And Quake VR's ogre's chainsaw
 // (Misc/quakevr/make_chainsaw.py: vertices 416..496, a separate piece), its soldier's shotgun and its enforcer's laser
 // rifle (Misc/quakevr/make_enemyguns.py: separate pieces). The soldier's frames are not named either: its death frames
@@ -139,7 +140,20 @@ const KnownSword knownSwords[] = {
             566, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602,
             603, 604, 607, 608, 609, 612, 613, 614, 615, 617, 626, 627, 628, 639, 640, 645, 646},
         76, 96},
-    {"progs/hknight.mdl", 538, 1000, {43, 45, 46, 47, 48, 526, 527, 531, 532}, -1, -1},
+    // (The hell knight's blade, and its guard: a piece of its own his hand holds, the dropped sword has its own hilt.)
+    {"progs/hknight.mdl", 538, 1000, [] {
+         za::Vector<int> v{43, 45, 46, 47, 48, 526, 527, 531, 532, 42, 44, 525, 528, 529, 530};
+         for(int i = 49; i <= 58; i++)
+         {
+             v.pushBack(i);
+         }
+         for(int i = 332; i <= 365; i++)
+         {
+             v.pushBack(i);
+         }
+         return v;
+     }(),
+        -1, -1},
     {"progs/ogre.mdl", 497, 1290, [] {
          za::Vector<int> v(81);
          za::iota(v.begin(), v.end(), 416);

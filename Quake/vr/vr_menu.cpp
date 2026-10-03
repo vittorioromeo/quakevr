@@ -2619,6 +2619,11 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageRagdollGrunt();
 [[nodiscard]] za::Vector<Item> pageRagdollKnight();
 [[nodiscard]] za::Vector<Item> pageCorpseDamage();
+[[nodiscard]] za::Vector<Item> pageRagdollOgre();
+[[nodiscard]] za::Vector<Item> pageRagdollEnforcer();
+[[nodiscard]] za::Vector<Item> pageRagdollDeathKnight();
+[[nodiscard]] za::Vector<Item> pageRagdollRottweiler();
+[[nodiscard]] za::Vector<Item> pageRagdollScrag();
 
 // Split from Carrying and Gibs: taking, throwing and bursting gibs, heads and corpses.
 [[nodiscard]] za::Vector<Item> pageGibs()
@@ -2665,8 +2670,8 @@ void hologramTestMessage()
         toggle("Monsters Step Over Corpses", vr_corpse_collide_monsters)
             .help("Monsters walk over corpses as a low step instead of through them (vr_corpse_collide_monsters)."),
         header("Ragdolls (Experimental)"),
-        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "Grunt and Knight (Experimental)"}})
-            .help("A dying grunt or knight goes limp: his body becomes jointed parts that fall, tumble, are pushed, grabbed "
+        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "On (Experimental)"}})
+            .help("A dying grunt, knight, ogre, enforcer, death knight, rottweiler or scrag goes limp: his body becomes jointed parts that fall, tumble, are pushed, grabbed "
                   "and thrown (vr_ragdoll). Their settings: Ragdoll Settings."),
         open("Ragdoll Settings", pageIndex(pageRagdolls)),
     };
@@ -2745,8 +2750,8 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageRagdolls()
 {
     return {
-        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "Grunt and Knight (Experimental)"}})
-            .help("A dying grunt or knight goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs) that fall, "
+        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "On (Experimental)"}})
+            .help("A dying grunt, knight, ogre, enforcer, death knight, rottweiler or scrag goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs; a rottweiler's four legs, jaw and tail; a scrag's tail) that fall, "
                   "tumble down stairs, are pushed by shots, blasts, props and your hands, his mesh bent with them. Shoot "
                   "or blow him up enough and he still bursts into gibs, as a corpse does (Gibs and Corpses: Corpse Damage "
                   "and Health, Never Gib Corpses) (vr_ragdoll)."),
@@ -2778,6 +2783,11 @@ void hologramTestMessage()
         header("Each Monster's Own"),
         open("Grunt", pageIndex(pageRagdollGrunt)),
         open("Knight", pageIndex(pageRagdollKnight)),
+        open("Ogre", pageIndex(pageRagdollOgre)),
+        open("Enforcer", pageIndex(pageRagdollEnforcer)),
+        open("Death Knight", pageIndex(pageRagdollDeathKnight)),
+        open("Rottweiler", pageIndex(pageRagdollRottweiler)),
+        open("Scrag", pageIndex(pageRagdollScrag)),
         header("Taking Them"),
         cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}, {2.f, "By Hand and Force Grab"}})
             .help("Grip on a limb to take it: it follows your hand, the body hanging from it; let go to drop or throw it. "
@@ -2850,6 +2860,151 @@ void hologramTestMessage()
                               "vr_ragdoll_knight_joint_friction -1; vr_ragdoll_knight_joint_stiffness -1; vr_ragdoll_knight_limits -1; "
                               "vr_ragdoll_knight_damping -1; vr_ragdoll_knight_blast -1; vr_ragdoll_knight_inherit -1")
             .help("The knight's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Ogre: the ogre's own physics (vr_ragdoll_ogre_*), each one Global (the one for
+// all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollOgre()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_ogre_start, 0.f, 1.f, 0.1f, "%.1f").help("vr_ragdoll_ogre_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_ogre_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_ogre_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_ogre_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_ogre_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_ogre_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_ogre_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_ogre_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_ogre_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_ogre_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_ogre_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_ogre_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_ogre_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_ogre_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_ogre_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_ogre_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_ogre_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_ogre_start -1; vr_ragdoll_ogre_mass -1; vr_ragdoll_ogre_friction -1; "
+                              "vr_ragdoll_ogre_joint_friction -1; vr_ragdoll_ogre_joint_stiffness -1; vr_ragdoll_ogre_limits -1; "
+                              "vr_ragdoll_ogre_damping -1; vr_ragdoll_ogre_blast -1; vr_ragdoll_ogre_inherit -1")
+            .help("The ogre's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Enforcer: the enforcer's own physics (vr_ragdoll_enforcer_*), each one Global (the one for
+// all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollEnforcer()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_enforcer_start, 0.f, 1.f, 0.1f, "%.1f").help("vr_ragdoll_enforcer_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_enforcer_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_enforcer_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_enforcer_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_enforcer_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_enforcer_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_enforcer_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_enforcer_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_enforcer_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_enforcer_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_enforcer_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_enforcer_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_enforcer_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_enforcer_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_enforcer_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_enforcer_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_enforcer_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_enforcer_start -1; vr_ragdoll_enforcer_mass -1; vr_ragdoll_enforcer_friction -1; "
+                              "vr_ragdoll_enforcer_joint_friction -1; vr_ragdoll_enforcer_joint_stiffness -1; vr_ragdoll_enforcer_limits -1; "
+                              "vr_ragdoll_enforcer_damping -1; vr_ragdoll_enforcer_blast -1; vr_ragdoll_enforcer_inherit -1")
+            .help("The enforcer's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Death Knight: the death knight's own physics (vr_ragdoll_hknight_*), each one Global (the one for
+// all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollDeathKnight()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_hknight_start, 0.f, 1.f, 0.1f, "%.1f").help("vr_ragdoll_hknight_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_hknight_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_hknight_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_hknight_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_hknight_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_hknight_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_hknight_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_hknight_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_hknight_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_hknight_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_hknight_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_hknight_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_hknight_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_hknight_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_hknight_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_hknight_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_hknight_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_hknight_start -1; vr_ragdoll_hknight_mass -1; vr_ragdoll_hknight_friction -1; "
+                              "vr_ragdoll_hknight_joint_friction -1; vr_ragdoll_hknight_joint_stiffness -1; vr_ragdoll_hknight_limits -1; "
+                              "vr_ragdoll_hknight_damping -1; vr_ragdoll_hknight_blast -1; vr_ragdoll_hknight_inherit -1")
+            .help("The death knight's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Rottweiler: the rottweiler's own physics (vr_ragdoll_dog_*), each one Global (the one for
+// all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollRottweiler()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_dog_start, 0.f, 1.f, 0.1f, "%.1f").help("vr_ragdoll_dog_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_dog_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_dog_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_dog_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_dog_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_dog_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_dog_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_dog_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_dog_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_dog_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_dog_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_dog_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_dog_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_dog_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_dog_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_dog_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_dog_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_dog_start -1; vr_ragdoll_dog_mass -1; vr_ragdoll_dog_friction -1; "
+                              "vr_ragdoll_dog_joint_friction -1; vr_ragdoll_dog_joint_stiffness -1; vr_ragdoll_dog_limits -1; "
+                              "vr_ragdoll_dog_damping -1; vr_ragdoll_dog_blast -1; vr_ragdoll_dog_inherit -1")
+            .help("The rottweiler's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Scrag: the scrag's own physics (vr_ragdoll_wizard_*), each one Global (the one for
+// all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollScrag()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_wizard_start, 0.f, 1.f, 0.1f, "%.1f").help("vr_ragdoll_wizard_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_wizard_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_wizard_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_wizard_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_wizard_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_wizard_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_wizard_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_wizard_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_wizard_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_wizard_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_wizard_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_wizard_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_wizard_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_wizard_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_wizard_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_wizard_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_wizard_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_wizard_start -1; vr_ragdoll_wizard_mass -1; vr_ragdoll_wizard_friction -1; "
+                              "vr_ragdoll_wizard_joint_friction -1; vr_ragdoll_wizard_joint_stiffness -1; vr_ragdoll_wizard_limits -1; "
+                              "vr_ragdoll_wizard_damping -1; vr_ragdoll_wizard_blast -1; vr_ragdoll_wizard_inherit -1")
+            .help("The scrag's ragdoll as all monsters' (Ragdoll Settings)."),
     };
 }
 
@@ -3581,7 +3736,7 @@ za::Vector<Item> pageDebugTests()
                   "to test held props (the blood on what you hold: vr_gore_spatter_test, vr_gore_hands_info)."),
         cycle("As a Corpse", vr_test_spawn_dead, {{0.f, "Off"}, {1.f, "Corpse"}, {2.f, "Gibbed"}, {3.f, "Ragdoll"}})
             .help("A monster killed at once: a corpse, to test gibbing and carrying; Gibbed: killed hard enough to gib (its "
-                  "gibs and head to pick up); Ragdoll: a corpse with ragdolls on (vr_ragdoll 1: a grunt or a knight goes limp as he "
+                  "gibs and head to pick up); Ragdoll: a corpse with ragdolls on (vr_ragdoll 1: a grunt, knight, ogre, enforcer, death knight, rottweiler or scrag goes limp as he "
                   "falls)."),
         slider("Box Turned", vr_test_spawn_yaw, 0.f, 90.f, 1.f, "%.0f degrees")
             .extend()
@@ -3594,6 +3749,16 @@ za::Vector<Item> pageDebugTests()
         command("A Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 5; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a knight killed at the Distance ahead: he goes limp as "
                   "he falls (his sword dropped)."),
+        command("An Ogre's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 1; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and an ogre killed at the Distance ahead: he goes limp as he falls (his chainsaw dropped)."),
+        command("An Enforcer's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 8; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and an enforcer killed at the Distance ahead: he goes limp as he falls (his laser rifle dropped)."),
+        command("A Death Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 6; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a death knight killed at the Distance ahead: he goes limp as he falls (his sword dropped)."),
+        command("A Rottweiler's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 7; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a rottweiler killed at the Distance ahead: it goes limp as it falls."),
+        command("A Scrag's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 4; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a scrag killed at the Distance ahead: he falls limp."),
         command("A Grunt's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a grunt killed at the Distance ahead: he goes limp as "
                   "he falls."),
@@ -4359,6 +4524,11 @@ const Page pages[] = {
     {"Ragdolls - Grunt", pageRagdollGrunt, pageRagdolls},                          // 118
     {"Ragdolls - Knight", pageRagdollKnight, pageRagdolls},                        // 119
     {"Gibs and Corpses - Corpse Damage and Health", pageCorpseDamage, pageGibs},   // 120
+    {"Ragdolls - Ogre", pageRagdollOgre, pageRagdolls},                            // 121
+    {"Ragdolls - Enforcer", pageRagdollEnforcer, pageRagdolls},                    // 122
+    {"Ragdolls - Death Knight", pageRagdollDeathKnight, pageRagdolls},             // 123
+    {"Ragdolls - Rottweiler", pageRagdollRottweiler, pageRagdolls},                // 124
+    {"Ragdolls - Scrag", pageRagdollScrag, pageRagdolls},                          // 125
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

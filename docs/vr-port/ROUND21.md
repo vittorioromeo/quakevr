@@ -23338,3 +23338,89 @@ In VR:
 - [ ] Never Gib Corpses > Corpses and Ragdolls: rockets throw a grunt's ragdoll about, it never gibs.
 - [ ] Never Gib Corpses > And Dying Monsters: a grunt killed by a rocket goes limp and flies, no gibs.
 - [ ] Never Gib Corpses > Off again: corpses gib as before.
+
+## Ragdolls 4: the ogre, enforcer, death knight, rottweiler and scrag (2026-10-03)
+
+The knight's way (Ragdolls 3) for five more: a seed table each (vr_ragdoll.cpp), their own settings (`vr_ragdoll_<class>_*`,
+-1 Global; vr_box3d.cpp ragdollClasses) under Gibs and Corpses > Ragdoll Settings > <Enemy>, a Debug > Tests spawner each.
+The Ragdolls switch reads Off / **On (Experimental)**; its help names the monsters.
+
+**The measuring tool**: Misc/quakevr/ragdoll/rig.py (knight_rig.py made general: `python rig.py ogre` the motion clusters,
+`python rig.py ogre ogre_bones.json` the bones' fit, joints and the seed table to paste, `python rig.py ogre draw x.png
+[pose] [bones]` the clusters or bones in colour on a pose, from the side and the front). The dropped weapon is hidden as
+vr_monstermods.cpp hides it; `<monster>_bones.json` gives each bone its clusters, joint and capsule.
+
+**Loose pieces, made general** (the grunt's and the knight's rigs unchanged: 12 bones, 0.52 and 0.79 units rms): a loose
+piece is now any piece a frame hides (all of it at one point), however near the body; all of them one loose bone. A
+triangle with a repeated corner joins nothing (it draws nothing): the ogre's chainsaw was tied to his hand by one.
+
+**Ogre** (quakevr/progs/ogre.mdl: 497 vertices, 149 frames; death 112-125, 126-135). Pelvis, chest, head, upper arm,
+forearm (elbow hinge) and hand each side, thighs and shins (knee hinges; capsules 4.5 and 4): 13 bones and the loose one,
+his chainsaw (four pieces, 81 vertices, hidden in 24 poses: he drops it, QC VR_DropOgreChainsaw). His animation is the
+least rigid: clusters 1.36 units rms, bones 1.52 (1.8 with the hands on the forearms). Class rows: monster_ogre and
+monster_ogre_marksman. Tests (`MON=1 BLAST=280`): flat limp at frame 129 (33%), asleep at 5 s; stairs down them, asleep
+(parts z -89 .. -44); blast thrown and asleep; gib: no ragdoll left; save and load: made again in frame 125. The switch
+(vr_timescale 0.1, first frame drawn against the animated mesh): death 1 1.8 units rms, 6.7 at most; death 2 1.5, 6.2 (the
+rig's fit); a frame every 2 round it, the crop's change 13.9 at the switch against 5-7 before and after (the fit and
+the normals: he is drawn large in the crop).
+
+In VR:
+- [ ] Ragdolls on, kill ogres: they go limp, the chainsaw dropped beside them, none in the hand.
+- [ ] vr_timescale 0.1, kill ogres: the switch unseen in both death animations.
+- [ ] Ragdolls > Ogre: his own Mass (80 kg, the global one, may feel light for an ogre).
+
+**Enforcer** (quakevr/progs/enforcer.mdl: 479 vertices, 108 frames; death 41-54, 55-65). As the grunt: pelvis, chest
+(his pack on it), head, upper arms, forearms (elbow hinges), thighs (the knee's ring: his legs' long triangles have no
+vertices) and shins (the boot; knee hinges); 11 bones and his laser rifle loose (58 vertices, hidden in 25 poses).
+Clusters 0.88 units rms, bones 0.97. Tests (`MON=8 BLAST=100`): flat limp at frame 58, asleep at 5 s; stairs down them;
+blast thrown; gib: none left; save and load: made again in frame 65. The switch: death 1 1.03 units rms, 3.2 at most;
+death 2 0.63, 2.0. The ogre's shins now end above his feet (rig.py keeps a leaf's capsule above its lowest vertex).
+
+In VR:
+- [ ] Ragdolls on, kill enforcers: they go limp, the rifle dropped beside them; vr_timescale 0.1: the switch unseen.
+- [ ] Ragdolls > Enforcer: his own settings.
+
+**Death knight** (quakevr/progs/hknight.mdl: 538 vertices, 167 frames; death 42-53, 54-62). Pelvis, chest, head, upper
+arms (the pauldrons on them), forearms (elbow hinges), his right hand (his left on its forearm), thighs (the hip's
+piece), shins (the knee's; knee hinges) and feet (the boot; balls 35/15): 14 bones and the loose one. Clusters 1.02
+units rms, bones 1.30 (his pauldrons move as neither his chest nor his arms: 2.5 on the left arm; feet of their own took
+the shins from 1.4 to 0.5). **His sword's guard** was a piece of its own left in his hand in his death frames (the dropped
+sword has a hilt of its own, make_swords.py): vr_monstermods.cpp now hides it with the blade (59 vertices, 21 death
+frames), on his corpse too. Tests (`MON=6`, `BLAST=290`: 350 gibs him): flat limp at frame 46, asleep at 5 s; stairs;
+blast thrown; gib; save and load (made again in frame 62). The switch: death 1 1.35 units rms, 4.8 at most; death 2 1.17,
+6.2.
+
+In VR:
+- [ ] Ragdolls on, kill death knights: they go limp, the sword dropped, nothing in the hand; vr_timescale 0.1: unseen.
+- [ ] Ragdolls off: a death knight's corpse has no guard left in its hand.
+- [ ] Ragdolls > Death Knight: his own settings.
+
+**Rottweiler** (quakevr/progs/dog.mdl: 655 vertices, 86 frames numbered in id's order; death 8-16, 17-25). A quadruped:
+the pelvis (hips and back) the root; the chest (shoulders and ribs) on it by the spine (ball 30/20); the head on the chest
+(ball 50/40) and the jaw on the head (a hinge, derived from his open mouth: it closes 25 degrees, opens 12 more); the
+tail on the pelvis (50/30); each leg an upper part (a ball at the shoulder or the hip, 60/20, a capsule 2 or 2.5) and a
+lower one (a hinge, capsule 1.6): the forearms fold forward (140: lying, the forearms on the ground before him), the
+shins backward (120). 13 bones, 0.62 units rms (clusters 0.52). His legs lean a little sideways at rest, which turned
+the derived hinge axes along his body (the hind left's: x): a seed's **keepHinge** keeps its axis (across him) and
+measures the rest bend about it (the others' tables don't use it: unchanged). Tests (`MON=7`): flat limp at frame 11
+(38%), asleep at 5 s, folded on his legs (eyeshots); stairs; blast; gib; save and load. The switch: death 1 0.65 units
+rms, 2.7 at most; death 2 0.66, 3.8.
+
+In VR:
+- [ ] Ragdolls on, kill rottweilers: they fall limp on four legs; vr_timescale 0.1: the switch unseen.
+- [ ] Grab one by a leg, the head, the tail: the legs fold the right way, the jaw hangs.
+- [ ] Ragdolls > Rottweiler: his own Mass (80 kg, the global one, is heavy for a dog).
+
+**Scrag** (quakevr/progs/wizard.mdl: 310 vertices, 55 frames; death 46-53, one animation). No legs: the pelvis (his ribbed
+belly) the root, chest, head, arms and hands (his claws: balls 40/30) on it, his tail four bones (balls 40/20; three
+left its tip at 8 units off in his death frames). 11 bones, clusters 0.73 units rms, bones 0.90 (the tail's tip 1.5).
+His head's seed centre is set back from its vertices' middle (the back of his head's cluster was nearer his right arm's:
+rig.py warns of that now). **Falling limp**: dead, the QC throws him (wiz_death1: up to 200 u/s each way) and lets him
+fall (monster_death_use clears FL_FLY); his ragdoll, made at frame 49 (43%), keeps that motion and falls limp to the
+floor (eyeshots: thrown up and away, lands, lies curled on his side). Tests (`MON=4`): flat (thrown, asleep at 4.9 s on
+the floor), stairs, gib, save and load (made again in frame 53: 3.1 units rms, 8.4 at most: his last pose fits worst).
+The blast case's spot misses a hovering scrag. The switch: 1.25 units rms, 5.7 at most (his tail).
+
+In VR:
+- [ ] Ragdolls on, shoot scrags in the air: they fall limp to the floor; vr_timescale 0.1: the switch unseen.
+- [ ] Grab one by the tail; Ragdolls > Scrag: his own settings.

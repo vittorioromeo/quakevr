@@ -188,9 +188,28 @@ Ragdolls: walk at one with You and Corpses on Step Over / Solid: you step onto i
 Ragdolls > Grunt: set his Mass or Joint Friction apart from the global ones (Global at the bar's left end)
 Ragdolls on the knight: they go limp, the sword dropped beside them; slow motion: the switch unseen in both death animations
 Ragdolls: grab, force grab, pile and burn knights as grunts; Ragdolls > Knight: his own settings; his arms (no elbows) look right?
+Ragdolls on the ogre: they go limp, his chainsaw dropped beside them, none left in his hand
+Ragdolls on the ogre in slow motion (vr_timescale 0.1): the switch is unseen in both his death animations
+Ragdolls > Ogre: set his own Mass apart from the global one (an ogre at 80 kg feels light?)
+Ragdolls on the enforcer: they go limp, his laser rifle dropped beside them, none left in his hands
+Ragdolls on the enforcer in slow motion (vr_timescale 0.1): the switch is unseen in both his death animations
+Ragdolls > Enforcer: set his own Joint Friction apart from the global one
+Ragdolls on the death knight: they go limp, his sword dropped beside them, nothing left in his hand
+Death knight corpses (ragdolls off): no sword guard left floating in the dead hand
+Ragdolls on the death knight in slow motion (vr_timescale 0.1): the switch is unseen in both his death animations
+Ragdolls > Death Knight: set his own Joint Limits apart from the global one
+Ragdolls on the rottweiler: they collapse limp on four legs, nothing pops or bends sideways
+Ragdolls on the rottweiler: grab one by a leg, the head and the tail; its legs fold the right way (forelegs forward, hind legs back)
+Ragdolls on the rottweiler in slow motion (vr_timescale 0.1): the switch is unseen in both its death animations
+Ragdolls > Rottweiler: set its own Mass apart from the global one (80 kg is heavy for a dog?)
+Ragdolls on the scrag: shot in the air, he falls limp to the floor (no stiff body floating or falling)
+Ragdolls on the scrag: his tail flops as he falls and lies; grab him by the tail
+Ragdolls on the scrag in slow motion (vr_timescale 0.1): the switch is unseen
+Ragdolls > Scrag: set his own Mass apart from the global one
 
 [Decide or give feedback]
-Ragdolls: turn on by default? Next: other monsters, severing; is the grip strong enough to lift a grunt?
+Ragdolls: an 80 kg ogre and an 80 kg rottweiler: give each monster its own Mass by default (Ragdolls > <monster>)?
+Ragdolls: turn on by default? Next: the zombie, fiend, shambler, vore, spawn and fish, severing; is the grip strong enough to lift a grunt?
 Thrown axe hitting an explosive box: bounces off (metal) now; should it stick? (Thrown Axes > vr_axestick_metal)
 Training dummy: its wounds build up until gibbed: should it heal over time?
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
