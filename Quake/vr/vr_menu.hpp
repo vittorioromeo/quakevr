@@ -45,6 +45,9 @@ void jumpToAdvanced();
 // from it goes to the VR Settings.
 void jumpToChecklist();
 
+// Menu Detail at Developer (vr_menu_level 2): the tuning and testing pages, the corner's Checklist button.
+[[nodiscard]] bool developerLevel();
+
 // The sticks' selection back on the page shown from the corner's buttons: onto its first setting
 // (dir 1, going down) or its last (dir -1, going up).
 void selectEnd(int dir);

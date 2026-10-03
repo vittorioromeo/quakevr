@@ -136,6 +136,24 @@ struct Item
     bool (*dimArg)(int){nullptr};
     int partOf{0};
 
+    // The menu detail level (vr_menu_level: MenuLevel, below) it is shown from: a row for the curious (advanced()) or for
+    // tuning and testing (developer()) is left out of the pages below that level.
+    int level{0};
+
+    [[nodiscard]] Item advanced() const
+    {
+        Item i = *this;
+        i.level = 1;
+        return i;
+    }
+
+    [[nodiscard]] Item developer() const
+    {
+        Item i = *this;
+        i.level = 2;
+        return i;
+    }
+
     [[nodiscard]] Item help(const char* text) const
     {
         Item i = *this;
@@ -4485,11 +4503,22 @@ enum PageId
     PageAdvanced
 };
 
+// Who a page is for (vr_menu_level, Menu Detail at the bottom of every page): links to a page above the level are left
+// out, and so are the rows marked advanced() or developer() (MENU_REVIEW.md). menu_vr <n> opens any page.
+enum MenuLevel
+{
+    LevelStandard,  // what every player sets: comfort, height, the HUD, the headset, volume
+    LevelAdvanced,  // every gameplay, display and graphics setting (the default for a page)
+    LevelDeveloper, // tuning (weapon and prop offsets, weights, ragdolls, hitboxes), recording, debug and tests
+    LevelCount
+};
+
 struct Page
 {
     const char* title; // over the page; also its name in vr_menu_positions (renamed: its record is ignored)
     PageBuilder build;
     PageBuilder home; // the page listing it in the tree (Back after menu_vr <n>; links elsewhere go back where they came from)
+    int level{LevelAdvanced};
 };
 
 [[nodiscard]] za::Vector<Item> pageMain();
@@ -4516,30 +4545,30 @@ struct Page
 // tree is in the pages' links: VR Settings > Advanced VR Options > its groups > their pages; ROUND21.md, "Menus
 // reorganized"). Links find their page by its builder (pageIndex).
 const Page pages[] = {
-    {"VR Settings", pageMain, nullptr},                                     // 0
+    {"VR Settings", pageMain, nullptr, LevelStandard},                                     // 0
     {"Advanced VR Options", pageAdvanced, pageMain},                        // 1
     {"Play", pagePlay, pageAdvanced},                                       // 2
     {"World", pageGameplay, pageAdvanced},                                  // 3 (Gameplay before)
     {"Parry and Bash", pageParryBash, pageCombat},                          // 4 (Parry, Bash and Headbutt before)
     {"Melee", pageMeleeSettings, pageCombat},                               // 5
-    {"Motion Recorder", pageMotionRecorder, pageAdvanced},                  // 6
-    {"Review Takes", pageReviewTakes, pageAdvanced},                        // 7
-    {"Take", pageReviewTake, pageReviewTakes},                              // 8
+    {"Motion Recorder", pageMotionRecorder, pageAdvanced, LevelDeveloper},                  // 6
+    {"Review Takes", pageReviewTakes, pageAdvanced, LevelDeveloper},                        // 7
+    {"Take", pageReviewTake, pageReviewTakes, LevelDeveloper},                              // 8
     {"Gore", pageGore, pageAdvanced},                                       // 9
-    {"Throwing and Physics", pageThrowing, pageCarryingHub},                // 10
+    {"Throwing and Physics", pageThrowing, pageCarryingHub, LevelDeveloper},                // 10
     {"Carrying", pageCarrying, pageCarryingHub},                            // 11 (Carrying and Gibs before)
     {"Force Grab", pageForceGrab, pageCarryingHub},                         // 12
     {"Grappling Hook", pageGrapple, pageMovement},                          // 13
     {"Body", pageBody, pageAdvanced},                                       // 14
-    {"Body - Arms and Pauldrons", pageBodyArms, pageBody},                  // 15
-    {"Body Calibration", pageBodyCalibration, pageBody},                    // 16
+    {"Body - Arms and Pauldrons", pageBodyArms, pageBody, LevelDeveloper},                  // 15
+    {"Body Calibration", pageBodyCalibration, pageBody, LevelStandard},                    // 16
     {"Flashlight", pageFlashlight, pageAdvanced},                           // 17
     {"Player Calibration", pagePlayerCalibration, pageBody},                // 18
     {"Locomotion", pageLocomotionSettings, pageMovement},                   // 19
     {"Swimming", pageSwimSettings, pageMovement},                           // 20
     {"Immersion", pageImmersionSettings, pageWeaponsHub},                   // 21
     {"Hand/Gun Calibration", pageHandGunCalibration, pageWeaponsHub},       // 22
-    {"Weapon Offsets", pageWeaponOffsets, pageWeaponsHub},                  // 23
+    {"Weapon Offsets", pageWeaponOffsets, pageWeaponsHub, LevelDeveloper},                  // 23
     {"Aiming", pageAimingSettings, pageWeaponsHub},                         // 24
     {"Hotspots", pageHotspotSettings, pageWeaponsHub},                      // 25
     {"Wrist Gadget", pageGadget, pageHudHub},                               // 26
@@ -4557,17 +4586,17 @@ const Page pages[] = {
     {"Graphics - Models and Effects", pageGraphicsModels, pageGraphics},    // 38
     {"Particles", pageParticleSettings, pageGraphics},                      // 39
     {"Transparency", pageTransparencyOptions, pageGraphics},                // 40
-    {"Held Object Offsets", pageHeldObjectOffsets, pageCarryingHub},        // 41
-    {"Weapon Weights", pageWeaponWeights, pageWeaponsHub},                  // 42
-    {"Held Object Weights", pageHeldObjectWeights, pageCarryingHub},        // 43
+    {"Held Object Offsets", pageHeldObjectOffsets, pageCarryingHub, LevelDeveloper},        // 41
+    {"Weapon Weights", pageWeaponWeights, pageWeaponsHub, LevelDeveloper},                  // 42
+    {"Held Object Weights", pageHeldObjectWeights, pageCarryingHub, LevelDeveloper},        // 43
     // Added with the menus reorganized (ROUND21.md).
     {"Combat", pageCombat, pageAdvanced},                                   // 44
     {"Movement", pageMovement, pageAdvanced},                               // 45
     {"Carrying and Throwing", pageCarryingHub, pageAdvanced},               // 46
     {"Weapons", pageWeaponsHub, pageAdvanced},                              // 47
     {"HUD and Menus", pageHudHub, pageAdvanced},                            // 48
-    {"Body and Display", pageBodyDisplay, pageMain},                        // 49
-    {"Headset", pageHeadset, pageMain},                                     // 50
+    {"Body and Display", pageBodyDisplay, pageMain, LevelStandard},                        // 49
+    {"Headset", pageHeadset, pageMain, LevelStandard},                                     // 50
     {"Damage and Knockback", pageDamage, pageCombat},                       // 51
     {"Stamina", pageStamina, pageCombat},                                   // 52
     {"Batting and Catching", pageBatting, pageCombat},                      // 53
@@ -4575,24 +4604,24 @@ const Page pages[] = {
     {"Wall Torches", pageWallTorches, pageCarryingHub},                     // 55
     {"Rocks and Bricks", pageRocksBricks, pageCarryingHub},                 // 56
     {"Gibs and Corpses", pageGibs, pageCarryingHub},                        // 57
-    {"Flashlight - Low Grip", pageFlashlightLowGrip, pageFlashlight},       // 58
-    {"Flashlight - Overhead Grip", pageFlashlightOverheadGrip, pageFlashlight}, // 59
-    {"Flashlight - On a Gun or Head", pageFlashlightMounts, pageFlashlight}, // 60
-    {"Fingers and Collisions", pageFingersCollisions, pageWeaponsHub},      // 61
+    {"Flashlight - Low Grip", pageFlashlightLowGrip, pageFlashlight, LevelDeveloper},       // 58
+    {"Flashlight - Overhead Grip", pageFlashlightOverheadGrip, pageFlashlight, LevelDeveloper}, // 59
+    {"Flashlight - On a Gun or Head", pageFlashlightMounts, pageFlashlight, LevelDeveloper}, // 60
+    {"Fingers and Collisions", pageFingersCollisions, pageWeaponsHub, LevelDeveloper},      // 61
     {"Weight and Damage", pageWeightDamage, pageWeaponsHub},                // 62
     {"Hip Holsters", pageHipHolsters, pageWeaponsHub},                      // 63
-    {"Debug", pageDebug, pageAdvanced},                                     // 64
+    {"Debug", pageDebug, pageAdvanced, LevelDeveloper},                                     // 64
     {"Recording", pageRecording, pageGraphics},                             // 65 (the desktop window's view)
     // The Debug page's parts (ROUND21.md, "Debug menu; quad sound; grenade catch default; no empty-hand deflection").
-    {"Debug - Views", pageDebugViews, pageDebug},                           // 66
-    {"Debug - Logging", pageDebugLogging, pageDebug},                       // 67
-    {"Debug - Profiling and Memory", pageDebugProfiling, pageDebug},        // 68
-    {"Debug - Reports", pageDebugReports, pageDebug},                       // 69
-    {"Debug - Tools", pageDebugTools, pageDebug},                           // 70
-    {"Debug - Tests", pageDebugTests, pageDebug},                           // 71
-    {"Checklist", pageChecklist, pageDebug},                                // 72 (also the corner's button)
-    {"Player Hitbox", pageHitbox, pageMovement},                            // 73
-    {"Monster Hitbox", pageMonsterHitbox, pageMovement},                    // 74
+    {"Debug - Views", pageDebugViews, pageDebug, LevelDeveloper},                           // 66
+    {"Debug - Logging", pageDebugLogging, pageDebug, LevelDeveloper},                       // 67
+    {"Debug - Profiling and Memory", pageDebugProfiling, pageDebug, LevelDeveloper},        // 68
+    {"Debug - Reports", pageDebugReports, pageDebug, LevelDeveloper},                       // 69
+    {"Debug - Tools", pageDebugTools, pageDebug, LevelDeveloper},                           // 70
+    {"Debug - Tests", pageDebugTests, pageDebug, LevelDeveloper},                           // 71
+    {"Checklist", pageChecklist, pageDebug, LevelDeveloper},                                // 72 (also the corner's button)
+    {"Player Hitbox", pageHitbox, pageMovement, LevelDeveloper},                            // 73
+    {"Monster Hitbox", pageMonsterHitbox, pageMovement, LevelDeveloper},                    // 74
     {"Lightning Gun in Water", pageLightningWater, pageWeaponsHub},         // 75
     {"Enemy Weapons", pageEnemyWeapons, pageCombat},                        // 76
     {"Sound", pageSound, pageMain},                                         // 77
@@ -4600,53 +4629,53 @@ const Page pages[] = {
     {"Weapon Damage", pageWeaponDamage, pageCombat},                        // 79
     {"Weapon Effects", pageWeaponEffects, pageWeaponsHub},                  // 80
     {"Enemy Shoves", pageEnemyShoves, pageCombat},                          // 81
-    {"Chainsaw Engine", pageChainsawEngine, pageEnemyWeapons},              // 82
+    {"Chainsaw Engine", pageChainsawEngine, pageEnemyWeapons, LevelDeveloper},              // 82
     {"Bullet Time", pageBulletTime, pageCombat},                            // 83 (vr_menu_recording.inc)
     // Weapon Offsets' parts (ROUND21.md, "Weapon Offsets split; the virtual stock's turn"): its main page links them.
-    {"Weapon Offsets - Hand and Grip", pageWofsHand, pageWeaponOffsets},           // 84
-    {"Weapon Offsets - Fingers", pageWofsFingers, pageWeaponOffsets},              // 85
-    {"Weapon Offsets - Muzzle and Sights", pageWofsSights, pageWeaponOffsets},     // 86
-    {"Weapon Offsets - Two-Handed", pageWofsTwoHanded, pageWeaponOffsets},        // 87
-    {"Weapon Offsets - Virtual Stock", pageWofsStock, pageWeaponOffsets},          // 88
-    {"Weapon Offsets - Ammo Screen", pageWofsScreen, pageWeaponOffsets},           // 89
-    {"Weapon Offsets - Holstered", pageWofsHolstered, pageWeaponOffsets},          // 90
-    {"Weapon Offsets - Effects", pageWofsEffects, pageWeaponOffsets},              // 91
-    {"Weapon Offsets - Flashlight", pageWofsFlashlight, pageWeaponOffsets},        // 92
-    {"Small Gibs", pageSmallGibs, pageGore},                                       // 93
+    {"Weapon Offsets - Hand and Grip", pageWofsHand, pageWeaponOffsets, LevelDeveloper},           // 84
+    {"Weapon Offsets - Fingers", pageWofsFingers, pageWeaponOffsets, LevelDeveloper},              // 85
+    {"Weapon Offsets - Muzzle and Sights", pageWofsSights, pageWeaponOffsets, LevelDeveloper},     // 86
+    {"Weapon Offsets - Two-Handed", pageWofsTwoHanded, pageWeaponOffsets, LevelDeveloper},        // 87
+    {"Weapon Offsets - Virtual Stock", pageWofsStock, pageWeaponOffsets, LevelDeveloper},          // 88
+    {"Weapon Offsets - Ammo Screen", pageWofsScreen, pageWeaponOffsets, LevelDeveloper},           // 89
+    {"Weapon Offsets - Holstered", pageWofsHolstered, pageWeaponOffsets, LevelDeveloper},          // 90
+    {"Weapon Offsets - Effects", pageWofsEffects, pageWeaponOffsets, LevelDeveloper},              // 91
+    {"Weapon Offsets - Flashlight", pageWofsFlashlight, pageWeaponOffsets, LevelDeveloper},        // 92
+    {"Small Gibs", pageSmallGibs, pageGore, LevelDeveloper},                                       // 93
     {"Burning", pageBurning, pageCombat},                                          // 94
     {"Graphics - Retro Textures", pageGraphicsRetro, pageGraphics},                // 95
-    {"Retro Textures - World", pageRetroCategory<retro::Category::World>, pageGraphicsRetro}, // 96
-    {"Retro Textures - Brush Entities", pageRetroCategory<retro::Category::Brush>, pageGraphicsRetro}, // 97
-    {"Retro Textures - Item Pickups", pageRetroCategory<retro::Category::Items>, pageGraphicsRetro}, // 98
-    {"Retro Textures - Props and Debris", pageRetroCategory<retro::Category::Props>, pageGraphicsRetro}, // 99
-    {"Retro Textures - Gibs", pageRetroCategory<retro::Category::Gibs>, pageGraphicsRetro}, // 100
-    {"Retro Textures - Small Gibs", pageRetroCategory<retro::Category::SmallGibs>, pageGraphicsRetro}, // 101
-    {"Retro Textures - Weapons in the World", pageRetroCategory<retro::Category::Weapons>, pageGraphicsRetro}, // 102
-    {"Retro Textures - Held Weapons", pageRetroCategory<retro::Category::Held>, pageGraphicsRetro}, // 103
-    {"Retro Textures - Monsters", pageRetroCategory<retro::Category::Monsters>, pageGraphicsRetro}, // 104
-    {"Retro Textures - Your Hands", pageRetroCategory<retro::Category::Hands>, pageGraphicsRetro}, // 105
-    {"Retro Textures - Your Arms", pageRetroCategory<retro::Category::Arms>, pageGraphicsRetro}, // 106
-    {"Retro Textures - Your Torso", pageRetroCategory<retro::Category::Torso>, pageGraphicsRetro}, // 107
-    {"Retro Textures - Your Legs", pageRetroCategory<retro::Category::Legs>, pageGraphicsRetro}, // 108
-    {"Retro Textures - Your Gear", pageRetroCategory<retro::Category::Gear>, pageGraphicsRetro}, // 109
-    {"Retro Textures - Decals", pageRetroCategory<retro::Category::Decals>, pageGraphicsRetro}, // 110
-    {"Retro Textures - Particles", pageRetroCategory<retro::Category::Particles>, pageGraphicsRetro}, // 111
-    {"Retro Textures - Sprites", pageRetroCategory<retro::Category::Sprites>, pageGraphicsRetro}, // 112
-    {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro}, // 113
-    {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro}, // 114
-    {"Retro Textures - All Categories", pageRetroAll, pageGraphicsRetro}, // 115
+    {"Retro Textures - World", pageRetroCategory<retro::Category::World>, pageGraphicsRetro, LevelDeveloper}, // 96
+    {"Retro Textures - Brush Entities", pageRetroCategory<retro::Category::Brush>, pageGraphicsRetro, LevelDeveloper}, // 97
+    {"Retro Textures - Item Pickups", pageRetroCategory<retro::Category::Items>, pageGraphicsRetro, LevelDeveloper}, // 98
+    {"Retro Textures - Props and Debris", pageRetroCategory<retro::Category::Props>, pageGraphicsRetro, LevelDeveloper}, // 99
+    {"Retro Textures - Gibs", pageRetroCategory<retro::Category::Gibs>, pageGraphicsRetro, LevelDeveloper}, // 100
+    {"Retro Textures - Small Gibs", pageRetroCategory<retro::Category::SmallGibs>, pageGraphicsRetro, LevelDeveloper}, // 101
+    {"Retro Textures - Weapons in the World", pageRetroCategory<retro::Category::Weapons>, pageGraphicsRetro, LevelDeveloper}, // 102
+    {"Retro Textures - Held Weapons", pageRetroCategory<retro::Category::Held>, pageGraphicsRetro, LevelDeveloper}, // 103
+    {"Retro Textures - Monsters", pageRetroCategory<retro::Category::Monsters>, pageGraphicsRetro, LevelDeveloper}, // 104
+    {"Retro Textures - Your Hands", pageRetroCategory<retro::Category::Hands>, pageGraphicsRetro, LevelDeveloper}, // 105
+    {"Retro Textures - Your Arms", pageRetroCategory<retro::Category::Arms>, pageGraphicsRetro, LevelDeveloper}, // 106
+    {"Retro Textures - Your Torso", pageRetroCategory<retro::Category::Torso>, pageGraphicsRetro, LevelDeveloper}, // 107
+    {"Retro Textures - Your Legs", pageRetroCategory<retro::Category::Legs>, pageGraphicsRetro, LevelDeveloper}, // 108
+    {"Retro Textures - Your Gear", pageRetroCategory<retro::Category::Gear>, pageGraphicsRetro, LevelDeveloper}, // 109
+    {"Retro Textures - Decals", pageRetroCategory<retro::Category::Decals>, pageGraphicsRetro, LevelDeveloper}, // 110
+    {"Retro Textures - Particles", pageRetroCategory<retro::Category::Particles>, pageGraphicsRetro, LevelDeveloper}, // 111
+    {"Retro Textures - Sprites", pageRetroCategory<retro::Category::Sprites>, pageGraphicsRetro, LevelDeveloper}, // 112
+    {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro, LevelDeveloper}, // 113
+    {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro, LevelDeveloper}, // 114
+    {"Retro Textures - All Categories", pageRetroAll, pageGraphicsRetro, LevelDeveloper}, // 115
     {"Graphics - Retro Lighting", pageGraphicsRetroLight, pageGraphics},          // 116
-    {"Gibs and Corpses - Ragdolls", pageRagdolls, pageGibs},                       // 117
-    {"Ragdolls - Grunt", pageRagdollGrunt, pageRagdolls},                          // 118
-    {"Ragdolls - Knight", pageRagdollKnight, pageRagdolls},                        // 119
-    {"Gibs and Corpses - Corpse Damage and Health", pageCorpseDamage, pageGibs},   // 120
-    {"Ragdolls - Ogre", pageRagdollOgre, pageRagdolls},                            // 121
-    {"Ragdolls - Enforcer", pageRagdollEnforcer, pageRagdolls},                    // 122
-    {"Ragdolls - Death Knight", pageRagdollDeathKnight, pageRagdolls},             // 123
-    {"Ragdolls - Rottweiler", pageRagdollRottweiler, pageRagdolls},                // 124
-    {"Ragdolls - Scrag", pageRagdollScrag, pageRagdolls},                          // 125
+    {"Gibs and Corpses - Ragdolls", pageRagdolls, pageGibs, LevelDeveloper},                       // 117
+    {"Ragdolls - Grunt", pageRagdollGrunt, pageRagdolls, LevelDeveloper},                          // 118
+    {"Ragdolls - Knight", pageRagdollKnight, pageRagdolls, LevelDeveloper},                        // 119
+    {"Gibs and Corpses - Corpse Damage and Health", pageCorpseDamage, pageGibs, LevelDeveloper},   // 120
+    {"Ragdolls - Ogre", pageRagdollOgre, pageRagdolls, LevelDeveloper},                            // 121
+    {"Ragdolls - Enforcer", pageRagdollEnforcer, pageRagdolls, LevelDeveloper},                    // 122
+    {"Ragdolls - Death Knight", pageRagdollDeathKnight, pageRagdolls, LevelDeveloper},             // 123
+    {"Ragdolls - Rottweiler", pageRagdollRottweiler, pageRagdolls, LevelDeveloper},                // 124
+    {"Ragdolls - Scrag", pageRagdollScrag, pageRagdolls, LevelDeveloper},                          // 125
     {"Gore - Decapitation", pageDecapitation, pageGore},                           // 126
-    {"Ragdolls - Zombie", pageRagdollZombie, pageRagdolls},                        // 127
+    {"Ragdolls - Zombie", pageRagdollZombie, pageRagdolls, LevelDeveloper},                        // 127
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -5996,7 +6025,8 @@ struct MenuPages
 {
     za::Vector<Item> built[pageCount];
     bool done[pageCount]{};
-    auto members() { return qvr::mem::list(built, done); }
+    int level[pageCount]{}; // the menu detail level each was built for
+    auto members() { return qvr::mem::list(built, done, level); }
 };
 mem::Cache<MenuPages> menuPages{"menu pages", mem::Never};
 
@@ -6046,6 +6076,55 @@ void loadPositions()
 }
 
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
+// The menu detail level the pages are built for (vr_menu_level; resolvePath: every page, LevelDeveloper).
+int levelOverride = -1;
+
+[[nodiscard]] int menuLevel()
+{
+    return levelOverride >= 0 ? levelOverride : CLAMP(0, static_cast<int>(vr_menu_level.value), LevelCount - 1);
+}
+
+[[nodiscard]] const char* levelName(int level)
+{
+    return level <= LevelStandard ? "Standard" : level == LevelAdvanced ? "Advanced" : "Developer";
+}
+
+// Whether `item` shows at `level`: its own level, and a link's page's.
+[[nodiscard]] bool shownAt(const Item& item, int level)
+{
+    if(item.level > level)
+    {
+        return false;
+    }
+    const bool link = item.kind == Item::Action && item.page >= 0 && item.page < pageCount && !item.actionArg;
+    return !link || pages[item.page].level <= level;
+}
+
+// The page's rows as shown: a header with nothing left under it (its rows all above the level) goes too.
+void dropEmptyHeaders(za::Vector<Item>& list)
+{
+    za::Vector<Item> kept;
+    for(size_t i = 0; i < list.size(); i++)
+    {
+        if(list[i].kind == Item::Header && (i + 1 == list.size() || list[i + 1].kind == Item::Header))
+        {
+            continue;
+        }
+        kept.pushBack(ZA_MOVE(list[i]));
+    }
+    list = ZA_MOVE(kept);
+}
+
+// Under every page: Menu Detail, the level the pages are shown at.
+void addMenuDetail(za::Vector<Item>& list)
+{
+    list.pushBack(header("Menu Detail"));
+    list.pushBack(cycle("Menu Detail", vr_menu_level, {{0.f, "Standard"}, {1.f, "Advanced"}, {2.f, "Developer"}})
+            .help("How much the VR pages show. Standard: what every player sets (comfort, height, the HUD, the headset, "
+                  "volume). Advanced: every gameplay, display and graphics setting. Developer: also the tuning pages "
+                  "(weapon and prop offsets and weights, ragdolls, hitboxes), recording, debug and tests."));
+}
+
 [[nodiscard]] const za::Vector<Item>& items(int page)
 {
     za::Vector<Item> (&built)[pageCount] = menuPages.built;
@@ -6123,6 +6202,10 @@ void loadPositions()
     {
         done[page] = false; // the list, or the take picked, changed
     }
+    if(menuPages.level[page] != menuLevel())
+    {
+        done[page] = false; // Menu Detail changed: rows and links shown or left out
+    }
     // (A check above: done[page] = false, and the page is built anew here, its selected row kept.)
     if(!done[page])
     {
@@ -6138,13 +6221,26 @@ void loadPositions()
         built[page].clear();
         done[page] = true;
         builds[page]++;
+        const int level = menuLevel();
+        menuPages.level[page] = level;
         for(Item& item : pages[page].build())
         {
-            if(item.kind == Item::Header || item.kind == Item::Action || item.kind == Item::Info || item.cvar)
+            if(item.kind != Item::Header && item.kind != Item::Action && item.kind != Item::Info && !item.cvar)
+            {
+                // A setting named by a cvar that doesn't exist (renamed, removed): left out, but said (once a page).
+                if(builds[page] == 1)
+                {
+                    Con_DWarning("menu: \"%s\" on %s names no cvar: left out\n", item.label ? item.label : "?", pages[page].title);
+                }
+                continue;
+            }
+            if(shownAt(item, level))
             {
                 built[page].pushBack(ZA_MOVE(item));
             }
         }
+        dropEmptyHeaders(built[page]);
+        addMenuDetail(built[page]);
         // The same row again, on the same line of the view; gone, the cursor kept where it was (on a
         // setting).
         const int n = static_cast<int>(built[page].size());
@@ -7145,6 +7241,17 @@ bool resolvePath(za::StringView spec, za::String& out)
     {
         return false;
     }
+    // Every page and row, whatever Menu Detail shows (the pages built for it again as they are next shown); the level
+    // the way needs said after it.
+    const int shownLevel = menuLevel();
+    const int wasOverride = levelOverride;
+    levelOverride = LevelDeveloper;
+    struct Restore
+    {
+        int was;
+        ~Restore() { levelOverride = was; }
+    } restore{wasOverride};
+    int needs = pages[target].level;
     // The shortest way there through the pages' links (breadth first from the VR Settings, as menu_vr dump): each page
     // named by the link that opens it.
     int from[pageCount];
@@ -7178,6 +7285,7 @@ bool resolvePath(za::StringView spec, za::String& out)
     for(int p = target; p != PageMain; p = from[p])
     {
         names.pushBack(link[p]);
+        needs = q_max(needs, pages[p].level);
     }
     out = za::String{"Options > "} + pages[PageMain].title;
     for(const char* name : za::reversed(names))
@@ -7193,6 +7301,7 @@ bool resolvePath(za::StringView spec, za::String& out)
             if(item.label && item.kind != Item::Info && !q_strcasecmp(item.label, row.cStr()))
             {
                 found = item.label;
+                needs = q_max(needs, item.level);
                 break;
             }
         }
@@ -7202,6 +7311,10 @@ bool resolvePath(za::StringView spec, za::String& out)
         }
         out += " > ";
         out += found;
+    }
+    if(needs > shownLevel)
+    {
+        out += va(" (Menu Detail: %s)", levelName(needs));
     }
     return true;
 }
@@ -7486,6 +7599,10 @@ const cvar_t* qvr::menu::selectedSetting()
 
 void qvr::menu::jumpToAdvanced()
 {
+    if(menuLevel() < LevelAdvanced)
+    {
+        Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(LevelAdvanced)); // (the corner's Advanced VR: the pages it lists)
+    }
     if(m_state == m_vr && page == PageAdvanced)
     {
         S_LocalSound("misc/menu1.wav");
@@ -7501,6 +7618,11 @@ void qvr::menu::jumpToAdvanced()
     }
     parentPage[PageAdvanced] = PageMain;
     showPage(PageAdvanced);
+}
+
+bool qvr::menu::developerLevel()
+{
+    return menuLevel() >= LevelDeveloper;
 }
 
 void qvr::menu::jumpToChecklist()

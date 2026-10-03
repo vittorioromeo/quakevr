@@ -453,6 +453,12 @@ enum Tool
 // (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game".)
 constexpr const char* toolLabels[ToolCount]{"Back to game", "Advanced VR", "Levels", "Checklist 99"};
 
+// The buttons shown: the Checklist (the last) only at Menu Detail: Developer (the playtest checklist is the author's).
+[[nodiscard]] int toolsShown()
+{
+    return menu::developerLevel() ? ToolCount : ToolChecklist;
+}
+
 // Where the column goes: across, menu pixels; up and down, from the canvas's top in true pixels
 // (menu pixels as wide as they are across: `k` menu rows' pixels each, the canvas's row spacing).
 struct ToolbarLayout
@@ -472,13 +478,13 @@ struct ToolbarLayout
     [[nodiscard]] float yc(int tool) const { return top + (corner + half + tool * (2.f * half + gap)) / k; }
 
     // The last button's bottom edge (menu y).
-    [[nodiscard]] float buttonsBottom() const { return yc(ToolCount - 1) + half / k; }
+    [[nodiscard]] float buttonsBottom() const { return yc(toolsShown() - 1) + half / k; }
 
     // What a click on `tool` takes: as far as the panel's edges, split halfway between buttons.
     [[nodiscard]] bool hit(int tool, float x, float y) const
     {
         const float y0 = tool == 0 ? top : yc(tool) - (half + gap * 0.5f) / k;
-        const float y1 = yc(tool) + (half + (tool == ToolCount - 1 ? 2.f : gap * 0.5f)) / k;
+        const float y1 = yc(tool) + (half + (tool == toolsShown() - 1 ? 2.f : gap * 0.5f)) / k;
         return x >= left && x <= x1 + 2.f && y >= y0 && y <= y1;
     }
 };
@@ -531,7 +537,7 @@ Toolbar toolbar;
         return -1;
     }
     const ToolbarLayout l = toolbarLayout();
-    for(int t = 0; t < ToolCount; t++)
+    for(int t = 0; t < toolsShown(); t++)
     {
         if(l.hit(t, x, y))
         {
@@ -728,7 +734,7 @@ bool toolbarFocused()
 
 void focusToolbar(int dir)
 {
-    focusTool(dir > 0 ? ToolBack : ToolCount - 1);
+    focusTool(dir > 0 ? ToolBack : toolsShown() - 1);
     S_LocalSound("misc/menu1.wav");
 }
 
@@ -1140,7 +1146,7 @@ extern "C" void VR_MenuDrawOverlay()
     {
         q_strlcpy(checklistLabel, "Checklist", sizeof(checklistLabel));
     }
-    for(int t = 0; t < ToolCount; t++)
+    for(int t = 0; t < toolsShown(); t++)
     {
         const bool hot = toolbar.hovered == t || (menuui::toolbarFocused() && toolbar.focused == t);
         const float yc = l.yc(t);
@@ -1249,7 +1255,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
         {
             const int dir = key == K_DOWNARROW ? 1 : -1;
             const int next = toolbar.focused + dir;
-            if(next >= 0 && next < ToolCount)
+            if(next >= 0 && next < toolsShown())
             {
                 toolbar.focused = next;
             }
