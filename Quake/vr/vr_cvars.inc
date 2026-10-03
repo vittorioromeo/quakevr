@@ -790,7 +790,7 @@ QVR_CVAR(vr_wounds_pool, "64", CVAR_ARCHIVE)          // how many models keep th
 QVR_CVAR(vr_wounds_own_res, "0", CVAR_ARCHIVE)     // your own body's and hands' wound masks: texels on a side, smooth (512, 1024, 2048: 5, 20, 80 MB: per side, and the blood not yours); 0 in the pool, chunky as the monsters'
 QVR_CVAR(vr_wounds_bump_burns, "3", CVAR_ARCHIVE)     // ... the relief of their burns and char (crusted, cracked), times the default (0 flat)
 QVR_CVAR(vr_wounds_bump_blood, "1.5", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
-QVR_CVAR(vr_wounds_blood_alpha, "0.75", CVAR_ARCHIVE)  // how opaque painted blood is over the skins (0..1)
+QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blood is over the skins (0..1)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
 // Gore: bloody hands and washing (vr_wounds.cpp; ROUND21.md, "Gore: bloody hands, washing, dying bodies, blood mist").
 QVR_CVAR(vr_gore_hands, "1", CVAR_ARCHIVE)            // grabbing a gib or a head bloodies the hand holding it: how much (0 none; the wound skins: 1 a bloody hand)
@@ -807,6 +807,9 @@ QVR_CVAR(vr_gore_spatter_shots, "1", CVAR_ARCHIVE)    // ... from shots hitting 
 QVR_CVAR(vr_gore_spatter_range, "64", CVAR_ARCHIVE)   // ... a shot's hit this close to your hands or eyes at most (units)
 QVR_CVAR(vr_gore_spatter_gibs, "1", CVAR_ARCHIVE)     // gibs flying into you bloody you where they strike: how much (0 none)
 QVR_CVAR(vr_gore_gear, "1", CVAR_ARCHIVE)             // the weapons and props you hold take blood: kept dropped and taken again, until water washes it
+QVR_CVAR(vr_gore_gear_holstered, "1", CVAR_ARCHIVE)   // ... your holstered weapons too, near enough to the blood (as your body and hands are)
+QVR_CVAR(vr_gore_gear_nearby, "1", CVAR_ARCHIVE)      // weapons and props lying about take blood from hits, gibbings and bursts near them: how much (0 none)
+QVR_CVAR(vr_gore_gear_drops, "1", CVAR_ARCHIVE)       // what a gibbed monster drops (its gun, its backpack) comes out soaked: how much (0 as anything lying near)
 QVR_CVAR(vr_gore_spread, "1", CVAR_ARCHIVE)           // blood over your arms (a little your body and legs) when hurt, holding gibs, as wounds re-open: how much (0 none)
 // Gore: blood mist (vr_particles.cpp): large, faint clouds wherever something bleeds (every blood particle effect).
 QVR_CVAR(vr_gore_mist, "1", CVAR_ARCHIVE)             // how many clouds a bleed makes (0 none)

@@ -7,6 +7,7 @@
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_ring.hpp"
+#include "vr_wounds.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -522,6 +523,11 @@ bool event(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
     if(preset < EventHit || preset > EventCorpse)
     {
         return false;
+    }
+    if(preset == EventBurst) // its blood onto the weapons and props lying near (vr_wounds.cpp), marks or none
+    {
+        const float at[3]{org.x, org.y, org.z};
+        wounds::burst(at, static_cast<float>(count) / 10.f);
     }
     const int lvl = level();
     if(lvl <= 0 || !vr_decals.value || !cl.worldmodel)

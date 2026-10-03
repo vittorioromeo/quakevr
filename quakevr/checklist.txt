@@ -142,6 +142,13 @@ Burnt-through crate: its pieces are charred (black, cracked, ash edges) and won'
 Smashed crate: its pieces catch fire from a torch or lava nail, spread to nearby wood, burn ~5 s and burn away
 Torch an explosive box: nothing happens (metal)
 
+Holster and draw a bloody gun: it stays bloody in the holster
+Get bloody up close: the weapons in your holsters get some blood too (Holstered Weapons Too)
+Gib a monster: its dropped gun and backpack come out soaked; things lying near bleeding hits get bloody
+Take health after a fight (chunky detail): your own wounds fade, enemy blood stays until water
+Hit a monster with a box or crate: blood lands on the side that hit
+Blood Opacity 0.8 by default
+
 [Decide or give feedback]
 Explosive boxes throw wood splinters when hit: switch to metal sparks?
 Training dummy: its wounds build up until gibbed: should it heal over time?

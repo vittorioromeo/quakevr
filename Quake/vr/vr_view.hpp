@@ -86,6 +86,9 @@ struct WeaponFrame
 // the hand itself.
 [[nodiscard]] const ViewEntity* heldWeapon(int hand);
 [[nodiscard]] int handOf(const entity_t* e, bool& weapon);
+// The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
+// (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).
+[[nodiscard]] entity_t* holsteredWeapon(int stat);
 // Whether models `a` and `b` are the same gun (one is the other's other ammo's: its button switched it).
 [[nodiscard]] bool sameGun(const qmodel_t* a, const qmodel_t* b);
 
