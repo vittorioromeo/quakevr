@@ -37,6 +37,7 @@
 #include "vr_weight.hpp"
 #include "vr_twohand.hpp"
 
+#include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Count.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
@@ -370,6 +371,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
+[[nodiscard]] za::Vector<Item> pageChanged();
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageColours();
@@ -4646,6 +4648,7 @@ const Page pages[] = {
     {"Ragdolls - Scrag", pageRagdollScrag, pageRagdolls, LevelDeveloper},                          // 125
     {"Gore - Decapitation", pageDecapitation, pageGore},                           // 126
     {"Ragdolls - Zombie", pageRagdollZombie, pageRagdolls, LevelDeveloper},                        // 127
+    {"Changed Settings", pageChanged, pageMain, LevelStandard},                                    // 128 (MENU_REVIEW.md)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -4862,6 +4865,8 @@ za::Vector<Item> pageMain()
         open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
         open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
         open("Advanced VR Options", PageAdvanced).help("Every gameplay, display and graphics setting, by topic."),
+        open("Changed Settings", pageIndex(pageChanged))
+            .help("Every setting you changed from its default, from all the pages, on one page (each marked * where it lives)."),
         command("Run VR Calibration Again", "vr_setup")
             .help("The calibration room and its steps, as at the first start (the main menu's VR Calibration): your height, "
                   "your body, and the main settings on its wall buttons. Ends the game you are in."),
@@ -6170,6 +6175,35 @@ void loadPositions()
 }
 
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
+// A setting changed from its default (a * by its label; Changed Settings): its value, or for text its string. The
+// menus' own state and the presets (whose settings show it themselves) aren't.
+[[nodiscard]] bool changedSetting(const cvar_t& var)
+{
+    if(&var == &vr_menu_level || &var == &vr_comfort_preset || &var == &vr_handedness || &var == &vr_graphics_preset ||
+        !var.default_string)
+    {
+        return false;
+    }
+    char* end = nullptr;
+    const double v = strtod(var.string, &end);
+    const bool number = end != var.string && *end == '\0';
+    char* defEnd = nullptr;
+    const double d = strtod(var.default_string, &defEnd);
+    if(number && defEnd != var.default_string && *defEnd == '\0')
+    {
+        return static_cast<float>(v) != static_cast<float>(d);
+    }
+    return strcmp(var.string, var.default_string) != 0;
+}
+
+// Reset This Page (the footer): armed by a first press, done by a second within 3 seconds.
+int resetArmedPage = -1;
+double resetArmedTime = 0.0;
+
+// The pages of one weapon's or prop's settings (their own resets, Reset This Weapon...): no Reset This Page, and not on
+// Changed Settings (the held one's values, not settings of their own).
+[[nodiscard]] bool slotPage(PageBuilder build);
+
 // The menu detail level the pages are built for (vr_menu_level; resolvePath: every page, LevelDeveloper).
 int levelOverride = -1;
 
@@ -6209,9 +6243,21 @@ void dropEmptyHeaders(za::Vector<Item>& list)
     list = ZA_MOVE(kept);
 }
 
-// Under every page: Menu Detail, the level the pages are shown at.
-void addMenuDetail(za::Vector<Item>& list)
+void resetThisPage();
+
+// Under every page: Reset This Page (a page with settings), and Menu Detail, the level the pages are shown at.
+void addMenuDetail(za::Vector<Item>& list, int page)
 {
+    const bool settings = za::anyOf(list.begin(), list.end(), [](const Item& item) {
+        return item.cvar && item.kind != Item::Action && item.cvar != &vr_menu_level;
+    });
+    if(settings && !slotPage(pages[page].build) && pages[page].build != pageChanged)
+    {
+        list.pushBack(header("This Page"));
+        list.pushBack(action(resetArmedPage == page ? "Press Again to Reset" : "Reset This Page", resetThisPage)
+                .help("Every setting on this page (as Menu Detail shows it) back to its default. Press it twice: the second "
+                      "time within 3 seconds."));
+    }
     list.pushBack(header("Menu Detail"));
     list.pushBack(cycle("Menu Detail", vr_menu_level, {{0.f, "Standard"}, {1.f, "Advanced"}, {2.f, "Developer"}})
             .help("How much the VR pages show. Standard: what every player sets (comfort, height, the HUD, the headset, "
@@ -6300,6 +6346,11 @@ void addMenuDetail(za::Vector<Item>& list)
     {
         done[page] = false; // Menu Detail changed: rows and links shown or left out
     }
+    if(resetArmedPage == page && realtime - resetArmedTime > 3.0)
+    {
+        resetArmedPage = -1; // Reset This Page not pressed again in time
+        done[page] = false;
+    }
     // (A check above: done[page] = false, and the page is built anew here, its selected row kept.)
     if(!done[page])
     {
@@ -6334,7 +6385,7 @@ void addMenuDetail(za::Vector<Item>& list)
             }
         }
         dropEmptyHeaders(built[page]);
-        addMenuDetail(built[page]);
+        addMenuDetail(built[page], page);
         // The same row again, on the same line of the view; gone, the cursor kept where it was (on a
         // setting).
         const int n = static_cast<int>(built[page].size());
@@ -6469,6 +6520,10 @@ void showPage(int target)
     {
         motion::review::invalidate(); // takes recorded, evaluated or moved since
     }
+    if(pages[page].build == pageChanged)
+    {
+        menuPages.done[page] = false; // what is changed now
+    }
     const auto& list = items(page);
     if(!selectable(list[cursors[page]]))
     {
@@ -6476,6 +6531,81 @@ void showPage(int target)
     }
     noteLeft(page, list);
     visits[page] = ++visitCount;
+}
+
+bool slotPage(PageBuilder build)
+{
+    return weaponOffsetsPage(build) || build == pageWeaponWeights || build == pageHeldObjectOffsets ||
+           build == pageHeldObjectWeights;
+}
+
+void resetThisPage()
+{
+    if(resetArmedPage != page || realtime - resetArmedTime > 3.0)
+    {
+        resetArmedPage = page;
+        resetArmedTime = realtime;
+        menuPages.done[page] = false; // its label: Press Again to Reset
+        return;
+    }
+    resetArmedPage = -1;
+    int n = 0;
+    for(const Item& item : items(page))
+    {
+        if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar))
+        {
+            Cvar_SetQuick(item.cvar, item.cvar->default_string);
+            n++;
+        }
+    }
+    Con_Printf("VR: %s: %d setting%s back to %s default\n", pages[page].title, n, n == 1 ? "" : "s", n == 1 ? "its" : "their");
+    menuPages.done[page] = false;
+}
+
+const char* changedNone()
+{
+    return "Nothing changed from the defaults.";
+}
+
+// Changed Settings: every setting changed from its default, under its home page's title, as its home shows it (its
+// range, its choices, its help): from every page, whatever Menu Detail shows.
+za::Vector<Item> pageChanged()
+{
+    za::Vector<Item> list;
+    za::Vector<const cvar_t*> seen;
+    const int was = levelOverride;
+    levelOverride = LevelDeveloper;
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(pages[p].build == pageChanged || slotPage(pages[p].build))
+        {
+            continue;
+        }
+        bool headed = false;
+        for(const Item& item : items(p))
+        {
+            if(!item.cvar || item.kind == Item::Action || !changedSetting(*item.cvar) ||
+                za::anyOf(seen.begin(), seen.end(), [&](const cvar_t* v) { return v == item.cvar; }))
+            {
+                continue;
+            }
+            if(!headed)
+            {
+                list.pushBack(header(pages[p].title));
+                headed = true;
+            }
+            Item copy = item;
+            copy.level = LevelStandard;
+            list.pushBack(ZA_MOVE(copy));
+            seen.pushBack(item.cvar);
+        }
+    }
+    levelOverride = was;
+    if(list.empty())
+    {
+        list.pushBack(info(changedNone));
+    }
+    return list;
 }
 
 void openPage(int target)
@@ -7108,7 +7238,12 @@ void drawItem(const Item& item, int y, bool selected)
         return;
     }
 
-    M_Print(midPos - 28 - 8 * static_cast<int>(strlen(item.label)), y, item.label);
+    const int labelX = midPos - 28 - 8 * static_cast<int>(strlen(item.label));
+    M_Print(labelX, y, item.label);
+    if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar))
+    {
+        M_PrintWhite(q_max(labelX - 10, 0), y, "*"); // changed from its default (Changed Settings lists them)
+    }
 
     char buf[64];
     switch(item.kind)
