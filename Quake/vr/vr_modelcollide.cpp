@@ -271,7 +271,7 @@ const Posed* posed(int num, const entity_t& e)
     }
     if(rag)
     {
-        if(!ragdoll::skinnedVertices(num, p.verts) || p.verts.empty())
+        if(!ragdoll::skinnedVertices(num, p.verts, nullptr, true) || p.verts.empty())
         {
             return nullptr;
         }

@@ -23491,3 +23491,59 @@ Balance (`ragdoll_test.sh`, MON 7, 1, 6; `vr_ragdoll_blast_test 100` on vrfiring
   2.5, the death knight by a thigh 4.0, the ogre by a shin 1.8 (Grip Strength 3000 N; his 200 kg weigh 1960 N). The
   force grab sets the limb's speed, not a force: the dog's and the ogre's limbs came in 0.5 s (142 and 154 units).
 - **Shots:** a pellet's push sets the struck part's speed (at most 10 m/s), not a force: a light dog isn't flung.
+
+## Ragdolls drawn as smoothly as props (2026-10-03)
+
+His words: ragdolls update less often than other physics props; they look choppy.
+
+**Why.** On a 90 Hz headset the server runs every other frame (45 Hz: Ironwail runs it when 1/72 s has built up; see
+ROUND15.md, "Frame rate"), and Box3D steps once per server frame. Props are entities: the client lerps their origin
+and angles between the server's last two messages (`CL_RelinkEntities`), so they move in every frame. Ragdolls are
+drawn from the bodies the server publishes after each step (`ragdoll::publish`, a listen server's), and the drawing
+took the latest step as it was: the same pose for two frames, then a jump. Held limbs were the same: a held prop is
+drawn in the hand every frame (`VR_RelinkHeld`), a held limb only moved when the server stepped.
+
+**Fix** (`vr_ragdoll.cpp`):
+- `vr_ragdoll_smooth 1` (default; Gibs and Corpses > Ragdoll Settings > Drawing > Smooth Motion): the published pose
+  keeps the step before it and both steps' message times; each frame the parts are drawn between the two at the
+  client's `cl.time` (positions lerped, turns slerped), the same blend the props get. A part moving more than 100 units
+  in a step (a teleport), a new ragdoll, or one whose parts changed is not lerped. 0: the latest step (the old way).
+- `vr_ragdoll_held_local 1` (default; Held Limbs Follow the Hand): while your hands hold a limb, the drawn ragdoll is
+  moved by how far the holding hands have moved since the drawn steps (the client's own hand places, kept with each
+  step, so their offset from the server's hand cancels; at most 24 units). The interpolation's extra lag is taken back
+  for what you hold. 0: the server's pose only.
+- The skinned mesh, its model collisions (`vr_modelcollide.cpp`) and the limbs' blood trails use the drawn pose; the
+  server's hit tests keep the latest step.
+
+**Measuring it.** `vr_drawn_motion_test <frames> [<entity> | nearest | held]` (Debug > Tests > Ragdoll and Prop Drawn
+Motion) records, every drawn frame, the nearest ragdoll's parts, a prop and both hands, then prints each one's mean step
+a frame, "uneven" (the mean change of the step's length from frame to frame, over the mean step), "jerk" (the same of
+the step vector) and the frames it stood still. `vr_debug_ragdoll 2` prints each frame's blend between the steps. For
+the mock, `vr_fixed_frames_rate 90` (console only, with `vr_fixed_frames 1`) runs 90 Hz frames with the server on its
+own clock (45 Hz, as in the headset); 72 keeps the old one server frame per frame.
+
+Mock, e1m1, a grunt's ragdoll blasted (`vr_ragdoll_blast_test 150`) while an armor flung beside it (40 frames):
+
+| frames | `vr_ragdoll_smooth` | pelvis uneven | parts uneven (mean) | stalled frames | the prop's uneven |
+|---|---|---|---|---|---|
+| 90 Hz (server 45) | 0 | 1.95 | 1.94 | 19 of 39 | 0.036 |
+| 90 Hz (server 45) | 1 | 0.022 | 0.078 | 0 | 0.023 |
+| 120 Hz (server 60) | 0 | 1.95 | 1.95 | 19 | 0.020 |
+| 120 Hz (server 60) | 1 | 0.008 | 0.039 | 0 | 0.020 |
+| 72 Hz (server 72) | 0 / 1 | 0.025 / 0.028 | 0.079 / 0.067 | 0 | 0.032 |
+
+Held (a force grab's catch, then the main hand moved sideways 0.4 m in 0.7 s, 90 Hz): smooth 0, 19-20 stalled frames
+of 39 (uneven 1.9); smooth 1, none (pelvis 0.04-0.06, parts 0.06-0.10: the body swinging, not stepping); held local
+on, the ragdoll is drawn a constant 0.28 units further along with the hand (the lag the lerp added), still even. A
+prop caught by the same take moves exactly with the hand (uneven 0.008). The parts stay a little less even than the
+pelvis and the prop: a turning limb's place lerped in a straight line between steps bends at each step.
+
+### Checklist
+- [ ] Throw or blast a ragdoll: it tumbles as smoothly as a thrown prop beside it.
+- [ ] A ragdoll falling down stairs moves smoothly, no stepping.
+- [ ] Hold a ragdoll by a limb and move your hand: the body follows smoothly.
+- [ ] The held limb stays with your hand when you move it fast (no lag behind it).
+- [ ] Ragdoll Settings > Drawing > Smooth Motion off: the old choppy motion is back (the difference shows).
+- [ ] Held Limbs Follow the Hand off: the held body lags your hand a little more.
+- [ ] Bullet time (slow motion) with a ragdoll falling: smooth too.
+- [ ] Debug > Tests > Ragdoll and Prop Drawn Motion after a blast: the console's ragdoll "uneven" is near the prop's (not about 2).

@@ -580,6 +580,14 @@ enum class State
 };
 
 constexpr double setupDt = 1.0 / 72.0; // a server frame with every host frame: the same start every time
+
+// vr_fixed_frames' host frame (vr_fixed_frames_rate: 72, a server frame with each; 90, a headset's frames over the
+// server's 72 Hz, the drawn motion's smoothness tests).
+[[nodiscard]] double fixedFrameDt()
+{
+    const float rate = vr_fixed_frames_rate.value;
+    return rate == 72.f || rate < 10.f ? setupDt : 1.0 / static_cast<double>(za::min(rate, 1000.f));
+}
 constexpr double setupPress = 0.2;     // the main hand's grip
 constexpr double setupEquip = 0.3;     // the weapons
 constexpr double setupOffGrip = 0.45;  // the off hand's grip (a two-handed grip taken again)
@@ -1352,7 +1360,7 @@ double hostFrameTime(double time)
     double dt = time;
     if(state == State::Idle && (fixedLoading || vr_fixed_frames.value != 0.f))
     {
-        return setupDt;
+        return fixedLoading ? setupDt : fixedFrameDt();
     }
     if(state == State::Setup || state == State::Post)
     {
@@ -1416,6 +1424,10 @@ int serverFrameOverride(double& frametime)
         }
     }
 
+    if(state == State::Idle && !fixedLoading && vr_fixed_frames.value != 0.f && fixedFrameDt() != setupDt)
+    {
+        return -1; // (vr_fixed_frames_rate: the drawn frames at their own rate, the server's on its 72 Hz clock)
+    }
     if(state == State::Setup || state == State::Post || (state == State::Idle && (fixedLoading || vr_fixed_frames.value != 0.f)))
     {
         frametime = setupDt;

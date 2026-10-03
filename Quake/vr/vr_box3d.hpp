@@ -122,6 +122,9 @@ bool contactPoint(int num, glm::vec3& point);
 // false if not, and without a body or Box3D's world.
 bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm::vec3& toPos, glm::quat& toRot);
 
+// The loose prop nearest the first player (its edict number; 0 none): the tests' "nearest".
+[[nodiscard]] int nearestProp();
+
 // Ragdolls (vr_ragdoll; vr_box3d.cpp, "Ragdolls"). Whether edict `num` is one.
 [[nodiscard]] bool isRagdoll(int num);
 // Whether hand point `at` (units) is within vr_ragdoll_grab_reach of a limb of edict `num`'s ragdoll (a hand touching it).

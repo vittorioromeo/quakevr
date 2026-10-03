@@ -2804,6 +2804,13 @@ void hologramTestMessage()
         header("Blood"),
         toggle("Blood Trails", vr_ragdoll_blood)
             .help("A ragdoll's limbs flung fast leave blood trails and drops, as gibs do (vr_ragdoll_blood)."),
+        header("Drawing"),
+        toggle("Smooth Motion", vr_ragdoll_smooth)
+            .help("Drawn between the server's last two steps, as props are: smooth in every frame. Off: the latest step, "
+                  "which a 90 Hz headset shows every other frame (the server runs at 45 Hz there: choppy) (vr_ragdoll_smooth)."),
+        toggle("Held Limbs Follow the Hand", vr_ragdoll_held_local)
+            .help("A ragdoll you hold moves with your hand every frame, as a held prop does, rather than a step behind it "
+                  "(vr_ragdoll_held_local)."),
     };
 }
 
@@ -3578,6 +3585,8 @@ za::Vector<Item> pageDebugTools()
         command("A Grunt's Ragdoll Ahead", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait5; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdolls) and a grunt killed 96 units ahead: he goes limp as he falls."),
         command("Blast Beside the Nearest Ragdoll", "vr_ragdoll_blast_test").help("vr_ragdoll_blast_test [damage]: a blast's push (no damage) 24 units beside the nearest ragdoll, on your side: it is thrown away from you."),
+        command("Ragdoll and Prop Drawn Motion", "vr_drawn_motion_test 90 nearest")
+            .help("vr_drawn_motion_test <frames> [<entity> | nearest | held]: over the next 90 frames, how evenly the nearest ragdoll's parts, the nearest loose prop (held: the one in your hand) and your hands move frame to frame (the console: uneven near 0 is smooth; about 2 with stalls: a step shown twice). Throw or hold one first. vr_debug_ragdoll 2: each frame's blend between the steps."),
         command("Drop the Nearest Prop on the Nearest Corpse", "vr_corpse_drop").help("vr_corpse_drop [height]: the loose prop nearest you put 32 units over the nearest corpse, to fall on it (Gibs and Corpses > Corpse Collision)."),
         command("Shotgun Blasts", "vr_smallgibs_test 1").help("vr_smallgibs_test 1: 200 shotgun blasts at it (vr_smallgibs_test_n), the share that tore small gibs out."),
         command("Super Shotgun Blasts", "vr_smallgibs_test 2"),

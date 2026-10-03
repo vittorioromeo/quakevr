@@ -3305,10 +3305,10 @@ struct LimbEase
     float blend{0.f};
     glm::vec3 offset{0.f};
     glm::quat turn{1.f, 0.f, 0.f, 0.f};
+    float unclamped{0.f}; // degrees the limb has the hand turned (vr_ragdoll_hand_probe)
 };
 LimbEase limbEase[2];
 constexpr float limbEaseTime = 0.1f; // s
-constexpr float limbMostTurn = 45.f; // degrees the hand is drawn turned off its controller at most, to stay on the limb
 
 // `pos`, `angles` (the controller's pose of `hand`) moved onto the limb it holds, as if its controller were there.
 void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
@@ -3321,25 +3321,31 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     const bool on = stick > 0.f && limbHold(hand, h);
     if(on)
     {
-        glm::vec3 offset = h.pos - pos;
-        const float length = glm::length(offset);
-        if(length > stick)
-        {
-            offset *= stick / length;
-        }
+        // Turned with the limb (at most vr_ragdoll_hand_turn), about its grip channel where the limb has it: the fingers
+        // stay on the limb as the hand turns less than it.
         const glm::quat controller = glm::normalize(glm::quat_cast(anglesBasis(angles)));
         glm::quat turn = glm::normalize(h.turn * glm::inverse(controller));
         if(turn.w < 0.f)
         {
             turn = -turn;
         }
+        const float most = za::fmax(vr_ragdoll_hand_turn.value, 0.f);
         const float degrees = glm::degrees(glm::angle(turn));
-        if(degrees > limbMostTurn)
+        if(degrees > most)
         {
-            turn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, turn, limbMostTurn / degrees);
+            turn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, turn, most / degrees);
+        }
+        const glm::vec3 channel = grip::handFrame(hand, hand == HAND_OFF, true).channelPoint; // (the hand's frame)
+        const glm::vec3 contact = h.pos + glm::mat3_cast(h.turn) * channel;
+        glm::vec3 offset = contact - glm::mat3_cast(turn * controller) * channel - pos;
+        const float length = glm::length(offset);
+        if(length > stick)
+        {
+            offset *= stick / length;
         }
         e.offset = offset;
         e.turn = turn;
+        e.unclamped = degrees;
     }
     e.blend = on ? za::fmin(1.f, e.blend + dt / limbEaseTime) : za::fmax(0.f, e.blend - dt / limbEaseTime);
     if(e.blend <= 0.f)
@@ -6273,13 +6279,28 @@ void ragdollHandProbe_f()
         }
         const LimbEase& e = limbEase[hand];
         Con_Printf("ragdoll hand %s: edict %d part %d; the limb's held point %.1f cm from the hand (the spring's lag and sag); "
-                   "the hand drawn %.1f cm and %.0f degrees off its controller (eased %.2f)\n",
+                   "the hand drawn %.1f cm and %.0f degrees (of %.0f) off its controller (eased %.2f)\n",
             name, limb.num, limb.part, lag * cm, glm::length(e.offset * e.blend) * cm,
-            glm::degrees(glm::angle(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, e.turn, e.blend))), e.blend);
+            glm::degrees(glm::angle(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, e.turn, e.blend))), e.unclamped, e.blend);
         if(!rh.drawn || !limb.shape)
         {
             Con_Printf("  (the hand isn't drawn, or the limb has no shape)\n");
             continue;
+        }
+        {
+            glm::vec3 mid{0.f};
+            for(const grasp::Triangle& t : limb.shape->tris)
+            {
+                mid += (t.p[0] + t.p[1] + t.p[2]) / 3.f;
+            }
+            mid /= static_cast<float>(za::max<za::SizeT>(limb.shape->tris.size(), 1));
+            glm::vec3 at;
+            bool in = false;
+            const float d = grasp::surfaceDistance(*limb.shape, limb.toWorld, limb.pos, 64.f, at, in);
+            Con_Printf("  the limb's mesh: %d triangles, its middle %.1f cm from where the hand holds it, %.1f cm from its "
+                       "surface%s\n",
+                static_cast<int>(limb.shape->tris.size()), glm::distance(glm::vec3{limb.toWorld * glm::vec4{mid, 1.f}}, limb.pos) * cm,
+                d * cm, in ? " (in it)" : "");
         }
         // The drawn hand's palm and fingertips to the limb's mesh (cm; negative: in it), and the fingers' closure.
         const auto toLimb = [&](const glm::vec3& rigPoint) {

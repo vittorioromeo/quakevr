@@ -199,6 +199,10 @@ QVR_CVAR(vr_mock_angvel_local, "0", CVAR_NONE)
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
+// Test runs with vr_fixed_frames 1: the host frames a second of game time (72: a server frame with each, as before; 90: a
+// headset's frame rate, the server's frames on its own 72 Hz clock between them: the drawn motion's smoothness tests,
+// vr_drawn_motion_test).
+QVR_CVAR(vr_fixed_frames_rate, "72", CVAR_NONE)
 // Test runs: 1 runs the mock headset's frames as fast as the machine makes them while the game's clock doesn't follow the
 // wall clock (vr_fixed_frames 1, a motion take played back not in watch mode): no frame cap, no vsync (VR_Unpaced). The
 // same frames and the same numbers as at the frame cap's pace, in less time. Other runs keep their real-time pace.
@@ -1559,8 +1563,11 @@ QVR_CVAR(vr_ragdoll_grab_force, "3000", CVAR_ARCHIVE) // N: the most a hand pull
 QVR_CVAR(vr_ragdoll_grab_reach, "6", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
 QVR_CVAR(vr_ragdoll_grab_fit, "1", CVAR_ARCHIVE)      // a taken limb's surface brought onto the palm (as a carried prop's: vr_held_surface_fit); 0: held where the hand's middle was
 QVR_CVAR(vr_ragdoll_hand_stick, "12", CVAR_ARCHIVE)   // cm: the most the hand holding a limb is drawn off its controller to stay on the limb (it lags and sags); 0: on the controller
+QVR_CVAR(vr_ragdoll_hand_turn, "60", CVAR_ARCHIVE)    // degrees: and the most it is drawn turned off it, with the limb twisting in the hand (the hand turns about its fingers on the limb)
 QVR_CVAR(vr_ragdoll_throw, "1", CVAR_ARCHIVE)         // times the hand's throw a limb let go of keeps (0: only what the pull gave it)
 QVR_CVAR(vr_ragdoll_blood, "1", CVAR_ARCHIVE)         // a ragdoll's limbs flung fast leave blood trails and drops (as gibs do: vr_gib_blood_trail)
+QVR_CVAR(vr_ragdoll_smooth, "1", CVAR_ARCHIVE)        // drawn between the server's last two steps, as props are (smooth at a headset's 90 Hz over the server's 72); 0 the latest step (judders)
+QVR_CVAR(vr_ragdoll_held_local, "1", CVAR_ARCHIVE)    // a held limb's ragdoll follows your hand at the frame rate, as a held prop does (the server's step lags it); 0 the server's pose only
 // Per monster class (Gibs and Corpses > Ragdolls > Grunt, > Knight): -1 (Global) is the setting above, any other value replaces it
 // for that class. Each class's mass is its own by default (the author, 2026-10-03: ROUND21.md, "Ragdoll masses per monster").
 QVR_CVAR(vr_ragdoll_army_start, "-1", CVAR_ARCHIVE)
