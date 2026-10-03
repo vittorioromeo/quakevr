@@ -36,6 +36,10 @@ void parseEvent();
 void parseClear();
 // QVR_SVC_WEAPONGONE: a weapon's record freed on the server (QC vr_weaponinst.qc): its blood forgotten.
 void parseWeaponGone();
+// The gore's burst (vr_gore.cpp's EventBurst: a monster gibbed, a gib bursting) at `org`, `size` times a gib's: its
+// blood onto the weapons and props lying near (vr_gore_gear_nearby), what lies right at a big one soaked
+// (vr_gore_gear_drops: a gibbed monster's gun and backpack). As parsed: painted in the frame.
+void burst(const float org[3], float size);
 
 // Once a frame, after the view's entities are set up (VR_SetupViewEntities: the body and the hands posed): the wounds
 // received painted, drying, cooling and healing, the drips.

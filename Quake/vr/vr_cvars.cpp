@@ -266,8 +266,10 @@ const DefaultChange defaultChanges[] = {
     // 81: Quetoo's material maps shipped and on (quakevr/textures_quetoo; ROUND21.md, "Quetoo's maps shipped").
     {81, &vr_extmaps, "0"},                    // 1
     {81, &vr_extmaps_dir, "textures_ext"},     // textures_quetoo (an absolute Quetoo folder: below)
+    // 82: the author's blood opacity (NOTES.md vrfiringrange_2026-10-03_02-15-04: "a little below the blood").
+    {82, &vr_wounds_blood_alpha, "0.75"},      // 0.8
 };
-constexpr int configVersion = 81;
+constexpr int configVersion = 82;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

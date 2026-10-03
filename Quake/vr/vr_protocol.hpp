@@ -8,7 +8,7 @@
 //     (damage numbers), haptics, knocks on the drawn hands and spent casings;
 //   - an extra "beam id" byte in TE_LIGHTNING1-3 / TE_BEAM, so one entity can own two beams;
 //   - entity updates: a weapon prop's weapon id in update bit 28 (QC vr_weaponinst.qc);
-//   - VR stats (weapons in both hands, holsters, clips, the hands' weapon ids) in stat slots 64+, sent through
+//   - VR stats (weapons in both hands, holsters, clips, the hands' and holsters' weapon ids) in stat slots 64+, sent through
 //     Ironwail's generic stat channel.
 
 #pragma once
@@ -96,7 +96,8 @@ enum Stat : int
     STAT_QVR_MELEE = STAT_QVR_CLIMBMAINX + 3, // parry stamina and the counter's window (QC .vr_melee_hud; vr_meleehud.cpp)
     STAT_QVR_WEAPONUID,  // the main hand's weapon's id (QC vr_weaponinst.qc: its record's; 0 none): its blood (vr_wounds.cpp)
     STAT_QVR_WEAPONUID2, // the off hand's
-    STAT_QVR_END
+    STAT_QVR_HOLSTERWEAPONUID0, // 6: each holster's weapon's id (0 none): its blood goes with it, drawn holstered too
+    STAT_QVR_END = STAT_QVR_HOLSTERWEAPONUID0 + 6
 };
 
 inline constexpr int numHolsters = 6;

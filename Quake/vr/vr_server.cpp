@@ -630,6 +630,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
         statsi[STAT_QVR_HOLSTERWEAPONMODEL0 + i] = modelIndexOfField(ent, holsterModel[i]);
         stat(STAT_QVR_HOLSTERWEAPONFLAGS0 + i, holsterFlags[i]);
         statsf[STAT_QVR_HOLSTERWEAPONCLIP0 + i] = clip(holsterInst[i]);
+        statsi[STAT_QVR_HOLSTERWEAPONUID0 + i] = weaponUid(inst(holsterInst[i])); // (its blood drawn holstered: vr_wounds.cpp)
     }
 }
 

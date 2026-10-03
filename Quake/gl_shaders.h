@@ -1169,7 +1169,7 @@ NOISE_FUNCTIONS
 "	vec4	Surface; // QVR: rim light and reflections (vr/vr_envmap.cpp): x the rim light's strength, y the reflections', z the cube's mip level they read\n"\
 "	vec4	AO; // QVR: dynamic ambient occlusion (vr/vr_ao.cpp): x its own group (0 none), y how much of its baked per-vertex occlusion applies; z its normal map's strength\n"\
 "	vec4	Wound; // QVR: wounds painted on it (vr/vr_wounds.cpp): x its mask's layer + 1 (0 none), yz the mask's size in texels, w the time\n"\
-"	vec4	WoundSide; // QVR: (vr/vr_wounds.cpp) xy the bones of its right side (bits 0..23, 24..47, as whole numbers: your body's mask is one a side), z painting only side z - 1 (0: all), w the blood's opacity\n"\
+"	vec4	WoundSide; // QVR: (vr/vr_wounds.cpp) xy the bones of its right side (bits 0..23, 24..47, as whole numbers: your body's mask is one a side), z painting only side z - 1 (0: all; drawn, negative: -(the layer + 1) of the blood on yours not yours, chunky), w the blood's opacity\n"\
 "	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own)\n"\
 "	vec4	RetroPart; // QVR: your body's parts by bone (vr/vr_retro.cpp bodyParts): xy the low bits of bones 0..23, 24..47, zw the high bits\n"\
 "};\n"\

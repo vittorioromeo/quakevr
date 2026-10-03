@@ -1822,6 +1822,12 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Gibs flying into you bloody you where they strike: how much (0 none)."),
         toggle("Blood on Weapons and Props", vr_gore_gear)
             .help("What you hold takes blood and keeps it: dropped, thrown and taken again, holstered and drawn, until water washes it."),
+        toggle("Holstered Weapons Too", vr_gore_gear_holstered)
+            .help("Your holstered weapons take blood as your body and hands do, when it lands near enough to them (a holstered weapon keeps its blood either way)."),
+        slider("Things Lying Near", vr_gore_gear_nearby, 0.f, 3.f, 0.25f, "%.2fx").extend()
+            .help("Weapons, boxes and props lying about take blood from bleeding hits, gibbings and bursting gibs near them: how much (0 none)."),
+        slider("Gibbed Monsters' Drops", vr_gore_gear_drops, 0.f, 3.f, 0.25f, "%.2fx").extend()
+            .help("What lies right where a monster is gibbed (its gun, its backpack) comes out soaked: how much (0 only the drops near it)."),
         slider("Blood over Your Arms", vr_gore_spread, 0.f, 3.f, 0.25f, "%.2fx").extend()
             .help("Hurt, holding a gib, or as your wounds re-open, blood runs over your arms too (a little your legs): how much (0 none)."),
         header("Blood Mist"),
@@ -3081,6 +3087,9 @@ za::Vector<Item> pageDebugTools()
         command("Blood from a Close Shot", "vr_gore_spatter_test shot").help("vr_gore_spatter_test shot: a shot hitting 40 units ahead of your eyes."),
         command("Marks on Your Main Forearm", "vr_gore_spatter_test arm main").help("vr_gore_spatter_test arm main: three bleeding marks on the main forearm alone: none on the other arm (chunky or fine)."),
         command("Gib Strikes Your Hand", "vr_gore_spatter_test gib").help("vr_gore_spatter_test gib: a gib flying into your main hand."),
+        command("Blood from a Swing of Your Prop", "vr_gore_spatter_test propblow").help("vr_gore_spatter_test propblow: what the main hand holds swung away from you into a monster: the far side (the one that struck) takes the blood; a box lists its sides."),
+        command("Blood on Your Left Hip's Weapon", "vr_gore_spatter_test holster 2").help("vr_gore_spatter_test holster <0..5>: a hit's blood just out from a holster's weapon (2 the left hip, 3 the right): holstered weapons take blood (Holstered Weapons Too)."),
+        command("A Gibbing Ahead", "vr_gore_spatter_test burst").help("vr_gore_spatter_test burst [distance] [size]: a monster gibbed 48 units ahead: the weapons and props lying near take its blood, what lies right there soaked (Things Lying Near, Gibbed Monsters' Drops)."),
         command("Burn Your Arms", "vr_wounds_test self 4 90 0 12").help("vr_wounds_test self 4 90 0 12: an explosion's burns on your front and the arms held before you (Gore > Your Wounds' Detail)."),
         command("Wound Your Arms", "vr_wounds_test self 1 20 4 14").help("vr_wounds_test self 1 20 4 14: a shot's bleeding wound at your arms' height, held before your chest."),
         command("Soak Your Arms", "vr_wounds_test self 9 0 0 52").help("vr_wounds_test self 9 0 0 52: wet as from water up to your chest; dries in about 25 seconds."),

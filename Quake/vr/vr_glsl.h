@@ -1765,7 +1765,7 @@ SPECULAR_AA_FUNCTIONS
 "// the same colours, and a relief (char crusted and cracked, blood sunk into the skin).\n" \
 "layout(binding=13) uniform sampler2DArray WoundMasks;\n" \
 "layout(binding=15) uniform sampler2DArray WoundMasksFine;\n" \
-"layout(binding=10) uniform sampler2DArray WoundBloodFine; // the blood on them that isn't theirs (spatter, gibs): healing leaves it\n" \
+"layout(binding=10) uniform sampler2DArray WoundBloodFine; // the blood on yours that isn't yours (spatter, gibs): healing leaves it (fine or chunky)\n" \
 "\n" \
 "struct Wounds\n" \
 "{\n" \
@@ -1856,7 +1856,11 @@ SPECULAR_AA_FUNCTIONS
 "		vec2 grid = all(lessThanEqual(size, wi.yz * 2.0)) ? size : wi.yz;\n" \
 "		vec2 t = floor(clamp(uv, 0.0, 0.99999) * grid);\n" \
 "		int layer = in_woundside > 0.5 ? textureSize(WoundMasks, 0).z - 1 : int(wi.x) - 1; // your body's right side: the pool's last layer\n" \
-"		m = texelFetch(WoundMasks, ivec3(ivec2((t + 0.5) / grid * wi.yz), layer), 0);\n" \
+"		ivec2 at = ivec2((t + 0.5) / grid * wi.yz);\n" \
+"		m = texelFetch(WoundMasks, ivec3(at, layer), 0);\n" \
+"		float other = instances[in_instance].WoundSide.z; // yours: -(the layer + 1) of the blood on it not yours (healing leaves it)\n" \
+"		if (other < -0.5)\n" \
+"			m.r = max(m.r, texelFetch(WoundBloodFine, ivec3(at, in_woundside > 0.5 ? textureSize(WoundBloodFine, 0).z - 1 : int(-other) - 1), 0).r);\n" \
 "		if (m == vec4(0.0))\n" \
 "			return w;\n" \
 "		ivec2 it = ivec2(t) & 3;\n" \

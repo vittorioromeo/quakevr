@@ -22445,3 +22445,77 @@ heavy, close particle load.
 About +0.5 ms on particles that cover much of the view (each fragment reads up to four block taps and the palette
 table); decals +0.04 to +0.2 (noisy). Sprites and Quake's particles were too few here to measure. Off (the category's
 On 0, or vr_retro 0): decals and VR particles use the old programs; sprites and Quake's particles one branch.
+
+## Blood on holstered weapons, on things lying near, healing in chunky mode, the side a prop struck with (2026-10-03)
+
+NOTES.md vrfiringrange_2026-10-03_02-08-45 .. 02-24-42: holstered weapons should take blood when you're close enough
+to get it on your hands and torso; a bloody weapon looked clean holstered; weapons and props lying near hits, gibbings
+and bursting gibs stayed clean (worst: a gibbed monster's drops); a health pack took off all your blood, not only your
+own wounds'; blood opacity 0.8; props hitting monsters took the blood on the opposite side.
+
+- **Holstered, the same blood.** The server sends each holster's weapon id (`STAT_QVR_HOLSTERWEAPONUID0..5`, after
+  `STAT_QVR_WEAPONUID2`). `gearFrame` puts a weapon's mask on the holster drawing it (`view::holsteredWeapon(stat)`:
+  the drawn holster entity, not the Weapon Offsets preview nor a posing session), as on a hand or its prop; a holster
+  emptied parks it as before. `vr_gore_hands_info` says `in holster <n>`.
+- **Holstered weapons take blood** (`vr_gore_gear_holstered` 1, Gore > Blood on You and Your Gear > Holstered Weapons
+  Too): `paintOnYou` (spatter, close shots, blows, gibs striking you) paints each holster's weapon within the splat's
+  reach, bound to its id.
+- **Things lying near** (`vr_gore_gear_nearby` 1, Things Lying Near): a bleeding hit (a monster's, a corpse's, yours;
+  shot, nail, blow, blast) and the gore's bursts (`gore::event` EventBurst -> `wounds::burst`: a monster gibbed, size 2;
+  a gib bursting, 1; a small gib's puff, 0.35) are kept a moment as splashes; each frame what lies within reach takes a
+  spatter on its side facing the blood, once a splash. "Lies about" (`liesAbout`): a weapon prop (its id: the blood
+  goes with the weapon), a rigid body (`U_QVR_NOROTATE`), a pickup (EF_ROTATE: backpacks, armour, items), a brush model
+  of its own (`maps/b_*.bsp`); not monsters, players, gibs, doors and lifts (`*n` models) nor what you carry. Reach:
+  32 u (shots), 40 (blows), 56 (blasts) times the root of the hit; bursts 32 + 28 x size. A splash 1500 u away or more
+  is ignored (pool layers). Gibbings linger 1 s, so the gun and backpack the monster drops (a moment later) take it:
+  what lies within 20 + 8 x size of a gibbing is **soaked** (five spatters from round and above;
+  `vr_gore_gear_drops` 1, Gibbed Monsters' Drops; size 1 bursts soak at half). The masks are gear masks (washed by
+  water, kept carried and dropped).
+- **Healing in chunky mode.** Chunky (`vr_wounds_own_res 0`, the author's setting) had one RGBA mask for your body and
+  hands, so healing took off the blood that wasn't yours too. The R8 array for the blood not yours (`bloodArray`)
+  now exists in chunky mode too: 256 x 256, 4 layers (256 KB), one per own mask in the pool (`Mask::otherSlot`), the
+  last your body's right side's. Painting, washing, clearing and counting go through `bloodLayerOf`/`hasOther`; the
+  alias shader's chunky read takes its texel (`WoundSide.z` negative when drawn: the layer; binding 10).
+- **Blood opacity** 0.8 (`vr_wounds_blood_alpha`; config version 82 moves a config's 0.75 to 0.8).
+- **The side a prop struck with.** The box mask's six cells were consistent (paint and read checked against each
+  other); the spatter's centre was not: for a blow the server's contact (or the monster's middle) often lies inside
+  what struck, on your side of its middle, where only the side facing you (the hand's) faces it. A blow's spatter onto
+  what a hand holds now starts where the blow's line (`ev.dir`) leaves the thing's box (`facingBlow`, `leavesBox`: its
+  model's bounds as drawn), so the leading side takes it; boxes and skinned props (crates, rocks) alike. A centre
+  outside the box is unchanged.
+
+Tests (Debug > Tests > Test Effects): `vr_gore_spatter_test propblow` (Blood from a Swing of Your Prop: the held thing
+swung away from you, the contact inside it on your side; a box lists its sides), `vr_gore_spatter_test holster <0..5>`
+(Blood on Your Left Hip's Weapon), `vr_gore_spatter_test burst [distance] [size]` (A Gibbing Ahead). `prop` now
+strikes towards you (`ev.dir`). `vr_gore_hands_info` lists lying things' masks with their entity and a box's six sides.
+
+### Checked (mock headset, firing range)
+
+- Holster round trip (`vr_weapon_grip_mode 1`, the shotgun drawn from holster hotspot 6, a blow): `#32 in the main
+  hand 22 texels` -> holstered `in holster 3: 22` -> drawn `in the main hand 22` (before: `kept`, drawn clean).
+- `vr_gore_spatter_test holster 2` / `3`: the axe 410 texels, the shotgun 1953.
+- Prop swing, shells box held (`vr_test_spawn 101`, hold): `propblow` x3 -> `-z 1514`, every other side 0, the side
+  facing you (+z) 0; `prop` (struck on your side) -> +z 163, -z 0. A crate (107) `propblow`: 158 texels.
+- Lying near: a shells box, a shotgun prop and a crate, a size-1 burst 64 u ahead: 1162 / 1569 / 26607 (crate soaked);
+  a grunt gibbed 140 u ahead (`vr_test_spawn_dead 2`): its gun (16 u from the burst) and backpack (43 u) soaked, 6384
+  and 9734 texels; the box, shotgun and crate took more.
+- Healing, chunky: spatter (blow, gib, shot) hands 1027 / 4133, body 2411; hurt (own wounds) body 10943; healed (health
+  40 -> 100): 1027 / 4133 / 2419. Eyeshots: red pixels 89501 clean, 102448 spattered, 101958 healed (the spatter stays
+  drawn). Fine mode unchanged (healed back to the spatter's counts).
+- Config: version 81 with 0.75 -> 0.8, version 82.
+- Melee eval canary 48/53, no differences from the baseline; e1m1 smoke: no errors.
+
+### Limits
+
+- A blow's moved centre uses the model's bounds box: a long gun clubbing gets the blood where the line leaves its box
+  (a thrust: the muzzle end), not on the barrel's exact face.
+- Lying things are found by a scan of the entities per active splash (32 at most, 24 things each).
+
+### In VR
+
+- [ ] Get bloody up close (blows, a chainsaw, a gibbing next to you): the holstered weapons take some; draw one: the
+  same blood; holster a bloody one: still bloody.
+- [ ] Gib a monster: its gun and backpack come out soaked; weapons and props lying near a fight get drops.
+- [ ] Bloody from enemies, then hurt, then take health: your wounds go, the enemies' blood stays (chunky detail too).
+- [ ] Blood Opacity 0.8.
+- [ ] Hit a monster with a box, a crate, a brick: the blood on the side that struck.
