@@ -157,7 +157,6 @@ Push the torso gib and the big chunk with both hands and release together: they 
 Hold a gib in one hand and punch it with the other: it still bursts
 
 [Decide or give feedback]
-Heads: the second hand can't take a head (too small for two hands): allow two-handed head carrying?
 Training dummy: its wounds build up until gibbed: should it heal over time?
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?
