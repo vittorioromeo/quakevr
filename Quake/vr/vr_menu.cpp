@@ -18,6 +18,7 @@
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
+#include "vr_menupaint.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_review.hpp"
 #include "vr_motion_take.hpp"
@@ -37,6 +38,7 @@
 #include "vr_weight.hpp"
 #include "vr_twohand.hpp"
 
+#include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Count.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/StableSort.hpp"
@@ -135,6 +137,24 @@ struct Item
     // above (a long text's next line: selected with it, never on its own).
     bool (*dimArg)(int){nullptr};
     int partOf{0};
+
+    // The menu detail level (vr_menu_level: MenuLevel, below) it is shown from: a row for the curious (advanced()) or for
+    // tuning and testing (developer()) is left out of the pages below that level.
+    int level{0};
+
+    [[nodiscard]] Item advanced() const
+    {
+        Item i = *this;
+        i.level = 1;
+        return i;
+    }
+
+    [[nodiscard]] Item developer() const
+    {
+        Item i = *this;
+        i.level = 2;
+        return i;
+    }
 
     [[nodiscard]] Item help(const char* text) const
     {
@@ -352,6 +372,19 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
+[[nodiscard]] za::Vector<Item> pageChanged();
+[[nodiscard]] za::Vector<Item> pageSearch();
+// (Settings with their home on another page link to it: one home per setting.)
+[[nodiscard]] za::Vector<Item> pageMain();
+[[nodiscard]] za::Vector<Item> pageColours();
+[[nodiscard]] za::Vector<Item> pageBulletTime();
+[[nodiscard]] za::Vector<Item> pageStamina();
+[[nodiscard]] za::Vector<Item> pageGibs();
+[[nodiscard]] za::Vector<Item> pageGore();
+[[nodiscard]] za::Vector<Item> pageScreens();
+[[nodiscard]] za::Vector<Item> pageHipHolsters();
+[[nodiscard]] za::Vector<Item> pageClimbing();
+[[nodiscard]] za::Vector<Item> pageRecording();
 
 // Texts the menu hands out by pointer (an Item holds const char*):
 // - readouts: an info line's or a help's text, valid until the same function's next call (the draw uses it at once);
@@ -1042,8 +1075,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Recovery Rate", vr_parry_stamina_regen, 1.f, 100.f, 1.f, "%.0f /s").extend().help("Stamina a second it then comes back at."),
         slider("Tiring Warning", vr_parry_stamina_warn, 0.f, 1.f, 0.1f, "%.1f")
             .help("A breath and a throb in the hand when one more one-handed parry would knock the weapon away; a gasp and a long buzz when it does: their volume and strength (0 off)."),
-        toggle("Stamina on the Gadget", vr_gadget_stamina)
-            .help("The wrist gadget's top row shows your stamina: ten cells, blinking when one more one-handed parry would knock the weapon away, EXHAUSTED when none is left, a sweep while it comes back. While a counter's window is open it reads COUNTER over a bar running out."),
+        open("Stamina on the Gadget: Screens", pageIndex(pageScreens)).help("What the gadget shows (stamina and counters) is on HUD and Menus > Screens."),
         header("Shove and Strike Stamina"),
         toggle("Shove Stamina", vr_shove_stamina)
             .help("Shoves and bashes that land cost stamina from the same pool as parries. Without enough left, they throw back less and hurt less (Exhausted Knockback, Exhausted Damage)."),
@@ -1153,25 +1185,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("From the pin (or the throw) to the blast. The launcher's grenades take 2.5 s. Hold it too long and it goes "
                   "off in your hand."),
         header("Grenade Pouch"),
-        toggle("Show Grenade Pouch", vr_show_grenade_pouch)
-            .help("A marker at the pouch the size of its reach, green while a hand is there: to place it."),
-        slider("Pouch X", vr_grenade_pouch_x, -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("Forward (negative: back), units. With the body drawn, the default (-7) is on the belt at the small of "
-                  "your back; forward, it goes round your hips."),
-        slider("Pouch Y", vr_grenade_pouch_y, -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("To your right (negative: left), units."),
-        slider("Pouch Z", vr_grenade_pouch_z, -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("Up (negative: down), units: 0 is the hip holsters' height."),
-        slider("Pouch Threshold", vr_grenade_pouch_thresh, 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
-            .help("How near the pouch a hand must be to take a grenade from it (or put one back)."),
-        slider("Grenade In Hand Pitch", vr_grenade_pouch_hold_pitch, -180.f, 180.f, 5.f, "%.0f deg")
-            .help("A grenade taken from the pouch: its front tipped up in your hand (negative: down), about its middle. "
-                  "Moves one you hold now too."),
-        slider("Grenade In Hand Yaw", vr_grenade_pouch_hold_yaw, -180.f, 180.f, 5.f, "%.0f deg")
-            .help("A grenade taken from the pouch: its front turned left in your hand (negative: right), mirrored for the "
-                  "left hand."),
-        slider("Grenade In Hand Roll", vr_grenade_pouch_hold_roll, -180.f, 180.f, 5.f, "%.0f deg")
-            .help("A grenade taken from the pouch: rolled right in your hand (negative: left), mirrored for the left hand."),
+        open("Grenade Pouch: Hip Holsters", pageIndex(pageHipHolsters)).help("Where the grenade pouch is and how a grenade sits in the hand: Weapons > Hip Holsters."),
         open("Pouch Turn (Hip Holsters)", pageIndex(pageHipHolsters))
             .help("The same place, and how the pouch is turned, with the hip holsters."),
     };
@@ -1182,10 +1196,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     return {
         open("Arms and Pauldrons", pageIndex(pageBodyArms)),
         open("Body Calibration", pageIndex(pageBodyCalibration)),
-        open("Player Calibration", pageIndex(pagePlayerCalibration)),
         header("Body"),
-        cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
-        cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
+        open("Body and Build: Body and Display", pageIndex(pageBodyDisplay)).help("The body on or off and its build are on Body and Display."),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s").extend()
             .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
@@ -1199,8 +1211,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How many more kicks a second at full stick (treading water, about 0.7)."),
         toggle("Show Armour and Wounds", vr_body_state)
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt (with Dynamic Wounds, on the Gore page: where you are hit)."),
-        toggle("Wounds Drip Blood", vr_body_blood)
-            .help("Blood drips from your wounded arms and hands, faster when badly hurt or just hit, and splashes on the floor."),
+        open("Wounds Drip Blood: Gore", pageIndex(pageGore)).help("The wounds' dripping blood is on Gore (Arm Drip Rate)."),
         toggle("Show Powerups", vr_body_powerups)
             .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
         toggle("Anchors Follow Body", vr_body_anchors)
@@ -1250,6 +1261,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How far the torso sits behind your neck (negative: in front)."),
         slider("Legs Offset", vr_body_legs_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
             .help("How far the feet stand behind your head (negative: in front)."),
+        slider("Shoulders Offset", vr_body_shoulders_back, -0.15f, 0.2f, 0.01f, "%.2f m").extend(-0.5f, 0.5f)
+            .help("How far the shoulders sit behind your neck (negative: in front)."),
         slider("Eyes Forward", vr_body_eye_forward, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f)
             .help("From the top of the neck to the eyes, forward."),
         slider("Eyes Up", vr_body_eye_up, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f).help("From the top of the neck to the eyes, up."),
@@ -1549,8 +1562,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         open("Overhead Grip", pageIndex(pageFlashlightOverheadGrip)).help("The torch turned over in your hand (B or Y): its place, its turn and the fingers on it."),
         open("On a Gun or Head", pageIndex(pageFlashlightMounts)).help("Where the torch clips on a gun or on your head, and the zones that clip it on."),
         header("Flashlight"),
-        toggle("Chest Flashlight", vr_flashlight)
-            .help("A torch hanging on your belt, on the hip Side picks (lighting only your feet there). Trigger at it: on or off. Grip it with an open, still hand to take it (a fist closing by it in a fight does nothing); let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
+        open("Chest Flashlight and Side: Body and Display", pageIndex(pageBodyDisplay)).help("The chest flashlight on or off and its hip are on Body and Display."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx").extend(),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f").extend(100.f, 6000.f),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
@@ -1578,7 +1590,6 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Forward", vr_flashlight_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
         slider("Up", vr_flashlight_up, -0.4f, 0.4f, 0.01f, "%.2f m").extend(),
         slider("Out", vr_flashlight_out, -0.3f, 0.3f, 0.01f, "%.2f m").extend().help("Away from your middle, towards its side."),
-        cycle("Side", vr_flashlight_side, {{0.f, "Left hip"}, {1.f, "Right hip"}}),
         header("In the Hand"),
         slider("In Hand Forward", vr_flashlight_hand_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Where the held lamp sits in your fist."),
         slider("In Hand Up", vr_flashlight_hand_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
@@ -1924,8 +1935,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 [[nodiscard]] za::Vector<Item> pageGadget()
 {
     return {
-        cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}),
-        cycle("Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}),
+        open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageMain)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
         slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 3.f),
         header("Placement"),
         slider("Along the Arm", vr_gadget_x, -15.f, 15.f, 0.5f, "%.1f cm").extend(-40.f, 40.f),
@@ -2026,9 +2036,8 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageThrowing()
 {
     return {
-        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
+        open("Throw Speed and Gravity: VR Settings", pageIndex(pageMain)).help("Throw Speed and Throw Gravity are on VR Settings."),
         slider("Two-Hand Throw Speed", vr_2h_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
-        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}),
         slider("Velocity Window", vr_throw_window, 0.04f, 0.3f, 0.01f, "%.2f s").extend()
             .help("Around the release, where the hand's fastest moment sets the throw."),
         slider("Direction Lookback", vr_throw_dir_lookback, 0.f, 0.1f, 0.005f, "%.3f s").extend()
@@ -2393,9 +2402,7 @@ void hologramTestMessage()
             .help("A slide slower than this is silent."),
         slider("Loudest Scrape From", vr_physsound_scrape_full, 1.f, 8.f, 0.5f, "%.1f m/s").extend(0.5f, 20.f)
             .help("A slide this fast or faster scrapes at full volume."),
-        slider("Climbing Grab", vr_physsound_grab, 0.f, 1.f, 0.1f, "%.1f")
-            .help("A small slap as a climbing hand takes a hold, of what the hold is made of: wood, muted metal or stone "
-                  "(0 off)."),
+        open("Climbing Grab Sound: Climbing", pageIndex(pageClimbing)).help("The climbing grab sound is on Movement > Climbing."),
         header("Explosive Boxes"),
         toggle("Physics Explosive Boxes", vr_explobox_physics)
             .help("The explosive boxes can be pushed, tipped over, stacked and carried by hand (heavy; never force "
@@ -2734,11 +2741,7 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageCorpseDamage()
 {
     return {
-        slider("Corpse Health", vr_corpse_health_mult, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.05f, 20.f)
-            .help("Times every monster's corpse health below (vr_corpse_health_mult)."),
-        cycle("Never Gib Corpses", vr_corpse_nogib, {{0.f, "Off"}, {1.f, "Corpses and Ragdolls"}, {2.f, "And Dying Monsters"}})
-            .help("For testing: corpses and ragdolls never burst into gibs. And Dying Monsters: monsters die whole too "
-                  "(vr_corpse_nogib)."),
+        open("Corpse Health, Never Gib: Gibs and Corpses", pageIndex(pageGibs)).help("Corpse Health and Never Gib Corpses are on Gibs and Corpses."),
         header("Damage to Corpses, by Weapon"),
         slider("Shotguns and Guns", vr_corpse_dmg_shots, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
             .help("The shotguns' pellets and the grunts' guns. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_shots)."),
@@ -2807,11 +2810,7 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageRagdolls()
 {
     return {
-        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "On (Experimental)"}})
-            .help("A dying grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend, shambler or gremlin goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs; a rottweiler's four legs, jaw and tail; a scrag's tail; a fiend's claws, feet and tail) that fall, "
-                  "tumble down stairs, are pushed by shots, blasts, props and your hands, his mesh bent with them. Shoot "
-                  "or blow him up enough and he still bursts into gibs, as a corpse does (Gibs and Corpses: Corpse Damage "
-                  "and Health, Never Gib Corpses) (vr_ragdoll)."),
+        open("Ragdolls On/Off: Gibs and Corpses", pageIndex(pageGibs)).help("Ragdolls on or off is on Gibs and Corpses."),
         slider("Go Limp At", vr_ragdoll_start, 0.f, 1.f, 0.1f, "%.1f")
             .help("When in his death animation: 0 as soon as he stops being solid, 1 once he lies still (vr_ragdoll_start)."),
         slider("Most Ragdolls", vr_ragdoll_max, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 64.f)
@@ -3363,9 +3362,7 @@ void checklistReload()
             .help("What to test in the headset or give feedback on (quakevr/checklist.txt), ticked as you go. Also the "
                   "menu's corner button."),
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
-        slider("Slow Motion", vr_timescale, 0.1f, 1.f, 0.05f, "%.2fx").extend(0.05f, 4.f)
-            .help("The game's time scale (vr_timescale; single player, not saved): everything slowed but your view. Its "
-                  "other settings: Graphics > Recording > Slow Motion. Bindable: vr_slowmo."),
+        open("Slow Motion: Recording", pageIndex(pageRecording)).help("Time Scale (slow motion) is on Graphics > Recording."),
         header("Debug"),
         open("Views", pageIndex(pageDebugViews))
             .help("Drawn in the world: physics shapes, hand bones, ledges, grab tests, the skeleton, collisions, foveation, entity boxes."),
@@ -3439,10 +3436,7 @@ za::Vector<Item> pageDebugViews()
         toggle("Log Weapon Wall Collisions", vr_debug_gun_wall)
             .help("Each frame a held weapon is held out of the level: how far the hand is moved (up, across), the depth left "
                   "and the muzzle's height over the surface below it, in the console."),
-        toggle("Show Flashlight Zones", vr_show_flashlight_zones)
-            .help("The torch's reach zones (as on the Flashlight page): not in a hand, a capsule round it, green while a hand's "
-                  "grip there takes it, and a dot where the game reads each hand near it (the drawn hand may be held out "
-                  "of the body elsewhere)."),
+        open("Flashlight Zones: Flashlight - On a Gun or Head", pageIndex(pageFlashlightMounts)).help("Showing the flashlight zones is on Flashlight > On a Gun or Head."),
         command("Flashlight to Left Hand", "vr_flashlight_give left")
             .help("vr_flashlight_give left: the chest flashlight into the left controller's hand, as if gripped there (that "
                   "hand's grip lets go of it). Its buttons are then that controller's, with either Main Hand."),
@@ -3806,7 +3800,7 @@ za::Vector<Item> pageDebugTools()
         command("A Grunt's Corpse Ahead", "vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; vr_test_spawn_dead 0"),
         toggle("On the Training Dummy", vr_smallgibs_test_dummy)
             .help("vr_smallgibs_test_dummy: the tests below hit the nearest training dummy instead (the firing range's), and the shotgun, nail, blow and chainsaw ones print the gore each sent (gore hits, wound events, blood particles): to compare with a grunt's."),
-        command("A Grunt's Ragdoll Ahead", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Grunt's Ragdoll Ahead", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdolls) and a grunt killed 96 units ahead: he goes limp as he falls."),
         command("Blast Beside the Nearest Ragdoll", "vr_ragdoll_blast_test").help("vr_ragdoll_blast_test [damage]: a blast's push (no damage) 24 units beside the nearest ragdoll, on your side: it is thrown away from you."),
         command("Ragdoll and Prop Drawn Motion", "vr_drawn_motion_test 90 nearest")
@@ -4018,26 +4012,26 @@ za::Vector<Item> pageDebugTests()
             .extend()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
-        command("A Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 5; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 5; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a knight killed at the Distance ahead: he goes limp as "
                   "he falls (his sword dropped)."),
-        command("An Ogre's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 1; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("An Ogre's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 1; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and an ogre killed at the Distance ahead: he goes limp as he falls (his chainsaw dropped)."),
-        command("An Enforcer's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 8; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("An Enforcer's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 8; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and an enforcer killed at the Distance ahead: he goes limp as he falls (his laser rifle dropped)."),
-        command("A Death Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 6; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Death Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 6; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a death knight killed at the Distance ahead: he goes limp as he falls (his sword dropped)."),
-        command("A Rottweiler's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 7; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Rottweiler's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 7; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a rottweiler killed at the Distance ahead: it goes limp as it falls."),
-        command("A Scrag's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 4; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Scrag's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 4; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a scrag killed at the Distance ahead: he falls limp."),
-        command("A Fiend's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 9; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Fiend's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 9; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a fiend killed at the Distance ahead: it goes limp as it falls."),
-        command("A Shambler's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 3; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Shambler's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 3; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a shambler killed at the Distance ahead: he goes limp as he falls."),
-        command("A Gremlin's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 12; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Gremlin's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 12; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a gremlin killed at the Distance ahead (Scourge of Armagon): it goes limp as it falls (a stolen gun dropped)."),
-        command("A Grunt's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Grunt's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a grunt killed at the Distance ahead: he goes limp as "
                   "he falls."),
         command("Go to a Crowbar on a Crate", "vr_crates_goto crowbar")
@@ -4287,9 +4281,7 @@ za::Vector<Item> pageDebugTests()
 [[nodiscard]] za::Vector<Item> pageForceGrab()
 {
     return {
-        toggle("Force Grab", vr_forcegrab_mode)
-            .help("Point an empty hand at an object, pull the trigger, flick the hand: it flies to you. Grip as it arrives "
-                  "to catch it."),
+        open("Force Grab On/Off: VR Settings", pageIndex(pageMain)).help("Force Grab on or off is on VR Settings."),
         slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f").extend(100.f, 4000.f),
         slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").extend().help("How far off where the hand points an object may be."),
         slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend()
@@ -4649,11 +4641,22 @@ enum PageId
     PageAdvanced
 };
 
+// Who a page is for (vr_menu_level, Menu Detail at the bottom of every page): links to a page above the level are left
+// out, and so are the rows marked advanced() or developer() (MENU_REVIEW.md). menu_vr <n> opens any page.
+enum MenuLevel
+{
+    LevelStandard,  // what every player sets: comfort, height, the HUD, the headset, volume
+    LevelAdvanced,  // every gameplay, display and graphics setting (the default for a page)
+    LevelDeveloper, // tuning (weapon and prop offsets, weights, ragdolls, hitboxes), recording, debug and tests
+    LevelCount
+};
+
 struct Page
 {
     const char* title; // over the page; also its name in vr_menu_positions (renamed: its record is ignored)
     PageBuilder build;
     PageBuilder home; // the page listing it in the tree (Back after menu_vr <n>; links elsewhere go back where they came from)
+    int level{LevelAdvanced};
 };
 
 [[nodiscard]] za::Vector<Item> pageMain();
@@ -4680,30 +4683,30 @@ struct Page
 // tree is in the pages' links: VR Settings > Advanced VR Options > its groups > their pages; ROUND21.md, "Menus
 // reorganized"). Links find their page by its builder (pageIndex).
 const Page pages[] = {
-    {"VR Settings", pageMain, nullptr},                                     // 0
+    {"VR Settings", pageMain, nullptr, LevelStandard},                                     // 0
     {"Advanced VR Options", pageAdvanced, pageMain},                        // 1
     {"Play", pagePlay, pageAdvanced},                                       // 2
     {"World", pageGameplay, pageAdvanced},                                  // 3 (Gameplay before)
     {"Parry and Bash", pageParryBash, pageCombat},                          // 4 (Parry, Bash and Headbutt before)
     {"Melee", pageMeleeSettings, pageCombat},                               // 5
-    {"Motion Recorder", pageMotionRecorder, pageAdvanced},                  // 6
-    {"Review Takes", pageReviewTakes, pageAdvanced},                        // 7
-    {"Take", pageReviewTake, pageReviewTakes},                              // 8
+    {"Motion Recorder", pageMotionRecorder, pageAdvanced, LevelDeveloper},                  // 6
+    {"Review Takes", pageReviewTakes, pageAdvanced, LevelDeveloper},                        // 7
+    {"Take", pageReviewTake, pageReviewTakes, LevelDeveloper},                              // 8
     {"Gore", pageGore, pageAdvanced},                                       // 9
-    {"Throwing and Physics", pageThrowing, pageCarryingHub},                // 10
+    {"Throwing and Physics", pageThrowing, pageCarryingHub, LevelDeveloper},                // 10
     {"Carrying", pageCarrying, pageCarryingHub},                            // 11 (Carrying and Gibs before)
     {"Force Grab", pageForceGrab, pageCarryingHub},                         // 12
     {"Grappling Hook", pageGrapple, pageMovement},                          // 13
     {"Body", pageBody, pageAdvanced},                                       // 14
-    {"Body - Arms and Pauldrons", pageBodyArms, pageBody},                  // 15
-    {"Body Calibration", pageBodyCalibration, pageBody},                    // 16
+    {"Body - Arms and Pauldrons", pageBodyArms, pageBody, LevelDeveloper},                  // 15
+    {"Body Calibration", pageBodyCalibration, pageBody, LevelStandard},                    // 16
     {"Flashlight", pageFlashlight, pageAdvanced},                           // 17
     {"Player Calibration", pagePlayerCalibration, pageBody},                // 18
     {"Locomotion", pageLocomotionSettings, pageMovement},                   // 19
     {"Swimming", pageSwimSettings, pageMovement},                           // 20
     {"Immersion", pageImmersionSettings, pageWeaponsHub},                   // 21
     {"Hand/Gun Calibration", pageHandGunCalibration, pageWeaponsHub},       // 22
-    {"Weapon Offsets", pageWeaponOffsets, pageWeaponsHub},                  // 23
+    {"Weapon Offsets", pageWeaponOffsets, pageWeaponsHub, LevelDeveloper},                  // 23
     {"Aiming", pageAimingSettings, pageWeaponsHub},                         // 24
     {"Hotspots", pageHotspotSettings, pageWeaponsHub},                      // 25
     {"Wrist Gadget", pageGadget, pageHudHub},                               // 26
@@ -4721,17 +4724,17 @@ const Page pages[] = {
     {"Graphics - Models and Effects", pageGraphicsModels, pageGraphics},    // 38
     {"Particles", pageParticleSettings, pageGraphics},                      // 39
     {"Transparency", pageTransparencyOptions, pageGraphics},                // 40
-    {"Held Object Offsets", pageHeldObjectOffsets, pageCarryingHub},        // 41
-    {"Weapon Weights", pageWeaponWeights, pageWeaponsHub},                  // 42
-    {"Held Object Weights", pageHeldObjectWeights, pageCarryingHub},        // 43
+    {"Held Object Offsets", pageHeldObjectOffsets, pageCarryingHub, LevelDeveloper},        // 41
+    {"Weapon Weights", pageWeaponWeights, pageWeaponsHub, LevelDeveloper},                  // 42
+    {"Held Object Weights", pageHeldObjectWeights, pageCarryingHub, LevelDeveloper},        // 43
     // Added with the menus reorganized (ROUND21.md).
     {"Combat", pageCombat, pageAdvanced},                                   // 44
     {"Movement", pageMovement, pageAdvanced},                               // 45
     {"Carrying and Throwing", pageCarryingHub, pageAdvanced},               // 46
     {"Weapons", pageWeaponsHub, pageAdvanced},                              // 47
     {"HUD and Menus", pageHudHub, pageAdvanced},                            // 48
-    {"Body and Display", pageBodyDisplay, pageMain},                        // 49
-    {"Headset", pageHeadset, pageMain},                                     // 50
+    {"Body and Display", pageBodyDisplay, pageMain, LevelStandard},                        // 49
+    {"Headset", pageHeadset, pageMain, LevelStandard},                                     // 50
     {"Damage and Knockback", pageDamage, pageCombat},                       // 51
     {"Stamina", pageStamina, pageCombat},                                   // 52
     {"Batting and Catching", pageBatting, pageCombat},                      // 53
@@ -4739,24 +4742,24 @@ const Page pages[] = {
     {"Wall Torches", pageWallTorches, pageCarryingHub},                     // 55
     {"Rocks and Bricks", pageRocksBricks, pageCarryingHub},                 // 56
     {"Gibs and Corpses", pageGibs, pageCarryingHub},                        // 57
-    {"Flashlight - Low Grip", pageFlashlightLowGrip, pageFlashlight},       // 58
-    {"Flashlight - Overhead Grip", pageFlashlightOverheadGrip, pageFlashlight}, // 59
-    {"Flashlight - On a Gun or Head", pageFlashlightMounts, pageFlashlight}, // 60
-    {"Fingers and Collisions", pageFingersCollisions, pageWeaponsHub},      // 61
+    {"Flashlight - Low Grip", pageFlashlightLowGrip, pageFlashlight, LevelDeveloper},       // 58
+    {"Flashlight - Overhead Grip", pageFlashlightOverheadGrip, pageFlashlight, LevelDeveloper}, // 59
+    {"Flashlight - On a Gun or Head", pageFlashlightMounts, pageFlashlight, LevelDeveloper}, // 60
+    {"Fingers and Collisions", pageFingersCollisions, pageWeaponsHub, LevelDeveloper},      // 61
     {"Weight and Damage", pageWeightDamage, pageWeaponsHub},                // 62
     {"Hip Holsters", pageHipHolsters, pageWeaponsHub},                      // 63
-    {"Debug", pageDebug, pageAdvanced},                                     // 64
+    {"Debug", pageDebug, pageAdvanced, LevelDeveloper},                                     // 64
     {"Recording", pageRecording, pageGraphics},                             // 65 (the desktop window's view)
     // The Debug page's parts (ROUND21.md, "Debug menu; quad sound; grenade catch default; no empty-hand deflection").
-    {"Debug - Views", pageDebugViews, pageDebug},                           // 66
-    {"Debug - Logging", pageDebugLogging, pageDebug},                       // 67
-    {"Debug - Profiling and Memory", pageDebugProfiling, pageDebug},        // 68
-    {"Debug - Reports", pageDebugReports, pageDebug},                       // 69
-    {"Debug - Tools", pageDebugTools, pageDebug},                           // 70
-    {"Debug - Tests", pageDebugTests, pageDebug},                           // 71
-    {"Checklist", pageChecklist, pageDebug},                                // 72 (also the corner's button)
-    {"Player Hitbox", pageHitbox, pageMovement},                            // 73
-    {"Monster Hitbox", pageMonsterHitbox, pageMovement},                    // 74
+    {"Debug - Views", pageDebugViews, pageDebug, LevelDeveloper},                           // 66
+    {"Debug - Logging", pageDebugLogging, pageDebug, LevelDeveloper},                       // 67
+    {"Debug - Profiling and Memory", pageDebugProfiling, pageDebug, LevelDeveloper},        // 68
+    {"Debug - Reports", pageDebugReports, pageDebug, LevelDeveloper},                       // 69
+    {"Debug - Tools", pageDebugTools, pageDebug, LevelDeveloper},                           // 70
+    {"Debug - Tests", pageDebugTests, pageDebug, LevelDeveloper},                           // 71
+    {"Checklist", pageChecklist, pageDebug, LevelDeveloper},                                // 72 (also the corner's button)
+    {"Player Hitbox", pageHitbox, pageMovement, LevelDeveloper},                            // 73
+    {"Monster Hitbox", pageMonsterHitbox, pageMovement, LevelDeveloper},                    // 74
     {"Lightning Gun in Water", pageLightningWater, pageWeaponsHub},         // 75
     {"Enemy Weapons", pageEnemyWeapons, pageCombat},                        // 76
     {"Sound", pageSound, pageMain},                                         // 77
@@ -4764,57 +4767,59 @@ const Page pages[] = {
     {"Weapon Damage", pageWeaponDamage, pageCombat},                        // 79
     {"Weapon Effects", pageWeaponEffects, pageWeaponsHub},                  // 80
     {"Enemy Shoves", pageEnemyShoves, pageCombat},                          // 81
-    {"Chainsaw Engine", pageChainsawEngine, pageEnemyWeapons},              // 82
+    {"Chainsaw Engine", pageChainsawEngine, pageEnemyWeapons, LevelDeveloper},              // 82
     {"Bullet Time", pageBulletTime, pageCombat},                            // 83 (vr_menu_recording.inc)
     // Weapon Offsets' parts (ROUND21.md, "Weapon Offsets split; the virtual stock's turn"): its main page links them.
-    {"Weapon Offsets - Hand and Grip", pageWofsHand, pageWeaponOffsets},           // 84
-    {"Weapon Offsets - Fingers", pageWofsFingers, pageWeaponOffsets},              // 85
-    {"Weapon Offsets - Muzzle and Sights", pageWofsSights, pageWeaponOffsets},     // 86
-    {"Weapon Offsets - Two-Handed", pageWofsTwoHanded, pageWeaponOffsets},        // 87
-    {"Weapon Offsets - Virtual Stock", pageWofsStock, pageWeaponOffsets},          // 88
-    {"Weapon Offsets - Ammo Screen", pageWofsScreen, pageWeaponOffsets},           // 89
-    {"Weapon Offsets - Holstered", pageWofsHolstered, pageWeaponOffsets},          // 90
-    {"Weapon Offsets - Effects", pageWofsEffects, pageWeaponOffsets},              // 91
-    {"Weapon Offsets - Flashlight", pageWofsFlashlight, pageWeaponOffsets},        // 92
-    {"Small Gibs", pageSmallGibs, pageGore},                                       // 93
+    {"Weapon Offsets - Hand and Grip", pageWofsHand, pageWeaponOffsets, LevelDeveloper},           // 84
+    {"Weapon Offsets - Fingers", pageWofsFingers, pageWeaponOffsets, LevelDeveloper},              // 85
+    {"Weapon Offsets - Muzzle and Sights", pageWofsSights, pageWeaponOffsets, LevelDeveloper},     // 86
+    {"Weapon Offsets - Two-Handed", pageWofsTwoHanded, pageWeaponOffsets, LevelDeveloper},        // 87
+    {"Weapon Offsets - Virtual Stock", pageWofsStock, pageWeaponOffsets, LevelDeveloper},          // 88
+    {"Weapon Offsets - Ammo Screen", pageWofsScreen, pageWeaponOffsets, LevelDeveloper},           // 89
+    {"Weapon Offsets - Holstered", pageWofsHolstered, pageWeaponOffsets, LevelDeveloper},          // 90
+    {"Weapon Offsets - Effects", pageWofsEffects, pageWeaponOffsets, LevelDeveloper},              // 91
+    {"Weapon Offsets - Flashlight", pageWofsFlashlight, pageWeaponOffsets, LevelDeveloper},        // 92
+    {"Small Gibs", pageSmallGibs, pageGore, LevelDeveloper},                                       // 93
     {"Burning", pageBurning, pageCombat},                                          // 94
     {"Graphics - Retro Textures", pageGraphicsRetro, pageGraphics},                // 95
-    {"Retro Textures - World", pageRetroCategory<retro::Category::World>, pageGraphicsRetro}, // 96
-    {"Retro Textures - Brush Entities", pageRetroCategory<retro::Category::Brush>, pageGraphicsRetro}, // 97
-    {"Retro Textures - Item Pickups", pageRetroCategory<retro::Category::Items>, pageGraphicsRetro}, // 98
-    {"Retro Textures - Props and Debris", pageRetroCategory<retro::Category::Props>, pageGraphicsRetro}, // 99
-    {"Retro Textures - Gibs", pageRetroCategory<retro::Category::Gibs>, pageGraphicsRetro}, // 100
-    {"Retro Textures - Small Gibs", pageRetroCategory<retro::Category::SmallGibs>, pageGraphicsRetro}, // 101
-    {"Retro Textures - Weapons in the World", pageRetroCategory<retro::Category::Weapons>, pageGraphicsRetro}, // 102
-    {"Retro Textures - Held Weapons", pageRetroCategory<retro::Category::Held>, pageGraphicsRetro}, // 103
-    {"Retro Textures - Monsters", pageRetroCategory<retro::Category::Monsters>, pageGraphicsRetro}, // 104
-    {"Retro Textures - Your Hands", pageRetroCategory<retro::Category::Hands>, pageGraphicsRetro}, // 105
-    {"Retro Textures - Your Arms", pageRetroCategory<retro::Category::Arms>, pageGraphicsRetro}, // 106
-    {"Retro Textures - Your Torso", pageRetroCategory<retro::Category::Torso>, pageGraphicsRetro}, // 107
-    {"Retro Textures - Your Legs", pageRetroCategory<retro::Category::Legs>, pageGraphicsRetro}, // 108
-    {"Retro Textures - Your Gear", pageRetroCategory<retro::Category::Gear>, pageGraphicsRetro}, // 109
-    {"Retro Textures - Decals", pageRetroCategory<retro::Category::Decals>, pageGraphicsRetro}, // 110
-    {"Retro Textures - Particles", pageRetroCategory<retro::Category::Particles>, pageGraphicsRetro}, // 111
-    {"Retro Textures - Sprites", pageRetroCategory<retro::Category::Sprites>, pageGraphicsRetro}, // 112
-    {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro}, // 113
-    {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro}, // 114
-    {"Retro Textures - All Categories", pageRetroAll, pageGraphicsRetro}, // 115
+    {"Retro Textures - World", pageRetroCategory<retro::Category::World>, pageGraphicsRetro, LevelDeveloper}, // 96
+    {"Retro Textures - Brush Entities", pageRetroCategory<retro::Category::Brush>, pageGraphicsRetro, LevelDeveloper}, // 97
+    {"Retro Textures - Item Pickups", pageRetroCategory<retro::Category::Items>, pageGraphicsRetro, LevelDeveloper}, // 98
+    {"Retro Textures - Props and Debris", pageRetroCategory<retro::Category::Props>, pageGraphicsRetro, LevelDeveloper}, // 99
+    {"Retro Textures - Gibs", pageRetroCategory<retro::Category::Gibs>, pageGraphicsRetro, LevelDeveloper}, // 100
+    {"Retro Textures - Small Gibs", pageRetroCategory<retro::Category::SmallGibs>, pageGraphicsRetro, LevelDeveloper}, // 101
+    {"Retro Textures - Weapons in the World", pageRetroCategory<retro::Category::Weapons>, pageGraphicsRetro, LevelDeveloper}, // 102
+    {"Retro Textures - Held Weapons", pageRetroCategory<retro::Category::Held>, pageGraphicsRetro, LevelDeveloper}, // 103
+    {"Retro Textures - Monsters", pageRetroCategory<retro::Category::Monsters>, pageGraphicsRetro, LevelDeveloper}, // 104
+    {"Retro Textures - Your Hands", pageRetroCategory<retro::Category::Hands>, pageGraphicsRetro, LevelDeveloper}, // 105
+    {"Retro Textures - Your Arms", pageRetroCategory<retro::Category::Arms>, pageGraphicsRetro, LevelDeveloper}, // 106
+    {"Retro Textures - Your Torso", pageRetroCategory<retro::Category::Torso>, pageGraphicsRetro, LevelDeveloper}, // 107
+    {"Retro Textures - Your Legs", pageRetroCategory<retro::Category::Legs>, pageGraphicsRetro, LevelDeveloper}, // 108
+    {"Retro Textures - Your Gear", pageRetroCategory<retro::Category::Gear>, pageGraphicsRetro, LevelDeveloper}, // 109
+    {"Retro Textures - Decals", pageRetroCategory<retro::Category::Decals>, pageGraphicsRetro, LevelDeveloper}, // 110
+    {"Retro Textures - Particles", pageRetroCategory<retro::Category::Particles>, pageGraphicsRetro, LevelDeveloper}, // 111
+    {"Retro Textures - Sprites", pageRetroCategory<retro::Category::Sprites>, pageGraphicsRetro, LevelDeveloper}, // 112
+    {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro, LevelDeveloper}, // 113
+    {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro, LevelDeveloper}, // 114
+    {"Retro Textures - All Categories", pageRetroAll, pageGraphicsRetro, LevelDeveloper}, // 115
     {"Graphics - Retro Lighting", pageGraphicsRetroLight, pageGraphics},          // 116
-    {"Gibs and Corpses - Ragdolls", pageRagdolls, pageGibs},                       // 117
-    {"Ragdolls - Grunt", pageRagdollGrunt, pageRagdolls},                          // 118
-    {"Ragdolls - Knight", pageRagdollKnight, pageRagdolls},                        // 119
-    {"Gibs and Corpses - Corpse Damage and Health", pageCorpseDamage, pageGibs},   // 120
-    {"Ragdolls - Ogre", pageRagdollOgre, pageRagdolls},                            // 121
-    {"Ragdolls - Enforcer", pageRagdollEnforcer, pageRagdolls},                    // 122
-    {"Ragdolls - Death Knight", pageRagdollDeathKnight, pageRagdolls},             // 123
-    {"Ragdolls - Rottweiler", pageRagdollRottweiler, pageRagdolls},                // 124
-    {"Ragdolls - Scrag", pageRagdollScrag, pageRagdolls},                          // 125
+    {"Gibs and Corpses - Ragdolls", pageRagdolls, pageGibs, LevelDeveloper},                       // 117
+    {"Ragdolls - Grunt", pageRagdollGrunt, pageRagdolls, LevelDeveloper},                          // 118
+    {"Ragdolls - Knight", pageRagdollKnight, pageRagdolls, LevelDeveloper},                        // 119
+    {"Gibs and Corpses - Corpse Damage and Health", pageCorpseDamage, pageGibs, LevelDeveloper},   // 120
+    {"Ragdolls - Ogre", pageRagdollOgre, pageRagdolls, LevelDeveloper},                            // 121
+    {"Ragdolls - Enforcer", pageRagdollEnforcer, pageRagdolls, LevelDeveloper},                    // 122
+    {"Ragdolls - Death Knight", pageRagdollDeathKnight, pageRagdolls, LevelDeveloper},             // 123
+    {"Ragdolls - Rottweiler", pageRagdollRottweiler, pageRagdolls, LevelDeveloper},                // 124
+    {"Ragdolls - Scrag", pageRagdollScrag, pageRagdolls, LevelDeveloper},                          // 125
     {"Gore - Decapitation", pageDecapitation, pageGore},                           // 126
-    {"Ragdolls - Zombie", pageRagdollZombie, pageRagdolls},                        // 127
-    {"Ragdolls - Fiend", pageRagdollFiend, pageRagdolls},                         // 128
-    {"Ragdolls - Shambler", pageRagdollShambler, pageRagdolls},                   // 129
-    {"Ragdolls - Gremlin", pageRagdollGremlin, pageRagdolls},                     // 130
-    {"Ragdolls - Mummy", pageRagdollMummy, pageRagdolls},                         // 131
+    {"Ragdolls - Zombie", pageRagdollZombie, pageRagdolls, LevelDeveloper},                        // 127
+    {"Ragdolls - Fiend", pageRagdollFiend, pageRagdolls, LevelDeveloper},                         // 128
+    {"Ragdolls - Shambler", pageRagdollShambler, pageRagdolls, LevelDeveloper},                   // 129
+    {"Ragdolls - Gremlin", pageRagdollGremlin, pageRagdolls, LevelDeveloper},                     // 130
+    {"Ragdolls - Mummy", pageRagdollMummy, pageRagdolls, LevelDeveloper},                         // 131
+    {"Changed Settings", pageChanged, pageMain, LevelStandard},                                    // 132 (MENU_REVIEW.md)
+    {"Search", pageSearch, pageMain, LevelStandard},                                               // 133 (the corner's Search; vr_menu_search.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -4864,42 +4869,186 @@ static_assert(sizeof(weaponOffsetsPartPages) / sizeof(weaponOffsetsPartPages[0])
     return false;
 }
 
+// ----------------------------------------------------------------------------
+// Presets (VR Settings' Comfort and Handedness): a choice sets several settings at once; the choice shown is the one
+// they match now (syncPresets, as the menu is drawn), Custom when none. Their cvars aren't saved: the settings are.
+// ----------------------------------------------------------------------------
+
+struct PresetSetting
+{
+    const char* cvar;
+    float value;
+};
+
+struct PresetChoice
+{
+    float value;
+    PresetSetting settings[3];
+};
+
+struct Preset
+{
+    cvar_t* choice;
+    const PresetChoice* choices;
+    int count;
+};
+
+constexpr PresetChoice comfortChoices[] = {
+    {1.f, {{"vr_snap_turn", 45.f}, {"vr_teleport_enabled", 1.f}, {"cl_alwaysrun", 0.f}}}, // Comfortable
+    {2.f, {{"vr_snap_turn", 30.f}, {"vr_teleport_enabled", 1.f}, {"cl_alwaysrun", 1.f}}}, // Moderate
+    {3.f, {{"vr_snap_turn", 0.f}, {"vr_teleport_enabled", 0.f}, {"cl_alwaysrun", 1.f}}},  // Full Freedom
+};
+
+constexpr PresetChoice handednessChoices[] = {
+    {1.f, {{"vr_stick_swap", 0.f}, {"vr_gadget_arm", 0.f}, {"vr_flashlight_side", 0.f}}}, // right-handed
+    {2.f, {{"vr_stick_swap", 1.f}, {"vr_gadget_arm", 1.f}, {"vr_flashlight_side", 1.f}}}, // left-handed
+};
+
+const Preset presets[] = {
+    {&vr_comfort_preset, comfortChoices, static_cast<int>(sizeof(comfortChoices) / sizeof(comfortChoices[0]))},
+    {&vr_handedness, handednessChoices, static_cast<int>(sizeof(handednessChoices) / sizeof(handednessChoices[0]))},
+};
+
+bool presetBusy = false; // a preset's own changes (its settings set, its choice shown): not a choice made
+
+[[nodiscard]] bool presetMatches(const PresetChoice& c)
+{
+    for(const PresetSetting& s : c.settings)
+    {
+        const cvar_t* var = Cvar_FindVar(s.cvar);
+        if(!var || var->value != s.value)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+void syncPresets()
+{
+    presetBusy = true;
+    for(const Preset& p : presets)
+    {
+        float shown = 0.f;
+        for(int i = 0; i < p.count; i++)
+        {
+            if(presetMatches(p.choices[i]))
+            {
+                shown = p.choices[i].value;
+                break;
+            }
+        }
+        if(p.choice->value != shown)
+        {
+            Cvar_SetValueQuick(p.choice, shown);
+        }
+    }
+    presetBusy = false;
+}
+
+void onPresetChosen(cvar_t* var)
+{
+    if(presetBusy)
+    {
+        return;
+    }
+    for(const Preset& p : presets)
+    {
+        for(int i = 0; p.choice == var && i < p.count; i++)
+        {
+            if(p.choices[i].value == var->value)
+            {
+                presetBusy = true;
+                for(const PresetSetting& s : p.choices[i].settings)
+                {
+                    Cvar_SetValue(s.cvar, s.value);
+                }
+                presetBusy = false;
+            }
+        }
+    }
+}
+
+void openSearchRow()
+{
+    qvr::menu::openSearch();
+}
+
 za::Vector<Item> pageMain()
 {
     return {
-        header("Tuning"),
+        action("Search Settings", openSearchRow)
+            .help("Find any setting by its name or what it does: type, and pick one to go to it (also the corner's Search "
+                  "button in the headset)."),
+        header("Tuning").developer(),
         open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets)),
         open("Weapon Weights (Held Weapon)", pageIndex(pageWeaponWeights)),
         open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets)),
         open("Held Object Weights (Held Prop)", pageIndex(pageHeldObjectWeights)),
-        open("Hand/Gun Calibration", pageIndex(pageHandGunCalibration)),
-        open("Body Calibration", pageIndex(pageBodyCalibration)),
+        open("Hand/Gun Calibration", pageIndex(pageHandGunCalibration)).developer(),
         header("Comfort"),
+        cycle("Comfort", vr_comfort_preset, {{0.f, "Custom"}, {1.f, "Comfortable"}, {2.f, "Moderate"}, {3.f, "Full Freedom"}})
+            .help("Sets Turning, Teleport and Default Speed together. Comfortable: snap turns of 45 degrees, teleport, walk. "
+                  "Moderate: snap turns of 30, teleport, run. Full Freedom: smooth turning, run, no teleport. Change them after "
+                  "to taste (Custom)."),
         cycle("Turning", vr_snap_turn, {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}}),
-        slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend(),
+        slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend().help("Smooth turning's speed."),
         cycle("Move Towards", vr_movement_mode, {{1.f, "Head"}, {0.f, "Hand"}}).help("Hand: where the moving stick's hand points (Swap Stick Functions: the right hand's)."),
-        toggle("Swap Stick Functions", vr_stick_swap).help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
-        slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%"),
         toggle("Teleport", vr_teleport_enabled),
-        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f),
-        slider("Room Scale", vr_roomscale_move_mult, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.2f, 5.f),
+        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f).advanced(),
+        slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%").advanced(),
+        slider("Room Scale", vr_roomscale_move_mult, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.2f, 5.f).advanced()
+            .help("How far walking in your room moves you in the game (1: as far)."),
+
+        header("You"),
+        cycle("Handedness", vr_handedness, {{0.f, "Custom"}, {1.f, "Right-handed"}, {2.f, "Left-handed"}})
+            .help("Sets which stick moves you, the wrist gadget's arm and the flashlight's hip together. Left-handed: the right "
+                  "stick moves, the gadget on the right arm, the torch on the right hip. Each is also on Body and Display "
+                  "(Custom: set apart)."),
+        slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
+            .help("Your height, for the body and how high you stand in the game. Set Height Now takes it from the headset."),
+        action("Set Height Now", calibrateHeight).help("Stand straight and look ahead: your height is where the headset is."),
+        open("Body Calibration", pageIndex(pageBodyCalibration))
+            .help("Standing or seated; measures your arms and shoulders for the body and the hands."),
+        cycle("Dominant Eye", vr_dominant_eye, {{0.f, "Right"}, {1.f, "Left"}})
+            .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
+                  "it when you close the other."),
 
         header("Weapons"),
-        slider("Gun Angle", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f),
+        slider("Gun Angle", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f)
+            .help("How the guns are tilted in your hand: set it so aiming feels natural with your controllers."),
         slider("Off Hand Angle", vr_offhandpitch, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f),
-        cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}}),
+        cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}})
+            .help("Hold: keep the grip pressed to hold a weapon. Sticky: a press takes it, another lets it go."),
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}}),
-        toggle("Two-Handed Hand-Off", vr_2h_handoff).help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
-        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
-        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}),
-        toggle("Force Grab", vr_forcegrab_mode),
+        toggle("Two-Handed Hand-Off", vr_2h_handoff).advanced().help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
+        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend().advanced(),
+        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}).advanced(),
+        toggle("Force Grab", vr_forcegrab_mode).help("Pull pickups and weapons to your hand from afar."),
         cycle("Haptics", vr_disablehaptics, {{0.f, "On"}, {1.f, "Off"}}),
+
+        header("Sound and Display"),
+        slider("Volume", "volume", 0.f, 1.f, 0.05f, "%.2f").help("The game's sounds (Quake's Sound Volume)."),
+        slider("Music Volume", "bgmvolume", 0.f, 1.f, 0.05f, "%.2f"),
+        cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}})
+            .help("Wrist gadget: health, armour and ammo on your wrist. Status bar: Quake's, on a hand."),
+        cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}}),
+        slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").extend()
+            .help("The headset's brightness: lower is brighter (1 neutral). The desktop's gamma is not used."),
+        cycle("Graphics Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})
+            .help("Sets every graphics setting at once (Advanced: Graphics). Lower it if the game stutters."),
+
         header("More"),
-        open("Body and Display", pageIndex(pageBodyDisplay)).help("The wrist gadget's arm and the flashlight's side, height, the body, the HUD, the crosshair and the menu."),
+        open("Body and Display", pageIndex(pageBodyDisplay)).help("Each hand's side, world scale, the body, the status bar, the menu, the desktop mirror."),
         open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
         open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
-        open("Advanced VR Options", PageAdvanced),
+        open("Advanced VR Options", PageAdvanced).help("Every gameplay, display and graphics setting, by topic."),
+        open("Changed Settings", pageIndex(pageChanged))
+            .help("Every setting you changed from its default, from all the pages, on one page (each marked * where it lives)."),
+        command("Run VR Calibration Again", "vr_setup")
+            .help("The calibration room and its steps, as at the first start (the main menu's VR Calibration): your height, "
+                  "your body, and the main settings on its wall buttons. Ends the game you are in."),
     };
 }
 
@@ -4907,33 +5056,23 @@ za::Vector<Item> pageMain()
 [[nodiscard]] za::Vector<Item> pageBodyDisplay()
 {
     return {
-        header("Body"),
+        header("Sides"),
+        toggle("Swap Stick Functions", vr_stick_swap).help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}).help("The arm the wrist gadget (the HUD) is on."),
         cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left hip"}, {1.f, "Right hip"}}).help("The hip the torch hangs on (Chest Flashlight)."),
-        slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f),
-        action("Set Height Now", calibrateHeight),
-        slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f),
-        slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f),
-        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (Flashlight Side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
 
-        header("Body Model"),
+        header("Body"),
+        slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f)
+            .help("How big the world feels around you (1.25: Quake's sizes as a person sees them)."),
+        slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f).advanced()
+            .help("Moves the floor up or down: change it if you feel you are floating or sunk in the floor."),
+        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (Flashlight Side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
         cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
-        slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m back").extend(-1.f, 1.f),
-        slider("Legs Offset", vr_body_legs_back, -0.2f, 0.4f, 0.01f, "%.2f m back").extend(-1.f, 1.f),
-        slider("Shoulders Offset", vr_body_shoulders_back, -0.15f, 0.2f, 0.01f, "%.2f m back").extend(-0.5f, 0.5f),
         toggle("Holster Models", vr_leg_holster_model_enabled),
 
         header("Display"),
-        cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}),
-        cycle("Status Bar", vr_sbar_mode, {{1.f, "Off hand"}, {0.f, "Main hand"}}),
-        slider("HUD Scale", vr_hud_scale, 0.01f, 0.05f, 0.0025f, "%.4f").extend(0.005f, 0.3f),
-        cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}}),
-        slider("Crosshair Size", vr_crosshair_size, 0.5f, 8.f, 0.5f, "%.1f").extend(0.f, 32.f),
-
-        slider("Menu Distance", vr_menu_distance, 40.f, 150.f, 5.f, "%.0f").extend(8.f, 600.f),
-        slider("Menu Scale", vr_menu_scale, 0.08f, 0.3f, 0.01f, "%.2f").extend(0.02f, 1.5f),
-        slider("Menu Background Opacity", "scr_menubgalpha", 0.f, 1.f, 0.05f, "%.2f").help("How dark the panel behind the menus is (0.7 as shipped; the desktop menus' too): lower it to see the game while you tune the graphics. Below about 0.5 the text gets a dark outline, to stay readable."),
+        cycle("Status Bar", vr_sbar_mode, {{1.f, "Off hand"}, {0.f, "Main hand"}}).help("The hand Quake's status bar is on (HUD: Status bar)."),
         cycle("Desktop Mirror", vr_mirror, {{0.f, "Off"}, {1.f, "Left eye"}, {2.f, "Both eyes"}}),
         open("Recording (Window View)", pageIndex(pageRecording))
             .help("What the desktop window shows for recording: a steadied mirror or a spectator camera."),
@@ -4959,11 +5098,11 @@ za::Vector<Item> pageMain()
             .help("Shade the scene coarser towards the edges of the lenses, where they blur anyway: faster. NVIDIA GPUs only (variable-rate shading)."),
         toggle("Hide Lens Corners", vr_visibility_mask)
             .help("Skip the pixels the lenses never show (if the headset gives them): faster, looks the same. Black corners in the desktop mirror."),
-        slider("Near Clip", vr_nearclip, 0.02f, 1.f, 0.02f, "%.2f units").extend(0.02f, 4.f)
+        slider("Near Clip", vr_nearclip, 0.02f, 1.f, 0.02f, "%.2f units").extend(0.02f, 4.f).advanced()
             .help("How near the eyes things are still drawn (a unit is 3 cm): lower draws a gun at your face whole. Not below 1 without Float Depth."),
-        cycle("Held Items at the Eyes", vr_nearclip_held, {{0.f, "Clipped"}, {1.f, "Never clipped"}, {2.f, "Block the view"}})
+        cycle("Held Items at the Eyes", vr_nearclip_held, {{0.f, "Clipped"}, {1.f, "Never clipped"}, {2.f, "Block the view"}}).advanced()
             .help("A weapon or hand right at your eyes: Never clipped draws its parts nearer than Near Clip too; Block the view also draws its inside when an eye is in it, instead of seeing through it."),
-        toggle("Float Depth", vr_depth_float)
+        toggle("Float Depth", vr_depth_float).advanced()
             .help("A 32-bit float depth buffer for the eyes: no flicker far away with a small Near Clip. Applies after Restart VR."),
     };
 }
@@ -6164,7 +6303,8 @@ struct MenuPages
 {
     za::Vector<Item> built[pageCount];
     bool done[pageCount]{};
-    auto members() { return qvr::mem::list(built, done); }
+    int level[pageCount]{}; // the menu detail level each was built for
+    auto members() { return qvr::mem::list(built, done, level); }
 };
 mem::Cache<MenuPages> menuPages{"menu pages", mem::Never};
 
@@ -6214,6 +6354,100 @@ void loadPositions()
 }
 
 // Built on first use (cvars looked up by name exist by then); items without their cvar dropped.
+// A setting changed from its default (a * by its label; Changed Settings): its value, or for text its string. The
+// menus' own state and the presets (whose settings show it themselves) aren't.
+[[nodiscard]] bool changedSetting(const cvar_t& var)
+{
+    if(&var == &vr_menu_level || &var == &vr_comfort_preset || &var == &vr_handedness || &var == &vr_graphics_preset ||
+        !var.default_string)
+    {
+        return false;
+    }
+    char* end = nullptr;
+    const double v = strtod(var.string, &end);
+    const bool number = end != var.string && *end == '\0';
+    char* defEnd = nullptr;
+    const double d = strtod(var.default_string, &defEnd);
+    if(number && defEnd != var.default_string && *defEnd == '\0')
+    {
+        return static_cast<float>(v) != static_cast<float>(d);
+    }
+    return strcmp(var.string, var.default_string) != 0;
+}
+
+// Reset This Page (the footer): armed by a first press, done by a second within 3 seconds.
+int resetArmedPage = -1;
+double resetArmedTime = 0.0;
+
+// The pages of one weapon's or prop's settings (their own resets, Reset This Weapon...): no Reset This Page, and not on
+// Changed Settings (the held one's values, not settings of their own).
+[[nodiscard]] bool slotPage(PageBuilder build);
+
+// The menu detail level the pages are built for (vr_menu_level; resolvePath: every page, LevelDeveloper).
+int levelOverride = -1;
+
+[[nodiscard]] int menuLevel()
+{
+    return levelOverride >= 0 ? levelOverride : CLAMP(0, static_cast<int>(vr_menu_level.value), LevelCount - 1);
+}
+
+[[nodiscard]] const char* levelName(int level)
+{
+    return level <= LevelStandard ? "Standard" : level == LevelAdvanced ? "Advanced" : "Developer";
+}
+
+// Whether `item` shows at `level`: its own level, and a link's page's.
+[[nodiscard]] bool shownAt(const Item& item, int level)
+{
+    if(item.level > level)
+    {
+        return false;
+    }
+    const bool link = item.kind == Item::Action && item.page >= 0 && item.page < pageCount && !item.actionArg;
+    return !link || pages[item.page].level <= level;
+}
+
+// The page's rows as shown: a header with nothing left under it (its rows all above the level) goes too.
+void dropEmptyHeaders(za::Vector<Item>& list)
+{
+    za::Vector<Item> kept;
+    for(size_t i = 0; i < list.size(); i++)
+    {
+        if(list[i].kind == Item::Header && (i + 1 == list.size() || list[i + 1].kind == Item::Header))
+        {
+            continue;
+        }
+        kept.pushBack(ZA_MOVE(list[i]));
+    }
+    list = ZA_MOVE(kept);
+}
+
+void resetThisPage();
+
+// Under every page: Reset This Page (a page with settings), and Menu Detail, the level the pages are shown at.
+void addMenuDetail(za::Vector<Item>& list, int page)
+{
+    const bool settings = za::anyOf(list.begin(), list.end(), [](const Item& item) {
+        return item.cvar && item.kind != Item::Action && item.cvar != &vr_menu_level;
+    });
+    if(pages[page].build == pageSearch)
+    {
+        return; // (drawn its own way: vr_menu_search.inc)
+    }
+    if(settings && !slotPage(pages[page].build) && pages[page].build != pageChanged)
+    {
+        list.pushBack(header("This Page"));
+        list.pushBack(action(resetArmedPage == page ? "Press Again to Reset" : "Reset This Page", resetThisPage)
+                .help("Every setting on this page (as Menu Detail shows it) back to its default. Press it twice: the second "
+                      "time within 3 seconds."));
+    }
+    list.pushBack(header("Menu Detail"));
+    list.pushBack(cycle("Menu Detail", vr_menu_level, {{0.f, "Standard"}, {1.f, "Advanced"}, {2.f, "Developer"}})
+            .help("How much the VR pages show. Standard: what every player sets (comfort, height, the HUD, the headset, "
+                  "volume). Advanced: every gameplay, display and graphics setting. Developer: also the tuning pages "
+                  "(weapon and prop offsets and weights, ragdolls, hitboxes), recording, debug and tests."));
+}
+
 [[nodiscard]] const za::Vector<Item>& items(int page)
 {
     za::Vector<Item> (&built)[pageCount] = menuPages.built;
@@ -6291,6 +6525,15 @@ void loadPositions()
     {
         done[page] = false; // the list, or the take picked, changed
     }
+    if(menuPages.level[page] != menuLevel())
+    {
+        done[page] = false; // Menu Detail changed: rows and links shown or left out
+    }
+    if(resetArmedPage == page && realtime - resetArmedTime > 3.0)
+    {
+        resetArmedPage = -1; // Reset This Page not pressed again in time
+        done[page] = false;
+    }
     // (A check above: done[page] = false, and the page is built anew here, its selected row kept.)
     if(!done[page])
     {
@@ -6306,13 +6549,26 @@ void loadPositions()
         built[page].clear();
         done[page] = true;
         builds[page]++;
+        const int level = menuLevel();
+        menuPages.level[page] = level;
         for(Item& item : pages[page].build())
         {
-            if(item.kind == Item::Header || item.kind == Item::Action || item.kind == Item::Info || item.cvar)
+            if(item.kind != Item::Header && item.kind != Item::Action && item.kind != Item::Info && !item.cvar)
+            {
+                // A setting named by a cvar that doesn't exist (renamed, removed): left out, but said (once a page).
+                if(builds[page] == 1)
+                {
+                    Con_DWarning("menu: \"%s\" on %s names no cvar: left out\n", item.label ? item.label : "?", pages[page].title);
+                }
+                continue;
+            }
+            if(shownAt(item, level))
             {
                 built[page].pushBack(ZA_MOVE(item));
             }
         }
+        dropEmptyHeaders(built[page]);
+        addMenuDetail(built[page], page);
         // The same row again, on the same line of the view; gone, the cursor kept where it was (on a
         // setting).
         const int n = static_cast<int>(built[page].size());
@@ -6434,6 +6690,10 @@ void noteLeft(int p, const za::Vector<Item>& list)
 // shown, for what the hand holds now, keep the same row by its label).
 void closeDropDown(); // (the drop-down lists, below: a page shown closes the one open)
 
+// The page a Search result opened (vr_menu_search.inc): Back from it returns to the results (VR Settings' Back too);
+// -1 once elsewhere.
+int searchOpened = -1;
+
 void showPage(int target)
 {
     closeDropDown();
@@ -6447,6 +6707,14 @@ void showPage(int target)
     {
         motion::review::invalidate(); // takes recorded, evaluated or moved since
     }
+    if(pages[page].build == pageChanged)
+    {
+        menuPages.done[page] = false; // what is changed now
+    }
+    if(target != searchOpened && parentPage[target] != searchOpened && pages[target].build != pageSearch)
+    {
+        searchOpened = -1; // elsewhere now: Back as usual (vr_menu_search.inc)
+    }
     const auto& list = items(page);
     if(!selectable(list[cursors[page]]))
     {
@@ -6454,6 +6722,81 @@ void showPage(int target)
     }
     noteLeft(page, list);
     visits[page] = ++visitCount;
+}
+
+bool slotPage(PageBuilder build)
+{
+    return weaponOffsetsPage(build) || build == pageWeaponWeights || build == pageHeldObjectOffsets ||
+           build == pageHeldObjectWeights;
+}
+
+void resetThisPage()
+{
+    if(resetArmedPage != page || realtime - resetArmedTime > 3.0)
+    {
+        resetArmedPage = page;
+        resetArmedTime = realtime;
+        menuPages.done[page] = false; // its label: Press Again to Reset
+        return;
+    }
+    resetArmedPage = -1;
+    int n = 0;
+    for(const Item& item : items(page))
+    {
+        if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar))
+        {
+            Cvar_SetQuick(item.cvar, item.cvar->default_string);
+            n++;
+        }
+    }
+    Con_Printf("VR: %s: %d setting%s back to %s default\n", pages[page].title, n, n == 1 ? "" : "s", n == 1 ? "its" : "their");
+    menuPages.done[page] = false;
+}
+
+const char* changedNone()
+{
+    return "Nothing changed from the defaults.";
+}
+
+// Changed Settings: every setting changed from its default, under its home page's title, as its home shows it (its
+// range, its choices, its help): from every page, whatever Menu Detail shows.
+za::Vector<Item> pageChanged()
+{
+    za::Vector<Item> list;
+    za::Vector<const cvar_t*> seen;
+    const int was = levelOverride;
+    levelOverride = LevelDeveloper;
+    for(int p = 0; p < pageCount; p++)
+    {
+        if(pages[p].build == pageChanged || slotPage(pages[p].build))
+        {
+            continue;
+        }
+        bool headed = false;
+        for(const Item& item : items(p))
+        {
+            if(!item.cvar || item.kind == Item::Action || !changedSetting(*item.cvar) ||
+                za::anyOf(seen.begin(), seen.end(), [&](const cvar_t* v) { return v == item.cvar; }))
+            {
+                continue;
+            }
+            if(!headed)
+            {
+                list.pushBack(header(pages[p].title));
+                headed = true;
+            }
+            Item copy = item;
+            copy.level = LevelStandard;
+            list.pushBack(ZA_MOVE(copy));
+            seen.pushBack(item.cvar);
+        }
+    }
+    levelOverride = was;
+    if(list.empty())
+    {
+        list.pushBack(info(changedNone));
+    }
+    return list;
 }
 
 void openPage(int target)
@@ -7086,7 +7429,12 @@ void drawItem(const Item& item, int y, bool selected)
         return;
     }
 
-    M_Print(midPos - 28 - 8 * static_cast<int>(strlen(item.label)), y, item.label);
+    const int labelX = midPos - 28 - 8 * static_cast<int>(strlen(item.label));
+    M_Print(labelX, y, item.label);
+    if(item.cvar && item.kind != Item::Action && changedSetting(*item.cvar))
+    {
+        M_PrintWhite(q_max(labelX - 10, 0), y, "*"); // changed from its default (Changed Settings lists them)
+    }
 
     char buf[64];
     switch(item.kind)
@@ -7226,6 +7574,20 @@ void drawHelp(const char* text)
 // depth, the page linking it first, its rows), each row (kind, header above, label, setting, page
 // opened), the links into each page, and the pages no link reaches. For the menus' coverage check
 // (docs/vr-port/menu_coverage.sh): each page is shown to be built for what the hands hold now.
+const char* searchRowText()
+{
+    return "";
+}
+
+// The Search page's rows: a line of text only (showPage and the menu's bookkeeping expect one; the page is drawn and
+// driven by vr_menu_search.inc).
+za::Vector<Item> pageSearch()
+{
+    return {info(searchRowText)};
+}
+
+#include "vr_menu_search.inc"
+
 void dumpPages()
 {
     const int was = page;
@@ -7313,6 +7675,17 @@ bool resolvePath(za::StringView spec, za::String& out)
     {
         return false;
     }
+    // Every page and row, whatever Menu Detail shows (the pages built for it again as they are next shown); the level
+    // the way needs said after it.
+    const int shownLevel = menuLevel();
+    const int wasOverride = levelOverride;
+    levelOverride = LevelDeveloper;
+    struct Restore
+    {
+        int was;
+        ~Restore() { levelOverride = was; }
+    } restore{wasOverride};
+    int needs = pages[target].level;
     // The shortest way there through the pages' links (breadth first from the VR Settings, as menu_vr dump): each page
     // named by the link that opens it.
     int from[pageCount];
@@ -7346,6 +7719,7 @@ bool resolvePath(za::StringView spec, za::String& out)
     for(int p = target; p != PageMain; p = from[p])
     {
         names.pushBack(link[p]);
+        needs = q_max(needs, pages[p].level);
     }
     out = za::String{"Options > "} + pages[PageMain].title;
     for(const char* name : za::reversed(names))
@@ -7361,6 +7735,7 @@ bool resolvePath(za::StringView spec, za::String& out)
             if(item.label && item.kind != Item::Info && !q_strcasecmp(item.label, row.cStr()))
             {
                 found = item.label;
+                needs = q_max(needs, item.level);
                 break;
             }
         }
@@ -7370,6 +7745,10 @@ bool resolvePath(za::StringView spec, za::String& out)
         }
         out += " > ";
         out += found;
+    }
+    if(needs > shownLevel)
+    {
+        out += va(" (Menu Detail: %s)", levelName(needs));
     }
     return true;
 }
@@ -7448,7 +7827,7 @@ void qvr::menu::pathCheck_f()
     byte* file = nullptr;
     if(Cmd_Argc() > 1 && Cmd_Argv(1)[0] == '{')
     {
-        data = Cmd_Args(); // the text itself: vr_menu_path_check "{menu:Locomotion>Snap Turn}"
+        data = Cmd_Args(); // the text itself: vr_menu_path_check "{menu:Locomotion>Lean}"
     }
     else if(Cmd_Argc() > 1)
     {
@@ -7520,6 +7899,14 @@ extern "C" void VR_Menu_Open()
 void qvr::menu::handCalMatch_f()
 {
     matchControllerPreview();
+}
+
+void qvr::menu::init()
+{
+    for(const Preset& p : presets)
+    {
+        Cvar_SetCallback(p.choice, onPresetChosen);
+    }
 }
 
 void qvr::menu::command_f()
@@ -7654,6 +8041,10 @@ const cvar_t* qvr::menu::selectedSetting()
 
 void qvr::menu::jumpToAdvanced()
 {
+    if(menuLevel() < LevelAdvanced)
+    {
+        Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(LevelAdvanced)); // (the corner's Advanced VR: the pages it lists)
+    }
     if(m_state == m_vr && page == PageAdvanced)
     {
         S_LocalSound("misc/menu1.wav");
@@ -7669,6 +8060,37 @@ void qvr::menu::jumpToAdvanced()
     }
     parentPage[PageAdvanced] = PageMain;
     showPage(PageAdvanced);
+}
+
+void qvr::menu::openSearch()
+{
+    openSearchPage();
+}
+
+// vr_menu_search <text>: the Search page's results for the text, best first, with their scores and pages.
+void qvr::menu::search_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_menu_search <text>: the VR menus' settings, actions and pages matching it, best first\n");
+        return;
+    }
+    buildSearchIndex();
+    search.query = Cmd_Args();
+    runSearch();
+    Con_Printf("vr_menu_search \"%s\": %d results (of %d rows and pages)\n", search.query.cStr(),
+        static_cast<int>(search.results.size()), static_cast<int>(search.index.size()));
+    for(int r = 0; r < static_cast<int>(search.results.size()) && r < 15; r++)
+    {
+        const SearchEntry& e = search.index[search.results[r].entry];
+        Con_Printf("%2d %.2f %s%s | %s%s\n", r + 1, search.results[r].score, e.label.cStr(), e.isPage ? " (page)" : "",
+            e.path.cStr(), e.level > menuLevel() ? va(" (%s)", levelName(e.level)) : "");
+    }
+}
+
+bool qvr::menu::developerLevel()
+{
+    return menuLevel() >= LevelDeveloper;
 }
 
 void qvr::menu::jumpToChecklist()
@@ -7694,6 +8116,11 @@ void qvr::menu::jumpToChecklist()
 
 void qvr::menu::selectEnd(int dir)
 {
+    if(m_state == m_vr && pages[page].build == pageSearch)
+    {
+        search.focusKey = 0; // from the corner's buttons: the keys
+        return;
+    }
     if(m_state == m_vr)
     {
         const auto& list = items(page);
@@ -7803,6 +8230,12 @@ NotedPlace notedPlace;
 
 extern "C" void VR_Menu_Draw()
 {
+    syncPresets(); // (Comfort, Handedness: the choice the settings match now)
+    if(pages[page].build == pageSearch)
+    {
+        drawSearch();
+        return;
+    }
     const auto& list = items(page);
     int& cursor = cursors[page];
     int& scroll = scrolls[page];
@@ -7877,6 +8310,11 @@ extern "C" void VR_Menu_Draw()
 
 extern "C" void VR_Menu_Key(int key, int repeat)
 {
+    if(pages[page].build == pageSearch)
+    {
+        searchKey(key);
+        return;
+    }
     const auto& list = items(page);
     const int cursor = cursors[page];
 
@@ -7900,7 +8338,13 @@ extern "C" void VR_Menu_Key(int key, int repeat)
         case K_BBUTTON:
         case K_MOUSE2:
         case K_MOUSE4:
-            if(page == PageMain)
+            if(page == searchOpened)
+            {
+                searchOpened = -1; // a search result's page: back to the results
+                showPage(pageIndex(pageSearch));
+                S_LocalSound("misc/menu2.wav");
+            }
+            else if(page == PageMain)
             {
                 M_Menu_Options_f();
             }
@@ -8007,8 +8451,26 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 
 // The mouse (or the laser pointer) over the list selects the row under it, and drags a grabbed
 // slider.
+extern "C" void VR_Menu_Char(int key)
+{
+    if(pages[page].build == pageSearch && key >= 32 && key < 127)
+    {
+        typeInSearch(static_cast<char>(key));
+    }
+}
+
+extern "C" int VR_Menu_TextEntry()
+{
+    return pages[page].build == pageSearch ? TEXTMODE_NOPOPUP : TEXTMODE_OFF; // (the page's own keyboard)
+}
+
 extern "C" void VR_Menu_Mousemove(float cx, float cy)
 {
+    if(pages[page].build == pageSearch)
+    {
+        searchMouse(cx, cy);
+        return;
+    }
     if(dropDownMousemove(cx, cy))
     {
         return;

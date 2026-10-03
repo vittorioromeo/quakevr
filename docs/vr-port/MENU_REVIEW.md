@@ -1,6 +1,7 @@
 # Menus and settings: review and proposal (research, 2026-10-03)
 
-Research only, nothing built. The author, 2026-10-03: "There is a *lot* of stuff that was added to the menus as part
+Research of 2026-10-03; **built on branch `vr-ironwail-menus` the same day** (see "Status" at the end). The author,
+2026-10-03: "There is a *lot* of stuff that was added to the menus as part
 of the development of the VR mod ... a new player would easily get overwhelmed. There probably also are redundant and
 outdated options/CVars that can be safely culled. Please perform some research ... and provide your thought on how to
 improve the situation while still leaving freedom to players/developers."
@@ -100,6 +101,40 @@ hidden.
 4. One home per setting.
 5. Presets.
 6. Per-slot cvars to data files.
+
+## Status (branch `vr-ironwail-menus`, 2026-10-03)
+
+Built, after "Please proceed with your plan ... on a separate branch" (each step a commit, so it can be taken apart):
+
+1. **Menu Detail** (`vr_menu_level`: Standard, Advanced, Developer): every page has a level (`pages[]`), rows can be
+   `.advanced()` or `.developer()`; links and rows above the level are left out, empty headers too; a Menu Detail row
+   ends every page. `menu_vr <n>` opens any page; `{menu:...}` paths resolve through every page and add "(Menu Detail:
+   Advanced)" when needed. The corner's Advanced VR raises Standard to Advanced; its Checklist button is Developer
+   only. A row naming a missing cvar is said once (developer 1). Headless dump: Standard 5 pages, Advanced 64,
+   Developer 118 (all but the ones only links reach with a weapon in hand).
+2. **VR Settings for every player:** Comfort and Handedness presets (`vr_comfort_preset`, `vr_handedness`: not saved,
+   the choice shown follows the settings, Custom when none matches), Height and Set Height Now, Body Calibration,
+   Dominant Eye, Volume and Music Volume, HUD, Crosshair, Headset Gamma, the Graphics Preset; the finer rows from
+   Advanced, the Tuning links from Developer. Body and Display: the three sides (Sides).
+3. **First start:** no saved config sets `vr_setup_pending`; VR Calibration starts the first time the headset tracks
+   with no game running. VR Settings > Run VR Calibration Again.
+4. **One home per setting:** 64 settings on two or three pages each have one home now, the others link to it. Kept on
+   purpose: the Graphics Preset (VR Settings and Graphics), Dominant Eye (VR Settings and beside Align Sights).
+   Nothing left the menus (dumps compared).
+5. **Changes visible:** `*` by a changed setting, Reset This Page (twice within 3 s), Changed Settings (page 132).
+6. **Cleanup:** the Debug ragdoll buttons' `wait5` (not a command) is five `wait`s; the calibration room's board
+   pointed at Body and Display > Set Height Now: VR Settings now (the .map, its generator and the .bsp's entity lump);
+   README and SETTINGS.md describe the new menus.
+
+7. **Search** (the author's request, the same day): the corner's Search button (and Search Settings on VR Settings)
+   opens a page with a text box and a QWERTY keyboard on the left and the results on the right, updated as you type,
+   each with its pages in small letters; fuzzy and ranked (labels, then help, pages and cvar names; word starts,
+   letters in order, one typo); picking one opens its page on it, Back returns to the results
+   (`vr_menu_search.inc`; `vr_menu_search <text>` prints the ranking). First start fixed on the way: with VR on,
+   `vr_startgame` goes to the calibration room instead of the hub (the hub was always running, so the frame check
+   never fired).
+
+Not built (the questions below): gameplay-feel presets, a comfort vignette, per-slot cvars to data files.
 
 ## Questions for the author
 

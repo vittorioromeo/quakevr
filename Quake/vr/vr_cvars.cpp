@@ -399,6 +399,7 @@ void migrateConfig()
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "new"))
     {
         Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
+        Cvar_SetValueQuick(&vr_setup_pending, 1.f); // a first start: VR Calibration once the headset is on (vr_setup.cpp)
         weapons::markCurrent(); // and the weapons' settings are the shipped ones (no cups or grips of a config to move)
         return;
     }

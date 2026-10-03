@@ -2,8 +2,8 @@
 // the player to the calibration room (maps/vrcalibration.bsp, made by Misc/quakevr/make_vrcalibration_map.py) and, a few
 // seconds after the player appears, calibrates step by step, the instructions floating in front of the eyes:
 //
-//  1. Height: standing tall (sitting up straight, with Position: Seated) and still: vr_height_calibration, as Body and
-//     Display > Set Height Now.
+//  1. Height: standing tall (sitting up straight, with Position: Seated) and still: vr_height_calibration, as VR Settings >
+//     Set Height Now.
 //  2. Body: Body Calibration's poses (vr_bodycal.hpp; seated without its first), applied at once when the poses agree;
 //     otherwise its page opens on the result (redo a pose, Apply or Cancel) and the setup goes on when the menu closes.
 // (No main hand step: there is no main hand setting. The sides are their own settings, on the room's buttons: SWAP

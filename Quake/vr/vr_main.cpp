@@ -206,6 +206,14 @@ void VR_StartGame_f()
 
     if(vr_enabled.value && !sv.active && !cls.demoplayback && cls.state != ca_connected)
     {
+        if(vr_setup_pending.value != 0.f)
+        {
+            // A first start (no saved config: vr_setup_pending, vr_cvars.cpp): the calibration room, not the hub.
+            Cvar_SetValueQuick(&vr_setup_pending, 0.f);
+            Con_Printf("VR: a first start: VR Calibration (the main menu's first row runs it again)\n");
+            Cbuf_InsertText("vr_setup\n");
+            return;
+        }
         Cbuf_InsertText("maxplayers 1; deathmatch 0; coop 0; map vrstart\n");
         return;
     }
@@ -1138,7 +1146,9 @@ extern "C" void VR_Init()
 
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);
+    menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
+    Cmd_AddCommand("vr_menu_search", menu::search_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
     Cmd_AddCommand("vr_bigfont", bigfont::report_f);
     Cmd_AddCommand("vr_checklist", checklist::command_f);

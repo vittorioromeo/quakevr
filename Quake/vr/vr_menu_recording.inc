@@ -15,8 +15,7 @@
                   "to the window: free. Spectator Camera (Recording Mode): the game drawn a third time for the window, from "
                   "your head, steadied, with its own field of view: sharpest and widest, and it costs about one more eye's "
                   "rendering. The headset's view is the same in all three."),
-        cycle("Desktop Mirror", "vr_mirror", {{0.f, "Off"}, {1.f, "On"}, {2.f, "Both Eyes (Left Eye view)"}})
-            .help("Off: the window shows nothing of the game in VR (in any Window View), which saves its small cost."),
+        open("Desktop Mirror: Body and Display", pageIndex(pageBodyDisplay)).help("The desktop mirror is on Body and Display."),
         toggle("Flat HUD on the Mirror", "vr_window_hud_mirror")
             .help("The flat status bar over the window's Left Eye and Smoothed Mirror views (on by default)."),
         toggle("Flat HUD on the Spectator Camera", "vr_window_hud_spectator")
@@ -97,10 +96,7 @@
         toggle("Sandevistan: You at Full Speed", "vr_sandevistan")
             .help("On: in slow motion only the world slows: you move, turn, swing, shoot and reload at full speed, your "
                   "hands follow your controllers as they are (Your Missiles at Full Speed Too: Combat > Bullet Time)."),
-        slider("Bullet Time's Look", "vr_bullettime_fx", 0.f, 1.f, 0.05f, "%.2f")
-            .help("Bullet time (Combat > Bullet Time) drains, tints and darkens the eyes' view while it runs; the window's "
-                  "Left Eye and Smoothed Mirror show it, the Spectator Camera doesn't. Set 0 to record bullet time "
-                  "without it. The Time Scale above never has it."),
+        open("Bullet Time's Look: Bullet Time", pageIndex(pageBulletTime)).help("Bullet time's look is on Combat > Bullet Time."),
         header("Highlight Markers"),
         toggle("Log Highlights", "vr_highlights")
             .help("For trailers (docs/vr-port/TRAILER.md): logs the cool moments as they happen (gibs, multi-kills, parries, "

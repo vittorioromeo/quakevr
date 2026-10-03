@@ -176,29 +176,38 @@ Every button can be rebound in **Options > Key Setup** or with `bind` in the con
 keys (`RTRIGGER`, `LSHOULDER`, `ABUTTON`...). See [docs/SETTINGS.md](docs/SETTINGS.md#controls-and-bindings).
 
 **VR Settings** (menu > Options > VR Settings, or `menu_vr` in the console) has the settings most people need. Point
-at it with the laser and pull the trigger, or use the sticks: A selects, B goes back. Worth doing first:
+at it with the laser and pull the trigger, or use the sticks: A selects, B goes back. The first time you start with the
+headset on, **VR Calibration** runs by itself: it measures your height and body, and its room's buttons set the main
+options (VR Settings > *Run VR Calibration Again*, or the main menu's first row, runs it again). Worth checking first:
 
-1. **Height:** stand straight and pick *Set Height Now* (Body section).
-2. **Comfort:** *Turning* (smooth, or snap 30/45/90 degrees), *Turn Speed*, *Move Towards* (head or the moving stick's hand), *Swap Stick Functions*, and
-   *Teleport*.
+1. **Comfort:** *Comfort* sets turning, teleport and walking speed together (Comfortable, Moderate or Full Freedom);
+   then *Turning* (smooth, or snap 30/45/90 degrees), *Turn Speed*, *Move Towards* (head or the moving stick's hand),
+   *Default Speed* and *Teleport* to taste.
+2. **You:** *Handedness* (right- or left-handed: which stick moves you, the wrist gadget's arm and the flashlight's
+   hip), *Height* (stand straight and pick *Set Height Now*), *Body Calibration* and *Dominant Eye*.
 3. **Weapons:** if guns don't point where your controller points, adjust *Gun Angle* and *Off Hand Angle*. *Weapon
    Grip* set to *Sticky* keeps weapons in your hand without holding the grip.
-4. **Body:** *Body* (off, torso and arms, or full body), *Build*, and the *Torso*, *Legs* and *Shoulders* offsets
-   if your body looks misplaced when you look down.
-5. **Display:** *HUD* (wrist gadget or status bar), menu distance and scale, and the desktop mirror.
-6. **Headset:** the *OpenXR Runtime* (system default, Virtual Desktop's VDXR, or SteamVR), *Render Scale*, and
-   *Hide Lens Corners*.
+4. **Sound and Display:** *Volume*, *Music Volume*, *HUD* (wrist gadget or status bar), *Crosshair*, *Headset Gamma*
+   and the *Graphics Preset*.
+5. **Body and Display** and **Headset** (at the bottom): the body model and its build, world scale, the status bar,
+   the desktop mirror; the *OpenXR Runtime* (system default, Virtual Desktop's VDXR, or SteamVR), *Render Scale*,
+   upscaling and foveated rendering.
 
-**Performance:** the shipped settings are tuned for a fast PC. If frames drop, open *Advanced VR Options >
-Graphics*, pick a lower *Preset* (Off, Low, Medium, High or Ultra), and lower *Render
-Scale* below 1.
+**Performance:** the shipped settings are tuned for a fast PC. If frames drop, pick a lower *Graphics Preset* (Off,
+Low, Medium, High or Ultra) and lower *Render Scale* (Headset) below 1.
 
-**More:** *Advanced VR Options* at the bottom of VR Settings opens about twenty more pages: gameplay, body, gore,
-wrist gadget, throwing, force grab, swimming, locomotion, graphics, holsters and more. *Weapon Offsets (Held
-Weapon)* adjusts how the weapon in your hand sits. [docs/SETTINGS.md](docs/SETTINGS.md) covers all of these.
+**Search:** the corner's *Search* button (or *Search Settings* on VR Settings) finds any setting by its name or what it
+does, as you type, and opens its page on it.
 
-**Starting over:** *Options > Reset to defaults* restores the shipped settings and bindings. Your settings are saved
-in `quakevr\ironwail.cfg`: delete it for a completely fresh start.
+**More:** every page ends with **Menu Detail**. *Standard* (the default) shows what every player sets; *Advanced* shows
+every gameplay, display and graphics setting (Advanced VR Options: about sixty pages: combat, movement, carrying and
+throwing, gore, the body, weapons, the HUD, graphics...); *Developer* adds the tuning pages (weapon and prop offsets and
+weights, ragdolls, hitboxes), recording, debug and tests. A setting you changed has a `*` by it; *Changed Settings*
+(VR Settings) lists them all, and each page's *Reset This Page* puts its settings back. [docs/SETTINGS.md](docs/SETTINGS.md)
+covers them.
+
+**Starting over:** *Options > Reset All* restores the shipped settings and bindings. Your settings are saved in
+`quakevr\ironwail.cfg`: delete it for a completely fresh start (VR Calibration then runs again).
 
 ## Documentation
 
