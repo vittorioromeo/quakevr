@@ -19,21 +19,21 @@ them and counted 802 options.
 | Action/command rows (buttons) | ~351, of which ~240 on the Debug pages |
 | Interactive rows with a `.help()` text | ~1,930 of ~2,250 (86%) |
 | Pages over 30 rows | 28 (see section 3) |
-| Quake VR cvars in `vr_cvars.inc` (`QVR_CVAR`) | **1,704** (+ `vr_backend`) |
-| ... archived (CVAR_ARCHIVE, saved) / not saved | 1,508 / 196 |
+| Quake VR cvars in `vr_cvars.inc` (`QVR_CVAR`) | **1,681** (+ `vr_backend`; 1,704 before the 23 dead and retired ones were removed, 2026-10-03: section 5a) |
+| ... archived (CVAR_ARCHIVE, saved) / not saved | 1,507 / 174 |
 | ... reachable from the VR menu (static) | 1,523 (89%) |
-| ... console-only | 181 (99 archived "hidden tuning", 59 dev/test, 23 retired) |
+| ... console-only | 158 (99 archived "hidden tuning", 59 dev/test) |
 | ... with no read anywhere (dead) | 21 retired + 9 test-only, see section 5 |
-| Dynamic per-slot cvars, weapons | 260 keys x 32 slots = 8,320 `vr_wofs_<key>_NN` (vr_weapons.inc, vr_weapons.cpp:588) + 7 retired keys x 32 = 224 |
-| Dynamic per-slot cvars, props | 45 keys x 64 slots = 2,880 `vr_prop_<key>_NN` (vr_props.inc, vr_props.cpp:440) + 1 retired key x 64 |
-| Dynamic retro cvars | 18 categories x 12 params = 216 `vr_retro_<cat>_*`, + 24 `vr_retro_all_*`, 18 `vr_retro_all_to_*`, 12 legacy `vr_retro_body*`, 25 `vr_retro_edit_*` (vr_retro.cpp:1347-1615) |
+| Dynamic per-slot cvars, weapons | 260 keys x 32 slots = 8,320 `vr_wofs_<key>_NN` (vr_weapons.inc, vr_weapons.cpp:588; the 224 of 7 retired keys removed) |
+| Dynamic per-slot cvars, props | 45 keys x 64 slots = 2,880 `vr_prop_<key>_NN` (vr_props.inc, vr_props.cpp:440; the 64 of the retired key removed) |
+| Dynamic retro cvars | 18 categories x 12 params = 216 `vr_retro_<cat>_*`, + 24 `vr_retro_all_*`, 18 `vr_retro_all_to_*`, 25 `vr_retro_edit_*` (the 12 legacy `vr_retro_body*` removed) (vr_retro.cpp:1347-1615) |
 | QC-side cvars | **0 new**. QC/vr_cvars.qc takes handles (`VR_CVAR_HMAKE` -> `cvar_hmake`, vr_builtins.cpp:136) on engine-registered cvars. |
 | Engine cvars shown in the VR menu | cl_alwaysrun, cl_forwardspeed, cl_movespeedkey, scr_menubgalpha, ui_live_preview, vid_fsaa, r_particles, r_wateralpha/lavaalpha/slimealpha/telealpha, snd_waterfx (+ r_novis, r_showbboxes, developer on Debug) |
 | Ironwail desktop options (menu.c:3133-3248, OPTIONS_LIST) | 6 menus, ~90 items. "VR Settings" is row 9 of Options. |
 | `vr_defaults.cfg` lines | 148 vr cvars + engine r_/gl_. Every name in the shipped cfgs exists in code (`cfgcheck.py`). |
 
-Tier counts for the 1,704 vr cvars (heuristic, section 4): **A 20 · B 60 · C 906 · C? (archived, console-only) 99 ·
-D 596 · R (retired) 23**. By page tier, interactive menu rows are about **B 117 · C 1,002 · D 973**. Nearly half of
+Tier counts for the 1,681 vr cvars (heuristic, section 4): **A 20 · B 60 · C 906 · C? (archived, console-only) 99 ·
+D 596** (the 23 retired ones, R, were removed). By page tier, interactive menu rows are about **B 117 · C 1,002 · D 973**. Nearly half of
 everything in the VR menu is developer, tuning or test material.
 
 ## 2. Architecture
@@ -231,8 +231,8 @@ targeted at most 30 rows per page; pages have grown again since.)
    vr_body_mode, vr_hud_mode, vr_crosshair, vr_climb`), plus height (`vr_height_calibration`) and body calibration
    (vr_setup.hpp steps 1-2). README "First steps" (README.md:178-197) adds `vr_gunangle` (+ `vr_offhandpitch`),
    `vr_xr_runtime`, `vr_render_scale`, `vr_enabled` and, for performance, `vr_graphics_preset`.
-2. **Retired (R).** The inc comment says "retired ... kept so saved configs load silently". This tier also holds the
-   migration-only `vr_lefthanded` and `vr_gadget_hand`.
+2. **Retired (R).** The inc comment said "retired ... kept so saved configs load silently", plus the migration-only
+   `vr_lefthanded` and `vr_gadget_hand`. All 23 were removed on 2026-10-03 (section 5a): none is left.
 3. **D by name.** The name matches debug|test|mock|show|log|profile|bench|trace|dump|fixed_frames|motion_|notes|
    *_version|*_seed.
 4. **Otherwise, the best tier of the pages it appears on.** Page tiers:
@@ -251,7 +251,7 @@ targeted at most 30 rows per page; pages have grown again since.)
 the "Hand on Hold (Looks Only)" sliders on Climbing, "Reverb Update" and "Frame Size" on Sound, and the Speed Curve,
 Glide and Power Knee rows on Swimming. A per-row pass is needed before culling.
 
-**Result.** For vr cvars: A 20, B 60, C 906, C? 99, D 596, R 23. For VR menu interactive rows by page: B 117, C
+**Result.** For vr cvars: A 20, B 60, C 906, C? 99, D 596 (R 23 before they were removed). For VR menu interactive rows by page: B 117, C
 ~1,000, D ~970. Rough category tags for vr cvars (name and page regex; overlaps allowed): gameplay 1,159, graphics
 324, dev 117+, controls 79, HUD 77, audio 53, multiplayer 32, comfort 25. Accessibility has no dedicated settings.
 The nearest are colours/hues, haptics and Seated position. There is **no comfort vignette** for locomotion. The only
@@ -271,11 +271,14 @@ vignette is `vr_bullettime_fx_vignette`.
 - Headset gamma/contrast (`vr_gamma`, `vr_contrast`) are on Advanced > Graphics, not on Headset. Brightness and
   Contrast on the desktop Options do not reach the headset (vr_cvars.inc:1237).
 - There is no handedness setting. "There is no main hand setting" (vr_setup.hpp:8). Sides are split across
-  `vr_stick_swap`, `vr_gadget_arm` and `vr_flashlight_side`. `vr_lefthanded` is migration-only (vr_hands.cpp:663).
+  `vr_stick_swap`, `vr_gadget_arm` and `vr_flashlight_side`. The old single `vr_lefthanded` was removed (2026-10-03).
 
 ## 5. Cull and consolidate candidates
 
-### 5a. Dead: registered, read by nothing (comments stripped)
+### 5a. Dead: registered, read by nothing (comments stripped). REMOVED 2026-10-03
+
+Everything in this section was removed on 2026-10-03 (no compatibility with old configs kept: the heavy development
+phase; none was in a shipped cfg). Kept for the record:
 
 | cvar | inc line | evidence |
 |---|---|---|
@@ -296,8 +299,10 @@ migration-only). There are also **288 retired per-slot cvars**: 7 weapon keys x 
 w_posmult, w_dirmult, w_2hposmult, w_2hdirmult, w_hvelmult, w_htvelmult) and 1 prop key x 64 (vr_props.inc:73
 "blunt"). Add the 12 `vr_retro_body*` legacy cvars (vr_retro.cpp:1592) and `vr_lefthanded`/`vr_gadget_hand`
 (vr_cvars.inc:412-413, which only map old configs to the new side settings, vr_hands.cpp:663-685). All exist so old
-configs load silently. A single "ignore unknown legacy names" list in the config loader could replace about 320
-registered cvars.
+configs load silently. All of them (about 320) were removed outright, with the migrations that used them
+(vr_cvars.cpp's config-84 corpse health and defaultChanges entries, hands::migrateHandedness, the retro body aliases).
+Old motion takes' `dominant hand` and `vr_lefthanded` keys still play back (take parsing in vr_motion_play.cpp, not
+cvars).
 
 ### 5b. Test or debug only (read only from test code or test QC)
 - `vr_smallgibs_test`, `_n`, `_dmg`, `_dummy`, `_crowd`, `_blasts`, `_hand`, `_dist` (vr_cvars.inc:1198-1206; only
@@ -393,7 +398,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
   **Checklist** corner button.
 - **Docs.**
   - docs/SETTINGS.md (373 lines) walks the VR Settings and Advanced pages, presets, weapon offsets, bindings, configs
-    and resets, plus "Important settings by topic". It names 98 of 1,704 vr cvars.
+    and resets, plus "Important settings by topic". It names 98 of 1,681 vr cvars.
   - docs/FEATURES.md (231 lines) is feature-oriented and names 3 cvars.
   - README.md:161-202 "First steps" is the closest thing to an A-tier list.
 - **Doc drift to fix during the redesign.**
@@ -3026,7 +3031,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - [cmd] Quad Damage → `impulse 255`
         - [cmd] All Weapons → `impulse 9`
 
-## 8. Full vr cvar table (1,704 rows; tier A/B/C/C?/D/R; read sites exclude vr_cvars.*, menu UI and comments)
+## 8. Full vr cvar table (1,681 rows, the removed ones taken out; tier A/B/C/C?/D/R; read sites exclude vr_cvars.*, menu UI and comments)
 
 | cvar | default | saved | tier | categories | menu page(s) | code/QC read sites | test-only reads | shipped cfg | inc line |
 |---|---|---|---|---|---|---|---|---|---|
@@ -3150,7 +3155,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_fixed_frames` | `0` | no | D | gameplay | — | 4 | 0 |  | 201 |
 | `vr_fixed_frames_rate` | `72` | no | D | gameplay | — | 1 | 0 |  | 205 |
 | `vr_mock_fast` | `0` | no | D | gameplay | — | 3 | 0 |  | 209 |
-| `vr_physics_engine` | `1` | no | R | gameplay | — | 0 | 0 |  | 213 |
 | `vr_box3d_substeps` | `4` | yes | C? | gameplay | — | 2 | 0 |  | 214 |
 | `vr_box3d_threads` | `1` | yes | D | dev | Debug - Profiling and Memory | 1 | 0 |  | 215 |
 | `vr_box3d_threads_bodies` | `150` | yes | D | dev | Debug - Profiling and Memory | 1 | 0 |  | 216 |
@@ -3168,7 +3172,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_box3d_hand_mass` | `3` | yes | C | gameplay | Carrying | 4 | 0 |  | 228 |
 | `vr_box3d_push_force` | `200` | yes | C | gameplay | Carrying | 2 | 0 |  | 229 |
 | `vr_box3d_weapon_arm_mass` | `1` | yes | C | gameplay | Carrying | 3 | 0 |  | 230 |
-| `vr_box3d_weapon_mass` | `4` | no | R | gameplay | — | 0 | 0 |  | 231 |
 | `vr_shot_push` | `1` | yes | D | gameplay | Throwing and Physics | 1 | 0 |  | 232 |
 | `vr_shot_push_pellet` | `6` | yes | D | gameplay | Throwing and Physics | 1 | 0 |  | 233 |
 | `vr_shot_push_nail` | `12` | yes | D | gameplay | Throwing and Physics | 1 | 0 |  | 234 |
@@ -3307,8 +3310,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_foveated_debug` | `0` | no | D | dev,graphics | Debug - Views | 2 | 0 |  | 404 |
 | `vr_enabled` | `0` | no | A | gameplay | Headset | 6 | 0 | quakevr.cfg | 406 |
 | `vr_stick_swap` | `0` | yes | A | comfort,controls,gameplay | VR Settings | 10 | 0 |  | 409 |
-| `vr_lefthanded` | `` | no | R | controls,gameplay | — | 5 | 0 |  | 412 |
-| `vr_gadget_hand` | `` | no | R | HUD,controls | — | 4 | 0 |  | 413 |
 | `vr_fakevr_handroll` | `0` | no | D | gameplay | — | 1 | 0 |  | 414 |
 | `vr_crosshair` | `0` | yes | A | HUD | Body and Display; Crosshair | 4 | 0 |  | 415 |
 | `vr_crosshair_depth` | `0` | yes | B | HUD | Crosshair | 2 | 0 |  | 416 |
@@ -3439,18 +3440,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_2h_sticky_fast_full` | `4` | yes | C | controls,gameplay | Aiming | 1 | 0 |  | 557 |
 | `vr_2h_sticky_fast_hold` | `0.6` | yes | C | controls,gameplay | Aiming | 1 | 0 |  | 558 |
 | `vr_debug_2h_grip` | `0` | no | D | dev | Debug - Logging | 15 | 0 |  | 559 |
-| `vr_wpn_pos_weight` | `1` | no | R | gameplay | — | 0 | 0 |  | 563 |
-| `vr_wpn_pos_weight_offset` | `0.0` | no | R | gameplay | — | 0 | 0 |  | 564 |
-| `vr_wpn_pos_weight_mult` | `1.0` | no | R | gameplay | — | 0 | 0 |  | 565 |
-| `vr_wpn_pos_weight_2h_help_offset` | `0.3` | no | R | gameplay | — | 0 | 0 |  | 566 |
-| `vr_wpn_pos_weight_2h_help_mult` | `1.0` | no | R | gameplay | — | 0 | 0 |  | 567 |
-| `vr_wpn_dir_weight` | `1` | no | R | gameplay | — | 0 | 0 |  | 568 |
-| `vr_wpn_dir_weight_offset` | `0.05` | no | R | gameplay | — | 0 | 0 |  | 569 |
-| `vr_wpn_dir_weight_mult` | `1.0` | no | R | gameplay | — | 0 | 0 |  | 570 |
-| `vr_wpn_dir_weight_2h_help_offset` | `0.3` | no | R | gameplay | — | 0 | 0 |  | 571 |
-| `vr_wpn_dir_weight_2h_help_mult` | `1.0` | no | R | gameplay | — | 0 | 0 |  | 572 |
-| `vr_weight_model` | `1` | no | R | gameplay | — | 0 | 0 |  | 573 |
-| `vr_weight_props` | `1` | no | R | gameplay | — | 0 | 0 |  | 574 |
 | `vr_weight_spring_stiffness` | `1` | yes | C | gameplay | Aiming | 2 | 0 |  | 575 |
 | `vr_weight_spring_damping` | `1` | yes | C | gameplay | Aiming | 2 | 0 |  | 576 |
 | `vr_weight_spring_strength` | `1` | yes | C | gameplay | Aiming | 2 | 0 |  | 577 |
@@ -4159,7 +4148,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_swim_stroke_pitch` | `-8` | yes | C | gameplay | Swimming | 1 | 0 |  | 1375 |
 | `vr_air_supply` | `2` | yes | C | gameplay | Swimming | 1 | 0 |  | 1376 |
 | `vr_swim_debug` | `0` | no | D | dev | Debug - Logging | 1 | 0 |  | 1377 |
-| `vr_sword_drop` | `1` | no | R | gameplay | — | 0 | 0 |  | 1378 |
 | `vr_sword_damage_mult` | `1.5` | yes | C | gameplay | Weapon Damage | 1 | 0 | vr_defaults.cfg | 1379 |
 | `vr_crowbar_damage` | `20` | yes | C | gameplay | Weapon Damage | 1 | 0 |  | 1380 |
 | `vr_dmg_shotgun` | `4` | yes | C | gameplay | Weapon Damage | 2 | 1 |  | 1384 |
@@ -4221,7 +4209,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_held_collide_wall_max` | `40` | yes | C | gameplay | Carrying | 1 | 0 |  | 1446 |
 | `vr_held_collide_monsters` | `1` | yes | C | gameplay | Carrying | 1 | 0 |  | 1447 |
 | `vr_held_fit_gap` | `0` | yes | C | gameplay | Carrying | 2 | 0 | vr_defaults.cfg | 1448 |
-| `vr_carry_reach` | `8` | no | R | gameplay | — | 0 | 0 |  | 1449 |
 | `vr_carry_grab_bias` | `0` | yes | C | gameplay | Carrying | 1 | 0 |  | 1450 |
 | `vr_carry_grab_drawn` | `1` | yes | C | gameplay | Carrying | 1 | 0 |  | 1451 |
 | `vr_weapon_grab_drawn` | `1` | yes | C | gameplay | Carrying | 2 | 0 |  | 1452 |
@@ -4279,7 +4266,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_gib_health` | `12` | yes | C | gameplay | Gibs and Corpses | 1 | 0 |  | 1508 |
 | `vr_gib_splat_speed` | `250` | yes | C | gameplay | Gibs and Corpses | 3 | 1 |  | 1509 |
 | `vr_corpse_gib` | `1` | yes | C | gameplay | Gibs and Corpses | 4 | 0 |  | 1510 |
-| `vr_corpse_health` | `80` | no | R | gameplay | — | 0 | 0 |  | 1511 |
 | `vr_corpse_health_mult` | `1` | yes | C | gameplay | Gibs and Corpses; Gibs and Corpses - Corpse Damage and Health | 1 | 0 |  | 1512 |
 | `vr_corpse_nogib` | `0` | yes | C | gameplay | Gibs and Corpses; Gibs and Corpses - Corpse Damage and Health | 3 | 0 |  | 1513 |
 | `vr_corpse_health_grunt` | `80` | yes | D | audio | Gibs and Corpses - Corpse Damage and Health | 1 | 0 |  | 1514 |
@@ -4418,7 +4404,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_bash_sound` | `1` | yes | C | audio | Parry and Bash | 2 | 0 | vr_defaults.cfg | 1649 |
 | `vr_parry_cooldown` | `0.4` | yes | C | gameplay | Parry and Bash | 1 | 0 |  | 1650 |
 | `vr_parry_cooldown_attack` | `1` | yes | C | gameplay | Parry and Bash | 1 | 0 |  | 1651 |
-| `vr_parry_sound_burst` | `0.3` | no | R | audio | — | 0 | 0 |  | 1652 |
 | `vr_bash_deflect_radius` | `24` | yes | C | gameplay | Batting and Catching | 1 | 0 |  | 1653 |
 | `vr_bash_deflect_window` | `0.3` | yes | C | graphics | Batting and Catching | 2 | 0 |  | 1654 |
 | `vr_parry_wobble` | `1` | yes | C | gameplay | Parry and Bash | 1 | 0 | vr_defaults.cfg | 1655 |
@@ -4429,7 +4414,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_parry_stamina_delay` | `2` | yes | C | gameplay | Stamina | 2 | 0 |  | 1660 |
 | `vr_parry_stamina_regen` | `25` | yes | C | gameplay | Stamina | 1 | 0 |  | 1661 |
 | `vr_parry_stamina_warn` | `1` | yes | C | gameplay | Stamina | 3 | 0 |  | 1662 |
-| `vr_parry_stamina_show` | `1` | no | R | gameplay | — | 0 | 0 |  | 1663 |
 | `vr_strike_stamina` | `1` | yes | C | gameplay | Stamina | 3 | 0 |  | 1664 |
 | `vr_strike_stamina_punch` | `4` | yes | C | gameplay | Stamina | 1 | 0 |  | 1665 |
 | `vr_strike_stamina_cost` | `8` | yes | C | gameplay | Stamina | 2 | 0 |  | 1666 |
@@ -4593,7 +4577,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_forcegrabbable_return_time_singleplayer` | `0` | yes | C? | gameplay | — | 1 | 0 |  | 1826 |
 | `vr_finger_auto_close_thumb` | `1` | yes | C | gameplay | Hand/Gun Calibration | 1 | 0 |  | 1827 |
 | `vr_finger_blending_speed` | `50` | yes | C? | gameplay | — | 2 | 0 |  | 1828 |
-| `vr_finger_grip_open` | `0` | yes | R | gameplay | — | 0 | 0 |  | 1829 |
 | `vr_hand_fit` | `1` | yes | D | gameplay | Fingers and Collisions | 2 | 0 |  | 1830 |
 | `vr_weapon_hotspot` | `1` | no | D | gameplay | Weapon Offsets - Two-Handed | 2 | 0 |  | 1831 |
 | `vr_weapon_holster` | `1` | no | D | gameplay | Weapon Offsets - Holstered | 3 | 0 |  | 1832 |
@@ -4677,7 +4660,6 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_test_projectile_side` | `0` | no | D | dev | Debug - Tests | 1 | 0 |  | 1916 |
 | `vr_hand_collide` | `5` | yes | C | gameplay | Carrying | 3 | 0 |  | 1917 |
 | `vr_hand_collide_fingers` | `1` | yes | C | gameplay | Carrying | 2 | 0 |  | 1918 |
-| `vr_hand_collide_props` | `15` | no | R | gameplay | — | 0 | 0 |  | 1919 |
 | `vr_hand_collide_props_margin` | `1` | yes | C | gameplay | Carrying | 1 | 0 |  | 1920 |
 | `vr_body_collide` | `1` | yes | C | gameplay | Body | 1 | 0 |  | 1921 |
 | `vr_body_collide_pass` | `0.7` | yes | C | gameplay | Body | 1 | 0 |  | 1922 |
