@@ -3677,7 +3677,7 @@ za::Vector<Item> pageDebugTests()
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and an ogre killed at the Distance ahead: he goes limp as he falls (his chainsaw dropped)."),
         command("An Enforcer's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 8; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and an enforcer killed at the Distance ahead: he goes limp as he falls (his laser rifle dropped)."),
-        command("A Death knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 6; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Death Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 6; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a death knight killed at the Distance ahead: he goes limp as he falls (his sword dropped)."),
         command("A Rottweiler's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 7; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a rottweiler killed at the Distance ahead: it goes limp as it falls."),
