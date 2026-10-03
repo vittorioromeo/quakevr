@@ -302,6 +302,26 @@ constexpr Seed shamblerSeeds[] = {
     {"shin_r", 11, Joint::Hinge, {-2.8f, -16.7f, -19.2f}, {-2.7f, -14.2f, -12.1f}, {-2.8f, -16.6f, -18.8f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+// Hipnotic's gremlin (Scourge of Armagon's progs/grem.mdl: 123 vertices, 179 frames). The rest pose ($stand1): x forward,
+// y left, z up; hunched, his head forward, his arms out, his ears up. Few vertices and loose frames: the body one bone (the
+// pelvis: belly, back and hump; its seed's centre moved up to 0 2 3 so his hump's cluster isn't the head's), the head on
+// it, upper arms and forearms (elbow hinges), thighs and shins (knee hinges; capsules 2 and 1.8). Measured on his frames
+// (Misc/quakevr/ragdoll/rig.py grem grem_bones.json, RIG_PAK: Hipnotic's pak0): clusters 1.33 units rms, bones 1.50. The gun he
+// steals is a piece of its own, collapsed in his death frames (he drops it: vr_monstermods.cpp): the loose bone, hidden.
+// Death frames 104-115 ($death1-12) and 116-123 ($flip1-8: thrown up and back).
+constexpr Seed gremSeeds[] = {
+    {"pelvis", -1, Joint::Root, {0.f, 2.f, 3.f}, {-2.6f, 1.8f, -0.7f}, {4.8f, 1.6f, 7.9f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"head", 0, Joint::Ball, {10.5f, 0.3f, 7.9f}, {4.8f, 1.6f, 7.9f}, {16.1f, -1.f, 7.8f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 0, Joint::Ball, {3.8f, 13.6f, 0.6f}, {0.f, 8.9f, 4.8f}, {8.2f, 16.9f, -4.1f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 2, Joint::Hinge, {11.4f, 13.5f, -7.8f}, {8.2f, 16.9f, -4.1f}, {14.5f, 10.2f, -11.4f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 0, Joint::Ball, {2.1f, -8.1f, 5.f}, {2.4f, -3.6f, 8.f}, {1.9f, -12.1f, 0.8f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 4, Joint::Hinge, {6.6f, -13.9f, -5.6f}, {1.9f, -12.1f, 0.8f}, {11.2f, -15.7f, -11.9f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {1.9f, 10.7f, -9.6f}, {4.3f, 10.f, -5.2f}, {1.5f, 10.5f, -15.5f}, 2.f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 6, Joint::Hinge, {2.2f, 11.7f, -21.1f}, {1.5f, 10.5f, -15.5f}, {2.3f, 11.8f, -21.4f}, 1.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {2.1f, -9.4f, -5.2f}, {3.1f, -10.1f, -3.7f}, {-4.1f, -9.6f, -11.f}, 2.f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 8, Joint::Hinge, {-5.1f, -11.f, -16.9f}, {-4.1f, -9.6f, -11.f}, {-6.f, -12.1f, -21.7f}, 1.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -313,6 +333,7 @@ constexpr SeedTable seedTables[] = {
     {"progs/zombie.mdl", 481, zombieSeeds, static_cast<int>(sizeof(zombieSeeds) / sizeof(zombieSeeds[0])), 2, {103, 162}, {116, 178}},
     {"progs/demon.mdl", 1095, demonSeeds, static_cast<int>(sizeof(demonSeeds) / sizeof(demonSeeds[0])), 1, {45, 0}, {53, 0}},
     {"progs/shambler.mdl", 648, shamblerSeeds, static_cast<int>(sizeof(shamblerSeeds) / sizeof(shamblerSeeds[0])), 1, {83, 0}, {93, 0}},
+    {"progs/grem.mdl", 123, gremSeeds, static_cast<int>(sizeof(gremSeeds) / sizeof(gremSeeds[0])), 2, {104, 116}, {115, 123}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)

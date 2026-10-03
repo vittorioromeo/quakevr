@@ -948,7 +948,18 @@ void()   gremlin_flip3    =[ $flip3.asc,    gremlin_flip4 ] {};
 void()   gremlin_flip4    =[ $flip4.asc,    gremlin_flip5 ] {};
 void()   gremlin_flip5    =[ $flip5.asc,    gremlin_flip6 ] {};
 void()   gremlin_flip6    =[ $flip6.asc,    gremlin_flip7 ] {self.touch = Gremlin_FlipTouch;};
-void()   gremlin_flip7    =[ $flip7.asc,    gremlin_gib ]
+// QVR: a gremlin whose flip ended as a ragdoll lies as it (its stuck jump's gibbing below would turn it into a head).
+void() gremlin_flip8;
+void() gremlin_flip_stuck =
+{
+    if(isragdoll(self))
+    {
+        gremlin_flip8();
+        return;
+    }
+    gremlin_gib();
+};
+void()   gremlin_flip7    =[ $flip7.asc,    gremlin_flip_stuck ]
    {
    self.nextthink = time + 3;
    // if three seconds pass, assume gremlin is stuck and jump again

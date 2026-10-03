@@ -1758,7 +1758,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 {
     return {
         toggle("Decapitation", vr_decap)
-            .help("A killing slash at the head of a grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend or shambler cuts it "
+            .help("A killing slash at the head of a grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend, shambler or gremlin cuts it "
                   "off: a sword's or an axe's blade swung across (not a stab, not the pommel or the hilt). The body falls at "
                   "once as a headless ragdoll, the head flies off, the neck spurts blood. Needs Ragdolls on (vr_decap)."),
         slider("Least Swing Speed", vr_decap_speed, 0.f, 15.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
@@ -2671,6 +2671,7 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageRagdollRottweiler();
 [[nodiscard]] za::Vector<Item> pageRagdollScrag();
 [[nodiscard]] za::Vector<Item> pageRagdollZombie();
+[[nodiscard]] za::Vector<Item> pageRagdollGremlin();
 [[nodiscard]] za::Vector<Item> pageRagdollShambler();
 [[nodiscard]] za::Vector<Item> pageRagdollFiend();
 
@@ -2720,7 +2721,7 @@ void hologramTestMessage()
             .help("Monsters walk over corpses as a low step instead of through them (vr_corpse_collide_monsters)."),
         header("Ragdolls (Experimental)"),
         cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "On (Experimental)"}})
-            .help("A dying grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend or shambler goes limp: his body becomes jointed parts that fall, tumble, are pushed, grabbed "
+            .help("A dying grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend, shambler or gremlin goes limp: his body becomes jointed parts that fall, tumble, are pushed, grabbed "
                   "and thrown (vr_ragdoll). Their settings: Ragdoll Settings."),
         open("Ragdoll Settings", pageIndex(pageRagdolls)),
     };
@@ -2803,7 +2804,7 @@ void hologramTestMessage()
 {
     return {
         cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "On (Experimental)"}})
-            .help("A dying grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend or shambler goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs; a rottweiler's four legs, jaw and tail; a scrag's tail; a fiend's claws, feet and tail) that fall, "
+            .help("A dying grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend, shambler or gremlin goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs; a rottweiler's four legs, jaw and tail; a scrag's tail; a fiend's claws, feet and tail) that fall, "
                   "tumble down stairs, are pushed by shots, blasts, props and your hands, his mesh bent with them. Shoot "
                   "or blow him up enough and he still bursts into gibs, as a corpse does (Gibs and Corpses: Corpse Damage "
                   "and Health, Never Gib Corpses) (vr_ragdoll)."),
@@ -2816,7 +2817,7 @@ void hologramTestMessage()
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
-                  "own by default (grunt 80, knight 90, enforcer 100, death knight 130, ogre 200, rottweiler and scrag 40, fiend 140, shambler 280; "
+                  "own by default (grunt 80, knight 90, enforcer 100, death knight 130, ogre 200, rottweiler and scrag 40, fiend 140, shambler 280, gremlin 20; "
                   "vr_ragdoll_mass)."),
         slider("Friction", vr_ragdoll_friction, 0.1f, 2.f, 0.1f, "%.1f").extend()
             .help("How much it drags and catches on floors and steps (vr_ragdoll_friction)."),
@@ -2844,6 +2845,7 @@ void hologramTestMessage()
         open("Scrag", pageIndex(pageRagdollScrag)),
         open("Fiend", pageIndex(pageRagdollFiend)),
         open("Shambler", pageIndex(pageRagdollShambler)),
+        open("Gremlin", pageIndex(pageRagdollGremlin)),
         open("Zombie", pageIndex(pageRagdollZombie)).help("A zombie's ragdoll: only when its head is cut off (Gore > Decapitation)."),
         header("Taking Them"),
         cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}, {2.f, "By Hand and Force Grab"}})
@@ -3106,6 +3108,36 @@ void hologramTestMessage()
                               "vr_ragdoll_zombie_joint_friction -1; vr_ragdoll_zombie_joint_stiffness -1; vr_ragdoll_zombie_limits -1; "
                               "vr_ragdoll_zombie_damping -1; vr_ragdoll_zombie_blast -1; vr_ragdoll_zombie_inherit -1")
             .help("The zombie's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Gremlin: the gremlin's own physics (vr_ragdoll_gremlin_*), each one Global (the one
+// for all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollGremlin()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_gremlin_start, 0.f, 1.f, 0.1f, "%.1f")
+            .help("vr_ragdoll_gremlin_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_gremlin_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_gremlin_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_gremlin_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_gremlin_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_gremlin_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_gremlin_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_gremlin_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_gremlin_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_gremlin_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_gremlin_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_gremlin_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_gremlin_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_gremlin_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_gremlin_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_gremlin_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_gremlin_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_gremlin_start -1; vr_ragdoll_gremlin_mass -1; vr_ragdoll_gremlin_friction -1; "
+                              "vr_ragdoll_gremlin_joint_friction -1; vr_ragdoll_gremlin_joint_stiffness -1; vr_ragdoll_gremlin_limits -1; "
+                              "vr_ragdoll_gremlin_damping -1; vr_ragdoll_gremlin_blast -1; vr_ragdoll_gremlin_inherit -1")
+            .help("The gremlin's ragdoll as all monsters' (Ragdoll Settings)."),
     };
 }
 
@@ -3936,7 +3968,7 @@ za::Vector<Item> pageDebugTests()
                   "to test held props (the blood on what you hold: vr_gore_spatter_test, vr_gore_hands_info)."),
         cycle("As a Corpse", vr_test_spawn_dead, {{0.f, "Off"}, {1.f, "Corpse"}, {2.f, "Gibbed"}, {3.f, "Ragdoll"}})
             .help("A monster killed at once: a corpse, to test gibbing and carrying; Gibbed: killed hard enough to gib (its "
-                  "gibs and head to pick up); Ragdoll: a corpse with ragdolls on (vr_ragdoll 1: a grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend or shambler goes limp as he "
+                  "gibs and head to pick up); Ragdoll: a corpse with ragdolls on (vr_ragdoll 1: a grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend, shambler or gremlin goes limp as he "
                   "falls)."),
         slider("Box Turned", vr_test_spawn_yaw, 0.f, 90.f, 1.f, "%.0f degrees")
             .extend()
@@ -3963,6 +3995,8 @@ za::Vector<Item> pageDebugTests()
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a fiend killed at the Distance ahead: it goes limp as it falls."),
         command("A Shambler's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 3; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a shambler killed at the Distance ahead: he goes limp as he falls."),
+        command("A Gremlin's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 12; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a gremlin killed at the Distance ahead (Scourge of Armagon): it goes limp as it falls (a stolen gun dropped)."),
         command("A Grunt's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a grunt killed at the Distance ahead: he goes limp as "
                   "he falls."),
@@ -4739,6 +4773,7 @@ const Page pages[] = {
     {"Ragdolls - Zombie", pageRagdollZombie, pageRagdolls},                        // 127
     {"Ragdolls - Fiend", pageRagdollFiend, pageRagdolls},                         // 128
     {"Ragdolls - Shambler", pageRagdollShambler, pageRagdolls},                   // 129
+    {"Ragdolls - Gremlin", pageRagdollGremlin, pageRagdolls},                     // 130
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
