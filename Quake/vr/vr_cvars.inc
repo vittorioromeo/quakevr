@@ -1577,6 +1577,10 @@ QVR_CVAR(vr_decap_zombies, "1", CVAR_ARCHIVE)         // a slash at a zombie's h
 QVR_CVAR(vr_decap_fountain, "2.5", CVAR_ARCHIVE)      // s the stump spurts blood for (0: none)
 QVR_CVAR(vr_decap_thrown, "1", CVAR_ARCHIVE)          // a thrown axe going in edge first beheads too
 QVR_CVAR(vr_decap_chainsaw, "1", CVAR_ARCHIVE)        // the chainsaw beheads too (its running chain at the neck, or a swing)
+QVR_CVAR(vr_decap_shotgun, "1", CVAR_ARCHIVE)         // a shotgun blast killing with a headshot pops the head (no head flies: a burst of blood and small gibs), a headless ragdoll
+QVR_CVAR(vr_decap_super_shotgun, "1", CVAR_ARCHIVE)   // ... a super shotgun blast
+QVR_CVAR(vr_decap_lightning, "1", CVAR_ARCHIVE)       // ... a lightning gun bolt at the head that kills
+QVR_CVAR(vr_decap_head_share, "0.5", CVAR_ARCHIVE)    // share of a blast's damage on him (after the headshot multiplier) its head pellets must deal to pop the head
 QVR_CVAR(vr_decap_test, "0", CVAR_NONE)               // the QC runs decapitation test n on the nearest monster or corpse (vr_decap.qc; Debug > Gore Tests)
 QVR_CVAR(vr_ragdoll_held_local, "1", CVAR_ARCHIVE)    // a held limb's ragdoll follows your hand at the frame rate, as a held prop does (the server's step lags it); 0 the server's pose only
 // Per monster class (Gibs and Corpses > Ragdolls > Grunt, > Knight): -1 (Global) is the setting above, any other value replaces it

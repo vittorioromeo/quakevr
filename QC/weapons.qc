@@ -1643,7 +1643,13 @@ void() ApplyMultiDamage =
     vr_hitpellets_head = multi_pellets_head;
     vr_hitpellets_limb = multi_pellets_limb;
     vr_hitpellets_leg = multi_pellets_leg;
-    T_Damage(multi_ent, self, self, multi_damage);
+    entity t = multi_ent;
+    float pop = VR_Decap_BlastArm(t); // VR: a headshot blast pops the head if it kills (vr_decap.qc, "Head pops")
+    T_Damage(t, self, self, multi_damage);
+    if(pop)
+    {
+        VR_Decap_After(t);
+    }
     vr_hitpellets = 0;
 };
 
@@ -1805,6 +1811,7 @@ void(float damage, vector dir) TraceAttack =
 
     if(trace_ent.takedamage)
     {
+        VR_Decap_Pellet(trace_ent, damage, trace_endpos, dir); // VR: the blast's pellets at the head (vr_decap.qc)
         if(AddMultiDamage(trace_ent, damage) && trace_ent.classname != "hook") // (a grappling hook shot off: no blood)
         {
             if(VR_Prop_Metal(trace_ent))
@@ -1973,7 +1980,9 @@ void(float xHand) W_FireShotgun =
     dir = VRGetWeaponFireRotFwd(xHand);
 
     vr_pellet_damage = cvar_hget(cvarh_vr_dmg_shotgun); // (Weapon Damage)
+    vr_decap_weapon = (VRGetWeapon(xHand) == WID_SUPER_SHOTGUN) ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN; // (head pops)
     FireBullets(xHand, 6, dir, '0.01 0.01 0');
+    vr_decap_weapon = 0;
     vr_pellet_damage = 0;
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
@@ -2019,7 +2028,9 @@ void(float xHand) W_FireSuperShotgun =
     delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 2);
     dir = VRGetWeaponFireRotFwd(xHand);
     vr_pellet_damage = cvar_hget(cvarh_vr_dmg_super_shotgun); // (Weapon Damage)
+    vr_decap_weapon = QVR_DECAP_SSG; // (head pops)
     FireBullets(xHand, 14, dir, '0.035 0.025 0');
+    vr_decap_weapon = 0;
     vr_pellet_damage = 0;
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
@@ -2162,6 +2173,22 @@ LIGHTNING
 ===============================================================================
 */
 
+// VR: a bolt's damage to `t` (trace_ent, struck at trace_endpos going `xDir`): the player's at a head that it kills pops
+// it (vr_decap.qc, "Head pops"). T_Damage's answer; the trace globals as they were (the death code may trace).
+float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
+{
+    vector at = trace_endpos;
+    float pop = VR_Decap_BoltArm(t, at, xDir, damage);
+    float r = T_Damage(t, from, from, damage);
+    if(pop)
+    {
+        VR_Decap_After(t);
+    }
+    trace_ent = t;
+    trace_endpos = at;
+    return r;
+};
+
 /*
 =================
 LightningDamage
@@ -2191,7 +2218,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
 //JIM
     if(trace_ent.takedamage && !trace_ent.wetsuit_finished)
     {
-        if(T_Damage(trace_ent, from, from, damage))
+        if(VR_LightningHit(trace_ent, from, damage, p2 - p1))
         {
             VR_HitBloodSplash(trace_ent, trace_endpos, damage * 5);
         }
@@ -2209,7 +2236,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     if(trace_ent != e1 && trace_ent.takedamage &&
     !trace_ent.wetsuit_finished)
     {
-        if(T_Damage(trace_ent, from, from, damage))
+        if(VR_LightningHit(trace_ent, from, damage, p2 - p1))
         {
             VR_HitBloodSplash(trace_ent, trace_endpos, damage * 5);
         }
@@ -2221,7 +2248,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     if(trace_ent != e1 && trace_ent != e2 && trace_ent.takedamage &&
         !trace_ent.wetsuit_finished)
     {
-        if(T_Damage(trace_ent, from, from, damage))
+        if(VR_LightningHit(trace_ent, from, damage, p2 - p1))
         {
             VR_HitBloodSplash(trace_ent, trace_endpos, damage * 5);
         }
@@ -2454,7 +2481,9 @@ void(float xHand) W_FireLightning =
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
     particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
     VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', v_forward);
+    vr_decap_weapon = QVR_DECAP_LIGHTNING; // (head pops)
     LightningDamage(from, trace_endpos + v_forward*4, self, cvar_hget(cvarh_vr_dmg_lightning));
+    vr_decap_weapon = 0;
     VR_ClearHitKind();
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)

@@ -1782,6 +1782,17 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         toggle("Chainsaw", vr_decap_chainsaw)
             .help("The chainsaw's running bar at the neck (or a swing of it) cuts the head off when it kills; a corpse's "
                   "at once (vr_decap_chainsaw)."),
+        header("Head Shots"),
+        toggle("Shotgun", vr_decap_shotgun)
+            .help("A shotgun blast that kills with a headshot pops the head: it bursts in blood and small gibs, and the body "
+                  "falls at once as a headless ragdoll (never gibbed, nor its death animation) (vr_decap_shotgun)."),
+        toggle("Super Shotgun", vr_decap_super_shotgun)
+            .help("The same for a super shotgun blast (vr_decap_super_shotgun)."),
+        toggle("Lightning Gun", vr_decap_lightning)
+            .help("The same for a lightning gun bolt at the head that kills (vr_decap_lightning)."),
+        slider("Blast's Head Share", vr_decap_head_share, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How much of a blast's damage on him must come from pellets at the head (the headshot multiplier in) for "
+                  "it to count as a headshot; 0: any pellet at the head (vr_decap_head_share)."),
     };
 }
 
@@ -3721,6 +3732,17 @@ za::Vector<Item> pageDebugTools()
             .help("Its health 1, then an axe thrown edge first at its head from 70 units (a grunt's: Axe Height 15)."),
         command("Gib the Headless Corpse", "vr_decap_test 8")
             .help("vr_decap_test 8: the nearest headless corpse gibbed: no head thrown (the heads counted before and after)."),
+        command("Shotgun at Its Head", "vr_decap_test 12")
+            .help("vr_decap_test 12: a shotgun blast from your eye at the nearest live monster's head that just kills it: "
+                  "its head pops, no head thrown (decaptest: popped 1)."),
+        command("Super Shotgun at Its Head", "vr_decap_test 13").help("vr_decap_test 13: the same with a super shotgun blast."),
+        command("Super Shotgun at Its Head, Overkill", "vr_decap_test 14")
+            .help("vr_decap_test 14: a super shotgun blast at its head at health 1 (it would gib): its head pops, no gibs."),
+        command("Lightning at Its Head", "vr_decap_test 15").help("vr_decap_test 15: a lightning bolt at its head at health 1: popped."),
+        command("Shotgun at Its Body", "vr_decap_test 16").help("vr_decap_test 16: a shotgun blast at its body at health 1: killed, not popped."),
+        command("Shotgun at Its Head, Not Killing", "vr_decap_test 17")
+            .help("vr_decap_test 17: a shotgun blast at its head at health 500: not popped (a zombie: popped, dead for good)."),
+        command("Lightning at Its Body", "vr_decap_test 18").help("vr_decap_test 18: a lightning bolt at its body at health 1: not popped."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
             .help("vr_burn_test 1: the nearest monster, corpse, crate or crate's piece set on fire (an explosive box: it can't burn) as a lit torch's blow would, where it faces you "

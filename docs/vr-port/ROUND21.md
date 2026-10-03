@@ -23779,3 +23779,77 @@ In VR:
 - [ ] Scrags lose their heads.
 - [ ] Grab and throw a cut-off head.
 - [ ] Ragdoll Settings > Zombie has its own settings.
+
+## Head pops: shotgun, super shotgun and lightning gun headshots (2026-10-03)
+
+The author: a decapitable enemy killed by a headshot from a single shotgun or super shotgun blast, or a lightning gun
+bolt, skips its death animation and its gibbing: its head bursts in blood and small gibs (as a head gib destroyed) and
+it falls at once as a headless ragdoll. Gore > Decapitation > **Head Shots**: **Shotgun** (`vr_decap_shotgun`),
+**Super Shotgun** (`vr_decap_super_shotgun`), **Lightning Gun** (`vr_decap_lightning`), all on; **Blast's Head Share**
+(`vr_decap_head_share`, 0.5). Decapitation off turns them off too.
+
+**The rule** (QC vr_decap.qc, "Head pops"):
+- A blast counts as a whole: every pellet of the player's blast on him (TraceAttack: `VR_Decap_Pellet`, keyed by the
+  small gibs' blast serial), as far as they had struck when the blast's damage was dealt (ApplyMultiDamage: a run of
+  pellets on one target dealt at once; the whole blast unless its pellets alternate between targets). It is a headshot
+  when the pellets at his head did at least Blast's Head Share of that damage (the headshot multiplier in: with 1.5, 40%
+  of the pellets at the head is half the damage). At the head: decapitation's head zone (`VR_Decap_OnHead`: positional
+  damage's head sphere, on the model standing with precise hits), whether positional damage is on or not. The shot
+  must kill (Killed: `VR_Decap_Killed`, as a beheading's).
+- A bolt: the bolt that kills him strikes his head (each of the lightning's three traces, `VR_LightningHit`).
+- The shotgun's one barrel of the super shotgun (its last shell) counts as the super shotgun.
+- Only the player's shots (`vr_decap_weapon`, set by W_FireShotgun, W_FireSuperShotgun, W_FireLightning): not the
+  grunts' shotguns, the shambler's lightning, traps.
+- An overkill (he would gib) is a head pop too: he dies whole at health -1, as a beheading.
+- Zombies (`vr_decap_zombies` on): a headshot blast or bolt of 25 or more (zombie_pain's knock-down) pops its head and
+  it dies for good whatever its health (VR_Decap_After), as a slash's beheading does.
+
+**What happens**: decapitation's cut (`VR_Decap_Cut`: the ragdoll at once from the frame he is in, the head's bodies
+removed, the head shrunk away, the wounds round the neck, the fountain), but no head is thrown: at the head's middle a
+head gib's burst (`VR_Decap_PopEffects`: VR_BloodMist, VR_Gore_Burst, VR_SmallGib_Burst at size 1.5, as a head's
+VR_Gib_Burst), a squish and the gib sound. The neck's own mist, burst, sounds and three small gibs are left out (the
+head's burst is there). `developer 1`: "decap: X's head popped by player (a super shotgun blast)", and "decap: no: X,
+0.33 of the blast at the head" for a blast with some pellets at the head but too few.
+
+**Debug** > Tests > Decapitation Tests: `vr_decap_test` 12 a shotgun blast at the head that just kills (its health the
+blast's damage less 1), 13 the super shotgun's, 14 the super shotgun's at health 1 (overkill), 15 a bolt at the head
+(health 1), 16 a shotgun blast at the body (health 1), 17 a shotgun blast at the head at health 500, 18 a bolt at the
+body; shot from your eye with no spread (`VR_Decap_TestShot`); a zombie at its 60. The `decaptest:` line adds popped
+and gibbed.
+
+Tests (`bash Misc/quakevr/ragdoll/decap_test.sh <agent> pop popoff popzombie`):
+
+| case | result |
+|---|---|
+| 12 a shotgun headshot that just kills a grunt (health 35) | popped: headless ragdoll at once, health -1, no head thrown (heads 0 -> 0) |
+| 13 a super shotgun headshot that just kills (health 83) | popped |
+| 14 a super shotgun headshot at health 1 (overkill) | popped, not gibbed |
+| 15 a lightning bolt at the head (health 1) | popped |
+| 16 a shotgun blast at the body (health 1) | killed (health -23), not popped, his death animation |
+| 17 a shotgun headshot at health 500 | not killed (464), not popped |
+| 18 a bolt at the body (health 1) | killed (-29), not popped |
+| each option off: 12, 13, 14, 15 | not popped; 14 gibbed as before (a head thrown) |
+| a zombie (at its 60): a shotgun headshot, a bolt at the head | popped, dead for good |
+| a zombie, Zombies off | not popped (health 60) |
+
+Decapitation's own tests (live, zombie): as before.
+
+Not done: the nailguns, the rocket and grenade launchers (not asked for); a blast whose pellets alternate between
+targets counts only the run that kills.
+
+In VR:
+- [ ] Gore > Decapitation > Head Shots has Shotgun, Super Shotgun, Lightning Gun and Blast's Head Share.
+- [ ] Kill a grunt with a shotgun blast to the head: the head bursts in blood and small gibs.
+- [ ] That grunt falls at once as a headless ragdoll (no death animation).
+- [ ] No head flies off from a head pop.
+- [ ] The same with a super shotgun blast to the head.
+- [ ] An overkill super shotgun blast to the head: a headless ragdoll, not gibs.
+- [ ] Kill a grunt with the lightning gun on his head: his head pops.
+- [ ] A shotgun blast to the body that kills: the normal death, the head stays.
+- [ ] A shotgun blast to the head that doesn't kill: the head stays.
+- [ ] A blast half on the head and half on the body feels right as a headshot (Blast's Head Share).
+- [ ] A zombie shot in the head with the super shotgun pops and stays down.
+- [ ] Turn Shotgun off: shotgun headshots kill as before.
+- [ ] Turn Super Shotgun off: super shotgun headshots kill (or gib) as before.
+- [ ] Turn Lightning Gun off: lightning headshots kill as before.
+- [ ] The popped neck spurts blood as a beheading's does.

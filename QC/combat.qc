@@ -203,6 +203,15 @@ float(entity targ, entity attacker) VR_Decap_Blow;
 void(entity targ) VR_Decap_After;
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;
+// Head pops (vr_decap.qc, "Head pops"): the player's shot being fired (W_FireShotgun, W_FireSuperShotgun,
+// W_FireLightning): QVR_DECAP_SHOTGUN, _SSG or _LIGHTNING (the blows' kinds: vr_decap.qc's QVR_DECAP_SWING ..); 0 none.
+float QVR_DECAP_SHOTGUN = 4;   // a shotgun blast
+float QVR_DECAP_SSG = 5;       // a super shotgun blast
+float QVR_DECAP_LIGHTNING = 6; // a lightning gun bolt
+float vr_decap_weapon;
+void(entity e, float xDamage, vector xAt, vector xDir) VR_Decap_Pellet;
+float(entity targ) VR_Decap_BlastArm;
+float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm;
 float(entity m, entity xAxe) VR_Decap_Thrown;
 void() VR_Decap_TestFrame;
 void() VR_Decap_ZombieDie;

@@ -210,6 +210,22 @@ Ragdolls on the scrag: his tail flops as he falls and lies; grab him by the tail
 Ragdolls on the scrag in slow motion (vr_timescale 0.1): the switch is unseen
 Ragdolls on the scrag (40 kg now): held by the tail he swings light
 
+Head pops (Gore > Decapitation > Head Shots): the page has Shotgun, Super Shotgun, Lightning Gun and Blast's Head Share
+Head pops: kill a grunt with a shotgun blast to the head: the head bursts in blood and small gibs
+Head pops: that grunt falls at once as a headless ragdoll (no death animation)
+Head pops: no head flies off
+Head pops: the same with a super shotgun blast to the head
+Head pops: an overkill super shotgun blast to the head gives a headless ragdoll, not gibs
+Head pops: kill a grunt with the lightning gun on his head: his head pops
+Head pops: a shotgun blast to the body that kills: the normal death, the head stays
+Head pops: a shotgun blast to the head that doesn't kill: the head stays
+Head pops: a blast half on the head and half on the body feels right as a headshot (Blast's Head Share)
+Head pops: a zombie shot in the head with the super shotgun pops and stays down
+Head pops: Shotgun off: shotgun headshots kill as before
+Head pops: Super Shotgun off: super shotgun headshots kill (or gib) as before
+Head pops: Lightning Gun off: lightning headshots kill as before
+Head pops: the popped neck spurts blood as a beheading's does
+
 [Decide or give feedback]
 Ragdolls: a blast throws every monster's body as far, whatever its mass (an ogre as far as a grunt): lower the ogre's and death knight's Blast Throw (Ragdolls > Ogre)?
 Ragdolls: turn on by default? Next: the zombie, fiend, shambler, vore, spawn and fish, severing; is the grip strong enough to lift a grunt?
