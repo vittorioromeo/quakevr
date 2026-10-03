@@ -1,0 +1,6 @@
+{"bones": [["pelvis", -1, [4, 20], "root"], ["chest", 0, [23, 10, 19], ["ball", 35, 25]], ["head", 1, [0, 14], ["ball", 45, 50]],
+ ["upperarm_l", 1, [22, 13], ["ball", 85, 45]], ["forearm_l", 3, [9], ["hinge", 145, 0, -1, 0]], ["hand_l", 4, [5], ["ball", 40, 30]],
+ ["upperarm_r", 1, [6, 21, 17], ["ball", 85, 45]], ["forearm_r", 6, [15], ["hinge", 145, 0, -1, 0]], ["hand_r", 7, [3], ["ball", 40, 30]],
+ ["thigh_l", 0, [11], ["ball", 70, 30], 3.5], ["shin_l", 9, [16], ["hinge", 150, 0, 1, 0], 3, "boundary"], ["foot_l", 10, [8], ["ball", 35, 15], 0, "boundary"],
+ ["thigh_r", 0, [12], ["ball", 70, 30], 3.5], ["shin_r", 12, [18], ["hinge", 150, 0, 1, 0], 3, "boundary"], ["foot_r", 13, [2], ["ball", 35, 15], 0, "boundary"],
+ ["tail", 0, [7, 1], ["ball", 40, 20]]]}

@@ -179,6 +179,14 @@ const KnownSword knownSwords[] = {
          return v;
      }(),
         -1, -1},
+    // Hipnotic's gremlin: the gun he steals (its own piece, tucked inside his body but in his g* frames), hidden in his
+    // deaths (death1-12, flip1-8: he drops it, gremlin_die), so his ragdoll holds none (ROUND21.md, "Ragdolls 5").
+    {"progs/grem.mdl", 123, 245, [] {
+         za::Vector<int> v(38);
+         za::iota(v.begin(), v.end(), 85);
+         return v;
+     }(),
+        104, 123},
 };
 
 // What a monster's model drops (the log's name for it).
@@ -195,6 +203,10 @@ const KnownSword knownSwords[] = {
     if(!strcmp(model, "progs/enforcer.mdl"))
     {
         return "laser rifle";
+    }
+    if(!strcmp(model, "progs/grem.mdl"))
+    {
+        return "stolen gun";
     }
     return "sword";
 }
@@ -220,9 +232,9 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     aliashdr_t* hdr = static_cast<aliashdr_t*>(aliashdr);
     const bool knight = !strcmp(name, "progs/knight.mdl");
     const bool hellKnight = !strcmp(name, "progs/hknight.mdl");
-    // The ogre, the soldier and the enforcer: only Quake VR's own models (by their known vertices).
+    // The ogre, the soldier and the enforcer: only Quake VR's own models (by their known vertices); the gremlin: Hipnotic's.
     const bool knownOnly = !strcmp(name, "progs/ogre.mdl") || !strcmp(name, "progs/soldier.mdl") ||
-                           !strcmp(name, "progs/enforcer.mdl");
+                           !strcmp(name, "progs/enforcer.mdl") || !strcmp(name, "progs/grem.mdl");
     if(!knight && !hellKnight && !knownOnly)
     {
         return;

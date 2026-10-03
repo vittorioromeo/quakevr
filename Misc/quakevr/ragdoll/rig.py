@@ -3,12 +3,16 @@
 # dropped weapon hidden in its death frames as vr_monstermods.cpp hides it. Needs numpy; the clusters are kept between
 # runs in the temp folder (<model>_labels.json):
 #   python rig.py ogre [k]              the k (18) motion clusters: each one's vertices, rest-pose middle, box, neighbours
+#   (a seed table of more clusters, SeedTable::clusters: run "rig.py <model> <k>" first, its bones.json those clusters)
 #   python rig.py ogre bones.json       with the clusters given to bones ({"bones": [[name, parent, [clusters]], ...]}):
 #                                       the bones' rms fit, middles and boxes, and each joint's centre (least squares
 #                                       between the parent's and the child's motions, pulled a little to their boundary)
 #   python rig.py ogre frames           the frame names (the death animations' first and last)
+#   RIG_PAK=<qbase>/hipnotic/pak0.pak python rig.py grem ...   a mission pack's monster (not in quakevr/progs): its pak
 #   python rig.py ogre draw out.png [pose] [bones]   the last run's clusters (or bones) in colour on the pose (0), seen
 #                                       from his right side (x to the right) and from the front (his left to the right)
+# A bone's flags after its capsule: 'tip' (its end its far tip, not its child's pivot), 'boundary' (its pivot the
+# boundary's middle with its parent, not the motions' fit).
 # A seed's keepHinge (a hinge whose axis the rest pose's sideways lean would turn: the rottweiler's legs) is set by hand.
 # The loose pieces (a piece some pose hides, all of it at one point: the dropped weapon) are left out.
 import os, sys, json, tempfile
@@ -25,10 +29,21 @@ KNOWN = {
     'ogre': (list(range(416, 497)), None),
     'soldier': (list(range(463, 549)), (8, 28)),
     'enforcer': ([22, 23, 100] + list(range(400, 431)) + list(range(455, 479)), None),
+    'grem': (list(range(85, 123)), (104, 123)),  # (Hipnotic's gremlin: the stolen gun, tucked in his body but in the g* frames)
 }
 
 name = sys.argv[1]
-names, P, T = mdl.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../quakevr/progs/%s.mdl' % name))
+mpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../quakevr/progs/%s.mdl' % name)
+if not os.path.exists(mpath) and os.environ.get('RIG_PAK'):
+    # A mission pack's monster (the gremlin's grem, the mummy): read from its pak (RIG_PAK=<...>/hipnotic/pak0.pak)
+    import struct
+    pak = open(os.environ['RIG_PAK'], 'rb').read()
+    _, off, ln = struct.unpack_from('<4sii', pak, 0)
+    for i in range(ln // 64):
+        fn, o, l = struct.unpack_from('<56sii', pak, off + i * 64)
+        if fn.split(b'\0')[0].decode() == 'progs/%s.mdl' % name:
+            mpath = pak[o:o + l]
+names, P, T = mdl.load(mpath)
 P = P.astype(np.float64)
 nf, nv, _ = P.shape
 if len(sys.argv) > 2 and sys.argv[2] == 'frames':
@@ -242,6 +257,8 @@ else:
             pb = np.mean(bnd, 0) if bnd else c
             lam = 0.5
             piv = pivot[b] = np.linalg.lstsq(np.concatenate([A, lam * np.eye(3)]), np.concatenate([y, lam * pb]), rcond=None)[0]
+            if 'boundary' in bone[5:]:
+                pivot[b] = pb  # (its pivot the boundary's middle: the fit's was off it, the motions too alike: the fiend's ankles)
             line += ' pivot %6.1f %6.1f %6.1f (boundary %6.1f %6.1f %6.1f)' % (*piv, *pb)
         print(line)
     # The seed table (vr_ragdoll.cpp Seed): a bone's 4th entry its joint ("root", ["ball", cone, twist], ["hinge", flex,
@@ -259,7 +276,7 @@ else:
         nm, par, joint = bone[0], bone[1], bone[3] if len(bone) > 3 else ['ball', 45, 30]
         cap = bone[4] if len(bone) > 4 else 0
         kids = [k for k, o in enumerate(bones) if o[1] == b]
-        tip = len(bone) > 5 and bone[5] == 'tip'  # (its end its far tip, not its child's pivot: the dog's head, his jaw)
+        tip = 'tip' in bone[5:]  # (its end its far tip, not its child's pivot: the dog's head, his jaw)
         end = pivot[kids[0]] if kids and not tip else 2 * centre[b] - pivot[b]
         piv = pivot[b] if par >= 0 else centre[b]
         low = X[0, label == b][:, 2].min()

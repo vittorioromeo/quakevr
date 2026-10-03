@@ -85,6 +85,8 @@ struct SeedTable
     int count;
     int deaths;
     int deathFirst[2], deathLast[2];
+    int clusters{18}; // the motion clusters (more than the bones: the seeds gather them); more for a rig whose 18 merge two
+                      // of its bones (the fiend's right thigh and shin, rig.py's k)
 };
 
 // Quake VR's grunt (quakevr/progs/soldier.mdl: 555 vertices, 120 frames). The rest pose: x forward, y left, z up; he
@@ -254,6 +256,94 @@ constexpr Seed zombieSeeds[] = {
     {"shin_r", 9, Joint::Hinge, {-4.8f, -5.7f, -21.3f}, {-5.8f, -3.6f, -18.5f}, {-4.8f, -5.7f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+// Quake VR's fiend (quakevr/progs/demon.mdl: 1095 vertices, 69 frames). The rest pose ($stand1): x forward, y left, z up;
+// crouched low, his head thrust forward, his arms hanging to the ground before him, his tail along it behind. Pelvis,
+// chest, head, upper arms, forearms (elbow hinges) and claws, thighs, shins (knee hinges) and feet (balls 35/15), the
+// tail one bone (his rig's 16th). Measured on his frames (Misc/quakevr/ragdoll/rig.py demon demon_bones.json, 24
+// clusters: 0.74 units rms): bones 0.83 (his ankles and right knee at their boundaries: the fit put them off the leg).
+// He holds nothing.
+// Death frames 45-53 ($death1-9).
+constexpr Seed demonSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-3.2f, -0.9f, -4.6f}, {-3.2f, -0.9f, -4.6f}, {0.5f, -1.2f, 1.7f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {11.4f, -0.2f, 1.f}, {0.5f, -1.2f, 1.7f}, {20.1f, 0.9f, -3.6f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {26.7f, 0.9f, -5.4f}, {20.1f, 0.9f, -3.6f}, {33.2f, 0.9f, -7.2f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {16.3f, 13.2f, -2.5f}, {17.8f, 11.f, -1.4f}, {14.3f, 13.8f, -4.5f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {12.9f, 14.5f, -10.6f}, {14.3f, 13.8f, -4.5f}, {11.f, 12.7f, -14.9f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_l", 4, Joint::Ball, {12.3f, 5.1f, -21.4f}, {11.f, 12.7f, -14.9f}, {13.6f, -2.5f, -27.9f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"upperarm_r", 1, Joint::Ball, {14.5f, -12.8f, -7.2f}, {16.3f, -11.f, -1.4f}, {11.5f, -14.f, -10.3f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 6, Joint::Hinge, {15.2f, -13.3f, -14.6f}, {11.5f, -14.f, -10.3f}, {16.3f, -11.4f, -17.5f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_r", 7, Joint::Ball, {20.5f, -2.2f, -22.7f}, {16.3f, -11.4f, -17.5f}, {24.7f, 7.f, -28.f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {-1.8f, 7.3f, -10.1f}, {-3.4f, 3.4f, -5.6f}, {-4.3f, 7.4f, -13.8f}, 3.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 9, Joint::Hinge, {-5.4f, 7.5f, -14.8f}, {-4.3f, 7.4f, -13.8f}, {-2.5f, 7.9f, -17.2f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"foot_l", 10, Joint::Ball, {1.6f, 7.7f, -20.7f}, {-2.5f, 7.9f, -17.2f}, {5.8f, 7.5f, -24.2f}, 0.f, 35.f, 15.f, 0.f, {}},
+    {"thigh_r", 0, Joint::Ball, {-2.5f, -9.1f, -12.1f}, {-1.5f, -8.4f, -6.4f}, {-6.3f, -8.8f, -14.6f}, 3.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 12, Joint::Hinge, {-6.4f, -9.1f, -15.5f}, {-6.3f, -8.8f, -14.6f}, {-0.8f, -8.8f, -17.9f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"foot_r", 13, Joint::Ball, {1.8f, -9.2f, -21.3f}, {-0.8f, -8.8f, -17.9f}, {4.4f, -9.6f, -24.7f}, 0.f, 35.f, 15.f, 0.f, {}},
+    {"tail", 0, Joint::Ball, {-21.8f, -3.4f, -19.f}, {-11.7f, 1.1f, -12.4f}, {-31.9f, -7.9f, -25.6f}, 0.f, 40.f, 20.f, 0.f, {}},
+};
+
+// Quake VR's shambler (quakevr/progs/shambler.mdl: 648 vertices, 94 frames, unnamed). The rest pose ($stand1): x forward,
+// y left, z up; upright, his arms out and down, his claws spread. Pelvis (his belly), chest (the shoulders' hump), head (the
+// face at the hump's front), upper arms (the shoulders on them), forearms (elbow hinges) and claws, thighs and shins (the
+// foot on it; knee hinges; capsules 5.5 and 5). Measured on his frames (Misc/quakevr/ragdoll/rig.py shambler
+// shambler_bones.json, 24 clusters: 1.21 units rms): bones 1.57 (his hump and claws bend: 2.0). He holds nothing.
+// Death frames 83-93 ($death1-11).
+constexpr Seed shamblerSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-12.2f, -1.2f, 16.6f}, {-12.2f, -1.2f, 16.6f}, {-11.1f, -1.9f, 26.6f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {-3.1f, -1.8f, 43.5f}, {-11.1f, -1.9f, 26.6f}, {6.7f, -2.2f, 49.2f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {16.9f, -3.f, 48.f}, {6.7f, -2.2f, 49.2f}, {27.1f, -3.7f, 46.8f}, 0.f, 30.f, 30.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {-1.9f, 27.4f, 39.1f}, {-2.8f, 14.5f, 52.1f}, {-3.8f, 33.4f, 29.3f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {9.f, 33.8f, 22.3f}, {-3.8f, 33.4f, 29.3f}, {18.8f, 35.1f, 18.5f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_l", 4, Joint::Ball, {29.3f, 29.5f, 18.f}, {18.8f, 35.1f, 18.5f}, {39.7f, 23.9f, 17.5f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"upperarm_r", 1, Joint::Ball, {-5.3f, -25.8f, 40.7f}, {-4.4f, -18.1f, 49.4f}, {-7.9f, -31.1f, 28.6f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 6, Joint::Hinge, {-3.4f, -35.2f, 18.7f}, {-7.9f, -31.1f, 28.6f}, {7.7f, -39.6f, 8.4f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_r", 7, Joint::Ball, {18.1f, -40.f, 4.6f}, {7.7f, -39.6f, 8.4f}, {28.5f, -40.3f, 0.8f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {-4.f, 12.7f, 0.9f}, {-11.5f, 9.6f, 14.8f}, {-7.f, 14.4f, -7.5f}, 5.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 9, Joint::Hinge, {-10.f, 13.6f, -17.6f}, {-7.f, 14.4f, -7.5f}, {-10.3f, 13.6f, -18.8f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {-1.8f, -14.4f, 0.5f}, {-9.9f, -13.3f, 14.f}, {-2.7f, -14.2f, -12.1f}, 5.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 11, Joint::Hinge, {-2.8f, -16.7f, -19.2f}, {-2.7f, -14.2f, -12.1f}, {-2.8f, -16.6f, -18.8f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
+// Hipnotic's gremlin (Scourge of Armagon's progs/grem.mdl: 123 vertices, 179 frames). The rest pose ($stand1): x forward,
+// y left, z up; hunched, his head forward, his arms out, his ears up. Few vertices and loose frames: the body one bone (the
+// pelvis: belly, back and hump; its seed's centre moved up to 0 2 3 so his hump's cluster isn't the head's), the head on
+// it, upper arms and forearms (elbow hinges), thighs and shins (knee hinges; capsules 2 and 1.8). Measured on his frames
+// (Misc/quakevr/ragdoll/rig.py grem grem_bones.json, RIG_PAK: Hipnotic's pak0): clusters 1.33 units rms, bones 1.50. The gun he
+// steals is a piece of its own, collapsed in his death frames (he drops it: vr_monstermods.cpp): the loose bone, hidden.
+// Death frames 104-115 ($death1-12) and 116-123 ($flip1-8: thrown up and back).
+constexpr Seed gremSeeds[] = {
+    {"pelvis", -1, Joint::Root, {0.f, 2.f, 3.f}, {-2.6f, 1.8f, -0.7f}, {4.8f, 1.6f, 7.9f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"head", 0, Joint::Ball, {10.5f, 0.3f, 7.9f}, {4.8f, 1.6f, 7.9f}, {16.1f, -1.f, 7.8f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 0, Joint::Ball, {3.8f, 13.6f, 0.6f}, {0.f, 8.9f, 4.8f}, {8.2f, 16.9f, -4.1f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 2, Joint::Hinge, {11.4f, 13.5f, -7.8f}, {8.2f, 16.9f, -4.1f}, {14.5f, 10.2f, -11.4f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 0, Joint::Ball, {2.1f, -8.1f, 5.f}, {2.4f, -3.6f, 8.f}, {1.9f, -12.1f, 0.8f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 4, Joint::Hinge, {6.6f, -13.9f, -5.6f}, {1.9f, -12.1f, 0.8f}, {11.2f, -15.7f, -11.9f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {1.9f, 10.7f, -9.6f}, {4.3f, 10.f, -5.2f}, {1.5f, 10.5f, -15.5f}, 2.f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 6, Joint::Hinge, {2.2f, 11.7f, -21.1f}, {1.5f, 10.5f, -15.5f}, {2.3f, 11.8f, -21.4f}, 1.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {2.1f, -9.4f, -5.2f}, {3.1f, -10.1f, -3.7f}, {-4.1f, -9.6f, -11.f}, 2.f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 8, Joint::Hinge, {-5.1f, -11.f, -16.9f}, {-4.1f, -9.6f, -11.f}, {-6.f, -12.1f, -21.7f}, 1.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
+// Rogue's mummy (Dissolution of Eternity's progs/mummy.mdl: 177 vertices, 192 frames, the zombie's animations). The rest
+// pose ($stand1): x forward, y left, z up; upright, his arms at his sides. As the zombie's: pelvis, chest, head, upper arms
+// and forearms (elbow hinges), thighs (the knee's ring) and shins (knee hinges). His ragdoll is made only when he is
+// beheaded (his death gibs him otherwise: mummy_die). Measured on his frames (Misc/quakevr/ragdoll/rig.py mummy
+// mummy_bones.json, RIG_PAK: Rogue's pak0): clusters 0.52 units rms, bones 0.72. The flesh he throws is the loose bone,
+// hidden. No death frames: his falls stand in, painb1-14 (103-116) and paine1-17 (162-178), as the zombie's.
+constexpr Seed mummySeeds[] = {
+    {"pelvis", -1, Joint::Root, {-0.2f, 0.2f, 9.3f}, {-0.2f, 0.2f, 9.3f}, {-0.9f, -0.2f, 13.4f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {-1.3f, 0.4f, 21.7f}, {-0.9f, -0.2f, 13.4f}, {-2.5f, 0.9f, 29.1f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {-2.1f, 0.9f, 31.7f}, {-2.5f, 0.9f, 29.1f}, {-1.7f, 0.9f, 34.3f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {-0.6f, 8.2f, 19.9f}, {-0.9f, 7.3f, 25.9f}, {0.5f, 8.6f, 14.1f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {1.f, 9.2f, 6.2f}, {0.5f, 8.6f, 14.1f}, {1.4f, 9.9f, -1.6f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 1, Joint::Ball, {-2.9f, -7.4f, 19.5f}, {-2.8f, -6.9f, 25.9f}, {-2.9f, -7.5f, 13.f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 5, Joint::Hinge, {-2.9f, -7.8f, 4.1f}, {-2.9f, -7.5f, 13.f}, {-3.f, -8.1f, -4.8f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {5.3f, 6.4f, -8.6f}, {6.2f, 7.1f, -5.7f}, {4.3f, 9.3f, -20.f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {7.7f, 8.f, -22.7f}, {4.3f, 9.3f, -20.f}, {6.f, 8.6f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {-2.9f, -5.7f, -10.2f}, {1.f, -3.7f, -6.4f}, {-8.5f, -5.2f, -20.2f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-5.1f, -7.1f, -22.7f}, {-8.5f, -5.2f, -20.2f}, {-6.8f, -6.2f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -263,6 +353,10 @@ constexpr SeedTable seedTables[] = {
     {"progs/dog.mdl", 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
     {"progs/wizard.mdl", 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
     {"progs/zombie.mdl", 481, zombieSeeds, static_cast<int>(sizeof(zombieSeeds) / sizeof(zombieSeeds[0])), 2, {103, 162}, {116, 178}},
+    {"progs/demon.mdl", 1095, demonSeeds, static_cast<int>(sizeof(demonSeeds) / sizeof(demonSeeds[0])), 1, {45, 0}, {53, 0}, 24},
+    {"progs/shambler.mdl", 648, shamblerSeeds, static_cast<int>(sizeof(shamblerSeeds) / sizeof(shamblerSeeds[0])), 1, {83, 0}, {93, 0}, 24},
+    {"progs/grem.mdl", 123, gremSeeds, static_cast<int>(sizeof(gremSeeds) / sizeof(gremSeeds[0])), 2, {104, 116}, {115, 123}},
+    {"progs/mummy.mdl", 177, mummySeeds, static_cast<int>(sizeof(mummySeeds) / sizeof(mummySeeds[0])), 2, {103, 162}, {116, 178}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
@@ -625,8 +719,6 @@ float refine(const Mesh& m, const za::Vector<int>& reps, za::Vector<int>& label,
     return za::sqrt(total / static_cast<float>(za::max<za::SizeT>(reps.size(), 1) * static_cast<za::SizeT>(m.np)));
 }
 
-constexpr int clusterCount = 18; // the motion clusters (more than the bones: the seeds gather them)
-
 bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
 {
     const double t0 = Sys_DoubleTime();
@@ -739,7 +831,7 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
     za::Vector<int> centres;
     za::Vector<float> nearestD(static_cast<za::SizeT>(m.nv), 1e30f);
     centres.pushBack(moving[0]);
-    while(static_cast<int>(centres.size()) < clusterCount && static_cast<int>(centres.size()) < static_cast<int>(moving.size()))
+    while(static_cast<int>(centres.size()) < table.clusters && static_cast<int>(centres.size()) < static_cast<int>(moving.size()))
     {
         const int c = centres.back();
         int farthest = -1;
@@ -1623,6 +1715,7 @@ void swapModels()
                     // (Its drawn vertices: not a hidden bone's, collapsed in both: the shotgun he dropped.)
                     float sum = 0.f, most = 0.f;
                     int n = 0;
+                    za::Array<float, maxBones> boneMost{}; // (each bone's worst: which part the switch shows)
                     for(za::SizeT i = 0; i < drawScratch.skinned.size(); i++)
                     {
                         if(p.rig->vertBone[i] >= p.bodies || (p.cut & (1u << p.rig->vertBone[i])))
@@ -1632,11 +1725,18 @@ void swapModels()
                         const float d = glm::distance(drawScratch.skinned[i], drawScratch.animated[i]);
                         sum += d * d;
                         most = za::max(most, d);
+                        boneMost[p.rig->vertBone[i]] = za::max(boneMost[p.rig->vertBone[i]], d);
                         n++;
                     }
+                    int worst = 0;
+                    for(int b = 0; b < p.rig->numBones && b < maxBones; b++)
+                    {
+                        worst = boneMost[static_cast<za::SizeT>(b)] > boneMost[static_cast<za::SizeT>(worst)] ? b : worst;
+                    }
                     Con_Printf("ragdoll: %d first drawn: the animated mesh (poses %d..%d at %.2f, frame %d) to the ragdoll's: "
-                               "%.2f units rms, %.2f at most (%d vertices)\n",
-                        num, pose1, pose2, blend, e->frame, za::sqrt(sum / static_cast<float>(za::max(n, 1))), most, n);
+                               "%.2f units rms, %.2f at most (%d vertices; the most on %s)\n",
+                        num, pose1, pose2, blend, e->frame, za::sqrt(sum / static_cast<float>(za::max(n, 1))), most, n,
+                        p.rig->bones[worst].name);
                 }
             }
         }

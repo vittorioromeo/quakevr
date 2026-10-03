@@ -326,9 +326,9 @@ float(entity e) VR_Corpse_Parts =
     }
     else if(e.th_die == VR_Decap_ZombieDie)
     {
-        // A zombie beheaded (vr_decap.qc): it died whole, its ragdoll gibbed as a corpse.
+        // A zombie or a mummy beheaded (vr_decap.qc): it died whole, its ragdoll gibbed as a corpse.
         vr_corpse_head = "progs/h_zombie.mdl";
-        vr_corpse_healthh = cvarh_vr_corpse_health_zombie;
+        vr_corpse_healthh = e.classname == "monster_mummy" ? cvarh_vr_corpse_health_mummy : cvarh_vr_corpse_health_zombie;
     }
     else if(e.th_die == eel_death)
     {

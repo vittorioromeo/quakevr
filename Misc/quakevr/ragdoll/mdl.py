@@ -4,7 +4,7 @@ import numpy as np
 
 
 def load(path):
-    b = open(path, 'rb').read()
+    b = path if isinstance(path, bytes) else open(path, 'rb').read()  # (a path, or the file's bytes)
     o = 0
     ident, version = struct.unpack_from('<4si', b, o); o += 8
     scale = np.array(struct.unpack_from('<3f', b, o)); o += 12
