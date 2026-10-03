@@ -201,8 +201,14 @@ typedef struct areanode_s
 } areanode_t;
 
 // Note: changing this can affect droptofloor
-#define	AREA_DEPTH	4
+// QVR: deeper (was 4: 16 leaves for a whole map), and loose: a node's children overlap by AREA_LOOSE units round its
+// split, so an edict less than 2 * AREA_LOOSE across goes on down to a leaf rather than staying at the node whose split
+// it crosses. With hundreds of props in a pile (Box3D's), every trace and touch near the pile walked all of them (the
+// pile's node, and the straddlers of every split above it); now only the few cells round the box. The edicts each finds
+// are the same (the order in which they are found differs).
+#define	AREA_DEPTH	8
 #define	AREA_NODES	(2<<AREA_DEPTH)
+#define	AREA_LOOSE	32
 
 static	areanode_t	sv_areanodes[AREA_NODES];
 static	int			sv_numareanodes;
@@ -325,9 +331,9 @@ SV_AreaTriggerEdicts ( edict_t *ent, areanode_t *node, edict_t **list, int *list
 	if (node->axis == -1)
 		return;
 
-	if ( ent->v.absmax[node->axis] > node->dist )
+	if ( ent->v.absmax[node->axis] > node->dist - AREA_LOOSE ) // QVR: loose (AREA_LOOSE)
 		SV_AreaTriggerEdicts ( ent, node->children[0], list, listcount, listspace );
-	if ( ent->v.absmin[node->axis] < node->dist )
+	if ( ent->v.absmin[node->axis] < node->dist + AREA_LOOSE )
 		SV_AreaTriggerEdicts ( ent, node->children[1], list, listcount, listspace );
 }
 
@@ -362,9 +368,9 @@ static void SV_AreaEdictsR (areanode_t *node, const float *mins, const float *ma
 
 	if (node->axis == -1)
 		return;
-	if (maxs[node->axis] >= node->dist)
+	if (maxs[node->axis] >= node->dist - AREA_LOOSE) // QVR: loose (AREA_LOOSE)
 		SV_AreaEdictsR (node->children[0], mins, maxs, list, listcount, listspace);
-	if (mins[node->axis] <= node->dist)
+	if (mins[node->axis] <= node->dist + AREA_LOOSE)
 		SV_AreaEdictsR (node->children[1], mins, maxs, list, listcount, listspace);
 }
 
@@ -570,9 +576,15 @@ void SV_LinkEdict (edict_t *ent, qboolean touch_triggers)
 	{
 		if (node->axis == -1)
 			break;
-		if (ent->v.absmin[node->axis] > node->dist)
+		// QVR: loose (AREA_LOOSE): a child takes what is on its side of the split or overhangs it by less than
+		// AREA_LOOSE (either, the side of its middle)
+		qboolean fits0 = ent->v.absmin[node->axis] > node->dist - AREA_LOOSE;
+		qboolean fits1 = ent->v.absmax[node->axis] < node->dist + AREA_LOOSE;
+		if (fits0 && fits1)
+			node = node->children[ent->v.absmin[node->axis] + ent->v.absmax[node->axis] > 2 * node->dist ? 0 : 1];
+		else if (fits0)
 			node = node->children[0];
-		else if (ent->v.absmax[node->axis] < node->dist)
+		else if (fits1)
 			node = node->children[1];
 		else
 			break;		// crosses the node
@@ -1130,9 +1142,9 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 	if (node->axis == -1)
 		return;
 
-	if ( clip->boxmaxs[node->axis] > node->dist )
+	if ( clip->boxmaxs[node->axis] > node->dist - AREA_LOOSE ) // QVR: loose (AREA_LOOSE)
 		SV_ClipToLinks ( node->children[0], clip );
-	if ( clip->boxmins[node->axis] < node->dist )
+	if ( clip->boxmins[node->axis] < node->dist + AREA_LOOSE )
 		SV_ClipToLinks ( node->children[1], clip );
 }
 
