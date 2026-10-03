@@ -5648,6 +5648,56 @@ float heldRay(int num, const glm::vec3& start, const glm::vec3& end)
     return nearest;
 }
 
+int heldBox(int num, const glm::vec3& lo, const glm::vec3& hi, float reach)
+{
+    if(!world || num <= 0 || num >= static_cast<int>(world->slots.size()))
+    {
+        return -1;
+    }
+    const Slot& s = world->slots[num];
+    if(s.kind != Kind::Held || !b3Body_IsValid(s.body))
+    {
+        return -1;
+    }
+    // The box's corners in the held body's frame (its shapes' own), grown round by `reach` (the proxy's radius).
+    const b3WorldTransform xf = b3Body_GetTransform(s.body);
+    b3Vec3 corners[8];
+    for(int k = 0; k < 8; k++)
+    {
+        const glm::vec3 c{(k & 1) ? hi.x : lo.x, (k & 2) ? hi.y : lo.y, (k & 4) ? hi.z : lo.z};
+        corners[k] = b3InvRotateVector(xf.q, b3Sub(world->toM(c), xf.p));
+    }
+    const b3ShapeProxy proxy{corners, 8, za::max(reach, 0.f) / world->m2u};
+    za::Array<b3ShapeId, 8> shapes;
+    const int n = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
+    for(int i = 0; i < n; i++)
+    {
+        bool meets = false;
+        switch(b3Shape_GetType(shapes[i]))
+        {
+            case b3_hullShape: meets = b3OverlapHull(b3Shape_GetHull(shapes[i]), b3Transform_identity, &proxy); break;
+            case b3_capsuleShape:
+            {
+                const b3Capsule capsule = b3Shape_GetCapsule(shapes[i]);
+                meets = b3OverlapCapsule(&capsule, b3Transform_identity, &proxy);
+                break;
+            }
+            case b3_sphereShape:
+            {
+                const b3Sphere sphere = b3Shape_GetSphere(shapes[i]);
+                meets = b3OverlapSphere(&sphere, b3Transform_identity, &proxy);
+                break;
+            }
+            default: break;
+        }
+        if(meets)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 bool isBox3DProp(int num)
 {
     return world && num > 0 && num < static_cast<int>(world->slots.size()) && world->slots[num].kind == Kind::Prop;

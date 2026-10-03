@@ -1006,6 +1006,17 @@ void PF_heldshape()
         glm::vec3{b[0], b[1], b[2]});
 }
 
+// float heldbox(entity prop, vector mins, vector maxs, float reach): whether the shape of `prop` held in a hand meets the
+// box mins..maxs (world) grown by `reach` units: 1 yes, 0 no, -1 `prop` has no held body (box3d::heldBox). A held prop
+// presses a wall button it touches (buttons.qc VR_Buttons_PropFrame).
+void PF_heldbox()
+{
+    const float* lo = G_VECTOR(OFS_PARM1);
+    const float* hi = G_VECTOR(OFS_PARM2);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::heldBox(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{lo[0], lo[1], lo[2]},
+        glm::vec3{hi[0], hi[1], hi[2]}, G_FLOAT(OFS_PARM3)));
+}
+
 // Precise hit detection (vr_hitmodel.cpp). hitmodel_target(e): whether e's model is what is hit (the option on, a
 // monster or corpse with a Quake model).
 void PF_hitmodel_target()
@@ -1130,6 +1141,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"crateplace", PF_crateplace},
     {"sightblocked", PF_sightblocked},
     {"heldshape", PF_heldshape},
+    {"heldbox", PF_heldbox},
     {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
     {"physicsshot", PF_physicsshot},

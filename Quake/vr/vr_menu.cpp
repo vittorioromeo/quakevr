@@ -1545,7 +1545,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
             .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
-        cycle("Cord", vr_flashlight_cord, {{0.f, "Off"}, {1.f, "Coiled"}, {2.f, "Plain"}, {3.f, "Chain"}}).help("The retracting cord from the clip on your belt to the torch while it is off the belt: coiled like an old telephone's, springy, a plain cable, or a rusty iron chain (off: none drawn)."),
+        cycle("Cord", vr_flashlight_cord, {{0.f, "Off"}, {1.f, "Coiled"}, {2.f, "Plain"}, {3.f, "Chain"}, {4.f, "Low-Poly Chain"}}).help("The retracting cord from the clip on your belt to the torch while it is off the belt: coiled like an old telephone's, springy, a plain cable, a rusty iron chain, or that chain low-poly (fewer, chunkier links of square bar, flat-shaded: Quake's look) (off: none drawn)."),
         hueSlider("Beam Hue", vr_flashlight_hue).help("The beam's colour, with Beam Saturation (at 0 it is white): its light, the beam in the air and the lens. 40 warm, 200 cold blue; Player's: the Player Effects Hue."),
         slider("Beam Saturation", vr_flashlight_saturation, 0.f, 1.f, 0.05f, "%.2f").help("0 white (the default), 1 the Beam Hue in full."),
         header("Taking and Clipping On"),
@@ -2145,6 +2145,12 @@ void hologramTestMessage()
                   "blade, pommel and hilt; a gun's barrel and butt). Off: only the line from the hand to a gun's muzzle."),
         slider("Weapon Press Reach", vr_button_weapon_reach, 0.f, 15.f, 0.5f, "%.1f cm")
             .help("How far round the weapon's middle line a button is touched: its thickness, and some slack."),
+        toggle("Held Props Press Buttons", vr_button_prop)
+            .help("A prop in your hand (a health or ammo box, a crate, a rock, a gib) presses a wall button it touches, as "
+                  "a weapon does: its shape as you hold it."),
+        slider("Prop Press Reach", vr_button_prop_reach, 0.f, 15.f, 0.5f, "%.1f cm")
+            .help("How far round the held prop's shape a button is touched: a held prop is kept a few centimetres off "
+                  "walls and buttons (it can't go into them), so it needs some slack to reach one."),
         toggle("Thrown Things Press Buttons", vr_button_throw)
             .help("A weapon, rock, box or gib thrown at a wall button presses it. Buttons you must shoot are still shot."),
         slider("Thrown Press Min Speed", vr_button_throw_speed, 0.f, 600.f, 25.f, "%.0f u/s").extend()
@@ -5765,7 +5771,8 @@ float stepSlider(const Item& item, int dir, bool repeat)
     double& endSince = sliderHold.endSince;
     double& outsideSince = sliderHold.outsideSince;
 
-    const float cur = item.cvar->value;
+    // (A negative value under a negativeLabel, stored -1, is the bar's leftmost step: stepping goes on from there.)
+    const float cur = item.negativeLabel && item.cvar->value < 0.f ? item.min : item.cvar->value;
     const float eps = item.step * 0.01f;
     const float end = dir > 0 ? item.max : item.min;
     const int past = pastEnd(item, cur);

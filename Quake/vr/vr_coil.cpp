@@ -189,8 +189,11 @@ void buildChain(const Style& style, float length, const glm::vec3 (&light)[3], i
     const float halfLen = 0.5f * style.linkLength * m2u + wire; // the wire's middle: the link's middle to its end
     const float halfWid = 0.5f * style.linkWidth * m2u + wire;  // and to its side
     const float straight = za::max(halfLen - halfWid, 0.f);
-    const int bend = metres < 0.6f ? maxBend : metres < 1.2f ? 3 : 2;
-    sides = metres < 0.6f ? 6 : metres < 1.2f ? 5 : 4;
+    // (Low-poly: a hexagon of square bar, at every distance; its square's faces along and across the link's plane:
+    // gfx::drawTube's `flat` turns the square half a side, its corners at wireRadius x sqrt 2.)
+    const int bend = style.lowPoly ? 2 : metres < 0.6f ? maxBend : metres < 1.2f ? 3 : 2;
+    sides = style.lowPoly ? 4 : metres < 0.6f ? 6 : metres < 1.2f ? 5 : 4;
+    const float wireDrawn = style.lowPoly ? wire * 1.41421356f : wire;
     const int loop = 2 * (bend + 1); // the loop's rings (its first again closes it)
     links = za::clamp(static_cast<int>(za::ceil((length + halfLen) / pitch)), 1, maxLinks);
     out.resize(static_cast<size_t>(links) * static_cast<size_t>(loop + 3));
@@ -238,9 +241,9 @@ void buildChain(const Style& style, float length, const glm::vec3 (&light)[3], i
         ring(0, 0.f);
         for(int j = 0; j < loop; j++)
         {
-            ring(j, wire);
+            ring(j, wireDrawn);
         }
-        ring(0, wire);
+        ring(0, wireDrawn);
         ring(0, 0.f);
     }
 }

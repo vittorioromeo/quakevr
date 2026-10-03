@@ -382,6 +382,7 @@ layout(location = 6) uniform vec3 Albedo;
 layout(location = 7) uniform vec3 Key;
 layout(location = 8) uniform int Sides;
 layout(location = 9) uniform vec3 Rust;
+layout(location = 10) uniform int Flat; // faceted: the sides turned half a side, each quad lit by its face's normal
 struct Ring
 {
     vec4 mid;
@@ -406,10 +407,16 @@ void main()
     int quad = gl_VertexID / 6;
     ivec2 c = corners[gl_VertexID % 6];
     Ring g = rings[quad / Sides + c.x];
-    float th = 6.2831853 * float(quad % Sides + c.y) / float(Sides);
+    float turn = Flat != 0 ? 0.5 : 0.0;
+    float th = 6.2831853 * (float(quad % Sides + c.y) + turn) / float(Sides);
     vec3 other = cross(g.along.xyz, g.across.xyz);
     vec3 n = cos(th) * g.across.xyz + sin(th) * other;
     vec3 pos = g.mid.xyz + n * g.mid.w;
+    if (Flat != 0)
+    {
+        float face = 6.2831853 * float(quad % Sides + 1) / float(Sides); // (its corners at k + 0.5, k + 1.5)
+        n = cos(face) * g.across.xyz + sin(face) * other;
+    }
     vec3 hv = normalize(Key + normalize(Eye - pos));
     vec3 light = g.ambient.rgb * (1.0 + 0.4 * dot(n, Key)) + g.lamp.rgb * (0.2 + 0.8 * max(dot(n, g.lampDir.xyz), 0.0));
     float x = max(dot(n, hv), 0.0);
@@ -819,7 +826,7 @@ TubeBatch uploadTube(za::Span<const TubeRing> rings)
     return {buf, reinterpret_cast<za::SizeT>(ofs), rings.size()};
 }
 
-void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key, const glm::vec3& rust)
+void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const glm::vec3& key, const glm::vec3& rust, bool flat)
 {
     if(batch.count < 2 || !batch.buffer || sides < 3)
     {
@@ -848,6 +855,7 @@ void drawTube(const TubeBatch& batch, int sides, const glm::vec3& albedo, const 
     GL_Uniform3fFunc(7, key.x, key.y, key.z);
     GL_Uniform1iFunc(8, sides);
     GL_Uniform3fFunc(9, rust.x, rust.y, rust.z);
+    GL_Uniform1iFunc(10, flat ? 1 : 0);
     // Binding 0 borrowed (the scene's lights, R_UploadFrameData): put back for what the view draws after.
     GLuint savedBuffer = 0;
     GLintptr savedOffset = 0;

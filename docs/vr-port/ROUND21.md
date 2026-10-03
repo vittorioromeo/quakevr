@@ -22729,3 +22729,34 @@ strikes towards you (`ev.dir`). `vr_gore_hands_info` lists lying things' masks w
 - [ ] Bloody from enemies, then hurt, then take health: your wounds go, the enemies' blood stays (chunky detail too).
 - [ ] Blood Opacity 0.8.
 - [ ] Hit a monster with a box, a crate, a brick: the blood on the side that struck.
+## Low-poly chain cord; retro Smooth Beyond: Never; held props press wall buttons (2026-10-03)
+
+NOTES.md start_2026-10-03_02-19-12, vrfiringrange_2026-10-03_02-21-03, _02-23-25, _02-29-04. Branch `agent/misc12`.
+
+- **Low-Poly Chain** (`vr_flashlight_cord 4`; Advanced VR Options > Flashlight > Cord: Low-Poly Chain): the chain's
+  links fewer and chunkier, each a hexagon of 4 mm square iron bar (1.6 x 0.8 cm inside), its faces flat-shaded, the
+  same at every distance (`coil::Style::lowPoly`; `gfx::drawTube`'s new `flat`: the square turned half a side so its
+  faces lie along and across the link's plane, each quad lit by its face's normal). The rust per link as the chain.
+  Mock, held in front: 25-26 links, 225-234 rings x 4 sides, ~1.8k triangles (the chain: 29-31 links, 4.5-4.8k).
+- **Chain is the default cord** (`vr_flashlight_cord` 1 -> 3); config version 82 moves a config still on 1 (Coiled).
+- **Smooth Beyond: Never** (each Retro Textures category's page, All Categories and Override: the slider's leftmost
+  step; `vr_retro_<kind>_fade -1`, any value below 0): no fade to plain mipmapping at any distance, the blocks all the
+  way (they shimmer far off; Edge Softness 0 also takes the edges' blend away). fillSet sends -1, `RetroBegin` keeps
+  RetroFar 0. A slider with a `negativeLabel` now steps on from its leftmost step (stepSlider; the hue sliders go from
+  "Player's" to 0, not 5). Check: e1m1 corridor, block 0.25: Never vs Smooth Beyond 1 differ (mean 1.48 / 255), Never vs
+  16 the same (0.00).
+- **Held props press wall buttons** (`vr_button_prop` 1, `vr_button_prop_reach` 6 cm; Carrying and Throwing > Throwing
+  and Physics > Wall Buttons: Held Props Press Buttons, Prop Press Reach): a prop in a hand (health or ammo box, crate,
+  rock, gib, torch club) presses a touch button its shape meets, as held weapons do (`VR_Buttons_PropFrame`, buttons.qc):
+  the engine's held body against the button's box grown by the reach (new builtin `heldbox`, `box3d::heldBox`: the box's
+  corners as a GJK proxy against each shape); its Quake box if it has no held body. The reach needs ~5 cm: a held body
+  is stopped about 1.4 units (4 cm) short of the button. `vr_debug_wallbuttons 2` also prints each held prop's box.
+  Mock (vrfiringrange, button *4, the main hand pushing a health box west 0.02 m a step): pressed at step 35-36 ("the
+  item_health held in hand 1 (its shape)"); `vr_button_prop 0`: never; the axe swept the same way still presses
+  ("the weapon in hand 1"). eval.sh canary: 0 differ.
+
+Checklist:
+
+- [ ] Flashlight > Cord: Chain vs Low-Poly Chain: which suits Quake best as the default.
+- [ ] Retro Textures > World (or All Categories) > Smooth Beyond: leftmost "Never": blocks at every distance.
+- [ ] A health box, ammo box, crate and rock held against a wall button press it; not from too far.
