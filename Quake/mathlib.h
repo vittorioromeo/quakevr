@@ -128,6 +128,7 @@ int GreatestCommonDivisor (int i1, int i2);
 void AngleVectors (vec3_t angles, vec3_t forward, vec3_t right, vec3_t up);
 int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, struct mplane_s *plane);
 float	anglemod(float a);
+float AngleMod360 (float a); // QVR: exact, [0, 360)
 
 float NormalizeAngle (float degrees);
 float AngleDifference (float dega, float degb);

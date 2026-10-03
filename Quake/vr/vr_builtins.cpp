@@ -356,6 +356,13 @@ void PF_torchflametouch()
     }
 }
 
+// float anglemod(float v): v wrapped into [0, 360) (AngleMod360, mathlib.c). Was QC's (ai.qc), a loop of a step per
+// 360 degrees: a hanging pickup's anglemod(100 * time) took one per 3.6 s of level time, every think.
+void PF_anglemod()
+{
+    G_FLOAT(OFS_RETURN) = AngleMod360(G_FLOAT(OFS_PARM0));
+}
+
 // particle2(origin, direction, preset, count): unreliable, like vanilla particle().
 void PF_particle2()
 {
@@ -1315,6 +1322,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_any", PF_hitmodel_any},
     {"hitmodel_rest", PF_hitmodel_rest},
     {"torchflametouch", PF_torchflametouch},
+    {"anglemod", PF_anglemod},
 };
 
 static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200,

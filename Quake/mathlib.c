@@ -103,6 +103,40 @@ float	anglemod(float a)
 
 /*
 ==================
+AngleMod360
+
+QVR: a wrapped into [0, 360), exactly (no 1/65536-turn steps, unlike anglemod
+above, and no int overflow for big a); 0 for inf/NaN. QuakeC's anglemod builtin:
+the QC loop it replaces took a step per 360 degrees (anglemod(100 * time)).
+==================
+*/
+float AngleMod360 (float a)
+{
+	double d;
+
+	if (a >= 0.f && a < 360.f) // already in range: most callers (a yaw)
+		return a;
+	if (fabsf (a) < 16777216.f) // 2^24: q * 360 and a - q * 360 are exact doubles
+	{
+		d = (double)a - 360.0 * floor ((double)a / 360.0);
+		if (d < 0.0) // the division rounded up onto an integer
+			d += 360.0;
+	}
+	else if (!IS_NAN (a)) // (inf too: exponent all ones)
+	{
+		d = fmod ((double)a, 360.0); // exact
+		if (d < 0.0)
+			d += 360.0;
+	}
+	else
+		return 0.f;
+
+	a = (float)d;
+	return a < 360.f ? a : 0.f; // just under 360 can round up to it
+}
+
+/*
+==================
 NormalizeAngle
 
 Returns a value between -180 and 180

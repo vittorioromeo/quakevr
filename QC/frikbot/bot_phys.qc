@@ -122,7 +122,7 @@ void() CL_KeyMove = // CL_BaseMove + CL_AdjustAngles
         self.v_angle_z = 50;
     else if(self.v_angle_z < -50)
         self.v_angle_z = -50;
-    self.v_angle_y = frik_anglemod(self.v_angle_y);
+    self.v_angle_y = anglemod(self.v_angle_y);
 
 };
 
