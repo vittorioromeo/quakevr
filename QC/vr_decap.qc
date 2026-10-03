@@ -73,6 +73,7 @@ string(entity e) VR_Decap_HeadModel =
     if(c == "monster_wizard")        { return "progs/h_wizard.mdl"; }
     if(c == "monster_zombie")        { return "progs/h_zombie.mdl"; }
     if(c == "monster_demon1")        { return "progs/h_demon.mdl"; }
+    if(c == "monster_shambler")      { return "progs/h_shams.mdl"; }
     return "";
 };
 

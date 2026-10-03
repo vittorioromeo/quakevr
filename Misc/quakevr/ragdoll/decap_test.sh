@@ -29,6 +29,6 @@ for c in $CASES; do
     pop) run "map e1m1;$PRE;$(SPAWN);vr_decap_test 12;wait5;$(SPAWN);vr_decap_test 13;wait5;$(SPAWN);vr_decap_test 14;wait5;$(SPAWN);vr_decap_test 15;wait5;$(SPAWN);vr_decap_test 16;wait5;$(SPAWN);vr_decap_test 17;wait5;$(SPAWN);vr_decap_test 18;wait60;vr_ragdoll_list 1" ;;
     popoff) run "map e1m1;$PRE;vr_decap_shotgun 0;vr_decap_super_shotgun 0;vr_decap_lightning 0;$(SPAWN);vr_decap_test 12;wait5;$(SPAWN);vr_decap_test 13;wait5;$(SPAWN);vr_decap_test 14;wait5;$(SPAWN);vr_decap_test 15;wait5;vr_decap_shotgun 1;vr_decap_super_shotgun 1;vr_decap_lightning 1" ;;
     popzombie) run "map vrfiringrange;$PRE;$(SPAWN 2);vr_decap_test 17;wait5;$(SPAWN 2);vr_decap_test 15;wait5;vr_decap_zombies 0;$(SPAWN 2);vr_decap_test 17;wait5;vr_decap_zombies 1" ;;
-    monsters) for m in ${MONS:-0 5 1 8 6 7 4 9}; do run "map vrfiringrange;$PRE;$(SPAWN $m);vr_decap_test 1;wait60;vr_ragdoll_list 1"; done ;;
+    monsters) for m in ${MONS:-0 5 1 8 6 7 4 9 3}; do run "map vrfiringrange;$PRE;$(SPAWN $m);vr_decap_test 1;wait60;vr_ragdoll_list 1"; done ;;
     esac
 done

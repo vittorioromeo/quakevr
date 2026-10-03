@@ -280,6 +280,28 @@ constexpr Seed demonSeeds[] = {
     {"tail", 0, Joint::Ball, {-21.8f, -3.4f, -19.f}, {-11.7f, 1.1f, -12.4f}, {-31.9f, -7.9f, -25.6f}, 0.f, 40.f, 20.f, 0.f, {}},
 };
 
+// Quake VR's shambler (quakevr/progs/shambler.mdl: 648 vertices, 94 frames, unnamed). The rest pose ($stand1): x forward,
+// y left, z up; upright, his arms out and down, his claws spread. Pelvis (his belly), chest (the shoulders' hump), head (the
+// face at the hump's front), upper arms (the shoulders on them), forearms (elbow hinges) and claws, thighs and shins (the
+// foot on it; knee hinges; capsules 5.5 and 5). Measured on his frames (Misc/quakevr/ragdoll/rig.py shambler
+// shambler_bones.json): clusters 1.34 units rms, bones 1.57 (his hump and claws bend: 2.0). He holds nothing.
+// Death frames 83-93 ($death1-11).
+constexpr Seed shamblerSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-12.2f, -1.2f, 16.6f}, {-12.2f, -1.2f, 16.6f}, {-11.1f, -1.9f, 26.6f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {-3.1f, -1.8f, 43.5f}, {-11.1f, -1.9f, 26.6f}, {6.7f, -2.2f, 49.2f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {16.9f, -3.f, 48.f}, {6.7f, -2.2f, 49.2f}, {27.1f, -3.7f, 46.8f}, 0.f, 30.f, 30.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {-1.9f, 27.4f, 39.1f}, {-2.8f, 14.5f, 52.1f}, {-3.8f, 33.4f, 29.3f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {9.f, 33.8f, 22.3f}, {-3.8f, 33.4f, 29.3f}, {18.8f, 35.1f, 18.5f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_l", 4, Joint::Ball, {29.3f, 29.5f, 18.f}, {18.8f, 35.1f, 18.5f}, {39.7f, 23.9f, 17.5f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"upperarm_r", 1, Joint::Ball, {-5.3f, -25.8f, 40.7f}, {-4.4f, -18.1f, 49.4f}, {-7.9f, -31.1f, 28.6f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 6, Joint::Hinge, {-3.4f, -35.2f, 18.7f}, {-7.9f, -31.1f, 28.6f}, {7.7f, -39.6f, 8.4f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_r", 7, Joint::Ball, {18.1f, -40.f, 4.6f}, {7.7f, -39.6f, 8.4f}, {28.5f, -40.3f, 0.8f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {-4.f, 12.7f, 0.9f}, {-11.5f, 9.6f, 14.8f}, {-7.f, 14.4f, -7.5f}, 5.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 9, Joint::Hinge, {-10.f, 13.6f, -17.6f}, {-7.f, 14.4f, -7.5f}, {-10.3f, 13.6f, -18.8f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {-1.8f, -14.4f, 0.5f}, {-9.9f, -13.3f, 14.f}, {-2.7f, -14.2f, -12.1f}, 5.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 11, Joint::Hinge, {-2.8f, -16.7f, -19.2f}, {-2.7f, -14.2f, -12.1f}, {-2.8f, -16.6f, -18.8f}, 5.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -290,6 +312,7 @@ constexpr SeedTable seedTables[] = {
     {"progs/wizard.mdl", 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
     {"progs/zombie.mdl", 481, zombieSeeds, static_cast<int>(sizeof(zombieSeeds) / sizeof(zombieSeeds[0])), 2, {103, 162}, {116, 178}},
     {"progs/demon.mdl", 1095, demonSeeds, static_cast<int>(sizeof(demonSeeds) / sizeof(demonSeeds[0])), 1, {45, 0}, {53, 0}},
+    {"progs/shambler.mdl", 648, shamblerSeeds, static_cast<int>(sizeof(shamblerSeeds) / sizeof(shamblerSeeds[0])), 1, {83, 0}, {93, 0}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)

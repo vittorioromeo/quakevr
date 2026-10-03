@@ -1645,6 +1645,15 @@ QVR_CVAR(vr_ragdoll_demon_limits, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_demon_damping, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_demon_blast, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_demon_inherit, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_shambler_start, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_shambler_mass, "280", CVAR_ARCHIVE)   // (a shambler: the heaviest; a hand's 3000 N grip still lifts him)
+QVR_CVAR(vr_ragdoll_shambler_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_shambler_joint_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_shambler_joint_stiffness, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_shambler_limits, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_shambler_damping, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_shambler_blast, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_shambler_inherit, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0.5", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on
