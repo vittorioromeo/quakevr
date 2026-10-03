@@ -45,6 +45,7 @@
 #include "vr_menuui.hpp"
 #include "vr_panel.hpp"
 #include "vr_units.hpp"
+#include "vr_window.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"
@@ -151,6 +152,7 @@ constexpr glm::vec4 boxBorder{0.60f, 0.40f, 0.18f, 1.f};
 constexpr glm::vec4 boxFill{0.07f, 0.055f, 0.04f, 0.92f};
 constexpr glm::vec4 scrollThumb{0.86f, 0.55f, 0.18f, 0.9f};
 constexpr glm::vec4 buttonHover{0.45f, 0.26f, 0.08f, 0.95f};
+constexpr glm::vec4 recording{0.90f, 0.15f, 0.10f, 1.f}; // the spectator camera's reminder
 } // namespace colors
 
 // Draws flat shapes with Draw_FillEx. Across, menu pixels; up and down, "true" menu pixels (as
@@ -461,6 +463,7 @@ struct ToolbarLayout
     static constexpr float icon = 9.f;   // an icon's width
 
     float left{0.f}, top{0.f}; // the canvas's corner
+    float bottom{0.f};         // the canvas's bottom edge (menu y)
     float k{1.f};
     float x0{0.f}, x1{0.f};
     bool labels{false};
@@ -469,7 +472,7 @@ struct ToolbarLayout
     [[nodiscard]] float yc(int tool) const { return top + (corner + half + tool * (2.f * half + gap)) / k; }
 
     // The last button's bottom edge (menu y).
-    [[nodiscard]] float bottom() const { return yc(ToolCount - 1) + half / k; }
+    [[nodiscard]] float buttonsBottom() const { return yc(ToolCount - 1) + half / k; }
 
     // What a click on `tool` takes: as far as the panel's edges, split halfway between buttons.
     [[nodiscard]] bool hit(int tool, float x, float y) const
@@ -485,9 +488,9 @@ struct ToolbarLayout
 {
     drawtransform_t t;
     Draw_GetCanvasTransform(CANVAS_MENU, &t);
-    float right, bottom;
+    float right;
     ToolbarLayout l;
-    Draw_GetTransformBounds(&t, &l.left, &l.top, &right, &bottom);
+    Draw_GetTransformBounds(&t, &l.left, &l.top, &right, &l.bottom);
     l.k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // as Painter's
 
     // All as wide as the widest label, their right edges a character left of Quake's plaque (x 16): on
@@ -715,7 +718,7 @@ void printLaser()
 
 float toolbarBottom()
 {
-    return active() ? toolbarLayout().bottom() : -1e9f;
+    return active() ? toolbarLayout().buttonsBottom() : -1e9f;
 }
 
 bool toolbarFocused()
@@ -1158,6 +1161,31 @@ extern "C" void VR_MenuDrawOverlay()
         }
     }
     toolbar.menu = m_state;
+
+    // While the window shows the spectator camera (a whole extra render of the scene): a reminder in the bottom left
+    // corner, so it is not left on after recording. Its right edge as the buttons' (left of the menu and its help) where
+    // it fits, else in the corner.
+    if(window::view() == window::View::Spectator)
+    {
+        constexpr const char* text = "Spectator camera on";
+        const float width = 4.f + 6.f + 4.f + 8.f * static_cast<float>(strlen(text)) + 5.f;
+        const float yc = l.bottom - (ToolbarLayout::corner + ToolbarLayout::half) / l.k;
+        float x1 = 16.f - 8.f;
+        float x0 = x1 - width;
+        if(x0 < l.left + ToolbarLayout::corner)
+        {
+            x0 = l.left + ToolbarLayout::corner;
+            x1 = x0 + width;
+        }
+        p.rounded(x0, x1, yc, ToolbarLayout::half, 3.f, colors::boxBorder);
+        p.rounded(x0 + 1.f, x1 - 1.f, yc, ToolbarLayout::half - 1.f, 2.f, colors::boxFill);
+        p.disc(x0 + 7.f, yc, 2.5f, colors::recording); // as a camera's recording light
+        float x = x0 + 4.f + 6.f + 4.f;
+        for(const char* c = text; *c; c++, x += 8.f)
+        {
+            Draw_CharacterEx(x, yc - 4.f, 8.f, 8.f, *c | 128);
+        }
+    }
 
     // On the runtime's panel (no world to draw the laser in), where the laser points: a dot in its hue.
     if(const Hit& hit = hits[pointingHand]; hit.valid && hit.onRuntimePanel)

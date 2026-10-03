@@ -230,6 +230,7 @@ Grapple: reel speeds and the other grapple values (you asked for a reminder)
 Stamina costs: shove, strike, melee, parry, climbing
 Roll Weight: tune the other guns (laser cannon at 4 done; global Roll Weight default is being raised)
 Throw damage: revisit as a whole (now halved globally)
+Spectator camera reminder: with Graphics > Recording > Window View on Spectator Camera, the menu shows "Spectator camera on" in its bottom left on every page, and it goes away with the camera off?
 
 [Record]
 Record new melee takes: the smaller hitbox (16 wide, hit box 24) and melee speed 3 have shipped, so you stand closer now

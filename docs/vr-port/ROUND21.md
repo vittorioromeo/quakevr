@@ -23587,3 +23587,18 @@ In VR:
 - [ ] Throw a ragdoll hard ahead twice: it isn't gibbed by the throws.
 - [ ] Hold a ragdoll in one hand and punch it with the other: the punch lands.
 - [ ] Swing a ragdoll held in one hand and let go: it isn't hurt.
+
+## Spectator camera reminder in the menu
+
+His words: a small "Spectator camera enabled" warning in the menu's bottom left, in case he forgets to turn it off
+after recording (it is a whole extra render of the scene). While the window shows the spectator camera
+(`window::view() == Spectator`: Window View on Spectator Camera and `vr_mirror` not 0), every menu (VR pages and
+Quake's) draws a small box at the canvas's bottom: a red dot (a camera's recording light) and "Spectator camera on" in
+gold. Its right edge is the corner buttons' (left of the menu and its help) where the panel is wide enough, else it
+sits in the corner. Drawn by `VR_MenuDrawOverlay` (vr_menuui.cpp) with the corner buttons; no setting.
+
+Checked: mock screenshots of Weapon Offsets with Window View on Spectator Camera (the box left of the help line) and on
+Smoothed Mirror (no box).
+
+In VR:
+- [ ] Window View on Spectator Camera: the menu shows "Spectator camera on" in its bottom left, and it goes away with the camera off.
