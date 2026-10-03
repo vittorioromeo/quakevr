@@ -1023,6 +1023,7 @@ void R_SetupView (void)
 	r_framedata.scenetone[0] = VR_SceneTone (); // QVR: above 1 in the eyes' float scene (vr_tonemap)
 	VR_EntityGlowColor (&r_framedata.scenetone[1]); // QVR: the force grab glow's colour (the player's hue, vr/vr_fgfx.cpp)
 	VR_WoundFrameData (&r_framedata.water3[2]); // QVR: your own wounds' relief (vr/vr_wounds.cpp)
+	VR_RetroLightFrameData (&r_framedata.retrolight[0][0]); // QVR: retro lighting (vr/vr_retrolight.cpp)
 
 	Fog_SetupFrame (); //johnfitz
 	Sky_SetupFrame ();

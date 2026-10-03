@@ -120,6 +120,8 @@ unsigned VR_WoundTexture (void);							// the wound masks' texture array (0: non
 unsigned VR_WoundFineTexture (void);						// your own body's and hands' finer masks (vr_wounds_own_res; 0: none)
 unsigned VR_WoundBloodTexture (void);						// ... the blood on them that isn't yours (one channel; 0: none)
 void VR_WoundFrameData (float out[2]);						// the fine masks' relief: burns', blood's (Water3.zw in the frame data)
+void VR_RetroLightFrameData (float out[24]);					// retro lighting (vr_retrolight.cpp): the frame data's RetroLight[6]
+float VR_RetroLightSkinScale (const void *aliashdr, int skinnum);	// ... a Quake texel's share of the skin's texture (the alias Retro.w)
 
 // The DarkPlaces look (vr_lighting.cpp; docs/vr-port/LIGHTING.md, round 10).
 float VR_PostProcessBloom (void);								// GL_PostProcess: an eye's glow bound to texture unit 2, and how much of it to add (0: none)

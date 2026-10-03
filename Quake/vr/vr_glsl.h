@@ -26,6 +26,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 #include "vr_tonemap.h" // QVR_TONE_GLSL, the eyes' tone curve and grade (the post-process and the mirror)
 #include "vr_retro.h" // QVR_RETRO_GLSL, retro textures (the world and model shaders)
+#include "vr_retrolight.h" // QVR_RETROLIGHT_GLSL, retro lighting (in SHADOW_FUNCTIONS)
 
 // the eyes' bloom (vr_bloom.cpp), under-water view (vr/vr_water.cpp), tone curve, grade and dither (vr/vr_tonemap.cpp)
 #define QVR_POSTPROCESS_UNIFORMS \
@@ -102,6 +103,7 @@ QVR_TONE_GLSL
 "	vec4	Detail; // QVR: detail textures (vr/vr_detail.cpp): strength (0 off), the distance they start fading, where gone, the fine octave's scale (0 none)\n" \
 "	vec4	SceneTone; // QVR: x the brightest the world and models write (1: Quake's clamp; more in the eyes' float scene with vr_tonemap: vr/vr_tonemap.cpp), yzw the force grab glow's colour (vr/vr_fgfx.cpp)\n" \
 "	vec4	Water3; // QVR: x shoreline foam (vr/vr_water.cpp: vr_water_foam, 0 off), y the ripples' slopes in the shading, times their shape's (vr_water_ripple_normal), zw unused\n" \
+"	vec4	RetroLight[6]; // QVR: retro lighting (vr/vr_retrolight.h; all 0: off)\n" \
 "	vec4	Ripple; // QVR: splash ripples (vr/vr_water.cpp: vr_water_ripples): x how many, y their rings' speed (units/s), z the wave number, w the share of them in the geometry\n" \
 "	vec4	RippleAt[32]; // QVR: ... each's centre (xy), the surface's height (z), its age in seconds (w)\n" \
 "	vec4	RippleAmp[8]; // QVR: ... each's height now, in units (four a vec4)\n"
@@ -135,6 +137,7 @@ QVR_TONE_GLSL
 "	vec4	FrameDetail;\n"\
 "	vec4	SceneTone; // QVR: x the brightest models write (vr/vr_tonemap.cpp), yzw the force grab glow's colour\n"\
 "	vec4	FrameWater3; // QVR: zw your own wounds' relief, burns' and blood's (vr/vr_wounds.cpp: vr_wounds_bump_burns, vr_wounds_bump_blood)\n"\
+"	vec4	RetroLight[6]; // QVR: retro lighting (vr/vr_retrolight.h), as FRAMEDATA_BUFFER's\n"\
 "};\n"\
 "\n"\
 
@@ -148,6 +151,7 @@ QVR_TONE_GLSL
 "layout(binding=4) uniform sampler2DShadow ShadowAtlas;\n"\
 "layout(binding=5) uniform sampler2DShadow ShadowStatic;\n"\
 "\n"\
+QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "#define SHADOW_NEAR 1.0\n"\
 "#define SHADOW_BORDER 4.0\n"\
 "// The faces' right and up (vr_lighting.cpp's cube views): +x (-y, z), -x (y, z), +y (x, z), -y (-x, z), +z (y, x), -z (-y, x).\n"\
@@ -165,6 +169,12 @@ QVR_TONE_GLSL
 "{\n"\
 "	vec2 inv = 1.0 / vec2(textureSize(atlas, 0));\n"\
 "	uint filt = ShadowFlags & 3u;\n"\
+"	if (RetroLight[3].x > 0.) // QVR: retro lighting's hard shadows: one tap; 2: on the shadow map's texels (blocky)\n"\
+"	{\n"\
+"		filt = 0u;\n"\
+"		if (RetroLight[3].x > 1.5)\n"\
+"			texel = floor(texel) + 0.5;\n"\
+"	}\n"\
 "	if (filt == 0u)\n"\
 "		return ShadowTap(atlas, texel, inv, ref);\n"\
 "	if (filt == 1u)\n"\
@@ -255,8 +265,8 @@ QVR_TONE_GLSL
 "	if (l.shadow.z <= 0. || cone <= 0.)\n"\
 "		return cone;\n"\
 "	if (l.shadow2.x > 0.)\n"\
-"		return cone * SpotShadow(l, pos, n);\n"\
-"	return cone * ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(pos - l.origin, n, l.shadow.z));\n"\
+"		return cone * RetroShadowQuant(SpotShadow(l, pos, n)); // QVR: in retro lighting's levels\n"\
+"	return cone * RetroShadowQuant(ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(pos - l.origin, n, l.shadow.z)));\n"\
 "}\n"\
 "\n"\
 "// Quake's dynamic lights ignore the angle they reach a surface at: DlightAngle blends in Lambert's.\n"\
@@ -374,7 +384,7 @@ QVR_TONE_GLSL
 "		return 1.0;\n"\
 "	float blocked = ShadowFilter(ShadowStatic, l.shadow2.xy + f.xy, f.z) * (1.0 - moving);\n"\
 "	float lum = max(lit.r, max(lit.g, lit.b));\n"\
-"	return 1.0 - clamp(given / max(lum, 1e-3), 0.0, 1.0) * blocked * l.color.x;\n"\
+"	return RetroShadowQuant(1.0 - clamp(given / max(lum, 1e-3), 0.0, 1.0) * blocked * l.color.x); // QVR: in retro lighting's levels\n"\
 "}\n"\
 "\n"\
 
@@ -1216,23 +1226,23 @@ QVR_BOX_WOUNDS \
 "	}\n" \
 "\n"
 
-// a light's shadow and spot cone
+// a light's shadow and spot cone (rl_pos, rl_spos, rl_mpos: in_pos, or retro lighting's blocks: vr_retrolight.h)
 #define QVR_WORLD_FS_LIGHT_SHADOW \
 "					if (l.shadow.w != 0.) // QVR: a map light's shadow of moving things\n" \
 "					{\n" \
-"						total_light *= MapLightShadow(l, in_pos, facing, total_light);\n" \
+"						total_light *= MapLightShadow(l, rl_mpos, facing, total_light);\n" \
 "						continue;\n" \
 "					}\n" \
 "					if (darkplaces) // QVR: DarkPlaces' falloff, colours brighter than 1 (vr_dlight_falloff)\n" \
 "					{\n" \
-"						float d = distance(l.origin, in_pos);\n" \
+"						float d = distance(l.origin, rl_pos);\n" \
 "						if (d >= l.radius)\n" \
 "							continue;\n" \
-"						float lit = DarkPlacesAtten(d, l.radius) * LightShadow(l, in_pos, facing);\n" \
+"						float lit = DarkPlacesAtten(d, l.radius) * LightShadow(l, rl_spos, facing);\n" \
 "						if (lit <= 0.)\n" \
 "							continue;\n" \
-"						dynamic_light += lit * 0.5 * LightAngleDP(l, in_pos, bumped) * l.color; // halved: the lightmap is doubled below\n" \
-"						specular_light += lit * LightSpecular(l, in_pos, bumped, EyePos) * l.color;\n" \
+"						dynamic_light += lit * 0.5 * LightAngleDP(l, rl_pos, bumped) * l.color; // halved: the lightmap is doubled below\n" \
+"						specular_light += lit * LightSpecular(l, rl_pos, bumped, EyePos) * l.color;\n" \
 "						continue;\n" \
 "					}\n"
 
@@ -1589,7 +1599,8 @@ SPECULAR_AA_FUNCTIONS
 "	uvec2 clusterdata = imageLoad(LightClusters, cluster_coord).xy;\n" \
 "	if ((clusterdata.x | clusterdata.y) == 0u)\n" \
 "		return vec3(0.);\n" \
-"	vec3 pos = in_pos + EyePos;\n" \
+"	vec3 pos = RetroLightAt(in_pos + EyePos, RetroLight[5].y); /* QVR: or its retro lighting block's (vr_retrolight.h) */\n" \
+"	vec3 spos = RetroShadowAt(in_pos + EyePos, pos); /* ... where the shadows are looked up */\n" \
 "	bool darkplaces = (ShadowFlags & 16u) != 0u;\n" \
 "	float unit = (ShadowFlags & 32u) != 0u ? 1.0 / 128.0 : Fog.w < 0. ? 2.0 / 200.0 : 1.0 / 200.0; // the sign of Fog.w: overbright models\n" \
 "	float angleScale = darkplaces ? 1.0 : 2.0; // LightAngle doubles the lit part (over its ambient 0.3)\n" \
@@ -1616,7 +1627,7 @@ SPECULAR_AA_FUNCTIONS
 "			vec3 dir = tl * inv;\n" \
 "			float lit = (darkplaces ? DarkPlacesAtten(d, l.radius) : (l.radius - d) * unit) * (1.0 - smoothstep(0.0, 1.0, l.spot.w + dot(l.spot.xyz, dir))); // SpotCone\n" \
 "			if (lit > 0. && l.shadow.z > 0.)\n" \
-"				lit *= l.shadow2.x > 0. ? SpotShadow(l, pos, n) : ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(-tl, n, l.shadow.z));\n" \
+"				lit *= RetroShadowQuant(l.shadow2.x > 0. ? SpotShadow(l, spos, n) : ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(spos - l.origin, n, l.shadow.z)));\n" \
 "			if (lit <= 0.)\n" \
 "				continue;\n" \
 "			float ndl = dot(bumped, dir);\n" \
@@ -1950,7 +1961,17 @@ SPECULAR_AA_FUNCTIONS
 "	// QVR: ambient occlusion (vr/vr_ao.cpp): the model's own and that of what moves near it darken its own light;\n" \
 "	// dynamic lights get half of its own (in the log: its square root), shadows stand for the rest\n" \
 "	float occlusion = in_vao * DynamicAO(in_pos + EyePos, AONormal(n, in_bumplight.xyz), instances[in_instance].AO.x, in_coord, in_depth);\n" \
-"	vec3 light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) * occlusion + ModelDynamicLights(n, bumped, spec) * sqrt(in_vao); // QVR\n"
+"	vec3 own_light = in_color.rgb * ModelBumpShade(n, bumped) * ModelAmbient(n, bumped) * occlusion; // QVR\n" \
+"	vec3 dyn_light = ModelDynamicLights(n, bumped, spec) * sqrt(in_vao); // QVR\n" \
+"	if (RetroLight[5].z > 0.) // QVR: retro lighting's levels (vr_retrolight.h; no derivatives after the discard)\n" \
+"	{\n" \
+"#if ALPHATEST\n" \
+"		RetroLightModel(own_light, dyn_light, false);\n" \
+"#else\n" \
+"		RetroLightModel(own_light, dyn_light, true);\n" \
+"#endif\n" \
+"	}\n" \
+"	vec3 light = own_light + dyn_light; // QVR\n"
 
 // fullbrights, wounds' glow, force grab's glow, morphs
 #define QVR_ALIAS_FS_GLOW \

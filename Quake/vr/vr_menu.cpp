@@ -2701,6 +2701,9 @@ za::Vector<Item> pageDebugViews()
         command("Retro Textures: List", "vr_retro_list")
             .help("vr_retro_list: prints each model drawn now with its retro textures kind (Graphics > Retro Textures), its "
                   "set and its skin's size, to the console."),
+        toggle("Retro Lighting A/B", vr_retrolight_ab)
+            .help("Hides retro lighting (Graphics > Retro Lighting) at once, to compare with the smooth light; off again "
+                  "shows it."),
         toggle("Show Damage Numbers", vr_debug_damage_numbers)
             .help("Every hit on anything that takes damage (monsters, corpses, gibs, crates, props, shootable walls): its "
                   "damage floating where it struck, and printed as the training dummy's (what struck, where, what's left)."),
@@ -3982,6 +3985,7 @@ const Page pages[] = {
     {"Retro Textures - Your Body and Hands", pageRetroCategory<retro::Category::Body>, pageGraphicsRetro}, // 105
     {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro}, // 106
     {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro}, // 107
+    {"Graphics - Retro Lighting", pageGraphicsRetroLight, pageGraphics},          // 108
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

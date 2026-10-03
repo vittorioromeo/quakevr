@@ -449,6 +449,7 @@ typedef struct gpuframedata_s {
 	float	detail[4];			// QVR: detail textures (vr/vr_detail.cpp): strength (0 off), fade start, fade end, fine octave's scale
 	float	scenetone[4];		// QVR: the brightest the world and models write (1: Quake's clamp; vr/vr_tonemap.cpp), the force grab glow's colour (vr/vr_fgfx.cpp)
 	float	water3[4];		// QVR: shoreline foam (vr/vr_water.cpp: vr_water_foam, 0 off), the ripples' slopes in the shading (vr_water_ripple_normal); zw your own wounds' relief, burns' and blood's (vr/vr_wounds.cpp)
+	float	retrolight[6][4];	// QVR: retro lighting (vr/vr_retrolight.cpp, VR_RetroLightFrameData; all 0: off)
 	float	ripple[4];			// QVR: splash ripples (vr/vr_water.cpp: vr_water_ripples): how many, their speed, wave number, the share in the geometry
 	float	rippleat[32][4];	// QVR: ... each's centre (xy), surface height (z), age in seconds (w)
 	float	rippleamp[8][4];	// QVR: ... each's height now, in units

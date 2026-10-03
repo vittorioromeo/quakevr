@@ -267,6 +267,7 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
         ZA_MEMSET(out->woundside, 0, sizeof(out->woundside));
     }
     VR_RetroAlias(e, hdr, standard ? 1 : 0, out->retro); // retro textures (vr_retro.cpp): its set, its skin's Quake size
+    out->retro[3] = standard ? VR_RetroLightSkinScale(hdr, e->skinnum) : 0.f; // retro lighting (vr_retrolight.cpp): its Quake texels' share
 }
 
 // Muzzle flashes and the zero blend (round 20). A view model's flash (Quake's nailguns and launchers, the shotguns'

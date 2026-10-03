@@ -520,6 +520,7 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsPost();
 [[nodiscard]] za::Vector<Item> pageGraphicsModels();
 [[nodiscard]] za::Vector<Item> pageGraphicsRetro();
+[[nodiscard]] za::Vector<Item> pageGraphicsRetroLight();
 [[nodiscard]] za::Vector<Item> pageTransparencyOptions();
 [[nodiscard]] za::Vector<Item> pageRecording(); // vr_menu_recording.inc
 
@@ -546,6 +547,7 @@ void resetHandMoves()
         open("Post-processing", pageIndex(pageGraphicsPost)),
         open("Models and Effects", pageIndex(pageGraphicsModels)),
         open("Retro Textures", pageIndex(pageGraphicsRetro)),
+        open("Retro Lighting", pageIndex(pageGraphicsRetroLight)),
         open("Particles", pageIndex(pageParticleSettings)),
         open("Transparency", pageIndex(pageTransparencyOptions)),
         open("Recording (Window View)", pageIndex(pageRecording)),
@@ -1019,3 +1021,91 @@ za::Vector<Item> pageRetroCategory()
     };
 }
 
+// Graphics > Retro Lighting (vr_retrolight.cpp; ROUND21.md, "Retro lighting"): the light in Quake's coarse look, to go
+// with the retro textures. Every grid is fixed to the surfaces (the faces' texels, the skins'), never to the screen.
+[[nodiscard]] za::Vector<Item> pageGraphicsRetroLight()
+{
+    const za::Vector<Choice> blocks{{0.f, "Off"}, {1.f, "1"}, {2.f, "2"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"}};
+    const za::Vector<Choice> cells{{1.f, "1"}, {2.f, "2"}, {4.f, "4"}};
+    return {
+        toggle("Retro Lighting", "vr_retrolight")
+            .help("The light in Quake's coarse look: the baked light in a few levels (bands), the lightmap's blocky grid, "
+                  "dynamic lights in levels and on blocks, hard blocky shadows. Fixed to the surfaces, so nothing swims "
+                  "as your head moves. Goes with Retro Textures. Debug > Views > Retro Lighting A/B compares."),
+        slider("Block Edge Softness", "vr_retrolight_edge_soft", 0.f, 3.f, 0.25f, "%.2f px")
+            .help("The blocks' edges (the lightmap's, the dynamic lights', the shadows'): a ramp this many pixels wide, so they "
+                  "don't crawl as your head moves. 0: hard nearest (crawls). Blocks smaller than a pixel turn smooth."),
+        cycle("Level Spacing", "vr_retrolight_spacing", {{0.f, "Even in Light (Quake's)"}, {1.f, "Even in Brightness"}})
+            .help("How the light levels below are spread: evenly in light, as Quake's colormap (few levels crush the shade to "
+                  "black), or evenly in brightness (more levels in the shade, the bands look even)."),
+        header("World: the Baked Light"),
+        toggle("World", "vr_retrolight_world").help("Retro lighting on the map and its brush models (doors, lifts, boxes)."),
+        slider("Light Levels", "vr_retrolight_world_steps", 0.f, 64.f, 1.f, "%.0f")
+            .help("The baked light in this many levels a unit of the lightmap (bands). 0: smooth. 64: Quake's software "
+                  "renderer's own 64 levels (subtle); 8 to 16: clear bands. Each colour keeps its hue."),
+        slider("Level Edges Softness", "vr_retrolight_world_soft", 0.f, 1.f, 0.05f, "%.2f")
+            .help("The bands' edges blurred over this share of a level: 0 hard (anti-aliased over a pixel), 1 smooth steps."),
+        slider("Dither", "vr_retrolight_world_dither", 0.f, 1.f, 0.05f, "%.2f")
+            .help("An ordered (Bayer) dither between the levels, fixed to the texels: the bands break into a pattern "
+                  "instead of a hard line. Fades out where its cells get smaller than a pixel."),
+        cycle("Dither Cell", "vr_retrolight_world_dither_size", cells).help("The dither's cells, in Quake texels."),
+        toggle("Blocky Lightmap", "vr_retrolight_world_lightmap")
+            .help("The lightmap read on its grid of blocks instead of smoothly: Quake's chunky light."),
+        cycle("Lightmap Block", "vr_retrolight_world_luxel",
+            {{1.f, "1 texel (software Quake)"}, {2.f, "2 texels"}, {4.f, "4 texels"}, {8.f, "8 texels"}, {16.f, "16 texels (a luxel)"}})
+            .help("The blocks, in Quake texels: 16 is a luxel (GLQuake with nearest filtering: big squares); 1 lights each "
+                  "texel on its own (Quake's software renderer: soft gradients in texel steps, aligned with the textures)."),
+        header("World: Dynamic Lights"),
+        slider("Dynamic Light Levels", "vr_retrolight_world_dyn_steps", 0.f, 64.f, 1.f, "%.0f")
+            .help("The flashlight, muzzle flashes, explosions and the other dynamic lights in this many levels a unit "
+                  "(their pools in rings). 0: smooth."),
+        cycle("Dynamic Light Blocks", "vr_retrolight_world_dyn_block", blocks)
+            .help("Dynamic lights found once a block of this many Quake texels (aligned with the texture's blocks): "
+                  "pixelated pools of light. Off: per pixel."),
+        header("Models"),
+        toggle("Models", "vr_retrolight_models").help("Retro lighting on models: monsters, items, weapons, your body."),
+        slider("Model Light Levels", "vr_retrolight_model_steps", 0.f, 64.f, 1.f, "%.0f")
+            .help("A model's own light (the light grid's, per vertex) in this many levels a unit (as the world's). 0: smooth."),
+        slider("Model Level Edges Softness", "vr_retrolight_model_soft", 0.f, 1.f, 0.05f, "%.2f").help("As the world's."),
+        slider("Model Dither", "vr_retrolight_model_dither", 0.f, 1.f, 0.05f, "%.2f").help("As the world's, fixed to the skin's texels."),
+        cycle("Model Dither Cell", "vr_retrolight_model_dither_size", cells).help("The dither's cells, in the skin's Quake texels."),
+        slider("Model Dynamic Light Levels", "vr_retrolight_model_dyn_steps", 0.f, 64.f, 1.f, "%.0f").help("As the world's."),
+        cycle("Model Dynamic Light Blocks", "vr_retrolight_model_dyn_block", blocks)
+            .help("Dynamic lights found once a block of the skin's texels. Off: per pixel."),
+        header("Shadows"),
+        cycle("Shadow Edges", "vr_retrolight_shadow_filter", {{0.f, "As Graphics > Shadows"}, {1.f, "Hard"}, {2.f, "Blocky"}})
+            .help("Hard: one tap, no soft filtering. Blocky: the shadow map's own texels, as squares."),
+        slider("Shadow Levels", "vr_retrolight_shadow_steps", 0.f, 8.f, 1.f, "%.0f")
+            .help("A shadow's darkness in levels: 1, lit or not (a hard edge along its middle); 2 or more, steps. 0: smooth."),
+        slider("Shadow Level Softness", "vr_retrolight_shadow_soft", 0.f, 1.f, 0.05f, "%.2f")
+            .help("Those steps' edges blurred over this share of a level."),
+        cycle("Shadow Blocks", "vr_retrolight_shadow_block", blocks)
+            .help("Shadows looked up once a block of this many texels (the face's or the skin's): blocky shadow edges on "
+                  "the texture's grid. Off: per pixel (or the dynamic lights' blocks)."),
+        header("Looks"),
+        command("Look: Software Quake",
+            "vr_retrolight 1; vr_retrolight_world_steps 64; vr_retrolight_world_soft 0; vr_retrolight_world_dither 0; "
+            "vr_retrolight_world_lightmap 1; vr_retrolight_world_luxel 1; vr_retrolight_world_dyn_steps 64; "
+            "vr_retrolight_world_dyn_block 1; vr_retrolight_model_steps 64; vr_retrolight_model_dyn_steps 64; "
+            "vr_retrolight_shadow_filter 1; vr_retrolight_shadow_steps 0; vr_retrolight_shadow_block 0")
+            .help("As Quake's software renderer: each texel lit on its own, 64 light levels."),
+        command("Look: Blocky Lightmaps",
+            "vr_retrolight 1; vr_retrolight_world_steps 0; vr_retrolight_world_lightmap 1; vr_retrolight_world_luxel 16; "
+            "vr_retrolight_world_dyn_steps 0; vr_retrolight_world_dyn_block 16; vr_retrolight_model_steps 0; "
+            "vr_retrolight_model_dyn_steps 0; vr_retrolight_shadow_filter 2; vr_retrolight_shadow_steps 0; vr_retrolight_shadow_block 0")
+            .help("GLQuake with nearest filtering: the light in luxel squares, the dynamic lights too; blocky shadows."),
+        command("Look: Banded and Dithered",
+            "vr_retrolight 1; vr_retrolight_world_steps 8; vr_retrolight_world_dither 1; vr_retrolight_world_dither_size 1; "
+            "vr_retrolight_world_lightmap 0; vr_retrolight_world_dyn_steps 6; vr_retrolight_world_dyn_block 2; "
+            "vr_retrolight_model_steps 8; vr_retrolight_model_dither 1; vr_retrolight_shadow_steps 2; vr_retrolight_shadow_block 2")
+            .help("Few light levels, dithered between, on smooth lightmaps: a print-like look."),
+        command("Reset to Defaults",
+            "reset vr_retrolight_spacing; reset vr_retrolight_edge_soft; reset vr_retrolight_world; reset vr_retrolight_world_steps; reset vr_retrolight_world_soft; "
+            "reset vr_retrolight_world_dither; reset vr_retrolight_world_dither_size; reset vr_retrolight_world_lightmap; "
+            "reset vr_retrolight_world_luxel; reset vr_retrolight_world_dyn_steps; reset vr_retrolight_world_dyn_block; "
+            "reset vr_retrolight_models; reset vr_retrolight_model_steps; reset vr_retrolight_model_soft; reset vr_retrolight_model_dither; "
+            "reset vr_retrolight_model_dither_size; reset vr_retrolight_model_dyn_steps; reset vr_retrolight_model_dyn_block; "
+            "reset vr_retrolight_shadow_filter; reset vr_retrolight_shadow_steps; reset vr_retrolight_shadow_block; reset vr_retrolight_shadow_soft")
+            .help("Every setting on this page back to its default (the switch stays as it is)."),
+    };
+}

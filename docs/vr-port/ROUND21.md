@@ -22317,3 +22317,117 @@ their own; quetoo-data publishes the files under CC BY-SA 4.0, which is what we 
 Test in VR:
 - [ ] A new game with your config: Graphics > Surfaces > External Maps on, the walls as with your downloaded folder.
 - [ ] Debug > Views > External Maps A/B on e1m1 by a lamp: the shipped maps drawn.
+
+## Retro lighting: the light in Quake's coarse look (2026-10-03)
+
+To go with Retro Textures: the light itself coarse. Off by default (`vr_retrolight 0`); every setting live (no
+restart, no reload), on a new page Graphics > Retro Lighting. Everything is fixed to the surfaces (a face's texel
+grid, a model's skin), never to the screen, so nothing swims as the head moves; the grids turn smooth where their
+blocks get smaller than a pixel.
+
+### How it works (`Quake/vr/vr_retrolight.h`, `vr_retrolight.cpp`)
+
+- **Plumbing:** six vec4s in the frame data (`RetroLight[6]`, after `Water3`, in both `FRAMEDATA_BUFFER` and the alias
+  shader's `ALIAS_FRAMEDATA_BUFFER`; C: `r_framedata.retrolight`), filled by `VR_RetroLightFrameData` in
+  `R_SetupView`; all zero when off. The GLSL (`QVR_RETROLIGHT_GLSL`) is spliced at the top of `SHADOW_FUNCTIONS`, so the
+  world and model fragment shaders both have it. A world and a model switch (`[2].w`, `[5].z`) skip the per-pixel set-up
+  when their group is off.
+- **The grid:** `RetroLightBegin` (before any discard) takes the pixel's place in Quake texels and its screen
+  derivatives: on the world, the lightmap's coordinates times 16 less 8 (a texel's edges at whole numbers, the same
+  grid as the texture's `s`/`t` modulo 16, so 1, 2, 4, 8 and 16-texel blocks line up across faces, with the retro
+  textures' blocks); faces without a lightmap (liquids) the texture's own `uv * size`. On models, the skin's
+  coordinates times its Quake size (`Instance.Retro.w`: a Quake texel's share of the texture, `VR_RetroLightSkinScale`:
+  a `.mdl`'s skin width over its texture's, our MD3/IQM models a quarter). From the position's derivatives it also
+  solves the surface's world units per texel along `s` and `t` (exact on a face), which moves a point to its block's
+  centre on the surface.
+- **Levels (bands):** `RetroLightQuant` puts the light's brightness (its largest channel; the hue kept) in N levels a
+  unit, the unit being Quake's full lightmap value (before the doubling; models' light is halved first, so a level is the
+  same brightness on both). `vr_retrolight_spacing 1` (default) spaces them evenly in brightness (a square root:
+  Quake's even-in-light levels crush the shade to black at 8 or 16 levels); 0 spaces them as Quake's colormap. The edge
+  between two levels is anti-aliased over a pixel (fwidth; not after an alpha-test discard), widened by Softness (share
+  of a level: 1 smooth steps). The baked light is quantized after the map lights' shadows of moving things, the dynamic
+  lights' sum separately, then they are added as before (the add moved after the lights block: the same result where
+  there are none).
+- **Dither:** a 4 x 4 Bayer offset (± half a level times Dither) per cell of 1, 2 or 4 Quake texels, fixed to the grid;
+  it fades out where its cells get smaller than about half a pixel (no shimmer at a distance).
+- **Blocky lightmap:** the lightmap read at its block's centre on the grid, with a ramp Block Edge Softness pixels wide
+  towards the neighbouring centre (0: nearest; sharp bilinear otherwise). 16 texels is a luxel, centred on it (GLQuake
+  with nearest filtering); 1 lights each texel (the software renderer's look: gradients in texel steps). The read only
+  ever moves from the pixel towards its own nearest centre, which is on the same face, so no light bleeds from the
+  next face in the atlas. Beyond about a block a pixel it is the smooth read again.
+- **Dynamic lights on blocks:** the world's per-pixel dynamic lights (falloff, angle, shadow, sheen) evaluated at the
+  pixel's block centre (`rl_pos`), with the same edge ramp: pixelated pools, on the texture's grid. Models the same on
+  their skin's grid (`ModelDynamicLights`).
+- **Shadows:** Shadow Edges Hard forces the one-tap filter; Blocky also snaps the lookup to the shadow map's texel
+  centres (squares in the light's own frame). Shadow Levels quantizes a shadow's share of the light (1: lit or not, a
+  hard edge along the soft shadow's middle), map lights' shadows of moving things too. Shadow Blocks looks the shadows up
+  at the block centre on the surface's grid (blocky edges aligned with the texture; a spot light's cone edge too).
+
+### Settings (Graphics > Retro Lighting; Debug > Views > Retro Lighting A/B)
+
+| Cvar | Default | Menu (Graphics > Retro Lighting) |
+|---|---|---|
+| `vr_retrolight` | 0 | Retro Lighting (the switch) |
+| `vr_retrolight_ab` | 0 | Debug > Views > Retro Lighting A/B (not saved) |
+| `vr_retrolight_spacing` | 1 | Level Spacing: Even in Light (Quake's) / Even in Brightness |
+| `vr_retrolight_edge_soft` | 1 | Block Edge Softness (pixels; 0 nearest) |
+| `vr_retrolight_world` | 1 | World |
+| `vr_retrolight_world_steps` | 16 | Light Levels (0 smooth; 64 the software renderer's) |
+| `vr_retrolight_world_soft` | 0 | Level Edges Softness |
+| `vr_retrolight_world_dither` | 0 | Dither |
+| `vr_retrolight_world_dither_size` | 1 | Dither Cell (1, 2, 4 texels) |
+| `vr_retrolight_world_lightmap` | 1 | Blocky Lightmap |
+| `vr_retrolight_world_luxel` | 16 | Lightmap Block (1, 2, 4, 8, 16 texels) |
+| `vr_retrolight_world_dyn_steps` | 8 | Dynamic Light Levels |
+| `vr_retrolight_world_dyn_block` | 4 | Dynamic Light Blocks (Off, 1 .. 16 texels) |
+| `vr_retrolight_models` | 1 | Models |
+| `vr_retrolight_model_steps` | 16 | Model Light Levels |
+| `vr_retrolight_model_soft` | 0 | Model Level Edges Softness |
+| `vr_retrolight_model_dither` | 0 | Model Dither |
+| `vr_retrolight_model_dither_size` | 1 | Model Dither Cell |
+| `vr_retrolight_model_dyn_steps` | 8 | Model Dynamic Light Levels |
+| `vr_retrolight_model_dyn_block` | 0 | Model Dynamic Light Blocks (skin texels) |
+| `vr_retrolight_shadow_filter` | 1 | Shadow Edges: As Graphics > Shadows / Hard / Blocky |
+| `vr_retrolight_shadow_steps` | 0 | Shadow Levels (0 smooth, 1 lit or not) |
+| `vr_retrolight_shadow_soft` | 0 | Shadow Level Softness |
+| `vr_retrolight_shadow_block` | 0 | Shadow Blocks (Off, 1 .. 16 texels) |
+
+The page also has three looks (Software Quake: 64 levels, each texel lit, dynamic lights per texel; Blocky Lightmaps:
+GLQuake nearest, luxel squares; Banded and Dithered: 8 levels dithered on smooth lightmaps) and Reset to Defaults.
+The defaults (with the switch on) are a clearly retro look to start from, not a recommendation.
+
+### Costs
+
+`run.sh --exclusive`, 2048 x 2048 eyes, e1m1 start (a grunt's corpse 80 units ahead), the profiler's GPU rows (both
+eyes, ms a frame; medians of 4 alternations of 2 s each, ~2500 frames).
+
+| Scene | `world` off -> defaults | heavy (luxel 1, dither, shadow blocky, levels 2, blocks 4, models dithered, blocks 2) | `models` off -> defaults |
+|---|---|---|---|
+| Baked light only (look 25 0) | 0.435 -> 0.437 (+0.002) | +0.004 over defaults | 0.111 -> 0.116 (+0.005) |
+| The flashlight's pool, shadowed (look 20 90) | 0.455 -> 0.461 (+0.006) | +0.005 over defaults | 0.104 -> 0.111 (+0.007) |
+
+Each option alone is below the measurement's resolution (about 0.005 ms) in these scenes: the whole feature, at the
+heaviest settings, costs about 0.01 ms on the world and 0.01 on the models. (With a 350-unit test light whose shadow
+maps redraw each frame, the rows swing by 0.1 to 0.2 ms between identical runs; per-option numbers from that scene
+had no consistent sign and are not reported.) Off, the shaders only test the frame data (a few uniform branches).
+
+### Tests
+
+- Eyeshots (e1m1, left eye, centre crops; `qvr-kit/scratch/retrolight_scenes.png`, `retrolight_shadows.png`,
+  `retrolight_static_variants.png`): the hall and a dark wall off / on (bands at 16 levels); the flashlight's pool off /
+  on (levels and 4-texel blocks on the texture's grid) / blocks 8 with blocky shadows; a 350-unit light (an
+  explosion's) off / on / shadow levels 1 with blocks 4; your own shadow under a light behind you off / hard / blocky /
+  levels 1 / levels 2 with blocks 4 (staircase edges on the floor's texel grid); models with dithered levels and
+  2-texel light blocks. Static variants: Quake's linear spacing at 8 levels crushed the shade to black (hence the
+  brightness spacing default), the software look (64 levels, texel-stepped), 8 levels dithered on luxel blocks.
+- `-nobindless` and `r_softemu 1`, `2`, `3` with it on: no shader errors.
+- `vr_menu_path_check maps/vrcalibration.map`: 13 found, 0 missing; `menu_vr 108` opens the page.
+
+### In VR
+
+- The bands and the dither as your head moves: nothing should swim; the band edges should not crawl (Block Edge
+  Softness 1; 0 is hard nearest and crawls).
+- The flashlight's pool with Dynamic Light Blocks 4 and 8: blocks on the texture's grid, steady as the torch moves.
+- Level Spacing: Quake's even-in-light levels vs even in brightness, at 8 and 16 levels.
+- Lightmap Block 1 (software Quake) vs 16 (GLQuake nearest), with Retro Textures on.
+- Shadow Edges Blocky, Shadow Levels 1 and 2, Shadow Blocks 4 on your own shadow under the flashlight.

@@ -1057,6 +1057,31 @@ QVR_CVAR(vr_shadow_bias, "1", CVAR_ARCHIVE)            // shadow acne vs. light 
 QVR_CVAR(vr_shadow_distance, "1536", CVAR_ARCHIVE)     // lights farther than this from you cast no shadows
 QVR_CVAR(vr_shadow_atlas, "4096", CVAR_ARCHIVE)        // shadow map atlas size (2048, 4096, 8192)
 QVR_CVAR(vr_shadow_stats, "0", CVAR_NONE)              // print what is shadowed and the GPU time, once a second
+// Retro lighting (vr_retrolight.cpp, vr_retrolight.h; Graphics > Retro Lighting; ROUND21.md "Retro lighting"): Quake's coarse light, fixed to the surfaces (no swimming in VR)
+QVR_CVAR(vr_retrolight, "0", CVAR_ARCHIVE)                  // the switch for all of it
+QVR_CVAR(vr_retrolight_ab, "0", CVAR_NONE)                  // Debug > Views: hides it at once, to compare
+QVR_CVAR(vr_retrolight_spacing, "1", CVAR_ARCHIVE)          // the light levels' spacing: 0 even in light (Quake's colormap: the shade crushed to black at few levels), 1 even in brightness
+QVR_CVAR(vr_retrolight_edge_soft, "1", CVAR_ARCHIVE)        // the blocks' edges (lightmap, dynamic lights, shadows), pixels wide (0: nearest, crawls)
+QVR_CVAR(vr_retrolight_world, "1", CVAR_ARCHIVE)            // the world and brush models
+QVR_CVAR(vr_retrolight_world_steps, "16", CVAR_ARCHIVE)     // the baked light's levels a unit of the lightmap (0 smooth; 64: Quake's software renderer's)
+QVR_CVAR(vr_retrolight_world_soft, "0", CVAR_ARCHIVE)       // the levels' edges blurred over this share of a level (0 hard, anti-aliased; 1 smooth steps)
+QVR_CVAR(vr_retrolight_world_dither, "0", CVAR_ARCHIVE)     // an ordered dither between the levels, fixed to the texels (0 none, 1 full)
+QVR_CVAR(vr_retrolight_world_dither_size, "1", CVAR_ARCHIVE) // its cells, in Quake texels (1, 2, 4)
+QVR_CVAR(vr_retrolight_world_lightmap, "1", CVAR_ARCHIVE)   // the lightmap read on its blocky grid
+QVR_CVAR(vr_retrolight_world_luxel, "16", CVAR_ARCHIVE)     // ... its blocks, in Quake texels (16: a luxel, GL nearest's blocks; 1: each texel lit, as the software renderer)
+QVR_CVAR(vr_retrolight_world_dyn_steps, "8", CVAR_ARCHIVE)  // dynamic lights' levels a unit (0 smooth)
+QVR_CVAR(vr_retrolight_world_dyn_block, "4", CVAR_ARCHIVE)  // dynamic lights found on a grid of blocks this many texels (0: per pixel; 1, 2, 4, 8, 16)
+QVR_CVAR(vr_retrolight_models, "1", CVAR_ARCHIVE)           // models (monsters, items, weapons, your body)
+QVR_CVAR(vr_retrolight_model_steps, "16", CVAR_ARCHIVE)     // their own light's levels (as the world's: a unit, the lightmap's)
+QVR_CVAR(vr_retrolight_model_soft, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_retrolight_model_dither, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_retrolight_model_dither_size, "1", CVAR_ARCHIVE) // skin texels
+QVR_CVAR(vr_retrolight_model_dyn_steps, "8", CVAR_ARCHIVE)
+QVR_CVAR(vr_retrolight_model_dyn_block, "0", CVAR_ARCHIVE)  // skin texels (0: per pixel)
+QVR_CVAR(vr_retrolight_shadow_filter, "1", CVAR_ARCHIVE)    // shadows' edges: 0 as Graphics > Shadows, 1 hard (one tap), 2 blocky (the shadow map's texels)
+QVR_CVAR(vr_retrolight_shadow_steps, "0", CVAR_ARCHIVE)     // shadows' darkness in levels (0 smooth, 1 lit or not, 2..)
+QVR_CVAR(vr_retrolight_shadow_block, "0", CVAR_ARCHIVE)     // shadows looked up on a grid of blocks this many texels (0: per pixel)
+QVR_CVAR(vr_retrolight_shadow_soft, "0", CVAR_ARCHIVE)      // their levels' edges blurred over this share of a level
 QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
 QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)
 QVR_CVAR(vr_profile_overlay, "0", CVAR_NONE)           // the profiler's panel (vr_profile_systems.cpp): each system's ms a frame with a bar; 1 over the wrist gadget's hand, 2 floating in front

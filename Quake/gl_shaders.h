@@ -684,6 +684,12 @@ QVR_WORLD_FS_FUNCTIONS // QVR: detail, parallax, specular anti-aliasing, the bak
 "	const bool parallax = false;\n" // QVR: no parallax mapping here
 "#endif\n"
 "	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none)
+"	bool rl_lightmapped = (in_flags & CF_NOLIGHTMAP) == 0u;\n" // QVR: retro lighting (vr_retrolight.h): the face's texel grid (its lightmap's, less 8)
+"	if (RetroLight[2].w > 0.)\n"
+"	{\n"
+"		vec2 rl_t = rl_lightmapped ? in_lmuv * (vec2(textureSize(LMTex, 0).xy) * 16.) - 8.0 : in_uv * in_retro.xy;\n"
+"		RetroLightBegin(rl_t, dFdx(rl_t), dFdy(rl_t), dpdx, dpdy, RetroLight[0]);\n"
+"	}\n"
 "	if ((in_flags & CF_USE_FULLBRIGHT) != 0u)\n" // QVR: parallax: the moved coordinates
 "		fullbright = Retro > 0 ? RetroSample(FullbrightTex, puv, duvdx, duvdy, false).rgb : parallax ? textureGrad(FullbrightTex, puv, duvdx, duvdy).rgb : texture(FullbrightTex, uv).rgb;\n"
 "	vec4 result;\n"
@@ -724,6 +730,8 @@ QVR_WORLD_FS_WOUNDS // QVR: a held prop's blood (vr/vr_wounds.cpp)
 "	vec2 lmsize = vec2(textureSize(LMTex, 0).xy) * 16.;\n"
 "	lmuv = (floor(lmuv * lmsize) + 0.5) / lmsize;\n"
 "#endif // DITHER\n"
+"	if (rl_lightmapped)\n" // QVR: retro lighting: the lightmap on its blocky grid (vr_retrolight.h)
+"		lmuv = RetroLightmapUV(lmuv, vec2(textureSize(LMTex, 0).xy) * 16.);\n"
 "	vec4 lm0 = textureLod(LMTex, lmuv, 0.);\n"
 "	vec3 total_light;\n"
 "	if (in_styles.y < 0.) // single style fast path\n"
@@ -750,6 +758,9 @@ QVR_WORLD_FS_WOUNDS // QVR: a held prop's blood (vr/vr_wounds.cpp)
 "	}\n"
 "\n"
 QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specular
+"	vec3 dynamic_light = vec3(0.);\n" // QVR: out here, for retro lighting's levels after the lights
+"	vec3 rl_pos = RetroLightAt(in_pos, RetroLight[1].w); // QVR: retro lighting: where the dynamic lights are found (their blocks)\n"
+"	vec3 rl_spos = RetroShadowAt(in_pos, rl_pos), rl_mpos = RetroShadowAt(in_pos, in_pos); // ... their shadows; the map lights'\n"
 "	if (NumLights > 0u)\n"
 "	{\n"
 "		uint i, ofs;\n"
@@ -765,7 +776,6 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 "			total_light = vec3(ivec3((cluster_idx + 1) * 0x45d9f3b) >> ivec3(0, 8, 16) & 255) / 255.0;\n"
 "#endif // SHOW_ACTIVE_LIGHT_CLUSTERS\n"
 // QVR: no plane made here: facing is made first, in every mode, for the normal map
-"			vec3 dynamic_light = vec3(0.);\n"
 "			bool darkplaces = (ShadowFlags & 16u) != 0u; // QVR\n"
 "			for (i = 0u, ofs = 0u; i < 2u; i++, ofs += 32u)\n"
 "			{\n"
@@ -778,29 +788,37 @@ QVR_WORLD_FS_LIGHT // QVR: light contrast, normal maps in the baked light, specu
 QVR_WORLD_FS_LIGHT_SHADOW // QVR: a light's shadow and spot cone
 "					// mimics R_AddDynamicLights, up to a point\n"
 "					float rad = l.radius;\n"
-"					float dist = dot(l.origin - in_pos, facing); // QVR: the plane's (its normal's sign doesn't matter)\n"
+"					float dist = dot(l.origin - rl_pos, facing); // QVR: the plane's (its normal's sign doesn't matter); rl_pos: in_pos, or its retro block's\n"
 "					rad -= abs(dist);\n"
 "					float minlight = l.minlight;\n"
 "					if (rad < minlight)\n"
 "						continue;\n"
 "					vec3 local_pos = l.origin - facing * dist;\n" // QVR: facing (the plane is made first, for the normal map)
 "					minlight = rad - minlight;\n"
-"					dist = length(in_pos - local_pos);\n"
+"					dist = length(rl_pos - local_pos);\n"
 "					float add = clamp((minlight - dist) / 16.0, 0.0, 1.0) * max(0., rad - dist) / 256.;\n"
 "					if (add <= 0.) // QVR\n"
 "						continue;\n"
-"					add *= LightShadow(l, in_pos, facing); // QVR\n"
-"					specular_light += add * 2.0 * LightSpecular(l, in_pos, bumped, EyePos) * l.color; // QVR\n"
-"					add *= LightAngle(l, in_pos, bumped, 0.0); // QVR\n"
+"					add *= LightShadow(l, rl_spos, facing); // QVR\n"
+"					specular_light += add * 2.0 * LightSpecular(l, rl_pos, bumped, EyePos) * l.color; // QVR\n"
+"					add *= LightAngle(l, rl_pos, bumped, 0.0); // QVR\n"
 "					dynamic_light += add * l.color;\n"
 "				}\n"
 "			}\n"
-"			if ((ShadowFlags & 20u) != 0u) // QVR: uncapped (DarkPlaces' never are)\n"
-"				total_light += dynamic_light;\n"
-"			else\n"
-"			total_light += max(min(dynamic_light, 1. - total_light), 0.);\n"
 "		}\n"
 "	}\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_ALPHATEST) "\n" // QVR: retro lighting's levels (vr_retrolight.h; no derivatives after the discard)
+"	if (RetroLight[2].w > 0.)\n"
+"		RetroLightWorld(total_light, dynamic_light, rl_lightmapped, false);\n"
+"#else\n"
+"	if (RetroLight[2].w > 0.)\n"
+"		RetroLightWorld(total_light, dynamic_light, rl_lightmapped, true);\n"
+"#endif\n"
+"	if ((ShadowFlags & 20u) != 0u) // QVR: uncapped (DarkPlaces' never are)\n"
+"		total_light += dynamic_light;\n"
+"	else\n"
+"		total_light += max(min(dynamic_light, 1. - total_light), 0.);\n" // QVR: after the lights (0 added where none)
+
 "#if DITHER >= 2\n"
 "	total_light = floor(total_light * 63. + 0.5) * (2./63.);\n"
 "#else\n"
@@ -1170,7 +1188,7 @@ NOISE_FUNCTIONS
 "	vec4	AO; // QVR: dynamic ambient occlusion (vr/vr_ao.cpp): x its own group (0 none), y how much of its baked per-vertex occlusion applies; z its normal map's strength\n"\
 "	vec4	Wound; // QVR: wounds painted on it (vr/vr_wounds.cpp): x its mask's layer + 1 (0 none), yz the mask's size in texels, w the time\n"\
 "	vec4	WoundSide; // QVR: (vr/vr_wounds.cpp) xy the bones of its right side (bits 0..23, 24..47, as whole numbers: your body's mask is one a side), z painting only side z - 1 (0: all), w the blood's opacity\n"\
-"	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own)\n"\
+"	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own); w retro lighting's (vr_retrolight.h): a Quake texel's share of the texture's (0: 1)\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1338,6 +1356,12 @@ QVR_ALIAS_FS_FUNCTIONS // QVR: per-pixel lights, normal maps, ambient, wounds, m
 "	vec2 uv = in_texcoord;\n"
 "	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos); // QVR: for the normal map (before any discard)\n"
 "	vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);\n"
+"	if (RetroLight[5].z > 0.) // QVR: retro lighting (vr_retrolight.h): the skin's grid, in its Quake texels (Retro.w: their share of the texture's)\n"
+"	{\n"
+"		vec4 rl_r = instances[in_instance].Retro;\n"
+"		vec2 rl_size = vec2(textureSize(Tex, 0)) * (rl_r.w > 0.0 ? rl_r.w : 1.0);\n"
+"		RetroLightBegin(uv * rl_size, duvdx * rl_size, duvdy * rl_size, dpdx, dpdy, RetroLight[4]);\n"
+"	}\n"
 "	vec3 morphSeam; // QVR\n"
 "	bool morphShown = Morph(morphSeam); // QVR: discarded at the end (after the derivatives)\n"
 "#if MODE == " QS_STRINGIFY (ALIASSHADER_NOPERSP) "\n"
