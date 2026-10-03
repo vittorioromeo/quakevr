@@ -153,7 +153,11 @@ Flashlight cord: compare Chain (now default) with Low-Poly Chain (Advanced VR Op
 Retro Textures: Smooth Beyond: Never (no smoothing at any distance)
 Press buttons with a held health box, ammo box, crate and rock; not from too far away (Wall Buttons > Held Props Press Buttons)
 
+Push the torso gib and the big chunk with both hands and release together: they fly, not burst
+Hold a gib in one hand and punch it with the other: it still bursts
+
 [Decide or give feedback]
+Heads: the second hand can't take a head (too small for two hands): allow two-handed head carrying?
 Explosive boxes throw wood splinters when hit: switch to metal sparks?
 Training dummy: its wounds build up until gibbed: should it heal over time?
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
