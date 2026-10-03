@@ -107,6 +107,7 @@ void VR_AliasLightDir (const struct entity_s *e, float dir[4]);	// instance: the
 void VR_AliasAmbient (const struct entity_s *e, const float matrix[16], const void *aliashdr, int enabled, float cube[24]); // instance: the light around it, 6 faces (vr_ambient.cpp)
 void VR_AliasSurface (const struct entity_s *e, float out[4]); // instance: rim light, reflections' strength and blur (vr_envmap.cpp)
 unsigned VR_EnvCubeTexture (void);							// the reflections' cube map (0: none yet; vr_envmap.cpp)
+unsigned VR_WaterCubeTexture (void);						// the water's reflections' cube map (0: none this frame; vr_envmap.cpp)
 float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1)
 void VR_EntityGlowColor (float rgb[3]);						// and its colour (the player's hue; SceneTone.yzw in the frame data)
 float VR_EntityFullbrightBoost (const struct entity_s *e);	// how much brighter its dim fullbright texels shine (0 none): the held weapons' sights (vr_weapon_glow)

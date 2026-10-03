@@ -828,6 +828,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	else
 		GL_BindNative (GL_TEXTURE6, GL_TEXTURE_2D, 0);
 	GL_BindNative (GL_TEXTURE8, GL_TEXTURE_2D, scenedepth); // QVR
+	GL_BindNative (GL_TEXTURE16, GL_TEXTURE_CUBE_MAP, VR_WaterCubeTexture ()); // QVR: the room reflected (LiquidCube; vr/vr_envmap.cpp)
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);

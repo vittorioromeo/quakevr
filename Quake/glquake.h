@@ -454,6 +454,8 @@ typedef struct gpuframedata_s {
 	float	rippleat[32][4];	// QVR: ... each's centre (xy), surface height (z), age in seconds (w)
 	float	rippleamp[8][4];	// QVR: ... each's height now, in units
 	float	decalclock[4];	// QVR: the decals on the world (vr/vr_decals.cpp: VR_DecalsFrame): now on their clock, vr_decal_life, on
+	float	watercube[4];		// QVR: water reflections (vr/vr_envmap.cpp: vr_water_reflections): the water cube's centre (xyz), strength (w, 0 off)
+	float	watercube2[4];		// QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last
 } gpuframedata_t;
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin

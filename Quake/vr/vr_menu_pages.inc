@@ -972,6 +972,7 @@ void retroAllUncheckCategories()
     return {
         slider("Waves", "vr_water_waves", 0.f, 2.f, 0.1f, "%.1f").extend().help("Waves on water, slime and lava, in the lighting (the surfaces stay flat). 0: Quake's flat liquids."),
         slider("Water Reflection", "vr_water_fresnel", 0.f, 2.f, 0.1f, "%.1f").extend().help("Water is clearer looking straight down and reflects the room at grazing angles."),
+        slider("Reflected Room", "vr_water_reflections", 0.f, 1.f, 0.1f, "%.1f").extend().help("Water and slime mirror the room around them (walls, lights, the sky) instead of a plain sheen: a picture of the world made at the water's surface nearest you. How strongly the water reflects is Water Reflection. 0: off."),
         slider("Water Refraction", "vr_water_refraction", 0.f, 2.f, 0.1f, "%.1f").extend().help("What is under the water is bent by the waves (needs r_oit 1)."),
         slider("Water Glints", "vr_water_glints", 0.f, 2.f, 0.1f, "%.1f").extend().help("Light glinting off the waves."),
         slider("Lava Glow", "vr_water_lava_glow", 0.f, 2.f, 0.1f, "%.1f").extend().help("Lava glows, its hot parts brightest, pulsing slowly."),
