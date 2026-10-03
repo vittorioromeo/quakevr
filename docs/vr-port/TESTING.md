@@ -1178,6 +1178,7 @@ wrist, the elbow's swing, the wrist's flexion, deviation, twist and strain again
 `arm_trace.txt`, e.g. while `vr_motion_eval` replays takes. Elbow near the face or the chest (ROUND21.md, "Elbow near
 the face and the chest"): `vr_body_elbow_lift 0` gives the old swing for A/B; reach each pose over ~30 frames from a
 neutral one (`vr_fixed_frames 1`), as the swing keeps the nearest good elbow. Palm down at the face ("Follow-up: palm down spreads the elbows"): `vr_body_elbow_spread 0` for A/B; `armcost` lines give the swing's cost every 15 degrees from the pole; place the wrist, not the controller (the `armT` W offset from the controller depends on its turn).
+Corpse collision (ROUND21.md, "Corpse collision"): `vr_corpse_list` prints each corpse's body and what touches it; `vr_corpse_drop [height]` puts the loose prop nearest you over the nearest corpse (it rests on it unless Corpses is Pass Through). In a cfg, put a few `wait`s between `impulse 241` and `vr_test_spawn_dead 0` (the impulse runs on the next frame).
 
 After the posing test (ROUND21.md): `vr_debug_shots 1` with `developer 1` prints each hitscan shot (start, direction,
 what its pellets hit, headshots) and each damage you deal; a monster at the muzzle: `impulse 150 + weapon id` (with

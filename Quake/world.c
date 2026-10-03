@@ -940,6 +940,40 @@ static trace_t SV_ClipMoveToBoxEntityQVR (edict_t *touch, vec3_t mins, vec3_t ma
 	return trace;
 }
 
+/*
+==================
+SV_ClipMoveToCorpseQVR
+
+QVR: a body's move against a corpse in its way (VR_CorpseBox): its box `cmins`, `cmaxs` (from its origin), met by the
+move's box (`narrow`: the player's narrower one, as SV_ClipMoveToBoxEntityQVR).
+==================
+*/
+static trace_t SV_ClipMoveToCorpseQVR (edict_t *touch, const vec3_t cmins, const vec3_t cmaxs, qboolean narrow, const moveclip_t *clip)
+{
+	trace_t		trace;
+	vec3_t		hullmins, hullmaxs, start_l, end_l;
+	const float	*m = narrow ? clip->entmins : clip->mins, *M = narrow ? clip->entmaxs : clip->maxs;
+	hull_t		*hull;
+
+	VectorSubtract (cmins, M, hullmins);
+	VectorSubtract (cmaxs, m, hullmaxs);
+	hull = SV_HullForBox (hullmins, hullmaxs);
+
+	memset (&trace, 0, sizeof(trace_t));
+	trace.fraction = 1;
+	trace.allsolid = true;
+	VectorCopy (clip->end, trace.endpos);
+	VectorSubtract (clip->start, touch->v.origin, start_l);
+	VectorSubtract (clip->end, touch->v.origin, end_l);
+	++vr_profcounts.hullchecks;
+	SV_RecursiveHullCheck (hull, hull->firstclipnode, 0, 1, start_l, end_l, &trace);
+	if (trace.fraction != 1)
+		VectorAdd (trace.endpos, touch->v.origin, trace.endpos);
+	if (trace.fraction < 1 || trace.startsolid)
+		trace.ent = touch;
+	return trace;
+}
+
 //===========================================================================
 
 /*
@@ -956,12 +990,15 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 	trace_t		trace;
 	qboolean	propshape; // QVR: met as a solid prop's drawn shape (VR_PropClip)
 	int			shot; // QVR: a grenade shots set off (VR_ShotTargetClip)
+	qboolean	corpse, narrow; // QVR: a corpse in a body's way (VR_CorpseBox), met by the narrower box
+	vec3_t		corpsemins, corpsemaxs;
 
 // touch linked edicts
 	for (l = node->solid_edicts.next ; l != &node->solid_edicts ; l = next)
 	{
 		next = l->next;
 		propshape = false; // QVR
+		corpse = false; // QVR
 		touch = EDICT_FROM_AREA(l);
 		if (touch->v.solid == SOLID_NOT)
 			continue;
@@ -991,7 +1028,17 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		// QVR: touchable non-solids never block, but shots and missiles stop at gibs and heads
 		// (those that take damage: vr_gib_destroy).
 		if (touch->v.solid == SOLID_NOT_BUT_TOUCHABLE && !(clip->hitgibs && touch->v.takedamage))
-			continue;
+		{
+			// QVR: but a corpse is in a player's or a monster's way (vr_corpse_collide_player, _monsters): its box, met by
+			// the move's (the player's narrower one where it narrows, as SV_ClipMoveToBoxEntityQVR)
+			if (!clip->bodymove || clip->hitmodel >= 0 || touch == clip->passedict)
+				continue;
+			narrow = clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch);
+			if (!VR_CorpseBox (clip->passedict, touch, clip->start, narrow ? clip->entmins : clip->mins,
+				narrow ? clip->entmaxs : clip->maxs, corpsemins, corpsemaxs))
+				continue;
+			corpse = true;
+		}
 		if (touch == clip->passedict)
 			continue;
 		if (touch->v.solid == SOLID_TRIGGER)
@@ -1029,7 +1076,9 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		// own move meets its model.
 		if (clip->passedict && VR_HitModelMoveFlags (touch) && VR_HitModelTarget (clip->passedict))
 			continue;
-		if (clip->hitmodel >= 0 && VR_HitModelTarget (touch))
+		if (corpse) // QVR
+			trace = SV_ClipMoveToCorpseQVR (touch, corpsemins, corpsemaxs, narrow, clip);
+		else if (clip->hitmodel >= 0 && VR_HitModelTarget (touch))
 		{
 			if (!VR_HitModelClip (touch, clip->start, clip->mins, clip->maxs, clip->end, clip->hittype,
 				clip->hitmodel, clip->trace.fraction, &trace))

@@ -19,6 +19,9 @@
 //   kind (or the Mass set for its model: Held Object Offsets, vr_props.inc). Carried ones (in a hand, or both) are
 //   kinematic, following the hand, so they push other props. Solid props (.vr_rigid 2: the explosive boxes) stay
 //   SOLID_BBOX, their Quake box kept round them as they turn (solidBox), and report their hard hits (.vr_impact).
+// - Corpses lying still (vr_corpse_collide; "Corpses in the physics" below, ROUND21.md, "Corpse collision") are bodies
+//   props rest on and held things meet: fixed (kinematic) or heavy dynamic bodies, their lying box or hulls fitted to
+//   their pose. Players and monsters meet them in Quake's moves as set (VR_CorpseBox).
 // - The players' hands are kinematic spheres at their fists that push solid props (syncHands, vr_box3d_hand_push).
 // - Players stand on solid props (vr_box3d_player_stand, "Standing on props": capsuleStandsOn, beforeStanding,
 //   pressStanding, rideStanding): ground to Quake's movement, their weight pressing, carried as the prop moves. Their
@@ -133,7 +136,8 @@ constexpr uint64_t catSolid = 256; // a solid prop's (.vr_rigid 2: an explosive 
 constexpr uint64_t catReachHand = 512;    // an empty hand's body (vr_box3d_hand_props): the loose props but grenades
 constexpr uint64_t catReachWeapon = 1024; // a held weapon's body (vr_box3d_weapon_push): the loose props
 constexpr uint64_t catReach = catReachHand | catReachWeapon;
-constexpr uint64_t propMask = catWorld | catMover | catActor | catPlayer | catProp | catHeld | catFixture;
+constexpr uint64_t catCorpse = 2048; // a corpse's body (vr_corpse_collide): what meets it is its own mask's (corpseMask)
+constexpr uint64_t propMask = catWorld | catMover | catActor | catPlayer | catProp | catHeld | catFixture | catCorpse;
 
 enum class Kind : uint8_t
 {
@@ -144,6 +148,7 @@ enum class Kind : uint8_t
     Actor,  // a monster or another solid box: kinematic
     Player, // a player's body: a kinematic capsule
     Fixture, // a pickup that is not a rigid body (hanging in the air, on a rack): kinematic, its drawn hull
+    Corpse,  // a dead monster lying still (vr_corpse_collide): kinematic (Fixed) or a heavy dynamic body (Pushable)
 };
 
 [[nodiscard]] const char* kindName(Kind k)
@@ -156,6 +161,7 @@ enum class Kind : uint8_t
     case Kind::Actor: return "actor";
     case Kind::Player: return "player";
     case Kind::Fixture: return "fixture";
+    case Kind::Corpse: return "corpse";
     default: return "none";
     }
 }
@@ -409,6 +415,13 @@ struct Slot // what one edict is in the world (by its number)
     bool flightLogged{false}; // (vr_debug_spin_align: its first step printed; the last step's spin and how far off)
     float flightOff{0.f}, flightRate{0.f};
     const b3HullData* hull{nullptr}; // actors: the hull at rest (actorHull), nullptr for Quake's box
+    // Corpses (vr_corpse_collide): the setting and the mask (corpseMask) its body was made with, and whether it is
+    // dynamic (Pushable) and fitted to its pose (its hulls: corpseHulls) or a box.
+    int corpseMode{0};
+    uint64_t corpseMask{0};
+    bool corpseDynamic{false};
+    bool corpseFitted{false};
+    float corpseFriction{0.f};
 
     // Props, held and fixtures: the settings (shapeGeneration) and the entity's box its drawn box and Mass were last
     // found the same at (stale): looked at again only when one of them changes.
@@ -596,6 +609,17 @@ struct World
     za::Vector<Bump> bumps;
     ankerl::unordered_dense::map<PropHullKey, b3HullData*, PropHullKeyHash> propHulls; // nullptr: no hull (a box instead)
     ankerl::unordered_dense::map<const qmodel_t*, za::Vector<b3HullData*>> moverHulls;
+    // Corpses' hulls fitted to their pose (corpseHulls): by model, frame and scale.
+    ankerl::unordered_dense::map<PropHullKey, za::Vector<b3HullData*>, PropHullKeyHash> corpseHulls;
+    // By edict: a dead monster's frame and model, and since when (the server's time) it has had them (watchCorpses: a
+    // death animation over, for a corpse the QC doesn't say lies still); -1: not a dead monster.
+    struct CorpseWatch
+    {
+        float frame{-1.f};
+        float model{0.f};
+        double since{-1.0};
+    };
+    za::Vector<CorpseWatch> corpseWatch;
     int steps{0};
 
     [[nodiscard]] b3Vec3 toM(const glm::vec3& u) const { return b3Vec3{u.x / m2u, u.y / m2u, u.z / m2u}; }
@@ -1351,7 +1375,7 @@ constexpr float hullTolerance = 0.2f;
 // The prop's shapes on `body`: its hull or its box.
 void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, const glm::vec3& hi, b3BodyId body, bool held)
 {
-    b3ShapeDef def = shapeDef(num, held ? catHeld : catProp, held ? catProp : propMask);
+    b3ShapeDef def = shapeDef(num, held ? catHeld : catProp, held ? catProp | catCorpse : propMask);
     if(!held && isSolidProp(ent))
     {
         def.filter.categoryBits |= catSolid; // pushed and tipped by the hands' bodies
@@ -1401,6 +1425,9 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     return ofs >= 0 && fieldFloat(ent, ofs) != 0.f;
 }
 
+[[nodiscard]] bool isCorpse(edict_t* ent, int num); // (below)
+[[nodiscard]] int corpseMode();
+
 [[nodiscard]] Kind kindOf(edict_t* ent, int num, const za::Vector<uint8_t>& carried)
 {
     const int movetype = static_cast<int>(ent->v.movetype);
@@ -1427,6 +1454,10 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     {
         return Kind::Fixture;
     }
+    if(corpseMode() != 0 && isCorpse(ent, num))
+    {
+        return Kind::Corpse;
+    }
     if(num <= svs.maxclients)
     {
         return vr_box3d_player_push.value && solid != SOLID_NOT && ent->v.health > 0.f ? Kind::Player : Kind::None;
@@ -1448,6 +1479,298 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     const FieldOffsets& f = fields();
     const glm::vec3 a = fieldVec(ent, f.model_scale), b = fieldVec(ent, f.model_scale_origin), c = fieldVec(ent, f.model_offset);
     return {a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z};
+}
+
+// ----------------------------------------------------------------------------
+// Corpses in the physics (vr_corpse_collide; ROUND21.md, "Corpse collision"). A dead monster lying still (the QC's
+// corpse, vr_corpse 2: VR_Corpse_Arm; or any dead monster whose frame has stopped changing: the bosses, vr_corpse_gib 0)
+// is a body that props, thrown things and the hands' bodies meet: Fixed, a kinematic body following its entity (nothing
+// moves it); Pushable, a heavy dynamic body (vr_corpse_collide_mass, vr_corpse_collide_friction) that slides on the
+// floor, upright (it only turns about its yaw), pushed by what meets it as by mass (limitPushes: the hands, held things;
+// a player walking into it shoves it, shoveBumped), its entity following it. Its shape: its lying box (Quake's, no
+// taller than corpseTop), or hulls fitted to its pose (corpseHulls: its drawn frame cut in pieces along its length).
+// The entity stays touchable and not solid: shots, missiles, blows and flames meet it as before (MOVE_HITGIBS, precise
+// hits). Players and monsters meet it in Quake's moves (VR_CorpseBox: vr_corpse_collide_player, _monsters).
+// One body per corpse, as a ragdoll's would be a few joined ones: the kind, the categories and the passes (corpseMask,
+// shouldCollide, noteCorpseInside) are the ragdoll's to keep.
+constexpr float corpseSettle = 0.5f; // s: a dead monster's frame unchanged this long lies still (no vr_corpse 2)
+constexpr float corpseTop = 24.f;    // units: a corpse's box no taller (VR_Corpse_Arm's lying box's most)
+constexpr float corpseStep = 16.f;   // units: a corpse a player or monster steps over is this high to them (Quake's step: 18)
+constexpr float corpsePiece = 24.f;  // units: the pieces of a fitted shape about this long (corpseHulls)
+
+[[nodiscard]] int corpseMode()
+{
+    return CLAMP(0, static_cast<int>(vr_corpse_collide.value), 4);
+}
+
+// A dead monster, not solid, not a gib or head (those are props), not thrown about (a bouncing body).
+[[nodiscard]] bool deadMonster(edict_t* ent)
+{
+    if(!hasFlag(ent, FL_MONSTER) || ent->v.health > 0.f)
+    {
+        return false;
+    }
+    const int solid = static_cast<int>(ent->v.solid), movetype = static_cast<int>(ent->v.movetype);
+    if((solid != SOLID_NOT && solid != SOLID_NOT_BUT_TOUCHABLE) || movetype == MOVETYPE_BOUNCE ||
+        movetype == MOVETYPE_NOCLIP || movetype == MOVETYPE_FLYMISSILE || movetype == MOVETYPE_PUSH)
+    {
+        return false;
+    }
+    if(isRigid(ent) || fieldFloatOr(ent, fields().vr_gib, 0.f) != 0.f)
+    {
+        return false;
+    }
+    const qmodel_t* model = modelOf(ent);
+    return model && model->type == mod_alias;
+}
+
+// Once a frame, before the bodies: each dead monster's frame and model, and since when it has had them.
+void watchCorpses()
+{
+    auto& watch = world->corpseWatch;
+    watch.resize(static_cast<size_t>(qcvm->num_edicts));
+    const bool on = corpseMode() != 0;
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    {
+        World::CorpseWatch& w = watch[static_cast<size_t>(num)];
+        edict_t* ent = EDICT_NUM(num);
+        if(!on || ent->free || !deadMonster(ent))
+        {
+            w = World::CorpseWatch{};
+            continue;
+        }
+        if(w.since < 0.0 || w.frame != ent->v.frame || w.model != ent->v.modelindex)
+        {
+            w.frame = ent->v.frame;
+            w.model = ent->v.modelindex;
+            w.since = qcvm->time;
+        }
+    }
+}
+
+// Whether `ent` is a corpse lying still: the QC's (vr_corpse 2), or a dead monster (not one the QC still watches dying,
+// vr_corpse 1) whose frame has stayed for corpseSettle, on the ground (or swimming, or stopped).
+[[nodiscard]] bool isCorpse(edict_t* ent, int num)
+{
+    if(num <= svs.maxclients || num >= static_cast<int>(world->corpseWatch.size()))
+    {
+        return false;
+    }
+    const World::CorpseWatch& w = world->corpseWatch[static_cast<size_t>(num)];
+    if(w.since < 0.0)
+    {
+        return false;
+    }
+    const float state = fieldFloatOr(ent, fields().vr_corpse, 0.f);
+    if(state >= 2.f)
+    {
+        return true;
+    }
+    return state == 0.f && qcvm->time - w.since >= corpseSettle &&
+           (hasFlag(ent, FL_ONGROUND) || hasFlag(ent, FL_SWIM) || glm::length(vec(ent->v.velocity)) < 1.f);
+}
+
+// Its lying box (units, from its origin): Quake's (VR_Corpse_Arm's, low and wide), no taller than corpseTop.
+void corpseBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
+{
+    lo = vec(ent->v.mins);
+    hi = vec(ent->v.maxs);
+    hi.z = za::min(hi.z, lo.z + corpseTop);
+    hi = glm::max(hi, lo + glm::vec3{2.f});
+}
+
+// The categories a corpse's body meets: the level and the doors (a pushable one rests and slides on them), the loose
+// props (and thrown ones: shouldCollide sorts them, vr_corpse_collide_props and _thrown), what the hands hold and the
+// hands' bodies (vr_corpse_collide_held: they push a pushable one; both kinematic, a fixed one and they pass).
+[[nodiscard]] uint64_t corpseMask()
+{
+    uint64_t mask = catWorld | catMover;
+    if(vr_corpse_collide_props.value || vr_corpse_collide_thrown.value)
+    {
+        mask |= catProp;
+    }
+    if(vr_corpse_collide_held.value)
+    {
+        mask |= catHeld | catReach;
+    }
+    return mask;
+}
+
+// A shape fitted to a corpse's pose: its drawn frame (in its axes, from its origin; nothing below its box's floor) cut
+// across its length (its vertices' main horizontal axis) into pieces about corpsePiece units long, each piece's convex
+// hull (a unit over into the next: no gaps at the cuts). Made once per model, frame and scale. Empty: its box.
+[[nodiscard]] const za::Vector<b3HullData*>& corpseHulls(edict_t* ent, qmodel_t* model)
+{
+    const float floor = ent->v.mins[2] + 0.25f;
+    const za::Array<float, 9> scale = scaleFields(ent);
+    const PropHullKey key{model, static_cast<int>(ent->v.frame), {scale[0], scale[1], scale[2], scale[3], scale[4], floor}};
+    auto it = world->corpseHulls.find(key);
+    if(it != world->corpseHulls.end())
+    {
+        return it->second;
+    }
+    za::Vector<b3HullData*> hulls;
+    za::Vector<glm::vec3>& vertices = scratch.actorVerts;
+    if(held::drawnVertices(ent, vertices) && vertices.size() >= 4)
+    {
+        // Its main horizontal axis: the larger eigenvector of the vertices' spread (a 2x2 covariance).
+        glm::vec2 mean{0.f};
+        for(glm::vec3& v : vertices)
+        {
+            v.z = za::max(v.z, floor);
+            mean += glm::vec2{v.x, v.y};
+        }
+        mean /= static_cast<float>(vertices.size());
+        float xx = 0.f, xy = 0.f, yy = 0.f;
+        for(const glm::vec3& v : vertices)
+        {
+            const glm::vec2 d = glm::vec2{v.x, v.y} - mean;
+            xx += d.x * d.x;
+            xy += d.x * d.y;
+            yy += d.y * d.y;
+        }
+        const float angle = 0.5f * za::atan2(2.f * xy, xx - yy);
+        const glm::vec2 axis{za::cos(angle), za::sin(angle)};
+        float from = 1e9f, to = -1e9f;
+        for(const glm::vec3& v : vertices)
+        {
+            const float t = glm::dot(glm::vec2{v.x, v.y}, axis);
+            from = za::min(from, t);
+            to = za::max(to, t);
+        }
+        const int pieces = CLAMP(1, static_cast<int>((to - from) / corpsePiece + 0.5f), 4);
+        const float length = (to - from) / static_cast<float>(pieces);
+        za::Vector<b3Vec3> points;
+        for(int p = 0; p < pieces; p++)
+        {
+            const float a = from + length * static_cast<float>(p) - 1.f, b = from + length * static_cast<float>(p + 1) + 1.f;
+            points.clear();
+            for(const glm::vec3& v : vertices)
+            {
+                const float t = glm::dot(glm::vec2{v.x, v.y}, axis);
+                if(t >= a && t <= b)
+                {
+                    points.pushBack(world->toM(v));
+                }
+            }
+            b3HullData* hull = points.size() >= 4 ? b3CreateHull(points.data(), static_cast<int>(points.size()), 16) : nullptr;
+            if(hull && hull->innerRadius * world->m2u < 0.5f)
+            {
+                b3DestroyHull(hull); // (flat: a piece of a thin limb)
+                hull = nullptr;
+            }
+            if(hull)
+            {
+                hulls.pushBack(hull);
+            }
+        }
+    }
+    if(vr_debug_box3d.value)
+    {
+        Con_Printf("box3d: corpse %s frame %d: %d hulls fitted\n", model->name, key.frame, static_cast<int>(hulls.size()));
+    }
+    return world->corpseHulls.emplace(key, static_cast<za::Vector<b3HullData*>&&>(hulls)).first->second;
+}
+
+// Whether a corpse is a dynamic body (Pushable: vr_corpse_collide 2 and 4): not one floating in the water (a fish's, an
+// eel's: nothing lifts it; it stays where it floats).
+[[nodiscard]] bool corpsePushable(edict_t* ent)
+{
+    const int mode = corpseMode();
+    return (mode == 2 || mode == 4) && !hasFlag(ent, FL_SWIM);
+}
+
+// The props a corpse's body is made in (a monster's drop lying where it fell, gibs under it, a box it fell onto): they pass
+// through it until clear of it (World::inside, shouldCollide), as a small gib made inside a monster does (noteBornInside),
+// rather than Box3D pushing them out of it. Its shapes less a centimetre: what only touches it (a box resting on it, its
+// body made again) still meets it.
+void noteCorpseInside(int num, const Slot& s)
+{
+    b3QueryFilter filter = b3DefaultQueryFilter();
+    filter.categoryBits = catCorpse;
+    filter.maskBits = catProp;
+    constexpr float sink = 0.01f; // m
+    za::Array<b3ShapeId, 8> shapes;
+    const int count = b3Body_GetShapes(s.body, shapes.data(), static_cast<int>(shapes.size()));
+    const b3WorldTransform xf = b3Body_GetTransform(s.body);
+    za::Array<b3Vec3, B3_MAX_SHAPE_CAST_POINTS> points;
+    for(int k = 0; k < count; k++)
+    {
+        if(b3Shape_GetType(shapes[k]) != b3_hullShape)
+        {
+            continue;
+        }
+        const b3HullData* hull = b3Shape_GetHull(shapes[k]);
+        const b3Vec3* p = b3GetHullPoints(hull);
+        const b3Vec3 c = hull->center;
+        const int n = za::min(hull->vertexCount, static_cast<int>(points.size()));
+        for(int v = 0; v < n; v++)
+        {
+            b3Vec3 q = p[v];
+            q.x = q.x > c.x ? za::max(c.x, q.x - sink) : za::min(c.x, q.x + sink);
+            q.y = q.y > c.y ? za::max(c.y, q.y - sink) : za::min(c.y, q.y + sink);
+            q.z = q.z > c.z ? za::max(c.z, q.z - sink) : za::min(c.z, q.z + sink);
+            points[static_cast<size_t>(v)] = b3RotateVector(xf.q, q);
+        }
+        const b3ShapeProxy proxy{points.data(), n, 0.f};
+        b3World_OverlapShape(world->id, xf.p, &proxy, filter,
+            [](b3ShapeId shape, void* raw) {
+                const int corpse = *static_cast<const int*>(raw);
+                const int prop = numOf(shape);
+                auto& in = world->inside;
+                if(prop > 0 && prop < static_cast<int>(world->slots.size()) && world->slots[prop].kind == Kind::Prop &&
+                    !za::anyOf(in.begin(), in.end(), [&](const World::Inside& i) { return i.prop == prop && i.other == corpse; }))
+                {
+                    in.pushBack({prop, corpse, world->slots[prop].born});
+                    if(vr_debug_box3d.value)
+                    {
+                        Con_Printf("box3d: %d %s inside corpse %d as it is made: passes through until clear\n", prop,
+                            PR_GetString(EDICT_NUM(prop)->v.classname), corpse);
+                    }
+                }
+                return true;
+            },
+            const_cast<int*>(&num));
+    }
+}
+
+// A corpse's shapes on its body (createBody): its fitted hulls (Shape of Its Pose) or its lying box, of its mass
+// (vr_corpse_collide_mass: its density from their volume; a fixed one's only matters to nothing) and friction.
+void addCorpseShapes(edict_t* ent, int num, qmodel_t* model, Slot& s)
+{
+    glm::vec3 lo, hi;
+    corpseBox(ent, lo, hi);
+    s.mins = lo;
+    s.maxs = hi;
+    b3ShapeDef def = shapeDef(num, catCorpse, s.corpseMask);
+    def.enableCustomFiltering = true; // (shouldCollide: thrown things, vr_corpse_collide_thrown; what it is made in)
+    def.baseMaterial.friction = za::max(s.corpseFriction, 0.f);
+    const za::Vector<b3HullData*>* hulls = s.corpseFitted ? &corpseHulls(ent, model) : nullptr;
+    const glm::vec3 boxLo{lo.x, lo.y, lo.z + 0.25f}; // (a hair off the floor it lies on, as the fitted hulls)
+    const glm::vec3 half = (hi - boxLo) * 0.5f / world->m2u;
+    float volume = 8.f * half.x * half.y * half.z;
+    if(hulls && !hulls->empty())
+    {
+        volume = 0.f;
+        for(const b3HullData* hull : *hulls)
+        {
+            volume += hull->volume;
+        }
+    }
+    def.density = za::max(s.massSetting, 1.f) / za::max(volume, 1e-6f);
+    if(hulls && !hulls->empty())
+    {
+        for(const b3HullData* hull : *hulls)
+        {
+            b3CreateHullShape(s.body, &def, hull);
+        }
+    }
+    else
+    {
+        const b3BoxHull box = b3MakeOffsetBoxHull(half.x, half.y, half.z, world->toM((boxLo + hi) * 0.5f));
+        b3CreateHullShape(s.body, &def, &box.base);
+    }
+    noteCorpseInside(num, s);
 }
 
 [[nodiscard]] float playerRadius()
@@ -1527,6 +1850,15 @@ void updateShapeGeneration()
     case Kind::Mover: return s.model != modelOf(ent);
     case Kind::Actor: return s.model != modelOf(ent) || s.mins != vec(ent->v.mins) || s.maxs != vec(ent->v.maxs);
     case Kind::Player: return s.radius != playerRadius() || s.mins != vec(ent->v.mins) || s.maxs != vec(ent->v.maxs);
+    case Kind::Corpse:
+    {
+        glm::vec3 lo, hi;
+        corpseBox(ent, lo, hi);
+        return s.model != modelOf(ent) || s.corpseMode != corpseMode() || s.corpseMask != corpseMask() || s.mins != lo ||
+               s.maxs != hi || (s.corpseFitted && s.frame != static_cast<int>(ent->v.frame)) ||
+               s.massSetting != vr_corpse_collide_mass.value || s.corpseFriction != vr_corpse_collide_friction.value ||
+               s.corpseDynamic != corpsePushable(ent);
+    }
     default: return false;
     }
 }
@@ -1544,11 +1876,11 @@ void writeProp(edict_t* ent, Slot& s);
 // with their angles.
 [[nodiscard]] b3Quat rotationOf(edict_t* ent, const Slot& s)
 {
-    if(s.kind == Kind::Player || (s.kind == Kind::Actor && !s.hull))
+    if(s.kind == Kind::Player || (s.kind == Kind::Actor && !s.hull) || (s.kind == Kind::Corpse && !s.corpseFitted))
     {
         return b3Quat_identity;
     }
-    if(s.kind == Kind::Actor)
+    if(s.kind == Kind::Actor || s.kind == Kind::Corpse)
     {
         const float yaw[3] = {0.f, ent->v.angles[1], 0.f};
         return toB3(turnOf(yaw, s.brush));
@@ -1658,12 +1990,32 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     {
         world->made.pushBack(num); // (noteThrows)
     }
+    if(kind == Kind::Corpse)
+    {
+        s.corpseMode = corpseMode();
+        s.corpseMask = corpseMask();
+        s.corpseFitted = s.corpseMode >= 3;
+        s.corpseDynamic = corpsePushable(ent);
+        s.massSetting = vr_corpse_collide_mass.value;
+        s.corpseFriction = vr_corpse_collide_friction.value;
+    }
 
     b3BodyDef def = b3DefaultBodyDef();
     def.userData = userOf(num);
     def.position = world->toM(s.origin);
     def.rotation = rotationOf(ent, s);
-    def.type = kind == Kind::Prop ? b3_dynamicBody : b3_kinematicBody;
+    def.type = kind == Kind::Prop || (kind == Kind::Corpse && s.corpseDynamic) ? b3_dynamicBody : b3_kinematicBody;
+    if(kind == Kind::Corpse && s.corpseDynamic)
+    {
+        // Lying as it lies (asleep until something meets it), upright: it slides and turns about its yaw (a box: not
+        // even that, square to Quake's box), slowed as a heavy thing dragged.
+        def.isAwake = false;
+        def.motionLocks.angularX = true;
+        def.motionLocks.angularY = true;
+        def.motionLocks.angularZ = !s.corpseFitted;
+        def.linearDamping = 0.5f;
+        def.angularDamping = 2.f;
+    }
 
     if(kind == Kind::Prop)
     {
@@ -1693,7 +2045,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
     }
     case Kind::Mover:
     {
-        const b3ShapeDef def2 = shapeDef(num, catMover, catProp);
+        const b3ShapeDef def2 = shapeDef(num, catMover, catProp | catCorpse);
         for(b3HullData* hull : moverHulls(model))
         {
             b3CreateHullShape(s.body, &def2, hull);
@@ -1715,6 +2067,7 @@ void createBody(edict_t* ent, int num, Slot& s, Kind kind, bool resized = false)
         b3CreateHullShape(s.body, &def2, &box.base);
         break;
     }
+    case Kind::Corpse: addCorpseShapes(ent, num, model, s); break;
     case Kind::Fixture:
     {
         glm::vec3 lo, hi;
@@ -1958,12 +2311,13 @@ void traceGibContacts()
 // A body its shape is sunk in (deeper than 1 cm, not one it is only touching: a gib made just outside a monster
 // meets it, Pass Through the Body 0); a reach body its box overlaps, a little grown (a blade a step away still passes).
 // A monster's drop (a weapon, a backpack) made inside the player standing on it, or the monster, likewise
-// (vr_prop_drop_pass_inside): pushed out, it flew into him at 280 u/s.
-void noteBornInside(int num, const Slot& s)
+// (vr_prop_drop_pass_inside): pushed out, it flew into him at 280 u/s. `corpsesOnly`: any other prop just made (dropped
+// through a corpse to the floor under it, let go of in one) passes through the corpses it is in (vr_corpse_collide).
+void noteBornInside(int num, const Slot& s, bool corpsesOnly = false)
 {
     b3QueryFilter filter = b3DefaultQueryFilter();
     filter.categoryBits = catProp;
-    filter.maskBits = catActor | catPlayer;
+    filter.maskBits = corpsesOnly ? catCorpse : catActor | catPlayer | catCorpse;
     struct Context
     {
         int num;
@@ -2008,6 +2362,15 @@ void noteBornInside(int num, const Slot& s)
             &context);
     }
     constexpr float margin = 0.05f; // m
+    if(corpsesOnly)
+    {
+        if(vr_debug_box3d.value &&
+            za::anyOf(world->inside.begin(), world->inside.end(), [num](const World::Inside& i) { return i.prop == num; }))
+        {
+            Con_Printf("box3d: %d %s made inside a corpse: passes through until clear\n", num, PR_GetString(EDICT_NUM(num)->v.classname));
+        }
+        return;
+    }
     b3AABB box = b3Body_ComputeAABB(s.body);
     box.lowerBound = b3v(glmv(box.lowerBound) - glm::vec3{margin});
     box.upperBound = b3v(glmv(box.upperBound) + glm::vec3{margin});
@@ -2051,7 +2414,7 @@ void pruneInside()
         const Slot& p = world->slots[static_cast<size_t>(i.prop)];
         const Slot& o = world->slots[static_cast<size_t>(i.other)];
         if(p.kind != Kind::Prop || p.born != i.born || B3_IS_NULL(p.body) ||
-            (o.kind != Kind::Actor && o.kind != Kind::Player) || B3_IS_NULL(o.body))
+            (o.kind != Kind::Actor && o.kind != Kind::Player && o.kind != Kind::Corpse) || B3_IS_NULL(o.body))
         {
             return true;
         }
@@ -2117,6 +2480,10 @@ void noteThrows()
             (vr_prop_drop_pass_inside.value && dropAge >= 0.f && dropAge < 0.1f))
         {
             noteBornInside(num, s);
+        }
+        else if(corpseMode() != 0)
+        {
+            noteBornInside(num, s, true);
         }
         const b3AABB box = b3Body_ComputeAABB(s.body);
         const float reach = za::min(0.5f * glm::length(glmv(box.upperBound) - glmv(box.lowerBound)), 0.5f); // m
@@ -2556,7 +2923,7 @@ void makeReach(
     hb.reach = b3CreateBody(world->id, &def);
     const bool weapon = key.what == Key::Weapon || key.what == Key::Capsule;
     const uint64_t category = weapon ? catReachWeapon : catReachHand;
-    b3ShapeDef shape = shapeDef(i, category, catProp);
+    b3ShapeDef shape = shapeDef(i, category, catProp | catCorpse);
     shape.enableCustomFiltering = true; // (shouldCollide: reachMeets)
     shape.enablePreSolveEvents = true;  // (preSolve)
     switch(key.what)
@@ -3010,6 +3377,57 @@ void feedProp(edict_t* ent, Slot& s)
     s.spin = spin;
 }
 
+// A pushable corpse, before the step: moved by Quake or the QC (a lift's push, a teleport, setorigin) its body goes
+// there; a velocity given it (a knock) is its body's, never Quake's own move (its entity stays on the ground).
+void feedCorpse(edict_t* ent, Slot& s)
+{
+    const glm::vec3 origin = vec(ent->v.origin);
+    if(origin != s.origin)
+    {
+        b3Body_SetTransform(s.body, world->toM(origin), rotationOf(ent, s));
+        b3Body_SetAwake(s.body, true);
+        s.origin = origin;
+    }
+    const glm::vec3 v = vec(ent->v.velocity);
+    if(glm::length(v) > 1.f)
+    {
+        b3Body_SetAwake(s.body, true);
+        b3Body_SetLinearVelocity(s.body, b3v(glmv(b3Body_GetLinearVelocity(s.body)) + glmv(world->toM(v))));
+        if(vr_debug_box3d.value)
+        {
+            Con_Printf("box3d: corpse %d knocked by QC: %.0f u/s\n", NUM_FOR_EDICT(ent), glm::length(v));
+        }
+    }
+    ent->v.velocity[0] = ent->v.velocity[1] = ent->v.velocity[2] = 0.f;
+    setFlag(ent, FL_ONGROUND, true);
+}
+
+// A pushable corpse, after the step: its entity where its body is, turned as it (its yaw: a fitted one).
+void writeCorpse(edict_t* ent, Slot& s)
+{
+    const b3WorldTransform xf = b3Body_GetTransform(s.body);
+    glm::vec3 origin = world->toU(xf.p);
+    if(origin.z < world->map->mins[2] - 1024.f)
+    {
+        // (Fallen out of the world: it stops there, as a prop.)
+        b3Body_SetLinearVelocity(s.body, b3Vec3_zero);
+        b3Body_SetAngularVelocity(s.body, b3Vec3_zero);
+        b3Body_SetAwake(s.body, false);
+    }
+    store(origin, ent->v.origin);
+    if(s.corpseFitted)
+    {
+        const glm::quat q = fromB3(xf.q);
+        ent->v.angles[1] = glm::degrees(za::atan2(2.f * (q.w * q.z + q.x * q.y), 1.f - 2.f * (q.y * q.y + q.z * q.z)));
+    }
+    ent->v.velocity[0] = ent->v.velocity[1] = ent->v.velocity[2] = 0.f;
+    setFlag(ent, FL_ONGROUND, true);
+    SV_LinkEdict(ent, false);
+    s.origin = vec(ent->v.origin);
+    s.angles = vec(ent->v.angles);
+    s.asleep = !b3Body_IsAwake(s.body);
+}
+
 // The entities, every server frame in edict order: each one's body made, moved, fed or destroyed.
 void syncEntities(float dt)
 {
@@ -3039,6 +3457,7 @@ void syncEntities(float dt)
     }
 
     updateShapeGeneration();
+    watchCorpses();
     for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
@@ -3062,6 +3481,16 @@ void syncEntities(float dt)
         case Kind::Actor:
         case Kind::Player:
         case Kind::Fixture: follow(ent, s, dt); break;
+        case Kind::Corpse:
+            if(s.corpseDynamic)
+            {
+                feedCorpse(ent, s);
+            }
+            else
+            {
+                follow(ent, s, dt);
+            }
+            break;
         default: break;
         }
     }
@@ -3757,6 +4186,15 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
     {
         return false; // (a small gib made inside this body: noteBornInside)
     }
+    // A corpse and a loose prop: as the settings say, by whether it flies from a throw (vr_corpse_collide_thrown) or not
+    // (vr_corpse_collide_props).
+    const Kind ka = na < static_cast<int>(world->slots.size()) ? world->slots[na].kind : Kind::None;
+    const Kind kb = nb < static_cast<int>(world->slots.size()) ? world->slots[nb].kind : Kind::None;
+    if((ka == Kind::Corpse && kb == Kind::Prop) || (kb == Kind::Corpse && ka == Kind::Prop))
+    {
+        const Slot& prop = world->slots[ka == Kind::Prop ? na : nb];
+        return (prop.flight ? vr_corpse_collide_thrown.value : vr_corpse_collide_props.value) != 0.f;
+    }
     const edict_t* ea = EDICT_NUM(na);
     const edict_t* eb = EDICT_NUM(nb);
     return ea->v.owner != EDICT_TO_PROG(eb) && eb->v.owner != EDICT_TO_PROG(ea);
@@ -3899,6 +4337,12 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
     return 0.f;
 }
 
+// What the hands' bodies push by mass (notePushed, limitPushes): a loose prop, a pushable corpse.
+[[nodiscard]] bool pushedByMass(const Slot& s)
+{
+    return s.kind == Kind::Prop || (s.kind == Kind::Corpse && s.corpseDynamic);
+}
+
 // Before a step: the props near the hands' bodies (the reach bodies, the fists, the carried props) and their motion.
 void notePushed(float dt)
 {
@@ -3921,11 +4365,11 @@ void notePushed(float dt)
         box.lowerBound = b3v(lo - glm::vec3{reach});
         box.upperBound = b3v(hi + glm::vec3{reach});
         b3QueryFilter filter = b3DefaultQueryFilter();
-        filter.maskBits = catProp;
+        filter.maskBits = catProp | catCorpse;
         b3World_OverlapAABB(world->id, box, filter,
             [](b3ShapeId shape, void*) {
                 const int num = numOf(shape);
-                if(num <= 0 || num >= static_cast<int>(world->slots.size()) || world->slots[num].kind != Kind::Prop)
+                if(num <= 0 || num >= static_cast<int>(world->slots.size()) || !pushedByMass(world->slots[num]))
                 {
                     return true;
                 }
@@ -3966,7 +4410,7 @@ void limitPushes(float dt)
     for(const Pushed& p : world->pushed)
     {
         const Slot& s = world->slots[static_cast<size_t>(p.num)];
-        if(s.kind != Kind::Prop || !b3Body_IsValid(s.body))
+        if(!pushedByMass(s) || !b3Body_IsValid(s.body))
         {
             continue;
         }
@@ -4132,6 +4576,13 @@ void destroyWorld()
             b3DestroyHull(hull);
         }
     }
+    for(auto& [key, hulls] : world->corpseHulls)
+    {
+        for(b3HullData* hull : hulls)
+        {
+            b3DestroyHull(hull);
+        }
+    }
     for(auto& [model, hulls] : world->moverHulls)
     {
         for(b3HullData* hull : hulls)
@@ -4183,7 +4634,7 @@ void buildWorld()
         body.type = b3_staticBody;
         body.userData = userOf(0);
         const b3BodyId id = b3CreateBody(world->id, &body);
-        b3ShapeDef shape = shapeDef(0, catWorld, catProp);
+        b3ShapeDef shape = shapeDef(0, catWorld, catProp | catCorpse);
         world->worldShape = b3CreateMeshShape(id, &shape, world->mesh, b3Vec3_one);
     }
     world->slots.resize(static_cast<size_t>(qcvm->num_edicts) + 64);
@@ -4849,6 +5300,99 @@ void mtbench_f()
     Con_Printf("vr_physics_mtbench: %s\n", same ? "the same with every worker count" : "DIFFERENT between worker counts");
 }
 
+// vr_corpse_list: the corpses in the physics (vr_corpse_collide): each one's body (fixed or pushable, its box or its
+// fitted hulls, its mass), where it lies and turns, and what touches it (props, held things and hands' bodies, the level).
+void corpseList_f()
+{
+    if(!sv.active || !world)
+    {
+        Con_Printf("vr_corpse_list: no Box3D world\n");
+        return;
+    }
+    const VmScope vm;
+    static constexpr const char* modes[] = {"none", "fixed box", "pushable box", "fixed pose", "pushable pose"};
+    int count = 0;
+    za::Vector<b3ContactData>& contacts = scratch.pushContacts;
+    for(int num = 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)
+    {
+        const Slot& s = world->slots[num];
+        if(s.kind != Kind::Corpse || B3_IS_NULL(s.body))
+        {
+            continue;
+        }
+        count++;
+        edict_t* e = EDICT_NUM(num);
+        contacts.resize(static_cast<za::SizeT>(za::max(b3Body_GetContactCapacity(s.body), 1)));
+        const int n = b3Body_GetContactData(s.body, contacts.data(), static_cast<int>(contacts.size()));
+        int props = 0, hands = 0, level = 0;
+        for(int c = 0; c < n; c++)
+        {
+            const b3ContactData& cd = contacts[static_cast<size_t>(c)];
+            if(cd.manifoldCount == 0 || cd.manifolds[0].pointCount == 0)
+            {
+                continue;
+            }
+            const b3ShapeId other = B3_ID_EQUALS(b3Shape_GetBody(cd.shapeIdA), s.body) ? cd.shapeIdB : cd.shapeIdA;
+            const uint64_t category = b3Shape_GetFilter(other).categoryBits;
+            props += (category & catProp) ? 1 : 0;
+            hands += (category & (catHeld | catReach)) ? 1 : 0;
+            level += (category & (catWorld | catMover)) ? 1 : 0;
+        }
+        Con_Printf("  %d %s: %s, %d shapes, %.0f kg, at %.1f %.1f %.1f yaw %.0f, %s; touching %d props, %d held/hands, %d level\n",
+            num, PR_GetString(e->v.classname), modes[CLAMP(0, s.corpseMode, 4)], b3Body_GetShapeCount(s.body),
+            s.corpseDynamic ? b3Body_GetMass(s.body) : 0.f, e->v.origin[0], e->v.origin[1], e->v.origin[2], e->v.angles[1],
+            b3Body_IsAwake(s.body) ? "awake" : "asleep", props, hands, level);
+    }
+    Con_Printf("vr_corpse_list: %d corpses in the physics (vr_corpse_collide %d)\n", count, corpseMode());
+}
+
+// vr_corpse_drop [<height>]: the loose prop nearest the first player put `height` units (32) over the top of the corpse
+// nearest him, at rest, to fall on it. For tests (Debug menu: Drop the Nearest Prop on the Nearest Corpse).
+void corpseDrop_f()
+{
+    if(!sv.active || !world || svs.maxclients < 1)
+    {
+        return;
+    }
+    const VmScope vm;
+    const glm::vec3 eye = vec(EDICT_NUM(1)->v.origin);
+    int corpse = 0, prop = 0;
+    float corpseD = 1e9f, propD = 1e9f;
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts && num < static_cast<int>(world->slots.size()); num++)
+    {
+        const Slot& s = world->slots[num];
+        const float d = glm::distance(eye, vec(EDICT_NUM(num)->v.origin));
+        if(s.kind == Kind::Corpse && d < corpseD)
+        {
+            corpse = num;
+            corpseD = d;
+        }
+        else if(s.kind == Kind::Prop && d < propD)
+        {
+            prop = num;
+            propD = d;
+        }
+    }
+    if(!corpse || !prop)
+    {
+        Con_Printf("vr_corpse_drop: no %s\n", corpse ? "loose prop" : "corpse in the physics");
+        return;
+    }
+    edict_t* c = EDICT_NUM(corpse);
+    edict_t* p = EDICT_NUM(prop);
+    const float height = Cmd_Argc() > 1 ? Q_atof(Cmd_Argv(1)) : 32.f;
+    const b3AABB box = b3Body_ComputeAABB(world->slots[corpse].body);
+    const glm::vec3 top = (world->toU(box.lowerBound) + world->toU(box.upperBound)) * 0.5f;
+    const float bottom = world->toU(box.upperBound).z + height;
+    const glm::vec3 to{top.x - 0.5f * (p->v.mins[0] + p->v.maxs[0]), top.y - 0.5f * (p->v.mins[1] + p->v.maxs[1]), bottom - p->v.mins[2]};
+    store(to, p->v.origin);
+    p->v.velocity[0] = p->v.velocity[1] = p->v.velocity[2] = 0.f;
+    setFlag(p, FL_ONGROUND, false);
+    SV_LinkEdict(p, false);
+    Con_Printf("vr_corpse_drop: %d %s put over corpse %d %s (its top at %.1f) at %.1f %.1f %.1f\n", prop,
+        PR_GetString(p->v.classname), corpse, PR_GetString(c->v.classname), world->toU(box.upperBound).z, to.x, to.y, to.z);
+}
+
 // vr_physics_list [<classname | props>]: the rigid bodies (or those), where they are and how they move.
 void list_f()
 {
@@ -5230,6 +5774,8 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_spawn", spawn_f);
         Cmd_AddCommand("vr_physics_fling", fling_f);
         Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
+        Cmd_AddCommand("vr_corpse_list", corpseList_f);
+        Cmd_AddCommand("vr_corpse_drop", corpseDrop_f);
     }
 }
 
@@ -5366,6 +5912,8 @@ namespace
     case Kind::Actor: return {1.f, 0.45f, 0.1f, 0.9f}; // monsters: orange
     case Kind::Player: return {0.2f, 0.9f, 1.f, 0.6f}; // players: cyan
     case Kind::Fixture: return {0.75f, 0.75f, 0.75f, 0.8f}; // pickups hanging: grey
+    case Kind::Corpse:
+        return s.corpseDynamic && awake ? glm::vec4{1.f, 0.4f, 0.6f, 1.f} : glm::vec4{0.7f, 0.2f, 0.3f, 0.9f}; // corpses: dark red (pushed: pink)
     default: return {1.f, 0.f, 0.f, 1.f};
     }
 }
@@ -5922,8 +6470,8 @@ namespace
 [[nodiscard]] b3QueryFilter levelFilter()
 {
     b3QueryFilter filter = b3DefaultQueryFilter();
-    filter.categoryBits = catProp;
-    filter.maskBits = catWorld | catMover;
+    filter.categoryBits = catProp | catHeld;
+    filter.maskBits = catWorld | catMover | (vr_corpse_collide_held.value ? catCorpse : 0); // (a corpse: its mask says)
     return filter;
 }
 
@@ -6231,6 +6779,14 @@ namespace
            static_cast<int>(EDICT_NUM(num)->v.solid) == SOLID_BBOX;
 }
 
+// Whether `num` is a pushable corpse with a body (vr_corpse_collide 2, 4): a player walking into it shoves it as a solid
+// prop (VR_PlayerBumps, shoveBumped), when he meets it (vr_corpse_collide_player).
+[[nodiscard]] bool pushableCorpse(int num)
+{
+    return num > svs.maxclients && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts &&
+           world->slots[num].kind == Kind::Corpse && world->slots[num].corpseDynamic && B3_IS_NON_NULL(world->slots[num].body);
+}
+
 // Before the step: each solid prop a player walked into this frame (VR_PlayerBumps: Quake's move stopped at its side)
 // is shoved, as Source's player shadow shoves what it walks into: towards his pace (vr_box3d_player_push_speed at full
 // stick) shared by their masses (vr_box3d_player_shove of his vr_box3d_player_mass, and its own: a light box goes at
@@ -6243,7 +6799,7 @@ void shoveBumped(float dt)
     const float g = -b3World_GetGravity(world->id).z;
     for(const World::Bump& b : world->bumps)
     {
-        if(share <= 0.f || !solidProp(b.num))
+        if(share <= 0.f || (!solidProp(b.num) && !pushableCorpse(b.num)))
         {
             continue;
         }
@@ -6950,15 +7506,87 @@ void inside_f()
 // weight on it (ROUND21.md, "Sliding off steep boxes").
 extern "C" int VR_StandsOn(edict_t* ent, edict_t* ground, const float* normal)
 {
-    if(!world || !vr_box3d_player_stand.value)
+    if(!world)
     {
         return 0;
     }
     const int num = NUM_FOR_EDICT(ent), g = NUM_FOR_EDICT(ground);
+    // A corpse he meets (vr_corpse_collide_player): ground, as a step.
+    if(num >= 1 && num <= svs.maxclients && g > svs.maxclients && g < static_cast<int>(world->slots.size()) &&
+        world->slots[g].kind == Kind::Corpse && vr_corpse_collide_player.value > 0.f)
+    {
+        return 1;
+    }
+    if(!vr_box3d_player_stand.value)
+    {
+        return 0;
+    }
     const float steepest = za::clamp(vr_box3d_player_slope.value, 0.f, 90.f);
     return num >= 1 && num <= svs.maxclients && g > svs.maxclients && g < static_cast<int>(world->slots.size()) &&
            world->slots[g].kind == Kind::Prop && static_cast<int>(ground->v.solid) == SOLID_BBOX &&
            normal[2] >= za::cos(glm::radians(steepest)) - 0.0001f;
+}
+
+// SV_ClipToLinks: a body's move (a player's, a monster's) and a corpse in its way (vr_corpse_collide_player, _monsters):
+// the box it meets (from the corpse's origin) is its body's as it lies (its fitted shape's or its lying box, as turned) in
+// its Quake box,
+// no taller than a step (corpseStep: Step Over; a monster always) or than corpseTop (Solid). Not if the move starts in it
+// (it fell or was pushed onto him, he stood where it came to lie): he walks out of it.
+extern "C" int VR_CorpseBox(edict_t* mover, edict_t* touch, const float* start, const float* mins, const float* maxs,
+    float* boxmins, float* boxmaxs)
+{
+    if(!world || !mover || corpseMode() == 0)
+    {
+        return 0;
+    }
+    const int num = NUM_FOR_EDICT(touch);
+    if(num >= static_cast<int>(world->slots.size()) || world->slots[num].kind != Kind::Corpse ||
+        B3_IS_NULL(world->slots[num].body))
+    {
+        return 0;
+    }
+    const int m = NUM_FOR_EDICT(mover);
+    int how = 0;
+    if(m >= 1 && m <= svs.maxclients)
+    {
+        how = static_cast<int>(vr_corpse_collide_player.value);
+    }
+    else if(hasFlag(mover, FL_MONSTER) && mover->v.health > 0.f && vr_corpse_collide_monsters.value)
+    {
+        how = 1;
+    }
+    if(how <= 0)
+    {
+        return 0;
+    }
+    const b3AABB box = b3Body_ComputeAABB(world->slots[num].body);
+    const glm::vec3 origin = vec(touch->v.origin);
+    // (Within its Quake box: what Quake's moves look for it in, SV_ClipToLinks's broad phase and its area's links.)
+    const glm::vec3 lo = glm::max(world->toU(box.lowerBound) - origin, vec(touch->v.mins));
+    glm::vec3 hi = glm::min(world->toU(box.upperBound) - origin, vec(touch->v.maxs));
+    hi.z = za::min(hi.z, lo.z + (how == 1 ? corpseStep : corpseTop));
+    if(glm::any(glm::lessThanEqual(hi - lo, glm::vec3{1.f})))
+    {
+        return 0;
+    }
+    // His feet a little into its top (walking down a slope onto it; a probe of his box a unit lower): its top is at his
+    // feet, he is on it.
+    constexpr float in = 0.1f, onTop = 3.f; // units
+    const float feet = start[2] + mins[2] - origin.z;
+    if(feet < hi.z && feet >= hi.z - onTop)
+    {
+        hi.z = za::max(feet, lo.z + 1.f);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        if(start[i] + maxs[i] <= origin[i] + lo[i] + in || start[i] + mins[i] >= origin[i] + hi[i] - in)
+        {
+            store(lo, boxmins);
+            store(hi, boxmaxs);
+            return 1;
+        }
+    }
+    return 0;
 }
 
 // SV_FlyMove: a player's move stopped by a solid prop's side (not its top: he stands on that) shoves it (shoveBumped).
@@ -6969,7 +7597,7 @@ extern "C" void VR_PlayerBumps(edict_t* ent, edict_t* other, const float* normal
         return;
     }
     const int num = NUM_FOR_EDICT(ent), g = NUM_FOR_EDICT(other);
-    if(num < 1 || num > svs.maxclients || !solidProp(g) || normal[2] < -0.7f)
+    if(num < 1 || num > svs.maxclients || (!solidProp(g) && !pushableCorpse(g)) || normal[2] < -0.7f)
     {
         return;
     }
@@ -7400,7 +8028,8 @@ extern "C" int VR_PushSkips(edict_t* ent)
         return 0;
     }
     const int num = NUM_FOR_EDICT(ent);
-    return num < static_cast<int>(world->slots.size()) && world->slots[num].kind == Kind::Prop;
+    return num < static_cast<int>(world->slots.size()) &&
+           (world->slots[num].kind == Kind::Prop || (world->slots[num].kind == Kind::Corpse && world->slots[num].corpseDynamic));
 }
 
 extern "C" void VR_PhysicsFrameEnd(void)
@@ -7499,6 +8128,11 @@ extern "C" void VR_PhysicsFrameEnd(void)
     for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
         Slot& s = world->slots[num];
+        if(s.kind == Kind::Corpse && s.corpseDynamic && (!s.asleep || b3Body_IsAwake(s.body)))
+        {
+            writeCorpse(EDICT_NUM(num), s);
+            continue;
+        }
         if(s.kind == Kind::Prop && (!s.asleep || b3Body_IsAwake(s.body)))
         {
             edict_t* ent = EDICT_NUM(num);

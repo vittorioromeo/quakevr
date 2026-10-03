@@ -143,3 +143,5 @@ QVR_FIELD(attack_finished) // slow motion with the player in its own time (vr_ti
 QVR_FIELD(offhand_attack_finished)
 QVR_FIELD(mainhand_melee_attack_finished)
 QVR_FIELD(offhand_melee_attack_finished)
+QVR_FIELD(vr_corpse) // 1 dying, 2 a corpse lying still (QC combat.qc VR_Corpse_Arm; vr_box3d.cpp: its body, vr_corpse_collide)
+QVR_FIELD(vr_gib) // a gib or head (QC): not a corpse (vr_box3d.cpp)
