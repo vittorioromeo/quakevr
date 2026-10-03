@@ -23293,3 +23293,33 @@ In VR:
       hand; vr_timescale 0.1: the switch unseen in both death animations.
 - [ ] Grab a knight's arm, leg, head; force grab one; pile knights and grunts; set one alight and fling him.
 - [ ] Ragdolls > Knight: his own Mass, Joint Friction, Joint Limits; his arms (no elbows) look right?
+
+## Ragdolls 4: the ogre, enforcer, death knight, rottweiler and scrag (2026-10-03)
+
+The knight's way (Ragdolls 3) for five more: a seed table each (vr_ragdoll.cpp), their own settings (`vr_ragdoll_<class>_*`,
+-1 Global; vr_box3d.cpp ragdollClasses) under Gibs and Corpses > Ragdoll Settings > <Enemy>, a Debug > Tests spawner each.
+The Ragdolls switch reads Off / **On (Experimental)**; its help names the monsters.
+
+**The measuring tool**: Misc/quakevr/ragdoll/rig.py (knight_rig.py made general: `python rig.py ogre` the motion clusters,
+`python rig.py ogre ogre_bones.json` the bones' fit, joints and the seed table to paste, `python rig.py ogre draw x.png
+[pose] [bones]` the clusters or bones in colour on a pose, from the side and the front). The dropped weapon is hidden as
+vr_monstermods.cpp hides it; `<monster>_bones.json` gives each bone its clusters, joint and capsule.
+
+**Loose pieces, made general** (the grunt's and the knight's rigs unchanged: 12 bones, 0.52 and 0.79 units rms): a loose
+piece is now any piece a frame hides (all of it at one point), however near the body; all of them one loose bone. A
+triangle with a repeated corner joins nothing (it draws nothing): the ogre's chainsaw was tied to his hand by one.
+
+**Ogre** (quakevr/progs/ogre.mdl: 497 vertices, 149 frames; death 112-125, 126-135). Pelvis, chest, head, upper arm,
+forearm (elbow hinge) and hand each side, thighs and shins (knee hinges; capsules 4.5 and 4): 13 bones and the loose one,
+his chainsaw (four pieces, 81 vertices, hidden in 24 poses: he drops it, QC VR_DropOgreChainsaw). His animation is the
+least rigid: clusters 1.36 units rms, bones 1.52 (1.8 with the hands on the forearms). Class rows: monster_ogre and
+monster_ogre_marksman. Tests (`MON=1 BLAST=280`): flat limp at frame 129 (33%), asleep at 5 s; stairs down them, asleep
+(parts z -89 .. -44); blast thrown and asleep; gib: no ragdoll left; save and load: made again in frame 125. The switch
+(vr_timescale 0.1, first frame drawn against the animated mesh): death 1 1.8 units rms, 6.7 at most; death 2 1.5, 6.2 (the
+rig's fit); a frame every 2 round it, the crop's change 13.9 at the switch against 5-7 before and after (the fit and
+the normals: he is drawn large in the crop).
+
+In VR:
+- [ ] Ragdolls on, kill ogres: they go limp, the chainsaw dropped beside them, none in the hand.
+- [ ] vr_timescale 0.1, kill ogres: the switch unseen in both death animations.
+- [ ] Ragdolls > Ogre: his own Mass (80 kg, the global one, may feel light for an ogre).

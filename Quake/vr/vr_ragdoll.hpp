@@ -1,4 +1,4 @@
-// vr_ragdoll.hpp -- ragdolls (experimental: the grunt and the knight; ROUND21.md, "Ragdolls"): a dead monster's body as a few
+// vr_ragdoll.hpp -- ragdolls (experimental: the monsters vr_ragdoll.cpp has a rig for; ROUND21.md, "Ragdolls"): a dead monster's body as a few
 // jointed Box3D bodies (vr_box3d.cpp, "Ragdolls") with its mesh skinned to them.
 //
 // A Quake .mdl has no skeleton: only each frame's vertex positions. The rig is derived from them when it is first

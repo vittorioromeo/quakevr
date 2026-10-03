@@ -1,4 +1,4 @@
-// vr_ragdoll.cpp -- ragdolls (experimental: the grunt and the knight): the rig derived from a .mdl's vertex animation, the skinned
+// vr_ragdoll.cpp -- ragdolls (experimental: the monsters in seedTables): the rig derived from a .mdl's vertex animation, the skinned
 // model made from it in memory, and the client's drawing of the server's ragdolls. See vr_ragdoll.hpp; the bodies and
 // joints are vr_box3d.cpp's ("Ragdolls"); ROUND21.md, "Ragdolls".
 
@@ -114,9 +114,32 @@ constexpr Seed knightSeeds[] = {
     {"shin_r", 9, Joint::Hinge, {9.3f, -2.2f, -18.6f}, {10.8f, -2.2f, -12.2f}, {10.5f, -2.3f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+// Quake VR's ogre (quakevr/progs/ogre.mdl: 497 vertices, 149 frames). The rest pose ($stand1): x forward, y left, z up;
+// hunched, his left arm forward, his right arm back with the chainsaw. Measured on his frames
+// (Misc/quakevr/ragdoll/rig.py ogre ogre_bones.json). His animation bends more than the others' (1.5 units rms with hands
+// of their own, 1.8 without). His chainsaw is four pieces (one tied to his hand by a triangle with a repeated corner,
+// which joins nothing), collapsed in his death frames (he drops it: vr_monstermods.cpp): the loose bone, hidden.
+// Death frames 112-125 ($death1-14) and 126-135 ($bdeath1-10).
+constexpr Seed ogreSeeds[] = {
+    {"pelvis", -1, Joint::Root, {0.4f, 0.4f, 6.2f}, {0.4f, 0.4f, 6.2f}, {2.f, -2.5f, 13.6f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {2.4f, -0.8f, 21.f}, {2.f, -2.5f, 13.6f}, {6.5f, -5.4f, 26.4f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {10.f, -6.9f, 31.4f}, {6.5f, -5.4f, 26.4f}, {13.4f, -8.5f, 36.4f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {11.2f, 13.2f, 19.f}, {10.4f, 7.5f, 24.4f}, {15.2f, 14.2f, 14.1f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {20.f, 16.3f, 4.4f}, {15.2f, 14.2f, 14.1f}, {25.1f, 13.5f, 1.4f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_l", 4, Joint::Ball, {28.7f, 12.5f, 3.8f}, {25.1f, 13.5f, 1.4f}, {32.3f, 11.5f, 6.3f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"upperarm_r", 1, Joint::Ball, {-9.6f, -13.9f, 21.3f}, {-3.4f, -13.5f, 24.2f}, {-14.f, -17.2f, 17.2f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 6, Joint::Hinge, {-18.1f, -16.1f, 14.7f}, {-14.f, -17.2f, 17.2f}, {-25.6f, -16.4f, 8.4f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_r", 7, Joint::Ball, {-27.3f, -16.6f, 5.7f}, {-25.6f, -16.4f, 8.4f}, {-28.9f, -16.9f, 3.f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {10.2f, 5.2f, -0.6f}, {5.5f, 4.2f, 3.4f}, {14.8f, 2.8f, -6.f}, 4.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 9, Joint::Hinge, {14.2f, 7.3f, -14.5f}, {14.8f, 2.8f, -6.f}, {13.7f, 11.8f, -23.1f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {-5.1f, -7.1f, -5.f}, {-4.3f, -3.9f, 1.9f}, {-4.6f, -11.2f, -9.9f}, 4.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 11, Joint::Hinge, {-10.1f, -8.7f, -16.4f}, {-4.6f, -11.2f, -9.9f}, {-15.7f, -6.2f, -22.9f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
+    {"progs/ogre.mdl", 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
@@ -325,7 +348,15 @@ bool loadMesh(const aliashdr_t* hdr, Mesh& m)
         int c[3];
         for(int k = 0; k < 3; k++)
         {
-            c[k] = m.rep[desc[idx[i + k]].vertindex];
+            c[k] = desc[idx[i + k]].vertindex;
+        }
+        if(c[0] == c[1] || c[1] == c[2] || c[0] == c[2])
+        {
+            continue; // (a triangle with a repeated corner draws nothing and joins nothing: the ogre's chainsaw to his hand)
+        }
+        for(int k = 0; k < 3; k++)
+        {
+            c[k] = m.rep[static_cast<za::SizeT>(c[k])];
         }
         for(int k = 0; k < 3; k++)
         {
@@ -472,7 +503,6 @@ float refine(const Mesh& m, const za::Vector<int>& reps, za::Vector<int>& label,
 }
 
 constexpr int clusterCount = 18; // the motion clusters (more than the bones: the seeds gather them)
-constexpr float looseGap = 4.f;  // units: a piece this far from the body in some pose is loose (the shotgun)
 
 bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
 {
@@ -487,7 +517,7 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
     Mesh m;
     loadMesh(hdr, m);
 
-    // The pieces (welded), the largest the body; a piece that leaves it in some pose and some pose hides is loose.
+    // The pieces (welded), the largest the body; a piece some pose hides is loose.
     za::Vector<int> piece(static_cast<za::SizeT>(m.nv), -1);
     za::Vector<int> pieceSize;
     za::Vector<int> stack;
@@ -523,48 +553,28 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
     {
         body = pieceSize[static_cast<za::SizeT>(i)] > pieceSize[static_cast<za::SizeT>(body)] ? i : body;
     }
-    za::Vector<int> reps, bodyReps;
+    za::Vector<int> reps;
     for(int v = 0; v < m.nv; v++)
     {
         if(m.rep[static_cast<za::SizeT>(v)] == v)
         {
             reps.pushBack(v);
-            if(piece[static_cast<za::SizeT>(v)] == body)
-            {
-                bodyReps.pushBack(v);
-            }
         }
     }
-    za::Vector<int> loosePieces; // the loose pieces' ids, in order (their bones follow the seeds')
+    // The loose pieces: those a frame hides, all of each at one point (the weapon he drops as he dies, which
+    // vr_monstermods.cpp collapses in his death frames: the grunt's shotgun, the knight's sword, the ogre's chainsaw in
+    // four pieces). One loose bone for them all, after the seeds'. A piece of the body that only parts from it (the
+    // knight's right gauntlet) is the body's: clustered with it.
+    za::Vector<int> loosePieces; // the loose pieces' ids
     za::Vector<uint8_t> isLoose(pieceSize.size(), 0);
-    for(int id = 0; id < static_cast<int>(pieceSize.size()); id++)
+    for(int id = 0; id < static_cast<int>(pieceSize.size()) && table.count < maxBones; id++)
     {
         if(id == body || pieceSize[static_cast<za::SizeT>(id)] < 4)
         {
             continue;
         }
-        float gap = 0.f;
-        for(int pose = 0; pose < m.np; pose += 2)
-        {
-            float nearest = 1e30f;
-            for(const int v : reps)
-            {
-                if(piece[static_cast<za::SizeT>(v)] != id)
-                {
-                    continue;
-                }
-                for(const int u : bodyReps)
-                {
-                    const glm::vec3 d = m.at(pose, v) - m.at(pose, u);
-                    nearest = za::min(nearest, glm::dot(d, d));
-                }
-            }
-            gap = za::max(gap, za::sqrt(nearest));
-        }
-        // (And one a frame hides, all of it at one point: dropped as he dies, the grunt's shotgun, the knight's sword. A
-        // piece of the body that only parts from it, the knight's right gauntlet, is the body's: clustered with it.)
         bool hidden = false;
-        for(int pose = 0; pose < m.np && !hidden && gap > looseGap; pose++)
+        for(int pose = 0; pose < m.np && !hidden; pose++)
         {
             glm::vec3 lo{1e30f}, hi{-1e30f};
             for(const int v : reps)
@@ -577,7 +587,7 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
             }
             hidden = za::max(hi.x - lo.x, za::max(hi.y - lo.y, hi.z - lo.z)) < 0.5f;
         }
-        if(gap > looseGap && hidden && table.count + static_cast<int>(loosePieces.size()) < maxBones)
+        if(hidden)
         {
             isLoose[static_cast<za::SizeT>(id)] = 1;
             loosePieces.pushBack(id);
@@ -677,18 +687,15 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
     {
         label[static_cast<za::SizeT>(v)] = boneOfCluster[static_cast<za::SizeT>(label[static_cast<za::SizeT>(v)])];
     }
-    for(int i = 0; i < static_cast<int>(loosePieces.size()); i++)
+    for(const int v : reps)
     {
-        for(const int v : reps)
+        if(isLoose[static_cast<za::SizeT>(piece[static_cast<za::SizeT>(v)])])
         {
-            if(piece[static_cast<za::SizeT>(v)] == loosePieces[static_cast<za::SizeT>(i)])
-            {
-                label[static_cast<za::SizeT>(v)] = table.count + i;
-            }
+            label[static_cast<za::SizeT>(v)] = table.count;
         }
     }
     rig.boneRms = refine(m, moving, label, table.count, 40, t);
-    const int numBones = table.count + static_cast<int>(loosePieces.size());
+    const int numBones = table.count + (loosePieces.empty() ? 0 : 1);
     for(int b = 0; b < table.count; b++)
     {
         if(t.members[static_cast<za::SizeT>(b)] < 3)

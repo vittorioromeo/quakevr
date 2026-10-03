@@ -188,6 +188,9 @@ Ragdolls: walk at one with You and Corpses on Step Over / Solid: you step onto i
 Ragdolls > Grunt: set his Mass or Joint Friction apart from the global ones (Global at the bar's left end)
 Ragdolls on the knight: they go limp, the sword dropped beside them; slow motion: the switch unseen in both death animations
 Ragdolls: grab, force grab, pile and burn knights as grunts; Ragdolls > Knight: his own settings; his arms (no elbows) look right?
+Ragdolls on the ogre: they go limp, his chainsaw dropped beside them, none left in his hand
+Ragdolls on the ogre in slow motion (vr_timescale 0.1): the switch is unseen in both his death animations
+Ragdolls > Ogre: set his own Mass apart from the global one (an ogre at 80 kg feels light?)
 
 [Decide or give feedback]
 Ragdolls: turn on by default? Next: other monsters, severing; is the grip strong enough to lift a grunt?
