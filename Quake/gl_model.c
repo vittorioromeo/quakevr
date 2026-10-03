@@ -420,6 +420,8 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
+	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
+		return mod;
 	buf = VR_DerivedModelFile (mod->name, &mod->path_id); // QVR: a model made from another's file (a taken torch's flame)
 	if (!buf)
 		buf = COM_LoadMallocFile (VR_ModelFile (mod->name), &mod->path_id); // QVR: relit maps

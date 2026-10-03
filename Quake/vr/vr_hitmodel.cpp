@@ -11,6 +11,8 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_props.hpp"
+#include "vr_mem.hpp"
+#include "vr_ragdoll.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
@@ -365,7 +367,18 @@ struct Drawn
     glm::vec3 b{0.f}, invNetScale{1.f};
     // Its model's own space (units, about its origin, unturned): local = L * v + l.
     glm::vec3 L{1.f}, l{0.f};
+    // A ragdoll (vr_ragdoll.cpp): its vertices and normals as drawn, in the world (ragdollScratch); null otherwise.
+    const glm::vec3* skinned{nullptr};
+    const glm::vec3* skinnedN{nullptr};
 };
+
+// A ragdoll's skinned vertices for the test under way (drawnOf; the server's frame: the main thread).
+struct RagdollScratch
+{
+    za::Vector<glm::vec3> pos, nor;
+    auto members() { return mem::list(pos, nor); }
+};
+mem::Scratch<RagdollScratch> ragdollScratch{"hit model ragdolls"};
 
 bool checkNoLerp = false; // (vr_hitmodel_check: the model at its frame and origin, for comparison)
 
@@ -442,6 +455,16 @@ bool drawnOf(edict_t* ent, Drawn& d)
     d.Ainv = glm::inverse(d.A);
     d.b = d.origin + d.R * d.l;
     d.invNetScale = glm::vec3{1.f} / glm::max(glm::abs(ns), glm::vec3{1e-3f});
+    // A ragdoll: its mesh as its parts carry it (the triangles tested one by one: the hierarchy's bounds are its
+    // frames').
+    if(ragdoll::skinnedVertices(NUM_FOR_EDICT(ent), ragdollScratch.pos, &ragdollScratch.nor) &&
+        ragdollScratch.pos.size() >= static_cast<za::SizeT>(d.mesh->numverts))
+    {
+        d.skinned = ragdollScratch.pos.data();
+        d.skinnedN = ragdollScratch.nor.data();
+        d.pose2 = d.pose1;
+        d.blend = 0.f;
+    }
     return true;
 }
 
@@ -454,6 +477,10 @@ struct Verts
 
     [[nodiscard]] glm::vec3 at(const Drawn& d, int vi, float grow) const
     {
+        if(d.skinned)
+        {
+            return d.skinned[vi] + d.skinnedN[vi] * grow;
+        }
         const trivertx_t& x = v1[vi];
         const trivertx_t& y = v2[vi];
         const glm::vec3 r = raw(x) + (raw(y) - raw(x)) * blend;
@@ -599,6 +626,54 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
         za::U32 node;
         float t;
     };
+    // Triangle k against the segment: the nearest crossing so far kept.
+    const auto test = [&](za::U32 k) {
+        stats.tris++;
+        const auto& t = m.tris[k];
+        const glm::vec3& p0 = vert(t[0]);
+        const glm::vec3 e1 = vert(t[1]) - p0, e2 = vert(t[2]) - p0;
+        const glm::vec3 pv = glm::cross(dir, e2);
+        const float det = glm::dot(e1, pv);
+        if(za::fabs(det) < 1e-12f)
+        {
+            return;
+        }
+        const float id = 1.f / det;
+        const glm::vec3 tv = a - p0;
+        const float u = glm::dot(tv, pv) * id;
+        if(u < 0.f || u > 1.f)
+        {
+            return;
+        }
+        const glm::vec3 qv = glm::cross(tv, e1);
+        const float v = glm::dot(dir, qv) * id;
+        if(v < 0.f || u + v > 1.f)
+        {
+            return;
+        }
+        const float tt = glm::dot(e2, qv) * id;
+        if(tt < 0.f || tt >= best)
+        {
+            return;
+        }
+        best = tt;
+        found = true;
+        f.t = tt;
+        f.tri = k;
+        f.u = u;
+        f.v = v;
+        f.faceN = glm::cross(e1, e2) * m.winding;
+        f.front = glm::dot(dir, f.faceN) < 0.f;
+    };
+    if(d.skinned)
+    {
+        // A ragdoll: every triangle (its frames' hierarchy doesn't bound it).
+        for(za::U32 k = 0; k < m.tris.size(); k++)
+        {
+            test(k);
+        }
+        return found;
+    }
     za::Array<Entry, 64> stack;
     int sp = 0;
     if(const float t = enter(0); t <= best)
@@ -644,42 +719,7 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
         }
         for(za::U32 k = nd.first; k < nd.first + nd.count; k++)
         {
-            stats.tris++;
-            const auto& t = m.tris[k];
-            const glm::vec3& p0 = vert(t[0]);
-            const glm::vec3 e1 = vert(t[1]) - p0, e2 = vert(t[2]) - p0;
-            const glm::vec3 pv = glm::cross(dir, e2);
-            const float det = glm::dot(e1, pv);
-            if(za::fabs(det) < 1e-12f)
-            {
-                continue;
-            }
-            const float id = 1.f / det;
-            const glm::vec3 tv = a - p0;
-            const float u = glm::dot(tv, pv) * id;
-            if(u < 0.f || u > 1.f)
-            {
-                continue;
-            }
-            const glm::vec3 qv = glm::cross(tv, e1);
-            const float v = glm::dot(dir, qv) * id;
-            if(v < 0.f || u + v > 1.f)
-            {
-                continue;
-            }
-            const float tt = glm::dot(e2, qv) * id;
-            if(tt < 0.f || tt >= best)
-            {
-                continue;
-            }
-            best = tt;
-            found = true;
-            f.t = tt;
-            f.tri = k;
-            f.u = u;
-            f.v = v;
-            f.faceN = glm::cross(e1, e2) * m.winding;
-            f.front = glm::dot(dir, f.faceN) < 0.f;
+            test(k);
         }
     }
     return found;
@@ -688,6 +728,10 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
 // Whether `p` is inside the model grown by `grow`: a ray onwards along `dir` first crosses its surface on the way out.
 bool inside(const Drawn& d, const glm::vec3& p, glm::vec3 dir, float grow)
 {
+    if(d.skinned)
+    {
+        return false; // (a ragdoll: only its surface's crossings)
+    }
     const Mesh& m = *d.mesh;
     const za::SizeT nn = m.nodes.size();
     const Bounds& r1 = m.bounds[nn * static_cast<za::SizeT>(d.pose1)];

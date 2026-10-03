@@ -205,6 +205,9 @@ void VR_ForgetEndedRopes (void); // CL_UpdateTEnts, before the beams: the ropes 
 void VR_BeamLights (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam lights the room along its length (vr_beam_lights)
 void VR_BeamDrawn (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam's ends as drawn this frame: Quad Damage's arcs along it (vr_beam_arcs)
 void VR_WallTorchFlames (void);							// CL_ReadFromServer, after the temp entities: the taken wall torches' flames (vr_walltorch.cpp)
+int VR_SyntheticModel (struct qmodel_s *mod);				// Mod_LoadModel: a model made in memory from another ("<model>#rag": a ragdoll's skinned body, vr_ragdoll.cpp); nonzero if made
+void VR_RagdollSwap (void);								// end of CL_RelinkEntities: the server's ragdolls drawn with their skinned models (vr_ragdoll.cpp)
+void VR_RagdollRestore (void);							// CL_ReadFromServer, first: their own models back before the server's messages
 unsigned char *VR_DerivedModelFile (const char *name, unsigned int *path_id); // Mod_LoadModel: a model made from another's file (a taken torch's flame), or NULL
 const char *VR_ModelSkinName (const char *name);			// Mod_LoadAllSkins: the model name its external skins are found by
 void VR_TorchLights (void);								// CL_ReadFromServer, after the temp entities: torches and flames flicker a small light onto the room (vr_torch_lights)

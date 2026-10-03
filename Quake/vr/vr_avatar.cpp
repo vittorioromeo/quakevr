@@ -10,6 +10,7 @@
 #include "vr_lines.hpp"
 #include "vr_motion.hpp"
 #include "vr_profile.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_view.hpp"
 
 #include "Zancle/Container/Array.hpp"
@@ -1850,6 +1851,10 @@ extern "C" int VR_AliasBonePoses(const entity_t* e, const float** matrices)
     if(const int hand = qvr::view::handBonePoses(e, matrices))
     {
         return hand; // the jointed hands (vr_handrig.cpp)
+    }
+    if(const int ragdollBones = qvr::ragdoll::bonePoses(e, matrices))
+    {
+        return ragdollBones; // a ragdoll (vr_ragdoll.cpp)
     }
     if(!e || e != posed.ent)
     {

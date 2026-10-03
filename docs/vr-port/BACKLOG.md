@@ -62,6 +62,9 @@ seconds, with fly particles buzzing round it as well as the sound.
   the death animation into the ragdoll; severing limbs/heads where hit (ties into small gibs, ThrowHead, wounds and
   blood decals); networking/saves; and which monsters first. Corpses are already one Box3D body each (ROUND21.md,
   "Corpse collision": `Kind::Corpse`, `catCorpse`, its mask and passes): a ragdoll would replace that body.
+  2026-10-03: the grunt's built, experimental (ROUND21.md, "Ragdolls"; `vr_ragdoll 1`): the rig derived from the
+  animation (motion clusters gathered by a seed table), skinned in memory, the death animation handed to the bodies.
+  Left: grabbing limbs, ragdolls meeting each other, other monsters' seed tables, severing, a remote client's view.
 - **Vore shove** (the author, 2026-10-02: "I would like the vore to also have a shove attack when the player is
   close, later on"): extend the enemy shove (QC/vr_enemyshove.qc) to the vore (shalrath), with its own animation.
 - **Flashlight optional; a brighter option** (the author, 2026-10-02): make the flashlight completely optional (off

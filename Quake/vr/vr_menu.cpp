@@ -2641,6 +2641,27 @@ void hologramTestMessage()
                   "(vr_corpse_collide_player)."),
         toggle("Monsters Step Over Corpses", vr_corpse_collide_monsters)
             .help("Monsters walk over corpses as a low step instead of through them (vr_corpse_collide_monsters)."),
+        header("Ragdolls (Experimental)"),
+        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "Grunt Only (Experimental)"}})
+            .help("A dying grunt goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs) that fall, "
+                  "tumble down stairs, are pushed by shots, blasts, props and your hands, his mesh bent with them. Shoot "
+                  "or blow him up enough and he still bursts into gibs (vr_ragdoll)."),
+        slider("Go Limp At", vr_ragdoll_start, 0.f, 1.f, 0.1f, "%.1f")
+            .help("When in his death animation: 0 as soon as he stops being solid, 1 once he lies still (vr_ragdoll_start)."),
+        slider("Most Ragdolls", vr_ragdoll_max, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 64.f)
+            .help("At most this many at once; more dead grunts lie as corpses (Corpse Collision) (vr_ragdoll_max)."),
+        slider("Ragdoll Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
+            .help("A ragdoll's whole weight, its parts by their size (vr_ragdoll_mass)."),
+        slider("Ragdoll Friction", vr_ragdoll_friction, 0.1f, 2.f, 0.1f, "%.1f").extend()
+            .help("How much it drags and catches on floors and steps (vr_ragdoll_friction)."),
+        slider("Joint Stiffness", vr_ragdoll_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend()
+            .help("How stiffly the joints turn: 0 limp as a rag, more like a body freshly dead (vr_ragdoll_joint_friction)."),
+        slider("Limb Damping", vr_ragdoll_damping, 0.f, 3.f, 0.1f, "%.1f").extend()
+            .help("Less flailing of the arms and legs (vr_ragdoll_damping)."),
+        slider("Blast Throw", vr_ragdoll_blast, 0.f, 5.f, 0.25f, "%.2fx").extend()
+            .help("How far explosions throw a ragdoll, times what they give a prop of its weight (vr_ragdoll_blast)."),
+        slider("Death Motion Kept", vr_ragdoll_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("How much of his death animation's motion the parts keep as he goes limp (vr_ragdoll_inherit)."),
     };
 }
 
@@ -2955,6 +2976,8 @@ za::Vector<Item> pageDebugLogging()
             .help("vr_debug_net: each frame the unreliable broadcast (particles, sounds, temp entities, wounds, tracers) "
                   "was full: how much QuakeC's writes lost and how much a client was not sent (whole messages only); or "
                   "also each second the most sent: the broadcast, the reliable messages, a client's own data and entities."),
+        toggle("Ragdolls", vr_debug_ragdoll)
+            .help("vr_debug_ragdoll: each ragdoll made (when it went limp, its parts), each push on it and each blast's throw."),
         cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
             .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot). Also each throw: how "
                   "fast, whether it passes through your hands, and how much its velocity and spin changed by the grace's end "
@@ -3110,6 +3133,8 @@ za::Vector<Item> pageDebugReports()
         command("Wrists and Grips", "vr_bodycal_debug").help("vr_bodycal_debug: one line a hand, next frame: the wrist and the grip."),
         header("World and Physics"),
         command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
+        command("Ragdolls", "vr_ragdoll_list 1").help("vr_ragdoll_list [1]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed), and Box3D's bodies (Gibs and Corpses > Ragdolls)."),
+        command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
         command("Corpses in the Physics", "vr_corpse_list").help("vr_corpse_list: each corpse's body (fixed or pushable, box or pose, mass), where it lies, and what touches it (Gibs and Corpses > Corpse Collision)."),
         command("Held Props", "vr_carry_check").help("vr_carry_check: each held prop's place and axes in the hand, drawn vs where the game has it, and the fist's gap to it (cm)."),
         command("Props in Floors", "vr_physics_sink").help("vr_physics_sink: how far each prop sinks into the floor."),
@@ -3201,6 +3226,9 @@ za::Vector<Item> pageDebugTools()
         command("A Grunt's Corpse Ahead", "vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; vr_test_spawn_dead 0"),
         toggle("On the Training Dummy", vr_smallgibs_test_dummy)
             .help("vr_smallgibs_test_dummy: the tests below hit the nearest training dummy instead (the firing range's), and the shotgun, nail, blow and chainsaw ones print the gore each sent (gore hits, wound events, blood particles): to compare with a grunt's."),
+        command("A Grunt's Ragdoll Ahead", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait5; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdolls) and a grunt killed 96 units ahead: he goes limp as he falls."),
+        command("Blast Beside the Nearest Ragdoll", "vr_ragdoll_blast_test").help("vr_ragdoll_blast_test [damage]: a blast's push (no damage) 24 units beside the nearest ragdoll, on your side: it is thrown away from you."),
         command("Drop the Nearest Prop on the Nearest Corpse", "vr_corpse_drop").help("vr_corpse_drop [height]: the loose prop nearest you put 32 units over the nearest corpse, to fall on it (Gibs and Corpses > Corpse Collision)."),
         command("Shotgun Blasts", "vr_smallgibs_test 1").help("vr_smallgibs_test 1: 200 shotgun blasts at it (vr_smallgibs_test_n), the share that tore small gibs out."),
         command("Super Shotgun Blasts", "vr_smallgibs_test 2"),
