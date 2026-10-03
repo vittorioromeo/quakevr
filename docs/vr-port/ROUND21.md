@@ -22318,6 +22318,134 @@ Test in VR:
 - [ ] A new game with your config: Graphics > Surfaces > External Maps on, the walls as with your downloaded folder.
 - [ ] Debug > Views > External Maps A/B on e1m1 by a lamp: the shipped maps drawn.
 
+## Monster drops flung into you (2026-10-03)
+
+Seen by two agents: a monster gibbed or killed at your feet (smallgibs tests 16, 17) flung its 15 kg backpack or its gun
+into you, `prop: flung (15.0 kg) into player at 280 u/s: 19 damage, by nobody`.
+
+**Root cause.** Two things. (1) A gibbed monster's drops were never marked as a monster's (`.vr_monster_drop`), so
+`vr_prop_drop_grace` never applied: ThrowHead turns the monster into its head and VR_MakeGibGrabbable clears its
+FL_MONSTER, and SoldierDrop (DropBackpack, TryEnemyDrop) runs after ThrowHead. The backpack, made 24 units under the
+grunt's origin with DropBackpack's toss (300 u/s up), hit you standing over it 0.03 s later at 280 u/s: 19 damage in
+every run. (2) Killed but not gibbed, its gun is made inside you (at its hands, where you stand) and Box3D pushed it
+out of you; once the grace was over, that push (70 to 104 u/s) hurt you (5 to 8 damage, 3 of 4 runs).
+
+**Fix.**
+- QC: a monster's head keeps `.vr_was_monster` (VR_MakeGibGrabbable); DropBackpack and CreateThrownWeapon count it as a
+  monster, so its drops get the grace.
+- `vr_prop_drop_falls_only` (1; Throwing > Flung Props: Monster Drops Hurt Only Falling): past the grace a monster's
+  drop hurts a player only falling on him (moving mostly down) or once a hand threw it (let go of: `.carry_letgo`; on a
+  grapple's rope). Never its toss up into you, nor a push out of you. Monsters are untouched (a batted drop still hurts
+  them).
+- `vr_prop_drop_pass_inside` (1; Monster Drops Pass Through Bodies): a monster's drop made inside a player or a monster
+  (in the frame it is dropped) passes through it until clear, as small gibs do (vr_box3d.cpp noteBornInside;
+  `vr_debug_box3d` prints `box3d: monster drop N made inside 1 bodies`). Engine field `vr_monster_drop`.
+- `vr_prop_drop_grace` (0.5 s) unchanged.
+
+**Tests** (Debug > Gore Tests): `vr_smallgibs_test 16`, `17` and new `19` (the grunt put under your feet and killed,
+not gibbed) now also print `underfoot drops: flung hits on you N, spared M`; new `20` drops a monster's backpack
+2 x vr_smallgibs_test_dist units over you (its fall still hurts past the grace). Grunt 100 units away, god off:
+
+| | 16 (blow, gibbed) | 17 (shot, gibbed) | 19 (killed underfoot) |
+|---|---|---|---|
+| before | 6 of 6 runs hurt you (19 to 20) | (the same path as 16) | |
+| both new settings 0 (marking fix only) | 0 of 4 | | 3 of 4 (5, 7, 8) |
+| pass inside only | 0 of 4 | | 0 of 4 |
+| falls only only | 0 of 4 | | 0 of 4 |
+| both (default) | 0 of 6 | 0 of 4 | 0 of 8 |
+
+Test 20 at 200 units: the backpack lands on you past the grace, 310 u/s, 21 damage (as before). Melee canary unchanged.
+
+### In VR
+
+- Stand on a grunt and kill it (and gib it) with a blow and with the shotgun at your feet: its backpack and gun don't hurt you.
+- A backpack dropped by a monster on a ledge over you still hurts if it falls on you; one you throw still hurts.
+
+## Retro textures, phase 4: All Categories, your body by part, decals, particles and sprites (2026-10-03)
+
+### All Categories (Graphics > Retro Textures > All Categories, page 115)
+
+One set of values for every category at once, to try a consistent look. Per-object overrides are untouched.
+
+- **Values:** the same rows as a category's page (On, Snap, Block Size, Block Size In, Block Colour, Edge Softness,
+  Smooth Beyond, Quake Palette, Dither, Dither Size, Bumps, Detail): `vr_retro_all_<setting>` (On's `vr_retro_all_on`;
+  archived, defaults as a category's).
+- **Apply These Settings:** a toggle a setting, `vr_retro_all_apply_<setting>` (archived; all 1 but On's 0, so your
+  categories stay on or off), with Check All / Uncheck All.
+- **To These Categories:** a toggle a category, `vr_retro_all_to_<key>` (archived, 1), with Check All / Uncheck All.
+- **Apply to Checked Categories** (top and bottom; `vr_retro_all_apply`): the checked settings to the checked categories.
+- **Live** (`vr_retro_all_live`, 0, not archived: a config read at start-up never writes through): each change of a
+  checked value is written to the checked categories as it is made.
+- **Copy From** (`vr_retro_all_from`) and **Copy Its Values** (`vr_retro_all_copy [category]`): the values become that
+  category's, as a starting point (nothing applied, live or not).
+- The top line counts the checked settings and categories.
+
+### Your body by part
+
+Your Body and Hands is now five categories, each its own full set (`vr_retro_hands_*`, `_arms_*`, `_torso_*`,
+`_legs_*`, `_gear_*`): Your Hands (hand and finger models), Your Arms, Your Torso (head, neck, clavicles, spine,
+pelvis), Your Legs, Your Gear (the gadget, the flashlight, pauldrons, pouches, leg holsters, other view entities that are
+not weapons). The body (`progs/vrbody*`) is one draw: its instance's set is its Hands set, Hands .. Legs's sets follow
+one another (theirs, or with a model override four combos in a row, `setRun`), and each vertex adds its heaviest bone's
+part (InstanceData's new `RetroPart`: two bits a bone, by name, `bodyParts`; the vertex shader's `HeaviestBone`, shared
+with the wound sides; a flat `out_retroset` at location 15). A part whose category is off is marked in its set (P2.w),
+so the shader leaves it as it was. A body without bones is drawn whole as Torso.
+
+**Migration:** `vr_retro_body_*` are kept as unarchived cvars that write all five (an old config's values reach every
+part); `vr_retro_reset body` resets the five.
+
+### Decals, particles and sprites
+
+Three more categories (18 now; sets 1-18, 45 left for overrides):
+
+| Category | Drawn by | Settings (page) |
+|---|---|---|
+| Decals (`vr_retro_decals_*`) | vr_decals.cpp through vr_gfx (Shade::Texture, modulate) | Snap, Block Size (world units), Block Colour, Edge Softness, Smooth Beyond, Palette, Dither, Dither Size |
+| Particles (`vr_retro_particles_*`) | vr_particles.cpp through vr_gfx (the particle program); Quake's own (r_part.c) | as Decals |
+| Sprites (`vr_retro_sprites_*`) | r_sprite.c (`.spr`: explosions, bubbles) | as Decals, plus Block Size In (the frame's Quake texels by default) |
+
+- vr_gfx: `State::retro` (the set; `retro::categorySet`) picks a Shade::Texture program with the retro GLSL (`RETRO`);
+  the vertex shaders pass the world position; blocks are in world units (`supports(c, Units)` false: fillSet sets
+  P2.y). The colour (premultiplied, times the vertex colour) goes to the palette through `RetroQuantPremul` (its colour
+  over its strength, the alpha or the brightest channel for added glows). The table is on unit 2, the block bound
+  again for the draw (`retro::bindForDraw`).
+- Quake's particles: with Snap, squares (as Quake drew them); the colour through the palette, dithered by where each is.
+- Sprites: `VR_RetroSprite` per batch (the model's set, overrides by model name too; the texture's Quake size), table on
+  unit 3; alpha-tested after the blocks.
+- Category pages show only the rows a category has (`supports`): no Bumps for these three, no Block Size In for decals
+  and particles, Detail on brush models.
+
+### Tests
+
+- All Categories (script; e1m1): world bump 0.3, monsters bump 0.7, world block 2, held palette 0.1; only Palette and
+  Dither checked, values palette 0.8, dither 0.6, bump 0, block 4; Apply ("2 settings to 18 categories"): every
+  category's palette 0.8 and dither 0.6, bumps 0.3 / 0.7 and block 2 unchanged. Gibs unchecked, dither 1.5: gibs kept
+  0.6, the others 1.5. Live: palette 0.3 reached the world at once, not the unchecked gibs; an unchecked Bumps change
+  wrote nothing. Copy From Monsters with Live on: the values became the monsters' (bump 0.7), nothing written.
+- `vr_menu_path_check maps/vrcalibration.map`: 13 found, 0 missing; `{menu:Retro Textures - All Categories}` found.
+- Body: `vr_retro_body_block 3` set all five to 3; `vr_retro_reset body` back. Eyeshot (`vr_body_debug 2`): hands
+  block 8, arms 4, torso off, legs 16 with palette 1: legs flat palette blocks, torso and head unchanged (diff), arms
+  and hands changed. `vr_retro_list`: `progs/vrbody.mdl  Your Body (by part)  set 10`, `hand_rig.mdl  Your Hands`.
+- Decals (`vr_gore_test burst`, block 8, soft 0): the splats on the walls in 8-unit blocks; palette changes few pixels
+  (blood is near Quake's reds). Particles (block 3, palette 1, dither 1): the explosion and smoke in blocks, sparks as
+  squares. Sprites (e1m4's bubbles, block 2, palette 1): the bubbles in 2-texel blocks.
+
+### Costs (`run.sh --exclusive`, the mock's eyes, GPU ms a frame, both eyes; medians of 4 alternations)
+
+e1m1, looking down at three bursts' blood, an explosion, smoke and blood (`vr_particle_test 2/4/1`) every 20 frames: a
+heavy, close particle load.
+
+| | Decals | VR particles | Eyes |
+|---|---|---|---|
+| Off | 0.10 | 1.26 | 2.75 |
+| On, defaults (block 1) | 0.31 | 1.72 | 3.32 |
+| Off | 0.14 | 1.36 | 2.90 |
+| On, block 2, palette 1, dither 1 | 0.18 | 1.89 | 3.12 |
+
+About +0.5 ms on particles that cover much of the view (each fragment reads up to four block taps and the palette
+table); decals +0.04 to +0.2 (noisy). Sprites and Quake's particles were too few here to measure. Off (the category's
+On 0, or vr_retro 0): decals and VR particles use the old programs; sprites and Quake's particles one branch.
+
 ## Retro lighting: the light in Quake's coarse look (2026-10-03)
 
 To go with Retro Textures: the light itself coarse. Off by default (`vr_retrolight 0`); every setting live (no
@@ -22421,7 +22549,7 @@ had no consistent sign and are not reported.) Off, the shaders only test the fra
   2-texel light blocks. Static variants: Quake's linear spacing at 8 levels crushed the shade to black (hence the
   brightness spacing default), the software look (64 levels, texel-stepped), 8 levels dithered on luxel blocks.
 - `-nobindless` and `r_softemu 1`, `2`, `3` with it on: no shader errors.
-- `vr_menu_path_check maps/vrcalibration.map`: 13 found, 0 missing; `menu_vr 108` opens the page.
+- `vr_menu_path_check maps/vrcalibration.map`: 13 found, 0 missing; `menu_vr 116` opens the page.
 
 ### In VR
 

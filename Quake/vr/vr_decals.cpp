@@ -9,6 +9,7 @@
 #include "vr_mem.hpp"
 #include "vr_modellight.hpp"
 #include "vr_profile.hpp"
+#include "vr_retro.hpp"
 #include "vr_ring.hpp"
 #include "vr_trace.hpp"
 
@@ -1281,8 +1282,8 @@ void draw()
             }
         }
     }
-    const gfx::State state{
-        .shade = gfx::Shade::Texture, .blend = gfx::Blend::Modulate, .depthTest = true, .depthWrite = false};
+    const gfx::State state{.shade = gfx::Shade::Texture, .blend = gfx::Blend::Modulate, .depthTest = true,
+        .depthWrite = false, .retro = retro::categorySet(retro::Category::Decals)}; // retro textures (vr_retro.hpp)
     if(staticDirty)
     {
         staticDirty = false;

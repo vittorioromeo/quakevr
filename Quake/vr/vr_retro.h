@@ -37,13 +37,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define QVR_RETRO_UBO_BINDING 3     // the uniform block's binding (0 frame data, 1 the light clusters' input, 2 AO)
 #define QVR_RETRO_LUT_UNIT_WORLD 10 // the palette's table (gl_palette_lut, Ironwail's 128^3 nearest-colour index) in the world shader
 #define QVR_RETRO_LUT_UNIT_ALIAS 3  // ... in the model shader (free there)
+#define QVR_RETRO_LUT_UNIT_GFX 2    // ... in vr_gfx's (decals, Quake VR's particles: vr_gfx_gl.cpp)
+#define QVR_RETRO_LUT_UNIT_SPRITE 3 // ... in the sprites' and Quake's particles' (r_sprite.c, r_part.c)
 
 // The settings of a set (3 vec4s), as RetroSets holds them:
 //   P0: x block size (> 0), y edge softness (pixels; 0 hard), z the blocks a pixel spans where it is plain mipmapping
 //       again (it starts fading at half that), w 1 snapping (0: the texture as it was, only the palette and dither)
 //   P1: x palette strength (0..1), y dither strength, z dither cell (blocks), w bumps (0 smooth, 1 the blocks')
 //   P2: x 1 block colour = the average under it (its mip level; 0 the texel at its centre), y 1 block size in world
-//       units (0: in the texture's own texels), z how much of the detail textures' grain stays (vr_detail), w unused
+//       units (0: in the texture's own texels), z how much of the detail textures' grain stays (vr_detail), w 1: off (a
+//       part of your body whose category is off: one draw, a set a part)
 //
 // RetroBegin picks the pixel's set (Retro, 0 none) and its grid; RetroSample reads a texture through it (colour,
 // palette with quant), RetroAux a bump or specular map (blended by P1.w). Derivatives come from the caller (taken
@@ -69,6 +72,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "{\n" \
 "	int s = int(set + 0.5);\n" \
 "	if (s <= 0 || s >= 64 || RetroInfo.x <= 0.0 || lq.x <= 0.0 || lq.y <= 0.0)\n" \
+"		return;\n" \
+"	if (RetroSets[s * 3 + 2].w > 0.5) // off (a body part's set: vr_retro.cpp setRun)\n" \
 "		return;\n" \
 "	RetroP0 = RetroSets[s * 3];\n" \
 "	RetroP1 = RetroSets[s * 3 + 1];\n" \
@@ -105,6 +110,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "	uint i = texelFetch(RetroLUT, ivec3(clamp(q, 0.0, 1.0) * 127.0 + 0.5), 0).x;\n" \
 "	uint p = RetroPal[i >> 2u][i & 3u];\n" \
 "	return mix(c, vec3(uvec3(p, p >> 8u, p >> 16u) & 255u) * (1.0 / 255.0), RetroP1.x);\n" \
+"}\n" \
+"// A premultiplied colour (decals, particles, glows) pulled to the palette: its colour over its strength (its alpha,\n" \
+"// or its brightest channel where it adds more than it covers), the strength kept\n" \
+"vec4 RetroQuantPremul(vec4 c, vec2 cell)\n" \
+"{\n" \
+"	float k = max(c.a, max(c.r, max(c.g, c.b)));\n" \
+"	if (k > 1e-4)\n" \
+"		c.rgb = RetroQuant(c.rgb / k, cell) * k;\n" \
+"	return c;\n" \
 "}\n" \
 "vec4 RetroTap(sampler2D tex, vec2 cell, float lod, bool quant)\n" \
 "{\n" \

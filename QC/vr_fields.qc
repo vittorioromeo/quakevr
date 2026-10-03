@@ -208,3 +208,5 @@
 .float vr_throw_self_at; // when it can hurt its thrower (vr_throw_self_grace after the throw)
 .float vr_letgo_fall;    // a prop let go of gently (not thrown hard), in its first fall: it never hurts who let go
                          // of it (VR_Prop_Flung) until it lands, is taken or flies up (VR_Throw_SelfFrame)
+.float vr_was_monster;   // a monster's head (VR_MakeGibGrabbable took its FL_MONSTER): what it drops after (a gibbed
+                         // grunt's backpack: SoldierDrop after ThrowHead) is still a monster's drop (.vr_monster_drop)

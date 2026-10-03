@@ -46,6 +46,8 @@ static int numsoftsprites;
 static qboolean softpass;
 static GLuint softdistances;
 static float batchsoftfade;
+static entity_t *batchentity; // QVR: retro textures (vr/vr_retro.cpp)
+static mspriteframe_t *batchframe; // QVR
 
 /*
 ================
@@ -177,6 +179,11 @@ static void R_FlushSpriteInstances (void)
 		GL_BindNative (GL_TEXTURE1, GL_TEXTURE_2D, softdistances);
 
 	GL_Bind (GL_TEXTURE0, showtris ? whitetexture : batchtexture);
+	{ // QVR: retro textures (vr/vr_retro.cpp): the batch's set, its texture's Quake size
+		float retro[4];
+		VR_RetroSprite (batchentity, batchframe, showtris, retro);
+		GL_Uniform4fFunc (1, retro[0], retro[1], retro[2], retro[3]);
+	}
 
 	GL_Upload (GL_ARRAY_BUFFER, batchverts, sizeof(batchverts[0]) * 4 * numbatchquads, &buf, &ofs);
 	GL_BindBuffer (GL_ARRAY_BUFFER, buf);
@@ -281,6 +288,8 @@ static void R_DrawSpriteModel_Real (entity_t *e, qboolean showtris)
 		batchtexture = frame->gltexture;
 		batchshowtris = showtris;
 		batchsoftfade = softfade; // QVR
+		batchentity = e; // QVR: retro textures (its model's set)
+		batchframe = frame; // QVR
 	}
 	verts = batchverts + numbatchquads * 4;
 	++numbatchquads;

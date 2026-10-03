@@ -550,8 +550,12 @@ float vr_fling_gibspared;
 float VR_FLING_CREDIT = 10;       // s
 
 // When a monster dropped it (a weapon, a backpack: CreateThrownWeapon, DropBackpack; 0 never): for vr_prop_drop_grace s
-// after, it can't hurt a player as a flung prop (vrfiringrange_2026-10-01_11-51-45: its loot, landing on him as it fell).
+// after, it can't hurt a player as a flung prop (vrfiringrange_2026-10-01_11-51-45: its loot, landing on him as it fell);
+// after it, only falling on him or thrown by a hand (vr_prop_drop_falls_only). Box3D lets it pass through the body it
+// was made in until clear (vr_prop_drop_pass_inside: vr_box3d.cpp noteBornInside).
 .float vr_monster_drop;
+float vr_fling_drophits;          // monster drops' flung hits on players, and those spared (vr_smallgibs_test 16, 17, 19)
+float vr_fling_dropspared;
 
 entity(entity xProp) VR_Grapple_PropHolder; // (vr_grapple.qc)
 void(float damage) spawn_touchblood;
@@ -638,14 +642,30 @@ float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
     {
         return FALSE;
     }
-    if((other.flags & FL_CLIENT) && self.vr_monster_drop > 0 &&
-       time < self.vr_monster_drop + max(0, cvar_hget(cvarh_vr_prop_drop_grace)))
-    {
-        dprint(sprintf("prop: %s a monster dropped %.2f s ago met %s: no harm yet (vr_prop_drop_grace)\n", self.classname,
-            time - self.vr_monster_drop, other.netname));
-        return FALSE;
-    }
     entity holder = VR_Grapple_PropHolder(self);
+    if((other.flags & FL_CLIENT) && self.vr_monster_drop > 0)
+    {
+        if(time < self.vr_monster_drop + max(0, cvar_hget(cvarh_vr_prop_drop_grace)))
+        {
+            dprint(sprintf("prop: %s a monster dropped %.2f s ago met %s: no harm yet (vr_prop_drop_grace)\n", self.classname,
+                time - self.vr_monster_drop, other.netname));
+            vr_fling_dropspared++;
+            return FALSE;
+        }
+        // Past it, only falling on him (from a height: mostly down) or thrown by a hand since (let go of, or on a
+        // grapple's rope): never its toss up into him standing over the body, nor Box3D's push out of him (a grunt
+        // killed underfoot flung its 15 kg backpack into him at 280 u/s: 19 damage "by nobody").
+        vector flat = self.velocity;
+        flat_z = 0;
+        float falling = self.velocity_z < 0 && -self.velocity_z >= vlen(flat);
+        if(cvar_hget(cvarh_vr_prop_drop_falls_only) && !falling && self.carry_letgo == world && holder == world)
+        {
+            dprint(sprintf("prop: %s a monster dropped met %s at %v, not falling nor thrown: no harm (vr_prop_drop_falls_only)\n",
+                self.classname, other.netname, self.velocity));
+            vr_fling_dropspared++;
+            return FALSE;
+        }
+    }
     if(other == holder || (other == self.carry_letgo &&
                              (self.vr_letgo_fall || time < self.carry_letgo_time + max(0, cvar_hget(cvarh_vr_throw_self_grace)))))
     {
@@ -674,6 +694,10 @@ float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
     }
 
     self.vr_fling_hit = time;
+    if(self.vr_monster_drop > 0 && (other.flags & FL_CLIENT))
+    {
+        vr_fling_drophits++;
+    }
     if(self.vr_gib)
     {
         vr_fling_gibhits++;
@@ -1370,6 +1394,10 @@ void(entity xGib) VR_MakeGibGrabbable =
     xGib.handtouch = SUB_Null; // nothing to take: VR_Carry_Setup keeps it as carry_use
     // A head is the monster itself: no longer one (not thrown by the killing blow's push, not a
     // target). Killed restores its solid after the death code (which often clears it).
+    if(xGib.flags & FL_MONSTER)
+    {
+        xGib.vr_was_monster = TRUE; // (what it drops after: still a monster's, .vr_monster_drop)
+    }
     xGib.flags = (xGib.flags - (xGib.flags & FL_MONSTER)) | FL_FORCEGRABBABLE;
     xGib.vr_gib = TRUE;
     xGib.vr_gib_made = time; // (harmless as a flung prop for vr_gib_spawn_harmless: VR_Prop_Flung)

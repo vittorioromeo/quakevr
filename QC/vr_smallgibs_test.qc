@@ -25,6 +25,11 @@
 //  17 the same, gibbed by a shot (a super shotgun blast's damage at your feet)
 //  18 a gib made at your feet, thrown by you (from a step ahead) at the monster nearest 1 s later (vr_test_throw_up_speed, 10 m/s; Fresh
 //     Gibs Harmless For is over): 2.5 s on, the health it lost
+//  19 as 16, but killed by the blow, not gibbed (a live monster: its death, its gun and backpack dropped under you)
+//  20 a monster's backpack dropped 2 x vr_smallgibs_test_dist units over you: past Monster Drops Harmless For it falls on
+//     you and hurts (Hurt Only Falling); 3 s on, the health you lost
+//  (16, 17 and 19 print the monster drops' flung hits on you too, and those spared: Monster Drops Harmless For, Monster
+//  Drops Hurt Only Falling)
 
 float vr_sgib_test;       // the test running, its step, when the step began
 float vr_sgib_test_step;
@@ -360,6 +365,24 @@ void(float xCase) VR_SmallGib_TestStart =
         vr_sgib_test = 0;
         return;
     }
+    if(xCase == 20)
+    {
+        // A monster's backpack (a stand-in with FL_MONSTER) dropped from over your head: its toss, then its fall on you.
+        entity mon = spawn();
+        setorigin(mon, self.origin + '0 0 1' * cvar("vr_smallgibs_test_dist") * 2);
+        mon.flags = FL_MONSTER;
+        mon.ammo_shells = 5;
+        entity oself20 = self;
+        self = mon;
+        DropBackpack();
+        self = oself20;
+        remove(mon);
+        vr_sgib_test_a = self.health;
+        vr_fling_drophits = 0;
+        vr_fling_dropspared = 0;
+        bprint(sprintf("sgibtest: a monster's backpack dropped %.0f units over you\n", cvar("vr_smallgibs_test_dist") * 2));
+        return;
+    }
     if(xCase == 18 && m == world)
     {
         bprint("sgibtest: no monster near\n");
@@ -394,7 +417,7 @@ void(float xCase) VR_SmallGib_TestStart =
         return;
     }
     bprint(sprintf("sgibtest: test %d on %s (corpse %d)\n", xCase, m.classname, m.vr_corpse));
-    if(xCase == 16 || xCase == 17)
+    if(xCase == 16 || xCase == 17 || xCase == 19)
     {
         // Under your feet, on the floor; gibbed by a blow, or by super shotgun blasts at your feet until it is.
         traceline(self.origin, self.origin - '0 0 256', TRUE, self);
@@ -404,12 +427,14 @@ void(float xCase) VR_SmallGib_TestStart =
         vr_sgib_test_b = VR_SmallGib_TestNearHealth(self, m);
         vr_fling_gibhits = 0;
         vr_fling_gibspared = 0;
+        vr_fling_drophits = 0;
+        vr_fling_dropspared = 0;
         vector feet = (m.absmin + m.absmax) * 0.5;
         vector from = self.origin + '0 0 22';
-        if(xCase == 16)
+        if(xCase == 16 || xCase == 19)
         {
             VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, feet, normalize(feet - from));
-            T_Damage(m, self, self, max(m.health, m.vr_corpse_hp) + 100);
+            T_Damage(m, self, self, xCase == 19 ? max(1, m.health) : max(m.health, m.vr_corpse_hp) + 100);
             VR_ClearHitKind();
         }
         else
@@ -917,14 +942,26 @@ void() VR_SmallGib_TestFrame =
                 vr_sgib_test = 0;
             }
         }
-        else if(vr_sgib_test == 16 || vr_sgib_test == 17)
+        else if(vr_sgib_test == 20)
         {
-            if(t >= 2)
+            if(t >= 3)
+            {
+                bprint(sprintf("sgibtest: drop over you: you lost %.0f health; its flung hits on you %d, spared %d\n",
+                    vr_sgib_test_a - self.health, vr_fling_drophits, vr_fling_dropspared));
+                vr_sgib_test = 0;
+            }
+        }
+        else if(vr_sgib_test == 16 || vr_sgib_test == 17 || vr_sgib_test == 19)
+        {
+            if(t >= (vr_sgib_test == 19 ? 4 : 2)) // (19: its drops come with its death frames)
             {
                 bprint(sprintf("sgibtest: underfoot (%s): you lost %.0f health, the monsters near %.0f; gibs' flung hits %d, spared as just made %d (Fresh Gibs Harmless For %.2f s)\n",
-                    vr_sgib_test == 16 ? "a blow" : "shotgun blasts", vr_sgib_test_a - self.health,
+                    vr_sgib_test == 16 ? "a blow" : vr_sgib_test == 17 ? "shotgun blasts" : "killed, not gibbed", vr_sgib_test_a - self.health,
                     vr_sgib_test_b - VR_SmallGib_TestNearHealth(self, world), vr_fling_gibhits, vr_fling_gibspared,
                     cvar_hget(cvarh_vr_gib_spawn_harmless)));
+                bprint(sprintf("sgibtest: underfoot drops: flung hits on you %d, spared %d (Monster Drops Harmless For %.2f s, Hurt Only Falling %d, Pass Through Bodies %d)\n",
+                    vr_fling_drophits, vr_fling_dropspared, cvar_hget(cvarh_vr_prop_drop_grace),
+                    cvar_hget(cvarh_vr_prop_drop_falls_only), cvar("vr_prop_drop_pass_inside")));
                 vr_sgib_test = 0;
             }
         }

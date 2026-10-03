@@ -5,6 +5,8 @@
 
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
+#include "vr_retro.h"
+#include "vr_retro.hpp"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -36,11 +38,13 @@ out vec2 uv;
 out vec4 color;
 out float soft;
 out float viewDepth;
+out vec3 worldPos; // (RETRO: in the scene, MVP the scene's)
 void main()
 {
     uv = UV;
     color = Color;
     soft = Soft;
+    worldPos = Pos;
     gl_Position = MVP * vec4(Pos, 1.0);
     viewDepth = gl_Position.w; // the distance along the view (a perspective projection's w)
 }
@@ -72,7 +76,11 @@ in vec2 uv;
 in vec4 color;
 in float soft;
 in float viewDepth;
+in vec3 worldPos;
 out vec4 result;
+#if RETRO
+layout(location = 9) uniform int RetroSet; // retro textures' set (vr_retro.h; 0 none): blocks in world units
+#endif
 float hash(vec2 p)
 {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -212,7 +220,17 @@ void main()
     float falloff = clamp(1.0 - dot(uv, uv), 0.0, 1.0);
     result = vec4(color.rgb, color.a * falloff);
 #elif MODE == 2
+#if RETRO
+    vec2 duvdx = dFdx(uv), duvdy = dFdy(uv);
+    vec3 dpdx = dFdx(worldPos), dpdy = dFdy(worldPos);
+    RetroBegin(float(RetroSet), vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));
+    if(Retro > 0)
+        result = RetroQuantPremul(RetroSample(Tex, uv, duvdx, duvdy, false) * color, floor(uv * RetroGrid));
+    else
+        result = texture(Tex, uv) * color;
+#else
     result = texture(Tex, uv) * color;
+#endif
 #elif MODE == 3
     vec4 c = texture(Tex, uv);
     if(c.a < 0.666)
@@ -242,8 +260,8 @@ void main()
 
 // One program per shade and whether it blends without writing depth (programFor): 0 not made yet.
 constexpr int shadeCount = static_cast<int>(Shade::Hologram) + 1;
-GLuint programs[shadeCount][2]{};
-bool programFailed[shadeCount][2]{};
+GLuint programs[shadeCount][2][2]{}; // [shade][blended][retro: Shade::Texture's with retro textures]
+bool programFailed[shadeCount][2][2]{};
 
 [[nodiscard]] GLuint compile(GLenum type, const char* source, const char* name)
 {
@@ -287,6 +305,7 @@ out vec2 uv;
 out vec4 color;
 out float soft;
 out float viewDepth;
+out vec3 worldPos;
 // The six corners (two triangles): down left, up left, up right, down left, up right, down right.
 const vec2 signs[6] = vec2[6](vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, 1.0), vec2(-1.0, 1.0));
 void main()
@@ -333,13 +352,26 @@ void main()
     uv = vec2(sg.x > 0.0 ? p.uv.z : p.uv.x, sg.y > 0.0 ? p.uv.w : p.uv.y);
     color = p.color;
     soft = p.csSoft.z;
+    worldPos = pos;
     gl_Position = MVP * vec4(pos, 1.0);
     viewDepth = gl_Position.w;
 }
 )";
 
-GLuint particleProgram = 0;
-bool particleProgramFailed = false;
+GLuint particleProgram[2]{}; // [retro]
+bool particleProgramFailed[2]{};
+
+// The fragment shader for a shade, blended or not, with retro textures or not (Shade::Texture).
+[[nodiscard]] za::String fragmentFor(int shade, bool blended, bool retro)
+{
+    za::String f = "#version 430\n#define MODE " + za::toString(shade) + "\n#define BLENDED " + (blended ? "1" : "0") +
+                   "\n#define RETRO " + (retro ? "1" : "0") + "\n";
+    if(retro)
+    {
+        f += QVR_RETRO_GLSL(QS_STRINGIFY(QVR_RETRO_LUT_UNIT_GFX));
+    }
+    return f + fragmentShader;
+}
 
 // The tube (TubeRing, drawTube): six vertices a quad, `Sides` quads round each pair of consecutive rings, read from the
 // frame's records (no vertex attributes), lit per vertex.
@@ -469,19 +501,28 @@ bool bentProgramFailed = false;
 
 // The program for a shade; blended: a blend other than Opaque, writing no depth (zero fragments discarded). 0 if it
 // does not build.
-GLuint programFor(Shade shade, bool blended)
+GLuint programFor(Shade shade, bool blended, bool retro)
 {
     const int s = static_cast<int>(shade);
-    GLuint& p = programs[s][blended];
-    if(p || programFailed[s][blended])
+    retro = retro && shade == Shade::Texture;
+    GLuint& p = programs[s][blended][retro];
+    if(p || programFailed[s][blended][retro])
     {
         return p;
     }
-    const za::String fragment = "#version 430\n#define MODE " + za::toString(s) + "\n#define BLENDED " +
-                                 (blended ? "1" : "0") + "\n" + fragmentShader;
-    p = glProgram(vertexShader, fragment.cStr(), "vr triangles");
-    programFailed[s][blended] = !p;
+    p = glProgram(vertexShader, fragmentFor(s, blended, retro).cStr(), retro ? "vr triangles (retro)" : "vr triangles");
+    programFailed[s][blended][retro] = !p;
     return p;
+}
+
+// Retro textures' block and palette table for a draw with set `set` (0: none).
+void bindRetro(int set)
+{
+    if(set > 0)
+    {
+        retro::bindForDraw(QVR_RETRO_LUT_UNIT_GFX);
+        GL_Uniform1iFunc(9, set);
+    }
 }
 
 // begin2D() / end2D().
@@ -575,7 +616,8 @@ namespace
 // The program and state for `state`, its uniforms and textures set; false if there is no program.
 [[nodiscard]] bool beginDraw(const glm::mat4& mvp, const State& state, Texture texture)
 {
-    const GLuint program = programFor(state.shade, state.blend != Blend::Opaque && !state.depthWrite);
+    const bool retro = state.retro > 0 && state.shade == Shade::Texture;
+    const GLuint program = programFor(state.shade, state.blend != Blend::Opaque && !state.depthWrite, retro);
     if(!program)
     {
         return false;
@@ -613,6 +655,10 @@ namespace
         GL_Uniform3fFunc(3, state.screen.x, state.screen.y, state.screen.z);
     }
     GL_Uniform1iFunc(4, state.sceneDistances ? 1 : 0);
+    if(retro)
+    {
+        bindRetro(state.retro);
+    }
     if(texture)
     {
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
@@ -712,19 +758,20 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
     {
         return;
     }
-    if(!particleProgram && !particleProgramFailed)
+    const int r = state.retro > 0 ? 1 : 0;
+    GLuint& program = particleProgram[r];
+    if(!program && !particleProgramFailed[r])
     {
-        const za::String fragment = "#version 430\n#define MODE " + za::toString(static_cast<int>(Shade::Texture)) +
-                                     "\n#define BLENDED 1\n" + fragmentShader;
-        particleProgram = glProgram(particleVertexShader, fragment.cStr(), "vr particles");
-        particleProgramFailed = !particleProgram;
+        program = glProgram(particleVertexShader, fragmentFor(static_cast<int>(Shade::Texture), true, r != 0).cStr(),
+            r ? "vr particles (retro)" : "vr particles");
+        particleProgramFailed[r] = !program;
     }
-    if(!particleProgram)
+    if(!program)
     {
         return;
     }
 
-    GL_UseProgram(particleProgram);
+    GL_UseProgram(program);
     GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (state.depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // premultiplied
     const glm::mat4 mvp = sceneViewProjection();
@@ -736,6 +783,7 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
     GL_Uniform3fFunc(6, right.x, right.y, right.z);
     GL_Uniform3fFunc(7, up.x, up.y, up.z);
     GL_Uniform1iFunc(8, pull ? 1 : 0);
+    bindRetro(state.retro);
     if(texture)
     {
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);

@@ -1297,6 +1297,18 @@ QVR_BOX_WOUNDS \
 "}\n" \
 "#endif\n" \
 "\n" \
+"#if POSEVERTTYPE == 1 // PV_IQM\n" \
+"int HeaviestBone() // QVR: the vertex's bone of the most weight (its side's, vr/vr_wounds.cpp; its part's, vr/vr_retro.cpp)\n" \
+"{\n" \
+"	int bone = in_indices.x;\n" \
+"	float most = in_weights.x;\n" \
+"	if (in_weights.y > most) { bone = in_indices.y; most = in_weights.y; }\n" \
+"	if (in_weights.z > most) { bone = in_indices.z; most = in_weights.z; }\n" \
+"	if (in_weights.w > most) { bone = in_indices.w; }\n" \
+"	return bone;\n" \
+"}\n" \
+"#endif\n" \
+"\n" \
 "#if POSEVERTTYPE == 0 // PV_QUAKE1\n" \
 "// QVR: the model's own occlusion at this vertex in a pose (vr/vr_ao.cpp: 1 open), in its position's 4th byte\n" \
 "// (gl_mesh.c); a muzzle flash's vertex keeps its gun vertex there (the flag in its normal's 4th byte): none.\n" \
@@ -1323,7 +1335,8 @@ QVR_BOX_WOUNDS \
 "layout(location=11) out vec3 out_morphpos; // QVR: a gun morphing into its other ammo's model (vr/vr_render.cpp): where in its own units\n" \
 "layout(location=12) flat out float out_morph; // QVR: and how far (Ambient[2].w; 0 not morphing)\n" \
 "layout(location=13) out float out_vao; // QVR: the model's own occlusion here (vr/vr_ao.cpp), times its strength: 1 none\n" \
-"layout(location=14) flat out float out_woundside; // QVR: 1 on its right side (its wound mask's other layer: vr/vr_wounds.cpp)\n"
+"layout(location=14) flat out float out_woundside; // QVR: 1 on its right side (its wound mask's other layer: vr/vr_wounds.cpp)\n" \
+"layout(location=15) flat out float out_retroset; // QVR: its retro textures' set (vr/vr_retro.h; your body's by part)\n"
 
 // which side's wound mask a vertex reads (vr/vr_wounds.cpp): your body's arms and legs share their skin's texels,
 // mirrored, so its mask is two layers, the left side's (with the middle's) and the right side's; a vertex's side is its
@@ -1333,13 +1346,22 @@ QVR_BOX_WOUNDS \
 "#if POSEVERTTYPE == 1\n" \
 "	if (inst.WoundSide.x + inst.WoundSide.y > 0.5)\n" \
 "	{\n" \
-"		int bone = in_indices.x;\n" \
-"		float most = in_weights.x;\n" \
-"		if (in_weights.y > most) { bone = in_indices.y; most = in_weights.y; }\n" \
-"		if (in_weights.z > most) { bone = in_indices.z; most = in_weights.z; }\n" \
-"		if (in_weights.w > most) { bone = in_indices.w; }\n" \
+"		int bone = HeaviestBone();\n" \
 "		uint bits = bone < 24 ? uint(inst.WoundSide.x) >> uint(bone) : bone < 48 ? uint(inst.WoundSide.y) >> uint(bone - 24) : 0u;\n" \
 "		out_woundside = float(bits & 1u);\n" \
+"	}\n" \
+"#endif\n"
+
+// the retro textures' set of a vertex (vr/vr_retro.h): the instance's; your body's (RetroPart set) the first of its
+// parts' sets (Hands, Arms, Torso, Legs) plus its heaviest bone's part (2 bits: RetroPart.xy the low, .zw the high).
+#define QVR_ALIAS_VS_RETRO \
+"	out_retroset = inst.Retro.x;\n" \
+"#if POSEVERTTYPE == 1\n" \
+"	if (inst.Retro.x > 0.5 && dot(inst.RetroPart, vec4(1.0)) > 0.5)\n" \
+"	{\n" \
+"		int bone = HeaviestBone();\n" \
+"		uvec2 bits = bone < 24 ? uvec2(inst.RetroPart.xz) >> uint(bone) : bone < 48 ? uvec2(inst.RetroPart.yw) >> uint(bone - 24) : uvec2(0u);\n" \
+"		out_retroset += float(bits.x & 1u) + 2.0 * float(bits.y & 1u);\n" \
 "	}\n" \
 "#endif\n"
 
@@ -1580,7 +1602,8 @@ SPECULAR_AA_FUNCTIONS
 "layout(location=11) in vec3 in_morphpos; // QVR: a gun's morph (vr/vr_render.cpp)\n" \
 "layout(location=12) flat in float in_morph; // QVR\n" \
 "layout(location=13) in float in_vao; // QVR: the model's own occlusion (vr/vr_ao.cpp)\n" \
-"layout(location=14) flat in float in_woundside; // QVR: 1 on its right side (vr/vr_wounds.cpp: your body's mask, one a side)\n"
+"layout(location=14) flat in float in_woundside; // QVR: 1 on its right side (vr/vr_wounds.cpp: your body's mask, one a side)\n" \
+"layout(location=15) flat in float in_retroset; // QVR: its retro textures' set (vr/vr_retro.h)\n"
 
 // per-pixel lights, normal maps, ambient, wounds, morphs
 #define QVR_ALIAS_FS_FUNCTIONS \

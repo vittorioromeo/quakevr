@@ -2055,7 +2055,7 @@ void() DropBackpack =
 
     entity item = spawn();
     item.origin = self.origin - '0 0 24';
-    if(self.flags & FL_MONSTER)
+    if((self.flags & FL_MONSTER) || self.vr_was_monster) // (a gibbed one's head: SoldierDrop after ThrowHead)
     {
         item.vr_monster_drop = time; // it can't hurt players just yet (vr_prop_drop_grace: vr_carry.qc VR_Prop_Flung)
     }
