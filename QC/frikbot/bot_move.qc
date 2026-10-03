@@ -495,7 +495,7 @@ void() frik_bot_roam =
         loopcount = loopcount - 1;
         org = self.origin + self.view_ofs;
         ang = self.angles;
-        ang_y = frik_anglemod(ang_y - 90 + (random() * 180));
+        ang_y = anglemod(ang_y - 90 + (random() * 180));
         ang_x = 0; // avoid upward sloping
         makeforward(ang);
         traceline(org, org + v_forward * 2300, TRUE, self);

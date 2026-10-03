@@ -729,8 +729,8 @@ subtracts one angle from another
 
 float (float y1, float y2) angcomp =
 {
-    y1 = frik_anglemod(y1);
-    y2 = frik_anglemod(y2);
+    y1 = anglemod(y1);
+    y2 = anglemod(y2);
 
     float answer;
     answer = y1 - y2;
@@ -768,14 +768,3 @@ float (entity targ) fov =
     return TRUE;
 };
 
-/*
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-frik_anglemod
-
--=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-*/
-float(float v) frik_anglemod =
-{
-    return v - floor(v/360) * 360;
-};

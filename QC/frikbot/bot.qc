@@ -278,7 +278,6 @@ void()                KickABot;
 void()                BotImpulses;
 void(entity targ, float success) bot_lost;
 string(float r)            BotName;
-float(float v)            frik_anglemod;
 void() bot_chat;
 void(float tpic) bot_start_topic;
 
