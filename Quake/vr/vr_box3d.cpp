@@ -4985,13 +4985,18 @@ void syncEntities(float dt)
     {
         // The rigs made now (tens of milliseconds each, as the map starts), not as the first grunt dies.
         world->ragdollsWarmed = true;
+        za::Vector<qmodel_t*> rigged;
         for(int i = 1; i < MAX_MODELS && sv.models[i]; i++)
         {
             if(ragdoll::eligible(sv.models[i]))
             {
-                (void)ragdoll::rigFor(sv.models[i]);
+                rigged.pushBack(sv.models[i]);
             }
         }
+        const double w0 = Sys_DoubleTime();
+        ragdoll::warmRigs(rigged.data(), static_cast<int>(rigged.size()));
+        Con_DPrintf("ragdoll: the map's rigs (%d models) ready in %.1f ms\n", static_cast<int>(rigged.size()),
+            (Sys_DoubleTime() - w0) * 1000.0);
     }
     for(int num = 1; num < qcvm->num_edicts; num++)
     {

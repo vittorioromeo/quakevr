@@ -8,9 +8,11 @@
 #include "vr_box3d.hpp"
 #include "vr_decals.hpp"
 #include "vr_hands.hpp"
+#include "vr_jobs.hpp"
 #include "vr_mem.hpp"
 #include "vr_protocol.hpp"
 
+#include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -719,14 +721,37 @@ float refine(const Mesh& m, const za::Vector<int>& reps, za::Vector<int>& label,
     return za::sqrt(total / static_cast<float>(za::max<za::SizeT>(reps.size(), 1) * static_cast<za::SizeT>(m.np)));
 }
 
-bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
+// What derive has to say, said by the main thread after it (the rigs are made on the pool: warmRigs).
+struct DeriveLog
+{
+    bool developer{true}; // Con_DPrintf, else Con_Printf
+    char text[256]{};
+};
+
+void sayLog(const DeriveLog& log)
+{
+    if(log.text[0])
+    {
+        if(log.developer)
+        {
+            Con_DPrintf("%s", log.text);
+        }
+        else
+        {
+            Con_Printf("%s", log.text);
+        }
+    }
+}
+
+// Any thread: reads the model's data (loaded: Mod_Extradata on the main thread first) and writes `rig` and `log` only.
+bool derive(qmodel_t* model, const SeedTable& table, Rig& rig, DeriveLog& log)
 {
     const double t0 = Sys_DoubleTime();
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(model));
     if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ||
         hdr->numverts != table.numVerts || hdr->numposes < 2 || table.count > maxBones)
     {
-        Con_DPrintf("ragdoll: %s is not the model its seed table was made for\n", model->name);
+        q_snprintf(log.text, sizeof(log.text), "ragdoll: %s is not the model its seed table was made for\n", model->name);
         return false;
     }
     Mesh m;
@@ -915,8 +940,9 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
     {
         if(t.members[static_cast<za::SizeT>(b)] < 3)
         {
-            Con_Printf("ragdoll: %s: bone %s got %d vertices: no ragdoll\n", model->name, table.seeds[b].name,
-                t.members[static_cast<za::SizeT>(b)]);
+            log.developer = false;
+            q_snprintf(log.text, sizeof(log.text), "ragdoll: %s: bone %s got %d vertices: no ragdoll\n", model->name,
+                table.seeds[b].name, t.members[static_cast<za::SizeT>(b)]);
             return false;
         }
     }
@@ -1029,8 +1055,8 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
         rig.deathLast[i] = tb.deathLast[i];
     }
     rig.deriveMs = (Sys_DoubleTime() - t0) * 1000.0;
-    Con_DPrintf("ragdoll: %s rigged: %d bones (%d loose), clusters %.2f, bones %.2f units rms, %.1f ms\n", model->name, numBones,
-        static_cast<int>(loosePieces.size()), rig.clusterRms, rig.boneRms, rig.deriveMs);
+    q_snprintf(log.text, sizeof(log.text), "ragdoll: %s rigged: %d bones (%d loose), clusters %.2f, bones %.2f units rms, %.1f ms\n",
+        model->name, numBones, static_cast<int>(loosePieces.size()), rig.clusterRms, rig.boneRms, rig.deriveMs);
     return true;
 }
 
@@ -1044,6 +1070,7 @@ struct RigCache
     auto members() { return mem::list(rigs, failed); }
 };
 mem::Cache<RigCache> rigCache{"ragdoll rigs", mem::GameDirChange}; // (not a model reload: ragdolls point to their rigs)
+qvr::jobs::Site warmSite{"ragdoll rigs"}; // (warmRigs' parallelFor: vr_jobs_sites)
 
 [[nodiscard]] Rig* findRig(const qmodel_t* model)
 {
@@ -1328,7 +1355,10 @@ const Rig* rigFor(qmodel_t* model)
         }
     }
     za::UniquePtr<Rig> r = za::makeUnique<Rig>();
-    if(!derive(model, *table, *r))
+    DeriveLog log;
+    const bool ok = derive(model, *table, *r, log);
+    sayLog(log);
+    if(!ok)
     {
         rigCache.failed.pushBack(model);
         return nullptr;
@@ -1336,6 +1366,64 @@ const Rig* rigFor(qmodel_t* model)
     Rig* made = r.get();
     rigCache.rigs.pushBack(static_cast<za::UniquePtr<Rig>&&>(r));
     return made;
+}
+
+void warmRigs(qmodel_t* const* models, int count)
+{
+    // Those not made yet (nor failed), their models' data loaded here (the cache: the main thread's).
+    struct Job
+    {
+        qmodel_t* model{nullptr};
+        const SeedTable* table{nullptr};
+        za::UniquePtr<Rig> rig;
+        DeriveLog log;
+        bool ok{false};
+    };
+    za::Vector<Job> work;
+    for(int i = 0; i < count; i++)
+    {
+        qmodel_t* model = models[i];
+        const SeedTable* table = model ? tableOf(model) : nullptr;
+        if(!table || findRig(model) || za::find(rigCache.failed.begin(), rigCache.failed.end(), model) != rigCache.failed.end())
+        {
+            continue;
+        }
+        bool twice = false;
+        for(const Job& j : work)
+        {
+            twice = twice || j.model == model;
+        }
+        if(twice || !Mod_Extradata(model))
+        {
+            continue;
+        }
+        Job j;
+        j.model = model;
+        j.table = table;
+        j.rig = za::makeUnique<Rig>();
+        work.pushBack(static_cast<Job&&>(j));
+    }
+    // Each its own on the pool (tens of milliseconds each: the map's monsters were a quarter of a second in a row).
+    qvr::jobs::parallelFor(warmSite, work.size(), 1, [&work](za::SizeT begin, za::SizeT end) {
+        for(za::SizeT k = begin; k < end; k++)
+        {
+            Job& j = work[k];
+            j.ok = derive(j.model, *j.table, *j.rig, j.log);
+        }
+    });
+    // Kept in the order asked (as rigFor one by one would have).
+    for(Job& j : work)
+    {
+        sayLog(j.log);
+        if(j.ok)
+        {
+            rigCache.rigs.pushBack(static_cast<za::UniquePtr<Rig>&&>(j.rig));
+        }
+        else
+        {
+            rigCache.failed.pushBack(j.model);
+        }
+    }
 }
 
 void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos)

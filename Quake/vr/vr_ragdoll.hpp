@@ -80,6 +80,9 @@ struct Rig
 // failed (the model isn't the one the seed table was made for).
 [[nodiscard]] const Rig* rigFor(qmodel_t* model);
 
+// The rigs of `count` models made at once, on the game's thread pool (the map's start: rigFor's for each, faster).
+void warmRigs(qmodel_t* const* models, int count);
+
 // Bone `b`'s transform from the rest pose to pose `pose` (the model's space, units): p' = rot * p + pos.
 void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 
