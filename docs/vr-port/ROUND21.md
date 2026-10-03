@@ -22445,3 +22445,37 @@ heavy, close particle load.
 About +0.5 ms on particles that cover much of the view (each fragment reads up to four block taps and the palette
 table); decals +0.04 to +0.2 (noisy). Sprites and Quake's particles were too few here to measure. Off (the category's
 On 0, or vr_retro 0): decals and VR particles use the old programs; sprites and Quake's particles one branch.
+
+## Two-handed throws of big gibs (2026-10-03)
+
+NOTES.md vrfiringrange_2026-10-03_02-02-13: the torso (gib2) and the big chunk (gib3), held in both hands, pushed
+forward and let go together, burst in front of him; heads rarely if ever. **Cause** (his config, his gib masses: gib1 8
+kg, gib2 20, gib3 12): the hands never let go in the same frame. The first to let go (`carry: one hand let go, held in
+the other`) is then "the other hand" of a gib held in one (VR_Gib_HeldFrameHand: a fist's strike on a gib held in the
+other hand), and its sweep is measured against the holding hand's: hands a little apart in speed during the push give
+3-4 m/s, over `vr_melee_speed` (3), and the fist is inside a big gib's box (+2.5 units), so every such frame met it:
+`gib: struck by the other hand at 3.3` -> burst. The small gib's box doesn't reach the hand; the earlier fix (the
+touches after the throw, VR_Gib_Struck) never ran: the gib was still held.
+
+**Now** (QC/vr_carry.qc VR_Gib_HeldFrameHand): the hand that let go first of a gib held in both strikes it not while the
+other may still throw it with both (VR_Throw_HandMayStrike: `vr_carry_two_hands_window` + 0.05 s, with
+`vr_throw_2h_nomelee` on), nor just after a two-handed throw. Toss a gib to one hand and punch it after that: as before.
+
+Test `Misc/quakevr/gib_2h_models_test.sh <agent> <out>` (CFG=<config> exec'd first; KINDS): each model (new
+`vr_test_held_pick`, -1 each in turn; Debug > Tests: Which Gib) pushed with both hands at 6 and 9 m/s, the off hand 50
+ms behind on a path 0.6 as long, let go together, the off hand 40 ms or 11 ms first, the main hand 22 ms first
+(gib_2h_throw_test.sh's new STAGGERS 2 3, LAG, OSCALE). His config:
+
+| model | before: burst | after |
+|---|---|---|
+| gib1 (small, 8 kg) | 0 of 8 | 0 of 8 |
+| gib2 (torso, 20 kg) | 3 of 8 (off hand first: 40 ms, 11 ms) | 0 of 8 |
+| gib3 (big chunk, 12 kg) | 3 of 8 | 0 of 8 |
+
+Heads (h_player, grunt, ogre, knight, zombie, fiend) can't be taken by the second hand 14 cm from the first (`carry:
+the other hand is not within reach`): held in one, the other alongside 40% faster strikes them (`struck by the other
+hand at 3.0`) in every run, before and after: the punch on a held gib, by design (a real push's hands differ far less).
+
+In VR:
+- [ ] Take the torso gib and the big chunk in both hands, push both forward and let go together: they fly, no burst.
+- [ ] Hold a gib in one hand and punch it with the other: it bursts.
