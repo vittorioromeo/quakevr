@@ -23547,3 +23547,43 @@ pelvis and the prop: a turning limb's place lerped in a straight line between st
 - [ ] Held Limbs Follow the Hand off: the held body lags your hand a little more.
 - [ ] Bullet time (slow motion) with a ragdoll falling: smooth too.
 - [ ] Debug > Tests > Ragdoll and Prop Drawn Motion after a blast: the console's ragdoll "uneven" is near the prop's (not about 2).
+## Two-handed ragdoll throws (2026-10-03)
+
+He: a ragdoll grabbed with both hands and thrown ahead got the big gibs' old trouble: part of the throw was taken for a
+melee blow that hurt the ragdoll and bent its flight. **Cause**: a hand holding a ragdoll's limb doesn't carry it as a
+prop (no `.carry_player`): it holds it in its held field, so the corpse blows (`VR_Corpse_StrikeFrame`, combat.qc: a hand
+at `vr_melee_speed` through a corpse) met the very ragdoll it held, as "a prop in the fist" (`corpse: monster_army hit by
+player (props x1.00) for 25.9`), during the push, before either hand let go; the hand sweeps (vr_melee.qc) could too.
+Two such hits gib a grunt (80).
+
+**Now** (QC vr_carry.qc "Two-handed ragdoll throws", combat.qc, vr_melee.qc `VR_Melee_Armed`): a hand never strikes a
+ragdoll it holds (any of its parts: the ragdoll is one entity), nor one it let go of 0.4 s ago (`VR_RAGDOLL_LETGO_SPARE`,
+as a gib's releasing hand). The hand that lets go of a ragdoll the other still holds strikes nothing while the other may
+still throw it with both (`vr_2h_letgo_hand`, `VR_Throw_HandMayStrike`); the other letting go within
+`vr_carry_two_hands_window` + 0.05 s is a two-handed throw (`VR_Throw_TwoHanded`: no blows for `vr_throw_2h_nomelee`,
+the ragdoll spared for `vr_throw_2h_melee_immune`), as a prop's. The free hand still punches a ragdoll held in the other.
+`developer 1`: `ragdoll: limb let go of by hand <h> at <m/s> (a two-handed throw)`; a corpse hit by a nameless thing
+names its model.
+
+Test `Misc/quakevr/ragdoll/ragdoll_2h_throw_test.sh <agent> [staggers]` (`SPEED` units a frame at the peak, `LAG`,
+`OSCALE`; `MON`): a grunt's ragdoll on e1m1 taken in both hands (blows off while the mock hands jump onto it), lifted,
+pushed forward and up and let go (the off hand 0, 1, 4 frames first, or the main hand 2 first); prints the hits, the
+hands' throw speeds and the pelvis's way forward. SPEED 3, 4, 5 (5.8, 7.8, 9.7 m/s) x 4 staggers:
+
+| | ragdoll hit by the hands | pelvis forward at rest (mean of 12) |
+|---|---|---|
+| before | 10 of 12 (21.6 to 47.7 each) | 21.8 units (1.7 .. 41.8) |
+| after | 0 of 18 | 21.5 units (5.2 .. 49.4) |
+
+The flight barely changes on average (no QC knock was logged with the hits; their small gibs or a gibbing could still jolt it): the spread is
+the throw's own (the limbs taken, the body hanging). The throws are short (80 kg; the held limbs alone get the hands'
+speed): that is the ragdoll throw's (ragsmooth, raggrasp), not this. One run in 30 showed `hit by (props) for 7.9`
+from a nameless inflictor (not a hand); the log names its model now. Held in one hand and swung hard (12 m/s), let go:
+no hit; the other hand's punch: `fists x1.00 for 60`. eval.sh canary: no differences.
+
+In VR:
+- [ ] Take a dead grunt's ragdoll in both hands and throw it ahead: it isn't hurt (no blood, no small gibs) as it leaves.
+- [ ] The same, letting go with one hand a moment before the other: it isn't hurt.
+- [ ] Throw a ragdoll hard ahead twice: it isn't gibbed by the throws.
+- [ ] Hold a ragdoll in one hand and punch it with the other: the punch lands.
+- [ ] Swing a ragdoll held in one hand and let go: it isn't hurt.

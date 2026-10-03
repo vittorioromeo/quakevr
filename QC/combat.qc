@@ -603,8 +603,9 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     }
 
     targ.vr_corpse_hp = targ.vr_corpse_hp - damage;
-    dprint(sprintf("corpse: %s hit by %s (%s x%.2f) for %.1f, %.1f left\n", targ.classname, inflictor.classname, kindName,
-        kindMult, damage, max(0, targ.vr_corpse_hp)));
+    dprint(sprintf("corpse: %s hit by %s (%s x%.2f) for %.1f, %.1f left\n", targ.classname,
+        inflictor.classname != "" ? inflictor.classname : inflictor.model, kindName, kindMult, damage,
+        max(0, targ.vr_corpse_hp)));
     if(targ.vr_corpse_hp <= 0)
     {
         VR_Corpse_Gib(targ, inflictor, attacker, damage);
@@ -668,6 +669,10 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
     self = oldSelf;
 };
 
+float(entity e, entity p, float xHand) VR_Ragdoll_HandSpares; // (vr_carry.qc)
+float(entity e, entity p) VR_Throw_SparedBlows;
+float(entity p, float xHand) VR_Throw_HandMayStrike;
+
 // Every player frame, for each hand (self is the player; VR_Carry_HandFrame): a hand swung at a
 // blow's speed (vr_melee_speed) through a corpse, or what it holds, strikes it.
 void(float xHand) VR_Corpse_StrikeFrame =
@@ -716,6 +721,12 @@ void(float xHand) VR_Corpse_StrikeFrame =
     }
 
     if(c == world || !c.takedamage || time < c.vr_corpse_struck + 0.35)
+    {
+        return;
+    }
+    // Not a ragdoll this hand holds or just let go of, nor one just thrown with both hands (a throw is not a blow:
+    // ROUND21.md, "Two-handed ragdoll throws").
+    if(VR_Ragdoll_HandSpares(c, self, xHand) || VR_Throw_SparedBlows(c, self) || !VR_Throw_HandMayStrike(self, xHand))
     {
         return;
     }
