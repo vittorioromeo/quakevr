@@ -4031,6 +4031,42 @@ void() VR_GrenShot_TestShoot =
     VR_Test_Fire(kind, at);
 };
 
+// QVR: impulse 252 with vr_test_held_pick 9-12 (tests): the nearest rock, a hand grenade from the pouch, the nearest box
+// of shells, the nearest brick put into the empty off hand (the two-handed re-grip tests: ROUND21.md, "Every prop in
+// both hands").
+void(float xPick) VR_Test_HeldProp =
+{
+    if(xPick == 10)
+    {
+        if(self.ammo_rockets < 1)
+        {
+            self.ammo_rockets = 1;
+        }
+        VR_HandGrenade_Take(cVR_OffHand);
+        dprint("test: a hand grenade in the off hand\n");
+        return;
+    }
+    string heldClass = xPick == 9 ? "vr_rock" : (xPick == 11 ? "item_shells" : "vr_brick");
+    entity heldNear = world;
+    float heldDist = 100000;
+    for(entity heldE = find(world, classname, heldClass); heldE; heldE = find(heldE, classname, heldClass))
+    {
+        if(heldE.carry_player == world && heldE.model != string_null && vlen(heldE.origin - self.origin) < heldDist)
+        {
+            heldNear = heldE;
+            heldDist = vlen(heldE.origin - self.origin);
+        }
+    }
+    if(heldNear == world)
+    {
+        dprint(sprintf("test: no %s\n", heldClass));
+        return;
+    }
+    setorigin(heldNear, VRGetHandPos(cVR_OffHand));
+    VR_Carry_Start(self, cVR_OffHand, heldNear);
+    dprint(sprintf("test: %s (%s) in the off hand\n", heldNear.model, heldClass));
+};
+
 // impulse 211: a hand grenade from the pouch into the empty off hand (a rocket for it if you have none), let go of
 // unarmed (a dud: VR_Carry_Release, VR_Grenade_Released), and put on the floor vr_test_grenade_dist ahead.
 void() VR_GrenShot_TestDud =
@@ -4634,7 +4670,11 @@ void() ImpulseCommands =
         }
     }
     // QVR: a gib or a head in the empty off hand, each in turn (fitted hands tests, round 21).
-    if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, cVR_OffHand))
+    if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, cVR_OffHand) && cvar("vr_test_held_pick") >= 9)
+    {
+        VR_Test_HeldProp(floor(cvar("vr_test_held_pick")));
+    }
+    else if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, cVR_OffHand))
     {
         if(cvar("vr_test_held_pick") >= 0)
         {

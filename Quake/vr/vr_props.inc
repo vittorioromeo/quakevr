@@ -89,10 +89,10 @@ QVR_PROP_DEFAULT(2, Mass, "0.4")
 // whole speed. Also their mass in Box3D (5.2 kg from their hull at 2000 kg/m^3 before: they knock boxes less now).
 QVR_PROP_DEFAULT(3, ID, "progs/grenade.mdl")
 QVR_PROP_DEFAULT(3, Mass, "1.2")
-// In the palm, in one hand (round 21, "Hand grenades from the back pouch": a grenade from the pouch, or caught): its
-// middle over the fist's grip channel, the fingers round it. vr_props_version 44 gives these to configs saved before.
+// In the palm (round 21, "Hand grenades from the back pouch": a grenade from the pouch, or caught): its middle over the
+// fist's grip channel, the fingers round it. vr_props_version 44 gives these to configs saved before. In both hands too
+// since vr_props_version 56 (ROUND21.md, "Every prop in both hands": the other hand takes it to grip it again).
 QVR_PROP_DEFAULT(3, GripMode, "2")
-QVR_PROP_DEFAULT(3, TwoHands, "0")
 // The author's fit (NOTES.md vrfiringrange_2026-10-01_16-53-53, the thumb round it; vr_props_version 54): turned 10
 // degrees, 1 unit up, the fingers sunk 0.75 cm into it.
 QVR_PROP_DEFAULT(3, GripRoll, "10")
@@ -101,9 +101,8 @@ QVR_PROP_DEFAULT(3, Overlap, "0.75")
 QVR_PROP_DEFAULT(4, ID, "progs/mervup.mdl")
 QVR_PROP_DEFAULT(4, Mass, "1.2")
 // The multi-grenade held as the grenade is (round 21, "Multi-grenades from the pouch": one from the pouch with B/Y held,
-// or caught): in the palm, in one hand. vr_props_version 53 gives these to configs saved before.
+// or caught): in the palm. vr_props_version 53 gives these to configs saved before; both hands too since 56.
 QVR_PROP_DEFAULT(4, GripMode, "2")
-QVR_PROP_DEFAULT(4, TwoHands, "0")
 // The author's (NOTES.md vrfiringrange_2026-10-01_17-17-58; vr_props_version 54): turned 10 degrees, the fingers sunk
 // 0.6 cm into it.
 QVR_PROP_DEFAULT(4, GripYaw, "10")
@@ -190,8 +189,9 @@ QVR_PROP_DEFAULT(47, Mass, "28")
 // about 1.9), since each piece is sized apart. Their damage is the weight's (round 21, "Spring only; Weapon Weights and
 // Held Object Weights; weight and damage"): a punch holding one hits Box Punch Damage (1.5) x Melee Damage 1.4 x the
 // weight's curve by its mass (a 1 kg rock 1.79, a brick 2.1); the whole bricks (a tip: clubs, whose blows take no Box
-// Punch Damage) Melee Damage 2.1; thrown, Thrown Box Damage x 2.1 x the curve. The rocks and the half brick one hand; the
-// whole, chipped and broken bricks (19 and 13 cm) both hands too (vr_props_version 39), then carried as a box, not a club.
+// Punch Damage) Melee Damage 2.1; thrown, Thrown Box Damage x 2.1 x the curve. The whole, chipped and broken bricks (19 and
+// 13 cm) both hands too (vr_props_version 39), then carried as a box, not a club; the rocks and the half brick too since
+// vr_props_version 56 (every prop in both hands: the other hand takes it to grip it again).
 // Held (round 21, "Held props: grip modes, live offsets, palm grip, torch handle"): every rock and brick In the Palm (its
 // middle in the palm's, the fingers round it). The whole bricks and the broken piece were fixed (by an end) before the
 // author moved them In the Palm (2026-09-29; vr_props_version 45). Their Grip X and Z (the fixed grip's, kept as an
@@ -201,35 +201,30 @@ QVR_PROP_DEFAULT(47, Mass, "28")
 QVR_PROP_DEFAULT(17, ID, "progs/vr_rock1.mdl")
 QVR_PROP_DEFAULT(17, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(17, MeleeDamage, "1.4")
-QVR_PROP_DEFAULT(17, TwoHands, "0")
 QVR_PROP_DEFAULT(17, GripMode, "2")
 QVR_PROP_DEFAULT(17, Size, "1.25")
 QVR_PROP_DEFAULT(17, MassScale, "1.25")
 QVR_PROP_DEFAULT(18, ID, "progs/vr_rock2.mdl")
 QVR_PROP_DEFAULT(18, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(18, MeleeDamage, "1.4")
-QVR_PROP_DEFAULT(18, TwoHands, "0")
 QVR_PROP_DEFAULT(18, GripMode, "2")
 QVR_PROP_DEFAULT(18, Size, "1.25")
 QVR_PROP_DEFAULT(18, MassScale, "1.25")
 QVR_PROP_DEFAULT(19, ID, "progs/vr_rock3.mdl")
 QVR_PROP_DEFAULT(19, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(19, MeleeDamage, "1.4")
-QVR_PROP_DEFAULT(19, TwoHands, "0")
 QVR_PROP_DEFAULT(19, GripMode, "2")
 QVR_PROP_DEFAULT(19, Size, "1.25")
 QVR_PROP_DEFAULT(19, MassScale, "1.25")
 QVR_PROP_DEFAULT(20, ID, "progs/vr_rock4.mdl")
 QVR_PROP_DEFAULT(20, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(20, MeleeDamage, "1.4")
-QVR_PROP_DEFAULT(20, TwoHands, "0")
 QVR_PROP_DEFAULT(20, GripMode, "2")
 QVR_PROP_DEFAULT(20, Size, "1.25")
 QVR_PROP_DEFAULT(20, MassScale, "1.25")
 QVR_PROP_DEFAULT(21, ID, "progs/vr_rock5.mdl")
 QVR_PROP_DEFAULT(21, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(21, MeleeDamage, "1.4")
-QVR_PROP_DEFAULT(21, TwoHands, "0")
 QVR_PROP_DEFAULT(21, GripMode, "2")
 QVR_PROP_DEFAULT(21, Size, "1.25")
 QVR_PROP_DEFAULT(21, MassScale, "1.25")
@@ -256,7 +251,6 @@ QVR_PROP_DEFAULT(23, ButtX, "-2.4")
 QVR_PROP_DEFAULT(24, ID, "progs/vr_brick3.mdl")
 QVR_PROP_DEFAULT(24, ThrowDamage, "2.1")
 QVR_PROP_DEFAULT(24, MeleeDamage, "1.4")
-QVR_PROP_DEFAULT(24, TwoHands, "0")
 QVR_PROP_DEFAULT(24, GripMode, "2")
 QVR_PROP_DEFAULT(24, Size, "1.25")
 QVR_PROP_DEFAULT(25, ID, "progs/vr_brick4.mdl")
@@ -271,7 +265,8 @@ QVR_PROP_DEFAULT(25, ButtX, "-1.6")
 // The wooden crates (vr_crates.qc; ROUND21.md, "Wooden crates"): as heavy as the explosive boxes of their size, carried
 // by hand as they are, never force grabbed. What they break into: light boards, a splinter and a batten, thrown and
 // force grabbed as any small thing (vr_props_version 49 gives these slots to configs saved before); the small ones (a
-// broken board, the splinter, a broken batten) held in the palm, the whole board where taken (51).
+// broken board, the splinter, a broken batten) held in the palm, the whole board where taken (51). Every one in both
+// hands too (56: the broken board and the splinter were one hand).
 QVR_PROP_DEFAULT(26, ID, "progs/vr_crate1.mdl")
 QVR_PROP_DEFAULT(26, Mass, "40")
 QVR_PROP_DEFAULT(26, ForceGrab, "0")
@@ -283,11 +278,9 @@ QVR_PROP_DEFAULT(28, Mass, "4")
 QVR_PROP_DEFAULT(29, ID, "progs/vr_plank2.mdl")
 QVR_PROP_DEFAULT(29, GripMode, "2")
 QVR_PROP_DEFAULT(29, Mass, "2.5")
-QVR_PROP_DEFAULT(29, TwoHands, "0")
 QVR_PROP_DEFAULT(30, ID, "progs/vr_plank3.mdl")
 QVR_PROP_DEFAULT(30, GripMode, "2")
 QVR_PROP_DEFAULT(30, Mass, "0.15")
-QVR_PROP_DEFAULT(30, TwoHands, "0")
 QVR_PROP_DEFAULT(31, ID, "progs/vr_plank4.mdl")
 QVR_PROP_DEFAULT(31, GripMode, "2")
 QVR_PROP_DEFAULT(31, Mass, "3")
