@@ -5,7 +5,8 @@
 #                                  frame of battens on every face, nailed; three skins (pine, brown, weathered)
 #   quakevr/progs/vr_crate2.mdl    the large crate, 40 x 40 x 48: the same, and a diagonal brace across each side
 #   quakevr/progs/vr_plank1..4.mdl what a crate breaks into: a whole board, a board broken off, a splinter, a batten
-#                                  broken off; three skins each, matching the crates'
+#                                  broken off; three skins each, matching the crates', and a fourth: charred (a crate
+#                                  burnt through breaks into these, burnt black: vr_burning.qc, VR_PIECE_SKIN_CHARRED)
 #   quakevr/progs/<model>_<skin>.png  each skin in full colour at four times the size (1024 x 1024 a crate's, 512 x 512 a
 #                                  piece's): what the engine draws (an external skin); the model's own 8-bit skins are
 #                                  the same, in Quake's palette, for a renderer without them
@@ -480,7 +481,54 @@ def board_paint(faces, P, F, E, seed, nails, res):
     h = h + nail_relief(nd, r, nd < 2.2 * r)
     regions["shade"] = shading(h, F, P, N, res)
     skins = finish((late, fib, pores, tint), N, P, seed, res, regions)
+    skins.append(charred(x, y + z * 0.5, layer, P, E, fib, (fresh | end).astype(np.float64), regions["shade"], seed, res))
     return skins, h
+
+
+# A board burnt black (NOTES.md vrfiringrange_2026-10-03_02-04-39): charcoal, the burnt-wood grey of its sheen, the ash
+# on its edges, the cracks between its blocks, what little brown is left under the char.
+CHARCOAL = rgb((0.055, 0.047, 0.040))
+CHAR_SHEEN = rgb((0.15, 0.145, 0.14))
+CHAR_ASH = rgb((0.34, 0.33, 0.31))
+CHAR_CRACK = rgb((0.012, 0.010, 0.008))
+CHAR_SCORCH = rgb((0.17, 0.085, 0.035))
+
+
+def charred(along, across, layer, P, E, fib, ends, shade, seed, res):
+    """A piece's charred skin ((h, w, 3) 0..1): burnt wood's alligator checks (long cracks along the grain, shorter
+    ones across it, staggered from row to row: blocks of charcoal), the blocks' tops silvered here and there, grey ash
+    on its worn edges and its broken and sawn ends (burnt deepest), a few patches only scorched brown; `ends` its
+    broken and end-grain texels; the relief's shading."""
+    # The blocks: rows along the grain (each its own height), cut across at its own spacing and offset; cracks of
+    # every width between them, the blocks domed (their middles catch the light).
+    wob = md.fbm(np.stack([along * 0.08, across * 0.3, layer + 41.0], -1), seed + 91, 2) - 0.5
+    rv = (across + wob * 0.8) / 1.0
+    ri = np.floor(rv)
+    fv = rv - ri
+    hr = md.vnoise(np.stack([ri * 1.0, layer, np.full_like(ri, 3.0)], -1), seed + 92)
+    cw = 1.2 + 1.4 * hr  # the blocks' length along the grain, this row's
+    wob2 = md.fbm(np.stack([along * 0.3, across * 1.2, layer + 43.0], -1), seed + 94, 2) - 0.5
+    cu = (along + wob2 * 0.5) / cw + hr * 7.3
+    ci = np.floor(cu)
+    fu = cu - ci
+    hc = md.vnoise(np.stack([ri * 1.0, ci * 1.0, layer + 5.0], -1), seed + 96)
+    w = 0.05 + 0.16 * hc  # this block's cracks' width (units)
+    d = np.minimum(np.minimum(fv, 1 - fv) * 1.0, np.minimum(fu, 1 - fu) * cw)
+    crack = 1.0 - md.smoothstep(d, w * 0.4, w)
+    dome = np.clip(4 * fv * (1 - fv), 0, 1) * np.clip(4 * fu * (1 - fu), 0, 1)
+    blot = 0.75 + 0.5 * md.fbm(P * 0.2 + 5.0, seed + 97, 3)
+    c = CHARCOAL * ((0.7 + 0.5 * fib) * blot * (0.8 + 0.4 * hc))[..., None]
+    sheen = md.smoothstep(md.fbm(P * 0.45 + 9.0, seed + 99, 3), 0.45, 0.75) * dome
+    c = mix(c, CHAR_SHEEN, sheen * 0.7)
+    remnant = md.smoothstep(md.fbm(P * 0.07 + 13.0, seed + 101, 3), 0.68, 0.82) * 0.45 * (1.0 - ends)
+    c = mix(c, CHAR_SCORCH * (0.6 + 0.6 * fib)[..., None], remnant * (1.0 - crack))
+    grit = md.vnoise(P * min(3.0, 0.4 * res) + 17.0, seed + 103)
+    edge = (1.0 - md.smoothstep(E, 0.05, 0.35)) * md.smoothstep(grit, 0.35, 0.75)
+    ash = np.clip(np.maximum(edge, ends * md.smoothstep(grit, 0.55, 0.85)), 0, 1)
+    c = mix(c, CHAR_ASH * (0.6 + 0.5 * grit)[..., None], ash * 0.45)
+    c = mix(c, CHAR_CRACK, crack * 0.92)
+    c = c * shade[..., None]
+    return np.clip(c, 0, 1)
 
 
 def hires_texels(faces, uvs, size):
@@ -549,7 +597,7 @@ def relief(name):
 
 def preview(models, path):
     from PIL import Image, ImageDraw
-    img = Image.new("RGB", (3 * (256 + 4), len(models) * (256 + 18)), (32, 32, 32))
+    img = Image.new("RGB", (max(len(m[4]) for m in models) * (256 + 4), len(models) * (256 + 18)), (32, 32, 32))
     d = ImageDraw.Draw(img)
     for r, m in enumerate(models):
         y = r * (256 + 18)

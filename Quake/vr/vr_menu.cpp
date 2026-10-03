@@ -1545,7 +1545,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
             .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
         toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
-        cycle("Cord", vr_flashlight_cord, {{0.f, "Off"}, {1.f, "Coiled"}, {2.f, "Plain"}, {3.f, "Chain"}}).help("The retracting cord from the clip on your belt to the torch while it is off the belt: coiled like an old telephone's, springy, a plain cable, or a rusty iron chain (off: none drawn)."),
+        cycle("Cord", vr_flashlight_cord, {{0.f, "Off"}, {1.f, "Coiled"}, {2.f, "Plain"}, {3.f, "Chain"}, {4.f, "Low-Poly Chain"}}).help("The retracting cord from the clip on your belt to the torch while it is off the belt: coiled like an old telephone's, springy, a plain cable, a rusty iron chain, or that chain low-poly (fewer, chunkier links of square bar, flat-shaded: Quake's look) (off: none drawn)."),
         hueSlider("Beam Hue", vr_flashlight_hue).help("The beam's colour, with Beam Saturation (at 0 it is white): its light, the beam in the air and the lens. 40 warm, 200 cold blue; Player's: the Player Effects Hue."),
         slider("Beam Saturation", vr_flashlight_saturation, 0.f, 1.f, 0.05f, "%.2f").help("0 white (the default), 1 the Beam Hue in full."),
         header("Taking and Clipping On"),
@@ -1822,6 +1822,12 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Gibs flying into you bloody you where they strike: how much (0 none)."),
         toggle("Blood on Weapons and Props", vr_gore_gear)
             .help("What you hold takes blood and keeps it: dropped, thrown and taken again, holstered and drawn, until water washes it."),
+        toggle("Holstered Weapons Too", vr_gore_gear_holstered)
+            .help("Your holstered weapons take blood as your body and hands do, when it lands near enough to them (a holstered weapon keeps its blood either way)."),
+        slider("Things Lying Near", vr_gore_gear_nearby, 0.f, 3.f, 0.25f, "%.2fx").extend()
+            .help("Weapons, boxes and props lying about take blood from bleeding hits, gibbings and bursting gibs near them: how much (0 none)."),
+        slider("Gibbed Monsters' Drops", vr_gore_gear_drops, 0.f, 3.f, 0.25f, "%.2fx").extend()
+            .help("What lies right where a monster is gibbed (its gun, its backpack) comes out soaked: how much (0 only the drops near it)."),
         slider("Blood over Your Arms", vr_gore_spread, 0.f, 3.f, 0.25f, "%.2fx").extend()
             .help("Hurt, holding a gib, or as your wounds re-open, blood runs over your arms too (a little your legs): how much (0 none)."),
         header("Blood Mist"),
@@ -2060,6 +2066,8 @@ void hologramTestMessage()
         toggle("Axes Stick", vr_axestick)
             .help("A thrown axe that strikes blade first sticks in walls, doors, props and monsters (it moves with them). "
                   "Grip it, or force grab it (it tugs, then comes free), to pull it out. Off: it bounces off."),
+        toggle("Axes Stick in Explosive Boxes", vr_axestick_metal)
+            .help("A thrown axe sticks in an explosive box too. Off: it rings off it, as the boxes are metal drums."),
         slider("Bleeding", vr_axestick_bleed, 0.f, 20.f, 0.5f, "%.1f health/s").extend(0.f, 100.f)
             .help("Health a second a monster loses while an axe is stuck in it (your damage). It falls out when the "
                   "monster dies."),
@@ -2139,6 +2147,12 @@ void hologramTestMessage()
                   "blade, pommel and hilt; a gun's barrel and butt). Off: only the line from the hand to a gun's muzzle."),
         slider("Weapon Press Reach", vr_button_weapon_reach, 0.f, 15.f, 0.5f, "%.1f cm")
             .help("How far round the weapon's middle line a button is touched: its thickness, and some slack."),
+        toggle("Held Props Press Buttons", vr_button_prop)
+            .help("A prop in your hand (a health or ammo box, a crate, a rock, a gib) presses a wall button it touches, as "
+                  "a weapon does: its shape as you hold it."),
+        slider("Prop Press Reach", vr_button_prop_reach, 0.f, 15.f, 0.5f, "%.1f cm")
+            .help("How far round the held prop's shape a button is touched: a held prop is kept a few centimetres off "
+                  "walls and buttons (it can't go into them), so it needs some slack to reach one."),
         toggle("Thrown Things Press Buttons", vr_button_throw)
             .help("A weapon, rock, box or gib thrown at a wall button presses it. Buttons you must shoot are still shot."),
         slider("Thrown Press Min Speed", vr_button_throw_speed, 0.f, 600.f, 25.f, "%.0f u/s").extend()
@@ -2437,6 +2451,21 @@ void hologramTestMessage()
             .help("Flames a crate's fire spreads to (Most Flames caps it)."),
         slider("Crate Flame Size", vr_burn_crate_flame_size, 0.5f, 2.5f, 0.05f, "%.2fx").extend(0.1f, 5.f)
             .help("A crate's flames, times a body's (Flame Size)."),
+        toggle("Burnt Crates' Pieces Charred", vr_burn_crate_char)
+            .help("A crate that burns through breaks into charred, blackened pieces that don't burn again. Off: plain pieces, "
+                  "which burn as any other."),
+        toggle("Pieces Burn", vr_burn_pieces)
+            .help("The pieces of a crate you break catch fire as crates do: a lit torch's blow or touch, a lava nail, burning "
+                  "crates and pieces near them. A crate broken while burning scatters burning pieces."),
+        slider("Piece Burn Time", vr_burn_piece_time, 1.f, 30.f, 0.5f, "%.1f s").extend(0.5f, 120.f)
+            .help("How long a piece burns before it burns away (charred from half of it)."),
+        slider("Pieces Catch Within", vr_burn_piece_gap, 0.f, 32.f, 1.f, "%.0f").extend(0.f, 96.f)
+            .help("How near a burning piece and another piece or a crate catch from each other, in units (Fire Spreads "
+                  "After: when)."),
+        slider("Piece Flames", vr_burn_piece_flames, 1.f, 8.f, 1.f, "%.0f").extend(1.f, 20.f)
+            .help("Flames a piece's fire spreads to (Most Flames caps it)."),
+        slider("Piece Flame Size", vr_burn_piece_flame_size, 0.3f, 2.f, 0.05f, "%.2fx").extend(0.1f, 5.f)
+            .help("A piece's flames, times a body's (Flame Size)."),
         header("Torch Flame"),
         slider("Swing Lean", vr_walltorch_lean, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 5.f)
             .help("How far a swung torch's flame leans and trails behind its motion (1: the default; 0: always straight up)."),
@@ -3124,6 +3153,9 @@ za::Vector<Item> pageDebugTools()
         command("Blood from a Close Shot", "vr_gore_spatter_test shot").help("vr_gore_spatter_test shot: a shot hitting 40 units ahead of your eyes."),
         command("Marks on Your Main Forearm", "vr_gore_spatter_test arm main").help("vr_gore_spatter_test arm main: three bleeding marks on the main forearm alone: none on the other arm (chunky or fine)."),
         command("Gib Strikes Your Hand", "vr_gore_spatter_test gib").help("vr_gore_spatter_test gib: a gib flying into your main hand."),
+        command("Blood from a Swing of Your Prop", "vr_gore_spatter_test propblow").help("vr_gore_spatter_test propblow: what the main hand holds swung away from you into a monster: the far side (the one that struck) takes the blood; a box lists its sides."),
+        command("Blood on Your Left Hip's Weapon", "vr_gore_spatter_test holster 2").help("vr_gore_spatter_test holster <0..5>: a hit's blood just out from a holster's weapon (2 the left hip, 3 the right): holstered weapons take blood (Holstered Weapons Too)."),
+        command("A Gibbing Ahead", "vr_gore_spatter_test burst").help("vr_gore_spatter_test burst [distance] [size]: a monster gibbed 48 units ahead: the weapons and props lying near take its blood, what lies right there soaked (Things Lying Near, Gibbed Monsters' Drops)."),
         command("Burn Your Arms", "vr_wounds_test self 4 90 0 12").help("vr_wounds_test self 4 90 0 12: an explosion's burns on your front and the arms held before you (Gore > Your Wounds' Detail)."),
         command("Wound Your Arms", "vr_wounds_test self 1 20 4 14").help("vr_wounds_test self 1 20 4 14: a shot's bleeding wound at your arms' height, held before your chest."),
         command("Soak Your Arms", "vr_wounds_test self 9 0 0 52").help("vr_wounds_test self 9 0 0 52: wet as from water up to your chest; dries in about 25 seconds."),
@@ -3175,12 +3207,19 @@ za::Vector<Item> pageDebugTools()
             .help("vr_smallgibs_trace: each small gib's first 2.5 s in the console (sgibtrace:): where made, its speed and every jump in it, what touches, nudges or strikes it, how far it lay."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
-            .help("vr_burn_test 1: the nearest monster, corpse or crate set on fire as a lit torch's blow would, where it faces you "
+            .help("vr_burn_test 1: the nearest monster, corpse, crate or crate's piece set on fire (an explosive box: it can't burn) as a lit torch's blow would, where it faces you "
                   "(A Grunt Ahead, A Grunt's Corpse Ahead above). Again: a flame more, the same damage."),
         command("Set It on Fire (a Lava Nail)", "vr_burn_test 2"),
         command("Set It on Fire (a Touch)", "vr_burn_test 3"),
         command("Load Lava Nails", "vr_burn_test 5").help("vr_burn_test 5: the nailgun or super nailgun in the main hand loaded with lava nails (impulse 156 or 157 gives one)."),
         command("A Nail Through a Torch's Flame", "vr_burn_test 6").help("vr_burn_test 6: a nail shot through the flame of the lit torch nearest you: it becomes a lava nail (Nails Through a Flame)."),
+        command("Smash the Nearest Crate", "vr_burn_test 8")
+            .help("vr_burn_test 8: the nearest crate broken as by your blow: plain pieces, which burn (Pieces Burn)."),
+        command("Burn the Nearest Crate Through", "vr_burn_test 9")
+            .help("vr_burn_test 9: the nearest crate burns through now (lit first if it isn't): charred pieces."),
+        command("A Lava Nail at the Nearest Piece", "vr_burn_test 11")
+            .help("vr_burn_test 11: a lava nail of yours fired down at the nearest crate's piece: it catches fire (Pieces Burn), not bursts; a charred one bursts."),
+        command("Count the Pieces", "vr_burn_test 10").help("vr_burn_test 10: the console: the crates' pieces lying about, how many charred, how many burning."),
         command("How It Burns", "vr_burn_test 4").help("vr_burn_test 4: the nearest monster or corpse: where, its health, its flames and the time it burns yet."),
         toggle("Torch Flames to Console", vr_walltorch_debug)
             .help("vr_walltorch_debug: each lit torch you hold or that lies about, twice a second (wtflame: how far upside "
@@ -3396,6 +3435,12 @@ za::Vector<Item> pageDebugTests()
         command("Gib in the Off Hand", "developer 1; impulse 252")
             .help("A gib or head (each press the next kind) in your off hand: take it with the other hand too and "
                   "throw it with both. 'gib:' lines say what burst it (Real Gib, below)."),
+        cycle("Which Gib", vr_test_held_pick,
+              {{-1.f, "Each in Turn"}, {0.f, "Small Gib (gib1)"}, {1.f, "Player's Head"}, {2.f, "Torso (gib2)"},
+               {3.f, "Big Chunk (gib3)"}, {4.f, "Grunt's Head"}, {5.f, "Ogre's Head"}, {6.f, "Knight's Head"},
+               {7.f, "Zombie's Head"}, {8.f, "Fiend's Head"}})
+            .help("vr_test_held_pick: the gib or head Gib in the Off Hand gives (Each in Turn: the next each press). The "
+                  "torso and the big chunk are the large ones (Misc/quakevr/gib_2h_models_test.sh throws each)."),
         toggle("Real Gib", vr_test_held_destroy)
             .help("vr_test_held_destroy: the off hand's test gib can be burst as a real one (shot, struck, thrown hard "
                   "at a wall). Misc/quakevr/gib_2h_throw_test.sh throws it with both hands along several arcs."),
@@ -5770,7 +5815,8 @@ float stepSlider(const Item& item, int dir, bool repeat)
     double& endSince = sliderHold.endSince;
     double& outsideSince = sliderHold.outsideSince;
 
-    const float cur = item.cvar->value;
+    // (A negative value under a negativeLabel, stored -1, is the bar's leftmost step: stepping goes on from there.)
+    const float cur = item.negativeLabel && item.cvar->value < 0.f ? item.min : item.cvar->value;
     const float eps = item.step * 0.01f;
     const float end = dir > 0 ? item.max : item.min;
     const int past = pastEnd(item, cur);

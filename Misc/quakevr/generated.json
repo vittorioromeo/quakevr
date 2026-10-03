@@ -488,7 +488,7 @@
   "by": "make_muzzleflash.py"
  },
  "quakevr/progs/vr_plank1.mdl": {
-  "sha256": "56e7f10fc252bda0c54449dfd09ff31e5f99120c19df52c01dbe345bf943caf8",
+  "sha256": "09d38cac7679bc7f7e733cad04cc3723607e2c99e96b79d75f2b0ce9cd47c624",
   "by": "make_crates.py"
  },
  "quakevr/progs/vr_plank1.mdl_0.png": {
@@ -507,8 +507,12 @@
   "sha256": "3feebe68ad367b845a2b6413ae6efc5c1bf649163c38368c011753a364fb33a3",
   "by": "make_crates.py"
  },
+ "quakevr/progs/vr_plank1.mdl_3.png": {
+  "sha256": "b3c7da0b791a8769611a3018e758f5080be4f23912652854d42ccfe7e8f84ce6",
+  "by": "make_crates.py"
+ },
  "quakevr/progs/vr_plank2.mdl": {
-  "sha256": "88193d4e88df064c15e7293440461f93fb969ab439d026e97499e6d6b982da62",
+  "sha256": "ea22416eafa9f9a6bdf8db3001b37cf9383e16246c392a1762ae6fac77ecbcc2",
   "by": "make_crates.py"
  },
  "quakevr/progs/vr_plank2.mdl_0.png": {
@@ -527,8 +531,12 @@
   "sha256": "0a834239483a868b166eb924b9a37f03ea34761833c60708a61525e659f0c1e7",
   "by": "make_crates.py"
  },
+ "quakevr/progs/vr_plank2.mdl_3.png": {
+  "sha256": "12a0f608b55afff59a1003890bc575cba15a177f05014d727a0c7d18078b61b3",
+  "by": "make_crates.py"
+ },
  "quakevr/progs/vr_plank3.mdl": {
-  "sha256": "e1d88f8e5a8d86fde7d5b4793b1a6bea8bb7e7fd0c7df865f9506b01cf2ef36d",
+  "sha256": "6626eee367ecdc235a3651bce75f985e6758640fe4b9d967caf93321267906e2",
   "by": "make_crates.py"
  },
  "quakevr/progs/vr_plank3.mdl_0.png": {
@@ -547,8 +555,12 @@
   "sha256": "09eff3b200a889d79fb67b8933aa9079683cf0505bb6b4f87c25c140619ea29f",
   "by": "make_crates.py"
  },
+ "quakevr/progs/vr_plank3.mdl_3.png": {
+  "sha256": "87fc64626efa288cef9ee4ae00ff5d5f26309aadbe472b484149ddc4b753deed",
+  "by": "make_crates.py"
+ },
  "quakevr/progs/vr_plank4.mdl": {
-  "sha256": "7ff6a46237eced55f4d97aadc9d4ba9626869a9f1955375621903c51965162c0",
+  "sha256": "eac06e4dcf9d8d8d0cf3b93a04153f377a2a666c21435f5e0847ec5b844d6834",
   "by": "make_crates.py"
  },
  "quakevr/progs/vr_plank4.mdl_0.png": {
@@ -565,6 +577,10 @@
  },
  "quakevr/progs/vr_plank4.mdl_2.png": {
   "sha256": "ffbc2c61fa98523190dc9349fc8b80137f397e7610b06161610b8174780f07b8",
+  "by": "make_crates.py"
+ },
+ "quakevr/progs/vr_plank4.mdl_3.png": {
+  "sha256": "9a1dd93e733401d668617baf68ea3fe2468578009688bdd56e0bfbf2d94c5327",
   "by": "make_crates.py"
  },
  "quakevr/progs/vr_rock1.mdl": {

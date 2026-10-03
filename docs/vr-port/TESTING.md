@@ -1057,7 +1057,7 @@ box (100 health, 101 shells, 102 an explosive box, 103 a small one, 104 an explo
 (`vr_test_fling_speed` m/s; `vr_test_fling_at 1` at you, `vr_test_fling_away 1` away from inside its box: ROUND21.md,
 "Flung props: settings, and never you");
 Blood on you and your gear (ROUND21.md, "Blood on you, your weapons and props"): `vr_gore_spatter_test blow|saw|shot|gib [distance]`
-throws a blow's, a cut's, a close shot's or a gib's blood onto you and what the main hand holds; `vr_gore_spatter_test arm [main|off] [count]` bleeding marks on one forearm alone (the mirroring check, chunky or fine: none on the other arm; `vr_wounds_dump` writes your body's two layers, `_right` the right side's); `vr_gore_spatter_test prop` a blow on the held prop's side facing you (`vr_test_spawn_hold 1` with `+grabmain` held puts `vr_test_spawn`'s box or crate into the main hand: ROUND21.md, "Blood on every prop you hold"); `vr_gore_hands_info` counts
+throws a blow's, a cut's, a close shot's or a gib's blood onto you and what the main hand holds; `vr_gore_spatter_test arm [main|off] [count]` bleeding marks on one forearm alone (the mirroring check, chunky or fine: none on the other arm; `vr_wounds_dump` writes your body's two layers, `_right` the right side's); `vr_gore_spatter_test prop` a blow on the held prop's side facing you (`vr_test_spawn_hold 1` with `+grabmain` held puts `vr_test_spawn`'s box or crate into the main hand: ROUND21.md, "Blood on every prop you hold"); `propblow` the held thing swung away from you (the far side takes it; a box lists its six sides); `holster <0..5>` blood just out from a holster's weapon; `burst [distance] [size]` a gibbing ahead onto what lies near (ROUND21.md, "Blood on holstered weapons, on things lying near"); `vr_gore_hands_info` counts
 each hand's, the body's and your gear's blood (texels); `vr_wounds_debug 1` prints spatters, gib strikes and the gear's
 moves. A real chainsaw cut: firing range, `vr_weapon_grip_mode 1; impulse 164; vr_test_spawn 3; impulse 241; impulse 230;
 vr_mock_hand main 0.0 1.1 -0.62 70 0 0; +attack` (a shambler: about six cuts a second); a gibbing next to you:
@@ -1485,6 +1485,10 @@ lights the nearest (`vr_burn_crate_time`, `vr_burn_crate_spread` short to see it
 flame (`a nail through a flame ...: a lava nail`), `7` prints where that flame is. A torch in the off hand past the
 nailgun's muzzle: the kit's `scratch/burn_nailtorch.sh "vr_mock_hand_to off 1768 -162 298"` (e1m2, at the ogre).
 The nails' fizz is heard only with sound (`run.sh -Sound`; `snd_show 2` lists `vr/nail_sizzle*.wav` on the torch).
+Crates' pieces (burning part 3): `vr_burn_test 8` smashes the nearest crate (plain pieces), `9` burns it through now
+(charred pieces), `10` counts the pieces (charred, burning, how many have wood within Pieces Catch Within), `11` fires
+a lava nail of yours down at the nearest piece (`lit (a missile)`, no `a piece bursts`; a charred one bursts); test 1
+on an explosive box: `an explosive box (metal) can't burn`. The kit's `scratch/crateburn2/t1.sh` .. `t4.sh`, `shot.sh`.
 The heat haze with the eye in a burning corpse's flames: `bash Misc/quakevr/haze_in_flames_test.sh <agent>` (haze on/off
 eye-image pairs; a share in the tens of percent at poses 1-6 is a patch over the view: ROUND21.md, "Black patches
 standing in flames").

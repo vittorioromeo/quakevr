@@ -1723,7 +1723,7 @@ void lightBeam(const Pose& p)
 
 // The retracting cord from the clip on the belt to the lamp's tail, while it is off the belt (vr_flashlight_cord): a
 // coiled cord, as an old telephone's (vr_coil.cpp; 2: a plain cable; 3: a rusty iron chain, round 21: its links along
-// the same line, paid out of the clip), springy and sagging, swinging as the hand moves; drawn lit in the opaque scene
+// the same line, paid out of the clip, the default; 4: that chain low-poly, chunky faceted links), springy and sagging, swinging as the hand moves; drawn lit in the opaque scene
 // (drawOpaque), depth-tested. It leaves the clip where the torch hung (down along the stored torch) and goes into the
 // tail cap.
 coil::Cord cord;
@@ -1742,6 +1742,15 @@ void updateCord(const Pose& mount, const Pose& lamp)
         style.wireRadius = 0.0016f;
         style.albedo = glm::vec3{0.2f, 0.19f, 0.175f};
         style.rust = glm::vec3{0.3f, 0.13f, 0.05f};
+        if(vr_flashlight_cord.value >= 4.f)
+        {
+            // Low-poly (round 21, NOTES.md start_2026-10-03_02-19-12: Quake's look): fewer, chunkier links, each a
+            // hexagon of 4 mm square iron bar, 1.6 cm by 0.8 cm inside, its faces flat-shaded.
+            style.lowPoly = true;
+            style.wireRadius = 0.002f;
+            style.linkLength = 0.016f;
+            style.linkWidth = 0.008f;
+        }
     }
     else if(vr_flashlight_cord.value >= 2.f)
     {
@@ -2364,7 +2373,7 @@ void drawOpaque()
                                                                                               : gfx::TubeBatch{};
     }
     QVR_GPU_PROFILE("flashlight cord draw");
-    gfx::drawTube(d.batch, d.sides, cord.albedo(), glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}), cord.rust());
+    gfx::drawTube(d.batch, d.sides, cord.albedo(), glm::normalize(glm::vec3{0.3f, 0.2f, 1.f}), cord.rust(), cord.flat());
 }
 
 // The lens lit, in the beam's colour: a disc over it, bright in the middle, added onto the scene (the skin's own

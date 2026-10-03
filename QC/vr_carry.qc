@@ -2288,11 +2288,14 @@ void(float xHand) VR_Gib_HeldFrameHand =
     float m2u = VRMetersToUnits();
 
     // The striking hand's sweep this frame (its fist), or its weapon (from the hand to the muzzle).
-    // (Not the hand that just let go of it, passing it to this one.)
+    // (Not the hand that just let go of it, passing it to this one; nor the hand that let go first of a gib held in
+    // both, while the other may yet throw it with both (VR_Throw_HandMayStrike): a two-handed throw's hands never let
+    // go in the same frame, and that hand, inside a large gib's box and a little faster or slower than the other, struck
+    // it at their difference, 3-4 m/s: it burst in front of him. NOTES.md vrfiringrange_2026-10-03_02-02-13.)
     vector rel = VRGetHandVel(xHand) - VRGetHandVel(holder);
     float speed = vlen(rel);
     if(speed >= max(0.1, cvar_hget(cvarh_vr_melee_speed)) &&
-       !(time < g.vr_gib_releasetime + 0.4 && xHand == g.vr_gib_releasehand))
+       !(time < g.vr_gib_releasetime + 0.4 && xHand == g.vr_gib_releasehand) && VR_Throw_HandMayStrike(self, xHand))
     {
         vector hand = VRGetHandPos(xHand);
         float t = VR_Gib_OnLine(g, hand - rel * (m2u * max(frametime, 0.011)), hand, 2.5);

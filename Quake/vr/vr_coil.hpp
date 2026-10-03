@@ -36,6 +36,9 @@ struct Style
     float linkLength{0.013f}; // metres, a link's inside length (the chain's pitch)
     float linkWidth{0.0075f}; // metres, its inside width
     glm::vec3 rust{0.3f, 0.14f, 0.06f};
+    // The chain low-poly (round 21, NOTES.md start_2026-10-03_02-19-12: Quake's look): each link a six-sided loop of
+    // square bar, its faces flat-shaded (gfx::drawTube's `flat`), the same at every distance.
+    bool lowPoly{false};
 };
 
 class Cord
@@ -56,6 +59,7 @@ public:
 
     [[nodiscard]] const glm::vec3& albedo() const { return style_.albedo; }
     [[nodiscard]] const glm::vec3& rust() const { return style_.rust; }
+    [[nodiscard]] bool flat() const { return style_.chain && style_.lowPoly; } // drawTube's `flat`
 
     // The number of rings and links (a chain's) of the last build, and its sides (vr_flashlight_cord_info).
     [[nodiscard]] int rings() const { return rings_; }

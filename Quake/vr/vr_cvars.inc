@@ -125,6 +125,8 @@ QVR_CVAR(vr_throw_hit_min_speed, "200", CVAR_ARCHIVE) // units/s a thrown thing 
 // Wall buttons (QC buttons.qc; ROUND21.md, "Wall buttons: weapons and thrown things press them"): a hand presses one, and
 QVR_CVAR(vr_button_weapon, "1", CVAR_ARCHIVE)          // 1: so does a held weapon touching it, all of it as its blows strike (pommel or butt to tip or muzzle); 0: only the line from the hand to a gun's muzzle (as before)
 QVR_CVAR(vr_button_weapon_reach, "6", CVAR_ARCHIVE)    // cm round the weapon's line (its thickness and some slack) within which it touches a button
+QVR_CVAR(vr_button_prop, "1", CVAR_ARCHIVE)            // 1: so does a held prop touching it (a health or ammo box, a crate, a rock, a gib): its shape as the hand holds it
+QVR_CVAR(vr_button_prop_reach, "6", CVAR_ARCHIVE)      // cm round the held prop's shape within which it touches a button (a held body stops 4 cm short of a wall's)
 QVR_CVAR(vr_button_throw, "1", CVAR_ARCHIVE)           // 1: a thing thrown at a button (a weapon, a rock, a box, a gib) presses it; shot buttons are shot, as in Quake
 QVR_CVAR(vr_button_throw_speed, "150", CVAR_ARCHIVE)   // units/s it must hit the button at, at least
 QVR_CVAR(vr_debug_wallbuttons, "0", CVAR_NONE)         // print each wall button pressed: what pressed it and how (hand, weapon, thrown thing and its speed, stepped on); 2: also each held weapon's line every frame; needs developer
@@ -158,6 +160,7 @@ QVR_CVAR(vr_axestick_leniency, "1", CVAR_ARCHIVE)   // 0..2: how much of the bla
 QVR_CVAR(vr_axestick_depth, "5", CVAR_ARCHIVE)       // cm the edge goes in at twice the least speed (half as deep at it; at most 60% of the blade)
 QVR_CVAR(vr_axestick_bleed, "5", CVAR_ARCHIVE)       // health a second a monster an axe is stuck in loses (0: none), the thrower's damage
 QVR_CVAR(vr_axestick_tug, "0.3", CVAR_ARCHIVE)       // seconds a force grab tugs a stuck axe before it comes free
+QVR_CVAR(vr_axestick_metal, "0", CVAR_ARCHIVE)     // 1: thrown axes stick in the explosive boxes too; 0: they bounce off them (metal drums)
 // Aim assist (QC; on, the author's values, NOTES.md vrfiringrange_2026-09-30_11-25-52): bends a throw by up to vr_throw_assist_strength onto a monster or
 // breakable within vr_throw_assist_cone degrees of it (fully within vr_throw_assist_full), in
 // range and in sight, on a ballistic arc, allowing vr_throw_assist_speed more speed.
@@ -709,6 +712,12 @@ QVR_CVAR(vr_burn_crate_spread, "3", CVAR_ARCHIVE)        // s a burning crate ta
 QVR_CVAR(vr_burn_crate_gap, "2", CVAR_ARCHIVE)           // units apart two crates still count as touching
 QVR_CVAR(vr_burn_crate_flames, "6", CVAR_ARCHIVE)        // flames a crate's fire spreads to (Most Flames caps it)
 QVR_CVAR(vr_burn_crate_flame_size, "1.25", CVAR_ARCHIVE) // a crate's flames' size, times a body's
+QVR_CVAR(vr_burn_crate_char, "1", CVAR_ARCHIVE)          // 1: a crate burnt through breaks into charred pieces that don't burn (0: plain pieces, which do)
+QVR_CVAR(vr_burn_pieces, "1", CVAR_ARCHIVE)              // 1: a broken crate's pieces catch fire as crates do (a torch, a lava nail, burning wood near them)
+QVR_CVAR(vr_burn_piece_time, "5", CVAR_ARCHIVE)          // s a piece burns before it burns away (charred from half of it)
+QVR_CVAR(vr_burn_piece_gap, "8", CVAR_ARCHIVE)           // units apart a burning piece and a piece or a crate catch from each other
+QVR_CVAR(vr_burn_piece_flames, "3", CVAR_ARCHIVE)        // flames a piece's fire spreads to (Most Flames caps it)
+QVR_CVAR(vr_burn_piece_flame_size, "0.7", CVAR_ARCHIVE)  // a piece's flames' size, times a body's
 QVR_CVAR(vr_burn_nail_convert, "1", CVAR_ARCHIVE)        // 1: a nail passing through a lit torch's flame (held, thrown, lying, on its wall) becomes a lava nail
 QVR_CVAR(vr_burn_nail_reach, "10", CVAR_ARCHIVE)         // units from a torch's flame a nail must pass to catch fire
 QVR_CVAR(vr_burn_nail_sound, "0.5", CVAR_ARCHIVE)        // the volume of the short fizz a nail makes catching fire in a torch's flame (0: none)
@@ -799,7 +808,7 @@ QVR_CVAR(vr_wounds_pool, "64", CVAR_ARCHIVE)          // how many models keep th
 QVR_CVAR(vr_wounds_own_res, "0", CVAR_ARCHIVE)     // your own body's and hands' wound masks: texels on a side, smooth (512, 1024, 2048: 5, 20, 80 MB: per side, and the blood not yours); 0 in the pool, chunky as the monsters'
 QVR_CVAR(vr_wounds_bump_burns, "3", CVAR_ARCHIVE)     // ... the relief of their burns and char (crusted, cracked), times the default (0 flat)
 QVR_CVAR(vr_wounds_bump_blood, "1.5", CVAR_ARCHIVE)     // ... and of their bleeding wounds (sunk into the skin), times the default (0 flat)
-QVR_CVAR(vr_wounds_blood_alpha, "0.75", CVAR_ARCHIVE)  // how opaque painted blood is over the skins (0..1)
+QVR_CVAR(vr_wounds_blood_alpha, "0.8", CVAR_ARCHIVE)   // how opaque painted blood is over the skins (0..1)
 QVR_CVAR(vr_wounds_debug, "0", CVAR_NONE)           // 1: print each wound painted
 // Gore: bloody hands and washing (vr_wounds.cpp; ROUND21.md, "Gore: bloody hands, washing, dying bodies, blood mist").
 QVR_CVAR(vr_gore_hands, "1", CVAR_ARCHIVE)            // grabbing a gib or a head bloodies the hand holding it: how much (0 none; the wound skins: 1 a bloody hand)
@@ -816,6 +825,9 @@ QVR_CVAR(vr_gore_spatter_shots, "1", CVAR_ARCHIVE)    // ... from shots hitting 
 QVR_CVAR(vr_gore_spatter_range, "64", CVAR_ARCHIVE)   // ... a shot's hit this close to your hands or eyes at most (units)
 QVR_CVAR(vr_gore_spatter_gibs, "1", CVAR_ARCHIVE)     // gibs flying into you bloody you where they strike: how much (0 none)
 QVR_CVAR(vr_gore_gear, "1", CVAR_ARCHIVE)             // the weapons and props you hold take blood: kept dropped and taken again, until water washes it
+QVR_CVAR(vr_gore_gear_holstered, "1", CVAR_ARCHIVE)   // ... your holstered weapons too, near enough to the blood (as your body and hands are)
+QVR_CVAR(vr_gore_gear_nearby, "1", CVAR_ARCHIVE)      // weapons and props lying about take blood from hits, gibbings and bursts near them: how much (0 none)
+QVR_CVAR(vr_gore_gear_drops, "1", CVAR_ARCHIVE)       // what a gibbed monster drops (its gun, its backpack) comes out soaked: how much (0 as anything lying near)
 QVR_CVAR(vr_gore_spread, "1", CVAR_ARCHIVE)           // blood over your arms (a little your body and legs) when hurt, holding gibs, as wounds re-open: how much (0 none)
 // Gore: blood mist (vr_particles.cpp): large, faint clouds wherever something bleeds (every blood particle effect).
 QVR_CVAR(vr_gore_mist, "1", CVAR_ARCHIVE)             // how many clouds a bleed makes (0 none)
@@ -859,7 +871,7 @@ QVR_CVAR(vr_flashlight, "1", CVAR_ARCHIVE)            // 0: no flashlight
 QVR_CVAR(vr_flashlight_brightness, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_range, "1000", CVAR_ARCHIVE)   // units the beam reaches
 QVR_CVAR(vr_flashlight_shadows, "1", CVAR_ARCHIVE)    // its spot light casts shadows (takes one of vr_shadow_dlights: one tile, not six faces)
-QVR_CVAR(vr_flashlight_cord, "1", CVAR_ARCHIVE)      // the retracting cord from the belt clip to the torch while it is off the belt: 0 none, 1 coiled (vr_coil.cpp), 2 a plain cable, 3 a rusty iron chain
+QVR_CVAR(vr_flashlight_cord, "3", CVAR_ARCHIVE)      // the retracting cord from the belt clip to the torch while it is off the belt: 0 none, 1 coiled (vr_coil.cpp), 2 a plain cable, 3 a rusty iron chain, 4 that chain low-poly (chunky faceted links, Quake's look)
 QVR_CVAR(vr_flashlight_beam, "0.35", CVAR_ARCHIVE)    // how strong its soft cone of light in the air is, 0..1 (0: none)
 QVR_CVAR(vr_flashlight_beam_quality, "1", CVAR_ARCHIVE) // how closely the visible beam finds the walls that cut it: 0 low, 1 medium, 2 high (traces a frame, vr_flashlight.cpp)
 QVR_CVAR(vr_flashlight_tilt, "8", CVAR_ARCHIVE)       // degrees the stored lamp (hanging on the chest, lens down) leans its lens out from the body
@@ -1760,6 +1772,7 @@ QVR_CVAR(vr_test_axe_at, "0", CVAR_NONE)            // ... at the nearest live m
 QVR_CVAR(vr_test_weaponinst, "0", CVAR_NONE)          // impulse 120 (tests): the weapons moved by the game's own functions (QC vr_weaponinst_test.qc): 0 list what has which weapon (id, magazine), 1 holster the main hand's, 2 draw it, 3 drop the main hand's, 4 take the nearest lying, 5 hand off to the off hand, 6 take back, 7 switch hands, 8 back, 9 drop the off hand's
 QVR_CVAR(vr_test_weaponinst_slot, "0", CVAR_NONE)     // ... the holster (QC QVR_HS_*: 3-6 shoulders and hips, 8-9 upper; 0 the right hip)
 QVR_CVAR(vr_test_held_destroy, "0", CVAR_NONE)       // impulse 252 (tests): its gib or head can be destroyed, as a real one (VR_Gib_MakeDestroyable; gib_2h_throw_test.sh)
+QVR_CVAR(vr_test_held_pick, "-1", CVAR_NONE)          // impulse 252 (tests): which gib or head (0 gib1, 1 h_player, 2 gib2, 3 gib3, 4-8 heads); -1 each in turn (gib_2h_throw_test.sh MODELS)
 QVR_CVAR(vr_test_fling_speed, "12", CVAR_NONE)        // impulse 232 (tests): the prop nearest you sent at the nearest monster at this many m/s (VR_Test_Fling)
 QVR_CVAR(vr_test_fling_at, "0", CVAR_NONE)            // and at: 0 the nearest monster, 1 you (from ahead)
 QVR_CVAR(vr_test_fling_away, "0", CVAR_NONE)          // 1: from inside the edge of its box, away from it (a prop batted away, still in your box)

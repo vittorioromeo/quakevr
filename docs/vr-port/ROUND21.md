@@ -22600,6 +22600,239 @@ NOTES.md vrfiringrange_2026-10-03_02-07-05 and _02-07-42: the dummy should take 
   sword, punch 50/50/50 gore hits and wound events on both (small gibs 54/56, 19/12, 58/59, 5/10: chance); chainsaw
   1 s: 62 ticks, 62 gore hits, 62 wounds, 9 small gibs on both; shotgun: one gore hit a blast on both, a wound event
   and a blood particle a pellet that struck (300 of 300 on the dummy, 225 on the grunt: its pose takes fewer pellets).
+## Burning, part 3: charred and burning pieces; explosive boxes are metal (2026-10-03)
+
+The author's notes (`vrfiringrange_2026-10-03_02-04-39`, `_02-29-24`): a burnt crate's pieces looked like plain boards
+and couldn't be burnt; he wants a burnt crate's pieces very charred and unburnable, a smashed crate's pieces plain and
+burnable like crates (spreading to and from wood near them, burning for less time, then burnt away); explosive boxes
+are metal: torches don't set them on fire.
+
+**Charred skin** (`make_crates.py`, `charred()`): the pieces (`vr_plank1..4.mdl`) have a fourth skin,
+`VR_PIECE_SKIN_CHARRED` 3 (`<model>_3.png`, and in the 8-bit skins): charcoal split into the alligator blocks of burnt
+wood (rows along the grain, each its own length, cracks of every width between them), the blocks domed and silvered in
+places, grey ash on the worn edges and the broken and sawn ends, a few patches only scorched brown; the relief's
+shading. The crates and the other skins are unchanged (the generator is deterministic: their files are identical). The
+normal map is skin 0's (shared).
+
+**Pieces** (`vr_crates.qc`, `vr_burning.qc`; `VR_CratePiece_Is`: `vr_cratekind` 3; `VR_Burn_Wood`: a crate or a piece):
+- A crate burnt through (`VR_Burn_Think`: `vr_burnt_through`) breaks into charred pieces (`vr_burn_crate_char` 1:
+  skin 3, `vr_charred`: they never catch; 0: plain pieces). A crate broken while burning (a blow, a shot) scatters
+  burning pieces (`VR_BURN_SCATTER`: lit silently, one sound for all). Broken any other way, its pieces are plain wood.
+- A plain piece burns as a crate (`vr_burn_pieces` 1): a lit torch's blow, swing (`VR_Burn_PieceStruck`: set on fire,
+  not burst) or touch, a thrown lit torch, a lava nail (lit before the hit's damage, so `VR_CratePiece_Damage` doesn't
+  burst it: `VR_Burn_JustLit`), burning wood near it. Its flames sit on its top (cast from above in its own axes, as a
+  crate's), `vr_burn_piece_flames` 3, `vr_burn_piece_flame_size` 0.7 times a body's. It burns `vr_burn_piece_time` 5 s
+  (crates 10), charred from half of it (skin 3: put out in water after that, it stays charred and burns no more), then
+  burns away in a puff of embers and smoke with a soft crumble (`VR_CratePiece_BurnAway`).
+- Spreading (`VR_Burn_CrateCatch`, after Fire Spreads After, every 0.5 s): burning wood sets the wood near it on fire,
+  two crates within `vr_burn_crate_gap` 2 units as before, a piece and another piece or a crate within
+  `vr_burn_piece_gap` 8 (pieces lie scattered: near, not touching).
+
+**Explosive boxes** (`VR_Burn_Metal`: `misc_explobox`, `misc_explobox2`, `explo_box`, or `th_die` `barrel_explode`):
+`VR_Burn_Can` refuses them, which every way of lighting goes through (a torch's blow, touch and throw, a lava nail,
+burning wood near them, the tests). They were already refused before (not a monster, not a crate), by accident; now
+by name. Damage still sets them off as ever (a lava nail's, a torch's blow's).
+
+**Menu.** Combat > Burning > Crates: Burnt Crates' Pieces Charred, Pieces Burn, Piece Burn Time, Pieces Catch Within,
+Piece Flames, Piece Flame Size. Debug > Burning Tests: Smash the Nearest Crate (`vr_burn_test 8`), Burn the Nearest
+Crate Through (9), A Lava Nail at the Nearest Piece (11), Count the Pieces (10); the tests 1-4 also pick pieces and
+explosive boxes.
+
+**Verification** (mock headset, e1m1 and vrfiringrange; the kit's `scratch/crateburn2/t1.sh` .. `t4.sh`):
+- Burnt through (`vr_burn_test 9`): `12 pieces, 12 charred, 0 burning`; test 4 on the nearest: `skin 3, charred 1`;
+  tests 1 and 3: `vr_crate_piece can't burn`; a lava nail at one (test 11): it bursts.
+- Smashed (`vr_burn_test 8`): `12 pieces, 0 charred`; a lava nail at one: `lava_spike hit vr_crate_piece`, `lit (a
+  missile)`, no burst; test 1 on one (`vr_burn_crate_spread 1`): `lit (burning wood)` on 1 to 5 more (as the pieces fell:
+  7 to 10 of 12 have wood within 8 units), each `charred` at half its time, `burns away` at 5 s (12 pieces, then 7 to
+  10 left, 0 burning).
+- eval canary: 48/53, no differences from the baseline.
+- A burning crate smashed: 12 x `lit (its crate broke burning)`, `12 burning`.
+- An explosive box (`vr_test_spawn 102`, `vr_burn_touch 1`): tests 1, 2, 3: `an explosive box (metal) can't burn
+  (health 20)`.
+- Eyeshot (vrfiringrange, `scratch/crateburn2/cb_crop.png`): the burnt crate's pieces black and cracked beside the
+  smashed crate's plain boards.
+- Not driven by the mock: a lit torch's swing at a piece (`VR_Burn_PieceStruck`, `VR_WallTorch_Melee`'s piece case).
+
+**For the author in VR:** burn a crate through and look at its pieces (charred enough? too black?); smash a crate,
+light a piece with a torch and watch it spread over the pile and burn away (Piece Burn Time, Pieces Catch Within);
+torch an explosive box (nothing).
+## Blood on holstered weapons, on things lying near, healing in chunky mode, the side a prop struck with (2026-10-03)
+
+NOTES.md vrfiringrange_2026-10-03_02-08-45 .. 02-24-42: holstered weapons should take blood when you're close enough
+to get it on your hands and torso; a bloody weapon looked clean holstered; weapons and props lying near hits, gibbings
+and bursting gibs stayed clean (worst: a gibbed monster's drops); a health pack took off all your blood, not only your
+own wounds'; blood opacity 0.8; props hitting monsters took the blood on the opposite side.
+
+- **Holstered, the same blood.** The server sends each holster's weapon id (`STAT_QVR_HOLSTERWEAPONUID0..5`, after
+  `STAT_QVR_WEAPONUID2`). `gearFrame` puts a weapon's mask on the holster drawing it (`view::holsteredWeapon(stat)`:
+  the drawn holster entity, not the Weapon Offsets preview nor a posing session), as on a hand or its prop; a holster
+  emptied parks it as before. `vr_gore_hands_info` says `in holster <n>`.
+- **Holstered weapons take blood** (`vr_gore_gear_holstered` 1, Gore > Blood on You and Your Gear > Holstered Weapons
+  Too): `paintOnYou` (spatter, close shots, blows, gibs striking you) paints each holster's weapon within the splat's
+  reach, bound to its id.
+- **Things lying near** (`vr_gore_gear_nearby` 1, Things Lying Near): a bleeding hit (a monster's, a corpse's, yours;
+  shot, nail, blow, blast) and the gore's bursts (`gore::event` EventBurst -> `wounds::burst`: a monster gibbed, size 2;
+  a gib bursting, 1; a small gib's puff, 0.35) are kept a moment as splashes; each frame what lies within reach takes a
+  spatter on its side facing the blood, once a splash. "Lies about" (`liesAbout`): a weapon prop (its id: the blood
+  goes with the weapon), a rigid body (`U_QVR_NOROTATE`), a pickup (EF_ROTATE: backpacks, armour, items), a brush model
+  of its own (`maps/b_*.bsp`); not monsters, players, gibs, doors and lifts (`*n` models) nor what you carry. Reach:
+  32 u (shots), 40 (blows), 56 (blasts) times the root of the hit; bursts 32 + 28 x size. A splash 1500 u away or more
+  is ignored (pool layers). Gibbings linger 1 s, so the gun and backpack the monster drops (a moment later) take it:
+  what lies within 20 + 8 x size of a gibbing is **soaked** (five spatters from round and above;
+  `vr_gore_gear_drops` 1, Gibbed Monsters' Drops; size 1 bursts soak at half). The masks are gear masks (washed by
+  water, kept carried and dropped).
+- **Healing in chunky mode.** Chunky (`vr_wounds_own_res 0`, the author's setting) had one RGBA mask for your body and
+  hands, so healing took off the blood that wasn't yours too. The R8 array for the blood not yours (`bloodArray`)
+  now exists in chunky mode too: 256 x 256, 4 layers (256 KB), one per own mask in the pool (`Mask::otherSlot`), the
+  last your body's right side's. Painting, washing, clearing and counting go through `bloodLayerOf`/`hasOther`; the
+  alias shader's chunky read takes its texel (`WoundSide.z` negative when drawn: the layer; binding 10).
+- **Blood opacity** 0.8 (`vr_wounds_blood_alpha`; config version 82 moves a config's 0.75 to 0.8).
+- **The side a prop struck with.** The box mask's six cells were consistent (paint and read checked against each
+  other); the spatter's centre was not: for a blow the server's contact (or the monster's middle) often lies inside
+  what struck, on your side of its middle, where only the side facing you (the hand's) faces it. A blow's spatter onto
+  what a hand holds now starts where the blow's line (`ev.dir`) leaves the thing's box (`facingBlow`, `leavesBox`: its
+  model's bounds as drawn), so the leading side takes it; boxes and skinned props (crates, rocks) alike. A centre
+  outside the box is unchanged.
+
+Tests (Debug > Tests > Test Effects): `vr_gore_spatter_test propblow` (Blood from a Swing of Your Prop: the held thing
+swung away from you, the contact inside it on your side; a box lists its sides), `vr_gore_spatter_test holster <0..5>`
+(Blood on Your Left Hip's Weapon), `vr_gore_spatter_test burst [distance] [size]` (A Gibbing Ahead). `prop` now
+strikes towards you (`ev.dir`). `vr_gore_hands_info` lists lying things' masks with their entity and a box's six sides.
+
+### Checked (mock headset, firing range)
+
+- Holster round trip (`vr_weapon_grip_mode 1`, the shotgun drawn from holster hotspot 6, a blow): `#32 in the main
+  hand 22 texels` -> holstered `in holster 3: 22` -> drawn `in the main hand 22` (before: `kept`, drawn clean).
+- `vr_gore_spatter_test holster 2` / `3`: the axe 410 texels, the shotgun 1953.
+- Prop swing, shells box held (`vr_test_spawn 101`, hold): `propblow` x3 -> `-z 1514`, every other side 0, the side
+  facing you (+z) 0; `prop` (struck on your side) -> +z 163, -z 0. A crate (107) `propblow`: 158 texels.
+- Lying near: a shells box, a shotgun prop and a crate, a size-1 burst 64 u ahead: 1162 / 1569 / 26607 (crate soaked);
+  a grunt gibbed 140 u ahead (`vr_test_spawn_dead 2`): its gun (16 u from the burst) and backpack (43 u) soaked, 6384
+  and 9734 texels; the box, shotgun and crate took more.
+- Healing, chunky: spatter (blow, gib, shot) hands 1027 / 4133, body 2411; hurt (own wounds) body 10943; healed (health
+  40 -> 100): 1027 / 4133 / 2419. Eyeshots: red pixels 89501 clean, 102448 spattered, 101958 healed (the spatter stays
+  drawn). Fine mode unchanged (healed back to the spatter's counts).
+- Config: version 81 with 0.75 -> 0.8, version 82.
+- Melee eval canary 48/53, no differences from the baseline; e1m1 smoke: no errors.
+
+### Limits
+
+- A blow's moved centre uses the model's bounds box: a long gun clubbing gets the blood where the line leaves its box
+  (a thrust: the muzzle end), not on the barrel's exact face.
+- Lying things are found by a scan of the entities per active splash (32 at most, 24 things each).
+
+### In VR
+
+- [ ] Get bloody up close (blows, a chainsaw, a gibbing next to you): the holstered weapons take some; draw one: the
+  same blood; holster a bloody one: still bloody.
+- [ ] Gib a monster: its gun and backpack come out soaked; weapons and props lying near a fight get drops.
+- [ ] Bloody from enemies, then hurt, then take health: your wounds go, the enemies' blood stays (chunky detail too).
+- [ ] Blood Opacity 0.8.
+- [ ] Hit a monster with a box, a crate, a brick: the blood on the side that struck.
+## Low-poly chain cord; retro Smooth Beyond: Never; held props press wall buttons (2026-10-03)
+
+NOTES.md start_2026-10-03_02-19-12, vrfiringrange_2026-10-03_02-21-03, _02-23-25, _02-29-04. Branch `agent/misc12`.
+
+- **Low-Poly Chain** (`vr_flashlight_cord 4`; Advanced VR Options > Flashlight > Cord: Low-Poly Chain): the chain's
+  links fewer and chunkier, each a hexagon of 4 mm square iron bar (1.6 x 0.8 cm inside), its faces flat-shaded, the
+  same at every distance (`coil::Style::lowPoly`; `gfx::drawTube`'s new `flat`: the square turned half a side so its
+  faces lie along and across the link's plane, each quad lit by its face's normal). The rust per link as the chain.
+  Mock, held in front: 25-26 links, 225-234 rings x 4 sides, ~1.8k triangles (the chain: 29-31 links, 4.5-4.8k).
+- **Chain is the default cord** (`vr_flashlight_cord` 1 -> 3); config version 82 moves a config still on 1 (Coiled).
+- **Smooth Beyond: Never** (each Retro Textures category's page, All Categories and Override: the slider's leftmost
+  step; `vr_retro_<kind>_fade -1`, any value below 0): no fade to plain mipmapping at any distance, the blocks all the
+  way (they shimmer far off; Edge Softness 0 also takes the edges' blend away). fillSet sends -1, `RetroBegin` keeps
+  RetroFar 0. A slider with a `negativeLabel` now steps on from its leftmost step (stepSlider; the hue sliders go from
+  "Player's" to 0, not 5). Check: e1m1 corridor, block 0.25: Never vs Smooth Beyond 1 differ (mean 1.48 / 255), Never vs
+  16 the same (0.00).
+- **Held props press wall buttons** (`vr_button_prop` 1, `vr_button_prop_reach` 6 cm; Carrying and Throwing > Throwing
+  and Physics > Wall Buttons: Held Props Press Buttons, Prop Press Reach): a prop in a hand (health or ammo box, crate,
+  rock, gib, torch club) presses a touch button its shape meets, as held weapons do (`VR_Buttons_PropFrame`, buttons.qc):
+  the engine's held body against the button's box grown by the reach (new builtin `heldbox`, `box3d::heldBox`: the box's
+  corners as a GJK proxy against each shape); its Quake box if it has no held body. The reach needs ~5 cm: a held body
+  is stopped about 1.4 units (4 cm) short of the button. `vr_debug_wallbuttons 2` also prints each held prop's box.
+  Mock (vrfiringrange, button *4, the main hand pushing a health box west 0.02 m a step): pressed at step 35-36 ("the
+  item_health held in hand 1 (its shape)"); `vr_button_prop 0`: never; the axe swept the same way still presses
+  ("the weapon in hand 1"). eval.sh canary: 0 differ.
+
+Checklist:
+
+- [ ] Flashlight > Cord: Chain vs Low-Poly Chain: which suits Quake best as the default.
+- [ ] Retro Textures > World (or All Categories) > Smooth Beyond: leftmost "Never": blocks at every distance.
+- [ ] A health box, ammo box, crate and rock held against a wall button press it; not from too far.
+## Two-handed throws of big gibs (2026-10-03)
+
+NOTES.md vrfiringrange_2026-10-03_02-02-13: the torso (gib2) and the big chunk (gib3), held in both hands, pushed
+forward and let go together, burst in front of him; heads rarely if ever. **Cause** (his config, his gib masses: gib1 8
+kg, gib2 20, gib3 12): the hands never let go in the same frame. The first to let go (`carry: one hand let go, held in
+the other`) is then "the other hand" of a gib held in one (VR_Gib_HeldFrameHand: a fist's strike on a gib held in the
+other hand), and its sweep is measured against the holding hand's: hands a little apart in speed during the push give
+3-4 m/s, over `vr_melee_speed` (3), and the fist is inside a big gib's box (+2.5 units), so every such frame met it:
+`gib: struck by the other hand at 3.3` -> burst. The small gib's box doesn't reach the hand; the earlier fix (the
+touches after the throw, VR_Gib_Struck) never ran: the gib was still held.
+
+**Now** (QC/vr_carry.qc VR_Gib_HeldFrameHand): the hand that let go first of a gib held in both strikes it not while the
+other may still throw it with both (VR_Throw_HandMayStrike: `vr_carry_two_hands_window` + 0.05 s, with
+`vr_throw_2h_nomelee` on), nor just after a two-handed throw. Toss a gib to one hand and punch it after that: as before.
+
+Test `Misc/quakevr/gib_2h_models_test.sh <agent> <out>` (CFG=<config> exec'd first; KINDS): each model (new
+`vr_test_held_pick`, -1 each in turn; Debug > Tests: Which Gib) pushed with both hands at 6 and 9 m/s, the off hand 50
+ms behind on a path 0.6 as long, let go together, the off hand 40 ms or 11 ms first, the main hand 22 ms first
+(gib_2h_throw_test.sh's new STAGGERS 2 3, LAG, OSCALE). His config:
+
+| model | before: burst | after |
+|---|---|---|
+| gib1 (small, 8 kg) | 0 of 8 | 0 of 8 |
+| gib2 (torso, 20 kg) | 3 of 8 (off hand first: 40 ms, 11 ms) | 0 of 8 |
+| gib3 (big chunk, 12 kg) | 3 of 8 | 0 of 8 |
+
+Heads (h_player, grunt, ogre, knight, zombie, fiend) can't be taken by the second hand 14 cm from the first (`carry:
+the other hand is not within reach`): held in one, the other alongside 40% faster strikes them (`struck by the other
+hand at 3.0`) in every run, before and after: the punch on a held gib, by design (a real push's hands differ far less).
+
+In VR:
+- [ ] Take the torso gib and the big chunk in both hands, push both forward and let go together: they fly, no burst.
+- [ ] Hold a gib in one hand and punch it with the other: it bursts.
+
+## Explosive boxes are metal (2026-10-03)
+
+He: the explosive boxes are metal, so they must sound and spark as metal, not wood. Every path that treated them as wood
+(or as flesh) now treats them as metal; the crates stay wood.
+
+- **Shots and blows** (QC `vr_crates.qc`): new `VR_Prop_Metal` (an explosive box, by `th_die == barrel_explode` or its
+  classnames; `vr_burning.qc`'s `VR_Burn_Metal` now calls it). `VR_Crate_Wooden` excludes it (its `vr_blocksight`
+  had made every explosive box wood). `VR_HitBlood` / `VR_HitBloodSplash` (every melee path), `spawn_touchblood`
+  (nails, thrown things), `TraceAttack` (bullets, the monsters' too) throw sparks there (`VR_Metal_Hit`); a shot also
+  rings at the box (`weapons/tink1.wav` 70%, else `ric1..3`; once a frame for a shotgun's pellets). The chainsaw's
+  chain already sparked on what isn't wood: it does on the boxes now.
+- **Melee sounds**: new `VR_Melee_HitSoundOn(target, sound, blade)`: on an explosive box a blade (axe, sword,
+  chainsaw bar, crowbar) clangs (`player/axhit2.wav`, the axe on a wall), a blunt blow (fist, pommel, gun butt,
+  Mjolnir, a torch) knocks (`vr/phys/metal_h1..4.wav`, the physics sounds' heavy metal); `developer 1` logs
+  `melee sound: ... on metal`. A thing thrown into a box (or a box thrown into something) knocks the same way, a thrown
+  weapon clangs. The melee paths keep the struck entity before `T_Damage` (a box blowing up traces, which changed
+  `trace_ent`: its sparks or blood went to whatever that trace met).
+- **Physics sounds** (`vr_physsound.cpp`): `maps/b_explob.bsp`, `maps/b_exbox2.bsp` are metal (heavy: `metal_h`
+  knocks, `scrape_metal`). A climbing hand's tap on one: its textures (`+0_box_side`, `+0_box_top`) are metal in
+  `debris::materialOf`'s table (`_box_`).
+- **Thrown axes** (`vr_axestick.cpp`): new `vr_axestick_metal` (0; Gameplay > Thrown Axes, "Axes Stick in Explosive
+  Boxes"): 0, a thrown axe rings off an explosive box (`axestick: ... bounces (metal ...)`); 1, it sticks as before.
+- **Decals**: none. The decals are on the static world only (`vr_decals.hpp`): neither wood nor metal marks were ever
+  put on a box (a moving brush entity). Bullet holes on props would be a feature of their own.
+- **Ammo and health boxes**: already metal in the physics sounds (`b_shell*`, `b_nail*`, `b_rock*`, `b_batt*`,
+  `b_bh*`); unchanged. Shots and blows on them don't happen (they don't take damage). Their textures (`shot0sid`,
+  `med3_0`, ...) are "other" in the texture table, so a climbing hand's tap on one is stone's.
+
+Test (mock, vrfiringrange, `developer 1; vr_debug_physsound 1; vr_explobox_impact 0`): a box ahead (`vr_test_spawn
+102; impulse 241`) punched with the off hand (motion_synth `punch_straight_off`): `melee sound: vr/phys/metal_h3.wav on
+metal`, `hit: ... is metal: sparks`; chopped with the axe (`chop_horizontal --weapon axe`): `player/axhit2.wav on metal`;
+shot (shotgun): sparks and `weapons/ric1.wav`; nails: sparks and `tink1`; thrown (`vr_test_axe_what 2`): `impact metal
+(heavy)`, `scrape starts, metal`. An axe thrown at a box that never blows up (`vr_test_spawn 104; vr_test_axe_at 3`):
+bounces, `vr_axestick_metal 1`: sticks. A crate punched: still `is wood: splinters`. eval canary: no differences.
+
+### In VR
+- [ ] Shoot, punch, chop and throw things at an explosive box: sparks and metal sounds, no splinters or wood knocks.
+- [ ] Drop, tip and drag one: heavy metal knocks and a metal scrape.
+- [ ] Throw the axe at one: it rings off (Axes Stick in Explosive Boxes on: it sticks).
 
 ## Torch flames: upright from the head's top, swings, smoke, burning you (2026-10-03)
 

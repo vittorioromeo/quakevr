@@ -81,17 +81,18 @@ void(float xHand) W_CrowbarMelee =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
+        entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
         self.damage_weapon = IT_AXE;
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
-            VR_HitBloodSplash(trace_ent, org, xdmg);
+            VR_HitBloodSplash(victim, org, xdmg);
         }
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
             float k = min(VR_CROWBAR_HIT_SOUNDS, 1 + floor(random() * VR_CROWBAR_HIT_SOUNDS));
             string s = k == 1 ? "vr/crowbar_hit1.wav" : (k == 2 ? "vr/crowbar_hit2.wav" : "vr/crowbar_hit3.wav");
-            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSound(s), 1.0, ATTN_NORM);
+            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, s, TRUE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;

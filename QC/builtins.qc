@@ -249,6 +249,7 @@ float(entity e, float i) cratecrowbarput = #0; // lays the crowbar e (lying abou
 // `start` and `end`, met by its shape as it lies (Box3D's), not `ignore` nor `ignore2`; world if none.
 entity(vector start, vector end, entity ignore, entity ignore2) sightblocked = #0;
 float(entity prop, vector start, vector end) heldshape = #0; // where the line meets the shape of prop held in a hand (0..1; 1: not)
+float(entity prop, vector mins, vector maxs, float reach) heldbox = #0; // whether the shape of prop held in a hand meets the box grown by reach (1; 0 not; -1 no held body)
 vector(entity e, vector angles, vector point) modelpoint = #0; // where a point of e's model (its axes: x forward, y left, z up) is from its origin, turned by angles as drawn
 // A hand's push on a rigid body: the point `at` gets at least `vel`'s speed along it (an impulse there: a tall box pushed
 // high tips over). FALSE if Box3D doesn't move it. `mass` (kg, 0 or none: no limit): what pushes weighs that much, so the

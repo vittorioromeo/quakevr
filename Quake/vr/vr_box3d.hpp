@@ -35,6 +35,11 @@ int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity
 // heldshape, FireBulletsImpl.)
 [[nodiscard]] float heldRay(int num, const glm::vec3& start, const glm::vec3& end);
 
+// Whether the shape of edict `num` held in a hand (its held body, as the hand holds it) meets the box `lo`..`hi` (world
+// units) grown round by `reach` units: 1 it does, 0 it doesn't, -1 `num` has no held body. (A held prop presses a wall
+// button it touches: QC heldbox, buttons.qc VR_Buttons_PropFrame.)
+[[nodiscard]] int heldBox(int num, const glm::vec3& lo, const glm::vec3& hi, float reach);
+
 // Whether edict `num` is one of Box3D's props (its shape is what sightRay meets).
 [[nodiscard]] bool isBox3DProp(int num);
 

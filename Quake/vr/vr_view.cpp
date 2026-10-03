@@ -4144,6 +4144,9 @@ struct HolsterSeen
     glm::mat3 weaponTurn{1.f};
 };
 HolsterSeen holsterSeen[HolsterCount];
+// Each holster drew the weapon it holds last frame (not empty, not a stand-in: the Weapon Offsets preview, a posing
+// session): its blood is drawn on it (view::holsteredWeapon, vr_wounds.cpp).
+bool holsterLive[HolsterCount]{};
 
 // A holstered grappling gun (`model`, drawn at `at`) whose hook is out: a rope starts at it (the hook's own beam, from
 // the server's holster place). Drawn empty then (frame 2; 0 is the hook in it).
@@ -4356,6 +4359,7 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         highlight(ve, hover);
         // Just holstered: eased from the hand into the holster (vr_drawblend.cpp).
         drawblend::holster(s, stat, model ? &ve.ent : nullptr, !previewHere && !posedHere);
+        holsterLive[h] = model != nullptr && !previewHere && !posedHere;
         holsterSeen[h] = {model != nullptr, posedHere, kind, weapons::slotForModel(model), pivot, frame, pose.weaponPos,
             aliasBasis(pose.weaponAngles)};
 
@@ -5098,6 +5102,19 @@ const ViewEntity* heldWeapon(int hand)
     const bool weapon = ve.visible && ve.ent.model && ve.ent.model->type == mod_alias &&
                         weapons::slotForModel(ve.ent.model) >= 0 && !isHandModel(ve.ent.model);
     return weapon ? &ve : nullptr;
+}
+
+entity_t* holsteredWeapon(int stat)
+{
+    for(int h = 0; h < HolsterCount; h++)
+    {
+        ViewEntity& ve = entities.holster[h];
+        if(static_cast<int>(bodyHolster[h]) == stat && holsterLive[h] && ve.visible && ve.ent.model && ve.ent.model->type == mod_alias)
+        {
+            return &ve.ent;
+        }
+    }
+    return nullptr;
 }
 
 int handOf(const entity_t* e, bool& weapon)

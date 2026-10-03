@@ -648,8 +648,8 @@ float(float xHand) VR_WallTorch_Melee =
     if(first)
     {
         VRMeleeHapticByHand(xHand);
-        vr_melee_blunt = TRUE; // a wooden knock (VR_Melee_HitSound's)
-        sound(self, VRGetGunChannel(xHand), VR_Melee_HitSound("fisthit.wav"), 1.0, ATTN_NORM);
+        vr_melee_blunt = TRUE; // a wooden knock (VR_Melee_HitSound's); on an explosive box a metal one
+        sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(trace_ent, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
         vr_melee_blunt = FALSE;
         if(lit)
         {
@@ -661,13 +661,18 @@ float(float xHand) VR_WallTorch_Melee =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
+        if(lit && VR_CratePiece_Is(trace_ent))
+        {
+            VR_Burn_Ignite(trace_ent, self, org, v_forward, VR_BURN_BLOW); // (first: a piece set on fire isn't burst by the blow)
+        }
+        entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
-            VR_HitBloodSplash(trace_ent, org, xdmg);
+            VR_HitBloodSplash(victim, org, xdmg);
         }
         if(lit)
         {
-            VR_Burn_Ignite(trace_ent, self, org, v_forward, VR_BURN_BLOW);
+            VR_Burn_Ignite(victim, self, org, v_forward, VR_BURN_BLOW);
             particle2(org, v_forward * -40, QVR_PARTICLE_PRESET_LAVASPIKE, 8);
         }
         return TRUE;
