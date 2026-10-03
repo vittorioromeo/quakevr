@@ -16,7 +16,7 @@
         slider("Menu Scale", "vr_menu_scale", 0.05f, 0.6f, 0.01f, "%.2f").extend(0.02f, 1.5f).help("Scale multiplier for the menu: the size of one of its pixels, in world units."),
         slider("Menu Distance", "vr_menu_distance", 24.f, 256.f, 1.f, "%.0f").extend(8.f, 600.f).help("Distance of the menu from the anchor point."),
         toggle("VR Menu Style", "vr_menu_vr_style").help("The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag."),
-        hueSlider("Laser Hue", vr_menu_laser_hue).help("The laser pointer's colour: 35 amber; Player's: the Player Effects Hue (on the Colours page)."),
+        open("Laser Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
         toggle("Main Menu Lettering", "vr_menu_bigfont").help("The main menu's rows as text in Quake's own lettering (its letters cut from the menu pictures), VR Calibration among them. Off: Quake's picture of the rows, with VR Calibration above it in the console's letters."),
         slider("Row Spacing", "vr_menu_spacing", 1.f, 2.f, 0.05f, "%.2fx").extend().help("With the VR menu style: how far apart the menus' rows are, over Quake's."),
         slider("Menu Height", "vr_menu_height", 1.f, 2.f, 0.05f, "%.2fx").extend().help("With the VR menu style: how tall the menus are, over Quake's: more rows at once. 1.35 reaches about 35 degrees up and down at the shipped distance, scale and spacing."),
@@ -31,11 +31,11 @@
 [[nodiscard]] za::Vector<Item> pageCrosshairSettings()
 {
     return {
-        cycle("Crosshair", "vr_crosshair", {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}}),
+        open("Crosshair: VR Settings", pageIndex(pageMain)).help("The crosshair's kind is on VR Settings."),
         slider("Crosshair Depth", "vr_crosshair_depth", 0.f, 4096.f, 16.f, "%.0f").extend().help("When zero, the crosshair will be projected to the closest wall. Otherwise, the crosshair will be projected at a fixed depth."),
         slider("Crosshair Size", "vr_crosshair_size", 0.f, 32.f, 0.5f, "%.1f").extend().help("Size of the crosshair."),
         slider("Crosshair Alpha", "vr_crosshair_alpha", 0.f, 1.f, 0.05f, "%.2f").help("Transparency of the crosshair. '1' means fully visible, '0' means fully transparent."),
-        hueSlider("Crosshair Hue", vr_crosshair_hue).help("Its colour: 0 red; Player's: the Player Effects Hue (on the Colours page)."),
+        open("Crosshair Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
         slider("Crosshair Z Offset", "vr_crosshairy", -10.f, 10.f, 0.05f, "%.2f").extend(-50.f, 50.f).help("Z offset applied to the crosshair. Does not affect aiming. Leave to zero unless you changed other weapon options and your aim is off."),
     };
 }
@@ -56,24 +56,18 @@
 [[nodiscard]] za::Vector<Item> pageLocomotionSettings()
 {
     return {
-        cycle("Movement Mode", "vr_movement_mode", {{1.f, "Follow Head"}, {0.f, "Follow Off Hand"}}).help("Movement options for smooth locomotion."),
-        slider("Deadzone", "vr_deadzone", 0.f, 50.f, 5.f, "%.0f%%").help("Controller thumbstick deadzone."),
+        open("Turning, Moving, Teleport: VR Settings", pageIndex(pageMain)).help("Turning, turn speed, which way you move, teleport and its range, the stick deadzone and room scale are on VR Settings."),
         slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").extend().help("Walking speed (running is this times the running multiplier)."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
         slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").extend().help("How much faster running is than walking."),
         header("Turning"),
         toggle("Enable Joystick Turn", "vr_enable_joystick_turn").help("Allows turning using the controller. Keep enabled unless you want to force yourself to turn in real life."),
-        slider("Turn", "vr_snap_turn", 0.f, 90.f, 5.f, "%.0f").extend(),
-        slider("Turn Speed", "vr_turn_speed", 0.f, 10.f, 0.25f, "%.1f").extend().help("How quickly you turn with the joystick."),
         header("Teleport"),
-        toggle("Teleportation", "vr_teleport_enabled").help("Enables or disables teleportation. A controller binding is required to use teleportation."),
-        slider("Teleport Range", "vr_teleport_range", 100.f, 800.f, 10.f, "%.0f").extend(100.f, 3000.f).help("How far you can teleport."),
         header("Leaning"),
         slider("Lean", "vr_lean_radius", 0.f, 14.f, 1.f, "%.0f units").extend().help("How far your head may lean off the middle of your body's box before the body follows: get your face near walls and over railings. 0: the body always under the head."),
         slider("Lean Recentre", "vr_lean_recenter", 0.f, 2.f, 0.1f, "%.1f m/s").extend().help("How fast the body slides back under your head when it can (not into walls, not over ledges), at least; with Lean Detection, faster the further off it is, and not while you lean. 0: never."),
         slider("Lean Detection", "vr_lean_detect", 0.f, 2.f, 0.1f, "%.1fx").help("Tells a lean from walking in the room. Leaning (your head lower and tilted the way you lean, your hands left by your hips), your feet and hips stay where you stand and your back tilts; walking, the body follows your head. 0: off, the body always slides back under your head; higher: more readily a lean."),
         header("Room Scale"),
-        slider("Roomscale Move Mult.", "vr_roomscale_move_mult", 0.25f, 5.f, 0.25f, "%.1f").extend().help("Real movement to in-game movement. Increase to cover more ground, e.g. with teleportation or little room."),
         toggle("Roomscale Jump", "vr_roomscale_jump").help("Jumping in the room jumps in the game."),
         slider("Jump Threshold", "vr_roomscale_jump_threshold", 0.3f, 2.f, 0.05f, "%.2f m/s").extend()
             .help("How fast the head must rise above the standing height."),
@@ -101,9 +95,7 @@
         cycle("Mantle Grunt Sound", "vr_climb_mantle_grunt_sound", {{0.f, "Jump grunt"}, {1.f, "Hard landing"}, {2.f, "Jump, deeper"}, {3.f, "Landing, deeper"}, {4.f, "Pain grunt"}}).help("Which grunt the mantle makes. Hard landing (the default): the strained \"oof\" of landing from a height, so it doesn't sound like a jump. The deeper ones are Quake's played slower. Hear it with Hear Mantle Grunt."),
         command("Hear Mantle Grunt", "vr_climb_mantle_grunt_test").help("Plays the mantle's grunt as set, at full volume."),
         header("Climbing Stamina"),
-        toggle("Climbing Stamina", "vr_climb_stamina").help("Hanging from a ledge or a rung tires you: it spends stamina from the pool parries, shoves and blows use (Stamina page), and none comes back while you hang. With none left your hands let go. Standing on something while you hold, pulling up onto a ledge and standing on it cost nothing."),
-        slider("Hanging Cost, One Hand", "vr_climb_stamina_rate", 0.f, 30.f, 0.5f, "%.1f /s").extend().help("Stamina a second hanging from one hand costs (5 of 100: 20 s)."),
-        slider("Hanging Cost, Two Hands", "vr_climb_stamina_rate_2h", 0.f, 30.f, 0.5f, "%.1f /s").extend().help("Stamina a second hanging from both hands costs, the two together (2 of 100: 50 s): the arms share your weight."),
+        open("Climbing Stamina: Stamina", pageIndex(pageStamina)).help("What hanging from a hold costs is on Combat > Stamina."),
         slider("Exhausted: Slip Time", "vr_climb_stamina_slip", 0.f, 5.f, 0.25f, "%.2f s").extend().help("With no stamina left: 0, your hands let go at once. More: they can't pull you up any more, you sink until your arms are straight, and they slip off after this long."),
         open("Tired Arms (Stamina)", pageIndex(pageStamina)).help("Low on stamina, your arms shake while you hang (looks only) and your hands get heavy: on the Stamina page."),
         header("Hand on a Hold (Looks Only)"),
@@ -260,9 +252,7 @@ void resetHandMoves()
         slider("Main Hand X (forward)", "vr_handcal_x", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
         slider("Main Hand Y (left)", "vr_handcal_y", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
         slider("Main Hand Z (up)", "vr_handcal_z", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
-        slider("Main Hand Pitch (down)", "vr_gunangle", 0.f, 80.f, 0.25f, "%.2f").extend(-180.f, 180.f)
-            .help("Gun Angle (vr_gunangle): turns the whole hand, and what it holds, down about the controller's tracked "
-                  "point. Changes where it aims."),
+        open("Gun and Off Hand Angle: VR Settings", pageIndex(pageMain)).help("The hands' pitch (Gun Angle, Off Hand Angle) is on VR Settings."),
         slider("Main Hand Yaw (left)", "vr_gunyaw", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f)
             .help("Gun Yaw (vr_gunyaw): turns the whole hand, and what it holds, left about the controller's tracked "
                   "point. Changes where it aims."),
@@ -278,9 +268,6 @@ void resetHandMoves()
             slider("Off Hand X (forward)", "vr_handcal_off_x", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
             slider("Off Hand Y (left)", "vr_handcal_off_y", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
             slider("Off Hand Z (up)", "vr_handcal_off_z", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
-            slider("Off Hand Pitch (down)", "vr_offhandpitch", 0.f, 80.f, 0.25f, "%.2f").extend(-180.f, 180.f)
-                .help("Off-Hand Pitch (vr_offhandpitch): turns the whole hand, and what it holds, down about the "
-                      "controller's tracked point. Changes where it aims."),
             slider("Off Hand Yaw (left)", "vr_offhandyaw", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f)
                 .help("Off-Hand Yaw (vr_offhandyaw): turns the whole hand, and what it holds, left about the "
                       "controller's tracked point. Changes where it aims."),
@@ -361,8 +348,7 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pagePlayerCalibration()
 {
     return {
-        slider("World Scale", "vr_world_scale", 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f).help("Scale of the world. Affects movement, height, and hand positions."),
-        slider("Floor Offset", "vr_floor_offset", -200.f, 200.f, 2.5f, "%.0f").extend(-400.f, 400.f).help("Offset from the floor. Change if you feel like you're floating or stuck in the floor."),
+        open("World Scale and Floor Offset: Body and Display", pageIndex(pageBodyDisplay)).help("World Scale and Floor Offset are on Body and Display."),
     };
 }
 
@@ -393,10 +379,9 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageAimingSettings()
 {
     return {
-        cycle("2H Aiming", "vr_2h_mode", {{0.f, "Disabled"}, {1.f, "Basic"}, {2.f, "Virtual Stock"}}).help("'Basic' aims between the two hands; 'Virtual Stock' also uses the shoulder when the weapon is close to it (see Hotspots)."),
+        open("Two-Handed: VR Settings", pageIndex(pageMain)).help("Two-handed aiming and the hand-off are on VR Settings."),
         slider("2H Aiming Threshold", "vr_2h_angle_threshold", -1.f, 1.f, 0.05f, "%.2f").help("How far out of line the hands may be before two-handed aiming stops. Higher is stricter; -1 never stops."),
         slider("2H Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f").help("How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more."),
-        toggle("2H Hand-Off", "vr_2h_handoff").help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip, unusable, until a hand takes its handle."),
         header("2H Grip Stickiness"),
         slider("Stickiness", vr_2h_sticky, 0.5f, 4.f, 0.05f, "%.2fx").extend(0.1f, 20.f)
             .help("Once your other hand holds a weapon's grip, how far it may go off it (20 units), how far out of line "
@@ -493,7 +478,7 @@ void resetHandMoves()
 {
     return {
         toggle("Body Picks Up Items", "vr_body_interactions").help("Pick up items and level weapons by walking over them. Thrown and dropped weapons still need your hands."),
-        toggle("Disable Haptics", "vr_disablehaptics").help("Disable all haptics (vibration)."),
+        open("Haptics: VR Settings", pageIndex(pageMain)).help("Haptics on or off is on VR Settings."),
         header("Weapons and Holsters"),
         cycle("Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}).help("Immersive: a holster holds one weapon, and taking it out empties it. Quick Slots: holsters never empty (with weapon cycling)."),
         cycle("Weapon Reloading Mode", "vr_reload_mode", {{0.f, "None"}, {1.f, "All Holsters"}, {2.f, "Hip Holsters"}}).help("Enables weapon reloading mechanics. Weapons can be reloaded by moving them towards an holster. Reloading only works with 'immersive' weapon mode."),
@@ -503,8 +488,8 @@ void resetHandMoves()
         slider("Holster Blend Time", "vr_weapon_holster_blend", 0.f, 1.f, 0.05f, "%.2f s").help("A gun put in a holster eases from your hand into its holstered pose over this time (0: at once)."),
         toggle("Weapon Cycle Mode", "vr_weapon_cycle_mode").help("Allows or disallows cycling weapons using controller buttons."),
         cycle("Weapon Throw Mode", "vr_weapon_throw_mode", {{0.f, "Immersive"}, {1.f, "Vanish on Hit"}, {2.f, "Discard"}}).help("Immersive: thrown weapons can be picked back up. Vanish on Hit and Discard avoid piles of weapons with Quick Slots."),
-        slider("Throw Damage Mult.", "vr_weapon_throw_damage_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Every throw's damage times this: weapons, rocks, boxes, gibs (0.5: half of what it was before 2026-10-02). Also on Weapon Damage."),
-        slider("Throw Speed Mult.", "vr_weapon_throw_velocity_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for weapon throw velocity."),
+        open("Throw Damage: Weapon Damage", pageIndex(pageWeaponDamage)).help("The damage of thrown weapons is on Combat > Weapon Damage (All Throws)."),
+        open("Throw Speed: VR Settings", pageIndex(pageMain)).help("Throw Speed is on VR Settings."),
         toggle("Dropped Wpn Particles", "vr_weapondrop_particles").help("Enable particle effects for weapons dropped/thrown on the ground."),
         header("Shell Casings"),
         toggle("Shell Casings", "vr_shells").help("The shotgun throws out a spent shell each shot, the super shotgun its two as you reload (a flick reload flings them). They bounce, roll and lie on the floor."),
@@ -537,7 +522,7 @@ void resetHandMoves()
             .help("Smooth filtering for high-resolution replacement textures, or for all textures."),
         toggle("Fence Coverage", "vr_alpha_coverage").help("Fences and grates keep their bars at a distance instead of thinning out and crawling; with Anti-aliasing (MSAA) their edges are smoothed too."),
         toggle("Relit Maps", "vr_relit_maps").help("Maps re-lit with shadows, ambient occlusion and colour, if made (Misc/quakevr/relight_maps.py). Next map."),
-        slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").extend().help("The headset's own gamma (lower is brighter; 1 neutral). The desktop's is not used."),
+        open("Headset Gamma: VR Settings", pageIndex(pageMain)).help("The headset's gamma (its brightness) is on VR Settings."),
         slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").extend().help("The headset's own contrast (1 neutral)."),
         header("More Graphics"),
         open("Lights", pageIndex(pageGraphicsLights)),
@@ -1048,18 +1033,13 @@ void retroAllUncheckCategories()
         toggle("Weapon Reflections", "vr_weapon_reflections").help("The metal of your weapons (barrels, blades) reflects the room around you, dimmer in the dark."),
         slider("Reflection Strength", "vr_weapon_reflections_strength", 0.f, 2.f, 0.1f, "%.1fx").extend().help("How strongly your weapons' metal reflects the room."),
         header("Glow"),
-        slider("Screen Glow", "vr_screen_glow", 0.f, 3.f, 0.1f, "%.1fx").extend().help("The wrist gadget's and your weapons' screens glow softly round their edges (0 off)."),
-        slider("Screen Text Glow", "vr_screen_text_glow", 0.f, 3.f, 0.1f, "%.1fx").extend().help("The text, numbers and icons on those screens glow: bright whitish cores, a soft halo (0 off)."),
+        open("Screen Glow: Screens", pageIndex(pageScreens)).help("The screens' glow is on HUD and Menus > Screens."),
         slider("Weapon Sight Glow", "vr_weapon_glow", 0.f, 3.f, 0.1f, "%.1fx").extend().help("Your weapons' glowing parts, as the shotgun's sights, shine brighter and glow (0: as Quake)."),
-        hueSlider("Weapon Sight Hue", vr_sight_hue).help("The shotgun's and double shotgun's iron sights: 30 their own orange, 0 red, 120 green, 240 blue; Player's: the Player Effects Hue (also on the Colours page, with their saturation)."),
+        open("Weapon Sight Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
         header("Effects"),
         toggle("Soft Particles", "vr_soft_particles").help("Smoke, fire, blood and explosions fade out where they meet walls and floors instead of cutting hard lines through them."),
         slider("Soft Particle Distance", "vr_soft_particles_scale", 0.25f, 3.f, 0.25f, "%.2fx").extend().help("How far in front of walls and floors they start fading (bigger: softer, but thin puffs against a wall fainter)."),
-        toggle("Decals", "vr_decals").help("Blood splats, gib trails, scorch marks and bullet chips on walls and floors."),
-        slider("Decal Lifetime", "vr_decal_life", 10.f, 600.f, 10.f, "%.0f s").extend(),
-        slider("Max Decals", "vr_decal_max", 64.f, 4096.f, 64.f, "%.0f").extend(),
-        toggle("Gib Blood", "vr_gib_blood").help("Gibs and heads leave a trail of blood drops and splat where they hit walls and floors. Off: Quake's trail."),
-        slider("Gib Blood Trail", "vr_gib_blood_trail", 0.f, 3.f, 0.25f, "%.2fx").extend().help("How dense their trail of blood and drops is (0 none)."),
+        open("Decals and Gib Blood: Gore", pageIndex(pageGore)).help("Decals and the gibs' blood are on Gore."),
         slider("Ammo Switch Morph", "vr_weapon_morph_time", 0.f, 1.f, 0.05f, "%.2f s").extend().help("Switching a gun's ammo with its button morphs it into its other look (lava, multi-rockets, plasma) over this long, a glowing seam sweeping over it (0: at once)."),
     };
 }
@@ -1068,8 +1048,7 @@ void retroAllUncheckCategories()
 [[nodiscard]] za::Vector<Item> pageHudConfiguration()
 {
     return {
-        cycle("HUD", "vr_hud_mode", {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}).help("The settings below apply to the status bar."),
-        cycle("Status Bar Mode", "vr_sbar_mode", {{0.f, "Main Hand"}, {1.f, "Off Hand"}}).help("The offsets below apply to the off hand."),
+        open("HUD and Status Bar Hand: VR Settings, Body and Display", pageIndex(pageMain)).help("The HUD's kind is on VR Settings; the status bar's hand on Body and Display."),
         slider("HUD Scale", "vr_hud_scale", 0.01f, 0.1f, 0.005f, "%.3f").extend(0.005f, 0.3f),
         slider("Offset X", "vr_sbar_offset_x", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
         slider("Offset Y", "vr_sbar_offset_y", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
@@ -1126,7 +1105,7 @@ void retroAllUncheckCategories()
         slider("Hip Yaw", "vr_hip_holster_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("Turns the holster's face outwards (negative: inwards), mirrored for the left one."),
         slider("Hip Roll", "vr_hip_holster_roll", -180.f, 180.f, 5.f, "%.0f deg").help("Tips the holster's top outwards (negative: inwards; a hanging gun's muzzle goes the other way), mirrored for the left one."),
         header("Holster Slots"),
-        toggle("Show Holster Slots", "vr_leg_holster_model_enabled"),
+        open("Holster Models: Body and Display", pageIndex(pageBodyDisplay)).help("Showing the holsters' models is on Body and Display."),
         slider("Holster Slot Scale", "vr_leg_holster_model_scale", 0.1f, 2.f, 0.05f, "%.2f").extend(0.02f, 5.f),
         slider("Holster Slot X", "vr_leg_holster_model_x_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
         slider("Holster Slot Y", "vr_leg_holster_model_y_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),

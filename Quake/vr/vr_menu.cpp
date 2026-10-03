@@ -370,6 +370,17 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
+// (Settings with their home on another page link to it: one home per setting.)
+[[nodiscard]] za::Vector<Item> pageMain();
+[[nodiscard]] za::Vector<Item> pageColours();
+[[nodiscard]] za::Vector<Item> pageBulletTime();
+[[nodiscard]] za::Vector<Item> pageStamina();
+[[nodiscard]] za::Vector<Item> pageGibs();
+[[nodiscard]] za::Vector<Item> pageGore();
+[[nodiscard]] za::Vector<Item> pageScreens();
+[[nodiscard]] za::Vector<Item> pageHipHolsters();
+[[nodiscard]] za::Vector<Item> pageClimbing();
+[[nodiscard]] za::Vector<Item> pageRecording();
 
 // Texts the menu hands out by pointer (an Item holds const char*):
 // - readouts: an info line's or a help's text, valid until the same function's next call (the draw uses it at once);
@@ -1060,8 +1071,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Recovery Rate", vr_parry_stamina_regen, 1.f, 100.f, 1.f, "%.0f /s").extend().help("Stamina a second it then comes back at."),
         slider("Tiring Warning", vr_parry_stamina_warn, 0.f, 1.f, 0.1f, "%.1f")
             .help("A breath and a throb in the hand when one more one-handed parry would knock the weapon away; a gasp and a long buzz when it does: their volume and strength (0 off)."),
-        toggle("Stamina on the Gadget", vr_gadget_stamina)
-            .help("The wrist gadget's top row shows your stamina: ten cells, blinking when one more one-handed parry would knock the weapon away, EXHAUSTED when none is left, a sweep while it comes back. While a counter's window is open it reads COUNTER over a bar running out."),
+        open("Stamina on the Gadget: Screens", pageIndex(pageScreens)).help("What the gadget shows (stamina and counters) is on HUD and Menus > Screens."),
         header("Shove and Strike Stamina"),
         toggle("Shove Stamina", vr_shove_stamina)
             .help("Shoves and bashes that land cost stamina from the same pool as parries. Without enough left, they throw back less and hurt less (Exhausted Knockback, Exhausted Damage)."),
@@ -1171,25 +1181,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("From the pin (or the throw) to the blast. The launcher's grenades take 2.5 s. Hold it too long and it goes "
                   "off in your hand."),
         header("Grenade Pouch"),
-        toggle("Show Grenade Pouch", vr_show_grenade_pouch)
-            .help("A marker at the pouch the size of its reach, green while a hand is there: to place it."),
-        slider("Pouch X", vr_grenade_pouch_x, -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("Forward (negative: back), units. With the body drawn, the default (-7) is on the belt at the small of "
-                  "your back; forward, it goes round your hips."),
-        slider("Pouch Y", vr_grenade_pouch_y, -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("To your right (negative: left), units."),
-        slider("Pouch Z", vr_grenade_pouch_z, -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("Up (negative: down), units: 0 is the hip holsters' height."),
-        slider("Pouch Threshold", vr_grenade_pouch_thresh, 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f)
-            .help("How near the pouch a hand must be to take a grenade from it (or put one back)."),
-        slider("Grenade In Hand Pitch", vr_grenade_pouch_hold_pitch, -180.f, 180.f, 5.f, "%.0f deg")
-            .help("A grenade taken from the pouch: its front tipped up in your hand (negative: down), about its middle. "
-                  "Moves one you hold now too."),
-        slider("Grenade In Hand Yaw", vr_grenade_pouch_hold_yaw, -180.f, 180.f, 5.f, "%.0f deg")
-            .help("A grenade taken from the pouch: its front turned left in your hand (negative: right), mirrored for the "
-                  "left hand."),
-        slider("Grenade In Hand Roll", vr_grenade_pouch_hold_roll, -180.f, 180.f, 5.f, "%.0f deg")
-            .help("A grenade taken from the pouch: rolled right in your hand (negative: left), mirrored for the left hand."),
+        open("Grenade Pouch: Hip Holsters", pageIndex(pageHipHolsters)).help("Where the grenade pouch is and how a grenade sits in the hand: Weapons > Hip Holsters."),
         open("Pouch Turn (Hip Holsters)", pageIndex(pageHipHolsters))
             .help("The same place, and how the pouch is turned, with the hip holsters."),
     };
@@ -1200,10 +1192,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
     return {
         open("Arms and Pauldrons", pageIndex(pageBodyArms)),
         open("Body Calibration", pageIndex(pageBodyCalibration)),
-        open("Player Calibration", pageIndex(pagePlayerCalibration)),
         header("Body"),
-        cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
-        cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
+        open("Body and Build: Body and Display", pageIndex(pageBodyDisplay)).help("The body on or off and its build are on Body and Display."),
         toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
         slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s").extend()
             .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
@@ -1217,8 +1207,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How many more kicks a second at full stick (treading water, about 0.7)."),
         toggle("Show Armour and Wounds", vr_body_state)
             .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt (with Dynamic Wounds, on the Gore page: where you are hit)."),
-        toggle("Wounds Drip Blood", vr_body_blood)
-            .help("Blood drips from your wounded arms and hands, faster when badly hurt or just hit, and splashes on the floor."),
+        open("Wounds Drip Blood: Gore", pageIndex(pageGore)).help("The wounds' dripping blood is on Gore (Arm Drip Rate)."),
         toggle("Show Powerups", vr_body_powerups)
             .help("Quad damage sparks around your hands, the pentagram makes you glow, the ring fades you."),
         toggle("Anchors Follow Body", vr_body_anchors)
@@ -1268,6 +1257,8 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How far the torso sits behind your neck (negative: in front)."),
         slider("Legs Offset", vr_body_legs_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
             .help("How far the feet stand behind your head (negative: in front)."),
+        slider("Shoulders Offset", vr_body_shoulders_back, -0.15f, 0.2f, 0.01f, "%.2f m").extend(-0.5f, 0.5f)
+            .help("How far the shoulders sit behind your neck (negative: in front)."),
         slider("Eyes Forward", vr_body_eye_forward, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f)
             .help("From the top of the neck to the eyes, forward."),
         slider("Eyes Up", vr_body_eye_up, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f).help("From the top of the neck to the eyes, up."),
@@ -1567,8 +1558,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         open("Overhead Grip", pageIndex(pageFlashlightOverheadGrip)).help("The torch turned over in your hand (B or Y): its place, its turn and the fingers on it."),
         open("On a Gun or Head", pageIndex(pageFlashlightMounts)).help("Where the torch clips on a gun or on your head, and the zones that clip it on."),
         header("Flashlight"),
-        toggle("Chest Flashlight", vr_flashlight)
-            .help("A torch hanging on your belt, on the hip Side picks (lighting only your feet there). Trigger at it: on or off. Grip it with an open, still hand to take it (a fist closing by it in a fight does nothing); let go and it springs back. In your hand: B or Y by a gun clips it on the gun, at your head on your head (a head torch), elsewhere turns it round (low grip or overhead)."),
+        open("Chest Flashlight and Side: Body and Display", pageIndex(pageBodyDisplay)).help("The chest flashlight on or off and its hip are on Body and Display."),
         slider("Brightness", vr_flashlight_brightness, 0.25f, 2.5f, 0.05f, "%.2fx").extend(),
         slider("Range", vr_flashlight_range, 300.f, 2000.f, 50.f, "%.0f").extend(100.f, 6000.f),
         slider("Visible Beam", vr_flashlight_beam, 0.f, 1.f, 0.05f, "%.2f").help("A soft cone of light in the air from the lamp (0: none)."),
@@ -1596,7 +1586,6 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Forward", vr_flashlight_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
         slider("Up", vr_flashlight_up, -0.4f, 0.4f, 0.01f, "%.2f m").extend(),
         slider("Out", vr_flashlight_out, -0.3f, 0.3f, 0.01f, "%.2f m").extend().help("Away from your middle, towards its side."),
-        cycle("Side", vr_flashlight_side, {{0.f, "Left hip"}, {1.f, "Right hip"}}),
         header("In the Hand"),
         slider("In Hand Forward", vr_flashlight_hand_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend().help("Where the held lamp sits in your fist."),
         slider("In Hand Up", vr_flashlight_hand_up, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
@@ -1931,8 +1920,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 [[nodiscard]] za::Vector<Item> pageGadget()
 {
     return {
-        cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}),
-        cycle("Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}),
+        open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageMain)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
         slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 3.f),
         header("Placement"),
         slider("Along the Arm", vr_gadget_x, -15.f, 15.f, 0.5f, "%.1f cm").extend(-40.f, 40.f),
@@ -2033,9 +2021,8 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageThrowing()
 {
     return {
-        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
+        open("Throw Speed and Gravity: VR Settings", pageIndex(pageMain)).help("Throw Speed and Throw Gravity are on VR Settings."),
         slider("Two-Hand Throw Speed", vr_2h_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
-        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}),
         slider("Velocity Window", vr_throw_window, 0.04f, 0.3f, 0.01f, "%.2f s").extend()
             .help("Around the release, where the hand's fastest moment sets the throw."),
         slider("Direction Lookback", vr_throw_dir_lookback, 0.f, 0.1f, 0.005f, "%.3f s").extend()
@@ -2400,9 +2387,7 @@ void hologramTestMessage()
             .help("A slide slower than this is silent."),
         slider("Loudest Scrape From", vr_physsound_scrape_full, 1.f, 8.f, 0.5f, "%.1f m/s").extend(0.5f, 20.f)
             .help("A slide this fast or faster scrapes at full volume."),
-        slider("Climbing Grab", vr_physsound_grab, 0.f, 1.f, 0.1f, "%.1f")
-            .help("A small slap as a climbing hand takes a hold, of what the hold is made of: wood, muted metal or stone "
-                  "(0 off)."),
+        open("Climbing Grab Sound: Climbing", pageIndex(pageClimbing)).help("The climbing grab sound is on Movement > Climbing."),
         header("Explosive Boxes"),
         toggle("Physics Explosive Boxes", vr_explobox_physics)
             .help("The explosive boxes can be pushed, tipped over, stacked and carried by hand (heavy; never force "
@@ -2737,11 +2722,7 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageCorpseDamage()
 {
     return {
-        slider("Corpse Health", vr_corpse_health_mult, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.05f, 20.f)
-            .help("Times every monster's corpse health below (vr_corpse_health_mult)."),
-        cycle("Never Gib Corpses", vr_corpse_nogib, {{0.f, "Off"}, {1.f, "Corpses and Ragdolls"}, {2.f, "And Dying Monsters"}})
-            .help("For testing: corpses and ragdolls never burst into gibs. And Dying Monsters: monsters die whole too "
-                  "(vr_corpse_nogib)."),
+        open("Corpse Health, Never Gib: Gibs and Corpses", pageIndex(pageGibs)).help("Corpse Health and Never Gib Corpses are on Gibs and Corpses."),
         header("Damage to Corpses, by Weapon"),
         slider("Shotguns and Guns", vr_corpse_dmg_shots, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
             .help("The shotguns' pellets and the grunts' guns. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_shots)."),
@@ -2807,11 +2788,7 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageRagdolls()
 {
     return {
-        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "On (Experimental)"}})
-            .help("A dying grunt, knight, ogre, enforcer, death knight, rottweiler or scrag goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs; a rottweiler's four legs, jaw and tail; a scrag's tail) that fall, "
-                  "tumble down stairs, are pushed by shots, blasts, props and your hands, his mesh bent with them. Shoot "
-                  "or blow him up enough and he still bursts into gibs, as a corpse does (Gibs and Corpses: Corpse Damage "
-                  "and Health, Never Gib Corpses) (vr_ragdoll)."),
+        open("Ragdolls On/Off: Gibs and Corpses", pageIndex(pageGibs)).help("Ragdolls on or off is on Gibs and Corpses."),
         slider("Go Limp At", vr_ragdoll_start, 0.f, 1.f, 0.1f, "%.1f")
             .help("When in his death animation: 0 as soon as he stops being solid, 1 once he lies still (vr_ragdoll_start)."),
         slider("Most Ragdolls", vr_ragdoll_max, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 64.f)
@@ -3239,9 +3216,7 @@ void checklistReload()
             .help("What to test in the headset or give feedback on (quakevr/checklist.txt), ticked as you go. Also the "
                   "menu's corner button."),
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
-        slider("Slow Motion", vr_timescale, 0.1f, 1.f, 0.05f, "%.2fx").extend(0.05f, 4.f)
-            .help("The game's time scale (vr_timescale; single player, not saved): everything slowed but your view. Its "
-                  "other settings: Graphics > Recording > Slow Motion. Bindable: vr_slowmo."),
+        open("Slow Motion: Recording", pageIndex(pageRecording)).help("Time Scale (slow motion) is on Graphics > Recording."),
         header("Debug"),
         open("Views", pageIndex(pageDebugViews))
             .help("Drawn in the world: physics shapes, hand bones, ledges, grab tests, the skeleton, collisions, foveation, entity boxes."),
@@ -3315,10 +3290,7 @@ za::Vector<Item> pageDebugViews()
         toggle("Log Weapon Wall Collisions", vr_debug_gun_wall)
             .help("Each frame a held weapon is held out of the level: how far the hand is moved (up, across), the depth left "
                   "and the muzzle's height over the surface below it, in the console."),
-        toggle("Show Flashlight Zones", vr_show_flashlight_zones)
-            .help("The torch's reach zones (as on the Flashlight page): not in a hand, a capsule round it, green while a hand's "
-                  "grip there takes it, and a dot where the game reads each hand near it (the drawn hand may be held out "
-                  "of the body elsewhere)."),
+        open("Flashlight Zones: Flashlight - On a Gun or Head", pageIndex(pageFlashlightMounts)).help("Showing the flashlight zones is on Flashlight > On a Gun or Head."),
         command("Flashlight to Left Hand", "vr_flashlight_give left")
             .help("vr_flashlight_give left: the chest flashlight into the left controller's hand, as if gripped there (that "
                   "hand's grip lets go of it). Its buttons are then that controller's, with either Main Hand."),
@@ -4141,9 +4113,7 @@ za::Vector<Item> pageDebugTests()
 [[nodiscard]] za::Vector<Item> pageForceGrab()
 {
     return {
-        toggle("Force Grab", vr_forcegrab_mode)
-            .help("Point an empty hand at an object, pull the trigger, flick the hand: it flies to you. Grip as it arrives "
-                  "to catch it."),
+        open("Force Grab On/Off: VR Settings", pageIndex(pageMain)).help("Force Grab on or off is on VR Settings."),
         slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f").extend(100.f, 4000.f),
         slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").extend().help("How far off where the hand points an object may be."),
         slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend()
@@ -4910,22 +4880,15 @@ za::Vector<Item> pageMain()
         header("Body"),
         slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f)
             .help("How big the world feels around you (1.25: Quake's sizes as a person sees them)."),
-        slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f).advanced(),
+        slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f).advanced()
+            .help("Moves the floor up or down: change it if you feel you are floating or sunk in the floor."),
         toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (Flashlight Side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
         cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
-        slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m back").extend(-1.f, 1.f).advanced(),
-        slider("Legs Offset", vr_body_legs_back, -0.2f, 0.4f, 0.01f, "%.2f m back").extend(-1.f, 1.f).advanced(),
-        slider("Shoulders Offset", vr_body_shoulders_back, -0.15f, 0.2f, 0.01f, "%.2f m back").extend(-0.5f, 0.5f).advanced(),
         toggle("Holster Models", vr_leg_holster_model_enabled),
 
         header("Display"),
         cycle("Status Bar", vr_sbar_mode, {{1.f, "Off hand"}, {0.f, "Main hand"}}).help("The hand Quake's status bar is on (HUD: Status bar)."),
-        slider("HUD Scale", vr_hud_scale, 0.01f, 0.05f, 0.0025f, "%.4f").extend(0.005f, 0.3f).advanced(),
-        slider("Crosshair Size", vr_crosshair_size, 0.5f, 8.f, 0.5f, "%.1f").extend(0.f, 32.f).advanced(),
-        slider("Menu Distance", vr_menu_distance, 40.f, 150.f, 5.f, "%.0f").extend(8.f, 600.f).advanced(),
-        slider("Menu Scale", vr_menu_scale, 0.08f, 0.3f, 0.01f, "%.2f").extend(0.02f, 1.5f).advanced(),
-        slider("Menu Background Opacity", "scr_menubgalpha", 0.f, 1.f, 0.05f, "%.2f").advanced().help("How dark the panel behind the menus is (0.7 as shipped; the desktop menus' too): lower it to see the game while you tune the graphics. Below about 0.5 the text gets a dark outline, to stay readable."),
         cycle("Desktop Mirror", vr_mirror, {{0.f, "Off"}, {1.f, "Left eye"}, {2.f, "Both eyes"}}),
         open("Recording (Window View)", pageIndex(pageRecording))
             .help("What the desktop window shows for recording: a steadied mirror or a spectator camera."),
