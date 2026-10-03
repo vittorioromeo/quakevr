@@ -352,7 +352,7 @@ void fillSet(int set, Category c, const Override* m, const Override* t)
     float* p2 = block.sets[set * 3 + 2];
     p0[0] = za::clamp(r(Param::Block), 0.0625f, 64.f);
     p0[1] = za::clamp(r(Param::Soft), 0.f, 8.f);
-    p0[2] = za::clamp(r(Param::Fade), 0.05f, 16.f);
+    p0[2] = r(Param::Fade) < 0.f ? -1.f : za::clamp(r(Param::Fade), 0.05f, 16.f); // below 0: never smooth (Never)
     p0[3] = r(Param::Snap) != 0.f ? 1.f : 0.f;
     p1[0] = za::clamp(r(Param::Palette), 0.f, 1.f);
     p1[1] = za::clamp(r(Param::Dither), 0.f, 4.f);

@@ -93,8 +93,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "		}\n" \
 "	}\n" \
 "	vec2 w = (abs(duvdx) + abs(duvdy)) * RetroGrid; // the blocks a pixel spans\n" \
-"	float fade = max(RetroP0.z, 0.01);\n" \
-"	RetroFar = smoothstep(0.5 * fade, fade, sqrt(w.x * w.y));\n" \
+"	float fade = RetroP0.z; // below 0: never (Smooth Beyond: Never: the blocks at every distance)\n" \
+"	RetroFar = fade > 0.0 ? smoothstep(0.5 * fade, fade, sqrt(w.x * w.y)) : 0.0;\n" \
 "	Retro = s;\n" \
 "}\n" \
 "\n" \

@@ -266,8 +266,10 @@ const DefaultChange defaultChanges[] = {
     // 81: Quetoo's material maps shipped and on (quakevr/textures_quetoo; ROUND21.md, "Quetoo's maps shipped").
     {81, &vr_extmaps, "0"},                    // 1
     {81, &vr_extmaps_dir, "textures_ext"},     // textures_quetoo (an absolute Quetoo folder: below)
+    // 82: the flashlight's chain the default cord (NOTES.md vrfiringrange_2026-10-03_02-29-04).
+    {82, &vr_flashlight_cord, "1"},            // 3
 };
-constexpr int configVersion = 81;
+constexpr int configVersion = 82;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

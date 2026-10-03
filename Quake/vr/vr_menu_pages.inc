@@ -725,6 +725,14 @@ template <retro::Category C>
     return retro::targetText();
 }
 
+// The retro textures' Smooth Beyond: its leftmost step (any value below 0, stored -1) "Never": no smoothing at any
+// distance (vr_retro.cpp fillSet, RetroBegin).
+[[nodiscard]] Item neverSlider(Item item)
+{
+    item.negativeLabel = "Never";
+    return item;
+}
+
 // Graphics > Retro Textures > Override: the picked model's or texture's override, a mode and a value for each setting
 // (Inherit: its kind's; Set: this value; Times: its kind's times this value). Saved to quakevr/retro_overrides.txt a
 // second after the last change.
@@ -746,7 +754,7 @@ template <retro::Category C>
         {Param::Units, "Block Size in World Units", 0.f, 1.f, 1.f, "", true},
         {Param::Average, "Block Colour: Average", 0.f, 1.f, 1.f, "", true},
         {Param::Soft, "Edge Softness", 0.f, 3.f, 0.25f, "%.2f", false},
-        {Param::Fade, "Smooth Beyond", 0.25f, 4.f, 0.25f, "%.2f", false},
+        {Param::Fade, "Smooth Beyond", -0.25f, 4.f, 0.25f, "%.2f", false},
         {Param::Palette, "Quake Palette", 0.f, 1.f, 0.05f, "%.2f", false},
         {Param::Dither, "Dither", 0.f, 2.f, 0.05f, "%.2f", false},
         {Param::DitherScale, "Dither Size", 1.f, 8.f, 1.f, "%.0f", false},
@@ -774,7 +782,8 @@ template <retro::Category C>
             }
             else
             {
-                items.pushBack(slider("Value", retro::editValue(r.p), r.min, r.max, r.step, r.format).extend(0.f, 64.f));
+                const Item value = slider("Value", retro::editValue(r.p), r.min, r.max, r.step, r.format).extend(0.f, 64.f);
+                items.pushBack(r.p == Param::Fade ? neverSlider(value) : value); // (Smooth Beyond: Never leftmost)
             }
         }
         items.pushBack(header("This Override"));
@@ -822,9 +831,10 @@ void retroSettingItems(za::Vector<Item>& items, const Var& var, const Has& has)
                 .help("The blocks' edges are blended over this many pixels: 1 is crisp yet steady as your head moves; 0 hard "
                       "(crawls and shimmers in the headset); more is softer.")},
         {Param::Fade,
-            slider("Smooth Beyond", var(Param::Fade), 0.25f, 4.f, 0.25f, "%.2f").extend(0.05f, 16.f)
+            neverSlider(slider("Smooth Beyond", var(Param::Fade), -0.25f, 4.f, 0.25f, "%.2f").extend(0.05f, 16.f))
                 .help("Far off, where blocks get smaller than a pixel, the texture is drawn as usual (mipmapped) again: how "
-                      "many blocks to a pixel it takes (it fades from half that). Lower: smooth sooner.")},
+                      "many blocks to a pixel it takes (it fades from half that). Lower: smooth sooner. Never (leftmost): "
+                      "no smoothing at any distance, the blocks all the way (they shimmer far off).")},
         {Param::Palette,
             header("Palette")},
         {Param::Palette,

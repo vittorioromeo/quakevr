@@ -303,6 +303,8 @@ float cvarh_vr_gore_stick_speed;
 float cvarh_vr_throw_hit_min_speed;
 float cvarh_vr_button_weapon;
 float cvarh_vr_button_weapon_reach;
+float cvarh_vr_button_prop;
+float cvarh_vr_button_prop_reach;
 float cvarh_vr_button_throw;
 float cvarh_vr_button_throw_speed;
 float cvarh_vr_debug_wallbuttons;
@@ -731,6 +733,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_throw_hit_min_speed);
     VR_CVAR_HMAKE(vr_button_weapon);
     VR_CVAR_HMAKE(vr_button_weapon_reach);
+    VR_CVAR_HMAKE(vr_button_prop);
+    VR_CVAR_HMAKE(vr_button_prop_reach);
     VR_CVAR_HMAKE(vr_button_throw);
     VR_CVAR_HMAKE(vr_button_throw_speed);
     VR_CVAR_HMAKE(vr_debug_wallbuttons);

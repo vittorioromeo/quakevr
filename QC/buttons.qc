@@ -229,29 +229,98 @@ float(vector xA, vector xB, float xR, vector xLo, vector xHi) VR_SegmentMeetsBox
     return VR_Seg_Slab(xA_z, d_z, xLo_z, xHi_z);
 };
 
+// A wall button a held thing may press now: not freed, still pressed by touch, not in or coming out.
+float(entity xButton) VR_Button_Pressable =
+{
+    return xButton.solid == SOLID_BSP && xButton.vr_wpntouch == button_wpntouch && xButton.state != STATE_UP &&
+           xButton.state != STATE_TOP && xButton.state != STATE_DISABLED;
+};
+
+// Player `xPlayer`'s hand `xHand` presses wall button `xButton` (with what: vr_button_how).
+void(entity xPlayer, float xHand, entity xButton) VR_Button_PressBy =
+{
+    xPlayer.touchinghand = xHand; // the buzz's hand (VRButtonPressHaptic)
+    VRButtonPressHaptic(xPlayer);
+    entity oself = self;
+    self = xButton;
+    self.enemy = xPlayer;
+    button_fire();
+    self = oself;
+};
+
+// A prop held in hand `xHand` (a health or ammo box, a crate, a rock, a gib; NOTES.md vrfiringrange_2026-10-03_02-23-25)
+// presses a wall button it touches, as a held weapon does: its shape as the hand holds it (the engine's held body:
+// heldbox), grown by vr_button_prop_reach; its box (absmin..absmax) if it has no held body.
+void(entity xPlayer, float xHand) VR_Buttons_PropFrame =
+{
+    entity held = VR_Carry_Held(xPlayer, xHand);
+    if(held == world || (xHand == cVR_OffHand && held == xPlayer.mainhand_held)) // (held in both: once)
+    {
+        return;
+    }
+    float reach = max(0, cvar_hget(cvarh_vr_button_prop_reach)) * 0.01 * VRMetersToUnits();
+    if(cvar_hget(cvarh_vr_debug_wallbuttons) >= 2)
+    {
+        dprint(sprintf("button: hand %g holds %s, box %v to %v, reach %.1f\n", xHand, held.classname, held.absmin,
+            held.absmax, reach));
+    }
+    entity b;
+    for(b = vr_buttons; b != world; b = b.vr_button_next)
+    {
+        if(!VR_Button_Pressable(b))
+        {
+            continue;
+        }
+        vector lo = b.origin + b.mins;
+        vector hi = b.origin + b.maxs;
+        float meets = heldbox(held, lo, hi, reach);
+        string how = "shape";
+        if(meets < 0)
+        {
+            how = "box";
+            float overlaps = (held.absmin_x <= hi_x + reach) && (held.absmax_x >= lo_x - reach) &&
+                             (held.absmin_y <= hi_y + reach) && (held.absmax_y >= lo_y - reach) &&
+                             (held.absmin_z <= hi_z + reach) && (held.absmax_z >= lo_z - reach);
+            meets = overlaps;
+        }
+        if(meets > 0)
+        {
+            vr_button_how = sprintf("the %s held in hand %g (its %s)", held.classname, xHand, how);
+            VR_Button_PressBy(xPlayer, xHand, b);
+        }
+    }
+};
+
 // Each frame (PlayerVRMelee, after VR_Melee_Frame): a weapon held in either hand presses a wall button it touches, all
 // of it as its blows strike (VR_Melee_Line: from its pommel, handle's end or butt to its tip or muzzle; carried off its
 // handle, its two ends), grown by vr_button_weapon_reach. (The engine's test, a thin line from the hand to the muzzle
-// only, missed a sword laid against a button: its blade's middle line never reached into it.)
+// only, missed a sword laid against a button: its blade's middle line never reached into it.) A held prop too
+// (vr_button_prop: VR_Buttons_PropFrame).
 void() VR_Buttons_WeaponFrame =
 {
     if(!vr_buttons_listed)
     {
         VR_Buttons_List();
     }
-    if(!cvar_hget(cvarh_vr_button_weapon) || !VRHandsTracked(self))
+    if(vr_buttons == world || !VRHandsTracked(self))
     {
         return;
     }
-    if(vr_buttons == world)
-    {
-        return;
-    }
+    float weapons = cvar_hget(cvarh_vr_button_weapon);
+    float props = cvar_hget(cvarh_vr_button_prop);
     float reach = max(0, cvar_hget(cvarh_vr_button_weapon_reach)) * 0.01 * VRMetersToUnits();
     entity p = self;
     float h;
     for(h = 0; h < 2; ++h)
     {
+        if(props)
+        {
+            VR_Buttons_PropFrame(p, h);
+        }
+        if(!weapons)
+        {
+            continue;
+        }
         float thing = VR_Melee_Thing(p, h);
         if(!VR_Melee_HoldsWeapon(thing) || !VR_Melee_Line(p, h, thing))
         {
@@ -266,23 +335,13 @@ void() VR_Buttons_WeaponFrame =
         entity b;
         for(b = vr_buttons; b != world; b = b.vr_button_next)
         {
-            // (Freed, or no longer a button pressed by touch; or in, or coming out.)
-            if(b.solid != SOLID_BSP || b.vr_wpntouch != button_wpntouch || b.state == STATE_UP || b.state == STATE_TOP ||
-               b.state == STATE_DISABLED)
+            if(!VR_Button_Pressable(b) ||
+               !VR_SegmentMeetsBox(lineNear, lineFar, reach, b.origin + b.mins, b.origin + b.maxs))
             {
                 continue;
             }
-            if(!VR_SegmentMeetsBox(lineNear, lineFar, reach, b.origin + b.mins, b.origin + b.maxs))
-            {
-                continue;
-            }
-            p.touchinghand = h; // the buzz's hand (VRButtonPressHaptic)
-            VRButtonPressHaptic(p);
             vr_button_how = sprintf("the weapon in hand %g (all of it: %v to %v)", h, lineNear, lineFar);
-            self = b;
-            self.enemy = p;
-            button_fire();
-            self = p;
+            VR_Button_PressBy(p, h, b);
         }
     }
 };

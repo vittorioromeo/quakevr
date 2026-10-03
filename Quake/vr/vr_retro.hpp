@@ -43,7 +43,7 @@ enum class Param
     Units,       // 1: Block in world units, whatever the texture's scale on the surface
     Average,     // 1: a block's colour is the average of the texels under it (0: the one at its centre)
     Soft,        // the blocks' edges blended over this many pixels (0: hard, aliased)
-    Fade,        // blocks a pixel spans where it is plain mipmapping again (fading from half that)
+    Fade,        // blocks a pixel spans where it is plain mipmapping again (fading from half that); below 0 never
     Palette,     // pulled to Quake's 256 colours, 0..1
     Dither,      // an ordered dither before that, fixed to the blocks, 0..1
     DitherScale, // the dither's cell, in blocks
