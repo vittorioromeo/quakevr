@@ -780,6 +780,33 @@ void PF_ragdollpoint()
     out[2] = v.z;
 }
 
+// Decapitation (vr_box3d.cpp, "Decapitation"; vr_decap.qc). float ragdolldecap(entity e, vector blade): e's ragdoll (made
+// now if it is a dead monster with a rig and none yet) loses its head, launched by the blade's velocity; 1 if it did.
+void PF_ragdolldecap()
+{
+    const float* v = G_VECTOR(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = box3d::ragdollDecap(G_EDICT(OFS_PARM0), glm::vec3{v[0], v[1], v[2]}) ? 1.f : 0.f;
+}
+
+// vector ragdollcut(entity e, float what): after the cut, 0 the head's middle, 1 its angles, 2 its velocity, 3 its
+// spin (rad/s: .vr_spin); the stump now, 4 the neck, 5 the way out of it.
+void PF_ragdollcut()
+{
+    const glm::vec3 v = box3d::ragdollCut(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)));
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
+// float ragdollhead(entity e, vector p): 1 if p is on the head of e's ragdoll (its head part, or at the neck), 0 not (or
+// headless), -1 e isn't a ragdoll.
+void PF_ragdollhead()
+{
+    const float* p = G_VECTOR(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollHeadAt(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}));
+}
+
 // float physicsdamp(entity e, vector relativeTo, float keep, float keepSpin, float maxSpeed, vector add): the Box3D prop's
 // velocity relative to `relativeTo` kept by `keep`, no faster than `maxSpeed` (0: any), `add` added; its spin kept by
 // `keepSpin` (box3d::damp: on its body, so a physicspush after it this frame adds to it). False if it is not Box3D's.
@@ -1235,6 +1262,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"ragdollreach", PF_ragdollreach},
     {"ragdollbone", PF_ragdollbone},
     {"ragdollpoint", PF_ragdollpoint},
+    {"ragdolldecap", PF_ragdolldecap},
+    {"ragdollcut", PF_ragdollcut},
+    {"ragdollhead", PF_ragdollhead},
     {"physicsshot", PF_physicsshot},
     {"physicsdamp", PF_physicsdamp},
     {"ropestep", PF_ropestep},

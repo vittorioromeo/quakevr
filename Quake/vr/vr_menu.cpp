@@ -1752,6 +1752,39 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
     };
 }
 
+// Gore > Decapitation (ROUND21.md, "Decapitation"; QC vr_decap.qc, vr_box3d.cpp's "Decapitation"): when a blow cuts a
+// head off, how the head flies, the stump's fountain.
+[[nodiscard]] za::Vector<Item> pageDecapitation()
+{
+    return {
+        toggle("Decapitation", vr_decap)
+            .help("A killing slash at the head of a grunt, knight, ogre, enforcer, death knight, rottweiler or scrag cuts it "
+                  "off: a sword's or an axe's blade swung across (not a stab, not the pommel or the hilt). The body falls at "
+                  "once as a headless ragdoll, the head flies off, the neck spurts blood. Needs Ragdolls on (vr_decap)."),
+        slider("Least Swing Speed", vr_decap_speed, 0.f, 15.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
+            .help("How fast the blade must move where it strikes (and a thrown axe fly) to cut the head off (vr_decap_speed)."),
+        slider("Head Speed", vr_decap_head_speed, 0.f, 1.5f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("How much of the blade's speed the head flies off with; it spins as the swing turns it "
+                  "(vr_decap_head_speed)."),
+        slider("Head Thrown Up", vr_decap_head_lift, 0.f, 400.f, 10.f, "%.0f u/s").extend(0.f, 1000.f)
+            .help("And how fast it is thrown upwards besides (vr_decap_head_lift)."),
+        slider("Fountain", vr_decap_fountain, 0.f, 8.f, 0.25f, "%.2f s").extend(0.f, 30.f)
+            .help("How long the neck spurts blood, in beats, dying away (0: none) (vr_decap_fountain)."),
+        header("What Beheads"),
+        toggle("Corpses", vr_decap_corpses)
+            .help("A slash at a ragdoll's (or a dying body's) head cuts it off instead of hurting the corpse: it never "
+                  "bursts into gibs from it (vr_decap_corpses)."),
+        toggle("Zombies", vr_decap_zombies)
+            .help("A slash at a zombie's head cuts it off whatever the damage: it falls as a headless ragdoll and never "
+                  "gets up again. Besides gibbing it, the only way to kill one (vr_decap_zombies)."),
+        toggle("Thrown Axes", vr_decap_thrown)
+            .help("An axe thrown into a head edge first (as it sticks) cuts it off when it kills (vr_decap_thrown)."),
+        toggle("Chainsaw", vr_decap_chainsaw)
+            .help("The chainsaw's running bar at the neck (or a swing of it) cuts the head off when it kills; a corpse's "
+                  "at once (vr_decap_chainsaw)."),
+    };
+}
+
 // Gore (vr_gore.cpp, vr_decals.cpp, vr_bodyblood.cpp; the QC's gibs sticking: vr_carry.qc).
 [[nodiscard]] za::Vector<Item> pageGore()
 {
@@ -1782,6 +1815,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Gib Speed: Explosives", vr_gib_speed_heavy, 0.05f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 3.f)
             .help("And everything else: explosions, rockets, grenades, lightning, plasma, monsters' blows (1: Quake's)."),
         open("Small Gibs", pageIndex(pageSmallGibs)).help("Chunks of meat torn out by hits: when, how many, how they fly, how long they last."),
+        open("Decapitation", pageIndex(pageDecapitation))
+            .help("A killing slash at a monster's head cuts it off: the head flies, the body falls headless, the neck spurts blood."),
         header("Wounds on Models"),
         toggle("Dynamic Wounds", vr_wounds)
             .help("Blood painted on monsters, corpses and you where the hits land, in the skins' own pixels. Your body and hands show your wounds this way instead of the wound skins, and healing washes them off."),
@@ -2624,6 +2659,7 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageRagdollDeathKnight();
 [[nodiscard]] za::Vector<Item> pageRagdollRottweiler();
 [[nodiscard]] za::Vector<Item> pageRagdollScrag();
+[[nodiscard]] za::Vector<Item> pageRagdollZombie();
 
 // Split from Carrying and Gibs: taking, throwing and bursting gibs, heads and corpses.
 [[nodiscard]] za::Vector<Item> pageGibs()
@@ -2742,6 +2778,9 @@ void hologramTestMessage()
             .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_scourge; default 180)."),
         slider("Eel (Rogue)", vr_corpse_health_eel, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
             .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_eel; default 80)."),
+        slider("Zombie (Beheaded)", vr_corpse_health_zombie, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("A zombie dies whole only beheaded (Gore > Decapitation): the damage that gibs its ragdoll then, times "
+                  "Corpse Health (vr_corpse_health_zombie; default 60)."),
     };
 }
 
@@ -2790,6 +2829,7 @@ void hologramTestMessage()
         open("Death Knight", pageIndex(pageRagdollDeathKnight)),
         open("Rottweiler", pageIndex(pageRagdollRottweiler)),
         open("Scrag", pageIndex(pageRagdollScrag)),
+        open("Zombie", pageIndex(pageRagdollZombie)).help("A zombie's ragdoll: only when its head is cut off (Gore > Decapitation)."),
         header("Taking Them"),
         cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}, {2.f, "By Hand and Force Grab"}})
             .help("Grip on a limb to take it: it follows your hand, the body hanging from it; let go to drop or throw it. "
@@ -3022,6 +3062,35 @@ void hologramTestMessage()
                               "vr_ragdoll_wizard_joint_friction -1; vr_ragdoll_wizard_joint_stiffness -1; vr_ragdoll_wizard_limits -1; "
                               "vr_ragdoll_wizard_damping -1; vr_ragdoll_wizard_blast -1; vr_ragdoll_wizard_inherit -1")
             .help("The scrag's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Zombie: the zombie's own physics (vr_ragdoll_zombie_*), each one Global (the one for
+// all monsters) or its own. Its ragdoll is only made when it is beheaded (QC vr_decap.qc).
+[[nodiscard]] za::Vector<Item> pageRagdollZombie()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_zombie_start, 0.f, 1.f, 0.1f, "%.1f").help("vr_ragdoll_zombie_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_zombie_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_zombie_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_zombie_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_zombie_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_zombie_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_zombie_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_zombie_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_zombie_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_zombie_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_zombie_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_zombie_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_zombie_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_zombie_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_zombie_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_zombie_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_zombie_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_zombie_start -1; vr_ragdoll_zombie_mass -1; vr_ragdoll_zombie_friction -1; "
+                              "vr_ragdoll_zombie_joint_friction -1; vr_ragdoll_zombie_joint_stiffness -1; vr_ragdoll_zombie_limits -1; "
+                              "vr_ragdoll_zombie_damping -1; vr_ragdoll_zombie_blast -1; vr_ragdoll_zombie_inherit -1")
+            .help("The zombie's ragdoll as all monsters' (Ragdoll Settings)."),
     };
 }
 
@@ -3633,6 +3702,25 @@ za::Vector<Item> pageDebugTools()
             .help("vr_smallgibs_test 18: a gib made at your feet, thrown at the monster nearest 1 s later: it still hurts it."),
         toggle("Trace Small Gibs", vr_smallgibs_trace)
             .help("vr_smallgibs_trace: each small gib's first 2.5 s in the console (sgibtrace:): where made, its speed and every jump in it, what touches, nudges or strikes it, how far it lay."),
+        header("Decapitation Tests (developer 1: decap: ...)"),
+        command("A Zombie Ahead", "vr_test_spawn 2; vr_test_spawn_dist 96; impulse 241")
+            .help("A zombie 96 units ahead (a map with zombies: the firing range), for the tests below."),
+        command("Slash at Its Head", "vr_decap_test 1")
+            .help("vr_decap_test 1: the nearest live monster's health 1, a sword's slash across its neck: it is beheaded "
+                  "(decaptest: in the console)."),
+        command("Axe Slash at Its Head", "vr_decap_test 9").help("vr_decap_test 9: the same with the axe's head."),
+        command("Stab at Its Head", "vr_decap_test 2").help("vr_decap_test 2: the blade driven along its line: killed, not beheaded."),
+        command("Pommel at Its Head", "vr_decap_test 3").help("vr_decap_test 3: the pommel strikes: killed, not beheaded."),
+        command("Slow Slash at Its Head", "vr_decap_test 4").help("vr_decap_test 4: half the Least Swing Speed: not beheaded."),
+        command("Slash at Full Health", "vr_decap_test 7")
+            .help("vr_decap_test 7: a light slash at the head at full health: a zombie is beheaded, others aren't."),
+        command("Slash a Corpse's Head", "vr_decap_test 5").help("vr_decap_test 5: the nearest ragdoll or corpse beheaded by a slash."),
+        command("Chainsaw at Its Neck", "vr_decap_test 6").help("vr_decap_test 6: the chainsaw's bar at the neck (health 1)."),
+        command("Chainsaw a Corpse's Neck", "vr_decap_test 10").help("vr_decap_test 10: the nearest corpse's head cut by the chainsaw."),
+        command("Throw an Axe at Its Head", "vr_decap_test 11; vr_test_axe_up 15; vr_test_axe_at 1; vr_test_axe_dist 70; vr_test_axe 0; impulse 209")
+            .help("Its health 1, then an axe thrown edge first at its head from 70 units (a grunt's: Axe Height 15)."),
+        command("Gib the Headless Corpse", "vr_decap_test 8")
+            .help("vr_decap_test 8: the nearest headless corpse gibbed: no head thrown (the heads counted before and after)."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
             .help("vr_burn_test 1: the nearest monster, corpse, crate or crate's piece set on fire (an explosive box: it can't burn) as a lit torch's blow would, where it faces you "
@@ -3930,6 +4018,8 @@ za::Vector<Item> pageDebugTests()
                   "button (you are moved to face it, level with its middle; a button: square to its wall)."),
         slider("Axe Range", vr_test_axe_dist, 0.f, 400.f, 20.f, "%.0f units")
             .help("You are moved first to this far from what is ahead (0: where you are)."),
+        slider("Axe Height", vr_test_axe_up, -30.f, 40.f, 1.f, "%+.0f units")
+            .help("At a target: thrown this far above its middle (15: a grunt's head, to behead it: Gore > Decapitation)."),
         command("Throw an Axe", "impulse 209").help("An axe thrown straight ahead from your eyes (not yours: a new one)."),
         command("Hand on the Stuck Axe", "impulse 207")
             .help("Moves you so that your main hand is on the handle of the nearest stuck axe: grip to pull it out."),
@@ -4555,6 +4645,8 @@ const Page pages[] = {
     {"Ragdolls - Death Knight", pageRagdollDeathKnight, pageRagdolls},             // 123
     {"Ragdolls - Rottweiler", pageRagdollRottweiler, pageRagdolls},                // 124
     {"Ragdolls - Scrag", pageRagdollScrag, pageRagdolls},                          // 125
+    {"Gore - Decapitation", pageDecapitation, pageGore},                           // 126
+    {"Ragdolls - Zombie", pageRagdollZombie, pageRagdolls},                        // 127
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

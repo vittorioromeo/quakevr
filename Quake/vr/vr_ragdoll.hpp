@@ -62,6 +62,9 @@ struct Rig
     za::Vector<glm::quat> poseRot;  // [pose * numBones + bone]: rest -> pose (model space, units)
     za::Vector<glm::vec3> posePos;
     za::Vector<uint8_t> poseHidden; // [pose * numBones + bone]: all its vertices at one point in that pose
+    // The bone named "head" (its pivot the neck; the bones on it go with it when he is beheaded: ROUND21.md,
+    // "Decapitation"); -1 none.
+    int head{-1};
     // The death animations' frames (first, last), from the seed table.
     int deaths{0};
     int deathFirst[4]{}, deathLast[4]{};
@@ -84,6 +87,12 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 // guns).
 [[nodiscard]] bool collapsed(const Rig& rig, int pose, int b);
 
+// The bones cut off with the head (Rig::head and the bones on it: a rottweiler's jaw), a bit each; 0 if it has none.
+[[nodiscard]] uint32_t headBones(const Rig& rig);
+
+// The nearest of bone `b`'s ancestors not in `cut` (bits; -1 none): where a cut-off bone's place goes.
+[[nodiscard]] int uncutParent(const Rig& rig, int b, uint32_t cut);
+
 // The pose a frame of the model shows (a framegroup's first).
 [[nodiscard]] int poseOfFrame(const qmodel_t* model, int frame);
 
@@ -95,8 +104,9 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 // `time`: the server time of the message that follows the step (the client draws it between the last two steps at its
 // cl.time, as it lerps the props: vr_ragdoll_smooth). `heldBy`: the local player's hands holding a limb (bit 0 the off
 // hand, 1 the main): their places now are kept, the drawn ragdoll follows them between steps (vr_ragdoll_held_local).
+// `cut`: the bones cut off (bits: its head, ROUND21.md "Decapitation"), their vertices drawn at the neck.
 void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
-    int heldBy);
+    int heldBy, uint32_t cut);
 void unpublish(int num);
 void unpublishAll();
 

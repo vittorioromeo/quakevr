@@ -444,7 +444,30 @@ struct RagdollBodies
     za::Array<b3BodyId, ragdoll::maxBones> body{};
     glm::quat turn{1.f, 0.f, 0.f, 0.f}; // its entity's yaw when it was made (the frames' bones turned by it)
     double born{0.0};
+    // Its head cut off (cutHead; ROUND21.md, "Decapitation"): those bones (bits) have no body nor joint now; their
+    // entries in `body` name the part they were cut from (the loops over the parts stay valid: those that add up or push
+    // per part skip them, partCut). And the head as it was cut (ragdollCut): its middle, turn, launch and spin (world).
+    uint32_t cut{0};
+    glm::vec3 headMid{0.f}, headVel{0.f}, headSpin{0.f};
+    glm::quat headRot{1.f, 0.f, 0.f, 0.f};
 };
+
+// Whether part `b` of `r` was cut off (its body is the part it was cut from's).
+[[nodiscard]] bool partCut(const RagdollBodies& r, int b)
+{
+    return (r.cut & (1u << b)) != 0;
+}
+
+// How many parts `r` has (not cut off).
+[[nodiscard]] int partsLeft(const RagdollBodies& r)
+{
+    int n = 0;
+    for(int b = 0; b < r.count; b++)
+    {
+        n += (r.cut & (1u << b)) ? 0 : 1;
+    }
+    return n;
+}
 
 // The hulls made for models, by what they were made from (and the world's scale).
 struct PropHullKey
@@ -1916,6 +1939,9 @@ const RagdollClass ragdollClasses[] = {
     {"monster_wizard", {&vr_ragdoll_wizard_start, &vr_ragdoll_wizard_mass, &vr_ragdoll_wizard_friction,
                 &vr_ragdoll_wizard_joint_friction, &vr_ragdoll_wizard_joint_stiffness, &vr_ragdoll_wizard_limits,
                 &vr_ragdoll_wizard_damping, &vr_ragdoll_wizard_blast, &vr_ragdoll_wizard_inherit}},
+    {"monster_zombie", {&vr_ragdoll_zombie_start, &vr_ragdoll_zombie_mass, &vr_ragdoll_zombie_friction,
+                &vr_ragdoll_zombie_joint_friction, &vr_ragdoll_zombie_joint_stiffness, &vr_ragdoll_zombie_limits,
+                &vr_ragdoll_zombie_damping, &vr_ragdoll_zombie_blast, &vr_ragdoll_zombie_inherit}},
 };
 
 // The setting `t` for `ent`'s ragdoll: its class's own, else the global one.
@@ -1966,9 +1992,11 @@ void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage); //
         return false;
     }
     const float progress = ragdoll::deathProgress(*rig, static_cast<int>(ent->v.frame));
+    // (Beheaded: its ragdoll at once, whatever Most Ragdolls; a saved game's made again so.)
+    const bool headless = fieldFloatOr(ent, fields().vr_headless, 0.f) != 0.f && rig->head >= 0;
     const bool limp = progress >= za::clamp(tune(ent, Tune::Start), 0.f, 1.f) || fieldFloatOr(ent, fields().vr_corpse, 0.f) >= 2.f ||
-                      (progress < 0.f && isCorpse(ent, num));
-    return limp && ragdollCount() < static_cast<int>(za::max(vr_ragdoll_max.value, 0.f));
+                      (progress < 0.f && isCorpse(ent, num)) || headless;
+    return limp && (headless || ragdollCount() < static_cast<int>(za::max(vr_ragdoll_max.value, 0.f)));
 }
 
 // A rotation that takes +z to `d` (unit).
@@ -2070,8 +2098,11 @@ void pruneRagdollsInside()
     });
 }
 
-// The ragdoll's parts made for `ent` where its frame has them; false (nothing made) without a rig.
-bool createRagdoll(edict_t* ent, int num, Slot& s)
+bool cutHead(RagdollBodies& r, edict_t* ent, const glm::vec3& blade, bool launch); // (below)
+
+// The ragdoll's parts made for `ent` where its frame has them; false (nothing made) without a rig. `now`: made at once
+// from whatever frame it is in (beheaded: ragdollDecap), its loose piece hidden (what it held: its death code drops it).
+bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
 {
     qmodel_t* model = modelOf(ent);
     const ragdoll::Rig* rig = ragdoll::rigFor(model);
@@ -2137,7 +2168,9 @@ bool createRagdoll(edict_t* ent, int num, Slot& s)
     // A loose piece the frame hides (all its vertices at one point: the grunt's shotgun in his death frames, dropped as
     // a weapon of its own, vr_monstermods.cpp) gets no body and stays hidden (published collapsed): the last ones.
     r.count = rig->numBones;
-    while(r.count > 1 && rig->bones[r.count - 1].joint == ragdoll::Joint::Loose && ragdoll::collapsed(*rig, pose, r.count - 1))
+    const bool headless = fieldFloatOr(ent, fields().vr_headless, 0.f) != 0.f;
+    while(r.count > 1 && rig->bones[r.count - 1].joint == ragdoll::Joint::Loose &&
+          (now || headless || ragdoll::collapsed(*rig, pose, r.count - 1)))
     {
         r.count--;
     }
@@ -2340,6 +2373,11 @@ bool createRagdoll(edict_t* ent, int num, Slot& s)
     ent->v.velocity[0] = ent->v.velocity[1] = ent->v.velocity[2] = 0.f;
     s.origin = origin;
     s.asleep = false;
+    // Beheaded before (a saved game's): made headless again.
+    if(headless)
+    {
+        (void)cutHead(r, ent, glm::vec3{0.f}, false);
+    }
     // Its limbs taken by hand (vr_ragdoll_grab; QC's VR_Ragdoll_Handtouch), unless the QC gave it a hand touch of its own.
     if(const func_t touch = bindings().Ragdoll_Handtouch; touch && fields().handtouch >= 0 && !fieldFunc(ent, fields().handtouch))
     {
@@ -2365,6 +2403,10 @@ void feedRagdoll(edict_t* ent, Slot& s)
     {
         for(int b = 0; b < r.count; b++)
         {
+            if(partCut(r, b))
+            {
+                continue;
+            }
             const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
             const b3WorldTransform xf = b3Body_GetTransform(body);
             b3Body_SetTransform(body, b3v(glmv(xf.p) + glmv(world->toM(moved))), xf.q);
@@ -2377,6 +2419,10 @@ void feedRagdoll(edict_t* ent, Slot& s)
     {
         for(int b = 0; b < r.count; b++)
         {
+            if(partCut(r, b))
+            {
+                continue;
+            }
             const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
             b3Body_SetLinearVelocity(body, b3v(glmv(b3Body_GetLinearVelocity(body)) + glmv(world->toM(v))));
             b3Body_SetAwake(body, true);
@@ -2408,7 +2454,7 @@ void writeRagdoll(edict_t* ent, Slot& s)
         rot[static_cast<za::SizeT>(b)] = fromB3(xf.q);
         pos[static_cast<za::SizeT>(b)] = world->toU(xf.p);
         awake = awake || b3Body_IsAwake(body);
-        if(rig.bones[b].joint == ragdoll::Joint::Loose)
+        if(rig.bones[b].joint == ragdoll::Joint::Loose || partCut(r, b))
         {
             continue; // (his shotgun lying apart: not in his box)
         }
@@ -2458,7 +2504,7 @@ void writeRagdoll(edict_t* ent, Slot& s)
             heldBy |= 1 << g.hand;
         }
     }
-    ragdoll::publish(r.num, r.rig, r.count, rot.data(), pos.data(), r.scale, qcvm->time + host_frametime, heldBy);
+    ragdoll::publish(r.num, r.rig, r.count, rot.data(), pos.data(), r.scale, qcvm->time + host_frametime, heldBy, r.cut);
 }
 
 // A blast of `damage` at `at` (box3d::blast) on a ragdoll's parts: each thrown as a prop of the whole ragdoll's mass
@@ -2470,10 +2516,14 @@ void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage)
     float total = 0.f;
     for(int b = 0; b < r.count; b++)
     {
-        total += b3Body_GetMass(r.body[static_cast<za::SizeT>(b)]);
+        total += partCut(r, b) ? 0.f : b3Body_GetMass(r.body[static_cast<za::SizeT>(b)]);
     }
     for(int b = 0; b < r.count; b++)
     {
+        if(partCut(r, b))
+        {
+            continue;
+        }
         const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
         const glm::vec3 centre = world->toU(b3Body_GetWorldCenter(body));
         const float distance = glm::distance(centre, at);
@@ -2525,6 +2575,100 @@ void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage)
         }
     }
     return best;
+}
+
+// ---- Decapitation (ROUND21.md, "Decapitation"; QC vr_decap.qc) ----
+// A slash at the neck cuts the head off: the rig's head bone and the bones on it (ragdoll::headBones: a rottweiler's jaw)
+// lose their bodies (Box3D takes their joints with them) and their vertices are drawn at the neck (vr_ragdoll.cpp
+// neckOf). The head flies off as a gib of its own (QC: ragdollCut): from where the head part was, turned as it was, at
+// its velocity plus vr_decap_head_speed of the blade's and vr_decap_head_lift up, spinning as the blade's push at its
+// base turns it (the share of the blade's speed across the neck over the head's lever from the neck).
+
+constexpr float headSpinMost = 12.f; // rad/s: a cut head's spin at most (about two turns a second)
+constexpr float neckReach = 4.f;     // units (times its scale): a hit this near the neck is on the head (ragdollHeadAt)
+
+void endGrab(int index); // (below: "Holding a ragdoll's limb")
+
+// Cuts `r`'s head off; `launch`: the head launched by `blade` (units/s), else (a saved game's) only cut. False if it
+// has no head (its rig's) or it is cut already.
+bool cutHead(RagdollBodies& r, edict_t* ent, const glm::vec3& blade, bool launch)
+{
+    const ragdoll::Rig& rig = *r.rig;
+    const uint32_t bones = ragdoll::headBones(rig);
+    const int head = rig.head;
+    if(!bones || head >= r.count || (r.cut & bones))
+    {
+        return false;
+    }
+    const int parent = ragdoll::uncutParent(rig, head, r.cut);
+    if(parent < 0)
+    {
+        return false;
+    }
+    // The head as it is (its middle: its vertices'), and the neck (the head's pivot on the part it is cut from).
+    const b3BodyId hb = r.body[static_cast<za::SizeT>(head)];
+    const b3WorldTransform hx = b3Body_GetTransform(hb);
+    glm::vec3 mid{0.f};
+    for(const glm::vec3& p : rig.bones[head].points)
+    {
+        mid += p;
+    }
+    mid /= static_cast<float>(za::max<za::SizeT>(rig.bones[head].points.size(), 1));
+    r.headRot = fromB3(hx.q);
+    r.headMid = r.headRot * (mid * r.scale) + world->toU(hx.p);
+    const b3WorldTransform px = b3Body_GetTransform(r.body[static_cast<za::SizeT>(parent)]);
+    const glm::vec3 neck = fromB3(px.q) * (rig.bones[head].pivot * r.scale) + world->toU(px.p);
+    r.headVel = world->toU(b3Body_GetLinearVelocity(hb));
+    r.headSpin = glmv(b3Body_GetAngularVelocity(hb));
+    if(launch)
+    {
+        const float share = za::max(vr_decap_head_speed.value, 0.f);
+        r.headVel += blade * share + glm::vec3{0.f, 0.f, za::max(vr_decap_head_lift.value, 0.f)};
+        const float lever = glm::distance(r.headMid, neck);
+        const glm::vec3 n = lever > 0.1f ? (r.headMid - neck) / lever : glm::vec3{0.f, 0.f, 1.f};
+        const glm::vec3 across = blade - n * glm::dot(blade, n);
+        if(glm::length(across) > 1.f)
+        {
+            // (Pushed at its base, across the neck: it turns about base x push.)
+            r.headSpin += glm::normalize(glm::cross(n, across)) *
+                          za::min(glm::length(across) * share / za::max(lever, 2.f), headSpinMost);
+        }
+    }
+    // The hands holding (or pulling) it let go: their joints go with its body.
+    for(int i = static_cast<int>(world->ragdollGrabs.size()) - 1; i >= 0; i--)
+    {
+        const World::RagdollGrab& g = world->ragdollGrabs[static_cast<za::SizeT>(i)];
+        if(g.num == r.num && g.part >= 0 && g.part < ragdoll::maxBones && (bones & (1u << g.part)))
+        {
+            endGrab(i);
+        }
+    }
+    for(int b = 0; b < r.count; b++)
+    {
+        if(bones & (1u << b))
+        {
+            b3DestroyBody(r.body[static_cast<za::SizeT>(b)]);
+        }
+    }
+    r.cut |= bones;
+    for(int b = 0; b < r.count; b++)
+    {
+        if(bones & (1u << b))
+        {
+            r.body[static_cast<za::SizeT>(b)] = r.body[static_cast<za::SizeT>(ragdoll::uncutParent(rig, b, r.cut))];
+        }
+        else
+        {
+            b3Body_SetAwake(r.body[static_cast<za::SizeT>(b)], true);
+        }
+    }
+    if(vr_debug_ragdoll.value)
+    {
+        Con_Printf("ragdoll: %d %s beheaded%s: its head at %.1f %.1f %.1f, %.0f u/s, spin %.1f rad/s; %d parts left\n", r.num,
+            PR_GetString(ent->v.classname), launch ? "" : " (made so again)", r.headMid.x, r.headMid.y, r.headMid.z,
+            glm::length(r.headVel), glm::length(r.headSpin), partsLeft(r));
+    }
+    return true;
 }
 
 // ---- Holding a ragdoll's limb (vr_ragdoll_grab) ----
@@ -6680,8 +6824,14 @@ void ragdollList_f()
         int awake = 0;
         float mass = 0.f;
         glm::vec3 lo{1e30f}, hi{-1e30f};
+        int parts = 0;
         for(int b = 0; b < r.count; b++)
         {
+            if(partCut(r, b))
+            {
+                continue;
+            }
+            parts++;
             const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
             awake += b3Body_IsAwake(body) ? 1 : 0;
             mass += b3Body_GetMass(body);
@@ -6691,13 +6841,18 @@ void ragdollList_f()
         }
         edict_t* ent = EDICT_NUM(r.num);
         const glm::vec3 p = world->toU(b3Body_GetWorldCenter(r.body[0]));
-        Con_Printf("ragdoll %d %s: %.1f s limp, %d parts (%d awake), %.1f kg, pelvis %.1f %.1f %.1f, parts z %.1f .. %.1f, frame %d\n", r.num,
-            PR_GetString(ent->v.classname), qcvm->time - r.born, r.count, awake, mass, p.x, p.y, p.z, lo.z, hi.z,
-            static_cast<int>(ent->v.frame));
+        Con_Printf("ragdoll %d %s: %.1f s limp, %d parts (%d awake), %.1f kg, pelvis %.1f %.1f %.1f, parts z %.1f .. %.1f, frame %d%s\n", r.num,
+            PR_GetString(ent->v.classname), qcvm->time - r.born, parts, awake, mass, p.x, p.y, p.z, lo.z, hi.z,
+            static_cast<int>(ent->v.frame), r.cut ? ", headless" : "");
         if(Cmd_Argc() > 1)
         {
             for(int b = 0; b < r.count; b++)
             {
+                if(partCut(r, b))
+                {
+                    Con_Printf("  %2d %-11s cut off\n", b, r.rig->bones[b].name);
+                    continue;
+                }
                 const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
                 const glm::vec3 c = world->toU(b3Body_GetWorldCenter(body));
                 const glm::vec3 v = world->toU(b3Body_GetLinearVelocity(body));
@@ -7500,7 +7655,7 @@ void debugDraw()
         for(int b = 1; b < r.count && r.num > 0; b++)
         {
             const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
-            if(!b3Body_IsValid(body))
+            if(partCut(r, b) || !b3Body_IsValid(body))
             {
                 continue;
             }
@@ -9959,6 +10114,129 @@ int ragdollBone(int num, const glm::vec3& at)
 glm::vec3 ragdollPoint(int num, int bone, const glm::vec3& p, bool toWorld)
 {
     return box3dRagdollPoint(num, bone, p, toWorld);
+}
+
+bool ragdollDecap(edict_t* ent, const glm::vec3& blade)
+{
+    if(!world || vr_ragdoll.value < 1.f)
+    {
+        return false;
+    }
+    const int num = NUM_FOR_EDICT(ent);
+    RagdollBodies* r = ragdollOf(num);
+    if(!r)
+    {
+        // (A live monster just killed, a dying one, a corpse: its ragdoll now, from the frame it is in.)
+        if(num <= svs.maxclients || ent->free || !deadMonster(ent) || hasFlag(ent, FL_SWIM))
+        {
+            return false;
+        }
+        const ragdoll::Rig* rig = ragdoll::rigFor(modelOf(ent));
+        if(!rig || rig->head < 0)
+        {
+            return false;
+        }
+        Slot& s = slotOf(num);
+        destroyBody(s);
+        if(!createRagdoll(ent, num, s, true))
+        {
+            return false;
+        }
+        r = ragdollOf(num);
+    }
+    if(!r || !cutHead(*r, ent, blade, true))
+    {
+        return false;
+    }
+    if(fields().vr_headless >= 0)
+    {
+        fieldFloat(ent, fields().vr_headless) = 1.f;
+    }
+    writeRagdoll(ent, slotOf(num)); // (drawn headless at once)
+    return true;
+}
+
+glm::vec3 ragdollCut(int num, int what)
+{
+    const RagdollBodies* r = ragdollOf(num);
+    if(r && what == 6 && r->rig->head >= 0 && r->rig->head < r->count && !partCut(*r, r->rig->head))
+    {
+        // (Its head's middle now, on: the tests' cut at it.)
+        const ragdoll::Bone& head = r->rig->bones[r->rig->head];
+        glm::vec3 mid{0.f};
+        for(const glm::vec3& p : head.points)
+        {
+            mid += p;
+        }
+        mid /= static_cast<float>(za::max<za::SizeT>(head.points.size(), 1));
+        const b3WorldTransform hx = b3Body_GetTransform(r->body[static_cast<za::SizeT>(r->rig->head)]);
+        return fromB3(hx.q) * (mid * r->scale) + world->toU(hx.p);
+    }
+    if(!r || !r->cut)
+    {
+        return glm::vec3{0.f};
+    }
+    switch(what)
+    {
+    case 0: return r->headMid;
+    case 1:
+    {
+        glm::vec3 a;
+        held::anglesFromAxes(glm::mat3_cast(r->headRot), &a[0], false);
+        return a;
+    }
+    case 2: return r->headVel;
+    case 3: return r->headSpin;
+    case 4:
+    case 5:
+    {
+        const ragdoll::Rig& rig = *r->rig;
+        const int parent = ragdoll::uncutParent(rig, rig.head, r->cut);
+        if(parent < 0)
+        {
+            return glm::vec3{0.f};
+        }
+        const b3WorldTransform px = b3Body_GetTransform(r->body[static_cast<za::SizeT>(parent)]);
+        const glm::quat q = fromB3(px.q);
+        const ragdoll::Bone& head = rig.bones[rig.head];
+        if(what == 4)
+        {
+            return q * (head.pivot * r->scale) + world->toU(px.p);
+        }
+        const glm::vec3 d = head.end - head.pivot;
+        return glm::length(d) > 1e-3f ? q * glm::normalize(d) : q * glm::vec3{0.f, 0.f, 1.f};
+    }
+    default: return glm::vec3{0.f};
+    }
+}
+
+int ragdollHeadAt(int num, const glm::vec3& at)
+{
+    const RagdollBodies* r = ragdollOf(num);
+    if(!r)
+    {
+        return -1;
+    }
+    const ragdoll::Rig& rig = *r->rig;
+    const uint32_t bones = ragdoll::headBones(rig);
+    if(!bones || rig.head >= r->count || (r->cut & bones))
+    {
+        return 0;
+    }
+    float distance = 0.f;
+    const int part = nearestPart(*r, at, distance);
+    if(part >= 0 && (bones & (1u << part)))
+    {
+        return 1;
+    }
+    const int parent = rig.bones[rig.head].parent;
+    if(parent < 0)
+    {
+        return 0;
+    }
+    const b3WorldTransform px = b3Body_GetTransform(r->body[static_cast<za::SizeT>(parent)]);
+    const glm::vec3 neck = fromB3(px.q) * (rig.bones[rig.head].pivot * r->scale) + world->toU(px.p);
+    return glm::distance(neck, at) <= neckReach * r->scale ? 1 : 0;
 }
 
 } // namespace qvr::box3d
