@@ -2763,7 +2763,9 @@ void hologramTestMessage()
             .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
         header("Physics (All Monsters)"),
         slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
-            .help("A ragdoll's whole weight, its parts by their size (vr_ragdoll_mass)."),
+            .help("A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
+                  "own by default (grunt 80, knight 90, enforcer 100, death knight 130, ogre 200, rottweiler and scrag 40; "
+                  "vr_ragdoll_mass)."),
         slider("Friction", vr_ragdoll_friction, 0.1f, 2.f, 0.1f, "%.1f").extend()
             .help("How much it drags and catches on floors and steps (vr_ragdoll_friction)."),
         slider("Joint Friction", vr_ragdoll_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend()

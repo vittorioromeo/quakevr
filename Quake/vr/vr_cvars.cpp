@@ -272,8 +272,17 @@ const DefaultChange defaultChanges[] = {
     {83, &vr_flashlight_cord, "1"},            // 3
     // 84: ragdolls on (the author, 2026-10-03; ROUND21.md, "Ragdolls on; corpse health and damage by kind").
     {84, &vr_ragdoll, "0"},                    // 1
+    // 85: each monster's ragdoll its own mass (the author, 2026-10-03; ROUND21.md, "Ragdoll masses per monster"): a class
+    // still on Global (-1, the 80 kg of vr_ragdoll_mass) takes its own; one set keeps it.
+    {85, &vr_ragdoll_army_mass, "-1"},         // 80
+    {85, &vr_ragdoll_knight_mass, "-1"},       // 90
+    {85, &vr_ragdoll_ogre_mass, "-1"},         // 200
+    {85, &vr_ragdoll_enforcer_mass, "-1"},     // 100
+    {85, &vr_ragdoll_hknight_mass, "-1"},      // 130
+    {85, &vr_ragdoll_dog_mass, "-1"},          // 40
+    {85, &vr_ragdoll_wizard_mass, "-1"},       // 40
 };
-constexpr int configVersion = 84;
+constexpr int configVersion = 85;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

@@ -23461,3 +23461,33 @@ Not changed: the test still runs its blows in one frame (1.4 M for 800 now).
 In VR:
 - [ ] Debug > Gore Tests > Blow Up a Crowd with 64 grunts (vr_smallgibs_test_crowd 64): no error, no long hitch.
 - [ ] A gib thrown hard into a pile of gibs still bursts the one it strikes.
+
+## Ragdoll masses per monster (2026-10-03)
+
+His decision: each monster's ragdoll its own mass by default (it was Global, -1: `vr_ragdoll_mass`'s 80 kg for all).
+From size and look, checked against each ragdoll's hulls (`vr_debug_ragdoll`'s "made" line now gives their litres; at
+80 kg the grunt's 155 l is about 520 kg/m^3, the hulls being loose):
+
+| class | `vr_ragdoll_<class>_mass` | hulls | 80 kg's density scaled |
+|---|---|---|---|
+| grunt (`army`) | 80 | 155 l | 80 |
+| knight | 90 | 176 l | 91 |
+| enforcer | 100 | 392 l | 202 (his arms and rifle's hulls are mostly air) |
+| death knight (`hknight`) | 130 | 305 l | 157 |
+| ogre | 200 | 751 l | 388 (held to 200: a hand's 3000 N grip lifts him) |
+| rottweiler (`dog`) | 40 | 216 l | 111 (four legs' hulls) |
+| scrag (`wizard`) | 40 | 335 l | 173 (wings and tail) |
+
+Config 85: a class still at -1 takes its own; one set keeps it (`vr_cfg_version 84`, ogre -1, dog 55 -> ogre 200, dog 55).
+The global Mass is now for a class set to Global (its help says so).
+
+Balance (`ragdoll_test.sh`, MON 7, 1, 6; `vr_ragdoll_blast_test 100` on vrfiringrange, twice each):
+- **Blasts don't depend on mass.** A ragdoll's blast speed is `4 x points x clamp(sqrt(6 kg / mass), 0.5, 2)`: every
+  ragdoll over 24 kg is at the 0.5 floor, so each is thrown at the same speed, whatever its mass. The dog went 93-94
+  units at 40 kg, 95-149 at 80; the ogre 103-130 at 200, 73-117 at 80; the grunt 133-150 (the spread is tumbling). So
+  the dog doesn't fly farther, and the ogre isn't thrown less: left as it is; the checklist asks whether the ogre's and
+  death knight's Blast Throw should go down.
+- **Grabs:** lifted 30 units by one hand, the grunt by his pelvis ends 4.9 units from the hand, the dog by its chest
+  2.5, the death knight by a thigh 4.0, the ogre by a shin 1.8 (Grip Strength 3000 N; his 200 kg weigh 1960 N). The
+  force grab sets the limb's speed, not a force: the dog's and the ogre's limbs came in 0.5 s (142 and 154 units).
+- **Shots:** a pellet's push sets the struck part's speed (at most 10 m/s), not a force: a light dog isn't flung.

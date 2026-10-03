@@ -2345,9 +2345,9 @@ bool createRagdoll(edict_t* ent, int num, Slot& s)
     }
     if(vr_debug_ragdoll.value)
     {
-        Con_Printf("ragdoll: %d %s limp at frame %d (%.0f%% of its death; made in pose %d%s): %d parts, %.1f kg, %d ragdolls\n", num,
+        Con_Printf("ragdoll: %d %s limp at frame %d (%.0f%% of its death; made in pose %d%s): %d parts, %.1f kg, %.0f litres, %d ragdolls\n", num,
             PR_GetString(ent->v.classname), frame, progress * 100.f, drawnPose, drawnPose != pose ? ", the frame before's" : "",
-            r.count, mass, ragdollCount());
+            r.count, mass, volume * 1e3f, ragdollCount());
     }
     return true;
 }
