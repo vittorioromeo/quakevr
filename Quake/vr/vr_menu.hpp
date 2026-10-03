@@ -45,6 +45,9 @@ void jumpToAdvanced();
 // from it goes to the VR Settings.
 void jumpToChecklist();
 
+// The presets' callbacks (VR Settings' Comfort and Handedness), once the cvars are registered.
+void init();
+
 // Menu Detail at Developer (vr_menu_level 2): the tuning and testing pages, the corner's Checklist button.
 [[nodiscard]] bool developerLevel();
 

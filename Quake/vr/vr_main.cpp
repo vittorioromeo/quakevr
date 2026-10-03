@@ -1138,6 +1138,7 @@ extern "C" void VR_Init()
 
     Cmd_AddCommand("vr_status", VR_Status_f);
     Cmd_AddCommand("vr_restart", VR_Restart_f);
+    menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
     Cmd_AddCommand("vr_bigfont", bigfont::report_f);

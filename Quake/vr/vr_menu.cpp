@@ -4725,42 +4725,173 @@ static_assert(sizeof(weaponOffsetsPartPages) / sizeof(weaponOffsetsPartPages[0])
     return false;
 }
 
+// ----------------------------------------------------------------------------
+// Presets (VR Settings' Comfort and Handedness): a choice sets several settings at once; the choice shown is the one
+// they match now (syncPresets, as the menu is drawn), Custom when none. Their cvars aren't saved: the settings are.
+// ----------------------------------------------------------------------------
+
+struct PresetSetting
+{
+    const char* cvar;
+    float value;
+};
+
+struct PresetChoice
+{
+    float value;
+    PresetSetting settings[3];
+};
+
+struct Preset
+{
+    cvar_t* choice;
+    const PresetChoice* choices;
+    int count;
+};
+
+constexpr PresetChoice comfortChoices[] = {
+    {1.f, {{"vr_snap_turn", 45.f}, {"vr_teleport_enabled", 1.f}, {"cl_alwaysrun", 0.f}}}, // Comfortable
+    {2.f, {{"vr_snap_turn", 30.f}, {"vr_teleport_enabled", 1.f}, {"cl_alwaysrun", 1.f}}}, // Moderate
+    {3.f, {{"vr_snap_turn", 0.f}, {"vr_teleport_enabled", 0.f}, {"cl_alwaysrun", 1.f}}},  // Full Freedom
+};
+
+constexpr PresetChoice handednessChoices[] = {
+    {1.f, {{"vr_stick_swap", 0.f}, {"vr_gadget_arm", 0.f}, {"vr_flashlight_side", 0.f}}}, // right-handed
+    {2.f, {{"vr_stick_swap", 1.f}, {"vr_gadget_arm", 1.f}, {"vr_flashlight_side", 1.f}}}, // left-handed
+};
+
+const Preset presets[] = {
+    {&vr_comfort_preset, comfortChoices, static_cast<int>(sizeof(comfortChoices) / sizeof(comfortChoices[0]))},
+    {&vr_handedness, handednessChoices, static_cast<int>(sizeof(handednessChoices) / sizeof(handednessChoices[0]))},
+};
+
+bool presetBusy = false; // a preset's own changes (its settings set, its choice shown): not a choice made
+
+[[nodiscard]] bool presetMatches(const PresetChoice& c)
+{
+    for(const PresetSetting& s : c.settings)
+    {
+        const cvar_t* var = Cvar_FindVar(s.cvar);
+        if(!var || var->value != s.value)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+void syncPresets()
+{
+    presetBusy = true;
+    for(const Preset& p : presets)
+    {
+        float shown = 0.f;
+        for(int i = 0; i < p.count; i++)
+        {
+            if(presetMatches(p.choices[i]))
+            {
+                shown = p.choices[i].value;
+                break;
+            }
+        }
+        if(p.choice->value != shown)
+        {
+            Cvar_SetValueQuick(p.choice, shown);
+        }
+    }
+    presetBusy = false;
+}
+
+void onPresetChosen(cvar_t* var)
+{
+    if(presetBusy)
+    {
+        return;
+    }
+    for(const Preset& p : presets)
+    {
+        for(int i = 0; p.choice == var && i < p.count; i++)
+        {
+            if(p.choices[i].value == var->value)
+            {
+                presetBusy = true;
+                for(const PresetSetting& s : p.choices[i].settings)
+                {
+                    Cvar_SetValue(s.cvar, s.value);
+                }
+                presetBusy = false;
+            }
+        }
+    }
+}
+
 za::Vector<Item> pageMain()
 {
     return {
-        header("Tuning"),
+        header("Tuning").developer(),
         open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets)),
         open("Weapon Weights (Held Weapon)", pageIndex(pageWeaponWeights)),
         open("Held Object Offsets (Held Prop)", pageIndex(pageHeldObjectOffsets)),
         open("Held Object Weights (Held Prop)", pageIndex(pageHeldObjectWeights)),
-        open("Hand/Gun Calibration", pageIndex(pageHandGunCalibration)),
-        open("Body Calibration", pageIndex(pageBodyCalibration)),
+        open("Hand/Gun Calibration", pageIndex(pageHandGunCalibration)).developer(),
         header("Comfort"),
+        cycle("Comfort", vr_comfort_preset, {{0.f, "Custom"}, {1.f, "Comfortable"}, {2.f, "Moderate"}, {3.f, "Full Freedom"}})
+            .help("Sets Turning, Teleport and Default Speed together. Comfortable: snap turns of 45 degrees, teleport, walk. "
+                  "Moderate: snap turns of 30, teleport, run. Full Freedom: smooth turning, run, no teleport. Change them after "
+                  "to taste (Custom)."),
         cycle("Turning", vr_snap_turn, {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}}),
-        slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend(),
+        slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend().help("Smooth turning's speed."),
         cycle("Move Towards", vr_movement_mode, {{1.f, "Head"}, {0.f, "Hand"}}).help("Hand: where the moving stick's hand points (Swap Stick Functions: the right hand's)."),
-        toggle("Swap Stick Functions", vr_stick_swap).help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
-        slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%"),
         toggle("Teleport", vr_teleport_enabled),
-        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f),
-        slider("Room Scale", vr_roomscale_move_mult, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.2f, 5.f),
+        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f).advanced(),
+        slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%").advanced(),
+        slider("Room Scale", vr_roomscale_move_mult, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.2f, 5.f).advanced()
+            .help("How far walking in your room moves you in the game (1: as far)."),
+
+        header("You"),
+        cycle("Handedness", vr_handedness, {{0.f, "Custom"}, {1.f, "Right-handed"}, {2.f, "Left-handed"}})
+            .help("Sets which stick moves you, the wrist gadget's arm and the flashlight's hip together. Left-handed: the right "
+                  "stick moves, the gadget on the right arm, the torch on the right hip. Each is also on Body and Display "
+                  "(Custom: set apart)."),
+        slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
+            .help("Your height, for the body and how high you stand in the game. Set Height Now takes it from the headset."),
+        action("Set Height Now", calibrateHeight).help("Stand straight and look ahead: your height is where the headset is."),
+        open("Body Calibration", pageIndex(pageBodyCalibration))
+            .help("Standing or seated; measures your arms and shoulders for the body and the hands."),
+        cycle("Dominant Eye", vr_dominant_eye, {{0.f, "Right"}, {1.f, "Left"}})
+            .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
+                  "it when you close the other."),
 
         header("Weapons"),
-        slider("Gun Angle", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f),
+        slider("Gun Angle", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f)
+            .help("How the guns are tilted in your hand: set it so aiming feels natural with your controllers."),
         slider("Off Hand Angle", vr_offhandpitch, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f),
-        cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}}),
+        cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}})
+            .help("Hold: keep the grip pressed to hold a weapon. Sticky: a press takes it, another lets it go."),
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}}),
-        toggle("Two-Handed Hand-Off", vr_2h_handoff).help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
-        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
-        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}),
-        toggle("Force Grab", vr_forcegrab_mode),
+        toggle("Two-Handed Hand-Off", vr_2h_handoff).advanced().help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
+        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend().advanced(),
+        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}}).advanced(),
+        toggle("Force Grab", vr_forcegrab_mode).help("Pull pickups and weapons to your hand from afar."),
         cycle("Haptics", vr_disablehaptics, {{0.f, "On"}, {1.f, "Off"}}),
+
+        header("Sound and Display"),
+        slider("Volume", "volume", 0.f, 1.f, 0.05f, "%.2f").help("The game's sounds (Quake's Sound Volume)."),
+        slider("Music Volume", "bgmvolume", 0.f, 1.f, 0.05f, "%.2f"),
+        cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}})
+            .help("Wrist gadget: health, armour and ammo on your wrist. Status bar: Quake's, on a hand."),
+        cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}}),
+        slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").extend()
+            .help("The headset's brightness: lower is brighter (1 neutral). The desktop's gamma is not used."),
+        cycle("Graphics Preset", "vr_graphics_preset", {{-1.f, "Custom"}, {0.f, "Off (Quake)"}, {1.f, "Low"}, {2.f, "Medium"}, {3.f, "High"}, {4.f, "Ultra"}})
+            .help("Sets every graphics setting at once (Advanced: Graphics). Lower it if the game stutters."),
+
         header("More"),
-        open("Body and Display", pageIndex(pageBodyDisplay)).help("The wrist gadget's arm and the flashlight's side, height, the body, the HUD, the crosshair and the menu."),
+        open("Body and Display", pageIndex(pageBodyDisplay)).help("Each hand's side, world scale, the body, the status bar, the menu, the desktop mirror."),
         open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
         open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
-        open("Advanced VR Options", PageAdvanced),
+        open("Advanced VR Options", PageAdvanced).help("Every gameplay, display and graphics setting, by topic."),
     };
 }
 
@@ -4768,33 +4899,30 @@ za::Vector<Item> pageMain()
 [[nodiscard]] za::Vector<Item> pageBodyDisplay()
 {
     return {
-        header("Body"),
+        header("Sides"),
+        toggle("Swap Stick Functions", vr_stick_swap).help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}).help("The arm the wrist gadget (the HUD) is on."),
         cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left hip"}, {1.f, "Right hip"}}).help("The hip the torch hangs on (Chest Flashlight)."),
-        slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f),
-        action("Set Height Now", calibrateHeight),
-        slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f),
-        slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f),
-        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (Flashlight Side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
 
-        header("Body Model"),
+        header("Body"),
+        slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f)
+            .help("How big the world feels around you (1.25: Quake's sizes as a person sees them)."),
+        slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f).advanced(),
+        toggle("Chest Flashlight", vr_flashlight).help("A torch on your belt (Flashlight Side): trigger at it with an open hand switches it; grip takes it. B or Y clips it on a gun or on your head."),
         cycle("Body", vr_body_mode, {{0.f, "Off"}, {2.f, "Torso and arms"}, {3.f, "Full body"}}),
         cycle("Build", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}}),
-        slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m back").extend(-1.f, 1.f),
-        slider("Legs Offset", vr_body_legs_back, -0.2f, 0.4f, 0.01f, "%.2f m back").extend(-1.f, 1.f),
-        slider("Shoulders Offset", vr_body_shoulders_back, -0.15f, 0.2f, 0.01f, "%.2f m back").extend(-0.5f, 0.5f),
+        slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m back").extend(-1.f, 1.f).advanced(),
+        slider("Legs Offset", vr_body_legs_back, -0.2f, 0.4f, 0.01f, "%.2f m back").extend(-1.f, 1.f).advanced(),
+        slider("Shoulders Offset", vr_body_shoulders_back, -0.15f, 0.2f, 0.01f, "%.2f m back").extend(-0.5f, 0.5f).advanced(),
         toggle("Holster Models", vr_leg_holster_model_enabled),
 
         header("Display"),
-        cycle("HUD", vr_hud_mode, {{1.f, "Wrist gadget"}, {0.f, "Status bar"}}),
-        cycle("Status Bar", vr_sbar_mode, {{1.f, "Off hand"}, {0.f, "Main hand"}}),
-        slider("HUD Scale", vr_hud_scale, 0.01f, 0.05f, 0.0025f, "%.4f").extend(0.005f, 0.3f),
-        cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}}),
-        slider("Crosshair Size", vr_crosshair_size, 0.5f, 8.f, 0.5f, "%.1f").extend(0.f, 32.f),
-
-        slider("Menu Distance", vr_menu_distance, 40.f, 150.f, 5.f, "%.0f").extend(8.f, 600.f),
-        slider("Menu Scale", vr_menu_scale, 0.08f, 0.3f, 0.01f, "%.2f").extend(0.02f, 1.5f),
-        slider("Menu Background Opacity", "scr_menubgalpha", 0.f, 1.f, 0.05f, "%.2f").help("How dark the panel behind the menus is (0.7 as shipped; the desktop menus' too): lower it to see the game while you tune the graphics. Below about 0.5 the text gets a dark outline, to stay readable."),
+        cycle("Status Bar", vr_sbar_mode, {{1.f, "Off hand"}, {0.f, "Main hand"}}).help("The hand Quake's status bar is on (HUD: Status bar)."),
+        slider("HUD Scale", vr_hud_scale, 0.01f, 0.05f, 0.0025f, "%.4f").extend(0.005f, 0.3f).advanced(),
+        slider("Crosshair Size", vr_crosshair_size, 0.5f, 8.f, 0.5f, "%.1f").extend(0.f, 32.f).advanced(),
+        slider("Menu Distance", vr_menu_distance, 40.f, 150.f, 5.f, "%.0f").extend(8.f, 600.f).advanced(),
+        slider("Menu Scale", vr_menu_scale, 0.08f, 0.3f, 0.01f, "%.2f").extend(0.02f, 1.5f).advanced(),
+        slider("Menu Background Opacity", "scr_menubgalpha", 0.f, 1.f, 0.05f, "%.2f").advanced().help("How dark the panel behind the menus is (0.7 as shipped; the desktop menus' too): lower it to see the game while you tune the graphics. Below about 0.5 the text gets a dark outline, to stay readable."),
         cycle("Desktop Mirror", vr_mirror, {{0.f, "Off"}, {1.f, "Left eye"}, {2.f, "Both eyes"}}),
         open("Recording (Window View)", pageIndex(pageRecording))
             .help("What the desktop window shows for recording: a steadied mirror or a spectator camera."),
@@ -4820,11 +4948,11 @@ za::Vector<Item> pageMain()
             .help("Shade the scene coarser towards the edges of the lenses, where they blur anyway: faster. NVIDIA GPUs only (variable-rate shading)."),
         toggle("Hide Lens Corners", vr_visibility_mask)
             .help("Skip the pixels the lenses never show (if the headset gives them): faster, looks the same. Black corners in the desktop mirror."),
-        slider("Near Clip", vr_nearclip, 0.02f, 1.f, 0.02f, "%.2f units").extend(0.02f, 4.f)
+        slider("Near Clip", vr_nearclip, 0.02f, 1.f, 0.02f, "%.2f units").extend(0.02f, 4.f).advanced()
             .help("How near the eyes things are still drawn (a unit is 3 cm): lower draws a gun at your face whole. Not below 1 without Float Depth."),
-        cycle("Held Items at the Eyes", vr_nearclip_held, {{0.f, "Clipped"}, {1.f, "Never clipped"}, {2.f, "Block the view"}})
+        cycle("Held Items at the Eyes", vr_nearclip_held, {{0.f, "Clipped"}, {1.f, "Never clipped"}, {2.f, "Block the view"}}).advanced()
             .help("A weapon or hand right at your eyes: Never clipped draws its parts nearer than Near Clip too; Block the view also draws its inside when an eye is in it, instead of seeing through it."),
-        toggle("Float Depth", vr_depth_float)
+        toggle("Float Depth", vr_depth_float).advanced()
             .help("A 32-bit float depth buffer for the eyes: no flicker far away with a small Near Clip. Applies after Restart VR."),
     };
 }
@@ -7467,6 +7595,14 @@ void qvr::menu::handCalMatch_f()
     matchControllerPreview();
 }
 
+void qvr::menu::init()
+{
+    for(const Preset& p : presets)
+    {
+        Cvar_SetCallback(p.choice, onPresetChosen);
+    }
+}
+
 void qvr::menu::command_f()
 {
     if(Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "list"))
@@ -7757,6 +7893,7 @@ NotedPlace notedPlace;
 
 extern "C" void VR_Menu_Draw()
 {
+    syncPresets(); // (Comfort, Handedness: the choice the settings match now)
     const auto& list = items(page);
     int& cursor = cursors[page];
     int& scroll = scrolls[page];
