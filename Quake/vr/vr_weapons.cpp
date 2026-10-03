@@ -43,14 +43,6 @@ constexpr const char* keyEnumNames[numKeys] = {
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
 
-constexpr const char* retiredKeyNames[] = {
-#define QVR_WEAPON_RETIRED(k) k,
-#include "vr_weapons.inc"
-#undef QVR_WEAPON_RETIRED
-};
-constexpr int numRetired = static_cast<int>(sizeof(retiredKeyNames) / sizeof(retiredKeyNames[0]));
-za::Array<za::String, numSlots * numRetired> retiredNames;
-za::Array<cvar_t, numSlots * numRetired> retiredCvars{};
 
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
 {
@@ -589,20 +581,6 @@ void registerCvars()
     {
         Cvar_RegisterVariable(&var);
         Cvar_SetCallback(&var, onChanged);
-    }
-
-    // Retired keys (vr_weapons.inc): registered so that a config setting them loads silently; not saved, read by nothing.
-    for(int slot = 0; slot < numSlots; slot++)
-    {
-        for(int key = 0; key < numRetired; key++)
-        {
-            retiredNames[slot * numRetired + key] = va("vr_wofs_%s_%02d", retiredKeyNames[key], slot + 1);
-            cvar_t& var = retiredCvars[slot * numRetired + key];
-            var.name = retiredNames[slot * numRetired + key].cStr();
-            var.string = "0";
-            var.flags = CVAR_NONE;
-            Cvar_RegisterVariable(&var);
-        }
     }
 
 }

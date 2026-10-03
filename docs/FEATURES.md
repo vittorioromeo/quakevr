@@ -6,7 +6,7 @@ What Quake VR does and how to use it. Menu paths are under **Options > VR Settin
 The controls named here are the defaults: trigger, grip, A/B on the main hand, X/Y on the off hand, and the sticks.
 The main hand is the right controller, the off hand the left: both hands hold, fire, swing and climb alike. There is no
 left-handed mode; what has a side has its own setting: *Swap Stick Functions* (the right stick moves), *Wrist Gadget
-Arm* and *Flashlight Side*. A config with the old `vr_lefthanded 1` gets all three on the right.
+Arm* and *Flashlight Side*.
 
 - [Weapons](#weapons)
 - [Holsters and reloading](#holsters-and-reloading)

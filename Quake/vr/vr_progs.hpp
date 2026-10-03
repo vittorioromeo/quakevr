@@ -23,11 +23,28 @@ struct FieldOffsets
 #undef QVR_FIELD
 };
 
+// The melee history's fields (QC vr_melee.qc: a hand's blow keeps its last poses in a ring; the melee builtins read it):
+// the arrays' first elements (FTEQCC names them "mh_hdt[0]"...), each VR_MELEE_HISTORY long (vr_melee_shared.h). `valid`
+// when all were found, the arrays that long.
+struct MeleeHistoryFields
+{
+    bool valid{false};
+    int hfar{-1};   // .vector mh_hfar[]: the far end's velocity at each pose
+    int hgrip{-1};  // .vector mh_hgrip[]: the grip's
+    int hwrist{-1}; // .vector mh_hwrist[]: the wrist's
+    int hdt{-1};    // .float mh_hdt[]: each pose's time step (0: none, the ring's end)
+    int hi{-1};     // .float mh_hi: the newest pose's index
+    int vgrip{-1};  // .vector mh_vgrip, mh_vfar: the grip's and the far end's velocity now
+    int vfar{-1};
+    int rgrip{-1};  // .vector mh_rgrip: the grip now (from the head, in the play space)
+};
+
 // Resolved for sv.qcvm each time progs are loaded.
 struct Bindings
 {
     bool isVrProgs{false};
     FieldOffsets fields;
+    MeleeHistoryFields melee;
 
     func_t OnSpawnServerBeforeLoad{0};
     func_t OnSpawnServerAfterLoad{0};

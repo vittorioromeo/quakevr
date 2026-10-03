@@ -66,12 +66,6 @@ QVR_PROP_KEY(SpinAlign, "spin_align", "1")
 QVR_PROP_KEY(MassScale, "mass_scale", "1")
 #endif
 
-#ifdef QVR_PROP_RETIRED
-// Keys no longer used, kept registered (unsaved, read by nothing) so that configs holding them load silently: the rocks'
-// and bricks' Blunt (1 + Blunt x the square root of the mass), folded into the weight's damage curve and their Melee and
-// Throw Damage x (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage").
-QVR_PROP_RETIRED("blunt")
-#endif
 
 #ifdef QVR_PROP_DEFAULT
 // The explosive boxes (misc_explobox, misc_explobox2): physics props, heavy (a hand can carry one, two do it better),

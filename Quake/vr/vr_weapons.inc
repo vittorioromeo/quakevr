@@ -349,18 +349,6 @@ QVR_WEAPON_KEY(TorchRoll, "torch_roll")
 QVR_WEAPON_KEY(TorchClip, "torch_clip")
 #endif
 
-#ifdef QVR_WEAPON_RETIRED
-// Keys no longer used, kept registered (unsaved, read by nothing) so that configs holding them load silently: the
-// Speed Limit weight model's (Weight and its multipliers; the Spring is the only model: round 21, "Spring only") and
-// the old hand velocity multipliers (retired earlier).
-QVR_WEAPON_RETIRED("weight")
-QVR_WEAPON_RETIRED("w_posmult")
-QVR_WEAPON_RETIRED("w_dirmult")
-QVR_WEAPON_RETIRED("w_2hposmult")
-QVR_WEAPON_RETIRED("w_2hdirmult")
-QVR_WEAPON_RETIRED("w_hvelmult")
-QVR_WEAPON_RETIRED("w_htvelmult")
-#endif
 
 #ifdef QVR_WEAPON_DEFAULT
 QVR_WEAPON_DEFAULT(11, InheritFrom, "4")
