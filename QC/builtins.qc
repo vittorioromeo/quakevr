@@ -301,6 +301,9 @@ float(entity e, vector point, float hand) carryreach = #0; // whether self's han
 void(vector ang) makeforward = #0; // sets v_forward
 vector(entity e, float max) modelbounds = #0; // the model's mins (max 0) or maxs, in model space
 vector(entity e) modelcentre = #0; // the middle of the drawn model (turned with it, scaled and offset as drawn), in the world
+// findradius's chain (the same order) less what has no model or whose modelcentre is out of the cone from org along dir
+// (a unit vector) whose cosine is mincos (a little wider: test each again), or within a unit of org.
+entity(vector org, float rad, vector dir, float mincos) findcone = #0;
 void(vector v1, vector mins, vector maxs, vector v2, float nomonsters, entity forent) tracebox = #0; // traceline with a box
 // Precise hit detection (engine vr_hitmodel.cpp; the option vr_hit_precise): shots, missiles, the grappling hook, melee
 // blows and thrown things meet a monster's (or a corpse's) model as drawn, grown by their class's tolerance

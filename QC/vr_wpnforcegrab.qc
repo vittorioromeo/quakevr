@@ -180,7 +180,7 @@ entity(float xHand) VR_Forcegrab_FindTarget =
     entity best = world;
     float bestScore = 0;
 
-    for(entity e = findradius(handPos, range); e; e = e.chain)
+    for(entity e = findcone(handPos, range, aim, minCos); e; e = e.chain) // (findradius's, less what is out of the cone)
     {
         if(e.model == string_null) // (spares most a call: triggers)
         {

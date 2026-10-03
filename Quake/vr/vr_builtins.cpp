@@ -82,6 +82,62 @@ void PF_modelcentre()
     out[2] = c.z;
 }
 
+// entity(vector org, float rad, vector dir, float mincos) findcone: findradius's chain (the same entities, in the same
+// order: the last first), less those that have no model or whose drawn middle (modelcentre) is out of the cone from
+// `org` along `dir` (a unit vector) whose cosine is `mincos`, or within a unit of `org`. A little wider than that cone:
+// the caller tests each again as before (QC VR_Forcegrab_FindTarget: everything within reach of a hand, every frame;
+// a pile of props in reach was hundreds of them through QC).
+void PF_findcone()
+{
+    const float* org = G_VECTOR(OFS_PARM0);
+    const float rad = G_FLOAT(OFS_PARM1) * G_FLOAT(OFS_PARM1);
+    const glm::vec3 from{org[0], org[1], org[2]};
+    const float* d = G_VECTOR(OFS_PARM2);
+    const glm::vec3 dir{d[0], d[1], d[2]};
+    const float minCos = G_FLOAT(OFS_PARM3) - 1e-4f;
+    edict_t* chain = qcvm->edicts;
+    edict_t* ent = NEXT_EDICT(qcvm->edicts);
+    for(int i = 1; i < qcvm->num_edicts; i++, ent = NEXT_EDICT(ent))
+    {
+        if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT)
+        {
+            continue;
+        }
+        // (findradius's test, in its order and precision)
+        float x = org[0] - (ent->v.origin[0] + (ent->v.mins[0] + ent->v.maxs[0]) * 0.5);
+        float lensq = x * x;
+        if(lensq > rad)
+        {
+            continue;
+        }
+        x = org[1] - (ent->v.origin[1] + (ent->v.mins[1] + ent->v.maxs[1]) * 0.5);
+        lensq += x * x;
+        if(lensq > rad)
+        {
+            continue;
+        }
+        x = org[2] - (ent->v.origin[2] + (ent->v.mins[2] + ent->v.maxs[2]) * 0.5);
+        lensq += x * x;
+        if(lensq > rad)
+        {
+            continue;
+        }
+        if(!ent->v.model || !*PR_GetString(ent->v.model))
+        {
+            continue;
+        }
+        const glm::vec3 to = physics::modelCentre(ent) - from;
+        const float dist = glm::length(to);
+        if(dist < 0.999f || glm::dot(to, dir) < minCos * dist)
+        {
+            continue;
+        }
+        ent->v.chain = EDICT_TO_PROG(chain);
+        chain = ent;
+    }
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(chain);
+}
+
 // Where the force grab takes an entity, in the world (vector(entity e) forcegrabpoint): a weapon by its handle, its
 // origin (weapons::heldAtOrigin: it arrives in the hand as it is held), anything else by its drawn middle.
 void PF_forcegrabpoint()
@@ -1447,6 +1503,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weapondrawnpose", PF_weapondrawnpose},
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
+    {"findcone", PF_findcone},
     {"forcegrabpoint", PF_forcegrabpoint},
     {"catchblend", PF_catchblend},
     {"physicsblast", PF_physicsblast},
