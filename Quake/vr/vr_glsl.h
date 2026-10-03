@@ -232,12 +232,12 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "	return d + n * texel * ShadowBias * (1.0 + grazing);\n"\
 "}\n"\
 "\n"\
-"// A spot light's cone at pos: 1 inside its inner cone, smoothly down to 0 at its outer one; 1 for a point light\n"\
-"// (spot: xyz the direction / (cos inner - cos outer), w cos inner / (cos inner - cos outer); zero for a point light).\n"\
-"float SpotCone(Light l, vec3 pos)\n"\
+"// A spot light's cone at a point, dir the unit direction from it to the light: 1 inside its inner cone, smoothly\n"\
+"// down to 0 at its outer one; 1 for a point light (spot: xyz the direction / (cos inner - cos outer), w cos inner /\n"\
+"// (cos inner - cos outer); zero for a point light).\n"\
+"float SpotCone(Light l, vec3 dir)\n"\
 "{\n"\
-"	vec3 d = pos - l.origin;\n"\
-"	return 1.0 - smoothstep(0.0, 1.0, l.spot.w - dot(l.spot.xyz, d) * inversesqrt(max(dot(d, d), 1e-6)));\n"\
+"	return 1.0 - smoothstep(0.0, 1.0, l.spot.w + dot(l.spot.xyz, dir));\n"\
 "}\n"\
 "\n"\
 "// A spot light's shadow: one tile (l.shadow: xy origin, z size), a perspective projection about its direction,\n"\
@@ -258,10 +258,9 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "	return ShadowFilter(ShadowAtlas, l.shadow.xy + (st * (0.5 * k) + 0.5) * size, SHADOW_NEAR / z * (1.0 + 0.002 * ShadowBias));\n"\
 "}\n"\
 "\n"\
-"// A dynamic light's shadow at pos (normal n), times a spot light's cone.\n"\
-"float LightShadow(Light l, vec3 pos, vec3 n)\n"\
+"// A dynamic light's shadow at pos (normal n), times its cone there (SpotCone: 1 for a point light).\n"\
+"float LightShadow(Light l, vec3 pos, vec3 n, float cone)\n"\
 "{\n"\
-"	float cone = SpotCone(l, pos); // QVR: 1 for a point light\n"\
 "	if (l.shadow.z <= 0. || cone <= 0.)\n"\
 "		return cone;\n"\
 "	if (l.shadow2.x > 0.)\n"\
@@ -269,11 +268,11 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "	return cone * RetroShadowQuant(ShadowLookup(ShadowAtlas, l.shadow.xyz, ShadowOffset(pos - l.origin, n, l.shadow.z)));\n"\
 "}\n"\
 "\n"\
-"// Quake's dynamic lights ignore the angle they reach a surface at: DlightAngle blends in Lambert's.\n"\
-"float LightAngle(Light l, vec3 pos, vec3 n, float ambient)\n"\
+"// Quake's dynamic lights ignore the angle they reach a surface at: DlightAngle blends in Lambert's (ndl: the normal\n"\
+"// dotted with the unit direction to the light).\n"\
+"float LightAngle(float ndl, float ambient)\n"\
 "{\n"\
-"	vec3 dir = normalize(l.origin - pos);\n"\
-"	return mix(1.0, ambient + (1.0 - ambient) * 2.0 * max(dot(n, dir), 0.0), DlightAngle);\n"\
+"	return mix(1.0, ambient + (1.0 - ambient) * 2.0 * max(ndl, 0.0), DlightAngle);\n"\
 "}\n"\
 "\n"\
 "// DarkPlaces' falloff (ShadowFlags 16): full light to about 40% of the radius, then smoothly down to none.\n"\
@@ -284,10 +283,9 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "}\n"\
 "\n"\
 "// DarkPlaces' angle term: Lambert's, over the light's ambient (its minlight: an explosion lights what faces away too).\n"\
-"float LightAngleDP(Light l, vec3 pos, vec3 n)\n"\
+"float LightAngleDP(Light l, float ndl)\n"\
 "{\n"\
-"	vec3 dir = normalize(l.origin - pos);\n"\
-"	return mix(1.0, l.minlight + (1.0 - l.minlight) * max(dot(n, dir), 0.0), DlightAngle);\n"\
+"	return mix(1.0, l.minlight + (1.0 - l.minlight) * max(ndl, 0.0), DlightAngle);\n"\
 "}\n"\
 "\n"\
 "// QVR: specular anti-aliasing (vr_specular_aa: Parallax.w, 0 off). Bumps smaller than a pixel make the sheen sparkle\n"\
@@ -301,15 +299,13 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "float BumpSpread = 0.0;\n"\
 "vec2 SpecLobe = vec2(32.0, 1.0); // the exponent, the intensity's scale\n"\
 "\n"\
-"// A dynamic light's sheen towards the eye (DarkPlaces' r_shadow_gloss 2): Blinn's, exponent 32, LightTweak.z strong.\n"\
-"float LightSpecular(Light l, vec3 pos, vec3 n, vec3 eye)\n"\
+"// A dynamic light's sheen towards the eye (DarkPlaces' r_shadow_gloss 2): Blinn's, exponent 32, LightTweak.z strong;\n"\
+"// dir and toEye the unit directions to the light and to the eye, ndl dot(n, dir).\n"\
+"float LightSpecular(vec3 n, float ndl, vec3 dir, vec3 toEye)\n"\
 "{\n"\
-"	if (LightTweak.z <= 0.)\n"\
+"	if (LightTweak.z <= 0. || ndl <= 0.)\n"\
 "		return 0.0;\n"\
-"	vec3 dir = normalize(l.origin - pos);\n"\
-"	if (dot(n, dir) <= 0.)\n"\
-"		return 0.0;\n"\
-"	vec3 h = normalize(dir + normalize(eye - pos));\n"\
+"	vec3 h = normalize(dir + toEye);\n"\
 "	return pow(max(dot(n, h), 0.0), SpecLobe.x) * SpecLobe.y * LightTweak.z; // QVR: SpecLobe (SpecularAA)\n"\
 "}\n"\
 "\n"\
@@ -1242,7 +1238,8 @@ QVR_BOX_WOUNDS \
 "	}\n" \
 "\n"
 
-// a light's shadow and spot cone (rl_pos, rl_spos, rl_mpos: in_pos, or retro lighting's blocks: vr_retrolight.h)
+// a light's shadow and spot cone (rl_pos, rl_spos, rl_mpos: in_pos, or retro lighting's blocks: vr_retrolight.h;
+// rl_spos_same: rl_spos is rl_pos; to_eye: the unit direction from rl_pos to the eye)
 #define QVR_WORLD_FS_LIGHT_SHADOW \
 "					if (l.shadow.w != 0.) // QVR: a map light's shadow of moving things\n" \
 "					{\n" \
@@ -1251,14 +1248,18 @@ QVR_BOX_WOUNDS \
 "					}\n" \
 "					if (darkplaces) // QVR: DarkPlaces' falloff, colours brighter than 1 (vr_dlight_falloff)\n" \
 "					{\n" \
-"						float d = distance(l.origin, rl_pos);\n" \
-"						if (d >= l.radius)\n" \
+"						vec3 tl = l.origin - rl_pos; // its distance and direction worked out once (as the models' loop)\n" \
+"						float d2 = dot(tl, tl);\n" \
+"						if (d2 >= l.radius * l.radius)\n" \
 "							continue;\n" \
-"						float lit = DarkPlacesAtten(d, l.radius) * LightShadow(l, rl_spos, facing);\n" \
+"						float inv = inversesqrt(max(d2, 1e-12));\n" \
+"						vec3 dir = tl * inv;\n" \
+"						float lit = DarkPlacesAtten(d2 * inv, l.radius) * LightShadow(l, rl_spos, facing, SpotCone(l, rl_spos_same ? dir : normalize(l.origin - rl_spos)));\n" \
 "						if (lit <= 0.)\n" \
 "							continue;\n" \
-"						dynamic_light += lit * 0.5 * LightAngleDP(l, rl_pos, bumped) * l.color; // halved: the lightmap is doubled below\n" \
-"						specular_light += lit * LightSpecular(l, rl_pos, bumped, EyePos) * l.color;\n" \
+"						float ndl = dot(bumped, dir);\n" \
+"						dynamic_light += lit * 0.5 * LightAngleDP(l, ndl) * l.color; // halved: the lightmap is doubled below\n" \
+"						specular_light += lit * LightSpecular(bumped, ndl, dir, to_eye) * l.color;\n" \
 "						continue;\n" \
 "					}\n"
 

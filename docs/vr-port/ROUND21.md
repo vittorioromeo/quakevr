@@ -23912,3 +23912,81 @@ without it.
 
 The world pass is ~1.3-1.4 ms of a ~3.3-4 ms GPU frame for both 3406-square eyes on this machine's GPU: it is
 not shading-bound enough for these reads to matter much. No visible change, so no checklist lines.
+## Shader optimizations: lights (2026-10-03)
+
+Items 6, 7 and 8 of `SHADER_PERFORMANCE_REVIEW_2026-10-03.md` (a static audit), checked in the code and measured.
+
+**Changed** (`Quake/vr/vr_glsl.h`, `Quake/gl_shaders.h`):
+- **The world's dynamic lights (item 6).** Each light's vector, distance and unit direction are worked out once and
+  shared by its falloff, spot cone, Lambert term and sheen; the direction to the eye once per pixel (it was normalized
+  again for every light); DarkPlaces' falloff (`vr_dlight_falloff 1`, his setting) rejects on the squared distance
+  before any square root, as the models' loop. Quake's falloff keeps its plane and tangent distances. Retro lighting's
+  places are kept: falloff, angle and sheen at `rl_pos`, the shadow at `rl_spos`, and the cone shares the direction
+  only where `rl_spos` is `rl_pos` (his settings: both blocks 1), else it is worked out from `rl_spos` as before. Map
+  lights' shadow pass and its order are untouched. `SpotCone`, `LightShadow`, `LightAngle(DP)` and `LightSpecular` now
+  take the shared direction (the world shader is their only user).
+- **Spot shadows (item 7): tried twice, not kept.** First the whole frame and the tile's constants sent with the light
+  in two more vec4s (112 bytes a light, was 80): the bigger record made every light's loop 1-4% slower than item 6
+  alone, more than it saved. Then only the right vector, in the spot light's spare `shadow2.yzw` (`VR_DlightShadow`,
+  the shadow view's own `spotFrame`; the pixel still normalizes the direction and crosses for up): no measurable
+  difference either way (-2.0 to +2.6 points against item 6 alone, scene by scene, averaging +0.6), so the code stays
+  as it was.
+- **Clusters (item 8):** measured only, unchanged (below).
+
+**How it was measured.** RTX 4090, the mock at 2048 x 2048 per eye, his `ironwail.cfg` (exec'd, minus video, binds and
+backend), e1m1's start looking down the side room (`vr_mock_look 10 -40`); the head flashlight
+(`vr_flashlight_clip_head left; vr_flashlight_toggle`), 14 `vr_light_test` lights (radius 200; 8 with shadows), 28
+(the same again at 260), and 32 small ones (radius 64, 120-600 units away). The GPU time is `vr_profile` (`vr_profile_gpu
+1`) of both eyes' `world+brush`. Runs of separate builds swung 5-300% with the other agents' work, so the variants were
+compiled into one game (a temporary `vr_tmp_ab` switch, not committed: variant 0 the old code, 1 item 6, 2 items 6+7,
+3 items 6+8) and alternated in it, 0123 / 1230 / ..., 8 cycles of 600 frames each per scene, two games: 16 samples each,
+median, and the paired change against variant 0 in the same cycle. The noise floor is the plain scene (no dynamic
+lights: the changed code does not run): about 1-2%.
+
+| Scene (both eyes' world+brush, ms, medians) | old | 6 (shipped) | 6+7 (right vector sent) | 6+8 (cluster planes) | shipped vs old, paired median |
+| --- | --- | --- | --- | --- | --- |
+| plain (no dynamic lights) | 0.567 | 0.558 | 0.567 | 0.550 | -1.2% (noise) |
+| flashlight on the side room | 0.618 | 0.604 | 0.610 | 0.602 | -2.2% |
+| flashlight on a near wall | 0.596 | 0.600 | 0.603 | 0.585 | -0.4% (noise) |
+| 14 lights + flashlight | 0.985 | 0.939 | 0.945 | 0.941 | -5.5% |
+| the same, Quake falloff | 0.972 | 0.946 | 0.941 | 0.957 | -3.1% |
+| 28 lights, Quake falloff | 1.461 | 1.393 | 1.381 | 1.404 | -4.5% |
+| 28 lights, DarkPlaces falloff | 1.212 | 1.174 | 1.187 | 1.148 | -3.6% |
+
+Item 6 in two more games (variants 0 and 1 the same code): 14 lights -5.9 / -5.8%, Quake falloff -6.1 / -3.6%, 28
+lights DarkPlaces -5.2 / -5.8%, 32 small lights -2.8% (DarkPlaces) / -1.9% (Quake). So item 6 saves about 3-6% of the
+world pass with many lights (0.03-0.07 ms a frame here) and nothing measurable without them. The flashlight's whole
+cost is about 0.04 ms a frame for both eyes, which is why item 7 can't show.
+
+**Images.** Eye shots of the four scenes, old against shipped, separate games: the flashlight and light scenes differ
+by at most 1 level in 70-150 pixels of 4.2 million per eye (float rounding: the cone's direction and `d2 * inv` for
+the distance); two games of the same build differ in 1-9. The plain scene (the arm) matched to 1 level in 172 pixels in
+a short script; in the long benchmark script its arm's retro light bands differ by up to 22 in about 5400 pixels
+between builds, but so do two scripts of the same build (old build, the same commands up to the shot: max 22): what is
+loaded by then depends on the game's timing, not on these shaders.
+
+**Item 8 (clusters).** Counted in an instrumented build (each world pixel's light iterations and how many of them were
+inside the light's radius, read from `vr_eyeshot 2`'s float image): with big lights (14 or 28, radius 200-260) only 2-5%
+of the iterations are wasted (the box test is already tight for them); with 32 small far lights 35-45% are (about 2 of
+5 a pixel). Adding the four side planes of each cluster (the commented-out test, after the box) removed only 5-10% of
+the iterations (4.78 to 4.54 a pixel, 5.50 to 4.93), cost 0.003 ms in the clustering pass (0.017 to 0.020), and gained
+nothing measurable (14 lights -5.2% against item 6's -5.5%; 32 small lights, DarkPlaces: -2.0% against -2.8%, Quake:
+-1.8 / -1.9%). A wasted iteration now costs a load and a squared-distance test; what remains is the clusters' own size
+(a light's sphere covers part of a cluster). Not changed.
+
+| Claim | Verdict |
+| --- | --- |
+| 6: the world computes the light's distance, then normalizes its direction again in the cone, angle and sheen helpers, and the eye's direction for each light | True |
+| 6: DarkPlaces' path takes a square root before rejecting by the radius | True (`distance()` before `d >= radius`) |
+| 6: the models' loop already shares these and rejects on the squared radius | True |
+| 6: point lights still pay `SpotCone`'s reciprocal length | True before; now the shared direction (no extra work) |
+| 6: worth it, "medium with many lights" | True: 3-6% of the world pass with 14-28 lights, nothing without |
+| 7: every spot-lit pixel normalizes the direction, picks an axis, normalizes a cross product and crosses again | True |
+| 7: storing the frame and constants with the light saves work | False here: the full frame in a bigger record was 1-4% slower overall; the right vector in spare floats changed nothing measurable (not kept) |
+| 8: the cluster test is a sphere against the cluster's box; the plane tests are compiled out | True |
+| 8: box corners admit false positives that pixels then reject | True, but 2-5% of iterations with big lights, 35-45% with small far ones |
+| 8: tighter clusters would remove expensive iterations ("medium-high") | False here: a rejected light costs a load and a compare; the four plane tests removed 5-10% of iterations, no measurable gain |
+
+In VR:
+- [ ] The flashlight's beam, its edge and the shadows it casts look as before.
+- [ ] Rocket and explosion lights on walls (falloff, shine on bumpy walls) look as before.
