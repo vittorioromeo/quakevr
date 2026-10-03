@@ -2430,6 +2430,21 @@ void hologramTestMessage()
             .help("Flames a crate's fire spreads to (Most Flames caps it)."),
         slider("Crate Flame Size", vr_burn_crate_flame_size, 0.5f, 2.5f, 0.05f, "%.2fx").extend(0.1f, 5.f)
             .help("A crate's flames, times a body's (Flame Size)."),
+        toggle("Burnt Crates' Pieces Charred", vr_burn_crate_char)
+            .help("A crate that burns through breaks into charred, blackened pieces that don't burn again. Off: plain pieces, "
+                  "which burn as any other."),
+        toggle("Pieces Burn", vr_burn_pieces)
+            .help("The pieces of a crate you break catch fire as crates do: a lit torch's blow or touch, a lava nail, burning "
+                  "crates and pieces near them. A crate broken while burning scatters burning pieces."),
+        slider("Piece Burn Time", vr_burn_piece_time, 1.f, 30.f, 0.5f, "%.1f s").extend(0.5f, 120.f)
+            .help("How long a piece burns before it burns away (charred from half of it)."),
+        slider("Pieces Catch Within", vr_burn_piece_gap, 0.f, 32.f, 1.f, "%.0f").extend(0.f, 96.f)
+            .help("How near a burning piece and another piece or a crate catch from each other, in units (Fire Spreads "
+                  "After: when)."),
+        slider("Piece Flames", vr_burn_piece_flames, 1.f, 8.f, 1.f, "%.0f").extend(1.f, 20.f)
+            .help("Flames a piece's fire spreads to (Most Flames caps it)."),
+        slider("Piece Flame Size", vr_burn_piece_flame_size, 0.3f, 2.f, 0.05f, "%.2fx").extend(0.1f, 5.f)
+            .help("A piece's flames, times a body's (Flame Size)."),
     };
 }
 
@@ -3130,12 +3145,19 @@ za::Vector<Item> pageDebugTools()
             .help("vr_smallgibs_trace: each small gib's first 2.5 s in the console (sgibtrace:): where made, its speed and every jump in it, what touches, nudges or strikes it, how far it lay."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
-            .help("vr_burn_test 1: the nearest monster, corpse or crate set on fire as a lit torch's blow would, where it faces you "
+            .help("vr_burn_test 1: the nearest monster, corpse, crate or crate's piece set on fire (an explosive box: it can't burn) as a lit torch's blow would, where it faces you "
                   "(A Grunt Ahead, A Grunt's Corpse Ahead above). Again: a flame more, the same damage."),
         command("Set It on Fire (a Lava Nail)", "vr_burn_test 2"),
         command("Set It on Fire (a Touch)", "vr_burn_test 3"),
         command("Load Lava Nails", "vr_burn_test 5").help("vr_burn_test 5: the nailgun or super nailgun in the main hand loaded with lava nails (impulse 156 or 157 gives one)."),
         command("A Nail Through a Torch's Flame", "vr_burn_test 6").help("vr_burn_test 6: a nail shot through the flame of the lit torch nearest you: it becomes a lava nail (Nails Through a Flame)."),
+        command("Smash the Nearest Crate", "vr_burn_test 8")
+            .help("vr_burn_test 8: the nearest crate broken as by your blow: plain pieces, which burn (Pieces Burn)."),
+        command("Burn the Nearest Crate Through", "vr_burn_test 9")
+            .help("vr_burn_test 9: the nearest crate burns through now (lit first if it isn't): charred pieces."),
+        command("A Lava Nail at the Nearest Piece", "vr_burn_test 11")
+            .help("vr_burn_test 11: a lava nail of yours fired down at the nearest crate's piece: it catches fire (Pieces Burn), not bursts; a charred one bursts."),
+        command("Count the Pieces", "vr_burn_test 10").help("vr_burn_test 10: the console: the crates' pieces lying about, how many charred, how many burning."),
         command("How It Burns", "vr_burn_test 4").help("vr_burn_test 4: the nearest monster or corpse: where, its health, its flames and the time it burns yet."),
         header("VR Calibration"),
         command("Run the Calibration Here", "vr_setup here")

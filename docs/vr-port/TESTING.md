@@ -1481,6 +1481,10 @@ lights the nearest (`vr_burn_crate_time`, `vr_burn_crate_spread` short to see it
 flame (`a nail through a flame ...: a lava nail`), `7` prints where that flame is. A torch in the off hand past the
 nailgun's muzzle: the kit's `scratch/burn_nailtorch.sh "vr_mock_hand_to off 1768 -162 298"` (e1m2, at the ogre).
 The nails' fizz is heard only with sound (`run.sh -Sound`; `snd_show 2` lists `vr/nail_sizzle*.wav` on the torch).
+Crates' pieces (burning part 3): `vr_burn_test 8` smashes the nearest crate (plain pieces), `9` burns it through now
+(charred pieces), `10` counts the pieces (charred, burning, how many have wood within Pieces Catch Within), `11` fires
+a lava nail of yours down at the nearest piece (`lit (a missile)`, no `a piece bursts`; a charred one bursts); test 1
+on an explosive box: `an explosive box (metal) can't burn`. The kit's `scratch/crateburn2/t1.sh` .. `t4.sh`, `shot.sh`.
 The heat haze with the eye in a burning corpse's flames: `bash Misc/quakevr/haze_in_flames_test.sh <agent>` (haze on/off
 eye-image pairs; a share in the tens of percent at poses 1-6 is a patch over the view: ROUND21.md, "Black patches
 standing in flames").

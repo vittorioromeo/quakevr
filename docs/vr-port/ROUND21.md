@@ -22445,3 +22445,60 @@ heavy, close particle load.
 About +0.5 ms on particles that cover much of the view (each fragment reads up to four block taps and the palette
 table); decals +0.04 to +0.2 (noisy). Sprites and Quake's particles were too few here to measure. Off (the category's
 On 0, or vr_retro 0): decals and VR particles use the old programs; sprites and Quake's particles one branch.
+
+## Burning, part 3: charred and burning pieces; explosive boxes are metal (2026-10-03)
+
+The author's notes (`vrfiringrange_2026-10-03_02-04-39`, `_02-29-24`): a burnt crate's pieces looked like plain boards
+and couldn't be burnt; he wants a burnt crate's pieces very charred and unburnable, a smashed crate's pieces plain and
+burnable like crates (spreading to and from wood near them, burning for less time, then burnt away); explosive boxes
+are metal: torches don't set them on fire.
+
+**Charred skin** (`make_crates.py`, `charred()`): the pieces (`vr_plank1..4.mdl`) have a fourth skin,
+`VR_PIECE_SKIN_CHARRED` 3 (`<model>_3.png`, and in the 8-bit skins): charcoal split into the alligator blocks of burnt
+wood (rows along the grain, each its own length, cracks of every width between them), the blocks domed and silvered in
+places, grey ash on the worn edges and the broken and sawn ends, a few patches only scorched brown; the relief's
+shading. The crates and the other skins are unchanged (the generator is deterministic: their files are identical). The
+normal map is skin 0's (shared).
+
+**Pieces** (`vr_crates.qc`, `vr_burning.qc`; `VR_CratePiece_Is`: `vr_cratekind` 3; `VR_Burn_Wood`: a crate or a piece):
+- A crate burnt through (`VR_Burn_Think`: `vr_burnt_through`) breaks into charred pieces (`vr_burn_crate_char` 1:
+  skin 3, `vr_charred`: they never catch; 0: plain pieces). A crate broken while burning (a blow, a shot) scatters
+  burning pieces (`VR_BURN_SCATTER`: lit silently, one sound for all). Broken any other way, its pieces are plain wood.
+- A plain piece burns as a crate (`vr_burn_pieces` 1): a lit torch's blow, swing (`VR_Burn_PieceStruck`: set on fire,
+  not burst) or touch, a thrown lit torch, a lava nail (lit before the hit's damage, so `VR_CratePiece_Damage` doesn't
+  burst it: `VR_Burn_JustLit`), burning wood near it. Its flames sit on its top (cast from above in its own axes, as a
+  crate's), `vr_burn_piece_flames` 3, `vr_burn_piece_flame_size` 0.7 times a body's. It burns `vr_burn_piece_time` 5 s
+  (crates 10), charred from half of it (skin 3: put out in water after that, it stays charred and burns no more), then
+  burns away in a puff of embers and smoke with a soft crumble (`VR_CratePiece_BurnAway`).
+- Spreading (`VR_Burn_CrateCatch`, after Fire Spreads After, every 0.5 s): burning wood sets the wood near it on fire,
+  two crates within `vr_burn_crate_gap` 2 units as before, a piece and another piece or a crate within
+  `vr_burn_piece_gap` 8 (pieces lie scattered: near, not touching).
+
+**Explosive boxes** (`VR_Burn_Metal`: `misc_explobox`, `misc_explobox2`, `explo_box`, or `th_die` `barrel_explode`):
+`VR_Burn_Can` refuses them, which every way of lighting goes through (a torch's blow, touch and throw, a lava nail,
+burning wood near them, the tests). They were already refused before (not a monster, not a crate), by accident; now
+by name. Damage still sets them off as ever (a lava nail's, a torch's blow's).
+
+**Menu.** Combat > Burning > Crates: Burnt Crates' Pieces Charred, Pieces Burn, Piece Burn Time, Pieces Catch Within,
+Piece Flames, Piece Flame Size. Debug > Burning Tests: Smash the Nearest Crate (`vr_burn_test 8`), Burn the Nearest
+Crate Through (9), A Lava Nail at the Nearest Piece (11), Count the Pieces (10); the tests 1-4 also pick pieces and
+explosive boxes.
+
+**Verification** (mock headset, e1m1 and vrfiringrange; the kit's `scratch/crateburn2/t1.sh` .. `t4.sh`):
+- Burnt through (`vr_burn_test 9`): `12 pieces, 12 charred, 0 burning`; test 4 on the nearest: `skin 3, charred 1`;
+  tests 1 and 3: `vr_crate_piece can't burn`; a lava nail at one (test 11): it bursts.
+- Smashed (`vr_burn_test 8`): `12 pieces, 0 charred`; a lava nail at one: `lava_spike hit vr_crate_piece`, `lit (a
+  missile)`, no burst; test 1 on one (`vr_burn_crate_spread 1`): `lit (burning wood)` on 1 to 5 more (as the pieces fell:
+  7 to 10 of 12 have wood within 8 units), each `charred` at half its time, `burns away` at 5 s (12 pieces, then 7 to
+  10 left, 0 burning).
+- eval canary: 48/53, no differences from the baseline.
+- A burning crate smashed: 12 x `lit (its crate broke burning)`, `12 burning`.
+- An explosive box (`vr_test_spawn 102`, `vr_burn_touch 1`): tests 1, 2, 3: `an explosive box (metal) can't burn
+  (health 20)`.
+- Eyeshot (vrfiringrange, `scratch/crateburn2/cb_crop.png`): the burnt crate's pieces black and cracked beside the
+  smashed crate's plain boards.
+- Not driven by the mock: a lit torch's swing at a piece (`VR_Burn_PieceStruck`, `VR_WallTorch_Melee`'s piece case).
+
+**For the author in VR:** burn a crate through and look at its pieces (charred enough? too black?); smash a crate,
+light a piece with a torch and watch it spread over the pile and burn away (Piece Burn Time, Pieces Catch Within);
+torch an explosive box (nothing).

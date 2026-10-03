@@ -659,6 +659,10 @@ float(float xHand) VR_WallTorch_Melee =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
+        if(lit && VR_CratePiece_Is(trace_ent))
+        {
+            VR_Burn_Ignite(trace_ent, self, org, v_forward, VR_BURN_BLOW); // (first: a piece set on fire isn't burst by the blow)
+        }
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
             VR_HitBloodSplash(trace_ent, org, xdmg);
