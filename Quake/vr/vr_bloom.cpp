@@ -112,17 +112,31 @@ layout(binding = 1) uniform sampler2D Own;
 layout(binding = 2) uniform sampler2D Mean;
 layout(location = 0) uniform vec4 Params; // spread, own weight, 1 / smaller width, 1 / smaller height
 layout(location = 1) uniform vec3 Extra;  // the smaller level's weight, strength (0: not the last), adapt
+layout(location = 2) uniform float Soft;  // vr_bloom_fast, the last level: the side weight of a [Soft, 1 - 2 Soft, Soft] blur
 layout(location = 0) out vec4 Out;
 void main()
 {
     vec2 uv = gl_FragCoord.xy / vec2(textureSize(Own, 0));
     vec2 o = Params.zw * Params.x;
+    if(Soft > 0.0) // the tent wider by the blur's variance (2 Soft own texels squared; the tent's: 2 spread squared)
+        o *= sqrt(1.0 + Soft / (Params.x * Params.x));
     vec3 c = texture(Smaller, uv).rgb * 4.0;
     c += (texture(Smaller, uv + vec2(-o.x, 0.0)).rgb + texture(Smaller, uv + vec2(o.x, 0.0)).rgb +
           texture(Smaller, uv + vec2(0.0, -o.y)).rgb + texture(Smaller, uv + vec2(0.0, o.y)).rgb) * 2.0;
     c += texture(Smaller, uv + vec2(-o.x, -o.y)).rgb + texture(Smaller, uv + vec2(o.x, -o.y)).rgb +
          texture(Smaller, uv + vec2(-o.x, o.y)).rgb + texture(Smaller, uv + vec2(o.x, o.y)).rgb;
-    c = c * (Extra.x / 16.0) + texelFetch(Own, ivec2(gl_FragCoord.xy), 0).rgb * Params.y;
+    vec3 own;
+    if(Soft > 0.0) // four bilinear taps 2 Soft texels out: the blur, in both directions
+    {
+        vec2 t = 2.0 * Soft / vec2(textureSize(Own, 0));
+        own = (texture(Own, uv + vec2(-t.x, -t.y)).rgb + texture(Own, uv + vec2(t.x, -t.y)).rgb +
+               texture(Own, uv + vec2(-t.x, t.y)).rgb + texture(Own, uv + vec2(t.x, t.y)).rgb) * 0.25;
+    }
+    else
+    {
+        own = texelFetch(Own, ivec2(gl_FragCoord.xy), 0).rgb;
+    }
+    c = c * (Extra.x / 16.0) + own * Params.y;
     if(Extra.y > 0.0)
     {
         c *= Extra.y / (1.0 + Extra.z * texelFetch(Mean, ivec2(0), 0).r);
@@ -219,6 +233,14 @@ void pass(const Target& target, GLuint prog, GLuint source, float a, float b, fl
     glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
+// vr_bloom_fast: the side weight of the blur the last level takes for the eyes' one tap (GL_PostProcess), 0 off.
+// The four taps' kernel (a texel's centre weighs 1/2 wherever the pixel lies in it, its neighbours the rest by
+// distance) is matched closest, in squares, by a [0.2, 0.6, 0.2] blur followed by the bilinear tap.
+[[nodiscard]] float fastSoft()
+{
+    return vr_bloom_fast.value > 0.f ? 0.2f : 0.f;
+}
+
 } // namespace
 
 void apply(GLuint sceneTex, int width, int height)
@@ -274,12 +296,18 @@ void apply(GLuint sceneTex, int width, int height)
         GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, down[l].tex);
         GL_Uniform3fFunc(1, first ? levelWeight[levels - 1] : 1.f, l == 0 ? strength : 0.f,
             za::max(0.f, vr_bloom_adapt.value));
+        GL_Uniform1fFunc(2, l == 0 ? fastSoft() : 0.f);
         pass(up[l], upProgram, smaller.tex, spread, levelWeight[l], 1.f / smaller.width, 1.f / smaller.height);
     }
 
     resultTex = up[0].tex;
     resultValid = true;
     GL_EndGroup();
+}
+
+bool fast()
+{
+    return fastSoft() > 0.f;
 }
 
 bool result(unsigned& texture)
@@ -317,7 +345,7 @@ void shutdown()
 } // namespace qvr::bloom
 
 // GL_PostProcess: binds this eye's glow to texture unit 2 and gives how much of it to add (0: none,
-// the window's own post-processing).
+// the window's own post-processing; -1: by one tap, vr_bloom_fast).
 extern "C" float VR_PostProcessBloom()
 {
     unsigned texture = 0;
@@ -326,5 +354,5 @@ extern "C" float VR_PostProcessBloom()
         return 0.f;
     }
     GL_BindNative(GL_TEXTURE2, GL_TEXTURE_2D, texture);
-    return 1.f;
+    return qvr::bloom::fast() ? -1.f : 1.f;
 }

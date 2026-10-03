@@ -68,7 +68,9 @@ QVR_TONE_GLSL
 "		vec2 bt = 0.5 / vec2(textureSize(BloomTexture, 0));\n" \
 "		out_fragcolor.rgb += (texture(BloomTexture, buv + vec2(-bt.x, -bt.y)).rgb + texture(BloomTexture, buv + vec2(bt.x, -bt.y)).rgb +\n" \
 "			texture(BloomTexture, buv + vec2(-bt.x, bt.y)).rgb + texture(BloomTexture, buv + vec2(bt.x, bt.y)).rgb) * (0.25 * BloomStrength);\n" \
-"	}\n"
+"	}\n" \
+"	else if (BloomStrength < 0.0) // QVR: vr_bloom_fast: by one tap, the smoothing done at the quarter (vr_bloom.cpp)\n" \
+"		out_fragcolor.rgb -= texture(BloomTexture, buv).rgb * BloomStrength;\n"
 
 // graded (vr_grade) and dithered into the 8-bit image
 #define QVR_POSTPROCESS_GRADE_DITHER \
@@ -499,6 +501,8 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "			else\n"\
 "				ao = AOEllipsoid(q, normalize(m * sz.xyz), k.y);\n"\
 "			vis *= 1.0 - min(ao * k.x, 0.9);\n"\
+"			if (vis <= 0.1) // at the floor: the occluders left (each a share of what is left) keep it there\n"\
+"				return 0.1;\n"\
 "		}\n"\
 "	}\n"\
 "	return max(vis, 0.1);\n"\
