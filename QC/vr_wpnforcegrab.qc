@@ -182,11 +182,13 @@ entity(float xHand) VR_Forcegrab_FindTarget =
 
     for(entity e = findradius(handPos, range); e; e = e.chain)
     {
-        if(e.model == string_null || !VR_Forcegrab_IsEligible(e)) // (the first test spares most a call)
+        if(e.model == string_null) // (spares most a call: triggers)
         {
             continue;
         }
 
+        // Where the hand points first: a pile of props in reach is mostly out of the cone, and the eligibility (its
+        // settings by name) is the dearer test.
         vector c = VR_Forcegrab_Centre(e);
         float dist = vlen(c - handPos);
         if(dist < 1)
@@ -195,7 +197,7 @@ entity(float xHand) VR_Forcegrab_FindTarget =
         }
 
         float cosAngle = ((c - handPos) * aim) / dist;
-        if(cosAngle < minCos)
+        if(cosAngle < minCos || !VR_Forcegrab_IsEligible(e))
         {
             continue;
         }

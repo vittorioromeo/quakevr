@@ -591,14 +591,39 @@ const char* keyName(Key key)
 
 Key keyByName(const char* name)
 {
+    // The last few names asked (QC's propvalue: the same literals every frame, "forcegrab" for every prop in a force
+    // grab's reach), by their text; else the keys' names in turn.
+    struct Recent
+    {
+        char name[32]{};
+        Key key{Key::Count};
+    };
+    static Recent recent[4];
+    static int next = 0;
+    for(const Recent& r : recent)
+    {
+        if(r.name[0] && !strcmp(r.name, name))
+        {
+            return r.key;
+        }
+    }
+    Key found = Key::Count;
     for(int key = 0; key < numKeys; key++)
     {
         if(!q_strcasecmp(keyNames[key], name))
         {
-            return static_cast<Key>(key);
+            found = static_cast<Key>(key);
+            break;
         }
     }
-    return Key::Count;
+    if(strlen(name) < sizeof(recent[0].name))
+    {
+        Recent& r = recent[next];
+        next = (next + 1) % static_cast<int>(sizeof(recent) / sizeof(recent[0]));
+        q_strlcpy(r.name, name, sizeof(r.name));
+        r.key = found;
+    }
+    return found;
 }
 
 int claimSlot(const char* model)
