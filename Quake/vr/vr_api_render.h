@@ -213,6 +213,11 @@ float VR_BrushAOSelf (const struct entity_s *e);
 // it with the sight colours recoloured (valid until the next call).
 unsigned int* VR_SightPalette(const char* texname, unsigned int* palette);
 
+// Clean weapon skins (vr_cleanskins.cpp; see vr_cleanskins.hpp). TexMgr_LoadImage8 and TexMgr_LoadImage32: the pixels
+// the texture `name` (width x height, bpp 1 or 4 bytes a pixel) is uploaded with: `data`, or a copy (in the hunk, above
+// the upload's mark) with its blood replaced by its patch (vr_gore_clean_skins).
+unsigned char* VR_CleanSkin(const char* name, unsigned char* data, int width, int height, int bpp);
+
 // The eyes' tone curve, grade and dither (vr_tonemap.cpp; see vr_tonemap.h).
 unsigned VR_SceneColorFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's colour format (the eyes' float one with vr_tonemap)
 unsigned VR_SceneDepthFormat (unsigned format);	// GL_CreateFrameBuffers: the scene's depth/stencil format (the eyes' float one: vr_depth_float)

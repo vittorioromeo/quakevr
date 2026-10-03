@@ -1822,6 +1822,8 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("Gibs flying into you bloody you where they strike: how much (0 none)."),
         toggle("Blood on Weapons and Props", vr_gore_gear)
             .help("What you hold takes blood and keeps it: dropped, thrown and taken again, holstered and drawn, until water washes it."),
+        toggle("Clean Weapon Skins", vr_gore_clean_skins)
+            .help("Weapons with blood painted into their skins (the axe, the knights' swords, the chainsaw, the grunt's shotgun) start clean: their blood is all yours, and water washes them clean."),
         toggle("Holstered Weapons Too", vr_gore_gear_holstered)
             .help("Your holstered weapons take blood as your body and hands do, when it lands near enough to them (a holstered weapon keeps its blood either way)."),
         slider("Things Lying Near", vr_gore_gear_nearby, 0.f, 3.f, 0.25f, "%.2fx").extend()
@@ -3114,6 +3116,7 @@ za::Vector<Item> pageDebugTools()
         command("Blood Mist", "vr_gore_mist_test").help("vr_gore_mist_test: a bleed's blood mist 64 units ahead (Gore > Blood Mist)."),
         command("Gib Blood on Hand", "vr_gore_hands_test main").help("vr_gore_hands_test main: a gib's blood on the main hand, as taking one (Gore > Bloody Hands and Washing)."),
         command("Blood from a Blow", "vr_gore_spatter_test blow").help("vr_gore_spatter_test blow: a blow's blood thrown onto what the main hand holds, the hand and the arm (Gore > Blood on You and Your Gear)."),
+        command("List Clean Weapon Skins", "vr_cleanskins").help("vr_cleanskins: the weapon skins with a clean version (a patch beside the model: progs/<model>_<skin>.clean), whether it applies to your files, how often it was applied (Gore > Clean Weapon Skins)."),
         command("Blood from a Blow on Your Prop", "vr_gore_spatter_test prop").help("vr_gore_spatter_test prop: a blow on what the main hand holds (a weapon, a box, a crate, a brick), on its side facing you: the blood on held props (Gore > Blood on You and Your Gear)."),
         command("Blood from a Chainsaw Cut", "vr_gore_spatter_test saw").help("vr_gore_spatter_test saw: a chainsaw cut's spray just ahead of the main hand."),
         command("Blood from a Close Shot", "vr_gore_spatter_test shot").help("vr_gore_spatter_test shot: a shot hitting 40 units ahead of your eyes."),
