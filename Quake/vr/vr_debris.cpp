@@ -120,6 +120,7 @@ constexpr Rule rules[] = {
     {"uwall", Material::Metal, true},
     {"sfloor", Material::Metal, true},
     {"slip", Material::Metal, true},
+    {"_box_", Material::Metal, true}, // the explosive boxes' "+0_box_side", "+0_box_top" (a climbing hand's tap on them)
     {"window", Material::Other, false},
 };
 

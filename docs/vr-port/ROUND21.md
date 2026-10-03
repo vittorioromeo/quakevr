@@ -22793,3 +22793,43 @@ hand at 3.0`) in every run, before and after: the punch on a held gib, by design
 In VR:
 - [ ] Take the torso gib and the big chunk in both hands, push both forward and let go together: they fly, no burst.
 - [ ] Hold a gib in one hand and punch it with the other: it bursts.
+
+## Explosive boxes are metal (2026-10-03)
+
+He: the explosive boxes are metal, so they must sound and spark as metal, not wood. Every path that treated them as wood
+(or as flesh) now treats them as metal; the crates stay wood.
+
+- **Shots and blows** (QC `vr_crates.qc`): new `VR_Prop_Metal` (an explosive box, by `th_die == barrel_explode` or its
+  classnames; `vr_burning.qc`'s `VR_Burn_Metal` now calls it). `VR_Crate_Wooden` excludes it (its `vr_blocksight`
+  had made every explosive box wood). `VR_HitBlood` / `VR_HitBloodSplash` (every melee path), `spawn_touchblood`
+  (nails, thrown things), `TraceAttack` (bullets, the monsters' too) throw sparks there (`VR_Metal_Hit`); a shot also
+  rings at the box (`weapons/tink1.wav` 70%, else `ric1..3`; once a frame for a shotgun's pellets). The chainsaw's
+  chain already sparked on what isn't wood: it does on the boxes now.
+- **Melee sounds**: new `VR_Melee_HitSoundOn(target, sound, blade)`: on an explosive box a blade (axe, sword,
+  chainsaw bar, crowbar) clangs (`player/axhit2.wav`, the axe on a wall), a blunt blow (fist, pommel, gun butt,
+  Mjolnir, a torch) knocks (`vr/phys/metal_h1..4.wav`, the physics sounds' heavy metal); `developer 1` logs
+  `melee sound: ... on metal`. A thing thrown into a box (or a box thrown into something) knocks the same way, a thrown
+  weapon clangs. The melee paths keep the struck entity before `T_Damage` (a box blowing up traces, which changed
+  `trace_ent`: its sparks or blood went to whatever that trace met).
+- **Physics sounds** (`vr_physsound.cpp`): `maps/b_explob.bsp`, `maps/b_exbox2.bsp` are metal (heavy: `metal_h`
+  knocks, `scrape_metal`). A climbing hand's tap on one: its textures (`+0_box_side`, `+0_box_top`) are metal in
+  `debris::materialOf`'s table (`_box_`).
+- **Thrown axes** (`vr_axestick.cpp`): new `vr_axestick_metal` (0; Gameplay > Thrown Axes, "Axes Stick in Explosive
+  Boxes"): 0, a thrown axe rings off an explosive box (`axestick: ... bounces (metal ...)`); 1, it sticks as before.
+- **Decals**: none. The decals are on the static world only (`vr_decals.hpp`): neither wood nor metal marks were ever
+  put on a box (a moving brush entity). Bullet holes on props would be a feature of their own.
+- **Ammo and health boxes**: already metal in the physics sounds (`b_shell*`, `b_nail*`, `b_rock*`, `b_batt*`,
+  `b_bh*`); unchanged. Shots and blows on them don't happen (they don't take damage). Their textures (`shot0sid`,
+  `med3_0`, ...) are "other" in the texture table, so a climbing hand's tap on one is stone's.
+
+Test (mock, vrfiringrange, `developer 1; vr_debug_physsound 1; vr_explobox_impact 0`): a box ahead (`vr_test_spawn
+102; impulse 241`) punched with the off hand (motion_synth `punch_straight_off`): `melee sound: vr/phys/metal_h3.wav on
+metal`, `hit: ... is metal: sparks`; chopped with the axe (`chop_horizontal --weapon axe`): `player/axhit2.wav on metal`;
+shot (shotgun): sparks and `weapons/ric1.wav`; nails: sparks and `tink1`; thrown (`vr_test_axe_what 2`): `impact metal
+(heavy)`, `scrape starts, metal`. An axe thrown at a box that never blows up (`vr_test_spawn 104; vr_test_axe_at 3`):
+bounces, `vr_axestick_metal 1`: sticks. A crate punched: still `is wood: splinters`. eval canary: no differences.
+
+### In VR
+- [ ] Shoot, punch, chop and throw things at an explosive box: sparks and metal sounds, no splinters or wood knocks.
+- [ ] Drop, tip and drag one: heavy metal knocks and a metal scrape.
+- [ ] Throw the axe at one: it rings off (Axes Stick in Explosive Boxes on: it sticks).

@@ -62,8 +62,7 @@ float(entity e) VR_Burn_Wood =
 // An explosive box (misc_explobox, misc_explobox2; blowing up: explo_box): metal.
 float(entity e) VR_Burn_Metal =
 {
-    return e.th_die == barrel_explode || e.classname == "explo_box" || e.classname == "misc_explobox" ||
-           e.classname == "misc_explobox2";
+    return VR_Prop_Metal(e); // (vr_crates.qc)
 };
 
 // Whether `e` can be set on fire: a monster or a player alive, a monster's corpse (dying or lying: vr_corpse_gib), a

@@ -1072,11 +1072,12 @@ void(float xHand) HIP_FireMjolnir =
         }
 
         trace_ent.axhitme = 1;
+        entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
         VR_HitBlood(trace_ent, org, v_forward, xdmg);
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
-        if(vr_melee_blunt && VRGetMeleeHitSoundPlayed(xHand) == FALSE)
+        if((vr_melee_blunt || VR_Prop_Metal(victim)) && VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
-            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSound(""), 1, ATTN_NORM); // the head's hit has none
+            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "", FALSE), 1, ATTN_NORM); // the head's hit has none
         }
         VRSetMeleeHitSoundPlayed(xHand, TRUE);
     }
@@ -1218,20 +1219,21 @@ void(float xHand) W_FireAxe =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
+        entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
 
         // HONEY
         self.damage_weapon = IT_AXE;
 
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
-            VR_HitBloodSplash(trace_ent, org, xdmg);
+            VR_HitBloodSplash(victim, org, xdmg);
             bleed = TRUE;
         }
 
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSound("fisthit.wav"), 1.0, ATTN_NORM);
+            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
     }
@@ -1275,13 +1277,14 @@ void(float xHand) W_GunMelee =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
+        entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
         VR_HitBloodSplash(trace_ent, org, xdmg);
         T_Damage_VRMelee (trace_ent, self, self, xdmg);
 
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSound("fisthit.wav"), 1.0, ATTN_NORM);
+            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "fisthit.wav", FALSE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
     }
@@ -1327,15 +1330,16 @@ void(float xHand) W_SwordMelee =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
+        entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
         self.damage_weapon = IT_AXE;
         if(T_Damage_VRMelee(trace_ent, self, self, xdmg))
         {
-            VR_HitBloodSplash(trace_ent, org, xdmg);
+            VR_HitBloodSplash(victim, org, xdmg);
         }
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSound("knight/sword2.wav"), 1.0, ATTN_NORM);
+            sound(self, VRGetGunChannel(xHand), VR_Melee_HitSoundOn(victim, "knight/sword2.wav", TRUE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;
@@ -1366,6 +1370,7 @@ void(float xHand) W_ChainsawMelee =
     if(trace_ent.takedamage)
     {
         trace_ent.axhitme = 1;
+        entity victim = trace_ent; // (T_Damage may trace: an explosive box blowing up)
         self.damage_weapon = IT_AXE;
         // Swung running, its bar sets a grenade off as its chain does (VR_GrenShot_BlowSetsOff); not its rear handle.
         vr_grenshot_saw = ((VRGetWeaponFlags(xHand) & QVR_WPNFLAG_SAW_RUNNING) &&
@@ -1374,12 +1379,12 @@ void(float xHand) W_ChainsawMelee =
         vr_grenshot_saw = FALSE;
         if(hurt)
         {
-            VR_HitBloodSplash(trace_ent, org, xdmg);
+            VR_HitBloodSplash(victim, org, xdmg);
         }
         if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
         {
             VRMeleeHapticByHand(xHand);
-            sound(self, CHAN_AUTO, VR_Melee_HitSound("fisthit.wav"), 1.0, ATTN_NORM);
+            sound(self, CHAN_AUTO, VR_Melee_HitSoundOn(victim, "fisthit.wav", TRUE), 1.0, ATTN_NORM);
             VRSetMeleeHitSoundPlayed(xHand, TRUE);
         }
         return;
@@ -1439,7 +1444,9 @@ void(float xHand) W_FistMelee =
 
     if(VRGetMeleeHitSoundPlayed(xHand) == FALSE)
     {
-        sound(self, VRGetGunChannel(xHand), VR_Debris_Is(held) ? VR_Debris_Sound(held) : "fisthit.wav", 1.0, ATTN_NORM);
+        // (A held rock or brick knocks as it does; a fist on an explosive box, a metal knock: VR_Melee_HitSoundOn.)
+        sound(self, VRGetGunChannel(xHand), VR_Debris_Is(held) ? VR_Debris_Sound(held) :
+            (VR_Prop_Metal(trace_ent) ? VR_Melee_HitSoundOn(trace_ent, "fisthit.wav", FALSE) : "fisthit.wav"), 1.0, ATTN_NORM);
         playedsound = TRUE;
     }
 
@@ -1561,7 +1568,13 @@ void(float damage) spawn_touchblood =
     vector    vel;
 
     vel = wall_velocity () * 0.2;
-    // VR: what it touched is wood (a crate, an explosive box): splinters, not blood (vr_crates.qc).
+    // VR: what it touched is metal (an explosive box): sparks and a tink (vr_crates.qc).
+    if(VR_Prop_Metal(other))
+    {
+        VR_Metal_Hit(other, self.origin + vel * 0.01, vel, damage, VR_METAL_SHOT);
+        return;
+    }
+    // VR: what it touched is wood (a crate): splinters, not blood (vr_crates.qc).
     if(VR_Crate_Wooden(other))
     {
         VR_Crate_Splinters(self.origin + vel * 0.01, vel, damage);
@@ -1794,9 +1807,13 @@ void(float damage, vector dir) TraceAttack =
     {
         if(AddMultiDamage(trace_ent, damage) && trace_ent.classname != "hook") // (a grappling hook shot off: no blood)
         {
-            if(VR_Crate_Wooden(trace_ent))
+            if(VR_Prop_Metal(trace_ent))
             {
-                VR_Crate_Splinters(org, vel * 0.2, damage); // VR: wood (a crate, an explosive box): splinters
+                VR_Metal_Hit(trace_ent, org, vel * 0.3, damage, VR_METAL_SHOT); // VR: metal (an explosive box): sparks
+            }
+            else if(VR_Crate_Wooden(trace_ent))
+            {
+                VR_Crate_Splinters(org, vel * 0.2, damage); // VR: wood (a crate): splinters
             }
             else if(trace_ent.vr_shootnade)
             {
@@ -5463,7 +5480,7 @@ void() forcegrabbable_touch =
         // hit something that bleeds
         if(GetThrownWeaponDealDamage(self) && other.takedamage)
         {
-            sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
+            sound(self, CHAN_AUTO, VR_Prop_Metal(other) ? VR_Metal_Sound(VR_METAL_BLADE) : "fisthit.wav", 1, ATTN_NORM); // (an explosive box: a clang)
 
             // Where it struck, and going which way (not the trace globals, stale in a touch).
             float posDmgType = PositionalDamage(other, self.origin, normalize(self.velocity));

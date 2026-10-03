@@ -452,6 +452,14 @@ void report(edict_t* ent, const char* fmt, ...)
         best.local = local;
         best.point = ph.point;
         best.normal = ph.normal;
+        // An explosive box is a metal drum (physsound::materialOf's metal): the blade rings off it, unless
+        // vr_axestick_metal.
+        const qmodel_t* model = modelOf(best.host);
+        if(!vr_axestick_metal.value && model && model->type == mod_brush &&
+            (!strncmp(model->name, "maps/b_explob", 13) || !strncmp(model->name, "maps/b_exbox", 12)))
+        {
+            best.why = "metal (vr_axestick_metal 0)";
+        }
     }
     return best;
 }
