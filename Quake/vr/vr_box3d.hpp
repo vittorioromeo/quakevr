@@ -139,6 +139,18 @@ void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
 // point (-1: none).
 [[nodiscard]] int ragdollHeld(edict_t* player, int hand);
 [[nodiscard]] float ragdollHandReach(edict_t* player, int hand);
+// A hand's hold on a limb (not a pull), for the hand drawn on it and its fingers closed round it (vr_view.cpp; a listen
+// server's: the client reads it): edict `num`'s part `part`, the hand's place and turn in that part's frame (`at`
+// units, `turn`: the world's are rot * at + pos and rot * turn, rot and pos the part's as ragdoll::publish gives them,
+// the turn as held::axesFromAngles(handrot, true)'s). Edict `player`'s hand `hand` (QC's: 0 the off hand). False: none.
+struct RagdollHold
+{
+    int num{0};
+    int part{-1};
+    glm::vec3 at{0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+};
+[[nodiscard]] bool ragdollHold(int player, int hand, RagdollHold& out);
 // A limb's point (flames on a ragdoll: vr_burning.qc): the limb nearest `at` (-1: not a ragdoll); a point into a limb's
 // space (units) and back.
 [[nodiscard]] int ragdollBone(int num, const glm::vec3& at);

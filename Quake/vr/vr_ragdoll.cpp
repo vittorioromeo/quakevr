@@ -1686,6 +1686,59 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
     return true;
 }
 
+bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, const Rig** rig)
+{
+    if(num < 0 || num >= static_cast<int>(draw.byNum.size()) || !draw.byNum[static_cast<za::SizeT>(num)].rig || part < 0 ||
+       part >= draw.byNum[static_cast<za::SizeT>(num)].bodies)
+    {
+        return false;
+    }
+    // As drawn this frame (drawnPose: between the steps, moved with the holding hands; made now if not drawn yet).
+    drawnPose(num);
+    const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    if(rig)
+    {
+        *rig = p.rig;
+    }
+    rot = p.drawRot[static_cast<za::SizeT>(part)];
+    pos = p.drawPos[static_cast<za::SizeT>(part)];
+    scale = p.scale;
+    return true;
+}
+
+void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(rig.model)));
+    if(!hdr || !hdr->vertexes || !hdr->indexes || !hdr->meshdesc)
+    {
+        return;
+    }
+    const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes); // the rest pose (0)
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+    {
+        int c[3];
+        bool on = false;
+        for(int k = 0; k < 3; k++)
+        {
+            c[k] = desc[idx[i + k]].vertindex;
+            on = on || (c[k] < rig.numVerts && rig.vertBone[static_cast<za::SizeT>(c[k])] == bone);
+        }
+        if(!on || c[0] == c[1] || c[1] == c[2] || c[0] == c[2])
+        {
+            continue;
+        }
+        for(const int v : c)
+        {
+            const trivertx_t& t = tv[v];
+            out.pushBack(glm::vec3{t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
+                t.v[2] * hdr->scale[2] + hdr->scale_origin[2]});
+        }
+    }
+}
+
 void motionTest_f()
 {
     if(Cmd_Argc() < 2 || !sv.active)

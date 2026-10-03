@@ -125,6 +125,14 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
 // how evenly each moves frame to frame (Debug > Tests; vr_fixed_frames_rate 90: a headset's frames).
 void motionTest_f();
 
+// A hand holding a limb (vr_view.cpp: its fingers closed round it). Part `part` of edict `num`'s ragdoll as it is drawn
+// now (between its last two steps, moved with the holding hands: what is drawn this frame): p_world = rot * (scale *
+// p_rest) + pos; its rig. False: none, or hidden.
+bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, const Rig** rig = nullptr);
+// The .mdl's triangles with a corner on bone `bone` (its rest pose, model units: three points each), the limb a hand
+// closes round (all its corners carried with that bone: across a joint, a little off where the next bone bends).
+void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out);
+
 // vr_ragdoll_info: the rig of the nearest dead monster's model (or the grunt's), its bones and how it was derived.
 void info_f();
 

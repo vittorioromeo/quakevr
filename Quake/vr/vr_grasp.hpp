@@ -59,6 +59,11 @@ void reset();
 // The shape of `e`'s model at `frame` (or the entity's own if < 0); nullptr if it has none.
 [[nodiscard]] const Shape* shapeOf(const entity_t& e, int frame);
 
+// A shape of triangles of its own coordinates (a ragdoll's limb, its rest pose: vr_view.cpp), kept as shapeOf's are, by
+// `model` and `id` (negative: shapeOf's are its frames). Made from `tris` if it isn't yet (nullptr: only looked up);
+// nullptr if it isn't, or has no triangles.
+[[nodiscard]] const Shape* keptShape(const qmodel_t* model, int id, const za::Vector<Triangle>* tris = nullptr);
+
 // The matrix `e`'s model is drawn with: its shape's coordinates to the world (vr_render.cpp's, mirrored or not).
 [[nodiscard]] glm::mat4 shapeToWorld(const entity_t& e, bool mirrored);
 
