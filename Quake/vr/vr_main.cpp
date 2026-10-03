@@ -1280,7 +1280,6 @@ extern "C" void VR_BeginFrame()
     motion::frame();     // the motion recorder's indicator, likewise
     posing::frame();     // the weapon posing mode's text, likewise
     sightalign::frame(); // Align Sights to My Aim: its countdown, text and state
-    hands::migrateHandedness(); // the retired vr_lefthanded, vr_gadget_hand typed in the console
     bodycal::frame();    // Body Calibration: its steps, text, ghost and preview
     setup::frame();      // VR Calibration: its steps and text, the calibration room's value screens
     retro::frame();      // retro textures: a pick's countdown and outline; your overrides saved

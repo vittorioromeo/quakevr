@@ -76,8 +76,8 @@ seconds, with fly particles buzzing round it as well as the sound.
   overwhelmed ... provide your thought on how to improve the situation while still leaving freedom to
   players/developers"): `docs/vr-port/MENU_REVIEW.md` (the proposal) and `MENU_INVENTORY.md` (every page, row and VR
   cvar). In short: a menu detail level (Standard / Advanced / Developer), a short Standard landing page with volume
-  and handedness, a first-run flow into the calibration room, presets, one home per setting, and culling ~320 dead or
-  retired cvars (plus a `wait5` bug in the Debug ragdoll buttons). Waits on the questions at the end of
+  and handedness, a first-run flow into the calibration room, presets, one home per setting, and a `wait5` bug in the
+  Debug ragdoll buttons (the ~320 dead and retired cvars: removed 2026-10-03). Waits on the questions at the end of
   MENU_REVIEW.md.
 - **Low priority: review the pickup-thinks research** (the author, 2026-10-03: "save your research regarding the
   nextthink stuff in a document so that we can review it later"): `docs/vr-port/PICKUP_THINKS.md`. Idle pickups think

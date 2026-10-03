@@ -129,7 +129,7 @@ meaning).
 | `date` | when it started (local time) |
 | `source` | the backend and runtime (`openxr (Oculus ...)`, `mock`), or `replay of <file>` |
 | `map` | the map |
-| `dominant hand` | `vr_lefthanded` |
+| `dominant hand` | old takes only (the retired `vr_lefthanded`): `left...` plays back as `vr_stick_swap 1` |
 | `main weapon`, `off weapon` | at the take's start: QC weapon id (`wid`, below), its flags, the model, and the two-handed grip |
 | `vr_world_scale`, `units per metre` | Quake units per real metre (`26.2467 * vr_world_scale`: 32.81 at 1.25) |
 | `vr_height_calibration`, `vr_floor_offset` | the player's calibrated height (metres) and the floor offset (units) |

@@ -873,7 +873,7 @@ Steals the player's weapon and uses it; splits in two when fed. Models and sound
 @PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/hknight.mdl" }) =
 	monster_hell_knight : "Death knight (hell knight)
 
-250 health; a sword and a spray of flames. Quake VR: it may drop its sword when it dies (vr_sword_drop)."
+250 health; a sword and a spray of flames. Quake VR: it drops its sword when it dies."
 [
 	spawnflags(flags) =
 	[
@@ -884,7 +884,7 @@ Steals the player's weapon and uses it; splits in two when fed. Models and sound
 @PointClass base(Monster) color(255 0 0) size(-16 -16 -24, 16 16 40) model({ "path": ":progs/knight.mdl" }) =
 	monster_knight : "Knight
 
-75 health; a sword. Quake VR: it may drop its sword when it dies (vr_sword_drop), a weapon the player can take."
+75 health; a sword. Quake VR: it drops its sword when it dies, a weapon the player can take."
 [
 	spawnflags(flags) =
 	[

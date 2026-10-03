@@ -18,11 +18,11 @@ hidden.
 | VR menu pages | 126 (6 are only links), up to 5 levels deep; 39 pages at depth 4-5 |
 | Rows | ~2,550, of which ~1,740 settings and ~350 actions/commands (~240 on the Debug pages) |
 | Pages over 30 rows | 28 (Debug - Tests 154, Debug - Tools 83, Throwing and Physics 78, Gore 71, Carrying 63...). ROUND21.md, "Menus reorganized", aimed at 30 at most; they have grown back |
-| VR cvars (`QVR_CVAR`, `vr_cvars.inc`) | 1,704: 1,508 saved, 196 not; 1,523 in a menu, 181 console only |
+| VR cvars (`QVR_CVAR`, `vr_cvars.inc`) | 1,681: 1,507 saved, 174 not; 1,523 in a menu, 158 console only (1,704 before the dead and retired ones were removed, 2026-10-03) |
 | Per-slot cvars | 8,320 weapon (`vr_wofs_*`), 2,880 prop (`vr_prop_*`), ~295 retro texture |
 | Interactive rows with help text | 86% |
 | Rows by audience (page-based, rough) | common settings ~117, enthusiast tuning ~1,000, developer/tuning ~970 |
-| Cvars by tier (heuristic) | first-run essentials 20, common 60, enthusiast 906, developer 596, retired 23, saved but on no page 99 |
+| Cvars by tier (heuristic) | first-run essentials 20, common 60, enthusiast 906, developer 596, saved but on no page 99 (the 23 retired: removed) |
 
 ### What a new player meets
 
@@ -33,7 +33,7 @@ hidden.
 - **Personal settings buried:** Dominant Eye only on Weapon Offsets - Muzzle and Sights (depth 4); headset gamma and
   contrast on Advanced > Graphics, not Headset.
 - **No handedness setting:** split over stick swap, the wrist gadget's arm and the flashlight's side
-  (`vr_lefthanded` is migration only).
+  (the old single `vr_lefthanded` is gone).
 - **No comfort vignette** (the only vignette is bullet time's).
 - **No first-run flow:** nothing sends a new player to the calibration room, though its 15 wall-button options
   (`vr_setup.cpp`) already cover most essentials.
@@ -64,12 +64,15 @@ hidden.
 
 ## Culling and consolidating, cheapest first
 
-- **Now (low risk):**
+- **Done (2026-10-03):** the dead and retired cvars below were removed, about 320 in all, with the migrations that
+  used them; no compatibility with old configs kept (none was in a shipped cfg). `MENU_INVENTORY.md` section 5a has the
+  list.
   - The 21 cvars nothing reads (`vr_physics_engine`, `vr_box3d_weapon_mass`, ten `vr_wpn_*_weight*`,
     `vr_weight_model`/`_props`, `vr_sword_drop`, `vr_carry_reach`, `vr_parry_sound_burst`, `vr_parry_stamina_show`,
-    `vr_finger_grip_open`, still saved to every config...): delete.
-  - The ~300 cvars registered only so old configs load silently (224 retired weapon-slot, 64 prop-slot, 12
-    `vr_retro_body*`): one list of retired names the config loader ignores, instead of registered cvars.
+    `vr_finger_grip_open`, which was still saved to every config, ...): removed.
+  - The ~300 cvars registered only so old configs loaded silently (224 retired weapon-slot, 64 prop-slot, 12
+    `vr_retro_body*`, `vr_lefthanded`, `vr_gadget_hand`): removed outright.
+- **Now (low risk):**
   - Test-only cvars (`vr_smallgibs_test_*`, `vr_test_weaponinst*`): Developer.
   - **Bug:** `wait5` is not a command (only `wait` is registered), so the Debug ragdoll buttons ("A Grunt's Ragdoll
     Ahead", "A Knight's/An Ogre's Ragdoll There": `vr_menu.cpp` around lines 3665, 3863, 3866) set
@@ -86,13 +89,13 @@ hidden.
   settings: they swell the config and the cvar list).
 - **Guardrails:** extend `menu_coverage.py` into a check: every row has a tier, every setting one home, pages within a
   row budget, no row pointing at a missing cvar. Generate SETTINGS.md from the rows' help text (SETTINGS.md covers 98
-  of 1,704 cvars; README still says "Reset to defaults" and "about twenty more pages", and places Height on VR
+  of 1,681 cvars; README still says "Reset to defaults" and "about twenty more pages", and places Height on VR
   Settings).
 
 ## Suggested order (best return first)
 
 1. Detail levels and the Standard landing page: the biggest effect on new players, moderate work, low risk.
-2. The cheap cleanup: dead cvars, `wait5`, warnings for missing rows.
+2. The cheap cleanup: `wait5`, warnings for missing rows (the dead cvars: done).
 3. The first-run flow and volume in VR.
 4. One home per setting.
 5. Presets.

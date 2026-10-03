@@ -51,7 +51,6 @@ const DefaultChange defaultChanges[] = {
     {7, &vr_melee_speed, "3"},             // the wrist's speed now (a blow must also travel vr_melee_distance)
     {9, &vr_parallax_models, "0.75"},      // off: parallax on 8-bit skins bends their texels (the bumps give models relief now)
     {10, &vr_parry_angle, "50"},          // degrees off level now (was off square to the blow, by the hand's forward)
-    {10, &vr_corpse_health, "40"},        // doubled (big monsters take more again)
     {11, &vr_bash_speed, "1.6"},          // a gentler push bashes (round 18: the guard is the parry's now)
     {12, &vr_sight_hue, "30"},            // their own orange: they follow the player's hue now (vr_player_hue)
     {13, &vr_shove_speed, "1.8"},         // the author's shoves go 3.2-4.8 m/s, his hands waved at the dummy 2.2 (round 21)
@@ -116,7 +115,6 @@ const DefaultChange defaultChanges[] = {
     // vrfiringrange 16:24:29). ROUND21.md, "Prop size; Mjolnir in water; chainsaw pulls; defaults".
     {60, &r_wateralpha, "0.4"},               // 0.3
     {60, &r_slimealpha, "0.9"},               // 0.6
-    {60, &vr_hand_collide_props, "10"},       // 15
     // 61: the grunts' guns fire 3-round bursts (ROUND21.md, "The grunts' burst rifles"): a round's damage, not a
     // pellet's, and rounds in threes.
     {61, &vr_gruntgun_damage, "4"},           // 5
@@ -398,7 +396,6 @@ void migrateConfig_f()
 void migrateConfig()
 {
     bodycal::migrate(); // round 21's arm settings, whatever the version (they are moved, not changed in place)
-    hands::migrateHandedness(); // vr_lefthanded, vr_gadget_hand: the separate side settings, whatever the version
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "new"))
     {
         Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
@@ -550,15 +547,6 @@ void migrateConfig()
     {
         Con_DPrintf("VR: vr_extmaps_dir: %s (was %s)\n", vr_extmaps_dir.default_string, vr_extmaps_dir.string);
         Cvar_SetQuick(&vr_extmaps_dir, vr_extmaps_dir.default_string);
-    }
-    // 84: each monster's corpse health its own setting (vr_corpse_health_<monster>, today's 80 times its old toughness),
-    // times vr_corpse_health_mult; vr_corpse_health retired (not saved now). A config's changed one keeps its corpses as
-    // tough: the multiplier takes its share of 80.
-    if(from < 84 && vr_corpse_health.value > 0.f && !sameValue(vr_corpse_health.string, "80"))
-    {
-        Cvar_SetValueQuick(&vr_corpse_health_mult, vr_corpse_health.value / 80.f);
-        Con_DPrintf("VR: vr_corpse_health_mult %s (vr_corpse_health %s, retired)\n", vr_corpse_health_mult.string,
-            vr_corpse_health.string);
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
