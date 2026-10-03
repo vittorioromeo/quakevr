@@ -43,7 +43,7 @@ namespace
 // The pretend headset's recommended eye size (its images'), and its largest.
 constexpr int imageWidth = 1024;
 constexpr int imageHeight = 1024;
-constexpr int maxImageSize = 2048;
+constexpr int maxImageSize = 4096; // (a headset's: 3292 x 3524 is about 3406 square, for timings)
 constexpr float halfIpd = 0.032f;
 
 // Controller input set from the console, for testing without a headset.

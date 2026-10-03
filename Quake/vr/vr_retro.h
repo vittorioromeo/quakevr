@@ -167,12 +167,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "	vec4 c = RetroBlocks(tex, uv, duvdx, duvdy, quant);\n" \
 "	return RetroFar > 0.0 ? mix(c, RetroSmooth(tex, uv, duvdx, duvdy, quant), RetroFar) : c;\n" \
 "}\n" \
-"// A bump or specular map: smooth, or blended towards the blocks by P1.w (textureGrad as before with no set)\n" \
+"// A bump or specular map: smooth, or blended towards the blocks by P1.w (textureGrad as before with no set). k is\n" \
+"// 0..1 (P1.w and RetroFar are): only the smooth read at 0, only the blocks at 1 (no read whose weight is 0)\n" \
 "vec4 RetroAux(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy)\n" \
 "{\n" \
-"	vec4 s = textureGrad(tex, uv, duvdx, duvdy);\n" \
 "	float k = Retro > 0 && RetroP0.w > 0.0 ? RetroP1.w * (1.0 - RetroFar) : 0.0;\n" \
-"	return k > 0.0 ? mix(s, RetroBlocks(tex, uv, duvdx, duvdy, false), k) : s;\n" \
+"	if (k <= 0.0)\n" \
+"		return textureGrad(tex, uv, duvdx, duvdy);\n" \
+"	vec4 b = RetroBlocks(tex, uv, duvdx, duvdy, false);\n" \
+"	return k >= 1.0 ? b : mix(textureGrad(tex, uv, duvdx, duvdy), b, k);\n" \
 "}\n"
 
 // The engine's calls (VR_RetroUpload, VR_RetroBind, VR_RetroCall, VR_RetroInstance) are declared in vr_api_render.h.

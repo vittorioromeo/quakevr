@@ -387,7 +387,7 @@ QVR_CVAR(vr_render_scale, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_visibility_mask, "1", CVAR_ARCHIVE)
 // Mock backend: a round hidden area (the corners outside a circle), to test vr_visibility_mask.
 QVR_CVAR(vr_mock_hidden_area, "0", CVAR_NONE)
-// Mock backend: its eye images' size (square, 256..2048; read when the images are made, before the first frame in VR).
+// Mock backend: its eye images' size (square, 256..4096; read when the images are made, before the first frame in VR).
 QVR_CVAR(vr_mock_eye_size, "1024", CVAR_NONE)
 // Mock backend: a shaky head (recording tests): small quick turns of this many degrees (pitch, yaw and roll, sums of
 // sines at 5 to 13 Hz) over a slow turn of vr_mock_shake_turn degrees a second (from when it starts), both from the head's vr_mock_look.

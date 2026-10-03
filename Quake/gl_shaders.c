@@ -29,6 +29,7 @@ glprogs_t glprogs;
 static GLuint gl_programs[128];
 static GLuint gl_current_program;
 static int gl_num_programs;
+static int gl_shader_ab; // QVR: tests: QVR_SHADER_AB in every shader (vr_shader_reload)
 
 /*
 =============
@@ -130,9 +131,11 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 		"#version 430\n"
 		"\n"
 		"#define BINDLESS %d\n"
-		"#define REVERSED_Z %d\n",
+		"#define REVERSED_Z %d\n"
+		"#define QVR_SHADER_AB %d\n", // QVR: tests (vr_shader_reload)
 		gl_bindless_able,
-		gl_clipcontrol_able
+		gl_clipcontrol_able,
+		gl_shader_ab
 	);
 	strings[numstrings++] = header;
 
@@ -405,4 +408,21 @@ void GL_DeleteShaders (void)
 	gl_current_program = 0;
 
 	memset (&glprogs, 0, sizeof(glprogs));
+}
+
+/*
+=============
+GL_ReloadShaders_f
+
+QVR: tests: "vr_shader_reload [n]" compiles the engine's shaders again (gl_shaders.h, vr_glsl.h, vr_retro.h...), with
+QVR_SHADER_AB n (0 by default): a change under "#if QVR_SHADER_AB" compared with the code before it in one run, on
+the same frame (e.g. paused), for image diffs and timings.
+=============
+*/
+void GL_ReloadShaders_f (void)
+{
+	gl_shader_ab = Cmd_Argc () > 1 ? atoi (Cmd_Argv (1)) : 0;
+	GL_DeleteShaders ();
+	GL_CreateShaders ();
+	Con_Printf ("shaders compiled again (QVR_SHADER_AB %d)\n", gl_shader_ab);
 }
