@@ -3984,9 +3984,12 @@ const Page pages[] = {
     {"Retro Textures - Your Torso", pageRetroCategory<retro::Category::Torso>, pageGraphicsRetro}, // 107
     {"Retro Textures - Your Legs", pageRetroCategory<retro::Category::Legs>, pageGraphicsRetro}, // 108
     {"Retro Textures - Your Gear", pageRetroCategory<retro::Category::Gear>, pageGraphicsRetro}, // 109
-    {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro}, // 110
-    {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro}, // 111
-    {"Retro Textures - All Categories", pageRetroAll, pageGraphicsRetro}, // 112
+    {"Retro Textures - Decals", pageRetroCategory<retro::Category::Decals>, pageGraphicsRetro}, // 110
+    {"Retro Textures - Particles", pageRetroCategory<retro::Category::Particles>, pageGraphicsRetro}, // 111
+    {"Retro Textures - Sprites", pageRetroCategory<retro::Category::Sprites>, pageGraphicsRetro}, // 112
+    {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro}, // 113
+    {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro}, // 114
+    {"Retro Textures - All Categories", pageRetroAll, pageGraphicsRetro}, // 115
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

@@ -14,6 +14,7 @@
 #include "vr_flashlight.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_profile.hpp"
+#include "vr_retro.hpp"
 #include "vr_water.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
@@ -2315,7 +2316,7 @@ extern "C" void VR_DrawSceneTranslucent()
 
     QVR_PROFILE("particle upload"); // (the draw calls; the records were uploaded once this frame)
     const gfx::State state{.shade = gfx::Shade::Texture, .blend = gfx::Blend::Premultiplied, .depthTest = true, .depthWrite = false,
-        .sceneDistances = distances};
+        .sceneDistances = distances, .retro = retro::categorySet(retro::Category::Particles)}; // retro textures (vr_retro.hpp)
     if(lyingCount > 0)
     {
         gfx::draw({lyingVertices.data(), lyingCount}, gfx::sceneViewProjection(), state, atlas); // first: under the rest

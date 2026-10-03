@@ -50,6 +50,8 @@ void VR_RetroUpload (void);								// R_UploadFrameData: retro textures' setting
 void VR_RetroBind (int unit);							// a world or model draw, program in use: the palette's table on that unit (vr_retro.h's QVR_RETRO_LUT_UNIT_*)
 void VR_RetroCall (struct entity_s *e, const struct texture_s *t, float out[4]);	// R_AddBModelCall: a texture's Quake size and the set for it on entity e (0: the instance's)
 void VR_RetroInstance (struct entity_s *e, float out[4]);	// R_InitBModelInstance: an entity's set (x; 0 none)
+void VR_RetroSprite (const struct entity_s *e, const struct mspriteframe_s *frame, int showtris, float out[4]); // R_FlushSpriteInstances: the batch's set, its texture's Quake size; bound
+float VR_RetroParticles (void);						// R_DrawParticles_Real: the Particles set for Quake's particles (0 none); bound
 void VR_RetroAlias (const struct entity_s *e, const void *aliashdr, int standard, float out[4], float part[4]); // VR_AliasInstance: its set, its skin's Quake size; your body's parts by bone
 void VR_WaterFog (float fog[4], float skyfog[4]);			// Fog_SetupFrame: an eye's fog in a liquid (vr_water.cpp)
 void VR_PostProcessWater (void);						// GL_PostProcess, program in use: an eye's underwater wobble and blur

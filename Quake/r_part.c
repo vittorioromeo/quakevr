@@ -728,6 +728,7 @@ static void R_DrawParticles_Real (qboolean alpha, qboolean showtris)
 	scalex *=  r_matproj[1*4 + 0]; // -1 / tan (fovx/2)
 	scaley *= -r_matproj[2*4 + 1]; // -1 / tan (fovy/2)
 	GL_Uniform3fFunc (0, scalex, scaley, uvscale);
+	GL_Uniform1fFunc (1, showtris ? 0.f : VR_RetroParticles ()); // QVR: retro textures (vr/vr_retro.cpp)
 
 	if (alpha)
 		GL_SetState (GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE | GLS_CULL_NONE | GLS_ATTRIBS (2) | GLS_INSTANCED_ATTRIBS (2));

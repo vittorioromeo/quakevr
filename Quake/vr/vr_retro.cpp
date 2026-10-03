@@ -80,6 +80,9 @@ constexpr CategoryInfo categoryInfo[categoryCount] = {
     {"torso", "Your Torso", "Your body's torso, shoulders and neck."},
     {"legs", "Your Legs", "Your body's legs and feet."},
     {"gear", "Your Gear", "The wrist gadget, the flashlight, pauldrons, pouches, leg holsters."},
+    {"decals", "Decals", "Blood, scorch marks and bullet chips on the world. Blocks in world units."},
+    {"particles", "Particles", "Blood, smoke, sparks, fire and splashes (blocks in world units); Quake's own dots become squares."},
+    {"sprites", "Sprites", "Explosions, bubbles and other .spr sprites."},
     {"other", "Other Models", "Everything else drawn with a texture: projectiles, torches and flames, ..."},
 };
 
@@ -356,7 +359,7 @@ void fillSet(int set, Category c, const Override* m, const Override* t)
     p1[2] = za::clamp(r(Param::DitherScale), 1.f, 64.f);
     p1[3] = za::clamp(r(Param::Bump), 0.f, 1.f);
     p2[0] = r(Param::Average) != 0.f ? 1.f : 0.f;
-    p2[1] = r(Param::Units) != 0.f ? 1.f : 0.f;
+    p2[1] = !supports(c, Param::Units) || r(Param::Units) != 0.f ? 1.f : 0.f; // decals, particles: world units
     p2[2] = za::clamp(r(Param::Detail), 0.f, 1.f);
     p2[3] = r(Param::On) != 0.f ? 0.f : 1.f; // off: a body part's set in a run (setRun) drawn as it was
 }
@@ -375,13 +378,18 @@ bool combosFull = false; // said once a map
 
 constexpr int firstComboSet = categoryCount + 1;
 
+// The block's last upload (bindForDraw binds it again).
+GLuint uploadedBuffer = 0;
+GLintptr uploadedOffset = 0;
+
 void upload()
 {
     GLuint buf;
     GLbyte* ofs;
     GL_Upload(GL_UNIFORM_BUFFER, &block, sizeof(block), &buf, &ofs);
-    GL_BindBufferRange(GL_UNIFORM_BUFFER, QVR_RETRO_UBO_BINDING, buf, reinterpret_cast<GLintptr>(ofs),
-        static_cast<GLsizeiptr>(sizeof(block)));
+    uploadedBuffer = buf;
+    uploadedOffset = reinterpret_cast<GLintptr>(ofs);
+    GL_BindBufferRange(GL_UNIFORM_BUFFER, QVR_RETRO_UBO_BINDING, buf, uploadedOffset, static_cast<GLsizeiptr>(sizeof(block)));
 }
 
 void sayFull()
@@ -534,6 +542,10 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
             return Category::Props;
         }
         return startsWith(f, "b_") ? Category::Items : Category::Props;
+    }
+    if(m->type == mod_sprite)
+    {
+        return Category::Sprites;
     }
     if(m->type != mod_alias)
     {
@@ -1416,6 +1428,34 @@ const char* allSummary()
     return allSummaryText.cStr();
 }
 
+bool supports(Category c, Param p)
+{
+    const bool loose = c == Category::Decals || c == Category::Particles || c == Category::Sprites; // no bump maps
+    switch(p)
+    {
+        case Param::Units: return c != Category::Decals && c != Category::Particles;
+        case Param::Bump: return !loose;
+        case Param::Detail:
+            return c == Category::World || c == Category::Brush || c == Category::Items || c == Category::Props;
+        default: return true;
+    }
+}
+
+int categorySet(Category c)
+{
+    return setFor(c, nullptr, nullptr);
+}
+
+void bindForDraw(int lutUnit)
+{
+    if(uploadedBuffer != 0)
+    {
+        GL_BindBufferRange(GL_UNIFORM_BUFFER, QVR_RETRO_UBO_BINDING, uploadedBuffer, uploadedOffset,
+            static_cast<GLsizeiptr>(sizeof(block)));
+    }
+    VR_RetroBind(lutUnit);
+}
+
 cvar_t& cvarOf(Category c, Param p)
 {
     return cvars[static_cast<int>(c) * paramCount + static_cast<int>(p)];
@@ -1641,6 +1681,35 @@ extern "C" void VR_RetroInstance(entity_t* e, float out[4])
 {
     out[0] = static_cast<float>(entitySet(e));
     out[1] = out[2] = out[3] = 0.f;
+}
+
+// R_FlushSpriteInstances: a sprite batch's set (x; 0 none) and its texture's size in Quake texels (yz: the frame's size
+// over the part of its texture it fills), the block and table bound; showtris: none.
+extern "C" void VR_RetroSprite(const entity_t* e, const mspriteframe_t* frame, int showtris, float out[4])
+{
+    out[0] = out[1] = out[2] = out[3] = 0.f;
+    if(showtris || !frame || frame->smax <= 0.f || frame->tmax <= 0.f)
+    {
+        return;
+    }
+    out[0] = static_cast<float>(entitySet(e));
+    out[1] = static_cast<float>(frame->width) / frame->smax;
+    out[2] = static_cast<float>(frame->height) / frame->tmax;
+    if(out[0] > 0.f)
+    {
+        bindForDraw(QVR_RETRO_LUT_UNIT_SPRITE);
+    }
+}
+
+// R_DrawParticles_Real: the Particles set for Quake's own particles (0 none), the block and table bound.
+extern "C" float VR_RetroParticles(void)
+{
+    const int set = categorySet(Category::Particles);
+    if(set > 0)
+    {
+        bindForDraw(QVR_RETRO_LUT_UNIT_SPRITE);
+    }
+    return static_cast<float>(set);
 }
 
 // VR_AliasInstance: the entity's set (0 none; none but in the standard draw) and its skin's Quake size; your body's

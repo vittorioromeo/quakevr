@@ -37,6 +37,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define QVR_RETRO_UBO_BINDING 3     // the uniform block's binding (0 frame data, 1 the light clusters' input, 2 AO)
 #define QVR_RETRO_LUT_UNIT_WORLD 10 // the palette's table (gl_palette_lut, Ironwail's 128^3 nearest-colour index) in the world shader
 #define QVR_RETRO_LUT_UNIT_ALIAS 3  // ... in the model shader (free there)
+#define QVR_RETRO_LUT_UNIT_GFX 2    // ... in vr_gfx's (decals, Quake VR's particles: vr_gfx_gl.cpp)
+#define QVR_RETRO_LUT_UNIT_SPRITE 3 // ... in the sprites' and Quake's particles' (r_sprite.c, r_part.c)
 
 // The settings of a set (3 vec4s), as RetroSets holds them:
 //   P0: x block size (> 0), y edge softness (pixels; 0 hard), z the blocks a pixel spans where it is plain mipmapping
@@ -108,6 +110,15 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "	uint i = texelFetch(RetroLUT, ivec3(clamp(q, 0.0, 1.0) * 127.0 + 0.5), 0).x;\n" \
 "	uint p = RetroPal[i >> 2u][i & 3u];\n" \
 "	return mix(c, vec3(uvec3(p, p >> 8u, p >> 16u) & 255u) * (1.0 / 255.0), RetroP1.x);\n" \
+"}\n" \
+"// A premultiplied colour (decals, particles, glows) pulled to the palette: its colour over its strength (its alpha,\n" \
+"// or its brightest channel where it adds more than it covers), the strength kept\n" \
+"vec4 RetroQuantPremul(vec4 c, vec2 cell)\n" \
+"{\n" \
+"	float k = max(c.a, max(c.r, max(c.g, c.b)));\n" \
+"	if (k > 1e-4)\n" \
+"		c.rgb = RetroQuant(c.rgb / k, cell) * k;\n" \
+"	return c;\n" \
 "}\n" \
 "vec4 RetroTap(sampler2D tex, vec2 cell, float lod, bool quant)\n" \
 "{\n" \

@@ -70,6 +70,9 @@ struct State
     // half the target's size); each vertex's colour times how far in front of the scene it is over its Vertex::soft
     // (0 to 1, smoothly). 0: not soft.
     Texture sceneDistances{0};
+    // Shade::Texture in the scene (decals, particles): retro textures' set (vr_retro.hpp categorySet; 0 none), read in
+    // world units: blocks fixed to the texture, palette and dither on the colour (premultiplied).
+    int retro{0};
 };
 
 // Triangles (three vertices each), transformed by `mvp` to clip space. No culling. They are copied into the frame's

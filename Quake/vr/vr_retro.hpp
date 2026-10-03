@@ -28,6 +28,9 @@ enum class Category
     Torso,     // your body's torso and head (pelvis, spine, chest, neck, head, clavicles; the body without bones whole)
     Legs,      // your body's legs (thighs, calves, feet)
     Gear,      // your other things: the wrist gadget, the flashlight, pauldrons, pouches, leg holsters
+    Decals,    // blood, scorch marks and chips on the world (vr_decals.cpp; in world units)
+    Particles, // Quake VR's particles (vr_particles.cpp; in world units) and Quake's own (r_part.c: squares, palette)
+    Sprites,   // sprites (.spr: explosions, bubbles, the mission packs' bullet holes; r_sprite.c)
     Other,     // every other model: projectiles, torches and flames, ...
     Count
 };
@@ -102,6 +105,16 @@ void allCopyChosen();
 void allCheckSettings(bool on);
 void allCheckCategories(bool on);
 [[nodiscard]] const char* allSummary();
+
+// Whether a category has a setting (its menu page shows it): Units only where there are textures with Quake texels
+// (not decals' or particles': theirs are always in world units), Bump where there are bump maps, Detail on brush models.
+[[nodiscard]] bool supports(Category c, Param p);
+
+// ---- Things drawn outside the world and model shaders (decals and Quake VR's particles through vr_gfx; sprites and
+// Quake's particles: VR_RetroSprite, VR_RetroParticles): the set for category c (0: none, off), and the shaders' block
+// and the palette's table bound for a draw (the table on unit lutUnit).
+[[nodiscard]] int categorySet(Category c);
+void bindForDraw(int lutUnit);
 
 [[nodiscard]] cvar_s& cvarOf(Category c, Param p);
 [[nodiscard]] const char* categoryLabel(Category c);

@@ -694,6 +694,9 @@ template <retro::Category C>
     kind(Category::Torso, pageIndex(pageRetroCategory<Category::Torso>));
     kind(Category::Legs, pageIndex(pageRetroCategory<Category::Legs>));
     kind(Category::Gear, pageIndex(pageRetroCategory<Category::Gear>));
+    kind(Category::Decals, pageIndex(pageRetroCategory<Category::Decals>));
+    kind(Category::Particles, pageIndex(pageRetroCategory<Category::Particles>));
+    kind(Category::Sprites, pageIndex(pageRetroCategory<Category::Sprites>));
     kind(Category::Other, pageIndex(pageRetroCategory<Category::Other>));
     items.pushBack(header("All Kinds"));
     items.pushBack(open("All Categories", pageIndex(pageRetroAll))
@@ -788,48 +791,67 @@ template <retro::Category C>
 
 // The retro textures settings after On (vr_retro.hpp's Param), each on the cvar var(p): a kind's page's and All
 // Categories'.
-template <typename Var>
-void retroSettingItems(za::Vector<Item>& items, const Var& var, bool detail)
+template <typename Var, typename Has>
+void retroSettingItems(za::Vector<Item>& items, const Var& var, const Has& has)
 {
     using retro::Param;
-    const Item rows[] = {
-        header("Blocks"),
-        toggle("Snap to Blocks", var(Param::Snap))
-            .help("The texture is read on a grid of blocks, each one colour. Off: as it was (only the palette and dither below)."),
-        slider("Block Size", var(Param::Block), 0.25f, 8.f, 0.25f, "%.2f").extend(0.0625f, 64.f)
-            .help("How big a block is: in the texture's own Quake texels (1: Quake's own pixels: on the world a unit at the "
-                  "usual scale, on a Quake model its skin's; on our own models their textures' pixels; 2: twice as chunky; 0.5: "
-                  "finer than Quake), or in world units (Block Size In)."),
-        cycle("Block Size In", var(Param::Units), {{0.f, "Texture's Texels"}, {1.f, "World Units"}})
-            .help("Texture's Texels: the blocks follow each texture's own pixels, as Quake drew it (a texture scaled up in the "
-                  "map gets bigger blocks). World Units: the same size everywhere, whatever the texture's scale."),
-        cycle("Block Colour", var(Param::Average), {{1.f, "Average"}, {0.f, "Centre Texel"}})
-            .help("Average: each block is the average of the high-resolution texels under it (steady, Quake-like). Centre "
-                  "Texel: the one texel at its centre (sharper, noisier)."),
-        slider("Edge Softness", var(Param::Soft), 0.f, 3.f, 0.25f, "%.2f px").extend()
-            .help("The blocks' edges are blended over this many pixels: 1 is crisp yet steady as your head moves; 0 hard "
-                  "(crawls and shimmers in the headset); more is softer."),
-        slider("Smooth Beyond", var(Param::Fade), 0.25f, 4.f, 0.25f, "%.2f").extend(0.05f, 16.f)
-            .help("Far off, where blocks get smaller than a pixel, the texture is drawn as usual (mipmapped) again: how "
-                  "many blocks to a pixel it takes (it fades from half that). Lower: smooth sooner."),
-        header("Palette"),
-        slider("Quake Palette", var(Param::Palette), 0.f, 1.f, 0.05f, "%.2f")
-            .help("How far the colours are pulled to Quake's own 256 (0 off, 1 only Quake's colours)."),
-        slider("Dither", var(Param::Dither), 0.f, 2.f, 0.05f, "%.2f").extend()
-            .help("An ordered dither before the palette, fixed to the blocks (steady, not on the screen): smoother "
-                  "gradients in Quake's colours (needs Quake Palette)."),
-        slider("Dither Size", var(Param::DitherScale), 1.f, 8.f, 1.f, "%.0f blocks").extend()
-            .help("The dither pattern's cell, in blocks."),
-        header("Bumps"),
-        slider("Bumps: Smooth to Blocky", var(Param::Bump), 0.f, 1.f, 0.05f, "%.2f")
-            .help("The bump and specular maps: 0 smooth (the high-resolution ones), 1 snapped to the same blocks as the "
-                  "colour, between: a blend."),
-    };
-    for(const Item& i : rows)
+    const struct
     {
-        items.pushBack(i);
+        Param p; // a row shown where has(p) (Param::On for headers: always)
+        Item item;
+    } rows[] = {
+        {Param::On, header("Blocks")},
+        {Param::Snap,
+            toggle("Snap to Blocks", var(Param::Snap))
+                .help("The texture is read on a grid of blocks, each one colour. Off: as it was (only the palette and dither below).")},
+        {Param::Block,
+            slider("Block Size", var(Param::Block), 0.25f, 8.f, 0.25f, "%.2f").extend(0.0625f, 64.f)
+                .help("How big a block is: in the texture's own Quake texels (1: Quake's own pixels: on the world a unit at the "
+                      "usual scale, on a Quake model its skin's; on our own models their textures' pixels; 2: twice as chunky; 0.5: "
+                      "finer than Quake), or in world units (Block Size In).")},
+        {Param::Units,
+            cycle("Block Size In", var(Param::Units), {{0.f, "Texture's Texels"}, {1.f, "World Units"}})
+                .help("Texture's Texels: the blocks follow each texture's own pixels, as Quake drew it (a texture scaled up in the "
+                      "map gets bigger blocks). World Units: the same size everywhere, whatever the texture's scale.")},
+        {Param::Average,
+            cycle("Block Colour", var(Param::Average), {{1.f, "Average"}, {0.f, "Centre Texel"}})
+                .help("Average: each block is the average of the high-resolution texels under it (steady, Quake-like). Centre "
+                      "Texel: the one texel at its centre (sharper, noisier).")},
+        {Param::Soft,
+            slider("Edge Softness", var(Param::Soft), 0.f, 3.f, 0.25f, "%.2f px").extend()
+                .help("The blocks' edges are blended over this many pixels: 1 is crisp yet steady as your head moves; 0 hard "
+                      "(crawls and shimmers in the headset); more is softer.")},
+        {Param::Fade,
+            slider("Smooth Beyond", var(Param::Fade), 0.25f, 4.f, 0.25f, "%.2f").extend(0.05f, 16.f)
+                .help("Far off, where blocks get smaller than a pixel, the texture is drawn as usual (mipmapped) again: how "
+                      "many blocks to a pixel it takes (it fades from half that). Lower: smooth sooner.")},
+        {Param::Palette,
+            header("Palette")},
+        {Param::Palette,
+            slider("Quake Palette", var(Param::Palette), 0.f, 1.f, 0.05f, "%.2f")
+                .help("How far the colours are pulled to Quake's own 256 (0 off, 1 only Quake's colours).")},
+        {Param::Dither,
+            slider("Dither", var(Param::Dither), 0.f, 2.f, 0.05f, "%.2f").extend()
+                .help("An ordered dither before the palette, fixed to the blocks (steady, not on the screen): smoother "
+                      "gradients in Quake's colours (needs Quake Palette).")},
+        {Param::DitherScale,
+            slider("Dither Size", var(Param::DitherScale), 1.f, 8.f, 1.f, "%.0f blocks").extend()
+                .help("The dither pattern's cell, in blocks.")},
+        {Param::Bump,
+            header("Bumps")},
+        {Param::Bump,
+            slider("Bumps: Smooth to Blocky", var(Param::Bump), 0.f, 1.f, 0.05f, "%.2f")
+                .help("The bump and specular maps: 0 smooth (the high-resolution ones), 1 snapped to the same blocks as the "
+                      "colour, between: a blend.")},
+    };
+    for(const auto& r : rows)
+    {
+        if(has(r.p))
+        {
+            items.pushBack(r.item);
+        }
     }
-    if(detail)
+    if(has(Param::Detail))
     {
         items.pushBack(slider("Detail Textures", var(Param::Detail), 0.f, 1.f, 0.05f, "%.2f")
             .help("How much of the detail textures' fine grain (Graphics > Surfaces) stays on these: 0 none (flat blocks, as "
@@ -840,14 +862,12 @@ void retroSettingItems(za::Vector<Item>& items, const Var& var, bool detail)
 // A retro textures category's settings (vr_retro.hpp's Param), the same on every kind's page.
 [[nodiscard]] za::Vector<Item> retroCategoryItems(retro::Category c, void (*reset)())
 {
-    using retro::Category;
     using retro::Param;
     const auto var = [c](Param p) -> cvar_t& { return retro::cvarOf(c, p); };
     za::Vector<Item> items{
         toggle(retro::categoryLabel(c), var(Param::On)).help("Retro textures on these (with Graphics > Retro Textures on)."),
     };
-    retroSettingItems(items, var,
-        c == Category::World || c == Category::Brush || c == Category::Items || c == Category::Props); // brush models
+    retroSettingItems(items, var, [c](Param p) { return retro::supports(c, p); });
     items.pushBack(action("Reset to Defaults", reset).help("This kind's settings back to their defaults (vr_retro_reset <kind>)."));
     return items;
 }
@@ -910,7 +930,7 @@ void retroAllUncheckCategories()
         toggle("On", retro::allValue(Param::On))
             .help("The kinds' own switches (unchecked by default under Apply These Settings, so your kinds stay on or off)."),
     };
-    retroSettingItems(items, [](Param p) -> cvar_t& { return retro::allValue(p); }, true);
+    retroSettingItems(items, [](Param p) -> cvar_t& { return retro::allValue(p); }, [](Param) { return true; });
     struct Row
     {
         Param p;
