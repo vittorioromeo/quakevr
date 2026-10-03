@@ -23334,3 +23334,18 @@ death 2 0.63, 2.0. The ogre's shins now end above his feet (rig.py keeps a leaf'
 In VR:
 - [ ] Ragdolls on, kill enforcers: they go limp, the rifle dropped beside them; vr_timescale 0.1: the switch unseen.
 - [ ] Ragdolls > Enforcer: his own settings.
+
+**Death knight** (quakevr/progs/hknight.mdl: 538 vertices, 167 frames; death 42-53, 54-62). Pelvis, chest, head, upper
+arms (the pauldrons on them), forearms (elbow hinges), his right hand (his left on its forearm), thighs (the hip's
+piece), shins (the knee's; knee hinges) and feet (the boot; balls 35/15): 14 bones and the loose one. Clusters 1.02
+units rms, bones 1.30 (his pauldrons move as neither his chest nor his arms: 2.5 on the left arm; feet of their own took
+the shins from 1.4 to 0.5). **His sword's guard** was a piece of its own left in his hand in his death frames (the dropped
+sword has a hilt of its own, make_swords.py): vr_monstermods.cpp now hides it with the blade (59 vertices, 21 death
+frames), on his corpse too. Tests (`MON=6`, `BLAST=290`: 350 gibs him): flat limp at frame 46, asleep at 5 s; stairs;
+blast thrown; gib; save and load (made again in frame 62). The switch: death 1 1.35 units rms, 4.8 at most; death 2 1.17,
+6.2.
+
+In VR:
+- [ ] Ragdolls on, kill death knights: they go limp, the sword dropped, nothing in the hand; vr_timescale 0.1: unseen.
+- [ ] Ragdolls off: a death knight's corpse has no guard left in its hand.
+- [ ] Ragdolls > Death Knight: his own settings.

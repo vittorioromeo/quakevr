@@ -194,6 +194,10 @@ Ragdolls > Ogre: set his own Mass apart from the global one (an ogre at 80 kg fe
 Ragdolls on the enforcer: they go limp, his laser rifle dropped beside them, none left in his hands
 Ragdolls on the enforcer in slow motion (vr_timescale 0.1): the switch is unseen in both his death animations
 Ragdolls > Enforcer: set his own Joint Friction apart from the global one
+Ragdolls on the death knight: they go limp, his sword dropped beside them, nothing left in his hand
+Death knight corpses (ragdolls off): no sword guard left floating in the dead hand
+Ragdolls on the death knight in slow motion (vr_timescale 0.1): the switch is unseen in both his death animations
+Ragdolls > Death Knight: set his own Joint Limits apart from the global one
 
 [Decide or give feedback]
 Ragdolls: turn on by default? Next: other monsters, severing; is the grip strong enough to lift a grunt?

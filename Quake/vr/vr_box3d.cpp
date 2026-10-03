@@ -1905,6 +1905,9 @@ const RagdollClass ragdollClasses[] = {
     {"monster_enforcer", {&vr_ragdoll_enforcer_start, &vr_ragdoll_enforcer_mass, &vr_ragdoll_enforcer_friction,
                 &vr_ragdoll_enforcer_joint_friction, &vr_ragdoll_enforcer_joint_stiffness, &vr_ragdoll_enforcer_limits,
                 &vr_ragdoll_enforcer_damping, &vr_ragdoll_enforcer_blast, &vr_ragdoll_enforcer_inherit}},
+    {"monster_hell_knight", {&vr_ragdoll_hknight_start, &vr_ragdoll_hknight_mass, &vr_ragdoll_hknight_friction,
+                &vr_ragdoll_hknight_joint_friction, &vr_ragdoll_hknight_joint_stiffness, &vr_ragdoll_hknight_limits,
+                &vr_ragdoll_hknight_damping, &vr_ragdoll_hknight_blast, &vr_ragdoll_hknight_inherit}},
 };
 
 // The setting `t` for `ent`'s ragdoll: its class's own, else the global one.

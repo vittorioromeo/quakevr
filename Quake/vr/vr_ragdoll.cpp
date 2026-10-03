@@ -156,11 +156,36 @@ constexpr Seed enforcerSeeds[] = {
     {"shin_r", 9, Joint::Hinge, {-4.6f, -9.6f, -22.3f}, {-6.8f, -7.6f, -17.6f}, {-5.f, -9.2f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+// Quake VR's hell knight, the death knight (quakevr/progs/hknight.mdl: 538 vertices, 167 frames). The rest pose
+// ($stand1): x forward, y left, z up; upright, his sword in his right hand. A thigh's bone is the hip's piece, a shin's
+// the knee's, a foot's the boot (long triangles between them); his right hand is a bone of its own, his left on its
+// forearm. Measured on his frames (Misc/quakevr/ragdoll/rig.py hknight hknight_bones.json): 1.29 units rms (his
+// pauldrons move as neither his chest nor his arms: 2.5 on the left arm). His blade and its guard are collapsed in his
+// death frames (he drops the sword: vr_monstermods.cpp): the loose bone, hidden.
+// Death frames 42-53 ($death1-12) and 54-62 ($deathc1-9).
+constexpr Seed hknightSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-0.3f, -0.3f, 10.2f}, {-0.3f, -0.3f, 10.2f}, {1.f, 0.5f, 12.6f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {0.4f, 0.2f, 19.9f}, {1.f, 0.5f, 12.6f}, {3.9f, 0.7f, 27.6f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {8.7f, -0.9f, 31.7f}, {3.9f, 0.7f, 27.6f}, {13.5f, -2.4f, 35.8f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {1.9f, 10.4f, 26.2f}, {1.9f, 5.1f, 27.f}, {-1.4f, 10.2f, 19.3f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {2.3f, 13.9f, 13.f}, {-1.4f, 10.2f, 19.3f}, {6.1f, 17.5f, 6.6f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 1, Joint::Ball, {2.3f, -11.5f, 27.2f}, {1.1f, -4.1f, 24.3f}, {0.6f, -12.5f, 21.9f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 5, Joint::Hinge, {-2.4f, -15.2f, 16.1f}, {0.6f, -12.5f, 21.9f}, {3.1f, -18.3f, 11.3f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_r", 6, Joint::Ball, {5.3f, -19.9f, 9.8f}, {3.1f, -18.3f, 11.3f}, {7.5f, -21.6f, 8.3f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {1.6f, 5.7f, 2.1f}, {0.f, 3.4f, 6.5f}, {6.3f, 6.4f, -8.1f}, 3.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 8, Joint::Hinge, {4.5f, 8.9f, -9.7f}, {6.3f, 6.4f, -8.1f}, {0.9f, 11.5f, -20.2f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"foot_l", 9, Joint::Ball, {3.4f, 11.8f, -21.8f}, {0.9f, 11.5f, -20.2f}, {5.9f, 12.2f, -23.5f}, 0.f, 35.f, 15.f, 0.f, {}},
+    {"thigh_r", 0, Joint::Ball, {1.5f, -6.1f, 2.f}, {-0.2f, -3.9f, 7.1f}, {5.9f, -7.7f, -7.2f}, 3.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 11, Joint::Hinge, {4.8f, -8.6f, -9.8f}, {5.9f, -7.7f, -7.2f}, {1.2f, -9.3f, -21.6f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"foot_r", 12, Joint::Ball, {3.9f, -11.f, -22.f}, {1.2f, -9.3f, -21.6f}, {6.6f, -12.7f, -22.4f}, 0.f, 35.f, 15.f, 0.f, {}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
     {"progs/ogre.mdl", 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},
     {"progs/enforcer.mdl", 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
+    {"progs/hknight.mdl", 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
