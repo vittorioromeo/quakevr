@@ -267,6 +267,14 @@ float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;
 float(entity e, vector p) ragdollbone = #0;
 vector(entity e, float bone, vector p, float toWorld) ragdollpoint = #0;
+// Decapitation (vr_decap.qc; the engine's vr_box3d.cpp, "Decapitation"): e's ragdoll (made now for a dead monster with a
+// rig) loses its head, launched by `blade` (u/s): 1 if it did; after it, ragdollcut's 0 the head's middle, 1 its angles,
+// 2 its velocity, 3 its spin (rad/s: .vr_spin), 4 the neck now, 5 the way out of the stump (6 the head's middle before it); 1 if p
+// is on e's ragdoll's head (0 not or
+// headless, -1 not a ragdoll).
+float(entity e, vector blade) ragdolldecap = #0;
+vector(entity e, float what) ragdollcut = #0;
+float(entity e, vector p) ragdollhead = #0;
 // A shot's push: the first loose prop between `start` and `end` (a health box, a gib, a weapon lying about: traces pass
 // through them) pushed as physicspush where the shot goes in. That prop, or world.
 entity(vector start, vector end, vector vel, float mass) physicsshot = #0;

@@ -23665,3 +23665,117 @@ side of the hand on the limb: unchanged). Screenshots: the kit's `scratch/raggra
 - [ ] Hand Follows Limb at 0: your hand stays on the controller (the limb may hang off it).
 - [ ] Hand Turns with Limb: at 0 the hand keeps the controller's turn; at 60 it turns with a twisting limb.
 - [ ] Debug > Ragdoll Hand Probe while holding a limb: the console shows the fingers on it and the palm near it.
+## Decapitation (2026-10-03)
+
+The author: decapitation for the enemies with ragdolls (grunt, knight, ogre, enforcer, death knight, rottweiler,
+scrag), and the zombie with a ragdoll of its own for it. Gore > **Decapitation** (page 126).
+
+**When.** A killing blow at a live monster's head (positional damage's head zone, `PositionalHead`, whether positional
+damage is on or not; the rottweiler, which has none for headshots, gets one here at his lunging rest pose's head) by:
+- a sword's or an axe's blade swung (the melee's kind a slash; not Mjolnir): the struck point at least 0.4 (sword) or
+  0.6 (axe) of the way from the grip to the tip (never the pommel, hilt or handle), moving across the blade's line (more
+  than 60 degrees off it: `VR_DECAP_ACROSS`; along it is a stab) at **Least Swing Speed** (`vr_decap_speed`, 5 m/s) or
+  more;
+- an axe thrown into the head edge first (vr_axestick.cpp's blade decides: the stick), at Least Swing Speed or more
+  (**Thrown Axes**, `vr_decap_thrown`); its hit box killing him a moment before the blade goes in still beheads (0.3 s);
+- the chainsaw: its running bar at the neck (a tick that kills) or a swing of its bar (**Chainsaw**, `vr_decap_chainsaw`).
+
+And a slash at a ragdoll's head part (or within 4 units of its neck; a dying body or a corpse without a ragdoll: the
+head zone on its model standing) beheads it instead of taking its corpse health (**Corpses**, `vr_decap_corpses`): it
+never bursts into gibs from it. The chainsaw's bar at a corpse's neck too.
+
+**What happens** (QC `vr_decap.qc`; the engine's vr_box3d.cpp "Decapitation", vr_ragdoll.cpp):
+- Killed, before the death code (`VR_Decap_Killed`): his ragdoll is made at once from the frame he is in
+  (`ragdolldecap`: createRagdoll's `now`, whatever Most Ragdolls; his loose piece hidden, his death code drops his
+  weapon as before), keeping his velocity and the blow's knock (T_Damage's and the melee's push go to the parts); he
+  dies whole (health -1: his death code would gib him). His death animation runs on unseen (the frame only places the
+  entity on the pelvis).
+- The head comes off the Box3D ragdoll: the rig's head bone and the bones on it (a rottweiler's jaw) lose their bodies
+  (Box3D takes their joints with them); their entries name the part they were cut from (the loops over the parts stay
+  valid; blasts, QC knocks, masses and the list skip them); a hand holding the head lets go. The mesh's head is shrunk
+  about the neck (a thousandth of its size, turned with the chest, so the neck's triangles keep their normals), and so
+  are the hit tests' and the wounds' vertices (skinnedVertices).
+- The head gib (`VR_Decap_HeadModel`: h_guard, h_knight, h_ogre, h_mega, h_hellkn, h_dog, h_wizard, h_zombie) is
+  thrown from where the head part was, turned as it was, at the head part's velocity plus **Head Speed**
+  (`vr_decap_head_speed`, 0.5) of the blade's and **Head Thrown Up** (`vr_decap_head_lift`, 120 u/s), spinning as the
+  blade's push at its base turns it (the share of the blade's speed across the neck over the head's lever, at most 12
+  rad/s); a rigid body from the start (Box3D turns it at any angle: Quake's angle rates jumped near a lying head's
+  upright; it passes through the body until clear), grabbable and destroyable as a gibbing's head.
+- The stump: blood painted round the neck (five blade wounds), a squish and the gib sound, a burst of blood and the
+  gore's burst, three small gibs (Small Gibs on), and a **Fountain** (`vr_decap_fountain`, 2.5 s): drops spurting out of
+  the neck in beats (2.2 Hz), dying away, and every 0.3 s a hit's spray of blood onto the floor and walls round it. (The
+  Blood preset's mist cloud, each spurt, hung over the body as a red haze that tinted the view: the spurts use the
+  blood trail's drops, preset 13, `QVR_PARTICLE_PRESET_BLOODTRAIL`.)
+- `.vr_headless` (saved with the game): his ragdoll is made headless again on a load (wantsRagdoll: at once, whatever
+  Most Ragdolls); gibbed (VR_Corpse_Gib), he throws no head.
+
+**Zombies** (**Zombies**, `vr_decap_zombies`, on): a beheading slash at a zombie's head kills it for good whatever the
+damage (standing, or knocked down: the chainsaw): `VR_Decap_ZombieDie` (no gibbing, no getting up), its headless
+ragdoll a corpse as any other (`vr_corpse_health_zombie`, 60: Corpse Damage and Health > Zombie (Beheaded)). Its rig:
+`zombieSeeds` (quakevr/progs/zombie.mdl: 481 vertices, 199 frames; Misc/quakevr/ragdoll/zombie_bones.json; clusters
+0.62 units rms, bones 0.79): pelvis, chest, head, upper arms and forearms (elbow hinges), thighs and shins (knee hinges);
+the flesh he throws the loose piece; his falls (painb1-14, paine1-17) stand in for death frames. Gibs and Corpses >
+Ragdoll Settings > **Zombie** (page 127; `vr_ragdoll_zombie_*`, mass 70 kg).
+
+**Future rigs**: any seed table with a bone named "head" gets decapitation (the note at vr_ragdoll.cpp's seed tables);
+`VR_Decap_HeadModel` names its head gib, `PositionalHead` its head zone.
+
+**Debug** > Tests > Decapitation Tests (`vr_decap_test <n>`: a blow made up as the hand's would be, dealt as the melee's
+or the corpses'; `decaptest:` lines): 1 slash, 9 axe slash, 2 stab, 3 pommel, 4 slow, 7 at full health (a zombie), 5 a
+corpse's head, 6 and 10 the chainsaw (live, corpse), 11 its health 1 (then Throw an Axe at Its Head; Thrown Axe > **Axe
+Height**, `vr_test_axe_up`: a throw above the target's middle), 8 gib the headless corpse. `developer 1`: `decap:` why a
+blow at a head did not behead (a stab, the pommel, too slow) and each beheading. `vr_ragdoll_list 1`: "headless", the
+cut parts.
+
+Tests (`bash Misc/quakevr/ragdoll/decap_test.sh <agent> [live axe refuse corpse saw zombie thrown gib save monsters]`):
+
+| case | result |
+|---|---|
+| a sword's slash (8 m/s) kills a grunt | beheaded: his ragdoll at once (10 parts, 74.8 kg), the head off at 169 u/s, 12 rad/s; asleep on the floor |
+| an axe's slash | beheaded |
+| a stab (along the blade), the pommel, a slow slash (2.5 m/s) | killed, not beheaded ("a stab (1.00)", "a pommel or hilt", "too slow") |
+| a slash at a ragdoll's head | beheaded, no corpse damage |
+| the chainsaw's bar at the neck (live at health 1; a corpse) | beheaded both |
+| a zombie at full health (10 damage) | beheaded, dead for good; gibbed later: no head thrown (heads 1 -> 1) |
+| an axe thrown at 9 m/s at a grunt's head | stuck (kind 3), beheaded |
+| a headless corpse gibbed | gibbed, no head (heads 1 -> 1) |
+| save, load, gib | headless again after the load; gibbed: no head |
+| knight, ogre, enforcer, death knight, rottweiler (his jaw too), scrag | beheaded each |
+
+The view (the firing range, the screenshot's mean colour) after a plain kill, and 1.4 s after a decapitation: 96 88 101
+and 95 83 97 (the cut's blood mist; a corpse gibbed: 101 79 95). eval.sh canary: no differences. ragdoll_test.sh flat,
+gib, save: as before.
+
+Not done: a thrown sword (no edge test: only the axe's blade is known, vr_axestick.cpp); the flat of a blade (any motion
+across the line cuts: both sides of the sword and of the double-bitted axe are edges); monsters without a rig. The head
+gib's model is placed by its origin at the head's middle (the h_ models' origins are near their middles).
+
+In VR:
+- [ ] Gore > Decapitation is there and each row changes what it says.
+- [ ] Kill a grunt with a sword slash across the neck: the head flies off.
+- [ ] The body falls headless at once (no death animation first).
+- [ ] The same with the axe's blade.
+- [ ] The head spins the way the swing went.
+- [ ] The neck spurts blood in beats for a couple of seconds.
+- [ ] The spurts leave drops and splats on the floor round the body.
+- [ ] The stump looks right: no head left, no stretched triangles.
+- [ ] Blood is painted round the neck.
+- [ ] A stab at the head (point first) kills without beheading.
+- [ ] A pommel or hilt strike at the head never beheads.
+- [ ] A slow swing at the head doesn't behead; Least Swing Speed feels right.
+- [ ] Slash a ragdoll's head: it comes off.
+- [ ] That corpse doesn't burst into gibs from the slash.
+- [ ] Throw the axe edge first into a grunt's head as it kills him: beheaded.
+- [ ] Run the chainsaw through a grunt's neck: beheaded.
+- [ ] Slash a zombie's head: it falls headless.
+- [ ] That zombie never gets up again.
+- [ ] Gib a headless corpse: no head flies out.
+- [ ] Save and load with a headless corpse: still headless.
+- [ ] Knights lose their heads.
+- [ ] Ogres lose their heads.
+- [ ] Enforcers lose their heads.
+- [ ] Death knights lose their heads.
+- [ ] Rottweilers lose their heads (the jaw with it).
+- [ ] Scrags lose their heads.
+- [ ] Grab and throw a cut-off head.
+- [ ] Ragdoll Settings > Zombie has its own settings.

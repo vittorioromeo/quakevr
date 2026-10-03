@@ -45,6 +45,8 @@ player.qc
 triggers.qc
 weapons.qc
 vr_chainsaw.qc
+// Decapitation after the chainsaw (its bar) and weapons.qc (positional damage's head zone).
+vr_decap.qc
 vr_enemyguns.qc
 vr_crowbar.qc
 vr_axestick.qc
