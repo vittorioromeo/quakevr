@@ -225,8 +225,29 @@ Head pops: Shotgun off: shotgun headshots kill as before
 Head pops: Super Shotgun off: super shotgun headshots kill (or gib) as before
 Head pops: Lightning Gun off: lightning headshots kill as before
 Head pops: the popped neck spurts blood as a beheading's does
+Ragdolls on the fiend: killed, he goes limp
+Ragdolls on the fiend in slow motion (vr_timescale 0.1): the switch is unseen
+Ragdolls on the fiend: grab him by the tail
+Ragdolls > Fiend: his own settings (Mass 140)
+Decapitation: slash a fiend's head off
+Ragdolls on the shambler: killed, he goes limp
+Ragdolls on the shambler in slow motion (vr_timescale 0.1): the switch is unseen
+Ragdolls on the shambler: he feels heavy (280 kg), yet a hand lifts him
+Decapitation: slash a shambler's head off
+Head pops: shotgun a shambler's head as he dies: it pops
+Ragdolls on the gremlin (Scourge of Armagon): killed, it goes limp
+Ragdolls on the gremlin: one that stole your gun drops it, none left in its ragdoll's hands
+Ragdolls on the gremlin: killed from the front, it flips back and lies as a ragdoll
+Decapitation: slash a gremlin's head off
+Decapitation: slash a mummy's head off (Dissolution of Eternity): its headless body falls as a ragdoll
+Head pops: shotgun a mummy's head as it dies: it pops and the body stays
+Mummy: killed any other way, it still bursts into gibs
+Mummy: gib a beheaded mummy's ragdoll: no second head flies out
+Corpse Damage and Health has Mummy (Rogue, Beheaded)
 
 [Decide or give feedback]
+Fiend: give his head a headshot zone (positional damage)? It counts as an extremity now (2/3 damage)
+Ragdoll masses: fiend 140, shambler 280, gremlin 20, mummy 75 kg: right?
 Ragdolls: a blast throws every monster's body as far, whatever its mass (an ogre as far as a grunt): lower the ogre's and death knight's Blast Throw (Ragdolls > Ogre)?
 Ragdolls: turn on by default? Next: the zombie, fiend, shambler, vore, spawn and fish, severing; is the grip strong enough to lift a grunt?
 Thrown axe hitting an explosive box: bounces off (metal) now; should it stick? (Thrown Axes > vr_axestick_metal)

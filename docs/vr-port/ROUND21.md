@@ -23853,3 +23853,87 @@ In VR:
 - [ ] Turn Super Shotgun off: super shotgun headshots kill (or gib) as before.
 - [ ] Turn Lightning Gun off: lightning headshots kill as before.
 - [ ] The popped neck spurts blood as a beheading's does.
+
+## Ragdolls 5: the fiend, shambler, gremlin and mummy (2026-10-03)
+
+The way of Ragdolls 4 for four more: a seed table each (vr_ragdoll.cpp), their own settings (`vr_ragdoll_<class>_*`, all
+-1 but the mass; vr_box3d.cpp ragdollClasses) under Gibs and Corpses > Ragdoll Settings > Fiend, Shambler, Gremlin,
+Mummy (pages 128-131), a Debug > Tests spawner each (the mummy: Decapitation Tests > A Mummy Ahead), decapitation and
+head pops for all four (`VR_Decap_HeadModel`).
+
+**Tools.** rig.py reads a mission pack's model from its pak (`RIG_PAK=<qbase>/hipnotic/pak0.pak python rig.py grem`);
+a bone's flag `"boundary"` puts its pivot at the boundary's middle with its parent (where the motions' fit is off the
+limb). **More clusters**: the engine's 18 motion clusters merged the fiend's right thigh and shin (no ragdoll: "bone
+shin_r got 0 vertices"); a seed table may ask for more (`SeedTable::clusters`; the fiend and the shambler 24, rig.py's
+`k`: its bones.json must be made from those). `vr_debug_ragdoll`'s first-drawn line names the bone that moved most.
+
+**The switch when a body stops being solid with a new frame.** The corpse watch (vr_box3d.cpp `watchCorpses`) only saw
+a monster once it wasn't solid, so it couldn't tell whether the frame it was first seen in was new (the client still
+drawing the frame before). The fiend goes non-solid at death6 and goes limp there: made from frame 50 while 49 was drawn,
+6.4 units rms, 25 at most (his left claw). A dying monster still solid is now watched too (its frame and place): 0.93
+units rms, 4.0 at most. Any monster made limp as it stops being solid (Go Limp At 0, or late) gains the same.
+
+| | model | bones | rms (clusters / bones) | mass, hulls | limp at | the switch (vr_timescale 0.1) |
+|---|---|---|---|---|---|---|
+| fiend (`demon`) | quakevr/progs/demon.mdl, 1095 vertices, death 45-53 | 16 | 0.74 (24) / 0.83 | 140 kg, 372 l | frame 50 (62%: solid until then) | 0.93 units rms, 4.0 at most |
+| shambler | quakevr/progs/shambler.mdl, 648, death 83-93 | 13 | 1.21 (24) / 1.57 | 280 kg, 2397 l | frame 86 (30%) | 1.64, 5.3 |
+| gremlin | Hipnotic's grem.mdl, 123, death 104-115, flip 116-123 | 10 + his gun | 1.33 / 1.50 | 20 kg, 106 l | frame 109 (45%) | 1.67, 5.5 |
+| mummy | Rogue's mummy.mdl, 177 (the zombie's frames) | 11 + flesh | 0.52 / 0.72 | 75 kg | beheaded only | (made at once) |
+
+- **Fiend**: pelvis, chest, head, upper arms, forearms (elbow hinges), claws, thighs, shins (knee hinges), feet, the
+  tail one bone (16, the most a rig has). His ankles and knees at their boundaries. He has no headshot zone (positional
+  damage counts his head an extremity): decapitation's is his rest pose's head (`VR_Decap_HeadZone`, as the
+  rottweiler's: 27 forward, 5 down, 8 round). Mass 140 (a big, heavy-limbed beast).
+- **Shambler**: belly, hump (chest), face (head), upper arms (the shoulders on them), forearms (elbow hinges), claws,
+  thighs, shins with the feet. His hump and claws bend most (2.0). Mass 280: the heaviest; a hand's 3000 N grip still
+  lifts him (2750 N). On e1m1's start a shambler killed 90 units ahead fell over the steps, 170 units on (he is big).
+- **Gremlin**: few vertices, loose frames: his body one bone (belly, back and hump; its seed's centre moved up so the
+  hump isn't given to the head), head, upper arms and forearms, thighs and shins. **His stolen gun** is a piece of its
+  own, tucked inside his body but in his g* frames: vr_monstermods.cpp now collapses it in his deaths (he drops it,
+  gremlin_die), so it is his ragdoll's hidden loose bone. His flip death (thrown up and back) keeps him solid until
+  flip8: his ragdoll is made there. A beheaded gremlin whose flip got stuck was gibbed by gremlin_gib after 3 s (a head
+  thrown from a headless ragdoll): now `gremlin_flip_stuck` keeps a ragdoll lying. Mass 20.
+- **Mummy** (zombie-like): Rogue's `mummy_die` always gibs him (500 health, no corpse, he never gets up as a zombie
+  does). So his ragdoll is made only when he is beheaded or his head pops by a killing blow (as other monsters, not
+  whatever the damage as a zombie): he dies whole (`VR_Decap_ZombieDie`) and his headless ragdoll is a corpse with
+  **Corpse Damage and Health > Mummy (Rogue, Beheaded)** (`vr_corpse_health_mummy`, 120; the zombie's 60). Head gib: the
+  zombie's (his own death throws it). Rig as the zombie's (his falls stand in for death frames), the flesh he throws the
+  loose bone. Mass 75.
+
+Tests (`ragdoll_test.sh` flat, MON 9, 3, 12: each limp and asleep at 4.7-4.9 s; `decap_test.sh monsters` with MONS 9 3
+12 14: a sword's slash beheads each, the head thrown at 169 u/s (h_demon, h_shams, h_grem, h_zombie)):
+
+| | head pops 12 / 13 / 14 / 15 (each from a spot of its own) | 16-18 (body, not killing) |
+|---|---|---|
+| fiend | not / not / popped / popped: his head is an extremity, a blast does 2/3 (24 of 36): the test's "just kills" doesn't | not popped |
+| shambler | popped each | not popped |
+| gremlin | popped each | 16: popped (his body's middle is within his head zone: he is small) |
+| mummy | popped each, dead whole | 16, 18: gibbed as before (mummy_die) |
+
+Mummy: gibbed headless, no head thrown (heads 1 -> 1); saved and loaded, headless again, then gibbed. Gremlins killed
+with Decapitation off (6 kills, shot from the front): 4 ragdolls (one from his flip, at frame 123), 2 gibbed at health
+-35 (not his death's gibbing, under -35: his flip's stuck fallback, `gremlin_gib`, the original's).
+
+Not done: the fiend's head as a headshot zone (positional damage; a gameplay change); the gremlin's stuck flip gibbing
+an unbeheaded gremlin (as the original does).
+
+In VR:
+- [ ] Ragdolls on, kill fiends: they go limp.
+- [ ] vr_timescale 0.1, kill a fiend: the switch is unseen.
+- [ ] Grab a fiend's ragdoll by the tail.
+- [ ] Ragdolls > Fiend has his own settings (Mass 140).
+- [ ] Slash a fiend's head off.
+- [ ] Ragdolls on, kill shamblers: they go limp.
+- [ ] vr_timescale 0.1, kill a shambler: the switch is unseen.
+- [ ] A shambler's ragdoll feels heavy (280 kg), yet a hand lifts it.
+- [ ] Slash a shambler's head off.
+- [ ] Shotgun a shambler's head as it dies: it pops.
+- [ ] Ragdolls on, kill gremlins (Scourge of Armagon): they go limp.
+- [ ] A gremlin that stole your gun drops it: no gun left in its ragdoll's hands.
+- [ ] A gremlin killed from the front flips back and lies as a ragdoll.
+- [ ] Slash a gremlin's head off.
+- [ ] Slash a mummy's head off (Dissolution of Eternity): its headless body falls as a ragdoll.
+- [ ] Shotgun a mummy's head as it dies: it pops and the body stays.
+- [ ] A mummy killed any other way still bursts into gibs.
+- [ ] Gib a beheaded mummy's ragdoll: no second head flies out.
+- [ ] Corpse Damage and Health has Mummy (Rogue, Beheaded).
