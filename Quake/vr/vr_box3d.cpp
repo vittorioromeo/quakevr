@@ -408,6 +408,7 @@ struct Slot // what one edict is in the world (by its number)
     bool asleep{false};
     bool wet{false};      // in water (its lift and drag: beforeStep)
     bool sleepless{false}; // Box3D's sleep off: floating (it bobs), or sinking through the water (beforeStep)
+    float lift{0.f};       // N up: its lift in water this frame (beforeStep), given again in each piece of the step
     bool bullet{false};   // fast: continuous collision against other props too
     bool soft{false};     // isSoft
     bool brush{false};    // angles as a brush model's
@@ -5237,6 +5238,7 @@ void beforeStep(float dt)
     {
         Slot& s = world->slots[num];
         s.arrival = glm::vec3{0.f};
+        s.lift = 0.f;
         if(s.kind != Kind::Prop || !b3Body_IsAwake(s.body))
         {
             continue;
@@ -5330,7 +5332,8 @@ void beforeStep(float dt)
         // which gives the same terminal speed up or down (a box that dived deep rises as fast as before).
         const float gs = g * s.gravityScale;
         const float lift = gs * density * part * bob / world->m2u; // m/s^2
-        b3Body_ApplyForceToCenter(s.body, b3Vec3{0.f, 0.f, b3Body_GetMass(s.body) * lift}, true);
+        s.lift = b3Body_GetMass(s.body) * lift;
+        b3Body_ApplyForceToCenter(s.body, b3Vec3{0.f, 0.f, s.lift}, true);
         const float stiffness = gs * density / (2.f * halfHeight);
         const float restingPart = za::min(1.f, 1.f / density);
         const float drag = 2.4f * za::sqrt(za::max(stiffness, 0.f)) * za::min(1.f, part / restingPart);
@@ -5356,6 +5359,21 @@ void beforeStep(float dt)
         }
         b3Body_SetLinearVelocity(s.body, world->toM(vel));
         b3Body_SetAngularVelocity(s.body, b3v(spin));
+    }
+}
+
+// The props' lift in water (beforeStep's) given again, for the step's pieces after the first: Box3D clears a body's
+// forces after each step, so a slow frame's later pieces had the gravity without the lift (at a 20 Hz server's three
+// pieces a frame, floating crates sank to the bottom).
+void liftAgain()
+{
+    for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
+    {
+        const Slot& s = world->slots[num];
+        if(s.lift != 0.f && s.kind == Kind::Prop && B3_IS_NON_NULL(s.body))
+        {
+            b3Body_ApplyForceToCenter(s.body, b3Vec3{0.f, 0.f, s.lift}, false);
+        }
     }
 }
 
@@ -9939,6 +9957,10 @@ extern "C" void VR_PhysicsFrameEnd(void)
         QVR_PROFILE("box3d step");
         for(int i = 0; i < pieces; i++)
         {
+            if(i > 0)
+            {
+                liftAgain(); // (Box3D clears the forces after each step)
+            }
             notePushed(dt / static_cast<float>(pieces));
             pressStanding(dt / static_cast<float>(pieces));
             world->tasks.next.storeRelaxed(0);
