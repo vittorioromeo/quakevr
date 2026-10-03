@@ -112,7 +112,7 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // hold of a box, backpack, gib, head or armour only if its fist touches the thing's drawn surface: the empty hand
 // closed into a fist (the jointed hand's palm and curled fingers, as the grasp's spheres). Before, the hand's point (the
 // move's handpos: the front top of the fist, 13.5 cm ahead of the palm's middle; an open hand's fingertips reach 6.6 cm
-// past it) within 8 cm of the surface took it (vr_carry_reach): up to 8 cm from the fist, past the open fingertips.
+// past it) within 8 cm of the surface took it (a reach setting since removed): up to 8 cm from the fist, past the open fingertips.
 //
 // Client side, every frame (vr_view.cpp): `hand`'s fist (0 off, 1 main) as spheres (xyz the middle, w the radius, world
 // units) in the hand's frame: relative to its place (the move's handpos) along the axes of its angles (handrot,
