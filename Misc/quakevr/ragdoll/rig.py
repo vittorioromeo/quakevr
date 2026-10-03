@@ -9,6 +9,7 @@
 #   python rig.py ogre frames           the frame names (the death animations' first and last)
 #   python rig.py ogre draw out.png [pose] [bones]   the last run's clusters (or bones) in colour on the pose (0), seen
 #                                       from his right side (x to the right) and from the front (his left to the right)
+# A seed's keepHinge (a hinge whose axis the rest pose's sideways lean would turn: the rottweiler's legs) is set by hand.
 # The loose pieces (a piece some pose hides, all of it at one point: the dropped weapon) are left out.
 import os, sys, json, tempfile
 import numpy as np
