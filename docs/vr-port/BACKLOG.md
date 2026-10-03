@@ -72,3 +72,8 @@ seconds, with fly particles buzzing round it as well as the sound.
   lighting for players who don't want the moody atmosphere and prefer higher visibility (e.g. one "Brightness" or
   "Visibility" preset/slider on the main VR page that raises ambient/minimum light, exposure and tone mapping
   together, rather than many separate graphics settings).
+- **Low priority: review the pickup-thinks research** (the author, 2026-10-03: "save your research regarding the
+  nextthink stuff in a document so that we can review it later"): `docs/vr-port/PICKUP_THINKS.md`. Idle pickups think
+  every 0.02 s; options to think less without changing gameplay (idle interval with exact deadlines, no thinks while
+  carried, the spin left to the engine), and where thinking resolution would be lost (engine-side knocks, unless the
+  engine wakes the pickup). Small absolute gain (QuakeC is ~0.07 ms a frame): review, then decide.
