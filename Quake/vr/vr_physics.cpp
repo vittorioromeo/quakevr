@@ -324,6 +324,14 @@ void touch(edict_t* ent, edict_t* target)
         return;
     }
 
+    // A gib (a head, a small gib) in another's box: nothing for its touch to do unless it is thrown (QC VR_Gib_Touch;
+    // gibs meeting hard are Box3D's hits). A pile of them moving was n x n QC touches a frame.
+    if(fieldFloatOr(ent, f().vr_gib, 0.f) != 0.f && fieldFloatOr(target, f().vr_gib, 0.f) != 0.f &&
+        fieldFloatOr(target, f().throwhit, 1.f) != 0.f)
+    {
+        return;
+    }
+
     const int solid = solidOf(target);
     if(target->v.touch && (solid == SOLID_TRIGGER || solid == SOLID_NOT_BUT_TOUCHABLE ||
                               vr_gameplayfix_touchsolids.value))

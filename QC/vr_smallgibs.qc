@@ -63,7 +63,9 @@ float vr_sgib_st_v[10];
 entity vr_sgib_ring[256]; // the small gibs, in the order they were made (a slot free: its id no longer matches)
 float vr_sgib_ringid[256];
 float vr_sgib_serial;     // the last one's serial
-float vr_sgib_next;       // the ring's next slot to try
+float vr_sgib_head;       // the ring's oldest entry
+float vr_sgib_used;       // its entries from there, in the order made (some may be gone)
+float vr_sgib_counted;    // the time the live ones were last counted (VR_SmallGib_MakeRoom)
 float vr_sgib_made;       // how many were made (the tests)
 float vr_sgib_rolls;      // hits weighed, and their damage summed (the tests)
 float vr_sgib_rolldmg;
@@ -138,23 +140,71 @@ float() VR_SmallGib_RockSize =
 // ----------------------------------------------------------------------------
 // The ring
 
+// The ring: vr_sgib_used entries from slot vr_sgib_head (the oldest), in the order made; an entry whose small gib went
+// (burst, its time up, removed) stays until the old end reaches it or the ring is compacted. A small gib made costs a
+// step or two here: a walk of the whole ring at most once a frame (the count's truth) or once per 256 made (compacting).
+// (Before, each one made walked all 256 slots three times, QC's arrays a call each: past Most Small Gibs about 100,000
+// instructions a small gib, and a frame of many blows ran away. ROUND21.md, "The QC runaway of many blows".)
+
 float(float xSlot) VR_SmallGib_SlotLive =
 {
+    float id = vr_sgib_ringid[xSlot];
+    if(id <= 0)
+    {
+        return FALSE;
+    }
     entity e = vr_sgib_ring[xSlot];
-    return vr_sgib_ringid[xSlot] > 0 && e != world && e.vr_sgib_id == vr_sgib_ringid[xSlot];
+    return e != world && e.vr_sgib_id == id;
 };
 
 float() VR_SmallGib_Count =
 {
     float n = 0;
-    for(float i = 0; i < 256; i++)
+    for(float k = 0; k < vr_sgib_used; k++)
     {
-        if(VR_SmallGib_SlotLive(i))
+        if(VR_SmallGib_SlotLive((vr_sgib_head + k) & 255))
         {
             n++;
         }
     }
     return n;
+};
+
+// The entries gone at the old end, dropped.
+void() VR_SmallGib_TrimOld =
+{
+    while(vr_sgib_used > 0 && !VR_SmallGib_SlotLive(vr_sgib_head))
+    {
+        vr_sgib_ringid[vr_sgib_head] = 0;
+        vr_sgib_head = (vr_sgib_head + 1) & 255;
+        vr_sgib_used--;
+    }
+};
+
+// The ring full of entries, some gone: the live ones moved up to the old end, in order.
+void() VR_SmallGib_Compact =
+{
+    float n = 0;
+    for(float k = 0; k < vr_sgib_used; k++)
+    {
+        float s = (vr_sgib_head + k) & 255;
+        if(VR_SmallGib_SlotLive(s))
+        {
+            float d = (vr_sgib_head + n) & 255;
+            if(d != s)
+            {
+                vr_sgib_ring[d] = vr_sgib_ring[s];
+                vr_sgib_ringid[d] = vr_sgib_ringid[s];
+                vr_sgib_ringid[s] = 0;
+            }
+            n++;
+        }
+        else
+        {
+            vr_sgib_ringid[s] = 0;
+        }
+    }
+    vr_sgib_used = n;
 };
 
 // Gone at once (its time is up, or the ring needs its place).
@@ -176,43 +226,49 @@ void(entity g) VR_SmallGib_Remove =
 float() VR_SmallGib_MakeRoom =
 {
     float most = min(256, max(1, cvar_hget(cvarh_vr_smallgibs_max)));
+    VR_SmallGib_TrimOld();
     float live = vr_sgib_live;
-    if(live >= most)
+    if(live >= most && vr_sgib_counted != time)
     {
-        live = VR_SmallGib_Count(); // (the truth: some went other ways)
+        live = VR_SmallGib_Count(); // (the truth, once a frame: some went other ways)
+        vr_sgib_counted = time;
     }
-    float i;
     while(live >= most)
     {
+        // The oldest not in a hand: the first such from the old end.
         float oldest = -1;
-        for(i = 0; i < 256; i++)
+        for(float k = 0; k < vr_sgib_used && oldest < 0; k++)
         {
-            if(VR_SmallGib_SlotLive(i) && vr_sgib_ring[i].carry_player == world &&
-               (oldest < 0 || vr_sgib_ringid[i] < vr_sgib_ringid[oldest]))
+            float s = (vr_sgib_head + k) & 255;
+            if(VR_SmallGib_SlotLive(s) && vr_sgib_ring[s].carry_player == world)
             {
-                oldest = i;
+                oldest = s;
             }
         }
         if(oldest < 0)
         {
+            vr_sgib_live = live;
             return -1;
         }
         dprint(sprintf("smallgib: #%d removed (the most is %d)\n", vr_sgib_ringid[oldest], most));
         VR_SmallGib_Remove(vr_sgib_ring[oldest]);
         vr_sgib_ringid[oldest] = 0;
         live--;
+        VR_SmallGib_TrimOld();
     }
     vr_sgib_live = live;
-    for(i = 0; i < 256; i++)
+    if(vr_sgib_used >= 256)
     {
-        float slot = vr_sgib_next;
-        vr_sgib_next = (vr_sgib_next + 1) & 255;
-        if(!VR_SmallGib_SlotLive(slot))
+        VR_SmallGib_Compact();
+        if(vr_sgib_used >= 256)
         {
-            return slot;
+            return -1;
         }
     }
-    return -1;
+    float slot = (vr_sgib_head + vr_sgib_used) & 255;
+    vr_sgib_used++;
+    vr_sgib_ringid[slot] = 0; // (taken: VR_SmallGib_Spawn fills it)
+    return slot;
 };
 
 // ----------------------------------------------------------------------------
@@ -224,6 +280,10 @@ void() VR_SmallGib_Think;
 // it, not yet (Box3D would push it out of the body it came from).
 void() VR_SmallGib_Touch =
 {
+    if(other.vr_gib && self.throwhit != QVR_THROWHIT_NEVER_HIT)
+    {
+        return; // another gib in its box (VR_Gib_Touch: a pile's n x n touches a frame)
+    }
     float wasRigid = self.vr_rigid;
     float speed = vlen(self.velocity);
     if(other != world && cvar_hget(cvarh_vr_smallgibs_trace))
