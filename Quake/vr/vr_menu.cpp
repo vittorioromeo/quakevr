@@ -3991,9 +3991,17 @@ const Page pages[] = {
     {"Retro Textures - Weapons in the World", pageRetroCategory<retro::Category::Weapons>, pageGraphicsRetro}, // 102
     {"Retro Textures - Held Weapons", pageRetroCategory<retro::Category::Held>, pageGraphicsRetro}, // 103
     {"Retro Textures - Monsters", pageRetroCategory<retro::Category::Monsters>, pageGraphicsRetro}, // 104
-    {"Retro Textures - Your Body and Hands", pageRetroCategory<retro::Category::Body>, pageGraphicsRetro}, // 105
-    {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro}, // 106
-    {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro}, // 107
+    {"Retro Textures - Your Hands", pageRetroCategory<retro::Category::Hands>, pageGraphicsRetro}, // 105
+    {"Retro Textures - Your Arms", pageRetroCategory<retro::Category::Arms>, pageGraphicsRetro}, // 106
+    {"Retro Textures - Your Torso", pageRetroCategory<retro::Category::Torso>, pageGraphicsRetro}, // 107
+    {"Retro Textures - Your Legs", pageRetroCategory<retro::Category::Legs>, pageGraphicsRetro}, // 108
+    {"Retro Textures - Your Gear", pageRetroCategory<retro::Category::Gear>, pageGraphicsRetro}, // 109
+    {"Retro Textures - Decals", pageRetroCategory<retro::Category::Decals>, pageGraphicsRetro}, // 110
+    {"Retro Textures - Particles", pageRetroCategory<retro::Category::Particles>, pageGraphicsRetro}, // 111
+    {"Retro Textures - Sprites", pageRetroCategory<retro::Category::Sprites>, pageGraphicsRetro}, // 112
+    {"Retro Textures - Other Models", pageRetroCategory<retro::Category::Other>, pageGraphicsRetro}, // 113
+    {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro}, // 114
+    {"Retro Textures - All Categories", pageRetroAll, pageGraphicsRetro}, // 115
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

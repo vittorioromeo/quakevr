@@ -1171,6 +1171,7 @@ NOISE_FUNCTIONS
 "	vec4	Wound; // QVR: wounds painted on it (vr/vr_wounds.cpp): x its mask's layer + 1 (0 none), yz the mask's size in texels, w the time\n"\
 "	vec4	WoundSide; // QVR: (vr/vr_wounds.cpp) xy the bones of its right side (bits 0..23, 24..47, as whole numbers: your body's mask is one a side), z painting only side z - 1 (0: all), w the blood's opacity\n"\
 "	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own)\n"\
+"	vec4	RetroPart; // QVR: your body's parts by bone (vr/vr_retro.cpp bodyParts): xy the low bits of bones 0..23, 24..47, zw the high bits\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=1) restrict readonly buffer InstanceBuffer\n"\
@@ -1293,6 +1294,7 @@ QVR_ALIAS_VS_SHADE // QVR: the model's light direction and shade (vr_model_light
 "	uint overbright = floatBitsToUint(Fog.w) >> 31;\n"
 "	out_color.rgb = ldexp(out_color.rgb, ivec3(overbright));\n"
 QVR_ALIAS_VS_WOUNDSIDE // QVR: which side's wound mask it reads (your body's: one a side, vr/vr_wounds.cpp)
+QVR_ALIAS_VS_RETRO // QVR: its retro textures' set (your body's: by part, vr/vr_retro.cpp)
 "#ifdef WOUNDPAINT // QVR: drawn into its wound mask (vr/vr_wounds.cpp), laid out by the skin's coordinates\n"
 "	gl_Position = vec4(in_uv * 2.0 - 1.0, 0.0, 1.0);\n"
 "	if (inst.WoundSide.z > 0.5 && abs(out_woundside - (inst.WoundSide.z - 1.0)) > 0.5) // the other side's: not in this layer\n"
@@ -1346,7 +1348,7 @@ QVR_ALIAS_FS_FUNCTIONS // QVR: per-pixel lights, normal maps, ambient, wounds, m
 "#else\n"
 QVR_ALIAS_FS_PARALLAX // QVR: parallax occlusion mapping on the skin's heights
 "	vec4 retro = instances[in_instance].Retro; // QVR: retro textures (vr_retro.h)\n"
-"	RetroBegin(retro.x, retro.y > 0.0 ? retro.yz : vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
+"	RetroBegin(in_retroset, retro.y > 0.0 ? retro.yz : vec2(textureSize(Tex, 0)), duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
 "	vec4 result = Retro > 0 ? RetroSample(Tex, uv, duvdx, duvdy, true) : textureGrad(Tex, uv, duvdx, duvdy);\n"
 "#endif\n"
 "#if ALPHATEST\n"
@@ -1432,6 +1434,8 @@ NOISE_FUNCTIONS
 "layout(binding=0) uniform sampler2D Tex;\n"
 "layout(binding=1) uniform sampler2D SceneDistances; // QVR: soft sprites (vr/vr_water.cpp's opaqueSceneDistances)\n"
 "layout(location=0) uniform vec4 Soft; // QVR: x the fade distance (0: none), y 1: soft (premultiplied, after the translucent pass: r_sprite.c)\n"
+"layout(location=1) uniform vec4 RetroSprite; // QVR: retro textures (vr/vr_retro.h): x the set (0 none), yz the texture's Quake size\n"
+QVR_RETRO_GLSL(QS_STRINGIFY (QVR_RETRO_LUT_UNIT_SPRITE)) // QVR: retro textures (vr/vr_retro.h)
 "\n"
 "layout(location=0) in vec2 in_uv;\n"
 "layout(location=1) in vec3 in_pos;\n"
@@ -1441,7 +1445,10 @@ NOISE_FUNCTIONS
 "\n"
 "void main()\n"
 "{\n"
-"	vec4 result = texture(Tex, in_uv);\n"
+"	vec2 duvdx = dFdx(in_uv), duvdy = dFdy(in_uv); // QVR: retro textures\n"
+"	vec3 dpdx = dFdx(in_pos), dpdy = dFdy(in_pos);\n"
+"	RetroBegin(RetroSprite.x, RetroSprite.yz, duvdx, duvdy, dpdx, dpdy, normalize(cross(dpdx, dpdy)));\n"
+"	vec4 result = Retro > 0 ? RetroSample(Tex, in_uv, duvdx, duvdy, true) : texture(Tex, in_uv);\n"
 "	if (result.a < 0.666)\n"
 "		discard;\n"
 "	result.rgb = ApplyFog(result.rgb, in_pos);\n"
@@ -1512,13 +1519,27 @@ NOISE_FUNCTIONS
 "layout(location=1) in vec4 in_color;\n"
 "layout(location=2) in vec3 in_pos;\n"
 "\n"
+"layout(location=1) uniform float RetroParticles; // QVR: retro textures' Particles set (vr/vr_retro.h; 0 none)\n"
+QVR_RETRO_GLSL(QS_STRINGIFY (QVR_RETRO_LUT_UNIT_SPRITE)) // QVR: retro textures (vr/vr_retro.h)
+"\n"
 OIT_OUTPUT (out_fragcolor)
 "\n"
 "void main()\n"
 "{\n"
 "	out_fragcolor = in_color;\n"
-"	out_fragcolor.rgb = ApplyFog(out_fragcolor.rgb, in_pos);\n"
 "	float radius = length(in_uv);\n"
+"	int rs = int(RetroParticles + 0.5); // QVR: retro textures: snapped, a square (as Quake drew them); its colour in\n"
+"	if (rs > 0 && rs < 64 && RetroInfo.x > 0.0 && RetroSets[rs * 3 + 2].w < 0.5) // the palette, dithered by where it is\n"
+"	{\n"
+"		RetroP0 = RetroSets[rs * 3];\n"
+"		RetroP1 = RetroSets[rs * 3 + 1];\n"
+"		RetroFar = 0.0;\n"
+"		if (RetroP0.w > 0.0)\n"
+"			radius = max(abs(in_uv.x), abs(in_uv.y));\n"
+"		vec3 at = (in_pos + EyePos) / max(RetroP0.x, 0.0625);\n"
+"		out_fragcolor.rgb = RetroQuant(out_fragcolor.rgb, floor(at.xy + at.zz));\n"
+"	}\n"
+"	out_fragcolor.rgb = ApplyFog(out_fragcolor.rgb, in_pos);\n"
 "	float pixel = fwidth(radius);\n"
 "	out_fragcolor.a *= clamp((1. - radius) / pixel, 0., 1.);\n"
 "#if DITHER\n"

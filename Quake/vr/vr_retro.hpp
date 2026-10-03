@@ -23,7 +23,14 @@ enum class Category
     Weapons,   // weapons in the world: dropped, thrown, lying as pickups
     Held,      // the weapons in your hands and holsters
     Monsters,  // monsters, their corpses, other players
-    Body,      // your body, hands, the wrist gadget, the flashlight, pauldrons and pouches
+    Hands,     // your hands (hand*, finger_*), and your body's vertices on its hand and wrist bones
+    Arms,      // your body's arms (its vertices whose heaviest bone is an upper arm's, a forearm's or a twist joint's)
+    Torso,     // your body's torso and head (pelvis, spine, chest, neck, head, clavicles; the body without bones whole)
+    Legs,      // your body's legs (thighs, calves, feet)
+    Gear,      // your other things: the wrist gadget, the flashlight, pauldrons, pouches, leg holsters
+    Decals,    // blood, scorch marks and chips on the world (vr_decals.cpp; in world units)
+    Particles, // Quake VR's particles (vr_particles.cpp; in world units) and Quake's own (r_part.c: squares, palette)
+    Sprites,   // sprites (.spr: explosions, bubbles, the mission packs' bullet holes; r_sprite.c)
     Other,     // every other model: projectiles, torches and flames, ...
     Count
 };
@@ -46,6 +53,9 @@ enum class Param
 };
 
 constexpr int categoryCount = static_cast<int>(Category::Count);
+// Your body (progs/vrbody*) is drawn in one draw with a set for each part (Hands .. Legs, in that order: the instance's
+// set is the Hands one's and a vertex adds its heaviest bone's part, InstanceData's RetroPart).
+constexpr int bodyPartCount = 4;
 constexpr int paramCount = static_cast<int>(Param::Count);
 
 // VR_Init: the categories' and the editor's cvars and the commands (vr_retro_reset, vr_retro_list, vr_retro_pick,
@@ -79,6 +89,32 @@ enum class OverrideMode
 void useShipped();    // your entry for it removed: the shipped one (if any) applies again
 void clearOverride(); // your entry for it inherits everything (hides a shipped one)
 void saveNow();
+
+// ---- All Categories (Graphics > Retro Textures > All Categories): one set of values (vr_retro_all_<setting>), the
+// settings to apply (vr_retro_all_apply_<setting>; On unchecked by default) and the categories to apply them to
+// (vr_retro_all_to_<key>). vr_retro_all_apply copies them; with vr_retro_all_live (not archived) each change of a
+// checked value is copied as it is made. vr_retro_all_copy [category] (none: vr_retro_all_from's) takes a category's
+// values as the starting point. Per-object overrides are untouched.
+[[nodiscard]] cvar_s& allValue(Param p);
+[[nodiscard]] cvar_s& allApply(Param p);
+[[nodiscard]] cvar_s& allTarget(Category c);
+[[nodiscard]] cvar_s& allLiveCvar();
+[[nodiscard]] cvar_s& allFromCvar();
+void allApplyNow();
+void allCopyChosen();
+void allCheckSettings(bool on);
+void allCheckCategories(bool on);
+[[nodiscard]] const char* allSummary();
+
+// Whether a category has a setting (its menu page shows it): Units only where there are textures with Quake texels
+// (not decals' or particles': theirs are always in world units), Bump where there are bump maps, Detail on brush models.
+[[nodiscard]] bool supports(Category c, Param p);
+
+// ---- Things drawn outside the world and model shaders (decals and Quake VR's particles through vr_gfx; sprites and
+// Quake's particles: VR_RetroSprite, VR_RetroParticles): the set for category c (0: none, off), and the shaders' block
+// and the palette's table bound for a draw (the table on unit lutUnit).
+[[nodiscard]] int categorySet(Category c);
+void bindForDraw(int lutUnit);
 
 [[nodiscard]] cvar_s& cvarOf(Category c, Param p);
 [[nodiscard]] const char* categoryLabel(Category c);

@@ -50,7 +50,9 @@ void VR_RetroUpload (void);								// R_UploadFrameData: retro textures' setting
 void VR_RetroBind (int unit);							// a world or model draw, program in use: the palette's table on that unit (vr_retro.h's QVR_RETRO_LUT_UNIT_*)
 void VR_RetroCall (struct entity_s *e, const struct texture_s *t, float out[4]);	// R_AddBModelCall: a texture's Quake size and the set for it on entity e (0: the instance's)
 void VR_RetroInstance (struct entity_s *e, float out[4]);	// R_InitBModelInstance: an entity's set (x; 0 none)
-void VR_RetroAlias (const struct entity_s *e, const void *aliashdr, int standard, float out[4]); // VR_AliasInstance: its set, its skin's Quake size
+void VR_RetroSprite (const struct entity_s *e, const struct mspriteframe_s *frame, int showtris, float out[4]); // R_FlushSpriteInstances: the batch's set, its texture's Quake size; bound
+float VR_RetroParticles (void);						// R_DrawParticles_Real: the Particles set for Quake's particles (0 none); bound
+void VR_RetroAlias (const struct entity_s *e, const void *aliashdr, int standard, float out[4], float part[4]); // VR_AliasInstance: its set, its skin's Quake size; your body's parts by bone
 void VR_WaterFog (float fog[4], float skyfog[4]);			// Fog_SetupFrame: an eye's fog in a liquid (vr_water.cpp)
 void VR_PostProcessWater (void);						// GL_PostProcess, program in use: an eye's underwater wobble and blur
 int VR_MapLiquidAlpha (void);							// R_UpdateLiquidAlpha: nonzero if a map's own liquid alphas (worldspawn) win over the settings (vr_map_liquid_alpha)
@@ -92,6 +94,7 @@ typedef struct vraliasinstance_s
 	float		wound[4]; // its wound mask (vr_wounds.cpp): layer + 1 (0 none), its size in texels, the time
 	float		woundside[4]; // its right side's bones (your body's mask is one a side; bits 0..23, 24..47 as whole numbers), the side painted + 1 (0 all), the blood's opacity
 	float		retro[4]; // retro textures (vr_retro.cpp): its set (0 none), its skin's Quake size (0: the texture's own)
+	float		retropart[4]; // your body's parts by bone (vr_retro.cpp bodyParts): xy the low bits, zw the high bits of each bone's part
 } vraliasinstance_t;
 void VR_AliasInstance (const struct entity_s *e, const float matrix[16], const void *aliashdr, int kind, vraliasinstance_t *out); // R_DrawAliasModel_Real: kind 1 standard, 0 showtris/showskel, 2 depth only (all zero)
 void VR_AliasFlameRefs (const void *aliashdr, unsigned short *refs); // GLMesh_LoadVertexBuffer: per VBO vertex, 0 or 1 + the gun vertex a muzzle flash's vertex rides on
