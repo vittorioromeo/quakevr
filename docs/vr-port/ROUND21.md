@@ -23547,3 +23547,66 @@ pelvis and the prop: a turning limb's place lerped in a straight line between st
 - [ ] Held Limbs Follow the Hand off: the held body lags your hand a little more.
 - [ ] Bullet time (slow motion) with a ragdoll falling: smooth too.
 - [ ] Debug > Tests > Ragdoll and Prop Drawn Motion after a blast: the console's ragdoll "uneven" is near the prop's (not about 2).
+
+## Hands on held ragdolls (2026-10-03)
+
+His words: the carrying hand doesn't stick to the ragdoll as it does to props; it feels a bit too far, detached. The
+hand should close over the ragdoll's model as it does for other props, so it looks like he is carrying it.
+
+**Why it was detached** (all three):
+- *The grab point.* A limb was held by its point where the hand's middle (the controller's point) was as the grip
+  closed: the hand reaches 6 units (`vr_ragdoll_grab_reach`), so the limb was held up to that far off the hand, or sunk
+  into it (a force grab's catch held the limb's middle at the hand). Mock: the palm's middle 5-7 cm from the limb's
+  mesh as it was taken (4 takes), up to 21 cm on the pelvis.
+- *The grasp never ran.* A held limb is not a carried entity (`STAT_QVR_CARRY*` leaves ragdolls out), so the hand had
+  nothing to wrap: the fingers closed into their fist in the air (0 of 5 fingers on the limb, every take).
+- *The pull.* The limb hangs from a spring at the hand: lifting the body by a shin left it 7-16 cm under the hand and
+  turned 40-60 degrees in it, while the hand was drawn at the controller.
+
+**Fix:**
+- *Grab point* (`vr_box3d.cpp` `handFit`, `vr_ragdoll_grab_fit 1`; Gibs and Corpses > Ragdoll Settings > Taking Them >
+  Hand on the Limb): as the hand takes a limb (or catches a pulled one), the hand is moved along its palm's normal
+  (`grip::handFrame`) until a patch of its palm's skin (8 cm by 9 round its middle) rests on the limb's bodies, or, if
+  the limb is beside the palm, until the closed hand (`held::fist`, the props' grab test) touches it: towards the limb
+  from a gap, back out of it from in it, less `vr_held_fit_gap` (the props' setting). The point held at the hand is that
+  far on, so the limb comes onto the palm. Unchanged if no move within the reach does it (the back of the hand on it).
+  `vr_debug_ragdoll 2` prints it ("hand fit").
+- *The grasp* (`vr_view.cpp`): a hand holding a limb wraps it as a carried prop: the held limb's triangles (its bone's,
+  the rest pose: `ragdoll::boneTriangles`, kept as a grasp shape per model and bone: `grasp::keptShape`) drawn where the
+  limb is drawn this frame (`ragdoll::drawnPart`: the pose between the server's steps, moved with the holding hands:
+  ragsmooth's), solved as any held thing (the palm's fit, the fingers stopping on the mesh).
+- *The hand on the limb* (`limbDrawnHand`, `vr_ragdoll_hand_stick 12` cm, `vr_ragdoll_hand_turn 60` degrees; Hand
+  Follows Limb, Hand Turns with Limb): the hand is drawn where the hold has it on the drawn limb (the joint's frame on
+  the part: `box3d::ragdollHold`), as if its controller were there, at most that far and turned that much off the
+  controller (turned about its grip channel, so the fingers stay on the limb when the turn is cut short); eased on and
+  off over 0.1 s. The arm follows the drawn hand. The model collision leaves the holding hand and the held ragdoll out
+  (as a carried prop), and the hand isn't pushed off the other hand's weapon while it holds a limb.
+- `vr_ragdoll_hand_probe` (Debug > Ragdoll Hand Probe): for each hand on a limb, the limb's lag behind the hand, the
+  hand drawn off its controller, the palm's middle and the fingertips from the limb's mesh (cm), the fingers that met it.
+
+**Measured** (mock, e1m1, a dead grunt, the off hand palm down 3 units over the limb nearest it, grip held; 20 frames
+after the take, then lifted 30 units; the death pose differs per take):
+
+| | the fit | fingers on the limb | palm's middle to the mesh | fingertips to the mesh (mean) | hand drawn off the controller, lifted |
+|---|---|---|---|---|---|
+| before (4 takes) | none | 0 of 5 | 4.9-7.4 cm (20.8 on the pelvis) | 1.8-5.6 cm (a fist in the air) | 0 (the limb 7-16 cm off it, under it) |
+| after (6 takes) | palm 4, fist 2 | 2-5 of 5 | -0.5-9.6 cm | 1.4-3.1 cm | 7-10 cm, 43-60 degrees: on the limb |
+
+The palm's middle is inside the hand (about 2 cm under its skin); where it reads 5-9 cm the limb lies across the
+fingers (the palm patch met its edge, or the fist did). The mock's palm faces sideways by default (no fit: the back or
+side of the hand on the limb: unchanged). Screenshots: the kit's `scratch/raggrasp_ba.png` (before above, after below).
+
+### Checklist
+- [ ] Take a ragdoll's leg: your hand sits on it, not floating beside it.
+- [ ] Your fingers close round the limb's mesh (not a fist in the air).
+- [ ] Take an arm: the same.
+- [ ] Take the torso or the pelvis: your palm rests on it.
+- [ ] Lift him by a leg: your hand stays on the leg as the body hangs from it.
+- [ ] Swing him about: the hand stays on the limb, no jumps.
+- [ ] Let go: your hand eases back onto your controller (no snap).
+- [ ] Force-grab a ragdoll and catch it: your hand closes on the limb that arrives, not inside it.
+- [ ] Two hands on one ragdoll: each hand sits on its limb.
+- [ ] Hand on the Limb off: a limb is held where your hand's middle was (the old way).
+- [ ] Hand Follows Limb at 0: your hand stays on the controller (the limb may hang off it).
+- [ ] Hand Turns with Limb: at 0 the hand keeps the controller's turn; at 60 it turns with a twisting limb.
+- [ ] Debug > Ragdoll Hand Probe while holding a limb: the console shows the fingers on it and the palm near it.

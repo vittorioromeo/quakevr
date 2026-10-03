@@ -2673,8 +2673,8 @@ void handPose(edict_t* player, int hand, glm::vec3& at, glm::quat& turn)
 // close round it (vr_view.cpp). Unchanged if no move within the reach (and a little more) does it (the back of the hand
 // on it). `held`: the limb's point the hand would hold without it (world); the world point to hold at the hand, and how
 // far the hand moved along its palm's normal (`moved`).
-[[nodiscard]] glm::vec3 handFit(int pnum, int hand, const glm::vec3& at, const glm::quat& turn, b3BodyId part, const glm::vec3& held,
-    float* moved = nullptr)
+[[nodiscard]] glm::vec3 handFit(int pnum, int hand, const glm::vec3& at, const glm::quat& turn, b3BodyId part,
+    const glm::vec3& held, float* moved = nullptr)
 {
     if(moved)
     {
@@ -2701,7 +2701,8 @@ void handPose(edict_t* player, int hand, glm::vec3& at, glm::quat& turn)
     {
         for(int j = -2; j <= 2; j++)
         {
-            palm.pushBack(glm::vec4{f.palm + across * (2.f * cm * static_cast<float>(i)) + along * (2.25f * cm * static_cast<float>(j)), 0.05f});
+            const glm::vec3 p = f.palm + across * (2.f * cm * static_cast<float>(i)) + along * (2.25f * cm * static_cast<float>(j));
+            palm.pushBack(glm::vec4{p, 0.05f});
         }
     }
     float t = 0.f, from = 0.f;

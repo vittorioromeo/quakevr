@@ -2799,6 +2799,14 @@ void hologramTestMessage()
                   "about 18 units, less and you drag him rather than lift him (vr_ragdoll_grab_force)."),
         slider("Grip Reach", vr_ragdoll_grab_reach, 1.f, 16.f, 1.f, "%.0f units").extend()
             .help("How near a limb your hand must be to take it (vr_ragdoll_grab_reach)."),
+        toggle("Hand on the Limb", vr_ragdoll_grab_fit)
+            .help("A limb you take is brought onto your palm (or against your fingers), as a carried box is, and your "
+                  "fingers close round it; off, it is held where your hand's middle was (vr_ragdoll_grab_fit)."),
+        slider("Hand Follows Limb", vr_ragdoll_hand_stick, 0.f, 30.f, 1.f, "%.0f cm").extend()
+            .help("How far your hand is drawn off your controller to stay on the limb it holds as the limb lags and "
+                  "sags; 0: on the controller (vr_ragdoll_hand_stick)."),
+        slider("Hand Turns with Limb", vr_ragdoll_hand_turn, 0.f, 90.f, 5.f, "%.0f deg").extend()
+            .help("How far your hand is drawn turned with the limb as it twists in your hand (vr_ragdoll_hand_turn)."),
         slider("Throw", vr_ragdoll_throw, 0.f, 2.f, 0.1f, "%.1fx").extend()
             .help("How much of your hand's throw a limb keeps when let go of (vr_ragdoll_throw)."),
         header("Blood"),
@@ -3446,6 +3454,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Zancle Math Self-Test", "vr_zancle_math_test")
             .help("vr_zancle_math_test: Zancle's math (and the angle wrap) against the standard library's on edge values "
                   "(signed zeros, halves, wrap angles, infinities, NaN), to the last bit; one line."),
+        command("Ragdoll Hand Probe", "vr_ragdoll_hand_probe")
+            .help("vr_ragdoll_hand_probe: each hand holding a ragdoll's limb: the limb's lag, the hand drawn off its "
+                  "controller onto it, its palm and fingertips from the limb's mesh (cm), the fingers that met it."),
         command("Grasp Bench", "vr_grasp_bench")
             .help("vr_grasp_bench: each hand's grasp solve on what it holds, timed (afresh, and again 1000 times)."),
         command("Grasp Sweep", "vr_grasp_sweep 5")
