@@ -2203,6 +2203,10 @@ void hologramTestMessage()
         toggle("Two-Handed Carrying", vr_carry_two_hands)
             .help("Grip what your other hand carries to hold it in both: it moves and turns with both hands, and letting go "
                   "of both together throws it. Let go with one and the other keeps it (to pass it from hand to hand)."),
+        slider("Two-Handed Grab Reach", vr_carry_two_hands_reach, 0.f, 5.f, 0.5f, "%.1f cm")
+            .help("How far past Grab Distance Bias your hand may be off what your other hand holds and still grip it "
+                  "(to hold it in both, then let go with the first and grip it again as you want). Every prop can be held "
+                  "in both hands unless its Two Hands (Held Object Offsets) is off."),
         slider("Two-Handed Hand Drift", vr_carry_two_hands_drift, 0.f, 20.f, 1.f, "%.0f cm")
             .extend(0.f, 50.f)
             .help("How far your drawn hands may be off your real ones to stay on their grips as you pull them apart or push "
@@ -3395,14 +3399,18 @@ za::Vector<Item> pageDebugTests()
             .help("A gib ahead of you as if just thrown with both hands: prints (2h test:) whether each hand may strike "
                   "and the gib can be struck, now and 0.5 s later (Throwing and Physics: Two-Handed Throws)."),
         command("Gib in the Off Hand", "developer 1; impulse 252")
-            .help("A gib or head (each press the next kind) in your off hand: take it with the other hand too and "
-                  "throw it with both. 'gib:' lines say what burst it (Real Gib, below)."),
+            .help("A gib or head (each press the next kind), or the prop Which Gib picks, in your off hand: take it "
+                  "with the other hand too and throw it with both, or let go with the first hand and grip it again. "
+                  "'gib:' lines say what burst it (Real Gib, below)."),
         cycle("Which Gib", vr_test_held_pick,
               {{-1.f, "Each in Turn"}, {0.f, "Small Gib (gib1)"}, {1.f, "Player's Head"}, {2.f, "Torso (gib2)"},
                {3.f, "Big Chunk (gib3)"}, {4.f, "Grunt's Head"}, {5.f, "Ogre's Head"}, {6.f, "Knight's Head"},
-               {7.f, "Zombie's Head"}, {8.f, "Fiend's Head"}})
+               {7.f, "Zombie's Head"}, {8.f, "Fiend's Head"}, {9.f, "Nearest Rock"}, {10.f, "Hand Grenade"},
+               {11.f, "Nearest Shells Box"}, {12.f, "Nearest Brick"}})
             .help("vr_test_held_pick: the gib or head Gib in the Off Hand gives (Each in Turn: the next each press). The "
-                  "torso and the big chunk are the large ones (Misc/quakevr/gib_2h_models_test.sh throws each)."),
+                  "torso and the big chunk are the large ones (Misc/quakevr/gib_2h_models_test.sh throws each). Rock, "
+                  "Shells Box, Brick: the nearest lying about; Hand Grenade: one from the pouch (Misc/quakevr/"
+                  "twohand_regrip_test.sh takes each in both hands and hands it over)."),
         toggle("Real Gib", vr_test_held_destroy)
             .help("vr_test_held_destroy: the off hand's test gib can be burst as a real one (shot, struck, thrown hard "
                   "at a wall). Misc/quakevr/gib_2h_throw_test.sh throws it with both hands along several arcs."),

@@ -49,8 +49,9 @@ constexpr const char* keyDefaults[numKeys] = {
 // and bricks' slots; 39: the bricks two-handed; 40: the grip modes; 44: the grenade's; 45: the author's bricks and torch
 // (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0; 49: the crates' slots; 50:
 // the rocks and bricks at Size 1.25; 51: the crates' small pieces in the palm; 53: the multi-grenade's as the grenade's;
-// 54: the author's grenade and multi-grenade fits; 55: the author's weights and sizes (slots 6-16 his items).
-constexpr int settingsVersion = 55;
+// 54: the author's grenade and multi-grenade fits; 55: the author's weights and sizes (slots 6-16 his items); 56: every
+// prop in both hands.
+constexpr int settingsVersion = 56;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -407,6 +408,22 @@ void migrate()
                 Cvar_SetQuick(&var, var.default_string);
                 Con_DPrintf("Held Object Offsets: %s: %s %s (was %g)\n", cvarAt(c.slot, Key::ID).string, var.name, var.string,
                     static_cast<double>(c.before));
+            }
+        }
+    }
+    // 56: every prop may be held in both hands (the author's, 2026-10-03; ROUND21.md, "Every prop in both hands": the
+    // other hand takes a small thing too, to grip it again). The grenade and multi-grenade (slots 3, 4), the rocks and the
+    // half brick (17-21, 24) and the crate's broken board and splinter (29, 30) were one hand only: a slot still its
+    // model's that holds that old default takes the new one (a config's own choice for another model is kept).
+    if(from < 56)
+    {
+        for(const int slot : {3, 4, 17, 18, 19, 20, 21, 24, 29, 30})
+        {
+            cvar_t& var = cvarAt(slot, Key::TwoHands);
+            if(!strcmp(cvarAt(slot, Key::ID).string, cvarAt(slot, Key::ID).default_string) && atof(var.string) == 0.0)
+            {
+                Cvar_SetQuick(&var, var.default_string);
+                Con_DPrintf("Held Object Offsets: %s: %s %s (was 0)\n", cvarAt(slot, Key::ID).string, var.name, var.string);
             }
         }
     }

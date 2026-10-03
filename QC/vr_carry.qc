@@ -1206,8 +1206,13 @@ void() VR_Carry_TwoHandFrame =
         self.vr_2h_letgo_hand = letGo + 1; // (it strikes nothing while the other may yet throw it with both)
         self.vr_2h_letgo_time = time;
         VR_Carry_SetHeld(self, letGo, world);
+        vector keptFrom = box.origin;
         carry2hkeep(box, self, keep); // onto its grip in that hand (pulled off: carry2hoff has done it)
         VR_Carry_Regrip(keep, box);
+        if(cvar("developer"))
+        {
+            dprint(sprintf("carry: kept by hand %g, moved %.2f units by the let-go\n", keep, vlen(box.origin - keptFrom)));
+        }
         haptic(letGo, 0.0, 0.05, 60, 0.3);
         return;
     }
@@ -1223,6 +1228,10 @@ void() VR_Carry_TwoHandFrame =
     if(box.vr_wearable)
     {
         VR_Armor_HeldFrame(cVR_MainHand, box); // over the torso: a haptic hint
+    }
+    else if(VR_HandGrenade_Trigger(triggerHand, box, trigger && !box.carry_trigger))
+    {
+        // (a hand grenade held in both hands: either trigger pulls its pin, as in one; vr_grenade.qc)
     }
     else if(cvar_hget(cvarh_vr_carry_take) != 0 && trigger && !box.carry_trigger)
     {

@@ -22793,3 +22793,40 @@ hand at 3.0`) in every run, before and after: the punch on a held gib, by design
 In VR:
 - [ ] Take the torso gib and the big chunk in both hands, push both forward and let go together: they fly, no burst.
 - [ ] Hold a gib in one hand and punch it with the other: it bursts.
+
+## Every prop in both hands (2026-10-03)
+
+The author: most props, even small and light ones (heads, small gibs, rocks, bricks, grenades, ammo boxes), held in
+both hands, mainly to grip them again: hold it with the other hand too, let go with the first, grip it again as wanted.
+Two-handed carrying was there already (vr_carry_two_hands, each prop's Two Hands in Held Object Offsets); two things
+kept small props out of it:
+
+- **Two Hands off** for the grenade and multi-grenade (slots 3, 4), the rocks and the half brick (17-21, 24) and the
+  crate's broken board and splinter (29, 30). Now on for every shipped prop (vr_props.inc); `vr_props_version` 56
+  turns it on in a config whose slot is still its model's and holds the old 0 (his config: all of these but the half
+  brick, which he had turned on). A hand grenade held in both: either trigger pulls its pin, as in one hand.
+- **The re-grip missed by a centimetre.** The hand that let go of a prop held in both stayed where it was, but its fist
+  test was 0.97 cm off the prop's surface (a prop is fitted against the drawn fist, a little off the fist's test
+  spheres), so gripping again said "not within reach". The other hand may now be **Two-Handed Grab Reach**
+  (`vr_carry_two_hands_reach`, 2 cm) farther off what one hand holds than Grab Distance Bias (vr_carry2h.cpp reaches).
+  gib2h2's "a head can't be taken by the second hand" was the test's hand placement: the main fist on the off hand's
+  line 14 cm away is 3.5 cm off a grunt's head; 4 cm higher it touches it.
+
+Letting go with one hand keeps it in the other where it is (as before: moved 0.00-0.03 units). Test
+`Misc/quakevr/twohand_regrip_test.sh <agent>` (Debug > Tests: Which Gib has Nearest Rock, Hand Grenade, Nearest Shells
+Box and Nearest Brick for Gib in the Off Hand; `vr_test_held_pick` 9-12): each prop taken in the off hand, the main fist
+on it, then off lets go, grips again, main lets go, grips again, both let go:
+
+| prop | held in both | kept by one | moved at let-go |
+|---|---|---|---|
+| grunt's head, player's head | 3 (before: 1, the re-grip "not within reach") | 2 | 0.03, 0.01 units |
+| small gib, rock, hand grenade, box of shells, brick | 3 (rock, grenade before: 0, one hand only) | 2 | 0.00 |
+
+gib_2h_models_test.sh (gib2, gib3, gib1, grunt's head; no CFG): held in both and burst 0 of 24; the head (not taken
+there) as before. eval.sh canary: no differences.
+
+In VR:
+- [ ] Hold a head, a rock, a grenade, a shells box in one hand; grip it with the other; let go with the first and grip
+      it again: it never jumps; each grip is where your hand is on it.
+- [ ] A hand grenade in both hands: either trigger pulls its pin; let go with both: thrown.
+- [ ] Settings > Carrying and Throwing > Throwing and Physics > Carrying Boxes > Two-Handed Grab Reach: 0 for the old reach (a fist touching).

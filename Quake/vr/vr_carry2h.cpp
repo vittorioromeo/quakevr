@@ -224,7 +224,9 @@ bool clear(int num, const Frame& from, Frame& to)
 
 bool reaches(edict_t* ent, edict_t* player, int hand)
 {
-    return held::grabTouch(ent, player, hand);
+    // What the other hand holds: a little farther than a thing lying about (vr_carry_two_hands_reach), so that the hand that
+    // let go of it grips it again where it is (it was fitted to the fist's drawn shape, about 1 cm off the fist's test).
+    return held::grabTouch(ent, player, hand, za::fmax(vr_carry_two_hands_reach.value, 0.f) * 0.01f * units::metresToUnits());
 }
 
 int detached(edict_t* ent, edict_t* player)
