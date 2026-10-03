@@ -1442,9 +1442,14 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
 };
 
 // Whether `xHand` may strike `xEnt` now: once per motion (see VR_MELEE_REARM_*); another thing at once (a swing
-// through two monsters). A bash or a held gib struck spends the motion for everything (mh_hit_ent world).
+// through two monsters). A bash or a held gib struck spends the motion for everything (mh_hit_ent world). Never a
+// ragdoll it holds or just let go of (VR_Ragdoll_HandSpares: a throw is not a blow).
 float(float xHand, entity b, entity xEnt) VR_Melee_Armed =
 {
+    if(VR_Ragdoll_HandSpares(xEnt, self, xHand))
+    {
+        return FALSE;
+    }
     if(!VRGetMeleeHitSoundPlayed(xHand))
     {
         return TRUE;

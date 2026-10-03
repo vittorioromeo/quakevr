@@ -1318,6 +1318,57 @@ void() VR_Ragdoll_Handtouch =
     }
 };
 
+// Two-handed ragdoll throws (ROUND21.md, "Two-handed ragdoll throws"; as a big gib's, "Two-handed throws of big gibs"):
+// a ragdoll held in both hands (a limb each) and pushed away was struck by the hands themselves: a hand holding it is
+// "armed" with it (a prop in the fist), and the hand that let go first swept on through it at a swing's speed, so the
+// throw hurt it (or gibbed it) and its knock bent the trajectory. Now (VR_Ragdoll_HandSpares, in VR_Melee_Armed) a hand
+// never strikes a ragdoll it holds, nor one it let go of VR_RAGDOLL_LETGO_SPARE ago; the hand that lets go of a ragdoll
+// the other still holds strikes nothing while the other may still throw it with both (vr_2h_letgo_hand,
+// VR_Throw_HandMayStrike), and the other's letting go within vr_carry_two_hands_window is a two-handed throw
+// (VR_Throw_TwoHanded: no blows for vr_throw_2h_nomelee, the ragdoll spared for vr_throw_2h_melee_immune). The free hand
+// still punches a ragdoll held in the other.
+float VR_RAGDOLL_LETGO_SPARE = 0.4; // s (as a gib's releasing hand: VR_Gib_Struck)
+.entity vr_rag_letgo;      // on a ragdoll: the player who last let go of it, with which hand (+1), and when
+.float vr_rag_letgo_hand;
+.float vr_rag_letgo_time;
+
+// `xHand` of the player `self` let go of the ragdoll `xBox` (its held field already cleared).
+void(float xHand, entity xBox) VR_Ragdoll_LetGo =
+{
+    float other = VRGetOtherHand(xHand);
+    float twoHanded = FALSE;
+    if(VR_Carry_Held(self, other) == xBox)
+    {
+        // The other still holds it: this hand strikes nothing while the other may still throw it with both.
+        self.vr_2h_letgo_hand = xHand + 1;
+        self.vr_2h_letgo_time = time;
+    }
+    else if(self.vr_2h_letgo_hand == other + 1 && xBox.vr_rag_letgo == self && xBox.vr_rag_letgo_hand == other + 1 &&
+            time - xBox.vr_rag_letgo_time <= cvar_hget(cvarh_vr_carry_two_hands_window) + 0.05)
+    {
+        twoHanded = TRUE; // the other let go of it a moment ago: thrown with both
+    }
+    xBox.vr_rag_letgo = self;
+    xBox.vr_rag_letgo_hand = xHand + 1;
+    xBox.vr_rag_letgo_time = time;
+    dprint(sprintf("ragdoll: limb let go of by hand %g at %.2f m/s%s\n", xHand, vlen(VRGetHandThrowVel(xHand)),
+        twoHanded ? " (a two-handed throw)" : ""));
+    if(twoHanded)
+    {
+        VR_Throw_TwoHanded(self, xBox);
+    }
+};
+
+// Whether `xHand` of `p` spares the ragdoll `e` (VR_Melee_Armed): it holds it, or let go of it a moment ago.
+float(entity e, entity p, float xHand) VR_Ragdoll_HandSpares =
+{
+    if(VR_Carry_Held(p, xHand) == e && e != world)
+    {
+        return TRUE;
+    }
+    return e.vr_rag_letgo == p && e.vr_rag_letgo_hand == xHand + 1 && time < e.vr_rag_letgo_time + VR_RAGDOLL_LETGO_SPARE;
+};
+
 // Every player frame, for a hand holding `xBox` (VR_Carry_HandFrame; self is the player): a ragdoll's limb. Let go of, it
 // keeps the hand's throw; let go of by the engine (the ragdoll gibbed, the limb left behind a wall), the hand is empty
 // again. FALSE: not a ragdoll's limb (a carried thing).
@@ -1341,7 +1392,7 @@ float(float xHand, entity xBox) VR_Ragdoll_HandFrame =
     {
         VR_Carry_SetHeld(self, xHand, world);
         ragdollrelease(self, xHand, VRGetHandThrowVel(xHand) * VRMetersToUnits());
-        dprint("ragdoll: limb let go of\n");
+        VR_Ragdoll_LetGo(xHand, xBox);
     }
     return TRUE;
 };
