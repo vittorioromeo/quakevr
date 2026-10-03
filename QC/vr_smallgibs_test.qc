@@ -30,6 +30,8 @@
 //     you and hurts (Hurt Only Falling); 3 s on, the health you lost
 //  (16, 17 and 19 print the monster drops' flung hits on you too, and those spared: Monster Drops Harmless For, Monster
 //  Drops Hurt Only Falling)
+// With vr_smallgibs_test_dummy 1 their target is the nearest training dummy instead (vr_dummy_gore: it bleeds as a grunt);
+// 1, 2, 3, 4 and 6 print the gore each sent too (gore hits, wound events, blood particles), to compare with a grunt's.
 
 float vr_sgib_test;       // the test running, its step, when the step began
 float vr_sgib_test_step;
@@ -48,7 +50,9 @@ entity(entity p) VR_SmallGib_TestTarget =
     entity e = findradius(p.origin, 800);
     while(e)
     {
-        if(e != p && e.classname != "vr_dummy" && ((e.flags & FL_MONSTER) || e.vr_corpse == 2) && !e.vr_gib)
+        float ok = cvar("vr_smallgibs_test_dummy") ? e.classname == "vr_dummy" :
+                   (e.classname != "vr_dummy" && ((e.flags & FL_MONSTER) || e.vr_corpse == 2));
+        if(e != p && ok && !e.vr_gib)
         {
             float d = vlen(e.origin - p.origin);
             if(best == world || d < bestd)
@@ -62,6 +66,24 @@ entity(entity p) VR_SmallGib_TestTarget =
     return best;
 };
 
+// The gore sent since VR_SmallGib_TestGoreMark (the dummy's to compare with a grunt's: vr_smallgibs_test_dummy).
+float vr_sgib_test_gore;
+float vr_sgib_test_wound;
+float vr_sgib_test_blood;
+
+void() VR_SmallGib_TestGoreMark =
+{
+    vr_sgib_test_gore = vr_gore_sent;
+    vr_sgib_test_wound = vr_wound_sent;
+    vr_sgib_test_blood = vr_blood_sent;
+};
+
+void(string xName) VR_SmallGib_TestGorePrint =
+{
+    bprint(sprintf("sgibtest: %s: gore hits %d, wound events %d, blood particles %d\n", xName, vr_gore_sent - vr_sgib_test_gore,
+        vr_wound_sent - vr_sgib_test_wound, vr_blood_sent - vr_sgib_test_blood));
+};
+
 // `n` blasts of `xPellets` at `m`, from the player's eyes.
 void(entity m, float xPellets, float xDmg, vector xSpread, float n, string xName) VR_SmallGib_TestBlasts =
 {
@@ -71,6 +93,7 @@ void(entity m, float xPellets, float xDmg, vector xSpread, float n, string xName
     m.health = 100000;
     vr_sgib_rolls = 0;
     vr_sgib_rolldmg = 0;
+    VR_SmallGib_TestGoreMark();
     for(float i = 0; i < n; i++)
     {
         vector dir = normalize((m.absmin + m.absmax) * 0.5 - src);
@@ -89,6 +112,7 @@ void(entity m, float xPellets, float xDmg, vector xSpread, float n, string xName
         vlen(m.origin - self.origin), vr_sgib_rolls, vr_sgib_rolldmg / max(1, vr_sgib_rolls)));
     bprint(sprintf("sgibtest: %s: %d tore small gibs out (%.0f%%), %d small gibs\n", xName, withGibs,
         100 * withGibs / max(1, n), vr_sgib_made - made));
+    VR_SmallGib_TestGorePrint(xName);
 };
 
 // `n` blows of `xDmg` on `m` by `inflictor` (the player's hand `xKind` with weapon `xWeapon`, `xBlunt` its pommel), the
@@ -104,6 +128,7 @@ void(entity m, entity inflictor, float xKind, float xWeapon, float xBlunt, float
     {
         m.vr_corpse_hp = 100000;
     }
+    VR_SmallGib_TestGoreMark();
     for(float i = 0; i < n; i++)
     {
         float before = vr_sgib_made;
@@ -121,6 +146,7 @@ void(entity m, entity inflictor, float xKind, float xWeapon, float xBlunt, float
     }
     bprint(sprintf("sgibtest: %s: %d of %.0f on %s, %d tore small gibs out (%.0f%%), %d small gibs\n", xName, n, xDmg,
         m.classname, withGibs, 100 * withGibs / max(1, n), vr_sgib_made - made));
+    VR_SmallGib_TestGorePrint(xName);
 };
 
 float(entity g) VR_SmallGib_TestInBox =
@@ -448,7 +474,11 @@ void(float xCase) VR_SmallGib_TestStart =
         bprint(sprintf("sgibtest: underfoot: gibbed %d, %d small gibs\n", m.vr_gib != 0, vr_sgib_made));
         return;
     }
-    if(m != world && m.vr_corpse != 2 && (m.flags & FL_MONSTER))
+    if(m.classname == "vr_dummy")
+    {
+        m.frame = 0; // (as a grunt's below; its think, which goes on, stands it again)
+    }
+    else if(m != world && m.vr_corpse != 2 && (m.flags & FL_MONSTER))
     {
         // Still, standing (its first frame): the same pose every run (a pose with the arms ahead takes the pellets
         // as limbs', 0.6 of their damage).
@@ -500,6 +530,7 @@ void(float xCase) VR_SmallGib_TestStart =
         m.health = max(m.health, 100000);
         vr_sgib_test_a = vr_sgib_made;
         vr_sgib_test_b = 0;
+        VR_SmallGib_TestGoreMark();
         if(m.vr_corpse == 2)
         {
             m.vr_corpse_hp = 100000;
@@ -817,6 +848,7 @@ void() VR_SmallGib_TestFrame =
                 bprint(sprintf("sgibtest: chainsaw on %s (corpse %d): %d ticks in %.2f s, %d small gibs (one each %.2f s at most)\n",
                     m.classname, m.vr_corpse, vr_sgib_test_b, t, vr_sgib_made - vr_sgib_test_a,
                     cvar_hget(cvarh_vr_smallgibs_saw_interval)));
+                VR_SmallGib_TestGorePrint("chainsaw");
                 vr_sgib_test = 0;
             }
         }

@@ -1523,8 +1523,11 @@ void(vector org, vector vel) SpawnMeatSpray =
 SpawnBlood
 ================
 */
+float vr_blood_sent; // blood particles spawned (the small gibs' tests count them)
+
 void(vector org, vector vel, float damage) SpawnBlood =
 {
+    vr_blood_sent++;
     particle2(org, vel * 0.2, QVR_PARTICLE_PRESET_BLOOD, damage);
 };
 

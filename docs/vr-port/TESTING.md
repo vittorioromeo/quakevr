@@ -325,6 +325,10 @@ context and screenshot, ready to paste or to point me at.
     rune and let go of it at a hip or shoulder holster to take it (a key you have knocks and drops); powerups as
     before. Carrying and Gibs > Armour and Pickups > Weapons and Keys turns it off. In the firing range the weapons on
     the tables should lie on them, none cut by the table top; Show Physics Shapes: hanging items' outlines turn with them.
+  - **The training dummy bleeds as a grunt** (ROUND21.md, that title): hit it with the sword, a punch, the shotgun,
+    the chainsaw: blood sprays and mist, wounds on its model, small gibs torn out, blood on your hands, arms and what you
+    hold, as on a grunt; it still reports every hit and never dies. Gore > Training Dummy: Dummy Bleeds off makes it
+    clean as before; Dummy Gibs on gibs it by what would gib a grunt (a hard blow, a rocket), and it stands again 2 s on.
   - **Dummy attacks, for parry practice** (ROUND21.md, "Dummy attacks (firing range)"): in the firing range, press
     DUMMY ATTACKS (the panel south of the training dummy). Stand in front of it: every 2.5 s or so it winds up (a
     sound, a glow, the rifle raised) and strikes you as a knight would. Parry it: the parry, parry stamina and

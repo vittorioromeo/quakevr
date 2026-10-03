@@ -1167,6 +1167,7 @@ QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small 
 QVR_CVAR(vr_smallgibs_trace, "0", CVAR_NONE)             // tests: 1 prints each small gib's first 2.5 s (sgibtrace: lines): where made, its speed, every jump in it, what hands, weapons and held things touch, nudge or strike it, how far it lay
 QVR_CVAR(vr_smallgibs_test_n, "0", CVAR_NONE)              // its tests: how many of each (0: 200)
 QVR_CVAR(vr_smallgibs_test_dmg, "0", CVAR_NONE)            // a blow's damage (0: 35)
+QVR_CVAR(vr_smallgibs_test_dummy, "0", CVAR_NONE)          // 1: its tests' target is the nearest training dummy (to compare its gore with a grunt's)
 QVR_CVAR(vr_smallgibs_test_crowd, "0", CVAR_NONE)          // test 14: grunts (0: 24)
 QVR_CVAR(vr_smallgibs_test_blasts, "0", CVAR_NONE)         // test 14: blasts in the one frame (0: 1)
 QVR_CVAR(vr_smallgibs_test_hand, "0", CVAR_NONE)           // test 13: the melee and chainsaw ones at the main hand, put in the body (the mock)
@@ -1524,6 +1525,9 @@ QVR_CVAR(vr_dummy_attack_jitter, "0.4", CVAR_ARCHIVE)    // s the period varies 
 QVR_CVAR(vr_dummy_attack_reach, "80", CVAR_ARCHIVE)      // units (origin to origin) within which it strikes; beyond, it waits (a knight's: 60)
 QVR_CVAR(vr_dummy_attack_damage, "10", CVAR_ARCHIVE)     // a blow's damage, before a parry (as a monster's blow: armour, god mode and the parry apply)
 QVR_CVAR(vr_dummy_attack_windup, "0.6", CVAR_ARCHIVE)    // s of wind-up (the tell: a sound, the rifle raised, a glow) before each blow
+QVR_CVAR(vr_dummy_gore, "1", CVAR_ARCHIVE)               // the training dummy bleeds as a grunt: gore sprays and mist, wounds on its model, small gibs, blood thrown onto you and your gear (0: clean, as before)
+QVR_CVAR(vr_dummy_gib, "0", CVAR_ARCHIVE)                // the training dummy is gibbed by what would gib a grunt (a grunt's 30 health over its run of hits, below -35), and stands again after vr_dummy_gib_respawn
+QVR_CVAR(vr_dummy_gib_respawn, "2", CVAR_ARCHIVE)        // s a gibbed training dummy takes to stand again
 QVR_CVAR(vr_leg_holster_model_enabled, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_scale, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_leg_holster_model_x_offset, "1", CVAR_ARCHIVE)

@@ -22574,3 +22574,29 @@ Eyeshots are no use for this: two runs of the same files differ by 1 in a few do
 e1m1 load (exclusive, warm, prefetch list in place): TGA 920 / 962 ms (image decoding 234 ms), PNG 869 / 844 ms
 (218-224 ms). The zip (`id1`, `hipnotic`, `rogue` textures, `quakevr/textures_quetoo`, README/CREDITS/LICENSE notes)
 is the `textures-2026-10-03` release; docs: [TEXTURES.md](TEXTURES.md), pointers in README.md, INSTALL.md, CREDITS.md.
+## The training dummy bleeds as a grunt (2026-10-03)
+
+NOTES.md vrfiringrange_2026-10-03_02-07-05 and _02-07-42: the dummy should take the same gore as a grunt, to test it on.
+
+- **Same paths:** T_DamageDeal now sends the dummy's hits through VR_Gore_Hit, VR_SmallGib_Hit and VR_Wound_Hit before
+  VR_Dummy_Hit reports them (it still takes no health). The exclusions of the dummy (VR_Gore_Bleeds, VR_Wound_Takes,
+  VR_SmallGib_Bleeds, the liquid wetness in VR_Wounds_Frame) are one predicate now, `VR_Dummy_Clean` (vr_carry.qc):
+  clean only with `vr_dummy_gore 0`. Shotgun pellets (VR_Wound_Pellet) and fire's burns (vr_burning.qc) follow. The
+  blood on your hands, arms and gear comes from the wound events (the engine's spatterFrom), so it follows too; the
+  dummy already burned.
+- **Gibbing (`vr_dummy_gib`, off):** a grunt's 30 health over the dummy's run of hits (hits less than a second apart):
+  a hit that takes it from alive to below -35 gibs it as army_die would (the dummy itself becomes the grunt's head, so
+  its wounds bloody the neck as a grunt's do; three gibs; the gibbing's small gibs; the gib sound). A stand-in comes
+  back as the dummy at its spot after `vr_dummy_gib_respawn` (2 s; later while someone stands there), with the
+  teleport flash. Not counted as a kill. Motion replays turn it off (as vr_dummy_attacks).
+- **Settings:** Gore > Training Dummy: Dummy Bleeds (vr_dummy_gore 1), Dummy Gibs (vr_dummy_gib 0), Dummy Stands Again
+  (vr_dummy_gib_respawn 2).
+- **Motion takes:** a take whose settings line has no vr_dummy_gore replays with a clean dummy (vr_motion_play.cpp
+  applySettings): with small gibs torn out of it, the blade's follow-through strikes them, and 8 of the archived takes
+  gained a second melee event (verdicts unchanged). New takes record vr_dummy_gore and replay with it.
+- **Test:** Debug > Gore Tests > Small Gibs Tests > On the Training Dummy (vr_smallgibs_test_dummy 1) points the small
+  gibs' tests at the dummy; tests 1, 2, 3, 4 and 6 print the gore each sent (gore hits, wound events, blood particles:
+  counters vr_gore_sent, vr_wound_sent, vr_blood_sent). 50 of each, dummy vs a grunt 96 units ahead: axe blade, pommel,
+  sword, punch 50/50/50 gore hits and wound events on both (small gibs 54/56, 19/12, 58/59, 5/10: chance); chainsaw
+  1 s: 62 ticks, 62 gore hits, 62 wounds, 9 small gibs on both; shotgun: one gore hit a blast on both, a wound event
+  and a blood particle a pellet that struck (300 of 300 on the dummy, 225 on the grunt: its pose takes fewer pellets).

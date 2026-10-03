@@ -1839,6 +1839,13 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         header("Dying Bodies"),
         toggle("Hit While Dying", vr_corpse_dying)
             .help("A monster dying takes damage as a corpse while it falls (once it drops what it drops): a chainsaw, a blow or a shot can gib it. Never killed twice. Needs Gib Corpses (Carrying and Throwing > Gibs and Corpses)."),
+        header("Training Dummy"),
+        toggle("Dummy Bleeds", vr_dummy_gore)
+            .help("The firing range's training dummy bleeds as a grunt: blood sprays and mist, wounds on its model, small gibs, blood on you and what you hold. Off: it stays clean."),
+        toggle("Dummy Gibs", vr_dummy_gib)
+            .help("What would gib a grunt (its 30 health over a run of hits, below -35) gibs the training dummy: its head and gibs fly, and it stands again. Off as shipped."),
+        slider("Dummy Stands Again", vr_dummy_gib_respawn, 0.5f, 10.f, 0.5f, "%.1f s").extend(0.1f, 60.f)
+            .help("How long a gibbed training dummy takes to stand again."),
         header("Marks"),
         toggle("Decals", vr_decals).help("Blood, scorch marks and bullet chips on walls and floors (the gore needs them)."),
         slider("Max Decals", vr_decal_max, 64.f, 4096.f, 64.f, "%.0f").extend().help("The oldest go first. The gore makes many: 1024 or more."),
@@ -3098,6 +3105,8 @@ za::Vector<Item> pageDebugTools()
         header("Small Gibs Tests (developer 1 for each hit)"),
         command("A Grunt Ahead", "vr_test_spawn 0; vr_test_spawn_dist 96; impulse 241").help("A grunt 96 units ahead, facing you: the tests' target (the nearest monster or corpse)."),
         command("A Grunt's Corpse Ahead", "vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; vr_test_spawn_dead 0"),
+        toggle("On the Training Dummy", vr_smallgibs_test_dummy)
+            .help("vr_smallgibs_test_dummy: the tests below hit the nearest training dummy instead (the firing range's), and the shotgun, nail, blow and chainsaw ones print the gore each sent (gore hits, wound events, blood particles): to compare with a grunt's."),
         command("Shotgun Blasts", "vr_smallgibs_test 1").help("vr_smallgibs_test 1: 200 shotgun blasts at it (vr_smallgibs_test_n), the share that tore small gibs out."),
         command("Super Shotgun Blasts", "vr_smallgibs_test 2"),
         command("Nails", "vr_smallgibs_test 3"),

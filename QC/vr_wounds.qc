@@ -23,6 +23,7 @@ float QVR_WOUND_WATER = 9; // in a liquid (org_z: its surface; extra: 0 water, 1
 .float vr_wound_liquid_next; // when a monster or a player in a liquid is next told about (VR_Wounds_Frame)
 
 float vr_wound_liquid; // set by VR_Wound_Level: the liquid (CONTENT_*)
+float vr_wound_sent;   // hits' wound events sent (the small gibs' tests count them)
 
 // How deep `e` is in a liquid: a player's waterlevel (the engine's), a monster's measured the same way (vr_liquids.qc:
 // the engine keeps none for walking monsters).
@@ -40,7 +41,7 @@ float(entity e) VR_Wound_Level =
 
 float(entity e) VR_Wound_Takes =
 {
-    return (e.flags & (FL_MONSTER | FL_CLIENT)) && e.classname != "vr_dummy";
+    return (e.flags & (FL_MONSTER | FL_CLIENT)) && !VR_Dummy_Clean(e);
 };
 
 // The height of the surface of the liquid `e` is in (it is, waterlevel > 0), or over its top when it is under.
@@ -62,6 +63,7 @@ void(entity e, vector at, vector dir, float damage) VR_Wound_Pellet =
     {
         return;
     }
+    vr_wound_sent++;
     woundevent(e, at, normalize(dir), QVR_WOUND_SHOT, damage, 1);
 };
 
@@ -154,12 +156,13 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     {
         dir = '0 0 -1';
     }
+    vr_wound_sent++;
     woundevent(targ, org, normalize(dir), kind, min(255, take), 0);
 };
 
 // StartFrame: every monster and player in a liquid, four times a second: how high it comes up them (wet under it;
 // lava and slime burn only as they hurt: VR_Wound_Hit). The monsters and players alone are stepped through (findflags:
-// VR_Wound_Takes's flags), the cheap checks first; the dummy's time is set as the others' (it takes none).
+// VR_Wound_Takes's flags), the cheap checks first; the dummy's time is set as the others' (it takes none with vr_dummy_gore off).
 void() VR_Wounds_Frame =
 {
     entity e = findflags(world, flags, FL_MONSTER | FL_CLIENT);
@@ -168,7 +171,7 @@ void() VR_Wounds_Frame =
         if(e.vr_wound_liquid_next <= time && e.modelindex)
         {
             e.vr_wound_liquid_next = time + 0.25;
-            if(e.classname != "vr_dummy")
+            if(!VR_Dummy_Clean(e))
             {
                 float level = VR_Wound_Level(e);
                 if(level > 0)

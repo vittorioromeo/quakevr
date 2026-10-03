@@ -1196,18 +1196,20 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         take = RuneApplyEarth(take, targ);
     }
 
-    // VR: the firing range's training dummy reports the hit and takes no harm (vr_dummy.qc).
+    // VR: gore: blood sprayed onto the walls, floor and ceiling behind the hit (vr_gore, vr_carry.qc). The training
+    // dummy's too, as a grunt's (vr_dummy_gore: VR_Dummy_Clean).
+    VR_DamageNumber(targ, inflictor, attacker, take, save, isVRMelee); // VR: Debug: Show Damage Numbers
+    VR_Gore_Hit(targ, inflictor, take);
+    VR_SmallGib_Hit(targ, inflictor, attacker, damage); // VR: small gibs torn out (vr_smallgibs.qc)
+    VR_Wound_Hit(targ, inflictor, attacker, take); // VR: painted on its model (vr_wounds.qc)
+
+    // VR: the firing range's training dummy reports the hit and takes no harm (vr_dummy.qc; gibbed, with vr_dummy_gib,
+    // by what would gib a grunt).
     if(targ.classname == "vr_dummy")
     {
         VR_Dummy_Hit(targ, inflictor, attacker, damage, isVRMelee);
         return TRUE;
     }
-
-    // VR: gore: blood sprayed onto the walls, floor and ceiling behind the hit (vr_gore, vr_carry.qc).
-    VR_DamageNumber(targ, inflictor, attacker, take, save, isVRMelee); // VR: Debug: Show Damage Numbers
-    VR_Gore_Hit(targ, inflictor, take);
-    VR_SmallGib_Hit(targ, inflictor, attacker, damage); // VR: small gibs torn out (vr_smallgibs.qc)
-    VR_Wound_Hit(targ, inflictor, attacker, take); // VR: painted on its model (vr_wounds.qc)
 
     // do the damage
     targ.health = targ.health - take;

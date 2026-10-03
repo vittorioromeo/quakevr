@@ -419,7 +419,7 @@ struct Take
     static constexpr const char* placing[] = {"vr_world_scale", "vr_height_calibration", "vr_floor_offset", "vr_stick_swap",
         "vr_gunangle", "vr_gunyaw", "vr_offhandpitch", "vr_offhandyaw", "vr_handcal_", "vr_gunmodel", "vr_weapon_grip_mode", "vr_2h_",
         "vr_lean_", "vr_roomscale_", "vr_body_", "vr_throw_release", "vr_throw_grab_press", "vr_wofs_",
-        "vr_controller_legacy_pose", "vr_weapon_cycle_mode", "vr_hull_"};
+        "vr_controller_legacy_pose", "vr_weapon_cycle_mode", "vr_hull_", "vr_dummy_gore"};
     // (Every setting the QC's melee, damage and hit reactions read.)
     static constexpr const char* meleeOnes[] = {"vr_melee_", "vr_bash", "vr_shove", "vr_parry", "vr_deflect", "vr_headbutt",
         "vr_sword_", "vr_damage_", "vr_push", "vr_hit_push", "vr_kill_push", "vr_carry_melee_mult", "vr_positional_damage",
@@ -517,6 +517,12 @@ void applySettings(const Take& take, bool melee)
         {
             list.emplaceBack(name, "0");
         }
+    }
+    // A take from before the training dummy bled (vr_dummy_gore): clean, as then (the small gibs torn out of it are struck
+    // by the blow's follow-through: hits the take never had).
+    if(!za::anyOf(list.begin(), list.end(), [](const auto& kv) { return kv.first == "vr_dummy_gore"; }))
+    {
+        list.emplaceBack("vr_dummy_gore", "0");
     }
     if(melee)
     {
@@ -1200,6 +1206,12 @@ void stopPlayback(const char* why)
     {
         savedSettings.emplaceBack(&vr_dummy_attacks, vr_dummy_attacks.string);
         Cvar_SetQuick(&vr_dummy_attacks, "0");
+    }
+    // Nor gibbed by the take's blows (vr_dummy_gib): it stays to take them all.
+    if(vr_dummy_gib.value != 0.f)
+    {
+        savedSettings.emplaceBack(&vr_dummy_gib, vr_dummy_gib.string);
+        Cvar_SetQuick(&vr_dummy_gib, "0");
     }
     strikeNext = 0;
     strikesDone = 0;
