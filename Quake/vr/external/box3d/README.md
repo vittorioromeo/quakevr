@@ -9,7 +9,7 @@ Erin Catto's 3D rigid-body physics engine, the successor to Box2D. MIT licence (
 Only the library is vendored: `src/` (the C17 sources and their private headers) and `include/box3d/` (the
 public C API), unchanged. Upstream's samples, tests, benchmarks, docs, shared code and CMake files are left out.
 
-Quake VR uses it in `Quake/vr/vr_box3d.cpp` (`vr_physics_engine 1`; see `docs/vr-port/ROUND21.md`, "Box3D
+Quake VR uses it in `Quake/vr/vr_box3d.cpp` (see `docs/vr-port/ROUND21.md`, "Box3D
 physics"). Build settings (`Windows/VisualStudio/quakevr.props`, `Quake/vr/vr.cmake`):
 
 - compiled as C17 (`/std:c17`), no precompiled header, `/fp:precise` (the engine's) and no FMA contraction

@@ -658,33 +658,6 @@ int gadgetHand()
     return vr_gadget_arm.value != 0.f ? HAND_MAIN : HAND_OFF;
 }
 
-void migrateHandedness()
-{
-    const bool leftSet = vr_lefthanded.string[0] != 0;
-    const bool gadgetSet = vr_gadget_hand.string[0] != 0;
-    if(!leftSet && !gadgetSet)
-    {
-        return;
-    }
-    // vr_lefthanded 1 was: the right stick moves, the torch on the right hip; vr_gadget_hand 1: the gadget on the arm
-    // that isn't the moving stick's. One left unset keeps its meaning as the settings have it now.
-    const bool swapNow = vr_stick_swap.value != 0.f;
-    const bool left = leftSet ? vr_lefthanded.value != 0.f : swapNow;
-    const bool otherArm = gadgetSet ? vr_gadget_hand.value != 0.f : (vr_gadget_arm.value != 0.f) != swapNow;
-    if(leftSet)
-    {
-        Cvar_SetValueQuick(&vr_stick_swap, left ? 1.f : 0.f);
-        Cvar_SetValueQuick(&vr_flashlight_side, left ? 1.f : 0.f);
-    }
-    Cvar_SetValueQuick(&vr_gadget_arm, left != otherArm ? 1.f : 0.f);
-    Con_Printf("VR: %s%s%s%s is now vr_stick_swap %s, vr_gadget_arm %s, vr_flashlight_side %s\n",
-        leftSet ? "vr_lefthanded " : "", leftSet ? vr_lefthanded.string : "", leftSet && gadgetSet ? ", " : "",
-        gadgetSet ? va("vr_gadget_hand %s", vr_gadget_hand.string) : "", vr_stick_swap.string, vr_gadget_arm.string,
-        vr_flashlight_side.string);
-    Cvar_SetQuick(&vr_lefthanded, "");
-    Cvar_SetQuick(&vr_gadget_hand, "");
-}
-
 Calibration calibration(int hand)
 {
     Calibration c;

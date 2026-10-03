@@ -56,14 +56,6 @@ constexpr int settingsVersion = 56;
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
 
-constexpr const char* retiredKeyNames[] = {
-#define QVR_PROP_RETIRED(k) k,
-#include "vr_props.inc"
-#undef QVR_PROP_RETIRED
-};
-constexpr int numRetired = static_cast<int>(sizeof(retiredKeyNames) / sizeof(retiredKeyNames[0]));
-za::Array<za::String, numSlots * numRetired> retiredNames;
-za::Array<cvar_t, numSlots * numRetired> retiredCvars{};
 
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
 {
@@ -464,21 +456,6 @@ void registerCvars()
     for(int key = 0; key < numKeys; key++)
     {
         keyDefaultValues[key] = static_cast<float>(atof(keyDefaults[key]));
-    }
-
-    // Retired keys (vr_props.inc): registered so that a config setting them loads silently; not saved, read by nothing.
-    for(int slot = 0; slot < numSlots; slot++)
-    {
-        for(int key = 0; key < numRetired; key++)
-        {
-            za::String& name = retiredNames[slot * numRetired + key];
-            name = za::String("vr_prop_") + retiredKeyNames[key] + (slot + 1 < 10 ? "_0" : "_") + za::toString(slot + 1);
-            cvar_t& var = retiredCvars[slot * numRetired + key];
-            var.name = name.cStr();
-            var.string = "0";
-            var.flags = CVAR_NONE;
-            Cvar_RegisterVariable(&var);
-        }
     }
 }
 

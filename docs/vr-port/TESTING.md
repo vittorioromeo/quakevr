@@ -342,8 +342,7 @@ context and screenshot, ready to paste or to point me at.
     sliders line it up with your real one; **Shot Pitch / Shot Yaw** (under Muzzle and Posing Mode) turn where shots go
     without moving the gun: with Show Controller Laser, put the red line through the sights.
   - **Physics: Box3D only** (ROUND21.md, "Simplification: Box3D only, knights always drop swords"): the Physics
-    Engine option is gone (Throwing and Physics > Physics starts at Bounciness), and an old config's
-    `vr_physics_engine` line loads without a word. Thrown and dropped things collide with each other: stack boxes,
+    Engine option is gone (Throwing and Physics > Physics starts at Bounciness). Thrown and dropped things collide with each other: stack boxes,
     build a pyramid, throw a box into a stack, sweep one off with a held box; throws at monsters, weapons landing on
     their sides, backpacks and armour on slopes, boxes on lifts, things floating, gibs.
   - **Knights always drop their sword** (the Knights Drop Swords slider is gone; Advanced VR Options > Gameplay > Knights' Swords keeps
@@ -699,8 +698,8 @@ context and screenshot, ready to paste or to point me at.
   at the surface and your arm follow it; push on (about 70% of the way through) and it slides through, and stays
   through until it is clear. Try the two-handed grips, a prop in both hands and the holsters: none should be blocked.
 - **Two-handed aiming:** with a gun in one hand, grip its foregrip with the other (empty) hand: the hand snaps
-  onto the gun. Weapons trail the hand a little depending on their weight (`vr_wpn_pos_weight`,
-  `vr_wpn_dir_weight`); hands and barrels stop at walls. With a hand
+  onto the gun. Weapons trail the hand a little depending on their weight (Weapon Weights: the
+  Spring, `vr_weight_spring_*`); hands and barrels stop at walls. With a hand
   near the shoulder, the virtual stock steadies the aim (`vr_2h_mode`, `vr_virtual_stock_thresh`).
 - **Flick reload:** with the super shotgun, flick the wrist to snap it open (`vr_spinreload_x_angular_threshold`).
 - **Teleport:** `vr_teleport_enabled 1` and bind a button, e.g. `bind LTHUMB +teleport`. Aim with the off hand,

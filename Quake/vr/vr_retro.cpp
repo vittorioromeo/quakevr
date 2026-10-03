@@ -89,11 +89,7 @@ constexpr CategoryInfo categoryInfo[categoryCount] = {
 za::String names[categoryCount * paramCount];
 cvar_t cvars[categoryCount * paramCount];
 
-// Your Body and Hands (vr_retro_body<suffix>, before it was split into Hands, Arms, Torso, Legs and Gear): not archived,
-// kept so that a config that has them sets all five.
 constexpr Category bodySplit[] = {Category::Hands, Category::Arms, Category::Torso, Category::Legs, Category::Gear};
-za::String legacyNames[paramCount];
-cvar_t legacyBody[paramCount];
 
 // The block the shaders read (vr_retro.h's RetroUBO, std140).
 struct Block
@@ -1147,15 +1143,6 @@ void override_f()
     loadEditor();
 }
 
-void onLegacyBodyChanged(cvar_t* var)
-{
-    const int p = static_cast<int>(var - legacyBody);
-    for(Category c : bodySplit)
-    {
-        Cvar_SetQuick(&cvars[static_cast<int>(c) * paramCount + p], var->string);
-    }
-}
-
 [[nodiscard]] bool inBodySplit(int c)
 {
     for(Category b : bodySplit)
@@ -1587,15 +1574,6 @@ void registerCvars()
             cvars[i].flags = CVAR_ARCHIVE;
             Cvar_RegisterVariable(&cvars[i]);
         }
-    }
-    for(int p = 0; p < paramCount; p++)
-    {
-        legacyNames[p] = za::String("vr_retro_body") + paramInfo[p].suffix;
-        legacyBody[p].name = legacyNames[p].cStr();
-        legacyBody[p].string = paramInfo[p].def;
-        legacyBody[p].flags = CVAR_NONE;
-        Cvar_RegisterVariable(&legacyBody[p]);
-        Cvar_SetCallback(&legacyBody[p], onLegacyBodyChanged);
     }
     for(int p = 0; p < paramCount; p++)
     {

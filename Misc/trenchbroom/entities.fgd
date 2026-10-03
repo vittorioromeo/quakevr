@@ -334,10 +334,10 @@ The core of the time machine: taking it destroys the machine (item_time_machine)
 200 health; a chainsaw up close, grenades at range. Drops a backpack of rockets." []
 @PointClass = monster_knight : "Knight
 
-75 health; a sword. Quake VR: it may drop its sword when it dies (vr_sword_drop), a weapon the player can take." []
+75 health; a sword. Quake VR: it drops its sword when it dies, a weapon the player can take." []
 @PointClass = monster_hell_knight : "Death knight (hell knight)
 
-250 health; a sword and a spray of flames. Quake VR: it may drop its sword when it dies (vr_sword_drop)." []
+250 health; a sword and a spray of flames. Quake VR: it drops its sword when it dies." []
 @PointClass = monster_wizard : "Scrag (wizard)
 
 80 health; flies and spits acid." []

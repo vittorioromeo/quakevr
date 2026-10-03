@@ -112,9 +112,6 @@ struct Calibration
 [[nodiscard]] int moveHand();   // the moving stick's hand: HAND_OFF (the left), or HAND_MAIN with vr_stick_swap 1
 [[nodiscard]] int gadgetHand(); // the wrist gadget's arm: HAND_OFF (the left), or HAND_MAIN with vr_gadget_arm 1
 
-// The retired vr_lefthanded and vr_gadget_hand (a config's, after it ran; one typed in the console, the next frame):
-// their meaning in vr_stick_swap, vr_gadget_arm and vr_flashlight_side, then emptied. Nothing when both are empty.
-void migrateHandedness();
 
 // Where a hand's palm is (State::palmLocal), or its point if not known.
 [[nodiscard]] glm::vec3 palmPoint(const State& s, int hand);
