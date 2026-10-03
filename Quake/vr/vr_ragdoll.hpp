@@ -92,7 +92,11 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 
 // The server's ragdolls as the client draws them (a listen server's: vr_box3d.cpp publishes after each step). Each bone's
 // body in the world: p_world = rot * (scale * p_rest) + pos (units); the bones from `bodies` on have none (hidden).
-void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale);
+// `time`: the server time of the message that follows the step (the client draws it between the last two steps at its
+// cl.time, as it lerps the props: vr_ragdoll_smooth). `heldBy`: the local player's hands holding a limb (bit 0 the off
+// hand, 1 the main): their places now are kept, the drawn ragdoll follows them between steps (vr_ragdoll_held_local).
+void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
+    int heldBy);
 void unpublish(int num);
 void unpublishAll();
 
@@ -112,7 +116,14 @@ void restoreModels();
 
 // A ragdoll's mesh as drawn now, in the world (units): its .mdl vertices skinned to its bodies (rigid: one bone each),
 // and their normals (the rest pose's turned with them) if `normals`. False if edict `num` has no ragdoll published.
-bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals = nullptr);
+// `drawn`: as drawn this frame (between the steps, after the hands: the client's model collisions), else the latest step's
+// (the server's hits).
+bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals = nullptr, bool drawn = false);
+
+// vr_drawn_motion_test <frames> [<entity> | nearest | held]: the drawn motion of the nearest ragdoll's parts, of a prop
+// (nearest: the loose prop nearest you; held: the one a hand carries) and of the hands over the next `frames` frames:
+// how evenly each moves frame to frame (Debug > Tests; vr_fixed_frames_rate 90: a headset's frames).
+void motionTest_f();
 
 // vr_ragdoll_info: the rig of the nearest dead monster's model (or the grunt's), its bones and how it was derived.
 void info_f();

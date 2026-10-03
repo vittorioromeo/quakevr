@@ -5,8 +5,11 @@
 #include "vr_ragdoll.hpp"
 #include "vr_api_render.h"
 #include "vr_cvars.hpp"
+#include "vr_box3d.hpp"
 #include "vr_decals.hpp"
+#include "vr_hands.hpp"
 #include "vr_mem.hpp"
+#include "vr_protocol.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -938,6 +941,9 @@ constexpr const char* skinnedSuffix = "#rag";
 // ----------------------------------------------------------------------------
 // What the server publishes (its ragdolls' bones in the world) and what the client swapped for a frame. The main thread.
 
+constexpr float teleport = 100.f; // units a part moves in a step: a jump, not lerped (CL_RelinkEntities')
+constexpr float heldLeadMost = 24.f; // units: the most a held ragdoll is drawn ahead of its step towards the hand
+
 struct Published
 {
     const Rig* rig{nullptr};
@@ -946,6 +952,21 @@ struct Published
     bool drawn{false}; // the client has drawn it (its first frame: compared with the animated mesh, vr_debug_ragdoll)
     za::Array<glm::quat, maxBones> rot{};
     za::Array<glm::vec3, maxBones> pos{};
+    // The step before (drawn between the two, as the client lerps a prop between the server's last two messages), and
+    // the server times of the messages after each (prevTime == time: no step before, the latest drawn).
+    za::Array<glm::quat, maxBones> prevRot{};
+    za::Array<glm::vec3, maxBones> prevPos{};
+    double time{0.0}, prevTime{0.0};
+    // The local player's hands on its limbs at each step (bit 0 the off hand, 1 the main; their places as the client
+    // had them then: vr_ragdoll_held_local).
+    int heldBy{0}, prevHeldBy{0};
+    glm::vec3 hand[2]{}, prevHand[2]{};
+    // As drawn this frame (swapModels; drawnFrame: host_framecount).
+    za::Array<glm::quat, maxBones> drawRot{};
+    za::Array<glm::vec3, maxBones> drawPos{};
+    int drawnFrame{-1};
+    float drawBlend{1.f};      // between the steps (0 the one before .. 1 the latest)
+    glm::vec3 drawLead{0.f};   // moved with the holding hands (units)
 };
 
 struct Swapped
@@ -970,6 +991,25 @@ struct DrawState
     auto members() { return mem::list(byNum, swapped); }
 };
 mem::Cache<DrawState> draw{"ragdolls drawn", mem::MapChange};
+
+// vr_drawn_motion_test: what it follows and for how long (the client's frames), and the places drawn each frame.
+struct MotionTest
+{
+    int left{0}; // frames still to record
+    int rag{0};  // the ragdoll's entity (0 none)
+    int prop{0}; // the prop's (0 none)
+    int frames{0};
+};
+MotionTest motionTest;
+
+struct MotionPoints
+{
+    za::Vector<glm::vec3> rag;  // a frame's maxBones (the parts')
+    za::Vector<glm::vec3> prop; // a frame's one
+    za::Vector<glm::vec3> hand; // a frame's two (the off hand, the main)
+    auto members() { return mem::list(rag, prop, hand); }
+};
+mem::Cache<MotionPoints> motionPoints{"drawn motion test", mem::MapChange};
 
 // The client's buffers (its drawing: the main thread).
 struct DrawScratch
@@ -1183,7 +1223,8 @@ bool collapsed(const Rig& rig, int pose, int b)
     return rig.poseHidden[static_cast<za::SizeT>(pose * rig.numBones + b)] != 0;
 }
 
-void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale)
+void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
+    int heldBy)
 {
     if(num < 0)
     {
@@ -1194,17 +1235,52 @@ void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const gl
         draw.byNum.resize(static_cast<za::SizeT>(num) + 32);
     }
     Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    // The step before kept to draw from: not for a new one, one whose parts changed (his shotgun dropped), one a step
+    // repeated (a second publish before the message: its creation), or one not published for a while.
+    bool keep = p.rig == rig && p.bodies == bodies && time > p.time && time - p.time < 0.1;
+    for(int b = 0; keep && b < bodies; b++)
+    {
+        keep = glm::distance(pos[b], p.pos[static_cast<za::SizeT>(b)]) < teleport; // (as CL_RelinkEntities: a jump not lerped)
+    }
     if(p.rig != rig)
     {
         p.drawn = false; // (a new one)
+        p.drawnFrame = -1;
+    }
+    if(keep)
+    {
+        p.prevRot = p.rot;
+        p.prevPos = p.pos;
+        p.prevTime = p.time;
+        p.prevHeldBy = p.heldBy;
+        p.prevHand[0] = p.hand[0];
+        p.prevHand[1] = p.hand[1];
+    }
+    else if(!(p.rig == rig && time == p.time))
+    {
+        p.prevTime = time;
+        p.prevHeldBy = 0;
     }
     p.rig = rig;
     p.bodies = bodies;
     p.scale = scale;
+    p.time = time;
     for(int b = 0; b < bodies; b++)
     {
         p.rot[static_cast<za::SizeT>(b)] = rot[b];
         p.pos[static_cast<za::SizeT>(b)] = pos[b];
+    }
+    if(p.prevTime == time)
+    {
+        p.prevRot = p.rot;
+        p.prevPos = p.pos;
+    }
+    // (In a listen server the hands the client sent with this server frame's command: hands::current(), this host frame's.)
+    const hands::State& hs = hands::current();
+    p.heldBy = hs.valid ? heldBy : 0;
+    for(int h = 0; h < 2; h++)
+    {
+        p.hand[h] = (p.heldBy & (1 << h)) ? hs.pos[h] : glm::vec3{0.f};
     }
 }
 
@@ -1224,6 +1300,203 @@ void unpublishAll()
     }
 }
 
+namespace
+{
+
+// Ragdoll `num`'s pose as drawn this frame (once a frame): between its last two steps at the client's time, as
+// CL_RelinkEntities lerps a prop between the server's last two messages (vr_ragdoll_smooth); held by the local player's
+// hands, moved with them since those steps (vr_ragdoll_held_local: a held prop is drawn in the hand each frame).
+void drawnPose(int num)
+{
+    Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    if(p.drawnFrame == host_framecount)
+    {
+        return;
+    }
+    p.drawnFrame = host_framecount;
+    p.drawLead = glm::vec3{0.f};
+    float f = 1.f;
+    if(vr_ragdoll_smooth.value != 0.f && !cl_nolerp.value && p.time > p.prevTime)
+    {
+        f = za::clamp(static_cast<float>((cl.time - p.prevTime) / (p.time - p.prevTime)), 0.f, 1.f);
+    }
+    p.drawBlend = f;
+    for(int b = 0; b < p.bodies; b++)
+    {
+        const za::SizeT i = static_cast<za::SizeT>(b);
+        p.drawPos[i] = glm::mix(p.prevPos[i], p.pos[i], f);
+        p.drawRot[i] = glm::slerp(p.prevRot[i], p.rot[i], f);
+    }
+    const hands::State& hs = hands::current();
+    if(vr_ragdoll_held_local.value == 0.f || !p.heldBy || !hs.valid)
+    {
+        return;
+    }
+    // Each holding hand's place now from where it was as the drawn steps were (the same blend): the ragdoll moved by
+    // their mean, so the limb in the hand moves with it at the frame rate. (The client's own places, then and now: the
+    // server's hand and the drawn one differ by a constant offset that cancels.)
+    glm::vec3 lead{0.f};
+    int n = 0;
+    for(int h = 0; h < 2; h++)
+    {
+        if(p.heldBy & (1 << h))
+        {
+            const glm::vec3 then = (p.prevHeldBy & (1 << h)) ? glm::mix(p.prevHand[h], p.hand[h], f) : p.hand[h];
+            lead += hs.pos[h] - then;
+            n++;
+        }
+    }
+    lead /= static_cast<float>(n);
+    if(glm::length(lead) > heldLeadMost)
+    {
+        return; // (a jump: a teleport, the hand taken back)
+    }
+    p.drawLead = lead;
+    for(int b = 0; b < p.bodies; b++)
+    {
+        p.drawPos[static_cast<za::SizeT>(b)] += lead;
+    }
+}
+
+// How evenly a point moved over the frames (`stride` apart in `pts`): its mean step a frame (units), the mean change of
+// the step's length from frame to frame and of the step itself (the motion's jerk), both over the mean step, and the
+// frames it (nearly) stood still in. Smooth motion: both near 0; drawn at the server's 72 Hz in 90 Hz frames: every
+// fifth frame still (uneven about 0.4).
+struct Evenness
+{
+    float step{0.f}, uneven{0.f}, jerk{0.f};
+    int stalls{0};
+};
+
+[[nodiscard]] Evenness evenness(const glm::vec3* pts, int frames, int stride)
+{
+    Evenness e;
+    if(frames < 3)
+    {
+        return e;
+    }
+    for(int i = 1; i < frames; i++)
+    {
+        e.step += glm::distance(pts[i * stride], pts[(i - 1) * stride]);
+    }
+    e.step /= static_cast<float>(frames - 1);
+    if(e.step < 0.01f)
+    {
+        return e;
+    }
+    for(int i = 2; i < frames; i++)
+    {
+        const glm::vec3 d1 = pts[i * stride] - pts[(i - 1) * stride];
+        const glm::vec3 d0 = pts[(i - 1) * stride] - pts[(i - 2) * stride];
+        e.uneven += za::abs(glm::length(d1) - glm::length(d0));
+        e.jerk += glm::length(d1 - d0);
+    }
+    for(int i = 1; i < frames; i++)
+    {
+        e.stalls += glm::distance(pts[i * stride], pts[(i - 1) * stride]) < 0.25f * e.step;
+    }
+    e.uneven /= e.step * static_cast<float>(frames - 2);
+    e.jerk /= e.step * static_cast<float>(frames - 2);
+    return e;
+}
+
+void printEvenness(const char* what, const Evenness& e)
+{
+    if(e.step < 0.01f)
+    {
+        Con_Printf("  %s: still\n", what);
+        return;
+    }
+    Con_Printf("  %s: %.2f units a frame, uneven %.3f, jerk %.3f, %d stalls\n", what, e.step, e.uneven, e.jerk, e.stalls);
+}
+
+void reportMotion()
+{
+    const int frames = motionTest.frames;
+    Con_Printf("vr_drawn_motion_test: %d frames of %.1f ms (the server's: %.1f ms), vr_ragdoll_smooth %g, vr_ragdoll_held_local %g\n",
+        frames, 1000.0 * (cl.time - cl.oldtime), 1000.0 * (cl.mtime[0] - cl.mtime[1]), vr_ragdoll_smooth.value,
+        vr_ragdoll_held_local.value);
+    if(motionTest.rag > 0)
+    {
+        char what[64];
+        const int held = motionTest.rag < static_cast<int>(draw.byNum.size()) ? draw.byNum[static_cast<za::SizeT>(motionTest.rag)].heldBy : 0;
+        q_snprintf(what, sizeof(what), "ragdoll %d (held by hands %d) pelvis", motionTest.rag, held);
+        printEvenness(what, evenness(motionPoints.rag.data(), frames, maxBones));
+        // Its parts: the mean and the most uneven moving one.
+        float uneven = 0.f, jerk = 0.f, worst = 0.f;
+        int moving = 0, worstPart = -1;
+        for(int b = 0; b < maxBones; b++)
+        {
+            const Evenness e = evenness(motionPoints.rag.data() + b, frames, maxBones);
+            if(e.step < 0.01f)
+            {
+                continue;
+            }
+            uneven += e.uneven;
+            jerk += e.jerk;
+            moving++;
+            if(e.uneven > worst)
+            {
+                worst = e.uneven;
+                worstPart = b;
+            }
+        }
+        if(moving)
+        {
+            Con_Printf("  ragdoll %d parts: %d moving, uneven %.3f, jerk %.3f (means), the most uneven %.3f (part %d)\n",
+                motionTest.rag, moving, uneven / static_cast<float>(moving), jerk / static_cast<float>(moving), worst, worstPart);
+        }
+    }
+    if(motionTest.prop > 0)
+    {
+        char what[64];
+        q_snprintf(what, sizeof(what), "prop %d", motionTest.prop);
+        printEvenness(what, evenness(motionPoints.prop.data(), frames, 1));
+    }
+    printEvenness("off hand", evenness(motionPoints.hand.data(), frames, 2));
+    printEvenness("main hand", evenness(motionPoints.hand.data() + 1, frames, 2));
+}
+
+// vr_drawn_motion_test's frame: the places drawn (after the relink and the held objects in the hands).
+void recordMotion()
+{
+    if(motionTest.left <= 0)
+    {
+        return;
+    }
+    const int rag = motionTest.rag;
+    const bool ragShown = rag > 0 && rag < static_cast<int>(draw.byNum.size()) && draw.byNum[static_cast<za::SizeT>(rag)].rig;
+    if(ragShown)
+    {
+        drawnPose(rag);
+    }
+    const Published* p = ragShown ? &draw.byNum[static_cast<za::SizeT>(rag)] : nullptr;
+    for(int b = 0; b < maxBones; b++)
+    {
+        motionPoints.rag.pushBack(p && b < p->bodies ? p->drawPos[static_cast<za::SizeT>(b)] : glm::vec3{0.f});
+    }
+    const int prop = motionTest.prop;
+    const bool propShown = prop > 0 && prop < cl.num_entities;
+    motionPoints.prop.pushBack(propShown ? glm::vec3{cl_entities[prop].origin[0], cl_entities[prop].origin[1], cl_entities[prop].origin[2]}
+                                         : glm::vec3{0.f});
+    const hands::State& hs = hands::current();
+    motionPoints.hand.pushBack(hs.pos[0]);
+    motionPoints.hand.pushBack(hs.pos[1]);
+    if(p && vr_debug_ragdoll.value >= 2.f)
+    {
+        // Each frame: where it is drawn between its steps, the steps' times, the lead the hands gave it, its pelvis.
+        Con_Printf("  frame %d: cl.time %.4f, steps %.4f %.4f, blend %.2f, lead %.2f, pelvis %.2f %.2f %.2f\n", motionTest.frames,
+            cl.time, p->prevTime, p->time, p->drawBlend, glm::length(p->drawLead), p->drawPos[0].x, p->drawPos[0].y, p->drawPos[0].z);
+    }
+    motionTest.frames++;
+    if(--motionTest.left == 0)
+    {
+        reportMotion();
+    }
+}
+
+} // namespace
+
 void swapModels()
 {
     draw.swapped.clear();
@@ -1231,6 +1504,7 @@ void swapModels()
     {
         return;
     }
+    recordMotion();
     for(int num = 1; num < static_cast<int>(draw.byNum.size()) && num < cl.num_entities; num++)
     {
         const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
@@ -1256,7 +1530,8 @@ void swapModels()
                 int pose1 = 0, pose2 = 0;
                 float blend = 0.f;
                 animatedVertices(e, drawScratch.animated, pose1, pose2, blend);
-                if(skinnedVertices(num, drawScratch.skinned) && drawScratch.skinned.size() == drawScratch.animated.size())
+                drawnPose(num);
+                if(skinnedVertices(num, drawScratch.skinned, nullptr, true) && drawScratch.skinned.size() == drawScratch.animated.size())
                 {
                     // (Its drawn vertices: not a hidden bone's, collapsed in both: the shotgun he dropped.)
                     float sum = 0.f, most = 0.f;
@@ -1278,6 +1553,7 @@ void swapModels()
                 }
             }
         }
+        drawnPose(num);
         Swapped s;
         s.num = num;
         s.original = e->model;
@@ -1287,14 +1563,14 @@ void swapModels()
         s.lerpTime = e->lerptime;
         s.lerpFlags = e->lerpflags;
         s.skinned = skinned;
-        s.ref = p.pos[0];
+        s.ref = p.drawPos[0];
         s.bones = p.rig->numBones;
         for(int b = 0; b < s.bones; b++)
         {
             // (A hidden bone: all its vertices at the pelvis, its triangles gone.)
             const bool shown = b < p.bodies;
-            const glm::mat3 r = shown ? glm::mat3_cast(p.rot[static_cast<za::SizeT>(b)]) * p.scale : glm::mat3{0.f};
-            const glm::vec3 t = shown ? p.pos[static_cast<za::SizeT>(b)] - s.ref : glm::vec3{0.f};
+            const glm::mat3 r = shown ? glm::mat3_cast(p.drawRot[static_cast<za::SizeT>(b)]) * p.scale : glm::mat3{0.f};
+            const glm::vec3 t = shown ? p.drawPos[static_cast<za::SizeT>(b)] - s.ref : glm::vec3{0.f};
             float* out = &s.skin[static_cast<za::SizeT>(b * 12)];
             for(int row = 0; row < 3; row++)
             {
@@ -1310,7 +1586,7 @@ void swapModels()
             const Bone& bone = p.rig->bones[b];
             if(bone.joint != Joint::Loose && bone.parent >= 0)
             {
-                decals::limbTrail(num * maxBones + b, p.rot[static_cast<za::SizeT>(b)] * (bone.end * p.scale) + p.pos[static_cast<za::SizeT>(b)]);
+                decals::limbTrail(num * maxBones + b, p.drawRot[static_cast<za::SizeT>(b)] * (bone.end * p.scale) + p.drawPos[static_cast<za::SizeT>(b)]);
             }
         }
         e->model = skinned;
@@ -1375,7 +1651,7 @@ bool drawMatrix(const entity_t* e, float matrix[16])
     return true;
 }
 
-bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals)
+bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals, bool drawn)
 {
     if(num < 0 || num >= static_cast<int>(draw.byNum.size()) || !draw.byNum[static_cast<za::SizeT>(num)].rig)
     {
@@ -1383,6 +1659,9 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
     }
     const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
     const Rig& rig = *p.rig;
+    const bool asDrawn = drawn && p.drawnFrame >= 0 && host_framecount - p.drawnFrame <= 1; // (this frame's or the last's)
+    const auto& rots = asDrawn ? p.drawRot : p.rot;
+    const auto& poss = asDrawn ? p.drawPos : p.pos;
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(rig.model)));
     const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
     out.resize(static_cast<za::SizeT>(rig.numVerts));
@@ -1396,15 +1675,59 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
         const glm::vec3 r{t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
             t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
         const int b = rig.vertBone[static_cast<za::SizeT>(v)];
-        out[static_cast<za::SizeT>(v)] = b < p.bodies ? p.rot[static_cast<za::SizeT>(b)] * (r * p.scale) + p.pos[static_cast<za::SizeT>(b)] : p.pos[0];
+        out[static_cast<za::SizeT>(v)] = b < p.bodies ? rots[static_cast<za::SizeT>(b)] * (r * p.scale) + poss[static_cast<za::SizeT>(b)] : poss[0];
         if(normals)
         {
             const glm::vec3 n{r_avertexnormals[t.lightnormalindex][0], r_avertexnormals[t.lightnormalindex][1],
                 r_avertexnormals[t.lightnormalindex][2]};
-            (*normals)[static_cast<za::SizeT>(v)] = b < p.bodies ? p.rot[static_cast<za::SizeT>(b)] * n : glm::vec3{0.f};
+            (*normals)[static_cast<za::SizeT>(v)] = b < p.bodies ? rots[static_cast<za::SizeT>(b)] * n : glm::vec3{0.f};
         }
     }
     return true;
+}
+
+void motionTest_f()
+{
+    if(Cmd_Argc() < 2 || !sv.active)
+    {
+        Con_Printf("usage: vr_drawn_motion_test <frames> [<entity> | nearest | held] (a listen server)\n");
+        return;
+    }
+    motionTest = MotionTest{};
+    motionPoints.rag.clear();
+    motionPoints.prop.clear();
+    motionPoints.hand.clear();
+    // The ragdoll nearest you.
+    const entity_t& me = cl_entities[cl.viewentity];
+    const glm::vec3 from{me.origin[0], me.origin[1], me.origin[2]};
+    float best = 1e30f;
+    for(int num = 1; num < static_cast<int>(draw.byNum.size()); num++)
+    {
+        const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+        if(p.rig && glm::distance(p.pos[0], from) < best)
+        {
+            best = glm::distance(p.pos[0], from);
+            motionTest.rag = num;
+        }
+    }
+    if(Cmd_Argc() > 2)
+    {
+        if(!q_strcasecmp(Cmd_Argv(2), "nearest"))
+        {
+            motionTest.prop = box3d::nearestProp();
+        }
+        else if(!q_strcasecmp(Cmd_Argv(2), "held"))
+        {
+            const int main = cl.stats[protocol::STAT_QVR_CARRYMAIN];
+            motionTest.prop = main ? main : cl.stats[protocol::STAT_QVR_CARRYOFF];
+        }
+        else
+        {
+            motionTest.prop = Q_atoi(Cmd_Argv(2));
+        }
+    }
+    motionTest.left = za::clamp(Q_atoi(Cmd_Argv(1)), 3, 2000);
+    Con_Printf("vr_drawn_motion_test: ragdoll %d, prop %d, %d frames\n", motionTest.rag, motionTest.prop, motionTest.left);
 }
 
 void info_f()

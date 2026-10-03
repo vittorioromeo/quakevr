@@ -2446,7 +2446,17 @@ void writeRagdoll(edict_t* ent, Slot& s)
     SV_LinkEdict(ent, false);
     s.origin = origin;
     s.asleep = !awake;
-    ragdoll::publish(r.num, r.rig, r.count, rot.data(), pos.data(), r.scale);
+    // The local player's hands holding its limbs (drawn following them between steps: vr_ragdoll_held_local), and the
+    // time of the message after this step (qcvm->time is advanced after the physics: SV_Physics).
+    int heldBy = 0;
+    for(const World::RagdollGrab& g : world->ragdollGrabs)
+    {
+        if(g.num == r.num && !g.pulling && g.player == cl.viewentity && (g.hand == 0 || g.hand == 1))
+        {
+            heldBy |= 1 << g.hand;
+        }
+    }
+    ragdoll::publish(r.num, r.rig, r.count, rot.data(), pos.data(), r.scale, qcvm->time + host_frametime, heldBy);
 }
 
 // A blast of `damage` at `at` (box3d::blast) on a ragdoll's parts: each thrown as a prop of the whole ragdoll's mass
@@ -6869,24 +6879,9 @@ void fling_f()
     za::Vector<edict_t*> list;
     if(!strcmp(Cmd_Argv(1), "nearest"))
     {
-        float best = 1e9f;
-        edict_t* found = nullptr;
-        for(int i = 1; i < qcvm->num_edicts && i < static_cast<int>(world ? world->slots.size() : 0); i++)
+        if(const int found = box3d::nearestProp())
         {
-            edict_t* e = EDICT_NUM(i);
-            if(!e->free && world->slots[i].kind == Kind::Prop)
-            {
-                const float d = glm::distance(vec(e->v.origin), vec(player->v.origin));
-                if(d < best)
-                {
-                    best = d;
-                    found = e;
-                }
-            }
-        }
-        if(found)
-        {
-            list.pushBack(found);
+            list.pushBack(EDICT_NUM(found));
         }
     }
     else
@@ -7113,6 +7108,7 @@ void registerCommands()
         Cmd_AddCommand("vr_corpse_drop", corpseDrop_f);
         Cmd_AddCommand("vr_ragdoll_list", ragdollList_f);
         Cmd_AddCommand("vr_ragdoll_info", ragdoll::info_f);
+        Cmd_AddCommand("vr_drawn_motion_test", ragdoll::motionTest_f);
         Cmd_AddCommand("vr_ragdoll_blast_test", ragdollBlastTest_f);
     }
 }
@@ -9691,6 +9687,32 @@ void profileCounts(int& bodies, int& awake, int& contacts)
     {
         contacts += n;
     }
+}
+
+int nearestProp()
+{
+    if(!world || !sv.active || svs.maxclients < 1)
+    {
+        return 0;
+    }
+    const VmScope vm;
+    const edict_t* player = EDICT_NUM(1);
+    float best = 1e9f;
+    int found = 0;
+    for(int i = 1; i < qcvm->num_edicts && i < static_cast<int>(world->slots.size()); i++)
+    {
+        const edict_t* e = EDICT_NUM(i);
+        if(!e->free && world->slots[i].kind == Kind::Prop)
+        {
+            const float d = glm::distance(vec(e->v.origin), vec(player->v.origin));
+            if(d < best)
+            {
+                best = d;
+                found = i;
+            }
+        }
+    }
+    return found;
 }
 
 bool isRagdoll(int num)
