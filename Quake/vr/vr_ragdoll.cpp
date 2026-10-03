@@ -322,6 +322,26 @@ constexpr Seed gremSeeds[] = {
     {"shin_r", 8, Joint::Hinge, {-5.1f, -11.f, -16.9f}, {-4.1f, -9.6f, -11.f}, {-6.f, -12.1f, -21.7f}, 1.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+// Rogue's mummy (Dissolution of Eternity's progs/mummy.mdl: 177 vertices, 192 frames, the zombie's animations). The rest
+// pose ($stand1): x forward, y left, z up; upright, his arms at his sides. As the zombie's: pelvis, chest, head, upper arms
+// and forearms (elbow hinges), thighs (the knee's ring) and shins (knee hinges). His ragdoll is made only when he is
+// beheaded (his death gibs him otherwise: mummy_die). Measured on his frames (Misc/quakevr/ragdoll/rig.py mummy
+// mummy_bones.json, RIG_PAK: Rogue's pak0): clusters 0.52 units rms, bones 0.72. The flesh he throws is the loose bone,
+// hidden. No death frames: his falls stand in, painb1-14 (103-116) and paine1-17 (162-178), as the zombie's.
+constexpr Seed mummySeeds[] = {
+    {"pelvis", -1, Joint::Root, {-0.2f, 0.2f, 9.3f}, {-0.2f, 0.2f, 9.3f}, {-0.9f, -0.2f, 13.4f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {-1.3f, 0.4f, 21.7f}, {-0.9f, -0.2f, 13.4f}, {-2.5f, 0.9f, 29.1f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {-2.1f, 0.9f, 31.7f}, {-2.5f, 0.9f, 29.1f}, {-1.7f, 0.9f, 34.3f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {-0.6f, 8.2f, 19.9f}, {-0.9f, 7.3f, 25.9f}, {0.5f, 8.6f, 14.1f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {1.f, 9.2f, 6.2f}, {0.5f, 8.6f, 14.1f}, {1.4f, 9.9f, -1.6f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 1, Joint::Ball, {-2.9f, -7.4f, 19.5f}, {-2.8f, -6.9f, 25.9f}, {-2.9f, -7.5f, 13.f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 5, Joint::Hinge, {-2.9f, -7.8f, 4.1f}, {-2.9f, -7.5f, 13.f}, {-3.f, -8.1f, -4.8f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {5.3f, 6.4f, -8.6f}, {6.2f, 7.1f, -5.7f}, {4.3f, 9.3f, -20.f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {7.7f, 8.f, -22.7f}, {4.3f, 9.3f, -20.f}, {6.f, 8.6f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {-2.9f, -5.7f, -10.2f}, {1.f, -3.7f, -6.4f}, {-8.5f, -5.2f, -20.2f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-5.1f, -7.1f, -22.7f}, {-8.5f, -5.2f, -20.2f}, {-6.8f, -6.2f, -21.4f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -334,6 +354,7 @@ constexpr SeedTable seedTables[] = {
     {"progs/demon.mdl", 1095, demonSeeds, static_cast<int>(sizeof(demonSeeds) / sizeof(demonSeeds[0])), 1, {45, 0}, {53, 0}},
     {"progs/shambler.mdl", 648, shamblerSeeds, static_cast<int>(sizeof(shamblerSeeds) / sizeof(shamblerSeeds[0])), 1, {83, 0}, {93, 0}},
     {"progs/grem.mdl", 123, gremSeeds, static_cast<int>(sizeof(gremSeeds) / sizeof(gremSeeds[0])), 2, {104, 116}, {115, 123}},
+    {"progs/mummy.mdl", 177, mummySeeds, static_cast<int>(sizeof(mummySeeds) / sizeof(mummySeeds[0])), 2, {103, 162}, {116, 178}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)

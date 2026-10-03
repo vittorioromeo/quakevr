@@ -1758,7 +1758,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 {
     return {
         toggle("Decapitation", vr_decap)
-            .help("A killing slash at the head of a grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend, shambler or gremlin cuts it "
+            .help("A killing slash at the head of a grunt, knight, ogre, enforcer, death knight, rottweiler, scrag, fiend, shambler, gremlin or mummy cuts it "
                   "off: a sword's or an axe's blade swung across (not a stab, not the pommel or the hilt). The body falls at "
                   "once as a headless ragdoll, the head flies off, the neck spurts blood. Needs Ragdolls on (vr_decap)."),
         slider("Least Swing Speed", vr_decap_speed, 0.f, 15.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
@@ -2671,6 +2671,7 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageRagdollRottweiler();
 [[nodiscard]] za::Vector<Item> pageRagdollScrag();
 [[nodiscard]] za::Vector<Item> pageRagdollZombie();
+[[nodiscard]] za::Vector<Item> pageRagdollMummy();
 [[nodiscard]] za::Vector<Item> pageRagdollGremlin();
 [[nodiscard]] za::Vector<Item> pageRagdollShambler();
 [[nodiscard]] za::Vector<Item> pageRagdollFiend();
@@ -2795,6 +2796,9 @@ void hologramTestMessage()
         slider("Zombie (Beheaded)", vr_corpse_health_zombie, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
             .help("A zombie dies whole only beheaded (Gore > Decapitation): the damage that gibs its ragdoll then, times "
                   "Corpse Health (vr_corpse_health_zombie; default 60)."),
+        slider("Mummy (Rogue, Beheaded)", vr_corpse_health_mummy, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("A mummy dies whole only beheaded (its death gibs it otherwise): the damage that gibs its ragdoll then, "
+                  "times Corpse Health (vr_corpse_health_mummy; default 120)."),
     };
 }
 
@@ -2847,6 +2851,7 @@ void hologramTestMessage()
         open("Shambler", pageIndex(pageRagdollShambler)),
         open("Gremlin", pageIndex(pageRagdollGremlin)),
         open("Zombie", pageIndex(pageRagdollZombie)).help("A zombie's ragdoll: only when its head is cut off (Gore > Decapitation)."),
+        open("Mummy", pageIndex(pageRagdollMummy)).help("A mummy's ragdoll (Dissolution of Eternity): only when its head is cut off (Gore > Decapitation)."),
         header("Taking Them"),
         cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}, {2.f, "By Hand and Force Grab"}})
             .help("Grip on a limb to take it: it follows your hand, the body hanging from it; let go to drop or throw it. "
@@ -3108,6 +3113,36 @@ void hologramTestMessage()
                               "vr_ragdoll_zombie_joint_friction -1; vr_ragdoll_zombie_joint_stiffness -1; vr_ragdoll_zombie_limits -1; "
                               "vr_ragdoll_zombie_damping -1; vr_ragdoll_zombie_blast -1; vr_ragdoll_zombie_inherit -1")
             .help("The zombie's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Mummy: the mummy's own physics (vr_ragdoll_mummy_*), each one Global (the one
+// for all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollMummy()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_mummy_start, 0.f, 1.f, 0.1f, "%.1f")
+            .help("vr_ragdoll_mummy_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_mummy_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_mummy_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_mummy_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_mummy_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_mummy_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_mummy_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_mummy_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_mummy_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_mummy_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_mummy_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_mummy_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_mummy_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_mummy_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_mummy_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_mummy_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_mummy_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_mummy_start -1; vr_ragdoll_mummy_mass -1; vr_ragdoll_mummy_friction -1; "
+                              "vr_ragdoll_mummy_joint_friction -1; vr_ragdoll_mummy_joint_stiffness -1; vr_ragdoll_mummy_limits -1; "
+                              "vr_ragdoll_mummy_damping -1; vr_ragdoll_mummy_blast -1; vr_ragdoll_mummy_inherit -1")
+            .help("The mummy's ragdoll as all monsters' (Ragdoll Settings)."),
     };
 }
 
@@ -3812,6 +3847,9 @@ za::Vector<Item> pageDebugTools()
         header("Decapitation Tests (developer 1: decap: ...)"),
         command("A Zombie Ahead", "vr_test_spawn 2; vr_test_spawn_dist 96; impulse 241")
             .help("A zombie 96 units ahead (a map with zombies: the firing range), for the tests below."),
+        command("A Mummy Ahead", "vr_test_spawn 14; vr_test_spawn_dist 96; impulse 241")
+            .help("A mummy (Dissolution of Eternity) 96 units ahead, for the tests below: Slash at Its Head beheads it (its "
+                  "ragdoll; killed otherwise, it gibs)."),
         command("Slash at Its Head", "vr_decap_test 1")
             .help("vr_decap_test 1: the nearest live monster's health 1, a sword's slash across its neck: it is beheaded "
                   "(decaptest: in the console)."),
@@ -4774,6 +4812,7 @@ const Page pages[] = {
     {"Ragdolls - Fiend", pageRagdollFiend, pageRagdolls},                         // 128
     {"Ragdolls - Shambler", pageRagdollShambler, pageRagdolls},                   // 129
     {"Ragdolls - Gremlin", pageRagdollGremlin, pageRagdolls},                     // 130
+    {"Ragdolls - Mummy", pageRagdollMummy, pageRagdolls},                         // 131
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

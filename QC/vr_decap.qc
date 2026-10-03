@@ -75,6 +75,7 @@ string(entity e) VR_Decap_HeadModel =
     if(c == "monster_demon1")        { return "progs/h_demon.mdl"; }
     if(c == "monster_shambler")      { return "progs/h_shams.mdl"; }
     if(c == "monster_gremlin")       { return "progs/h_grem.mdl"; }
+    if(c == "monster_mummy")         { return "progs/h_zombie.mdl"; } // (Rogue's: mummy_die throws a zombie's head)
     return "";
 };
 
@@ -472,13 +473,14 @@ void(entity e) VR_Decap_Killed =
     {
         e.health = -1;
     }
-    if(e.classname == "monster_zombie")
+    if(e.classname == "monster_zombie" || e.classname == "monster_mummy")
     {
-        e.th_die = VR_Decap_ZombieDie;
+        e.th_die = VR_Decap_ZombieDie; // (a mummy's death always gibs it: mummy_die)
     }
 };
 
-// A beheaded zombie's death: it lies as its ragdoll does, never to get up (zombie_die gibs it).
+// A beheaded zombie's death: it lies as its ragdoll does, never to get up (zombie_die gibs it). A beheaded mummy's too
+// (Rogue's mummy_die always gibs it; a mummy is killed as other monsters are, not beheaded whatever as a zombie is).
 void() VR_Decap_ZombieDie =
 {
     self.think = SUB_Null;

@@ -1502,6 +1502,7 @@ QVR_CVAR(vr_corpse_health_shambler, "280", CVAR_ARCHIVE) // the damage that gibs
 QVR_CVAR(vr_corpse_health_scrag, "80", CVAR_ARCHIVE) // the damage that gibs a scrag's corpse or ragdoll (times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_fish, "80", CVAR_ARCHIVE) // the damage that gibs a fish's corpse or ragdoll (times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_zombie, "60", CVAR_ARCHIVE) // the damage that gibs a beheaded zombie's corpse (its ragdoll; times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_mummy, "120", CVAR_ARCHIVE) // the damage that gibs a beheaded mummy's corpse (Rogue; its ragdoll; times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_gremlin, "100", CVAR_ARCHIVE) // the damage that gibs a gremlin's corpse or ragdoll (times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_scourge, "180", CVAR_ARCHIVE) // the damage that gibs a scourge's corpse or ragdoll (times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_eel, "80", CVAR_ARCHIVE) // the damage that gibs a eel's corpse or ragdoll (times vr_corpse_health_mult)
@@ -1663,6 +1664,15 @@ QVR_CVAR(vr_ragdoll_gremlin_limits, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_gremlin_damping, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_gremlin_blast, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_gremlin_inherit, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_mummy_start, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_mummy_mass, "75", CVAR_ARCHIVE)   // (a mummy (Rogue): only beheaded, ROUND21.md "Ragdolls 5")
+QVR_CVAR(vr_ragdoll_mummy_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_mummy_joint_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_mummy_joint_stiffness, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_mummy_limits, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_mummy_damping, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_mummy_blast, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_mummy_inherit, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0.5", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on

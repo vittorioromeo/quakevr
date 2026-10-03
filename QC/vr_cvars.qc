@@ -273,6 +273,7 @@ float cvarh_vr_corpse_health_gremlin;
 float cvarh_vr_corpse_health_scourge;
 float cvarh_vr_corpse_health_eel;
 float cvarh_vr_corpse_health_zombie;
+float cvarh_vr_corpse_health_mummy;
 float cvarh_vr_decap;
 float cvarh_vr_decap_speed;
 float cvarh_vr_decap_corpses;
@@ -756,6 +757,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_corpse_health_scourge);
     VR_CVAR_HMAKE(vr_corpse_health_eel);
     VR_CVAR_HMAKE(vr_corpse_health_zombie);
+    VR_CVAR_HMAKE(vr_corpse_health_mummy);
     VR_CVAR_HMAKE(vr_decap);
     VR_CVAR_HMAKE(vr_decap_speed);
     VR_CVAR_HMAKE(vr_decap_corpses);
