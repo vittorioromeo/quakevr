@@ -3,6 +3,7 @@
 # dropped weapon hidden in its death frames as vr_monstermods.cpp hides it. Needs numpy; the clusters are kept between
 # runs in the temp folder (<model>_labels.json):
 #   python rig.py ogre [k]              the k (18) motion clusters: each one's vertices, rest-pose middle, box, neighbours
+#   (a seed table of more clusters, SeedTable::clusters: run "rig.py <model> <k>" first, its bones.json those clusters)
 #   python rig.py ogre bones.json       with the clusters given to bones ({"bones": [[name, parent, [clusters]], ...]}):
 #                                       the bones' rms fit, middles and boxes, and each joint's centre (least squares
 #                                       between the parent's and the child's motions, pulled a little to their boundary)

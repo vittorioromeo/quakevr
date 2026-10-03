@@ -659,6 +659,8 @@ struct World
         double since{-1.0};
         glm::vec3 origin{0.f}, last{0.f}; // where it is, and where it was the server frame before (createRagdoll)
         double changed{-1.0};              // when its frame last changed from one seen (not as it was first seen: a load)
+        bool dying{false}; // seen dead but still solid (its frame and origin kept): the frame it stops being solid in
+                           // is known to be new or not (the fiend's death6: SOLID_NOT and the frame together)
     };
     za::Vector<CorpseWatch> corpseWatch;
     za::Vector<RagdollBodies> ragdolls; // (Slot::ragdoll)
@@ -1633,13 +1635,22 @@ void watchCorpses()
         if(!on || ent->free || !deadMonster(ent))
         {
             w = World::CorpseWatch{};
+            if(on && !ent->free && hasFlag(ent, FL_MONSTER) && ent->v.health <= 0.f)
+            {
+                w.dying = true; // (dying, still solid: its frame and where it is)
+                w.frame = ent->v.frame;
+                w.model = ent->v.modelindex;
+                w.origin = vec(ent->v.origin);
+            }
             continue;
         }
-        w.last = w.since < 0.0 ? vec(ent->v.origin) : w.origin;
+        w.last = w.since < 0.0 && !w.dying ? vec(ent->v.origin) : w.origin;
         w.origin = vec(ent->v.origin);
         if(w.since < 0.0 || w.frame != ent->v.frame || w.model != ent->v.modelindex)
         {
-            w.changed = w.since >= 0.0 && w.model == ent->v.modelindex ? qcvm->time : -1.0;
+            const bool seen = w.since >= 0.0 || (w.dying && w.frame != ent->v.frame);
+            w.changed = seen && w.model == ent->v.modelindex ? qcvm->time : -1.0;
+            w.dying = false;
             w.frame = ent->v.frame;
             w.model = ent->v.modelindex;
             w.since = qcvm->time;

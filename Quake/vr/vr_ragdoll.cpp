@@ -85,6 +85,8 @@ struct SeedTable
     int count;
     int deaths;
     int deathFirst[2], deathLast[2];
+    int clusters{18}; // the motion clusters (more than the bones: the seeds gather them); more for a rig whose 18 merge two
+                      // of its bones (the fiend's right thigh and shin, rig.py's k)
 };
 
 // Quake VR's grunt (quakevr/progs/soldier.mdl: 555 vertices, 120 frames). The rest pose: x forward, y left, z up; he
@@ -284,7 +286,7 @@ constexpr Seed demonSeeds[] = {
 // y left, z up; upright, his arms out and down, his claws spread. Pelvis (his belly), chest (the shoulders' hump), head (the
 // face at the hump's front), upper arms (the shoulders on them), forearms (elbow hinges) and claws, thighs and shins (the
 // foot on it; knee hinges; capsules 5.5 and 5). Measured on his frames (Misc/quakevr/ragdoll/rig.py shambler
-// shambler_bones.json): clusters 1.34 units rms, bones 1.57 (his hump and claws bend: 2.0). He holds nothing.
+// shambler_bones.json, 24 clusters: 1.21 units rms): bones 1.57 (his hump and claws bend: 2.0). He holds nothing.
 // Death frames 83-93 ($death1-11).
 constexpr Seed shamblerSeeds[] = {
     {"pelvis", -1, Joint::Root, {-12.2f, -1.2f, 16.6f}, {-12.2f, -1.2f, 16.6f}, {-11.1f, -1.9f, 26.6f}, 0.f, 0.f, 0.f, 0.f, {}},
@@ -351,8 +353,8 @@ constexpr SeedTable seedTables[] = {
     {"progs/dog.mdl", 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
     {"progs/wizard.mdl", 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
     {"progs/zombie.mdl", 481, zombieSeeds, static_cast<int>(sizeof(zombieSeeds) / sizeof(zombieSeeds[0])), 2, {103, 162}, {116, 178}},
-    {"progs/demon.mdl", 1095, demonSeeds, static_cast<int>(sizeof(demonSeeds) / sizeof(demonSeeds[0])), 1, {45, 0}, {53, 0}},
-    {"progs/shambler.mdl", 648, shamblerSeeds, static_cast<int>(sizeof(shamblerSeeds) / sizeof(shamblerSeeds[0])), 1, {83, 0}, {93, 0}},
+    {"progs/demon.mdl", 1095, demonSeeds, static_cast<int>(sizeof(demonSeeds) / sizeof(demonSeeds[0])), 1, {45, 0}, {53, 0}, 24},
+    {"progs/shambler.mdl", 648, shamblerSeeds, static_cast<int>(sizeof(shamblerSeeds) / sizeof(shamblerSeeds[0])), 1, {83, 0}, {93, 0}, 24},
     {"progs/grem.mdl", 123, gremSeeds, static_cast<int>(sizeof(gremSeeds) / sizeof(gremSeeds[0])), 2, {104, 116}, {115, 123}},
     {"progs/mummy.mdl", 177, mummySeeds, static_cast<int>(sizeof(mummySeeds) / sizeof(mummySeeds[0])), 2, {103, 162}, {116, 178}},
 };
@@ -717,8 +719,6 @@ float refine(const Mesh& m, const za::Vector<int>& reps, za::Vector<int>& label,
     return za::sqrt(total / static_cast<float>(za::max<za::SizeT>(reps.size(), 1) * static_cast<za::SizeT>(m.np)));
 }
 
-constexpr int clusterCount = 18; // the motion clusters (more than the bones: the seeds gather them)
-
 bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
 {
     const double t0 = Sys_DoubleTime();
@@ -831,7 +831,7 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
     za::Vector<int> centres;
     za::Vector<float> nearestD(static_cast<za::SizeT>(m.nv), 1e30f);
     centres.pushBack(moving[0]);
-    while(static_cast<int>(centres.size()) < clusterCount && static_cast<int>(centres.size()) < static_cast<int>(moving.size()))
+    while(static_cast<int>(centres.size()) < table.clusters && static_cast<int>(centres.size()) < static_cast<int>(moving.size()))
     {
         const int c = centres.back();
         int farthest = -1;
@@ -1715,6 +1715,7 @@ void swapModels()
                     // (Its drawn vertices: not a hidden bone's, collapsed in both: the shotgun he dropped.)
                     float sum = 0.f, most = 0.f;
                     int n = 0;
+                    za::Array<float, maxBones> boneMost{}; // (each bone's worst: which part the switch shows)
                     for(za::SizeT i = 0; i < drawScratch.skinned.size(); i++)
                     {
                         if(p.rig->vertBone[i] >= p.bodies || (p.cut & (1u << p.rig->vertBone[i])))
@@ -1724,11 +1725,18 @@ void swapModels()
                         const float d = glm::distance(drawScratch.skinned[i], drawScratch.animated[i]);
                         sum += d * d;
                         most = za::max(most, d);
+                        boneMost[p.rig->vertBone[i]] = za::max(boneMost[p.rig->vertBone[i]], d);
                         n++;
                     }
+                    int worst = 0;
+                    for(int b = 0; b < p.rig->numBones && b < maxBones; b++)
+                    {
+                        worst = boneMost[static_cast<za::SizeT>(b)] > boneMost[static_cast<za::SizeT>(worst)] ? b : worst;
+                    }
                     Con_Printf("ragdoll: %d first drawn: the animated mesh (poses %d..%d at %.2f, frame %d) to the ragdoll's: "
-                               "%.2f units rms, %.2f at most (%d vertices)\n",
-                        num, pose1, pose2, blend, e->frame, za::sqrt(sum / static_cast<float>(za::max(n, 1))), most, n);
+                               "%.2f units rms, %.2f at most (%d vertices; the most on %s)\n",
+                        num, pose1, pose2, blend, e->frame, za::sqrt(sum / static_cast<float>(za::max(n, 1))), most, n,
+                        p.rig->bones[worst].name);
                 }
             }
         }
