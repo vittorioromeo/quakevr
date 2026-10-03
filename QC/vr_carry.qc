@@ -1807,9 +1807,18 @@ float QVR_GORE_CORPSE = 42; // org: the corpse's origin, dir_x: its size / 8
 .float vr_gib_stuckat; // when it stuck,
 .vector vr_gib_stuckpos; // and where (it settles there: VR_Gib_StuckThink2)
 
+// The firing range's training dummy bleeds as a grunt (its gore, wounds and small gibs) unless vr_dummy_gore is off
+// (vr_dummy.qc; NOTES.md vrfiringrange_2026-10-03_02-07-05).
+float(entity e) VR_Dummy_Clean =
+{
+    return e.classname == "vr_dummy" && !cvar_hget(cvarh_vr_dummy_gore);
+};
+
+float vr_gore_sent; // gore hits sent (VR_Gore_Hit: the small gibs' tests count them)
+
 float(entity e) VR_Gore_Bleeds =
 {
-    return (e.flags & (FL_MONSTER | FL_CLIENT)) && e.classname != "vr_dummy" && cvar_hget(cvarh_vr_gore) > 0;
+    return (e.flags & (FL_MONSTER | FL_CLIENT)) && !VR_Dummy_Clean(e) && cvar_hget(cvarh_vr_gore) > 0;
 };
 
 // From T_DamageImpl, as `take` is taken: the blow's way from what hit (a shot's own, a missile's
@@ -1862,6 +1871,7 @@ void(entity targ, entity inflictor, float take) VR_Gore_Hit =
     {
         return;
     }
+    vr_gore_sent++;
     particle2(org, normalize(dir) * 7, QVR_GORE_HIT, min(999, ceil(take)) + kind * 1000);
 };
 

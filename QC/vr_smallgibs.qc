@@ -385,11 +385,11 @@ void() VR_SmallGib_Think =
 // ----------------------------------------------------------------------------
 // When they come
 
-// What tears them out of `targ`: monsters (not the training dummy, not a statue), corpses, the player with
+// What tears them out of `targ`: monsters (the training dummy too, unless vr_dummy_gore is off; not a statue), corpses, the player with
 // vr_smallgibs_player.
 float(entity targ) VR_SmallGib_Bleeds =
 {
-    if(targ.vr_gib || targ.model == string_null || targ.classname == "vr_dummy")
+    if(targ.vr_gib || targ.model == string_null || VR_Dummy_Clean(targ))
     {
         return FALSE;
     }
