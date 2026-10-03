@@ -88,7 +88,31 @@ def ragdolls(count=24, ragdoll_max=8):
     return lines
 
 
-MAPS = {"water": "vrcalibration"}  # (the others: vrfiringrange)
+def idle(frames=600):
+    """Standing still in the map as it starts: what a frame costs with nothing happening."""
+    return [waits(120), "vr_physics_frametime -", *window("idle", frames)]
+
+
+# The monsters of fight(): (classname, distance ahead, to the left), the start facing west.
+FIGHTERS = [("monster_army", 260, -96), ("monster_army", 260, -32), ("monster_army", 260, 32), ("monster_army", 260, 96),
+            ("monster_dog", 200, -64), ("monster_dog", 200, 64), ("monster_ogre", 380, -80), ("monster_ogre", 380, 80),
+            ("monster_knight", 320, -128), ("monster_knight", 320, 128), ("monster_zombie", 420, 0),
+            ("monster_wizard", 340, 0), ("monster_demon1", 440, -140)]
+
+
+def fight(frames=600):
+    """Monsters spawned ahead attack the player (god mode): their thinking, shots, the player's wounds; then blown
+    up (gibs, ragdolls, corpses), and the aftermath."""
+    lines = ["god"]
+    lines += [f"vr_physics_spawn {c} {d} {l}" for c, d, l in FIGHTERS]
+    lines += ["wait;wait;vr_physics_frametime -", *window("fight", frames)]
+    for _, d, l in FIGHTERS:
+        lines.append(f"vr_physics_blast {316 - d} {-556 - l} 40 150")
+    lines += ["vr_physics_frametime -", *window("aftermath", 300)]
+    return lines
+
+
+MAPS = {"water": "vrcalibration", "idle_e1m1": "e1m1"}  # (the others: vrfiringrange)
 
 SCENES = {
     "rocks500": lambda: pile("rocks", 500),
@@ -98,6 +122,9 @@ SCENES = {
     "water": water,
     "ragdolls": ragdolls,
     "ragdolls32": lambda: ragdolls(32, 32),
+    "idle_range": idle,
+    "idle_e1m1": idle,
+    "fight": fight,
 }
 
 
@@ -106,6 +133,9 @@ def gen(a):
         lines = ['alias w10 "wait;wait;wait;wait;wait;wait;wait;wait;wait;wait"', 'alias w60 "w10;w10;w10;w10;w10;w10"',
                  "developer 0", waits(60), "vr_physics_frametime start", *scene(), "vr_physics_frametime end",
                  "vr_physics_hash piles", f"echo PHYSBENCH {name} done", "toggleconsole", "quit"]
+        # Each window's profile too (with +vr_profile 1 +vr_profile_interval 0: the profiler's scopes, `parse --profile`).
+        lines = [f"{l};echo PBPROF {l.split()[1]};vr_profile_dump" if l.startswith("vr_physics_frametime ") else l
+                 for l in lines]
         with open(os.path.join(a.gamedir, f"physbench_{name}.cfg"), "w", newline="\n") as f:
             f.write("\n".join(lines) + "\n")
     print(f"{len(SCENES)} scenes: {', '.join(SCENES)}")
@@ -123,8 +153,13 @@ def run(a):
                 t0 = time.time()
                 p = subprocess.run(cmd, capture_output=True, text=True, errors="replace", timeout=a.timeout)
                 print(f"PB run {tag} {scene} {r} {time.time() - t0:.2f}s exit={p.returncode}", flush=True)
+                profiling = False
                 for line in p.stdout.splitlines():
-                    if line.startswith(("vr_physics_frametime", "vr_physics_hash", "PHYSBENCH", "Host_Error")):
+                    if line.startswith("PBPROF"):
+                        profiling = True
+                    elif profiling and line.startswith("  top CPU"):
+                        profiling = False
+                    if profiling or line.startswith(("vr_physics_frametime", "vr_physics_hash", "PHYSBENCH", "Host_Error")):
                         print(f"PB {tag} {scene} {r} {line}", flush=True)
 
 
@@ -135,7 +170,55 @@ PHASE = re.compile(r"PB (\S+) (\S+) (\d+) vr_physics_frametime (\S+) (.+): mean 
 HASH = re.compile(r"PB (\S+) (\S+) (\d+) vr_physics_hash: (\d+) bodies, (\w+)")
 
 
+PROFLINE = re.compile(r"PB (\S+) (\S+) (\d+) ( +)(\S.*?)\s+([\d.]+)\s+([\d.]+)(?:\s+[\d.]+\s+[\d.]+)?$")
+
+
+def parse_profile(a):
+    """Each window's profiler scopes (ms a host frame, its average; medians over the runs), each executable a column."""
+    vals = {}  # (scene, label, path) -> {tag: [avg]}
+    order = []
+    label = {}
+    stack = {}
+    for line in sys.stdin:
+        line = line.rstrip()
+        m = re.match(r"PB (\S+) (\S+) (\d+) PBPROF (\S+)", line)
+        if m:
+            label[m.group(1, 2, 3)] = m.group(4)
+            stack[m.group(1, 2, 3)] = []
+            continue
+        m = PROFLINE.match(line)
+        if not m or m.group(1, 2, 3) not in label or m.group(5).startswith(("scope", "vr_profile")):
+            continue
+        key = m.group(1, 2, 3)
+        depth = (len(m.group(4)) - 1) // 2
+        st = stack[key][:depth]
+        st.append(m.group(5))
+        stack[key] = st
+        k = (key[1], label[key], "/".join(st))
+        if k not in vals:
+            vals[k] = {}
+            order.append(k)
+        vals[k].setdefault(key[0], []).append(float(m.group(6)))
+    tags = sorted({t for v in vals.values() for t in v})
+    last = None
+    for k in order:
+        if k[2].count("/") > a.depth or k[1] in ("start", "-", "end"):
+            continue
+        if k[:2] != last:
+            print(f"\n== {k[0]} / {k[1]} (ms a host frame)\n" + " " * 52 + "".join(f"{t:>10}" for t in tags))
+            last = k[:2]
+        row = vals[k]
+        med = [statistics.median(row[t]) if t in row else None for t in tags]
+        if max((x or 0) for x in med) < a.min:
+            continue
+        name = "  " * k[2].count("/") + k[2].split("/")[-1]
+        print(f"  {name[:50]:<50}" + "".join(f"{x:10.3f}" if x is not None else f"{'-':>10}" for x in med))
+
+
 def parse(a):
+    if a.profile:
+        parse_profile(a)
+        return
     heads, phases, hashes = {}, {}, {}
     for line in sys.stdin:
         line = line.rstrip()
@@ -190,7 +273,10 @@ def main():
     r.add_argument("--rate", type=int, default=120)
     r.add_argument("--timeout", type=int, default=600)
     r.add_argument("extra", nargs="*", help="more +cvar value pairs for every run (after --)")
-    sub.add_parser("parse")
+    pp = sub.add_parser("parse")
+    pp.add_argument("--profile", action="store_true", help="the profiler's scopes instead (runs with +vr_profile 1)")
+    pp.add_argument("--depth", type=int, default=4)
+    pp.add_argument("--min", type=float, default=0.01, help="ms: smaller scopes left out")
     a = ap.parse_args()
     {"gen": gen, "run": run, "parse": parse}[a.cmd](a)
 
