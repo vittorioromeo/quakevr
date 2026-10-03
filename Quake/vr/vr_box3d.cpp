@@ -406,7 +406,8 @@ struct Slot // what one edict is in the world (by its number)
     float massScale{1.f};   // props: its estimate's Mass x when it was made (props::massScale)
     float size{1.f};        // props: its model's Size when it was made (Held Object Offsets: props::drawnSize)
     bool asleep{false};
-    bool wet{false};      // floating: kept awake (it bobs)
+    bool wet{false};      // in water (its lift and drag: beforeStep)
+    bool sleepless{false}; // Box3D's sleep off: floating (it bobs), or sinking through the water (beforeStep)
     bool bullet{false};   // fast: continuous collision against other props too
     bool soft{false};     // isSoft
     bool brush{false};    // angles as a brush model's
@@ -5305,17 +5306,22 @@ void beforeStep(float dt)
         const float lo = box.lowerBound.z * world->m2u, hi = box.upperBound.z * world->m2u;
         const float part = g > 0.f ? submerged(com, lo, hi) : 0.f;
         const bool wet = part > 0.f;
-        if(wet != s.wet)
+        s.wet = wet;
+        const float density = wet ? waterDensity(ent) : 0.f;
+        const bool floats = density > 1.f;
+        // Floating, it bobs: never asleep. Sunk, it may sleep once it rests on something (the pool's floor, another
+        // prop): there its lift and drag only hold it still, as on land (a pool full of rocks no longer stepped every
+        // frame); not while it sinks (a slow one would fall asleep half way down).
+        const bool sleepless = wet && (floats || !touching);
+        if(sleepless != s.sleepless)
         {
-            b3Body_EnableSleep(s.body, !wet); // floating, it bobs
-            s.wet = wet;
+            b3Body_EnableSleep(s.body, !sleepless);
+            s.sleepless = sleepless;
         }
         if(!wet)
         {
             continue;
         }
-        const float density = waterDensity(ent);
-        const bool floats = density > 1.f;
         const float halfHeight = za::max((hi - lo) * 0.5f, 0.5f);
         const float bob = floats ? 1.f + 0.04f * za::sin(static_cast<float>(qcvm->time) * 2.1f + static_cast<float>(num)) : 1.f;
         // The lift is a force through the step, against the gravity (Box3D's, in the same sub-steps: at rest, where

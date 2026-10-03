@@ -27,7 +27,10 @@ import time
 # The first player's start on vrfiringrange (info_player_start: 316 -556 56, facing west); vr_physics_bigpile piles
 # ahead of him: a pile of 500 is centred about 220 units west.
 PILE_CENTRE = (130, -556, 40)
-POOL = (612, 200, 40)  # above the pool's south end (water from y 146 to 802, x 360 to 864, its floor at z -360)
+# Water: vrcalibration's pool (x 224 to 544, y -416 to -192; its surface at z -10, its floor at -130). (vrfiringrange's
+# water has no floor in the level's collision where it is deep enough: props sinking there fall out of the world.)
+POOL_ROCKS = (240, -350, -122)
+POOL_CRATES = (240, -240, -100)
 
 
 def waits(n):
@@ -58,10 +61,12 @@ def blasts(count=500, every=60, times=6):
     return lines
 
 
-def water(count=300):
-    """Rocks and crates piled on the pool's floor: rocks lie on it, crates rise and float."""
-    x, y, z = POOL
-    return [f"setpos {x} {y} {z} 0 90 0", "wait;wait", f"vr_physics_bigpile mixed {count} 120",
+def water(rocks=120, crates=24):
+    """vrcalibration's pool: rocks lying on its floor, crates let go under its surface, rising and floating."""
+    rx, ry, rz = POOL_ROCKS
+    cx, cy, cz = POOL_CRATES
+    return [f"vr_physics_bigpile rocks {rocks}", f"vr_physics_bigpile crates {crates}", "wait;wait",
+            f"vr_physics_pile vr_rock 6 {rx} {ry} {rz} 16", f"vr_physics_pile vr_crate 3 {cx} {cy} {cz} 34",
             "wait;wait;vr_physics_frametime start", waits(900), "vr_physics_frametime -", *window("settled", 300)]
 
 
@@ -81,6 +86,8 @@ def ragdolls(count=24, ragdoll_max=8):
               *window("dead", 300)]
     return lines
 
+
+MAPS = {"water": "vrcalibration"}  # (the others: vrfiringrange)
 
 SCENES = {
     "rocks500": lambda: pile("rocks", 500),
@@ -111,7 +118,7 @@ def run(a):
             for tag, exe in exes:
                 cmd = [exe, "-basedir", a.basedir, "-game", "quakevr", "-vrmock", "-window", "-width", "320", "-height",
                        "240", "-nosound", "+vr_fixed_frames", "1", "+vr_fixed_frames_rate", str(a.rate), "+vr_mock_fast",
-                       "2", *a.extra, "+map", "vrfiringrange", "+exec", f"physbench_{scene}.cfg"]
+                       "2", *a.extra, "+map", MAPS.get(scene, "vrfiringrange"), "+exec", f"physbench_{scene}.cfg"]
                 t0 = time.time()
                 p = subprocess.run(cmd, capture_output=True, text=True, errors="replace", timeout=a.timeout)
                 print(f"PB run {tag} {scene} {r} {time.time() - t0:.2f}s exit={p.returncode}", flush=True)
