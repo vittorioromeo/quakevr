@@ -960,6 +960,8 @@ struct BelowNormal
     {
         SetThreadPriority(GetCurrentThread(), was);
     }
+#else
+    BelowNormal() {} // a const object needs a user-provided constructor
 #endif
     BelowNormal(const BelowNormal&) = delete;
     BelowNormal& operator=(const BelowNormal&) = delete;
