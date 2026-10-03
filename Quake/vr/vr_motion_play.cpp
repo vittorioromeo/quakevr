@@ -494,10 +494,6 @@ void applySettings(const Take& take, bool melee)
         }
         collectSettings(h("hand angles"), true, list);
         collectSettings(h("grips"), true, list);
-        if(const za::String d = h("dominant hand"); !d.empty())
-        {
-            list.emplaceBack("vr_stick_swap", d.rfind("left", 0) == 0 ? "1" : "0"); // (left-handed: the right stick moved)
-        }
     }
     collectSettings(h("weapon settings"), false, list);
     // A take from before the hand calibration: the hands as they were then (none), not as calibrated now.
@@ -527,14 +523,6 @@ void applySettings(const Take& take, bool melee)
     if(melee)
     {
         collectSettings(h("melee settings"), false, list);
-    }
-    // A take from before the separate side settings: of its vr_lefthanded, only the moving stick matters to a playback.
-    for(auto& kv : list)
-    {
-        if(kv.first == "vr_lefthanded")
-        {
-            kv.first = "vr_stick_swap";
-        }
     }
     int applied = 0;
     for(const auto& [name, value] : list)
