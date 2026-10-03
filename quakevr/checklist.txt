@@ -156,7 +156,11 @@ Press buttons with a held health box, ammo box, crate and rock; not from too far
 Push the torso gib and the big chunk with both hands and release together: they fly, not burst
 Hold a gib in one hand and punch it with the other: it still bursts
 
+Explosive box: shoot, punch, chop and throw things at it: metal sparks and clangs, no splinters
+Explosive box: drop, tip and drag it: heavy metal knocks and scrape
+
 [Decide or give feedback]
+Thrown axe hitting an explosive box: bounces off (metal) now; should it stick? (Thrown Axes > vr_axestick_metal)
 Training dummy: its wounds build up until gibbed: should it heal over time?
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?
