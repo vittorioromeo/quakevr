@@ -4,6 +4,7 @@
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
 #include "vr_haze.hpp"
+#include "vr_envmap.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -1232,6 +1233,7 @@ void applyPreset(int preset)
     const auto set = [](cvar_t& var, bool enabled) { Cvar_SetQuick(&var, enabled ? var.default_string : "0"); };
     set(vr_water_waves, on);
     set(vr_water_fresnel, on);
+    set(vr_water_reflections, on);
     set(vr_water_glints, on);
     set(vr_water_lava_glow, on);
     set(vr_water_underwater, on);
@@ -1642,6 +1644,7 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     // The shoreline foam (vr_water_foam); the scene's distances for the refraction and the foam (VR_WaterSceneDepth:
     // made as liquids draw), if the scene's depth can be read.
     r_framedata.water3[0] = za::clamp(vr_water_foam.value, 0.f, 2.f);
+    envmap::waterFrameData(r_framedata.watercube, r_framedata.watercube2, liquid); // the room reflected (vr_envmap.cpp)
     GLuint sceneColor = 0, sceneDepth = 0;
     int sceneSamples = 1, sceneViewport[4];
     VR_SceneTarget(&sceneColor, &sceneDepth, &sceneSamples, sceneViewport);

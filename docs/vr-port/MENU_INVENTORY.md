@@ -2360,6 +2360,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
       - **Graphics - Liquids** [menu_vr 36] — 26 rows / 24 settings / 0 actions (vr_menu_pages.inc:985)
         - Waves → `vr_water_waves`
         - Water Reflection → `vr_water_fresnel`
+        - Reflected Room → `vr_water_reflections`
         - Water Refraction → `vr_water_refraction`
         - Water Glints → `vr_water_glints`
         - Lava Glow → `vr_water_lava_glow`

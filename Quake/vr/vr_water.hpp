@@ -3,8 +3,8 @@
 // The surfaces (vr_glsl.h, LIQUID_FUNCTIONS; both of Ironwail's liquid programs, lit and unlit water): waves as a
 // sum of sines in the world (in the normal, the texture's warp and the refraction), and with vr_water_geo_waves long
 // swells that move the geometry too (the world's level liquid faces cut into a grid as a map loads, their vertices
-// raised in the vertex shaders, held still at the walls: vr_water.cpp's mesh, drawn by r_world.c), a fresnel term (see-through looking down, a dim room
-// colour at grazing angles), glints from a light above and from dynamic lights, what is under translucent water bent
+// raised in the vertex shaders, held still at the walls: vr_water.cpp's mesh, drawn by r_world.c), a fresnel term (see-through looking down, the room
+// reflected at grazing angles: vr_envmap.cpp's water cube, vr_water_reflections, or a dim colour), glints from a light above and from dynamic lights, what is under translucent water bent
 // by the waves (read from the opaque scene while translucent things draw into the OIT buffers; only what is behind
 // the surface, by the scene's distances: no halo round what is in front of the water), lava
 // glowing to bloom, teleports shimmering. Shoreline foam (vr_water_foam; LiquidFoam): where a level liquid meets a

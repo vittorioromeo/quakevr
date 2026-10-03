@@ -195,7 +195,7 @@ All of these have switches on the *Graphics* page, and the *Preset* there sets m
 - **Surfaces:** bump maps made from every texture (or a texture pack's own normal maps), with a sheen under
   dynamic lights. Parallax makes walls look deep. Detail textures (stone, metal, wood grain) sharpen surfaces up
   close, where Quake's textures would blur. There is also anti-aliasing for sheen and for fences and grates.
-- **Water and liquids:** waves that move the surface, reflection and refraction, glints, caustics, big splashes
+- **Water and liquids:** waves that move the surface, reflections of the room around them and refraction, glints, caustics, big splashes
   and ripples that move the waves, shoreline foam, heat haze over lava, fog and a gentle wobble under water, and water sounds.
 - **Particles and effects:** textured smoke, sparks, blood and explosions (*Quake VR Particles*) that fade softly
   into walls, shell casings, and torches whose light flickers.
