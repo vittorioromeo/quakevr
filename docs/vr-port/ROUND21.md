@@ -23990,3 +23990,56 @@ nothing measurable (14 lights -5.2% against item 6's -5.5%; 32 small lights, Dar
 In VR:
 - [ ] The flashlight's beam, its edge and the shadows it casts look as before.
 - [ ] Rocket and explosion lights on walls (falloff, shine on bumpy walls) look as before.
+## Shader optimizations: AO, liquids, bloom (2026-10-03)
+
+Items 4, 10 and 5 of `SHADER_PERFORMANCE_REVIEW_2026-10-03.md` (a static audit), checked in the code and measured.
+Kept: the AO floor exit (exact, a little faster). New, off by default: **Bloom: Fast** (`vr_bloom_fast 0`, Graphics >
+Post-processing), one bloom tap instead of four, with a small, measurable difference in the halos. The liquid changes
+made nothing faster, so none of them shipped.
+
+**How it was measured.** RTX 4090, the mock headset at 2048 x 2048 an eye (the mock's largest; your headset's
+3292 x 3524 has 2.77 times the pixels, so the savings scale up about that much), your `ironwail.cfg`'s
+`vr_`/`r_`/`gl_` settings (MSAA 4, AO 1.5, waves 1.5, glints 1.5, ripples 32, bloom 0.08, window view 2). Each
+variant was switched inside one run: a temporary `vr_shader_ab` command recompiled the shaders with a test
+define, and the next 150-240 frames were timed with `vr_profile 1; vr_profile_gpu 1` (GPU scopes, both eyes added
+together), repeated ABAB... 6-10 times. The tables give medians and the median of the paired B-A differences. Images were
+compared as eye images (`vr_eyeshot 1`) with the game paused and the clock pinned (a temporary
+`vr_abfreeze`), against a repeat of A as a control. The temporary commands are not in the commit. Runs taken
+while your own game was open on the GPU (eyes 4-11 ms instead of 2) were thrown away and repeated.
+
+| Claim | Verdict | Measured | Shipped |
+| --- | --- | --- | --- |
+| 4: AO can stop at `vis <= 0.1` (output is `max(vis, 0.1)`, shares only reduce it) | True, exact: strengths are clamped to 0..2, `ao` >= 0 | ragdoll pile (e1m1, 4 grunts, 21 occluders): world+brush 0.546 -> 0.543 ms (paired -0.003, IQR -0.004..-0.002; 3 runs: -0.003, -0.004, -0.003); alias -0.013 / +0.000 / +0.011 (noise). All dynamic AO here costs 0.042 (world) + 0.083 (alias). About 3% of the view reaches the floor (contacts under the bodies) | yes |
+| 10: `LiquidWaves`' five sines evaluated before `* Water.x` | True | your waves are 1.5, so a zero gate never fires: water 0.373 -> 0.374 (with the two gates below) | no |
+| 10: `LiquidDisplace` computes swells/ripples where fade or pin is 0 | True (exact to skip) | no change (in the same run as above) | no |
+| 10: glints computed with `Water.w == 0` or under water | True (exact to skip) | eyes under e1m2's water: water 0.422 -> 0.425 median, paired -0.001: nothing | no |
+| 10: `LiquidRipples` takes `length(d)` before the height test | True | 30 splashes on e1m2's water, seen from its shallows: height test first 0.372 -> 0.378 and 0.378 -> 0.382 (slower: every ripple there is on that surface); squared radial bounds first 0.378 -> 0.393 (slower) | no |
+| 5: the eyes' final bloom reads 4 bilinear taps a pixel | True (also the window's mirror) | e1m1's lamps: postprocess 0.088 ms; 1 tap 0.058, 2 taps 0.076 | option |
+
+All the liquid variants gave the same images as before (identical, apart from a band round the hands, which move
+between any two frames). The AO exit's images were identical (the right eye had 3 pixels off by 1, as many as its
+A-vs-A control).
+
+**Bloom: 1, 2 or 4 taps.** The four taps half a texel out are a flat-topped kernel: the texel the pixel is in weighs 1/2
+wherever the pixel lies in it, and its neighbours share the other half by distance. One bilinear tap can't reproduce
+that, and nothing cheaper can exactly (a pre-filtered half-size image would read 2 taps a pixel and write 1/4 of the
+pixels, saving about nothing). One tap alone: max delta 25/255. Two diagonal taps: 11/255. The option: one tap, with
+the lost smoothing moved into the last up-sample (at 1/16 of the pixels). Its own level is blurred by [a, 1-2a, a] in
+both directions (four bilinear taps 2a texels out), and the smaller level's tent is widened by the same variance.
+a = 0.2 is the least-squares fit to the 4-tap kernel. Measured (lamps against e1m1's dark walls, 8 pairs):
+
+| `vr_bloom_fast` | postprocess (both eyes) | bloom chain | eyes (paired) | image vs 4 taps (8-bit eye images) |
+| --- | --- | --- | --- | --- |
+| 0 (default) | 0.088 ms | 0.092 ms | - | identical to before the change |
+| 1 | 0.058 ms | 0.094 ms | -0.029 ms (IQR -0.040..-0.011) | max 7/255, mean 0.004/255, 0.67% of pixels differ, 0.03% by more than 2 |
+
+Tuning a: 0.12 -> max 12, 0.16 -> 9, 0.20 -> 7, 0.25 -> 10. The differences sit on halo edges and around the small
+distant lamp (`kit/scratch/shaobloom/bloom_fast_crops.png`: off, on, difference x10 for a near lamp, a small far lamp and
+the largest delta). That is about 0.08 ms a frame at your resolution, but the halos are not identical, so it stays off.
+Code: `vr_bloom.cpp` (`Soft`, the last up pass), the eyes' post-process (`vr_glsl.h`, a negative `BloomStrength`: one
+tap), the window's mirror (`vr_stereo.cpp`).
+
+In VR:
+- [ ] Graphics > Post-processing > Bloom: Fast on: lamps' halos look the same as with it off.
+- [ ] With it on, a halo doesn't shimmer or turn blocky as you turn your head past a lamp.
+- [ ] With it on, the window's view shows the same glow as the headset.

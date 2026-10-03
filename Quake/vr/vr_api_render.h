@@ -127,7 +127,7 @@ void VR_RetroLightFrameData (float out[24]);					// retro lighting (vr_retroligh
 float VR_RetroLightSkinScale (const void *aliashdr, int skinnum);	// ... a Quake texel's share of the skin's texture (the alias Retro.w)
 
 // The DarkPlaces look (vr_lighting.cpp; docs/vr-port/LIGHTING.md, round 10).
-float VR_PostProcessBloom (void);								// GL_PostProcess: an eye's glow bound to texture unit 2, and how much of it to add (0: none)
+float VR_PostProcessBloom (void);								// GL_PostProcess: an eye's glow bound to texture unit 2, and how much of it to add (0: none; negative: by one tap, vr_bloom_fast)
 void VR_PostProcessGamma (float *gamma, float *contrast);	// GL_PostProcess: while rendering an eye, the headset's (vr_gamma, vr_contrast)
 int VR_TextureSmoothing (void);							// TexMgr_ApplySettings: 1 replacement textures smooth, 2 all (vr_texture_smooth)
 int VR_NormalMaps (void);								// Mod_LoadTextures, skins: nonzero to make normal maps (vr_normalmaps)

@@ -20,6 +20,10 @@ void apply(GLuint sceneTex, int width, int height);
 // This eye's glow (a quarter of the scene's size), if there is one.
 [[nodiscard]] bool result(unsigned& texture);
 
+// vr_bloom_fast: the glow is added by one bilinear tap instead of four (GL_PostProcess, the window's mirror), its
+// smoothing done at a quarter of the size, in the last level (ROUND21.md, "Shader optimizations: AO, liquids, bloom").
+[[nodiscard]] bool fast();
+
 // Frees the GL objects (when the GL context goes away).
 void shutdown();
 

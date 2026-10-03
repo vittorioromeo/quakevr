@@ -273,6 +273,10 @@ void main()
               texture(Bloom, uv + vec2(-bt.x, bt.y)).rgb + texture(Bloom, uv + vec2(bt.x, bt.y)).rgb) *
              (0.25 * BloomStrength);
     }
+    else if(BloomStrength < 0.0) // vr_bloom_fast: by one, the smoothing done at the quarter (vr_bloom.cpp)
+    {
+        c -= texture(Bloom, uv).rgb * BloomStrength;
+    }
     if(Tone.x > 0.0)
         c = QvrTonemap(c * Tone.x, Tone.yz);
     if(Tone.w > 0.0)
@@ -356,7 +360,7 @@ void drawToWindow(const SceneTargets& source, const SceneLook& look, const glm::
         GL_BindSamplerFunc(0, linearSampler);
     }
     GL_Uniform4fFunc(1, static_cast<float>(dx0), 0.f, 1.f / (dx1 - dx0), 1.f / windowHeight);
-    GL_Uniform1fFunc(2, hasGlow ? 1.f : 0.f);
+    GL_Uniform1fFunc(2, hasGlow ? (bloom::fast() ? -1.f : 1.f) : 0.f);
     const glm::vec4 tone = tonemap::bind(3);
     GL_Uniform4fFunc(3, tone.x, tone.y, tone.z, tone.w);
     GL_Uniform4fFunc(4, sampling == Sampling::Nearest ? 0.f : sampling == Sampling::CatmullRom ? 1.f : 2.f, 0.f, 0.f, 0.f);
