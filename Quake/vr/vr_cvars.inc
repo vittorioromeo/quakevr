@@ -1522,6 +1522,7 @@ QVR_CVAR(vr_corpse_health_vore, "220", CVAR_ARCHIVE) // the damage that gibs a v
 QVR_CVAR(vr_corpse_health_shambler, "280", CVAR_ARCHIVE) // the damage that gibs a shambler's corpse or ragdoll (times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_scrag, "80", CVAR_ARCHIVE) // the damage that gibs a scrag's corpse or ragdoll (times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_fish, "80", CVAR_ARCHIVE) // the damage that gibs a fish's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_zombie, "60", CVAR_ARCHIVE) // the damage that gibs a beheaded zombie's corpse (its ragdoll; times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_gremlin, "100", CVAR_ARCHIVE) // the damage that gibs a gremlin's corpse or ragdoll (times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_scourge, "180", CVAR_ARCHIVE) // the damage that gibs a scourge's corpse or ragdoll (times vr_corpse_health_mult)
 QVR_CVAR(vr_corpse_health_eel, "80", CVAR_ARCHIVE) // the damage that gibs a eel's corpse or ragdoll (times vr_corpse_health_mult)
@@ -1564,6 +1565,16 @@ QVR_CVAR(vr_ragdoll_grab_reach, "6", CVAR_ARCHIVE)    // units: how near a limb'
 QVR_CVAR(vr_ragdoll_throw, "1", CVAR_ARCHIVE)         // times the hand's throw a limb let go of keeps (0: only what the pull gave it)
 QVR_CVAR(vr_ragdoll_blood, "1", CVAR_ARCHIVE)         // a ragdoll's limbs flung fast leave blood trails and drops (as gibs do: vr_gib_blood_trail)
 QVR_CVAR(vr_ragdoll_smooth, "1", CVAR_ARCHIVE)        // drawn between the server's last two steps, as props are (smooth at a headset's 90 Hz over the server's 72); 0 the latest step (judders)
+QVR_CVAR(vr_decap, "1", CVAR_ARCHIVE)                 // decapitation (QC vr_decap.qc): a killing slash at the head of a monster with a ragdoll cuts its head off (its ragdoll headless, a blood fountain, the head flies)
+QVR_CVAR(vr_decap_speed, "5", CVAR_ARCHIVE)           // m/s the blade's struck point must move at (across the blade: a slash, not a stab) to behead
+QVR_CVAR(vr_decap_head_speed, "0.5", CVAR_ARCHIVE)    // share of the blade's velocity the cut head flies off with (and its spin from the swing)
+QVR_CVAR(vr_decap_head_lift, "120", CVAR_ARCHIVE)     // units/s the cut head is thrown up besides
+QVR_CVAR(vr_decap_corpses, "1", CVAR_ARCHIVE)         // a slash to a ragdoll's (or a dying or dead body's) head beheads it, instead of taking its corpse health
+QVR_CVAR(vr_decap_zombies, "1", CVAR_ARCHIVE)         // a slash at a zombie's head beheads it: it dies for good (its ragdoll headless), whatever the damage
+QVR_CVAR(vr_decap_fountain, "2.5", CVAR_ARCHIVE)      // s the stump spurts blood for (0: none)
+QVR_CVAR(vr_decap_thrown, "1", CVAR_ARCHIVE)          // a thrown axe going in edge first beheads too
+QVR_CVAR(vr_decap_chainsaw, "1", CVAR_ARCHIVE)        // the chainsaw beheads too (its running chain at the neck, or a swing)
+QVR_CVAR(vr_decap_test, "0", CVAR_NONE)               // the QC runs decapitation test n on the nearest monster or corpse (vr_decap.qc; Debug > Gore Tests)
 QVR_CVAR(vr_ragdoll_held_local, "1", CVAR_ARCHIVE)    // a held limb's ragdoll follows your hand at the frame rate, as a held prop does (the server's step lags it); 0 the server's pose only
 // Per monster class (Gibs and Corpses > Ragdolls > Grunt, > Knight): -1 (Global) is the setting above, any other value replaces it
 // for that class. Each class's mass is its own by default (the author, 2026-10-03: ROUND21.md, "Ragdoll masses per monster").
@@ -1630,6 +1641,15 @@ QVR_CVAR(vr_ragdoll_wizard_limits, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_wizard_damping, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_wizard_blast, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_wizard_inherit, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_zombie_start, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_zombie_mass, "70", CVAR_ARCHIVE)   // (a zombie: only beheaded, ROUND21.md "Decapitation")
+QVR_CVAR(vr_ragdoll_zombie_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_zombie_joint_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_zombie_joint_stiffness, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_zombie_limits, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_zombie_damping, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_zombie_blast, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_zombie_inherit, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0.5", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on
@@ -1895,6 +1915,7 @@ QVR_CVAR(vr_test_axe_speed, "10", CVAR_NONE)        // ... at this many m/s
 QVR_CVAR(vr_test_axe_damage, "1", CVAR_NONE)        // ... hurting what it hits (0: no damage, to see a monster bleed)
 QVR_CVAR(vr_test_axe_weapon, "0", CVAR_NONE)        // ... this weapon (QC WID_*: 7 the super nailgun, 4 the shotgun) thrown instead of the axe (0: the axe)
 QVR_CVAR(vr_test_axe_dist, "0", CVAR_NONE)          // ... you moved first to this many units from what is ahead of your eyes (0: where you are)
+QVR_CVAR(vr_test_axe_up, "0", CVAR_NONE)            // ... at a target: this many units above its middle (15: a grunt's head; the decapitation tests)
 QVR_CVAR(vr_test_axe_at, "0", CVAR_NONE)            // ... at the nearest live monster (1), door (2), loose prop (3) or wall button (4), from its side facing you, level with its middle
 QVR_CVAR(vr_test_weaponinst, "0", CVAR_NONE)          // impulse 120 (tests): the weapons moved by the game's own functions (QC vr_weaponinst_test.qc): 0 list what has which weapon (id, magazine), 1 holster the main hand's, 2 draw it, 3 drop the main hand's, 4 take the nearest lying, 5 hand off to the off hand, 6 take back, 7 switch hands, 8 back, 9 drop the off hand's
 QVR_CVAR(vr_test_weaponinst_slot, "0", CVAR_NONE)     // ... the holster (QC QVR_HS_*: 3-6 shoulders and hips, 8-9 upper; 0 the right hip)

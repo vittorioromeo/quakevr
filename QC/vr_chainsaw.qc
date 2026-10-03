@@ -428,9 +428,16 @@ float(float xHand) VR_Chainsaw_Cut =
             hurt = max(dmg, e.vr_gib_hp);
         }
         hurt = VR_Zombie_SawHurt(e, hurt); // (a zombie: the tick that puts it down, or gibs it down)
+        // At the neck: a corpse beheaded instead of cut, a live one beheaded if the tick kills it (a zombie: whatever)
+        // (vr_decap.qc).
+        float decap = VR_Decap_Saw(e, xHand, at);
         vr_grenshot_saw = TRUE; // (a grenade: the running chain always sets it off, VR_GrenShot_BlowSetsOff)
-        float cut = T_DamageImpl(e, self, self, hurt, 1);
+        float cut = decap == 2 ? TRUE : T_DamageImpl(e, self, self, hurt, 1);
         vr_grenshot_saw = FALSE;
+        if(decap == 1)
+        {
+            VR_Decap_After(e);
+        }
         if(cut && alive)
         {
             VR_QuadSound(self, "the chainsaw cut");

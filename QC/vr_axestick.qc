@@ -46,10 +46,20 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
 {
     // The throw's blow, as its touch would have struck (damage, blood, the sound), unless it had struck already (its
     // hit box meets a monster before its blade does).
+    // Edge first into a monster's head (vr_decap.qc): its blow beheads it if it kills (a zombie: whatever).
+    entity decapped = world;
+    if((xKind == AXESTICK_MODEL || xKind == AXESTICK_MONSTERBOX) && VR_Decap_Thrown(other, self))
+    {
+        decapped = other;
+    }
     if(other != world && other.takedamage && self.throwhit == QVR_THROWHIT_NEVER_HIT &&
        !GetThrownWeaponDisappearOnHit(self))
     {
         forcegrabbable_touch();
+    }
+    if(decapped != world)
+    {
+        VR_Decap_After(decapped);
     }
     self.throwhit = QVR_THROWHIT_HIT;
     self.vr_stick_by = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace who threw it)
@@ -319,7 +329,7 @@ void() VR_AxeStick_TestThrow =
             dprint("axe test: no target of that kind\n");
             return;
         }
-        vector c = (target.absmin + target.absmax) * 0.5;
+        vector c = (target.absmin + target.absmax) * 0.5 + '0 0 1' * cvar("vr_test_axe_up"); // (_up: above its middle)
         F = c - eye;
         if(atKind == 4 && (target.movedir_x || target.movedir_y))
         {

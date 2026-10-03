@@ -147,6 +147,7 @@ void(entity targ, entity attacker) Killed =
 
     monster_death_use();
     VR_Corpse_DieWhole(self); // VR: never gibbed (vr_corpse_nogib 2: testing ragdolls with explosions)
+    VR_Decap_Killed(self); // VR: beheaded by the blow (vr_decap.qc): its ragdoll headless at once, its head flying; dies whole
     self.th_die();
 
     // VR: a head thrown by the death code (the monster itself) stays grabbable, whatever the
@@ -194,6 +195,17 @@ void(entity targ, entity attacker) Killed =
 // again), so a chainsaw or a blow cuts it as it falls. Touchable, not solid, as a corpse; its standing box kept (it is
 // still falling: the precise hits test its model as drawn).
 .float vr_corpse_dying;   // 1: dying, and taking damage as a corpse
+
+// Decapitation (vr_decap.qc): its head cut off (its ragdoll headless; gibbed, no head thrown); the blows that cut it.
+.float vr_headless;
+void(entity e) VR_Decap_Killed;
+float(entity targ, entity attacker) VR_Decap_Blow;
+void(entity targ) VR_Decap_After;
+float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
+float(entity e, float xHand, vector xAt) VR_Decap_Saw;
+float(entity m, entity xAxe) VR_Decap_Thrown;
+void() VR_Decap_TestFrame;
+void() VR_Decap_ZombieDie;
 
 // The monsters' death code (their th_die), to know what gibs they make.
 void() army_die;
@@ -302,6 +314,12 @@ float(entity e) VR_Corpse_Parts =
     {
         vr_corpse_head = "progs/h_scourg.mdl";
         vr_corpse_healthh = cvarh_vr_corpse_health_scourge;
+    }
+    else if(e.th_die == VR_Decap_ZombieDie)
+    {
+        // A zombie beheaded (vr_decap.qc): it died whole, its ragdoll gibbed as a corpse.
+        vr_corpse_head = "progs/h_zombie.mdl";
+        vr_corpse_healthh = cvarh_vr_corpse_health_zombie;
     }
     else if(e.th_die == eel_death)
     {
@@ -646,7 +664,7 @@ void(entity c, entity inflictor, entity attacker, float damage) VR_Corpse_Gib =
     ThrowGib(vr_corpse_gib2, dm);
     ThrowGib(vr_corpse_gib3, dm);
 
-    if(vr_corpse_head != "")
+    if(vr_corpse_head != "" && !self.vr_headless) // (beheaded: its head is gone already, vr_decap.qc)
     {
         ThrowHead(vr_corpse_head, dm);
         if(self.vr_gib)
@@ -731,6 +749,13 @@ void(float xHand) VR_Corpse_StrikeFrame =
         return;
     }
     c.vr_corpse_struck = time;
+
+    // A blade's slash at its head beheads it instead (vr_decap.qc): no corpse damage.
+    if(VR_Decap_CorpseBlow(c, xHand, at))
+    {
+        haptic(xHand, 0.0, 0.15, 60, 0.9);
+        return;
+    }
 
     float dmg = VR_Gib_StrikeDamage(speed);
     if(!VRIsHandWeaponless(self, xHand))
@@ -1921,7 +1946,12 @@ void(entity xPlayer, string xWhy) VR_QuadSound =
 
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRMelee =
 {
+    float decap = VR_Decap_Blow(targ, attacker); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
     float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);
+    if(decap)
+    {
+        VR_Decap_After(targ);
+    }
     if(r && damage > 0 && targ != attacker && (attacker.flags & FL_CLIENT))
     {
         VR_QuadSound(attacker, "a blow landed");

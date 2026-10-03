@@ -55,6 +55,11 @@ constexpr float deg = 0.017453292f;
 // ----------------------------------------------------------------------------
 // The seed tables: per model, its bones (where they are in the rest pose, pose 0) and joints. Numbers of ours (measured
 // on the model, ROUND21.md "Ragdolls"), not the model's.
+//
+// Decapitation (ROUND21.md, "Decapitation"; vr_box3d.cpp cutHead, QC vr_decap.qc) comes with every table: its bone named
+// "head" (Rig::head) is what a slash cuts off, its pivot the neck the stump is at, the bones on it (a rottweiler's jaw)
+// go with it. A new monster's table gets it by naming its head "head", its pivot where the head meets the chest; QC's
+// VR_Decap_HeadModel names its head gib (else none is thrown) and PositionalHead its head zone.
 
 struct Seed
 {
@@ -230,6 +235,25 @@ constexpr Seed wizardSeeds[] = {
     {"tail4", 9, Joint::Ball, {-38.3f, -1.3f, -15.2f}, {-34.3f, 0.9f, -17.f}, {-42.3f, -3.5f, -13.4f}, 0.f, 40.f, 20.f, 0.f, {}},
 };
 
+// Quake VR's zombie (quakevr/progs/zombie.mdl: 481 vertices, 199 frames). The rest pose ($stand1): x forward, y left, z up;
+// upright, his arms hanging at his sides, his left leg forward. His ragdoll is made only when he is beheaded (he is gibbed
+// otherwise), from any frame. Measured on his frames (Misc/quakevr/ragdoll/rig.py zombie zombie_bones.json): clusters 0.62
+// units rms, bones 0.79. The flesh he throws is a piece collapsed in some frames: the loose bone, hidden. No death frames:
+// his falls stand in (their poses' occlusion, Go Limp At), painb1-14 (103-116) and paine1-17 (162-178).
+constexpr Seed zombieSeeds[] = {
+    {"pelvis", -1, Joint::Root, {0.f, 0.2f, 4.1f}, {0.f, 0.2f, 4.1f}, {-0.6f, -0.3f, 8.2f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {-0.6f, 0.2f, 14.1f}, {-0.6f, -0.3f, 8.2f}, {-2.f, 0.9f, 21.4f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {-2.1f, 0.7f, 24.2f}, {-2.f, 0.9f, 21.4f}, {-2.3f, 0.5f, 27.f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {-0.4f, 7.1f, 12.7f}, {-1.f, 6.2f, 18.6f}, {0.5f, 7.5f, 6.9f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {1.f, 8.1f, 0.f}, {0.5f, 7.5f, 6.9f}, {1.6f, 8.7f, -6.8f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 1, Joint::Ball, {-2.5f, -6.5f, 12.2f}, {-2.6f, -5.9f, 18.5f}, {-2.6f, -6.6f, 5.9f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 5, Joint::Hinge, {-2.4f, -6.9f, -2.1f}, {-2.6f, -6.6f, 5.9f}, {-2.3f, -7.2f, -10.2f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {4.1f, 5.2f, -10.f}, {4.9f, 4.7f, -6.4f}, {3.9f, 6.7f, -19.1f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {5.6f, 6.6f, -21.2f}, {3.9f, 6.7f, -19.1f}, {5.6f, 6.6f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {-2.4f, -4.6f, -11.3f}, {-0.1f, -2.2f, -5.f}, {-5.8f, -3.6f, -18.5f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-4.8f, -5.7f, -21.3f}, {-5.8f, -3.6f, -18.5f}, {-4.8f, -5.7f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -238,6 +262,7 @@ constexpr SeedTable seedTables[] = {
     {"progs/hknight.mdl", 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
     {"progs/dog.mdl", 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
     {"progs/wizard.mdl", 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
+    {"progs/zombie.mdl", 481, zombieSeeds, static_cast<int>(sizeof(zombieSeeds) / sizeof(zombieSeeds[0])), 2, {103, 162}, {116, 178}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
@@ -873,6 +898,10 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
         }
         const Seed& s = table.seeds[b];
         strncpy(bone.name, s.name, sizeof(bone.name) - 1);
+        if(!strcmp(s.name, "head"))
+        {
+            rig.head = b;
+        }
         bone.parent = s.parent;
         bone.joint = s.joint;
         bone.pivot = s.pivot;
@@ -948,6 +977,7 @@ struct Published
 {
     const Rig* rig{nullptr};
     int bodies{0}; // the bones from this on are hidden
+    uint32_t cut{0}; // the bones cut off (its head: ROUND21.md, "Decapitation"), drawn at the neck
     float scale{1.f};
     bool drawn{false}; // the client has drawn it (its first frame: compared with the animated mesh, vr_debug_ragdoll)
     za::Array<glm::quat, maxBones> rot{};
@@ -1136,6 +1166,35 @@ void animatedVertices(const entity_t* e, za::Vector<glm::vec3>& out, int& pose1,
     }
 }
 
+// Where cut-off bone `b` of `p` (its head, ROUND21.md "Decapitation") is drawn: shrunk to nothing (neckShrink) about the
+// neck, the cut's pivot on the part it was cut from, turned with that part (its normals stay whole: a zero matrix gave the
+// triangles from the neck to the chest no normal, and the lighting's NaN bloomed red over the screen); with `rots`/`poss`
+// the parts' places (as drawn, or the latest step's). Its vertex `v` (rest space) goes to at + rot * ((v - pivot) * k).
+struct Neck
+{
+    glm::vec3 at{0.f};
+    glm::quat rot{1.f, 0.f, 0.f, 0.f};
+    glm::vec3 pivot{0.f};
+};
+constexpr float neckShrink = 1e-3f;
+
+template <typename Rots, typename Poss>
+[[nodiscard]] Neck neckOf(const Published& p, int b, const Rots& rots, const Poss& poss)
+{
+    const Rig& rig = *p.rig;
+    int root = b;
+    while(rig.bones[root].parent >= 0 && (p.cut & (1u << rig.bones[root].parent)))
+    {
+        root = rig.bones[root].parent; // (the jaw: its head's neck)
+    }
+    const int parent = za::max(rig.bones[root].parent, 0);
+    Neck n;
+    n.rot = rots[static_cast<za::SizeT>(parent)];
+    n.pivot = rig.bones[root].pivot;
+    n.at = n.rot * (n.pivot * p.scale) + poss[static_cast<za::SizeT>(parent)];
+    return n;
+}
+
 [[nodiscard]] const Swapped* swappedOf(const entity_t* e)
 {
     for(const Swapped& s : draw.swapped)
@@ -1217,6 +1276,33 @@ float deathProgress(const Rig& rig, int frame)
     return -1.f;
 }
 
+uint32_t headBones(const Rig& rig)
+{
+    if(rig.head < 0)
+    {
+        return 0;
+    }
+    uint32_t cut = 1u << rig.head;
+    for(int b = rig.head + 1; b < rig.numBones; b++) // (a parent comes before its children)
+    {
+        if(rig.bones[b].parent >= 0 && (cut & (1u << rig.bones[b].parent)))
+        {
+            cut |= 1u << b;
+        }
+    }
+    return cut;
+}
+
+int uncutParent(const Rig& rig, int b, uint32_t cut)
+{
+    int p = rig.bones[b].parent;
+    while(p >= 0 && (cut & (1u << p)))
+    {
+        p = rig.bones[p].parent;
+    }
+    return p;
+}
+
 bool collapsed(const Rig& rig, int pose, int b)
 {
     pose = za::clamp(pose, 0, rig.numPoses - 1);
@@ -1224,7 +1310,7 @@ bool collapsed(const Rig& rig, int pose, int b)
 }
 
 void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const glm::vec3* pos, float scale, double time,
-    int heldBy)
+    int heldBy, uint32_t cut)
 {
     if(num < 0)
     {
@@ -1263,6 +1349,7 @@ void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const gl
     }
     p.rig = rig;
     p.bodies = bodies;
+    p.cut = cut;
     p.scale = scale;
     p.time = time;
     for(int b = 0; b < bodies; b++)
@@ -1538,7 +1625,7 @@ void swapModels()
                     int n = 0;
                     for(za::SizeT i = 0; i < drawScratch.skinned.size(); i++)
                     {
-                        if(p.rig->vertBone[i] >= p.bodies)
+                        if(p.rig->vertBone[i] >= p.bodies || (p.cut & (1u << p.rig->vertBone[i])))
                         {
                             continue;
                         }
@@ -1567,10 +1654,17 @@ void swapModels()
         s.bones = p.rig->numBones;
         for(int b = 0; b < s.bones; b++)
         {
-            // (A hidden bone: all its vertices at the pelvis, its triangles gone.)
-            const bool shown = b < p.bodies;
-            const glm::mat3 r = shown ? glm::mat3_cast(p.drawRot[static_cast<za::SizeT>(b)]) * p.scale : glm::mat3{0.f};
-            const glm::vec3 t = shown ? p.drawPos[static_cast<za::SizeT>(b)] - s.ref : glm::vec3{0.f};
+            // (A hidden bone: all its vertices at the pelvis, its triangles gone; a cut-off one's at the neck.)
+            const bool cut = b < p.bodies && (p.cut & (1u << b));
+            const bool shown = b < p.bodies && !cut;
+            glm::mat3 r = shown ? glm::mat3_cast(p.drawRot[static_cast<za::SizeT>(b)]) * p.scale : glm::mat3{0.f};
+            glm::vec3 t = shown ? p.drawPos[static_cast<za::SizeT>(b)] - s.ref : glm::vec3{0.f};
+            if(cut)
+            {
+                const Neck n = neckOf(p, b, p.drawRot, p.drawPos);
+                r = glm::mat3_cast(n.rot) * (p.scale * neckShrink);
+                t = n.at - r * n.pivot - s.ref;
+            }
             float* out = &s.skin[static_cast<za::SizeT>(b * 12)];
             for(int row = 0; row < 3; row++)
             {
@@ -1584,7 +1678,7 @@ void swapModels()
         for(int b = 0; b < p.bodies; b++)
         {
             const Bone& bone = p.rig->bones[b];
-            if(bone.joint != Joint::Loose && bone.parent >= 0)
+            if(bone.joint != Joint::Loose && bone.parent >= 0 && !(p.cut & (1u << b)))
             {
                 decals::limbTrail(num * maxBones + b, p.drawRot[static_cast<za::SizeT>(b)] * (bone.end * p.scale) + p.drawPos[static_cast<za::SizeT>(b)]);
             }
@@ -1675,12 +1769,20 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
         const glm::vec3 r{t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
             t.v[2] * hdr->scale[2] + hdr->scale_origin[2]};
         const int b = rig.vertBone[static_cast<za::SizeT>(v)];
-        out[static_cast<za::SizeT>(v)] = b < p.bodies ? rots[static_cast<za::SizeT>(b)] * (r * p.scale) + poss[static_cast<za::SizeT>(b)] : poss[0];
+        const bool cut = b < p.bodies && (p.cut & (1u << b)); // (its head cut off: at the neck)
+        Neck neck;
+        if(cut)
+        {
+            neck = neckOf(p, b, rots, poss);
+        }
+        out[static_cast<za::SizeT>(v)] = cut ? neck.at + neck.rot * ((r - neck.pivot) * (p.scale * neckShrink))
+                                         : b < p.bodies ? rots[static_cast<za::SizeT>(b)] * (r * p.scale) + poss[static_cast<za::SizeT>(b)]
+                                                        : poss[0];
         if(normals)
         {
             const glm::vec3 n{r_avertexnormals[t.lightnormalindex][0], r_avertexnormals[t.lightnormalindex][1],
                 r_avertexnormals[t.lightnormalindex][2]};
-            (*normals)[static_cast<za::SizeT>(v)] = b < p.bodies ? rots[static_cast<za::SizeT>(b)] * n : glm::vec3{0.f};
+            (*normals)[static_cast<za::SizeT>(v)] = cut ? neck.rot * n : b < p.bodies ? rots[static_cast<za::SizeT>(b)] * n : glm::vec3{0.f};
         }
     }
     return true;
