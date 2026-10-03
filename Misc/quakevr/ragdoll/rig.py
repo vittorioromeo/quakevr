@@ -245,6 +245,13 @@ else:
         print(line)
     # The seed table (vr_ragdoll.cpp Seed): a bone's 4th entry its joint ("root", ["ball", cone, twist], ["hinge", flex,
     # x, y, z]), its 5th a capsule's radius. Its end: its first child's pivot, else its pivot mirrored through its middle.
+    # The engine gives each cluster to the bone whose seed centre is nearest its middle: check it gets the json's.
+    for b, bone in enumerate(bones):
+        for cl in bone[2]:
+            mid = X[0, lab0 == cl].mean(0)
+            near = min(range(len(bones)), key=lambda k: ((centre[k] - mid) ** 2).sum())
+            if near != b:
+                print('WARNING: cluster %d (%s) is nearer the centre of %s' % (cl, bone[0], bones[near][0]))
     f = lambda v: '{%s}' % ', '.join(('%.1ff' % x).replace('-0.0f', '0.f').replace('.0f', '.f') for x in v)
     print('constexpr Seed %sSeeds[] = {' % name)
     for b, bone in enumerate(bones):

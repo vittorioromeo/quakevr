@@ -198,6 +198,10 @@ Ragdolls on the death knight: they go limp, his sword dropped beside them, nothi
 Death knight corpses (ragdolls off): no sword guard left floating in the dead hand
 Ragdolls on the death knight in slow motion (vr_timescale 0.1): the switch is unseen in both his death animations
 Ragdolls > Death Knight: set his own Joint Limits apart from the global one
+Ragdolls on the rottweiler: they collapse limp on four legs, nothing pops or bends sideways
+Ragdolls on the rottweiler: grab one by a leg, the head and the tail; its legs fold the right way (forelegs forward, hind legs back)
+Ragdolls on the rottweiler in slow motion (vr_timescale 0.1): the switch is unseen in both its death animations
+Ragdolls > Rottweiler: set its own Mass apart from the global one (80 kg is heavy for a dog?)
 
 [Decide or give feedback]
 Ragdolls: turn on by default? Next: other monsters, severing; is the grip strong enough to lift a grunt?

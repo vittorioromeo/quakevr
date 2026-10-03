@@ -23349,3 +23349,19 @@ In VR:
 - [ ] Ragdolls on, kill death knights: they go limp, the sword dropped, nothing in the hand; vr_timescale 0.1: unseen.
 - [ ] Ragdolls off: a death knight's corpse has no guard left in its hand.
 - [ ] Ragdolls > Death Knight: his own settings.
+
+**Rottweiler** (quakevr/progs/dog.mdl: 655 vertices, 86 frames numbered in id's order; death 8-16, 17-25). A quadruped:
+the pelvis (hips and back) the root; the chest (shoulders and ribs) on it by the spine (ball 30/20); the head on the chest
+(ball 50/40) and the jaw on the head (a hinge, derived from his open mouth: it closes 25 degrees, opens 12 more); the
+tail on the pelvis (50/30); each leg an upper part (a ball at the shoulder or the hip, 60/20, a capsule 2 or 2.5) and a
+lower one (a hinge, capsule 1.6): the forearms fold forward (140: lying, the forearms on the ground before him), the
+shins backward (120). 13 bones, 0.62 units rms (clusters 0.52). His legs lean a little sideways at rest, which turned
+the derived hinge axes along his body (the hind left's: x): a seed's **keepHinge** keeps its axis (across him) and
+measures the rest bend about it (the others' tables don't use it: unchanged). Tests (`MON=7`): flat limp at frame 11
+(38%), asleep at 5 s, folded on his legs (eyeshots); stairs; blast; gib; save and load. The switch: death 1 0.65 units
+rms, 2.7 at most; death 2 0.66, 3.8.
+
+In VR:
+- [ ] Ragdolls on, kill rottweilers: they fall limp on four legs; vr_timescale 0.1: the switch unseen.
+- [ ] Grab one by a leg, the head, the tail: the legs fold the right way, the jaw hangs.
+- [ ] Ragdolls > Rottweiler: his own Mass (80 kg, the global one, is heavy for a dog).

@@ -13,6 +13,7 @@
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"
@@ -65,6 +66,7 @@ struct Seed
     float twist;      // Ball: degrees either way
     float flex;       // Hinge: how far it bends at most (degrees from straight)
     glm::vec3 hinge;  // Hinge: its axis when the rest pose is (nearly) straight; bending turns it that way
+    bool keepHinge{false}; // Hinge: `hinge` is its axis whatever the rest pose's bend (a leg bent a little sideways at rest)
 };
 
 struct SeedTable
@@ -180,12 +182,37 @@ constexpr Seed hknightSeeds[] = {
     {"foot_r", 12, Joint::Ball, {3.9f, -11.f, -22.f}, {1.2f, -9.3f, -21.6f}, {6.6f, -12.7f, -22.4f}, 0.f, 35.f, 15.f, 0.f, {}},
 };
 
+// Quake VR's rottweiler (quakevr/progs/dog.mdl: 655 vertices, 86 frames, numbered: id's order). The rest pose ($attack1):
+// x forward, y left, z up; lunging, his mouth open. A quadruped: the pelvis (the hips and the back) the root, the chest
+// (shoulders and ribs) on it by the spine (a ball, 30/20), the head on the chest by the neck, his jaw on the head (a hinge
+// that only opens, 40 degrees at most), the tail on the pelvis; each leg an upper part (a ball at the shoulder or the hip,
+// 60/20) and a lower one: a hinge across him (keepHinge: his legs lean a little sideways), the forearm folding forward
+// (140 degrees: lying, his forearms on the ground before him), the shin backward (120). Measured on his frames (Misc/quakevr/ragdoll/rig.py dog
+// dog_bones.json): 0.62 units rms. He holds nothing.
+// Death frames 8-16 ($death1-9) and 17-25 ($deathb1-9).
+constexpr Seed dogSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-8.5f, -0.1f, -0.6f}, {-8.5f, -0.1f, -0.6f}, {1.8f, 0.f, 0.6f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {8.8f, -1.1f, -3.2f}, {1.8f, 0.f, 0.6f}, {15.6f, 0.2f, -2.3f}, 0.f, 30.f, 20.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {23.6f, -0.1f, 0.5f}, {15.6f, 0.2f, -2.3f}, {31.5f, -0.4f, 3.3f}, 0.f, 50.f, 40.f, 0.f, {}},
+    {"jaw", 2, Joint::Hinge, {26.7f, -0.4f, -3.6f}, {21.3f, -0.5f, -2.7f}, {32.1f, -0.4f, -4.4f}, 0.f, 0.f, 0.f, 40.f, {0.f, 1.f, 0.f}},
+    {"upperleg_fl", 1, Joint::Ball, {8.4f, 8.6f, -7.1f}, {9.3f, 4.6f, -1.4f}, {6.7f, 10.6f, -13.6f}, 2.f, 60.f, 20.f, 0.f, {}},
+    {"lowerleg_fl", 4, Joint::Hinge, {11.5f, 9.7f, -19.8f}, {6.7f, 10.6f, -13.6f}, {13.7f, 9.3f, -22.6f}, 1.6f, 0.f, 0.f, 140.f, {0.f, -1.f, 0.f}, true},
+    {"upperleg_fr", 1, Joint::Ball, {14.7f, -7.5f, -11.5f}, {10.7f, -6.f, -3.8f}, {18.f, -6.f, -18.f}, 2.f, 60.f, 20.f, 0.f, {}},
+    {"lowerleg_fr", 6, Joint::Hinge, {24.3f, -8.8f, -22.6f}, {18.f, -6.f, -18.f}, {23.9f, -8.6f, -22.3f}, 1.6f, 0.f, 0.f, 140.f, {0.f, -1.f, 0.f}, true},
+    {"thigh_bl", 0, Joint::Ball, {-6.3f, 7.2f, -8.6f}, {-9.8f, 6.f, -0.9f}, {-7.3f, 7.5f, -14.9f}, 2.5f, 60.f, 20.f, 0.f, {}},
+    {"shin_bl", 8, Joint::Hinge, {-6.8f, 6.3f, -20.4f}, {-7.3f, 7.5f, -14.9f}, {-6.6f, 5.8f, -22.8f}, 1.6f, 0.f, 0.f, 120.f, {0.f, 1.f, 0.f}, true},
+    {"thigh_br", 0, Joint::Ball, {-13.1f, -7.1f, -8.8f}, {-10.3f, -6.1f, -0.6f}, {-15.7f, -6.9f, -13.5f}, 2.5f, 60.f, 20.f, 0.f, {}},
+    {"shin_br", 10, Joint::Hinge, {-19.4f, -6.6f, -19.9f}, {-15.7f, -6.9f, -13.5f}, {-21.2f, -6.4f, -23.f}, 1.6f, 0.f, 0.f, 120.f, {0.f, 1.f, 0.f}, true},
+    {"tail", 0, Joint::Ball, {-17.5f, -0.1f, -1.f}, {-14.8f, -0.6f, 3.5f}, {-20.3f, 0.4f, -5.4f}, 0.f, 50.f, 30.f, 0.f, {}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
     {"progs/ogre.mdl", 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},
     {"progs/enforcer.mdl", 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
     {"progs/hknight.mdl", 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
+    {"progs/dog.mdl", 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
@@ -836,8 +863,14 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
             const glm::vec3 u = glm::normalize(p.end - p.pivot), l = glm::normalize(s.end - s.pivot);
             const glm::vec3 c = glm::cross(u, l);
             const float bend = za::acos(za::clamp(glm::dot(u, l), -1.f, 1.f));
-            bone.hinge = glm::length(c) > 0.2f ? glm::normalize(c) : s.hinge;
-            const float rest = glm::dot(glm::cross(u, l), bone.hinge) >= 0.f ? bend : -bend;
+            bone.hinge = glm::length(c) > 0.2f && !s.keepHinge ? glm::normalize(c) : s.hinge;
+            float rest = glm::dot(glm::cross(u, l), bone.hinge) >= 0.f ? bend : -bend;
+            if(s.keepHinge)
+            {
+                // (Its bend about that axis: the two directions flattened across it.)
+                const glm::vec3 h = glm::normalize(s.hinge), uf = u - h * glm::dot(u, h), lf = l - h * glm::dot(l, h);
+                rest = za::atan2(glm::dot(glm::cross(uf, lf), h), glm::dot(uf, lf));
+            }
             bone.lower = -za::max(rest - 3.f * deg, 0.f);
             bone.upper = za::max(s.flex * deg - rest, 5.f * deg);
         }
