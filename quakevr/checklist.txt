@@ -149,13 +149,16 @@ Take health after a fight (chunky detail): your own wounds fade, enemy blood sta
 Hit a monster with a box or crate: blood lands on the side that hit
 Blood Opacity 0.8 by default
 
+Flashlight cord: compare Chain (now default) with Low-Poly Chain (Advanced VR Options > Flashlight > Cord)
+Retro Textures: Smooth Beyond: Never (no smoothing at any distance)
+Press buttons with a held health box, ammo box, crate and rock; not from too far away (Wall Buttons > Held Props Press Buttons)
+
 [Decide or give feedback]
 Explosive boxes throw wood splinters when hit: switch to metal sparks?
 Training dummy: its wounds build up until gibbed: should it heal over time?
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?
 Grappling hook: allow the flashlight to clip on it? (on now)
-Flashlight cord: make Chain the default?
 Explosive boxes catching fire and blowing up from it: add?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): vr_melee_speed a server rule or personal?
