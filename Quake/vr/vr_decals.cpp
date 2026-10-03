@@ -915,6 +915,7 @@ void clipToWorld(const Decal& d, const glm::vec3& n, float depth, za::Vector<Cor
 
 bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size, const MarkOptions& o = {})
 {
+    QVR_PROFILE("decal add");
     const int max = static_cast<int>(vr_decal_max.value);
     if(!vr_decals.value || max <= 0 || !cl.worldmodel)
     {
