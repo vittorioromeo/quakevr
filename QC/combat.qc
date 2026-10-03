@@ -146,6 +146,7 @@ void(entity targ, entity attacker) Killed =
     self.touch = SUB_Null;
 
     monster_death_use();
+    VR_Corpse_DieWhole(self); // VR: never gibbed (vr_corpse_nogib 2: testing ragdolls with explosions)
     self.th_die();
 
     // VR: a head thrown by the death code (the monster itself) stays grabbable, whatever the
@@ -168,7 +169,8 @@ void(entity targ, entity attacker) Killed =
 // VR: gibbing corpses (vr_corpse_gib). A monster that died whole, once its death animation is over
 // and it lies still, is a corpse that takes damage: shots (shotguns, nails, lightning, missiles),
 // explosions, and blows of a hand or of what it holds (VR_Corpse_StrikeFrame). Enough of it
-// (vr_corpse_health, times vr_corpse_toughness for a big monster) gibs it as its own death code
+// (its monster's vr_corpse_health_<monster>, times vr_corpse_health_mult; each blow's damage times its kind's
+// vr_corpse_dmg_<kind>: VR_Corpse_DamageKind) gibs it as its own death code
 // would have: its head, its gibs, the gib sound, and a mist of blood (VR_BloodMist, vr_carry.qc). Its damage never
 // reaches Quake's death code (T_Damage hands it to VR_Corpse_Damage): nothing is counted, killed or
 // triggered again. Only the monsters VR_Corpse_Parts knows (the ones whose death code can gib
@@ -216,11 +218,11 @@ string vr_corpse_head; // "": none, the body just goes (a fish)
 string vr_corpse_gib1;
 string vr_corpse_gib2;
 string vr_corpse_gib3;
-float vr_corpse_toughness; // times vr_corpse_health: about (its health / a knight's 75) to the 0.6, at least 1
+float vr_corpse_healthh; // its corpse health's cvar (vr_corpse_health_<monster>; times vr_corpse_health_mult: VR_Corpse_Health)
 
 float(entity e) VR_Corpse_Parts =
 {
-    vr_corpse_toughness = 1;
+    vr_corpse_healthh = cvarh_vr_corpse_health_grunt;
     vr_corpse_head = "";
     vr_corpse_gib1 = "progs/gib1.mdl";
     vr_corpse_gib2 = "progs/gib2.mdl";
@@ -233,31 +235,33 @@ float(entity e) VR_Corpse_Parts =
     else if(e.th_die == enf_die)
     {
         vr_corpse_head = "progs/h_mega.mdl";
+        vr_corpse_healthh = cvarh_vr_corpse_health_enforcer;
     }
     else if(e.th_die == dog_die)
     {
         vr_corpse_head = "progs/h_dog.mdl";
+        vr_corpse_healthh = cvarh_vr_corpse_health_dog;
         vr_corpse_gib1 = "progs/gib3.mdl";
         vr_corpse_gib2 = "progs/gib3.mdl";
     }
     else if(e.th_die == demon_die)
     {
         vr_corpse_head = "progs/h_demon.mdl";
-        vr_corpse_toughness = 2.25;
+        vr_corpse_healthh = cvarh_vr_corpse_health_fiend;
         vr_corpse_gib2 = "progs/gib1.mdl";
         vr_corpse_gib3 = "progs/gib1.mdl";
     }
     else if(e.th_die == ogre_die)
     {
         vr_corpse_head = "progs/h_ogre.mdl";
-        vr_corpse_toughness = 1.75;
+        vr_corpse_healthh = cvarh_vr_corpse_health_ogre;
         vr_corpse_gib1 = "progs/gib3.mdl";
         vr_corpse_gib2 = "progs/gib3.mdl";
     }
     else if(e.th_die == knight_die || e.th_die == hknight_die)
     {
         vr_corpse_head = e.th_die == knight_die ? "progs/h_knight.mdl" : "progs/h_hellkn.mdl";
-        vr_corpse_toughness = e.th_die == knight_die ? 1 : 2;
+        vr_corpse_healthh = e.th_die == knight_die ? cvarh_vr_corpse_health_knight : cvarh_vr_corpse_health_hellknight;
         if(e.spawnflags & 2) // a statue
         {
             vr_corpse_gib1 = "progs/statgib1.mdl";
@@ -268,38 +272,41 @@ float(entity e) VR_Corpse_Parts =
     else if(e.th_die == shalrath_die)
     {
         vr_corpse_head = "progs/h_shal.mdl";
-        vr_corpse_toughness = 2.75;
+        vr_corpse_healthh = cvarh_vr_corpse_health_vore;
     }
     else if(e.th_die == sham_die)
     {
         vr_corpse_head = "progs/h_shams.mdl";
-        vr_corpse_toughness = 3.5;
+        vr_corpse_healthh = cvarh_vr_corpse_health_shambler;
     }
     else if(e.th_die == wiz_die)
     {
         vr_corpse_head = "progs/h_wizard.mdl";
+        vr_corpse_healthh = cvarh_vr_corpse_health_scrag;
         vr_corpse_gib1 = "progs/gib2.mdl";
         vr_corpse_gib3 = "progs/gib2.mdl";
     }
     else if(e.th_die == fish_die || e.th_die == f_death1)
     {
         vr_corpse_head = "";
+        vr_corpse_healthh = cvarh_vr_corpse_health_fish;
     }
     else if(e.th_die == gremlin_die)
     {
         vr_corpse_head = "progs/h_grem.mdl";
-        vr_corpse_toughness = 1.25;
+        vr_corpse_healthh = cvarh_vr_corpse_health_gremlin;
         vr_corpse_gib2 = "progs/gib1.mdl";
         vr_corpse_gib3 = "progs/gib1.mdl";
     }
     else if(e.th_die == scourge_die)
     {
         vr_corpse_head = "progs/h_scourg.mdl";
-        vr_corpse_toughness = 2.25;
+        vr_corpse_healthh = cvarh_vr_corpse_health_scourge;
     }
     else if(e.th_die == eel_death)
     {
         vr_corpse_head = "progs/eelgib.mdl";
+        vr_corpse_healthh = cvarh_vr_corpse_health_eel;
         vr_corpse_gib2 = "progs/gib1.mdl";
         vr_corpse_gib3 = "progs/gib1.mdl";
     }
@@ -308,6 +315,31 @@ float(entity e) VR_Corpse_Parts =
         return FALSE;
     }
     return TRUE;
+};
+
+// The damage that gibs the corpse VR_Corpse_Parts was last asked about: its monster's (vr_corpse_health_<monster>) times
+// vr_corpse_health_mult.
+float() VR_Corpse_Health =
+{
+    return max(1, cvar_hget(vr_corpse_healthh) * cvar_hget(cvarh_vr_corpse_health_mult));
+};
+
+// Never gibbed (vr_corpse_nogib, for testing ragdolls with explosions): 1 corpses, ragdolls and dying bodies; 2 also a
+// monster's death (Killed: it dies whole, VR_Corpse_DieWhole).
+float(float xLevel) VR_Corpse_NoGib =
+{
+    return cvar_hget(cvarh_vr_corpse_nogib) >= xLevel;
+};
+
+// Killed, before the death code (vr_corpse_nogib 2): a monster whose corpse can be gibbed (VR_Corpse_Parts) dies whole,
+// however hard it was hit (its death code gibs it under some health: -40 for most).
+void(entity e) VR_Corpse_DieWhole =
+{
+    if(VR_Corpse_NoGib(2) && (e.flags & FL_MONSTER) && e.health < -1 && VR_Corpse_Parts(e))
+    {
+        dprint(sprintf("corpse: %s dies whole (vr_corpse_nogib 2; health %.0f)\n", e.classname, e.health));
+        e.health = -1;
+    }
 };
 
 // From Killed, after the death code: a monster that died whole is watched until it lies still.
@@ -349,14 +381,14 @@ void(entity e) VR_Corpse_Unwatch =
 };
 
 // Dying, not solid now (vr_corpse_dying): it takes damage as a corpse (VR_Corpse_Damage), as much as it will lying
-// still (vr_corpse_health times its toughness, VR_Corpse_Parts set by VR_Corpse_Watch), touchable as a corpse.
+// still (VR_Corpse_Health: its monster's, VR_Corpse_Parts set by VR_Corpse_Watch), touchable as a corpse.
 void(entity e) VR_Corpse_ArmDying =
 {
     if(!e.vr_corpse_dying)
     {
         VR_Corpse_Parts(e);
         e.vr_corpse_dying = 1;
-        e.vr_corpse_hp = max(1, cvar_hget(cvarh_vr_corpse_health) * vr_corpse_toughness);
+        e.vr_corpse_hp = VR_Corpse_Health();
         if(e.health >= 0)
         {
             e.health = -1; // dead meat (as VR_Corpse_Arm)
@@ -441,11 +473,11 @@ void(entity e) VR_Corpse_Arm =
     hi_y = max(e.maxs_y, VR_Corpse_Clear(e, mid, '0 1 0', r));
     lo_y = min(e.mins_y, -VR_Corpse_Clear(e, mid, '0 -1 0', r));
 
-    // Bigger monsters take more (VR_Corpse_Parts: an ogre 1.75 times, a shambler 3.5 times).
+    // Its monster's corpse health (VR_Corpse_Parts: vr_corpse_health_<monster>).
     VR_Corpse_Parts(e);
 
     e.vr_corpse = 2;
-    e.vr_corpse_hp = max(1, cvar_hget(cvarh_vr_corpse_health) * vr_corpse_toughness);
+    e.vr_corpse_hp = VR_Corpse_Health();
     if(dyingHp >= 0)
     {
         e.vr_corpse_hp = min(e.vr_corpse_hp, dyingHp);
@@ -513,6 +545,23 @@ void(entity targ, entity inflictor, entity attacker, float xDamage) VR_SmallGib_
 void(float dm) VR_SmallGib_Gibbed;
 float vr_sgib_corpsegib; // inside VR_Corpse_Gib: a gibbing's small gibs are a corpse's (vr_smallgibs.qc)
 
+// The kinds of damage corpses and ragdolls take (VR_Corpse_DamageKind, vr_smallgibs.qc), each times its vr_corpse_dmg_*.
+float QVR_CDMG_OTHER = 0;
+float QVR_CDMG_SHOTS = 1;      // shotguns, the grunts' guns
+float QVR_CDMG_NAILS = 2;      // nails, lasers, spikes
+float QVR_CDMG_EXPLOSIONS = 3; // rockets, grenades, plasma, blasts
+float QVR_CDMG_LIGHTNING = 4;  // the lightning gun, Mjolnir, a discharge
+float QVR_CDMG_BLUNT = 5;      // a crowbar, a gun or Mjolnir swung, a pommel
+float QVR_CDMG_FISTS = 6;      // an empty fist
+float QVR_CDMG_BLADES = 7;     // the axe, a sword (swung, thrown, stuck in it)
+float QVR_CDMG_CHAINSAW = 8;
+float QVR_CDMG_PROPS = 9;      // thrown or flung things, deflected shots, a prop in the fist
+float QVR_CDMG_FIRE = 10;      // burning (vr_burning.qc)
+float QVR_CDMG_BASH = 11;      // bashes, shoves, headbutts
+float(entity inflictor, entity attacker) VR_Corpse_DamageKind;
+string(float xKind) VR_Corpse_DamageKindName;
+float(float xKind) VR_Corpse_DamageKindMult;
+
 // Its damage, from T_Damage (instead of Quake's): gibbed at no health.
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Damage =
 {
@@ -537,9 +586,25 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     damage = damage / VR_Corpse_PositionalFactor(targ);
 
     VR_SmallGib_Hit(targ, inflictor, attacker, damage); // (the chainsaw always; Quad always)
+
+    // Its kind's share (vr_corpse_dmg_<kind>): how much it takes to gib a corpse with each weapon. The small gibs above
+    // keep the whole hit (their own kinds' multipliers).
+    float kind = VR_Corpse_DamageKind(inflictor, attacker);
+    float kindMult = VR_Corpse_DamageKindMult(kind);
+    damage = damage * kindMult;
+    string kindName = VR_Corpse_DamageKindName(kind);
+
+    // Never gibbed (vr_corpse_nogib): it takes the hit (blood, small gibs, the engine's push) but loses no health.
+    if(VR_Corpse_NoGib(1))
+    {
+        dprint(sprintf("corpse: %s hit by %s (%s x%.2f) for %.1f, never gibbed (vr_corpse_nogib)\n", targ.classname,
+            inflictor.classname, kindName, kindMult, damage));
+        return TRUE;
+    }
+
     targ.vr_corpse_hp = targ.vr_corpse_hp - damage;
-    dprint("corpse: "); dprint(targ.classname); dprint(" hit by "); dprint(inflictor.classname); dprint(" for ");
-    dprint(ftos(damage)); dprint(", "); dprint(ftos(max(0, targ.vr_corpse_hp))); dprint(" left\n");
+    dprint(sprintf("corpse: %s hit by %s (%s x%.2f) for %.1f, %.1f left\n", targ.classname, inflictor.classname, kindName,
+        kindMult, damage, max(0, targ.vr_corpse_hp)));
     if(targ.vr_corpse_hp <= 0)
     {
         VR_Corpse_Gib(targ, inflictor, attacker, damage);

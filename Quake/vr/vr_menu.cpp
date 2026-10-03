@@ -2618,6 +2618,7 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageRagdolls(); // (below)
 [[nodiscard]] za::Vector<Item> pageRagdollGrunt();
 [[nodiscard]] za::Vector<Item> pageRagdollKnight();
+[[nodiscard]] za::Vector<Item> pageCorpseDamage();
 
 // Split from Carrying and Gibs: taking, throwing and bursting gibs, heads and corpses.
 [[nodiscard]] za::Vector<Item> pageGibs()
@@ -2633,8 +2634,14 @@ void hologramTestMessage()
             .help("Units/s a thrown gib or head must hit a wall or a monster at to burst."),
         toggle("Gib Corpses", vr_corpse_gib)
             .help("Corpses burst into gibs when shot, blown up or struck enough: shotguns, nails, lightning, rockets, fists, melee weapons."),
-        slider("Corpse Health", vr_corpse_health, 10.f, 300.f, 10.f, "%.0f").extend()
-            .help("The damage that gibs a corpse; a big monster's takes more (an ogre's 1.75 times, a fiend's 2.25, a shambler's 3.5)."),
+        slider("Corpse Health", vr_corpse_health_mult, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.05f, 20.f)
+            .help("Times every monster's corpse health: the damage that gibs a corpse or a ragdoll (each monster's own: Corpse "
+                  "Damage and Health) (vr_corpse_health_mult)."),
+        cycle("Never Gib Corpses", vr_corpse_nogib, {{0.f, "Off"}, {1.f, "Corpses and Ragdolls"}, {2.f, "And Dying Monsters"}})
+            .help("For testing: corpses and ragdolls take hits (blood, pushes, blasts) but never burst into gibs, even blown "
+                  "up. And Dying Monsters: a monster killed by a rocket dies whole too, so it becomes a ragdoll "
+                  "(vr_corpse_nogib)."),
+        open("Corpse Damage and Health", pageIndex(pageCorpseDamage)),
         header("Corpse Collision"),
         cycle("Corpses", vr_corpse_collide,
             {{0.f, "Pass Through"}, {1.f, "Fixed Box"}, {2.f, "Pushable Box"}, {3.f, "Fixed Pose"}, {4.f, "Pushable Pose"}})
@@ -2665,6 +2672,74 @@ void hologramTestMessage()
     };
 }
 
+// Gibs and Corpses > Corpse Damage and Health (ROUND21.md, "Ragdolls on; corpse health and damage by kind"): how much
+// damage it takes to gib a corpse or a ragdoll: each kind of hit's share of its damage (VR_Corpse_DamageKind, QC), each
+// monster's corpse health (times Corpse Health, vr_corpse_health_mult).
+[[nodiscard]] za::Vector<Item> pageCorpseDamage()
+{
+    return {
+        slider("Corpse Health", vr_corpse_health_mult, 0.25f, 4.f, 0.05f, "%.2fx").extend(0.05f, 20.f)
+            .help("Times every monster's corpse health below (vr_corpse_health_mult)."),
+        cycle("Never Gib Corpses", vr_corpse_nogib, {{0.f, "Off"}, {1.f, "Corpses and Ragdolls"}, {2.f, "And Dying Monsters"}})
+            .help("For testing: corpses and ragdolls never burst into gibs. And Dying Monsters: monsters die whole too "
+                  "(vr_corpse_nogib)."),
+        header("Damage to Corpses, by Weapon"),
+        slider("Shotguns and Guns", vr_corpse_dmg_shots, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("The shotguns' pellets and the grunts' guns. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_shots)."),
+        slider("Nails", vr_corpse_dmg_nails, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("Nails, an enforcer's laser, knights' and scrags' spikes. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_nails)."),
+        slider("Explosions", vr_corpse_dmg_explosions, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("Rockets, grenades, plasma and every blast (a ragdoll is still thrown by them: Ragdoll Settings' Blast Throw). Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_explosions)."),
+        slider("Lightning", vr_corpse_dmg_lightning, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("The lightning gun, Mjolnir's lightning, a discharge under water. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_lightning)."),
+        slider("Blunt Melee", vr_corpse_dmg_blunt, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("A crowbar, a gun or Mjolnir swung, a pommel or a hilt. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_blunt)."),
+        slider("Fists", vr_corpse_dmg_fists, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("An empty fist's punch. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_fists)."),
+        slider("Bladed Melee", vr_corpse_dmg_blades, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("The axe's and a sword's edge or point, swung or thrown; a thrown axe stuck in it, bleeding it. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_blades)."),
+        slider("Chainsaw", vr_corpse_dmg_chainsaw, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("The chainsaw's teeth. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_chainsaw)."),
+        slider("Thrown Props", vr_corpse_dmg_props, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("Thrown or flung boxes, gibs, heads and weapons (not blades), deflected shots, a rock or a brick in the fist. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_props)."),
+        slider("Fire", vr_corpse_dmg_fire, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("Burning (after Burning's Corpse Damage, vr_burn_corpse_damage). Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_fire)."),
+        slider("Bashes and Shoves", vr_corpse_dmg_bash, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("A weapon's guard driven forward, both hands' shove, a headbutt. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_bash)."),
+        slider("Other", vr_corpse_dmg_other, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 20.f)
+            .help("Anything else: monsters' blows, a kick, a crusher, lava. Times the damage it does to corpses and ragdolls: more gibs them sooner, 0 never (vr_corpse_dmg_other)."),
+        header("Corpse Health, by Monster"),
+        slider("Grunt", vr_corpse_health_grunt, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_grunt; default 80)."),
+        slider("Enforcer", vr_corpse_health_enforcer, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_enforcer; default 80)."),
+        slider("Rottweiler", vr_corpse_health_dog, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_dog; default 80)."),
+        slider("Fiend", vr_corpse_health_fiend, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_fiend; default 180)."),
+        slider("Ogre", vr_corpse_health_ogre, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_ogre; default 140)."),
+        slider("Knight", vr_corpse_health_knight, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_knight; default 80)."),
+        slider("Hell Knight", vr_corpse_health_hellknight, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_hellknight; default 160)."),
+        slider("Vore", vr_corpse_health_vore, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_vore; default 220)."),
+        slider("Shambler", vr_corpse_health_shambler, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_shambler; default 280)."),
+        slider("Scrag", vr_corpse_health_scrag, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_scrag; default 80)."),
+        slider("Rotfish", vr_corpse_health_fish, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_fish; default 80)."),
+        slider("Gremlin (Hipnotic)", vr_corpse_health_gremlin, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_gremlin; default 100)."),
+        slider("Centroid (Rogue)", vr_corpse_health_scourge, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_scourge; default 180)."),
+        slider("Eel (Rogue)", vr_corpse_health_eel, 10.f, 600.f, 10.f, "%.0f").extend(1.f, 5000.f)
+            .help("The damage that gibs its corpse or ragdoll, times Corpse Health (vr_corpse_health_eel; default 80)."),
+    };
+}
+
 // Gibs and Corpses > Ragdoll Settings (ROUND21.md, "Ragdolls"): on or off, when they go limp and how many; their physics
 // for all (each monster class may have its own: its page); taking them by hand and by force grab; their blood.
 [[nodiscard]] za::Vector<Item> pageRagdolls()
@@ -2673,7 +2748,8 @@ void hologramTestMessage()
         cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "Grunt and Knight (Experimental)"}})
             .help("A dying grunt or knight goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs) that fall, "
                   "tumble down stairs, are pushed by shots, blasts, props and your hands, his mesh bent with them. Shoot "
-                  "or blow him up enough and he still bursts into gibs (vr_ragdoll)."),
+                  "or blow him up enough and he still bursts into gibs, as a corpse does (Gibs and Corpses: Corpse Damage "
+                  "and Health, Never Gib Corpses) (vr_ragdoll)."),
         slider("Go Limp At", vr_ragdoll_start, 0.f, 1.f, 0.1f, "%.1f")
             .help("When in his death animation: 0 as soon as he stops being solid, 1 once he lies still (vr_ragdoll_start)."),
         slider("Most Ragdolls", vr_ragdoll_max, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 64.f)
@@ -4282,6 +4358,7 @@ const Page pages[] = {
     {"Gibs and Corpses - Ragdolls", pageRagdolls, pageGibs},                       // 117
     {"Ragdolls - Grunt", pageRagdollGrunt, pageRagdolls},                          // 118
     {"Ragdolls - Knight", pageRagdollKnight, pageRagdolls},                        // 119
+    {"Gibs and Corpses - Corpse Damage and Health", pageCorpseDamage, pageGibs},   // 120
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

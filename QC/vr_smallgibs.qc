@@ -500,6 +500,88 @@ float(float xKind) VR_SmallGib_KindMult =
     return max(0, cvar_hget(h));
 };
 
+// ----------------------------------------------------------------------------
+// The damage corpses and ragdolls take, by its kind (VR_Corpse_Damage, combat.qc; Gibs and Corpses > Corpse Damage and
+// Health): the small gibs' kinds (VR_SmallGib_Kind), with lightning, fists, fire and bashes told apart too.
+
+// The kind of the hit on a corpse (QVR_CDMG_*, combat.qc).
+float(entity inflictor, entity attacker) VR_Corpse_DamageKind =
+{
+    float k = vr_hitkind;
+    if(k == QVR_HITKIND_HEADBUTT || k == QVR_HITKIND_BASH || k == QVR_HITKIND_SHOVE)
+    {
+        return QVR_CDMG_BASH;
+    }
+    if(k == QVR_HITKIND_BLEED)
+    {
+        return QVR_CDMG_BLADES; // a thrown axe stuck in it
+    }
+    if(k == QVR_HITKIND_SPLASH && inflictor == attacker && (attacker.flags & FL_CLIENT))
+    {
+        return QVR_CDMG_LIGHTNING; // the lightning gun's discharge under water
+    }
+    if(inflictor.classname == "vr_burn")
+    {
+        return QVR_CDMG_FIRE; // (vr_burning.qc)
+    }
+    float s = VR_SmallGib_Kind(inflictor, attacker);
+    if(s == QVR_SGIB_SHOTS) { return QVR_CDMG_SHOTS; }
+    if(s == QVR_SGIB_NAILS) { return QVR_CDMG_NAILS; }
+    if(s == QVR_SGIB_EXPLOSIONS) { return QVR_CDMG_EXPLOSIONS; }
+    if(s == QVR_SGIB_BLADES) { return QVR_CDMG_BLADES; }
+    if(s == QVR_SGIB_SAW) { return QVR_CDMG_CHAINSAW; }
+    if(s == QVR_SGIB_PROPS) { return QVR_CDMG_PROPS; }
+    if(s == QVR_SGIB_BLUNT)
+    {
+        // An empty fist (a punch), not a gun, the crowbar or Mjolnir swung, nor a pommel.
+        if(k == QVR_HITKIND_MELEE && vr_hithand >= 0 && (attacker.flags & FL_CLIENT) && !vr_melee_blunt &&
+           VRGetEntWeapon(attacker, vr_hithand) == WID_FIST && VR_Carry_Held(attacker, vr_hithand) == world)
+        {
+            return QVR_CDMG_FISTS;
+        }
+        return QVR_CDMG_BLUNT;
+    }
+    if(k == QVR_HITKIND_SHOT)
+    {
+        return QVR_CDMG_LIGHTNING; // (VR_SmallGib_Kind: a hitscan's "other" is lightning: the gun's, Mjolnir's)
+    }
+    return QVR_CDMG_OTHER;
+};
+
+string(float xKind) VR_Corpse_DamageKindName =
+{
+    if(xKind == QVR_CDMG_SHOTS) { return "shots"; }
+    if(xKind == QVR_CDMG_NAILS) { return "nails"; }
+    if(xKind == QVR_CDMG_EXPLOSIONS) { return "explosions"; }
+    if(xKind == QVR_CDMG_LIGHTNING) { return "lightning"; }
+    if(xKind == QVR_CDMG_BLUNT) { return "blunt"; }
+    if(xKind == QVR_CDMG_FISTS) { return "fists"; }
+    if(xKind == QVR_CDMG_BLADES) { return "blades"; }
+    if(xKind == QVR_CDMG_CHAINSAW) { return "chainsaw"; }
+    if(xKind == QVR_CDMG_PROPS) { return "props"; }
+    if(xKind == QVR_CDMG_FIRE) { return "fire"; }
+    if(xKind == QVR_CDMG_BASH) { return "bash"; }
+    return "other";
+};
+
+// Times the damage of a hit of kind `xKind` on a corpse (vr_corpse_dmg_<kind>).
+float(float xKind) VR_Corpse_DamageKindMult =
+{
+    float h = cvarh_vr_corpse_dmg_other;
+    if(xKind == QVR_CDMG_SHOTS) { h = cvarh_vr_corpse_dmg_shots; }
+    else if(xKind == QVR_CDMG_NAILS) { h = cvarh_vr_corpse_dmg_nails; }
+    else if(xKind == QVR_CDMG_EXPLOSIONS) { h = cvarh_vr_corpse_dmg_explosions; }
+    else if(xKind == QVR_CDMG_LIGHTNING) { h = cvarh_vr_corpse_dmg_lightning; }
+    else if(xKind == QVR_CDMG_BLUNT) { h = cvarh_vr_corpse_dmg_blunt; }
+    else if(xKind == QVR_CDMG_FISTS) { h = cvarh_vr_corpse_dmg_fists; }
+    else if(xKind == QVR_CDMG_BLADES) { h = cvarh_vr_corpse_dmg_blades; }
+    else if(xKind == QVR_CDMG_CHAINSAW) { h = cvarh_vr_corpse_dmg_chainsaw; }
+    else if(xKind == QVR_CDMG_PROPS) { h = cvarh_vr_corpse_dmg_props; }
+    else if(xKind == QVR_CDMG_FIRE) { h = cvarh_vr_corpse_dmg_fire; }
+    else if(xKind == QVR_CDMG_BASH) { h = cvarh_vr_corpse_dmg_bash; }
+    return max(0, cvar_hget(h));
+};
+
 // The chance a hit of `xDamage` tears any out: none under the threshold, rising to a sure one at Full Damage (to the
 // power of vr_smallgibs_curve: light hits rarer).
 // The situation of a hit of kind `xKind` (vr_hitkind's: a hand's blow, a shot; else the kind's).

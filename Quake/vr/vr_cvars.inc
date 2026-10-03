@@ -1504,7 +1504,35 @@ QVR_CVAR(vr_gib_destroy, "1", CVAR_ARCHIVE)           // gibs and heads can be d
 QVR_CVAR(vr_gib_health, "12", CVAR_ARCHIVE)           // the damage that destroys a gib (a head takes half as much again)
 QVR_CVAR(vr_gib_splat_speed, "250", CVAR_ARCHIVE)     // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_CVAR(vr_corpse_gib, "1", CVAR_ARCHIVE)            // corpses can be gibbed: shot, blown up or struck enough, they burst into gibs
-QVR_CVAR(vr_corpse_health, "80", CVAR_ARCHIVE)        // the damage that gibs a corpse (a big monster's takes more: an ogre's 1.75 times, a shambler's 3.5)
+QVR_CVAR(vr_corpse_health, "80", CVAR_NONE)          // retired (config 84 made a changed one vr_corpse_health_mult: it / 80); unused
+QVR_CVAR(vr_corpse_health_mult, "1", CVAR_ARCHIVE)    // times every monster's corpse health (vr_corpse_health_<monster>): the damage that gibs a corpse or a ragdoll
+QVR_CVAR(vr_corpse_nogib, "0", CVAR_ARCHIVE)          // never gibbed (testing): 0 off, 1 corpses and ragdolls (and dying bodies) take damage but never burst, 2 also monsters die whole (their death code never gibs them)
+QVR_CVAR(vr_corpse_health_grunt, "80", CVAR_ARCHIVE) // the damage that gibs a grunt's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_enforcer, "80", CVAR_ARCHIVE) // the damage that gibs a enforcer's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_dog, "80", CVAR_ARCHIVE) // the damage that gibs a dog's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_fiend, "180", CVAR_ARCHIVE) // the damage that gibs a fiend's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_ogre, "140", CVAR_ARCHIVE) // the damage that gibs a ogre's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_knight, "80", CVAR_ARCHIVE) // the damage that gibs a knight's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_hellknight, "160", CVAR_ARCHIVE) // the damage that gibs a hellknight's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_vore, "220", CVAR_ARCHIVE) // the damage that gibs a vore's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_shambler, "280", CVAR_ARCHIVE) // the damage that gibs a shambler's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_scrag, "80", CVAR_ARCHIVE) // the damage that gibs a scrag's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_fish, "80", CVAR_ARCHIVE) // the damage that gibs a fish's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_gremlin, "100", CVAR_ARCHIVE) // the damage that gibs a gremlin's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_scourge, "180", CVAR_ARCHIVE) // the damage that gibs a scourge's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_health_eel, "80", CVAR_ARCHIVE) // the damage that gibs a eel's corpse or ragdoll (times vr_corpse_health_mult)
+QVR_CVAR(vr_corpse_dmg_shots, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from shotguns and the grunts' guns
+QVR_CVAR(vr_corpse_dmg_nails, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from nails, an enforcer's laser, knights' and scrags' spikes
+QVR_CVAR(vr_corpse_dmg_explosions, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from rockets, grenades, plasma and their blasts
+QVR_CVAR(vr_corpse_dmg_lightning, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from the lightning gun, Mjolnir, a discharge
+QVR_CVAR(vr_corpse_dmg_blunt, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from a crowbar, a gun or Mjolnir swung, a pommel
+QVR_CVAR(vr_corpse_dmg_fists, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from an empty fist
+QVR_CVAR(vr_corpse_dmg_blades, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from the axe's and a sword's edge or point, swung or thrown; a stuck axe bleeding it
+QVR_CVAR(vr_corpse_dmg_chainsaw, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from the chainsaw
+QVR_CVAR(vr_corpse_dmg_props, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from thrown or flung boxes, gibs, heads and weapons, deflected shots, a prop in the fist
+QVR_CVAR(vr_corpse_dmg_fire, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from burning (vr_burn_corpse_damage first)
+QVR_CVAR(vr_corpse_dmg_bash, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from bashes, shoves and headbutts
+QVR_CVAR(vr_corpse_dmg_other, "1", CVAR_ARCHIVE) // times the damage corpses and ragdolls take from anything else: monsters' blows, kicks, crushers
 QVR_CVAR(vr_corpse_collide, "4", CVAR_ARCHIVE)        // corpses in the physics (vr_box3d.cpp): 0 none (things pass through), 1 fixed box, 2 heavy pushable box, 3 fixed shape of its pose, 4 heavy pushable shape of its pose
 QVR_CVAR(vr_corpse_collide_mass, "150", CVAR_ARCHIVE) // kg: a pushable corpse's mass (heavier: harder to push; a player walking into one shoves it under about 60)
 QVR_CVAR(vr_corpse_collide_friction, "1", CVAR_ARCHIVE) // a pushable corpse's friction (with the floor's: 0.6)
@@ -1513,7 +1541,7 @@ QVR_CVAR(vr_corpse_collide_thrown, "1", CVAR_ARCHIVE) // thrown things in flight
 QVR_CVAR(vr_corpse_collide_held, "1", CVAR_ARCHIVE)   // held things (props, weapons, the hands' bodies) push pushable corpses, and props held in both hands stop at them
 QVR_CVAR(vr_corpse_collide_player, "0", CVAR_ARCHIVE) // the player meets corpses: 0 walks through, 1 steps over them (a 16 unit step), 2 solid (walk round or jump onto)
 QVR_CVAR(vr_corpse_collide_monsters, "0", CVAR_ARCHIVE) // monsters step over corpses (16 units) instead of walking through
-QVR_CVAR(vr_ragdoll, "0", CVAR_ARCHIVE)               // ragdolls (experimental; vr_ragdoll.cpp, vr_box3d.cpp): 0 off, 1 the grunt and the knight: dying, his body goes limp as jointed bodies his mesh is skinned to
+QVR_CVAR(vr_ragdoll, "1", CVAR_ARCHIVE)               // ragdolls (experimental; vr_ragdoll.cpp, vr_box3d.cpp): 0 off, 1 the grunt and the knight: dying, his body goes limp as jointed bodies his mesh is skinned to
 QVR_CVAR(vr_ragdoll_start, "0.3", CVAR_ARCHIVE)       // when a dying grunt goes limp: a share of his death animation (0 its first frame he isn't solid in, 1 its last: lying still)
 QVR_CVAR(vr_ragdoll_max, "8", CVAR_ARCHIVE)           // the most ragdolls at once; more dead grunts lie as corpses (Corpse Collision)
 QVR_CVAR(vr_ragdoll_mass, "80", CVAR_ARCHIVE)         // kg: a ragdoll's whole mass (its parts by their volume)

@@ -23293,3 +23293,48 @@ In VR:
       hand; vr_timescale 0.1: the switch unseen in both death animations.
 - [ ] Grab a knight's arm, leg, head; force grab one; pile knights and grunts; set one alight and fling him.
 - [ ] Ragdolls > Knight: his own Mass, Joint Friction, Joint Limits; his arms (no elbows) look right?
+
+## Ragdolls on; corpse health and damage by kind (2026-10-03)
+
+**Ragdolls on by default** (`vr_ragdoll` 1). Config 84 turns a saved 0 to 1 (a config that chose Off since takes it
+again: it held the old default).
+
+**Corpse health by monster** (Gibs and Corpses > **Corpse Damage and Health**, page 120): `vr_corpse_health_<monster>`,
+the damage that gibs its corpse or ragdoll, today's values (80 times the old toughness): grunt, enforcer, dog, knight,
+scrag, fish, eel 80; gremlin 100; ogre 140; hellknight 160; fiend, scourge (Centroid) 180; vore 220; shambler 280.
+Statues take their knight's. **Corpse Health** (`vr_corpse_health_mult`, 1) multiplies them all (on Gibs and Corpses
+too). `vr_corpse_health` is retired (not saved): config 84 makes a changed one the multiplier (40: 0.5).
+
+**Damage to corpses by kind** (`vr_corpse_dmg_<kind>`, 1 each; VR_Corpse_DamageKind, vr_smallgibs.qc: the small gibs'
+kinds with lightning, fists, fire and bashes told apart): shots (shotguns, grunts' guns), nails (and lasers, spikes),
+explosions (missiles, grenades, plasma, every blast), lightning (the gun, Mjolnir, a discharge), blunt (crowbar, a gun or
+Mjolnir swung, a pommel), fists (an empty fist), blades (axe and sword, swung or thrown; a stuck axe's bleeding),
+chainsaw, props (thrown or flung things, deflected shots, a prop in the fist), fire (after `vr_burn_corpse_damage`),
+bash (bashes, shoves, headbutts), other (monsters' blows, kicks, crushers, lava). Only the corpse's health loss is
+scaled: small gibs keep the whole hit (their own multipliers). `developer 1` logs each hit: "corpse: monster_army hit by
+spike (nails x1.00) for 9.0, 71.0 left".
+
+**Never Gib Corpses** (`vr_corpse_nogib`, 0): 1 corpses, ragdolls and dying bodies take hits (blood, small gibs, the
+engine's blast push) but lose no health; 2 also monsters die whole (Killed: a monster VR_Corpse_Parts knows gets health
+-1 before its death code, so a rocket's kill becomes a ragdoll). For testing ragdolls with explosions. (Was
+`vr_corpse_health 1000` in the tests above.)
+
+Tests (mock, e1m1, a dead grunt 70 units ahead, a 200 blast on it):
+- defaults: `vr_ragdoll` "1" (default), ragdoll made, "80 to gib", explosions x1.00 for 194: gibbed.
+- `vr_corpse_dmg_explosions 0.25`: 48.5, 31.5 left. `vr_corpse_nogib 1`: two blasts (197, 164), never gibbed.
+- `vr_corpse_health_mult 2; vr_corpse_health_grunt 30`: "60 to gib". A fiend (dispenser 9): "180 to gib".
+- `vr_corpse_nogib 2`, a live grunt and a 400 blast: "dies whole (health -99)", a ragdoll (without: gibbed, none).
+- vr_smallgibs_test 4 and 5 on a corpse (`vr_smallgibs_test_n 3`): axe blade and sword blades, axe pommel blunt, punch
+  fists, nails nails.
+- migration: version 83 with `vr_corpse_health 40`, `vr_ragdoll 0`: mult 0.5, ragdolls 1.
+
+In VR:
+- [ ] Ragdolls are on in a fresh config (Gibs and Corpses > Ragdolls: Grunt and Knight).
+- [ ] Gibs and Corpses > Corpse Health 2: a grunt's corpse takes about twice the shots to gib.
+- [ ] Corpse Damage and Health > Explosions 0.25: a rocket on a corpse no longer gibs it at once.
+- [ ] Corpse Damage and Health > Fists 3: a few punches gib a grunt's corpse.
+- [ ] Corpse Damage and Health > Bladed Melee 0: the axe and the sword never gib a corpse (small gibs still come).
+- [ ] Corpse Damage and Health > Grunt 300: a grunt's corpse takes far more; a knight's is unchanged.
+- [ ] Never Gib Corpses > Corpses and Ragdolls: rockets throw a grunt's ragdoll about, it never gibs.
+- [ ] Never Gib Corpses > And Dying Monsters: a grunt killed by a rocket goes limp and flies, no gibs.
+- [ ] Never Gib Corpses > Off again: corpses gib as before.

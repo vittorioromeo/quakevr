@@ -270,8 +270,10 @@ const DefaultChange defaultChanges[] = {
     {82, &vr_wounds_blood_alpha, "0.75"},      // 0.8
     // 83: the flashlight's chain the default cord (NOTES.md vrfiringrange_2026-10-03_02-29-04).
     {83, &vr_flashlight_cord, "1"},            // 3
+    // 84: ragdolls on (the author, 2026-10-03; ROUND21.md, "Ragdolls on; corpse health and damage by kind").
+    {84, &vr_ragdoll, "0"},                    // 1
 };
-constexpr int configVersion = 83;
+constexpr int configVersion = 84;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -539,6 +541,15 @@ void migrateConfig()
     {
         Con_DPrintf("VR: vr_extmaps_dir: %s (was %s)\n", vr_extmaps_dir.default_string, vr_extmaps_dir.string);
         Cvar_SetQuick(&vr_extmaps_dir, vr_extmaps_dir.default_string);
+    }
+    // 84: each monster's corpse health its own setting (vr_corpse_health_<monster>, today's 80 times its old toughness),
+    // times vr_corpse_health_mult; vr_corpse_health retired (not saved now). A config's changed one keeps its corpses as
+    // tough: the multiplier takes its share of 80.
+    if(from < 84 && vr_corpse_health.value > 0.f && !sameValue(vr_corpse_health.string, "80"))
+    {
+        Cvar_SetValueQuick(&vr_corpse_health_mult, vr_corpse_health.value / 80.f);
+        Con_DPrintf("VR: vr_corpse_health_mult %s (vr_corpse_health %s, retired)\n", vr_corpse_health_mult.string,
+            vr_corpse_health.string);
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
