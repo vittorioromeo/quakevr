@@ -23343,7 +23343,7 @@ In VR:
 
 `vr_smallgibs_test 4` (800 blows in one frame: 200 each of axe blade, pommel, sword, punch) on a corpse ended in
 "runaway loop error" (QC's limit: 16.7 million instructions in one call). Measured with the engine's `profile`
-(now `profile [n]`: the n costliest functions, and the total since the last one; Debug > Performance >
+(now `profile [n]`: the n costliest functions, and the total since the last one; Debug > Profiling and Memory >
 QuakeC Instructions runs `profile 30`).
 
 Two costs, both also in real play:
