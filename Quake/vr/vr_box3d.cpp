@@ -528,6 +528,21 @@ struct StepTasks
     za::Atomic<int> next{0};                      // the step's next in `tasks` (0 before each step)
 };
 
+// vr_physics_frametime's phases of a server frame's physics (VR_PhysicsFrameEnd's, and SV_Physics's round them).
+enum FramePhase
+{
+    PhaseServerPhysics, // SV_Physics from the world's turn to the end of Box3D's frame: the entities' thinks and moves too
+    PhaseBox3D,         // VR_PhysicsFrameEnd, all of it
+    PhaseSync,          // the entities into their bodies (syncEntities, hands, reach)
+    PhaseBefore,        // the water and the hit boxes before the step (beforeStep, standing, shoves)
+    PhaseStep,          // the step's pieces with their touches (notePushed .. traceGibContacts)
+    PhaseSolver,        // b3World_Step alone
+    PhaseWrite,         // the bodies into their entities (writeProp, writeRagdoll, writeCorpse)
+    PhaseAfter,         // the touches' QC (SV_Impact), the shocks, watchInside, the sounds
+    framePhases
+};
+constexpr const char* framePhaseNames[framePhases] = {"server physics", "box3d", "sync", "before", "step", "solver", "write", "after"};
+
 struct World
 {
     b3WorldId id{};
@@ -544,6 +559,13 @@ struct World
     };
     za::Vector<StepSample> stepSamples;
     b3Profile stepProfile{}; // Box3D's own (ms), summed over the steps (vr_physics_steptime bins)
+    // vr_physics_frametime: each server frame's physics by phase (ms; framePhaseNames) since it last printed.
+    struct FrameSample
+    {
+        float ms[framePhases]{};
+        int awake{0}; // the awake bodies after the step
+    };
+    za::Vector<FrameSample> frameSamples;
     const qmodel_t* map{nullptr};
     float m2u{1.f};      // units a metre
     float gravity{0.f};  // sv_gravity at the last update
@@ -705,6 +727,8 @@ struct World
 
 za::UniquePtr<World> world;
 constexpr za::SizeT stepSamplesMax = 1u << 16; // vr_physics_steptime's frames kept (15 minutes at 72 Hz)
+double serverPhysicsStart = 0.0; // SV_Physics's world's turn this frame (Sys_DoubleTime; noteServerPhysicsStart)
+bool frameTiming = false;        // vr_physics_frametime asked for once: its samples kept from then on
 
 void runStepTask(void* p)
 {
@@ -6618,8 +6642,9 @@ void blast_f()
     Con_Printf("vr_physics_blast: %.0f at %.0f %.0f %.0f\n", damage, at[0], at[1], at[2]);
 }
 
-// vr_physics_hash: a hash of every rigid body's origin, angles, velocity and spin, bit for bit (determinism tests: two
-// runs of the same script print the same).
+// vr_physics_hash [piles]: a hash of every rigid body's origin, angles, velocity and spin, bit for bit (determinism tests:
+// two runs of the same script print the same). `piles`: only what the stress tests spawned (vr_physics_bigpile), not the
+// map's own props.
 void hash_f()
 {
     if(!sv.active)
@@ -6627,10 +6652,15 @@ void hash_f()
         return;
     }
     const VmScope vm;
+    const bool piles = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "piles");
     uint64_t h = 1469598103934665603ull;
     int count = 0;
     for(edict_t* e : entitiesNamed("props"))
     {
+        if(piles && !(static_cast<int>(e->v.spawnflags) & stressTagBit))
+        {
+            continue;
+        }
         const glm::vec3 v[4] = {vec(e->v.origin), vec(e->v.angles), vec(e->v.velocity), fieldVec(e, fields().vr_spin)};
         const auto* bytes = reinterpret_cast<const unsigned char*>(v);
         for(size_t i = 0; i < sizeof(v); i++)
@@ -6725,6 +6755,56 @@ void steptime_f()
     world->stepTimeMax = 0.0;
     world->stepFrames = 0;
     world->stepAwake = 0;
+}
+
+// vr_physics_frametime [<label>]: each server frame's physics since it last printed, by phase (framePhaseNames; ms: the
+// mean, median, 95th and 99th percentiles and the worst), with the wall-clock time and the host frames between the two
+// calls (the whole frame's cost, with vr_fixed_frames: a test run's same frames); then starts counting again (the first
+// call starts it: no samples kept before). A bench: Misc/quakevr/physbench/physbench.py.
+void frametime_f()
+{
+    static double lastWall = 0.0;
+    static int lastHostFrame = 0;
+    frameTiming = true;
+    const double now = Sys_DoubleTime();
+    const double wall = lastWall > 0.0 ? now - lastWall : 0.0;
+    const int hostFrames = host_framecount - lastHostFrame;
+    lastWall = now;
+    lastHostFrame = host_framecount;
+    const char* label = Cmd_Argc() > 1 ? Cmd_Argv(1) : "-";
+    if(!world)
+    {
+        Con_Printf("vr_physics_frametime %s: no physics world\n", label);
+        return;
+    }
+    const za::Vector<World::FrameSample>& samples = world->frameSamples;
+    double awake = 0.0;
+    for(const World::FrameSample& x : samples)
+    {
+        awake += x.awake;
+    }
+    const b3Counters c = b3World_GetCounters(world->id);
+    Con_Printf("vr_physics_frametime %s: %d frames, %d host frames in %.3f s (%.4f ms a host frame), %.1f awake, %d bodies, "
+               "%d contacts\n",
+        label, static_cast<int>(samples.size()), hostFrames, wall, hostFrames > 0 ? wall * 1000.0 / hostFrames : 0.0,
+        samples.empty() ? 0.0 : awake / static_cast<double>(samples.size()), c.bodyCount, c.contactCount);
+    za::Vector<float> ms;
+    ms.reserve(samples.size());
+    for(int p = 0; p < framePhases; p++)
+    {
+        ms.clear();
+        double sum = 0.0;
+        for(const World::FrameSample& x : samples)
+        {
+            ms.pushBack(x.ms[p]);
+            sum += x.ms[p];
+        }
+        za::quickSort(ms.begin(), ms.end());
+        Con_Printf("vr_physics_frametime %s %s: mean %.4f median %.4f p95 %.4f p99 %.4f worst %.4f\n", label,
+            framePhaseNames[p], ms.empty() ? 0.0 : sum / static_cast<double>(ms.size()), quantile(ms, 0.5), quantile(ms, 0.95),
+            quantile(ms, 0.99), ms.empty() ? 0.0 : static_cast<double>(ms.back()));
+    }
+    world->frameSamples.clear();
 }
 
 // vr_physics_mtbench [<bodies> [<steps>]]: Box3D on the pool, alone (ROUND21.md, "Box3D on the pool"). A world of its
@@ -7401,6 +7481,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_clearpiles", clearPiles_f);
         Cmd_AddCommand("vr_physics_hash", hash_f);
         Cmd_AddCommand("vr_physics_steptime", steptime_f);
+        Cmd_AddCommand("vr_physics_frametime", frametime_f);
         Cmd_AddCommand("vr_physics_mtbench", mtbench_f);
         Cmd_AddCommand("vr_physics_blast", blast_f);
         Cmd_AddCommand("vr_physics_sink", sink_f);
@@ -7467,6 +7548,11 @@ bool toss(edict_t* ent)
     (void)ent;
     registerCommands();
     return wanted();
+}
+
+void noteServerPhysicsStart()
+{
+    serverPhysicsStart = Sys_DoubleTime();
 }
 
 void reset()
@@ -9810,6 +9896,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
     }
     const double t0 = Sys_DoubleTime();
+    World::FrameSample sample;
     updateSettings();
     {
         QVR_PROFILE("box3d sync");
@@ -9823,6 +9910,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         noteThrows();
         syncReach(dt);
     }
+    const double tSync = Sys_DoubleTime();
     {
         QVR_PROFILE("box3d water and hits");
         beforeStep(dt);
@@ -9848,7 +9936,9 @@ extern "C" void VR_PhysicsFrameEnd(void)
             notePushed(dt / static_cast<float>(pieces));
             pressStanding(dt / static_cast<float>(pieces));
             world->tasks.next.storeRelaxed(0);
+            const double s0 = Sys_DoubleTime();
             b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);
+            sample.ms[PhaseSolver] += static_cast<float>((Sys_DoubleTime() - s0) * 1000.0);
             addProfile(world->stepProfile, b3World_GetProfile(world->id));
             limitPushes(dt / static_cast<float>(pieces));
             world->steps++;
@@ -9881,6 +9971,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     // The props into their entities (the awake ones, and those that just fell asleep), and the awake ones' slides (the
     // physics sounds' scrapes).
     QVR_PROFILE("box3d write");
+    const double tWrite = Sys_DoubleTime();
     const bool scrapes = physsound::scrapesWanted();
     for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
@@ -9910,6 +10001,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
     }
     rideStanding();
+    const double tAfter = Sys_DoubleTime();
 
     // Then what they touched, in the step's order, each pair once.
     for(size_t i = 0; i < impacts.size(); i++)
@@ -9975,6 +10067,22 @@ extern "C" void VR_PhysicsFrameEnd(void)
     callShocks();
     watchInside();
     physsound::frameEnd(); // the frame's knocks and scrapes
+
+    const double t3 = Sys_DoubleTime();
+    if(frameTiming && world->frameSamples.size() < stepSamplesMax)
+    {
+        const auto ms = [](double a, double b) { return static_cast<float>((b - a) * 1000.0); };
+        sample.ms[PhaseServerPhysics] = serverPhysicsStart > 0.0 && serverPhysicsStart <= t0 ? ms(serverPhysicsStart, t3) : 0.f;
+        sample.ms[PhaseBox3D] = ms(t0, t3);
+        sample.ms[PhaseSync] = ms(t0, tSync);
+        sample.ms[PhaseBefore] = ms(tSync, t1);
+        sample.ms[PhaseStep] = ms(t1, t2);
+        sample.ms[PhaseWrite] = ms(tWrite, tAfter);
+        sample.ms[PhaseAfter] = ms(tAfter, t3);
+        sample.awake = b3World_GetAwakeBodyCount(world->id);
+        world->frameSamples.pushBack(sample);
+    }
+    serverPhysicsStart = 0.0;
 }
 
 namespace qvr::box3d

@@ -2,6 +2,7 @@
 
 #include "vr_timescale.hpp"
 #include "vr_backend.hpp"
+#include "vr_box3d.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -462,6 +463,10 @@ extern "C" void VR_PlayerRunEnd(double world)
 extern "C" double VR_PhysicsEntityBegin(edict_t* ent, int num)
 {
     using namespace qvr::timescale;
+    if(num == 0)
+    {
+        qvr::box3d::noteServerPhysicsStart(); // (vr_physics_frametime)
+    }
     const double k = moveSpeedup();
     if(k == 1.0)
     {

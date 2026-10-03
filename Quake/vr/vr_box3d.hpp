@@ -14,6 +14,10 @@ namespace qvr::box3d
 // False only without a world to put it in (no .vr_rigid field, no map): Quake's toss moves it.
 [[nodiscard]] bool toss(edict_t* ent);
 
+// SV_Physics's turn of the world entity, its first (VR_PhysicsEntityBegin): where vr_physics_frametime's server physics
+// phase begins.
+void noteServerPhysicsStart();
+
 // A hand's push on the prop `ent` at `at` (world units): that point gets at least `velocity`'s speed along it (an impulse
 // there: pushed high, a tall box tips; pushed low, it slides). `pusherMass` (kg, 0: none): what pushes has that mass, so
 // the point gets only the share of two masses meeting (a light hand barely moves a heavy box). False if it is not a
