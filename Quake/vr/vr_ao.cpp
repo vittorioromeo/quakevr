@@ -1,6 +1,7 @@
 // vr_ao.cpp -- dynamic ambient occlusion: see vr_ao.hpp.
 
 #include "vr_ao.hpp"
+#include "vr_portals.hpp"
 #include "vr_view.hpp"
 #include "vr_engine.hpp"
 #include "vr_avatar.hpp"
@@ -1269,7 +1270,8 @@ void ao::init()
 
 void ao::upload()
 {
-    if(builtFrame != host_framecount)
+    // (through a slipgate, vr_portals.cpp: the last frame's occluders, chosen round the eyes, not there)
+    if(builtFrame != host_framecount && !portals::viewing())
     {
         builtFrame = host_framecount;
         integrateBakes();

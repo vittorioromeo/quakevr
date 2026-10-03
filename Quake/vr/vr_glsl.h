@@ -111,7 +111,10 @@ QVR_TONE_GLSL
 "	vec4	RippleAmp[8]; // QVR: ... each's height now, in units (four a vec4)\n" \
 "	vec4	DecalClock; // QVR: the decals on the world (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS): x now on their clock, y vr_decal_life, z 1 on (0: none, or drawn as meshes), w unused\n" \
 "	vec4	WaterCube; // QVR: water reflections (vr/vr_envmap.cpp: vr_water_reflections): the water cube's centre (xyz), strength (w, 0 off)\n" \
-"	vec4	WaterCube2; // QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last\n"
+"	vec4	WaterCube2; // QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last\n" \
+"	vec4	PortalPlane; // QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)\n" \
+"	vec4	PortalMin; // QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)\n" \
+"	vec4	PortalMax; // QVR: ... its box (xyz)\n"
 
 // the frame data the alias shaders read (vr/vr_lighting.cpp); its own names, since the alias
 // instance buffer has a ViewProj, Fog, EyePos and ScreenDither of its own.
@@ -761,6 +764,7 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "layout(binding=7) uniform sampler3D LiquidVolume; // where the water and slime are (1), a cell round them into walls\n"\
 "layout(binding=8) uniform sampler2D LiquidDepth; // how far the opaque scene is (vr_water.cpp: half the size), with LiquidScene\n"\
 "layout(binding=16) uniform samplerCube LiquidCube; // the room over the water (vr_envmap.cpp), each texel's distance in alpha\n"\
+"layout(binding=17) uniform sampler2D PortalScene; // the view through a slipgate for this eye (vr_portals.cpp), by the eye's pixels\n"\
 "\n"\
 LIQUID_SWELL \
 "// Quake's warp of the liquids' texture coordinates; lava's slower with the waves on.\n"\
@@ -840,6 +844,19 @@ LIQUID_SWELL \
 "	return vec4(textureLod(LiquidCube, o + r * t, lod).rgb, WaterCube.w * fade);\n"\
 "}\n"\
 "\n"\
+"// A slipgate showing where it leads (vr_portals; PortalPlane, PortalMin, PortalMax: vr_portals.cpp's side shown in this\n"\
+"// view): on that side's faces, seen from in front, the view through it (PortalScene: drawn for this eye, its pixels\n"\
+"// these), wavering a little as the slipgate's texture does; a its share (0: not this side, or none).\n"\
+"vec4 LiquidPortal(vec3 pos, vec3 facing)\n"\
+"{\n"\
+"	if (PortalMin.w <= 0. || dot(facing, PortalPlane.xyz) < 0.9 || abs(dot(pos, PortalPlane.xyz) - PortalPlane.w) > 2.0 ||\n"\
+"		any(lessThan(pos, PortalMin.xyz - 2.0)) || any(greaterThan(pos, PortalMax.xyz + 2.0)))\n"\
+"		return vec4(0.);\n"\
+"	vec2 size = vec2(textureSize(PortalScene, 0));\n"\
+"	vec2 waver = vec2(sin(Time * 1.9 + dot(pos, vec3(0.071, 0.053, 0.089))), cos(Time * 1.6 + dot(pos, vec3(0.047, 0.083, 0.061))));\n"\
+"	return vec4(texture(PortalScene, gl_FragCoord.xy / size + waver * 0.0012).rgb, PortalMin.w);\n"\
+"}\n"\
+"\n"\
 "// A liquid's colour: tex its texture, lit that lit (light: by how much, 1 Quake's full light), n the waves' normal and\n"\
 "// facing the flat one (towards the eye), h the waves' height. alpha: its opacity, in and out. Water and slime are more\n"\
 "// see-through looking down and reflect a dim room colour at grazing angles (fresnel), glinting where the waves face a\n"\
@@ -856,7 +873,16 @@ LIQUID_SWELL \
 "		return mix(lit, max(lit, tex), min(Water2.x, 1.0)) * (1.0 + Water2.x * (0.3 + 1.2 * hot * pulse));\n"\
 "	}\n"\
 "	if (kind == 3u)\n"\
-"		return lit * (1.0 + 0.2 * sin(Time * 3.0 + h * 8.0) * min(Water.x, 1.0));\n"\
+"	{\n"\
+"		vec3 shimmer = lit * (1.0 + 0.2 * sin(Time * 3.0 + h * 8.0) * min(Water.x, 1.0));\n"\
+"		vec4 through = LiquidPortal(pos, facing); // QVR: where it leads (vr_portals), a little of its shimmer over it\n"\
+"		if (through.a > 0.)\n"\
+"		{\n"\
+"			alpha = 1.0;\n"\
+"			return mix(shimmer, through.rgb, through.a * 0.88);\n"\
+"		}\n"\
+"		return shimmer;\n"\
+"	}\n"\
 "	vec3 v = normalize(EyePos - pos);\n"\
 "	float cosv = clamp(dot(n, v), 0.0, 1.0);\n"\
 "	float l = min(dot(light, vec3(1.0 / 3.0)), 1.5);\n"\

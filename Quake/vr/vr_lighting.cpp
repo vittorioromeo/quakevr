@@ -1,6 +1,7 @@
 // vr_lighting.cpp -- see vr_lighting.hpp.
 
 #include "vr_lighting.hpp"
+#include "vr_portals.hpp"
 #include "vr_ao.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
@@ -969,9 +970,9 @@ bool shadowsSupported()
 // R_SetupView, before R_PushDlights: once per frame (both eyes share it).
 extern "C" void VR_RenderShadowMaps(void)
 {
-    if(renderedFrame == host_framecount)
+    if(renderedFrame == host_framecount || portals::viewing())
     {
-        return;
+        return; // (through a slipgate, vr_portals.cpp: the last frame's, the lights chosen round the eyes, not there)
     }
     renderedFrame = host_framecount;
     QVR_GPU_PROFILE("shadow maps");

@@ -456,6 +456,9 @@ typedef struct gpuframedata_s {
 	float	decalclock[4];	// QVR: the decals on the world (vr/vr_decals.cpp: VR_DecalsFrame): now on their clock, vr_decal_life, on
 	float	watercube[4];		// QVR: water reflections (vr/vr_envmap.cpp: vr_water_reflections): the water cube's centre (xyz), strength (w, 0 off)
 	float	watercube2[4];		// QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last
+	float	portalplane[4];		// QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)
+	float	portalmin[4];		// QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)
+	float	portalmax[4];		// QVR: ... its box (xyz)
 } gpuframedata_t;
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin

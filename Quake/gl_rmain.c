@@ -861,6 +861,7 @@ void R_SetFrustum (void)
 
 	TranslationMatrix(translation, -r_refdef.vieworg[0], -r_refdef.vieworg[1], -r_refdef.vieworg[2]);
 	MatrixMultiply(r_matview, translation);
+	VR_PortalClip (r_matproj, r_matview); // QVR: through a slipgate, the near plane its plane (vr/vr_portals.cpp)
 
 	// View projection matrix
 	memcpy(r_matviewproj, r_matproj, 16 * sizeof(float));
@@ -1995,6 +1996,7 @@ void R_RenderScene (void)
 	R_Clear ();
 	VR_ProfileEnd (); // QVR
 	VR_DrawHiddenArea (); // QVR: the lenses' hidden area, skipped by what follows
+	VR_DrawPortalMask (); // QVR: through a slipgate, all but the gate skipped (vr/vr_portals.cpp)
 
 	Fog_EnableGFog (); //johnfitz
 	VR_ProfileEnd (); // QVR
@@ -2161,6 +2163,7 @@ void R_RenderView (void)
 		glFinish ();
 
 	VR_ProfileBeginGPU ("setup view"); // QVR: profile
+	VR_PortalView (); // QVR: the view through a slipgate moved there (vr/vr_portals.cpp)
 	R_SetupView (); //johnfitz -- this does everything that should be done once per frame
 	VR_ProfileEnd (); // QVR
 	VR_ProfileBeginGPU ("scene"); // QVR: profile

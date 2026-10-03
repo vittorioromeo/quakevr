@@ -23,6 +23,7 @@
 #include "vr_main.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_panel.hpp"
+#include "vr_portals.hpp"
 #include "vr_profile.hpp"
 #include "vr_stereo.hpp"
 #include "vr_text3d.hpp"
@@ -56,6 +57,7 @@ struct SceneTargets
 };
 SceneTargets eyeTargets;
 SceneTargets spectatorTargets;
+SceneTargets portalTargets; // the view through a slipgate (vr_portals.cpp), an eye's size, no MSAA
 bool creatingSceneTargets = false; // VR_SceneColorFormat, VR_SceneSamples
 unsigned creatingFormat = 0;
 unsigned creatingDepth = 0;
@@ -520,6 +522,22 @@ void drawHiddenArea()
     gfx::draw(hiddenTriangles, glm::mat4{1.f}, state);
 }
 
+// The view through a slipgate for the eye about to be drawn (vr_portals.cpp): the scene from that eye carried through
+// the gate (VR_PortalView, VR_PortalClip), all but the gate's box on screen skipped (VR_DrawPortalMask), into targets
+// of the eye's size (the per-view caches, sized as the eye's, aren't made anew) without MSAA (it is only read, by the
+// gate's pixels). Its scene colour is the teleport faces' then (VR_PortalTexture).
+void renderPortal(int width, int height)
+{
+    QVR_GPU_PROFILE("portal");
+    ensureSceneTargets(portalTargets, width, height, 0.f);
+    framebufs = portalTargets.fb;
+    portals::beginView();
+    V_RenderView();
+    foveated::endScene();
+    portals::endView(portalTargets.fb.composite.color_tex);
+    framebufs = eyeTargets.fb;
+}
+
 // The window's spectator camera (vr_window.cpp): the scene a third time, after the eyes (their images already given to
 // the runtime), from the steadied head with the camera's field of view, at the window's size times
 // vr_spectator_scale, as the eyes render it (the same entities, lights, shadow maps, particles, glow and UI: the
@@ -691,6 +709,7 @@ extern "C" int VR_RenderView()
     meleehud::queue(hands::current()); // the counter glow (vr_counter_glow)
     body::queueDebug(hands::current());
     envmap::update(); // the weapons' reflections: a face of the cube, once for both eyes (vr_envmap.cpp)
+    portals::update(); // the slipgate looked through (vr_portals.cpp)
 
     int eyesRendered = 0;
     for(int eye = 0; eye < 2; eye++)
@@ -723,6 +742,11 @@ extern "C" int VR_RenderView()
         stereo::firstEye = eyesRendered == 0;
         QVR_GPU_PROFILE(eye == 0 ? "eye L" : "eye R");
 
+        if(portals::wantedForEye(eye))
+        {
+            stereo::renderPortal(width, height); // first: its view entities are this frame's if it is the first view
+            stereo::firstEye = false;
+        }
         V_RenderView();
         foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
         bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess
