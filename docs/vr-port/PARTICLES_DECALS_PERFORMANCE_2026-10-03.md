@@ -17,7 +17,7 @@ invocation queries.
 |---|---|---|
 | Decals: every new mark remade and re-uploaded all the settled marks | **Confirmed**: 94.6 MB uploaded for 853 chips (111 KB a mark, more as the buffer fills); a decal frame's worst 25-33 ms per eye here | Only new marks are added and uploaded: 0.8 MB; worst frame 1-10 ms |
 | Particle simulation and records (CPU) | Small: a linear pass, 0.05 + 0.06 ms a frame in the storm | — |
-| Particle fill (GPU) | **The cost**: large smoke and blood close to the eyes; 3500 particles drew about 5.8M fragments per eye at 160x160 (about 230 screens of overdraw) | Not changed: see below |
+| Particle fill (GPU) | **The cost**: large smoke and blood close to the eyes; 3500 particles drew about 5.8M fragments per eye at 160x160 (about 230 screens of overdraw) | In heavy frames all particles at half resolution (a quarter of the fragments); no per-sample shading with MSAA |
 | Cropping the round particles' quads to their disc | Measured, **dropped**: no change in the fragments drawn (distant explosion particles cover less than a pixel each), and the quad's cut corners pick up the next cell's mip | — |
 
 ## Decals
@@ -62,14 +62,42 @@ drew about 250 fragments in all: Quake's own explosion particles, a few metres a
 headset's resolution the same overdraw costs more than 100 times as much, which fits slowdowns with heavy smoke near the
 player.
 
-What would reduce it changes how particles look, so nothing was changed here. Options, cheapest first:
+## Particles at half resolution (added after: small visual changes are acceptable)
+
+`vr_particle_halfres` (default 1): in a frame whose particles would cover more than one and a half views in all
+(estimated on the CPU from each one's size and distance; off again under one view), every particle is drawn into a
+target of half the scene's size and blended into the scene in one full-screen pass (`gfx::drawParticlesHalf`). That is
+a quarter of their fragments, plus the blend pass and a clear of the half-size target. Lighter frames draw them at full
+resolution as before. The decision is made once a frame, so both eyes always match.
+
+- Depth: the half-size target has no depth buffer. A particle is hidden behind the scene's distances (the soft
+  particles' texture, already half size, each texel the nearest of its four pixels), and soft ones fade against them
+  as before.
+- Order: all of them go to half size, in their order. Splitting them (the small ones at full resolution, over the
+  large ones: `vr_particle_halfres_pixels`, for tests) reorders them visibly, e.g. a blood puff or debris over a new
+  fireball.
+- Off with retro textures (their texels' blocks stay sharp) and without a depth texture.
+- Both particle passes, and the blend pass, no longer shade each sample with MSAA (`vid_fsaamode 1` made each
+  particle fragment run once per sample, for nothing: their textures are soft and their edges are their alpha).
+
+Checked with the game paused (the particles frozen) and the same frame shot both ways, at 512x512 an eye:
+- the fireball, smoke and blood look the same;
+- sparks and debris are slightly softer and a little dimmer;
+- mean difference 1.2/255; 0.9% of the pixels differ by more than 32;
+- the same with 4x MSAA in full-sample mode.
+
+llvmpipe cannot show the saving: it rasterises the whole queued scene when the half-size target is bound (the time
+moves to the "half size" profiler scope), and its blending is cheap next to a GPU's fill. In the headset, compare the
+"vr particles" GPU scope with `vr_particle_halfres 0` and `1` in heavy smoke.
+
+## Other options
+
+Beyond the half-resolution pass, these would cut fill further, at the cost of how particles look:
 
 - **Fade particles near the eye**: fade out a quad that comes within a few units of the eye, and collapse it in the
   vertex shader once fully faded, so it draws no fragments. Many engines do this; it also stops smoke from blinding
   the player. It could be a cvar with a small default.
 - **Cap a particle's size on screen**: shrink, or fade, quads past some fraction of the view.
-- **Draw the particles at half resolution** and upsample (with the soft-particle depth already available), which
-  roughly quarters the fill. It is a larger change and costs some sharpness on particle edges.
 
 The disc crop was tried and dropped. It cut the round particles' quads to their visible disc, about a third of the
 area. It saved nothing measurable: the particles it applies to are far away and tiny. It also changed 1-2% of the

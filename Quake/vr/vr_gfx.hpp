@@ -125,8 +125,28 @@ struct ParticleBatch
     za::SizeT count{0};
 };
 [[nodiscard]] ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles);
+// Which of them a draw is for: all, or those small or large in the view (ParticleSplit).
+enum class ParticlePass : int
+{
+    All,
+    Small,
+    Large,
+};
+// Large: half across at least `largePixels` of the scene target's pixels, at `pixelScale` pixels a unit at distance 1.
+struct ParticleSplit
+{
+    float pixelScale{0.f};
+    float largePixels{0.f};
+};
 // Draws them in the scene view (sceneViewProjection, sceneCamera); `pull`: moved towards the eye by their pull.
-void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture);
+void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture,
+    ParticlePass pass = ParticlePass::All, const ParticleSplit& split = {});
+// The large ones (split) drawn at half the scene's size into a target of their own, hidden behind the scene's
+// `distances` (width x height, water::opaqueSceneDistances; `soft`: fading against them too), then blended into the
+// scene (as they would have been drawn) in one pass. A quarter of their fragments, a little softer. `viewport`: the
+// scene's (R_SceneViewport); `restore` binds the scene's framebuffer again. False if it could not (drawn nothing).
+[[nodiscard]] bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
+    Texture distances, int width, int height, const int viewport[4], bool soft, void (*restore)());
 
 // A lit tube made on the GPU from one record a ring (the flashlight's coiled cord, vr_coil.cpp): `sides` vertices round
 // each ring, consecutive rings joined; opaque, depth-tested and written, in the scene view. Each vertex is lit as the

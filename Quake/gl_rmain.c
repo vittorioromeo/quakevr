@@ -904,22 +904,48 @@ qboolean GL_NeedsPostprocess (void)
 R_SetupGL
 =============
 */
+/*
+=============
+R_SceneViewport -- QVR
+
+The viewport R_SetupGL sets for the scene (x, y, width, height), without a glGet.
+=============
+*/
+void R_SceneViewport (int viewport[4])
+{
+	if (!GL_NeedsSceneEffects ())
+	{
+		viewport[0] = glx + r_refdef.vrect.x;
+		viewport[1] = gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height;
+		viewport[2] = r_refdef.vrect.width;
+		viewport[3] = r_refdef.vrect.height;
+	}
+	else
+	{
+		viewport[0] = 0;
+		viewport[1] = 0;
+		viewport[2] = r_refdef.vrect.width / r_refdef.scale;
+		viewport[3] = r_refdef.vrect.height / r_refdef.scale;
+	}
+}
+
 void R_SetupGL (void)
 {
+	int viewport[4];
 	if (!GL_NeedsSceneEffects ())
 	{
 		GL_BindFramebufferFunc (GL_FRAMEBUFFER, GL_NeedsPostprocess () ? framebufs.composite.fbo : 0u);
 		framesetup.scene_fbo = framebufs.composite.fbo;
 		framesetup.oit_fbo = framebufs.oit.fbo_composite;
-		glViewport (glx + r_refdef.vrect.x, gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height, r_refdef.vrect.width, r_refdef.vrect.height);
 	}
 	else
 	{
 		GL_BindFramebufferFunc (GL_FRAMEBUFFER, framebufs.scene.fbo);
 		framesetup.scene_fbo = framebufs.scene.fbo;
 		framesetup.oit_fbo = framebufs.oit.fbo_scene;
-		glViewport (0, 0, r_refdef.vrect.width / r_refdef.scale, r_refdef.vrect.height / r_refdef.scale);
 	}
+	R_SceneViewport (viewport);
+	glViewport (viewport[0], viewport[1], viewport[2], viewport[3]);
 }
 
 /*

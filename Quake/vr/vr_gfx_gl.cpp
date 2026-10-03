@@ -247,6 +247,20 @@ void main()
     if(result == vec4(0.0))
         discard;
 #endif
+#ifdef HALFRES
+    // Drawn at half the scene's size (drawParticlesHalf), the size of its distances: with no depth buffer, hidden
+    // behind them instead (each texel the nearest of its four pixels).
+    {
+        float d = texelFetch(SceneDistances, ivec2(gl_FragCoord.xy), 0).r;
+        if(d < viewDepth)
+            discard;
+        if(SoftOn != 0 && soft > 0.0)
+        {
+            float f = clamp((d - viewDepth) / soft, 0.0, 1.0);
+            result *= f * f * (3.0 - 2.0 * f);
+        }
+    }
+#else
     // Soft: fading out as the opaque scene comes close behind (premultiplied: all four). The distances are half the
     // target's size, each the nearest of its four pixels.
     if(SoftOn != 0 && soft > 0.0)
@@ -255,6 +269,7 @@ void main()
         float f = clamp((texelFetch(SceneDistances, p, 0).r - viewDepth) / soft, 0.0, 1.0);
         result *= f * f * (3.0 - 2.0 * f);
     }
+#endif
 }
 )";
 
@@ -288,6 +303,9 @@ layout(location = 5) uniform vec3 Eye;
 layout(location = 6) uniform vec3 Right;
 layout(location = 7) uniform vec3 Up;
 layout(location = 8) uniform int Pull;
+layout(location = 10) uniform int Pass;           // ParticlePass: 0 all, 1 the small ones only, 2 the large ones only
+layout(location = 11) uniform float PixelScale;   // the scene target's pixels across a unit at distance 1
+layout(location = 12) uniform float LargePixels;  // large: half across at least this many of them
 struct Particle
 {
     vec4 orgHalf;   // org, half size
@@ -347,6 +365,22 @@ void main()
             u *= k;
         }
     }
+    if(Pass != 0)
+    {
+        // Large or small by its size in the scene's pixels (the same in both passes: each drawn in one).
+        vec4 mid = MVP * vec4(o, 1.0);
+        bool large = mid.w > 0.0 && max(length(r), length(u)) * PixelScale >= LargePixels * mid.w;
+        if(large != (Pass == 2))
+        {
+            gl_Position = vec4(2.0, 2.0, 2.0, 1.0); // nothing: its six corners at one point, outside the view
+            uv = vec2(0.0);
+            color = vec4(0.0);
+            soft = 0.0;
+            worldPos = o;
+            viewDepth = 0.0;
+            return;
+        }
+    }
     vec2 sg = signs[corner];
     vec3 pos = o + u * sg.x + r * sg.y;
     uv = vec2(sg.x > 0.0 ? p.uv.z : p.uv.x, sg.y > 0.0 ? p.uv.w : p.uv.y);
@@ -358,8 +392,42 @@ void main()
 }
 )";
 
-GLuint particleProgram[2]{}; // [retro]
-bool particleProgramFailed[2]{};
+GLuint particleProgram[3]{}; // [retro], [2]: at half size (drawParticlesHalf, not retro)
+bool particleProgramFailed[3]{};
+
+// drawParticlesHalf's: its target (two, for the eyes' size and the spectator camera's), and the pass blending it into
+// the scene.
+struct HalfTarget
+{
+    GLuint texture = 0;
+    GLuint fbo = 0;
+    int width = 0, height = 0;
+};
+HalfTarget halfTargets[2];
+int halfTargetNext = 0;
+GLuint halfCompositeProgram = 0;
+bool halfCompositeFailed = false;
+
+constexpr const char* halfCompositeVs = R"(#version 430
+void main()
+{
+    vec2 v = vec2(gl_VertexID & 1, gl_VertexID >> 1);
+    gl_Position = vec4(v * 4.0 - 1.0, 0.0, 1.0);
+}
+)";
+// Premultiplied: over the scene as the particles themselves would have been. Each texel is the scene's pixels 2x, 2y
+// .. 2x + 1, 2y + 1 (the scene's viewport halved).
+constexpr const char* halfCompositeFs = R"(#version 430
+layout(binding = 0) uniform sampler2D Half;
+layout(location = 0) uniform vec2 Scale;
+out vec4 result;
+void main()
+{
+    result = texture(Half, gl_FragCoord.xy * Scale);
+    if(result == vec4(0.0))
+        discard;
+}
+)";
 
 // The fragment shader for a shade, blended or not, with retro textures or not (Shade::Texture).
 [[nodiscard]] za::String fragmentFor(int shade, bool blended, bool retro)
@@ -779,45 +847,56 @@ ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles)
     return {buf, reinterpret_cast<za::SizeT>(ofs), particles.size()};
 }
 
-void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture)
+namespace
 {
-    if(batch.count == 0 || !batch.buffer)
-    {
-        return;
-    }
-    const int r = state.retro > 0 ? 1 : 0;
-    GLuint& program = particleProgram[r];
-    if(!program && !particleProgramFailed[r])
-    {
-        program = glProgram(particleVertexShader, fragmentFor(static_cast<int>(Shade::Texture), true, r != 0).cStr(),
-            r ? "vr particles (retro)" : "vr particles");
-        particleProgramFailed[r] = !program;
-    }
-    if(!program)
-    {
-        return;
-    }
 
+// The particle program: 0, 1 (retro or not), or 2 (at half size).
+[[nodiscard]] GLuint particleProgramFor(int which)
+{
+    GLuint& program = particleProgram[which];
+    if(!program && !particleProgramFailed[which])
+    {
+        za::String fs = fragmentFor(static_cast<int>(Shade::Texture), true, which == 1);
+        if(which == 2)
+        {
+            fs.insert(fs.find('\n') + 1, "#define HALFRES 1\n");
+        }
+        program = glProgram(particleVertexShader, fs.cStr(),
+            which == 0 ? "vr particles" : which == 1 ? "vr particles (retro)" : "vr particles (half size)");
+        particleProgramFailed[which] = !program;
+    }
+    return program;
+}
+
+// Draws them with `program` into what is bound (blended over it, premultiplied). Not shaded per sample with MSAA
+// (vid_fsaamode 1): the textures are soft, and their edges are their alpha.
+void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bool depthTest, int retro,
+    Texture texture, ParticlePass pass, const ParticleSplit& split, Texture distances, bool soft)
+{
     GL_UseProgram(program);
-    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (state.depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE);
+    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // premultiplied
+    glDisable(GL_SAMPLE_SHADING);
     const glm::mat4 mvp = sceneViewProjection();
     glm::vec3 eye, right, up;
     sceneCamera(eye, right, up);
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
-    GL_Uniform1iFunc(4, state.sceneDistances ? 1 : 0);
+    GL_Uniform1iFunc(4, soft ? 1 : 0);
     GL_Uniform3fFunc(5, eye.x, eye.y, eye.z);
     GL_Uniform3fFunc(6, right.x, right.y, right.z);
     GL_Uniform3fFunc(7, up.x, up.y, up.z);
     GL_Uniform1iFunc(8, pull ? 1 : 0);
-    bindRetro(state.retro);
+    GL_Uniform1iFunc(10, static_cast<int>(pass));
+    GL_Uniform1fFunc(11, split.pixelScale);
+    GL_Uniform1fFunc(12, split.largePixels);
+    bindRetro(retro);
     if(texture)
     {
         GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, texture);
     }
-    if(state.sceneDistances)
+    if(distances)
     {
-        GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, state.sceneDistances);
+        GL_BindNative(GL_TEXTURE1, GL_TEXTURE_2D, distances);
     }
     // Binding 0 borrowed (the scene's lights, R_UploadFrameData): put back for what the view draws after.
     GLuint savedBuffer = 0;
@@ -831,7 +910,100 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
     {
         GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 0, savedBuffer, savedOffset, savedSize);
     }
+    glEnable(GL_SAMPLE_SHADING);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); // what GLS_BLEND_ALPHA expects
+}
+
+} // namespace
+
+void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Texture texture, ParticlePass pass,
+    const ParticleSplit& split)
+{
+    if(batch.count == 0 || !batch.buffer)
+    {
+        return;
+    }
+    const int r = state.retro > 0 ? 1 : 0;
+    const GLuint program = particleProgramFor(r);
+    if(!program)
+    {
+        return;
+    }
+    drawParticlesWith(program, batch, pull, state.depthTest, state.retro, texture, pass, split, state.sceneDistances,
+        state.sceneDistances != 0);
+}
+
+bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
+    Texture distances, int width, int height, const int viewport[4], bool soft, void (*restore)())
+{
+    if(batch.count == 0 || !batch.buffer || !distances || width <= 0 || height <= 0)
+    {
+        return false;
+    }
+    const GLuint program = particleProgramFor(2);
+    if(!halfCompositeProgram && !halfCompositeFailed)
+    {
+        halfCompositeProgram = glProgram(halfCompositeVs, halfCompositeFs, "vr particles (half size, blended in)");
+        halfCompositeFailed = !halfCompositeProgram;
+    }
+    if(!program || !halfCompositeProgram)
+    {
+        return false;
+    }
+
+    // Its target: the distances' size (a texel each).
+    HalfTarget* target = nullptr;
+    for(HalfTarget& t : halfTargets)
+    {
+        if(t.texture && t.width == width && t.height == height)
+        {
+            target = &t;
+        }
+    }
+    if(!target)
+    {
+        target = &halfTargets[halfTargetNext];
+        halfTargetNext ^= 1;
+        if(target->texture)
+        {
+            GL_DeleteFramebuffersFunc(1, &target->fbo);
+            GL_DeleteNativeTexture(target->texture);
+        }
+        glGenTextures(1, &target->texture);
+        GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, target->texture);
+        GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA16F, width, height);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+        GL_ObjectLabelFunc(GL_TEXTURE, target->texture, -1, "vr particles (half size)");
+        GL_GenFramebuffersFunc(1, &target->fbo);
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
+        GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target->texture, 0);
+        target->width = width;
+        target->height = height;
+    }
+
+    // The large ones into it, over nothing.
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, target->fbo);
+    glViewport(viewport[0] / 2, viewport[1] / 2, viewport[2] / 2, viewport[3] / 2);
+    const GLfloat clear[4] = {0.f, 0.f, 0.f, 0.f};
+    GL_ClearBufferfvFunc(GL_COLOR, 0, clear);
+    drawParticlesWith(program, batch, pull, false, 0, texture, ParticlePass::Large, split, distances, soft);
+    restore();
+
+    // Blended into the scene.
+    GL_UseProgram(halfCompositeProgram);
+    GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | GLS_NO_ZTEST | GLS_NO_ZWRITE);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_SAMPLE_SHADING);
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, target->texture);
+    GL_Uniform2fFunc(0, 0.5f / static_cast<float>(width), 0.5f / static_cast<float>(height));
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glEnable(GL_SAMPLE_SHADING);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    return true;
 }
 
 TubeBatch uploadTube(za::Span<const TubeRing> rings)

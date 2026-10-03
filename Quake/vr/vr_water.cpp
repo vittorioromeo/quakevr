@@ -1573,6 +1573,12 @@ void prepare()
     VR_TimeAdd("liquids: the wave mesh", Sys_DoubleTime() - t1);
 }
 
+void opaqueSceneDistancesSize(int& width, int& height)
+{
+    width = distances[distancesIndex].width;
+    height = distances[distancesIndex].height;
+}
+
 unsigned opaqueSceneDistances()
 {
     // The depth the scene is drawn with (none: the window's own, not a texture): the liquids' when they made it.

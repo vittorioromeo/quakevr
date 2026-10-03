@@ -25,6 +25,7 @@
 #include "Zancle/Chrono/Clock.hpp"
 #include "Zancle/Container/Bitset.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -2292,6 +2293,58 @@ extern "C" float VR_SoftSpriteFade(float radius)
     return qvr::particles::softness(qvr::particles::CellExplosion, radius).fade;
 }
 
+namespace qvr::particles
+{
+
+// How much of the view this frame's large particles cover (split: which are large), in views: roughly, by each one's
+// middle (not its streak), each at most the whole view.
+[[nodiscard]] float largeCover(const gfx::ParticleSplit& split, const int viewport[4])
+{
+    glm::vec3 eye, right, up;
+    gfx::sceneCamera(eye, right, up);
+    const glm::vec3 forward = glm::cross(up, right);
+    const float screen = static_cast<float>(viewport[2]) * static_cast<float>(viewport[3]);
+    if(screen <= 0.f)
+    {
+        return 0.f;
+    }
+    float area = 0.f;
+    for(za::SizeT i = 0; i < instanceCount; i++)
+    {
+        const gfx::ParticleInstance& q = instances[i];
+        const float w = glm::dot(q.org - eye, forward);
+        if(w <= 1.f)
+        {
+            continue;
+        }
+        const float half = q.half * split.pixelScale / w;
+        if(half >= split.largePixels)
+        {
+            area += za::min(4.f * half * half, screen);
+        }
+    }
+    return area / screen;
+}
+
+// Whether this frame's particles are drawn at half size (vr_particle_halfres): decided in its first view, for every
+// view (the eyes alike), when they would cover enough of it to pay for blending them in (and clearing their
+// target): from a view and a half of them, until under one.
+bool halfRes = false;
+int halfResFrame = -1;
+
+[[nodiscard]] bool halfResThisFrame(const gfx::ParticleSplit& split, const int viewport[4])
+{
+    if(halfResFrame != host_framecount)
+    {
+        halfResFrame = host_framecount;
+        const float cover = largeCover(split, viewport);
+        halfRes = cover >= (halfRes ? 1.f : 1.5f);
+    }
+    return halfRes;
+}
+
+} // namespace qvr::particles
+
 // R_RenderScene, after the translucent pass: the sprites the opaque pass left (soft), the particles, depth-tested
 // against the scene.
 extern "C" void VR_DrawSceneTranslucent()
@@ -2333,11 +2386,22 @@ extern "C" void VR_DrawSceneTranslucent()
         lyingCount = 0;
     }
     const bool drawn = inView || lyingCount > 0;
+    const int retroSet = retro::categorySet(retro::Category::Particles);
+
+    // At half size (vr_particle_halfres), when there are enough large ones; not with retro textures (their texels'
+    // blocks kept sharp), nor without a depth texture to hide them behind.
+    int viewport[4];
+    R_SceneViewport(viewport);
+    // (Quake's projection: its rows swapped about, as R_DrawParticles reads it: 1 / tan(fov y / 2) at [2][1].)
+    const gfx::ParticleSplit split{za::abs(r_matproj[2 * 4 + 1]) * 0.5f * static_cast<float>(viewport[3]),
+        za::max(0.f, vr_particle_halfres_pixels.value)};
+    const bool half = inView && vr_particle_halfres.value != 0.f && retroSet == 0 &&
+                      (GL_NeedsSceneEffects() || GL_NeedsPostprocess()) && halfResThisFrame(split, viewport);
 
     // The opaque scene's distances, for the soft ones (the liquids' when they made them this view): only when a soft
-    // sprite or particle is drawn.
+    // sprite or particle is drawn, or particles at half size (hidden behind them).
     gfx::Texture distances = 0;
-    if((drawn || R_SoftSpritesPending()) && soft)
+    if((drawn || R_SoftSpritesPending()) && (soft || half))
     {
         QVR_GPU_PROFILE("vr scene distances");
         distances = water::opaqueSceneDistances();
@@ -2366,7 +2430,7 @@ extern "C" void VR_DrawSceneTranslucent()
 
     QVR_PROFILE("particle upload"); // (the draw calls; the records were uploaded once this frame)
     const gfx::State state{.shade = gfx::Shade::Texture, .blend = gfx::Blend::Premultiplied, .depthTest = true, .depthWrite = false,
-        .sceneDistances = distances, .retro = retro::categorySet(retro::Category::Particles)}; // retro textures (vr_retro.hpp)
+        .sceneDistances = soft ? distances : 0, .retro = retroSet}; // retro textures (vr_retro.hpp)
     if(lyingCount > 0)
     {
         gfx::draw({lyingVertices.data(), lyingCount}, gfx::sceneViewProjection(), state, atlas); // first: under the rest
@@ -2374,8 +2438,21 @@ extern "C" void VR_DrawSceneTranslucent()
     }
     if(inView)
     {
-        // Moved towards the eye only when the scene's distances are read (else not soft at all).
-        gfx::drawParticles(batch, soft && distances, state, atlas);
+        // Moved towards the eye only when the scene's distances are read (else not soft at all). At half size: all of
+        // them (vr_particle_halfres_pixels 0), or the large ones, blended in under the small ones.
+        const bool pull = soft && distances;
+        bool halfDrawn = false;
+        if(half && distances)
+        {
+            QVR_GPU_PROFILE("half size");
+            int width = 0, height = 0;
+            water::opaqueSceneDistancesSize(width, height);
+            halfDrawn = gfx::drawParticlesHalf(batch, pull, atlas, split, distances, width, height, viewport, soft, R_SetupGL);
+        }
+        if(!halfDrawn || split.largePixels > 0.f)
+        {
+            gfx::drawParticles(batch, pull, state, atlas, halfDrawn ? gfx::ParticlePass::Small : gfx::ParticlePass::All, split);
+        }
     }
 }
 

@@ -38,6 +38,8 @@ void applyPreset(int preset);
 // now if they did not make it this view. After the translucent pass only (the soft particles, vr_particles.cpp): it
 // binds the scene's framebuffer again when it makes it.
 [[nodiscard]] unsigned opaqueSceneDistances();
+// The size of the distances opaqueSceneDistances last returned (half the scene's target, rounded up).
+void opaqueSceneDistancesSize(int& width, int& height);
 
 // The scene's depth was drawn into after its distances were made this view (the soft sprites, vr_particles.cpp):
 // opaqueSceneDistances makes them again.
