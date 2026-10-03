@@ -14,6 +14,7 @@
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
 #include "vr_profile.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -260,10 +261,33 @@ const Posed* posed(int num, const entity_t& e)
     p.vertsFrame = -1;
     p.valid = false;
     p.ent = &e;
-    p.model = trianglesOf(e.model);
+    // A ragdoll drawn with its skinned model (vr_ragdoll.cpp): its own .mdl's triangles, its vertices as the parts carry
+    // them (in the world).
+    const qmodel_t* rag = ragdoll::sourceModel(&e);
+    p.model = trianglesOf(rag ? rag : e.model);
     if(!p.model)
     {
         return nullptr;
+    }
+    if(rag)
+    {
+        if(!ragdoll::skinnedVertices(num, p.verts) || p.verts.empty())
+        {
+            return nullptr;
+        }
+        p.vertsFrame = host_framecount;
+        p.m = glm::mat4{1.f};
+        p.lo = glm::vec3{1e30f};
+        p.hi = glm::vec3{-1e30f};
+        for(const glm::vec3& v : p.verts)
+        {
+            p.lo = glm::min(p.lo, v);
+            p.hi = glm::max(p.hi, v);
+        }
+        p.lo -= glm::vec3{0.5f};
+        p.hi += glm::vec3{0.5f};
+        p.valid = true;
+        return &p;
     }
     float m16[16];
     glm::vec3 blo, bhi; // bounds in the model's coordinates

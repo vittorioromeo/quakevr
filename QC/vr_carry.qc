@@ -825,6 +825,10 @@ void(float xHand) VR_Carry_HandFrame =
     VR_Corpse_StrikeFrame(xHand); // a blow on a corpse (vr_corpse_gib, combat.qc)
 
     entity box = VR_Carry_Held(self, xHand);
+    if(box != world && VR_Ragdoll_HandFrame(xHand, box))
+    {
+        return; // (a ragdoll's limb: the engine moves it)
+    }
     if(box == world || (box.carry_2h && box == VR_Carry_Held(self, VRGetOtherHand(xHand))))
     {
         return; // (held in both hands: VR_Carry_TwoHandFrame)
@@ -1139,6 +1143,10 @@ void() VR_Carry_TwoHandFrame =
         }
         return;
     }
+    if(box.carry_player != self && isragdoll(box))
+    {
+        return; // (a ragdoll's limbs in both hands: each hand its own, VR_Ragdoll_HandFrame)
+    }
 
     if(box.model == string_null || box.carry_player != self || self.health <= 0 || !cvar_hget(cvarh_vr_carry))
     {
@@ -1283,6 +1291,59 @@ float(entity xPlayer, float xHand) VR_Carry_GripPressed =
         return TRUE; // pressed this frame (the press's time is recorded after the touches)
     }
     return time - VR_HandGrabUtil_Impl_GetLastGrabTime(xPlayer, xHand) <= VR_CARRY_GRIP_WINDOW;
+};
+
+// A ragdoll's hand touch (the engine gives it to a ragdoll: vr_box3d.cpp, "Ragdolls"; vr_ragdoll_grab): a hand on one of
+// its limbs (within vr_ragdoll_grab_reach of its surface) pressing the grip takes it: the limb follows the hand through
+// its joints, the body hanging from it (the engine's joint); let go of, it keeps the hand's throw (VR_Ragdoll_HandFrame).
+// The hand holds it as a carried thing (its held field: busy), but the engine moves it.
+void() VR_Ragdoll_Handtouch =
+{
+    if(other.classname != "player" || VRIsTouchingHandFake(other) || !isragdoll(self))
+    {
+        return;
+    }
+    float hand = VRGetTouchingHand(other);
+    if(VR_Carry_GripPressed(other, hand) && VRIsHandEmpty(other, hand) && !VR_Forcegrab_IsHandBusy(other, hand) &&
+       ragdollgrab(self, other, hand))
+    {
+        VR_Carry_SetHeld(other, hand, self);
+        dprint("ragdoll: a limb taken by hand ");
+        dprint(ftos(hand));
+        dprint("\n");
+        entity oldSelf = self;
+        self = other;
+        haptic(hand, 0.0, 0.08, 60, 0.5);
+        self = oldSelf;
+    }
+};
+
+// Every player frame, for a hand holding `xBox` (VR_Carry_HandFrame; self is the player): a ragdoll's limb. Let go of, it
+// keeps the hand's throw; let go of by the engine (the ragdoll gibbed, the limb left behind a wall), the hand is empty
+// again. FALSE: not a ragdoll's limb (a carried thing).
+float(float xHand, entity xBox) VR_Ragdoll_HandFrame =
+{
+    if(xBox.carry_player == self)
+    {
+        return FALSE;
+    }
+    if(ragdollheld(self, xHand) != 1 || self.health <= 0)
+    {
+        if(isragdoll(xBox) || ragdollheld(self, xHand) == 0)
+        {
+            dprint("ragdoll: limb lost\n");
+        }
+        ragdollrelease(self, xHand, '0 0 0');
+        VR_Carry_SetHeld(self, xHand, world);
+        return TRUE;
+    }
+    if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
+    {
+        VR_Carry_SetHeld(self, xHand, world);
+        ragdollrelease(self, xHand, VRGetHandThrowVel(xHand) * VRMetersToUnits());
+        dprint("ragdoll: limb let go of\n");
+    }
+    return TRUE;
 };
 
 // A hand touching the box (handtouch): press the grip on it to hold it, else nudge it.

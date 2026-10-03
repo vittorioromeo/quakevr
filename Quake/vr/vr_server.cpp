@@ -2,6 +2,7 @@
 
 #include "vr_fatigue.hpp"
 #include "vr_axestick.hpp"
+#include "vr_box3d.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
@@ -619,7 +620,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
     // Carrying, per hand: the object (the client draws it in the hand, vr_held.cpp).
     const auto carried = [&](int ofs) {
         edict_t* e = entityField(ent, ofs);
-        return e && !e->free ? NUM_FOR_EDICT(e) : 0;
+        return e && !e->free && !box3d::isRagdoll(NUM_FOR_EDICT(e)) ? NUM_FOR_EDICT(e) : 0; // (a ragdoll's limb: not drawn in the hand)
     };
     statsi[STAT_QVR_CARRYMAIN] = carried(f.mainhand_held);
     statsi[STAT_QVR_CARRYOFF] = carried(f.offhand_held);

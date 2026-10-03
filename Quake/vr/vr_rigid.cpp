@@ -420,7 +420,7 @@ bool pointInModelBox(edict_t* ent, const glm::vec3& p, float margin)
 
 glm::vec3 modelCentre(edict_t* ent)
 {
-    if(!modelOf(ent))
+    if(!modelOf(ent) || box3d::isRagdoll(NUM_FOR_EDICT(ent))) // (a ragdoll's box: round its parts, vr_box3d.cpp)
     {
         return toGlm(ent->v.origin) + (toGlm(ent->v.mins) + toGlm(ent->v.maxs)) * 0.5f;
     }

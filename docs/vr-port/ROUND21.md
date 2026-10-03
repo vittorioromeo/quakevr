@@ -23162,5 +23162,92 @@ In VR:
 - [ ] Gibs and Corpses > Ragdolls: Grunt Only. Kill grunts on flat floors, on stairs, with rockets and grenades: they
       fall limp, roll down steps, rest across them; nothing pops, sinks or jitters.
 - [ ] Shoot a ragdoll, kick it with a held weapon, sweep a hand through it, drop a box on it: it moves where touched.
-- [ ] Go Limp At 0 (limp as soon as he falls) and 1 (only once lying still); Joint Stiffness 0 (a rag) and 5 (stiff).
+- [ ] Go Limp At 0 (limp as soon as he falls) and 1 (only once lying still); Joint Friction (then Joint Stiffness) 0 (a rag) and 5 (stiff).
 - [ ] Gib one (the shotgun close, a rocket): gibs as before, no body left behind.
+
+## Ragdolls 2: taking them, piles, blood and fire, the unseen switch, their own page (2026-10-03)
+
+The author's phase 1 (phase 2: the knight). Gibs and Corpses > **Ragdoll Settings** (page 117, "Gibs and Corpses -
+Ragdolls"; the Gibs and Corpses page keeps the Ragdolls switch and links the page), > **Grunt** (page 118).
+
+**The switch, unseen** (the bug: in slow motion the dying grunt vanished and the ragdoll's limbs grew into place). Two
+causes. (1) The skinned model has one pose, but the entity's animation lerp (R_SetupAliasFrame: previouspose,
+currentpose, lerpstart) was the corpse's: its first frames lerped from pose N x 11 of the bone buffer (past its 12
+bones: zero matrices) to the bones, over the frame's 0.1 s (a second at vr_timescale 0.1). swapModels now keeps the lerp
+state and sets both poses to 0 while the skinned model is drawn (restoreModels puts it back). (2) It was made in the
+frame the QC had just set, which the client had not begun to lerp to: it showed the frame before, and the ragdoll
+jumped a frame. createRagdoll now makes the parts in the pose the client draws (the frame before's, when the frame
+changed this server frame: CorpseWatch::changed; not on a load), at the origin it was drawn at (the server frame
+before's: a death code moving him, ai_back, had moved the whole ragdoll 13 units), moving as the animation went on. Its
+first frame drawn is compared with the animated mesh (vr_debug_ragdoll: "first drawn"): 0.45 units rms, 1.6 at most
+(death 1), 0.62 and 2.1 (death 2): the rig's own fit (0.52 rms). Its shading: the skinned model had no occlusion (the
+.mdl's baked one, vr_ao.cpp, is per pose): it now carries the mean over the death animations' poses (0.05 from a death's
+or a lying pose's on average; all the poses' 0.10-0.12, the rest pose's 0.15), negated in its normal's 4th byte
+(PoseAO's IQM branch; every other skeletal model has 0 there: none), filled once baked (catchUpAO). Slow motion, a frame
+every 2 around the switch (vrfiringrange, the crop of the grunt, mean pixel difference frame to frame): 4.6 4.5 4.1 |
+10.2 | 6.2 6.6 6.4 (at the switch: the rig's fit and the normals; before, the body vanished for about a second).
+
+**Taking a limb** (`vr_ragdoll_grab`, 2: Never / By Hand / By Hand and Force Grab). A ragdoll gets a hand touch
+(VR_Ragdoll_Handtouch, vr_carry.qc; the engine gives it as the ragdoll is made, unless it has one): a hand within **Grip
+Reach** (`vr_ragdoll_grab_reach`, 6 units) of a limb's surface (handOn: box3d::ragdollReach; its box is round all of it)
+gripping takes that limb (ragdollgrab). The engine holds it: a kinematic body at the hand and a motor joint to the limb,
+its spring (8 Hz, its turn 4 Hz, critically damped) at most **Grip Strength** (`vr_ragdoll_grab_force`, 3000 N; at 1500 a
+grunt lifted by his chest sagged 18 units from the hand, at 3000 one) keeping the limb as it was in the hand: it follows
+the hand through the joint chain, the body hanging, swinging and dragging from it. The hand holds the corpse as a
+carried thing (its held field: busy; not drawn in the hand: STAT_QVR_CARRY skips ragdolls; not Kind::Held);
+VR_Ragdoll_HandFrame lets go when the grip opens: the limb keeps the hand's throw (`vr_ragdoll_throw`, 1x, where it is
+faster than the limb). Both hands: a joint each (VR_Carry_TwoHandFrame leaves a ragdoll to each hand's frame). Let go of
+by the engine (QC sees it: ragdollheld): the ragdoll gibbed, the limb 40 units from the hand for half a second (behind a
+wall), the hand holding something else. **Force grab**: a ragdoll is a target (VR_Forcegrab_IsEligible); flicked, the
+limb nearest the hand's aim flies to the hand in a prop's time (ragdollpull: homing, the rest of him after it at 0.8),
+caught (the grip held within 1.5x the catch radius: ragdollgrab again) it stops in the hand and is held as above; missed,
+he drops (a third of his speed kept). Builtins: isragdoll, ragdollgrab, ragdollpull, ragdollrelease, ragdollheld,
+ragdollreach, ragdollbone, ragdollpoint.
+
+**Piles** (`vr_ragdoll_collide_each`, 1): a ragdoll's parts have catCorpse in their mask (a corpse's don't: ragdolls meet
+ragdolls, not corpses). Made in another (two dying on one spot): they pass through each other until no part of one is
+in the other (ragdollsInside, pruned each frame). Ten killed on one spot: 8 ragdolls, all asleep 10 s on (made in each
+other without that, the pile stayed awake: 117 bodies). Step: 0.32 ms with 8 falling (0.30 before), 0.24 while they
+settle. Four on one spot: one lies on the others (its pelvis 10 units higher); with it off, all four in one place.
+
+**Blood and fire.** Wounds: the wound mask stays across the swap (sameLayout: "<model>#rag" is its model's), and new
+wounds, burns and wet drips find the ragdoll's mesh (modelcollide's posed: a swapped entity's triangles are its .mdl's,
+its vertices ragdoll::skinnedVertices, in the world; before, none: no wound on a ragdoll): two shotgun blasts, 12 paints
+on progs/soldier.mdl#rag. The chainsaw's drawn bar meets it the same way. Flames: on a ragdoll each sits on a limb
+(.burn_bone, its offset in the limb's space: ragdollbone, ragdollpoint), refitted onto the mesh every 0.15 s as before
+(modelcentre: its parts' box's middle). Set on fire, lifted 30 units by a shin and flung: its flames 0.1 to 3.0 units
+from its limbs' surface on average, 4.5 at most. Blood trails (`vr_ragdoll_blood`, 1): each limb's end flung faster than
+150 u/s trails blood as a gib does (a third of the drops, 6 a limb). Small gibs, corpse damage and gibbing: as a
+corpse's (shots and blows meet his mesh: vr_hitmodel.cpp). The small gibs tests no longer give a corpse health (it
+stopped being one, and a ragdoll with it).
+
+**You and monsters**: Corpse Collision's settings meet a ragdoll as a corpse (VR_CorpseBox: its parts' box, whatever
+Corpses is set to; walking into one shoves the whole of it, each part its share). Walking at one (You and Corpses 2) you
+step onto it (your height 88 to 91 over it), as onto a corpse (86); 0 walks through.
+
+**Settings, per monster.** The global ones (Ragdoll Settings): Go Limp At, Most Ragdolls, Mass, Friction, **Joint
+Friction** (was "Joint Stiffness": `vr_ragdoll_joint_friction`), **Joint Stiffness** (new: `vr_ragdoll_joint_stiffness`,
+0 Hz: a spring in each joint towards how he stood), **Joint Limits** (`vr_ragdoll_limits`, 1x: the cones, twists and the
+hinges' ranges), Limb Damping, Blast Throw, Death Motion Kept; Ragdolls Meet Each Other; the grab's; Blood Trails.
+Ragdolls > Grunt: each one Global (-1, the bar's left end: `vr_ragdoll_army_*`) or his own (vr_box3d.cpp ragdollClasses:
+a row a class; the knight's next). A slider's negativeLabel now steps right to its negativeStart (classSlider), not to
+the bar's lowest step.
+
+**Debug**: Debug > Tests > Ahead of You: As a Corpse: Ragdoll (vr_test_spawn_dead 3: ragdolls on), A Grunt's Ragdoll
+There. Debug > Reports > Ragdolls: vr_ragdoll_list 2 (the hands holding each, its flames' distance to its limbs). For
+tests: `vr_mock_hand_to <hand> ragdoll <part|near> [units]`, `vr_mock_hand_to <hand> by <dx> <dy> <dz>`.
+
+Tests: `bash Misc/quakevr/ragdoll/ragdoll_test.sh <agent> [... slowmo grab twohand pull pile burn wounds walk blows]`
+(EYES=1 slowmo: ragdoll_slowmo.png, frames 6..13 around the switch; XPRE: commands after the setup). Not done: a remote
+client's view; the hand's fingers don't wrap a limb (a fist); a mock hand teleported onto a ragdoll strikes it (a blow:
+in VR the hand's speed decides). vr_smallgibs_test 4 at 200 blows a test is a QC runaway loop (with or without ragdolls).
+
+In VR:
+- [ ] vr_timescale 0.1, kill grunts: the switch to the ragdoll is unseen (no vanishing, no limbs growing).
+- [ ] Grip a ragdoll's arm, leg, head, chest: it follows, the body hangs and swings; both hands; fling it; Grip
+      Strength 1500 and 3000.
+- [ ] Force grab a ragdoll (point, trigger, flick, grip as it comes): caught by a limb.
+- [ ] Kill several grunts on one spot: they pile; Ragdolls Meet Each Other off: through each other.
+- [ ] Shoot one and fling it: the wounds stay; its limbs trail blood. Set one alight with a torch, lift and fling it:
+      the flames stay on their limbs.
+- [ ] Ragdolls > Grunt: his own Mass or Joint Friction; Joint Stiffness 2; Joint Limits 0.5 and 1.5.

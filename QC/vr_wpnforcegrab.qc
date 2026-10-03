@@ -124,6 +124,8 @@ vector(entity e) VR_Forcegrab_GrabPoint =
     return forcegrabpoint(e);
 }
 
+void(entity xPlayer, float xHand, entity xBox) VR_Carry_SetHeld; // (vr_carry.qc)
+
 float(entity e) VR_Forcegrab_IsEligible =
 {
     // Cheapest first: no model (triggers, most of what findradius finds around the hand), then
@@ -132,6 +134,11 @@ float(entity e) VR_Forcegrab_IsEligible =
     if(e.model == string_null || e.fg_state != 0 || e == world || VR_AxeStick_Tugging(e))
     {
         return FALSE;
+    }
+    // A ragdoll: by a limb (vr_ragdoll_grab 2: VR_Ragdoll_Pull).
+    if(isragdoll(e))
+    {
+        return cvar("vr_ragdoll_grab") >= 2;
     }
     // A wall torch: off its wall, or lying about (vr_walltorch.qc).
     if(VR_WallTorch_IsTorch(e))
@@ -515,12 +522,62 @@ void(entity e, float xHand) VR_Forcegrab_Launch =
     dprint(" s\n");
 }
 
+// A ragdoll force grabbed (vr_ragdoll_grab 2): the limb nearest the hand's aim flies to the hand (the engine's pull:
+// ragdollpull, in the time a prop would take), the body dragged after it; the grip held as it comes within
+// vr_forcegrab_catch_radius catches it: the hand holds that limb (VR_Ragdoll_HandFrame).
+void(entity e, float xHand) VR_Ragdoll_Pull =
+{
+    vector handPos = VRGetHandPos(xHand);
+    float dist = vlen(handPos - VR_Forcegrab_Centre(e));
+    float flight = cvar_hget(cvarh_vr_forcegrab_time) + dist / max(1, cvar_hget(cvarh_vr_forcegrab_speed));
+    if(!ragdollpull(e, self, xHand, flight))
+    {
+        return;
+    }
+    sound(e, CHAN_AUTO, "forcegrab.wav", 0.65, ATTN_NORM);
+    haptic(xHand, 0.0, 0.12, 50, 0.6);
+    dprint("force grab: a ragdoll's limb flies ");
+    dprint(ftos(dist));
+    dprint(" units in ");
+    dprint(ftos(flight));
+    dprint(" s\n");
+}
+
+// While a ragdoll's limb flies to the hand: caught when the grip is held as it comes near.
+void(float xHand) VR_Ragdoll_PullFrame =
+{
+    entity e = self.mainhand_fgpulled;
+    if(xHand == cVR_OffHand)
+    {
+        e = self.offhand_fgpulled;
+    }
+    float reach = ragdollreach(self, xHand);
+    if(e == world || reach < 0 || reach > cvar_hget(cvarh_vr_forcegrab_catch_radius) * 1.5 || !VRIsHandEmpty(self, xHand) ||
+       !VR_HandGrabUtil_IsHandGrabbing(self, xHand))
+    {
+        return;
+    }
+    if(ragdollgrab(e, self, xHand))
+    {
+        VR_Carry_SetHeld(self, xHand, e);
+        haptic(xHand, 0.0, 0.07, 90, 0.85);
+        haptic(xHand, 0.06, 0.08, 70, 0.4);
+        dprint("force grab: caught a ragdoll's limb\n");
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Player frame
 // ----------------------------------------------------------------------------
 
 void(float xHand) VR_Forcegrab_HandFrame =
 {
+    if(ragdollheld(self, xHand) == 2) // (a ragdoll's limb flying to the hand)
+    {
+        VR_Ragdoll_PullFrame(xHand);
+        VR_Forcegrab_Set(xHand, world, FALSE);
+        return;
+    }
     if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0 ||
        !VRIsHandEmpty(self, xHand) ||
        VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY))
@@ -558,7 +615,14 @@ void(float xHand) VR_Forcegrab_HandFrame =
                 VR_Forcegrab_Set(xHand, world, FALSE);
                 return;
             }
-            VR_Forcegrab_Launch(target, xHand);
+            if(isragdoll(target))
+            {
+                VR_Ragdoll_Pull(target, xHand); // (by a limb: the engine flies it)
+            }
+            else
+            {
+                VR_Forcegrab_Launch(target, xHand);
+            }
             VR_Forcegrab_Set(xHand, world, FALSE);
             VR_Forcegrab_SetPulled(xHand, target);
             return;

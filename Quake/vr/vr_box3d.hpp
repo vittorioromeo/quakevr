@@ -122,4 +122,27 @@ bool contactPoint(int num, glm::vec3& point);
 // false if not, and without a body or Box3D's world.
 bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm::vec3& toPos, glm::quat& toRot);
 
+// Ragdolls (vr_ragdoll; vr_box3d.cpp, "Ragdolls"). Whether edict `num` is one.
+[[nodiscard]] bool isRagdoll(int num);
+// Whether hand point `at` (units) is within vr_ragdoll_grab_reach of a limb of edict `num`'s ragdoll (a hand touching it).
+[[nodiscard]] bool ragdollReach(int num, const glm::vec3& at);
+// The hands and the limbs (QC's builtins: ragdollgrab, ragdollpull, ragdollrelease, ragdollheld, ragdollreach). `hand`:
+// QC's (0 the off hand, 1 the main). grab: take the limb of `corpse` the hand is on, or catch the one it pulls; pull: a
+// force grab of the limb nearest its aim, due in `flight` s; release: let go (a held limb keeps `velocity`, units/s).
+bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
+bool ragdollPull(edict_t* corpse, edict_t* player, int hand, float flight);
+void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
+// 0 nothing, 1 holding a limb, 2 pulling one (force grab); the distance (units) from the hand to the limb's held or pulled
+// point (-1: none).
+[[nodiscard]] int ragdollHeld(edict_t* player, int hand);
+[[nodiscard]] float ragdollHandReach(edict_t* player, int hand);
+// A limb's point (flames on a ragdoll: vr_burning.qc): the limb nearest `at` (-1: not a ragdoll); a point into a limb's
+// space (units) and back.
+[[nodiscard]] int ragdollBone(int num, const glm::vec3& at);
+// Tests (vr_mock_hand_to ... ragdoll): the middle of part `part` (-1: the one nearest `from`) of the ragdoll nearest `from`
+// (units); its edict number,
+// 0 if none (or no such part).
+int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out);
+[[nodiscard]] glm::vec3 ragdollPoint(int num, int bone, const glm::vec3& p, bool toWorld);
+
 } // namespace qvr::box3d

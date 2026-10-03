@@ -175,12 +175,20 @@ Grenade held in both hands: either trigger pulls the pin; letting go with both t
 Clean weapon skins: axe, swords, chainsaw and grunt's gun have no painted blood; hit something, wash in water: clean again (Gore > Clean Weapon Skins)
 Clean weapon skins: axe blade up close: no smears or flat patches
 
-Ragdolls (Gibs and Corpses > Ragdolls (Experimental), turn on): kill grunts on flat floors and stairs: they go limp and settle naturally
+Ragdolls (Gibs and Corpses > Ragdoll Settings, turn on): kill grunts on flat floors and stairs: they go limp and settle naturally
 Ragdolls: rockets and grenades throw them; shooting, kicking and dropping boxes on them moves the limbs
-Ragdolls: gibbing leaves no body behind; try Go Limp At 0 and 1, Joint Stiffness 0 and 5
+Ragdolls: gibbing leaves no body behind; try Go Limp At 0 and 1, Joint Friction 0 and 5, Joint Stiffness 2
+Ragdolls in slow motion (vr_timescale 0.1): the switch from the dying grunt to the ragdoll is unseen (no vanishing, no limbs growing in)
+Ragdolls: grip a limb (arm, leg, head): it follows your hand, the body hangs and swings from it; both hands on two limbs; fling and let go: it flies
+Ragdolls: force grab one (point, trigger, flick): the limb flies to your hand and is caught; Grip Strength 800 vs 3000
+Ragdolls pile up on each other (kill several in one spot); Ragdolls Meet Each Other off: they pass through
+Ragdolls: shoot one, then fling it: the wounds stay where they were hit; flung fast, its limbs trail blood
+Ragdolls: set one on fire (a torch), lift and fling it: the flames stay on their limbs; the chainsaw and blows tear small gibs out
+Ragdolls: walk at one with You and Corpses on Step Over / Solid: you step onto it (as a corpse)
+Ragdolls > Grunt: set his Mass or Joint Friction apart from the global ones (Global at the bar's left end)
 
 [Decide or give feedback]
-Ragdolls: turn on by default? Next: grabbing limbs, ragdoll-vs-ragdoll, other monsters, severing
+Ragdolls: turn on by default? Next: the knight (phase 2), other monsters, severing; is the grip strong enough to lift a grunt?
 Thrown axe hitting an explosive box: bounces off (metal) now; should it stick? (Thrown Axes > vr_axestick_metal)
 Training dummy: its wounds build up until gibbed: should it heal over time?
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?

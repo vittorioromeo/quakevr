@@ -608,7 +608,20 @@ constexpr float boxTexels = 2.5f; // a unit (the monsters' skins' about 2)
     {
         return true;
     }
-    return a && b && ZA_STRNCMP(a->name, "progs/vrbody", 12) == 0 && ZA_STRNCMP(b->name, "progs/vrbody", 12) == 0;
+    if(!a || !b)
+    {
+        return false;
+    }
+    // A ragdoll's skinned model and its own (vr_ragdoll.cpp: "<model>#rag", its skins): the mask stays across the swap.
+    const size_t la = strlen(a->name), lb = strlen(b->name);
+    const qmodel_t* longer = la > lb ? a : b;
+    const qmodel_t* shorter = la > lb ? b : a;
+    const size_t ls = za::min(la, lb);
+    if(strncmp(longer->name, shorter->name, ls) == 0 && strcmp(longer->name + ls, "#rag") == 0)
+    {
+        return true;
+    }
+    return ZA_STRNCMP(a->name, "progs/vrbody", 12) == 0 && ZA_STRNCMP(b->name, "progs/vrbody", 12) == 0;
 }
 
 void freeMask(int layer)

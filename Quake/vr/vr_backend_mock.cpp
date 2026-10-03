@@ -6,6 +6,7 @@
 
 #include "vr_angvel.hpp"
 #include "vr_backend.hpp"
+#include "vr_box3d.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -380,6 +381,9 @@ void mockLook_f()
 // "vr_mock_hand_to <main|off> heldspot <index>": at hotspot `index` of the weapon the other hand holds, as drawn
 // (view::weaponHotspot; the flick reload test).
 // (view::heldWeaponPoint; vr_weapon_grab_anywhere tests).
+// "vr_mock_hand_to <main|off> ragdoll <part> [<units>]": at the middle of that part of the ragdoll nearest you (its
+// rig's bone number: vr_ragdoll_info; "near": the part nearest the hand), `units` over it (the grab tests). "vr_mock_hand_to <main|off> by <dx> <dy> <dz>":
+// moved by that much (world units: lifting, swinging what it holds).
 
 // The thrown_weapon nearest the player (the server's: its qcvm pushed), or null.
 edict_t* nearestThrownWeapon()
@@ -494,6 +498,29 @@ bool weaponPoint(float fraction, float height, glm::vec3& out)
     return true;
 }
 
+// The mock hand `hand` moved (its tracking-space position; its orientation kept) so that it is at world point `target`.
+void moveHandTo(int hand, const glm::vec3& target)
+{
+    const hands::State& st = hands::current();
+    if(!st.valid)
+    {
+        Con_Printf("vr_mock_hand_to: the hands aren't known yet\n");
+        return;
+    }
+    // The world's offset in the tracking space's axes (the play space's yaw), in metres.
+    glm::vec3 fwd, right, up;
+    hands::angleVectors(glm::vec3{0.f, hands::playSpaceYaw(), 0.f}, fwd, right, up);
+    const glm::vec3 d = (target - st.pos[hand]) / units::metresToUnits();
+    if(!mockHandSet[hand])
+    {
+        mockHandPos[hand] = standingPose().hands[hand].position;
+        mockHandSet[hand] = true;
+    }
+    mockHandPos[hand] += glm::vec3{glm::dot(d, right), glm::dot(d, up), -glm::dot(d, fwd)};
+    Con_Printf("vr_mock_hand_to: %s hand at %.3f %.3f %.3f (tracking)\n", hand == HAND_MAIN ? "main" : "off",
+        mockHandPos[hand].x, mockHandPos[hand].y, mockHandPos[hand].z);
+}
+
 void mockHandTo_f()
 {
     const int hand = Cmd_Argc() >= 2 ? mockHand(Cmd_Argv(1)) : -1;
@@ -504,6 +531,40 @@ void mockHandTo_f()
     const bool button = (Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "button");
     const bool wrist = Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "wrist");
     const bool heldSpot = Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "heldspot");
+    const bool ragdollPart = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "ragdoll");
+    const bool by = Cmd_Argc() == 6 && !q_strcasecmp(Cmd_Argv(2), "by");
+    if((ragdollPart || by) && hand >= 0)
+    {
+        // A ragdoll's limb (vr_ragdoll: the grab tests), `units` over its middle; or where the hand is moved by a
+        // world offset (units).
+        const hands::State& st = hands::current();
+        glm::vec3 target{0.f};
+        if(by)
+        {
+            target = st.pos[hand] + glm::vec3{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
+        }
+        else if(sv.active && svs.maxclients >= 1)
+        {
+            qcvm_t* oldVm = nullptr;
+            PR_PushQCVM(&sv.qcvm, &oldVm);
+            // (Part "near": the one nearest the hand.)
+            const edict_t* player = EDICT_NUM(1);
+            const bool nearest = !q_strcasecmp(Cmd_Argv(3), "near");
+            const int num = box3d::ragdollPartCentre(nearest ? hands::current().pos[hand]
+                                                             : glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]},
+                nearest ? -1 : Q_atoi(Cmd_Argv(3)), target);
+            PR_PopQCVM(oldVm);
+            if(!num)
+            {
+                Con_Printf("vr_mock_hand_to: no ragdoll, or no such part\n");
+                return;
+            }
+            target.z += Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
+            Con_Printf("vr_mock_hand_to: ragdoll %d, its part %s: %.1f %.1f %.1f\n", num, Cmd_Argv(3), target.x, target.y, target.z);
+        }
+        moveHandTo(hand, target);
+        return;
+    }
     if(hand < 0 || (!weapon && !spot && !carried && !inHeld && !button && !wrist && !heldSpot && Cmd_Argc() != 5))
     {
         Con_Printf("usage: vr_mock_hand_to <main|off> <x> <y> <z>\n"
@@ -513,7 +574,9 @@ void mockHandTo_f()
                    "       vr_mock_hand_to <main|off> held <fraction> [<cm>]\n"
                    "       vr_mock_hand_to <main|off> button [<units off its face>]\n"
                    "       vr_mock_hand_to <main|off> wrist <cm>\n"
-                   "       vr_mock_hand_to <main|off> heldspot <hotspot index>\n");
+                   "       vr_mock_hand_to <main|off> heldspot <hotspot index>\n"
+                   "       vr_mock_hand_to <main|off> ragdoll <part> [<units over it>]\n"
+                   "       vr_mock_hand_to <main|off> by <dx> <dy> <dz>\n");
         return;
     }
     glm::vec3 target{0.f};
@@ -573,24 +636,7 @@ void mockHandTo_f()
         Con_Printf("vr_mock_hand_to: no weapon lying about, or no such hotspot (none, or a cup)\n");
         return;
     }
-    const hands::State& st = hands::current();
-    if(!st.valid)
-    {
-        Con_Printf("vr_mock_hand_to: the hands aren't known yet\n");
-        return;
-    }
-    // The world's offset in the tracking space's axes (the play space's yaw), in metres.
-    glm::vec3 fwd, right, up;
-    hands::angleVectors(glm::vec3{0.f, hands::playSpaceYaw(), 0.f}, fwd, right, up);
-    const glm::vec3 d = (target - st.pos[hand]) / units::metresToUnits();
-    if(!mockHandSet[hand])
-    {
-        mockHandPos[hand] = standingPose().hands[hand].position;
-        mockHandSet[hand] = true;
-    }
-    mockHandPos[hand] += glm::vec3{glm::dot(d, right), glm::dot(d, up), -glm::dot(d, fwd)};
-    Con_Printf("vr_mock_hand_to: %s hand at %.3f %.3f %.3f (tracking)\n", hand == HAND_MAIN ? "main" : "off",
-        mockHandPos[hand].x, mockHandPos[hand].y, mockHandPos[hand].z);
+    moveHandTo(hand, target);
 }
 
 // vr_mock_camera <x> <y> <z> <pitch> <yaw>: the eyes drawn from there (tracking space, metres; pitch down positive)

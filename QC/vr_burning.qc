@@ -37,6 +37,7 @@
 .float burn_size;         // its full scale
 .float burn_born;         // when it came (it grows in)
 .float burn_part;         // a player's: 0 on the body (burn_off in its yaw's axes); a hand + 1: on that hand or its arm
+.float burn_bone;         // a ragdoll's: its limb + 1 (burn_off in the limb's space: it goes with it); 0 none
                           // (burn_off in the hand's axes: it goes with it)
 .vector burn_out;         // a player's: the way out of the body where it sits (its burns are painted from there)
 
@@ -166,14 +167,37 @@ vector(entity v, float xPart, vector o) VR_Burn_FromHand =
     return r;
 };
 
-// A flame's place on its body, as it is now.
+// A flame's place on its body, as it is now: a ragdoll's on its limb (vr_ragdoll: it goes with the limb).
 vector(entity v, entity fl) VR_Burn_FlameAt =
 {
     if((v.flags & FL_CLIENT) && fl.burn_part > 0)
     {
         return VR_Burn_FromHand(v, fl.burn_part, fl.burn_off);
     }
+    if(fl.burn_bone > 0)
+    {
+        if(isragdoll(v))
+        {
+            return ragdollpoint(v, fl.burn_bone - 1, fl.burn_off, 1);
+        }
+        fl.burn_bone = 0; // (no longer one: from its origin again, where it is)
+        fl.burn_off = VR_Burn_ToLocal(v, fl.origin);
+    }
     return VR_Burn_ToWorld(v, fl.burn_off);
+};
+
+// A flame put at `p` on its body: on a ragdoll, on its limb nearest (in the limb's space); else from its origin.
+void(entity v, entity fl, vector p) VR_Burn_Anchor =
+{
+    float bone = ragdollbone(v, p);
+    if(bone >= 0)
+    {
+        fl.burn_bone = bone + 1;
+        fl.burn_off = ragdollpoint(v, bone, p, 0);
+        return;
+    }
+    fl.burn_bone = 0;
+    fl.burn_off = VR_Burn_ToLocal(v, p);
 };
 
 // Where along a..b it first meets a crate (its model's box, turned with it: a crate is a box; the drawn model's tracking
@@ -355,7 +379,15 @@ void(entity xFire, vector at, float xMain) VR_Burn_AddFlame =
     fl.angles_z = xMain ? 0 : crandom() * tilt;
     fl.burn_part = you ? vr_burn_part : 0;
     fl.burn_out = you ? vr_burn_out : '0 0 0';
-    fl.burn_off = fl.burn_part > 0 ? VR_Burn_ToHand(v, fl.burn_part, p) : VR_Burn_ToLocal(v, p);
+    if(fl.burn_part > 0)
+    {
+        fl.burn_bone = 0;
+        fl.burn_off = VR_Burn_ToHand(v, fl.burn_part, p);
+    }
+    else
+    {
+        VR_Burn_Anchor(v, fl, p);
+    }
     setorigin(fl, p);
     fl.burn_next = xFire.burn_flames;
     if(xMain || xFire.burn_flames == world)
@@ -571,7 +603,7 @@ void() VR_Burn_Think =
             if(vr_burn_onbody)
             {
                 p = q;
-                fl.burn_off = VR_Burn_ToLocal(v, p);
+                VR_Burn_Anchor(v, fl, p);
             }
         }
         setorigin(fl, p);

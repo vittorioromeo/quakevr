@@ -255,6 +255,18 @@ vector(entity e, vector angles, vector point) modelpoint = #0; // where a point 
 // high tips over). FALSE if Box3D doesn't move it. `mass` (kg, 0 or none: no limit): what pushes weighs that much, so the
 // point gets only the share of the two masses meeting (a hand's, a gun's: vr_box3d_hand_mass; its Mass and vr_box3d_weapon_arm_mass).
 float(entity e, vector at, vector vel, optional float mass) physicspush = #0;
+// Ragdolls (vr_ragdoll; the engine's vr_box3d.cpp, "Ragdolls"): whether e is one; a hand takes the limb of e it is on
+// (or catches the one it pulls); a force grab's pull of e's limb nearest the hand's aim (due in `flight` s); let go (a held
+// limb keeps `vel`, units/s); 0 nothing held, 1 a limb held, 2 one pulled; how far the held or pulled limb's point is from
+// the hand (-1 none); the limb nearest p (-1: not a ragdoll); p into limb `bone`'s space (units) and back (toWorld).
+float(entity e) isragdoll = #0;
+float(entity e, entity player, float hand) ragdollgrab = #0;
+float(entity e, entity player, float hand, float flight) ragdollpull = #0;
+void(entity player, float hand, vector vel) ragdollrelease = #0;
+float(entity player, float hand) ragdollheld = #0;
+float(entity player, float hand) ragdollreach = #0;
+float(entity e, vector p) ragdollbone = #0;
+vector(entity e, float bone, vector p, float toWorld) ragdollpoint = #0;
 // A shot's push: the first loose prop between `start` and `end` (a health box, a gib, a weapon lying about: traces pass
 // through them) pushed as physicspush where the shot goes in. That prop, or world.
 entity(vector start, vector end, vector vel, float mass) physicsshot = #0;

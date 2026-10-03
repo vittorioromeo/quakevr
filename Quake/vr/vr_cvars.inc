@@ -1518,11 +1518,30 @@ QVR_CVAR(vr_ragdoll_start, "0.3", CVAR_ARCHIVE)       // when a dying grunt goes
 QVR_CVAR(vr_ragdoll_max, "8", CVAR_ARCHIVE)           // the most ragdolls at once; more dead grunts lie as corpses (Corpse Collision)
 QVR_CVAR(vr_ragdoll_mass, "80", CVAR_ARCHIVE)         // kg: a ragdoll's whole mass (its parts by their volume)
 QVR_CVAR(vr_ragdoll_friction, "0.8", CVAR_ARCHIVE)    // a ragdoll's friction (with the floor's: 0.6)
-QVR_CVAR(vr_ragdoll_joint_friction, "1.5", CVAR_ARCHIVE) // N m: how stiffly its joints turn (a motor holding them still up to this torque); 0 limp
+QVR_CVAR(vr_ragdoll_joint_friction, "1.5", CVAR_ARCHIVE) // N m: the joints' friction (a motor holding each still up to this torque); 0 limp
 QVR_CVAR(vr_ragdoll_damping, "0.4", CVAR_ARCHIVE)     // its parts' angular damping (1/s): less flailing
 QVR_CVAR(vr_ragdoll_blast, "2", CVAR_ARCHIVE)         // times the throw a blast gives a prop of a ragdoll's mass (explosions throw ragdolls)
 QVR_CVAR(vr_ragdoll_inherit, "1", CVAR_ARCHIVE)       // share of the death animation's motion its parts start with (0: still)
 QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made, its pushes and blasts
+QVR_CVAR(vr_ragdoll_joint_stiffness, "0", CVAR_ARCHIVE) // Hz: a spring in each joint pulling it back towards how he stood (0 none; 1-3 a body with some tone left)
+QVR_CVAR(vr_ragdoll_limits, "1", CVAR_ARCHIVE)        // the joints' limits (cone, twist, the knees' and elbows' range) times this (0.25 stiff .. 1.5 loose)
+QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
+QVR_CVAR(vr_ragdoll_grab, "2", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (grip on it), 2 by hand and by force grab (it flies to the hand by that limb)
+QVR_CVAR(vr_ragdoll_grab_force, "3000", CVAR_ARCHIVE) // N: the most a hand pulls a held limb with (3000: a grunt lifted by his chest sags a unit; 1500: about 18)
+QVR_CVAR(vr_ragdoll_grab_reach, "6", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
+QVR_CVAR(vr_ragdoll_throw, "1", CVAR_ARCHIVE)         // times the hand's throw a limb let go of keeps (0: only what the pull gave it)
+QVR_CVAR(vr_ragdoll_blood, "1", CVAR_ARCHIVE)         // a ragdoll's limbs flung fast leave blood trails and drops (as gibs do: vr_gib_blood_trail)
+// Per monster class (Gibs and Corpses > Ragdolls > Grunt): -1 (Global) is the setting above, any other value replaces it
+// for that class.
+QVR_CVAR(vr_ragdoll_army_start, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_army_mass, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_army_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_army_joint_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_army_joint_stiffness, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_army_limits, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_army_damping, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_army_blast, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_army_inherit, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0.5", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on

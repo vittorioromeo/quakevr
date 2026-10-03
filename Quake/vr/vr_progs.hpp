@@ -36,6 +36,7 @@ struct Bindings
     func_t Motion_Equip{0};
     func_t Dummy_Replay{0}; // a motion take's strike of the training dummy (QC vr_dummy.qc)
     func_t Carry_Handtouch{0}; // a thing a hand can carry (QC vr_carry.qc VR_Carry_Setup): taken by the fist's touch
+    func_t Ragdoll_Handtouch{0}; // a ragdoll's limb under a hand (QC vr_carry.qc; vr_box3d.cpp gives it to a ragdoll)
 
     float* spawnServerFromSaveFile{nullptr};
     float* playerTimeOffset{nullptr}; // vr_player_time_offset: the player's clock ahead of time (vr_timescale.cpp)

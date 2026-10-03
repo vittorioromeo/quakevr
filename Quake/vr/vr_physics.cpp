@@ -4,6 +4,7 @@
 // The touches, the second think timer and the touch rules are inactive unless the server runs
 // Quake VR progs; the movement works with any progs (and moves a mod's shots to the gun).
 
+#include "vr_box3d.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -158,6 +159,11 @@ constexpr float weaponDrawnReach = 48.f;
     // (An explosive box by the fist only where the fist also pushes it, vr_box3d_hand_push_fist: the listen server's own
     // player. Another player's hand still pushes with the sphere at its point, which keeps the box off its fist.)
     const bool byFist = vr_carry_grab_drawn.value && vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
+    if(box3d::isRagdoll(NUM_FOR_EDICT(target)))
+    {
+        // A ragdoll: a hand on one of its limbs (its box is round all of them).
+        return box3d::ragdollReach(NUM_FOR_EDICT(target), fieldVec(player, which == HAND_OFF ? f().offhandpos : f().handpos));
+    }
     if(hasFlag(target, physics::FL_FORCEGRABBABLE) || (byFist && carried(target)))
     {
         return held::grabTouch(target, player, which == HAND_OFF ? 0 : 1);

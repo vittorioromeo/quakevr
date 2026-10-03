@@ -123,10 +123,13 @@ void(entity m, entity inflictor, float xKind, float xWeapon, float xBlunt, float
     float made = vr_sgib_made;
     float oldWeapon = self.weapon;
     vector mid = (m.absmin + m.absmax) * 0.5;
-    m.health = 100000;
     if(m.vr_corpse == 2)
     {
-        m.vr_corpse_hp = 100000;
+        m.vr_corpse_hp = 100000; // (a corpse stays dead: a ragdoll stays one)
+    }
+    else
+    {
+        m.health = 100000;
     }
     VR_SmallGib_TestGoreMark();
     for(float i = 0; i < n; i++)
@@ -194,10 +197,13 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLaunch =
     fwd_z = 0;
     fwd = normalize(fwd);
     vector side = '1 0 0' * fwd_y - '0 1 0' * fwd_x; // to the side: a blow from there flings them back
-    m.health = 100000;
     if(m.vr_corpse == 2)
     {
-        m.vr_corpse_hp = 100000;
+        m.vr_corpse_hp = 100000; // (a corpse stays dead: a ragdoll stays one)
+    }
+    else
+    {
+        m.health = 100000;
     }
     float oldWeapon = self.weapon;
     float oldQuad = self.super_damage_finished;
@@ -527,13 +533,16 @@ void(float xCase) VR_SmallGib_TestStart =
     }
     else if(xCase == 6)
     {
-        m.health = max(m.health, 100000);
         vr_sgib_test_a = vr_sgib_made;
         vr_sgib_test_b = 0;
         VR_SmallGib_TestGoreMark();
         if(m.vr_corpse == 2)
         {
-            m.vr_corpse_hp = 100000;
+            m.vr_corpse_hp = 100000; // (a corpse stays dead: a ragdoll stays one)
+        }
+        else
+        {
+            m.health = max(m.health, 100000);
         }
     }
     else if(xCase == 7)

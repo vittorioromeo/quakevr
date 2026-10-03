@@ -1004,6 +1004,19 @@ struct Gib
 ankerl::unordered_dense::map<int, Gib> gibs;
 int gibsPrunedFrame = 0;
 
+// A ragdoll's limbs flung (limbTrail), by entity and limb: where each end was last drawn.
+struct Limb
+{
+    glm::vec3 at{0.f};
+    double seen = 0.0;
+    float sinceTrail = 0.f, sinceDrop = 0.f;
+    int dropsLeft = 0;
+};
+ankerl::unordered_dense::map<int, Limb> limbs;
+int limbsPrunedFrame = 0;
+constexpr int limbDrops = 6;           // drops a limb leaves in all
+constexpr float limbBleedSpeed = 150.f; // units/s: a limb flung faster than this bleeds a trail
+
 // Hipnotic's bullet holes turned into chips (VR_BulletHoleSprite), by entity number: where they were.
 ankerl::unordered_dense::map<int, glm::vec3> holes;
 int holesPrunedFrame = 0;
@@ -1373,6 +1386,53 @@ void clear()
 int liveCount()
 {
     return static_cast<int>(decals.size());
+}
+
+// A ragdoll's limb (vr_ragdoll.cpp, every frame it is drawn: `key` its entity's and the limb's), its end at `at`: flung
+// faster than limbBleedSpeed, it leaves a blood trail and drops on the floor as a gib does (vr_ragdoll_blood; the gibs'
+// density, vr_gib_blood_trail; fewer drops).
+void limbTrail(int key, const glm::vec3& at)
+{
+    if(!vr_ragdoll_blood.value || !vr_gib_blood.value || !cl.worldmodel)
+    {
+        return;
+    }
+    if(host_framecount - limbsPrunedFrame > 100 || host_framecount < limbsPrunedFrame)
+    {
+        limbsPrunedFrame = host_framecount;
+        erase_if(limbs, [](const auto& kv) { return cl.time - kv.second.seen > 1.0 || cl.time < kv.second.seen; });
+    }
+    Limb& l = limbs[key];
+    const float dt = static_cast<float>(cl.time - l.seen);
+    if(dt > 0.25f || dt < 0.f || glm::distance(l.at, at) > 128.f)
+    {
+        l = Limb{};
+        l.at = at;
+        l.seen = cl.time;
+        l.dropsLeft = limbDrops;
+        return;
+    }
+    const float travelled = glm::distance(l.at, at);
+    const float density = za::clamp(vr_gib_blood_trail.value, 0.f, 4.f);
+    if(dt > 0.f && travelled > 0.01f && travelled / dt > limbBleedSpeed && density > 0.f)
+    {
+        const glm::vec3 dir = (at - l.at) / travelled;
+        if(particles::enabled())
+        {
+            along(l.at, at, 2.f * gibTrailSpacing / density, l.sinceTrail, 12,
+                [&](const glm::vec3& p) { particles::spawn(p, dir, particles::Preset::BloodTrail, 1); });
+        }
+        if(vr_decals.value && l.dropsLeft > 0)
+        {
+            along(l.at, at, 3.f * gibDropSpacing / density, l.sinceDrop, za::min(1, l.dropsLeft),
+                [&](const glm::vec3& p) {
+                    drip(p);
+                    l.dropsLeft--;
+                });
+        }
+    }
+    l.at = at;
+    l.seen = cl.time;
 }
 
 } // namespace qvr::decals

@@ -1317,6 +1317,10 @@ QVR_BOX_WOUNDS \
 "	uvec2 data = PackedPosNor[pose + gl_VertexID];\n" \
 "	return (data.y & 0x80000000u) != 0u ? 1.0 : float(data.x >> 24) * (1.0 / 255.0);\n" \
 "}\n" \
+"#elif POSEVERTTYPE == 1 // PV_IQM\n" \
+"// QVR: a ragdoll's skinned model's occlusion (vr/vr_ragdoll.cpp: its .mdl's over all its poses), negated in its normal's\n" \
+"// 4th byte; 0 (every other skeletal model): none.\n" \
+"float PoseAO(uint pose) { return in_nor.w < 0.0 ? -in_nor.w : 1.0; }\n" \
 "#else\n" \
 "float PoseAO(uint pose) { return 1.0; }\n" \
 "#endif\n" \

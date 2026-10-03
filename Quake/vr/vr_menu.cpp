@@ -113,8 +113,10 @@ struct Item
     // Shown under the list while selected.
     const char* helpText{nullptr};
 
-    // Slider: shown instead of the value while it is negative (-1: a hue following the player's).
+    // Slider: shown instead of the value while it is negative (-1: a hue following the player's; a class's setting
+    // following the global one), the bar's leftmost step; right of it the values from negativeStart on.
     const char* negativeLabel{nullptr};
+    float negativeStart{0.f};
 
     // Slider: left and right go on past the bar's ends, as far as hardMin..hardMax (extend()).
     bool extendable{false};
@@ -200,6 +202,16 @@ void restartVr()
 [[nodiscard]] Item slider(const char* label, const char* cvar, float min, float max, float step, const char* format)
 {
     return slider(label, Cvar_FindVar(cvar), min, max, step, format);
+}
+
+// A monster class's own setting (Gibs and Corpses > Ragdolls > Grunt): its leftmost step -1, the global one ("Global");
+// then from `from` to `max`.
+[[nodiscard]] Item classSlider(const char* label, cvar_t& cvar, float from, float max, float step, const char* format)
+{
+    Item i = slider(label, cvar, from - step, max, step, format);
+    i.negativeLabel = "Global";
+    i.negativeStart = from;
+    return i;
 }
 
 // An effect's hue (degrees), its leftmost step -1: the player's (vr_player_hue, vr_hue.hpp).
@@ -2603,6 +2615,9 @@ void hologramTestMessage()
     };
 }
 
+[[nodiscard]] za::Vector<Item> pageRagdolls(); // (below)
+[[nodiscard]] za::Vector<Item> pageRagdollGrunt();
+
 // Split from Carrying and Gibs: taking, throwing and bursting gibs, heads and corpses.
 [[nodiscard]] za::Vector<Item> pageGibs()
 {
@@ -2643,6 +2658,18 @@ void hologramTestMessage()
             .help("Monsters walk over corpses as a low step instead of through them (vr_corpse_collide_monsters)."),
         header("Ragdolls (Experimental)"),
         cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "Grunt Only (Experimental)"}})
+            .help("A dying grunt goes limp: his body becomes jointed parts that fall, tumble, are pushed, grabbed and "
+                  "thrown (vr_ragdoll). Their settings: Ragdoll Settings."),
+        open("Ragdoll Settings", pageIndex(pageRagdolls)),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings (ROUND21.md, "Ragdolls"): on or off, when they go limp and how many; their physics
+// for all (each monster class may have its own: its page); taking them by hand and by force grab; their blood.
+[[nodiscard]] za::Vector<Item> pageRagdolls()
+{
+    return {
+        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "Grunt Only (Experimental)"}})
             .help("A dying grunt goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs) that fall, "
                   "tumble down stairs, are pushed by shots, blasts, props and your hands, his mesh bent with them. Shoot "
                   "or blow him up enough and he still bursts into gibs (vr_ragdoll)."),
@@ -2650,18 +2677,72 @@ void hologramTestMessage()
             .help("When in his death animation: 0 as soon as he stops being solid, 1 once he lies still (vr_ragdoll_start)."),
         slider("Most Ragdolls", vr_ragdoll_max, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 64.f)
             .help("At most this many at once; more dead grunts lie as corpses (Corpse Collision) (vr_ragdoll_max)."),
-        slider("Ragdoll Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
+        toggle("Ragdolls Meet Each Other", vr_ragdoll_collide_each)
+            .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
+        header("Physics (All Monsters)"),
+        slider("Mass", vr_ragdoll_mass, 20.f, 200.f, 5.f, "%.0f kg").extend()
             .help("A ragdoll's whole weight, its parts by their size (vr_ragdoll_mass)."),
-        slider("Ragdoll Friction", vr_ragdoll_friction, 0.1f, 2.f, 0.1f, "%.1f").extend()
+        slider("Friction", vr_ragdoll_friction, 0.1f, 2.f, 0.1f, "%.1f").extend()
             .help("How much it drags and catches on floors and steps (vr_ragdoll_friction)."),
-        slider("Joint Stiffness", vr_ragdoll_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend()
-            .help("How stiffly the joints turn: 0 limp as a rag, more like a body freshly dead (vr_ragdoll_joint_friction)."),
+        slider("Joint Friction", vr_ragdoll_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend()
+            .help("How hard the joints are to turn: 0 limp as a rag, more like a body freshly dead (vr_ragdoll_joint_friction)."),
+        slider("Joint Stiffness", vr_ragdoll_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend()
+            .help("A spring in each joint pulling it back towards how he stood: 0 none, 1 to 3 some tone left in the body "
+                  "(vr_ragdoll_joint_stiffness)."),
+        slider("Joint Limits", vr_ragdoll_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 3.f)
+            .help("How far the joints bend and twist, times the body's own limits: less stiff, more loose "
+                  "(vr_ragdoll_limits)."),
         slider("Limb Damping", vr_ragdoll_damping, 0.f, 3.f, 0.1f, "%.1f").extend()
             .help("Less flailing of the arms and legs (vr_ragdoll_damping)."),
         slider("Blast Throw", vr_ragdoll_blast, 0.f, 5.f, 0.25f, "%.2fx").extend()
             .help("How far explosions throw a ragdoll, times what they give a prop of its weight (vr_ragdoll_blast)."),
         slider("Death Motion Kept", vr_ragdoll_inherit, 0.f, 2.f, 0.1f, "%.1fx")
             .help("How much of his death animation's motion the parts keep as he goes limp (vr_ragdoll_inherit)."),
+        header("Each Monster's Own"),
+        open("Grunt", pageIndex(pageRagdollGrunt)),
+        header("Taking Them"),
+        cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}, {2.f, "By Hand and Force Grab"}})
+            .help("Grip on a limb to take it: it follows your hand, the body hanging from it; let go to drop or throw it. "
+                  "Force grab: point at a ragdoll and flick, the limb flies to your hand (vr_ragdoll_grab)."),
+        slider("Grip Strength", vr_ragdoll_grab_force, 200.f, 4000.f, 100.f, "%.0f N").extend()
+            .help("The most your hand pulls a held limb with: 3000 lifts a grunt by his chest (a unit's sag); 1500 he sags "
+                  "about 18 units, less and you drag him rather than lift him (vr_ragdoll_grab_force)."),
+        slider("Grip Reach", vr_ragdoll_grab_reach, 1.f, 16.f, 1.f, "%.0f units").extend()
+            .help("How near a limb your hand must be to take it (vr_ragdoll_grab_reach)."),
+        slider("Throw", vr_ragdoll_throw, 0.f, 2.f, 0.1f, "%.1fx").extend()
+            .help("How much of your hand's throw a limb keeps when let go of (vr_ragdoll_throw)."),
+        header("Blood"),
+        toggle("Blood Trails", vr_ragdoll_blood)
+            .help("A ragdoll's limbs flung fast leave blood trails and drops, as gibs do (vr_ragdoll_blood)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Grunt: the grunt's own physics (vr_ragdoll_army_*), each one Global (the one for
+// all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollGrunt()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_army_start, 0.f, 1.f, 0.1f, "%.1f").help("vr_ragdoll_army_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_army_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_army_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_army_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_army_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_army_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_army_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_army_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_army_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_army_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_army_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_army_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_army_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_army_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_army_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_army_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_army_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_army_start -1; vr_ragdoll_army_mass -1; vr_ragdoll_army_friction -1; "
+                              "vr_ragdoll_army_joint_friction -1; vr_ragdoll_army_joint_stiffness -1; vr_ragdoll_army_limits -1; "
+                              "vr_ragdoll_army_damping -1; vr_ragdoll_army_blast -1; vr_ragdoll_army_inherit -1")
+            .help("The grunt's ragdoll as all monsters' (Ragdoll Settings)."),
     };
 }
 
@@ -3133,7 +3214,7 @@ za::Vector<Item> pageDebugReports()
         command("Wrists and Grips", "vr_bodycal_debug").help("vr_bodycal_debug: one line a hand, next frame: the wrist and the grip."),
         header("World and Physics"),
         command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
-        command("Ragdolls", "vr_ragdoll_list 1").help("vr_ragdoll_list [1]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed), and Box3D's bodies (Gibs and Corpses > Ragdolls)."),
+        command("Ragdolls", "vr_ragdoll_list 2").help("vr_ragdoll_list [1|2]: each ragdoll (how long limp, its parts awake, where it lies; with 1 each part's mass, place and speed and the hands holding it; with 2 also how far its flames are from its limbs), and Box3D's bodies (Gibs and Corpses > Ragdoll Settings)."),
         command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
         command("Corpses in the Physics", "vr_corpse_list").help("vr_corpse_list: each corpse's body (fixed or pushable, box or pose, mass), where it lies, and what touches it (Gibs and Corpses > Corpse Collision)."),
         command("Held Props", "vr_carry_check").help("vr_carry_check: each held prop's place and axes in the hand, drawn vs where the game has it, and the fist's gap to it (cm)."),
@@ -3391,9 +3472,10 @@ za::Vector<Item> pageDebugTests()
         toggle("Into the Main Hand", vr_test_spawn_hold)
             .help("A box or a crate (Health Box .. Explosive Box, the crates) put into your empty main hand, as if gripped: "
                   "to test held props (the blood on what you hold: vr_gore_spatter_test, vr_gore_hands_info)."),
-        cycle("As a Corpse", vr_test_spawn_dead, {{0.f, "Off"}, {1.f, "Corpse"}, {2.f, "Gibbed"}})
+        cycle("As a Corpse", vr_test_spawn_dead, {{0.f, "Off"}, {1.f, "Corpse"}, {2.f, "Gibbed"}, {3.f, "Ragdoll"}})
             .help("A monster killed at once: a corpse, to test gibbing and carrying; Gibbed: killed hard enough to gib (its "
-                  "gibs and head to pick up)."),
+                  "gibs and head to pick up); Ragdoll: a corpse with ragdolls on (vr_ragdoll 1: a grunt goes limp as he "
+                  "falls)."),
         slider("Box Turned", vr_test_spawn_yaw, 0.f, 90.f, 1.f, "%.0f degrees")
             .extend()
             .help("A box (Health Box .. Explosive Box): let loose and turned this far about its upright, to test the "
@@ -3402,6 +3484,9 @@ za::Vector<Item> pageDebugTests()
             .extend()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        command("A Grunt's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a grunt killed at the Distance ahead: he goes limp as "
+                  "he falls."),
         command("Go to a Crowbar on a Crate", "vr_crates_goto crowbar")
             .help("vr_crates_goto crowbar: you in front of the next crate with a crowbar lying on it (Crates: Crowbar on Crates)."),
         command("Go to the Next Crate", "vr_crates_goto")
@@ -4160,6 +4245,8 @@ const Page pages[] = {
     {"Retro Textures - Override", pageRetroOverride, pageGraphicsRetro}, // 114
     {"Retro Textures - All Categories", pageRetroAll, pageGraphicsRetro}, // 115
     {"Graphics - Retro Lighting", pageGraphicsRetroLight, pageGraphics},          // 116
+    {"Gibs and Corpses - Ragdolls", pageRagdolls, pageGibs},                       // 117
+    {"Ragdolls - Grunt", pageRagdollGrunt, pageRagdolls},                          // 118
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -5878,9 +5965,14 @@ float stepSlider(const Item& item, int dir, bool repeat)
     double& endSince = sliderHold.endSince;
     double& outsideSince = sliderHold.outsideSince;
 
-    // (A negative value under a negativeLabel, stored -1, is the bar's leftmost step: stepping goes on from there.)
-    const float cur = item.negativeLabel && item.cvar->value < 0.f ? item.min : item.cvar->value;
+    // (A negative value under a negativeLabel, stored -1, is the bar's leftmost step: stepping right goes to
+    // negativeStart, stepping left from there back to it.)
     const float eps = item.step * 0.01f;
+    if(item.negativeLabel && (item.cvar->value < 0.f || (dir < 0 && item.cvar->value <= item.negativeStart + eps)))
+    {
+        return item.cvar->value < 0.f && dir > 0 ? item.negativeStart : -1.f;
+    }
+    const float cur = item.cvar->value;
     const float end = dir > 0 ? item.max : item.min;
     const int past = pastEnd(item, cur);
     const bool atEnd = za::fabs(cur - end) <= eps;
@@ -6059,7 +6151,7 @@ void setSliderAt(const Item& item, float cx)
     float v = item.min + frac * (item.max - item.min);
     v = za::round(v / item.step) * item.step;
     v = CLAMP(item.min, v, item.max);
-    if(item.negativeLabel && v < 0.f)
+    if(item.negativeLabel && v < item.negativeStart - item.step * 0.01f)
     {
         v = -1.f;
     }

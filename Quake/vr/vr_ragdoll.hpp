@@ -101,6 +101,10 @@ void unpublishAll();
 void swapModels();
 void restoreModels();
 
+// The model a swapped entity (a ragdoll drawn with its skinned model) has of its own (the .mdl: its triangles, its skin's
+// layout); null if it isn't one.
+[[nodiscard]] const qmodel_t* sourceModel(const entity_t* e);
+
 // The skinning matrices (3x4 rows) of a swapped entity, its bone count; 0 if it isn't one.
 [[nodiscard]] int bonePoses(const entity_t* e, const float** matrices);
 // Its drawn model matrix (VR_AliasPostTransform): a translation to where its bones are given from; false if it isn't one.

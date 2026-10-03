@@ -3,7 +3,9 @@
 // joints are vr_box3d.cpp's ("Ragdolls"); ROUND21.md, "Ragdolls".
 
 #include "vr_ragdoll.hpp"
+#include "vr_api_render.h"
 #include "vr_cvars.hpp"
+#include "vr_decals.hpp"
 #include "vr_mem.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -795,6 +797,7 @@ struct Published
     const Rig* rig{nullptr};
     int bodies{0}; // the bones from this on are hidden
     float scale{1.f};
+    bool drawn{false}; // the client has drawn it (its first frame: compared with the animated mesh, vr_debug_ragdoll)
     za::Array<glm::quat, maxBones> rot{};
     za::Array<glm::vec3, maxBones> pos{};
 };
@@ -807,6 +810,11 @@ struct Swapped
     glm::vec3 ref{0.f};
     int bones{0};
     za::Array<float, maxBones * 12> skin{};
+    // The entity's animation lerp, kept while the skinned model (one pose) is drawn: R_SetupAliasFrame would otherwise
+    // lerp from the corpse's pose index (past the skinned model's bones: its limbs grew from nothing).
+    short previousPose{0}, currentPose{0};
+    float lerpStart{0.f}, lerpTime{0.f};
+    byte lerpFlags{0};
 };
 
 struct DrawState
@@ -816,6 +824,131 @@ struct DrawState
     auto members() { return mem::list(byNum, swapped); }
 };
 mem::Cache<DrawState> draw{"ragdolls drawn", mem::MapChange};
+
+// The client's buffers (its drawing: the main thread).
+struct DrawScratch
+{
+    za::Vector<glm::vec3> animated, skinned;
+    za::Vector<int> poses; // (fillAO)
+    auto members() { return mem::list(animated, skinned, poses); }
+};
+mem::Scratch<DrawScratch> drawScratch{"ragdolls drawn"};
+
+// The skinned model's own occlusion (the shaders' PoseAO): its .mdl's baked one (vr_ao.cpp: per pose and vertex) over its
+// death animations' poses, negated in each vertex's normal's 4th byte (0: none). False if not baked yet (it is then queued).
+bool fillAO(const Rig& rig, iqmvert_t* verts, int numVerts)
+{
+    auto* src = const_cast<qmodel_t*>(rig.model);
+    const auto* sh = static_cast<const aliashdr_t*>(Mod_Extradata(src));
+    const unsigned char* vis = sh ? VR_AliasVertexAO(src, sh) : nullptr;
+    if(!vis)
+    {
+        return false;
+    }
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(sh) + sh->meshdesc);
+    // (Over its death animations' poses: what a ragdoll's limbs are like, nearer its poses than all the model's: 0.05
+    // from a death's and a lying pose's on average, all its poses' 0.10-0.12, the rest pose's 0.15.)
+    za::Vector<int>& poses = drawScratch.poses;
+    poses.clear();
+    for(int d = 0; d < rig.deaths; d++)
+    {
+        for(int f = rig.deathFirst[d]; f <= rig.deathLast[d]; f++)
+        {
+            poses.pushBack(ragdoll::poseOfFrame(rig.model, f));
+        }
+    }
+    if(poses.empty())
+    {
+        poses.pushBack(0);
+    }
+    for(int v = 0; v < numVerts; v++)
+    {
+        const int s = desc[v].vertindex;
+        float sum = 0.f;
+        for(const int p : poses)
+        {
+            sum += static_cast<float>(vis[static_cast<za::SizeT>(p) * static_cast<za::SizeT>(sh->numverts) + static_cast<za::SizeT>(s)]);
+        }
+        const float ao = sum / (255.f * static_cast<float>(poses.size()));
+        verts[v].norm[3] = static_cast<int8_t>(-za::clamp(static_cast<int>(ao * 127.f + 0.5f), 1, 127));
+    }
+    return true;
+}
+
+// The skinned model `skinned` of `rig` given its occlusion once it is baked (made before it was: the map's first ragdoll
+// as the map starts), looked for at most once a second.
+double aoLookedAt = -1.0;
+void catchUpAO(qmodel_t* skinned, const Rig& rig)
+{
+    auto* hdr = static_cast<aliashdr_t*>(Mod_Extradata(skinned));
+    auto* verts = hdr ? reinterpret_cast<iqmvert_t*>(reinterpret_cast<byte*>(hdr) + hdr->vertexes) : nullptr;
+    if(!verts || hdr->numverts_vbo <= 0 || verts[0].norm[3] < 0 || (realtime - aoLookedAt < 1.0 && realtime >= aoLookedAt))
+    {
+        return;
+    }
+    aoLookedAt = realtime;
+    if(fillAO(rig, verts, hdr->numverts_vbo))
+    {
+        GLMesh_DeleteVertexBuffer(skinned);
+        GLMesh_LoadVertexBuffer(skinned, hdr);
+    }
+}
+
+// The poses (and the blend between them) the animated model of `e` would be drawn with now: R_SetupAliasFrame's, without
+// changing the entity.
+void animatedPoses(const entity_t* e, const aliashdr_t* hdr, int& pose1, int& pose2, float& blend)
+{
+    const int frame = za::clamp(e->frame, 0, za::max(hdr->numframes - 1, 0));
+    const int posenum = hdr->frames[frame].firstpose;
+    if(!r_lerpmodels.value || (e->lerpflags & LERP_RESETANIM))
+    {
+        pose1 = pose2 = posenum;
+        blend = 1.f;
+        return;
+    }
+    if(e->currentpose != posenum)
+    {
+        pose1 = pose2 = e->currentpose; // (a new frame's lerp starts from where it was)
+        blend = 0.f;
+        return;
+    }
+    const float span = (e->lerpflags & LERP_FINISH) ? e->lerpfinish - e->lerpstart : e->lerptime;
+    blend = span > 0.f ? za::clamp(static_cast<float>(cl.time - e->lerpstart) / span, 0.f, 1.f) : 1.f;
+    pose1 = blend >= 1.f ? e->currentpose : e->previouspose;
+    pose2 = e->currentpose;
+}
+
+// The animated model of `e` as it would be drawn now (its lerp; its place last frame; the .mdl's vertices in the world), for
+// comparing a ragdoll's first frame with it (vr_debug_ragdoll).
+void animatedVertices(const entity_t* e, za::Vector<glm::vec3>& out, int& pose1, int& pose2, float& blend)
+{
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e->model));
+    animatedPoses(e, hdr, pose1, pose2, blend);
+    float m16[16];
+    vec3_t origin, angles;
+    // Where it was drawn last frame: the message before this frame's (the server moved its origin to follow the pelvis
+    // as the ragdoll was made: writeRagdoll; a listen server sends one a frame).
+    const bool moved = e->msgtime == cl.mtime[0];
+    VectorCopy(moved ? e->msg_origins[1] : e->origin, origin);
+    VectorCopy(moved ? e->msg_angles[1] : e->angles, angles);
+    R_EntityMatrix(m16, origin, angles, e->scale);
+    ApplyTranslation(m16, hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]);
+    ApplyScale(m16, hdr->scale[0], hdr->scale[1], hdr->scale[2]);
+    glm::mat4 m;
+    for(int c = 0; c < 4; c++)
+    {
+        m[c] = glm::vec4{m16[c * 4], m16[c * 4 + 1], m16[c * 4 + 2], m16[c * 4 + 3]};
+    }
+    const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+    const trivertx_t* v1 = base + static_cast<za::SizeT>(pose1) * static_cast<za::SizeT>(hdr->numverts);
+    const trivertx_t* v2 = base + static_cast<za::SizeT>(pose2) * static_cast<za::SizeT>(hdr->numverts);
+    out.resize(static_cast<za::SizeT>(hdr->numverts));
+    for(int i = 0; i < hdr->numverts; i++)
+    {
+        const glm::vec3 a{v1[i].v[0], v1[i].v[1], v1[i].v[2]}, b{v2[i].v[0], v2[i].v[1], v2[i].v[2]};
+        out[static_cast<za::SizeT>(i)] = glm::vec3{m * glm::vec4{a + (b - a) * blend, 1.f}};
+    }
+}
 
 [[nodiscard]] const Swapped* swappedOf(const entity_t* e)
 {
@@ -915,6 +1048,10 @@ void publish(int num, const Rig* rig, int bodies, const glm::quat* rot, const gl
         draw.byNum.resize(static_cast<za::SizeT>(num) + 32);
     }
     Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    if(p.rig != rig)
+    {
+        p.drawn = false; // (a new one)
+    }
     p.rig = rig;
     p.bodies = bodies;
     p.scale = scale;
@@ -963,9 +1100,46 @@ void swapModels()
         {
             continue;
         }
+        catchUpAO(skinned, *p.rig);
+        if(!p.drawn)
+        {
+            draw.byNum[static_cast<za::SizeT>(num)].drawn = true;
+            if(vr_debug_ragdoll.value)
+            {
+                // Its first frame drawn against what the animated model would have drawn now: the switch unseen.
+                int pose1 = 0, pose2 = 0;
+                float blend = 0.f;
+                animatedVertices(e, drawScratch.animated, pose1, pose2, blend);
+                if(skinnedVertices(num, drawScratch.skinned) && drawScratch.skinned.size() == drawScratch.animated.size())
+                {
+                    // (Its drawn vertices: not a hidden bone's, collapsed in both: the shotgun he dropped.)
+                    float sum = 0.f, most = 0.f;
+                    int n = 0;
+                    for(za::SizeT i = 0; i < drawScratch.skinned.size(); i++)
+                    {
+                        if(p.rig->vertBone[i] >= p.bodies)
+                        {
+                            continue;
+                        }
+                        const float d = glm::distance(drawScratch.skinned[i], drawScratch.animated[i]);
+                        sum += d * d;
+                        most = za::max(most, d);
+                        n++;
+                    }
+                    Con_Printf("ragdoll: %d first drawn: the animated mesh (poses %d..%d at %.2f, frame %d) to the ragdoll's: "
+                               "%.2f units rms, %.2f at most (%d vertices)\n",
+                        num, pose1, pose2, blend, e->frame, za::sqrt(sum / static_cast<float>(za::max(n, 1))), most, n);
+                }
+            }
+        }
         Swapped s;
         s.num = num;
         s.original = e->model;
+        s.previousPose = e->previouspose;
+        s.currentPose = e->currentpose;
+        s.lerpStart = e->lerpstart;
+        s.lerpTime = e->lerptime;
+        s.lerpFlags = e->lerpflags;
         s.skinned = skinned;
         s.ref = p.pos[0];
         s.bones = p.rig->numBones;
@@ -984,7 +1158,18 @@ void swapModels()
                 out[row * 4 + 3] = t[row];
             }
         }
+        // Its limbs' ends: blood trails when flung (vr_ragdoll_blood).
+        for(int b = 0; b < p.bodies; b++)
+        {
+            const Bone& bone = p.rig->bones[b];
+            if(bone.joint != Joint::Loose && bone.parent >= 0)
+            {
+                decals::limbTrail(num * maxBones + b, p.rot[static_cast<za::SizeT>(b)] * (bone.end * p.scale) + p.pos[static_cast<za::SizeT>(b)]);
+            }
+        }
         e->model = skinned;
+        e->previouspose = e->currentpose = 0; // (its one pose: no lerp from the corpse's)
+        e->lerpflags &= static_cast<byte>(~(LERP_RESETANIM | LERP_RESETANIM2));
         draw.swapped.pushBack(s);
     }
 }
@@ -997,9 +1182,20 @@ void restoreModels()
         if(e->model == s.skinned)
         {
             e->model = s.original;
+            e->previouspose = s.previousPose;
+            e->currentpose = s.currentPose;
+            e->lerpstart = s.lerpStart;
+            e->lerptime = s.lerpTime;
+            e->lerpflags = s.lerpFlags;
         }
     }
     draw.swapped.clear();
+}
+
+const qmodel_t* sourceModel(const entity_t* e)
+{
+    const Swapped* s = swappedOf(e);
+    return s && e->model == s->skinned ? s->original : nullptr;
 }
 
 int bonePoses(const entity_t* e, const float** matrices)
@@ -1200,6 +1396,7 @@ extern "C" int VR_SyntheticModel(qmodel_t* mod)
         o.idx[0] = rig->vertBone[desc[v].vertindex];
         o.idx[1] = o.idx[2] = o.idx[3] = 0;
     }
+    (void)fillAO(*rig, verts, numVerts); // (else later: catchUpAO)
     memcpy(indexes, reinterpret_cast<const byte*>(sh) + sh->indexes, sizeof(unsigned short) * static_cast<size_t>(numIndexes));
     hdr->boneinfo = reinterpret_cast<byte*>(bones) - reinterpret_cast<byte*>(hdr);
     hdr->bindpose = reinterpret_cast<byte*>(bind) - reinterpret_cast<byte*>(hdr);

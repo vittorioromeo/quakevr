@@ -718,6 +718,68 @@ void PF_physicsshot()
     G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num));
 }
 
+// Ragdolls (vr_box3d.cpp, "Ragdolls"; vr_carry.qc, vr_wpnforcegrab.qc, vr_burning.qc). float isragdoll(entity e).
+void PF_isragdoll()
+{
+    G_FLOAT(OFS_RETURN) = box3d::isRagdoll(NUM_FOR_EDICT(G_EDICT(OFS_PARM0))) ? 1.f : 0.f;
+}
+
+// float ragdollgrab(entity e, entity player, float hand): the hand takes the limb of e's ragdoll it is on (or catches
+// the one it pulls).
+void PF_ragdollgrab()
+{
+    G_FLOAT(OFS_RETURN) =
+        box3d::ragdollGrab(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2))) ? 1.f : 0.f;
+}
+
+// float ragdollpull(entity e, entity player, float hand, float flight): a force grab of e's limb nearest the hand's aim.
+void PF_ragdollpull()
+{
+    G_FLOAT(OFS_RETURN) = box3d::ragdollPull(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)),
+                              G_FLOAT(OFS_PARM3))
+                              ? 1.f
+                              : 0.f;
+}
+
+// void ragdollrelease(entity player, float hand, vector velocity): the hand lets go (a held limb keeps the velocity).
+void PF_ragdollrelease()
+{
+    const float* v = G_VECTOR(OFS_PARM2);
+    box3d::ragdollRelease(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), glm::vec3{v[0], v[1], v[2]});
+}
+
+// float ragdollheld(entity player, float hand): 0 nothing, 1 holding a ragdoll's limb, 2 pulling one.
+void PF_ragdollheld()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollHeld(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
+}
+
+// float ragdollreach(entity player, float hand): how far (units) the held or pulled limb's point is from the hand; -1 none.
+void PF_ragdollreach()
+{
+    G_FLOAT(OFS_RETURN) = box3d::ragdollHandReach(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)));
+}
+
+// float ragdollbone(entity e, vector p): the limb of e's ragdoll nearest p; -1 if e isn't one.
+void PF_ragdollbone()
+{
+    const float* p = G_VECTOR(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}));
+}
+
+// vector ragdollpoint(entity e, float bone, vector p, float toWorld): p from the world into limb `bone`'s space (units),
+// or back.
+void PF_ragdollpoint()
+{
+    const float* p = G_VECTOR(OFS_PARM2);
+    const glm::vec3 v = box3d::ragdollPoint(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)),
+        glm::vec3{p[0], p[1], p[2]}, G_FLOAT(OFS_PARM3) != 0.f);
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
 // float physicsdamp(entity e, vector relativeTo, float keep, float keepSpin, float maxSpeed, vector add): the Box3D prop's
 // velocity relative to `relativeTo` kept by `keep`, no faster than `maxSpeed` (0: any), `add` added; its spin kept by
 // `keepSpin` (box3d::damp: on its body, so a physicspush after it this frame adds to it). False if it is not Box3D's.
@@ -1165,6 +1227,14 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"heldbox", PF_heldbox},
     {"modelpoint", PF_modelpoint},
     {"physicspush", PF_physicspush},
+    {"isragdoll", PF_isragdoll},
+    {"ragdollgrab", PF_ragdollgrab},
+    {"ragdollpull", PF_ragdollpull},
+    {"ragdollrelease", PF_ragdollrelease},
+    {"ragdollheld", PF_ragdollheld},
+    {"ragdollreach", PF_ragdollreach},
+    {"ragdollbone", PF_ragdollbone},
+    {"ragdollpoint", PF_ragdollpoint},
     {"physicsshot", PF_physicsshot},
     {"physicsdamp", PF_physicsdamp},
     {"ropestep", PF_ropestep},
