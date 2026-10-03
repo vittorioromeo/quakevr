@@ -9,6 +9,8 @@
 // vr_corpse_gib's health). Burns are painted under every flame as it burns (the wounds' QVR_WOUND_BURN, no wound under
 // them: extra 1). The flames sit on the model as drawn (hitmodel_any), fitted again a few times a second as it moves,
 // dies and falls. Out when its time is up (the flames shrink away), in water, gibbed or gone.
+// Your own torch's flame on you (vr_burn_self) sets you on fire; held upside down, on its hand, it is dropped
+// (vr_burn_drop): VR_Burn_OnYou (ROUND21.md, "Torch flames: upright from the head's top, swings, smoke, burning you").
 // `vr_burn_test <n>` (Debug > Burning Tests): 1 a torch's blow, 2 a lava nail, 3 a touch, on the nearest monster or
 // corpse; `developer 1` prints `burning: ...`.
 
@@ -30,6 +32,14 @@
 .vector burn_off;         // where on the body: from its origin, in its yaw's axes
 .float burn_size;         // its full scale
 .float burn_born;         // when it came (it grows in)
+.float burn_part;         // a player's: 0 on the body (burn_off in its yaw's axes); a hand + 1: on that hand or its arm
+                          // (burn_off in the hand's axes: it goes with it)
+.vector burn_out;         // a player's: the way out of the body where it sits (its burns are painted from there)
+
+// Where a player is set on fire (VR_Burn_OnYou, vr_burn_self: the body's shapes, not its Quake model): the part, the way
+// out of the body; set just round VR_Burn_Ignite.
+float vr_burn_part;
+vector vr_burn_out;
 
 float VR_BURN_FADE = 0.5;    // s the flames take to shrink away
 float VR_BURN_GROW = 0.3;    // s a new flame takes to grow
@@ -103,6 +113,44 @@ vector(entity v, vector o) VR_Burn_ToWorld =
     r_y = o_x * sin(a) + o_y * cos(a);
     r_z = o_z;
     return v.origin + r;
+};
+
+// A player's flame on a hand or its arm (xPart: the hand + 1): its place in the hand's axes, and back (v_forward etc.
+// kept).
+vector(entity v, float xPart, vector p) VR_Burn_ToHand =
+{
+    vector oldForward = v_forward, oldRight = v_right, oldUp = v_up;
+    makevectors(VRGetEntHandRot(v, xPart - 1));
+    vector d = p - VRGetEntHandPos(v, xPart - 1);
+    vector r;
+    r_x = d * v_forward;
+    r_y = d * v_right;
+    r_z = d * v_up;
+    v_forward = oldForward;
+    v_right = oldRight;
+    v_up = oldUp;
+    return r;
+};
+
+vector(entity v, float xPart, vector o) VR_Burn_FromHand =
+{
+    vector oldForward = v_forward, oldRight = v_right, oldUp = v_up;
+    makevectors(VRGetEntHandRot(v, xPart - 1));
+    vector r = VRGetEntHandPos(v, xPart - 1) + v_forward * o_x + v_right * o_y + v_up * o_z;
+    v_forward = oldForward;
+    v_right = oldRight;
+    v_up = oldUp;
+    return r;
+};
+
+// A flame's place on its body, as it is now.
+vector(entity v, entity fl) VR_Burn_FlameAt =
+{
+    if((v.flags & FL_CLIENT) && fl.burn_part > 0)
+    {
+        return VR_Burn_FromHand(v, fl.burn_part, fl.burn_off);
+    }
+    return VR_Burn_ToWorld(v, fl.burn_off);
 };
 
 // Where along a..b it first meets a crate (its model's box, turned with it: a crate is a box; the drawn model's tracking
@@ -216,8 +264,15 @@ vector(entity v, vector p) VR_Burn_OnBody =
 };
 
 // A burn painted under a flame (no wound: extra 1), met from outside the body.
+// A player's (vr_burn_out set, or a flame's burn_out): from that way out of the body (their drawn body, not the box).
+vector vr_burn_scorch_out;
 void(entity v, vector at, float xAmount) VR_Burn_Scorch =
 {
+    if((v.flags & FL_CLIENT) && vr_burn_scorch_out != '0 0 0')
+    {
+        woundevent(v, at + vr_burn_scorch_out * 4, vr_burn_scorch_out * -1, QVR_WOUND_BURN, xAmount, 1);
+        return;
+    }
     if(!VR_Wound_Takes(v) && !VR_Crate_Is(v))
     {
         return;
@@ -240,7 +295,13 @@ void(entity v, vector at, float xAmount) VR_Burn_Scorch =
 void(entity xFire, vector at, float xMain) VR_Burn_AddFlame =
 {
     entity v = xFire.enemy;
-    vector p = VR_Burn_OnBody(v, at);
+    float you = (v.flags & FL_CLIENT) && vr_burn_out != '0 0 0';
+    vector p = at;
+    vr_burn_onbody = TRUE;
+    if(!you)
+    {
+        p = VR_Burn_OnBody(v, at); // (a player set on fire by the body's shapes: where they touched)
+    }
     entity fl = spawn();
     fl.classname = "vr_burn_flame";
     fl.owner = xFire;
@@ -265,7 +326,9 @@ void(entity xFire, vector at, float xMain) VR_Burn_AddFlame =
     fl.angles_x = xMain ? 0 : crandom() * tilt;
     fl.angles_y = random() * 360;
     fl.angles_z = xMain ? 0 : crandom() * tilt;
-    fl.burn_off = VR_Burn_ToLocal(v, p);
+    fl.burn_part = you ? vr_burn_part : 0;
+    fl.burn_out = you ? vr_burn_out : '0 0 0';
+    fl.burn_off = fl.burn_part > 0 ? VR_Burn_ToHand(v, fl.burn_part, p) : VR_Burn_ToLocal(v, p);
     setorigin(fl, p);
     fl.burn_next = xFire.burn_flames;
     if(xMain || xFire.burn_flames == world)
@@ -280,7 +343,9 @@ void(entity xFire, vector at, float xMain) VR_Burn_AddFlame =
         xFire.burn_flames.burn_next = fl;
     }
     xFire.burn_count = xFire.burn_count + 1;
+    vr_burn_scorch_out = fl.burn_out;
     VR_Burn_Scorch(v, p, 20);
+    vr_burn_scorch_out = '0 0 0';
     dprint(sprintf("burning: %s: flame %g at %v (%s, scale %.2f)\n", v.classname, xFire.burn_count, p,
                    vr_burn_onbody ? "on it" : "off it", size));
 };
@@ -295,6 +360,28 @@ void(entity xFire) VR_Burn_Spread =
     {
         from = from.burn_next;
         pick = pick - 1;
+    }
+    if(from.burn_out != '0 0 0')
+    {
+        // On a player, from the body's shapes: a few units from it, on the same part, the same way out.
+        float pa = random() * 360 * 0.0174533;
+        vector o = from.burn_out;
+        vector side;
+        side_x = o_y; // (o x up)
+        side_y = -o_x;
+        side_z = 0;
+        side = vlen(side) < 0.1 ? '1 0 0' : normalize(side);
+        vector side2; // (o x side)
+        side2_x = o_y * side_z - o_z * side_y;
+        side2_y = o_z * side_x - o_x * side_z;
+        side2_z = o_x * side_y - o_y * side_x;
+        float pr = from.burn_part > 0 ? 2 + random() * 3 : 5 + random() * 6;
+        vr_burn_part = from.burn_part;
+        vr_burn_out = o;
+        VR_Burn_AddFlame(xFire, from.origin + (side * cos(pa) + side2 * sin(pa)) * pr + '0 0 1' * random() * 2, FALSE);
+        vr_burn_part = 0;
+        vr_burn_out = '0 0 0';
+        return;
     }
     float tries = 0;
     while(tries < 3)
@@ -420,7 +507,8 @@ void() VR_Burn_Think =
 
     // Fitted to the body (it moves, dies, falls): each flame onto the model again where it is. A crate's stay where they
     // are on it (it is rigid: they turn with it).
-    float fit = !crate && (time >= self.burn_fit_next || dead != self.burn_dead);
+    float fit = !crate && !((v.flags & FL_CLIENT) && self.burn_flames.burn_out != '0 0 0') &&
+                (time >= self.burn_fit_next || dead != self.burn_dead); // (a player lit by the body's shapes: they stay put on it)
     self.burn_dead = dead;
     if(fit)
     {
@@ -430,7 +518,7 @@ void() VR_Burn_Think =
     entity fl = self.burn_flames;
     while(fl != world)
     {
-        vector p = VR_Burn_ToWorld(v, fl.burn_off);
+        vector p = VR_Burn_FlameAt(v, fl);
         if(fit)
         {
             vector q = VR_Burn_OnBody(v, p);
@@ -486,7 +574,9 @@ void() VR_Burn_Think =
         jit_x = crandom() * 3; // (the burns spread round it, tick by tick)
         jit_y = crandom() * 3;
         jit_z = crandom() * 3;
+        vr_burn_scorch_out = fl.burn_out;
         VR_Burn_Scorch(v, fl.origin + jit, min(60, 16 + 4 * (time - fl.burn_born))); // (wider as it burns on)
+        vr_burn_scorch_out = '0 0 0';
         fl = fl.burn_next;
     }
     particle2(self.burn_flames.origin, '0 0 20', QVR_PARTICLE_PRESET_SMOKE, 2);
@@ -624,6 +714,115 @@ void(entity t, vector xHead, entity xBy) VR_Burn_TorchTouch =
         }
         e = e.chain;
     }
+};
+
+// ----------------------------------------------------------------------------
+// Your own torch's flame on you (vr_burn_self, vr_burn_drop; the engine tests it against the body's collision shapes:
+// torchflametouch). Kept on your other hand, an arm or your body for vr_burn_self_time, you catch fire there (as a
+// monster does: flames on that part going with it, burns painted, vr_burn_damage); till then the hand buzzes, harder as
+// it comes. Held upside down (it burns along the stick), its flame kept on the hand holding it for vr_burn_drop_time
+// burns it: the torch is dropped.
+
+.float wt_burn_on; // s its flame has stayed on you (vr_burn_self); off you, it eases back twice as fast
+.float wt_drop_on; // s its flame has stayed on the hand holding it upside down (vr_burn_drop)
+
+float VR_BURN_ON_OTHER = 10; // torchflametouch's bits: the other hand or arm,
+float VR_BURN_ON_HOLD = 5;   // the holding hand or arm,
+float VR_BURN_ON_YOU = 62;   // anything of you but the holding hand
+
+// Every 0.1 s while lit torch `t` is held (VR_WallTorch_Think), `dt` since the last.
+void(entity t, float dt) VR_Burn_OnYou =
+{
+    entity p = t.carry_player;
+    float hand = -1;
+    if(p != world && t.wt_fire > 0 && p.health > 0)
+    {
+        if(VR_Carry_Held(p, cVR_MainHand) == t)
+        {
+            hand = cVR_MainHand;
+        }
+        else if(VR_Carry_Held(p, cVR_OffHand) == t)
+        {
+            hand = cVR_OffHand;
+        }
+    }
+    float selfOn = cvar_hget(cvarh_vr_burn_self);
+    float dropOn = cvar_hget(cvarh_vr_burn_drop);
+    if(hand < 0 || (!selfOn && !dropOn))
+    {
+        t.wt_burn_on = 0;
+        t.wt_drop_on = 0;
+        return;
+    }
+    float got = torchflametouch(t);
+    float deep = floor(got / 256); // (the deepest contact's bit, but the holding hand's)
+    float parts = got - deep * 256;
+    vector at = trace_endpos;
+    vector out = trace_plane_normal;
+    float other = hand == cVR_MainHand ? cVR_OffHand : cVR_MainHand;
+    float onYou = selfOn && (parts & VR_BURN_ON_YOU);
+    vector headAt = VR_WallTorch_Head(t);
+    vector handAt = VRGetEntHandPos(p, hand);
+    float upsideDown = headAt_z < handAt_z - 2;
+    float onHand = dropOn && (parts & 1) && upsideDown;
+    t.wt_burn_on = onYou ? t.wt_burn_on + dt : max(0, t.wt_burn_on - 2 * dt);
+    t.wt_drop_on = onHand ? t.wt_drop_on + dt : max(0, t.wt_drop_on - 2 * dt);
+    float buzz = max(0, cvar_hget(cvarh_vr_burn_self_haptic));
+    entity oldSelf = self;
+    self = p;
+    if(onYou)
+    {
+        float need = max(0, cvar_hget(cvarh_vr_burn_self_time));
+        float side = (deep & VR_BURN_ON_OTHER) ? other : hand;
+        if(t.wt_burn_on >= need)
+        {
+            vr_burn_part = (deep & (VR_BURN_ON_OTHER | VR_BURN_ON_HOLD)) ? side + 1 : 0;
+            vr_burn_out = out == '0 0 0' ? '0 0 1' : out;
+            dprint(sprintf("burning: your torch's flame on you (%g, deepest %g) at %v for %.2f s: you catch fire\n", parts,
+                           deep, at, t.wt_burn_on));
+            VR_Burn_Ignite(p, t, at, vr_burn_out * -1, VR_BURN_TOUCH);
+            vr_burn_part = 0;
+            vr_burn_out = '0 0 0';
+            t.wt_burn_on = need; // (kept on you, it keeps you burning)
+        }
+        else if(buzz > 0 && p.ishuman)
+        {
+            // The warning: the hand nearest it buzzing, harder as it comes (both for the body).
+            float k = need > 0 ? t.wt_burn_on / need : 1;
+            float amp = min(1, (0.2 + 0.6 * k) * buzz);
+            dprint(sprintf("burning: your torch's flame on you (%g): warning %.2f\n", parts, k));
+            haptic(side, 0, 0.1, 90 + 160 * k, amp);
+            if(deep & 48)
+            {
+                haptic(other, 0, 0.1, 90 + 160 * k, amp);
+            }
+        }
+    }
+    if(onHand)
+    {
+        float needD = max(0, cvar_hget(cvarh_vr_burn_drop_time));
+        if(t.wt_drop_on >= needD)
+        {
+            vector hp = VRGetEntHandPos(p, hand);
+            dprint(sprintf("burning: the torch held upside down burnt its hand (%g) for %.2f s: dropped\n", hand, t.wt_drop_on));
+            woundevent(p, hp - '0 0 6', '0 0 1', QVR_WOUND_BURN, 30, 1); // a burn on the hand, from below
+            sound(p, CHAN_VOICE, random() < 0.5 ? "player/lburn1.wav" : "player/lburn2.wav", 0.7, ATTN_NORM);
+            if(p.ishuman)
+            {
+                haptic(hand, 0, 0.25, 220, 1);
+            }
+            t.wt_drop_on = 0;
+            t.wt_burn_on = 0;
+            VR_Carry_Release(hand, t);
+        }
+        else if(buzz > 0 && p.ishuman)
+        {
+            float kd = needD > 0 ? t.wt_drop_on / needD : 1;
+            dprint(sprintf("burning: the torch held upside down on its hand: warning %.2f\n", kd));
+            haptic(hand, 0, 0.1, 90 + 160 * kd, min(1, (0.2 + 0.6 * kd) * buzz));
+        }
+    }
+    self = oldSelf;
 };
 
 // ----------------------------------------------------------------------------

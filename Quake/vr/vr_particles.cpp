@@ -1771,6 +1771,56 @@ void chainsawSmoke(const glm::vec3& org, const glm::vec3& dir, int count)
     });
 }
 
+void torchSmoke(const glm::vec3& org, const glm::vec3& drift, int count, float alpha)
+{
+    alpha = za::clamp(alpha, 0.f, 1.f);
+    if(!vr_particles.value || alpha <= 0.f || count <= 0 || !ensureAtlas())
+    {
+        return;
+    }
+    // Pitch-black wisps off the flame's tips: small and dense as they leave, spreading, slowing and thinning as they rise.
+    make(static_cast<float>(count), [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        const float g = rnd(0.16f, 0.26f);
+        p.color = glm::vec4{g * 1.05f, g, g * 0.95f, alpha * rnd(0.7f, 1.2f)};
+        const float life = rnd(2.4f, 3.6f);
+        p.die = cl.time + life;
+        p.scale = rnd(1.6f, 2.6f);
+        p.type = Custom;
+        p.fade = -p.color.a / life;
+        p.grow = rnd(4.f, 6.5f);
+        p.drag = 1.4f;
+        p.spin = rnd(-0.7f, 0.7f);
+        p.acc = gravity(-0.012f) + inBox(3.f);
+        p.org = org + inBox(1.2f);
+        p.vel = drift + glm::vec3{0.f, 0.f, rnd(10.f, 18.f)} + inBox(2.5f);
+    });
+}
+
+void torchDrip(const glm::vec3& org, const glm::vec3& vel)
+{
+    if(!enabled())
+    {
+        return;
+    }
+    // Burning pitch: a hot drop falling off the head, dimming as it falls.
+    make(1.f, [&](Particle& p, int) {
+        p.cell = CellSpark;
+        p.additive = true;
+        p.color = glm::vec4{1.f, rnd(0.42f, 0.62f), rnd(0.1f, 0.2f), 1.f};
+        p.die = cl.time + rnd(0.6f, 1.1f);
+        p.scale = rnd(0.2f, 0.32f);
+        p.type = Custom;
+        p.fade = -0.9f;
+        p.grow = -0.12f;
+        p.drag = 0.3f;
+        p.spin = rnd(-6.f, 6.f);
+        p.acc = gravity(1.f);
+        p.org = org + inBox(0.6f);
+        p.vel = vel + inBox(4.f);
+    });
+}
+
 void shellEject(const glm::vec3& org, const glm::vec3& dir, float smoke, int sparks)
 {
     if(!vr_particles.value || !ensureAtlas())

@@ -95,6 +95,12 @@ void chainsawSmoke(const glm::vec3& org, const glm::vec3& dir, int count);
 
 void lavaNailTrail(const glm::vec3& from, const glm::vec3& to);
 
+// A torch's fire (vr_walltorch.cpp): `count` puffs of dark smoke leaving its flame's top at `org`, drifting along
+// `drift` (units/s) and rising, `alpha` opaque; and one burning drip falling off a torch held upside down at `org`,
+// going `vel`. Nothing with vr_particles 0.
+void torchSmoke(const glm::vec3& org, const glm::vec3& drift, int count, float alpha);
+void torchDrip(const glm::vec3& org, const glm::vec3& vel);
+
 // The counter glow (vr_meleehud.cpp): a golden ember leaving a held weapon's surface at `org`, going `vel`, `bright`
 // 0..1 (its first alpha). Nothing with vr_particles 0.
 void counterEmber(const glm::vec3& org, const glm::vec3& vel, float bright);

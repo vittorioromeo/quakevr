@@ -579,6 +579,8 @@ void() VR_WallTorch_Think =
     {
         VR_Burn_TorchTouch(t, head, t.carry_player != world ? t.carry_player : VR_Throw_Thrower(t));
     }
+    // Held lit, its flame on you burns you, upside down on the hand holding it drops it (vr_burn_self, vr_burn_drop).
+    VR_Burn_OnYou(t, dt);
 
     // In a fire: a dying (its blows spent) or burnt-out torch lights again, as new.
     if(cvar_hget(cvarh_vr_walltorch_relight) && (t.wt_fire <= 0 || t.wt_dying == 2))

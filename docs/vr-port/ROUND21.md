@@ -22600,3 +22600,103 @@ NOTES.md vrfiringrange_2026-10-03_02-07-05 and _02-07-42: the dummy should take 
   sword, punch 50/50/50 gore hits and wound events on both (small gibs 54/56, 19/12, 58/59, 5/10: chance); chainsaw
   1 s: 62 ticks, 62 gore hits, 62 wounds, 9 small gibs on both; shotgun: one gore hit a blast on both, a wound event
   and a blood particle a pellet that struck (300 of 300 on the dummy, 225 on the grunt: its pose takes fewer pellets).
+
+## Torch flames: upright from the head's top, swings, smoke, burning you (2026-10-03)
+
+Branch `agent/torchflame`. Your decisions on the held and thrown torch's flame (`Quake/vr/vr_walltorch.cpp`; QC
+`vr_burning.qc`, `vr_walltorch.qc`); everything is in Combat > Burning, two new sections.
+
+**The flame's foot is the head's highest point** (`flameOf`). The stick's head runs from its bulge (x -4.7) to its rim
+(+1.8), about 2.2 units thick: upright the flame sits in the pit as before; tilted, on the rim's upper edge; lying level,
+on top of the head's middle; head down, round the stick where the head meets it (x -4.1), rising along the stick. It
+always rises upright. **Upside down** (from 0.2 to 0.85 of the stick pointing down, eased) it becomes three tongues
+round the stick, 3.4 units from its axis, each 0.62 of the one flame (the stick shows between them: no flame model over
+it), `vr_walltorch_inv_size` 1.25x bigger, its light `vr_walltorch_inv_light` 1.3x brighter (`walltorch::fire`'s level
+goes over 1; vr_emissive's radius and colour take it), **burning drips** falling off the rim (`vr_walltorch_drips` 5 a
+second, `particles::torchDrip`: a hot spark falling at full gravity), `vr_walltorch_inv_smoke` 2.5x the smoke.
+
+**Swings.** The lean is as before (40 degrees at most, the head's speed eased over 0.08 s) times `vr_walltorch_lean`
+(1). New: from 100 to 450 units/s of the head it **flattens** (up to 0.4 shorter, 0.5 longer back along the swing,
+0.5 more lean at most) times `vr_walltorch_flatten` (1); its model's x turns to the swing's back as it speeds up. The
+flattening is a non-uniform scale about the flame's origin: `walltorch::stretch`, applied in `VR_AliasPreTransform`
+(`vr_render.cpp` applyPre) to this frame's flame temp entities only; Ironwail's byte scale is set to cover the largest
+axis (rounded up), so its culling box holds it, and the stretch makes up the rest exactly (so also no more 1/16 steps in
+the flame's size as it dies).
+
+**Smoke from every lit torch** (`particles::torchSmoke`): dark soot from 0.85 of the flame's height, 3 puffs a second
+at a full fire times `vr_walltorch_smoke` (1), `vr_walltorch_smoke_alpha` 0.45 opaque, growing from 2 to about 20
+units over 3 s, rising slowly, drifting back from a swing. On its wall too, and id's static torches with
+`vr_walltorch 0`. Torches more than 1200 units from the eye don't smoke. (At 0.3 it was hard to see against e1m2's lit
+bricks; at 1, a black plume to the ceiling.)
+
+**Its flame burns you** (`vr_burn_self`, off). The engine tests the flame (a capsule from its foot up 0.8 of its height,
+2.2 times its size wide, plus the ring's 3.4 upside down) against the body collision's shapes
+(`selfcollide::flameTouch`: the hands' spheres, the arms, torso, head and legs, the tracked pose;
+`selfcollide::keepShapes` builds them without the solve when `vr_body_collide` is off). QC reads it with the new
+builtin `torchflametouch(t)` (bits: 1 the holding hand, 2 the other hand, 4 the holding arm, 8 the other arm, 16 torso
+or legs, 32 head; plus 256 times the deepest one; `trace_endpos` and `trace_plane_normal` the contact and the way out),
+every 0.1 s in `VR_WallTorch_Think` (`VR_Burn_OnYou`). Anything but the holding hand kept in it for
+`vr_burn_self_time` (0.6 s; off it, the time eases back twice as fast) sets you on fire as a monster (`VR_Burn_Ignite`,
+the torch as the attacker): the flames sit where it touched, on a hand or arm in that hand's axes (they go with it;
+`.burn_part`), else on the body in its yaw's axes, not fitted to player.mdl; they spread a few units over the same
+part; burns are painted on your own skin from the contact's way out (`.burn_out`); `vr_burn_damage` as for a monster.
+Till then the nearest hand buzzes (both for the body or head), harder as it comes (`vr_burn_self_haptic` 1). Kept on
+you, it keeps you burning.
+
+**Upside down it burns your hand** (`vr_burn_drop`, off): the head under the hand and the flame on the holding hand's
+spheres for `vr_burn_drop_time` (1 s): a burn painted on the hand from below, a lava-burn grunt, a hard buzz, and the
+hand lets go (`VR_Carry_Release`: it falls and starts dying). The buzz warns before.
+
+**Debug:** `vr_walltorch_debug` (Debug > Burning Tests, Torch Flames to Console): `wtflame` twice a second for each
+lit torch off its wall (how far upside down, foot, head, speed, scale and stretch, height, held by, what of you it
+touches), `wtsmoke` puffs a second; 2: every frame.
+
+### Settings (Combat > Burning)
+
+| Section | Setting | Cvar | Default |
+|---|---|---|---|
+| Torch Flame | Swing Lean | `vr_walltorch_lean` | 1x |
+| | Flatten When Fast | `vr_walltorch_flatten` | 1x |
+| | Upside Down: Flame Size | `vr_walltorch_inv_size` | 1.25x |
+| | Upside Down: Brightness | `vr_walltorch_inv_light` | 1.3x |
+| | Upside Down: Burning Drips | `vr_walltorch_drips` | 5 / s |
+| | Upside Down: More Smoke | `vr_walltorch_inv_smoke` | 2.5x |
+| | Torch Smoke | `vr_walltorch_smoke` | 1x (3 puffs / s) |
+| | Torch Smoke Opacity | `vr_walltorch_smoke_alpha` | 0.45 |
+| Your Own Torch | Its Flame Burns You | `vr_burn_self` | off |
+| | Catch Fire After | `vr_burn_self_time` | 0.6 s |
+| | Warning Buzz | `vr_burn_self_haptic` | 1x |
+| | Upside Down Burns Your Hand | `vr_burn_drop` | off |
+| | Drop After | `vr_burn_drop_time` | 1 s |
+
+### Verified (mock headset, e1m2, torch 52 taken into the main hand; the kit's `scratch/tf_*.png`)
+
+- **Eyeshots** (`tf_final.png`): upright (in the pit, as before), level pointing left (on the head's top), upside down
+  (three tongues round the stick from where the head meets it, the stick seen between them; the foot 5 units over the
+  head's middle), mid-swing to the right (leaning back left). `wtflame`: upright `along z 1.00, upside down 0.00`; head
+  down `-0.82`, `0.99`, scale 1.25, height 36.9.
+- **A wall torch smoking** (`tf_wall_smoke.png`, left smoke on, right `vr_walltorch_smoke 0`): soot over the flame to
+  the ceiling; with alpha 1 the darkening reaches 103 of 255 over the flame. `wtsmoke`: 12 puffs a second from the 4
+  torches in range; with `vr_walltorch 0`, 21 from id's 7 static ones.
+- **Burning you** (`vr_burn_self 1`, the off hand put 12 units into the upright flame): warnings 0.17 .. 1.00, then
+  `your torch's flame on you (2, deepest 2) ... for 0.70 s: you catch fire`, flames 1-5 on the off hand (`tf_self.png`:
+  they went with it as it moved), `player burns for 2` each tick (god mode), out 3 s after the hand left the flame.
+  With it off: no `burning:` line.
+- **Upside down, dropped** (`vr_burn_drop 1`, the main hand pitched -75): `on you 5 (deepest 4)` (the hand and its arm),
+  warnings 0.10 .. 1.00, `burnt its hand (1) for 1.10 s: dropped`, `carry: thrown at 0 u/s`, `dying (let go of)`. With
+  it off: held on.
+- `eval.sh`: canary OK, no differences.
+
+### Not verified / for you
+
+- In the headset: the swing's flattening (the mock's hand moves every few frames, so a test sweep only reached 166
+  units/s), whether 0.45 smoke reads in dark rooms, the burning drips, the buzz.
+- Burning yourself is single player (the server reads the client's last frame), as the hands' shapes are.
+- With `vr_burn_self` on, a torch held head down also burns your holding arm (it is "an arm"): `vr_burn_drop` is about
+  the hand. Upright or level, nothing of you touched it in the tests.
+
+- [ ] Hold a torch upright, level, head down: the flame from the head's top, three tongues climbing the stick head down.
+- [ ] Swing it fast: it leans back and flattens. Swing Lean / Flatten When Fast to taste.
+- [ ] Wall torches smoking in a dark room: Torch Smoke / Opacity.
+- [ ] Its Flame Burns You on: your other hand over the flame: the buzz, then flames on your hand and burns.
+- [ ] Upside Down Burns Your Hand on: hold it head down: the buzz, then you drop it.

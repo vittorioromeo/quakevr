@@ -495,6 +495,8 @@ double passedAt[2]{-1.0, -1.0};                      // when a contact of the ha
 int appliedFrame = -1;
 double lastTime = -1.0;
 bool viewOn = false; // this frame's beginView ran the solve (endView records)
+bool shapesOn = false; // this frame's shapes were built (the solve's, or keepShapes' without it): endView records
+int shapesWanted = -100; // host_framecount of the last keepShapes
 
 [[nodiscard]] float cm(float units)
 {
@@ -1193,7 +1195,9 @@ void beginView(hands::State& s)
         appliedFrame = host_framecount;
         const float dt = lastTime >= 0.0 ? static_cast<float>(za::clamp(vr_gametime - lastTime, 0.0, 0.1)) : 0.f;
         lastTime = vr_gametime;
-        viewOn = vr_body_collide.value != 0.f && s.valid && sightalign::phase() != sightalign::Phase::Capturing;
+        const bool can = s.valid && sightalign::phase() != sightalign::Phase::Capturing;
+        viewOn = vr_body_collide.value != 0.f && can;
+        shapesOn = can && (viewOn || host_framecount - shapesWanted <= 2);
         Stats stats;
         if(viewOn)
         {
@@ -1209,6 +1213,10 @@ void beginView(hands::State& s)
                 c.on = false;
             }
             scene = Scene{};
+            if(shapesOn)
+            {
+                buildScene(s); // (a held torch's flame against you: the shapes without the solve)
+            }
         }
         for(int h = 0; h < 2; h++)
         {
@@ -1236,7 +1244,7 @@ void beginView(hands::State& s)
 
 void endView(hands::State& s, const Drawn& d)
 {
-    if(viewOn && rec.frame != host_framecount)
+    if(shapesOn && rec.frame != host_framecount)
     {
         rec.frame = host_framecount;
         for(int h = 0; h < 2; h++)
@@ -1411,8 +1419,75 @@ float elbowSwing(const glm::vec3& shoulder, const glm::vec3& elbow, const glm::v
     return best;
 }
 
+void keepShapes()
+{
+    shapesWanted = host_framecount;
+}
+
+FlameTouch flameTouch(const glm::vec3& a, const glm::vec3& b, float r, int holdHand)
+{
+    FlameTouch t;
+    if(!shapesOn || (holdHand != 0 && holdHand != 1))
+    {
+        return t;
+    }
+    const int other = 1 - holdHand;
+    const Scene& sc = scene;
+    float best = -1.f, bestHold = -1.f;
+    glm::vec3 holdAt{0.f}, holdOut{0.f, 0.f, 1.f};
+    const auto test = [&](const Caps& caps, unsigned bit) {
+        for(const Cap& k : caps)
+        {
+            glm::vec3 pf, pk;
+            closestPoints(a, b, k.a, k.b, pf, pk);
+            const glm::vec3 d = pf - pk;
+            const float len = glm::length(d);
+            const float depth = r + k.r - len;
+            if(depth <= 0.f)
+            {
+                continue;
+            }
+            t.parts |= bit;
+            const glm::vec3 out = len > 1e-4f ? d / len : glm::vec3{0.f, 0.f, 1.f};
+            const glm::vec3 at = pk + out * k.r;
+            if(bit == TouchHoldHand)
+            {
+                if(depth > bestHold)
+                {
+                    bestHold = depth;
+                    holdAt = at;
+                    holdOut = out;
+                }
+            }
+            else if(depth > best)
+            {
+                best = depth;
+                t.deepest = bit;
+                t.at = at;
+                t.out = out;
+            }
+        }
+    };
+    test(sc.hand[holdHand], TouchHoldHand);
+    test(sc.hand[other], TouchOtherHand);
+    test(sc.part[UpperArm][holdHand], TouchHoldArm);
+    test(sc.part[Forearm][holdHand], TouchHoldArm);
+    test(sc.part[UpperArm][other], TouchOtherArm);
+    test(sc.part[Forearm][other], TouchOtherArm);
+    test(sc.part[Torso][0], TouchBody);
+    test(sc.part[Legs][0], TouchBody);
+    test(sc.part[Head][0], TouchHead);
+    if(best < 0.f && bestHold >= 0.f)
+    {
+        t.at = holdAt;
+        t.out = holdOut;
+    }
+    return t;
+}
+
 void reset()
 {
+    shapesOn = false;
     for(int h = 0; h < 2; h++)
     {
         drawn[h] = target[h] = glm::vec3{0.f};

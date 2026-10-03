@@ -2437,6 +2437,38 @@ void hologramTestMessage()
             .help("Flames a crate's fire spreads to (Most Flames caps it)."),
         slider("Crate Flame Size", vr_burn_crate_flame_size, 0.5f, 2.5f, 0.05f, "%.2fx").extend(0.1f, 5.f)
             .help("A crate's flames, times a body's (Flame Size)."),
+        header("Torch Flame"),
+        slider("Swing Lean", vr_walltorch_lean, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 5.f)
+            .help("How far a swung torch's flame leans and trails behind its motion (1: the default; 0: always straight up)."),
+        slider("Flatten When Fast", vr_walltorch_flatten, 0.f, 1.5f, 0.1f, "%.1fx").extend(0.f, 1.5f)
+            .help("How much a fast swing flattens the flame and stretches it back (1: the default; 0: never)."),
+        slider("Upside Down: Flame Size", vr_walltorch_inv_size, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.1f, 4.f)
+            .help("Held head down, the flame comes up round the head and climbs the stick, in three tongues (the stick shows "
+                  "between them): their size, times the upright flame's."),
+        slider("Upside Down: Brightness", vr_walltorch_inv_light, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("Held head down, its light's brightness, times the upright one's."),
+        slider("Upside Down: Burning Drips", vr_walltorch_drips, 0.f, 20.f, 1.f, "%.0f / s").extend(0.f, 60.f)
+            .help("Burning drips falling off the head of a torch held head down, a second (0: none)."),
+        slider("Upside Down: More Smoke", vr_walltorch_inv_smoke, 1.f, 5.f, 0.25f, "%.2fx").extend(0.f, 10.f)
+            .help("Held head down, a torch smokes this much more."),
+        slider("Torch Smoke", vr_walltorch_smoke, 0.f, 3.f, 0.25f, "%.2fx").extend(0.f, 10.f)
+            .help("Soot rising off every lit torch, on its wall, in your hand or lying (1: three puffs a second; 0: none)."),
+        slider("Torch Smoke Opacity", vr_walltorch_smoke_alpha, 0.f, 1.f, 0.05f, "%.2f")
+            .help("How dark the torches' smoke is."),
+        header("Your Own Torch"),
+        toggle("Its Flame Burns You", vr_burn_self)
+            .help("The flame of the torch you hold, kept on your other hand, an arm, your body or your head, sets you on fire "
+                  "there after a moment (Catch Fire After), as it does a monster: flames on you, burns on your skin, Burn "
+                  "Damage. Till then the hand buzzes, harder as it comes."),
+        slider("Catch Fire After", vr_burn_self_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 10.f)
+            .help("How long the flame must stay on you before you catch fire (off it, it eases back twice as fast)."),
+        slider("Warning Buzz", vr_burn_self_haptic, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("How hard the hand buzzes while a flame is on you, before you catch fire or drop the torch (0: none)."),
+        toggle("Upside Down Burns Your Hand", vr_burn_drop)
+            .help("Held head down, a torch's flame climbs the stick to your hand: kept there a moment (Drop After), it burns "
+                  "your hand and you drop the torch."),
+        slider("Drop After", vr_burn_drop_time, 0.f, 5.f, 0.1f, "%.1f s").extend(0.f, 20.f)
+            .help("How long a torch held head down can burn your hand before you drop it."),
     };
 }
 
@@ -3150,6 +3182,10 @@ za::Vector<Item> pageDebugTools()
         command("Load Lava Nails", "vr_burn_test 5").help("vr_burn_test 5: the nailgun or super nailgun in the main hand loaded with lava nails (impulse 156 or 157 gives one)."),
         command("A Nail Through a Torch's Flame", "vr_burn_test 6").help("vr_burn_test 6: a nail shot through the flame of the lit torch nearest you: it becomes a lava nail (Nails Through a Flame)."),
         command("How It Burns", "vr_burn_test 4").help("vr_burn_test 4: the nearest monster or corpse: where, its health, its flames and the time it burns yet."),
+        toggle("Torch Flames to Console", vr_walltorch_debug)
+            .help("vr_walltorch_debug: each lit torch you hold or that lies about, twice a second (wtflame: how far upside "
+                  "down, its flame's foot, its speed and flattening, what of you its flame touches), and the torches' smoke "
+                  "(wtsmoke). 2: every frame."),
         header("VR Calibration"),
         command("Run the Calibration Here", "vr_setup here")
             .help("vr_setup here: VR Calibration's steps (height, body, main hand) in this map, now."),

@@ -15,6 +15,7 @@
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_props.hpp"
+#include "vr_walltorch.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Algorithm/Fill.hpp"
@@ -51,6 +52,12 @@ void applyPre(const entity_t* e, bool mirrored, const glm::vec3* extra, float m[
     if(const float size = props::drawnSize(e->model); size != 1.f)
     {
         ApplyScale(m, size, size, size);
+    }
+
+    // A swung torch's flame, flattened and stretched back (vr_walltorch.cpp), about its origin.
+    if(glm::vec3 k; walltorch::stretch(e, k))
+    {
+        ApplyScale(m, k.x, k.y, k.z);
     }
 
     if(mirrored)

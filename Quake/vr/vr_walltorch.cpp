@@ -7,16 +7,21 @@
 #include "vr_held.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
+#include "vr_particles.hpp"
 #include "vr_progs.hpp"
+#include "vr_selfcollide.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Pow.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 
 #include <string.h>
@@ -42,7 +47,8 @@ constexpr int charredTo = 72;
 constexpr int wallVerts = 134, wallTris = 132;
 
 // The stick (make_walltorch.py): along its +x, its pit (where the fire sits) at x 0.9..1.8.
-constexpr glm::vec3 stickHead{1.2f, 0.f, 0.f};
+constexpr float stickHeadX = 1.2f;
+constexpr glm::vec3 stickHead{stickHeadX, 0.f, 0.f};
 // Id's torch (flame.mdl, upright): its flame rises from z 1.28 (the cup), and its light is at z 20 (vr_emissive.cpp).
 constexpr float fireBase = 1.28f;
 constexpr float fireLight = 20.f;
@@ -52,6 +58,20 @@ constexpr float fireLight = 20.f;
 constexpr float leanPerSpeed = 1.f / 500.f;
 constexpr float leanMost = 0.84f;
 constexpr float leanEase = 0.08f;
+
+// The stick's head (make_walltorch.py): from its bulge to its rim, about this thick. The flame's foot is its highest
+// point: in the pit standing up, on top of the head lying level, round the stick where the head meets it upside down.
+constexpr float headLow = -4.7f, headHigh = 1.8f, headRadius = 2.2f;
+// Upside down: three flames round the stick this far from its axis (it shows between them), each this much of the one.
+constexpr int ringFlames = 3;
+constexpr float ringRadius = 3.4f;
+constexpr float ringSize = 0.62f;
+// Swung fast, the flame flattens and stretches back over this speed of the head (units/s), and leans further.
+constexpr float flattenFrom = 100.f, flattenTo = 450.f;
+constexpr float flattenLean = 0.5f; // (tangent) more lean at most, flattened
+constexpr float smokePerSecond = 3.f; // puffs a second at a full fire (vr_walltorch_smoke 1)
+constexpr float smokeRange = 1200.f;  // units from the eye beyond which no torch smokes
+constexpr float flameTopDefault = 22.f; // id's torch's flame's top over its foot, if its model gives none
 
 struct Taken
 {
@@ -63,7 +83,38 @@ struct Taken
     glm::vec3 fire{0.f};  // its light's place (the flame's middle)
     float level = 0.f;    // its fire, 0..1
     unsigned stamp = 0;   // the frame it was last seen taken
+    float light = 0.f;    // its light's brightness (its fire; more upside down)
+    float smokeOwed = 0.f; // smoke and drips due (fractions carried to the next frame)
+    float dripOwed = 0.f;
+    selfcollide::FlameTouch touch; // its flame against you (held by you, vr_burn_self or vr_burn_drop on)
+    int touchFrame = -1000;        // host_framecount it was worked out
 };
+
+// A flame, as drawn: its foot, the way up (leaning), its own frame (x: back along the swing or the stick, z: up), its
+// size (as Ironwail's scale) and its own scale on top (flattened and stretched back), its height, how far the torch is
+// upside down (0..1) and the ring's axes round the stick.
+struct Flame
+{
+    glm::vec3 foot{0.f};
+    glm::vec3 up{0.f, 0.f, 1.f};
+    glm::mat3 m{1.f};
+    float s = 1.f;
+    glm::vec3 k{1.f};
+    float height = 0.f;
+    float inv = 0.f;
+    glm::vec3 ring1{1.f, 0.f, 0.f}, ring2{0.f, 1.f, 0.f};
+};
+
+struct Stretch
+{
+    const entity_t* e;
+    glm::vec3 k;
+};
+za::Vector<Stretch> stretches; // this frame's flames' own scales (walltorch::stretch)
+ankerl::unordered_dense::map<int, float> staticSmoke; // id's static wall torches' (vr_walltorch 0) smoke due
+double lastFrame = -1.0;
+int smokePuffs = 0; // vr_walltorch_debug: the puffs made since the last print
+double smokePrinted = 0.0;
 
 ankerl::unordered_dense::map<int, Taken> taken;
 const qmodel_t* torchWorld = nullptr;
@@ -116,6 +167,100 @@ void findModels()
         }
     }
     return fireModel;
+}
+
+[[nodiscard]] float smooth01(float e0, float e1, float x)
+{
+    const float t = za::clamp((x - e0) / (e1 - e0), 0.f, 1.f);
+    return t * t * (3.f - 2.f * t);
+}
+
+// The flame of a stick at `origin` turned `axes` (its +x the head), its head going `vel`, `s` big (hung: on its wall).
+[[nodiscard]] Flame flameOf(const glm::vec3& origin, const glm::mat3& axes, const glm::vec3& vel, float s, bool hung)
+{
+    Flame f;
+    const glm::vec3 along = axes[0];
+    const float a = za::clamp(along.z, -1.f, 1.f);
+    f.inv = hung ? 0.f : smooth01(0.2f, 0.85f, -a);
+    // The head's highest point: along it from where it meets the stick (head down) to the pit (head up); off the axis
+    // up to its top (lying level).
+    const float x = glm::mix(headLow + 0.6f, stickHeadX, smooth01(-0.3f, 0.3f, a));
+    f.foot = origin + along * x + (glm::vec3{0.f, 0.f, 1.f} - along * a) * headRadius;
+
+    // Upright, leaning back from the way the head moves (vr_walltorch_lean); fast, flattened and stretched back
+    // (vr_walltorch_flatten).
+    const glm::vec3 vh{vel.x, vel.y, 0.f};
+    const float speed = glm::length(vh);
+    const float flat = za::min(1.5f, smooth01(flattenFrom, flattenTo, speed) * za::max(0.f, vr_walltorch_flatten.value));
+    glm::vec3 lean = -vh * (leanPerSpeed * za::max(0.f, vr_walltorch_lean.value));
+    if(const float l = glm::length(lean), most = leanMost + flattenLean * za::min(1.f, flat); l > most)
+    {
+        lean *= most / l;
+    }
+    f.up = glm::normalize(glm::vec3{0.f, 0.f, 1.f} + lean);
+    f.k = glm::vec3{1.f + 0.5f * flat, 1.f - 0.08f * flat, 1.f - 0.4f * flat};
+
+    // Its x: back along the swing as it gets fast, else the stick's way.
+    glm::vec3 xs = along - f.up * glm::dot(along, f.up);
+    xs = glm::length(xs) < 0.1f ? glm::cross(glm::vec3{0.f, 1.f, 0.f}, f.up) : glm::normalize(xs);
+    glm::vec3 x2 = xs;
+    if(speed > 1.f)
+    {
+        const glm::vec3 back = -vh / speed;
+        const glm::vec3 bp = back - f.up * glm::dot(back, f.up);
+        if(glm::length(bp) > 0.1f)
+        {
+            x2 = glm::mix(xs, glm::normalize(bp), smooth01(20.f, 150.f, speed));
+        }
+    }
+    if(glm::length(x2) < 0.1f)
+    {
+        x2 = xs;
+    }
+    x2 = glm::normalize(x2);
+    f.m = glm::mat3{x2, glm::cross(f.up, x2), f.up};
+
+    f.s = s * (hung ? 1.f : glm::mix(1.f, za::max(0.f, vr_walltorch_inv_size.value), f.inv));
+    const float top = fireModel && fireModel->maxs[2] > fireBase + 1.f ? fireModel->maxs[2] : fireBase + flameTopDefault;
+    f.height = (top - fireBase) * f.s * f.k.z;
+
+    // The ring's axes, round the stick.
+    glm::vec3 r1 = glm::cross(along, glm::vec3{0.f, 1.f, 0.f});
+    if(glm::length(r1) < 0.1f)
+    {
+        r1 = glm::cross(along, glm::vec3{1.f, 0.f, 0.f});
+    }
+    f.ring1 = glm::normalize(r1);
+    f.ring2 = glm::cross(along, f.ring1);
+    return f;
+}
+
+// `owed` smoke puffs (fractions carried), `amount` seconds' worth of a full fire's, from `top`.
+void smoke(float& owed, const glm::vec3& top, const glm::vec3& drift, float amount)
+{
+    const float rate = smokePerSecond * za::max(0.f, vr_walltorch_smoke.value);
+    if(rate <= 0.f)
+    {
+        owed = 0.f;
+        return;
+    }
+    owed += amount * rate;
+    if(owed >= 1.f)
+    {
+        const int n = static_cast<int>(owed);
+        owed -= static_cast<float>(n);
+        particles::torchSmoke(top, drift, n, vr_walltorch_smoke_alpha.value);
+        smokePuffs += n;
+    }
+}
+
+// Id's wall torch (progs/flame.mdl, upright, its flame from its cup at its origin): its smoke.
+void wallSmoke(float& owed, const glm::vec3& origin, float dt, const glm::vec3& eye)
+{
+    if(glm::distance(origin, eye) < smokeRange)
+    {
+        smoke(owed, origin + glm::vec3{0.f, 0.f, fireBase + flameTopDefault * 0.85f}, glm::vec3{0.f}, dt);
+    }
 }
 
 // Its crackle: the wall's static one silenced once the torch has left it; the torch's own follows it, as loud as its
@@ -405,20 +550,28 @@ extern "C" void VR_WallTorchFlames(void)
     {
         return;
     }
+    stretches.clear();
     if(cl.worldmodel != torchWorld || worldGeneration() != torchGeneration)
     {
         taken.clear();
+        staticSmoke.clear();
         torchWorld = cl.worldmodel;
         torchGeneration = worldGeneration();
+        lastFrame = -1.0;
         findModels();
     }
-    if(!stickModel)
+    if(!stickModel && !wallModel)
     {
-        return; // (no torch can be taken on this map)
+        return; // (no torch on this map)
     }
     frameStamp++;
     bool any = false;
     const float size = za::max(0.f, vr_walltorch_flame.value);
+    const float dt = lastFrame >= 0.0 ? static_cast<float>(za::clamp(cl.time - lastFrame, 0.0, 0.1)) : 0.f;
+    lastFrame = cl.time;
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    const bool onYou = vr_burn_self.value != 0.f || vr_burn_drop.value != 0.f;
+    const int heldBy[2] = {held::heldEntity(0), held::heldEntity(1)};
     for(int i = 1; i < cl.num_entities; i++)
     {
         const entity_t& e = cl_entities[i];
@@ -433,6 +586,7 @@ extern "C" void VR_WallTorchFlames(void)
             t.wall = origin;
             t.wallKnown = true;
             t.time = -1.0;
+            wallSmoke(t.smokeOwed, origin, dt, eye);
             continue;
         }
         if(e.model != stickModel)
@@ -440,6 +594,7 @@ extern "C" void VR_WallTorchFlames(void)
             continue;
         }
         Taken& t = taken[i];
+        t.touch = selfcollide::FlameTouch{};
         const bool hung = e.frame == wallFrame;
         if(hung)
         {
@@ -464,6 +619,7 @@ extern "C" void VR_WallTorchFlames(void)
         }
         const int frame = hung ? fireLevels : za::clamp(static_cast<int>(e.frame), 0, fireLevels);
         t.level = static_cast<float>(frame) / static_cast<float>(fireLevels);
+        t.light = t.level;
         if(frame == 0)
         {
             t.time = -1.0;
@@ -475,13 +631,13 @@ extern "C" void VR_WallTorchFlames(void)
         const double now = cl.time;
         if(t.time >= 0.0 && now > t.time)
         {
-            const float dt = static_cast<float>(za::min(now - t.time, 0.1));
-            glm::vec3 v = (head - t.head) / dt;
+            const float fdt = static_cast<float>(za::min(now - t.time, 0.1));
+            glm::vec3 v = (head - t.head) / fdt;
             if(glm::length(v) > 3000.f)
             {
                 v = glm::vec3{0.f}; // a jump (taken into a hand, a teleport)
             }
-            t.vel += (v - t.vel) * (1.f - za::exp(-dt / leanEase));
+            t.vel += (v - t.vel) * (1.f - za::exp(-fdt / leanEase));
         }
         else if(t.time < 0.0)
         {
@@ -490,44 +646,99 @@ extern "C" void VR_WallTorchFlames(void)
         t.head = head;
         t.time = hung ? -1.0 : now;
 
-        // Upright, leaning away from its motion; from past the head if the stick points down (not up through it).
-        glm::vec3 lean = -t.vel * leanPerSpeed;
-        lean.z = 0.f;
-        if(const float l = glm::length(lean); l > leanMost)
-        {
-            lean *= leanMost / l;
-        }
-        const glm::vec3 up = glm::normalize(glm::vec3{0.f, 0.f, 1.f} + lean);
-        const glm::vec3 along = axes[0];
-        const glm::vec3 base = head + along * (za::max(0.f, -along.z) * 1.5f);
-        const float s = hung ? 1.f : size * za::pow(t.level, 0.6f); // (it shrinks slower than its light dims at first; on its wall, id's)
-        t.fire = base + glm::vec3{0.f, 0.f, (fireLight - fireBase) * s};
+        const int holdHand = heldBy[1] == i ? 1 : heldBy[0] == i ? 0 : -1;
+        const Flame f = flameOf(origin, axes, t.vel, hung ? 1.f : size * za::pow(t.level, 0.6f), hung);
+        t.fire = f.foot + f.up * ((fireLight - fireBase) * f.s * f.k.z);
+        t.light = t.level * glm::mix(1.f, za::max(0.f, vr_walltorch_inv_light.value), f.inv);
 
-        qmodel_t* model = s > 0.03f ? fire() : nullptr;
+        // Smoke off its flame's top; held upside down, more, and burning drips falling off its head.
+        if(glm::distance(f.foot, eye) < smokeRange)
+        {
+            const float more = glm::mix(1.f, za::max(0.f, vr_walltorch_inv_smoke.value), f.inv);
+            const glm::vec3 drift = glm::vec3{-t.vel.x, -t.vel.y, 0.f} * 0.15f;
+            smoke(t.smokeOwed, f.foot + f.up * (f.height * 0.85f), drift, dt * t.level * more);
+            if(f.inv > 0.3f && vr_walltorch_drips.value > 0.f)
+            {
+                t.dripOwed += dt * vr_walltorch_drips.value * f.inv * t.level;
+                for(; t.dripOwed >= 1.f; t.dripOwed -= 1.f)
+                {
+                    const float ang = za::fmod(static_cast<float>(cl.time) * 7.3f + t.dripOwed * 2.1f, 6.2831853f);
+                    const glm::vec3 rim = origin + axes * glm::vec3{headHigh, za::cos(ang) * headRadius * 0.7f, za::sin(ang) * headRadius * 0.7f};
+                    particles::torchDrip(rim, t.vel * 0.4f);
+                }
+            }
+        }
+
+        // Its flame on you (vr_burn_self, vr_burn_drop: QC reads it, torchflametouch).
+        if(onYou && holdHand >= 0)
+        {
+            selfcollide::keepShapes();
+            const float r = 2.2f * f.s + ringRadius * f.inv;
+            t.touch = selfcollide::flameTouch(f.foot + f.up, f.foot + f.up * za::max(1.5f, f.height * 0.8f), r, holdHand);
+            t.touchFrame = host_framecount;
+        }
+
+        if(vr_walltorch_debug.value != 0.f && !hung && (vr_walltorch_debug.value >= 2.f || za::fmod(static_cast<float>(cl.time), 0.5f) < za::fmod(static_cast<float>(cl.time - dt), 0.5f) + (dt > 0.f ? 0.f : 1.f)))
+        {
+            Con_Printf("wtflame %d: along z %.2f, upside down %.2f, foot %.1f %.1f %.1f (head %.1f %.1f %.1f), speed %.0f, "
+                       "scale %.2f k %.2f %.2f %.2f, height %.1f, held by %d, on you %u (deepest %u) at %.1f %.1f %.1f\n",
+                i, axes[0].z, f.inv, f.foot.x, f.foot.y, f.foot.z, head.x, head.y, head.z, glm::length(glm::vec2{t.vel.x, t.vel.y}),
+                f.s, f.k.x, f.k.y, f.k.z, f.height, holdHand, t.touch.parts, t.touch.deepest, t.touch.at.x, t.touch.at.y, t.touch.at.z);
+        }
+
+        qmodel_t* model = f.s > 0.03f ? fire() : nullptr;
         if(!model)
         {
             continue;
         }
-        entity_t* ent = CL_NewTempEntity();
-        if(!ent)
+        // One flame; upside down, three round the stick (it shows between them), each smaller.
+        const int n = f.inv > 0.02f ? ringFlames : 1;
+        for(int k = 0; k < n; k++)
         {
-            continue;
+            const float sk = f.s * (k == 0 ? glm::mix(1.f, ringSize, f.inv) : ringSize * f.inv);
+            if(sk <= 0.03f)
+            {
+                continue;
+            }
+            entity_t* ent = CL_NewTempEntity();
+            if(!ent)
+            {
+                break;
+            }
+            const float ang = 6.2831853f * (static_cast<float>(k) / static_cast<float>(ringFlames)) + static_cast<float>(i) * 0.9f;
+            const glm::vec3 at = f.foot + (f.ring1 * za::cos(ang) + f.ring2 * za::sin(ang)) * (ringRadius * f.inv);
+            const glm::vec3 o = at - f.up * (fireBase * sk * f.k.z);
+            ent->origin[0] = o.x;
+            ent->origin[1] = o.y;
+            ent->origin[2] = o.z;
+            held::anglesFromAxes(f.m, ent->angles, false);
+            ent->model = model;
+            // Its own scale (flattened, stretched back) in VR_AliasPreTransform (walltorch::stretch); Ironwail's, which
+            // its culling box reads, covers it.
+            const float most = za::max(f.k.x, za::max(f.k.y, f.k.z));
+            const int code = za::clamp(static_cast<int>(za::ceil(sk * most * ENTSCALE_DEFAULT)), 1, 255);
+            ent->scale = static_cast<byte>(code);
+            stretches.pushBack({ent, f.k * (sk * ENTSCALE_DEFAULT / static_cast<float>(code))});
+            ent->syncbase = za::fmod(static_cast<float>(i) * 0.618f + static_cast<float>(k) * 0.37f, 1.f); // (not in step)
         }
-        glm::vec3 x = along - up * glm::dot(along, up);
-        if(glm::length(x) < 0.1f)
+    }
+    // Id's static wall torches (vr_walltorch 0) smoke too.
+    if(wallModel)
+    {
+        for(int i = 0; i < cl.num_statics; i++)
         {
-            x = glm::cross(glm::vec3{0.f, 1.f, 0.f}, up);
+            const entity_t& e = cl_static_entities[i];
+            if(e.model == wallModel)
+            {
+                wallSmoke(staticSmoke[i], glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, dt, eye);
+            }
         }
-        x = glm::normalize(x);
-        const glm::mat3 m{x, glm::cross(up, x), up};
-        const glm::vec3 o = base - up * (fireBase * s);
-        ent->origin[0] = o.x;
-        ent->origin[1] = o.y;
-        ent->origin[2] = o.z;
-        held::anglesFromAxes(m, ent->angles, false);
-        ent->model = model;
-        ent->scale = ENTSCALE_ENCODE(s);
-        ent->syncbase = za::fmod(static_cast<float>(i) * 0.618f, 1.f); // (the torches' flames not in step)
+    }
+    if(vr_walltorch_debug.value != 0.f && cl.time - smokePrinted >= 1.0)
+    {
+        Con_Printf("wtsmoke: %d puffs in %.1f s\n", smokePuffs, cl.time - smokePrinted);
+        smokePuffs = 0;
+        smokePrinted = cl.time;
     }
     if(any)
     {
@@ -543,8 +754,37 @@ bool walltorch::fire(int ent, glm::vec3& at, float& level)
         return false;
     }
     at = it->second.fire;
-    level = it->second.level;
+    level = it->second.light;
     return true;
+}
+
+bool walltorch::stretch(const entity_t* e, glm::vec3& k)
+{
+    if(stretches.empty() || !e || e->model != fireModel)
+    {
+        return false;
+    }
+    for(const Stretch& st : stretches)
+    {
+        if(st.e == e)
+        {
+            k = st.k;
+            return true;
+        }
+    }
+    return false;
+}
+
+unsigned walltorch::flameOnYou(int ent, glm::vec3& at, glm::vec3& out)
+{
+    const auto it = taken.find(ent);
+    if(it == taken.end() || host_framecount - it->second.touchFrame > 3)
+    {
+        return 0;
+    }
+    at = it->second.touch.at;
+    out = it->second.touch.out;
+    return it->second.touch.parts | (it->second.touch.deepest << 8);
 }
 
 bool walltorch::onWall(const entity_t& e)

@@ -64,6 +64,31 @@ void endView(hands::State& s, const Drawn& drawn);
 // is kept `radius` (world units) less a centimetre outside them.
 [[nodiscard]] float elbowSwing(const glm::vec3& shoulder, const glm::vec3& elbow, const glm::vec3& wrist, float radius);
 
+// What of the body a flame touches (vr_walltorch.cpp: a held torch's flame against you, vr_burn_self, vr_burn_drop).
+enum FlameTouchPart : unsigned
+{
+    TouchHoldHand = 1,  // the hand holding the torch
+    TouchOtherHand = 2, // the other hand
+    TouchHoldArm = 4,   // the holding hand's arm (upper arm, forearm)
+    TouchOtherArm = 8,  // the other arm
+    TouchBody = 16,     // the torso, the legs
+    TouchHead = 32      // the neck and head
+};
+struct FlameTouch
+{
+    unsigned parts{0};   // FlameTouchPart bits
+    unsigned deepest{0}; // the bit of the deepest contact but the holding hand's (0: only that one)
+    glm::vec3 at{0.f};  // the deepest contact but the holding hand's (that one if alone): on the body's surface
+    glm::vec3 out{0.f, 0.f, 1.f}; // the way out of the body there (towards the flame)
+};
+
+// The body's shapes are wanted next frame even with vr_body_collide off (built, not solved). Once per frame.
+void keepShapes();
+
+// The capsule a..b (radius r, world units) against this frame's body shapes (the hands' spheres, the arms, the torso,
+// head and legs, as vr_body_collide makes them; the tracked pose). `holdHand` (0 off, 1 main): the hand that holds it.
+[[nodiscard]] FlameTouch flameTouch(const glm::vec3& a, const glm::vec3& b, float r, int holdHand);
+
 // A new map: nothing pushed, nothing recorded.
 void reset();
 

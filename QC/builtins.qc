@@ -305,6 +305,11 @@ float(entity e, vector a, vector b, float radius) hitmodel_any = #0;
 // The point p on e's drawn model as it is on the model standing (its stand frame), at e's origin, turned with its yaw
 // (where positional damage's head sphere and regions are); p itself if e is no target.
 vector(entity e, vector p) hitmodel_rest = #0;
+// What of you the flame of torch t, held by you, touches (single player: the client's last frame; vr_burn_self,
+// vr_burn_drop on): 1 the holding hand, 2 the other hand, 4 the holding arm, 8 the other arm, 16 the torso or legs, 32
+// the head (bits), plus 256 times the deepest contact's bit (but the holding hand's); 0 nothing. trace_endpos: where (that
+// contact), on the body; trace_plane_normal: the way out of it.
+float(entity t) torchflametouch = #0;
 
 float(string s) cvar_hmake = #0;
 float(float h) cvar_hget = #0;

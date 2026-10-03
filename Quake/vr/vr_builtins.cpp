@@ -25,6 +25,7 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
+#include "vr_walltorch.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -333,6 +334,26 @@ void PF_woundevent()
         woundsSent.resize(static_cast<za::SizeT>(num) + 1, 0);
     }
     woundsSent[static_cast<za::SizeT>(num)] = 1;
+}
+
+// torchflametouch(t): what of you the flame of torch `t`, held by you, touches (single player: the client's last
+// frame; vr_walltorch.cpp walltorch::flameOnYou): bits 1 the hand holding it, 2 the other hand, 4 the holding arm, 8 the
+// other arm, 16 the torso or legs, 32 the head, and 256 times the deepest one's bit (but the holding hand's); 0 nothing
+// (or neither vr_burn_self nor vr_burn_drop on). trace_endpos:
+// where (the deepest contact but the holding hand's, that one if alone), on the body; trace_plane_normal: the way out.
+void PF_torchflametouch()
+{
+    glm::vec3 at{0.f}, out{0.f, 0.f, 1.f};
+    const unsigned parts = walltorch::flameOnYou(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), at, out);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(parts);
+    if(parts)
+    {
+        for(int i = 0; i < 3; i++)
+        {
+            pr_global_struct->trace_endpos[i] = at[i];
+            pr_global_struct->trace_plane_normal[i] = out[i];
+        }
+    }
 }
 
 // particle2(origin, direction, preset, count): unreliable, like vanilla particle().
@@ -1181,6 +1202,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_segment", PF_hitmodel_segment},
     {"hitmodel_any", PF_hitmodel_any},
     {"hitmodel_rest", PF_hitmodel_rest},
+    {"torchflametouch", PF_torchflametouch},
 };
 
 static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200,
