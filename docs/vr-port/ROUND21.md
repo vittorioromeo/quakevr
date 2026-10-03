@@ -22559,3 +22559,18 @@ had no consistent sign and are not reported.) Off, the shaders only test the fra
 - Level Spacing: Quake's even-in-light levels vs even in brightness, at 8 and 16 levels.
 - Lightmap Block 1 (software Quake) vs 16 (GLQuake nearest), with Retro Textures on.
 - Shadow Edges Blocky, Shadow Levels 1 and 2, Shadow Blocks 4 on your own shadow under the flashlight.
+## HQ texture pack as a PNG release (2026-10-03)
+
+His decision: ship the QRP map textures he plays with, so one extracted zip gives today's look. The 1054 `.tga` files of
+his Steam install (`id1` 727, `hipnotic` 129, `rogue` 198; 1.32 GB) are backed up byte-identical in
+`C:\OHWorkspace\quake-textures-tga-backup\<gamedir>\textures\`, converted to lossless `.png` (569 MB; staging copy in
+`C:\OHWorkspace\quake-textures-png\pack\`) and written next to the `.tga` files in his install (`Quake/image.c` tries
+`.png` first). The conversion decodes with the engine's own stb_image build: stb(png) equals stb(tga) as RGBA for every
+file (10 all-opaque RGBA files stored as RGB, the same RGBA). New console command `imagehash [filter]` (Debug > Save to
+Files > Texture Checksums): every loaded texture read back from the GPU and checksummed, to `imagehash.txt`, with an
+order-free sum in the console. TGA-only and PNG-only game folders gave identical `imagehash.txt` on e1m1 (796
+textures), e2m1 (795), hip1m1 (866) and r1m1 (723); id's own textures differ on 544 of e1m1's lines (the control).
+Eyeshots are no use for this: two runs of the same files differ by 1 in a few dozen pixels, and r1m1's monsters move.
+e1m1 load (exclusive, warm, prefetch list in place): TGA 920 / 962 ms (image decoding 234 ms), PNG 869 / 844 ms
+(218-224 ms). The zip (`id1`, `hipnotic`, `rogue` textures, `quakevr/textures_quetoo`, README/CREDITS/LICENSE notes)
+is the `textures-2026-10-03` release; docs: [TEXTURES.md](TEXTURES.md), pointers in README.md, INSTALL.md, CREDITS.md.

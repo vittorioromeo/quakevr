@@ -812,7 +812,7 @@ swings the main hand for throwing tests. `vr_mock_shake <degrees>` shakes the he
 4 mm a degree of position wobble) and `vr_mock_shake_turn <degrees/s>` turns it slowly under that, timed from when the
 shake starts (the same poses every run with `vr_fixed_frames 1`); `vr_window_log 1` prints the head's and the window
 camera's angles each frame (Smoothed Mirror, Spectator Camera: ROUND21.md, "Recording"). The window's `screenshot` is
-the window's view; `vr_eyeshot 1` the eyes'. `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
+the window's view; `vr_eyeshot 1` the eyes'. `imagehash [filter]` checksums every loaded texture as the GPU holds it (to `imagehash.txt`, the sum in the console): two runs loaded the same pixels when their sorted files match (eyeshots of identical content still differ by 1 in a few pixels between runs). `vr_particle_seed <n>` (not 0) makes the particles the same in every run (their random numbers restart from it at each map), for comparing images. `vr_mock_fingers <main|off> <trigger> <grip> [<thumb>]` sets the finger
 sensors (0..1); a fifth argument sets the index finger's touch on the trigger.
 Fast test runs (ROUND21.md, "Faster tests and startup"): `vr_mock_fast 1` runs the mock headset's frames as fast as
 the machine makes them while the game's clock is fixed (`vr_fixed_frames 1`; `vr_motion_play` and `vr_motion_eval`

@@ -181,7 +181,12 @@ its download links no longer deliver the files. Get them from the
 ModDB instead: `QuakeRevitalizationProject.7z` (1.26 GB), a complete compilation of every QRP release, mission packs
 included. A mirror will be available on [vittorioromeo.com](https://vittorioromeo.com).
 
-To install it:
+**The easy way:** download `quakevr-hq-textures-png-2026-10-03.zip` from the
+[HQ texture pack (PNG)](https://github.com/vittorioromeo/quakevr/releases/tag/textures-2026-10-03) release and extract
+it into your Quake folder. It is the author's installed QRP pack, converted losslessly to PNG, for Quake and both mission
+packs ([vr-port/TEXTURES.md](vr-port/TEXTURES.md): contents, credits, licence). Then see step 3 below.
+
+To install it from the QRP archive instead:
 
 1. Extract the archive with [7-Zip](https://www.7-zip.org/). You need the **map textures** packages:
    `QRP_map_textures_v.1.00.pk3` (Quake), `QRP_SoA_map_textures_add-on_v.1.00.pk3` (Scourge of Armagon) and the
