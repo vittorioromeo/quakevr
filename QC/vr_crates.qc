@@ -54,6 +54,10 @@ void() VR_Crates_Precache =
     precache_sound("vr/phys/wood_m2.wav");
     precache_sound("vr/phys/wood_m3.wav");
     precache_sound("vr/phys/wood_m4.wav");
+    precache_sound("vr/phys/metal_h1.wav"); // (an explosive box struck: VR_Metal_Sound)
+    precache_sound("vr/phys/metal_h2.wav");
+    precache_sound("vr/phys/metal_h3.wav");
+    precache_sound("vr/phys/metal_h4.wav");
     precache_model("maps/b_shell0.bsp");
     precache_model("maps/b_nail0.bsp");
     precache_model("maps/b_rock0.bsp");
@@ -75,12 +79,76 @@ float(entity e) VR_CratePiece_Is =
     return e.vr_cratekind == 3;
 };
 
-// Wood: a crate, a piece of one, an explosive box. Shot or struck, it throws splinters, not blood. Also one the blow has
-// just broken (VR_Crate_Break, VR_CratePiece_Burst clear vr_cratekind): blood often comes after the damage.
+void() barrel_explode; // (misc.qc)
+
+// Metal: an explosive box (misc_explobox, misc_explobox2; blowing up: explo_box). Shot or struck, it throws sparks, not
+// splinters or blood, and rings (VR_Metal_Hit); its knocks and scrapes are metal too (the engine's vr_physsound.cpp).
+float(entity e) VR_Prop_Metal =
+{
+    return e.th_die == barrel_explode || e.classname == "explo_box" || e.classname == "misc_explobox" ||
+           e.classname == "misc_explobox2";
+};
+
+// Wood: a crate, a piece of one (not an explosive box: metal, VR_Prop_Metal). Shot or struck, it throws splinters, not
+// blood. Also one the blow has just broken (VR_Crate_Break, VR_CratePiece_Burst clear vr_cratekind): blood often comes
+// after the damage.
 float(entity e) VR_Crate_Wooden =
 {
+    if(VR_Prop_Metal(e))
+    {
+        return FALSE;
+    }
     return e.vr_cratekind > 0 || e.vr_blocksight > 0 || e.classname == "vr_crate_broken" || e.classname == "vr_crate_piece" ||
            e.classname == "vr_crate_piece_gone";
+};
+
+// What a hit on metal sounds like (VR_Metal_Hit, VR_Melee_HitSoundOn): a shot's tink or ricochet, a blade's clang (the
+// axe's on a wall), a blunt blow's or a thrown thing's heavy metal knock (the physics sounds' metal_h, a 40 kg box's).
+float VR_METAL_SHOT = 0;
+float VR_METAL_BLADE = 1;
+float VR_METAL_BLUNT = 2;
+float vr_metal_soundtime; // a shot's ring once a frame (a shotgun's pellets, a nailgun's stream)
+string(float xHow) VR_Metal_Sound =
+{
+    float r = random();
+    if(xHow == VR_METAL_SHOT)
+    {
+        return r < 0.7 ? "weapons/tink1.wav" : (r < 0.8 ? "weapons/ric1.wav" : (r < 0.9 ? "weapons/ric2.wav" : "weapons/ric3.wav"));
+    }
+    if(xHow == VR_METAL_BLADE)
+    {
+        return "player/axhit2.wav";
+    }
+    return r < 0.25 ? "vr/phys/metal_h1.wav" : (r < 0.5 ? "vr/phys/metal_h2.wav" : (r < 0.75 ? "vr/phys/metal_h3.wav" : "vr/phys/metal_h4.wav"));
+};
+
+// Sparks where a shot or a blow hits metal (`damage`: how much; `dir` their way), and, a shot's (VR_METAL_SHOT), its
+// ring at what it hit (`targ`); a blow's sound is the blow's own (VR_Melee_HitSoundOn). `developer` logs both.
+void(entity targ, vector org, vector dir, float damage, float xHow) VR_Metal_Hit =
+{
+    particle2(org, dir, QVR_PARTICLE_PRESET_SPARKS, max(3, min(10, damage * 0.5)));
+    string s = "";
+    if(xHow == VR_METAL_SHOT && time > vr_metal_soundtime)
+    {
+        vr_metal_soundtime = time;
+        s = VR_Metal_Sound(xHow);
+        sound(targ, CHAN_AUTO, s, 0.8, ATTN_NORM);
+    }
+    dprint(sprintf("hit: %s is metal: sparks at %v%s%s\n", targ.classname, org, s != "" ? ", sound " : "", s));
+};
+
+// VR_Melee_HitSound (vr_melee.qc) for a blow on `xTarg`: on metal (an explosive box), a blade's (`xBlade`) clang or a
+// blunt blow's (a pommel, a gun's butt, a fist, a club) metal knock; else the blow's own `xSound`.
+string(entity xTarg, string xSound, float xBlade) VR_Melee_HitSoundOn =
+{
+    if(VR_Prop_Metal(xTarg))
+    {
+        float blade = xBlade && !vr_melee_blunt;
+        string s = VR_Metal_Sound(blade ? VR_METAL_BLADE : VR_METAL_BLUNT);
+        dprint(sprintf("melee sound: %s on metal (%s)\n", s, xTarg.classname));
+        return s;
+    }
+    return VR_Melee_HitSound(xSound);
 };
 
 // Splinters and a puff of dust where a shot or a blow hits wood (`damage`: how much).
@@ -107,6 +175,11 @@ void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
         VR_GrenShot_Sparks(org);
         return;
     }
+    if(VR_Prop_Metal(targ))
+    {
+        VR_Metal_Hit(targ, org, vel * 0.2, damage, VR_METAL_BLUNT);
+        return;
+    }
     if(VR_Crate_Wooden(targ))
     {
         dprint(sprintf("hit: %s is wood: splinters at %v\n", targ.classname, org));
@@ -122,6 +195,11 @@ void(entity targ, vector org, float damage) VR_HitBloodSplash =
     if(targ.vr_shootnade)
     {
         VR_GrenShot_Sparks(org);
+        return;
+    }
+    if(VR_Prop_Metal(targ))
+    {
+        VR_Metal_Hit(targ, org, [crandom() * 60, crandom() * 60, random() * 40 + 30], damage, VR_METAL_BLUNT);
         return;
     }
     if(VR_Crate_Wooden(targ))
@@ -200,7 +278,9 @@ void(float xSpeed) VR_SolidProp_Impact =
             float dmg = VR_Thrown_Damage(self, speed);
             dprint(sprintf("%s: thrown into %s at %.1f u/s (%.1f m/s against it): %.1f\n", self.classname, other.classname,
                 speed, xSpeed, dmg));
-            sound(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
+            // (An explosive box thrown, or one struck: a metal knock.)
+            float metal = VR_Prop_Metal(self) || VR_Prop_Metal(other);
+            sound(self, CHAN_AUTO, metal ? VR_Metal_Sound(VR_METAL_BLUNT) : "fisthit.wav", 1, ATTN_NORM);
             if(VR_Crate_Wooden(other))
             {
                 VR_Crate_Splinters(self.origin, self.velocity, dmg);

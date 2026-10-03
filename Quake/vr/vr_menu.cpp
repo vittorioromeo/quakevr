@@ -2066,6 +2066,8 @@ void hologramTestMessage()
         toggle("Axes Stick", vr_axestick)
             .help("A thrown axe that strikes blade first sticks in walls, doors, props and monsters (it moves with them). "
                   "Grip it, or force grab it (it tugs, then comes free), to pull it out. Off: it bounces off."),
+        toggle("Axes Stick in Explosive Boxes", vr_axestick_metal)
+            .help("A thrown axe sticks in an explosive box too. Off: it rings off it, as the boxes are metal drums."),
         slider("Bleeding", vr_axestick_bleed, 0.f, 20.f, 0.5f, "%.1f health/s").extend(0.f, 100.f)
             .help("Health a second a monster loses while an axe is stuck in it (your damage). It falls out when the "
                   "monster dies."),

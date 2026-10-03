@@ -13,8 +13,8 @@ namespace qvr::physsound
 enum class Material : uint8_t
 {
     None,  // silent here (a grenade: its own bounce, QC vr_grenade.qc)
-    Wood,  // crates, explosive and health boxes, wall torches
-    Metal, // weapons, ammo boxes, armour, keys, the flashlight, other pickups
+    Wood,  // crates and their pieces, wall torches
+    Metal, // weapons, ammo, health and explosive boxes, armour, keys, the flashlight, other pickups
     Stone, // rocks (vr_debris.cpp)
     Brick, // bricks
     Soft,  // backpacks

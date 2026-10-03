@@ -160,6 +160,7 @@ QVR_CVAR(vr_axestick_leniency, "1", CVAR_ARCHIVE)   // 0..2: how much of the bla
 QVR_CVAR(vr_axestick_depth, "5", CVAR_ARCHIVE)       // cm the edge goes in at twice the least speed (half as deep at it; at most 60% of the blade)
 QVR_CVAR(vr_axestick_bleed, "5", CVAR_ARCHIVE)       // health a second a monster an axe is stuck in loses (0: none), the thrower's damage
 QVR_CVAR(vr_axestick_tug, "0.3", CVAR_ARCHIVE)       // seconds a force grab tugs a stuck axe before it comes free
+QVR_CVAR(vr_axestick_metal, "0", CVAR_ARCHIVE)     // 1: thrown axes stick in the explosive boxes too; 0: they bounce off them (metal drums)
 // Aim assist (QC; on, the author's values, NOTES.md vrfiringrange_2026-09-30_11-25-52): bends a throw by up to vr_throw_assist_strength onto a monster or
 // breakable within vr_throw_assist_cone degrees of it (fully within vr_throw_assist_full), in
 // range and in sight, on a ballistic arc, allowing vr_throw_assist_speed more speed.
