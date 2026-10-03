@@ -792,6 +792,19 @@ bool walltorch::onWall(const entity_t& e)
     return e.model && e.model == stickModel && e.frame == wallFrame;
 }
 
+void walltorch::prepare()
+{
+    for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
+    {
+        const char* name = cl.model_precache[i]->name;
+        if(!strcmp(name, stickModelName) || !strcmp(name, wallModelName))
+        {
+            (void)::fire(); // (the flame model, not walltorch::fire)
+            return;
+        }
+    }
+}
+
 void walltorch::onGameDirChanged()
 {
     forget();

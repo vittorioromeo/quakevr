@@ -40,6 +40,9 @@ namespace qvr::walltorch
 
 // The game directory changed: the models' slots are reused.
 void onGameDirChanged();
+// The map's load (VR_NewMap's prewarm): the flame's model made now if the map has torches (drawn from the first frame:
+// it was made then, a hitch of up to 15 ms just after the load).
+void prepare();
 
 // Server, after a saved game is loaded (VR_OnLoadGame): the map's wall torches that the save doesn't have (a save made
 // while they were static entities, before this change, or with vr_walltorch 0) are spawned again.

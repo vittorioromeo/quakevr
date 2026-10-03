@@ -437,6 +437,10 @@ void view::prepareModels()
     {
         names.pushBack("progs/legholster.mdl");
     }
+    if(body::pouchEnabled())
+    {
+        names.pushBack("progs/vrpouch.mdl"); // (setupPouch)
+    }
     for(const char* name : names)
     {
         (void)Mod_ForName(name, false);

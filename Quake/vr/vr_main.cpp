@@ -48,6 +48,7 @@
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
+#include "vr_walltorch.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_detail.hpp"
 #include "vr_extmaps.hpp"
@@ -1118,6 +1119,7 @@ extern "C" void VR_NewMap()
     step("torch", flashlight::prepare);
     step("casings", shells::prepare);
     step("muzzle flash", weaponfx::prepare);
+    step("wall torches", walltorch::prepare);
     Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.cStr());
 
     countGlForLog(); // the memory log's GL objects, in the load (12-13 ms)
