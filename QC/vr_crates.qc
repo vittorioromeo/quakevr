@@ -9,7 +9,9 @@
 // make_crates.py), rigid bodies that don't block you (SOLID_NOT_BUT_TOUCHABLE: pushed aside by your body, carried,
 // thrown, force grabbed), and each piece bursts into wood dust when hit (VR_CratePiece_Burst). At most vr_crate_piece_max
 // lie about (the oldest go to dust first); each fades away after vr_crate_piece_time. It may hold a small box of ammo for
-// a weapon you have (vr_crate_ammo) or a small health box (vr_crate_health_box).
+// a weapon you have (vr_crate_ammo) or a small health box (vr_crate_health_box). Burning (vr_burning.qc): a crate burnt
+// through breaks into charred pieces (skin VR_PIECE_SKIN_CHARRED) that don't burn; a smashed crate's pieces burn as
+// crates do, then burn away (VR_CratePiece_BurnAway).
 //
 // A crowbar may lie on a crate's top (vr_crate_crowbar, at most vr_crate_crowbar_max a map; the top of a stack): the
 // engine rolls which and where with the layout (deterministic), VR_Crowbar_OnCrate (vr_crowbar.qc) lays it there.
@@ -22,6 +24,15 @@ float vr_crate_piecesoundtime; // a piece's dust sounds once a frame (an explosi
 float VR_THROWN_BOX_TIME = 2;  // s: how long a thrown solid prop (a crate, an explosive box) may hurt what it meets
 
 void(entity xCrate, float i) VR_Crowbar_OnCrate; // (vr_crowbar.qc)
+
+// Burning (vr_burning.qc): a crate burnt through breaks into charred pieces, one broken while burning into burning ones;
+// a piece set on fire by a hit isn't burst by it; a lit torch's swing sets a piece on fire instead of bursting it.
+.float vr_charred;       // a piece of a crate burnt through (or half burnt itself): its charred skin; it burns no more
+.float vr_burnt_through; // a crate breaking because it has burnt its time (its pieces charred)
+float VR_PIECE_SKIN_CHARRED = 3; // the pieces' charred skin (make_crates.py)
+void(entity xCrate, entity xPiece) VR_Burn_NewPiece;
+float(entity xPiece) VR_Burn_JustLit;
+float(entity xPlayer, float xHand, entity xPiece) VR_Burn_PieceStruck;
 
 // The models (make_crates.py) and sounds (make_crate_sounds.py; the physics sounds' wood knocks); always precached (a
 // saved game may hold crates whatever the settings now), and what a crate may hold (the small ammo and health boxes).
@@ -56,6 +67,12 @@ void() VR_Crates_Precache =
 float(entity e) VR_Crate_Is =
 {
     return e.vr_cratekind == 1 || e.vr_cratekind == 2;
+};
+
+// A piece of a crate (not one gone to dust).
+float(entity e) VR_CratePiece_Is =
+{
+    return e.vr_cratekind == 3;
 };
 
 // Wood: a crate, a piece of one, an explosive box. Shot or struck, it throws splinters, not blood. Also one the blow has
@@ -323,17 +340,9 @@ vector(vector xSrc, vector xDir, entity xEnemy) VR_Crate_ShotAim =
 // ----------------------------------------------------------------------------
 // Pieces
 
-// Gone: bursts into a cloud of wood dust, with a crumble (once a frame).
-void(entity xPiece, vector xDir) VR_CratePiece_Burst =
+// Gone (burst, burnt away): nothing left of it, removed the next frame.
+void(entity xPiece) VR_CratePiece_Gone =
 {
-    vector org = (xPiece.absmin + xPiece.absmax) * 0.5;
-    dprint(sprintf("crate: a piece bursts at %v\n", org));
-    particle2(org, xDir, QVR_PARTICLE_PRESET_WOODDUST, 10);
-    if(vr_crate_piecesoundtime != time)
-    {
-        vr_crate_piecesoundtime = time;
-        sound(xPiece, CHAN_AUTO, random() < 0.5 ? "vr/crate_dust1.wav" : "vr/crate_dust2.wav", 0.7, ATTN_NORM);
-    }
     VR_Carry_Forget(xPiece);
     // Removed the next frame, not now: what struck it may still use it this frame.
     xPiece.takedamage = DAMAGE_NO;
@@ -356,12 +365,45 @@ void(entity xPiece, vector xDir) VR_CratePiece_Burst =
     xPiece.nextthink = time + 0.1;
 };
 
+// Gone: bursts into a cloud of wood dust, with a crumble (once a frame).
+void(entity xPiece, vector xDir) VR_CratePiece_Burst =
+{
+    vector org = (xPiece.absmin + xPiece.absmax) * 0.5;
+    dprint(sprintf("crate: a piece bursts at %v\n", org));
+    particle2(org, xDir, QVR_PARTICLE_PRESET_WOODDUST, 10);
+    if(vr_crate_piecesoundtime != time)
+    {
+        vr_crate_piecesoundtime = time;
+        sound(xPiece, CHAN_AUTO, random() < 0.5 ? "vr/crate_dust1.wav" : "vr/crate_dust2.wav", 0.7, ATTN_NORM);
+    }
+    VR_CratePiece_Gone(xPiece);
+};
+
+// Burnt away (it has burnt its time: vr_burn_piece_time): a last puff of embers and smoke, a soft crumble.
+void(entity xPiece) VR_CratePiece_BurnAway =
+{
+    vector org = (xPiece.absmin + xPiece.absmax) * 0.5;
+    dprint(sprintf("crate: a piece burns away at %v\n", org));
+    particle2(org, '0 0 50', QVR_PARTICLE_PRESET_LAVASPIKE, 14);
+    particle2(org, '0 0 25', QVR_PARTICLE_PRESET_SMOKE, 4);
+    if(vr_crate_piecesoundtime != time)
+    {
+        vr_crate_piecesoundtime = time;
+        sound(xPiece, CHAN_AUTO, random() < 0.5 ? "vr/crate_dust1.wav" : "vr/crate_dust2.wav", 0.35, ATTN_NORM);
+    }
+    VR_CratePiece_Gone(xPiece);
+};
+
 // Its damage, from T_Damage (instead of Quake's): any hit bursts it. Held, it takes none.
 float(entity targ, entity inflictor, entity attacker, float damage) VR_CratePiece_Damage =
 {
     if(targ.carry_player != world || damage <= 0 || !targ.takedamage)
     {
         return FALSE;
+    }
+    if(VR_Burn_JustLit(targ))
+    {
+        return TRUE; // set on fire by this very hit (a lava nail, a thrown torch): it burns, it doesn't burst
     }
     vector dir = '0 0 0';
     if(inflictor != world && inflictor != targ)
@@ -386,6 +428,10 @@ void(entity xPlayer, float xHand, entity xPiece) VR_CratePiece_Struck =
        (xPiece.carry_letgo == xPlayer && time < xPiece.carry_letgo_time + 0.4))
     {
         return;
+    }
+    if(VR_Burn_PieceStruck(xPlayer, xHand, xPiece))
+    {
+        return; // a lit torch's swing: set on fire
     }
     T_Damage(xPiece, xPlayer, xPlayer, 5);
 };
@@ -507,6 +553,7 @@ void(entity crate, vector mid, vector dir) VR_Crate_Pieces =
         p.velocity = away * (60 + random() * 120) + '0 0 1' * (40 + random() * 100) + dir * 120;
         p.vr_spin = '1 0 0' * crandom() * 9 + '0 1 0' * crandom() * 9 + '0 0 1' * crandom() * 9;
         VR_CratePiece_Setup(p);
+        VR_Burn_NewPiece(crate, p); // burnt through: charred; broken while burning: on fire
     }
 };
 

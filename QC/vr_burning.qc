@@ -9,12 +9,15 @@
 // vr_corpse_gib's health). Burns are painted under every flame as it burns (the wounds' QVR_WOUND_BURN, no wound under
 // them: extra 1). The flames sit on the model as drawn (hitmodel_any), fitted again a few times a second as it moves,
 // dies and falls. Out when its time is up (the flames shrink away), in water, gibbed or gone.
+// Wood (VR_Burn_Wood: a crate, a piece of one) burns its time without damage and breaks (a crate: charred pieces) or
+// burns away (a piece), setting the wood near it on fire; an explosive box is metal (VR_Burn_Metal): it never catches.
 // `vr_burn_test <n>` (Debug > Burning Tests): 1 a torch's blow, 2 a lava nail, 3 a touch, on the nearest monster or
 // corpse; `developer 1` prints `burning: ...`.
 
 // On what burns:
 .entity burn_fire;        // its fire (a vr_burn): world, not burning
 .float burn_add_next;     // when a hit can next add a flame
+.float burn_lit;          // when it was last set on fire (a piece lit by a hit isn't burst by it: VR_Burn_JustLit)
 // On a vr_burn (enemy: what burns; owner: who lit it):
 .entity burn_flames;      // its flames (a chain through burn_next; the first is lit, the rest cast no light)
 .entity burn_next;
@@ -25,7 +28,8 @@
 .float burn_fit_next;     // when its flames are next fitted to the body
 .float burn_model;        // the body's modelindex when lit (gibbed: another)
 .float burn_dead;         // the body was dead at the last fit
-.float burn_catch_next;   // a crate's fire: when it next sets the crates touching it on fire
+.float burn_catch_next;   // wood's fire: when it next sets the crates and pieces touching it on fire
+.float burn_char_at;      // a piece's fire: when the piece is charred (half its time)
 // On a flame (owner: its fire):
 .vector burn_off;         // where on the body: from its origin, in its yaw's axes
 .float burn_size;         // its full scale
@@ -39,7 +43,8 @@ float VR_BURN_TICK = 0.5;    // s between its damages
 float VR_BURN_BLOW = 0;      // how it was lit (VR_Burn_Ignite): a blow (a mark where it struck),
 float VR_BURN_TOUCH = 1;     // a touch (no mark but its flame's),
 float VR_BURN_NAIL = 2;      // a missile (its own hit marks it)
-float VR_BURN_SPREAD = 3;    // a burning crate touching it (vr_burn_crate_spread)
+float VR_BURN_SPREAD = 3;    // burning wood touching it (vr_burn_crate_spread)
+float VR_BURN_SCATTER = 4;   // a piece of a crate broken while burning (no sound: they come many at once)
 
 // What fire doesn't hurt (VR_Liquid_Immune's: what lives in lava or water, the bosses), but the training dummy burns.
 float(entity e) VR_Burn_Fireproof =
@@ -47,17 +52,36 @@ float(entity e) VR_Burn_Fireproof =
     return e.classname != "vr_dummy" && VR_Liquid_Immune(e);
 };
 
+// Wood that burns as a crate does (its flames on its box, turned with it; no damage: it burns its time and breaks or
+// burns away): a crate, a piece of one.
+float(entity e) VR_Burn_Wood =
+{
+    return VR_Crate_Is(e) || VR_CratePiece_Is(e);
+};
+
+// An explosive box (misc_explobox, misc_explobox2; blowing up: explo_box): metal.
+float(entity e) VR_Burn_Metal =
+{
+    return e.th_die == barrel_explode || e.classname == "explo_box" || e.classname == "misc_explobox" ||
+           e.classname == "misc_explobox2";
+};
+
 // Whether `e` can be set on fire: a monster or a player alive, a monster's corpse (dying or lying: vr_corpse_gib), a
-// wooden crate (vr_burn_crates).
+// wooden crate (vr_burn_crates), a piece of one not charred (vr_burn_pieces). Never an explosive box: it is metal
+// (NOTES.md vrfiringrange_2026-10-03_02-29-24); nothing burning sets one off.
 float(entity e) VR_Burn_Can =
 {
-    if(e == world || !e.modelindex || e.vr_gib || VR_Burn_Fireproof(e))
+    if(e == world || !e.modelindex || e.vr_gib || VR_Burn_Fireproof(e) || VR_Burn_Metal(e))
     {
         return FALSE;
     }
     if(VR_Crate_Is(e))
     {
         return cvar_hget(cvarh_vr_burn_crates) != 0;
+    }
+    if(VR_CratePiece_Is(e))
+    {
+        return cvar_hget(cvarh_vr_burn_pieces) != 0 && !e.vr_charred;
     }
     if(e.health > 0)
     {
@@ -70,7 +94,7 @@ float(entity e) VR_Burn_Can =
 // its model's own axes (it tips and rolls: its flames go with it).
 vector(entity v, vector p) VR_Burn_ToLocal =
 {
-    if(VR_Crate_Is(v))
+    if(VR_Burn_Wood(v))
     {
         vector cd = p - v.origin;
         vector ax = modelpoint(v, v.angles, '1 0 0');
@@ -93,7 +117,7 @@ vector(entity v, vector p) VR_Burn_ToLocal =
 
 vector(entity v, vector o) VR_Burn_ToWorld =
 {
-    if(VR_Crate_Is(v))
+    if(VR_Burn_Wood(v))
     {
         return v.origin + modelpoint(v, v.angles, o);
     }
@@ -154,7 +178,7 @@ float vr_burn_onbody;
 vector(entity v, vector p) VR_Burn_OnBody =
 {
     vector mc = modelcentre(v);
-    float above = v.health <= 0;
+    float above = v.health <= 0 || VR_CratePiece_Is(v); // (a piece: a board lying, its flames on its top)
     if(VR_Crate_Is(v) && p_z > mc_z)
     {
         // Its top, unless something lies on it (a crate stacked on it: the flames would be under it).
@@ -189,7 +213,7 @@ vector(entity v, vector p) VR_Burn_OnBody =
             }
             a = b + normalize(d) * 64;
         }
-        if(VR_Crate_Is(v))
+        if(VR_Burn_Wood(v))
         {
             f = VR_Burn_CrateCast(v, a, b);
         }
@@ -218,13 +242,13 @@ vector(entity v, vector p) VR_Burn_OnBody =
 // A burn painted under a flame (no wound: extra 1), met from outside the body.
 void(entity v, vector at, float xAmount) VR_Burn_Scorch =
 {
-    if(!VR_Wound_Takes(v) && !VR_Crate_Is(v))
+    if(!VR_Wound_Takes(v) && !VR_Burn_Wood(v))
     {
         return;
     }
     vector mid = (v.absmin + v.absmax) * 0.5;
     vector out = at - mid;
-    if(v.health <= 0 || (VR_Crate_Is(v) && at_z > mid_z + 4))
+    if(v.health <= 0 || (VR_Burn_Wood(v) && at_z > mid_z + 4))
     {
         out = '0 0 1'; // lying, a crate's top: from above
     }
@@ -252,6 +276,10 @@ void(entity xFire, vector at, float xMain) VR_Burn_AddFlame =
     if(VR_Crate_Is(v))
     {
         size = size * max(0.05, cvar_hget(cvarh_vr_burn_crate_flame_size)); // (a crate is bigger than a grunt's body)
+    }
+    else if(VR_CratePiece_Is(v))
+    {
+        size = size * max(0.05, cvar_hget(cvarh_vr_burn_piece_flame_size)); // (a board: smaller)
     }
     if(!xMain)
     {
@@ -304,7 +332,7 @@ void(entity xFire) VR_Burn_Spread =
         vector p = from.origin;
         p_x = p_x + cos(a) * r;
         p_y = p_y + sin(a) * r;
-        if(v.health > 0)
+        if(v.health > 0 && !VR_CratePiece_Is(v)) // (a piece's: on its top)
         {
             p_z = p_z + (random() * 16 - 6); // (fire climbs)
             p_z = min(v.absmax_z - 4, max(v.absmin_z + (v.absmax_z - v.absmin_z) * 0.2, p_z));
@@ -339,21 +367,23 @@ void(entity xFire, string xWhy) VR_Burn_Out =
     remove(xFire);
 };
 
-// A burning crate, every 0.5 s once it has burnt vr_burn_crate_spread s: the crates touching it (their boxes within
-// vr_burn_crate_gap units) catch fire, where they are nearest it.
+// Burning wood (a crate, a piece), every 0.5 s once it has burnt vr_burn_crate_spread s: the crates and pieces touching it
+// catch fire, where they are nearest it: two crates' boxes within vr_burn_crate_gap units, a piece and a crate or another
+// piece within vr_burn_piece_gap (pieces lie about: near, not touching).
 void(entity xFire) VR_Burn_CrateCatch =
 {
     entity v = xFire.enemy;
-    float gap = max(0, cvar_hget(cvarh_vr_burn_crate_gap));
     if(cvar_hget(cvarh_vr_burn_crate_spread) <= 0)
     {
         return;
     }
+    float vpiece = VR_CratePiece_Is(v);
     vector mid = (v.absmin + v.absmax) * 0.5;
     entity e = findradius(mid, 128);
     while(e)
     {
-        if(e != v && VR_Crate_Is(e) && e.burn_fire == world && VR_Burn_Can(e) &&
+        float gap = max(0, cvar_hget((vpiece || VR_CratePiece_Is(e)) ? cvarh_vr_burn_piece_gap : cvarh_vr_burn_crate_gap));
+        if(e != v && VR_Burn_Wood(e) && e.burn_fire == world && VR_Burn_Can(e) &&
            e.absmin_x <= v.absmax_x + gap && e.absmax_x >= v.absmin_x - gap &&
            e.absmin_y <= v.absmax_y + gap && e.absmax_y >= v.absmin_y - gap &&
            e.absmin_z <= v.absmax_z + gap && e.absmax_z >= v.absmin_z - gap)
@@ -408,9 +438,26 @@ void() VR_Burn_Think =
         dprint(sprintf("burning: %s burnt through: it breaks\n", v.classname));
         entity fire = self;
         VR_Burn_Out(fire, "broke");
+        v.vr_burnt_through = TRUE; // (its pieces charred: VR_Burn_NewPiece)
         T_Damage(v, world, world, v.health + 1000); // (as from nowhere: its pieces fall where they are)
         return;
     }
+    float piece = VR_CratePiece_Is(v);
+    if(piece && !v.vr_charred && time >= self.burn_char_at)
+    {
+        v.skin = VR_PIECE_SKIN_CHARRED; // half burnt: charred under its flames (it burns no more once out)
+        v.vr_charred = TRUE;
+        dprint(sprintf("burning: %s charred\n", v.classname));
+    }
+    if(piece && time >= self.burn_end)
+    {
+        // Burnt away: gone in a puff of embers (VR_CratePiece_BurnAway).
+        entity pfire = self;
+        VR_Burn_Out(pfire, "burnt away");
+        VR_CratePiece_BurnAway(v);
+        return;
+    }
+    float wood = crate || piece;
     if(time >= self.burn_end + VR_BURN_FADE)
     {
         VR_Burn_Out(self, "burnt out");
@@ -420,7 +467,7 @@ void() VR_Burn_Think =
 
     // Fitted to the body (it moves, dies, falls): each flame onto the model again where it is. A crate's stay where they
     // are on it (it is rigid: they turn with it).
-    float fit = !crate && (time >= self.burn_fit_next || dead != self.burn_dead);
+    float fit = !wood && (time >= self.burn_fit_next || dead != self.burn_dead);
     self.burn_dead = dead;
     if(fit)
     {
@@ -450,7 +497,7 @@ void() VR_Burn_Think =
     {
         return; // (shrinking away: no more spreading or damage)
     }
-    if(crate && time >= self.burn_catch_next)
+    if(wood && time >= self.burn_catch_next)
     {
         self.burn_catch_next = time + 0.5;
         VR_Burn_CrateCatch(self);
@@ -458,8 +505,8 @@ void() VR_Burn_Think =
     if(time >= self.burn_spread_next)
     {
         self.burn_spread_next = time + max(0.05, cvar_hget(cvarh_vr_burn_spread));
-        if(self.burn_count < min(cvar_hget(crate ? cvarh_vr_burn_crate_flames : cvarh_vr_burn_flames),
-                                 cvar_hget(cvarh_vr_burn_flames_max)))
+        float most = cvar_hget(crate ? cvarh_vr_burn_crate_flames : (piece ? cvarh_vr_burn_piece_flames : cvarh_vr_burn_flames));
+        if(self.burn_count < min(most, cvar_hget(cvarh_vr_burn_flames_max)))
         {
             VR_Burn_Spread(self);
         }
@@ -474,9 +521,9 @@ void() VR_Burn_Think =
     {
         dmg = dmg * cvar_hget(cvarh_vr_burn_corpse_damage);
     }
-    if(crate)
+    if(wood)
     {
-        dmg = 0; // (it burns through: it breaks at its time's end)
+        dmg = 0; // (it burns through: it breaks or burns away at its time's end)
     }
     fl = self.burn_flames;
     while(fl != world)
@@ -508,13 +555,14 @@ void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_B
         return;
     }
     float crate = VR_Crate_Is(xVictim);
+    float wood = VR_Burn_Wood(xVictim);
     float dead = xVictim.health <= 0;
     float len = cvar_hget(dead ? cvarh_vr_burn_corpse_time : cvarh_vr_burn_time);
-    if(crate)
+    if(wood)
     {
-        len = cvar_hget(cvarh_vr_burn_crate_time);
+        len = cvar_hget(crate ? cvarh_vr_burn_crate_time : cvarh_vr_burn_piece_time);
     }
-    if(len <= 0 || (!dead && !crate && cvar_hget(cvarh_vr_burn_damage) <= 0))
+    if(len <= 0 || (!dead && !wood && cvar_hget(cvarh_vr_burn_damage) <= 0))
     {
         return;
     }
@@ -524,7 +572,7 @@ void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_B
     }
     if(xHow == VR_BURN_BLOW && !dead)
     {
-        woundevent(xVictim, xAt, normalize(xDir), QVR_WOUND_BURN, 14, crate); // scorched where the head struck (wood: no wound)
+        woundevent(xVictim, xAt, normalize(xDir), QVR_WOUND_BURN, 14, wood); // scorched where the head struck (wood: no wound)
     }
     entity f = xVictim.burn_fire;
     float fresh = f == world || f.classname != "vr_burn" || f.enemy != xVictim;
@@ -544,7 +592,11 @@ void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_B
         f.nextthink = time;
         setorigin(f, xVictim.origin);
         xVictim.burn_fire = f;
-        sound(xVictim, CHAN_AUTO, "vr/torch_light.wav", 0.6, ATTN_NORM);
+        f.burn_char_at = time + len * 0.5;
+        if(xHow != VR_BURN_SCATTER)
+        {
+            sound(xVictim, CHAN_AUTO, "vr/torch_light.wav", 0.6, ATTN_NORM);
+        }
         VR_Burn_AddFlame(f, xAt, TRUE);
         xVictim.burn_add_next = time + VR_BURN_ADD_GAP;
     }
@@ -556,9 +608,10 @@ void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_B
         xVictim.burn_add_next = time + VR_BURN_ADD_GAP;
     }
     f.owner = xAttacker;
-    if(!crate || fresh)
+    xVictim.burn_lit = time;
+    if(!wood || fresh)
     {
-        f.burn_end = max(f.burn_end, time + len); // (never longer than one lighting's time from the last; a crate's: its first)
+        f.burn_end = max(f.burn_end, time + len); // (never longer than one lighting's time from the last; wood's: its first)
     }
     string how = "a missile";
     if(xHow == VR_BURN_BLOW)
@@ -571,10 +624,52 @@ void(entity xVictim, entity xAttacker, vector xAt, vector xDir, float xHow) VR_B
     }
     else if(xHow == VR_BURN_SPREAD)
     {
-        how = "a burning crate";
+        how = "burning wood";
+    }
+    else if(xHow == VR_BURN_SCATTER)
+    {
+        how = "its crate broke burning";
     }
     dprint(sprintf("burning: %s lit (%s) by %s: burns till %.1f, %g flames\n", xVictim.classname, how,
                    xAttacker.classname, f.burn_end, f.burn_count));
+};
+
+// Whether piece `xPiece` was set on fire this frame (VR_CratePiece_Damage: a lava nail, a thrown lit torch, a torch's
+// blow set it on fire just before their damage; it burns, it doesn't burst).
+float(entity xPiece) VR_Burn_JustLit =
+{
+    return xPiece.burn_lit == time && xPiece.burn_fire != world;
+};
+
+// A piece just made of crate `xCrate` (VR_Crate_Pieces; NOTES.md vrfiringrange_2026-10-03_02-04-39): the crate burnt
+// through (VR_Burn_Think), it is charred (its charred skin; it burns no more: vr_burn_crate_char); broken while burning
+// (a blow, a shot), it burns on (vr_burn_pieces). Broken any other way, it is plain wood: it catches fire as a crate does.
+void(entity xCrate, entity xPiece) VR_Burn_NewPiece =
+{
+    if(xCrate.vr_burnt_through && cvar_hget(cvarh_vr_burn_crate_char))
+    {
+        xPiece.skin = VR_PIECE_SKIN_CHARRED;
+        xPiece.vr_charred = TRUE;
+        return;
+    }
+    entity f = xCrate.burn_fire;
+    if(f != world && f.classname == "vr_burn" && f.enemy == xCrate)
+    {
+        VR_Burn_Ignite(xPiece, f.owner, (xPiece.absmin + xPiece.absmax) * 0.5 + '0 0 4', '0 0 -1', VR_BURN_SCATTER);
+    }
+};
+
+// A piece struck by a hand at a swing's speed (VR_CratePiece_Struck): a lit torch in it sets the piece on fire instead
+// of bursting it (TRUE). A charred one bursts.
+float(entity xPlayer, float xHand, entity xPiece) VR_Burn_PieceStruck =
+{
+    entity t = VR_Carry_Held(xPlayer, xHand);
+    if(t == world || !VR_WallTorch_IsTorch(t) || t.wt_state != 1 || t.wt_fire <= 0 || !VR_Burn_Can(xPiece))
+    {
+        return FALSE;
+    }
+    VR_Burn_Ignite(xPiece, xPlayer, (xPiece.absmin + xPiece.absmax) * 0.5, VRGetEntHandVel(xPlayer, xHand), VR_BURN_BLOW);
+    return xPiece.burn_fire != world;
 };
 
 // A lava nail struck `other` (lavaspike_touch, superlavaspike_touch; self the nail): yours set it on fire.
@@ -595,7 +690,7 @@ float(entity e, vector xHead) VR_Burn_Touches =
     {
         return FALSE;
     }
-    if(VR_Crate_Is(e))
+    if(VR_Burn_Wood(e))
     {
         // A crate's box, turned with it (VR_Burn_CrateCast).
         vector l = VR_Burn_ToLocal(e, xHead);
@@ -727,10 +822,86 @@ void() VR_Burn_NailFrame =
 };
 
 // ----------------------------------------------------------------------------
-// Tests (vr_burn_test, Debug > Burning Tests): set on fire the monster or corpse nearest the player, as a torch's
-// blow (1), a lava nail (2) or a touch (3) would, at the point on it facing the player; 4: how it burns (the console);
-// 5: lava nails loaded in the main hand's nailgun; 6: a nail shot through the flame of the lit torch nearest the player
-// (from 48 units before it, along the player's line to it); 7: where that flame is (the console).
+// Tests (vr_burn_test, Debug > Burning Tests): set on fire the monster, corpse, crate, crate's piece or explosive box
+// nearest the player (an explosive box never catches: "can't burn"), as a torch's blow (1), a lava nail (2) or a touch
+// (3) would, at the point on it facing the player; 4: how it burns (the console); 5: lava nails loaded in the main
+// hand's nailgun; 6: a nail shot through the flame of the lit torch nearest the player (from 48 units before it, along
+// the player's line to it); 7: where that flame is (the console); 8: the nearest crate smashed (as by your blow: plain
+// pieces); 9: the nearest crate burnt through now (lit if it isn't: charred pieces); 10: the pieces lying about (the
+// console: how many, charred, burning); 11: a lava nail of yours at the nearest piece (from above it).
+
+// Test 10: the pieces lying about.
+void() VR_Burn_TestPieces =
+{
+    float n = 0;
+    float charred = 0;
+    float burning = 0;
+    float near = 0; // pieces with another piece or a crate within Pieces Catch Within (their boxes)
+    float gap = max(0, cvar_hget(cvarh_vr_burn_piece_gap));
+    entity e = find(world, classname, "vr_crate_piece");
+    while(e)
+    {
+        if(VR_CratePiece_Is(e))
+        {
+            n = n + 1;
+            charred = charred + (e.vr_charred ? 1 : 0);
+            burning = burning + (e.burn_fire != world ? 1 : 0);
+            entity o = findradius((e.absmin + e.absmax) * 0.5, 128);
+            while(o)
+            {
+                if(o != e && VR_Burn_Wood(o) && o.absmin_x <= e.absmax_x + gap && o.absmax_x >= e.absmin_x - gap &&
+                   o.absmin_y <= e.absmax_y + gap && o.absmax_y >= e.absmin_y - gap &&
+                   o.absmin_z <= e.absmax_z + gap && o.absmax_z >= e.absmin_z - gap)
+                {
+                    near = near + 1;
+                    break;
+                }
+                o = o.chain;
+            }
+        }
+        e = find(e, classname, "vr_crate_piece");
+    }
+    dprint(sprintf("burning: test 10: %g pieces, %g charred, %g burning, %g with wood within %g\n", n, charred, burning,
+                   near, gap));
+};
+
+// Tests 8, 9: the crate nearest `p` smashed by its blow (8), or burnt through now (9).
+void(entity p, float xAsk) VR_Burn_TestCrate =
+{
+    entity best = world;
+    float bestd = 100000;
+    entity e = findradius(p.origin, 1024);
+    while(e)
+    {
+        if(VR_Crate_Is(e) && e.takedamage && vlen(e.origin - p.origin) < bestd)
+        {
+            best = e;
+            bestd = vlen(e.origin - p.origin);
+        }
+        e = e.chain;
+    }
+    if(best == world)
+    {
+        dprint("burning: test: no crate near\n");
+        return;
+    }
+    if(xAsk == 8)
+    {
+        dprint(sprintf("burning: test 8: %s smashed\n", best.classname));
+        T_Damage(best, p, p, best.health + 1000);
+        return;
+    }
+    if(best.burn_fire == world)
+    {
+        vector mid = (best.absmin + best.absmax) * 0.5;
+        VR_Burn_Ignite(best, p, VR_Burn_OnBody(best, mid + normalize(p.origin - mid) * 64), mid - p.origin, VR_BURN_BLOW);
+    }
+    if(best.burn_fire != world)
+    {
+        best.burn_fire.burn_end = time; // (burnt through at its next think: VR_Burn_Think)
+        dprint(sprintf("burning: test 9: %s burns through now\n", best.classname));
+    }
+};
 
 void() VR_Burn_TestFrame =
 {
@@ -798,15 +969,60 @@ void() VR_Burn_TestFrame =
         dprint(sprintf("burning: test 6: a nail at the torch's flame at %v\n", flame));
         return;
     }
+    if(ask == 8 || ask == 9)
+    {
+        VR_Burn_TestCrate(p, ask);
+        return;
+    }
+    if(ask == 10)
+    {
+        VR_Burn_TestPieces();
+        return;
+    }
+    if(ask == 11)
+    {
+        // A lava nail of yours at the nearest piece, from 40 units above it and towards you.
+        entity np = world;
+        float npd = 100000;
+        entity q = find(world, classname, "vr_crate_piece");
+        while(q)
+        {
+            if(VR_CratePiece_Is(q) && vlen(q.origin - p.origin) < npd)
+            {
+                np = q;
+                npd = vlen(q.origin - p.origin);
+            }
+            q = find(q, classname, "vr_crate_piece");
+        }
+        if(np == world)
+        {
+            dprint("burning: test 11: no piece near\n");
+            return;
+        }
+        vector pm = (np.absmin + np.absmax) * 0.5;
+        vector from = pm + '0 0 40' + normalize(p.origin - pm) * 20;
+        entity os11 = self;
+        self = p;
+        entity nl = launch_spike(from, normalize(pm - from));
+        self = os11;
+        nl.classname = "lava_spike";
+        nl.touch = lavaspike_touch;
+        setmodel(nl, "progs/lspike.mdl");
+        setsize(nl, VEC_ORIGIN, VEC_ORIGIN);
+        dprint(sprintf("burning: test 11: a lava nail at the piece at %v (charred %g)\n", pm, np.vr_charred));
+        return;
+    }
     entity best = world;
     float bestd = 100000;
     entity e = findradius(p.origin, 1024);
     while(e)
     {
-        if(e != p && ((e.flags & FL_MONSTER) || VR_Crate_Is(e)) && e.modelindex && vlen(e.origin - p.origin) < bestd)
+        float cand = (e.flags & FL_MONSTER) || VR_Burn_Wood(e) || VR_Burn_Metal(e);
+        vector emid = (e.absmin + e.absmax) * 0.5; // (an explosive box's origin is its corner)
+        if(e != p && cand && e.modelindex && vlen(emid - p.origin) < bestd)
         {
             best = e;
-            bestd = vlen(e.origin - p.origin);
+            bestd = vlen(emid - p.origin);
         }
         e = e.chain;
     }
@@ -823,8 +1039,14 @@ void() VR_Burn_TestFrame =
         {
             how = sprintf("%g flames, %.1f s left", f.burn_count, f.burn_end - time);
         }
-        dprint(sprintf("burning: %s at %v, health %g, corpse %g: %s\n", best.classname, best.origin, best.health,
-                      best.vr_corpse, how));
+        dprint(sprintf("burning: %s at %v, health %g, corpse %g, skin %g, charred %g: %s\n", best.classname, best.origin,
+                       best.health, best.vr_corpse, best.skin, best.vr_charred, how));
+        return;
+    }
+    if(!VR_Burn_Can(best))
+    {
+        dprint(sprintf("burning: test %g: %s can't burn (health %g)\n", ask,
+                       VR_Burn_Metal(best) ? "an explosive box (metal)" : best.classname, best.health));
         return;
     }
     vector mid = (best.absmin + best.absmax) * 0.5;
