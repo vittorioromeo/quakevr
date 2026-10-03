@@ -72,6 +72,7 @@ string(entity e) VR_Decap_HeadModel =
     if(c == "monster_dog")           { return "progs/h_dog.mdl"; }
     if(c == "monster_wizard")        { return "progs/h_wizard.mdl"; }
     if(c == "monster_zombie")        { return "progs/h_zombie.mdl"; }
+    if(c == "monster_demon1")        { return "progs/h_demon.mdl"; }
     return "";
 };
 
@@ -107,18 +108,33 @@ float(float xHow) VR_Decap_IsPop =
     return xHow == QVR_DECAP_SHOTGUN || xHow == QVR_DECAP_SSG || xHow == QVR_DECAP_LIGHTNING;
 };
 
-// Whether a hit at `xAt` going `xDir` on `e` is at its head: positional damage's head zone (PositionalHead, weapons.qc:
-// on its model standing, vr_hit_precise; else the ray past its head sphere), whether positional damage is on or not. A
-// rottweiler has none for headshots: its head here (its rest pose's, $attack1: lunging).
-float(entity e, vector xAt, vector xDir) VR_Decap_OnHead =
+// `e`'s head zone (xHeadForward, xHeadUp, xHeadRadius): positional damage's (PositionalHead, weapons.qc), or for a
+// monster without one for headshots its rest pose's head here: a rottweiler's ($attack1: lunging), a fiend's ($stand1:
+// crouched, his head thrust forward, below his origin). FALSE: none.
+float(entity e) VR_Decap_HeadZone =
 {
     if(e.classname == "monster_dog")
     {
         xHeadForward = 23;
         xHeadUp = 1;
         xHeadRadius = 7;
+        return TRUE;
     }
-    else if(!PositionalHead(e))
+    if(e.classname == "monster_demon1")
+    {
+        xHeadForward = 27;
+        xHeadUp = -5;
+        xHeadRadius = 8;
+        return TRUE;
+    }
+    return PositionalHead(e);
+};
+
+// Whether a hit at `xAt` going `xDir` on `e` is at its head: its head zone (VR_Decap_HeadZone: on its model standing,
+// vr_hit_precise; else the ray past its head sphere), whether positional damage is on or not.
+float(entity e, vector xAt, vector xDir) VR_Decap_OnHead =
+{
+    if(!VR_Decap_HeadZone(e))
     {
         return FALSE;
     }
@@ -806,15 +822,7 @@ void(float xTest) VR_Decap_Test =
     }
     else
     {
-        if(!PositionalHead(m) && m.classname == "monster_dog")
-        {
-            xHeadForward = 23;
-            xHeadUp = 1;
-        }
-        else
-        {
-            PositionalHead(m);
-        }
+        VR_Decap_HeadZone(m);
         makevectors('0 1 0' * m.angles_y);
         at = m.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp;
     }

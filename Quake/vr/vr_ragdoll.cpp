@@ -254,6 +254,32 @@ constexpr Seed zombieSeeds[] = {
     {"shin_r", 9, Joint::Hinge, {-4.8f, -5.7f, -21.3f}, {-5.8f, -3.6f, -18.5f}, {-4.8f, -5.7f, -21.2f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+// Quake VR's fiend (quakevr/progs/demon.mdl: 1095 vertices, 69 frames). The rest pose ($stand1): x forward, y left, z up;
+// crouched low, his head thrust forward, his arms hanging to the ground before him, his tail along it behind. Pelvis,
+// chest, head, upper arms, forearms (elbow hinges) and claws, thighs, shins (knee hinges) and feet (balls 35/15), the
+// tail one bone (his rig's 16th). Measured on his frames (Misc/quakevr/ragdoll/rig.py demon demon_bones.json, 24
+// clusters: 0.74 units rms): bones 0.83 (his ankles and right knee at their boundaries: the fit put them off the leg).
+// He holds nothing.
+// Death frames 45-53 ($death1-9).
+constexpr Seed demonSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-3.2f, -0.9f, -4.6f}, {-3.2f, -0.9f, -4.6f}, {0.5f, -1.2f, 1.7f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {11.4f, -0.2f, 1.f}, {0.5f, -1.2f, 1.7f}, {20.1f, 0.9f, -3.6f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {26.7f, 0.9f, -5.4f}, {20.1f, 0.9f, -3.6f}, {33.2f, 0.9f, -7.2f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {16.3f, 13.2f, -2.5f}, {17.8f, 11.f, -1.4f}, {14.3f, 13.8f, -4.5f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {12.9f, 14.5f, -10.6f}, {14.3f, 13.8f, -4.5f}, {11.f, 12.7f, -14.9f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_l", 4, Joint::Ball, {12.3f, 5.1f, -21.4f}, {11.f, 12.7f, -14.9f}, {13.6f, -2.5f, -27.9f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"upperarm_r", 1, Joint::Ball, {14.5f, -12.8f, -7.2f}, {16.3f, -11.f, -1.4f}, {11.5f, -14.f, -10.3f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 6, Joint::Hinge, {15.2f, -13.3f, -14.6f}, {11.5f, -14.f, -10.3f}, {16.3f, -11.4f, -17.5f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"hand_r", 7, Joint::Ball, {20.5f, -2.2f, -22.7f}, {16.3f, -11.4f, -17.5f}, {24.7f, 7.f, -28.f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {-1.8f, 7.3f, -10.1f}, {-3.4f, 3.4f, -5.6f}, {-4.3f, 7.4f, -13.8f}, 3.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 9, Joint::Hinge, {-5.4f, 7.5f, -14.8f}, {-4.3f, 7.4f, -13.8f}, {-2.5f, 7.9f, -17.2f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"foot_l", 10, Joint::Ball, {1.6f, 7.7f, -20.7f}, {-2.5f, 7.9f, -17.2f}, {5.8f, 7.5f, -24.2f}, 0.f, 35.f, 15.f, 0.f, {}},
+    {"thigh_r", 0, Joint::Ball, {-2.5f, -9.1f, -12.1f}, {-1.5f, -8.4f, -6.4f}, {-6.3f, -8.8f, -14.6f}, 3.5f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 12, Joint::Hinge, {-6.4f, -9.1f, -15.5f}, {-6.3f, -8.8f, -14.6f}, {-0.8f, -8.8f, -17.9f}, 3.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"foot_r", 13, Joint::Ball, {1.8f, -9.2f, -21.3f}, {-0.8f, -8.8f, -17.9f}, {4.4f, -9.6f, -24.7f}, 0.f, 35.f, 15.f, 0.f, {}},
+    {"tail", 0, Joint::Ball, {-21.8f, -3.4f, -19.f}, {-11.7f, 1.1f, -12.4f}, {-31.9f, -7.9f, -25.6f}, 0.f, 40.f, 20.f, 0.f, {}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -263,6 +289,7 @@ constexpr SeedTable seedTables[] = {
     {"progs/dog.mdl", 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
     {"progs/wizard.mdl", 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
     {"progs/zombie.mdl", 481, zombieSeeds, static_cast<int>(sizeof(zombieSeeds) / sizeof(zombieSeeds[0])), 2, {103, 162}, {116, 178}},
+    {"progs/demon.mdl", 1095, demonSeeds, static_cast<int>(sizeof(demonSeeds) / sizeof(demonSeeds[0])), 1, {45, 0}, {53, 0}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
