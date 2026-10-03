@@ -542,6 +542,63 @@ static void TexMgr_Imagedump_f (void)
 
 /*
 ===============
+TexMgr_Imagehash_f -- QVR: a checksum of every loaded texture as the GPU holds it (level 0 read back as RGBA, FNV-1a
+64), one line each in <gamedir>/imagehash.txt ("hash width height depth name") and their sum (order-free) in the
+console: two runs (e.g. a texture pack's TGA and PNG files) drew the same pixels when the files match
+===============
+*/
+static void TexMgr_Imagehash_f (void)
+{
+	const char *filter = Cmd_Argc () >= 2 ? Cmd_Argv (1) : NULL;
+	char path[MAX_OSPATH];
+	FILE *out;
+	gltexture_t *glt;
+	unsigned long long total = 0;
+	int count = 0;
+
+	q_snprintf (path, sizeof (path), "%s/imagehash.txt", com_gamedir);
+	out = fopen (path, "w");
+	if (!out)
+	{
+		Con_Printf ("imagehash: can't write %s\n", path);
+		return;
+	}
+	glPixelStorei (GL_PACK_ALIGNMENT, 1);
+	for (glt = active_gltextures; glt; glt = glt->next)
+	{
+		int faces = (glt->flags & TEXPREF_CUBEMAP) ? 6 : 1;
+		size_t facebytes = (size_t) glt->width * glt->height * (glt->depth ? glt->depth : 1) * 4;
+		unsigned long long h = 14695981039346656037ULL;
+		byte *buffer;
+		const char *c;
+		size_t i;
+		int f;
+
+		if (filter && !q_strcasestr (glt->name, filter))
+			continue;
+		buffer = (byte *) malloc (facebytes);
+		if (!buffer)
+			Sys_Error ("TexMgr_Imagehash_f: out of memory (%dx%dx%d)", glt->width, glt->height, glt->depth);
+		GL_Bind (GL_TEXTURE0, glt);
+		for (f = 0; f < faces; f++)
+		{
+			glGetTexImage (faces == 6 ? GL_TEXTURE_CUBE_MAP_POSITIVE_X + f : glt->target, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+			for (i = 0; i < facebytes; i++)
+				h = (h ^ buffer[i]) * 1099511628211ULL;
+		}
+		free (buffer);
+		fprintf (out, "%016llx %d %d %d %s\n", h, glt->width, glt->height, glt->depth, glt->name);
+		for (c = glt->name; *c; c++)
+			h = (h ^ (byte) *c) * 1099511628211ULL;
+		total += h;
+		count++;
+	}
+	fclose (out);
+	Con_Printf ("imagehash: %d textures, sum %016llx, to %s\n", count, total, path);
+}
+
+/*
+===============
 TexMgr_FrameUsage -- report texture memory usage for this frame
 ===============
 */
@@ -928,6 +985,9 @@ void TexMgr_Init (void)
 	if (cmd)
 		cmd->completion = TexMgr_Imagelist_Completion_f;
 	cmd = Cmd_AddCommand ("imagedump", &TexMgr_Imagedump_f);
+	if (cmd)
+		cmd->completion = TexMgr_Imagelist_Completion_f;
+	cmd = Cmd_AddCommand ("imagehash", &TexMgr_Imagehash_f); // QVR: loaded textures' checksums
 	if (cmd)
 		cmd->completion = TexMgr_Imagelist_Completion_f;
 

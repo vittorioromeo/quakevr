@@ -3068,6 +3068,7 @@ za::Vector<Item> pageDebugTools()
         command("Hand Mesh", "vr_grasp_dump").help("vr_grasp_dump: the main hand as drawn, to grasp_dump.obj (for Blender)."),
         command("Gadget Screen", "vr_gadget_screen_dump").help("vr_gadget_screen_dump: the wrist gadget's screen, to screenshots/gadget_screen.png."),
         command("Eye Images (with the UI)", "vr_eyeshot 3").help("vr_eyeshot 3: both eyes as the headset shows them (the HUD panel, the menu), to eyeshots/<map>_<n>_L.png and _R.png."),
+        command("Texture Checksums", "imagehash").help("imagehash: every loaded texture's checksum as the GPU holds it, to imagehash.txt, and their sum in the console (two texture packs, or TGA and PNG files, compared)."),
         command("Reflection Map", "vr_envmap_dump").help("vr_envmap_dump: the held weapon's reflection map, to envmap.tga (Weapon Reflections on)."),
         command("Weight Test", "vr_weight_test csv").help("vr_weight_test: the weight's spring on test cases (swings, wrist snaps, wrist steps: pitch, yaw and roll), tables in the console and weight_test.csv."),
         header("Test Effects"),

@@ -148,8 +148,10 @@ leads to the tutorial and the firing range.
 
 **Optional extras** (all in [docs/INSTALL.md](docs/INSTALL.md)):
 
-- **HD textures:** the Quake Revitalization Project (QRP) map textures, from the
-  [QRP Archive on ModDB](https://www.moddb.com/addons/quake-revitalization-project-archive). Their `textures`
+- **HD textures:** the Quake Revitalization Project (QRP) map textures the author plays with, as one zip to extract
+  into the Quake folder: the [HQ texture pack (PNG)](https://github.com/vittorioromeo/quakevr/releases/tag/textures-2026-10-03)
+  release ([docs/vr-port/TEXTURES.md](docs/vr-port/TEXTURES.md): contents, credits, licence). Or from the
+  [QRP Archive on ModDB](https://www.moddb.com/addons/quake-revitalization-project-archive): their `textures`
   folders go in `id1`, `hipnotic` and `rogue`.
 - **Relit maps and see-through water:** made on your own PC from your copy of Quake, with the script in
   `quakevr\tools`, ericw-tools and the VisPatch data. id Software's maps can't be redistributed, so they aren't in
