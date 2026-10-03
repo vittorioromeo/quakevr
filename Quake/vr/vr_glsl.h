@@ -555,13 +555,25 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "	if (h <= 0.)\n"\
 "		return uv;\n"\
 "	float ray_depth = 0., prev = h; // prev: how far over the height field the ray was, the step before\n"\
-"	for (int i = 1; i <= 64; i++)\n"\
+"	// four steps' reads at a time (independent: the GPU overlaps them), then the steps taken in order as before (the\n"\
+"	// same reads and result; up to 3 past the hit read for nothing): ROUND21.md, Shader optimizations: retro and parallax\n"\
+"	bool done = false;\n"\
+"	for (int i = 1; i <= 64 && !done; i += 4)\n"\
 "	{\n"\
-"		prev = h - ray_depth;\n"\
-"		ray_depth = float(i) * stepsize;\n"\
-"		h = 1.0 - textureGrad(tex, uv + duv * ray_depth, duvdx, duvdy).a;\n"\
-"		if (h <= ray_depth || float(i) >= steps)\n"\
-"			break;\n"\
+"		float hs[4];\n"\
+"		for (int j = 0; j < 4; j++)\n"\
+"			hs[j] = 1.0 - textureGrad(tex, uv + duv * (float(i + j) * stepsize), duvdx, duvdy).a;\n"\
+"		for (int j = 0; j < 4; j++)\n"\
+"		{\n"\
+"			prev = h - ray_depth;\n"\
+"			ray_depth = float(i + j) * stepsize;\n"\
+"			h = hs[j];\n"\
+"			if (h <= ray_depth || float(i + j) >= steps)\n"\
+"			{\n"\
+"				done = true;\n"\
+"				break;\n"\
+"			}\n"\
+"		}\n"\
 "	}\n"\
 "	float over = h - ray_depth; // <= 0: under it\n"\
 "	if (over > 0.)\n"\
@@ -1151,7 +1163,11 @@ QVR_BOX_WOUNDS \
 // detail textures close by; a liquid's unlit texture
 #define QVR_WORLD_FS_DETAIL \
 "#if MODE != " QS_STRINGIFY (WORLDSHADER_WATER) " && !DITHER\n" \
-"	if (Detail.x > 0. && in_detail.z > 0.) // QVR: detail textures close by (vr/vr_detail.cpp); not on fullbright texels (alpha 0)\n" \
+"	bool detail_on = Detail.x > 0. && in_detail.z > 0. && (Retro <= 0 || RetroP2.z > 0.); // QVR: detail textures close by (vr/vr_detail.cpp); none where a retro set keeps none of the grain\n" \
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n" \
+"	detail_on = detail_on && result.a > 0.; // not on fullbright texels (alpha 0)\n" \
+"#endif\n" \
+"	if (detail_on) // (the mixes below, by 0..1, give a factor of 1 where they are by 0: the reads skipped there)\n" \
 "	{\n" \
 "		float detail = DetailFactor(in_detail, puv, duvdx, duvdy, distance(in_pos, EyePos));\n" \
 "		if (Retro > 0) // QVR: retro textures keep as much of the grain as their set says (vr_retro.h)\n" \

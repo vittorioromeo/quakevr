@@ -592,6 +592,7 @@ void GL_UseProgram (GLuint program);
 void GL_ClearCachedProgram (void);
 void GL_CreateShaders (void);
 void GL_DeleteShaders (void);
+void GL_ReloadShaders_f (void); // QVR: tests (vr_shader_reload)
 
 typedef struct glframebufs_s {
 	GLint			max_color_tex_samples;

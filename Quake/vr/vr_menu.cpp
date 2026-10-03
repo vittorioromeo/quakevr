@@ -3634,6 +3634,8 @@ za::Vector<Item> pageDebugTools()
             .help("vr_model_reload: every model read again from its file (edited in Blender), with the hands' and collisions' caches."),
         command("Reload Hand Model", "vr_hand_reload").help("vr_hand_reload: the jointed hand (progs/hand_rig.md5mesh) read again."),
         command("Reload Detail Textures", "vr_detail_reload").help("vr_detail_reload: the detail textures' settings read again, the textures rebuilt."),
+        command("Reload Shaders", "vr_shader_reload")
+            .help("vr_shader_reload [n]: the engine's shaders compiled again (n: QVR_SHADER_AB, 0 by default; a shader change's A/B in one run, paused, for images and timings)."),
         header("Save to Files (game folder)"),
         command("Wound Masks", "vr_wounds_dump").help("vr_wounds_dump: each model's wound mask, to wounds/mask_<n>_<model>.png."),
         command("Decal Atlas", "vr_decal_atlas").help("vr_decal_atlas: the decals' atlas, to decal_atlas.png."),

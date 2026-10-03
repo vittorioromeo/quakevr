@@ -23853,3 +23853,62 @@ In VR:
 - [ ] Turn Super Shotgun off: super shotgun headshots kill (or gib) as before.
 - [ ] Turn Lightning Gun off: lightning headshots kill as before.
 - [ ] The popped neck spurts blood as a beheading's does.
+## Shader optimizations: retro and parallax (2026-10-03)
+
+Items #2 (retro) and #1 (parallax) of the static audit `SHADER_PERFORMANCE_REVIEW_2026-10-03.md`, checked in the code
+and measured. Both changes are exact: the same reads feed the same arithmetic, only reads whose weight is 0 are
+skipped (retro) or reads are issued in batches (parallax).
+
+**What changed.**
+- `RetroAux` (vr_retro.h: bump and specular maps through a retro set): the blend weight `k` (0..1: P1.w and RetroFar
+  are clamped) first; at 0 only the smooth read, at 1 only `RetroBlocks`, the two mixed only in between. With his
+  settings (Bump 1, Smooth Beyond: Never) `k` is 1 at every pixel: one `textureGrad` saved per bump/specular read.
+- World detail (vr_glsl.h `QVR_WORLD_FS_DETAIL`): `DetailFactor` is not called where the result is mixed back to 1 (a
+  retro set keeping none of the grain, `RetroP2.z == 0`: his `vr_retro_all_detail 0`; and in the solid mode a
+  fullbright texel, alpha 0; alpha-tested coverage is untouched, as before).
+- `ParallaxUV`: the march reads four steps' heights at a time, then takes the steps in order as before (same reads,
+  same exits, same secant; up to 3 reads past the hit wasted). The step budget, caps and fades are unchanged.
+- Test aids: `vr_shader_reload [n]` (Debug > Rebuild and Reload > Reload Shaders) compiles the engine's shaders again
+  with `#define QVR_SHADER_AB n`: a shader change under `#if QVR_SHADER_AB` is compared with the old code in one run,
+  on one paused frame (images) and interleaved (timings). The mock headset's eyes go up to 4096 (`vr_mock_eye_size`,
+  was 2048), so timings can be taken at his headset's pixel count (3292 x 3524 is about 3406 square).
+
+**Method.** His `ironwail.cfg` (copied, read only) exec'd, `vr_mock_eye_size 3406`, `nomonsters 1`, fixed views:
+e1m1 spawn facing a wall (w270), along the corridor (c90), 45 degrees down (f90); e2m1 spawn ahead (e2a) and 35 down
+(e2d). GPU time of the opaque `world+brush` scope, both eyes, `vr_profile_gpu 1`, 150 frames a sample, the game
+paused; variants interleaved in each run (ABAB.., order alternated), exclusive runs (other agents' games blocked).
+Images: eyeshots (both eyes, 3406 square) on the same paused frame, A A B B A; pixels in 32-pixel blocks where the A
+shots or the B shots disagree among themselves (the held weapon's physics keeps moving while paused) left out.
+
+| Claim (report) | Verdict | Notes |
+| --- | --- | --- |
+| #2 RetroAux always reads the smooth texture before its weight | True | At `k == 1` (every pixel at his settings) the read was wasted |
+| #2 Endpoint paths are exact | True | Images identical (max delta 0 on 8 of 10 eye images; 13 and 39 pixels off by 1 in f90, at the moving weapon's edge) |
+| #2 Detail computed then mixed back to 1 at `RetroP2.z == 0`, his saved settings select it | True | `vr_retro_all_detail 0`, `vr_detail 1` |
+| #2 Solid texels with alpha 0 get no detail and can skip it | True | Solid mode only, as the old mix |
+| #2 Gain "medium-high" | Partly | World pass -0.05 to -0.06 ms of ~1.4 (-4%) on 4 of 5 views, -0.025 on the wall view; models (alias scope) not measured |
+| #1 16 steps cost up to 18 height reads (initial, 16, secant) | True | One secant read: the second refinement reuses it |
+| #1 POM is a high cost at his settings | False here | Whole feature (`vr_parallax 0` vs 1): 0.04-0.07 ms (e2m1), 0.12-0.3 ms (e1m1, a noisier run) of a 3.3-4.2 ms GPU frame |
+| #1 Test a smaller step budget first | Measured: no lever | 8 / 16 / 32 steps within +-0.03 ms of each other on every view (the 1.5-per-texel cap and early hits bind first) |
+| #1 A cheaper traversal keeping the image | Partly | Batched reads: exact (images identical, 0-2 pixels off by 1); -0.025 ms (c90, 10 reps), within noise elsewhere, never slower; hierarchy/interval traversal not tried (new resource, not exact) |
+
+**Numbers** (world+brush, both eyes, ms, medians; A = old shader, B = new, same run):
+
+| View | A retro old | B retro new | change |
+| --- | --- | --- | --- |
+| w270 | 1.370 | 1.345 | -0.025 |
+| f90 | 1.410 | 1.350 | -0.060 |
+| c90 | 1.435 / 1.405 (10 reps) | 1.375 / 1.355 | -0.060 / -0.050 |
+| e2a | 1.375 | 1.315 | -0.060 |
+| e2d | 1.320 | 1.260 | -0.060 |
+
+POM batching (on top of the retro change; 6 reps, c90 10): w270 1.290 -> 1.270, f90 1.300 -> 1.295, c90 1.400 ->
+1.335 and 1.355 -> 1.330, e2a 1.285 -> 1.280, e2d 1.260 -> 1.250. Batches of 2 were between the two.
+
+Whole change, separate runs (the old build and the final one, ABABABABAB, 5 runs each, 3 samples a view a run;
+per-run medians): w270 1.36 -> 1.27 (old 1.34-1.50, new 1.26-1.28), c90 1.42 -> 1.34 (old 1.42-1.85, new 1.33-1.37).
+One old run (the 1.50 / 1.85) overlapped another agent's game (a race in the kit's slot lock); the medians hold
+without it.
+
+The world pass is ~1.3-1.4 ms of a ~3.3-4 ms GPU frame for both 3406-square eyes on this machine's GPU: it is
+not shading-bound enough for these reads to matter much. No visible change, so no checklist lines.
