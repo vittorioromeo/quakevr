@@ -1615,7 +1615,7 @@ static void COM_CheckRegistered (void)
 	{
 		Cvar_SetROM ("registered", "0");
 		Con_Printf ("Playing shareware version.\n");
-		if (com_modified)
+		if (0 && com_modified) // TEMP: shareware check off (to revert)
 			Sys_Error ("You must have the registered version to use modified games.\n\n"
 				   "Basedir is: %s\n\n"
 				   "Check that this has an " GAMENAME " subdirectory containing pak0.pak and pak1.pak, "
@@ -2050,7 +2050,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 		}
 		else	/* check a file in the directory tree */
 		{
-			if (!registered.value)
+			if (0 && !registered.value) // TEMP: shareware check off (to revert)
 			{ /* if not a registered version, don't ever go beyond base */
 				if ( strchr (filename, '/') || strchr (filename,'\\'))
 					continue;
@@ -2752,7 +2752,7 @@ static void COM_Game_f (void)
 		int i, pri;
 		char paths[1024];
 
-		if (!registered.value) //disable shareware quake
+		if (0 && !registered.value) // TEMP: shareware check off (to revert) //disable shareware quake
 		{
 			Con_Printf("You must have the registered version to use modified games\n");
 			return;
