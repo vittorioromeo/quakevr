@@ -1911,6 +1911,9 @@ const RagdollClass ragdollClasses[] = {
     {"monster_dog", {&vr_ragdoll_dog_start, &vr_ragdoll_dog_mass, &vr_ragdoll_dog_friction,
                 &vr_ragdoll_dog_joint_friction, &vr_ragdoll_dog_joint_stiffness, &vr_ragdoll_dog_limits,
                 &vr_ragdoll_dog_damping, &vr_ragdoll_dog_blast, &vr_ragdoll_dog_inherit}},
+    {"monster_wizard", {&vr_ragdoll_wizard_start, &vr_ragdoll_wizard_mass, &vr_ragdoll_wizard_friction,
+                &vr_ragdoll_wizard_joint_friction, &vr_ragdoll_wizard_joint_stiffness, &vr_ragdoll_wizard_limits,
+                &vr_ragdoll_wizard_damping, &vr_ragdoll_wizard_blast, &vr_ragdoll_wizard_inherit}},
 };
 
 // The setting `t` for `ent`'s ragdoll: its class's own, else the global one.

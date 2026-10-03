@@ -1587,6 +1587,15 @@ QVR_CVAR(vr_ragdoll_dog_limits, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_dog_damping, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_dog_blast, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_dog_inherit, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_wizard_start, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_wizard_mass, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_wizard_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_wizard_joint_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_wizard_joint_stiffness, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_wizard_limits, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_wizard_damping, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_wizard_blast, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_wizard_inherit, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0.5", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on

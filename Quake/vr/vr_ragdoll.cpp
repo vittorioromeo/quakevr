@@ -206,6 +206,27 @@ constexpr Seed dogSeeds[] = {
     {"tail", 0, Joint::Ball, {-17.5f, -0.1f, -1.f}, {-14.8f, -0.6f, 3.5f}, {-20.3f, 0.4f, -5.4f}, 0.f, 50.f, 30.f, 0.f, {}},
 };
 
+// Quake VR's scrag (quakevr/progs/wizard.mdl: 310 vertices, 55 frames). The rest pose ($hover1): x forward, y left, z up;
+// upright in the air, his arms out, his tail curled back under him. No legs: the pelvis (his ribbed belly) the root, the
+// chest, head, arms and hands (his claws) on it, his tail four bones on the pelvis (balls, 40/20). Measured on his frames
+// (Misc/quakevr/ragdoll/rig.py wizard wizard_bones.json): 0.90 units rms (his tail's tip bends: 1.5). (His head's centre is set back from its
+// vertices' middle, 7.8 0 29.7: the back of his head's cluster was nearer his right arm's.) He flies: dead, the QC lets
+// him fall (monster_death_use clears FL_FLY) and his ragdoll falls limp. He holds nothing.
+// Death frames 46-53 ($death1-8).
+constexpr Seed wizardSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-2.3f, -0.7f, 4.1f}, {-2.3f, -0.7f, 4.1f}, {0.f, 1.4f, 11.7f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {2.f, -0.7f, 19.4f}, {0.f, 1.4f, 11.7f}, {6.f, -1.f, 24.7f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {5.f, -0.4f, 29.f}, {6.f, -1.f, 24.7f}, {9.7f, 0.5f, 34.7f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"arm_l", 1, Joint::Ball, {2.9f, 10.3f, 20.9f}, {1.9f, 6.3f, 15.2f}, {1.6f, 11.2f, 17.1f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"hand_l", 3, Joint::Ball, {0.9f, 18.8f, 14.7f}, {1.6f, 11.2f, 17.1f}, {0.1f, 26.3f, 12.2f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"arm_r", 1, Joint::Ball, {0.9f, -6.8f, 22.9f}, {-0.1f, -5.3f, 19.2f}, {3.1f, -11.3f, 16.4f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"hand_r", 5, Joint::Ball, {0.5f, -20.3f, 14.1f}, {3.1f, -11.3f, 16.4f}, {-2.2f, -29.3f, 11.7f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"tail1", 0, Joint::Ball, {-8.f, -0.6f, -12.f}, {-3.3f, -1.8f, -10.6f}, {-10.4f, 0.3f, -19.3f}, 0.f, 40.f, 20.f, 0.f, {}},
+    {"tail2", 7, Joint::Ball, {-17.7f, 0.7f, -18.8f}, {-10.4f, 0.3f, -19.3f}, {-23.6f, 1.8f, -19.8f}, 0.f, 40.f, 20.f, 0.f, {}},
+    {"tail3", 8, Joint::Ball, {-28.3f, 0.8f, -17.8f}, {-23.6f, 1.8f, -19.8f}, {-34.3f, 0.9f, -17.f}, 0.f, 40.f, 20.f, 0.f, {}},
+    {"tail4", 9, Joint::Ball, {-38.3f, -1.3f, -15.2f}, {-34.3f, 0.9f, -17.f}, {-42.3f, -3.5f, -13.4f}, 0.f, 40.f, 20.f, 0.f, {}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
@@ -213,6 +234,7 @@ constexpr SeedTable seedTables[] = {
     {"progs/enforcer.mdl", 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
     {"progs/hknight.mdl", 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
     {"progs/dog.mdl", 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
+    {"progs/wizard.mdl", 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)

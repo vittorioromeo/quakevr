@@ -23365,3 +23365,17 @@ In VR:
 - [ ] Ragdolls on, kill rottweilers: they fall limp on four legs; vr_timescale 0.1: the switch unseen.
 - [ ] Grab one by a leg, the head, the tail: the legs fold the right way, the jaw hangs.
 - [ ] Ragdolls > Rottweiler: his own Mass (80 kg, the global one, is heavy for a dog).
+
+**Scrag** (quakevr/progs/wizard.mdl: 310 vertices, 55 frames; death 46-53, one animation). No legs: the pelvis (his ribbed
+belly) the root, chest, head, arms and hands (his claws: balls 40/30) on it, his tail four bones (balls 40/20; three
+left its tip at 8 units off in his death frames). 11 bones, clusters 0.73 units rms, bones 0.90 (the tail's tip 1.5).
+His head's seed centre is set back from its vertices' middle (the back of his head's cluster was nearer his right arm's:
+rig.py warns of that now). **Falling limp**: dead, the QC throws him (wiz_death1: up to 200 u/s each way) and lets him
+fall (monster_death_use clears FL_FLY); his ragdoll, made at frame 49 (43%), keeps that motion and falls limp to the
+floor (eyeshots: thrown up and away, lands, lies curled on his side). Tests (`MON=4`): flat (thrown, asleep at 4.9 s on
+the floor), stairs, gib, save and load (made again in frame 53: 3.1 units rms, 8.4 at most: his last pose fits worst).
+The blast case's spot misses a hovering scrag. The switch: 1.25 units rms, 5.7 at most (his tail).
+
+In VR:
+- [ ] Ragdolls on, shoot scrags in the air: they fall limp to the floor; vr_timescale 0.1: the switch unseen.
+- [ ] Grab one by the tail; Ragdolls > Scrag: his own settings.
