@@ -135,7 +135,11 @@ Retro Lighting (Graphics > Retro Lighting): try the three looks (Software Quake,
 Retro Lighting: no swimming or crawling band/block edges as you move your head (Block Edge Softness 1 vs 0)
 Retro Lighting: flashlight pool at Dynamic Light Blocks 4 and 8; Level Spacing even vs Quake; Lightmap Block 1 vs 16 with Retro Textures on
 
+Training dummy bleeds like a grunt: sword, punches, shotgun, chainsaw: blood on your hands, arms and held props, small gibs (Gore > Training Dummy)
+Training dummy: Dummy Gibs on, a hard blow or a rocket gibs it; it stands again after 2 s
+
 [Decide or give feedback]
+Training dummy: its wounds build up until gibbed: should it heal over time?
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?
 Grappling hook: allow the flashlight to clip on it? (on now)
