@@ -4619,6 +4619,10 @@ void() ImpulseCommands =
     // QVR: a gib or a head in the empty off hand, each in turn (fitted hands tests, round 21).
     if(self.impulse == 252 && !deathmatch && !coop && VRIsHandEmpty(self, cVR_OffHand))
     {
+        if(cvar("vr_test_held_pick") >= 0)
+        {
+            vr_test_held_kind = floor(cvar("vr_test_held_pick")); // (vr_test_held_pick: one model only)
+        }
         string testModel = "progs/gib1.mdl";
         if(vr_test_held_kind == 1) testModel = "progs/h_player.mdl";
         else if(vr_test_held_kind == 2) testModel = "progs/gib2.mdl";

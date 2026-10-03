@@ -1756,6 +1756,7 @@ QVR_CVAR(vr_test_axe_at, "0", CVAR_NONE)            // ... at the nearest live m
 QVR_CVAR(vr_test_weaponinst, "0", CVAR_NONE)          // impulse 120 (tests): the weapons moved by the game's own functions (QC vr_weaponinst_test.qc): 0 list what has which weapon (id, magazine), 1 holster the main hand's, 2 draw it, 3 drop the main hand's, 4 take the nearest lying, 5 hand off to the off hand, 6 take back, 7 switch hands, 8 back, 9 drop the off hand's
 QVR_CVAR(vr_test_weaponinst_slot, "0", CVAR_NONE)     // ... the holster (QC QVR_HS_*: 3-6 shoulders and hips, 8-9 upper; 0 the right hip)
 QVR_CVAR(vr_test_held_destroy, "0", CVAR_NONE)       // impulse 252 (tests): its gib or head can be destroyed, as a real one (VR_Gib_MakeDestroyable; gib_2h_throw_test.sh)
+QVR_CVAR(vr_test_held_pick, "-1", CVAR_NONE)          // impulse 252 (tests): which gib or head (0 gib1, 1 h_player, 2 gib2, 3 gib3, 4-8 heads); -1 each in turn (gib_2h_throw_test.sh MODELS)
 QVR_CVAR(vr_test_fling_speed, "12", CVAR_NONE)        // impulse 232 (tests): the prop nearest you sent at the nearest monster at this many m/s (VR_Test_Fling)
 QVR_CVAR(vr_test_fling_at, "0", CVAR_NONE)            // and at: 0 the nearest monster, 1 you (from ahead)
 QVR_CVAR(vr_test_fling_away, "0", CVAR_NONE)          // 1: from inside the edge of its box, away from it (a prop batted away, still in your box)

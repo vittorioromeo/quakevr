@@ -3397,6 +3397,12 @@ za::Vector<Item> pageDebugTests()
         command("Gib in the Off Hand", "developer 1; impulse 252")
             .help("A gib or head (each press the next kind) in your off hand: take it with the other hand too and "
                   "throw it with both. 'gib:' lines say what burst it (Real Gib, below)."),
+        cycle("Which Gib", vr_test_held_pick,
+              {{-1.f, "Each in Turn"}, {0.f, "Small Gib (gib1)"}, {1.f, "Player's Head"}, {2.f, "Torso (gib2)"},
+               {3.f, "Big Chunk (gib3)"}, {4.f, "Grunt's Head"}, {5.f, "Ogre's Head"}, {6.f, "Knight's Head"},
+               {7.f, "Zombie's Head"}, {8.f, "Fiend's Head"}})
+            .help("vr_test_held_pick: the gib or head Gib in the Off Hand gives (Each in Turn: the next each press). The "
+                  "torso and the big chunk are the large ones (Misc/quakevr/gib_2h_models_test.sh throws each)."),
         toggle("Real Gib", vr_test_held_destroy)
             .help("vr_test_held_destroy: the off hand's test gib can be burst as a real one (shot, struck, thrown hard "
                   "at a wall). Misc/quakevr/gib_2h_throw_test.sh throws it with both hands along several arcs."),
