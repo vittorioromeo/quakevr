@@ -23018,3 +23018,65 @@ In VR:
       it again: it never jumps; each grip is where your hand is on it.
 - [ ] A hand grenade in both hands: either trigger pulls its pin; let go with both: thrown.
 - [ ] Settings > Carrying and Throwing > Throwing and Physics > Carrying Boxes > Two-Handed Grab Reach: 0 for the old reach (a fist touching).
+## Clean weapon skins (2026-10-03)
+
+Task: weapons get bloody dynamically now (vr_wounds' gear blood), but some skins have blood painted in. Clean versions,
+faithful to the art, used by default (Gore > Blood on You and Your Gear > "Clean Weapon Skins", `vr_gore_clean_skins`,
+default 1), so a weapon starts clean and is clean after a wash. Nothing derived from id's art is shipped.
+
+**Survey** (every held, holstered and prop model of `quakevr/progs`: the `v_*` weapons, the `g_*` pickups, the
+backpack, the holster, the torch and flashlight, the pouch, crates, planks, bricks, rocks; each skin's red texels
+within the parts its triangles use, looked at one by one). Blood painted in: **the axe** (two thirds of the blade, the
+haft), **the knight's sword** (the outer half of the blade, specks on the grip), **the hell knight's sword** (drips on
+the blade), **the ogre's chainsaw** (the bar and the motor's housing, specks on the handle), **the grunt's shotgun**
+(smears on its body). Red by design, left alone: the crowbar's paint, the hazard stripes of the multi-rocket launcher
+and the grappling hook, the proximity launcher's panel, the plasma gun's rings, the lava guns' glow, the torch's
+handle, the pouch's band, the brown crate and planks (wood), the grunt's shotgun's lamp, the hell knight's hilt wrap
+(its leather). Our generated props have no blood. Full-colour replacements: the QRP pack has no model skins (world
+textures only), and none of the shipped full-colour skins (the crowbar, the props) has blood; the HQ path is there for a
+pack that has them (below).
+
+**Generator:** `Misc/quakevr/make_clean_skins.py` (numpy, Pillow; about a minute, the same output every run). Per skin
+(its table `SKINS`: the areas that are the weapon, areas to keep, where copies may come from):
+- Where: the texels the model's triangles cover (and two round them, for filtering and mips), within the areas.
+- Which: blood by colour: red (hue within 16 degrees), saturated (0.45 up); duller reds (0.25 up) joined to one within
+  3 texels (a splash's rim). Never a fullbright texel, never one the engine's background fill may change.
+- With what: a copy of a clean texel of the same island (exemplar inpainting): from a stain's rim inwards, the source
+  whose 5 x 5 neighbourhood matches best, its neighbours' sources' continuation tried first (the grain carries on), a
+  little preference for near ones; then two passes over the whole stain. A guide keeps big stains (the axe's blade)
+  from going flat: each stained texel's expected colour is the clean metal's round it (a Gaussian mean of its island's
+  clean texels) plus the stain's own variations of brightness brought to the metal's contrast (the blood was painted
+  over the bevel's highlight and the brushed grain: they come back); a copy's 3 x 3 surroundings must match it, the
+  texel itself a little. Copies are the skin's own texels: the same palette, dither and noise.
+- The chainsaw's bar keeps its rust-brown (hue 20-26: dried blood or rust, the same colours as the chain's teeth, so
+  it can't be told apart): only its red goes.
+
+**Distribution:** no clean skin is shipped. `quakevr/progs/<model>_<skin>.clean` (5 files, 91 KB) is a patch: a list
+of (texel, texel to copy into it) pairs and the FNV-1a hash of those texels; it holds no pixel. The engine
+(`Quake/vr/vr_cleanskins.cpp`, `VR_CleanSkin`, called by `TexMgr_LoadImage8` and `TexMgr_LoadImage32`) applies it to
+the skin as it is uploaded (a copy in the hunk; the model file is untouched), from the player's own file, when the
+setting is on; a skin whose texels don't hash to the patch's (another version of the model, a mod's) is left as it
+is. The hash is of the texels the patch touches only: the first upload of an 8-bit skin has its background
+flood-filled (Mod_FloodFillSkin) and a reload (TexMgr_ReloadImage) doesn't, and the patches touch no texel the fill may
+change. Turning the setting off or on uploads again only the skins with a patch.
+- A pack's full-colour skins (`progs/<model>_<skin>.png`/`.tga`, a whole multiple of the 8-bit skin's size): the
+  player runs `python Misc/quakevr/make_clean_skins.py --hq <game folder>` once, which writes
+  `progs/<model>_<skin>_hq.clean` beside them, made at their full resolution from his files (the same method, the same
+  kind of patch, applied by the engine the same way). Nothing of the pack is shipped.
+- If a weapon's skin is repainted (or `make_swords.py` changes the swords' skins), run the generator again: until then
+  `vr_cleanskins` says "other file" and the skin shows as painted.
+
+**Debug:** `vr_cleanskins` (Debug > Tests > "List Clean Weapon Skins"): each patch found, its size, how often it was
+applied, how often it met another file. `--preview <dir>` writes before/after images of every changed skin (the whole
+skin, then each changed island enlarged).
+
+**Verified:** the five patches apply on load and again on every toggle (`applied` counts, no "other file"); the
+holstered axe seen from below (`vr_mock_camera 0.0 0.45 -0.55 5 180`, `r_fullbright 1`): 7046 pixels change between
+on and off, the blade steel instead of red. HQ: a synthetic 2x replacement of the axe's skin (in the test game's
+`id1/progs`, not in the repository): its `_hq.clean` made and applied (`RGBA`, `applied`).
+
+In VR:
+- [ ] Draw the axe, a knight's sword, the chainsaw (an ogre's) and a grunt's shotgun: steel and wood, no painted
+  blood; hit something: your blood on them; wash them in water: clean again.
+- [ ] Gore > Blood on You and Your Gear > Clean Weapon Skins off: the painted blood is back (on at once, no reload).
+- [ ] The axe's blade up close: does the cleaned steel look like the rest of the axe (no smears, no flat patches)?

@@ -825,6 +825,7 @@ QVR_CVAR(vr_gore_spatter_shots, "1", CVAR_ARCHIVE)    // ... from shots hitting 
 QVR_CVAR(vr_gore_spatter_range, "64", CVAR_ARCHIVE)   // ... a shot's hit this close to your hands or eyes at most (units)
 QVR_CVAR(vr_gore_spatter_gibs, "1", CVAR_ARCHIVE)     // gibs flying into you bloody you where they strike: how much (0 none)
 QVR_CVAR(vr_gore_gear, "1", CVAR_ARCHIVE)             // the weapons and props you hold take blood: kept dropped and taken again, until water washes it
+QVR_CVAR(vr_gore_clean_skins, "1", CVAR_ARCHIVE)      // weapons whose skins have blood painted in (the axe, the swords, the chainsaw) start clean (vr_cleanskins.cpp)
 QVR_CVAR(vr_gore_gear_holstered, "1", CVAR_ARCHIVE)   // ... your holstered weapons too, near enough to the blood (as your body and hands are)
 QVR_CVAR(vr_gore_gear_nearby, "1", CVAR_ARCHIVE)      // weapons and props lying about take blood from hits, gibbings and bursts near them: how much (0 none)
 QVR_CVAR(vr_gore_gear_drops, "1", CVAR_ARCHIVE)       // what a gibbed monster drops (its gun, its backpack) comes out soaked: how much (0 as anything lying near)

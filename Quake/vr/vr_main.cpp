@@ -70,6 +70,7 @@
 #include "vr_worldtext.hpp"
 #include "vr_water.hpp"
 #include "vr_wounds.hpp"
+#include "vr_cleanskins.hpp"
 
 #include "Zancle/Base/Abort.hpp"
 #include "Zancle/Base/Assert.hpp"
@@ -1147,6 +1148,7 @@ extern "C" void VR_Init()
     input::init();
     voicenotes::init();
     highlights::init();
+    cleanskins::init();
     posing::init();
     sightalign::init();
     bodycal::init();
@@ -1182,6 +1184,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_gore_hands_test", wounds::handsTest_f);
     Cmd_AddCommand("vr_gore_hands_info", wounds::handsInfo_f);
     Cmd_AddCommand("vr_gore_spatter_test", wounds::spatterTest_f);
+    Cmd_AddCommand("vr_cleanskins", cleanskins::list_f);
     Cmd_AddCommand("vr_gore_mist_test", particles::mistTest_f);
     Cmd_AddCommand("vr_wounds_dump", wounds::dump_f);
     Cmd_AddCommand("vr_test_remove", progs::testRemove_f);
