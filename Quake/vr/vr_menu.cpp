@@ -2613,6 +2613,28 @@ void hologramTestMessage()
             .help("Corpses burst into gibs when shot, blown up or struck enough: shotguns, nails, lightning, rockets, fists, melee weapons."),
         slider("Corpse Health", vr_corpse_health, 10.f, 300.f, 10.f, "%.0f").extend()
             .help("The damage that gibs a corpse; a big monster's takes more (an ogre's 1.75 times, a fiend's 2.25, a shambler's 3.5)."),
+        header("Corpse Collision"),
+        cycle("Corpses", vr_corpse_collide,
+            {{0.f, "Pass Through"}, {1.f, "Fixed Box"}, {2.f, "Pushable Box"}, {3.f, "Fixed Pose"}, {4.f, "Pushable Pose"}})
+            .help("Corpses in the physics: props, thrown things and held things meet them. Fixed: they never move. Pushable: "
+                  "heavy, they slide when pushed (hands, held weapons, props, walking into them). Box: a low box round the "
+                  "body; Pose: its shape as it lies (vr_corpse_collide)."),
+        slider("Pushable Corpse Mass", vr_corpse_collide_mass, 20.f, 500.f, 10.f, "%.0f kg").extend()
+            .help("Heavier: harder to push. Walking into one shoves it only under about 60 kg (vr_corpse_collide_mass)."),
+        slider("Pushable Corpse Friction", vr_corpse_collide_friction, 0.1f, 2.f, 0.1f, "%.1f").extend()
+            .help("How hard a pushable corpse drags on the floor (vr_corpse_collide_friction)."),
+        toggle("Props Meet Corpses", vr_corpse_collide_props)
+            .help("Boxes, weapons, gibs and heads lying or falling rest on corpses and stop at them (vr_corpse_collide_props)."),
+        toggle("Thrown Things Meet Corpses", vr_corpse_collide_thrown)
+            .help("Off: what you throw flies through corpses (its hit still hurts them) (vr_corpse_collide_thrown)."),
+        toggle("Held Things Meet Corpses", vr_corpse_collide_held)
+            .help("Your hands, held weapons and props push pushable corpses; a prop held in both hands stops at any "
+                  "(vr_corpse_collide_held)."),
+        cycle("You and Corpses", vr_corpse_collide_player, {{0.f, "Walk Through"}, {1.f, "Step Over"}, {2.f, "Solid"}})
+            .help("Step Over: a corpse is a low step you walk onto. Solid: walk round it or jump onto it "
+                  "(vr_corpse_collide_player)."),
+        toggle("Monsters Step Over Corpses", vr_corpse_collide_monsters)
+            .help("Monsters walk over corpses as a low step instead of through them (vr_corpse_collide_monsters)."),
     };
 }
 
@@ -3082,6 +3104,7 @@ za::Vector<Item> pageDebugReports()
         command("Wrists and Grips", "vr_bodycal_debug").help("vr_bodycal_debug: one line a hand, next frame: the wrist and the grip."),
         header("World and Physics"),
         command("Physics Props", "vr_physics_list").help("vr_physics_list: the props in the physics (more with Physics Bodies logged)."),
+        command("Corpses in the Physics", "vr_corpse_list").help("vr_corpse_list: each corpse's body (fixed or pushable, box or pose, mass), where it lies, and what touches it (Gibs and Corpses > Corpse Collision)."),
         command("Held Props", "vr_carry_check").help("vr_carry_check: each held prop's place and axes in the hand, drawn vs where the game has it, and the fist's gap to it (cm)."),
         command("Props in Floors", "vr_physics_sink").help("vr_physics_sink: how far each prop sinks into the floor."),
         command("Props in Walls", "vr_physics_inlevel").help("vr_physics_inlevel: how far each prop's box is inside walls, floors and doors (a prop held in both hands pushed into a wall should be at 0)."),
@@ -3171,6 +3194,7 @@ za::Vector<Item> pageDebugTools()
         command("A Grunt's Corpse Ahead", "vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; vr_test_spawn_dead 0"),
         toggle("On the Training Dummy", vr_smallgibs_test_dummy)
             .help("vr_smallgibs_test_dummy: the tests below hit the nearest training dummy instead (the firing range's), and the shotgun, nail, blow and chainsaw ones print the gore each sent (gore hits, wound events, blood particles): to compare with a grunt's."),
+        command("Drop the Nearest Prop on the Nearest Corpse", "vr_corpse_drop").help("vr_corpse_drop [height]: the loose prop nearest you put 32 units over the nearest corpse, to fall on it (Gibs and Corpses > Corpse Collision)."),
         command("Shotgun Blasts", "vr_smallgibs_test 1").help("vr_smallgibs_test 1: 200 shotgun blasts at it (vr_smallgibs_test_n), the share that tore small gibs out."),
         command("Super Shotgun Blasts", "vr_smallgibs_test 2"),
         command("Nails", "vr_smallgibs_test 3"),

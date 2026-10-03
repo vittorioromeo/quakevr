@@ -1503,6 +1503,14 @@ QVR_CVAR(vr_gib_health, "12", CVAR_ARCHIVE)           // the damage that destroy
 QVR_CVAR(vr_gib_splat_speed, "250", CVAR_ARCHIVE)     // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_CVAR(vr_corpse_gib, "1", CVAR_ARCHIVE)            // corpses can be gibbed: shot, blown up or struck enough, they burst into gibs
 QVR_CVAR(vr_corpse_health, "80", CVAR_ARCHIVE)        // the damage that gibs a corpse (a big monster's takes more: an ogre's 1.75 times, a shambler's 3.5)
+QVR_CVAR(vr_corpse_collide, "4", CVAR_ARCHIVE)        // corpses in the physics (vr_box3d.cpp): 0 none (things pass through), 1 fixed box, 2 heavy pushable box, 3 fixed shape of its pose, 4 heavy pushable shape of its pose
+QVR_CVAR(vr_corpse_collide_mass, "150", CVAR_ARCHIVE) // kg: a pushable corpse's mass (heavier: harder to push; a player walking into one shoves it under about 60)
+QVR_CVAR(vr_corpse_collide_friction, "1", CVAR_ARCHIVE) // a pushable corpse's friction (with the floor's: 0.6)
+QVR_CVAR(vr_corpse_collide_props, "1", CVAR_ARCHIVE)  // loose props (boxes, weapons, gibs, heads lying or falling) meet corpses
+QVR_CVAR(vr_corpse_collide_thrown, "1", CVAR_ARCHIVE) // thrown things in flight meet corpses (0: they pass through, their hits still hurt)
+QVR_CVAR(vr_corpse_collide_held, "1", CVAR_ARCHIVE)   // held things (props, weapons, the hands' bodies) push pushable corpses, and props held in both hands stop at them
+QVR_CVAR(vr_corpse_collide_player, "0", CVAR_ARCHIVE) // the player meets corpses: 0 walks through, 1 steps over them (a 16 unit step), 2 solid (walk round or jump onto)
+QVR_CVAR(vr_corpse_collide_monsters, "0", CVAR_ARCHIVE) // monsters step over corpses (16 units) instead of walking through
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0.5", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on

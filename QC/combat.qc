@@ -175,9 +175,11 @@ void(entity targ, entity attacker) Killed =
 // them) are gibbed: no bosses (Chthon, Shub-Niggurath, the dragon, Armagon), nothing that always
 // gibs (zombies, mummies) or blows up.
 //
-// The corpse is not solid, and never blocks anything: shots and missiles stop at it as at gibs
-// (the engine's MOVE_HITGIBS: touchable non-solids that take damage). Its box is made to lie on the
-// floor (VR_Corpse_Arm): low, and wider than the standing monster's (a lying body is longer).
+// The corpse is not solid: shots and missiles stop at it as at gibs (the engine's MOVE_HITGIBS:
+// touchable non-solids that take damage). Its box is made to lie on the floor (VR_Corpse_Arm): low,
+// and wider than the standing monster's (a lying body is longer). The engine makes it a physics body
+// (vr_corpse_collide, vr_box3d.cpp: props rest on it, held things push it) and, as set, an obstacle
+// to players and monsters (vr_corpse_collide_player, _monsters).
 
 .float vr_corpse;         // 1 dying (watched: VR_Corpse_Think2), 2 a corpse that can be gibbed
 .float vr_corpse_hp;      // what damage it takes yet

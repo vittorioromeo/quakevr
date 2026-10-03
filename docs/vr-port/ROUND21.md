@@ -22933,3 +22933,52 @@ touches), `wtsmoke` puffs a second; 2: every frame.
 - [ ] Wall torches smoking in a dark room: Torch Smoke / Opacity.
 - [ ] Its Flame Burns You on: your other hand over the flame: the buzz, then flames on your hand and burns.
 - [ ] Upside Down Burns Your Hand on: hold it head down: the buzz, then you drop it.
+## Corpse collision (2026-10-03)
+
+NOTES.md vrfiringrange_2026-10-03_02-25-46: dead bodies had no collision at all; the author wants props, held weapons,
+held props and thrown things to meet them (the player as an option), "maybe physics objects with a very high weight,
+very hard to push. Give me a few options."
+
+A dead monster lying still (the QC's corpse, `vr_corpse` 2; or any dead, not solid monster whose frame has stayed for
+half a second: bosses, Gib Corpses off) is now a Box3D body of its own kind (`Kind::Corpse`, category `catCorpse`,
+vr_box3d.cpp "Corpses in the physics"). The entity is untouched: still touchable and not solid, so shots, missiles,
+blows, flames, gibbing and corpse damage work as before (the shotgun small-gibs test hits it the same: 3 hits weighed,
+2 of 200 blasts tore small gibs, with and without).
+
+Gibs and Corpses > Corpse Collision:
+- **Corpses** (`vr_corpse_collide`, default 4): 0 Pass Through (as before), 1 Fixed Box (a kinematic body of its lying
+  box, Quake's, no taller than 24), 2 Pushable Box (a dynamic box that slides on the floor, upright and never turning),
+  3 Fixed Pose (hulls fitted to the frame it lies in: its drawn vertices cut across their main horizontal axis into
+  pieces about 24 units long, each piece's hull; a grunt is 2, cached per model, frame and scale), 4 Pushable Pose (the
+  same, dynamic; it turns about its yaw and its entity's yaw follows).
+- **Pushable Corpse Mass** (`vr_corpse_collide_mass`, 150 kg) and **Friction** (`vr_corpse_collide_friction`, 1; the
+  floor's 0.6): hands and held weapons push it by mass (limitPushes), so an empty hand swept 20 units into a grunt's
+  corpse moved it 2.5 units; at 20 kg and friction 0.2 the same sweep slid it 70. A player walking into one shoves it
+  (shoveBumped) only if light enough (about 60 kg at the defaults).
+- **Props / Thrown Things / Held Things Meet Corpses** (`vr_corpse_collide_props`, `_thrown`, `_held`, all 1): loose
+  props (boxes, weapons, gibs, heads) rest on corpses; things in flight from a throw (`Slot::flight`) by their own
+  switch (shouldCollide); the hands' bodies and held props push pushable ones (a fixed corpse and a held thing are both
+  kinematic: the drawn weapon already stops at corpses, vr_model_collide's monsters), and a prop carried in both hands
+  stops at any corpse (holdClear's levelFilter).
+- **You and Corpses** (`vr_corpse_collide_player`, 0): 0 Walk Through, 1 Step Over (its box no taller than 16 to you:
+  a step), 2 Solid (its full height, up to 24: walk round a tall one or jump onto it). Quake's moves meet its box
+  (VR_CorpseBox, SV_ClipToLinks: its body's box within its Quake box, met by the same narrower box the trace uses), it
+  is ground to you (VR_StandsOn), and a move starting in it lets you out (one dropped onto you); feet up to 3 units
+  into its top count as on it (walking down a slope onto one).
+- **Monsters Step Over Corpses** (`vr_corpse_collide_monsters`, 0): monsters' moves meet it as a 16 unit step.
+
+Passes: props in a corpse as its body is made (a monster's drop under it) and props made in one (dropped through it to
+the floor, let go of in it) pass through it until clear (World::inside: noteCorpseInside, noteBornInside), as small
+gibs born in a monster do; small gibs torn from a corpse too. A pushable corpse's entity follows its body (writeCorpse:
+FL_ONGROUND kept, so Quake never moves it; a QC knock's velocity goes to the body), lifts carry it by contact
+(VR_PushSkips). Swimmers' corpses stay fixed (nothing lifts them).
+
+Ragdolls later (BACKLOG): one body per corpse now; a ragdoll replaces it with jointed pieces under the same kind,
+category, mask and passes (the fitted pieces along the body are where its limbs would be cut).
+
+Tests (mock): `vr_corpse_drop [height]` (Debug > Tests: Drop the Nearest Prop on the Nearest Corpse) put the grunt's
+shotgun 32 units over its corpse: it rests on it at z 65.7 (modes 1-4; touching 1 prop) and on the floor at 51 (mode
+0). Walking down the firing range's slope into a grunt's corpse: through it (0), onto it at z 53 and over it (1, 2;
+it is 14 high). `vr_corpse_list` (Debug > Reports: Corpses in the Physics) prints each body, where it lies and what
+touches it. Cost with 24 corpses: Box3D's step 0.028 ms a frame (0.030 with none), box3d's whole frame about 0.02-0.03
+ms; save and load keep them. eval.sh canary: no differences.

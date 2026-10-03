@@ -60,7 +60,8 @@ seconds, with fly particles buzzing round it as well as the sound.
   .mdl monsters (no skeletons) for ragdolls (derived bone chains per model, skinning the last death frame, or
   per-limb pieces); Box3D joints and their cost with many corpses (the thread benchmarks: physbench); blending from
   the death animation into the ragdoll; severing limbs/heads where hit (ties into small gibs, ThrowHead, wounds and
-  blood decals); networking/saves; and which monsters first.
+  blood decals); networking/saves; and which monsters first. Corpses are already one Box3D body each (ROUND21.md,
+  "Corpse collision": `Kind::Corpse`, `catCorpse`, its mask and passes): a ragdoll would replace that body.
 - **Vore shove** (the author, 2026-10-02: "I would like the vore to also have a shove attack when the player is
   close, later on"): extend the enemy shove (QC/vr_enemyshove.qc) to the vore (shalrath), with its own animation.
 - **Flashlight optional; a brighter option** (the author, 2026-10-02): make the flashlight completely optional (off
