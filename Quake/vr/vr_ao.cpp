@@ -960,6 +960,8 @@ struct BelowNormal
     {
         SetThreadPriority(GetCurrentThread(), was);
     }
+#else
+    BelowNormal() {} // (user-provided: `const BelowNormal low;` needs it)
 #endif
     BelowNormal(const BelowNormal&) = delete;
     BelowNormal& operator=(const BelowNormal&) = delete;
