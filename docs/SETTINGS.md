@@ -27,19 +27,38 @@ of help at the bottom when you select it. In the headset the menus are taller th
 at once (Menu page > *Menu Height*, `vr_menu_height`: 1.35 times Quake's height, about 35 degrees up and down with
 the shipped menu distance and scale).
 
+**Menu Detail** (the last row of every page, `vr_menu_level`): *Standard* (the default: what every player sets),
+*Advanced* (every gameplay, display and graphics setting: Advanced VR Options and its pages) or *Developer* (also
+weapon and prop offsets and weights, ragdolls, hitboxes, the motion recorder, debug and tests, and the corner's
+Checklist button). The corner's *Advanced VR* button switches Standard to Advanced. `menu_vr <n>` opens any page,
+whatever the level. Each setting has one home page; other pages link to it ("Grenade Pouch: Hip Holsters").
+
+**Changes:** a setting changed from its default shows a `*` by its label. *Changed Settings* (VR Settings > More)
+lists them all, from every page, and lets you change them there. *Reset This Page* at the bottom of a page puts that
+page's settings back to their defaults (press it twice, within 3 seconds).
+
+**First start:** with no saved config, VR Calibration starts the first time the headset is on (`vr_setup_pending`): your
+height, your body, and the room's buttons for the main options. *Run VR Calibration Again* (VR Settings > More) or the
+main menu's first row runs it again.
+
 **Live preview:** changes show in the game as you make them. In single player the game keeps running under the
 settings pages, and it pauses while a monster is after you (Menu page > *Live Preview*).
 
-The main page has these sections:
+The main page has these sections (rows marked *A* show from Menu Detail: Advanced; the Tuning links from Developer):
 
 | Section | Settings |
 |---|---|
-| **Comfort** | Turning (smooth or snap 30/45/90), Turn Speed, Move Towards (head or the moving stick's hand), Swap Stick Functions, Default Speed (run or walk), Stick Deadzone, Teleport and Teleport Range, Room Scale (real movement to game movement) |
-| **Body** | Wrist Gadget Arm, Flashlight Side, Height and *Set Height Now*, World Scale, Floor Offset, Chest Flashlight |
-| **Weapons** | Gun Angle, Off Hand Angle, Weapon Grip (hold or sticky), Two-Handed (off, basic, virtual stock), *Weapon Offsets (Held Weapon)*, Two-Handed Hand-Off, Throw Speed, Throw Gravity (real or Quake), Force Grab, Haptics, Crosshair and its size |
-| **Display** | HUD (wrist gadget or status bar), Status Bar hand, HUD Scale, Menu Distance and Scale, Desktop Mirror (off, left eye, both eyes), Body (off, torso and arms, full body), Build, Torso, Legs and Shoulders offsets, Holster Models |
-| **Headset** | VR on or off, Restart VR, OpenXR Runtime, Render Scale, Upscaling (bilinear, FSR, NIS), Sharpness, Foveated Rendering (off, conservative, balanced, aggressive), Hide Lens Corners |
-| **More** | Advanced VR Options |
+| **Comfort** | Comfort (a preset: Comfortable, Moderate, Full Freedom, or Custom), Turning (smooth or snap 30/45/90), Turn Speed, Move Towards (head or the moving stick's hand), Default Speed (run or walk), Teleport; *A*: Teleport Range, Stick Deadzone, Room Scale |
+| **You** | Handedness (a preset: right- or left-handed, or Custom), Height and *Set Height Now*, *Body Calibration*, Dominant Eye |
+| **Weapons** | Gun Angle, Off Hand Angle, Weapon Grip (hold or sticky), Two-Handed (off, basic, virtual stock), Force Grab, Haptics; *A*: Two-Handed Hand-Off, Throw Speed, Throw Gravity (real or Quake) |
+| **Sound and Display** | Volume, Music Volume, HUD (wrist gadget or status bar), Crosshair, Headset Gamma, Graphics Preset |
+| **More** | *Body and Display*, *Headset*, *Sound* (A), *Advanced VR Options* (A), *Changed Settings*, *Run VR Calibration Again* |
+
+**Body and Display:** Swap Stick Functions, Wrist Gadget Arm and Flashlight Side (Handedness sets all three), World
+Scale, Floor Offset (A), Chest Flashlight, Body (off, torso and arms, full body), Build, Holster Models, Status Bar
+hand, Desktop Mirror (off, left eye, both eyes), *Recording (Window View)*. **Headset:** VR on or off, Restart VR,
+OpenXR Runtime, Render Scale, Upscaling (bilinear, FSR, NIS), Sharpness, Foveated Rendering (off, conservative,
+balanced, aggressive), Hide Lens Corners; Near Clip, Held Items at the Eyes and Float Depth (A).
 
 Notes:
 
@@ -240,7 +259,7 @@ built-in ones.
 | `vr_height_calibration` | 1.646 | your height in metres (*Set Height Now*) |
 | `vr_world_scale` | 1.25 | size of the world around you |
 | `vr_floor_offset` | -21 | floor height |
-| `vr_stick_swap` | 0 | 1: the right stick moves and the left turns (*Swap Stick Functions*, on the main VR Settings page) |
+| `vr_stick_swap` | 0 | 1: the right stick moves and the left turns (*Swap Stick Functions*, on Body and Display; *Handedness* on VR Settings sets it too) |
 | `vr_gadget_arm` | 0 | the wrist gadget's arm: 0 left, 1 right |
 | `vr_flashlight_side` | 0 | the hip the torch hangs on: 0 left, 1 right |
 | `vr_body_mode` | 3 (shipped) | 0 off, 2 torso and arms, 3 full body |

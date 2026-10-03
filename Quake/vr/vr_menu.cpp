@@ -3654,7 +3654,7 @@ za::Vector<Item> pageDebugTools()
         command("A Grunt's Corpse Ahead", "vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; vr_test_spawn_dead 0"),
         toggle("On the Training Dummy", vr_smallgibs_test_dummy)
             .help("vr_smallgibs_test_dummy: the tests below hit the nearest training dummy instead (the firing range's), and the shotgun, nail, blow and chainsaw ones print the gore each sent (gore hits, wound events, blood particles): to compare with a grunt's."),
-        command("A Grunt's Ragdoll Ahead", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Grunt's Ragdoll Ahead", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdolls) and a grunt killed 96 units ahead: he goes limp as he falls."),
         command("Blast Beside the Nearest Ragdoll", "vr_ragdoll_blast_test").help("vr_ragdoll_blast_test [damage]: a blast's push (no damage) 24 units beside the nearest ragdoll, on your side: it is thrown away from you."),
         command("Ragdoll and Prop Drawn Motion", "vr_drawn_motion_test 90 nearest")
@@ -3852,20 +3852,20 @@ za::Vector<Item> pageDebugTests()
             .extend()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
-        command("A Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 5; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 5; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a knight killed at the Distance ahead: he goes limp as "
                   "he falls (his sword dropped)."),
-        command("An Ogre's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 1; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("An Ogre's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 1; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and an ogre killed at the Distance ahead: he goes limp as he falls (his chainsaw dropped)."),
-        command("An Enforcer's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 8; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("An Enforcer's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 8; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and an enforcer killed at the Distance ahead: he goes limp as he falls (his laser rifle dropped)."),
-        command("A Death Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 6; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Death Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 6; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a death knight killed at the Distance ahead: he goes limp as he falls (his sword dropped)."),
-        command("A Rottweiler's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 7; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Rottweiler's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 7; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a rottweiler killed at the Distance ahead: it goes limp as it falls."),
-        command("A Scrag's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 4; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Scrag's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 4; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a scrag killed at the Distance ahead: he falls limp."),
-        command("A Grunt's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+        command("A Grunt's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a grunt killed at the Distance ahead: he goes limp as "
                   "he falls."),
         command("Go to a Crowbar on a Crate", "vr_crates_goto crowbar")
@@ -7622,7 +7622,7 @@ void qvr::menu::pathCheck_f()
     byte* file = nullptr;
     if(Cmd_Argc() > 1 && Cmd_Argv(1)[0] == '{')
     {
-        data = Cmd_Args(); // the text itself: vr_menu_path_check "{menu:Locomotion>Snap Turn}"
+        data = Cmd_Args(); // the text itself: vr_menu_path_check "{menu:Locomotion>Lean}"
     }
     else if(Cmd_Argc() > 1)
     {

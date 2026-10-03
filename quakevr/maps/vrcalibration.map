@@ -917,7 +917,7 @@
 // entity 21
 {
 "classname" "func_worldtext_banner"
-"worldtext" "CALIBRATE AGAIN\nSTART CALIBRATION: all of it.\n\nBody only:\n{menu:Body Calibration}\n\nHeight only:\n{menu:Body and Display>Set Height Now}"
+"worldtext" "CALIBRATE AGAIN\nSTART CALIBRATION: all of it.\n\nBody only:\n{menu:Body Calibration}\n\nHeight only:\n{menu:VR Settings>Set Height Now}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.2"
 "angle" "180"
