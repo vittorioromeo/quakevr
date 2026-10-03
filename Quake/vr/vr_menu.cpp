@@ -18,6 +18,7 @@
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_menuui.hpp"
+#include "vr_menupaint.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_review.hpp"
 #include "vr_motion_take.hpp"
@@ -372,6 +373,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
 [[nodiscard]] za::Vector<Item> pageChanged();
+[[nodiscard]] za::Vector<Item> pageSearch();
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageColours();
@@ -4649,6 +4651,7 @@ const Page pages[] = {
     {"Gore - Decapitation", pageDecapitation, pageGore},                           // 126
     {"Ragdolls - Zombie", pageRagdollZombie, pageRagdolls, LevelDeveloper},                        // 127
     {"Changed Settings", pageChanged, pageMain, LevelStandard},                                    // 128 (MENU_REVIEW.md)
+    {"Search", pageSearch, pageMain, LevelStandard},                                               // 129 (the corner's Search; vr_menu_search.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -4798,9 +4801,17 @@ void onPresetChosen(cvar_t* var)
     }
 }
 
+void openSearchRow()
+{
+    qvr::menu::openSearch();
+}
+
 za::Vector<Item> pageMain()
 {
     return {
+        action("Search Settings", openSearchRow)
+            .help("Find any setting by its name or what it does: type, and pick one to go to it (also the corner's Search "
+                  "button in the headset)."),
         header("Tuning").developer(),
         open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets)),
         open("Weapon Weights (Held Weapon)", pageIndex(pageWeaponWeights)),
@@ -6251,6 +6262,10 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     const bool settings = za::anyOf(list.begin(), list.end(), [](const Item& item) {
         return item.cvar && item.kind != Item::Action && item.cvar != &vr_menu_level;
     });
+    if(pages[page].build == pageSearch)
+    {
+        return; // (drawn its own way: vr_menu_search.inc)
+    }
     if(settings && !slotPage(pages[page].build) && pages[page].build != pageChanged)
     {
         list.pushBack(header("This Page"));
@@ -6507,6 +6522,10 @@ void noteLeft(int p, const za::Vector<Item>& list)
 // shown, for what the hand holds now, keep the same row by its label).
 void closeDropDown(); // (the drop-down lists, below: a page shown closes the one open)
 
+// The page a Search result opened (vr_menu_search.inc): Back from it returns to the results (VR Settings' Back too);
+// -1 once elsewhere.
+int searchOpened = -1;
+
 void showPage(int target)
 {
     closeDropDown();
@@ -6523,6 +6542,10 @@ void showPage(int target)
     if(pages[page].build == pageChanged)
     {
         menuPages.done[page] = false; // what is changed now
+    }
+    if(target != searchOpened && parentPage[target] != searchOpened && pages[target].build != pageSearch)
+    {
+        searchOpened = -1; // elsewhere now: Back as usual (vr_menu_search.inc)
     }
     const auto& list = items(page);
     if(!selectable(list[cursors[page]]))
@@ -7383,6 +7406,20 @@ void drawHelp(const char* text)
 // depth, the page linking it first, its rows), each row (kind, header above, label, setting, page
 // opened), the links into each page, and the pages no link reaches. For the menus' coverage check
 // (docs/vr-port/menu_coverage.sh): each page is shown to be built for what the hands hold now.
+const char* searchRowText()
+{
+    return "";
+}
+
+// The Search page's rows: a line of text only (showPage and the menu's bookkeeping expect one; the page is drawn and
+// driven by vr_menu_search.inc).
+za::Vector<Item> pageSearch()
+{
+    return {info(searchRowText)};
+}
+
+#include "vr_menu_search.inc"
+
 void dumpPages()
 {
     const int was = page;
@@ -7857,6 +7894,32 @@ void qvr::menu::jumpToAdvanced()
     showPage(PageAdvanced);
 }
 
+void qvr::menu::openSearch()
+{
+    openSearchPage();
+}
+
+// vr_menu_search <text>: the Search page's results for the text, best first, with their scores and pages.
+void qvr::menu::search_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_menu_search <text>: the VR menus' settings, actions and pages matching it, best first\n");
+        return;
+    }
+    buildSearchIndex();
+    search.query = Cmd_Args();
+    runSearch();
+    Con_Printf("vr_menu_search \"%s\": %d results (of %d rows and pages)\n", search.query.cStr(),
+        static_cast<int>(search.results.size()), static_cast<int>(search.index.size()));
+    for(int r = 0; r < static_cast<int>(search.results.size()) && r < 15; r++)
+    {
+        const SearchEntry& e = search.index[search.results[r].entry];
+        Con_Printf("%2d %.2f %s%s | %s%s\n", r + 1, search.results[r].score, e.label.cStr(), e.isPage ? " (page)" : "",
+            e.path.cStr(), e.level > menuLevel() ? va(" (%s)", levelName(e.level)) : "");
+    }
+}
+
 bool qvr::menu::developerLevel()
 {
     return menuLevel() >= LevelDeveloper;
@@ -7885,6 +7948,11 @@ void qvr::menu::jumpToChecklist()
 
 void qvr::menu::selectEnd(int dir)
 {
+    if(m_state == m_vr && pages[page].build == pageSearch)
+    {
+        search.focusKey = 0; // from the corner's buttons: the keys
+        return;
+    }
     if(m_state == m_vr)
     {
         const auto& list = items(page);
@@ -7995,6 +8063,11 @@ NotedPlace notedPlace;
 extern "C" void VR_Menu_Draw()
 {
     syncPresets(); // (Comfort, Handedness: the choice the settings match now)
+    if(pages[page].build == pageSearch)
+    {
+        drawSearch();
+        return;
+    }
     const auto& list = items(page);
     int& cursor = cursors[page];
     int& scroll = scrolls[page];
@@ -8069,6 +8142,11 @@ extern "C" void VR_Menu_Draw()
 
 extern "C" void VR_Menu_Key(int key, int repeat)
 {
+    if(pages[page].build == pageSearch)
+    {
+        searchKey(key);
+        return;
+    }
     const auto& list = items(page);
     const int cursor = cursors[page];
 
@@ -8092,7 +8170,13 @@ extern "C" void VR_Menu_Key(int key, int repeat)
         case K_BBUTTON:
         case K_MOUSE2:
         case K_MOUSE4:
-            if(page == PageMain)
+            if(page == searchOpened)
+            {
+                searchOpened = -1; // a search result's page: back to the results
+                showPage(pageIndex(pageSearch));
+                S_LocalSound("misc/menu2.wav");
+            }
+            else if(page == PageMain)
             {
                 M_Menu_Options_f();
             }
@@ -8199,8 +8283,26 @@ extern "C" void VR_Menu_Key(int key, int repeat)
 
 // The mouse (or the laser pointer) over the list selects the row under it, and drags a grabbed
 // slider.
+extern "C" void VR_Menu_Char(int key)
+{
+    if(pages[page].build == pageSearch && key >= 32 && key < 127)
+    {
+        typeInSearch(static_cast<char>(key));
+    }
+}
+
+extern "C" int VR_Menu_TextEntry()
+{
+    return pages[page].build == pageSearch ? TEXTMODE_NOPOPUP : TEXTMODE_OFF; // (the page's own keyboard)
+}
+
 extern "C" void VR_Menu_Mousemove(float cx, float cy)
 {
+    if(pages[page].build == pageSearch)
+    {
+        searchMouse(cx, cy);
+        return;
+    }
     if(dropDownMousemove(cx, cy))
     {
         return;

@@ -7742,6 +7742,9 @@ void M_Charinput (int key)
 	case m_keys:
 		M_Keys_Char (key);
 		return;
+	case m_vr: // QVR: the Search page's box
+		VR_Menu_Char (key);
+		return;
 	default:
 		return;
 	}
@@ -7766,6 +7769,8 @@ textmode_t M_TextEntry (void)
 		return M_Options_TextEntry ();
 	case m_keys:
 		return M_Keys_TextEntry ();
+	case m_vr: // QVR
+		return (textmode_t) VR_Menu_TextEntry ();
 	default:
 		return TEXTMODE_OFF;
 	}

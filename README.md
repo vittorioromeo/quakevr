@@ -196,6 +196,9 @@ options (VR Settings > *Run VR Calibration Again*, or the main menu's first row,
 **Performance:** the shipped settings are tuned for a fast PC. If frames drop, pick a lower *Graphics Preset* (Off,
 Low, Medium, High or Ultra) and lower *Render Scale* (Headset) below 1.
 
+**Search:** the corner's *Search* button (or *Search Settings* on VR Settings) finds any setting by its name or what it
+does, as you type, and opens its page on it.
+
 **More:** every page ends with **Menu Detail**. *Standard* (the default) shows what every player sets; *Advanced* shows
 every gameplay, display and graphics setting (Advanced VR Options: about sixty pages: combat, movement, carrying and
 throwing, gore, the body, weapons, the HUD, graphics...); *Developer* adds the tuning pages (weapon and prop offsets and

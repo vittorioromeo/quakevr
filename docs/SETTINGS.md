@@ -33,6 +33,14 @@ weapon and prop offsets and weights, ragdolls, hitboxes, the motion recorder, de
 Checklist button). The corner's *Advanced VR* button switches Standard to Advanced. `menu_vr <n>` opens any page,
 whatever the level. Each setting has one home page; other pages link to it ("Grenade Pouch: Hip Holsters").
 
+**Search** (the corner's *Search* button in the headset, or *Search Settings* at the top of VR Settings): a text box
+and a keyboard on the left (the laser or the sticks press its keys; a real keyboard types too), the results on the right,
+best first, updated as you type: each with the pages it is on in small letters. It looks at every setting, action and
+page, whatever Menu Detail shows: names first, then the help, the pages above and the cvar's name; whole words, word
+starts, letters in order and one typo are all matches ("sanp tur" finds *Turning*). Pick a result to open its page on
+it (a result above Menu Detail, marked with its level, raises Menu Detail); Back returns to the results.
+`vr_menu_search <text>` prints the same results in the console.
+
 **Changes:** a setting changed from its default shows a `*` by its label. *Changed Settings* (VR Settings > More)
 lists them all, from every page, and lets you change them there. *Reset This Page* at the bottom of a page puts that
 page's settings back to their defaults (press it twice, within 3 seconds).

@@ -51,6 +51,10 @@ void init();
 // Menu Detail at Developer (vr_menu_level 2): the tuning and testing pages, the corner's Checklist button.
 [[nodiscard]] bool developerLevel();
 
+// Search (the corner's button): the Search page, from any menu (vr_menu_search.inc).
+void openSearch();
+void search_f(); // vr_menu_search <text>
+
 // The sticks' selection back on the page shown from the corner's buttons: onto its first setting
 // (dir 1, going down) or its last (dir -1, going up).
 void selectEnd(int dir);

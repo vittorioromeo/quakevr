@@ -126,6 +126,14 @@ Built, after "Please proceed with your plan ... on a separate branch" (each step
    pointed at Body and Display > Set Height Now: VR Settings now (the .map, its generator and the .bsp's entity lump);
    README and SETTINGS.md describe the new menus.
 
+7. **Search** (the author's request, the same day): the corner's Search button (and Search Settings on VR Settings)
+   opens a page with a text box and a QWERTY keyboard on the left and the results on the right, updated as you type,
+   each with its pages in small letters; fuzzy and ranked (labels, then help, pages and cvar names; word starts,
+   letters in order, one typo); picking one opens its page on it, Back returns to the results
+   (`vr_menu_search.inc`; `vr_menu_search <text>` prints the ranking). First start fixed on the way: with VR on,
+   `vr_startgame` goes to the calibration room instead of the hub (the hub was always running, so the frame check
+   never fired).
+
 Not built (the questions below): gameplay-feel presets, a comfort vignette, per-slot cvars to data files.
 
 ## Questions for the author
