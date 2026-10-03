@@ -19,6 +19,7 @@ it as it was; the map's own props are left out: their start depends on the wall 
 """
 import argparse
 import os
+import random
 import re
 import statistics
 import subprocess
@@ -112,6 +113,36 @@ def fight(frames=600):
     return lines
 
 
+def fx_particles(frames=600):
+    """Explosions (vr_physics_blast: Quake's explosion particles, a scorch, the sprite) ahead every 4 server frames,
+    and puffs of smoke and blood in front of the eyes: many particles at once. Needs drawing (run with +vr_mock_fast 1:
+    the particles are simulated in the scene's draw)."""
+    rng = random.Random(7)
+    lines = [waits(30), "vr_physics_frametime -"]
+    for i in range(frames // 4):
+        x, y = 316 - rng.uniform(90, 300), -556 + rng.uniform(-150, 150)
+        lines.append(f"vr_physics_blast {x:.0f} {y:.0f} 40 1;vr_particle_test {(4, 1, 11)[i % 3]} 40;wait;wait;wait;wait")
+    lines.append("vr_physics_frametime storm")
+    return lines
+
+
+def fx_decals(frames=900):
+    """Shots at the floor ahead (chips) every server frame and a blast's scorch every 10: the decals at vr_decal_max
+    and still coming. Needs drawing (+vr_mock_fast 1)."""
+    rng = random.Random(11)
+    lines = [waits(30), "vr_physics_frametime -"]
+    for i in range(frames):
+        x, y = 316 - rng.uniform(60, 320), -556 + rng.uniform(-200, 200)
+        line = f"vr_physics_fire 10 {x:.0f} {y:.0f} 30"
+        if i % 10 == 0:
+            line += f";vr_physics_blast {x:.0f} {y:.0f} 40 1"
+        lines.append(line + ";wait")
+        if i == frames - 301:
+            lines.append("vr_physics_frametime -;vr_decal_count")
+    lines += ["vr_physics_frametime full", "vr_decal_count"]
+    return lines
+
+
 MAPS = {"water": "vrcalibration", "idle_e1m1": "e1m1"}  # (the others: vrfiringrange)
 
 SCENES = {
@@ -125,6 +156,8 @@ SCENES = {
     "idle_range": idle,
     "idle_e1m1": idle,
     "fight": fight,
+    "fx_particles": fx_particles,
+    "fx_decals": fx_decals,
 }
 
 

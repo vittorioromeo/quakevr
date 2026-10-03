@@ -90,6 +90,9 @@ struct StaticTriangles
     long long uploadedBytes{0};
 };
 void upload(StaticTriangles& triangles, za::Span<const Vertex> vertices);
+// Only `vertices`' `count` from `first` sent, the others as they were uploaded (it fits the buffer: no larger than when
+// last uploaded, or its room to grow).
+void update(StaticTriangles& triangles, za::Span<const Vertex> vertices, za::SizeT first, za::SizeT count);
 void draw(const StaticTriangles& triangles, const glm::mat4& mvp, const State& state, Texture texture = 0);
 
 // Camera-facing particles (vr_particles.cpp), made into quads on the GPU: one record each, uploaded once a frame and

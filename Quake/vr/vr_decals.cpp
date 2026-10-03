@@ -106,6 +106,7 @@ struct Decal
     bool fromStart = false; // spreading from its -u end (a run down a wall), not its middle
     float darken = 0.f;     // how much darker it gets as it spreads and dries
     za::Vector<Corner> tris; // its footprint clipped to the world's faces under it (clipToWorld)
+    int staticAt = -1;       // its first vertex in staticVertices while it is settled there (-1: it is not)
 };
 
 // Oldest first (drawn in that order; the oldest go first): a ring of vr_decal_max slots, whose marks' triangles keep
@@ -118,17 +119,54 @@ int dropCount = 0; // the blood drops among them
     return d.cell >= firstCell[BloodDrop] && d.cell < firstCell[BloodDrop] + cellCount[BloodDrop];
 }
 
+za::Vector<gfx::Vertex> vertices; // the marks that change this frame
+// The others (settled: shown, spread and darkened, not yet fading), in the order they settled, in their own buffer:
+// a mark's triangles are added when it settles and uploaded then, not for each eye and frame, and not again when other
+// marks come or go. A mark that starts to fade or goes leaves its triangles there with no area (drawing nothing) until
+// enough have gone to pack the rest.
+za::Vector<gfx::Vertex> staticVertices;
+gfx::StaticTriangles staticTriangles;
+int staticGone = 0;        // vertices in staticVertices left by marks that went
+bool staticResend = false; // all of staticVertices to upload (packed, or cleared)
+struct VertexRange
+{
+    int first, end;
+};
+za::Vector<VertexRange> staticChanged; // what else changed in it since it was uploaded
+
+void staticTouched(int first, int end)
+{
+    if(!staticChanged.empty() && staticChanged.back().end == first)
+    {
+        staticChanged.back().end = end; // (the marks settling in a frame: one range)
+        return;
+    }
+    staticChanged.pushBack({first, end});
+}
+
+// Its triangles out of the settled marks' buffer (left there with no area: drawn as nothing).
+void unsettle(Decal& d)
+{
+    if(d.staticAt < 0)
+    {
+        return;
+    }
+    const int first = d.staticAt, end = first + static_cast<int>(d.tris.size());
+    for(int i = first; i < end; i++)
+    {
+        staticVertices[static_cast<za::SizeT>(i)].pos = staticVertices[static_cast<za::SizeT>(first)].pos;
+    }
+    staticTouched(first, end);
+    staticGone += end - first;
+    d.staticAt = -1;
+}
+
 void popOldest()
 {
+    unsettle(decals.front());
     dropCount -= isDrop(decals.front());
     decals.popFront();
 }
-za::Vector<gfx::Vertex> vertices;       // the marks that change this frame
-za::Vector<gfx::Vertex> staticVertices; // the others,
-gfx::StaticTriangles staticTriangles;     // in their own buffer: uploaded when they change, not for each eye and frame
-bool staticDirty = false;                 // staticVertices changed since they were uploaded
-double staticUntil = 0.0;                // when one of those starts to change (fades)
-double staticLife = 0.0;                 // vr_decal_life they were built for
 int builtFrame = -1; // the host frame `vertices` were built in; -1 when decals came or went since
 int addedThisFrame = 0;
 int addedFrame = -1;
@@ -948,6 +986,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
         {
             if(isDrop(decals[k]))
             {
+                unsettle(decals[k]);
                 decals.eraseAt(k);
                 dropCount--;
                 break;
@@ -968,6 +1007,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     Decal& slot = decals.pushBack();
     za::Vector<Corner> buffer = ZA_MOVE(slot.tris);
     slot = d;
+    slot.staticAt = -1;
     slot.tris = ZA_MOVE(buffer);
     slot.tris.assignRange(tris.begin(), tris.end());
     dropCount += isDrop(slot);
@@ -1250,58 +1290,80 @@ void draw()
     if(builtFrame != host_framecount)
     {
         QVR_PROFILE("decal verts");
-        const bool setChanged = builtFrame == -1;
         builtFrame = host_framecount;
 
         // Faded out over their last five seconds.
         const double life = za::max(5.f, vr_decal_life.value);
-        bool popped = false;
         while(!decals.empty() && cl.time - decals.front().born > life)
         {
             popOldest();
-            popped = true;
         }
 
-        const bool restatic = setChanged || popped || cl.time >= staticUntil || life != staticLife;
-        if(restatic)
-        {
-            staticVertices.clear();
-            staticUntil = 1e30;
-            staticLife = life;
-            staticDirty = true;
-        }
         vertices.clear();
+        int settledVertices = 0;
         for(za::SizeT k = 0; k < decals.size(); k++)
         {
-            const Decal& d = decals[k];
-            // When it last changes: shown, spread, darkened; then its fading.
+            Decal& d = decals[k];
+            // When it last changes: shown, spread, darkened; then its fading. (Settled, it is drawn the same each
+            // frame: appendDecal's alpha is 1 and its spreading and darkening done.)
             const double settled = d.born + za::max(0.f, d.grow, d.darken > 0.f ? za::max(d.grow, 8.f) : 0.f);
             const double fades = d.born + life - 5.0;
             if(cl.time >= settled && cl.time < fades)
             {
-                if(restatic)
+                if(d.staticAt < 0)
                 {
+                    d.staticAt = static_cast<int>(staticVertices.size());
                     appendDecal(d, life, staticVertices);
-                    staticUntil = za::min(staticUntil, fades);
+                    staticTouched(d.staticAt, static_cast<int>(staticVertices.size()));
                 }
+                settledVertices += static_cast<int>(d.tris.size());
             }
             else
             {
+                unsettle(d);
                 appendDecal(d, life, vertices);
-                if(cl.time < settled)
+            }
+        }
+
+        // Packed when more of it is gone than is left: the settled marks' triangles again, in their order.
+        if(staticGone > za::max(4096, settledVertices))
+        {
+            za::Vector<gfx::Vertex> packed;
+            packed.reserve(static_cast<za::SizeT>(settledVertices));
+            for(za::SizeT k = 0; k < decals.size(); k++)
+            {
+                Decal& d = decals[k];
+                if(d.staticAt >= 0)
                 {
-                    staticUntil = za::min(staticUntil, settled);
+                    const int at = static_cast<int>(packed.size());
+                    for(za::SizeT i = 0; i < d.tris.size(); i++)
+                    {
+                        packed.pushBack(staticVertices[static_cast<za::SizeT>(d.staticAt) + i]);
+                    }
+                    d.staticAt = at;
                 }
             }
+            staticVertices.swap(packed);
+            staticGone = 0;
+            staticResend = true;
         }
     }
     const gfx::State state{.shade = gfx::Shade::Texture, .blend = gfx::Blend::Modulate, .depthTest = true,
         .depthWrite = false, .retro = retro::categorySet(retro::Category::Decals)}; // retro textures (vr_retro.hpp)
-    if(staticDirty)
+    if(staticResend || staticVertices.size() * sizeof(gfx::Vertex) > staticTriangles.capacity)
     {
-        staticDirty = false;
         gfx::upload(staticTriangles, staticVertices);
     }
+    else
+    {
+        for(const VertexRange& r : staticChanged)
+        {
+            gfx::update(staticTriangles, staticVertices, static_cast<za::SizeT>(r.first),
+                static_cast<za::SizeT>(r.end - r.first));
+        }
+    }
+    staticResend = false;
+    staticChanged.clear();
     gfx::draw(staticTriangles, gfx::sceneViewProjection(), state, atlas);
     if(!vertices.empty())
     {
@@ -1325,8 +1387,8 @@ void count_f()
     Con_Printf("%d decals: %d blood, %d drops, %d scorch, %d chips, %d splatters, %d streaks, %d pools, %d splotches\n",
         static_cast<int>(decals.size()), kinds[Blood], kinds[BloodDrop], kinds[Scorch], kinds[Hole], kinds[Splatter],
         kinds[Streak], kinds[Pool], kinds[Splotch]);
-    Con_Printf("%d vertices settled, %d changing (made again each frame)\n", static_cast<int>(staticVertices.size()),
-        static_cast<int>(vertices.size()));
+    Con_Printf("%d vertices settled (%d of them left by marks gone), %d changing (made again each frame)\n",
+        static_cast<int>(staticVertices.size()), staticGone, static_cast<int>(vertices.size()));
     Con_Printf("settled vertices uploaded %lld times so far, %.1f KB in all (%.1f KB a frame for both eyes if copied "
                "at each draw)\n",
         staticTriangles.uploads, static_cast<double>(staticTriangles.uploadedBytes) / 1024.0,
@@ -1377,6 +1439,10 @@ void clear()
     decals.clear();
     dropCount = 0;
     builtFrame = -1;
+    staticVertices.clear();
+    staticGone = 0;
+    staticChanged.clear();
+    staticResend = true;
     gibs.clear();
     holes.clear();
     gore::clear();

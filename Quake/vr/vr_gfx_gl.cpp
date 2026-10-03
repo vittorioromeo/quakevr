@@ -738,6 +738,26 @@ void upload(StaticTriangles& t, za::Span<const Vertex> triangles)
     GL_BindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+void update(StaticTriangles& t, za::Span<const Vertex> triangles, za::SizeT first, za::SizeT count)
+{
+    if(!t.buffer || triangles.sizeBytes() > t.capacity)
+    {
+        upload(t, triangles);
+        return;
+    }
+    t.count = triangles.size();
+    if(count == 0)
+    {
+        return;
+    }
+    t.uploads++;
+    t.uploadedBytes += static_cast<long long>(count * sizeof(Vertex));
+    GL_BindBuffer(GL_ARRAY_BUFFER, t.buffer);
+    GL_BufferSubDataFunc(GL_ARRAY_BUFFER, static_cast<GLintptr>(first * sizeof(Vertex)),
+        static_cast<GLsizeiptr>(count * sizeof(Vertex)), triangles.data() + first);
+    GL_BindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 void draw(const StaticTriangles& t, const glm::mat4& mvp, const State& state, Texture texture)
 {
     if(!t.buffer || t.count == 0 || !beginDraw(mvp, state, texture))
