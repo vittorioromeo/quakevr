@@ -20,6 +20,7 @@
 #include "vr_profile.hpp"
 
 #include "Zancle/Algorithm/Fill.hpp"
+#include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"
 #include "Zancle/Base/GetArraySize.hpp"
@@ -315,6 +316,24 @@ void weaponTouches(edict_t* ent)
            solidOf(target) != SOLID_NOT;
 }
 
+// Whether `target`'s touch by `ent` can do nothing: a rigid body (Box3D's) not in a throw (.throwhit not
+// QVR_THROWHIT_NEVER_HIT), whose touch is QC forcegrabbable_touch's (a rock's, a brick's, a crate's piece's, a thrown
+// weapon's), met by something that takes no damage (another rock of the pile). forcegrabbable_touch then returns
+// having changed nothing: VR_Prop_Flung needs a toucher that takes damage, the hit is a throw's, and the rest is for
+// props Quake moves (not rigid ones). Their hard knocks are Box3D's hits (vr_box3d.cpp touches). A pile of rocks
+// toppling was thousands of these calls a frame, each moving prop's box in its neighbours'.
+[[nodiscard]] bool propTouchIsNothing(edict_t* ent, edict_t* target)
+{
+    const func_t fn = target->v.touch;
+    const auto& touches = progs::bindings().propTouches;
+    const auto* const end = touches + za::getArraySize(touches);
+    if(!fn || ent->v.takedamage != 0.f || isClient(ent) || za::find(touches, end, fn) == end)
+    {
+        return false;
+    }
+    return fieldFloatOr(target, f().vr_rigid, 0.f) != 0.f && fieldFloatOr(target, f().throwhit, 0.f) != 0.f;
+}
+
 // Body touches: triggers and touchable non-solids always; other solids only with
 // vr_gameplayfix_touchsolids. Bodies also "hand"-touch things when hands aren't tracked.
 void touch(edict_t* ent, edict_t* target)
@@ -328,6 +347,10 @@ void touch(edict_t* ent, edict_t* target)
     // gibs meeting hard are Box3D's hits). A pile of them moving was n x n QC touches a frame.
     if(fieldFloatOr(ent, f().vr_gib, 0.f) != 0.f && fieldFloatOr(target, f().vr_gib, 0.f) != 0.f &&
         fieldFloatOr(target, f().throwhit, 1.f) != 0.f)
+    {
+        return;
+    }
+    if(propTouchIsNothing(ent, target))
     {
         return;
     }
