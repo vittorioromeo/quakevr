@@ -5,6 +5,7 @@
 #include "vr_profile.hpp"
 #include "vr_haze.hpp"
 #include "vr_envmap.hpp"
+#include "vr_portals.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gfx.hpp"
@@ -298,6 +299,10 @@ SizedDistances sizedDistances;
 
 GLuint makeDistances(GLuint source, bool multisampled, void (*restore)())
 {
+    if(portals::viewing())
+    {
+        return 0; // (the depth through a slipgate is oblique: no distances to be had from it)
+    }
     bool& failed = multisampled ? distanceFailedMs : distanceFailed;
     if(!source || failed)
     {
@@ -1239,6 +1244,7 @@ void applyPreset(int preset)
     set(vr_water_underwater, on);
     set(vr_water_wobble, on);
     set(vr_water_refraction, more);
+    set(vr_portals, more); // the slipgates' views (vr_portals.cpp): the scene again, Medium and up
     set(vr_water_caustics, more);
     set(vr_water_geo_waves, more);
     set(vr_water_foam, more);
@@ -1645,6 +1651,15 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     // made as liquids draw), if the scene's depth can be read.
     r_framedata.water3[0] = za::clamp(vr_water_foam.value, 0.f, 2.f);
     envmap::waterFrameData(r_framedata.watercube, r_framedata.watercube2, liquid); // the room reflected (vr_envmap.cpp)
+    VR_PortalFrameData(r_framedata.portalplane, r_framedata.portalmin, r_framedata.portalmax); // slipgates (vr_portals.cpp)
+    if(portals::viewing())
+    {
+        // Through a slipgate the depth is oblique (vr_portals.cpp: VR_PortalClip): the scene's distances can't be
+        // read from it (opaqueSceneDistances: none), so no refraction or foam there.
+        r_framedata.water[2] = 0.f;
+        r_framedata.water3[0] = 0.f;
+        r_framedata.causticsscale[3] = 0.f;
+    }
     GLuint sceneColor = 0, sceneDepth = 0;
     int sceneSamples = 1, sceneViewport[4];
     VR_SceneTarget(&sceneColor, &sceneDepth, &sceneSamples, sceneViewport);

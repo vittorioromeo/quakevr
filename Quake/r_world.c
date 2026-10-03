@@ -827,6 +827,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		GL_BindNative (GL_TEXTURE6, GL_TEXTURE_2D, 0);
 	GL_BindNative (GL_TEXTURE8, GL_TEXTURE_2D, scenedepth); // QVR
 	GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_WaterCubeTexture ()); // QVR: the room reflected (LiquidCube; vr/vr_envmap.cpp)
+	GL_BindNative (GL_TEXTURE15, GL_TEXTURE_2D, VR_PortalTexture ()); // QVR: where a slipgate leads (PortalScene; vr/vr_portals.cpp)
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);
