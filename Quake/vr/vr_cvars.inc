@@ -1512,6 +1512,16 @@ QVR_CVAR(vr_corpse_collide_thrown, "1", CVAR_ARCHIVE) // thrown things in flight
 QVR_CVAR(vr_corpse_collide_held, "1", CVAR_ARCHIVE)   // held things (props, weapons, the hands' bodies) push pushable corpses, and props held in both hands stop at them
 QVR_CVAR(vr_corpse_collide_player, "0", CVAR_ARCHIVE) // the player meets corpses: 0 walks through, 1 steps over them (a 16 unit step), 2 solid (walk round or jump onto)
 QVR_CVAR(vr_corpse_collide_monsters, "0", CVAR_ARCHIVE) // monsters step over corpses (16 units) instead of walking through
+QVR_CVAR(vr_ragdoll, "0", CVAR_ARCHIVE)               // ragdolls (experimental; vr_ragdoll.cpp, vr_box3d.cpp): 0 off, 1 the grunt only: dying, his body goes limp as jointed bodies his mesh is skinned to
+QVR_CVAR(vr_ragdoll_start, "0.3", CVAR_ARCHIVE)       // when a dying grunt goes limp: a share of his death animation (0 its first frame he isn't solid in, 1 its last: lying still)
+QVR_CVAR(vr_ragdoll_max, "8", CVAR_ARCHIVE)           // the most ragdolls at once; more dead grunts lie as corpses (Corpse Collision)
+QVR_CVAR(vr_ragdoll_mass, "80", CVAR_ARCHIVE)         // kg: a ragdoll's whole mass (its parts by their volume)
+QVR_CVAR(vr_ragdoll_friction, "0.8", CVAR_ARCHIVE)    // a ragdoll's friction (with the floor's: 0.6)
+QVR_CVAR(vr_ragdoll_joint_friction, "1.5", CVAR_ARCHIVE) // N m: how stiffly its joints turn (a motor holding them still up to this torque); 0 limp
+QVR_CVAR(vr_ragdoll_damping, "0.4", CVAR_ARCHIVE)     // its parts' angular damping (1/s): less flailing
+QVR_CVAR(vr_ragdoll_blast, "2", CVAR_ARCHIVE)         // times the throw a blast gives a prop of a ragdoll's mass (explosions throw ragdolls)
+QVR_CVAR(vr_ragdoll_inherit, "1", CVAR_ARCHIVE)       // share of the death animation's motion its parts start with (0: still)
+QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made, its pushes and blasts
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0.5", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on

@@ -23018,3 +23018,87 @@ In VR:
       it again: it never jumps; each grip is where your hand is on it.
 - [ ] A hand grenade in both hands: either trigger pulls its pin; let go with both: thrown.
 - [ ] Settings > Carrying and Throwing > Throwing and Physics > Carrying Boxes > Two-Handed Grab Reach: 0 for the old reach (a fist touching).
+## Ragdolls (experimental, the grunt only) (2026-10-03)
+
+The author: experimental ragdoll physics for the grunt (BACKLOG "Ragdoll physics for corpses and dismemberment"), on
+top of "Corpse collision". Gibs and Corpses > Ragdolls (Experimental) > **Ragdolls** (`vr_ragdoll`, default 0): Off /
+Grunt Only (Experimental). A dying grunt, once his death animation is **Go Limp At** (`vr_ragdoll_start`, 0.3) of the
+way through (and not solid), goes limp: his body becomes jointed Box3D bodies that fall, tumble down stairs, take
+shots, blasts, props and your hands, his mesh skinned to them.
+
+**The rig** (`vr_ragdoll.cpp`, derived from the model as it is first needed: about 20 ms, at the map's first frame with
+ragdolls on). A .mdl has no skeleton, only vertex positions per frame; Quake VR's grunt (555 vertices, 120 frames) is
+nearly rigid per part (its animation came from a skeleton: 0.4 units rms):
+- vertices welded where they share their place in every frame (the skin seams' copies): the mesh's pieces. A piece
+  that leaves the body in some frame is loose: his shotgun (86 vertices), which vr_monstermods.cpp collapses in his
+  death frames (he drops a real one): it gets no body and stays hidden.
+- the body's vertices clustered by their motion (18 clusters, each one's rigid fit per frame by Horn's quaternion
+  method, each vertex to the neighbouring cluster that carries it best; James and Twigg 2005): 0.38 units rms.
+- the clusters gathered into 11 bones by a seed table of ours (`gruntSeeds`: where each bone is in the standing frame,
+  its pivot, its end, its joint and limits), then each vertex once more to the neighbouring bone that carries it best:
+  0.52 units rms. Pelvis (root), chest, head, upper and lower arms, thighs, shins (the feet on them). The legs' long
+  triangles have no vertices of their own: a thigh's bone is its knee's ring, a shin's its boot.
+- each bone's rigid transform in every frame (rest = frame 0 to frame f), the hinges' axes from the rest pose's bends.
+`vr_ragdoll_info` prints it (Debug > Reports: Grunt's Ragdoll Rig).
+
+**The bodies** (`vr_box3d.cpp`, "Ragdolls"): one dynamic body per bone, made where the frame he is in has it (a body's
+local space is the rest pose's, so its transform is the bone's), moving as the death animation moved it over its last
+frame (**Death Motion Kept**, `vr_ragdoll_inherit` 1). Shapes: the hull of the bone's vertices (at most 20 corners:
+Box3D's hulls have at most 128 half edges; the chest's 60 points failed at 64 and left it massless, which blew the
+first tries apart), plus capsules hip to knee (radius 3.2) and knee to ankle (2.8). **Ragdoll Mass**
+(`vr_ragdoll_mass` 80 kg) by volume (chest 23 kg, a thigh 10, a forearm 0.9). Joints at the seed pivots (where the
+parent and the child have them in that frame, between: no pop): balls with a cone and a twist (neck 45/50 degrees,
+waist 35/25, shoulders 85/45, hips 70/30), hinges at the knees and elbows (from 3 degrees short of straight to 145-150
+bent); each joint's motor holds it still up to **Joint Stiffness** (`vr_ragdoll_joint_friction` 1.5 N m): joint
+friction. **Limb Damping** (`vr_ragdoll_damping` 0.4), **Ragdoll Friction** (`vr_ragdoll_friction` 0.8). A corpse's
+kind, category and mask (Kind::Corpse, catCorpse, corpseMask: the level, doors, props, thrown and held things and the
+hands' bodies per Corpse Collision's switches), its own parts never meeting (their group), noteCorpseInside per part.
+**Most Ragdolls** (`vr_ragdoll_max` 8): more dead grunts lie as corpses.
+
+**The entity** stays the QC's corpse (touchable, not solid: corpse damage, burning, gibbing, small gibs as before).
+After each step (writeRagdoll) it is put where his frame would have its pelvis where the ragdoll has it (a saved game's
+ragdoll, made again from his frame, lies where it lay), its box round the parts (Quake's traces meet it), on the ground
+and still to Quake. Shots: precise hits (vr_hitmodel.cpp) test his mesh as the parts carry it (every triangle: the
+frames' hierarchy doesn't bound it), so a shot hits where he is drawn, and its push (physicspush) moves the part
+nearest the hit; a QC knock (.velocity) goes to all the parts; a blast (physicsblast) throws each part as a prop of the
+ragdoll's weight would be, times **Blast Throw** (`vr_ragdoll_blast` 2), and a blast in the last 0.6 s throws a
+ragdoll made after it (a grunt it killed goes limp a few frames later). Gibbed, he becomes his head and gibs: the
+ragdoll goes.
+
+**Drawn**: a model made in memory, `progs/soldier.mdl#rag` (`VR_SyntheticModel` in Mod_LoadModel): the rest frame as a
+skeletal mesh, each vertex on its bone, the bind pose the rest pose itself, the .mdl's skins. The client (a listen
+server's: the server's bodies are read directly) swaps the corpse's model for it while it draws a frame
+(`VR_RagdollSwap` at CL_RelinkEntities' end, `VR_RagdollRestore` before the server's messages are read) and gives its
+bone matrices (VR_AliasBonePoses: the body's skeletal path) and its matrix (VR_AliasPostTransform: a translation to
+the pelvis). Lighting, shadows, wounds and blood come through the same path. A client of another server sees the
+corpse's frames.
+
+Tests (mock): `bash Misc/quakevr/ragdoll/ragdoll_test.sh <agent> [flat stairs blast shot gib cap save]` (`EYES=1`:
+eyeshots, `ragdoll_flat.png`, `ragdoll_stairs.png`, `ragdoll_blast.png` in the kit's scratch).
+
+| case | result |
+|---|---|
+| flat (e1m1, killed 90 ahead) | limp at frame 11 (33%), asleep at 4.6 s: pelvis z 53.4, parts 43.8 .. 64.4 |
+| stairs (vrclimb, 16-unit steps) | falls head first down them, asleep across 2-3 steps: parts z -55.5 .. -17.4 |
+| blast (a live grunt, 60 points beside him) | killed, thrown about 70 units, asleep at 4.9 s |
+| shot (shotgun, 6 pellets) | the hit part pushed (to 10 m/s, 0.3-3.8 N s a pellet), corpse damage 24 |
+| gib (a blast of 200 on the ragdoll) | gibbed: no ragdoll left |
+| cap (10 dead grunts, at most 8) | 8 ragdolls and 2 corpses |
+| save and load | made again from frame 28 where it lay (its pelvis 0.8 units from where it was) |
+| hand swept through his legs | his right leg dragged about 30 units, then at rest |
+
+Cost (Box3D's step, one worker; vr_physics_steptime): 0.020 ms with none, 0.30 ms with 8 ragdolls falling (about
+0.035 ms each awake; p95 0.47), 0.018 ms with 8 asleep. Each is 11 bodies and 10 joints; the client's swap and
+skinning matrices are negligible. eval.sh canary: no differences.
+
+Not done (next steps): grabbing a limb by hand (the hands' bodies only push them); ragdolls meeting each other (a pile
+passes through itself); players and monsters still meet a ragdoll as a corpse's box (Corpse Collision's player and
+monster settings); other monsters (a seed table each: the derivation is generic, the seeds aren't); severing limbs
+(the rig's bones are where to cut); a remote client's view.
+
+In VR:
+- [ ] Gibs and Corpses > Ragdolls: Grunt Only. Kill grunts on flat floors, on stairs, with rockets and grenades: they
+      fall limp, roll down steps, rest across them; nothing pops, sinks or jitters.
+- [ ] Shoot a ragdoll, kick it with a held weapon, sweep a hand through it, drop a box on it: it moves where touched.
+- [ ] Go Limp At 0 (limp as soon as he falls) and 1 (only once lying still); Joint Stiffness 0 (a rag) and 5 (stiff).
+- [ ] Gib one (the shotgun close, a rocket): gibs as before, no body left behind.

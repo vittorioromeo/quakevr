@@ -15,6 +15,7 @@
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
 #include "vr_props.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_weapons.hpp"
 
@@ -189,6 +190,10 @@ extern "C" void VR_AliasPreTransform(const entity_t* e, float matrix[16])
 
 extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])
 {
+    if(ragdoll::drawMatrix(e, matrix))
+    {
+        return; // a ragdoll: placed where its bones are given from (vr_ragdoll.cpp)
+    }
     applyPost(e, matrix);
 }
 

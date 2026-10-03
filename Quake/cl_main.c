@@ -730,6 +730,7 @@ void CL_RelinkEntities (void)
 	}
 
 	VR_RelinkHeld (); // QVR: what the local player carries is drawn in the hands
+	VR_RagdollSwap (); // QVR: the ragdolls drawn with their skinned models (vr/vr_ragdoll.cpp)
 	VR_DebugDrawnBoxes (); // QVR: vr_debug_item_sizes
 }
 
@@ -751,6 +752,7 @@ int CL_ReadFromServer (void)
 	dlight_t	*l; //johnfitz
 	int			i; //johnfitz
 
+	VR_RagdollRestore (); // QVR: the ragdolls' own models back (vr/vr_ragdoll.cpp)
 	CL_AdvanceTime ();
 
 	do
