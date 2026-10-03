@@ -23,6 +23,8 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/Limits.hpp"
+#include "Zancle/Base/IntTypes.hpp"
+#include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -209,6 +211,7 @@ float modelGap(const qmodel_t* model)
 struct HeldScratch
 {
     za::Vector<Triangle> verticesTris;   // drawnVertices
+    za::Vector<glm::vec3> centreVertices; // drawnCentre
     za::Vector<Triangle> distanceTris;   // surfaceDistance
     za::Vector<Triangle> fistTris;       // fistContact: the thing's triangles
     za::Vector<glm::vec4> fistLocal;     // the fist's spheres in the thing's axes
@@ -219,7 +222,7 @@ struct HeldScratch
     za::Vector<Triangle> fitTris;        // surfaceFit
     auto members()
     {
-        return qvr::mem::list(verticesTris, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris);
+        return qvr::mem::list(verticesTris, centreVertices, distanceTris, fistTris, fistLocal, nearest, nearestAt, inside, grabSpheres, fitTris);
     }
 };
 mem::Scratch<HeldScratch> scratch{"held"};
@@ -352,6 +355,94 @@ bool drawnVertices(edict_t* ent, za::Vector<glm::vec3>& out)
         out.emplaceBackRange(t.p, 3);
     }
     return true;
+}
+
+namespace
+{
+
+// drawnCentre's: each drawn shape's middle by what drawnTriangles makes it from (the model, its pose, the transform).
+struct CentreKey
+{
+    const qmodel_t* model{nullptr};
+    int pose{-1}; // (a brush model's faces have none)
+    float xf[25]{}; // DrawnTransform's numbers
+    [[nodiscard]] bool operator==(const CentreKey& o) const
+    {
+        return model == o.model && pose == o.pose && !memcmp(xf, o.xf, sizeof(xf));
+    }
+};
+struct CentreEntry
+{
+    CentreKey key;
+    glm::vec3 centre{0.f};
+    bool ok{false};
+};
+ankerl::unordered_dense::map<za::U64, CentreEntry> drawnCentres; // by CentreKey's hash
+
+} // namespace
+
+bool drawnCentre(edict_t* ent, glm::vec3& out)
+{
+    const int index = static_cast<int>(ent->v.modelindex);
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    if(!model || (model->type != mod_brush && model->type != mod_alias))
+    {
+        return false;
+    }
+    using namespace progs;
+    const FieldOffsets& f = fields();
+    const DrawnTransform xf{model, fieldVec(ent, f.model_scale), fieldVec(ent, f.model_scale_origin), fieldVec(ent, f.model_offset)};
+    CentreKey key;
+    key.model = model;
+    if(model->type == mod_alias)
+    {
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
+        if(hdr->numframes <= 0)
+        {
+            return false;
+        }
+        const int frame = static_cast<int>(ent->v.frame);
+        key.pose = hdr->frames[frame >= 0 && frame < hdr->numframes ? frame : 0].firstpose; // (drawnTriangles')
+    }
+    const float numbers[] = {xf.alias ? 1.f : 0.f, xf.t.active ? 1.f : 0.f, xf.t.k, xf.t.offset.x, xf.t.offset.y, xf.t.offset.z,
+        xf.t.scale.x, xf.t.scale.y, xf.t.scale.z, xf.so.x, xf.so.y, xf.so.z, xf.hs.x, xf.hs.y, xf.hs.z, xf.netScale.x,
+        xf.netScale.y, xf.netScale.z, xf.scaleOrigin.x, xf.scaleOrigin.y, xf.scaleOrigin.z, xf.offset.x, xf.offset.y, xf.offset.z, xf.size};
+    static_assert(sizeof(numbers) == sizeof(key.xf));
+    memcpy(key.xf, numbers, sizeof(numbers));
+    za::U64 h = 1469598103934665603ull; // (FNV-1a over the key's bytes: the model's address, the pose, the numbers)
+    const auto mix = [&h](const void* p, za::SizeT n) {
+        for(za::SizeT i = 0; i < n; i++)
+        {
+            h = (h ^ static_cast<const unsigned char*>(p)[i]) * 1099511628211ull;
+        }
+    };
+    mix(&key.model, sizeof(key.model));
+    mix(&key.pose, sizeof(key.pose));
+    mix(key.xf, sizeof(key.xf));
+    CentreEntry& e = drawnCentres[h];
+    if(!(e.key == key)) // (a new one, or another's with the same hash: made again)
+    {
+        e = CentreEntry{};
+        e.key = key;
+        za::Vector<glm::vec3>& vertices = scratch.centreVertices;
+        e.ok = drawnVertices(ent, vertices) && !vertices.empty();
+        if(e.ok)
+        {
+            glm::vec3 middle{0.f};
+            for(const glm::vec3& v : vertices)
+            {
+                middle += v;
+            }
+            e.centre = middle / static_cast<float>(vertices.size());
+        }
+    }
+    out = e.centre;
+    return e.ok;
+}
+
+void forgetDrawnCentres()
+{
+    drawnCentres.clear();
 }
 
 namespace

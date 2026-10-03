@@ -14,7 +14,6 @@
 #include "vr_engine.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
-#include "vr_mem.hpp"
 #include "vr_physics.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
@@ -135,14 +134,6 @@ za::Vector<FreePlace> freePlaces; // by entity number, for this server
 constexpr int putBackStreak = 8;
 constexpr double putBackStreakTime = 0.25;
 
-// The buried test's buffers (the server's frame: the main thread).
-struct RigidScratch
-{
-    za::Vector<glm::vec3> vertices; // a rigid body's drawn corners (buried)
-    auto members() { return qvr::mem::list(vertices); }
-};
-mem::Scratch<RigidScratch> scratch{"rigid"};
-
 // How deep it is in the level: Free, Partly (a rigid body with one of its two middles in a wall: neither a place to go
 // back to nor one to leave), or Buried.
 enum class Depth
@@ -172,17 +163,12 @@ enum class Depth
     glm::vec3 lo, hi;
     localBox(ent, lo, hi);
     const bool box = inSolid((lo + hi) * 0.5f);
-    za::Vector<glm::vec3>& vertices = scratch.vertices;
-    if(!held::drawnVertices(ent, vertices) || vertices.empty())
+    glm::vec3 middle;
+    if(!held::drawnCentre(ent, middle)) // (the mean of its drawn corners, kept by model, pose and transform)
     {
         return box ? Depth::Buried : Depth::Free;
     }
-    glm::vec3 middle{0.f};
-    for(const glm::vec3& v : vertices)
-    {
-        middle += v;
-    }
-    const bool shape = inSolid(middle / static_cast<float>(vertices.size()));
+    const bool shape = inSolid(middle);
     return box && shape ? Depth::Buried : box || shape ? Depth::Partly : Depth::Free;
 }
 
@@ -432,6 +418,7 @@ glm::vec3 modelCentre(edict_t* ent)
 void resetRigidBodies()
 {
     freePlaces.clear();
+    held::forgetDrawnCentres();
     carried.clear();
     carry2h::resetServer();
     grip::resetServer();

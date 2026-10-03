@@ -99,6 +99,12 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // bodies' convex hulls, vr_box3d.cpp).
 [[nodiscard]] bool drawnVertices(edict_t* ent, za::Vector<glm::vec3>& out);
 
+// Server side: the mean of drawnVertices (its drawn shape's middle, in its axes relative to its origin), the same bit for
+// bit, kept for each model, pose and drawn transform (the buried test: every rigid body that moves, every frame); false
+// as drawnVertices. forgetDrawnCentres: a new world (its models may be others at the same addresses).
+[[nodiscard]] bool drawnCentre(edict_t* ent, glm::vec3& out);
+void forgetDrawnCentres();
+
 // Server side: where the point `p` of `ent`'s model (in the model's own space: its bounds', an alias model's vertices
 // as scale * v + scale_origin) is drawn, in its axes relative to its origin (the weapon scaling, the networked scale and
 // offset, as drawnVertices). `p` itself without a model.
