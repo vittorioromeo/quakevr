@@ -23520,7 +23520,7 @@ hands' throw speeds and the pelvis's way forward. SPEED 3, 4, 5 (5.8, 7.8, 9.7 m
 | before | 10 of 12 (21.6 to 47.7 each) | 21.8 units (1.7 .. 41.8) |
 | after | 0 of 18 | 21.5 units (5.2 .. 49.4) |
 
-The flight barely changes on average (the hit's damage gives no knock; its small gibs and a gibbing did): the spread is
+The flight barely changes on average (no QC knock was logged with the hits; their small gibs or a gibbing could still jolt it): the spread is
 the throw's own (the limbs taken, the body hanging). The throws are short (80 kg; the held limbs alone get the hands'
 speed): that is the ragdoll throw's (ragsmooth, raggrasp), not this. One run in 30 showed `hit by (props) for 7.9`
 from a nameless inflictor (not a hand); the log names its model now. Held in one hand and swung hard (12 m/s), let go:
