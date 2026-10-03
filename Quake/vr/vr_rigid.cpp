@@ -5,7 +5,7 @@
 // - The drawn model's box (localBox), for the hands (pointInModelBox, modelCentre) and keepInWorld.
 // - Held objects' angles (carryAngles), and the vr_rigid_place test command.
 //
-// (Until the simplification of 2026-09-28 this was also Quake VR's own solver, vr_physics_engine 0: each body an
+// (Until the simplification of 2026-09-28 this was also Quake VR's own solver, the other physics engine: each body an
 // oriented box colliding by its corners, never with the others. It is kept on the branch
 // archive/old-solver-stacking; docs/vr-port/ROUND21.md, "Simplification: Box3D only".)
 
