@@ -166,6 +166,12 @@ Every torch smokes, wall ones too: smoke opacity 0.45 readable in dark rooms?
 Your Own Torch > Its Flame Burns You on: hold your other hand in the flame: buzz, then you catch fire
 Your Own Torch > Upside Down Burns Your Hand on: hold it inverted: buzz, then you drop it
 
+Corpses collide (Gibs and Corpses > Corpse Collision, default Pushable Pose): drop a prop on a corpse, push one with a held weapon
+Corpse Collision modes: compare all five; is 150 kg / friction 1 too immovable?
+Corpse Collision: player Step Over vs Solid on ogre-sized corpses
+Two hands on small props: hold a head, rock, grenade or shells box in one hand, grip with the other, let go and re-grip: never jumps
+Grenade held in both hands: either trigger pulls the pin; letting go with both throws it
+
 [Decide or give feedback]
 Thrown axe hitting an explosive box: bounces off (metal) now; should it stick? (Thrown Axes > vr_axestick_metal)
 Training dummy: its wounds build up until gibbed: should it heal over time?
