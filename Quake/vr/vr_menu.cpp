@@ -2617,6 +2617,7 @@ void hologramTestMessage()
 
 [[nodiscard]] za::Vector<Item> pageRagdolls(); // (below)
 [[nodiscard]] za::Vector<Item> pageRagdollGrunt();
+[[nodiscard]] za::Vector<Item> pageRagdollKnight();
 
 // Split from Carrying and Gibs: taking, throwing and bursting gibs, heads and corpses.
 [[nodiscard]] za::Vector<Item> pageGibs()
@@ -2657,9 +2658,9 @@ void hologramTestMessage()
         toggle("Monsters Step Over Corpses", vr_corpse_collide_monsters)
             .help("Monsters walk over corpses as a low step instead of through them (vr_corpse_collide_monsters)."),
         header("Ragdolls (Experimental)"),
-        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "Grunt Only (Experimental)"}})
-            .help("A dying grunt goes limp: his body becomes jointed parts that fall, tumble, are pushed, grabbed and "
-                  "thrown (vr_ragdoll). Their settings: Ragdoll Settings."),
+        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "Grunt and Knight (Experimental)"}})
+            .help("A dying grunt or knight goes limp: his body becomes jointed parts that fall, tumble, are pushed, grabbed "
+                  "and thrown (vr_ragdoll). Their settings: Ragdoll Settings."),
         open("Ragdoll Settings", pageIndex(pageRagdolls)),
     };
 }
@@ -2669,14 +2670,14 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageRagdolls()
 {
     return {
-        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "Grunt Only (Experimental)"}})
-            .help("A dying grunt goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs) that fall, "
+        cycle("Ragdolls", vr_ragdoll, {{0.f, "Off"}, {1.f, "Grunt and Knight (Experimental)"}})
+            .help("A dying grunt or knight goes limp: his body becomes jointed parts (pelvis, chest, head, arms, legs) that fall, "
                   "tumble down stairs, are pushed by shots, blasts, props and your hands, his mesh bent with them. Shoot "
                   "or blow him up enough and he still bursts into gibs (vr_ragdoll)."),
         slider("Go Limp At", vr_ragdoll_start, 0.f, 1.f, 0.1f, "%.1f")
             .help("When in his death animation: 0 as soon as he stops being solid, 1 once he lies still (vr_ragdoll_start)."),
         slider("Most Ragdolls", vr_ragdoll_max, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 64.f)
-            .help("At most this many at once; more dead grunts lie as corpses (Corpse Collision) (vr_ragdoll_max)."),
+            .help("At most this many at once; more of the dead lie as corpses (Corpse Collision) (vr_ragdoll_max)."),
         toggle("Ragdolls Meet Each Other", vr_ragdoll_collide_each)
             .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
         header("Physics (All Monsters)"),
@@ -2700,6 +2701,7 @@ void hologramTestMessage()
             .help("How much of his death animation's motion the parts keep as he goes limp (vr_ragdoll_inherit)."),
         header("Each Monster's Own"),
         open("Grunt", pageIndex(pageRagdollGrunt)),
+        open("Knight", pageIndex(pageRagdollKnight)),
         header("Taking Them"),
         cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}, {2.f, "By Hand and Force Grab"}})
             .help("Grip on a limb to take it: it follows your hand, the body hanging from it; let go to drop or throw it. "
@@ -2743,6 +2745,35 @@ void hologramTestMessage()
                               "vr_ragdoll_army_joint_friction -1; vr_ragdoll_army_joint_stiffness -1; vr_ragdoll_army_limits -1; "
                               "vr_ragdoll_army_damping -1; vr_ragdoll_army_blast -1; vr_ragdoll_army_inherit -1")
             .help("The grunt's ragdoll as all monsters' (Ragdoll Settings)."),
+    };
+}
+
+// Gibs and Corpses > Ragdoll Settings > Knight: the knight's own physics (vr_ragdoll_knight_*), each one Global (the one for
+// all monsters) or its own.
+[[nodiscard]] za::Vector<Item> pageRagdollKnight()
+{
+    return {
+        classSlider("Go Limp At", vr_ragdoll_knight_start, 0.f, 1.f, 0.1f, "%.1f").help("vr_ragdoll_knight_start; Global: Go Limp At."),
+        classSlider("Mass", vr_ragdoll_knight_mass, 20.f, 200.f, 5.f, "%.0f kg").extend(0.f, 1000.f)
+            .help("vr_ragdoll_knight_mass; Global: Mass."),
+        classSlider("Friction", vr_ragdoll_knight_friction, 0.1f, 2.f, 0.1f, "%.1f").extend(0.f, 10.f)
+            .help("vr_ragdoll_knight_friction; Global: Friction."),
+        classSlider("Joint Friction", vr_ragdoll_knight_joint_friction, 0.f, 10.f, 0.5f, "%.1f N m").extend(0.f, 100.f)
+            .help("vr_ragdoll_knight_joint_friction; Global: Joint Friction."),
+        classSlider("Joint Stiffness", vr_ragdoll_knight_joint_stiffness, 0.f, 5.f, 0.25f, "%.2f Hz").extend(0.f, 30.f)
+            .help("vr_ragdoll_knight_joint_stiffness; Global: Joint Stiffness."),
+        classSlider("Joint Limits", vr_ragdoll_knight_limits, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("vr_ragdoll_knight_limits; Global: Joint Limits."),
+        classSlider("Limb Damping", vr_ragdoll_knight_damping, 0.f, 3.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("vr_ragdoll_knight_damping; Global: Limb Damping."),
+        classSlider("Blast Throw", vr_ragdoll_knight_blast, 0.f, 5.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("vr_ragdoll_knight_blast; Global: Blast Throw."),
+        classSlider("Death Motion Kept", vr_ragdoll_knight_inherit, 0.f, 2.f, 0.1f, "%.1fx")
+            .help("vr_ragdoll_knight_inherit; Global: Death Motion Kept."),
+        command("All Global", "vr_ragdoll_knight_start -1; vr_ragdoll_knight_mass -1; vr_ragdoll_knight_friction -1; "
+                              "vr_ragdoll_knight_joint_friction -1; vr_ragdoll_knight_joint_stiffness -1; vr_ragdoll_knight_limits -1; "
+                              "vr_ragdoll_knight_damping -1; vr_ragdoll_knight_blast -1; vr_ragdoll_knight_inherit -1")
+            .help("The knight's ragdoll as all monsters' (Ragdoll Settings)."),
     };
 }
 
@@ -3474,7 +3505,7 @@ za::Vector<Item> pageDebugTests()
                   "to test held props (the blood on what you hold: vr_gore_spatter_test, vr_gore_hands_info)."),
         cycle("As a Corpse", vr_test_spawn_dead, {{0.f, "Off"}, {1.f, "Corpse"}, {2.f, "Gibbed"}, {3.f, "Ragdoll"}})
             .help("A monster killed at once: a corpse, to test gibbing and carrying; Gibbed: killed hard enough to gib (its "
-                  "gibs and head to pick up); Ragdoll: a corpse with ragdolls on (vr_ragdoll 1: a grunt goes limp as he "
+                  "gibs and head to pick up); Ragdoll: a corpse with ragdolls on (vr_ragdoll 1: a grunt or a knight goes limp as he "
                   "falls)."),
         slider("Box Turned", vr_test_spawn_yaw, 0.f, 90.f, 1.f, "%.0f degrees")
             .extend()
@@ -3484,6 +3515,9 @@ za::Vector<Item> pageDebugTests()
             .extend()
             .help("A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so)."),
         command("Put It There", "impulse 241").help("Puts the Thing ahead of you."),
+        command("A Knight's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 5; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
+            .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a knight killed at the Distance ahead: he goes limp as "
+                  "he falls (his sword dropped)."),
         command("A Grunt's Ragdoll There", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; impulse 241; wait5; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdoll Settings) and a grunt killed at the Distance ahead: he goes limp as "
                   "he falls."),
@@ -4247,6 +4281,7 @@ const Page pages[] = {
     {"Graphics - Retro Lighting", pageGraphicsRetroLight, pageGraphics},          // 116
     {"Gibs and Corpses - Ragdolls", pageRagdolls, pageGibs},                       // 117
     {"Ragdolls - Grunt", pageRagdollGrunt, pageRagdolls},                          // 118
+    {"Ragdolls - Knight", pageRagdollKnight, pageRagdolls},                        // 119
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

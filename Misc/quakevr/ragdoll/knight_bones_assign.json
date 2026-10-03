@@ -1,0 +1,3 @@
+{"bones": [["pelvis", -1, [5]], ["chest", 0, [7, 10, 16]], ["head", 1, [1]], ["upperarm_l", 1, [14]], ["forearm_l", 3, [3]],
+ ["upperarm_r", 1, [8]], ["forearm_r", 5, [2, 11]], ["thigh_l", 0, [9]], ["shin_l", 7, [15, 4, 17]], ["thigh_r", 0, [13, 0]],
+ ["shin_r", 9, [6, 12]]]}

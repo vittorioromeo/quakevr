@@ -23251,3 +23251,45 @@ In VR:
 - [ ] Shoot one and fling it: the wounds stay; its limbs trail blood. Set one alight with a torch, lift and fling it:
       the flames stay on their limbs.
 - [ ] Ragdolls > Grunt: his own Mass or Joint Friction; Joint Stiffness 2; Joint Limits 0.5 and 1.5.
+
+## Ragdolls 3: the knight (2026-10-03)
+
+The author's phase 2: the knight (monster_knight) goes limp too, with every phase 1 feature (Ragdolls 2). Ragdolls
+(`vr_ragdoll` 1) is now "Grunt and Knight (Experimental)". Gibs and Corpses > Ragdoll Settings > **Knight** (page 119):
+his own settings (`vr_ragdoll_knight_*`, -1 Global), as the grunt's.
+
+**His rig** (vr_ragdoll.cpp knightSeeds; quakevr/progs/knight.mdl: 655 vertices, 97 frames, death frames 76-85
+$death1-10 and 86-96 $deathb1-11). Measured with Misc/quakevr/ragdoll/knight_rig.py (numpy; the motion clusters as the
+engine derives them, then each joint's centre by least squares between the parent's and the child's motions over all
+the frames, pulled a little to their boundary; knight_bones_assign.json: the clusters given to the bones). His arms move
+as one piece from the shoulder to the wrist in every frame (no elbow in his animation: the clusters never split there),
+so each arm is an arm and a hand (balls: the shoulder 85/45, the wrist 40/30) where the grunt has an upper arm and a
+forearm; pelvis, chest, head, thighs and shins (knee hinges, 150) as the grunt's. Derived: 12 bones (1 loose), the
+clusters 0.46 units rms, the bones 0.79 (the grunt's 0.52), 22 ms.
+
+**His sword**: knights always drop it as they die (vr_sword_drop is retired: QC drops the sword as a weapon), and
+vr_monstermods.cpp collapses its 61 vertices in his death frames: a loose piece, hidden in his ragdoll (21 poses), as the
+grunt's shotgun. A separate piece that only parts from the body (his right gauntlet, 17 vertices, more than 4 units off
+in some frames) was a loose bone too and fell away on its own: a loose piece is now one a frame hides (all of it at one
+point); the others are clustered with the body (it went to his right hand). The grunt's rig is unchanged (12 bones, 0.52).
+
+**The switch** (vr_timescale 0.1, first frame drawn against the animated mesh): death 1 (limp at frame 79) 0.83 units
+rms, 4.3 at most; death 2 (frame 89) 0.74, 3.4 (the rig's fit). Screenshots a frame every 2: the largest frame-to-frame
+change 4.4 against 3.5 before and 4.2 after.
+
+Tests (`MON=5` in ragdoll_test.sh: the knight; `BLAST=110` for blast: a knight's 75 health outlives the grunt's 60):
+- flat: limp at frame 79, 11 parts, asleep at 4.8 s; stairs: down them, asleep across steps (parts z -54 .. -23).
+- blast (110): thrown and asleep; gib (200): gibbed, no ragdoll left; save and load: made again in his last frame.
+- cap: 8 knights' ragdolls and 2 corpses, all asleep; step 0.19-0.27 ms falling, 0.04 settled.
+- grab (a shin, lifted 30, flung at 818 u/s: let go of at 850), two hands, force grab (the chest from 140 units,
+  caught, held 1.5-2.1 units from the hand).
+- pile: one on the others with Meet Each Other; three in one place without.
+- burn (vr_corpse_health 1000: the mock's teleported hand is a blow, it gibbed him): flames 0.3-2.6 units from his
+  limbs on average, 5.0 at most, through the lift and the fling; wounds: 14 paints from two shotgun blasts.
+- walk (You and Corpses 2): you step onto him (88), as onto a knight's corpse (87); blows and the chainsaw: small gibs.
+
+In VR:
+- [ ] Ragdolls on, kill knights (sword, shotgun, rockets): they go limp, their sword dropped beside them, none in the
+      hand; vr_timescale 0.1: the switch unseen in both death animations.
+- [ ] Grab a knight's arm, leg, head; force grab one; pile knights and grunts; set one alight and fling him.
+- [ ] Ragdolls > Knight: his own Mass, Joint Friction, Joint Limits; his arms (no elbows) look right?

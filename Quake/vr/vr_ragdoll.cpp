@@ -1,4 +1,4 @@
-// vr_ragdoll.cpp -- ragdolls (experimental, the grunt only): the rig derived from a .mdl's vertex animation, the skinned
+// vr_ragdoll.cpp -- ragdolls (experimental: the grunt and the knight): the rig derived from a .mdl's vertex animation, the skinned
 // model made from it in memory, and the client's drawing of the server's ragdolls. See vr_ragdoll.hpp; the bodies and
 // joints are vr_box3d.cpp's ("Ragdolls"); ROUND21.md, "Ragdolls".
 
@@ -93,8 +93,30 @@ constexpr Seed gruntSeeds[] = {
     {"shin_r", 9, Joint::Hinge, {2.f, -7.2f, -23.f}, {3.5f, -6.7f, -11.5f}, {1.f, -7.f, -20.f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
+// Quake VR's knight (quakevr/progs/knight.mdl: 655 vertices, 97 frames). The rest pose: x forward, y left, z up; his right
+// leg forward, his sword arm bent forward (the sword in its hand), his left arm down at his side. His arms move as one
+// piece from the shoulder to the wrist in all his frames (no elbow): an arm and a hand each. Measured on his frames
+// (Misc/quakevr/ragdoll/knight_rig.py: the motion clusters, the joints' centres by least squares between the bones'
+// motions). His sword is a piece of its own, collapsed in his death frames (he drops it: vr_monstermods.cpp): a loose
+// bone, hidden in his ragdoll (as the grunt's shotgun).
+// Death frames 76-85 ($death1-10) and 86-96 ($deathb1-11).
+constexpr Seed knightSeeds[] = {
+    {"pelvis", -1, Joint::Root, {2.8f, 1.8f, 1.8f}, {2.8f, 1.8f, 1.f}, {2.3f, 1.4f, 7.f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {3.5f, 1.9f, 11.8f}, {2.3f, 1.4f, 7.f}, {4.3f, 1.4f, 16.f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {5.7f, 1.7f, 20.1f}, {4.3f, 1.4f, 16.f}, {6.f, 1.7f, 25.f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"arm_l", 1, Joint::Ball, {-2.3f, 12.4f, 8.8f}, {2.f, 10.2f, 13.f}, {-3.8f, 14.1f, 3.5f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"hand_l", 3, Joint::Ball, {-2.3f, 14.1f, 1.f}, {-3.8f, 14.1f, 3.5f}, {-2.5f, 14.5f, -1.6f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"arm_r", 1, Joint::Ball, {9.1f, -9.1f, 5.f}, {5.5f, -7.6f, 12.f}, {11.5f, -7.3f, 1.5f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"hand_r", 5, Joint::Ball, {10.1f, -7.2f, -0.1f}, {11.5f, -7.3f, 1.5f}, {10.3f, -6.5f, -4.5f}, 0.f, 40.f, 30.f, 0.f, {}},
+    {"thigh_l", 0, Joint::Ball, {2.6f, 6.8f, -10.1f}, {2.1f, 6.f, -1.5f}, {-1.f, 6.f, -16.3f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {-3.4f, 6.f, -20.1f}, {-1.f, 6.f, -16.3f}, {-4.f, 6.f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {7.1f, -2.6f, -6.4f}, {2.6f, -1.5f, -1.8f}, {10.8f, -2.2f, -12.2f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {9.3f, -2.2f, -18.6f}, {10.8f, -2.2f, -12.2f}, {10.5f, -2.3f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
+    {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
@@ -465,7 +487,7 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
     Mesh m;
     loadMesh(hdr, m);
 
-    // The pieces (welded), the largest the body; a piece that leaves it in some pose is loose.
+    // The pieces (welded), the largest the body; a piece that leaves it in some pose and some pose hides is loose.
     za::Vector<int> piece(static_cast<za::SizeT>(m.nv), -1);
     za::Vector<int> pieceSize;
     za::Vector<int> stack;
@@ -539,7 +561,23 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig)
             }
             gap = za::max(gap, za::sqrt(nearest));
         }
-        if(gap > looseGap && table.count + static_cast<int>(loosePieces.size()) < maxBones)
+        // (And one a frame hides, all of it at one point: dropped as he dies, the grunt's shotgun, the knight's sword. A
+        // piece of the body that only parts from it, the knight's right gauntlet, is the body's: clustered with it.)
+        bool hidden = false;
+        for(int pose = 0; pose < m.np && !hidden && gap > looseGap; pose++)
+        {
+            glm::vec3 lo{1e30f}, hi{-1e30f};
+            for(const int v : reps)
+            {
+                if(piece[static_cast<za::SizeT>(v)] == id)
+                {
+                    lo = glm::min(lo, m.at(pose, v));
+                    hi = glm::max(hi, m.at(pose, v));
+                }
+            }
+            hidden = za::max(hi.x - lo.x, za::max(hi.y - lo.y, hi.z - lo.z)) < 0.5f;
+        }
+        if(gap > looseGap && hidden && table.count + static_cast<int>(loosePieces.size()) < maxBones)
         {
             isLoose[static_cast<za::SizeT>(id)] = 1;
             loosePieces.pushBack(id);
@@ -1292,6 +1330,19 @@ void info_f()
         static constexpr const char* kinds[] = {"root", "ball", "hinge", "loose"};
         Con_Printf("  %2d %-11s parent %2d %-5s %3d verts (%2d places) pivot %5.1f %5.1f %5.1f", b, bone.name, bone.parent,
             kinds[static_cast<int>(bone.joint)], n, static_cast<int>(bone.points.size()), bone.pivot.x, bone.pivot.y, bone.pivot.z);
+        int hidden = 0, first = -1;
+        for(int pose = 0; pose < rig->numPoses; pose++)
+        {
+            if(collapsed(*rig, pose, b))
+            {
+                hidden++;
+                first = first < 0 ? pose : first;
+            }
+        }
+        if(hidden > 0)
+        {
+            Con_Printf(" hidden in %d poses (from %d)", hidden, first);
+        }
         if(bone.joint == Joint::Ball)
         {
             Con_Printf(" cone %.0f twist %.0f", bone.cone / deg, bone.twist / deg);

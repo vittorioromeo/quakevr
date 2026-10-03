@@ -1848,7 +1848,7 @@ void addCorpseShapes(edict_t* ent, int num, qmodel_t* model, Slot& s)
 }
 
 // ----------------------------------------------------------------------------
-// Ragdolls (vr_ragdoll; experimental, the grunt only; ROUND21.md, "Ragdolls"). A dying grunt (dead, not solid: his
+// Ragdolls (vr_ragdoll; experimental, the grunt and the knight; ROUND21.md, "Ragdolls", "Ragdolls 2", "Ragdolls 3"). A dying grunt (dead, not solid: his
 // death code's third frame on), once his death animation is vr_ragdoll_start of the way through, becomes a ragdoll: one
 // dynamic body per bone of his rig (vr_ragdoll.cpp: derived from his model's animation), made where his drawn frame has
 // each bone and moving as the animation moved it, jointed at the rig's pivots (balls with cone and twist limits, hinges
@@ -1863,7 +1863,7 @@ void addCorpseShapes(edict_t* ent, int num, qmodel_t* model, Slot& s)
 constexpr double recentBlastTime = 0.6; // s: a blast this recent throws a ragdoll made now (createRagdoll)
 
 // Its settings: the global ones (Gibs and Corpses > Ragdolls), each replaced for a monster class by its own when that is
-// not -1 (Ragdolls > Grunt: vr_ragdoll_army_*). Phase 2's knight adds a row.
+// not -1 (Ragdolls > Grunt: vr_ragdoll_army_*; > Knight: vr_ragdoll_knight_*). A row a class.
 enum class Tune : uint8_t
 {
     Start,
@@ -1892,6 +1892,9 @@ const RagdollClass ragdollClasses[] = {
     {"monster_army", {&vr_ragdoll_army_start, &vr_ragdoll_army_mass, &vr_ragdoll_army_friction, &vr_ragdoll_army_joint_friction,
                          &vr_ragdoll_army_joint_stiffness, &vr_ragdoll_army_limits, &vr_ragdoll_army_damping,
                          &vr_ragdoll_army_blast, &vr_ragdoll_army_inherit}},
+    {"monster_knight", {&vr_ragdoll_knight_start, &vr_ragdoll_knight_mass, &vr_ragdoll_knight_friction,
+                           &vr_ragdoll_knight_joint_friction, &vr_ragdoll_knight_joint_stiffness, &vr_ragdoll_knight_limits,
+                           &vr_ragdoll_knight_damping, &vr_ragdoll_knight_blast, &vr_ragdoll_knight_inherit}},
 };
 
 // The setting `t` for `ent`'s ragdoll: its class's own, else the global one.

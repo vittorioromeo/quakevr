@@ -11,7 +11,7 @@
 #   save     e1m1: saved and loaded with a ragdoll lying there: made again from his frame where he lay
 #   slowmo   e1m1 in slow motion (vr_timescale 0.1): six grunts killed (both death animations); each one's first frame
 #            drawn against the animated mesh's ("first drawn": units rms and at most). EYES=1: vrfiringrange, a frame
-#            every 2 around the switch (ragdoll_slowmo.png: the crop of frames 6..13, the switch between 9 and 10)
+#            every 2 around the switch (ragdoll_slowmo.png: 8 crops round the largest change; MON=5: the knight)
 #   grab     e1m1: the off hand grips the limb nearest it (vr_mock_hand_to ... ragdoll near), lifts it 30 units, flings
 #            it and lets go: taken, held (how far from the hand), let go of at the throw's speed, where it came to rest
 #   twohand  both hands grip, lift 25 units together and let go
@@ -23,10 +23,11 @@
 #   walk     you walking at a ragdoll (and a corpse), You and Corpses 0 and 2: your height as you walk (on it: higher)
 #   blows    the small gibs tests' chainsaw second and blows (vr_smallgibs_test 6 and 4) on a ragdoll
 # EYES=1 also takes eyeshots (flat, stairs, blast, slowmo) into the kit's scratch.
+# MON=5: the knight instead of the grunt (vr_test_spawn: the Thing ahead).
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 CASES=${*:-flat stairs blast shot gib cap save slowmo grab twohand pull pile burn wounds walk blows}
-PRE="wait30;god;notarget;vr_ragdoll 1;$XPRE;vr_debug_ragdoll 1;vr_test_spawn 0"
+PRE="wait30;god;notarget;vr_ragdoll 1;$XPRE;vr_debug_ragdoll 1;vr_test_spawn ${MON:-0}"
 DEAD="vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0"
 FILTER="^ragdoll|^vr_ragdoll_list|^vr_physics_steptime|corpses in the physics|gibbed|corpse: .* hit by|rror|CRASH|pushed at|  (held|pulled) by|flames on it|^wounds|soldier.mdl#rag|force grab: (a rag|caught a)"
 run() { bash $KIT/run.sh $AGENT -Script "$1" -Filter "${3:-$FILTER}" -Timeout 300 ${2:+-Out $2} 2>&1 | grep -v "^$" | grep -v "part [0-9]* blasted"; }
@@ -45,7 +46,7 @@ for c in $CASES; do
         [ -n "$EYES" ] && S="$S;r_fullbright 1;vr_mock_camera 0.3 -1.8 -5.6 -17 180;wait3;screenshot;vr_debug_physics_shapes 1;wait2;screenshot"
         run "$S;toggleconsole;quit" ${EYES:+ragdoll_stairs.png} ;;
     blast)
-        run "map e1m1;$PRE;vr_test_spawn_dist 90;impulse 241;wait30;vr_physics_blast 500 -255 50 60;wait20;vr_ragdoll_list 1;wait300;vr_ragdoll_list;toggleconsole;quit"
+        run "map e1m1;$PRE;vr_test_spawn_dist 90;impulse 241;wait30;vr_physics_blast 500 -255 50 ${BLAST:-60};wait20;vr_ragdoll_list 1;wait300;vr_ragdoll_list;toggleconsole;quit"
         if [ -n "$EYES" ]; then
             run "map vrfiringrange;$PRE;vr_test_spawn_dist 100;impulse 241;wait30;vr_mock_camera 1.6 0.4 -3.2 15 80;wait3;screenshot;vr_physics_blast 222 -585 30 65;wait12;screenshot;wait12;screenshot;wait24;screenshot;wait300;vr_mock_camera 0.3 1.7 0 18 12;wait2;screenshot;vr_ragdoll_list;toggleconsole;quit" ragdoll_blast.png
         fi ;;
@@ -69,13 +70,15 @@ for c in $CASES; do
             python - "$KIT/bases/$AGENT/qbase/quakevr/screenshots" "$KIT/scratch/ragdoll_slowmo.png" <<'PY'
 import glob, os, sys
 from PIL import Image, ImageChops, ImageStat
-files = sorted(glob.glob(sys.argv[1] + '/*.png'), key=os.path.getmtime)[6:14]
-crop = [Image.open(f).convert('RGB').crop((380, 300, 580, 480)) for f in files]
-print('crop diffs (frame to frame, the switch between the 4th and 5th):',
-      ' '.join('%.1f' % (sum(ImageStat.Stat(ImageChops.difference(a, b)).mean) / 3) for a, b in zip(crop, crop[1:])))
-strip = Image.new('RGB', (200 * len(crop), 180))
-for k, c in enumerate(crop):
-    strip.paste(c, (200 * k, 0))
+files = sorted(glob.glob(sys.argv[1] + '/*.png'), key=os.path.getmtime)
+crop = [Image.open(f).convert('RGB').crop((330, 250, 630, 540)) for f in files]
+d = [sum(ImageStat.Stat(ImageChops.difference(a, b)).mean) / 3 for a, b in zip(crop, crop[1:])]
+k = max(range(len(d)), key=lambda i: d[i]) # (the switch: the largest change, or none stands out)
+print('crop diffs frame to frame (a frame every 2):', ' '.join('%.1f' % x for x in d), '; largest between', k, 'and', k + 1)
+crop = crop[max(0, k - 3):k + 5]
+strip = Image.new('RGB', (300 * len(crop), 290))
+for n, c in enumerate(crop):
+    strip.paste(c, (300 * n, 0))
 strip.save(sys.argv[2])
 PY
         fi ;;
