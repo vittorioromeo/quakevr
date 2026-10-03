@@ -10,8 +10,9 @@ server (host_netinterval, 1/72 s at most) runs every second frame, at 60 Hz: as 
   python physbench.py run --exe A=<path> --exe B=<path> --basedir <quake> [--reps 5] [--scenes a,b] > out.txt
   python physbench.py parse < out.txt                     # each exe's medians over the repeats, by scene and window
 
-`run` interleaves the executables (A B A B ...: drift and turbo hit both alike) and needs a display for the game's
-window (on Linux, Xvfb: DISPLAY=:5). Each window prints, per phase (vr_box3d.cpp framePhaseNames), the mean, median, 95th
+`run` interleaves the executables (A B A B ...: drift and turbo hit both alike), each with -noconfigwrite (a run's
++cvars would otherwise be saved into ironwail.cfg for the next ones; the saved config is still read: move it aside to
+bench the defaults), and needs a display for the game's window (on Linux, Xvfb: DISPLAY=:5). Each window prints, per phase (vr_box3d.cpp framePhaseNames), the mean, median, 95th
 and 99th percentiles and the worst of its server frames, and the host frames' wall-clock time; the scene ends with
 vr_physics_hash piles (the state of the props the scene spawned, bit for bit: a change meant not to alter the physics leaves
 it as it was; the map's own props are left out: their start depends on the wall clock).
@@ -116,7 +117,7 @@ def run(a):
     for r in range(a.reps):
         for scene in scenes:
             for tag, exe in exes:
-                cmd = [exe, "-basedir", a.basedir, "-game", "quakevr", "-vrmock", "-window", "-width", "320", "-height",
+                cmd = [exe, "-basedir", a.basedir, "-game", "quakevr", "-vrmock", "-noconfigwrite", "-window", "-width", "320", "-height",
                        "240", "-nosound", "+vr_fixed_frames", "1", "+vr_fixed_frames_rate", str(a.rate), "+vr_mock_fast",
                        "2", *a.extra, "+map", MAPS.get(scene, "vrfiringrange"), "+exec", f"physbench_{scene}.cfg"]
                 t0 = time.time()
