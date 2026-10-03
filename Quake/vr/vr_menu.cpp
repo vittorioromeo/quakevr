@@ -3229,6 +3229,10 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_profile_report: the last 5 seconds' table in the console (in qconsole.log with -condebug)."),
         command("Dump Profile", "vr_profile_dump")
             .help("vr_profile_dump: Performance Profile's report now, in the console and its CSV (quakevr/profile/profile_<map>_...)."),
+        command("QuakeC Instructions", "profile 30")
+            .help("profile 30: the 30 QuakeC functions that ran the most instructions (their own) since the last time, and "
+                  "the total; then all are zeroed. Press it, do the thing, press it again. A call over 16 million is a "
+                  "runaway loop error."),
         header("Threads"),
         toggle("Split Work Between Threads", vr_jobs_parallel)
             .help("The game's thread pool shares out the grasp solve, the liquids' volume, the decal atlas and the models' "

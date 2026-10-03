@@ -219,12 +219,15 @@ PR_Profile_f
 */
 void PR_Profile_f (void)
 {
-	int		i, num;
+	int		i, num, shown;
+	double	total = 0;
 	int		pmax;
 	dfunction_t	*f, *best;
 
 	if (!sv.active)
 		return;
+
+	shown = Cmd_Argc () > 1 ? Q_atoi (Cmd_Argv (1)) : 10; // QVR: "profile [n]" prints the n costliest (all are zeroed)
 
 	PR_SwitchQCVM(&sv.qcvm);
 
@@ -244,12 +247,14 @@ void PR_Profile_f (void)
 		}
 		if (best)
 		{
-			if (num < 10)
+			if (num < shown)
 				Con_Printf("%7i %s\n", best->profile, PR_GetString(best->s_name));
+			total += best->profile;
 			num++;
 			best->profile = 0;
 		}
 	} while (best);
+	Con_Printf("%7.0f profile total (QC instructions since the last profile)\n", total); // QVR
 
 	PR_SwitchQCVM(NULL);
 }

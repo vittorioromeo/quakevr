@@ -1408,6 +1408,13 @@ float vr_sgib_live;                                          // how many small g
 
 void() VR_Gib_Touch =
 {
+    // Another gib, head or small gib moving in its box (the engine touches what overlaps a mover each frame, a pile of
+    // them n x n touches; vr_physics.cpp, VR_TouchLinks): nothing to do unless this one is thrown (its hit). Gibs
+    // meeting hard are Box3D's hits; a thrown one's sweep is touchNearby's (vr_box3d.cpp).
+    if(other.vr_gib && self.throwhit != QVR_THROWHIT_NEVER_HIT)
+    {
+        return;
+    }
     float speed = vlen(self.velocity);
     float fast = speed > 220;
     if(fast && other.solid == SOLID_BSP)

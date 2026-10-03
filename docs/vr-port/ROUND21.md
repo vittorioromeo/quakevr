@@ -23338,3 +23338,41 @@ In VR:
 - [ ] Never Gib Corpses > Corpses and Ragdolls: rockets throw a grunt's ragdoll about, it never gibs.
 - [ ] Never Gib Corpses > And Dying Monsters: a grunt killed by a rocket goes limp and flies, no gibs.
 - [ ] Never Gib Corpses > Off again: corpses gib as before.
+
+## The QC runaway of many blows (2026-10-03)
+
+`vr_smallgibs_test 4` (800 blows in one frame: 200 each of axe blade, pommel, sword, punch) on a corpse ended in
+"runaway loop error" (QC's limit: 16.7 million instructions in one call). Measured with the engine's `profile`
+(now `profile [n]`: the n costliest functions, and the total since the last one; Debug > Performance >
+QuakeC Instructions runs `profile 30`).
+
+Two costs, both also in real play:
+- **The small gibs' ring** (`vr_smallgibs.qc`, `VR_SmallGib_MakeRoom`). Each small gib made past Most Small Gibs
+  (`vr_smallgibs_max`, 64) counted the live ones over all 256 slots, then looked for the oldest over all 256 slots, then
+  for a free slot. QC's arrays cost a call each (fteqcc's `ArrayGet*`, a binary search), so that was about 40,000
+  instructions per small gib, 25,000 per blow at 60 blows a test. At 200 blows it passed 16.7 million. Now the ring is
+  a FIFO in the order made (its old end, how many entries): the oldest is at the old end, gone ones are dropped as it
+  passes them, the live ones are counted at most once a frame, and the ring is compacted once per 256 made.
+  Behaviour unchanged (the oldest not in a hand goes first; the cap test: 15 made at most 10, the five oldest gone).
+- **Gibs touching gibs.** A gib is SOLID_NOT_BUT_TOUCHABLE, and the engine touches everything that overlaps a mover
+  (`VR_TouchLinks`), so a pile of N moving gibs ran N x N QC touches each frame (64 small gibs: about 4,000 touches, 650,000
+  instructions a frame, for nothing: a gib's touch does nothing with another gib unless it is thrown). Now the engine
+  skips them (`vr_physics.cpp` `touch`: both gibs and the touched one not thrown), and `VR_Gib_Touch`/`VR_SmallGib_Touch`
+  return at once for them. A thrown gib's hits are unchanged (touchNearby; Box3D's hits for hard meetings).
+
+QC instructions, before and after:
+
+| | before | after |
+|---|---|---|
+| test 4, 60 blows each (240 in the frame) | 6.0 M (25,000 a blow) | 0.37 M (1,500 a blow) |
+| test 4, 200 blows each (800) | runaway (over 16.7 M) | 1.15 M (1,400 a blow) |
+| the frame after it (64 small gibs moving) | 650,000 | 25,000 |
+| test 14, 24 grunts and 12 boxes blown up: the blast's frame | 12.2 M | 0.49 M |
+| test 14: each frame after (the gibs settling) | 40,000-68,000 | 15,000-22,000 |
+
+The 12.2 M was real play's hazard: a big explosion over a crowd came within 30% of the runaway error (and costs CPU).
+Not changed: the test still runs its blows in one frame (1.4 M for 800 now).
+
+In VR:
+- [ ] Debug > Gore Tests > Blow Up a Crowd with 64 grunts (vr_smallgibs_test_crowd 64): no error, no long hitch.
+- [ ] A gib thrown hard into a pile of gibs still bursts the one it strikes.
