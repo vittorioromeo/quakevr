@@ -1407,6 +1407,84 @@ bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>*
     return true;
 }
 
+bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, const Rig** rig)
+{
+    if(num < 0 || num >= static_cast<int>(draw.byNum.size()) || !draw.byNum[static_cast<za::SizeT>(num)].rig || part < 0)
+    {
+        return false;
+    }
+    const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    if(part >= p.bodies)
+    {
+        return false;
+    }
+    if(rig)
+    {
+        *rig = p.rig;
+    }
+    // Swapped this frame: its skinning matrix (what is drawn), else the bodies published.
+    for(const Swapped& s : draw.swapped)
+    {
+        if(s.num == num && part < s.bones)
+        {
+            const float* m = &s.skin[static_cast<za::SizeT>(part * 12)];
+            glm::mat3 r;
+            for(int row = 0; row < 3; row++)
+            {
+                for(int c = 0; c < 3; c++)
+                {
+                    r[c][row] = m[row * 4 + c];
+                }
+            }
+            scale = glm::length(r[0]);
+            if(scale <= 0.f)
+            {
+                return false;
+            }
+            rot = glm::normalize(glm::quat_cast(r / scale));
+            pos = glm::vec3{m[3], m[7], m[11]} + s.ref;
+            return true;
+        }
+    }
+    rot = p.rot[static_cast<za::SizeT>(part)];
+    pos = p.pos[static_cast<za::SizeT>(part)];
+    scale = p.scale;
+    return true;
+}
+
+void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(rig.model)));
+    if(!hdr || !hdr->vertexes || !hdr->indexes || !hdr->meshdesc)
+    {
+        return;
+    }
+    const auto* tv = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes); // the rest pose (0)
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    const auto* idx = reinterpret_cast<const unsigned short*>(reinterpret_cast<const byte*>(hdr) + hdr->indexes);
+    for(int i = 0; i + 2 < hdr->numindexes; i += 3)
+    {
+        int c[3];
+        bool on = false;
+        for(int k = 0; k < 3; k++)
+        {
+            c[k] = desc[idx[i + k]].vertindex;
+            on = on || (c[k] < rig.numVerts && rig.vertBone[static_cast<za::SizeT>(c[k])] == bone);
+        }
+        if(!on || c[0] == c[1] || c[1] == c[2] || c[0] == c[2])
+        {
+            continue;
+        }
+        for(const int v : c)
+        {
+            const trivertx_t& t = tv[v];
+            out.pushBack(glm::vec3{t.v[0] * hdr->scale[0] + hdr->scale_origin[0], t.v[1] * hdr->scale[1] + hdr->scale_origin[1],
+                t.v[2] * hdr->scale[2] + hdr->scale_origin[2]});
+        }
+    }
+}
+
 void info_f()
 {
     qmodel_t* model = Mod_ForName("progs/soldier.mdl", false);

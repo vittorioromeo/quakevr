@@ -114,6 +114,13 @@ void restoreModels();
 // and their normals (the rest pose's turned with them) if `normals`. False if edict `num` has no ragdoll published.
 bool skinnedVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals = nullptr);
 
+// A hand holding a limb (vr_view.cpp: its fingers closed round it). Part `part` of edict `num`'s ragdoll as it is drawn
+// now (swapped this frame, else as published): p_world = rot * (scale * p_rest) + pos; its rig. False: none, or hidden.
+bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, const Rig** rig = nullptr);
+// The .mdl's triangles with a corner on bone `bone` (its rest pose, model units: three points each), the limb a hand
+// closes round (all its corners carried with that bone: across a joint, a little off where the next bone bends).
+void boneTriangles(const Rig& rig, int bone, za::Vector<glm::vec3>& out);
+
 // vr_ragdoll_info: the rig of the nearest dead monster's model (or the grunt's), its bones and how it was derived.
 void info_f();
 

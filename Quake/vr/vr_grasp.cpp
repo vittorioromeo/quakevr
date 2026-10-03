@@ -1283,6 +1283,32 @@ const Shape* shapeOf(const entity_t& e, int frame)
     return cached.valid ? &cached.shape : nullptr;
 }
 
+const Shape* keptShape(const qmodel_t* model, int id, const za::Vector<Triangle>* tris)
+{
+    if(!model || id >= 0)
+    {
+        return nullptr;
+    }
+    const auto it = shapes.find(ShapeKey{model, id});
+    if(it != shapes.end() && it->second && it->second->name == model->name)
+    {
+        return it->second->valid ? &it->second->shape : nullptr;
+    }
+    if(!tris)
+    {
+        return nullptr;
+    }
+    CachedShape& cached = qza::stableAt<CachedShape>(shapes, ShapeKey{model, id});
+    if(!cached.name.empty())
+    {
+        forgetSolves(); // (as shapeOf: made again in place)
+    }
+    cached.name = model->name;
+    makeShape(*tris, cached.shape);
+    cached.valid = !tris->empty();
+    return cached.valid ? &cached.shape : nullptr;
+}
+
 bool worldTriangles(const entity_t& e, bool mirrored, int frame, za::Vector<Triangle>& out)
 {
     out.clear();

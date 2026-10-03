@@ -49,6 +49,7 @@
 #include "vr_drawblend.hpp"
 #include "vr_profile.hpp"
 #include "vr_props.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_menu.hpp"
 #include "vr_weapons.hpp"
 #include "vr_wounds.hpp"
@@ -461,10 +462,12 @@ struct ViewScratch
     za::Vector<glm::vec4> boneSpheres;             // vr_debug_hand_bones's
     za::Vector<glm::vec4> collideSpheres[2];       // vr_body_collide's hands (selfCollideDrawn: Drawn views them)
     za::Vector<glm::vec4> collideRig;              // and the rig's
+    za::Vector<glm::vec3> limbPoints;              // a held ragdoll limb's triangles, as the rig gives them (limbHold)
+    za::Vector<grasp::Triangle> limbTris;          // and as its shape is made of
     auto members()
     {
         return qvr::mem::list(restVerts, nowVerts, weight, otherHand, otherHandTris, otherHandVerts, handSpheres, fistSpheres,
-            openSpheres, boneSpheres, collideSpheres, collideRig);
+            openSpheres, boneSpheres, collideSpheres, collideRig, limbPoints, limbTris);
     }
 };
 mem::Scratch<ViewScratch> scratch{"view hands"};
@@ -1459,7 +1462,22 @@ struct Held
     // the offset moves the hand by what it says (a fit searched again would pull it back towards the best grip).
     bool offset{false};
     glm::mat4 fitInRig{1.f};
+    // A shape of its own instead of `ent`'s model's (a ragdoll's limb: limbHold; `frame` its part), drawn at `toWorld`.
+    const grasp::Shape* shape{nullptr};
+    glm::mat4 toWorld{1.f};
 };
+
+// What `held`'s fingers wrap: its own shape, else its entity's model's pose (`frame`, or its own if < 0).
+[[nodiscard]] const grasp::Shape* heldShape(const Held& held, int frame)
+{
+    return held.shape ? held.shape : grasp::shapeOf(*held.ent, frame);
+}
+
+// Where `held`'s shape is drawn: its shape's coordinates to the world.
+[[nodiscard]] glm::mat4 heldToWorld(const Held& held)
+{
+    return held.shape ? held.toWorld : grasp::shapeToWorld(*held.ent, held.mirrored);
+}
 
 // The weapon's (Key::FingerManual, FingerCurl*) or a hotspot's fingers set by hand, into `held`.
 void setManualFingers(Held& held, bool manual, const float curl[handrig::FingerCount], float thumbAcross)
@@ -1697,14 +1715,14 @@ void updateGrasp(int hand, const Held& held, const glm::mat4& rigMatrix, float r
         return;
     }
     const int frame = held.frame >= 0 ? held.frame : held.ent->frame;
-    const grasp::Shape* shape = grasp::shapeOf(*held.ent, frame);
+    const grasp::Shape* shape = heldShape(held, frame);
     if(!shape)
     {
         g.valid = false;
         return;
     }
     const glm::mat4 inRig =
-        held.canonical ? held.canonicalInRig : glm::inverse(rigMatrix) * grasp::shapeToWorld(*held.ent, held.mirrored);
+        held.canonical ? held.canonicalInRig : glm::inverse(rigMatrix) * heldToWorld(held);
     // Whether two places in the hand are the same, to a hundredth of a hand unit and a tenth of a degree; whether it
     // rests (where it was last frame).
     const auto samePlace = [](const glm::mat4& p, const glm::mat4& q) {
@@ -2400,7 +2418,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     if(held.manual)
     {
         rh.grasp.valid = false;
-        rh.inRig = held.ent ? glm::inverse(rigToWorld) * grasp::shapeToWorld(*held.ent, held.mirrored) : glm::mat4{1.f};
+        rh.inRig = held.ent ? glm::inverse(rigToWorld) * heldToWorld(held) : glm::mat4{1.f};
     }
     else
     {
@@ -3226,6 +3244,113 @@ void drawHand(int hand, glm::vec3 pos, glm::vec3 handRot, bool mirrored, bool hi
 
 entity_t placedTorch[2]; // (setupHand: the torch as it is placed this frame, per hand)
 
+// ---- A hand holding a ragdoll's limb (vr_ragdoll_grab; ROUND21.md, "Hands on held ragdolls") ----
+// The limb is held by a spring at the hand (vr_box3d.cpp): it lags the hand as it moves and sags under the body's
+// weight, and the hand, drawn at its controller with its fingers in their fist, came off the limb. Drawn on the limb
+// instead, where the hold has it (within vr_ragdoll_hand_stick of the controller), its fingers closed round the limb's
+// mesh as round a carried prop's (the grasp: vr_grasp.cpp).
+
+struct LimbHold
+{
+    int num{0};
+    int part{-1};
+    glm::vec3 pos{0.f};                 // the hand's place on the limb, as drawn (world)
+    glm::quat turn{1.f, 0.f, 0.f, 0.f}; // and its turn (the axes of the controller's angles there)
+    const grasp::Shape* shape{nullptr}; // the limb's (its rest pose's triangles)
+    glm::mat4 toWorld{1.f};             // drawn there
+};
+
+// The limb the local player's `hand` holds (a listen server's ragdoll: box3d::ragdollHold), as drawn now. False: none.
+[[nodiscard]] bool limbHold(int hand, LimbHold& out)
+{
+    out = LimbHold{};
+    box3d::RagdollHold h;
+    if(!sv.active || cls.state != ca_connected || !box3d::ragdollHold(cl.viewentity, hand, h))
+    {
+        return false;
+    }
+    glm::quat rot;
+    glm::vec3 pos;
+    float scale = 1.f;
+    const ragdoll::Rig* rig = nullptr;
+    if(!ragdoll::drawnPart(h.num, h.part, rot, pos, scale, &rig) || !rig)
+    {
+        return false;
+    }
+    out.num = h.num;
+    out.part = h.part;
+    out.pos = rot * h.at + pos;
+    out.turn = glm::normalize(rot * h.turn);
+    out.toWorld = glm::translate(glm::mat4{1.f}, pos) * glm::mat4_cast(rot) * glm::scale(glm::mat4{1.f}, glm::vec3{scale});
+    const int id = -2 - h.part; // (grasp::keptShape's ids: negative)
+    out.shape = grasp::keptShape(rig->model, id);
+    if(!out.shape)
+    {
+        ragdoll::boneTriangles(*rig, h.part, scratch.limbPoints);
+        za::Vector<grasp::Triangle>& tris = scratch.limbTris;
+        tris.clear();
+        for(za::SizeT i = 0; i + 2 < scratch.limbPoints.size(); i += 3)
+        {
+            tris.pushBack({{scratch.limbPoints[i], scratch.limbPoints[i + 1], scratch.limbPoints[i + 2]}});
+        }
+        out.shape = grasp::keptShape(rig->model, id, &tris);
+    }
+    return true;
+}
+
+// The hand drawn on its limb, eased on as it takes it and off as it lets go (limbEaseTime): the last offset kept.
+struct LimbEase
+{
+    double time{-1.0};
+    float blend{0.f};
+    glm::vec3 offset{0.f};
+    glm::quat turn{1.f, 0.f, 0.f, 0.f};
+};
+LimbEase limbEase[2];
+constexpr float limbEaseTime = 0.1f; // s
+constexpr float limbMostTurn = 45.f; // degrees the hand is drawn turned off its controller at most, to stay on the limb
+
+// `pos`, `angles` (the controller's pose of `hand`) moved onto the limb it holds, as if its controller were there.
+void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
+{
+    LimbEase& e = limbEase[hand];
+    const float dt = e.time >= 0.0 ? static_cast<float>(CLAMP(0.0, cl.time - e.time, 0.1)) : 0.f;
+    e.time = cl.time;
+    const float stick = za::fmax(vr_ragdoll_hand_stick.value, 0.f) * 0.01f * units::metresToUnits();
+    LimbHold h;
+    const bool on = stick > 0.f && limbHold(hand, h);
+    if(on)
+    {
+        glm::vec3 offset = h.pos - pos;
+        const float length = glm::length(offset);
+        if(length > stick)
+        {
+            offset *= stick / length;
+        }
+        const glm::quat controller = glm::normalize(glm::quat_cast(anglesBasis(angles)));
+        glm::quat turn = glm::normalize(h.turn * glm::inverse(controller));
+        if(turn.w < 0.f)
+        {
+            turn = -turn;
+        }
+        const float degrees = glm::degrees(glm::angle(turn));
+        if(degrees > limbMostTurn)
+        {
+            turn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, turn, limbMostTurn / degrees);
+        }
+        e.offset = offset;
+        e.turn = turn;
+    }
+    e.blend = on ? za::fmin(1.f, e.blend + dt / limbEaseTime) : za::fmax(0.f, e.blend - dt / limbEaseTime);
+    if(e.blend <= 0.f)
+    {
+        return;
+    }
+    pos += e.offset * e.blend;
+    const glm::quat turn = glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, e.turn, e.blend);
+    angles = basisAngles(glm::mat3_cast(turn) * anglesBasis(angles));
+}
+
 void setupHand(const hands::State& s, int hand)
 {
     QVR_PROFILE("hand");
@@ -3248,6 +3373,8 @@ void setupHand(const hands::State& s, int hand)
     // A prop held in both hands (vr_held.cpp): the hand is drawn on its grip on it, as if its controller were there.
     glm::vec3 controllerPos = s.pos[hand], controllerRot = s.rot[hand];
     held::drawnHand(hand, controllerPos, controllerRot);
+    // A ragdoll's limb: the hand drawn on it, where it holds it (limbDrawnHand).
+    limbDrawnHand(hand, controllerPos, controllerRot);
     // Holding the other hand's weapon anywhere on it (vr_twohand.cpp's free grips): drawn where it holds it, as if its
     // controller were there (the weapon drawn from drawnAs: as held by its handle, or carried), its fingers wrapping it.
     const bool freeHelp = twohand::freeHand(hand, s.pos[hand], s.rot[hand], drawnAs[1 - hand].pos, drawnAs[1 - hand].rot,
@@ -3372,8 +3499,10 @@ void setupHand(const hands::State& s, int hand)
 
     // A free hand pushed into the other hand's weapon stops at its surface (drawn only), held back a few centimetres at
     // most: past that it passes into it until it is out again (vr_hand_collide).
-    pushOut(hand, gripBlend <= 0.f && !freeHelp && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand), pos,
-        handRot, mirrored);
+    pushOut(hand,
+        gripBlend <= 0.f && !freeHelp && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand) &&
+            limbEase[hand].blend <= 0.f,
+        pos, handRot, mirrored);
 
     // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a
     // hand carrying one is drawn so.
@@ -3452,6 +3581,13 @@ void setupHand(const hands::State& s, int hand)
                 props::value(slot, Key::FingerCurlMiddle), props::value(slot, Key::FingerCurlRing), props::value(slot, Key::FingerCurlPinky)};
             setManualFingers(held, props::value(slot, Key::FingerManual) >= 0.5f, curl, props::value(slot, Key::FingerThumbAcross));
         }
+    }
+    else if(LimbHold limb; limbHold(hand, limb) && limb.shape)
+    {
+        // A ragdoll's limb (limbHold): its mesh, as drawn (its part: what keeps its grasp apart from the others').
+        held = {&cl_entities[limb.num], false, limb.part};
+        held.shape = limb.shape;
+        held.toWorld = limb.toWorld;
     }
     else if(flashlight::holds(hand) && entities.flashlight.ent.model)
     {
@@ -5522,8 +5658,8 @@ void drawHandBones()
         }
 
         // The spheres against what it holds.
-        const grasp::Shape* shape = rh.held.ent ? grasp::shapeOf(*rh.held.ent, rh.held.frame) : nullptr;
-        const glm::mat4 shapeToWorld = shape ? grasp::shapeToWorld(*rh.held.ent, rh.held.mirrored) : glm::mat4{1.f};
+        const grasp::Shape* shape = rh.held.ent ? heldShape(rh.held, rh.held.frame) : nullptr;
+        const glm::mat4 shapeToWorld = shape ? heldToWorld(rh.held) : glm::mat4{1.f};
         grasp::posedSpheres(rh.pose, spheres);
         for(const glm::vec4& s : spheres)
         {
@@ -6114,6 +6250,69 @@ int handBonePoses(const entity_t* e, const float** matrices)
     return 0;
 }
 
+void ragdollHandProbe_f()
+{
+    const float cm = 100.f / units::metresToUnits();
+    bool any = false;
+    for(int hand = 1; hand >= 0; hand--)
+    {
+        LimbHold limb;
+        if(!limbHold(hand, limb))
+        {
+            continue;
+        }
+        any = true;
+        const RigHand& rh = rigHands[hand];
+        const char* name = hand == HAND_MAIN ? "main" : "off";
+        float lag = -1.f;
+        {
+            qcvm_t* oldvm = nullptr;
+            PR_PushQCVM(&sv.qcvm, &oldvm);
+            lag = box3d::ragdollHandReach(EDICT_NUM(cl.viewentity), hand);
+            PR_PopQCVM(oldvm);
+        }
+        const LimbEase& e = limbEase[hand];
+        Con_Printf("ragdoll hand %s: edict %d part %d; the limb's held point %.1f cm from the hand (the spring's lag and sag); "
+                   "the hand drawn %.1f cm and %.0f degrees off its controller (eased %.2f)\n",
+            name, limb.num, limb.part, lag * cm, glm::length(e.offset * e.blend) * cm,
+            glm::degrees(glm::angle(glm::slerp(glm::quat{1.f, 0.f, 0.f, 0.f}, e.turn, e.blend))), e.blend);
+        if(!rh.drawn || !limb.shape)
+        {
+            Con_Printf("  (the hand isn't drawn, or the limb has no shape)\n");
+            continue;
+        }
+        // The drawn hand's palm and fingertips to the limb's mesh (cm; negative: in it), and the fingers' closure.
+        const auto toLimb = [&](const glm::vec3& rigPoint) {
+            const glm::vec3 p{rh.rigToWorld * glm::vec4{drawnInRig(rh, rigPoint), 1.f}};
+            glm::vec3 at;
+            bool in = false;
+            const float d = grasp::surfaceDistance(*limb.shape, limb.toWorld, p, 64.f, at, in);
+            return d < 0.f ? 999.f : (in ? -d : d) * cm;
+        };
+        glm::vec3 tips[handrig::FingerCount];
+        grasp::fingertips(rh.pose, tips);
+        const Grasp& g = rh.grasp;
+        int met = 0;
+        float curl = 0.f;
+        for(int f = 0; f < handrig::FingerCount; f++)
+        {
+            met += g.valid && (g.solution.finger[f].met || g.solution.finger[f].fromClosed) ? 1 : 0;
+            for(int j = 0; j < handrig::jointsPerFinger; j++)
+            {
+                curl += rh.joints[f][j];
+            }
+        }
+        Con_Printf("  grasp %s (%s, part %d), %d of 5 fingers met it; drawn curl %.2f (0 open .. 4 fist); palm %.1f cm from "
+                   "the limb's surface; fingertips %.1f %.1f %.1f %.1f %.1f cm\n",
+            g.valid ? "solved" : "none", rh.held.shape ? "its limb" : "not the limb", rh.held.frame, met,
+            curl / static_cast<float>(handrig::FingerCount * handrig::jointsPerFinger), toLimb(grasp::palmCentre()), toLimb(tips[0]),
+            toLimb(tips[1]), toLimb(tips[2]), toLimb(tips[3]), toLimb(tips[4]));
+    }
+    if(!any)
+    {
+        Con_Printf("vr_ragdoll_hand_probe: no hand holds a ragdoll's limb\n");
+    }
+}
 
 // vr_grasp_dump <main|off> <file>: the hand as drawn (its triangles, in its model space: hand_base.mdl's) and what it
 // holds, in the same space, as an .obj ("o hand", "o held") in the game folder, to look at from any side
@@ -6129,12 +6328,12 @@ void graspBench_f()
             continue;
         }
         const int frame = rh.held.frame >= 0 ? rh.held.frame : rh.held.ent->frame;
-        const grasp::Shape* shape = grasp::shapeOf(*rh.held.ent, frame);
+        const grasp::Shape* shape = heldShape(rh.held, frame);
         if(!shape)
         {
             continue;
         }
-        const glm::mat4 inRig = glm::inverse(rh.solveRig) * grasp::shapeToWorld(*rh.held.ent, rh.held.mirrored);
+        const glm::mat4 inRig = glm::inverse(rh.solveRig) * heldToWorld(rh.held);
         const grasp::Settings settings = graspSettings(rh.held, rh.rigUnit);
         za::Vector<double> us;
         grasp::Solution s;
@@ -6206,7 +6405,7 @@ void graspSweep_f()
             continue;
         }
         const int frame = rh.held.frame >= 0 ? rh.held.frame : rh.held.ent->frame;
-        const grasp::Shape* shape = grasp::shapeOf(*rh.held.ent, frame);
+        const grasp::Shape* shape = heldShape(rh.held, frame);
         if(!shape)
         {
             continue;
@@ -6214,7 +6413,7 @@ void graspSweep_f()
         const char* model = COM_SkipPath(rh.held.ent->model->name);
         // Where it rests in the hand (its place from the settings: the same every run), else where it is now.
         const glm::mat4 inRig = rh.held.canonical ? rh.held.canonicalInRig
-                                                  : glm::inverse(rh.solveRig) * grasp::shapeToWorld(*rh.held.ent, rh.held.mirrored);
+                                                  : glm::inverse(rh.solveRig) * heldToWorld(rh.held);
         const grasp::Settings base = graspSettings(rh.held, rh.rigUnit);
 
         // The other hand as drawn, for the cup (as updateGrasp makes it).
@@ -6406,7 +6605,15 @@ void graspDump_f()
         base += 6;
     }
     za::Vector<grasp::Triangle> tris;
-    if(rh.held.ent && rh.held.ent->model && grasp::worldTriangles(*rh.held.ent, rh.held.mirrored, rh.held.frame, tris))
+    if(rh.held.shape) // (a ragdoll's limb: its own shape)
+    {
+        const glm::mat4 m = rh.held.toWorld;
+        for(const grasp::Triangle& t : rh.held.shape->tris)
+        {
+            tris.pushBack({{glm::vec3{m * glm::vec4{t.p[0], 1.f}}, glm::vec3{m * glm::vec4{t.p[1], 1.f}}, glm::vec3{m * glm::vec4{t.p[2], 1.f}}}});
+        }
+    }
+    if(rh.held.ent && rh.held.ent->model && (!tris.empty() || grasp::worldTriangles(*rh.held.ent, rh.held.mirrored, rh.held.frame, tris)))
     {
         const glm::mat4 toRig = glm::inverse(rh.rigToWorld);
         fprintf(f, "o held\n");

@@ -217,6 +217,9 @@ void setGhost(int hand, qmodel_t* model, const glm::vec3& pos, const glm::vec3& 
 // vr_grasp_bench [n]: solves each hand's grasp of what it holds n times (1000), and prints the times (min, median,
 // max, microseconds).
 void graspBench_f();
+// vr_ragdoll_hand_probe: each hand holding a ragdoll's limb: how far the limb is from the hand (the hold's lag), the hand
+// drawn off its controller onto it, the palm and fingertips from the limb's mesh (cm) and how many fingers met it.
+void ragdollHandProbe_f();
 void graspSweep_f();
 
 // Hand/Gun Calibration > Match Controller Preview: how far (world) the empty hand drawn on `hand`'s calibrated controller

@@ -801,6 +801,10 @@ void gather(const glm::vec3& lo, const glm::vec3& hi, Stats& stats)
     {
         return "holding a thing or the flashlight";
     }
+    if(box3d::RagdollHold limb; sv.active && box3d::ragdollHold(cl.viewentity, hand, limb))
+    {
+        return "holding a ragdoll's limb (drawn on it: vr_view.cpp limbDrawnHand)";
+    }
     return nullptr;
 }
 
@@ -906,13 +910,17 @@ Result test(const hands::State& s, int hand)
     }
     const int mode = static_cast<int>(vr_model_collide.value);
     const int heldA = held::heldEntity(0), heldB = held::heldEntity(1);
+    // (A ragdoll a hand holds by a limb: the hands and the weapons pass into it, as into a carried thing.)
+    box3d::RagdollHold limbA, limbB;
+    const int ragA = hosting && box3d::ragdollHold(cl.viewentity, 0, limbA) ? limbA.num : -1;
+    const int ragB = hosting && box3d::ragdollHold(cl.viewentity, 1, limbB) ? limbB.num : -1;
     const glm::vec3 reachLo = lo - glm::vec3{2.f * most + 1.f}, reachHi = hi + glm::vec3{2.f * most + 1.f};
     nearby.clear();
     monsters.clear();
     for(int num = 1; num < cl.num_entities; num++)
     {
         const entity_t& e = cl_entities[num];
-        if(!e.model || e.msgtime != cl.mtime[0] || num == cl.viewentity || num == heldA || num == heldB ||
+        if(!e.model || e.msgtime != cl.mtime[0] || num == cl.viewentity || num == heldA || num == heldB || num == ragA || num == ragB ||
             e.alpha == ENTALPHA_ZERO || (e.model->type != mod_alias && e.model->type != mod_brush))
         {
             continue;

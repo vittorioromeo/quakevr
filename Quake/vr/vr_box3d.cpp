@@ -55,6 +55,7 @@
 #include "vr_hitmodel.hpp"
 #include "vr_jobs.hpp"
 #include "vr_cvars.hpp"
+#include "vr_grip.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
@@ -2605,13 +2606,92 @@ void handPose(edict_t* player, int hand, glm::vec3& at, glm::quat& turn)
     return best;
 }
 
+// The limb's surface on the palm (vr_ragdoll_grab_fit; as a carried prop's: vr_held_surface_fit, ROUND21.md "Hands on
+// held ragdolls"): the limb taken where the hand's middle was held that point at the hand, a few units short of the
+// limb's surface (the hand reaches vr_ragdoll_grab_reach) or sunk into it (a caught limb, by its middle), so the hand
+// was drawn off the limb, or in it. Instead, the ray along the palm's normal through the palm's skin (grip::handFrame)
+// meets the limb's surface `t` units on (from the palm's side: behind it if the palm is inside the limb): the point held
+// at the hand is that many units on along the normal (less vr_held_fit_gap), so the limb is held with that surface on
+// the palm and the fingers close round it (vr_view.cpp). Unchanged if the ray misses it, meets it behind a palm outside
+// it (the back of the hand on it), or more than the reach and a little further on. The world point to hold at the hand
+// (`held`, the limb's point the hand would hold without it).
+[[nodiscard]] glm::vec3 palmFit(int pnum, int hand, const glm::vec3& at, const glm::quat& turn, b3BodyId part, const glm::vec3& held,
+    float* moved = nullptr)
+{
+    if(moved)
+    {
+        *moved = 0.f;
+    }
+    if(vr_ragdoll_grab_fit.value <= 0.f || hand < 0 || hand > 1)
+    {
+        return held;
+    }
+    const bool local = cls.state != ca_dedicated && pnum == 1;
+    const grip::HandFrame f = grip::handFrame(hand, hand == 0, local);
+    const glm::vec3 palm = at + turn * f.palm;
+    const glm::vec3 n = glm::normalize(turn * f.palmNormal);
+    constexpr float span = 64.f; // units the ray reaches either way of the palm (past any limb)
+    const glm::vec3 from = palm - n * span;
+    za::Array<b3ShapeId, 4> shapes{};
+    const int count = b3Body_GetShapes(part, shapes.data(), static_cast<int>(shapes.size()));
+    float nearest = 2.f;
+    for(int i = 0; i < count; i++)
+    {
+        const b3WorldCastOutput out = b3Shape_RayCast(shapes[static_cast<za::SizeT>(i)], world->toM(from), world->toM(n * (2.f * span)));
+        if(out.hit && out.fraction < nearest)
+        {
+            nearest = za::max(out.fraction, 0.f);
+        }
+    }
+    if(nearest > 1.f)
+    {
+        if(vr_debug_ragdoll.value >= 2.f)
+        {
+            Con_Printf("ragdoll: palm fit: the palm's normal (%.2f %.2f %.2f) misses the limb\n", n.x, n.y, n.z);
+        }
+        return held;
+    }
+    const float t = nearest * 2.f * span - span; // the surface met, from the palm along its normal
+    b3Vec3 closest;
+    const bool inside = b3Body_GetClosestPoint(part, &closest, world->toM(palm)) * world->m2u < 0.01f;
+    const float reach = za::max(vr_ragdoll_grab_reach.value, 0.f) + 4.f;
+    if(vr_debug_ragdoll.value >= 2.f)
+    {
+        Con_Printf("ragdoll: palm fit: the surface %.1f units along the palm's normal (%.2f %.2f %.2f), the palm %s the limb\n", t,
+            n.x, n.y, n.z, inside ? "in" : "out of");
+    }
+    if((t < 0.f && !inside) || za::fabs(t) > reach + (inside ? span : 0.f))
+    {
+        return held;
+    }
+    const float gap = vr_held_fit_gap.value * 0.01f * units::metresToUnits();
+    const glm::vec3 shift = n * (t - gap);
+    if(moved)
+    {
+        *moved = t - gap;
+    }
+    return at + shift;
+}
+
 // Grab `g`'s hold: its body at the hand, its joint to the limb holding the limb's point `grip` (its body's space, m) at
-// the hand, the limb turned in the hand as it is now.
-void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, const b3Vec3& grip)
+// the hand, the limb turned in the hand as it is now; `grip` moved for the limb's surface to rest on the palm (palmFit).
+void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b3Vec3 grip)
 {
     glm::vec3 at;
     glm::quat turn;
     handPose(player, g.hand, at, turn);
+    {
+        const b3BodyId body = r.body[static_cast<za::SizeT>(g.part)];
+        float moved = 0.f;
+        const glm::vec3 held = world->toU(b3Body_GetWorldPoint(body, grip));
+        grip = b3Body_GetLocalPoint(body, world->toM(palmFit(g.player, g.hand, at, turn, body, held, &moved)));
+        if(vr_debug_ragdoll.value)
+        {
+            Con_Printf("ragdoll: %d part %d held %.1f units from the hand's middle, moved %.1f units along the palm's normal "
+                       "(vr_ragdoll_grab_fit)\n",
+                g.num, g.part, glm::distance(held, at), moved);
+        }
+    }
     b3BodyDef def = b3DefaultBodyDef();
     def.type = b3_kinematicBody;
     def.position = world->toM(at);
@@ -9741,6 +9821,29 @@ int ragdollHeld(edict_t* player, int hand)
 float ragdollHandReach(edict_t* player, int hand)
 {
     return world ? grabReach(NUM_FOR_EDICT(player), hand) : -1.f;
+}
+
+bool ragdollHold(int player, int hand, RagdollHold& out)
+{
+    out = RagdollHold{};
+    const int index = world ? grabIndex(player, hand) : -1;
+    if(index < 0)
+    {
+        return false;
+    }
+    const World::RagdollGrab& g = world->ragdollGrabs[static_cast<za::SizeT>(index)];
+    const RagdollBodies* r = ragdollOf(g.num);
+    if(g.pulling || !r || g.part >= r->count || B3_IS_NULL(g.joint) || !b3Joint_IsValid(g.joint))
+    {
+        return false;
+    }
+    // (The joint holds its frame B, on the part, at the anchor, the hand: the part's frame is ragdoll::publish's.)
+    const b3Transform frameB = b3Joint_GetLocalFrameB(g.joint);
+    out.num = g.num;
+    out.part = g.part;
+    out.at = glmv(frameB.p) * world->m2u;
+    out.turn = fromB3(frameB.q);
+    return true;
 }
 
 int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out)
