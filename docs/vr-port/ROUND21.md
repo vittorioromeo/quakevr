@@ -23323,3 +23323,14 @@ In VR:
 - [ ] Ragdolls on, kill ogres: they go limp, the chainsaw dropped beside them, none in the hand.
 - [ ] vr_timescale 0.1, kill ogres: the switch unseen in both death animations.
 - [ ] Ragdolls > Ogre: his own Mass (80 kg, the global one, may feel light for an ogre).
+
+**Enforcer** (quakevr/progs/enforcer.mdl: 479 vertices, 108 frames; death 41-54, 55-65). As the grunt: pelvis, chest
+(his pack on it), head, upper arms, forearms (elbow hinges), thighs (the knee's ring: his legs' long triangles have no
+vertices) and shins (the boot; knee hinges); 11 bones and his laser rifle loose (58 vertices, hidden in 25 poses).
+Clusters 0.88 units rms, bones 0.97. Tests (`MON=8 BLAST=100`): flat limp at frame 58, asleep at 5 s; stairs down them;
+blast thrown; gib: none left; save and load: made again in frame 65. The switch: death 1 1.03 units rms, 3.2 at most;
+death 2 0.63, 2.0. The ogre's shins now end above his feet (rig.py keeps a leaf's capsule above its lowest vertex).
+
+In VR:
+- [ ] Ragdolls on, kill enforcers: they go limp, the rifle dropped beside them; vr_timescale 0.1: the switch unseen.
+- [ ] Ragdolls > Enforcer: his own settings.

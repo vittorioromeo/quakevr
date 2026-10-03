@@ -1560,6 +1560,15 @@ QVR_CVAR(vr_ragdoll_ogre_limits, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_ogre_damping, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_ogre_blast, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_ragdoll_ogre_inherit, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_enforcer_start, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_enforcer_mass, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_enforcer_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_enforcer_joint_friction, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_enforcer_joint_stiffness, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_enforcer_limits, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_enforcer_damping, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_enforcer_blast, "-1", CVAR_ARCHIVE)
+QVR_CVAR(vr_ragdoll_enforcer_inherit, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0.5", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on

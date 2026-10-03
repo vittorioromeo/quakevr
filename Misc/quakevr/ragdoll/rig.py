@@ -254,6 +254,9 @@ else:
         tip = len(bone) > 5 and bone[5] == 'tip'  # (its end its far tip, not its child's pivot: the dog's head, his jaw)
         end = pivot[kids[0]] if kids and not tip else 2 * centre[b] - pivot[b]
         piv = pivot[b] if par >= 0 else centre[b]
+        low = X[0, label == b][:, 2].min()
+        if cap > 0 and not kids and end[2] - cap < low and piv[2] - end[2] > 1e-3:
+            end = piv + (end - piv) * min(1, (piv[2] - (low + cap)) / (piv[2] - end[2]))  # (its capsule not below its foot)
         if joint == 'root':
             j = 'Joint::Root, %s, %s, %s, %s, 0.f, 0.f, 0.f, {}' % (f(centre[b]), f(piv), f(end), '%.1ff' % cap)
         elif joint[0] == 'ball':

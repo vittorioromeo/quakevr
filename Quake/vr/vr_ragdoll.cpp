@@ -131,15 +131,36 @@ constexpr Seed ogreSeeds[] = {
     {"forearm_r", 6, Joint::Hinge, {-18.1f, -16.1f, 14.7f}, {-14.f, -17.2f, 17.2f}, {-25.6f, -16.4f, 8.4f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
     {"hand_r", 7, Joint::Ball, {-27.3f, -16.6f, 5.7f}, {-25.6f, -16.4f, 8.4f}, {-28.9f, -16.9f, 3.f}, 0.f, 40.f, 30.f, 0.f, {}},
     {"thigh_l", 0, Joint::Ball, {10.2f, 5.2f, -0.6f}, {5.5f, 4.2f, 3.4f}, {14.8f, 2.8f, -6.f}, 4.5f, 70.f, 30.f, 0.f, {}},
-    {"shin_l", 9, Joint::Hinge, {14.2f, 7.3f, -14.5f}, {14.8f, 2.8f, -6.f}, {13.7f, 11.8f, -23.1f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"shin_l", 9, Joint::Hinge, {14.2f, 7.3f, -14.5f}, {14.8f, 2.8f, -6.f}, {13.9f, 10.2f, -20.f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
     {"thigh_r", 0, Joint::Ball, {-5.1f, -7.1f, -5.f}, {-4.3f, -3.9f, 1.9f}, {-4.6f, -11.2f, -9.9f}, 4.5f, 70.f, 30.f, 0.f, {}},
-    {"shin_r", 11, Joint::Hinge, {-10.1f, -8.7f, -16.4f}, {-4.6f, -11.2f, -9.9f}, {-15.7f, -6.2f, -22.9f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"shin_r", 11, Joint::Hinge, {-10.1f, -8.7f, -16.4f}, {-4.6f, -11.2f, -9.9f}, {-13.2f, -7.3f, -20.f}, 4.f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+};
+
+// Quake VR's enforcer (quakevr/progs/enforcer.mdl: 479 vertices, 108 frames). The rest pose ($stand1): x forward, y left,
+// z up; upright, his laser rifle in both hands before him, a pack on his back (on his chest bone). As the grunt's, his
+// legs' long triangles have no vertices of their own: a thigh's bone is its knee's ring, a shin's its boot. Measured on
+// his frames (Misc/quakevr/ragdoll/rig.py enforcer enforcer_bones.json): 0.97 units rms. His rifle is collapsed in his
+// death frames (he drops it: vr_monstermods.cpp, vr_enemyguns.qc): the loose bone, hidden.
+// Death frames 41-54 ($death1-14) and 55-65 ($fdeath1-11).
+constexpr Seed enforcerSeeds[] = {
+    {"pelvis", -1, Joint::Root, {-4.4f, -0.5f, 2.3f}, {-4.4f, -0.5f, 2.3f}, {-5.7f, 1.7f, 6.f}, 0.f, 0.f, 0.f, 0.f, {}},
+    {"chest", 0, Joint::Ball, {-11.2f, -1.2f, 18.7f}, {-5.7f, 1.7f, 6.f}, {-5.9f, -1.5f, 25.4f}, 0.f, 35.f, 25.f, 0.f, {}},
+    {"head", 1, Joint::Ball, {-2.2f, -1.2f, 28.f}, {-5.9f, -1.5f, 25.4f}, {1.5f, -0.9f, 30.6f}, 0.f, 45.f, 50.f, 0.f, {}},
+    {"upperarm_l", 1, Joint::Ball, {-5.9f, 12.2f, 21.7f}, {-5.9f, 7.2f, 22.8f}, {-5.1f, 13.7f, 14.5f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_l", 3, Joint::Hinge, {2.2f, 13.3f, 13.3f}, {-5.1f, 13.7f, 14.5f}, {9.6f, 12.8f, 12.1f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"upperarm_r", 1, Joint::Ball, {-4.3f, -14.6f, 19.4f}, {-6.2f, -11.3f, 21.8f}, {-1.6f, -17.8f, 15.2f}, 0.f, 85.f, 45.f, 0.f, {}},
+    {"forearm_r", 5, Joint::Hinge, {2.f, -11.4f, 13.f}, {-1.6f, -17.8f, 15.2f}, {5.7f, -5.1f, 10.7f}, 0.f, 0.f, 0.f, 145.f, {0.f, -1.f, 0.f}},
+    {"thigh_l", 0, Joint::Ball, {-2.4f, 5.8f, -9.2f}, {-4.f, 4.5f, -3.5f}, {-4.7f, 6.4f, -18.6f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_l", 7, Joint::Hinge, {-3.3f, 8.f, -22.3f}, {-4.7f, 6.4f, -18.6f}, {-3.6f, 7.7f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
+    {"thigh_r", 0, Joint::Ball, {-3.f, -7.3f, -9.3f}, {-3.1f, -7.8f, -3.7f}, {-6.8f, -7.6f, -17.6f}, 3.2f, 70.f, 30.f, 0.f, {}},
+    {"shin_r", 9, Joint::Hinge, {-4.6f, -9.6f, -22.3f}, {-6.8f, -7.6f, -17.6f}, {-5.f, -9.2f, -21.5f}, 2.8f, 0.f, 0.f, 150.f, {0.f, 1.f, 0.f}},
 };
 
 constexpr SeedTable seedTables[] = {
     {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
     {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
     {"progs/ogre.mdl", 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},
+    {"progs/enforcer.mdl", 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)

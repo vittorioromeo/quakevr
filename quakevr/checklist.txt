@@ -191,6 +191,9 @@ Ragdolls: grab, force grab, pile and burn knights as grunts; Ragdolls > Knight: 
 Ragdolls on the ogre: they go limp, his chainsaw dropped beside them, none left in his hand
 Ragdolls on the ogre in slow motion (vr_timescale 0.1): the switch is unseen in both his death animations
 Ragdolls > Ogre: set his own Mass apart from the global one (an ogre at 80 kg feels light?)
+Ragdolls on the enforcer: they go limp, his laser rifle dropped beside them, none left in his hands
+Ragdolls on the enforcer in slow motion (vr_timescale 0.1): the switch is unseen in both his death animations
+Ragdolls > Enforcer: set his own Joint Friction apart from the global one
 
 [Decide or give feedback]
 Ragdolls: turn on by default? Next: other monsters, severing; is the grip strong enough to lift a grunt?
