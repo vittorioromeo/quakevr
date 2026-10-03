@@ -4892,6 +4892,9 @@ za::Vector<Item> pageMain()
         open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
         open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
         open("Advanced VR Options", PageAdvanced).help("Every gameplay, display and graphics setting, by topic."),
+        command("Run VR Calibration Again", "vr_setup")
+            .help("The calibration room and its steps, as at the first start (the main menu's VR Calibration): your height, "
+                  "your body, and the main settings on its wall buttons. Ends the game you are in."),
     };
 }
 

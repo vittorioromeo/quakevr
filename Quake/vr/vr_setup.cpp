@@ -545,6 +545,14 @@ void init()
 
 void frame()
 {
+    // A first start (vr_setup_pending, vr_cvars.cpp): VR Calibration once the headset tracks and no game runs (the
+    // title's demos, the menus), as the main menu's VR Calibration row; only once.
+    if(vr_setup_pending.value != 0.f && vrActive() && tracking().head.valid && !sv.active && !running() && !flow.pending)
+    {
+        Cvar_SetValueQuick(&vr_setup_pending, 0.f);
+        Con_Printf("VR: a first start: VR Calibration (the main menu's first row runs it again)\n");
+        Cbuf_AddText("vr_setup\n");
+    }
     flowFrame();
     drawOptionScreens();
 }
