@@ -93,7 +93,7 @@ void(entity xTarg, entity xAttacker, float xDamage, float xIsVRMelee) VR_Motion_
 //  guard  x: the hand in the parry stance (a weapon across; 0 off, 1 main, -1 none), y: the hand pushing it
 //         as a bash does (-1 none), z: how far that push has gone (m)
 //  m_blow, o_blow  the hand's motion (VR_Melee_Track): x the far end's speed (m/s: a sword's tip, the
-//         knuckles), y the grip's, z the far end's run-up towards where it goes (m: VR_Melee_Run)
+//         knuckles), y the grip's, z the far end's run-up towards where it goes (m: meleerun)
 void(entity xTarget) VR_Motion_Sample =
 {
     float hand;
@@ -194,8 +194,8 @@ void(entity xTarget) VR_Motion_Sample =
     v_right = oldRight;
     v_up = oldUp;
 
-    motionvalue("m_blow", [vlen(bm.mh_vfar), vlen(bm.mh_vgrip), VR_Melee_Run(bm, FALSE)]);
-    motionvalue("o_blow", [vlen(bo.mh_vfar), vlen(bo.mh_vgrip), VR_Melee_Run(bo, FALSE)]);
+    motionvalue("m_blow", [vlen(bm.mh_vfar), vlen(bm.mh_vgrip), meleerun(bm, FALSE)]);
+    motionvalue("o_blow", [vlen(bo.mh_vfar), vlen(bo.mh_vgrip), meleerun(bo, FALSE)]);
 };
 
 // Playback (vr_motion_play): `self`'s hand `xHand` holds weapon `xWid` (WID_*, WID_FIST: empty) with

@@ -4,6 +4,7 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_progs.hpp"
+#include "vr_melee_shared.h"
 #include "vr_box3d.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_crates.hpp"
@@ -361,6 +362,216 @@ void PF_torchflametouch()
 void PF_anglemod()
 {
     G_FLOAT(OFS_RETURN) = AngleMod360(G_FLOAT(OFS_PARM0));
+}
+
+// The melee history (QC vr_melee.qc VR_Melee_Track): a hand's blow keeps its last VR_MELEE_HISTORY poses' velocities (the
+// far end's, the grip's, the wrist's; m/s) and time steps in a ring, the newest at mh_hi; a time step of 0 ends it. The
+// builtins below walk it back from the newest pose, as the QC loops they replace did (fteqcc made each `b.mh_hdt[k]` a
+// call, a binary search), and do the same float operations in the same order as the VM (pr_exec.c: vectors a component
+// at a time, a dot product's terms summed in order; PF_vlen and PF_normalize in double, PF_max), so their results are the
+// QC's to the bit (vr_melee_shared.h's constants read as floats, as the QC's are).
+struct MeleeRing
+{
+    edict_t* b;
+    const MeleeHistoryFields& f;
+    int k; // the pose looked at
+
+    explicit MeleeRing(edict_t* xB) : b{xB}, f{bindings().melee}, k{static_cast<int>(E_FLOAT(xB, bindings().melee.hi))}
+    {
+        if(k < 0 || k >= VR_MELEE_HISTORY)
+        {
+            k = 0; // (never: VR_Melee_Track keeps it in the ring)
+        }
+    }
+
+    [[nodiscard]] float dt() const
+    {
+        return E_FLOAT(b, f.hdt + k);
+    }
+
+    [[nodiscard]] const float* at(int xArray) const // the pose's vector of the ring xArray (f.hfar, f.hgrip, f.hwrist)
+    {
+        return E_VECTOR(b, xArray + 3 * k);
+    }
+
+    void older()
+    {
+        k = k > 0 ? k - 1 : VR_MELEE_HISTORY - 1;
+    }
+};
+
+// `to` + `v` * `s`, as QC's `to = to + v * s` (OP_MUL_VF, OP_ADD_V).
+void meleeAddScaled(float* to, const float* v, float s)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        const float scaled = s * v[i];
+        to[i] = to[i] + scaled;
+    }
+}
+
+[[nodiscard]] float meleeDot(const float* a, const float* b) // QC's `a * b` (OP_MUL_V)
+{
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+[[nodiscard]] float meleeVlen(const float* v) // PF_vlen
+{
+    return static_cast<float>(sqrt(static_cast<double>(v[0]) * v[0] + static_cast<double>(v[1]) * v[1] +
+                                   static_cast<double>(v[2]) * v[2]));
+}
+
+// float meleerun(entity b, float xGrip): how far the far end (xGrip: the grip) came towards where it goes now (m), looking
+// back VR_MELEE_RUN_TIME at most (builtins.qc).
+void PF_meleerun()
+{
+    G_FLOAT(OFS_RETURN) = 0.f;
+    if(!bindings().melee.valid)
+    {
+        return;
+    }
+    MeleeRing r{G_EDICT(OFS_PARM0)};
+    const bool grip = G_FLOAT(OFS_PARM1) != 0.f;
+    const float* way = E_VECTOR(r.b, grip ? r.f.vgrip : r.f.vfar);
+    float now[3] = {0.f, 0.f, 0.f}; // normalize(way): PF_normalize
+    const double len = sqrt(static_cast<double>(way[0]) * way[0] + static_cast<double>(way[1]) * way[1] +
+                            static_cast<double>(way[2]) * way[2]);
+    if(len != 0)
+    {
+        const double inv = 1 / len;
+        for(int i = 0; i < 3; i++)
+        {
+            now[i] = static_cast<float>(way[i] * inv);
+        }
+    }
+    float moved[3] = {0.f, 0.f, 0.f};
+    float run = 0.f;
+    float back = 0.f;
+    for(int n = 0; n < VR_MELEE_HISTORY; ++n)
+    {
+        const float dt = r.dt();
+        if(dt <= 0.f)
+        {
+            break;
+        }
+        meleeAddScaled(moved, r.at(grip ? r.f.hgrip : r.f.hfar), dt);
+        const float along = meleeDot(moved, now);
+        if(run < along) // max(run, along): PF_max
+        {
+            run = along;
+        }
+        back = back + dt;
+        if(back > static_cast<float>(VR_MELEE_RUN_TIME))
+        {
+            break;
+        }
+        r.older();
+    }
+    G_FLOAT(OFS_RETURN) = run;
+}
+
+// float meleewristspeed(entity b): the wrist's net travel over the last VR_MELEE_WRIST_TIME, over that time (m/s).
+void PF_meleewristspeed()
+{
+    G_FLOAT(OFS_RETURN) = 0.f;
+    if(!bindings().melee.valid)
+    {
+        return;
+    }
+    MeleeRing r{G_EDICT(OFS_PARM0)};
+    const float window = static_cast<float>(VR_MELEE_WRIST_TIME);
+    float moved[3] = {0.f, 0.f, 0.f};
+    float back = 0.f;
+    for(int n = 0; n < VR_MELEE_HISTORY; ++n)
+    {
+        const float dt = r.dt();
+        if(dt <= 0.f)
+        {
+            break;
+        }
+        meleeAddScaled(moved, r.at(r.f.hwrist), dt);
+        back = back + dt;
+        if(back >= window)
+        {
+            break;
+        }
+        r.older();
+    }
+    const float over = back < window ? window : back; // max(back, window): PF_max
+    G_FLOAT(OFS_RETURN) = meleeVlen(moved) / over;
+}
+
+// float meleewiggled(entity b): whether the grip went back the other way at VR_MELEE_WIGGLE_BACK of its speed now or
+// more, within VR_MELEE_WIGGLE_TIME.
+void PF_meleewiggled()
+{
+    G_FLOAT(OFS_RETURN) = 0.f;
+    if(!bindings().melee.valid)
+    {
+        return;
+    }
+    MeleeRing r{G_EDICT(OFS_PARM0)};
+    const float* vgrip = E_VECTOR(r.b, r.f.vgrip);
+    const float speed = meleeVlen(vgrip);
+    if(speed <= 0.f)
+    {
+        return;
+    }
+    const float inv = 1.f / speed;
+    const float now[3] = {inv * vgrip[0], inv * vgrip[1], inv * vgrip[2]};
+    const float against = static_cast<float>(VR_MELEE_WIGGLE_BACK) * speed;
+    float back = 0.f;
+    for(int n = 0; n < VR_MELEE_HISTORY; ++n)
+    {
+        const float dt = r.dt();
+        if(dt <= 0.f)
+        {
+            break;
+        }
+        if(-meleeDot(r.at(r.f.hgrip), now) >= against)
+        {
+            G_FLOAT(OFS_RETURN) = 1.f;
+            return;
+        }
+        back = back + dt;
+        if(back >= static_cast<float>(VR_MELEE_WIGGLE_TIME))
+        {
+            break;
+        }
+        r.older();
+    }
+}
+
+// vector meleegripago(entity b, float xBack): where the grip was xBack s ago (from the head, in the play space, metres;
+// as far back as the history goes).
+void PF_meleegripago()
+{
+    float* out = G_VECTOR(OFS_RETURN);
+    out[0] = out[1] = out[2] = 0.f;
+    if(!bindings().melee.valid)
+    {
+        return;
+    }
+    MeleeRing r{G_EDICT(OFS_PARM0)};
+    const float within = G_FLOAT(OFS_PARM1);
+    float moved[3] = {0.f, 0.f, 0.f};
+    float back = 0.f;
+    for(int n = 0; n < VR_MELEE_HISTORY; ++n)
+    {
+        const float dt = r.dt();
+        if(dt <= 0.f || back >= within)
+        {
+            break;
+        }
+        meleeAddScaled(moved, r.at(r.f.hgrip), dt);
+        back = back + dt;
+        r.older();
+    }
+    const float* rgrip = E_VECTOR(r.b, r.f.rgrip);
+    for(int i = 0; i < 3; i++)
+    {
+        out[i] = rgrip[i] - moved[i];
+    }
 }
 
 // particle2(origin, direction, preset, count): unreliable, like vanilla particle().
@@ -1293,6 +1504,10 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_rest", PF_hitmodel_rest},
     {"torchflametouch", PF_torchflametouch},
     {"anglemod", PF_anglemod},
+    {"meleerun", PF_meleerun},
+    {"meleewristspeed", PF_meleewristspeed},
+    {"meleewiggled", PF_meleewiggled},
+    {"meleegripago", PF_meleegripago},
 };
 
 static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200,

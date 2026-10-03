@@ -344,6 +344,22 @@ float() highlighting = #0; // a highlight log is running (vr_highlights; vr_high
 // it began (0: now).
 void(string kind, float score, entity subject, string detail, float since) highlight = #0;
 float(float v) anglemod = #0; // v wrapped into [0, 360) (vr_builtins.cpp)
+
+// The melee history of a hand's blow `b` (vr_melee.qc VR_Blow: the ring of its last poses, VR_Melee_Track), looked back
+// through from the newest pose (vr_builtins.cpp; the look-back times are in Quake/vr/vr_melee_shared.h):
+// - meleerun: how far the far end (or, `xGrip`, the grip) has come towards where it goes now (m): the most of its
+//   displacement along its way now, looking back VR_MELEE_RUN_TIME at most (a wave's back and forth cancels).
+// - meleewristspeed: the wrist's own speed (m/s): its net travel over the last VR_MELEE_WRIST_TIME, over that time. The
+//   hand turned in place (a wiggle: the controller and the tip flick fast) barely moves it; a swing, a stab, a punch
+//   carry it along.
+// - meleewiggled: whether the grip went back the other way nearly as fast (VR_MELEE_WIGGLE_BACK of its speed now)
+//   within VR_MELEE_WIGGLE_TIME: wiggled, not swung (whatever the hand holds: VR_Melee_Wiggled spares fists).
+// - meleegripago: where the grip was `xBack` s ago (from the head, in the play space, metres; as far back as the
+//   history goes).
+float(entity b, float xGrip) meleerun = #0;
+float(entity b) meleewristspeed = #0;
+float(entity b) meleewiggled = #0;
+vector(entity b, float xBack) meleegripago = #0;
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
 
 // Water splashes (vr_physics.cpp): where a segment first goes into water, slime or lava from the

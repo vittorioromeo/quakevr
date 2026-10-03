@@ -17,6 +17,7 @@
 #include "vr_server.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_props.hpp"
+#include "vr_melee_shared.h"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -85,6 +86,43 @@ void callSpawnServerEntryPoint(func_t fn)
     return nullptr;
 }
 
+// An array field's first element, if the progs' array is `n` long, each element `stride` floats (FTEQCC names them
+// "name[0]".."name[n-1]", in a row); -1 otherwise.
+[[nodiscard]] int findArrayField(const char* name, int n, int stride)
+{
+    const int first = ED_FindFieldOffset(va("%s[0]", name));
+    if(first < 0 || ED_FindFieldOffset(va("%s[%d]", name, n - 1)) != first + (n - 1) * stride ||
+        ED_FindFieldOffset(va("%s[%d]", name, n)) >= 0)
+    {
+        return -1;
+    }
+    return first;
+}
+
+// The melee history's fields (vr_melee.qc), checked against vr_melee_shared.h: progs built with another
+// VR_MELEE_HISTORY say so, and the melee builtins answer "no history" (no blow is wiggled, nothing came anywhere).
+[[nodiscard]] MeleeHistoryFields findMeleeHistory()
+{
+    MeleeHistoryFields m;
+    m.hfar = findArrayField("mh_hfar", VR_MELEE_HISTORY, 3);
+    m.hgrip = findArrayField("mh_hgrip", VR_MELEE_HISTORY, 3);
+    m.hwrist = findArrayField("mh_hwrist", VR_MELEE_HISTORY, 3);
+    m.hdt = findArrayField("mh_hdt", VR_MELEE_HISTORY, 1);
+    m.hi = ED_FindFieldOffset("mh_hi");
+    m.vgrip = ED_FindFieldOffset("mh_vgrip");
+    m.vfar = ED_FindFieldOffset("mh_vfar");
+    m.rgrip = ED_FindFieldOffset("mh_rgrip");
+    m.valid = m.hfar >= 0 && m.hgrip >= 0 && m.hwrist >= 0 && m.hdt >= 0 && m.hi >= 0 && m.vgrip >= 0 && m.vfar >= 0 &&
+              m.rgrip >= 0;
+    if(!m.valid)
+    {
+        Con_Warning("VR: the progs' melee history (mh_hfar, mh_hgrip, mh_hwrist, mh_hdt) is not %d long, as the engine's "
+                    "(vr_melee_shared.h): rebuild the QC\n",
+            VR_MELEE_HISTORY);
+    }
+    return m;
+}
+
 } // namespace
 
 const Bindings& bindings()
@@ -143,6 +181,8 @@ extern "C" void VR_OnProgsLoaded()
 
             return &qcvm->globals[def->ofs];
         };
+
+        b.melee = findMeleeHistory();
 
         b.spawnServerFromSaveFile = globalFloat("spawnServerFromSaveFile");
         b.playerTimeOffset = globalFloat("vr_player_time_offset");

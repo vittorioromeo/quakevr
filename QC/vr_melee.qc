@@ -20,7 +20,10 @@
 // then what is just ahead is knocked back (VR_Bash). A palm's SHOVE is the palm pushed out from the shoulder. Two hands
 // (a weapon held two-handed, an open palm pushing on a one-handed weapon, both palms) bash harder.
 //
-// The numbers are in one place, below: tune them against the labelled takes (vr_motion_eval), not case by case.
+// The numbers are in one place, below: tune them against the labelled takes (vr_motion_eval), not case by case. Those the
+// engine's melee builtins use too (the history's length and look-back times) are in Quake/vr/vr_melee_shared.h.
+
+#include "../Quake/vr/vr_melee_shared.h"
 
 // ----------------------------------------------------------------------------
 // The model's numbers
@@ -45,11 +48,6 @@ float VR_MELEE_GUN_BUTT = 1.3;     // a gun's butt strike: its grip at least thi
                                    // author's butt strikes drive the grip 5.7-9 m/s, a gun wiggled at the dummy 4.8)
 float VR_MELEE_RUN = 0.2;          // m the grip came towards where it goes now, within VR_MELEE_RUN_TIME: a blow, not a wave or a
                                    // wiggle (the author's punches come 0.22-0.8 m, his fists waved fast at the dummy 0.05-0.2)
-float VR_MELEE_RUN_TIME = 0.3;     // s looked back at most
-float VR_MELEE_WIGGLE_BACK = 0.6;  // a weapon whose grip went the other way at this share of its speed now or more,
-float VR_MELEE_WIGGLE_TIME = 0.25; // within this long (s), is wiggled, not swung (the author's axe wiggled at the dummy 0.75 and
-                                   // more, within 0.08-0.2 s; his cuts, stabs, pommel and gun strikes 0.46 at most). Not a fist's:
-                                   // a punch pulled back and thrown again is a blow (his punches 0.41 at most)
 float VR_MELEE_RELOAD_DOWN = 0.8;  // a gun whose grip went down this steeply (sine) or more over VR_MELEE_RELOAD_TIME,
 float VR_MELEE_RELOAD_FROM = 0.1;  // from no higher than this over the eyes (m; aim or torso level, not an overhead chop),
 float VR_MELEE_RELOAD_TIME = 0.15; // is taken down to a holster to reload: no blow (the author's fast reloads went 0.5-0.7 m
@@ -57,7 +55,6 @@ float VR_MELEE_RELOAD_TIME = 0.15; // is taken down to a holster to reload: no b
                                    // his gun strikes downwards came 0.8-0.95 m ahead and at most 0.26 down: 0.3 steep at most)
 float VR_MELEE_WRIST_BACK = 0.2;   // m behind the controller (along its own axis, the gun angle taken out) the hand turns about
                                    // when it wiggles (fitted on the author's wiggles with fists, sword, axe and gun: 17-24 cm)
-float VR_MELEE_WRIST_TIME = 0.12;  // s over which vr_melee_wrist_speed averages the wrist's travel (a wiggle's half-period)
 float VR_MELEE_WRIST_PUNCH = 2;    // a punch's wrist speed, times vr_melee_wrist_speed: a fist has no lever, the arm carries it (the
                                    // author's punches carry the wrist 3.5 m/s and more, his fists wiggled at the dummy 1.5 at most)
 float VR_MELEE_BLADE_FROM = 0.4;   // the blade proper: from this share of the way from the hand to the tip
@@ -237,12 +234,13 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .float mh_pend_speed;
 .string mh_pend_part;
 .string mh_pend_way;
-// The last poses' velocities (a ring: VR_Melee_Run): the far end's, the grip's, and each pose's time step.
-.vector mh_hfar[24];
-.vector mh_hgrip[24];
-.vector mh_hwrist[24]; // the wrist's (VR_Melee_Wrist)
+// The last poses' velocities (a ring of VR_MELEE_HISTORY, the newest at mh_hi; the engine's melee builtins read it:
+// meleerun, meleewristspeed, meleewiggled, meleegripago): the far end's, the grip's, and each pose's time step.
+.vector mh_hfar[VR_MELEE_HISTORY];
+.vector mh_hgrip[VR_MELEE_HISTORY];
+.vector mh_hwrist[VR_MELEE_HISTORY]; // the wrist's (VR_Melee_Wrist)
 .vector mh_rwrist;     // the wrist from the head (play space, metres)
-.float mh_hdt[24];
+.float mh_hdt[VR_MELEE_HISTORY];
 .float mh_hi;
 // Batting swings (VR_Deflect, vr_juice.qc): the lines the weapon swept through.
 .vector bat_a[8];
@@ -995,7 +993,7 @@ float(float xHand, entity b) VR_Melee_Track =
     if(same)
     {
         b.mh_hi = b.mh_hi + 1;
-        if(b.mh_hi >= 24)
+        if(b.mh_hi >= VR_MELEE_HISTORY)
         {
             b.mh_hi = 0;
         }
@@ -1110,130 +1108,14 @@ string(entity b, vector xVel, float xThing) VR_Melee_Way =
     return up < 0 ? "diagonal, down" : "diagonal, up";
 };
 
-// How far the far end (or, `xGrip`, the grip) of what `b`'s hand holds has come towards where it goes now (m): the
-// most of its displacement along its way now, looking back VR_MELEE_RUN_TIME at most (a wave's back and forth cancels).
-float(entity b, float xGrip) VR_Melee_Run =
-{
-    vector now = normalize(xGrip ? b.mh_vgrip : b.mh_vfar);
-    vector moved = '0 0 0';
-    float run = 0;
-    float back = 0;
-    float k = b.mh_hi;
-    float n;
-    for(n = 0; n < 24; ++n)
-    {
-        float dt = b.mh_hdt[k];
-        if(dt <= 0)
-        {
-            break;
-        }
-        moved = moved + (xGrip ? b.mh_hgrip[k] : b.mh_hfar[k]) * dt;
-        run = max(run, moved * now);
-        back = back + dt;
-        if(back > VR_MELEE_RUN_TIME)
-        {
-            break;
-        }
-        k = k - 1;
-        if(k < 0)
-        {
-            k = 23;
-        }
-    }
-    return run;
-};
-
-// The wrist's own speed (m/s): its net travel over the last VR_MELEE_WRIST_TIME, over that time. The hand turned in
-// place (a wiggle: the controller and the tip flick fast) barely moves it; a swing, a stab, a punch carry it along.
-float(entity b) VR_Melee_WristSpeed =
-{
-    vector moved = '0 0 0';
-    float back = 0;
-    float k = b.mh_hi;
-    float n;
-    for(n = 0; n < 24; ++n)
-    {
-        float dt = b.mh_hdt[k];
-        if(dt <= 0)
-        {
-            break;
-        }
-        moved = moved + b.mh_hwrist[k] * dt;
-        back = back + dt;
-        if(back >= VR_MELEE_WRIST_TIME)
-        {
-            break;
-        }
-        k = k - 1;
-        if(k < 0)
-        {
-            k = 23;
-        }
-    }
-    return vlen(moved) / max(back, VR_MELEE_WRIST_TIME);
-};
-
-// Whether `b`'s weapon is wiggled, not swung: its grip went back the other way nearly as fast, a moment ago
-// (VR_MELEE_WIGGLE_*). Never a fist's.
+// Whether `b`'s weapon is wiggled, not swung (meleewiggled). Never a fist's.
 float(entity b) VR_Melee_Wiggled =
 {
-    float speed = vlen(b.mh_vgrip);
-    if(b.mh_thing == VR_MTHING_FIST || speed <= 0)
+    if(b.mh_thing == VR_MTHING_FIST)
     {
         return FALSE;
     }
-    vector now = b.mh_vgrip * (1 / speed);
-    float back = 0;
-    float k = b.mh_hi;
-    float n;
-    for(n = 0; n < 24; ++n)
-    {
-        float dt = b.mh_hdt[k];
-        if(dt <= 0)
-        {
-            break;
-        }
-        if(-(b.mh_hgrip[k] * now) >= VR_MELEE_WIGGLE_BACK * speed)
-        {
-            return TRUE;
-        }
-        back = back + dt;
-        if(back >= VR_MELEE_WIGGLE_TIME)
-        {
-            break;
-        }
-        k = k - 1;
-        if(k < 0)
-        {
-            k = 23;
-        }
-    }
-    return FALSE;
-};
-
-// Where `b`'s grip was `xBack` s ago (from the head, in the play space, metres; as far back as the history goes).
-vector(entity b, float xBack) VR_Melee_GripAgo =
-{
-    vector moved = '0 0 0';
-    float back = 0;
-    float k = b.mh_hi;
-    float n;
-    for(n = 0; n < 24; ++n)
-    {
-        float dt = b.mh_hdt[k];
-        if(dt <= 0 || back >= xBack)
-        {
-            break;
-        }
-        moved = moved + b.mh_hgrip[k] * dt;
-        back = back + dt;
-        k = k - 1;
-        if(k < 0)
-        {
-            k = 23;
-        }
-    }
-    return b.mh_rgrip - moved;
+    return meleewiggled(b);
 };
 
 // Whether `b`'s gun is being taken down to a holster to reload, not struck with (NOTES.md vrfiringrange_2026-09-30_02-03-28:
@@ -1246,7 +1128,7 @@ float(entity b) VR_Melee_Reloading =
     {
         return FALSE;
     }
-    vector from = VR_Melee_GripAgo(b, VR_MELEE_RELOAD_TIME);
+    vector from = meleegripago(b, VR_MELEE_RELOAD_TIME);
     if(from_z > VR_MELEE_RELOAD_FROM)
     {
         return FALSE;
@@ -1271,7 +1153,7 @@ float(entity b) VR_Melee_WristMoved =
     {
         need = need * VR_MELEE_WRIST_PUNCH;
     }
-    return VR_Melee_WristSpeed(b) >= need;
+    return meleewristspeed(b) >= need;
 };
 
 // The weight of a pommel (butt) strike with `xThing`.
@@ -1378,11 +1260,11 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
         // A gun's butt is struck with by carrying the gun at the thing (vr_melee_butt_run): a gun wiggled turns about the
         // hand, which hardly travels, and flings its butt round faster than the hand (round 21 wigglefix). Not a sword's
         // pommel: turned hilt first from close by, the author's pommel strikes come 0.36-0.54 m.
-        if(b.mh_thing == VR_MTHING_GUN && VR_Melee_Run(b, TRUE) < cvar_hget(cvarh_vr_melee_butt_run))
+        if(b.mh_thing == VR_MTHING_GUN && meleerun(b, TRUE) < cvar_hget(cvarh_vr_melee_butt_run))
         {
             if(cvar("developer") >= 2)
             {
-                dprint(sprintf("melee debug: the butt came %.2f m, under vr_melee_butt_run: no butt strike\n", VR_Melee_Run(b, TRUE)));
+                dprint(sprintf("melee debug: the butt came %.2f m, under vr_melee_butt_run: no butt strike\n", meleerun(b, TRUE)));
             }
             return FALSE;
         }
@@ -1392,15 +1274,15 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     {
         dprint(sprintf("melee debug: hand %g %s at %s (point %g, %.2f on the weapon): grip %.1f far %.1f", xHand,
             VR_Melee_KindName(kind, b.mh_thing), vr_mpt_name[xI], xI, vr_mpt_fh[xI], vgrip, vfar)); // (8 at most)
-        dprint(sprintf(" along %.2f lead %.2f need %.1f run %.2f wrist %.2f\n", along, lead, need, VR_Melee_Run(b, TRUE),
-            VR_Melee_WristSpeed(b)));
+        dprint(sprintf(" along %.2f lead %.2f need %.1f run %.2f wrist %.2f\n", along, lead, need, meleerun(b, TRUE),
+            meleewristspeed(b)));
     }
     if(speed < need * land)
     {
         return FALSE;
     }
     // A blow, not a wiggle: the arm came from some way off.
-    if(VR_Melee_Run(b, TRUE) < VR_MELEE_RUN)
+    if(meleerun(b, TRUE) < VR_MELEE_RUN)
     {
         return FALSE;
     }
@@ -1930,7 +1812,7 @@ void(float xHand, entity b) VR_Melee_Whoosh =
     {
         return; // an open hand: no blow
     }
-    if(VR_Melee_Run(b, TRUE) < VR_MELEE_RUN || !VR_Melee_WristMoved(b) || VR_Melee_Wiggled(b) || VR_Melee_Reloading(b))
+    if(meleerun(b, TRUE) < VR_MELEE_RUN || !VR_Melee_WristMoved(b) || VR_Melee_Wiggled(b) || VR_Melee_Reloading(b))
     {
         return;
     }
