@@ -819,6 +819,7 @@ void emissive::lavaGunLight(int index, const glm::vec3& pos, float strength)
 // (muzzle flashes) hardly change.
 extern "C" float VR_EntityFullbrightBoost(const entity_t* e)
 {
+    if(e->model && !strcmp(e->model->name, "progs/vr_explosion_debris.mdl")) { return 2.f; }
     // A lava nail's molten skin (fullbright 229-236, dim oranges) burns bright orange, for the
     // bloom, with the projectiles' lights.
     if(e->model && vr_projectile_lights.value > 0.f && !strcmp(e->model->name, lavaNailModel))

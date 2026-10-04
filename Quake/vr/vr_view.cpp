@@ -30,6 +30,8 @@
 #include "vr_protocol.hpp"
 #include "vr_render.hpp"
 #include "vr_shells.hpp"
+#include "vr_explosiondebris.hpp"
+#include "vr_fireparticles.hpp"
 #include "vr_shock.hpp"
 #include "vr_stereo.hpp"
 #include "vr_window.hpp"
@@ -6066,6 +6068,8 @@ extern "C" void VR_SetupViewEntities()
 
     // Spent casings thrown out of the weapons (vr_shells.cpp).
     shells::frame(entities.weapon);
+    explosiondebris::frame();
+    fireparticles::frame();
 
     // Wounds painted on the models (vr_wounds.cpp), the body and the hands posed.
     wounds::frame();

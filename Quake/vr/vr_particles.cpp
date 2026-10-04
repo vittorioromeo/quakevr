@@ -4,6 +4,8 @@
 // the view direction, as the old geometry shader built them.
 
 #include "vr_particles.hpp"
+#include "vr_explosiondebris.hpp"
+#include "vr_units.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
@@ -84,6 +86,7 @@ enum Cell : za::U8
     CellDrop,  // a drop of liquid (generated): a clear ball with a bright rim and a glint, drawn streaked
     CellSpray, // a cloud of fine droplets in a haze (generated)
     CellFoam,  // a patch of bubbly foam (generated), lying on a liquid
+    CellFire, // generated wispy flame tongue; emission sources keep their low-poly flame models
     CellCount
 };
 
@@ -151,9 +154,9 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
 
 // Makes `count` particles (times vr_particle_mult), each set up by `f(p)`.
 template <typename F>
-void make(float count, F&& f)
+void make(float count, F&& f, bool multiply = true)
 {
-    const int n = static_cast<int>(count * za::max(0.f, vr_particle_mult.value));
+    const int n = static_cast<int>(count * (multiply ? za::max(0.f, vr_particle_mult.value) : 1.f));
     for(int i = 0; i < n && pool.size() < maxParticles; i++)
     {
         Particle p;
@@ -226,7 +229,7 @@ void explosion(const glm::vec3& org)
         p.org = org + glm::vec3{rnd(-16, 16), rnd(-16, 16), rnd(-16, 16)};
         p.vel = {rnd(-256, 256), rnd(-256, 256), rnd(-256, 256)};
     });
-    make(1, [&](Particle& p, int) {
+    make(za::clamp(vr_explosion_particles.value, 0.f, 16.f), [&](Particle& p, int) {
         p.cell = CellExplosion;
         // The fire texture is neutral: tint it as flame, rather than the sparks' sulphur-yellow palette entry.
         p.color = glm::vec4{1.f, 0.48f, 0.12f, 1.f};
@@ -237,7 +240,7 @@ void explosion(const glm::vec3& org)
         p.spinBack = rndi(0, 2);
         p.org = org + glm::vec3{rnd(-11, 11), rnd(-11, 11), rnd(-11, 11)};
         p.vel = {rnd(-8, 8), rnd(-8, 8), rnd(-8, 8)};
-    });
+    }, false); // Exact large-fireball count; the general particle multiplier controls the other particles.
     make(3, [&](Particle& p, int) {
         p.cell = CellSmoke;
         setColor(p, rndi(0, 8), 225);
@@ -818,7 +821,8 @@ bool ensureAtlas()
     constexpr File files[] = {{CellExplosion, "textures/particle_explosion"}, {CellSmoke, "textures/particle_smoke"},
         {CellBlood, "textures/particle_blood"}, {CellBloodMist, "textures/particle_blood_mist"},
         {CellLightning, "textures/particle_lightning"}, {CellSpark, "textures/particle_spark"},
-        {CellRock, "textures/particle_rock"}, {CellGunSmoke, "textures/particle_gun_smoke"}};
+        {CellRock, "textures/particle_rock"}, {CellGunSmoke, "textures/particle_gun_smoke"},
+        {CellFire, "textures/particle_fire"}};
     for(const File& f : files)
     {
         const int mark = Hunk_LowMark();
@@ -1092,8 +1096,8 @@ void blobExplosion(const glm::vec3& org)
         p.org = org + inBox(16.f);
         p.vel = inBox(256.f);
     });
-    make(3, [&](Particle& p, int) {
-        p.cell = CellSmoke; // grey: tinted violet (the fireball's texture is orange)
+    make(za::clamp(vr_explosion_particles.value, 0.f, 16.f), [&](Particle& p, int) {
+        p.cell = CellExplosion; // the neutral fireball texture also takes the tarbaby's violet tint
         p.additive = true;
         p.color = glm::vec4{0.6f, 0.3f, 1.f, 1.f};
         p.die = cl.time + 1.5;
@@ -1102,7 +1106,7 @@ void blobExplosion(const glm::vec3& org)
         p.spinBack = rndi(0, 2);
         p.org = org + inBox(8.f);
         p.vel = inBox(8.f);
-    });
+    }, false);
     make(48, [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
@@ -1591,6 +1595,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
 
 bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 {
+    if(preset == Preset::Explosion) { explosiondebris::spawn(org); }
     QVR_PROFILE("particle spawn");
     // The splash's ripples on the liquid (vr_water_ripples, vr_water.cpp), with Quake VR's particles or without.
     glm::vec3 surface{0.f};
@@ -1746,6 +1751,73 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
         p.floor = org.z - 0.5f;
         pool.pushBack(p);
     }
+}
+
+// A fire model's emission burst: its world-axis upward velocity does not invert with a held torch.
+int fireSource(const glm::vec3& at, float sourceScale)
+{
+    if(!vr_particles.value || !r_particles.value || !ensureAtlas()) { return 0; }
+    const za::SizeT before = pool.size();
+    const auto range = [](float a, float b, float low, float high) {
+        a = za::clamp(a, low, high); b = za::clamp(b, low, high);
+        return rnd(za::min(a, b), za::max(a, b));
+    };
+    make(za::clamp(vr_fire_particles_count.value, 0.f, 16.f), [&](Particle& p, int) {
+        p.cell = CellFire;
+        p.type = Custom;
+        p.additive = true;
+        p.angle = rnd(-0.25f, 0.25f);
+        const float s = sourceScale * za::clamp(vr_fire_particles_size.value, 0.1f, 4.f);
+        p.scale = rnd(2.f, 3.f) * s;
+        p.org = at + glm::vec3{rnd(-1.f, 1.f), rnd(-1.f, 1.f), rnd(-0.5f, 0.5f)} * sourceScale;
+        const float life = range(vr_fire_particles_life_min.value, vr_fire_particles_life_max.value, 0.05f, 5.f);
+        const float speed = range(vr_fire_particles_speed_min.value, vr_fire_particles_speed_max.value, 0.f, 10.f);
+        const float up = range(vr_fire_particles_up_min.value, vr_fire_particles_up_max.value, 0.f, 10.f);
+        const float angle = rndAngle();
+        p.vel = glm::vec3{za::cos(angle) * speed, za::sin(angle) * speed, up} * units::metresToUnits();
+        p.color = glm::vec4{fireColor(), za::clamp(vr_fire_particles_alpha.value, 0.f, 1.f)};
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.grow = s * 1.5f;
+        p.spin = rnd(-0.3f, 0.3f);
+        p.acc = glm::vec3{0.f, 0.f, units::metresToUnits() * 0.3f};
+    }, false);
+    return static_cast<int>(pool.size() - before);
+}
+
+// Incandescent physical chunks leave short flame tongues and slower, lingering smoke.
+void explosionDebrisTrail(const glm::vec3& from, const glm::vec3& to, float size, float heat)
+{
+    if(!vr_particles.value || !r_particles.value || !ensureAtlas()) { return; }
+    const float length = glm::length(to - from);
+    const float density = za::clamp(vr_explosion_debris_trail.value, 0.f, 3.f);
+    if(length <= 0.f || density <= 0.f) { return; }
+    const float count = perLength(length, za::max(1.f, size) / density);
+    make(count, [&](Particle& p, int) {
+        p.cell = CellExplosion;
+        p.org = glm::mix(from, to, rnd(0.f, 1.f));
+        p.color = glm::vec4{1.f, 0.3f + 0.2f * heat, 0.04f, 0.65f * heat};
+        p.additive = true;
+        p.type = Custom;
+        p.scale = size * rnd(0.6f, 1.f);
+        p.die = cl.time + rnd(0.15f, 0.3f);
+        p.fade = -3.f;
+        p.grow = size * 2.f;
+        p.vel = inBox(4.f) + glm::vec3{0.f, 0.f, 12.f};
+        p.spin = rnd(-2.f, 2.f);
+    });
+    make(count * 0.5f, [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        p.org = glm::mix(from, to, rnd(0.f, 1.f));
+        p.color = glm::vec4{0.25f, 0.22f, 0.2f, 0.32f};
+        p.type = Custom;
+        p.scale = size * rnd(0.8f, 1.4f);
+        p.die = cl.time + rnd(0.7f, 1.2f);
+        p.fade = -0.3f;
+        p.grow = size * 4.f;
+        p.vel = inBox(5.f) + glm::vec3{0.f, 0.f, 14.f};
+        p.spin = rnd(-0.5f, 0.5f);
+    });
 }
 
 void chainsawSmoke(const glm::vec3& org, const glm::vec3& dir, int count)
@@ -2054,6 +2126,14 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
             p.vel = onSphere() * rnd(8.f, 20.f) + glm::vec3{0.f, 0.f, rnd(20.f, 45.f)};
         });
     }
+}
+
+// Live large blast fireballs only (the diagnostics exclude the small trail/emitter flames).
+int largeExplosionCount()
+{
+    int n = 0;
+    for(const Particle& p : pool) { n += p.cell == CellExplosion && p.type == TxExplode ? 1 : 0; }
+    return n;
 }
 
 // Live particles (vr_memstats).
@@ -2540,6 +2620,7 @@ extern "C" int VR_ParticleExplosion(const float* org)
 
 extern "C" int VR_ParticleExplosion2(const float* org, int colorStart, int colorLength)
 {
+    qvr::explosiondebris::spawn({org[0], org[1], org[2]});
     using namespace qvr;
     using namespace qvr::particles;
     if(!(cl.protocolflags & PRFL_QUAKEVR) || !vr_particles.value || !ensureAtlas())
@@ -2574,6 +2655,7 @@ extern "C" int VR_EntityTrail(int ent, int type)
 
 extern "C" int VR_BlobExplosion(const float* org)
 {
+    qvr::explosiondebris::spawn({org[0], org[1], org[2]});
     using namespace qvr::particles;
     if(!enabled())
     {

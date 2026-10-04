@@ -2729,9 +2729,9 @@ void hologramTestMessage()
             .help("How far a swung torch's flame leans and trails behind its motion (1: the default; 0: always straight up)."),
         slider("Flatten When Fast", vr_walltorch_flatten, 0.f, 1.5f, 0.1f, "%.1fx").extend(0.f, 1.5f)
             .help("How much a fast swing flattens the flame and stretches it back (1: the default; 0: never)."),
-        slider("Upside Down: Flame Size", vr_walltorch_inv_size, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.1f, 4.f)
-            .help("Held head down, the flame comes up round the head and climbs the stick, in three tongues (the stick shows "
-                  "between them): their size, times the upright flame's."),
+        slider("Upside Down: Flame Height", vr_walltorch_inv_size, 0.05f, 0.3f, 0.01f, "%.2fx")
+            .help("One flame stays attached to the head. Past 90 degrees it smoothly shortens to this height at 180 degrees; fire particles continue to rise."),
+        open("Fire Particles", pageIndex(pageFireParticles)),
         slider("Upside Down: Brightness", vr_walltorch_inv_light, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
             .help("Held head down, its light's brightness, times the upright one's."),
         slider("Upside Down: Burning Drips", vr_walltorch_drips, 0.f, 20.f, 1.f, "%.0f / s").extend(0.f, 60.f)
@@ -5084,6 +5084,8 @@ const Page pages[] = {
     {"Graphics - Slipgates", pageGraphicsSlipgates, pageGraphics},                                 // 135 (vr_portals.cpp)
     {"Small Gibs - Per Enemy", pageSmallGibsEnemies, pageSmallGibs, LevelDeveloper},              // 136
     {"Knockdowns", pageKnockdowns, pageCombat},                                                    // 137
+    {"Explosion Debris", pageExplosionDebris, pageParticleSettings},
+    {"Fire Particles", pageFireParticles, pageParticleSettings},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

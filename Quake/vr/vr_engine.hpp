@@ -15,6 +15,7 @@ extern "C" {
 #include "quakedef.h"
 
 // Engine symbols that no engine header declares.
+extern cvar_t r_particles; // r_part.c: particle effects enabled
 extern cvar_t sv_gravity;							// sv_phys.c
 extern cvar_t sv_maxvelocity;						// sv_phys.c
 int ED_FindFieldOffset (const char *name);			// pr_edict.c
