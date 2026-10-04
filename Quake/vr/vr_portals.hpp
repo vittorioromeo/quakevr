@@ -11,12 +11,15 @@
 // world's.
 //
 // Once a frame the side worth a look is picked (in front of the head, in its PVS, not behind another gate, near, big on
-// the eyes; held a while). The view through it is seen from the destination's leaf (its PVS: the view itself is behind
-// the destination, as far as the eye is from the gate, often in a wall or another room).
-// For each eye, before the eye's own view, the scene is drawn again into scene targets of the eye's size from that eye
-// moved through the gate (vr_stereo.cpp): the same projection with an oblique near plane on the destination's side of
-// the gate's plane (what is between the view and that plane is not drawn), and outside the gate's box on screen the
-// depth set to the near plane first, so that nothing is shaded there. Drawing the eye, the side's faces (the liquid
+// the eyes; held a while). The view through it is seen from the destination's leaf (its PVS: the view is behind the
+// destination, often in a wall or another room). For each eye, before the eye's own view, the scene is drawn again into
+// scene targets of the eye's size from that eye moved through the gate (vr_stereo.cpp): the same projection with an
+// oblique near plane on the destination's side of the gate's plane (what is between the view and that plane is not
+// drawn), and outside the gate's box on screen the depth set to the near plane first, so that nothing is shaded there.
+// Carried through the gate the view would be as far behind the destination as the eye is from the gate - across a room,
+// deep in the room it came from, where the room beyond reads as a dark distance rather than a room; its stand-off is
+// bounded (portals::kMaxStandOff) so a gate reads as the room it leads to from any distance. An eye nearer than that
+// is carried exactly as before. Drawing the eye, the side's faces (the liquid
 // shaders, LiquidPortal) show that image by their pixels, whatever their shape, under a little of the slipgate's own
 // shimmer. One gate at a time; a gate seen through a gate shows its texture. The server sends the client what is round
 // the destinations of the gates it can see (their PVS added to its own), so the monsters and items there are seen too.
@@ -63,6 +66,13 @@ void endView(unsigned texture);
 
 // Whether the view being drawn is one through a gate.
 [[nodiscard]] bool viewing();
+
+// vr_portals_shot (Debug > Slipgates): read the next view through a gate back from its own targets and report what it
+// shows - its whole image and the gate's box on the eye's screen, in colour and in depth (depth over 0 in the box:
+// something was drawn there). For measuring the view itself rather than which gate is looked through.
+void requestShot();
+[[nodiscard]] bool shotWanted();
+void takeShot(unsigned sceneFbo, int width, int height);
 
 // vr_portals_info: the gates built for this map and where the local player's body is against them (Debug > Slipgates).
 void registerCommands();

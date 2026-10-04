@@ -535,6 +535,10 @@ void renderPortal(int width, int height)
     V_RenderView();
     foveated::endScene();
     portals::endView(portalTargets.fb.composite.color_tex);
+    if(portals::shotWanted())
+    {
+        portals::takeShot(portalTargets.fb.composite.fbo, width, height); // vr_portals_shot
+    }
     framebufs = eyeTargets.fb;
 }
 

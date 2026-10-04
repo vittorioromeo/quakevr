@@ -3,6 +3,7 @@
 #include "vr_portals.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
@@ -45,6 +46,12 @@ constexpr float kReach = 24.f;    // how far round a trigger's brush its slipgat
 constexpr float kStand = 24.f;    // a standing player's origin over the floor
 constexpr float kRange = 1536.f;  // how far from the head a gate is looked through
 constexpr float kOblique = 0.25f; // the oblique near plane's slope in the depth (see VR_PortalClip)
+// How far behind a gate's destination the view through it is ever drawn from. Carried through the gate the view is as
+// far behind the destination as the head is in front of the gate, which for a head across a room is deep in the room it
+// came from: the room beyond reads as a dark distance instead of a room (measured: the gate's box on the eye's screen
+// is the same ~13/255 mean at 44 and at 984 units). Bounded to a room's own scale, the view through a gate is the room
+// it leads to from any distance; an eye standing at a gate (nearer than this) is exactly as before.
+constexpr float kMaxStandOff = 256.f;
 
 // A side of a slipgate: its faces in one plane, seen from in front of it, and where they lead.
 struct Side
@@ -82,6 +89,21 @@ bool eyeRectAll = true;   // ... or the whole screen (the gate's box reaches beh
 [[nodiscard]] glm::mat3 turnAboutZ(float degrees)
 {
     return glm::mat3{glm::rotate(glm::mat4{1.f}, glm::radians(degrees), glm::vec3{0.f, 0.f, 1.f})};
+}
+
+// Where the view through a side is drawn from: the head carried onto its destination (vr_portals.hpp), its stand-off
+// behind the destination's plane bounded to kMaxStandOff (its place across the plane and its directions unchanged).
+// VR_PortalView draws from here; vr_portals_view and vr_portals_shot report it.
+[[nodiscard]] glm::vec3 carriedView(const Side& sd, const glm::vec3& head)
+{
+    const glm::vec3 n = sd.turn * sd.normal; // the gate's plane carried to the destination: its normal
+    glm::vec3 v = sd.turn * (head - sd.from);
+    const float along = glm::dot(n, v); // how far in front of the gate the head is, in the destination's space
+    if(along > kMaxStandOff)
+    {
+        v -= n * (along - kMaxStandOff);
+    }
+    return sd.to + v;
 }
 
 [[nodiscard]] float surfaceArea(const qmodel_t* m, const msurface_t* s)
@@ -503,12 +525,124 @@ bool viewing()
     return inView;
 }
 
+// ----------------------------------------------------------------------------
+// vr_portals_shot (Debug > Slipgates): the view through a gate read back from its own targets, to measure what it
+// actually shows rather than which side was picked. Its colour and its depth, over the whole target and over the
+// gate's box on the eye's screen: depth over 0 in the box means something was drawn there.
+
+namespace
+{
+
+bool shotPending = false;
+int shotCount = 0;
+
+struct Luma
+{
+    float mean = 0.f, max = 0.f; // luma 0..255
+    int black = 0, count = 0;    // under 12
+    float depthMax = 0.f;        // the most depth written there (0: nothing drawn)
+};
+
+// What `box` (the gate's box on the eye's screen, in NDC: x,y its lower corner, z,w its upper) of a read-back scene
+// shows. `rgb` is RGBA floats as GL reads them, `depth` the same in its units.
+[[nodiscard]] Luma measure(const za::Vector<float>& rgb, const za::Vector<float>& depth, int width, int height,
+    const glm::vec4& box)
+{
+    Luma r;
+    const int x0 = za::max(0, static_cast<int>((box.x + 1.f) * 0.5f * width));
+    const int x1 = za::min(width, static_cast<int>((box.z + 1.f) * 0.5f * width));
+    const int y0 = za::max(0, static_cast<int>((box.y + 1.f) * 0.5f * height));
+    const int y1 = za::min(height, static_cast<int>((box.w + 1.f) * 0.5f * height));
+    for(int y = y0; y < y1; y++)
+    {
+        for(int x = x0; x < x1; x++)
+        {
+            const za::SizeT i = static_cast<za::SizeT>(y) * width + x;
+            const float l = (0.299f * rgb[i * 4] + 0.587f * rgb[i * 4 + 1] + 0.114f * rgb[i * 4 + 2]) * 255.f;
+            r.mean += l;
+            r.max = za::max(r.max, l);
+            r.black += l < 12.f ? 1 : 0;
+            r.count++;
+            r.depthMax = za::max(r.depthMax, depth[i]);
+        }
+    }
+    r.mean /= za::max(r.count, 1);
+    return r;
+}
+
+void printLuma(const char* what, const Luma& r)
+{
+    Con_Printf("  %-9s %6d px  mean %6.1f max %6.1f black%% %5.1f  depth max %.4f\n", what, r.count, r.mean, r.max,
+        100.f * r.black / za::max(r.count, 1), r.depthMax);
+}
+
+} // namespace
+
+void requestShot()
+{
+    shotPending = true;
+}
+
+bool shotWanted()
+{
+    return shotPending;
+}
+
+void takeShot(unsigned sceneFbo, int width, int height)
+{
+    shotPending = false;
+    if(!sceneFbo || width <= 0 || height <= 0)
+    {
+        Con_Printf("VR portal shot: no view through a gate to read.\n");
+        return;
+    }
+    const za::SizeT n = static_cast<za::SizeT>(width) * height;
+    za::Vector<float> rgb(n * 4), depth(n);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, sceneFbo);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, width, height, GL_RGBA, GL_FLOAT, rgb.data());
+    glReadPixels(0, 0, width, height, GL_DEPTH_COMPONENT, GL_FLOAT, depth.data());
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, 0);
+
+    Con_Printf("VR portal shot %d: side %d eye %d, %dx%d, head (%.0f %.0f %.0f)\n", shotCount, chosen, textureEye,
+        width, height, hands::current().head.x, hands::current().head.y, hands::current().head.z);
+    if(chosen >= 0)
+    {
+        const Side &s = sides[chosen];
+        const glm::vec3 carried = carriedView(s, hands::current().head);
+        Con_Printf("  drawn from (%.0f %.0f %.0f), turned %.0f\n", carried.x, carried.y, carried.z,
+            glm::degrees(s.yaw));
+    }
+    Con_Printf("  its box: x %.3f..%.3f y %.3f..%.3f%s\n", eyeRect.x, eyeRect.z, eyeRect.y, eyeRect.w,
+        eyeRectAll ? " (the whole screen)" : "");
+    const glm::vec4 all{-1.f, -1.f, 1.f, 1.f};
+    printLuma("whole", measure(rgb, depth, width, height, all));
+    printLuma(eyeRectAll ? "whole box" : "gate box", measure(rgb, depth, width, height, eyeRect));
+
+    za::Vector<byte> png(n * 3);
+    for(za::SizeT i = 0; i < n; i++)
+    {
+        for(int c = 0; c < 3; c++)
+        {
+            png[i * 3 + c] = static_cast<byte>(za::clamp(rgb[i * 4 + c], 0.f, 1.f) * 255.f + 0.5f);
+        }
+    }
+    const za::String dir = za::String{com_gamedir} + "/portalshots";
+    files::createDirectories(dir.cStr());
+    const za::String path = dir + "/" + va("%s_%03d.png", cl.mapname[0] ? cl.mapname : "none", shotCount);
+    if(Image_WritePNGPath(path.cStr(), png.data(), width, height, 24, false))
+    {
+        Con_Printf("  Wrote %s\n", path.cStr());
+    }
+    ++shotCount;
+}
+
 } // namespace qvr::portals
 
 using namespace qvr;
 
 // R_RenderView, before R_SetupView: the view through the gate moved there (the eye's own, set up with its entities,
-// carried through the gate).
+// carried through the gate: its stand-off behind the destination bounded, see carriedView).
 extern "C" void VR_PortalView(void)
 {
     if(!portals::enabled() || !portals::inView || portals::chosen < 0)
@@ -516,7 +650,7 @@ extern "C" void VR_PortalView(void)
         return;
     }
     const portals::Side& sd = portals::sides[static_cast<za::SizeT>(portals::chosen)];
-    const glm::vec3 o = sd.turn * (portals::vec(r_refdef.vieworg) - sd.from) + sd.to;
+    const glm::vec3 o = portals::carriedView(sd, portals::vec(r_refdef.vieworg));
     for(int i = 0; i < 3; i++)
     {
         r_refdef.vieworg[i] = o[i];
@@ -525,8 +659,8 @@ extern "C" void VR_PortalView(void)
 }
 
 // R_SetupView: in the view through the gate, the leaf it is seen from is the destination's, just beyond its point (the
-// view itself is carried behind it, as far as the eye is from the gate: in a wall, or another room, whose PVS would
-// leave the destination out, dark); else the view's own.
+// view itself is carried behind it, bounded to kMaxStandOff: in a wall, or another room, whose PVS would leave the
+// destination out, dark); else the view's own.
 extern "C" mleaf_t* VR_PortalViewLeaf(mleaf_t* leaf)
 {
     if(!portals::enabled() || !portals::inView || portals::chosen < 0)
@@ -1175,8 +1309,13 @@ void viewInfo_f()
         texture ? "the scene through the gate, drawn for that eye" : "nothing drawn through a gate (its faces are dark)");
     if(chosen >= 0)
     {
-        Con_Printf("  its box on that eye's screen: x %.3f..%.3f y %.3f..%.3f%s\n", eyeRect.z, eyeRect.x, eyeRect.y,
+        Con_Printf("  its box on that eye's screen: x %.3f..%.3f y %.3f..%.3f%s\n", eyeRect.x, eyeRect.z, eyeRect.y,
             eyeRect.w, eyeRectAll ? " (the whole screen)" : "");
+        const Side &s = sides[chosen];
+        Con_Printf("  its gate: plane through (%.0f %.0f %.0f) facing (%.2f %.2f %.2f), from (%.0f %.0f %.0f) to "
+            "(%.0f %.0f %.0f), turned %.0f\n",
+            s.from.x, s.from.y, s.from.z, s.normal.x, s.normal.y, s.normal.z, s.from.x, s.from.y, s.from.z, s.to.x,
+            s.to.y, s.to.z, glm::degrees(s.yaw));
     }
     const ViewTest vt = viewTest();
     if(!vt.valid)
@@ -1185,6 +1324,14 @@ void viewInfo_f()
         return;
     }
     Con_Printf("  head (%.0f %.0f %.0f)\n", vt.head.x, vt.head.y, vt.head.z);
+    if(chosen >= 0)
+    {
+        // Where the view through it is actually drawn from (VR_PortalView): the head carried through the gate.
+        const Side &s = sides[chosen];
+        const glm::vec3 carried = carriedView(s, vt.head);
+        Con_Printf("  the view is drawn from (%.0f %.0f %.0f), turned %.0f\n", carried.x, carried.y, carried.z,
+            glm::degrees(s.yaw));
+    }
     for(za::SizeT i = 0; i < sides.size(); i++)
     {
         float d = 0.f, score = 0.f;
@@ -1194,10 +1341,17 @@ void viewInfo_f()
     }
 }
 
+void shot_f()
+{
+    requestShot();
+    Con_Printf("VR portal shot: the next view through a gate will be read back.\n");
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_portals_info", info_f);
     Cmd_AddCommand("vr_portals_view", viewInfo_f);
+    Cmd_AddCommand("vr_portals_shot", shot_f);
 }
 
 } // namespace qvr::portals
