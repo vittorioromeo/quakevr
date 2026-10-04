@@ -53,6 +53,33 @@ float(entity t) VR_WallTorch_OnWall =
 };
 
 // ----------------------------------------------------------------------------
+// Shot off its wall (vr_walltorch_shot; ROUND22.md, "Torches shot off their walls")
+//
+// What makes the engine meet a wall torch at all is its takedamage: Quake/world.c SV_ClipToLinks skips a
+// SOLID_NOT_BUT_TOUCHABLE one unless the move is a shot's or a missile's (clip->hitgibs) and it takes damage, and
+// vr_hitmodel.cpp VR_ShotTargetClip only reaches out round it when it takes damage too. With it, hitscan (the shotgun's
+// pellets, the lightning), nails, rockets, lasers and grenades meet it; a body's move (a player's or a monster's), a
+// gib's, a grenade's own and a melee blow's (no MOVE_HITGIBS) go through it as before. Its health stays -1 (dead
+// meat): nothing alive is hurt by it and VR_Burn_Can never sets it on fire, and the damage is never dealt anyway
+// (VR_WallTorch_Shot takes it off its wall first). Its shot box (vr_shot_radius) reaches past its stick and cup (its
+// setsize stops 3 over its origin) into the flame id's flame draws 0..20 over it.
+float VR_WALLTORCH_SHOT_RADIUS = 12; // units: the cube a shot or a missile meets a wall torch at (the engine's cap: 16)
+
+void(entity t, float xOn) VR_WallTorch_SetShootable =
+{
+    if(!xOn)
+    {
+        t.takedamage = DAMAGE_NO;
+        t.health = 0;
+        t.vr_shot_radius = 0;
+        return;
+    }
+    t.takedamage = DAMAGE_YES; // (not DAMAGE_AIM: no monster aims its shots at a torch)
+    t.health = -1;             // (dead meat: it is never dealt any)
+    t.vr_shot_radius = VR_WALLTORCH_SHOT_RADIUS;
+};
+
+// ----------------------------------------------------------------------------
 // On its wall
 
 entity(entity xPlayer, float xHand) VR_WallTorch_Gripped =
@@ -190,6 +217,7 @@ void(entity t) VR_WallTorch_Take =
     SetThrownWeaponDealDamage(t, FALSE);
     SetThrownWeaponDisappearOnHit(t, FALSE);
     VR_Carry_Setup(t);
+    VR_WallTorch_SetShootable(t, FALSE); // (a taken torch is a prop: shots and missiles go past it as before)
     t.think = VR_WallTorch_Think;
     t.nextthink = time + 0.1;
     VR_WallTorch_Show(t);
@@ -206,6 +234,73 @@ void(entity t) VR_WallTorch_Ungrip =
         VR_WallTorch_SetGripped(t.wt_gripper, t.wt_grip_hand, world);
     }
     t.wt_gripper = world;
+};
+
+// Off its wall by a hit: out of its holder as it is by hand (still lit), then away from what hit it, tumbling. `by`
+// what hit it (a thrown prop's own speed carries it along), `dir` from it towards the torch.
+float VR_WALLTORCH_KNOCK_SPEED = 260; // units/s along the hit (about 1.8 m/s)
+float VR_WALLTORCH_KNOCK_UP = 70;     // ...and up: out of its holder
+float VR_WALLTORCH_KNOCK_SPIN = 6;    // rad/s of tumble (a thrown thing's own: up to vr_throw_spin_max)
+float VR_WALLTORCH_CARRY_SPEED = 200; // at most, a share of what hit it that the torch takes with it
+float VR_WALLTORCH_HIT_SPEED = 32;    // slower than this, the thing that hit it is not going anywhere (units/s)
+
+// Which way a hit sends it off its wall: the way the thing that hit it was going (a spike, a rocket, a thrown prop);
+// or, when the damage comes from the shooter himself (a hitscan shot: his trace, a lightning bolt), from him to it.
+// A torch stopped by a hit has no speed left, so its box is not the way it came: a shot from the far side of the room
+// would send it up, which is not what a hit on a wall does.
+vector(entity t, entity by) VR_WallTorch_HitDir =
+{
+    vector vel = by == world ? '0 0 0' : by.velocity;
+    if(vlen(vel) > VR_WALLTORCH_HIT_SPEED)
+    {
+        return vel;
+    }
+    vector from = (by.flags & FL_CLIENT) ? (by.origin + by.view_ofs) : 0.5 * (by.absmin + by.absmax);
+    return t.origin - from;
+};
+
+void(entity t, entity by, vector dir) VR_WallTorch_KnockOff =
+{
+    vector head = VR_WallTorch_Head(t); // (on its wall: the foot of its flame)
+    vector flat = dir;
+    flat_z = 0; // (it is on a wall: what sends it off is the way across the room; the up below is its coming out)
+    vector away = normalize(flat);
+    if(away == '0 0 0')
+    {
+        away = '0 0 1'; // (nothing to aim at: it comes off straight up)
+    }
+    dprint(sprintf("walltorch: knocked off its wall by %s along %v\n",
+        by == world ? "a hit" : (by.classname != "" ? by.classname : by.model), away));
+    VR_WallTorch_Ungrip(t);
+    VR_WallTorch_Take(t); // (still lit: wt_fire 1; its wall light goes with its frame: vr_emissive.cpp walltorch::onWall)
+    float bySpeed = by == world ? 0 : vlen(by.velocity);
+    t.velocity = away * VR_WALLTORCH_KNOCK_SPEED + '0 0 1' * VR_WALLTORCH_KNOCK_UP +
+                 (bySpeed > 0 ? normalize(by.velocity) * min(VR_WALLTORCH_CARRY_SPEED, bySpeed * 0.5) : '0 0 0');
+    t.avelocity = '0 0 0';
+    t.vr_spin = normalize(away + '0 0 1' * 0.5 + '1 1 0' * crandom()) * VR_WALLTORCH_KNOCK_SPIN;
+    setorigin(t, t.origin);
+    sound(t, CHAN_AUTO, "vr/torch_hit.wav", 1.0, ATTN_NORM);
+    particle2(head, away * 90, QVR_PARTICLE_PRESET_LAVASPIKE, 12); // embers off the hit
+    particle2(head, away * 60, QVR_PARTICLE_PRESET_SPARKS, 6);
+};
+
+// A wall torch met by a shot, a missile, an explosion's radius damage or a thrown prop's blow (combat.qc
+// T_DamageImpl): it comes off its wall. TRUE: its coming off is what the damage did (none of it is dealt to it, and it
+// is never gibbed). Not a melee blow (xMelee): a fist closed on the way to a torch keeps taking it by hand, and a
+// torch's own club is not a shot. Off (vr_walltorch_shot 0): as in id's Quake, every shot goes through it.
+float(entity targ, entity inflictor, entity attacker, float damage, float xMelee) VR_WallTorch_Shot =
+{
+    if(!cvar_hget(cvarh_vr_walltorch_shot) || xMelee || damage <= 0)
+    {
+        return FALSE;
+    }
+    entity by = inflictor;
+    if(by == world || by == attacker)
+    {
+        by = attacker; // (a hitscan shot's damage comes from the player himself)
+    }
+    VR_WallTorch_KnockOff(targ, by, VR_WallTorch_HitDir(targ, by));
+    return TRUE;
 };
 
 // A grip that may take a torch on its wall: pressed now or a moment ago (VR_Carry_GripPressed, as a box), or held since a
@@ -614,8 +709,32 @@ void(entity t) VR_WallTorch_Used =
 // Burning what it hits (vr_burning.qc)
 
 // Thrown lit into a monster or a corpse, it sets it on fire too (and hurts it as a thrown box does: forcegrabbable_touch).
+// On its wall (wt_state 0) only a thing thrown into it hard knocks it off (VR_WallTorch_KnockOff).
 void() VR_WallTorch_Touch =
 {
+    if(self.wt_state == 0)
+    {
+        // On its wall. Its box is touched by everything that moves past it (a SOLID_NOT_BUT_TOUCHABLE one is linked,
+        // and VR_TouchLinks takes it: a player's or a monster's body, a prop resting against it, one carried or pushed
+        // slowly); a hand takes it by its handtouch, never here. What knocks it off is a thing thrown into it at the
+        // speed a throw of that thing counts as a throw (VR_Thrown_HitSpeed): what has already hit something is not in
+        // a throw, and what is not in one is resting against it.
+        if(other == world || other == self.wt_gripper || other.classname == "player" ||
+           (other.flags & FL_MONSTER))
+        {
+            return;
+        }
+        float need = VR_Thrown_HitSpeed(other);
+        float near = VR_Prop_Approach(other, self, other.velocity);
+        if(other.throwhit != QVR_THROWHIT_NEVER_HIT || near < need)
+        {
+            dprint(sprintf("walltorch: %s past it at %g u/s (a throw of it from %g), throwhit %g\n",
+                other.classname, near, need, other.throwhit));
+            return;
+        }
+        VR_WallTorch_KnockOff(self, other, VR_WallTorch_HitDir(self, other));
+        return;
+    }
     if(self.wt_state == 1 && self.wt_fire > 0 && self.throwhit == QVR_THROWHIT_NEVER_HIT && other.takedamage &&
        other != self.owner)
     {
@@ -714,7 +833,123 @@ void() VR_WallTorch_Setup =
     self.movetype = MOVETYPE_NONE;
     self.flags = self.flags | FL_FORCEGRABBABLE; // (the hand takes it by its drawn shape: vr_physics.cpp handOn)
     self.handtouch = VR_WallTorch_Handtouch;
+    self.touch = VR_WallTorch_Touch; // (what is thrown into it: the wt_state 0 branch)
     setsize(self, '-3 -3 -14', '3 3 3'); // its stick and cup (not its flame)
     setorigin(self, self.origin);
+    VR_WallTorch_SetShootable(self, cvar_hget(cvarh_vr_walltorch_shot) != 0);
     VR_WallTorch_Show(self);
+};
+
+// ----------------------------------------------------------------------------
+// `vr_test_walltorch_shot <kind>` (Debug > Tests; polled in your own context from W_Frame, weapons.qc)
+//
+// 10 a shotgun's pellets, 1 a nail, 0 a rocket, 2 a grenade, 3 a super nail, 4 an enforcer's laser: what VR_Test_Fire
+// fires (weapons.qc) from your eyes at the wall torch nearest you. 20: the loose prop nearest you, set 40 units from it
+// on the wall's own line past it (not at it from where you stand, so you are not in the way) and sent at it at
+// vr_test_fling_speed m/s. 21: a lightning bolt at it (LightningDamage, as W_FireLightning). 22: a blast at it
+// (T_RadiusDamage, as a rocket's or a grenade's). -1 (the default) asks for nothing. With developer 1 it prints what
+// it did (walltorch:).
+entity(float xKind, vector xAt) VR_Test_Fire; // (weapons.qc)
+void(vector p1, vector p2, entity from, float damage) LightningDamage; // (weapons.qc)
+float VR_WALLTORCH_TEST_THROW = 20;  // the kind that throws a prop instead of firing a gun
+float VR_WALLTORCH_TEST_BOLT = 21;   // a lightning bolt along the line from your eyes to it
+float VR_WALLTORCH_TEST_BLAST = 22;  // a blast at it, of a rocket's or a grenade's radius damage
+float VR_WALLTORCH_TEST_REACH = 1024; // how near a wall torch it will take
+float VR_WALLTORCH_TEST_PROPS = 512;  // how near a loose prop to throw
+float VR_WALLTORCH_TEST_BLAST_RADIUS = 150; // a rocket's (weapons.qc T_MissileTouch)
+
+void() VR_WallTorch_TestShot =
+{
+    float kind = cvar("vr_test_walltorch_shot");
+    if(kind < 0)
+    {
+        return;
+    }
+    cvar_set("vr_test_walltorch_shot", "-1");
+    if(self.health <= 0)
+    {
+        return;
+    }
+    entity t = world;
+    float best = VR_WALLTORCH_TEST_REACH;
+    float all = 0; // (how many this map has at all: so that no wall torch within reach says the map has none)
+    for(entity e = nextent(world); e != world; e = nextent(e))
+    {
+        if(e.classname != "light_torch_small_walltorch" || e.wt_state != 0)
+        {
+            continue;
+        }
+        all = all + 1;
+        float d = vlen(e.origin - self.origin);
+        if(d < best)
+        {
+            best = d;
+            t = e;
+        }
+    }
+    if(t == world)
+    {
+        dprint(sprintf("walltorch test: no wall torch on a wall within reach (%g in this map)\n", all));
+        return;
+    }
+    vector mid = 0.5 * (t.absmin + t.absmax);
+    dprint(sprintf("walltorch test: kind %g at the wall torch at %v\n", kind, t.origin));
+    if(kind >= VR_WALLTORCH_TEST_BOLT)
+    {
+        if(kind == VR_WALLTORCH_TEST_BOLT)
+        {
+            dprint("walltorch test: a lightning bolt at it\n");
+            LightningDamage(self.origin + self.view_ofs, mid, self, cvar_hget(cvarh_vr_dmg_lightning));
+            return;
+        }
+        entity blast = spawn();
+        setorigin(blast, t.origin);
+        dprint("walltorch test: a blast at it\n");
+        T_RadiusDamage(blast, self, VR_WALLTORCH_TEST_BLAST_RADIUS, world);
+        remove(blast);
+        return;
+    }
+    if(kind >= VR_WALLTORCH_TEST_THROW)
+    {
+        entity p = world;
+        best = VR_WALLTORCH_TEST_PROPS;
+        for(entity e = nextent(world); e != world; e = nextent(e))
+        {
+            if(!e.vr_rigid || e.carry_player != world || e == t ||
+               !(e.touch == forcegrabbable_touch || e.vr_impact))
+            {
+                continue;
+            }
+            float d = vlen(e.origin - self.origin);
+            if(d < best)
+            {
+                best = d;
+                p = e;
+            }
+        }
+        if(p == world)
+        {
+            dprint("walltorch test: no loose prop to throw\n");
+            return;
+        }
+        vector to = normalize(mid - (self.origin + self.view_ofs)); // (the line from your eyes to it)
+        vector dir; // (along the wall past it, not at it from where you stand: you are not in the way of the throw)
+        dir_x = -to_y;
+        dir_y = to_x;
+        dir_z = 0;
+        float speed = cvar("vr_test_fling_speed") * VRMetersToUnits();
+        p.owner = world;
+        p.carry_player = world;
+        p.carry_letgo = world;
+        p.throwhit = QVR_THROWHIT_NEVER_HIT; // (a throw, not a prop resting where it fell)
+        p.vr_fling_hit = 0;
+        p.fg_state = 0;
+        p.flags = p.flags - (p.flags & FL_ONGROUND);
+        setorigin(p, mid - dir * (0.5 * max(t.size_x, t.size_y) + 40) - 0.5 * (p.mins + p.maxs));
+        p.velocity = dir * speed;
+        dprint(sprintf("walltorch test: %s sent at it along %v at %g m/s\n", p.classname, dir,
+            cvar("vr_test_fling_speed")));
+        return;
+    }
+    VR_Test_Fire(kind, mid);
 };

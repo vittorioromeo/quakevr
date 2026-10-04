@@ -2480,6 +2480,10 @@ void hologramTestMessage()
         toggle("Light Again", vr_walltorch_relight)
             .help("A dying or burnt-out torch held in another torch's flame (on a wall or in your other hand), in one of "
                   "the map's flames (braziers, flame balls) or dipped in lava lights again, as new."),
+        toggle("Shot Off Its Wall", vr_walltorch_shot)
+            .help("A wall torch hit by anything you shoot (a shotgun's pellets, a nail, a rocket, a grenade, a laser) or "
+                  "by a thing you throw into it hard comes off its wall: it falls lit, and its light on the wall is gone. "
+                  "Your hand and a punch take it as before. Off: shots go through it, as in id's Quake. Next map."),
         slider("Flame Size", vr_walltorch_flame, 0.25f, 1.5f, 0.05f, "%.2fx").extend(0.f, 4.f)
             .help("A taken torch's flame (1: the wall torch's)."),
         toggle("Taken Torch Casts Shadows", vr_walltorch_shadows)
@@ -3930,6 +3934,24 @@ za::Vector<Item> pageDebugTools()
             .help("vr_burn_test 11: a lava nail of yours fired down at the nearest crate's piece: it catches fire (Pieces Burn), not bursts; a charred one bursts."),
         command("Count the Pieces", "vr_burn_test 10").help("vr_burn_test 10: the console: the crates' pieces lying about, how many charred, how many burning."),
         command("How It Burns", "vr_burn_test 4").help("vr_burn_test 4: the nearest monster or corpse: where, its health, its flames and the time it burns yet."),
+        header("Wall Torches Shot Off Their Walls (developer 1: walltorch: ...)"),
+        command("Shoot the Nearest Wall Torch (a Pellet)", "developer 1; vr_test_walltorch_shot 10")
+            .help("vr_test_walltorch_shot 10: the wall torch nearest you shot from your eyes with a shotgun's pellets: it comes off its wall and falls lit (VR Settings > Combat > Wall Torches > Shot Off Its Wall)."),
+        command("Shoot It (a Nail)", "developer 1; vr_test_walltorch_shot 1")
+            .help("vr_test_walltorch_shot 1: the same, with a nail."),
+        command("Shoot It (a Rocket)", "developer 1; vr_test_walltorch_shot 0")
+            .help("vr_test_walltorch_shot 0: the same, with a rocket."),
+        command("Shoot It (a Grenade)", "developer 1; vr_test_walltorch_shot 2")
+            .help("vr_test_walltorch_shot 2: the same, with a grenade. A grenade in flight is a thrown box, not a shot: "
+                  "only shots and missiles stop at a torch, so its flight goes past it and its blast is what knocks it "
+                  "off — see A Blast at It below."),
+        command("Shoot It (a Lightning Bolt)", "developer 1; vr_test_walltorch_shot 21")
+            .help("vr_test_walltorch_shot 21: the same, with a lightning bolt (LightningDamage, as the lightning gun)."),
+        command("A Blast at It", "developer 1; vr_test_walltorch_shot 22")
+            .help("vr_test_walltorch_shot 22: a blast at the wall torch nearest you, of a rocket's radius damage "
+                  "(T_RadiusDamage): what a rocket's or a grenade's explosion does to the torches near it."),
+        command("Throw the Nearest Prop at It", "developer 1; vr_test_walltorch_shot 20")
+            .help("vr_test_walltorch_shot 20: the loose prop nearest you sent at the wall torch nearest you, at vr_test_fling_speed m/s: it comes off its wall. Below vr_test_fling_speed, it is not a throw: the torch stays."),
         toggle("Torch Flames to Console", vr_walltorch_debug)
             .help("vr_walltorch_debug: each lit torch you hold or that lies about, twice a second (wtflame: how far upside "
                   "down, its flame's foot, its speed and flattening, what of you its flame touches), and the torches' smoke "

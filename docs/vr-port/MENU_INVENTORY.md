@@ -150,7 +150,7 @@ targeted at most 30 rows per page; pages have grown again since.)
 | 52 | Stamina **(LONG)** | 3 | 33 | 27 | 0 | C |
 | 53 | Batting and Catching **(LONG)** | 3 | 36 | 31 | 0 | C |
 | 54 | Climbing | 3 | 28 | 24 | 1 | C |
-| 55 | Wall Torches | 3 | 12 | 11 | 0 | C |
+| 55 | Wall Torches | 3 | 13 | 12 | 0 | C |
 | 56 | Rocks and Bricks | 3 | 12 | 12 | 0 | C |
 | 57 | Gibs and Corpses | 3 | 21 | 17 | 0 | C |
 | 58 | Flashlight - Low Grip | 3 | 8 | 6 | 0 | D |
@@ -1184,7 +1184,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - Outline → `vr_forcegrab_outline`
         - Effects → `vr_forcegrab_fx`
         - Ammo/Health Box Size → `vr_forcegrabbable_box_scale`
-      - **Wall Torches** [menu_vr 55] — 12 rows / 11 settings / 0 actions (vr_menu.cpp:2375)
+      - **Wall Torches** [menu_vr 55] — 13 rows / 12 settings / 0 actions (vr_menu.cpp:2453)
         - Take Torches Off Walls → `vr_walltorch`
         - Pull to Take → `vr_walltorch_pull`
         - Grab Reach → `vr_walltorch_reach`
@@ -1195,6 +1195,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - Blow Damage → `vr_walltorch_damage`
         - → link `Burning` to Burning [cross-link]
         - Light Again → `vr_walltorch_relight`
+        - Shot Off Its Wall → `vr_walltorch_shot`
         - Flame Size → `vr_walltorch_flame`
         - Taken Torch Casts Shadows → `vr_walltorch_shadows`
       - **Rocks and Bricks** [menu_vr 56] — 12 rows / 12 settings / 0 actions (vr_menu.cpp:2523)
@@ -2798,7 +2799,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - [cmd] Detail Textures → `vr_detail_list`
         - [cmd] External Maps → `vr_extmaps_stats all`
         - [cmd] Main Menu Lettering → `vr_bigfont`
-      - **Debug - Tools** [menu_vr 70] — 83 rows / 3 settings / 74 actions **LONG** (vr_menu.cpp:3548)
+      - **Debug - Tools** [menu_vr 70] — 91 rows / 3 settings / 81 actions **LONG** (vr_menu.cpp:3548)
         - — Rebuild and Reload —
         - [cmd] Rebuild Ledge Map → `vr_ledges rebuild`
         - [cmd] Reload Models → `vr_model_reload`
@@ -2877,6 +2878,14 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - [cmd] A Lava Nail at the Nearest Piece → `vr_burn_test 11`
         - [cmd] Count the Pieces → `vr_burn_test 10`
         - [cmd] How It Burns → `vr_burn_test 4`
+        - — Wall Torches Shot Off Their Walls (developer 1: walltorch: ...) —
+        - [cmd] Shoot the Nearest Wall Torch (a Pellet) → `vr_test_walltorch_shot 10`
+        - [cmd] Shoot It (a Nail) → `vr_test_walltorch_shot 1`
+        - [cmd] Shoot It (a Rocket) → `vr_test_walltorch_shot 0`
+        - [cmd] Shoot It (a Grenade) → `vr_test_walltorch_shot 2`
+        - [cmd] Shoot It (a Lightning Bolt) → `vr_test_walltorch_shot 21`
+        - [cmd] A Blast at It → `vr_test_walltorch_shot 22`
+        - [cmd] Throw the Nearest Prop at It → `vr_test_walltorch_shot 20`
         - Torch Flames to Console → `vr_walltorch_debug`
         - — VR Calibration —
         - [cmd] Run the Calibration Here → `vr_setup here`
@@ -4723,3 +4732,10 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 | `vr_finger_base_x` | `0.0` | yes | C? | gameplay | — | 1 | 0 |  | 1982 |
 | `vr_finger_base_y` | `0.0` | yes | C? | gameplay | — | 1 | 0 |  | 1983 |
 | `vr_finger_base_z` | `0.0` | yes | C? | gameplay | — | 1 | 0 |  | 1984 |
+
+### Added after this snapshot (kept at the end, so the ids above stay what they were)
+
+| Cvar | Default | Archived | Tier | Kind | Page | Rows | Actions | Help | Id |
+|---|---|---|---|---|---|---|---|---|---|
+| `vr_walltorch_shot` | `1` | yes | C | gameplay | Wall Torches | 1 | 0 |  | 1985 |
+| `vr_test_walltorch_shot` | `-1` | no | D | dev | — (Debug - Tools commands) | 0 | 7 |  | 1986 |
