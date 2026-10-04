@@ -266,6 +266,16 @@ Mummy: killed any other way, it still bursts into gibs
 Mummy: gib a beheaded mummy's ragdoll: no second head flies out
 Corpse Damage and Health has Mummy (Rogue, Beheaded)
 
+[Brain chunks and per-enemy gib counts]
+Brain chunks fly out with a head burst: shoot a head gib to bursting, and pop a grunt's head with a shotgun headshot
+Brain Chunk Speed and Brain Chunk Up (Gore > Small Gibs > Brain Chunks): only the brain chunks' flight changes; the meat small gibs keep Small Gibs > Speed and Up
+Small Gibs - Per Enemy (Developer pages): a grunt's Small Gibs x at 2 doubles the small gibs from his hits; an enforcer's stay the same
+Small Gibs - Per Enemy: a grunt's Brain Chunks x at 2 doubles the brain chunks when his head pops
+Slash a grunt's head off, then burst that head gib later: its brain chunks use the grunt's Brain Chunks x (the head carries it)
+Defaults (every x 1, Brain Chunk Speed 3, Brain Chunk Up 7): gore looks exactly as before this update
+Your settings survived the update (config 86): the 34 new cvars are at their defaults, nothing else moved
+Debug > Gore Tests > Brain Chunks Ahead (vr_smallgibs_test 21) still bursts them just ahead of you
+
 [Slipgates]
 Slipgates off (Graphics > Slipgates > Slipgates, or vr_slipgates 0): walk into a gate in start → the old teleport, a flash and a jump, 0.7 s locked; nothing about the gate is drawn or carried → this is how to compare the two
 Slipgate: walk into a gate's frame in start → you hit a wall, no sudden jump
@@ -302,6 +312,7 @@ Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
 Optimization follow-up: a Low graphics preset (render resolution, foveation, decal cap)?
+Small gibs: bursting three gibs/heads makes 28 (or 40 with a grunt at 2x) where Burst 4 / head 6 arithmetic says fewer — is the base count for a burst of several heads wrong? (the multipliers themselves are exact)
 
 [Tune]
 Weapon Damage page (Combat > Weapon Damage): tune every weapon's base damage; crowbar now 20 (hook ~25)
