@@ -685,6 +685,8 @@ QVR_CVAR(vr_walltorch_shadows, "1", CVAR_ARCHIVE)        // 1: a taken torch's l
 // A torch's flame (vr_walltorch.cpp; ROUND21.md, "Torch flames: upright from the head's top, swings, smoke, burning you"; Combat > Burning > Torch Flame).
 QVR_CVAR(vr_walltorch_lean, "1", CVAR_ARCHIVE)           // how far a swung torch's flame leans and trails behind its motion, times the default (0: always straight up)
 QVR_CVAR(vr_walltorch_flatten, "1", CVAR_ARCHIVE)        // how much a fast-swung torch's flame flattens and stretches back, times the default (0: never)
+QVR_CVAR(vr_walltorch_hand_motion, "1", CVAR_ARCHIVE) // strength of hand motion relative to locomotion in the flame's lean/stretch
+QVR_CVAR(vr_walltorch_motion_smooth, "0.08", CVAR_ARCHIVE) // seconds of flame velocity smoothing
 QVR_CVAR(vr_walltorch_inv_size, "0.15", CVAR_ARCHIVE)    // fully inverted flame height; clamp 0.05..0.3 keeps it short and visible
 QVR_CVAR(vr_walltorch_inv_light, "1.3", CVAR_ARCHIVE)    // a torch held upside down: its light's brightness, times the upright one's
 QVR_CVAR(vr_walltorch_drips, "5", CVAR_ARCHIVE)          // burning drips a second falling off a torch held upside down (0: none)
@@ -1057,6 +1059,7 @@ QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured par
 QVR_CVAR(vr_fire_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_count, "1", CVAR_ARCHIVE) // exact particles in each emission burst
 QVR_CVAR(vr_fire_particles_frequency, "10", CVAR_ARCHIVE) // bursts per second per flame model
+QVR_CVAR(vr_fire_particles_origin, "0.25", CVAR_ARCHIVE) // emission height along flame: 0 base, 1 tip
 QVR_CVAR(vr_fire_particles_speed_min, "0.1", CVAR_ARCHIVE) // horizontal outward speed, m/s
 QVR_CVAR(vr_fire_particles_speed_max, "0.4", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_up_min, "0.3", CVAR_ARCHIVE) // upward speed in world axes, regardless of torch tilt
@@ -1674,7 +1677,7 @@ QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made
 QVR_CVAR(vr_ragdoll_joint_stiffness, "0", CVAR_ARCHIVE) // Hz: a spring in each joint pulling it back towards how he stood (0 none; 1-3 a body with some tone left)
 QVR_CVAR(vr_ragdoll_limits, "1", CVAR_ARCHIVE)        // the joints' limits (cone, twist, the knees' and elbows' range) times this (0.25 stiff .. 1.5 loose)
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
-QVR_CVAR(vr_ragdoll_grab, "2", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand (grip on it), 2 by hand and by force grab (it flies to the hand by that limb)
+QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand; legacy 2 also only by hand
 QVR_CVAR(vr_ragdoll_grab_force, "3000", CVAR_ARCHIVE) // N: the most a hand pulls a held limb with (3000: a grunt lifted by his chest sags a unit; 1500: about 18)
 QVR_CVAR(vr_ragdoll_grab_reach, "6", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
 QVR_CVAR(vr_ragdoll_grab_fit, "1", CVAR_ARCHIVE)      // a taken limb's surface brought onto the palm (as a carried prop's: vr_held_surface_fit); 0: held where the hand's middle was
@@ -1969,7 +1972,10 @@ QVR_CVAR(vr_enemy_shove_enforcer_distance, "1.5", CVAR_ARCHIVE) // an enforcer's
 QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of it (the others scale this)
 QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // heavy weapon hits shove monsters
 QVR_CVAR(vr_kill_push, "1", CVAR_ARCHIVE)                // killing blows throw the bodies
-QVR_CVAR(vr_enemy_liquid_damage, "1", CVAR_ARCHIVE)      // monsters in slime and lava burn as the player does (QC vr_liquids.qc)
+QVR_CVAR(vr_enemy_liquid_damage, "1", CVAR_ARCHIVE)      // monsters burn in slime/lava and drown underwater (QC vr_liquids.qc)
+QVR_CVAR(vr_knockdown_wiggle, "0.7", CVAR_ARCHIVE) // physical struggling of living knockdowns; 0 disables
+QVR_CVAR(vr_knockdown_wiggle_frequency, "1.2", CVAR_ARCHIVE) // struggling frequency, Hz
+QVR_CVAR(vr_knockdown_wiggle_pause, "1", CVAR_ARCHIVE) // pause between bursts, seconds; 0 continuous
 QVR_CVAR(vr_explosion_rumble, "1", CVAR_ARCHIVE)         // explosions near you rumble in your hands
 QVR_CVAR(vr_heartbeat, "1", CVAR_ARCHIVE)                // a heartbeat in your hands when your health is low
 QVR_CVAR(vr_deflect, "1", CVAR_ARCHIVE)                  // melee swings bat monsters' projectiles back

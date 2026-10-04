@@ -46,7 +46,8 @@ def main():
     tilt = {int(a): (float(h), float(z), int(n)) for a,h,z,n in re.findall(r'tilttest: angle=(\d+) height=([\d.]+) axisZ=(-?[\d.]+).*?flames=(\d+)', ftext)}
     assert tilt[0][2] == tilt[90][2] == tilt[180][2] == 1
     assert abs(tilt[0][0] - tilt[90][0]) < .001
-    assert abs(tilt[180][0] / tilt[0][0] - .15) < .001 and tilt[180][1] == -1
+    assert abs(tilt[180][0] / tilt[0][0] - .15) < .001
+    assert tilt[0][1] == tilt[90][1] == tilt[180][1] == 1
     if len(sys.argv) > 3:
         _, sources = cases(sys.argv[3], 'fireparticles:')
         assert int(sources['held_torch'][0]['torches']) > 0

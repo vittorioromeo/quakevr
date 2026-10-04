@@ -2120,6 +2120,7 @@ static void Host_Changelevel_f (void)
 		IN_Activate();	// -- S.A.
 	key_dest = key_game;	// remove console or menu
 	PR_SwitchQCVM(&sv.qcvm);
+	VR_SaveFlashlightState ();
 	SV_SaveSpawnparms ();
 	SV_SpawnServer (level);
 	PR_SwitchQCVM(NULL);
@@ -2465,6 +2466,7 @@ static void Host_Savegame_f (void)
 	save_data.abort.value = 0;
 
 	PR_SwitchQCVM (&sv.qcvm);
+	VR_SaveFlashlightState ();
 	SaveData_Fill (&save_data);
 	PR_SwitchQCVM (NULL);
 

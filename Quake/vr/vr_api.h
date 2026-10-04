@@ -152,6 +152,7 @@ void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is se
 void VR_OnBeginLoadGame (void);			// Host_Loadgame_f, before SV_SpawnServer
 void VR_CheckLoadedReferences (int num_edicts);	// Host_Loadgame_f, the edicts parsed: an entity reference past them is the world (a dev warning)
 void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are restored
+void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
 void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t
 void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a client_t into globals

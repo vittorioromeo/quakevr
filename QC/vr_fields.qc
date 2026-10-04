@@ -8,6 +8,7 @@
 .void(float) thinkArgFn;
 .void(float) think2ArgFn;
 .float thinkArg;
+.float vr_flashlight_state; // packed client lamp state, saved and carried by parm50
 .float vr_gib; // a gib or head that can be carried (VR_MakeGibGrabbable)
 .float vr_sgib; // a small gib (vr_smallgibs.qc): when it was made
 .float vr_sgib_id; // its serial in the small gibs' ring (0: gone)

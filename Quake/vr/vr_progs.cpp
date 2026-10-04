@@ -16,6 +16,7 @@
 #include "vr_physsound.hpp"
 #include "vr_server.hpp"
 #include "vr_walltorch.hpp"
+#include "vr_flashlight.hpp"
 #include "vr_props.hpp"
 #include "vr_melee_shared.h"
 
@@ -467,6 +468,7 @@ extern "C" void VR_OnLoadGame()
     qvr::climb::reset();                // (holds on the loaded game's entities: none)
 
     callEntryPoint(sv_bindings.OnLoadGame);
+    qvr::flashlight::restoreState();
 }
 
 extern "C" void VR_StoreSpawnParms(int client)

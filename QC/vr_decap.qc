@@ -291,7 +291,8 @@ float(float xHand, vector xAt, float xLive) VR_Decap_Slash =
 // A blow of `xHow` about to strike `targ` (alive) at its head with the blade at `xVel`: armed, Killed beheads it.
 float(entity targ, entity attacker, vector xAt, vector xVel, float xHow) VR_Decap_Arm =
 {
-    if(!VR_Decap_Allowed(targ) || !VR_Decap_HowOn(xHow) || targ.health <= 0)
+    if(!VR_Decap_Allowed(targ) || !VR_Decap_HowOn(xHow) ||
+       (targ.health <= 0 && (!VR_Decap_IsPop(xHow) || !cvar_hget(cvarh_vr_decap_corpses))))
     {
         return FALSE;
     }
@@ -772,7 +773,7 @@ float VR_DECAP_SHOT_SPEED = 300; // units/s: a shot's "blade" velocity (the stum
 // A pellet of the player's blast (vr_decap_weapon) of `xDamage` striking `e` at `xAt` going `xDir` (TraceAttack).
 void(entity e, float xDamage, vector xAt, vector xDir) VR_Decap_Pellet =
 {
-    if(!vr_decap_weapon || !vr_sgib_blast || e.health <= 0 || !VR_Decap_Allowed(e))
+    if(!vr_decap_weapon || !vr_sgib_blast || !VR_Decap_Allowed(e))
     {
         return;
     }
@@ -824,7 +825,7 @@ float(entity targ) VR_Decap_BlastArm =
 // (LightningDamage; self the shooter): armed if it strikes its head.
 float(entity targ, vector xAt, vector xDir, float xDamage) VR_Decap_BoltArm =
 {
-    if(vr_decap_weapon != QVR_DECAP_LIGHTNING || !(self.flags & FL_CLIENT) || !targ.takedamage || targ.health <= 0 ||
+    if(vr_decap_weapon != QVR_DECAP_LIGHTNING || !(self.flags & FL_CLIENT) || !targ.takedamage ||
        !VR_Decap_Allowed(targ) || !VR_Decap_OnHead(targ, xAt, xDir))
     {
         return FALSE;
@@ -1014,7 +1015,7 @@ void(float xTest) VR_Decap_Test =
     float heads = VR_Decap_TestHeads();
     float before = vr_decap_count;
     float pops = vr_decap_pops;
-    entity m =VR_Decap_TestTarget((xTest != 5 && xTest != 8 && xTest != 10));
+    entity m = VR_Decap_TestTarget((xTest != 5 && xTest != 8 && xTest != 10 && xTest < 20));
     if(xTest == 8)
     {
         // (A headless corpse first: gibbed, it throws no head.)
@@ -1092,6 +1093,18 @@ void(float xTest) VR_Decap_Test =
         {
             VR_Decap_After(m);
         }
+    }
+    else if(xTest >= 20 && xTest <= 22)
+    {
+        what = "a headshot on a corpse";
+        // Shoot from the exposed side of its head, rather than through the
+        // body or an arm lying between the player's eyes and the head.
+        vector playerOrigin = self.origin;
+        vector away = at - m.origin;
+        away_z = 0;
+        setorigin(self, at + normalize(away) * 64 + '0 0 24' - self.view_ofs);
+        VR_Decap_TestShot(xTest == 22 ? QVR_DECAP_LIGHTNING : xTest == 21 ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN, at);
+        setorigin(self, playerOrigin);
     }
     else if(xTest >= 12 && xTest <= 18)
     {

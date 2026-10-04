@@ -5,6 +5,7 @@
 
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
+#include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
 #include "vr_particles.hpp"
@@ -59,7 +60,6 @@ constexpr float fireLight = 20.f;
 // speed eased over 0.08 s.
 constexpr float leanPerSpeed = 1.f / 500.f;
 constexpr float leanMost = 0.84f;
-constexpr float leanEase = 0.08f;
 
 // The torch head: its lit end is fixed on the stick; burning drips use the head's rim.
 constexpr float headHigh = 1.8f, headRadius = 2.2f;
@@ -75,6 +75,7 @@ struct Taken
     glm::vec3 wall{0.f};  // where it hung (its crackle is there): last seen on its wall, else its baseline
     bool wallKnown = false;
     glm::vec3 head{0.f};  // the stick's head, last frame
+    glm::vec3 player{0.f}; // separates locomotion from motion of the holding hand
     glm::vec3 vel{0.f};   // its velocity, eased
     double time = -1.0;   // when the head was last placed (-1: not lit)
     glm::vec3 fire{0.f};  // its light's place (the flame's middle)
@@ -191,7 +192,7 @@ void findModels()
     {
         lean *= most / l;
     }
-    const glm::vec3 baseUp = hung ? glm::vec3{0.f, 0.f, 1.f} : along;
+    const glm::vec3 baseUp{0.f, 0.f, 1.f}; // gravity, regardless of the stick's orientation
     const glm::vec3 leaned = baseUp + lean * (1.f - f.inv);
     f.up = glm::length(leaned) > 1e-4f ? glm::normalize(leaned) : baseUp;
     f.k = glm::vec3{1.f + 0.5f * flat, 1.f - 0.08f * flat, 1.f - 0.4f * flat};
@@ -629,13 +630,21 @@ extern "C" void VR_WallTorchFlames(void)
             {
                 v = glm::vec3{0.f}; // a jump (taken into a hand, a teleport)
             }
-            t.vel += (v - t.vel) * (1.f - za::exp(-fdt / leanEase));
+            const glm::vec3 player = hands::current().playerOrigin;
+            if(heldBy[0] == i || heldBy[1] == i)
+            {
+                const glm::vec3 walk = (player - t.player) / fdt;
+                v = walk + (v - walk) * za::clamp(vr_walltorch_hand_motion.value, 0.f, 4.f);
+            }
+            const float ease = za::clamp(vr_walltorch_motion_smooth.value, 0.01f, 0.5f);
+            t.vel += (v - t.vel) * (1.f - za::exp(-fdt / ease));
         }
         else if(t.time < 0.0)
         {
             t.vel = glm::vec3{0.f};
         }
         t.head = head;
+        t.player = hands::current().playerOrigin;
         t.time = hung ? -1.0 : now;
 
         const int holdHand = heldBy[1] == i ? 1 : heldBy[0] == i ? 0 : -1;
@@ -704,7 +713,7 @@ extern "C" void VR_WallTorchFlames(void)
             ent->origin[2] = o.z;
             held::anglesFromAxes(f.m, ent->angles, false);
             ent->model = model;
-            fireparticles::emitTorch(i, f.foot + f.up * (f.height * 0.45f), f.s);
+            fireparticles::emitTorch(i, f.foot + f.up * (f.height * za::clamp(vr_fire_particles_origin.value, 0.f, 1.f)), f.s);
             // Its own scale (flattened, stretched back) in VR_AliasPreTransform (walltorch::stretch); Ironwail's, which
             // its culling box reads, covers it.
             const float most = za::max(f.k.x, za::max(f.k.y, f.k.z));

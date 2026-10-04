@@ -2157,11 +2157,11 @@ void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage); //
         return true; // (knocked down: at once, whatever Most Ragdolls: the QC made room, vr_knockdown.qc)
     }
     const float progress = ragdoll::deathProgress(*rig, static_cast<int>(ent->v.frame));
-    // (Beheaded: its ragdoll at once, whatever Most Ragdolls; a saved game's made again so.)
+    // Beheaded: its ragdoll at once; a saved game's is made again so too.
     const bool headless = fieldFloatOr(ent, fields().vr_headless, 0.f) != 0.f && rig->head >= 0;
     const bool limp = progress >= za::clamp(tune(ent, Tune::Start), 0.f, 1.f) || fieldFloatOr(ent, fields().vr_corpse, 0.f) >= 2.f ||
                       (progress < 0.f && isCorpse(ent, num)) || headless;
-    return limp && (headless || ragdollCount() < static_cast<int>(za::max(vr_ragdoll_max.value, 0.f)));
+    return limp && vr_ragdoll_max.value >= 1.f;
 }
 
 // A rotation that takes +z to `d` (unit).
@@ -2279,6 +2279,27 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
     if(!rig)
     {
         return false;
+    }
+    // All deaths use the same replacement policy as knockdowns. A full pool must not
+    // strand a newly killed monster in its animated death pose.
+    if(ragdollCount() >= static_cast<int>(za::max(1.f, vr_ragdoll_max.value)))
+    {
+        const func_t room = qvr::progs::findFunction("VR_Knockdown_MakeRoom");
+        if(!room) { return false; }
+        const int oldSelf = pr_global_struct->self;
+        G_INT(OFS_PARM0) = EDICT_TO_PROG(ent);
+        PR_ExecuteProgram(room);
+        pr_global_struct->self = oldSelf;
+        const bool madeRoom = G_FLOAT(OFS_RETURN) != 0.f;
+        // QC removed an edict; retire its physical bodies before reusing a slot.
+        for(RagdollBodies& old : world->ragdolls)
+        {
+            if(old.num > 0 && EDICT_NUM(old.num)->free)
+            {
+                destroyBody(world->slots[old.num]);
+            }
+        }
+        if(!madeRoom) { return false; }
     }
     int index = -1;
     for(int i = 0; i < static_cast<int>(world->ragdolls.size()); i++)
@@ -2633,6 +2654,26 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
 void feedRagdoll(edict_t* ent, Slot& s)
 {
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
+    // Living, knocked-down enemies struggle with small physical joint motions.
+    // Torques depend on mass, so the same controls suit a grunt and a shambler.
+    if(knockedDown(ent) && ent->v.health > 0.f && vr_knockdown_wiggle.value > 0.f)
+    {
+        const float t = static_cast<float>(qcvm->time - r.born);
+        const float frequency = za::clamp(vr_knockdown_wiggle_frequency.value, 0.1f, 5.f);
+        const float strength = za::clamp(vr_knockdown_wiggle.value, 0.f, 3.f);
+        const float pause = za::clamp(vr_knockdown_wiggle_pause.value, 0.f, 5.f);
+        const float burst = pause == 0.f ? 1.f : za::max(0.f, za::sin(t * 6.2831853f / (pause + 1.f)));
+        for(int b = 1; b < r.count; ++b)
+        {
+            if(partCut(r, b) || r.rig->bones[b].joint == ragdoll::Joint::Loose) { continue; }
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            const float phase = t * frequency * 6.2831853f + b * 2.39996f + NUM_FOR_EDICT(ent) * 0.7f;
+            // Overcome the joints' holding friction, even for small light limbs.
+            const float torque = (za::max(1.5f, tune(ent, Tune::JointFriction) * 3.f) +
+                b3Body_GetMass(body) * 0.12f) * strength * burst;
+            b3Body_ApplyTorque(body, b3v(glm::vec3{za::sin(phase), za::cos(phase * 0.73f), 0.f} * torque), true);
+        }
+    }
     const glm::vec3 origin = vec(ent->v.origin);
     const glm::vec3 moved = origin - s.origin;
     if(glm::length(moved) > 32.f)
@@ -10339,6 +10380,24 @@ void knockdownTest_f()
     const VmScope vm;
     edict_t* player = EDICT_NUM(1);
     dfunction_t* fn = nullptr;
+    if(Cmd_Argc() >= 2 && Q_atof(Cmd_Argv(1)) == 9 && world)
+    {
+        float angular = 0.f;
+        int bodies = 0;
+        for(const RagdollBodies& r : world->ragdolls)
+        {
+            if(r.num <= 0 || !knockedDown(EDICT_NUM(r.num)) || EDICT_NUM(r.num)->v.health <= 0.f) { continue; }
+            for(int b = 0; b < r.count; ++b)
+            {
+                if(partCut(r, b)) { continue; }
+                angular += glm::length(glmv(b3Body_GetAngularVelocity(r.body[static_cast<za::SizeT>(b)])));
+                ++bodies;
+            }
+        }
+        Con_Printf("wigglecheck: strength=%.2f parts=%d angular=%.4f rad/s\n", vr_knockdown_wiggle.value,
+            bodies, bodies ? angular / bodies : 0.f);
+        return;
+    }
     for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)
     {
         fn = !strcmp(PR_GetString(qcvm->functions[i].s_name), "VR_Knockdown_Test") ? &qcvm->functions[i] : nullptr;

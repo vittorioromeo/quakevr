@@ -370,6 +370,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDebugReports();
 [[nodiscard]] za::Vector<Item> pageDebugTools();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
+[[nodiscard]] za::Vector<Item> pageSpawnWeapons();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
 [[nodiscard]] za::Vector<Item> pageChanged();
@@ -653,7 +654,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         header("Monsters"),
-        toggle("Enemies Hurt by Liquids", vr_enemy_liquid_damage).help("Monsters in slime and lava burn as you do: shove them in. Fish, bosses and the lava dwellers are immune; zombies only burn in lava."),
+        toggle("Enemies Hurt by Liquids", vr_enemy_liquid_damage).help("Monsters burn in slime/lava and drown after 12 seconds with their heads underwater, including knocked-down ragdolls. Fish, bosses and lava dwellers are immune."),
         toggle("Ogres Aim Grenades Up and Down", vr_ogre_aim_height)
             .help("Ogres (and zombies throwing flesh) lob at your height, on a ledge above them or a floor below, on an arc at "
                   "their throw's own speed. Off: Quake's lob, which always flies as if you stood level with them."),
@@ -747,6 +748,11 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Its weapon stays in its hand while it is down (killed there, it drops it as usual). Off: it flops "
                   "loose as a dead one's."),
         header("Getting Up"),
+        slider("Struggling Strength", vr_knockdown_wiggle, 0.f, 3.f, 0.1f, "%.1fx")
+            .help("Living knockdowns wiggle their limbs with small physical torques. 0: still. Dead bodies never struggle."),
+        slider("Struggling Frequency", vr_knockdown_wiggle_frequency, 0.1f, 5.f, 0.1f, "%.1f Hz"),
+        slider("Struggling Pause", vr_knockdown_wiggle_pause, 0.f, 5.f, 0.25f, "%.2f s")
+            .help("Pause between bursts of movement. 0: continuous."),
         slider("Room Search", vr_knockdown_search, 0.f, 128.f, 4.f, "%.0f units").extend(0.f, 512.f)
             .help("How far from the body it looks for room to stand, never through a wall, floor or ceiling. No room: it "
                   "stays down (dragged into a tight corner or under something low) and tries again."),
@@ -2729,6 +2735,9 @@ void hologramTestMessage()
             .help("How far a swung torch's flame leans and trails behind its motion (1: the default; 0: always straight up)."),
         slider("Flatten When Fast", vr_walltorch_flatten, 0.f, 1.5f, 0.1f, "%.1fx").extend(0.f, 1.5f)
             .help("How much a fast swing flattens the flame and stretches it back (1: the default; 0: never)."),
+        slider("Hand Motion Strength", vr_walltorch_hand_motion, 0.f, 4.f, 0.1f, "%.1fx")
+            .help("Hand translation and rotation move the flame's attachment point and make it lean/stretch. 0: locomotion only."),
+        slider("Motion Smoothing", vr_walltorch_motion_smooth, 0.01f, 0.5f, 0.01f, "%.2f s"),
         slider("Upside Down: Flame Height", vr_walltorch_inv_size, 0.05f, 0.3f, 0.01f, "%.2fx")
             .help("One flame stays attached to the head. Past 90 degrees it smoothly shortens to this height at 180 degrees; fire particles continue to rise."),
         open("Fire Particles", pageIndex(pageFireParticles)),
@@ -3001,7 +3010,7 @@ void hologramTestMessage()
         slider("Go Limp At", vr_ragdoll_start, 0.f, 1.f, 0.1f, "%.1f")
             .help("When in his death animation: 0 as soon as he stops being solid, 1 once he lies still (vr_ragdoll_start)."),
         slider("Most Ragdolls", vr_ragdoll_max, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 64.f)
-            .help("At most this many at once; more of the dead lie as corpses (Corpse Collision) (vr_ragdoll_max)."),
+            .help("At most this many at once. New deaths replace the oldest dead ragdoll first, then the oldest living knockdown if necessary. 0: ragdolls off."),
         toggle("Ragdolls Meet Each Other", vr_ragdoll_collide_each)
             .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
         header("Physics (All Monsters)"),
@@ -3039,9 +3048,9 @@ void hologramTestMessage()
         open("Zombie", pageIndex(pageRagdollZombie)).help("A zombie's ragdoll: only when its head is cut off (Gore > Decapitation)."),
         open("Mummy", pageIndex(pageRagdollMummy)).help("A mummy's ragdoll (Dissolution of Eternity): only when its head is cut off (Gore > Decapitation)."),
         header("Taking Them"),
-        cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}, {2.f, "By Hand and Force Grab"}})
+        cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}})
             .help("Grip on a limb to take it: it follows your hand, the body hanging from it; let go to drop or throw it. "
-                  "Force grab: point at a ragdoll and flick, the limb flies to your hand (vr_ragdoll_grab)."),
+                  "Bodies can only be taken by hand; force grabs do not target them."),
         slider("Grip Strength", vr_ragdoll_grab_force, 200.f, 4000.f, 100.f, "%.0f N").extend()
             .help("The most your hand pulls a held limb with: 3000 lifts a grunt by his chest (a unit's sag); 1500 he sags "
                   "about 18 units, less and you drag him rather than lift him (vr_ragdoll_grab_force)."),
@@ -4136,9 +4145,29 @@ za::Vector<Item> pageDebugTools()
 }
 
 // What tests are done with in the headset (single player).
+za::Vector<Item> pageSpawnWeapons()
+{
+    return {
+        header("Grabbable Pickups Ahead of You"),
+        command("Shotgun", "vr_physics_spawn weapon_shotgun 64"),
+        command("Super Shotgun", "vr_physics_spawn weapon_supershotgun 64"),
+        command("Nailgun", "vr_physics_spawn weapon_nailgun 64"),
+        command("Super Nailgun", "vr_physics_spawn weapon_supernailgun 64"),
+        command("Grenade Launcher", "vr_physics_spawn weapon_grenadelauncher 64"),
+        command("Rocket Launcher", "vr_physics_spawn weapon_rocketlauncher 64"),
+        command("Lightning Gun", "vr_physics_spawn weapon_lightning 64"),
+        command("Crowbar", "vr_physics_spawn weapon_crowbar 64"),
+        command("Mjolnir", "vr_physics_spawn weapon_mjolnir 64"),
+        command("Laser Gun", "vr_physics_spawn weapon_laser_gun 64"),
+        command("Proximity Gun", "vr_physics_spawn weapon_proximity_gun 64"),
+    };
+}
+
 za::Vector<Item> pageDebugTests()
 {
     return {
+        open("Spawn Pickup Weapons", pageIndex(pageSpawnWeapons))
+            .help("Spawn a physical pickup ahead of you, ready to grab and use."),
         header("Physics Stress"),
         slider("Pile Size", vr_test_pile_count, 50.f, 1000.f, 50.f, "%.0f props")
             .extend(10.f, 2000.f)
@@ -5088,6 +5117,7 @@ const Page pages[] = {
     {"Knockdowns", pageKnockdowns, pageCombat},                                                    // 137
     {"Explosion Debris", pageExplosionDebris, pageParticleSettings},
     {"Fire Particles", pageFireParticles, pageParticleSettings},
+    {"Spawn Pickup Weapons", pageSpawnWeapons, pageDebugTests, LevelDeveloper},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

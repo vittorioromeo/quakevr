@@ -135,10 +135,10 @@ float(entity e) VR_Forcegrab_IsEligible =
     {
         return FALSE;
     }
-    // A ragdoll: by a limb (vr_ragdoll_grab 2: VR_Ragdoll_Pull).
+    // Bodies may be grabbed by hand, never summoned with a force grab.
     if(isragdoll(e))
     {
-        return cvar("vr_ragdoll_grab") >= 2;
+        return FALSE;
     }
     // A wall torch: off its wall, or lying about (vr_walltorch.qc).
     if(VR_WallTorch_IsTorch(e))

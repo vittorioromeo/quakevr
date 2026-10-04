@@ -1766,7 +1766,7 @@ int fireSource(const glm::vec3& at, float sourceScale)
         p.cell = CellFire;
         p.type = Custom;
         p.additive = true;
-        p.angle = rnd(-0.25f, 0.25f);
+        p.angle = -1.5707963f + rnd(-0.25f, 0.25f); // clockwise: the shader rotates +angle counterclockwise
         const float s = sourceScale * za::clamp(vr_fire_particles_size.value, 0.1f, 4.f);
         p.scale = rnd(2.f, 3.f) * s;
         p.org = at + glm::vec3{rnd(-1.f, 1.f), rnd(-1.f, 1.f), rnd(-0.5f, 0.5f)} * sourceScale;

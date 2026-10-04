@@ -333,6 +333,50 @@ float(entity e, vector xForward, float xKind, float xHand) VR_Knockdown_Try =
 // nearest knocked-down one for 5 (its pain), 3 kills it (a hit for its health), 4 gibs it, 5 lists them.
 void(float xMode) VR_Knockdown_Test =
 {
+    // Feedback regression probes: 6 lists bodies and their breathing point;
+    // 7 moves a living knockdown to the player (underwater test); 8 fires a
+    // real nail at the nearest living monster at one health.
+    if(xMode >= 6 && xMode <= 8)
+    {
+        entity m = VR_Decap_TestTarget(TRUE);
+        if(xMode == 7)
+        {
+            m = world;
+            float nearest = 999999;
+            for(entity down = nextent(world); down; down = nextent(down))
+            {
+                float distance = vlen(down.origin - self.origin);
+                if(down.vr_knockdown == 1 && down.health > 0 && distance < nearest)
+                {
+                    m = down;
+                    nearest = distance;
+                }
+            }
+        }
+        if(xMode == 7 && m != world)
+        {
+            setorigin(m, self.origin);
+            m.velocity = '0 0 0';
+            m.vr_kd_until = time + 60;
+        }
+        if(xMode == 8 && m != world)
+        {
+            m.health = 1;
+            VR_Test_Fire(1, (m.absmin + m.absmax) * 0.5);
+        }
+        for(entity body = nextent(world); body; body = nextent(body))
+        {
+            if((body.flags & FL_MONSTER) && !body.vr_gib)
+            {
+                float level = VR_Liquid_Level(body);
+                dprint(sprintf("bodycheck: %s health=%g ragdoll=%g headless=%g knocked=%g water=%g type=%g\n",
+                    body.classname, body.health, isragdoll(body), body.vr_headless, body.vr_knockdown,
+                    level, vr_liquid_type));
+                dprint(sprintf("breathcheck: %s breath=%g at=%v\n", body.classname, body.vr_liquid_air - time, body.origin));
+            }
+        }
+        return;
+    }
     entity best = world;
     float bestDist = 999999;
     entity x = nextent(world);

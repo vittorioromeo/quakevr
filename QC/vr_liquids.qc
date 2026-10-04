@@ -8,7 +8,7 @@
 //
 //   lava   10 x waterlevel every 0.2 s (50, 100, 150 a second)
 //   slime   4 x waterlevel every second (4, 8, 12 a second)
-//   water   nothing: no drowning (Quake's monsters hold their breath; a knight wading a deep pool should not die)
+//   water   12 seconds of breath, then escalating damage once a second; a ragdoll breathes at its physical head
 //
 // It is the liquid's damage (no attacker, as the player's): no quad, no Damage to Enemies multiplier, no hit push,
 // no gore spray. The monster's own pain code runs (its pain sounds and flinches, at its own pace), and it dies by
@@ -32,6 +32,9 @@
 
 .float vr_liquid_next; // when the monster is next looked at (in slime or lava: when it next burns)
 .float vr_liquid_in;   // the liquid it was in when last looked at (CONTENT_*, 0 none), for the sound going in
+.float vr_liquid_air;  // remaining breath deadline (0: has not been submerged)
+.float vr_liquid_drown; // next drowning tick
+.float vr_liquid_dmg; // escalating drowning damage, independent of monster attack fields
 
 float VR_LIQUID_LOOK = 0.1; // seconds between looks at a monster out of slime and lava
 
@@ -41,6 +44,18 @@ float vr_liquid_type; // set by VR_Liquid_Level: the liquid at the feet
 // 3 the eyes. vr_liquid_type: the liquid (CONTENT_WATER, CONTENT_SLIME, CONTENT_LAVA; else CONTENT_EMPTY).
 float(entity e) VR_Liquid_Level =
 {
+    // A knockdown's bounding box surrounds the whole body. Its animated head,
+    // rather than its old standing view offset, determines whether it can breathe.
+    if(isragdoll(e))
+    {
+        vector head = ragdollcut(e, 6);
+        float headContents = pointcontents(head);
+        if(headContents <= CONTENT_WATER && headContents >= CONTENT_LAVA)
+        {
+            vr_liquid_type = headContents;
+            return 3;
+        }
+    }
     vector p = e.origin;
     p_z = e.origin_z + e.mins_z + 1;
     float c = pointcontents(p);
@@ -59,7 +74,11 @@ float(entity e) VR_Liquid_Level =
     }
 
     // The eyes (walkmonster_start_go's view_ofs), else three quarters of the way up.
-    if(e.view_ofs_z > 0)
+    if(isragdoll(e))
+    {
+        p = ragdollcut(e, 6);
+    }
+    else if(e.view_ofs_z > 0)
     {
         p_z = e.origin_z + e.view_ofs_z;
     }
@@ -120,6 +139,27 @@ void(entity e, float hurt) VR_Liquid_Monster =
 
     float level = VR_Liquid_Level(e);
     float kind = vr_liquid_type;
+    if(kind == CONTENT_WATER && level == 3 && hurt)
+    {
+        if(!e.vr_liquid_air)
+        {
+            e.vr_liquid_air = time + 12;
+            e.vr_liquid_dmg = 2;
+        }
+        if(time >= e.vr_liquid_air && time >= e.vr_liquid_drown)
+        {
+            e.vr_liquid_drown = time + 1;
+            e.vr_liquid_dmg = min(15, e.vr_liquid_dmg + 2);
+            float drownDamage = e.classname == "monster_zombie" ? e.health + 40 : e.vr_liquid_dmg;
+            T_Damage(e, world, world, drownDamage);
+            dprint(sprintf("liquid: %s drowned for %g, health %g\n", e.classname, e.vr_liquid_dmg, e.health));
+        }
+        e.vr_liquid_in = kind;
+        return;
+    }
+    // Surfacing renews breath; standing up below the surface does not.
+    e.vr_liquid_air = 0;
+    e.vr_liquid_dmg = 0;
     if(kind != CONTENT_SLIME && kind != CONTENT_LAVA)
     {
         e.vr_liquid_in = kind;
@@ -173,7 +213,7 @@ void(entity e, float hurt) VR_Liquid_Monster =
     }
 };
 
-// StartFrame: the monsters in slime and lava burn.
+// StartFrame: monsters burn in slime/lava and drown with their heads underwater.
 void() VR_Liquids_Frame =
 {
     float hurt = cvar_hget(cvarh_vr_enemy_liquid_damage);

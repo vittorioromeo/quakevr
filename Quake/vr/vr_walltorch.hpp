@@ -5,7 +5,7 @@
 // torch's, copied in from progs/flame.mdl as it loads); the server sends how big its fire is as the stick's frame (0 out,
 // 1..16 sixteenths; 17: on its wall, a full fire). The client draws the fire over the
 // stick's head: id's wall torch's own flame (progs/flame.mdl without its stick, made from that file as it loads:
-// progs/vrtorch_fire.mdl), attached to the torch's head and following its orientation. Past horizontal the height
+// progs/vrtorch_fire.mdl), attached to the torch's head and rising against gravity. Past horizontal the height
 // smoothly shrinks to a short visible inverted flame (vr_walltorch_inv_size); particles rise in world space at every
 // orientation. Swing lean and flattening remain. Existing fuel, extinguishing, relighting, crackle, light, smoke and
 // burning-contact behavior remain; the old three-flame ring is gone.

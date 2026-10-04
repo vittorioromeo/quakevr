@@ -12,7 +12,7 @@ namespace qvr::progs
 {
 
 inline constexpr int firstExtSpawnParm = 17;
-inline constexpr int lastExtSpawnParm = 49;
+inline constexpr int lastExtSpawnParm = 50;
 inline constexpr int numExtSpawnParms = lastExtSpawnParm - firstExtSpawnParm + 1;
 
 // Offsets (in floats, from edict_t::v) of the VR entity fields; -1 when absent.

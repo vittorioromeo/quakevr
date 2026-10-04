@@ -168,6 +168,7 @@ float parm46;
 float parm47;
 float parm48; // ... holster 5's.
 float parm49; // The next id to give (`qvr_weaponinst_next`): the next level's never collide with these.
+float parm50; // flashlight attachment, hand, switch and grip state
 
 void() OnSpawnServerBeforeLoad; // Called when a new server
                                 // is spawned, before

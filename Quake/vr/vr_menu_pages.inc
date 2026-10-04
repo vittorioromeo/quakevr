@@ -46,6 +46,7 @@
         toggle("Fire Model Particles", "vr_fire_particles").help("Rising flame tongues from wall torches, map fires, candles, lanterns, burning bodies and taken torches. Keeps the low-poly flame models. Needs Quake VR Particles."),
         slider("Particles per Emission", "vr_fire_particles_count", 0.f, 16.f, 1.f, "%.0f").help("Exact count per source per emission, independent of Particle Multiplier."),
         slider("Emission Frequency", "vr_fire_particles_frequency", 0.f, 30.f, 1.f, "%.0f /s").extend(0.f, 60.f),
+        slider("Emission Height", "vr_fire_particles_origin", 0.f, 1.f, 0.05f, "%.2f").help("0: base of the flame; 0.5: centre; 1: tip. Also applies to held torches."),
         slider("Minimum Outward Speed", "vr_fire_particles_speed_min", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f),
         slider("Maximum Outward Speed", "vr_fire_particles_speed_max", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f).help("Horizontal speed, away from the flame. Endpoints may be swapped."),
         slider("Minimum Upward Speed", "vr_fire_particles_up_min", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f),

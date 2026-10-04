@@ -81,6 +81,17 @@ if($Mode -eq 'debris') {
     Add-Cmd 'echo CASE_held_torch'
     Add-Cmd 'vr_fire_particles_stats'
     Add-Cmd 'screenshot'
+    Add-Cmd 'vr_walltorch_debug 2'
+    foreach($gain in @(0,1)) {
+        Add-Cmd "vr_walltorch_hand_motion $gain"
+        Add-Cmd "echo CASE_hand_motion_$gain"
+        for($j=0;$j -lt 60;$j++) {
+            $x=(0.45*[Math]::Sin($j*0.3)).ToString('F4',[Globalization.CultureInfo]::InvariantCulture)
+            Add-Cmd "vr_mock_hand main $x 0.8 -0.5 70 0 0"
+            Wait-Frames 1
+        }
+    }
+    Add-Cmd 'vr_walltorch_debug 1'
     foreach($angle in @(0,90,180)) {
         $handPitch=$angle+70
         Add-Cmd "vr_mock_hand main 0.2 1.2 -0.4 $handPitch 0 0"

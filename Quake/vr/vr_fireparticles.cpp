@@ -3,6 +3,7 @@
 #include "vr_cvars.hpp"
 #include "vr_mem.hpp"
 #include "vr_particles.hpp"
+#include "vr_held.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include <string.h>
@@ -66,13 +67,25 @@ bool flame(const entity_t& e)
 void entity(int id, const entity_t& e)
 {
     const float scale = ENTSCALE_DECODE(e.scale);
-    float height = 3.f;
+    float base = 0.f, top = 6.f;
     const char* name = e.model->name;
-    if(!strcmp(name, "progs/flame.mdl")) { height = 14.f; }
-    else if(!strcmp(name, "progs/flame2.mdl") && e.frame == 1) { height = 14.f; }
-    else if(!strcmp(name, "progs/candle.mdl")) { height = 10.f; }
-    else if(!strcmp(name, "progs/lantern.mdl")) { height = 4.f; }
-    const glm::vec3 pos{e.origin[0], e.origin[1], e.origin[2] + height * scale};
+    if(!strcmp(name, "progs/flame.mdl")) { base = 1.28f; top = 30.8f; }
+    else if(!strcmp(name, "progs/flame2.mdl"))
+    {
+        // The two flame-ball sizes have different bounds; use the actual frame.
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
+        if(hdr && hdr->poseverttype == aliashdr_t::PV_QUAKE1 && hdr->numframes > 0)
+        {
+            const auto& frame = hdr->frames[za::clamp(int(e.frame), 0, hdr->numframes - 1)];
+            base = hdr->scale_origin[2] + hdr->scale[2] * frame.bboxmin.v[2];
+            top = hdr->scale_origin[2] + hdr->scale[2] * frame.bboxmax.v[2];
+        }
+    }
+    else if(!strcmp(name, "progs/candle.mdl")) { base = 8.f; top = 12.f; }
+    else if(!strcmp(name, "progs/lantern.mdl")) { base = 0.f; top = 8.f; }
+    const float fraction = za::clamp(vr_fire_particles_origin.value, 0.f, 1.f);
+    const glm::vec3 pos = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} +
+        held::axesFromAngles(e.angles, false)[2] * (glm::mix(base, top, fraction) * scale);
     emit(id, e.model, pos, scale);
 }
 void stats_f()

@@ -642,6 +642,17 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
     }
     damage = damage / VR_Corpse_PositionalFactor(targ);
 
+    // A headshot on a corpse pops its head, leaving the physical body in place.
+    // Use the same weapon toggles and head-share test as a living killing blow.
+    if(vr_decap_ent == targ && vr_decap_time == time && !targ.vr_headless)
+    {
+        vr_decap_ent = world;
+        if(VR_Decap_Cut(targ, vr_decap_by, vr_decap_vel, vr_decap_how))
+        {
+            return TRUE;
+        }
+    }
+
     VR_SmallGib_Hit(targ, inflictor, attacker, damage); // (the chainsaw always; Quad always)
 
     // Its kind's share (vr_corpse_dmg_<kind>): how much it takes to gib a corpse with each weapon. The small gibs above
