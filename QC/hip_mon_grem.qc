@@ -1539,6 +1539,7 @@ void() Gremlin_MissileAttack =
 */
 void() monster_gremlin =
 {
+    VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_gremlin, $death12.asc, $death1.asc, -1, -1); // VR: knocked down (vr_knockdown.qc): its death backwards
     if(deathmatch)
     {
         remove(self);

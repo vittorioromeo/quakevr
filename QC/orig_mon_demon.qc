@@ -177,6 +177,7 @@ void() Demon_MeleeAttack =
 */
 void() monster_demon1 =
 {
+    VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_demon, $death9, $death1, -1, -1); // VR: knocked down (vr_knockdown.qc): its death backwards
     if(deathmatch)
     {
         remove(self);

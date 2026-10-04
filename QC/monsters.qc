@@ -70,6 +70,10 @@ void() monster_death_use =
 
 void() walkmonster_start_go =
 {
+    if(!self.max_health)
+    {
+        self.max_health = self.health; // VR: its full health (vr_knockdown.qc: the damage it has taken)
+    }
     self.origin_z = self.origin_z + 1;    // raise off floor a bit
 
     // HONEY
@@ -158,6 +162,10 @@ void() walkmonster_start =
 
 void() flymonster_start_go =
 {
+    if(!self.max_health)
+    {
+        self.max_health = self.health; // VR: its full health (vr_knockdown.qc: the damage it has taken)
+    }
     self.takedamage = DAMAGE_AIM;
 
     self.ideal_yaw = self.angles * '0 1 0';
@@ -238,6 +246,10 @@ void() flymonster_start =
 
 void() swimmonster_start_go =
 {
+    if(!self.max_health)
+    {
+        self.max_health = self.health; // VR: its full health (vr_knockdown.qc: the damage it has taken)
+    }
     if(deathmatch)
     {
         remove(self);

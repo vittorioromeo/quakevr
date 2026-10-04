@@ -1036,6 +1036,30 @@ void PF_isragdoll()
     G_FLOAT(OFS_RETURN) = box3d::isRagdoll(NUM_FOR_EDICT(G_EDICT(OFS_PARM0))) ? 1.f : 0.f;
 }
 
+// Knockdowns (vr_box3d.cpp "Knockdowns"; QC vr_knockdown.qc). float canragdoll(entity e): e can be knocked down as a
+// ragdoll (a monster with a rig, ragdolls on).
+void PF_canragdoll()
+{
+    G_FLOAT(OFS_RETURN) = box3d::canRagdoll(G_EDICT(OFS_PARM0)) ? 1.f : 0.f;
+}
+
+// float ragdollknockdown(entity e): e (.vr_knockdown 1, touchable, not solid) a ragdoll now, alive.
+void PF_ragdollknockdown()
+{
+    G_FLOAT(OFS_RETURN) = box3d::ragdollKnockdown(G_EDICT(OFS_PARM0)) ? 1.f : 0.f;
+}
+
+// float ragdollgetup(entity e, float frameA, float frameB, vector mins, vector maxs, float range): e gets up from its
+// ragdoll, starting from frameA or frameB (whichever fits how it lies; -1 none): 0 no room within range (it stays down),
+// else 1 or 2 (the frame chosen), e at the place found, turned to it (.vr_knockdown 2).
+void PF_ragdollgetup()
+{
+    const float* lo = G_VECTOR(OFS_PARM3);
+    const float* hi = G_VECTOR(OFS_PARM4);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollGetUp(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)),
+        static_cast<int>(G_FLOAT(OFS_PARM2)), glm::vec3{lo[0], lo[1], lo[2]}, glm::vec3{hi[0], hi[1], hi[2]}, G_FLOAT(OFS_PARM5)));
+}
+
 // float ragdollgrab(entity e, entity player, float hand): the hand takes the limb of e's ragdoll it is on (or catches
 // the one it pulls).
 void PF_ragdollgrab()
@@ -1585,6 +1609,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"physicspush", PF_physicspush},
     {"isragdoll", PF_isragdoll},
     {"ragdollgrab", PF_ragdollgrab},
+    {"canragdoll", PF_canragdoll},
+    {"ragdollknockdown", PF_ragdollknockdown},
+    {"ragdollgetup", PF_ragdollgetup},
     {"ragdollpull", PF_ragdollpull},
     {"ragdollrelease", PF_ragdollrelease},
     {"ragdollheld", PF_ragdollheld},

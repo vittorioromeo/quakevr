@@ -131,6 +131,14 @@ bool holdClear(int num, const glm::vec3& fromPos, const glm::quat& fromRot, glm:
 
 // Ragdolls (vr_ragdoll; vr_box3d.cpp, "Ragdolls"). Whether edict `num` is one.
 [[nodiscard]] bool isRagdoll(int num);
+// Knockdowns (vr_knockdown; vr_box3d.cpp "Knockdowns"; QC vr_knockdown.qc). Whether `ent` can be one (a monster with a rig,
+// ragdolls on); its ragdoll made now, alive (.vr_knockdown 1, touchable and not solid); its getting up: the get-up's
+// first frame fitted to how it lies (frameA, or frameB if that fits better; -1 none), room for its box mins..maxs found
+// within `range`, its ragdoll gone and blended into its animation: 0 no room (it stays down), else 1 or 2 (the frame
+// chosen), its origin and yaw set there.
+[[nodiscard]] bool canRagdoll(edict_t* ent);
+bool ragdollKnockdown(edict_t* ent);
+int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range);
 // Whether hand point `at` (units) is within vr_ragdoll_grab_reach of a limb of edict `num`'s ragdoll (a hand touching it).
 [[nodiscard]] bool ragdollReach(int num, const glm::vec3& at);
 // The hands and the limbs (QC's builtins: ragdollgrab, ragdollpull, ragdollrelease, ragdollheld, ragdollreach). `hand`:

@@ -1561,6 +1561,37 @@ QVR_CVAR(vr_corpse_collide_monsters, "0", CVAR_ARCHIVE) // monsters step over co
 QVR_CVAR(vr_ragdoll, "1", CVAR_ARCHIVE)               // ragdolls (experimental; vr_ragdoll.cpp, vr_box3d.cpp): 0 off, 1 the grunt, knight, ogre, enforcer, death knight, rottweiler and scrag: dying, his body goes limp as jointed bodies his mesh is skinned to
 QVR_CVAR(vr_ragdoll_start, "0.3", CVAR_ARCHIVE)       // when a dying grunt goes limp: a share of his death animation (0 its first frame he isn't solid in, 1 its last: lying still)
 QVR_CVAR(vr_ragdoll_max, "8", CVAR_ARCHIVE)           // the most ragdolls at once; more dead grunts lie as corpses (Corpse Collision)
+// Knockdowns (QC vr_knockdown.qc; vr_box3d.cpp "Knockdowns"; Combat > Knockdowns): a shove can knock a monster with a
+// ragdoll rig down as a ragdoll, alive; after a while it gets up (its own fall-and-rise frames, or its death backwards).
+QVR_CVAR(vr_knockdown, "1", CVAR_ARCHIVE)                 // the feature: 0 off (shoves stagger as before)
+QVR_CVAR(vr_knockdown_chance, "1", CVAR_ARCHIVE)          // every monster's chance times this (testing: 100, every shove)
+QVR_CVAR(vr_knockdown_chance_army, "0.45", CVAR_ARCHIVE)  // a shove's base chance to knock one down, by monster
+QVR_CVAR(vr_knockdown_chance_enforcer, "0.3", CVAR_ARCHIVE)
+QVR_CVAR(vr_knockdown_chance_dog, "0.35", CVAR_ARCHIVE)
+QVR_CVAR(vr_knockdown_chance_zombie, "0.35", CVAR_ARCHIVE)
+QVR_CVAR(vr_knockdown_chance_mummy, "0.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_knockdown_chance_knight, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_knockdown_chance_hknight, "0.12", CVAR_ARCHIVE)
+QVR_CVAR(vr_knockdown_chance_ogre, "0.15", CVAR_ARCHIVE)
+QVR_CVAR(vr_knockdown_chance_demon, "0.1", CVAR_ARCHIVE)
+QVR_CVAR(vr_knockdown_chance_shambler, "0.03", CVAR_ARCHIVE)
+QVR_CVAR(vr_knockdown_chance_gremlin, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_knockdown_damage, "2", CVAR_ARCHIVE)          // the chance times 1 + this times the share of its health it has lost
+QVR_CVAR(vr_knockdown_onehand, "1", CVAR_ARCHIVE)         // the chance times this for a one-handed shove,
+QVR_CVAR(vr_knockdown_twohand, "1.75", CVAR_ARCHIVE)      // and this for a two-handed one
+QVR_CVAR(vr_knockdown_bash, "0", CVAR_ARCHIVE)            // and this for a weapon's bash (0: only open-palm shoves)
+QVR_CVAR(vr_knockdown_stamina, "1", CVAR_ARCHIVE)         // how much low stamina cuts the chance: times 1 - this x the share spent (0: no effect)
+QVR_CVAR(vr_knockdown_time_min, "2.5", CVAR_ARCHIVE)      // seconds it stays down, at least,
+QVR_CVAR(vr_knockdown_time_max, "4.5", CVAR_ARCHIVE)      // and at most (at random between)
+QVR_CVAR(vr_knockdown_hit_time, "0.5", CVAR_ARCHIVE)      // seconds each hit while down adds (not past Time Max from the hit)
+QVR_CVAR(vr_knockdown_retry, "0.5", CVAR_ARCHIVE)         // seconds between tries to get up where there is no room
+QVR_CVAR(vr_knockdown_search, "48", CVAR_ARCHIVE)         // how far (units) from the body it looks for room to stand
+QVR_CVAR(vr_knockdown_blend, "0.35", CVAR_ARCHIVE)        // seconds the body blends from the ragdoll into the get-up
+QVR_CVAR(vr_knockdown_getup_speed, "1", CVAR_ARCHIVE)     // the get-up's frames' speed (1: Quake's 10 a second)
+QVR_CVAR(vr_knockdown_push, "1", CVAR_ARCHIVE)            // the knocked body's launch, times the shove's push
+QVR_CVAR(vr_knockdown_weld, "1", CVAR_ARCHIVE)            // its weapon stays in its hand while down (0: it falls loose)
+QVR_CVAR(vr_knockdown_debug, "0", CVAR_NONE)              // prints each shove's chance and roll, and the get-ups
+
 QVR_CVAR(vr_ragdoll_mass, "80", CVAR_ARCHIVE)         // kg: a ragdoll's whole mass (its parts by their volume); each class has its own by default (vr_ragdoll_<class>_mass), this is for a class set to -1
 QVR_CVAR(vr_ragdoll_friction, "0.8", CVAR_ARCHIVE)    // a ragdoll's friction (with the floor's: 0.6)
 QVR_CVAR(vr_ragdoll_joint_friction, "1.5", CVAR_ARCHIVE) // N m: the joints' friction (a motor holding each still up to this torque); 0 limp
