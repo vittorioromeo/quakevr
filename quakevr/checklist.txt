@@ -278,8 +278,15 @@ Debug > Tests > Slipgates: The Whole Feature Off — and the switch takes effect
 
 Hidden staircase in start: at 278 1728 24, compare portals on/off and turn or lean your head. The func_bossgate cover (*38) should remain present until all four episodes are completed. Each render view now restores its entity list so a portal's culling cannot remove the cover from either eye. The unnecessary self-leaf workaround was removed and the diagnostic BSP decoder corrected.
 
+[Hit zones]
+Melee positional damage (Combat > Damage and Knockback > Melee Positional Damage): a blade or a fist at a monster's head does 1.5x, at its legs 0.6x, the same multipliers as your shots. Off: flat melee damage, exactly as before
+Same place, same answer: Debug > Show Hit Zones (vr_debug_hitzones 3), then hit one grunt's head with a shotgun pellet and with a blade — both must report the head and the same multiplier
+Head Priority (Combat > Hit Detection > Head Priority): a swing that passes through a head zone and a body zone counts as a head blow. It reads where the swing started (up to 64 units back), so a downward swing that ends on the legs may be scored as a head hit — tell us if that is wrong
+Melee Hitbox Size (Combat > Hit Detection): 0.25 makes a punch stop connecting about 4 units sooner, 4 about 16 units further (measured 56 / 60 / 76 units at 0.25 / 1 / 4). Find the value that feels right
+The training dummy's melee lines now show the zone and multiplier (head x1.50, limb x0.80, legs x0.60)
+
 [Decide or give feedback]
-Hitboxes: one set used by melee and by hitscan/projectile both? (after the hit-zone comparison shows both; the coordinator will bring a recommendation)
+Melee positional damage: are the multipliers right for a blade (head 1.5, limbs 0.8, legs 0.6)? And should the chainsaw use them (it does now)
 Fiend: give his head a headshot zone (positional damage)? It counts as an extremity now (2/3 damage)
 Ragdoll masses: fiend 140, shambler 280, gremlin 20, mummy 75 kg: right?
 Ragdolls: a blast throws every monster's body as far, whatever its mass (an ogre as far as a grunt): lower the ogre's and death knight's Blast Throw (Ragdolls > Ogre)?
