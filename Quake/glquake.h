@@ -459,6 +459,7 @@ typedef struct gpuframedata_s {
 	float	portalplane[4];		// QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)
 	float	portalmin[4];		// QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)
 	float	portalmax[4];		// QVR: ... its box (xyz)
+	float	ambient[4];		// QVR: the baked light's own fill light (vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (vr/vr_lighting.cpp, vr/vr_glsl.h)
 } gpuframedata_t;
 
 struct gltexture_s *TexMgr_ShareNormalMap (struct gltexture_s *base, const char *name, int kind); // QVR: an authored file's texture already made for another skin

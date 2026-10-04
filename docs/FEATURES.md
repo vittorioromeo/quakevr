@@ -185,6 +185,11 @@ All of these have switches on the *Graphics* page, and the *Preset* there sets m
 - **The look:** darker shade and stronger light, inspired by DarkPlaces. Your shots, explosions and glowing
   projectiles light up the room in their colours, and lamps, buttons and screens glow (bloom). *Off (Quake)*
   restores Quake's look.
+- **Ambient light (optional):** a floor of light for the room itself, so the places no lamp reaches read clearly lit
+  without the flashlight. *Ambient Light* (Graphics > Lights) sets how much, 0 to 0.4 (0 keeps Quake's). It is a companion
+  to *Light Contrast*, not the same control: contrast still shapes the shade at any level of it, and the level's own lamps
+  stay where they were. Debug > *Light Probe* prints the light as the map has it and as it is drawn at six points round
+  you, to compare two settings by numbers.
 - **Real-time shadows:** explosions, rockets, your muzzle flash (optional) and torches cast shadows. The map lights
   nearest you cast the shadows of monsters and of your own body. The graphics *Preset* (Advanced VR Options > Graphics) goes from *Off
   (Quake)* through *Low*, *Medium* and *High* to *Ultra*.

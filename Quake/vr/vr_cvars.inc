@@ -1113,6 +1113,8 @@ QVR_CVAR(vr_dlight_models, "1", CVAR_ARCHIVE)          // dynamic lights light m
 QVR_CVAR(vr_dlight_angle, "1", CVAR_ARCHIVE)           // dynamic lights fall off with the angle they reach surfaces at (0: Quake's)
 QVR_CVAR(vr_dlight_uncapped, "1", CVAR_ARCHIVE)        // dynamic lights add fully to bright walls (Quake caps them)
 QVR_CVAR(vr_light_contrast, "2", CVAR_ARCHIVE)         // lightmap contrast about Quake's full light: shade darker, lamps as bright (1: Quake's)
+QVR_CVAR(vr_ambient_light, "0", CVAR_ARCHIVE)          // the room's own fill light: the baked light's floor, as a share of Quake's full light (0 none; the same curve as vr_light_contrast, which still shapes the shade: qvr::lighting::lightCurve)
+QVR_CVAR(vr_ambient_light_ab, "0", CVAR_NONE)          // Debug A/B: 1 hides the ambient light (as vr_ambient_light 0), to compare
 QVR_CVAR(vr_decals, "1", CVAR_ARCHIVE)                 // blood and scorch marks on the world
 QVR_CVAR(vr_decal_max, "1024", CVAR_ARCHIVE)           // how many are kept (the oldest go first)
 QVR_CVAR(vr_decal_life, "120", CVAR_ARCHIVE)           // seconds a mark stays (fading over the last five)

@@ -4,6 +4,7 @@
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_evict.hpp"
+#include "vr_lighting.hpp"
 #include "vr_profile.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
@@ -312,13 +313,14 @@ void shade(const Probe& probe, Cube& out)
         }
     }
 
-    // The world's lightmap contrast (vr_light_contrast), so that the sides match how bright the
-    // walls they face look.
-    const float curve = za::clamp(vr_light_contrast.value, 0.5f, 3.f);
+    // The world's own fill light and lightmap contrast (vr_ambient_light, vr_light_contrast), so that
+    // the sides match how bright the walls they face look (qvr::lighting::lightCurve, the same curve).
+    const float curve = lighting::lightContrast();
+    const float lift = lighting::ambientFloor();
     Cube faces{};
     for(int i = 0; i < NUM_RAYS; i++)
     {
-        const glm::vec3 c = 128.f * glm::pow(glm::max(light[i], glm::vec3{0.f}) / 128.f, glm::vec3{curve});
+        const glm::vec3 c = 128.f * glm::pow(glm::max(light[i], glm::vec3{0.f}) / 128.f + lift, glm::vec3{curve});
         for(int f = 0; f < 6; f++)
         {
             faces[f] += c * r.weight[i][f];
@@ -351,12 +353,12 @@ void shade(const Probe& probe, Cube& out)
     }
 }
 
-// A probe's shade() (a pure function of the probe, its light styles' values and the two contrast settings), and
+// A probe's shade() (a pure function of the probe, its light styles' values and the settings it reads), and
 // what it was worked out at.
 struct ShadeMemo
 {
     bool valid{false};
-    float lightContrast{0.f}, ambientContrast{0.f};
+    float lightContrast{0.f}, ambientContrast{0.f}, ambient{0.f}; // qvr::lighting::lightContrast, vr_model_ambient_contrast, light::ambientFloor
     int styles[MAX_PROBE_STYLES]{};
     Cube cube{};
 };
@@ -381,8 +383,8 @@ struct Cached
 // Whether `m` holds shade(probe) as it would be now: the same settings, its light styles at the same values.
 [[nodiscard]] bool shadeFresh(const ShadeMemo& m, const Probe& probe)
 {
-    if(!m.valid || probe.numStyles < 0 || m.lightContrast != vr_light_contrast.value ||
-       m.ambientContrast != vr_model_ambient_contrast.value)
+    if(!m.valid || probe.numStyles < 0 || m.lightContrast != lighting::lightContrast() ||
+       m.ambientContrast != vr_model_ambient_contrast.value || m.ambient != lighting::ambientFloor())
     {
         return false;
     }
@@ -403,8 +405,9 @@ const Cube& shadeMemo(ShadeMemo& m, const Probe& probe)
     {
         shade(probe, m.cube);
         m.valid = probe.numStyles >= 0;
-        m.lightContrast = vr_light_contrast.value;
+        m.lightContrast = lighting::lightContrast();
         m.ambientContrast = vr_model_ambient_contrast.value;
+        m.ambient = lighting::ambientFloor();
         for(int k = 0; k < probe.numStyles; k++)
         {
             m.styles[k] = d_lightstylevalue[probe.styles[k]];
@@ -623,7 +626,8 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
                 reshade = true;
             }
             // Flickering or switched lights: read every frame, in step with the world's.
-            const float settings = vr_model_ambient_contrast.value * 16.f + vr_light_contrast.value;
+            const float settings = lighting::ambientFloor() * 4096.f + vr_model_ambient_contrast.value * 16.f +
+                                   lighting::lightContrast(); // the settings shade() reads, as one number
             // (Each probe's shading is kept while its light styles hold still: easing only mixes them.)
             if(reshade || (c.current.animated && !shadeFresh(c.currentShaded, c.current)) ||
                (c.blend < 1.f && c.previous.animated) || settings != c.settings)

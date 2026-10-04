@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
+#include "vr_lighting.hpp"
 #include "vr_profile.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
@@ -144,6 +145,7 @@ layout(binding = 0) uniform sampler2D LMTex;
 layout(binding = 1) uniform sampler2D Tex;
 layout(binding = 2) uniform sampler2D FullbrightTex;
 layout(location = 1) uniform float Contrast;
+layout(location = 98) uniform float Ambient; // QVR: the room's own fill light (vr_ambient_light), as in the world shader
 layout(location = 96) uniform int Textured; // 0: the colours (the weapons' cube); 1: the textures, 2: and a fullbright one
 layout(location = 97) uniform vec3 Centre;
 layout(location = 0) in vec2 in_lmuv;
@@ -179,8 +181,8 @@ void main()
             light = vec3(dot(in_styles, lm0), dot(in_styles, lm1), dot(in_styles, lm2));
         }
     }
-    if(Contrast != 1.0)
-        light = 0.5 * pow(max(light, vec3(0.0)) * 2.0, vec3(Contrast));
+    if(Contrast != 1.0 || Ambient > 0.0) // the same curve as the world's (qvr::lighting::lightCurve): the fill light, then the contrast
+        light = 0.5 * pow(max(light, vec3(0.0)) * 2.0 + Ambient, vec3(Contrast));
     float dist = distance(in_pos, Centre);
     if(!textured)
     {
@@ -504,7 +506,8 @@ void bindWorld()
 {
     GL_SetState(GLS_BLEND_OPAQUE | GLS_CULL_NONE | GLS_ATTRIBS(6));
     GL_UseProgram(program);
-    GL_Uniform1fFunc(1, za::clamp(vr_light_contrast.value, 0.5f, 3.f));
+    GL_Uniform1fFunc(1, lighting::lightContrast());
+    GL_Uniform1fFunc(98, lighting::ambientFloor()); // the reflections are lit as the room is
     for(int i = 0; i < numStyles; i++)
     {
         GL_Uniform1fFunc(2 + i, r_lightbuffer.lightstyles[i]);

@@ -114,7 +114,8 @@ QVR_TONE_GLSL
 "	vec4	WaterCube2; // QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last\n" \
 "	vec4	PortalPlane; // QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)\n" \
 "	vec4	PortalMin; // QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)\n" \
-"	vec4	PortalMax; // QVR: ... its box (xyz)\n"
+"	vec4	PortalMax; // QVR: ... its box (xyz)\n" \
+"	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n"
 
 // the frame data the alias shaders read (vr/vr_lighting.cpp); its own names, since the alias
 // instance buffer has a ViewProj, Fog, EyePos and ScreenDither of its own.
@@ -1364,7 +1365,8 @@ QVR_DECAL_FUNCTIONS \
 "	float gy1 = mix(LuxelSlope(b - q1.w, e - b, b), LuxelSlope(q3.x - e, e - b, e), f.y);\n" \
 "	vec2 g = vec2(mix(gx0, gx1, f.y), mix(gy0, gy1, f.x)); // per luxel\n" \
 "	float green = mix(mix(a, b, f.x), mix(d, e, f.x), f.y);\n" \
-"	g *= green > 1e-3 ? lum * LightTweak.x / green : 0.0; // relative, as the brightness's (and its contrast's power)\n" \
+"	float lifted = green + AmbientLight.x * 0.5; // ... with the room's own fill light, the value the brightness above is the power of\n" \
+"	g *= lifted > 1e-3 ? lum * LightTweak.x / lifted : 0.0; // relative, as the brightness's (and its contrast's power)\n" \
 "	return vec2(dot(g, dpx), dot(g, dpy));\n" \
 "}\n"
 
@@ -1392,8 +1394,8 @@ QVR_DECAL_FUNCTIONS \
 
 // light contrast, normal maps in the baked light, specular
 #define QVR_WORLD_FS_LIGHT \
-"	if (LightTweak.x != 1.) // QVR: contrast about Quake's full light (vr_light_contrast): darker shade, lamps as bright\n" \
-"		total_light = 0.5 * pow(max(total_light, vec3(0.)) * 2.0, vec3(LightTweak.x));\n" \
+"	if (LightTweak.x != 1. || AmbientLight.x > 0.) // QVR: the room's own fill light first (vr_ambient_light: a share of Quake's full light added to the lightmap), then the contrast about Quake's full light (vr_light_contrast): darker shade, lamps as bright\n" \
+"		total_light = 0.5 * pow(max(total_light, vec3(0.)) * 2.0 + AmbientLight.x, vec3(LightTweak.x));\n" \
 "\n" \
 "	// QVR: the normal bent by the normal map (vr_normalmaps), for the baked light and the dynamic lights\n" \
 "	vec3 bumped = facing;\n" \

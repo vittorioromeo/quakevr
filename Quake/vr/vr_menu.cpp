@@ -3395,6 +3395,13 @@ za::Vector<Item> pageDebugViews()
         toggle("Retro Lighting A/B", vr_retrolight_ab)
             .help("Hides retro lighting (Graphics > Retro Lighting) at once, to compare with the smooth light; off again "
                   "shows it."),
+        toggle("Ambient Light A/B", vr_ambient_light_ab)
+            .help("Takes the room's own fill light (Graphics > Lights: Ambient Light) off at once, to compare the map as "
+                  "its own lamps light it; off again shows it. Without a reload."),
+        command("Light Probe", "vr_light_probe")
+            .help("vr_light_probe: the baked light at six points round you, as the map has it and as it is drawn with the "
+                  "current Ambient Light and Light Contrast (128 is Quake's full light). The same numbers light a model "
+                  "standing there: two settings, compared without looking."),
         toggle("Show Damage Numbers", vr_debug_damage_numbers)
             .help("Every hit on anything that takes damage (monsters, corpses, gibs, crates, props, shootable walls): its "
                   "damage floating where it struck, and printed as the training dummy's (what struck, where, what's left)."),
