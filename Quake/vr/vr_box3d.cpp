@@ -731,6 +731,8 @@ za::UniquePtr<World> world;
 constexpr za::SizeT stepSamplesMax = 1u << 16; // vr_physics_steptime's frames kept (15 minutes at 72 Hz)
 double serverPhysicsStart = 0.0; // SV_Physics's world's turn this frame (Sys_DoubleTime; noteServerPhysicsStart)
 bool frameTiming = false;        // vr_physics_frametime asked for once: its samples kept from then on
+double frameLastWall = 0.0;      // vr_physics_frametime: the wall clock when it last printed
+int frameLastHostFrame = 0;      // and at which host frame
 
 void runStepTask(void* p)
 {
@@ -6792,14 +6794,12 @@ void steptime_f()
 // call starts it: no samples kept before). A bench: Misc/quakevr/physbench/physbench.py.
 void frametime_f()
 {
-    static double lastWall = 0.0;
-    static int lastHostFrame = 0;
     frameTiming = true;
     const double now = Sys_DoubleTime();
-    const double wall = lastWall > 0.0 ? now - lastWall : 0.0;
-    const int hostFrames = host_framecount - lastHostFrame;
-    lastWall = now;
-    lastHostFrame = host_framecount;
+    const double wall = frameLastWall > 0.0 ? now - frameLastWall : 0.0;
+    const int hostFrames = host_framecount - frameLastHostFrame;
+    frameLastWall = now;
+    frameLastHostFrame = host_framecount;
     const char* label = Cmd_Argc() > 1 ? Cmd_Argv(1) : "-";
     if(!world)
     {
