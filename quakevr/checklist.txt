@@ -271,6 +271,8 @@ Slipgate: walk into a gate's frame in start → you hit a wall, no sudden jump
 Slipgate: lean or reach into a gate with your head → no teleport; it happens only when your torso's middle plane goes through the gate's plane
 Slipgate: walk through at an angle, and try a gate whose opening is inset from its TELE faces (the aperture tolerance is now exact, stricter than before)
 Slipgate: shooting and throwing through still works; a dropped torch/prop goes through
+Slipgate seen from far away: the far side is no longer a black texture — it is dim but readable, and it gets clearer as you approach. Within a room's approach nothing changed; only far views changed (the view is now taken from at most 256 units behind the far side, so a distant gate is not the room next door at true distance)
+Debug > Slipgates > Looking Through A Gate, Or Why Not — which side you are looking through, that gate's box on your screen, and why every other gate is not used
 Debug > Tests > Slipgates: Crossing One — run it, then read the console for "VR portal: carried edict …"
 Debug > Tests > Slipgates: The Whole Feature Off — and the switch takes effect live, no map reload (flip it at a gate and watch the portal/scene rows appear and go in the profiler)
 
