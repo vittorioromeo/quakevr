@@ -66,6 +66,11 @@ Burning: Torch Touch on: touching a monster or corpse with a lit torch (held, th
 Burning: your lava nails set monsters on fire
 Wall torch: close the fist on the way to it: it comes when the hand arrives (Carrying > Wall Torches > Grab Window 0.6 s)
 Wall torch: punch it with a closed fist: a blow, not a grab
+Wall torch: shoot it — shotgun, nails, rocket (direct and splash), grenade blast, lightning, blast: it comes off the wall, still lit, and the wall's light is gone (Carrying > Wall Torches > Shot Off Its Wall)
+Wall torch: throw a rock or brick at it at a real speed: it comes off; a slow toss (under 200 u/s) does not
+Wall torch: Shot Off Its Wall off: shots pass through to the wall behind, as before
+Wall torches now absorb shots and splash: does that hurt in torch-heavy maps (a nail stops at a torch instead of the wall)?
+A grenade in flight and the enforcer's laser do nothing to a torch (by design); a grenade's blast does knock it off
 
 Two-handed gib throws from chest height, forward and upward: the gib never bursts in your hands
 Toss a gib up with one hand, punch it with the other after ~0.2 s: it still bursts
