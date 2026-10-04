@@ -1,0 +1,104 @@
+exit=0
+
+execing autoexec.cfg
+VR: started mock backend
+Wrote ironwail.cfg.
+
+FITZQUAKE 0.85 SERVER (59389 CRC)
+
+--------------------------------------
+the Slipgate Complex
+Using protocol 999
+player entered the game
+VR: foveated rendering (GL_NV_shading_rate_image) available, 16x16 pixel tiles
+PHASE-off 
+vr_profile: hitch 72.4 ms (6.5 budgets), e1m1: render other 70.8, light setup 0.4, shadows other 0.4, vr view setup 
+0.2, ui/hud/menu 0.1
+  scopes: screen/3D 70.0, screen/3D/eye L/setup view/lights 0.4, screen/3D/eye L/setup view/shadow maps 0.4
+godmode ON
+notarget ON
+vr_profile: e1m1, 99 frames in 0.5 s, 4.70 ms apart (213 fps): host frame 1.21 ms, CPU busy 1.19, GPU 0.74 (max 1.49; 
+eyes 0.68, runtime's calls 0.00)
+scope (ms/frame)                  cpu    max    gpu    max
+frame                            1.21  72.45   0.74   1.49
+  vr frame setup                 0.02   0.08
+  screen                         1.09  72.39
+    3D                           1.04  72.27   0.69   1.45
+      eye L                      0.28   1.82   0.33   0.89
+        view entities            0.10   0.20
+          avatar IK              0.04   0.12
+        setup view               0.10   0.96   0.06   0.07
+          shadow maps            0.07   0.43   0.05   0.05
+            map light shadows    0.05   0.15   0.02   0.02
+              shadow alias draw   0.04   0.14
+          lights                 0.02   0.40   0.01   0.01
+        scene                    0.05   0.46   0.16   0.18
+          world+brush            0.01   0.08   0.08   0.09
+          translucent            0.00   0.05   0.02   0.02
+        bloom                    0.00   0.07   0.03   0.04
+      eye R                      0.04   0.48   0.35   1.10
+        scene                    0.03   0.30   0.26   1.01
+          world+brush            0.00   0.03   0.10   0.81
+          sky                    0.00   0.01   0.09   0.85
+          translucent            0.00   0.03   0.02   0.02
+        bloom                    0.00   0.03   0.03   0.03
+    2D                           0.02   0.59   0.04   0.05
+      gadget screen              0.01   0.08   0.04   0.04
+    swap                         0.02   0.03
+  server                         0.06   0.31
+    SV_Physics                   0.05   0.25
+      quakec                     0.03   0.17
+  top GPU: world+brush 0.18, sky 0.09, bloom 0.06, translucent 0.04, gadget screen 0.04, resolve/warp 0.03
+  top CPU: 3D 0.71, shadow alias draw 0.04, avatar IK 0.04, view entities 0.04, quakec 0.03, lights 0.02
+  -> C:\OHWorkspace\qvr-kit\bases\pvs-selfbit\qbase/quakevr/profile/profile_e1m1_2026-10-04_13-47-57.csv
+Wrote screenshots/e1m1_2026-10-04_13-47-57.png
+Wrote screenshots/e1m1_2026-10-04_13-47-57_0001.png
+PHASE-on 
+vr_profile: e1m1, 260 frames in 1.0 s, 4.00 ms apart (250 fps): host frame 0.46 ms, CPU busy 0.43, GPU 0.80 (max 1.71; 
+eyes 0.74, runtime's calls 0.00)
+scope (ms/frame)                  cpu    max    gpu    max
+frame                            0.46   2.00   0.80   1.71
+  vr frame setup                 0.03   0.11
+    hands                        0.02   0.10
+  screen                         0.33   1.14
+    3D                           0.28   1.10   0.76   1.66
+      eye L                      0.25   1.06   0.32   0.55
+        view entities            0.11   0.24
+          avatar IK              0.04   0.11
+        setup view               0.08   0.91   0.07   0.29
+          shadow maps            0.05   0.16   0.05   0.05
+            map light shadows    0.05   0.13   0.02   0.02
+              shadow alias draw   0.04   0.13
+          lights                 0.02   0.86   0.01   0.23
+        scene                    0.04   0.18   0.17   0.18
+          world+brush            0.01   0.08   0.08   0.09
+          translucent            0.00   0.00   0.02   0.03
+        bloom                    0.00   0.00   0.03   0.04
+      eye R                      0.03   0.11   0.42   1.32
+        scene                    0.01   0.10   0.33   1.23
+          world+brush            0.00   0.06   0.10   0.79
+          sky                    0.00   0.00   0.16   1.07
+          translucent            0.00   0.00   0.02   0.02
+        bloom                    0.00   0.00   0.03   0.03
+    2D                           0.01   0.09   0.04   0.05
+      gadget screen              0.01   0.08   0.04   0.04
+    swap                         0.03   0.11
+  server                         0.06   0.37
+    SV_Physics                   0.05   0.34
+      quakec                     0.03   0.23
+  top GPU: world+brush 0.18, sky 0.17, bloom 0.06, translucent 0.04, gadget screen 0.04, postprocess 0.03
+  top CPU: view entities 0.05, shadow alias draw 0.04, avatar IK 0.04, quakec 0.03, swap 0.03, lights 0.02
+  -> C:\OHWorkspace\qvr-kit\bases\pvs-selfbit\qbase/quakevr/profile/profile_e1m1_2026-10-04_13-47-57.csv
+Wrote screenshots/e1m1_2026-10-04_13-47-58.png
+Wrote screenshots/e1m1_2026-10-04_13-47-58_0001.png
+Client player removed
+vr_profile: e1m1, 161 frames in 0.6 s, 4.02 ms apart (249 fps): host frame 0.54 ms, CPU busy 0.47, GPU 0.79 (max 1.54; 
+eyes 0.73, runtime's calls 0.00)
+  top GPU: sky 0.17, world+brush 0.17, bloom 0.06, translucent 0.04, gadget screen 0.04, postprocess 0.03
+  top CPU: swap 0.07, view entities 0.05, shadow alias draw 0.05, avatar IK 0.04, quakec 0.03, hands 0.02
+  -> C:\OHWorkspace\qvr-kit\bases\pvs-selfbit\qbase/quakevr/profile/profile_e1m1_2026-10-04_13-47-57.csv
+Wrote ironwail.cfg.
+VR: stopping mock backend
+composed 4 screenshots (in the order taken) into C:\OHWorkspace\qvr-kit\scratch\pvs_e1m1.png; full size in C:\OHWorkspace\qvr-kit\bases\pvs-selfbit\qbase\quakevr\screenshots
+
+
