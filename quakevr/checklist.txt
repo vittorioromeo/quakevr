@@ -85,7 +85,6 @@ Blood: throw a bloody weapon, pick it up, holster and draw it: blood stays; dunk
 Blood: a bloody shotgun holstered, a clean one picked up stays clean; the bloody one drawn is still bloody (weapon instances)
 Magazines: shoot a few, holster, draw, throw, pick up, switch hands: rounds left as before (each weapon one record now)
 Blood: get hurt, then a health pickup: your wounds fade, others' blood stays until water
-Blood Opacity 0.8 vs 1: pick one
 
 Weapon blood follows the weapon: holster a bloody shotgun, pick up a clean one: stays clean; draw the bloody one: still bloody
 Weapon blood through throw, pick up and a two-handed hand-off: stays on the same weapon
@@ -95,7 +94,7 @@ Quetoo maps: Debug > Views > External Maps A/B by a lamp and with the flashlight
 Quetoo maps: Specular brightness 0 / 4 / 8: pick one
 
 Spatial audio after optimisation: fights, explosions, slow motion and sounds passing by sound exactly as before
-Debug > Tests > Spatial Audio > Spatial Audio Benchmark: run it on your machine and send me the table
+Debug > Tests > Spatial Audio > Spatial Audio Benchmark: paste the table to the coordinator (screenshots are not readable by him)
 
 Flashlight model: rusted army torch: does the rust read too red under warm map lights?
 Flashlight model: thumb on the new switch and fingers on the grip ridges feel right
@@ -150,19 +149,19 @@ Retro Lighting (Graphics > Retro Lighting): try the three looks (Software Quake,
 Retro Lighting: no swimming or crawling band/block edges as you move your head (Block Edge Softness 1 vs 0)
 Retro Lighting: flashlight pool at Dynamic Light Blocks 4 and 8; Level Spacing even vs Quake; Lightmap Block 1 vs 16 with Retro Textures on
 
-Training dummy bleeds like a grunt: sword, punches, shotgun, chainsaw: blood on your hands, arms and held props, small gibs (Gore > Training Dummy)
+Training dummy bleeds like a grunt: sword, punches, shotgun, chainsaw: blood on your hands, arms and held props (Gore > Training Dummy)
+Training dummy: small gibs from blows and the chainsaw, same as a grunt (Gore > Small Gibs)
 Training dummy: Dummy Gibs on, a hard blow or a rocket gibs it; it stands again after 2 s
 
-Burnt-through crate: its pieces are charred (black, cracked, ash edges) and won't catch fire
-Smashed crate: its pieces catch fire from a torch or lava nail, spread to nearby wood, burn ~5 s and burn away
+Burnt-through crate: its wood debris looks charred (black, cracked, ash edges) and cannot be lit again
+Smashed crate (broken by hand or weapon): its pieces catch fire from a torch or lava nail, spread to nearby wood, burn a shorter time than a crate and burn away
 Torch an explosive box: nothing happens (metal)
 
 Holster and draw a bloody gun: it stays bloody in the holster
 Get bloody up close: the weapons in your holsters get some blood too (Holstered Weapons Too)
 Gib a monster: its dropped gun and backpack come out soaked; things lying near bleeding hits get bloody
-Take health after a fight (chunky detail): your own wounds fade, enemy blood stays until water
-Hit a monster with a box or crate: blood lands on the side that hit
-Blood Opacity 0.8 by default
+Take health after a fight: your own wounds fade, enemy blood on you and your gear stays until water
+Hit a monster with a box or crate: blood lands on the side that hit, sized like the hit
 
 Flashlight cord: compare Chain (now default) with Low-Poly Chain (Advanced VR Options > Flashlight > Cord)
 Retro Textures: Smooth Beyond: Never (no smoothing at any distance)
@@ -269,8 +268,7 @@ Thrown axe hitting an explosive box: bounces off (metal) now; should it stick? (
 Training dummy: its wounds build up until gibbed: should it heal over time?
 Retro textures: the World defaults (Block 1, Softness 1, Smooth Beyond 1, Bumps blocky, no detail grain, palette off): which to change?
 Gibs at 8-20 kg can't be thrown hard enough to burst on walls (Gib Splat Speed 250): lower the splat speed or the gib masses?
-Grappling hook: allow the flashlight to clip on it? (on now)
-Explosive boxes catching fire and blowing up from it: add?
+Flashlight cord: Low-Poly Chain vs Chain as the default look (Body > Flashlight > Cord)
 Multiplayer (docs/vr-port/MULTIPLAYER.md): debris cosmetic (client) or gameplay?
 Multiplayer (docs/vr-port/MULTIPLAYER.md): vr_melee_speed a server rule or personal?
 The shotgun lags up to ~176 degrees in a fast wiggle: too much for 3 kg? (weight spring settings)
