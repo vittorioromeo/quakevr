@@ -43,6 +43,7 @@ void backToGame(int hand);
 // selection moved onto them from a VR page's end (dir 1: down, onto the top one; -1: up, onto the
 // bottom one).
 [[nodiscard]] float toolbarBottom();
+[[nodiscard]] float toolbarRight(); // the column's right edge (menu x; far left when the style is off)
 [[nodiscard]] bool toolbarFocused();
 void focusToolbar(int dir);
 
