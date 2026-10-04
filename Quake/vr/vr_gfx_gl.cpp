@@ -165,7 +165,7 @@ vec4 screen()
     rgb += color.rgb * (0.05 * k * exp(-d * d * 400.0));
     float noise = hash(floor(uv * Size.xy) + vec2(seed, seed * 0.37));
     rgb += color.rgb * (noise * k * (0.025 + 0.25 * g));
-    return vec4(rgb, 1.0);
+    return vec4(rgb, color.a); // (opaque but for the tips' fading screens over the scene: text3d::queueOverlayScreen)
 }
 // Mode 5, the wrist gadget's hologram (premultiplied; the vertex colour's alpha: how shown). Params: time, the effect's
 // strength k, glitch g, and 1 for the beam. The text: its lit strokes (the texture's brightness) in the vertex colour,

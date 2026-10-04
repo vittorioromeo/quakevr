@@ -2417,7 +2417,7 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
     VR_Push(e, xForward, 520 * push, 140 * push);
     dprint(sprintf("bash hit: %s, %.1f damage, knocked back at %.0f u/s, staggered %.2f s\n", e.classname, dmg,
         vlen(e.velocity), stagger));
-    if(e.health > 0 && e.th_pain)
+    if(e.health > 0 && e.th_pain && !e.vr_knockdown)
     {
         entity oldSelf = self;
         self = e;
@@ -2426,6 +2426,8 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
         e.attack_finished = time + stagger;
         self = oldSelf;
     }
+    // A knockdown (vr_knockdown.qc): by chance, the shove knocks it down as a ragdoll.
+    VR_Knockdown_Try(e, xForward, xKind, xHand);
     VR_HitBloodSplash(e, e.origin + '0 0 16', 4);
 };
 

@@ -18,6 +18,7 @@
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Fmod.hpp"
 #include "Zancle/Math/Lround.hpp"
@@ -153,6 +154,42 @@ struct Board
     glm::vec4 drawnPalette{-1.f};     // and the palette it was drawn in
 };
 za::Vector<Board> boards;
+
+// Tips' screens over the scene (queueOverlayScreen): this frame's, and their images (as the boards', a few kept by
+// their text).
+struct TipScreen
+{
+    za::String text;
+    glm::vec3 pos, right, up;
+    float charSize, alpha;
+    glm::vec3 eye; // the head's middle: the cable's facing and width, and its start (not the frame's first view)
+    bool line;
+    glm::vec3 lineTo;
+    float widthPerUnit;
+};
+za::Vector<TipScreen> tipScreens;
+za::SizeT tipScreenCount = 0;
+struct TipImage
+{
+    za::String text;            // drawn in it
+    glm::vec4 palette{-1.f};
+    gfx::Target target;
+    int width{0}, height{0};    // its virtual screen (font pixels), 0 before it is drawn
+    int frame{-1};              // the host frame it was last wanted in
+};
+constexpr int maxTipImages = 4;
+za::Array<TipImage, maxTipImages> tipImages;
+// A tip screen's draws this frame, in order (drawOverlay): the cable's bezel, face and glow, then the screen's (over the
+// cable's start: no seam).
+struct TipDraw
+{
+    za::Vector<gfx::Vertex> cableBezel, cableFace, cableGlows, bezel, face, glows;
+    gfx::Texture texture{0};
+    glm::vec4 params{0.f};
+    glm::vec3 size{1.f};
+};
+za::Vector<TipDraw> tipDraws;
+za::SizeT tipDrawCount = 0;
 
 // The boards' CRT strength (vr_worldtext_crt; 0 the old plain text).
 [[nodiscard]] float boardCrt()
@@ -309,7 +346,7 @@ void layoutLog(const gadget::Log& log, const glm::vec3& eye, const glm::vec3& ri
 // A soft glow round a screen's edge (gadget::Glow), as the bloom would give it: two rings, a
 // narrow bright one and a wide faint one, each fading out from the edge (the vertex colour's alpha
 // times 1 - distance^2: Shade::SoftEdge), their corners quarter discs.
-void glowRing(const gadget::Glow& g, float spread, float alpha)
+void glowRing(const gadget::Glow& g, float spread, float alpha, za::Vector<gfx::Vertex>& out = glows)
 {
     const glm::vec3 r = g.right, u = g.up;
     const float w = g.halfSize.x, h = g.halfSize.y;
@@ -323,7 +360,7 @@ void glowRing(const gadget::Glow& g, float spread, float alpha)
         const gfx::Vertex d{g.centre + r * x0 + u * y1, f01, color};
         for(const gfx::Vertex* v : {&a, &b, &c, &a, &c, &d})
         {
-            glows.pushBack(*v);
+            out.pushBack(*v);
         }
     };
     const float s = spread;
@@ -338,10 +375,10 @@ void glowRing(const gadget::Glow& g, float spread, float alpha)
     piece(-w - s, -h - s, -w, -h, xy, y, o, x);
 }
 
-void glow(const gadget::Glow& g)
+void glow(const gadget::Glow& g, za::Vector<gfx::Vertex>& out = glows)
 {
-    glowRing(g, g.spread * 0.35f, g.color.a);
-    glowRing(g, g.spread, g.color.a * 0.45f);
+    glowRing(g, g.spread * 0.35f, g.color.a, out);
+    glowRing(g, g.spread, g.color.a * 0.45f, out);
 }
 
 // A box centred on `c`, half extents `hr` along `right`, `hu` along `up`, `hn` along `n`; its
@@ -635,6 +672,222 @@ void layoutBoard(size_t index, const worldtext::WorldText& wt)
     }
 }
 
+// A board's image (a tip screen's too): `text` on the face, its lines aligned in `columns` and the page centred in
+// `rows`, into `target` (made with mipmaps: the glow, and far away), boardPad font pixels round it.
+void drawBoardImage(gfx::Target& target, za::StringView boardText, int columns, int rows, Align align, const glm::vec3& text,
+    const glm::vec3& face, const char* name)
+{
+    const int width = columns * 8 + boardPad * 2;
+    const int height = rows * 8 + boardPad * 2;
+    // Its virtual screen in font pixels: whole ones, so that the image's pixels fall on the font's.
+    const float fit = za::sqrt(boardTexels / static_cast<float>(width * height));
+    const int scale = za::clamp(static_cast<int>(fit), 2, 8);
+    gfx::ensureTarget(target, width * scale, height * scale, true, name);
+    gfx::begin2D(target, width, height);
+    gfx::draw2D::fill(0.f, 0.f, static_cast<float>(width), static_cast<float>(height), face);
+    gfx::draw2D::color(glm::vec4{text, 1.f});
+    splitLines(boardText);
+    const int top = boardPad + (rows - static_cast<int>(textLines.size())) * 4; // the page centred
+    for(size_t i = 0; i < textLines.size(); i++)
+    {
+        const za::String line{textLines[i]};
+        const float x = static_cast<float>(boardPad) + 8.f * indent(align, static_cast<size_t>(columns), line.size());
+        gfx::draw2D::text(x, static_cast<float>(top + 8 * static_cast<int>(i)), 8.f, line.cStr());
+    }
+    gfx::draw2D::color(glm::vec4{1.f});
+    gfx::end2D();
+}
+
+// The tip screens' images whose text or palette changed (renderScreens): each this frame's text in an image, the one
+// holding it already or the one wanted least lately.
+void renderTipImages()
+{
+    const glm::vec3 text = boardText(), face = boardFace();
+    const glm::vec4 palette{vr_worldtext_hue.value, text.g, face.g, text.r};
+    for(za::SizeT i = 0; i < tipScreenCount; i++)
+    {
+        const TipScreen& t = tipScreens[i];
+        TipImage* image = nullptr;
+        for(TipImage& candidate : tipImages)
+        {
+            if(candidate.text == t.text && candidate.target.texture)
+            {
+                image = &candidate;
+            }
+        }
+        if(!image)
+        {
+            image = &tipImages[0];
+            for(TipImage& candidate : tipImages)
+            {
+                image = candidate.frame < image->frame ? &candidate : image;
+            }
+        }
+        image->frame = host_framecount;
+        if(image->target.texture && image->text == t.text && image->palette == palette)
+        {
+            continue;
+        }
+        const size_t columns = splitLines(t.text);
+        const int rows = static_cast<int>(textLines.size());
+        drawBoardImage(image->target, t.text, static_cast<int>(columns), rows, Align::Centre, text, face, "tip screen");
+        image->text = t.text;
+        image->palette = palette;
+        image->width = static_cast<int>(columns) * 8 + boardPad * 2;
+        image->height = rows * 8 + boardPad * 2;
+    }
+}
+
+// A tip screen's draws (once a frame, its cable facing the head's middle): its bezel, its face through the CRT shader (the
+// plain face until its image is drawn: a frame), the boards' glow round it; and its cable, the same three, from well
+// inside the screen to its point, ending in a spot.
+void layoutTipScreen(const TipScreen& t)
+{
+    const glm::vec3& eye = t.eye;
+    const size_t columns = splitLines(t.text);
+    if(columns == 0 || t.alpha <= 0.f)
+    {
+        return;
+    }
+    if(tipDrawCount == tipDraws.size())
+    {
+        tipDraws.emplaceBack();
+    }
+    TipDraw& d = tipDraws[tipDrawCount++];
+    d.cableBezel.clear();
+    d.cableFace.clear();
+    d.bezel.clear();
+    d.face.clear();
+    d.glows.clear();
+    d.cableGlows.clear();
+    d.texture = 0;
+
+    const glm::vec3 textColor = boardText();
+    const glm::vec4 phosphor{textColor, t.alpha};
+    const glm::vec4 bezelColor{0.1f, 0.1f, 0.11f, t.alpha};
+    const float glowK = CLAMP(0.f, vr_screen_glow.value, 3.f);
+    const float rows = static_cast<float>(textLines.size());
+    const float halfW = t.charSize * static_cast<float>(columns) * 0.5f;
+    const float halfH = t.charSize * rows * 0.5f;
+    const float pad = t.charSize / 8.f * static_cast<float>(boardPad);
+    const float bezel = t.charSize * 0.45f;
+    const glm::vec3 &r = t.right, &u = t.up;
+    const auto rect = [&](za::Vector<gfx::Vertex>& out, float hw, float hh, const glm::vec4& color) {
+        const glm::vec3 bl = t.pos - r * hw - u * hh, br = t.pos + r * hw - u * hh;
+        const glm::vec3 tr = t.pos + r * hw + u * hh, tl = t.pos - r * hw + u * hh;
+        const gfx::Vertex v[4] = {{bl, {0.f, 0.f}, color}, {br, {1.f, 0.f}, color}, {tr, {1.f, 1.f}, color}, {tl, {0.f, 1.f}, color}};
+        for(const int i : {0, 1, 2, 0, 2, 3})
+        {
+            out.pushBack(v[i]);
+        }
+    };
+
+    const TipImage* image = nullptr;
+    for(const TipImage& candidate : tipImages)
+    {
+        if(candidate.text == t.text && candidate.target.texture && candidate.width > 0)
+        {
+            image = &candidate;
+        }
+    }
+    const float crt = boardCrt() > 0.f ? boardCrt() : 1.f;
+    if(image)
+    {
+        d.texture = image->target.texture;
+        d.params = {static_cast<float>(za::fmod(realtime, 1000.0)), crt,
+            gadget::glitch(realtime + 23.7) * za::min(crt, 1.f), gadget::textGlow()};
+        d.size = {static_cast<float>(image->width), static_cast<float>(image->height), 1.f};
+    }
+
+    // The screen: its bezel, its face (the plain face colour until the image is drawn), its glow.
+    rect(d.bezel, halfW + pad + bezel, halfH + pad + bezel, bezelColor);
+    rect(image ? d.face : d.bezel, halfW + pad, halfH + pad, image ? phosphor : glm::vec4{boardFace(), t.alpha});
+    if(glowK > 0.f)
+    {
+        glow({.centre = t.pos, .right = r, .up = u, .halfSize = {halfW + pad, halfH + pad},
+                 .spread = bezel + t.charSize * 0.8f, .color = glm::vec4{textColor, 0.16f * glowK * t.alpha}},
+            d.glows);
+    }
+    if(!t.line)
+    {
+        return;
+    }
+
+    // The cable: from inside the screen, halfway from its middle to where the way to the point leaves it, seen from the
+    // eye (under the screen: the screen is drawn over its start), to the point.
+    const glm::vec3 n = glm::normalize(glm::cross(r, u));
+    const glm::vec3 toPoint = t.lineTo - eye;
+    const float facing = glm::dot(toPoint, n);
+    const float along = za::abs(facing) > 1e-6f ? glm::dot(t.pos - eye, n) / facing : 0.f;
+    if(along <= 0.f)
+    {
+        return; // the point is behind the eye, as the screen's plane goes
+    }
+    const glm::vec3 onPlane = eye + toPoint * along - t.pos;
+    const float dx = glm::dot(onPlane, r), dy = glm::dot(onPlane, u);
+    const float edgeW = halfW + pad + bezel, edgeH = halfH + pad + bezel;
+    if(za::abs(dx) <= edgeW && za::abs(dy) <= edgeH)
+    {
+        return; // behind the screen
+    }
+    const float k = za::min(za::abs(dx) > 1e-4f ? edgeW / za::abs(dx) : 1e9f, za::abs(dy) > 1e-4f ? edgeH / za::abs(dy) : 1e9f);
+    const glm::vec3 a = t.pos + (r * dx + u * dy) * (k * 0.5f);
+    const glm::vec3 b = t.lineTo;
+    const glm::vec3 way = b - a;
+    const float length = glm::length(way);
+    if(length < 1e-3f)
+    {
+        return;
+    }
+    const auto side = [&](const glm::vec3& p) {
+        const glm::vec3 s = glm::cross(way, eye - p);
+        const float len = glm::length(s);
+        return len > 1e-6f ? s / len * (t.widthPerUnit * glm::distance(eye, p)) : glm::vec3{0.f};
+    };
+    const glm::vec3 sa = side(a), sb = side(b);
+    // The face's texels: inside its padding (no text there), across the cable and along it.
+    const float u0 = image ? 0.2f * static_cast<float>(boardPad) / static_cast<float>(image->width) : 0.f;
+    const float u1 = image ? 0.8f * static_cast<float>(boardPad) / static_cast<float>(image->width) : 0.f;
+    const float v0 = image ? 0.2f * static_cast<float>(boardPad) / static_cast<float>(image->height) : 0.f;
+    const float v1 = image ? 0.8f * static_cast<float>(boardPad) / static_cast<float>(image->height) : 0.f;
+    const auto band = [&](za::Vector<gfx::Vertex>& out, float width, const glm::vec4& color) {
+        const gfx::Vertex v[4] = {{a - sa * width, {u0, v0}, color}, {b - sb * width, {u1, v0}, color},
+            {b + sb * width, {u1, v1}, color}, {a + sa * width, {u0, v1}, color}};
+        for(const int i : {0, 1, 2, 0, 2, 3})
+        {
+            out.pushBack(v[i]);
+        }
+    };
+    // A round spot at the point: eight sides, facing the eye.
+    const auto spot = [&](za::Vector<gfx::Vertex>& out, float radius, const glm::vec4& color) {
+        const glm::vec3 toEye = glm::normalize(eye - b);
+        const glm::vec3 x = glm::normalize(za::abs(toEye.z) < 0.9f ? glm::cross(toEye, glm::vec3{0.f, 0.f, 1.f})
+                                                                    : glm::cross(toEye, glm::vec3{1.f, 0.f, 0.f}));
+        const glm::vec3 y = glm::cross(toEye, x);
+        const float rad = radius * t.widthPerUnit * glm::distance(eye, b);
+        const glm::vec2 mid{(u0 + u1) * 0.5f, (v0 + v1) * 0.5f};
+        for(int i = 0; i < 8; i++)
+        {
+            const float a0 = static_cast<float>(i) * 0.785398f, a1 = static_cast<float>(i + 1) * 0.785398f;
+            out.pushBack({b, mid, color});
+            out.pushBack({b + (x * glm::cos(a0) + y * glm::sin(a0)) * rad, mid, color});
+            out.pushBack({b + (x * glm::cos(a1) + y * glm::sin(a1)) * rad, mid, color});
+        }
+    };
+    band(d.cableBezel, 2.f, bezelColor);
+    spot(d.cableBezel, 3.6f, bezelColor);
+    const glm::vec4 cableFace = image ? phosphor : glm::vec4{boardFace(), t.alpha};
+    band(image ? d.cableFace : d.cableBezel, 1.f, cableFace);
+    spot(image ? d.cableFace : d.cableBezel, 2.2f, cableFace);
+    if(glowK > 0.f)
+    {
+        const float w = t.widthPerUnit * glm::distance(eye, (a + b) * 0.5f);
+        glow({.centre = (a + b) * 0.5f, .right = way / length, .up = glm::normalize(glm::cross(way / length, eye - (a + b) * 0.5f)),
+                 .halfSize = {length * 0.5f, w}, .spread = w * 3.f, .color = glm::vec4{textColor, 0.16f * glowK * t.alpha}},
+            d.cableGlows);
+    }
+}
+
 // The boards' images whose text or palette changed (renderScreens).
 void renderBoards()
 {
@@ -672,23 +925,7 @@ void renderBoards()
             continue;
         }
 
-        // Its virtual screen in font pixels: whole ones, so that the image's pixels fall on the font's.
-        const float fit = za::sqrt(boardTexels / static_cast<float>(width * height));
-        const int scale = za::clamp(static_cast<int>(fit), 2, 8);
-        gfx::ensureTarget(b.target, width * scale, height * scale, true, "world text board"); // mipmaps: the glow, and far away
-        gfx::begin2D(b.target, width, height);
-        gfx::draw2D::fill(0.f, 0.f, static_cast<float>(width), static_cast<float>(height), face);
-        gfx::draw2D::color(glm::vec4{text, 1.f});
-        splitLines(b.text);
-        const int top = boardPad + (b.rows - static_cast<int>(textLines.size())) * 4; // the page centred
-        for(size_t i = 0; i < textLines.size(); i++)
-        {
-            const za::String line{textLines[i]};
-            const float x = static_cast<float>(boardPad) + 8.f * indent(b.align, static_cast<size_t>(b.columns), line.size());
-            gfx::draw2D::text(x, static_cast<float>(top + 8 * static_cast<int>(i)), 8.f, line.cStr());
-        }
-        gfx::draw2D::color(glm::vec4{1.f});
-        gfx::end2D();
+        drawBoardImage(b.target, b.text, b.columns, b.rows, b.align, text, face, "world text board");
 
         b.width = width;
         b.height = height;
@@ -723,7 +960,8 @@ void drawTranslucent()
 
 void drawOverlay()
 {
-    if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount || logText.empty())
+    if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount ||
+        (logText.empty() && tipDrawCount == 0))
     {
         return;
     }
@@ -733,6 +971,27 @@ void drawOverlay()
     gfx::draw(logText, viewProjection,
         {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false},
         gfx::fontTexture());
+    // The tips' screens: each one's cable, then the screen over the cable's start.
+    const gfx::State color{.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false};
+    const gfx::State glowState{.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Additive, .depthTest = false, .depthWrite = false};
+    for(za::SizeT i = 0; i < tipDrawCount; i++)
+    {
+        const TipDraw& d = tipDraws[i];
+        const gfx::State face{.shade = gfx::Shade::Screen, .blend = gfx::Blend::Alpha, .depthTest = false,
+            .depthWrite = false, .params = d.params, .screen = d.size};
+        gfx::draw(d.cableBezel, viewProjection, color);
+        if(d.texture && !d.cableFace.empty())
+        {
+            gfx::draw(d.cableFace, viewProjection, face, d.texture);
+        }
+        gfx::draw(d.cableGlows, viewProjection, glowState);
+        gfx::draw(d.bezel, viewProjection, color);
+        if(d.texture && !d.face.empty())
+        {
+            gfx::draw(d.face, viewProjection, face, d.texture);
+        }
+        gfx::draw(d.glows, viewProjection, glowState);
+    }
 }
 
 void queue(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale, bool screen)
@@ -765,15 +1024,39 @@ void queueOverlay(za::StringView text, const glm::vec3& pos, const glm::vec3& an
     builtFrame = -1;
 }
 
+void queueOverlayScreen(za::StringView text, const glm::vec3& pos, const glm::vec3& right, const glm::vec3& up,
+    float charSize, float alpha, const glm::vec3& eye, const glm::vec3* lineTo, float widthPerUnit)
+{
+    if(tipScreenCount == tipScreens.size())
+    {
+        tipScreens.emplaceBack();
+    }
+    TipScreen& t = tipScreens[tipScreenCount++];
+    t.text = text;
+    t.pos = pos;
+    t.right = right;
+    t.up = up;
+    t.charSize = charSize;
+    t.alpha = alpha;
+    t.eye = eye;
+    t.line = lineTo != nullptr;
+    t.lineTo = lineTo ? *lineTo : glm::vec3{0.f};
+    t.widthPerUnit = widthPerUnit;
+    builtFrame = -1;
+}
+
+
 void clear()
 {
     queuedCount = 0;
+    tipScreenCount = 0;
     builtFrame = -1;
 }
 
 void renderScreens()
 {
     renderBoards();
+    renderTipImages();
     if(screenCrt() <= 0.f)
     {
         return;
@@ -920,6 +1203,11 @@ extern "C" void VR_DrawSceneOpaque()
         if(gadget::log(wristLog))
         {
             layoutLog(wristLog, eye, right, up);
+        }
+        tipDrawCount = 0;
+        for(za::SizeT i = 0; i < tipScreenCount; i++)
+        {
+            layoutTipScreen(tipScreens[i]);
         }
     }
 

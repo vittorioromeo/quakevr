@@ -458,6 +458,24 @@ struct RagdollBodies
     // kept.
     float settle{1.f};
     za::Array<glm::vec3, ragdoll::maxBones> ownLin{}, ownAng{};
+    // A living monster knocked down (vr_knockdown; "Knockdowns" below): its loose pieces (a weapon) welded to the part
+    // that held them, until it gets up or dies.
+    bool knocked{false};
+};
+
+// A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
+struct Recovery
+{
+    int num{0};
+    const ragdoll::Rig* rig{nullptr};
+    float scale{1.f};
+    int count{0};
+    za::Array<glm::quat, ragdoll::maxBones> rot{};
+    za::Array<glm::vec3, ragdoll::maxBones> pos{};
+    double start{0.0};
+    float duration{0.35f};
+    int frame{-1}, prevFrame{-1};
+    double changed{0.0};
 };
 
 // Whether part `b` of `r` was cut off (its body is the part it was cut from's).
@@ -704,6 +722,7 @@ struct World
     };
     za::Vector<MonsterMotion> motion;
     za::Vector<RagdollBodies> ragdolls; // (Slot::ragdoll)
+    za::Vector<Recovery> recoveries;    // knocked-down monsters getting up (Knockdowns)
     // Hands holding a ragdoll's limb (vr_ragdoll_grab; "Ragdolls"): a kinematic body at the hand and a motor joint to
     // the limb; or a force grab's pull flying the limb to the hand (no joint yet).
     struct RagdollGrab
@@ -1666,6 +1685,20 @@ constexpr float corpsePiece = 24.f;  // units: the pieces of a fitted shape abou
     return model && model->type == mod_alias;
 }
 
+// A living monster a shove knocked down (QC vr_knockdown.qc: .vr_knockdown 1, touchable and not solid): a ragdoll as a
+// dead one's ("Knockdowns").
+[[nodiscard]] bool knockedDown(edict_t* ent)
+{
+    if(!hasFlag(ent, FL_MONSTER) || ent->v.health <= 0.f || fields().vr_knockdown < 0 ||
+        fieldFloat(ent, fields().vr_knockdown) != 1.f)
+    {
+        return false;
+    }
+    const int solid = static_cast<int>(ent->v.solid);
+    const qmodel_t* model = modelOf(ent);
+    return (solid == SOLID_NOT || solid == SOLID_NOT_BUT_TOUCHABLE) && model && model->type == mod_alias;
+}
+
 // Once a frame, before the bodies: each dead monster's frame and model, and since when it has had them.
 void watchCorpses()
 {
@@ -2100,7 +2133,8 @@ void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage); //
 
 [[nodiscard]] bool wantsRagdoll(edict_t* ent, int num)
 {
-    if(vr_ragdoll.value < 1.f || num <= svs.maxclients || !deadMonster(ent) || hasFlag(ent, FL_SWIM))
+    const bool knocked = knockedDown(ent);
+    if(vr_ragdoll.value < 1.f || num <= svs.maxclients || !(knocked || deadMonster(ent)) || hasFlag(ent, FL_SWIM))
     {
         return false;
     }
@@ -2117,6 +2151,10 @@ void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage); //
     if(!rig)
     {
         return false;
+    }
+    if(knocked)
+    {
+        return true; // (knocked down: at once, whatever Most Ragdolls: the QC made room, vr_knockdown.qc)
     }
     const float progress = ragdoll::deathProgress(*rig, static_cast<int>(ent->v.frame));
     // (Beheaded: its ragdoll at once, whatever Most Ragdolls; a saved game's made again so.)
@@ -2140,6 +2178,11 @@ void blastRagdoll(const RagdollBodies& r, const glm::vec3& at, float damage); //
 }
 
 [[nodiscard]] RagdollBodies* ragdollOf(int num); // (below)
+
+[[nodiscard]] bool isRagdollSlot(int num)
+{
+    return num < static_cast<int>(world->slots.size()) && world->slots[num].ragdoll >= 0;
+}
 
 // Whether a part of ragdoll `r` is in one of edict `other`'s ragdoll's (their shapes, a centimetre less: parts only
 // touching are not in each other).
@@ -2258,6 +2301,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
     // Its model's scale (a mapper's model_scale on the monster; uniform: its x), as it is drawn.
     r.scale = za::clamp(1.f + fieldVec(ent, fields().model_scale).x, 0.25f, 4.f);
     r.born = qcvm->time;
+    r.knocked = knockedDown(ent);
     const float mass = za::max(tune(ent, Tune::Mass), 1.f), friction = za::max(tune(ent, Tune::Friction), 0.f);
 
     s.kind = Kind::Corpse;
@@ -2480,6 +2524,62 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
             (void)b3CreateRevoluteJoint(world->id, &jd);
         }
     }
+    // Knocked down (vr_knockdown_weld): a loose piece (his gun) welded where it is to the part nearest it, his hand's.
+    if(r.knocked && vr_knockdown_weld.value != 0.f)
+    {
+        for(int b = 0; b < r.count; b++)
+        {
+            if(rig->bones[b].joint != ragdoll::Joint::Loose)
+            {
+                continue;
+            }
+            glm::quat lr;
+            glm::vec3 lt;
+            ragdoll::bonePose(*rig, drawnPose, b, lr, lt);
+            glm::vec3 mid{0.f};
+            for(const glm::vec3& p : rig->bones[b].points)
+            {
+                mid += p;
+            }
+            mid = lr * (mid / static_cast<float>(za::max<za::SizeT>(rig->bones[b].points.size(), 1))) + lt;
+            int best = -1;
+            float bestD = 1e30f;
+            for(int o = 0; o < r.count; o++)
+            {
+                if(rig->bones[o].joint == ragdoll::Joint::Loose)
+                {
+                    continue;
+                }
+                glm::quat orot;
+                glm::vec3 opos;
+                ragdoll::bonePose(*rig, drawnPose, o, orot, opos);
+                for(const glm::vec3& p : rig->bones[o].points)
+                {
+                    const float d = glm::distance(orot * p + opos, mid);
+                    if(d < bestD)
+                    {
+                        bestD = d;
+                        best = o;
+                    }
+                }
+            }
+            if(best < 0)
+            {
+                continue;
+            }
+            const b3BodyId a = r.body[static_cast<za::SizeT>(best)], c = r.body[static_cast<za::SizeT>(b)];
+            const b3WorldTransform xa = b3Body_GetTransform(a), xc = b3Body_GetTransform(c);
+            const glm::quat qa = fromB3(xa.q), qc = fromB3(xc.q);
+            const glm::vec3 pa = glmv(xa.p), pc = glmv(xc.p);
+            b3WeldJointDef jd = b3DefaultWeldJointDef();
+            jd.base.bodyIdA = a;
+            jd.base.bodyIdB = c;
+            jd.base.localFrameA = b3Transform{b3v(glm::inverse(qa) * (pc - pa)), toB3(glm::normalize(glm::inverse(qa) * qc))};
+            jd.base.localFrameB = b3Transform{b3Vec3_zero, b3Quat_identity};
+            jd.base.collideConnected = false;
+            (void)b3CreateWeldJoint(world->id, &jd);
+        }
+    }
     // Made in another ragdoll: they pass through each other until clear (ragdollsInside).
     for(const RagdollBodies& o : world->ragdolls)
     {
@@ -2614,6 +2714,22 @@ void writeRagdoll(edict_t* ent, Slot& s)
 {
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
     const ragdoll::Rig& rig = *r.rig;
+    // Knocked down, then killed where it lay ("Knockdowns"): its loose pieces (its weapon, welded) go, as a dead one's
+    // death frames hide them (the QC drops the weapon itself: vr_enemyguns.qc and the like).
+    if(r.knocked && ent->v.health <= 0.f)
+    {
+        r.knocked = false;
+        while(r.count > 1 && rig.bones[r.count - 1].joint == ragdoll::Joint::Loose)
+        {
+            const b3BodyId body = r.body[static_cast<za::SizeT>(r.count - 1)];
+            if(B3_IS_NON_NULL(body) && b3Body_IsValid(body))
+            {
+                b3DestroyBody(body);
+            }
+            r.body[static_cast<za::SizeT>(r.count - 1)] = b3_nullBodyId;
+            r.count--;
+        }
+    }
     za::Array<glm::quat, ragdoll::maxBones> rot{};
     za::Array<glm::vec3, ragdoll::maxBones> pos{};
     glm::vec3 lo{1e30f}, hi{-1e30f};
@@ -2676,6 +2792,208 @@ void writeRagdoll(edict_t* ent, Slot& s)
         }
     }
     ragdoll::publish(r.num, r.rig, r.count, rot.data(), pos.data(), r.scale, qcvm->time + host_frametime, heldBy, r.cut);
+}
+
+// ----------------------------------------------------------------------------
+// Knockdowns (vr_knockdown; QC vr_knockdown.qc; Combat > Knockdowns). A shove can knock a living monster with a rig down:
+// the QC makes it touchable and not solid, .vr_knockdown 1, and its ragdoll is made at once (ragdollKnockdown) from the
+// frame it is drawn in, its gun welded in its hand (vr_knockdown_weld). It is a ragdoll as a dead one is (hit on its
+// limbs, grabbed, pushed, thrown; killed there, it simply stays one: its gun goes, the QC drops it). To get up
+// (ragdollGetUp) the QC names the frame its get-up starts from (its own fall-and-rise frames' lowest, or a death's last
+// to play backwards; two to choose from): the frame is fitted to how the body lies (its turn about the vertical and
+// where, by its joints; the pelvis's tilt picks between two), room to stand is looked for there and around it
+// (vr_knockdown_search: never through a wall, a floor or a ceiling), the hands holding it let go, and its parts go. Its
+// last pose is then blended into the animation as it plays (vr_knockdown_blend: a Recovery, published as a ragdoll is
+// until the blend is done).
+
+[[nodiscard]] float smooth01(float t)
+{
+    t = za::clamp(t, 0.f, 1.f);
+    return t * t * (3.f - 2.f * t);
+}
+
+// Bone `b` of `rig` animated in frame pose `pose`, for an entity at `origin` turned by `turn`: p_world = rot * (scale *
+// p_rest) + pos, as the ragdolls' bodies.
+void animatedBone(const ragdoll::Rig& rig, int pose, int b, const glm::quat& turn, const glm::vec3& origin, float scale,
+    glm::quat& rot, glm::vec3& pos)
+{
+    glm::quat r;
+    glm::vec3 t;
+    ragdoll::bonePose(rig, pose, b, r, t);
+    rot = glm::normalize(turn * r);
+    pos = origin + turn * (t * scale);
+}
+
+// The getting-up monsters' poses, after each step: their ragdolls' last blended into their animation (its frames lerped
+// as the client lerps them), published as ragdolls; done, the animated model is drawn again.
+void updateRecoveries()
+{
+    for(za::SizeT i = 0; i < world->recoveries.size();)
+    {
+        Recovery& rec = world->recoveries[i];
+        edict_t* ent = rec.num < qcvm->num_edicts ? EDICT_NUM(rec.num) : nullptr;
+        const float t = static_cast<float>((qcvm->time - rec.start) / za::max(static_cast<double>(rec.duration), 1e-3));
+        const bool knocked = ent && !ent->free && knockedDown(ent);
+        if(!ent || ent->free || modelOf(ent) != rec.rig->model || ent->v.health <= 0.f || knocked || t >= 1.f)
+        {
+            if(!knocked && !isRagdollSlot(rec.num))
+            {
+                ragdoll::unpublish(rec.num);
+            }
+            world->recoveries.eraseAt(i);
+            continue;
+        }
+        const int frame = static_cast<int>(ent->v.frame);
+        if(frame != rec.frame)
+        {
+            rec.prevFrame = rec.frame < 0 ? frame : rec.frame;
+            rec.frame = frame;
+            rec.changed = qcvm->time;
+        }
+        const float interval = 0.1f / za::clamp(vr_knockdown_getup_speed.value, 0.1f, 10.f);
+        const float lerp = za::clamp(static_cast<float>((qcvm->time - rec.changed) / interval), 0.f, 1.f);
+        const int pose1 = ragdoll::poseOfFrame(rec.rig->model, rec.prevFrame), pose2 = ragdoll::poseOfFrame(rec.rig->model, rec.frame);
+        const glm::quat turn = glm::angleAxis(glm::radians(ent->v.angles[1]), glm::vec3{0.f, 0.f, 1.f});
+        const glm::vec3 origin = vec(ent->v.origin);
+        const float w = smooth01(t);
+        za::Array<glm::quat, ragdoll::maxBones> rot{};
+        za::Array<glm::vec3, ragdoll::maxBones> pos{};
+        for(int b = 0; b < rec.count; b++)
+        {
+            const za::SizeT k = static_cast<za::SizeT>(b);
+            glm::quat r1, r2;
+            glm::vec3 p1, p2;
+            animatedBone(*rec.rig, pose1, b, turn, origin, rec.scale, r1, p1);
+            animatedBone(*rec.rig, pose2, b, turn, origin, rec.scale, r2, p2);
+            const glm::quat ar = glm::slerp(r1, r2, lerp);
+            const glm::vec3 ap = glm::mix(p1, p2, lerp);
+            // (The joint's place blended in a line and the turn about it: no swing about the model's origin.)
+            const glm::vec3 pivot = rec.rig->bones[b].pivot * rec.scale;
+            const glm::vec3 fromPivot = rec.rot[k] * pivot + rec.pos[k], toPivot = ar * pivot + ap;
+            rot[k] = glm::normalize(glm::slerp(rec.rot[k], ar, w));
+            pos[k] = glm::mix(fromPivot, toPivot, w) - rot[k] * pivot;
+        }
+        ragdoll::publish(rec.num, rec.rig, rec.count, rot.data(), pos.data(), rec.scale, qcvm->time + host_frametime, 0, 0);
+        i++;
+    }
+}
+
+// How well frame `frame` of `rig`, turned by `yaw` (out) about the vertical and put at `origin` (out), fits ragdoll `r`
+// as it lies: its joints' places (a 2D fit of the turn, their middles matched) and the pelvis's turn. Lower is better.
+[[nodiscard]] float fitFrame(const RagdollBodies& r, int frame, float& yaw, glm::vec3& origin)
+{
+    const ragdoll::Rig& rig = *r.rig;
+    const int pose = ragdoll::poseOfFrame(rig.model, frame);
+    za::Array<glm::vec3, ragdoll::maxBones> model{}, worldP{};
+    int n = 0;
+    glm::vec3 cm{0.f}, cw{0.f};
+    for(int b = 0; b < r.count; b++)
+    {
+        if(rig.bones[b].joint == ragdoll::Joint::Loose || partCut(r, b))
+        {
+            continue;
+        }
+        glm::quat ar;
+        glm::vec3 at;
+        ragdoll::bonePose(rig, pose, b, ar, at);
+        const b3WorldTransform xf = b3Body_GetTransform(r.body[static_cast<za::SizeT>(b)]);
+        const glm::vec3 pivot = rig.bones[b].pivot * r.scale;
+        model[static_cast<za::SizeT>(n)] = ar * pivot + at * r.scale;
+        worldP[static_cast<za::SizeT>(n)] = fromB3(xf.q) * pivot + world->toU(xf.p);
+        cm += model[static_cast<za::SizeT>(n)];
+        cw += worldP[static_cast<za::SizeT>(n)];
+        n++;
+    }
+    if(n == 0)
+    {
+        return 1e30f;
+    }
+    cm /= static_cast<float>(n);
+    cw /= static_cast<float>(n);
+    float sc = 0.f, cc = 0.f;
+    for(int i = 0; i < n; i++)
+    {
+        const glm::vec3 m = model[static_cast<za::SizeT>(i)] - cm, w = worldP[static_cast<za::SizeT>(i)] - cw;
+        cc += m.x * w.x + m.y * w.y;
+        sc += m.x * w.y - m.y * w.x;
+    }
+    yaw = za::atan2(sc, cc);
+    const glm::quat turn = glm::angleAxis(yaw, glm::vec3{0.f, 0.f, 1.f});
+    float err = 0.f;
+    for(int i = 0; i < n; i++)
+    {
+        const glm::vec3 d = turn * (model[static_cast<za::SizeT>(i)] - cm) - (worldP[static_cast<za::SizeT>(i)] - cw);
+        err += glm::dot(d, d);
+    }
+    err /= static_cast<float>(n);
+    origin = cw - turn * cm;
+    // The pelvis's turn as drawn against the frame's (a body on its back or on its front).
+    glm::quat pr;
+    glm::vec3 pt;
+    ragdoll::bonePose(rig, pose, 0, pr, pt);
+    const glm::quat drawn = fromB3(b3Body_GetTransform(r.body[0]).q);
+    const float c = za::clamp(za::abs(glm::dot(glm::normalize(turn * pr), drawn)), 0.f, 1.f);
+    const float angle = 2.f * za::acos(c);
+    constexpr float unitsPerRadian = 12.f;
+    return err + (angle * unitsPerRadian) * (angle * unitsPerRadian);
+}
+
+// Where a monster of box mins..maxs can stand near `at` (its middle there), its ragdoll lying from `from` (its pelvis):
+// `at`, else around it, out to `range` units in rings; each place reached from `from` without crossing a wall, on a
+// floor within a step of the one under the body (never one above or below it), its box clear (of the world, monsters
+// and players). False if none.
+[[nodiscard]] bool standSpot(edict_t* ent, const glm::vec3& from, const glm::vec3& at, const glm::vec3& mins,
+    const glm::vec3& maxs, float range, glm::vec3& out)
+{
+    const auto point = [](const glm::vec3& a, const glm::vec3& b, edict_t* pass) {
+        vec3_t va{a.x, a.y, a.z}, vb{b.x, b.y, b.z};
+        return SV_Move(va, vec3_origin, vec3_origin, vb, MOVE_NOMONSTERS, pass);
+    };
+    const glm::vec3 eye = from + glm::vec3{0.f, 0.f, 2.f};
+    // The floor under the body.
+    trace_t down = point(eye, eye - glm::vec3{0.f, 0.f, 128.f}, ent);
+    const float floorZ = down.fraction < 1.f ? down.endpos[2] : from.z - 24.f;
+    const float height = eye.z;
+    const auto tryAt = [&](const glm::vec3& c) {
+        const glm::vec3 level{c.x, c.y, height};
+        if(point(eye, level, ent).fraction < 1.f)
+        {
+            return false; // (a wall between)
+        }
+        const trace_t tr = point(level, level - glm::vec3{0.f, 0.f, height - floorZ + 32.f}, ent);
+        if(tr.fraction >= 1.f || tr.plane.normal[2] < 0.7f || za::abs(tr.endpos[2] - floorZ) > 24.f)
+        {
+            return false; // (no floor near the body's: a ledge, a drop, a step too high)
+        }
+        vec3_t o{c.x, c.y, tr.endpos[2] - mins.z + 0.25f};
+        vec3_t lo{mins.x, mins.y, mins.z}, hi{maxs.x, maxs.y, maxs.z};
+        const trace_t box = SV_Move(o, lo, hi, o, MOVE_NORMAL, ent);
+        if(box.startsolid || box.allsolid)
+        {
+            return false;
+        }
+        out = glm::vec3{o[0], o[1], o[2]};
+        return true;
+    };
+    if(tryAt(at))
+    {
+        return true;
+    }
+    constexpr float step = 8.f;
+    for(float radius = step; radius <= za::max(range, 0.f) + 0.01f; radius += step)
+    {
+        const int dirs = za::clamp(static_cast<int>(glm::two_pi<float>() * radius / step), 8, 32);
+        for(int d = 0; d < dirs; d++)
+        {
+            const float a = glm::two_pi<float>() * (static_cast<float>(d) + (static_cast<int>(radius / step) % 2 ? 0.5f : 0.f)) /
+                            static_cast<float>(dirs);
+            if(tryAt(at + glm::vec3{za::cos(a), za::sin(a), 0.f} * radius))
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 // A blast of `damage` at `at` (box3d::blast) on a ragdoll's parts: each thrown as a prop of the whole ragdoll's mass
@@ -7609,6 +7927,7 @@ void inLevel_f(); // (below: the Box3D queries it uses are)
 void approach_f(); // (below, with the players' shape against props)
 void shotBench_f(); // (below, with the shots' shape against props)
 void fire_f();
+void knockdownTest_f();
 void inside_f();
 void watchInside();
 
@@ -7638,6 +7957,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_approach", approach_f);
         Cmd_AddCommand("vr_physics_shotbench", shotBench_f);
         Cmd_AddCommand("vr_physics_fire", fire_f);
+        Cmd_AddCommand("vr_knockdown_test", knockdownTest_f);
         Cmd_AddCommand("vr_physics_inside", inside_f);
         Cmd_AddCommand("vr_physics_spawn", spawn_f);
         Cmd_AddCommand("vr_physics_fling", fling_f);
@@ -10006,6 +10326,34 @@ void fire_f()
     }
 }
 
+// vr_knockdown_test <mode>: QC's VR_Knockdown_Test, as the first player: 0 knocks the nearest monster down (whatever the
+// chance), 1 gets the knocked-down ones up now, 2 hits the nearest knocked-down one, 3 kills it, 4 gibs it, 5 lists the
+// monsters. For tests.
+void knockdownTest_f()
+{
+    if(!sv.active || svs.maxclients < 1)
+    {
+        Con_Printf("usage: vr_knockdown_test <mode> (in a game)\n");
+        return;
+    }
+    const VmScope vm;
+    edict_t* player = EDICT_NUM(1);
+    dfunction_t* fn = nullptr;
+    for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)
+    {
+        fn = !strcmp(PR_GetString(qcvm->functions[i].s_name), "VR_Knockdown_Test") ? &qcvm->functions[i] : nullptr;
+    }
+    if(!fn || player->free)
+    {
+        Con_Printf("vr_knockdown_test: no VR_Knockdown_Test in the progs, or no player\n");
+        return;
+    }
+    pr_global_struct->time = qcvm->time;
+    pr_global_struct->self = EDICT_TO_PROG(player);
+    G_FLOAT(OFS_PARM0) = Cmd_Argc() >= 2 ? static_cast<float>(Q_atof(Cmd_Argv(1))) : 0.f;
+    PR_ExecuteProgram(static_cast<func_t>(fn - qcvm->functions));
+}
+
 } // namespace
 
 extern "C" int VR_PushSkips(edict_t* ent)
@@ -10125,6 +10473,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     // physics sounds' scrapes).
     QVR_PROFILE("box3d write");
     const double tWrite = Sys_DoubleTime();
+    updateRecoveries(); // (knocked-down monsters getting up: Knockdowns)
     const bool scrapes = physsound::scrapesWanted();
     for(int num = 1; num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts; num++)
     {
@@ -10288,6 +10637,125 @@ bool isRagdoll(int num)
 {
     return ragdollOf(num) != nullptr;
 }
+
+bool canRagdoll(edict_t* ent)
+{
+    if(!world || vr_ragdoll.value < 1.f || !ent || ent->free || !hasFlag(ent, FL_MONSTER) || hasFlag(ent, FL_SWIM) ||
+        NUM_FOR_EDICT(ent) <= svs.maxclients)
+    {
+        return false;
+    }
+    qmodel_t* model = modelOf(ent);
+    return model && model->type == mod_alias && ragdoll::eligible(model) && ragdoll::rigFor(model) != nullptr;
+}
+
+bool ragdollKnockdown(edict_t* ent)
+{
+    if(!canRagdoll(ent) || !knockedDown(ent))
+    {
+        return false;
+    }
+    const int num = NUM_FOR_EDICT(ent);
+    for(za::SizeT i = 0; i < world->recoveries.size(); i++)
+    {
+        if(world->recoveries[i].num == num)
+        {
+            world->recoveries.eraseAt(i); // (knocked down again as it got up)
+            break;
+        }
+    }
+    Slot& s = slotOf(num);
+    if(s.ragdoll >= 0)
+    {
+        return true;
+    }
+    destroyBody(s);
+    const glm::vec3 vel = vec(ent->v.velocity);
+    if(!createRagdoll(ent, num, s))
+    {
+        return false;
+    }
+    (void)vel;
+    writeRagdoll(ent, s); // (drawn as one at once)
+    if(vr_knockdown_debug.value)
+    {
+        Con_Printf("knockdown: %d %s down as a ragdoll (%d ragdolls)\n", num, PR_GetString(ent->v.classname), ragdollCount());
+    }
+    return true;
+}
+
+int ragdollGetUp(edict_t* ent, int frameA, int frameB, const glm::vec3& mins, const glm::vec3& maxs, float range)
+{
+    if(!world || !ent || ent->free)
+    {
+        return 0;
+    }
+    const int num = NUM_FOR_EDICT(ent);
+    RagdollBodies* r = ragdollOf(num);
+    if(!r || !r->rig)
+    {
+        return 0;
+    }
+    const ragdoll::Rig& rig = *r->rig;
+    float yawA = 0.f, yawB = 0.f;
+    glm::vec3 atA{0.f}, atB{0.f};
+    const float errA = frameA >= 0 ? fitFrame(*r, frameA, yawA, atA) : 1e30f;
+    const float errB = frameB >= 0 ? fitFrame(*r, frameB, yawB, atB) : 1e30f;
+    if(errA >= 1e29f && errB >= 1e29f)
+    {
+        return 0;
+    }
+    const int which = errB < errA ? 2 : 1;
+    const float yaw = which == 2 ? yawB : yawA;
+    const glm::vec3 at = which == 2 ? atB : atA;
+    const b3WorldTransform pelvis = b3Body_GetTransform(r->body[0]);
+    const glm::vec3 from = fromB3(pelvis.q) * (rig.bones[0].pivot * r->scale) + world->toU(pelvis.p);
+    glm::vec3 spot;
+    if(!standSpot(ent, from, at, mins, maxs, range, spot))
+    {
+        if(vr_knockdown_debug.value)
+        {
+            Con_Printf("knockdown: %d no room to get up within %.0f units: stays down\n", num, range);
+        }
+        return 0;
+    }
+
+    // Its last pose kept for the blend, the hands holding it let go, its parts gone.
+    Recovery rec;
+    rec.num = num;
+    rec.rig = r->rig;
+    rec.scale = r->scale;
+    rec.count = r->count;
+    for(int b = 0; b < r->count; b++)
+    {
+        const b3WorldTransform xf = b3Body_GetTransform(r->body[static_cast<za::SizeT>(b)]);
+        rec.rot[static_cast<za::SizeT>(b)] = fromB3(xf.q);
+        rec.pos[static_cast<za::SizeT>(b)] = world->toU(xf.p);
+    }
+    rec.start = qcvm->time;
+    rec.duration = za::max(vr_knockdown_blend.value, 0.f);
+    destroyBody(slotOf(num));
+    world->recoveries.pushBack(rec);
+    if(fields().vr_knockdown >= 0)
+    {
+        fieldFloat(ent, fields().vr_knockdown) = 2.f;
+    }
+    store(spot, ent->v.origin);
+    ent->v.angles[0] = ent->v.angles[2] = 0.f;
+    ent->v.angles[1] = glm::degrees(yaw);
+    ent->v.velocity[0] = ent->v.velocity[1] = ent->v.velocity[2] = 0.f;
+    // (Drawn as it lay until the step's blend: no frame of its animated model in between.)
+    ragdoll::publish(num, rec.rig, rec.count, rec.rot.data(), rec.pos.data(), rec.scale, qcvm->time + host_frametime, 0, 0);
+    if(vr_knockdown_debug.value)
+    {
+        const float other = which == 2 ? errA : errB;
+        Con_Printf("knockdown: %d gets up from frame %d (fit %.0f, the other's %.0f), %.0f units from where it lay, yaw %.0f\n",
+            num, which == 2 ? frameB : frameA, which == 2 ? errB : errA, other < 1e29f ? other : -1.f,
+            glm::length(glm::vec2{spot - at}), glm::degrees(yaw));
+    }
+    return which;
+}
+
 
 bool ragdollReach(int num, const glm::vec3& at)
 {

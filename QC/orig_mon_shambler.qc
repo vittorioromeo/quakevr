@@ -372,6 +372,7 @@ void() monster_shambler_precache =
 */
 void() monster_shambler =
 {
+    VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_shambler, $death11, $death1, -1, -1); // VR: knocked down (vr_knockdown.qc): its death backwards
     if(deathmatch)
     {
         remove(self);
