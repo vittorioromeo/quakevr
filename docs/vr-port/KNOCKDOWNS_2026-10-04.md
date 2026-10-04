@@ -122,4 +122,4 @@ Results on the firing range, with grunts spawned by `vr_physics_spawn`:
 | A shotgun headshot while down (`vr_decap_test 12`) | Head popped; the ragdoll stays, headless |
 | `vr_ragdoll_max 2`: a dead ragdoll and one down, then another knockdown | The dead one's body is removed |
 | The same with two down and no dead ones | The oldest one down is killed and removed |
-| No room (`vr_knockdown_search 0`, a monster standing where it would stand) | It stays down and retries; with the search at 64 it gets up beside the monster |
+| No room (`vr_knockdown_search 0`, a monster standing where it would stand) | It stays down, retrying every 0.5 s (4 tries). With the search at 64 it gets up 16 units away, beside the monster |
