@@ -285,6 +285,22 @@ float(float inHead, float outLateral, float belowOrigin) VR_RegionPick =
     return 0; // standard
 }
 
+// Point classification shared by precise shots, positional melee and the animated debug view's check.
+// `rest` is the contacted point mapped to the standing model, in world space (hitmodel_rest).
+float PositionalPointRegion(entity xTarget, vector rest) =
+{
+    if(!PositionalHead(xTarget)) { return -1; }
+    float yaw = xTarget.angles_y * (3.14159265 / 180);
+    vector facing = '0 0 0';
+    facing_x = cos(yaw); facing_y = sin(yaw);
+    vector head = xTarget.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    vector side = '0 0 0';
+    side_x = -facing_y; side_y = facing_x;
+    float inHead = vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN;
+    float lateral = fabs((rest - xTarget.origin) * side) > (xTarget.maxs_x - xTarget.mins_x) * 0.35;
+    return VR_RegionPick(inHead, lateral, rest_z < xTarget.origin_z);
+}
+
 // Where a shot entering `xTarget` at `xEndpos` (a point on its box, from a trace) along
 // `xDirection` hits: 1 the head, 2 an extremity (far from its middle), 3 the legs, 0 the body; -1
 // when positional damage does not apply (vr_positional_damage 0, a target without a head).
@@ -320,14 +336,7 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     if(hitmodel_target(xTarget))
     {
         vector rest = hitmodel_rest(xTarget, xEndpos);
-        float inHead = vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN;
-        // Out to its sides (not forwards: a grunt's hands and gun are in front of its chest, a front shot's body).
-        vector restSide;
-        restSide_x = -facing_y;
-        restSide_y = facing_x;
-        restSide_z = 0;
-        return VR_RegionPick(inHead, fabs((rest - xTarget.origin) * restSide) > (xTarget.maxs_x - xTarget.mins_x) * 0.35,
-            rest_z < xTarget.origin_z);
+        return PositionalPointRegion(xTarget, rest);
     }
 
     // The ray's closest approach to the head, not behind where it entered.

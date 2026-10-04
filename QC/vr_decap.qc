@@ -1150,8 +1150,8 @@ void(float xTest) VR_Decap_Test =
     }
 };
 
-// Debug > Show Hit Zones (vr_debug_hitzones; drawn by the engine: debughitzone, vr_hitmodel.cpp zonesDraw): each live
-// monster's zones on its model standing, as the hits are judged (in its own frame: x forward, y left, z up). 1
+// Debug > Show Hit Zones (vr_debug_hitzones; drawn by the engine: debughitzone, vr_hitmodel.cpp zonesDraw): each
+// monster's zones on its model standing (the engine maps these onto its animated surface for precise hits). 1
 // positional damage's (PositionalRegion): the head sphere (red; VR_HEAD_MARGIN in with precise hits), the body
 // (green: within 0.35 of its box's width of its middle, above its origin), the legs (blue: below it), the extremities
 // (yellow: out to its sides beyond that, drawn to 0.75 of its width; open-ended). 2 melee beheading's
@@ -1166,7 +1166,7 @@ void() VR_Decap_DebugFrame =
     }
     for(entity e = nextent(world); e; e = nextent(e))
     {
-        if(!(e.flags & FL_MONSTER) || e.health <= 0 || e.vr_gib)
+        if(!(e.flags & FL_MONSTER) || e.vr_gib)
         {
             continue;
         }
@@ -1191,7 +1191,7 @@ void() VR_Decap_DebugFrame =
             vector c = '1 0 0' * xHeadForward + '0 0 1' * xHeadUp;
             debughitzone(e, 1, c, c, xHeadRadius + (precise ? VR_HEAD_MARGIN : 0));
         }
-        if(mode >= 2 && VR_Decap_Judged(e) && VR_Decap_HeadZone(e))
+        if(mode >= 2 && e.health > 0 && VR_Decap_Judged(e) && VR_Decap_HeadZone(e))
         {
             vector top = '1 0 0' * xHeadForward + '0 0 1' * xHeadUp;
             if(mode == 2)

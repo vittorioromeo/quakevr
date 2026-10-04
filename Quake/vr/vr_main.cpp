@@ -1198,6 +1198,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_zancle_math_test", qza::mathTest_f);
     Cmd_AddCommand("vr_hitmodel_stats", hitmodel::stats_f);
     Cmd_AddCommand("vr_hitmodel_check", hitmodel::check_f);
+    Cmd_AddCommand("vr_hitzones_check", hitmodel::zonesCheck_f);
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
     Cmd_AddCommand("vr_wounds_test", wounds::test_f);
     Cmd_AddCommand("vr_wounds_info", wounds::info_f);

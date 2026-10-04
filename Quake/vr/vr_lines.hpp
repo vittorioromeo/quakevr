@@ -21,6 +21,9 @@ void glowPoint(const glm::vec3& p, float size, const glm::vec4& color);
 void sceneLine(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB);
 void sceneGlow(const glm::vec3& a, const glm::vec3& b, float width, const glm::vec4& colorA, const glm::vec4& colorB);
 
+// A debug surface, batched with this frame's lines. In the scene (depth-tested) unless xray is requested.
+void triangle(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec4& color, bool xray = false);
+
 // Draws the frame's queue (but the scene's) into the bound framebuffer, facing `eye`.
 void drawInEye(const glm::vec3& eye);
 

@@ -45,6 +45,7 @@ namespace qvr::hitmodel
 namespace
 {
 
+void resetZones();
 
 constexpr int leafSize = 4;
 
@@ -1240,6 +1241,7 @@ void reset()
     tracks.clear();
     last = Last{};
     events.clear();
+    resetZones();
 }
 
 void debugDraw()
@@ -1312,8 +1314,177 @@ void zoneAdd(int num, int zone, const glm::vec3& lo, const glm::vec3& hi, float 
     zones.pushBack(Zone{num, zone, lo, hi, radius});
 }
 
+namespace
+{
+// Clip in the exact standing-pose coordinates used by restPoint, carrying the same barycentric
+// interpolation onto the renderer's animated triangle. No tolerance-expanded melee volumes.
+struct ZoneVertex { glm::vec3 rest, drawn; };
+using ZonePolygon = za::Vector<ZoneVertex>;
+struct ZoneSample { int num, region; glm::vec3 rest; };
+za::Vector<ZoneSample> zoneSamples;
+int zoneModels = 0, zoneFallbacks = 0;
+za::Array<int, 4> zonePieces{};
+za::U32 zonePoseHash = 0;
+
+void resetZones()
+{
+    zones.clear(); zonesTime = -1.; zoneSamples.clear();
+    zoneModels = zoneFallbacks = 0; zonePieces = {}; zonePoseHash = 0;
+}
+
+void splitZone(const ZonePolygon& poly, const glm::vec3& normal, float distance, ZonePolygon& inside, ZonePolygon& outside)
+{
+    inside.clear(); outside.clear();
+    if(poly.empty()) { return; }
+    ZoneVertex a = poly.back();
+    float da = glm::dot(a.rest, normal) - distance;
+    for(const ZoneVertex& b : poly)
+    {
+        const float db = glm::dot(b.rest, normal) - distance;
+        if((da < 0.f) != (db < 0.f))
+        {
+            const float t = da / (da - db);
+            const ZoneVertex cut{glm::mix(a.rest, b.rest, t), glm::mix(a.drawn, b.drawn, t)};
+            inside.pushBack(cut); outside.pushBack(cut);
+        }
+        (db < 0.f ? inside : outside).pushBack(b);
+        a = b; da = db;
+    }
+}
+
+void paintZone(const ZonePolygon& poly, int num, int region)
+{
+    if(poly.size() < 3) { return; }
+    const bool xray = vr_debug_hitzones_xray.value != 0;
+    glm::vec4 color = zoneColours[static_cast<za::SizeT>(region)];
+    color.a = xray ? 0.25f : 0.48f;
+    for(za::SizeT i = 1; i + 1 < poly.size(); ++i)
+    {
+        glm::vec3 normal = glm::cross(poly[i].drawn - poly[0].drawn, poly[i + 1].drawn - poly[0].drawn);
+        const float len = glm::length(normal);
+        if(len < 1e-6f) { continue; }
+        // Keep the overlay just off the opaque surface; both windings receive it without covering walls.
+        normal *= 0.08f / len;
+        for(float side : {-1.f, 1.f})
+        {
+            lines::triangle(poly[0].drawn + normal * side, poly[i].drawn + normal * side,
+                poly[i + 1].drawn + normal * side, color, xray);
+        }
+        ++zonePieces[static_cast<za::SizeT>(region)];
+        if(zoneSamples.size() < 32768)
+        {
+            zoneSamples.pushBack({num, region, (poly[0].rest + poly[i].rest + poly[i + 1].rest) / 3.f});
+        }
+    }
+    color.a = 0.8f;
+    for(za::SizeT i = 0; i < poly.size(); ++i)
+    {
+        const auto& a = poly[i].drawn;
+        const auto& b = poly[(i + 1) % poly.size()].drawn;
+        if(xray) { lines::line(a, b, 0.12f, color, color); }
+        else { lines::sceneLine(a, b, 0.12f, color, color); }
+    }
+}
+
+// Split the sphere's intersection with this triangle's plane into an inscribed 64-sided circle.
+// The maximum inward error is r * (1 - cos(pi / 64)): under 0.02 units for the game's heads.
+// Outside fragments are retained, so every part of a triangle gets exactly one damage region.
+template<class Outside>
+void headZone(const ZonePolygon& poly, int num, const glm::vec3& centre, float radius, Outside&& outside)
+{
+    if(poly.size() < 3) { return; }
+    glm::vec3 lo{1e30f}, hi{-1e30f};
+    bool allHead = true;
+    for(const auto& p : poly)
+    {
+        lo = glm::min(lo, p.rest); hi = glm::max(hi, p.rest);
+        allHead = allHead && glm::distance(p.rest, centre) < radius;
+    }
+    if(allHead) { paintZone(poly, num, 1); return; }
+    if(glm::distance(glm::clamp(centre, lo, hi), centre) >= radius) { outside(poly); return; }
+    glm::vec3 normal{0.f};
+    for(za::SizeT i = 1; i + 1 < poly.size() && glm::length(normal) < 1e-6f; ++i)
+    {
+        normal = glm::cross(poly[i].rest - poly[0].rest, poly[i + 1].rest - poly[0].rest);
+    }
+    const float len = glm::length(normal);
+    if(len < 1e-6f) { outside(poly); return; }
+    normal /= len;
+    const float d = glm::dot(poly[0].rest - centre, normal);
+    if(za::fabs(d) >= radius) { outside(poly); return; }
+    const glm::vec3 circle = centre + normal * d;
+    const float r = za::sqrt(za::max(0.f, radius * radius - d * d));
+    const glm::vec3 axis = glm::normalize(glm::cross(normal,
+        za::fabs(normal.z) < .9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}));
+    const glm::vec3 side = glm::cross(normal, axis);
+    ZonePolygon remaining = poly, in, out;
+    constexpr int sides = 64;
+    constexpr float pi = 3.14159265f;
+    const float apothem = r * za::cos(pi / sides);
+    for(int i = 0; i < sides && remaining.size() >= 3; ++i)
+    {
+        const float angle = 2.f * pi * (i + 0.5f) / sides;
+        const glm::vec3 n = axis * za::cos(angle) + side * za::sin(angle);
+        splitZone(remaining, n, glm::dot(circle, n) + apothem, in, out);
+        outside(out);
+        remaining.swap(in);
+    }
+    paintZone(remaining, num, 1);
+}
+
+void bodyZones(const ZonePolygon& poly, int num, float lateral, const glm::vec3& head, float radius, bool priority)
+{
+    ZonePolygon left, central, right, upper, lower, middle;
+    splitZone(poly, {0.f, -1.f, 0.f}, lateral, central, left);
+    splitZone(central, {0.f, 1.f, 0.f}, lateral, middle, right);
+    paintZone(left, num, 2); paintZone(right, num, 2);
+    splitZone(middle, {0.f, 0.f, -1.f}, 0.f, upper, lower);
+    paintZone(lower, num, 3);
+    if(priority) { paintZone(upper, num, 0); }
+    else { headZone(upper, num, head, radius, [&](const ZonePolygon& p) { paintZone(p, num, 0); }); }
+}
+
+bool animatedZones(const Zone& body, const Zone& head, const entity_t& e)
+{
+    if(body.num >= sv.qcvm.num_edicts || e.msgtime != cl.mtime[0]) { return false; }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    edict_t* ent = EDICT_NUM(body.num);
+    Drawn d;
+    za::Vector<glm::vec3> drawn;
+    const bool valid = target(ent) && e.model == modelOf(ent) && drawnOf(ent, d) &&
+        modelcollide::drawnTriangles(e, body.num, drawn);
+    PR_PopQCVM(oldvm);
+    if(!valid) { return false; }
+    ++zoneModels;
+    const auto* base = reinterpret_cast<const byte*>(d.hdr);
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(base + d.hdr->meshdesc);
+    const auto* indices = reinterpret_cast<const unsigned short*>(base + d.hdr->indexes);
+    const trivertx_t* rest = posesOf(d.hdr) + static_cast<za::SizeT>(d.mesh->restPose) * d.mesh->numverts;
+    const bool priority = vr_hit_head_priority.value != 0;
+    for(za::SizeT i = 0; i + 2 < drawn.size() && i + 2 < static_cast<za::SizeT>(d.hdr->numindexes); i += 3)
+    {
+        ZonePolygon triangle;
+        for(int k = 0; k < 3; ++k)
+        {
+            const za::SizeT idx = i + k;
+            triangle.pushBack({d.L * raw(rest[desc[indices[idx]].vertindex]) + d.l, drawn[idx]});
+            for(int axis = 0; axis < 3; ++axis)
+            {
+                zonePoseHash = (zonePoseHash ^ ZA_BIT_CAST(za::U32, drawn[idx][axis])) * 16777619u;
+            }
+        }
+        const auto outside = [&](const ZonePolygon& p) { bodyZones(p, body.num, body.hi.y, head.lo, head.radius, priority); };
+        if(priority) { headZone(triangle, body.num, head.lo, head.radius, outside); }
+        else { outside(triangle); }
+    }
+    return true;
+}
+}
+
 void zonesDraw()
 {
+    zoneSamples.clear(); zoneModels = zoneFallbacks = 0; zonePieces = {}; zonePoseHash = 2166136261u;
     // (Stale: the option just turned off, a map change, the QC sending none; a frame's zones last a 0.25 s at most.)
     if(!vr_debug_hitzones.value || !sv.active || zones.empty() || sv.qcvm.time < zonesTime || sv.qcvm.time - zonesTime > 0.25)
     {
@@ -1321,14 +1492,35 @@ void zonesDraw()
     }
     static constexpr int ringSteps = 24;
     constexpr float width = 0.2f;
+    // One colored animated surface per entity. The QC supplies its actual head centre/radius and body side threshold.
+    za::Vector<int> animated;
+    if(static_cast<int>(vr_debug_hitzones.value) != 2)
+    {
+        for(const Zone& body : zones)
+        {
+            if(body.zone != 0 || body.num <= 0 || body.num >= cl.num_entities) { continue; }
+            const entity_t& e = cl_entities[body.num];
+            if(!e.model || e.msgtime != cl.mtime[0]) { continue; }
+            for(const Zone& head : zones)
+            {
+                if(head.num == body.num && head.zone == 1)
+                {
+                    if(animatedZones(body, head, e)) { animated.pushBack(body.num); }
+                    else { ++zoneFallbacks; }
+                    break;
+                }
+            }
+        }
+    }
     for(const Zone& z : zones)
     {
+        if(z.zone != 4 && za::anyOf(animated.begin(), animated.end(), [&](int num) { return num == z.num; })) { continue; }
         if(z.num <= 0 || z.num >= cl.num_entities)
         {
             continue;
         }
         const entity_t& ent = cl_entities[z.num];
-        if(!ent.model)
+        if(!ent.model || ent.msgtime != cl.mtime[0])
         {
             continue;
         }
@@ -1383,6 +1575,52 @@ void zonesDraw()
             }
         }
     }
+}
+
+void zonesCheck_f()
+{
+    if(!sv.active || cls.state != ca_connected)
+    {
+        Con_Printf("vr_hitzones_check: no local game\n"); return;
+    }
+    qcvm_t* oldvm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldvm);
+    const func_t fn = progs::findFunction("PositionalPointRegion");
+    int checked = 0, mismatch = 0, boundary = 0;
+    if(fn)
+    {
+        for(const auto& sample : zoneSamples)
+        {
+            if(sample.num <= 0 || sample.num >= qcvm->num_edicts) { continue; }
+            edict_t* ent = EDICT_NUM(sample.num);
+            if(ent->free) { continue; }
+            const float yaw[3]{0.f, ent->v.angles[1], 0.f};
+            const glm::vec3 rest = vec(ent->v.origin) + held::axesFromAngles(yaw, false) * sample.rest;
+            G_INT(OFS_PARM0) = EDICT_TO_PROG(ent);
+            G_FLOAT(OFS_PARM1 + 0) = rest.x; G_FLOAT(OFS_PARM1 + 1) = rest.y; G_FLOAT(OFS_PARM1 + 2) = rest.z;
+            PR_ExecuteProgram(fn);
+            ++checked;
+            if(static_cast<int>(G_FLOAT(OFS_RETURN)) != sample.region)
+            {
+                bool nearBoundary = false;
+                for(const Zone& z : zones)
+                {
+                    if(z.num == sample.num && z.zone == 1 &&
+                        za::fabs(glm::distance(sample.rest, z.lo) - z.radius) < .021f)
+                    {
+                        nearBoundary = true; break;
+                    }
+                }
+                if(nearBoundary) { ++boundary; }
+                else { ++mismatch; }
+            }
+        }
+    }
+    PR_PopQCVM(oldvm);
+    Con_Printf("vr_hitzones_check: models=%d fallback=%d body=%d head=%d limbs=%d legs=%d samples=%d checked=%d "
+        "mismatch=%d boundary=%d pose=%08x priority=%d xray=%d classifier=%d\n", zoneModels, zoneFallbacks,
+        zonePieces[0], zonePieces[1], zonePieces[2], zonePieces[3], int(zoneSamples.size()), checked, mismatch,
+        boundary, unsigned(zonePoseHash), int(vr_hit_head_priority.value), int(vr_debug_hitzones_xray.value), int(fn != 0));
 }
 
 void stats_f()

@@ -3599,9 +3599,11 @@ za::Vector<Item> pageDebugViews()
             .help("Draws the physics bodies (Box3D) as wireframes: props awake green, asleep blue, held yellow; doors purple, "
                   "monsters orange, you cyan, hanging pickups grey; red dots where they touch. And each hand's grab reach."),
         cycle("Show Hit Zones", vr_debug_hitzones, {{0.f, "Off"}, {1.f, "Positional Damage"}, {2.f, "Decapitation"}, {3.f, "Both"}})
-            .help("Live monsters' damage zones as wireframes, on the model standing (as hits are judged): Positional Damage's "
-                  "head red, body green, extremities yellow, legs blue; Decapitation's melee zone magenta (Gore > "
-                  "Decapitation > Head Zone Size, Neck) with the shots' head zone red (vr_debug_hitzones)."),
+            .help("Positional Damage colors the animated model surface: head red, body green, extremities yellow, legs blue. "
+                  "Uses the same standing-pose mapping and Head Priority as precise shots and positional melee. "
+                  "Precise hits off: box/ray reference zones. Decapitation shows the older standing melee zone in magenta."),
+        toggle("Hit Zones Through Walls", vr_debug_hitzones_xray)
+            .help("Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces."),
         cycle("Show Hits", vr_debug_hits, {{0.f, "Off"}, {1.f, "Hits"}, {2.f, "Hits and Misses"}})
             .help("Precise hit detection: each hit on a monster's model drawn for a few seconds (the model as it was then, "
                   "the triangle hit in green, the point on the model in red, where the grown model was met in yellow) and "

@@ -25,6 +25,7 @@ struct Line
 };
 
 za::Vector<Line> queue;
+za::Vector<gfx::Vertex> surfaces[2]; // scene, xray
 
 // Blended over the scene [0], added onto it [1]; uv -1..1 across the width (and along a point):
 // the soft edge.
@@ -71,12 +72,26 @@ void sceneGlow(const glm::vec3& a, const glm::vec3& b, float width, const glm::v
     queue.pushBack({a, b, width, {glm::vec3{colorA}, 0.f}, {glm::vec3{colorB}, 0.f}, false, true, true});
 }
 
+void triangle(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm::vec4& color, bool xray)
+{
+    auto& out = surfaces[xray];
+    out.pushBack({a, {}, color});
+    out.pushBack({b, {}, color});
+    out.pushBack({c, {}, color});
+}
+
 namespace
 {
 
 // The queue's lines of the scene's (or not) into `vertices`, facing `eye`, and drawn: depth-tested in the scene.
 void drawQueued(const glm::vec3& eye, bool scene)
 {
+    const auto& surface = surfaces[!scene];
+    if(!surface.empty())
+    {
+        gfx::draw(surface, gfx::sceneViewProjection(),
+            {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = scene, .depthWrite = false});
+    }
     vertices[0].clear();
     vertices[1].clear();
     for(const Line& l : queue)
@@ -135,7 +150,7 @@ void drawQueued(const glm::vec3& eye, bool scene)
 void drawInEye(const glm::vec3& eye)
 {
     QVR_GPU_PROFILE("lines");
-    if(queue.empty())
+    if(queue.empty() && surfaces[1].empty())
     {
         return;
     }
@@ -144,7 +159,7 @@ void drawInEye(const glm::vec3& eye)
 
 void drawInScene()
 {
-    if(queue.empty())
+    if(queue.empty() && surfaces[0].empty())
     {
         return;
     }
@@ -157,6 +172,8 @@ void drawInScene()
 void clear()
 {
     queue.clear();
+    surfaces[0].clear();
+    surfaces[1].clear();
 }
 
 } // namespace qvr::lines
