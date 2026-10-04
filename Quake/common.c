@@ -1615,12 +1615,17 @@ static void COM_CheckRegistered (void)
 	{
 		Cvar_SetROM ("registered", "0");
 		Con_Printf ("Playing shareware version.\n");
+
+		// QVR: remove shareware limitations for easier cloud-based development
+		/*
 		if (com_modified)
 			Sys_Error ("You must have the registered version to use modified games.\n\n"
 				   "Basedir is: %s\n\n"
 				   "Check that this has an " GAMENAME " subdirectory containing pak0.pak and pak1.pak, "
 				   "or use the -basedir command-line option to specify another directory.",
 				   com_basedirs[0]);
+		*/
+
 		return;
 	}
 
@@ -2752,11 +2757,14 @@ static void COM_Game_f (void)
 		int i, pri;
 		char paths[1024];
 
+		// QVR: remove shareware limitations for easier cloud-based development
+		/*
 		if (!registered.value) //disable shareware quake
 		{
 			Con_Printf("You must have the registered version to use modified games\n");
 			return;
 		}
+		*/
 
 		*paths = 0;
 		q_strlcat(paths, GAMENAME, sizeof(paths));
@@ -2775,7 +2783,7 @@ static void COM_Game_f (void)
 				}
 				else if (*p == '-')
 					continue;
-				
+
 				if (!*p || !strcmp(p, ".") || strstr(p, "..") || strstr(p, "/") || strstr(p, "\\") || strstr(p, ":"))
 				{
 					Con_Printf ("gamedir should be a single directory name, not a path\n");
@@ -3307,7 +3315,7 @@ storesetup:
 			{
 				com_nightdivedir[0] = '\0';
 			}
-			
+
 			host_parms->userdir = com_userprefdir;
 
 			return;
@@ -4380,7 +4388,7 @@ uint32_t UTF8_ReadCodePoint (const char **src)
 	const char	*text = *src;
 	uint32_t	code, mask, i;
 	uint8_t		first, cont;
-	
+
 	first = text[0];
 	if (!first)
 		return 0;
