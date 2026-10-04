@@ -1570,7 +1570,8 @@ QVR_CVAR(vr_decap_speed, "5", CVAR_ARCHIVE)           // m/s the blade's struck 
 QVR_CVAR(vr_decap_slash_angle, "45", CVAR_ARCHIVE)   // degrees: the blade's struck point must move at least this far off its line to behead (nearer it: a stab); was 60
 QVR_CVAR(vr_decap_head_size, "1.25", CVAR_ARCHIVE)   // melee beheading only (a slash, the chainsaw, a corpse's head): the head zone's radius times this (shots and thrown axes keep the head zone)
 QVR_CVAR(vr_decap_neck, "6", CVAR_ARCHIVE)           // units: and the zone drawn down this far below the head's middle (a capsule: the neck); a ragdoll's neck reach at least this
-QVR_CVAR(vr_decap_pop_body_speed, "0.1", CVAR_ARCHIVE) // a head pop: the headless ragdoll's motion times this after the shot's knock (the shot's force went into the head)
+QVR_CVAR(vr_decap_pop_body_speed, "0.1", CVAR_ARCHIVE) // a head pop: the headless ragdoll's knock (the shot's, the frame's) times this; its own motion kept (vr_decap_own_motion)
+QVR_CVAR(vr_decap_own_motion, "1", CVAR_ARCHIVE)   // a beheaded (or popped) monster's ragdoll goes on with its own motion (its walk or run: its origin's over its last steps) in full; 0: as before (a walk not carried, a pop scaling all of it)
 QVR_CVAR(vr_decap_head_speed, "0.5", CVAR_ARCHIVE)    // share of the blade's velocity the cut head flies off with (and its spin from the swing)
 QVR_CVAR(vr_decap_head_lift, "120", CVAR_ARCHIVE)     // units/s the cut head is thrown up besides
 QVR_CVAR(vr_decap_corpses, "1", CVAR_ARCHIVE)         // a slash to a ragdoll's (or a dying or dead body's) head beheads it, instead of taking its corpse health

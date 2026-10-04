@@ -1797,6 +1797,10 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("And how fast it is thrown upwards besides (vr_decap_head_lift)."),
         slider("Fountain", vr_decap_fountain, 0.f, 8.f, 0.25f, "%.2f s").extend(0.f, 30.f)
             .help("How long the neck spurts blood, in beats, dying away (0: none) (vr_decap_fountain)."),
+        toggle("Keeps Its Own Motion", vr_decap_own_motion)
+            .help("A beheaded (or popped) monster's headless body goes on as it was moving (running at you: it stumbles on "
+                  "towards you) in full; a pop slows only the shot's knock (Body's Speed After a Pop). Off: as before: its "
+                  "run not carried, a pop slowing all of it (vr_decap_own_motion)."),
         header("What Beheads"),
         toggle("Corpses", vr_decap_corpses)
             .help("A slash at a ragdoll's (or a dying body's) head cuts it off instead of hurting the corpse: it never "
@@ -1821,8 +1825,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("How much of a blast's damage on him must come from pellets at the head (the headshot multiplier in) for "
                   "it to count as a headshot; 0: any pellet at the head (vr_decap_head_share)."),
         slider("Body's Speed After a Pop", vr_decap_pop_body_speed, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
-            .help("A popped head's body: how much of the shot's knock (and its motion) its headless ragdoll keeps. The "
-                  "shot's force went into the head, so it slumps where it stood; 1: flung as before (vr_decap_pop_body_speed)."),
+            .help("A popped head's body: how much of the shot's knock its headless ragdoll keeps (its own motion, as it ran, "
+                  "in full: Keeps Its Own Motion). The shot's force went into the head, so it slumps where it stood; 1: flung "
+                  "as before (vr_decap_pop_body_speed)."),
     };
 }
 

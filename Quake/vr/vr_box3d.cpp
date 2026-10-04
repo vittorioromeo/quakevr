@@ -453,8 +453,11 @@ struct RagdollBodies
     glm::vec3 headMid{0.f}, headVel{0.f}, headSpin{0.f};
     glm::quat headRot{1.f, 0.f, 0.f, 0.f};
     // Its parts' motion times this at its next step (feedRagdoll, after the frame's knocks): a head pop's body barely
-    // moves (ragdollDecap's settle, vr_decap_pop_body_speed); 1 none pending.
+    // moves (ragdollDecap's settle, vr_decap_pop_body_speed); 1 none pending. Only the knock is scaled: each part's own
+    // motion (metres, radians: the monster's walk and its animation's, or a corpse's as it lay; vr_decap_own_motion) is
+    // kept.
     float settle{1.f};
+    za::Array<glm::vec3, ragdoll::maxBones> ownLin{}, ownAng{};
 };
 
 // Whether part `b` of `r` was cut off (its body is the part it was cut from's).
@@ -690,6 +693,16 @@ struct World
                            // is known to be new or not (the fiend's death6: SOLID_NOT and the frame together)
     };
     za::Vector<CorpseWatch> corpseWatch;
+    // By edict: a monster's (live or dying) last three places its origin changed to, and when (watchCorpses; its own
+    // motion: ownMotion), and its velocity the frame before (what the frame's knock added to it); n how many are known.
+    struct MonsterMotion
+    {
+        za::Array<glm::vec3, 3> at{};
+        za::Array<double, 3> when{};
+        int n{0};
+        glm::vec3 vel{0.f};
+    };
+    za::Vector<MonsterMotion> motion;
     za::Vector<RagdollBodies> ragdolls; // (Slot::ragdoll)
     // Hands holding a ragdoll's limb (vr_ragdoll_grab; "Ragdolls"): a kinematic body at the hand and a motor joint to
     // the limb; or a force grab's pull flying the limb to the hand (no joint yet).
@@ -1658,7 +1671,38 @@ void watchCorpses()
 {
     auto& watch = world->corpseWatch;
     watch.resize(static_cast<size_t>(qcvm->num_edicts));
+    world->motion.resize(static_cast<size_t>(qcvm->num_edicts));
     const bool on = corpseMode() != 0 || vr_ragdoll.value >= 1.f; // (ragdolls: when a frame changed, createRagdoll)
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    {
+        // A monster's motion (a beheaded one's ragdoll goes on with it: ownMotion). A teleport (or a respawn) starts it
+        // again.
+        World::MonsterMotion& m = world->motion[static_cast<size_t>(num)];
+        edict_t* const me = EDICT_NUM(num);
+        if(vr_ragdoll.value < 1.f || me->free || !hasFlag(me, FL_MONSTER))
+        {
+            m = World::MonsterMotion{};
+        }
+        else
+        {
+            const glm::vec3 at = vec(me->v.origin);
+            if(m.n == 0 || at != m.at[0])
+            {
+                if(m.n > 0 && glm::length(at - m.at[0]) > 64.f)
+                {
+                    m.n = 0;
+                }
+                m.at[2] = m.at[1];
+                m.at[1] = m.at[0];
+                m.at[0] = at;
+                m.when[2] = m.when[1];
+                m.when[1] = m.when[0];
+                m.when[0] = qcvm->time;
+                m.n = za::min(m.n + 1, 3);
+            }
+            m.vel = vec(me->v.velocity);
+        }
+    }
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         World::CorpseWatch& w = watch[static_cast<size_t>(num)];
@@ -1687,6 +1731,35 @@ void watchCorpses()
             w.since = qcvm->time;
         }
     }
+}
+
+// Monster `num`'s own motion (units/s): its origin's over its last two changes (a walking monster steps every 0.1 s:
+// two steps; one moved by physics, two frames; within 0.3 s: a first step after standing still, over a step's 0.1 s),
+// none if it hasn't moved for 0.2 s (it stood still); at most 800.
+[[nodiscard]] glm::vec3 ownMotion(int num)
+{
+    if(num < 0 || num >= static_cast<int>(world->motion.size()))
+    {
+        return glm::vec3{0.f};
+    }
+    const World::MonsterMotion& m = world->motion[static_cast<size_t>(num)];
+    if(m.n < 2 || qcvm->time - m.when[0] > 0.2)
+    {
+        return glm::vec3{0.f};
+    }
+    int k = m.n - 1;
+    while(k > 1 && m.when[0] - m.when[static_cast<za::SizeT>(k)] > 0.3)
+    {
+        k--;
+    }
+    const double span = za::min(m.when[0] - m.when[static_cast<za::SizeT>(k)], k == 1 ? 0.1 : 1.0);
+    if(span < 1e-3)
+    {
+        return glm::vec3{0.f};
+    }
+    const glm::vec3 v = (m.at[0] - m.at[static_cast<za::SizeT>(k)]) / static_cast<float>(span);
+    const float speed = glm::length(v);
+    return speed > 800.f ? v * (800.f / speed) : v;
 }
 
 // Whether `ent` is a corpse lying still: the QC's (vr_corpse 2), or a dead monster (not one the QC still watches dying,
@@ -2218,7 +2291,11 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
     const glm::vec3 origin = vec(ent->v.origin);
     const float k = r.scale / world->m2u; // rest units -> body metres
     const float inherit = za::clamp(tune(ent, Tune::Inherit), 0.f, 2.f) / 0.1f; // (a frame is 0.1 s)
-    const glm::vec3 entVel = vec(ent->v.velocity);
+    // Beheaded (now: ragdollDecap) with vr_decap_own_motion: its own motion (its walk, ownMotion: a stepping monster's
+    // velocity is none) kept apart from what this frame added to its velocity (the blow's knock), which a head pop scales.
+    const bool own = now && vr_decap_own_motion.value != 0.f && num < static_cast<int>(world->motion.size());
+    const glm::vec3 walk = own ? ownMotion(num) : glm::vec3{0.f};
+    const glm::vec3 entVel = own ? walk + vec(ent->v.velocity) - world->motion[static_cast<za::SizeT>(num)].vel : vec(ent->v.velocity);
     // A loose piece the frame hides (all its vertices at one point: the grunt's shotgun in his death frames, dropped as
     // a weapon of its own, vr_monstermods.cpp) gets no body and stays hidden (published collapsed): the last ones.
     r.count = rig->numBones;
@@ -2311,6 +2388,11 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
         const glm::vec3 im{dq.x, dq.y, dq.z};
         const glm::vec3 axis = glm::length(im) > 1e-6f ? glm::normalize(im) * (dq.w < 0.f ? -1.f : 1.f) : glm::vec3{0.f};
         def.angularVelocity = b3v(axis * (angle * inherit));
+        if(own)
+        {
+            r.ownLin[static_cast<za::SizeT>(b)] = glmv(world->toM(walk + (now - before) * inherit));
+            r.ownAng[static_cast<za::SizeT>(b)] = axis * (angle * inherit);
+        }
         const b3BodyId body = b3CreateBody(world->id, &def);
         r.body[static_cast<za::SizeT>(b)] = body;
 
@@ -2489,9 +2571,11 @@ void feedRagdoll(edict_t* ent, Slot& s)
     }
     if(r.settle != 1.f)
     {
-        // (A head pop: the blast's knock and pushes, all of this frame's, in; the body keeps only this share of them.)
+        // (A head pop: the blast's knock and pushes, all of this frame's, in; the body keeps only this share of them, and
+        // its own motion, ownLin, in full.)
         const float k = za::max(r.settle, 0.f);
-        float before = 0.f;
+        float before = 0.f, after = 0.f;
+        glm::vec3 pelvisOwn{0.f}, pelvisAfter{0.f};
         for(int b = 0; b < r.count; b++)
         {
             if(partCut(r, b))
@@ -2499,15 +2583,24 @@ void feedRagdoll(edict_t* ent, Slot& s)
                 continue;
             }
             const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
-            const b3Vec3 lin = b3Body_GetLinearVelocity(body);
-            before = za::max(before, glm::length(world->toU(lin)));
-            b3Body_SetLinearVelocity(body, b3v(glmv(lin) * k));
-            b3Body_SetAngularVelocity(body, b3v(glmv(b3Body_GetAngularVelocity(body)) * k));
+            const glm::vec3 lin = glmv(b3Body_GetLinearVelocity(body));
+            const glm::vec3 own = r.ownLin[static_cast<za::SizeT>(b)], ownAng = r.ownAng[static_cast<za::SizeT>(b)];
+            const glm::vec3 kept = own + (lin - own) * k;
+            before = za::max(before, glm::length(lin) * world->m2u);
+            after = za::max(after, glm::length(kept) * world->m2u);
+            if(b == 0)
+            {
+                pelvisOwn = own * world->m2u;
+                pelvisAfter = kept * world->m2u;
+            }
+            b3Body_SetLinearVelocity(body, b3v(kept));
+            b3Body_SetAngularVelocity(body, b3v(ownAng + (glmv(b3Body_GetAngularVelocity(body)) - ownAng) * k));
         }
         if(vr_debug_ragdoll.value)
         {
-            Con_Printf("ragdoll: %d settled after its head popped: fastest part %.0f -> %.0f u/s\n", NUM_FOR_EDICT(ent),
-                before, before * k);
+            Con_Printf("ragdoll: %d settled after its head popped: fastest part %.0f -> %.0f u/s; pelvis %.0f u/s (its own "
+                       "motion %.0f u/s, %.0f level)\n", NUM_FOR_EDICT(ent), before, after, glm::length(pelvisAfter),
+                glm::length(pelvisOwn), glm::length(glm::vec2{pelvisOwn}));
         }
         r.settle = 1.f;
     }
@@ -10335,11 +10428,28 @@ bool ragdollDecap(edict_t* ent, const glm::vec3& blade, float settle)
         }
         r = ragdollOf(num);
     }
+    else
+    {
+        // (A corpse's: its own motion as it lies or falls; the frame's knocks reach it after, feedRagdoll.)
+        const bool own = vr_decap_own_motion.value != 0.f;
+        for(int b = 0; b < r->count; b++)
+        {
+            const b3BodyId body = r->body[static_cast<za::SizeT>(b)];
+            r->ownLin[static_cast<za::SizeT>(b)] = own && !partCut(*r, b) ? glmv(b3Body_GetLinearVelocity(body)) : glm::vec3{0.f};
+            r->ownAng[static_cast<za::SizeT>(b)] = own && !partCut(*r, b) ? glmv(b3Body_GetAngularVelocity(body)) : glm::vec3{0.f};
+        }
+    }
     if(!r || !cutHead(*r, ent, blade, true))
     {
         return false;
     }
     r->settle = settle;
+    if(vr_debug_ragdoll.value)
+    {
+        const glm::vec3 pelvis = world->toU(b3Body_GetLinearVelocity(r->body[0]));
+        Con_Printf("ragdoll: %d beheaded: its own motion %.0f u/s (pelvis; %.0f level), its pelvis at %.0f u/s now\n", num,
+            glm::length(r->ownLin[0] * world->m2u), glm::length(glm::vec2{r->ownLin[0] * world->m2u}), glm::length(pelvis));
+    }
     if(fields().vr_headless >= 0)
     {
         fieldFloat(ent, fields().vr_headless) = 1.f;
