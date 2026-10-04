@@ -129,6 +129,15 @@ struct ConsoleRow
     int length;
 };
 
+// The Console page's scratch (vr_mem.hpp): the rows as wrapped for the page. Its capacity stays from draw to draw, the
+// whole set is given back at every map change.
+struct MenuConsoleScratch
+{
+    za::Vector<ConsoleRow> rows;
+    auto members() { return qvr::mem::list(rows); }
+};
+mem::Scratch<MenuConsoleScratch> consoleScratch{"menu console rows"};
+
 void consoleRows(int fit, za::Vector<ConsoleRow>& out)
 {
     out.clear();
@@ -165,7 +174,7 @@ void drawConsolePage()
     const float textHalf = (c.textBottom - c.textTop) * 0.5f;
     p.rounded(c.left, c.right, c.textTop + textHalf, textHalf * c.k, 3.f, colors::boxFill);
     const int fit = static_cast<int>((c.right - c.left - 6.f) / consoleTextSize);
-    static za::Vector<ConsoleRow> rows; // (kept: its capacity)
+    za::Vector<ConsoleRow>& rows = consoleScratch.rows;
     consoleRows(fit, rows);
     consolePage.rows = static_cast<int>(rows.size());
     consolePage.visibleRows = q_max(static_cast<int>((c.textBottom - c.textTop - 4.f) / consoleRowHeight), 1);
