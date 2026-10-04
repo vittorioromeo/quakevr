@@ -1454,8 +1454,8 @@ void() VR_Carry_Weapontouch =
 
 void(vector org, vector xDir, float xSize) VR_Gore_Burst;
 void(entity g, float xVolume) VR_Gib_Squish;                 // (vr_smallgibs.qc)
-void(vector org, vector xDir, float xSize) VR_SmallGib_Burst;
-void(vector org, vector xDir, float xPop) VR_SmallGib_Brains;
+void(vector org, vector xDir, float xSize, entity xFrom) VR_SmallGib_Burst;
+void(vector org, vector xDir, float xPop, entity xFrom) VR_SmallGib_Brains;
 float vr_sgib_live;                                          // how many small gibs lie about
 
 void() VR_Gib_Touch =
@@ -1884,10 +1884,10 @@ void(entity xGib, vector xDir) VR_Gib_Burst =
     VR_Gore_Burst(org, xDir, size);
     if(!xGib.vr_sgib)
     {
-        VR_SmallGib_Burst(org, xDir, size); // broken into small ones (vr_smallgibs.qc)
+        VR_SmallGib_Burst(org, xDir, size, xGib); // broken into small ones (vr_smallgibs.qc)
         if(xGib.vr_gib_healthmult >= 1.5)
         {
-            VR_SmallGib_Brains(org, xDir, FALSE); // a head: its brain too
+            VR_SmallGib_Brains(org, xDir, FALSE, xGib); // a head: its brain too
         }
     }
 

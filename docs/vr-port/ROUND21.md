@@ -24223,7 +24223,9 @@ a gib of `vr_gib_healthmult` 1.5, a head) and a head pop (VR_Decap_PopEffects) t
 gibs. Gore > Small Gibs > **Brain Chunks**: **Brain Chunks** (`vr_smallgibs_brains`, on; also off with Small Gibs
 off), **From a Head Gib** (`vr_smallgibs_brains_burst`, 6), **From a Head Pop** (`vr_smallgibs_brains_pop`, 8),
 **Brain Chunk Size** (`vr_smallgibs_brains_size`, 0.8 times the small gibs'), **Brain Chunk Mass**
-(`vr_smallgibs_brains_mass`, 0.15 kg; a small gib 0.3). `developer 1`: "smallgib: brains: 8 (a head pop)".
+(`vr_smallgibs_brains_mass`, 0.15 kg; a small gib 0.3). `developer 1`: "smallgib: brains: 8 (a head pop)". (Brain
+chunks fly at the meat gibs' Speed and Up until "Brain chunks' own throw" below: `vr_smallgibs_brains_speed`,
+`vr_smallgibs_brains_up`.)
 
 **Debug** > Gore Tests: **Brain Chunks Ahead** (`vr_smallgibs_test 21`: a head pop's worth burst
 `vr_smallgibs_test_dist` units ahead, 40, at chest height); 7 (Burst a Gib and a Head) and 11 (List Small Gibs) count
@@ -24346,3 +24348,58 @@ no way to ask for smaller pixels.
   Probe: `Misc/quakevr/scratch/shadow_ab.sh`, numbers in `shadow_ab.txt`.
 - `vr_retrolight_shadow_block` is archived: a cfg value in [0.375, 0.75) now maps to 0.5 instead of 1 (the old menu
   could not produce one).
+
+## Brain chunks' own throw; per-enemy gib counts (2026-10-04)
+
+The author wants brain lumps to fly differently from meat gibs (his Speed 3 / Up 7 are right for meat), and each
+monster's gore counts tunable one by one, the way `vr_corpse_health_<monster>` already is.
+
+**Brain chunks' own throw** (QC vr_smallgibs.qc's `VR_SmallGib_BurstOf`): a burst takes its Speed and Up from
+`vr_smallgibs_brains_speed` (3 m/s) and `vr_smallgibs_brains_up` (7 m/s) when the chunks are brain, from
+`vr_smallgibs_speed` / `vr_smallgibs_up` when they are meat. Both are still times the burst's own Flight by Situation
+(`vr_smallgibs_speed_burst`, `vr_smallgibs_up_burst`); the defaults are what Speed and Up are now, so nothing changes
+until they are moved. Gore > Small Gibs > Brain Chunks: **Brain Chunk Speed**, **Brain Chunk Up** (0..10 m/s,
+extended to 30), beside Brain Chunk Size and Brain Chunk Mass. Brain count, size and mass are unchanged.
+
+**Per enemy** (`VR_SmallGib_Mult`): `vr_smallgibs_mult_<monster>` and `vr_smallgibs_brains_mult_<monster>`, the same
+monsters in the same order as Corpse Damage and Health's Corpse Health, by Monster (grunt, enforcer, rottweiler,
+fiend, ogre, knight, hell knight, vore, shambler, scrag, rotfish, gremlin, centroid, eel, zombie, mummy), all 1. A
+monster's counts, times these: what a hit tears out (`VR_SmallGib_Roll`), what flies with its gibs
+(`VR_SmallGib_Gibbed`), and what its gibs and head burst into (`VR_SmallGib_Burst`, `VR_SmallGib_Brains`). 0 none, 2
+twice as many; `VR_SmallGib_Times` rounds to the nearest whole and never below one where some came. A zombie's and a
+mummy's apply beheaded or not (`zombie_die`, `mummy_die`, besides `VR_Decap_ZombieDie`).
+
+- The source is plumbed through: `VR_SmallGib_Burst`, `VR_SmallGib_Brains` and `VR_SmallGib_BurstOf` take the entity
+  they came from (`world` for none). The player, a training dummy, a thrown prop and a test gib are not on the list:
+  1, as ever. A hit and a gibbing already have their target (`targ`, `self`).
+- A monster's identity is its `th_die`, which a gib does not keep, so a gib or head thrown out of a monster carries
+  its pair on itself (`VR_SmallGib_CarryMults`, called from `ThrowGib` and `VR_Decap_ThrowHead`; fields
+  `vr_sgib_mult`, `vr_sgib_brains_mult`, `vr_sgib_multset`): bursting or destroying that head later counts them as
+  that monster's. The head a gibbing throws *is* the monster (`ThrowHead` keeps its `th_die`) and is read live.
+- Gore > Small Gibs > **Per Enemy**, a page of its own (`Small Gibs - Per Enemy`): Small Gibs, by Monster, then Brain
+  Chunks, by Monster, 0..4x (extended to 20), the same labels and order as Corpse Health, by Monster.
+- `configVersion` 85 → 86, with a row for every new cvar. None of them existed at 85, so each takes its compiled
+  default, which is what it did then; the rows are the record of what 86 added.
+
+**Tests** (Debug > Tests > A Grunt Ahead / An Enforcer's Ragdoll There, Debug > Gore Tests; each on a fresh map, so
+the QC counters start again):
+
+| run | result |
+|---|---|
+| test 16 (a grunt gibbed underfoot), defaults | `sgibtest: underfoot: gibbed 1, 12 small gibs` (With a Gibbing 12) |
+| the same on an enforcer | 12 |
+| the same with `vr_smallgibs_mult_grunt 2` | 24 |
+| the same on an enforcer, `vr_smallgibs_mult_grunt 2` | 12 (unchanged) |
+| decap test 12 (a shotgun headshot pops a grunt's head), defaults, then test 11 | 15 small gibs made, 8 of them brain chunks (From a Head Pop 8) |
+| the same with both grunt multipliers 2 | 30 small gibs, 16 brain chunks |
+| test 21 with `vr_smallgibs_trace 1`, defaults | 8 brain chunks; launch velocities 176..288 u/s, 158..279 u/s of it up |
+| the same with `vr_smallgibs_brains_speed 6; vr_smallgibs_brains_up 0` | the same 8; 146..259 u/s, 0 up — brain flight only, the meat gibs' Speed and Up untouched |
+
+`vr_smallgibs_test 21` and the burst tests pass `world`, so they are not affected by a monster's multipliers.
+
+In VR:
+- [ ] Gore > Small Gibs > Brain Chunks has Brain Chunk Speed and Brain Chunk Up; brain chunks fly their own way, the
+      meat gibs unchanged.
+- [ ] Gore > Small Gibs > Per Enemy lists every monster twice; a grunt's at 2 doubles what he throws, an enforcer's is
+      untouched.
+- [ ] A beheaded grunt's head, shot to bursting later, still throws his doubled counts.

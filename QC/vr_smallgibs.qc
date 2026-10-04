@@ -17,8 +17,14 @@
 // Brain chunks (vr_smallgibs_brains): a head burst (a head gib destroyed: VR_Gib_Burst; a head pop:
 // VR_Decap_PopEffects) throws torn lumps of brain too (gib_brain1..3.mdl, two skins: Misc/quakevr/make_brains.py), small gibs in all else
 // (carried, thrown, bleeding, sticking, squishing, fading, counted in vr_smallgibs_max), a burst's flight, their own
-// size (vr_smallgibs_brains_size times the small gibs') and mass (vr_smallgibs_brains_mass: lighter). How many:
+// throw (vr_smallgibs_brains_speed, vr_smallgibs_brains_up: their own Speed and Up, not the meat gibs'), their own size
+// (vr_smallgibs_brains_size times the small gibs') and mass (vr_smallgibs_brains_mass: lighter). How many:
 // vr_smallgibs_brains_burst for a head gib, vr_smallgibs_brains_pop for a head pop.
+//
+// Per enemy (VR_SmallGib_Mult): each monster's counts, vr_smallgibs_mult_<monster> and
+// vr_smallgibs_brains_mult_<monster> (1 as ever, 0 none, 2 twice as many), times a hit's, a gibbing's and a head or
+// gib burst's (the same monsters as vr_corpse_health_<monster>: VR_Corpse_Parts, combat.qc). The player, a training
+// dummy and a thrown prop are not one of them: 1.
 
 .float vr_prop_mass;      // the engine's (vr_fields.inc): a prop's own mass, kg (Box3D's massSetting)
 .float vr_sgib_born;      // its time runs from here (held, and in the air after: now)
@@ -28,6 +34,9 @@
 .float vr_sgib_sawtime;   // (a monster or corpse) when the chainsaw last tore one out of it
 .float vr_sgib_sit;       // what tore it out (QVR_SGIB_SIT_*: the tests)
 .float vr_sgib_brain;     // a brain chunk (VR_SmallGib_Brains)
+.float vr_sgib_mult;      // (a head cut off: VR_Decap_ThrowHead) the enemy it came from's small gib count multiplier,
+.float vr_sgib_brains_mult; // and its brain chunk multiplier: bursting the head later still counts them (VR_SmallGib_Mult)
+.float vr_sgib_multset;   // they are stored on it (a head is not the monster: its .th_die is gone)
 .vector vr_sgib_org;      // where it was made (the tests)
 .float vr_sgib_peak;      // its fastest across in its first second, and when (s after it was made: the tests)
 .float vr_sgib_peakt;
@@ -495,6 +504,82 @@ float(entity targ) VR_SmallGib_Bleeds =
     return (targ.flags & FL_MONSTER) || targ.vr_corpse == 2;
 };
 
+// `e`'s count multiplier: its monster's (vr_smallgibs_mult_<monster>, or vr_smallgibs_brains_mult_<monster> with
+// `xBrains`), the same monsters as VR_Corpse_Parts' corpse health (QC combat.qc). 1 for anything it doesn't know: the
+// player, a training dummy, a gib, a rock. A head cut off (VR_Decap_ThrowHead) is no longer the monster, so it carries
+// its enemy's pair on itself (vr_sgib_multset): bursting that head later counts them as its enemy's.
+float(entity e, float xBrains) VR_SmallGib_Mult =
+{
+    if(e == world)
+    {
+        return 1;
+    }
+    if(e.vr_sgib_multset)
+    {
+        return max(0, xBrains ? e.vr_sgib_brains_mult : e.vr_sgib_mult);
+    }
+
+    float h = 0;
+    float known = FALSE;
+    if(e.th_die == army_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_grunt : cvarh_vr_smallgibs_mult_grunt; known = TRUE; }
+    else if(e.th_die == enf_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_enforcer : cvarh_vr_smallgibs_mult_enforcer; known = TRUE; }
+    else if(e.th_die == dog_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_dog : cvarh_vr_smallgibs_mult_dog; known = TRUE; }
+    else if(e.th_die == demon_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_fiend : cvarh_vr_smallgibs_mult_fiend; known = TRUE; }
+    else if(e.th_die == ogre_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_ogre : cvarh_vr_smallgibs_mult_ogre; known = TRUE; }
+    else if(e.th_die == knight_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_knight : cvarh_vr_smallgibs_mult_knight; known = TRUE; }
+    else if(e.th_die == hknight_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_hellknight : cvarh_vr_smallgibs_mult_hellknight; known = TRUE; }
+    else if(e.th_die == shalrath_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_vore : cvarh_vr_smallgibs_mult_vore; known = TRUE; }
+    else if(e.th_die == sham_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_shambler : cvarh_vr_smallgibs_mult_shambler; known = TRUE; }
+    else if(e.th_die == wiz_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_scrag : cvarh_vr_smallgibs_mult_scrag; known = TRUE; }
+    else if(e.th_die == fish_die || e.th_die == f_death1) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_fish : cvarh_vr_smallgibs_mult_fish; known = TRUE; }
+    else if(e.th_die == gremlin_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_gremlin : cvarh_vr_smallgibs_mult_gremlin; known = TRUE; }
+    else if(e.th_die == scourge_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_scourge : cvarh_vr_smallgibs_mult_scourge; known = TRUE; }
+    else if(e.th_die == eel_death) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_eel : cvarh_vr_smallgibs_mult_eel; known = TRUE; }
+    else if(e.th_die == VR_Decap_ZombieDie) // a zombie or a mummy beheaded (vr_decap.qc): as VR_Corpse_Parts reads them
+    {
+        h = e.classname == "monster_mummy" ? (xBrains ? cvarh_vr_smallgibs_brains_mult_mummy : cvarh_vr_smallgibs_mult_mummy) :
+            (xBrains ? cvarh_vr_smallgibs_brains_mult_zombie : cvarh_vr_smallgibs_mult_zombie);
+        known = TRUE;
+    }
+    else if(e.th_die == zombie_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_zombie : cvarh_vr_smallgibs_mult_zombie; known = TRUE; }
+    else if(e.th_die == mummy_die) { h = xBrains ? cvarh_vr_smallgibs_brains_mult_mummy : cvarh_vr_smallgibs_mult_mummy; known = TRUE; }
+
+    if(!known)
+    {
+        return 1;
+    }
+    return max(0, cvar_hget(h));
+};
+
+// `n` of them, times a monster's count multiplier (`mult`): 0 none, 1 as now, 2 twice as many (nearest whole, never
+// less than one where some came).
+float(float n, float mult) VR_SmallGib_Times =
+{
+    if(n <= 0 || mult <= 0)
+    {
+        return 0;
+    }
+    if(mult == 1)
+    {
+        return n;
+    }
+    return max(1, floor(n * mult + 0.5));
+};
+
+// A gib or head thrown out of `xFrom` (ThrowGib, VR_Decap_ThrowHead: it is no longer the monster) carries its enemy's
+// counts on itself: bursting or destroying it later still counts them as that monster's (VR_SmallGib_Mult). The head a
+// gibbing throws is the monster itself, and keeps its .th_die, so it needs none of this.
+void(entity xFrom, entity g) VR_SmallGib_CarryMults =
+{
+    if(xFrom == world || xFrom == g || g.vr_sgib_multset)
+    {
+        return;
+    }
+    g.vr_sgib_mult = VR_SmallGib_Mult(xFrom, FALSE);
+    g.vr_sgib_brains_mult = VR_SmallGib_Mult(xFrom, TRUE);
+    g.vr_sgib_multset = TRUE;
+};
+
 // The kind of the hit (vr_hitkind and the inflictor, as VR_GibKind; a hand's blow by the weapon and its part).
 float(entity inflictor, entity attacker) VR_SmallGib_Kind =
 {
@@ -839,8 +924,14 @@ void(entity targ, entity inflictor, entity attacker, float xDamage, vector xAt) 
         }
     }
     float sit = VR_SmallGib_Situation(kind);
+    float mult = VR_SmallGib_Mult(targ, FALSE); // its own vr_smallgibs_mult_<monster> (1: as every other monster)
+    n = VR_SmallGib_Times(n, mult);
     dprint(sprintf("smallgib: %s hit for %.1f (%s%s, %s): chance %.2f, %d\n", targ.classname, xDamage,
         VR_SmallGib_KindName(kind), quad ? ", quad" : "", VR_SmallGib_SitName(sit), chance, n));
+    if(mult != 1)
+    {
+        dprint(sprintf("smallgib: %s's small gibs x%.2f\n", targ.classname, mult));
+    }
     if(n > 0)
     {
         VR_SmallGib_Tear(targ, VR_SmallGib_Where(targ, inflictor, xAt), vr_hitdir, n, sit);
@@ -942,6 +1033,8 @@ void(float dm) VR_SmallGib_Gibbed =
         return;
     }
     float n = floor(max(0, cvar_hget(cvarh_vr_smallgibs_gibbing)) + 0.5);
+    float mult = VR_SmallGib_Mult(self, FALSE); // its own vr_smallgibs_mult_<monster>
+    n = VR_SmallGib_Times(n, mult);
     float sit = vr_sgib_corpsegib ? QVR_SGIB_SIT_CORPSE : QVR_SGIB_SIT_GIBBED;
     dprint(sprintf("smallgib: %s gibbed: %d (%s)\n", self.classname, n, VR_SmallGib_SitName(sit)));
     float m2u = VRMetersToUnits();
@@ -970,8 +1063,9 @@ void(float dm) VR_SmallGib_Gibbed =
     }
 };
 
-// From VR_Gib_Burst: a large gib (`xSize` 1) or head (1.5) bursting at `org` breaks into small ones.
-void(vector org, vector xDir, float xSize) VR_SmallGib_Burst =
+// From VR_Gib_Burst: a large gib (`xSize` 1) or head (1.5) bursting at `org` breaks into small ones. `xFrom` is the
+// gib itself (its monster's vr_smallgibs_mult_<monster> counts them: a head that was cut off carries them: vr_sgib_multset).
+void(vector org, vector xDir, float xSize, entity xFrom) VR_SmallGib_Burst =
 {
     if(!cvar_hget(cvarh_vr_smallgibs))
     {
@@ -979,16 +1073,25 @@ void(vector org, vector xDir, float xSize) VR_SmallGib_Burst =
     }
     float n = floor(max(0, cvar_hget(cvarh_vr_smallgibs_burst)) * max(1, xSize) + 0.5);
     dprint(sprintf("smallgib: a gib burst: %d\n", n));
-    VR_SmallGib_BurstOf(org, xDir, n, FALSE);
+    VR_SmallGib_BurstOf(org, xDir, n, FALSE, xFrom);
 };
 
 // `n` flung out of a burst at `org` (a burst's flight: across every way and along `xDir`, and up); `xBrain`: brain
-// chunks.
-void(vector org, vector xDir, float n, float xBrain) VR_SmallGib_BurstOf =
+// chunks, which fly at their own Speed and Up (vr_smallgibs_brains_speed, vr_smallgibs_brains_up). `xFrom` the entity
+// they came from (world for none): its vr_smallgibs_mult_<monster> / vr_smallgibs_brains_mult_<monster> times the count.
+void(vector org, vector xDir, float n, float xBrain, entity xFrom) VR_SmallGib_BurstOf =
 {
+    float mult = VR_SmallGib_Mult(xFrom, xBrain);
+    n = VR_SmallGib_Times(n, mult);
+    if(mult != 1)
+    {
+        dprint(sprintf("smallgib: %s's %s x%.2f: %d\n", xFrom.classname, xBrain ? "brain chunks" : "small gibs", mult, n));
+    }
     float m2u = VRMetersToUnits();
-    float speed = max(0, cvar_hget(cvarh_vr_smallgibs_speed)) * VR_SmallGib_SitMult(QVR_SGIB_SIT_BURST, FALSE) * m2u;
-    float up = max(0, cvar_hget(cvarh_vr_smallgibs_up)) * VR_SmallGib_SitMult(QVR_SGIB_SIT_BURST, TRUE) * m2u;
+    float speed = max(0, cvar_hget(xBrain ? cvarh_vr_smallgibs_brains_speed : cvarh_vr_smallgibs_speed)) *
+                  VR_SmallGib_SitMult(QVR_SGIB_SIT_BURST, FALSE) * m2u;
+    float up = max(0, cvar_hget(xBrain ? cvarh_vr_smallgibs_brains_up : cvarh_vr_smallgibs_up)) *
+               VR_SmallGib_SitMult(QVR_SGIB_SIT_BURST, TRUE) * m2u;
     vector along = xDir != '0 0 0' ? normalize(xDir) : '0 0 0';
     for(float i = 0; i < n; i++)
     {
@@ -999,9 +1102,10 @@ void(vector org, vector xDir, float n, float xBrain) VR_SmallGib_BurstOf =
     }
 };
 
-// A head burst at `org` (`xPop`: a head pop, VR_Decap_PopEffects; else a head gib destroyed, VR_Gib_Burst): brain
-// chunks (vr_smallgibs_brains_pop or _burst of them).
-void(vector org, vector xDir, float xPop) VR_SmallGib_Brains =
+// A head burst at `org` (`xPop`: a head pop, VR_Decap_PopEffects, `xFrom` the monster it lost its head from; else a
+// head gib destroyed, VR_Gib_Burst, `xFrom` the head): brain chunks (vr_smallgibs_brains_pop or _burst of them, times
+// its vr_smallgibs_brains_mult_<monster>).
+void(vector org, vector xDir, float xPop, entity xFrom) VR_SmallGib_Brains =
 {
     if(!cvar_hget(cvarh_vr_smallgibs) || !cvar_hget(cvarh_vr_smallgibs_brains))
     {
@@ -1009,5 +1113,5 @@ void(vector org, vector xDir, float xPop) VR_SmallGib_Brains =
     }
     float n = floor(max(0, cvar_hget(xPop ? cvarh_vr_smallgibs_brains_pop : cvarh_vr_smallgibs_brains_burst)) + 0.5);
     dprint(sprintf("smallgib: brains: %d (%s)\n", n, xPop ? "a head pop" : "a head gib burst"));
-    VR_SmallGib_BurstOf(org, xDir, n, TRUE);
+    VR_SmallGib_BurstOf(org, xDir, n, TRUE, xFrom);
 };

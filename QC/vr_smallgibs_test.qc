@@ -257,7 +257,7 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLaunch =
         makevectors('0 1 0' * self.v_viewangle_y);
         for(float b = 0; b < 4; b++)
         {
-            VR_SmallGib_Burst(self.origin + v_forward * 48 + side * (b * 8 - 12) - '0 0 16', side, 1);
+            VR_SmallGib_Burst(self.origin + v_forward * 48 + side * (b * 8 - 12) - '0 0 16', side, 1, world);
         }
     }
     else
@@ -697,7 +697,7 @@ void(float xCase) VR_SmallGib_TestStart =
         float b0 = vr_sgib_brains_made;
         float bd = cvar("vr_smallgibs_test_dist");
         bd = bd > 0 ? bd : 40;
-        VR_SmallGib_BurstOf(self.origin + v_forward * bd + '0 0 6', '0 0 0', floor(max(0, cvar_hget(cvarh_vr_smallgibs_brains_pop)) + 0.5), TRUE);
+        VR_SmallGib_BurstOf(self.origin + v_forward * bd + '0 0 6', '0 0 0', floor(max(0, cvar_hget(cvarh_vr_smallgibs_brains_pop)) + 0.5), TRUE, world);
         bprint(sprintf("sgibtest: brain chunks ahead: %d (Head Pop %.0f)\n", vr_sgib_brains_made - b0,
             cvar_hget(cvarh_vr_smallgibs_brains_pop)));
         vr_sgib_test = 0;

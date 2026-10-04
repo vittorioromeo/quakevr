@@ -279,8 +279,46 @@ const DefaultChange defaultChanges[] = {
     {85, &vr_ragdoll_hknight_mass, "-1"},      // 130
     {85, &vr_ragdoll_dog_mass, "-1"},          // 40
     {85, &vr_ragdoll_wizard_mass, "-1"},       // 40
+    // 86: brain chunks' own throw, and each monster's small gib and brain chunk counts (the author, 2026-10-04;
+    // ROUND21.md, "Brain chunks' own throw; per-enemy gib counts"). Every one is a new setting: no config of 85 or
+    // before holds it, so it takes its compiled default, which is what happened then (brain chunks flew at Speed and
+    // Up; every count times 1). Listed so this version's additions are named one by one.
+    {86, &vr_smallgibs_brains_speed, "3"},           // 3 (new: what vr_smallgibs_speed was then)
+    {86, &vr_smallgibs_brains_up, "7"},              // 7 (new: what vr_smallgibs_up was then)
+    {86, &vr_smallgibs_mult_grunt, "1"},             // 1 (new)
+    {86, &vr_smallgibs_mult_enforcer, "1"},          // 1 (new)
+    {86, &vr_smallgibs_mult_dog, "1"},               // 1 (new)
+    {86, &vr_smallgibs_mult_fiend, "1"},             // 1 (new)
+    {86, &vr_smallgibs_mult_ogre, "1"},              // 1 (new)
+    {86, &vr_smallgibs_mult_knight, "1"},            // 1 (new)
+    {86, &vr_smallgibs_mult_hellknight, "1"},        // 1 (new)
+    {86, &vr_smallgibs_mult_vore, "1"},              // 1 (new)
+    {86, &vr_smallgibs_mult_shambler, "1"},          // 1 (new)
+    {86, &vr_smallgibs_mult_scrag, "1"},             // 1 (new)
+    {86, &vr_smallgibs_mult_fish, "1"},              // 1 (new)
+    {86, &vr_smallgibs_mult_gremlin, "1"},           // 1 (new)
+    {86, &vr_smallgibs_mult_scourge, "1"},           // 1 (new)
+    {86, &vr_smallgibs_mult_eel, "1"},               // 1 (new)
+    {86, &vr_smallgibs_mult_zombie, "1"},            // 1 (new)
+    {86, &vr_smallgibs_mult_mummy, "1"},             // 1 (new)
+    {86, &vr_smallgibs_brains_mult_grunt, "1"},      // 1 (new)
+    {86, &vr_smallgibs_brains_mult_enforcer, "1"},   // 1 (new)
+    {86, &vr_smallgibs_brains_mult_dog, "1"},        // 1 (new)
+    {86, &vr_smallgibs_brains_mult_fiend, "1"},      // 1 (new)
+    {86, &vr_smallgibs_brains_mult_ogre, "1"},       // 1 (new)
+    {86, &vr_smallgibs_brains_mult_knight, "1"},     // 1 (new)
+    {86, &vr_smallgibs_brains_mult_hellknight, "1"}, // 1 (new)
+    {86, &vr_smallgibs_brains_mult_vore, "1"},       // 1 (new)
+    {86, &vr_smallgibs_brains_mult_shambler, "1"},   // 1 (new)
+    {86, &vr_smallgibs_brains_mult_scrag, "1"},      // 1 (new)
+    {86, &vr_smallgibs_brains_mult_fish, "1"},       // 1 (new)
+    {86, &vr_smallgibs_brains_mult_gremlin, "1"},    // 1 (new)
+    {86, &vr_smallgibs_brains_mult_scourge, "1"},    // 1 (new)
+    {86, &vr_smallgibs_brains_mult_eel, "1"},        // 1 (new)
+    {86, &vr_smallgibs_brains_mult_zombie, "1"},     // 1 (new)
+    {86, &vr_smallgibs_brains_mult_mummy, "1"},      // 1 (new)
 };
-constexpr int configVersion = 85;
+constexpr int configVersion = 86;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

@@ -1191,6 +1191,42 @@ QVR_CVAR(vr_smallgibs_brains_burst, "6", CVAR_ARCHIVE)     // brain chunks from 
 QVR_CVAR(vr_smallgibs_brains_pop, "8", CVAR_ARCHIVE)       // brain chunks from a head pop (a headshot that bursts the head)
 QVR_CVAR(vr_smallgibs_brains_size, "0.8", CVAR_ARCHIVE)    // their size: times the small gibs' (vr_smallgibs_size_min/max)
 QVR_CVAR(vr_smallgibs_brains_mass, "0.15", CVAR_ARCHIVE)   // kg each (lighter than a small gib of meat)
+QVR_CVAR(vr_smallgibs_brains_speed, "3", CVAR_ARCHIVE)     // m/s brain chunks fly out of a head burst (their own Speed: vr_smallgibs_speed is the meat gibs'; times vr_smallgibs_speed_burst)
+QVR_CVAR(vr_smallgibs_brains_up, "7", CVAR_ARCHIVE)        // m/s up (their own Up; times vr_smallgibs_up_burst)
+// Per enemy (VR_SmallGib_Mult, vr_smallgibs.qc; the same monsters as vr_corpse_health_<monster>): a monster's small
+// gibs and brain chunks, times these. 1 as now, 0 none, 2 twice as many (a hit's, a gibbing's, and a head's bursts).
+QVR_CVAR(vr_smallgibs_mult_grunt, "1", CVAR_ARCHIVE)       // a grunt's
+QVR_CVAR(vr_smallgibs_mult_enforcer, "1", CVAR_ARCHIVE)    // an enforcer's
+QVR_CVAR(vr_smallgibs_mult_dog, "1", CVAR_ARCHIVE)         // a rottweiler's
+QVR_CVAR(vr_smallgibs_mult_fiend, "1", CVAR_ARCHIVE)       // a fiend's
+QVR_CVAR(vr_smallgibs_mult_ogre, "1", CVAR_ARCHIVE)        // an ogre's
+QVR_CVAR(vr_smallgibs_mult_knight, "1", CVAR_ARCHIVE)      // a knight's
+QVR_CVAR(vr_smallgibs_mult_hellknight, "1", CVAR_ARCHIVE)  // a hell knight's
+QVR_CVAR(vr_smallgibs_mult_vore, "1", CVAR_ARCHIVE)        // a vore's
+QVR_CVAR(vr_smallgibs_mult_shambler, "1", CVAR_ARCHIVE)    // a shambler's
+QVR_CVAR(vr_smallgibs_mult_scrag, "1", CVAR_ARCHIVE)       // a scrag's
+QVR_CVAR(vr_smallgibs_mult_fish, "1", CVAR_ARCHIVE)        // a rotfish's
+QVR_CVAR(vr_smallgibs_mult_gremlin, "1", CVAR_ARCHIVE)     // a gremlin's (Hipnotic)
+QVR_CVAR(vr_smallgibs_mult_scourge, "1", CVAR_ARCHIVE)     // a centroid's (Rogue)
+QVR_CVAR(vr_smallgibs_mult_eel, "1", CVAR_ARCHIVE)         // an eel's (Rogue)
+QVR_CVAR(vr_smallgibs_mult_zombie, "1", CVAR_ARCHIVE)      // a zombie's (beheaded: vr_decap)
+QVR_CVAR(vr_smallgibs_mult_mummy, "1", CVAR_ARCHIVE)       // a mummy's (Rogue, beheaded)
+QVR_CVAR(vr_smallgibs_brains_mult_grunt, "1", CVAR_ARCHIVE)     // a grunt's brain chunks
+QVR_CVAR(vr_smallgibs_brains_mult_enforcer, "1", CVAR_ARCHIVE)  // an enforcer's
+QVR_CVAR(vr_smallgibs_brains_mult_dog, "1", CVAR_ARCHIVE)      // a rottweiler's
+QVR_CVAR(vr_smallgibs_brains_mult_fiend, "1", CVAR_ARCHIVE)    // a fiend's
+QVR_CVAR(vr_smallgibs_brains_mult_ogre, "1", CVAR_ARCHIVE)     // an ogre's
+QVR_CVAR(vr_smallgibs_brains_mult_knight, "1", CVAR_ARCHIVE)   // a knight's
+QVR_CVAR(vr_smallgibs_brains_mult_hellknight, "1", CVAR_ARCHIVE) // a hell knight's
+QVR_CVAR(vr_smallgibs_brains_mult_vore, "1", CVAR_ARCHIVE)     // a vore's
+QVR_CVAR(vr_smallgibs_brains_mult_shambler, "1", CVAR_ARCHIVE) // a shambler's
+QVR_CVAR(vr_smallgibs_brains_mult_scrag, "1", CVAR_ARCHIVE)    // a scrag's
+QVR_CVAR(vr_smallgibs_brains_mult_fish, "1", CVAR_ARCHIVE)     // a rotfish's
+QVR_CVAR(vr_smallgibs_brains_mult_gremlin, "1", CVAR_ARCHIVE)  // a gremlin's (Hipnotic)
+QVR_CVAR(vr_smallgibs_brains_mult_scourge, "1", CVAR_ARCHIVE)  // a centroid's (Rogue)
+QVR_CVAR(vr_smallgibs_brains_mult_eel, "1", CVAR_ARCHIVE)      // an eel's (Rogue)
+QVR_CVAR(vr_smallgibs_brains_mult_zombie, "1", CVAR_ARCHIVE)   // a zombie's (beheaded: vr_decap)
+QVR_CVAR(vr_smallgibs_brains_mult_mummy, "1", CVAR_ARCHIVE)    // a mummy's (Rogue, beheaded)
 QVR_CVAR(vr_gore_stick_thrown, "0.5", CVAR_ARCHIVE)        // a gib or head thrown into a wall or a ceiling (slower than vr_gib_splat_speed) sticks there: the chance (0 never)
 QVR_CVAR(vr_gore_stick_speed, "180", CVAR_ARCHIVE)         // units/s a gib must strike a wall or a ceiling at to stick (flung or thrown)
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)

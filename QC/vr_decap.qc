@@ -473,6 +473,7 @@ entity(entity c, string m, vector xAt, vector xAng, vector xVel, vector xSpin) V
     h.nextthink = time + 1.5;
     VR_MakeGibGrabbable(h);
     VR_Gib_MakeDestroyable(h, 1.5);
+    VR_SmallGib_CarryMults(c, h); // (vr_smallgibs.qc) it carries its enemy's gib and brain counts: bursting it later
     VR_Gore_WatchFling(h); // (it may stick to a ceiling or a wall)
     h.vr_rigid = 1;
     h.vr_spin = xSpin;
@@ -522,8 +523,8 @@ void(entity e, vector xAt, vector xVel) VR_Decap_PopEffects =
 {
     VR_BloodMist(xAt, xVel, VR_DECAP_POP_SIZE);
     VR_Gore_Burst(xAt, xVel, VR_DECAP_POP_SIZE);
-    VR_SmallGib_Burst(xAt, xVel, VR_DECAP_POP_SIZE);
-    VR_SmallGib_Brains(xAt, xVel, TRUE); // and its brain (vr_smallgibs.qc)
+    VR_SmallGib_Burst(xAt, xVel, VR_DECAP_POP_SIZE, e); // its small gibs (vr_smallgibs.qc)
+    VR_SmallGib_Brains(xAt, xVel, TRUE, e); // and its brain (vr_smallgibs.qc)
     sound(e, CHAN_AUTO, VR_Gib_SquishSound(FALSE), 1, ATTN_NORM);
     sound(e, CHAN_BODY, "player/udeath.wav", 0.8, ATTN_NORM);
     vr_decap_pops++;

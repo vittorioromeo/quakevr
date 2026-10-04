@@ -783,6 +783,7 @@ void(string gibname, float dm) ThrowGib =
     new.flags = 0;
     VR_MakeGibGrabbable(new);
     VR_Gib_MakeDestroyable(new, 1);
+    VR_SmallGib_CarryMults(self, new); // VR: it carries this monster's small gib and brain counts (vr_smallgibs.qc)
     VR_Gore_WatchFling(new); // VR: it may stick to a ceiling or a wall (vr_gore_stick)
 
     particle2(self.origin, new.velocity, QVR_PARTICLE_PRESET_BLOOD, 40);

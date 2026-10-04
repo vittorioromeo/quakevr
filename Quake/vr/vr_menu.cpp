@@ -1698,6 +1698,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 }
 
 // Small gibs (QC vr_smallgibs.qc; ROUND21.md, "Small gibs"): chunks torn out by hits, carried and thrown as the gibs.
+[[nodiscard]] za::Vector<Item> pageSmallGibsEnemies(); // (below: each monster's counts)
 [[nodiscard]] za::Vector<Item> pageSmallGibs()
 {
     return {
@@ -1734,6 +1735,11 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("From a Head Pop", vr_smallgibs_brains_pop, 0.f, 20.f, 1.f, "%.0f").help("How many when a headshot pops a head (Decapitation > Head Shots)."),
         slider("Brain Chunk Size", vr_smallgibs_brains_size, 0.2f, 2.f, 0.05f, "%.2fx").help("Times the small gibs' size (Smallest, Largest)."),
         slider("Brain Chunk Mass", vr_smallgibs_brains_mass, 0.05f, 2.f, 0.05f, "%.2f kg"),
+        slider("Brain Chunk Speed", vr_smallgibs_brains_speed, 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f)
+            .help("How fast brain chunks fly out of a head burst: their own, not Speed below (times A Large Gib Bursts: "
+                  "Speed). The default is Speed's, which is what they used then (vr_smallgibs_brains_speed)."),
+        slider("Brain Chunk Up", vr_smallgibs_brains_up, 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f)
+            .help("And upwards: their own, not Up below (times A Large Gib Bursts: Up) (vr_smallgibs_brains_up)."),
         header("Flight and Size"),
         slider("Speed", vr_smallgibs_speed, 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f).help("How fast they fly out from where the hit landed (times Flight by Situation below)."),
         slider("Up", vr_smallgibs_up, 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f).help("And upwards (times Flight by Situation below)."),
@@ -1779,6 +1785,54 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Most Lying About", vr_smallgibs_max, 1.f, 128.f, 1.f, "%.0f").extend(1.f, 256.f).help("Past it, the oldest go first (not one in your hand)."),
         slider("Last", vr_smallgibs_time, 0.f, 120.f, 5.f, "%.0f s").help("Then they fade away (0: never). Held, and in the air after, they wait."),
         toggle("Can Be Destroyed", vr_smallgibs_destroy).help("Shots and blows burst them into a puff of blood. Off: they pass through them."),
+        open("Per Enemy", pageIndex(pageSmallGibsEnemies))
+            .help("Each monster's own counts: a hit's, a gibbing's and a head or gib burst's, times these."),
+    };
+}
+
+// Small Gibs > Per Enemy (QC vr_smallgibs.qc's VR_SmallGib_Mult; the same monsters as Corpse Damage and Health's
+// Corpse Health, by Monster): each monster's small gibs and brain chunks, times these.
+[[nodiscard]] za::Vector<Item> pageSmallGibsEnemies()
+{
+    return {
+        open("Small Gibs, Per Enemy: Small Gibs", pageIndex(pageSmallGibs)).help("The counts themselves, the flight and Brain Chunks are on Small Gibs."),
+        header("Small Gibs, by Monster"),
+        slider("Grunt", vr_smallgibs_mult_grunt, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("Its small gibs, times this: what a hit tears out, what flies with its gibs, what its gibs and head burst into (vr_smallgibs_mult_grunt)."),
+        slider("Enforcer", vr_smallgibs_mult_enforcer, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("An enforcer's (vr_smallgibs_mult_enforcer)."),
+        slider("Rottweiler", vr_smallgibs_mult_dog, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A rottweiler's (vr_smallgibs_mult_dog)."),
+        slider("Fiend", vr_smallgibs_mult_fiend, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A fiend's (vr_smallgibs_mult_fiend)."),
+        slider("Ogre", vr_smallgibs_mult_ogre, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("An ogre's (vr_smallgibs_mult_ogre)."),
+        slider("Knight", vr_smallgibs_mult_knight, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A knight's (vr_smallgibs_mult_knight)."),
+        slider("Hell Knight", vr_smallgibs_mult_hellknight, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A hell knight's (vr_smallgibs_mult_hellknight)."),
+        slider("Vore", vr_smallgibs_mult_vore, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A vore's (vr_smallgibs_mult_vore)."),
+        slider("Shambler", vr_smallgibs_mult_shambler, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A shambler's (vr_smallgibs_mult_shambler)."),
+        slider("Scrag", vr_smallgibs_mult_scrag, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A scrag's (vr_smallgibs_mult_scrag)."),
+        slider("Rotfish", vr_smallgibs_mult_fish, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A rotfish's (vr_smallgibs_mult_fish)."),
+        slider("Gremlin (Hipnotic)", vr_smallgibs_mult_gremlin, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A gremlin's (vr_smallgibs_mult_gremlin)."),
+        slider("Centroid (Rogue)", vr_smallgibs_mult_scourge, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A centroid's (vr_smallgibs_mult_scourge)."),
+        slider("Eel (Rogue)", vr_smallgibs_mult_eel, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("An eel's (vr_smallgibs_mult_eel)."),
+        slider("Zombie (Beheaded)", vr_smallgibs_mult_zombie, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A zombie's, beheaded or not (vr_smallgibs_mult_zombie)."),
+        slider("Mummy (Rogue, Beheaded)", vr_smallgibs_mult_mummy, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A mummy's (vr_smallgibs_mult_mummy)."),
+        header("Brain Chunks, by Monster"),
+        slider("Grunt", vr_smallgibs_brains_mult_grunt, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f)
+            .help("Its brain chunks, times this: from its head gib destroyed or its head popped by a headshot. A head it "
+                  "lost carries them with it (vr_smallgibs_brains_mult_grunt)."),
+        slider("Enforcer", vr_smallgibs_brains_mult_enforcer, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("An enforcer's (vr_smallgibs_brains_mult_enforcer)."),
+        slider("Rottweiler", vr_smallgibs_brains_mult_dog, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A rottweiler's (vr_smallgibs_brains_mult_dog)."),
+        slider("Fiend", vr_smallgibs_brains_mult_fiend, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A fiend's (vr_smallgibs_brains_mult_fiend)."),
+        slider("Ogre", vr_smallgibs_brains_mult_ogre, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("An ogre's (vr_smallgibs_brains_mult_ogre)."),
+        slider("Knight", vr_smallgibs_brains_mult_knight, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A knight's (vr_smallgibs_brains_mult_knight)."),
+        slider("Hell Knight", vr_smallgibs_brains_mult_hellknight, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A hell knight's (vr_smallgibs_brains_mult_hellknight)."),
+        slider("Vore", vr_smallgibs_brains_mult_vore, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A vore's (vr_smallgibs_brains_mult_vore)."),
+        slider("Shambler", vr_smallgibs_brains_mult_shambler, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A shambler's (vr_smallgibs_brains_mult_shambler)."),
+        slider("Scrag", vr_smallgibs_brains_mult_scrag, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A scrag's (vr_smallgibs_brains_mult_scrag)."),
+        slider("Rotfish", vr_smallgibs_brains_mult_fish, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A rotfish's (vr_smallgibs_brains_mult_fish)."),
+        slider("Gremlin (Hipnotic)", vr_smallgibs_brains_mult_gremlin, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A gremlin's (vr_smallgibs_brains_mult_gremlin)."),
+        slider("Centroid (Rogue)", vr_smallgibs_brains_mult_scourge, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A centroid's (vr_smallgibs_brains_mult_scourge)."),
+        slider("Eel (Rogue)", vr_smallgibs_brains_mult_eel, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("An eel's (vr_smallgibs_brains_mult_eel)."),
+        slider("Zombie (Beheaded)", vr_smallgibs_brains_mult_zombie, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A zombie's (vr_smallgibs_brains_mult_zombie)."),
+        slider("Mummy (Rogue, Beheaded)", vr_smallgibs_brains_mult_mummy, 0.f, 4.f, 0.25f, "%.2fx").extend(0.f, 20.f).help("A mummy's (vr_smallgibs_brains_mult_mummy)."),
     };
 }
 
@@ -4934,6 +4988,7 @@ const Page pages[] = {
     {"Search", pageSearch, pageMain, LevelStandard},                                               // 133 (the corner's Search; vr_menu_search.inc)
     {"Console", pageConsole, pageMain, LevelStandard},                                             // 134 (the corner's Console; vr_menu_console.inc)
     {"Graphics - Slipgates", pageGraphicsSlipgates, pageGraphics},                                 // 135 (vr_portals.cpp)
+    {"Small Gibs - Per Enemy", pageSmallGibsEnemies, pageSmallGibs, LevelDeveloper},              // 136
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
