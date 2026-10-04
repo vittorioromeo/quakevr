@@ -1285,11 +1285,10 @@ double expire()
 
 // ---- On the world's own surfaces (vr_decals_world) ---------------------------------------------
 
-// Drawn in the world's shader (QVR_DECAL_FUNCTIONS, vr_glsl.h), not as meshes over it: not with retro textures (their
-// blocky texels: the meshes' shader has them).
+// Drawn in the world's shader (QVR_DECAL_FUNCTIONS, vr_glsl.h), with or without retro textures, not as meshes over it.
 [[nodiscard]] bool onWorld()
 {
-    return vr_decals_world.value != 0.f && retro::categorySet(retro::Category::Decals) == 0;
+    return vr_decals_world.value != 0.f;
 }
 
 // What the shader reads (vr_glsl.h's Decal): one a mark, in the ring's order.
@@ -1565,7 +1564,7 @@ void count_f()
     else
     {
         Con_Printf("drawn as meshes over the world, not following its parallax (%s)\n",
-            vr_decals_world.value == 0.f ? "vr_decals_world 0" : "retro textures on decals");
+            "vr_decals_world 0");
     }
     gore::count();
 }
@@ -1871,6 +1870,7 @@ extern "C" void VR_DecalsFrame(float clock[4])
     clock[0] = static_cast<float>(cl.time - worldClock);
     clock[1] = static_cast<float>(life);
     clock[2] = 1.f;
+    clock[3] = static_cast<float>(retro::categorySet(retro::Category::Decals)); // their retro set (0 none)
 }
 
 // R_DrawBrushModels_Real: the marks (3), their grid (4) and the atlas (unit 14) for the world's shader.
