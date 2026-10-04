@@ -265,6 +265,13 @@ Mummy: killed any other way, it still bursts into gibs
 Mummy: gib a beheaded mummy's ragdoll: no second head flies out
 Corpse Damage and Health has Mummy (Rogue, Beheaded)
 
+[Slipgates]
+Slipgate: walk into a gate's frame in start → you hit a wall, no sudden jump
+Slipgate: lean or reach into a gate with your head → no teleport; it happens only when your torso's middle plane goes through the gate's plane
+Slipgate: walk through at an angle, and try a gate whose opening is inset from its TELE faces (the aperture tolerance is now exact, stricter than before)
+Slipgate: shooting and throwing through still works; a dropped torch/prop goes through
+Debug > Tests > Slipgates: Crossing One — run it, then read the console for "VR portal: carried edict …"
+
 [Decide or give feedback]
 Hitboxes: one set used by melee and by hitscan/projectile both? (after the hit-zone comparison shows both; the coordinator will bring a recommendation)
 Fiend: give his head a headshot zone (positional damage)? It counts as an extremity now (2/3 damage)
