@@ -3942,9 +3942,14 @@ za::Vector<Item> pageDebugTools()
         command("Shoot It (a Rocket)", "developer 1; vr_test_walltorch_shot 0")
             .help("vr_test_walltorch_shot 0: the same, with a rocket."),
         command("Shoot It (a Grenade)", "developer 1; vr_test_walltorch_shot 2")
-            .help("vr_test_walltorch_shot 2: the same, with a grenade."),
-        command("Shoot It (a Laser)", "developer 1; vr_test_walltorch_shot 4")
-            .help("vr_test_walltorch_shot 4: the same, with the enforcer's laser."),
+            .help("vr_test_walltorch_shot 2: the same, with a grenade. A grenade in flight is a thrown box, not a shot: "
+                  "only shots and missiles stop at a torch, so its flight goes past it and its blast is what knocks it "
+                  "off — see A Blast at It below."),
+        command("Shoot It (a Lightning Bolt)", "developer 1; vr_test_walltorch_shot 21")
+            .help("vr_test_walltorch_shot 21: the same, with a lightning bolt (LightningDamage, as the lightning gun)."),
+        command("A Blast at It", "developer 1; vr_test_walltorch_shot 22")
+            .help("vr_test_walltorch_shot 22: a blast at the wall torch nearest you, of a rocket's radius damage "
+                  "(T_RadiusDamage): what a rocket's or a grenade's explosion does to the torches near it."),
         command("Throw the Nearest Prop at It", "developer 1; vr_test_walltorch_shot 20")
             .help("vr_test_walltorch_shot 20: the loose prop nearest you sent at the wall torch nearest you, at vr_test_fling_speed m/s: it comes off its wall. Below vr_test_fling_speed, it is not a throw: the torch stays."),
         toggle("Torch Flames to Console", vr_walltorch_debug)

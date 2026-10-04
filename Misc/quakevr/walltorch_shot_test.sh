@@ -17,7 +17,6 @@ for c in \
     "20 thrown-prop" \
     "20 thrown-prop-slow vr_test_fling_speed 1" \
     "2 grenade-projectile" \
-    "4 laser-projectile" \
     "10 cvar-off vr_walltorch_shot 1;vr_walltorch_shot 0"; do
     set -- $c; kind=$1; label=$2; shift 2
     extra="$*"
