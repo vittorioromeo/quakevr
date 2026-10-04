@@ -904,7 +904,11 @@ float tolerance(Class c)
     {
     case Class::Guns: return za::max(0.f, vr_hit_tolerance_guns.value);
     case Class::Grapple: return za::max(0.f, vr_hit_tolerance_grapple.value);
-    case Class::Melee: return za::max(0.f, vr_hit_tolerance_melee.value);
+    // The melee probe is the tolerance times its size multiplier (vr_hit_melee_scale, Combat > Hit Detection > Melee
+    // Hitbox Size). The striking points' own thickness (QC's VR_MELEE_RADIUS, 3 units) and the broad-phase box are not
+    // part of it: what connects, not how big a monster's model is drawn to a blow.
+    case Class::Melee:
+        return za::max(0.f, vr_hit_tolerance_melee.value * za::clamp(vr_hit_melee_scale.value, 0.25f, 4.f));
     case Class::Thrown: return za::max(0.f, vr_hit_tolerance_thrown.value);
     }
     return 0.f;

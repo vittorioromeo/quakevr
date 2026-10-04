@@ -1,0 +1,44 @@
+SW scale 0.25 dist 60 
+SW scale 0.25 dist 66 
+SW scale 0.25 dist 72 
+SW scale 0.25 dist 76 
+SW scale 0.25 dist 80 
+SW scale 0.25 dist 84 
+SW scale 0.25 dist 88 
+SW scale 0.25 dist 92 
+SW scale 0.25 dist 96 
+SW scale 0.25 dist 100 
+SW scale 0.25 dist 104 
+SW scale 0.25 dist 108 
+SW scale 0.25 dist 116 
+SW scale 1 dist 60 
+Dummy: 23.1 damage - melee: punch (backhand) with the knuckles, main hand, 11.1 m/s (x2.31), at the body
+SW scale 1 dist 66 
+SW scale 1 dist 72 
+SW scale 1 dist 76 
+SW scale 1 dist 80 
+SW scale 1 dist 84 
+SW scale 1 dist 88 
+SW scale 1 dist 92 
+SW scale 1 dist 96 
+SW scale 1 dist 100 
+SW scale 1 dist 104 
+SW scale 1 dist 108 
+SW scale 1 dist 116 
+SW scale 4 dist 60 
+Dummy: 23.1 damage - melee: punch (backhand) with the knuckles, main hand, 11.1 m/s (x2.31), at the body
+SW scale 4 dist 66 
+Dummy: 23.1 damage - melee: punch (backhand) with the knuckles, main hand, 11.1 m/s (x2.31), at the limb [2 hits: 46.2]
+SW scale 4 dist 72 
+Dummy: 23.1 damage - melee: punch (backhand) with the knuckles, main hand, 11.1 m/s (x2.31), at the body [3 hits: 69.3]
+SW scale 4 dist 76 
+Dummy: 23.1 damage - melee: punch (backhand) with the knuckles, main hand, 11.1 m/s (x2.31), at the body [4 hits: 92.4]
+SW scale 4 dist 80 
+SW scale 4 dist 84 
+SW scale 4 dist 88 
+SW scale 4 dist 92 
+SW scale 4 dist 96 
+SW scale 4 dist 100 
+SW scale 4 dist 104 
+SW scale 4 dist 108 
+SW scale 4 dist 116 

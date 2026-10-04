@@ -269,9 +269,18 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
         return s;
     }
 
-    // A melee blow: only where it landed.
+    // A melee blow: only where it landed (and its zone's multiplier, with vr_melee_positional: VR_Melee_Positional
+    // records it as a shot's PositionalDamage does).
     if(isVRMelee || vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE)
     {
+        if(vr_hitpart_target == targ && vr_hitpart_time == time && vr_hitpart >= 0)
+        {
+            if(vr_hitpart == 1)
+            {
+                vr_dummy_colour = '1 0.85 0.2';
+            }
+            return sprintf(", %s (x%.2f)", VR_Dummy_RegionName(vr_hitpart), PositionalDamageFactor(vr_hitpart));
+        }
         if(vr_hitpos != '0 0 0' && vr_hitdir != '0 0 0')
         {
             float region = PositionalRegion(targ, vr_hitpos, vr_hitdir);

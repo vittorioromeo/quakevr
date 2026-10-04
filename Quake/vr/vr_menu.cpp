@@ -957,6 +957,13 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("How much bigger than the model a monster is to the grappling hook."),
         slider("Melee Tolerance", vr_hit_tolerance_melee, 0.f, 12.f, 0.5f, "%.1f units").extend()
             .help("How much bigger than the model a monster is to your melee blows and shoves."),
+        slider("Melee Hitbox Size (of Melee Tolerance)", vr_hit_melee_scale, 0.25f, 4.f, 0.05f, "%.2fx").extend()
+            .help("The melee probe's size: Melee Tolerance times this, so a monster's model grown by that many units is "
+                  "what a blow meets (1: 6 units; 0.25: 1.5; 4: 24). It does not change the striking points' own 3-unit "
+                  "thickness, nor the box the model is found out of, nor how far a swing reaches."),
+        toggle("Head Priority", vr_hit_head_priority)
+            .help("Where a hit point, or a whole melee sweep's way through a body, lies in more than one zone, the "
+                  "head's zone decides it. Off: the limb and leg zones claim it first."),
         slider("Thrown Tolerance", vr_hit_tolerance_thrown, 0.f, 12.f, 0.5f, "%.1f units").extend()
             .help("How much bigger than the model a monster is to things you throw."),
         header("Damage"),
@@ -965,6 +972,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Self Damage", vr_damage_self, 0.f, 2.f, 0.05f, "%.2fx").extend().help("Damage your own rockets and grenades deal to you."),
         header("Positional Damage"),
         toggle("Positional Damage", vr_positional_damage).help("Headshots, arm and leg shots on humanoid monsters."),
+        toggle("Melee Positional Damage", vr_melee_positional)
+            .help("Your melee blows take the same head / limb / leg multipliers as your shots, from the point on the "
+                  "model they met: a head is a head for a blade and for a shot. Off: flat melee damage, as before. The "
+                  "looser melee tolerance stays what connects only."),
         slider("Headshot Damage", vr_headshot_mult, 1.f, 5.f, 0.1f, "%.1fx").extend(),
         slider("Arm Shot Damage", vr_limbshot_mult, 0.1f, 1.f, 0.05f, "%.2fx").extend(),
         slider("Leg Shot Damage", vr_legshot_mult, 0.1f, 1.f, 0.05f, "%.2fx").extend(),

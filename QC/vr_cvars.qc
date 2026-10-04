@@ -99,6 +99,8 @@ float cvarh_vr_melee_wrist_speed;
 float cvarh_vr_melee_pommel_wait;
 float cvarh_vr_melee_butt_run;
 float cvarh_vr_positional_damage;
+float cvarh_vr_melee_positional;
+float cvarh_vr_hit_head_priority;
 float cvarh_vr_weapon_cycle_mode;
 float cvarh_vr_weapon_throw_damage_mult;
 float cvarh_vr_weapon_throw_mode;
@@ -590,6 +592,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_quad_melee_range);
     VR_CVAR_HMAKE(vr_melee_speed);
     VR_CVAR_HMAKE(vr_melee_punch_mult);
+    VR_CVAR_HMAKE(vr_melee_positional);
+    VR_CVAR_HMAKE(vr_hit_head_priority);
     VR_CVAR_HMAKE(vr_melee_wrist_speed);
     VR_CVAR_HMAKE(vr_melee_pommel_wait);
     VR_CVAR_HMAKE(vr_melee_butt_run);
