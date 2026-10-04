@@ -276,6 +276,9 @@ Debug > Slipgates > Looking Through A Gate, Or Why Not — which side you are lo
 Debug > Tests > Slipgates: Crossing One — run it, then read the console for "VR portal: carried edict …"
 Debug > Tests > Slipgates: The Whole Feature Off — and the switch takes effect live, no map reload (flip it at a gate and watch the portal/scene rows appear and go in the profiler)
 
+Hidden staircase in start: at the spot you reported, the closed episode gate no longer appears and disappears as you tilt your head. Compare with Debug > Slipgates > "Self-Leaf PVS Off (Quake's)" and "Self-Leaf PVS On"; "Hidden Staircase, Both Ways" runs both
+If any map now shows something that should stay hidden (a closed door, what is behind one), tell us — this fix only ever adds visibility
+
 [Decide or give feedback]
 Hitboxes: one set used by melee and by hitscan/projectile both? (after the hit-zone comparison shows both; the coordinator will bring a recommendation)
 Fiend: give his head a headshot zone (positional damage)? It counts as an extremity now (2/3 damage)
