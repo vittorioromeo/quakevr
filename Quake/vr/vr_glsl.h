@@ -109,7 +109,12 @@ QVR_TONE_GLSL
 "	vec4	Ripple; // QVR: splash ripples (vr/vr_water.cpp: vr_water_ripples): x how many, y their rings' speed (units/s), z the wave number, w the share of them in the geometry\n" \
 "	vec4	RippleAt[32]; // QVR: ... each's centre (xy), the surface's height (z), its age in seconds (w)\n" \
 "	vec4	RippleAmp[8]; // QVR: ... each's height now, in units (four a vec4)\n" \
-"	vec4	DecalClock; // QVR: the decals on the world (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS): x now on their clock, y vr_decal_life, z 1 on (0: none, or drawn as meshes), w unused\n"
+"	vec4	DecalClock; // QVR: the decals on the world (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS): x now on their clock, y vr_decal_life, z 1 on (0: none, or drawn as meshes), w unused\n" \
+"	vec4	WaterCube; // QVR: water reflections (vr/vr_envmap.cpp: vr_water_reflections): the water cube's centre (xyz), strength (w, 0 off)\n" \
+"	vec4	WaterCube2; // QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last\n" \
+"	vec4	PortalPlane; // QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)\n" \
+"	vec4	PortalMin; // QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)\n" \
+"	vec4	PortalMax; // QVR: ... its box (xyz)\n"
 
 // the frame data the alias shaders read (vr/vr_lighting.cpp); its own names, since the alias
 // instance buffer has a ViewProj, Fog, EyePos and ScreenDither of its own.
@@ -758,6 +763,8 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "layout(binding=6) uniform sampler2D LiquidScene; // the opaque scene, while translucent liquids draw into the OIT buffers\n"\
 "layout(binding=7) uniform sampler3D LiquidVolume; // where the water and slime are (1), a cell round them into walls\n"\
 "layout(binding=8) uniform sampler2D LiquidDepth; // how far the opaque scene is (vr_water.cpp: half the size), with LiquidScene\n"\
+"layout(binding=16) uniform samplerCube LiquidCube; // the room over the water (vr_envmap.cpp), each texel's distance in alpha\n"\
+"layout(binding=17) uniform sampler2D PortalScene; // the view through a slipgate for this eye (vr_portals.cpp), by the eye's pixels\n"\
 "\n"\
 LIQUID_SWELL \
 "// Quake's warp of the liquids' texture coordinates; lava's slower with the waves on.\n"\
@@ -809,6 +816,47 @@ LIQUID_SWELL \
 "	return normalize(facing - (t * w.x + b * w.y));\n"\
 "}\n"\
 "\n"\
+"// The room reflected at pos on a level liquid seen from above (vr_water_reflections; WaterCube: vr_envmap.cpp's water\n"\
+"// cube, made over the surface at WaterCube2.x), n the waves' normal, v towards the eye, rough how much the waves\n"\
+"// spread under the pixel: rgb the colour, a its share (0: none here, other heights, past WaterCube2.y from the\n"\
+"// cube). The reflected ray is followed out to the cube's distances (its alpha; Szirmay-Kalos' distance impostors):\n"\
+"// from the cube's centre the direction of where the ray meets the room is read, not the ray's own, so what is\n"\
+"// reflected is where it is and the same in both eyes. Blurrier where the waves are rough under the pixel and far off.\n"\
+"vec4 LiquidReflection(vec3 pos, vec3 n, vec3 v, float rough)\n"\
+"{\n"\
+"	if (WaterCube.w <= 0. || abs(pos.z - WaterCube2.x) > 6.0)\n"\
+"		return vec4(0.);\n"\
+"	vec3 o = pos - WaterCube.xyz;\n"\
+"	float fade = 1.0 - smoothstep(WaterCube2.y * 0.6, WaterCube2.y, length(o.xy));\n"\
+"	if (fade <= 0.)\n"\
+"		return vec4(0.);\n"\
+"	vec3 r = reflect(-v, n);\n"\
+"	r = normalize(vec3(r.xy, max(r.z, 0.02))); // a wave's back bent below the plane: skimming it\n"\
+"	float lod = clamp(WaterCube2.z + rough * 40.0 + log2(1.0 + distance(pos, EyePos) / 512.0), 0.0, WaterCube2.w);\n"\
+"	float b = dot(o, r), oo = dot(o, o);\n"\
+"	float t = textureLod(LiquidCube, r, lod).a;\n"\
+"	for (int i = 0; i < 3; i++)\n"\
+"	{\n"\
+"		float d = textureLod(LiquidCube, o + r * t, lod).a; // the room's distance from the centre that way\n"\
+"		float disc = b * b - oo + d * d; // where the ray is that far from the centre\n"\
+"		t = disc > 0. ? max(-b + sqrt(disc), 0.) : t;\n"\
+"	}\n"\
+"	return vec4(textureLod(LiquidCube, o + r * t, lod).rgb, WaterCube.w * fade);\n"\
+"}\n"\
+"\n"\
+"// A slipgate showing where it leads (vr_portals; PortalPlane, PortalMin, PortalMax: vr_portals.cpp's side shown in this\n"\
+"// view): on that side's faces, seen from in front, the view through it (PortalScene: drawn for this eye, its pixels\n"\
+"// these), wavering a little as the slipgate's texture does; a its share (0: not this side, or none).\n"\
+"vec4 LiquidPortal(vec3 pos, vec3 facing)\n"\
+"{\n"\
+"	if (PortalMin.w <= 0. || dot(facing, PortalPlane.xyz) < 0.9 || abs(dot(pos, PortalPlane.xyz) - PortalPlane.w) > 2.0 ||\n"\
+"		any(lessThan(pos, PortalMin.xyz - 2.0)) || any(greaterThan(pos, PortalMax.xyz + 2.0)))\n"\
+"		return vec4(0.);\n"\
+"	vec2 size = vec2(textureSize(PortalScene, 0));\n"\
+"	vec2 waver = vec2(sin(Time * 1.9 + dot(pos, vec3(0.071, 0.053, 0.089))), cos(Time * 1.6 + dot(pos, vec3(0.047, 0.083, 0.061))));\n"\
+"	return vec4(texture(PortalScene, gl_FragCoord.xy / size + waver * 0.0012).rgb, PortalMin.w);\n"\
+"}\n"\
+"\n"\
 "// A liquid's colour: tex its texture, lit that lit (light: by how much, 1 Quake's full light), n the waves' normal and\n"\
 "// facing the flat one (towards the eye), h the waves' height. alpha: its opacity, in and out. Water and slime are more\n"\
 "// see-through looking down and reflect a dim room colour at grazing angles (fresnel), glinting where the waves face a\n"\
@@ -816,7 +864,8 @@ LIQUID_SWELL \
 "vec3 LiquidShade(vec3 tex, vec3 lit, vec3 light, vec3 pos, vec3 n, vec3 facing, float h, uint kind, inout float alpha)\n"\
 "{\n"\
 "	vec3 ndx = dFdx(n), ndy = dFdy(n); // QVR: the waves' spread under the pixel widens the glints (vr_specular_aa: Parallax.w)\n"\
-"	float spread = min(0.25 * (dot(ndx, ndx) + dot(ndy, ndy)), 0.09) * Parallax.w;\n"\
+"	float nspread = min(0.25 * (dot(ndx, ndx) + dot(ndy, ndy)), 0.09); // (also the reflection's blur)\n"\
+"	float spread = nspread * Parallax.w;\n"\
 "	if (kind == 1u)\n"\
 "	{\n"\
 "		float hot = smoothstep(0.2, 0.6, dot(tex, vec3(0.3, 0.59, 0.11)));\n"\
@@ -824,7 +873,16 @@ LIQUID_SWELL \
 "		return mix(lit, max(lit, tex), min(Water2.x, 1.0)) * (1.0 + Water2.x * (0.3 + 1.2 * hot * pulse));\n"\
 "	}\n"\
 "	if (kind == 3u)\n"\
-"		return lit * (1.0 + 0.2 * sin(Time * 3.0 + h * 8.0) * min(Water.x, 1.0));\n"\
+"	{\n"\
+"		vec3 shimmer = lit * (1.0 + 0.2 * sin(Time * 3.0 + h * 8.0) * min(Water.x, 1.0));\n"\
+"		vec4 through = LiquidPortal(pos, facing); // QVR: where it leads (vr_portals), a little of its shimmer over it\n"\
+"		if (through.a > 0.)\n"\
+"		{\n"\
+"			alpha = 1.0;\n"\
+"			return mix(shimmer, through.rgb, through.a * 0.88);\n"\
+"		}\n"\
+"		return shimmer;\n"\
+"	}\n"\
 "	vec3 v = normalize(EyePos - pos);\n"\
 "	float cosv = clamp(dot(n, v), 0.0, 1.0);\n"\
 "	float l = min(dot(light, vec3(1.0 / 3.0)), 1.5);\n"\
@@ -840,6 +898,11 @@ LIQUID_SWELL \
 "		float m = 1.0 - cosv;\n"\
 "		f = 0.02 + 0.98 * m * m * m;\n"\
 "		env = l * (kind == 2u ? vec3(0.16, 0.22, 0.11) : vec3(0.22, 0.26, 0.3));\n"\
+"		if (facing.z > 0.9) // QVR: the room reflected (vr_water_reflections), slime's murkier and greener\n"\
+"		{\n"\
+"			vec4 room = LiquidReflection(pos, n, v, nspread);\n"\
+"			env = mix(env, room.rgb * (kind == 2u ? vec3(0.55, 0.8, 0.4) : vec3(1.0)), min(room.a, 1.0));\n"\
+"		}\n"\
 "	}\n"\
 "	fresnel = f * Water.y;\n"\
 "	vec3 c = mix(lit, env, fresnel);\n"\

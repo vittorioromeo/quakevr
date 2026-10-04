@@ -1,0 +1,535 @@
+// vr_portals.cpp -- see vr_portals.hpp.
+
+#include "vr_portals.hpp"
+#include "vr_cvars.hpp"
+#include "vr_engine.hpp"
+#include "vr_gfx.hpp"
+#include "vr_hands.hpp"
+#include "vr_main.hpp"
+#include "vr_stereo.hpp"
+
+#include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Atan2.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Fabs.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Tan.hpp"
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#include <string.h>
+
+extern "C" void SV_AddToFatPVS(vec3_t org, mnode_t* node, qmodel_t* worldmodel); // sv_main.c
+
+namespace qvr::portals
+{
+namespace
+{
+
+constexpr float kReach = 24.f;    // how far round a trigger's brush its slipgate's faces may be
+constexpr float kStand = 24.f;    // a standing player's origin over the floor
+constexpr float kRange = 1536.f;  // how far from the head a gate is looked through
+constexpr float kOblique = 0.25f; // the oblique near plane's slope in the depth (see VR_PortalClip)
+
+// A side of a slipgate: its faces in one plane, seen from in front of it, and where they lead.
+struct Side
+{
+    glm::vec3 normal{0.f}; // towards where it is seen from
+    float dist = 0.f;
+    glm::vec3 mins{0.f}, maxs{0.f};
+    float area = 0.f;
+    int leaf = -1;         // the leaf in front of it, in the PVS's bits (-1: none found: no PVS test)
+    glm::vec3 from{0.f};   // its point carried onto `to`
+    glm::vec3 to{0.f};
+    glm::vec3 dest{0.f};   // the destination's point (where a player arrives)
+    float yaw = 0.f;       // degrees a view's yaw turns going through
+    glm::mat3 turn{1.f};   // the same turn
+};
+
+za::Vector<Side> sides;
+const qmodel_t* builtFor = nullptr;
+int builtGeneration = -1;
+int chosen = -1;  // the side looked through this frame (-1: none)
+int lastChosen = -1;
+
+bool inView = false;      // drawing the view through the gate
+unsigned texture = 0;     // the view through the gate for textureEye's own view (0: none)
+int textureEye = -1;
+glm::vec4 eyeRect{-1.f, -1.f, 1.f, 1.f}; // the gate's box on the eye's screen (NDC), with a margin
+bool eyeRectAll = true;   // ... or the whole screen (the gate's box reaches behind the eye)
+
+[[nodiscard]] glm::vec3 vec(const float* v)
+{
+    return {v[0], v[1], v[2]};
+}
+
+[[nodiscard]] glm::mat3 turnAboutZ(float degrees)
+{
+    return glm::mat3{glm::rotate(glm::mat4{1.f}, glm::radians(degrees), glm::vec3{0.f, 0.f, 1.f})};
+}
+
+[[nodiscard]] float surfaceArea(const qmodel_t* m, const msurface_t* s)
+{
+    glm::vec3 first{0.f}, prev{0.f}, sum{0.f};
+    for(int k = 0; k < s->numedges; k++)
+    {
+        const int e = m->surfedges[s->firstedge + k];
+        const glm::vec3 p = vec(m->vertexes[e >= 0 ? m->edges[e].v[0] : m->edges[-e].v[1]].position);
+        if(k == 0)
+        {
+            first = p;
+        }
+        else if(k >= 2)
+        {
+            sum += glm::cross(prev - first, p - first);
+        }
+        prev = p;
+    }
+    return 0.5f * glm::length(sum);
+}
+
+[[nodiscard]] bool solidAt(qmodel_t* m, const glm::vec3& p)
+{
+    vec3_t q{p.x, p.y, p.z};
+    return Mod_PointInLeaf(q, m)->contents == CONTENTS_SOLID;
+}
+
+// Where a side leads: the turn and the points carried onto each other (vr_portals.hpp), and the leaf in front of it.
+void finish(Side& sd, qmodel_t* m, const glm::vec3& dest, float destYaw)
+{
+    sd.dest = dest;
+    const glm::vec3 c = (sd.mins + sd.maxs) * 0.5f;
+    const glm::vec3 onPlane = c - sd.normal * (glm::dot(sd.normal, c) - sd.dist);
+    if(za::fabs(sd.normal.z) < 0.7f)
+    {
+        // a wall's gate: walking into it is walking along the destination's yaw, its foot plus a standing origin's
+        // height the destination's point
+        const glm::vec2 into = glm::normalize(-glm::vec2{sd.normal});
+        sd.yaw = destYaw - glm::degrees(za::atan2(into.y, into.x));
+        sd.from = glm::vec3{onPlane.x, onPlane.y, sd.mins.z + kStand};
+        sd.to = dest;
+    }
+    else
+    {
+        // a floor's gate: seen from over the destination's point (under its ceiling, at most 96 units); a ceiling's:
+        // from its floor
+        sd.yaw = destYaw;
+        sd.from = onPlane;
+        if(sd.normal.z > 0.f)
+        {
+            float clear = 8.f;
+            while(clear < 96.f && !solidAt(m, dest + glm::vec3{0.f, 0.f, clear + 8.f}))
+            {
+                clear += 8.f;
+            }
+            sd.to = dest + glm::vec3{0.f, 0.f, za::max(clear - 8.f, 8.f)};
+        }
+        else
+        {
+            sd.to = dest - glm::vec3{0.f, 0.f, kStand - 2.f};
+        }
+    }
+    sd.turn = turnAboutZ(sd.yaw);
+
+    sd.leaf = -1;
+    for(const float out : {8.f, 24.f})
+    {
+        vec3_t q{c.x + sd.normal.x * out, c.y + sd.normal.y * out, c.z + sd.normal.z * out};
+        const mleaf_t* leaf = Mod_PointInLeaf(q, m);
+        if(leaf && leaf->contents != CONTENTS_SOLID)
+        {
+            sd.leaf = static_cast<int>(leaf - m->leafs) - 1;
+            break;
+        }
+    }
+}
+
+// The map's gates: each trigger_teleport's teleport faces, by plane, and its destination (the server's entities).
+void build()
+{
+    sides.clear();
+    builtFor = sv.worldmodel;
+    builtGeneration = worldGeneration();
+    qmodel_t* m = sv.worldmodel;
+    if(!m)
+    {
+        return;
+    }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    const int mangleField = ED_FindFieldOffset("mangle");
+    for(int i = 1; i < qcvm->num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        if(e->free || strcmp(PR_GetString(e->v.classname), "trigger_teleport"))
+        {
+            continue;
+        }
+        const char* target = PR_GetString(e->v.target);
+        if(!target[0])
+        {
+            continue;
+        }
+        edict_t* d = nullptr;
+        for(int j = 1; j < qcvm->num_edicts && !d; j++)
+        {
+            edict_t* t = EDICT_NUM(j);
+            if(!t->free && !strcmp(PR_GetString(t->v.targetname), target))
+            {
+                d = t;
+            }
+        }
+        if(!d)
+        {
+            continue;
+        }
+        const eval_t* mangle = mangleField >= 0 ? GetEdictFieldValue(d, mangleField) : nullptr;
+        const float destYaw = mangle ? mangle->vector[1] : d->v.angles[1];
+        const glm::vec3 lo = vec(e->v.absmin) - kReach, hi = vec(e->v.absmax) + kReach;
+
+        const za::SizeT first = sides.size();
+        for(int k = 0; k < m->nummodelsurfaces; k++)
+        {
+            const msurface_t* s = &m->surfaces[m->firstmodelsurface + k];
+            const texture_t* t = s->texinfo ? m->textures[s->texinfo->texnum] : nullptr;
+            if(!t || t->type != TEXTYPE_TELE || s->mins[0] > hi.x || s->mins[1] > hi.y || s->mins[2] > hi.z ||
+                s->maxs[0] < lo.x || s->maxs[1] < lo.y || s->maxs[2] < lo.z)
+            {
+                continue;
+            }
+            const float sign = (s->flags & SURF_PLANEBACK) ? -1.f : 1.f;
+            const glm::vec3 n = vec(s->plane->normal) * sign;
+            const float dist = s->plane->dist * sign;
+            // only the sides the trigger reaches out in front of (a sheet's two sides can lead to two places, each
+            // its own trigger's)
+            float front = -1e9f;
+            for(int c = 0; c < 8; c++)
+            {
+                const glm::vec3 corner{(c & 1) ? e->v.absmax[0] : e->v.absmin[0], (c & 2) ? e->v.absmax[1] : e->v.absmin[1],
+                    (c & 4) ? e->v.absmax[2] : e->v.absmin[2]};
+                front = za::max(front, glm::dot(n, corner) - dist);
+            }
+            if(front < 0.5f)
+            {
+                continue;
+            }
+            Side* sd = nullptr;
+            for(za::SizeT q = first; q < sides.size() && !sd; q++)
+            {
+                if(glm::dot(sides[q].normal, n) > 0.999f && za::fabs(sides[q].dist - dist) < 0.5f)
+                {
+                    sd = &sides[q];
+                }
+            }
+            if(!sd)
+            {
+                sides.pushBack(Side{});
+                sd = &sides.back();
+                sd->normal = n;
+                sd->dist = dist;
+                sd->mins = vec(s->mins);
+                sd->maxs = vec(s->maxs);
+            }
+            sd->mins = glm::min(sd->mins, vec(s->mins));
+            sd->maxs = glm::max(sd->maxs, vec(s->maxs));
+            sd->area += surfaceArea(m, s);
+        }
+        for(za::SizeT q = first; q < sides.size(); q++)
+        {
+            finish(sides[q], m, vec(d->v.origin), destYaw);
+        }
+    }
+    PR_PopQCVM(oldVm);
+    Con_DPrintf("VR portals: %d slipgate sides\n", static_cast<int>(sides.size()));
+}
+
+[[nodiscard]] bool current()
+{
+    return builtFor == sv.worldmodel && builtGeneration == worldGeneration();
+}
+
+[[nodiscard]] bool inPvs(const byte* vis, int leaf)
+{
+    return !vis || leaf < 0 || (vis[leaf >> 3] & (1 << (leaf & 7)));
+}
+
+[[nodiscard]] glm::vec3 nearestPoint(const Side& sd, const glm::vec3& p)
+{
+    return glm::clamp(p, sd.mins, sd.maxs);
+}
+
+} // namespace
+
+void update()
+{
+    chosen = -1;
+    texture = 0;
+    if(vr_portals.value <= 0.f || !sv.active || sv.state != ss_active || !cl.worldmodel || cl.worldmodel != sv.worldmodel)
+    {
+        return;
+    }
+    if(!current())
+    {
+        build();
+    }
+    const hands::State& s = hands::current();
+    if(sides.empty() || !s.valid)
+    {
+        return;
+    }
+    vec3_t h{s.head.x, s.head.y, s.head.z};
+    mleaf_t* leaf = Mod_PointInLeaf(h, cl.worldmodel);
+    if(!leaf || leaf->contents == CONTENTS_SOLID)
+    {
+        return;
+    }
+    const byte* vis = Mod_LeafPVS(leaf, cl.worldmodel);
+    vec3_t angles{s.headAngles.x, s.headAngles.y, s.headAngles.z}, f, r, u;
+    AngleVectors(angles, f, r, u);
+    const glm::vec3 forward = vec(f);
+
+    float best = 0.f;
+    for(za::SizeT i = 0; i < sides.size(); i++)
+    {
+        const Side& sd = sides[i];
+        if(glm::dot(sd.normal, s.head) - sd.dist < 2.f || !inPvs(vis, sd.leaf))
+        {
+            continue;
+        }
+        const float d = glm::distance(nearestPoint(sd, s.head), s.head);
+        const glm::vec3 toMiddle = (sd.mins + sd.maxs) * 0.5f - s.head;
+        const float len = glm::length(toMiddle);
+        if(d > kRange || (len > 64.f && glm::dot(forward, toMiddle / len) < 0.2f))
+        {
+            continue;
+        }
+        const float score = sd.area / (d * d + 4096.f) * (static_cast<int>(i) == lastChosen ? 1.5f : 1.f);
+        if(score > best)
+        {
+            best = score;
+            chosen = static_cast<int>(i);
+        }
+    }
+    lastChosen = chosen;
+}
+
+bool wantedForEye(int eye)
+{
+    texture = 0;
+    textureEye = -1;
+    if(chosen < 0 || eye < 0 || eye > 1)
+    {
+        return false;
+    }
+    const Side& sd = sides[static_cast<za::SizeT>(chosen)];
+    const hands::State& s = hands::current();
+    vec3_t angles{s.eyeAngles[eye].x, s.eyeAngles[eye].y, s.eyeAngles[eye].z}, f, r, u;
+    AngleVectors(angles, f, r, u);
+    const Fov& fov = frameState().eyes[eye].fov;
+    const float l = za::tan(fov.left), rt = za::tan(fov.right), up = za::tan(fov.up), dn = za::tan(fov.down);
+    if(rt - l <= 0.f || up - dn <= 0.f)
+    {
+        return false;
+    }
+
+    // The gate's box on the eye's screen (its corners; the whole screen if one is behind the eye or near it).
+    glm::vec2 lo{1e9f}, hi{-1e9f};
+    eyeRectAll = false;
+    for(int c = 0; c < 8; c++)
+    {
+        const glm::vec3 corner{(c & 1) ? sd.maxs.x : sd.mins.x, (c & 2) ? sd.maxs.y : sd.mins.y, (c & 4) ? sd.maxs.z : sd.mins.z};
+        const glm::vec3 v = corner - s.eyeOrigin[eye];
+        const float x = glm::dot(v, vec(f));
+        if(x < 2.f)
+        {
+            eyeRectAll = true;
+            break;
+        }
+        const glm::vec2 t{glm::dot(v, vec(r)) / x, glm::dot(v, vec(u)) / x};
+        const glm::vec2 ndc{(2.f * t.x - (rt + l)) / (rt - l), (2.f * t.y - (up + dn)) / (up - dn)};
+        lo = glm::min(lo, ndc);
+        hi = glm::max(hi, ndc);
+    }
+    if(!eyeRectAll)
+    {
+        if(hi.x < -1.f || hi.y < -1.f || lo.x > 1.f || lo.y > 1.f)
+        {
+            return false; // not on this eye's screen
+        }
+        eyeRect = glm::clamp(glm::vec4{lo - 0.02f, hi + 0.02f}, -1.f, 1.f);
+    }
+    return true;
+}
+
+void beginView()
+{
+    inView = true;
+}
+
+void endView(unsigned tex)
+{
+    inView = false;
+    texture = tex;
+    textureEye = stereo::eye();
+}
+
+bool viewing()
+{
+    return inView;
+}
+
+} // namespace qvr::portals
+
+using namespace qvr;
+
+// R_RenderView, before R_SetupView: the view through the gate moved there (the eye's own, set up with its entities,
+// carried through the gate).
+extern "C" void VR_PortalView(void)
+{
+    if(!portals::inView || portals::chosen < 0)
+    {
+        return;
+    }
+    const portals::Side& sd = portals::sides[static_cast<za::SizeT>(portals::chosen)];
+    const glm::vec3 o = sd.turn * (portals::vec(r_refdef.vieworg) - sd.from) + sd.to;
+    for(int i = 0; i < 3; i++)
+    {
+        r_refdef.vieworg[i] = o[i];
+    }
+    r_refdef.viewangles[YAW] += sd.yaw;
+}
+
+// R_SetFrustum, its view matrix made (Quake's view space: x forward, y left, z up), its projection's not yet multiplied
+// in: in the view through the gate, the projection's depth row made oblique (Lengyel's), its near plane the gate's
+// plane carried to the destination: with reversed Z, depth = 1 - kOblique * (P . v) / w, P the plane (in view space,
+// positive beyond the gate, normalised), w the distance along the view. Nothing between the view and that plane is
+// drawn (its depth over 1); beyond it, the depth falls as 1/distance as the usual reversed Z's does, and stays over 0
+// within the eyes' field of view (kOblique under the cosine of its widest angle): no far plane.
+extern "C" void VR_PortalClip(float proj[16], const float view[16])
+{
+    if(!portals::inView || portals::chosen < 0 || !gl_clipcontrol_able)
+    {
+        return;
+    }
+    const portals::Side& sd = portals::sides[static_cast<za::SizeT>(portals::chosen)];
+    const glm::vec3 n = sd.turn * sd.normal;
+    const glm::vec4 world{-n, glm::dot(n, sd.to)};
+    glm::vec4 p = world * glm::inverse(glm::make_mat4(view));
+    p /= glm::length(glm::vec3{p});
+    p.w = za::min(p.w, -1.f); // the view at least a unit in front of the plane: the depth's precision
+    for(int c = 0; c < 4; c++)
+    {
+        proj[c * 4 + 2] = proj[c * 4 + 3] - portals::kOblique * p[c];
+    }
+}
+
+// R_RenderScene, after the clear and the lenses' hidden area: in the view through the gate, the depth outside the
+// gate's box on the eye's screen set to the near plane, so nothing there is shaded (only the gate's pixels are read).
+extern "C" void VR_DrawPortalMask(void)
+{
+    if(!portals::inView || portals::eyeRectAll || !gl_clipcontrol_able)
+    {
+        return;
+    }
+    const glm::vec4 r = portals::eyeRect;
+    const glm::vec2 quads[4][2] = {{{-1.f, -1.f}, {1.f, r.y}}, {{-1.f, r.w}, {1.f, 1.f}}, {{-1.f, r.y}, {r.x, r.w}},
+        {{r.z, r.y}, {1.f, r.w}}};
+    za::Vector<gfx::Vertex> tris;
+    for(const auto& q : quads)
+    {
+        if(q[1].x <= q[0].x || q[1].y <= q[0].y)
+        {
+            continue;
+        }
+        const glm::vec3 a{q[0].x, q[0].y, 1.f}, b{q[1].x, q[0].y, 1.f}, c{q[1].x, q[1].y, 1.f}, d{q[0].x, q[1].y, 1.f};
+        for(const glm::vec3& p : {a, b, c, a, c, d})
+        {
+            gfx::Vertex v;
+            v.pos = p;
+            v.color = glm::vec4{0.f};
+            tris.pushBack(v);
+        }
+    }
+    if(tris.empty())
+    {
+        return;
+    }
+    gfx::State state;
+    state.shade = gfx::Shade::Color;
+    state.blend = gfx::Blend::Opaque;
+    state.depthTest = true; // passes against the clear (GL skips depth writes without the test)
+    state.depthWrite = true;
+    gfx::draw(tris, glm::mat4{1.f}, state);
+}
+
+// VR_WaterView (each view's frame data): the side shown on the teleport faces in this eye's view (gl_shaders.h,
+// LiquidPortal): its plane (normal towards the eye, distance), its box (w: how much of the view is shown, 0 none).
+extern "C" void VR_PortalFrameData(float plane[4], float mins[4], float maxs[4])
+{
+    plane[0] = plane[1] = plane[2] = plane[3] = 0.f;
+    mins[0] = mins[1] = mins[2] = mins[3] = 0.f;
+    maxs[0] = maxs[1] = maxs[2] = maxs[3] = 0.f;
+    if(portals::inView || !portals::texture || portals::chosen < 0 || !stereo::isRenderingEye() || stereo::isSpectator() ||
+        stereo::eye() != portals::textureEye)
+    {
+        return;
+    }
+    const portals::Side& sd = portals::sides[static_cast<za::SizeT>(portals::chosen)];
+    for(int i = 0; i < 3; i++)
+    {
+        plane[i] = sd.normal[i];
+        mins[i] = sd.mins[i];
+        maxs[i] = sd.maxs[i];
+    }
+    plane[3] = sd.dist;
+    mins[3] = za::clamp(vr_portals.value, 0.f, 1.f);
+}
+
+// R_DrawBrushModels_Water: the view through the gate for this eye's teleport faces (unit 17, PortalScene; 0: none).
+extern "C" unsigned VR_PortalTexture(void)
+{
+    const bool mine = !portals::inView && stereo::isRenderingEye() && !stereo::isSpectator() && stereo::eye() == portals::textureEye;
+    return mine ? portals::texture : 0u;
+}
+
+// SV_WriteEntitiesToClient, the client's PVS made: the PVS round the destinations of the gates in it (in front of
+// them, near the client) added, so that what is there is sent and seen through them.
+extern "C" void VR_PortalAddPVS(byte* pvs, const float org[3])
+{
+    if(vr_portals.value <= 0.f || !sv.worldmodel || sv.state != ss_active)
+    {
+        return;
+    }
+    if(!portals::current())
+    {
+        portals::build();
+    }
+    const glm::vec3 o = portals::vec(org);
+    const glm::vec3* added[8] = {};
+    int numAdded = 0;
+    for(const portals::Side& sd : portals::sides)
+    {
+        if(numAdded == 8)
+        {
+            break;
+        }
+        if(glm::dot(sd.normal, o) - sd.dist < 0.f || !portals::inPvs(pvs, sd.leaf) ||
+            glm::distance(portals::nearestPoint(sd, o), o) > portals::kRange)
+        {
+            continue;
+        }
+        bool seen = false;
+        for(int i = 0; i < numAdded && !seen; i++)
+        {
+            seen = *added[i] == sd.dest;
+        }
+        if(seen)
+        {
+            continue;
+        }
+        added[numAdded++] = &sd.dest;
+        vec3_t d{sd.dest.x, sd.dest.y, sd.dest.z};
+        SV_AddToFatPVS(d, sv.worldmodel->nodes, sv.worldmodel);
+    }
+}

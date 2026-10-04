@@ -11,6 +11,13 @@
 // while you move and one every few frames while you stand, rendered once for both eyes. The alias shader adds it on
 // the grey and blue-grey (metal) texels of held weapons' skins (and of weapon pickups close by), by fresnel, a
 // per-model metalness and the light at the model.
+//
+// Water reflections (vr_water_reflections): another cube (6 x 128 x 128, RGBA16F, mipmapped) of the world round
+// the level water or slime nearest your head that you see from above, seen from just over its surface: the faces'
+// own textures, lit by the lightmaps, each texel's distance from the cube's centre in alpha. The liquid shaders
+// (vr_glsl.h, LiquidReflection) reflect it off the waves, following each reflected ray out to those distances (a
+// reflection of where things are, not at infinity), on the faces at that height. Two cubes in turn, two faces a
+// frame into the one not read; once a frame for both eyes.
 
 #pragma once
 
@@ -19,8 +26,14 @@
 namespace qvr::envmap
 {
 
-// Brings the cube up to date (a face at most): once a frame, before the eyes are rendered.
+// Brings the cubes up to date (the weapons': a face at most; the water's: two): once a frame, before the eyes are
+// rendered.
 void update();
+
+// The water's cube in a view's frame data (gl_shaders.h, WaterCube and WaterCube2): where it is seen from and its
+// strength (0: none this frame, or the eye in a liquid), the height of the surface it is for, how far across it
+// fades out, its mip levels read.
+void waterFrameData(float out[4], float out2[4], bool eyeInLiquid);
 
 // Frees the GL objects.
 void shutdown();

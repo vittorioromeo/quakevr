@@ -707,6 +707,7 @@ void SV_WriteEntitiesToClient (edict_t	*clent, sizebuf_t *msg)
 // find the client's PVS
 	VectorAdd (clent->v.origin, clent->v.view_ofs, org);
 	pvs = SV_FatPVS (org, sv.worldmodel);
+	VR_PortalAddPVS (pvs, org); // QVR: and round the destinations of the slipgates it sees (vr/vr_portals.cpp)
 
 // find the client's orientation
 	AngleVectors (clent->v.v_angle, forward, right, up);

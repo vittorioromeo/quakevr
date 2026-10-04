@@ -80,17 +80,18 @@ default 1):
 - **Retro textures** (`vr_retro` on decals) keep the meshes, as does `vr_decals_world 0`.
 
 Checked against the meshes, paused, the same frame both ways (512x512 an eye, pools, splotches, sprays and chips on
-the firing range's floor):
+the firing range's floor). Quake's own textures get heights for the parallax mapping only when filtered smoothly
+(`vr_texture_smooth 2`, or replacement textures): without that the parallax does nothing, so these match the meshes:
 
 | | pixels changed by more than 32 |
 |---|---|
 | What the decals change at all | 13,300 |
-| Meshes vs the shader, parallax off | 78 |
-| Meshes vs the shader, parallax on | 22 |
+| Meshes vs the shader | 22-78 |
 | The same while fading (vr_decal_life 7) | 3 |
 
-At a grazing angle with `vr_parallax_depth 4`, the two look alike in a still image, the shader's following the
-relief. The difference is in stereo and in motion, which these screenshots cannot show.
+With `vr_texture_smooth 2` and `vr_parallax_depth 8`, at a grazing angle: the meshes stay where they are when the
+parallax is turned on (the floor's texture moving under them), and the shader's decals move and bend with the floor's
+relief. `vr_decal_count` says which way they are drawn, and whether the textures have heights.
 
 Cost, `fx_decals` on llvmpipe (160x160 an eye, 850 marks): the meshes' draw (0.7 and 0.6 ms of CPU an eye) is gone,
 and the world's surfaces took about the same GPU time (15.2 and 16.4 ms with the meshes, 16.8 and 16.7 ms with the
