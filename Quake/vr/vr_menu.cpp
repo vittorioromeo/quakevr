@@ -4330,6 +4330,28 @@ za::Vector<Item> pageDebugTests()
         command("Random Walk (60 s)", "god; notarget; vr_hull_walktest 60")
             .help("Walks you around the map at random for 60 seconds (hopping somewhere new every few), then prints how "
                   "often you got stuck or ended up in a wall."),
+        header("Slipgates: Crossing One (the start map; developer 1: VR portal: ...)"),
+        command("The Gates In This Map", "vr_portals_info")
+            .help("vr_portals_info: every slipgate built for this map - its plane, its opening, its trigger brush - and "
+                  "where your body is against each: your box, your torso's middle plane, its distance from the gate's "
+                  "plane, whether it is over the opening and how near your box can bring it. You are carried through "
+                  "when that plane is through the gate's, or as near as your box can bring it; leaning in or reaching "
+                  "with the hands does not cross, and a gate's frame stops you as a wall does."),
+        command("Against A Gate's Frame", "map start; wait120; setpos 200 1372 24 0 90 0; wait30; vr_portals_info")
+            .help("You against the wall beside the first gate's opening (12 units short of its plane): nothing "
+                  "teleports you and there is no jump - vr_portals_info says his box reaches 12, that is, stopped."),
+        command("In The Opening, Short Of The Plane", "map start; wait120; setpos 232 1372 24 0 90 0; wait30; vr_portals_info")
+            .help("You in the first gate's opening, 12 units in front of its plane: not carried yet (his box reaches "
+                  "-1: nothing stops you, walk on and you go through)."),
+        command("Lean Into A Gate", "map start; wait120; setpos 232 1365 24 0 90 0; wait30; vr_mock_hand head 0 0 -0.5 45 0 0; wait30; vr_portals_info")
+            .help("You 19 units from the first gate's plane, the head leaned half a metre through it: no crossing - "
+                  "vr_portals_info shows the head past the plane and the torso short of it."),
+        command("Through A Gate", "map start; wait120; setpos 232 1390 24 0 90 0; wait30; vr_portals_info")
+            .help("You with your torso's middle plane 6 units past the first gate's plane: carried through it "
+                  "(developer 1: VR portal: carried edict 1 through side 0)."),
+        command("A Shot Through A Gate", "map start; wait120; setpos 232 1360 24 0 90 0; wait10; vr_physics_fire 10 232 1500 25")
+            .help("vr_physics_fire 10: a pellet's trace at a point beyond the first gate: the console says through 1 "
+                  "slipgate(s), in at ..., out at ... (shots and thrown props go through as before)."),
         header("Dialogs"),
         command("New Game Confirmation (3 s)", "vr_test_dialog 3 0")
             .help("Shows the New Game confirmation for 3 seconds (it closes by itself): the game must stay in the world "

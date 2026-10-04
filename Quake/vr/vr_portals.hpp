@@ -23,14 +23,20 @@
 // Both eyes are right (each its own view); the desktop's spectator camera shows the slipgates' texture.
 //
 // Walking and shooting through (vr_portals_walk; the server, single player and listen servers): a player is carried
-// through as his head reaches a side's plane over the gate (or as near as his body can bring it: a wall just behind),
-// his trigger touched and active, kept where he is, how he moves and where he looks relative to the gate (turned and
-// shifted by the side's own mapping, the view's: it does not jump). This machine's player's client is told
+// through when his torso's middle plane - the plane that halves his collision box, his feet to the top of his head -
+// goes through a side's plane over its aperture. The box, not the head: the box is what the world stops, so what he
+// collides with and what goes through are the same thing. Leaning in, reaching with the hands, or clipping the aperture
+// does not cross; a gate's frame stops him as any wall does, with no teleport and no jump. Where his box can never
+// reach the plane (a sill, a ledge or bars just past it), as near as it can bring it is through. His trigger touched
+// and active, kept where he is, how he moves and where he looks relative to the gate (turned and shifted by the side's
+// own mapping, the view's: it does not jump). This machine's player's client is told
 // (hands::portalCrossing): the play space turns by the gate's yaw itself, the head's lean and the stairs' easing are kept
 // through the jump. What flies (missiles, grenades, gibs, thrown props: Box3D takes the move up) as its frame's path
 // crosses the plane; traces with MOVE_PORTALS (the guns' pellets, the lightning) go on from the far side (portal_entry,
-// portal_exit, portal_turn: the beams in two pieces). QuakeC's teleport_touch leaves players to it (portal_handles)
-// unless one stays in the trigger a second, not over its gate (Quake's teleport then); VR_Portal_Crossed does the rest of what
+// portal_exit, portal_turn: the beams in two pieces). QuakeC's teleport_touch leaves players to it (portal_handles):
+// while he stands in the aperture or is stopped on the way to the plane. Quake's teleport is left to the game where
+// going through is not his to do - a trigger he is only brushing, or a gate his body can never reach - after a second
+// in it (kStuck). VR_Portal_Crossed does the rest of what
 // the teleport did (its targets, what the hands carry). Monsters teleport as in Quake.
 
 #pragma once
@@ -52,5 +58,8 @@ void endView(unsigned texture);
 
 // Whether the view being drawn is one through a gate.
 [[nodiscard]] bool viewing();
+
+// vr_portals_info: the gates built for this map and where the local player's body is against them (Debug > Slipgates).
+void registerCommands();
 
 } // namespace qvr::portals

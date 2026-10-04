@@ -44,6 +44,7 @@
 #include "vr_alloccount.hpp"
 #include "vr_ao.hpp"
 #include "vr_profile.hpp"
+#include "vr_portals.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
@@ -1207,6 +1208,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_weapon_hotspot_here", view::hotspotHere_f);
     Cmd_AddCommand("vr_hotspot_fit", view::hotspotFit_f);
     anchor::registerCommands();
+    portals::registerCommands(); // vr_portals_info
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
     Cmd_AddCommand("vr_limits", limits::command_f);
