@@ -408,8 +408,6 @@ struct SearchLayout
 
 constexpr float searchResultHeight = 18.f; // a result's two lines (menu y)
 
-char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, filled with the layout (SearchKey points at them)
-
 [[nodiscard]] SearchLayout searchLayout()
 {
     const Layout l = layout();
@@ -432,16 +430,17 @@ char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, f
     const float width = s.split - s.left - 6.f;
     const float keyW = width / 10.5f; // (the lower rows set in by half a key at most)
     float y = s.boxY + rowStep * 1.4f;
+    static char letters[4][10][2];
     for(int r = 0; r < 4; r++, y += rowStep)
     {
         const int n = static_cast<int>(strlen(rows[r]));
         const float x = s.left + (r == 2 ? keyW * 0.25f : r == 3 ? keyW * 0.5f : 0.f);
         for(int i = 0; i < n; i++)
         {
-            searchKeyLetters[r][i][0] = rows[r][i];
-            searchKeyLetters[r][i][1] = '\0';
+            letters[r][i][0] = rows[r][i];
+            letters[r][i][1] = '\0';
             s.keys.pushBack({static_cast<char>(rows[r][i] >= 'A' && rows[r][i] <= 'Z' ? rows[r][i] - 'A' + 'a' : rows[r][i]),
-                searchKeyLetters[r][i], x + keyW * i + 1.f, x + keyW * (i + 1) - 1.f, y});
+                letters[r][i], x + keyW * i + 1.f, x + keyW * (i + 1) - 1.f, y});
         }
     }
     s.keys.pushBack({' ', "Space", s.left + keyW * 1.f + 1.f, s.left + keyW * 6.f - 1.f, y});
