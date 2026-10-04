@@ -59,6 +59,7 @@ struct Showing
     double start{0.0};
     double until{0.0};
     glm::vec3 panel{0.f}; // its place, following what it is about smoothly
+    glm::vec3 lastTarget{0.f}; // retained while its entity disappears and the panel fades
     bool placed{false};
     double lastFrame{0.0};
 };
@@ -152,8 +153,8 @@ void markSeen(const Tip& tip)
     {
         return true;
     }
-    const glm::vec3 near = at + toEye / d * za::min(8.f, d);
-    vec3_t start{eye.x, eye.y, eye.z}, end{near.x, near.y, near.z};
+    const glm::vec3 endpoint = at + toEye / d * za::min(8.f, d);
+    vec3_t start{eye.x, eye.y, eye.z}, end{endpoint.x, endpoint.y, endpoint.z};
     trace_t trace;
     memset(&trace, 0, sizeof trace);
     trace.fraction = 1.f;
@@ -237,6 +238,8 @@ void show(int t, int ent, bool count)
     showing.start = realtime;
     showing.until = realtime + time;
     showing.placed = false;
+    showing.lastTarget = glm::vec3{0.f};
+    if(const entity_t* e = entityFor(tip, ent)) { showing.lastTarget = targetPoint(*e); }
     showing.lastFrame = realtime;
 }
 
@@ -256,9 +259,8 @@ void drawShowing()
         return;
     }
     const hands::State& s = hands::current();
-    static glm::vec3 lastTarget{0.f};
-    const glm::vec3 target = e ? targetPoint(*e) : lastTarget;
-    lastTarget = target;
+    const glm::vec3 target = e ? targetPoint(*e) : showing.lastTarget;
+    showing.lastTarget = target;
 
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.headAngles, fwd, right, up);
@@ -399,22 +401,22 @@ void test_f()
         int ent;
         float d;
     };
-    za::Vector<Near> near;
+    za::Vector<Near> nearby;
     for(int i = 1; i < cl.num_entities; i++)
     {
         if(const entity_t* e = entityFor(tips[t], i))
         {
-            near.pushBack({i, glm::distance(targetPoint(*e), head.head)});
+            nearby.pushBack({i, glm::distance(targetPoint(*e), head.head)});
         }
     }
-    za::stableSort(near.begin(), near.end(), [](const Near& a, const Near& b) { return a.d < b.d; });
-    for(size_t i = 0; i < near.size() && i < 3; i++)
+    za::stableSort(nearby.begin(), nearby.end(), [](const Near& a, const Near& b) { return a.d < b.d; });
+    for(size_t i = 0; i < nearby.size() && i < 3; i++)
     {
-        const entity_t& e = cl_entities[near[i].ent];
+        const entity_t& e = cl_entities[nearby[i].ent];
         const glm::vec3 to = glm::normalize(targetPoint(e) - head.head);
         const float angle = glm::degrees(glm::acos(CLAMP(-1.f, glm::dot(to, hands::forward(head.headAngles)), 1.f)));
-        Con_Printf("vr_tips_test: %s %d: %.0f units (%s), %.0f degrees from the view (%s), %s\n", tips[t].name, near[i].ent,
-            near[i].d, near[i].d <= vr_tips_distance.value ? "near enough" : "too far", angle,
+        Con_Printf("vr_tips_test: %s %d: %.0f units (%s), %.0f degrees from the view (%s), %s\n", tips[t].name, nearby[i].ent,
+            nearby[i].d, nearby[i].d <= vr_tips_distance.value ? "near enough" : "too far", angle,
             vr_tips_view_angle.value <= 0.f || angle <= vr_tips_view_angle.value ? "in view" : "out of view",
             inSight(head.head, e) ? "in sight" : "hidden");
     }
