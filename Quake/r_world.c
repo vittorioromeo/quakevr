@@ -151,6 +151,8 @@ float GL_WaterAlphaForEntityTextureType (entity_t *ent, textype_t type)
 		entalpha = GL_WaterAlphaForTextureType(type);
 	else
 		entalpha = ENTALPHA_DECODE(ent->alpha);
+	if (type == TEXTYPE_TELE)
+		entalpha *= VR_TeleportOpacity ();
 	return entalpha;
 }
 
@@ -353,6 +355,8 @@ static void R_FlushBModelCalls (void)
 	GL_VertexAttribPointerFunc (1, 4, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, st));
 	GL_VertexAttribPointerFunc (2, 1, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, lmofs));
 	GL_VertexAttribIPointerFunc (3, 4, GL_UNSIGNED_BYTE, sizeof (glvert_t), (void *) offsetof (glvert_t, styles));
+	GL_VertexAttribPointerFunc (4, 1, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, swellpin));
+	GL_VertexAttribPointerFunc (5, 3, GL_FLOAT, GL_FALSE, sizeof (glvert_t), (void *) offsetof (glvert_t, centre));
 
 	if (gl_bindless_able)
 	{
@@ -765,6 +769,8 @@ static qboolean R_EntHasWater (entity_t *ent, qboolean translucent)
 	for (i = TEXTYPE_FIRSTLIQUID; i < TEXTYPE_LASTLIQUID+1; i++)
 	{
 		int numtex = ent->model->texofs[i+1] - ent->model->texofs[i];
+		if (i == TEXTYPE_TELE && VR_PortalDrawing ()) // only the entrance overlays stars
+			continue;
 		if (numtex && (GL_WaterAlphaForEntityTextureType (ent, (textype_t)i) < 1.f) == translucent)
 			return true;
 	}
@@ -808,7 +814,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 	scenedepth = VR_WaterSceneDepth (translucent);
 
 	// setup state
-	state = GLS_CULL_BACK | GLS_ATTRIBS(4);
+	state = GLS_CULL_BACK | GLS_ATTRIBS(6); // QVR: swell pin and slipgate surface centre
 	if (translucent)
 		state |= GLS_BLEND_ALPHA_OIT | GLS_NO_ZWRITE;
 	else
@@ -829,7 +835,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		GL_BindNative (GL_TEXTURE6, GL_TEXTURE_2D, 0);
 	GL_BindNative (GL_TEXTURE8, GL_TEXTURE_2D, scenedepth); // QVR
 	GL_BindNative (GL_TEXTURE16, GL_TEXTURE_CUBE_MAP, VR_WaterCubeTexture ()); // QVR: the room reflected (LiquidCube; vr/vr_envmap.cpp)
-	GL_BindNative (GL_TEXTURE17, GL_TEXTURE_2D, VR_PortalTexture ()); // QVR: where a slipgate leads (PortalScene; vr/vr_portals.cpp)
+	GL_BindNative (GL_TEXTURE17, GL_TEXTURE_2D_ARRAY, VR_PortalTexture ()); // QVR: where a slipgate leads (PortalScene; vr/vr_portals.cpp)
 
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
 	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);
@@ -851,14 +857,15 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 
 		if (isworld && VR_WaterMeshActive ()) // QVR
 		{
-			meshinst = baseinst;
-			baseinst += numinst;
-			continue;
+			meshinst = baseinst; // pools use the wave mesh; teleport surfaces always use their BSP vertices
 		}
 
 		for (j = model->texofs[TEXTYPE_FIRSTLIQUID]; j < model->texofs[TEXTYPE_LASTLIQUID+1]; j++)
 		{
 			texture_t *t = model->textures[model->usedtextures[j]];
+			if ((isworld && VR_WaterMeshActive () && t->type != TEXTYPE_TELE) ||
+				(t->type == TEXTYPE_TELE && VR_PortalDrawing ()))
+				continue;
 			if ((GL_WaterAlphaForEntityTextureType (e, t->type) < 1.f) != translucent)
 				continue;
 			R_AddBModelCall (model->firstcmd + j, baseinst, numinst, R_TextureAnimation (t, frame), !isworld, e);

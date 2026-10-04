@@ -137,6 +137,8 @@ typedef struct glvert_s {
 	float		st[4];
 	float		lmofs;
 	unsigned	styles;
+	float		swellpin; // QVR: zero on ordinary BSP faces
+	vec3_t		centre; // QVR: slipgate visual scaling pivot
 } glvert_t;
 
 typedef struct msurface_s

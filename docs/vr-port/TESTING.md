@@ -1623,3 +1623,59 @@ Images); `hudstyle 0..3` each, then `vr_eyeshot 3; wait5; screenshot`: no HUD in
 and let go of (`vr_walltorch_die_time 0.3`) until out, placed back in the off hand (`vr_rigid_place 53 off 0 0 0`) at
 `setpos 1400 -128 384 0 0 0` with the hand at `0.0 1.3 -0.4 70 0 0`, then `setpos` 3 units at a time to x 1448: `developer
 1` prints `walltorch: lit again from a flame` at x 1436 (the light_flame_small_yellow at 1456 -128 406).
+
+
+## Slipgate and melee regression fixtures (2026-10-04)
+
+`python Misc/quakevr/scratch/prepare_review_regressions.py build-cmake/review-probe`
+creates an isolated copy of QC plus `review_regressions.qc` and the required
+shared melee header. Compile its QC directory with the normal shipping flags,
+then use its quakevr/progs.dat only in an isolated test game with legally
+installed assets. Production progs.src never includes these hooks.
+
+After `map start; wait120; developer 2; god; notarget`, set
+`vr_test_walltorch_shot 99; wait10` for the zombie/animated-contact/liquid probe.
+Expect zombie final health <=0, body contact x1, animated disagreements 0,
+slipgate contents -1, real pool contents -3. No splash/sound at (232,1384,24);
+the pool control at (1408,1728,112) emits both. Explicit assertion failures say
+`REVIEW FAIL`. `vr_test_walltorch_shot 98` creates a destination flame at
+(544,1600,36); 97 creates a solid destination blocker at (544,1540,24).
+
+The existing `Misc/quakevr/slipgate_cross_test.sh` tests physical sill/frame
+approaches. Always reset `noclip 0` after setpos and settle on the real floor.
+A quick reversal fixture is `setpos 232 1383 24 0 90 0; wait4; noclip 0;
+vr_mock_stick off 0 0.5; wait5; vr_mock_stick off 0 0; vr_portals_info;
+vr_mock_stick off 0 -0.5; wait20; vr_mock_stick off 0 0; vr_portals_info`.
+Expect forward/inverse transfers at the plane with no centre or forward snap.
+
+For flat rendering use `vr_enabled 0`, `setpos 232 1320 24 0 90 0`, then
+`vr_portals_shot`. Repeat with `r_scale 2; viewsize 80`, entrance opacity 0/1,
+and sizes 1/1.3/2. Test MSAA and the recording window `vr_window_view 2` in VR.
+The two sliders are `vr_slipgate_surface_size` and `vr_slipgate_surface_opacity`;
+Graphics > Slipgates > Portal Stars. Only one entrance star layer is rendered;
+no star quads appear inside the destination. Check the final window/eye image,
+not only portalshots; repeat with the wave mesh active and inactive. The draft
+destination sliders were removed following the author's clarified design.
+
+`vr_light_test 400 30 16` makes a source point light; an optional fourth argument
+makes a spotlight (`vr_light_test 180 30 40 18`). Capture gate images before and
+after. Put an obstacle before entry and after exit to check paired shadows;
+test both eyes/spectator and watch the shadow profiler, since each view may
+prepare a portal and its own shadow pass. Transmission has a two-contributor
+per-view budget and one traversal. Many-light scenes require hardware acceptance.
+
+Flat banner fixture: `map vrfiringrange; wait120; setpos -480 -672 24 0 180 0;
+wait20`, then compare `vr_worldtext_crt 1` and 0. Both must render readable labels.
+
+For simultaneous gates, generate the isolated fixture with:
+`python Misc/quakevr/scratch/make_portal_views.py build-cmake/slipgate-review/quakevr/maps/portalviews.map --wad C:/TrenchBroom/QUAKE101.WAD`.
+Use your own legally installed texture WAD path. Compile with qbsp, vis and
+light; generated map/BSP assets are not committed. `map portalviews; wait120;
+setpos 384 48 24 0 90 0; wait20; vr_slipgate_surface_opacity 0` shows three gates
+leading to rooms with one, two and three columns and a flame each. Check the
+final flat image, `vr_eyeshot 3` for both eyes and `vr_window_view 2` for the
+spectator. `vr_portals_view` reports the number rendered by the last camera.
+Change `vr_portals_maxviews` live to 1, 4 and 8: one gate at 1, all three at
+4/8, with the correct distinct rooms and destination entities. Graphics >
+Slipgates > Visible Gates exposes this 1..8 limit (default 4). Views do not
+recurse, and additional passes increase rendering/shadow cost.

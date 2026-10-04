@@ -417,6 +417,7 @@ typedef struct gpulight_s {
 	float	shadow[4];	// QVR: xy its faces' origin in the shadow atlas (texels), z face size (0: no shadow), w kind (vr/vr_lighting.cpp)
 	float	shadow2[4];	// QVR: map lights: xy faces' origin in the static atlas, z "light", w "wait"; spot lights with a shadow: x the tan of its tile's half angle
 	float	spot[4];	// QVR: spot lights: xyz the direction / (cos inner - cos outer), w cos inner / (cos inner - cos outer); zero: a point light
+	float gateplane[4], gatelo[4], gatehi[4], gateinverse[3][4], gateshadow[4]; // QVR: a single portal traversal
 } gpulight_t;
 
 typedef struct gpulightbuffer_s {
@@ -456,9 +457,11 @@ typedef struct gpuframedata_s {
 	float	decalclock[4];	// QVR: the decals on the world (vr/vr_decals.cpp: VR_DecalsFrame): now on their clock, vr_decal_life, on
 	float	watercube[4];		// QVR: water reflections (vr/vr_envmap.cpp: vr_water_reflections): the water cube's centre (xyz), strength (w, 0 off)
 	float	watercube2[4];		// QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last
-	float	portalplane[4];		// QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)
-	float	portalmin[4];		// QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)
-	float	portalmax[4];		// QVR: ... its box (xyz)
+	float	portalplane[8][4];		// QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)
+	float	portalmin[8][4];		// QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)
+	float	portalmax[8][4];		// QVR: ... its box (xyz)
+	float	portaluv[4]; // QVR: scene viewport pixels to portal composite pixels
+	float	teleportlook[4]; // QVR: starry surface size and opacity
 	float	ambient[4];		// QVR: the baked light's own fill light (vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (vr/vr_lighting.cpp, vr/vr_glsl.h)
 } gpuframedata_t;
 

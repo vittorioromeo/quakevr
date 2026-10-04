@@ -241,3 +241,138 @@ entity-list restoration, and intended sill jump are sound. Correct these points:
   hardware VR acceptance were performed in this review.
 
 Probe and build logs: `build-cmake/slipgate-review/round2-*.log`.
+
+
+## Fixes applied after the review
+
+All actionable findings above are addressed in the engine/QC changes from this
+session. The original findings remain above as the review record.
+
+- Melee classifies the actual model contact after mapping it to the standing
+  pose, as shots do. Head priority resolves overlap at that contact; it does not
+  search a historical swing or the pommel-to-blade chord. The chainsaw applies
+  positional damage before the downed-zombie gib threshold helper.
+- Each headset eye, flat view and spectator camera selects and renders its own
+  portal after camera setup. The exact rigid mapping is unchanged. Flat portal
+  scenes always resolve to their colour target, and sampling accounts for the
+  viewport, view size and reduced render resolution. Flat CRT banners execute
+  the screen text pass.
+- A straddling player collides as two clipped body portions in the respective
+  rooms. Source backing geometry no longer blocks the portion already through;
+  frame, sill and destination obstacles still collide. Torso entry transfers
+  the exact position, heading and velocity, with no centre/forward snap. The
+  split persists until the trailing portion clears; backing out uses the inverse
+  mapping and does not fire trigger targets twice. Map changes reset crossing
+  state. The intended sill jump remains required.
+- Destination flame/torch candidates use owned destination PVS rows and folded
+  camera distance, so their light is selected before the player crosses.
+  Dynamic/spot light transmission is one traversal, bounded to two virtual
+  contributors per view, with paired entry/exit cube shadows (tiles at most
+  256 pixels). Aperture and source/exit obstacles clip the light path. Native
+  dynamic-light slots are retained; virtual contributors do not recurse.
+- Graphics > Slipgates has Portal Stars Size and Opacity. Size defaults to
+  1.12x (range 1..2); opacity defaults to 1 (0..1), scaling the original 12%
+  entrance shimmer. Following the author's clarification, there is one star
+  layer on the entrance plane and no teleport/star quads in the destination
+  render. The draft Destination Stars sliders/cvars were removed. Teleports
+  use the original BSP surface vertices, separately from the liquid wave mesh;
+  both required attributes are enabled on the liquid surface draw pass. Visual
+  scale does not enlarge the collision aperture.
+- Teleport-textured BSP liquid leaves are treated as empty for liquid interaction.
+  Explicit splash/ripple/sound paths also reject slipgate faces. Ordinary pools
+  retain their liquid contents, effects and sounds. Portal surfaces already omit
+  the liquid ripple/foam shader paths. This applies with VR enabled or disabled.
+- The offline reader also now uses Quake's 40-byte texinfo records (not 48).
+  Its self-bit decoder repair remains intact; `BSP.bits()` returns BSP world
+  leaf numbers. Both client/server PVS bit k name BSP leaf k+1.
+
+### Verification of the fixes
+
+Release/x64 engine build and shipping QC compilation passed; QC reported zero
+warnings. Static-local and QC precedence checks passed. BSP/PVS suite: six tests
+passed, including a two-record texinfo fixture. Isolated engine runs exited 0.
+
+Physical `start` tests with `noclip 0` verified both blocked frame edges (x211,
+x253), offset retention (x220 -> x532, x244 -> x556), all three skill gates,
+and torso entry at y1384. A blocked destination entity stopped the source player
+at y1376 before entry. An immediate reversal returned from (544,1536,28) to
+(232,1384,24). The no-jump sill case remains blocked intentionally.
+
+The maintained isolated QC fixture in `Misc/quakevr/scratch/` verified a downed
+zombie gibs on tick 13 with an x0.6 leg multiplier, body contact stays x1, and
+shot/melee classification disagrees at zero sampled real contacts across 102
+soldier frames and heights 13..33. Gate point contents report empty; forced gate
+splashes produce no particle/sound event. A real-water control reports water and
+produces splash plus `vr/plip2.wav` at volume 0.60.
+
+Flat screenshots show readable CRT and plain banner text. A spectator-camera
+window screenshot shows the destination rather than a starry solid surface.
+Flat portal tests also exercise r_scale 2 and viewsize 80. Gate-region mean
+brightness was 20.4 baseline, 36.9 with a transmitted point light, 39.6 with an
+injected destination flame, and 41.8 with that flame plus a source spotlight.
+
+One RTX 4090 flat fixture reported 39 shadow faces / 296 model draws, GPU 0.13 ms,
+CPU 0.20 ms for the measured pass (baseline CPU 0.07 ms). This is a limited
+per-pass measurement, not a hardware VR performance acceptance. Full Quest 3
+acceptance after the final composition correction, many simultaneous lights,
+varied custom gate angles and subjective size/opacity tuning remain in the in-game checklist. Non-cardinal turns use a
+conservative axis-aligned destination body bound and can block narrow exits.
+
+Logs and screenshots: `build-cmake/slipgate-review/fixes-*.log`, `portalshots/`
+and `screenshots/` under its isolated quakevr game. Reproduction commands are
+in TESTING.md. External handoff corrections are tracked separately from Git;
+verify their live branch/agent state at the next session.
+
+
+### Author feedback during implementation
+
+The author correctly reported that the first composed screenshots showed the
+entrance backing wall, despite valid destination FBO readbacks. The added size
+pivot attribute was initially enabled on the wrong draw pass; additionally,
+the geometric liquid mesh also contained teleport faces and supplied no pivot.
+The 1.12x scale therefore moved those faces about the world origin. The final
+change enables the attribute on the proper pass and routes teleport surfaces
+through their BSP vertices even when the wave mesh is active. Acceptance must
+inspect the final window and both eye images, not just a valid portal FBO.
+
+The author then clarified that exactly one set of stars should sit on the
+portal plane. Destination star quads are suppressed rather than separately
+adjustable. This supersedes the earlier request for four sliders.
+
+
+Final composition checks after both corrections: flat opacity 1/0, r_scale 2 /
+viewsize 80, liquid mesh on/off, both mock headset eyes, and the spectator
+window all visibly show the destination's two doorways and torch. At opacity 0,
+only the destination is visible; at 1, one star layer sits over it. The author
+provided a reference image of the same destination to compare. Final captures:
+`start_2026-10-04_18-00-56*.png`, `eyeshots/start_000_{L,R}.png` and
+`start_2026-10-04_18-02-54.png` in the isolated game's capture directories.
+
+### Multiple visible slipgates
+
+The author's simultaneous-gate report exposed the original one-view budget.
+Each camera now renders up to four visible gates by default, configurable from
+one to eight through Graphics > Slipgates > Visible Gates (`vr_portals_maxviews`).
+Each gate has its own texture-array layer; offscreen gates do not consume the
+budget. Shadows are prepared independently for each destination view. Server
+entity visibility includes all directly visible nearby gate destinations and
+tests the original source PVS, avoiding recursive visibility expansion or an
+arbitrary first-eight ordering that could omit a rendered destination's entities.
+
+The maintained `make_portal_views.py` fixture places three gates side by side
+with distinct rooms containing one, two and three columns. Final composed flat,
+both mock-eye and spectator captures show the distinct destinations. Live changes
+from limit 4 to 1 and then 8 render three, one and three views respectively.
+Headset hardware performance with several gate/shadow passes remains an
+acceptance item; the limit provides a direct performance control.
+
+The final maintained QC probe also passed: zero animated-contact disagreements,
+body multiplier 1, reduced leg chainsaw hits gib the downed zombie on tick 13,
+no gate splash/sound and an intact real-water splash/sound control.
+
+Final multi-view production captures: `portalviews_2026-10-04_18-37-22*.png`
+(flat limits 4/1/8 and entrance stars), `portalviews_2026-10-04_18-35-57.png`
+(spectator), `eyeshots/portalviews_000_{L,R}.png` (both eyes). Each of the three
+destination rooms also contains a visible flame entity. Final production
+`start` movement still transfers to (544,1542,28) through the backed skill gate.
+Release/x64 MSBuild and final static/precedence/diff checks passed.

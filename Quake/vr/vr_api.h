@@ -35,6 +35,10 @@ struct edict_s;
 struct qmodel_s;
 struct sizebuf_s;
 
+// Slipgate brushes use water contents in BSP, but their interactions have no liquid effects.
+int VR_LiquidContents(struct qmodel_s* model, const float* point, int contents);
+int VR_NoLiquidEffects(struct qmodel_s* model, const float* point);
+
 // PROTOCOL_RMQ flags (see vr/vr_protocol.hpp): the VR protocol (a server for VR clients, whatever
 // its progs), and progs implementing Quake VR's gameplay (without it, VR in compatibility mode).
 #define PRFL_QUAKEVR				(1 << 16)
@@ -249,6 +253,11 @@ int VR_AllowWaterSplash (struct edict_s *ent);			// SV_CheckWaterTransition spla
 int VR_TouchLinks (struct edict_s *ent);				// start of SV_TouchLinks: nonzero if handled
 int VR_ExpandAbsBox (struct edict_s *ent);				// SV_LinkEdict: nonzero if it set the abs box
 float VR_MissileExtent (float fallback);				// SV_Move MOVE_MISSILE box extent
+// Portal body traces clip the actual box to one halfspace; they do not skip entire brushes.
+int VR_PortalBodyMove(struct edict_s* ent, const float* start, const float* mins, const float* maxs,
+    const float* end, int type, trace_t* trace);
+int VR_HullClipPortal(struct edict_s* ent, const float* start, const float* mins, const float* maxs,
+    const float* end, const float* plane, trace_t* trace);
 // A player narrower than hull 1 against BSP models (vr_hull_width; vr_hull.cpp, docs/vr-port/HULLS.md).
 int VR_HullMoveBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if its BSP clips use this box
 int VR_HullClipBSP (struct edict_s *ent, const float *start, const float *boxmins, const float *boxmaxs, const float *end,

@@ -228,7 +228,8 @@ void explosion(const glm::vec3& org)
     });
     make(1, [&](Particle& p, int) {
         p.cell = CellExplosion;
-        setColor(p, ramp1[0], 255);
+        // The fire texture is neutral: tint it as flame, rather than the sparks' sulphur-yellow palette entry.
+        p.color = glm::vec4{1.f, 0.48f, 0.12f, 1.f};
         p.die = cl.time + 1.5;
         p.scale = rnd(0.5f, 2.1f) * 2.f;
         p.acc = gravity(0.05f);
@@ -1246,7 +1247,7 @@ void teleportSplash(const glm::vec3& org)
         return 0;
     }
     vec3_t v{p.x, p.y, p.z};
-    const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
+    const int c = VR_LiquidContents(cl.worldmodel, v, Mod_PointInLeaf(v, cl.worldmodel)->contents);
     if(c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA)
     {
         return c;
@@ -1596,6 +1597,7 @@ bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
     int under = 0;
     if(preset == Preset::Splash)
     {
+        if(VR_NoLiquidEffects(cl.worldmodel, &org.x)) { return true; }
         water::addRipple(org, static_cast<float>(count));
     }
     else if(preset == Preset::Explosion && (under = underwaterExplosion(org, surface)) > 0)
@@ -1958,6 +1960,7 @@ void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength)
 // crest, a wisp of foam; in lava an ember or two. vr_water_splash scales how many, _size how big, _ring_size the ring.
 void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
 {
+    if(VR_NoLiquidEffects(cl.worldmodel, &org.x)) { return; }
     const float amount = za::clamp(vr_water_splash.value, 0.f, 3.f);
     if(amount <= 0.f || !vr_particles.value || !ensureAtlas())
     {

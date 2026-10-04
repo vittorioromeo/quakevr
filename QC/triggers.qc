@@ -478,10 +478,10 @@ vector    org;
 // QVR: the engine has just walked `other` through the slipgate of trigger `self` (vr_portals.cpp, vr_portals_walk),
 // keeping where he was and how he moved relative to the gate: what Quake's teleport does besides moving him (its
 // targets, what his hands carry; no flash, no sound, no pause: he walked through).
-void(vector xFrom) VR_Portal_Crossed =
+void(vector xFrom, float xReturning) VR_Portal_Crossed =
 {
     activator = other;
-    SUB_UseTargets();
+    if(!xReturning) { SUB_UseTargets(); }
     VR_Carry_Teleported(other, xFrom);
 };
 

@@ -212,11 +212,6 @@ float VR_MKIND_PUNCH = 3;  // a fist (any way: jab, hook, uppercut, overhead)
 .entity mh_c_ent;      // where it lands, as a traceline's hit
 .vector mh_c_pos;
 .vector mh_c_dir;
-.vector mh_c_from;   // the struck point's sweep: where it came from (head priority reads the zones a blow crossed)
-.vector mh_pend_from;
-.vector mh_sweep_from; // where this swing's striking points started moving (the whole of its way, not one frame's)
-.vector mh_sweep_dir;
-.float mh_sweep_live;
 .vector mh_c_normal;
 .float mh_c_gib;        // it is a loose gib or head (it bursts: gone by VR_Melee_Landed)
 // The stance and the push (VR_Bash).
@@ -1502,17 +1497,6 @@ float(float xHand, entity b) VR_Melee_Sweep =
     // Precise hits (vr_hit_precise): a monster's (or corpse's) box, grown by VR_HITMODEL_REACH, is only the broad phase:
     // a point strikes where its sweep meets the model as drawn, grown by its thickness and the melee tolerance
     // (hitmodel_segment); through the box beside the model it misses.
-    // The whole of this swing's way, not one frame's slice: head priority (vr_hit_head_priority) reads the body zones
-    // a blow crossed on its way to where it stopped. Remembered from where the striking points started moving, and
-    // started again when they stop or turn back.
-    if(b.mh_sweep_live == 0 || b.mh_sweep_from == '0 0 0' || vlen(b.mh_cp[n - 1] - b.mh_pp[n - 1]) < 1 ||
-       (b.mh_cp[n - 1] - b.mh_pp[n - 1]) * b.mh_sweep_dir < 0)
-    {
-        b.mh_sweep_from = b.mh_pp[0];
-        b.mh_sweep_dir = b.mh_cp[n - 1] - b.mh_pp[n - 1];
-        b.mh_sweep_live = 1;
-    }
-
     vector mid = (b.mh_pp[0] + b.mh_cp[0] + b.mh_pp[n - 1] + b.mh_cp[n - 1]) * 0.25;
     float reach = max(max(vlen(b.mh_pp[0] - mid), vlen(b.mh_cp[0] - mid)),
                       max(vlen(b.mh_pp[n - 1] - mid), vlen(b.mh_cp[n - 1] - mid)));
@@ -1613,7 +1597,6 @@ float(float xHand, entity b) VR_Melee_Sweep =
             b.mh_pend_ent = world;
             b.mh_c_ent = edgeEnt;
             b.mh_c_pos = edgeAt;
-            b.mh_c_from = b.mh_sweep_from;
             b.mh_c_dir = normalize(b.mh_cp[edgeI] - b.mh_pp[edgeI]);
             b.mh_c_normal = b.mh_c_dir * -1;
             return TRUE;
@@ -1623,13 +1606,11 @@ float(float xHand, entity b) VR_Melee_Sweep =
     {
         b.mh_c_ent = hiltEnt;
         b.mh_c_pos = hiltAt;
-        b.mh_c_from = b.mh_sweep_from;
         b.mh_c_dir = normalize(b.mh_cp[hiltI] - b.mh_pp[hiltI]);
         b.mh_c_normal = b.mh_c_dir * -1;
         b.mh_pend_ent = hiltEnt;
         b.mh_pend_time = VR_PlayerTime();
         b.mh_pend_pos = hiltAt;
-        b.mh_pend_from = b.mh_c_from;
         b.mh_pend_dir = b.mh_c_dir;
         b.mh_pend_kind = b.mh_kind;
         b.mh_pend_strength = b.mh_strength;
@@ -1642,7 +1623,6 @@ float(float xHand, entity b) VR_Melee_Sweep =
         // The blade never came: the pommel strike.
         b.mh_c_ent = b.mh_pend_ent;
         b.mh_c_pos = b.mh_pend_pos;
-        b.mh_c_from = b.mh_pend_from;
         b.mh_c_dir = b.mh_pend_dir;
         b.mh_c_normal = b.mh_c_dir * -1;
         b.mh_kind = b.mh_pend_kind;
@@ -1658,7 +1638,6 @@ float(float xHand, entity b) VR_Melee_Sweep =
     {
         b.mh_c_ent = wallEnt;
         b.mh_c_pos = wallAt;
-        b.mh_c_from = b.mh_sweep_from;
         b.mh_c_dir = normalize(b.mh_cp[wallI] - b.mh_pp[wallI]);
         b.mh_c_normal = wallNormal;
         return TRUE;
@@ -1679,10 +1658,6 @@ float(float xHand) VR_Blow_Contact =
     trace_endpos = b.mh_c_pos;
     trace_plane_normal = b.mh_c_normal;
     v_forward = b.mh_c_dir;
-    if(b.mh_c_from == '0 0 0')
-    {
-        b.mh_c_from = b.mh_c_pos - b.mh_c_dir * 24; // (a made-up blow, decaptest's: the last of its way)
-    }
     trace_fraction = 0.5;
     trace_startsolid = FALSE;
     trace_allsolid = FALSE;

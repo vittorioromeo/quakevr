@@ -329,6 +329,7 @@ QVR_FRAMEDATA_FIELDS /* QVR: the frame data's Quake VR fields (lights, liquids, 
 "	vec4	shadow; // QVR: vr/vr_lighting.cpp\n"\
 "	vec4	shadow2; // QVR\n"\
 "	vec4	spot; // QVR: a spot light's cone (zero: a point light)\n"\
+"	vec4 gateplane, gatelo, gatehi, gateinverse[3], gateshadow; // QVR: portal light\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=0) restrict readonly buffer LightBuffer\n"\
@@ -518,6 +519,7 @@ WORLD_CALLDATA_BUFFER
 WORLD_INSTANCEDATA_BUFFER
 WORLD_VERTEX_BUFFER
 LIQUID_SWELL // QVR
+"layout(location=5) in vec3 in_surfacecentre; // QVR: BSP slipgate visual scaling pivot\n"
 "layout(location=4) in float in_swellpin; // QVR: the geometric waves' mesh (vr/vr_water.cpp); 0 elsewhere (unset)\n"
 "\n"
 "invariant gl_Position; // QVR: the opaque world's depth pre-pass (glprogs.world_depth) gives the very same depths\n"
@@ -544,7 +546,11 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	Call call = call_data[DRAW_ID];\n"
 "	int instance_id = GET_INSTANCE_ID(call);\n"
 "	Instance instance = instance_data[instance_id];\n"
-"	out_pos = Transform(in_pos, instance);\n"
+"	vec3 position = in_pos;\n"
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
+"	if (LiquidKind(call.flags) == 3u) position = in_surfacecentre + (in_pos - in_surfacecentre) * TeleportLook.x;\n"
+"#endif\n"
+"	out_pos = Transform(position, instance);\n"
 "	gl_Position = ViewProj * vec4(out_pos, 1.0);\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	if (in_swellpin > 0.) // QVR: the swells move the surface on screen and in depth; out_pos stays the flat one's, for the shading\n"
@@ -876,6 +882,7 @@ WORLD_CALLDATA_BUFFER
 WORLD_INSTANCEDATA_BUFFER
 WORLD_VERTEX_BUFFER
 LIQUID_SWELL // QVR
+"layout(location=5) in vec3 in_surfacecentre; // QVR: BSP slipgate visual scaling pivot\n"
 "layout(location=4) in float in_swellpin; // QVR: the geometric waves' mesh (vr/vr_water.cpp); 0 elsewhere (unset)\n"
 "\n"
 "layout(location=0) flat out float out_alpha;"
@@ -892,7 +899,8 @@ LIQUID_SWELL // QVR
 "	Call call = call_data[DRAW_ID];\n"
 "	int instance_id = GET_INSTANCE_ID(call);\n"
 "	Instance instance = instance_data[instance_id];\n"
-"	vec3 pos = Transform(in_pos, instance);\n"
+"	vec3 position = LiquidKind(call.flags) == 3u ? in_surfacecentre + (in_pos - in_surfacecentre) * TeleportLook.x : in_pos;\n"
+"	vec3 pos = Transform(position, instance);\n"
 "	gl_Position = ViewProj * vec4(pos, 1.0);\n"
 "	if (in_swellpin > 0.) // QVR: the geometric waves (vr/vr_water.cpp); out_pos stays the flat surface's\n"
 "		gl_Position = ViewProj * vec4(LiquidDisplace(pos, in_swellpin, LiquidKind(call.flags)), 1.0);\n"
@@ -1292,6 +1300,7 @@ QVR_ALIAS_VS_FUNCTIONS // QVR: the recoil steadied (ZeroBlend), the poses' occlu
 "layout(location=2) out vec3 out_pos;\n"
 QVR_ALIAS_VS_OUTPUTS // QVR: the alias vertex shader's Quake VR outputs
 "\n"
+"layout(location=86) uniform vec4 ShadowClip; // QVR: enabled only for clipped shadow casters\n"
 "void main()\n"
 "{\n"
 "	InstanceData inst = instances[gl_InstanceID];\n"
@@ -1305,6 +1314,7 @@ QVR_ALIAS_VS_OUTPUTS // QVR: the alias vertex shader's Quake VR outputs
 "	vec3 lerpedPos = mix(pose1.pos, pose2.pos, inst.Blend);\n"
 "	lerpedPos = ZeroBlend(lerpedPos, inst); // QVR: blend towards frame 0 (vr/vr_render.cpp)\n"
 "	vec3 lerpedVert = (worldmatrix * vec4(lerpedPos, 1.0)).xyz;\n"
+"	gl_ClipDistance[0] = dot(vec4(lerpedVert, 1.0), ShadowClip); // QVR: virtual light exit plane\n"
 "	gl_Position = ViewProj * vec4(lerpedVert, 1.0);\n"
 "	out_pos = lerpedVert - EyePos;\n"
 "	out_nor = mat3(worldmatrix) * mix(pose1.nor, pose2.nor, inst.Blend); // QVR\n"

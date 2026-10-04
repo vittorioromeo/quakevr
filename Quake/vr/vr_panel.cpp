@@ -23,6 +23,7 @@
 #include "vr_menuui.hpp"
 #include "vr_panel.hpp"
 #include "vr_profile.hpp"
+#include "vr_text3d.hpp"
 #include "vr_window.hpp"
 
 #include "Zancle/Base/Exchange.hpp"
@@ -388,6 +389,7 @@ extern "C" void VR_End2D(void (*windowHud)())
 {
     if(!drawingToCanvas)
     {
+        text3d::renderScreens(); // world-board images also belong to the ordinary flat-screen view
         return;
     }
     drawingToCanvas = false;

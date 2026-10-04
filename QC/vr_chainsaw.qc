@@ -427,8 +427,9 @@ float(float xHand) VR_Chainsaw_Cut =
             // The chain shreds a gib or a head at once (a tick's blow would knock it off the bar).
             hurt = max(dmg, e.vr_gib_hp);
         }
+        hurt = hurt * VR_Melee_Positional(e, at, dir);
+        // Accumulate the damage actually dealt. The helper's threshold hit must remain sufficient to drop/gib it.
         hurt = VR_Zombie_SawHurt(e, hurt);
-        hurt = hurt * VR_Melee_Positional(e, '0 0 0', at, dir); // (vr_melee_positional: the zone of the point the bar met) // (a zombie: the tick that puts it down, or gibs it down)
         // At the neck: a corpse beheaded instead of cut, a live one beheaded if the tick kills it (a zombie: whatever)
         // (vr_decap.qc).
         float decap = VR_Decap_Saw(e, xHand, at);

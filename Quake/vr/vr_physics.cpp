@@ -692,6 +692,7 @@ int soundsThisFrame = 0;
 // `sound`: its precache index (variant).
 bool soundAt(const glm::vec3& at, int sound, float volume, float attenuation = 1.f)
 {
+    if(VR_NoLiquidEffects(sv.worldmodel, &at.x)) { return false; }
     const float master = CLAMP(0.f, vr_water_sounds.value, 1.f);
     const int vol = static_cast<int>(CLAMP(0.f, volume * master, 1.f) * 255.f);
     const int index = vol > 0 ? sound : 0;
@@ -770,6 +771,7 @@ za::Vector<SentSplash> splashesThisFrame;
 
 bool sendSplash(const glm::vec3& at, const glm::vec3& dir, float strength)
 {
+    if(VR_NoLiquidEffects(sv.worldmodel, &at.x)) { return false; }
     // (Its figures go into the message as integers: none from a NaN or an infinity.)
     if(!finite(at) || !finite(dir) || !ZA_ISFINITE(strength))
     {
@@ -1117,6 +1119,11 @@ void walkLeaves(LiquidWalk& w, int num, double f1, double f2)
         if(c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN)
         {
             c = CONTENTS_WATER; // as SV_PointContents
+        }
+        if(isLiquid(c))
+        {
+            const glm::vec3 point = w.from + w.delta * ((f1 + f2) * 0.5);
+            c = VR_LiquidContents(sv.worldmodel, &point.x, c);
         }
         if((isLiquid(c) && w.last == CONTENTS_EMPTY) || (c == CONTENTS_EMPTY && isLiquid(w.last)))
         {

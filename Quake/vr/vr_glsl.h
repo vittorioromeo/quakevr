@@ -112,9 +112,11 @@ QVR_TONE_GLSL
 "	vec4	DecalClock; // QVR: the decals on the world (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS): x now on their clock, y vr_decal_life, z 1 on (0: none, or drawn as meshes), w the decals' retro textures set (vr_retro.h; 0 none)\n" \
 "	vec4	WaterCube; // QVR: water reflections (vr/vr_envmap.cpp: vr_water_reflections): the water cube's centre (xyz), strength (w, 0 off)\n" \
 "	vec4	WaterCube2; // QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last\n" \
-"	vec4	PortalPlane; // QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)\n" \
-"	vec4	PortalMin; // QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)\n" \
-"	vec4	PortalMax; // QVR: ... its box (xyz)\n" \
+"	vec4	PortalPlane[8]; // QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)\n" \
+"	vec4	PortalMin[8]; // QVR: ... its box (xyz), how much of the view through it is shown (w, 0 none)\n" \
+"	vec4	PortalMax[8]; // QVR: ... its box (xyz)\n" \
+"	vec4	PortalUV; // QVR: scene viewport to portal composite pixels\n" \
+"	vec4	TeleportLook; // QVR: starry surface size and opacity\n" \
 "	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n"
 
 // the frame data the alias shaders read (vr/vr_lighting.cpp); its own names, since the alias
@@ -267,9 +269,26 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "	return ShadowFilter(ShadowAtlas, l.shadow.xy + (st * (0.5 * k) + 0.5) * size, SHADOW_NEAR / z * (1.0 + 0.002 * ShadowBias));\n"\
 "}\n"\
 "\n"\
+"// A virtual light follows exactly the movement transform. Its straight ray in the destination\n"\
+"// represents the folded source/exit path; attenuation therefore keeps its full travelled distance.\n"\
+"float PortalLightPath(Light l, vec3 pos)\n"\
+"{\n"\
+"    if (l.gatelo.w <= 0.0) return 1.0;\n"\
+"    float a = dot(l.origin, l.gateplane.xyz) - l.gateplane.w;\n"\
+"    float b = dot(pos, l.gateplane.xyz) - l.gateplane.w;\n"\
+"    if (a >= 0.0 || b <= 0.0) return 0.0;\n"\
+"    vec3 entry = mix(l.origin, pos, -a / (b - a));\n"\
+"    vec4 p = vec4(entry, 1.0), light = vec4(l.origin, 1.0);\n"\
+"    vec3 sourceEntry = vec3(dot(l.gateinverse[0], p), dot(l.gateinverse[1], p), dot(l.gateinverse[2], p));\n"\
+"    if (any(lessThan(sourceEntry, l.gatelo.xyz - 0.1)) || any(greaterThan(sourceEntry, l.gatehi.xyz + 0.1))) return 0.0;\n"\
+"    vec3 sourceLight = vec3(dot(l.gateinverse[0], light), dot(l.gateinverse[1], light), dot(l.gateinverse[2], light));\n"\
+"    return ShadowLookup(ShadowAtlas, l.gateshadow.xyz, sourceEntry - sourceLight);\n"\
+"}\n"\
+"\n"\
 "// A dynamic light's shadow at pos (normal n), times its cone there (SpotCone: 1 for a point light).\n"\
 "float LightShadow(Light l, vec3 pos, vec3 n, float cone)\n"\
 "{\n"\
+"	cone *= PortalLightPath(l, pos);\n"\
 "	if (l.shadow.z <= 0. || cone <= 0.)\n"\
 "		return cone;\n"\
 "	if (l.shadow2.x > 0.)\n"\
@@ -765,7 +784,7 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "layout(binding=7) uniform sampler3D LiquidVolume; // where the water and slime are (1), a cell round them into walls\n"\
 "layout(binding=8) uniform sampler2D LiquidDepth; // how far the opaque scene is (vr_water.cpp: half the size), with LiquidScene\n"\
 "layout(binding=16) uniform samplerCube LiquidCube; // the room over the water (vr_envmap.cpp), each texel's distance in alpha\n"\
-"layout(binding=17) uniform sampler2D PortalScene; // the view through a slipgate for this eye (vr_portals.cpp), by the eye's pixels\n"\
+"layout(binding=17) uniform sampler2DArray PortalScene; // the view through a slipgate for this eye (vr_portals.cpp), by the eye's pixels\n"\
 "\n"\
 LIQUID_SWELL \
 "// Quake's warp of the liquids' texture coordinates; lava's slower with the waves on.\n"\
@@ -850,12 +869,16 @@ LIQUID_SWELL \
 "// these), wavering a little as the slipgate's texture does; a its share (0: not this side, or none).\n"\
 "vec4 LiquidPortal(vec3 pos, vec3 facing)\n"\
 "{\n"\
-"	if (PortalMin.w <= 0. || dot(facing, PortalPlane.xyz) < 0.9 || abs(dot(pos, PortalPlane.xyz) - PortalPlane.w) > 2.0 ||\n"\
-"		any(lessThan(pos, PortalMin.xyz - 2.0)) || any(greaterThan(pos, PortalMax.xyz + 2.0)))\n"\
-"		return vec4(0.);\n"\
-"	vec2 size = vec2(textureSize(PortalScene, 0));\n"\
-"	vec2 waver = vec2(sin(Time * 1.9 + dot(pos, vec3(0.071, 0.053, 0.089))), cos(Time * 1.6 + dot(pos, vec3(0.047, 0.083, 0.061))));\n"\
-"	return vec4(texture(PortalScene, gl_FragCoord.xy / size + waver * 0.0012).rgb, PortalMin.w);\n"\
+"    for (int i = 0; i < 8; ++i)\n"\
+"    {\n"\
+"        if (PortalMin[i].w <= 0. || dot(facing, PortalPlane[i].xyz) < 0.9 || abs(dot(pos, PortalPlane[i].xyz) - PortalPlane[i].w) > 2.0 ||\n"\
+"            any(lessThan(pos, PortalMin[i].xyz - 2.0)) || any(greaterThan(pos, PortalMax[i].xyz + 2.0))) continue;\n"\
+"        vec2 size = vec2(textureSize(PortalScene, 0).xy);\n"\
+"        vec2 waver = vec2(sin(Time * 1.9 + dot(pos, vec3(0.071, 0.053, 0.089))), cos(Time * 1.6 + dot(pos, vec3(0.047, 0.083, 0.061))));\n"\
+"        vec2 uv = (gl_FragCoord.xy * PortalUV.zw + PortalUV.xy) / size + waver * 0.0012;\n"\
+"        return vec4(texture(PortalScene, vec3(uv, float(i))).rgb, PortalMin[i].w);\n"\
+"    }\n"\
+"    return vec4(0.);\n"\
 "}\n"\
 "\n"\
 "// A liquid's colour: tex its texture, lit that lit (light: by how much, 1 Quake's full light), n the waves' normal and\n"\
@@ -880,8 +903,9 @@ LIQUID_SWELL \
 "		if (through.a > 0.)\n"\
 "		{\n"\
 "			alpha = 1.0;\n"\
-"			return mix(shimmer, through.rgb, through.a * 0.88);\n"\
+"			return mix(shimmer, through.rgb, through.a * (1.0 - 0.12 * TeleportLook.y));\n"\
 "		}\n"\
+"		alpha *= TeleportLook.y;\n"\
 "		return shimmer;\n"\
 "	}\n"\
 "	vec3 v = normalize(EyePos - pos);\n"\

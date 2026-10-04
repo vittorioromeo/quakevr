@@ -974,9 +974,13 @@ void retroAllUncheckCategories()
 [[nodiscard]] za::Vector<Item> pageGraphicsSlipgates()
 {
     return {
-        toggle("Slipgates", "vr_slipgates").help("The whole slipgate feature: gates that show where they lead, walking through them, and shots, thrown props and gibs going through. Off: none of it runs - slipgates are Quake's teleporters exactly as they were before the feature, and the two settings below do nothing. For comparing the two. Takes effect at once, no map reload."),
-        slider("Slipgate Views", "vr_portals", 0.f, 1.f, 0.1f, "%.1f").extend().help("Slipgates show where they lead, like Portal's portals: the place they take you to, live, through their shimmer (the scene is drawn again for the one you look at). 0: Quake's plain shimmer."),
+        toggle("Slipgates", "vr_slipgates").help("Gates show where they lead in VR, flat screen and the spectator camera. Movement, shots and dynamic light go through them. Off: Quake's teleporters and starry surfaces. Takes effect at once, no map reload."),
+        slider("Slipgate Views", "vr_portals", 0.f, 1.f, 0.1f, "%.1f").extend().help("Slipgates show where they lead, like Portal's portals: the place they take you to, live, through their shimmer (the scene is drawn again for the visible gates). 0: Quake's plain shimmer."),
         toggle("Seamless Slipgates", "vr_portals_walk").help("With Slipgate Views on, you walk through slipgates into the place you saw, keeping your speed and the way you face (no flash, no pause), and rockets, grenades, nails, thrown props and gunfire go through them. Off: Quake's teleport."),
+        slider("Visible Gates", "vr_portals_maxviews", 1.f, 8.f, 1.f, "%.0f").help("Maximum destination views drawn per camera (default 4). Each visible gate renders another scene; lower this for VR performance. Gates inside a destination view do not recurse."),
+        header("Portal Stars"),
+        slider("Size", "vr_slipgate_surface_size", 1.f, 2.f, 0.02f, "%.2fx").help("Enlarges the single star layer on the entrance plane. No extra star quads are drawn inside the destination view. The collision opening keeps its size."),
+        slider("Opacity", "vr_slipgate_surface_opacity", 0.f, 1.f, 0.05f, "%.2f").help("How much entrance shimmer covers the destination view. 0: a clear view; 1: the original shimmer."),
     };
 }
 

@@ -363,6 +363,8 @@ void R_FlushAliasInstances (qboolean showtris)
 	if (aliasdepth && !alphatest && !translucent) // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
 		GL_UseProgram (glprogs.alias_depth[poseverttype]);
 
+	VR_AliasShadowClip (); // QVR: clipped virtual-light shadow, or a disabled plane
+
 	if (poseverttype == PV_IQM)
 		state = GLS_CULL_BACK | GLS_ATTRIBS (5);
 	else

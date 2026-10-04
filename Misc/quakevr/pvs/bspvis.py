@@ -16,7 +16,8 @@ CONTENTS = {-1: "empty", -2: "solid", -3: "water", -4: "slime", -5: "lava", -6: 
 
 class BSP:
     def __init__(self, path):
-        d = open(path, "rb").read()
+        with open(path, "rb") as source:
+            d = source.read()
         ver = struct.unpack_from("<i", d, 0)[0]
         assert ver == 29, ver
         lumps = [struct.unpack_from("<ii", d, 4 + 8 * i) for i in range(15)]
@@ -34,7 +35,7 @@ class BSP:
         self.visblob = lump(4)  # leaf->visofs is a byte offset straight into it
         nodes = [struct.unpack_from("<i2h6h2H", lump(5), 24 * i) for i in range(len(lump(5)) // 24)]
         self.nodes = nodes
-        texinfo = [struct.unpack_from("<8fii", lump(6), 48 * i) for i in range(len(lump(6)) // 48)]
+        texinfo = [struct.unpack_from("<8fii", lump(6), 40 * i) for i in range(len(lump(6)) // 40)]
         self.texinfo = texinfo
         faces = [struct.unpack_from("<hhihh4Bi", lump(7), 20 * i) for i in range(len(lump(7)) // 20)]
         self.faces = faces

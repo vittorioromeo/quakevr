@@ -793,7 +793,7 @@ void buildMesh(qmodel_t* m, float cell)
             continue;
         }
         const texture_t* t = m->textures[s.texinfo->texnum];
-        if(!t || !TEXTYPE_ISLIQUID(t->type) || s.vbo_firstvert + s.numedges > static_cast<int>(src.size()))
+        if(!t || !TEXTYPE_ISLIQUID(t->type) || t->type == TEXTYPE_TELE || s.vbo_firstvert + s.numedges > static_cast<int>(src.size()))
         {
             continue;
         }
@@ -1356,7 +1356,7 @@ void fillRipples()
 
 void addRipple(const glm::vec3& at, float strength)
 {
-    if(vr_water_ripples.value <= 0.f || !cl.worldmodel)
+    if(vr_water_ripples.value <= 0.f || !cl.worldmodel || VR_NoLiquidEffects(cl.worldmodel, &at.x))
     {
         return;
     }
@@ -1616,6 +1616,9 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     water::ensureVolume();
     water::ensureSampler();
 
+    const int actualContents = VR_LiquidContents(cl.worldmodel, r_refdef.vieworg, contents);
+    if(actualContents != contents) { *waterwarp = false; }
+    contents = actualContents;
     const bool liquid = contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA;
     const float underwater = za::clamp(vr_water_underwater.value, 0.f, 2.f);
     water::viewLiquid = liquid && underwater > 0.f && stereo::isRenderingEye() ? contents : 0;
@@ -1658,6 +1661,15 @@ extern "C" void VR_WaterView(int contents, int* waterwarp)
     r_framedata.water3[0] = za::clamp(vr_water_foam.value, 0.f, 2.f);
     envmap::waterFrameData(r_framedata.watercube, r_framedata.watercube2, liquid); // the room reflected (vr_envmap.cpp)
     VR_PortalFrameData(r_framedata.portalplane, r_framedata.portalmin, r_framedata.portalmax); // slipgates (vr_portals.cpp)
+    r_framedata.teleportlook[0] = vr_slipgates.value > 0.f ? za::clamp(
+        vr_slipgate_surface_size.value, 1.f, 2.f) : 1.f;
+    r_framedata.teleportlook[1] = VR_TeleportOpacity();
+    int viewport[4];
+    R_SceneViewport(viewport);
+    r_framedata.portaluv[2] = static_cast<float>(r_refdef.vrect.width) / za::max(viewport[2], 1);
+    r_framedata.portaluv[3] = static_cast<float>(r_refdef.vrect.height) / za::max(viewport[3], 1);
+    r_framedata.portaluv[0] = glx + r_refdef.vrect.x - viewport[0] * r_framedata.portaluv[2];
+    r_framedata.portaluv[1] = gly + glheight - r_refdef.vrect.y - r_refdef.vrect.height - viewport[1] * r_framedata.portaluv[3];
     if(portals::viewing())
     {
         // Through a slipgate the depth is oblique (vr_portals.cpp: VR_PortalClip): the scene's distances can't be
@@ -1770,4 +1782,39 @@ extern "C" void VR_WaterMeshBind(void)
     GL_VertexAttribPointerFunc(2, 1, GL_FLOAT, GL_FALSE, sizeof(MeshVert), reinterpret_cast<void*>(offsetof(MeshVert, lmofs)));
     GL_VertexAttribIPointerFunc(3, 4, GL_UNSIGNED_BYTE, sizeof(MeshVert), reinterpret_cast<void*>(offsetof(MeshVert, styles)));
     GL_VertexAttribPointerFunc(4, 1, GL_FLOAT, GL_FALSE, sizeof(MeshVert), reinterpret_cast<void*>(offsetof(MeshVert, pin)));
+}
+
+// Quake BSP has no separate teleport medium: the *teleport brush is stored as water.
+// Recognise its own leaves/faces, retaining actual pools (including mixed liquid/teleport leaves).
+extern "C" int VR_NoLiquidEffects(qmodel_t* model, const float* point)
+{
+    if(!model) { return 0; }
+    const mleaf_t* leaf = Mod_PointInLeaf(const_cast<float*>(point), model);
+    bool tele = false, liquid = false;
+    for(int i = 0; i < leaf->nummarksurfaces; i++)
+    {
+        const int index = leaf->firstmarksurface[i];
+        if(index < 0 || index >= model->numsurfaces) { continue; }
+        const msurface_t& surface = model->surfaces[index];
+        liquid |= (surface.flags & (SURF_DRAWWATER | SURF_DRAWSLIME | SURF_DRAWLAVA)) != 0;
+        if(!(surface.flags & SURF_DRAWTELE)) { continue; }
+        tele = true;
+        if(za::fabs(DotProduct(point, surface.plane->normal) - surface.plane->dist) > 2.f) { continue; }
+        bool within = true;
+        for(int a = 0; a < 3; a++) { within &= point[a] >= surface.mins[a]-2.f && point[a] <= surface.maxs[a]+2.f; }
+        if(within) { return 1; }
+    }
+    const int c = leaf->contents;
+    return tele && !liquid && (c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ||
+        (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN));
+}
+
+extern "C" int VR_LiquidContents(qmodel_t* model, const float* point, int contents)
+{
+    if(contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA ||
+       (contents <= CONTENTS_CURRENT_0 && contents >= CONTENTS_CURRENT_DOWN))
+    {
+        return VR_NoLiquidEffects(model, point) ? CONTENTS_EMPTY : contents;
+    }
+    return contents;
 }

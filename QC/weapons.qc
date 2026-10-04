@@ -285,40 +285,6 @@ float(float inHead, float outLateral, float belowOrigin) VR_RegionPick =
     return 0; // standard
 }
 
-// Whether the way from `xFrom` to `xTo` (a blow's sweep through a body, not a ray onwards) crosses the target's head
-// zone: the same sphere PositionalRegion measures its head with, tested as a segment. Head priority
-// (vr_hit_head_priority): a sweep that crossed the head is a head blow, whatever part of the body its probe happened
-// to meet first. FALSE when the way is unknown.
-float(entity xTarget, vector xFrom, vector xTo) VR_HeadZoneCrossing =
-{
-    if(xFrom == '0 0 0' || !PositionalHead(xTarget))
-    {
-        return FALSE;
-    }
-
-    vector d = xTo - xFrom;
-    float len = vlen(d);
-    if(len < 0.01)
-    {
-        return FALSE;
-    }
-    d = d / len;
-    if(len > 64) // (a swing remembered from too far: only the last of its way counts)
-    {
-        len = 64;
-        xFrom = xTo - d * len;
-    }
-
-    float yaw = xTarget.angles_y * (3.14159265 / 180);
-    vector facing;
-    facing_x = cos(yaw);
-    facing_y = sin(yaw);
-    facing_z = 0;
-    vector head = xTarget.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
-    float t = max(0, min(len, (head - xFrom) * d));
-    return vlen(head - (xFrom + d * t)) < xHeadRadius + VR_HEAD_MARGIN;
-}
-
 // Where a shot entering `xTarget` at `xEndpos` (a point on its box, from a trace) along
 // `xDirection` hits: 1 the head, 2 an extremity (far from its middle), 3 the legs, 0 the body; -1
 // when positional damage does not apply (vr_positional_damage 0, a target without a head).
@@ -389,10 +355,9 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
 // zones and the same multipliers the guns use, decided from the zero-radius point on the model the blow met
 // (PositionalRegion, hitmodel_rest) - so a head is a head for a blade and for a shot alike. The looser melee
 // tolerance (vr_hit_tolerance_melee, vr_hit_melee_scale) stays what *connects* only: it never makes a body hit count
-// as a head. With head priority (vr_hit_head_priority) a blow whose way through the body crossed the head zone is a
-// head blow, whatever part its probe met first. Its answer is recorded as PositionalDamage records a shot's (the
+// as a head. Head priority resolves overlapping zones at the contacted point. Its answer is recorded as a shot's (the
 // dummy's report, the highlights). With the option off: 1, nothing recorded - today's flat melee damage.
-float(entity xTarget, vector xFrom, vector xTo, vector xDir) VR_Melee_Positional =
+float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional =
 {
     if(cvar_hget(cvarh_vr_melee_positional) == 0 || cvar_hget(cvarh_vr_positional_damage) == 0)
     {
@@ -400,10 +365,6 @@ float(entity xTarget, vector xFrom, vector xTo, vector xDir) VR_Melee_Positional
     }
 
     float region = PositionalRegion(xTarget, xTo, xDir);
-    if(region != 1 && cvar_hget(cvarh_vr_hit_head_priority) && VR_HeadZoneCrossing(xTarget, xFrom, xTo))
-    {
-        region = 1; // the head crossing wins the sweep
-    }
     if(region < 0)
     {
         return 1;
@@ -1043,13 +1004,12 @@ void(float xHand, vector xAt) HIP_FireMjolnirLightning =
 
 // A swing (tagged by PlayerVRMeleeImpl) struck at trace_endpos, going along `xDir`: kept for the
 // training dummy's report (vr_dummy.qc).
-void(vector xDir, vector xFrom) VRMeleeHitAt =
+void(vector xDir) VRMeleeHitAt =
 {
     if(vr_hitkind == QVR_HITKIND_MELEE)
     {
         vr_hitpos = trace_endpos;
         vr_hitdir = xDir;
-        vr_hitfrom = xFrom; // the striking point's way: head priority reads the zones it crossed, not only where it stopped
     }
 };
 
@@ -1079,7 +1039,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
         {
             return FALSE;
         }
-        VRMeleeHitAt(v_forward, VR_Blow(xHand).mh_c_from);
+        VRMeleeHitAt(v_forward);
         return TRUE;
     }
 
@@ -1109,7 +1069,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
         if(VRMeleeTraceHit(handPos, anything))
         {
             v_forward = dir;
-            VRMeleeHitAt(dir, handPos - dir * 6);
+            VRMeleeHitAt(dir);
             return TRUE;
         }
 
@@ -1117,7 +1077,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
         if(VRMeleeTraceHit(muzzlePos, anything))
         {
             v_forward = dir;
-            VRMeleeHitAt(dir, muzzlePos - dir * 6);
+            VRMeleeHitAt(dir);
             return TRUE;
         }
     }
