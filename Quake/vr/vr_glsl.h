@@ -108,7 +108,8 @@ QVR_TONE_GLSL
 "	vec4	RetroLight[6]; // QVR: retro lighting (vr/vr_retrolight.h; all 0: off)\n" \
 "	vec4	Ripple; // QVR: splash ripples (vr/vr_water.cpp: vr_water_ripples): x how many, y their rings' speed (units/s), z the wave number, w the share of them in the geometry\n" \
 "	vec4	RippleAt[32]; // QVR: ... each's centre (xy), the surface's height (z), its age in seconds (w)\n" \
-"	vec4	RippleAmp[8]; // QVR: ... each's height now, in units (four a vec4)\n"
+"	vec4	RippleAmp[8]; // QVR: ... each's height now, in units (four a vec4)\n" \
+"	vec4	DecalClock; // QVR: the decals on the world (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS): x now on their clock, y vr_decal_life, z 1 on (0: none, or drawn as meshes), w unused\n"
 
 // the frame data the alias shaders read (vr/vr_lighting.cpp); its own names, since the alias
 // instance buffer has a ViewProj, Fog, EyePos and ScreenDither of its own.
@@ -1084,12 +1085,129 @@ LIQUID_SWELL \
 "	gl_Position = vec4(c * 2.0 - 1.0, 0.0, 1.0);\n" \
 "}\n"
 
-// detail, parallax, specular anti-aliasing, the baked light's bumps
+// QVR: the decals on the world's own surfaces (vr/vr_decals.cpp, vr_decals_world), applied in its shader as DOOM (2016)
+// and its clustered forward decals do: each pixel finds the decals over it and puts them on its texture, before its
+// light, where the parallax mapping moved it (so they follow the relief as the texture does, and take the light, the
+// sheen and the fog as it does). The decals are found in a grid over the world, 32 units a cell, hashed into buckets
+// (DecalGrid: [0] the buckets' mask, then each bucket's list's start << 8 | its length (64 at most, the newest), then
+// the lists). A decal is on a face turned towards its normal (60 degrees at most) whose plane passes within n.w of its
+// middle, over its rectangle (projected along its normal), as clipToWorld laid the meshes. Spreading (a pool, a run), darkening (drying), showing
+// and fading are worked out from its age, as appendDecal's: m = its texel (premultiplied, times its colour) + 1 - its
+// alpha, on the texture as the meshes' modulating blend put it on the lit scene (multiplications: in any order).
+#define QVR_DECAL_FUNCTIONS \
+"struct Decal\n" \
+"{\n" \
+"	vec4	centre; // xyz its middle, w its cell in the atlas (8 x 4)\n" \
+"	vec4	u; // xyz its length's way (a unit), w half its length\n" \
+"	vec4	v; // xyz its width's way, w half its width\n" \
+"	vec4	n; // xyz the normal of the surface it was laid on, w how far from its plane a surface takes it\n" \
+"	vec4	time; // x when it shows (DecalClock.x's clock), y seconds it spreads over (0: at once), z from this part of its size, w how much darker it gets (+2: spreading from its -u end, a run)\n" \
+"};\n" \
+"layout(std430, binding=3) restrict readonly buffer DecalBuffer\n" \
+"{\n" \
+"	Decal Decals[];\n" \
+"};\n" \
+"layout(std430, binding=4) restrict readonly buffer DecalGridBuffer\n" \
+"{\n" \
+"	uint DecalGrid[];\n" \
+"};\n" \
+"layout(binding=14) uniform sampler2D DecalAtlas;\n" \
+"\n" \
+"// How far along the surface the parallax mapping moved this pixel's texture coordinates (by duv), in the world.\n" \
+"vec3 ParallaxShiftWorld(vec2 duv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy)\n" \
+"{\n" \
+"	float det = duvdx.x * duvdy.y - duvdx.y * duvdy.x;\n" \
+"	if (abs(det) < 1e-12)\n" \
+"		return vec3(0.0);\n" \
+"	float a = (duv.x * duvdy.y - duv.y * duvdy.x) / det;\n" \
+"	float b = (duvdx.x * duv.y - duvdx.y * duv.x) / det;\n" \
+"	return dpdx * a + dpdy * b;\n" \
+"}\n" \
+"\n" \
+"// The decals' colour on the texture at p (where the parallax mapping put it; q: the surface's own point there, facing\n" \
+"// its normal, dpdx and dpdy its derivatives across the screen).\n" \
+"vec3 DecalsAt(vec3 p, vec3 q, vec3 facing, vec3 dpdx, vec3 dpdy)\n" \
+"{\n" \
+"	vec3 m = vec3(1.0);\n" \
+"	ivec3 c = ivec3(floor(p * (1.0 / 32.0)));\n" \
+"	uint h = (uint(c.x) * 73856093u) ^ (uint(c.y) * 19349663u) ^ (uint(c.z) * 83492791u);\n" \
+"	uint mask = DecalGrid[0];\n" \
+"	uint bucket = DecalGrid[1u + (h & mask)];\n" \
+"	uint first = 2u + mask + (bucket >> 8), count = min(bucket & 255u, 64u);\n" \
+"	const vec2 inset = vec2(0.5 / 2048.0, 0.5 / 1024.0);\n" \
+"	const vec2 cellsize = vec2(1.0 / 8.0, 1.0 / 4.0);\n" \
+"	const vec2 span = cellsize - 2.0 * inset;\n" \
+"	for (uint k = 0u; k < count; k++)\n" \
+"	{\n" \
+"		Decal d = Decals[DecalGrid[first + k]];\n" \
+"		if (dot(facing, d.n.xyz) < 0.5 || abs(dot(d.centre.xyz - q, facing)) > d.n.w) // its middle within n.w of this face's plane\n" \
+"			continue;\n" \
+"		float age = DecalClock.x - d.time.x;\n" \
+"		float a = clamp((DecalClock.y - age) / 5.0, 0.0, 1.0);\n" \
+"		if (age < 0.0 || a <= 0.0)\n" \
+"			continue;\n" \
+"		bool run = d.time.w >= 1.5;\n" \
+"		float darken = run ? d.time.w - 2.0 : d.time.w;\n" \
+"		float s = 1.0;\n" \
+"		if (d.time.y > 0.0)\n" \
+"		{\n" \
+"			float t = 1.0 - min(1.0, age / d.time.y);\n" \
+"			s = d.time.z + (1.0 - d.time.z) * (1.0 - t * t);\n" \
+"		}\n" \
+"		float su = max(s, 1e-3), sv = run ? 1.0 : su;\n" \
+"		// where in it at its full size: drawn in towards where it spreads from (its middle; a run's top, its -u end)\n" \
+"		vec3 r = p - d.centre.xyz;\n" \
+"		float from = run ? -d.u.w : 0.0;\n" \
+"		vec2 st = vec2((from + (dot(r, d.u.xyz) - from) / su) / d.u.w, dot(r, d.v.xyz) / (sv * d.v.w)) * 0.5 + 0.5;\n" \
+"		if (any(lessThan(st, vec2(0.0))) || any(greaterThan(st, vec2(1.0))))\n" \
+"			continue;\n" \
+"		int cell = int(d.centre.w + 0.5);\n" \
+"		vec2 at = vec2(float(cell % 8), float(cell / 8)) * cellsize + inset + st * span;\n" \
+"		vec2 k2 = 0.5 * span / vec2(su * d.u.w, sv * d.v.w);\n" \
+"		vec2 gx = vec2(dot(dpdx, d.u.xyz), dot(dpdx, d.v.xyz)) * k2;\n" \
+"		vec2 gy = vec2(dot(dpdy, d.u.xyz), dot(dpdy, d.v.xyz)) * k2;\n" \
+"		// filtered over the pixel's footprint by hand: the mip level of its narrower way, up to 4 reads along the longer\n" \
+"		// (textureGrad's own, in llvmpipe, put a faint line along some rows of pixel quads)\n" \
+"		vec2 tx = gx * vec2(2048.0, 1024.0), ty = gy * vec2(2048.0, 1024.0);\n" \
+"		float lx = dot(tx, tx), ly = dot(ty, ty);\n" \
+"		vec2 major = lx > ly ? gx : gy;\n" \
+"		float lmajor = sqrt(max(lx, ly)), lminor = sqrt(min(lx, ly));\n" \
+"		float reads = clamp(ceil(lmajor / max(lminor, 1e-4)), 1.0, 4.0);\n" \
+"		float lod = log2(max(max(lminor, lmajor / reads), 1e-4));\n" \
+"		vec4 texel = vec4(0.0);\n" \
+"		for (float r = 0.0; r < reads; r += 1.0)\n" \
+"			texel += textureLod(DecalAtlas, at + major * ((r + 0.5) / reads - 0.5), lod);\n" \
+"		texel /= reads;\n" \
+"		float dark = 1.0 - darken * min(1.0, age / max(d.time.y, 8.0));\n" \
+"		m *= texel.rgb * (a * dark) + (1.0 - texel.a * a);\n" \
+"	}\n" \
+"	return m;\n" \
+"}\n"
+
+// QVR: the decals on the world's own surfaces (QVR_DECAL_FUNCTIONS) on its texture, before its light: the world's
+// instance only (Instance.retro.w, R_InitBModelInstance), not brush models (the meshes were laid on the world alone);
+// its fullbrights and sheen covered as much
+#define QVR_WORLD_FS_DECALS \
+"#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n" \
+"	vec3 decal_mod = vec3(1.0);\n" \
+"	if (DecalClock.z > 0.0 && in_retro.w > 0.5)\n" \
+"	{\n" \
+"		vec3 decal_pos = parallax ? in_pos + ParallaxShiftWorld(puv - uv, duvdx, duvdy, dpdx, dpdy) : in_pos;\n" \
+"		decal_mod = DecalsAt(decal_pos, in_pos, facing, dpdx, dpdy);\n" \
+"		result.rgb *= decal_mod;\n" \
+"		fullbright *= decal_mod;\n" \
+"	}\n" \
+"#else\n" \
+"	const vec3 decal_mod = vec3(1.0);\n" \
+"#endif\n"
+
+// detail, parallax, specular anti-aliasing, the baked light's bumps, the decals
 #define QVR_WORLD_FS_FUNCTIONS \
 DETAIL_FUNCTIONS \
 PARALLAX_FUNCTIONS \
 SPECULAR_AA_FUNCTIONS \
 QVR_BOX_WOUNDS \
+QVR_DECAL_FUNCTIONS \
 "// QVR: the screen derivatives of the baked light's brightness lum, for its bumps (BakedBump): the lightmap's slope\n" \
 "// here, from its luxels in full precision, times how its coordinates change across the screen. dFdx of the filtered\n" \
 "// light itself was 0 between steps of the filter's 8-bit weights (1/256 of a luxel) and of the 8-bit light, and a\n" \

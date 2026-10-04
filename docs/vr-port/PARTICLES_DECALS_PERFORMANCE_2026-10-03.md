@@ -15,6 +15,7 @@ invocation queries.
 
 | Item | Verdict | Done |
 |---|---|---|
+| Decals floating over parallax-mapped surfaces | **Confirmed** (the parallax sinks the texture up to 3 units; the meshes sat on the face) | Drawn in the world's shader, following the relief (`vr_decals_world`) |
 | Decals: every new mark remade and re-uploaded all the settled marks | **Confirmed**: 94.6 MB uploaded for 853 chips (111 KB a mark, more as the buffer fills); a decal frame's worst 25-33 ms per eye here | Only new marks are added and uploaded: 0.8 MB; worst frame 1-10 ms |
 | Particle simulation and records (CPU) | Small: a linear pass, 0.05 + 0.06 ms a frame in the storm | — |
 | Particle fill (GPU) | **The cost**: large smoke and blood close to the eyes; 3500 particles drew about 5.8M fragments per eye at 160x160 (about 230 screens of overdraw) | In heavy frames all particles at half resolution (a quarter of the fragments); no per-sample shading with MSAA |
@@ -49,6 +50,51 @@ No mismatches.
 
 (llvmpipe: the remaining time is its rasterising. On a GPU the saving is the per-mark upload and rebuild, which grows
 with the number of decals.)
+
+## Decals in the world's own shader (vr_decals_world)
+
+Decals used to be meshes drawn over the world, 0.2 units off each face. The world's parallax occlusion mapping
+(`vr_parallax`, `vr_parallax_depth` 3) sinks a texture's dark parts up to 3 units below the face without writing
+depth, so in the headset the decals looked as if they floated: in stereo they sat in front of the surface you see,
+and they slid over it as the head moved.
+
+Engines handle this in a few ways: decals applied inside the surface's own shader (DOOM 2016's clustered forward
+decals; Bevy's clustered decals), projected decals with parallax that writes depth (Unreal's pixel depth offset,
+which Epic says conflicts with decals), or decals with their own parallax. The first is done here (`vr_decals_world`,
+default 1):
+
+- **Where:** in the world's fragment shader (`QVR_WORLD_FS_DECALS`, `QVR_DECAL_FUNCTIONS` in `vr_glsl.h`), after a
+  held prop's blood and before the light. Each pixel finds the decals over it and multiplies its texture by them
+  (texel x colour + 1 - alpha, the meshes' blend). It reads them where the parallax mapping moved its texture (the
+  shift turned back into the world through the surface's screen derivatives), so they follow the relief. They take
+  the light, the sheen and the fog as the texture does: the meshes darkened all three, fog included.
+- **Finding them:** a grid over the world, 32 units a cell, hashed into buckets (twice as many as the cells listed),
+  each bucket listing its marks once, at most 64 (the newest). It is built on the CPU only when marks come or go
+  (`buildWorld`: 0.07 ms a frame on average with a new mark every frame and 850 of them) and uploaded as two storage
+  buffers. Spreading, darkening, showing and fading are worked out in the shader from each mark's age.
+- **The same marks:** the same faces as `clipToWorld` laid the meshes on (turned at most 60 degrees from the mark,
+  their plane within its depth of its middle, the world only, not brush models). Unlike the meshes it has no limit
+  of 32 triangles a mark, so a big spray over broken ground is whole.
+- **Filtering:** the shader filters the atlas itself (the mip level of the footprint's narrow way, up to 4 reads
+  along the long way). With `textureGrad`, llvmpipe drew a faint line along some rows of pixel quads.
+- **Retro textures** (`vr_retro` on decals) keep the meshes, as does `vr_decals_world 0`.
+
+Checked against the meshes, paused, the same frame both ways (512x512 an eye, pools, splotches, sprays and chips on
+the firing range's floor):
+
+| | pixels changed by more than 32 |
+|---|---|
+| What the decals change at all | 13,300 |
+| Meshes vs the shader, parallax off | 78 |
+| Meshes vs the shader, parallax on | 22 |
+| The same while fading (vr_decal_life 7) | 3 |
+
+At a grazing angle with `vr_parallax_depth 4`, the two look alike in a still image, the shader's following the
+relief. The difference is in stereo and in motion, which these screenshots cannot show.
+
+Cost, `fx_decals` on llvmpipe (160x160 an eye, 850 marks): the meshes' draw (0.7 and 0.6 ms of CPU an eye) is gone,
+and the world's surfaces took about the same GPU time (15.2 and 16.4 ms with the meshes, 16.8 and 16.7 ms with the
+shader's decals). The frame went from 84.0 to 81.7 ms.
 
 ## Particles
 

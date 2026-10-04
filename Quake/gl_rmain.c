@@ -1093,6 +1093,7 @@ void R_SetupView (void)
 	VR_DetailView (); // QVR: detail textures (vr/vr_detail.cpp)
 
 	R_SetFrustum ();
+	VR_DecalsFrame (r_framedata.decalclock); // QVR: the decals on the world (vr/vr_decals.cpp)
 
 	VR_ProfileBegin ("mark surfaces"); // QVR: profile
 	R_MarkSurfaces (); //johnfitz -- create texture chains from PVS

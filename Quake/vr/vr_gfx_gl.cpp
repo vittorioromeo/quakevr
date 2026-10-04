@@ -835,6 +835,45 @@ void draw(const StaticTriangles& t, const glm::mat4& mvp, const State& state, Te
     drawVertices(t.buffer, nullptr, t.count, state);
 }
 
+void upload(StorageBuffer& b, const void* data, za::SizeT bytes)
+{
+    b.size = bytes;
+    if(bytes == 0)
+    {
+        return;
+    }
+    if(!b.buffer || bytes > b.capacity)
+    {
+        if(b.buffer)
+        {
+            GL_DeleteBuffer(b.buffer);
+        }
+        b.capacity = bytes + bytes / 2; // room to grow
+        b.buffer = GL_CreateBuffer(GL_SHADER_STORAGE_BUFFER, GL_DYNAMIC_DRAW, "vr storage", b.capacity, nullptr);
+    }
+    else
+    {
+        GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, b.buffer);
+        GL_BufferDataFunc(GL_SHADER_STORAGE_BUFFER, static_cast<GLsizeiptr>(b.capacity), nullptr, GL_DYNAMIC_DRAW);
+    }
+    GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, b.buffer);
+    GL_BufferSubDataFunc(GL_SHADER_STORAGE_BUFFER, 0, static_cast<GLsizeiptr>(bytes), data);
+    GL_BindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void bindStorage(unsigned binding, const StorageBuffer& b)
+{
+    if(b.buffer && b.size > 0)
+    {
+        GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, binding, b.buffer, 0, static_cast<GLsizeiptr>(b.size));
+    }
+}
+
+void bindTexture(unsigned unit, Texture texture)
+{
+    GL_BindNative(GL_TEXTURE0 + unit, GL_TEXTURE_2D, texture);
+}
+
 ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles)
 {
     if(particles.empty())

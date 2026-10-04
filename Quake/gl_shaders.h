@@ -576,7 +576,7 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	out_aoself = instance.aoself; // QVR\n"
 "	out_wound = instance.wound; // QVR: a held prop's blood (BoxWounds)\n"
 "	out_boxpos = (in_pos - instance.woundbox.xyz) * instance.woundbox.w; // QVR\n"
-"	out_retro = vec4(call.retro.xy, call.retro.z > 0.0 ? call.retro.z - 1.0 : instance.retro.x, 0.0); // QVR: retro textures (vr_retro.h)\n"
+"	out_retro = vec4(call.retro.xy, call.retro.z > 0.0 ? call.retro.z - 1.0 : instance.retro.x, instance.retro.w); // QVR: retro textures (vr_retro.h); w 1: the world (its decals)\n"
 "	out_styles.x = GetLightStyle(in_styles.x);\n"
 "	if (in_styles.y == 255)\n"
 "		out_styles.yzw = vec3(-1.);\n"
@@ -724,6 +724,7 @@ QVR_WORLD_FS_FUNCTIONS // QVR: detail, parallax, specular anti-aliasing, the bak
 "#endif\n"
 QVR_WORLD_FS_DETAIL // QVR: detail textures close by; a liquid's unlit texture
 QVR_WORLD_FS_WOUNDS // QVR: a held prop's blood (vr/vr_wounds.cpp)
+QVR_WORLD_FS_DECALS // QVR: the decals on the world (vr/vr_decals.cpp)
 "\n"
 "	vec2 lmuv = in_lmuv;\n"
 "#if DITHER\n"
@@ -834,7 +835,7 @@ QVR_WORLD_FS_LIGHT_SHADOW // QVR: a light's shadow and spot cone
 "#else\n"
 "	result.rgb *= total_light;\n"
 "#endif\n"
-"	result.rgb += specular_light * specular_map; // QVR\n"
+"	result.rgb += specular_light * specular_map * decal_mod; // QVR: (under the decals)\n"
 "	result.rgb += fullbright;\n"
 QVR_WORLD_FS_GLOW_LIQUID // QVR: force grab's glow; the liquid's look
 "	result = clamp(result, vec4(0.0), vec4(vec3(SceneTone.x), 1.0)); // QVR: above 1 in the eyes' float scene (vr_tonemap)\n"

@@ -95,6 +95,20 @@ void upload(StaticTriangles& triangles, za::Span<const Vertex> vertices);
 void update(StaticTriangles& triangles, za::Span<const Vertex> vertices, za::SizeT first, za::SizeT count);
 void draw(const StaticTriangles& triangles, const glm::mat4& mvp, const State& state, Texture texture = 0);
 
+// A shader storage buffer (std430) an engine shader reads (the decals on the world: vr_decals.cpp), uploaded when its
+// contents change (orphaned: frames still reading the old contents keep them).
+struct StorageBuffer
+{
+    unsigned buffer{0};
+    za::SizeT capacity{0}; // bytes
+    za::SizeT size{0};     // bytes uploaded
+};
+void upload(StorageBuffer& buffer, const void* data, za::SizeT bytes);
+// Bound to `binding` (GL_SHADER_STORAGE_BUFFER), as uploaded; nothing if empty.
+void bindStorage(unsigned binding, const StorageBuffer& buffer);
+// A 2D texture on texture unit `unit`.
+void bindTexture(unsigned unit, Texture texture);
+
 // Camera-facing particles (vr_particles.cpp), made into quads on the GPU: one record each, uploaded once a frame and
 // drawn from the same buffer in every view (each view's quads built in the vertex shader from its own camera), rather
 // than six vertices each made and uploaded again for each eye. The quad: 2 x `half` across, turned by (cos, sin) about
