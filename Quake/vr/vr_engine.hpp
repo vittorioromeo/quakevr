@@ -62,6 +62,11 @@ void SV_Impact (edict_t *e1, edict_t *e2);
 entity_t *CL_NewTempEntity (void);				// cl_tent.c: a visedict for this frame (after CL_UpdateTEnts)
 int Con_NotifyLine (int age, const char **text, int *length, double *seconds, int *server); // console.c: a notify line (the wrist gadget's log)
 int Cvar_Count (void);								// cvar.c
+void Key_Console (int key);							// keys.c: a key in the console's line (the VR Console page)
+void Char_Console (int key);						// keys.c: a letter typed into it
+extern char *con_text;								// console.c: the console's text (the VR Console page)
+extern int con_current, con_linewidth;				// console.c
+extern char key_tabpartial[MAXCMDLINE];				// console.c: Tab completion's partial word
 size_t Draw_PicBytes (void);						// gl_draw.c: the bytes a pic made by Draw_ReplacePic takes
 void Draw_ReplacePic (qpic_t *pic, const char *name, int width, int height, byte *data); // gl_draw.c: a lasting pic of 8-bit data
 int Mod_ReloadAliasModels (qboolean (*match) (const char *name, void *ctx), void *ctx); // gl_model.c (vr_model_reload)

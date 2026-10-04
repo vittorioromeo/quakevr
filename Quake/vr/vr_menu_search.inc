@@ -6,7 +6,9 @@
 // The match: each word typed is looked for in the label (a whole word, a word's start, inside a word, its letters in
 // order, or a word with one letter wrong), then in the help (a little less), the pages above and the cvar's name
 // (less again); every word must be found somewhere. The label holding the whole text typed, at its start best, comes
-// first; then shorter labels. vr_menu_search <text> prints the results (the same ranking).
+// first; then shorter labels. A word with underscores in it is a cvar's name (or a part of one, "gib_health"): matched
+// against the cvar's whole name, below the labels unless typed in full. vr_menu_search <text> prints the results (the
+// same ranking).
 
 struct SearchEntry
 {
@@ -25,10 +27,11 @@ struct SearchResult
 {
     int entry;
     float score;
+    bool byCvar{false}; // found by its cvar's name rather than its words (the cvar shown with it)
 };
 
 constexpr int searchMaxResults = 60;
-constexpr int searchMaxQuery = 32;
+constexpr int searchMaxQuery = 48; // (the longest cvars' names)
 
 struct SearchState
 {
@@ -171,8 +174,39 @@ SearchState search;
     return best;
 }
 
-// The entry's score for the words typed (0: one of them found nowhere).
-[[nodiscard]] float searchScore(const SearchEntry& e, const za::Vector<za::String>& words, const za::String& phrase)
+// How well a name typed (its underscores kept) matches a cvar's whole name: 1 the name, 0.85 its end from an underscore
+// ("gib_health"), 0.8 its start, 0.7 inside it, 0.45 the name with one letter wrong; 0 none.
+[[nodiscard]] float cvarMatch(const za::String& token, const za::String& name)
+{
+    if(token.empty() || name.empty())
+    {
+        return 0.f;
+    }
+    if(token == name)
+    {
+        return 1.f;
+    }
+    const za::StringView n{name};
+    const za::StringView t{token};
+    if(n.size() > t.size() && n.endsWith(t) && n[n.size() - t.size() - 1] == '_')
+    {
+        return 0.85f;
+    }
+    if(n.startsWith(t))
+    {
+        return 0.8f;
+    }
+    if(n.find(t) != za::StringView::nPos)
+    {
+        return 0.7f;
+    }
+    return t.size() >= 6 && editDistance(n, t, 1) <= 1 ? 0.45f : 0.f;
+}
+
+// The entry's score for the words typed (0: one of them found nowhere); `byCvar`: found by its cvar's name (`tokens`:
+// the text split at spaces only, underscores kept), below the labels' matches unless the name is typed in full.
+[[nodiscard]] float searchScore(const SearchEntry& e, const za::Vector<za::String>& words,
+    const za::Vector<za::String>& tokens, const za::String& phrase, bool& byCvar)
 {
     float total = 0.f;
     for(const za::String& w : words)
@@ -181,22 +215,57 @@ SearchState search;
             za::fmax(0.4f * wordMatch(w, e.lowPath, true), 0.5f * wordMatch(w, e.lowCvar, true)));
         if(s <= 0.f)
         {
-            return 0.f;
+            total = 0.f;
+            break;
         }
         total += s;
     }
     total /= static_cast<float>(words.size());
-    if(e.lowLabel == phrase)
+    if(total > 0.f && e.lowLabel == phrase)
     {
         total += 0.6f;
     }
-    else if(e.lowLabel.startsWith(phrase))
+    else if(total > 0.f && e.lowLabel.startsWith(phrase))
     {
         total += 0.35f;
     }
-    else if(za::StringView{e.lowLabel}.find(za::StringView{phrase}) != za::StringView::nPos)
+    else if(total > 0.f && za::StringView{e.lowLabel}.find(za::StringView{phrase}) != za::StringView::nPos)
     {
         total += 0.2f;
+    }
+    // The cvar's name: each name typed found in it (a word without an underscore, in the words above too). An underscore
+    // typed (no label has one): a cvar's name meant, the words' matches less.
+    byCvar = false;
+    if(za::anyOf(tokens.begin(), tokens.end(), [](const za::String& t) { return za::StringView{t}.find('_') != za::StringView::nPos; }))
+    {
+        total *= 0.8f;
+    }
+    if(!e.lowCvar.empty() && za::anyOf(tokens.begin(), tokens.end(), [](const za::String& t) {
+           return za::StringView{t}.find('_') != za::StringView::nPos;
+       }))
+    {
+        float named = 0.f;
+        for(const za::String& t : tokens)
+        {
+            const float s = cvarMatch(t, e.lowCvar);
+            if(s <= 0.f)
+            {
+                named = 0.f;
+                break;
+            }
+            named += s;
+        }
+        named = 0.9f * named / static_cast<float>(tokens.size());
+        named += tokens.size() == 1 && tokens[0] == e.lowCvar ? 0.9f : 0.f; // the whole name: first
+        if(named > total)
+        {
+            total = named;
+            byCvar = true;
+        }
+    }
+    if(total <= 0.f)
+    {
+        return 0.f;
     }
     total += e.isPage ? 0.05f : 0.f;                     // a page first among equals
     total += e.level <= menuLevel() ? 0.08f : 0.f;        // one shown now before one above Menu Detail
@@ -296,7 +365,26 @@ void runSearch()
     search.resultScroll = 0;
     search.focusResult = -1;
     za::Vector<za::String> words;
+    za::Vector<za::String> tokens; // (split at spaces and punctuation, but not at underscores: cvars' names)
     const za::String phrase = lowered(search.query.cStr());
+    for(size_t i = 0; i < phrase.size();)
+    {
+        const auto inName = [&](char c) { return alnum(c) || c == '_'; };
+        while(i < phrase.size() && !inName(phrase[i]))
+        {
+            i++;
+        }
+        size_t j = i;
+        while(j < phrase.size() && inName(phrase[j]))
+        {
+            j++;
+        }
+        if(j > i)
+        {
+            tokens.pushBack(za::String{za::StringView{phrase}.substrByPosLen(i, j - i)});
+        }
+        i = j;
+    }
     for(size_t i = 0; i < phrase.size();)
     {
         while(i < phrase.size() && !alnum(phrase[i]))
@@ -320,10 +408,11 @@ void runSearch()
     }
     for(int i = 0; i < static_cast<int>(search.index.size()); i++)
     {
-        const float s = searchScore(search.index[i], words, phrase);
+        bool byCvar = false;
+        const float s = searchScore(search.index[i], words, tokens, phrase, byCvar);
         if(s > 0.25f)
         {
-            search.results.pushBack({i, s});
+            search.results.pushBack({i, s, byCvar});
         }
     }
     za::stableSort(search.results.begin(), search.results.end(),
@@ -428,7 +517,7 @@ char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, f
     s.resultsTop = static_cast<float>(l.listTop);
     s.resultsBottom = static_cast<float>(l.helpTop) - 4.f; // (the help under them)
 
-    static constexpr const char* rows[] = {"1234567890", "QWERTYUIOP", "ASDFGHJKL-", "ZXCVBNM.'/"};
+    static constexpr const char* rows[] = {"1234567890", "QWERTYUIOP", "ASDFGHJKL_", "ZXCVBNM.'/"};
     const float width = s.split - s.left - 6.f;
     const float keyW = width / 10.5f; // (the lower rows set in by half a key at most)
     float y = s.boxY + rowStep * 1.4f;
@@ -574,6 +663,10 @@ void drawSearch()
             path.removePrefix(root.size());
         }
         za::String where{path};
+        if(search.results[r].byCvar)
+        {
+            where += va(": %s", e.lowCvar.cStr()); // (the end kept when cut: the name found)
+        }
         if(e.level > menuLevel())
         {
             where += va(" (%s)", levelName(e.level));

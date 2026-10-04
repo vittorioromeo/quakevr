@@ -337,17 +337,19 @@ void appendStrip(za::Vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3
 }
 
 // ----------------------------------------------------------------------------
-// The corner's buttons: Back to game, Search, Advanced VR, Levels, Checklist
+// The corner's buttons: Back to game, Search, Console, Advanced VR, Levels, Checklist
 // ----------------------------------------------------------------------------
 
 // A column at the panel's top left, over every menu: "Back to game" (closes the menu, which reopens
-// where it was), "Advanced VR" (the Advanced VR Options page), "Levels" (Ironwail's level list) and
+// where it was), "Search" and "Console" (Quake's console with a keyboard: commands typed in the headset), "Advanced
+// VR" (the Advanced VR Options page), "Levels" (Ironwail's level list) and
 // "Checklist" (the playtest checklist, its open items counted on it; vr_checklist.hpp), from any page. The laser clicks them; the sticks reach them too (focus): a click of either stick
 // on any menu, or on a VR page up from its first setting (down from its last).
 enum Tool
 {
     ToolBack,
     ToolSearch, // the VR menus' Search page (vr_menu_search.inc)
+    ToolConsole, // Quake's console with a keyboard (vr_menu_console.inc)
     ToolAdvanced,
     ToolLevels,
     ToolChecklist,
@@ -355,7 +357,7 @@ enum Tool
 };
 
 // (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game".)
-constexpr const char* toolLabels[ToolCount]{"Back to game", "Search", "Advanced VR", "Levels", "Checklist 99"};
+constexpr const char* toolLabels[ToolCount]{"Back to game", "Search", "Console", "Advanced VR", "Levels", "Checklist 99"};
 
 // The buttons shown: the Checklist (the last) only at Menu Detail: Developer (the playtest checklist is the author's).
 [[nodiscard]] int toolsShown()
@@ -631,6 +633,11 @@ float toolbarBottom()
     return active() ? toolbarLayout().buttonsBottom() : -1e9f;
 }
 
+float toolbarRight()
+{
+    return active() ? toolbarLayout().x1 : -1e9f;
+}
+
 bool toolbarFocused()
 {
     return active() && toolbar.focused >= 0 && toolbar.focusMenu == m_state;
@@ -678,6 +685,7 @@ void useTool(int tool, int hand)
     {
         case ToolBack: backToGame(hand); break;
         case ToolSearch: menu::openSearch(); break;
+        case ToolConsole: menu::openConsole(); break;
         case ToolAdvanced: menu::jumpToAdvanced(); break;
         case ToolLevels:
             if(m_state == m_maps)
@@ -1007,6 +1015,11 @@ void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4
                 const float t = static_cast<float>(i);
                 p.rect(x + 5.5f + t, x + 7.f + t, yc + (2.f + t) / p.k, 0.9f, ink);
             }
+            break;
+        case ToolConsole:
+            // A prompt: ">" and "_".
+            p.arrowHeadRight(x + 4.f, 4.f, yc - 1.f / p.k, 3.f, ink);
+            p.rect(x + 5.f, x + w, yc + 3.f / p.k, 0.8f, ink);
             break;
         case ToolAdvanced:
             // Three sliders, their knobs set apart.

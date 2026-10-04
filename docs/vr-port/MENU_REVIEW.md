@@ -133,6 +133,14 @@ Built, after "Please proceed with your plan ... on a separate branch" (each step
    (`vr_menu_search.inc`; `vr_menu_search <text>` prints the ranking). First start fixed on the way: with VR on,
    `vr_startgame` goes to the calibration room instead of the hub (the hub was always running, so the frame check
    never fired).
+8. **Fixes after the merge** (2026-10-04): a page is built anew each time it is shown and whenever cvars are registered
+   (it was kept as first built, so a row could stay missing until Menu Detail was changed); Search matches cvars'
+   names too, underscores kept ("vr_gib_health", "gib_health"; the keyboard's `-` is `_` now): below the labels unless
+   the name is typed in full, the name shown with the result.
+9. **Console** (the author's request, 2026-10-04): the corner's Console button (under Search) opens Quake's console as a
+   page: its text above, the line typed and a keyboard (with `-+_";./,=*'`, Tab, Prev and Next, Run) at the bottom. The
+   line is the console's own, edited through `Key_Console`/`Char_Console`, so history, Tab completion and its hint are
+   the desktop console's (`vr_menu_console.inc`; page 134, `menu_vr 134`).
 
 Not built (the questions below): gameplay-feel presets, a comfort vignette, per-slot cvars to data files.
 

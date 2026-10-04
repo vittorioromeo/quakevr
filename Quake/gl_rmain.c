@@ -1062,6 +1062,7 @@ void R_SetupView (void)
 // current viewleaf
 	r_oldviewleaf = r_viewleaf;
 	r_viewleaf = Mod_PointInLeaf (r_origin, cl.worldmodel);
+	r_viewleaf = VR_PortalViewLeaf (r_viewleaf); // QVR: through a slipgate, the destination's (its PVS, its contents; vr/vr_portals.cpp)
 
 	V_SetContentsColor (r_viewleaf->contents);
 	V_CalcBlend ();

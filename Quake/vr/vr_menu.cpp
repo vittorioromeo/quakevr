@@ -374,6 +374,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
 [[nodiscard]] za::Vector<Item> pageChanged();
 [[nodiscard]] za::Vector<Item> pageSearch();
+[[nodiscard]] za::Vector<Item> pageConsole();
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageColours();
@@ -4853,6 +4854,8 @@ const Page pages[] = {
     {"Ragdolls - Mummy", pageRagdollMummy, pageRagdolls, LevelDeveloper},                         // 131
     {"Changed Settings", pageChanged, pageMain, LevelStandard},                                    // 132 (MENU_REVIEW.md)
     {"Search", pageSearch, pageMain, LevelStandard},                                               // 133 (the corner's Search; vr_menu_search.inc)
+    {"Console", pageConsole, pageMain, LevelStandard},                                             // 134 (the corner's Console; vr_menu_console.inc)
+    {"Graphics - Slipgates", pageGraphicsSlipgates, pageGraphics},                                 // 135 (vr_portals.cpp)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -6337,7 +6340,8 @@ struct MenuPages
     za::Vector<Item> built[pageCount];
     bool done[pageCount]{};
     int level[pageCount]{}; // the menu detail level each was built for
-    auto members() { return qvr::mem::list(built, done, level); }
+    int cvars[pageCount]{}; // how many cvars there were (Cvar_Count): a row whose cvar came later, left out till then
+    auto members() { return qvr::mem::list(built, done, level, cvars); }
 };
 mem::Cache<MenuPages> menuPages{"menu pages", mem::Never};
 
@@ -6463,9 +6467,9 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     const bool settings = za::anyOf(list.begin(), list.end(), [](const Item& item) {
         return item.cvar && item.kind != Item::Action && item.cvar != &vr_menu_level;
     });
-    if(pages[page].build == pageSearch)
+    if(pages[page].build == pageSearch || pages[page].build == pageConsole)
     {
-        return; // (drawn its own way: vr_menu_search.inc)
+        return; // (drawn their own way: vr_menu_search.inc, vr_menu_console.inc)
     }
     if(settings && !slotPage(pages[page].build) && pages[page].build != pageChanged)
     {
@@ -6562,6 +6566,10 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         done[page] = false; // Menu Detail changed: rows and links shown or left out
     }
+    if(menuPages.cvars[page] != Cvar_Count())
+    {
+        done[page] = false; // cvars registered since (a row naming one was left out)
+    }
     if(resetArmedPage == page && realtime - resetArmedTime > 3.0)
     {
         resetArmedPage = -1; // Reset This Page not pressed again in time
@@ -6584,6 +6592,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         builds[page]++;
         const int level = menuLevel();
         menuPages.level[page] = level;
+        menuPages.cvars[page] = Cvar_Count();
         for(Item& item : pages[page].build())
         {
             if(item.kind != Item::Header && item.kind != Item::Action && item.kind != Item::Info && !item.cvar)
@@ -6740,10 +6749,10 @@ void showPage(int target)
     {
         motion::review::invalidate(); // takes recorded, evaluated or moved since
     }
-    if(pages[page].build == pageChanged)
-    {
-        menuPages.done[page] = false; // what is changed now
-    }
+    // Built again each time it is shown (its row kept): rows that depend on anything not checked in items() (what is
+    // changed now: Changed Settings; a state a builder reads) are as they are now, not as when the page was last built
+    // (by Search, a menu path or Changed Settings, which build every page).
+    menuPages.done[page] = false;
     if(target != searchOpened && parentPage[target] != searchOpened && pages[target].build != pageSearch)
     {
         searchOpened = -1; // elsewhere now: Back as usual (vr_menu_search.inc)
@@ -7619,7 +7628,14 @@ za::Vector<Item> pageSearch()
     return {info(searchRowText)};
 }
 
+// The Console page's rows: as Search's (vr_menu_console.inc draws and drives it).
+za::Vector<Item> pageConsole()
+{
+    return {info(searchRowText)};
+}
+
 #include "vr_menu_search.inc"
+#include "vr_menu_console.inc"
 
 void dumpPages()
 {
@@ -8100,6 +8116,11 @@ void qvr::menu::openSearch()
     openSearchPage();
 }
 
+void qvr::menu::openConsole()
+{
+    openConsolePage();
+}
+
 // vr_menu_search <text>: the Search page's results for the text, best first, with their scores and pages.
 void qvr::menu::search_f()
 {
@@ -8116,8 +8137,9 @@ void qvr::menu::search_f()
     for(int r = 0; r < static_cast<int>(search.results.size()) && r < 15; r++)
     {
         const SearchEntry& e = search.index[search.results[r].entry];
-        Con_Printf("%2d %.2f %s%s | %s%s\n", r + 1, search.results[r].score, e.label.cStr(), e.isPage ? " (page)" : "",
-            e.path.cStr(), e.level > menuLevel() ? va(" (%s)", levelName(e.level)) : "");
+        Con_Printf("%2d %.2f %s%s | %s%s%s\n", r + 1, search.results[r].score, e.label.cStr(), e.isPage ? " (page)" : "",
+            e.path.cStr(), search.results[r].byCvar ? va(": %s", e.lowCvar.cStr()) : "",
+            e.level > menuLevel() ? va(" (%s)", levelName(e.level)) : "");
     }
 }
 
@@ -8154,6 +8176,11 @@ void qvr::menu::selectEnd(int dir)
         search.focusKey = 0; // from the corner's buttons: the keys
         return;
     }
+    if(m_state == m_vr && pages[page].build == pageConsole)
+    {
+        consolePage.focusKey = 0;
+        return;
+    }
     if(m_state == m_vr)
     {
         const auto& list = items(page);
@@ -8175,6 +8202,11 @@ bool qvr::menu::scroll(int rows)
     if(m_state != m_vr || sliderGrab || scrollGrab)
     {
         return false;
+    }
+    if(pages[page].build == pageConsole)
+    {
+        consoleScroll(-rows); // (the stick down: newer)
+        return true;
     }
     if(dropDownItem())
     {
@@ -8269,6 +8301,11 @@ extern "C" void VR_Menu_Draw()
         drawSearch();
         return;
     }
+    if(pages[page].build == pageConsole)
+    {
+        drawConsolePage();
+        return;
+    }
     const auto& list = items(page);
     int& cursor = cursors[page];
     int& scroll = scrolls[page];
@@ -8346,6 +8383,11 @@ extern "C" void VR_Menu_Key(int key, int repeat)
     if(pages[page].build == pageSearch)
     {
         searchKey(key);
+        return;
+    }
+    if(pages[page].build == pageConsole)
+    {
+        consoleKey(key);
         return;
     }
     const auto& list = items(page);
@@ -8490,11 +8532,16 @@ extern "C" void VR_Menu_Char(int key)
     {
         typeInSearch(static_cast<char>(key));
     }
+    if(pages[page].build == pageConsole && key >= 32 && key < 127)
+    {
+        typeInConsole(static_cast<char>(key));
+    }
 }
 
 extern "C" int VR_Menu_TextEntry()
 {
-    return pages[page].build == pageSearch ? TEXTMODE_NOPOPUP : TEXTMODE_OFF; // (the page's own keyboard)
+    return pages[page].build == pageSearch || pages[page].build == pageConsole ? TEXTMODE_NOPOPUP
+                                                                               : TEXTMODE_OFF; // (the page's own keyboard)
 }
 
 extern "C" void VR_Menu_Mousemove(float cx, float cy)
@@ -8502,6 +8549,11 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
     if(pages[page].build == pageSearch)
     {
         searchMouse(cx, cy);
+        return;
+    }
+    if(pages[page].build == pageConsole)
+    {
+        consoleMouse(cx, cy);
         return;
     }
     if(dropDownMousemove(cx, cy))

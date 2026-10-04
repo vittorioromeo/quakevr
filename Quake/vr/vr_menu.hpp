@@ -55,6 +55,9 @@ void init();
 void openSearch();
 void search_f(); // vr_menu_search <text>
 
+// Console (the corner's button): Quake's console with a keyboard, from any menu (vr_menu_console.inc).
+void openConsole();
+
 // The sticks' selection back on the page shown from the corner's buttons: onto its first setting
 // (dir 1, going down) or its last (dir -1, going up).
 void selectEnd(int dir);

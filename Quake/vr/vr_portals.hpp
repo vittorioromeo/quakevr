@@ -10,7 +10,9 @@
 // Nothing in the map changes: the triggers and destinations are the game's (the server's entities), the faces the
 // world's.
 //
-// Once a frame the side worth a look is picked (in front of the head, in its PVS, near, big on the eyes; held a while).
+// Once a frame the side worth a look is picked (in front of the head, in its PVS, not behind another gate, near, big on
+// the eyes; held a while). The view through it is seen from the destination's leaf (its PVS: the view itself is behind
+// the destination, as far as the eye is from the gate, often in a wall or another room).
 // For each eye, before the eye's own view, the scene is drawn again into scene targets of the eye's size from that eye
 // moved through the gate (vr_stereo.cpp): the same projection with an oblique near plane on the destination's side of
 // the gate's plane (what is between the view and that plane is not drawn), and outside the gate's box on screen the
@@ -21,12 +23,15 @@
 // Both eyes are right (each its own view); the desktop's spectator camera shows the slipgates' texture.
 //
 // Walking and shooting through (vr_portals_walk; the server, single player and listen servers): a player is carried
-// through as his head comes within 18 units of a side's plane over the gate, his trigger touched and active, kept
-// where he is, how he moves and where he looks relative to the gate (turned and shifted by the side's own mapping, the
-// view's: it does not jump); what flies (missiles, grenades, gibs) as its frame's path crosses the plane. QuakeC's
-// teleport_touch leaves players to it (portal_handles) unless one stays in the trigger 1.5 s without reaching the
-// plane (Quake's teleport then); VR_Portal_Crossed does the rest of what the teleport did (its targets, what the hands
-// carry). Monsters teleport as in Quake.
+// through as his head reaches a side's plane over the gate (or as near as his body can bring it: a wall just behind),
+// his trigger touched and active, kept where he is, how he moves and where he looks relative to the gate (turned and
+// shifted by the side's own mapping, the view's: it does not jump). This machine's player's client is told
+// (hands::portalCrossing): the play space turns by the gate's yaw itself, the head's lean and the stairs' easing are kept
+// through the jump. What flies (missiles, grenades, gibs, thrown props: Box3D takes the move up) as its frame's path
+// crosses the plane; traces with MOVE_PORTALS (the guns' pellets, the lightning) go on from the far side (portal_entry,
+// portal_exit, portal_turn: the beams in two pieces). QuakeC's teleport_touch leaves players to it (portal_handles)
+// unless one stays in the trigger a second, not over its gate (Quake's teleport then); VR_Portal_Crossed does the rest of what
+// the teleport did (its targets, what the hands carry). Monsters teleport as in Quake.
 
 #pragma once
 

@@ -197,7 +197,11 @@ options (VR Settings > *Run VR Calibration Again*, or the main menu's first row,
 Low, Medium, High or Ultra) and lower *Render Scale* (Headset) below 1.
 
 **Search:** the corner's *Search* button (or *Search Settings* on VR Settings) finds any setting by its name or what it
-does, as you type, and opens its page on it.
+does, as you type, and opens its page on it (a cvar's name works too, e.g. `vr_snap_turn`).
+
+**Console:** the corner's *Console* button shows Quake's console with a keyboard under it, to type commands in the
+headset: *Run* runs the line, *Tab* completes it, *Prev* and *Next* go through the history (shared with the desktop
+console); the stick, the wheel or Page Up and Down scroll the text.
 
 **More:** every page ends with **Menu Detail**. *Standard* (the default) shows what every player sets; *Advanced* shows
 every gameplay, display and graphics setting (Advanced VR Options: about sixty pages: combat, movement, carrying and
