@@ -30,6 +30,8 @@
 //     you and hurts (Hurt Only Falling); 3 s on, the health you lost
 //  (16, 17 and 19 print the monster drops' flung hits on you too, and those spared: Monster Drops Harmless For, Monster
 //  Drops Hurt Only Falling)
+//  21 not a test: a head pop's brain chunks (vr_smallgibs_brains_pop) burst vr_smallgibs_test_dist units ahead (40)
+//     at chest height, to look at (they fly, land, lie about); 7 prints the brain chunks of the head's burst too
 // With vr_smallgibs_test_dummy 1 their target is the nearest training dummy instead (vr_dummy_gore: it bleeds as a grunt);
 // 1, 2, 3, 4 and 6 print the gore each sent too (gore hits, wound events, blood particles), to compare with a grunt's.
 
@@ -442,7 +444,7 @@ void(float xCase) VR_SmallGib_TestStart =
         bprint(sprintf("sgibtest: a gib made at your feet: %d\n", vr_sgib_test_g != world));
         return;
     }
-    if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14)
+    if(m == world && xCase != 8 && xCase != 9 && xCase != 11 && xCase != 12 && xCase != 14 && xCase != 21)
     {
         bprint("sgibtest: no monster or corpse near\n");
         vr_sgib_test = 0;
@@ -660,7 +662,7 @@ void(float xCase) VR_SmallGib_TestStart =
     else if(xCase == 11)
     {
         // The ones lying about: how many, their size, mass, how many rigid bodies, asleep, stuck, held.
-        float cnt = 0, rigid = 0, asleep = 0, stuck = 0, held = 0;
+        float cnt = 0, rigid = 0, asleep = 0, stuck = 0, held = 0, brains = 0;
         float sz = 0, szMin = 1000, szMax = 0, last = 0;
         for(float r = 0; r < 256; r++)
         {
@@ -678,12 +680,26 @@ void(float xCase) VR_SmallGib_TestStart =
                 asleep = asleep + ((q.flags & FL_ONGROUND) != 0);
                 stuck = stuck + (q.vr_gib_stuck != 0);
                 held = held + (q.carry_player != world);
+                brains = brains + (q.vr_sgib_brain != 0);
             }
         }
         bprint(sprintf("sgibtest: %d small gibs (%d made): size %.1f..%.1f (mean %.1f) units, a rock %.1f\n",
             cnt, vr_sgib_made, szMin, szMax, sz / max(1, cnt), VR_SmallGib_RockSize()));
+        bprint(sprintf("sgibtest: %d of them brain chunks (%d made)\n", brains, vr_sgib_brains_made));
         bprint(sprintf("sgibtest: %d rigid, %d asleep, %d stuck, %d held; mass %.2f kg\n", rigid, asleep, stuck, held,
             cnt > 0 ? propvalue(vr_sgib_ring[last], "mass") : 0));
+        vr_sgib_test = 0;
+    }
+    else if(xCase == 21)
+    {
+        // A head pop's brain chunks ahead, to look at.
+        makevectors('0 1 0' * self.v_viewangle_y);
+        float b0 = vr_sgib_brains_made;
+        float bd = cvar("vr_smallgibs_test_dist");
+        bd = bd > 0 ? bd : 40;
+        VR_SmallGib_BurstOf(self.origin + v_forward * bd + '0 0 6', '0 0 0', floor(max(0, cvar_hget(cvarh_vr_smallgibs_brains_pop)) + 0.5), TRUE);
+        bprint(sprintf("sgibtest: brain chunks ahead: %d (Head Pop %.0f)\n", vr_sgib_brains_made - b0,
+            cvar_hget(cvarh_vr_smallgibs_brains_pop)));
         vr_sgib_test = 0;
     }
     else if(xCase == 13)
@@ -907,6 +923,7 @@ void() VR_SmallGib_TestFrame =
             {
                 // Both armed: shot to bursting.
                 vr_sgib_test_a = vr_sgib_made;
+                vr_sgib_test_b = vr_sgib_brains_made;
                 entity e = findradius(g.origin, 400);
                 float burst = 0;
                 while(e)
@@ -918,8 +935,9 @@ void() VR_SmallGib_TestFrame =
                     }
                     e = e.chain;
                 }
-                bprint(sprintf("sgibtest: burst %d large gibs and heads: %d small gibs (Burst Into %.0f, a head half as many again)\n",
-                    burst, vr_sgib_made - vr_sgib_test_a, cvar_hget(cvarh_vr_smallgibs_burst)));
+                bprint(sprintf("sgibtest: burst %d large gibs and heads: %d small gibs (Burst Into %.0f, a head half as many again), %d of them brain chunks (Head Gib %.0f, Brain Chunks %.0f)\n",
+                    burst, vr_sgib_made - vr_sgib_test_a, cvar_hget(cvarh_vr_smallgibs_burst), vr_sgib_brains_made - vr_sgib_test_b,
+                    cvar_hget(cvarh_vr_smallgibs_brains_burst), cvar_hget(cvarh_vr_smallgibs_brains)));
                 vr_sgib_test = 0;
             }
         }

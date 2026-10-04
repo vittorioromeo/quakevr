@@ -128,6 +128,10 @@ for _k in range(1, 3):
     MODELS["vr_crate%d.mdl" % _k] = {"relief": "make_crates", "bevel": 1.2, "scale": 4}
 for _k in range(1, 5):
     MODELS["vr_plank%d.mdl" % _k] = {"relief": "make_crates", "bevel": 1.0, "scale": 4}
+# The brain chunks a head bursts into (make_brains.py): smooth, the torn face's edge rounded; their relief the
+# generator's (the folds' gyri and sulci, the torn face's rough grain).
+for _k in range(1, 4):
+    MODELS["gib_brain%d.mdl" % _k] = {"relief": "make_brains", "bevel": 1.2, "scale": 4}
 VIEW_MODEL = {"paint": True, "grain": 0.55, "bevel": 1.8, "scale": 2}
 # The crowbar (make_crowbar.py): its relief the generator's (the paint chipped to the steel, pits, scratches, the
 # tape's turns and weave), at its full-colour skin's size (four times the 8-bit skin's).

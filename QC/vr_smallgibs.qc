@@ -13,6 +13,12 @@
 // (vr_smallgibs_speed, vr_smallgibs_up, m/s); for vr_smallgibs_grace they pass through the body they came from (its
 // .owner: Quake's moves skip it; a rigid body only after it). Each situation scales both (vr_smallgibs_speed_<it>,
 // vr_smallgibs_up_<it>: melee, saw, guns, explosions, thrown, other, gibbing, corpse, burst; VR_SmallGib_Situation).
+//
+// Brain chunks (vr_smallgibs_brains): a head burst (a head gib destroyed: VR_Gib_Burst; a head pop:
+// VR_Decap_PopEffects) throws torn lumps of brain too (gib_brain1..3.mdl, two skins: Misc/quakevr/make_brains.py), small gibs in all else
+// (carried, thrown, bleeding, sticking, squishing, fading, counted in vr_smallgibs_max), a burst's flight, their own
+// size (vr_smallgibs_brains_size times the small gibs') and mass (vr_smallgibs_brains_mass: lighter). How many:
+// vr_smallgibs_brains_burst for a head gib, vr_smallgibs_brains_pop for a head pop.
 
 .float vr_prop_mass;      // the engine's (vr_fields.inc): a prop's own mass, kg (Box3D's massSetting)
 .float vr_sgib_born;      // its time runs from here (held, and in the air after: now)
@@ -21,6 +27,7 @@
 .float vr_sgib_rigidlater; // landed in its grace: a rigid body after it
 .float vr_sgib_sawtime;   // (a monster or corpse) when the chainsaw last tore one out of it
 .float vr_sgib_sit;       // what tore it out (QVR_SGIB_SIT_*: the tests)
+.float vr_sgib_brain;     // a brain chunk (VR_SmallGib_Brains)
 .vector vr_sgib_org;      // where it was made (the tests)
 .float vr_sgib_peak;      // its fastest across in its first second, and when (s after it was made: the tests)
 .float vr_sgib_peakt;
@@ -67,6 +74,7 @@ float vr_sgib_head;       // the ring's oldest entry
 float vr_sgib_used;       // its entries from there, in the order made (some may be gone)
 float vr_sgib_counted;    // the time the live ones were last counted (VR_SmallGib_MakeRoom)
 float vr_sgib_made;       // how many were made (the tests)
+float vr_sgib_brains_made; // of them brain chunks (the tests)
 float vr_sgib_rolls;      // hits weighed, and their damage summed (the tests)
 float vr_sgib_rolldmg;
 float vr_sgib_rocksize;   // a rock's size (its longest side, units, at vr_world_scale 1): measured once
@@ -92,6 +100,9 @@ void() VR_SmallGib_Precache =
     precache_sound("vr/squish_s2.wav");
     precache_sound("vr/squish_s3.wav");
     precache_sound("vr/squish_s4.wav");
+    precache_model("progs/gib_brain1.mdl"); // brain chunks (make_brains.py)
+    precache_model("progs/gib_brain2.mdl");
+    precache_model("progs/gib_brain3.mdl");
 };
 
 string(float xSmall) VR_Gib_SquishSound =
@@ -316,8 +327,9 @@ void(entity g) VR_SmallGib_Rigid =
     }
 };
 
-// One at `org` going at `vel`, out of `from` (passing through it for vr_smallgibs_grace). world if there is no room.
-entity(vector org, vector vel, entity from) VR_SmallGib_Spawn =
+// One at `org` going at `vel`, out of `from` (passing through it for vr_smallgibs_grace); `xBrain`: a brain chunk.
+// world if there is no room.
+entity(vector org, vector vel, entity from, float xBrain) VR_SmallGib_SpawnAs =
 {
     float slot = VR_SmallGib_MakeRoom();
     if(slot < 0)
@@ -326,13 +338,25 @@ entity(vector org, vector vel, entity from) VR_SmallGib_Spawn =
     }
     entity g = spawn();
     g.classname = "vr_smallgib";
-    setmodel(g, random() < 0.5 ? "progs/gib1.mdl" : "progs/gib3.mdl"); // the smaller two
+    float smin = max(0.05, cvar_hget(cvarh_vr_smallgibs_size_min));
+    float smax = max(smin, cvar_hget(cvarh_vr_smallgibs_size_max));
+    float s = VR_SmallGib_RockSize() * (smin + random() * (smax - smin));
+    if(xBrain)
+    {
+        float k = floor(random() * 3);
+        setmodel(g, k < 1 ? "progs/gib_brain1.mdl" : (k < 2 ? "progs/gib_brain2.mdl" : "progs/gib_brain3.mdl"));
+        g.skin = random() < 0.5 ? 0 : 1; // pinkish, greyish
+        g.vr_sgib_brain = TRUE;
+        s = s * max(0.05, cvar_hget(cvarh_vr_smallgibs_brains_size));
+    }
+    else
+    {
+        setmodel(g, random() < 0.5 ? "progs/gib1.mdl" : "progs/gib3.mdl"); // the smaller two
+    }
     vector lo = modelbounds(g, 0);
     vector hi = modelbounds(g, 1);
     vector d = hi - lo;
-    float smin = max(0.05, cvar_hget(cvarh_vr_smallgibs_size_min));
-    float smax = max(smin, cvar_hget(cvarh_vr_smallgibs_size_max));
-    float s = VR_SmallGib_RockSize() * (smin + random() * (smax - smin)) / max(1, max(d_x, max(d_y, d_z)));
+    s = s / max(1, max(d_x, max(d_y, d_z)));
     g.model_scale = '1 1 1' * (s - 1);
     setorigin(g, org);
     g.velocity = vel;
@@ -343,7 +367,7 @@ entity(vector org, vector vel, entity from) VR_SmallGib_Spawn =
     g.ltime = time;
     g.flags = 0;
     g.vr_sgib = time;
-    g.vr_prop_mass = max(0.05, cvar_hget(cvarh_vr_smallgibs_mass));
+    g.vr_prop_mass = max(0.05, cvar_hget(xBrain ? cvarh_vr_smallgibs_brains_mass : cvarh_vr_smallgibs_mass));
     VR_MakeGibGrabbable(g); // (vr_grab_gibs: else a bouncing thing that only fades)
     setsize(g, lo * s, hi * s);
     if(g.vr_gib)
@@ -368,11 +392,18 @@ entity(vector org, vector vel, entity from) VR_SmallGib_Spawn =
 
     vr_sgib_serial++;
     vr_sgib_made++;
+    vr_sgib_brains_made = vr_sgib_brains_made + (xBrain ? 1 : 0);
     vr_sgib_live++;
     g.vr_sgib_id = vr_sgib_serial;
     vr_sgib_ring[slot] = g;
     vr_sgib_ringid[slot] = vr_sgib_serial;
     return g;
+};
+
+// A small gib of meat (VR_SmallGib_SpawnAs).
+entity(vector org, vector vel, entity from) VR_SmallGib_Spawn =
+{
+    return VR_SmallGib_SpawnAs(org, vel, from, FALSE);
 };
 
 // `g` (if made) was torn out by `xSit`: tagged, its launch counted (the tests).
@@ -948,6 +979,13 @@ void(vector org, vector xDir, float xSize) VR_SmallGib_Burst =
     }
     float n = floor(max(0, cvar_hget(cvarh_vr_smallgibs_burst)) * max(1, xSize) + 0.5);
     dprint(sprintf("smallgib: a gib burst: %d\n", n));
+    VR_SmallGib_BurstOf(org, xDir, n, FALSE);
+};
+
+// `n` flung out of a burst at `org` (a burst's flight: across every way and along `xDir`, and up); `xBrain`: brain
+// chunks.
+void(vector org, vector xDir, float n, float xBrain) VR_SmallGib_BurstOf =
+{
     float m2u = VRMetersToUnits();
     float speed = max(0, cvar_hget(cvarh_vr_smallgibs_speed)) * VR_SmallGib_SitMult(QVR_SGIB_SIT_BURST, FALSE) * m2u;
     float up = max(0, cvar_hget(cvarh_vr_smallgibs_up)) * VR_SmallGib_SitMult(QVR_SGIB_SIT_BURST, TRUE) * m2u;
@@ -956,7 +994,20 @@ void(vector org, vector xDir, float xSize) VR_SmallGib_Burst =
     {
         vector out = '1 0 0' * crandom() + '0 1 0' * crandom();
         out = normalize(out + '0.01 0 0') * speed * (0.67 + random() * 0.67) + along * speed * 0.5;
-        VR_SmallGib_Tag(VR_SmallGib_Spawn(org + '1 0 0' * crandom() * 2 + '0 1 0' * crandom() * 2 + '0 0 1' * random() * 2,
-                                          out + '0 0 1' * up * (0.67 + random() * 0.67), world), QVR_SGIB_SIT_BURST);
+        VR_SmallGib_Tag(VR_SmallGib_SpawnAs(org + '1 0 0' * crandom() * 2 + '0 1 0' * crandom() * 2 + '0 0 1' * random() * 2,
+                                            out + '0 0 1' * up * (0.67 + random() * 0.67), world, xBrain), QVR_SGIB_SIT_BURST);
     }
+};
+
+// A head burst at `org` (`xPop`: a head pop, VR_Decap_PopEffects; else a head gib destroyed, VR_Gib_Burst): brain
+// chunks (vr_smallgibs_brains_pop or _burst of them).
+void(vector org, vector xDir, float xPop) VR_SmallGib_Brains =
+{
+    if(!cvar_hget(cvarh_vr_smallgibs) || !cvar_hget(cvarh_vr_smallgibs_brains))
+    {
+        return;
+    }
+    float n = floor(max(0, cvar_hget(xPop ? cvarh_vr_smallgibs_brains_pop : cvarh_vr_smallgibs_brains_burst)) + 0.5);
+    dprint(sprintf("smallgib: brains: %d (%s)\n", n, xPop ? "a head pop" : "a head gib burst"));
+    VR_SmallGib_BurstOf(org, xDir, n, TRUE);
 };

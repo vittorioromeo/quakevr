@@ -1715,6 +1715,13 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Chainsaw: One Each", vr_smallgibs_saw_interval, 0.05f, 1.f, 0.05f, "%.2f s").help("The running chain tears one out of a monster or a corpse this often."),
         slider("With a Gibbing", vr_smallgibs_gibbing, 0.f, 20.f, 1.f, "%.0f").help("How many fly with a body's gibs when it is gibbed."),
         slider("A Large Gib Bursts Into", vr_smallgibs_burst, 0.f, 10.f, 1.f, "%.0f").help("How many a gib breaks into when it is destroyed (a head half as many again)."),
+        header("Brain Chunks"),
+        toggle("Brain Chunks", vr_smallgibs_brains)
+            .help("A head that bursts (a head gib destroyed, or a head popped by a headshot) throws torn lumps of brain too: small gibs in all else (picked up, thrown, bleeding, fading), lighter."),
+        slider("From a Head Gib", vr_smallgibs_brains_burst, 0.f, 20.f, 1.f, "%.0f").help("How many when a head gib is destroyed (with its small gibs of meat)."),
+        slider("From a Head Pop", vr_smallgibs_brains_pop, 0.f, 20.f, 1.f, "%.0f").help("How many when a headshot pops a head (Decapitation > Head Shots)."),
+        slider("Brain Chunk Size", vr_smallgibs_brains_size, 0.2f, 2.f, 0.05f, "%.2fx").help("Times the small gibs' size (Smallest, Largest)."),
+        slider("Brain Chunk Mass", vr_smallgibs_brains_mass, 0.05f, 2.f, 0.05f, "%.2f kg"),
         header("Flight and Size"),
         slider("Speed", vr_smallgibs_speed, 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f).help("How fast they fly out from where the hit landed (times Flight by Situation below)."),
         slider("Up", vr_smallgibs_up, 0.f, 10.f, 0.1f, "%.1f m/s").extend(0.f, 30.f).help("And upwards (times Flight by Situation below)."),
@@ -3829,6 +3836,8 @@ za::Vector<Item> pageDebugTools()
         command("Quad Damage", "vr_smallgibs_test 5"),
         command("Chainsaw a Second", "vr_smallgibs_test 6"),
         command("Burst a Gib and a Head", "vr_smallgibs_test 7"),
+        command("Brain Chunks Ahead", "vr_smallgibs_test 21")
+            .help("vr_smallgibs_test 21: a head pop's brain chunks (Small Gibs > From a Head Pop) burst just ahead of you, to look at, pick up and throw."),
         command("Most Lying About", "vr_smallgibs_test 8").help("vr_smallgibs_test 8: 15 made with Most Lying About 10: the five oldest go."),
         command("Held, Then Let Go", "vr_smallgibs_test 9").help("vr_smallgibs_test 9: one in the off hand for 3 s with Last 1 s, then let go: it waits until it lands."),
         command("Pass Through the Body", "vr_smallgibs_test 10").help("vr_smallgibs_test 10: one from just behind the monster through it at 300 u/s, with the grace and without."),

@@ -1182,6 +1182,11 @@ QVR_CVAR(vr_smallgibs_blow_burst, "1", CVAR_ARCHIVE)    // in that time a blow (
 QVR_CVAR(vr_smallgibs_max, "64", CVAR_ARCHIVE)             // most lying about at once: the oldest go first (not one in a hand)
 QVR_CVAR(vr_smallgibs_time, "20", CVAR_ARCHIVE)            // s one lies about before it fades away (held, and until it lands again, it waits)
 QVR_CVAR(vr_smallgibs_destroy, "1", CVAR_ARCHIVE)          // they can be shot or struck to a mist (off: shots and blows pass them)
+QVR_CVAR(vr_smallgibs_brains, "1", CVAR_ARCHIVE)           // a head burst (a head gib destroyed, a head pop) throws brain chunks too (small gibs of brain matter: make_brains.py)
+QVR_CVAR(vr_smallgibs_brains_burst, "6", CVAR_ARCHIVE)     // brain chunks from a head gib destroyed
+QVR_CVAR(vr_smallgibs_brains_pop, "8", CVAR_ARCHIVE)       // brain chunks from a head pop (a headshot that bursts the head)
+QVR_CVAR(vr_smallgibs_brains_size, "0.8", CVAR_ARCHIVE)    // their size: times the small gibs' (vr_smallgibs_size_min/max)
+QVR_CVAR(vr_smallgibs_brains_mass, "0.15", CVAR_ARCHIVE)   // kg each (lighter than a small gib of meat)
 QVR_CVAR(vr_gore_stick_thrown, "0.5", CVAR_ARCHIVE)        // a gib or head thrown into a wall or a ceiling (slower than vr_gib_splat_speed) sticks there: the chance (0 never)
 QVR_CVAR(vr_gore_stick_speed, "180", CVAR_ARCHIVE)         // units/s a gib must strike a wall or a ceiling at to stick (flung or thrown)
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)

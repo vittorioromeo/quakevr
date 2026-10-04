@@ -64,6 +64,54 @@
   "by": "make_bloody_hands.py",
   "part": "mdl skins after 0"
  },
+ "quakevr/progs/gib_brain1.mdl": {
+  "sha256": "4d47ee40270b03fbec95d840d4018962c025b815c9a5e95779dd543c0186ca19",
+  "by": "make_brains.py"
+ },
+ "quakevr/progs/gib_brain1.mdl_0.png": {
+  "sha256": "8ffc1eabd810cd6cd4fc3b0c6c745c48d409ea263f1adfd20952cd73d0158c15",
+  "by": "make_brains.py"
+ },
+ "quakevr/progs/gib_brain1.mdl_0_norm.png": {
+  "sha256": "e7cee9c71285ab3e40ef43d6eb21ffd88401b569a1d1c8c7009a8242769f7670",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/gib_brain1.mdl_1.png": {
+  "sha256": "edb0005d4ca67469ef61b42dec6bb7b0e2e2b2a3d81b57df037656eb8f1aacf6",
+  "by": "make_brains.py"
+ },
+ "quakevr/progs/gib_brain2.mdl": {
+  "sha256": "058b7d8aa2e5db157388766b5782f6ef39e5091e7f9b7cffa2a6c42e120efce5",
+  "by": "make_brains.py"
+ },
+ "quakevr/progs/gib_brain2.mdl_0.png": {
+  "sha256": "1ee30dbd1f203b8c2880224b56e992ec0a2318e54af7d53dd31b98c7ca3e81a1",
+  "by": "make_brains.py"
+ },
+ "quakevr/progs/gib_brain2.mdl_0_norm.png": {
+  "sha256": "6bc42d0ed42483a870a093c335d8930b9153b86e4784c5c98dcc5d673766a83f",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/gib_brain2.mdl_1.png": {
+  "sha256": "a811c2c7de20f3d92f4ca9c9493c307183f2c4bf289d59717b4ac7b402c1b258",
+  "by": "make_brains.py"
+ },
+ "quakevr/progs/gib_brain3.mdl": {
+  "sha256": "434daea5a487fa5bcfc9830135aec797cda57a96650921dfe3d00f3a3bea1afd",
+  "by": "make_brains.py"
+ },
+ "quakevr/progs/gib_brain3.mdl_0.png": {
+  "sha256": "d2292138f5aa12a7aa01b458d43c869c6445003b103a088ec88b708f7b8fe5a5",
+  "by": "make_brains.py"
+ },
+ "quakevr/progs/gib_brain3.mdl_0_norm.png": {
+  "sha256": "5acdd2bc7a9b803a25ec9e4790b02812b18ffd977fd8ec514b0dc5e34fd9cfd7",
+  "by": "bake_normals.py"
+ },
+ "quakevr/progs/gib_brain3.mdl_1.png": {
+  "sha256": "7df907c74fd70ea848ef53b0912ec6f060d6440bc245d76cdd4c7682d857f845",
+  "by": "make_brains.py"
+ },
  "quakevr/progs/grenade.mdl": {
   "sha256": "cbe240b6d197f743a5482064dc16f8e1ee433f41353f8006ff037e0825e340f1",
   "by": "make_grenade_skins.py",
