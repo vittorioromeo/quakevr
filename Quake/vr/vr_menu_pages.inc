@@ -551,6 +551,7 @@ void resetHandMoves()
 {
     return {
         slider("Light Contrast", "vr_light_contrast", 1.f, 2.5f, 0.02f, "%.2f").extend().help("Darker shade, lamps as bright: the level's own light sources carry the scene (1: Quake's)."),
+        slider("Ambient Light", "vr_ambient_light", 0.f, 0.4f, 0.01f, "%.2f").extend().help("The room's own fill light: how much light the places no lamp reaches have, so a map reads clearly lit without the flashlight. A companion to Light Contrast, which still shapes the shade at any level of it (0: none)."),
         toggle("Coloured Lights", "vr_colored_lights").help("Warm muzzle flashes, rockets and explosions; the lightning gun's blue."),
         cycle("Dynamic Light Falloff", "vr_dlight_falloff", {{0.f, "Quake"}, {1.f, "DarkPlaces"}})
             .help("DarkPlaces: strong lights, full near and smoothly gone at the edge. Quake: dimmer, fading linearly all the way."),

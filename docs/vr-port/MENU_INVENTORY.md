@@ -2285,6 +2285,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
       - — More Graphics —
       - **Graphics - Lights** [menu_vr 33] — 23 rows / 22 settings / 0 actions (vr_menu_pages.inc:563)
         - Light Contrast → `vr_light_contrast`
+        - Ambient Light → `vr_ambient_light`
         - Coloured Lights → `vr_colored_lights`
         - Dynamic Light Falloff → `vr_dlight_falloff`
         - Uncapped Dynamic Lights → `vr_dlight_uncapped`
@@ -2651,6 +2652,8 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - Retro Textures A/B → `vr_retro_ab`
         - [cmd] Retro Textures: List → `vr_retro_list`
         - Retro Lighting A/B → `vr_retrolight_ab`
+        - Ambient Light A/B → `vr_ambient_light_ab`
+        - [cmd] Light Probe → `vr_light_probe`
         - Show Damage Numbers → `vr_debug_damage_numbers`
         - Show Grapple Rope → `vr_debug_rope`
         - Show Physics Shapes → `vr_debug_physics_shapes`

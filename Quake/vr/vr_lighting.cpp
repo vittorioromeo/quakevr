@@ -1366,19 +1366,44 @@ void lighting::dlightNoShadow(const dlight_t* dl)
     }
 }
 
-// Models are lit from the lightmap at their feet (R_LightPoint: 128 is Quake's full light): the
-// same contrast as the world's.
-extern "C" void VR_AliasLightCurve(float lightcolor[3])
+// The baked light's own settings, read the same way by the world shader (r_framedata.lighttweak and
+// .ambient, QVR_WORLD_FS_LIGHT), by the models' light (VR_AliasLightCurve) and by the light around
+// them (vr_ambient.cpp): a monster is lit by the room its model stands in.
+float lighting::lightContrast()
 {
-    const float c = za::clamp(vr_light_contrast.value, 0.5f, 3.f);
-    if(c == 1.f)
+    return za::clamp(vr_light_contrast.value, 0.5f, 3.f);
+}
+
+// The room's own fill light (vr_ambient_light): a share of Quake's full light added to the baked
+// light before the contrast, so a map reads clearly lit without the flashlight while its lamps stay
+// brighter. 0 keeps Quake's; the Debug A/B (vr_ambient_light_ab) takes it off at once, to compare.
+float lighting::ambientFloor()
+{
+    return vr_ambient_light_ab.value != 0.f ? 0.f : za::clamp(vr_ambient_light.value, 0.f, 1.f);
+}
+
+// The curve onto a lightmap value (R_LightPoint: 128 is Quake's full light): the fill light first,
+// then the contrast about that same full light. Models are lit from the lightmap at their feet with
+// this; the world shader does the same on total_light, where Quake's full light is 0.5.
+void lighting::lightCurve(float* lightcolor)
+{
+    const float c = lightContrast();
+    const float a = ambientFloor();
+    if(c == 1.f && a == 0.f)
     {
         return;
     }
     for(int i = 0; i < 3; i++)
     {
-        lightcolor[i] = 128.f * za::pow(za::max(0.f, lightcolor[i]) / 128.f, c);
+        lightcolor[i] = 128.f * za::pow(za::max(0.f, lightcolor[i]) / 128.f + a, c);
     }
+}
+
+// Models are lit from the lightmap at their feet (R_LightPoint: 128 is Quake's full light): the
+// same fill light and contrast as the world's.
+extern "C" void VR_AliasLightCurve(float lightcolor[3])
+{
+    lighting::lightCurve(lightcolor);
 }
 
 // R_PushDlights, after the dynamic lights: the map lights with moving casters, the frame's
@@ -1413,12 +1438,16 @@ extern "C" void VR_PushMapLights(void)
     r_framedata.shadowflags = static_cast<int>(flags);
     // Lightmap contrast about Quake's full light (a lightmap value of a half, before the doubling):
     // shade darker, well lit walls as they were, the brightest a little brighter.
-    r_framedata.lighttweak[0] = za::clamp(vr_light_contrast.value, 0.5f, 3.f);
+    r_framedata.lighttweak[0] = lighting::lightContrast();
     // How much the normal maps shade the baked light (from a direction the shader guesses from the lightmap).
     r_framedata.lighttweak[1] = za::clamp(vr_normalmap_baked.value, 0.f, 2.f);
     // Dynamic lights' sheen, and how deep the normal maps' bumps are (0: flat).
     r_framedata.lighttweak[2] = za::clamp(vr_specular.value, 0.f, 4.f);
     r_framedata.lighttweak[3] = vr_normalmaps.value != 0.f ? za::clamp(vr_normalmap_strength.value, 0.f, 8.f) : 0.f;
+    // The room's own fill light (vr_ambient_light): the world shader adds it to the lightmap before the
+    // contrast above, so the shade reads lit and the lamps stay as bright (qvr::lighting::ambientFloor).
+    r_framedata.ambient[0] = lighting::ambientFloor();
+    r_framedata.ambient[1] = r_framedata.ambient[2] = r_framedata.ambient[3] = 0.f;
     // Parallax occlusion mapping on the world (the heights are in the normal maps' alpha): how deep, how far it
     // reaches, and the most steps along a ray.
     const bool parallax = vr_parallax.value != 0.f && vr_normalmaps.value != 0.f;
@@ -1647,6 +1676,7 @@ void lighting::applyPreset(int preset)
         Cvar_SetQuick(&var, p.look != 0.f ? var.default_string : va("%g", quake));
     };
     look(vr_light_contrast, 1.f);
+    look(vr_ambient_light, 0.f); // Quake's maps have no fill light of their own
     look(vr_bloom, 0.f);
     look(vr_tonemap, 0.f); // the eyes' float scene and tone curve, the grade (vr_tonemap.cpp)
     look(vr_grade, 0.f);
@@ -1724,12 +1754,51 @@ void lightTest_f()
     dl->color[0] = dl->color[1] = dl->color[2] = 1.f;
 }
 
+// vr_light_probe: the baked light at a few points round you, as the map has it and as it is drawn
+// with the current Graphics > Lights (vr_ambient_light, vr_light_contrast). The same curve lights
+// models (VR_AliasLightCurve), so the second column is what a model standing there would be lit by.
+void lightProbe_f()
+{
+    if(cl.worldmodel == nullptr || cl.worldmodel->lightdata == nullptr)
+    {
+        Con_Printf("light probe: no lit world model to read\n");
+        return;
+    }
+
+    const float a = lighting::ambientFloor();
+    const float c = lighting::lightContrast();
+    Con_Printf("light probe: ambient %.2f, contrast %.2f (128 is Quake's full light)\n", a, c);
+
+    vec3_t fwd, right, up;
+    AngleVectors(r_refdef.viewangles, fwd, right, up);
+    const char* names[6] = {"at you", "64 ahead", "128 ahead", "48 up", "48 down", "64 right"};
+    const float along[6] = {0.f, 64.f, 128.f, 0.f, 0.f, 64.f};
+    const float side[6] = {0.f, 0.f, 0.f, 0.f, 0.f, 64.f};
+    const float rise[6] = {0.f, 0.f, 0.f, 48.f, -48.f, 0.f};
+    for(int i = 0; i < 6; i++)
+    {
+        vec3_t p;
+        for(int k = 0; k < 3; k++)
+        {
+            p[k] = r_refdef.vieworg[k] + fwd[k] * along[i] + right[k] * side[i] + up[k] * rise[i];
+        }
+        lightcache_t cache = {};
+        R_LightPoint(p, 0.f, &cache);
+        float drawn[3] = {lightcolor[0], lightcolor[1], lightcolor[2]};
+        lighting::lightCurve(drawn);
+        Con_Printf("  %-9s baked %3d %3d %3d -> drawn %5.0f %5.0f %5.0f\n", names[i],
+                   static_cast<int>(lightcolor[0]), static_cast<int>(lightcolor[1]), static_cast<int>(lightcolor[2]),
+                   drawn[0], drawn[1], drawn[2]);
+    }
+}
+
 } // namespace
 
 void lighting::init()
 {
     Cvar_SetCallback(&vr_graphics_preset, onPreset);
     Cmd_AddCommand("vr_light_test", lightTest_f);
+    Cmd_AddCommand("vr_light_probe", lightProbe_f);
     Cvar_SetCallback(&vr_alpha_coverage, onAlphaCoverage);
     ao::init();
 }

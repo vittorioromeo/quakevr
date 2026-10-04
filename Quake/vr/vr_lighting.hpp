@@ -40,6 +40,15 @@ void dlightSpot(const dlight_t* dl, const glm::vec3& dir, float innerDegrees, fl
 
 void init();
 
+// The baked light's own settings, one place for the world shader (r_framedata.lighttweak, .ambient),
+// the models' light (VR_AliasLightCurve) and the light around them (vr_ambient.cpp).
+// lightContrast: vr_light_contrast, clamped (1: Quake's). ambientFloor: vr_ambient_light, clamped:
+// a share of Quake's full light added to the baked light before that contrast (0: none).
+// lightCurve: both, onto a lightmap value as R_LightPoint gives it (128 is Quake's full light).
+float lightContrast();
+float ambientFloor();
+void lightCurve(float* lightcolor);
+
 // Lights given shadows this frame: dynamic ones, and map lights (vr_memstats).
 void shadowCounts(int& dlights, int& mapLights);
 
