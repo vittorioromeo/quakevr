@@ -1399,6 +1399,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
 // A grenade shots set off (vr_grenade.qc, "Shooting grenades"): any damage sets it off.
 float(entity targ, entity inflictor, entity attacker, float damage, float xMelee) VR_GrenShot_Damage;
+float(entity targ, entity inflictor, entity attacker, float damage, float xMelee) VR_WallTorch_Shot; // (vr_walltorch.qc: a wall torch a shot meets comes off its wall)
+float(entity t) VR_WallTorch_OnWall; // (vr_walltorch.qc: it is on its wall, not taken yet)
 
 // Deals the damage, with the gibs it may throw at the speed for what dealt it (vr_gib_speed).
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageImpl =
@@ -1406,6 +1408,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     if(targ.vr_shootnade)
     {
         return VR_GrenShot_Damage(targ, inflictor, attacker, damage, isVRMelee);
+    }
+    if(VR_WallTorch_OnWall(targ))
+    {
+        return VR_WallTorch_Shot(targ, inflictor, attacker, damage, isVRMelee); // (its coming off is what the damage does)
     }
     float oldGibSpeed = vr_gib_speed;
     vr_gib_speed = VR_GibSpeedScale(inflictor, attacker, isVRMelee);

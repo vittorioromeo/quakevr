@@ -1585,6 +1585,10 @@ void(float damage) spawn_touchblood =
         VR_GrenShot_Sparks(self.origin);
         return;
     }
+    if(VR_WallTorch_OnWall(other)) // VR: a wall torch on its wall (vr_walltorch.qc): no blood, its hit's own embers
+    {
+        return;
+    }
     SpawnBlood (self.origin + vel * 0.01, vel, damage);
 };
 
@@ -1825,6 +1829,11 @@ void(float damage, vector dir) TraceAttack =
             else if(trace_ent.vr_shootnade)
             {
                 VR_GrenShot_Sparks(org); // VR: a grenade (vr_grenade.qc, "Shooting grenades"): sparks
+            }
+            else if(VR_WallTorch_OnWall(trace_ent))
+            {
+                // VR: a wall torch on its wall (vr_walltorch.qc): no blood. It takes damage only so that shots meet
+                // it; its hit is VR_WallTorch_KnockOff's embers, and a taken torch takes no damage at all.
             }
             else
             {
@@ -6947,6 +6956,7 @@ void() W_Frame =
     VR_Carry_HandFrame(cVR_OffHand);
     VR_WallTorch_HandFrame(cVR_MainHand); // a torch gripped on its wall pulled out (vr_walltorch.qc)
     VR_WallTorch_HandFrame(cVR_OffHand);
+    VR_WallTorch_TestShot(); // vr_test_walltorch_shot: a wall torch shot off its wall (vr_walltorch.qc)
     VR_HandGrenade_HandFrame(cVR_MainHand); // a grenade taken from the pouch at the small of the back (vr_grenade.qc)
     VR_HandGrenade_HandFrame(cVR_OffHand);
 

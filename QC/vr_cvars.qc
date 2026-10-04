@@ -230,6 +230,7 @@ float cvarh_vr_burn_self_haptic;
 float cvarh_vr_burn_drop;
 float cvarh_vr_burn_drop_time;
 float cvarh_vr_walltorch_relight;
+float cvarh_vr_walltorch_shot;
 float cvarh_vr_carry_melee_mult;
 float cvarh_vr_carry_throw_damage;
 float cvarh_vr_prop_impact_damage;
@@ -724,6 +725,7 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_burn_drop);
     VR_CVAR_HMAKE(vr_burn_drop_time);
     VR_CVAR_HMAKE(vr_walltorch_relight);
+    VR_CVAR_HMAKE(vr_walltorch_shot);
     VR_CVAR_HMAKE(vr_carry_melee_mult);
     VR_CVAR_HMAKE(vr_carry_throw_damage);
     VR_CVAR_HMAKE(vr_prop_impact_damage);
