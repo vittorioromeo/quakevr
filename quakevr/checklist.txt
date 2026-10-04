@@ -11,6 +11,21 @@
 # remove items freely; changing an item's wording un-ticks it.
 
 [Test in VR]
+Menus: Menu Detail (Standard / Advanced / Developer) hides and shows the right rows
+Menus: VR Settings presets (Comfort, Handedness), height and volume work for a new player
+Menus: first start goes into VR Calibration once the headset is on
+Menus: Run VR Calibration Again on VR Settings works
+Menus: changed settings show (*), Reset This Page resets only that page
+Menus: the Changed Settings page lists what you changed
+Menus: Search finds settings as you type (fuzzy), with the on-page keyboard
+Menus: the calibration room's height board reads right
+Decals in the world shader (vr_decals_world): blood and scorch marks follow parallax relief, no floating or swimming
+Decals: no hitch when many marks land at once (explosions, blood sprays)
+Particles at half resolution in heavy frames (vr_particle_halfres): no visible blur or edge shimmer when it switches on
+Water: floating props still bob; sunk props resting on the bottom sleep and stay still
+Force grab: still picks the same target as before (search changed)
+Big prop piles: touches, traces and pushes still behave (area node change)
+Wall torches and the grenade pouch: no hitch the first time you see their flames
 
 Slow motion for recording (Graphics > Recording > Slow Motion; vr_slowmo bindable, 0.25 default): record at 0.25 moving at quarter speed, speed footage up 4x: looks and sounds natural?
 Slow motion for recording: a real-speed swing is capped at 8 m/s (Hand Speed cap): feels right?
