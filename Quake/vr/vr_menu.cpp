@@ -4337,6 +4337,11 @@ za::Vector<Item> pageDebugTests()
                   "plane, whether it is over the opening and how near your box can bring it. You are carried through "
                   "when that plane is through the gate's, or as near as your box can bring it; leaning in or reaching "
                   "with the hands does not cross, and a gate's frame stops you as a wall does."),
+        command("Looking Through A Gate, Or Why Not", "map start; wait120; setpos 232 400 24 0 90 0; wait30; vr_portals_view")
+            .help("vr_portals_view: which gate this frame looks through, that gate's box on your screen, and for every "
+                  "side in the map why it is not looked through - behind its plane, not in your view, further than the "
+                  "range, seen through another gate - or that it is, with its distance and score. It shares the test "
+                  "the engine acts on, so the reasons printed are the ones applied."),
         command("Against A Gate's Frame", "map start; wait120; setpos 200 1372 24 0 90 0; wait30; vr_portals_info")
             .help("You against the wall beside the first gate's opening (12 units short of its plane): nothing "
                   "teleports you and there is no jump - vr_portals_info says his box reaches 12, that is, stopped."),

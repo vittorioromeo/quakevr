@@ -26,6 +26,7 @@
 
 extern "C" void SV_AddToFatPVS(vec3_t org, mnode_t* node, qmodel_t* worldmodel); // sv_main.c
 
+
 namespace qvr::portals
 {
 namespace
@@ -323,6 +324,70 @@ void build()
     return false;
 }
 
+// This frame's view test (update() and vr_portals_view share it, so the reasons printed are the ones acted on):
+// the head, the leaf it is in and its PVS, and where it looks. Invalid when the head is not in the world.
+struct ViewTest
+{
+    const byte* vis = nullptr;
+    glm::vec3 head{0.f}, forward{0.f};
+    bool valid = false;
+};
+
+[[nodiscard]] ViewTest viewTest()
+{
+    ViewTest vt;
+    const hands::State& s = hands::current();
+    if(!s.valid)
+    {
+        return vt;
+    }
+    vec3_t h{s.head.x, s.head.y, s.head.z};
+    mleaf_t* leaf = Mod_PointInLeaf(h, cl.worldmodel);
+    if(!leaf || leaf->contents == CONTENTS_SOLID)
+    {
+        return vt;
+    }
+    vec3_t angles{s.headAngles.x, s.headAngles.y, s.headAngles.z}, f, r, u;
+    AngleVectors(angles, f, r, u);
+    vt.vis = Mod_LeafPVS(leaf, cl.worldmodel);
+    vt.head = s.head;
+    vt.forward = vec(f);
+    vt.valid = true;
+    return vt;
+}
+
+// Why side i is not looked through this frame (nullptr: it is a candidate). `d` is the head's distance to its nearest
+// point, `score` what it ranks by (its area over its square distance, held a while).
+[[nodiscard]] const char* rejected(const ViewTest& vt, za::SizeT i, float& d, float& score)
+{
+    const Side& sd = sides[i];
+    d = glm::distance(nearestPoint(sd, vt.head), vt.head);
+    score = sd.area / (d * d + 4096.f) * (static_cast<int>(i) == lastChosen ? 1.5f : 1.f);
+    if(glm::dot(sd.normal, vt.head) - sd.dist < 0.f) // (to the plane: the walk through it)
+    {
+        return "behind its plane";
+    }
+    if(!inPvs(vt.vis, sd.leaf))
+    {
+        return "not in the head's PVS";
+    }
+    if(d > kRange)
+    {
+        return "out of range";
+    }
+    const glm::vec3 toMiddle = (sd.mins + sd.maxs) * 0.5f - vt.head;
+    const float len = glm::length(toMiddle);
+    if(len > 64.f && glm::dot(vt.forward, toMiddle / len) < 0.2f)
+    {
+        return "not looked at";
+    }
+    if(behindGate(i, vt.head))
+    {
+        return "behind another gate";
+    }
+    return nullptr;
+}
+
 } // namespace
 
 void update()
@@ -350,33 +415,20 @@ void update()
     {
         return;
     }
-    vec3_t h{s.head.x, s.head.y, s.head.z};
-    mleaf_t* leaf = Mod_PointInLeaf(h, cl.worldmodel);
-    if(!leaf || leaf->contents == CONTENTS_SOLID)
+    const ViewTest vt = viewTest();
+    if(!vt.valid)
     {
         return;
     }
-    const byte* vis = Mod_LeafPVS(leaf, cl.worldmodel);
-    vec3_t angles{s.headAngles.x, s.headAngles.y, s.headAngles.z}, f, r, u;
-    AngleVectors(angles, f, r, u);
-    const glm::vec3 forward = vec(f);
 
     float best = 0.f;
     for(za::SizeT i = 0; i < sides.size(); i++)
     {
-        const Side& sd = sides[i];
-        if(glm::dot(sd.normal, s.head) - sd.dist < 0.f || !inPvs(vis, sd.leaf)) // (to the plane: the walk through it)
+        float d = 0.f, score = 0.f;
+        if(rejected(vt, i, d, score))
         {
             continue;
         }
-        const float d = glm::distance(nearestPoint(sd, s.head), s.head);
-        const glm::vec3 toMiddle = (sd.mins + sd.maxs) * 0.5f - s.head;
-        const float len = glm::length(toMiddle);
-        if(d > kRange || (len > 64.f && glm::dot(forward, toMiddle / len) < 0.2f) || behindGate(i, s.head))
-        {
-            continue;
-        }
-        const float score = sd.area / (d * d + 4096.f) * (static_cast<int>(i) == lastChosen ? 1.5f : 1.f);
         if(score > best)
         {
             best = score;
@@ -1097,9 +1149,55 @@ void info_f()
     PR_PopQCVM(oldVm);
 }
 
+// vr_portals_view (Debug > Slipgates): why this frame looks through a gate or through none - every side of every gate
+// in the map, and the rule that stops it (the same test update() acts on), plus what the last frame drew: the scene
+// through a gate, or nothing (the gate's faces then show their own texture). For checking the view by hand, and for
+// measuring how far away a gate is still looked through.
+void viewInfo_f()
+{
+    if(!sv.worldmodel || !cl.worldmodel)
+    {
+        Con_Printf("VR portals: no world.\n");
+        return;
+    }
+    if(!enabled())
+    {
+        Con_Printf("VR portals: off (vr_slipgates 0): nothing is looked through.\n");
+        return;
+    }
+    if(!current())
+    {
+        build();
+    }
+    Con_Printf("VR portals: looking through side %d (%d sides, range %g, vr_portals %g)\n", chosen,
+        static_cast<int>(sides.size()), kRange, vr_portals.value);
+    Con_Printf("  last frame: %s\n",
+        texture ? "the scene through the gate, drawn for that eye" : "nothing drawn through a gate (its faces are dark)");
+    if(chosen >= 0)
+    {
+        Con_Printf("  its box on that eye's screen: x %.3f..%.3f y %.3f..%.3f%s\n", eyeRect.z, eyeRect.x, eyeRect.y,
+            eyeRect.w, eyeRectAll ? " (the whole screen)" : "");
+    }
+    const ViewTest vt = viewTest();
+    if(!vt.valid)
+    {
+        Con_Printf("  the head is not in the world: no gate is looked through.\n");
+        return;
+    }
+    Con_Printf("  head (%.0f %.0f %.0f)\n", vt.head.x, vt.head.y, vt.head.z);
+    for(za::SizeT i = 0; i < sides.size(); i++)
+    {
+        float d = 0.f, score = 0.f;
+        const char* why = rejected(vt, i, d, score);
+        Con_Printf("  side %d: %-22s %6.0f units  score %.4g\n", static_cast<int>(i), why ? why : "looked through", d,
+            score);
+    }
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_portals_info", info_f);
+    Cmd_AddCommand("vr_portals_view", viewInfo_f);
 }
 
 } // namespace qvr::portals
