@@ -1283,6 +1283,104 @@ void debugDraw()
     }
 }
 
+// ---- Show Hit Zones (vr_debug_hitzones) ----
+
+struct Zone
+{
+    int num{0};
+    int zone{0};
+    glm::vec3 lo{0.f}, hi{0.f};
+    float radius{0.f};
+};
+za::Vector<Zone> zones;   // this server frame's (QC's VR_Decap_DebugFrame)
+double zonesTime{-1.0};   // its sv.qcvm.time
+// Body green, head red, extremities yellow, legs blue, melee beheading magenta.
+const za::Array<glm::vec4, 5> zoneColours{glm::vec4{0.2f, 1.f, 0.3f, 0.7f}, glm::vec4{1.f, 0.15f, 0.15f, 0.9f},
+    glm::vec4{1.f, 0.9f, 0.1f, 0.7f}, glm::vec4{0.25f, 0.5f, 1.f, 0.7f}, glm::vec4{1.f, 0.2f, 1.f, 0.95f}};
+
+void zoneAdd(int num, int zone, const glm::vec3& lo, const glm::vec3& hi, float radius)
+{
+    if(sv.qcvm.time != zonesTime)
+    {
+        zones.clear();
+        zonesTime = sv.qcvm.time;
+    }
+    zones.pushBack(Zone{num, zone, lo, hi, radius});
+}
+
+void zonesDraw()
+{
+    // (Stale: the option just turned off, a map change, the QC sending none; a frame's zones last a 0.25 s at most.)
+    if(!vr_debug_hitzones.value || !sv.active || zones.empty() || sv.qcvm.time < zonesTime || sv.qcvm.time - zonesTime > 0.25)
+    {
+        return;
+    }
+    static constexpr int ringSteps = 24;
+    constexpr float width = 0.2f;
+    for(const Zone& z : zones)
+    {
+        if(z.num <= 0 || z.num >= cl.num_entities)
+        {
+            continue;
+        }
+        const entity_t& ent = cl_entities[z.num];
+        if(!ent.model)
+        {
+            continue;
+        }
+        // On the entity as drawn (the client's lerped place and yaw), as positional damage turns its zones.
+        const float yaw = ent.angles[1] * (3.14159265f / 180.f);
+        const glm::vec3 f{za::cos(yaw), za::sin(yaw), 0.f}, l{-f.y, f.x, 0.f}, u{0.f, 0.f, 1.f};
+        const glm::vec3 o{ent.origin[0], ent.origin[1], ent.origin[2]};
+        const auto at = [&](const glm::vec3& p) { return o + f * p.x + l * p.y + u * p.z; };
+        const glm::vec4 c = zoneColours[static_cast<za::SizeT>(za::clamp(z.zone, 0, 4))];
+        if(z.radius <= 0.f)
+        {
+            za::Array<glm::vec3, 8> k{};
+            for(int i = 0; i < 8; i++)
+            {
+                k[static_cast<za::SizeT>(i)] =
+                    at(glm::vec3{(i & 1) ? z.hi.x : z.lo.x, (i & 2) ? z.hi.y : z.lo.y, (i & 4) ? z.hi.z : z.lo.z});
+            }
+            static constexpr za::Array<int, 24> edges{0, 1, 2, 3, 4, 5, 6, 7, 0, 2, 1, 3, 4, 6, 5, 7, 0, 4, 1, 5, 2, 6, 3, 7};
+            for(za::SizeT e = 0; e < edges.size(); e += 2)
+            {
+                lines::line(k[static_cast<za::SizeT>(edges[e])], k[static_cast<za::SizeT>(edges[e + 1])], width, c, c);
+            }
+            continue;
+        }
+        // A capsule (lo below, hi above; a sphere when they meet): a ring round each end and its middle's, the
+        // upright rings at each end (their halves away from the other end), and the sides between.
+        const glm::vec3 top = at(z.hi), bottom = at(z.lo);
+        const float r = z.radius;
+        const auto ring = [&](const glm::vec3& centre, const glm::vec3& a, const glm::vec3& b, float from, float to)
+        {
+            for(int i = 0; i < ringSteps; i++)
+            {
+                const float t0 = from + (to - from) * static_cast<float>(i) / ringSteps;
+                const float t1 = from + (to - from) * static_cast<float>(i + 1) / ringSteps;
+                lines::line(centre + (a * za::cos(t0) + b * za::sin(t0)) * r, centre + (a * za::cos(t1) + b * za::sin(t1)) * r,
+                    width, c, c);
+            }
+        };
+        constexpr float pi = 3.14159265f;
+        ring(top, f, l, 0.f, 2.f * pi);
+        ring(top, f, u, 0.f, pi);
+        ring(top, l, u, 0.f, pi);
+        ring(bottom, f, l, 0.f, 2.f * pi);
+        ring(bottom, f, u, pi, 2.f * pi);
+        ring(bottom, l, u, pi, 2.f * pi);
+        if(glm::distance(top, bottom) > 0.01f)
+        {
+            ring((top + bottom) * 0.5f, f, l, 0.f, 2.f * pi);
+            for(const glm::vec3& side : {f, -f, l, -l})
+            {
+                lines::line(top + side * r, bottom + side * r, width, c, c);
+            }
+        }
+    }
+}
+
 void stats_f()
 {
     Con_Printf("precise hit detection: %s; tolerances: guns %.1f, grapple %.1f, melee %.1f, thrown %.1f\n",

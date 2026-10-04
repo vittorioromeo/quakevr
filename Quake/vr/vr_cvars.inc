@@ -1454,6 +1454,7 @@ QVR_CVAR(vr_debug_arm, "0", CVAR_NONE)                // prints each drawn arm's
 QVR_CVAR(vr_debug_lean, "0", CVAR_NONE)               // lean_trace.txt (the game directory): the head, the box, the lean, the pelvis and the feet every frame, and the lean's cues (vr_lean_detect)
 QVR_CVAR(vr_grapple_test_stuck, "0", CVAR_NONE)        // Debug > Tests > Grappling Hook > Load Stuck: what hangs on the rope (a loose hook, a hooked prop) stays where it is, as if snagged (tests the rope holding you back)
 QVR_CVAR(vr_debug_rope, "0", CVAR_NONE)                // Debug > Views > Show Grapple Rope: each grappling hook rope's drawn chain (points white, pieces green), the corners it wraps round (red) and its taut path (yellow) (vr_rope.cpp)
+QVR_CVAR(vr_debug_hitzones, "0", CVAR_NONE)          // Debug > Show Hit Zones: live monsters' damage zones as wireframes (QC vr_decap.qc VR_Decap_DebugFrame, on the model standing): 1 positional damage's (head red, body green, extremities yellow, legs blue), 2 melee beheading's (magenta: Head Zone Size, Neck), 3 both
 QVR_CVAR(vr_debug_physics_shapes, "0", CVAR_NONE)     // Debug > Views > Show Physics Shapes: Box3D's bodies drawn as wireframes (props awake green, asleep blue, held yellow, doors purple, monsters orange, players cyan, hanging pickups grey; contact points), and the hands' grab probes (as vr_debug_carry)
 QVR_CVAR(vr_debug_hand_bones, "0", CVAR_NONE)         // Debug > Views > Show Hand Bones: the jointed hands' joints and bones, the grasp's contact spheres (green touching, yellow near, red sunk in) and the palm's fit (where it was, where the grasp put it)
 QVR_CVAR(vr_carry_two_hands, "1", CVAR_ARCHIVE)       // a box, backpack, gib, head or armour carried in one hand can be gripped by the other too: held in both, it follows both hands (vr_carry2h.cpp)
@@ -1561,6 +1562,10 @@ QVR_CVAR(vr_ragdoll_blood, "1", CVAR_ARCHIVE)         // a ragdoll's limbs flung
 QVR_CVAR(vr_ragdoll_smooth, "1", CVAR_ARCHIVE)        // drawn between the server's last two steps, as props are (smooth at a headset's 90 Hz over the server's 72); 0 the latest step (judders)
 QVR_CVAR(vr_decap, "1", CVAR_ARCHIVE)                 // decapitation (QC vr_decap.qc): a killing slash at the head of a monster with a ragdoll cuts its head off (its ragdoll headless, a blood fountain, the head flies)
 QVR_CVAR(vr_decap_speed, "5", CVAR_ARCHIVE)           // m/s the blade's struck point must move at (across the blade: a slash, not a stab) to behead
+QVR_CVAR(vr_decap_slash_angle, "45", CVAR_ARCHIVE)   // degrees: the blade's struck point must move at least this far off its line to behead (nearer it: a stab); was 60
+QVR_CVAR(vr_decap_head_size, "1.25", CVAR_ARCHIVE)   // melee beheading only (a slash, the chainsaw, a corpse's head): the head zone's radius times this (shots and thrown axes keep the head zone)
+QVR_CVAR(vr_decap_neck, "6", CVAR_ARCHIVE)           // units: and the zone drawn down this far below the head's middle (a capsule: the neck); a ragdoll's neck reach at least this
+QVR_CVAR(vr_decap_pop_body_speed, "0.1", CVAR_ARCHIVE) // a head pop: the headless ragdoll's motion times this after the shot's knock (the shot's force went into the head)
 QVR_CVAR(vr_decap_head_speed, "0.5", CVAR_ARCHIVE)    // share of the blade's velocity the cut head flies off with (and its spin from the swing)
 QVR_CVAR(vr_decap_head_lift, "120", CVAR_ARCHIVE)     // units/s the cut head is thrown up besides
 QVR_CVAR(vr_decap_corpses, "1", CVAR_ARCHIVE)         // a slash to a ragdoll's (or a dying or dead body's) head beheads it, instead of taking its corpse health

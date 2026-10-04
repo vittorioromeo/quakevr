@@ -169,14 +169,15 @@ int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out);
 // ragdoll yet (a live one just killed, a dying or lying corpse) gets one now from the frame it is in, whatever Most
 // Ragdolls. `blade`: the blade's velocity at the cut (units/s): the head is launched with vr_decap_head_speed of it and
 // vr_decap_head_lift up, spun as the swing turns it. False (nothing done) without a rig with a head, with ragdolls off,
-// or already headless.
-bool ragdollDecap(edict_t* ent, const glm::vec3& blade);
+// or already headless. `settle`: its parts' motion (linear and turning) times this at its next step, after this frame's
+// knocks and pushes have reached them (a head pop's: vr_decap_pop_body_speed; 1 as it is).
+bool ragdollDecap(edict_t* ent, const glm::vec3& blade, float settle = 1.f);
 // After a cut: 0 the head's middle then, 1 its angles (an alias model's), 2 its launch velocity (units/s), 3 its spin
 // (rad/s, world: a prop's .vr_spin); the stump now: 4 the neck, 5 the way out of it (unit); 6 the head's middle now, before a
 // cut (the tests). Zero if none.
 [[nodiscard]] glm::vec3 ragdollCut(int num, int what);
-// 1 if `at` (units) is on the head of edict `num`'s ragdoll (its part nearest, or within a few units of the neck), 0 not
-// (or no head), -1 not a ragdoll.
-[[nodiscard]] int ragdollHeadAt(int num, const glm::vec3& at);
+// 1 if `at` (units) is on the head of edict `num`'s ragdoll (its part nearest, or within a few units of the neck: `neck`
+// units if more, the melee's vr_decap_neck), 0 not (or no head), -1 not a ragdoll.
+[[nodiscard]] int ragdollHeadAt(int num, const glm::vec3& at, float neck = 0.f);
 
 } // namespace qvr::box3d

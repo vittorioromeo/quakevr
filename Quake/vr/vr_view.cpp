@@ -5943,6 +5943,7 @@ extern "C" void VR_SetupViewEntities()
     }
     ledges::debugDraw(); // vr_debug_ledges
     hitmodel::debugDraw(); // vr_debug_hits
+    hitmodel::zonesDraw(); // vr_debug_hitzones
     rope::debugDraw();     // vr_debug_rope
     if(vr_debug_hand_bones.value)
     {

@@ -87,6 +87,13 @@ void afterLoad();    // every precached alias model's hierarchy built
 void reset();        // the world is going (the hunk: models, edicts)
 void debugDraw();    // vr_debug_hits (the view, each frame)
 
+// Show Hit Zones (vr_debug_hitzones; QC vr_decap.qc VR_Decap_DebugFrame): a zone of edict `num` this server frame, in its
+// own frame (x forward along its yaw, y to its left, z up, from its origin): a box `lo`..`hi` (radius 0), or a capsule of
+// `radius` from `lo` to `hi` (a sphere: the same). `zone`: 0 body, 1 head, 2 extremities, 3 legs, 4 melee beheading
+// (its colour). A server frame's zones replace the last's; drawn each view frame on the entity as the client has it.
+void zoneAdd(int num, int zone, const glm::vec3& lo, const glm::vec3& hi, float radius);
+void zonesDraw(); // (the view, each frame)
+
 void stats_f();      // vr_hitmodel_stats
 void bench_f();      // vr_hitmodel_bench [rays]
 void check_f();      // vr_hitmodel_check [reset|print]

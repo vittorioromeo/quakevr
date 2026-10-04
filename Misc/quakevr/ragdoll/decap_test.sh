@@ -3,7 +3,8 @@
 # Cases: live (a sword's slash kills a grunt), axe (an axe's slash), refuse (a stab, a pommel strike, a slow slash: none
 # behead), corpse (a slash at a ragdoll's head), saw (the chainsaw's bar), zombie (a slash at a zombie at full health),
 # thrown (an axe thrown edge first at a grunt's head), gib (a headless corpse gibbed: no head thrown), save (beheaded,
-# saved, loaded: headless again, then gibbed), monsters (a slash on each rigged monster); head pops (shots at the head:
+# saved, loaded: headless again, then gibbed), monsters (a slash on each rigged monster), sweep (the melee's head zone swept on
+# each monster, vr_decap_test 19, at each Head Zone Size:Neck in ZONES); head pops (shots at the head:
 # "Head pops"): pop (vr_decap_test 12-18), popoff (each weapon's option off: 12-15 not popped), popzombie (a zombie's
 # head shot at its 60: popped, dead for good; Zombies off: not). MON (0): the monster.
 AGENT=${1:?worktree name}; shift
@@ -29,6 +30,11 @@ for c in $CASES; do
     pop) run "map e1m1;$PRE;$(SPAWN);vr_decap_test 12;wait5;$(SPAWN);vr_decap_test 13;wait5;$(SPAWN);vr_decap_test 14;wait5;$(SPAWN);vr_decap_test 15;wait5;$(SPAWN);vr_decap_test 16;wait5;$(SPAWN);vr_decap_test 17;wait5;$(SPAWN);vr_decap_test 18;wait60;vr_ragdoll_list 1" ;;
     popoff) run "map e1m1;$PRE;vr_decap_shotgun 0;vr_decap_super_shotgun 0;vr_decap_lightning 0;$(SPAWN);vr_decap_test 12;wait5;$(SPAWN);vr_decap_test 13;wait5;$(SPAWN);vr_decap_test 14;wait5;$(SPAWN);vr_decap_test 15;wait5;vr_decap_shotgun 1;vr_decap_super_shotgun 1;vr_decap_lightning 1" ;;
     popzombie) run "map vrfiringrange;$PRE;$(SPAWN 2);vr_decap_test 17;wait5;$(SPAWN 2);vr_decap_test 15;wait5;vr_decap_zombies 0;$(SPAWN 2);vr_decap_test 17;wait5;vr_decap_zombies 1" ;;
+    sweep) # the melee's head zone swept (vr_decap_test 19) on each monster at each Head Zone Size:Neck in ZONES
+        for m in ${MONS:-0 5 1 8 6 7}; do
+            sw=""; for z in ${ZONES:-1:0 1.25:0 1:8 1.25:8}; do sw="$sw;vr_decap_head_size ${z%%:*};vr_decap_neck ${z##*:};vr_decap_test 19;wait2"; done
+            FILTER="^decapsweep|rror" run "map vrfiringrange;$PRE;$(SPAWN $m)$sw;vr_decap_head_size 1;vr_decap_neck 0"
+        done ;;
     monsters) for m in ${MONS:-0 5 1 8 6 7 4 9 3 12 14}; do run "map vrfiringrange;$PRE;$(SPAWN $m);vr_decap_test 1;wait60;vr_ragdoll_list 1"; done ;;
     esac
 done

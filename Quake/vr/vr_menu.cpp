@@ -1774,6 +1774,15 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
                   "once as a headless ragdoll, the head flies off, the neck spurts blood. Needs Ragdolls on (vr_decap)."),
         slider("Least Swing Speed", vr_decap_speed, 0.f, 15.f, 0.5f, "%.1f m/s").extend(0.f, 30.f)
             .help("How fast the blade must move where it strikes (and a thrown axe fly) to cut the head off (vr_decap_speed)."),
+        slider("Least Slash Angle", vr_decap_slash_angle, 0.f, 90.f, 5.f, "%.0f deg")
+            .help("How far off the blade's line the struck point must move to cut (nearer its line it is a stab, which "
+                  "doesn't behead); 0: any motion (vr_decap_slash_angle)."),
+        slider("Head Zone Size", vr_decap_head_size, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.1f, 4.f)
+            .help("Melee only (a slash, the chainsaw, a corpse's head): how big the head zone a blade must strike to behead is, "
+                  "times its size for headshots. Debug > Show Hit Zones draws it (vr_decap_head_size)."),
+        slider("Neck", vr_decap_neck, 0.f, 20.f, 1.f, "%.0f units").extend(0.f, 40.f)
+            .help("Melee only: the head zone reaches this far down below the head's middle, over the neck (a ragdoll's neck "
+                  "at least this far round it) (vr_decap_neck)."),
         slider("Head Speed", vr_decap_head_speed, 0.f, 1.5f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("How much of the blade's speed the head flies off with; it spins as the swing turns it "
                   "(vr_decap_head_speed)."),
@@ -1804,6 +1813,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         slider("Blast's Head Share", vr_decap_head_share, 0.f, 1.f, 0.05f, "%.2f")
             .help("How much of a blast's damage on him must come from pellets at the head (the headshot multiplier in) for "
                   "it to count as a headshot; 0: any pellet at the head (vr_decap_head_share)."),
+        slider("Body's Speed After a Pop", vr_decap_pop_body_speed, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
+            .help("A popped head's body: how much of the shot's knock (and its motion) its headless ragdoll keeps. The "
+                  "shot's force went into the head, so it slumps where it stood; 1: flung as before (vr_decap_pop_body_speed)."),
     };
 }
 
@@ -3404,6 +3416,10 @@ za::Vector<Item> pageDebugViews()
         toggle("Show Physics Shapes", vr_debug_physics_shapes)
             .help("Draws the physics bodies (Box3D) as wireframes: props awake green, asleep blue, held yellow; doors purple, "
                   "monsters orange, you cyan, hanging pickups grey; red dots where they touch. And each hand's grab reach."),
+        cycle("Show Hit Zones", vr_debug_hitzones, {{0.f, "Off"}, {1.f, "Positional Damage"}, {2.f, "Decapitation"}, {3.f, "Both"}})
+            .help("Live monsters' damage zones as wireframes, on the model standing (as hits are judged): Positional Damage's "
+                  "head red, body green, extremities yellow, legs blue; Decapitation's melee zone magenta (Gore > "
+                  "Decapitation > Head Zone Size, Neck) with the shots' head zone red (vr_debug_hitzones)."),
         cycle("Show Hits", vr_debug_hits, {{0.f, "Off"}, {1.f, "Hits"}, {2.f, "Hits and Misses"}})
             .help("Precise hit detection: each hit on a monster's model drawn for a few seconds (the model as it was then, "
                   "the triangle hit in green, the point on the model in red, where the grown model was met in yellow) and "
@@ -3873,6 +3889,9 @@ za::Vector<Item> pageDebugTools()
         command("Shotgun at Its Head, Not Killing", "vr_decap_test 17")
             .help("vr_decap_test 17: a shotgun blast at its head at health 500: not popped (a zombie: popped, dead for good)."),
         command("Lightning at Its Body", "vr_decap_test 18").help("vr_decap_test 18: a lightning bolt at its body at health 1: not popped."),
+        command("Sweep the Head Zone", "vr_decap_test 19")
+            .help("vr_decap_test 19: blows moved level at the nearest live monster's head from 16 sides, at heights 24 units below "
+                  "its head's middle to 16 above: how many meet the melee's beheading zone at each (decapsweep: in the console)."),
         header("Burning Tests (developer 1: burning: ...)"),
         command("Set It on Fire (a Torch's Blow)", "vr_burn_test 1")
             .help("vr_burn_test 1: the nearest monster, corpse, crate or crate's piece set on fire (an explosive box: it can't burn) as a lit torch's blow would, where it faces you "

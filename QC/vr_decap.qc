@@ -1,7 +1,7 @@
 // vr_decap.qc -- decapitation (docs/vr-port/ROUND21.md, "Decapitation"; the engine's vr_box3d.cpp, "Decapitation").
 //
 // A killing blow at a live monster's head (positional damage's head zone: PositionalHead) by a bladed slash cuts its
-// head off: a sword's or an axe's blade (not its hilt, handle or pommel) swung across its line (VR_DECAP_ACROSS: a blade
+// head off: a sword's or an axe's blade (not its hilt, handle or pommel) swung across its line (vr_decap_slash_angle: a blade
 // driven along its line is a stab) at vr_decap_speed or more, an axe thrown into it edge first (vr_axestick.cpp decides
 // the edge), or the chainsaw (its running bar at the neck, or a swing of its bar). The monster skips its death animation:
 // its ragdoll is made at once from the frame it is in (the engine: ragdolldecap), keeping its motion and the blow's
@@ -15,7 +15,6 @@
 // Only monsters with a ragdoll rig (vr_ragdoll.cpp seedTables: their bone named "head") and a head gib here
 // (VR_Decap_HeadModel) are beheaded; the rest die as before. Ragdolls off: nothing.
 
-float VR_DECAP_ACROSS = 0.5;       // cosine: the struck point moving within 60 degrees of the blade's line is a stab, not a slash
 float VR_DECAP_BLADE_SWORD = 0.4;  // the blade proper: from this share of the way from the grip to the tip (VR_MELEE_BLADE_FROM)
 float VR_DECAP_BLADE_AXE = 0.6;    // an axe's head (25..37 units up its 40)
 float VR_DECAP_DIED_LATE = 0.3;    // s: a thrown axe's blade going in this soon after its hit box killed the monster still beheads it
@@ -160,6 +159,67 @@ float(entity e, vector xAt, vector xDir) VR_Decap_OnHead =
     return vlen(head - (xAt + d * t)) < xHeadRadius;
 };
 
+// The melee's decapitation zone of `e` (VR_Decap_MeleeZone): the head zone grown by vr_decap_head_size (its radius,
+// VR_HEAD_MARGIN in with precise hits, times it) and drawn down by vr_decap_neck units (a capsule: the sphere's middle
+// from the head's down to that much below it, the neck). `xHeadRadius` its radius after; `vr_decap_zone_top` and
+// `vr_decap_zone_bottom` its ends (world, on the model standing). FALSE: no head zone.
+vector vr_decap_zone_top;
+vector vr_decap_zone_bottom;
+float(entity e) VR_Decap_MeleeZone =
+{
+    if(!VR_Decap_HeadZone(e))
+    {
+        return FALSE;
+    }
+    float yaw = e.angles_y * (3.14159265 / 180);
+    vector facing;
+    facing_x = cos(yaw);
+    facing_y = sin(yaw);
+    facing_z = 0;
+    vr_decap_zone_top = e.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    vr_decap_zone_bottom = vr_decap_zone_top - '0 0 1' * max(0, cvar_hget(cvarh_vr_decap_neck));
+    xHeadRadius = (xHeadRadius + (hitmodel_target(e) ? VR_HEAD_MARGIN : 0)) * max(0.1, cvar_hget(cvarh_vr_decap_head_size));
+    return TRUE;
+};
+
+// Whether a melee blow at `xAt` going `xDir` on `e` is at its head for beheading (a slash, the chainsaw's bar, a
+// corpse's head on its model standing): VR_Decap_OnHead's test against the melee's zone (VR_Decap_MeleeZone: grown, and
+// down the neck). Head pops and thrown axes keep the head zone itself (VR_Decap_OnHead).
+float(entity e, vector xAt, vector xDir) VR_Decap_OnMeleeHead =
+{
+    if(!VR_Decap_MeleeZone(e))
+    {
+        return FALSE;
+    }
+    vector top = vr_decap_zone_top;
+    vector bottom = vr_decap_zone_bottom;
+    vector p;
+    if(hitmodel_target(e))
+    {
+        p = hitmodel_rest(e, xAt);
+        vector q = top;
+        q_z = min(top_z, max(bottom_z, p_z));
+        return vlen(p - q) < xHeadRadius;
+    }
+    vector d = normalize(xDir);
+    // (The ray's closest approach to spheres along the neck, at most half a radius apart: the capsule near enough.)
+    float n = max(1, ceil((top_z - bottom_z) / max(0.5, xHeadRadius * 0.5)));
+    for(float i = 0; i <= n; i++)
+    {
+        vector c = top + (bottom - top) * (i / n);
+        float t = 0;
+        if(d != '0 0 0')
+        {
+            t = max(0, (c - xAt) * d);
+        }
+        if(vlen(c - (xAt + d * t)) < xHeadRadius)
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
 // Whether what hand `xHand` of `self` holds strikes `xAt` as a beheading cut: a sword's or an axe's blade swung across
 // its line at vr_decap_speed (its struck point's speed), or the chainsaw's bar. QVR_DECAP_SWING or _SAW (the struck
 // point's velocity in vr_decap_slashvel), 0 if not. `xLive`: the hand's blow (VR_Melee_Decide's kind: a slash, not a
@@ -207,7 +267,7 @@ float(float xHand, vector xAt, float xLive) VR_Decap_Slash =
         {
             no = sprintf("too slow (%.1f m/s)", speed);
         }
-        else if(fabs(vp * axis) > speed * VR_DECAP_ACROSS)
+        else if(fabs(vp * axis) > speed * cos(min(90, max(0, cvar_hget(cvarh_vr_decap_slash_angle))) * (3.14159265 / 180)))
         {
             no = sprintf("along the blade, a stab (%.2f)", fabs(vp * axis) / speed);
         }
@@ -251,7 +311,7 @@ float(entity targ, entity attacker) VR_Decap_Blow =
     {
         return FALSE;
     }
-    if(!VR_Decap_OnHead(targ, b.mh_c_pos, b.mh_c_dir))
+    if(!VR_Decap_OnMeleeHead(targ, b.mh_c_pos, b.mh_c_dir))
     {
         return FALSE;
     }
@@ -436,7 +496,8 @@ float(entity e, entity by, vector xVel, float xHow) VR_Decap_Cut =
     {
         e.solid = SOLID_NOT; // (a dead monster to the engine: its ragdoll)
     }
-    if(!ragdolldecap(e, xVel))
+    // (A head pop: the shot's force went into the head; the body keeps vr_decap_pop_body_speed of its knock.)
+    if(!ragdolldecap(e, xVel, VR_Decap_IsPop(xHow) ? max(0, cvar_hget(cvarh_vr_decap_pop_body_speed)) : 1))
     {
         e.solid = oldSolid;
         dprint(sprintf("decap: no: %s has no ragdoll to behead (Ragdolls off?)\n", e.classname));
@@ -503,10 +564,10 @@ float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow =
     {
         return FALSE;
     }
-    float on = ragdollhead(c, xAt);
+    float on = ragdollhead(c, xAt, cvar_hget(cvarh_vr_decap_neck));
     if(on < 0)
     {
-        on = (hitmodel_target(c) && VR_Decap_OnHead(c, xAt, VR_Blow_ToWorld(b.mh_vfar)));
+        on = (hitmodel_target(c) && VR_Decap_OnMeleeHead(c, xAt, VR_Blow_ToWorld(b.mh_vfar)));
     }
     if(!on)
     {
@@ -534,14 +595,14 @@ float(entity e, float xHand, vector xAt) VR_Decap_Saw =
         {
             return 0;
         }
-        float on = ragdollhead(e, xAt);
+        float on = ragdollhead(e, xAt, cvar_hget(cvarh_vr_decap_neck));
         if(on < 0)
         {
-            on = (hitmodel_target(e) && VR_Decap_OnHead(e, xAt, dir));
+            on = (hitmodel_target(e) && VR_Decap_OnMeleeHead(e, xAt, dir));
         }
         return (on && VR_Decap_Cut(e, self, vel, QVR_DECAP_SAW)) ? 2 : 0;
     }
-    if(!VR_Decap_OnHead(e, xAt, dir))
+    if(!VR_Decap_OnMeleeHead(e, xAt, dir))
     {
         return 0;
     }
@@ -796,6 +857,53 @@ float() VR_Decap_TestHeads =
     return n;
 };
 
+// Test 19 (Debug > Tests > Decapitation Tests > Sweep the Head Zone): how forgiving the melee's zone is. At each height
+// from 24 units below the head zone's middle to 16 above it (2 apart), a striking point (3 units thick, the melee's
+// tolerance: hitmodel_segment) moves level towards its head's axis from 16 sides (96 units out); where it meets the
+// model, whether that is on the melee's zone (VR_Decap_OnMeleeHead: vr_decap_head_size, vr_decap_neck). `decapsweep:`
+// lines: each height's contacts on it, then in all.
+void(entity m) VR_Decap_Sweep =
+{
+    VR_Decap_HeadZone(m);
+    float up = xHeadUp;
+    float yaw = m.angles_y * (3.14159265 / 180);
+    vector axis = m.origin;
+    axis_x = axis_x + cos(yaw) * xHeadForward;
+    axis_y = axis_y + sin(yaw) * xHeadForward;
+    float contacts = 0;
+    float on = 0;
+    string row = "";
+    for(float z = up - 24; z <= up + 16; z = z + 2)
+    {
+        float n = 0;
+        float k = 0;
+        for(float a = 0; a < 16; a++)
+        {
+            vector dir = '0 0 0';
+            dir_x = cos(a * (3.14159265 / 8));
+            dir_y = sin(a * (3.14159265 / 8));
+            vector end = axis + '0 0 1' * z;
+            vector start = end + dir * 96;
+            float t = hitmodel_segment(m, start, end, 3, HITCLASS_MELEE);
+            if(t <= 0)
+            {
+                continue;
+            }
+            n++;
+            if(VR_Decap_OnMeleeHead(m, start + (end - start) * t, end - start))
+            {
+                k++;
+            }
+        }
+        contacts = contacts + n;
+        on = on + k;
+        row = strcat(row, sprintf(" %g:%g/%g", z - up, k, n));
+    }
+    bprint(sprintf("decapsweep: %s (head %g up, size %g, neck %g): height from the head's middle: on/contacts%s\n",
+        m.classname, up, cvar_hget(cvarh_vr_decap_head_size), cvar_hget(cvarh_vr_decap_neck), row));
+    bprint(sprintf("decapsweep: %s: %g of %g contacts on the zone\n", m.classname, on, contacts));
+};
+
 void(float xTest) VR_Decap_Test =
 {
     float heads = VR_Decap_TestHeads();
@@ -829,6 +937,11 @@ void(float xTest) VR_Decap_Test =
         VR_Decap_HeadZone(m);
         makevectors('0 1 0' * m.angles_y);
         at = m.origin + v_forward * xHeadForward + '0 0 1' * xHeadUp;
+    }
+    if(xTest == 19)
+    {
+        VR_Decap_Sweep(m);
+        return;
     }
     if(xTest == 11)
     {
@@ -932,9 +1045,64 @@ void(float xTest) VR_Decap_Test =
     }
 };
 
-// Every server frame (StartFrame): a test asked for (vr_decap_test).
+// Debug > Show Hit Zones (vr_debug_hitzones; drawn by the engine: debughitzone, vr_hitmodel.cpp zonesDraw): each live
+// monster's zones on its model standing, as the hits are judged (in its own frame: x forward, y left, z up). 1
+// positional damage's (PositionalRegion): the head sphere (red; VR_HEAD_MARGIN in with precise hits), the body
+// (green: within 0.35 of its box's width of its middle, above its origin), the legs (blue: below it), the extremities
+// (yellow: out to its sides beyond that, drawn to 0.75 of its width; open-ended). 2 melee beheading's
+// (VR_Decap_MeleeZone, magenta: vr_decap_head_size, vr_decap_neck) and the head zone that shots and thrown axes use
+// (red). 3 both.
+void() VR_Decap_DebugFrame =
+{
+    float mode = cvar_hget(cvarh_vr_debug_hitzones);
+    if(!mode)
+    {
+        return;
+    }
+    for(entity e = nextent(world); e; e = nextent(e))
+    {
+        if(!(e.flags & FL_MONSTER) || e.health <= 0 || e.vr_gib)
+        {
+            continue;
+        }
+        float precise = hitmodel_target(e);
+        if(mode != 2 && PositionalHead(e))
+        {
+            float w = e.maxs_x - e.mins_x;
+            float side = w * 0.35;
+            float out = w * 0.75;
+            vector lo = '0 0 0';
+            vector hi = '0 0 0';
+            lo_x = e.mins_x; hi_x = e.maxs_x;
+            lo_y = -side; hi_y = side;
+            lo_z = 0; hi_z = e.maxs_z;
+            debughitzone(e, 0, lo, hi, 0);
+            lo_z = e.mins_z; hi_z = 0;
+            debughitzone(e, 3, lo, hi, 0);
+            lo_y = side; hi_y = out; hi_z = e.maxs_z;
+            debughitzone(e, 2, lo, hi, 0);
+            lo_y = -out; hi_y = -side;
+            debughitzone(e, 2, lo, hi, 0);
+            vector c = '1 0 0' * xHeadForward + '0 0 1' * xHeadUp;
+            debughitzone(e, 1, c, c, xHeadRadius + (precise ? VR_HEAD_MARGIN : 0));
+        }
+        if(mode >= 2 && VR_Decap_Allowed(e) && VR_Decap_HeadZone(e))
+        {
+            vector top = '1 0 0' * xHeadForward + '0 0 1' * xHeadUp;
+            if(mode == 2)
+            {
+                debughitzone(e, 1, top, top, xHeadRadius + (precise ? VR_HEAD_MARGIN : 0));
+            }
+            VR_Decap_MeleeZone(e);
+            debughitzone(e, 4, top - '0 0 1' * (vr_decap_zone_top_z - vr_decap_zone_bottom_z), top, xHeadRadius);
+        }
+    }
+};
+
+// Every server frame (StartFrame): Show Hit Zones (VR_Decap_DebugFrame), a test asked for (vr_decap_test).
 void() VR_Decap_TestFrame =
 {
+    VR_Decap_DebugFrame();
     float ask = cvar("vr_decap_test");
     if(!ask)
     {

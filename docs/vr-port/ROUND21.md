@@ -24127,3 +24127,75 @@ In VR:
 - [ ] A mummy killed any other way still bursts into gibs.
 - [ ] Gib a beheaded mummy's ragdoll: no second head flies out.
 - [ ] Corpse Damage and Health has Mummy (Rogue, Beheaded).
+
+## Decapitation 2: a forgiving melee zone, Show Hit Zones, popped bodies stay put (2026-10-04)
+
+The author: melee decapitation was too hard to land; a view of the hit zones to check them; a popped head's ragdoll flew
+far too much (the shot's force went into the head).
+
+**Why it was hard** (`vr_decap_test 19`, Debug > Tests > Decapitation Tests > **Sweep the Head Zone**: a striking point,
+3 units thick with the melee's tolerance, moved level at the nearest live monster's head axis from 16 sides, at heights
+24 below its head's middle to 16 above; where it meets the model, whether that is on the melee's zone): with precise
+hits a blow meets the model grown by 9 units (3 + `vr_hit_tolerance_melee` 6), and that place's point on the model is
+judged. A level blade at the neck first meets the grown shoulders and trapezius, whose points lie 6-8 units below the
+blade and 9-11 out to the side: outside the head sphere. From behind, the grunt's and the enforcer's packs take the blow.
+
+| level blows on the zone | neck (2-10 below the head's middle) | head (0-10 above) | upper chest (12-20 below) |
+|---|---|---|---|
+| grunt: before / now | 24% / 95% | 92% / 100% | 0% / 39% |
+| knight | 21% / 69% | 86% / 94% | 0% / 51% |
+| ogre | 38% / 72% | 84% / 91% | 8% / 40% |
+| enforcer (his pack) | 14% / 25% | 59% / 60% | 0% / 12% |
+| death knight | 24% / 51% | 73% / 82% | 0% / 36% |
+
+(Before: the zone as it was, 1x and no neck; now: 1.25x and 6 units. 1.25x with 8: grunt neck 96%, upper chest 58%; 1.5x
+with 8: 99% and 70%.) The price: blows at the top of the chest behead too, as the table's last column shows.
+
+**Gore > Decapitation**, melee only (a slash, the chainsaw's bar, a corpse's head; head pops and thrown axes keep the
+head zone, `VR_Decap_OnHead`): **Head Zone Size** (`vr_decap_head_size`, 1.25: the head sphere's radius, VR_HEAD_MARGIN in
+with precise hits, times it) and **Neck** (`vr_decap_neck`, 6 units: the zone a capsule from the head's middle down that
+far; a ragdoll's neck counts within that many units, at least the 4 it was). QC `VR_Decap_MeleeZone`,
+`VR_Decap_OnMeleeHead`; the engine's ragdollhead takes the neck.
+
+**The other checks**, measured on the author's 44 recorded slash takes replayed against the training dummy (his old hand
+settings; the struck point of each of the 42 sword blows): its speed 7.0 m/s at the least, 10.4 the tenth percentile,
+23.8 the median: **Least Swing Speed** (5 m/s) never refused one. Its motion against the blade's line: 4 of the 40 blows
+the melee calls slashes moved within 60 degrees of the line (cosines 0.52 to 0.71), so decapitation called them stabs: a
+setting now, **Least Slash Angle** (`vr_decap_slash_angle`, 45 degrees: 1 of the 40 refused; 0 any motion). And 3 of the
+42 struck at 0.27-0.33 of the way from the grip to the tip (the blade's root, the melee's blade begins at 0.4): refused as
+the hilt; left as it is.
+
+**Head pops**: Gore > Decapitation > Head Shots > **Body's Speed After a Pop** (`vr_decap_pop_body_speed`, 0.1): the
+headless ragdoll's parts' motion (and their turning) times this at its first step, after the frame's knocks and pushes
+have reached it (ragdolldecap's third argument; vr_box3d.cpp feedRagdoll, `RagdollBodies::settle`). `vr_debug_ragdoll 1`:
+"settled after its head popped: fastest part 527 -> 53 u/s". A super shotgun headshot on a grunt (`vr_decap_test 13`):
+at 1x his pelvis 417 units away 1.3 s later (off a ledge); at 0.1x 17 units.
+
+**Debug > Show Hit Zones** (`vr_debug_hitzones`: Positional Damage, Decapitation, Both): each live monster's zones as
+wireframes on the model standing (as hits are judged: hitmodel_rest), at its drawn place and yaw: positional damage's head
+sphere red (VR_HEAD_MARGIN in with precise hits), body green (within 0.35 of its box's width of its middle, above its
+origin), legs blue (below it), extremities yellow (out beyond that; drawn to 0.75 of its width, open-ended); decapitation's
+melee zone magenta (Head Zone Size, Neck) with the shots' head zone red. QC `VR_Decap_DebugFrame` sends them each server
+frame (builtin `debughitzone`), vr_hitmodel.cpp `zonesDraw` draws them each view frame. On a monster in another pose the
+zones stay where its standing model has them (the point struck is mapped onto the standing model).
+
+Tests (`bash Misc/quakevr/ragdoll/decap_test.sh <agent> sweep`: the zone swept on six monsters at each Head Zone Size:Neck in
+`ZONES`): the table above. Decapitation's cases live, axe, refuse, corpse, saw, zombie, pop, popoff, popzombie: as
+before. eval.sh not run (the takes are archived out of `quakevr/motions`).
+
+In VR:
+- [ ] Gore > Decapitation has Least Slash Angle, Head Zone Size and Neck.
+- [ ] Gore > Decapitation > Head Shots has Body's Speed After a Pop.
+- [ ] Slash a grunt across the neck: his head comes off more often than before.
+- [ ] Slash a grunt's neck from the side: his head comes off.
+- [ ] A slash at a grunt's belly doesn't behead him.
+- [ ] Head Zone Size 1 and Neck 0: it is as hard as before.
+- [ ] Shotgun a grunt's head: his headless body slumps where he stood.
+- [ ] Body's Speed After a Pop 1: the popped body flies as before.
+- [ ] Debug > Show Hit Zones > Positional Damage: wireframes on the monsters.
+- [ ] Each zone has its colour: head red, body green, extremities yellow, legs blue.
+- [ ] Show Hit Zones > Decapitation: a magenta capsule over each head and neck.
+- [ ] Changing Head Zone Size grows the magenta capsule.
+- [ ] Changing Neck lengthens it.
+- [ ] Show Hit Zones > Both: all of them.
+- [ ] Show Hit Zones > Off: none.

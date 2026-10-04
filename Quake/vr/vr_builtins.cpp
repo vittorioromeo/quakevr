@@ -1063,12 +1063,15 @@ void PF_ragdollpoint()
     out[2] = v.z;
 }
 
-// Decapitation (vr_box3d.cpp, "Decapitation"; vr_decap.qc). float ragdolldecap(entity e, vector blade): e's ragdoll (made
-// now if it is a dead monster with a rig and none yet) loses its head, launched by the blade's velocity; 1 if it did.
+// Decapitation (vr_box3d.cpp, "Decapitation"; vr_decap.qc). float ragdolldecap(entity e, vector blade, [float settle]):
+// e's ragdoll (made now if it is a dead monster with a rig and none yet) loses its head, launched by the blade's
+// velocity; 1 if it did. `settle` (1 if left out): its parts' motion times this at its next step, after this frame's
+// knocks (a head pop's: vr_decap_pop_body_speed).
 void PF_ragdolldecap()
 {
     const float* v = G_VECTOR(OFS_PARM1);
-    G_FLOAT(OFS_RETURN) = box3d::ragdollDecap(G_EDICT(OFS_PARM0), glm::vec3{v[0], v[1], v[2]}) ? 1.f : 0.f;
+    const float settle = qcvm->argc > 2 ? G_FLOAT(OFS_PARM2) : 1.f;
+    G_FLOAT(OFS_RETURN) = box3d::ragdollDecap(G_EDICT(OFS_PARM0), glm::vec3{v[0], v[1], v[2]}, settle) ? 1.f : 0.f;
 }
 
 // vector ragdollcut(entity e, float what): after the cut, 0 the head's middle, 1 its angles, 2 its velocity, 3 its
@@ -1082,12 +1085,15 @@ void PF_ragdollcut()
     out[2] = v.z;
 }
 
-// float ragdollhead(entity e, vector p): 1 if p is on the head of e's ragdoll (its head part, or at the neck), 0 not (or
-// headless), -1 e isn't a ragdoll.
+// float ragdollhead(entity e, vector p, [float neck]): 1 if p is on the head of e's ragdoll (its head part, or at the
+// neck: within 4 units of it, or `neck` units if more: the melee's vr_decap_neck), 0 not (or headless), -1 e isn't a
+// ragdoll.
 void PF_ragdollhead()
 {
     const float* p = G_VECTOR(OFS_PARM1);
-    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollHeadAt(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}));
+    const float neck = qcvm->argc > 2 ? G_FLOAT(OFS_PARM2) : 0.f;
+    G_FLOAT(OFS_RETURN) =
+        static_cast<float>(box3d::ragdollHeadAt(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}, neck));
 }
 
 // float physicsdamp(entity e, vector relativeTo, float keep, float keepSpin, float maxSpeed, vector add): the Box3D prop's
@@ -1497,6 +1503,16 @@ void PF_hitmodel_rest()
     r[2] = out.z;
 }
 
+// debughitzone(e, zone, lo, hi, radius): Show Hit Zones' zone of `e` this server frame (hitmodel::zoneAdd: in its own
+// frame, x forward, y left, z up from its origin; a box lo..hi, or a capsule of `radius` from lo to hi).
+void PF_debughitzone()
+{
+    const float* lo = G_VECTOR(OFS_PARM2);
+    const float* hi = G_VECTOR(OFS_PARM3);
+    hitmodel::zoneAdd(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)), glm::vec3{lo[0], lo[1], lo[2]},
+        glm::vec3{hi[0], hi[1], hi[2]}, G_FLOAT(OFS_PARM4));
+}
+
 struct VrBuiltin
 {
     const char* name;
@@ -1599,6 +1615,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_segment", PF_hitmodel_segment},
     {"hitmodel_any", PF_hitmodel_any},
     {"hitmodel_rest", PF_hitmodel_rest},
+    {"debughitzone", PF_debughitzone},
     {"torchflametouch", PF_torchflametouch},
     {"anglemod", PF_anglemod},
     {"meleerun", PF_meleerun},

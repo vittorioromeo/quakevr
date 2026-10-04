@@ -452,6 +452,9 @@ struct RagdollBodies
     uint32_t cut{0};
     glm::vec3 headMid{0.f}, headVel{0.f}, headSpin{0.f};
     glm::quat headRot{1.f, 0.f, 0.f, 0.f};
+    // Its parts' motion times this at its next step (feedRagdoll, after the frame's knocks): a head pop's body barely
+    // moves (ragdollDecap's settle, vr_decap_pop_body_speed); 1 none pending.
+    float settle{1.f};
 };
 
 // Whether part `b` of `r` was cut off (its body is the part it was cut from's).
@@ -2483,6 +2486,30 @@ void feedRagdoll(edict_t* ent, Slot& s)
             Con_Printf("ragdoll: %d knocked by QC: %.0f u/s\n", NUM_FOR_EDICT(ent), glm::length(v));
         }
         ent->v.velocity[0] = ent->v.velocity[1] = ent->v.velocity[2] = 0.f;
+    }
+    if(r.settle != 1.f)
+    {
+        // (A head pop: the blast's knock and pushes, all of this frame's, in; the body keeps only this share of them.)
+        const float k = za::max(r.settle, 0.f);
+        float before = 0.f;
+        for(int b = 0; b < r.count; b++)
+        {
+            if(partCut(r, b))
+            {
+                continue;
+            }
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            const b3Vec3 lin = b3Body_GetLinearVelocity(body);
+            before = za::max(before, glm::length(world->toU(lin)));
+            b3Body_SetLinearVelocity(body, b3v(glmv(lin) * k));
+            b3Body_SetAngularVelocity(body, b3v(glmv(b3Body_GetAngularVelocity(body)) * k));
+        }
+        if(vr_debug_ragdoll.value)
+        {
+            Con_Printf("ragdoll: %d settled after its head popped: fastest part %.0f -> %.0f u/s\n", NUM_FOR_EDICT(ent),
+                before, before * k);
+        }
+        r.settle = 1.f;
     }
 }
 
@@ -10280,7 +10307,7 @@ glm::vec3 ragdollPoint(int num, int bone, const glm::vec3& p, bool toWorld)
     return box3dRagdollPoint(num, bone, p, toWorld);
 }
 
-bool ragdollDecap(edict_t* ent, const glm::vec3& blade)
+bool ragdollDecap(edict_t* ent, const glm::vec3& blade, float settle)
 {
     if(!world || vr_ragdoll.value < 1.f)
     {
@@ -10312,6 +10339,7 @@ bool ragdollDecap(edict_t* ent, const glm::vec3& blade)
     {
         return false;
     }
+    r->settle = settle;
     if(fields().vr_headless >= 0)
     {
         fieldFloat(ent, fields().vr_headless) = 1.f;
@@ -10374,7 +10402,7 @@ glm::vec3 ragdollCut(int num, int what)
     }
 }
 
-int ragdollHeadAt(int num, const glm::vec3& at)
+int ragdollHeadAt(int num, const glm::vec3& at, float neck)
 {
     const RagdollBodies* r = ragdollOf(num);
     if(!r)
@@ -10399,8 +10427,8 @@ int ragdollHeadAt(int num, const glm::vec3& at)
         return 0;
     }
     const b3WorldTransform px = b3Body_GetTransform(r->body[static_cast<za::SizeT>(parent)]);
-    const glm::vec3 neck = fromB3(px.q) * (rig.bones[rig.head].pivot * r->scale) + world->toU(px.p);
-    return glm::distance(neck, at) <= neckReach * r->scale ? 1 : 0;
+    const glm::vec3 neckAt = fromB3(px.q) * (rig.bones[rig.head].pivot * r->scale) + world->toU(px.p);
+    return glm::distance(neckAt, at) <= za::max(neckReach * r->scale, neck) ? 1 : 0;
 }
 
 } // namespace qvr::box3d

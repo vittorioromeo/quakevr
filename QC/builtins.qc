@@ -272,9 +272,9 @@ vector(entity e, float bone, vector p, float toWorld) ragdollpoint = #0;
 // 2 its velocity, 3 its spin (rad/s: .vr_spin), 4 the neck now, 5 the way out of the stump (6 the head's middle before it); 1 if p
 // is on e's ragdoll's head (0 not or
 // headless, -1 not a ragdoll).
-float(entity e, vector blade) ragdolldecap = #0;
+float(entity e, vector blade, ...) ragdolldecap = #0; // [float settle]: its parts' motion times this at its next step (a head pop's)
 vector(entity e, float what) ragdollcut = #0;
-float(entity e, vector p) ragdollhead = #0;
+float(entity e, vector p, ...) ragdollhead = #0; // [float neck]: units from the neck that count (at least 4)
 // A shot's push: the first loose prop between `start` and `end` (a health box, a gib, a weapon lying about: traces pass
 // through them) pushed as physicspush where the shot goes in. That prop, or world.
 entity(vector start, vector end, vector vel, float mass) physicsshot = #0;
@@ -329,6 +329,10 @@ float(entity e, vector a, vector b, float radius) hitmodel_any = #0;
 // The point p on e's drawn model as it is on the model standing (its stand frame), at e's origin, turned with its yaw
 // (where positional damage's head sphere and regions are); p itself if e is no target.
 vector(entity e, vector p) hitmodel_rest = #0;
+// Debug > Show Hit Zones (vr_debug_hitzones): a zone of e drawn this server frame, in e's own frame (x forward along its
+// yaw, y left, z up, from its origin): a box lo..hi (radius 0) or a capsule of `radius` from lo to hi. zone: 0 body, 1
+// head, 2 extremities, 3 legs, 4 melee beheading (its colour).
+void(entity e, float zone, vector lo, vector hi, float radius) debughitzone = #0;
 // What of you the flame of torch t, held by you, touches (single player: the client's last frame; vr_burn_self,
 // vr_burn_drop on): 1 the holding hand, 2 the other hand, 4 the holding arm, 8 the other arm, 16 the torso or legs, 32
 // the head (bits), plus 256 times the deepest contact's bit (but the holding hand's); 0 nothing. trace_endpos: where (that
