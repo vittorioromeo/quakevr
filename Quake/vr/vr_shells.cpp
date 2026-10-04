@@ -180,7 +180,7 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
         return false;
     }
     vec3_t v{p.x, p.y, p.z};
-    const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
+    const int c = VR_LiquidContents(cl.worldmodel, v, Mod_PointInLeaf(v, cl.worldmodel)->contents);
     return c <= CONTENTS_WATER && c != CONTENTS_SKY;
 }
 

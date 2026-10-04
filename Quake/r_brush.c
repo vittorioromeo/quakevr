@@ -695,6 +695,9 @@ void GL_BuildBModelVertexBuffer (void)
 				t *= texscaley;
 
 				VectorCopy (vec, vert->pos);
+				vert->swellpin = 0.f;
+				VectorAdd (fa->mins, fa->maxs, vert->centre);
+				VectorScale (vert->centre, 0.5f, vert->centre);
 				vert->st[0] = s;
 				vert->st[1] = t;
 

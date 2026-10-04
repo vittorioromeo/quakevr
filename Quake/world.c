@@ -49,6 +49,7 @@ typedef struct
 	vec3_t		bspmins, bspmaxs;
 	qboolean	entbox;			// QVR: ... and against other entities' boxes (vr_hull_ent_width)
 	vec3_t		entmins, entmaxs;
+	const float *portalplane; // clipped portion of a player straddling a gate
 	qboolean	bodymove;		// QVR: a body's move (a box, not a shot): a player it meets shows it the narrower box
 } moveclip_t;
 
@@ -659,7 +660,7 @@ int SV_PointContents (vec3_t p)
 	cont = SV_HullPointContents (&sv.worldmodel->hulls[0], 0, p);
 	if (cont <= CONTENTS_CURRENT_0 && cont >= CONTENTS_CURRENT_DOWN)
 		cont = CONTENTS_WATER;
-	return cont;
+	return VR_LiquidContents (sv.worldmodel, p, cont);
 }
 
 int SV_TruePointContents (vec3_t p)
@@ -891,6 +892,9 @@ static trace_t SV_ClipMoveToEntityQVR (edict_t *ent, vec3_t start, vec3_t mins, 
 {
 	trace_t		trace;
 
+	if (clip->portalplane && VR_HullClipPortal (ent, start, clip->bspmins, clip->bspmaxs,
+		end, clip->portalplane, &trace))
+		return trace;
 	if (clip->bspbox && ent->v.solid == SOLID_BSP)
 	{
 		memset (&trace, 0, sizeof(trace_t));
@@ -1088,7 +1092,13 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		// own move meets its model.
 		if (clip->passedict && VR_HitModelMoveFlags (touch) && VR_HitModelTarget (clip->passedict))
 			continue;
-		if (corpse) // QVR
+		if (clip->portalplane && touch->v.solid != SOLID_BSP &&
+			VR_HullClipPortal (touch, clip->start, clip->bspmins, clip->bspmaxs, clip->end,
+				clip->portalplane, &trace))
+		{
+			// The clipped portion has already been tested against this solid.
+		}
+		else if (corpse) // QVR
 			trace = SV_ClipMoveToCorpseQVR (touch, corpsemins, corpsemaxs, narrow, clip);
 		else if (clip->hitmodel >= 0 && VR_HitModelTarget (touch))
 		{
@@ -1184,22 +1194,30 @@ boxmaxs[0] = boxmaxs[1] = boxmaxs[2] = 9999;
 SV_Move
 ==================
 */
-static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict);
+static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const float *portalplane);
 
 // QVR: counted for the profiler; with vr_profile_detail 2, each timed ("trace").
 trace_t SV_Move (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict)
 {
 	trace_t trace;
 	++vr_profcounts.traces; // QVR: profile (the rest in SV_MoveRun)
+	if (VR_PortalBodyMove (passedict, start, mins, maxs, end, type, &trace))
+		return trace;
 	if (!vr_profile_fine)
-		return SV_MoveRun (start, mins, maxs, end, type, passedict);
+		return SV_MoveRun (start, mins, maxs, end, type, passedict, NULL);
 	VR_ProfileBegin ("trace");
-	trace = SV_MoveRun (start, mins, maxs, end, type, passedict);
+	trace = SV_MoveRun (start, mins, maxs, end, type, passedict, NULL);
 	VR_ProfileEnd ();
 	return trace;
 }
 
-static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict)
+trace_t SV_MovePortalHalf (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type,
+	edict_t *passedict, const float plane[4])
+{
+	return SV_MoveRun (start, mins, maxs, end, type, passedict, plane);
+}
+
+static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int type, edict_t *passedict, const float *portalplane)
 {
 	moveclip_t	clip;
 	int			i;
@@ -1215,7 +1233,13 @@ static trace_t SV_MoveRun (vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, i
 		clip.hitgibs = true;
 
 // clip to world
-	clip.bspbox = VR_HullMoveBox (passedict, mins, maxs, clip.bspmins, clip.bspmaxs); // QVR: the player's narrower box
+	clip.portalplane = portalplane;
+	if (portalplane)
+	{
+		VectorCopy (mins, clip.bspmins);
+		VectorCopy (maxs, clip.bspmaxs);
+	}
+	clip.bspbox = portalplane ? true : VR_HullMoveBox (passedict, mins, maxs, clip.bspmins, clip.bspmaxs); // QVR: the player's narrower box
 	clip.entbox = VR_HullEntBox (passedict, mins, maxs, clip.entmins, clip.entmaxs); // QVR: ... against entities
 	// QVR: a body moving (a box; not a shot, a missile or a precise hit's trace) meets players' narrower boxes
 	clip.bodymove = type != MOVE_MISSILE && !clip.hitgibs && clip.hitmodel < 0 && maxs[0] - mins[0] > 0 && maxs[2] - mins[2] > 0;

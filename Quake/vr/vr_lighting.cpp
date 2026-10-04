@@ -85,10 +85,12 @@ bool ensureProgram()
     }
     static constexpr const char* vs = R"(#version 430
 layout(location = 0) uniform mat4 MVP;
+layout(location = 4) uniform vec4 ClipPlane;
 layout(location = 0) in vec3 Pos;
 void main()
 {
     gl_Position = MVP * vec4(Pos, 1.0);
+    gl_ClipDistance[0] = dot(ClipPlane, vec4(Pos, 1.0));
 }
 )";
     depthProgram = gfx::glProgram(vs, nullptr, "vr shadow depth");
@@ -388,7 +390,7 @@ float viewEntityReach(const entity_t* e)
     return za::max(glm::length(lo), glm::length(hi)) * VR_EntityScale(e) * 2.f + 16.f;
 }
 
-void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool self)
+void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool self, bool bothRooms = false)
 {
     aliasCasters.clear();
     const int selfCasters = self ? static_cast<int>(vr_shadow_self.value) : 0;
@@ -415,6 +417,19 @@ void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool se
         }
         aliasCasters.pushBack(e);
     }
+    // The camera's list has been culled to one room. Virtual-light shadows need blockers on both path segments.
+    if(bothRooms)
+    {
+        for(int i = 1; i < cl.num_entities; i++)
+        {
+            entity_t* e = &cl_entities[i];
+            if(!e->model || e->model->type != mod_alias || e->msgtime != cl.mtime[0] ||
+               (e->model->flags & MOD_NOSHADOW) || e->alpha != ENTALPHA_DEFAULT || i == ownEntity ||
+               !touches(e, light, radius) || za::anyOf(aliasCasters.begin(), aliasCasters.end(),
+                   [e](const auto* p) { return p == e; })) { continue; }
+            aliasCasters.pushBack(e);
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -424,13 +439,16 @@ int facesDrawn = 0;
 int modelsDrawn = 0; // model draws, over all faces
 float cpuMs = 0.f;
 
-void drawIndices(const glm::mat4& mvp, size_t first, size_t count)
+glm::vec4 aliasShadowClip{0.f, 0.f, 0.f, 1.f};
+
+void drawIndices(const glm::mat4& mvp, size_t first, size_t count, const glm::vec4& clip)
 {
     if(!count)
     {
         return;
     }
     GL_UniformMatrix4fvFunc(0, 1, GL_FALSE, &mvp[0][0]);
+    GL_Uniform4fvFunc(4, 1, &clip[0]);
     glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(count), GL_UNSIGNED_INT,
         reinterpret_cast<const void*>(first * sizeof(uint32_t)));
 }
@@ -500,8 +518,11 @@ bool viewHasCasters(const glm::vec3& light, const ShadowView& view, float size, 
 // (from 0), the brush casters, and the alias casters. faceMask: the views drawn with moving casters
 // in them (viewHasCasters), for the world shader to skip the others' lookups (MapLightShadow).
 void renderLight(DepthTarget& target, const glm::vec3& light, float radius, const ShadowView* views, int numViews, float size,
-    size_t worldCount, bool brushes, bool aliases, unsigned* faceMask = nullptr)
+    size_t worldCount, bool brushes, bool aliases, unsigned* faceMask = nullptr, const glm::vec4* clip = nullptr)
 {
+    const glm::vec4 plane = clip ? *clip : glm::vec4{0.f, 0.f, 0.f, 1.f};
+    aliasShadowClip = plane;
+    if(clip) { glEnable(GL_CLIP_DISTANCE0); }
     const bool anyGeometry = !indices.empty();
     GLuint ibuf = 0;
     GLbyte* iofs = nullptr;
@@ -561,10 +582,11 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             GL_VertexAttribPointerFunc(0, 3, GL_FLOAT, GL_FALSE, sizeof(glvert_t), nullptr);
             GL_BindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibuf);
             const size_t base = reinterpret_cast<uintptr_t>(iofs) / sizeof(uint32_t);
-            drawIndices(vp, base, worldCount);
+            drawIndices(vp, base, worldCount, plane);
             for(size_t i = 0; i < brushModels.size(); i++)
             {
-                drawIndices(vp * brushModels[i], base + brushCasters[i].first, brushCasters[i].count);
+                drawIndices(vp * brushModels[i], base + brushCasters[i].first, brushCasters[i].count,
+                    glm::transpose(brushModels[i]) * plane);
             }
         }
 
@@ -599,6 +621,8 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
             memcpy(frustum, savedFrustum, sizeof(savedFrustum));
         }
     }
+    if(clip) { glDisable(GL_CLIP_DISTANCE0); }
+    aliasShadowClip = glm::vec4{0.f, 0.f, 0.f, 1.f};
 }
 
 // ----------------------------------------------------------------------------
@@ -941,8 +965,98 @@ float pack(za::Vector<Request>& requests, int atlasSize)
     return 0.f;
 }
 
+// Two lights, one traversal each: paired source/exit cube maps, 256-unit tiles at most.
+// Never overwrite a native dlight slot or let a virtual light recurse through another portal.
+struct PortalLight
+{
+    int index = -1;
+    portals::LightGate gate;
+    glm::vec3 pos;
+    glm::vec2 sourceTile{0.f}, exitTile{0.f};
+    float size = 256.f, score = 0.f;
+};
+za::Array<PortalLight, 2> portalLights;
+int portalLightCount = 0;
+
+void selectPortalLights(const glm::vec3& eye)
+{
+    portalLightCount = 0;
+    if(!r_dynamic.value) { return; }
+    for(int i = 0; i < MAX_DLIGHTS; i++)
+    {
+        const dlight_t& l = cl_dlights[i];
+        if(l.radius <= 0.f || l.die < cl.time || l.spawn > cl.time) { continue; }
+        const glm::vec3 pos{l.origin[0], l.origin[1], l.origin[2]};
+        portals::LightGate gates[16];
+        const int count = portals::lightGates(pos, l.radius, gates, 16);
+        for(int j = 0; j < count; j++)
+        {
+            const auto& gate = gates[j];
+            const glm::vec3 virtualPos = gate.turn * (pos - gate.from) + gate.to;
+            bool visible = true;
+            for(const mplane_t& p : frustum)
+            {
+                if(glm::dot(glm::vec3{p.normal[0],p.normal[1],p.normal[2]}, virtualPos) - p.dist + l.radius < 0.f)
+                    { visible = false; break; }
+            }
+            if(!visible) { continue; }
+            // A spotlight must reach some of the aperture; shader clipping handles its exact cone.
+            if(const Spot* spot = spotOf(i))
+            {
+                const glm::vec3 centre = (gate.mins + gate.maxs) * 0.5f;
+                const float reach = glm::length(gate.maxs - gate.mins) * 0.5f;
+                const glm::vec3 d = centre - pos;
+                if(glm::dot(spot->dir, d) + reach <= 0.f) { continue; }
+                const float along = glm::dot(spot->dir, d);
+                if(glm::length(d - spot->dir * along) > reach + za::max(along,0.f) * spotSpread(*spot)) { continue; }
+            }
+            const float score = l.radius / za::max(glm::distance(virtualPos, eye), l.radius * 0.25f) *
+                (spotOf(i) ? 2.f : 1.f);
+            int at = portalLightCount;
+            if(at == 2)
+            {
+                at = portalLights[0].score < portalLights[1].score ? 0 : 1;
+                if(score <= portalLights[at].score) { continue; }
+            }
+            else { portalLightCount++; }
+            portalLights[at] = {i, gate, virtualPos, {}, {}, 256.f, score};
+        }
+    }
+}
+
+void renderPortalLight(PortalLight& l)
+{
+    const dlight_t& source = cl_dlights[l.index];
+    const glm::vec3 origin{source.origin[0], source.origin[1], source.origin[2]};
+    const int own = source.key > 0 && source.key < cl.num_entities ? source.key : 0;
+    mplane_t saved[4];
+    memcpy(saved, frustum, sizeof(saved));
+    // Source occlusion is evaluated at the entry point, before the source's backing wall.
+    // These tiles cannot be culled by the destination camera.
+    for(mplane_t& p : frustum) { p.dist = -1e9f; }
+    ShadowView views[6];
+    indices.clear();
+    collectWorld(cl.worldmodel->nodes, origin, source.radius);
+    size_t worldCount = indices.size();
+    collectBrushes(origin, source.radius, false);
+    collectAliases(origin, source.radius, own, source.key != cl.viewentity, true);
+    renderLight(atlas, origin, source.radius, views, cubeViews(l.sourceTile, l.size, views), l.size,
+        worldCount, true, true);
+    memcpy(frustum, saved, sizeof(saved));
+    const glm::vec3 normal = l.gate.turn * -l.gate.normal;
+    const glm::vec4 clip{normal, -glm::dot(normal, l.gate.to)};
+    indices.clear();
+    collectWorld(cl.worldmodel->nodes, l.pos, source.radius);
+    worldCount = indices.size();
+    collectBrushes(l.pos, source.radius, false);
+    collectAliases(l.pos, source.radius, own, source.key != cl.viewentity, true);
+    renderLight(atlas, l.pos, source.radius, views, cubeViews(l.exitTile, l.size, views), l.size,
+        worldCount, true, true, nullptr, &clip);
+}
+
 bool frameEnabled = false;
 int renderedFrame = -1;
+bool renderedPortal = false; // shadow selection currently belongs to a portal or the ordinary camera
 double lastTime = 0.0;
 double lastPrint = 0.0;        // vr_shadow_stats's last print (VR_RenderShadowMaps)
 bool clipControlWarned = false; // (shadowsSupported: once)
@@ -970,17 +1084,20 @@ bool shadowsSupported()
 // R_SetupView, before R_PushDlights: once per frame (both eyes share it).
 extern "C" void VR_RenderShadowMaps(void)
 {
-    if(renderedFrame == host_framecount || portals::viewing())
-    {
-        return; // (through a slipgate, vr_portals.cpp: the last frame's, the lights chosen round the eyes, not there)
-    }
+    // Portal and ordinary cameras choose different lights. Rebuild when switching, preserving the existing budgets.
+    // The second eye without a portal still shares the first eye's data.
+    const bool portal=portals::viewing();
+    if(renderedFrame == host_framecount && !portal && !renderedPortal) { return; }
+    renderedPortal=portal;
     renderedFrame = host_framecount;
     QVR_GPU_PROFILE("shadow maps");
     const double cpuStart = Sys_DoubleTime();
     const float dt = static_cast<float>(za::clamp(vr_gametime - lastTime, 0.0, 0.1));
     lastTime = vr_gametime;
 
-    frameEnabled = (vr_shadow_dlights.value > 0.f || vr_shadow_maplights.value > 0.f) && cl.worldmodel &&
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    selectPortalLights(eye);
+    frameEnabled = (vr_shadow_dlights.value > 0.f || vr_shadow_maplights.value > 0.f || portalLightCount > 0) && cl.worldmodel &&
                    r_drawworld_cheatsafe && shadowsSupported() && ensureProgram();
     if(!frameEnabled)
     {
@@ -996,7 +1113,6 @@ extern "C" void VR_RenderShadowMaps(void)
     }
 
     profile::begin("shadow select", false);
-    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     selectDlights(eye);
     selectMapLights(eye, dt);
 
@@ -1040,9 +1156,16 @@ extern "C" void VR_RenderShadowMaps(void)
             requests.pushBack({mapSlotSize, &s.origin, nullptr});
         }
     }
+    for(int i = 0; i < portalLightCount; i++)
+    {
+        PortalLight& l = portalLights[i];
+        requests.pushBack({l.size, &l.sourceTile, &l.size});
+        requests.pushBack({l.size, &l.exitTile, nullptr});
+    }
     // What does not fit casts no shadow this frame; the map lights' moving casters must also
     // match their cached world faces' size (not scaled down).
     const float packScale = pack(requests, atlasSize);
+    if(packScale <= 0.f) { portalLightCount = 0; }
     for(DlightSlot& slot : dlightSlots)
     {
         slot.selected = slot.selected && packScale > 0.f;
@@ -1190,6 +1313,10 @@ extern "C" void VR_RenderShadowMaps(void)
 
     profile::end();
 
+    profile::begin("portal light shadows", true);
+    for(int i = 0; i < portalLightCount; i++) { renderPortalLight(portalLights[i]); }
+    profile::end();
+
     profile::begin("map light shadows", true);
     // Map lights: the moving things only.
     for(size_t i = 0; i < mapSlots.size(); i++)
@@ -1295,6 +1422,7 @@ extern "C" void VR_DlightShadow(int index, gpulight_t* out)
     memset(out->shadow, 0, sizeof(out->shadow));
     memset(out->shadow2, 0, sizeof(out->shadow2));
     memset(out->spot, 0, sizeof(out->spot));
+    memset(out->gateplane, 0, sizeof(*out) - offsetof(gpulight_t, gateplane));
     const Spot* spot = spotOf(index);
     if(spot)
     {
@@ -1318,6 +1446,43 @@ extern "C" void VR_DlightShadow(int index, gpulight_t* out)
     if(vr_dlight_falloff.value != 0.f && index >= 0 && index < MAX_DLIGHTS)
     {
         darkplacesLight(index, out);
+    }
+}
+
+extern "C" void VR_AliasShadowClip(void)
+{
+    GL_Uniform4fvFunc(86, 1, &aliasShadowClip[0]);
+}
+
+extern "C" void VR_PushPortalLights(void)
+{
+    if(!frameEnabled || !r_dynamic.value) { return; }
+    for(int i = 0; i < portalLightCount && r_framedata.numlights < MAX_DLIGHTS; i++)
+    {
+        const PortalLight& l = portalLights[i];
+        const dlight_t& source = cl_dlights[l.index];
+        gpulight_t* out = &r_lightbuffer.lights[r_framedata.numlights++];
+        memset(out, 0, sizeof(*out));
+        VR_DlightShadow(l.index, out);
+        out->radius = source.radius;
+        out->minlight = source.minlight;
+        for(int c = 0; c < 3; c++) { out->pos[c] = l.pos[c]; out->color[c] = source.color[c]; }
+        if(vr_dlight_falloff.value != 0.f) { darkplacesLight(l.index, out); }
+        const glm::vec3 spot = l.gate.turn * glm::vec3{out->spot[0],out->spot[1],out->spot[2]};
+        for(int c = 0; c < 3; c++) { out->spot[c] = spot[c]; }
+        out->shadow[0] = l.exitTile.x; out->shadow[1] = l.exitTile.y; out->shadow[2] = l.size;
+        memset(out->shadow2, 0, sizeof(out->shadow2)); // cube maps even for a spotlight
+        const glm::vec3 normal = l.gate.turn * -l.gate.normal;
+        for(int c = 0; c < 3; c++)
+        {
+            out->gateplane[c] = normal[c]; out->gatelo[c] = l.gate.mins[c]; out->gatehi[c] = l.gate.maxs[c];
+            for(int row = 0; row < 3; row++) { out->gateinverse[row][c] = l.gate.turn[row][c]; }
+        }
+        out->gateplane[3] = glm::dot(normal, l.gate.to);
+        out->gatelo[3] = 1.f;
+        const glm::vec3 shift = l.gate.from - glm::transpose(l.gate.turn) * l.gate.to;
+        for(int row = 0; row < 3; row++) { out->gateinverse[row][3] = shift[row]; }
+        out->gateshadow[0] = l.sourceTile.x; out->gateshadow[1] = l.sourceTile.y; out->gateshadow[2] = l.size;
     }
 }
 
@@ -1510,6 +1675,7 @@ extern "C" void VR_PushMapLights(void)
         out->shadow2[2] = l.value;
         out->shadow2[3] = l.scale;
         memset(out->spot, 0, sizeof(out->spot));
+        memset(out->gateplane, 0, sizeof(*out) - offsetof(gpulight_t, gateplane));
     }
 }
 
@@ -1734,7 +1900,7 @@ void onAlphaCoverage(cvar_t*)
     TexMgr_ReloadAlphaTested();
 }
 
-// vr_light_test [radius] [seconds] [distance]: a dynamic light in front of the view, to see (and
+// vr_light_test [radius] [seconds] [distance] [cone]: a dynamic light in front of the view, to see (and
 // tune) dynamic lights and their shadows.
 void lightTest_f()
 {
@@ -1752,6 +1918,11 @@ void lightTest_f()
     dl->minlight = 32;
     dl->die = static_cast<float>(cl.time + seconds);
     dl->color[0] = dl->color[1] = dl->color[2] = 1.f;
+    if(Cmd_Argc() > 4)
+    {
+        const float cone = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(4))), 1.f, 85.f);
+        lighting::dlightSpot(dl, glm::vec3{fwd[0], fwd[1], fwd[2]}, cone * 0.8f, cone);
+    }
 }
 
 // vr_light_probe: the baked light at a few points round you, as the map has it and as it is drawn
@@ -1806,7 +1977,7 @@ void lighting::init()
 // Lights given shadows this frame: dynamic ones, and map lights (vr_memstats).
 void lighting::shadowCounts(int& dlights, int& mapLights)
 {
-    dlights = 0;
+    dlights = frameEnabled ? portalLightCount : 0;
     for(const DlightSlot& slot : dlightSlots)
     {
         dlights += slot.selected ? 1 : 0;

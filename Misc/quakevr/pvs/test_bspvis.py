@@ -44,6 +44,24 @@ class VisibilityTests(unittest.TestCase):
             self.assertEqual((output / "start.bsp").read_bytes(), payload)
             self.assertEqual([p.name for p in output.iterdir()], ["start.bsp"])
 
+    def test_texture_info_records_are_40_bytes(self):
+        lumps = [b""] * 15
+        lumps[6] = struct.pack("<8fii", *range(8), 7, 0) + struct.pack("<8fii", *range(8), 11, 1)
+        lumps[10] = struct.pack("<ii6h2H4B", -2, -1, *([0] * 12))
+        lumps[14] = struct.pack("<9f4i3i", *([0] * 16))
+        offset = 4 + 15 * 8
+        directory = []
+        for lump in lumps:
+            directory.append(struct.pack("<ii", offset, len(lump)))
+            offset += len(lump)
+        data = struct.pack("<i", 29) + b"".join(directory) + b"".join(lumps)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "test.bsp"
+            path.write_bytes(data)
+            bsp = BSP(path)
+            self.assertEqual(len(bsp.texinfo), 2)
+            self.assertEqual(bsp.texinfo[1][8:], (11, 1))
+
 
 if __name__ == "__main__":
     unittest.main()

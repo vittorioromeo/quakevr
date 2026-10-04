@@ -1287,7 +1287,10 @@ QVR_CVAR(vr_water_waves, "1", CVAR_ARCHIVE)           // waves on water, slime a
 QVR_CVAR(vr_water_fresnel, "1", CVAR_ARCHIVE)         // water more see-through looking down, reflecting the room at grazing angles
 QVR_CVAR(vr_slipgates, "1", CVAR_ARCHIVE)             // the whole slipgate feature (vr_portals.cpp): 0 none of it runs, no gate is built or looked through and nothing goes through one - slipgates are Quake's teleporters exactly as before the feature (vr_portals and vr_portals_walk then do nothing)
 QVR_CVAR(vr_portals_walk, "1", CVAR_ARCHIVE)          // ... walking and shooting through them is seamless (kept where you are, how you move and look, as the view through the gate shows; missiles and grenades too): 0 Quake's teleport
-QVR_CVAR(vr_portals, "1", CVAR_ARCHIVE)               // slipgates show where they lead, as Portal's portals do (the scene drawn again through the one looked at, for each eye; vr_portals.cpp): how much of it, 0 Quake's shimmer
+QVR_CVAR(vr_portals, "1", CVAR_ARCHIVE)               // slipgates show where they lead, for each visible gate and camera (vr_portals.cpp): how much of it, 0 Quake's shimmer
+QVR_CVAR(vr_portals_maxviews, "4", CVAR_ARCHIVE) // visible destination scenes per camera, 1..8
+QVR_CVAR(vr_slipgate_surface_size, "1.12", CVAR_ARCHIVE) // entrance shimmer's visual size; collision aperture is unchanged
+QVR_CVAR(vr_slipgate_surface_opacity, "1", CVAR_ARCHIVE) // entrance shimmer's share over the portal view
 QVR_CVAR(vr_water_reflections, "1", CVAR_ARCHIVE)     // water and slime reflect the room round them (a cube map of the world made at the surface near you, vr_envmap.cpp): strength, 0 a plain sheen
 QVR_CVAR(vr_water_refraction, "1", CVAR_ARCHIVE)      // what is under translucent water bent by the waves (needs r_oit 1; with anti-aliasing the scene is resolved for it first): strength
 QVR_CVAR(vr_water_glints, "1", CVAR_ARCHIVE)          // light glinting off the waves: strength
@@ -1309,7 +1312,7 @@ QVR_CVAR(vr_water_ripple_wavelength, "64", CVAR_ARCHIVE) // ... units between cr
 QVR_CVAR(vr_water_ripple_max, "32", CVAR_ARCHIVE)       // ... how many at once, at most (1..32; a new one takes the weakest's place)
 QVR_CVAR(vr_positional_damage, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_melee_positional, "1", CVAR_ARCHIVE)       // Combat > Damage and Knockback > Positional Damage: your melee blows take the same head/limb/leg multipliers as your shots, from the point on the model they met (0: flat melee damage, as before)
-QVR_CVAR(vr_hit_head_priority, "1", CVAR_ARCHIVE)      // Combat > Hit Detection > Head Priority: where a hit point, or a whole melee sweep, lies in more than one body zone, the head's zone decides it (0: the limb/leg zones claim it first)
+QVR_CVAR(vr_hit_head_priority, "1", CVAR_ARCHIVE)      // Combat > Hit Detection > Head Priority: where the contacted point lies in more than one body zone, the head's zone decides it (0: the limb/leg zones claim it first)
 QVR_CVAR(vr_headshot_sound, "0.5", CVAR_ARCHIVE)      // volume of the tick on a headshot (0 off)
 QVR_CVAR(vr_climb, "0", CVAR_ARCHIVE)                 // on as shipped (vr_defaults.cfg): either empty hand gripping a ledge or rung hangs from it; hand over hand, shimmy, mantle (vr_climb.cpp)
 QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a ledge must be to take hold of

@@ -1,4 +1,4 @@
-// vr_portals.hpp -- slipgates that show where they lead (vr_portals), as Portal's portals do; a view only.
+// vr_portals.hpp -- slipgate views, movement, shots and one-hop dynamic lighting.
 //
 // A Quake teleporter is two things the map does not tie together: the slipgate's faces (their texture *teleport, any
 // shape) and an invisible trigger_teleport brush round them, whose target is an info_teleport_destination (a point and
@@ -10,8 +10,9 @@
 // Nothing in the map changes: the triggers and destinations are the game's (the server's entities), the faces the
 // world's.
 //
-// Once a frame the side worth a look is picked (in front of the head, in its PVS, not behind another gate, near, big on
-// the eyes; held a while). The view through it is seen from the destination's leaf (its PVS: the view is behind the
+// Before each camera the visible sides are ranked (in front of the camera, in its PVS, near and big on screen).
+// Up to vr_portals_maxviews sides are rendered, default four, maximum eight. Each uses a separate texture-array layer.
+// The view through each is seen from the destination's leaf (its PVS: the view is behind the
 // destination, often in a wall or another room). For each eye, before the eye's own view, the scene is drawn again into
 // scene targets of the eye's size from that eye moved through the gate (vr_stereo.cpp): the same projection with an
 // oblique near plane on the destination's side of the gate's plane (what is between the view and that plane is not
@@ -19,9 +20,12 @@
 // Each eye uses the same rigid turn and shift as movement and traces, at any distance: screen-space portal sampling
 // therefore shows the target a shot through that pixel reaches. Drawing the eye, the side's faces (the liquid
 // shaders, LiquidPortal) show that image by their pixels, whatever their shape, under a little of the slipgate's own
-// shimmer. One gate at a time; a gate seen through a gate shows its texture. The server sends the client what is round
+// shimmer. Views do not recurse; teleport surfaces inside a destination view are omitted. The server sends what is round
 // the destinations of the gates it can see (their PVS added to its own), so the monsters and items there are seen too.
-// Both eyes are right (each its own view); the desktop's spectator camera shows the slipgates' texture.
+// Each eye, the flat camera and the spectator camera prepare their own view with the same rigid transform.
+// The single entrance-plane star layer has Size and Opacity controls; these never change the physical aperture.
+// Dynamic-light rays are constrained to that aperture, with their folded
+// travel distance and shadow checks on both sides. Destination torches use their own PVS and folded viewing distance.
 //
 // The whole feature is one switch: vr_slipgates (Graphics > Slipgates, default on). With it 0 nothing here runs - no gate
 // is built, none is looked through, no view is drawn, nothing is carried or traced through one, and Quake's
@@ -46,15 +50,24 @@
 
 #pragma once
 
+#include <glm/vec3.hpp>
+#include <glm/mat3x3.hpp>
+
 namespace qvr::portals
 {
 
-// Once a frame, before the eyes are drawn: the gates (found anew for a new map) and the side looked through.
-void update();
+// Before each scene view: the gates (found anew for a new map) and the side looked through by this camera.
+void update(const float* origin = nullptr, const float* angles = nullptr);
+
+// Candidate views ranked for this camera; limit is 1..8, default 4. No recursive portal views.
+int viewLimit();
+int viewCount();
+int layer(); // next array layer to receive the current rendered view
+void selectView(int view);
 
 // For an eye about to be drawn (vr_stereo.cpp's eye loop; its view set: stereo::eye()): whether a view through the
 // gate is wanted for it (the gate is on its screen).
-[[nodiscard]] bool wantedForEye(int eye);
+[[nodiscard]] bool wantedForView();
 
 // Brackets the drawing of the view through the gate for an eye; `texture` is its scene's colour (composite), read by
 // that eye's teleport faces.
@@ -73,5 +86,18 @@ void takeShot(unsigned sceneFbo, int width, int height);
 
 // vr_portals_info: the gates built for this map and where the local player's body is against them (Debug > Slipgates).
 void registerCommands();
+
+// Torch candidate views: source and visible gate destinations, using their own PVS and folded distance.
+void prepareLightViews(const glm::vec3& eye);
+[[nodiscard]] float lightDistance(const glm::vec3& pos, int leaf);
+
+struct LightGate
+{
+    glm::vec3 from, to, normal, mins, maxs;
+    glm::mat3 turn;
+    float dist;
+};
+// One traversal only, through active apertures reached from the light's front side.
+int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacity);
 
 } // namespace qvr::portals

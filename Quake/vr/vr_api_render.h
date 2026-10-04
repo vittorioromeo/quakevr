@@ -36,6 +36,8 @@ struct entity_s;
 struct qmodel_s;
 
 // Stereo rendering (gl_screen.c, gl_rmain.c).
+int VR_PortalDrawing (void); // the offscreen pass requires a composite target in every camera mode
+void VR_RenderPortalForView (void); // V_RenderView: this camera and its entities are ready
 int VR_RenderView (void);								// SCR_UpdateScreen: nonzero if it rendered the eyes
 int VR_RenderingEye (void);							// forces the post-process path while rendering an eye
 unsigned VR_PostProcessTarget (void);					// GL_PostProcess output framebuffer (0 = window)
@@ -112,7 +114,8 @@ void VR_PortalView (void);
 struct mleaf_s *VR_PortalViewLeaf (struct mleaf_s *leaf);		// ... the leaf it is seen from: the destination's (R_SetupView)									// slipgates (vr_portals.cpp): the view through the gate moved there (R_RenderView)
 void VR_PortalClip (float proj[16], const float view[16]);	// ... its oblique near plane (R_SetFrustum)
 void VR_DrawPortalMask (void);								// ... its depth outside the gate on screen (R_RenderScene)
-void VR_PortalFrameData (float plane[4], float mins[4], float maxs[4]); // ... the side shown in this view (VR_WaterView)
+void VR_PortalFrameData (float plane[8][4], float mins[8][4], float maxs[8][4]); // ... the side shown in this view (VR_WaterView)
+float VR_TeleportOpacity (void); // starry surface opacity in the current view
 unsigned VR_PortalTexture (void);							// ... the view through it for this eye's teleport faces (0: none)
 void VR_PortalAddPVS (byte *pvs, const float org[3]);		// ... what is round the gates' destinations, sent (SV_WriteEntitiesToClient)
 float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1)
@@ -124,6 +127,8 @@ void VR_RenderShadowMaps (void);						// R_SetupView, before R_PushDlights (once
 struct gpulight_s;
 void VR_DlightShadow (int index, struct gpulight_s *out);	// R_PushDlights, per light sent: its shadow (and a spot light's cone)
 float VR_SpotCone (const struct gpulight_s *l, const float point[3]); // how much of a light its cone lets reach a point (1: a point light)
+void VR_PushPortalLights (void);
+void VR_AliasShadowClip (void); // the alias depth program has just been bound
 void VR_PushMapLights (void);							// R_PushDlights, after the dynamic lights
 int VR_AliasBonePoses (const struct entity_s *e, const float **matrices); // bone count of an IK-posed skeletal entity (0: none), its 3x4 skinning matrices
 void VR_AliasWound (const struct entity_s *e, float out[4], float side[4]);	// instance: its wound mask (vr_wounds.cpp): layer + 1 (0 none; negative: -(layer + 1) in the fine masks), size in texels, time; side: vraliasinstance_t's woundside

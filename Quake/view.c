@@ -944,6 +944,7 @@ void V_RenderView (void)
 		return;
 
 	V_SetupView (); // QVR: split out
+	VR_RenderPortalForView (); // each eye, flat-screen and spectator use their own portal view
 
 	R_RenderView ();
 

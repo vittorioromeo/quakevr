@@ -57,7 +57,13 @@ struct SceneTargets
 };
 SceneTargets eyeTargets;
 SceneTargets spectatorTargets;
-SceneTargets portalTargets; // the view through a slipgate (vr_portals.cpp), an eye's size, no MSAA
+struct PortalTargets
+{
+    SceneTargets scene;
+    GLuint array = 0, fbo = 0;
+    int layers = 0;
+};
+PortalTargets eyePortals, spectatorPortals; // separate sizes avoid reallocating every camera each frame
 bool creatingSceneTargets = false; // VR_SceneColorFormat, VR_SceneSamples
 unsigned creatingFormat = 0;
 unsigned creatingDepth = 0;
@@ -529,17 +535,44 @@ void drawHiddenArea()
 void renderPortal(int width, int height)
 {
     QVR_GPU_PROFILE("portal");
-    ensureSceneTargets(portalTargets, width, height, 0.f);
-    framebufs = portalTargets.fb;
+    const glframebufs_t savedTargets = framebufs;
+    const refdef_t savedView = r_refdef;
+    PortalTargets& target = spectatorView ? spectatorPortals : eyePortals;
+    const int layers = portals::viewLimit();
+    const bool same = sceneTargetsFit(target.scene, width, height, 0.f);
+    ensureSceneTargets(target.scene, width, height, 0.f);
+    if(!same || target.layers != layers || !target.array)
+    {
+        if(target.array) { GL_DeleteNativeTexture(target.array); }
+        glGenTextures(1, &target.array);
+        GL_BindNative(GL_TEXTURE17, GL_TEXTURE_2D_ARRAY, target.array);
+        GL_TexStorage3DFunc(GL_TEXTURE_2D_ARRAY, 1, target.scene.format, width, height, layers);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        target.layers = layers;
+    }
+    if(!target.fbo) { GL_GenFramebuffersFunc(1, &target.fbo); }
+    framebufs = target.scene.fb;
     portals::beginView();
-    V_RenderView();
+    R_RenderView(); // the caller already set up this camera and its entities
     foveated::endScene();
-    portals::endView(portalTargets.fb.composite.color_tex);
+    GL_BindFramebufferFunc(GL_READ_FRAMEBUFFER, target.scene.fb.composite.fbo);
+    GL_BindFramebufferFunc(GL_DRAW_FRAMEBUFFER, target.fbo);
+    GL_FramebufferTextureLayerFunc(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, target.array, 0, portals::layer());
+    if(GL_CheckFramebufferStatusFunc(GL_DRAW_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+    {
+        Sys_Error("portal view array framebuffer is incomplete");
+    }
+    GL_BlitFramebufferFunc(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    portals::endView(target.array);
     if(portals::shotWanted())
     {
-        portals::takeShot(portalTargets.fb.composite.fbo, width, height); // vr_portals_shot
+        portals::takeShot(target.scene.fb.composite.fbo, width, height);
     }
-    framebufs = eyeTargets.fb;
+    framebufs = savedTargets;
+    r_refdef = savedView;
 }
 
 // The window's spectator camera (vr_window.cpp): the scene a third time, after the eyes (their images already given to
@@ -669,6 +702,18 @@ bool isFirstEye()
 
 using namespace qvr;
 
+// V_RenderView has already established the exact camera (including its projection override).
+// Each view prepares its own portal; R_RenderView directly avoids recursion and a second entity setup.
+extern "C" void VR_RenderPortalForView()
+{
+    portals::update(r_refdef.vieworg, r_refdef.viewangles);
+    for(int i = 0; i < portals::viewCount(); ++i)
+    {
+        portals::selectView(i);
+        if(portals::wantedForView()) { stereo::renderPortal(vid.width, vid.height); }
+    }
+}
+
 extern "C" int VR_RenderView()
 {
     Backend* be = backend();
@@ -713,7 +758,6 @@ extern "C" int VR_RenderView()
     meleehud::queue(hands::current()); // the counter glow (vr_counter_glow)
     body::queueDebug(hands::current());
     envmap::update(); // the weapons' reflections: a face of the cube, once for both eyes (vr_envmap.cpp)
-    portals::update(); // the slipgate looked through (vr_portals.cpp)
 
     int eyesRendered = 0;
     for(int eye = 0; eye < 2; eye++)
@@ -746,11 +790,6 @@ extern "C" int VR_RenderView()
         stereo::firstEye = eyesRendered == 0;
         QVR_GPU_PROFILE(eye == 0 ? "eye L" : "eye R");
 
-        if(portals::wantedForEye(eye))
-        {
-            stereo::renderPortal(width, height); // first: its view entities are this frame's if it is the first view
-            stereo::firstEye = false;
-        }
         V_RenderView();
         foveated::endScene(); // begun after the scene's clear (VR_DrawHiddenArea)
         bloom::apply(framebufs.composite.color_tex, width, height); // added by GL_PostProcess

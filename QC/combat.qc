@@ -20,10 +20,9 @@ float vr_hithand;     // the hand that struck or fired (-1: unknown)
 string vr_hitweapon;  // what fired, when not the weapon in vr_hithand ("": that one)
 vector vr_hitpos;     // where it struck ('0 0 0': unknown)
 vector vr_hitdir;     // and going which way
-vector vr_hitfrom;    // and from where (the striking point's previous place: the way a blow crossed the body)
 
 // A melee blow's positional damage (weapons.qc, vr_melee_positional): its damage times the zone the blow landed on.
-float(entity xTarget, vector xFrom, vector xTo, vector xDir) VR_Melee_Positional;
+float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional;
 
 // A shotgun blast's pellets on its target (ApplyMultiDamage), by where they struck.
 float vr_hitpellets;
@@ -52,7 +51,6 @@ void() VR_ClearHitKind =
     vr_hitweapon = "";
     vr_hitpos = '0 0 0';
     vr_hitdir = '0 0 0';
-    vr_hitfrom = '0 0 0';
 };
 
 //============================================================================
@@ -1968,7 +1966,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
 {
     // Positional damage for a blow (vr_melee_positional): the zone of the point on the model it met, the same the guns
     // use. Off: 1, and nothing is recorded - exactly the flat melee damage of before.
-    float mult = VR_Melee_Positional(targ, vr_hitfrom, vr_hitpos, vr_hitdir);
+    float mult = VR_Melee_Positional(targ, vr_hitpos, vr_hitdir);
     damage = damage * mult;
     float decap = VR_Decap_Blow(targ, attacker); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
     float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);

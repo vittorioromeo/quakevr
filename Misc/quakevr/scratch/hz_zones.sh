@@ -4,8 +4,8 @@
 #   A  a shotgun's pellets at the dummy's head (vr_decap_test 17)  -> the parts and multipliers the pellets report
 #   B  a sword's slash at the same head point (vr_decap_test 1)    -> must report the same zone and multiplier
 #   C  a real fist punch swept through the head                     -> the same zone, from a real model triangle
-#   D  a diagonal punch whose probe meets the body while its way through the body crosses the head zone,
-#      with vr_hit_head_priority 1 then 0                           -> head first, then the limb/body claim
+#   D  a diagonal punch with priority on/off: classify the actual animated contact mapped to the rest pose.
+#      Swing history does not promote body/leg contacts to heads; only overlapping zones at contact differ.
 AGENT=${1:-hitzones}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 punch() { # punch <z-start> <z-end> : the knuckles swept straight at the dummy along the player's facing
     local z0=$1 z1=$2 n

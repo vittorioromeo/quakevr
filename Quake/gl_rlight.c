@@ -182,6 +182,7 @@ void R_PushDlights (void)
 		}
 	}
 
+	VR_PushPortalLights (); // QVR: bounded virtual lights before map shadow entries
 	VR_PushMapLights (); // QVR
 
 	GL_BeginGroup ("Light clustering");

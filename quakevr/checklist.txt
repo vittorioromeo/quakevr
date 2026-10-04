@@ -312,3 +312,15 @@ Spectator camera reminder: with Graphics > Recording > Window View on Spectator 
 
 [Record]
 Record new melee takes: the smaller hitbox (16 wide, hit box 24) and melee speed 3 have shipped, so you stand closer now
+
+[Slipgate fixes and appearance]
+Flat screen and spectator camera: slipgates should show their destination, including with a smaller view or reduced rendering resolution
+Flat screen: text inside firing-range banners should appear with CRT screens enabled
+Backed slipgates: jump into each skill gate; the wall behind the entrance should not stop entry. Frame edges and the low sill should still stop you
+Blocked exit: the destination wall or an entity should block the part of your body already through the gate
+Slipgate lighting: shine a flashlight through the opening; walls before entry and after exit should still cast shadows
+Drop or throw a lit torch through a gate: its light should be visible before you cross
+Graphics > Slipgates > Portal Stars: tune Size/Opacity for the single entrance layer (default size 1.12x); no extra star quads should appear inside the destination
+Downed zombie: sustained chainsaw hits to its legs should eventually gib it even with the leg damage multiplier
+Slipgates should never produce water ripples, splash particles or water sounds when a hand, player, shot, casing or thrown object touches/crosses them; real pools should still do so
+Several slipgates in view: each should show its own destination in both eyes, flat and spectator. Visible Gates defaults to 4; verify live limits 1/4/8 and headset frame cost with dynamic lights

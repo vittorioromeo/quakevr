@@ -668,7 +668,41 @@ struct Sweep
     const Plane* hitPlane = nullptr;
     int brushTests = 0;
     za::SizeT base = 0; // the model's leaves in leafBrush (SubModel::base)
+    const float* halfspace = nullptr; // portal body portion: dot(normal, point) >= distance, in model space
+    const Plane* boxPlanes = nullptr; // a solid entity's six planes
 };
+
+// Minimum projection of the box portion on this side of a portal. Its vertices are retained box corners and
+// intersections of the twelve edges with the gate plane. Within a corner-crossing interval these move linearly.
+double support(const Plane& p, const glm::dvec3& ext);
+double halfDistance(const Sweep& s, const Plane& p, const glm::dvec3& centre)
+{
+    if(!s.halfspace) { return glm::dot(centre, glm::dvec3{p.normal}) - p.dist - support(p, s.ext); }
+    const glm::dvec3 gate{s.halfspace[0], s.halfspace[1], s.halfspace[2]};
+    const glm::dvec3 n{p.normal};
+    glm::dvec3 v[8];
+    double d[8], result = 1e30;
+    for(int c = 0; c < 8; c++)
+    {
+        v[c] = centre + s.ext * glm::dvec3{(c & 1) ? 1.0 : -1.0, (c & 2) ? 1.0 : -1.0, (c & 4) ? 1.0 : -1.0};
+        d[c] = glm::dot(gate, v[c]) - s.halfspace[3];
+        if(d[c] >= -1e-6) { result = za::min(result, glm::dot(n, v[c]) - p.dist); }
+    }
+    for(int c = 0; c < 8; c++)
+    {
+        for(int axis = 0; axis < 3; axis++)
+        {
+            const int other = c ^ (1 << axis);
+            if(other > c && (d[c] < 0.0) != (d[other] < 0.0))
+            {
+                const glm::dvec3 at = v[c] + (v[other] - v[c]) * (d[c] / (d[c] - d[other]));
+                result = za::min(result, glm::dot(n, at) - p.dist);
+            }
+        }
+    }
+    // Recovered clip planes already include hull growth; preserve their convention.
+    return result < 1e29 && p.grows != 1.0 ? glm::dot(centre, n) - p.dist - support(p, s.ext) : result;
+}
 
 double support(const Plane& p, const glm::dvec3& ext)
 {
@@ -690,10 +724,8 @@ void clipToBrush(Sweep& s, const Brush& br)
     bool startout = false, getout = false;
     for(za::U32 i = 0; i < br.count; ++i)
     {
-        const Plane& p = s.b->planes[br.first + i];
-        const glm::dvec3 n{p.normal};
-        const double dist = p.dist + support(p, s.ext);
-        const double d1 = glm::dot(s.start, n) - dist, d2 = glm::dot(s.end, n) - dist;
+        const Plane& p = s.boxPlanes ? s.boxPlanes[br.first + i] : s.b->planes[br.first + i];
+        const double d1 = halfDistance(s, p, s.start), d2 = halfDistance(s, p, s.end);
         getout = getout || d2 >= 0.0;
         startout = startout || d1 >= 0.0;
         if(d1 >= 0.0 && d2 >= 0.0)
@@ -1137,7 +1169,7 @@ struct Result
 
 // A box (mins..maxs about the point) from start to end through a model's brushes, in its own space; Quake's trace.
 Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3& start, const glm::vec3& mins,
-    const glm::vec3& maxs, const glm::vec3& end, za::SizeT base = 0)
+    const glm::vec3& maxs, const glm::vec3& end, za::SizeT base = 0, const float* halfspace = nullptr)
 {
     Result r{};
     trace_t& tr = r.trace;
@@ -1149,9 +1181,10 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
         glm::min(start, end) + mins - 1.f, glm::max(start, end) + maxs + 1.f, glm::min(start, end) + c - 1.f,
         glm::max(start, end) + c + 1.f};
     s.base = base;
+    s.halfspace = halfspace;
     if(head >= 0)
     {
-        if(start == end)
+        if(start == end && !halfspace)
         {
             s.startsolid = boxInSolid(b, hull0, head, s.start, s.ext, true, base);
             s.getout = !s.startsolid;
@@ -1165,7 +1198,10 @@ Result boxTrace(const Brushes& b, const hull_t& hull0, int head, const glm::vec3
     }
     r.brushTests = s.brushTests;
     // Quake's allsolid: the whole move in solid; its trace then keeps fraction 1 and the end (SV_RecursiveHullCheck).
-    const bool allsolid = s.startsolid && (!s.getout || boxInSolid(b, hull0, head, s.end, s.ext, true, base));
+    const bool endsolid = s.startsolid && s.getout && (halfspace
+        ? boxTrace(b, hull0, head, end, mins, maxs, end, base, halfspace).trace.startsolid
+        : boxInSolid(b, hull0, head, s.end, s.ext, true, base));
+    const bool allsolid = s.startsolid && (!s.getout || endsolid);
     tr.startsolid = s.startsolid;
     tr.allsolid = allsolid;
     tr.inopen = !allsolid;
@@ -3953,6 +3989,101 @@ bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const
     return true;
 }
 
+// A clipped box changes topology only when a corner crosses the portal. Trace each linear interval.
+bool clipPortal(const edict_t* ent, const float* start, const float* mins, const float* maxs, const float* end,
+                const float* plane, trace_t& trace)
+{
+    const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    const glm::vec3 a{start[0], start[1], start[2]}, b{end[0], end[1], end[2]};
+    const glm::vec3 lo{mins[0], mins[1], mins[2]}, hi{maxs[0], maxs[1], maxs[2]};
+    const glm::vec3 n{plane[0], plane[1], plane[2]};
+    float localPlane[4]{n.x, n.y, n.z, plane[3] - glm::dot(n, origin)};
+    float cuts[10]{0.f, 1.f};
+    int count = 2;
+    const float travel = glm::dot(n, b - a);
+    if(za::fabs(travel) > 1e-6f)
+    {
+        for(int c = 0; c < 8; c++)
+        {
+            const glm::vec3 corner{(c & 1) ? hi.x : lo.x, (c & 2) ? hi.y : lo.y, (c & 4) ? hi.z : lo.z};
+            const float t = (plane[3] - glm::dot(n, a + corner)) / travel;
+            if(t > 0.f && t < 1.f) { cuts[count++] = t; }
+        }
+    }
+    za::quickSort(cuts, cuts + count);
+    const int index = static_cast<int>(ent->v.modelindex);
+    qmodel_t* model =
+        static_cast<int>(ent->v.solid) == SOLID_BSP && index >= 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const int sub = model && worldBrushes(sv.worldmodel) ? subOf(built, index) : -1;
+    if(model && sub < 0) { return false; }
+    Plane box[6]{};
+    Brush br{};
+    br.count = 6;
+    br.mins = origin + glm::vec3{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
+    br.maxs = origin + glm::vec3{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+    for(int i = 0; i < 6; i++)
+    {
+        const int axis = i / 2;
+        box[i].normal[axis] = (i & 1) ? -1.f : 1.f;
+        box[i].dist = (i & 1) ? -br.mins[axis] : br.maxs[axis];
+        box[i].grows = 1.f;
+    }
+    memset(&trace, 0, sizeof(trace));
+    trace.fraction = 1.f;
+    VectorCopy(end, trace.endpos);
+    for(int k = 0; k < count - 1; k++)
+    {
+        if(cuts[k + 1] < cuts[k] + 1e-7f && a != b) { continue; }
+        const glm::vec3 from = glm::mix(a, b, cuts[k]), to = glm::mix(a, b, cuts[k + 1]);
+        trace_t tr{};
+        tr.fraction = 1.f;
+        if(model)
+        {
+            const SubModel& sm = built.subs[static_cast<za::SizeT>(sub)];
+            tr = boxTrace(built, model->hulls[0], sm.head, from - origin, lo, hi, to - origin, sm.base, localPlane)
+                     .trace;
+        }
+        else
+        {
+            const glm::dvec3 centre = (glm::dvec3{lo} + glm::dvec3{hi}) * 0.5;
+            Sweep sweep{};
+            sweep.start = glm::dvec3{from} + centre;
+            sweep.end = glm::dvec3{to} + centre;
+            sweep.ext = (glm::dvec3{hi} - glm::dvec3{lo}) * 0.5;
+            sweep.sweepMins = glm::min(from, to) + lo - 1.f;
+            sweep.sweepMaxs = glm::max(from, to) + hi + 1.f;
+            sweep.halfspace = plane;
+            sweep.boxPlanes = box;
+            clipToBrush(sweep, br);
+            tr.startsolid = sweep.startsolid;
+            tr.allsolid = sweep.startsolid && !sweep.getout;
+            tr.fraction = static_cast<float>(sweep.fraction);
+            if(sweep.hitPlane)
+            {
+                VectorCopy(sweep.hitPlane->normal, tr.plane.normal);
+                tr.plane.dist = static_cast<float>(sweep.hitPlane->dist);
+            }
+        }
+        if(k == 0)
+        {
+            trace.startsolid = tr.startsolid;
+            trace.allsolid = tr.allsolid;
+        }
+        if(tr.fraction < 1.f || (k > 0 && tr.startsolid))
+        {
+            const float f = tr.startsolid ? 0.f : tr.fraction;
+            trace.fraction = cuts[k] + (cuts[k + 1] - cuts[k]) * f;
+            trace.plane = tr.plane;
+            trace.ent = const_cast<edict_t*>(ent);
+            const glm::vec3 at = glm::mix(a, b, trace.fraction);
+            VectorCopy(at, trace.endpos);
+            return true;
+        }
+    }
+    if(trace.startsolid) { trace.ent = const_cast<edict_t*>(ent); }
+    return true;
+}
+
 int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
 {
     if(vr_hull_width.value <= 0.f || !world || world != sv.worldmodel || !sv.active)
@@ -4126,4 +4257,10 @@ extern "C" int VR_HullTouchBox(edict_t* touch, edict_t* mover, float* boxmins, f
 extern "C" int VR_HullHitBox(edict_t* touch, float* boxmins, float* boxmaxs, int projectile)
 {
     return qvr::hull::hitBox(touch, boxmins, boxmaxs, projectile != 0);
+}
+
+extern "C" int VR_HullClipPortal(edict_t* ent, const float* start, const float* mins, const float* maxs,
+    const float* end, const float* plane, trace_t* trace)
+{
+    return qvr::hull::clipPortal(ent,start,mins,maxs,end,plane,*trace);
 }

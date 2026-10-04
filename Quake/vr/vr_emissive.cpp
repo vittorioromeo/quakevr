@@ -12,6 +12,7 @@
 #include "vr_trace.hpp"
 #include "vr_view.hpp"
 #include "vr_walltorch.hpp"
+#include "vr_portals.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Algorithm/MaxElement.hpp"
@@ -312,6 +313,7 @@ struct TorchState
     float weight = 0.f;
     int rank = -1; // among the chosen this frame, nearest first
     float level = 1.f;  // a taken torch's fire left (vr_walltorch.cpp): its light dims with it
+    float distance = 0.f; // distance in the view which selected it, including a portal view
     bool taken = false; // a taken wall torch: its light follows its flame
     bool chosen = false;
     bool lit = false;
@@ -373,10 +375,7 @@ double torchLastTime = 0.0;
     return glm::mix(fire, fire + push, za::max(0.f, tr.fraction - 0.05f));
 }
 
-[[nodiscard]] bool leafVisible(int leaf, const byte* vis)
-{
-    return !vis || (vis[leaf >> 3] & (1 << (leaf & 7))) != 0;
-}
+
 
 void killTorchLight(int id, TorchState& st)
 {
@@ -514,7 +513,7 @@ extern "C" void VR_BeamLights(int index, qmodel_t* model, const float* start, co
 
 // Each client frame, after the entities: torches and flames (Quake's wall torches and flame balls,
 // Rogue's candles and lanterns; static entities, or entities with those models) flicker a small
-// warm light onto the room. The nearest vr_torch_lights of those in the viewer's PVS within
+// warm light onto the room. The nearest vr_torch_lights in the source/destination PVS within
 // torchLightDistance, each fading in and out as it is chosen or dropped (the nearest
 // vr_torch_light_shadows of them may cast shadows); brightness vr_torch_light_scale.
 extern "C" void VR_TorchLights(void)
@@ -540,25 +539,22 @@ extern "C" void VR_TorchLights(void)
     }
 
     const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    vec3_t eyev{eye.x, eye.y, eye.z};
-    const mleaf_t* eyeLeaf = Mod_PointInLeaf(eyev, cl.worldmodel);
-    const byte* vis = !eyeLeaf || eyeLeaf->contents == CONTENTS_SOLID
-                          ? nullptr
-                          : Mod_LeafPVS(const_cast<mleaf_t*>(eyeLeaf), cl.worldmodel);
-
     // The candidates: torches in the PVS, near enough.
     za::Vector<TorchCandidate>& candidates = scratch.candidates;
     candidates.clear();
-    const float maxDist2 = torchLightDistance * torchLightDistance;
+    portals::prepareLightViews(eye);
     const auto consider = [&](int id, const entity_t& e, const TorchKind* kind, const glm::vec3* takenFire = nullptr,
                               float takenLevel = 1.f) {
         const glm::vec3 org{e.origin[0], e.origin[1], e.origin[2]};
-        const float d2 = glm::dot(org - eye, org - eye);
-        if(d2 > maxDist2)
+        vec3_t o{org.x,org.y,org.z};
+        const int leaf=static_cast<int>(Mod_PointInLeaf(o,cl.worldmodel)-cl.worldmodel->leafs)-1;
+        const float distance=portals::lightDistance(org,leaf);
+        if(distance > torchLightDistance)
         {
             return;
         }
         TorchState& st = torches[id];
+        st.distance=distance;
         // A flame that moves (a burning monster's, QC vr_burning.qc): its light goes with it.
         const bool moved = id >= torchDynamicId && !takenFire && st.kind == kind && glm::distance(org, st.org) > 0.5f;
         if(st.kind != kind || moved)
@@ -590,7 +586,7 @@ extern "C" void VR_TorchLights(void)
             st.scale = 1.f;
             st.pos = placeTorchLight(*takenFire);
         }
-        candidates.pushBack({id, za::sqrt(d2) * (st.chosen ? 0.8f : 1.f)}); // hysteresis
+        candidates.pushBack({id, distance * (st.chosen ? 0.8f : 1.f)}); // hysteresis
     };
     if(cap > 0)
     {
@@ -609,7 +605,7 @@ extern "C" void VR_TorchLights(void)
                 bool seen = false;
                 for(int j = 0; j < count && !seen; j++)
                 {
-                    seen = leafVisible(efrags[j], vis);
+                    seen = portals::lightDistance(glm::vec3{e.origin[0],e.origin[1],e.origin[2]},efrags[j]) < torchLightDistance;
                 }
                 if(seen)
                 {
@@ -641,7 +637,7 @@ extern "C" void VR_TorchLights(void)
             {
                 vec3_t o{e.origin[0], e.origin[1], e.origin[2]};
                 const za::PtrDiffT leaf = Mod_PointInLeaf(o, cl.worldmodel) - cl.worldmodel->leafs - 1;
-                if(leaf < 0 || leafVisible(static_cast<int>(leaf), vis))
+                if(leaf < 0 || portals::lightDistance(glm::vec3{o[0],o[1],o[2]},static_cast<int>(leaf)) < torchLightDistance)
                 {
                     consider(torchDynamicId + i, e, kind, taken ? &takenFire : nullptr, takenLevel);
                 }
@@ -672,7 +668,7 @@ extern "C" void VR_TorchLights(void)
     fading.clear();
     for(auto& [id, st] : torches)
     {
-        const float d = glm::distance(st.pos, eye);
+        const float d = st.distance;
         const float target = st.chosen ? za::clamp((torchLightDistance - d) / (0.25f * torchLightDistance), 0.f, 1.f) : 0.f;
         st.weight = st.weight < target ? za::min(target, st.weight + step) : za::max(target, st.weight - step);
         if(!st.chosen && st.weight > 0.f)

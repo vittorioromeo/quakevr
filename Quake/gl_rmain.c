@@ -900,7 +900,7 @@ GL_NeedsPostprocess
 qboolean GL_NeedsPostprocess (void)
 {
 	return vid_gamma.value != 1.f || vid_contrast.value != 1.f || softemu || R_GetEffectiveAlphaMode () == ALPHAMODE_OIT
-		|| VR_RenderingEye (); // QVR
+		|| VR_RenderingEye () || VR_PortalDrawing (); // QVR: an offscreen camera always has a target
 }
 
 /*
@@ -1067,7 +1067,7 @@ void R_SetupView (void)
 	r_viewleaf = Mod_PointInLeaf (r_origin, cl.worldmodel);
 	r_viewleaf = VR_PortalViewLeaf (r_viewleaf); // QVR: through a slipgate, the destination's (its PVS, its contents; vr/vr_portals.cpp)
 
-	V_SetContentsColor (r_viewleaf->contents);
+	V_SetContentsColor (VR_LiquidContents (cl.worldmodel, r_origin, r_viewleaf->contents));
 	V_CalcBlend ();
 
 	//johnfitz -- calculate r_fovx and r_fovy here
@@ -1077,6 +1077,7 @@ void R_SetupView (void)
 	if (r_waterwarp.value)
 	{
 		int contents = Mod_PointInLeaf (r_origin, cl.worldmodel)->contents;
+		contents = VR_LiquidContents (cl.worldmodel, r_origin, contents);
 		qboolean forced = M_ForcedUnderwater ();
 		if (contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA || cl.forceunderwater || forced)
 		{
