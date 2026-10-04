@@ -77,7 +77,11 @@ default 1):
   of 32 triangles a mark, so a big spray over broken ground is whole.
 - **Filtering:** the shader filters the atlas itself (the mip level of the footprint's narrow way, up to 4 reads
   along the long way). With `textureGrad`, llvmpipe drew a faint line along some rows of pixel quads.
-- **Retro textures** (`vr_retro` on decals) keep the meshes, as does `vr_decals_world 0`.
+- **Retro textures** (`vr_retro`, the Decals category): each decal is read through the decals' set as the meshes'
+  shader read it (blocks, the palette, premultiplied), the world's own set kept for its maps read after. Retro
+  lighting needs nothing: the decals are on the texture, under the light. Checked with retro textures, retro lighting,
+  texture heights and parallax all on: the decals follow the relief, and with the parallax off they match the meshes
+  (106 pixels changed by more than 32). `vr_decals_world 0` keeps the meshes.
 
 Checked against the meshes, paused, the same frame both ways (512x512 an eye, pools, splotches, sprays and chips on
 the firing range's floor). Quake's own textures get heights for the parallax mapping only when filtered smoothly

@@ -2361,6 +2361,7 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - Waves → `vr_water_waves`
         - Water Reflection → `vr_water_fresnel`
         - Slipgate Views → `vr_portals`
+        - Seamless Slipgates → `vr_portals_walk`
         - Reflected Room → `vr_water_reflections`
         - Water Refraction → `vr_water_refraction`
         - Water Glints → `vr_water_glints`

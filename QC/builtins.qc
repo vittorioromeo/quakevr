@@ -343,6 +343,7 @@ float() worldtext_hmake = #0;
 void(float h, string s) worldtext_hsettext = #0;
 void(float h, vector v) worldtext_hsetpos = #0;
 void(float h, vector v) worldtext_hsetangles = #0;
+float(entity trig, entity who) portal_handles = #0; // QVR: the engine carries this player through the slipgate (vr_portals_walk)
 void(float h, float v) worldtext_hsethalign = #0;
 void(float h, float v) worldtext_hsetscale = #0;
 

@@ -244,6 +244,15 @@ void PF_worldtext_hsetpos()
     worldtext::serverSetPos(worldTextHandle(), vecParm1());
 }
 
+extern "C" float VR_PortalHandles(edict_t* trig, edict_t* who); // vr_portals.cpp
+
+// float(entity trig, entity who) portal_handles: 1 if the engine carries this player through the trigger's slipgate
+// (vr_portals_walk; teleport_touch then leaves him be).
+void PF_portal_handles()
+{
+    G_FLOAT(OFS_RETURN) = VR_PortalHandles(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1));
+}
+
 void PF_worldtext_hsetangles()
 {
     worldtext::serverSetAngles(worldTextHandle(), vecParm1());
@@ -1555,6 +1564,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"worldtext_hsettext", PF_worldtext_hsettext},
     {"worldtext_hsetpos", PF_worldtext_hsetpos},
     {"worldtext_hsetangles", PF_worldtext_hsetangles},
+    {"portal_handles", PF_portal_handles},
     {"worldtext_hsethalign", PF_worldtext_hsethalign},
     {"worldtext_hsetscale", PF_worldtext_hsetscale},
     {"WriteVec3", PF_WriteVec3},

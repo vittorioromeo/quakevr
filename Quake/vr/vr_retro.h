@@ -63,6 +63,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "vec4 RetroP0 = vec4(0.0), RetroP1 = vec4(0.0), RetroP2 = vec4(0.0);\n" \
 "vec2 RetroGrid = vec2(1.0); // blocks across the texture (s, t)\n" \
 "float RetroFar = 1.0; // 0: blocks; 1: plain mipmapping (blocks under a pixel)\n" \
+"bool RetroLodReads = false; // plain mipmapping by textureLod, its level from the derivatives (the decals' loop: a\n" \
+"// textureGrad there, in llvmpipe, put faint lines along rows of pixel quads)\n" \
 "\n" \
 "float RetroBayer2(vec2 a) { a = floor(a); return fract(dot(a, vec2(0.5, a.y * 0.75))); }\n" \
 "float RetroBayer4(vec2 a) { return RetroBayer2(0.5 * a) * 0.25 + RetroBayer2(a); } // 0 to 15/16, a 4 x 4 cell's\n" \
@@ -154,7 +156,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "}\n" \
 "vec4 RetroSmooth(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, bool quant)\n" \
 "{\n" \
-"	vec4 c = textureGrad(tex, uv, duvdx, duvdy);\n" \
+"	vec2 size = vec2(textureSize(tex, 0)), ex = duvdx * size, ey = duvdy * size;\n" \
+"	vec4 c = RetroLodReads ? textureLod(tex, uv, 0.5 * log2(max(max(dot(ex, ex), dot(ey, ey)), 1e-8))) : textureGrad(tex, uv, duvdx, duvdy);\n" \
 "	if (quant)\n" \
 "		c.rgb = RetroQuant(c.rgb, floor(uv * RetroGrid));\n" \
 "	return c;\n" \

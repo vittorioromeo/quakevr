@@ -109,7 +109,7 @@ QVR_TONE_GLSL
 "	vec4	Ripple; // QVR: splash ripples (vr/vr_water.cpp: vr_water_ripples): x how many, y their rings' speed (units/s), z the wave number, w the share of them in the geometry\n" \
 "	vec4	RippleAt[32]; // QVR: ... each's centre (xy), the surface's height (z), its age in seconds (w)\n" \
 "	vec4	RippleAmp[8]; // QVR: ... each's height now, in units (four a vec4)\n" \
-"	vec4	DecalClock; // QVR: the decals on the world (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS): x now on their clock, y vr_decal_life, z 1 on (0: none, or drawn as meshes), w unused\n" \
+"	vec4	DecalClock; // QVR: the decals on the world (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS): x now on their clock, y vr_decal_life, z 1 on (0: none, or drawn as meshes), w the decals' retro textures set (vr_retro.h; 0 none)\n" \
 "	vec4	WaterCube; // QVR: water reflections (vr/vr_envmap.cpp: vr_water_reflections): the water cube's centre (xyz), strength (w, 0 off)\n" \
 "	vec4	WaterCube2; // QVR: ... the height of the surface it is for, how far from its centre it fades out, its sharpest mip level read, its last\n" \
 "	vec4	PortalPlane; // QVR: slipgates (vr/vr_portals.cpp: vr_portals): the side shown in this view, its plane (normal, distance)\n" \
@@ -1155,7 +1155,7 @@ LIQUID_SWELL \
 // (DecalGrid: [0] the buckets' mask, then each bucket's list's start << 8 | its length (64 at most, the newest), then
 // the lists). A decal is on a face turned towards its normal (60 degrees at most) whose plane passes within n.w of its
 // middle, over its rectangle (projected along its normal), as clipToWorld laid the meshes. Spreading (a pool, a run), darkening (drying), showing
-// and fading are worked out from its age, as appendDecal's: m = its texel (premultiplied, times its colour) + 1 - its
+// and fading are worked out from its age, as appendDecal's; with retro textures on decals, read through their set: m = its texel (premultiplied, times its colour) + 1 - its
 // alpha, on the texture as the meshes' modulating blend put it on the lit scene (multiplications: in any order).
 #define QVR_DECAL_FUNCTIONS \
 "struct Decal\n" \
@@ -1200,6 +1200,11 @@ LIQUID_SWELL \
 "	const vec2 inset = vec2(0.5 / 2048.0, 0.5 / 1024.0);\n" \
 "	const vec2 cellsize = vec2(1.0 / 8.0, 1.0 / 4.0);\n" \
 "	const vec2 span = cellsize - 2.0 * inset;\n" \
+"	// the world's own retro set (its normal and specular maps are read after): kept, the decals' own used here\n" \
+"	int world_retro = Retro;\n" \
+"	vec4 world_p0 = RetroP0, world_p1 = RetroP1, world_p2 = RetroP2;\n" \
+"	vec2 world_grid = RetroGrid;\n" \
+"	float world_far = RetroFar;\n" \
 "	for (uint k = 0u; k < count; k++)\n" \
 "	{\n" \
 "		Decal d = Decals[DecalGrid[first + k]];\n" \
@@ -1229,6 +1234,22 @@ LIQUID_SWELL \
 "		vec2 k2 = 0.5 * span / vec2(su * d.u.w, sv * d.v.w);\n" \
 "		vec2 gx = vec2(dot(dpdx, d.u.xyz), dot(dpdx, d.v.xyz)) * k2;\n" \
 "		vec2 gy = vec2(dot(dpdy, d.u.xyz), dot(dpdy, d.v.xyz)) * k2;\n" \
+"		// with retro textures on decals (vr_retro): as the meshes' shader read them, the atlas's whole size its Quake\n" \
+"		// texels; blocky, pulled to the palette, premultiplied\n" \
+"		if (DecalClock.w > 0.5)\n" \
+"		{\n" \
+"			Retro = 0;\n" \
+"			RetroBegin(DecalClock.w, vec2(2048.0, 1024.0), gx, gy, dpdx, dpdy, facing);\n" \
+"			if (Retro > 0)\n" \
+"			{\n" \
+"				float dk = 1.0 - darken * min(1.0, age / max(d.time.y, 8.0));\n" \
+"				RetroLodReads = true;\n" \
+"				vec4 q = RetroQuantPremul(RetroSample(DecalAtlas, at, gx, gy, false) * vec4(vec3(a * dk), a), floor(at * RetroGrid));\n" \
+"				RetroLodReads = false;\n" \
+"				m *= q.rgb + (1.0 - q.a);\n" \
+"				continue;\n" \
+"			}\n" \
+"		}\n" \
 "		// filtered over the pixel's footprint by hand: the mip level of its narrower way, up to 4 reads along the longer\n" \
 "		// (textureGrad's own, in llvmpipe, put a faint line along some rows of pixel quads)\n" \
 "		vec2 tx = gx * vec2(2048.0, 1024.0), ty = gy * vec2(2048.0, 1024.0);\n" \
@@ -1244,6 +1265,12 @@ LIQUID_SWELL \
 "		float dark = 1.0 - darken * min(1.0, age / max(d.time.y, 8.0));\n" \
 "		m *= texel.rgb * (a * dark) + (1.0 - texel.a * a);\n" \
 "	}\n" \
+"	Retro = world_retro;\n" \
+"	RetroP0 = world_p0;\n" \
+"	RetroP1 = world_p1;\n" \
+"	RetroP2 = world_p2;\n" \
+"	RetroGrid = world_grid;\n" \
+"	RetroFar = world_far;\n" \
 "	return m;\n" \
 "}\n"
 

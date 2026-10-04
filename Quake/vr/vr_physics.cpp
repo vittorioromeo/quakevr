@@ -469,8 +469,11 @@ extern "C" void VR_ClientPreMove(edict_t* ent)
 
 // SV_Physics_Client, before the move: a teleport, or a hand hanging from a ledge or mantling (vr_climb.cpp) instead of
 // the move: 1 to the post-think, -1 the entity freed, 0 the move as usual.
+extern "C" void VR_PortalClientCross(edict_t* ent); // vr_portals.cpp
+
 extern "C" int VR_ClientSpecialMove(edict_t* ent)
 {
+    VR_PortalClientCross(ent); // through a slipgate as the head reaches it (vr_portals_walk), then the move as usual
     const int teleport = VR_ClientTeleport(ent);
     if(teleport == 1 || teleport == -1)
     {

@@ -6,6 +6,9 @@
 #include "vr_gfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
+#include "vr_move.hpp"
+#include "vr_progs.hpp"
+#include "vr_server.hpp"
 #include "vr_stereo.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -45,6 +48,7 @@ struct Side
     glm::vec3 dest{0.f};   // the destination's point (where a player arrives)
     float yaw = 0.f;       // degrees a view's yaw turns going through
     glm::mat3 turn{1.f};   // the same turn
+    int trigger = 0;       // its trigger_teleport's edict
 };
 
 za::Vector<Side> sides;
@@ -96,8 +100,19 @@ bool eyeRectAll = true;   // ... or the whole screen (the gate's box reaches beh
 }
 
 // Where a side leads: the turn and the points carried onto each other (vr_portals.hpp), and the leaf in front of it.
-void finish(Side& sd, qmodel_t* m, const glm::vec3& dest, float destYaw)
+void finish(Side& sd, qmodel_t* m, glm::vec3 dest, float destYaw)
 {
+    // The destination's point is a player's origin there, 27 units over its marker (info_teleport_destination): one
+    // stands on the floor under it (a teleported player falls onto it), so that is where the gate leads.
+    {
+        vec3_t start{dest.x, dest.y, dest.z}, end{dest.x, dest.y, dest.z - 96.f};
+        vec3_t mins{-16.f, -16.f, -24.f}, maxs{16.f, 16.f, 32.f};
+        const trace_t tr = SV_Move(start, mins, maxs, end, MOVE_NOMONSTERS, nullptr);
+        if(!tr.startsolid && tr.fraction < 1.f)
+        {
+            dest.z = tr.endpos[2];
+        }
+    }
     sd.dest = dest;
     const glm::vec3 c = (sd.mins + sd.maxs) * 0.5f;
     const glm::vec3 onPlane = c - sd.normal * (glm::dot(sd.normal, c) - sd.dist);
@@ -228,6 +243,7 @@ void build()
                 sd = &sides.back();
                 sd->normal = n;
                 sd->dist = dist;
+                sd->trigger = i;
                 sd->mins = vec(s->mins);
                 sd->maxs = vec(s->maxs);
             }
@@ -532,4 +548,278 @@ extern "C" void VR_PortalAddPVS(byte* pvs, const float org[3])
         vec3_t d{sd.dest.x, sd.dest.y, sd.dest.z};
         SV_AddToFatPVS(d, sv.worldmodel->nodes, sv.worldmodel);
     }
+}
+
+// ----------------------------------------------------------------------------
+// Walking and shooting through (vr_portals_walk): the server carries a player through a slipgate as the head comes to
+// its plane, and what flies (missiles, grenades, gibs) as its path crosses it, by the side's own mapping: where it is,
+// how it moves and where it looks are kept, turned and shifted as the view through the gate shows them, so the view
+// does not jump. QuakeC's teleport_touch leaves players to it (portal_handles) unless one stays in the trigger a while
+// without reaching the plane (a gate behind bars: Quake's teleport then); what the teleport does besides moving him is
+// QuakeC's (VR_Portal_Crossed: the trigger's targets, what the hands carry). Monsters still teleport as in Quake.
+
+namespace qvr::portals
+{
+namespace
+{
+
+constexpr float kCross = 18.f;     // how near the plane the head takes the player through (the gate then fills the eyes)
+constexpr double kStuck = 1.5;     // seconds in a gate's trigger without reaching it before Quake's teleport takes over
+constexpr double kCooldown = 0.5;  // seconds after a crossing before the next (no bouncing between two gates)
+
+// Each client's time in a seamless gate's trigger (portal_handles) and last crossing.
+struct ClientState
+{
+    int trigger = 0;
+    double first = -1.0;
+    double last = -1e9;
+    double crossed = -1e9;
+};
+ClientState clients[MAX_SCOREBOARD];
+
+[[nodiscard]] bool walkOn()
+{
+    return vr_portals.value > 0.f && vr_portals_walk.value > 0.f && sv.active && sv.state == ss_active && sv.worldmodel;
+}
+
+// As teleport_touch: a trigger waiting to be fired (a targetname, not IGNORE_TARGETNAME) is shut until then.
+[[nodiscard]] bool triggerActive(const edict_t* trig)
+{
+    if(trig->free || static_cast<int>(trig->v.solid) != SOLID_TRIGGER)
+    {
+        return false;
+    }
+    return !PR_GetString(trig->v.targetname)[0] || (static_cast<int>(trig->v.spawnflags) & 8) || trig->v.nextthink >= qcvm->time;
+}
+
+[[nodiscard]] bool overlaps(const edict_t* a, const edict_t* b)
+{
+    for(int i = 0; i < 3; i++)
+    {
+        if(a->v.absmin[i] > b->v.absmax[i] + 1.f || a->v.absmax[i] < b->v.absmin[i] - 1.f)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+[[nodiscard]] glm::vec3 carried(const Side& sd, const glm::vec3& p)
+{
+    return sd.turn * (p - sd.from) + sd.to;
+}
+
+[[nodiscard]] bool onGate(const Side& sd, const glm::vec3& onPlane, float margin)
+{
+    return !glm::any(glm::lessThan(onPlane, sd.mins - margin)) && !glm::any(glm::greaterThan(onPlane, sd.maxs + margin));
+}
+
+[[nodiscard]] bool blocked(edict_t* ent, const glm::vec3& p)
+{
+    vec3_t q{p.x, p.y, p.z};
+    return SV_Move(q, ent->v.mins, ent->v.maxs, q, MOVE_NORMAL, ent).startsolid;
+}
+
+void setVec(float* out, const glm::vec3& v)
+{
+    out[0] = v.x;
+    out[1] = v.y;
+    out[2] = v.z;
+}
+
+// The player through the side: kept where he is and how he moves relative to the gate, his view turned with it (the
+// head's yaw, svc_setangle: the client turns the play space so the head faces it). Where he does not fit there, a
+// little further on, else at the destination's own point as Quake's teleport would.
+void crossPlayer(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs)
+{
+    const glm::vec3 from = vec(ent->v.origin);
+    glm::vec3 to = carried(sd, from);
+    const glm::vec3 ahead = sd.turn * -sd.normal;
+    bool fits = false;
+    for(float step = 0.f; step <= 48.f && !fits; step += 8.f)
+    {
+        if(!blocked(ent, to + ahead * step))
+        {
+            to += ahead * step;
+            fits = true;
+        }
+    }
+    if(!fits)
+    {
+        if(blocked(ent, sd.dest))
+        {
+            return; // nowhere to go yet (something stands there): next frame
+        }
+        to = sd.dest;
+    }
+
+    setVec(ent->v.origin, to);
+    setVec(ent->v.oldorigin, to);
+    setVec(ent->v.velocity, sd.turn * vec(ent->v.velocity));
+    const float* head = server::clientHeadAngles(ent);
+    const float yaw = (head ? head[YAW] : ent->v.v_angle[YAW]) + sd.yaw;
+    ent->v.angles[PITCH] = ent->v.angles[ROLL] = 0.f;
+    ent->v.angles[YAW] = anglemod(yaw);
+    ent->v.v_angle[YAW] = anglemod(ent->v.v_angle[YAW] + sd.yaw);
+    ent->v.fixangle = 1;
+    ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
+    SV_LinkEdict(ent, true);
+    cs.crossed = qcvm->time;
+    cs.first = -1.0;
+
+    // What Quake's teleport does besides moving him (QuakeC: its targets, what the hands carry).
+    if(const func_t fn = progs::findFunction("VR_Portal_Crossed"))
+    {
+        const int oldSelf = pr_global_struct->self;
+        const int oldOther = pr_global_struct->other;
+        pr_global_struct->self = EDICT_TO_PROG(trig);
+        pr_global_struct->other = EDICT_TO_PROG(ent);
+        pr_global_struct->time = qcvm->time;
+        setVec(G_VECTOR(OFS_PARM0), from);
+        PR_ExecuteProgram(fn);
+        pr_global_struct->self = oldSelf;
+        pr_global_struct->other = oldOther;
+    }
+}
+
+} // namespace
+} // namespace qvr::portals
+
+// VR_ClientSpecialMove (SV_Physics_Client, before the move): the player carried through a seamless slipgate (its
+// trigger touched, active) as his head comes within kCross of its plane, over the gate.
+extern "C" void VR_PortalClientCross(edict_t* ent)
+{
+    using namespace qvr::portals;
+    if(!walkOn())
+    {
+        return;
+    }
+    if(!current())
+    {
+        build();
+    }
+    const int num = NUM_FOR_EDICT(ent) - 1;
+    if(sides.empty() || num < 0 || num >= MAX_SCOREBOARD || ent->v.health <= 0.f)
+    {
+        return;
+    }
+    ClientState& cs = clients[num];
+    if(qcvm->time - cs.crossed < kCooldown)
+    {
+        return;
+    }
+    const VrMove* move = server::clientMove(ent);
+    const glm::vec3 origin = vec(ent->v.origin);
+    const glm::vec3 head = move ? origin + (move->headPos - move->origin) : origin + vec(ent->v.view_ofs);
+    // The side the head is in front of and nearest (a sheet's two sides: the one it faces, not the one behind it).
+    const Side* best = nullptr;
+    float bestD = kCross;
+    for(const Side& sd : sides)
+    {
+        const float d = glm::dot(sd.normal, head) - sd.dist;
+        if(d >= bestD || d < -2.f || !onGate(sd, head - sd.normal * d, 8.f))
+        {
+            continue;
+        }
+        const edict_t* trig = EDICT_NUM(sd.trigger);
+        if(!triggerActive(trig) || !overlaps(ent, trig))
+        {
+            continue;
+        }
+        best = &sd;
+        bestD = d;
+    }
+    if(best)
+    {
+        crossPlayer(ent, *best, EDICT_NUM(best->trigger), cs);
+    }
+}
+
+// SV_Physics_Toss, before the move: what flies (missiles, grenades, gibs) carried through a seamless slipgate as this
+// frame's path crosses its plane over the gate (from the front, nothing in the way), its speed and heading turned with it.
+extern "C" void VR_PortalToss(edict_t* ent)
+{
+    using namespace qvr::portals;
+    if(!walkOn())
+    {
+        return;
+    }
+    if(!current())
+    {
+        build();
+    }
+    const glm::vec3 o = vec(ent->v.origin), v = vec(ent->v.velocity);
+    if(sides.empty() || glm::dot(v, v) < 1.f)
+    {
+        return;
+    }
+    const glm::vec3 e = o + v * static_cast<float>(host_frametime);
+    for(const Side& sd : sides)
+    {
+        const float d0 = glm::dot(sd.normal, o) - sd.dist, d1 = glm::dot(sd.normal, e) - sd.dist;
+        if(d0 < 0.f || d1 >= 0.f)
+        {
+            continue;
+        }
+        const glm::vec3 c = o + (e - o) * (d0 / (d0 - d1));
+        edict_t* trig = EDICT_NUM(sd.trigger);
+        if(!onGate(sd, c, 2.f) || !triggerActive(trig) || (static_cast<int>(trig->v.spawnflags) & 1)) // PLAYER_ONLY
+        {
+            continue;
+        }
+        vec3_t start{o.x, o.y, o.z};
+        const glm::vec3 before = o + (c - o) * 0.98f;
+        vec3_t end{before.x, before.y, before.z};
+        const trace_t tr = SV_Move(start, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
+        if(tr.startsolid || tr.fraction < 1.f)
+        {
+            continue; // it hits something on the way
+        }
+        const glm::vec3 dir = sd.turn * v;
+        const glm::vec3 to = carried(sd, c) + glm::normalize(dir);
+        if(blocked(ent, to))
+        {
+            continue;
+        }
+        setVec(ent->v.origin, to);
+        setVec(ent->v.oldorigin, to);
+        setVec(ent->v.velocity, dir);
+        ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + sd.yaw);
+        SV_LinkEdict(ent, false);
+        return;
+    }
+}
+
+// QuakeC (portal_handles, teleport_touch): 1 if the engine carries this player through the trigger's slipgate
+// (vr_portals_walk), so that Quake's teleport leaves him be; 0 after kStuck seconds in it without reaching the plane.
+extern "C" float VR_PortalHandles(edict_t* trig, edict_t* who)
+{
+    using namespace qvr::portals;
+    const int num = NUM_FOR_EDICT(who) - 1;
+    if(!walkOn() || num < 0 || num >= svs.maxclients || num >= MAX_SCOREBOARD)
+    {
+        return 0.f;
+    }
+    if(!current())
+    {
+        build();
+    }
+    const int t = NUM_FOR_EDICT(trig);
+    bool gate = false;
+    for(const Side& sd : sides)
+    {
+        gate = gate || sd.trigger == t;
+    }
+    if(!gate)
+    {
+        return 0.f;
+    }
+    ClientState& cs = clients[num];
+    if(cs.trigger != t || qcvm->time - cs.last > 0.3 || cs.first < 0.0)
+    {
+        cs.trigger = t;
+        cs.first = qcvm->time;
+    }
+    cs.last = qcvm->time;
+    return qcvm->time - cs.first < kStuck ? 1.f : 0.f;
 }
