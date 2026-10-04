@@ -24127,3 +24127,65 @@ In VR:
 - [ ] A mummy killed any other way still bursts into gibs.
 - [ ] Gib a beheaded mummy's ragdoll: no second head flies out.
 - [ ] Corpse Damage and Health has Mummy (Rogue, Beheaded).
+
+## Brain chunks (2026-10-04)
+
+The author: a new small gib, a pinkish-grey chunk of brain matter; destroying a head gib or popping a head throws a
+customizable number of them.
+
+**The model** (`Misc/quakevr/make_brains.py`, run it then `python Misc/quakevr/bake_normals.py gib_brain1.mdl
+gib_brain2.mdl gib_brain3.mdl`): `progs/gib_brain1..3.mdl`, torn lumps of brain 4.4 to 7.2 cm, 1280 triangles each (a
+subdivided icosahedron pulled into an ellipsoid and lumped, cut by a rough plane: the torn face, a hard edge round
+it). Two skins each: 0 pinkish, 1 greyish (full colour `_0.png`, `_1.png` at 256 x 256; the 8-bit skins in Quake's
+mauve, pink, beige and red ramps). The folds are the lines where two value noises of the folds' size cross their
+middles (a labyrinth of gyri and narrow sulci, not one noise's nested rings), dark and some bloody in the sulci, fine
+vessels over the gyri, blood smeared over it and thicker towards the torn face, which is paler (white matter), rough
+and blood-soaked. A baked normal map (`_0_norm.png`, normaltiles.py's "relief" recipe: the generator's own relief,
+the folds about 4 mm deep). The engine's gib lists know them by name (`progs/gib` prefix: flesh knocks, the gib
+counts; vr_retro.cpp's gib prefixes). The torn face goes onto its plane along each vertex's ray from the middle and
+the lumps fade out round its rim (else triangles folded over there: `mdlgen.write_mdl`'s winding check).
+
+**The game** (QC vr_smallgibs.qc, "Brain chunks"): small gibs in all else (`VR_SmallGib_SpawnAs` with a brain:
+carried, thrown, bleeding, sticking, squishing, fading, the same cap), a random model and skin, a burst's flight
+(`VR_SmallGib_BurstOf`, shared with a large gib's burst), their own size and mass. A head gib destroyed (VR_Gib_Burst:
+a gib of `vr_gib_healthmult` 1.5, a head) and a head pop (VR_Decap_PopEffects) throw them besides the burst's small
+gibs. Gore > Small Gibs > **Brain Chunks**: **Brain Chunks** (`vr_smallgibs_brains`, on; also off with Small Gibs
+off), **From a Head Gib** (`vr_smallgibs_brains_burst`, 6), **From a Head Pop** (`vr_smallgibs_brains_pop`, 8),
+**Brain Chunk Size** (`vr_smallgibs_brains_size`, 0.8 times the small gibs'), **Brain Chunk Mass**
+(`vr_smallgibs_brains_mass`, 0.15 kg; a small gib 0.3). `developer 1`: "smallgib: brains: 8 (a head pop)".
+
+**Debug** > Gore Tests: **Brain Chunks Ahead** (`vr_smallgibs_test 21`: a head pop's worth burst
+`vr_smallgibs_test_dist` units ahead, 40, at chest height); 7 (Burst a Gib and a Head) and 11 (List Small Gibs) count
+the brain chunks.
+
+Tests:
+
+| case | result |
+|---|---|
+| test 7: a gib and an ogre's head burst | 16 small gibs, 6 of them brain chunks (From a Head Gib 6) |
+| test 21 | 8 brain chunks (From a Head Pop 8) |
+| test 11 after both | 36 small gibs, 14 brain chunks, all rigid and asleep, mass 0.15 kg |
+| decap test 12 (a shotgun headshot pops a grunt's head) | "smallgib: brains: 8 (a head pop)", popped as before |
+| decap test 13 with From a Head Pop 3 | 3 |
+| decap test 12 with Brain Chunks off | none, popped as before |
+| smallgibs_tests.sh (live grunt) | rates, quad, chainsaw, burst, cap, grace as before |
+
+Mock close-ups (firing range, the mock head lowered): in the air, a cluster of pale pinkish-grey lumps with folds and
+blood; on the floor, scattered pinkish and greyish chunks beside the meat. Lighter and paler than the meat gibs, as
+brain is.
+
+In VR:
+- [ ] Gore > Small Gibs has a Brain Chunks header with Brain Chunks, From a Head Gib, From a Head Pop, Brain Chunk Size
+  and Brain Chunk Mass.
+- [ ] Shoot a head gib to bursting: brain chunks fly out with the small gibs of meat.
+- [ ] Pop a grunt's head with a shotgun headshot: brain chunks fly out.
+- [ ] Brain chunks look like brain: pinkish or greyish, folded, wet and bloody.
+- [ ] Some chunks are pinkish and some greyish.
+- [ ] Their size beside the meat small gibs looks right (Brain Chunk Size).
+- [ ] Pick a brain chunk up and throw it: it flies and bleeds as a small gib.
+- [ ] A thrown brain chunk sticks to a wall now and then, as small gibs do.
+- [ ] A brain chunk squishes when it lands.
+- [ ] Brain chunks fade away after a while, as small gibs do.
+- [ ] From a Head Gib 0 and From a Head Pop 0 throw none.
+- [ ] Brain Chunks off throws none.
+- [ ] Debug > Gore Tests > Brain Chunks Ahead bursts some just ahead of you.

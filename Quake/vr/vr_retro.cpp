@@ -509,7 +509,7 @@ template <za::SizeT N>
     return false;
 }
 
-constexpr const char* gibPrefixes[] = {"gib1.", "gib2.", "gib3.", "zom_gib.", "statgib", "h_"};
+constexpr const char* gibPrefixes[] = {"gib1.", "gib2.", "gib3.", "gib_brain", "zom_gib.", "statgib", "h_"};
 constexpr const char* handPrefixes[] = {"hand", "finger_"};
 constexpr const char* gearPrefixes[] = {"vrgadget", "vrpauldron", "vrpouch", "legholster", "vrflashlight"};
 constexpr const char* propPrefixes[] = {"vr_crate", "vr_rock", "vr_brick", "vr_plank", "vr_shell", "vrtorch.", "lantern",

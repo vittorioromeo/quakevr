@@ -354,12 +354,13 @@ void() VR_Decap_FountainThink =
 };
 
 // A head popped (VR_Decap_IsPop) at `xAt` by a shot going `xVel`: as its head gib destroyed (VR_Gib_Burst: a mist of
-// blood, the gore's burst, small gibs, the gib sound) and a squish.
+// blood, the gore's burst, small gibs, brain chunks, the gib sound) and a squish.
 void(entity e, vector xAt, vector xVel) VR_Decap_PopEffects =
 {
     VR_BloodMist(xAt, xVel, VR_DECAP_POP_SIZE);
     VR_Gore_Burst(xAt, xVel, VR_DECAP_POP_SIZE);
     VR_SmallGib_Burst(xAt, xVel, VR_DECAP_POP_SIZE);
+    VR_SmallGib_Brains(xAt, xVel, TRUE); // and its brain (vr_smallgibs.qc)
     sound(e, CHAN_AUTO, VR_Gib_SquishSound(FALSE), 1, ATTN_NORM);
     sound(e, CHAN_BODY, "player/udeath.wav", 0.8, ATTN_NORM);
     vr_decap_pops++;
