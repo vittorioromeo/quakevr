@@ -22518,7 +22518,7 @@ blocks get smaller than a pixel.
 | `vr_retrolight_shadow_filter` | 1 | Shadow Edges: As Graphics > Shadows / Hard / Blocky |
 | `vr_retrolight_shadow_steps` | 0 | Shadow Levels (0 smooth, 1 lit or not) |
 | `vr_retrolight_shadow_soft` | 0 | Shadow Level Softness |
-| `vr_retrolight_shadow_block` | 0 | Shadow Blocks (Off, 1 .. 16 texels) |
+| `vr_retrolight_shadow_block` | 0 | Shadow Blocks (Off, 1/4 .. 16 texels) |
 
 The page also has three looks (Software Quake: 64 levels, each texel lit, dynamic lights per texel; Blocky Lightmaps:
 GLQuake nearest, luxel squares; Banded and Dithered: 8 levels dithered on smooth lightmaps) and Reset to Defaults.
@@ -24324,3 +24324,25 @@ In VR:
 - [ ] [Record] No Decapitation (Too Slow): 2 slow cuts across the neck.
 - [ ] [Record] No Decapitation (Body Slash): 2 slashes across the chest.
 - [ ] [Record] No Decapitation (Shoulder Slash): 2 slashes into the shoulder.
+
+## Finer shadow blocks (2026-10-04)
+
+`Shadow Blocks` (Graphics > Retro Lighting) went down to 1 texel and stopped there: 1 looked too coarse and there was
+no way to ask for smaller pixels.
+
+- `retrolight::block()` (Quake/vr/vr_retrolight.cpp) takes a `finest` argument: the same power-of-two ladder, starting
+  at `finest` instead of at 1, and 0 (off) for anything below `finest * 0.5`. `finest = 1` (the default) is
+  bit-for-bit the old behaviour.
+- Only the shadows' lookup passes `0.25f` (`RetroLight[3].z`): `0` off, `1/4`, `1/2`, `1`, `2`, `4`, `8`, `16`. The
+  lightmap's grid (still `max(…, 1)`), the world's and the models' dynamic-light grids are unchanged.
+- The menu row has its own choice list (`Off, 1/4 texel, 1/2 texel, 1, 2, 4, 8, 16`); the look presets and
+  `Reset to Defaults` are unchanged. No shader code changed: `RetroLightGrid` already turns a grid smooth where its
+  blocks get smaller than about a pixel on screen, so sub-texel blocks show only where a Quake texel is itself a few
+  pixels wide (near surfaces) and fade like every other grid does. That fade point is a shader constant, not a cvar.
+- Measured in vrfiringrange (960x540, one torch light, 457 scanlines through the shadowed area): block 1 vs off moves
+  27738 px (5.35% of the frame). `0.5` differs from `1` in 25552 px and `0.25` in 26454 px, so the finer values do
+  reach the shader. Shadow-edge transitions: 4897 at 1, 4371 at 0.5, 4167 at 0.25 (median run 3 px, p25..p75 2..5) —
+  the count does not double per halving in that scene; which step looks right is left to the headset.
+  Probe: `Misc/quakevr/scratch/shadow_ab.sh`, numbers in `shadow_ab.txt`.
+- `vr_retrolight_shadow_block` is archived: a cfg value in [0.375, 0.75) now maps to 0.5 instead of 1 (the old menu
+  could not produce one).
