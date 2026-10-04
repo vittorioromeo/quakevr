@@ -4352,6 +4352,12 @@ za::Vector<Item> pageDebugTests()
         command("A Shot Through A Gate", "map start; wait120; setpos 232 1360 24 0 90 0; wait10; vr_physics_fire 10 232 1500 25")
             .help("vr_physics_fire 10: a pellet's trace at a point beyond the first gate: the console says through 1 "
                   "slipgate(s), in at ..., out at ... (shots and thrown props go through as before)."),
+        command("The Whole Feature Off", "vr_slipgates 0; map start; wait120; setpos 232 1390 24 0 90 0; wait60; vr_portals_info; vr_slipgates 1")
+            .help("vr_slipgates 0: the slipgate feature off entirely, at once (no map reload) - no gate is built or "
+                  "looked through, nothing is carried or traced through one. Same position as Through A Gate: nothing "
+                  "carries you, the trigger teleports you the old way (a flash, a jump, 0.7 s locked), and "
+                  "vr_portals_info says the feature is off. It is turned back on at the end; Graphics > Slipgates has "
+                  "the same switch."),
         header("Dialogs"),
         command("New Game Confirmation (3 s)", "vr_test_dialog 3 0")
             .help("Shows the New Game confirmation for 3 seconds (it closes by itself): the game must stay in the world "

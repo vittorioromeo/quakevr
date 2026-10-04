@@ -202,7 +202,8 @@ All of these have switches on the *Graphics* page, and the *Preset* there sets m
   close, where Quake's textures would blur. There is also anti-aliasing for sheen and for fences and grates.
 - **Slipgates that show where they lead:** like Portal's portals, a slipgate shows the place it takes you to, live
   (monsters and all), in each eye, on any map. You walk through into the place you saw, keeping your speed and the way
-  you face, and rockets, grenades and nails fly through too.
+  you face, and rockets, grenades and nails fly through too. One switch (Graphics > Slipgates, `vr_slipgates`) turns
+  all of it off, back to Quake's teleporters exactly as they were, at once and without reloading the map.
 - **Water and liquids:** waves that move the surface, reflections of the room around them and refraction, glints, caustics, big splashes
   and ripples that move the waves, shoreline foam, heat haze over lava, fog and a gentle wobble under water, and water sounds.
 - **Particles and effects:** textured smoke, sparks, blood and explosions (*Quake VR Particles*) that fade softly

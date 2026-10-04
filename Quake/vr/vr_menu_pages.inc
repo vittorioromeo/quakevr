@@ -974,6 +974,7 @@ void retroAllUncheckCategories()
 [[nodiscard]] za::Vector<Item> pageGraphicsSlipgates()
 {
     return {
+        toggle("Slipgates", "vr_slipgates").help("The whole slipgate feature: gates that show where they lead, walking through them, and shots, thrown props and gibs going through. Off: none of it runs - slipgates are Quake's teleporters exactly as they were before the feature, and the two settings below do nothing. For comparing the two. Takes effect at once, no map reload."),
         slider("Slipgate Views", "vr_portals", 0.f, 1.f, 0.1f, "%.1f").extend().help("Slipgates show where they lead, like Portal's portals: the place they take you to, live, through their shimmer (the scene is drawn again for the one you look at). 0: Quake's plain shimmer."),
         toggle("Seamless Slipgates", "vr_portals_walk").help("With Slipgate Views on, you walk through slipgates into the place you saw, keeping your speed and the way you face (no flash, no pause), and rockets, grenades, nails, thrown props and gunfire go through them. Off: Quake's teleport."),
     };

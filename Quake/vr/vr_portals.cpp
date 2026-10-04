@@ -31,6 +31,15 @@ namespace qvr::portals
 namespace
 {
 
+// The whole feature (vr_slipgates). With it off nothing here runs: no gate is ever built, none is looked through, no
+// view is drawn through one, nothing is carried or traced through one, and Quake's trigger_teleport is what moves the
+// player - exactly as before the feature existed. Every entry point below asks this first; update() forgets the gates
+// built so far, so nothing else has anything to act on. Flipping it takes effect at once, no map reload.
+[[nodiscard]] bool enabled()
+{
+    return vr_slipgates.value > 0.f;
+}
+
 constexpr float kReach = 24.f;    // how far round a trigger's brush its slipgate's faces may be
 constexpr float kStand = 24.f;    // a standing player's origin over the floor
 constexpr float kRange = 1536.f;  // how far from the head a gate is looked through
@@ -320,6 +329,14 @@ void update()
 {
     chosen = -1;
     texture = 0;
+    if(!enabled())
+    {
+        sides.clear(); // (the feature off: the gates are forgotten, and stay so until it is turned on again)
+        builtFor = nullptr;
+        builtGeneration = -1;
+        lastChosen = -1;
+        return;
+    }
     if(vr_portals.value <= 0.f || !sv.active || sv.state != ss_active || !cl.worldmodel || cl.worldmodel != sv.worldmodel)
     {
         return;
@@ -373,7 +390,7 @@ bool wantedForEye(int eye)
 {
     texture = 0;
     textureEye = -1;
-    if(chosen < 0 || eye < 0 || eye > 1)
+    if(!enabled() || chosen < 0 || eye < 0 || eye > 1)
     {
         return false;
     }
@@ -442,7 +459,7 @@ using namespace qvr;
 // carried through the gate).
 extern "C" void VR_PortalView(void)
 {
-    if(!portals::inView || portals::chosen < 0)
+    if(!portals::enabled() || !portals::inView || portals::chosen < 0)
     {
         return;
     }
@@ -460,7 +477,7 @@ extern "C" void VR_PortalView(void)
 // leave the destination out, dark); else the view's own.
 extern "C" mleaf_t* VR_PortalViewLeaf(mleaf_t* leaf)
 {
-    if(!portals::inView || portals::chosen < 0)
+    if(!portals::enabled() || !portals::inView || portals::chosen < 0)
     {
         return leaf;
     }
@@ -479,7 +496,7 @@ extern "C" mleaf_t* VR_PortalViewLeaf(mleaf_t* leaf)
 // within the eyes' field of view (kOblique under the cosine of its widest angle): no far plane.
 extern "C" void VR_PortalClip(float proj[16], const float view[16])
 {
-    if(!portals::inView || portals::chosen < 0 || !gl_clipcontrol_able)
+    if(!portals::enabled() || !portals::inView || portals::chosen < 0 || !gl_clipcontrol_able)
     {
         return;
     }
@@ -499,7 +516,7 @@ extern "C" void VR_PortalClip(float proj[16], const float view[16])
 // gate's box on the eye's screen set to the near plane, so nothing there is shaded (only the gate's pixels are read).
 extern "C" void VR_DrawPortalMask(void)
 {
-    if(!portals::inView || portals::eyeRectAll || !gl_clipcontrol_able)
+    if(!portals::enabled() || !portals::inView || portals::eyeRectAll || !gl_clipcontrol_able)
     {
         return;
     }
@@ -541,8 +558,8 @@ extern "C" void VR_PortalFrameData(float plane[4], float mins[4], float maxs[4])
     plane[0] = plane[1] = plane[2] = plane[3] = 0.f;
     mins[0] = mins[1] = mins[2] = mins[3] = 0.f;
     maxs[0] = maxs[1] = maxs[2] = maxs[3] = 0.f;
-    if(portals::inView || !portals::texture || portals::chosen < 0 || !stereo::isRenderingEye() || stereo::isSpectator() ||
-        stereo::eye() != portals::textureEye)
+    if(!portals::enabled() || portals::inView || !portals::texture || portals::chosen < 0 || !stereo::isRenderingEye() ||
+        stereo::isSpectator() || stereo::eye() != portals::textureEye)
     {
         return;
     }
@@ -560,7 +577,8 @@ extern "C" void VR_PortalFrameData(float plane[4], float mins[4], float maxs[4])
 // R_DrawBrushModels_Water: the view through the gate for this eye's teleport faces (unit 17, PortalScene; 0: none).
 extern "C" unsigned VR_PortalTexture(void)
 {
-    const bool mine = !portals::inView && stereo::isRenderingEye() && !stereo::isSpectator() && stereo::eye() == portals::textureEye;
+    const bool mine =
+        portals::enabled() && !portals::inView && stereo::isRenderingEye() && !stereo::isSpectator() && stereo::eye() == portals::textureEye;
     return mine ? portals::texture : 0u;
 }
 
@@ -568,7 +586,7 @@ extern "C" unsigned VR_PortalTexture(void)
 // them, near the client) added, so that what is there is sent and seen through them.
 extern "C" void VR_PortalAddPVS(byte* pvs, const float org[3])
 {
-    if(vr_portals.value <= 0.f || !sv.worldmodel || sv.state != ss_active)
+    if(!portals::enabled() || vr_portals.value <= 0.f || !sv.worldmodel || sv.state != ss_active)
     {
         return;
     }
@@ -635,7 +653,8 @@ ClientState clients[MAX_SCOREBOARD];
 
 [[nodiscard]] bool walkOn()
 {
-    return vr_portals.value > 0.f && vr_portals_walk.value > 0.f && sv.active && sv.state == ss_active && sv.worldmodel;
+    return enabled() && vr_portals.value > 0.f && vr_portals_walk.value > 0.f && sv.active && sv.state == ss_active &&
+        sv.worldmodel;
 }
 
 // As teleport_touch: a trigger waiting to be fired (a targetname, not IGNORE_TARGETNAME) is shut until then.
@@ -1017,8 +1036,8 @@ namespace qvr::portals
 // how near his box can bring it. For checking a crossing by hand, and for finding a gate's geometry in a map.
 void infoBody()
 {
-    Con_Printf("VR portals: %d sides (vr_portals %g, vr_portals_walk %g)\n", static_cast<int>(sides.size()),
-        vr_portals.value, vr_portals_walk.value);
+    Con_Printf("VR portals: %d sides (vr_slipgates %g, vr_portals %g, vr_portals_walk %g)\n", static_cast<int>(sides.size()),
+        vr_slipgates.value, vr_portals.value, vr_portals_walk.value);
     for(int i = 0; i < static_cast<int>(sides.size()); i++)
     {
         const Side& sd = sides[static_cast<za::SizeT>(i)];
@@ -1061,6 +1080,11 @@ void info_f()
     if(!sv.worldmodel)
     {
         Con_Printf("VR portals: no server world.\n");
+        return;
+    }
+    if(!enabled())
+    {
+        Con_Printf("VR portals: off (vr_slipgates 0): no gates built, nothing goes through one, Quake's teleporters.\n");
         return;
     }
     if(!current())
@@ -1184,25 +1208,25 @@ extern "C" void VR_PortalTrace(const float start[3], const float end[3], int typ
 // (portal_entry, portal_exit), a direction turned as it was (portal_turn).
 extern "C" float VR_PortalCrossings(void)
 {
-    return static_cast<float>(qvr::portals::traceCrossings);
+    return static_cast<float>(qvr::portals::enabled() ? qvr::portals::traceCrossings : 0);
 }
 
 extern "C" void VR_PortalEntry(int i, float out[3])
 {
     using namespace qvr::portals;
-    const glm::vec3 p = i >= 0 && i < traceCrossings ? traceEntry[i] : glm::vec3{0.f};
+    const glm::vec3 p = enabled() && i >= 0 && i < traceCrossings ? traceEntry[i] : glm::vec3{0.f};
     setVec(out, p);
 }
 
 extern "C" void VR_PortalExit(int i, float out[3])
 {
     using namespace qvr::portals;
-    const glm::vec3 p = i >= 0 && i < traceCrossings ? traceExit[i] : glm::vec3{0.f};
+    const glm::vec3 p = enabled() && i >= 0 && i < traceCrossings ? traceExit[i] : glm::vec3{0.f};
     setVec(out, p);
 }
 
 extern "C" void VR_PortalTurn(const float v[3], float out[3])
 {
     using namespace qvr::portals;
-    setVec(out, traceTurn * vec(v));
+    setVec(out, enabled() ? traceTurn * vec(v) : vec(v));
 }

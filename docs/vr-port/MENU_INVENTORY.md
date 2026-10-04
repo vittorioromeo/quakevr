@@ -2387,7 +2387,8 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
         - Ripple Wavelength → `vr_water_ripple_wavelength`
         - Ripples at Once → `vr_water_ripple_max`
         - Water Sounds → `vr_water_sounds`
-      - **Graphics - Slipgates** [menu_vr 135] — 2 rows / 2 settings / 0 actions (vr_menu_pages.inc)
+      - **Graphics - Slipgates** [menu_vr 135] — 3 rows / 3 settings / 0 actions (vr_menu_pages.inc)
+        - Slipgates → `vr_slipgates`
         - Slipgate Views → `vr_portals`
         - Seamless Slipgates → `vr_portals_walk`
       - **Graphics - Post-processing** [menu_vr 37] — 12 rows / 11 settings / 0 actions (vr_menu_pages.inc:1018)

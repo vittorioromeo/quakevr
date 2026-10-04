@@ -266,6 +266,7 @@ Mummy: gib a beheaded mummy's ragdoll: no second head flies out
 Corpse Damage and Health has Mummy (Rogue, Beheaded)
 
 [Slipgates]
+Slipgates off (Graphics > Slipgates > Slipgates, or vr_slipgates 0): walk into a gate in start → the old teleport, a flash and a jump, 0.7 s locked; nothing about the gate is drawn or carried → this is how to compare the two
 Slipgate: walk into a gate's frame in start → you hit a wall, no sudden jump
 Slipgate: lean or reach into a gate with your head → no teleport; it happens only when your torso's middle plane goes through the gate's plane
 Slipgate: walk through at an angle, and try a gate whose opening is inset from its TELE faces (the aperture tolerance is now exact, stricter than before)

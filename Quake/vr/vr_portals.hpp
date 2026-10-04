@@ -22,6 +22,11 @@
 // the destinations of the gates it can see (their PVS added to its own), so the monsters and items there are seen too.
 // Both eyes are right (each its own view); the desktop's spectator camera shows the slipgates' texture.
 //
+// The whole feature is one switch: vr_slipgates (Graphics > Slipgates, default on). With it 0 nothing here runs - no gate
+// is built, none is looked through, no view is drawn, nothing is carried or traced through one, and Quake's
+// trigger_teleport moves the player exactly as it did before this file existed. vr_portals (the view) and
+// vr_portals_walk (going through) are its two parts. Flipping it takes effect at once, no map reload.
+//
 // Walking and shooting through (vr_portals_walk; the server, single player and listen servers): a player is carried
 // through when his torso's middle plane - the plane that halves his collision box, his feet to the top of his head -
 // goes through a side's plane over its aperture. The box, not the head: the box is what the world stops, so what he
