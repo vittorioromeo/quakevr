@@ -108,7 +108,8 @@ void VR_AliasAmbient (const struct entity_s *e, const float matrix[16], const vo
 void VR_AliasSurface (const struct entity_s *e, float out[4]); // instance: rim light, reflections' strength and blur (vr_envmap.cpp)
 unsigned VR_EnvCubeTexture (void);							// the reflections' cube map (0: none yet; vr_envmap.cpp)
 unsigned VR_WaterCubeTexture (void);						// the water's reflections' cube map (0: none this frame; vr_envmap.cpp)
-void VR_PortalView (void);									// slipgates (vr_portals.cpp): the view through the gate moved there (R_RenderView)
+void VR_PortalView (void);
+struct mleaf_s *VR_PortalViewLeaf (struct mleaf_s *leaf);		// ... the leaf it is seen from: the destination's (R_SetupView)									// slipgates (vr_portals.cpp): the view through the gate moved there (R_RenderView)
 void VR_PortalClip (float proj[16], const float view[16]);	// ... its oblique near plane (R_SetFrustum)
 void VR_DrawPortalMask (void);								// ... its depth outside the gate on screen (R_RenderScene)
 void VR_PortalFrameData (float plane[4], float mins[4], float maxs[4]); // ... the side shown in this view (VR_WaterView)

@@ -734,7 +734,10 @@ static void PF_traceline (void)
 	if (IS_NAN(v2[0]) || IS_NAN(v2[1]) || IS_NAN(v2[2]))
 		v2[0] = v2[1] = v2[2] = 0;
 
-	trace = SV_Move (v1, vec3_origin, vec3_origin, v2, nomonsters, ent);
+	VR_PortalTraceBegin (); // QVR: (the last portal trace's crossings forgotten)
+	trace = SV_Move (v1, vec3_origin, vec3_origin, v2, nomonsters & ~MOVE_PORTALS, ent);
+	if (nomonsters & MOVE_PORTALS) // QVR: on through the slipgates it crosses (vr/vr_portals.cpp)
+		VR_PortalTrace (v1, v2, nomonsters & ~MOVE_PORTALS, ent, &trace);
 
 	pr_global_struct->trace_allsolid = trace.allsolid;
 	pr_global_struct->trace_startsolid = trace.startsolid;

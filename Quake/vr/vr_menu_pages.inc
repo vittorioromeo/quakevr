@@ -502,6 +502,7 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsShadows();
 [[nodiscard]] za::Vector<Item> pageGraphicsSurfaces();
 [[nodiscard]] za::Vector<Item> pageGraphicsLiquids();
+[[nodiscard]] za::Vector<Item> pageGraphicsSlipgates();
 [[nodiscard]] za::Vector<Item> pageGraphicsPost();
 [[nodiscard]] za::Vector<Item> pageGraphicsModels();
 [[nodiscard]] za::Vector<Item> pageGraphicsRetro();
@@ -529,6 +530,7 @@ void resetHandMoves()
         open("Shadows", pageIndex(pageGraphicsShadows)),
         open("Surfaces", pageIndex(pageGraphicsSurfaces)),
         open("Liquids", pageIndex(pageGraphicsLiquids)),
+        open("Slipgates", pageIndex(pageGraphicsSlipgates)),
         open("Post-processing", pageIndex(pageGraphicsPost)),
         open("Models and Effects", pageIndex(pageGraphicsModels)),
         open("Retro Textures", pageIndex(pageGraphicsRetro)),
@@ -967,13 +969,20 @@ void retroAllUncheckCategories()
 }
 
 // Graphics: water, slime and lava.
+// Graphics: slipgates that show where they lead, and going through them (vr_portals.cpp).
+[[nodiscard]] za::Vector<Item> pageGraphicsSlipgates()
+{
+    return {
+        slider("Slipgate Views", "vr_portals", 0.f, 1.f, 0.1f, "%.1f").extend().help("Slipgates show where they lead, like Portal's portals: the place they take you to, live, through their shimmer (the scene is drawn again for the one you look at). 0: Quake's plain shimmer."),
+        toggle("Seamless Slipgates", "vr_portals_walk").help("With Slipgate Views on, you walk through slipgates into the place you saw, keeping your speed and the way you face (no flash, no pause), and rockets, grenades, nails, thrown props and gunfire go through them. Off: Quake's teleport."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageGraphicsLiquids()
 {
     return {
         slider("Waves", "vr_water_waves", 0.f, 2.f, 0.1f, "%.1f").extend().help("Waves on water, slime and lava, in the lighting (the surfaces stay flat). 0: Quake's flat liquids."),
         slider("Water Reflection", "vr_water_fresnel", 0.f, 2.f, 0.1f, "%.1f").extend().help("Water is clearer looking straight down and reflects the room at grazing angles."),
-        slider("Slipgate Views", "vr_portals", 0.f, 1.f, 0.1f, "%.1f").extend().help("Slipgates show where they lead, like Portal's portals: the place they take you to, live, through their shimmer (the scene is drawn again for the one you look at). 0: Quake's plain shimmer."),
-        toggle("Seamless Slipgates", "vr_portals_walk").help("With Slipgate Views on, you walk through slipgates into the place you saw, keeping your speed and the way you face (no flash, no pause), and rockets, grenades and nails fly through them. Off: Quake's teleport."),
         slider("Reflected Room", "vr_water_reflections", 0.f, 1.f, 0.1f, "%.1f").extend().help("Water and slime mirror the room around them (walls, lights, the sky) instead of a plain sheen: a picture of the world made at the water's surface nearest you. How strongly the water reflects is Water Reflection. 0: off."),
         slider("Water Refraction", "vr_water_refraction", 0.f, 2.f, 0.1f, "%.1f").extend().help("What is under the water is bent by the waves (needs r_oit 1)."),
         slider("Water Glints", "vr_water_glints", 0.f, 2.f, 0.1f, "%.1f").extend().help("Light glinting off the waves."),

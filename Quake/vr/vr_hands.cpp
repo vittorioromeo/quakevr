@@ -150,6 +150,16 @@ glm::vec3 lean{0.f};
 glm::vec3 lastBody{0.f};
 bool lastBodyValid = false;
 
+// A walk through a slipgate (portalCrossing, vr_portals.cpp): the body's coming jump is not a teleport's: the play space
+// turns by the gate's yaw (not to the server's view angle), the lean turns with it (not dropped) and the stairs' easing
+// keeps its height under the head.
+bool portalJumpPending = false;
+float portalJumpYaw = 0.f;
+bool portalAngleTaken = false;
+double portalJumpTime = -1.0;
+glm::vec3 lastRawOrigin{0.f};
+bool lastRawOriginValid = false;
+
 // Leaning or walking (vr_lean_detect). The head moving off the box's middle is either a lean -- the feet stay, the
 // back tilts at the hips or bends sideways, so the head goes down a little as it goes out (more the further out: an
 // arc about the hips) and usually tilts the way it goes, while hands hanging at the sides stay by the hips -- or the
@@ -280,7 +290,15 @@ void updateRoomscale(const TrackingState& t, float m2u, const glm::vec3& body)
     // A teleport, a respawn, a new map: the body is put under the head.
     if(lastBodyValid && glm::length(glm::vec2{body.x - lastBody.x, body.y - lastBody.y}) > 64.f)
     {
-        lean = glm::vec3{0.f};
+        if(portalJumpPending) // through a slipgate: the head where it was over the body, turned with the gate
+        {
+            lean = rotateYaw(lean, portalJumpYaw);
+            portalJumpPending = false;
+        }
+        else
+        {
+            lean = glm::vec3{0.f};
+        }
         leanSense.handsRefValid = false;
     }
     lastBody = body;
@@ -502,6 +520,17 @@ void update()
         float& smoothZ = stairSmoothZ;
         double& lastTime = stairLastTime;
         const float z = state.playerOrigin.z;
+        if(portalJumpPending && cl.time - portalJumpTime > 0.5)
+        {
+            portalJumpPending = false; // (no jump came: a gate leading close by)
+        }
+        if(portalJumpPending && lastRawOriginValid &&
+            glm::length(glm::vec2{state.playerOrigin.x - lastRawOrigin.x, state.playerOrigin.y - lastRawOrigin.y}) > 64.f)
+        {
+            smoothZ += z - lastRawOrigin.z; // through a slipgate: still that far under the origin
+        }
+        lastRawOrigin = state.playerOrigin;
+        lastRawOriginValid = true;
         if(!noclip_anglehack && cl.onground && z - smoothZ > 0.f && lastTime >= 0.0)
         {
             if(cl.time != lastTime)
@@ -685,8 +714,24 @@ glm::quat aimedController(const glm::quat& controller, int hand)
     return withHandOffsets(controller, hand);
 }
 
+void portalCrossing(float yawDegrees)
+{
+    portalJumpPending = true;
+    portalJumpYaw = yawDegrees;
+    portalAngleTaken = false;
+    portalJumpTime = cl.time;
+}
+
 void setServerYaw(float yaw)
 {
+    if(portalJumpPending && !portalAngleTaken)
+    {
+        // The server's angle for a walk through a slipgate: the play space turned by the gate's yaw itself (the
+        // server's head angle is a frame old: its turn would be off by the head's own turn since).
+        portalAngleTaken = true;
+        addTurn(portalJumpYaw);
+        return;
+    }
     pendingYawValid = true;
     pendingYaw = yaw;
     stateFrame = -1; // recompute the hands with the new yaw

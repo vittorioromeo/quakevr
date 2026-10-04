@@ -253,6 +253,35 @@ void PF_portal_handles()
     G_FLOAT(OFS_RETURN) = VR_PortalHandles(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1));
 }
 
+extern "C" float VR_PortalCrossings(void);                    // vr_portals.cpp
+extern "C" void VR_PortalEntry(int i, float out[3]);
+extern "C" void VR_PortalExit(int i, float out[3]);
+extern "C" void VR_PortalTurn(const float v[3], float out[3]);
+
+// float() portal_crossings: how many slipgates the last MOVE_PORTALS traceline went through (0 none).
+void PF_portal_crossings()
+{
+    G_FLOAT(OFS_RETURN) = VR_PortalCrossings();
+}
+
+// vector(float i) portal_entry, portal_exit: where it went into the i-th (from 0) and came out of it.
+void PF_portal_entry()
+{
+    VR_PortalEntry(static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_RETURN));
+}
+
+void PF_portal_exit()
+{
+    VR_PortalExit(static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_RETURN));
+}
+
+// vector(vector v) portal_turn: v turned as the last MOVE_PORTALS traceline was by its gates.
+void PF_portal_turn()
+{
+    const float v[3] = {G_VECTOR(OFS_PARM0)[0], G_VECTOR(OFS_PARM0)[1], G_VECTOR(OFS_PARM0)[2]};
+    VR_PortalTurn(v, G_VECTOR(OFS_RETURN));
+}
+
 void PF_worldtext_hsetangles()
 {
     worldtext::serverSetAngles(worldTextHandle(), vecParm1());
@@ -1565,6 +1594,10 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"worldtext_hsetpos", PF_worldtext_hsetpos},
     {"worldtext_hsetangles", PF_worldtext_hsetangles},
     {"portal_handles", PF_portal_handles},
+    {"portal_crossings", PF_portal_crossings},
+    {"portal_entry", PF_portal_entry},
+    {"portal_exit", PF_portal_exit},
+    {"portal_turn", PF_portal_turn},
     {"worldtext_hsethalign", PF_worldtext_hsethalign},
     {"worldtext_hsetscale", PF_worldtext_hsetscale},
     {"WriteVec3", PF_WriteVec3},

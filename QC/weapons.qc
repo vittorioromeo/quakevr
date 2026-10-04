@@ -1881,21 +1881,33 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
     {
         direction = dir + crandom()*spread_x*v_right + crandom()*spread_y*v_up;
 
-        traceline(src, src + direction*xRange, MOVE_HITGIBS | MOVE_HITMODEL, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise),
+        traceline(src, src + direction*xRange, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise), on through slipgates (vr_portals.cpp),
         if(xStartHits && trace_startsolid && trace_ent != world && trace_ent.takedamage)
         {
             trace_fraction = 0; // started inside it: hit there
             trace_endpos = src;
             trace_plane_normal = -direction;
         }
-        tracer(self, vr_tracer_hand, vr_tracer_from, trace_endpos); // a bullet tracer, from the muzzle (vr_weaponfx.cpp)
+        // QVR: through a slipgate, the pellet goes on from its far side, turned with it (vr_portals_walk)
+        vector shotFrom = src, shotDir = direction;
+        if(portal_crossings() > 0)
+        {
+            tracer(self, vr_tracer_hand, vr_tracer_from, portal_entry(0)); // its tracer into the gate,
+            shotFrom = portal_exit(portal_crossings() - 1);
+            shotDir = portal_turn(direction);
+            tracer(world, 2, shotFrom, trace_endpos);                   // and out of the far side
+        }
+        else
+        {
+            tracer(self, vr_tracer_hand, vr_tracer_from, trace_endpos); // a bullet tracer, from the muzzle (vr_weaponfx.cpp)
+        }
         if(!(self.flags & FL_CLIENT))
         {
             VR_Crate_MonsterShot(src, src + direction*xRange); // a crate held up in the way
         }
-        VR_ShotPush(trace_ent, src, trace_endpos, direction, QVR_SHOTPUSH_PELLET, 1); // the prop it hits or goes through
+        VR_ShotPush(trace_ent, shotFrom, trace_endpos, shotDir, QVR_SHOTPUSH_PELLET, 1); // the prop it hits or goes through
         VR_Gib_TraceHeld(src, src + direction*xRange);               // and one held in the other hand
-        VR_WaterShotSplash(src, trace_endpos);                        // a splash where it goes into water
+        VR_WaterShotSplash(shotFrom, trace_endpos);                   // a splash where it goes into water
         if(debugShots)
         {
             if(trace_fraction == 1.0) { misses++; }
@@ -1905,12 +1917,12 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
         if(trace_fraction != 1.0)
         //JIM
         {
-            posDmgType = PositionalDamage(trace_ent, trace_endpos, direction);
+            posDmgType = PositionalDamage(trace_ent, trace_endpos, shotDir);
             VR_SmallGib_Pellet(trace_ent, trace_endpos);
             if(debugShots && posDmgType == 1) { hitsHead++; }
             adjDmg = (vr_pellet_damage ? vr_pellet_damage : 4) * PositionalDamageFactor(posDmgType);
 
-            TraceAttack (adjDmg, direction);
+            TraceAttack (adjDmg, shotDir);
 
             // HIPNOTIC
             if(trace_ent == world)
@@ -2471,18 +2483,30 @@ void(float xHand) W_FireLightning =
     // Along the shot's line, from behind the muzzle (VR_ShotBackPoint): what the muzzle is inside is struck too.
     makeforward(VRGetWeaponFireRot(xHand));
     vector from = VR_ShotBackPoint(xHand, org, v_forward);
-    traceline(from, org + v_forward*600, TRUE, self);
+    traceline(from, org + v_forward*600, TRUE | MOVE_PORTALS, self);
+    // QVR: through a slipgate (vr_portals.cpp, vr_portals_walk), the bolt in two pieces: to the gate, and on from its far
+    // side, turned with it (its beam: PlayerLightningGunEffect)
+    float through = portal_crossings() > 0;
+    vector boltEnd = trace_endpos;
+    vector gateIn = through ? portal_entry(0) : boltEnd;
+    vector boltFrom = through ? portal_exit(portal_crossings() - 1) : org;
+    vector boltDir = through ? portal_turn(v_forward) : v_forward;
     if(cvar_hget(cvarh_vr_lg_water))
     {
-        VR_LGWater_Beam(org, trace_endpos); // into water from the open: electrified
+        VR_LGWater_Beam(boltFrom, boltEnd); // into water from the open: electrified
     }
-    VR_LGWater_Splash(org, trace_endpos); // and a splash where it goes in
-    particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
-    particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
-    particle2(trace_endpos, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
-    VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', v_forward);
+    VR_LGWater_Splash(boltFrom, boltEnd); // and a splash where it goes in
+    particle2(boltEnd, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
+    particle2(boltEnd, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
+    particle2(boltEnd, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
+    VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', boltDir);
     vr_decap_weapon = QVR_DECAP_LIGHTNING; // (head pops)
-    LightningDamage(from, trace_endpos + v_forward*4, self, cvar_hget(cvarh_vr_dmg_lightning));
+    if(through)
+    {
+        LightningDamage(from, gateIn, self, cvar_hget(cvarh_vr_dmg_lightning)); // the piece on this side
+        from = boltFrom;
+    }
+    LightningDamage(from, boltEnd + boltDir*4, self, cvar_hget(cvarh_vr_dmg_lightning));
     vr_decap_weapon = 0;
     VR_ClearHitKind();
 
@@ -3980,10 +4004,15 @@ entity(float xKind, vector xAt) VR_Test_Fire =
     from = from + dir * 24; // (ahead of your hands)
     if(xKind == 10)
     {
-        traceline(from, from + dir * 2048, MOVE_HITGIBS | MOVE_HITMODEL, self); // (a pellet's: FireBulletsImpl)
+        traceline(from, from + dir * 2048, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // (a pellet's: FireBulletsImpl)
         string what = "nothing";
         if(trace_ent != world) { what = trace_ent.classname; } else if(trace_fraction < 1) { what = "the world"; }
         dprint(sprintf("test fire: shot from %.3f %.3f %.3f dir %.5f %.5f %.5f ", from_x, from_y, from_z, dir_x, dir_y, dir_z));
+        if(portal_crossings() > 0)
+        {
+            dprint(sprintf("through %d slipgate(s) (in at %v, out at %v, on along %v) ", portal_crossings(), portal_entry(0),
+                portal_exit(portal_crossings() - 1), portal_turn(dir)));
+        }
         dprint(sprintf("hit %s at %.3f %.3f %.3f\n", what, trace_endpos_x, trace_endpos_y, trace_endpos_z));
         vr_tracer_hand = -1;
         vr_tracer_from = from;
@@ -4959,14 +4988,29 @@ void() ImpulseCommands =
 void(vector xOrigin, float xHand) PlayerLightningGunEffect =
 {
     makeforward(VRGetWeaponFireRot(xHand));
-    traceline(VR_ShotBackPoint(xHand, xOrigin, v_forward), xOrigin + v_forward*600, TRUE, self); // as W_FireLightning
+    traceline(VR_ShotBackPoint(xHand, xOrigin, v_forward), xOrigin + v_forward*600, TRUE | MOVE_PORTALS, self); // as W_FireLightning
+
+    // QVR: through a slipgate (vr_portals.cpp), two beams: from the gun into the gate (the client draws it from the gun as
+    // drawn, this long), and from the gate's far side on (the world's: drawn where it is sent)
+    vector beamEnd = trace_endpos;
+    if(portal_crossings() > 0)
+    {
+        vector farFrom = portal_exit(portal_crossings() - 1);
+        beamEnd = portal_entry(0);
+        WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
+        WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
+        WriteEntity(MSG_BROADCAST, world);
+        WriteByte(MSG_BROADCAST, xHand); /* disambiguator */
+        WriteVec3(MSG_BROADCAST, farFrom);
+        WriteVec3(MSG_BROADCAST, trace_endpos);
+    }
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
     WriteEntity(MSG_BROADCAST, self);
     WriteByte(MSG_BROADCAST, xHand); /* disambiguator */
     WriteVec3(MSG_BROADCAST, xOrigin);
-    WriteVec3(MSG_BROADCAST, trace_endpos);
+    WriteVec3(MSG_BROADCAST, beamEnd);
 }
 
 float(entity ent, float xHand) VRWeaponLeavingHand;

@@ -364,6 +364,9 @@ extern "C" int VR_RigidToss(edict_t* ent)
         return 0;
     }
 
+    // Through a slipgate its path crosses (vr_portals.cpp): moved, turned and sped on as a teleport, which Box3D takes up.
+    VR_PortalToss(ent);
+
     // Box3D moves it, with the others, at the frame's end (VR_PhysicsFrameEnd; its water transitions too).
     return box3d::toss(ent) ? 1 : 0;
 }

@@ -7,6 +7,7 @@
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_move.hpp"
+#include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_server.hpp"
 #include "vr_stereo.hpp"
@@ -251,9 +252,21 @@ void build()
             sd->maxs = glm::max(sd->maxs, vec(s->maxs));
             sd->area += surfaceArea(m, s);
         }
-        for(za::SizeT q = first; q < sides.size(); q++)
+        // A gate's brush is a liquid's: its faces are drawn from inside it too, their fronts in it. Only the faces
+        // looking out into the open are sides.
+        for(za::SizeT q = first; q < sides.size();)
         {
+            const Side& sd = sides[q];
+            const glm::vec3 c = (sd.mins + sd.maxs) * 0.5f + sd.normal * 2.f;
+            vec3_t out{c.x, c.y, c.z};
+            if(Mod_PointInLeaf(out, m)->contents != CONTENTS_EMPTY)
+            {
+                sides[q] = sides.back();
+                sides.popBack();
+                continue;
+            }
             finish(sides[q], m, vec(d->v.origin), destYaw);
+            q++;
         }
     }
     PR_PopQCVM(oldVm);
@@ -273,6 +286,32 @@ void build()
 [[nodiscard]] glm::vec3 nearestPoint(const Side& sd, const glm::vec3& p)
 {
     return glm::clamp(p, sd.mins, sd.maxs);
+}
+
+// Whether side i is seen through another gate (the line from the eye to its middle crosses another side over its gate,
+// from that side's front): the gate in front is the one looked through (a slipgate behind a slipgate, as in start).
+[[nodiscard]] bool behindGate(za::SizeT i, const glm::vec3& eye)
+{
+    const glm::vec3 middle = (sides[i].mins + sides[i].maxs) * 0.5f;
+    for(za::SizeT j = 0; j < sides.size(); j++)
+    {
+        const Side& o = sides[j];
+        if(j == i || o.trigger == sides[i].trigger)
+        {
+            continue;
+        }
+        const float d0 = glm::dot(o.normal, eye) - o.dist, d1 = glm::dot(o.normal, middle) - o.dist;
+        if(d0 <= 0.f || d1 >= -1.f)
+        {
+            continue;
+        }
+        const glm::vec3 c = eye + (middle - eye) * (d0 / (d0 - d1));
+        if(!glm::any(glm::lessThan(c, o.mins - 1.f)) && !glm::any(glm::greaterThan(c, o.maxs + 1.f)))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace
@@ -309,14 +348,14 @@ void update()
     for(za::SizeT i = 0; i < sides.size(); i++)
     {
         const Side& sd = sides[i];
-        if(glm::dot(sd.normal, s.head) - sd.dist < 2.f || !inPvs(vis, sd.leaf))
+        if(glm::dot(sd.normal, s.head) - sd.dist < 0.f || !inPvs(vis, sd.leaf)) // (to the plane: the walk through it)
         {
             continue;
         }
         const float d = glm::distance(nearestPoint(sd, s.head), s.head);
         const glm::vec3 toMiddle = (sd.mins + sd.maxs) * 0.5f - s.head;
         const float len = glm::length(toMiddle);
-        if(d > kRange || (len > 64.f && glm::dot(forward, toMiddle / len) < 0.2f))
+        if(d > kRange || (len > 64.f && glm::dot(forward, toMiddle / len) < 0.2f) || behindGate(i, s.head))
         {
             continue;
         }
@@ -414,6 +453,22 @@ extern "C" void VR_PortalView(void)
         r_refdef.vieworg[i] = o[i];
     }
     r_refdef.viewangles[YAW] += sd.yaw;
+}
+
+// R_SetupView: in the view through the gate, the leaf it is seen from is the destination's, just beyond its point (the
+// view itself is carried behind it, as far as the eye is from the gate: in a wall, or another room, whose PVS would
+// leave the destination out, dark); else the view's own.
+extern "C" mleaf_t* VR_PortalViewLeaf(mleaf_t* leaf)
+{
+    if(!portals::inView || portals::chosen < 0)
+    {
+        return leaf;
+    }
+    const portals::Side& sd = portals::sides[static_cast<za::SizeT>(portals::chosen)];
+    const glm::vec3 p = sd.to + sd.turn * -sd.normal * 8.f;
+    vec3_t q{p.x, p.y, p.z};
+    mleaf_t* dest = Mod_PointInLeaf(q, cl.worldmodel);
+    return dest && dest->contents != CONTENTS_SOLID ? dest : leaf;
 }
 
 // R_SetFrustum, its view matrix made (Quake's view space: x forward, y left, z up), its projection's not yet multiplied
@@ -563,8 +618,8 @@ namespace qvr::portals
 namespace
 {
 
-constexpr float kCross = 18.f;     // how near the plane the head takes the player through (the gate then fills the eyes)
-constexpr double kStuck = 1.5;     // seconds in a gate's trigger without reaching it before Quake's teleport takes over
+constexpr float kCross = 24.f;     // how near the plane the head is watched for its crossing
+constexpr double kStuck = 1.0;     // seconds in a gate's trigger, not over its gate, before Quake's teleport takes over
 constexpr double kCooldown = 0.5;  // seconds after a crossing before the next (no bouncing between two gates)
 
 // Each client's time in a seamless gate's trigger (portal_handles) and last crossing.
@@ -612,6 +667,28 @@ ClientState clients[MAX_SCOREBOARD];
 [[nodiscard]] bool onGate(const Side& sd, const glm::vec3& onPlane, float margin)
 {
     return !glm::any(glm::lessThan(onPlane, sd.mins - margin)) && !glm::any(glm::greaterThan(onPlane, sd.maxs + margin));
+}
+
+// The player's head (the client's, from its box; else Quake's view).
+[[nodiscard]] glm::vec3 headOf(edict_t* ent)
+{
+    const VrMove* move = server::clientMove(ent);
+    const glm::vec3 origin = vec(ent->v.origin);
+    return move ? origin + (move->headPos - move->origin) : origin + vec(ent->v.view_ofs);
+}
+
+// Whether the head is over a side of trigger t's gate, within kCross of its plane in front: the engine's to carry through.
+[[nodiscard]] bool overGate(int t, const glm::vec3& head)
+{
+    for(const Side& sd : sides)
+    {
+        const float d = glm::dot(sd.normal, head) - sd.dist;
+        if(sd.trigger == t && d < kCross && d > -4.f && onGate(sd, head - sd.normal * d, 8.f))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 [[nodiscard]] bool blocked(edict_t* ent, const glm::vec3& p)
@@ -667,6 +744,13 @@ void crossPlayer(edict_t* ent, const Side& sd, edict_t* trig, ClientState& cs)
     cs.crossed = qcvm->time;
     cs.first = -1.0;
 
+    // This machine's player (single player, a listen server's host): its client turns the play space by the gate's yaw
+    // and keeps the head's lean and the stairs' easing through the jump, so that the view goes on as it was.
+    if(cls.state == ca_connected && svs.maxclients >= 1 && ent == svs.clients[0].edict)
+    {
+        hands::portalCrossing(sd.yaw);
+    }
+
     // What Quake's teleport does besides moving him (QuakeC: its targets, what the hands carry).
     if(const func_t fn = progs::findFunction("VR_Portal_Crossed"))
     {
@@ -708,16 +792,15 @@ extern "C" void VR_PortalClientCross(edict_t* ent)
     {
         return;
     }
-    const VrMove* move = server::clientMove(ent);
     const glm::vec3 origin = vec(ent->v.origin);
-    const glm::vec3 head = move ? origin + (move->headPos - move->origin) : origin + vec(ent->v.view_ofs);
+    const glm::vec3 head = headOf(ent);
     // The side the head is in front of and nearest (a sheet's two sides: the one it faces, not the one behind it).
     const Side* best = nullptr;
     float bestD = kCross;
     for(const Side& sd : sides)
     {
         const float d = glm::dot(sd.normal, head) - sd.dist;
-        if(d >= bestD || d < -2.f || !onGate(sd, head - sd.normal * d, 8.f))
+        if(d >= bestD || d < -4.f || !onGate(sd, head - sd.normal * d, 8.f))
         {
             continue;
         }
@@ -729,7 +812,23 @@ extern "C" void VR_PortalClientCross(edict_t* ent)
         best = &sd;
         bestD = d;
     }
-    if(best)
+    if(!best)
+    {
+        return;
+    }
+    // Through when the head reaches the plane (the view goes on through the gate, the room round it never seen to
+    // change), or as near as the body can bring it (a wall, bars or a ledge just behind the gate's plane: the body stops
+    // short of it; its box is moved towards the plane to see how far it goes).
+    float reach = 0.f;
+    if(bestD > 1.f)
+    {
+        vec3_t start{origin.x, origin.y, origin.z};
+        const glm::vec3 to = origin - best->normal * (bestD + 1.f);
+        vec3_t end{to.x, to.y, to.z};
+        const trace_t tr = SV_Move(start, ent->v.mins, ent->v.maxs, end, MOVE_NOMONSTERS, ent);
+        reach = bestD - tr.fraction * (bestD + 1.f); // how near the head can come (under 0: through)
+    }
+    if(bestD <= za::max(reach, 0.f) + 1.f)
     {
         crossPlayer(ent, *best, EDICT_NUM(best->trigger), cs);
     }
@@ -748,7 +847,10 @@ extern "C" void VR_PortalToss(edict_t* ent)
     {
         build();
     }
-    const glm::vec3 o = vec(ent->v.origin), v = vec(ent->v.velocity);
+    // Its middle's path (a box's origin is at its foot: one sliding on a floor under a gate's sill is in its gate): a
+    // model's drawn middle (a rigid body's box is its model's, not its Quake box: physics::modelCentre), else its box's.
+    const glm::vec3 mid = physics::modelCentre(ent) - vec(ent->v.origin);
+    const glm::vec3 o = vec(ent->v.origin) + mid, v = vec(ent->v.velocity);
     if(sides.empty() || glm::dot(v, v) < 1.f)
     {
         return;
@@ -767,17 +869,27 @@ extern "C" void VR_PortalToss(edict_t* ent)
         {
             continue;
         }
+        // Its middle's way to the plane clear (its box, wider than the gate's brush, would reach the wall behind it).
         vec3_t start{o.x, o.y, o.z};
-        const glm::vec3 before = o + (c - o) * 0.98f;
-        vec3_t end{before.x, before.y, before.z};
-        const trace_t tr = SV_Move(start, ent->v.mins, ent->v.maxs, end, MOVE_NORMAL, ent);
+        vec3_t end{c.x, c.y, c.z};
+        const trace_t tr = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, ent);
         if(tr.startsolid || tr.fraction < 1.f)
         {
             continue; // it hits something on the way
         }
-        const glm::vec3 dir = sd.turn * v;
-        const glm::vec3 to = carried(sd, c) + glm::normalize(dir);
-        if(blocked(ent, to))
+        // Its middle carried through (its box's offset kept: it is axis-aligned), a little further on where it does not fit.
+        const glm::vec3 dir = sd.turn * v, ahead = glm::normalize(dir);
+        glm::vec3 to = carried(sd, c) - mid;
+        bool fits = false;
+        for(float step = 1.f; step <= 33.f && !fits; step += 8.f)
+        {
+            fits = !blocked(ent, to + ahead * step);
+            if(fits)
+            {
+                to += ahead * step;
+            }
+        }
+        if(!fits)
         {
             continue;
         }
@@ -785,6 +897,12 @@ extern "C" void VR_PortalToss(edict_t* ent)
         setVec(ent->v.oldorigin, to);
         setVec(ent->v.velocity, dir);
         ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + sd.yaw);
+        const int spinField = ED_FindFieldOffset("vr_spin"); // a rigid body's spin (rad/s, the world's axes)
+        if(spinField >= 0)
+        {
+            eval_t* spin = GetEdictFieldValue(ent, spinField);
+            setVec(spin->vector, sd.turn * vec(spin->vector));
+        }
         SV_LinkEdict(ent, false);
         return;
     }
@@ -815,11 +933,138 @@ extern "C" float VR_PortalHandles(edict_t* trig, edict_t* who)
         return 0.f;
     }
     ClientState& cs = clients[num];
-    if(cs.trigger != t || qcvm->time - cs.last > 0.3 || cs.first < 0.0)
+    if(cs.trigger != t || qcvm->time - cs.last > 0.3 || cs.first < 0.0 || overGate(t, headOf(who)))
     {
-        cs.trigger = t;
+        cs.trigger = t; // (over the gate: the walk through it is near; the time counts from when it is not)
         cs.first = qcvm->time;
     }
     cs.last = qcvm->time;
     return qcvm->time - cs.first < kStuck ? 1.f : 0.f;
+}
+
+// ----------------------------------------------------------------------------
+// Shots through (MOVE_PORTALS traces; vr_portals_walk): a traceline that crosses a side's plane from the front over the
+// gate before it hits anything (a gate on a wall: at the wall) goes on from the destination's side, turned and shifted by
+// the side's mapping, for the rest of its length (two gates at most). The trace's results are the last part's (the
+// fraction of the whole length); QuakeC asks where it went into each gate and came out (portal_entry, portal_exit) and
+// turns its directions as the shot was turned (portal_turn): the beams in two pieces, the blood and pushes the right way.
+
+namespace qvr::portals
+{
+namespace
+{
+
+constexpr int kMaxTraceCrossings = 2;
+int traceCrossings = 0;
+glm::vec3 traceEntry[kMaxTraceCrossings];
+glm::vec3 traceExit[kMaxTraceCrossings];
+glm::mat3 traceTurn{1.f};
+
+} // namespace
+} // namespace qvr::portals
+
+extern "C" void VR_PortalTraceBegin(void)
+{
+    qvr::portals::traceCrossings = 0;
+    qvr::portals::traceTurn = glm::mat3{1.f};
+}
+
+extern "C" void VR_PortalTrace(const float start[3], const float end[3], int type, edict_t* passedict, trace_t* trace)
+{
+    using namespace qvr::portals;
+    if(!walkOn())
+    {
+        return;
+    }
+    if(!current())
+    {
+        build();
+    }
+    glm::vec3 s = vec(start), e = vec(end);
+    const float total = glm::distance(s, e);
+    if(sides.empty() || total < 1.f)
+    {
+        return;
+    }
+    float before = 0.f; // the length gone before the current part
+    for(int n = 0; n < kMaxTraceCrossings; n++)
+    {
+        const float len = glm::distance(s, e);
+        if(trace->startsolid || len < 1.f)
+        {
+            break;
+        }
+        // The nearest gate the part crosses from its front, not past what it hits (a gate on a wall: at the wall).
+        const Side* hit = nullptr;
+        float bestT = 2.f;
+        glm::vec3 at{0.f};
+        for(const Side& sd : sides)
+        {
+            const float d0 = glm::dot(sd.normal, s) - sd.dist, d1 = glm::dot(sd.normal, e) - sd.dist;
+            if(d0 < 0.f || d1 >= 0.f)
+            {
+                continue;
+            }
+            const float t = d0 / (d0 - d1);
+            if(t >= bestT || t * len > trace->fraction * len + 1.f)
+            {
+                continue;
+            }
+            const glm::vec3 c = s + (e - s) * t;
+            if(!onGate(sd, c, 1.f) || !triggerActive(EDICT_NUM(sd.trigger)))
+            {
+                continue;
+            }
+            hit = &sd;
+            bestT = t;
+            at = c;
+        }
+        if(!hit)
+        {
+            break;
+        }
+        const glm::vec3 dir = hit->turn * glm::normalize(e - s);
+        const glm::vec3 from = carried(*hit, at) + dir * 0.5f;
+        const glm::vec3 to = carried(*hit, e);
+        traceEntry[n] = at;
+        traceExit[n] = from;
+        traceTurn = hit->turn * traceTurn;
+        traceCrossings = n + 1;
+        before += bestT * len;
+        s = from;
+        e = to;
+        vec3_t a{s.x, s.y, s.z}, b{e.x, e.y, e.z};
+        *trace = SV_Move(a, vec3_origin, vec3_origin, b, type, passedict);
+    }
+    if(traceCrossings)
+    {
+        trace->fraction = za::min((before + trace->fraction * glm::distance(s, e)) / total, 1.f);
+    }
+}
+
+// QuakeC: the last MOVE_PORTALS traceline's gates (portal_crossings), where it went into the i-th and came out of it
+// (portal_entry, portal_exit), a direction turned as it was (portal_turn).
+extern "C" float VR_PortalCrossings(void)
+{
+    return static_cast<float>(qvr::portals::traceCrossings);
+}
+
+extern "C" void VR_PortalEntry(int i, float out[3])
+{
+    using namespace qvr::portals;
+    const glm::vec3 p = i >= 0 && i < traceCrossings ? traceEntry[i] : glm::vec3{0.f};
+    setVec(out, p);
+}
+
+extern "C" void VR_PortalExit(int i, float out[3])
+{
+    using namespace qvr::portals;
+    const glm::vec3 p = i >= 0 && i < traceCrossings ? traceExit[i] : glm::vec3{0.f};
+    setVec(out, p);
+}
+
+extern "C" void VR_PortalTurn(const float v[3], float out[3])
+{
+    using namespace qvr::portals;
+    setVec(out, traceTurn * vec(v));
 }
