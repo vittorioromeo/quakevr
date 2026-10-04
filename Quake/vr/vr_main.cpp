@@ -25,6 +25,7 @@
 #include "vr_lines.hpp"
 #include "vr_limits.hpp"
 #include "vr_text3d.hpp"
+#include "vr_tips.hpp"
 #include "vr_timescale.hpp"
 #include "vr_torso.hpp"
 #include "vr_twohand.hpp"
@@ -1152,6 +1153,8 @@ extern "C" void VR_Init()
     menu::init();
     Cmd_AddCommand("menu_vr", menu::command_f);
     Cmd_AddCommand("vr_menu_search", menu::search_f);
+    Cmd_AddCommand("vr_tips_reset", tips::reset_f);
+    Cmd_AddCommand("vr_tips_test", tips::test_f);
     Cmd_AddCommand("vr_mock_laser", menuui::mockLaser_f);
     Cmd_AddCommand("vr_bigfont", bigfont::report_f);
     Cmd_AddCommand("vr_checklist", checklist::command_f);
@@ -1290,6 +1293,7 @@ extern "C" void VR_BeginFrame()
     lines::clear(); // queued anew every frame (teleport aim, crosshairs)
     text3d::clear();
     voicenotes::frame(); // after the clear: its indicator is queued anew each frame
+    tips::frame();       // a tip due, the one showing (vr_tips)
     highlights::frame(); // the game's clock against realtime, a multi-kill's end
     motion::frame();     // the motion recorder's indicator, likewise
     posing::frame();     // the weapon posing mode's text, likewise

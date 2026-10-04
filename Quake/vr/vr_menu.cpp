@@ -383,6 +383,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageGibs();
 [[nodiscard]] za::Vector<Item> pageGore();
 [[nodiscard]] za::Vector<Item> pageScreens();
+[[nodiscard]] za::Vector<Item> pageTips();
 [[nodiscard]] za::Vector<Item> pageHipHolsters();
 [[nodiscard]] za::Vector<Item> pageClimbing();
 [[nodiscard]] za::Vector<Item> pageRecording();
@@ -1992,6 +1993,32 @@ void hologramTestMessage()
 
 // Split from Wrist Gadget (and Immersion): the wrist gadget's screen, the weapons' ammo screens and
 // the maps' text boards.
+// Tips (vr_tips.cpp): for new players, each shown once near what it is about.
+[[nodiscard]] za::Vector<Item> pageTips()
+{
+    return {
+        cycle("Tips", vr_tips, {{0.f, "Off"}, {1.f, "Floating panel"}, {2.f, "Wrist gadget"}})
+            .help("Tips for new players, each shown once: the first time you come near something you can use (a wall "
+                  "torch). Floating panel: by it, with a line to it. Wrist gadget: in the gadget's hologram, waiting until "
+                  "you look at it (it chimes and buzzes); the panel if the HUD is not the gadget."),
+        slider("Distance", vr_tips_distance, 50.f, 400.f, 10.f, "%.0f").extend(16.f, 2000.f)
+            .help("How near you must come to what a tip is about (in Quake units: about 40 a metre)."),
+        toggle("Line of Sight", vr_tips_line_of_sight).help("Only when no wall is between your eyes and it."),
+        slider("View Angle", vr_tips_view_angle, 0.f, 90.f, 5.f, "%.0f deg").extend(0.f, 180.f)
+            .help("How far from where you look it may be (0: anywhere, even behind you)."),
+        slider("Delay", vr_tips_delay, 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)
+            .help("How long it must stay near and seen before the tip shows."),
+        slider("Time Shown", vr_tips_time, 3.f, 30.f, 1.f, "%.0f s").extend(1.f, 120.f)
+            .help("How long a tip shows (on the gadget: once you look at it)."),
+        slider("Panel Text Size", vr_tips_size, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.25f, 4.f),
+        command("Show Tips Again", "vr_tips_reset").help("Every tip as never shown: each shows again the next time."),
+        command("Show the Torch Tip Now", "vr_tips_test walltorch")
+            .help("The wall torch tip on the nearest wall torch in view, as soon as you close the menu (however far; it is "
+                  "not counted as shown): to try the two ways and these settings."),
+        open("Wrist Gadget Messages", pageIndex(pageScreens)).help("The hologram's size, height and look (HUD and Menus > Screens)."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageScreens()
 {
     return {
@@ -4933,6 +4960,7 @@ const Page pages[] = {
     {"Changed Settings", pageChanged, pageMain, LevelStandard},                                    // 132 (MENU_REVIEW.md)
     {"Search", pageSearch, pageMain, LevelStandard},                                               // 133 (the corner's Search; vr_menu_search.inc)
     {"Console", pageConsole, pageMain, LevelStandard},                                             // 134 (the corner's Console; vr_menu_console.inc)
+    {"Tips", pageTips, pageMain, LevelStandard},                                                   // 135 (vr_tips.cpp)
     {"Graphics - Slipgates", pageGraphicsSlipgates, pageGraphics},                                 // 135 (vr_portals.cpp)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
@@ -5158,6 +5186,7 @@ za::Vector<Item> pageMain()
         open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
         open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
         open("Advanced VR Options", PageAdvanced).help("Every gameplay, display and graphics setting, by topic."),
+        open("Tips", pageIndex(pageTips)).help("Tips for new players, shown once near what they are about: floating by it or on the wrist gadget."),
         open("Changed Settings", pageIndex(pageChanged))
             .help("Every setting you changed from its default, from all the pages, on one page (each marked * where it lives)."),
         command("Run VR Calibration Again", "vr_setup")

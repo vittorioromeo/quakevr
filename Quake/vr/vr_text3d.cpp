@@ -45,7 +45,19 @@ struct Queued
     bool overlay{false}; // over the eye's image, not depth tested (queueOverlay)
     za::Vector<OverlayBar> bars; // queueOverlay's
     float backing{0.55f};
+    glm::vec4 back{0.f};  // queueOverlayPanel's backing (alpha 0: black, `backing` opaque)
+    glm::vec4 ink{1.f};   // and text
 };
+
+// This frame's overlay lines (queueOverlayLine).
+struct OverlayLine
+{
+    glm::vec3 a, b;
+    float widthPerUnit;
+    glm::vec4 color;
+    float dot;
+};
+za::Vector<OverlayLine> overlayLines;
 
 // This frame's texts: the first queuedCount of `queued`, whose elements (and their strings' buffers) are kept for the
 // next frame's.
@@ -407,7 +419,7 @@ void layoutOverlay(const Queued& q)
     const float pad = charSize * 0.4f;
     const glm::vec3 l = -right * (width * 0.5f + pad), rr = right * (width * 0.5f + pad);
     const glm::vec3 b = q.pos - up * (height * 0.5f + pad), t = q.pos + up * (height * 0.5f + pad);
-    quad(b + l, b + rr, t + rr, t + l, glm::vec4{0.f, 0.f, 0.f, q.backing}, backings);
+    quad(b + l, b + rr, t + rr, t + l, q.back.a > 0.f ? q.back : glm::vec4{0.f, 0.f, 0.f, q.backing}, backings);
     for(const OverlayBar& bar : q.bars)
     {
         // A cell's middle 70%, from the bar's column: the track (dim), then the bar.
@@ -426,9 +438,44 @@ void layoutOverlay(const Queued& q)
         {
             if(c != ' ')
             {
-                glyph(p, hInc, vInc, static_cast<unsigned char>(c), glm::vec4{1.f}, logText);
+                glyph(p, hInc, vInc, static_cast<unsigned char>(c), q.ink, logText);
             }
             p += hInc;
+        }
+    }
+}
+
+// An overlay line (queueOverlayLine), facing the camera at `eye`: a band as wide on screen all along, and its spot.
+void layoutOverlayLine(const OverlayLine& line, const glm::vec3& eye)
+{
+    const glm::vec3 along = line.b - line.a;
+    if(glm::dot(along, along) < 1e-6f)
+    {
+        return;
+    }
+    const auto side = [&](const glm::vec3& p) {
+        const glm::vec3 s = glm::cross(along, eye - p);
+        const float len = glm::length(s);
+        return len > 1e-6f ? s / len * (line.widthPerUnit * glm::distance(eye, p)) : glm::vec3{0.f};
+    };
+    const glm::vec3 sa = side(line.a), sb = side(line.b);
+    quad(line.a - sa, line.b - sb, line.b + sb, line.a + sa, line.color, backings);
+    if(line.dot > 0.f)
+    {
+        // A small disc of eight sides at b, facing the eye.
+        const glm::vec3 toEye = glm::normalize(eye - line.b);
+        const glm::vec3 u = glm::normalize(glm::abs(toEye.z) < 0.9f ? glm::cross(toEye, glm::vec3{0.f, 0.f, 1.f})
+                                                                      : glm::cross(toEye, glm::vec3{1.f, 0.f, 0.f}));
+        const glm::vec3 v = glm::cross(toEye, u);
+        const float r = line.dot * line.widthPerUnit * glm::distance(eye, line.b);
+        for(int i = 0; i < 8; i++)
+        {
+            const float a0 = static_cast<float>(i) * 0.785398f, a1 = static_cast<float>(i + 1) * 0.785398f;
+            for(const glm::vec3& p : {line.b, line.b + (u * glm::cos(a0) + v * glm::sin(a0)) * r,
+                    line.b + (u * glm::cos(a1) + v * glm::sin(a1)) * r})
+            {
+                backings.pushBack({p, {0.f, 0.f}, line.color});
+            }
         }
     }
 }
@@ -723,7 +770,7 @@ void drawTranslucent()
 
 void drawOverlay()
 {
-    if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount || logText.empty())
+    if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount || (logText.empty() && backings.empty()))
     {
         return;
     }
@@ -762,12 +809,30 @@ void queueOverlay(za::StringView text, const glm::vec3& pos, const glm::vec3& an
     q.overlay = true;
     q.bars.assignRange(bars.begin(), bars.end());
     q.backing = backing;
+    q.back = glm::vec4{0.f};
+    q.ink = glm::vec4{1.f};
+    builtFrame = -1;
+}
+
+void queueOverlayPanel(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, float scale,
+    const glm::vec4& back, const glm::vec4& ink)
+{
+    queueOverlay(text, pos, angles, scale, {}, back.a);
+    Queued& q = queued[queuedCount - 1];
+    q.back = glm::vec4{back.r, back.g, back.b, za::max(back.a, 1e-3f)};
+    q.ink = ink;
+}
+
+void queueOverlayLine(const glm::vec3& a, const glm::vec3& b, float widthPerUnit, const glm::vec4& color, float dot)
+{
+    overlayLines.pushBack({a, b, widthPerUnit, color, dot});
     builtFrame = -1;
 }
 
 void clear()
 {
     queuedCount = 0;
+    overlayLines.clear();
     builtFrame = -1;
 }
 
@@ -920,6 +985,10 @@ extern "C" void VR_DrawSceneOpaque()
         if(gadget::log(wristLog))
         {
             layoutLog(wristLog, eye, right, up);
+        }
+        for(const OverlayLine& line : overlayLines)
+        {
+            layoutOverlayLine(line, eye);
         }
     }
 

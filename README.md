@@ -199,6 +199,12 @@ Low, Medium, High or Ultra) and lower *Render Scale* (Headset) below 1.
 **Search:** the corner's *Search* button (or *Search Settings* on VR Settings) finds any setting by its name or what it
 does, as you type, and opens its page on it (a cvar's name works too, e.g. `vr_snap_turn`).
 
+**Tips:** new players get a tip the first time they come near something they can use (for now, a wall torch), shown
+once: a green panel floating beside it with a line to it, or, with *VR Settings > Tips > Tips: Wrist gadget*, in the
+gadget's hologram (it chimes and buzzes until you look at it). The Tips page sets how near you must be, whether it must be
+in sight and in view, the delay and how long a tip shows; *Show Tips Again* resets them, *Show the Torch Tip Now* tries
+one on the nearest torch.
+
 **Console:** the corner's *Console* button shows Quake's console with a keyboard under it, to type commands in the
 headset: *Run* runs the line, *Tab* completes it, *Prev* and *Next* go through the history (shared with the desktop
 console); the stick, the wheel or Page Up and Down scroll the text.

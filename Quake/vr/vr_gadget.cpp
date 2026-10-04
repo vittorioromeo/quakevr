@@ -659,6 +659,8 @@ struct HoloMessage
     bool centre{false};
     bool notify{false}; // a notification (anything but a pickup): see vr_messages_hologram_only
     bool seen{false};   // shown to the player once (the hologram facing them, at least half faded in)
+    bool tip{false};    // a tip (gadget::tip): waits to be seen, as with vr_messages_hologram_only
+    float life{0.f};    // seconds it shows once seen (0: vr_messages_hologram_time)
 };
 
 // A block of the image.
@@ -722,13 +724,17 @@ constexpr double heldMax = 300.0;
 
 [[nodiscard]] bool held(const HoloMessage& m)
 {
-    return m.notify && !m.seen && hologramOnly();
+    return m.notify && !m.seen && (hologramOnly() || m.tip);
+}
+
+[[nodiscard]] double lifeOf(const HoloMessage& m)
+{
+    return m.life > 0.f ? static_cast<double>(m.life) : static_cast<double>(hologramLife());
 }
 
 [[nodiscard]] bool alive(const HoloMessage& m)
 {
-    return m.generation == worldGeneration() &&
-           (held(m) ? realtime - m.appeared < heldMax : realtime - m.start < static_cast<double>(hologramLife()));
+    return m.generation == worldGeneration() && (held(m) ? realtime - m.appeared < heldMax : realtime - m.start < lifeOf(m));
 }
 
 // Whether the gadget was in view and facing the viewer last frame (the hologram's `shown`, at least half).
@@ -830,7 +836,7 @@ void buzz()
 // A message came: with vr_messages_hologram_only, a notification not in view chimes and buzzes.
 void announce(const HoloMessage& m)
 {
-    if(!m.notify || !hologramOnly() || gadgetInView())
+    if(!m.notify || !(hologramOnly() || m.tip) || gadgetInView())
     {
         return;
     }
@@ -1138,8 +1144,6 @@ void layoutHologram()
     const float px = 0.26f * CLAMP(0.25f, vr_messages_hologram_size.value, 4.f) * scale / 8.f; // a font pixel
     const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
     const glm::vec3 rgb = hue::color(vr_gadget_screen_hue, 0.5f, 0.95f * za::max(bright, 0.3f));
-    const double life = hologramLife();
-
     // The blocks, newest first from the bottom up, each growing as it appears.
     za::Vector<bool>& used = scratch.used;
     used.clear();
@@ -1162,7 +1166,7 @@ void layoutHologram()
 
         const float age = static_cast<float>(realtime - m.appeared);
         const float fade = CLAMP(0.f, age / holoFadeIn, 1.f) *
-                           (held(m) ? 1.f : CLAMP(0.f, static_cast<float>(m.start + life - realtime) / holoFadeOut, 1.f));
+                           (held(m) ? 1.f : CLAMP(0.f, static_cast<float>(m.start + lifeOf(m) - realtime) / holoFadeOut, 1.f));
         if(fade <= 0.f)
         {
             continue;
@@ -1765,6 +1769,26 @@ namespace
 {
 int nextTestMessage = 0; // testMessage's next (vr_test_message: the console)
 } // namespace
+
+bool tip(za::StringView text, float seconds)
+{
+    if(!hologramOn())
+    {
+        return false;
+    }
+    HoloMessage m;
+    makeMessage(text, m);
+    if(m.rows == 0)
+    {
+        return false;
+    }
+    m.start = m.appeared = realtime;
+    m.notify = true;
+    m.tip = true;
+    m.life = za::max(seconds, 1.f);
+    addMessage(ZA_MOVE(m));
+    return true;
+}
 
 bool testMessage()
 {
