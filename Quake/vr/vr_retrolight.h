@@ -30,7 +30,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 //   [0] the world's baked light: levels a unit (0 none), their edges' softness (share of a level), dither, dither cell (texels)
 //   [1] the lightmap's grid: on, its block (texels: 1 .. 16, 16 a luxel), grids' edge softness (pixels), dynamic lights' block on the world (texels, 0 none)
 //   [2] the world's dynamic lights: levels a unit (0 none), the levels' spacing (a power: 1 even in light, 0.5 in brightness), -, 1: any of the world's on (the world shader's switch)
-//   [3] shadows: filter (0 as set, 1 one tap, 2 the shadow map's texels), levels (0 smooth, 1 on/off), block (texels, 0 none), edges' softness
+//   [3] shadows: filter (0 as set, 1 one tap, 2 the shadow map's texels), levels (0 smooth, 1 on/off), block (texels,
+//       0 none, 1/4 .. 16: a quarter or a half of a texel is allowed, the grids still line up), edges' softness
 //   [4] the models' own light: levels a unit, softness, dither, dither cell (skin texels)
 //   [5] the models' dynamic lights: levels a unit, block (skin texels, 0 none), 1: any of the models' on (their switch), -
 
@@ -80,7 +81,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 "	return (i + f + 0.5) * block;\n" \
 "}\n" \
 "\n" \
-"// pos (the pixel's, on the surface) moved to its block's centre on the grid (block texels; 0: pos).\n" \
+"// pos (the pixel's, on the surface) moved to its block's centre on the grid (block texels, whole or a fraction; 0: pos).\n" \
 "vec3 RetroLightAt(vec3 pos, float block)\n" \
 "{\n" \
 "	if (block <= 0.)\n" \

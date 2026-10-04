@@ -1102,7 +1102,7 @@ QVR_CVAR(vr_retrolight_model_dyn_steps, "8", CVAR_ARCHIVE)
 QVR_CVAR(vr_retrolight_model_dyn_block, "0", CVAR_ARCHIVE)  // skin texels (0: per pixel)
 QVR_CVAR(vr_retrolight_shadow_filter, "1", CVAR_ARCHIVE)    // shadows' edges: 0 as Graphics > Shadows, 1 hard (one tap), 2 blocky (the shadow map's texels)
 QVR_CVAR(vr_retrolight_shadow_steps, "0", CVAR_ARCHIVE)     // shadows' darkness in levels (0 smooth, 1 lit or not, 2..)
-QVR_CVAR(vr_retrolight_shadow_block, "0", CVAR_ARCHIVE)     // shadows looked up on a grid of blocks this many texels (0: per pixel)
+QVR_CVAR(vr_retrolight_shadow_block, "0", CVAR_ARCHIVE)     // shadows looked up on a grid of blocks this many texels (0: per pixel; 0.25, 0.5, 1, 2, 4, 8, 16)
 QVR_CVAR(vr_retrolight_shadow_soft, "0", CVAR_ARCHIVE)      // their levels' edges blurred over this share of a level
 QVR_CVAR(vr_profile, "0", CVAR_NONE)                   // profiler (vr_profile.cpp): 1 time the frame's scopes, CPU and GPU, into <gamedir>/profile/; 2 also show the panel over the wrist
 QVR_CVAR(vr_profile_interval, "5", CVAR_NONE)          // seconds between its reports (0: only on vr_profile_dump)

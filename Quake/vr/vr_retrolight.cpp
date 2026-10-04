@@ -35,15 +35,18 @@ float clampv(const cvar_t& c, float lo, float hi)
     return za::clamp(c.value, lo, hi);
 }
 
-// A grid's block in texels: 0 (none) or a power of two up to 16 (a luxel; the faces' grids line up across them).
-float block(const cvar_t& c)
+// A grid's block in texels: 0 (none) or a power of two from `finest` up to 16 (a luxel; the faces' grids line up
+// across them). `finest` is 1 for the grids fixed to a texture (the lightmap's, the dynamic lights': a block smaller
+// than a texel would be the same as none); the shadows' may go below a texel (1/2, 1/4) -- the shaders turn a grid
+// smooth where its blocks get smaller than a pixel, so those only show where a texel does.
+float block(const cvar_t& c, const float finest = 1.f)
 {
     const float v = c.value;
-    if(v < 0.5f)
+    if(v < finest * 0.5f)
     {
         return 0.f;
     }
-    float b = 1.f;
+    float b = finest;
     while(b < 16.f && b * 1.5f <= v)
     {
         b *= 2.f;
@@ -93,7 +96,7 @@ extern "C" void VR_RetroLightFrameData(float out[24])
     out[9] = vr_retrolight_spacing.value != 0.f ? 0.5f : 1.f;
     out[12] = static_cast<float>(za::clamp(static_cast<int>(vr_retrolight_shadow_filter.value), 0, 2));
     out[13] = retrolight::clampv(vr_retrolight_shadow_steps, 0.f, 64.f);
-    out[14] = retrolight::block(vr_retrolight_shadow_block);
+    out[14] = retrolight::block(vr_retrolight_shadow_block, 0.25f); // down to a quarter of a texel
     out[15] = retrolight::clampv(vr_retrolight_shadow_soft, 0.f, 1.f);
     if(models)
     {

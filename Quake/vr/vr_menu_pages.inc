@@ -1160,6 +1160,10 @@ void retroAllUncheckCategories()
 [[nodiscard]] za::Vector<Item> pageGraphicsRetroLight()
 {
     const za::Vector<Choice> blocks{{0.f, "Off"}, {1.f, "1"}, {2.f, "2"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"}};
+    // The shadows' may go finer than a texel (vr_retrolight.cpp's block(), 1/4 the finest): smaller pixels, still on
+    // the texture's grid.
+    const za::Vector<Choice> shadowBlocks{{0.f, "Off"}, {0.25f, "1/4 texel"}, {0.5f, "1/2 texel"}, {1.f, "1"},
+                                          {2.f, "2"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"}};
     const za::Vector<Choice> cells{{1.f, "1"}, {2.f, "2"}, {4.f, "4"}};
     return {
         toggle("Retro Lighting", "vr_retrolight")
@@ -1213,9 +1217,12 @@ void retroAllUncheckCategories()
             .help("A shadow's darkness in levels: 1, lit or not (a hard edge along its middle); 2 or more, steps. 0: smooth."),
         slider("Shadow Level Softness", "vr_retrolight_shadow_soft", 0.f, 1.f, 0.05f, "%.2f")
             .help("Those steps' edges blurred over this share of a level."),
-        cycle("Shadow Blocks", "vr_retrolight_shadow_block", blocks)
+        cycle("Shadow Blocks", "vr_retrolight_shadow_block", shadowBlocks)
             .help("Shadows looked up once a block of this many texels (the face's or the skin's): blocky shadow edges on "
-                  "the texture's grid. Off: per pixel (or the dynamic lights' blocks)."),
+                  "the texture's grid. Off: per pixel (or the dynamic lights' blocks). 1/4 and 1/2 are sub-texel: the "
+                  "blocks are finer than the texture, so the shadows stay pixelated with smaller pixels. Like every grid "
+                  "here they turn smooth where a block gets smaller than a pixel on screen, so below 1 only shows where "
+                  "the texels themselves are a few pixels wide (near surfaces)."),
         header("Looks"),
         command("Look: Software Quake",
             "vr_retrolight 1; vr_retrolight_world_steps 64; vr_retrolight_world_soft 0; vr_retrolight_world_dither 0; "
