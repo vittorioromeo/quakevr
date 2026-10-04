@@ -200,7 +200,8 @@ Low, Medium, High or Ultra) and lower *Render Scale* (Headset) below 1.
 does, as you type, and opens its page on it (a cvar's name works too, e.g. `vr_snap_turn`).
 
 **Tips:** new players get a tip the first time they come near something they can use (for now, a wall torch), shown
-once: a green panel floating beside it with a line to it, or, with *VR Settings > Tips > Tips: Wrist gadget*, in the
+once: a small CRT screen like the maps' text boards floating beside it with a cable to it (turned towards you, or with
+*Panel Facing: Square to your view* always flat in front of you), or, with *VR Settings > Tips > Tips: Wrist gadget*, in the
 gadget's hologram (it chimes and buzzes until you look at it). The Tips page sets how near you must be, whether it must be
 in sight and in view, the delay and how long a tip shows; *Show Tips Again* resets them, *Show the Torch Tip Now* tries
 one on the nearest torch.

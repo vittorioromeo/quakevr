@@ -470,12 +470,13 @@ QVR_CVAR(vr_messages_hologram_size, "1", CVAR_ARCHIVE) // its text's size (1: ab
 QVR_CVAR(vr_messages_hologram_height, "1", CVAR_ARCHIVE) // cm its bottom floats over the gadget as seen
 QVR_CVAR(vr_messages_hologram_effect, "1", CVAR_ARCHIVE) // the hologram look: the beam from the screen, scanlines, flicker, glitches, the projection as it appears (0 plain glowing text, up to 2)
 QVR_CVAR(vr_messages_hologram_only, "0", CVAR_ARCHIVE) // QVR round 21: 1: the game's messages never show in front of you; they wait in the hologram until you look at the gadget, and a new one (not a pickup) chimes from the gadget and buzzes its hand while it is out of view
-QVR_CVAR(vr_tips, "1", CVAR_ARCHIVE)                  // tips for new players (vr_tips.cpp), each shown once, the first time you come near what it is about and can see it: 0 off, 1 a panel floating by it with a line to it, 2 in the wrist gadget's hologram (it waits to be seen, chiming from the gadget; the panel when there is no hologram)
+QVR_CVAR(vr_tips, "1", CVAR_ARCHIVE)                  // tips for new players (vr_tips.cpp), each shown once, the first time you come near what it is about and can see it: 0 off, 1 a CRT screen floating by it (as the maps' text boards) with a cable to it, 2 in the wrist gadget's hologram (it waits to be seen, chiming from the gadget; the panel when there is no hologram)
 QVR_CVAR(vr_tips_distance, "150", CVAR_ARCHIVE)       // how near (units, 32 a metre or so) you must come to what a tip is about
 QVR_CVAR(vr_tips_line_of_sight, "1", CVAR_ARCHIVE)    // 1: only when nothing hides it from your eyes (the world's walls)
 QVR_CVAR(vr_tips_view_angle, "35", CVAR_ARCHIVE)      // degrees from where you look it must be within (0: anywhere)
 QVR_CVAR(vr_tips_delay, "0.5", CVAR_ARCHIVE)          // seconds it must stay near and seen before the tip shows
 QVR_CVAR(vr_tips_time, "10", CVAR_ARCHIVE)            // seconds a tip shows (the hologram's: once seen)
+QVR_CVAR(vr_tips_facing, "0", CVAR_ARCHIVE)           // the floating screen: 0 turned towards your eyes and level, 1 square to your view (flat in front of you, tilting with your head)
 QVR_CVAR(vr_tips_size, "1", CVAR_ARCHIVE)             // the floating panel's text size (1: about 1.5 degrees a character)
 QVR_CVAR(vr_tips_seen, "", CVAR_ARCHIVE)              // the tips shown already (their names, by spaces); vr_tips_reset empties it
 QVR_CVAR(vr_sbar_offset_x, "-12", CVAR_ARCHIVE)

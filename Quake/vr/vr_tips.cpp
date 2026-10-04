@@ -279,41 +279,23 @@ void drawShowing()
     const float alpha = fadeIn * fadeOut;
 
     const float charSize = glm::distance(s.head, showing.panel) * 0.026f * CLAMP(0.25f, vr_tips_size.value, 4.f);
-    // Facing the eyes: Quake angles of the way from them to it (pitch down positive).
-    const glm::vec3 look = showing.panel - s.head;
-    const glm::vec3 angles{-glm::degrees(za::atan2(look.z, za::sqrt(look.x * look.x + look.y * look.y))),
-        glm::degrees(za::atan2(look.y, look.x)), 0.f};
-    const glm::vec4 green{0.06f, 0.62f, 0.34f, 0.9f * alpha};
-    text3d::queueOverlayPanel(tip.text, showing.panel, angles, charSize / 8.f, green, glm::vec4{1.f, 1.f, 1.f, alpha});
-
-    // The line, from the panel's edge towards what it is about (where the line from its middle leaves it).
-    int columns = 0, rows = 1, column = 0;
-    for(const char* c = tip.text; *c; c++)
+    // Its plane: turned towards the eyes, level (vr_tips_facing 0), or square to the view, as the head is turned
+    // (1: flat in front of you, however you tilt your head).
+    glm::vec3 panelRight, panelUp;
+    if(vr_tips_facing.value != 0.f)
     {
-        column = *c == '\n' ? 0 : column + 1;
-        rows += *c == '\n' ? 1 : 0;
-        columns = za::max(columns, column);
+        glm::vec3 f;
+        hands::angleVectors(s.headAngles, f, panelRight, panelUp);
     }
-    glm::vec3 pf, pr, pu;
-    hands::angleVectors(angles, pf, pr, pu);
-    const float halfW = charSize * (static_cast<float>(columns) * 0.5f + 0.4f);
-    const float halfH = charSize * (static_cast<float>(rows) * 0.5f + 0.4f);
-    // What it is about, seen from the eyes, in the panel's plane.
-    const glm::vec3 toTarget = target - s.head;
-    const float along = glm::dot(toTarget, pf);
-    if(along <= 1.f)
+    else
     {
-        return; // behind the eyes
+        const glm::vec3 look = glm::normalize(showing.panel - s.head);
+        const glm::vec3 level = glm::cross(look, glm::vec3{0.f, 0.f, 1.f});
+        panelRight = glm::length(level) > 1e-4f ? glm::normalize(level) : right;
+        panelUp = glm::cross(panelRight, look);
     }
-    const glm::vec3 onPlane = s.head + toTarget * (glm::dot(showing.panel - s.head, pf) / along) - showing.panel;
-    const float dx = glm::dot(onPlane, pr), dy = glm::dot(onPlane, pu);
-    if(za::abs(dx) <= halfW && za::abs(dy) <= halfH)
-    {
-        return; // behind the panel
-    }
-    const float k = za::min(za::abs(dx) > 1e-4f ? halfW / za::abs(dx) : 1e9f, za::abs(dy) > 1e-4f ? halfH / za::abs(dy) : 1e9f);
-    const glm::vec3 from = showing.panel + (pr * dx + pu * dy) * k;
-    text3d::queueOverlayLine(from, target, 0.0024f, glm::vec4{green.r, green.g, green.b, 0.95f * alpha}, 2.5f);
+    // A CRT screen as the map boards', with a cable of the same screen to what it is about.
+    text3d::queueOverlayScreen(tip.text, showing.panel, panelRight, panelUp, charSize, alpha, s.head, &target, 0.0022f);
 }
 
 } // namespace

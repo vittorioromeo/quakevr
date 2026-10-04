@@ -52,15 +52,13 @@ struct OverlayBar
 void queueOverlay(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, float scale,
     za::Span<const OverlayBar> bars = {}, float backing = 0.55f);
 
-// An overlay panel (vr_tips.cpp's tips): as queueOverlay, its lines centred, on a backing of `back` (its alpha its
-// opacity), the text in `ink`.
-void queueOverlayPanel(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, float scale,
-    const glm::vec4& back, const glm::vec4& ink);
-
-// A line over the eye's image with the overlay texts (under their text; not depth tested), from `a` to `b`, facing the
-// viewer: `widthPerUnit` its half width for each unit from the eye, so that it is as thick on screen along its length
-// (a line drawn on the screen, as it were); with `dot`, a round spot at `b` as many times as wide.
-void queueOverlayLine(const glm::vec3& a, const glm::vec3& b, float widthPerUnit, const glm::vec4& color, float dot = 0.f);
+// A tip's screen over the eye's image (vr_tips.cpp; drawOverlay: not depth tested): `text` on a CRT screen as the map
+// boards' (vr_worldtext_crt: its own image, the phosphor colour, the face, the bezel and the soft glow), centred on
+// `pos` in the plane of `right` and `up`, its characters `charSize` units, faded by `alpha`. With `lineTo`, a cable of
+// the same screen (bezel, face, glow) from inside the screen (under it: no seam) to that point, as thick on screen all
+// along (`widthPerUnit` its face's half width for each unit from `eye`, the head's middle), ending in a round spot.
+void queueOverlayScreen(za::StringView text, const glm::vec3& pos, const glm::vec3& right, const glm::vec3& up,
+    float charSize, float alpha, const glm::vec3& eye, const glm::vec3* lineTo = nullptr, float widthPerUnit = 0.f);
 
 // Once per frame, after the eyes (and the flat view) are drawn.
 void clear();

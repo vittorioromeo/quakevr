@@ -1999,7 +1999,7 @@ void hologramTestMessage()
     return {
         cycle("Tips", vr_tips, {{0.f, "Off"}, {1.f, "Floating panel"}, {2.f, "Wrist gadget"}})
             .help("Tips for new players, each shown once: the first time you come near something you can use (a wall "
-                  "torch). Floating panel: by it, with a line to it. Wrist gadget: in the gadget's hologram, waiting until "
+                  "torch). Floating panel: a screen like the maps' text boards by it, with a cable to it. Wrist gadget: in the gadget's hologram, waiting until "
                   "you look at it (it chimes and buzzes); the panel if the HUD is not the gadget."),
         slider("Distance", vr_tips_distance, 50.f, 400.f, 10.f, "%.0f").extend(16.f, 2000.f)
             .help("How near you must come to what a tip is about (in Quake units: about 40 a metre)."),
@@ -2010,6 +2010,9 @@ void hologramTestMessage()
             .help("How long it must stay near and seen before the tip shows."),
         slider("Time Shown", vr_tips_time, 3.f, 30.f, 1.f, "%.0f s").extend(1.f, 120.f)
             .help("How long a tip shows (on the gadget: once you look at it)."),
+        cycle("Panel Facing", vr_tips_facing, {{0.f, "Towards your eyes"}, {1.f, "Square to your view"}})
+            .help("Towards your eyes: the floating screen turns to face you and stays level. Square to your view: it is "
+                  "always flat in front of you, as if on your view, tilting as you tilt your head."),
         slider("Panel Text Size", vr_tips_size, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.25f, 4.f),
         command("Show Tips Again", "vr_tips_reset").help("Every tip as never shown: each shows again the next time."),
         command("Show the Torch Tip Now", "vr_tips_test walltorch")
