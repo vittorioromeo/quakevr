@@ -233,25 +233,9 @@ static byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 
 byte *Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model)
 {
-	int		bit;
-	byte	*pvs;
-
 	if (leaf == model->leafs)
 		return Mod_NoVisPVS (model);
-
-	pvs = Mod_DecompressVis (leaf->compressed_vis, model);
-
-	// QVR: vr_pvs_selfleaf (vr/vr_pvs.cpp) -- a compiled PVS never names the leaf it is stored in, so
-	// everything culled by it drops what is in that very leaf. Name it. This is the convention this
-	// buffer's client readers use: r_brush.c and gl_refrag.c pack leaf L as bit L-1.
-	if (VR_PvsSelfLeaf ())
-	{
-		bit = (int) (leaf - model->leafs) - 1;
-		if (bit >= 0)
-			pvs[bit >> 3] |= 1 << (bit & 7);
-	}
-
-	return pvs;
+	return Mod_DecompressVis (leaf->compressed_vis, model);
 }
 
 byte *Mod_NoVisPVS (qmodel_t *model)

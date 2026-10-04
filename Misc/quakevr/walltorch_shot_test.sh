@@ -11,16 +11,18 @@ for c in \
     "10 pellets" \
     "1 nail" \
     "3 supernail" \
+    "4 player-rifle-laser" \
     "0 rocket" \
     "21 lightning-bolt" \
     "22 blast" \
     "20 thrown-prop" \
     "20 thrown-prop-slow vr_test_fling_speed 1" \
     "2 grenade-projectile" \
-    "10 cvar-off vr_walltorch_shot 1;vr_walltorch_shot 0"; do
+    "10 cvar-off vr_walltorch_shot 0" \
+    "20 thrown-prop-off vr_walltorch_shot 0"; do
     set -- $c; kind=$1; label=$2; shift 2
     extra="$*"
-    P="$P $extra; map vrfiringrange; wait60; echo CASE $label kind $kind; $POS; wait30; vr_test_walltorch_shot $kind; wait150;"
+    P="$P vr_walltorch_shot 1;vr_test_fling_speed 12;$extra; map vrfiringrange; wait60; echo CASE $label kind $kind; $POS; wait30; vr_test_walltorch_shot $kind; wait360;"
 done
 P="$P vr_walltorch_shot 1;toggleconsole;quit"
 bash $KIT/run.sh $AGENT -Timeout 900 -Filter "CASE |walltorch|test fire|missile hit|error" -Script "$P" 2>&1 | grep -v "^exit"

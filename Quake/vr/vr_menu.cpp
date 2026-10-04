@@ -4335,7 +4335,7 @@ za::Vector<Item> pageDebugTests()
             .help("vr_portals_info: every slipgate built for this map - its plane, its opening, its trigger brush - and "
                   "where your body is against each: your box, your torso's middle plane, its distance from the gate's "
                   "plane, whether it is over the opening and how near your box can bring it. You are carried through "
-                  "when that plane is through the gate's, or as near as your box can bring it; leaning in or reaching "
+                  "only after that plane reaches the gate's and your collision box fits the opening; leaning or reaching "
                   "with the hands does not cross, and a gate's frame stops you as a wall does."),
         command("Looking Through A Gate, Or Why Not", "map start; wait120; setpos 232 400 24 0 90 0; wait30; vr_portals_view")
             .help("vr_portals_view: which gate this frame looks through, that gate's box on your screen, and for every "
@@ -4351,35 +4351,23 @@ za::Vector<Item> pageDebugTests()
         command("Lean Into A Gate", "map start; wait120; setpos 232 1365 24 0 90 0; wait30; vr_mock_hand head 0 0 -0.5 45 0 0; wait30; vr_portals_info")
             .help("You 19 units from the first gate's plane, the head leaned half a metre through it: no crossing - "
                   "vr_portals_info shows the head past the plane and the torso short of it."),
-        command("Through A Gate", "map start; wait120; setpos 232 1390 24 0 90 0; wait30; vr_portals_info")
-            .help("You with your torso's middle plane 6 units past the first gate's plane: carried through it "
-                  "(developer 1: VR portal: carried edict 1 through side 0)."),
+        command("Through A Gate", "map start; wait120; setpos 232 1330 24 0 90 0; wait10; noclip 0; wait80; vr_mock_stick off 0 0.5; wait20; +jump; wait30; -jump; vr_mock_stick off 0 0; wait30; vr_portals_info")
+            .help("Mock movement with collision enabled: approach the first gate and jump into its opening. "
+                  "The torso reaches y=1384 before crossing (developer 1: VR portal: carried edict 1 through side 0)."),
         command("A Shot Through A Gate", "map start; wait120; setpos 232 1360 24 0 90 0; wait10; vr_physics_fire 10 232 1500 25")
             .help("vr_physics_fire 10: a pellet's trace at a point beyond the first gate: the console says through 1 "
                   "slipgate(s), in at ..., out at ... (shots and thrown props go through as before)."),
         command("The Whole Feature Off", "vr_slipgates 0; map start; wait120; setpos 232 1390 24 0 90 0; wait60; vr_portals_info; vr_slipgates 1")
             .help("vr_slipgates 0: the slipgate feature off entirely, at once (no map reload) - no gate is built or "
-                  "looked through, nothing is carried or traced through one. Same position as Through A Gate: nothing "
+                  "looked through, nothing is carried or traced through one. Placed inside the first gate's trigger, nothing "
                   "carries you, the trigger teleports you the old way (a flash, a jump, 0.7 s locked), and "
                   "vr_portals_info says the feature is off. It is turned back on at the end; Graphics > Slipgates has "
                   "the same switch."),
-        header("Visibility: The Leaf You Stand In (vr_pvs_selfleaf)"),
-        command("Self-Leaf PVS Off (Quake's)", "vr_pvs_selfleaf 0")
-            .help("vr_pvs_selfleaf 0: a compiled PVS names the leafs a portal leads to, never the leaf it is stored "
-                  "in - so everything culled by it drops what is in that very leaf. In the start map the closed "
-                  "episode gate (289 1681 1) and the staircase behind it are the faces of leaf 595, and standing in "
-                  "leaf 595 you are culled by its own PVS: they appear and disappear as the head moves between that "
-                  "leaf and one that names it. Off is Quake's and Ironwail's behaviour exactly."),
-        command("Self-Leaf PVS On", "vr_pvs_selfleaf 1")
-            .help("vr_pvs_selfleaf 1 (default): the leaf a PVS is taken from is named in it too, so the faces of the "
-                  "leaf you stand in are drawn. Both readers get the bit their own code tests - the client's "
-                  "(Mod_LeafPVS, bit leaf-1, as gl_refrag.c packs it) and the server's (SV_AddToFatPVS, bit leaf, as "
-                  "SV_EdictInPVS and the entity write test it). Cost: one bit per leaf a fat-PVS sample reaches."),
-        command("Hidden Staircase, Both Ways", "map start; wait120; setpos 278 1728 24 7 -20 0; wait60; vr_pvs_selfleaf 0; wait90; screenshot pvs_off; vr_pvs_selfleaf 1; wait90; screenshot pvs_on; vr_pvs_selfleaf 1")
-            .help("You at the reported spot: the eye at 278 1729 59, leaf 595 (setpos places the player and the head "
-                  "follows him - it needs a wait after any map or skill line, which restarts the level and puts you "
-                  "back at the spawn). Two screenshots in the game folder's screenshots folder: the gate culled, then "
-                  "drawn. Turn your head between them: with it on it stays."),
+        header("Visibility: Hidden Staircase"),
+        command("Hidden Staircase Probe", "map start; wait120; setpos 278 1728 24 7 -20 0; wait60; vr_hull_leafdebug")
+            .help("Places the player at the reported staircase spot. setpos enables noclip; turn it off before "
+                  "testing movement. The cover is func_bossgate (*38). Both shipped start maps already include "
+                  "every world leaf in its own PVS; see Misc/quakevr/pvs/FINDINGS.md for corrected measurements."),
         header("Dialogs"),
         command("New Game Confirmation (3 s)", "vr_test_dialog 3 0")
             .help("Shows the New Game confirmation for 3 seconds (it closes by itself): the game must stay in the world "

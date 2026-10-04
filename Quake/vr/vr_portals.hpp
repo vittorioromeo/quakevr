@@ -16,10 +16,8 @@
 // scene targets of the eye's size from that eye moved through the gate (vr_stereo.cpp): the same projection with an
 // oblique near plane on the destination's side of the gate's plane (what is between the view and that plane is not
 // drawn), and outside the gate's box on screen the depth set to the near plane first, so that nothing is shaded there.
-// Carried through the gate the view would be as far behind the destination as the eye is from the gate - across a room,
-// deep in the room it came from, where the room beyond reads as a dark distance rather than a room; its stand-off is
-// bounded (portals::kMaxStandOff) so a gate reads as the room it leads to from any distance. An eye nearer than that
-// is carried exactly as before. Drawing the eye, the side's faces (the liquid
+// Each eye uses the same rigid turn and shift as movement and traces, at any distance: screen-space portal sampling
+// therefore shows the target a shot through that pixel reaches. Drawing the eye, the side's faces (the liquid
 // shaders, LiquidPortal) show that image by their pixels, whatever their shape, under a little of the slipgate's own
 // shimmer. One gate at a time; a gate seen through a gate shows its texture. The server sends the client what is round
 // the destinations of the gates it can see (their PVS added to its own), so the monsters and items there are seen too.
@@ -34,17 +32,16 @@
 // through when his torso's middle plane - the plane that halves his collision box, his feet to the top of his head -
 // goes through a side's plane over its aperture. The box, not the head: the box is what the world stops, so what he
 // collides with and what goes through are the same thing. Leaning in, reaching with the hands, or clipping the aperture
-// does not cross; a gate's frame stops him as any wall does, with no teleport and no jump. Where his box can never
-// reach the plane (a sill, a ledge or bars just past it), as near as it can bring it is through. His trigger touched
+// does not cross; the whole collision box must fit the aperture. A frame or sill stops him as any wall does; a
+// raised opening requires a jump into it. His trigger touched
 // and active, kept where he is, how he moves and where he looks relative to the gate (turned and shifted by the side's
 // own mapping, the view's: it does not jump). This machine's player's client is told
 // (hands::portalCrossing): the play space turns by the gate's yaw itself, the head's lean and the stairs' easing are kept
 // through the jump. What flies (missiles, grenades, gibs, thrown props: Box3D takes the move up) as its frame's path
 // crosses the plane; traces with MOVE_PORTALS (the guns' pellets, the lightning) go on from the far side (portal_entry,
 // portal_exit, portal_turn: the beams in two pieces). QuakeC's teleport_touch leaves players to it (portal_handles):
-// while he stands in the aperture or is stopped on the way to the plane. Quake's teleport is left to the game where
-// going through is not his to do - a trigger he is only brushing, or a gate his body can never reach - after a second
-// in it (kStuck). VR_Portal_Crossed does the rest of what
+// for every recognised slipgate, including while the frame or sill blocks him. Triggers without recognised faces
+// retain Quake's teleport. VR_Portal_Crossed does the rest of what
 // the teleport did (its targets, what the hands carry). Monsters teleport as in Quake.
 
 #pragma once

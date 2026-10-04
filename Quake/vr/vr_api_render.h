@@ -115,7 +115,6 @@ void VR_DrawPortalMask (void);								// ... its depth outside the gate on scree
 void VR_PortalFrameData (float plane[4], float mins[4], float maxs[4]); // ... the side shown in this view (VR_WaterView)
 unsigned VR_PortalTexture (void);							// ... the view through it for this eye's teleport faces (0: none)
 void VR_PortalAddPVS (byte *pvs, const float org[3]);		// ... what is round the gates' destinations, sent (SV_WriteEntitiesToClient)
-int VR_PvsSelfLeaf (void);						// QVR: vr_pvs_selfleaf - the leaf a PVS is taken from named in its own result (vr_pvs.cpp; Mod_LeafPVS, SV_AddToFatPVS)
 float VR_EntityGlow (const struct entity_s *e);				// the force grab glow round an entity (0..1)
 void VR_EntityGlowColor (float rgb[3]);						// and its colour (the player's hue; SceneTone.yzw in the frame data)
 float VR_EntityFullbrightBoost (const struct entity_s *e);	// how much brighter its dim fullbright texels shine (0 none): the held weapons' sights (vr_weapon_glow)

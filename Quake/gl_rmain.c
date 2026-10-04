@@ -626,6 +626,9 @@ void R_SetAlphaMode (alphamode_t mode)
 static uint32_t visedict_keys[MAX_VISEDICTS];
 static uint16_t visedict_order[2][MAX_VISEDICTS];
 static entity_t *cl_sorted_visedicts[MAX_VISEDICTS + 1]; // +1 for worldspawn
+// QVR: R_MarkSurfaces adds view-dependent statics and R_SortEntities compacts the list in place.
+// Preserve the frame's input for the next eye, portal or spectator view (rendering is sequential).
+static entity_t *r_view_visedicts[MAX_VISEDICTS];
 static int cl_modtype_ofs[mod_numtypes*2 + 1]; // x2: opaque/translucent; +1: total in last slot
 
 typedef struct framesetup_s
@@ -2143,6 +2146,7 @@ R_RenderView
 void R_RenderView (void)
 {
 	double	time1, time2;
+	int		view_numvisedicts;
 
 	if (r_norefresh.value)
 		return;
@@ -2163,6 +2167,9 @@ void R_RenderView (void)
 	else if (gl_finish.value)
 		glFinish ();
 
+	view_numvisedicts = cl_numvisedicts;
+	memcpy (r_view_visedicts, cl_visedicts, view_numvisedicts * sizeof(cl_visedicts[0]));
+
 	VR_ProfileBeginGPU ("setup view"); // QVR: profile
 	VR_PortalView (); // QVR: the view through a slipgate moved there (vr/vr_portals.cpp)
 	R_SetupView (); //johnfitz -- this does everything that should be done once per frame
@@ -2173,6 +2180,9 @@ void R_RenderView (void)
 	VR_ProfileBeginGPU ("resolve/warp"); // QVR: profile
 	R_WarpScaleView ();
 	VR_ProfileEnd (); // QVR
+
+	memcpy (cl_visedicts, r_view_visedicts, view_numvisedicts * sizeof(cl_visedicts[0]));
+	cl_numvisedicts = view_numvisedicts;
 
 	//johnfitz -- modified r_speeds output
 	time2 = Sys_DoubleTime ();

@@ -1,22 +1,27 @@
-import struct, sys, zlib, os
+"""Extract maps/start.* from a Quake PAK: python extract_pak.py <pak> [output_directory]."""
+from pathlib import Path
+import struct
+import sys
 
-pak = r"C:/OHWorkspace/qvr-kit/bases/slipgate-pvs/qbase/id1/pak0.pak"
-out = os.path.dirname(os.path.abspath(__file__))
 
-with open(pak, "rb") as f:
-    data = f.read()
-assert data[:4] == b"PACK"
-n = struct.unpack_from("<i", data, 8)[0]
-ents = []
-for i in range(n):
-    off = 14 + i * 56
-    name, offset, size = struct.unpack_from("<56si i", data, off)
-    name = name.split(b"\0")[0].decode()
-    ents.append((name, offset, size))
+def extract(pak, output):
+    data = Path(pak).read_bytes()
+    magic, directory, size = struct.unpack_from("<4sii", data)
+    if magic != b"PACK" or directory < 12 or size < 0 or size % 64 or directory + size > len(data):
+        raise ValueError("invalid PAK directory")
+    output = Path(output)
+    output.mkdir(parents=True, exist_ok=True)
+    for pos in range(directory, directory + size, 64):
+        name, offset, length = struct.unpack_from("<56sii", data, pos)
+        name = name.split(b"\0", 1)[0].decode("ascii")
+        if not name.lower().startswith("maps/start."):
+            continue
+        if offset < 12 or length < 0 or offset + length > len(data):
+            raise ValueError(f"invalid PAK entry: {name}")
+        target = output / Path(name).name
+        target.write_bytes(data[offset:offset + length])
+        print(f"{name}: {length} bytes -> {target}")
 
-want = [e for e in ents if e[0].lower().startswith("maps/start.")]
-for name, offset, size in want:
-    print(name, size)
-    target = os.path.join(out, os.path.basename(name))
-    with open(target, "wb") as g:
-        g.write(data[offset:offset + size])
+
+if __name__ == "__main__":
+    extract(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else Path(__file__).parent)

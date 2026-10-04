@@ -3050,11 +3050,9 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 
 ## 8. Full vr cvar table (1,681 rows, the removed ones taken out; tier A/B/C/C?/D/R; read sites exclude vr_cvars.*, menu UI and comments)
 
-> Added after this inventory was taken (2026-11, the `start` hidden-staircase work): **`vr_pvs_selfleaf`** (`vr_cvars.inc:1290`,
-> default `1`, archived, tier D/dev, reached from Debug - Slipgates: three rows). The leaf a PVS is taken from named in
-> its own result: `Quake/gl_model.c Mod_LeafPVS` (bit `leaf-1`, the client's convention) and `Quake/sv_main.c
-> SV_AddToFatPVS` (bit `leaf`, the convention its readers test), both behind `VR_PvsSelfLeaf()` (`Quake/vr/vr_pvs.cpp`).
-> Not counted in the 1,681 / 1,507 archived / 1,523 reachable figures below, which are the 2026-10-03 parse.
+The self-leaf PVS switch added after this inventory was removed during the 2026-10-04 review.
+Its diagnosis came from an incorrect offline PVS decoder. Debug now has a Hidden Staircase Probe;
+see `Misc/quakevr/pvs/FINDINGS.md` for the corrected measurements.
 
 | cvar | default | saved | tier | categories | menu page(s) | code/QC read sites | test-only reads | shipped cfg | inc line |
 |---|---|---|---|---|---|---|---|---|---|

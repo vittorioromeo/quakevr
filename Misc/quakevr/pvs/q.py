@@ -9,13 +9,17 @@
 """
 import sys
 
-_argv = list(sys.argv)
-sys.argv = ["bspvis", "start.bsp", "none"]  # (bspvis runs main() on import: give it a no-op command)
-import bspvis  # noqa: E402
+from pathlib import Path
+import bspvis
 
-sys.argv = _argv
-
-B = bspvis.BSP("start.bsp")
+# --bsp <path> permits comparisons without overwriting the extracted original map.
+argv = sys.argv[1:]
+path = Path(__file__).with_name("start.bsp")
+if argv[:1] == ["--bsp"]:
+    path = Path(argv[1])
+    argv = argv[2:]
+sys.argv = [sys.argv[0], *argv]
+B = bspvis.BSP(path)
 
 
 def pts(a):
@@ -49,16 +53,12 @@ def main():
     if cmd == "ents":
         c, r = pts(sys.argv[2]), float(sys.argv[3])
         filt = sys.argv[4].lower() if len(sys.argv) > 4 else ""
-        for line in B.ents:
-            s = line.decode("latin-1")
-            if filt not in s.lower():
+        for ent in B.ents:
+            if filt not in str(ent).lower():
                 continue
-            o = None
-            for part in s.split('"'):
-                if part.startswith("origin "):
-                    o = [float(x) for x in part.split()[1:4]]
-            if o and max(abs(o[i] - c[i]) for i in range(3)) <= r:
-                print("  ", s.strip()[:240])
+            o = B.entity_origin(ent)
+            if o is not None and max(abs(o[i] - c[i]) for i in range(3)) <= r:
+                print("  ", ent)
         return
     if cmd == "leaf":
         p = pts(sys.argv[2])
@@ -84,7 +84,7 @@ def main():
         return
     if cmd == "box":
         lo, hi = pts(sys.argv[2]), pts(sys.argv[3])
-        for leaf in range(1, B.numleafs):
+        for leaf in range(1, B.numleafs + 1):
             lmin, lmax = B.leafbox(leaf)
             if all(lmin[i] >= lo[i] and lmax[i] <= hi[i] for i in range(3)):
                 B.show_leaf(leaf, 4)

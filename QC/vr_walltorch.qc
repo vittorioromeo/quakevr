@@ -714,6 +714,10 @@ void() VR_WallTorch_Touch =
 {
     if(self.wt_state == 0)
     {
+        if(!cvar_hget(cvarh_vr_walltorch_shot))
+        {
+            return;
+        }
         // On its wall. Its box is touched by everything that moves past it (a SOLID_NOT_BUT_TOUCHABLE one is linked,
         // and VR_TouchLinks takes it: a player's or a monster's body, a prop resting against it, one carried or pushed
         // slowly); a hand takes it by its handtouch, never here. What knocks it off is a thing thrown into it at the
@@ -951,5 +955,15 @@ void() VR_WallTorch_TestShot =
             cvar("vr_test_fling_speed")));
         return;
     }
-    VR_Test_Fire(kind, mid);
+    entity shot = VR_Test_Fire(kind, mid);
+    if(kind == 4 && shot != world)
+    {
+        // This wall-torch test represents the player's rifle, whose missile move meets shot targets. The
+        // monster laser made by VR_Test_Fire is MOVETYPE_FLY and otherwise passes the torch without testing it.
+        shot.movetype = MOVETYPE_FLYMISSILE;
+        shot.touch = VR_RifleLaser_Touch;
+        shot.classname = "rifle_laser";
+        shot.vr_laser_damage = cvar_hget(cvarh_vr_enfrifle_damage);
+        shot.velocity = normalize(shot.velocity) * max(100, cvar_hget(cvarh_vr_enfrifle_speed));
+    }
 };

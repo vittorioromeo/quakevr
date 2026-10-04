@@ -5,7 +5,9 @@ Used for measuring visibility in `start` (the hidden staircase report). No engin
     python bspvis.py start.bsp leaf "<x> <y> <z>"
     python bspvis.py start.bsp diff "<x1 y1 z1>" "<x2 y2 z2>"
     python bspvis.py start.bsp box "<minx miny minz> <maxx maxy maxz>"
+    python bspvis.py start.bsp audit
 """
+import re
 import struct
 import sys
 
@@ -23,7 +25,8 @@ class BSP:
             o, s = lumps[i]
             return d[o:o + s]
 
-        self.ents = lump(0).split(b"\n")
+        self.ents = [dict(re.findall(r'"([^"\n]*)"\s*"([^"\n]*)"', block))
+                     for block in re.findall(r'\{([^{}]*)\}', lump(0).decode("latin-1"))]
         planes = [struct.unpack_from("<ffffi", lump(1), 20 * i) for i in range(len(lump(1)) // 20)]
         self.planes = planes
         verts = [struct.unpack_from("<fff", lump(3), 12 * i) for i in range(len(lump(3)) // 12)]
@@ -38,7 +41,11 @@ class BSP:
         self.models = [struct.unpack_from("<9f4i3i", lump(14), 64 * i) for i in range(len(lump(14)) // 64)]
         leafs = [struct.unpack_from("<ii6h2H4B", lump(10), 28 * i) for i in range(len(lump(10)) // 28)]
         self.leafs = leafs
-        self.numleafs = len(leafs)
+        # Submodels have their own leaf records. PVS rows contain only world visibility leaves,
+        # excluding the common solid leaf 0 (dmodel_t.visleafs).
+        self.numleafs = self.models[0][13]
+        if not 0 <= self.numleafs < len(leafs):
+            raise ValueError("invalid world visibility leaf count")
         self.marksurfaces = [struct.unpack_from("<H", lump(11), 2 * i)[0] for i in range(len(lump(11)) // 2)]
         self.surfedges = [struct.unpack_from("<i", lump(13), 4 * i)[0] for i in range(len(lump(13)) // 4)]
         self.edges = [struct.unpack_from("<HH", lump(12), 4 * i) for i in range(len(lump(12)) // 4)]
@@ -69,39 +76,30 @@ class BSP:
     def decompress(self, leaf):
         """The PVS bit string of a leaf (a bytearray of numleafs bits), as Mod_DecompressVis."""
         n = (self.numleafs + 7) >> 3
-        out = bytearray(n)
+        if not 0 <= leaf <= self.numleafs:
+            raise ValueError("not a world leaf")
         ofs = self.leafs[leaf][1]
-        if ofs < 0:
-            for i in range(n):
-                out[i] = 0xFF
-            return out
-        src = self.visblob[ofs:]
-        k = 0
-        i = 0
-        while k < n and i < len(src):
-            c = src[i]
-            i += 1
-            if c == 0:
-                run = min(src[i], n - k) if i < len(src) else 0
-                i += 1
-                k += run
-            else:
-                c = min(c, n - k)
-                for _ in range(c):
-                    out[k] = src[i] if i < len(src) else 0
-                    k += 1
-                    i += 1
-        return out
+        if leaf == 0 or ofs < 0:
+            return bytearray([0xFF]) * n
+        return decompress_vis(self.visblob, ofs, n)
 
-    @staticmethod
-    def bits(data):
-        """The leaf numbers a PVS bit string names (the bits are 1-based: bit b is leaf b+1)."""
-        n = len(data) * 8
-        return [b for b in range(n) if data[b >> 3] & (1 << (b & 7))]
+    def bits(self, data):
+        """World leaf numbers: PVS bit b names BSP leaf b+1; omit padding bits."""
+        return [b + 1 for b in range(self.numleafs) if data[b >> 3] & (1 << (b & 7))]
 
     def leafbox(self, leaf):
         lf = self.leafs[leaf]
         return lf[2:5], lf[5:8]
+
+    def entity_origin(self, ent):
+        """Point entity's origin, or brush bounds centre (brush entities often omit origin)."""
+        if "origin" in ent:
+            return tuple(float(x) for x in ent["origin"].split())
+        model = ent.get("model", "")
+        if model.startswith("*"):
+            bounds = self.models[int(model[1:])]
+            return tuple((bounds[i] + bounds[i + 3]) * 0.5 for i in range(3))
+        return None
 
     def leaffaces(self, leaf):
         lf = self.leafs[leaf]
@@ -114,7 +112,7 @@ class BSP:
         pts = []
         for k in range(n):
             e = self.surfedges[f[2] + k]
-            v = self.edges[abs(e)][0 if e > 0 else 1]
+            v = self.edges[abs(e)][0 if e >= 0 else 1]
             pts.append(self.verts[v])
         cx = sum(p[0] for p in pts) / max(n, 1)
         cy = sum(p[1] for p in pts) / max(n, 1)
@@ -132,6 +130,27 @@ class BSP:
             print(f"      face {f} tex {tex:<16} centre ({c[0]:.0f} {c[1]:.0f} {c[2]:.0f})")
 
 
+def decompress_vis(blob, offset, row_size):
+    """Quake RLE: nonzero bytes are literals; zero followed by N means N zero bytes."""
+    out = bytearray()
+    while len(out) < row_size:
+        if not 0 <= offset < len(blob):
+            raise ValueError("truncated PVS row")
+        value = blob[offset]
+        offset += 1
+        if value:
+            out.append(value)
+            continue
+        if offset >= len(blob):
+            raise ValueError("truncated PVS zero run")
+        count = blob[offset]
+        offset += 1
+        if count == 0 or len(out) + count > row_size:
+            raise ValueError("invalid PVS zero run")
+        out.extend(bytes(count))
+    return out
+
+
 def parse_args(argv):
     return [tuple(float(x) for x in a.split()) for a in argv]
 
@@ -139,22 +158,21 @@ def parse_args(argv):
 def main():
     path, cmd = sys.argv[1], sys.argv[2]
     b = BSP(path)
-    print(f"{path}: {b.numleafs} leafs, {len(b.faces)} faces, {len(b.nodes)} nodes, {len(b.ents)} entity lines")
+    print(f"{path}: {b.numleafs} leafs, {len(b.faces)} faces, {len(b.nodes)} nodes, {len(b.ents)} entities")
     args = parse_args(sys.argv[3:])
-    if cmd == "ents":
+    if cmd == "audit":
+        missing = [leaf for leaf in range(1, b.numleafs + 1)
+                   if leaf not in b.bits(b.decompress(leaf))]
+        print(f"{b.numleafs} world visibility leaves; {len(b.leafs)} total leaf records; "
+              f"{len(missing)} missing self bits: {missing}")
+    elif cmd == "ents":
         c, r = args[0], args[1][0]
-        for line in b.ents:
-            s = line.decode("latin-1")
-            if '"origin"' not in s:
-                continue
-            o = None
-            for part in s.split('"'):
-                if part.startswith("origin "):
-                    o = [float(x) for x in part.split()[1:4]]
+        for ent in b.ents:
+            o = b.entity_origin(ent)
             if o is None:
                 continue
             if max(abs(o[i] - c[i]) for i in range(3)) <= r:
-                print("  ", s.strip()[:220])
+                print("  ", ent)
     elif cmd == "leaf":
         leaf = b.pointleaf(args[0])
         print(f"point {args[0]} leaf {leaf} contents {CONTENTS.get(b.leafs[leaf][0])} "
@@ -174,10 +192,11 @@ def main():
             b.show_leaf(leaf)
     elif cmd == "box":
         lo, hi = args
-        for leaf in range(1, b.numleafs):
+        for leaf in range(1, b.numleafs + 1):
             lmin, lmax = b.leafbox(leaf)
             if all(lmin[i] >= lo[i] and lmax[i] <= hi[i] for i in range(3)):
                 b.show_leaf(leaf)
 
 
-main()
+if __name__ == "__main__":
+    main()

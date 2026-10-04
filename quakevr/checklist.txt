@@ -271,13 +271,12 @@ Slipgate: walk into a gate's frame in start → you hit a wall, no sudden jump
 Slipgate: lean or reach into a gate with your head → no teleport; it happens only when your torso's middle plane goes through the gate's plane
 Slipgate: walk through at an angle, and try a gate whose opening is inset from its TELE faces (the aperture tolerance is now exact, stricter than before)
 Slipgate: shooting and throwing through still works; a dropped torch/prop goes through
-Slipgate seen from far away: the far side is no longer a black texture — it is dim but readable, and it gets clearer as you approach. Within a room's approach nothing changed; only far views changed (the view is now taken from at most 256 units behind the far side, so a distant gate is not the room next door at true distance)
+Slipgate seen from far away: the view uses the same rigid transform as shots and movement, so a target shown through the gate is where a shot goes. Check distant and near approaches for visibility and lighting.
 Debug > Slipgates > Looking Through A Gate, Or Why Not — which side you are looking through, that gate's box on your screen, and why every other gate is not used
 Debug > Tests > Slipgates: Crossing One — run it, then read the console for "VR portal: carried edict …"
 Debug > Tests > Slipgates: The Whole Feature Off — and the switch takes effect live, no map reload (flip it at a gate and watch the portal/scene rows appear and go in the profiler)
 
-Hidden staircase in start: at the spot you reported, the closed episode gate no longer appears and disappears as you tilt your head. Compare with Debug > Slipgates > "Self-Leaf PVS Off (Quake's)" and "Self-Leaf PVS On"; "Hidden Staircase, Both Ways" runs both
-If any map now shows something that should stay hidden (a closed door, what is behind one), tell us — this fix only ever adds visibility
+Hidden staircase in start: at 278 1728 24, compare portals on/off and turn or lean your head. The func_bossgate cover (*38) should remain present until all four episodes are completed. Each render view now restores its entity list so a portal's culling cannot remove the cover from either eye. The unnecessary self-leaf workaround was removed and the diagnostic BSP decoder corrected.
 
 [Decide or give feedback]
 Hitboxes: one set used by melee and by hitscan/projectile both? (after the hit-zone comparison shows both; the coordinator will bring a recommendation)
