@@ -43,6 +43,7 @@ QVR_CVAR(vr_hit_precise, "1", CVAR_ARCHIVE)           // Combat > Hit Detection 
 QVR_CVAR(vr_hit_tolerance_guns, "4", CVAR_ARCHIVE)    // units the model is grown by for shots and projectiles (nails, rockets, grenades, lasers...)
 QVR_CVAR(vr_hit_tolerance_grapple, "2", CVAR_ARCHIVE) // for the grappling hook
 QVR_CVAR(vr_hit_tolerance_melee, "6", CVAR_ARCHIVE)   // for melee blows and shoves (on top of the striking points' own thickness, 3 units)
+QVR_CVAR(vr_hit_melee_scale, "1", CVAR_ARCHIVE)        // Combat > Hit Detection > Melee Hitbox Size: the melee probe (vr_hit_tolerance_melee) times this, 0.25..4. Not the striking points' own 3 units, not the broad-phase box.
 QVR_CVAR(vr_hit_tolerance_thrown, "2", CVAR_ARCHIVE)  // for thrown things (on top of their hit box, vr_throw_hitbox: 6)
 QVR_CVAR(vr_debug_hits, "0", CVAR_NONE)               // Debug > Show Hits: each precise hit drawn (the model as drawn then, the triangle hit, the point on the model) and printed; 2: also the shots through a box that missed the model
 
@@ -1307,6 +1308,8 @@ QVR_CVAR(vr_water_ripple_decay, "2", CVAR_ARCHIVE)    // ... seconds for them to
 QVR_CVAR(vr_water_ripple_wavelength, "64", CVAR_ARCHIVE) // ... units between crests (in the geometry from 2 grid cells up, fully from 3; the lighting also has ones a third as long)
 QVR_CVAR(vr_water_ripple_max, "32", CVAR_ARCHIVE)       // ... how many at once, at most (1..32; a new one takes the weakest's place)
 QVR_CVAR(vr_positional_damage, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_melee_positional, "1", CVAR_ARCHIVE)       // Combat > Damage and Knockback > Positional Damage: your melee blows take the same head/limb/leg multipliers as your shots, from the point on the model they met (0: flat melee damage, as before)
+QVR_CVAR(vr_hit_head_priority, "1", CVAR_ARCHIVE)      // Combat > Hit Detection > Head Priority: where a hit point, or a whole melee sweep, lies in more than one body zone, the head's zone decides it (0: the limb/leg zones claim it first)
 QVR_CVAR(vr_headshot_sound, "0.5", CVAR_ARCHIVE)      // volume of the tick on a headshot (0 off)
 QVR_CVAR(vr_climb, "0", CVAR_ARCHIVE)                 // on as shipped (vr_defaults.cfg): either empty hand gripping a ledge or rung hangs from it; hand over hand, shimmy, mantle (vr_climb.cpp)
 QVR_CVAR(vr_climb_min_height, "30", CVAR_ARCHIVE)     // units above the feet a ledge must be to take hold of

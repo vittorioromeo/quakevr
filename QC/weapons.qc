@@ -247,6 +247,78 @@ float(entity xTarget) PositionalHead =
 
 float VR_HEAD_MARGIN = 3.5; // units: the head spheres are fitted to the top vertices' middle; a head's surface lies up to 3.5 beyond (an ogre's back of the head)
 
+// Which zone a point that lies in more than one belongs to (1 head, 2 extremities, 3 legs, 0 body). Head priority
+// (vr_hit_head_priority, Combat > Hit Detection > Head Priority): the head's zone wins the overlap - a head is a head
+// whatever else reaches it. Off: the limb and leg zones claim the point first, and the head only where nothing else
+// does. The head sphere is not grown for it: only which claim is taken changes.
+float(float inHead, float outLateral, float belowOrigin) VR_RegionPick =
+{
+    if(cvar_hget(cvarh_vr_hit_head_priority))
+    {
+        if(inHead)
+        {
+            return 1; // headshot
+        }
+        if(outLateral)
+        {
+            return 2; // extremities
+        }
+        if(belowOrigin)
+        {
+            return 3; // legs
+        }
+        return 0; // standard
+    }
+
+    if(outLateral)
+    {
+        return 2; // extremities
+    }
+    if(belowOrigin)
+    {
+        return 3; // legs
+    }
+    if(inHead)
+    {
+        return 1; // headshot
+    }
+    return 0; // standard
+}
+
+// Whether the way from `xFrom` to `xTo` (a blow's sweep through a body, not a ray onwards) crosses the target's head
+// zone: the same sphere PositionalRegion measures its head with, tested as a segment. Head priority
+// (vr_hit_head_priority): a sweep that crossed the head is a head blow, whatever part of the body its probe happened
+// to meet first. FALSE when the way is unknown.
+float(entity xTarget, vector xFrom, vector xTo) VR_HeadZoneCrossing =
+{
+    if(xFrom == '0 0 0' || !PositionalHead(xTarget))
+    {
+        return FALSE;
+    }
+
+    vector d = xTo - xFrom;
+    float len = vlen(d);
+    if(len < 0.01)
+    {
+        return FALSE;
+    }
+    d = d / len;
+    if(len > 64) // (a swing remembered from too far: only the last of its way counts)
+    {
+        len = 64;
+        xFrom = xTo - d * len;
+    }
+
+    float yaw = xTarget.angles_y * (3.14159265 / 180);
+    vector facing;
+    facing_x = cos(yaw);
+    facing_y = sin(yaw);
+    facing_z = 0;
+    vector head = xTarget.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    float t = max(0, min(len, (head - xFrom) * d));
+    return vlen(head - (xFrom + d * t)) < xHeadRadius + VR_HEAD_MARGIN;
+}
+
 // Where a shot entering `xTarget` at `xEndpos` (a point on its box, from a trace) along
 // `xDirection` hits: 1 the head, 2 an extremity (far from its middle), 3 the legs, 0 the body; -1
 // when positional damage does not apply (vr_positional_damage 0, a target without a head).
@@ -282,32 +354,19 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     if(hitmodel_target(xTarget))
     {
         vector rest = hitmodel_rest(xTarget, xEndpos);
-        if(vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN)
-        {
-            return 1; // headshot
-        }
+        float inHead = vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN;
         // Out to its sides (not forwards: a grunt's hands and gun are in front of its chest, a front shot's body).
         vector restSide;
         restSide_x = -facing_y;
         restSide_y = facing_x;
         restSide_z = 0;
-        if(fabs((rest - xTarget.origin) * restSide) > (xTarget.maxs_x - xTarget.mins_x) * 0.35)
-        {
-            return 2; // extremities
-        }
-        if(rest_z < xTarget.origin_z)
-        {
-            return 3; // legs
-        }
-        return 0; // standard
+        return VR_RegionPick(inHead, fabs((rest - xTarget.origin) * restSide) > (xTarget.maxs_x - xTarget.mins_x) * 0.35,
+            rest_z < xTarget.origin_z);
     }
 
     // The ray's closest approach to the head, not behind where it entered.
     float t = max(0, (head - xEndpos) * d);
-    if(vlen(head - (xEndpos + d * t)) < xHeadRadius)
-    {
-        return 1; // headshot
-    }
+    float inHead = vlen(head - (xEndpos + d * t)) < xHeadRadius;
 
     // The ray's closest approach to the target's vertical axis: how far out, and how high.
     vector dh = d;
@@ -323,17 +382,38 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     vector off = q - xTarget.origin;
     off_z = 0;
 
-    if(vlen(off) > (xTarget.maxs_x - xTarget.mins_x) * 0.35)
+    return VR_RegionPick(inHead, vlen(off) > (xTarget.maxs_x - xTarget.mins_x) * 0.35, q_z < xTarget.origin_z);
+}
+
+// A melee blow's positional damage (vr_melee_positional, Combat > Damage and Knockback > Positional Damage): the same
+// zones and the same multipliers the guns use, decided from the zero-radius point on the model the blow met
+// (PositionalRegion, hitmodel_rest) - so a head is a head for a blade and for a shot alike. The looser melee
+// tolerance (vr_hit_tolerance_melee, vr_hit_melee_scale) stays what *connects* only: it never makes a body hit count
+// as a head. With head priority (vr_hit_head_priority) a blow whose way through the body crossed the head zone is a
+// head blow, whatever part its probe met first. Its answer is recorded as PositionalDamage records a shot's (the
+// dummy's report, the highlights). With the option off: 1, nothing recorded - today's flat melee damage.
+float(entity xTarget, vector xFrom, vector xTo, vector xDir) VR_Melee_Positional =
+{
+    if(cvar_hget(cvarh_vr_melee_positional) == 0 || cvar_hget(cvarh_vr_positional_damage) == 0)
     {
-        return 2; // extremities
+        return 1;
     }
 
-    if(q_z < xTarget.origin_z)
+    float region = PositionalRegion(xTarget, xTo, xDir);
+    if(region != 1 && cvar_hget(cvarh_vr_hit_head_priority) && VR_HeadZoneCrossing(xTarget, xFrom, xTo))
     {
-        return 3; // legs
+        region = 1; // the head crossing wins the sweep
+    }
+    if(region < 0)
+    {
+        return 1;
     }
 
-    return 0; // standard
+    vr_hitpart = region;
+    vr_hitpart_target = xTarget;
+    vr_hitpart_time = time;
+    vr_hitpart_pos = xTo;
+    return PositionalDamageFactor(region);
 }
 
 // PositionalRegion for a shot's damage (0, the body, when it does not apply). A headshot also
@@ -963,12 +1043,13 @@ void(float xHand, vector xAt) HIP_FireMjolnirLightning =
 
 // A swing (tagged by PlayerVRMeleeImpl) struck at trace_endpos, going along `xDir`: kept for the
 // training dummy's report (vr_dummy.qc).
-void(vector xDir) VRMeleeHitAt =
+void(vector xDir, vector xFrom) VRMeleeHitAt =
 {
     if(vr_hitkind == QVR_HITKIND_MELEE)
     {
         vr_hitpos = trace_endpos;
         vr_hitdir = xDir;
+        vr_hitfrom = xFrom; // the striking point's way: head priority reads the zones it crossed, not only where it stopped
     }
 };
 
@@ -998,7 +1079,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
         {
             return FALSE;
         }
-        VRMeleeHitAt(v_forward);
+        VRMeleeHitAt(v_forward, VR_Blow(xHand).mh_c_from);
         return TRUE;
     }
 
@@ -1028,7 +1109,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
         if(VRMeleeTraceHit(handPos, anything))
         {
             v_forward = dir;
-            VRMeleeHitAt(dir);
+            VRMeleeHitAt(dir, handPos - dir * 6);
             return TRUE;
         }
 
@@ -1036,7 +1117,7 @@ float(float xHand, float xRange, float xMuzzleRange) VRDoMeleeAttackTracelineFor
         if(VRMeleeTraceHit(muzzlePos, anything))
         {
             v_forward = dir;
-            VRMeleeHitAt(dir);
+            VRMeleeHitAt(dir, muzzlePos - dir * 6);
             return TRUE;
         }
     }
