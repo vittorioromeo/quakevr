@@ -154,6 +154,7 @@ Retro Textures: Decals and Particles categories: blood and explosion particles w
 Retro Lighting (Graphics > Retro Lighting): try the three looks (Software Quake, Blocky Lightmaps, Banded and Dithered)
 Retro Lighting: no swimming or crawling band/block edges as you move your head (Block Edge Softness 1 vs 0)
 Retro Lighting: flashlight pool at Dynamic Light Blocks 4 and 8; Level Spacing even vs Quake; Lightmap Block 1 vs 16 with Retro Textures on
+Retro Lighting > Shadow Blocks: new 1/4 and 1/2 texel choices — shadows still pixelated but with smaller pixels; which one do you like? (1 is unchanged; Off still off; far surfaces go smooth as before)
 
 Training dummy bleeds like a grunt: sword, punches, shotgun, chainsaw: blood on your hands, arms and held props, small gibs (Gore > Training Dummy)
 Training dummy: Dummy Gibs on, a hard blow or a rocket gibs it; it stands again after 2 s
