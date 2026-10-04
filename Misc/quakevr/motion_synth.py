@@ -342,16 +342,17 @@ def shoulder(take):
     return (0.0, -0.2, take.eye_height - 0.2)
 
 
-def sword_swing(take, p0, p1, p2, b0, b1, b2, duration, two_handed):
+def sword_swing(take, p0, p1, p2, b0, b1, b2, duration, two_handed, flat=False):
     """A sword through p0, p1, p2 (the hand, a Bezier) with its blade along b0, b1, b2, the thumb's side (the edge)
-    leading: the back of the hand faces motion x blade."""
+    leading: the back of the hand faces motion x blade. `flat`: the flat leading instead (the back of the hand faces
+    the motion: a slap)."""
     last = {"right": (0.0, -1.0, 0.0)}
 
     def pose(s):
         hand = bezier(p0, p1, p2, s)
         blade = norm(lerp(b0, b1, s * 2)) if s < 0.5 else norm(lerp(b1, b2, s * 2 - 1))
         motion = sub(bezier(p0, p1, p2, min(1.0, s + 0.01)), bezier(p0, p1, p2, max(0.0, s - 0.01)))
-        right = cross(motion, blade)
+        right = sub(motion, mul(blade, dot(motion, blade))) if flat else cross(motion, blade)
         if dot(right, right) > 1e-8:
             last["right"] = norm(right)
         out = {"main": (hand, blade_pose("main", blade, last["right"]))}
@@ -589,17 +590,54 @@ def preset(name, args):
                   ease=False, phase="rec")
         take.hold(0.3, phase="tail")
         return take
+    take = decap_preset(name, args)
+    if take:
+        return take
     take = fix_preset(name, args)
     if take:
         return take
     raise SystemExit("no preset %r (--list)" % name)
 
 
+# Decapitation takes (ROUND21.md, "Decapitation takes"; expect.cfg decapitation, no_decapitation): the sword's slashes
+# with the blade crossing the dummy's neck (a grunt's: its head's middle 23 units over its origin), and blows there
+# (or lower) that must not behead. The hand's height below the eye: --neck (the blade level with the neck).
+def decap_preset(name, args):
+    ws, eye, T = args.world_scale, args.eye_height, args.duration
+    z = eye - args.neck
+    swings = {
+        # (hand path: start, middle, end; blade: start, middle, end; flat leading; the hand lower by)
+        "decapitation_horizontal_rtl": (((0.05, -0.55, z), (0.55, -0.05, z), (0.2, 0.4, z)),
+                                        ((0.3, -0.95, 0.05), (1.0, 0.0, 0.02), (0.3, 0.95, 0.05)), False, 0.0),
+        "decapitation_horizontal_ltr": (((0.05, 0.3, z), (0.55, 0.0, z), (0.2, -0.6, z)),
+                                        ((0.3, 0.95, 0.05), (1.0, 0.0, 0.02), (0.3, -0.95, 0.05)), False, 0.0),
+        "decapitation_diagonal_down_left": (((0.05, -0.45, z + 0.25), (0.5, -0.05, z), (0.25, 0.35, z - 0.3)),
+                                            ((0.3, -0.95, 0.3), (1.0, 0.0, -0.05), (0.3, 0.95, -0.35)), False, 0.0),
+        "no_decapitation_flat": (((0.05, -0.55, z), (0.55, -0.05, z), (0.2, 0.4, z)),
+                                 ((0.3, -0.95, 0.05), (1.0, 0.0, 0.02), (0.3, 0.95, 0.05)), True, 0.0),
+        "no_decapitation_body": (((0.05, -0.55, z), (0.55, -0.05, z), (0.2, 0.4, z)),
+                                 ((0.3, -0.95, 0.05), (1.0, 0.0, 0.02), (0.3, 0.95, 0.05)), False, 0.35),
+        "no_decapitation_stab": (((0.12, -0.05, z), (0.3, -0.03, z), (0.5, -0.02, z)),
+                                 ((1.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.0, 0.0)), False, 0.0),
+    }
+    if name not in swings:
+        return None
+    (p0, p1, p2), (b0, b1, b2), flat, lower = swings[name]
+    if lower:
+        p0, p1, p2 = ((x, y, zz - lower) for x, y, zz in (p0, p1, p2))
+    take = Take(name, rate=args.rate, world_scale=ws, eye_height=eye, main_weapon="sword", target=(args.distance, 0.0),
+                note="synthetic")
+    sword_swing(take, p0, p1, p2, norm(b0), norm(b1), norm(b2), T, False, flat)
+    return take
+
+
+DECAP_PRESETS = ["decapitation_horizontal_rtl", "decapitation_horizontal_ltr", "decapitation_diagonal_down_left",
+                 "no_decapitation_flat", "no_decapitation_body", "no_decapitation_stab"]
 FIX_PRESETS = ["chop_horizontal", "chop_diagonal", "chop_overhead", "punch_down_gib", "chop_down_gib",
                "punch_straight_off", "palm_shove_2h_torch", "palm_shove_torch_only"]
 PRESETS = ["slash_overhead", "slash_horizontal_rtl", "slash_horizontal_ltr", "slash_diagonal_down_left", "stab",
            "punch_straight", "palm_shove_1h", "palm_shove_2h", "no_hit_slow_punch", "no_hit_wave"]
-DEFAULT_DURATION = {"stab": 0.15, "punch_straight": 0.15, "palm_shove_1h": 0.15, "palm_shove_2h": 0.15,
+DEFAULT_DURATION = {"stab": 0.15, "no_decapitation_stab": 0.15, "punch_straight": 0.15, "palm_shove_1h": 0.15, "palm_shove_2h": 0.15,
                     "chop_horizontal": 0.22, "chop_diagonal": 0.22, "chop_overhead": 0.22, "punch_down_gib": 0.16,
                     "chop_down_gib": 0.22, "punch_straight_off": 0.15, "palm_shove_2h_torch": 0.15,
                     "palm_shove_torch_only": 0.15}
@@ -615,6 +653,8 @@ def main():
     ap.add_argument("--rate", type=float, default=90.0, help="frames a second")
     ap.add_argument("--world-scale", type=float, default=1.25)
     ap.add_argument("--eye-height", type=float, default=1.646)
+    ap.add_argument("--neck", type=float, default=0.62, help="the decapitation presets: metres from the eye down to "
+                    "the hand (the blade level with the dummy's neck)")
     ap.add_argument("--two-handed", action="store_true", help="the sword's with the off hand on the grip")
     ap.add_argument("--weapon", default="axe", choices=sorted(WEAPON_FAR),
                     help="the chop presets' weapon; crowbar, chainsaw: the sword presets' too")
@@ -624,11 +664,11 @@ def main():
     ap.add_argument("--name", help="the file's name (no extension; default: the label and the time)")
     args = ap.parse_args()
     if args.list or not args.preset:
-        print("\n".join(PRESETS + FIX_PRESETS))
+        print("\n".join(PRESETS + FIX_PRESETS + DECAP_PRESETS))
         return
     if args.settings_from:
         configure(settings_from_cfg(args.settings_from))
-    names = PRESETS if args.preset == "all" else [args.preset]
+    names = PRESETS if args.preset == "all" else DECAP_PRESETS if args.preset == "decap" else [args.preset]
     for name in names:
         a = argparse.Namespace(**vars(args))
         a.duration = args.duration or DEFAULT_DURATION.get(name, 0.3)

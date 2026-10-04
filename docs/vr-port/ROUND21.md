@@ -24260,3 +24260,67 @@ In VR:
 - [ ] From a Head Gib 0 and From a Head Pop 0 throw none.
 - [ ] Brain Chunks off throws none.
 - [ ] Debug > Gore Tests > Brain Chunks Ahead bursts some just ahead of you.
+## Decapitation 3: a beheaded body keeps its run; decapitation takes (2026-10-04)
+
+The author: "enemy's own movement should not be cancelled": a popped head's ragdoll keeps 0.1x of the killing blow's push,
+but the monster's own motion in full. And "decapitation" and "no decapitation" in the motion recorder, to record takes
+for tuning which blows behead (the angle of the hit, the bladed part of the weapon).
+
+**Its own motion** (Gore > Decapitation > **Keeps Its Own Motion**, `vr_decap_own_motion`, on): a walking monster's
+velocity is none (Quake steps it every 0.1 s), so its ragdoll never carried its run. The engine now follows each
+monster's origin (vr_box3d.cpp `watchCorpses`: its last three changes, `World::motion`; `ownMotion`: over the last two,
+none after 0.2 s still) and its velocity the frame before. A ragdoll made by `ragdolldecap` starts at its own motion (the
+walk, plus its animation's) plus what this frame added to its velocity (the blow's knock); each part's own motion is
+kept (`RagdollBodies::ownLin`, `ownAng`; a corpse beheaded: its parts' motion as it lay), and a head pop's settle scales
+only the rest: `own + (motion - own) * vr_decap_pop_body_speed`. Off: as before. `vr_debug_ragdoll 1`: "beheaded: its own
+motion 161 u/s" and "settled after its head popped: ... pelvis 126 u/s (its own motion 161 u/s)".
+
+| e1m1, super shotgun headshot (`vr_decap_test 13`) | its own motion | pelvis after the pop |
+|---|---|---|
+| a standing grunt | 0 | 53 u/s (as before) |
+| a grunt running at you (three runs) | 161, 114, 125 u/s | 126, 81, 90 u/s (the shot's knock, against his run, 0.1x) |
+| the same, Keeps Its Own Motion off | 0 | 44 u/s |
+| a slash (`vr_decap_test 1`) on a running grunt | 124 u/s | 124 u/s (before: 13, his animation's) |
+
+**Decapitation takes** (docs/vr-port/MOTIONS.md, "Decapitation takes"): Motion Recorder categories **Decapitation**
+(`decapitation`; details the slash's direction, from_behind) and **No Decapitation** (`no_decapitation`; stab, pommel,
+hilt, flat, slow, body, shoulder). Each blade blow by the hand on the training dummy (judged as a grunt) or on a monster
+that can lose its head is judged by `VR_Decap_Blow`'s rules as if it killed (QC `VR_Decap_Judge`, vr_decap.qc): an event
+`decap/yes` or `decap/no` (vr_motion.qc `VR_Motion_Hit`) whose detail says why: the zone (in or out, the distance from the
+zone's line against its radius, the height below the head's middle), the part of the weapon (the share of the way from
+the grip to the tip, the striking part), the slash angle (off the blade's line), the flat angle (off the edge: the hand's
+sides taken as the blade's flats), the tilt (above level), the speed and the melee's kind, then the refusal. The dummy's
+console line says "would behead (...)" or "would not behead (...)" for blows at its head or neck; Show Hit Zones >
+Decapitation draws the dummy's zone too. expect.cfg: `decapitation decap/yes +melee`, `no_decapitation decap/no
+!decap/yes +melee +bash +parrybash` (sword, axe, chainsaw); `+kind`, new: hits of that kind allowed, not required. The
+eval table's `events` column has the decap events.
+
+Tests: synthetic takes (`python Misc/quakevr/motion_synth.py decap --out quakevr/motions/decaptest`, new presets) with
+`vr_motion_eval decaptest`: 5 of 6 pass. The level and diagonal cuts at the neck behead (slash 74-80 deg, flat 1-9 deg,
+15-21 m/s, zone in); the stab doesn't (slash 8 deg: a stab); a cut 35 cm lower doesn't (zone out, 22.3/13.4 off). The flat
+slap beheads (flat 78 deg): the rules don't look at the edge yet, the first rule these takes are for. Decapitation's
+cases live, refuse, corpse, pop: as before.
+
+In VR:
+- [ ] Gore > Decapitation has Keeps Its Own Motion.
+- [ ] Shotgun the head of a grunt running at you: his headless body stumbles on towards you.
+- [ ] Shotgun a standing grunt's head: his body slumps where he stood.
+- [ ] Slash the neck of a grunt running at you: his body carries on a little with his run.
+- [ ] Keeps Its Own Motion off: a running grunt's popped body stops dead.
+- [ ] Motion Recorder > Category has Decapitation and No Decapitation.
+- [ ] Slash the dummy's neck with the sword: the wrist log says "would behead" with the numbers.
+- [ ] Stab the dummy's neck: the wrist log says "would not behead" (a stab).
+- [ ] Debug > Show Hit Zones > Decapitation draws the dummy's magenta zone.
+- [ ] [Record] Decapitation: 3 level slashes across the dummy's neck, left to right.
+- [ ] [Record] Decapitation: 3 level slashes across the neck, right to left.
+- [ ] [Record] Decapitation: 3 diagonal downward slashes through the neck.
+- [ ] [Record] Decapitation: 2 rising backswings through the neck.
+- [ ] [Record] Decapitation: 2 slashes with the axe across the neck.
+- [ ] [Record] Decapitation: 2 two-handed slashes across the neck.
+- [ ] [Record] No Decapitation (Stab): 3 stabs into the neck.
+- [ ] [Record] No Decapitation (Pommel): 3 pommel strikes on the head.
+- [ ] [Record] No Decapitation (Hilt): 2 hits with the hilt or guard on the head.
+- [ ] [Record] No Decapitation (Flat Slap): 3 slaps of the blade's flat against the neck.
+- [ ] [Record] No Decapitation (Too Slow): 2 slow cuts across the neck.
+- [ ] [Record] No Decapitation (Body Slash): 2 slashes across the chest.
+- [ ] [Record] No Decapitation (Shoulder Slash): 2 slashes into the shoulder.

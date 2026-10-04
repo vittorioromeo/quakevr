@@ -11,6 +11,8 @@
 //   as `sub` (slash, stab, pommel, punch, gun: VR_Melee_Category) and its kind, way and striking part as
 //   the detail. The kinds and their `sub` are the evaluation's vocabulary (quakevr/motions/expect.cfg):
 //   keep them when the melee changes, or change both.
+//   A blade's blow also says whether it would behead the target if it killed it ("decap", sub yes or no, the detail
+//   why: VR_Decap_Judge; the training dummy judged as a grunt).
 // - A sample each server frame (VR_Motion_Sample, called by the engine): the hands' striking points
 //   as the melee computes them, and the parry and bash-guard state. Any motionvalue() added there
 //   lands in the take's `qc` column: a free probe of the melee's own state.
@@ -83,6 +85,20 @@ void(entity xTarg, entity xAttacker, float xDamage, float xIsVRMelee) VR_Motion_
         }
     }
     VR_Motion_Event("melee", sub, hand, xDamage, at, xTarg, point);
+
+    // A blade's blow: whether it would behead (decap/yes, decap/no), and why (VR_Decap_Judge: the zone, the part of the
+    // blade, its angles and speed): the decapitation takes (expect.cfg decapitation, no_decapitation).
+    if(hand >= 0 && xAttacker.ishuman)
+    {
+        entity oldSelf2 = self;
+        self = xAttacker;
+        float decap = VR_Decap_Judge(xTarg, hand);
+        self = oldSelf2;
+        if(decap >= 0)
+        {
+            VR_Motion_Event("decap", decap ? "yes" : "no", hand, 0, at, xTarg, vr_decap_judge_why);
+        }
+    }
 };
 
 // Each server frame while a take is recorded or played (the engine calls it; self: the player,

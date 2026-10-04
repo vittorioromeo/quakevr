@@ -1023,7 +1023,8 @@ struct Match
     for(size_t i = 0; i < events.size(); i++)
     {
         const Event& e = events[i];
-        if(hitsAndPushes && !isHit(e) && e.kind != "push" && e.kind != "parry" && e.kind != "deflect" && e.kind != "strike")
+        if(hitsAndPushes && !isHit(e) && e.kind != "push" && e.kind != "parry" && e.kind != "deflect" && e.kind != "strike" &&
+           e.kind != "decap")
         {
             continue;
         }
@@ -1642,6 +1643,7 @@ struct Expectation
 {
     za::Vector<za::String> required;  // kind[/sub][@point|point] (any one of them)
     za::Vector<za::String> forbidden; // kind[/sub]
+    za::Vector<za::String> allowed;   // +kind: hits of these kinds don't fail it (not required)
     bool none{false};
     za::Vector<za::String> poses;     // parry, guard: held for half the take
     za::Vector<za::String> notPoses;  // parry, guard: never, in the take
@@ -1697,6 +1699,10 @@ void loadExpectations()
             else if(w.rfind("!pose:", 0) == 0)
             {
                 e.notPoses.emplaceBack(w.substrByPosLen(6));
+            }
+            else if(w[0] == '+')
+            {
+                e.allowed.emplaceBack(w.substrByPosLen(1));
             }
             else if(w[0] == '!')
             {
@@ -1796,6 +1802,10 @@ za::Vector<Result> results;
     for(const auto& f : e.forbidden)
     {
         add("!" + f);
+    }
+    for(const auto& a : e.allowed)
+    {
+        add("+" + a);
     }
     for(const auto& p : e.poses)
     {
@@ -1898,6 +1908,7 @@ void judge(const Report& r, const Expectation* e, Result& out)
                 const za::StringView kind = item.substrByPosLen(0, item.findFirstOf("/@"));
                 expected = expected || kind == ev.kind;
             }
+            expected = expected || za::find(e->allowed.begin(), e->allowed.end(), ev.kind) != e->allowed.end();
             bad = bad || !expected;
         }
         if(bad)

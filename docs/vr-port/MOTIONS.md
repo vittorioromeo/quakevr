@@ -70,6 +70,8 @@ with them off.
 | Expected Palm Shove 1H | `palm_shove_1h` | one open palm shoving | |
 | Expected Palm Shove 2H | `palm_shove_2h` | both palms shoving | |
 | Expected Gun Strike | `gun_strike` | a gun used as a club | swing, butt |
+| Decapitation | `decapitation` | a blade's blow at the neck that should cut the head off (a sword, an axe, the chainsaw) | horizontal_ltr, horizontal_rtl, diagonal_down_left, diagonal_down_right, backswing_up_left, backswing_up_right, from_behind |
+| No Decapitation | `no_decapitation` | a blade's blow at the head or neck (or near) that must not cut it off | stab, pommel, hilt, flat (a flat slap), slow, body, shoulder |
 | Other | `other` | anything else (`vr_motion_note`) | |
 
 The "parry state" the evaluation reads, each server frame of the replay's labelled part (phase `rec`): the parry test
@@ -77,6 +79,37 @@ is `m_parry`, `o_parry` or `parry_arms` (QC `VR_Parry_Blocks` towards the target
 crossed empty arms, `VR_Parry_ArmsCrossed`); the bash guard is `guard` >= 0 (QC `VR_Bash_Guard`). Expected Parry Pose
 needs the parry test in at least half of those frames; Not Parry Pose in none of them, nor the guard, nor any melee
 event.
+
+### Decapitation takes
+
+The two decapitation categories are for tuning which blows behead (ROUND21.md, "Decapitation 3"). Record them against
+the training dummy, as the other takes: it is judged as the grunt it is (its head zone a grunt's), and never loses its
+head. Every blade blow that lands on it (a sword's, an axe's or the chainsaw's, by the hand) is judged by decapitation's
+rules as if it killed (QC `VR_Decap_Judge`, the same tests `VR_Decap_Blow` makes on a monster): the take gets a
+`decap` event, `decap/yes` or `decap/no`, whose detail says why, and the dummy's console line (the wrist log) adds
+"would behead (...)" or "would not behead (...)" for a blow at its head or neck:
+
+| In the detail | |
+|---|---|
+| `zone in 3.1/13.4 off 8.0 below the head's middle` | the point struck, on the model standing: its distance from the zone's line (the head's middle down the neck: Neck) against the zone's radius (Head Zone Size), and how far below the head's middle |
+| `part 0.57 (mid-blade)` | where on the weapon: the share of the way from the grip to the tip (below 0 the pommel; the sword's blade from 0.4, the axe's head from 0.6), and the melee's striking part |
+| `slash 77 deg` | the struck point's motion off the blade's line: 0 a stab (along it), 90 straight across (Least Slash Angle refuses below it) |
+| `flat 9 deg` | off the edge: 0 the edge first, 90 the flat first (a slap); the blade's flat is taken as the hand's sides. Not a rule yet |
+| `tilt -3 deg` | the motion above level: 0 a level cut, -90 a chop straight down. Not a rule yet |
+| `speed 14.8 m/s` | the struck point's speed (Least Swing Speed) |
+| `kind slash` | the melee's call: slash, stab, pommel |
+| `- refused (a stab)` | why not, when it doesn't behead |
+
+How to record: Firing Range, the sword (or the axe), Motion Recorder > Category **Decapitation** (Detail: the slash's
+direction) for cuts across the dummy's neck that should take its head off; **No Decapitation** (Detail: stab, pommel,
+hilt, flat, slow, body, shoulder) for blows at the head and neck (or just below) that must not: a stab into the neck, the
+pommel or the hilt on the head, the blade's flat slapped against the neck, a slow cut, a cut at the chest or the
+shoulder. Several of each, at different angles and speeds, one- and two-handed. The verdicts (`expect.cfg`):
+**Decapitation** passes if a blow beheads (`decap/yes`); **No Decapitation** if a blade blow lands and none beheads
+(`decap/no`, never `decap/yes`). With another weapon (fists, a gun) the take is N/A. `vr_motion_eval decapitation_*`
+and `vr_motion_eval no_decapitation_*` evaluate them; the table's `events` column has each blow's detail: the data to
+set the rules by (a range of slash or tilt angles, the edge rather than the flat). Against a monster that can lose its
+head (`target <classname>`) the blows are judged the same way (it loses its head only if the blow also kills it).
 
 A take's label is `<category>` or `<category>_<detail>` (`slash_overhead`, `parry_pose_sword_2h_blade`).
 
@@ -383,7 +416,8 @@ From the agent kit: `bash <kit>/run.sh <agent> -Script "map vrfiringrange;wait60
 
 `quakevr/motions/expect.cfg` (in git; the rest of the folder is not) says what each category should do. See its
 comments for the grammar: required events (any of them: `melee`, `melee/stab`, `shove/both`,
-`melee@the_pommel|the_hilt`), forbidden ones (`!push`), `none` (no melee event at all: no hit, stroke, push or
+`melee@the_pommel|the_hilt`, `decap/yes`), forbidden ones (`!push`), hit kinds allowed without being required
+(`+melee`), `none` (no melee event at all: no hit, stroke, push or
 batting), poses held for half the take (`pose:parry`: the parry test, a weapon's or crossed arms'; `pose:guard`) or
 never (`!pose:parry`, `!pose:guard`: not one frame), and
 the weapons a category is for (`weapon:sword|axe|mjolnir`: with another weapon the take is N/A, reported apart). A
@@ -470,7 +504,12 @@ the weapons, the target's offset), to build test cases before (and besides) real
 python Misc/quakevr/motion_synth.py --list                 # the presets
 python Misc/quakevr/motion_synth.py all                    # every preset into quakevr/motions/synth/
 python Misc/quakevr/motion_synth.py slash_overhead --two-handed --duration 0.35 --distance 0.8
+python Misc/quakevr/motion_synth.py decap --out quakevr/motions/decaptest   # the decapitation presets
 ```
+
+The decapitation presets (`decap`): `decapitation_horizontal_rtl`, `_ltr`, `_diagonal_down_left` (the edge across the
+dummy's neck), `no_decapitation_flat` (the same with the flat leading), `_body` (35 cm lower), `_stab` (a thrust into the
+neck); `--neck` (0.62 m) the hand's height below the eye.
 
 Options: `--out <folder>`, `--duration <s>` (the motion; 0.3, a thrust 0.15), `--distance <m>` (from the head to the
 dummy's middle, straight ahead), `--rate <Hz>` (90), `--world-scale` (1.25), `--eye-height` (1.646),

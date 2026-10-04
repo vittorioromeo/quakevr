@@ -224,10 +224,13 @@ float(entity e, vector xAt, vector xDir) VR_Decap_OnMeleeHead =
 // its line at vr_decap_speed (its struck point's speed), or the chainsaw's bar. QVR_DECAP_SWING or _SAW (the struck
 // point's velocity in vr_decap_slashvel), 0 if not. `xLive`: the hand's blow (VR_Melee_Decide's kind: a slash, not a
 // stab or a pommel strike); else a corpse's (VR_Corpse_StrikeFrame: the blade's place and motion only).
+string vr_decap_no;    // VR_Decap_Slash's refusal ("": none)
+float vr_decap_quiet;  // VR_Decap_Slash says nothing (VR_Decap_Judge's)
 float(float xHand, vector xAt, float xLive) VR_Decap_Slash =
 {
     entity b = VR_Blow(xHand);
     float thing = b.mh_thing;
+    vr_decap_no = "not a blade held by its handle";
     if(b.mh_free || (thing != VR_MTHING_SWORD && thing != VR_MTHING_AXE && thing != VR_MTHING_SAW) ||
        (thing == VR_MTHING_AXE && b.mh_wid != WID_AXE))
     {
@@ -272,9 +275,13 @@ float(float xHand, vector xAt, float xLive) VR_Decap_Slash =
             no = sprintf("along the blade, a stab (%.2f)", fabs(vp * axis) / speed);
         }
     }
+    vr_decap_no = no;
     if(no != "")
     {
-        dprint(sprintf("decap: no: %s at the head (%.2f along the blade)\n", no, f));
+        if(!vr_decap_quiet)
+        {
+            dprint(sprintf("decap: no: %s at the head (%.2f along the blade)\n", no, f));
+        }
         return 0;
     }
     vr_decap_slashvel = VR_Blow_ToWorld(vp) * VRMetersToUnits();
@@ -317,6 +324,102 @@ float(entity targ, entity attacker) VR_Decap_Blow =
     }
     float how = VR_Decap_Slash(vr_hithand, b.mh_c_pos, TRUE);
     return how && VR_Decap_Arm(targ, attacker, b.mh_c_pos, vr_decap_slashvel, how);
+};
+
+// Whether `e` is judged for beheading: one that may lose its head (VR_Decap_Allowed), or the training dummy (as the grunt
+// it is: its head zone a grunt's, PositionalHead), which never does but says whether it would (VR_Decap_Judge).
+float(entity e) VR_Decap_Judged =
+{
+    if(e.classname == "vr_dummy")
+    {
+        return cvar_hget(cvarh_vr_decap) && !e.vr_gib;
+    }
+    return VR_Decap_Allowed(e);
+};
+
+// A hand's blade blow landing on `targ` (self the player; hand `xHand`'s blow, VR_Blow: its contact mh_c_pos), judged by
+// VR_Decap_Blow's rules as if it killed: 1 it beheads, 0 not, -1 not judged (not a sword's, an axe's or the chainsaw's
+// blow; `targ` not one that may lose its head, VR_Decap_Judged). For the motion recorder's "decap" event and the training
+// dummy's report (docs/vr-port/MOTIONS.md, "Decapitation takes"): vr_decap_judge_why says why, with the numbers to tune
+// the rules on: "zone in|out d/r off h below the head's middle (units on the model standing, from the zone's line)
+// part f (the striking part: f the share of the way from the grip to the tip) slash a deg (the struck point's motion off
+// the blade's line: 0 a stab, 90 straight across) flat b deg (off the edge: 0 the edge first, 90 the flat; the blade's
+// flat taken as the hand's sides) tilt c deg (the motion above level: -90 a chop straight down) speed s m/s kind k", then
+// the refusal (" - refused (...)") if any; no ':' nor ';' (the take's events column). vr_decap_judge_zone: 1 in the zone.
+string vr_decap_judge_why;
+float vr_decap_judge_zone;
+float VR_DEG = 57.29578; // degrees a radian
+float(entity targ, float xHand) VR_Decap_Judge =
+{
+    vr_decap_judge_why = "";
+    vr_decap_judge_zone = 0;
+    if(xHand < 0 || !(self.flags & FL_CLIENT) || !VR_Decap_Judged(targ))
+    {
+        return -1;
+    }
+    entity b = VR_Blow(xHand);
+    if(b.mh_thing != VR_MTHING_SWORD && b.mh_thing != VR_MTHING_AXE && b.mh_thing != VR_MTHING_SAW)
+    {
+        return -1;
+    }
+    vector oldForward = v_forward;
+    vector oldRight = v_right;
+    vector oldUp = v_up;
+    vector at = b.mh_c_pos;
+
+    // The zone: where the point struck lies on the model standing, from the zone's line (the head's middle down the neck).
+    float onZone = VR_Decap_OnMeleeHead(targ, at, b.mh_c_dir);
+    vr_decap_judge_zone = onZone;
+    string zone = "zone none";
+    if(VR_Decap_MeleeZone(targ))
+    {
+        vector p = hitmodel_target(targ) ? hitmodel_rest(targ, at) : at;
+        vector q = vr_decap_zone_top;
+        q_z = min(vr_decap_zone_top_z, max(vr_decap_zone_bottom_z, p_z));
+        zone = sprintf("zone %s %.1f/%.1f off %.1f below the head's middle", onZone ? "in" : "out", vlen(p - q),
+                       xHeadRadius, vr_decap_zone_top_z - p_z);
+    }
+
+    // The blade: the share of the way from the grip to the tip (below 0 the pommel), its motion there.
+    vector line = b.mh_far - b.mh_grip;
+    float len = max(1, vlen(line));
+    float f = ((at - b.mh_grip) * line) / (len * len);
+    vector vp = VR_Melee_PointVel(b, min(1, f));
+    float speed = vlen(vp);
+    vector axis = normalize(b.mh_rfar - b.mh_rgrip);
+    vector across = vp - axis * (vp * axis);
+    float slash = atan2(vlen(across), fabs(vp * axis)) * VR_DEG;
+    makevectors(VRGetEntHandRot(self, xHand));
+    vector side = VR_Blow_ToPlaySpace(v_right);
+    side = normalize(side - axis * (side * axis));
+    float flatPart = fabs(across * side);
+    float flat = atan2(flatPart, vlen(across - side * (across * side))) * VR_DEG;
+    float tilt = atan2(vp_z, sqrt(vp_x * vp_x + vp_y * vp_y)) * VR_DEG;
+    string kind = VR_Melee_Category(b.mh_kind, b.mh_thing);
+
+    vr_decap_quiet = TRUE;
+    float how = VR_Decap_Slash(xHand, at, TRUE);
+    vr_decap_quiet = FALSE;
+    float yes = onZone && how && VR_Decap_HowOn(how);
+    string no = "";
+    if(!onZone)
+    {
+        no = " - refused (not at the head or neck)";
+    }
+    else if(!how)
+    {
+        no = sprintf(" - refused (%s)", vr_decap_no);
+    }
+    else if(!yes)
+    {
+        no = " - refused (Chainsaw off)";
+    }
+    string angles = sprintf("slash %.0f deg flat %.0f deg tilt %.0f deg", slash, flat, tilt);
+    vr_decap_judge_why = sprintf("%s part %.2f (%s) %s speed %.1f m/s kind %s%s", zone, f, b.mh_part, angles, speed, kind, no);
+    v_forward = oldForward;
+    v_right = oldRight;
+    v_up = oldUp;
+    return yes;
 };
 
 // The armed blow's damage dealt: a zombie it didn't kill is beheaded all the same (it dies for good); the blow is done.
@@ -1087,7 +1190,7 @@ void() VR_Decap_DebugFrame =
             vector c = '1 0 0' * xHeadForward + '0 0 1' * xHeadUp;
             debughitzone(e, 1, c, c, xHeadRadius + (precise ? VR_HEAD_MARGIN : 0));
         }
-        if(mode >= 2 && VR_Decap_Allowed(e) && VR_Decap_HeadZone(e))
+        if(mode >= 2 && VR_Decap_Judged(e) && VR_Decap_HeadZone(e))
         {
             vector top = '1 0 0' * xHeadForward + '0 0 1' * xHeadUp;
             if(mode == 2)

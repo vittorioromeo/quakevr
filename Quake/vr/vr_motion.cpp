@@ -84,6 +84,16 @@ const za::Vector<Category> categoryList = {
     {{"not_parry_pose", "Not Parry Pose"},
         {any, {"weapon_angled", "Weapon Angled"}, {"hands_up", "Hands Up"}, {"resting", "Resting"},
             {"aiming", "Aiming"}, {"other", "Other"}}},
+    // Decapitation (ROUND21.md, "Decapitation takes"): a blade's blow that should (should not) behead the target if it
+    // killed it, judged on the training dummy as on a grunt (QC VR_Decap_Judge: the "decap" event).
+    {{"decapitation", "Decapitation"},
+        {any, {"horizontal_ltr", "Horizontal L-R"}, {"horizontal_rtl", "Horizontal R-L"},
+            {"diagonal_down_left", "Diagonal Down-L"}, {"diagonal_down_right", "Diagonal Down-R"},
+            {"backswing_up_left", "Backswing Up-L"}, {"backswing_up_right", "Backswing Up-R"},
+            {"from_behind", "From Behind"}}},
+    {{"no_decapitation", "No Decapitation"},
+        {any, {"stab", "Stab"}, {"pommel", "Pommel"}, {"hilt", "Hilt"}, {"flat", "Flat Slap"}, {"slow", "Too Slow"},
+            {"body", "Body Slash"}, {"shoulder", "Shoulder Slash"}}},
 };
 } // namespace
 
@@ -96,7 +106,7 @@ za::Vector<int> categoryOrder()
 {
     // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
     static constexpr const char* order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
-        "hilt_pommel", "punch", "palm_shove_1h", "palm_shove_2h", "gun_strike", "other"};
+        "hilt_pommel", "punch", "palm_shove_1h", "palm_shove_2h", "gun_strike", "decapitation", "no_decapitation", "other"};
     const auto& list = categories();
     za::Vector<int> out;
     for(const char* name : order)

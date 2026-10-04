@@ -361,7 +361,20 @@ void(entity targ, entity inflictor, entity attacker, float damage, float isVRMel
     float gruntLeft = VR_DUMMY_GRUNT_HEALTH - (targ.vr_dummy_streak_damage - damage);
     float gibbed = cvar_hget(cvarh_vr_dummy_gib) && gruntLeft > 0 && gruntLeft - ceil(damage) < -35;
 
-    string line = sprintf("Dummy: %g damage - %s%s%s%s\n", shown, kind, part, streak, gibbed ? " - gibbed" : "");
+    // A blade's blow at its head or neck (or one that would behead): whether it would behead a grunt (VR_Decap_Judge).
+    string decap = "";
+    if(isVRMelee && vr_hitkind == QVR_HITKIND_MELEE && (attacker.flags & FL_CLIENT))
+    {
+        entity oldSelf2 = self;
+        self = attacker;
+        float judged = VR_Decap_Judge(targ, vr_hithand);
+        self = oldSelf2;
+        if(judged > 0 || (judged == 0 && vr_decap_judge_zone))
+        {
+            decap = sprintf(" - %s (%s)", judged ? "would behead" : "would not behead", vr_decap_judge_why);
+        }
+    }
+    string line = sprintf("Dummy: %g damage - %s%s%s%s%s\n", shown, kind, part, streak, gibbed ? " - gibbed" : "", decap);
     // Monsters' blows (a grunt missing the player) only with `developer` on.
     if(attacker.flags & FL_CLIENT)
     {
