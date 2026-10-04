@@ -1,0 +1,4 @@
+start.bsp: 1568 leafs, 5556 faces, 2909 nodes, 1981 entity lines
+portal pairs (node planes only): 1859
+0-based  A marked in B: 1192  symmetric both ways: 881
+1-based  A marked in B: 1205  symmetric both ways: 925

@@ -233,9 +233,27 @@ static byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 
 byte *Mod_LeafPVS (mleaf_t *leaf, qmodel_t *model)
 {
+	int		leafnum;
+	byte	*pvs;
+
 	if (leaf == model->leafs)
 		return Mod_NoVisPVS (model);
-	return Mod_DecompressVis (leaf->compressed_vis, model);
+
+	pvs = Mod_DecompressVis (leaf->compressed_vis, model);
+
+	/* QVR: mark the leaf itself visible from inside it. The compiled PVS does not always name the leaf it
+	belongs to (measured on start.bsp: of the 1128 leafs carrying vis data, 392 do not name themselves), and
+	then the room you stand in and - worse - the brush entities whose only leaf is that leaf are culled from
+	inside it: the closed func_episodegate at 289..303,1681..1775,1..95 in start touches leaf 595 alone, the
+	leaf the player stands in, so it is culled and the hidden staircase behind it is seen through it. A leaf is
+	trivially visible from inside itself, so set its bit. Monotone: this only ever adds visibility, it never
+	hides anything. Bit convention is the client's, which r_brush.c (leafs[i+1] packed as i) and gl_refrag.c
+	(R_AddStaticModels tests idx-1) agree on: for leaf index n the bit is n-1. */
+	leafnum = leaf - model->leafs;
+	if (leafnum > 0 && leafnum <= model->numleafs)
+		pvs[(leafnum - 1) >> 3] |= 1 << ((leafnum - 1) & 7);
+
+	return pvs;
 }
 
 byte *Mod_NoVisPVS (qmodel_t *model)

@@ -1,0 +1,36 @@
+start.bsp: 1568 leafs, 5556 faces, 2909 nodes, 1981 entity lines
+eye leaf 595 visible leafs 591
+  its own leaf in its PVS: False
+episode gate *41 leafs: [595] of them visible: []
+point (320, 1728, 40) leaf 595 in eye PVS: False
+point (340, 1728, 40) leaf 595 in eye PVS: False
+point (320, 1728, -40) leaf 0 in eye PVS: False
+point (360, 1728, -80) leaf 0 in eye PVS: False
+point (265, 1728, 24) leaf 596 visible 570 added 106 dropped 127 staircase leaf in it: False
+point (265, 1728, 80) leaf 596 visible 570 added 106 dropped 127 staircase leaf in it: False
+point (250, 1728, 80) leaf 596 visible 570 added 106 dropped 127 staircase leaf in it: False
+start.bsp: 1568 leafs, 5556 faces, 2909 nodes, 1981 entity lines
+=== leafs whose PVS includes leaf 595 (the door's only leaf): the door is drawn only from these
+count: 699
+  leaf 2 box (1344, 2760, 448) (1744, 3200, 554)
+  leaf 3 box (1696, 2880, 272) (1728, 3200, 448)
+  leaf 4 box (1696, 2880, 240) (1744, 3200, 272)
+  leaf 5 box (1696, 2880, 208) (1728, 3200, 240)
+  leaf 6 box (1656, 3168, 400) (1696, 3200, 448)
+  leaf 10 box (1392, 3168, 400) (1432, 3200, 448)
+  leaf 20 box (1616, 2928, 400) (1680, 3008, 448)
+  leaf 21 box (1616, 2912, 400) (1680, 2928, 432)
+  leaf 29 box (1600, 2912, 400) (1616, 2976, 432)
+  leaf 32 box (1472, 2912, 400) (1488, 2976, 432)
+  leaf 34 box (1408, 3072, 400) (1472, 3152, 448)
+  leaf 35 box (1392, 3072, 400) (1408, 3152, 432)
+  leaf 38 box (1440, 3024, 400) (1456, 3056, 432)
+  leaf 40 box (1392, 3008, 400) (1456, 3024, 432)
+=== the leaf at the head's height (VR eye height) at the reported spot
+  (278 1728 24) leaf 595  595 in its PVS: False
+  (278 1728 48) leaf 595  595 in its PVS: False
+  (278 1728 64) leaf 595  595 in its PVS: False
+  (278 1728 75) leaf 595  595 in its PVS: False
+  (278 1728 96) leaf 595  595 in its PVS: False
+  (278 1728 120) leaf 595  595 in its PVS: False
+  (278 1728 150) leaf 595  595 in its PVS: False
