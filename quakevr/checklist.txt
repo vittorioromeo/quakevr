@@ -272,6 +272,7 @@ Slipgate: lean or reach into a gate with your head → no teleport; it happens o
 Slipgate: walk through at an angle, and try a gate whose opening is inset from its TELE faces (the aperture tolerance is now exact, stricter than before)
 Slipgate: shooting and throwing through still works; a dropped torch/prop goes through
 Debug > Tests > Slipgates: Crossing One — run it, then read the console for "VR portal: carried edict …"
+Debug > Tests > Slipgates: The Whole Feature Off — and the switch takes effect live, no map reload (flip it at a gate and watch the portal/scene rows appear and go in the profiler)
 
 [Decide or give feedback]
 Hitboxes: one set used by melee and by hitscan/projectile both? (after the hit-zone comparison shows both; the coordinator will bring a recommendation)
