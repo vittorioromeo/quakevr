@@ -6304,7 +6304,8 @@ struct MenuPages
     za::Vector<Item> built[pageCount];
     bool done[pageCount]{};
     int level[pageCount]{}; // the menu detail level each was built for
-    auto members() { return qvr::mem::list(built, done, level); }
+    int cvars[pageCount]{}; // how many cvars there were (Cvar_Count): a row whose cvar came later, left out till then
+    auto members() { return qvr::mem::list(built, done, level, cvars); }
 };
 mem::Cache<MenuPages> menuPages{"menu pages", mem::Never};
 
@@ -6529,6 +6530,10 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         done[page] = false; // Menu Detail changed: rows and links shown or left out
     }
+    if(menuPages.cvars[page] != Cvar_Count())
+    {
+        done[page] = false; // cvars registered since (a row naming one was left out)
+    }
     if(resetArmedPage == page && realtime - resetArmedTime > 3.0)
     {
         resetArmedPage = -1; // Reset This Page not pressed again in time
@@ -6551,6 +6556,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
         builds[page]++;
         const int level = menuLevel();
         menuPages.level[page] = level;
+        menuPages.cvars[page] = Cvar_Count();
         for(Item& item : pages[page].build())
         {
             if(item.kind != Item::Header && item.kind != Item::Action && item.kind != Item::Info && !item.cvar)
@@ -6707,10 +6713,10 @@ void showPage(int target)
     {
         motion::review::invalidate(); // takes recorded, evaluated or moved since
     }
-    if(pages[page].build == pageChanged)
-    {
-        menuPages.done[page] = false; // what is changed now
-    }
+    // Built again each time it is shown (its row kept): rows that depend on anything not checked in items() (what is
+    // changed now: Changed Settings; a state a builder reads) are as they are now, not as when the page was last built
+    // (by Search, a menu path or Changed Settings, which build every page).
+    menuPages.done[page] = false;
     if(target != searchOpened && parentPage[target] != searchOpened && pages[target].build != pageSearch)
     {
         searchOpened = -1; // elsewhere now: Back as usual (vr_menu_search.inc)
@@ -8083,8 +8089,9 @@ void qvr::menu::search_f()
     for(int r = 0; r < static_cast<int>(search.results.size()) && r < 15; r++)
     {
         const SearchEntry& e = search.index[search.results[r].entry];
-        Con_Printf("%2d %.2f %s%s | %s%s\n", r + 1, search.results[r].score, e.label.cStr(), e.isPage ? " (page)" : "",
-            e.path.cStr(), e.level > menuLevel() ? va(" (%s)", levelName(e.level)) : "");
+        Con_Printf("%2d %.2f %s%s | %s%s%s\n", r + 1, search.results[r].score, e.label.cStr(), e.isPage ? " (page)" : "",
+            e.path.cStr(), search.results[r].byCvar ? va(": %s", e.lowCvar.cStr()) : "",
+            e.level > menuLevel() ? va(" (%s)", levelName(e.level)) : "");
     }
 }
 
