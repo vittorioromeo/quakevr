@@ -261,6 +261,7 @@ Mummy: gib a beheaded mummy's ragdoll: no second head flies out
 Corpse Damage and Health has Mummy (Rogue, Beheaded)
 
 [Decide or give feedback]
+Hitboxes: one set used by melee and by hitscan/projectile both? (after the hit-zone comparison shows both; the coordinator will bring a recommendation)
 Fiend: give his head a headshot zone (positional damage)? It counts as an extremity now (2/3 damage)
 Ragdoll masses: fiend 140, shambler 280, gremlin 20, mummy 75 kg: right?
 Ragdolls: a blast throws every monster's body as far, whatever its mass (an ogre as far as a grunt): lower the ogre's and death knight's Blast Throw (Ragdolls > Ogre)?
