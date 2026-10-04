@@ -1557,8 +1557,15 @@ void count_f()
         static_cast<double>(staticVertices.size() * sizeof(gfx::Vertex) * 2) / 1024.0);
     if(onWorld())
     {
-        Con_Printf("on the world: %d marks, %d grid entries, made %lld times so far\n", static_cast<int>(worldDecals.size()),
-            static_cast<int>(worldGrid.size()), worldBuilds);
+        Con_Printf("drawn in the world's shader, following its parallax (vr_decals_world 1; vr_parallax %g, depth %g, "
+                   "texture heights %s): %d marks, %d grid entries, made %lld times so far\n",
+            vr_parallax.value, vr_parallax_depth.value, TexMgr_IndexedSmooth() ? "on" : "only replacement textures' (vr_texture_smooth 2 for Quake's)",
+            static_cast<int>(worldDecals.size()), static_cast<int>(worldGrid.size()), worldBuilds);
+    }
+    else
+    {
+        Con_Printf("drawn as meshes over the world, not following its parallax (%s)\n",
+            vr_decals_world.value == 0.f ? "vr_decals_world 0" : "retro textures on decals");
     }
     gore::count();
 }
