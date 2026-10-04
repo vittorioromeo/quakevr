@@ -153,7 +153,14 @@ void(entity targ, entity attacker) Killed =
     monster_death_use();
     VR_Corpse_DieWhole(self); // VR: never gibbed (vr_corpse_nogib 2: testing ragdolls with explosions)
     VR_Decap_Killed(self); // VR: beheaded by the blow (vr_decap.qc): its ragdoll headless at once, its head flying; dies whole
+    float kdDown = self.vr_knockdown == 1; // VR: knocked down (vr_knockdown.qc): already a ragdoll
+    float kdModel = self.modelindex;
+    self.vr_knockdown = 0;
     self.th_die();
+    if(kdDown && self.modelindex == kdModel && !self.vr_gib)
+    {
+        VR_Knockdown_FastForwardDeath(); // its death code at once: its scream, its drops; its ragdoll stays as it lies
+    }
 
     // VR: a head thrown by the death code (the monster itself) stays grabbable, whatever the
     // death code did after (a soldier's drop makes it SOLID_NOT).
@@ -206,6 +213,26 @@ void(entity targ, entity attacker) Killed =
 void(entity e) VR_Decap_Killed;
 float(entity targ, entity attacker) VR_Decap_Blow;
 void(entity targ) VR_Decap_After;
+
+// Knockdowns (vr_knockdown.qc): a shove knocked it down, a ragdoll while alive (the engine's vr_box3d.cpp, "Knockdowns").
+.float vr_knockdown;         // 1 down (a ragdoll), 2 getting up; 0 neither (the engine reads it)
+.float vr_kd_since;          // when it went down
+.float vr_kd_until;          // when it next tries to get up
+.vector vr_kd_mins;          // its standing box, for getting up
+.vector vr_kd_maxs;
+.float vr_kd_movetype;       // its movetype before
+.float vr_kd_chance_h;       // its class's chance (a cvar handle; 0: never knocked down)
+.float vr_kd_frame;          // the get-up's first frame: its own fall-and-rise's lowest, or a death's last (backwards)
+.float vr_kd_frame2;         // another to choose from (a second death's last; -1 none)
+.void() vr_kd_getup;         // its own get-up's frame function from vr_kd_frame on; none: the death backwards
+.float vr_kd_rev_end;        // backwards: where the death vr_kd_frame ends starts (its first frame),
+.float vr_kd_rev_end2;       // and vr_kd_frame2's
+.float vr_kd_rev_to;         // backwards: the frame it stops at
+.void() vr_kd_next;          // its own get-up: the frame function due next (VR_Knockdown_Step)
+void(float xChanceH, float xFrame, void() xGetup) VR_Knockdown_SetupOwn;
+void(float xChanceH, float xLastA, float xFirstA, float xLastB, float xFirstB) VR_Knockdown_SetupReverse;
+float(entity e, vector xForward, float xKind, float xHand) VR_Knockdown_Try;
+void() VR_Knockdown_FastForwardDeath;
 float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow;
 float(entity e, float xHand, vector xAt) VR_Decap_Saw;
 // Head pops (vr_decap.qc, "Head pops"): the player's shot being fired (W_FireShotgun, W_FireSuperShotgun,
@@ -978,7 +1005,7 @@ void(entity e, vector dir, float speed, float up) VR_Push =
         }
         e.velocity = dir * speed + '0 0 1' * up;
         e.flags = e.flags - (e.flags & FL_ONGROUND);
-        if(e.health > 0 && speed >= VR_SHOVE_MINSPEED && e.movetype == MOVETYPE_STEP)
+        if(e.health > 0 && speed >= VR_SHOVE_MINSPEED && e.movetype == MOVETYPE_STEP && !e.vr_knockdown)
         {
             VR_Shove_Start(e, dir, speed);
         }
@@ -1366,6 +1393,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // react to the damage
     oldself = self;
     self = targ;
+    // VR: knocked down or getting up (vr_knockdown.qc): its pain's sound, not its pain's frames (a ragdoll; or its
+    // get-up playing on); down, each hit keeps it down a little longer.
+    float kdState = self.vr_knockdown;
+    float kdFrame = self.frame;
+    void() kdThink = self.think;
+    float kdNext = self.nextthink;
 
     //MED 10/17/96 added charmed stuff
     if((self.flags & FL_MONSTER) && attacker != world)
@@ -1396,6 +1429,18 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // nightmare mode monsters don't go into pain frames often
         if(skill == 3)
             self.pain_finished = time + 5;
+    }
+
+    if(kdState && self.health > 0)
+    {
+        self.frame = kdFrame;
+        self.think = kdThink;
+        self.nextthink = kdNext;
+        if(kdState == 1)
+        {
+            self.vr_kd_until = min(max(self.vr_kd_until, time) + cvar_hget(cvarh_vr_knockdown_hit_time),
+                time + cvar_hget(cvarh_vr_knockdown_time_max));
+        }
     }
 
     self = oldself;

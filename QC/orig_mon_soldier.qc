@@ -397,5 +397,6 @@ void() monster_army =
     setmodel(self, "progs/soldier.mdl");
     setsize(self, '-12 -12 -24', '12 12 27');
 
+    VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_army, $painb7, army_painb7); // VR: knocked down (vr_knockdown.qc): sat on the floor: painb7 on rises
     walkmonster_start();
 };

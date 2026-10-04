@@ -164,6 +164,9 @@ honey_subs2.qc
 honey_trigger.qc
 honey_weapons.qc
 
+// Knockdowns: shoves knock monsters down as ragdolls, alive (after everything it calls).
+vr_knockdown.qc
+
 frikbot/bot.qc
 frikbot/bot_way.qc
 frikbot/bot_fight.qc

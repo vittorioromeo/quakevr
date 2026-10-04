@@ -366,5 +366,6 @@ void() monster_dog =
     setmodel(self, "progs/dog.mdl");
     setsize(self, '-12 -12 -24', '12 12 16');
 
+    VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_dog, $painb9, dog_painb9); // VR: knocked down (vr_knockdown.qc): rolled over: painb9 on rises
     walkmonster_start();
 };
