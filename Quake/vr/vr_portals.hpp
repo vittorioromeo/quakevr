@@ -19,6 +19,14 @@
 // shimmer. One gate at a time; a gate seen through a gate shows its texture. The server sends the client what is round
 // the destinations of the gates it can see (their PVS added to its own), so the monsters and items there are seen too.
 // Both eyes are right (each its own view); the desktop's spectator camera shows the slipgates' texture.
+//
+// Walking and shooting through (vr_portals_walk; the server, single player and listen servers): a player is carried
+// through as his head comes within 18 units of a side's plane over the gate, his trigger touched and active, kept
+// where he is, how he moves and where he looks relative to the gate (turned and shifted by the side's own mapping, the
+// view's: it does not jump); what flies (missiles, grenades, gibs) as its frame's path crosses the plane. QuakeC's
+// teleport_touch leaves players to it (portal_handles) unless one stays in the trigger 1.5 s without reaching the
+// plane (Quake's teleport then); VR_Portal_Crossed does the rest of what the teleport did (its targets, what the hands
+// carry). Monsters teleport as in Quake.
 
 #pragma once
 

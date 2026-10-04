@@ -432,6 +432,10 @@ vector    org;
     if(other.health <= 0 || other.solid != SOLID_SLIDEBOX)
         return;
 
+    // QVR: the engine walks players through slipgates (vr_portals.cpp, vr_portals_walk; VR_Portal_Crossed below)
+    if(other.classname == "player" && portal_handles(self, other))
+        return;
+
     SUB_UseTargets();
 
 // put a tfog where the player was
@@ -469,6 +473,16 @@ vector    org;
         other.velocity = v_forward * 300;
     }
     other.flags = other.flags - (other.flags & FL_ONGROUND);
+};
+
+// QVR: the engine has just walked `other` through the slipgate of trigger `self` (vr_portals.cpp, vr_portals_walk),
+// keeping where he was and how he moved relative to the gate: what Quake's teleport does besides moving him (its
+// targets, what his hands carry; no flash, no sound, no pause: he walked through).
+void(vector xFrom) VR_Portal_Crossed =
+{
+    activator = other;
+    SUB_UseTargets();
+    VR_Carry_Teleported(other, xFrom);
 };
 
 /*QUAKED info_teleport_destination (.5 .5 .5) (-8 -8 -8) (8 8 32)
