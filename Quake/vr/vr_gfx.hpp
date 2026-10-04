@@ -41,7 +41,7 @@ enum class Shade
                    // (the vertex colour), as a small CRT (State::params: time in seconds, CRT strength,
                    // glitch 0..1, the lit strokes' glow; State::screen: its virtual screen's size in
                    // pixels and its scanlines per pixel). The glow needs the texture's mipmaps (a
-                   // target made with them).
+                   // target made with them). Its alpha: the vertex colour's.
     Hologram,      // the wrist gadget's hologram (premultiplied): with State::params.w 0 its text, the texture's
                    // lit strokes in the vertex colour (its alpha: how shown), glowing, with a faint haze round
                    // them, scanlines, a flicker and glitches (params: time, effect strength, glitch 0..1;

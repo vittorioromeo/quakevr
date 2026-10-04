@@ -412,5 +412,6 @@ void() monster_enforcer =
     setmodel(self, "progs/enforcer.mdl");
     setsize(self, '-14 -14 -24', '14 14 28');
 
+    VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_enforcer, $paind7, enf_paind7); // VR: knocked down (vr_knockdown.qc): on a knee: paind7 on rises
     walkmonster_start();
 };

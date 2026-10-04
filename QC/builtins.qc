@@ -261,6 +261,13 @@ float(entity e, vector at, vector vel, optional float mass) physicspush = #0;
 // the hand (-1 none); the limb nearest p (-1: not a ragdoll); p into limb `bone`'s space (units) and back (toWorld).
 float(entity e) isragdoll = #0;
 float(entity e, entity player, float hand) ragdollgrab = #0;
+// Knockdowns (vr_knockdown.qc; the engine's vr_box3d.cpp, "Knockdowns"): whether e can be knocked down as a ragdoll (a
+// monster with a rig, ragdolls on); e's ragdoll made now, alive (.vr_knockdown 1, touchable, not solid); e getting up
+// from it: the get-up's first frame (frameA, or frameB if that fits how it lies better; -1 none), room for its box
+// mins..maxs looked for within range: 0 none (it stays down), else 1 or 2 (the frame chosen), e moved there and turned.
+float(entity e) canragdoll = #0;
+float(entity e) ragdollknockdown = #0;
+float(entity e, float frameA, float frameB, vector mins, vector maxs, float range) ragdollgetup = #0;
 float(entity e, entity player, float hand, float flight) ragdollpull = #0;
 void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity player, float hand) ragdollheld = #0;

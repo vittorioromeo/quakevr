@@ -141,6 +141,16 @@ Built, after "Please proceed with your plan ... on a separate branch" (each step
    page: its text above, the line typed and a keyboard (with `-+_";./,=*'`, Tab, Prev and Next, Run) at the bottom. The
    line is the console's own, edited through `Key_Console`/`Char_Console`, so history, Tab completion and its hint are
    the desktop console's (`vr_menu_console.inc`; page 134, `menu_vr 134`).
+10. **Tips** (the author's request, 2026-10-04; `vr_tips.cpp`, VR Settings > Tips, page 135): a tip the first time you
+   come near something usable and can see it (within `vr_tips_distance`, `vr_tips_view_angle`, in sight of the world:
+   `vr_tips_line_of_sight`, for `vr_tips_delay` s). `vr_tips` 1: a CRT screen floating beside it as the map boards'
+   (its own image through the screen shader, bezel, glow: `text3d::queueOverlayScreen`, over the scene), turned towards
+   the eyes and level or square to the view (`vr_tips_facing`), with a cable of the same screen to it that starts under
+   the screen (no seam) and is as thick on screen all along; 2: in the wrist gadget's
+   hologram, waiting to be seen (chime and buzz) and then shown `vr_tips_time` s (`gadget::tip`); the panel when there
+   is no hologram. Shown tips are kept in `vr_tips_seen`; `vr_tips_reset` (Show Tips Again) and `vr_tips_test [name]`
+   (Show the Torch Tip Now, which also prints the nearest candidates' distance, angle and sight). One tip so far: wall
+   torches.
 
 Not built (the questions below): gameplay-feel presets, a comfort vignette, per-slot cvars to data files.
 

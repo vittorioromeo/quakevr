@@ -101,6 +101,11 @@ struct Log
 // translucent pass (text3d::drawTranslucent), laid out once a frame.
 void drawHologram();
 
+// A tip (vr_tips.cpp, vr_tips 2): `text` as one of the hologram's messages, waiting until the gadget is seen (a chime from
+// it and a buzz of its hand meanwhile, as vr_messages_hologram_only's notifications), then shown `seconds`. False when
+// there is no hologram (the HUD not the gadget, vr_messages_hologram off): shown another way then.
+bool tip(za::StringView text, float seconds);
+
 // QVR round 21 (the Screens page's Show a Test Message): the next of a few of the game's own messages (a key needed,
 // maps' texts, a secret, a powerup running out), sent as the game sends them, so that pressing again stacks them; with
 // a menu open too. False when there is no hologram (no game, or it is off).

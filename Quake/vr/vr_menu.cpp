@@ -383,6 +383,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageGibs();
 [[nodiscard]] za::Vector<Item> pageGore();
 [[nodiscard]] za::Vector<Item> pageScreens();
+[[nodiscard]] za::Vector<Item> pageTips();
 [[nodiscard]] za::Vector<Item> pageHipHolsters();
 [[nodiscard]] za::Vector<Item> pageClimbing();
 [[nodiscard]] za::Vector<Item> pageRecording();
@@ -645,6 +646,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 // reorganized; its damage and knockback are on Damage and Knockback, its voice notes on Debug).
 [[nodiscard]] za::Vector<Item> pageEnemyWeapons();
 [[nodiscard]] za::Vector<Item> pageEnemyShoves();
+[[nodiscard]] za::Vector<Item> pageKnockdowns();
 [[nodiscard]] za::Vector<Item> pageSound();
 
 [[nodiscard]] za::Vector<Item> pageGameplay()
@@ -695,6 +697,68 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("An enforcer's shove's damage, times Damage."),
         slider("Enforcer Push", vr_enemy_shove_enforcer_distance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How far an enforcer's shove pushes you, times Push Distance."),
+    };
+}
+
+// Knockdowns (QC vr_knockdown.qc; vr_box3d.cpp, "Knockdowns"; docs/vr-port/KNOCKDOWNS_2026-10-04.md): a shove can
+// knock a monster down as a ragdoll, alive; it gets up after a while.
+[[nodiscard]] za::Vector<Item> pageKnockdowns()
+{
+    return {
+        toggle("Knockdowns", vr_knockdown)
+            .help("A shove can knock a monster down as a ragdoll, alive: hit it, grab it, drag it, throw it. After a few "
+                  "seconds it gets up where it lies and fights on. Only monsters with ragdolls (Ragdolls on)."),
+        header("Chance"),
+        slider("Chance", vr_knockdown_chance, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 100.f)
+            .help("Every monster's chance, times this. 0: never; 100: every shove."),
+        slider("Damage Taken", vr_knockdown_damage, 0.f, 5.f, 0.1f, "%.1f").extend(0.f, 20.f)
+            .help("A hurt monster goes down more easily: the chance times 1 + this times the share of its health it has "
+                  "lost (2: three times as likely at no health left)."),
+        slider("One-Handed Shove", vr_knockdown_onehand, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("The chance of a shove with one hand, times this."),
+        slider("Two-Handed Shove", vr_knockdown_twohand, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("The chance of a shove with both hands, times this."),
+        slider("Weapon Bash", vr_knockdown_bash, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("A bash with a held weapon knocks down too, at a shove's chance times this. 0: only open-hand shoves."),
+        slider("Stamina", vr_knockdown_stamina, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Tired shoves knock down less: the chance times 1 - this times the share of your stamina spent (with "
+                  "Stamina on). 0: stamina doesn't matter."),
+        header("Each Monster's Chance"),
+        slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
+        slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
+        slider("Rottweiler", vr_knockdown_chance_dog, 0.f, 1.f, 0.01f, "%.2f"),
+        slider("Zombie", vr_knockdown_chance_zombie, 0.f, 1.f, 0.01f, "%.2f"),
+        slider("Mummy", vr_knockdown_chance_mummy, 0.f, 1.f, 0.01f, "%.2f"),
+        slider("Knight", vr_knockdown_chance_knight, 0.f, 1.f, 0.01f, "%.2f"),
+        slider("Death Knight", vr_knockdown_chance_hknight, 0.f, 1.f, 0.01f, "%.2f"),
+        slider("Ogre", vr_knockdown_chance_ogre, 0.f, 1.f, 0.01f, "%.2f"),
+        slider("Fiend", vr_knockdown_chance_demon, 0.f, 1.f, 0.01f, "%.2f"),
+        slider("Shambler", vr_knockdown_chance_shambler, 0.f, 1.f, 0.01f, "%.2f"),
+        slider("Gremlin", vr_knockdown_chance_gremlin, 0.f, 1.f, 0.01f, "%.2f"),
+        header("Down"),
+        slider("Time Down, Least", vr_knockdown_time_min, 0.f, 10.f, 0.25f, "%.2f s").extend(0.f, 60.f)
+            .help("How long it stays down, at least (at random up to Time Down, Most)."),
+        slider("Time Down, Most", vr_knockdown_time_max, 0.f, 10.f, 0.25f, "%.2f s").extend(0.f, 60.f),
+        slider("Hit Keeps It Down", vr_knockdown_hit_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 10.f)
+            .help("Each hit while it lies there keeps it down this much longer (never past Time Down, Most from the hit)."),
+        slider("Launch", vr_knockdown_push, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How hard the shove throws the body, times the shove's own push. 0: it drops where it stood."),
+        toggle("Weapon Stays in Hand", vr_knockdown_weld)
+            .help("Its weapon stays in its hand while it is down (killed there, it drops it as usual). Off: it flops "
+                  "loose as a dead one's."),
+        header("Getting Up"),
+        slider("Room Search", vr_knockdown_search, 0.f, 128.f, 4.f, "%.0f units").extend(0.f, 512.f)
+            .help("How far from the body it looks for room to stand, never through a wall, floor or ceiling. No room: it "
+                  "stays down (dragged into a tight corner or under something low) and tries again."),
+        slider("Retry", vr_knockdown_retry, 0.1f, 3.f, 0.1f, "%.1f s").extend(0.1f, 10.f)
+            .help("How often it tries again to get up when there is no room."),
+        slider("Blend", vr_knockdown_blend, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("How long the body takes to blend from how it lies into its get-up animation."),
+        slider("Get-Up Speed", vr_knockdown_getup_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.1f, 10.f)
+            .help("How fast its get-up animation plays."),
+        header("Debug"),
+        toggle("Print Rolls", vr_knockdown_debug)
+            .help("Prints each shove's chance and roll, and each get-up (developer 1)."),
     };
 }
 
@@ -1992,6 +2056,35 @@ void hologramTestMessage()
 
 // Split from Wrist Gadget (and Immersion): the wrist gadget's screen, the weapons' ammo screens and
 // the maps' text boards.
+// Tips (vr_tips.cpp): for new players, each shown once near what it is about.
+[[nodiscard]] za::Vector<Item> pageTips()
+{
+    return {
+        cycle("Tips", vr_tips, {{0.f, "Off"}, {1.f, "Floating panel"}, {2.f, "Wrist gadget"}})
+            .help("Tips for new players, each shown once: the first time you come near something you can use (a wall "
+                  "torch). Floating panel: a screen like the maps' text boards by it, with a cable to it. Wrist gadget: in the gadget's hologram, waiting until "
+                  "you look at it (it chimes and buzzes); the panel if the HUD is not the gadget."),
+        slider("Distance", vr_tips_distance, 50.f, 400.f, 10.f, "%.0f").extend(16.f, 2000.f)
+            .help("How near you must come to what a tip is about (in Quake units: about 40 a metre)."),
+        toggle("Line of Sight", vr_tips_line_of_sight).help("Only when no wall is between your eyes and it."),
+        slider("View Angle", vr_tips_view_angle, 0.f, 90.f, 5.f, "%.0f deg").extend(0.f, 180.f)
+            .help("How far from where you look it may be (0: anywhere, even behind you)."),
+        slider("Delay", vr_tips_delay, 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)
+            .help("How long it must stay near and seen before the tip shows."),
+        slider("Time Shown", vr_tips_time, 3.f, 30.f, 1.f, "%.0f s").extend(1.f, 120.f)
+            .help("How long a tip shows (on the gadget: once you look at it)."),
+        cycle("Panel Facing", vr_tips_facing, {{0.f, "Towards your eyes"}, {1.f, "Square to your view"}})
+            .help("Towards your eyes: the floating screen turns to face you and stays level. Square to your view: it is "
+                  "always flat in front of you, as if on your view, tilting as you tilt your head."),
+        slider("Panel Text Size", vr_tips_size, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.25f, 4.f),
+        command("Show Tips Again", "vr_tips_reset").help("Every tip as never shown: each shows again the next time."),
+        command("Show the Torch Tip Now", "vr_tips_test walltorch")
+            .help("The wall torch tip on the nearest wall torch in view, as soon as you close the menu (however far; it is "
+                  "not counted as shown): to try the two ways and these settings."),
+        open("Wrist Gadget Messages", pageIndex(pageScreens)).help("The hologram's size, height and look (HUD and Menus > Screens)."),
+    };
+}
+
 [[nodiscard]] za::Vector<Item> pageScreens()
 {
     return {
@@ -4933,7 +5026,9 @@ const Page pages[] = {
     {"Changed Settings", pageChanged, pageMain, LevelStandard},                                    // 132 (MENU_REVIEW.md)
     {"Search", pageSearch, pageMain, LevelStandard},                                               // 133 (the corner's Search; vr_menu_search.inc)
     {"Console", pageConsole, pageMain, LevelStandard},                                             // 134 (the corner's Console; vr_menu_console.inc)
+    {"Tips", pageTips, pageMain, LevelStandard},                                                   // 135 (vr_tips.cpp)
     {"Graphics - Slipgates", pageGraphicsSlipgates, pageGraphics},                                 // 135 (vr_portals.cpp)
+    {"Knockdowns", pageKnockdowns, pageCombat},                                                    // 137
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -5158,6 +5253,7 @@ za::Vector<Item> pageMain()
         open("Headset", pageIndex(pageHeadset)).help("VR on or off, the OpenXR runtime, render scale, upscaling and foveated rendering."),
         open("Sound", pageIndex(pageSound)).help("Spatial audio: sounds around your head (HRTF), muffled by walls, the room's reverb, underwater, your weapons in your hands, Doppler, sounds at your ear."),
         open("Advanced VR Options", PageAdvanced).help("Every gameplay, display and graphics setting, by topic."),
+        open("Tips", pageIndex(pageTips)).help("Tips for new players, shown once near what they are about: floating by it or on the wrist gadget."),
         open("Changed Settings", pageIndex(pageChanged))
             .help("Every setting you changed from its default, from all the pages, on one page (each marked * where it lives)."),
         command("Run VR Calibration Again", "vr_setup")
@@ -5264,6 +5360,8 @@ za::Vector<Item> pageCombat()
             .help("The swords, chainsaws, shotguns and laser rifles monsters drop: their fuel, ammo and handling."),
         open("Enemy Shoves", pageIndex(pageEnemyShoves))
             .help("Grunts and enforcers shove you away when you stand too close: how close, how soon, how hard."),
+        open("Knockdowns", pageIndex(pageKnockdowns))
+            .help("Your shoves can knock monsters down as ragdolls, alive: the chances, how long they stay down, getting up."),
         open("Bullet Time", pageIndex(pageBulletTime))
             .help("The wrist gadget's button slows the world for as long as its meter lasts; Sandevistan; its look."),
         open("Burning", pageIndex(pageBurning))
