@@ -589,18 +589,20 @@ const char* keyName(Key key)
     return static_cast<int>(key) < numKeys ? keyNames[static_cast<int>(key)] : "";
 }
 
+// keyByName's last few names (QC's propvalue: the same literals every frame), by their text.
+struct RecentName
+{
+    char name[32]{};
+    Key key{Key::Count};
+};
+RecentName recentNames[4];
+int recentNamesNext = 0;
+
 Key keyByName(const char* name)
 {
     // The last few names asked (QC's propvalue: the same literals every frame, "forcegrab" for every prop in a force
     // grab's reach), by their text; else the keys' names in turn.
-    struct Recent
-    {
-        char name[32]{};
-        Key key{Key::Count};
-    };
-    static Recent recent[4];
-    static int next = 0;
-    for(const Recent& r : recent)
+    for(const RecentName& r : recentNames)
     {
         if(r.name[0] && !strcmp(r.name, name))
         {
@@ -616,10 +618,10 @@ Key keyByName(const char* name)
             break;
         }
     }
-    if(strlen(name) < sizeof(recent[0].name))
+    if(strlen(name) < sizeof(recentNames[0].name))
     {
-        Recent& r = recent[next];
-        next = (next + 1) % static_cast<int>(sizeof(recent) / sizeof(recent[0]));
+        RecentName& r = recentNames[recentNamesNext];
+        recentNamesNext = (recentNamesNext + 1) % static_cast<int>(sizeof(recentNames) / sizeof(recentNames[0]));
         q_strlcpy(r.name, name, sizeof(r.name));
         r.key = found;
     }
