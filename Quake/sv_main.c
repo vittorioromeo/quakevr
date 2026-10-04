@@ -604,6 +604,16 @@ void SV_AddToFatPVS (vec3_t org, mnode_t *node, qmodel_t *worldmodel) //johnfitz
 				pvs = Mod_LeafPVS ( (mleaf_t *)node, worldmodel); //johnfitz -- worldmodel as a parameter
 				for (i=0 ; i<fatbytes ; i++)
 					fatpvs[i] |= pvs[i];
+
+				// QVR: vr_pvs_selfleaf (vr/vr_pvs.cpp) -- and this buffer's own readers (SV_EdictInPVS,
+				// SV_WriteEntitiesToClient) test the raw leaf number, so name the leaf reached here under
+				// that convention too. Off: nothing here runs.
+				if (VR_PvsSelfLeaf ())
+				{
+					int leafnum = (int) ((mleaf_t *) node - worldmodel->leafs);
+					if (leafnum >= 0 && (leafnum >> 3) < fatbytes)
+						fatpvs[leafnum >> 3] |= 1 << (leafnum & 7);
+				}
 			}
 			return;
 		}

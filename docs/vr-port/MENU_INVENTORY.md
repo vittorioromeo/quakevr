@@ -3050,6 +3050,12 @@ gameplay rows such as `vr_timescale` (Slow Motion) and the `vr_hull_*`/`vr_gamep
 
 ## 8. Full vr cvar table (1,681 rows, the removed ones taken out; tier A/B/C/C?/D/R; read sites exclude vr_cvars.*, menu UI and comments)
 
+> Added after this inventory was taken (2026-11, the `start` hidden-staircase work): **`vr_pvs_selfleaf`** (`vr_cvars.inc:1290`,
+> default `1`, archived, tier D/dev, reached from Debug - Slipgates: three rows). The leaf a PVS is taken from named in
+> its own result: `Quake/gl_model.c Mod_LeafPVS` (bit `leaf-1`, the client's convention) and `Quake/sv_main.c
+> SV_AddToFatPVS` (bit `leaf`, the convention its readers test), both behind `VR_PvsSelfLeaf()` (`Quake/vr/vr_pvs.cpp`).
+> Not counted in the 1,681 / 1,507 archived / 1,523 reachable figures below, which are the 2026-10-03 parse.
+
 | cvar | default | saved | tier | categories | menu page(s) | code/QC read sites | test-only reads | shipped cfg | inc line |
 |---|---|---|---|---|---|---|---|---|---|
 | `vr_gameplayfix_droptofloor` | `0` | no | D | gameplay | — | 1 | 0 | quakevr.cfg | 6 |

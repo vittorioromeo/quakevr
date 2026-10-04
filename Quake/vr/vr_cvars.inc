@@ -1287,6 +1287,12 @@ QVR_CVAR(vr_water_fresnel, "1", CVAR_ARCHIVE)         // water more see-through 
 QVR_CVAR(vr_slipgates, "1", CVAR_ARCHIVE)             // the whole slipgate feature (vr_portals.cpp): 0 none of it runs, no gate is built or looked through and nothing goes through one - slipgates are Quake's teleporters exactly as before the feature (vr_portals and vr_portals_walk then do nothing)
 QVR_CVAR(vr_portals_walk, "1", CVAR_ARCHIVE)          // ... walking and shooting through them is seamless (kept where you are, how you move and look, as the view through the gate shows; missiles and grenades too): 0 Quake's teleport
 QVR_CVAR(vr_portals, "1", CVAR_ARCHIVE)               // slipgates show where they lead, as Portal's portals do (the scene drawn again through the one looked at, for each eye; vr_portals.cpp): how much of it, 0 Quake's shimmer
+// A leaf's compiled PVS never names the leaf itself (392 of start.bsp's 1128 vis leafs do not name themselves), so a
+// brush entity standing in the leaf you are in is culled by it: the closed episode gate in `start` (leaf 595) and the
+// staircase behind it flicker in and out as the head moves between that leaf and a neighbour. Naming the leaf in its
+// own PVS costs a bit per leaf and draws what is in the leaf you are in, which is what you can touch. Off is Quake's
+// and Ironwail's behaviour exactly, byte for byte (Misc/quakevr/pvs/FINDINGS.md, Debug > Slipgates rows).
+QVR_CVAR(vr_pvs_selfleaf, "1", CVAR_ARCHIVE)          // the leaf the PVS is taken from is in it too: 0 Quake's
 QVR_CVAR(vr_water_reflections, "1", CVAR_ARCHIVE)     // water and slime reflect the room round them (a cube map of the world made at the surface near you, vr_envmap.cpp): strength, 0 a plain sheen
 QVR_CVAR(vr_water_refraction, "1", CVAR_ARCHIVE)      // what is under translucent water bent by the waves (needs r_oit 1; with anti-aliasing the scene is resolved for it first): strength
 QVR_CVAR(vr_water_glints, "1", CVAR_ARCHIVE)          // light glinting off the waves: strength

@@ -4363,6 +4363,23 @@ za::Vector<Item> pageDebugTests()
                   "carries you, the trigger teleports you the old way (a flash, a jump, 0.7 s locked), and "
                   "vr_portals_info says the feature is off. It is turned back on at the end; Graphics > Slipgates has "
                   "the same switch."),
+        header("Visibility: The Leaf You Stand In (vr_pvs_selfleaf)"),
+        command("Self-Leaf PVS Off (Quake's)", "vr_pvs_selfleaf 0")
+            .help("vr_pvs_selfleaf 0: a compiled PVS names the leafs a portal leads to, never the leaf it is stored "
+                  "in - so everything culled by it drops what is in that very leaf. In the start map the closed "
+                  "episode gate (289 1681 1) and the staircase behind it are the faces of leaf 595, and standing in "
+                  "leaf 595 you are culled by its own PVS: they appear and disappear as the head moves between that "
+                  "leaf and one that names it. Off is Quake's and Ironwail's behaviour exactly."),
+        command("Self-Leaf PVS On", "vr_pvs_selfleaf 1")
+            .help("vr_pvs_selfleaf 1 (default): the leaf a PVS is taken from is named in it too, so the faces of the "
+                  "leaf you stand in are drawn. Both readers get the bit their own code tests - the client's "
+                  "(Mod_LeafPVS, bit leaf-1, as gl_refrag.c packs it) and the server's (SV_AddToFatPVS, bit leaf, as "
+                  "SV_EdictInPVS and the entity write test it). Cost: one bit per leaf a fat-PVS sample reaches."),
+        command("Hidden Staircase, Both Ways", "map start; wait120; setpos 278 1728 24 7 -20 0; wait60; vr_pvs_selfleaf 0; wait90; screenshot pvs_off; vr_pvs_selfleaf 1; wait90; screenshot pvs_on; vr_pvs_selfleaf 1")
+            .help("You at the reported spot: the eye at 278 1729 59, leaf 595 (setpos places the player and the head "
+                  "follows him - it needs a wait after any map or skill line, which restarts the level and puts you "
+                  "back at the spawn). Two screenshots in the game folder's screenshots folder: the gate culled, then "
+                  "drawn. Turn your head between them: with it on it stays."),
         header("Dialogs"),
         command("New Game Confirmation (3 s)", "vr_test_dialog 3 0")
             .help("Shows the New Game confirmation for 3 seconds (it closes by itself): the game must stay in the world "
