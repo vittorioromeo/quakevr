@@ -8,6 +8,8 @@
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
 #include "vr_particles.hpp"
+#include "vr_fireparticles.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "vr_progs.hpp"
 #include "vr_selfcollide.hpp"
 
@@ -59,13 +61,8 @@ constexpr float leanPerSpeed = 1.f / 500.f;
 constexpr float leanMost = 0.84f;
 constexpr float leanEase = 0.08f;
 
-// The stick's head (make_walltorch.py): from its bulge to its rim, about this thick. The flame's foot is its highest
-// point: in the pit standing up, on top of the head lying level, round the stick where the head meets it upside down.
-constexpr float headLow = -4.7f, headHigh = 1.8f, headRadius = 2.2f;
-// Upside down: three flames round the stick this far from its axis (it shows between them), each this much of the one.
-constexpr int ringFlames = 3;
-constexpr float ringRadius = 3.4f;
-constexpr float ringSize = 0.62f;
+// The torch head: its lit end is fixed on the stick; burning drips use the head's rim.
+constexpr float headHigh = 1.8f, headRadius = 2.2f;
 // Swung fast, the flame flattens and stretches back over this speed of the head (units/s), and leans further.
 constexpr float flattenFrom = 100.f, flattenTo = 450.f;
 constexpr float flattenLean = 0.5f; // (tangent) more lean at most, flattened
@@ -92,7 +89,7 @@ struct Taken
 
 // A flame, as drawn: its foot, the way up (leaning), its own frame (x: back along the swing or the stick, z: up), its
 // size (as Ironwail's scale) and its own scale on top (flattened and stretched back), its height, how far the torch is
-// upside down (0..1) and the ring's axes round the stick.
+// upside down (0..1).
 struct Flame
 {
     glm::vec3 foot{0.f};
@@ -102,7 +99,6 @@ struct Flame
     glm::vec3 k{1.f};
     float height = 0.f;
     float inv = 0.f;
-    glm::vec3 ring1{1.f, 0.f, 0.f}, ring2{0.f, 1.f, 0.f};
 };
 
 struct Stretch
@@ -181,11 +177,9 @@ void findModels()
     Flame f;
     const glm::vec3 along = axes[0];
     const float a = za::clamp(along.z, -1.f, 1.f);
-    f.inv = hung ? 0.f : smooth01(0.2f, 0.85f, -a);
-    // The head's highest point: along it from where it meets the stick (head down) to the pit (head up); off the axis
-    // up to its top (lying level).
-    const float x = glm::mix(headLow + 0.6f, stickHeadX, smooth01(-0.3f, 0.3f, a));
-    f.foot = origin + along * x + (glm::vec3{0.f, 0.f, 1.f} - along * a) * headRadius;
+    f.inv = hung ? 0.f : smooth01(0.f, 1.f, -a);
+    // Keep the flame rooted at the torch end, including when inverted.
+    f.foot = origin + along * stickHeadX;
 
     // Upright, leaning back from the way the head moves (vr_walltorch_lean); fast, flattened and stretched back
     // (vr_walltorch_flatten).
@@ -197,12 +191,16 @@ void findModels()
     {
         lean *= most / l;
     }
-    f.up = glm::normalize(glm::vec3{0.f, 0.f, 1.f} + lean);
+    const glm::vec3 baseUp = hung ? glm::vec3{0.f, 0.f, 1.f} : along;
+    const glm::vec3 leaned = baseUp + lean * (1.f - f.inv);
+    f.up = glm::length(leaned) > 1e-4f ? glm::normalize(leaned) : baseUp;
     f.k = glm::vec3{1.f + 0.5f * flat, 1.f - 0.08f * flat, 1.f - 0.4f * flat};
 
     // Its x: back along the swing as it gets fast, else the stick's way.
     glm::vec3 xs = along - f.up * glm::dot(along, f.up);
-    xs = glm::length(xs) < 0.1f ? glm::cross(glm::vec3{0.f, 1.f, 0.f}, f.up) : glm::normalize(xs);
+    // A torch can now point along any axis, including sideways along world Y.
+    const glm::vec3 reference = za::abs(f.up.y) > 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f};
+    xs = glm::length(xs) < 0.1f ? glm::normalize(glm::cross(reference, f.up)) : glm::normalize(xs);
     glm::vec3 x2 = xs;
     if(speed > 1.f)
     {
@@ -220,18 +218,12 @@ void findModels()
     x2 = glm::normalize(x2);
     f.m = glm::mat3{x2, glm::cross(f.up, x2), f.up};
 
-    f.s = s * (hung ? 1.f : glm::mix(1.f, za::max(0.f, vr_walltorch_inv_size.value), f.inv));
+    f.s = s;
+    // Legacy saved values over 1 described a larger three-flame ring: cap them to a short inverted flame.
+    f.k.z *= glm::mix(1.f, za::clamp(vr_walltorch_inv_size.value > 0.3f ? 0.15f : vr_walltorch_inv_size.value, 0.05f, 0.3f), f.inv);
     const float top = fireModel && fireModel->maxs[2] > fireBase + 1.f ? fireModel->maxs[2] : fireBase + flameTopDefault;
     f.height = (top - fireBase) * f.s * f.k.z;
 
-    // The ring's axes, round the stick.
-    glm::vec3 r1 = glm::cross(along, glm::vec3{0.f, 1.f, 0.f});
-    if(glm::length(r1) < 0.1f)
-    {
-        r1 = glm::cross(along, glm::vec3{1.f, 0.f, 0.f});
-    }
-    f.ring1 = glm::normalize(r1);
-    f.ring2 = glm::cross(along, f.ring1);
     return f;
 }
 
@@ -673,7 +665,7 @@ extern "C" void VR_WallTorchFlames(void)
         if(onYou && holdHand >= 0)
         {
             selfcollide::keepShapes();
-            const float r = 2.2f * f.s + ringRadius * f.inv;
+            const float r = 2.2f * f.s;
             t.touch = selfcollide::flameTouch(f.foot + f.up, f.foot + f.up * za::max(1.5f, f.height * 0.8f), r, holdHand);
             t.touchFrame = host_framecount;
         }
@@ -691,11 +683,11 @@ extern "C" void VR_WallTorchFlames(void)
         {
             continue;
         }
-        // One flame; upside down, three round the stick (it shows between them), each smaller.
-        const int n = f.inv > 0.02f ? ringFlames : 1;
+        // Keep one attached flame at every tilt; the particle tongues always rise in world space.
+        const int n = 1;
         for(int k = 0; k < n; k++)
         {
-            const float sk = f.s * (k == 0 ? glm::mix(1.f, ringSize, f.inv) : ringSize * f.inv);
+            const float sk = f.s;
             if(sk <= 0.03f)
             {
                 continue;
@@ -705,14 +697,14 @@ extern "C" void VR_WallTorchFlames(void)
             {
                 break;
             }
-            const float ang = 6.2831853f * (static_cast<float>(k) / static_cast<float>(ringFlames)) + static_cast<float>(i) * 0.9f;
-            const glm::vec3 at = f.foot + (f.ring1 * za::cos(ang) + f.ring2 * za::sin(ang)) * (ringRadius * f.inv);
+            const glm::vec3 at = f.foot;
             const glm::vec3 o = at - f.up * (fireBase * sk * f.k.z);
             ent->origin[0] = o.x;
             ent->origin[1] = o.y;
             ent->origin[2] = o.z;
             held::anglesFromAxes(f.m, ent->angles, false);
             ent->model = model;
+            fireparticles::emitTorch(i, f.foot + f.up * (f.height * 0.45f), f.s);
             // Its own scale (flattened, stretched back) in VR_AliasPreTransform (walltorch::stretch); Ironwail's, which
             // its culling box reads, covers it.
             const float most = za::max(f.k.x, za::max(f.k.y, f.k.z));
@@ -790,6 +782,19 @@ unsigned walltorch::flameOnYou(int ent, glm::vec3& at, glm::vec3& out)
 bool walltorch::onWall(const entity_t& e)
 {
     return e.model && e.model == stickModel && e.frame == wallFrame;
+}
+
+void walltorch::tiltTest()
+{
+    for(int degrees : {0, 90, 180})
+    {
+        const float angle = glm::radians(static_cast<float>(degrees));
+        const glm::vec3 along{za::sin(angle), 0.f, za::cos(angle)};
+        const glm::vec3 side{0.f, 1.f, 0.f};
+        const Flame f = flameOf(glm::vec3{0.f}, glm::mat3{along, side, glm::cross(along, side)}, glm::vec3{0.f}, 1.f, false);
+        Con_Printf("tilttest: angle=%d height=%.3f axisZ=%.3f invert=%.3f foot=%.3f %.3f %.3f flames=1\n",
+            degrees, f.height, f.up.z, f.inv, f.foot.x, f.foot.y, f.foot.z);
+    }
 }
 
 void walltorch::prepare()

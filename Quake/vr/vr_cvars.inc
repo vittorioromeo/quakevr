@@ -685,7 +685,7 @@ QVR_CVAR(vr_walltorch_shadows, "1", CVAR_ARCHIVE)        // 1: a taken torch's l
 // A torch's flame (vr_walltorch.cpp; ROUND21.md, "Torch flames: upright from the head's top, swings, smoke, burning you"; Combat > Burning > Torch Flame).
 QVR_CVAR(vr_walltorch_lean, "1", CVAR_ARCHIVE)           // how far a swung torch's flame leans and trails behind its motion, times the default (0: always straight up)
 QVR_CVAR(vr_walltorch_flatten, "1", CVAR_ARCHIVE)        // how much a fast-swung torch's flame flattens and stretches back, times the default (0: never)
-QVR_CVAR(vr_walltorch_inv_size, "1.25", CVAR_ARCHIVE)    // a torch held upside down: its flame's size, times the upright one's (it burns along the stick)
+QVR_CVAR(vr_walltorch_inv_size, "0.15", CVAR_ARCHIVE)    // fully inverted flame height; clamp 0.05..0.3 keeps it short and visible
 QVR_CVAR(vr_walltorch_inv_light, "1.3", CVAR_ARCHIVE)    // a torch held upside down: its light's brightness, times the upright one's
 QVR_CVAR(vr_walltorch_drips, "5", CVAR_ARCHIVE)          // burning drips a second falling off a torch held upside down (0: none)
 QVR_CVAR(vr_walltorch_smoke, "1", CVAR_ARCHIVE)          // smoke off every lit torch (on its wall, held, lying), times the default (3 puffs a second; 0: none)
@@ -1053,6 +1053,37 @@ QVR_CVAR(vr_weapon_reflections, "1", CVAR_ARCHIVE)    // your weapons' metal ref
 QVR_CVAR(vr_weapon_reflections_strength, "1", CVAR_ARCHIVE) // how strongly (0..2)
 QVR_CVAR(vr_relit_maps, "1", CVAR_ARCHIVE)           // maps re-lit by Misc/quakevr/relight_maps.py, when present (next map)
 QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured particles for the QC's effects (0: Quake's own)
+// Rising particles over low-poly fire models (static fires, burning bodies, taken torches).
+QVR_CVAR(vr_fire_particles, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_fire_particles_count, "1", CVAR_ARCHIVE) // exact particles in each emission burst
+QVR_CVAR(vr_fire_particles_frequency, "10", CVAR_ARCHIVE) // bursts per second per flame model
+QVR_CVAR(vr_fire_particles_speed_min, "0.1", CVAR_ARCHIVE) // horizontal outward speed, m/s
+QVR_CVAR(vr_fire_particles_speed_max, "0.4", CVAR_ARCHIVE)
+QVR_CVAR(vr_fire_particles_up_min, "0.3", CVAR_ARCHIVE) // upward speed in world axes, regardless of torch tilt
+QVR_CVAR(vr_fire_particles_up_max, "0.9", CVAR_ARCHIVE)
+QVR_CVAR(vr_fire_particles_life_min, "0.25", CVAR_ARCHIVE)
+QVR_CVAR(vr_fire_particles_life_max, "0.65", CVAR_ARCHIVE)
+QVR_CVAR(vr_fire_particles_size, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_fire_particles_alpha, "0.55", CVAR_ARCHIVE)
+QVR_CVAR(vr_fire_particles_range, "1200", CVAR_ARCHIVE)
+
+// Physical explosion chunks (client model objects; harmless, bounded, swept world/brush collisions).
+QVR_CVAR(vr_explosion_particles, "1", CVAR_ARCHIVE) // large fireball sprites per blast, exact count (0..16)
+QVR_CVAR(vr_explosion_debris, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_explosion_debris_count, "12", CVAR_ARCHIVE)
+QVR_CVAR(vr_explosion_debris_speed_min, "3", CVAR_ARCHIVE) // m/s
+QVR_CVAR(vr_explosion_debris_speed_max, "9", CVAR_ARCHIVE)
+QVR_CVAR(vr_explosion_debris_up, "0.65", CVAR_ARCHIVE) // upward bias of the launch direction, 0..2
+QVR_CVAR(vr_explosion_debris_size_min, "1.4", CVAR_ARCHIVE) // diameter in Quake units at world scale 1
+QVR_CVAR(vr_explosion_debris_size_max, "3.2", CVAR_ARCHIVE)
+QVR_CVAR(vr_explosion_debris_life_min, "2", CVAR_ARCHIVE)
+QVR_CVAR(vr_explosion_debris_life_max, "4", CVAR_ARCHIVE)
+QVR_CVAR(vr_explosion_debris_bounce, "0.45", CVAR_ARCHIVE) // normal speed retained on bounce, 0..1
+QVR_CVAR(vr_explosion_debris_max, "96", CVAR_ARCHIVE) // oldest retired first, hard cap 256
+QVR_CVAR(vr_explosion_debris_trail, "1", CVAR_ARCHIVE) // trail density, 0 off
+QVR_CVAR(vr_explosion_debris_lights, "8", CVAR_ARCHIVE) // nearest glowing chunks, cap 16 of the shared dlights
+QVR_CVAR(vr_explosion_debris_light_radius, "48", CVAR_ARCHIVE) // units at world scale 1
+
 QVR_CVAR(vr_particle_mult, "1", CVAR_ARCHIVE)         // how many of them
 QVR_CVAR(vr_particle_seed, "0", CVAR_NONE)            // tests: the particles' random numbers restarted from this seed at each map (0: random)
 QVR_CVAR(vr_soft_particles, "1", CVAR_ARCHIVE)        // soft particles: smoke, fire, blood and explosion sprites fade out where they meet walls and floors instead of cutting hard lines (0 off)

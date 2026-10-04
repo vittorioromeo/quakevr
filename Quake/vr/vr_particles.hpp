@@ -76,6 +76,13 @@ void clear();
 void bloodDrip(const glm::vec3& org, float fall, float floorZ, float size, const glm::vec3& color);
 void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const glm::vec3& color);
 
+// Exact burst of additional fire particles for a flame-model source.
+int largeExplosionCount(); // diagnostic: live large textured blast fireballs
+int fireSource(const glm::vec3& at, float sourceScale);
+
+// Fiery/smoky trail of an incandescent physical explosion chunk; size in world units, heat 0..1.
+void explosionDebrisTrail(const glm::vec3& from, const glm::vec3& to, float size, float heat);
+
 // Spent casings (vr_shells.cpp): a faint puff of smoke and a few tiny sparks where one is thrown
 // out going `dir` (`smoke` how much: a hot breech smokes more), and the thin wisp one trails from
 // `from` to `to` as it flies (`strength` 0..1, fading as it cools). Nothing with vr_particles 0.

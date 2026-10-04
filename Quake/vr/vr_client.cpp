@@ -10,6 +10,8 @@
 #include "vr_flashlight.hpp"
 #include "vr_painknock.hpp"
 #include "vr_particles.hpp"
+#include "vr_fireparticles.hpp"
+#include "vr_walltorch.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
 #include "vr_gore.hpp"
@@ -25,6 +27,7 @@
 #include "vr_rope.hpp"
 #include "vr_protocol.hpp"
 #include "vr_shells.hpp"
+#include "vr_explosiondebris.hpp"
 #include "vr_shock.hpp"
 #include "vr_teleport.hpp"
 #include "vr_throw.hpp"
@@ -440,6 +443,13 @@ void parseParticle2()
         return; // the gore's (vr_gore.cpp): marks only
     }
     decals::fromEffect(o, d, preset, count);
+    // Route an explosion through its one common entry point, including the particle-off fallback.
+    // Otherwise spawn() makes physical debris and a fallback R_ParticleExplosion makes a second batch.
+    if(preset == Preset::Explosion)
+    {
+        R_ParticleExplosion(org);
+        return;
+    }
     if(particles::spawn(o, d, preset, count))
     {
         return;
@@ -560,6 +570,9 @@ void init()
     teleport::init();
     Cmd_AddCommand("vr_particle_test", particleTest_f);
     shells::registerCommands();
+    explosiondebris::registerCommands();
+    fireparticles::registerCommands();
+    Cmd_AddCommand("vr_walltorch_tilt_test", walltorch::tiltTest);
     shock::registerCommands();
     weaponfx::registerCommands();
     Cmd_AddCommand("+offhandattack", OffhandAttackDown_f);
@@ -652,6 +665,8 @@ extern "C" void VR_OnClientClearState()
     modelcollide::reset();
     selfcollide::reset();
     shells::clear();
+    explosiondebris::clear();
+    fireparticles::clear();
     shock::clear();
     weaponfx::clear();
     wounds::clear();

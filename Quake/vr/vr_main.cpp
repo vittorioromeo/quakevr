@@ -69,6 +69,7 @@
 #include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
+#include "vr_explosiondebris.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_water.hpp"
@@ -686,6 +687,7 @@ void timingColumns(Columns& c, const Readers& r)
     column(c, "cl_entities", "%d", cl.num_entities);
     column(c, "decals", "%d", decals::liveCount());
     column(c, "shells", "%d", shells::liveCount());
+    column(c, "explosion debris", "%d", explosiondebris::liveCount());
     column(c, "world_texts", "%d", static_cast<int>(worldtext::clientTexts().size()));
     column(c, "float_texts", "%d", static_cast<int>(worldtext::clientFloatTexts(cl.time).size()));
     int texts = 0, boards = 0;
@@ -1120,6 +1122,7 @@ extern "C" void VR_NewMap()
     step("view models", view::prepareModels);
     step("torch", flashlight::prepare);
     step("casings", shells::prepare);
+    step("explosion debris", explosiondebris::prepare);
     step("muzzle flash", weaponfx::prepare);
     step("wall torches", walltorch::prepare);
     Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.cStr());
