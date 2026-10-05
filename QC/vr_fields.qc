@@ -202,6 +202,7 @@
 // The parry's cooldown (combat.qc VR_Parry) and your own throws hurting you (vr_carry.qc, "Your own throws")
 // ----------------------------------------------------------------------------
 
+.float vr_parry_stagger_until; // successful parry: no remaining melee hits or AI until this time (combat.qc)
 .float vr_parry_last;    // (a monster) when a blow of its was last parried: within vr_parry_cooldown, no new parry (VR_Parry)
 .float vr_melee_begun;   // (a monster) when its melee attack running began (its th_melee called; 0: none, ai_run clears it):
                          // a blow of the attack its last parried blow was in is no new parry (VR_Parry, vr_parry_cooldown_attack)

@@ -117,6 +117,8 @@ float cvarh_vr_pickup_scale;
 float cvarh_vr_item_float_height;
 float cvarh_vr_headshot_sound;
 float cvarh_vr_parry;
+float cvarh_vr_parry_interrupt;
+float cvarh_vr_parry_stagger;
 float cvarh_vr_carry;
 float cvarh_vr_carry_take;
 float cvarh_vr_carry_two_hands;
@@ -674,6 +676,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_item_float_height);
     VR_CVAR_HMAKE(vr_headshot_sound);
     VR_CVAR_HMAKE(vr_parry);
+    VR_CVAR_HMAKE(vr_parry_interrupt);
+    VR_CVAR_HMAKE(vr_parry_stagger);
     VR_CVAR_HMAKE(vr_carry);
     VR_CVAR_HMAKE(vr_carry_take);
     VR_CVAR_HMAKE(vr_carry_two_hands);

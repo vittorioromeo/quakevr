@@ -1088,8 +1088,17 @@ The monster has an enemy it is trying to kill
 =============
 */
 float RUN_STRAIGHT;
+void() VR_Parry_Recover;
+
 void(float dist) ai_run =
 {
+    // Damage during a parry stagger may start a normal pain animation; its return to AI must not shorten it.
+    if(self.vr_parry_stagger_until > time)
+    {
+        self.think = VR_Parry_Recover;
+        self.nextthink = self.vr_parry_stagger_until;
+        return;
+    }
     float    axis;
 
     movedist = dist;

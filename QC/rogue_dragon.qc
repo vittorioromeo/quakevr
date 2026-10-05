@@ -75,6 +75,15 @@ void() dragon_stop_attack =
         bprint("Error: Dragon cannot get to next target!\n");
 };
 
+// A parried tail/bite finishes the attack through the dragon's own scheduler. Keep its flight route,
+// room state and normal post-attack cooldown; select a pain pose without invoking its random moving pain.
+void() VR_Dragon_ParryInterrupt =
+{
+    dragon_stop_attack();
+    self.attack_finished = max(self.attack_finished, self.vr_parry_stagger_until);
+    self.frame = $drgpan1a;
+};
+
 // ===================================
 // dragon_check_attack
 // ===================================
@@ -138,6 +147,12 @@ void(float dist) dragon_move =
     float  leftTurn, rightTurn, turnOffset;
     entity oldEnemy;
 
+    if(self.vr_parry_stagger_until > time)
+    {
+        self.think = VR_Parry_Recover;
+        self.nextthink = self.vr_parry_stagger_until;
+        return;
+    }
     if(self.health < 1)
     {
         remove(self);
@@ -454,6 +469,8 @@ void() dragon_fireball =
 // ===================================
 void() dragon_tail_touch =
 {
+    if(self.vr_parry_stagger_until > time)
+        return;
     vector    delta;
     float        tailDamage;
 
@@ -477,6 +494,8 @@ void() dragon_tail_touch =
 
 void() dragon_tail =
 {
+    if(self.vr_parry_stagger_until > time)
+        return;
     float dist;
     vector dir;
 
@@ -492,6 +511,10 @@ void() dragon_tail =
     if(dist < 250)
     {
         T_Damage(self.enemy, self, self, 30);
+        if(self.vr_parry_stagger_until > time)
+        {
+            return; // the parry owns push and recovery; no tail launch or second scheduler reset
+        }
         dir = normalize(dir);
         self.enemy.velocity = dir * 500;
         self.enemy.velocity_z = 350;

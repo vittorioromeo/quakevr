@@ -971,13 +971,22 @@
 // entity 27
 {
 "classname" "func_worldtext_banner"
+"worldtext" "PARRYING\nHold a weapon across a blow.\nBlocks stop melee attacks briefly.\nStops attacks, recovery: {menu:Parry and Bash}"
+"worldtext_halign" "1"
+"worldtext_scale" "0.25"
+"angle" "270"
+"origin" "-464 639 184"
+}
+// entity 28
+{
+"classname" "func_worldtext_banner"
 "worldtext" "LOOKS AND SPEED\nRender scale, upscaling: {menu:Headset}\n\nGraphics: {menu:Graphics}\n\nWrist gadget: {menu:Wrist Gadget}"
 "worldtext_halign" "1"
 "worldtext_scale" "0.35"
 "angle" "270"
 "origin" "-96 639 96"
 }
-// entity 28
+// entity 29
 {
 "classname" "func_worldtext_banner"
 "worldtext" "START PLAYING\nNEW GAME starts Quake; VR HUB, the hub."
@@ -986,39 +995,39 @@
 "angle" "90"
 "origin" "0 -495 88"
 }
-// entity 29
+// entity 30
 {
 "classname" "info_player_start"
 "origin" "0 -288 24"
 "angle" "90"
 }
-// entity 30
+// entity 31
 {
 "classname" "item_health"
 "origin" "-432 384 40"
 }
-// entity 31
+// entity 32
 {
 "classname" "item_shells"
 "origin" "-384 384 40"
 }
-// entity 32
+// entity 33
 {
 "classname" "item_spikes"
 "origin" "-344 384 40"
 }
-// entity 33
+// entity 34
 {
 "classname" "weapon_supershotgun"
 "origin" "-384 456 24"
 }
-// entity 34
+// entity 35
 {
 "classname" "vr_dummy"
 "origin" "-512 520 24"
 "angle" "300"
 }
-// entity 35
+// entity 36
 {
 "classname" "light"
 "origin" "-448 -320 344"
@@ -1026,7 +1035,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 36
+// entity 37
 {
 "classname" "light"
 "origin" "-448 0 344"
@@ -1034,7 +1043,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 37
+// entity 38
 {
 "classname" "light"
 "origin" "-448 320 344"
@@ -1042,7 +1051,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 38
+// entity 39
 {
 "classname" "light"
 "origin" "-128 -320 344"
@@ -1050,7 +1059,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 39
+// entity 40
 {
 "classname" "light"
 "origin" "-128 0 344"
@@ -1058,7 +1067,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 40
+// entity 41
 {
 "classname" "light"
 "origin" "-128 320 344"
@@ -1066,7 +1075,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 41
+// entity 42
 {
 "classname" "light"
 "origin" "192 -320 344"
@@ -1074,7 +1083,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 42
+// entity 43
 {
 "classname" "light"
 "origin" "192 0 344"
@@ -1082,7 +1091,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 43
+// entity 44
 {
 "classname" "light"
 "origin" "192 320 344"
@@ -1090,7 +1099,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 44
+// entity 45
 {
 "classname" "light"
 "origin" "480 -320 344"
@@ -1098,7 +1107,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 45
+// entity 46
 {
 "classname" "light"
 "origin" "480 0 344"
@@ -1106,7 +1115,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 46
+// entity 47
 {
 "classname" "light"
 "origin" "480 320 344"
@@ -1114,7 +1123,7 @@
 "wait" "0.47"
 "_color" "1 0.96 0.9"
 }
-// entity 47
+// entity 48
 {
 "classname" "light"
 "origin" "-560 -224 120"
@@ -1122,7 +1131,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 48
+// entity 49
 {
 "classname" "light"
 "origin" "-560 224 120"
@@ -1130,7 +1139,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 49
+// entity 50
 {
 "classname" "light"
 "origin" "0 -200 140"
@@ -1138,7 +1147,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 50
+// entity 51
 {
 "classname" "light"
 "origin" "380 -256 90"
@@ -1146,7 +1155,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 51
+// entity 52
 {
 "classname" "light"
 "origin" "464 240 140"
@@ -1154,7 +1163,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 52
+// entity 53
 {
 "classname" "light"
 "origin" "-384 300 120"
@@ -1162,7 +1171,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 53
+// entity 54
 {
 "classname" "light"
 "origin" "0 560 160"
@@ -1170,7 +1179,7 @@
 "wait" "0.66"
 "_color" "1 0.97 0.92"
 }
-// entity 54
+// entity 55
 {
 "classname" "light"
 "origin" "0 -440 110"
