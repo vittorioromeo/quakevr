@@ -5642,7 +5642,7 @@ void() forcegrabbable_touch =
     // Not thrown (or its throw over), but as fast into a monster or player as a throw: it hurts as one (VR_Prop_Flung:
     // a flail on the grapple's rope, a batted or knocked prop; their speed towards each other, never a resting contact,
     // nor one leaving it: a prop batted away still overlaps your box, and touchNearby's hit box meets you as it starts).
-    VR_Prop_Flung(VR_Prop_Approach(self, other, self.velocity - other.velocity), VR_Prop_Approach(self, other, self.velocity));
+    VR_Prop_Flung(0, 0, TRUE);
 
     // A thrown weapon's true-scale gravity lasted for its flight only; rigid ones keep it (the
     // engine bounces them: a sudden Quake gravity after the first touch looked wrong).

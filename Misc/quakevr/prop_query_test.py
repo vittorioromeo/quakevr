@@ -14,7 +14,7 @@ from perf_suite import script, waits
 def fixtures():
     common = ["vr_backend mock", "vr_enabled 1", "vr_mock_fast 1", "vr_fixed_frames 1",
               "vr_mock_eye_size 1024", "vid_vsync 0", "sv_autosave 0", "developer 1",
-              "vr_tips 0", "vr_roomscale_move_mult 0", "vr_prop_query_verify 1"] + waits(80)
+              "vr_tips 0", "vr_roomscale_move_mult 0", "vr_prop_query_verify 1", "vr_prop_touch_verify 1"] + waits(80)
     mixed = common + ["map vrfiringrange"] + waits(150) + ["god 1", "notarget 1",
             "vr_physics_bigpile mixed 1000"] + waits(10) + ["vr_prop_query_test",
             "vr_physics_blast 130 -556 40 80"] + waits(180) + ["vr_prop_query_test",
@@ -94,6 +94,7 @@ def run(args):
                 if not (folder / pak.name).exists():
                     os.link(pak, folder / pak.name)
             shutil.copy2(base / "quakevr/ironwail.cfg", folder / "ironwail.cfg")
+        commands.insert(commands.index("echo PROP_TEST_DONE"), "vr_prop_touch_stats")
         config = "\n".join(commands) + "\n"
         (folder / "autoexec.cfg").write_text(config)
         (destination / "autoexec.cfg").write_text(config)
@@ -122,7 +123,8 @@ def run(args):
             assert "vr_ragdoll_list: 32 ragdolls" in log
         result = dict(fixture=name, exit_code=code, model_checks=re.findall(r"prop model queries: PASS (.*)", log),
                       chain_checks=re.findall(r"prop force-grab queries: PASS (.*)", log),
-                      exe_sha256=hashlib.sha256(engine.read_bytes()).hexdigest())
+                      exe_sha256=hashlib.sha256(engine.read_bytes()).hexdigest(),
+                      touch_checks=re.findall(r"prop touch verification: (\d+) callbacks checked", log))
         if name.startswith("hands"):
             result["hand_outcomes"] = hand_outcomes(log)
         if name == "hands-reference":

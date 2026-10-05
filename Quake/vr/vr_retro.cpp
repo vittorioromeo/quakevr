@@ -1298,6 +1298,14 @@ bool particleCentreNear(int set)
     return p0[3] > 0.f && p0[2] <= 0.f && p1[0] == 1.f && p2[0] <= 0.f;
 }
 
+float particleTrimBlock(int set)
+{
+    if(set <= 0 || set >= QVR_RETRO_MAX_SETS) return -1.f;
+    const float* p0 = block.sets[set * 3];
+    const float* p2 = block.sets[set * 3 + 2];
+    return p2[0] <= 0.f && p2[1] > 0.f ? za::max(p0[0], 0.01f) : -1.f;
+}
+
 void bindForDraw(int lutUnit)
 {
     if(uploadedBuffer != 0)

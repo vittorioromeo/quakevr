@@ -32,6 +32,7 @@
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_physics.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_checklist.hpp"
@@ -1196,6 +1197,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_model_reload", view::modelReload_f);
     Cmd_AddCommand("vr_prop_query_test", progs::propQueriesTest_f);
     Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
+    Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_hitmodel_bench", hitmodel::bench_f);
     Cmd_AddCommand("vr_zancle_math_test", qza::mathTest_f);

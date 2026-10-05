@@ -30,6 +30,9 @@ def fixtures():
         ('wide_blocks', [1, 4, 2], 10, ['vr_retro_particles_block 4', 'vr_retro_particles_dither 2']),
         ('angled_streaks', [3, 5, 10, 4], 8, []),
         ('soft_off', [1, 11, 5], 20, ['vr_soft_particles 0']),
+        ('nonretro', [1, 4, 2, 5], 12, ['vr_retro_particles 0']),
+        ('fire', [], 90, ['vr_fire_particles 1'] +
+         [f'vr_physics_spawn light_torch_small_walltorch {64 + i * 8} 0' for i in range(8)]),
     ]
 
 
@@ -51,15 +54,15 @@ def main(args):
                      'vr_retro_particles_block 0.25', 'vr_retro_particles_soft 1',
                      'vr_retro_particles_average 0', 'vr_retro_particles_palette 1',
                      'vr_retro_particles_dither 0.5', 'vr_retro_particles_fade -1',
-                     'vr_soft_particles 1', 'vr_particle_retro_halfres 0', 'vr_mock_look 0 0'] + settings
+                     'vr_soft_particles 1', 'vr_fire_particles 0', 'vr_particle_retro_halfres 0', 'vr_mock_look 0 0'] + settings
         commands += [f'vr_particle_test {p} {1 if p == 2 else (256 if name == 'heavy' else 32)}' for p in presets] + waits(age)
-        commands += ['vr_particle_freeze 1', 'pause']
+        commands += ['vr_particle_freeze 1', 'vr_fire_particles 0', 'pause']
         if name == 'angled_streaks':
             commands += ['vr_mock_look 12 18']
         commands += waits(10)
-        for path, fast, half in [('reference', 0, 0), ('fast', 1, 0), ('reference_again', 0, 0),
+        for path, fast, half in [('reference', 0, 0), ('fast', 1, 0), ('trim_off', 1, 0), ('fast_again', 1, 0), ('reference_again', 0, 0),
                                  ('half', 1, 1), ('half_all', 1, 1)]:
-            commands += [f'vr_particle_retro_fast {fast}', f'vr_particle_retro_halfres {half}',
+            commands += [f'vr_particle_trim {0 if path == "trim_off" else 1}', f'vr_particle_retro_fast {fast}', f'vr_particle_retro_halfres {half}',
                          f'vr_particle_retro_halfres_pixels {0 if path == "half_all" else 64}',
                          f'cl_screenshotname screenshots/particle_{name}_{path}'] + waits(5) + ['screenshot'] + waits(3)
     commands += ['echo PARTICLE_PATH_TEST_DONE', 'disconnect'] + waits(10) + ['quit']
@@ -86,7 +89,7 @@ def main(args):
     rows = []
     for name, *_ in fixtures():
         images = {}
-        for path in ('reference', 'fast', 'reference_again', 'half', 'half_all'):
+        for path in ('reference', 'fast', 'trim_off', 'fast_again', 'reference_again', 'half', 'half_all'):
             filename = f'particle_{name}_{path}.png'
             matches = re.findall(r'Wrote screenshots/(' + re.escape(filename[:-4]) + r'\d*\.png)', log)
             assert len(matches) == 1, (filename, matches)
@@ -101,6 +104,12 @@ def main(args):
                          'over_8_pixels_pct': float(np.any(error > 8, axis=2).mean() * 100)}
         assert row['fast']['mae_rgb8'] < max(0.1, 2 * row['reference_again']['mae_rgb8']), row
         assert row['fast']['over_8_pixels_pct'] < max(0.2, 2 * row['reference_again']['over_8_pixels_pct']), row
+        for path in ('trim_off', 'fast_again'):
+            error = np.abs(images[path] - images['fast'])
+            row[path] = {'mae_rgb8': float(error.mean()), 'max_rgb8': int(error.max()),
+                         'over_8_pixels_pct': float(np.any(error > 8, axis=2).mean() * 100)}
+        assert row['trim_off']['mae_rgb8'] < max(0.1, 2 * row['fast_again']['mae_rgb8']), row
+        assert row['trim_off']['over_8_pixels_pct'] < max(0.2, 2 * row['fast_again']['over_8_pixels_pct']), row
         rows.append(row)
         print(name, json.dumps(row['fast']), 'control', row['reference_again']['mae_rgb8'], flush=True)
     (output / 'results.json').write_text(json.dumps({'eye': args.eye, 'exe_sha256': hashlib.sha256(exe.read_bytes()).hexdigest(),

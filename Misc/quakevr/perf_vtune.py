@@ -8,6 +8,7 @@ import csv
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -47,6 +48,8 @@ def run(args):
         raise ValueError("A disposable base under build-cmake is required")
     output.mkdir(parents=True, exist_ok=False)
     config = script(args.scene, args.frames, args.eye, 0, False)
+    if args.cvar:
+        config = config.replace('\nvr_profile 1\n', '\n' + '\n'.join(args.cvar) + '\nvr_profile 1\n', 1)
     (base / "quakevr/autoexec.cfg").write_text(config)
     (output / "autoexec.cfg").write_text(config)
     env = dict(os.environ, QVR_TEST_HIDDEN="1", QVR_TEST_BACKGROUND="1",
@@ -67,10 +70,10 @@ def run(args):
                        check=True, timeout=600)
     console = (base / "qconsole.log").read_bytes()
     (output / "qconsole.log").write_bytes(console)
-    if b"BENCH_DONE" not in console or b"Host_Error" in console or b"Sys_Error" in console:
+    if b"BENCH_DONE" not in console or re.search(rb"(?m)^(?:Host_Error|Sys_Error):", console):
         raise RuntimeError("Game fixture failed; see qconsole.log")
     export(vtune, output, env)
-    metadata = dict(scene=args.scene, frames=args.frames, eye=args.eye,
+    metadata = dict(scene=args.scene, frames=args.frames, eye=args.eye, cvars=args.cvar,
                     sampling="VTune software hotspots, stacks, 10 ms, delay 4 s",
                     wall_seconds=time.monotonic() - started, command=command,
                     exe_sha256=hashlib.sha256(exe.read_bytes()).hexdigest(),
@@ -85,7 +88,11 @@ if __name__ == "__main__":
     parser.add_argument("--base", required=True)
     parser.add_argument("--exe", required=True)
     parser.add_argument("--output", required=True)
-    parser.add_argument("--scene", choices=("props_active", "props_settled", "decals_stream", "decals_blood_4096_stream", "enemies"), required=True)
+    parser.add_argument("--scene", choices=("props_active", "props_active_1000", "props_settled", "decals_stream", "decals_blood_4096_stream", "enemies"), required=True)
     parser.add_argument("--frames", type=int, default=18000)
     parser.add_argument("--eye", type=int, default=2048)
-    run(parser.parse_args())
+    parser.add_argument("--cvar", action="append", default=[])
+    args = parser.parse_args()
+    if any(not re.fullmatch(r"vr_[a-zA-Z0-9_]+ [-+0-9.eE]+", value) for value in args.cvar):
+        parser.error("--cvar requires a VR cvar name and numeric value")
+    run(args)

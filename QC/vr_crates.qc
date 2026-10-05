@@ -264,7 +264,7 @@ void(float xSpeed) VR_SolidProp_Impact =
     // Not thrown, but flung into a monster or player as fast as a throw: it hurts as a thrown one. Its own share of that
     // speed: not what it hit's (a player running into it; after the step its own velocity is the bounce's).
     float approach = xSpeed * VRMetersToUnits();
-    VR_Prop_Flung(approach, approach - vlen(other.velocity));
+    VR_Prop_Flung(approach, approach - vlen(other.velocity), FALSE);
     entity thrower = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace the player who threw it)
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT && thrower.classname == "player")
     {

@@ -599,6 +599,7 @@ void run()
 gfx::Texture atlas = 0;
 bool atlasFailed = false;
 glm::vec4 cellUv[CellCount]{};
+bool cellTrim[CellCount]{};
 
 constexpr int cellSize = 132; // 128 plus a border
 constexpr int atlasColumns = 4;
@@ -849,6 +850,40 @@ bool ensureAtlas()
             pixels[i + c] = static_cast<za::U8>((pixels[i + c] * pixels[i + 3] + 127) / 255);
         }
     }
+    // Include nearby cells: retro sampling can reach outside this image. No alpha threshold:
+    // even the faintest authored wisp contributes to the bounds. The shader only trims
+    // level 0..2 reads whose entire sampling footprint stays within this guard.
+    glm::vec4 support[CellCount];
+    for(int cell = 0; cell < CellCount; cell++)
+    {
+        const glm::vec4 uv = cellUv[cell];
+        glm::vec2 lo{1.f}, hi{0.f};
+        const int x0 = za::max(0, static_cast<int>(uv.x * width - 16.f));
+        const int y0 = za::max(0, static_cast<int>(uv.y * height - 16.f));
+        const int x1 = za::min(width - 1, static_cast<int>(uv.z * width + 16.f));
+        const int y1 = za::min(height - 1, static_cast<int>(uv.w * height + 16.f));
+        for(int y = y0; y <= y1; y++)
+        {
+            for(int x = x0; x <= x1; x++)
+            {
+                const auto i = static_cast<za::SizeT>((y * width + x) * 4);
+                if(pixels[i] || pixels[i + 1] || pixels[i + 2] || pixels[i + 3])
+                {
+                    const glm::vec2 center{(x + 0.5f) / width, (y + 0.5f) / height};
+                    lo = glm::min(lo, center);
+                    hi = glm::max(hi, center);
+                }
+            }
+        }
+        support[cell] = glm::vec4{lo, hi};
+        // Reject marginal savings before selecting a larger shader. Even with the
+        // maximum accepted footprint, a candidate must remove at least 10% of area.
+        const glm::vec2 margin{15.f / width, 15.f / height};
+        const glm::vec2 size = glm::max(glm::vec2{0.f}, glm::min(glm::vec2{uv.z, uv.w}, hi + margin) -
+            glm::max(glm::vec2{uv.x, uv.y}, lo - margin));
+        cellTrim[cell] = size.x * size.y < 0.9f * (uv.z - uv.x) * (uv.w - uv.y);
+    }
+    gfx::particleSupportBounds({support, CellCount}, width, height);
     atlas = gfx::createTexture(width, height, pixels.data(), true);
     atlasFailed = atlas == 0;
     return atlas != 0;
@@ -2272,6 +2307,7 @@ void buildInstances()
     }
     glm::vec3 lo{ZA_FLOAT_MAX}, hi{-ZA_FLOAT_MAX};
     gfx::ParticleInstance* out = instances.data();
+    bool trim = false;
     for(za::SizeT i = 0; i < pool.size(); i++)
     {
         Particle& p = pool[i];
@@ -2304,11 +2340,13 @@ void buildInstances()
         q.pull = sn.pull;
         q.uv = cellUv[p.cell];
         q.flat = p.flat ? 1.f : 0.f;
+        q.cell = cellTrim[p.cell] ? static_cast<float>(p.cell) : -1.f;
+        trim |= cellTrim[p.cell];
     }
     instanceCount = static_cast<za::SizeT>(out - instances.data());
     boundsMin = lo;
     boundsMax = hi;
-    batch = gfx::uploadParticles({instances.data(), instanceCount});
+    batch = gfx::uploadParticles({instances.data(), instanceCount}, trim);
 }
 
 // This view's lying ones (lieOnLiquid), those in its frustum.

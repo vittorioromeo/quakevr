@@ -215,6 +215,8 @@ def run(args):
                 continue
             destination.mkdir(exist_ok=True)
             config = script(name, args.frames, args.eye, args.gpu, rep == 0)
+            if args.cvar:
+                config = config.replace("\nvr_profile 1\n", "\n" + "\n".join(args.cvar) + "\nvr_profile 1\n", 1)
             (base / "quakevr/autoexec.cfg").write_text(config)
             (destination / "autoexec.cfg").write_text(config)
             before = {p: (p.stat().st_mtime_ns, p.stat().st_size) for folder in ("profile", "screenshots")
@@ -238,7 +240,7 @@ def run(args):
             if code or "BENCH_DONE" not in log or re.search(r"(?m)^(?:Host_Error|Sys_Error):", log):
                 raise RuntimeError(f"Benchmark failed: {tag}, exit {code}")
             metadata = {"scene": name, "eye": args.eye, "gpu_every": args.gpu, "rep": rep + 1,
-                        "frames_requested": args.frames, "wall_seconds": time.monotonic() - start,
+                        "frames_requested": args.frames, "cvars": args.cvar, "wall_seconds": time.monotonic() - start,
                         "exe_sha256": hashlib.sha256(exe.read_bytes()).hexdigest(),
                         "progs_sha256": hashlib.sha256((base / "quakevr/progs.dat").read_bytes()).hexdigest()}
             (destination / "metadata.json").write_text(json.dumps(metadata, indent=2))
@@ -255,7 +257,10 @@ if __name__ == "__main__":
     parser.add_argument("--eye", type=int, default=2048)
     parser.add_argument("--gpu", type=int, default=16)
     parser.add_argument("--frames", type=int, default=900)
+    parser.add_argument("--cvar", action="append", default=[], help="Numeric VR cvar override, e.g. --cvar 'vr_particle_trim 0'")
     args = parser.parse_args()
+    if any(not re.fullmatch(r"vr_[a-zA-Z0-9_]+ [-+0-9.eE]+", value) for value in args.cvar):
+        parser.error("--cvar requires a VR cvar name and numeric value")
     if args.reps < 1 or args.frames < 90 or args.eye < 1 or args.gpu < 0:
         parser.error("reps/eye must be positive, frames at least 90, and gpu nonnegative")
     run(args)

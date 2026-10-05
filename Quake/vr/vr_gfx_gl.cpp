@@ -367,6 +367,11 @@ layout(location = 7) uniform vec3 Up;
 layout(location = 8) uniform int Pull;
 layout(location = 10) uniform int Pass;           // ParticlePass: 0 all, 1 the small ones only, 2 the large ones only
 layout(location = 11) uniform float PixelScale;   // the scene target's pixels across a unit at distance 1
+#ifdef PARTICLE_TRIM
+layout(location = 13) uniform vec4 TrimView; // actual target width, height, atlas width, height
+layout(location = 14) uniform vec2 Trim; // enable, world block size (0 plain)
+layout(location = 20) uniform vec4 Support[16]; // guarded base-level support in atlas UVs
+#endif
 layout(location = 12) uniform float LargePixels;  // large: half across at least this many of them
 struct Particle
 {
@@ -459,8 +464,53 @@ void main()
     particleGridScale = vec3(1.0 / exp2(floor(octave) * 0.125), boundary || area < 1e-12 ? 1.0 : 0.0);
 #endif
     vec2 sg = signs[corner];
+    vec2 sampleUV = vec2(sg.x > 0.0 ? p.uv.z : p.uv.x, sg.y > 0.0 ? p.uv.w : p.uv.y);
+#ifdef PARTICLE_TRIM
+    if(Trim.x > 0.0 && p.flags.y >= 0.0)
+    {
+        vec4 support = Support[clamp(int(p.flags.y), 0, 15)];
+        vec4 mid = MVP * vec4(o, 1.0);
+        vec4 a = MVP * vec4(u, 0.0), b = MVP * vec4(r, 0.0);
+        float variation = abs(a.w) + abs(b.w);
+        // Nearly parallel to the image plane; tilted/near-clipped geometry keeps its full quad.
+        if(mid.w > 0.0 && variation < mid.w * 0.001 && mid.z - abs(a.z) - abs(b.z) > 0.0)
+        {
+            vec2 ax = (a.xy * mid.w - mid.xy * a.w) / (mid.w * mid.w) * TrimView.xy * 0.5;
+            vec2 bx = (b.xy * mid.w - mid.xy * b.w) / (mid.w * mid.w) * TrimView.xy * 0.5;
+            float det = ax.x * bx.y - ax.y * bx.x;
+            vec2 range = (p.uv.zw - p.uv.xy) * TrimView.zw * 0.5;
+            vec2 dx = abs(vec2(bx.y, ax.y) * range / det);
+            vec2 dy = abs(vec2(bx.x, ax.x) * range / det);
+            // Upper bound for both texture derivatives, with a margin for perspective,
+            // helper pixels and anisotropic sampling. Level 0..2 are power-of-two
+            // reductions of this atlas; coarser footprints keep the original quad.
+            float footprint = length(dx + dy) * 1.1;
+            float level = ceil(log2(max(footprint, 1.0)));
+            if(abs(det) > 1e-8 && level <= 2.0)
+            {
+                vec2 blockTexels = vec2(0.0);
+                bool safe = true;
+#ifdef PARTICLE_RETRO_GRID
+                blockTexels = Trim.y / particleGridScale.xy;
+                safe = particleGridScale.z == 0.0;
+#endif
+                // Both block-centre taps can lie up to 1.5 blocks away. Filtering plus
+                // helper pixels are included even with hard edges; preserve original UVs/grid.
+                vec2 margin = vec2(2.0 + 2.0 * exp2(level)) + 1.5 * blockTexels;
+                if(safe && all(lessThanEqual(margin, vec2(15.0))))
+                {
+                    vec4 bounds = support;
+                    vec2 lo = max(p.uv.xy, bounds.xy - margin / TrimView.zw);
+                    vec2 hi = min(p.uv.zw, bounds.zw + margin / TrimView.zw);
+                    sampleUV = mix(lo, max(lo, hi), sg * 0.5 + 0.5);
+                    sg = (sampleUV - p.uv.xy) / (p.uv.zw - p.uv.xy) * 2.0 - 1.0;
+                }
+            }
+        }
+    }
+#endif
     vec3 pos = o + u * sg.x + r * sg.y;
-    uv = vec2(sg.x > 0.0 ? p.uv.z : p.uv.x, sg.y > 0.0 ? p.uv.w : p.uv.y);
+    uv = sampleUV;
     color = p.color;
     soft = p.csSoft.z;
     worldPos = pos;
@@ -469,8 +519,11 @@ void main()
 }
 )";
 
-GLuint particleProgram[7]{}; // 0 plain, 1 reference, 2 plain half, 3/4 general fast full/half, 5/6 centre-near full/half
-bool particleProgramFailed[7]{};
+glm::vec4 particleSupport[16]{};
+glm::vec2 particleAtlasSize{1.f};
+
+GLuint particleProgram[11]{}; // 0 plain, 1 reference, 2 plain half, 3/4 general fast full/half, 5/6 centre-near full/half
+bool particleProgramFailed[11]{};
 
 // drawParticlesHalf's: its target (two, for the eyes' size and the spectator camera's), and the pass blending it into
 // the scene.
@@ -951,7 +1004,13 @@ void bindTexture(unsigned unit, Texture texture)
     GL_BindNative(GL_TEXTURE0 + unit, GL_TEXTURE_2D, texture);
 }
 
-ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles)
+void particleSupportBounds(za::Span<const glm::vec4> bounds, int width, int height)
+{
+    particleAtlasSize = {static_cast<float>(width), static_cast<float>(height)};
+    for(za::SizeT i = 0; i < bounds.size() && i < 16; i++) particleSupport[i] = bounds[i];
+}
+
+ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles, bool trim)
 {
     if(particles.empty())
     {
@@ -960,7 +1019,7 @@ ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles)
     GLuint buf = 0;
     GLbyte* ofs = nullptr;
     GL_Upload(GL_SHADER_STORAGE_BUFFER, particles.data(), particles.sizeBytes(), &buf, &ofs);
-    return {buf, reinterpret_cast<za::SizeT>(ofs), particles.size()};
+    return {buf, reinterpret_cast<za::SizeT>(ofs), particles.size(), trim};
 }
 
 namespace
@@ -969,11 +1028,15 @@ namespace
 // Lazy, bounded variants: reference, general fast and centre-near fast retro, plus nonretro full/half.
 [[nodiscard]] GLuint particleProgramFor(int which)
 {
-    GLuint& program = particleProgram[which];
-    if(!program && !particleProgramFailed[which])
+    const int variant = which;
+    constexpr int base[11] = {0, 1, 2, 3, 4, 5, 6, 0, 2, 5, 6};
+    which = base[variant];
+    GLuint& program = particleProgram[variant];
+    if(!program && !particleProgramFailed[variant])
     {
         za::String fs = fragmentFor(static_cast<int>(Shade::Texture), true, which == 1 || which >= 3);
         za::String vs = particleVertexShader;
+        if(variant >= 7) vs.insert(vs.find('\n') + 1, "#define PARTICLE_TRIM 1\n");
         if(which >= 3)
         {
             fs.insert(fs.find('\n') + 1, "#define PARTICLE_RETRO_GRID 1\n");
@@ -992,7 +1055,7 @@ namespace
             which == 2 ? "vr particles (half size)" : which == 3 ? "vr particles (retro fast)" :
             which == 4 ? "vr particles (retro fast half size)" : which == 5 ? "vr particles (retro centre near)" :
             "vr particles (retro centre near half size)");
-        particleProgramFailed[which] = !program;
+        particleProgramFailed[variant] = !program;
     }
     return program;
 }
@@ -1000,7 +1063,7 @@ namespace
 // Draws them with `program` into what is bound (blended over it, premultiplied). Not shaded per sample with MSAA
 // (vid_fsaamode 1): the textures are soft, and their edges are their alpha.
 void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bool depthTest, int retro,
-    Texture texture, ParticlePass pass, const ParticleSplit& split, Texture distances, bool soft)
+    Texture texture, ParticlePass pass, const ParticleSplit& split, Texture distances, bool soft, bool half = false)
 {
     GL_UseProgram(program);
     GL_SetState(GLS_CULL_NONE | GLS_ATTRIBS(0) | GLS_BLEND_ALPHA | (depthTest ? 0 : GLS_NO_ZTEST) | GLS_NO_ZWRITE);
@@ -1018,6 +1081,20 @@ void drawParticlesWith(GLuint program, const ParticleBatch& batch, bool pull, bo
     GL_Uniform1iFunc(10, static_cast<int>(pass));
     GL_Uniform1fFunc(11, split.pixelScale);
     GL_Uniform1fFunc(12, split.largePixels);
+    const bool trimmed = program == particleProgram[7] || program == particleProgram[8] ||
+        program == particleProgram[9] || program == particleProgram[10];
+    if(trimmed)
+    {
+        unsigned trimColor = 0, trimDepth = 0;
+        int trimSamples = 0, trimViewport[4];
+        VR_SceneTarget(&trimColor, &trimDepth, &trimSamples, trimViewport);
+        const int width = half ? (trimViewport[0] + trimViewport[2] + 1) / 2 - trimViewport[0] / 2 : trimViewport[2];
+        const int height = half ? (trimViewport[1] + trimViewport[3] + 1) / 2 - trimViewport[1] / 2 : trimViewport[3];
+        GL_Uniform4fFunc(13, static_cast<float>(width), static_cast<float>(height), particleAtlasSize.x, particleAtlasSize.y);
+        const float block = retro > 0 ? retro::particleTrimBlock(retro) : 0.f;
+        GL_Uniform2fFunc(14, block >= 0.f ? 1.f : 0.f, block);
+        GL_Uniform4fvFunc(20, 16, &particleSupport[0][0]);
+    }
     bindRetro(retro);
     if(texture)
     {
@@ -1054,7 +1131,9 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
     }
     const int r = state.retro > 0 ? (vr_particle_retro_fast.value != 0.f ?
         (retro::particleCentreNear(state.retro) ? 5 : 3) : 1) : 0;
-    GLuint program = particleProgramFor(r);
+    const int trimmed = vr_particle_trim.value != 0.f && batch.trim ? (r == 0 ? 7 : r == 5 ? 9 : r) : r;
+    GLuint program = particleProgramFor(trimmed);
+    if(!program && trimmed >= 7) program = particleProgramFor(r);
     if(!program && r >= 3)
     {
         program = particleProgramFor(1);
@@ -1074,7 +1153,10 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
     {
         return false;
     }
-    const GLuint program = particleProgramFor(retro > 0 ? (retro::particleCentreNear(retro) ? 6 : 4) : 2);
+    const int original = retro > 0 ? (retro::particleCentreNear(retro) ? 6 : 4) : 2;
+    const int trimmed = vr_particle_trim.value != 0.f && batch.trim ? (original == 2 ? 8 : original == 6 ? 10 : original) : original;
+    GLuint program = particleProgramFor(trimmed);
+    if(!program && trimmed >= 7) program = particleProgramFor(original);
     if(!halfCompositeProgram && !halfCompositeFailed)
     {
         halfCompositeProgram = glProgram(halfCompositeVs, halfCompositeFs, "vr particles (half size, blended in)");
@@ -1126,7 +1208,7 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
         (viewport[1] + viewport[3] + 1) / 2 - viewport[1] / 2);
     const GLfloat clear[4] = {0.f, 0.f, 0.f, 0.f};
     GL_ClearBufferfvFunc(GL_COLOR, 0, clear);
-    drawParticlesWith(program, batch, pull, false, retro, texture, ParticlePass::Large, split, distances, soft);
+    drawParticlesWith(program, batch, pull, false, retro, texture, ParticlePass::Large, split, distances, soft, true);
     restore();
 
     // Blended into the scene.

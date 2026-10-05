@@ -117,6 +117,8 @@ void allCheckCategories(bool on);
 [[nodiscard]] int categorySet(Category c);
 // Whether the effective GPU set permits the bounded centre/near/full-palette particle variant.
 [[nodiscard]] bool particleCentreNear(int set);
+// Positive world block size only when trimming can bound all reads at level zero.
+[[nodiscard]] float particleTrimBlock(int set);
 void bindForDraw(int lutUnit);
 
 [[nodiscard]] cvar_s& cvarOf(Category c, Param p);

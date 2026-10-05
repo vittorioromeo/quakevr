@@ -127,7 +127,8 @@ struct ParticleInstance
     float pull;
     glm::vec4 uv;
     float flat; // 1: lying on the horizontal plane
-    float pad[3];
+    float cell; // atlas cell for conservative support bounds; -1: full support
+    float pad[2];
 };
 static_assert(sizeof(ParticleInstance) == 96);
 
@@ -137,8 +138,11 @@ struct ParticleBatch
     unsigned buffer{0};
     za::SizeT offset{0};
     za::SizeT count{0};
+    bool trim{false}; // at least one sprite has useful transparent margins
 };
-[[nodiscard]] ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles);
+// Base-level nonzero RGBA bounds, including a 16-texel atlas guard; in atlas UVs.
+void particleSupportBounds(za::Span<const glm::vec4> bounds, int width, int height);
+[[nodiscard]] ParticleBatch uploadParticles(za::Span<const ParticleInstance> particles, bool trim);
 // Which of them a draw is for: all, or those small or large in the view (ParticleSplit).
 enum class ParticlePass : int
 {
