@@ -1,6 +1,7 @@
 // vr_hull.cpp -- see vr_hull.hpp.
 
 #include "vr_hull.hpp"
+#include "vr_alloccount.hpp"
 #include "vr_api.h"
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
@@ -1258,7 +1259,13 @@ struct MonsterTrees
     auto members() { return qvr::mem::list(trees); }
 };
 mem::Cache<MonsterTrees> monsterTrees{"hull monster trees", mem::MapChange};
-constexpr za::SizeT maxMonsterTrees = 12; // more box sizes than this at once: all compiled again (not expected)
+constexpr za::SizeT maxMonsterTrees = 128; // reserved before asynchronous builds: their Tree pointers remain stable
+cvar_t vr_hull_audit = {"vr_hull_audit", "0", CVAR_NONE};
+struct HullAudit
+{
+    za::U64 slots = 0, clears = 0, runtimeBuilds = 0;
+};
+HullAudit hullAudit;
 
 // A piece of a grown brush in a node of the tree being built.
 struct Frag
@@ -2310,9 +2317,18 @@ int subOf(Brushes& b, int index)
     {
         return known; // the world's, but none of its submodels (not expected)
     }
+    const bool audit = vr_hull_audit.value != 0.f;
+    const auto before = audit ? alloccount::statsThisThread() : alloccount::Stats{};
     const auto base = static_cast<za::U32>(b.leafBrush.size());
     b.leafBrush.resize(b.leafBrush.size() + static_cast<za::SizeT>(m->numnodes) * 2, -1);
     addSubModel(b, h0, m->numnodes, base, h0.firstclipnode, m->mins, m->maxs);
+    if(audit)
+    {
+        const auto after = alloccount::statsThisThread();
+        Con_Printf("hull_audit: brushes frame=%d target=%s sub=%zu new=%llu bytes=%llu\n", host_framecount,
+            m->name, b.subs.size() - 1, static_cast<unsigned long long>(after.calls[static_cast<int>(alloccount::Kind::New)] - before.calls[static_cast<int>(alloccount::Kind::New)]),
+            static_cast<unsigned long long>(after.requestedBytes - before.requestedBytes));
+    }
     Con_DPrintf("hull: %s: %u brushes\n", m->name, b.subs.back().numBrushes);
     return known = static_cast<int>(b.subs.size()) - 1;
 }
@@ -2345,8 +2361,14 @@ Tree& slotFor(const mclipnode_t* clipnodes, const glm::vec3& ext)
     }
     if(v.size() >= maxMonsterTrees)
     {
+        ++hullAudit.clears;
+        if(vr_hull_audit.value != 0.f)
+        {
+            Con_Printf("hull_audit: clear frame=%d slots=%zu bytes=%zu\n", host_framecount, v.size(), monsterTrees.bytes());
+        }
         v.clear();
     }
+    ++hullAudit.slots;
     v.emplaceBack();
     v.back().forClipnodes = clipnodes;
     v.back().ext = ext;
@@ -2489,9 +2511,13 @@ void settle()
     }
 }
 
-const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext)
+const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext, const char* target = nullptr)
 {
     settle();
+    const bool audit = vr_hull_audit.value != 0.f;
+    const bool known = audit && findSlot(b.clipnodes, ext);
+    const za::U64 clearsBefore = hullAudit.clears;
+    const auto before = audit ? alloccount::statsThisThread() : alloccount::Stats{};
     Tree& t = slotFor(b.clipnodes, ext);
     if(t.heads.size() < b.subs.size())
     {
@@ -2499,7 +2525,25 @@ const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext)
     }
     if(t.heads[sub] < 0)
     {
+        ++hullAudit.runtimeBuilds;
+        const double t0 = audit ? Sys_DoubleTime() : 0.0;
         buildTree(t, b, sub);
+        if(audit)
+        {
+            const auto after = alloccount::statsThisThread();
+            const auto delta = [&](alloccount::Kind k) {
+                const int i = static_cast<int>(k);
+                return after.calls[i] - before.calls[i];
+            };
+            Con_Printf("hull_audit: build frame=%d sub=%zu target=%s size=%.3fx%.3fx%.3f reason=%s new=%llu c=%llu "
+                       "bytes=%llu retained=%zu ms=%.3f\n", host_framecount, sub, target ? target : "(probe)",
+                static_cast<double>(ext.x * 2.f), static_cast<double>(ext.y * 2.f), static_cast<double>(ext.z * 2.f),
+                hullAudit.clears != clearsBefore ? "cache-clear" : (known ? "lazy-submodel" : "new-size"),
+                static_cast<unsigned long long>(delta(alloccount::Kind::New)),
+                static_cast<unsigned long long>(delta(alloccount::Kind::Malloc) + delta(alloccount::Kind::Calloc) + delta(alloccount::Kind::Realloc)),
+                static_cast<unsigned long long>(after.requestedBytes - before.requestedBytes), heldBytes(t),
+                (Sys_DoubleTime() - t0) * 1000.0);
+        }
         if(sub == 0)
         {
             Con_DPrintf("hull: %s compiled for %gx%g: %d nodes, %d planes in %.1f ms (%d pieces done again)\n", sv.worldmodel->name, ext.x * 2.f,
@@ -2507,6 +2551,67 @@ const Tree& treeFor(const Brushes& b, za::SizeT sub, const glm::vec3& ext)
         }
     }
     return t;
+}
+
+// Exercise more than the old 12-size limit and revisit every compiled world tree.
+za::U32 hashOf(const Tree& t);
+
+void cacheTest_f()
+{
+    if(!sv.active || !sv.worldmodel || !worldBrushes(sv.worldmodel)) return;
+    settle();
+    const int room = static_cast<int>(maxMonsterTrees - monsterTrees.trees.size());
+    const int count = za::min(room, za::clamp(Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 64, 1, 120));
+    if(count < 1) { Con_Printf("vr_hull_cachetest: no free slots; run on a fresh map\n"); return; }
+    za::Vector<za::U32> hashes;
+    const auto extAt = [](int i) { const float half = 4.f + static_cast<float>(i) / 32.f; return glm::vec3{half, half, 28.f}; };
+    const auto clears = hullAudit.clears;
+    const Tree* first = nullptr;
+    for(int i = 0; i < count; ++i)
+    {
+        const Tree& t = treeFor(built, 0, extAt(i), "(cachetest)");
+        if(i == 0) first = &t;
+        hashes.pushBack(hashOf(t));
+    }
+    const auto builds = hullAudit.runtimeBuilds;
+    bool ok = hullAudit.clears == clears;
+    for(int i = 0; i < count; ++i)
+    {
+        ok = ok && hashOf(treeFor(built, 0, extAt(i), "(cachetest)")) == hashes[static_cast<za::SizeT>(i)];
+    }
+    ok = ok && hullAudit.runtimeBuilds == builds && findSlot(built.clipnodes, extAt(0)) == first;
+    Con_Printf("vr_hull_cachetest: %s sizes=%d slots=%zu limit=%zu clears=%llu retained=%zu\n", ok ? "PASS" : "FAIL",
+        count, monsterTrees.trees.size(), maxMonsterTrees, static_cast<unsigned long long>(hullAudit.clears - clears),
+        monsterTrees.bytes());
+}
+
+// Diagnostic control: prebuild loaded brush models for the box sizes already in the cache.
+// Runs synchronously only when requested; shifts first-touch work out of a subsequent capture.
+void warmCache_f()
+{
+    if(!sv.active || !sv.worldmodel || !worldBrushes(sv.worldmodel)) return;
+    settle();
+    za::Vector<glm::vec3> exts;
+    if(tree.forClipnodes == built.clipnodes) exts.pushBack(tree.ext);
+    for(const Tree& t : monsterTrees.trees)
+    {
+        if(t.forClipnodes == built.clipnodes) exts.pushBack(t.ext);
+    }
+    const auto before = hullAudit.runtimeBuilds;
+    for(int i = 1; i < MAX_MODELS; ++i)
+    {
+        const qmodel_t* model = sv.models[i];
+        if(!model || model->type != mod_brush) continue;
+        const int sub = subOf(built, i);
+        if(sub < 0) continue;
+        for(const glm::vec3& ext : exts)
+        {
+            (void)treeFor(built, static_cast<za::SizeT>(sub), ext, model->name);
+        }
+    }
+    Con_Printf("hull_audit: warmcache built=%llu sizes=%zu slots=%zu bytes=%zu\n",
+        static_cast<unsigned long long>(hullAudit.runtimeBuilds - before), exts.size(), monsterTrees.trees.size(),
+        tree.bytes() + monsterTrees.bytes());
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -2666,6 +2771,9 @@ void stats_f()
     {
         Con_Printf("hull: hash tree %gx%g %08x\n", t.ext.x * 2.f, t.ext.z * 2.f, hashOf(t));
     }
+    Con_Printf("hull_audit: cache slots=%zu limit=%zu new_slots=%llu clears=%llu runtime_builds=%llu (since map load)\n",
+        monsterTrees.trees.size(), maxMonsterTrees, static_cast<unsigned long long>(hullAudit.slots),
+        static_cast<unsigned long long>(hullAudit.clears), static_cast<unsigned long long>(hullAudit.runtimeBuilds));
     // The monsters' (vr_mhull).
     double ms = 0.0;
     int count = 0;
@@ -3742,6 +3850,9 @@ void onWidthChanged(cvar_t*)
 
 void init()
 {
+    Cvar_RegisterVariable(&vr_hull_audit);
+    Cmd_AddCommand("vr_hull_warmcache", warmCache_f);
+    Cmd_AddCommand("vr_hull_cachetest", cacheTest_f);
     Cmd_AddCommand("vr_hull_stats", stats_f);
     Cmd_AddCommand("vr_hull_bench", bench_f);
     Cmd_AddCommand("vr_hull_walktest", walkTest_f);
@@ -3768,6 +3879,7 @@ void beforeLoad()
     {
         return;
     }
+    hullAudit = HullAudit{};
     pending.posted = Sys_DoubleTime();
     monsterTrees.trees.reserve(maxMonsterTrees); // (a slot taken while others are made moves none of them)
     pending.brushes = jobs::async([world] { build(world); });
@@ -3972,7 +4084,7 @@ bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const
     if(vr_hull_method.value != 0.f)
     {
         const glm::vec3 centre = (lo + hi) * 0.5f;
-        const Tree& t = treeFor(built, static_cast<za::SizeT>(sub), (hi - lo) * 0.5f);
+        const Tree& t = treeFor(built, static_cast<za::SizeT>(sub), (hi - lo) * 0.5f, model->name);
         trace = treeTrace(t, t.heads[static_cast<za::SizeT>(sub)], s + centre, e + centre);
         for(int i = 0; i < 3; ++i)
         {

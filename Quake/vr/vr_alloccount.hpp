@@ -24,6 +24,8 @@ struct Stats
 // traceEnd.
 void traceBegin();
 void traceEnd();
+// Close one traced frame; optionally retain its per-stack counts as the busiest frame.
+void traceFrameEnd(bool retainPeak);
 
 // A place that allocates: the first frame of the stack outside the allocators (Zancle's containers, the standard
 // library, the scratch sets), its caller (that of its commonest stack), and how many.
@@ -37,7 +39,7 @@ struct Site
     za::U64 bytes{0};
 };
 // The last trace's sites, most first (Windows; elsewhere none), its heap events, and those whose stack didn't fit.
-[[nodiscard]] za::Vector<Site> traceSites(za::U64& total, za::U64& dropped);
+[[nodiscard]] za::Vector<Site> traceSites(za::U64& total, za::U64& dropped, bool peakFrame = false);
 
 } // namespace qvr::alloccount
 

@@ -1,5 +1,7 @@
 # Heap allocation audit — 5 October 2026
 
+Follow-up: [exact combat peak attribution and the 128-size hull cache](COMBAT_ALLOCATION_BURSTS_20261005.md).
+
 Implemented on `vr-ironwail` after `70e369c3`, preserving the shared model-metadata work committed during the audit as `8312e1ff`. The audit covers engine-owned C heap calls as well as C++ allocation, identifies the combat bursts, and removes the recurring portal/wound temporary allocations previously attributed to particle scenes.
 
 ## Monitor

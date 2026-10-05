@@ -159,7 +159,8 @@ preserve CRT pointer ownership and failure semantics; C++ allocation uses raw CR
 Counters are per thread; the frame profiler reads only the main thread. Its additional columns are `cpp_deletes`,
 `c_heap_requests`, `c_heap_frees` and `heap_requested_kib` (request bytes floored to KiB per frame, not live heap usage).
 C request counts include attempts; null frees are ignored. `vr_alloc_sites 300 50` records heap event kinds, exact
-requested bytes, caller sites, and the peak allocation-request frame. Windows stack resolution requires the build's
+requested bytes, caller sites, and the peak allocation-request frame. Add a third argument of `1` to retain and print
+that individual frame's stack counters (`peak_site`) as well as window totals. Windows stack resolution requires the build's
 PDB. Tracing is opt-in and changes timing; do not benchmark CPU cost with it enabled. DLL-private heaps and zone/hunk
 suballocations are outside these counters (the zone/hunk's CRT backing allocation is covered).
 

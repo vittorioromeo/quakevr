@@ -42,6 +42,7 @@ struct TracedStack
     za::U64 count; // 0: a free slot
     qvr::alloccount::Kind kind;
     za::U64 bytes;
+    za::U64 frameCount, frameBytes, peakCount, peakBytes;
 };
 TracedStack traceTable[traceSlots];
 za::U64 traceTotal = 0, traceDropped = 0;
@@ -66,12 +67,16 @@ thread_local bool tracing = false; // this thread's allocations are traced
             t.count = 1;
             t.kind = kind;
             t.bytes = bytes;
+            t.frameCount = 1;
+            t.frameBytes = bytes;
             return;
         }
         if(t.kind == kind && t.hash == hash && t.depth == depth && memcmp(t.pc, pc, sizeof(void*) * depth) == 0)
         {
             t.count++;
             t.bytes += bytes;
+            ++t.frameCount;
+            t.frameBytes += bytes;
             return;
         }
     }
@@ -239,6 +244,19 @@ void traceEnd()
     tracing = false;
 }
 
+void traceFrameEnd(bool retainPeak)
+{
+    for(TracedStack& t : traceTable)
+    {
+        if(retainPeak)
+        {
+            t.peakCount = t.frameCount;
+            t.peakBytes = t.frameBytes;
+        }
+        t.frameCount = t.frameBytes = 0;
+    }
+}
+
 namespace
 {
 
@@ -264,9 +282,14 @@ namespace
 
 } // namespace
 
-za::Vector<Site> traceSites(za::U64& total, za::U64& dropped)
+za::Vector<Site> traceSites(za::U64& total, za::U64& dropped, bool peakFrame)
 {
     total = traceTotal;
+    if(peakFrame)
+    {
+        total = 0;
+        for(const auto& t : traceTable) total += t.peakCount;
+    }
     dropped = traceDropped;
     za::Vector<Site> sites;
 #ifdef _WIN32
@@ -326,7 +349,9 @@ za::Vector<Site> traceSites(za::U64& total, za::U64& dropped)
 
     for(const TracedStack& t : traceTable)
     {
-        if(t.count == 0)
+        const za::U64 count = peakFrame ? t.peakCount : t.count;
+        const za::U64 bytes = peakFrame ? t.peakBytes : t.bytes;
+        if(count == 0)
         {
             continue;
         }
@@ -361,12 +386,12 @@ za::Vector<Site> traceSites(za::U64& total, za::U64& dropped)
             sites.pushBack(Site{where, za::String{}, 0, 0, t.kind, 0});
             found = &sites.back();
         }
-        found->count += t.count;
-        found->bytes += t.bytes;
-        if(t.count > found->viaCount) // (the caller of its commonest stack)
+        found->count += count;
+        found->bytes += bytes;
+        if(count > found->viaCount) // (the caller of its commonest stack)
         {
             found->via = via;
-            found->viaCount = t.count;
+            found->viaCount = count;
         }
     }
     if(symCleanup)

@@ -1,4 +1,4 @@
-// vr_alloc_sites [frames] [lines]: main-thread heap events by kind, request bytes and call site.
+// vr_alloc_sites [frames] [lines] [peak]: main-thread heap events and optional busiest-frame stacks.
 // Stack capture distorts timing; use ordinary profiling for performance comparisons.
 
 #include "vr_engine.hpp"
@@ -22,6 +22,8 @@ int linesShown = 25;
 alloccount::Stats started{}, last{}, finished{};
 za::U64 peakRequests = 0, peakBytes = 0;
 int peakFrame = 0;
+int peakHostFrame = 0;
+bool showPeak = false;
 
 void report()
 {
@@ -41,6 +43,17 @@ void report()
     Con_Printf("vr_alloc_sites requests: %llu bytes; peak %llu requests, %llu bytes at trace frame %d\n",
         static_cast<unsigned long long>(finished.requestedBytes - started.requestedBytes),
         static_cast<unsigned long long>(peakRequests), static_cast<unsigned long long>(peakBytes), peakFrame);
+    Con_Printf("vr_alloc_sites peak_host_frame: %d\n", peakHostFrame);
+    if(showPeak)
+    {
+        const auto peakSites = alloccount::traceSites(total, dropped, true);
+        for(const auto& s : peakSites)
+        {
+            Con_Printf("peak_site %-7s %llu bytes=%llu %s\n          <- %s\n", alloccount::kindName(s.kind),
+                static_cast<unsigned long long>(s.count), static_cast<unsigned long long>(s.bytes),
+                s.where.cStr(), s.via.empty() ? "?" : s.via.cStr());
+        }
+    }
     int shown = 0;
     for(const alloccount::Site& s : sites)
     {
@@ -92,10 +105,11 @@ void command_f()
     framesTraced = Cmd_Argc() > 1 ? za::max(Q_atoi(Cmd_Argv(1)), 1) : 300;
     linesShown = Cmd_Argc() > 2 ? za::max(Q_atoi(Cmd_Argv(2)), 1) : 25;
     framesLeft = framesTraced;
+    showPeak = Cmd_Argc() > 3 && Q_atoi(Cmd_Argv(3)) != 0;
     Con_Printf("vr_alloc_sites: tracing the main thread's heap events for %d frames\n", framesTraced);
     started = last = finished = alloccount::statsThisThread();
     peakRequests = peakBytes = 0;
-    peakFrame = 0;
+    peakFrame = peakHostFrame = 0;
     alloccount::traceBegin();
 }
 
@@ -117,12 +131,15 @@ void frameEnd()
         const int i = static_cast<int>(k);
         requests += now.calls[i] - last.calls[i];
     }
-    if(requests > peakRequests)
+    const bool retainPeak = requests > peakRequests;
+    if(retainPeak)
     {
         peakRequests = requests;
         peakBytes = now.requestedBytes - last.requestedBytes;
         peakFrame = framesTraced - framesLeft + 1;
+        peakHostFrame = host_framecount;
     }
+    alloccount::traceFrameEnd(retainPeak);
     last = finished = now;
     if(--framesLeft > 0)
     {

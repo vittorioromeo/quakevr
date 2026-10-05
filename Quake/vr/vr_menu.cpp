@@ -3885,9 +3885,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Print Memory Now", "vr_memstats")
             .help("vr_memstats: video and system memory, the textures and models loaded, the frame times since the last one."),
         command("Allocation Sites", "vr_alloc_sites 300")
-            .help("vr_alloc_sites [frames] [lines]: the main thread's C++ and C heap events over the next 300 frames by where they "
+            .help("vr_alloc_sites [frames] [lines] [peak]: the main thread's C++ and C heap events over the next 300 frames by where they "
                   "were asked for (the commonest first: a frame's, the place, its caller) in the console. To find the buffers "
-                  "a frame makes and frees. Includes call kinds, requested bytes and the busiest frame; tracing affects timings."),
+                  "a frame makes and frees. Includes kinds and requested bytes. Set peak to 1 for the busiest frame's stacks. Tracing affects timings."),
         header("Crashes"),
         command("Crash the Game", "vr_debug_crash")
             .help("vr_debug_crash [access | abort]: crashes the game now, on purpose, to test the crash report (in a test run: "

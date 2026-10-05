@@ -2,6 +2,7 @@
 Tracing changes CPU timing. These runs measure traffic, not throughput or live heap size.
 """
 import argparse
+import re
 from pathlib import Path
 import perf_suite
 
@@ -14,7 +15,15 @@ def main(args):
         if args.extra_warm:
             config = config.replace('echo BENCH_WARM_END', '\n'.join(perf_suite.waits(args.extra_warm)) + '\necho BENCH_WARM_END')
         checks = 'vr_alloc_test\n' if args.self_test else ''
-        return config.replace('echo BENCH_MEASURE_BEGIN', checks + f'vr_alloc_sites {frames} 200\necho BENCH_MEASURE_BEGIN')
+        if args.hull_audit:
+            # Enable before combat setup as well as during the measured window.
+            config = config.replace('god 1', 'vr_hull_audit 1\ngod 1')
+            config = config.replace('echo BENCH_MEASURE_BEGIN', 'vr_hull_stats\necho BENCH_MEASURE_BEGIN')
+            config = config.replace('echo BENCH_MEASURE_END', 'vr_hull_stats\necho BENCH_MEASURE_END')
+        if args.prewarm_hulls:
+            config = config.replace('echo BENCH_WARM_END', 'vr_hull_warmcache\necho BENCH_WARM_END')
+        peak = ' 1' if args.peak_sites else ''
+        return config.replace('echo BENCH_MEASURE_BEGIN', checks + f'vr_alloc_sites {frames} 200{peak}\necho BENCH_MEASURE_BEGIN')
 
     perf_suite.script = traced
     perf_suite.run(args)
@@ -26,6 +35,14 @@ def main(args):
             raise RuntimeError(f'Allocation trace missing: {log}')
         if 'not placed: the table was full' in text:
             raise RuntimeError(f'Allocation trace overflowed: {log}')
+        if args.peak_sites:
+            peak = re.search(r'peak (\d+) requests, (\d+) bytes at trace frame', text)
+            sites = re.findall(r'^peak_site (\w+)\s+(\d+) bytes=(\d+)', text, re.M)
+            requests = sum(int(n) for kind, n, _ in sites if kind not in ('delete', 'free'))
+            requested_bytes = sum(int(n) for _, _, n in sites)
+            if not peak or requests != int(peak[1]) or requested_bytes != int(peak[2]):
+                raise RuntimeError(f'Peak stack totals do not match the frame counters: {log}')
+
 
 
 if __name__ == '__main__':
@@ -40,4 +57,7 @@ if __name__ == '__main__':
     p.add_argument('--gpu', type=int, default=0)
     p.add_argument('--extra-warm', type=int, default=0)
     p.add_argument('--self-test', action='store_true')
+    p.add_argument('--peak-sites', action='store_true', help='Report stacks from the busiest individual frame')
+    p.add_argument('--hull-audit', action='store_true', help='Log hull builds and cache clears with host frame numbers')
+    p.add_argument('--prewarm-hulls', action='store_true', help='Prebuild loaded brush hulls before the measured window')
     main(p.parse_args())
