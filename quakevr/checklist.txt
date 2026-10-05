@@ -336,3 +336,11 @@ Graphics > Slipgates > Portal Stars: tune Size/Opacity for the single entrance l
 Downed zombie: sustained chainsaw hits to its legs should eventually gib it even with the leg damage multiplier
 Slipgates should never produce water ripples, splash particles or water sounds when a hand, player, shot, casing or thrown object touches/crosses them; real pools should still do so
 Several slipgates in view: each should show its own destination in both eyes, flat and spectator. Visible Gates defaults to 4; verify live limits 1/4/8 and headset frame cost with dynamic lights
+
+[Map browser (Quaddicted index)]
+Start-up: fetching the map index (vr_maps_fetch 1) does not stall the first frames, the menus or map loading
+Debug > External Map Index: Map Index Stats, List Maps, List Large Maps, Fetch the Map Index, and the "own progs" toggle
+Console: maps_stats, maps_list, maps_list type=speedmap sort=title, maps_list type=map size=large sort=bytes, maps_info <sha prefix>
+Offline: with no network the game starts normally and says the index was not fetched (no error spam)
+-nomapindex or vr_maps_fetch 0: no fetch happens; a cached index is still readable
+Map titles and authors with accents (e.g. "Rickard Edé") render correctly in the VR text, not as \xNN escapes
