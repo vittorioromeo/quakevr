@@ -23,6 +23,7 @@ enum MapsButton
     MapButtonType,
     MapButtonSize,
     MapButtonRating,
+    MapButtonInstalled,
     MapButtonAction,
     MapButtonCount
 };
@@ -35,12 +36,12 @@ struct MapsSortChoice
     bool newestFirst;
 };
 constexpr MapsSortChoice mapsSorts[] = {
-    {"rating", mapindex::Sort::Rating, true},
+    {"by rating", mapindex::Sort::Rating, true},
     {"newest", mapindex::Sort::Date, true},
     {"oldest", mapindex::Sort::Date, false},
     {"largest", mapindex::Sort::Bytes, true},
     {"smallest", mapindex::Sort::Bytes, false},
-    {"title", mapindex::Sort::Title, true},
+    {"by title", mapindex::Sort::Title, true},
 };
 constexpr int mapsSortCount = static_cast<int>(sizeof(mapsSorts) / sizeof(mapsSorts[0]));
 
@@ -50,8 +51,20 @@ struct MapsRatingChoice
     const char* label;
     int min;
 };
-constexpr MapsRatingChoice mapsRatings[] = {{"any", 0}, {"3+", 300}, {"3.5+", 350}, {"4+", 400}, {"4.5+", 450}};
+constexpr MapsRatingChoice mapsRatings[] = {
+    {"any rating", 0}, {"rated 3+", 300}, {"rated 3.5+", 350}, {"rated 4+", 400}, {"rated 4.5+", 450}};
 constexpr int mapsRatingCount = static_cast<int>(sizeof(mapsRatings) / sizeof(mapsRatings[0]));
+
+// What the Installed button cycles: every package, only the ones installed from here (maps_installed.txt), or only
+// the ones not installed yet.
+enum MapsShown
+{
+    MapsShowAll,
+    MapsShowInstalled,
+    MapsShowNotInstalled,
+    MapsShowCount
+};
+constexpr const char* mapsShownLabels[MapsShowCount] = {"all maps", "installed", "to install"};
 
 // A filter choice read from the index (a type or a map_size a package carries, and how many do).
 struct MapsFacet
@@ -66,6 +79,7 @@ struct MapsPage
     za::String query;
     int sort{1}; // newest
     int rating{0}; // mapsRatings
+    int shown{MapsShowAll}; // MapsShown
     za::Vector<MapsFacet> typeFacets, sizeFacets;
     int typeIdx{0}, sizeIdx{0}; // 0: any; n > 0: facets[n - 1]
     za::I64 facetsAt{-1};       // index().fetchedAt the facets were read from
@@ -73,7 +87,7 @@ struct MapsPage
     za::Vector<const mapindex::Entry*> results;
     za::String sigQuery;
     za::String sigType, sigSize;
-    int sigSort{-1}, sigTypeIdx{-1}, sigSizeIdx{-1}, sigRating{-1};
+    int sigSort{-1}, sigTypeIdx{-1}, sigSizeIdx{-1}, sigRating{-1}, sigShown{-1};
     int sigProgs{-1};
     za::I64 sigFetched{-1};
     int sigInstalled{-1};
@@ -184,12 +198,27 @@ void mapsRunSearch()
     {
         q.mapSize = mapPage.sizeFacets[mapPage.sizeIdx - 1].value;
     }
-    q.allowProgs = vr_maps_allow_progs.value != 0.f;
+    // (the installed ones listed whatever vr_maps_allow_progs says: they are there already)
+    q.allowProgs = vr_maps_allow_progs.value != 0.f || mapPage.shown == MapsShowInstalled;
     q.sort = mapsSorts[mapPage.sort].sort;
     q.newestFirst = mapsSorts[mapPage.sort].newestFirst;
     q.minRating = mapsRatings[mapPage.rating].min;
     q.limit = 0; // every match: the page scrolls, and its header says how many there are
     mapindex::search(q, mapPage.results);
+    if(mapPage.shown != MapsShowAll)
+    {
+        // Installed or not: the installed list (main thread, in memory), kept in the search's order.
+        const bool want = mapPage.shown == MapsShowInstalled;
+        za::Vector<const mapindex::Entry*> kept;
+        for(const mapindex::Entry* e : mapPage.results)
+        {
+            if(mapinstall::installed(za::String{idx.field(e->sha256)}) == want)
+            {
+                kept.pushBack(e);
+            }
+        }
+        mapPage.results = ZA_MOVE(kept);
+    }
 
     mapPage.hiddenProgs = 0;
     if(!q.allowProgs)
@@ -210,6 +239,7 @@ void mapsRunSearch()
     mapPage.sigTypeIdx = mapPage.typeIdx;
     mapPage.sigSizeIdx = mapPage.sizeIdx;
     mapPage.sigRating = mapPage.rating;
+    mapPage.sigShown = mapPage.shown;
     mapPage.sigProgs = q.allowProgs ? 1 : 0;
     mapPage.sigFetched = idx.fetchedAt;
     mapPage.sigInstalled = static_cast<int>(mapinstall::installedList().size());
@@ -241,7 +271,7 @@ void mapsShown()
     const int installed = static_cast<int>(mapinstall::installedList().size());
     const int progs = vr_maps_allow_progs.value != 0.f ? 1 : 0;
     if(mapPage.sigQuery != mapPage.query || mapPage.sigSort != mapPage.sort || mapPage.sigTypeIdx != mapPage.typeIdx ||
-        mapPage.sigSizeIdx != mapPage.sizeIdx || mapPage.sigRating != mapPage.rating || mapPage.sigProgs != progs || mapPage.sigFetched != idx.fetchedAt ||
+        mapPage.sigSizeIdx != mapPage.sizeIdx || mapPage.sigRating != mapPage.rating || mapPage.sigShown != mapPage.shown || mapPage.sigProgs != progs || mapPage.sigFetched != idx.fetchedAt ||
         mapPage.sigInstalled != installed)
     {
         mapsRunSearch();
@@ -290,10 +320,10 @@ struct MapsLayout
     const float rowStep = (2.f * m.s.half + 3.f) / m.s.k;
     m.detailTop = m.s.keys.empty() ? m.s.boxY + rowStep : m.s.keys.back().yc + rowStep;
 
-    // Four filters across the left, the action (Install / Play) at the right end of the bar.
+    // Five filters across the left, the action (Install / Play) at the right end of the bar.
     const float total = m.s.right - m.s.left;
-    const float action = za::fmin(130.f, total * 0.28f);
-    const float each = (total - action - 6.f) / 4.f;
+    const float action = za::fmin(110.f, total * 0.24f);
+    const float each = (total - action - 6.f) / static_cast<float>(MapButtonAction);
     for(int i = 0; i < MapButtonAction; i++)
     {
         m.bar.x0[i] = m.s.left + each * static_cast<float>(i) + 2.f;
@@ -429,6 +459,9 @@ void mapsButtonAt(int button)
             break;
         case MapButtonRating:
             mapPage.rating = (mapPage.rating + 1) % mapsRatingCount;
+            break;
+        case MapButtonInstalled:
+            mapPage.shown = (mapPage.shown + 1) % MapsShowCount;
             break;
         case MapButtonAction:
             if(mapsBusy())
@@ -827,8 +860,10 @@ void drawMapsButton(const menupaint::Painter& p, const MapsLayout& m, int button
         hot ? colors::highlightEdge : colors::boxBorder);
     p.rounded(m.bar.x0[button] + 1.f, m.bar.x1[button] - 1.f, m.bar.yc, m.bar.half - 1.f, 2.f,
         hot ? colors::buttonHover : colors::boxFill);
-    searchText(m.bar.x0[button] + 5.f, m.bar.yc - 4.f, 6.f, m.bar.x1[button] - m.bar.x0[button] - 10.f, label,
-        hot && enabled);
+    // Six-pixel letters, five where that fits the label whole (the bar holds five filters and the action).
+    const float room = m.bar.x1[button] - m.bar.x0[button] - 10.f;
+    const float size = 6.f * static_cast<float>(strlen(label)) <= room ? 6.f : 5.f;
+    searchText(m.bar.x0[button] + 5.f, m.bar.yc - size * 0.5f - 1.f, size, room, label, hot && enabled);
     if(!enabled)
     {
         const float y = m.bar.yc;
@@ -997,7 +1032,11 @@ void drawMapsPage()
         }
         else
         {
-            searchText(x0, m.s.resultsTop + 2.f, 6.f, width, "Nothing matches", false);
+            searchText(x0, m.s.resultsTop + 2.f, 6.f, width,
+                mapPage.shown == MapsShowInstalled && mapinstall::installedList().empty()
+                    ? "Nothing installed from the Map Library yet"
+                    : "Nothing matches",
+                false);
         }
     }
     for(int r = mapPage.resultScroll; r < n && r < mapPage.resultScroll + mapPage.visibleResults; r++)
@@ -1042,23 +1081,28 @@ void drawMapsPage()
     for(int b = 0; b < MapButtonAction; b++)
     {
         const bool hot = mapPage.hoverButton == b || mapPage.focusButton == b;
+        // Short labels (five filters share the bar): the choice alone where it names itself.
         if(b == MapButtonSort)
         {
-            q_snprintf(mapsText.label, sizeof(mapsText.label), "sort: %s", mapsSorts[mapPage.sort].label);
+            q_snprintf(mapsText.label, sizeof(mapsText.label), "%s", mapsSorts[mapPage.sort].label);
         }
         else if(b == MapButtonType)
         {
-            q_snprintf(mapsText.label, sizeof(mapsText.label), "type: %s",
-                mapPage.typeIdx > 0 ? mapPage.typeFacets[mapPage.typeIdx - 1].value.cStr() : "any");
+            q_snprintf(mapsText.label, sizeof(mapsText.label), "%s",
+                mapPage.typeIdx > 0 ? mapPage.typeFacets[mapPage.typeIdx - 1].value.cStr() : "any type");
         }
         else if(b == MapButtonRating)
         {
-            q_snprintf(mapsText.label, sizeof(mapsText.label), "rated: %s", mapsRatings[mapPage.rating].label);
+            q_snprintf(mapsText.label, sizeof(mapsText.label), "%s", mapsRatings[mapPage.rating].label);
+        }
+        else if(b == MapButtonInstalled)
+        {
+            q_snprintf(mapsText.label, sizeof(mapsText.label), "%s", mapsShownLabels[mapPage.shown]);
         }
         else
         {
-            q_snprintf(mapsText.label, sizeof(mapsText.label), "size: %s",
-                mapPage.sizeIdx > 0 ? mapPage.sizeFacets[mapPage.sizeIdx - 1].value.cStr() : "any");
+            q_snprintf(mapsText.label, sizeof(mapsText.label), "%s",
+                mapPage.sizeIdx > 0 ? mapPage.sizeFacets[mapPage.sizeIdx - 1].value.cStr() : "any size");
         }
         drawMapsButton(p, m, b, mapsText.label, hot, true);
     }
