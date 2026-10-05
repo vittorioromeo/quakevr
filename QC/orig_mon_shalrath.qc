@@ -201,6 +201,7 @@ void() ShalMissileTouch =
 */
 void() monster_shalrath =
 {
+    if(MG_MonsterInhibited()) return;
     if(deathmatch)
     {
         remove(self);
@@ -218,7 +219,7 @@ void() monster_shalrath =
     precache_sound2("shalrath/sight.wav");
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
         self.cnt = -1;
     }
 
@@ -234,7 +235,7 @@ void() monster_shalrath =
     // HONEY
     monster_add_to_counter();
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = shalrath_start;
         return;

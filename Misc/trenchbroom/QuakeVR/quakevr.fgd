@@ -321,6 +321,11 @@ It does not require any other fields filled in."
 
 potential spawning position for coop games"
 [
+	spawnflags(flags) =
+	[
+		1 : "Flag 1" : 0
+	]
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
 ]
 
 @PointClass base(PlayerClass) color(255 0 255) size(-16 -16 -24, 16 16 24) =
@@ -2171,6 +2176,11 @@ after speed seconds per letter of the page. A point entity, despite its name."
 //
 // Triggers
 //
+
+@PointClass color(255 0 255) size(-8 -8 -8, 8 8 8) =
+	trigger_activate_coop_spawns : "Activates the named cooperative checkpoint spawnpoints and disables the previous set."
+[
+]
 
 @SolidClass base(Appearflags, Target, Targetname) =
 	trigger_babyboost : "Honey: spawn booster

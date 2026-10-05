@@ -34,6 +34,7 @@ vr_crates.qc
 vr_smallgibs.qc
 vr_walltorch.qc
 vr_mg_defs.qc
+vr_mg_activation.qc
 vr_mg_fog.qc
 vr_mg_func_bob.qc
 vr_mg_func_toss.qc

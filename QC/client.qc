@@ -196,7 +196,7 @@ void() SetNewParms =
         parm1 = IT_SHOTGUN | IT_AXE;
     }
 
-    parm2 = 100;
+    parm2 = ((cvar("vr_campaign") == 3) && (skill == 3) && !deathmatch) ? 50 : 100;
     parm3 = 0;
     parm4 = 25;
     parm5 = 0;
@@ -475,6 +475,14 @@ void() ExitIntermission =
     // run some text if at the end of an episode
     if(intermission_running == 2)
     {
+        if(MG_WorldCampaign() && (strlen(MG_intermissiontext) > 0 || strlen(world.endtext) > 0)) {
+            WriteByte(MSG_ALL, SVC_CDTRACK); WriteByte(MSG_ALL, 2); WriteByte(MSG_ALL, 3);
+            WriteByte(MSG_ALL, SVC_FINALE);
+            WriteString(MSG_ALL, strlen(MG_intermissiontext) > 0 ? MG_intermissiontext : world.endtext);
+            MG_intermissiontext = "";
+            return;
+        }
+        if(cvar("vr_campaign") == 3 && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
         if(world.model == "maps/e1m7.bsp")
         {
             WriteByte(MSG_ALL, SVC_CDTRACK);
@@ -568,6 +576,7 @@ void() ExitIntermission =
 
     if(intermission_running == 3)
     {
+        if(cvar("vr_campaign") == 3 && nextmap == "start" && !coop) { localcmd("disconnect\nmenu_credits\n"); return; }
         if(!cvar_hget(cvarh_registered))
         {    // shareware episode has been completed, go to sell screen
             WriteByte(MSG_ALL, SVC_SELLSCREEN);
@@ -703,10 +712,11 @@ void() changelevel_touch =
     }
 
     nextmap = self.map;
+    if(MG_WorldCampaign()) MG_intermissiontext = self.endtext;
 
     SUB_UseTargets();
 
-    if((self.spawnflags & 1) && (deathmatch == 0))
+    if((self.spawnflags & 1) && (deathmatch == 0) && (!MG_WorldCampaign() || strlen(self.endtext) == 0))
     {    // NO_INTERMISSION
         GotoNextMap();
         return;
@@ -865,6 +875,17 @@ entity() SelectSpawnPoint =
 // choose a info_player_deathmatch point
     if(coop)
     {
+        if(MG_WorldCampaign()) {
+            entity first = find(lastspawn, classname, "info_player_coop");
+            if(!first) first = find(world, classname, "info_player_coop");
+            entity c = first;
+            if(c) do {
+                if(c.state == 73) { lastspawn = c; return c; }
+                c = find(c, classname, "info_player_coop");
+                if(!c) c = find(world, classname, "info_player_coop");
+            } while(c && c != first);
+            return find(world, classname, "info_player_start");
+        }
         lastspawn = find(lastspawn, classname, "info_player_coop");
         if(lastspawn == world)
             lastspawn = find(lastspawn, classname, "info_player_start");
@@ -1180,6 +1201,10 @@ potential spawning position for coop games
 */
 void() info_player_coop =
 {
+    if(MG_WorldCampaign()) {
+        if(!coop) { remove(self); return; }
+        if(!self.targetname || (self.spawnflags & 1)) self.state = 73;
+    }
 };
 
 /*

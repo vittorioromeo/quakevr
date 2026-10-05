@@ -455,3 +455,80 @@ base-only fixture; they remain separate from the environment changes. No head/ha
 Human follow-up: native campaign fog/fades, bobbing/rotating geometry, gas-flame hand contact, visible ambient
 particles and model/rope placement. Retained untracked diagnostics: `world-tests/`, `port_world.py`, local build/config
 outputs and `mgworld_fog.sav`; owned asset fixtures are hardlinks, not distributable release content.
+
+## Native activation and Dopa progression (mgactivation, 2026-10-06)
+
+Dopa remains **native support in progress**. Gameplay activation/progression is ported; portable localization
+and the rapid transition/switch reliability findings below still block readiness. MG1/MG3 also remain gated.
+
+`vr_mg_activation.qc` adapts official MG1 monster/client/target behavior without replacing VR monster frame
+functions, bounds, hitzones, attack/parry/shove callbacks or death/ragdoll paths. Official flags 4 (deferred),
+8 (angry), 16 (teleport effect) and 4096 (wait for path use) have campaign-scoped semantics. Models/bounds and
+startup callbacks are saved while dormant; target activation restores them and retains its triggering player.
+Dormant monsters are counted at placement, not twice at activation. A deferred killtarget records one kill
+without materializing the monster. Decorative crucified zombies do not enter the official monster count.
+
+The official FL_FUTUREMONSTER bit 16384 is **already VR FL_SPECIFICDAMAGE**. Saved `MG_deferred` supplies future
+state separately; no foreign edict flag is copied. Mission-pack/Honey meanings are gated out of contexts 3/4/5:
+Rogue knight/hell-knight statues (2), boss ogres (2), tarbaby variants (2/4/8 and random mitosis), extra zombie
+lying/sneaky flags, and Honey trigger/multiple/tfog/angry/corpse-removal/AI flags. Official marksmen use the base
+ogre model, ordinary grenade/attack behavior and no Honey crown sprite; actual Honey retains its own behavior.
+Coop-only 32768/not-in-coop 131072 inhibition and named checkpoint activation/cycling are scoped too. MG1 horde
+and collected-weapon checkpoint/revival rules still belong to their future gameplay tasks.
+
+Dopa changelevel triggers retain authored normal/secret destinations. Trigger/world endtext is sent as a finale;
+NO_INTERMISSION cannot bypass an authored endtext. Nightmare new-player health is 50; other Dopa starts use 100.
+The existing VR transition serialization retains hands, holsters, weapon records and secondary ammo. The formerly
+empty engine `menu_credits` command now opens a native completion/attribution menu, with Official Campaigns and
+Main Menu controls (keyboard/controller/laser mouse; Escape/B returns to Main). It uses existing menu rendering,
+no external assets or forced headset motion. This is a native attribution screen, not a recreation of the
+commercial rerelease's full scrolling team-credit assets.
+
+Acceptance driver distinction: an autoexec prequeues its quit. QC changelevel/localcmd appends commands after
+that quit; a probe before it can misleadingly see the old map. Thirteen normal/secret route selections and
+explicit dispatch checks cover the engine carry/spawn path; separate end-to-end tests drain the initial queue
+and use test request 10 to append `exec mgactivation_after.cfg` **after the actual QC changelevel**. Request 8
+seeds test inventory; mock hands use sticky grip mode so unpressed grips do not immediately drop their guns.
+Requests 4 (progress report) and 3 (activation acceptance) are exposed in Debug > Tests. 5/6 select authored
+normal/secret exits, 7 advances an intermission, 9 uses a named dormant-monster target relay; these are destructive
+acceptance operations and require reloading afterward. The default existing `vr_mg_world_test` remains 0.
+
+Retained worktree-only evidence: `activation-tests/`, authored-asset hardlinks/junctions, generated
+`quakevr/mgactivation_after.cfg`, test saves/screenshots, edit scripts and `evaltakes/`. Do not redistribute fixtures.
+The melee canary is unavailable: authored `no_hit_reloading_2026-09-29_23-08-51.csv` is missing. No calibration
+recording was substituted. Tests use hidden mock, `-nomapindex -noaddons`; default map-index startup is not claimed.
+
+Behavioral evidence: expanded activation suite **18 passed, 0 failed**, including hidden/idle/invulnerable future
+monsters, one placement count, activation/anger, repeated use, death/future-kill count, telefrag collision,
+teleport fog/sound, path wait/resume, solo/coop inhibition and activated coop spawn selection. All 13 authored
+normal/secret route selections and explicit engine dispatch matched their BSP destinations. Real QC-queued
+normal e5m1 -> e5m2 and secret e5m3 -> e5sm1 passed. With sticky mock hands, normal carry preserved health 73,
+shells 42, main shotgun magazine 3/id 6, off nailgun magazine 7/id 7 and holstered SSG magazine 2/id 8. Completed
+save/load retained deferred state/counts; restart and death/restart retained that level's start inventory.
+New campaign restored health 100, shells 25, empty hands/holsters and zero progress. The end chain opens native
+credits. Its rendering was visually inspected; headset readability/laser/button behavior remains human QA.
+Stock e1m1, actual Honey honey/saint and VR Hub smoke exit 0. Calibration reports **14 found, 0 missing**.
+
+Localization blocker: rerelease id1 + Dopa with English tables displays the authored congratulations text.
+Original id1 + Dopa emits the literal `$map_dopa_endtext_final`; this was reproduced with a one-entry local test
+language table so store/KPF fallback cannot supply that key. See `finale-rerelease.log`,
+`finale-original-store.log` and `finale-original-no-lookup.log` in the worktree's `activation-tests/`.
+A dedicated read-only rerelease localization resolver is required before enabling Dopa readiness.
+
+Integration findings (do not interpret launch coverage as acceptance): one rapid all-map count sweep crashed
+with process exit 3221225477 while moving from e5m7 toward e5sm1 after 9 matching total/deferred count reports.
+A subsequent launch cleared the initial crash files before they were retained; cause is unassigned. An additional
+Dopa -> MG1 runtime switch stalled immediately after its developer-launch warning and timed out at 240 seconds.
+Its log and diagnostic snapshot are retained as `mg1-switch-hang-console.log` and
+`mg1-switch-hang-20261006-005424.dmp`. Local cdb output is `mg1-switch-hang-stack.txt` / `mg1-switch-hang-main.txt`;
+main thread is inside SDL, but matching engine symbols were unavailable for that earlier binary, so this is
+not a root-cause attribution. Future failing runs copy crash/log files to timestamped names before another
+launch. The owned e5m6 BSP contains an empty editor typo key `property 1`; that warning is not a gameplay field.
+A fresh matching Release build repeated the complete normal-difficulty sweep successfully: 13/13 BSP total/deferred counts match the owned entities, process exit 0. The only field warning is the empty editor typo noted above. The prior rapid-sweep crash remains intermittent/unattributed; this pass does not erase it.
+Final narrow retests with the fresh built engine also passed: isolated MG1 mge1m1 and MG3 map6, one Dopa -> MG1
+runtime switch, and the exact earlier Dopa -> MG1 -> MG3 switch sequence all exit 0. These runs no longer request
+Honey s_light2.spr. Unknown MG1/MG3 mapversion/speed2/classes remain future port scope and their campaigns remain
+gated. The earlier crash/stall remain retained, unassigned intermittent findings; no claim of a runtime fix.
+Preliminary builds had link failures when a headless run still held the executable; final verification used the
+successful fresh Release build. Final QC has 0 warnings; priority/static checks and FGD 270 pass. Git diff check passes.
+Nightmare acceptance also exits 0: fresh Dopa e5start health50, and e5m1 health50 with 53 total / 8 deferred monsters; normal-difficulty new campaign health100 was checked separately.
