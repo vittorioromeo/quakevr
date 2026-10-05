@@ -349,8 +349,10 @@ maps_installed lists what you installed with its size; maps_uninstall <sha prefi
 A map that brings its own progs.dat or an unusual BSP version should be refused with a clear message, not half-installed
 
 [Evening playtest requests - pending fixes]
-After secret-impact fix: punch and shoot e1m1 secret walls/triggers (including the Quad Damage secret): sparks/metal particles, no blood; secrets still activate
 After parry fix: a successful parry stops a knight's current multi-hit attack and briefly staggers it; compare the option off/on and tune the stagger
 After map-flame fix: e1m2 braziers/wall torches warn then burn a touching hand like a handheld torch; body contact burns like stepping on a dropped lit torch
 After weapon-pickup fix: fresh mapper-placed weapons in e1m3 arrive loaded; dropped/regrabbed weapons keep their actual magazine contents
 After spectator VFX fix: Bullet Hell effects appear in the spectator camera by default; its new option hides/shows them without changing headset effects
+
+[Evening shipped fixes (Oct 5)]
+Secret-impact fix: punch and shoot e1m1 secret walls and the Quad Damage trigger: sparks/metal sounds, no blood; secrets still activate and enemies still bleed
