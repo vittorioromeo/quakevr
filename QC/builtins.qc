@@ -370,6 +370,18 @@ vector(entity e, vector hand, float begin) portal_pulltarget = #0;
 void(float h, float v) worldtext_hsethalign = #0;
 void(float h, float v) worldtext_hsetscale = #0;
 
+// A tip for new players placed in a map (func_vr_tip, QC/vr_tips.qc; Quake/vr/vr_tips.cpp). The server owns the list
+// and sends it to every client (and the whole list to each client as it spawns); a handle is one of its tips.
+float() vr_tip_make = #0;
+void(float h, string s) vr_tip_setname = #0;   // its name: its key in vr_tips_seen, with the map's
+void(float h, string s) vr_tip_settext = #0;   // its text (\n new lines)
+void(float h, vector v) vr_tip_setpos = #0;    // its point in the map
+void(float h, entity e) vr_tip_setentity = #0; // what it follows, live (world: a fixed point)
+void(float h, float v) vr_tip_setdistance = #0; // how near it must be (units; 0: vr_tips_distance)
+void(float h, float v) vr_tip_setsize = #0;    // its screen's text size (0: vr_tips_size)
+void(float h, float v) vr_tip_setdelay = #0;   // seconds near before it shows (< 0: vr_tips_delay)
+void(float h, float v) vr_tip_setflags = #0;   // qvr::tips::Flags (QVR_TIP_* below)
+
 void(vector org, string text, vector colour, float scale) floattext = #0; // a text rising from `org` and fading (1.5 s), facing the viewer, for every client
 
 void(float to, vector v) WriteVec3 = #0; // three WriteCoords

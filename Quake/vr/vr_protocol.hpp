@@ -49,6 +49,15 @@ enum SvcQuakeVr : int
     QVR_SVC_FIRED = 19,           // [short entity][byte hand, 255 a monster's gun]: a weapon fired (vr_weaponfx.cpp: its drawn kick, its muzzle flash)
     QVR_SVC_TRACER = 20,          // [short entity][byte hand, 255 a monster's][coord3 from][coord3 to]: a hitscan pellet's line, for a bullet tracer (vr_weaponfx.cpp)
     QVR_SVC_WEAPONGONE = 21,      // [long weapon id]: that weapon is gone (its record freed: nothing has it any more): its blood forgotten (vr_wounds.cpp; reliable)
+    QVR_SVC_TIP_MAKE = 22,        // [short handle]: a map tip (func_vr_tip) begins (vr_tips.cpp; QC/vr_tips.qc)
+    QVR_SVC_TIP_NAME = 23,        // [short handle][string]: its name (its key in vr_tips_seen, with the map's)
+    QVR_SVC_TIP_TEXT = 24,        // [short handle][string]: its text (\n new lines)
+    QVR_SVC_TIP_POS = 25,         // [short handle][coord3]: its point in the map
+    QVR_SVC_TIP_ENT = 26,         // [short handle][short entity index, -1 a fixed point]: what it follows
+    QVR_SVC_TIP_DISTANCE = 27,    // [short handle][float]: how near (units) it must be to show (0: vr_tips_distance)
+    QVR_SVC_TIP_SIZE = 28,        // [short handle][float]: its screen's text size (0: vr_tips_size)
+    QVR_SVC_TIP_DELAY = 29,       // [short handle][float]: seconds near and seen before it shows (< 0: vr_tips_delay)
+    QVR_SVC_TIP_FLAGS = 30,       // [short handle][byte]: its flags (qvr::tips::Flags)
 };
 inline constexpr int ropeEnded = 255; // QVR_SVC_ROPE's count: the beam's rope ended (no corners follow)
 

@@ -1,10 +1,12 @@
-// vr_tips.cpp -- tips for new players (vr_tips.hpp).
+// vr_tips.cpp -- see vr_tips.hpp.
 
 #include "vr_tips.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
 #include "vr_hands.hpp"
+#include "vr_mem.hpp"
+#include "vr_protocol.hpp"
 #include "vr_text3d.hpp"
 #include "vr_units.hpp"
 #include "vr_walltorch.hpp"
@@ -18,6 +20,10 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+
+#include <string.h>
+
+using namespace qvr::protocol;
 
 namespace qvr::tips
 {
@@ -41,6 +47,20 @@ constexpr Tip tips[] = {
         wallTorch},
 };
 constexpr int tipCount = static_cast<int>(sizeof(tips) / sizeof(tips[0]));
+
+constexpr int maxMapTips = 64; // func_vr_tip's in one map
+
+// The server's list, made by the vr_tip_* builtins while the map spawns (the main thread, the QC VM), and the
+// client's mirror of it (the client thread): the map's tips, after the built-in ones.
+za::Vector<MapTip> serverTips;
+za::Vector<MapTip> mapTips;
+
+struct TipsScratch
+{
+    za::String seenKey; // a map tip's key in vr_tips_seen (seenKeyOf)
+    auto members() { return mem::list(seenKey); }
+};
+mem::Scratch<TipsScratch> scratch{"tips"};
 
 // The tip waiting to show: what it is about has been near and seen since `since`.
 struct Candidate
@@ -66,10 +86,56 @@ struct Showing
 Showing showing;
 int pendingTest = -1; // vr_tips_test's tip, shown once back in the game (the menu or the console closed)
 
-[[nodiscard]] bool seen(const Tip& tip)
+// The tips, in the order they are considered: the built-in ones, then the map's. `t` indexes both.
+[[nodiscard]] int tipTotal()
+{
+    return tipCount + static_cast<int>(mapTips.size());
+}
+
+[[nodiscard]] MapTip* mapTipOf(int t)
+{
+    return t >= tipCount && t < tipTotal() ? &mapTips[static_cast<size_t>(t - tipCount)] : nullptr;
+}
+
+[[nodiscard]] const char* tipText(int t)
+{
+    const MapTip* mt = mapTipOf(t);
+    return mt ? mt->text.cStr() : tips[t].text;
+}
+
+[[nodiscard]] const char* tipName(int t)
+{
+    const MapTip* mt = mapTipOf(t);
+    return mt ? (mt->name.empty() ? "<unnamed>" : mt->name.cStr()) : tips[t].name;
+}
+
+// A tip's key in vr_tips_seen: a built-in tip's is its name; a map tip's is its map and name, so the same name in
+// two maps is two tips, and an unnamed one is keyed by its place in the map's list.
+[[nodiscard]] const char* seenKeyOf(int t)
+{
+    const MapTip* mt = mapTipOf(t);
+    if(!mt)
+    {
+        return tips[t].name;
+    }
+    za::String& key = scratch.seenKey;
+    key = za::String{cl.mapname[0] ? cl.mapname : "map"};
+    if(!mt->name.empty())
+    {
+        key += ':';
+        key += mt->name;
+    }
+    else
+    {
+        key += va("#%d", t - tipCount);
+    }
+    return key.cStr();
+}
+
+[[nodiscard]] bool seen(const char* key)
 {
     const za::StringView list{vr_tips_seen.string};
-    const za::StringView name{tip.name};
+    const za::StringView name{key};
     for(size_t i = 0; i < list.size();)
     {
         while(i < list.size() && list[i] == ' ')
@@ -90,9 +156,9 @@ int pendingTest = -1; // vr_tips_test's tip, shown once back in the game (the me
     return false;
 }
 
-void markSeen(const Tip& tip)
+void markSeen(const char* key)
 {
-    if(seen(tip))
+    if(seen(key))
     {
         return;
     }
@@ -101,7 +167,7 @@ void markSeen(const Tip& tip)
     {
         list += ' ';
     }
-    list += tip.name;
+    list += key;
     Cvar_Set(vr_tips_seen.name, list.cStr());
 }
 
@@ -133,15 +199,22 @@ void markSeen(const Tip& tip)
     return connected() && !cl.intermission && key_dest == key_game && hands::current().valid;
 }
 
-// Whether entity `i` is there this frame (in the last message) and what `tip` is about.
-[[nodiscard]] const entity_t* entityFor(const Tip& tip, int i)
+// Whether entity `i` is there this frame (in the last message).
+[[nodiscard]] const entity_t* liveEntity(int i)
 {
     if(i <= 0 || i >= cl.num_entities || i == cl.viewentity)
     {
         return nullptr;
     }
     const entity_t& e = cl_entities[i];
-    return e.model && e.msgtime == cl.mtime[0] && tip.about(e) ? &e : nullptr;
+    return e.model && e.msgtime == cl.mtime[0] ? &e : nullptr;
+}
+
+// Whether entity `i` is there this frame (in the last message) and what `tip` is about.
+[[nodiscard]] const entity_t* entityFor(const Tip& tip, int i)
+{
+    const entity_t* e = liveEntity(i);
+    return e && tip.about(*e) ? e : nullptr;
 }
 
 // Nothing of the world between the eyes and `at`, pulled a few units towards them (what is on a wall is partly in it).
@@ -162,27 +235,32 @@ void markSeen(const Tip& tip)
     return trace.fraction >= 1.f && !trace.allsolid;
 }
 
-// Whether the eyes see `e`: its middle, or its top (a torch's flame over a ledge).
-[[nodiscard]] bool inSight(const glm::vec3& eye, const entity_t& e)
+// Whether the eyes see `at`: its middle, or the top of what it is on (a torch's flame over a ledge).
+[[nodiscard]] bool inSight(const glm::vec3& eye, const glm::vec3& at, const entity_t* e)
 {
-    const glm::vec3 at = targetPoint(e);
-    const float top = e.model ? e.model->maxs[2] : 0.f;
-    return clearTo(eye, at) || clearTo(eye, glm::vec3{e.origin[0], e.origin[1], e.origin[2] + top + 8.f});
+    if(clearTo(eye, at))
+    {
+        return true;
+    }
+    return e && e->model && clearTo(eye, glm::vec3{e->origin[0], e->origin[1], e->origin[2] + e->model->maxs[2] + 8.f});
 }
 
-// How well `e` is placed for its tip now: near enough, in view and in sight (else -1); the nearer the better.
-[[nodiscard]] float placing(const entity_t& e, bool anyDistance)
+// How well `at` is placed for a tip now: near enough, in view and in sight (else -1); the nearer the better. `e` (may
+// be null: a point in the map) is what the tip is about, for the test to its top. `distance` 0: vr_tips_distance;
+// AnyAngle: the view angle and the line of sight are not tested; `anyDistance`: neither is nearness (vr_tips_test).
+[[nodiscard]] float placing(const glm::vec3& at, const entity_t* e, float distance, int flags, bool anyDistance)
 {
     const hands::State& s = hands::current();
-    const glm::vec3 at = targetPoint(e);
     const glm::vec3 to = at - s.head;
     const float d = glm::length(to);
-    if(d < 1e-3f || (!anyDistance && d > za::max(vr_tips_distance.value, 1.f)))
+    const float limit = distance > 0.f ? distance : za::max(vr_tips_distance.value, 1.f);
+    if(d < 1e-3f || (!anyDistance && d > limit))
     {
         return -1.f;
     }
+    const bool anyAngle = (flags & AnyAngle) != 0;
     const float maxAngle = vr_tips_view_angle.value;
-    if(maxAngle > 0.f && maxAngle < 180.f)
+    if(!anyAngle && maxAngle > 0.f && maxAngle < 180.f)
     {
         const float cosine = glm::dot(to / d, hands::forward(s.headAngles));
         if(cosine < glm::cos(glm::radians(maxAngle)))
@@ -190,56 +268,114 @@ void markSeen(const Tip& tip)
             return -1.f;
         }
     }
-    if(vr_tips_line_of_sight.value != 0.f && !inSight(s.head, e))
+    if(!anyAngle && vr_tips_line_of_sight.value != 0.f && !inSight(s.head, at, e))
     {
         return -1.f;
     }
     return d;
 }
 
-// The entity `tip` is best shown on now (0: none).
-[[nodiscard]] int bestFor(const Tip& tip, bool anyDistance)
+// What a tip is about, found now: the entity it follows, or the point it is at.
+struct Subject
 {
+    const entity_t* e{nullptr}; // what it is on (null: a point in the map, or its entity is gone)
+    int ent{0};                 // its index (0: none)
+    glm::vec3 point{0.f};       // where the panel points
+};
+
+// The subject `tip` is best shown on now (false: none). `anyDistance`: nearness is not required (vr_tips_test).
+[[nodiscard]] bool bestFor(int tip, bool anyDistance, Subject& out)
+{
+    if(MapTip* mt = mapTipOf(tip))
+    {
+        if(mt->ent >= 0)
+        {
+            const entity_t* e = liveEntity(mt->ent);
+            if(!e)
+            {
+                return false; // its entity is gone (removed, or not in this frame's message)
+            }
+            const glm::vec3 at = targetPoint(*e);
+            const float d = placing(at, e, mt->distance, mt->flags, anyDistance);
+            if(d < 0.f)
+            {
+                return false;
+            }
+            out = {e, mt->ent, at};
+            return true;
+        }
+        const float d = placing(mt->pos, nullptr, mt->distance, mt->flags, anyDistance);
+        if(d < 0.f)
+        {
+            return false;
+        }
+        out = {nullptr, 0, mt->pos};
+        return true;
+    }
+
+    // A built-in tip: the nearest of what it is about.
     int best = 0;
     float bestDistance = 1e9f;
+    glm::vec3 bestPoint{0.f};
     for(int i = 1; i < cl.num_entities; i++)
     {
-        if(const entity_t* e = entityFor(tip, i))
+        if(const entity_t* e = entityFor(tips[tip], i))
         {
-            const float d = placing(*e, anyDistance);
+            const glm::vec3 at = targetPoint(*e);
+            const float d = placing(at, e, 0.f, 0, anyDistance);
             if(d >= 0.f && d < bestDistance)
             {
                 best = i;
                 bestDistance = d;
+                bestPoint = at;
             }
         }
     }
-    return best;
+    if(best == 0)
+    {
+        return false;
+    }
+    out = {liveEntity(best), best, bestPoint};
+    return true;
 }
 
-// Shows tip `t` on entity `ent`: in the gadget's hologram (vr_tips 2, if there is one), else as the floating panel.
-void show(int t, int ent, bool count)
+// How long a tip must have been near and seen before it shows, and how big its screen's text is.
+[[nodiscard]] float tipDelay(const MapTip* mt)
 {
-    const Tip& tip = tips[t];
+    return mt && mt->delay >= 0.f ? mt->delay : za::max(vr_tips_delay.value, 0.f);
+}
+
+[[nodiscard]] float tipSize(const MapTip* mt)
+{
+    return mt && mt->size > 0.f ? mt->size : vr_tips_size.value;
+}
+
+// Shows tip `t` on `s`: in the gadget's hologram (a map tip's Hologram flag; a built-in tip's vr_tips 2, if there is
+// one), else as the floating panel.
+void show(int t, const Subject& s, bool count)
+{
+    const MapTip* mt = mapTipOf(t);
+    const char* text = tipText(t);
     const float time = za::max(vr_tips_time.value, 1.f);
     if(count)
     {
-        markSeen(tip);
+        markSeen(seenKeyOf(t));
     }
-    if(vr_tips.value >= 2.f && gadget::tip(tip.text, time))
+    const bool hologram = mt ? (mt->flags & Hologram) != 0 : vr_tips.value >= 2.f;
+    if(hologram && gadget::tip(text, time))
     {
-        Con_DPrintf("tips: \"%s\" in the gadget's hologram\n", tip.name);
+        Con_DPrintf("tips: \"%s\" in the gadget's hologram\n", tipName(t));
         showing.tip = -1;
         return;
     }
-    Con_DPrintf("tips: \"%s\" by entity %d\n", tip.name, ent);
+    Con_DPrintf("tips: \"%s\" %s\n", tipName(t),
+        s.ent ? va("by entity %d", s.ent) : va("at %.0f %.0f %.0f", s.point.x, s.point.y, s.point.z));
     showing.tip = t;
-    showing.ent = ent;
+    showing.ent = s.ent;
     showing.start = realtime;
     showing.until = realtime + time;
     showing.placed = false;
-    showing.lastTarget = glm::vec3{0.f};
-    if(const entity_t* e = entityFor(tip, ent)) { showing.lastTarget = targetPoint(*e); }
+    showing.lastTarget = s.point;
     showing.lastFrame = realtime;
 }
 
@@ -247,9 +383,9 @@ void show(int t, int ent, bool count)
 // with a line to it; fading in and out.
 void drawShowing()
 {
-    const Tip& tip = tips[showing.tip];
-    const entity_t* e = entityFor(tip, showing.ent);
-    if(!e && showing.until > realtime + 0.4)
+    const MapTip* mt = mapTipOf(showing.tip);
+    const entity_t* e = showing.ent ? liveEntity(showing.ent) : nullptr;
+    if(!e && showing.ent && showing.until > realtime + 0.4)
     {
         showing.until = realtime + 0.4; // taken (or gone): it fades now
     }
@@ -259,7 +395,8 @@ void drawShowing()
         return;
     }
     const hands::State& s = hands::current();
-    const glm::vec3 target = e ? targetPoint(*e) : showing.lastTarget;
+    const glm::vec3 target = e ? targetPoint(*e)
+                               : (mt && !showing.ent ? mt->pos : showing.lastTarget); // (a point in the map stays put)
     showing.lastTarget = target;
 
     glm::vec3 fwd, right, up;
@@ -280,7 +417,7 @@ void drawShowing()
     const float fadeOut = CLAMP(0.f, static_cast<float>(showing.until - realtime) / 0.6f, 1.f);
     const float alpha = fadeIn * fadeOut;
 
-    const float charSize = glm::distance(s.head, showing.panel) * 0.026f * CLAMP(0.25f, vr_tips_size.value, 4.f);
+    const float charSize = glm::distance(s.head, showing.panel) * 0.026f * CLAMP(0.25f, tipSize(mt), 4.f);
     // Its plane: turned towards the eyes, level (vr_tips_facing 0), or square to the view, as the head is turned
     // (1: flat in front of you, however you tilt your head).
     glm::vec3 panelRight, panelUp;
@@ -297,10 +434,228 @@ void drawShowing()
         panelUp = glm::cross(panelRight, look);
     }
     // A CRT screen as the map boards', with a cable of the same screen to what it is about.
-    text3d::queueOverlayScreen(tip.text, showing.panel, panelRight, panelUp, charSize, alpha, s.head, &target, 0.0022f);
+    text3d::queueOverlayScreen(tipText(showing.tip), showing.panel, panelRight, panelUp, charSize, alpha, s.head,
+        &target, 0.0022f);
+}
+
+// ----------------------------------------------------------------------------
+// The server's list, and the client's mirror (vr_worldtext.cpp's pattern)
+
+[[nodiscard]] MapTip& serverTip(int handle)
+{
+    if(handle < 0 || handle >= static_cast<int>(serverTips.size()))
+    {
+        PR_RunError("invalid tip handle %d", handle);
+    }
+
+    return serverTips[static_cast<size_t>(handle)];
+}
+
+// Changes made while the map is loading are not broadcast: spawning clients get the full list from serverWriteAll.
+[[nodiscard]] sizebuf_t* broadcast()
+{
+    return sv.state == ss_active ? &sv.reliable_datagram : nullptr;
+}
+
+void beginMessage(sizebuf_t* msg, int subcmd, int handle)
+{
+    MSG_WriteByte(msg, svc_quakevr);
+    MSG_WriteByte(msg, subcmd);
+    MSG_WriteShort(msg, handle);
+}
+
+void writeTip(sizebuf_t* msg, int handle, const MapTip& mt, unsigned int protocolflags)
+{
+    beginMessage(msg, QVR_SVC_TIP_NAME, handle);
+    MSG_WriteString(msg, mt.name.cStr());
+    beginMessage(msg, QVR_SVC_TIP_TEXT, handle);
+    MSG_WriteString(msg, mt.text.cStr());
+    beginMessage(msg, QVR_SVC_TIP_POS, handle);
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(msg, mt.pos[i], protocolflags);
+    }
+    beginMessage(msg, QVR_SVC_TIP_ENT, handle);
+    MSG_WriteShort(msg, mt.ent);
+    beginMessage(msg, QVR_SVC_TIP_DISTANCE, handle);
+    MSG_WriteFloat(msg, mt.distance);
+    beginMessage(msg, QVR_SVC_TIP_SIZE, handle);
+    MSG_WriteFloat(msg, mt.size);
+    beginMessage(msg, QVR_SVC_TIP_DELAY, handle);
+    MSG_WriteFloat(msg, mt.delay);
+    beginMessage(msg, QVR_SVC_TIP_FLAGS, handle);
+    MSG_WriteByte(msg, mt.flags);
+}
+
+[[nodiscard]] MapTip& clientTip(int handle)
+{
+    if(handle < 0 || handle >= maxMapTips)
+    {
+        Host_Error("svc_quakevr: bad tip handle %d", handle);
+    }
+
+    if(handle >= static_cast<int>(mapTips.size()))
+    {
+        mapTips.resize(static_cast<size_t>(handle) + 1);
+    }
+
+    return mapTips[static_cast<size_t>(handle)];
 }
 
 } // namespace
+
+void serverReset()
+{
+    serverTips.clear();
+}
+
+int serverMake()
+{
+    if(serverTips.size() >= static_cast<za::SizeT>(maxMapTips))
+    {
+        PR_RunError("too many map tips (max %d)", maxMapTips);
+    }
+
+    serverTips.emplaceBack();
+    const int handle = static_cast<int>(serverTips.size() - 1);
+    if(sizebuf_t* msg = broadcast())
+    {
+        beginMessage(msg, QVR_SVC_TIP_MAKE, handle);
+    }
+    return handle;
+}
+
+void serverSetName(int handle, const char* name)
+{
+    MapTip& mt = serverTip(handle);
+    mt.name = name;
+    if(sizebuf_t* msg = broadcast())
+    {
+        beginMessage(msg, QVR_SVC_TIP_NAME, handle);
+        MSG_WriteString(msg, mt.name.cStr());
+    }
+}
+
+void serverSetText(int handle, const char* text)
+{
+    MapTip& mt = serverTip(handle);
+    mt.text = text;
+    if(sizebuf_t* msg = broadcast())
+    {
+        beginMessage(msg, QVR_SVC_TIP_TEXT, handle);
+        MSG_WriteString(msg, mt.text.cStr());
+    }
+}
+
+void serverSetPos(int handle, const glm::vec3& pos)
+{
+    MapTip& mt = serverTip(handle);
+    mt.pos = pos;
+    if(sizebuf_t* msg = broadcast())
+    {
+        beginMessage(msg, QVR_SVC_TIP_POS, handle);
+        for(int i = 0; i < 3; i++)
+        {
+            MSG_WriteCoord(msg, mt.pos[i], sv.protocolflags);
+        }
+    }
+}
+
+void serverSetEntity(int handle, int ent)
+{
+    MapTip& mt = serverTip(handle);
+    mt.ent = ent;
+    if(sizebuf_t* msg = broadcast())
+    {
+        beginMessage(msg, QVR_SVC_TIP_ENT, handle);
+        MSG_WriteShort(msg, mt.ent);
+    }
+}
+
+void serverSetDistance(int handle, float distance)
+{
+    MapTip& mt = serverTip(handle);
+    mt.distance = distance;
+    if(sizebuf_t* msg = broadcast())
+    {
+        beginMessage(msg, QVR_SVC_TIP_DISTANCE, handle);
+        MSG_WriteFloat(msg, mt.distance);
+    }
+}
+
+void serverSetSize(int handle, float size)
+{
+    MapTip& mt = serverTip(handle);
+    mt.size = size;
+    if(sizebuf_t* msg = broadcast())
+    {
+        beginMessage(msg, QVR_SVC_TIP_SIZE, handle);
+        MSG_WriteFloat(msg, mt.size);
+    }
+}
+
+void serverSetDelay(int handle, float delay)
+{
+    MapTip& mt = serverTip(handle);
+    mt.delay = delay;
+    if(sizebuf_t* msg = broadcast())
+    {
+        beginMessage(msg, QVR_SVC_TIP_DELAY, handle);
+        MSG_WriteFloat(msg, mt.delay);
+    }
+}
+
+void serverSetFlags(int handle, int flags)
+{
+    MapTip& mt = serverTip(handle);
+    mt.flags = flags;
+    if(sizebuf_t* msg = broadcast())
+    {
+        beginMessage(msg, QVR_SVC_TIP_FLAGS, handle);
+        MSG_WriteByte(msg, mt.flags);
+    }
+}
+
+void serverWriteAll(sizebuf_t* msg)
+{
+    for(int handle = 0; handle < static_cast<int>(serverTips.size()); handle++)
+    {
+        beginMessage(msg, QVR_SVC_TIP_MAKE, handle);
+        writeTip(msg, handle, serverTips[static_cast<size_t>(handle)], sv.protocolflags);
+    }
+}
+
+void clientReset()
+{
+    mapTips.clear();
+    showing.tip = -1;
+    candidate.tip = -1;
+    pendingTest = -1;
+}
+
+void clientParse(int subcmd)
+{
+    MapTip& mt = clientTip(MSG_ReadShort());
+
+    switch(subcmd)
+    {
+        case QVR_SVC_TIP_MAKE: mt = MapTip{}; break;
+        case QVR_SVC_TIP_NAME: mt.name = MSG_ReadString(); break;
+        case QVR_SVC_TIP_TEXT: mt.text = MSG_ReadString(); break;
+        case QVR_SVC_TIP_POS:
+            for(int i = 0; i < 3; i++)
+            {
+                mt.pos[i] = MSG_ReadCoord(cl.protocolflags);
+            }
+            break;
+        case QVR_SVC_TIP_ENT: mt.ent = MSG_ReadShort(); break;
+        case QVR_SVC_TIP_DISTANCE: mt.distance = MSG_ReadFloat(); break;
+        case QVR_SVC_TIP_SIZE: mt.size = MSG_ReadFloat(); break;
+        case QVR_SVC_TIP_DELAY: mt.delay = MSG_ReadFloat(); break;
+        case QVR_SVC_TIP_FLAGS: mt.flags = MSG_ReadByte(); break;
+        default: Host_Error("svc_quakevr: bad tip command %d", subcmd);
+    }
+}
 
 void frame()
 {
@@ -320,13 +675,18 @@ void frame()
     {
         const int t = pendingTest;
         pendingTest = -1;
-        if(const int ent = bestFor(tips[t], true))
+        Subject subject;
+        if(t >= tipTotal())
         {
-            show(t, ent, false);
+            return; // its map changed
+        }
+        if(bestFor(t, true, subject))
+        {
+            show(t, subject, false);
         }
         else
         {
-            Con_Printf("vr_tips_test: nothing for \"%s\" in view\n", tips[t].name);
+            Con_Printf("vr_tips_test: nothing for \"%s\" in view\n", tipName(t));
         }
     }
     if(showing.tip >= 0)
@@ -334,26 +694,26 @@ void frame()
         drawShowing();
         return;
     }
-    // The first tip not shown yet whose subject is near and seen; it shows once it has been so vr_tips_delay seconds.
-    for(int t = 0; t < tipCount; t++)
+    // The first tip not shown yet whose subject is near and seen; it shows once it has been so for its delay.
+    for(int t = 0; t < tipTotal(); t++)
     {
-        if(seen(tips[t]))
+        if(seen(seenKeyOf(t)))
         {
             continue;
         }
-        const int ent = bestFor(tips[t], false);
-        if(ent == 0)
+        Subject subject;
+        if(!bestFor(t, false, subject))
         {
             continue;
         }
-        if(candidate.tip != t || candidate.ent != ent)
+        if(candidate.tip != t || candidate.ent != subject.ent)
         {
-            candidate = {t, ent, realtime};
+            candidate = {t, subject.ent, realtime};
         }
-        if(realtime - candidate.since >= static_cast<double>(za::max(vr_tips_delay.value, 0.f)))
+        if(realtime - candidate.since >= static_cast<double>(tipDelay(mapTipOf(t))))
         {
             candidate.tip = -1;
-            show(t, ent, true);
+            show(t, subject, true);
         }
         return;
     }
@@ -368,22 +728,47 @@ void reset_f()
     Con_Printf("VR: every tip will show again\n");
 }
 
+// The tips named on the command line: a built-in one, or a map tip's tipname.
+[[nodiscard]] int findTip(const char* name)
+{
+    for(int i = 0; i < tipCount; i++)
+    {
+        if(!q_strcasecmp(tips[i].name, name))
+        {
+            return i;
+        }
+    }
+    for(int i = 0; i < tipTotal(); i++)
+    {
+        const MapTip* mt = mapTipOf(i);
+        if(mt && !mt->name.empty() && !q_strcasecmp(mt->name.cStr(), name))
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void test_f()
 {
     int t = 0;
     if(Cmd_Argc() > 1)
     {
-        t = -1;
-        for(int i = 0; i < tipCount && t < 0; i++)
-        {
-            t = q_strcasecmp(tips[i].name, Cmd_Argv(1)) ? -1 : i;
-        }
+        t = findTip(Cmd_Argv(1));
         if(t < 0)
         {
             Con_Printf("vr_tips_test: no tip \"%s\" (the tips: ", Cmd_Argv(1));
             for(int i = 0; i < tipCount; i++)
             {
                 Con_Printf("%s%s", i ? ", " : "", tips[i].name);
+            }
+            for(int i = 0; i < tipTotal(); i++)
+            {
+                const MapTip* mt = mapTipOf(i);
+                if(mt && !mt->name.empty())
+                {
+                    Con_Printf(", %s", mt->name.cStr());
+                }
             }
             Con_Printf(")\n");
             return;
@@ -394,31 +779,56 @@ void test_f()
         Con_Printf("vr_tips_test: in a game\n");
         return;
     }
-    // The nearest few of what it is about, and how each stands against the settings now.
+    // What it is about, and how it stands against the settings now.
     const hands::State& head = hands::current();
     struct Near
     {
         int ent;
         float d;
+        glm::vec3 point;
     };
     za::Vector<Near> nearby;
-    for(int i = 1; i < cl.num_entities; i++)
+    if(MapTip* mt = mapTipOf(t))
     {
-        if(const entity_t* e = entityFor(tips[t], i))
+        if(mt->ent >= 0)
         {
-            nearby.pushBack({i, glm::distance(targetPoint(*e), head.head)});
+            const entity_t* e = liveEntity(mt->ent);
+            if(!e)
+            {
+                Con_Printf("vr_tips_test: %s follows entity %d, which is not there\n", mt->name.cStr(), mt->ent);
+                return;
+            }
+            nearby.pushBack({mt->ent, glm::distance(targetPoint(*e), head.head), targetPoint(*e)});
+        }
+        else
+        {
+            nearby.pushBack({0, glm::distance(mt->pos, head.head), mt->pos});
+        }
+    }
+    else
+    {
+        for(int i = 1; i < cl.num_entities; i++)
+        {
+            if(const entity_t* e = entityFor(tips[t], i))
+            {
+                nearby.pushBack({i, glm::distance(targetPoint(*e), head.head), targetPoint(*e)});
+            }
         }
     }
     za::stableSort(nearby.begin(), nearby.end(), [](const Near& a, const Near& b) { return a.d < b.d; });
+    const float limit = tipDelay(mapTipOf(t)) >= 0.f && mapTipOf(t) && mapTipOf(t)->distance > 0.f
+                            ? mapTipOf(t)->distance
+                            : vr_tips_distance.value;
     for(size_t i = 0; i < nearby.size() && i < 3; i++)
     {
-        const entity_t& e = cl_entities[nearby[i].ent];
-        const glm::vec3 to = glm::normalize(targetPoint(e) - head.head);
+        const entity_t* e = nearby[i].ent ? liveEntity(nearby[i].ent) : nullptr;
+        const glm::vec3 to = glm::normalize(nearby[i].point - head.head);
         const float angle = glm::degrees(glm::acos(CLAMP(-1.f, glm::dot(to, hands::forward(head.headAngles)), 1.f)));
-        Con_Printf("vr_tips_test: %s %d: %.0f units (%s), %.0f degrees from the view (%s), %s\n", tips[t].name, nearby[i].ent,
-            nearby[i].d, nearby[i].d <= vr_tips_distance.value ? "near enough" : "too far", angle,
+        Con_Printf("vr_tips_test: %s %s: %.0f units (%s), %.0f degrees from the view (%s), %s\n", tipName(t),
+            nearby[i].ent ? va("entity %d", nearby[i].ent) : "point", nearby[i].d,
+            nearby[i].d <= limit ? "near enough" : "too far", angle,
             vr_tips_view_angle.value <= 0.f || angle <= vr_tips_view_angle.value ? "in view" : "out of view",
-            inSight(head.head, e) ? "in sight" : "hidden");
+            inSight(head.head, nearby[i].point, e) ? "in sight" : "hidden");
     }
     pendingTest = t; // (as the menu or the console closes)
     showing.tip = -1;

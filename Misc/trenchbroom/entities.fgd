@@ -161,6 +161,7 @@ does by default)."
 	sounds(integer) : "CD track" : 0 : "The music track to play."
 	_vr_debris(float) : "Rocks and bricks" : 1 : "Quake VR's loose rocks and bricks, placed at the foot of walls by what the textures are made of (natural ground and rock walls: rocks; brick walls: bricks). 0: none in this map; another number times their chance (0.5 half as many places, 2 twice). The player's settings (Carrying: Rocks and Bricks) apply on top."
 	_vr_crates(float) : "Wooden crates" : 1 : "Quake VR's wooden crates, placed by walls and in corners (sometimes two stacked), clear of every entity and never narrowing a passage. 0: none in this map; another number times their chance. The player's settings (Carrying: Crates) apply on top."
+	_vr_tips_repeat(float) : "Repeat map tips" : 0 : "1: every func_vr_tip in this map shows again every time the player comes near it, instead of once (a tutorial map)."
 	light(integer) : "Minimum light (light)" : : "The ambient (minimum) light level of the whole map, for ericw-tools' light."
 	_minlight_color(color1) : "Minimum light colour" : : "The colour of the minimum light (R G B, 0 to 1)."
 	_sunlight(integer) : "Sun brightness" : : "ericw-tools: a sun: the brightness of the direct light from sky faces."
@@ -493,6 +494,28 @@ after speed seconds per letter of the page. A point entity, despite its name."
 	worldtext(string) : "Text" : "Hello from Quake VR" : "The text. \n starts a new line, $ a new page."
 	speed(float) : "Page time (s per letter)" : "0.085" : "With pages: seconds per letter before it turns to the next page. Needed with $ pages."
 	angle(integer) : "Facing (yaw)" : 0 : "The direction the text faces."
+]
+
+@PointClass base(Appearflags, Target, Targetname) size(-8 -8 -8, 8 8 8) color(50 180 230) = func_vr_tip : "Tip for new players (Quake VR)
+
+A tip for new players, placed by hand: a small CRT screen floating near the player, with a cable to what the tip is
+about (the same look as the map text boards), shown when he comes within range of it. Once, unless it repeats: shown
+tips are remembered in vr_tips_seen (vr_tips_reset shows them all again). Its own origin is the point it is about; if
+its target or targetname names another entity, it follows that entity instead, live (its model moves with it). Its
+range, text size and delay default to what the player sets in VR Settings > Tips; the keys here override that for
+this tip. Try one with vr_tips_test <tipname>." [
+	message(string) : "Text" : : "The tip's text. \n starts a new line."
+	distance(float) : "Range (units)" : 0 : "How near the player must come for it to show (0: his own setting)."
+	target(string) : "Follows (targetname)" : : "Another entity's targetname: the tip follows that entity, live, instead of staying at its own origin. Its targetname works the same way when this is unset (a tip naming itself stays put)."
+	tipname(string) : "Name" : : "Names this tip: its name in the remembered-tips list, and what vr_tips_test takes. Use it when two tips follow the same entity."
+	tip_size(float) : "Text size" : 0 : "Its text size (0: the player's setting). 1 is about 1.5 degrees a character."
+	tip_delay(float) : "Delay (s)" : : "Seconds he must stay near it before it shows (0: his own setting)."
+	spawnflags(flags) =
+	[
+		1 : "Show every time" : 0 : "Not remembered: it shows again whenever he comes near. (The map's worldspawn Repeat map tips makes every tip in the map do this.)"
+		2 : "Wrist hologram" : 0 : "In the wrist gadget's hologram instead of the floating screen (the screen when there is no hologram)."
+		4 : "Ignore sight and view" : 0 : "Shown even out of the view angle or hidden behind the world."
+	]
 ]
 
 @PointClass base(Appearflags, VRWeaponId) size(-8 -8 -8, 8 8 8) color(255 140 0) model({{
