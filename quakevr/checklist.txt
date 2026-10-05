@@ -344,3 +344,6 @@ Console: maps_stats, maps_list, maps_list type=speedmap sort=title, maps_list ty
 Offline: with no network the game starts normally and says the index was not fetched (no error spam)
 -nomapindex or vr_maps_fetch 0: no fetch happens; a cached index is still readable
 Map titles and authors with accents (e.g. "Rickard Edé") render correctly in the VR text, not as \xNN escapes
+Console pipeline (the menu page comes next): maps_stats, then maps_list type=map size=small sort=date, then maps_install <sha prefix> — it should download, write the files, and start the map
+maps_installed lists what you installed with its size; maps_uninstall <sha prefix> removes exactly those files
+A map that brings its own progs.dat or an unusual BSP version should be refused with a clear message, not half-installed
