@@ -67,18 +67,20 @@ za::String gameDirName;
 za::String mapsDirName;
 za::String cacheDirName;
 za::String registryPath;
+// The same as a reference (addonsRoot), built on first use once the base dirs are known: file scope, not hidden in
+// the function (docs/vr-port/CODE_STYLE.md, 'Scratch buffers and caches').
+za::String addonsRootName;
 
 // The map packages' own folders: <user base dir>/qvr_addons/<the sha256's first 16>/, each laid out as a game dir
 // (maps/, gfx/, sound/, ...). Never on the search path but the active one's (mountActive): one package's files never
 // meet another's, nor the stock game's when it is played, and Quake VR's own always come first.
 [[nodiscard]] const za::String& addonsRoot()
 {
-    static za::String root;
-    if(root.empty() && com_numbasedirs > 0)
+    if(addonsRootName.empty() && com_numbasedirs > 0)
     {
-        root = za::String{com_basedirs[com_numbasedirs - 1]} + "/qvr_addons";
+        addonsRootName = za::String{com_basedirs[com_numbasedirs - 1]} + "/qvr_addons";
     }
-    return root;
+    return addonsRootName;
 }
 
 [[nodiscard]] za::String addonDir(const za::String& sha)

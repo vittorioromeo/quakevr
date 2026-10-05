@@ -50,6 +50,13 @@ bool addingMissionPacks = false;
 // 0 missing, 1 available, 2 incomplete/corrupt. Inspect the pack's own files, never
 // the VR overrides: shipping a view model is not evidence of owning the campaign.
 int packStatus[2] = {};
+
+// What inspectPackCached remembers from one call to the next (main thread, from the campaign scan and
+// VR_OnGameDirChanged): each pack's last file hash, what its files were inspected as, and whether either was recorded.
+// The two mission packs are fixed, so plain arrays beside packStatus, which they feed.
+za::U64 packSignatureMemo[2] = {};
+int packStatusMemo[2] = {};
+bool packMemoValid[2] = {};
 constexpr const char* hipnoticResources[] = {
 #include "vr_pack_hipnotic.inc"
 };
@@ -322,17 +329,14 @@ za::U64 packSignature(const char* game, const char* const* resources, size_t cou
 // inspectPack, again only when the pack's files changed since it was last read.
 int inspectPackCached(int which, const char* game, const char* const* resources, size_t count)
 {
-    static za::U64 signatures[2] = {};
-    static int statuses[2] = {};
-    static bool known[2] = {};
     const za::U64 now = packSignature(game, resources, count);
-    if(!known[which] || signatures[which] != now)
+    if(!packMemoValid[which] || packSignatureMemo[which] != now)
     {
-        statuses[which] = inspectPack(game, resources, count);
-        signatures[which] = now;
-        known[which] = true;
+        packStatusMemo[which] = inspectPack(game, resources, count);
+        packSignatureMemo[which] = now;
+        packMemoValid[which] = true;
     }
-    return statuses[which];
+    return packStatusMemo[which];
 }
 
 constexpr const char* dopaResources[] = {
