@@ -153,7 +153,10 @@ void* alignedAllocate(size_t size, size_t alignment)
 #ifdef _WIN32
     return _aligned_malloc(size ? size : 1, alignment);
 #else
+    // posix_memalign refuses an alignment under a pointer's (EINVAL): libraries ask for 1, 2 or 4 (Mesa's LLVM does,
+    // compiling the shaders), which aligned operator new must accept, as libstdc++'s own does.
     void* p = nullptr;
+    alignment = alignment < sizeof(void*) ? sizeof(void*) : alignment;
     return posix_memalign(&p, alignment, size ? size : 1) == 0 ? p : nullptr;
 #endif
 }
@@ -174,6 +177,27 @@ void* operator new(za::SizeT size, std::align_val_t alignment)
     abort();
 }
 void* operator new[](za::SizeT size, std::align_val_t a) { return ::operator new(size, a); }
+// The nothrow forms return null when out of memory (the library's would call the throwing ones above, which abort: there
+// are no exceptions to catch).
+void* operator new(za::SizeT size, const std::nothrow_t&) noexcept
+{
+    account(qvr::alloccount::Kind::New, size);
+    return malloc(size ? size : 1);
+}
+void* operator new[](za::SizeT size, const std::nothrow_t& n) noexcept { return ::operator new(size, n); }
+void* operator new(za::SizeT size, std::align_val_t alignment, const std::nothrow_t&) noexcept
+{
+    account(qvr::alloccount::Kind::New, size);
+    return alignedAllocate(size, static_cast<size_t>(alignment));
+}
+void* operator new[](za::SizeT size, std::align_val_t a, const std::nothrow_t& n) noexcept
+{
+    return ::operator new(size, a, n);
+}
+void operator delete(void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
+void operator delete[](void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
+void operator delete(void* p, std::align_val_t a, const std::nothrow_t&) noexcept { ::operator delete(p, a); }
+void operator delete[](void* p, std::align_val_t a, const std::nothrow_t&) noexcept { ::operator delete(p, a); }
 void operator delete(void* p, std::align_val_t) noexcept
 {
     if(p) account(qvr::alloccount::Kind::Delete, 0);
