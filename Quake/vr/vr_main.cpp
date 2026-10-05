@@ -1239,7 +1239,6 @@ extern "C" void VR_Init()
     profile::init();
     audio::init(); // spatial audio's commands (vr_snd_info, vr_snd_test...); Steam Audio is loaded on first use
     mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
-    mapindex::start(); // the external map index, fetched on a thread of its own (vr_mapindex.cpp)
     mapinstall::registerCommands(); // maps_get, maps_install, maps_installed, maps_uninstall
     mapinstall::start(); // the installed-map list read (vr_mapinstall.cpp): nothing is downloaded here: nothing here waits
 
@@ -1450,8 +1449,20 @@ extern "C" int VR_ModalMessageFrame()
     return 1;
 }
 
+namespace
+{
+bool mapIndexStarted = false; // (VR_HostFrameEnd: the map index's fetch started)
+}
+
 extern "C" void VR_HostFrameEnd()
 {
+    // The external map index, fetched on a thread of its own (vr_mapindex.cpp): started after the first frame's commands,
+    // so that the config's vr_maps_fetch and vr_maps_index_url are read (not on a dedicated server).
+    if(!mapIndexStarted && cls.state != ca_dedicated)
+    {
+        mapIndexStarted = true;
+        qvr::mapindex::start();
+    }
     qvr::mapindex::poll(); // the map index the fetch thread finished, taken here (vr_mapindex.cpp)
     qvr::mapinstall::poll(); // a map download or unpacking that finished, taken here (vr_mapinstall.cpp)
     qvr::motion::hostFrameEnd();

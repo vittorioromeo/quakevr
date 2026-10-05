@@ -1021,6 +1021,8 @@ ClientState& crossingState(edict_t* ent)
     return exitGate;
 }
 
+// (`margin` units of slack: a point on the plane lands a rounding step off a wall or floor gate's flat axis, where
+// mins and maxs are equal; 1 for points from a mix along a crossing, as VR_PortalTrace's.)
 [[nodiscard]] bool onGate(const Side& sd, const glm::vec3& onPlane, float margin)
 {
     return !glm::any(glm::lessThan(onPlane, sd.mins - margin)) && !glm::any(glm::greaterThan(onPlane, sd.maxs + margin));
@@ -1370,7 +1372,7 @@ int aiImage(edict_t* observer, edict_t* target, const glm::vec3& from, const glm
         const float distance = glm::distance(from, candidate);
         if(a <= 0.f || b >= 0.f || distance >= best) { continue; }
         const glm::vec3 entry = glm::mix(from, candidate, a / (a - b));
-        if(!onGate(sd, entry, 0.f)) { continue; }
+        if(!onGate(sd, entry, 1.f)) { continue; }
         const glm::vec3 exit = carried(sd, entry);
         const glm::vec3 ray = point - exit;
         if(glm::length(ray) < 0.01f) { continue; }
@@ -1424,7 +1426,7 @@ glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate)
         const float distance = glm::distance(from, image);
         if(d0 < 0.f || d1 >= 0.f || distance >= best || distance > za::max(1.f, vr_forcegrab_distance.value) * 1.25f) { continue; }
         const glm::vec3 entry = glm::mix(from, image, d0 / (d0 - d1));
-        if(!onGate(sd, entry, 0.f)) { continue; }
+        if(!onGate(sd, entry, 1.f)) { continue; }
         const glm::vec3 exit = carried(sd, entry) + glm::normalize(point - carried(sd, entry)) * 0.5f;
         vec3_t a{from.x, from.y, from.z}, b{entry.x, entry.y, entry.z};
         const trace_t first = SV_Move(a, vec3_origin, vec3_origin, b, MOVE_NOMONSTERS, qcvm->edicts);
@@ -1909,7 +1911,7 @@ Reach reach(const glm::vec3& root, const glm::vec3& point)
         const float b = glm::dot(sd.normal, point) - sd.dist;
         if(a < 0.f || b >= 0.f || a - b < 1e-5f) { continue; }
         const float t = a / (a - b);
-        if(t >= first || !onGate(sd, glm::mix(root, point, t), 0.f) ||
+        if(t >= first || !onGate(sd, glm::mix(root, point, t), 1.f) ||
            !triggerActive(EDICT_NUM(sd.trigger)) || (static_cast<int>(EDICT_NUM(sd.trigger)->v.spawnflags) & 1)) { continue; }
         const glm::vec3 on = glm::mix(root, point, t);
         vec3_t from{root.x, root.y, root.z}, to{on.x, on.y, on.z};

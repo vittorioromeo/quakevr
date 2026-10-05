@@ -106,7 +106,8 @@ void() dragon_check_attack =
         if(dot > 0.3)
         {
             traceline(self.origin, VR_AI_Origin(self.enemy), TRUE | (self.vr_ai_gate > 0 ? MOVE_PORTALS : 0), self);
-            if(trace_fraction == 1)
+            // (Through a gate the trace restarts past its exit: its fraction is a little under 1 even when clear.)
+            if(trace_fraction == 1 || (self.vr_ai_gate > 0 && trace_fraction > 0.95))
             {
                 dot = vlen(VR_AI_Origin(self.enemy) - self.origin);
                 if(dot < 350 && self.vr_ai_gate <= 0)

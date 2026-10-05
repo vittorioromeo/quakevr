@@ -301,12 +301,20 @@ float (entity client) visible =
     spot1 = self.origin + self.view_ofs;
     spot2 = client.origin + client.view_ofs;
 
-    self.vr_ai_target = client;
-    self.vr_ai_gate = 0;
+    // The gate route is a monster's own, for its enemy (or, with none, the player FindTarget looks for): other callers'
+    // visible() (projectiles, items, a gremlin's victim scan, a second target) leave it as it is.
+    float track = (self.flags & FL_MONSTER) && (client == self.enemy || self.enemy == world);
+    if(track)
+    {
+        self.vr_ai_target = client;
+        self.vr_ai_gate = 0;
+    }
     if(self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK) { res = bbox_visible(self, spot2); }
     else                                   { res = point_visible(spot1, spot2); }
     if(res && VR_Crate_HidesFrom(self, client, spot1)) { res = FALSE; }
-    if(!res && VR_AI_PortalEligible() && client.classname == "player")
+    // Through a gate: not across a water surface either (point_visible's rule: one end in a liquid, the other not).
+    if(!res && track && VR_AI_PortalEligible() && client.classname == "player" &&
+       (pointcontents(spot1) <= CONTENT_WATER) == (pointcontents(spot2) <= CONTENT_WATER))
     {
         self.vr_ai_gate = portal_ai_sight(self, client, spot1, spot2, 0);
         res = self.vr_ai_gate > 0;

@@ -309,7 +309,7 @@ float(entity targ, entity attacker, vector xAt, vector xVel, float xHow) VR_Deca
 
 // A hand's blow about to deal its damage to `targ` (T_Damage_VRMelee; self the player, vr_hithand the hand): armed if
 // it is a beheading cut at a live monster's head.
-float(entity targ, entity attacker) VR_Decap_Blow =
+float(entity targ, entity attacker, float xDamage) VR_Decap_Blow =
 {
     if(vr_hitkind != QVR_HITKIND_MELEE || vr_hithand < 0 || attacker != self || !(self.flags & FL_CLIENT) ||
        targ.health <= 0 || !VR_Decap_Allowed(targ))
@@ -321,6 +321,9 @@ float(entity targ, entity attacker) VR_Decap_Blow =
        b.mh_thing == VR_MTHING_CROWBAR || b.mh_thing == VR_MTHING_CLUB)
     {
         if(!VR_Decap_OnHead(targ, b.mh_c_pos, '0 0 0')) { return FALSE; }
+        // A zombie's head pops only to a blow that would knock it down, as a shot's (VR_DECAP_ZOMBIE_DOWN, 25: a light
+        // tap it survives keeps its head; VR_Decap_After kills an armed zombie).
+        if(targ.classname == "monster_zombie" && xDamage < 25) { return FALSE; }
         return VR_Decap_Arm(targ, attacker, b.mh_c_pos,
             VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_BLUNT);
     }

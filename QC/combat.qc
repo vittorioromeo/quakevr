@@ -107,6 +107,7 @@ void(entity targ, entity attacker) Killed =
 
     oself = self;
     self = targ;
+    targ.vr_ai_gate = 0; // (a dead monster's, its head's or its gibs': no gate route left for portal tosses)
 
     if(self.health < -99)
     {
@@ -209,7 +210,7 @@ void(entity targ, entity attacker) Killed =
 // Decapitation (vr_decap.qc): its head cut off (its ragdoll headless; gibbed, no head thrown); the blows that cut it.
 .float vr_headless;
 void(entity e) VR_Decap_Killed;
-float(entity targ, entity attacker) VR_Decap_Blow;
+float(entity targ, entity attacker, float xDamage) VR_Decap_Blow;
 void(entity targ) VR_Decap_After;
 
 // Knockdowns (vr_knockdown.qc): a shove knocked it down, a ragdoll while alive (the engine's vr_box3d.cpp, "Knockdowns").
@@ -2024,7 +2025,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     // use. Off: 1, and nothing is recorded - exactly the flat melee damage of before.
     float mult = VR_Melee_Positional(targ, vr_hitpos, vr_hitdir);
     damage = damage * mult;
-    float decap = VR_Decap_Blow(targ, attacker); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
+    float decap = VR_Decap_Blow(targ, attacker, damage); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
     float r = T_DamageImpl(targ, inflictor, attacker, damage, 1);
     if(decap)
     {

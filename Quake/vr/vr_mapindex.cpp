@@ -525,9 +525,15 @@ void publish(Index&& built, za::String&& status)
     pendingReady.storeSeqCst(true);
 }
 
+za::String runUrl; // the pass's URL, read on the main thread as it starts (a cvar's string may be freed meanwhile)
+
 void run() noexcept
 {
-    const za::String url = indexUrl();
+    struct Done
+    {
+        ~Done() { running.storeSeqCst(false); } // every way out: a cache hit, a failure, a fetch
+    } done;
+    const za::String url = runUrl;
     Index built;
 
     if(loadCache(built, url))
@@ -536,7 +542,7 @@ void run() noexcept
         q_snprintf(status, sizeof(status),
             "map index: %d packages, from the cache (%llu KiB, fetched %lld s ago); not fetched",
             static_cast<int>(built.entries.size()), static_cast<unsigned long long>(built.cacheBytes / 1024),
-            static_cast<long long>(built.fetchedAt));
+            static_cast<long long>(time(nullptr) - built.fetchedAt));
         publish(ZA_MOVE(built), za::String{status});
         return;
     }
@@ -546,7 +552,10 @@ void run() noexcept
     za::String status;
     if(!fetchIndex(built, url, status))
     {
-        publish(Index{}, ZA_MOVE(status));
+        // The status only: the index held (a cached or earlier fetch) is kept.
+        za::LockGuard lock{handoff};
+        pendingStatus = ZA_MOVE(status);
+        pendingReady.storeSeqCst(true);
         return;
     }
 
@@ -563,7 +572,6 @@ void run() noexcept
         status += za::String{", cached to "} + cachePath();
     }
     publish(ZA_MOVE(built), ZA_MOVE(status));
-    running.storeSeqCst(false); // (the pass is over; the thread is joined by start() or finish())
 }
 
 // ---------------------------------------------------------------- reading it back
@@ -873,15 +881,15 @@ void stats_f()
 void fetch_f()
 {
     const bool force = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "force");
-    if(force)
-    {
-        za::String path = cachePath();
-        files::remove(path.cStr()); // (loadCache would otherwise take the cached copy)
-    }
     if(running.loadSeqCst())
     {
         Con_Printf("maps_fetch: a fetch is already under way\n");
         return;
+    }
+    if(force)
+    {
+        za::String path = cachePath();
+        files::remove(path.cStr()); // (loadCache would otherwise take the cached copy)
     }
     start();
     Con_Printf("maps_fetch: fetching %s (maps_stats shows what happened)\n", indexUrl().cStr());
@@ -912,6 +920,7 @@ void start()
         worker.join(); // (a pass that finished; its handle was never joined)
     }
     SDL_AtomicSet(&cancel, 0);
+    runUrl = indexUrl();
     running.storeSeqCst(true);
     worker = za::Thread(run);
 }
