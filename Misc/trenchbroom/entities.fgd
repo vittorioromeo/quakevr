@@ -775,3 +775,53 @@ on whatever is below its origin (within 128 units), whatever Rocks and Bricks' o
 	angle(integer) : "Yaw" : 0 : "Its turn about the vertical."
 	skin(integer) : "Skin" : 0 : "Which of its skins."
 ]
+
+// Official native environment entities (licensed source: QC/COPYING-rerelease.txt).
+@PointClass base(Targetname) = ambient_generic : "Owned campaign looping ambient sound. noise selects its WAV, volume defaults to 0.5, delay is attenuation (default 3)." [
+ noise(string) : "Looping WAV path"
+ volume(float) : "Volume" : 0.5
+ delay(float) : "Attenuation" : 3
+]
+@PointClass = light_flame_gas : "Owned campaign gas flare: two translucent flame3 models; its flame can relight a held VR torch and burn tracked hands." []
+
+@PointClass = info_rotate_axis : "Authored rotation center marker; used by map geometry compilation." []
+
+@SolidClass = func_bob : "Official bobbing geometry. dest and dest2 are sine/cosine amplitudes, wait its period, delay its starting phase." []
+
+@SolidClass = func_toss : "Official triggered debris with optional distance-delayed cascade and bounce/removal controls." []
+
+@SolidClass = func_shatter : "Official falling brush pieces directed from pos1 toward pos2 on activation." []
+
+@PointClass = misc_corpse : "Official decorative corpse or head, selected by style; does not count as a live monster." []
+
+@PointClass = misc_model : "Official decorative model with static, looping or once-only animation. frame/cnt define its range." []
+
+@PointClass = misc_rope : "Official segmented rope spanning floor to ceiling; follows geometry each server frame." []
+
+@PointClass = target_lightramp : "Official toggled light-style fade targeting a switchable light; delay is the transition duration." []
+
+@PointClass = dynamiclight : "Official KEX shadow-light marker. Shadow cone metadata requires renderer support; this QC marker has no gameplay callback." []
+
+@PointClass = particle_embers : "Official drifting embers; size defines horizontal scatter and velocity scales motion." []
+
+@PointClass = particle_embers_tall : "Official taller drifting embers with authored height and scatter." []
+
+@PointClass = particle_tele : "Official inward-moving slipgate particles." []
+
+@PointClass = particle_tele_fountain : "Official upward slipgate fountain; can start on activation." []
+
+@SolidClass base(Targetname, Target) = func_explode : "Official fixed brush barrel: 20 health, delayed 160 damage radius blast; fires targets with the attacker as activator. Uses VR metal impacts." []
+@PointClass base(Targetname) = info_fog : "Authored native fog definition referenced by spawnpoints, cameras and triggers. RGB accepts normalized or 0..255 values." [
+ fog_density(float) : "Fog density" : 0.05
+ fog_color(string) : "RGB fog color" : "0.3 0.3 0.3"
+]
+@SolidClass base(Targetname) = trigger_fog : "Authored per-player fog fade. Trigger use applies it to the activator; touching applies it to the touching player." [
+ fog_info_entity(target_destination) : "Fog definition targetname"
+ delay(float) : "Fade duration" : 0.5
+ spawnflags(flags) = [ 1 : "No touch" : 0 ]
+]
+@SolidClass = trigger_fog_transition : "Authored fog interpolation through a volume along X, Y or Z." [
+ fog_info_entity(target_destination) : "Fog on low side"
+ target(target_destination) : "Fog on high side"
+ style(choices) : "Axis" : 0 = [ 0 : "X" 1 : "Y" 2 : "Z" ]
+]

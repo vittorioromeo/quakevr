@@ -272,6 +272,13 @@ stops), fires its targets, and wait seconds later ends the game. Honey's own map
 	wait(float) : "Seconds before the end" : 180
 ]
 
+@PointClass base(Targetname) color(128 128 204) size(-8 -8 -8, 8 8 8) =
+	info_fog : "Authored native fog definition referenced by spawnpoints, cameras and triggers. RGB accepts normalized or 0..255 values."
+[
+	fog_density(float) : "Fog density" : 0.05
+	fog_color(string) : "RGB fog color" : "0.3 0.3 0.3"
+]
+
 @PointClass base(Appearflags) color(255 128 128) size(-16 -16 -16, 16 16 16) =
 	info_intermission : "Intermission camera
 
@@ -354,10 +361,15 @@ potential spawning position for CTF games team 2."
 [
 ]
 
-@PointClass color(0 128 0) size(-4 -4 -4, 4 4 4) =
+@PointClass color(102 255 153) size(-8 -8 -8, 8 8 8) =
 	info_rotate : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 
-Used as the point of rotation for rotatable objects."
+Used to indicate center of rotation."
+[
+]
+
+@PointClass =
+	info_rotate_axis : "Authored rotation center marker; used by map geometry compilation."
 [
 ]
 
@@ -1100,6 +1112,15 @@ Candle Default light value is 200 Default style is 0"
 [
 ]
 
+@PointClass color(0 255 0) size(-10 -10 -40, 10 10 40) model({ "path": "progs/flame3.mdl" }) =
+	light_flame_gas : "Owned campaign gas flare: two translucent flame3 models; its flame can relight a held VR torch and burn tracked hands."
+[
+	spawnflags(flags) =
+	[
+		1 : "START OFF" : 0
+	]
+]
+
 @PointClass base(Appearflags, Light, Target, Targetname) color(0 255 0) size(-8 -8 -12, 8 8 20) model({ "path": "progs/flame2.mdl", "frame":1 }) =
 	light_flame_large_yellow : "Large yellow flame
 
@@ -1187,6 +1208,19 @@ Short wall torch Default light value is 300 Default style is 0 Quake VR: the pla
 //
 // Brush entities
 //
+
+@SolidClass =
+	func_bob : "Official bobbing geometry. dest and dest2 are sine/cosine amplitudes, wait its period, delay its starting phase."
+[
+	spawnflags(flags) =
+	[
+		1 : "Func bob nonsolid" : 0
+		2 : "Func bob start on" : 0
+	]
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+]
 
 @SolidClass color(0 128 204) =
 	func_bobbingwater : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
@@ -1544,6 +1578,11 @@ This bmodel will appear if the episode has allready been completed, so players c
 	]
 ]
 
+@SolidClass base(Targetname, Target) color(0 128 204) size(0 0 0, 32 32 64) =
+	func_explode : "Official fixed brush barrel: 20 health, delayed 160 damage radius blast; fires targets with the attacker as activator. Uses VR metal impacts."
+[
+]
+
 @PointClass color(102 0 0) size(0 0 0, 8 8 8) =
 	func_exploder : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 
@@ -1560,6 +1599,17 @@ Spawns an explosion when triggered. Triggers any targets.
 	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
 	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
 	volume(float) : "Volume" :  : "Sound volume, 0 to 1."
+]
+
+@SolidClass color(0 128 204) =
+	func_hurt : "Hurts alive things when they touch it"
+[
+	spawnflags(flags) =
+	[
+		1 : "Func hurt start on" : 0
+	]
+	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
 ]
 
 @SolidClass base(Appearflags) color(0 128 204) =
@@ -1877,6 +1927,14 @@ Spawns large rubble when triggered.
 	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
 ]
 
+@SolidClass =
+	func_shatter : "Official falling brush pieces directed from pos1 toward pos2 on activation."
+[
+	pos2(string) : "Travel (x y z)" :  : "A vector, in units: see the help for this entity."
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
 @SolidClass base(Appearflags, Targetname) color(76 26 153) =
 	func_slide : "Honey: slide
 
@@ -1947,6 +2005,18 @@ START_OFF wall doesn't block until triggered.
 	]
 	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
 	noise1(string) : "Sound 1" :  : "A sound, relative to sound/."
+]
+
+@SolidClass =
+	func_toss : "Official triggered debris with optional distance-delayed cascade and bounce/removal controls."
+[
+	spawnflags(flags) =
+	[
+		1 : "Toss wave origin" : 0
+	]
+	speed(float) : "Speed" :  : "Speed (units per second) or rate: see the help for this entity."
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
 ]
 
 @SolidClass base(Appearflags, Targetname) color(0 128 204) =
@@ -2265,6 +2335,30 @@ Variable sized repeatable trigger. Must be targeted at one or more entities. Onl
 health: amount of damage needed to set off trigger."
 [
 	health(integer) : "Health" :  : "If set, it must be shot (this much damage) instead of touched."
+]
+
+@SolidClass base(Targetname) color(128 128 204) =
+	trigger_fog : "Authored per-player fog fade. Trigger use applies it to the activator; touching applies it to the touching player."
+[
+	spawnflags(flags) =
+	[
+		1 : "No touch" : 0
+	]
+	fog_info_entity(target_destination) : "Fog definition targetname"
+	delay(float) : "Fade duration" : 0.5
+]
+
+@SolidClass color(128 128 204) =
+	trigger_fog_transition : "Authored fog interpolation through a volume along X, Y or Z."
+[
+	fog_info_entity(target_destination) : "Fog on low side"
+	target(target_destination) : "Fog on high side"
+	style(choices) : "Axis" : 0 =
+	[
+		0 : "X"
+		1 : "Y"
+		2 : "Z"
+	]
 ]
 
 @SolidClass color(128 128 128) =
@@ -2609,6 +2703,14 @@ Ambient buzz (ambience/buzz1.wav), always on."
 [
 ]
 
+@PointClass base(Targetname) color(76 26 153) size(-10 -10 -8, 10 10 8) =
+	ambient_generic : "Owned campaign looping ambient sound. noise selects its WAV, volume defaults to 0.5, delay is attenuation (default 3)."
+[
+	noise(string) : "Looping WAV path"
+	volume(float) : "Volume" : 0.5
+	delay(float) : "Attenuation" : 3
+]
+
 @PointClass color(76 26 153) size(-10 -10 -8, 10 10 8) =
 	ambient_humming : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 
@@ -2743,6 +2845,15 @@ Only for use with monster_dragon. Use only as transitions between rooms."
 	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
 ]
 
+@PointClass color(255 204 102) size(-8 -8 -8, 8 8 8) =
+	dynamiclight : "Official KEX shadow-light marker. Shadow cone metadata requires renderer support; this QC marker has no gameplay callback."
+[
+	spawnflags(flags) =
+	[
+		1 : "Dynamiclight not in coop" : 0
+	]
+]
+
 @PointClass color(0 255 0) size(-8 -8 -8, 8 8 8) =
 	earthquake : "From the Dissolution of Eternity (rogue): its models and sounds come from the rogue folder.
 
@@ -2849,6 +2960,11 @@ Set the LT_TOGGLE checkbox if you want the lightning shooter to continuously fir
 	frags(float) : "Time (frags)" :  : "Seconds: see the help for this entity."
 ]
 
+@PointClass =
+	misc_corpse : "Official decorative corpse or head, selected by style; does not count as a live monster."
+[
+]
+
 @PointClass base(Appearflags) color(0 128 204) size(0 0 0, 32 32 64) model({ "path": ":maps/b_explob.bsp" }) =
 	misc_explobox : "Large exploding container
 
@@ -2873,10 +2989,27 @@ Lava Balls"
 	speed(integer) : "Speed" : 40
 ]
 
+@PointClass =
+	misc_model : "Official decorative model with static, looping or once-only animation. frame/cnt define its range."
+[
+	spawnflags(flags) =
+	[
+		1 : "Misc model animated" : 0
+		2 : "Misc model animated once" : 0
+	]
+	cnt(integer) : "Count (cnt)" :  : "A count: see the help for this entity."
+	targetname(target_source) : "Name" :  : "The name that other entities' target and killtarget use to trigger this one."
+]
+
 @PointClass color(255 128 0) size(16 16 16) =
 	misc_noisemaker : "Debug entity: continuously plays enforcer sounds
 
 For optimzation testing, starts a lot of sounds."
+[
+]
+
+@PointClass =
+	misc_rope : "Official segmented rope spanning floor to ceiling; follows geometry each server frame."
 [
 ]
 
@@ -2900,6 +3033,39 @@ load unless Honey's files are installed."
 @PointClass color(0 0 0) size(-8 -8 -8, 8 8 8) =
 	noclass : "prints a warning message when spawned"
 [
+]
+
+@PointClass color(255 128 51) size(-8 -8 -8, 8 8 8) =
+	particle_embers : "Official drifting embers; size defines horizontal scatter and velocity scales motion."
+[
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
+@PointClass color(255 128 51) size(-8 -8 -8, 8 8 8) =
+	particle_embers_tall : "Official taller drifting embers with authored height and scatter."
+[
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
+@PointClass color(255 128 51) size(-8 -8 -8, 8 8 8) =
+	particle_tele : "Official inward-moving slipgate particles."
+[
+	distance(float) : "Distance" :  : "A distance (units) or an angle (degrees): see the help for this entity."
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
+@PointClass color(255 128 51) size(-8 -8 -8, 8 8 8) =
+	particle_tele_fountain : "Official upward slipgate fountain; can start on activation."
+[
+	spawnflags(flags) =
+	[
+		1 : "Start off" : 0
+	]
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
 ]
 
 @PointClass base(Appearflags, Targetname) color(0 255 255) size(16 16 16) =
@@ -3070,6 +3236,18 @@ This defines an object to be rotated. Used as the target of func_rotate_door."
 [
 ]
 
+@SolidClass color(102 255 153) =
+	rotate_object_continuously : "Non-solid object that rotates continuously. Trigger to turn on and off."
+[
+	spawnflags(flags) =
+	[
+		1 : "START OFF" : 0
+		4 : "Solid bsp" : 0
+	]
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+	pos2(string) : "Travel (x y z)" :  : "A vector, in units: see the help for this entity."
+]
+
 @PointClass color(255 255 0) size(-8 -8 -8, 8 8 8) model({ "path": "progs/rubble.mdl" }) =
 	rubble_generator : "From the Dissolution of Eternity (rogue): its models and sounds come from the rogue folder.
 
@@ -3085,6 +3263,12 @@ delay - time between rubble pieces (Default 5 sec)"
 		2 : "Active" : 0
 	]
 	target(target_destination) : "Target" :  : "The entities (by targetname) it triggers."
+	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
+]
+
+@PointClass =
+	target_lightramp : "Official toggled light-style fade targeting a switchable light; delay is the transition duration."
+[
 	delay(float) : "Delay" :  : "Seconds before it acts after it is triggered."
 ]
 

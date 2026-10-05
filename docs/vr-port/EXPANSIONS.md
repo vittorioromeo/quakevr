@@ -390,3 +390,68 @@ missing-pack feedback, and repeated original-pack portal/selector transitions.
 
 Scratch to remove after integration: `campaign-tests/`, `quakevr/campaign_context_test.sav`, the kit's
 `campaign-menu.png`/matching screenshot, and the untracked `quakevr/ironwail.cfg.baseline`. No cleanup was performed.
+
+
+## Native environment shipment (mgworld, 2026-10-06)
+
+Dopa, MG1 and MG3 remain **native support in progress**. This shipment implements environment semantics;
+it does not enable a campaign merely because its BSPs now load. Source snapshot/license are recorded in
+`OFFICIAL_QC_SOURCE.md` and `QC/COPYING-rerelease.txt`; imported files retain the original notices.
+
+`QC/vr_mg_*.qc` supplies authored fixed brush explosions/target activation, solid and non-solid bobbing,
+tossed/cascaded/shattered brushes, continuous rotation and acceleration, fog definitions/triggers/axis fades,
+light-style ramps and gas flames, ambient loops, embers/slipgate effects, decorative corpse poses/models and
+MG3 segmented ropes. Helpers use the `MG_` prefix; mapper fields/classnames retain their authored names.
+`MG_WorldCampaign()` gates them to `vr_campaign` 3/4/5. `MG_WorldFrame()` runs registered tick callbacks beside
+existing VR frame hooks, skipping deleted entities without a dangling linked list. Reuse
+`MG_RegisterFrameTickEntity`, `MG_RemoveFrameTickEntity`, `.MG_tick` and `.MG_registered` in later native modules.
+The upstream `dynamiclight` is intentionally a KEX rendering marker without a QC callback; its shadow-cone
+metadata still needs renderer adaptation. MG3's `func_breakable` is boss-specific falling ceiling behavior,
+not an ordinary destructible wall, and stays with the future boss port. MG3 corpse rune/coop inhibition also
+awaits the shared authored spawn-filter work.
+
+Fog integrates player spawnpoints (world fallback), intermission cameras and teleport destinations. Ironwail
+filters server-stuffed commands, so native fog uses its reliable `svc_fog` message (8-bit density/RGB and 0.01 s
+fade timing). `Host_Spawn_f` sends saved fog after clearing spawn-QC messages; this handles fresh signon and
+completed save loads without changing base/Honey fog. Geometry links after its final collision type is set;
+`func_hurt` tests tracked main/off-hand points against the brush hull as well as its existing body touch,
+sharing the authored cooldown. Fixed brush explosions retain the attacking player as target activator and use
+VR's explosion/metal impacts, with no brush blood. Gas flames join the existing VR flame contact/relighting path.
+
+`vr_mg_world_test` defaults to 0 (not archived): 1 prints world/player fog; 2 runs the focused environment checks
+and explodes a barrel on e5m1. Both are in Debug > Tests. Test 2 is destructive; reload the map afterward.
+No existing menu rows/calibration paths moved. The generated FGD covers 269 spawn functions, with native fog
+and fixed brush-barrel fields documented.
+
+Validation used owned rerelease id1 plus owned Dopa/MG1/MG3 PAK hardlinks, no Hipnotic/Rogue, a worktree-local VR
+junction and saves, hidden mock headset, `-nomapindex -noaddons -nosteam -nogog -noegs -noconfigwrite` and disabled
+autosaves. All 13 Dopa BSPs report the correct current map, exit 0, zero missing spawn functions/Host_Error and
+correct fog density/RGB (within Fitz protocol quantization). The only unknown field is an empty **editor** key
+`property 1` on an e5m6 light; no gameplay field is omitted. Focused e5m1 matrix: **19 passed, 0 failed**: degree-based
+bobbing, rotation normalization/acceleration/toggle, translated fog bounds/world fallback, exact main/off-hand
+and body hazard damage/cooldown/off state, delayed explosion removal, one target activation with the player,
+and metal impact without blood. A completed e5m1 save loads with authored fog 0.05 (wire value 0.0509804), RGB
+65/65/60. Base e1m1 and VR Hub smoke exit 0; calibration paths report **14 found, 0 missing**.
+Final build has 0 QC warnings, passes QC priority/static checks, builds Release x64 and passes FGD coverage.
+The required melee canary cannot run: `no_hit_reloading_2026-09-29_23-08-51.csv` is absent from the authored
+archive/test path (kit eval exits before launching a replay). No calibration data was substituted.
+
+Dopa readiness blockers: raw BSPs contain **62 deferred monsters** using bit 4 (8 e5m1, 2 e5m2, 9 e5m3,
+11 e5m5, 8 e5m7, 24 e5sm1), including angry bit 8 combinations. Shared activation/future-monster counting,
+activation targets and difficulty variants must be verified before native-ready. Its e5end `trigger_changelevel`
+contains `endtext = $map_dopa_endtext_final`; the field is parsed, but existing VR exit logic does not yet implement
+that authored finale. Normal/secret exit chains, inventory carry, deaths/restarts and final credits/progression
+remain acceptance work for the shared activation/progression task.
+
+A broader MG1 audit stopped on **mge1m1**: existing Honey ogre flag handling attempts to precache
+`progs/s_light2.spr`, absent from owned MG1/base data. `honey_mon_ogre.qc` is reached by existing monster spawning;
+new native contexts need to gate Honey-specific flag interpretations and apply authored official ones.
+MG3 map5 (Requiem) also reaches its correct map with decorative model/rope spawns; map6 hits the same existing
+`s_light2.spr` Honey-variant failure. That exploratory run was stopped after error recovery; it is not campaign acceptance.
+`speed2` moving-geometry fields also require the shared existing-function port. Broad MG1/MG3 gameplay acceptance
+is not claimed. Existing optional-pack footstep paths can print `misc/foot*.wav not precached` in this isolated
+base-only fixture; they remain separate from the environment changes. No head/hand calibration or melee tuning changed.
+
+Human follow-up: native campaign fog/fades, bobbing/rotating geometry, gas-flame hand contact, visible ambient
+particles and model/rope placement. Retained untracked diagnostics: `world-tests/`, `port_world.py`, local build/config
+outputs and `mgworld_fog.sav`; owned asset fixtures are hardlinks, not distributable release content.

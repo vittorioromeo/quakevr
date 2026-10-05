@@ -3167,6 +3167,22 @@ static void Host_Spawn_f (void)
 // and it won't happen if the game was just loaded, so you wind up
 // with a permanent head tilt
 	ent = EDICT_NUM( 1 + (host_client - svs.clients) );
+	// Native official fog is applied by spawnpoint/trigger QC and saved on the player. Spawn QC's reliable
+	// messages were cleared above; copy its resulting state here for new clients and completed save loads.
+	if (Cvar_VariableValue("vr_campaign") >= 3 && Cvar_VariableValue("vr_campaign") <= 5)
+	{
+		eval_t *valid = GetEdictFieldValueByName(ent, "MG_fog_valid");
+		eval_t *density = GetEdictFieldValueByName(ent, "fog_density");
+		eval_t *color = GetEdictFieldValueByName(ent, "fog_color");
+		if (valid && valid->_float && density && color)
+		{
+			MSG_WriteByte (&host_client->message, svc_fog);
+			MSG_WriteByte (&host_client->message, (int)(CLAMP(0.f, density->_float, 1.f) * 255.f + 0.5f));
+			for (i = 0; i < 3; ++i)
+				MSG_WriteByte (&host_client->message, (int)(CLAMP(0.f, color->vector[i], 1.f) * 255.f + 0.5f));
+			MSG_WriteShort (&host_client->message, 0);
+		}
+	}
 	MSG_WriteByte (&host_client->message, svc_setangle);
 	for (i = 0; i < 2; i++)
 		if (sv.loadgame)

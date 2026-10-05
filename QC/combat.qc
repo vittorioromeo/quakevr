@@ -122,6 +122,8 @@ void(entity targ, entity attacker) Killed =
 
     if(self.movetype == MOVETYPE_PUSH || self.movetype == MOVETYPE_NONE)
     {    // doors, triggers, etc
+        // Native brush explosions fire authored target chains with the attacker as activator.
+        if(MG_WorldCampaign() && self.classname == "func_explode") self.enemy = attacker;
         self.th_die();
         self = oself;
         return;
