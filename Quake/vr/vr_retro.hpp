@@ -115,6 +115,8 @@ void allCheckCategories(bool on);
 // Quake's particles: VR_RetroSprite, VR_RetroParticles): the set for category c (0: none, off), and the shaders' block
 // and the palette's table bound for a draw (the table on unit lutUnit).
 [[nodiscard]] int categorySet(Category c);
+// Whether the effective GPU set permits the bounded centre/near/full-palette particle variant.
+[[nodiscard]] bool particleCentreNear(int set);
 void bindForDraw(int lutUnit);
 
 [[nodiscard]] cvar_s& cvarOf(Category c, Param p);

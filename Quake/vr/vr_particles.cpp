@@ -468,7 +468,7 @@ za::Vector<Plink> plinks;
 
 void run()
 {
-    if(cl.time == lastRun)
+    if(vr_particle_freeze.value != 0.f || cl.time == lastRun)
     {
         return;
     }
@@ -2471,14 +2471,16 @@ extern "C" void VR_DrawSceneTranslucent()
     const bool drawn = inView || lyingCount > 0;
     const int retroSet = retro::categorySet(retro::Category::Particles);
 
-    // At half size (vr_particle_halfres), when there are enough large ones; not with retro textures (their texels'
-    // blocks kept sharp), nor without a depth texture to hide them behind.
+    // Retro keeps the full-resolution look by default. Its separate opt-in half-resolution
+    // mode retains the world grid/palette but trades some edge detail for lower overdraw.
     int viewport[4];
     R_SceneViewport(viewport);
     // (Quake's projection: its rows swapped about, as R_DrawParticles reads it: 1 / tan(fov y / 2) at [2][1].)
     const gfx::ParticleSplit split{za::abs(r_matproj[2 * 4 + 1]) * 0.5f * static_cast<float>(viewport[3]),
-        za::max(0.f, vr_particle_halfres_pixels.value)};
-    const bool half = inView && vr_particle_halfres.value != 0.f && retroSet == 0 &&
+        retroSet > 0 ? za::max(0.f, vr_particle_retro_halfres_pixels.value) :
+                       za::max(0.f, vr_particle_halfres_pixels.value)};
+    const bool allowHalf = retroSet > 0 ? vr_particle_retro_halfres.value != 0.f : vr_particle_halfres.value != 0.f;
+    const bool half = inView && allowHalf &&
                       (GL_NeedsSceneEffects() || GL_NeedsPostprocess()) && halfResThisFrame(split, viewport);
 
     // The opaque scene's distances, for the soft ones (the liquids' when they made them this view): only when a soft
@@ -2530,7 +2532,7 @@ extern "C" void VR_DrawSceneTranslucent()
             QVR_GPU_PROFILE("half size");
             int width = 0, height = 0;
             water::opaqueSceneDistancesSize(width, height);
-            halfDrawn = gfx::drawParticlesHalf(batch, pull, atlas, split, distances, width, height, viewport, soft, R_SetupGL);
+            halfDrawn = gfx::drawParticlesHalf(batch, pull, atlas, split, distances, width, height, viewport, soft, retroSet, R_SetupGL);
         }
         if(!halfDrawn || split.largePixels > 0.f)
         {

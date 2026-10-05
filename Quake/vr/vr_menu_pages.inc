@@ -1104,6 +1104,9 @@ void retroAllUncheckCategories()
         toggle("Soft Particles", "vr_soft_particles").help("Smoke, fire, blood and explosions fade out where they meet walls and floors instead of cutting hard lines through them."),
         slider("Soft Particle Distance", "vr_soft_particles_scale", 0.25f, 3.f, 0.25f, "%.2fx").extend().help("How far in front of walls and floors they start fading (bigger: softer, but thin puffs against a wall fainter)."),
         toggle("Half-Res Heavy Particles", "vr_particle_halfres").help("When smoke, fire and blood fill much of the view, the particles are drawn at half resolution and blended in: a quarter of their cost on the GPU, a little softer."),
+        toggle("Fast Retro Particles", "vr_particle_retro_fast").help("Optimize full-resolution retro particles while keeping palette, dither and edge filtering. Off compares the original full-resolution shader. Retro half resolution always uses the fast shader."),
+        toggle("Half-Res Retro Particles", "vr_particle_retro_halfres").help("Optional: render large retro particles at half resolution during heavy effects. Keeps their palette and world-space grid, with softer edges. Small particles stay at full resolution."),
+        slider("Retro Half-Res Size", "vr_particle_retro_halfres_pixels", 0.f, 256.f, 8.f, "%.0f px").help("Minimum size from particle centre to edge for half resolution. Zero draws all in their existing order; splitting sizes draws the small particles over the large ones."),
         open("Decals and Gib Blood: Gore", pageIndex(pageGore)).help("Decals and the gibs' blood are on Gore."),
         slider("Ammo Switch Morph", "vr_weapon_morph_time", 0.f, 1.f, 0.05f, "%.2f s").extend().help("Switching a gun's ammo with its button morphs it into its other look (lava, multi-rockets, plasma) over this long, a glowing seam sweeping over it (0: at once)."),
     };

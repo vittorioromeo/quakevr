@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import random
+import re
 import shutil
 import subprocess
 import time
@@ -73,12 +74,15 @@ def scene(name, frames):
     elif name.startswith(("particles", "explosions")) or name == "combined":
         if name == "particles_off":
             setup += ["vr_particles 0", "vr_explosion_debris 0"]
-        if "half" in name or "full_nonretro" in name:
+        if ("half" in name and "retro_half" not in name) or "full_nonretro" in name:
             setup += ["vr_retro_particles 0"]
         if "half" in name:
             setup += ["vr_particle_halfres 1"]
         if "full_nonretro" in name:
             setup += ["vr_particle_halfres 0"]
+        if "retro_half" in name:
+            setup += ["vr_retro 1", "vr_retro_particles 1", "vr_particle_retro_fast 1", "vr_particle_retro_halfres 1",
+                      "vr_particle_retro_halfres_pixels 0" if "all" in name else "vr_particle_retro_halfres_pixels 64"]
         if "palette_off" in name:
             setup += ["vr_retro_particles_palette 0"]
         if "hard" in name:
@@ -127,6 +131,10 @@ def scene(name, frames):
         setup += [f"vr_light_test 400 120 {48 + i * 12}" for i in range(32)]
         if "no_shadows" in name:
             setup += ["vr_shadow_dlights 0", "vr_shadow_maplights 0"]
+    if name.endswith('retro_reference'):
+        setup += ['vr_retro 1', 'vr_retro_particles 1', 'vr_particle_retro_fast 0', 'vr_particle_retro_halfres 0']
+    elif name.endswith('retro_fast'):
+        setup += ['vr_retro 1', 'vr_retro_particles 1', 'vr_particle_retro_fast 1', 'vr_particle_retro_halfres 0']
     if name == "combined":
         setup += ["vr_physics_bigpile mixed 300"]
         setup += [f"vr_physics_spawn monster_army {160 + (i // 6) * 48} {(i % 6 - 2.5) * 40}" for i in range(24)]
@@ -150,7 +158,7 @@ def script(name, frames, eye, gpu, screenshot):
     commands += ["echo BENCH_MEASURE_BEGIN"] + body
     commands += ["echo BENCH_MEASURE_END", "vr_profile_report", "vr_profile_dump",
                  "vr_physics_frametime measured", "vr_decal_count", "vr_explosion_debris_stats", "vr_fire_particles_stats", "vr_ragdoll_list",
-                 "vr_profile_csv 0", "vr_profile 0"]
+                 "vr_profile_csv 0", "vr_profile 0", "vr_limits"]
     if screenshot:
         commands += ["vr_mirror 1", "wait", "wait", "screenshot"]
     commands += ["echo BENCH_DONE", "disconnect"] + waits(5) + ["quit"]
@@ -173,6 +181,8 @@ def run(args):
         'ragdolls_active_audit', 'ragdolls_settled',
     )
     allowed += (
+        'fire_retro_reference', 'explosions_count4_retro_reference',
+        'particles_retro_reference', 'particles_retro_fast', 'particles_retro_half', 'particles_retro_half_all',
         'particles_palette_off', 'particles_hard', 'particles_hard_palette_off',
         'particles_snap_off', 'decals_4096', 'decals_4096_stream',
         'decals_4096_stream_nonretro', 'decals_4096_stream_mesh',
@@ -225,7 +235,7 @@ def run(args):
                     if p.is_file() and before.get(p) != (p.stat().st_mtime_ns, p.stat().st_size):
                         shutil.copy2(p, destination / p.name)
             log = (destination / "qconsole.log").read_text(errors="replace")
-            if code or "BENCH_DONE" not in log or "Host_Error" in log or "Sys_Error" in log:
+            if code or "BENCH_DONE" not in log or re.search(r"(?m)^(?:Host_Error|Sys_Error):", log):
                 raise RuntimeError(f"Benchmark failed: {tag}, exit {code}")
             metadata = {"scene": name, "eye": args.eye, "gpu_every": args.gpu, "rep": rep + 1,
                         "frames_requested": args.frames, "wall_seconds": time.monotonic() - start,

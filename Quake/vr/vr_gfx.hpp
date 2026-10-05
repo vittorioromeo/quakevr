@@ -157,10 +157,10 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
     ParticlePass pass = ParticlePass::All, const ParticleSplit& split = {});
 // The large ones (split) drawn at half the scene's size into a target of their own, hidden behind the scene's
 // `distances` (width x height, water::opaqueSceneDistances; `soft`: fading against them too), then blended into the
-// scene (as they would have been drawn) in one pass. A quarter of their fragments, a little softer. `viewport`: the
+// scene in one pass. A quarter of their fragments, a little softer. `retro`: their effective retro set (0 off). `viewport`: the
 // scene's (R_SceneViewport); `restore` binds the scene's framebuffer again. False if it could not (drawn nothing).
 [[nodiscard]] bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, const ParticleSplit& split,
-    Texture distances, int width, int height, const int viewport[4], bool soft, void (*restore)());
+    Texture distances, int width, int height, const int viewport[4], bool soft, int retro, void (*restore)());
 
 // A lit tube made on the GPU from one record a ring (the flashlight's coiled cord, vr_coil.cpp): `sides` vertices round
 // each ring, consecutive rings joined; opaque, depth-tested and written, in the scene view. Each vertex is lit as the

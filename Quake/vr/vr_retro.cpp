@@ -1498,6 +1498,18 @@ int categorySet(Category c)
     return setFor(c, nullptr, nullptr);
 }
 
+bool particleCentreNear(int set)
+{
+    if(set <= 0 || set >= QVR_RETRO_MAX_SETS)
+    {
+        return false;
+    }
+    const float* p0 = block.sets[set * 3];
+    const float* p1 = block.sets[set * 3 + 1];
+    const float* p2 = block.sets[set * 3 + 2];
+    return p0[3] > 0.f && p0[2] <= 0.f && p1[0] == 1.f && p2[0] <= 0.f;
+}
+
 void bindForDraw(int lutUnit)
 {
     if(uploadedBuffer != 0)
