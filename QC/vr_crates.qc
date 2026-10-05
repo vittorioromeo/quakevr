@@ -170,6 +170,7 @@ void(vector xAt) VR_GrenShot_Sparks;
 
 void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
 {
+    if(VR_WallTorch_IsTorch(targ)) { return; }
     if(targ.vr_shootnade)
     {
         VR_GrenShot_Sparks(org);
@@ -192,6 +193,7 @@ void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
 // The same, sprayed every way (SpawnBloodSplash).
 void(entity targ, vector org, float damage) VR_HitBloodSplash =
 {
+    if(VR_WallTorch_IsTorch(targ)) { return; }
     if(targ.vr_shootnade)
     {
         VR_GrenShot_Sparks(org);
@@ -262,7 +264,7 @@ void(float xSpeed) VR_SolidProp_Impact =
     // Not thrown, but flung into a monster or player as fast as a throw: it hurts as a thrown one. Its own share of that
     // speed: not what it hit's (a player running into it; after the step its own velocity is the bounce's).
     float approach = xSpeed * VRMetersToUnits();
-    VR_Prop_Flung(approach, approach - vlen(other.velocity));
+    VR_Prop_Flung(approach, approach - vlen(other.velocity), FALSE);
     entity thrower = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace the player who threw it)
     if(self.throwhit == QVR_THROWHIT_NEVER_HIT && thrower.classname == "player")
     {

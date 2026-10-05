@@ -1,5 +1,6 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_hitmodel.hpp"
@@ -33,6 +34,7 @@
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
+#include "vr_physics.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
 #include "vr_checklist.hpp"
@@ -71,6 +73,7 @@
 #include "vr_painknock.hpp"
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
+#include "vr_explosiondebris.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_water.hpp"
@@ -575,18 +578,18 @@ EdictCounts countEdicts()
         e.inUse++;
         const char* classname = PR_GetString(ent->v.classname);
         const int modelindex = static_cast<int>(ent->v.modelindex);
-        const char* model = modelindex > 0 && modelindex < MAX_MODELS && sv.model_precache[modelindex]
-                                ? sv.model_precache[modelindex]
-                                : "";
+        const qmodel_t* model = modelindex > 0 && modelindex < MAX_MODELS ? sv.models[modelindex] : nullptr;
+        const char* modelPath = modelindex > 0 && modelindex < MAX_MODELS ? sv.model_precache[modelindex] : "";
+        const auto info = model ? modelmeta::get(model) : modelmeta::describePath(modelPath);
         if(!ZA_STRNCMP(classname, "monster_", 8))
         {
             (ent->v.deadflag != 0.f || ent->v.health <= 0.f ? e.corpses : e.monsters)++;
         }
-        else if(!ZA_STRNCMP(model, "progs/h_", 8))
+        else if(info.has(modelmeta::Trait::Head))
         {
             e.heads++;
         }
-        else if(!ZA_STRNCMP(model, "progs/gib", 9))
+        else if(info.has(modelmeta::Trait::Gib))
         {
             e.gibs++;
         }
@@ -688,6 +691,7 @@ void timingColumns(Columns& c, const Readers& r)
     column(c, "cl_entities", "%d", cl.num_entities);
     column(c, "decals", "%d", decals::liveCount());
     column(c, "shells", "%d", shells::liveCount());
+    column(c, "explosion debris", "%d", explosiondebris::liveCount());
     column(c, "world_texts", "%d", static_cast<int>(worldtext::clientTexts().size()));
     column(c, "float_texts", "%d", static_cast<int>(worldtext::clientFloatTexts(cl.time).size()));
     int texts = 0, boards = 0;
@@ -1122,6 +1126,7 @@ extern "C" void VR_NewMap()
     step("view models", view::prepareModels);
     step("torch", flashlight::prepare);
     step("casings", shells::prepare);
+    step("explosion debris", explosiondebris::prepare);
     step("muzzle flash", weaponfx::prepare);
     step("wall torches", walltorch::prepare);
     Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.cStr());
@@ -1192,11 +1197,15 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_hand_reload", handrig::reload_f);
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
     Cmd_AddCommand("vr_model_reload", view::modelReload_f);
+    Cmd_AddCommand("vr_prop_query_test", progs::propQueriesTest_f);
+    Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
+    Cmd_AddCommand("vr_prop_touch_stats", physics::propTouchStats_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_hitmodel_bench", hitmodel::bench_f);
     Cmd_AddCommand("vr_zancle_math_test", qza::mathTest_f);
     Cmd_AddCommand("vr_hitmodel_stats", hitmodel::stats_f);
     Cmd_AddCommand("vr_hitmodel_check", hitmodel::check_f);
+    Cmd_AddCommand("vr_hitzones_check", hitmodel::zonesCheck_f);
     Cmd_AddCommand("vr_body_collide_bench", selfcollide::bench_f);
     Cmd_AddCommand("vr_wounds_test", wounds::test_f);
     Cmd_AddCommand("vr_wounds_info", wounds::info_f);
@@ -1216,6 +1225,7 @@ extern "C" void VR_Init()
     portals::registerCommands(); // vr_portals_info
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
+    Cmd_AddCommand("vr_decal_stress", decals::stress_f);
     Cmd_AddCommand("vr_limits", limits::command_f);
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);

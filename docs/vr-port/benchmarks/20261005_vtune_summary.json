@@ -1,0 +1,494 @@
+[
+  {
+    "capture": "vtune-blood-stream",
+    "window": "44.963:55.963",
+    "main_effective_seconds": 10.270774,
+    "main_spin_seconds": 0.256085,
+    "inclusive_main_percent": {
+      "buildWorld": 87.022,
+      "worldBuckets": 80.815,
+      "R_DrawAliasModels": 1.479,
+      "VR_AliasInstance": 0.591,
+      "VR_RetroAlias": 0.449,
+      "SV_Physics_Client": 0.858,
+      "PF_findportalcone": 0.302,
+      "SV_Physics_Toss": 0.733,
+      "keepInWorld": 0.141
+    },
+    "self_main_percent": [
+      {
+        "function": "qvr::decals::worldBuckets",
+        "module": "ironwail.exe",
+        "percent": 72.869
+      },
+      {
+        "function": "za::Vector<unsigned int>::pushBack",
+        "module": "ironwail.exe",
+        "percent": 5.453
+      },
+      {
+        "function": "qvr::decals::buildWorld",
+        "module": "ironwail.exe",
+        "percent": 2.664
+      },
+      {
+        "function": "func@0x1805a95d0",
+        "module": "nvoglv64.dll",
+        "percent": 2.382
+      },
+      {
+        "function": "qvr::decals::worldCellHash",
+        "module": "ironwail.exe",
+        "percent": 1.49
+      },
+      {
+        "function": "func@0x18059d760",
+        "module": "nvoglv64.dll",
+        "percent": 1.177
+      },
+      {
+        "function": "PR_ExecuteProgramRun",
+        "module": "ironwail.exe",
+        "percent": 1.017
+      },
+      {
+        "function": "za::Vector<unsigned int>::resize",
+        "module": "ironwail.exe",
+        "percent": 0.86
+      },
+      {
+        "function": "func@0x18059b980",
+        "module": "nvoglv64.dll",
+        "percent": 0.754
+      },
+      {
+        "function": "za::Vector<unsigned int>::resize",
+        "module": "ironwail.exe",
+        "percent": 0.742
+      },
+      {
+        "function": "strcmp",
+        "module": "ucrtbase.dll",
+        "percent": 0.58
+      },
+      {
+        "function": "za::min",
+        "module": "ironwail.exe",
+        "percent": 0.45
+      },
+      {
+        "function": "atan2f",
+        "module": "ucrtbase.dll",
+        "percent": 0.436
+      },
+      {
+        "function": "func@0x1800a88c0",
+        "module": "ucrtbase.dll",
+        "percent": 0.418
+      },
+      {
+        "function": "za::Vector<qvr::gfx::Vertex>::unsafeEmplaceBack",
+        "module": "ironwail.exe",
+        "percent": 0.309
+      },
+      {
+        "function": "za::Vector<unsigned int>::resize",
+        "module": "ironwail.exe",
+        "percent": 0.309
+      },
+      {
+        "function": "func@0x1805a45d0",
+        "module": "nvoglv64.dll",
+        "percent": 0.301
+      },
+      {
+        "function": "R_EntityMatrix",
+        "module": "ironwail.exe",
+        "percent": 0.299
+      },
+      {
+        "function": "sin",
+        "module": "ucrtbase.dll",
+        "percent": 0.298
+      },
+      {
+        "function": "za::Vector<qvr::gfx::Vertex>::unsafeEmplaceBack",
+        "module": "ironwail.exe",
+        "percent": 0.295
+      }
+    ]
+  },
+  {
+    "capture": "vtune-decals-stream",
+    "window": "12.832:23.832",
+    "main_effective_seconds": 9.012579,
+    "main_spin_seconds": 1.319605,
+    "inclusive_main_percent": {
+      "R_DrawAliasModels": 10.46,
+      "VR_AliasInstance": 6.175,
+      "VR_RetroAlias": 3.473,
+      "buildWorld": 2.123,
+      "worldBuckets": 1.298,
+      "SV_Physics_Client": 7.284,
+      "PF_findportalcone": 2.082,
+      "VR_TouchLinks": 0.322,
+      "VR_PhysicsFrameEnd": 3.113,
+      "b3World_Step": 1.042,
+      "syncEntities": 0.792,
+      "beforeStep": 0.171,
+      "writeProp": 0.166,
+      "SV_Physics_Toss": 2.674,
+      "keepInWorld": 0.503
+    },
+    "self_main_percent": [
+      {
+        "function": "func@0x18059d760",
+        "module": "nvoglv64.dll",
+        "percent": 24.872
+      },
+      {
+        "function": "func@0x1805e1fd0",
+        "module": "nvoglv64.dll",
+        "percent": 4.69
+      },
+      {
+        "function": "PR_ExecuteProgramRun",
+        "module": "ironwail.exe",
+        "percent": 3.636
+      },
+      {
+        "function": "func@0x1805a45d0",
+        "module": "nvoglv64.dll",
+        "percent": 2.822
+      },
+      {
+        "function": "strncmp",
+        "module": "ucrtbase.dll",
+        "percent": 2.181
+      },
+      {
+        "function": "func@0x1805a95d0",
+        "module": "nvoglv64.dll",
+        "percent": 2.03
+      },
+      {
+        "function": "sin",
+        "module": "ucrtbase.dll",
+        "percent": 1.769
+      },
+      {
+        "function": "func@0x18001c780",
+        "module": "VCRUNTIME140.dll",
+        "percent": 1.487
+      },
+      {
+        "function": "strcmp",
+        "module": "ucrtbase.dll",
+        "percent": 1.423
+      },
+      {
+        "function": "func@0x18006ed01",
+        "module": "ntdll.dll",
+        "percent": 1.358
+      },
+      {
+        "function": "SV_RecursiveHullCheck",
+        "module": "ironwail.exe",
+        "percent": 1.147
+      },
+      {
+        "function": "za::Vector<qvr::gfx::Vertex>::unsafeEmplaceBack",
+        "module": "ironwail.exe",
+        "percent": 0.994
+      },
+      {
+        "function": "atan2f",
+        "module": "ucrtbase.dll",
+        "percent": 0.985
+      },
+      {
+        "function": "qvr::decals::worldBuckets",
+        "module": "ironwail.exe",
+        "percent": 0.968
+      },
+      {
+        "function": "za::Vector<qvr::gfx::Vertex>::unsafeEmplaceBack",
+        "module": "ironwail.exe",
+        "percent": 0.84
+      },
+      {
+        "function": "cos",
+        "module": "ucrtbase.dll",
+        "percent": 0.683
+      },
+      {
+        "function": "qvr::weapons::modelTransform",
+        "module": "ironwail.exe",
+        "percent": 0.641
+      },
+      {
+        "function": "PR_EnterFunction",
+        "module": "ironwail.exe",
+        "percent": 0.527
+      },
+      {
+        "function": "`anonymous namespace'::collectWorld",
+        "module": "ironwail.exe",
+        "percent": 0.513
+      },
+      {
+        "function": "`anonymous namespace'::binTiles",
+        "module": "ironwail.exe",
+        "percent": 0.511
+      }
+    ]
+  },
+  {
+    "capture": "vtune-props-active",
+    "window": "29.901:40.901",
+    "main_effective_seconds": 10.694868,
+    "main_spin_seconds": 0.0,
+    "inclusive_main_percent": {
+      "R_DrawAliasModels": 29.647,
+      "VR_AliasInstance": 15.399,
+      "VR_RetroAlias": 8.506,
+      "VR_PhysicsFrameEnd": 16.844,
+      "writeProp": 6.705,
+      "VR_TouchLinks": 6.144,
+      "b3World_Step": 6.022,
+      "syncEntities": 1.099,
+      "beforeStep": 1.087,
+      "SV_Physics_Client": 11.093,
+      "PF_findportalcone": 5.581,
+      "PF_findradius": 0.815,
+      "SV_Physics_Toss": 7.428,
+      "keepInWorld": 2.05
+    },
+    "self_main_percent": [
+      {
+        "function": "PR_ExecuteProgramRun",
+        "module": "ironwail.exe",
+        "percent": 4.78
+      },
+      {
+        "function": "strncmp",
+        "module": "ucrtbase.dll",
+        "percent": 4.335
+      },
+      {
+        "function": "sin",
+        "module": "ucrtbase.dll",
+        "percent": 3.568
+      },
+      {
+        "function": "SV_AreaEdictsR",
+        "module": "ironwail.exe",
+        "percent": 2.63
+      },
+      {
+        "function": "strcmp",
+        "module": "ucrtbase.dll",
+        "percent": 2.265
+      },
+      {
+        "function": "cos",
+        "module": "ucrtbase.dll",
+        "percent": 1.839
+      },
+      {
+        "function": "powf",
+        "module": "ucrtbase.dll",
+        "percent": 1.732
+      },
+      {
+        "function": "qvr::weapons::modelTransform",
+        "module": "ironwail.exe",
+        "percent": 1.663
+      },
+      {
+        "function": "func@0x18006ed01",
+        "module": "ntdll.dll",
+        "percent": 1.418
+      },
+      {
+        "function": "R_EntityMatrix",
+        "module": "ironwail.exe",
+        "percent": 1.404
+      },
+      {
+        "function": "SV_HullPointContents",
+        "module": "ironwail.exe",
+        "percent": 1.325
+      },
+      {
+        "function": "func@0x18001c780",
+        "module": "VCRUNTIME140.dll",
+        "percent": 1.191
+      },
+      {
+        "function": "SV_WriteEntitiesToClient",
+        "module": "ironwail.exe",
+        "percent": 1.092
+      },
+      {
+        "function": "qvr::retro::`anonymous namespace'::fileOf",
+        "module": "ironwail.exe",
+        "percent": 1.053
+      },
+      {
+        "function": "[Import thunk strncmp]",
+        "module": "ironwail.exe",
+        "percent": 0.816
+      },
+      {
+        "function": "PF_findradius",
+        "module": "ironwail.exe",
+        "percent": 0.815
+      },
+      {
+        "function": "PR_LeaveFunction",
+        "module": "ironwail.exe",
+        "percent": 0.742
+      },
+      {
+        "function": "cbrtf",
+        "module": "ucrtbase.dll",
+        "percent": 0.74
+      },
+      {
+        "function": "PR_EnterFunction",
+        "module": "ironwail.exe",
+        "percent": 0.724
+      },
+      {
+        "function": "SV_ClipToLinks",
+        "module": "ironwail.exe",
+        "percent": 0.651
+      }
+    ]
+  },
+  {
+    "capture": "vtune-props-settled",
+    "window": "22.719:33.719",
+    "main_effective_seconds": 10.700774,
+    "main_spin_seconds": 0.0,
+    "inclusive_main_percent": {
+      "R_DrawAliasModels": 39.386,
+      "VR_AliasInstance": 21.189,
+      "VR_RetroAlias": 12.087,
+      "SV_Physics_Client": 12.023,
+      "PF_findportalcone": 6.559,
+      "PF_findradius": 0.268,
+      "VR_TouchLinks": 0.452,
+      "SV_Physics_Toss": 6.876,
+      "keepInWorld": 0.542,
+      "VR_PhysicsFrameEnd": 2.832,
+      "syncEntities": 1.011,
+      "b3World_Step": 0.361,
+      "beforeStep": 0.188,
+      "writeProp": 0.181
+    },
+    "self_main_percent": [
+      {
+        "function": "strncmp",
+        "module": "ucrtbase.dll",
+        "percent": 7.078
+      },
+      {
+        "function": "PR_ExecuteProgramRun",
+        "module": "ironwail.exe",
+        "percent": 4.116
+      },
+      {
+        "function": "sin",
+        "module": "ucrtbase.dll",
+        "percent": 3.727
+      },
+      {
+        "function": "qvr::weapons::modelTransform",
+        "module": "ironwail.exe",
+        "percent": 3.173
+      },
+      {
+        "function": "func@0x18006ed01",
+        "module": "ntdll.dll",
+        "percent": 3.045
+      },
+      {
+        "function": "cos",
+        "module": "ucrtbase.dll",
+        "percent": 2.55
+      },
+      {
+        "function": "strcmp",
+        "module": "ucrtbase.dll",
+        "percent": 2.48
+      },
+      {
+        "function": "powf",
+        "module": "ucrtbase.dll",
+        "percent": 2.263
+      },
+      {
+        "function": "SV_WriteEntitiesToClient",
+        "module": "ironwail.exe",
+        "percent": 1.558
+      },
+      {
+        "function": "InterpolateLightmap",
+        "module": "ironwail.exe",
+        "percent": 1.181
+      },
+      {
+        "function": "func@0x1805e1fd0",
+        "module": "nvoglv64.dll",
+        "percent": 1.104
+      },
+      {
+        "function": "[Import thunk strncmp]",
+        "module": "ironwail.exe",
+        "percent": 1.086
+      },
+      {
+        "function": "func@0x18001c780",
+        "module": "VCRUNTIME140.dll",
+        "percent": 1.006
+      },
+      {
+        "function": "R_DrawAliasModel_Real",
+        "module": "ironwail.exe",
+        "percent": 0.898
+      },
+      {
+        "function": "VR_RetroLightSkinScale",
+        "module": "ironwail.exe",
+        "percent": 0.821
+      },
+      {
+        "function": "qvr::retro::`anonymous namespace'::fileOf",
+        "module": "ironwail.exe",
+        "percent": 0.819
+      },
+      {
+        "function": "R_EntityMatrix",
+        "module": "ironwail.exe",
+        "percent": 0.812
+      },
+      {
+        "function": "`anonymous namespace'::collectWorld",
+        "module": "ironwail.exe",
+        "percent": 0.74
+      },
+      {
+        "function": "strlen",
+        "module": "ucrtbase.dll",
+        "percent": 0.74
+      },
+      {
+        "function": "`anonymous namespace'::binTiles",
+        "module": "ironwail.exe",
+        "percent": 0.736
+      }
+    ]
+  }
+]

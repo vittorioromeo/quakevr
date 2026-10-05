@@ -40,10 +40,54 @@
     };
 }
 
+[[nodiscard]] za::Vector<Item> pageFireParticles()
+{
+    return {
+        toggle("Fire Model Particles", "vr_fire_particles").help("Rising flame tongues from wall torches, map fires, candles, lanterns, burning bodies and taken torches. Keeps the low-poly flame models. Needs Quake VR Particles."),
+        slider("Particles per Emission", "vr_fire_particles_count", 0.f, 16.f, 1.f, "%.0f").help("Exact count per source per emission, independent of Particle Multiplier."),
+        slider("Emission Frequency", "vr_fire_particles_frequency", 0.f, 30.f, 1.f, "%.0f /s").extend(0.f, 60.f),
+        slider("Emission Height", "vr_fire_particles_origin", 0.f, 1.f, 0.05f, "%.2f").help("0: base of the flame; 0.5: centre; 1: tip. Also applies to held torches."),
+        slider("Minimum Outward Speed", "vr_fire_particles_speed_min", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f),
+        slider("Maximum Outward Speed", "vr_fire_particles_speed_max", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f).help("Horizontal speed, away from the flame. Endpoints may be swapped."),
+        slider("Minimum Upward Speed", "vr_fire_particles_up_min", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f),
+        slider("Maximum Upward Speed", "vr_fire_particles_up_max", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f).help("Up in the world, even when a torch is inverted."),
+        slider("Minimum Particle Life", "vr_fire_particles_life_min", 0.05f, 2.f, 0.05f, "%.2f s").extend(0.05f, 5.f),
+        slider("Maximum Particle Life", "vr_fire_particles_life_max", 0.05f, 2.f, 0.05f, "%.2f s").extend(0.05f, 5.f),
+        slider("Fire Particle Size", "vr_fire_particles_size", 0.1f, 4.f, 0.1f, "%.1fx"),
+        slider("Fire Particle Opacity", "vr_fire_particles_alpha", 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Emission Distance", "vr_fire_particles_range", 0.f, 2048.f, 64.f, "%.0f units").extend(0.f, 4096.f).help("Sources beyond this distance stop emitting; limits the cost on maps with many fires."),
+    };
+}
+
+// A separate tuning page for the physical blast fragments and their trails/glows.
+[[nodiscard]] za::Vector<Item> pageExplosionDebris()
+{
+    return {
+        toggle("Physical Explosion Debris", "vr_explosion_debris").help("Small incandescent model objects from every ordinary, coloured or tarbaby explosion. They collide with the level and moving doors/platforms, pass through characters, and never cause damage."),
+        slider("Chunks per Explosion", "vr_explosion_debris_count", 0.f, 32.f, 1.f, "%.0f").extend(0.f, 64.f),
+        slider("Minimum Speed", "vr_explosion_debris_speed_min", 0.f, 20.f, 0.25f, "%.2f m/s").extend(0.f, 40.f),
+        slider("Maximum Speed", "vr_explosion_debris_speed_max", 0.f, 20.f, 0.25f, "%.2f m/s").extend(0.f, 40.f).help("Speed chosen between Minimum and Maximum; swapped endpoints are accepted."),
+        slider("Upward Direction Bias", "vr_explosion_debris_up", 0.f, 2.f, 0.05f, "%.2f").help("0: burst equally in every direction. 1: launches into the upper hemisphere. 2: a narrower upward burst. Speed stays between your chosen limits."),
+        slider("Smallest Chunk", "vr_explosion_debris_size_min", 0.8f, 8.f, 0.2f, "%.1f units"),
+        slider("Largest Chunk", "vr_explosion_debris_size_max", 0.8f, 8.f, 0.2f, "%.1f units"),
+        slider("Minimum Lifetime", "vr_explosion_debris_life_min", 0.1f, 10.f, 0.1f, "%.1f s").extend(0.1f, 30.f),
+        slider("Maximum Lifetime", "vr_explosion_debris_life_max", 0.1f, 10.f, 0.1f, "%.1f s").extend(0.1f, 30.f).help("Lifetime chosen independently for each chunk; fades out at the end, even when resting."),
+        slider("Bounciness", "vr_explosion_debris_bounce", 0.f, 1.f, 0.05f, "%.2f").help("Share of speed retained away from the surface. 0: no rebound, 1: full rebound. Surface friction also slows sliding."),
+        slider("Maximum Active Chunks", "vr_explosion_debris_max", 0.f, 128.f, 1.f, "%.0f").extend(0.f, 256.f).help("Oldest chunks go first when a blast needs room. Reducing this or disabling the effect removes the excess immediately."),
+        slider("Fire and Smoke Trail", "vr_explosion_debris_trail", 0.f, 3.f, 0.1f, "%.1fx").help("Trail density (0: off). Needs Quake VR Particles. Physical chunks and their lights work with particles off."),
+        slider("Maximum Glowing Lights", "vr_explosion_debris_lights", 0.f, 16.f, 1.f, "%.0f").help("Only the nearest chunks emit dynamic light, to keep many blasts inexpensive. Their model skins remain incandescent. These lights do not cast shadows."),
+        slider("Glow Light Radius", "vr_explosion_debris_light_radius", 0.f, 120.f, 4.f, "%.0f units").extend(0.f, 200.f),
+        command("Preview an Explosion", "vr_explosion_debris_test").help("Spawns an explosion effect ahead without blast damage. Requires a loaded map."),
+    };
+}
+
 // Old Quake VR settings: "Particle Settings".
 [[nodiscard]] za::Vector<Item> pageParticleSettings()
 {
     return {
+        open("Explosion Debris", pageIndex(pageExplosionDebris)),
+        open("Fire Particles", pageIndex(pageFireParticles)),
+        slider("Large Fireballs per Explosion", "vr_explosion_particles", 0.f, 16.f, 1.f, "%.0f").help("Exact number of large textured fireballs per explosion, independent of Particle Multiplier. Each gets its own size, rotation, position and velocity; 0 keeps the sparks and smoke."),
         toggle("Particle Effects", "r_particles").help("Enable or disable all particle effects."),
         toggle("Quake VR Particles", "vr_particles")
             .help("Textured smoke, sparks, blood and explosions for Quake VR's effects. Off: Quake's own dots."),
@@ -977,6 +1021,7 @@ void retroAllUncheckCategories()
         toggle("Slipgates", "vr_slipgates").help("Gates show where they lead in VR, flat screen and the spectator camera. Movement, shots and dynamic light go through them. Off: Quake's teleporters and starry surfaces. Takes effect at once, no map reload."),
         slider("Slipgate Views", "vr_portals", 0.f, 1.f, 0.1f, "%.1f").extend().help("Slipgates show where they lead, like Portal's portals: the place they take you to, live, through their shimmer (the scene is drawn again for the visible gates). 0: Quake's plain shimmer."),
         toggle("Seamless Slipgates", "vr_portals_walk").help("With Slipgate Views on, you walk through slipgates into the place you saw, keeping your speed and the way you face (no flash, no pause), and rockets, grenades, nails, thrown props and gunfire go through them. Off: Quake's teleport."),
+        toggle("Enemies See and Shoot Through", "vr_portals_ai").help("Ranged enemies spot players through an active aperture and aim through it. The gate and both rooms must be clear; closing it cancels delayed shots. One gate per sight line. Melee and navigation stay local."),
         slider("Visible Gates", "vr_portals_maxviews", 1.f, 8.f, 1.f, "%.0f").help("Maximum destination views drawn per camera (default 4). Each visible gate renders another scene; lower this for VR performance. Gates inside a destination view do not recurse."),
         header("Portal Stars"),
         slider("Size", "vr_slipgate_surface_size", 1.f, 2.f, 0.02f, "%.2fx").help("Enlarges the single star layer on the entrance plane. No extra star quads are drawn inside the destination view. The collision opening keeps its size."),
@@ -1059,6 +1104,10 @@ void retroAllUncheckCategories()
         toggle("Soft Particles", "vr_soft_particles").help("Smoke, fire, blood and explosions fade out where they meet walls and floors instead of cutting hard lines through them."),
         slider("Soft Particle Distance", "vr_soft_particles_scale", 0.25f, 3.f, 0.25f, "%.2fx").extend().help("How far in front of walls and floors they start fading (bigger: softer, but thin puffs against a wall fainter)."),
         toggle("Half-Res Heavy Particles", "vr_particle_halfres").help("When smoke, fire and blood fill much of the view, the particles are drawn at half resolution and blended in: a quarter of their cost on the GPU, a little softer."),
+        toggle("Trim Particle Margins", "vr_particle_trim").help("Trim empty margins of larger fire and smoke sprites. Off by default: the extra work can cost more than it saves for small particles. Keeps filtering and retro blocks; uncertain cases keep their full shape."),
+        toggle("Fast Retro Particles", "vr_particle_retro_fast").help("Optimize full-resolution retro particles while keeping palette, dither and edge filtering. Off compares the original full-resolution shader. Retro half resolution always uses the fast shader."),
+        toggle("Half-Res Retro Particles", "vr_particle_retro_halfres").help("Optional: render large retro particles at half resolution during heavy effects. Keeps their palette and world-space grid, with softer edges. Small particles stay at full resolution."),
+        slider("Retro Half-Res Size", "vr_particle_retro_halfres_pixels", 0.f, 256.f, 8.f, "%.0f px").help("Minimum size from particle centre to edge for half resolution. Zero draws all in their existing order; splitting sizes draws the small particles over the large ones."),
         open("Decals and Gib Blood: Gore", pageIndex(pageGore)).help("Decals and the gibs' blood are on Gore."),
         slider("Ammo Switch Morph", "vr_weapon_morph_time", 0.f, 1.f, 0.05f, "%.2f s").extend().help("Switching a gun's ammo with its button morphs it into its other look (lava, multi-rockets, plasma) over this long, a glowing seam sweeping over it (0: at once)."),
     };

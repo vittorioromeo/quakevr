@@ -74,7 +74,7 @@ static filelist_item_t *FileList_AddWithData (const char *name, const void *data
 		if (!q_strcasecmp (name, item->name))
 			return item;
 
-	item = (filelist_item_t *) malloc (sizeof(filelist_item_t) + datasize);
+	item = (filelist_item_t *) VR_HeapMalloc (sizeof(filelist_item_t) + datasize);
 	if (!item)
 		Sys_Error ("FileList_AddWithData: out of memory on %" SDL_PRIu64 " bytes (%s)", (uint64_t)(sizeof(filelist_item_t) + datasize), name);
 	q_strlcpy (item->name, name, sizeof(item->name));
@@ -131,7 +131,7 @@ static void FileList_Clear (filelist_item_t **list)
 	while (*list)
 	{
 		blah = (*list)->next;
-		free (*list);
+		VR_HeapFree (*list);
 		*list = blah;
 	}
 }
@@ -368,7 +368,7 @@ static void ExtraMaps_Sort (void)
 	}
 	sum++; // NULL terminator
 
-	extralevels_sorted = (filelist_item_t **) realloc (extralevels_sorted, sizeof (*extralevels_sorted) * sum);
+	extralevels_sorted = (filelist_item_t **) VR_HeapRealloc (extralevels_sorted, sizeof (*extralevels_sorted) * sum);
 	if (!extralevels_sorted)
 		Sys_Error ("ExtraMaps_Sort: out of memory on %d items", sum);
 
@@ -506,7 +506,7 @@ void ExtraMaps_Clear (void)
 		levelinfo_t *extra = (levelinfo_t *) (item + 1);
 		if (extra->message && *extra->message)
 		{
-			free ((void *)extra->message);
+			VR_HeapFree ((void *)extra->message);
 			extra->message = NULL;
 		}
 	}
@@ -853,7 +853,7 @@ static int Modlist_DownloadJSON (void *unused)
 		char *cachedurl = (char *) COM_LoadMallocFile_TextMode_OSPath (cacheurlpath, NULL);
 		if (cachedurl && !strcmp (cachedurl, extramods_addons_url))
 			urlchanged = false;
-		free (cachedurl);
+		VR_HeapFree (cachedurl);
 	}
 
 	// check cached manifest
@@ -865,7 +865,7 @@ static int Modlist_DownloadJSON (void *unused)
 		if (manifest)
 		{
 			json = JSON_Parse (manifest);
-			free (manifest);
+			VR_HeapFree (manifest);
 			manifest = NULL;
 			if (json)
 				goto done;
@@ -1116,10 +1116,10 @@ static void Modlist_Add (const char *name)
 		if (*description)
 		{
 			if (info->full_name)
-				free ((void *) info->full_name);
+				VR_HeapFree ((void *) info->full_name);
 			info->full_name = strdup (description);
 		}
-		free (buf);
+		VR_HeapFree (buf);
 
 		if (info->full_name)
 			break;
@@ -1133,7 +1133,7 @@ static void Modlist_Add (const char *name)
 		{
 			qboolean is_base_mapdb = !com_searchpaths || path_id < com_searchpaths->path_id;
 			json_t *json = JSON_Parse (mapdb);
-			free (mapdb);
+			VR_HeapFree (mapdb);
 			if (json)
 			{
 				const jsonentry_t *episodes = JSON_Find (json->root, "episodes", JSON_ARRAY);
@@ -2109,6 +2109,7 @@ static void Host_Changelevel_f (void)
 		IN_Activate();	// -- S.A.
 	key_dest = key_game;	// remove console or menu
 	PR_SwitchQCVM(&sv.qcvm);
+	VR_SaveFlashlightState ();
 	SV_SaveSpawnparms ();
 	SV_SpawnServer (level);
 	PR_SwitchQCVM(NULL);
@@ -2454,6 +2455,7 @@ static void Host_Savegame_f (void)
 	save_data.abort.value = 0;
 
 	PR_SwitchQCVM (&sv.qcvm);
+	VR_SaveFlashlightState ();
 	SaveData_Fill (&save_data);
 	PR_SwitchQCVM (NULL);
 
@@ -2548,7 +2550,7 @@ static void Host_Loadgame_f (void)
 
 // avoid leaking if the previous Host_Loadgame_f failed with a Host_Error
 	if (start != NULL)
-		free (start);
+		VR_HeapFree (start);
 	
 	start = (char *) COM_LoadMallocFile_TextMode_OSPath(name, NULL);
 	if (start == NULL)
@@ -2582,7 +2584,7 @@ static void Host_Loadgame_f (void)
 	else if (version != SAVEGAME_VERSION || kexonly)
 	{
 		int expected = kexonly ? SAVEGAME_VERSION_KEX : SAVEGAME_VERSION;
-		free (start);
+		VR_HeapFree (start);
 		start = NULL;
 		if (sv.autoloading)
 			Con_Printf ("ERROR: Savegame is version %i, not %i\n", version, expected);
@@ -2617,7 +2619,7 @@ static void Host_Loadgame_f (void)
 	if (!sv.active)
 	{
 		PR_SwitchQCVM(NULL);
-		free (start);
+		VR_HeapFree (start);
 		start = NULL;
 		SCR_EndLoadingPlaque ();
 		Con_Printf ("Couldn't load map\n");
@@ -2686,7 +2688,7 @@ static void Host_Loadgame_f (void)
 	qcvm->time = time;
 	sv.autosave.time = time;
 
-	free (start);
+	VR_HeapFree (start);
 	start = NULL;
 
 	for (i = 0; i < NUM_SPAWN_PARMS; i++)

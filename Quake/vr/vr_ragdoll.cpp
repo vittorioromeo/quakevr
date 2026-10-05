@@ -2,6 +2,7 @@
 // model made from it in memory, and the client's drawing of the server's ragdolls. See vr_ragdoll.hpp; the bodies and
 // joints are vr_box3d.cpp's ("Ragdolls"); ROUND21.md, "Ragdolls".
 
+#include "vr_modelmetadata.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_api_render.h"
 #include "vr_cvars.hpp"
@@ -81,7 +82,7 @@ struct Seed
 
 struct SeedTable
 {
-    const char* model;
+    modelmeta::Id model;
     int numVerts; // the model the table was made for (Quake VR's grunt): another one is not rigged
     const Seed* seeds;
     int count;
@@ -347,18 +348,18 @@ constexpr Seed mummySeeds[] = {
 };
 
 constexpr SeedTable seedTables[] = {
-    {"progs/soldier.mdl", 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
-    {"progs/knight.mdl", 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
-    {"progs/ogre.mdl", 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},
-    {"progs/enforcer.mdl", 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
-    {"progs/hknight.mdl", 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
-    {"progs/dog.mdl", 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
-    {"progs/wizard.mdl", 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
-    {"progs/zombie.mdl", 481, zombieSeeds, static_cast<int>(sizeof(zombieSeeds) / sizeof(zombieSeeds[0])), 2, {103, 162}, {116, 178}},
-    {"progs/demon.mdl", 1095, demonSeeds, static_cast<int>(sizeof(demonSeeds) / sizeof(demonSeeds[0])), 1, {45, 0}, {53, 0}, 24},
-    {"progs/shambler.mdl", 648, shamblerSeeds, static_cast<int>(sizeof(shamblerSeeds) / sizeof(shamblerSeeds[0])), 1, {83, 0}, {93, 0}, 24},
-    {"progs/grem.mdl", 123, gremSeeds, static_cast<int>(sizeof(gremSeeds) / sizeof(gremSeeds[0])), 2, {104, 116}, {115, 123}},
-    {"progs/mummy.mdl", 177, mummySeeds, static_cast<int>(sizeof(mummySeeds) / sizeof(mummySeeds[0])), 2, {103, 162}, {116, 178}},
+    {modelmeta::Id::Soldier, 555, gruntSeeds, static_cast<int>(sizeof(gruntSeeds) / sizeof(gruntSeeds[0])), 2, {8, 18}, {17, 28}},
+    {modelmeta::Id::Knight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
+    {modelmeta::Id::Ogre, 497, ogreSeeds, static_cast<int>(sizeof(ogreSeeds) / sizeof(ogreSeeds[0])), 2, {112, 126}, {125, 135}},
+    {modelmeta::Id::Enforcer, 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
+    {modelmeta::Id::Hknight, 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
+    {modelmeta::Id::Dog, 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
+    {modelmeta::Id::Wizard, 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
+    {modelmeta::Id::Zombie, 481, zombieSeeds, static_cast<int>(sizeof(zombieSeeds) / sizeof(zombieSeeds[0])), 2, {103, 162}, {116, 178}},
+    {modelmeta::Id::Demon, 1095, demonSeeds, static_cast<int>(sizeof(demonSeeds) / sizeof(demonSeeds[0])), 1, {45, 0}, {53, 0}, 24},
+    {modelmeta::Id::Shambler, 648, shamblerSeeds, static_cast<int>(sizeof(shamblerSeeds) / sizeof(shamblerSeeds[0])), 1, {83, 0}, {93, 0}, 24},
+    {modelmeta::Id::Grem, 123, gremSeeds, static_cast<int>(sizeof(gremSeeds) / sizeof(gremSeeds[0])), 2, {104, 116}, {115, 123}},
+    {modelmeta::Id::Mummy, 177, mummySeeds, static_cast<int>(sizeof(mummySeeds) / sizeof(mummySeeds[0])), 2, {103, 162}, {116, 178}},
 };
 
 [[nodiscard]] const SeedTable* tableOf(const qmodel_t* model)
@@ -367,9 +368,10 @@ constexpr SeedTable seedTables[] = {
     {
         return nullptr;
     }
+    const auto& info = modelmeta::get(model);
     for(const SeedTable& t : seedTables)
     {
-        if(!strcmp(model->name, t.model))
+        if(info.is(t.model))
         {
             return &t;
         }
@@ -1016,7 +1018,8 @@ bool derive(qmodel_t* model, const SeedTable& table, Rig& rig, DeriveLog& log)
         }
         const Seed& s = table.seeds[b];
         strncpy(bone.name, s.name, sizeof(bone.name) - 1);
-        if(!strcmp(s.name, "head"))
+        bone.role = modelmeta::boneRole(s.name);
+        if(bone.role == modelmeta::BoneRole::Head)
         {
             rig.head = b;
         }
@@ -2138,7 +2141,7 @@ void info_f()
 extern "C" int VR_SyntheticModel(qmodel_t* mod)
 {
     const size_t len = strlen(mod->name), suffix = strlen(skinnedSuffix);
-    if(len <= suffix || strcmp(mod->name + len - suffix, skinnedSuffix) != 0)
+    if(len <= suffix || !modelmeta::has(mod, modelmeta::Trait::Ragdoll))
     {
         return false;
     }

@@ -1,0 +1,15 @@
+group,scene,eye,repeats,cpu_ms,gpu_ms,particle_gpu_ms,gpu_samples,measured_frames
+final2048,explosions_count4,2048,3,1.27,1.154,0.276,225,3600
+final2048,fire,2048,3,1.095,1.125,0.11,225,3600
+final2048,idle,2048,3,0.814,0.848,0.004,225,3600
+final2048,particles_half,2048,3,3.045,3.054,2.205,225,3600
+final2048,particles_retro_fast,2048,3,11.674,11.581,10.525,225,3600
+final2048,particles_retro_half,2048,3,5.968,5.989,5.032,225,3600
+final2048,particles_retro_half_all,2048,3,5.929,5.928,4.981,225,3600
+final2048,particles_retro_reference,2048,3,13.552,13.395,12.33,225,3600
+controls,explosions_count4_retro_reference,2048,3,1.251,1.205,0.325,225,3600
+controls,fire_retro_reference,2048,3,1.108,1.135,0.123,225,3600
+final3072,particles_retro_fast,3072,3,26.959,26.773,25.195,225,3600
+final3072,particles_retro_half,3072,3,12.658,12.516,11.024999999999999,225,3600
+final3072,particles_retro_half_all,3072,3,12.603,12.53,10.984,225,3600
+final3072,particles_retro_reference,3072,3,31.324,30.992,29.374000000000002,225,3600

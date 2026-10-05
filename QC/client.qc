@@ -143,6 +143,7 @@ void() SetChangeParms =
     parm48 = self.holsterweaponinst5.wi_uid;
     parm49 = qvr_weaponinst_next;
     parm39 = self.weaponclipsize;
+    parm50 = self.vr_flashlight_state;
     parm40 = self.weaponclipsize2;
 };
 
@@ -274,6 +275,7 @@ void() SetNewParms =
     parm47 = 0;
     parm48 = 0;
     parm49 = qvr_weaponinst_next;
+    parm50 = 0;
 };
 
 void() DecodeLevelParms =
@@ -333,6 +335,7 @@ void() DecodeLevelParms =
     // The weapons' records (vr_weaponinst.qc): their magazines, and their ids where free (a coop player respawning
     // with the level's start parms while his old weapon still lies about gets a new one).
     qvr_weaponinst_next = max(qvr_weaponinst_next, parm49);
+    self.vr_flashlight_state = parm50;
     self.weaponinst = WeaponInst_Carried(self.weapon, parm31, parm41);
     self.weaponinst2 = WeaponInst_Carried(self.weapon2, parm32, parm42);
     self.holsterweaponinst0 = WeaponInst_Carried(self.holsterweapon0, parm33, parm43);

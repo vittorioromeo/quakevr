@@ -1,0 +1,95 @@
+[
+  {
+    "fixture": "mixed",
+    "sweeps": [
+      {
+        "checks": 58947,
+        "loaded": 136
+      },
+      {
+        "checks": 58947,
+        "loaded": 136
+      },
+      {
+        "checks": 58947,
+        "loaded": 136
+      },
+      {
+        "checks": 58992,
+        "loaded": 151
+      }
+    ]
+  },
+  {
+    "fixture": "portal",
+    "sweeps": [
+      {
+        "checks": 58959,
+        "loaded": 140
+      },
+      {
+        "checks": 58959,
+        "loaded": 140
+      },
+      {
+        "checks": 58959,
+        "loaded": 140
+      },
+      {
+        "checks": 58959,
+        "loaded": 140
+      }
+    ]
+  },
+  {
+    "fixture": "hands",
+    "sweeps": [
+      {
+        "checks": 58947,
+        "loaded": 136
+      },
+      {
+        "checks": 58947,
+        "loaded": 136
+      },
+      {
+        "checks": 58947,
+        "loaded": 136
+      },
+      {
+        "checks": 58947,
+        "loaded": 136
+      },
+      {
+        "checks": 58947,
+        "loaded": 136
+      },
+      {
+        "checks": 58947,
+        "loaded": 136
+      },
+      {
+        "checks": 58947,
+        "loaded": 136
+      }
+    ]
+  },
+  {
+    "fixture": "ragdolls",
+    "sweeps": [
+      {
+        "checks": 58947,
+        "loaded": 136
+      }
+    ]
+  },
+  {
+    "fixture": "vanilla",
+    "sweeps": [
+      {
+        "checks": 58839,
+        "loaded": 100
+      }
+    ]
+  }
+]

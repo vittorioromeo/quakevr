@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_cleanskins.cpp -- clean weapon skins: a skin's patch applied as it is uploaded (see vr_cleanskins.hpp).
 
 #include "vr_cleanskins.hpp"
@@ -137,7 +138,7 @@ void load(Entry& e)
         e.first = first;
         e.count = count;
     }
-    free(data);
+    VR_HeapFree(data);
 }
 
 // The patch for `base` (looked for once).

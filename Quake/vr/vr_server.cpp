@@ -13,6 +13,7 @@
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
+#include "vr_portals.hpp"
 #include "vr_worldtext.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
@@ -466,15 +467,19 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
 
     const auto setHand = [&](const VrHandMove& hand, int pos, int rot, int vel,
                              int throwVel, int velMag, int angVel, int throwPos, int throwAge, int throwFlick) {
-        setFieldVec(ent, pos, hand.pos);
-        setFieldVec(ent, rot, hand.rot);
-        setFieldVec(ent, vel, hand.vel);
-        setFieldVec(ent, throwVel, hand.throwVel);
+        const portals::Reach gate = portals::reach(move.origin, hand.pos);
+        glm::vec3 angles = hand.rot;
+        angles.y = anglemod(angles.y + gate.yaw);
+        const auto carry = [&](const glm::vec3& p) { return gate.turn * (p - gate.from) + gate.to; };
+        setFieldVec(ent, pos, gate.position);
+        setFieldVec(ent, rot, angles);
+        setFieldVec(ent, vel, gate.turn * hand.vel);
+        setFieldVec(ent, throwVel, gate.turn * hand.throwVel);
         setFieldFloat(ent, velMag, hand.velMag);
-        setFieldVec(ent, angVel, hand.angVel);
-        setFieldVec(ent, throwPos, hand.throwPos);
+        setFieldVec(ent, angVel, gate.turn * hand.angVel);
+        setFieldVec(ent, throwPos, carry(hand.throwPos));
         setFieldFloat(ent, throwAge, hand.throwAge);
-        setFieldVec(ent, throwFlick, hand.throwFlick);
+        setFieldVec(ent, throwFlick, gate.turn * hand.throwFlick);
     };
 
     setHand(move.hands[0], f.offhandpos, f.offhandrot, f.offhandvel,
@@ -484,10 +489,14 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
 
     setFieldVec(ent, f.headvel, move.headVel);
     setFieldVec(ent, f.headpos, move.headPos);
-    setFieldVec(ent, f.offmuzzlepos, move.muzzlePos[0]);
-    setFieldVec(ent, f.muzzlepos, move.muzzlePos[1]);
-    setFieldVec(ent, f.offshotrot, move.shotRot[0]);
-    setFieldVec(ent, f.shotrot, move.shotRot[1]);
+    for(int h = 0; h < 2; h++)
+    {
+        const portals::Reach gate = portals::reach(move.origin, move.muzzlePos[h]);
+        glm::vec3 angles = move.shotRot[h];
+        angles.y = anglemod(angles.y + gate.yaw);
+        setFieldVec(ent, h ? f.muzzlepos : f.offmuzzlepos, gate.position);
+        setFieldVec(ent, h ? f.shotrot : f.offshotrot, angles);
+    }
     if(clientNum >= static_cast<int>(clientBits.size()))
     {
         clientBits.resize(clientNum + 1);
@@ -806,10 +815,7 @@ void rebaseHands(edict_t* player)
 
     VrMove& move = m->move;
     const FieldOffsets& f = fields();
-    for(const int ofs : {f.handpos, f.offhandpos, f.muzzlepos, f.offmuzzlepos, f.handthrowpos, f.offhandthrowpos, f.headpos})
-    {
-        setFieldVec(player, ofs, fieldVec(player, ofs) + delta);
-    }
+    setFieldVec(player, f.headpos, fieldVec(player, f.headpos) + delta);
     for(VrHandMove& hand : move.hands)
     {
         hand.pos += delta;
@@ -819,6 +825,26 @@ void rebaseHands(edict_t* player)
     move.muzzlePos[0] += delta;
     move.muzzlePos[1] += delta;
     move.headPos += delta;
+    // Re-evaluate crossing after walking, including a crossing on a release frame.
+    for(int h = 0; h < 2; h++)
+    {
+        const auto& hand = move.hands[h];
+        const auto gate = portals::reach(origin, hand.pos);
+        glm::vec3 angles = hand.rot;
+        angles.y = anglemod(angles.y + gate.yaw);
+        setFieldVec(player, h ? f.handpos : f.offhandpos, gate.position);
+        setFieldVec(player, h ? f.handrot : f.offhandrot, angles);
+        setFieldVec(player, h ? f.handvel : f.offhandvel, gate.turn * hand.vel);
+        setFieldVec(player, h ? f.handavel : f.offhandavel, gate.turn * hand.angVel);
+        setFieldVec(player, h ? f.handthrowvel : f.offhandthrowvel, gate.turn * hand.throwVel);
+        setFieldVec(player, h ? f.handthrowpos : f.offhandthrowpos, gate.turn * (hand.throwPos - gate.from) + gate.to);
+        setFieldVec(player, h ? f.handthrowflick : f.offhandthrowflick, gate.turn * hand.throwFlick);
+        const auto muzzle = portals::reach(origin, move.muzzlePos[h]);
+        angles = move.shotRot[h];
+        angles.y = anglemod(angles.y + muzzle.yaw);
+        setFieldVec(player, h ? f.muzzlepos : f.offmuzzlepos, muzzle.position);
+        setFieldVec(player, h ? f.shotrot : f.offshotrot, angles);
+    }
 }
 
 float* clientHeadAngles(edict_t* player)

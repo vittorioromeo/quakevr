@@ -14,7 +14,7 @@ namespace qvr::retro
 
 enum class Category
 {
-    World,     // the world's own surfaces (worldspawn), its liquids
+    World,     // the world's own solid surfaces (worldspawn)
     Brush,     // brush entities: doors, lifts, buttons, moving walls
     Items,     // pickups: the ammo and health boxes (maps/b_*.bsp), armour, keys, powerups, backpacks
     Props,     // crates, explosive boxes, rocks, bricks, planks, shell casings, lanterns
@@ -32,6 +32,7 @@ enum class Category
     Particles, // Quake VR's particles (vr_particles.cpp; in world units) and Quake's own (r_part.c: squares, palette)
     Sprites,   // sprites (.spr: explosions, bubbles, the mission packs' bullet holes; r_sprite.c)
     Other,     // every other model: projectiles, torches and flames, ...
+    Liquids,   // water, slime and lava; appended to preserve existing category indices
     Count
 };
 
@@ -114,6 +115,10 @@ void allCheckCategories(bool on);
 // Quake's particles: VR_RetroSprite, VR_RetroParticles): the set for category c (0: none, off), and the shaders' block
 // and the palette's table bound for a draw (the table on unit lutUnit).
 [[nodiscard]] int categorySet(Category c);
+// Whether the effective GPU set permits the bounded centre/near/full-palette particle variant.
+[[nodiscard]] bool particleCentreNear(int set);
+// Positive world block size only when trimming can bound all reads at level zero.
+[[nodiscard]] float particleTrimBlock(int set);
 void bindForDraw(int lutUnit);
 
 [[nodiscard]] cvar_s& cvarOf(Category c, Param p);

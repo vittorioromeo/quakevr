@@ -5183,8 +5183,8 @@ void M_Menu_Keys_f (void)
 	for (i = 0; i < VEC_SIZE (keysmenu.custom_items); i++)
 	{
 		menukeybind_t *item = &keysmenu.custom_items[i];
-		free ((void *)item->command);
-		free ((void *)item->description);
+		VR_HeapFree ((void *)item->command);
+		VR_HeapFree ((void *)item->description);
 	}
 	VEC_CLEAR (keysmenu.custom_items);
 
@@ -5206,7 +5206,7 @@ void M_Menu_Keys_f (void)
 			M_Keys_AddCustomEntry( cmd, desc );
 		}
 
-		free (file);
+		VR_HeapFree (file);
 	}
 
 	// hacky: determine the maximum number of items by populating the item list for both kb/m & gamepad

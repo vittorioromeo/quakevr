@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_voicenotes.cpp -- see vr_voicenotes.hpp.
 
 #include "vr_voicenotes.hpp"
@@ -427,7 +428,7 @@ extern "C" int VR_ScreenshotWrite(const char* name, unsigned char* rgb, int widt
         [rgb, width, height](const za::String& part)
         {
             const bool ok = Image_WritePNGPath(part.cStr(), rgb, width, height, 24, false);
-            free(rgb);
+            VR_HeapFree(rgb);
             return ok != 0;
         });
     return 1;

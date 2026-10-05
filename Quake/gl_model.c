@@ -184,7 +184,7 @@ static byte *Mod_DecompressVis (byte *in, qmodel_t *model)
 	if (mod_decompressed == NULL || row > mod_decompressed_capacity)
 	{
 		mod_decompressed_capacity = (row + VIS_ALIGN_MASK) & ~VIS_ALIGN_MASK;
-		mod_decompressed = (byte *) realloc (mod_decompressed, mod_decompressed_capacity);
+		mod_decompressed = (byte *) VR_HeapRealloc (mod_decompressed, mod_decompressed_capacity);
 		if (!mod_decompressed)
 			Sys_Error ("Mod_DecompressVis: realloc() failed on %d bytes", mod_decompressed_capacity);
 	}
@@ -247,7 +247,7 @@ byte *Mod_NoVisPVS (qmodel_t *model)
 	if (mod_novis == NULL || pvsbytes > mod_novis_capacity)
 	{
 		mod_novis_capacity = pvsbytes;
-		mod_novis = (byte *) realloc (mod_novis, mod_novis_capacity);
+		mod_novis = (byte *) VR_HeapRealloc (mod_novis, mod_novis_capacity);
 		if (!mod_novis)
 			Sys_Error ("Mod_NoVisPVS: realloc() failed on %d bytes", mod_novis_capacity);
 		
@@ -420,6 +420,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
+	VR_ModelMetadataChanged (mod); // QVR: alias-cache eviction and explicit reload invalidate copied metadata
 	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
 		return mod;
 	buf = VR_DerivedModelFile (mod->name, &mod->path_id); // QVR: a model made from another's file (a taken torch's flame)
@@ -481,7 +482,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 		break;
 	}
 
-	free (buf);
+	VR_HeapFree (buf);
 
 	return mod;
 }
@@ -789,7 +790,7 @@ static void Mod_LoadTextures (lump_t *l)
 					// QVR: heights only if drawn smooth (the shifts would bend its texels), but for the ammo and
 					// health boxes (the expansions' have no replacement textures), whose depth is a texel or two
 					VR_LoadNormalMap (tx->gltexture, NULL, NULL, (byte *)(tx+1), SRC_INDEXED, tx->width,
-						TexMgr_IndexedSmooth () || !q_strncasecmp (loadmodel->name, "maps/b_", 7) ? NORMALMAP_HEIGHTS : 0);
+						TexMgr_IndexedSmooth () || VR_ModelHasTrait (loadmodel, VR_MODEL_TRAIT_AmmoBoxInsensitive) ? NORMALMAP_HEIGHTS : 0);
 					if (VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height)) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
 						VR_ExtMapsAttach (tx, loadmodel, fullbrights);
 				}
@@ -1936,7 +1937,7 @@ static void Mod_FindUsedTextures (qmodel_t *mod)
 	int			ofs[TEXTYPE_COUNT];
 	uint32_t	*inuse;
 
-	inuse = (uint32_t *) calloc (BITARRAY_DWORDS (mod->numtextures), sizeof (uint32_t));
+	inuse = (uint32_t *) VR_HeapCalloc (BITARRAY_DWORDS (mod->numtextures), sizeof (uint32_t));
 	if (!inuse)
 		Sys_Error ("Mod_FindUsedTextures: out of memory (%d bits)", mod->numtextures);
 
@@ -1970,7 +1971,7 @@ static void Mod_FindUsedTextures (qmodel_t *mod)
 			mod->usedtextures[ofs[t->type]++] = i;
 	}
 
-	free (inuse);
+	VR_HeapFree (inuse);
 
 	//Con_Printf("%s: %d/%d textures\n", mod->name, count, mod->numtextures);
 }
@@ -3290,14 +3291,14 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 		mod->flags |= MOD_NOSHADOW;
 
 	// QVR: a taken torch's flame (vr_walltorch.cpp) as id's torch's is (r_nolerp_list, r_noshadow_list)
-	if (!strcmp (mod->name, "progs/vrtorch_fire.mdl"))
+	if (VR_ModelIdentity (mod) == VR_MODEL_ID_VrtorchFire)
 		mod->flags |= MOD_NOLERP | MOD_NOSHADOW;
 
 	// fullbright hack (TODO: make this a cvar list)
-	if (!strcmp (mod->name, "progs/flame2.mdl") ||
-		!strcmp (mod->name, "progs/flame.mdl") ||
-		!strcmp (mod->name, "progs/vrtorch_fire.mdl") || // QVR: a taken torch's flame (vr_walltorch.cpp)
-		!strcmp (mod->name, "progs/boss.mdl"))
+	if (VR_ModelIdentity (mod) == VR_MODEL_ID_Flame2 ||
+		VR_ModelIdentity (mod) == VR_MODEL_ID_Flame ||
+		VR_ModelIdentity (mod) == VR_MODEL_ID_VrtorchFire || // QVR: a taken torch's flame (vr_walltorch.cpp)
+		VR_ModelIdentity (mod) == VR_MODEL_ID_Boss)
 	{
 		mod->flags |= MOD_FBRIGHTHACK;
 	}
@@ -3321,7 +3322,7 @@ qboolean loadMd5Replacement(qmodel_t* mod, char	*path)
 			result = result && Mod_LoadMD5MeshModel (mod, md5buffer);
 			VR_TimeAdd ("    md5: the VR check", t1 - t0);
 			VR_TimeAdd ("    md5: loaded", Sys_DoubleTime () - t1);
-			free (md5buffer);
+			VR_HeapFree (md5buffer);
 			return result;
 		}
 	}
@@ -3341,7 +3342,7 @@ qboolean loadMd3Replacement (qmodel_t* mod, char *path)
 		if (md3buffer)
 		{
 			Mod_LoadMD3Model (mod, md3buffer);
-			free (md3buffer);
+			VR_HeapFree (md3buffer);
 			return true; 
 		}
 	}
@@ -4031,9 +4032,9 @@ static void MD5_ComputeNormals(iqmvert_t *vert, size_t numverts, unsigned short 
 	unsigned short	*weld;
 
 	hashsize = numverts * 2;
-	hashmap = (int *) calloc (hashsize, sizeof (*hashmap));
-	weld = (unsigned short *) malloc (numverts * sizeof (*weld));
-	normals = (vec3_t *) calloc (numverts, sizeof (vec3_t));
+	hashmap = (int *) VR_HeapCalloc (hashsize, sizeof (*hashmap));
+	weld = (unsigned short *) VR_HeapMalloc (numverts * sizeof (*weld));
+	normals = (vec3_t *) VR_HeapCalloc (numverts, sizeof (vec3_t));
 	if (!hashmap || !weld || !normals)
 		Sys_Error ("MD5_ComputeNormals: out of memory (%u verts/%u tris)", (unsigned int)numverts, (unsigned int)(numindexes/3));
 
@@ -4103,9 +4104,9 @@ static void MD5_ComputeNormals(iqmvert_t *vert, size_t numverts, unsigned short 
 		}
 	}
 
-	free (normals);
-	free (weld);
-	free (hashmap);
+	VR_HeapFree (normals);
+	VR_HeapFree (weld);
+	VR_HeapFree (hashmap);
 }
 
 typedef struct
@@ -4145,7 +4146,7 @@ static qboolean MD5Anim_Begin(md5animctx_t *ctx, const char *fname)
 	return true;
 
 error:
-	free (ctx->animfile);
+	VR_HeapFree (ctx->animfile);
 	return false;
 }
 static qboolean MD5Anim_Load(md5animctx_t *ctx, boneinfo_t *bones, size_t numbones)
@@ -4161,7 +4162,7 @@ static qboolean MD5Anim_Load(md5animctx_t *ctx, boneinfo_t *bones, size_t numbon
 
 	if (!buffer)
 	{
-		free(ctx->animfile);
+		VR_HeapFree(ctx->animfile);
 		return false;
 	}
 
@@ -4174,7 +4175,7 @@ static qboolean MD5Anim_Load(md5animctx_t *ctx, boneinfo_t *bones, size_t numbon
 	ab = (md5animbase_t *) Z_Malloc(sizeof(*ab)*ctx->numjoints);
 
 	ctx->posedata = outposes = (bonepose_t *) Hunk_Alloc(sizeof(*outposes)*ctx->numjoints*ctx->numposes);
-	frameposes = (bonepose_t *) malloc (sizeof (*frameposes) * ctx->numjoints);
+	frameposes = (bonepose_t *) VR_HeapMalloc (sizeof (*frameposes) * ctx->numjoints);
 	if (!frameposes)
 		Sys_Error ("MD5Anim_Load: out of memory (%u joints)", (unsigned int)ctx->numjoints);
 
@@ -4277,8 +4278,8 @@ static qboolean MD5Anim_Load(md5animctx_t *ctx, boneinfo_t *bones, size_t numbon
 
 	Z_Free(raw);
 	Z_Free(ab);
-	free(frameposes);
-	free(ctx->animfile);
+	VR_HeapFree(frameposes);
+	VR_HeapFree(ctx->animfile);
 	return true;
 
 error:
@@ -4286,8 +4287,8 @@ error:
 		Z_Free(raw);
 	if (ab)
 		Z_Free(ab);
-	free(frameposes);
-	free(ctx->animfile);
+	VR_HeapFree(frameposes);
+	VR_HeapFree(ctx->animfile);
 	return false;
 }
 
@@ -4763,7 +4764,7 @@ static void Mod_LoadMD3_ValidateAndCacheSkinPath (int skinnum, int* valid_skin_p
 		if (Mod_ValidateSkinFile (skinbuffer, md3_surface_names, num_md3_surfaces, skinpath)) {
 			valid_skin_path_id[skinnum] = 1; 
 		}
-		free (skinbuffer); 
+		VR_HeapFree (skinbuffer);
 		skinbuffer = NULL;
 	}
 
@@ -4775,7 +4776,7 @@ static void Mod_LoadMD3_ValidateAndCacheSkinPath (int skinnum, int* valid_skin_p
 			if (Mod_ValidateSkinFile (skinbuffer, md3_surface_names, num_md3_surfaces, skinpath)) {
 				valid_skin_path_id[skinnum] = 2;
 			}
-			free (skinbuffer);
+			VR_HeapFree (skinbuffer);
 			skinbuffer = NULL;
 		}
 	}
@@ -5105,7 +5106,7 @@ static void Mod_LoadMD3Model (qmodel_t* mod, const char* buffer)
 			Mod_LoadMD3_LoadSkinFileTextures (mod, hdr, skinnum, skinbuffer,
 				in_surf->name, md3path);
 
-			free (skinbuffer);
+			VR_HeapFree (skinbuffer);
 			skinbuffer = NULL;
 
 			if (skin_file_found && (hdr->gltextures[skinnum][0] || hdr->fbtextures[skinnum][0])) {

@@ -159,7 +159,7 @@ json_t *JSON_Parse (const char *text)
 	if (numtokens <= 0)
 		return NULL;
 
-	tokens = (jsmntok_t *) malloc (sizeof (*tokens) * numtokens);
+	tokens = (jsmntok_t *) VR_HeapMalloc (sizeof (*tokens) * numtokens);
 	if (!tokens)
 		return NULL;
 
@@ -168,7 +168,7 @@ json_t *JSON_Parse (const char *text)
 	if (i != numtokens)
 	{
 	free_tokens:
-		free (tokens);
+		VR_HeapFree (tokens);
 		return NULL;
 	}
 
@@ -176,7 +176,7 @@ json_t *JSON_Parse (const char *text)
 		if (tokens[i].type == JSMN_STRING)
 			len += tokens[i].end - tokens[i].start + 1;
 
-	json = (json_t *) calloc (sizeof (json_t) + sizeof (jsonentry_t) * numtokens + len, 1);
+	json = (json_t *) VR_HeapCalloc (sizeof (json_t) + sizeof (jsonentry_t) * numtokens + len, 1);
 	if (!json)
 		goto free_tokens;
 	entries = (jsonentry_t *) (json + 1);
@@ -242,7 +242,7 @@ json_t *JSON_Parse (const char *text)
 	}
 	*strings++ = '\0';
 
-	free (tokens);
+	VR_HeapFree (tokens);
 
 	return json;
 }
@@ -254,7 +254,7 @@ JSON_Free
 */
 void JSON_Free (json_t *json)
 {
-	free (json);
+	VR_HeapFree (json);
 }
 
 /*

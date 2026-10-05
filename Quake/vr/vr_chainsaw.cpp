@@ -1,5 +1,6 @@
 // vr_chainsaw.cpp -- see vr_chainsaw.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_coil.hpp"
 #include "vr_cvars.hpp"
@@ -37,7 +38,6 @@ namespace qvr::chainsaw
 namespace
 {
 
-constexpr const char* modelName = "progs/v_chainsaw.mdl";
 constexpr int pulledFrame = 9;           // the model's frame without the handle (QC VR_SAW_PULLED_FRAME)
 constexpr int soloFrame = 10;            // and the handle alone (make_chainsaw.py HANDLE_ONLY): drawn in the fist
 constexpr double grabBlend = 0.1;        // seconds the handle takes from its seat into the fist's turn as it is taken
@@ -124,7 +124,7 @@ mem::Scratch<Scratch> scratch{"chainsaw"};
 
 [[nodiscard]] bool isChainsaw(const qmodel_t* m)
 {
-    return m && !strcmp(m->name, modelName);
+    return m && modelmeta::is(m, modelmeta::Id::VChainsaw);
 }
 
 // The handle from the model: its vertices moving between frames 0 and 9.

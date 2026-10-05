@@ -14,6 +14,7 @@
 #include "vr_progs.hpp"
 #include "vr_move.hpp"
 #include "vr_server.hpp"
+#include "vr_portals.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 #include "vr_particles.hpp"
@@ -236,7 +237,12 @@ void impactField(edict_t* e1, edict_t* e2, int ofs)
 {
     vec3_t s{start.x, start.y, start.z}, mi{mins.x, mins.y, mins.z},
         ma{maxs.x, maxs.y, maxs.z}, e{end.x, end.y, end.z};
-    return SV_Move(s, mi, ma, e, type, pass);
+    trace_t trace;
+    if((type & MOVE_PORTALS) && VR_PortalReachMove(pass, s, mi, ma, e, type & ~MOVE_PORTALS, &trace))
+    {
+        return trace;
+    }
+    return SV_Move(s, mi, ma, e, type & ~MOVE_PORTALS, pass);
 }
 
 // Hands touching things along the player's reach: traces from the body (and from a box
@@ -277,6 +283,14 @@ void handTouches(edict_t* ent)
 
     for(int h = 1; h >= 0; h--) // main hand first
     {
+        const auto* tracked = server::clientMove(ent);
+        if(tracked && portals::reach(vec(ent->v.origin), tracked->hands[h].pos).gate)
+        {
+            // A folded reach never sweeps a giant box between the two rooms.
+            const glm::vec3 end = tracked->hands[h].pos + forwardFromAngles(tracked->hands[h].rot);
+            checkTrace(moveTrace(vec(ent->v.origin), -handExtent, handExtent, end, MOVE_NORMAL | MOVE_PORTALS, ent));
+            continue;
+        }
         checkTrace(moveTrace(vec(ent->v.origin), vec(ent->v.mins), vec(ent->v.maxs), ends[h],
             MOVE_NORMAL, ent));
         checkTrace(moveTrace(unionCentre, -unionHalf, unionHalf, ends[h], MOVE_NORMAL, ent));
@@ -299,8 +313,11 @@ void weaponTouches(edict_t* ent)
 
     for(int i = 0; i < 2; i++)
     {
-        const trace_t trace = moveTrace(fieldVec(ent, handPos[i]), -gunExtent, gunExtent,
-            fieldVec(ent, muzzlePos[i]), MOVE_NORMAL, ent);
+        const auto* tracked = server::clientMove(ent);
+        const int h = i == 0 ? 1 : 0;
+        const trace_t trace = tracked ?
+            moveTrace(tracked->hands[h].pos, -gunExtent, gunExtent, tracked->muzzlePos[h], MOVE_NORMAL | MOVE_PORTALS, ent) :
+            moveTrace(fieldVec(ent, handPos[i]), -gunExtent, gunExtent, fieldVec(ent, muzzlePos[i]), MOVE_NORMAL, ent);
 
         if(trace.fraction < 1.f && trace.ent && fieldFunc(trace.ent, f().vr_wpntouch))
         {
@@ -316,22 +333,83 @@ void weaponTouches(edict_t* ent)
            solidOf(target) != SOLID_NOT;
 }
 
-// Whether `target`'s touch by `ent` can do nothing: a rigid body (Box3D's) not in a throw (.throwhit not
-// QVR_THROWHIT_NEVER_HIT), whose touch is QC forcegrabbable_touch's (a rock's, a brick's, a crate's piece's, a thrown
-// weapon's), met by something that takes no damage (another rock of the pile). forcegrabbable_touch then returns
-// having changed nothing: VR_Prop_Flung needs a toucher that takes damage, the hit is a throw's, and the rest is for
-// props Quake moves (not rigid ones). Their hard knocks are Box3D's hits (vr_box3d.cpp touches). A pile of rocks
-// toppling was thousands of these calls a frame, each moving prop's box in its neighbours'.
+// Known prop callbacks have no work for a rigid prop outside an active throw when
+// the toucher takes no damage, or when the contact cannot reach the damage speed.
+// Box3D dispatches hard impacts separately. Hands, throws, gib grace bookkeeping
+// and unknown callbacks keep their original calls and order.
 [[nodiscard]] bool propTouchIsNothing(edict_t* ent, edict_t* target)
 {
     const func_t fn = target->v.touch;
     const auto& touches = progs::bindings().propTouches;
     const auto* const end = touches + za::getArraySize(touches);
-    if(!fn || ent->v.takedamage != 0.f || isClient(ent) || za::find(touches, end, fn) == end)
+    if(!fn || isClient(ent) || za::find(touches, end, fn) == end ||
+       fieldFloatOr(target, f().vr_rigid, 0.f) == 0.f || fieldFloatOr(target, f().throwhit, 0.f) == 0.f)
     {
         return false;
     }
-    return fieldFloatOr(target, f().vr_rigid, 0.f) != 0.f && fieldFloatOr(target, f().throwhit, 0.f) != 0.f;
+    if(ent->v.takedamage == 0.f) return true;
+    if(vr_prop_touch_fast.value == 0.f) return false;
+    if(vr_prop_impact_damage.value == 0.f) return true;
+    // Non-gibs have no state writes before VR_Prop_Flung's speed test. Its mass
+    // leniency is bounded below by vr_weight_lenient_min, including throwScale's
+    // weight cap. An approach can never exceed its input velocity's length.
+    // Stay below that universal lower bound, with a margin for QC rounding:
+    // no mass/model query and no QC call for resting contacts against crates.
+    // Gib grace bookkeeping and every active throw retain their original calls.
+    if(fieldFloatOr(target, f().vr_gib, 0.f) != 0.f)
+    {
+        return false;
+    }
+    const float least = za::max(1.f, vr_prop_impact_min_speed.value * units::metresToUnits()) *
+        za::clamp(vr_weight_lenient_min.value, 0.01f, 1.f) * 0.99f;
+    const glm::vec3 own{target->v.velocity[0], target->v.velocity[1], target->v.velocity[2]};
+    const glm::vec3 other{ent->v.velocity[0], ent->v.velocity[1], ent->v.velocity[2]};
+    return glm::dot(own, own) < least * least || glm::dot(own - other, own - other) < least * least;
+}
+
+za::U64 touchVerified = 0;
+void verifyPropTouch(edict_t* ent, edict_t* target)
+{
+    if(vr_prop_touch_verify.value == 0.f) return;
+    static int frame = -1;
+    static unsigned sampled = 0;
+    if(frame != host_framecount) { frame = host_framecount; sampled = 0; }
+    const auto& types = progs::bindings().propTouches;
+    const auto* which = za::find(types, types + za::getArraySize(types), target->v.touch);
+    const unsigned bit = 1u << static_cast<unsigned>(which - types);
+    if(sampled & bit) return;
+    sampled |= bit;
+    const int count = qcvm->num_edicts;
+    const za::SizeT bytes = static_cast<za::SizeT>(count) * qcvm->edict_size;
+    za::Vector<byte> edicts(bytes);
+    za::Vector<float> globals(static_cast<za::SizeT>(qcvm->progs->numglobals));
+    memcpy(edicts.data(), qcvm->edicts, bytes);
+    memcpy(globals.data(), qcvm->globals, globals.size() * sizeof(float));
+    const int datagram = sv.datagram.cursize, reliable = sv.reliable_datagram.cursize;
+    za::Vector<byte> messages(static_cast<za::SizeT>(datagram + reliable));
+    if(datagram) memcpy(messages.data(), sv.datagram.data, datagram);
+    if(reliable) memcpy(messages.data() + datagram, sv.reliable_datagram.data, reliable);
+    callField(target, ent, target->v.touch);
+    if(qcvm->num_edicts != count || memcmp(edicts.data(), qcvm->edicts, bytes) ||
+       sv.datagram.cursize != datagram || sv.reliable_datagram.cursize != reliable ||
+       (datagram && memcmp(messages.data(), sv.datagram.data, datagram)) ||
+       (reliable && memcmp(messages.data() + datagram, sv.reliable_datagram.data, reliable)))
+        Sys_Error("prop touch verify: supposedly inactive touch changed entity/network state");
+    const za::SizeT time = reinterpret_cast<float*>(&pr_global_struct->time) - qcvm->globals;
+    // FTE's shared unnamed temporaries are scratch, like the argument registers.
+    // Compare declared globals (including game counters) rather than that workspace.
+    for(int d = 0; d < qcvm->progs->numglobaldefs; d++)
+    {
+        const ddef_t& def = qcvm->globaldefs[d];
+        const int type = def.type & ~DEF_SAVEGLOBAL;
+        const za::SizeT i = def.ofs;
+        const char* name = PR_GetString(def.s_name);
+        if(!name[0] || i < OFS_PARM7 + 3 || i == time || type == ev_void) continue;
+        const za::SizeT size = type == ev_vector ? 3 : 1;
+        if(i + size <= globals.size() && memcmp(&globals[i], &qcvm->globals[i], size * sizeof(float)))
+            Sys_Error("prop touch verify: supposedly inactive touch changed QC global %s", name);
+    }
+    touchVerified++;
 }
 
 // Body touches: triggers and touchable non-solids always; other solids only with
@@ -352,6 +430,7 @@ void touch(edict_t* ent, edict_t* target)
     }
     if(propTouchIsNothing(ent, target))
     {
+        verifyPropTouch(ent, target);
         return;
     }
 
@@ -544,6 +623,7 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 
     vec3_t oldVelocity;
     VectorCopy(ent->v.velocity, oldVelocity);
+    const float oldYaw = ent->v.angles[YAW];
     ent->v.velocity[0] = move.x;
     ent->v.velocity[1] = move.y;
     ent->v.velocity[2] = 0.f;
@@ -567,7 +647,16 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
         default: break;
     }
 
-    VectorCopy(oldVelocity, ent->v.velocity);
+    // Test the completed room-scale move while its direction is still available.
+    // A crossing also rotates the original stick/falling velocity into the new room.
+    VR_PortalClientCross(ent);
+    const float turn = glm::radians(ent->v.angles[YAW] - oldYaw);
+    const float c = za::cos(turn), s = za::sin(turn);
+    const glm::vec3 restored{oldVelocity[0] * c - oldVelocity[1] * s,
+        oldVelocity[0] * s + oldVelocity[1] * c, oldVelocity[2]};
+    ent->v.velocity[0] = restored.x;
+    ent->v.velocity[1] = restored.y;
+    ent->v.velocity[2] = restored.z;
 }
 
 // ----------------------------------------------------------------------------
@@ -1824,4 +1913,12 @@ extern "C" int VR_ExpandAbsBox(edict_t* ent)
 extern "C" float VR_MissileExtent(float fallback)
 {
     return vr_gameplayfix_missilesize.value > 0.f ? vr_gameplayfix_missilesize.value : fallback;
+}
+
+namespace qvr::physics
+{
+void propTouchStats_f()
+{
+    Con_Printf("prop touch verification: %llu callbacks checked\n", static_cast<unsigned long long>(touchVerified));
+}
 }

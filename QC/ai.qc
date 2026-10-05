@@ -266,7 +266,7 @@ float(entity targ) range =
     float  scale; // HONEY.
 
     spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
+    spot2 = VR_AI_Origin(targ) + targ.view_ofs;
 
     r = vlen(spot1 - spot2);
 
@@ -274,7 +274,7 @@ float(entity targ) range =
     if(self.rangescale) { scale = self.rangescale; }
     else                { scale = 1; }
 
-    if(r < 120)
+    if(r < 120 && !(self.vr_ai_target == targ && self.vr_ai_gate > 0))
         return RANGE_MELEE;
 
     if(r < 500)
@@ -301,13 +301,15 @@ float (entity client) visible =
     spot1 = self.origin + self.view_ofs;
     spot2 = client.origin + client.view_ofs;
 
+    self.vr_ai_target = client;
+    self.vr_ai_gate = 0;
     if(self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK) { res = bbox_visible(self, spot2); }
     else                                   { res = point_visible(spot1, spot2); }
-
-    // VR: not through a crate or an explosive box lying about (vr_crate_sight; not one the player carries: vr_crates.qc).
-    if(res && VR_Crate_HidesFrom(self, client, spot1))
+    if(res && VR_Crate_HidesFrom(self, client, spot1)) { res = FALSE; }
+    if(!res && VR_AI_PortalEligible() && client.classname == "player")
     {
-        return FALSE;
+        self.vr_ai_gate = portal_ai_sight(self, client, spot1, spot2, 0);
+        res = self.vr_ai_gate > 0;
     }
     return res;
 }
@@ -326,7 +328,7 @@ float(entity targ) infront =
     float  dot;
 
     makevectors(self.angles);
-    vec = normalize(targ.origin - self.origin);
+    vec = normalize(VR_AI_Origin(targ) - self.origin);
     dot = vec * v_forward;
 
     if(dot > 0.3)
@@ -429,7 +431,7 @@ void() HuntTarget =
         self.think = self.th_run;
     }
 
-    self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
+    self.ideal_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
     self.nextthink = time + 0.1;
     SUB_AttackFinished (1);    // wait a while before first attack
 };
@@ -651,6 +653,7 @@ float() FindTarget =
    else
     {
         client = checkclient();
+        if(!client && VR_AI_PortalEligible()) { client = portal_ai_client(self); }
       if(!client)
             return FALSE;    // current check entity isn't in PVS
     }
@@ -668,12 +671,11 @@ float() FindTarget =
    if(client.items & IT_INVISIBILITY) // (VR_ItemUtil_EntHasItem, directly: every sight check)
       return FALSE;
 
+    if(!visible(client)) { return FALSE; }
     r = range (client);
     if(r == RANGE_FAR && /* HONEY */ self.classname != "monster_ogre_marksman") // can see really far
         return FALSE;
 
-    if(!visible (client))
-        return FALSE;
 
    //MED 10/17/96 added charmed stuff
    if(!self.charmed)
@@ -852,7 +854,7 @@ void() ai_turn_in_place =
    float delta;
 
    self.nextthink = time + 0.1;
-   enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
+   enemy_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
    delta = fabs(self.angles_y - enemy_yaw);
    if(delta > MIN_ANGLE_DELTA)
       {
@@ -1117,7 +1119,10 @@ void(float dist) ai_run =
         return;
 
 // check knowledge of enemy
+    float selectedGate = self.vr_ai_gate;
     enemy_vis = visible(self.enemy);
+    if(selectedGate > 0 && !enemy_vis && self.attack_state == AS_MISSILE)
+        self.attack_state = AS_STRAIGHT; // A pending remote attack lost its route before the animation began.
     if(enemy_vis)
         self.search_time = time + 5;
 
@@ -1130,7 +1135,7 @@ void(float dist) ai_run =
     }
     enemy_infront = infront(self.enemy);
     enemy_range = range(self.enemy);
-    enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
+    enemy_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
 
 //MED
    if(self.th_turn)
@@ -1162,6 +1167,13 @@ void(float dist) ai_run =
       {
       return;              // beginning an attack
       }
+
+    if(self.vr_ai_gate > 0 && enemy_vis)
+    {
+        self.ideal_yaw = enemy_yaw;
+        ChangeYaw();
+        return; // stay in this room; there is no portal-aware navigation
+    }
 
     if(self.attack_state == AS_SLIDING)
     {

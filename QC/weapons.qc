@@ -285,6 +285,22 @@ float(float inHead, float outLateral, float belowOrigin) VR_RegionPick =
     return 0; // standard
 }
 
+// Point classification shared by precise shots, positional melee and the animated debug view's check.
+// `rest` is the contacted point mapped to the standing model, in world space (hitmodel_rest).
+float PositionalPointRegion(entity xTarget, vector rest) =
+{
+    if(!PositionalHead(xTarget)) { return -1; }
+    float yaw = xTarget.angles_y * (3.14159265 / 180);
+    vector facing = '0 0 0';
+    facing_x = cos(yaw); facing_y = sin(yaw);
+    vector head = xTarget.origin + facing * xHeadForward + '0 0 1' * xHeadUp;
+    vector side = '0 0 0';
+    side_x = -facing_y; side_y = facing_x;
+    float inHead = vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN;
+    float lateral = fabs((rest - xTarget.origin) * side) > (xTarget.maxs_x - xTarget.mins_x) * 0.35;
+    return VR_RegionPick(inHead, lateral, rest_z < xTarget.origin_z);
+}
+
 // Where a shot entering `xTarget` at `xEndpos` (a point on its box, from a trace) along
 // `xDirection` hits: 1 the head, 2 an extremity (far from its middle), 3 the legs, 0 the body; -1
 // when positional damage does not apply (vr_positional_damage 0, a target without a head).
@@ -320,14 +336,7 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     if(hitmodel_target(xTarget))
     {
         vector rest = hitmodel_rest(xTarget, xEndpos);
-        float inHead = vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN;
-        // Out to its sides (not forwards: a grunt's hands and gun are in front of its chest, a front shot's body).
-        vector restSide;
-        restSide_x = -facing_y;
-        restSide_y = facing_x;
-        restSide_z = 0;
-        return VR_RegionPick(inHead, fabs((rest - xTarget.origin) * restSide) > (xTarget.maxs_x - xTarget.mins_x) * 0.35,
-            rest_z < xTarget.origin_z);
+        return PositionalPointRegion(xTarget, rest);
     }
 
     // The ray's closest approach to the head, not behind where it entered.
@@ -645,6 +654,7 @@ entity(vector org, vector vec, vector extraVel, float light) HIP_LaunchLaser =
     entity newmis;
     newmis = spawn();
     newmis.owner = self;
+    VR_AI_Tag(newmis);
     newmis.classname = "hiplaser";
     newmis.lastvictim = self;
     newmis.movetype = MOVETYPE_FLYMISSILE;
@@ -1626,7 +1636,7 @@ void(float damage) spawn_touchblood =
         VR_GrenShot_Sparks(self.origin);
         return;
     }
-    if(VR_WallTorch_OnWall(other)) // VR: a wall torch on its wall (vr_walltorch.qc): no blood, its hit's own embers
+    if(VR_WallTorch_IsTorch(other)) // the identity survives being knocked off by this hit
     {
         return;
     }
@@ -1871,7 +1881,7 @@ void(float damage, vector dir) TraceAttack =
             {
                 VR_GrenShot_Sparks(org); // VR: a grenade (vr_grenade.qc, "Shooting grenades"): sparks
             }
-            else if(VR_WallTorch_OnWall(trace_ent))
+            else if(VR_WallTorch_IsTorch(trace_ent))
             {
                 // VR: a wall torch on its wall (vr_walltorch.qc): no blood. It takes damage only so that shots meet
                 // it; its hit is VR_WallTorch_KnockOff's embers, and a taken torch takes no damage at all.
@@ -2016,7 +2026,11 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
 
     src = self.origin + v_forward*10;
     src_z = self.absmin_z + self.size_z * 0.7;
-    dir = VR_Crate_ShotAim(src, dir, self.enemy); // no higher than a player crouched really stands
+    if(!VR_AI_ShotReady(src)) { return; }
+    if(self.vr_ai_gate > 0)
+        dir = normalize(VR_AI_Point(self.enemy.origin + self.enemy.view_ofs) - VR_AI_Vector(self.enemy.velocity) * 0.2 - src);
+    else
+        dir = VR_Crate_ShotAim(src, dir, self.enemy);
 
     weaponfired(self, -1); // VR: its gun's muzzle flash (a grunt's: vr_weaponfx.cpp)
     vr_tracer_hand = -1;
@@ -2240,6 +2254,10 @@ LIGHTNING
 float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
 {
     vector at = trace_endpos;
+    if((t.flags & FL_MONSTER) || t.vr_corpse)
+    {
+        bodyshock(t, 0.75);
+    }
     float pop = VR_Decap_BoltArm(t, at, xDir, damage);
     float r = T_Damage(t, from, from, damage);
     if(pop)
@@ -2585,6 +2603,12 @@ void() GrenadeTouch =
     if(other == self.owner)
         return;        // don't explode on owner
 
+    if(VR_WallTorch_OnWall(other))
+    {
+        VR_WallTorch_KnockOff(other, self, normalize(self.velocity));
+        return; // retain the grenade's bounce and its original fuse
+    }
+
     // HONEY
     self.owner.damage_weapon = IT_GRENADE_LAUNCHER;
 
@@ -2877,6 +2901,7 @@ entity(vector org, vector dir) launch_spike =
 
     newmis = spawn();
     newmis.owner = self;
+    VR_AI_Tag(newmis);
     newmis.movetype = MOVETYPE_FLYMISSILE;
     newmis.solid = SOLID_BBOX;
 
@@ -5617,7 +5642,7 @@ void() forcegrabbable_touch =
     // Not thrown (or its throw over), but as fast into a monster or player as a throw: it hurts as one (VR_Prop_Flung:
     // a flail on the grapple's rope, a batted or knocked prop; their speed towards each other, never a resting contact,
     // nor one leaving it: a prop batted away still overlaps your box, and touchNearby's hit box meets you as it starts).
-    VR_Prop_Flung(VR_Prop_Approach(self, other, self.velocity - other.velocity), VR_Prop_Approach(self, other, self.velocity));
+    VR_Prop_Flung(0, 0, TRUE);
 
     // A thrown weapon's true-scale gravity lasted for its flight only; rigid ones keep it (the
     // engine bounces them: a sudden Quake gravity after the first touch looked wrong).
@@ -6997,6 +7022,7 @@ void() W_Frame =
     VR_Carry_HandFrame(cVR_OffHand);
     VR_WallTorch_HandFrame(cVR_MainHand); // a torch gripped on its wall pulled out (vr_walltorch.qc)
     VR_WallTorch_HandFrame(cVR_OffHand);
+    VR_AI_TestFrame();
     VR_WallTorch_TestShot(); // vr_test_walltorch_shot: a wall torch shot off its wall (vr_walltorch.qc)
     VR_HandGrenade_HandFrame(cVR_MainHand); // a grenade taken from the pouch at the small of the back (vr_grenade.qc)
     VR_HandGrenade_HandFrame(cVR_OffHand);

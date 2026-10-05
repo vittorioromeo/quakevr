@@ -360,6 +360,9 @@ float() portal_crossings = #0;       // QVR: how many slipgates the last MOVE_PO
 vector(float i) portal_entry = #0;   // QVR: ... where it went into the i-th (from 0)
 vector(float i) portal_exit = #0;    // QVR: ... where it came out of it
 vector(vector v) portal_turn = #0;   // QVR: v turned as that traceline was by its slipgates
+entity(vector from, float range, vector aim, float mincos) findportalcone = #0;
+vector(vector from, vector point) portal_pullimage = #0;
+vector(entity e, vector hand, float begin) portal_pulltarget = #0;
 void(float h, float v) worldtext_hsethalign = #0;
 void(float h, float v) worldtext_hsetscale = #0;
 
@@ -402,3 +405,10 @@ void(vector org, vector dir, float strength, float snd) watersplash = #0;
 float QVR_SPLASH_SILENT = 0; // the caller plays its own sound
 float QVR_SPLASH_SHOT = 1;   // a small plip
 float QVR_SPLASH_THING = 2;  // a splash, small or big by strength
+
+void(entity target, float duration) bodyshock = #0;
+void(entity box, entity player, float hand, float begin) portal_carry = #0;
+
+float(entity observer, entity target, vector from, vector point, float gate) portal_ai_sight = #0;
+vector(float gate, vector value, float direction) portal_ai_map = #0;
+entity(entity observer) portal_ai_client = #0;

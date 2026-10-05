@@ -1,5 +1,6 @@
 // vr_trace.cpp -- see vr_trace.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_trace.hpp"
 #include "vr_engine.hpp"
 #include "vr_hull.hpp"
@@ -24,7 +25,11 @@ za::Optional<trace_t> move(
     vec3_t b{end.x, end.y, end.z};
     vec3_t lo{mins.x, mins.y, mins.z};
     vec3_t hi{maxs.x, maxs.y, maxs.z};
-    const trace_t tr = SV_Move(a, lo, hi, b, type, svs.clients[0].edict);
+    trace_t tr;
+    if(!(type & MOVE_PORTALS) || !VR_PortalReachMove(svs.clients[0].edict, a, lo, hi, b, type & ~MOVE_PORTALS, &tr))
+    {
+        tr = SV_Move(a, lo, hi, b, type & ~MOVE_PORTALS, svs.clients[0].edict);
+    }
 
     PR_PopQCVM(oldvm);
     return za::makeOptional(tr);
@@ -81,7 +86,7 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, 
     {
         entity_t& e = cl_entities[i];
         if(i == skipA || i == skipB || !e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0] ||
-            (e.model->name[0] != '*' && !ownFiles))
+            (!qvr::modelmeta::has(e.model, qvr::modelmeta::Trait::Submodel) && !ownFiles))
         {
             continue;
         }

@@ -1,5 +1,6 @@
 // vr_weapons.cpp -- see vr_weapons.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_weapons.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -92,10 +93,10 @@ unsigned settingsGeneration()
 namespace
 {
 
-[[nodiscard]] bool isHandPart(const char* name)
+[[nodiscard]] bool isHandPart(const modelmeta::ModelMetadata& info)
 {
     // The palm and finger models, and the jointed hand drawn instead of them (vr_handrig.cpp): the fist slot's scale.
-    return !strcmp(name, "progs/hand_base.mdl") || !strncmp(name, "progs/finger_", 13) || !strcmp(name, "progs/hand_rig.mdl");
+    return info.is(modelmeta::Id::HandBase) || info.has(modelmeta::Trait::Finger) || info.is(modelmeta::Id::HandRig);
 }
 
 // Configs archive every slot's settings, so a slot whose defaults change keeps a config's old
@@ -1054,7 +1055,7 @@ int fistSlot()
     fistCache = -1;
     for(int slot = 0; slot < numSlots; slot++)
     {
-        if(!strcmp(cvarAt(slot, Key::ID).string, "progs/hand.mdl"))
+        if(modelmeta::identifyPath(cvarAt(slot, Key::ID).string) == modelmeta::Id::Hand)
         {
             fistCache = slot;
             break;
@@ -1172,8 +1173,8 @@ void onChanged(cvar_t* var)
 
     t.k = modelScale();
 
-    const char* name = model->name;
-    if(!strcmp(name, "progs/legholster.mdl"))
+    const auto& info = modelmeta::get(model);
+    if(info.is(modelmeta::Id::Legholster))
     {
         t.active = true;
         t.scale = glm::vec3{vr_leg_holster_model_scale.value};
@@ -1182,7 +1183,7 @@ void onChanged(cvar_t* var)
         return t;
     }
 
-    const int slot = isHandPart(name) ? fistSlot() : slotForModel(model);
+    const int slot = isHandPart(info) ? fistSlot() : slotForModel(model);
     if(slot < 0)
     {
         return t;

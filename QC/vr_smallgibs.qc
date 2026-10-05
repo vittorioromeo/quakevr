@@ -868,8 +868,11 @@ vector(entity targ, vector xAt, vector xBlow, float xSit) VR_SmallGib_Fling =
     {
         out = '1 0 0' * crandom() + '0 1 0' * crandom();
     }
-    out = normalize(out) + ('1 0 0' * crandom() + '0 1 0' * crandom()) * 0.45;
-    out_z = 0;
+    if((xSit == QVR_SGIB_SIT_MELEE || xSit == QVR_SGIB_SIT_SAW) && vlen(xBlow) > 0.001)
+    {
+        out = normalize(xBlow); // the actual swing, including upward and downward blows
+    }
+    out = normalize(out) + ('1 0 0' * crandom() + '0 1 0' * crandom()) * 0.2;
     out = normalize(out);
     float m2u = VRMetersToUnits();
     return out * (max(0, cvar_hget(cvarh_vr_smallgibs_speed)) * VR_SmallGib_SitMult(xSit, FALSE) * m2u * (0.67 + random() * 0.67)) +

@@ -14,6 +14,7 @@
 #include "vr_gadget.hpp"
 #include "vr_profile.hpp"
 #include "vr_rope.hpp"
+#include "vr_portals.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -1148,8 +1149,8 @@ extern "C" void VR_DrawSceneOpaque()
     decals::draw();
     shadows::draw();
 
-    // Laid out once a frame, for both eyes.
-    if(builtFrame != host_framecount)
+    // Billboards and facing tests belong to this camera, including portal views.
+    // Reusing the first portal camera here mirrors text in the main eye view.
     {
         builtFrame = host_framecount;
         vertices.clear();
@@ -1181,6 +1182,7 @@ extern "C" void VR_DrawSceneOpaque()
                 layout(wt.text, wt.pos, wt.angles, static_cast<Align>(wt.hAlign), wt.scale);
             }
         }
+        if(!portals::viewing())
         for(const Queued& q : queuedTexts())
         {
             if(q.overlay)
@@ -1200,7 +1202,7 @@ extern "C" void VR_DrawSceneOpaque()
         {
             layoutFloating(ft, cl.time, eye, right, up);
         }
-        if(gadget::log(wristLog))
+        if(!portals::viewing() && gadget::log(wristLog))
         {
             layoutLog(wristLog, eye, right, up);
         }

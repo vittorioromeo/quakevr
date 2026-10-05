@@ -13,6 +13,7 @@
 // enforcers' laser rifles (QC vr_enemyguns.qc: v_gruntgun.mdl and v_enfrifle.mdl, made by
 // Misc/quakevr/make_enemyguns.py): Quake VR's soldier's and enforcer's guns, by their known vertices.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_engine.hpp"
 
 #include "Zancle/Algorithm/Iota.hpp"
@@ -128,20 +129,20 @@ za::Vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tri
 // are id's 8..28 (death1 .. deathc11).
 struct KnownSword
 {
-    const char* model;
+    qvr::modelmeta::Id model;
     int numverts, numtris;
     za::Vector<int> verts;
     int firstDeath, lastDeath; // frame indices, or -1: by name
 };
 
 const KnownSword knownSwords[] = {
-    {"progs/knight.mdl", 655, 697,
+    {qvr::modelmeta::Id::Knight, 655, 697,
         {334, 335, 336, 363, 364, 365, 524, 535, 536, 537, 538, 539, 540, 557, 558, 559, 560, 561, 562, 563, 564, 565,
             566, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602,
             603, 604, 607, 608, 609, 612, 613, 614, 615, 617, 626, 627, 628, 639, 640, 645, 646},
         76, 96},
     // (The hell knight's blade, and its guard: a piece of its own his hand holds, the dropped sword has its own hilt.)
-    {"progs/hknight.mdl", 538, 1000, [] {
+    {qvr::modelmeta::Id::Hknight, 538, 1000, [] {
          za::Vector<int> v{43, 45, 46, 47, 48, 526, 527, 531, 532, 42, 44, 525, 528, 529, 530};
          for(int i = 49; i <= 58; i++)
          {
@@ -154,19 +155,19 @@ const KnownSword knownSwords[] = {
          return v;
      }(),
         -1, -1},
-    {"progs/ogre.mdl", 497, 1290, [] {
+    {qvr::modelmeta::Id::Ogre, 497, 1290, [] {
          za::Vector<int> v(81);
          za::iota(v.begin(), v.end(), 416);
          return v;
      }(),
         -1, -1},
-    {"progs/soldier.mdl", 555, 810, [] {
+    {qvr::modelmeta::Id::Soldier, 555, 810, [] {
          za::Vector<int> v(86);
          za::iota(v.begin(), v.end(), 463);
          return v;
      }(),
         8, 28},
-    {"progs/enforcer.mdl", 479, 984, [] {
+    {qvr::modelmeta::Id::Enforcer, 479, 984, [] {
          za::Vector<int> v{22, 23, 100};
          for(int i = 400; i <= 430; i++)
          {
@@ -181,7 +182,7 @@ const KnownSword knownSwords[] = {
         -1, -1},
     // Hipnotic's gremlin: the gun he steals (its own piece, tucked inside his body but in his g* frames), hidden in his
     // deaths (death1-12, flip1-8: he drops it, gremlin_die), so his ragdoll holds none (ROUND21.md, "Ragdolls 5").
-    {"progs/grem.mdl", 123, 245, [] {
+    {qvr::modelmeta::Id::Grem, 123, 245, [] {
          za::Vector<int> v(38);
          za::iota(v.begin(), v.end(), 85);
          return v;
@@ -192,19 +193,20 @@ const KnownSword knownSwords[] = {
 // What a monster's model drops (the log's name for it).
 [[nodiscard]] const char* droppedName(const char* model)
 {
-    if(!strcmp(model, "progs/ogre.mdl"))
+    const auto id = qvr::modelmeta::identifyPath(model);
+    if(id == qvr::modelmeta::Id::Ogre)
     {
         return "chainsaw";
     }
-    if(!strcmp(model, "progs/soldier.mdl"))
+    if(id == qvr::modelmeta::Id::Soldier)
     {
         return "shotgun";
     }
-    if(!strcmp(model, "progs/enforcer.mdl"))
+    if(id == qvr::modelmeta::Id::Enforcer)
     {
         return "laser rifle";
     }
-    if(!strcmp(model, "progs/grem.mdl"))
+    if(id == qvr::modelmeta::Id::Grem)
     {
         return "stolen gun";
     }
@@ -230,11 +232,12 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     trivertx_t** poses)
 {
     aliashdr_t* hdr = static_cast<aliashdr_t*>(aliashdr);
-    const bool knight = !strcmp(name, "progs/knight.mdl");
-    const bool hellKnight = !strcmp(name, "progs/hknight.mdl");
+    const auto id = qvr::modelmeta::identifyPath(name);
+    const bool knight = id == qvr::modelmeta::Id::Knight;
+    const bool hellKnight = id == qvr::modelmeta::Id::Hknight;
     // The ogre, the soldier and the enforcer: only Quake VR's own models (by their known vertices); the gremlin: Hipnotic's.
-    const bool knownOnly = !strcmp(name, "progs/ogre.mdl") || !strcmp(name, "progs/soldier.mdl") ||
-                           !strcmp(name, "progs/enforcer.mdl") || !strcmp(name, "progs/grem.mdl");
+    const bool knownOnly = id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Soldier ||
+                           id == qvr::modelmeta::Id::Enforcer || id == qvr::modelmeta::Id::Grem;
     if(!knight && !hellKnight && !knownOnly)
     {
         return;
@@ -243,7 +246,7 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     const KnownSword* known = nullptr;
     for(const KnownSword& k : knownSwords)
     {
-        if(!strcmp(name, k.model) && hdr->numverts == k.numverts && hdr->numtris == k.numtris)
+        if(id == k.model && hdr->numverts == k.numverts && hdr->numtris == k.numtris)
         {
             known = &k;
         }

@@ -8,6 +8,7 @@
 .void(float) thinkArgFn;
 .void(float) think2ArgFn;
 .float thinkArg;
+.float vr_flashlight_state; // packed client lamp state, saved and carried by parm50
 .float vr_gib; // a gib or head that can be carried (VR_MakeGibGrabbable)
 .float vr_sgib; // a small gib (vr_smallgibs.qc): when it was made
 .float vr_sgib_id; // its serial in the small gibs' ring (0: gone)
@@ -56,6 +57,7 @@
 .entity fg_player;
 .float fg_hand;
 .float fg_state;    // 0 not pulled, 1 flying to the hand, 2 missed: falling, not yet touchable
+.float fg_portal;   // one-based slipgate used by this gravity-glove flight, 0 same room
 .float fg_arrive;   // when it reaches the hand
 .float fg_gravity;  // of its arc
 .float fg_movetype; // as it was before
@@ -210,3 +212,5 @@
                          // of it (VR_Prop_Flung) until it lands, is taken or flies up (VR_Throw_SelfFrame)
 .float vr_was_monster;   // a monster's head (VR_MakeGibGrabbable took its FL_MONSTER): what it drops after (a gibbed
                          // grunt's backpack: SoldierDrop after ThrowHead) is still a monster's drop (.vr_monster_drop)
+
+.float carry_portal; // room mapping of a held object, one-based gate

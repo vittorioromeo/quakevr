@@ -152,6 +152,7 @@ void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is se
 void VR_OnBeginLoadGame (void);			// Host_Loadgame_f, before SV_SpawnServer
 void VR_CheckLoadedReferences (int num_edicts);	// Host_Loadgame_f, the edicts parsed: an entity reference past them is the world (a dev warning)
 void VR_OnLoadGame (void);				// Host_Loadgame_f, after globals and edicts are restored
+void VR_SaveFlashlightState (void); // before a save snapshot or changelevel parms are captured
 void VR_OnFreshStart (void);			// Host_Map_f, Host_Loadgame_f: a game started afresh or loaded, not a changelevel (the flashlight off)
 void VR_StoreSpawnParms (int client);	// after parm1..16 are copied from globals into a client_t
 void VR_RestoreSpawnParms (int client);	// after parm1..16 are copied from a client_t into globals
@@ -212,6 +213,7 @@ void VR_ForgetEndedRopes (void); // CL_UpdateTEnts, before the beams: the ropes 
 void VR_BeamLights (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam lights the room along its length (vr_beam_lights)
 void VR_BeamDrawn (int index, struct qmodel_s *model, const float *start, const float *end); // CL_UpdateTEnts: a lightning beam's ends as drawn this frame: Quad Damage's arcs along it (vr_beam_arcs)
 void VR_WallTorchFlames (void);							// CL_ReadFromServer, after the temp entities: the taken wall torches' flames (vr_walltorch.cpp)
+#include "vr_modelmetadata.h" // shared model identities/traits and loader invalidation
 int VR_SyntheticModel (struct qmodel_s *mod);				// Mod_LoadModel: a model made in memory from another ("<model>#rag": a ragdoll's skinned body, vr_ragdoll.cpp); nonzero if made
 void VR_RagdollSwap (void);								// end of CL_RelinkEntities: the server's ragdolls drawn with their skinned models (vr_ragdoll.cpp)
 void VR_RagdollRestore (void);							// CL_ReadFromServer, first: their own models back before the server's messages
@@ -363,6 +365,8 @@ void VR_SndBandLimit (const unsigned char *data, int width, int samples, int loo
 double VR_SndBenchNow (void);						// vr_snd_bench (vr_audiobench.cpp): the time, 0 when no bench is recording
 void VR_SndBenchAdd (int stage, double since);		// vr_snd_bench: now - since into this frame's stage (VR_SNDBENCH_*: vr_audiobench.hpp's Stage)
 enum { VR_SNDBENCH_PAINT = 3, VR_SNDBENCH_QUAKE = 12, VR_SNDBENCH_FILTERS = 13 };
+
+int VR_PortalReachMove(struct edict_s* player, const float* start, const float* mins, const float* maxs, const float* end, int type, trace_t* trace);
 
 #ifdef __cplusplus
 }

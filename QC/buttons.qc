@@ -351,6 +351,11 @@ void() VR_Buttons_WeaponFrame =
 // Not a monster or a player, nor a missile (a shot: as Quake's, only a shot button minds it).
 float(entity xThing) VR_Button_Thrown =
 {
+    // Cosmetic fragments have no gameplay interaction; large gibs still press buttons.
+    if(xThing.vr_sgib || xThing.classname == "vr_smallgib")
+    {
+        return FALSE;
+    }
     if((xThing.flags & (FL_CLIENT | FL_MONSTER)) || xThing.movetype == MOVETYPE_FLYMISSILE ||
        xThing.movetype == MOVETYPE_BOUNCEMISSILE || xThing.movetype == MOVETYPE_FLY)
     {

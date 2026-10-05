@@ -429,6 +429,7 @@ DRAW_ELEMENTS_INDIRECT_COMMAND \
 "	vec4	wound; // QVR: a held prop's blood (vr/vr_wounds.cpp, BoxWounds): x its box mask's layer + 1 (0 none), yz its size in texels, w the blood's opacity\n"\
 "	vec4	woundbox; // QVR: xyz its box's centre (the model's frame), w 1 / its largest side\n"\
 "	vec4	retro; // QVR: retro textures (vr_retro.h): x its set (0 none)\n"\
+"	vec4	portalclip; // QVR: split brush prop\n"\
 "};\n"\
 "\n"\
 "layout(std430, binding=2) restrict readonly buffer InstanceBuffer\n"\
@@ -551,6 +552,7 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "	if (LiquidKind(call.flags) == 3u) position = in_surfacecentre + (in_pos - in_surfacecentre) * TeleportLook.x;\n"
 "#endif\n"
 "	out_pos = Transform(position, instance);\n"
+"	gl_ClipDistance[1] = dot(vec4(out_pos, 1.0), instance.portalclip);\n"
 "	gl_Position = ViewProj * vec4(out_pos, 1.0);\n"
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_WATER) "\n"
 "	if (in_swellpin > 0.) // QVR: the swells move the surface on screen and in depth; out_pos stays the flat one's, for the shading\n"
@@ -1203,6 +1205,7 @@ NOISE_FUNCTIONS
 "	vec4	Wound; // QVR: wounds painted on it (vr/vr_wounds.cpp): x its mask's layer + 1 (0 none), yz the mask's size in texels, w the time\n"\
 "	vec4	WoundSide; // QVR: (vr/vr_wounds.cpp) xy the bones of its right side (bits 0..23, 24..47, as whole numbers: your body's mask is one a side), z painting only side z - 1 (0: all; drawn, negative: -(the layer + 1) of the blood on yours not yours, chunky), w the blood's opacity\n"\
 "	vec4	Retro; // QVR: retro textures (vr_retro.h): x its set (0 none), yz its skin's Quake size (0: the texture's own); w retro lighting's (vr_retrolight.h): a Quake texel's share of the texture's (0: 1)\n"\
+"	vec4	PortalClip; // QVR: this instance's slipgate half\n"\
 "	vec4	RetroPart; // QVR: your body's parts by bone (vr/vr_retro.cpp bodyParts): xy the low bits of bones 0..23, 24..47, zw the high bits\n"\
 "};\n"\
 "\n"\
@@ -1315,6 +1318,7 @@ QVR_ALIAS_VS_OUTPUTS // QVR: the alias vertex shader's Quake VR outputs
 "	lerpedPos = ZeroBlend(lerpedPos, inst); // QVR: blend towards frame 0 (vr/vr_render.cpp)\n"
 "	vec3 lerpedVert = (worldmatrix * vec4(lerpedPos, 1.0)).xyz;\n"
 "	gl_ClipDistance[0] = dot(vec4(lerpedVert, 1.0), ShadowClip); // QVR: virtual light exit plane\n"
+"	gl_ClipDistance[1] = dot(vec4(lerpedVert, 1.0), inst.PortalClip); // QVR: split model\n"
 "	gl_Position = ViewProj * vec4(lerpedVert, 1.0);\n"
 "	out_pos = lerpedVert - EyePos;\n"
 "	out_nor = mat3(worldmatrix) * mix(pose1.nor, pose2.nor, inst.Blend); // QVR\n"

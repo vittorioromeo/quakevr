@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_flashlight.cpp -- see vr_flashlight.hpp.
 
 #include "vr_flashlight.hpp"
@@ -123,7 +124,7 @@ Shape shape_;
         return LittleFloat(v);
     };
     const auto fail = [&]() {
-        free(data);
+        VR_HeapFree(data);
         return false;
     };
     // mdl_t: ident, version, scale[3], scale_origin[3], boundingradius, eyeposition[3], numskins, skinwidth,
@@ -242,7 +243,7 @@ Shape shape_;
             sh.fromModel = true;
         }
     }
-    free(data);
+    VR_HeapFree(data);
 
     // The tail, the outline and the switch.
     float x0 = 1e9f, x1 = -1e9f;
@@ -440,6 +441,8 @@ struct State
     // On a gun: the hand holding it and its model (the same gun with its other ammo keeps it), and where on it.
     int gunHand{-1};
     const qmodel_t* gunModel{nullptr};
+    int gunSlot{-1}; // stable across maps; model pointers are not
+    bool restorePending{false};
     GunSpot gunSpot;
     bool nearGun{false}; // held within reach of the other hand's gun (B/Y clips it on)
 
@@ -1443,6 +1446,7 @@ void clipOn(int gunHand, const view::WeaponMount& m)
     st.holder = -1;
     st.gunHand = gunHand;
     st.gunModel = m.model;
+    st.gunSlot = m.slot;
     st.gunSpot = findGunSpot(m);
     st.nearGun = false;
     startClipEase();
@@ -2157,15 +2161,14 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     const hands::State& game = st.gameFrame == host_framecount ? st.game : s;
     noteIntent(game);
 
-    // A new map: back on the belt (switched as it was).
+    // Rebuild poses and model bindings, preserving the player's attachment.
     int& generation = st.viewGeneration;
     if(cl.worldmodel != st.world || worldGeneration() != generation)
     {
         st.world = cl.worldmodel;
         generation = worldGeneration();
-        st.mode = Mode::Mounted;
-        st.holder = -1;
-        st.gunHand = -1;
+        st.gunModel = nullptr;
+        st.restorePending = true;
         st.placed = false;
     }
 
@@ -2174,9 +2177,6 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     {
         ve.visible = false;
         st.placed = false;
-        st.mode = Mode::Mounted;
-        st.holder = -1;
-        st.gunHand = -1;
         st.nearGun = false;
         st.nearHead = false;
         st.hovered[0] = st.hovered[1] = false;
@@ -2187,6 +2187,11 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     }
 
     const Pose mount = mountPose(s);
+    if(st.restorePending && cls.signon == SIGNONS)
+    {
+        restoreState();
+        st.restorePending = false;
+    }
 
     // The holding hand took a weapon (a pickup): the lamp goes home.
     if(st.mode == Mode::Held && (st.holder < 0 || !handEmpty(st.holder)))
@@ -2198,7 +2203,8 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     // ammo): back to the belt.
     view::WeaponMount gun;
     if(st.mode == Mode::OnGun &&
-        (st.gunHand < 0 || !clipMount(st.gunHand, gun) || !view::sameGun(gun.model, st.gunModel)))
+        (st.gunHand < 0 || !clipMount(st.gunHand, gun) ||
+            (st.gunModel ? !view::sameGun(gun.model, st.gunModel) : gun.slot != st.gunSlot)))
     {
         clipOff(s, -1);
     }
@@ -2242,6 +2248,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     }
     if(st.mode == Mode::OnGun)
     {
+        st.gunSlot = gun.slot; // alternate ammunition may select another model slot
         if(gun.model != st.gunModel)
         {
             st.gunModel = gun.model; // the other ammo's model, after its button
@@ -2354,6 +2361,7 @@ void setupView(const hands::State& s, view::ViewEntity& ve)
     {
         killLights();
     }
+    saveState();
 }
 
 void drawOpaque()
@@ -2737,10 +2745,56 @@ void reset()
     st.holder = -1;
     st.gunHand = -1;
     st.gunModel = nullptr;
+    st.gunSlot = -1;
+    st.restorePending = false;
     st.nearGun = false;
     st.nearHead = false;
     st.placed = false;
     killLights();
+}
+
+void saveState()
+{
+    if(!sv.active || svs.maxclients != 1 || st.restorePending || cl.intermission) { return; }
+    qcvm_t* previous;
+    PR_PushQCVM(&sv.qcvm, &previous);
+    eval_t* field = GetEdictFieldValueByName(EDICT_NUM(1), "vr_flashlight_state");
+    if(field)
+    {
+        const Mode mode = st.mode == Mode::Returning ? Mode::Mounted : st.mode;
+        const unsigned packed = unsigned(st.on) | (unsigned(mode) << 1) |
+            (unsigned(st.holder + 1) << 4) | (unsigned(st.gunHand + 1) << 6) |
+            (unsigned(st.headSide > 0.f) << 8) | (unsigned(st.overhead[0]) << 9) |
+            (unsigned(st.overhead[1]) << 10) | (unsigned(za::clamp(st.gunSlot + 1, 0, 255)) << 11);
+        field->_float = static_cast<float>(packed);
+    }
+    PR_PopQCVM(previous);
+}
+
+void restoreState()
+{
+    if(!sv.active || svs.maxclients != 1) { return; }
+    qcvm_t* previous;
+    PR_PushQCVM(&sv.qcvm, &previous);
+    const eval_t* field = GetEdictFieldValueByName(EDICT_NUM(1), "vr_flashlight_state");
+    const unsigned packed = field ? static_cast<unsigned>(za::clamp(field->_float, 0.f, 524287.f)) : 0;
+    PR_PopQCVM(previous);
+    const unsigned mode = (packed >> 1) & 7;
+    st.on = (packed & 1) != 0;
+    st.mode = mode <= unsigned(Mode::OnHead) ? Mode(mode) : Mode::Mounted;
+    st.holder = za::clamp(int((packed >> 4) & 3) - 1, -1, 1);
+    st.gunHand = za::clamp(int((packed >> 6) & 3) - 1, -1, 1);
+    st.headSide = (packed & 256) ? 1.f : -1.f;
+    st.overhead[0] = (packed & 512) != 0;
+    st.overhead[1] = (packed & 1024) != 0;
+    st.gunSlot = int((packed >> 11) & 255) - 1;
+    st.swallowed[0][static_cast<int>(Button::Grip)] = st.mode == Mode::Held && st.holder == 0;
+    st.swallowed[1][static_cast<int>(Button::Grip)] = st.mode == Mode::Held && st.holder == 1;
+    st.gunModel = nullptr;
+    st.placed = false;
+    st.clipPending = false;
+    st.clipAt = st.flipAt[0] = st.flipAt[1] = -10.0;
+    Con_DPrintf("flashlight: restored state %u (mode %u, on %d)\n", packed, unsigned(st.mode), st.on);
 }
 
 void onGameDirChanged()
@@ -2837,6 +2891,8 @@ bool wantsSecondary(int hand)
 
 
 } // namespace qvr::flashlight
+
+extern "C" void VR_SaveFlashlightState(void) { qvr::flashlight::saveState(); }
 
 // A new game, a map started afresh or a save loaded (host_cmd.c), not a changelevel: the
 // flashlight off, on the belt (in the game, it stays as it was from level to level).

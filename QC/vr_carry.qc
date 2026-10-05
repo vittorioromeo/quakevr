@@ -272,6 +272,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 {
     dprint("carry: taken\n");
     xBox.carry_player = xPlayer;
+    portal_carry(xBox, xPlayer, xHand, TRUE);
     VR_Head_StopFlies(xBox); // (they would buzz on where it lay)
 
     vector handPos = VRGetEntHandPos(xPlayer, xHand);
@@ -601,7 +602,9 @@ float(float xMass) VR_Prop_ImpactWeight =
     return min(pow(xMass / ref, k), max(0.01, cvar_hget(cvarh_vr_prop_impact_weight_max)));
 };
 
-float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
+// Touches defer the two approach calculations until the cheap eligibility and mass
+// checks have passed. Solid-impact callbacks provide the pre-bounce speeds directly.
+float(float xSpeed, float xOwnSpeed, float xTouch) VR_Prop_Flung =
 {
     if(!cvar_hget(cvarh_vr_prop_impact_damage) || other == world || !other.takedamage || other == self ||
        !(other.flags & FL_MONSTER || (other.classname == "player" && cvar_hget(cvarh_vr_prop_impact_players)) ||
@@ -638,7 +641,26 @@ float(float xSpeed, float xOwnSpeed) VR_Prop_Flung =
     }
     float mass = VR_Thrown_Mass(self);
     float least = max(1, cvar_hget(cvarh_vr_prop_impact_min_speed) * VRMetersToUnits());
-    if(mass < cvar_hget(cvarh_vr_prop_impact_min_mass) || min(xSpeed, xOwnSpeed) < least * VR_Thrown_Lenient(self))
+    if(mass < cvar_hget(cvarh_vr_prop_impact_min_mass))
+    {
+        return FALSE;
+    }
+    float threshold = least * VR_Thrown_Lenient(self);
+    if(xTouch)
+    {
+        // Approach cannot exceed either velocity's length. Slow resting contacts
+        // need neither nearest-box-point calculation; the exact approaches follow
+        // for contacts that could reach the configured damage threshold.
+        vector relative = self.velocity - other.velocity;
+        // Leave room for normalize/dot rounding at the exact threshold.
+        if(vlen(self.velocity) < threshold * 0.99 || vlen(relative) < threshold * 0.99)
+        {
+            return FALSE;
+        }
+        xSpeed = VR_Prop_Approach(self, other, relative);
+        xOwnSpeed = VR_Prop_Approach(self, other, self.velocity);
+    }
+    if(min(xSpeed, xOwnSpeed) < threshold)
     {
         return FALSE;
     }
@@ -846,6 +868,7 @@ void(float xHand) VR_Carry_HandFrame =
     }
 
     VR_Carry_KeepAlive(box);
+    portal_carry(box, self, xHand, FALSE); // also before a release in this frame
 
     float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
@@ -1160,6 +1183,7 @@ void() VR_Carry_TwoHandFrame =
         return;
     }
     VR_Carry_KeepAlive(box);
+    portal_carry(box, self, cVR_MainHand, FALSE);
     box.carry_2h = TRUE;
 
     float gripMain = VR_HandGrabUtil_IsHandGrabbing(self, cVR_MainHand);
@@ -1214,6 +1238,7 @@ void() VR_Carry_TwoHandFrame =
         self.vr_2h_letgo_hand = letGo + 1; // (it strikes nothing while the other may yet throw it with both)
         self.vr_2h_letgo_time = time;
         VR_Carry_SetHeld(self, letGo, world);
+        portal_carry(box, self, keep, FALSE);
         vector keptFrom = box.origin;
         carry2hkeep(box, self, keep); // onto its grip in that hand (pulled off: carry2hoff has done it)
         VR_Carry_Regrip(keep, box);

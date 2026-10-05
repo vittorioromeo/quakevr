@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_detail.cpp -- see vr_detail.hpp.
 
 #include "vr_detail.hpp"
@@ -192,7 +193,7 @@ void loadCfg()
                 lineNumbers.pushBack(number);
             }
         }
-        free(data);
+        VR_HeapFree(data);
     }
 
     const auto value = [](const za::String& token, const char* key, za::String& out) {

@@ -3,7 +3,10 @@
 // numbers; the drawing is camera-facing quads of 1.5 x scale units, turned by their angle about
 // the view direction, as the old geometry shader built them.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_particles.hpp"
+#include "vr_explosiondebris.hpp"
+#include "vr_units.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
@@ -84,6 +87,7 @@ enum Cell : za::U8
     CellDrop,  // a drop of liquid (generated): a clear ball with a bright rim and a glint, drawn streaked
     CellSpray, // a cloud of fine droplets in a haze (generated)
     CellFoam,  // a patch of bubbly foam (generated), lying on a liquid
+    CellFire, // generated wispy flame tongue; emission sources keep their low-poly flame models
     CellCount
 };
 
@@ -151,9 +155,9 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
 
 // Makes `count` particles (times vr_particle_mult), each set up by `f(p)`.
 template <typename F>
-void make(float count, F&& f)
+void make(float count, F&& f, bool multiply = true)
 {
-    const int n = static_cast<int>(count * za::max(0.f, vr_particle_mult.value));
+    const int n = static_cast<int>(count * (multiply ? za::max(0.f, vr_particle_mult.value) : 1.f));
     for(int i = 0; i < n && pool.size() < maxParticles; i++)
     {
         Particle p;
@@ -226,7 +230,7 @@ void explosion(const glm::vec3& org)
         p.org = org + glm::vec3{rnd(-16, 16), rnd(-16, 16), rnd(-16, 16)};
         p.vel = {rnd(-256, 256), rnd(-256, 256), rnd(-256, 256)};
     });
-    make(1, [&](Particle& p, int) {
+    make(za::clamp(vr_explosion_particles.value, 0.f, 16.f), [&](Particle& p, int) {
         p.cell = CellExplosion;
         // The fire texture is neutral: tint it as flame, rather than the sparks' sulphur-yellow palette entry.
         p.color = glm::vec4{1.f, 0.48f, 0.12f, 1.f};
@@ -237,7 +241,7 @@ void explosion(const glm::vec3& org)
         p.spinBack = rndi(0, 2);
         p.org = org + glm::vec3{rnd(-11, 11), rnd(-11, 11), rnd(-11, 11)};
         p.vel = {rnd(-8, 8), rnd(-8, 8), rnd(-8, 8)};
-    });
+    }, false); // Exact large-fireball count; the general particle multiplier controls the other particles.
     make(3, [&](Particle& p, int) {
         p.cell = CellSmoke;
         setColor(p, rndi(0, 8), 225);
@@ -465,7 +469,7 @@ za::Vector<Plink> plinks;
 
 void run()
 {
-    if(cl.time == lastRun)
+    if(vr_particle_freeze.value != 0.f || cl.time == lastRun)
     {
         return;
     }
@@ -595,6 +599,7 @@ void run()
 gfx::Texture atlas = 0;
 bool atlasFailed = false;
 glm::vec4 cellUv[CellCount]{};
+bool cellTrim[CellCount]{};
 
 constexpr int cellSize = 132; // 128 plus a border
 constexpr int atlasColumns = 4;
@@ -818,7 +823,8 @@ bool ensureAtlas()
     constexpr File files[] = {{CellExplosion, "textures/particle_explosion"}, {CellSmoke, "textures/particle_smoke"},
         {CellBlood, "textures/particle_blood"}, {CellBloodMist, "textures/particle_blood_mist"},
         {CellLightning, "textures/particle_lightning"}, {CellSpark, "textures/particle_spark"},
-        {CellRock, "textures/particle_rock"}, {CellGunSmoke, "textures/particle_gun_smoke"}};
+        {CellRock, "textures/particle_rock"}, {CellGunSmoke, "textures/particle_gun_smoke"},
+        {CellFire, "textures/particle_fire"}};
     for(const File& f : files)
     {
         const int mark = Hunk_LowMark();
@@ -844,6 +850,40 @@ bool ensureAtlas()
             pixels[i + c] = static_cast<za::U8>((pixels[i + c] * pixels[i + 3] + 127) / 255);
         }
     }
+    // Include nearby cells: retro sampling can reach outside this image. No alpha threshold:
+    // even the faintest authored wisp contributes to the bounds. The shader only trims
+    // level 0..2 reads whose entire sampling footprint stays within this guard.
+    glm::vec4 support[CellCount];
+    for(int cell = 0; cell < CellCount; cell++)
+    {
+        const glm::vec4 uv = cellUv[cell];
+        glm::vec2 lo{1.f}, hi{0.f};
+        const int x0 = za::max(0, static_cast<int>(uv.x * width - 16.f));
+        const int y0 = za::max(0, static_cast<int>(uv.y * height - 16.f));
+        const int x1 = za::min(width - 1, static_cast<int>(uv.z * width + 16.f));
+        const int y1 = za::min(height - 1, static_cast<int>(uv.w * height + 16.f));
+        for(int y = y0; y <= y1; y++)
+        {
+            for(int x = x0; x <= x1; x++)
+            {
+                const auto i = static_cast<za::SizeT>((y * width + x) * 4);
+                if(pixels[i] || pixels[i + 1] || pixels[i + 2] || pixels[i + 3])
+                {
+                    const glm::vec2 center{(x + 0.5f) / width, (y + 0.5f) / height};
+                    lo = glm::min(lo, center);
+                    hi = glm::max(hi, center);
+                }
+            }
+        }
+        support[cell] = glm::vec4{lo, hi};
+        // Reject marginal savings before selecting a larger shader. Even with the
+        // maximum accepted footprint, a candidate must remove at least 10% of area.
+        const glm::vec2 margin{15.f / width, 15.f / height};
+        const glm::vec2 size = glm::max(glm::vec2{0.f}, glm::min(glm::vec2{uv.z, uv.w}, hi + margin) -
+            glm::max(glm::vec2{uv.x, uv.y}, lo - margin));
+        cellTrim[cell] = size.x * size.y < 0.9f * (uv.z - uv.x) * (uv.w - uv.y);
+    }
+    gfx::particleSupportBounds({support, CellCount}, width, height);
     atlas = gfx::createTexture(width, height, pixels.data(), true);
     atlasFailed = atlas == 0;
     return atlas != 0;
@@ -1092,8 +1132,8 @@ void blobExplosion(const glm::vec3& org)
         p.org = org + inBox(16.f);
         p.vel = inBox(256.f);
     });
-    make(3, [&](Particle& p, int) {
-        p.cell = CellSmoke; // grey: tinted violet (the fireball's texture is orange)
+    make(za::clamp(vr_explosion_particles.value, 0.f, 16.f), [&](Particle& p, int) {
+        p.cell = CellExplosion; // the neutral fireball texture also takes the tarbaby's violet tint
         p.additive = true;
         p.color = glm::vec4{0.6f, 0.3f, 1.f, 1.f};
         p.die = cl.time + 1.5;
@@ -1102,7 +1142,7 @@ void blobExplosion(const glm::vec3& org)
         p.spinBack = rndi(0, 2);
         p.org = org + inBox(8.f);
         p.vel = inBox(8.f);
-    });
+    }, false);
     make(48, [&](Particle& p, int) {
         p.cell = CellSpark;
         p.additive = true;
@@ -1591,6 +1631,7 @@ void splash(const glm::vec3& org, const glm::vec3& dir, int count)
 
 bool spawn(const glm::vec3& org, const glm::vec3& dir, Preset preset, int count)
 {
+    if(preset == Preset::Explosion) { explosiondebris::spawn(org); }
     QVR_PROFILE("particle spawn");
     // The splash's ripples on the liquid (vr_water_ripples, vr_water.cpp), with Quake VR's particles or without.
     glm::vec3 surface{0.f};
@@ -1746,6 +1787,73 @@ void bloodSpecks(const glm::vec3& org, const glm::vec3& normal, int count, const
         p.floor = org.z - 0.5f;
         pool.pushBack(p);
     }
+}
+
+// A fire model's emission burst: its world-axis upward velocity does not invert with a held torch.
+int fireSource(const glm::vec3& at, float sourceScale)
+{
+    if(!vr_particles.value || !r_particles.value || !ensureAtlas()) { return 0; }
+    const za::SizeT before = pool.size();
+    const auto range = [](float a, float b, float low, float high) {
+        a = za::clamp(a, low, high); b = za::clamp(b, low, high);
+        return rnd(za::min(a, b), za::max(a, b));
+    };
+    make(za::clamp(vr_fire_particles_count.value, 0.f, 16.f), [&](Particle& p, int) {
+        p.cell = CellFire;
+        p.type = Custom;
+        p.additive = true;
+        p.angle = -1.5707963f + rnd(-0.25f, 0.25f); // clockwise: the shader rotates +angle counterclockwise
+        const float s = sourceScale * za::clamp(vr_fire_particles_size.value, 0.1f, 4.f);
+        p.scale = rnd(2.f, 3.f) * s;
+        p.org = at + glm::vec3{rnd(-1.f, 1.f), rnd(-1.f, 1.f), rnd(-0.5f, 0.5f)} * sourceScale;
+        const float life = range(vr_fire_particles_life_min.value, vr_fire_particles_life_max.value, 0.05f, 5.f);
+        const float speed = range(vr_fire_particles_speed_min.value, vr_fire_particles_speed_max.value, 0.f, 10.f);
+        const float up = range(vr_fire_particles_up_min.value, vr_fire_particles_up_max.value, 0.f, 10.f);
+        const float angle = rndAngle();
+        p.vel = glm::vec3{za::cos(angle) * speed, za::sin(angle) * speed, up} * units::metresToUnits();
+        p.color = glm::vec4{fireColor(), za::clamp(vr_fire_particles_alpha.value, 0.f, 1.f)};
+        p.die = cl.time + life;
+        p.fade = -p.color.a / life;
+        p.grow = s * 1.5f;
+        p.spin = rnd(-0.3f, 0.3f);
+        p.acc = glm::vec3{0.f, 0.f, units::metresToUnits() * 0.3f};
+    }, false);
+    return static_cast<int>(pool.size() - before);
+}
+
+// Incandescent physical chunks leave short flame tongues and slower, lingering smoke.
+void explosionDebrisTrail(const glm::vec3& from, const glm::vec3& to, float size, float heat)
+{
+    if(!vr_particles.value || !r_particles.value || !ensureAtlas()) { return; }
+    const float length = glm::length(to - from);
+    const float density = za::clamp(vr_explosion_debris_trail.value, 0.f, 3.f);
+    if(length <= 0.f || density <= 0.f) { return; }
+    const float count = perLength(length, za::max(1.f, size) / density);
+    make(count, [&](Particle& p, int) {
+        p.cell = CellExplosion;
+        p.org = glm::mix(from, to, rnd(0.f, 1.f));
+        p.color = glm::vec4{1.f, 0.3f + 0.2f * heat, 0.04f, 0.65f * heat};
+        p.additive = true;
+        p.type = Custom;
+        p.scale = size * rnd(0.6f, 1.f);
+        p.die = cl.time + rnd(0.15f, 0.3f);
+        p.fade = -3.f;
+        p.grow = size * 2.f;
+        p.vel = inBox(4.f) + glm::vec3{0.f, 0.f, 12.f};
+        p.spin = rnd(-2.f, 2.f);
+    });
+    make(count * 0.5f, [&](Particle& p, int) {
+        p.cell = CellSmoke;
+        p.org = glm::mix(from, to, rnd(0.f, 1.f));
+        p.color = glm::vec4{0.25f, 0.22f, 0.2f, 0.32f};
+        p.type = Custom;
+        p.scale = size * rnd(0.8f, 1.4f);
+        p.die = cl.time + rnd(0.7f, 1.2f);
+        p.fade = -0.3f;
+        p.grow = size * 4.f;
+        p.vel = inBox(5.f) + glm::vec3{0.f, 0.f, 14.f};
+        p.spin = rnd(-0.5f, 0.5f);
+    });
 }
 
 void chainsawSmoke(const glm::vec3& org, const glm::vec3& dir, int count)
@@ -2056,6 +2164,14 @@ void shellSplash(const glm::vec3& org, const glm::vec3& dir, float strength)
     }
 }
 
+// Live large blast fireballs only (the diagnostics exclude the small trail/emitter flames).
+int largeExplosionCount()
+{
+    int n = 0;
+    for(const Particle& p : pool) { n += p.cell == CellExplosion && p.type == TxExplode ? 1 : 0; }
+    return n;
+}
+
 // Live particles (vr_memstats).
 int liveCount()
 {
@@ -2191,6 +2307,7 @@ void buildInstances()
     }
     glm::vec3 lo{ZA_FLOAT_MAX}, hi{-ZA_FLOAT_MAX};
     gfx::ParticleInstance* out = instances.data();
+    bool trim = false;
     for(za::SizeT i = 0; i < pool.size(); i++)
     {
         Particle& p = pool[i];
@@ -2223,11 +2340,13 @@ void buildInstances()
         q.pull = sn.pull;
         q.uv = cellUv[p.cell];
         q.flat = p.flat ? 1.f : 0.f;
+        q.cell = cellTrim[p.cell] ? static_cast<float>(p.cell) : -1.f;
+        trim |= cellTrim[p.cell];
     }
     instanceCount = static_cast<za::SizeT>(out - instances.data());
     boundsMin = lo;
     boundsMax = hi;
-    batch = gfx::uploadParticles({instances.data(), instanceCount});
+    batch = gfx::uploadParticles({instances.data(), instanceCount}, trim);
 }
 
 // This view's lying ones (lieOnLiquid), those in its frustum.
@@ -2391,14 +2510,16 @@ extern "C" void VR_DrawSceneTranslucent()
     const bool drawn = inView || lyingCount > 0;
     const int retroSet = retro::categorySet(retro::Category::Particles);
 
-    // At half size (vr_particle_halfres), when there are enough large ones; not with retro textures (their texels'
-    // blocks kept sharp), nor without a depth texture to hide them behind.
+    // Retro keeps the full-resolution look by default. Its separate opt-in half-resolution
+    // mode retains the world grid/palette but trades some edge detail for lower overdraw.
     int viewport[4];
     R_SceneViewport(viewport);
     // (Quake's projection: its rows swapped about, as R_DrawParticles reads it: 1 / tan(fov y / 2) at [2][1].)
     const gfx::ParticleSplit split{za::abs(r_matproj[2 * 4 + 1]) * 0.5f * static_cast<float>(viewport[3]),
-        za::max(0.f, vr_particle_halfres_pixels.value)};
-    const bool half = inView && vr_particle_halfres.value != 0.f && retroSet == 0 &&
+        retroSet > 0 ? za::max(0.f, vr_particle_retro_halfres_pixels.value) :
+                       za::max(0.f, vr_particle_halfres_pixels.value)};
+    const bool allowHalf = retroSet > 0 ? vr_particle_retro_halfres.value != 0.f : vr_particle_halfres.value != 0.f;
+    const bool half = inView && allowHalf &&
                       (GL_NeedsSceneEffects() || GL_NeedsPostprocess()) && halfResThisFrame(split, viewport);
 
     // The opaque scene's distances, for the soft ones (the liquids' when they made them this view): only when a soft
@@ -2450,7 +2571,7 @@ extern "C" void VR_DrawSceneTranslucent()
             QVR_GPU_PROFILE("half size");
             int width = 0, height = 0;
             water::opaqueSceneDistancesSize(width, height);
-            halfDrawn = gfx::drawParticlesHalf(batch, pull, atlas, split, distances, width, height, viewport, soft, R_SetupGL);
+            halfDrawn = gfx::drawParticlesHalf(batch, pull, atlas, split, distances, width, height, viewport, soft, retroSet, R_SetupGL);
         }
         if(!halfDrawn || split.largePixels > 0.f)
         {
@@ -2482,7 +2603,7 @@ extern "C" int VR_GrenadeTrail(int ent)
     const entity_t& e = cl_entities[ent];
     constexpr int unarmedSkin = 1;
     const bool smokes = !(e.model && e.skinnum == unarmedSkin &&
-                          (!strcmp(e.model->name, "progs/grenade.mdl") || !strcmp(e.model->name, "progs/mervup.mdl")));
+                          (qvr::modelmeta::is(e.model, qvr::modelmeta::Id::Grenade) || qvr::modelmeta::is(e.model, qvr::modelmeta::Id::Mervup)));
     // developer 1: each grenade's trail as it starts or stops.
     const auto n = static_cast<size_t>(ent);
     if(developer.value && (!grenadeTrails.seen[n] || grenadeTrails.smoking[n] != smokes))
@@ -2540,6 +2661,7 @@ extern "C" int VR_ParticleExplosion(const float* org)
 
 extern "C" int VR_ParticleExplosion2(const float* org, int colorStart, int colorLength)
 {
+    qvr::explosiondebris::spawn({org[0], org[1], org[2]});
     using namespace qvr;
     using namespace qvr::particles;
     if(!(cl.protocolflags & PRFL_QUAKEVR) || !vr_particles.value || !ensureAtlas())
@@ -2574,6 +2696,7 @@ extern "C" int VR_EntityTrail(int ent, int type)
 
 extern "C" int VR_BlobExplosion(const float* org)
 {
+    qvr::explosiondebris::spawn({org[0], org[1], org[2]});
     using namespace qvr::particles;
     if(!enabled())
     {

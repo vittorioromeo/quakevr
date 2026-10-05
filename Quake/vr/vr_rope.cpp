@@ -1,5 +1,6 @@
 // vr_rope.cpp -- see vr_rope.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_rope.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -1030,7 +1031,7 @@ bool hookTail(const glm::vec3& b, glm::vec3& out, glm::vec3& dir)
     for(int i = 1; i < cl.num_entities; i++)
     {
         const entity_t& e = cl_entities[i];
-        if(!e.model || e.msgtime != cl.mtime[0] || strcmp(e.model->name, "progs/hook.mdl"))
+        if(!e.model || e.msgtime != cl.mtime[0] || !modelmeta::is(e.model, modelmeta::Id::Hook))
         {
             continue;
         }

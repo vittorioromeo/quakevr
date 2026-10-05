@@ -62,11 +62,12 @@ void(float ofs, float turn) armagon_launch_missile =
       }
    makevectors(ang);
    src = self.origin + '0 0 66' + v_right*ofs + v_forward*84;
-   targ = self.enemy.origin + self.enemy.view_ofs;
+    if(!VR_AI_ShotReady(src)) { return; }
+   targ = VR_AI_Origin(self.enemy) + self.enemy.view_ofs;
    if(skill!=0)
       {
       dist = vlen(targ-src);
-      targ = targ + (self.enemy.velocity * (dist/1000));
+      targ = targ + (VR_AI_Vector(self.enemy.velocity) * (dist/1000));
       }
    vec = (targ - src);
    vec = normalize(vec);
@@ -81,6 +82,7 @@ void(float ofs, float turn) armagon_launch_missile =
 
     missile = spawn();
     missile.owner = self;
+    VR_AI_Tag(missile);
     missile.movetype = MOVETYPE_FLYMISSILE;
     missile.solid = SOLID_BBOX;
     missile.classname = "missile";
@@ -109,11 +111,12 @@ void(float ofs) armagon_launch_laser =
    ang_y = ang_y + self.fixangle;
    makevectors(ang);
    src = self.origin + '0 0 66' + v_right*ofs + v_forward*84;
-   targ = self.enemy.origin + self.enemy.view_ofs;
+    if(!VR_AI_ShotReady(src)) { return; }
+   targ = VR_AI_Origin(self.enemy) + self.enemy.view_ofs;
    if(skill!=0)
       {
       dist = vlen(targ-src);
-      targ = targ + (self.enemy.velocity * (dist/1000));
+      targ = targ + (VR_AI_Vector(self.enemy.velocity) * (dist/1000));
       }
    vec = (targ - src);
    vec = normalize(vec);
@@ -156,7 +159,7 @@ void() armagon_think =
    self.trigger_field.angles = self.angles;
    self.trigger_field.frame = self.frame;
    self.trigger_field.angles_y = self.trigger_field.angles_y + self.fixangle;
-   enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
+   enemy_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
    self.ideal_yaw = enemy_yaw;
    delta = self.ideal_yaw - self.angles_y;
    self.cnt = 0;
@@ -256,7 +259,7 @@ void() armagon_overleft_think =
    self.trigger_field.angles_y = self.trigger_field.angles_y + self.fixangle;
    if(self.count == 0)
       {
-      enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
+      enemy_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
       self.ideal_yaw = enemy_yaw;
       delta = self.ideal_yaw - self.angles_y - 165;
       if(delta > 180) delta = delta - 360;
@@ -290,7 +293,7 @@ void() armagon_overright_think =
    self.trigger_field.angles_y = self.trigger_field.angles_y + self.fixangle;
    if(self.count == 0)
       {
-      enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
+      enemy_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
       self.ideal_yaw = enemy_yaw;
       delta = self.ideal_yaw - self.angles_y + 165;
       if(delta > 180) delta = delta - 360;
@@ -775,9 +778,9 @@ void() armagon_stand_attack =
 
 // see if any entities are in the way of the shot
    spot1 = self.origin + self.view_ofs;
-   spot2 = self.enemy.origin + self.enemy.view_ofs;
+   spot2 = VR_AI_Origin(self.enemy) + self.enemy.view_ofs;
 
-   traceline(spot1, spot2, FALSE, self);
+   traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
    if(trace_ent != self.enemy)
       {
@@ -796,7 +799,7 @@ void() armagon_stand_attack =
       return;
       }
 
-   if((vlen(spot2-spot1) < 200) && (self.enemy.classname == "player"))
+   if(self.vr_ai_gate <= 0 && (vlen(spot2-spot1) < 200) && (self.enemy.classname == "player"))
       {
       armagon_repulse_attack();
       return;
@@ -837,9 +840,9 @@ float()  ArmagonCheckAttack =
 
 // see if any entities are in the way of the shot
    spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
+    spot2 = VR_AI_Origin(targ) + targ.view_ofs;
 
-    traceline(spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
    if((trace_ent != targ) && (!self.charmed))
       return FALSE;     // don't have a clear shot
@@ -855,13 +858,14 @@ float()  ArmagonCheckAttack =
    dist = vlen(spot2-spot1);
    if((fabs(delta) > 10 && (dist > 200)) || (self.enemy.classname != "player"))
       return FALSE;
-   if(dist < 400)
+   if(dist < 400 && self.vr_ai_gate <= 0)
       {  // melee attack
       self.th_melee();
       return TRUE;
         }
 // missile attack
    self.lefty = 1;
+   if(self.vr_ai_gate > 0) { self.attack_state = AS_MISSILE; return TRUE; }
 //   self.th_missile();
 //   SUB_AttackFinished (1.5*random());
    return FALSE;

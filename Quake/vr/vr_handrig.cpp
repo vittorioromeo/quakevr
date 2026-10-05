@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_handrig.cpp -- see vr_handrig.hpp.
 //
 // The rig from the file (round 21, "Hand editable in Blender"; the author's guide: docs/vr-port/HANDS_IN_BLENDER.md):
@@ -22,6 +23,7 @@
 //   constants and palmCentre (weapon placements and cups are measured from them: they stay where they were on the
 //   controller, and an edited hand changes shape around them), the wrist (where the arm meets the hand).
 
+#include "vr_modelmetadata.hpp"
 #include "vr_handrig.hpp"
 #include "vr_mem.hpp"
 
@@ -973,7 +975,7 @@ bool readRig(const char* meshText, Rig& out, za::String& error, Report& report)
         za::Vector<za::Pair<za::String, long>> hierarchy;
         za::String animError;
         const bool ok = parseAnim(reinterpret_cast<const char*>(anim), hierarchy, animError);
-        free(anim);
+        VR_HeapFree(anim);
         if(!ok)
         {
             error = animError;
@@ -1305,7 +1307,7 @@ void reload_f()
     za::String error;
     Report report;
     const bool ok = readRig(reinterpret_cast<const char*>(text), r, error, report);
-    free(text);
+    VR_HeapFree(text);
     if(!ok)
     {
         Con_Warning("vr_hand_reload: %s\n", error.cStr());
@@ -1398,7 +1400,7 @@ void info_f()
 extern "C" int VR_ModelReplacementOk(const char* name, const char* md5mesh)
 {
     using namespace qvr::handrig;
-    if(q_strcasecmp(name, modelName) != 0)
+    if(!qvr::modelmeta::describePath(name).has(qvr::modelmeta::Trait::RigHandInsensitive))
     {
         return 1;
     }

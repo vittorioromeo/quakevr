@@ -51,10 +51,32 @@
 #pragma once
 
 #include <glm/vec3.hpp>
+#include "Zancle/Container/Vector.hpp"
 #include <glm/mat3x3.hpp>
+
+struct edict_s;
 
 namespace qvr::portals
 {
+struct Reach
+{
+    glm::vec3 position{0.f}, from{0.f}, to{0.f};
+    glm::mat3 turn{1.f};
+    float yaw = 0.f;
+    int gate = 0;
+};
+// A physical hand or muzzle beyond the aperture, while the torso stays here.
+Reach reach(const glm::vec3& root, const glm::vec3& point);
+// The closest visible one-gate image of a point, for gravity-glove aiming.
+glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate = nullptr);
+// Search centres for a conservative force-grab broad phase: the hand itself and its
+// active source-facing one-hop images in destination rooms. pullImage still decides visibility.
+void pullSearchOrigins(const glm::vec3& from, za::Vector<glm::vec3>& out);
+
+// One-hop AI sight from a monster/muzzle to a player point. A positive gate pins the route.
+int aiImage(edict_s* observer, edict_s* target, const glm::vec3& from, const glm::vec3& point,
+    int gate, glm::vec3& image);
+glm::vec3 aiMap(int gate, const glm::vec3& value, bool direction);
 
 // Before each scene view: the gates (found anew for a new map) and the side looked through by this camera.
 void update(const float* origin = nullptr, const float* angles = nullptr);
@@ -99,5 +121,7 @@ struct LightGate
 };
 // One traversal only, through active apertures reached from the light's front side.
 int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacity);
+// A rigid body's bounds crossing a fitting aperture. Either room can be its owner.
+bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate);
 
 } // namespace qvr::portals

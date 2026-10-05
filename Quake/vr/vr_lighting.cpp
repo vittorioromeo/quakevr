@@ -1,5 +1,6 @@
 // vr_lighting.cpp -- see vr_lighting.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_lighting.hpp"
 #include "vr_portals.hpp"
 #include "vr_ao.hpp"
@@ -361,7 +362,7 @@ void collectBrushes(const glm::vec3& light, float radius, bool itemsOnly)
     {
         entity_t& e = cl_entities[i];
         if(!e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0] ||
-            (itemsOnly && e.model->name[0] == '*') || !touches(&e, light, radius))
+            (itemsOnly && qvr::modelmeta::has(e.model, qvr::modelmeta::Trait::Submodel)) || !touches(&e, light, radius))
         {
             continue;
         }
@@ -404,7 +405,7 @@ void collectAliases(const glm::vec3& light, float radius, int ownEntity, bool se
         }
         if(VR_IsViewEntity(e))
         {
-            const bool body = strstr(e->model->name, "vrbody") != nullptr;
+            const bool body = modelmeta::has(e->model, modelmeta::Trait::ContainsBody);
             if(selfCasters <= 0 || (selfCasters == 1 && !body) ||
                 glm::distance(glm::vec3{e->origin[0], e->origin[1], e->origin[2]}, light) > radius + viewEntityReach(e))
             {
@@ -1757,7 +1758,7 @@ extern "C" float VR_ParallaxDepth(const entity_t* e, const float matrix[16], con
         depth = heights == 2 ? AUTHORED_HEIGHT_DEPTH * za::clamp(vr_parallax_authored.value, 0.f, 4.f)
                              : za::clamp(vr_parallax_models.value, 0.f, 4.f);
     }
-    else if(e->model && !q_strncasecmp(e->model->name, "maps/b_", 7))
+    else if(e->model && qvr::modelmeta::has(e->model, qvr::modelmeta::Trait::AmmoBoxInsensitive))
     {
         depth = za::clamp(vr_parallax_items.value, 0.f, 8.f);
     }

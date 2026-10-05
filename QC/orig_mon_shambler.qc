@@ -200,19 +200,10 @@ void() CastLightning =
 
     org = self.origin + '0 0 40';
 
-    dir = self.enemy.origin + '0 0 16' - org;
+    dir = VR_AI_Origin(self.enemy) + '0 0 16' - org;
     dir = normalize(dir);
 
-    traceline(org, self.origin + dir*600, TRUE, self);
-
-    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte(MSG_BROADCAST, TE_LIGHTNING1);
-    WriteEntity(MSG_BROADCAST, self);
-    WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-    WriteVec3(MSG_BROADCAST, org);
-    WriteVec3(MSG_BROADCAST, trace_endpos);
-
-    LightningDamage(org, trace_endpos, self, 10);
+    VR_AI_Lightning(org, dir, 600, TE_LIGHTNING1, 10);
 };
 
 void() sham_magic1     =[      $magic1,       sham_magic2    ] {ai_face();

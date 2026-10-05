@@ -20,6 +20,7 @@
 // 0.3 of gravity's pull (times vr_weight_spring_sag), 35% of it with the hand at the shoulder, all of it at arm's length.
 // Each of these settings is also times the thing's own (Load::tune: Weapon Weights, Held Object Weights).
 
+#include "vr_modelmetadata.hpp"
 #include "vr_weight.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
@@ -939,7 +940,7 @@ void table_f()
         edict_t* e = EDICT_NUM(i);
         const int index = static_cast<int>(e->v.modelindex);
         const qmodel_t* model = !e->free && index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-        if(!model || model->name[0] == '*' || za::find(seen.begin(), seen.end(), model->name) != seen.end())
+        if(!model || qvr::modelmeta::has(model, qvr::modelmeta::Trait::Submodel) || za::find(seen.begin(), seen.end(), model->name) != seen.end())
         {
             continue;
         }
@@ -980,7 +981,7 @@ void wrenchFrame(int h, const hands::State& s, float turnYaw, const Load& l, flo
 {
     Wrench& w = wrenches[h];
     w.clock += dt;
-    const bool weapon = l.valid && !l.prop && !l.empty && strcmp(l.model, flashlightModel) != 0;
+    const bool weapon = l.valid && !l.prop && !l.empty && modelmeta::identifyPath(l.model) != modelmeta::Id::Vrflashlight;
     const float limit = weapon && vrActive() ? wrenchLimit(l.mass, l.twoHanded) : 0.f;
     if(limit <= 0.f)
     {

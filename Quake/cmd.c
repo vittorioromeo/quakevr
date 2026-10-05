@@ -105,7 +105,7 @@ void Cbuf_Init (void)
 {
 	cmd_text.maxsize = 1<<20; // QVR: a buffer Cbuf_Reserve grows (was SZ_Alloc of 1<<18 bytes, a fixed size)
 	cmd_text.cursize = 0;
-	cmd_text.data = (byte *) malloc (cmd_text.maxsize);
+	cmd_text.data = (byte *) VR_HeapMalloc (cmd_text.maxsize);
 	if (!cmd_text.data)
 		Sys_Error ("Cbuf_Init: out of memory");
 }
@@ -149,7 +149,7 @@ static qboolean Cbuf_Reserve (int l)
 		newsize = cmd_text.maxsize;
 		while (cmd_text.cursize + l >= newsize)
 			newsize *= 2;
-		newdata = (byte *) realloc (cmd_text.data, newsize);
+		newdata = (byte *) VR_HeapRealloc (cmd_text.data, newsize);
 		if (!newdata)
 		{
 			Con_Printf ("\x02" "Cbuf_AddText: overflow: out of memory for %d bytes of commands\n", newsize);
@@ -216,7 +216,7 @@ void Cbuf_InsertText (const char *text)
 	templen = cmd_text.cursize;
 	if (templen)
 	{
-		temp = (char *) malloc (templen); // QVR: was Z_Malloc: a large remainder (a config) could exhaust the zone
+		temp = (char *) VR_HeapMalloc (templen); // QVR: was Z_Malloc: a large remainder (a config) could exhaust the zone
 		if (!temp)
 		{
 			Con_Printf ("\x02" "Cbuf_InsertText: out of memory\n");
@@ -232,7 +232,7 @@ void Cbuf_InsertText (const char *text)
 	Cbuf_AddText (text);
 	if (!Cbuf_Reserve (1 + templen)) // QVR: room for the rest (the buffer grows; out of memory, the rest is lost)
 	{
-		free (temp);
+		VR_HeapFree (temp);
 		return;
 	}
 	SZ_Write (&cmd_text, "\n", 1);
@@ -240,7 +240,7 @@ void Cbuf_InsertText (const char *text)
 	if (templen)
 	{
 		SZ_Write (&cmd_text, temp, templen);
-		free (temp); // QVR: was Z_Free (malloc'd)
+		VR_HeapFree (temp); // QVR: was Z_Free (malloc'd)
 	}
 }
 
@@ -286,7 +286,7 @@ void Cbuf_Execute (void)
 		}
 
 		// QVR: any length (was cut at 1023 characters, silently: a long cvar value lost its end)
-		line = i < (int) sizeof (stackline) ? stackline : (char *) malloc (i + 1);
+		line = i < (int) sizeof (stackline) ? stackline : (char *) VR_HeapMalloc (i + 1);
 		if (!line)
 			Sys_Error ("Cbuf_Execute: out of memory for a %d-character command", i);
 		memcpy (line, text, i);
@@ -306,7 +306,7 @@ void Cbuf_Execute (void)
 // execute the command line
 		Cmd_ExecuteString (line, src_command);
 		if (line != stackline) // QVR
-			free (line);
+			VR_HeapFree (line);
 	}
 	if (cbuf_start >= cmd_text.cursize) // QVR: all of it run
 		cmd_text.cursize = cbuf_start = 0;
@@ -915,7 +915,7 @@ cmd_function_t *Cmd_AddCommand2 (const char *cmd_name, xcommand_t function, cmd_
 
 	if (host_initialized)
 	{
-		cmd = (cmd_function_t *) malloc(sizeof(*cmd) + strlen(cmd_name)+1);
+		cmd = (cmd_function_t *) VR_HeapMalloc(sizeof(*cmd) + strlen(cmd_name)+1);
 		if (!cmd)
 			Sys_Error ("Cmd_AddCommand2: out of memory (%s)", cmd_name);
 		cmd->name = strcpy((char*)(cmd + 1), cmd_name);
@@ -961,7 +961,7 @@ void Cmd_RemoveCommand (cmd_function_t *cmd)
 		if (*link == cmd)
 		{
 			*link = cmd->next;
-			free(cmd);
+			VR_HeapFree(cmd);
 			return;
 		}
 	}

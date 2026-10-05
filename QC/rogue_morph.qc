@@ -244,9 +244,10 @@ void() morph_fire =
 
     makevectors(self.angles);
     org = self.origin + v_forward * 30 + v_right * 8.5 + '0 0 16';
-    dir = normalize(self.enemy.origin - self.origin) ;
+    if(!VR_AI_ShotReady(org)) { return; }
+    dir = normalize(VR_AI_Origin(self.enemy) - self.origin) ;
     LaunchLaser(org, dir);
-    if(vlen(self.enemy.origin - self.origin) > 400)
+    if(vlen(VR_AI_Origin(self.enemy) - self.origin) > 400)
     {
         LaunchLaser(org, (dir + v_right * 0.04));
         LaunchLaser(org, (dir - v_right * 0.04));

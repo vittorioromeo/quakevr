@@ -1244,9 +1244,9 @@ void(entity xMissile, vector xFrom) VR_Lob_Aim =
         return;
     }
     vector quake = xMissile.velocity;
-    vector at = e.origin + (e.mins + e.maxs) * 0.5;
+    vector at = VR_AI_Origin(e) + (e.mins + e.maxs) * 0.5;
     vector vel = VR_Lob_Velocity(xFrom, at, VR_LOB_SPEED, self);
-    vector walk = e.velocity;
+    vector walk = VR_AI_Vector(e.velocity);
     walk_z = 0;
     if(vlen(walk) > 10 && vr_lob_time > 0)
     {

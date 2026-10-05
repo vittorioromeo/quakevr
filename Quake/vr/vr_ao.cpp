@@ -1,5 +1,6 @@
 // vr_ao.cpp -- dynamic ambient occlusion: see vr_ao.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_ao.hpp"
 #include "vr_portals.hpp"
 #include "vr_view.hpp"
@@ -332,12 +333,9 @@ void addBody(const entity_t* e, const aliashdr_t* hdr, float strength, float rea
     aliasMatrix(e, hdr, m);
     const auto* bones = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(hdr) + hdr->boneinfo);
     const auto joint = [&](const char* name, glm::vec3& out, float* size) {
-        for(int i = 0; i < hdr->numbones; i++)
+        const int i = modelmeta::boneIndex(e->model, name);
+        if(i >= 0)
         {
-            if(strcmp(bones[i].name, name) != 0)
-            {
-                continue;
-            }
             const float* inv = bones[i].inverse.mat; // [R^T | -R^T p]
             const glm::vec3 t{inv[3], inv[7], inv[11]};
             const glm::vec3 bind{-(inv[0] * t.x + inv[4] * t.y + inv[8] * t.z), -(inv[1] * t.x + inv[5] * t.y + inv[9] * t.z),
@@ -490,7 +488,7 @@ void addBrush(const entity_t* e, float strength)
         return;
     }
     // A brush model the map's lighting saw where it was built: only as much as it has moved from there.
-    if(model->name[0] == '*')
+    if(qvr::modelmeta::has(model, qvr::modelmeta::Trait::Submodel))
     {
         parseBakedSubmodels();
         const int n = atoi(model->name + 1);

@@ -44,6 +44,10 @@ void() boss_face =
         if(!self.enemy)
             self.enemy = find(self.enemy, classname, "player");
     }
+    float selectedGate = self.vr_ai_gate;
+    entity selectedTarget = self.vr_ai_target;
+    if(!visible(self.enemy) && selectedGate > 0 && selectedTarget == self.enemy)
+        self.vr_ai_gate = selectedGate; // Retain the route so the firing-frame check cancels a closed gate.
     ai_face();
 };
 
@@ -205,30 +209,31 @@ void(float r, vector p) boss_missile =
         vel = 100 + random() * 150;
     }
 
-    offang = vectoangles (self.enemy.origin - self.origin);
+    offang = vectoangles (VR_AI_Origin(self.enemy) - self.origin);
     makevectors(offang);
 
     org = self.origin + p_x*v_forward + p_y*v_right + p_z*'0 0 1';
 
+    if(!VR_AI_ShotReady(org)) { return; }
 // lead the player on hard mode
     if(skill > 1)
     {
         // VR: Predicted direction attack.
         if(r == 0)
         {
-            t = vlen(self.enemy.origin - org) / vel;
-            vec = self.enemy.velocity;
+            t = vlen(VR_AI_Origin(self.enemy) - org) / vel;
+            vec = VR_AI_Vector(self.enemy.velocity);
             vec_z = 0;
-            d = self.enemy.origin + t * vec;
+            d = VR_AI_Origin(self.enemy) + t * vec;
         }
         else
         {
-            d = self.enemy.origin;
+            d = VR_AI_Origin(self.enemy);
         }
     }
     else
     {
-        d = self.enemy.origin;
+        d = VR_AI_Origin(self.enemy);
     }
 
     vec = normalize(d - org);

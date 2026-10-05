@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_bigfont.cpp -- the main menu's lettering as a font: menu.c's M_Main_Draw draws its rows as text in it, so that
 // the VR Calibration row has the same letters as Quake's Single Player, Multiplayer, Options... (a picture,
 // gfx/mainmenu.lmp, that has no such row).
@@ -199,7 +200,7 @@ void build()
     }
     for(byte* f : files)
     {
-        free(f);
+        VR_HeapFree(f);
     }
 
     if(width > pad)

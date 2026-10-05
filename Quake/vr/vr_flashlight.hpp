@@ -72,9 +72,11 @@ enum class Button
 // true: the game saw that press and must see it let go.
 void lateGrips();
 
-// A new game, a map started afresh (the map command, the menus) or a save loaded, not a level
-// changed in the game: the flashlight switched off, on the chest.
+// A fresh game's baseline: off, on the chest. Loading subsequently restores the saved state.
 void reset();
+// Player field/level parm persistence. Transient poses and model pointers are rebuilt.
+void saveState();
+void restoreState();
 
 // Whether `hand` holds the flashlight: that hand does not force grab (its move tells the server,
 // QVR_BUTTON_*HANDBUSY, and its aim beam is not drawn).

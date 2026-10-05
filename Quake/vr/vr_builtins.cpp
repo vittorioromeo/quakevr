@@ -14,8 +14,10 @@
 #include "vr_highlights.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_motion.hpp"
+#include "vr_mem.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
+#include "vr_portals.hpp"
 #include "vr_props.hpp"
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
@@ -136,6 +138,86 @@ void PF_findcone()
         chain = ent;
     }
     G_INT(OFS_RETURN) = EDICT_TO_PROG(chain);
+}
+
+struct PullSearchScratch
+{
+    za::Vector<glm::vec3> origins;
+    auto members() { return mem::list(origins); }
+};
+mem::Scratch<PullSearchScratch> pullSearch{"force-grab search"};
+
+// Exact live model centres, rather than Quake collision bounds (a dropped gun's
+// centre can be well outside them). Destination-room searches are conservative:
+// aperture, occlusion and closest-image selection remain pullImage's responsibility.
+[[nodiscard]] bool nearPullSearch(const glm::vec3& point, float range)
+{
+    if(!(range >= 0.f)) { return true; } // preserve the original comparisons for unusual QC inputs
+    for(const glm::vec3& origin : pullSearch.origins)
+    {
+        // Account for float cancellation and the portal rotation's rounding. The
+        // final original distance/cone tests still decide every candidate.
+        const float margin = 1e-4f * (1.f + glm::dot(glm::abs(origin) + glm::abs(point), glm::vec3{1.f}));
+        if(glm::all(glm::lessThanEqual(glm::abs(point - origin), glm::vec3{range + margin}))) { return true; }
+    }
+    return false;
+}
+
+void PF_findportalcone()
+{
+    const float* p = G_VECTOR(OFS_PARM0);
+    const glm::vec3 from{p[0], p[1], p[2]};
+    const float range = G_FLOAT(OFS_PARM1);
+    const float* d = G_VECTOR(OFS_PARM2);
+    const glm::vec3 aim{d[0], d[1], d[2]};
+    const float minCos = G_FLOAT(OFS_PARM3) - 1e-4f;
+    portals::pullSearchOrigins(from, pullSearch.origins);
+    edict_t* chain = qcvm->edicts;
+    edict_t* ent = NEXT_EDICT(qcvm->edicts);
+    for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
+    {
+        if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT || !ent->v.model) { continue; }
+        const glm::vec3 centre = physics::modelCentre(ent);
+        if(!nearPullSearch(centre, range)) { continue; }
+        const glm::vec3 to = portals::pullImage(from, centre) - from;
+        const float distance = glm::length(to);
+        if(distance < 0.999f || distance > range || glm::dot(to, aim) < minCos * distance) { continue; }
+        ent->v.chain = EDICT_TO_PROG(chain);
+        chain = ent;
+    }
+    if(vr_prop_query_verify.value)
+    {
+        // Re-run the original full scan without the broad phase. Compare the exact
+        // chain (including order), without writing chain fields or calling QC.
+        edict_t* expected = qcvm->edicts;
+        ent = NEXT_EDICT(qcvm->edicts);
+        for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
+        {
+            if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT || !ent->v.model) { continue; }
+            const glm::vec3 to = portals::pullImage(from, physics::modelCentre(ent)) - from;
+            const float distance = glm::length(to);
+            if(distance < 0.999f || distance > range || glm::dot(to, aim) < minCos * distance) { continue; }
+            if(ent->v.chain != EDICT_TO_PROG(expected)) { Sys_Error("force-grab broad phase changed chain at %d", i); }
+            expected = ent;
+        }
+        if(chain != expected) { Sys_Error("force-grab broad phase changed chain head"); }
+    }
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(chain);
+}
+
+void PF_portal_pullimage()
+{
+    const float* a = G_VECTOR(OFS_PARM0), *b = G_VECTOR(OFS_PARM1);
+    const glm::vec3 result = portals::pullImage({a[0], a[1], a[2]}, {b[0], b[1], b[2]});
+    G_VECTOR(OFS_RETURN)[0] = result.x;
+    G_VECTOR(OFS_RETURN)[1] = result.y;
+    G_VECTOR(OFS_RETURN)[2] = result.z;
+}
+
+extern "C" void VR_PortalPullTarget(edict_t* ent, const float hand[3], int begin, float out[3]);
+void PF_portal_pulltarget()
+{
+    VR_PortalPullTarget(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), G_FLOAT(OFS_PARM2) != 0.f, G_VECTOR(OFS_RETURN));
 }
 
 // Where the force grab takes an entity, in the world (vector(entity e) forcegrabpoint): a weapon by its handle, its
@@ -1259,8 +1341,52 @@ void PF_tracer()
     server::sendTracer(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), G_VECTOR(OFS_PARM2), G_VECTOR(OFS_PARM3));
 }
 
-// watershock(kind, org, radius, duration): the lightning gun in water's effects (vr_shock.cpp): 0 the `self` player
-// shocked, 1 arcs on a liquid's surface round `org`, 2 arcs out from `org` in a liquid.
+// Ranged enemy perception through one active slipgate.
+static glm::vec3 aiVec(const float* v) { return {v[0], v[1], v[2]}; }
+
+void PF_portal_ai_sight()
+{
+    glm::vec3 image;
+    G_FLOAT(OFS_RETURN) = static_cast<float>(portals::aiImage(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1),
+        aiVec(G_VECTOR(OFS_PARM2)), aiVec(G_VECTOR(OFS_PARM3)), static_cast<int>(G_FLOAT(OFS_PARM4)), image));
+}
+
+void PF_portal_ai_map()
+{
+    const auto point = portals::aiMap(static_cast<int>(G_FLOAT(OFS_PARM0)), aiVec(G_VECTOR(OFS_PARM1)), G_FLOAT(OFS_PARM2) != 0.f);
+    VectorCopy(&point.x, G_VECTOR(OFS_RETURN));
+}
+
+void PF_portal_ai_client()
+{
+    edict_t* observer = G_EDICT(OFS_PARM0);
+    edict_t* result = qcvm->edicts;
+    // Rotate candidates independently of checkclient's ordinary-room PVS.
+    const int first = svs.maxclients > 0 ? static_cast<int>(qcvm->time * 10) % svs.maxclients : 0;
+    for(int n = 0; n < svs.maxclients; n++)
+    {
+        edict_t* target = EDICT_NUM(1 + (first + n) % svs.maxclients);
+        if(target->free || target->v.health <= 0.f || (static_cast<int>(target->v.flags) & FL_NOTARGET)) { continue; }
+        glm::vec3 image;
+        if(portals::aiImage(observer, target, aiVec(observer->v.origin) + aiVec(observer->v.view_ofs),
+            aiVec(target->v.origin) + aiVec(target->v.view_ofs), 0, image)) { result = target; break; }
+    }
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(result);
+}
+
+void PF_bodyshock()
+{
+    edict_t* target = G_EDICT(OFS_PARM0);
+    server::sendShock(PROG_TO_EDICT(pr_global_struct->self), 3, target->v.origin,
+        static_cast<float>(NUM_FOR_EDICT(target)), G_FLOAT(OFS_PARM1));
+}
+
+extern "C" void VR_PortalCarry(edict_t* box, edict_t* player, int hand, int begin);
+void PF_portal_carry()
+{
+    VR_PortalCarry(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)), G_FLOAT(OFS_PARM3) != 0.f);
+}
+
 void PF_watershock()
 {
     server::sendShock(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_PARM1),
@@ -1582,6 +1708,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
     {"findcone", PF_findcone},
+    {"findportalcone", PF_findportalcone},
+    {"portal_pullimage", PF_portal_pullimage},
+    {"portal_pulltarget", PF_portal_pulltarget},
     {"forcegrabpoint", PF_forcegrabpoint},
     {"catchblend", PF_catchblend},
     {"physicsblast", PF_physicsblast},
@@ -1662,6 +1791,11 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponfired", PF_weaponfired},
     {"tracer", PF_tracer},
     {"watershock", PF_watershock},
+    {"portal_ai_sight", PF_portal_ai_sight},
+    {"portal_ai_map", PF_portal_ai_map},
+    {"portal_ai_client", PF_portal_ai_client},
+    {"bodyshock", PF_bodyshock},
+    {"portal_carry", PF_portal_carry},
     {"findflags", PF_findflags},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},
@@ -1688,6 +1822,33 @@ static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200
     "VR builtins must not overlap Ironwail's downward-allocated builtins");
 
 } // namespace
+
+void propQueriesTest_f()
+{
+    if(!sv.active) { Con_Printf("vr_prop_query_test: enter a map first\n"); return; }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    const float verify = vr_prop_query_verify.value;
+    vr_prop_query_verify.value = 1.f;
+    physics::testModelQueries();
+    float saved[OFS_PARM3 + 3 - OFS_PARM0];
+    memcpy(saved, qcvm->globals + OFS_PARM0, sizeof(saved));
+    const glm::vec3 player{EDICT_NUM(1)->v.origin[0], EDICT_NUM(1)->v.origin[1], EDICT_NUM(1)->v.origin[2]};
+    for(int k = 0; k < 96; k++)
+    {
+        const glm::vec3 from = player + glm::vec3{float((k % 8 - 4) * 32), float((k / 8 - 6) * 32), float(k % 3 * 16)};
+        const glm::vec3 aim = glm::normalize(glm::vec3{float(k % 3 - 1), float(k % 5 - 2), .5f});
+        G_VECTOR(OFS_PARM0)[0] = from.x; G_VECTOR(OFS_PARM0)[1] = from.y; G_VECTOR(OFS_PARM0)[2] = from.z;
+        G_VECTOR(OFS_PARM2)[0] = aim.x; G_VECTOR(OFS_PARM2)[1] = aim.y; G_VECTOR(OFS_PARM2)[2] = aim.z;
+        G_FLOAT(OFS_PARM1) = k % 4 == 0 ? 0.f : k % 4 == 1 ? 1.f : k % 4 == 2 ? 200.f : 4096.f;
+        G_FLOAT(OFS_PARM3) = k % 2 == 0 ? -1.f : .85f;
+        PF_findportalcone();
+    }
+    memcpy(qcvm->globals + OFS_PARM0, saved, sizeof(saved));
+    vr_prop_query_verify.value = verify;
+    PR_PopQCVM(oldVm);
+    Con_Printf("prop force-grab queries: PASS 96 exact ordered-chain comparisons\n");
+}
 
 void bindBuiltins()
 {

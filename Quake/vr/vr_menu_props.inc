@@ -296,7 +296,7 @@ bool heldObjectWeapon = false; // the page's prop is the held weapon's physics-p
 [[nodiscard]] za::String heldWeaponPropModel(int hand)
 {
     const qmodel_t* model = weapons::heldModel(hand);
-    if(!model || !model->name[0] || !strcmp(model->name, "progs/hand.mdl") ||
+    if(!model || !model->name[0] || modelmeta::is(model, modelmeta::Id::Hand) ||
         (weapons::fistSlot() >= 0 && weapons::slotForModel(model) == weapons::fistSlot()))
     {
         return {};

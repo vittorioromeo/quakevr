@@ -637,7 +637,7 @@ byte *SV_FatPVS (vec3_t org, qmodel_t *worldmodel) //johnfitz -- added worldmode
 	if (fatpvs == NULL || fatbytes > fatpvs_capacity)
 	{
 		fatpvs_capacity = fatbytes;
-		fatpvs = (byte *) realloc (fatpvs, fatpvs_capacity);
+		fatpvs = (byte *) VR_HeapRealloc (fatpvs, fatpvs_capacity);
 		if (!fatpvs)
 			Sys_Error ("SV_FatPVS: realloc() failed on %d bytes", fatpvs_capacity);
 	}
@@ -1287,7 +1287,7 @@ void SV_WriteStats (client_t *client)
 			if (!os)	os="";
 			if (strcmp(os,ns))
 			{
-				free(client->oldstats_s[i]);
+				VR_HeapFree(client->oldstats_s[i]);
 				client->oldstats_s[i] = strdup(ns);
 
 				MSG_WriteByte (&client->message, svc_stufftext);
@@ -2000,7 +2000,7 @@ static void SV_SpawnServerRun (const char *server)
 // allocate server memory
 	/* Host_ClearMemory() called above already cleared the whole sv structure */
 	qcvm->max_edicts = CLAMP (MIN_EDICTS,(int)max_edicts.value,MAX_EDICTS); //johnfitz -- max_edicts cvar
-	qcvm->edicts = (edict_t *) malloc (qcvm->max_edicts*qcvm->edict_size); // ericw -- sv.edicts switched to use malloc()
+	qcvm->edicts = (edict_t *) VR_HeapMalloc (qcvm->max_edicts*qcvm->edict_size); // ericw -- sv.edicts switched to use malloc()
 	if (!qcvm->edicts)
 		Sys_Error ("SV_SpawnServer: out of memory (%d edicts x %d bytes)", qcvm->max_edicts, qcvm->edict_size);
 	ClearLink (&qcvm->free_edicts);

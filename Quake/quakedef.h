@@ -466,6 +466,7 @@ extern int		minimum_memory;
 
 void Host_InvokeOnMainThread (void (*func) (void *param), void *param);
 
+#include "vr/vr_alloccount.h"
 #include "vr/vr_api.h" // QVR: the Quake VR module's hooks (Quake/vr), for every engine file
 #include "vr/vr_api_render.h" // QVR
 

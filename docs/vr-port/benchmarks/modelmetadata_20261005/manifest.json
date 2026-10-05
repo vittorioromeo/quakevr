@@ -1,0 +1,63 @@
+{
+  "base_commit": "70e369c3",
+  "exe_sha256": "6f680cd91ab17b2b82b4896efebb1f5d72e9223556292b0efa9c7a72a8c51d26",
+  "task_patch_sha256": "b0b37f603468624d669ae341f50d8c7a325412e7fb4a37ca39373a8658faa13b",
+  "metadata_checks": 1002084,
+  "metadata_sweeps": 17,
+  "prop_transform_cases": 27291,
+  "ordered_grab_comparisons": 1632,
+  "particle_fixtures": 14,
+  "particle_screenshots": 70,
+  "note": "Clean HEAD + metadata-only source snapshot excludes concurrent allocator work. Timing variation prevents a reliable percentage claim.",
+  "timings_raw": [
+    {
+      "file": "build-cmake/modelmetadata-20261005/paired-baseline-1/fire_eye1024_gpu16_r1/profile_vrfiringrange_2026-10-05_16-25-42.csv",
+      "sha256": "b0f9d0c1222a538602d0c515286e3b3c4366472c683afa9cf45e31a5dae9d7eb"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/paired-baseline-1/idle_eye1024_gpu16_r1/profile_vrfiringrange_2026-10-05_16-25-39.csv",
+      "sha256": "4f22d8a3d7044f8415cd5888ea536920f0698f4e75afd15585565a2b576e8632"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/paired-baseline-1/props_settled_1000_eye1024_gpu16_r1/profile_vrfiringrange_2026-10-05_16-25-48.csv",
+      "sha256": "2a99c532aae1f104709590e9b45b1be6b235736203a2fedf985c22d3960131b8"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/paired-baseline-2/fire_eye1024_gpu16_r1/profile_vrfiringrange_2026-10-05_16-25-59.csv",
+      "sha256": "dd0bbedff40cc281fb345d80f5162af62ba16a7f97b439255a483b8ef05d95cf"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/paired-baseline-2/idle_eye1024_gpu16_r1/profile_vrfiringrange_2026-10-05_16-25-55.csv",
+      "sha256": "15d88af3be236f5f811d18a63f5b1e7ccc117ae3f8ad41cf96cc1d4f8676bf60"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/paired-baseline-2/props_settled_1000_eye1024_gpu16_r1/profile_vrfiringrange_2026-10-05_16-26-10.csv",
+      "sha256": "4ea06315392558bea9689658b27331ef43e4df528f5f517b7959a511ac9cafbf"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/clean-bench/fire_eye1024_gpu16_r1/profile_vrfiringrange_2026-10-05_16-35-55.csv",
+      "sha256": "07448146d9fe912c0c132eda7e68261fb6523b4f1539458b071d2c3f00e02aa0"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/clean-bench/fire_eye1024_gpu16_r2/profile_vrfiringrange_2026-10-05_16-36-40.csv",
+      "sha256": "6e950d9d75bf8a18bfa0b9b04003cece307da8961a66487c51d45ea5be7f593d"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/clean-bench/idle_eye1024_gpu16_r1/profile_vrfiringrange_2026-10-05_16-35-51.csv",
+      "sha256": "2f38048e773d3a3060f161b49e8903c1e1353c1edaf111735a8c9e43dfa16e13"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/clean-bench/idle_eye1024_gpu16_r2/profile_vrfiringrange_2026-10-05_16-36-43.csv",
+      "sha256": "1f21efe39e75694af54e90635d1d16049be5ba9bd3515cd7fb37940ec1b8cec0"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/clean-bench/props_settled_1000_eye1024_gpu16_r1/profile_vrfiringrange_2026-10-05_16-36-24.csv",
+      "sha256": "07d31a987fd98e975723c19ce8fb2eb0e68969f608d7e82a198e42cb507cbab1"
+    },
+    {
+      "file": "build-cmake/modelmetadata-20261005/clean-bench/props_settled_1000_eye1024_gpu16_r2/profile_vrfiringrange_2026-10-05_16-36-34.csv",
+      "sha256": "140f1215dee383ec1f7d4d8808a924b51f9e0fbafe14ee3e4fd1b58f13c21021"
+    }
+  ],
+  "baseline_hand_fixtures": 7
+}

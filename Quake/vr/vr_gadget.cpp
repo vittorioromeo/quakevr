@@ -11,6 +11,7 @@
 // its last 16 lines for it: Con_NotifyLine), laid out by vr_text3d facing the viewer.
 
 #include "vr_gadget.hpp"
+#include "vr_portals.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_color.hpp"
 #include "vr_gfx.hpp"
@@ -1093,7 +1094,7 @@ void renderHologram()
 // seen (the view's up); the beam from the screen up to them.
 void layoutHologram()
 {
-    if(holo.frame == host_framecount)
+    if(portals::viewing() || holo.frame == host_framecount)
     {
         return;
     }
@@ -2009,7 +2010,7 @@ bool log(Log& out)
 
 void drawHologram()
 {
-    if(!active())
+    if(portals::viewing() || !active())
     {
         return;
     }

@@ -81,7 +81,7 @@ static void Cvar_Reserve (void)
 	if (cvar_count == cvar_capacity)
 	{
 		int newcap = cvar_capacity ? cvar_capacity * 2 : 16384;
-		cvar_t **newlist = (cvar_t **) realloc (cvar_list, newcap * sizeof (*newlist));
+		cvar_t **newlist = (cvar_t **) VR_HeapRealloc (cvar_list, newcap * sizeof (*newlist));
 		if (!newlist)
 			Sys_Error ("Cvar_RegisterVariable: out of memory for %d cvars", newcap);
 		cvar_list = newlist;
@@ -91,8 +91,8 @@ static void Cvar_Reserve (void)
 	if ((size_t) (cvar_count + 1) * 2 > cvar_hash_capacity)
 	{
 		size_t newcap = cvar_hash_capacity ? cvar_hash_capacity * 2 : 32768;
-		free (cvar_hashmap);
-		cvar_hashmap = (cvar_t **) calloc (newcap, sizeof (*cvar_hashmap));
+		VR_HeapFree (cvar_hashmap);
+		cvar_hashmap = (cvar_t **) VR_HeapCalloc (newcap, sizeof (*cvar_hashmap));
 		if (!cvar_hashmap)
 			Sys_Error ("Cvar_RegisterVariable: out of memory for the hash map (%d cvars)", cvar_count + 1);
 		cvar_hash_capacity = newcap;
@@ -694,7 +694,7 @@ void Cvar_RegisterVariable (cvar_t *variable)
 	Cvar_SetQuick (variable, value);
 	if (set_rom)
 		variable->flags |= CVAR_ROM;
-	free (value); // QVR: strdup'd
+	VR_HeapFree (value); // QVR: strdup'd
 }
 
 /*

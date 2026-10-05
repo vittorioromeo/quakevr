@@ -60,13 +60,14 @@ void(float offset) hknight_shot =
     vector    org, vec;
     entity     newmis;
 
-    offang = vectoangles (self.enemy.origin - self.origin);
+    offang = vectoangles (VR_AI_Origin(self.enemy) - self.origin);
     offang_y = offang_y + offset * 6;
 
     makevectors(offang);
 
     org = self.origin + self.mins + self.size*0.5 + v_forward * 20;
 
+    if(!VR_AI_ShotReady(org)) { return; }
 // set missile speed
     vec = normalize(v_forward);
     vec_z = 0 - vec_z + (random() - 0.5)*0.1;

@@ -825,7 +825,7 @@ static int PF_newcheckclient (int check)
 	if (checkpvs == NULL || pvsbytes > checkpvs_capacity)
 	{
 		checkpvs_capacity = pvsbytes;
-		checkpvs = (byte *) realloc (checkpvs, checkpvs_capacity);
+		checkpvs = (byte *) VR_HeapRealloc (checkpvs, checkpvs_capacity);
 		if (!checkpvs)
 			Sys_Error ("PF_newcheckclient: realloc() failed on %d bytes", checkpvs_capacity);
 	}
@@ -2098,7 +2098,7 @@ void PR_ReloadPics(qboolean purge)
 {
 	numqcpics = 0;
 
-	free(qcpics);
+	VR_HeapFree(qcpics);
 	qcpics = NULL;
 	maxqcpics = 0;
 }
@@ -2133,7 +2133,7 @@ static qpic_t *DrawQC_CachePic(const char *picname, unsigned int flags)
 	if (i+1 > maxqcpics)
 	{
 		maxqcpics = i + 32;
-		qcpics = realloc(qcpics, maxqcpics * sizeof(*qcpics));
+		qcpics = VR_HeapRealloc(qcpics, maxqcpics * sizeof(*qcpics));
 	}
 
 	strcpy(qcpics[i].name, picname);
@@ -3136,7 +3136,7 @@ static int tokenizeqc(const char *str, qboolean dpfuckage)
 	while(qctoken_count > 0)
 	{
 		qctoken_count--;
-		free(qctoken[qctoken_count].token);
+		VR_HeapFree(qctoken[qctoken_count].token);
 	}
 	qctoken_count = 0;
 	while (qctoken_count < MAXQCTOKENS)

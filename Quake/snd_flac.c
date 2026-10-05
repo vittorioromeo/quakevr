@@ -148,7 +148,7 @@ flac_write_func (const FLAC__StreamDecoder *decoder,
 	flacfile_t *ff = (flacfile_t *) client_data;
 
 	if (!ff->buffer) {
-		ff->buffer = (byte *) malloc (ff->info->blocksize * ff->info->channels * ff->info->width);
+		ff->buffer = (byte *) VR_HeapMalloc (ff->info->blocksize * ff->info->channels * ff->info->width);
 		if (!ff->buffer) {
 			ff->error = -1; /* needn't set this here, but... */
 			Con_Printf("Insufficient memory for fLaC audio\n");
@@ -356,7 +356,7 @@ static void S_FLAC_CodecCloseStream (snd_stream_t *stream)
 	FLAC__stream_decoder_finish (ff->decoder);
 	FLAC__stream_decoder_delete (ff->decoder);
 
-	if (ff->buffer) free(ff->buffer);
+	if (ff->buffer) VR_HeapFree(ff->buffer);
 	Z_Free(ff);
 
 	S_CodecUtilClose(&stream);

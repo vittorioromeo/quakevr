@@ -208,6 +208,7 @@ void(vector st) ZombieFireGrenade =
     missile = spawn();
     missile.classname = "zgrenade";
     missile.owner = self;
+    VR_AI_Tag(missile);
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
 
@@ -218,7 +219,8 @@ void(vector st) ZombieFireGrenade =
 
     makevectors(self.angles);
 
-    missile.velocity = normalize(self.enemy.origin - org);
+    if(!VR_AI_ShotReady(org)) { remove(missile); return; }
+    missile.velocity = normalize(VR_AI_Origin(self.enemy) - org);
     missile.velocity = missile.velocity * 600;
     missile.velocity_z = 200;
     VR_Lob_Aim(missile, org); // QVR: at the enemy's height (vr_ogre_aim_height)

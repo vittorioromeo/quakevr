@@ -76,7 +76,7 @@ void CL_FreeState(void)
 {
 	int i;
 	for (i = 0; i < MAX_CL_STATS; i++)
-		free (cl.statss[i]);
+		VR_HeapFree (cl.statss[i]);
 	PR_ClearProgs (&cl.qcvm);
 	memset (&cl, 0, sizeof(cl));
 }
@@ -1011,7 +1011,7 @@ void CL_SetStatString_f (void)
 		if (stnum < 0 || stnum >= MAX_CL_STATS)
 			Host_Error ("CL_SetStatString_f: stnum(%d) >= MAX_CL_STATS\n", stnum);
 
-		free (cl.statss[stnum]);
+		VR_HeapFree (cl.statss[stnum]);
 		cl.statss[stnum] = strdup (Cmd_Argv (i + 1));
 	}
 }

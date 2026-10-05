@@ -1,14 +1,8 @@
-// vr_alloccount.cpp -- C++ allocations counted: the global operator new replaced by one that counts, per thread, then
-// calls malloc. The profiler reads the main thread's count at each frame's end (vr_profile_report's "allocations": new
-// calls a frame; the code a frame runs is meant to reuse its buffers, see docs/vr-port/CODE_STYLE.md, "Scratch buffers
-// and caches"). The count is a thread_local increment: no lock, no shared cache line. The engine's C code (malloc, the
-// zone, the hunk) is not counted.
-//
-// vr_alloc_sites (vr_allocsites.cpp) traces them by call stack for a few frames: traceBegin marks the calling thread,
-// whose allocations then record their stack (RtlCaptureStackBackTrace: no allocation) in a fixed table, until traceEnd;
-// traceSites resolves them (dbghelp, loaded then, as vr_crash's report does) to the first frame outside the allocators.
+// Per-thread C++ and engine-owned C heap counters; stack capture is opt-in and allocation-free.
+// Requested bytes measure request traffic, not live heap size. External DLL heaps are outside coverage.
 
 #include "vr_alloccount.hpp"
+#include "vr_alloccount.h"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -20,6 +14,9 @@
 #include <new>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef _WIN32
+#include <malloc.h>
+#endif
 #include <string.h>
 
 #ifdef _WIN32
@@ -32,7 +29,7 @@
 namespace
 {
 
-thread_local za::U64 allocations = 0;
+thread_local qvr::alloccount::Stats counters{};
 
 // The trace (vr_alloc_sites): each distinct call stack once, with its count (open addressing on the stack's hash).
 constexpr int traceDepth = 16;
@@ -43,18 +40,22 @@ struct TracedStack
     za::U32 depth;
     za::U32 hash;
     za::U64 count; // 0: a free slot
+    qvr::alloccount::Kind kind;
+    za::U64 bytes;
+    za::U64 frameCount, frameBytes, peakCount, peakBytes;
 };
 TracedStack traceTable[traceSlots];
 za::U64 traceTotal = 0, traceDropped = 0;
 thread_local bool tracing = false; // this thread's allocations are traced
 
-[[gnu::noinline]] void record()
+[[gnu::noinline]] void record(qvr::alloccount::Kind kind, za::SizeT bytes)
 {
+    traceTotal++;
 #ifdef _WIN32
     void* pc[traceDepth];
     ULONG hash = 0;
     const za::U32 depth = RtlCaptureStackBackTrace(1, traceDepth, pc, &hash);
-    traceTotal++;
+    hash ^= static_cast<ULONG>(kind) * 0x9e3779b9u;
     for(za::SizeT i = hash & (traceSlots - 1), probes = 0; probes < traceSlots; i = (i + 1) & (traceSlots - 1), probes++)
     {
         TracedStack& t = traceTable[i];
@@ -64,25 +65,44 @@ thread_local bool tracing = false; // this thread's allocations are traced
             t.depth = depth;
             t.hash = hash;
             t.count = 1;
+            t.kind = kind;
+            t.bytes = bytes;
+            t.frameCount = 1;
+            t.frameBytes = bytes;
             return;
         }
-        if(t.hash == hash && t.depth == depth && memcmp(t.pc, pc, sizeof(void*) * depth) == 0)
+        if(t.kind == kind && t.hash == hash && t.depth == depth && memcmp(t.pc, pc, sizeof(void*) * depth) == 0)
         {
             t.count++;
+            t.bytes += bytes;
+            ++t.frameCount;
+            t.frameBytes += bytes;
             return;
         }
     }
     traceDropped++;
+#else
+    (void)kind;
+    (void)bytes;
 #endif
+}
+
+void account(qvr::alloccount::Kind kind, za::SizeT size)
+{
+    ++counters.calls[static_cast<int>(kind)];
+    counters.requestedBytes += size;
+    if(tracing) record(kind, size);
+}
+
+void deallocate(void* p)
+{
+    if(p) account(qvr::alloccount::Kind::Delete, 0);
+    free(p);
 }
 
 [[nodiscard]] void* allocate(za::SizeT size)
 {
-    ++allocations;
-    if(tracing)
-    {
-        record();
-    }
+    account(qvr::alloccount::Kind::New, size);
     if(void* p = malloc(size ? size : 1))
     {
         return p;
@@ -95,8 +115,7 @@ thread_local bool tracing = false; // this thread's allocations are traced
 
 } // namespace
 
-// The other forms (the arrays', nothrow, sized delete) forward to these in the standard library's defaults (MSVC and
-// libstdc++); the aligned forms keep their own allocator and are not counted (the VR code uses none per frame).
+// C++ allocation uses raw CRT storage to avoid counting the same request twice.
 void* operator new(za::SizeT size)
 {
     return allocate(size);
@@ -109,21 +128,115 @@ void* operator new[](za::SizeT size)
 
 void operator delete(void* p) noexcept
 {
-    free(p);
+    deallocate(p);
 }
 
 void operator delete[](void* p) noexcept
 {
-    free(p);
+    deallocate(p);
 }
 
 void operator delete(void* p, za::SizeT) noexcept
 {
-    free(p);
+    deallocate(p);
 }
 
 void operator delete[](void* p, za::SizeT) noexcept
 {
+    deallocate(p);
+}
+
+namespace
+{
+void* alignedAllocate(size_t size, size_t alignment)
+{
+#ifdef _WIN32
+    return _aligned_malloc(size ? size : 1, alignment);
+#else
+    // posix_memalign refuses an alignment under a pointer's (EINVAL): libraries ask for 1, 2 or 4 (Mesa's LLVM does,
+    // compiling the shaders), which aligned operator new must accept, as libstdc++'s own does.
+    void* p = nullptr;
+    alignment = alignment < sizeof(void*) ? sizeof(void*) : alignment;
+    return posix_memalign(&p, alignment, size ? size : 1) == 0 ? p : nullptr;
+#endif
+}
+void alignedRelease(void* p)
+{
+#ifdef _WIN32
+    _aligned_free(p);
+#else
+    free(p);
+#endif
+}
+}
+void* operator new(za::SizeT size, std::align_val_t alignment)
+{
+    account(qvr::alloccount::Kind::New, size);
+    if(void* p = alignedAllocate(size, static_cast<size_t>(alignment))) return p;
+    fprintf(stderr, "aligned operator new: out of memory\n");
+    abort();
+}
+void* operator new[](za::SizeT size, std::align_val_t a) { return ::operator new(size, a); }
+// The nothrow forms return null when out of memory (the library's would call the throwing ones above, which abort: there
+// are no exceptions to catch).
+void* operator new(za::SizeT size, const std::nothrow_t&) noexcept
+{
+    account(qvr::alloccount::Kind::New, size);
+    return malloc(size ? size : 1);
+}
+void* operator new[](za::SizeT size, const std::nothrow_t& n) noexcept { return ::operator new(size, n); }
+void* operator new(za::SizeT size, std::align_val_t alignment, const std::nothrow_t&) noexcept
+{
+    account(qvr::alloccount::Kind::New, size);
+    return alignedAllocate(size, static_cast<size_t>(alignment));
+}
+void* operator new[](za::SizeT size, std::align_val_t a, const std::nothrow_t& n) noexcept
+{
+    return ::operator new(size, a, n);
+}
+void operator delete(void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
+void operator delete[](void* p, const std::nothrow_t&) noexcept { ::operator delete(p); }
+void operator delete(void* p, std::align_val_t a, const std::nothrow_t&) noexcept { ::operator delete(p, a); }
+void operator delete[](void* p, std::align_val_t a, const std::nothrow_t&) noexcept { ::operator delete(p, a); }
+void operator delete(void* p, std::align_val_t) noexcept
+{
+    if(p) account(qvr::alloccount::Kind::Delete, 0);
+    alignedRelease(p);
+}
+void operator delete[](void* p, std::align_val_t a) noexcept { ::operator delete(p, a); }
+void operator delete(void* p, za::SizeT, std::align_val_t a) noexcept { ::operator delete(p, a); }
+void operator delete[](void* p, za::SizeT, std::align_val_t a) noexcept { ::operator delete(p, a); }
+extern "C" void* VR_HeapAlignedAlloc(size_t size, size_t alignment)
+{
+    account(qvr::alloccount::Kind::Malloc, size);
+    return alignedAllocate(size, alignment);
+}
+extern "C" void VR_HeapAlignedFree(void* p)
+{
+    if(p) account(qvr::alloccount::Kind::Free, 0);
+    alignedRelease(p);
+}
+
+extern "C" void* VR_HeapMalloc(size_t size)
+{
+    account(qvr::alloccount::Kind::Malloc, size);
+    return malloc(size);
+}
+extern "C" void* VR_HeapCalloc(size_t count, size_t size)
+{
+    // Do not overflow the accounting multiplication or change CRT failure semantics.
+    const size_t bytes = size && count > static_cast<size_t>(-1) / size ? 0 : count * size;
+    account(qvr::alloccount::Kind::Calloc, bytes);
+    return calloc(count, size);
+}
+extern "C" void* VR_HeapRealloc(void* p, size_t size)
+{
+    account(qvr::alloccount::Kind::Realloc, size);
+    return realloc(p, size);
+}
+extern "C" void VR_HeapFree(void* p)
+{
+    if(p) account(qvr::alloccount::Kind::Free, 0);
     free(p);
 }
 
@@ -132,7 +245,14 @@ namespace qvr::alloccount
 
 za::U64 thisThread()
 {
-    return allocations;
+    return counters.calls[static_cast<int>(Kind::New)];
+}
+
+Stats statsThisThread() { return counters; }
+const char* kindName(Kind kind)
+{
+    constexpr const char* names[] = {"new", "delete", "malloc", "calloc", "realloc", "free"};
+    return names[static_cast<int>(kind)];
 }
 
 void traceBegin()
@@ -148,6 +268,19 @@ void traceEnd()
     tracing = false;
 }
 
+void traceFrameEnd(bool retainPeak)
+{
+    for(TracedStack& t : traceTable)
+    {
+        if(retainPeak)
+        {
+            t.peakCount = t.frameCount;
+            t.peakBytes = t.frameBytes;
+        }
+        t.frameCount = t.frameBytes = 0;
+    }
+}
+
 namespace
 {
 
@@ -155,7 +288,10 @@ namespace
 // the site that asked.
 [[nodiscard]] bool allocatorFrame(za::StringView name)
 {
-    constexpr const char* prefixes[] = {"operator new", "`anonymous namespace'::allocate", "`anonymous namespace'::record",
+    constexpr const char* prefixes[] = {"operator new", "operator delete", "VR_Heap",
+        "`anonymous namespace'::heapAllocate", "`anonymous namespace'::heapFree", "b3Alloc", "b3Free",
+        "`anonymous namespace'::account", "`anonymous namespace'::deallocate", "`anonymous namespace'::allocate",
+        "`anonymous namespace'::record",
         "za::", "std::", "ankerl::", "malloc", "qvr::mem::"};
     for(const char* p : prefixes)
     {
@@ -170,9 +306,14 @@ namespace
 
 } // namespace
 
-za::Vector<Site> traceSites(za::U64& total, za::U64& dropped)
+za::Vector<Site> traceSites(za::U64& total, za::U64& dropped, bool peakFrame)
 {
     total = traceTotal;
+    if(peakFrame)
+    {
+        total = 0;
+        for(const auto& t : traceTable) total += t.peakCount;
+    }
     dropped = traceDropped;
     za::Vector<Site> sites;
 #ifdef _WIN32
@@ -232,7 +373,9 @@ za::Vector<Site> traceSites(za::U64& total, za::U64& dropped)
 
     for(const TracedStack& t : traceTable)
     {
-        if(t.count == 0)
+        const za::U64 count = peakFrame ? t.peakCount : t.count;
+        const za::U64 bytes = peakFrame ? t.peakBytes : t.bytes;
+        if(count == 0)
         {
             continue;
         }
@@ -256,7 +399,7 @@ za::Vector<Site> traceSites(za::U64& total, za::U64& dropped)
         Site* found = nullptr;
         for(Site& s : sites)
         {
-            if(s.where == where)
+            if(s.kind == t.kind && s.where == where)
             {
                 found = &s;
                 break;
@@ -264,14 +407,15 @@ za::Vector<Site> traceSites(za::U64& total, za::U64& dropped)
         }
         if(!found)
         {
-            sites.pushBack(Site{where, za::String{}, 0, 0});
+            sites.pushBack(Site{where, za::String{}, 0, 0, t.kind, 0});
             found = &sites.back();
         }
-        found->count += t.count;
-        if(t.count > found->viaCount) // (the caller of its commonest stack)
+        found->count += count;
+        found->bytes += bytes;
+        if(count > found->viaCount) // (the caller of its commonest stack)
         {
             found->via = via;
-            found->viaCount = t.count;
+            found->viaCount = count;
         }
     }
     if(symCleanup)

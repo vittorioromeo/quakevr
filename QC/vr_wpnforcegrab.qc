@@ -135,10 +135,10 @@ float(entity e) VR_Forcegrab_IsEligible =
     {
         return FALSE;
     }
-    // A ragdoll: by a limb (vr_ragdoll_grab 2: VR_Ragdoll_Pull).
+    // Bodies may be grabbed by hand, never summoned with a force grab.
     if(isragdoll(e))
     {
-        return cvar("vr_ragdoll_grab") >= 2;
+        return FALSE;
     }
     // A wall torch: off its wall, or lying about (vr_walltorch.qc).
     if(VR_WallTorch_IsTorch(e))
@@ -180,7 +180,7 @@ entity(float xHand) VR_Forcegrab_FindTarget =
     entity best = world;
     float bestScore = 0;
 
-    for(entity e = findcone(handPos, range, aim, minCos); e; e = e.chain) // (findradius's, less what is out of the cone)
+    for(entity e = findportalcone(handPos, range, aim, minCos); e; e = e.chain)
     {
         if(e.model == string_null) // (spares most a call: triggers)
         {
@@ -189,7 +189,7 @@ entity(float xHand) VR_Forcegrab_FindTarget =
 
         // Where the hand points first: a pile of props in reach is mostly out of the cone, and the eligibility (its
         // settings by name) is the dearer test.
-        vector c = VR_Forcegrab_Centre(e);
+        vector c = portal_pullimage(handPos, VR_Forcegrab_Centre(e));
         float dist = vlen(c - handPos);
         if(dist < 1)
         {
@@ -203,8 +203,8 @@ entity(float xHand) VR_Forcegrab_FindTarget =
         }
 
         // In sight (level geometry only).
-        traceline(handPos, c, TRUE, self);
-        if(vlen(trace_endpos - c) > 8)
+        traceline(handPos, c, TRUE | MOVE_PORTALS, self);
+        if(vlen(trace_endpos - VR_Forcegrab_Centre(e)) > 8)
         {
             continue;
         }
@@ -225,7 +225,7 @@ entity(float xHand) VR_Forcegrab_FindTarget =
 // way fast enough.
 float(float xHand, entity xTarget) VR_Forcegrab_Flicked =
 {
-    vector back = VRGetHandPos(xHand) - VR_Forcegrab_Centre(xTarget);
+    vector back = VRGetHandPos(xHand) - portal_pullimage(VRGetHandPos(xHand), VR_Forcegrab_Centre(xTarget));
     back_z = 0;
     vector pull = normalize(normalize(back) + '0 0 1');
 
@@ -258,6 +258,7 @@ void(entity e) VR_Forcegrab_Restore =
     e.think = e.fg_think;
     e.nextthink = e.fg_think ? time + 0.02 : 0;
     e.fg_state = 0;
+    e.fg_portal = 0;
     setorigin(e, e.origin);
 }
 
@@ -420,14 +421,21 @@ void() VR_Forcegrab_FlightThink =
         return;
     }
 
+    vector handPos = portal_pulltarget(self, VRGetEntHandPos(p, hand), FALSE);
+    if(self.fg_portal < 0)
+    {
+        VR_Forcegrab_Restore(self);
+        self.velocity = '0 0 0';
+        dprint("force grab: portal pull cancelled, object dropped in its room\n");
+        return;
+    }
     vector grabOffset = VR_Forcegrab_GrabPoint(self) - self.origin;
-    vector handPos = VRGetEntHandPos(p, hand);
     float reach = vlen(handPos - (self.origin + grabOffset));
     float catchRadius = cvar_hget(cvarh_vr_forcegrab_catch_radius);
 
     if(self.fg_state == 1)
     {
-        if(reach < catchRadius && VR_Forcegrab_CanCatch(p, hand, self.fg_arrive))
+        if(!self.fg_portal && reach < catchRadius && VR_Forcegrab_CanCatch(p, hand, self.fg_arrive))
         {
             VR_Forcegrab_Catch(self, p, hand);
             return;
@@ -451,7 +459,7 @@ void() VR_Forcegrab_FlightThink =
     }
 
     // Missed and falling: a late grab still catches it within reach.
-    if(time < self.fg_arrive + cvar_hget(cvarh_vr_forcegrab_catch_late) && reach < catchRadius * 1.5 &&
+    if(!self.fg_portal && time < self.fg_arrive + cvar_hget(cvarh_vr_forcegrab_catch_late) && reach < catchRadius * 1.5 &&
        VR_Forcegrab_CanCatch(p, hand, self.fg_arrive))
     {
         VR_Forcegrab_Catch(self, p, hand);
@@ -473,7 +481,7 @@ void(entity e, float xHand) VR_Forcegrab_Launch =
         VR_WallTorch_Take(e);
     }
     vector start = VR_Forcegrab_GrabPoint(e);
-    vector handPos = VRGetHandPos(xHand);
+    vector handPos = portal_pulltarget(e, VRGetHandPos(xHand), TRUE);
     float dist = vlen(handPos - start);
     float flight = cvar_hget(cvarh_vr_forcegrab_time) + dist / max(1, cvar_hget(cvarh_vr_forcegrab_speed));
 
@@ -523,6 +531,33 @@ void(entity e, float xHand) VR_Forcegrab_Launch =
     dprint(ftos(flight));
     dprint(" s\n");
 }
+
+// Isolated mock regression: put a normal grabbable gib beyond the nearest
+// gate, verify gravity-glove selection and let its normal homing flight run.
+void(vector at) VR_Forcegrab_PortalTest =
+{
+    entity g = spawn();
+    setmodel(g, "progs/gib1.mdl");
+    setsize(g, '0 0 0', '0 0 0');
+    g.movetype = MOVETYPE_BOUNCE;
+    VR_MakeGibGrabbable(g);
+    VR_Gib_MakeDestroyable(g, 1);
+    setorigin(g, at);
+    g.velocity = '0 0 0';
+    g.owner = world;
+    g.flags = g.flags | FL_ONGROUND;
+    makeforward(VRGetHandRot(cVR_MainHand));
+    vector image = portal_pullimage(VRGetHandPos(cVR_MainHand), VR_Forcegrab_Centre(g));
+    vector delta = image - VRGetHandPos(cVR_MainHand);
+    float eligible = VR_Forcegrab_IsEligible(g);
+    bprint(sprintf("portalpulltest: eligible=%g cos=%g cone=%g hand=%v aim=%v\n", eligible,
+        normalize(delta) * v_forward, cvar_hget(cvarh_vr_forcegrab_cone), VRGetHandPos(cVR_MainHand), v_forward));
+    entity selected = VR_Forcegrab_FindTarget(cVR_MainHand);
+    bprint(sprintf("portalpulltest: selected=%g image=%v point=%v\n", selected == g,
+        portal_pullimage(VRGetHandPos(cVR_MainHand), VR_Forcegrab_Centre(g)), VR_Forcegrab_Centre(g)));
+    VR_Forcegrab_Launch(g, cVR_MainHand);
+    bprint(sprintf("portalpulltest: gate=%g flight=%g\n", g.fg_portal, g.fg_arrive - time));
+};
 
 // A ragdoll force grabbed (vr_ragdoll_grab 2): the limb nearest the hand's aim flies to the hand (the engine's pull:
 // ragdollpull, in the time a prop would take), the body dragged after it; the grip held as it comes within
@@ -602,7 +637,8 @@ void(float xHand) VR_Forcegrab_HandFrame =
     if(VR_Forcegrab_IsHandBusy(self, xHand))
     {
         if(!trigger || !VR_Forcegrab_IsEligible(target) ||
-           vlen(VR_Forcegrab_Centre(target) - VRGetHandPos(xHand)) > cvar_hget(cvarh_vr_forcegrab_distance) * 1.25)
+           vlen(portal_pullimage(VRGetHandPos(xHand), VR_Forcegrab_Centre(target)) - VRGetHandPos(xHand)) >
+               cvar_hget(cvarh_vr_forcegrab_distance) * 1.25)
         {
             VR_Forcegrab_Set(xHand, world, FALSE);
             return;

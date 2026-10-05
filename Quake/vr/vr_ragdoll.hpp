@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include "vr_modelmetadata.hpp"
 #include "vr_engine.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -40,6 +41,7 @@ enum class Joint : uint8_t
 struct Bone
 {
     char name[16]{};
+    modelmeta::BoneRole role{modelmeta::BoneRole::Other};
     int parent{-1};
     Joint joint{Joint::Root};
     // In the rest pose's model space (units): the joint with the parent (the root: its middle) and the far end.

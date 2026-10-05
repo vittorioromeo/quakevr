@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_menu.cpp -- the "VR Settings" pages (Options > VR Settings), drawn like Ironwail's options
 // pages: scrolling lists of labelled settings, changed with left/right (the sticks in VR), with
 // actions on enter (A). "Advanced VR Options" at the bottom opens a list of further pages: the old
@@ -10,6 +11,7 @@
 // Each page is shown again where it was left (its selected row, found by its label when the page is
 // built anew, on the same line of the view), across restarts too (vr_menu_positions).
 
+#include "vr_modelmetadata.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -371,6 +373,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageDebugReports();
 [[nodiscard]] za::Vector<Item> pageDebugTools();
 [[nodiscard]] za::Vector<Item> pageDebugTests();
+[[nodiscard]] za::Vector<Item> pageSpawnWeapons();
 [[nodiscard]] za::Vector<Item> pageHitbox();
 [[nodiscard]] za::Vector<Item> pageMonsterHitbox();
 [[nodiscard]] za::Vector<Item> pageChanged();
@@ -654,7 +657,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
 {
     return {
         header("Monsters"),
-        toggle("Enemies Hurt by Liquids", vr_enemy_liquid_damage).help("Monsters in slime and lava burn as you do: shove them in. Fish, bosses and the lava dwellers are immune; zombies only burn in lava."),
+        toggle("Enemies Hurt by Liquids", vr_enemy_liquid_damage).help("Monsters burn in slime/lava and drown after 12 seconds with their heads underwater, including knocked-down ragdolls. Fish, bosses and lava dwellers are immune."),
         toggle("Ogres Aim Grenades Up and Down", vr_ogre_aim_height)
             .help("Ogres (and zombies throwing flesh) lob at your height, on a ledge above them or a floor below, on an arc at "
                   "their throw's own speed. Off: Quake's lob, which always flies as if you stood level with them."),
@@ -748,6 +751,11 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
             .help("Its weapon stays in its hand while it is down (killed there, it drops it as usual). Off: it flops "
                   "loose as a dead one's."),
         header("Getting Up"),
+        slider("Struggling Strength", vr_knockdown_wiggle, 0.f, 3.f, 0.1f, "%.1fx")
+            .help("Living knockdowns gently curl their chest and nod their head about their resting pose. Arms and legs follow physically. 0: still. Dead bodies never struggle."),
+        slider("Struggling Frequency", vr_knockdown_wiggle_frequency, 0.1f, 5.f, 0.1f, "%.1f Hz"),
+        slider("Struggling Pause", vr_knockdown_wiggle_pause, 0.f, 5.f, 0.25f, "%.2f s")
+            .help("Pause between bursts of movement. 0: continuous."),
         slider("Room Search", vr_knockdown_search, 0.f, 128.f, 4.f, "%.0f units").extend(0.f, 512.f)
             .help("How far from the body it looks for room to stand, never through a wall, floor or ceiling. No room: it "
                   "stays down (dragged into a tight corner or under something low) and tries again."),
@@ -2613,11 +2621,9 @@ void hologramTestMessage()
 {
     return {
         toggle("Take Torches Off Walls", vr_walltorch)
-            .help("Grip a wall torch and pull it out of its holder (or force grab it): it is a burning club, lighting the "
+            .help("Grip a wall torch to take it immediately (or force grab it): it is a burning club, lighting the "
                   "room round you as the wall torch did. Held, it burns for ever; dropped, thrown or used up by blows, "
                   "its fire dies. Grip and fingers: Held Object Offsets, holding it. Off: fixed, as in id's Quake. Next map."),
-        slider("Pull to Take", vr_walltorch_pull, 2.f, 30.f, 1.f, "%.0f cm").extend(0.f, 100.f)
-            .help("How far a hand gripping a torch on its wall pulls it before it comes out."),
         slider("Grab Reach", vr_walltorch_reach, 0.f, 30.f, 1.f, "%.0f cm").extend(0.f, 60.f)
             .help("A grip this near a torch on its wall (its stick's middle, from its butt to its flame; your hand or "
                   "your fist's middle, whichever is nearer) takes hold of it, though your fist isn't quite on it. 0: only "
@@ -2730,9 +2736,12 @@ void hologramTestMessage()
             .help("How far a swung torch's flame leans and trails behind its motion (1: the default; 0: always straight up)."),
         slider("Flatten When Fast", vr_walltorch_flatten, 0.f, 1.5f, 0.1f, "%.1fx").extend(0.f, 1.5f)
             .help("How much a fast swing flattens the flame and stretches it back (1: the default; 0: never)."),
-        slider("Upside Down: Flame Size", vr_walltorch_inv_size, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.1f, 4.f)
-            .help("Held head down, the flame comes up round the head and climbs the stick, in three tongues (the stick shows "
-                  "between them): their size, times the upright flame's."),
+        slider("Hand Motion Strength", vr_walltorch_hand_motion, 0.f, 4.f, 0.1f, "%.1fx")
+            .help("Hand translation and rotation move the flame's attachment point and make it lean/stretch. 0: locomotion only."),
+        slider("Motion Smoothing", vr_walltorch_motion_smooth, 0.01f, 0.5f, 0.01f, "%.2f s"),
+        slider("Upside Down: Flame Height", vr_walltorch_inv_size, 0.05f, 0.3f, 0.01f, "%.2fx")
+            .help("One flame stays attached to the head. Past 90 degrees it smoothly shortens to this height at 180 degrees; fire particles continue to rise."),
+        open("Fire Particles", pageIndex(pageFireParticles)),
         slider("Upside Down: Brightness", vr_walltorch_inv_light, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
             .help("Held head down, its light's brightness, times the upright one's."),
         slider("Upside Down: Burning Drips", vr_walltorch_drips, 0.f, 20.f, 1.f, "%.0f / s").extend(0.f, 60.f)
@@ -3002,7 +3011,7 @@ void hologramTestMessage()
         slider("Go Limp At", vr_ragdoll_start, 0.f, 1.f, 0.1f, "%.1f")
             .help("When in his death animation: 0 as soon as he stops being solid, 1 once he lies still (vr_ragdoll_start)."),
         slider("Most Ragdolls", vr_ragdoll_max, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 64.f)
-            .help("At most this many at once; more of the dead lie as corpses (Corpse Collision) (vr_ragdoll_max)."),
+            .help("At most this many at once. New deaths replace the oldest dead ragdoll first, then the oldest living knockdown if necessary. 0: ragdolls off."),
         toggle("Ragdolls Meet Each Other", vr_ragdoll_collide_each)
             .help("Ragdolls fall onto and pile on each other; off, they pass through each other (vr_ragdoll_collide_each)."),
         header("Physics (All Monsters)"),
@@ -3040,9 +3049,9 @@ void hologramTestMessage()
         open("Zombie", pageIndex(pageRagdollZombie)).help("A zombie's ragdoll: only when its head is cut off (Gore > Decapitation)."),
         open("Mummy", pageIndex(pageRagdollMummy)).help("A mummy's ragdoll (Dissolution of Eternity): only when its head is cut off (Gore > Decapitation)."),
         header("Taking Them"),
-        cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}, {2.f, "By Hand and Force Grab"}})
+        cycle("Grab Ragdolls", vr_ragdoll_grab, {{0.f, "Never"}, {1.f, "By Hand"}})
             .help("Grip on a limb to take it: it follows your hand, the body hanging from it; let go to drop or throw it. "
-                  "Force grab: point at a ragdoll and flick, the limb flies to your hand (vr_ragdoll_grab)."),
+                  "Bodies can only be taken by hand; force grabs do not target them."),
         slider("Grip Strength", vr_ragdoll_grab_force, 200.f, 4000.f, 100.f, "%.0f N").extend()
             .help("The most your hand pulls a held limb with: 3000 lifts a grunt by his chest (a unit's sag); 1500 he sags "
                   "about 18 units, less and you drag him rather than lift him (vr_ragdoll_grab_force)."),
@@ -3600,9 +3609,11 @@ za::Vector<Item> pageDebugViews()
             .help("Draws the physics bodies (Box3D) as wireframes: props awake green, asleep blue, held yellow; doors purple, "
                   "monsters orange, you cyan, hanging pickups grey; red dots where they touch. And each hand's grab reach."),
         cycle("Show Hit Zones", vr_debug_hitzones, {{0.f, "Off"}, {1.f, "Positional Damage"}, {2.f, "Decapitation"}, {3.f, "Both"}})
-            .help("Live monsters' damage zones as wireframes, on the model standing (as hits are judged): Positional Damage's "
-                  "head red, body green, extremities yellow, legs blue; Decapitation's melee zone magenta (Gore > "
-                  "Decapitation > Head Zone Size, Neck) with the shots' head zone red (vr_debug_hitzones)."),
+            .help("Positional Damage colors the animated model surface: head red, body green, extremities yellow, legs blue. "
+                  "Uses the same standing-pose mapping and Head Priority as precise shots and positional melee. "
+                  "Precise hits off: box/ray reference zones. Decapitation shows the older standing melee zone in magenta."),
+        toggle("Hit Zones Through Walls", vr_debug_hitzones_xray)
+            .help("Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces."),
         cycle("Show Hits", vr_debug_hits, {{0.f, "Off"}, {1.f, "Hits"}, {2.f, "Hits and Misses"}})
             .help("Precise hit detection: each hit on a monster's model drawn for a few seconds (the model as it was then, "
                   "the triangle hit in green, the point on the model in red, where the grown model was met in yellow) and "
@@ -3875,9 +3886,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Print Memory Now", "vr_memstats")
             .help("vr_memstats: video and system memory, the textures and models loaded, the frame times since the last one."),
         command("Allocation Sites", "vr_alloc_sites 300")
-            .help("vr_alloc_sites [frames] [lines]: the main thread's C++ allocations over the next 300 frames by where they "
+            .help("vr_alloc_sites [frames] [lines] [peak]: the main thread's C++ and C heap events over the next 300 frames by where they "
                   "were asked for (the commonest first: a frame's, the place, its caller) in the console. To find the buffers "
-                  "a frame makes and frees."),
+                  "a frame makes and frees. Includes kinds and requested bytes. Set peak to 1 for the busiest frame's stacks. Tracing affects timings."),
         header("Crashes"),
         command("Crash the Game", "vr_debug_crash")
             .help("vr_debug_crash [access | abort]: crashes the game now, on purpose, to test the crash report (in a test run: "
@@ -4144,9 +4155,29 @@ za::Vector<Item> pageDebugTools()
 }
 
 // What tests are done with in the headset (single player).
+za::Vector<Item> pageSpawnWeapons()
+{
+    return {
+        header("Grabbable Pickups Ahead of You"),
+        command("Shotgun", "vr_physics_spawn weapon_shotgun 64"),
+        command("Super Shotgun", "vr_physics_spawn weapon_supershotgun 64"),
+        command("Nailgun", "vr_physics_spawn weapon_nailgun 64"),
+        command("Super Nailgun", "vr_physics_spawn weapon_supernailgun 64"),
+        command("Grenade Launcher", "vr_physics_spawn weapon_grenadelauncher 64"),
+        command("Rocket Launcher", "vr_physics_spawn weapon_rocketlauncher 64"),
+        command("Lightning Gun", "vr_physics_spawn weapon_lightning 64"),
+        command("Crowbar", "vr_physics_spawn weapon_crowbar 64"),
+        command("Mjolnir", "vr_physics_spawn weapon_mjolnir 64"),
+        command("Laser Gun", "vr_physics_spawn weapon_laser_gun 64"),
+        command("Proximity Gun", "vr_physics_spawn weapon_proximity_gun 64"),
+    };
+}
+
 za::Vector<Item> pageDebugTests()
 {
     return {
+        open("Spawn Pickup Weapons", pageIndex(pageSpawnWeapons))
+            .help("Spawn a physical pickup ahead of you, ready to grab and use."),
         header("Physics Stress"),
         slider("Pile Size", vr_test_pile_count, 50.f, 1000.f, 50.f, "%.0f props")
             .extend(10.f, 2000.f)
@@ -5094,6 +5125,9 @@ const Page pages[] = {
     {"Graphics - Slipgates", pageGraphicsSlipgates, pageGraphics},                                 // 135 (vr_portals.cpp)
     {"Small Gibs - Per Enemy", pageSmallGibsEnemies, pageSmallGibs, LevelDeveloper},              // 136
     {"Knockdowns", pageKnockdowns, pageCombat},                                                    // 137
+    {"Explosion Debris", pageExplosionDebris, pageParticleSettings},
+    {"Fire Particles", pageFireParticles, pageParticleSettings},
+    {"Spawn Pickup Weapons", pageSpawnWeapons, pageDebugTests, LevelDeveloper},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -8162,7 +8196,7 @@ void qvr::menu::pathCheck_f()
         at = end + 1;
     }
     Con_Printf("menu paths: %d found, %d missing\n", found, missing);
-    free(file);
+    VR_HeapFree(file);
 }
 
 int qvr::menu::bodyCalibrationPage()

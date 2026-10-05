@@ -18,6 +18,7 @@
 // a monster's yaw; the world's; or the monster model's triangle it went into, as drawn now: vr_hitmodel.cpp's
 // anchorFrame), in QC fields, so that a saved game keeps it. Each server frame puts it back there.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_axestick.hpp"
 
 #include "vr_box3d.hpp"
@@ -57,7 +58,7 @@ struct Edge
 
 struct Blade
 {
-    const char* model;
+    modelmeta::Id model;
     za::Array<Edge, 2> edges;
     glm::vec3 head;   // the head's middle on the handle's axis (the blade's width: from it to the edge)
     glm::vec3 handle; // the handle's far end
@@ -68,7 +69,7 @@ struct Blade
 // each side (vertices 10 to 20, and 16 to 19), the blade thin across y.
 constexpr glm::vec3 axeOut{0.9398f, 0.f, -0.3417f};
 const Blade blades[] = {
-    {"progs/v_axe.mdl",
+    {modelmeta::Id::VAxe,
         {{{{20.13f, -0.12f, 15.81f}, {24.18f, -0.10f, 27.30f}, axeOut}, {{-3.00f, -0.10f, 24.50f}, {1.27f, -0.07f, 35.52f}, -axeOut}}},
         {10.79f, 0.f, 25.58f}, {0.2f, 0.f, -3.55f}},
 };
@@ -109,9 +110,10 @@ void store(const glm::vec3& v, float* out)
     {
         return nullptr;
     }
+    const auto& info = modelmeta::get(model);
     for(const Blade& b : blades)
     {
-        if(!strcmp(model->name, b.model))
+        if(info.is(b.model))
         {
             return &b;
         }
@@ -456,7 +458,7 @@ void report(edict_t* ent, const char* fmt, ...)
         // vr_axestick_metal.
         const qmodel_t* model = modelOf(best.host);
         if(!vr_axestick_metal.value && model && model->type == mod_brush &&
-            (!strncmp(model->name, "maps/b_explob", 13) || !strncmp(model->name, "maps/b_exbox", 12)))
+            (modelmeta::has(model, modelmeta::Trait::ExplosiveBox) || modelmeta::has(model, modelmeta::Trait::ExplosiveCrate)))
         {
             best.why = "metal (vr_axestick_metal 0)";
         }

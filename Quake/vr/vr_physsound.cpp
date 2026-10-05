@@ -21,6 +21,7 @@
 // Everything goes through the server's datagram as Quake's sounds do (by precache index: nothing looked up by name as
 // they play); the recordings are precached at each map's start with Quake VR's progs (precache).
 
+#include "vr_modelmetadata.hpp"
 #include "vr_physsound.hpp"
 #include "vr_cvars.hpp"
 #include "vr_debris.hpp"
@@ -452,47 +453,47 @@ Material materialOf(edict_t* ent, const qmodel_t* model)
     {
         return Material::None;
     }
-    const char* name = model->name;
+    const auto& info = modelmeta::get(model);
     if(model->type == mod_brush)
     {
         // The ammo boxes (shells, nails, rockets, cells), the health boxes (b_bh10, b_bh25, b_bh100) and the explosive
         // boxes (b_explob, b_exbox2: metal drums, QC VR_Prop_Metal) are metal; any other box a map carries (a crate) wood.
-        if(!strncmp(name, "maps/b_shell", 12) || !strncmp(name, "maps/b_nail", 11) || !strncmp(name, "maps/b_rock", 11) ||
-            !strncmp(name, "maps/b_batt", 11) || !strncmp(name, "maps/b_bh", 9) || !strncmp(name, "maps/b_explob", 13) ||
-            !strncmp(name, "maps/b_exbox", 12))
+        if(info.has(modelmeta::Trait::ShellBox) || info.has(modelmeta::Trait::NailBox) || info.has(modelmeta::Trait::RocketBox) ||
+            info.has(modelmeta::Trait::BatteryBox) || info.has(modelmeta::Trait::HealthBox) || info.has(modelmeta::Trait::ExplosiveBox) ||
+            info.has(modelmeta::Trait::ExplosiveCrate))
         {
             return Material::Metal;
         }
         return Material::Wood;
     }
-    if(!strcmp(name, "progs/grenade.mdl") || !strcmp(name, "progs/mervup.mdl"))
+    if(info.is(modelmeta::Id::Grenade) || info.is(modelmeta::Id::Mervup))
     {
         return Material::None; // (QC vr_grenade.qc's bounce: weapons/bounce.wav)
     }
-    if(!strncmp(name, "progs/vr_rock", 13))
+    if(info.has(modelmeta::Trait::Rock))
     {
         return Material::Stone;
     }
-    if(!strncmp(name, "progs/vr_brick", 14))
+    if(info.has(modelmeta::Trait::Brick))
     {
         return Material::Brick;
     }
-    if(!strcmp(name, "progs/vrtorch.mdl") || !strncmp(name, "progs/vr_crate", 14) || !strncmp(name, "progs/vr_plank", 14))
+    if(info.is(modelmeta::Id::Vrtorch) || info.has(modelmeta::Trait::Crate) || info.has(modelmeta::Trait::Plank))
     {
         return Material::Wood; // (a wall torch; the crates and what they break into: make_crates.py)
     }
-    if(strstr(name, "backpack"))
+    if(info.has(modelmeta::Trait::ContainsBackpack))
     {
         return Material::Soft;
     }
-    if(!strncmp(name, "progs/gib", 9) || !strncmp(name, "progs/h_", 8) || !strncmp(name, "progs/zom_gib", 13))
+    if(info.has(modelmeta::Trait::Gib) || info.has(modelmeta::Trait::Head) || info.has(modelmeta::Trait::ZombieGib))
     {
         return Material::Flesh;
     }
     const char* cls = ent ? PR_GetString(ent->v.classname) : "";
     const bool gib = ent && (static_cast<int>(ent->v.flags) & physics::FL_FORCEGRABBABLE) && !(static_cast<int>(ent->v.flags) & FL_ITEM);
     const bool weapon = !strcmp(cls, "thrown_weapon") || !strncmp(cls, "weapon_", 7) || !strncmp(cls, "item_key", 8) ||
-                        !strncmp(name, "progs/g_", 8) || !strncmp(name, "progs/w_", 8) || !strncmp(name, "progs/v_", 8);
+                        info.has(modelmeta::Trait::WorldWeapon) || info.has(modelmeta::Trait::WeaponItem) || info.has(modelmeta::Trait::ViewWeapon);
     if(weapon || !gib)
     {
         return Material::Metal; // guns and blades, keys, armour, the flashlight, the other pickups

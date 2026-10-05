@@ -966,7 +966,9 @@ void()   gremlin_flip7    =[ $flip7.asc,    gremlin_flip_stuck ]
    };
 void()   gremlin_flip8    =[ $flip8.asc,    gremlin_flip8 ]
    {
-   self.solid = SOLID_NOT;
+   // This frame loops forever. Do not undo the corpse watcher making it touchable.
+   if(self.vr_corpse != 2 && !self.vr_corpse_dying)
+       self.solid = SOLID_NOT;
    };
 
 /*
@@ -1206,6 +1208,7 @@ fire a rocket
 */
 void() Gremlin_FireRocket =
 {
+    if(!VR_AI_ShotReady(self.origin + '0 0 16')) { return; }
     entity missile;
    vector dir;
 
@@ -1218,13 +1221,14 @@ void() Gremlin_FireRocket =
 
     missile = spawn();
     missile.owner = self;
+    VR_AI_Tag(missile);
     missile.movetype = MOVETYPE_FLYMISSILE;
     missile.solid = SOLID_BBOX;
     missile.classname = "missile";
 
 // set missile speed
 
-   dir = normalize(self.enemy.origin - self.origin);
+   dir = normalize(VR_AI_Origin(self.enemy) - self.origin);
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.1 * v_right + crandom()* 0.1 *v_up;
@@ -1253,13 +1257,14 @@ fire a nailgun
 */
 void(float ox) Gremlin_FireNailGun =
 {
+    if(!VR_AI_ShotReady(self.origin + '0 0 16')) { return; }
    vector dir;
 
    self.currentammo = self.ammo_nails = self.ammo_nails - 1;
    self.effects = self.effects | EF_MUZZLEFLASH;
 
    sound(self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
-   dir = normalize(self.enemy.origin - self.origin);
+   dir = normalize(VR_AI_Origin(self.enemy) - self.origin);
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.1 * v_right + crandom()* 0.1 *v_up;
@@ -1276,13 +1281,14 @@ fire a laser cannon
 */
 void(float ox) Gremlin_FireLaserGun =
 {
+    if(!VR_AI_ShotReady(self.origin + '0 0 16')) { return; }
    vector dir;
 
    self.currentammo = self.ammo_cells = self.ammo_cells - 1;
    self.effects = self.effects | EF_MUZZLEFLASH;
 
    sound(self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
-   dir = normalize(self.enemy.origin - self.origin);
+   dir = normalize(VR_AI_Origin(self.enemy) - self.origin);
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.1 * v_right + crandom()* 0.1 *v_up;
@@ -1299,13 +1305,14 @@ fire a shotgun
 */
 void() Gremlin_FireShotGun =
 {
+    if(!VR_AI_ShotReady(self.origin + '0 0 16')) { return; }
    vector dir;
 
    self.currentammo = self.ammo_shells = self.ammo_shells - 1;
    self.effects = self.effects | EF_MUZZLEFLASH;
 
    sound(self, CHAN_WEAPON, "weapons/guncock.wav", 1, ATTN_NORM);
-   dir = normalize(self.enemy.origin - self.origin);
+   dir = normalize(VR_AI_Origin(self.enemy) - self.origin);
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.1 *v_right + crandom()* 0.1 *v_up;
@@ -1323,13 +1330,14 @@ fire a shotgun
 */
 void() Gremlin_FireSuperShotGun =
 {
+    if(!VR_AI_ShotReady(self.origin + '0 0 16')) { return; }
    vector dir;
 
    self.currentammo = self.ammo_shells = self.ammo_shells - 2;
    self.effects = self.effects | EF_MUZZLEFLASH;
 
    sound(self ,CHAN_WEAPON, "weapons/shotgn2.wav", 1, ATTN_NORM);
-   dir = normalize(self.enemy.origin - self.origin);
+   dir = normalize(VR_AI_Origin(self.enemy) - self.origin);
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.3 *v_right + crandom()* 0.3 *v_up;
@@ -1347,6 +1355,7 @@ fire lightning gun
 */
 void() Gremlin_FireLightningGun =
    {
+    if(!VR_AI_ShotReady(self.origin + '0 0 16')) { return; }
     vector    org, dir;
    float cells;
 
@@ -1368,24 +1377,15 @@ void() Gremlin_FireLightningGun =
    self.currentammo = self.ammo_cells = self.ammo_cells - 2;
    org = self.origin + '0 0 16';
 
-    dir = self.enemy.origin + '0 0 16' - org;
+    dir = VR_AI_Origin(self.enemy) + '0 0 16' - org;
     dir = normalize(dir);
-   dir = normalize(self.enemy.origin - self.origin);
+   dir = normalize(VR_AI_Origin(self.enemy) - self.origin);
    self.v_angle = vectoangles(dir);
    makevectors(self.v_angle);
    dir = dir + crandom()* 0.1 *v_right + crandom()* 0.1 *v_up;
    dir = normalize(dir);
 
-    traceline(org, self.origin + dir*600, TRUE, self);
-
-    WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
-    WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
-    WriteEntity(MSG_BROADCAST, self);
-    WriteByte(MSG_BROADCAST, 0); /* disambiguator */
-    WriteVec3(MSG_BROADCAST, org);
-    WriteVec3(MSG_BROADCAST, trace_endpos);
-
-   LightningDamage(org, trace_endpos+(dir*4), self, 30);
+    VR_AI_Lightning(org, dir, 600, TE_LIGHTNING2, 30);
 };
 
 /*
@@ -1395,6 +1395,7 @@ GremlinFireProximityGrenade
 */
 void() GremlinFireProximityGrenade =
 {
+    if(!VR_AI_ShotReady(self.origin + '0 0 16')) { return; }
     entity missile;
     vector dir;
 
@@ -1405,6 +1406,7 @@ void() GremlinFireProximityGrenade =
 
     missile = spawn();
     missile.owner = self;
+    VR_AI_Tag(missile);
     missile.lastvictim = self;
     missile.movetype = MOVETYPE_TOSS;
     missile.solid = SOLID_BBOX;
@@ -1414,7 +1416,7 @@ void() GremlinFireProximityGrenade =
     missile.state = 0;
 
     // set missile speed
-    dir = normalize(self.enemy.origin - self.origin);
+    dir = normalize(VR_AI_Origin(self.enemy) - self.origin);
     self.v_angle = vectoangles(dir);
     makevectors(self.v_angle);
     dir = dir + crandom()* 0.1 *v_right + crandom()* 0.1 *v_up;
@@ -1599,7 +1601,7 @@ float() GremlinCheckAttack =
     spot1 = self.origin;// + self.view_ofs;
     spot2 = targ.origin;// + targ.view_ofs;
 
-    if((vlen(spot2 - spot1) <= 90) &&
+    if(self.vr_ai_gate <= 0 && (vlen(spot2 - spot1) <= 90) &&
        (self.stoleweapon == 0 || self.weapon == WID_AXE))
     {
        self.attack_state = AS_MELEE;

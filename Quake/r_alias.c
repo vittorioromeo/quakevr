@@ -363,6 +363,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	if (aliasdepth && !alphatest && !translucent) // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
 		GL_UseProgram (glprogs.alias_depth[poseverttype]);
 
+	glEnable (GL_CLIP_DISTANCE1); // QVR: each instance keeps its half of the slipgate
 	VR_AliasShadowClip (); // QVR: clipped virtual-light shadow, or a disabled plane
 
 	if (poseverttype == PV_IQM)
@@ -525,6 +526,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	if (aliasnear & 1) // QVR
 		glDisable (GL_DEPTH_CLAMP);
 
+	glDisable (GL_CLIP_DISTANCE1);
 	ibuf.count = 0;
 	GL_EndGroup ();
 }
@@ -636,7 +638,9 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	aliashdr_t	*paliashdr, *hdr;
 	lerpdata_t	lerpdata;
 	float		fovscale = 1.0f;
-	float		model_matrix[16];
+	float		model_matrix[16], bounds_matrix[16], mapped_matrix[16];
+	float		source_clip[4], destination_clip[4];
+	int		portal_split;
 	aliasinstance_t	*instance;
 	int			totalverts;
 	int			nearflags; // QVR
@@ -671,17 +675,20 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	//
 	// cull it
 	//
-	if (!VR_AliasBonePoses (e, NULL) && R_CullModelForEntity(e)) // QVR: posed limbs reach past the model's bounds
-		return;
+
 
 	//
 	// transform it
 	//
 	R_EntityMatrix (model_matrix, lerpdata.origin, lerpdata.angles, e->scale);
 	VR_AliasPreTransform (e, model_matrix); // QVR
+	memcpy (bounds_matrix, model_matrix, sizeof (bounds_matrix));
 	ApplyTranslation (model_matrix, paliashdr->scale_origin[0], paliashdr->scale_origin[1] * fovscale, paliashdr->scale_origin[2] * fovscale);
 	ApplyScale (model_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
 	VR_AliasPostTransform (e, model_matrix); // QVR
+	portal_split = mode != ALIAS_DEPTH && VR_PortalAlias (e, bounds_matrix, model_matrix, mapped_matrix, source_clip, destination_clip);
+	if (!portal_split && !VR_AliasBonePoses (e, NULL) && R_CullModelForEntity(e))
+		return;
 
 	//
 	// set up for alpha blending
@@ -720,7 +727,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 		entalpha = 1.f;
 
 	nearflags = mode == ALIAS_STANDARD ? VR_AliasNearEye (e, model_matrix, paliashdr) : 0; // QVR
-	if (!R_Alias_CanAddToBatch (e) || (ibuf.count && aliasnear != nearflags)) // QVR: near the eyes: its own batch
+	if (!R_Alias_CanAddToBatch (e) || (portal_split && ibuf.count + 2 > countof(ibuf.inst)) || (ibuf.count && aliasnear != nearflags)) // QVR: near the eyes: its own batch
 		R_FlushAliasInstances (mode == ALIAS_SHOWTRIS);
 
 	if (!ibuf.count)
@@ -757,6 +764,14 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 
 	instance->padding = VR_AliasZeroBlend (e, paliashdr, totalverts); // QVR
 	VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr); // QVR
+	if (portal_split)
+	{
+		aliasinstance_t* copy = &ibuf.inst[ibuf.count++];
+		*copy = *instance; // exact current pose, bone buffer, skin and wounds
+		memcpy (instance->vr.portalclip, source_clip, sizeof(source_clip));
+		memcpy (copy->vr.portalclip, destination_clip, sizeof(destination_clip));
+		MatrixTranspose4x3 (mapped_matrix, copy->worldmatrix);
+	}
 }
 
 /*

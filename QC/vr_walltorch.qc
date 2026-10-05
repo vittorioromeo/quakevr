@@ -290,7 +290,7 @@ void(entity t, entity by, vector dir) VR_WallTorch_KnockOff =
 // torch's own club is not a shot. Off (vr_walltorch_shot 0): as in id's Quake, every shot goes through it.
 float(entity targ, entity inflictor, entity attacker, float damage, float xMelee) VR_WallTorch_Shot =
 {
-    if(!cvar_hget(cvarh_vr_walltorch_shot) || xMelee || damage <= 0)
+    if(!cvar_hget(cvarh_vr_walltorch_shot) || damage <= 0)
     {
         return FALSE;
     }
@@ -336,19 +336,12 @@ float(entity t, entity xPlayer, float xHand) VR_WallTorch_CanGrip =
 // (VR_WallTorch_HandFrame).
 void(entity t, entity xPlayer, float xHand, string xHow) VR_WallTorch_Grip =
 {
-    t.wt_gripper = xPlayer;
-    t.wt_grip_hand = xHand;
-    t.wt_grip_from = VRGetEntHandPos(xPlayer, xHand);
-    t.wt_grip_buzz = 0;
-    VR_WallTorch_SetGripped(xPlayer, xHand, t);
-    dprint(sprintf("walltorch: gripped on its wall (%s)\n", xHow));
-    if(xPlayer.ishuman)
-    {
-        entity oldSelf = self;
-        self = xPlayer;
-        haptic(xHand, 0.0, 0.06, 60, 0.45);
-        self = oldSelf;
-    }
+    VR_WallTorch_Take(t);
+    vr_carry_quiet = TRUE;
+    VR_Carry_Start(xPlayer, xHand, t);
+    vr_carry_quiet = FALSE;
+    dprint(sprintf("walltorch: taken immediately (%s)\n", xHow));
+
 };
 
 // A hand touching it on its wall (handtouch: the fist on its drawn stick): the grip pressed on it takes hold of it.
@@ -728,6 +721,11 @@ void() VR_WallTorch_Touch =
         {
             return;
         }
+        if(VR_Grenade_Is(other))
+        {
+            VR_WallTorch_KnockOff(self, other, normalize(other.velocity));
+            return; // a grenade contacts the touchable torch without detonating
+        }
         float need = VR_Thrown_HitSpeed(other);
         float near = VR_Prop_Approach(other, self, other.velocity);
         if(other.throwhit != QVR_THROWHIT_NEVER_HIT || near < need)
@@ -862,8 +860,17 @@ float VR_WALLTORCH_TEST_REACH = 1024; // how near a wall torch it will take
 float VR_WALLTORCH_TEST_PROPS = 512;  // how near a loose prop to throw
 float VR_WALLTORCH_TEST_BLAST_RADIUS = 150; // a rocket's (weapons.qc T_MissileTouch)
 
+entity vr_wt_test_target, vr_wt_test_missile;
+float vr_wt_test_until, vr_wt_test_blood, vr_wt_test_kind;
 void() VR_WallTorch_TestShot =
 {
+    if(vr_wt_test_until && time >= vr_wt_test_until)
+    {
+        dprint(sprintf("walltorch result: kind %g detached=%g held=%g blood=%g missile=%g\n", vr_wt_test_kind,
+            vr_wt_test_target.wt_state != 0, vr_wt_test_target.carry_player == self,
+            vr_blood_sent - vr_wt_test_blood, vr_wt_test_missile != world && vr_wt_test_missile.model != string_null));
+        vr_wt_test_until = 0;
+    }
     float kind = cvar("vr_test_walltorch_shot");
     if(kind < 0)
     {
@@ -898,6 +905,26 @@ void() VR_WallTorch_TestShot =
     }
     vector mid = 0.5 * (t.absmin + t.absmax);
     dprint(sprintf("walltorch test: kind %g at the wall torch at %v\n", kind, t.origin));
+    vr_wt_test_target = t;
+    vr_wt_test_missile = world;
+    vr_wt_test_kind = kind;
+    vr_wt_test_blood = vr_blood_sent;
+    vr_wt_test_until = time + 1;
+    if(kind == 23)
+    {
+        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, normalize(mid - self.origin));
+        T_Damage(t, self, self, 20);
+        VR_HitBloodSplash(t, mid, 20);
+        VR_HitBlood(t, mid, '0 0 0', 20);
+        VR_ClearHitKind();
+        return;
+    }
+    if(kind == 24)
+    {
+        VR_WallTorch_Grip(t, self, cVR_MainHand, "test immediate grip");
+        dprint(sprintf("walltorch grip result: detached=%g held=%g\n", t.wt_state != 0, t.carry_player == self));
+        return;
+    }
     if(kind >= VR_WALLTORCH_TEST_BOLT)
     {
         if(kind == VR_WALLTORCH_TEST_BOLT)
@@ -955,15 +982,12 @@ void() VR_WallTorch_TestShot =
             cvar("vr_test_fling_speed")));
         return;
     }
-    entity shot = VR_Test_Fire(kind, mid);
-    if(kind == 4 && shot != world)
+    vr_wt_test_missile = VR_Test_Fire(kind, mid);
+    if(kind == 2 && vr_wt_test_missile != world)
     {
-        // This wall-torch test represents the player's rifle, whose missile move meets shot targets. The
-        // monster laser made by VR_Test_Fire is MOVETYPE_FLY and otherwise passes the torch without testing it.
-        shot.movetype = MOVETYPE_FLYMISSILE;
-        shot.touch = VR_RifleLaser_Touch;
-        shot.classname = "rifle_laser";
-        shot.vr_laser_damage = cvar_hget(cvarh_vr_enfrifle_damage);
-        shot.velocity = normalize(shot.velocity) * max(100, cvar_hget(cvarh_vr_enfrifle_speed));
+        // A close contact fixture: a long ballistic shot at the distant torch can fall short.
+        vector dir = normalize(mid - (self.origin + self.view_ofs));
+        setorigin(vr_wt_test_missile, mid - dir * 40);
+        vr_wt_test_missile.velocity = dir * 800;
     }
 };

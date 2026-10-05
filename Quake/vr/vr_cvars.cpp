@@ -317,8 +317,88 @@ const DefaultChange defaultChanges[] = {
     {86, &vr_smallgibs_brains_mult_eel, "1"},        // 1 (new)
     {86, &vr_smallgibs_brains_mult_zombie, "1"},     // 1 (new)
     {86, &vr_smallgibs_brains_mult_mummy, "1"},      // 1 (new)
+    // October 4 recorded tuning: migrate only untouched prior defaults.
+    {87, &vr_unstick, "0"},
+    {87, &vr_hit_tolerance_guns, "4"},
+    {87, &vr_hit_tolerance_melee, "6"},
+    {87, &vr_snd_hrtf_gain, "1.5"},
+    {87, &vr_mirror, "1"},
+    {87, &vr_window_view, "0"},
+    {87, &vr_window_smooth, "0.15"},
+    {87, &vr_window_level, "0"},
+    {87, &vr_spectator_fov, "90"},
+    {87, &vr_spectator_scale, "0.75"},
+    {87, &vr_bullettime_duration, "6"},
+    {87, &vr_window_hud_mirror, "1"},
+    {87, &vr_world_scale, "1.25"},
+    {87, &vr_floor_offset, "-21"},
+    {87, &vr_menu_level, "0"},
+    {87, &vr_burn_touch, "0"},
+    {87, &vr_flashlight_cord, "3"},
+    {87, &vr_flashlight_mount_preview, "1"},
+    {87, &vr_flashlight_low_pitch, "-65"},
+    {87, &vr_flashlight_low_bias_index, "0.08"},
+    {87, &vr_fire_particles_count, "1"},
+    {87, &vr_fire_particles_size, "1"},
+    {87, &vr_fire_particles_range, "1200"},
+    {87, &vr_explosion_debris_count, "12"},
+    {87, &vr_explosion_debris_speed_min, "3"},
+    {87, &vr_explosion_debris_speed_max, "9"},
+    {87, &vr_explosion_debris_up, "0.65"},
+    {87, &vr_ao_dynamic, "1"},
+    {87, &vr_ao_dynamic_range, "3"},
+    {87, &vr_retrolight, "0"},
+    {87, &vr_retrolight_world_dither, "0"},
+    {87, &vr_retrolight_world_luxel, "16"},
+    {87, &vr_retrolight_world_dyn_steps, "8"},
+    {87, &vr_retrolight_world_dyn_block, "4"},
+    {87, &vr_retrolight_model_steps, "16"},
+    {87, &vr_retrolight_model_dither, "0"},
+    {87, &vr_retrolight_shadow_block, "0"},
+    {87, &vr_light_contrast, "2.3"},
+    {87, &vr_smallgibs_speed_melee, "0.35"},
+    {87, &vr_smallgibs_up_melee, "0.5"},
+    {87, &vr_smallgibs_speed_saw, "0.5"},
+    {87, &vr_smallgibs_up_saw, "0.6"},
+    {87, &vr_smallgibs_speed_guns, "0.85"},
+    {87, &vr_smallgibs_up_guns, "0.9"},
+    {87, &vr_smallgibs_grace, "0.1"},
+    {87, &vr_smallgibs_brains_burst, "6"},
+    {87, &vr_smallgibs_brains_pop, "8"},
+    {87, &vr_smallgibs_brains_speed, "3"},
+    {87, &vr_smallgibs_brains_up, "7"},
+    {87, &vr_smallgibs_mult_enforcer, "1"},
+    {87, &vr_smallgibs_mult_fiend, "1"},
+    {87, &vr_smallgibs_mult_ogre, "1"},
+    {87, &vr_smallgibs_mult_hellknight, "1"},
+    {87, &vr_smallgibs_mult_vore, "1"},
+    {87, &vr_smallgibs_mult_shambler, "1"},
+    {87, &vr_smallgibs_brains_mult_enforcer, "1"},
+    {87, &vr_smallgibs_brains_mult_fiend, "1"},
+    {87, &vr_smallgibs_brains_mult_ogre, "1"},
+    {87, &vr_smallgibs_brains_mult_vore, "1"},
+    {87, &vr_smallgibs_brains_mult_shambler, "1"},
+    {87, &vr_gore_stick_thrown, "0.5"},
+    {87, &vr_gore_stick_speed, "180"},
+    {87, &vr_extmaps_spec_scale, "4"},
+    {87, &vr_retro, "0"},
+    {87, &vr_slipgate_surface_size, "1.12"},
+    {87, &vr_slipgate_surface_opacity, "1"},
+    {87, &vr_knockdown_chance, "1"},
+    {87, &vr_knockdown_damage, "2"},
+    {87, &vr_knockdown_bash, "0"},
+    {87, &vr_knockdown_time_min, "2.5"},
+    {87, &vr_knockdown_time_max, "4.5"},
+    {87, &vr_knockdown_getup_speed, "1"},
+    {87, &vr_decap_speed, "5"},
+    {87, &vr_decap_head_size, "1.25"},
+    {87, &vr_decap_neck, "6"},
+    {87, &vr_decap_pop_body_speed, "0.1"},
+    {87, &vr_decap_fountain, "2.5"},
+    {87, &vr_walltorch_inv_size, "1.25"}, // legacy three-flame size
+    {87, &vr_ragdoll_grab, "2"}, // ragdolls are taken by hand only
 };
-constexpr int configVersion = 86;
+constexpr int configVersion = 87;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)
@@ -636,6 +716,7 @@ const CompiledDefault compiledDefaults[] = {
 [[nodiscard]] bool personal(const cvar_t* var)
 {
     return var == &vr_cfg_version || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
+        || var == &vr_props_version || var == &vr_tips_seen || var == &vr_menu_positions
         || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device || var == &vr_dominant_eye
         || !ZA_STRNCMP(var->name, "vr_motion_", 10) // the motion recorder's (a tool's settings)
         || !ZA_STRNCMP(var->name, "vr_bodycal_", 11) || !ZA_STRNCMP(var->name, "vr_body_tweak_", 14) // one's body

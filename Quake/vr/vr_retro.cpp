@@ -1,6 +1,7 @@
 // vr_retro.cpp -- see vr_retro.hpp (the settings, the overrides) and vr_retro.h (the shaders' side).
 
 #include "vr_retro.hpp"
+#include "vr_modelmetadata.hpp"
 #include "vr_retro.h"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -8,6 +9,7 @@
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_menu.hpp"
+#include "vr_mem.hpp"
 #include "vr_text3d.hpp"
 #include "vr_view.hpp"
 #include "vr_zancle.hpp"
@@ -66,7 +68,7 @@ struct CategoryInfo
 };
 
 constexpr CategoryInfo categoryInfo[categoryCount] = {
-    {"world", "World", "The map's walls, floors, ceilings and liquids."},
+    {"world", "World", "The map's walls, floors and ceilings."},
     {"brush", "Brush Entities", "Doors, lifts, buttons, moving walls: the map's moving parts."},
     {"items", "Item Pickups", "The ammo and health boxes, armour, keys, powerups and backpacks."},
     {"props", "Props and Debris", "Crates, explosive boxes, rocks, bricks, planks, shell casings, lanterns."},
@@ -84,6 +86,7 @@ constexpr CategoryInfo categoryInfo[categoryCount] = {
     {"particles", "Particles", "Blood, smoke, sparks, fire and splashes (blocks in world units); Quake's own dots become squares."},
     {"sprites", "Sprites", "Explosions, bubbles and other .spr sprites."},
     {"other", "Other Models", "Everything else drawn with a texture: projectiles, torches and flames, ..."},
+    {"liquids", "Liquids", "Water, slime and lava surfaces."},
 };
 
 za::String names[categoryCount * paramCount];
@@ -478,110 +481,6 @@ void sayFull()
 
 // ---- What a model is (its name; Category's comments)
 
-[[nodiscard]] bool startsWith(const char* s, const char* prefix)
-{
-    return ZA_STRNCMP(s, prefix, ZA_STRLEN(prefix)) == 0;
-}
-
-[[nodiscard]] const char* fileOf(const char* name)
-{
-    const char* f = name;
-    for(const char* p = name; *p; p++)
-    {
-        if(*p == '/')
-        {
-            f = p + 1;
-        }
-    }
-    return f;
-}
-
-template <za::SizeT N>
-[[nodiscard]] bool anyPrefix(const char* f, const char* const (&prefixes)[N])
-{
-    for(const char* p : prefixes)
-    {
-        if(startsWith(f, p))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-constexpr const char* gibPrefixes[] = {"gib1.", "gib2.", "gib3.", "gib_brain", "zom_gib.", "statgib", "h_"};
-constexpr const char* handPrefixes[] = {"hand", "finger_"};
-constexpr const char* gearPrefixes[] = {"vrgadget", "vrpauldron", "vrpouch", "legholster", "vrflashlight"};
-constexpr const char* propPrefixes[] = {"vr_crate", "vr_rock", "vr_brick", "vr_plank", "vr_shell", "vrtorch.", "lantern",
-    "candle", "barrel"};
-// Quake's monsters, the mission packs' (hipnotic: scorpions, gremlins, the armagon; rogue: mummies, eels, lava men,
-// dragons) and the player's model (other players, statues)
-constexpr const char* monsterFiles[] = {"soldier.", "dog.", "ogre.", "knight.", "hknight.", "wizard.", "demon.",
-    "shambler.", "zombie.", "shalrath.", "enforcer.", "fish.", "tarbaby.", "boss.", "oldone.", "player.", "scor.",
-    "grem.", "armabody.", "armalegs.", "mummy.", "eel.", "lavaman.", "dragon.", "ogre_", "sword.", "frogman"};
-constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key.", "m_s_key.", "m_g_key.", "b_s_key.",
-    "b_g_key.", "invulner.", "suit.", "invisibl.", "quaddama.", "end1.", "end2.", "end3.", "end4.", "empathy.",
-    "wetsuit.", "shield.", "antigrav."};
-
-// A model's category by its name alone (entities that move it elsewhere: categoryOf).
-[[nodiscard]] Category modelCategory(const qmodel_t* m)
-{
-    const char* f = fileOf(m->name);
-    if(m->type == mod_brush)
-    {
-        if(m->name[0] == '*')
-        {
-            return Category::Brush;
-        }
-        if(startsWith(f, "b_explob") || startsWith(f, "b_exbox"))
-        {
-            return Category::Props;
-        }
-        return startsWith(f, "b_") ? Category::Items : Category::Props;
-    }
-    if(m->type == mod_sprite)
-    {
-        return Category::Sprites;
-    }
-    if(m->type != mod_alias)
-    {
-        return Category::Other;
-    }
-    if(anyPrefix(f, gibPrefixes))
-    {
-        return Category::Gibs;
-    }
-    if(startsWith(f, "v_") || startsWith(f, "g_"))
-    {
-        return Category::Weapons;
-    }
-    if(startsWith(f, "vrbody"))
-    {
-        return Category::Torso; // (by part: bodyParts)
-    }
-    if(anyPrefix(f, handPrefixes))
-    {
-        return Category::Hands;
-    }
-    if(anyPrefix(f, gearPrefixes))
-    {
-        return Category::Gear;
-    }
-    if(anyPrefix(f, propPrefixes))
-    {
-        return Category::Props;
-    }
-    if(anyPrefix(f, monsterFiles))
-    {
-        return Category::Monsters;
-    }
-    if((m->flags & EF_ROTATE) || anyPrefix(f, itemFiles))
-    {
-        return Category::Items;
-    }
-    return Category::Other;
-}
-
 // An entity's category: its model's, but a weapon in your hands or holsters is Held, anything else of yours that is
 // not your body or hands your Gear; a gib scaled down (the small gibs: vr_smallgibs.qc) a small gib.
 [[nodiscard]] Category categoryOf(const entity_t* e)
@@ -590,7 +489,7 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
     {
         return Category::World;
     }
-    const Category c = modelCategory(e->model);
+    const Category c = modelmeta::category(e->model);
     if(e->model->type == mod_alias && view::find(e) != nullptr)
     {
         if(c == Category::Weapons || c == Category::Held)
@@ -609,66 +508,16 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
 // The world's surfaces and brush submodels' ("*N", the map's own) take overrides by texture only; other models by name.
 [[nodiscard]] const Override* modelOverride(const entity_t* e)
 {
-    if(e == &cl_entities[0] || !e->model || e->model->name[0] == '*')
+    if(e == &cl_entities[0] || !e->model || modelmeta::has(e->model, modelmeta::Trait::Submodel))
     {
         return nullptr;
     }
     return overrideFor(e->model, false, e->model->name);
 }
 
-// Your body's bones by their names (make_vrbody.py's, vr_avatar.cpp's jointNames): the hands' and wrists', the arms',
-// the legs'; the rest (pelvis, spine, chest, neck, head, clavicles) the torso's.
-constexpr const char* handBones[] = {"hand_", "wrist_", "finger", "thumb"};
-constexpr const char* armBones[] = {"upperarm_", "forearm_", "foretwist"};
-constexpr const char* legBones[] = {"thigh_", "calf_", "foot_", "toe"};
-
-[[nodiscard]] Category bonePart(const char* name)
-{
-    if(anyPrefix(name, handBones))
-    {
-        return Category::Hands;
-    }
-    if(anyPrefix(name, armBones))
-    {
-        return Category::Arms;
-    }
-    return anyPrefix(name, legBones) ? Category::Legs : Category::Torso;
-}
-
-// Your body's parts (progs/vrbody*, skinned): each bone's part (Hands .. Legs: 0 .. 3) as two bits, as InstanceData's
-// RetroPart has them: xy the low bits of bones 0..23 and 24..47, zw the high bits, as whole numbers (a vertex's part is
-// its heaviest bone's). False (all 0) for any other model, or a body without bones: drawn whole by its category.
 bool bodyParts(const qmodel_t* model, float out[4])
 {
-    out[0] = out[1] = out[2] = out[3] = 0.f;
-    if(!model || model->type != mod_alias || !startsWith(fileOf(model->name), "vrbody"))
-    {
-        return false;
-    }
-    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
-    if(!hdr || hdr->poseverttype != aliashdr_t::PV_IQM || hdr->numbones <= 0 || !hdr->boneinfo)
-    {
-        return false;
-    }
-    const auto* bones = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(hdr) + hdr->boneinfo);
-    za::U32 bits[4]{0u, 0u, 0u, 0u};
-    for(int i = 0; i < za::min(hdr->numbones, 48); i++)
-    {
-        const int part = static_cast<int>(bonePart(bones[i].name)) - static_cast<int>(Category::Hands);
-        if(part & 1)
-        {
-            bits[i / 24] |= 1u << (i % 24);
-        }
-        if(part & 2)
-        {
-            bits[2 + i / 24] |= 1u << (i % 24);
-        }
-    }
-    for(int k = 0; k < 4; k++)
-    {
-        out[k] = static_cast<float>(bits[k]);
-    }
-    return true;
+    return modelmeta::bodyParts(model, out);
 }
 
 [[nodiscard]] bool isBody(const entity_t* e)
@@ -695,11 +544,13 @@ bool bodyParts(const qmodel_t* model, float out[4])
     {
         return 0;
     }
-    if(isBody(e))
+    const Category category = categoryOf(e);
+    float unused[4];
+    if(category == Category::Torso && bodyParts(e->model, unused))
     {
         return bodySet(modelOverride(e));
     }
-    return setFor(categoryOf(e), modelOverride(e), nullptr);
+    return setFor(category, modelOverride(e), nullptr);
 }
 
 // The skin's own size in Quake texels: Quake's .mdl's; our own MD3 and IQM models' (their textures painted at about four
@@ -803,7 +654,9 @@ struct Hit
             hit.any = true;
             hit.distance = planeDistance(s, start, dir);
             hit.texture = textureKeyName(w->textures[s->texinfo->texnum]->name);
-            hit.modelCategory = hit.textureCategory = Category::World;
+            hit.modelCategory = Category::World;
+            const char* texture = w->textures[s->texinfo->texnum]->name;
+            hit.textureCategory = texture[0] == '*' && strncmp(texture, "*teleport", 9) != 0 ? Category::Liquids : Category::World;
         }
     }
     for(int i = 0; i < cl_numvisedicts; i++)
@@ -828,7 +681,7 @@ struct Hit
                 hit.model = m->name;
                 hit.texture = textureKeyName(m->textures[s->texinfo->texnum]->name);
                 hit.modelCategory = categoryOf(e);
-                hit.textureCategory = m->name[0] == '*' ? Category::Brush : hit.modelCategory;
+                hit.textureCategory = modelmeta::has(m, modelmeta::Trait::Submodel) ? Category::Brush : hit.modelCategory;
             }
             continue;
         }
@@ -1433,6 +1286,26 @@ int categorySet(Category c)
     return setFor(c, nullptr, nullptr);
 }
 
+bool particleCentreNear(int set)
+{
+    if(set <= 0 || set >= QVR_RETRO_MAX_SETS)
+    {
+        return false;
+    }
+    const float* p0 = block.sets[set * 3];
+    const float* p1 = block.sets[set * 3 + 1];
+    const float* p2 = block.sets[set * 3 + 2];
+    return p0[3] > 0.f && p0[2] <= 0.f && p1[0] == 1.f && p2[0] <= 0.f;
+}
+
+float particleTrimBlock(int set)
+{
+    if(set <= 0 || set >= QVR_RETRO_MAX_SETS) return -1.f;
+    const float* p0 = block.sets[set * 3];
+    const float* p2 = block.sets[set * 3 + 2];
+    return p2[0] <= 0.f && p2[1] > 0.f ? za::max(p0[0], 0.01f) : -1.f;
+}
+
 void bindForDraw(int lutUnit)
 {
     if(uploadedBuffer != 0)
@@ -1648,9 +1521,11 @@ extern "C" void VR_RetroCall(entity_t* e, const texture_t* t, float out[4])
     {
         return;
     }
-    if(const Override* to = overrideFor(t, true, t->name))
+    const bool liquid = t->name[0] == '*' && strncmp(t->name, "*teleport", 9) != 0;
+    const Override* to = overrideFor(t, true, t->name);
+    if(liquid || to)
     {
-        out[2] = static_cast<float>(1 + setFor(categoryOf(e), modelOverride(e), to));
+        out[2] = static_cast<float>(1 + setFor(liquid ? Category::Liquids : categoryOf(e), modelOverride(e), to));
     }
 }
 

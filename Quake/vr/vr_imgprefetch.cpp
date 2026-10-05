@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_imgprefetch.cpp -- the images the start-up and the first map load decode (the models' authored normal maps, the
 // body's and the hands' skins: 40 PNGs of up to 1024 x 1024, 0.14 s on one thread), decoded ahead on worker threads
 // while the window and the GL context are made (0.3 s the main thread spends waiting on the driver).
@@ -114,7 +115,7 @@ void freeItems()
     {
         if(!it->taken && it->pixels)
         {
-            free(it->pixels);
+            VR_HeapFree(it->pixels);
         }
     }
     items.clear();
@@ -152,7 +153,7 @@ void start()
         auto it = za::makeUnique<Item>();
         it->name = name;
         it->bytes.assignRange(data, data + com_filesize);
-        free(data);
+        VR_HeapFree(data);
         items.pushBack(ZA_MOVE(it));
     }
     if(items.empty())
@@ -259,7 +260,7 @@ extern "C" unsigned char* VR_ImagePrefetchTake(const char* name, FILE* f, int le
     {
         if(it->pixels)
         {
-            free(it->pixels);
+            VR_HeapFree(it->pixels);
             it->pixels = nullptr;
         }
         return nullptr;

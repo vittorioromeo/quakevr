@@ -1,13 +1,18 @@
+#include "vr_alloccount.h"
 // vr_walltorch.cpp -- wall torches taken off their walls: the engine's side (see vr_walltorch.hpp; QC vr_walltorch.qc;
 // docs/vr-port/ROUND21.md, "Wall torches you can take").
 
+#include "vr_modelmetadata.hpp"
 #include "vr_walltorch.hpp"
 
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
+#include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
 #include "vr_particles.hpp"
+#include "vr_fireparticles.hpp"
+#include "Zancle/Math/Abs.hpp"
 #include "vr_progs.hpp"
 #include "vr_selfcollide.hpp"
 
@@ -57,15 +62,9 @@ constexpr float fireLight = 20.f;
 // speed eased over 0.08 s.
 constexpr float leanPerSpeed = 1.f / 500.f;
 constexpr float leanMost = 0.84f;
-constexpr float leanEase = 0.08f;
 
-// The stick's head (make_walltorch.py): from its bulge to its rim, about this thick. The flame's foot is its highest
-// point: in the pit standing up, on top of the head lying level, round the stick where the head meets it upside down.
-constexpr float headLow = -4.7f, headHigh = 1.8f, headRadius = 2.2f;
-// Upside down: three flames round the stick this far from its axis (it shows between them), each this much of the one.
-constexpr int ringFlames = 3;
-constexpr float ringRadius = 3.4f;
-constexpr float ringSize = 0.62f;
+// The torch head: its lit end is fixed on the stick; burning drips use the head's rim.
+constexpr float headHigh = 1.8f, headRadius = 2.2f;
 // Swung fast, the flame flattens and stretches back over this speed of the head (units/s), and leans further.
 constexpr float flattenFrom = 100.f, flattenTo = 450.f;
 constexpr float flattenLean = 0.5f; // (tangent) more lean at most, flattened
@@ -78,6 +77,7 @@ struct Taken
     glm::vec3 wall{0.f};  // where it hung (its crackle is there): last seen on its wall, else its baseline
     bool wallKnown = false;
     glm::vec3 head{0.f};  // the stick's head, last frame
+    glm::vec3 player{0.f}; // separates locomotion from motion of the holding hand
     glm::vec3 vel{0.f};   // its velocity, eased
     double time = -1.0;   // when the head was last placed (-1: not lit)
     glm::vec3 fire{0.f};  // its light's place (the flame's middle)
@@ -92,7 +92,7 @@ struct Taken
 
 // A flame, as drawn: its foot, the way up (leaning), its own frame (x: back along the swing or the stick, z: up), its
 // size (as Ironwail's scale) and its own scale on top (flattened and stretched back), its height, how far the torch is
-// upside down (0..1) and the ring's axes round the stick.
+// upside down (0..1).
 struct Flame
 {
     glm::vec3 foot{0.f};
@@ -102,7 +102,6 @@ struct Flame
     glm::vec3 k{1.f};
     float height = 0.f;
     float inv = 0.f;
-    glm::vec3 ring1{1.f, 0.f, 0.f}, ring2{0.f, 1.f, 0.f};
 };
 
 struct Stretch
@@ -144,11 +143,11 @@ void findModels()
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
         const qmodel_t* m = cl.model_precache[i];
-        if(!strcmp(m->name, stickModelName))
+        if(modelmeta::is(m, modelmeta::Id::Vrtorch))
         {
             stickModel = m;
         }
-        else if(!strcmp(m->name, wallModelName))
+        else if(modelmeta::is(m, modelmeta::Id::Flame))
         {
             wallModel = m;
         }
@@ -181,11 +180,9 @@ void findModels()
     Flame f;
     const glm::vec3 along = axes[0];
     const float a = za::clamp(along.z, -1.f, 1.f);
-    f.inv = hung ? 0.f : smooth01(0.2f, 0.85f, -a);
-    // The head's highest point: along it from where it meets the stick (head down) to the pit (head up); off the axis
-    // up to its top (lying level).
-    const float x = glm::mix(headLow + 0.6f, stickHeadX, smooth01(-0.3f, 0.3f, a));
-    f.foot = origin + along * x + (glm::vec3{0.f, 0.f, 1.f} - along * a) * headRadius;
+    f.inv = hung ? 0.f : smooth01(0.f, 1.f, -a);
+    // Keep the flame rooted at the torch end, including when inverted.
+    f.foot = origin + along * stickHeadX;
 
     // Upright, leaning back from the way the head moves (vr_walltorch_lean); fast, flattened and stretched back
     // (vr_walltorch_flatten).
@@ -197,12 +194,16 @@ void findModels()
     {
         lean *= most / l;
     }
-    f.up = glm::normalize(glm::vec3{0.f, 0.f, 1.f} + lean);
+    const glm::vec3 baseUp{0.f, 0.f, 1.f}; // gravity, regardless of the stick's orientation
+    const glm::vec3 leaned = baseUp + lean * (1.f - f.inv);
+    f.up = glm::length(leaned) > 1e-4f ? glm::normalize(leaned) : baseUp;
     f.k = glm::vec3{1.f + 0.5f * flat, 1.f - 0.08f * flat, 1.f - 0.4f * flat};
 
     // Its x: back along the swing as it gets fast, else the stick's way.
     glm::vec3 xs = along - f.up * glm::dot(along, f.up);
-    xs = glm::length(xs) < 0.1f ? glm::cross(glm::vec3{0.f, 1.f, 0.f}, f.up) : glm::normalize(xs);
+    // A torch can now point along any axis, including sideways along world Y.
+    const glm::vec3 reference = za::abs(f.up.y) > 0.9f ? glm::vec3{1.f, 0.f, 0.f} : glm::vec3{0.f, 1.f, 0.f};
+    xs = glm::length(xs) < 0.1f ? glm::normalize(glm::cross(reference, f.up)) : glm::normalize(xs);
     glm::vec3 x2 = xs;
     if(speed > 1.f)
     {
@@ -220,18 +221,12 @@ void findModels()
     x2 = glm::normalize(x2);
     f.m = glm::mat3{x2, glm::cross(f.up, x2), f.up};
 
-    f.s = s * (hung ? 1.f : glm::mix(1.f, za::max(0.f, vr_walltorch_inv_size.value), f.inv));
+    f.s = s;
+    // Legacy saved values over 1 described a larger three-flame ring: cap them to a short inverted flame.
+    f.k.z *= glm::mix(1.f, za::clamp(vr_walltorch_inv_size.value > 0.3f ? 0.15f : vr_walltorch_inv_size.value, 0.05f, 0.3f), f.inv);
     const float top = fireModel && fireModel->maxs[2] > fireBase + 1.f ? fireModel->maxs[2] : fireBase + flameTopDefault;
     f.height = (top - fireBase) * f.s * f.k.z;
 
-    // The ring's axes, round the stick.
-    glm::vec3 r1 = glm::cross(along, glm::vec3{0.f, 1.f, 0.f});
-    if(glm::length(r1) < 0.1f)
-    {
-        r1 = glm::cross(along, glm::vec3{1.f, 0.f, 0.f});
-    }
-    f.ring1 = glm::normalize(r1);
-    f.ring2 = glm::cross(along, f.ring1);
     return f;
 }
 
@@ -350,7 +345,7 @@ namespace
     constexpr size_t headerSize = 84;
     const auto keep = [&](const char* why) -> byte* {
         Con_DPrintf("wall torch: %s as shipped (%s)\n", stickModelName, why);
-        free(id);
+        VR_HeapFree(id);
         return own;
     };
     if(!id || idSize < headerSize + 4 || ownSize < headerSize || rd(id, 0) != IDPOLYHEADER || rd(own, 0) != IDPOLYHEADER)
@@ -392,7 +387,7 @@ namespace
             }
         }
     }
-    free(id);
+    VR_HeapFree(id);
     Con_DPrintf("wall torch: %s: the wall torch's skin copied in (%d x %d)\n", stickModelName, w, h);
     return own;
 }
@@ -405,11 +400,12 @@ namespace
 // stands still). Nothing of id's is written anywhere: it is made as the model loads, from the game's own file.
 extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
 {
-    if(!strcmp(name, stickModelName))
+    const auto id = modelmeta::identifyPath(name);
+    if(id == modelmeta::Id::Vrtorch)
     {
         return stickWithWallSkin(path_id);
     }
-    if(strcmp(name, fireModelName) != 0)
+    if(id != modelmeta::Id::VrtorchFire)
     {
         return nullptr;
     }
@@ -427,7 +423,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     constexpr size_t headerSize = 84;
     const auto fail = [&](const char* why) -> byte* {
         Con_DPrintf("wall torch: %s: %s\n", wallModelName, why);
-        free(src);
+        VR_HeapFree(src);
         return nullptr;
     };
     if(size < headerSize || rd(0) != IDPOLYHEADER)
@@ -523,14 +519,14 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
         return fail("no triangle of its flame");
     }
     const size_t outSize = size - static_cast<size_t>(numTris - kept) * 16;
-    byte* out = static_cast<byte*>(malloc(outSize + 1));
+    byte* out = static_cast<byte*>(VR_HeapMalloc(outSize + 1));
     memcpy(out, src, trisAt);
     const int keptLe = LittleLong(kept);
     memcpy(out + 64, &keptLe, 4);
     memcpy(out + trisAt, tris.data(), tris.size());
     memcpy(out + trisAt + tris.size(), src + framesAt, size - framesAt);
     out[outSize] = 0;
-    free(src);
+    VR_HeapFree(src);
     Con_DPrintf("wall torch: %s: %d of %d triangles (its flame)\n", fireModelName, kept, numTris);
     return out;
 }
@@ -538,7 +534,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
 // Mod_LoadAllSkins: the name a model's external skins are found by (progs/ogre.mdl_0.tga): the flame's are id's torch's.
 extern "C" const char* VR_ModelSkinName(const char* name)
 {
-    return strcmp(name, fireModelName) == 0 ? wallModelName : name;
+    return modelmeta::identifyPath(name) == modelmeta::Id::VrtorchFire ? wallModelName : name;
 }
 
 // Each client frame, after the temp entities (CL_ReadFromServer, before VR_TorchLights): the taken torches' flames,
@@ -637,13 +633,21 @@ extern "C" void VR_WallTorchFlames(void)
             {
                 v = glm::vec3{0.f}; // a jump (taken into a hand, a teleport)
             }
-            t.vel += (v - t.vel) * (1.f - za::exp(-fdt / leanEase));
+            const glm::vec3 player = hands::current().playerOrigin;
+            if(heldBy[0] == i || heldBy[1] == i)
+            {
+                const glm::vec3 walk = (player - t.player) / fdt;
+                v = walk + (v - walk) * za::clamp(vr_walltorch_hand_motion.value, 0.f, 4.f);
+            }
+            const float ease = za::clamp(vr_walltorch_motion_smooth.value, 0.01f, 0.5f);
+            t.vel += (v - t.vel) * (1.f - za::exp(-fdt / ease));
         }
         else if(t.time < 0.0)
         {
             t.vel = glm::vec3{0.f};
         }
         t.head = head;
+        t.player = hands::current().playerOrigin;
         t.time = hung ? -1.0 : now;
 
         const int holdHand = heldBy[1] == i ? 1 : heldBy[0] == i ? 0 : -1;
@@ -673,7 +677,7 @@ extern "C" void VR_WallTorchFlames(void)
         if(onYou && holdHand >= 0)
         {
             selfcollide::keepShapes();
-            const float r = 2.2f * f.s + ringRadius * f.inv;
+            const float r = 2.2f * f.s;
             t.touch = selfcollide::flameTouch(f.foot + f.up, f.foot + f.up * za::max(1.5f, f.height * 0.8f), r, holdHand);
             t.touchFrame = host_framecount;
         }
@@ -691,11 +695,11 @@ extern "C" void VR_WallTorchFlames(void)
         {
             continue;
         }
-        // One flame; upside down, three round the stick (it shows between them), each smaller.
-        const int n = f.inv > 0.02f ? ringFlames : 1;
+        // Keep one attached flame at every tilt; the particle tongues always rise in world space.
+        const int n = 1;
         for(int k = 0; k < n; k++)
         {
-            const float sk = f.s * (k == 0 ? glm::mix(1.f, ringSize, f.inv) : ringSize * f.inv);
+            const float sk = f.s;
             if(sk <= 0.03f)
             {
                 continue;
@@ -705,14 +709,14 @@ extern "C" void VR_WallTorchFlames(void)
             {
                 break;
             }
-            const float ang = 6.2831853f * (static_cast<float>(k) / static_cast<float>(ringFlames)) + static_cast<float>(i) * 0.9f;
-            const glm::vec3 at = f.foot + (f.ring1 * za::cos(ang) + f.ring2 * za::sin(ang)) * (ringRadius * f.inv);
+            const glm::vec3 at = f.foot;
             const glm::vec3 o = at - f.up * (fireBase * sk * f.k.z);
             ent->origin[0] = o.x;
             ent->origin[1] = o.y;
             ent->origin[2] = o.z;
             held::anglesFromAxes(f.m, ent->angles, false);
             ent->model = model;
+            fireparticles::emitTorch(i, f.foot + f.up * (f.height * za::clamp(vr_fire_particles_origin.value, 0.f, 1.f)), f.s);
             // Its own scale (flattened, stretched back) in VR_AliasPreTransform (walltorch::stretch); Ironwail's, which
             // its culling box reads, covers it.
             const float most = za::max(f.k.x, za::max(f.k.y, f.k.z));
@@ -792,12 +796,25 @@ bool walltorch::onWall(const entity_t& e)
     return e.model && e.model == stickModel && e.frame == wallFrame;
 }
 
+void walltorch::tiltTest()
+{
+    for(int degrees : {0, 90, 180})
+    {
+        const float angle = glm::radians(static_cast<float>(degrees));
+        const glm::vec3 along{za::sin(angle), 0.f, za::cos(angle)};
+        const glm::vec3 side{0.f, 1.f, 0.f};
+        const Flame f = flameOf(glm::vec3{0.f}, glm::mat3{along, side, glm::cross(along, side)}, glm::vec3{0.f}, 1.f, false);
+        Con_Printf("tilttest: angle=%d height=%.3f axisZ=%.3f invert=%.3f foot=%.3f %.3f %.3f flames=1\n",
+            degrees, f.height, f.up.z, f.inv, f.foot.x, f.foot.y, f.foot.z);
+    }
+}
+
 void walltorch::prepare()
 {
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
-        const char* name = cl.model_precache[i]->name;
-        if(!strcmp(name, stickModelName) || !strcmp(name, wallModelName))
+        const auto& info = modelmeta::get(cl.model_precache[i]);
+        if(info.is(modelmeta::Id::Vrtorch) || info.is(modelmeta::Id::Flame))
         {
             (void)::fire(); // (the flame model, not walltorch::fire)
             return;

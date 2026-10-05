@@ -1,0 +1,13 @@
+build,run,scene,eye,frames,gpu_samples,cpu_ms,gpu_ms,exe_sha256
+baseline,paired-baseline-1/fire_eye1024_gpu16_r1,fire,1024,1800,112,0.825,0.812,e1f92b5dd4d798fd4e6eab83a8f791f5631c346f70dee3ecb3893ac2794d2d25
+baseline,paired-baseline-1/idle_eye1024_gpu16_r1,idle,1024,1800,112,0.785,0.668,e1f92b5dd4d798fd4e6eab83a8f791f5631c346f70dee3ecb3893ac2794d2d25
+baseline,paired-baseline-1/props_settled_1000_eye1024_gpu16_r1,props_settled_1000,1024,1800,112,2.323,1.668,e1f92b5dd4d798fd4e6eab83a8f791f5631c346f70dee3ecb3893ac2794d2d25
+baseline,paired-baseline-2/fire_eye1024_gpu16_r1,fire,1024,1800,112,2.572,1.822,e1f92b5dd4d798fd4e6eab83a8f791f5631c346f70dee3ecb3893ac2794d2d25
+baseline,paired-baseline-2/idle_eye1024_gpu16_r1,idle,1024,1800,112,0.902,0.805,e1f92b5dd4d798fd4e6eab83a8f791f5631c346f70dee3ecb3893ac2794d2d25
+baseline,paired-baseline-2/props_settled_1000_eye1024_gpu16_r1,props_settled_1000,1024,1800,112,3.186,2.481,e1f92b5dd4d798fd4e6eab83a8f791f5631c346f70dee3ecb3893ac2794d2d25
+metadata,clean-bench/fire_eye1024_gpu16_r1,fire,1024,1796,112,1.918,0.921,6f680cd91ab17b2b82b4896efebb1f5d72e9223556292b0efa9c7a72a8c51d26
+metadata,clean-bench/fire_eye1024_gpu16_r2,fire,1024,1800,112,0.797,0.784,6f680cd91ab17b2b82b4896efebb1f5d72e9223556292b0efa9c7a72a8c51d26
+metadata,clean-bench/idle_eye1024_gpu16_r1,idle,1024,1800,112,0.657,0.651,6f680cd91ab17b2b82b4896efebb1f5d72e9223556292b0efa9c7a72a8c51d26
+metadata,clean-bench/idle_eye1024_gpu16_r2,idle,1024,1800,112,0.586,0.581,6f680cd91ab17b2b82b4896efebb1f5d72e9223556292b0efa9c7a72a8c51d26
+metadata,clean-bench/props_settled_1000_eye1024_gpu16_r1,props_settled_1000,1024,1800,113,2.276,1.216,6f680cd91ab17b2b82b4896efebb1f5d72e9223556292b0efa9c7a72a8c51d26
+metadata,clean-bench/props_settled_1000_eye1024_gpu16_r2,props_settled_1000,1024,1800,113,1.964,1.129,6f680cd91ab17b2b82b4896efebb1f5d72e9223556292b0efa9c7a72a8c51d26
