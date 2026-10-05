@@ -1065,6 +1065,15 @@ void() weapon_touch =
 
     bound_other_ammo();
 
+    // A fresh pickup is ready to fire: move rounds from the bounded reserve into its own magazine.
+    // Pool-only firing modes keep their ammo in the reserve. Existing weapon instances never pass here.
+    float clip = 0;
+    if(other.ishuman && VRIsWeaponReloadingEnabled() && WeaponIdToSupportsReload(weaponId))
+    {
+        clip = max(0, min(WeaponIdToBaseClipSize(weaponId), VR_AmmoUtil_GetAmmoCountByAmmoId(other, ammoId)));
+        VR_AmmoUtil_DelAmmoCountByAmmoId(other, ammoId, clip);
+    }
+
     VR_WeaponUtil_EntAddWeapon(other, weaponId);
 
     stemp = self;
@@ -1076,12 +1085,12 @@ void() weapon_touch =
         {
             if(VRIsHandEmpty(other, cVR_MainHand))
             {
-                VRGiveEntWeapon(other, cVR_MainHand, weaponId, 0, 0); // (a new one, its magazine empty as ever)
+                VRGiveEntWeapon(other, cVR_MainHand, weaponId, 0, clip);
                 W_SetCurrentAmmoFor(cVR_MainHand);
             }
             else if(VRIsHandEmpty(other, cVR_OffHand))
             {
-                VRGiveEntWeapon(other, cVR_OffHand, weaponId, 0, 0);
+                VRGiveEntWeapon(other, cVR_OffHand, weaponId, 0, clip);
                 W_SetCurrentAmmoFor(cVR_OffHand);
             }
             else
@@ -1106,7 +1115,7 @@ void() weapon_touch =
             bprint("BUG: Attempting to pick weapon with full hand.");
         }
 
-        VRGiveEntWeapon(other, touchinghand, weaponId, 0, 0);
+        VRGiveEntWeapon(other, touchinghand, weaponId, 0, clip);
         W_SetCurrentAmmoFor(touchinghand);
     }
 
