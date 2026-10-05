@@ -1,0 +1,17 @@
+{
+  "source_commit": "6ca0664a",
+  "runs": 123,
+  "distinct_scenarios": 35,
+  "measured_frames": 147210,
+  "gpu_samples": 10756,
+  "cpu": {
+    "Name": "13th Gen Intel(R) Core(TM) i9-13900K",
+    "NumberOfCores": 24,
+    "NumberOfLogicalProcessors": 32
+  },
+  "gpu": "RTX 4090, driver 610.88",
+  "exe_sha256": "ceabc98d22bb5210dd0f3a04871a12dac1b48ed375f1e1da6905fb815889ad23",
+  "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+  "config_sha256": "d7c2f7d482e5af43150f8313d859c4961b8bcc7e4a2bc804672de444ae07cb3e",
+  "config_unchanged": true
+}
