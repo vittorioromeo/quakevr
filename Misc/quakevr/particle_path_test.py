@@ -33,6 +33,14 @@ def fixtures():
         ('nonretro', [1, 4, 2, 5], 12, ['vr_retro_particles 0']),
         ('fire', [], 90, ['vr_fire_particles 1'] +
          [f'vr_physics_spawn light_torch_small_walltorch {64 + i * 8} 0' for i in range(8)]),
+        ('dense_fire', [], 90, ['vr_fire_particles 1', 'vr_fire_particles_count 16',
+         'vr_fire_particles_frequency 30', 'vr_fire_particles_size 4',
+         'vr_fire_particles_life_min 2', 'vr_fire_particles_life_max 2'] +
+         [f'vr_physics_spawn light_torch_small_walltorch {64 + i * 8} 0' for i in range(8)]),
+        ('dense_fire_nonretro', [], 90, ['vr_retro_particles 0', 'vr_fire_particles 1',
+         'vr_fire_particles_count 16', 'vr_fire_particles_frequency 30', 'vr_fire_particles_size 4',
+         'vr_fire_particles_life_min 2', 'vr_fire_particles_life_max 2'] +
+         [f'vr_physics_spawn light_torch_small_walltorch {64 + i * 8} 0' for i in range(8)]),
     ]
 
 
@@ -65,7 +73,8 @@ def main(args):
                                  ('half', 1, 1), ('half_all', 1, 1)]:
             captures[name, path] = len(captures)
             commands += [f'vr_particle_trim {0 if path == "trim_off" else 1}', f'vr_particle_retro_fast {fast}', f'vr_particle_retro_halfres {half}',
-                         f'vr_particle_retro_halfres_pixels {0 if path == "half_all" else 64}'] + waits(5) + ['vr_eyeshot 1'] + waits(3)
+                         f'vr_particle_retro_halfres_pixels {0 if path == "half_all" else 64}', f'vr_particle_halfres {half}',
+                         f'vr_particle_halfres_pixels {0 if path == "half_all" else 64}'] + waits(5) + ['vr_eyeshot 1'] + waits(3)
     commands += ['echo PARTICLE_PATH_TEST_DONE', 'disconnect'] + waits(10) + ['quit']
     config = '\n'.join(commands) + '\n'
     (base / 'quakevr/autoexec.cfg').write_text(config)
