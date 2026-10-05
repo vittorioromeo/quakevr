@@ -1,5 +1,6 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
+#include "vr_portals.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_rope.hpp"
@@ -5347,10 +5348,14 @@ static void applyEyeView(const hands::State& s)
         return;
     }
     const int eye = stereo::eye();
+    // An eye already through a slipgate the body has not crossed yet (or not yet through one it has): seen from the room
+    // it is in (vr_portals_walk), not from behind the gate's surface -- that frame or two showed the gate's hidden back.
+    glm::vec3 origin = s.eyeOrigin[eye], angles = s.eyeAngles[eye];
+    portals::eyeThrough(glm::vec3{s.playerOrigin.x, s.playerOrigin.y, origin.z}, origin, angles);
     for(int i = 0; i < 3; i++)
     {
-        r_refdef.vieworg[i] = s.eyeOrigin[eye][i];
-        r_refdef.viewangles[i] = s.eyeAngles[eye][i];
+        r_refdef.vieworg[i] = origin[i];
+        r_refdef.viewangles[i] = angles[i];
     }
 
     // Only used for the near plane distance; the projection comes from the eye's FOV.

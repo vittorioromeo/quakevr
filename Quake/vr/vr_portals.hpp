@@ -124,4 +124,10 @@ int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacit
 // A rigid body's bounds crossing a fitting aperture. Either room can be its owner.
 bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate);
 
+// An eye ahead of the body through a gate (the head leaning or walking in before the torso, which is what the gate
+// carries; or still behind once the body is through): the line from `body` (the body's axis at the eye's height) to
+// `eye` crosses an open gate's aperture. Then `eye` is moved through that gate and `angles` turned with it, so the view
+// is the room the eye is in, not what lies behind the gate's surface. False: no gate between them.
+bool eyeThrough(const glm::vec3& body, glm::vec3& eye, glm::vec3& angles);
+
 } // namespace qvr::portals

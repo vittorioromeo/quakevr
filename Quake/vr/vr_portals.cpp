@@ -2120,6 +2120,44 @@ bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate)
 
 namespace qvr::portals
 {
+bool eyeThrough(const glm::vec3& body, glm::vec3& eye, glm::vec3& angles)
+{
+    if(!walkOn()) { return false; }
+    if(!current()) { build(); }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    struct PopVm
+    {
+        qcvm_t* old;
+        ~PopVm() { PR_PopQCVM(old); }
+    } popVm{oldVm};
+    float first = 1.f;
+    Side through{};
+    bool found = false;
+    for(const Side& entry : sides)
+    {
+        const edict_t* trig = EDICT_NUM(entry.trigger);
+        if(!triggerActive(trig) || (static_cast<int>(trig->v.spawnflags) & 1)) { continue; }
+        for(int back = 0; back < 2; back++)
+        {
+            // Forward: the eye in ahead of the body. Back (the exit's face): the body carried, the eye still behind.
+            const Side sd = back ? reverseSide(entry) : entry;
+            const float a = glm::dot(sd.normal, body) - sd.dist;
+            const float b = glm::dot(sd.normal, eye) - sd.dist;
+            if(a < 0.f || b >= 0.f || a - b < 1e-5f) { continue; }
+            const float t = a / (a - b);
+            if(t >= first || !onGate(sd, glm::mix(body, eye, t), 1.f)) { continue; }
+            first = t;
+            through = sd;
+            found = true;
+        }
+    }
+    if(!found) { return false; }
+    eye = carried(through, eye);
+    angles.y = anglemod(angles.y + through.yaw);
+    return true;
+}
+
 void reachTest_f()
 {
     if(!sv.active || svs.maxclients < 1) { return; }
