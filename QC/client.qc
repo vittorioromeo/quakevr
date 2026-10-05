@@ -50,15 +50,17 @@ void() SetChangeParms =
 
     self.gravity = 1.0;
 
-    // cap super health
-    if(self.health > 100)
+    // Dopa Nightmare uses the authored 50 cap and half-cap transition floor.
+    // Other campaigns keep VR's existing 100/50 carry bounds.
+    float carryHealthCap = ((cvar("vr_campaign") == 3) && (skill == 3) && !deathmatch) ? 50 : 100;
+    if(self.health > carryHealthCap)
     {
-        self.health = 100;
+        self.health = carryHealthCap;
     }
 
-    if(self.health < 50)
+    if(self.health < carryHealthCap * 0.5)
     {
-        self.health = 50;
+        self.health = carryHealthCap * 0.5;
     }
 
     // ROGUE
@@ -1009,7 +1011,7 @@ void() PutClientInServer =
     self.solid = SOLID_SLIDEBOX;
     self.movetype = MOVETYPE_WALK;
     self.show_hostile = 0;
-    self.max_health = 100;
+    self.max_health = ((cvar("vr_campaign") == 3) && (skill == 3) && !deathmatch) ? 50 : 100;
     self.flags = FL_CLIENT;
     self.air_finished = time + VR_AirSupply();
     self.dmg = 2;           // initial water damage

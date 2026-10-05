@@ -169,8 +169,11 @@ QuakeC contains Quake, Scourge of Armagon and Dissolution of Eternity; selecting
 Open **Single Player > Official Campaigns**, **VR Settings > Official Campaigns**, or the hub's campaign board link.
 The selector shows Quake, the two mission packs, Dimension of the Past (`dopa`), Dimension of the Machine (`mg1`)
 and Dawn of the Machine (`mg3`). Each entry reports missing data, incomplete/corrupt data, or installed data with
-its native gameplay readiness. The three newer native ports are currently **in progress**; ordinary selection
-refuses them until their gameplay and progression are ready. Installed maps alone do not establish support.
+its native gameplay readiness. **Dimension of the Past is ready for native single-player VR**, including authored
+normal/secret routes, deferred monsters, fog/exploding geometry, VR inventory carry/save/reset and readable
+completion text/menu. Dopa coop context/join/respawn behavior is not accepted; ordinary launch requires `coop 0`, `deathmatch 0`, and `maxplayers 1`.
+**Dimension of the Machine and Dawn of the Machine remain in progress**; ordinary selection refuses them until
+their gameplay and progression are ready. Installed maps alone do not establish support.
 
 For an owned Steam installation, Quake VR checks the original Quake folder and its `rerelease` folders. It also
 checks explicit `-basedir` roots and the existing Steam/GOG discovery paths. No expansion download or separate

@@ -183,9 +183,22 @@ void(float request) MG_ProgressTest = {
         float dormant = 0; float active = 0;
         entity e = nextent(world);
         while(e) { if(e.MG_deferred) dormant++; else if((e.flags & FL_MONSTER) && e.health > 0) active++; e = nextent(e); }
-        dprint(sprintf("mgprogresstest: map %s total %g active %g deferred %g kills %g health %g\n",mapname,total_monsters,active,dormant,killed_monsters,p.health));
+        dprint(sprintf("mgprogresstest: map %s total %g active %g deferred %g kills %g health %g max %g\n",mapname,total_monsters,active,dormant,killed_monsters,p.health,p.max_health));
         dprint(sprintf("mgprogresstest: shells %g hands %g %g clips %g %g ids %g\n",p.ammo_shells,p.weapon,p.weapon2,p.weaponinst.wi_clip,p.weaponinst2.wi_clip,p.weaponinst.wi_uid));
         dprint(sprintf("mgprogresstest: offid %g holster %g clip %g id %g flags %g\n",p.weaponinst2.wi_uid,p.holsterweapon0,p.holsterweaponinst0.wi_clip,p.holsterweaponinst0.wi_uid,serverflags));
+    } else if(request == 11 || request == 12) {
+        // Destructive acceptance: the real item spawn/pickup paths, not a direct heal assignment.
+        // Reload afterward; the resulting ordinary/mega health is useful for save/carry checks.
+        p.health = 40;
+        entity pickup = spawn(); self = pickup; other = p;
+        item_health(); health_touch();
+        dprint(sprintf("mghealthtest: ordinary health %g max %g\n", p.health, p.max_health));
+        remove(pickup);
+        if(request == 12) {
+            pickup = spawn(); self = pickup; other = p; pickup.spawnflags = H_MEGA;
+            item_health(); health_touch();
+            dprint(sprintf("mghealthtest: mega health %g max %g\n", p.health, p.max_health));
+        }
     } else if(request == 8) {
         p.health = 73; p.ammo_shells = 42; p.ammo_nails = 67;
         p.weapon = WID_SHOTGUN; p.weapon2 = WID_NAILGUN;

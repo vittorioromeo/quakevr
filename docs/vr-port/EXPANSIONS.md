@@ -558,7 +558,64 @@ MG3 messages produce health capacity120 and shell capacity80 with no braces/lite
 map/player-model probes retain original asset provenance while tables come from rerelease.
 
 Tests use hidden mock, `-nomapindex -noaddons`; default map-index startup remains unverified. Timestamped evidence
-and authored-asset fixtures are worktree-only under `localization-tests/`. A first diagnostic script queued `wait`
-before loading a map and timed out at150s; its log is retained. Adding an active stock map before waits lets the
-same language probes exit0. This driver correction is not an attribution or repair for the earlier transition
-crash/stall. Real transition/campaign cases are recorded with the Dopa readiness acceptance below.
+and authored-asset fixtures are worktree-only under `localization-tests/`. Early diagnostics whose campaign/map was refused timed out at150s; their logs are retained. Those scripts
+ended `toggleconsole;quit` while the disconnected startup console was already open, causing the engine quit command
+to open its confirmation menu instead of exiting (Host_Quit_f checks key_dest). Loading an accepted stock map
+before the final toggle/quit lets the same language probes exit0. This driver correction is not an attribution
+or repair for the earlier transition crash/stall. Real transition/campaign cases are recorded with the Dopa readiness acceptance below.
+
+## Dopa single-player readiness acceptance (mglocalize, 2026-10-06)
+
+Dimension of the Past `nativeReady` is now true **for single-player**, subject to complete owned campaign assets
+and language coverage. MG1/MG3 remain false. Ordinary launch refuses Dopa coop with explicit checkpoint/revival
+acceptance guidance; its supported solo scope is stated in the selector and installation guide. Developer bypass
+remains available with warnings. Ready Dopa CLI context does not grant a language bypass, and direct map commands
+recheck its readiness/language/coop policy. Earlier sections describe the state at their respective shipment.
+
+Final updated-baseline hidden acceptance: real QC normal e5m1 -> e5m2 and secret e5m3 -> e5sm1 exit0, with
+health73, shells42, main SG/off nailgun magazines3/7 and distinct weapon IDs, plus holstered SSG magazine2.
+Completed save/load and level restart/death restart preserve the start state; new campaign resets health100,
+shells25, hands/holsters and progress to zero. Dopa ending is advanced through both real finale stages: the
+original-id1 client logs readable congratulations, then opens the native completion menu (visually inspected),
+with Official Campaigns and Main Menu controls. The menu's actual headset readability/laser/button interaction
+remains human VR QA. No claim to recreate commercial scrolling credits.
+
+The earlier suspect e5m7 -> e5sm1 manual map pair was repeated three times on the updated baseline, followed by
+Dopa -> MG1 -> MG3 -> Dopa runtime switches, all exit0. No new crash/hang occurred in these cases; prior
+unattributed timestamped findings remain recorded above and are not claimed fixed. Prior accepted environment,
+activation, all13-map counts and authored route-selection coverage still apply. Final stock smoke/style/FGD and
+menu path check pass (14 found, 0 missing). Default map-index startup remains outside this acceptance.
+
+Coop follow-up scope (not implemented by localization): owned Dopa BSPs have zero
+`trigger_activate_coop_spawns` relays and zero named `info_player_coop` checkpoints. Shared MG1 source enables
+`COOP_RESPAWN_KEEP_WEAPONS`: checkpoint activation aggregates all players' weapon ownership into spawnpoints,
+and respawn restores those weapons plus nails30/rockets4/cells12. Native VR's checkpoint state activation/cycling
+is present, but that ownership/VR-instance restoration is absent. The source's no-valid-spawn deferred spectator
+state, retry and forced telefrag after5 seconds are also absent (native selection falls back to info_player_start);
+this is especially relevant to future horde support, not an authored Dopa checkpoint relay. Source team assignment
+and Nightmare respawn health behavior need cooperative acceptance. Native local `vr_campaign`/schema/root switches
+are not synchronized to remote clients before signon or changelevel; peer asset/language/VR-progs validation,
+late join/reconnect, per-player carry/death respawn and the authored cooperative finale return still need a
+multiclient acceptance pass. Dopa normal launch remains solo-only until that work is accepted.
+
+Final cap review found native Dopa Nightmare used initial health50 but still max_health100 and transition
+carry50–100. Official MG1 client uses max_health50 and carries between half-cap25 and cap50. Those three bounds
+are now scoped to Dopa/skill3/non-deathmatch; other contexts retain their existing100 cap and50 carry minimum.
+Real ordinary health-box pickup from40 reaches50/max50; a real megahealth pickup reaches150/max50. Completed
+save/load retains both ordinary50 and mega150 states. The actual QC normal exit carries megahealth down to50
+in e5m2; a separate health1 exit carries25, both max50. Debug > Tests exposes destructive ordinary/mega pickup
+setups (`vr_mg_world_test`11/12, existing default0) and progress reports now include max_health. Normal-difficulty
+and stock carry acceptance is recorded in the final worker report.
+
+Final normal-difficulty real ordinary/mega pickups yield65/165 with max100; completed mega save/load retains165,
+then the real exit caps carry100. Stock Nightmare forwarded give values were drained through server frames:150
+carried100, and1 carried50, both max100. Missing-language direct Dopa CLI refuses before loading its map; a missing-
+language save refuses while preserving the current connected e1m1. Duplicate explicit roots/stores disabled preserve
+higher local custom English while missing text comes from owned updated rerelease tables. All exit0. Ready Dopa
+saves recheck language/solo policy even if context3 is already active, before disconnecting. The solo guard also
+rejects deathmatch or multiple clients; it does not implement networking. Diagnostic quit timeouts remain archived.
+
+Final solo-mode guard checks refuse deathmatch1 and a two-client server, then accept coop0/deathmatch0/maxplayers1
+Dopa with Nightmare initial health50/max50 and an ordinary pickup still capped50. After the final guard build,
+three more e5m7 -> e5sm1 repeats and Dopa -> MG1 -> MG3 -> Dopa switches exit0 with no Host_Error/crash; the
+retained earlier findings remain unassigned. The supported campaign also returns to VR Hub correctly.
