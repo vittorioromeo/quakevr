@@ -1345,7 +1345,9 @@ void M_Main_Mousemove (float cx, float cy)
 
 qboolean m_singleplayer_showlevels;
 int	m_singleplayer_cursor;
-#define	SINGLEPLAYER_ITEMS	(3 + m_singleplayer_showlevels) // (the map browser: the main menu's Map Library)
+// QVR: append campaigns after Quake's rows; Map Library stays on the main menu.
+#define	SINGLEPLAYER_ITEMS	(4 + m_singleplayer_showlevels)
+#define SINGLEPLAYER_CAMPAIGNS (3 + m_singleplayer_showlevels)
 
 void M_Menu_SinglePlayer_f (void)
 {
@@ -1369,6 +1371,14 @@ void M_SinglePlayer_Draw (void)
 	if (m_singleplayer_showlevels)
 		M_DrawTransPic (72, 92, Draw_CachePic ("gfx/sp_maps.lmp") );
 
+	if (VR_BigFont_CanDraw ("Official Campaigns"))
+	{
+		VR_BigFont_Draw (73, 32 + SINGLEPLAYER_CAMPAIGNS * 20, "Official Campaigns");
+	}
+	else
+	{
+		M_PrintEx (74, 32 + SINGLEPLAYER_CAMPAIGNS * 20 + 1, 16, "OFFICIAL CAMPAIGNS");
+	}
 	M_DrawQuakeCursor (54, 32 + m_singleplayer_cursor * 20);
 }
 
@@ -1402,6 +1412,8 @@ void M_SinglePlayer_Key (int key)
 	case K_MOUSE1:
 		m_entersound = true;
 
+        if (m_singleplayer_cursor == SINGLEPLAYER_CAMPAIGNS)
+        { VR_OpenCampaignSelector(); break; }
 		switch (m_singleplayer_cursor)
 		{
 		case 0:

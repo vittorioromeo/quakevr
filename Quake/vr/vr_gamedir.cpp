@@ -32,6 +32,9 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
+extern "C" {
+#include "steam.h"
+}
 
 
 namespace
@@ -178,7 +181,8 @@ bool validResource(FILE* file, long offset, long length, const char* name)
         }
         return format && samples;
     }
-    if(length < 124 || (integer(0) != 29 && integer(0) != 30)) { return false; }
+    if(length < 124 || (integer(0) != 29 && integer(0) != 30 &&
+        memcmp(bytes.data(), "BSP2", 4) && memcmp(bytes.data(), "2PSB", 4))) { return false; }
     for(int i = 0; i < 15; ++i)
     {
         const int pos = integer(4 + i * 8), size = integer(8 + i * 8);
@@ -187,15 +191,15 @@ bool validResource(FILE* file, long offset, long length, const char* name)
     return integer(120) >= 64; // at least the world model
 }
 
-int inspectPack(const char* game, const char* const* resources, size_t count)
+int inspectPack(const char* game, const char* const* resources, size_t count, const char* onlyRoot = nullptr)
 {
     za::Vector<unsigned char>& found = packScratch.found;
     found.assign(count, 0);
     bool directory = false;
-    for(int base = 0; base < com_numbasedirs; ++base)
+    for(int base = 0; base < (onlyRoot ? 1 : com_numbasedirs); ++base)
     {
         char folder[MAX_OSPATH];
-        q_snprintf(folder, sizeof(folder), "%s/%s", com_basedirs[base], game);
+        q_snprintf(folder, sizeof(folder), "%s/%s", onlyRoot ? onlyRoot : com_basedirs[base], game);
         directory |= Sys_FileType(folder) == FS_ENT_DIRECTORY;
         for(int pak = 0;; ++pak)
         {
@@ -279,6 +283,123 @@ int inspectPack(const char* game, const char* const* resources, size_t count)
     return 1;
 }
 
+
+constexpr const char* dopaResources[] = {
+#include "vr_pack_dopa.inc"
+};
+constexpr const char* mg1Resources[] = {
+#include "vr_pack_mg1.inc"
+};
+constexpr const char* mg3Resources[] = {
+#include "vr_pack_mg3.inc"
+};
+struct Campaign
+{
+    const char* folder;
+    const char* title;
+    const char* start;
+    int schema;
+    bool nativeReady;
+    const char* const* resources;
+    size_t resourceCount;
+    int status;
+    char root[MAX_OSPATH];
+};
+Campaign campaigns[] = {
+    {"id1", "Quake", "start", 0, true, nullptr, 0, 1, {}},
+    {"hipnotic", "Scourge of Armagon", "start", 1, true, nullptr, 0, 0, {}},
+    {"rogue", "Dissolution of Eternity", "start", 2, true, nullptr, 0, 0, {}},
+    {"dopa", "Dimension of the Past", "e5start", 3, false, dopaResources, countof(dopaResources), 0, {}},
+    {"mg1", "Dimension of the Machine", "start", 4, false, mg1Resources, countof(mg1Resources), 0, {}},
+    {"mg3", "Dawn of the Machine", "start", 5, false, mg3Resources, countof(mg3Resources), 0, {}},
+};
+int activeCampaign = 0;
+bool discoveredCampaigns = false;
+bool developerNative = false;
+bool rebuildingCampaign = false;
+bool nativeCampaignPaths = false;
+
+int campaignIndex(const char* name)
+{
+    for(int i = 0; i < int(countof(campaigns)); ++i)
+    {
+        if(!q_strcasecmp(name, campaigns[i].folder)) { return i; }
+    }
+    return -1;
+}
+
+void discoverCampaigns()
+{
+    if(discoveredCampaigns) { return; }
+    discoveredCampaigns = true;
+    // Explicit bases win, last base highest. Never add store roots to com_basedirs:
+    // configs, saves and community caches must remain under the writable VR root.
+    char roots[MAX_BASEDIRS * 3 + 2][MAX_OSPATH];
+    int count = 0;
+    if(!COM_CheckParm("-nosteam"))
+    {
+        steamgame_t owned{};
+        char install[MAX_OSPATH];
+        if(Steam_FindGame(&owned, QUAKE_STEAM_APPID) && Steam_ResolvePath(install, sizeof(install), &owned))
+        { q_snprintf(roots[count++], MAX_OSPATH, "%s/rerelease", install); }
+    }
+    if(!COM_CheckParm("-nogog"))
+    {
+        char install[MAX_OSPATH];
+        if(Sys_GetGOGQuakeEnhancedDir(install, sizeof(install)))
+        { q_strlcpy(roots[count++], install, MAX_OSPATH); }
+    }
+    for(int i = 0; i < com_numbasedirs; ++i)
+    {
+        q_snprintf(roots[count++], MAX_OSPATH, "%s/../rerelease", com_basedirs[i]);
+        q_snprintf(roots[count++], MAX_OSPATH, "%s/rerelease", com_basedirs[i]);
+        q_strlcpy(roots[count++], com_basedirs[i], MAX_OSPATH);
+    }
+    for(int i = 3; i < int(countof(campaigns)); ++i)
+    {
+        Campaign& c = campaigns[i];
+        for(int r = count - 1; r >= 0; --r)
+        {
+            char folder[MAX_OSPATH];
+            q_snprintf(folder, sizeof(folder), "%s/%s", roots[r], c.folder);
+            if(Sys_FileType(folder) != FS_ENT_DIRECTORY) { continue; }
+            c.status = inspectPack(c.folder, c.resources, c.resourceCount, roots[r]);
+            q_strlcpy(c.root, roots[r], sizeof(c.root));
+            // A damaged higher-priority owned copy is explicit, never masked by another release.
+            break;
+        }
+    }
+}
+
+void publishCampaign()
+{
+    if(!Cvar_FindVar("vr_campaign")) { return; }
+    Cvar_SetROM("vr_honey_context", "0");
+    // The archived legacy hub selector only describes the original three campaigns.
+    Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, activeCampaign <= 2 ? activeCampaign : 0);
+    Cvar_SetROM("vr_campaign", va("%d", activeCampaign));
+    Cvar_SetROM("vr_campaign_schema", va("%d", campaigns[activeCampaign].schema));
+    for(int i = 3; i < int(countof(campaigns)); ++i)
+    { Cvar_SetROM(va("vr_%s_status", campaigns[i].folder), va("%d", campaigns[i].status)); }
+}
+
+const char* campaignStatus(int i)
+{
+    return campaigns[i].status == 0 ? "missing" : campaigns[i].status == 2 ? "incomplete/corrupt" :
+        campaigns[i].nativeReady ? "ready" : "installed; native support in progress";
+}
+
+void reportCampaigns()
+{
+    for(int i = 0; i < int(countof(campaigns)); ++i)
+    {
+        const Campaign& c = campaigns[i];
+        Con_Printf("VR campaign %d %s: %s; start %s; schema %d; source %s\n",
+            i, c.folder, campaignStatus(i), c.start, c.schema, c.root[0] ? c.root : "configured basedirs");
+    }
+    Con_Printf("VR active campaign: %s (%d), VR progs highest.\n", campaigns[activeCampaign].folder, activeCampaign);
+}
+
 void reportPackStatus()
 {
     for(int i = 0; i < 2; ++i)
@@ -338,6 +459,130 @@ void gameFolderName(const char* path, char* out, size_t size)
 
 } // namespace
 
+// The filesystem asks for roots here without changing its writable basedirs.
+extern "C" const char* VR_GameDirectoryRoot(const char* dir, int index)
+{
+    const int i = campaignIndex(dir);
+    if(i >= 3 && (nativeCampaignPaths || rebuildingCampaign) && discoveredCampaigns && campaigns[i].root[0])
+    { return index == 0 ? campaigns[i].root : nullptr; }
+    return index < com_numbasedirs ? com_basedirs[index] : nullptr;
+}
+
+extern "C" void VR_PrepareCampaignDirectories(const char* paths)
+{
+    discoverCampaigns();
+    if(rebuildingCampaign) { return; }
+    char copy[1024];
+    q_strlcpy(copy, paths, sizeof(copy));
+    bool vr = false;
+    int selected = 0;
+    for(char* p = strtok(copy, ";"); p; p = strtok(nullptr, ";"))
+    {
+        if(!q_strcasecmp(p, vrGameDir)) { vr = true; }
+        const int i = campaignIndex(p);
+        if(i > 0) { selected = i; }
+    }
+    nativeCampaignPaths = vr;
+    if(vr) { activeCampaign = selected; developerNative = selected >= 3; }
+    publishCampaign();
+}
+
+extern "C" void VR_InitCampaignDirectories()
+{
+    char paths[1024] = {};
+    for(int i = 0; i < com_argc - 1; ++i)
+    {
+        if(!q_strcasecmp(com_argv[i], "-game"))
+        { q_strlcat(paths, com_argv[++i], sizeof(paths)); q_strlcat(paths, ";", sizeof(paths)); }
+    }
+    VR_PrepareCampaignDirectories(paths);
+}
+
+namespace
+{
+bool selectCampaign(int selected, bool developer, bool start)
+{
+    if(selected < 0 || selected >= int(countof(campaigns))) { return false; }
+    Campaign& c = campaigns[selected];
+    if(c.status != 1)
+    {
+        Con_Printf("VR: %s is %s. Supply its complete owned data in <basedir>/%s; detected source %s.\n",
+            c.folder, campaignStatus(selected), c.folder, c.root[0] ? c.root : "none");
+        return false;
+    }
+    if(!c.nativeReady && !developer)
+    {
+        Con_Printf("VR: %s native support in progress; campaign play is not ready. Developer testing: vr_campaign_native %s.\n", c.folder, c.folder);
+        return false;
+    }
+    if(!c.nativeReady)
+    { Con_Printf("VR: developer native launch of %s: support in progress, gameplay/progression incomplete.\n", c.folder); }
+    const bool changed = activeCampaign != selected;
+    activeCampaign = selected;
+    developerNative = developer;
+    publishCampaign();
+    if(changed || !gameDirAlreadyAdded(vrGameDir))
+    {
+        rebuildingCampaign = true;
+        COM_ReloadVRGame("quakevr");
+        rebuildingCampaign = false;
+    }
+    if(start) { Cbuf_InsertText(va("map %s\n", c.start)); }
+    return true;
+}
+
+void campaignProbeCommand()
+{
+    if(Cmd_Argc() != 2)
+    {
+        for(const char* name : {"progs.dat", "maps/start.bsp", "maps/hub.bsp", "maps/end.bsp", "maps/dm1.bsp"})
+        {
+            const bool exists = COM_FileExists(name, nullptr);
+            Con_Printf("VR campaign source: %s -> %s; campaign %s\n", name,
+                exists ? com_filesource : "missing", campaigns[activeCampaign].folder);
+        }
+        return;
+    }
+    const char* file = Cmd_Argv(1);
+    const bool exists = COM_FileExists(file, nullptr);
+    Con_Printf("VR campaign source: %s -> %s; campaign %s\n", file,
+        exists ? com_filesource : "missing", campaigns[activeCampaign].folder);
+    if(!strncmp(file, "maps/", 5))
+    { Con_Printf("VR campaign relit: %s -> %s\n", file, VR_ModelFile(file)); }
+}
+
+void campaignSelectCommand()
+{
+    if(Cmd_Argc() != 2) { reportCampaigns(); return; }
+    const int i = campaignIndex(Cmd_Argv(1));
+    if(i < 0) { Con_Printf("VR: campaign must be id1, hipnotic, rogue, dopa, mg1 or mg3.\n"); return; }
+    selectCampaign(i, !q_strcasecmp(Cmd_Argv(0), "vr_campaign_native"), true);
+}
+
+void campaignHubCommand()
+{
+    if(selectCampaign(0, false, false)) { Cbuf_InsertText("map vrstart\n"); }
+}
+} // namespace
+
+extern "C" const char* VR_CampaignLabel(int index)
+{
+    return index >= 0 && index < int(countof(campaigns)) ?
+        va("%s: %s", campaigns[index].title, campaigns[index].status == 1 && !campaigns[index].nativeReady ?
+            "native in progress" : campaignStatus(index)) : "";
+}
+extern "C" const char* VR_CampaignHelp(int index)
+{
+    const Campaign& c = campaigns[index];
+    return va("%s. Data: %s. %s", c.title, c.root[0] ? c.root : "configured basedirs",
+        c.status != 1 ? "Supply complete owned campaign files to play." :
+        c.nativeReady ? "Starts a new campaign and resets level progress." : "Native gameplay is being ported; campaign play is unavailable.");
+}
+extern "C" void VR_SelectCampaign(int index)
+{ selectCampaign(index, false, true); }
+extern "C" int VR_CampaignUnavailable(int index)
+{ return campaigns[index].status != 1 || !campaigns[index].nativeReady; }
+
 extern "C" void VR_BeforeAddGameDirectory(const char* dir)
 {
     if(addingMissionPacks || q_strcasecmp(dir, vrGameDir))
@@ -345,6 +590,8 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
         return;
     }
 
+    nativeCampaignPaths = true;
+    discoverCampaigns();
     packStatus[0] = inspectPack("hipnotic", hipnoticResources, sizeof(hipnoticResources) / sizeof(*hipnoticResources));
     packStatus[1] = inspectPack("rogue", rogueResources, sizeof(rogueResources) / sizeof(*rogueResources));
     addingMissionPacks = true;
@@ -356,7 +603,13 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
             COM_AddGameDirectory(pack);
         }
     }
+    if(activeCampaign >= 3 && campaigns[activeCampaign].status == 1 &&
+        !gameDirAlreadyAdded(campaigns[activeCampaign].folder))
+    { COM_AddGameDirectory(campaigns[activeCampaign].folder); }
     addingMissionPacks = false;
+    campaigns[1].status = packStatus[0];
+    campaigns[2].status = packStatus[1];
+    publishCampaign();
 }
 
 extern "C" void VR_RegisterPackStatus()
@@ -366,6 +619,14 @@ extern "C" void VR_RegisterPackStatus()
     Cvar_SetROM("vr_hipnotic_status", va("%d", packStatus[0]));
     Cvar_SetROM("vr_rogue_status", va("%d", packStatus[1]));
     Cmd_AddCommand("vr_pack_status", reportPackStatus);
+    Cmd_AddCommand("vr_campaign_menu", VR_OpenCampaignSelector);
+    Cmd_AddCommand("vr_campaign_status", reportCampaigns);
+    Cmd_AddCommand("vr_campaign_probe", campaignProbeCommand);
+    Cmd_AddCommand("vr_campaign_select", campaignSelectCommand);
+    Cmd_AddCommand("vr_campaign_native", campaignSelectCommand);
+    Cmd_AddCommand("vr_campaign_hub", campaignHubCommand);
+    publishCampaign();
+    Con_Printf("VR active campaign: %s (%d); schema %d; %s.\n", campaigns[activeCampaign].folder, activeCampaign, campaigns[activeCampaign].schema, campaignStatus(activeCampaign));
     reportPackStatus();
 }
 
@@ -375,23 +636,36 @@ extern "C" void VR_RegisterPackStatus()
 // engine's COM_FindFile did for its paks: the other campaigns' folders are skipped for it.
 extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
 {
-    if(strncmp(filename, "maps/start.", 11) != 0 || !gameDirAlreadyAdded(vrGameDir))
+    if(!gameDirAlreadyAdded(vrGameDir))
     {
         return 0;
     }
 
-    static constexpr const char* campaigns[] = {"id1", "hipnotic", "rogue"};
-    const int idx = (static_cast<int>(qvr::vr_activestartpaknameidx.value) % 3 + 3) % 3;
-    const char* selected = campaigns[(idx > 0 && packStatus[idx - 1] != 1) ? 0 : idx];
-
+    const bool start = strncmp(filename, "maps/start.", 11) == 0 ||
+        strncmp(filename, "maps/end.", 9) == 0 || strncmp(filename, "maps/hub.", 9) == 0 ||
+        strncmp(filename, "maps/dm1.", 9) == 0;
     char name[MAX_OSPATH];
     gameFolderName(path, name, sizeof(name));
-
-    for(const char* campaign : campaigns)
+    const int i = campaignIndex(name);
+    if(i < 0) { return 0; }
+    if(!strcmp(filename, "progs.dat") && i >= 3) { return 1; }
+    if(i >= 3) { return i != activeCampaign; }
+    if(start) { return i != activeCampaign; }
+    // Isolate campaign maps and sidecars, while retaining optional pack brush models
+    // (e.g. maps/b_explob.bsp) used by VR's global resource precaches.
+    if(activeCampaign >= 3 && !strncmp(filename, "maps/", 5) && i != activeCampaign)
     {
-        if(!q_strcasecmp(name, campaign))
+        char map[MAX_QPATH];
+        COM_StripExtension(filename, map, sizeof(map));
+        if(!strcmp(map, "maps/start") || !strcmp(map, "maps/hub") ||
+            !strcmp(map, "maps/end") || !strcmp(map, "maps/dm1")) { return 1; }
+        const Campaign& c = campaigns[activeCampaign];
+        for(size_t r = 0; r < c.resourceCount; ++r)
         {
-            return q_strcasecmp(name, selected) != 0;
+            if(strncmp(c.resources[r], "maps/", 5)) { continue; }
+            char owned[MAX_QPATH];
+            COM_StripExtension(c.resources[r], owned, sizeof(owned));
+            if(!strcmp(owned, map)) { return 1; }
         }
     }
     return 0;
@@ -418,19 +692,8 @@ extern "C" const char* VR_ModelFile(const char* name)
     {
         return name;
     }
-    const char* folder = nullptr;
-    for(const searchpath_t* search = com_searchpaths; search; search = search->next)
-    {
-        if(search->path_id == pathId && !search->pack)
-        {
-            folder = search->filename;
-            break;
-        }
-    }
-    if(!folder)
-    {
-        return name;
-    }
+    const char* folder = com_filesource;
+    if(!folder[0]) { return name; }
 
     char game[MAX_OSPATH];
     gameFolderName(folder, game, sizeof(game));
@@ -487,20 +750,26 @@ extern "C" void VR_AfterAddGameDirectory(const char* dir)
 extern "C" int VR_CanLoadCampaignMap(const char* map)
 {
     if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
-    int pack = -1;
-    if(!strncmp(map, "hip", 3)) { pack = 0; }
-    if(!strncmp(map, "r1m", 3) || !strncmp(map, "r2m", 3)) { pack = 1; }
-    if(!strcmp(map, "start"))
+    if(!strcmp(map, "vrstart") || !strcmp(map, "vrtutorial") || !strcmp(map, "vrfiringrange"))
+    { return activeCampaign == 0 || selectCampaign(0, false, false); }
+    int requested = activeCampaign;
+    if((map[0] == 'e' && map[1] >= '1' && map[1] <= '4') || !strcmp(map, "vrtest")) { requested = 0; }
+    if(!strncmp(map, "hip", 3)) { requested = 1; }
+    if(!strncmp(map, "r1m", 3) || !strncmp(map, "r2m", 3)) { requested = 2; }
+    if(!strncmp(map, "e5", 2)) { requested = 3; }
+    if(!strcmp(map, "start") && activeCampaign <= 2)
     {
-        const int idx = (static_cast<int>(qvr::vr_activestartpaknameidx.value) % 3 + 3) % 3;
-        if(idx > 0) { pack = idx - 1; }
+        const int legacy = static_cast<int>(qvr::vr_activestartpaknameidx.value);
+        if(legacy < 0 || legacy >= int(countof(campaigns)))
+        { Con_Printf("VR: invalid campaign index %d; choose a campaign first.\n", legacy); return 0; }
+        requested = legacy;
     }
-    if(pack >= 0 && packStatus[pack] != 1)
-    {
-        Con_Printf("VR: cannot load %s: %s is unavailable; restore its owned data or select Quake in the VR Hub.\n",
-            map, missionPacks[pack]);
-        return 0;
-    }
+    if(campaigns[requested].status != 1 || requested != activeCampaign)
+    { return selectCampaign(requested, developerNative, false); }
+    char source[MAX_OSPATH] = {};
+    if(COM_FileExists(va("maps/%s.bsp", map), nullptr))
+    { gameFolderName(com_filesource, source, sizeof(source)); }
+    Cvar_SetROM("vr_honey_context", !q_strcasecmp(source, "honey") ? "1" : "0");
     return 1;
 }
 
@@ -524,5 +793,77 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
             "Restore the same owned packs before loading; start a new game to use this installation.\n", saved, installed);
         return 0;
     }
+    if(const char* context = strstr(text, "\"vr_save_campaign\""))
+    {
+        COM_Parse(context + strlen("\"vr_save_campaign\""));
+        const int savedCampaign = Q_atoi(com_token);
+        if(savedCampaign < 0 || savedCampaign >= int(countof(campaigns)))
+        { Con_Printf("VR: save has an invalid campaign context.\n"); return 0; }
+        if(savedCampaign != activeCampaign && !selectCampaign(savedCampaign, true, false)) { return 0; }
+    }
     return 1;
+}
+
+extern "C" int VR_IsNewCampaignDirectory(const char* dir) { return campaignIndex(dir) >= 3; }
+extern "C" int VR_IsNativeCampaignLaunch()
+{
+    for(int i = 0; i < com_argc - 1; ++i)
+    { if(!q_strcasecmp(com_argv[i], "-game") && !q_strcasecmp(com_argv[i + 1], vrGameDir)) { return 1; } }
+    return 0;
+}
+
+extern "C" int VR_ShouldMountCampaignDirectory(const char* dir)
+{
+    const int i = campaignIndex(dir);
+    // Native explicit -game/game pack tokens are represented by context only. The
+    // VR hook mounts the selected pack after optional packs, before VR overrides.
+    return !nativeCampaignPaths || i < 3 ||
+        (addingMissionPacks && i == activeCampaign && campaigns[i].status == 1);
+}
+
+// Hub portals use changelevel, which preserves spawn parms. Stock selections need
+// only context changes; changing the mounted expansion starts a fresh map instead.
+extern "C" int VR_CanChangeCampaignMap(const char* map)
+{
+    if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
+    if(!strcmp(map, "vrstart") && activeCampaign != 0)
+    { Cbuf_InsertText("vr_campaign_hub\n"); return 0; }
+    int requested = activeCampaign;
+    if(!strcmp(map, "start") && activeCampaign <= 2)
+    { requested = static_cast<int>(qvr::vr_activestartpaknameidx.value); }
+    if(!strncmp(map, "hip", 3)) { requested = 1; }
+    if(!strncmp(map, "r1m", 3) || !strncmp(map, "r2m", 3)) { requested = 2; }
+    if(!strncmp(map, "e5", 2)) { requested = 3; }
+    if(map[0] == 'e' && map[1] >= '1' && map[1] <= '4') { requested = 0; }
+    if(requested < 0 || requested >= int(countof(campaigns)) || campaigns[requested].status != 1)
+    { Con_Printf("VR: campaign unavailable; choose an installed campaign in Official Campaigns.\n"); return 0; }
+    if(requested != activeCampaign && (requested >= 3 || activeCampaign >= 3))
+    {
+        Con_Printf("VR: use the campaign selector to change expansion paths before starting a new campaign.\n");
+        return 0;
+    }
+    activeCampaign = requested;
+    publishCampaign();
+    char source[MAX_OSPATH] = {};
+    if(COM_FileExists(va("maps/%s.bsp", map), nullptr))
+    { gameFolderName(com_filesource, source, sizeof(source)); }
+    Cvar_SetROM("vr_honey_context", !q_strcasecmp(source, "honey") ? "1" : "0");
+    return 1;
+}
+
+extern "C" int VR_HasNativeCampaignDirectory(const char* paths)
+{
+    const size_t length = strlen(vrGameDir);
+    for(const char* p = paths; p && *p;)
+    {
+        if(!q_strncasecmp(p, vrGameDir, length) && (p[length] == ';' || !p[length])) { return 1; }
+        p = strchr(p, ';');
+        if(p) { ++p; }
+    }
+    return 0;
+}
+extern "C" int VR_CampaignDataAvailable(const char* dir)
+{
+    const int i = campaignIndex(dir);
+    return i >= 3 && campaigns[i].status == 1;
 }

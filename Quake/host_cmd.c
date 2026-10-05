@@ -2098,6 +2098,8 @@ static void Host_Changelevel_f (void)
 		return;
 	}
 
+	if (!VR_CanChangeCampaignMap(Cmd_Argv(1)))
+		return;
 	//johnfitz -- check for client having map before anything else
 	q_snprintf (level, sizeof(level), "maps/%s.bsp", Cmd_Argv(1));
 	if (!COM_FileExists(level, NULL))

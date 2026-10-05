@@ -301,3 +301,92 @@ ports described above. Counts refer to distinct classnames, not entity instances
 `trigger_relay_setskill`, `trigger_repeater`, `trigger_rune_counter`, `trigger_rune_relay`,
 `trigger_sacrifice_counter`, `trigger_screenshake`, `trigger_sound`, `trigger_teleport_silent`, `weapon_bloody_sg`,
 `weapon_bloody_ssg`
+
+
+## Campaign discovery/selection implementation (agent/campaignselect)
+
+Tasks 3/4 now have a central six-entry descriptor in `vr_gamedir.cpp`: folder, display title, start map,
+state schema, native readiness, validated resource inventory, availability and resolved source root.
+The native-readiness entries for Dopa, MG1 and MG3 remain **false** until their gameplay ports are accepted.
+A successful developer map launch is not a native gameplay acceptance result.
+
+### Context ABI for the subsequent QC ports
+
+Read-only `vr_campaign` and `vr_campaign_schema` both default to 0 and currently use these values:
+
+| ID/schema | Folder | Campaign | New-game start |
+|---|---|---|---|
+| 0 | id1 | Quake | start |
+| 1 | hipnotic | Scourge of Armagon | start |
+| 2 | rogue | Dissolution of Eternity | start |
+| 3 | dopa | Dimension of the Past | e5start |
+| 4 | mg1 | Dimension of the Machine | start |
+| 5 | mg3 | Dawn of the Machine | start |
+
+QC can gate authored behavior with `cvar("vr_campaign")`; it must not infer MG1/MG3 from `start` or `hub`.
+The schema is an explicit versioned identifier, currently mirroring the campaign; the gameplay ports must allocate
+persistent fields independently of VR's existing parm1..50. This change does not implement MG3 progression fields.
+`vr_save_campaign` is a saved QC global assigned in worldspawn. Before spawning a saved map the engine restores
+its descriptor and paths; the existing `vr_save_packmask` check is retained. The campaign-new-game commands run
+`map`, which resets serverflags/spawn parms. Normal same-campaign `changelevel` preserves progression and context.
+Hub return runs a fresh `map vrstart`, restores campaign 0 and removes the newer expansion's mounted paths.
+The stock hub's legacy 0/1/2 buttons remain supported through the changelevel guard; out-of-range indices are
+refused instead of wrapping modulo three. The archived legacy selector records only 0/1/2; newer native launches
+leave it at 0 so a later ordinary boot does not inherit an unsupported start request. Honey start-map extensions use resolved Honey folder provenance through
+read-only `vr_honey_context` (default 0); official start maps are no longer classified as Honey merely by name.
+
+### Discovery, precedence and commands
+
+New read-only `vr_dopa_status`, `vr_mg1_status`, `vr_mg3_status` default to 0: 0 missing, 1 owned data available,
+2 incomplete/corrupt. Status 1 does **not** imply native gameplay readiness. Filename-only inventories cover all
+13 Dopa, 25 MG1 and 22 MG3 BSPs and the packs' own model/sprite/WAV resources. The existing structural validator
+also accepts official BSP2/2PSB headers. Archive entry bounds and complete resource payloads are validated before
+mounting; VR's own models and progs are not evidence of owning an expansion. No asset payloads are committed.
+
+Discovery reads the explicit basedirs, their rerelease child/sibling folders, and existing Steam/GOG resolvers.
+The last explicit base has highest priority, then its child/sibling rerelease folders; store discovery is the fallback.
+The first existing pack folder in this order owns the result: a corrupt higher-priority copy is reported rather than
+masked by a lower-priority release. New pack copies must be individually complete; resources from duplicate
+installations are not combined. `-nosteam`/`-nogog` disable those store lookups. Store roots are never appended to
+`com_basedirs`, so config/save/cache roots remain the caller's writable roots. Detection and native switching perform
+no installation, download, migration or configuration write to borrowed folders.
+
+Only the selected Dopa/MG1/MG3 folder is mounted, below merged VR progs and above the optional mission packs.
+`-game mg1 -game quakevr` and `-game quakevr -game mg3` both retain VR progs; the latter launcher ordering no
+longer lets an official pack replace merged VR code. A manual `game mg1 quakevr` also publishes context 4.
+Existing non-VR compatibility game launches retain their normal game-code behavior. Common colliding start/hub/
+end/dm1 maps and sidecars are isolated by descriptor. Optional pack brush models used by VR global precaches,
+such as `maps/b_explob.bsp`, remain available. Exact resolved root/archive provenance is retained by file lookup,
+including duplicate basedirs, and relit replacements use that source folder's namespace.
+
+- `vr_campaign_menu`: the selector, also available from Single Player > Official Campaigns, VR Settings and the hub board.
+- `vr_campaign_status`: all six data/readiness results, source roots, start maps and schemas.
+- `vr_campaign_select <folder>`: starts a ready campaign; missing/corrupt/native-in-progress choices are refused before spawn.
+- `vr_campaign_native <folder>`: explicit developer native launch, with a gameplay/progression-incomplete warning.
+- `vr_campaign_hub`: restores paths/context and starts a fresh VR hub.
+- `vr_campaign_probe [virtual filename]`: exact actual source of a file; with no argument, probes VR progs and colliding maps.
+  For a supplied map it also prints the relit selection. Status and probes are exposed in Debug > Reports.
+
+### Measured checks
+
+The engine/QC build reports 0 QC warnings and the FGD check covers all 248 existing spawn functions. Isolated,
+worktree-local fixtures use read-only hardlinks/junctions to owned data; no payload copies or store writes. Runs use
+mock/hidden headset, `-nomapindex -noaddons -noconfigwrite`, autosaves disabled and scripts ending `toggleconsole;quit`.
+Original and rerelease id1-only cases both load e1m1 with the two mission packs and three new packs missing.
+A local original-root fixture discovers its rerelease child; separate original/rerelease `-basedir` roots also work
+while the local root stays last/writable. A duplicate MG1 folder in the highest base supplies its own start map;
+a four-byte PAK in that location is status 2 and both ordinary/developer selection refuse it, leaving e1m1 active.
+Both native launcher orders expose the requested context and resolve progs.dat from quakevr. All six selection
+starts load with exit 0 and no Host_Error after preserving optional precached brush resources; MG1/MG3 start/hub
+and MG3 dm1 probes point to their own PAKs. These are path/start checks; unknown gameplay entities remain outside
+this task's acceptance. Hub return resolves hub.bsp as missing rather than leaving another expansion mounted.
+MG1 save under optional-pack mask 1 records campaign 4; after switching to MG3, loading it restores MG1 context,
+its start source and the expected map. Legacy hub index 999 is refused, while index 1 loads Hipnotic start and
+continues to hip1m1 with context 1. Actual hub board path check: **1 found, 0 missing**. Model probes also confirm MG3 lavaman/rocket-ogre provenance; hub return removes the rocket-ogre model and
+restores Rogue lavaman resources. Namespace-only relit fixtures (never loaded as maps) select relit/mg1 for MG1,
+retain MG3 start when its own relit namespace is absent, and restore relit/id1 after hub return. Headless selector image
+was inspected for placement; human headset follow-up should check row/help readability, board link activation,
+missing-pack feedback, and repeated original-pack portal/selector transitions.
+
+Scratch to remove after integration: `campaign-tests/`, `quakevr/campaign_context_test.sav`, the kit's
+`campaign-menu.png`/matching screenshot, and the untracked `quakevr/ironwail.cfg.baseline`. No cleanup was performed.

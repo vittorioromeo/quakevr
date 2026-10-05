@@ -2194,3 +2194,11 @@ QVR_CVAR(vr_hipnotic_available, "0", CVAR_ROM)
 QVR_CVAR(vr_rogue_available, "0", CVAR_ROM)
 QVR_CVAR(vr_hipnotic_status, "0", CVAR_ROM)
 QVR_CVAR(vr_rogue_status, "0", CVAR_ROM)
+
+// Official native campaign ABI: id1, hipnotic, rogue, dopa, mg1, mg3 (0..5).
+QVR_CVAR(vr_campaign, "0", CVAR_ROM)
+QVR_CVAR(vr_campaign_schema, "0", CVAR_ROM)
+QVR_CVAR(vr_dopa_status, "0", CVAR_ROM)
+QVR_CVAR(vr_mg1_status, "0", CVAR_ROM)
+QVR_CVAR(vr_mg3_status, "0", CVAR_ROM)
+QVR_CVAR(vr_honey_context, "0", CVAR_ROM) // actual start map source is Honey, never inferred from its name
