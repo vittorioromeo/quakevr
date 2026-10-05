@@ -149,6 +149,8 @@ delay - seconds after first sighting before it attacks (default 10)
 */
 void() monster_sword =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(deathmatch)
     {
         remove(self);

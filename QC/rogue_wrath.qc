@@ -195,6 +195,8 @@ void()    wrath_die15 =[ $wrthdt15, wrath_die15 ]
 */
 void() monster_wrath =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(deathmatch)
     {
         remove(self);

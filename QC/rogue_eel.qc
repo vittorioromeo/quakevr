@@ -188,6 +188,8 @@ void() eel_pain7  =[    $eeldth1, eel_run1 ] {};
 */
 void() monster_eel =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(deathmatch)
     {
         remove(self);

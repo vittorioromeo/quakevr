@@ -231,7 +231,7 @@ void() SetNewParms =
     parm17 = 0;
 
     // ROGUE
-    if(deathmatch && teamplay >= TEAM_CTF)
+    if(VR_Pack_Rogue() && deathmatch && teamplay >= TEAM_CTF)
     {
         parm18 = ROGUE_IT_GRAPPLE;
     }
@@ -304,6 +304,30 @@ void() DecodeLevelParms =
     // ROGUE
     if(world.model == "maps/r2m1.bsp" && !deathmatch)
         SetNewParms(); // PGM - 01/29 change to have level 8 reset all your stuff.
+
+    // Changing installations must not resurrect unavailable weapons or powerups from level parms.
+    if(!VR_Pack_Hipnotic())
+    {
+        parm1 = parm1 - (parm1 & (IT_MJOLNIR | IT_LASER_CANNON));
+        parm17 = parm17 - (parm17 & (HIP_IT_WETSUIT | HIP_IT_EMPATHY_SHIELDS | HIP_IT_HORN_OF_CONJURING | HIP_IT_PROXIMITY_GUN));
+    }
+    if(!VR_Pack_Rogue()) { parm18 = parm19 = parm20 = parm21 = 0; }
+    if(!VR_Pack_WeaponAvailable(parm8)) { parm8 = WID_FIST; }
+    parm23 = VR_Pack_WeaponFlags(parm8, parm23);
+    if(!VR_Pack_WeaponAvailable(parm10)) { parm10 = WID_FIST; }
+    parm24 = VR_Pack_WeaponFlags(parm10, parm24);
+    if(!VR_Pack_WeaponAvailable(parm11)) { parm11 = WID_FIST; }
+    parm25 = VR_Pack_WeaponFlags(parm11, parm25);
+    if(!VR_Pack_WeaponAvailable(parm12)) { parm12 = WID_FIST; }
+    parm26 = VR_Pack_WeaponFlags(parm12, parm26);
+    if(!VR_Pack_WeaponAvailable(parm13)) { parm13 = WID_FIST; }
+    parm27 = VR_Pack_WeaponFlags(parm13, parm27);
+    if(!VR_Pack_WeaponAvailable(parm14)) { parm14 = WID_FIST; }
+    parm28 = VR_Pack_WeaponFlags(parm14, parm28);
+    if(!VR_Pack_WeaponAvailable(parm15)) { parm15 = WID_FIST; }
+    parm29 = VR_Pack_WeaponFlags(parm15, parm29);
+    if(!VR_Pack_WeaponAvailable(parm16)) { parm16 = WID_FIST; }
+    parm30 = VR_Pack_WeaponFlags(parm16, parm30);
 
     self.items = parm1;
     self.health = parm2;
@@ -1024,10 +1048,12 @@ void() PutClientInServer =
 
     // oh, this is a hack!
 
-    // VR: This works even if someone does not own SoA because it falls back to
-    // 'progs/player.mdl'. (Hardcoded in C++.)
-    setmodel(self, "progs/playham.mdl");
-    modelindex_hammer = self.modelindex;
+    modelindex_hammer = 0;
+    if(VR_Pack_Hipnotic())
+    {
+        setmodel(self, "progs/playham.mdl");
+        modelindex_hammer = self.modelindex;
+    }
 
     setmodel(self, "progs/eyes.mdl");
     modelindex_eyes = self.modelindex;

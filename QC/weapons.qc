@@ -1181,29 +1181,37 @@ void() W_Precache =
     precache_sound("weapons/shotgn2.wav");    // super shotgun
     precache_sound("knight/sword1.wav");    // gun melee
 
-    // HIPNOTIC
-    //MED
-   precache_sound("enforcer/enfstop.wav");   // laser cannon
-//MED 11/06/96
-   precache_sound("hipweap/laserg.wav");   // laser cannon
-   precache_sound("hipweap/laserric.wav");   // laser cannon ricochet
-   precache_sound("hipweap/proxwarn.wav");   // proximity bomb
-   precache_sound("hipweap/proxbomb.wav");   // proximity bomb
-//MED 11/19/96
-   precache_sound("hipweap/mjolhit.wav");   // mjolnir
-   precache_sound("hipweap/mjolslap.wav");   // mjolnir
-   precache_sound("hipweap/mjoltink.wav");   // mjolnir
+    if(VR_Pack_Hipnotic())
+    {
+        // HIPNOTIC
+        //MED
+       precache_sound("enforcer/enfstop.wav");   // laser cannon
+    //MED 11/06/96
+       precache_sound("hipweap/laserg.wav");   // laser cannon
+       precache_sound("hipweap/laserric.wav");   // laser cannon ricochet
+       precache_sound("hipweap/proxwarn.wav");   // proximity bomb
+       precache_sound("hipweap/proxbomb.wav");   // proximity bomb
+    //MED 11/19/96
+       precache_sound("hipweap/mjolhit.wav");   // mjolnir
+       precache_sound("hipweap/mjolslap.wav");   // mjolnir
+       precache_sound("hipweap/mjoltink.wav");   // mjolnir
 
-    // ROGUE
-    //ZOID--
-    // grapple
-    precache_sound("weapons/chain1.wav");
-    precache_sound("pendulum/hit.wav");
-    precache_sound("vr/grapple_reel.wav"); // the reel winding in (vr_grapple.qc)
-    precache_sound("vr/grapple_unreel.wav"); // the unreel paying out (vr_grapple.qc)
-    precache_sound("vr/grapple_taut.wav"); // the rope snapping taut
-    precache_sound("lavagun/snail.wav");        // lava nail gun cooldown
-//--ZOID
+    }
+
+    if(VR_Pack_Rogue())
+    {
+        // ROGUE
+        //ZOID--
+        // grapple
+        precache_sound("weapons/chain1.wav");
+        precache_sound("pendulum/hit.wav");
+        precache_sound("vr/grapple_reel.wav"); // the reel winding in (vr_grapple.qc)
+        precache_sound("vr/grapple_unreel.wav"); // the unreel paying out (vr_grapple.qc)
+        precache_sound("vr/grapple_taut.wav"); // the rope snapping taut
+        precache_sound("lavagun/snail.wav");        // lava nail gun cooldown
+    //--ZOID
+
+    }
 
     // QUAKE VR
     precache_sound("knight/sword1.wav");
@@ -3527,9 +3535,12 @@ void() CheatCommand =
     self.ammo_cells = 200;
 
     // ROGUE
-    self.ammo_lava_nails = 200;
-    self.ammo_multi_rockets = 100;
-    self.ammo_plasma = 100;
+    if(VR_Pack_Rogue())
+    {
+        self.ammo_lava_nails = 200;
+        self.ammo_multi_rockets = 100;
+        self.ammo_plasma = 100;
+    }
 
     VR_WeaponUtil_EntAddWeapon(self, WID_GRAPPLE);
     VR_WeaponUtil_EntAddWeapon(self, WID_AXE);
@@ -3839,7 +3850,8 @@ void(float xHand) ToggleSecondaryAmmo =
 {
     float weapon = VRGetWeapon(xHand);
 
-    if(!WeaponSupportsSecondaryAmmoFlag(weapon))
+    if(!WeaponSupportsSecondaryAmmoFlag(weapon) ||
+       (!VR_Pack_Rogue() && weapon != WID_SWORD))
     {
         return;
     }
@@ -6130,6 +6142,9 @@ entity(entity thrower, float xWeapon, float xWeaponFlags, entity xInst,
     float xDealDamage,
     float xBaseDamage) CreateThrownWeapon =
 {
+    if(!VR_Pack_WeaponAvailable(xWeapon)) { return world; }
+    xWeaponFlags = VR_Pack_WeaponFlags(xWeapon, xWeaponFlags);
+
     entity newmis = spawn();
 
     MakeThrown(newmis,

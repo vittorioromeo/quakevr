@@ -2369,6 +2369,14 @@ Loads the header and directory, adding the files at the beginning
 of the list so they override previous pack files.
 =================
 */
+// Invalid optional/mod archives must not terminate discovery or hide a valid base game.
+static pack_t *COM_InvalidPackFile (const char *packfile, int handle)
+{
+    Sys_Printf ("WARNING: corrupt packfile %s ignored; restore its owned data\n", packfile);
+    Sys_FileClose (handle);
+    return NULL;
+}
+
 static pack_t *COM_LoadPackFile (const char *packfile)
 {
 	dpackheader_t	header;
@@ -2377,25 +2385,28 @@ static pack_t *COM_LoadPackFile (const char *packfile)
 	int		numpackfiles;
 	pack_t		*pack;
 	int		packhandle;
+	int		packsize;
 	dpackfile_t	info[MAX_FILES_IN_PACK];
 
-	if (Sys_FileOpenRead (packfile, &packhandle) == -1)
+	packsize = Sys_FileOpenRead (packfile, &packhandle);
+	if (packsize == -1)
 		return NULL;
 
 	if (Sys_FileRead(packhandle, &header, sizeof(header)) != (int) sizeof(header) ||
 	    header.id[0] != 'P' || header.id[1] != 'A' || header.id[2] != 'C' || header.id[3] != 'K')
-		Sys_Error ("%s is not a packfile", packfile);
+		return COM_InvalidPackFile (packfile, packhandle);
 
 	header.dirofs = LittleLong (header.dirofs);
 	header.dirlen = LittleLong (header.dirlen);
 
 	numpackfiles = header.dirlen / sizeof(dpackfile_t);
 
-	if (header.dirlen < 0 || header.dirofs < 0)
-	{
-		Sys_Error ("Invalid packfile %s (dirlen: %i, dirofs: %i)",
-					packfile, header.dirlen, header.dirofs);
-	}
+	if (header.dirofs < (int)sizeof(header) || header.dirlen < 0 ||
+        header.dirlen % sizeof(dpackfile_t) || header.dirofs > packsize ||
+        header.dirlen > packsize - header.dirofs)
+    {
+        return COM_InvalidPackFile (packfile, packhandle);
+    }
 	if (!numpackfiles)
 	{
 		Sys_Printf ("WARNING: %s has no files, ignored\n", packfile);
@@ -2403,16 +2414,23 @@ static pack_t *COM_LoadPackFile (const char *packfile)
 		return NULL;
 	}
 	if (numpackfiles > MAX_FILES_IN_PACK)
-		Sys_Error ("%s has %i files", packfile, numpackfiles);
+		return COM_InvalidPackFile (packfile, packhandle);
 
 	if (numpackfiles != PAK0_COUNT)
 		com_modified = true;	// not the original file
 
-	newfiles = (packfile_t *) Z_Malloc(numpackfiles * sizeof(packfile_t));
-
 	Sys_FileSeek (packhandle, header.dirofs);
 	if (Sys_FileRead(packhandle, info, header.dirlen) != header.dirlen)
-		Sys_Error ("Error reading %s", packfile);
+		return COM_InvalidPackFile (packfile, packhandle);
+
+    for (i = 0; i < numpackfiles; ++i)
+    {
+        int pos = LittleLong(info[i].filepos), len = LittleLong(info[i].filelen);
+        if (!memchr(info[i].name, 0, sizeof(info[i].name)) || pos < 0 ||
+            len < 0 || pos > packsize || len > packsize - pos)
+            return COM_InvalidPackFile (packfile, packhandle);
+    }
+    newfiles = (packfile_t *) Z_Malloc(numpackfiles * sizeof(packfile_t));
 
 	// crc the directory to check for modifications
 	if (!com_modified)

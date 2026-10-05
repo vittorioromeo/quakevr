@@ -1142,6 +1142,8 @@ void() weapon_item_think =
 
 void(string xModelName, float xWeaponId) impl_weapon_item =
 {
+    if(!VR_Pack_WeaponAvailable(xWeaponId)) { remove(self); return; }
+
     precache_model(xModelName);
     setmodel(self, xModelName);
     self.weapon = xWeaponId;
@@ -1435,6 +1437,12 @@ void(string xModelNameSmall, string xModelNameBig,
      float xAmmoId, vector xSize)
 impl_item_ammo_pickup =
 {
+    if(!VR_Pack_Rogue() && (xAmmoId == AID_LAVA_NAILS || xAmmoId == AID_MULTI_ROCKETS || xAmmoId == AID_PLASMA))
+    {
+        remove(self);
+        return;
+    }
+
     self.handtouch = ammo_touch;
 
     if(self.spawnflags & WEAPON_BIG2)

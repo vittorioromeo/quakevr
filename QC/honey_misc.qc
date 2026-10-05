@@ -48,6 +48,7 @@ void() model_candle_think =
 
 void() model_candle =
 {
+    if(!fileexists("progs/candle.mdl")) { remove(self); return; }
 
     precache_model("progs/candle.mdl");
 

@@ -370,8 +370,14 @@ enum { VR_SNDBENCH_PAINT = 3, VR_SNDBENCH_QUAKE = 12, VR_SNDBENCH_FILTERS = 13 }
 
 int VR_PortalReachMove(struct edict_s* player, const float* start, const float* mins, const float* maxs, const float* end, int type, trace_t* trace);
 
+void VR_RegisterPackStatus(void);
+int VR_CanLoadCampaignMap(const char *map);
+int VR_CanLoadCampaignSave(const char *text);
+
 #ifdef __cplusplus
 }
 #endif
+
+
 
 #endif // QVR_VR_API_H

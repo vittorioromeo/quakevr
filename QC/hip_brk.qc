@@ -47,6 +47,8 @@ Default is 60.
 
 void() trigger_damagethreshold =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     self.mangle = self.angles;
     self.angles = '0 0 0';
 
@@ -82,6 +84,8 @@ Special walltype that removes itself when triggered.
 
 void() func_breakawaywall =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     self.mangle = self.angles;
     self.angles = '0 0 0';
 

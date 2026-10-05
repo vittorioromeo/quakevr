@@ -1,6 +1,7 @@
 ../quakevr/progs.dat
 
 defs.qc
+vr_packutil.qc
 // The weapons' records (each weapon's id and magazine): the hands' clip accessors below use them.
 vr_weaponinst.qc
 // First: their inline per-hand getters must precede the callers (fteqcc inlines only what it

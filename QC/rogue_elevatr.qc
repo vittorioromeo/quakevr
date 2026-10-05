@@ -97,6 +97,8 @@ When a button is touched, it moves some distance in the direction of it's angle,
 */
 void() func_elvtr_button =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(self.sounds == 0)
     {
         precache_sound("buttons/airbut1.wav");

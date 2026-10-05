@@ -1143,6 +1143,7 @@ extern "C" void VR_Init()
     jobs::start(); // the game's thread pool (vr_jobs.hpp), first: the systems below post to it
     imgprefetch::start(); // the images the start-up and the first map load decode, decoded ahead (the file system is up)
     registerCvars();
+    VR_RegisterPackStatus();
     jobs::registerCommands();
     weapons::registerCvars();
     props::registerCvars();

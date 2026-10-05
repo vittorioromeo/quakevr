@@ -11,7 +11,7 @@ void() VR_Parry_DragonObserve =
 void() VR_Parry_DragonTest =
 {
     entity p = find(world, classname, "player");
-    if(!p || !fileexists("progs/dragon.mdl"))
+    if(!p || !VR_Pack_Rogue() || !fileexists("progs/dragon.mdl"))
     {
         dprint("dragon parry test: needs the player and Dissolution of Eternity\n");
         return;

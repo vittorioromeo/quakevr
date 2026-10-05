@@ -148,6 +148,8 @@ sounds
 */
 void() func_train2 =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     if(!self.speed)
         self.speed = 100;
     if(!self.target)
