@@ -1,0 +1,1268 @@
+{
+  "source_branch": "vr-ironwail",
+  "baseline_commit": "8a8008ad",
+  "raw_root": "build-cmake/prop-opt-20261005",
+  "eye_resolution": [
+    2048,
+    2048
+  ],
+  "gpu_sampling_every_frames": 16,
+  "benchmark_configs_identical": true,
+  "counts_note": "vr_profile_report work counts use a rolling time window which may include warmup; do not compare them as measured-interval counts across builds.",
+  "captures": [
+    {
+      "scene": "idle",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 3.310196900041774,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/idle_eye2048_gpu16_r1",
+      "autoexec_sha256": "7f033b972eeb37293bad708d5e12ac6817aea3f80ae76390310aafe1c1cda307",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.147 s (0.9561 ms a host frame), 29.0 awake, 145 bodies, 101 contacts"
+    },
+    {
+      "scene": "idle",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 3.10003750002943,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/idle_eye2048_gpu16_r2",
+      "autoexec_sha256": "2c31a0cde3c9714bc94c91de0d7ebfe774f32bd8fafe79f809a2681e0bff1887",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.137 s (0.9475 ms a host frame), 29.0 awake, 145 bodies, 101 contacts"
+    },
+    {
+      "scene": "idle",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 3.084304100018926,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/idle_eye2048_gpu16_r3",
+      "autoexec_sha256": "2c31a0cde3c9714bc94c91de0d7ebfe774f32bd8fafe79f809a2681e0bff1887",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.140 s (0.9503 ms a host frame), 29.0 awake, 145 bodies, 101 contacts"
+    },
+    {
+      "scene": "portal",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 4.87091389996931,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/portal_eye2048_gpu16_r1",
+      "autoexec_sha256": "2ce8249fd83079c453c12e80fe3eea5b50a4348fe989caf9b45ac5f3ad4cf4f6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.400 s (2.0001 ms a host frame), 0.0 awake, 135 bodies, 140 contacts"
+    },
+    {
+      "scene": "portal",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 4.91357400000561,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/portal_eye2048_gpu16_r2",
+      "autoexec_sha256": "a63efdb5f2c0ba73213fcab175e2db82c65a8887ba7d7c5c923c50b10e5729a6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.394 s (1.9952 ms a host frame), 0.0 awake, 135 bodies, 140 contacts"
+    },
+    {
+      "scene": "portal",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 4.947665699990466,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/portal_eye2048_gpu16_r3",
+      "autoexec_sha256": "a63efdb5f2c0ba73213fcab175e2db82c65a8887ba7d7c5c923c50b10e5729a6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.406 s (2.0046 ms a host frame), 0.0 awake, 135 bodies, 140 contacts"
+    },
+    {
+      "scene": "props_active_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 6.701444500009529,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_active_1000_eye2048_gpu16_r1",
+      "autoexec_sha256": "3896df304906b029c39f2f421ae841e55e6b2aa190a9e6d3d20374cf03f68abc",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 4.732 s (4.0442 ms a host frame), 235.2 awake, 1186 bodies, 3623 contacts"
+    },
+    {
+      "scene": "props_active_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 6.581493200035766,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_active_1000_eye2048_gpu16_r2",
+      "autoexec_sha256": "e84221d83cd6e2ee60c29faf8ea3c18c12371eee8c7dcba6b1b593e3d383b628",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 4.678 s (3.9981 ms a host frame), 235.2 awake, 1186 bodies, 3623 contacts"
+    },
+    {
+      "scene": "props_active_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 6.506174499983899,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_active_1000_eye2048_gpu16_r3",
+      "autoexec_sha256": "e84221d83cd6e2ee60c29faf8ea3c18c12371eee8c7dcba6b1b593e3d383b628",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 4.629 s (3.9568 ms a host frame), 235.2 awake, 1186 bodies, 3623 contacts"
+    },
+    {
+      "scene": "props_active_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 3.248432100052014,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_active_100_eye2048_gpu16_r1",
+      "autoexec_sha256": "766e08961459521f70c91fc33bfb776221de1f99b2dd231618269cdf25a21eb3",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 1.406 s (1.2013 ms a host frame), 46.9 awake, 262 bodies, 308 contacts"
+    },
+    {
+      "scene": "props_active_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 3.193334399955347,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_active_100_eye2048_gpu16_r2",
+      "autoexec_sha256": "cf0aa122ffb60b96d1489d00559d53035dfa4c1373e200f0bad93a570a2af2e6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 1.390 s (1.1883 ms a host frame), 46.9 awake, 262 bodies, 308 contacts"
+    },
+    {
+      "scene": "props_active_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 3.249781299964525,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_active_100_eye2048_gpu16_r3",
+      "autoexec_sha256": "cf0aa122ffb60b96d1489d00559d53035dfa4c1373e200f0bad93a570a2af2e6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 1.391 s (1.1889 ms a host frame), 46.9 awake, 262 bodies, 308 contacts"
+    },
+    {
+      "scene": "props_active",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 4.987506299978122,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_active_eye2048_gpu16_r1",
+      "autoexec_sha256": "8fe9c42e0b673327db898e405b4c63bdbea40fb7c662b3b7d71ae183242e13c1",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 3.075 s (2.6283 ms a host frame), 181.8 awake, 664 bodies, 1838 contacts"
+    },
+    {
+      "scene": "props_active",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 4.8995019000722095,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_active_eye2048_gpu16_r2",
+      "autoexec_sha256": "79a5800466262376c8c36270957e0aaf4ba6da998ddf39ec89f58a2f0408aca6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 3.055 s (2.6113 ms a host frame), 181.8 awake, 664 bodies, 1838 contacts"
+    },
+    {
+      "scene": "props_active",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 4.94427880004514,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_active_eye2048_gpu16_r3",
+      "autoexec_sha256": "79a5800466262376c8c36270957e0aaf4ba6da998ddf39ec89f58a2f0408aca6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 3.056 s (2.6118 ms a host frame), 181.8 awake, 664 bodies, 1838 contacts"
+    },
+    {
+      "scene": "props_settled_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 7.812276099924929,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_settled_1000_eye2048_gpu16_r1",
+      "autoexec_sha256": "827e02ba45b53de3a7c78fe63b0cb11ea9265bd03e53b1688b0672b847d38dda",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 3.108 s (2.5899 ms a host frame), 46.0 awake, 1145 bodies, 3114 contacts"
+    },
+    {
+      "scene": "props_settled_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 7.820719400071539,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_settled_1000_eye2048_gpu16_r2",
+      "autoexec_sha256": "9161dd0d227430eedd7384471eed026b674ff452d8f174dc3a9c960953635206",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 3.153 s (2.6274 ms a host frame), 46.0 awake, 1145 bodies, 3114 contacts"
+    },
+    {
+      "scene": "props_settled_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 7.7297737000044435,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_settled_1000_eye2048_gpu16_r3",
+      "autoexec_sha256": "9161dd0d227430eedd7384471eed026b674ff452d8f174dc3a9c960953635206",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 3.073 s (2.5607 ms a host frame), 46.0 awake, 1145 bodies, 3114 contacts"
+    },
+    {
+      "scene": "props_settled_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 4.342175400000997,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_settled_100_eye2048_gpu16_r1",
+      "autoexec_sha256": "a3c9b9b014f5ddaa916b34a672fe6b36291786e324bce4785f860c47472bdfc6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.379 s (1.1495 ms a host frame), 29.0 awake, 245 bodies, 369 contacts"
+    },
+    {
+      "scene": "props_settled_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 4.392876800033264,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_settled_100_eye2048_gpu16_r2",
+      "autoexec_sha256": "793838c2a6c4d30e0ce26fdf27f0e9caf0ad6cea4e8104685373648aa17be766",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.393 s (1.1610 ms a host frame), 29.0 awake, 245 bodies, 369 contacts"
+    },
+    {
+      "scene": "props_settled_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 4.321367800002918,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_settled_100_eye2048_gpu16_r3",
+      "autoexec_sha256": "793838c2a6c4d30e0ce26fdf27f0e9caf0ad6cea4e8104685373648aa17be766",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.383 s (1.1527 ms a host frame), 29.0 awake, 245 bodies, 369 contacts"
+    },
+    {
+      "scene": "props_settled",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 5.695383100071922,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_settled_eye2048_gpu16_r1",
+      "autoexec_sha256": "096d46a93914fb15624b995e06891790e3cc333b7faeae893b4727f4e1868104",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.066 s (1.7217 ms a host frame), 31.1 awake, 645 bodies, 1492 contacts"
+    },
+    {
+      "scene": "props_settled",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 5.661805399926379,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_settled_eye2048_gpu16_r2",
+      "autoexec_sha256": "b5d7f629d21d7fede42cc52c2009654293a77107278a9cbcfcdb6cfd60afb009",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.073 s (1.7278 ms a host frame), 31.1 awake, 645 bodies, 1492 contacts"
+    },
+    {
+      "scene": "props_settled",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 5.660906400065869,
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "before",
+      "folder": "build-cmake/prop-opt-20261005/before/props_settled_eye2048_gpu16_r3",
+      "autoexec_sha256": "b5d7f629d21d7fede42cc52c2009654293a77107278a9cbcfcdb6cfd60afb009",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.075 s (1.7288 ms a host frame), 31.1 awake, 645 bodies, 1492 contacts"
+    },
+    {
+      "scene": "idle",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 3.340622100047767,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/idle_eye2048_gpu16_r1",
+      "autoexec_sha256": "7f033b972eeb37293bad708d5e12ac6817aea3f80ae76390310aafe1c1cda307",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.134 s (0.9451 ms a host frame), 29.0 awake, 145 bodies, 101 contacts"
+    },
+    {
+      "scene": "idle",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 3.2837704999838024,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/idle_eye2048_gpu16_r2",
+      "autoexec_sha256": "2c31a0cde3c9714bc94c91de0d7ebfe774f32bd8fafe79f809a2681e0bff1887",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.137 s (0.9471 ms a host frame), 29.0 awake, 145 bodies, 101 contacts"
+    },
+    {
+      "scene": "idle",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 3.349357199971564,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/idle_eye2048_gpu16_r3",
+      "autoexec_sha256": "2c31a0cde3c9714bc94c91de0d7ebfe774f32bd8fafe79f809a2681e0bff1887",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.197 s (0.9971 ms a host frame), 29.0 awake, 145 bodies, 101 contacts"
+    },
+    {
+      "scene": "portal",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 5.023328799987212,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/portal_eye2048_gpu16_r1",
+      "autoexec_sha256": "2ce8249fd83079c453c12e80fe3eea5b50a4348fe989caf9b45ac5f3ad4cf4f6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.401 s (2.0007 ms a host frame), 0.0 awake, 135 bodies, 140 contacts"
+    },
+    {
+      "scene": "portal",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 4.956513799959794,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/portal_eye2048_gpu16_r2",
+      "autoexec_sha256": "a63efdb5f2c0ba73213fcab175e2db82c65a8887ba7d7c5c923c50b10e5729a6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.400 s (1.9999 ms a host frame), 0.0 awake, 135 bodies, 140 contacts"
+    },
+    {
+      "scene": "portal",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 4.995159799931571,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/portal_eye2048_gpu16_r3",
+      "autoexec_sha256": "a63efdb5f2c0ba73213fcab175e2db82c65a8887ba7d7c5c923c50b10e5729a6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.405 s (2.0045 ms a host frame), 0.0 awake, 135 bodies, 140 contacts"
+    },
+    {
+      "scene": "props_active_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 6.093722100020386,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_active_1000_eye2048_gpu16_r1",
+      "autoexec_sha256": "3896df304906b029c39f2f421ae841e55e6b2aa190a9e6d3d20374cf03f68abc",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 4.067 s (3.4762 ms a host frame), 235.2 awake, 1186 bodies, 3623 contacts"
+    },
+    {
+      "scene": "props_active_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 5.992818300030194,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_active_1000_eye2048_gpu16_r2",
+      "autoexec_sha256": "e84221d83cd6e2ee60c29faf8ea3c18c12371eee8c7dcba6b1b593e3d383b628",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 4.039 s (3.4521 ms a host frame), 235.2 awake, 1186 bodies, 3623 contacts"
+    },
+    {
+      "scene": "props_active_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 5.892522800015286,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_active_1000_eye2048_gpu16_r3",
+      "autoexec_sha256": "e84221d83cd6e2ee60c29faf8ea3c18c12371eee8c7dcba6b1b593e3d383b628",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 3.941 s (3.3685 ms a host frame), 235.2 awake, 1186 bodies, 3623 contacts"
+    },
+    {
+      "scene": "props_active_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 3.240994300111197,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_active_100_eye2048_gpu16_r1",
+      "autoexec_sha256": "766e08961459521f70c91fc33bfb776221de1f99b2dd231618269cdf25a21eb3",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 1.361 s (1.1637 ms a host frame), 46.9 awake, 262 bodies, 308 contacts"
+    },
+    {
+      "scene": "props_active_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 3.195298200007528,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_active_100_eye2048_gpu16_r2",
+      "autoexec_sha256": "cf0aa122ffb60b96d1489d00559d53035dfa4c1373e200f0bad93a570a2af2e6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 1.374 s (1.1740 ms a host frame), 46.9 awake, 262 bodies, 308 contacts"
+    },
+    {
+      "scene": "props_active_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 3.3998122999910265,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_active_100_eye2048_gpu16_r3",
+      "autoexec_sha256": "cf0aa122ffb60b96d1489d00559d53035dfa4c1373e200f0bad93a570a2af2e6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 1.382 s (1.1809 ms a host frame), 46.9 awake, 262 bodies, 308 contacts"
+    },
+    {
+      "scene": "props_active",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 4.769265800016001,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_active_eye2048_gpu16_r1",
+      "autoexec_sha256": "8fe9c42e0b673327db898e405b4c63bdbea40fb7c662b3b7d71ae183242e13c1",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 2.771 s (2.3683 ms a host frame), 181.8 awake, 664 bodies, 1838 contacts"
+    },
+    {
+      "scene": "props_active",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 4.5933722000336275,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_active_eye2048_gpu16_r2",
+      "autoexec_sha256": "79a5800466262376c8c36270957e0aaf4ba6da998ddf39ec89f58a2f0408aca6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 2.751 s (2.3512 ms a host frame), 181.8 awake, 664 bodies, 1838 contacts"
+    },
+    {
+      "scene": "props_active",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 4.619592599919997,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_active_eye2048_gpu16_r3",
+      "autoexec_sha256": "79a5800466262376c8c36270957e0aaf4ba6da998ddf39ec89f58a2f0408aca6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1170 frames, 1170 host frames in 2.692 s (2.3007 ms a host frame), 181.8 awake, 664 bodies, 1838 contacts"
+    },
+    {
+      "scene": "props_settled_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 6.826249800040387,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_settled_1000_eye2048_gpu16_r1",
+      "autoexec_sha256": "827e02ba45b53de3a7c78fe63b0cb11ea9265bd03e53b1688b0672b847d38dda",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.497 s (2.0810 ms a host frame), 46.0 awake, 1145 bodies, 3114 contacts"
+    },
+    {
+      "scene": "props_settled_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 6.753414599923417,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_settled_1000_eye2048_gpu16_r2",
+      "autoexec_sha256": "9161dd0d227430eedd7384471eed026b674ff452d8f174dc3a9c960953635206",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.499 s (2.0828 ms a host frame), 46.0 awake, 1145 bodies, 3114 contacts"
+    },
+    {
+      "scene": "props_settled_1000",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 6.856995000038296,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_settled_1000_eye2048_gpu16_r3",
+      "autoexec_sha256": "9161dd0d227430eedd7384471eed026b674ff452d8f174dc3a9c960953635206",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 2.505 s (2.0872 ms a host frame), 46.0 awake, 1145 bodies, 3114 contacts"
+    },
+    {
+      "scene": "props_settled_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 4.315965499961749,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_settled_100_eye2048_gpu16_r1",
+      "autoexec_sha256": "a3c9b9b014f5ddaa916b34a672fe6b36291786e324bce4785f860c47472bdfc6",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.391 s (1.1588 ms a host frame), 29.0 awake, 245 bodies, 369 contacts"
+    },
+    {
+      "scene": "props_settled_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 4.402791499975137,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_settled_100_eye2048_gpu16_r2",
+      "autoexec_sha256": "793838c2a6c4d30e0ce26fdf27f0e9caf0ad6cea4e8104685373648aa17be766",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.384 s (1.1532 ms a host frame), 29.0 awake, 245 bodies, 369 contacts"
+    },
+    {
+      "scene": "props_settled_100",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 4.375723099918105,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_settled_100_eye2048_gpu16_r3",
+      "autoexec_sha256": "793838c2a6c4d30e0ce26fdf27f0e9caf0ad6cea4e8104685373648aa17be766",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.384 s (1.1531 ms a host frame), 29.0 awake, 245 bodies, 369 contacts"
+    },
+    {
+      "scene": "props_settled",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 1,
+      "frames_requested": 1200,
+      "wall_seconds": 5.359907899983227,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_settled_eye2048_gpu16_r1",
+      "autoexec_sha256": "096d46a93914fb15624b995e06891790e3cc333b7faeae893b4727f4e1868104",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.724 s (1.4369 ms a host frame), 31.1 awake, 645 bodies, 1492 contacts"
+    },
+    {
+      "scene": "props_settled",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 2,
+      "frames_requested": 1200,
+      "wall_seconds": 5.200754499994218,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_settled_eye2048_gpu16_r2",
+      "autoexec_sha256": "b5d7f629d21d7fede42cc52c2009654293a77107278a9cbcfcdb6cfd60afb009",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.778 s (1.4817 ms a host frame), 31.1 awake, 645 bodies, 1492 contacts"
+    },
+    {
+      "scene": "props_settled",
+      "eye": 2048,
+      "gpu_every": 16,
+      "rep": 3,
+      "frames_requested": 1200,
+      "wall_seconds": 5.203139299992472,
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e",
+      "build": "after",
+      "folder": "build-cmake/prop-opt-20261005/after/props_settled_eye2048_gpu16_r3",
+      "autoexec_sha256": "b5d7f629d21d7fede42cc52c2009654293a77107278a9cbcfcdb6cfd60afb009",
+      "measured_physics_counts": "vr_physics_frametime measured: 1200 frames, 1200 host frames in 1.764 s (1.4696 ms a host frame), 31.1 awake, 645 bodies, 1492 contacts"
+    }
+  ],
+  "correctness": [
+    {
+      "fixture": "mixed",
+      "exit_code": 0,
+      "model_checks": [
+        "1881 transform cases across 57 models (centre and four point queries each)",
+        "2013 transform cases across 61 models (centre and four point queries each)",
+        "2013 transform cases across 61 models (centre and four point queries each)",
+        "1716 transform cases across 52 models (centre and four point queries each)"
+      ],
+      "chain_checks": [
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons"
+      ],
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700"
+    },
+    {
+      "fixture": "portal",
+      "exit_code": 0,
+      "model_checks": [
+        "792 transform cases across 24 models (centre and four point queries each)",
+        "792 transform cases across 24 models (centre and four point queries each)",
+        "792 transform cases across 24 models (centre and four point queries each)",
+        "792 transform cases across 24 models (centre and four point queries each)"
+      ],
+      "chain_checks": [
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons"
+      ],
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700"
+    },
+    {
+      "fixture": "hands",
+      "exit_code": 0,
+      "model_checks": [
+        "1881 transform cases across 57 models (centre and four point queries each)",
+        "1881 transform cases across 57 models (centre and four point queries each)",
+        "1881 transform cases across 57 models (centre and four point queries each)",
+        "1848 transform cases across 56 models (centre and four point queries each)",
+        "1881 transform cases across 57 models (centre and four point queries each)",
+        "1848 transform cases across 56 models (centre and four point queries each)",
+        "1848 transform cases across 56 models (centre and four point queries each)"
+      ],
+      "chain_checks": [
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons"
+      ],
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+      "hand_outcomes": [
+        {
+          "pick": "4",
+          "both": 1,
+          "kept": 1,
+          "moved": [
+            0.02
+          ]
+        },
+        {
+          "pick": "1",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.01,
+            0.01
+          ]
+        },
+        {
+          "pick": "0",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "9",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "10",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "11",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "12",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "ragdolls",
+      "exit_code": 0,
+      "model_checks": [
+        "1980 transform cases across 60 models (centre and four point queries each)"
+      ],
+      "chain_checks": [
+        "96 exact ordered-chain comparisons"
+      ],
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700"
+    },
+    {
+      "fixture": "vanilla",
+      "exit_code": 0,
+      "model_checks": [
+        "1452 transform cases across 44 models (centre and four point queries each)"
+      ],
+      "chain_checks": [
+        "96 exact ordered-chain comparisons"
+      ],
+      "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700"
+    },
+    {
+      "fixture": "hands-reference",
+      "exit_code": 0,
+      "model_checks": [],
+      "chain_checks": [],
+      "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+      "hand_outcomes": [
+        {
+          "pick": "4",
+          "both": 1,
+          "kept": 1,
+          "moved": [
+            0.02
+          ]
+        },
+        {
+          "pick": "1",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.01,
+            0.01
+          ]
+        },
+        {
+          "pick": "0",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "9",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "10",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "11",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "12",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    }
+  ],
+  "measured_frames": 57060,
+  "gpu_samples": 3572,
+  "model_transform_cases": 27291,
+  "ordered_chain_cases": 1632,
+  "installed_exe_sha256": "ceabc98d22bb5210dd0f3a04871a12dac1b48ed375f1e1da6905fb815889ad23",
+  "user_config_sha256": "d7c2f7d482e5af43150f8313d859c4961b8bcc7e4a2bc804672de444ae07cb3e",
+  "vtune": [
+    {
+      "folder": "build-cmake/prop-opt-20261005/vtune-props-active-before-isolated",
+      "metadata": {
+        "scene": "props_active",
+        "frames": 18000,
+        "eye": 2048,
+        "sampling": "VTune software hotspots, stacks, 10 ms, delay 4 s",
+        "wall_seconds": 59.91085590003058,
+        "command": [
+          "C:\\Program Files (x86)\\Intel\\oneAPI\\vtune\\2024.3\\bin64\\vtune.exe",
+          "-collect",
+          "hotspots",
+          "-knob",
+          "sampling-mode=sw",
+          "-knob",
+          "enable-stack-collection=true",
+          "-knob",
+          "enable-characterization-insights=false",
+          "-result-dir",
+          "C:\\OHWorkspace\\quakevr-iw\\build-cmake\\prop-opt-20261005\\vtune-props-active-before-isolated\\vtune",
+          "-search-dir",
+          "C:\\OHWorkspace\\quakevr-iw\\build-cmake\\decal-opt-20261005\\bin",
+          "-source-search-dir",
+          "C:\\OHWorkspace\\quakevr-iw",
+          "-app-working-dir",
+          "C:\\OHWorkspace\\quakevr-iw\\build-cmake\\perf-20261005\\base",
+          "-resume-after",
+          "4",
+          "-return-app-exitcode",
+          "--",
+          "C:\\OHWorkspace\\quakevr-iw\\build-cmake\\decal-opt-20261005\\bin\\ironwail.exe",
+          "-basedir",
+          "C:\\OHWorkspace\\quakevr-iw\\build-cmake\\perf-20261005\\base",
+          "-game",
+          "hipnotic",
+          "-game",
+          "rogue",
+          "-game",
+          "quakevr",
+          "-condebug",
+          "-window",
+          "-width",
+          "960",
+          "-height",
+          "540",
+          "-nosound",
+          "-noconfigwrite",
+          "-noaddons"
+        ],
+        "exe_sha256": "26bec0b4a686d39d87b011fe24b8638c208e0ff51d5fd318697b5c247892c79b",
+        "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e"
+      },
+      "analysis": {
+        "capture": "vtune-props-active-before-isolated",
+        "window": "28.495:39.495",
+        "main_effective_seconds": 10.708402,
+        "main_spin_seconds": 0.027998,
+        "inclusive_main_percent": {
+          "R_DrawAliasModels": 28.177,
+          "VR_AliasInstance": 15.567,
+          "VR_RetroAlias": 9.197,
+          "VR_PhysicsFrameEnd": 15.256,
+          "writeProp": 6.724,
+          "VR_TouchLinks": 5.264,
+          "b3World_Step": 4.785,
+          "beforeStep": 1.283,
+          "syncEntities": 1.094,
+          "SV_Physics_Client": 10.41,
+          "PF_findportalcone": 5.436,
+          "PF_findradius": 0.65,
+          "SV_Physics_Toss": 7.621,
+          "keepInWorld": 2.019
+        },
+        "self_main_percent": [
+          {
+            "function": "strncmp",
+            "module": "ucrtbase.dll",
+            "percent": 5.657
+          },
+          {
+            "function": "sin",
+            "module": "ucrtbase.dll",
+            "percent": 4.508
+          },
+          {
+            "function": "PR_ExecuteProgramRun",
+            "module": "ironwail.exe",
+            "percent": 4.479
+          },
+          {
+            "function": "qvr::weapons::modelTransform",
+            "module": "ironwail.exe",
+            "percent": 2.825
+          },
+          {
+            "function": "cos",
+            "module": "ucrtbase.dll",
+            "percent": 2.739
+          },
+          {
+            "function": "SV_AreaEdictsR",
+            "module": "ironwail.exe",
+            "percent": 2.554
+          },
+          {
+            "function": "SV_WriteEntitiesToClient",
+            "module": "ironwail.exe",
+            "percent": 2.093
+          },
+          {
+            "function": "strcmp",
+            "module": "ucrtbase.dll",
+            "percent": 1.911
+          },
+          {
+            "function": "func@0x18006ed01",
+            "module": "ntdll.dll",
+            "percent": 1.81
+          },
+          {
+            "function": "SV_HullPointContents",
+            "module": "ironwail.exe",
+            "percent": 1.09
+          },
+          {
+            "function": "R_SortEntities",
+            "module": "ironwail.exe",
+            "percent": 1.059
+          },
+          {
+            "function": "b3Body_GetContactData",
+            "module": "ironwail.exe",
+            "percent": 1.021
+          },
+          {
+            "function": "powf",
+            "module": "ucrtbase.dll",
+            "percent": 0.906
+          },
+          {
+            "function": "InterpolateLightmap",
+            "module": "ironwail.exe",
+            "percent": 0.906
+          },
+          {
+            "function": "func@0x1805e1fd0",
+            "module": "nvoglv64.dll",
+            "percent": 0.906
+          },
+          {
+            "function": "SV_ClipToLinks",
+            "module": "ironwail.exe",
+            "percent": 0.814
+          },
+          {
+            "function": "func@0x18001c780",
+            "module": "VCRUNTIME140.dll",
+            "percent": 0.749
+          },
+          {
+            "function": "za::Vector<qvr::gfx::Vertex>::unsafeEmplaceBack",
+            "module": "ironwail.exe",
+            "percent": 0.73
+          },
+          {
+            "function": "PR_EnterFunction",
+            "module": "ironwail.exe",
+            "percent": 0.718
+          },
+          {
+            "function": "CL_ParseUpdate",
+            "module": "ironwail.exe",
+            "percent": 0.716
+          }
+        ]
+      }
+    },
+    {
+      "folder": "build-cmake/prop-opt-20261005/vtune-props-active",
+      "metadata": {
+        "scene": "props_active",
+        "frames": 18000,
+        "eye": 2048,
+        "sampling": "VTune software hotspots, stacks, 10 ms, delay 4 s",
+        "wall_seconds": 66.30742099997588,
+        "command": [
+          "C:\\Program Files (x86)\\Intel\\oneAPI\\vtune\\2024.3\\bin64\\vtune.exe",
+          "-collect",
+          "hotspots",
+          "-knob",
+          "sampling-mode=sw",
+          "-knob",
+          "enable-stack-collection=true",
+          "-knob",
+          "enable-characterization-insights=false",
+          "-result-dir",
+          "C:\\OHWorkspace\\quakevr-iw\\build-cmake\\prop-opt-20261005\\vtune-props-active\\vtune",
+          "-search-dir",
+          "C:\\OHWorkspace\\quakevr-iw\\build-cmake\\prop-opt-20261005\\bin",
+          "-source-search-dir",
+          "C:\\OHWorkspace\\quakevr-iw",
+          "-app-working-dir",
+          "C:\\OHWorkspace\\quakevr-iw\\build-cmake\\perf-20261005\\base",
+          "-resume-after",
+          "4",
+          "-return-app-exitcode",
+          "--",
+          "C:\\OHWorkspace\\quakevr-iw\\build-cmake\\prop-opt-20261005\\bin\\ironwail.exe",
+          "-basedir",
+          "C:\\OHWorkspace\\quakevr-iw\\build-cmake\\perf-20261005\\base",
+          "-game",
+          "hipnotic",
+          "-game",
+          "rogue",
+          "-game",
+          "quakevr",
+          "-condebug",
+          "-window",
+          "-width",
+          "960",
+          "-height",
+          "540",
+          "-nosound",
+          "-noconfigwrite",
+          "-noaddons"
+        ],
+        "exe_sha256": "3365cf3ad0b87e356cb250916112d136d15ee0cc0f7a0ea0ec1eacd4764b0700",
+        "progs_sha256": "d0e898974229101033bba4ed201aff9e1cef684c705d1cd51dffcec73398e10e"
+      },
+      "analysis": {
+        "capture": "vtune-props-active",
+        "window": "27.579:38.579",
+        "main_effective_seconds": 10.380494,
+        "main_spin_seconds": 0.072965,
+        "inclusive_main_percent": {
+          "R_DrawAliasModels": 26.086,
+          "VR_AliasInstance": 11.506,
+          "VR_RetroAlias": 2.438,
+          "VR_PhysicsFrameEnd": 20.204,
+          "writeProp": 8.057,
+          "VR_TouchLinks": 6.196,
+          "b3World_Step": 7.36,
+          "syncEntities": 1.603,
+          "beforeStep": 1.01,
+          "SV_Physics_Client": 7.926,
+          "PF_findportalcone": 2.715,
+          "PF_findradius": 0.291,
+          "SV_Physics_Toss": 5.88,
+          "keepInWorld": 1.716
+        },
+        "self_main_percent": [
+          {
+            "function": "PR_ExecuteProgramRun",
+            "module": "ironwail.exe",
+            "percent": 4.944
+          },
+          {
+            "function": "SV_AreaEdictsR",
+            "module": "ironwail.exe",
+            "percent": 2.613
+          },
+          {
+            "function": "func@0x18006ed01",
+            "module": "ntdll.dll",
+            "percent": 2.453
+          },
+          {
+            "function": "qvr::weapons::modelTransform",
+            "module": "ironwail.exe",
+            "percent": 2.45
+          },
+          {
+            "function": "sin",
+            "module": "ucrtbase.dll",
+            "percent": 2.161
+          },
+          {
+            "function": "cos",
+            "module": "ucrtbase.dll",
+            "percent": 1.845
+          },
+          {
+            "function": "SV_WriteEntitiesToClient",
+            "module": "ironwail.exe",
+            "percent": 1.641
+          },
+          {
+            "function": "func@0x18059d760",
+            "module": "nvoglv64.dll",
+            "percent": 1.451
+          },
+          {
+            "function": "func@0x1805a95d0",
+            "module": "nvoglv64.dll",
+            "percent": 1.447
+          },
+          {
+            "function": "SV_HullPointContents",
+            "module": "ironwail.exe",
+            "percent": 1.298
+          },
+          {
+            "function": "strcmp",
+            "module": "ucrtbase.dll",
+            "percent": 1.288
+          },
+          {
+            "function": "powf",
+            "module": "ucrtbase.dll",
+            "percent": 1.285
+          },
+          {
+            "function": "PR_EnterFunction",
+            "module": "ironwail.exe",
+            "percent": 1.157
+          },
+          {
+            "function": "cbrtf",
+            "module": "ucrtbase.dll",
+            "percent": 1.154
+          },
+          {
+            "function": "func@0x1805e1fd0",
+            "module": "nvoglv64.dll",
+            "percent": 1.141
+          },
+          {
+            "function": "func@0x18001da00",
+            "module": "VCRUNTIME140.dll",
+            "percent": 1.123
+          },
+          {
+            "function": "func@0x18088aba0",
+            "module": "nvoglv64.dll",
+            "percent": 1.025
+          },
+          {
+            "function": "func@0x1805df50f",
+            "module": "nvoglv64.dll",
+            "percent": 0.976
+          },
+          {
+            "function": "SV_ClipToLinks",
+            "module": "ironwail.exe",
+            "percent": 0.875
+          },
+          {
+            "function": "qvr::profile::`anonymous namespace'::endScope",
+            "module": "ironwail.exe",
+            "percent": 0.867
+          }
+        ]
+      }
+    }
+  ],
+  "excluded": [
+    "correctness-final: harness failed to reuse existing vanilla asset directory; completed correctness-reviewed supersedes it",
+    "vtune-props-active-before: regression runs overlapped part of this capture; isolated baseline supersedes it"
+  ]
+}

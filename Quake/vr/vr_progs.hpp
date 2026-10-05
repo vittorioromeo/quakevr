@@ -141,3 +141,5 @@ void onEdictFree(edict_t* ed);
 void testRemove_f();
 
 } // namespace qvr::progs
+
+namespace qvr::progs { void propQueriesTest_f(); }

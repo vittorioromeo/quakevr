@@ -14,6 +14,7 @@
 #include "vr_highlights.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_motion.hpp"
+#include "vr_mem.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
 #include "vr_portals.hpp"
@@ -139,6 +140,29 @@ void PF_findcone()
     G_INT(OFS_RETURN) = EDICT_TO_PROG(chain);
 }
 
+struct PullSearchScratch
+{
+    za::Vector<glm::vec3> origins;
+    auto members() { return mem::list(origins); }
+};
+mem::Scratch<PullSearchScratch> pullSearch{"force-grab search"};
+
+// Exact live model centres, rather than Quake collision bounds (a dropped gun's
+// centre can be well outside them). Destination-room searches are conservative:
+// aperture, occlusion and closest-image selection remain pullImage's responsibility.
+[[nodiscard]] bool nearPullSearch(const glm::vec3& point, float range)
+{
+    if(!(range >= 0.f)) { return true; } // preserve the original comparisons for unusual QC inputs
+    for(const glm::vec3& origin : pullSearch.origins)
+    {
+        // Account for float cancellation and the portal rotation's rounding. The
+        // final original distance/cone tests still decide every candidate.
+        const float margin = 1e-4f * (1.f + glm::dot(glm::abs(origin) + glm::abs(point), glm::vec3{1.f}));
+        if(glm::all(glm::lessThanEqual(glm::abs(point - origin), glm::vec3{range + margin}))) { return true; }
+    }
+    return false;
+}
+
 void PF_findportalcone()
 {
     const float* p = G_VECTOR(OFS_PARM0);
@@ -147,16 +171,36 @@ void PF_findportalcone()
     const float* d = G_VECTOR(OFS_PARM2);
     const glm::vec3 aim{d[0], d[1], d[2]};
     const float minCos = G_FLOAT(OFS_PARM3) - 1e-4f;
+    portals::pullSearchOrigins(from, pullSearch.origins);
     edict_t* chain = qcvm->edicts;
     edict_t* ent = NEXT_EDICT(qcvm->edicts);
     for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
     {
         if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT || !ent->v.model) { continue; }
-        const glm::vec3 to = portals::pullImage(from, physics::modelCentre(ent)) - from;
+        const glm::vec3 centre = physics::modelCentre(ent);
+        if(!nearPullSearch(centre, range)) { continue; }
+        const glm::vec3 to = portals::pullImage(from, centre) - from;
         const float distance = glm::length(to);
         if(distance < 0.999f || distance > range || glm::dot(to, aim) < minCos * distance) { continue; }
         ent->v.chain = EDICT_TO_PROG(chain);
         chain = ent;
+    }
+    if(vr_prop_query_verify.value)
+    {
+        // Re-run the original full scan without the broad phase. Compare the exact
+        // chain (including order), without writing chain fields or calling QC.
+        edict_t* expected = qcvm->edicts;
+        ent = NEXT_EDICT(qcvm->edicts);
+        for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
+        {
+            if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT || !ent->v.model) { continue; }
+            const glm::vec3 to = portals::pullImage(from, physics::modelCentre(ent)) - from;
+            const float distance = glm::length(to);
+            if(distance < 0.999f || distance > range || glm::dot(to, aim) < minCos * distance) { continue; }
+            if(ent->v.chain != EDICT_TO_PROG(expected)) { Sys_Error("force-grab broad phase changed chain at %d", i); }
+            expected = ent;
+        }
+        if(chain != expected) { Sys_Error("force-grab broad phase changed chain head"); }
     }
     G_INT(OFS_RETURN) = EDICT_TO_PROG(chain);
 }
@@ -1778,6 +1822,33 @@ static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200
     "VR builtins must not overlap Ironwail's downward-allocated builtins");
 
 } // namespace
+
+void propQueriesTest_f()
+{
+    if(!sv.active) { Con_Printf("vr_prop_query_test: enter a map first\n"); return; }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    const float verify = vr_prop_query_verify.value;
+    vr_prop_query_verify.value = 1.f;
+    physics::testModelQueries();
+    float saved[OFS_PARM3 + 3 - OFS_PARM0];
+    memcpy(saved, qcvm->globals + OFS_PARM0, sizeof(saved));
+    const glm::vec3 player{EDICT_NUM(1)->v.origin[0], EDICT_NUM(1)->v.origin[1], EDICT_NUM(1)->v.origin[2]};
+    for(int k = 0; k < 96; k++)
+    {
+        const glm::vec3 from = player + glm::vec3{float((k % 8 - 4) * 32), float((k / 8 - 6) * 32), float(k % 3 * 16)};
+        const glm::vec3 aim = glm::normalize(glm::vec3{float(k % 3 - 1), float(k % 5 - 2), .5f});
+        G_VECTOR(OFS_PARM0)[0] = from.x; G_VECTOR(OFS_PARM0)[1] = from.y; G_VECTOR(OFS_PARM0)[2] = from.z;
+        G_VECTOR(OFS_PARM2)[0] = aim.x; G_VECTOR(OFS_PARM2)[1] = aim.y; G_VECTOR(OFS_PARM2)[2] = aim.z;
+        G_FLOAT(OFS_PARM1) = k % 4 == 0 ? 0.f : k % 4 == 1 ? 1.f : k % 4 == 2 ? 200.f : 4096.f;
+        G_FLOAT(OFS_PARM3) = k % 2 == 0 ? -1.f : .85f;
+        PF_findportalcone();
+    }
+    memcpy(qcvm->globals + OFS_PARM0, saved, sizeof(saved));
+    vr_prop_query_verify.value = verify;
+    PR_PopQCVM(oldVm);
+    Con_Printf("prop force-grab queries: PASS 96 exact ordered-chain comparisons\n");
+}
 
 void bindBuiltins()
 {

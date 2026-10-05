@@ -8,6 +8,7 @@
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_menu.hpp"
+#include "vr_mem.hpp"
 #include "vr_text3d.hpp"
 #include "vr_view.hpp"
 #include "vr_zancle.hpp"
@@ -525,7 +526,7 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
     "wetsuit.", "shield.", "antigrav."};
 
 // A model's category by its name alone (entities that move it elsewhere: categoryOf).
-[[nodiscard]] Category modelCategory(const qmodel_t* m)
+[[nodiscard]] Category classifyModel(const qmodel_t* m)
 {
     const char* f = fileOf(m->name);
     if(m->type == mod_brush)
@@ -581,6 +582,40 @@ constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key
         return Category::Items;
     }
     return Category::Other;
+}
+
+// Model-only classification survives stereo/portal draws; entity ownership and gib scale stay live.
+struct ModelMetadata
+{
+    Category category{Category::Other};
+    bool partsReady = false, splitBody = false;
+    float parts[4]{};
+};
+struct RetroModelCache
+{
+    ankerl::unordered_dense::map<const qmodel_t*, ModelMetadata> models;
+    auto members() { return mem::list(models); }
+};
+mem::Cache<RetroModelCache> modelCache{"retro models", mem::MapChange | mem::GameDirChange | mem::ModelReload};
+
+[[nodiscard]] ModelMetadata& modelMetadata(const qmodel_t* model)
+{
+    const auto [it, inserted] = modelCache.models.try_emplace(model);
+    if(inserted)
+    {
+        it->second.category = classifyModel(model);
+    }
+    return it->second;
+}
+
+[[nodiscard]] Category modelCategory(const qmodel_t* model)
+{
+    const Category category = modelMetadata(model).category;
+    if(vr_prop_query_verify.value && category != classifyModel(model))
+    {
+        Sys_Error("retro category cache changed %s", model->name);
+    }
+    return category;
 }
 
 // An entity's category: its model's, but a weapon in your hands or holsters is Held, anything else of yours that is
@@ -639,7 +674,7 @@ constexpr const char* legBones[] = {"thigh_", "calf_", "foot_", "toe"};
 // Your body's parts (progs/vrbody*, skinned): each bone's part (Hands .. Legs: 0 .. 3) as two bits, as InstanceData's
 // RetroPart has them: xy the low bits of bones 0..23 and 24..47, zw the high bits, as whole numbers (a vertex's part is
 // its heaviest bone's). False (all 0) for any other model, or a body without bones: drawn whole by its category.
-bool bodyParts(const qmodel_t* model, float out[4])
+bool makeBodyParts(const qmodel_t* model, float out[4])
 {
     out[0] = out[1] = out[2] = out[3] = 0.f;
     if(!model || model->type != mod_alias || !startsWith(fileOf(model->name), "vrbody"))
@@ -672,6 +707,31 @@ bool bodyParts(const qmodel_t* model, float out[4])
     return true;
 }
 
+bool bodyParts(const qmodel_t* model, float out[4])
+{
+    if(!model)
+    {
+        out[0] = out[1] = out[2] = out[3] = 0.f;
+        return false;
+    }
+    ModelMetadata& memo = modelMetadata(model);
+    if(!memo.partsReady)
+    {
+        memo.splitBody = makeBodyParts(model, memo.parts);
+        memo.partsReady = true;
+    }
+    if(vr_prop_query_verify.value)
+    {
+        float expected[4];
+        if(makeBodyParts(model, expected) != memo.splitBody || memcmp(expected, memo.parts, sizeof(expected)))
+        {
+            Sys_Error("retro body parts cache changed %s", model->name);
+        }
+    }
+    ZA_MEMCPY(out, memo.parts, sizeof(memo.parts));
+    return memo.splitBody;
+}
+
 [[nodiscard]] bool isBody(const entity_t* e)
 {
     float unused[4];
@@ -696,11 +756,13 @@ bool bodyParts(const qmodel_t* model, float out[4])
     {
         return 0;
     }
-    if(isBody(e))
+    const Category category = categoryOf(e);
+    float unused[4];
+    if(category == Category::Torso && bodyParts(e->model, unused))
     {
         return bodySet(modelOverride(e));
     }
-    return setFor(categoryOf(e), modelOverride(e), nullptr);
+    return setFor(category, modelOverride(e), nullptr);
 }
 
 // The skin's own size in Quake texels: Quake's .mdl's; our own MD3 and IQM models' (their textures painted at about four

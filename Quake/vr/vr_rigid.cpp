@@ -11,6 +11,10 @@
 
 #include "vr_box3d.hpp"
 #include "vr_carry2h.hpp"
+#include "vr_cvars.hpp"
+#include "vr_mem.hpp"
+#include "vr_protocol.hpp"
+#include "vr_weapons.hpp"
 #include "vr_engine.hpp"
 #include "vr_grip.hpp"
 #include "vr_held.hpp"
@@ -77,7 +81,7 @@ void anglesFromAxes(const glm::mat3& m, vec3_t out, bool brush)
 // The box the model is drawn in, in its axes, relative to the entity's origin (as vr_render.cpp
 // transforms alias models: the networked scale about model_scale_origin, the weapon scaling,
 // then the model's own, the post scale and the networked offset on raw vertices).
-void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
+void makeLocalBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
 {
     qmodel_t* model = modelOf(ent);
     if(model && model->type == mod_brush && fields().vr_rigid >= 0 && fieldFloat(ent, fields().vr_rigid) >= 2.f)
@@ -112,6 +116,88 @@ void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
     const glm::vec3 half = glm::max((hi - lo) * 0.5f, glm::vec3{0.5f});
     lo = centre - half;
     hi = centre + half;
+}
+
+// Repeated hand/force-grab/physics queries share a shape until its live inputs change.
+// A frame stamp alone is insufficient: QC can move or rescale an entity between the hands.
+struct ShapeKey
+{
+    const qmodel_t* model = nullptr;
+    unsigned props = 0, weapons = 0;
+    bool quakevr = false;
+    float values[24]{};
+};
+struct ShapeMemo
+{
+    bool valid = false, axesValid = false;
+    ShapeKey key;
+    glm::vec3 lo{0.f}, hi{0.f}, angles{0.f};
+    glm::mat3 axes{1.f};
+};
+struct RigidShapeCache
+{
+    za::Vector<ShapeMemo> entities;
+    auto members() { return mem::list(entities); }
+};
+mem::Cache<RigidShapeCache> shapes{"rigid drawn boxes", mem::MapChange | mem::GameDirChange | mem::ModelReload};
+
+[[nodiscard]] ShapeMemo& shapeOf(edict_t* ent)
+{
+    const int num = NUM_FOR_EDICT(ent);
+    if(num >= static_cast<int>(shapes.entities.size()))
+    {
+        shapes.entities.resize(static_cast<za::SizeT>(num) + 64);
+    }
+    const auto& f = fields();
+    const glm::vec3 scale = fieldVec(ent, f.model_scale), origin = fieldVec(ent, f.model_scale_origin),
+        offset = fieldVec(ent, f.model_offset);
+    const ShapeKey key{modelOf(ent), props::settingsGeneration(), weapons::settingsGeneration(),
+        bool((cl.protocolflags & PRFL_QUAKEVR) || (sv.active && (sv.protocolflags & PRFL_QUAKEVR))),
+        {ent->v.mins[0], ent->v.mins[1], ent->v.mins[2], ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2],
+         scale.x, scale.y, scale.z, origin.x, origin.y, origin.z, offset.x, offset.y, offset.z,
+         ent->v.solid, fieldFloatOr(ent, f.vr_rigid, 0.f), vr_world_scale.value, vr_gunmodelscale.value, vr_gunmodely.value,
+         vr_leg_holster_model_scale.value, vr_leg_holster_model_x_offset.value,
+         vr_leg_holster_model_y_offset.value, vr_leg_holster_model_z_offset.value}};
+    ShapeMemo& memo = shapes.entities[num];
+    if(!memo.valid || memo.key.model != key.model || memo.key.props != key.props || memo.key.weapons != key.weapons ||
+       memo.key.quakevr != key.quakevr || memcmp(memo.key.values, key.values, sizeof(key.values)) != 0)
+    {
+        const bool changedModel = !memo.valid || memo.key.model != key.model;
+        makeLocalBox(ent, memo.lo, memo.hi);
+        memo.key = key;
+        memo.valid = true;
+        if(changedModel) { memo.axesValid = false; }
+    }
+    if(vr_prop_query_verify.value)
+    {
+        glm::vec3 lo, hi;
+        makeLocalBox(ent, lo, hi);
+        if(memo.lo != lo || memo.hi != hi) { Sys_Error("rigid box cache changed entity %d", num); }
+    }
+    return memo;
+}
+
+void localBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
+{
+    const ShapeMemo& memo = shapeOf(ent);
+    lo = memo.lo;
+    hi = memo.hi;
+}
+
+[[nodiscard]] const glm::mat3& shapeAxes(edict_t* ent, ShapeMemo& memo)
+{
+    const glm::vec3 angles = toGlm(ent->v.angles);
+    if(!memo.axesValid || memo.angles != angles)
+    {
+        memo.axes = axesFromAngles(ent->v.angles, memo.key.model && memo.key.model->type == mod_brush);
+        memo.angles = angles;
+        memo.axesValid = true;
+    }
+    if(vr_prop_query_verify.value && memo.axes != axesFromAngles(ent->v.angles, brushModel(ent)))
+    {
+        Sys_Error("rigid axes cache changed entity %d", NUM_FOR_EDICT(ent));
+    }
+    return memo.axes;
 }
 
 // Items must never fall out of the world. Quake lets an entity whose box is buried in the level
@@ -398,10 +484,9 @@ void setCarryTurn(edict_t* ent, const float* handAngles, const glm::mat3& turnIn
 
 bool pointInModelBox(edict_t* ent, const glm::vec3& p, float margin)
 {
-    glm::vec3 lo, hi;
-    localBox(ent, lo, hi);
-    const glm::mat3 axes = axesFromAngles(ent->v.angles, brushModel(ent));
-    const glm::vec3 local = glm::transpose(axes) * (p - toGlm(ent->v.origin));
+    ShapeMemo& memo = shapeOf(ent);
+    const glm::vec3 lo = memo.lo, hi = memo.hi;
+    const glm::vec3 local = glm::transpose(shapeAxes(ent, memo)) * (p - toGlm(ent->v.origin));
     // Thin things (a dropped gun) at least 6 units thick, so a hand can still find them.
     const glm::vec3 half = glm::max((hi - lo) * 0.5f, glm::vec3{3.f}) + glm::vec3{margin};
     return glm::all(glm::lessThanEqual(glm::abs(local - (lo + hi) * 0.5f), half));
@@ -413,14 +498,82 @@ glm::vec3 modelCentre(edict_t* ent)
     {
         return toGlm(ent->v.origin) + (toGlm(ent->v.mins) + toGlm(ent->v.maxs)) * 0.5f;
     }
-    glm::vec3 lo, hi;
-    localBox(ent, lo, hi);
-    return toGlm(ent->v.origin) + axesFromAngles(ent->v.angles, brushModel(ent)) * ((lo + hi) * 0.5f);
+    ShapeMemo& memo = shapeOf(ent);
+    return toGlm(ent->v.origin) + shapeAxes(ent, memo) * ((memo.lo + memo.hi) * 0.5f);
+}
+
+void testModelQueries()
+{
+    int checked = 0;
+    ankerl::unordered_dense::map<const qmodel_t*, bool> seen;
+    const auto& f = fields();
+    for(int num = 1; num < qcvm->num_edicts; num++)
+    {
+        edict_t* ent = EDICT_NUM(num);
+        const qmodel_t* model = modelOf(ent);
+        if(ent->free || !model || seen.contains(model)) { continue; }
+        seen.emplace(model, true);
+        const entvars_t saved = ent->v;
+        const glm::vec3 scale = fieldVec(ent, f.model_scale), scaleOrigin = fieldVec(ent, f.model_scale_origin),
+            offset = fieldVec(ent, f.model_offset);
+        const float rigid = fieldFloatOr(ent, f.vr_rigid, 0.f);
+        const auto check = [&] {
+            glm::vec3 lo, hi;
+            makeLocalBox(ent, lo, hi);
+            const glm::mat3 axes = axesFromAngles(ent->v.angles, brushModel(ent));
+            const glm::vec3 expected = !modelOf(ent) || box3d::isRagdoll(num)
+                ? toGlm(ent->v.origin) + (toGlm(ent->v.mins) + toGlm(ent->v.maxs)) * 0.5f
+                : toGlm(ent->v.origin) + axes * ((lo + hi) * 0.5f);
+            if(modelCentre(ent) != expected) { Sys_Error("model centre cache differs at %d", num); }
+            for(const glm::vec3 delta : {glm::vec3{0.f}, glm::vec3{2.f}, glm::vec3{-8.f}, glm::vec3{128.f}})
+            {
+                const glm::vec3 point = expected + delta;
+                const glm::vec3 local = glm::transpose(axes) * (point - toGlm(ent->v.origin));
+                const glm::vec3 half = glm::max((hi - lo) * 0.5f, glm::vec3{3.f}) + glm::vec3{2.f};
+                const bool inside = glm::all(glm::lessThanEqual(glm::abs(local - (lo + hi) * 0.5f), half));
+                if(pointInModelBox(ent, point, 2.f) != inside) { Sys_Error("model point query differs at %d", num); }
+            }
+            checked++;
+        };
+        check();
+        check(); // cache hit
+        for(int axis = 0; axis < 3; axis++)
+        {
+            ent->v.origin[axis] += 123.25f; check();
+            ent->v.angles[axis] += 73.5f; check();
+            ent->v.mins[axis] -= 12.f; ent->v.maxs[axis] += 20.f; check();
+        }
+        ent->v.solid = SOLID_BBOX; check();
+        setFieldFloat(ent, f.vr_rigid, 2.f); check();
+        setFieldVec(ent, f.model_scale, {-.8f, 1.5f, -1.25f}); check();
+        setFieldVec(ent, f.model_scale_origin, {20.f, -13.f, 11.f}); check();
+        setFieldVec(ent, f.model_offset, {100.f, -250.f, 75.f}); check();
+        float* globals[] = {&vr_world_scale.value, &vr_gunmodelscale.value, &vr_gunmodely.value,
+            &vr_leg_holster_model_scale.value, &vr_leg_holster_model_x_offset.value,
+            &vr_leg_holster_model_y_offset.value, &vr_leg_holster_model_z_offset.value};
+        for(float* value : globals)
+        {
+            const float original = *value;
+            *value += .125f; check();
+            *value = original; check();
+        }
+        props::resetModelCache(); weapons::resetCaches(); check();
+        shapes.entities[num] = ShapeMemo{}; check();
+        ent->v = saved;
+        setFieldVec(ent, f.model_scale, scale);
+        setFieldVec(ent, f.model_scale_origin, scaleOrigin);
+        setFieldVec(ent, f.model_offset, offset);
+        setFieldFloat(ent, f.vr_rigid, rigid);
+        check();
+    }
+    Con_Printf("prop model queries: PASS %d transform cases across %d models (centre and four point queries each)\n",
+        checked, static_cast<int>(seen.size()));
 }
 
 void resetRigidBodies()
 {
     freePlaces.clear();
+    shapes.entities.clear();
     held::forgetDrawnCentres();
     carried.clear();
     carry2h::resetServer();
@@ -432,6 +585,10 @@ void forgetEntity(int num)
     if(num >= 0 && num < static_cast<int>(freePlaces.size()))
     {
         freePlaces[static_cast<za::SizeT>(num)] = FreePlace{};
+    }
+    if(num >= 0 && num < static_cast<int>(shapes.entities.size()))
+    {
+        shapes.entities[num] = ShapeMemo{};
     }
     carried.erase(num);
     carry2h::forgetEntity(num);

@@ -2168,3 +2168,6 @@ QVR_CVAR(vr_finger_pinky_z, "1.6375", CVAR_ARCHIVE)
 QVR_CVAR(vr_finger_base_x, "0.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_finger_base_y, "0.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_finger_base_z, "0.0", CVAR_ARCHIVE)
+
+// Exact uncached-reference checks for prop optimization regression runs; never archived.
+QVR_CVAR(vr_prop_query_verify, "0", CVAR_NONE)

@@ -1376,6 +1376,20 @@ int aiImage(edict_t* observer, edict_t* target, const glm::vec3& from, const glm
     return picked;
 }
 
+void pullSearchOrigins(const glm::vec3& from, za::Vector<glm::vec3>& out)
+{
+    out.clear();
+    out.pushBack(from);
+    if(!walkOn()) { return; }
+    if(!current()) { build(); }
+    for(const Side& sd : sides)
+    {
+        if(!triggerActive(EDICT_NUM(sd.trigger)) || (static_cast<int>(EDICT_NUM(sd.trigger)->v.spawnflags) & 1) ||
+           glm::dot(sd.normal, from) - sd.dist < 0.f) { continue; }
+        out.pushBack(carried(sd, from));
+    }
+}
+
 glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate)
 {
     if(gate) { *gate = 0; }
@@ -1387,7 +1401,12 @@ glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate)
     {
         const Side& sd = sides[i];
         if(!triggerActive(EDICT_NUM(sd.trigger)) || (static_cast<int>(EDICT_NUM(sd.trigger)->v.spawnflags) & 1)) { continue; }
-        const glm::vec3 image = carried(reverseSide(sd), point);
+        // Only the inverse point transform is needed here, not reverseSide's eight-corner aperture bounds.
+        const glm::vec3 image = glm::transpose(sd.turn) * (point - sd.to) + sd.from;
+        if(vr_prop_query_verify.value && image != carried(reverseSide(sd), point))
+        {
+            Sys_Error("portal inverse point transform differs at gate %d", i);
+        }
         const float d0 = glm::dot(sd.normal, from) - sd.dist, d1 = glm::dot(sd.normal, image) - sd.dist;
         const float distance = glm::distance(from, image);
         if(d0 < 0.f || d1 >= 0.f || distance >= best || distance > za::max(1.f, vr_forcegrab_distance.value) * 1.25f) { continue; }

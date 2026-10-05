@@ -1193,6 +1193,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_hand_reload", handrig::reload_f);
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
     Cmd_AddCommand("vr_model_reload", view::modelReload_f);
+    Cmd_AddCommand("vr_prop_query_test", progs::propQueriesTest_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_hitmodel_bench", hitmodel::bench_f);
     Cmd_AddCommand("vr_zancle_math_test", qza::mathTest_f);

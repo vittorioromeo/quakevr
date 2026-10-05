@@ -89,6 +89,42 @@ struct DrawnTransform
     [[nodiscard]] glm::vec3 modelPoint(const glm::vec3& v) const { return stored(alias ? (v - so) / hs : v); }
 };
 
+void transformedModelBox(const qmodel_t* model, const DrawnTransform& xf, glm::vec3& lo, glm::vec3& hi)
+{
+    lo = glm::vec3{1e9f};
+    hi = glm::vec3{-1e9f};
+    for(int i = 0; i < 8; i++)
+    {
+        const glm::vec3 p = xf.modelPoint(glm::vec3{(i & 1) ? model->maxs[0] : model->mins[0],
+            (i & 2) ? model->maxs[1] : model->mins[1], (i & 4) ? model->maxs[2] : model->mins[2]});
+        lo = glm::min(lo, p);
+        hi = glm::max(hi, p);
+    }
+}
+
+// The common unscaled prop transform is shared by hundreds of instances. Keep the last
+// exact transform per model, including the resolved settings and model/header bounds.
+struct ModelBoxMemo
+{
+    DrawnTransform transform;
+    glm::vec3 modelLo, modelHi, lo, hi;
+    ModelBoxMemo(const DrawnTransform& xf, const glm::vec3& a, const glm::vec3& b)
+        : transform{xf}, modelLo{a}, modelHi{b}, lo{0.f}, hi{0.f} {}
+};
+struct ModelBoxCache
+{
+    ankerl::unordered_dense::map<const qmodel_t*, ModelBoxMemo> models;
+    auto members() { return mem::list(models); }
+};
+mem::Cache<ModelBoxCache> modelBoxes{"held model boxes", mem::MapChange | mem::GameDirChange | mem::ModelReload};
+
+[[nodiscard]] bool sameTransform(const DrawnTransform& a, const DrawnTransform& b)
+{
+    return a.alias == b.alias && a.so == b.so && a.hs == b.hs && a.netScale == b.netScale &&
+        a.scaleOrigin == b.scaleOrigin && a.offset == b.offset && a.size == b.size &&
+        a.t.active == b.t.active && a.t.k == b.t.k && a.t.scale == b.t.scale && a.t.offset == b.t.offset;
+}
+
 struct Triangle
 {
     glm::vec3 p[3];
@@ -258,15 +294,28 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
     }
 
     const DrawnTransform xf{model, scale, scaleOrigin, offset};
-    lo = glm::vec3{1e9f};
-    hi = glm::vec3{-1e9f};
-    for(int i = 0; i < 8; i++)
+    const glm::vec3 modelLo{model->mins[0], model->mins[1], model->mins[2]};
+    const glm::vec3 modelHi{model->maxs[0], model->maxs[1], model->maxs[2]};
+    const auto [it, inserted] = modelBoxes.models.try_emplace(model, xf, modelLo, modelHi);
+    ModelBoxMemo& memo = it->second;
+    if(!inserted && memo.modelLo == modelLo && memo.modelHi == modelHi && sameTransform(memo.transform, xf))
     {
-        const glm::vec3 p = xf.modelPoint(glm::vec3{(i & 1) ? model->maxs[0] : model->mins[0],
-            (i & 2) ? model->maxs[1] : model->mins[1], (i & 4) ? model->maxs[2] : model->mins[2]});
-        lo = glm::min(lo, p);
-        hi = glm::max(hi, p);
+        lo = memo.lo;
+        hi = memo.hi;
+        if(vr_prop_query_verify.value)
+        {
+            glm::vec3 expectedLo, expectedHi;
+            transformedModelBox(model, xf, expectedLo, expectedHi);
+            if(lo != expectedLo || hi != expectedHi) { Sys_Error("model box cache changed %s", model->name); }
+        }
+        return;
     }
+    transformedModelBox(model, xf, lo, hi);
+    memo.transform = xf;
+    memo.modelLo = modelLo;
+    memo.modelHi = modelHi;
+    memo.lo = lo;
+    memo.hi = hi;
 }
 
 bool drawnBox(int num, glm::vec3& lo, glm::vec3& hi)

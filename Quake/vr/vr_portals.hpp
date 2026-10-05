@@ -51,6 +51,7 @@
 #pragma once
 
 #include <glm/vec3.hpp>
+#include "Zancle/Container/Vector.hpp"
 #include <glm/mat3x3.hpp>
 
 struct edict_s;
@@ -68,6 +69,9 @@ struct Reach
 Reach reach(const glm::vec3& root, const glm::vec3& point);
 // The closest visible one-gate image of a point, for gravity-glove aiming.
 glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate = nullptr);
+// Search centres for a conservative force-grab broad phase: the hand itself and its
+// active source-facing one-hop images in destination rooms. pullImage still decides visibility.
+void pullSearchOrigins(const glm::vec3& from, za::Vector<glm::vec3>& out);
 
 // One-hop AI sight from a monster/muzzle to a player point. A positive gate pins the route.
 int aiImage(edict_s* observer, edict_s* target, const glm::vec3& from, const glm::vec3& point,
