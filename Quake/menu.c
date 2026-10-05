@@ -7215,8 +7215,41 @@ void M_ModInfo_Key (int key)
 //=============================================================================
 /* Credits menu -- used by the 2021 re-release */
 
+static int m_credits_cursor;
+static void M_Credits_Draw (void)
+{
+    const char *title = Cvar_VariableValue("vr_campaign") == 3 ? "Dimension of the Past" : "Quake";
+    M_PrintWhite ((320 - (int)strlen(title) * 8) / 2, 28, title);
+    M_Print (96, 52, "Campaign complete");
+    M_PrintWhite (72, 80, "Quake: id Software");
+    if (Cvar_VariableValue("vr_campaign") >= 3)
+        M_PrintWhite (48, 96, "Expansion: MachineGames");
+    M_PrintWhite (32, 120, "Quake VR: Vittorio Romeo");
+    M_Print (80, 152, "Official Campaigns");
+    M_Print (80, 168, "Main Menu");
+    M_DrawCharacter (64, 152 + 16 * m_credits_cursor, 12 + ((int)(realtime * 4) & 1));
+}
+static void M_Credits_Key (int key)
+{
+    switch (key)
+    {
+    case K_ESCAPE: case K_BBUTTON: case K_MOUSE2: case K_MOUSE4:
+        M_Menu_Main_f (); break;
+    case K_UPARROW: case K_DOWNARROW: case K_MWHEELUP: case K_MWHEELDOWN:
+        m_credits_cursor ^= 1; S_LocalSound ("misc/menu1.wav"); break;
+    case K_ENTER: case K_KP_ENTER: case K_ABUTTON: case K_MOUSE1:
+        if (m_credits_cursor == 0) Cbuf_AddText ("vr_campaign_menu\n");
+        else M_Menu_Main_f ();
+        break;
+    }
+}
 void M_Menu_Credits_f (void)
 {
+    key_dest = key_menu;
+    m_state = m_credits;
+    m_entersound = true;
+    m_credits_cursor = 0;
+    Con_DPrintf ("Credits: native campaign end presentation opened\n");
 }
 
 //=============================================================================
@@ -7390,6 +7423,9 @@ void M_Draw (void)
 		M_ModInfo_Draw ();
 		break;
 
+	case m_credits:
+        M_Credits_Draw ();
+        break;
 	case m_help:
 		M_Help_Draw ();
 		break;
@@ -7541,6 +7577,9 @@ void M_Keydown (int key, qboolean repeat)
 		M_ModInfo_Key (key);
 		return;
 
+	case m_credits:
+        M_Credits_Key (key);
+        return;
 	case m_help:
 		M_Help_Key (key);
 		return;
@@ -7648,6 +7687,9 @@ void M_Mousemove (int screenx, int screeny)
 		M_Mods_Mousemove (x, y);
 		return;
 
+	case m_credits:
+        if (y >= 148 && y < 180) m_credits_cursor = y >= 164;
+        return;
 	//case m_help:
 	//	M_Help_Mousemove (x, y);
 	//	return;

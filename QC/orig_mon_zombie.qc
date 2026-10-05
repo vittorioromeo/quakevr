@@ -86,7 +86,7 @@ void() zombie_stand15    =[    $stand15,        zombie_stand1    ] {ai_stand();}
 // with an added check for enemies if they're sneaky types...
 void() zombie_lurk =
 {
-    if(self.spawnflags & SPAWN_SNEAKY)
+    if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_SNEAKY))
     {
         // not pausing before attack, but looking for player.
         if(!self.pain_finished)
@@ -704,6 +704,7 @@ If crucified, stick the bounding box 12 pixels back into a wall to look right.
 */
 void() monster_zombie =
 {
+    if(MG_MonsterInhibited()) return;
     VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_zombie, $paine12, zombie_paine13); // VR: knocked down (vr_knockdown.qc): lying: paine13 on rises
     if(deathmatch)
     {
@@ -714,7 +715,7 @@ void() monster_zombie =
     monster_zombie_precache();
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
         self.cnt = -1;
     }
 
@@ -730,7 +731,7 @@ void() monster_zombie =
     // HONEY
     monster_add_to_counter();
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = zombie_start2;
         return;
@@ -747,7 +748,7 @@ void() monster_zombie =
         self.movetype = MOVETYPE_NONE;
         zombie_cruc1();
     }
-    else if(self.spawnflags & SPAWN_LYING)
+    else if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_LYING))
     {
         self.solid = SOLID_NOT;
         self.th_stand = zombie_sleep;
@@ -758,12 +759,12 @@ void() monster_zombie =
         setsize(self, '-16 -16 -24', '16 16 -16');
 
         // HOLY HACK, BATMAN! - Don't blame me. Check out FindTarget in ai.qc!
-        if(self.spawnflags & SPAWN_AMBUSH)
+        if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_AMBUSH))
             self.spawnflags = SPAWN_LYING;
 
         walkmonster_start();
     }
-    else if(self.spawnflags & SPAWN_SNEAKY)
+    else if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_SNEAKY))
     {
         self.movetype = MOVETYPE_NONE;
         self.solid = SOLID_NOT;
@@ -787,13 +788,13 @@ void() monster_zombie =
     }
     else
     {
-        if(self.spawnflags & SPAWN_AMBUSH)
+        if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_AMBUSH))
             self.spawnflags = SPAWN_LYING;
         walkmonster_start();
     }
 
    //HIPNOTIC
-   if(self.spawnflags & SPAWN_LYINGDOWN)
+   if(!MG_WorldCampaign() && (self.spawnflags & SPAWN_LYINGDOWN))
       {
       self.th_stand = zombie_lay;
       }

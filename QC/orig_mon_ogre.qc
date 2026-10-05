@@ -114,7 +114,7 @@ void() OgreFireGrenade =
 
     // set missile speed
     // HONEY
-    if(self.classname == "monster_ogre_marksman")
+    if(!MG_WorldCampaign() && self.classname == "monster_ogre_marksman")
     {
         if(enemy_range == RANGE_NEAR)
         {
@@ -164,7 +164,7 @@ void() OgreFireGrenade =
     missile.angles = vectoangles(missile.velocity);
 
     // set missile duration
-    if(self.spawnflags & OGRE_BOSS)
+    if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
     {
         missile.touch = MultiGrenadeTouch;
         missile.nextthink = time + 2.5;
@@ -217,7 +217,7 @@ float     ldmg;
     ldmg = (random() + random() + random()) * 4;
 
     // HONEY
-    if(self.classname == "monster_ogre_marksman"){
+    if(!MG_WorldCampaign() && self.classname == "monster_ogre_marksman"){
         if(self.enemy.classname == "monster_ogre"){
             ldmg = ldmg * 1.8;
         }
@@ -242,7 +242,7 @@ void() ogre_stand3    =[    $stand3,    ogre_stand4    ] {ai_stand();};
 void() ogre_stand4    =[    $stand4,    ogre_stand5    ] {ai_stand();};
 void() ogre_stand5    =[    $stand5,    ogre_stand6    ]
 {
-    if(random() < 0.2 && /* HONEY */ (self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP) != SPAWNFLAG_SF_SILENT_WAKEUP)
+    if(random() < 0.2 && /* HONEY */ (MG_WorldCampaign() || !(self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
         sound(self, CHAN_VOICE, "ogre/ogidle.wav", 1, ATTN_IDLE);
 
     ai_stand();
@@ -454,7 +454,7 @@ void()    ogre_die2    =[    $death2,    ogre_die3    ] {};
 void()    ogre_die3    =[    $death3,    ogre_die4    ]
     {
         self.solid = SOLID_NOT;
-        if(self.spawnflags & OGRE_BOSS)
+        if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
         {
             self.ammo_multi_rockets = 2;
         }
@@ -481,7 +481,7 @@ void()    ogre_bdie2    =[    $bdeath2,    ogre_bdie3    ] {ai_forward(5);};
 void()    ogre_bdie3    =[    $bdeath3,    ogre_bdie4    ]
     {
         self.solid = SOLID_NOT;
-        if(self.spawnflags & OGRE_BOSS)
+        if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
         {
             self.ammo_multi_rockets = 2;
         }
@@ -559,6 +559,7 @@ Normal: use the original skin and fire normal grenades.
 */
 void() monster_ogre_real =
 {
+    if(MG_MonsterInhibited()) return;
     VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_ogre, $paind5, ogre_paind5); // VR: knocked down (vr_knockdown.qc): down at paind5, from it it rises
     if(deathmatch)
     {
@@ -570,7 +571,7 @@ void() monster_ogre_real =
     monster_ogre_precache();
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -587,7 +588,7 @@ void() monster_ogre_real =
     // HONEY
     monster_add_to_counter();
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = ogre_start;
         return;
@@ -599,7 +600,7 @@ void() monster_ogre_real =
     setmodel(self, self.wad);
 
     // none specified - choose random. 25% boss on normal, hard, bloodbath
-    if(VR_Pack_Rogue() && self.spawnflags <= 1)
+    if(!MG_WorldCampaign() && VR_Pack_Rogue() && self.spawnflags <= 1)
     {
         if(cvar_hget(cvarh_skill) > 0)
         {
@@ -610,7 +611,7 @@ void() monster_ogre_real =
         }
     }
 
-    if(self.spawnflags & OGRE_BOSS)
+    if(!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))
     {
         // TODO VR: (P2) rogue skins
         // self.skin = 1;
@@ -622,7 +623,8 @@ void() monster_ogre_real =
 
 void() monster_ogre =
 {
-    if(!VR_Pack_Rogue() && (self.spawnflags & OGRE_BOSS)) { remove(self); return; }
+    if(MG_MonsterInhibited()) return;
+    if(!VR_Pack_Rogue() && (!MG_WorldCampaign() && (self.spawnflags & OGRE_BOSS))) { remove(self); return; }
 
     self.wad = "progs/ogre.mdl";
     monster_ogre_real();

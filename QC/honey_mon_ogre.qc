@@ -48,6 +48,7 @@ void() ogre_start =
 
 void() monster_ogre_marksman =
 {
+    if(MG_WorldCampaign()) { self.wad = "progs/ogre.mdl"; monster_ogre_real(); return; }
     self.wad = "progs/mogre.mdl";
     precache_model("progs/s_light2.spr");
     monster_ogre_real();
@@ -85,7 +86,7 @@ void() ogre_crown_update =
 void() ogre_spawncrown =
 {
     entity tf;
-    if(self.classname != "monster_ogre_marksman") return;
+    if(MG_WorldCampaign() || self.classname != "monster_ogre_marksman") return;
     if(self.trigger_field) return;
 
     tf = spawn();

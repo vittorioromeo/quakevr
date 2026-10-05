@@ -250,7 +250,7 @@ void() PlaceItem =
     self.handtouch = itemTouch;
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if(!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN))
     {
         item_unspawn();
     }
@@ -309,6 +309,7 @@ Sets the clipping size and plants the object on the floor
 */
 void() StartItem =
 {
+    if(MG_MonsterInhibited()) return;
     self.nextthink = time + 0.2;    // items start after other solids
     self.think = PlaceItem;
 };

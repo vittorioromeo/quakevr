@@ -327,6 +327,7 @@ float()    DogCheckAttack =
 */
 void() monster_dog =
 {
+    if(MG_MonsterInhibited()) return;
     if(deathmatch)
     {
         remove(self);
@@ -341,7 +342,7 @@ void() monster_dog =
     precache_sound("dog/dsight.wav");
     precache_sound("dog/idle.wav");
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -358,7 +359,7 @@ void() monster_dog =
     // HONEY
     monster_add_to_counter();
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = dog_start;
         return;

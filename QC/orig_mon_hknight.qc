@@ -168,7 +168,7 @@ void()    hknight_run8    =[    $run8,        hknight_run1    ] {ai_run(13);};
 
 void()    hknight_pain1    =[    $pain1,        hknight_pain2    ]
     {
-        if(self.spawnflags & 2) // statue
+        if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
             sound(self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
         else
             sound(self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
@@ -208,7 +208,7 @@ void()    hknight_dieb9    =[    $deathb9,    hknight_dieb9    ] {monster_check_
 void() hknight_die =
 {
     // VR: its sword falls from its hand (its death frames are drawn without it), gibbed or not.
-    if(!(self.spawnflags & 2))
+    if(!(!MG_WorldCampaign() && (self.spawnflags & 2)))
     {
         VR_DropKnightSword(TRUE);
     }
@@ -219,7 +219,7 @@ void() hknight_die =
         sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
         ThrowHead("progs/h_hellkn.mdl", self.health);
 
-        if(self.spawnflags & 2) // statue
+        if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
         {
             ThrowGib("progs/statgib1.mdl", self.health);
             ThrowGib("progs/statgib2.mdl", self.health);
@@ -236,7 +236,7 @@ void() hknight_die =
     }
 
     // regular death
-    if(self.spawnflags & 2) // statue
+    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
         sound(self, CHAN_VOICE, "statue/death.wav", 1, ATTN_NORM);
     else
         sound(self, CHAN_VOICE, "hknight/death1.wav", 1, ATTN_NORM);
@@ -382,7 +382,7 @@ void() hk_idle_sound =
 {
     if(random() < 0.2)
     {
-        if(self.spawnflags & 2) // statue
+        if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
             sound(self, CHAN_VOICE, "statue/idle.wav", 1, ATTN_IDLE);
         else
             sound(self, CHAN_VOICE, "hknight/idle.wav", 1, ATTN_NORM);
@@ -394,7 +394,7 @@ void(entity attacker, float damage) hknight_pain =
     if(self.pain_finished > time)
         return;
 
-    if(self.spawnflags & 2) // statue
+    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
         sound(self, CHAN_VOICE, "statue/pain.wav", 1, ATTN_NORM);
     else
         sound(self, CHAN_VOICE, "hknight/pain1.wav", 1, ATTN_NORM);
@@ -469,7 +469,8 @@ frame: frame to be frozen in. (default 73)
 */
 void() monster_hell_knight =
 {
-    if(!VR_Pack_Rogue() && (self.spawnflags & 2)) { remove(self); return; }
+    if(MG_MonsterInhibited()) return;
+    if(!VR_Pack_Rogue() && (!MG_WorldCampaign() && (self.spawnflags & 2))) { remove(self); return; }
 
     VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, $death12, $death1, $deathb9, $deathb1); // VR: knocked down (vr_knockdown.qc): no get-up of its own, a death backwards
     if(deathmatch)
@@ -481,7 +482,7 @@ void() monster_hell_knight =
     precache_model2("progs/k_spike.mdl");
     precache_model2("progs/h_hellkn.mdl");
 
-    if(self.spawnflags & 2) // statue
+    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
     {
         precache_model("progs/statgib1.mdl");
         precache_model("progs/statgib2.mdl");
@@ -509,7 +510,7 @@ void() monster_hell_knight =
     precache_sound("knight/sword2.wav");
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -518,7 +519,7 @@ void() monster_hell_knight =
     // HONEY
     monster_add_to_counter();
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = hell_knight_start;
         return;
@@ -530,7 +531,7 @@ void() monster_hell_knight =
     setmodel(self, "progs/hknight.mdl");
     setsize(self, '-12 -12 -24', '12 12 36');
 
-    if(self.spawnflags & 2) // statue
+    if(!MG_WorldCampaign() && (self.spawnflags & 2)) // statue
     {
         if(self.frame == 0)
             self.frame = 73;

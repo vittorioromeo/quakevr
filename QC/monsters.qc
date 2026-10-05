@@ -78,7 +78,7 @@ void() walkmonster_start_go =
 
     // HONEY
     if(self.classname == "monster_tarbaby" &&
-       self.spawnflags & SPAWNFLAG_TBABY_HIPHOP)
+       (!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TBABY_HIPHOP)))
     {
         // Don't do anything..
     }
@@ -109,11 +109,13 @@ void() walkmonster_start_go =
             dprint("\n");
         }
 // this used to be an objerror
-        if(self.movetarget.classname == "path_corner")
-            self.th_walk();
-        else
+        if(self.movetarget.classname == "path_corner") {
+            if(MG_WorldCampaign() && (self.spawnflags & 4096)) { self.pausetime = 99999999; self.th_stand(); self.use = MG_MonsterBeginWalking; }
+            else self.th_walk();
+        } else {
             self.pausetime = 99999999;
             self.th_stand();
+        }
     }
     else
     {
@@ -122,7 +124,7 @@ void() walkmonster_start_go =
     }
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY){
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY))){
         if(activator.items & IT_INVISIBILITY)
             return;
         if(activator.flags & FL_NOTARGET)
@@ -141,6 +143,7 @@ void() walkmonster_start_go =
 
 void() walkmonster_start =
 {
+    if(MG_MonsterPrepare(walkmonster_start_go)) return;
 // delay drop to floor to make sure all doors have been spawned
 // spread think times so they don't all happen at same time
     self.nextthink = self.nextthink + random()*0.5;
@@ -150,7 +153,7 @@ void() walkmonster_start =
     // total_monsters = total_monsters + 1;
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)) && !intermission_running)
     {
         WriteByte(MSG_ALL, SVC_UPDATESTAT);
         WriteByte(MSG_ALL, 12);
@@ -196,11 +199,13 @@ void() flymonster_start_go =
             dprint("\n");
         }
 // this used to be an objerror
-        if(self.movetarget.classname == "path_corner")
-            self.th_walk();
-        else
+        if(self.movetarget.classname == "path_corner") {
+            if(MG_WorldCampaign() && (self.spawnflags & 4096)) { self.pausetime = 99999999; self.th_stand(); self.use = MG_MonsterBeginWalking; }
+            else self.th_walk();
+        } else {
             self.pausetime = 99999999;
             self.th_stand();
+        }
     }
     else
     {
@@ -209,7 +214,7 @@ void() flymonster_start_go =
     }
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY){
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY))){
         if(activator.items & IT_INVISIBILITY)
             return;
         if(activator.flags & FL_NOTARGET)
@@ -225,6 +230,7 @@ void() flymonster_start_go =
 
 void() flymonster_start =
 {
+    if(MG_MonsterPrepare(flymonster_start_go)) return;
     self.enemy = activator;
 
 // spread think times so they don't all happen at same time
@@ -235,7 +241,7 @@ void() flymonster_start =
     // total_monsters = total_monsters + 1;
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)) && !intermission_running)
     {
         WriteByte(MSG_ALL, SVC_UPDATESTAT);
         WriteByte(MSG_ALL, 12);
@@ -278,7 +284,8 @@ void() swimmonster_start_go =
         }
 // this used to be an objerror
         self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
-        self.th_walk();
+        if(MG_WorldCampaign() && (self.spawnflags & 4096)) { self.pausetime = 99999999; self.th_stand(); self.use = MG_MonsterBeginWalking; }
+        else self.th_walk();
     }
     else
     {
@@ -287,7 +294,7 @@ void() swimmonster_start_go =
     }
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY){
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_ANGRY))){
         if(activator.items & IT_INVISIBILITY)
             return;
         if(activator.flags & FL_NOTARGET)
@@ -306,6 +313,7 @@ void() swimmonster_start_go =
 
 void() swimmonster_start =
 {
+    if(MG_MonsterPrepare(swimmonster_start_go)) return;
     self.enemy = activator;
 
     // spread think times so they don't all happen at same time
@@ -315,7 +323,7 @@ void() swimmonster_start =
 
     // total_monsters = total_monsters + 1;
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN && !intermission_running)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)) && !intermission_running)
     {
         WriteByte(MSG_ALL, SVC_UPDATESTAT);
         WriteByte(MSG_ALL, 12);

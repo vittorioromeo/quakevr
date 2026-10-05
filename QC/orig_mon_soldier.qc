@@ -356,6 +356,7 @@ void() monster_army_precache =
 */
 void() monster_army =
 {
+    if(MG_MonsterInhibited()) return;
     if(deathmatch)
     {
         remove(self);
@@ -364,7 +365,7 @@ void() monster_army =
 
     monster_army_precache();
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
         self.cnt = -1;
     }
 
@@ -385,7 +386,7 @@ void() monster_army =
     // HONEY
     monster_add_to_counter();
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = army_start;
         return;

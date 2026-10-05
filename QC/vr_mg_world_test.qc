@@ -32,6 +32,8 @@ void() MG_TestFrame = {
     dprint(sprintf("mgworldtest: map %s world fog %.6f %v; player fog %.6f %v\n",
         mapname, fog.fog_density, fog.fog_color, p.fog_density, p.fog_color));
     if(request == 1) return;
+    if(request == 3) { MG_ActivationTest(); return; }
+    if(request >= 4) { MG_ProgressTest(request); return; }
     MG_test_pass = MG_test_fail = MG_test_targets = 0;
     entity e = spawn();
     self = e;

@@ -275,6 +275,8 @@ void() SUB_UseTargets =
                 if(t.velocity != '0 0 0')
                     sound(t, CHAN_VOICE, t.noise3, 1, ATTN_NORM);
                 remove(t);
+            }else if(MG_WorldCampaign() && t.MG_deferred){
+                MG_MonsterKillDeferred(t, activator);
             }else if(t.flags & FL_MONSTER && t.health > 0){
                 Killed (t, activator);
             }else{

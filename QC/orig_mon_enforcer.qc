@@ -56,7 +56,7 @@ void() Laser_Touch =
 
 //MED 01/16/97 added silent command
 
-    if(!(self.spawnflags & SPAWNFLAG_SILENT))
+    if(!((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_SILENT))))
         sound(self, CHAN_WEAPON, "enforcer/enfstop.wav", 1, ATTN_STATIC);
     org = self.origin - 8*normalize(self.velocity);
     VR_ShotPush_Touch(); // VR: the prop it hit (or flew through) pushed
@@ -364,6 +364,7 @@ void() enf_die =
 */
 void() monster_enforcer =
 {
+    if(MG_MonsterInhibited()) return;
     if(deathmatch)
     {
         remove(self);
@@ -385,7 +386,7 @@ void() monster_enforcer =
     precache_sound2("enforcer/sight4.wav");
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt) {
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt) {
         self.cnt = -1;
     }
 
@@ -402,7 +403,7 @@ void() monster_enforcer =
     // HONEY
     monster_add_to_counter();
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = enforcer_start;
         return;

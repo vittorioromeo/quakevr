@@ -309,7 +309,7 @@ float (entity client) visible =
         self.vr_ai_target = client;
         self.vr_ai_gate = 0;
     }
-    if(self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK) { res = bbox_visible(self, spot2); }
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_SF_AI_BBOX_CHECK))) { res = bbox_visible(self, spot2); }
     else                                   { res = point_visible(spot1, spot2); }
     if(res && VR_Crate_HidesFrom(self, client, spot1)) { res = FALSE; }
     // Through a gate: not across a water surface either (point_visible's rule: one end in a liquid, the other not).
@@ -430,7 +430,7 @@ void() HuntTarget =
     // HONEY
     // cg: tarbabies can now spawn really angry and start jumping around
     // without even having a clear view of player
-    if(self.classname == "monster_tarbaby" && self.spawnflags & SPAWNFLAG_TBABY_LIVID)
+    if(self.classname == "monster_tarbaby" && (!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TBABY_LIVID)))
     {
         self.think = self.th_missile;
     }
@@ -449,7 +449,7 @@ void() SightSound =
     float rsnd;
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_SF_SILENT_WAKEUP)))
     {
         return;
     }
@@ -681,7 +681,7 @@ float() FindTarget =
 
     if(!visible(client)) { return FALSE; }
     r = range (client);
-    if(r == RANGE_FAR && /* HONEY */ self.classname != "monster_ogre_marksman") // can see really far
+    if(r == RANGE_FAR && /* HONEY */ (MG_WorldCampaign() || self.classname != "monster_ogre_marksman")) // can see really far
         return FALSE;
 
 
@@ -944,8 +944,10 @@ float() CheckAnyAttack =
     if(self.classname == "monster_ogre")
         return OgreCheckAttack();
 
-    if(self.classname == "monster_ogre_marksman")
+    if(self.classname == "monster_ogre_marksman") {
+        if(MG_WorldCampaign()) return OgreCheckAttack();
         return OgreMarksmanCheckAttack();
+    }
 
     if(self.classname == "monster_shambler")
         return ShamCheckAttack();

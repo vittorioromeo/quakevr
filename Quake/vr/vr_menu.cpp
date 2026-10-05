@@ -4211,6 +4211,10 @@ za::Vector<Item> pageDebugTests()
             .help("Print the native campaign's authored world and player fog values."),
         command("Official World: Environment Test", "vr_mg_world_test 2")
             .help("Check native movement/fog and explode a test barrel on e5m1. Developer campaign only; reload the map afterward."),
+        command("Official Monsters: Activation Test", "vr_mg_world_test 3")
+            .help("Check triggered official monsters, counts and campaign flag isolation. Reload afterward."),
+        command("Official Campaign: Progress Report", "vr_mg_world_test 4")
+            .help("Print monster counts and both hands' persistent weapon magazines/ids."),
         open("Spawn Pickup Weapons", pageIndex(pageSpawnWeapons))
             .help("Spawn a physical pickup ahead of you, ready to grab and use."),
         header("Physics Stress"),

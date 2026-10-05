@@ -363,6 +363,7 @@ void() monster_shambler_precache =
 */
 void() monster_shambler =
 {
+    if(MG_MonsterInhibited()) return;
     VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_shambler, $death11, $death1, -1, -1); // VR: knocked down (vr_knockdown.qc): its death backwards
     if(deathmatch)
     {
@@ -373,7 +374,7 @@ void() monster_shambler =
     monster_shambler_precache();
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)) && !self.cnt){
         self.cnt = -1;
     }
 
@@ -390,7 +391,7 @@ void() monster_shambler =
     // HONEY
     monster_add_to_counter();
 
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)
+    if((!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)))
     {
         self.use = shambler_start;
         return;
