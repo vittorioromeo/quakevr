@@ -33,6 +33,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
+#include <sys/stat.h>
 extern "C" {
 #include "steam.h"
 }
@@ -285,6 +286,55 @@ int inspectPack(const char* game, const char* const* resources, size_t count, co
 }
 
 
+// What a pack's files are now, without reading them: each pak's and each listed loose file's size and time, in every
+// base dir. The same signature: the same answer (inspectPack reads every listed model, sound and map whole, which is
+// worth doing once, not at every rebuild of the game folders: a campaign or a map package switched).
+za::U64 packSignature(const char* game, const char* const* resources, size_t count)
+{
+    za::U64 h = 1469598103934665603ull;
+    const auto mix = [&](za::U64 v) { h = (h ^ v) * 1099511628211ull; };
+    const auto file = [&](const char* path)
+    {
+        struct stat st{};
+        if(stat(path, &st) == 0) { mix(static_cast<za::U64>(st.st_size)); mix(static_cast<za::U64>(st.st_mtime)); }
+        else { mix(0x9e3779b97f4a7c15ull); }
+    };
+    for(int base = 0; base < com_numbasedirs; ++base)
+    {
+        char folder[MAX_OSPATH], path[MAX_OSPATH];
+        q_snprintf(folder, sizeof(folder), "%s/%s", com_basedirs[base], game);
+        mix(Sys_FileType(folder) == FS_ENT_DIRECTORY ? 1 : 2);
+        for(int pak = 0; pak < 100; ++pak)
+        {
+            q_snprintf(path, sizeof(path), "%s/pak%d.pak", folder, pak);
+            if(Sys_FileType(path) != FS_ENT_FILE) { break; }
+            file(path);
+        }
+        for(size_t i = 0; i < count; ++i)
+        {
+            q_snprintf(path, sizeof(path), "%s/%s", folder, resources[i]);
+            file(path);
+        }
+    }
+    return h;
+}
+
+// inspectPack, again only when the pack's files changed since it was last read.
+int inspectPackCached(int which, const char* game, const char* const* resources, size_t count)
+{
+    static za::U64 signatures[2] = {};
+    static int statuses[2] = {};
+    static bool known[2] = {};
+    const za::U64 now = packSignature(game, resources, count);
+    if(!known[which] || signatures[which] != now)
+    {
+        statuses[which] = inspectPack(game, resources, count);
+        signatures[which] = now;
+        known[which] = true;
+    }
+    return statuses[which];
+}
+
 constexpr const char* dopaResources[] = {
 #include "vr_pack_dopa.inc"
 };
@@ -335,49 +385,57 @@ void discoverCampaigns()
     discoveredCampaigns = true;
     // Explicit bases win, last base highest. Never add store roots to com_basedirs:
     // configs, saves and community caches must remain under the writable VR root.
-    char roots[MAX_BASEDIRS * 3 + 2][MAX_OSPATH];
-    int count = 0;
+    // (on the heap: MAX_BASEDIRS * 3 + 2 paths of PATH_MAX bytes is most of a megabyte of stack on Linux)
+    za::Vector<za::String> roots;
+    char path[MAX_OSPATH];
+    const auto addRoot = [&](const char* p) { roots.pushBack(za::String{p}); };
     if(!COM_CheckParm("-nosteam"))
     {
         steamgame_t owned{};
         char install[MAX_OSPATH];
         if(Steam_FindGame(&owned, QUAKE_STEAM_APPID) && Steam_ResolvePath(install, sizeof(install), &owned))
-        { q_snprintf(roots[count++], MAX_OSPATH, "%s/rerelease", install); }
+        { q_snprintf(path, sizeof(path), "%s/rerelease", install); addRoot(path); }
     }
     if(!COM_CheckParm("-nogog"))
     {
         char install[MAX_OSPATH];
         if(Sys_GetGOGQuakeEnhancedDir(install, sizeof(install)))
-        { q_strlcpy(roots[count++], install, MAX_OSPATH); }
+        { addRoot(install); }
     }
     for(int i = 0; i < com_numbasedirs; ++i)
     {
-        q_snprintf(roots[count++], MAX_OSPATH, "%s/../rerelease", com_basedirs[i]);
-        q_snprintf(roots[count++], MAX_OSPATH, "%s/rerelease", com_basedirs[i]);
-        q_strlcpy(roots[count++], com_basedirs[i], MAX_OSPATH);
+        q_snprintf(path, sizeof(path), "%s/../rerelease", com_basedirs[i]);
+        addRoot(path);
+        q_snprintf(path, sizeof(path), "%s/rerelease", com_basedirs[i]);
+        addRoot(path);
+        addRoot(com_basedirs[i]);
     }
     for(int i = 3; i < int(countof(campaigns)); ++i)
     {
         Campaign& c = campaigns[i];
-        for(int r = count - 1; r >= 0; --r)
+        for(int r = int(roots.size()) - 1; r >= 0; --r)
         {
             char folder[MAX_OSPATH];
-            q_snprintf(folder, sizeof(folder), "%s/%s", roots[r], c.folder);
+            q_snprintf(folder, sizeof(folder), "%s/%s", roots[r].cStr(), c.folder);
             if(Sys_FileType(folder) != FS_ENT_DIRECTORY) { continue; }
-            c.status = inspectPack(c.folder, c.resources, c.resourceCount, roots[r]);
-            q_strlcpy(c.root, roots[r], sizeof(c.root));
+            c.status = inspectPack(c.folder, c.resources, c.resourceCount, roots[r].cStr());
+            q_strlcpy(c.root, roots[r].cStr(), sizeof(c.root));
             // A damaged higher-priority owned copy is explicit, never masked by another release.
             break;
         }
     }
 }
 
-void publishCampaign()
+// `syncHub`: the hub's choice (vr_activestartpaknameidx, archived) made the active campaign's too: when a campaign is
+// chosen (the selector, a map or a changelevel that picks one), never when the game folders are only rebuilt (a map
+// package mounted, a mission pack re-added): that would undo a choice made at the hub's buttons before its portal.
+void publishCampaign(bool syncHub = false)
 {
     if(!Cvar_FindVar("vr_campaign")) { return; }
     Cvar_SetROM("vr_honey_context", "0");
     // The archived legacy hub selector only describes the original three campaigns.
-    Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, activeCampaign <= 2 ? activeCampaign : 0);
+    if(syncHub)
+    { Cvar_SetValueQuick(&qvr::vr_activestartpaknameidx, activeCampaign <= 2 ? activeCampaign : 0); }
     Cvar_SetROM("vr_campaign", va("%d", activeCampaign));
     Cvar_SetROM("vr_campaign_schema", va("%d", campaigns[activeCampaign].schema));
     for(int i = 3; i < int(countof(campaigns)); ++i)
@@ -484,6 +542,14 @@ extern "C" void VR_PrepareCampaignDirectories(const char* paths)
         if(i > 0) { selected = i; }
     }
     nativeCampaignPaths = vr;
+    if(vr && selected >= 3 && campaigns[selected].status != 1) // (the packs' status is read when quakevr is added)
+    {
+        // Its data missing or damaged: nothing of it would be mounted, and its start map (isolated per campaign in
+        // VR_SkipSearchPath) found nowhere. Quake instead, said once.
+        Con_Printf("VR: %s is %s; starting with Quake. Supply its complete owned data in <basedir>/%s.\n",
+            campaigns[selected].folder, campaignStatus(selected), campaigns[selected].folder);
+        selected = 0;
+    }
     if(vr) { activeCampaign = selected; developerNative = selected >= 3; }
     publishCampaign();
 }
@@ -521,7 +587,7 @@ bool selectCampaign(int selected, bool developer, bool start)
     const bool changed = activeCampaign != selected;
     activeCampaign = selected;
     developerNative = developer;
-    publishCampaign();
+    publishCampaign(true);
     if(changed || !gameDirAlreadyAdded(vrGameDir))
     {
         rebuildingCampaign = true;
@@ -574,6 +640,7 @@ extern "C" const char* VR_CampaignLabel(int index)
 }
 extern "C" const char* VR_CampaignHelp(int index)
 {
+    if(index < 0 || index >= int(countof(campaigns))) { return ""; }
     const Campaign& c = campaigns[index];
     return va("%s. Data: %s. %s", c.title, c.root[0] ? c.root : "configured basedirs",
         c.status != 1 ? "Supply complete owned campaign files to play." :
@@ -582,7 +649,7 @@ extern "C" const char* VR_CampaignHelp(int index)
 extern "C" void VR_SelectCampaign(int index)
 { selectCampaign(index, false, true); }
 extern "C" int VR_CampaignUnavailable(int index)
-{ return campaigns[index].status != 1 || !campaigns[index].nativeReady; }
+{ return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || !campaigns[index].nativeReady; }
 
 extern "C" void VR_BeforeAddGameDirectory(const char* dir)
 {
@@ -593,8 +660,8 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
 
     nativeCampaignPaths = true;
     discoverCampaigns();
-    packStatus[0] = inspectPack("hipnotic", hipnoticResources, sizeof(hipnoticResources) / sizeof(*hipnoticResources));
-    packStatus[1] = inspectPack("rogue", rogueResources, sizeof(rogueResources) / sizeof(*rogueResources));
+    packStatus[0] = inspectPackCached(0, "hipnotic", hipnoticResources, countof(hipnoticResources));
+    packStatus[1] = inspectPackCached(1, "rogue", rogueResources, countof(rogueResources));
     addingMissionPacks = true;
     for(int i = 0; i < 2; ++i)
     {
@@ -766,16 +833,31 @@ extern "C" void VR_AfterAddGameDirectory(const char* dir)
     rogue = false;
 }
 
+namespace
+{
+// The campaign a map's name says it belongs to (e1m1: Quake, hip1m1: Scourge of Armagon, r1m1: Dissolution of Eternity,
+// e5m1: Dimension of the Past), or `current`. A name is only a hint: when that campaign's data is not available and the
+// map is found where the game looks now (a map package, the user's own id1/quakevr), it is that map, not the
+// campaign's: `current` (a package's hipside, or an e5m1 of one's own, is never refused for a campaign not installed).
+int campaignForMap(const char* map, int current)
+{
+    int named = current;
+    if((map[0] == 'e' && map[1] >= '1' && map[1] <= '4') || !strcmp(map, "vrtest")) { named = 0; }
+    if(!strncmp(map, "hip", 3)) { named = 1; }
+    if(!strncmp(map, "r1m", 3) || !strncmp(map, "r2m", 3)) { named = 2; }
+    if(!strncmp(map, "e5", 2)) { named = 3; }
+    if(named != current && campaigns[named].status != 1 && COM_FileExists(va("maps/%s.bsp", map), nullptr))
+    { return current; }
+    return named;
+}
+} // namespace
+
 extern "C" int VR_CanLoadCampaignMap(const char* map)
 {
     if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
     if(!strcmp(map, "vrstart") || !strcmp(map, "vrtutorial") || !strcmp(map, "vrfiringrange"))
     { return activeCampaign == 0 || selectCampaign(0, false, false); }
-    int requested = activeCampaign;
-    if((map[0] == 'e' && map[1] >= '1' && map[1] <= '4') || !strcmp(map, "vrtest")) { requested = 0; }
-    if(!strncmp(map, "hip", 3)) { requested = 1; }
-    if(!strncmp(map, "r1m", 3) || !strncmp(map, "r2m", 3)) { requested = 2; }
-    if(!strncmp(map, "e5", 2)) { requested = 3; }
+    int requested = campaignForMap(map, activeCampaign);
     if(!strcmp(map, "start") && activeCampaign <= 2)
     {
         const int legacy = static_cast<int>(qvr::vr_activestartpaknameidx.value);
@@ -850,10 +932,7 @@ extern "C" int VR_CanChangeCampaignMap(const char* map)
     int requested = activeCampaign;
     if(!strcmp(map, "start") && activeCampaign <= 2)
     { requested = static_cast<int>(qvr::vr_activestartpaknameidx.value); }
-    if(!strncmp(map, "hip", 3)) { requested = 1; }
-    if(!strncmp(map, "r1m", 3) || !strncmp(map, "r2m", 3)) { requested = 2; }
-    if(!strncmp(map, "e5", 2)) { requested = 3; }
-    if(map[0] == 'e' && map[1] >= '1' && map[1] <= '4') { requested = 0; }
+    else { requested = campaignForMap(map, activeCampaign); }
     if(requested < 0 || requested >= int(countof(campaigns)) || campaigns[requested].status != 1)
     { Con_Printf("VR: campaign unavailable; choose an installed campaign in Official Campaigns.\n"); return 0; }
     if(requested != activeCampaign && (requested >= 3 || activeCampaign >= 3))
@@ -862,7 +941,7 @@ extern "C" int VR_CanChangeCampaignMap(const char* map)
         return 0;
     }
     activeCampaign = requested;
-    publishCampaign();
+    publishCampaign(true);
     char source[MAX_OSPATH] = {};
     if(COM_FileExists(va("maps/%s.bsp", map), nullptr))
     { gameFolderName(com_filesource, source, sizeof(source)); }
