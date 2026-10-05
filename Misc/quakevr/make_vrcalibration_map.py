@@ -161,6 +161,8 @@ board(N.join(["CLIMBING", "Grip a rung or a ledge with an empty", "hand and pull
               "Stairs on the left.", "", "{menu:Climbing}"]), 344, 318, 120, 270, "0.25")
 board(N.join(["THINGS TO PICK UP", "Grip to take, open the hand to throw.", "", "Where weapons sit in your hand:",
               "{menu:Weapon Offsets}", "Throwing: {menu:Throwing and Physics}"]), -384, 336, 88, 270, "0.25")
+board(N.join(["PARRYING", "Hold a weapon across a blow.", "Blocks stop melee attacks briefly.",
+              "Stops attacks, recovery: {menu:Parry and Bash}"]), -464, Y1 - 1, 184, 270, "0.25")
 board(N.join(["LOOKS AND SPEED", "Render scale, upscaling: {menu:Headset}", "", "Graphics: {menu:Graphics}", "",
               "Wrist gadget: {menu:Wrist Gadget}"]), -96, Y1 - 1, 96, 270, "0.35")
 board(N.join(["START PLAYING", "NEW GAME starts Quake; VR HUB, the hub."]), 0, Y0 + 17, 88, 90, "0.3")

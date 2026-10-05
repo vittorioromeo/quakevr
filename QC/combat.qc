@@ -1745,9 +1745,79 @@ float(entity p, float hand, vector xForward) VR_Parry_Guard =
 // training dummy after its own blow: vr_dummy.qc).
 float vr_parried;
 
+// A successful parry cuts off the attack, holding its first pain pose briefly before normal AI resumes.
+// Replacing think (rather than only attack_finished, which some melee checks ignore) cancels all its later hits.
+void() VR_Parry_Recover =
+{
+    if(self.health <= 0 || self.vr_knockdown)
+    {
+        return;
+    }
+    if(time < self.vr_parry_stagger_until)
+    {
+        self.think = VR_Parry_Recover;
+        self.nextthink = self.vr_parry_stagger_until;
+        return;
+    }
+    self.vr_parry_stagger_until = 0;
+    self.vr_melee_begun = 0;
+    self.attack_state = AS_STRAIGHT;
+    dprint(sprintf("parry interrupt: %s recovered\n", self.classname));
+    self.th_run();
+};
+
+// The dragon must close its attack scheduler without losing its flight route (rogue_dragon.qc).
+void() VR_Dragon_ParryInterrupt;
+
+void(entity m, entity p) VR_Parry_Interrupt =
+{
+    // The dummy manages its own practice timing. Knockdown/death already own the monster's think.
+    if(!cvar_hget(cvarh_vr_parry_interrupt) || m.health <= 0 || m.vr_knockdown || m.vr_dummy_striking || !m.th_run)
+    {
+        return;
+    }
+    float stagger = min(3, max(0.1, cvar_hget(cvarh_vr_parry_stagger)));
+    m.vr_parry_stagger_until = time + stagger;
+    m.attack_finished = max(m.attack_finished, m.vr_parry_stagger_until);
+    m.attack_state = AS_STRAIGHT;
+    m.vr_melee_begun = 0;
+    entity oldSelf = self;
+    self = m;
+    // Leap touches can keep biting after their animation is stopped. The landing callback must also
+    // return after T_Damage when interrupted, so it cannot overwrite this recovery think.
+    if(m.classname == "monster_demon1" || m.classname == "monster_dog" || m.classname == "monster_tarbaby")
+    {
+        m.touch = SUB_Null;
+        m.movetype = MOVETYPE_STEP;
+    }
+    // A high pain amount bypasses random flinch thresholds without dealing damage. The spawn's pain can
+    // split it (mitosis), and the Guardian's can teleport it: leave their poses alone. An attack still stops
+    // when a monster refuses a pain pose.
+    if(m.classname == "monster_dragon")
+    {
+        VR_Dragon_ParryInterrupt();
+    }
+    else if(m.th_pain && m.classname != "monster_tarbaby" && m.classname != "monster_morph")
+    {
+        m.pain_finished = 0;
+        m.th_pain(p, 1000);
+    }
+    m.think = VR_Parry_Recover;
+    m.nextthink = m.vr_parry_stagger_until;
+    self = oldSelf;
+    dprint(sprintf("parry interrupt: %s staggered %.2f s\n", m.classname, stagger));
+};
+
 float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
 {
     vr_parried = 0;
+    // Some attacks deliver several hits in the same QC callback. None after the successful parry may land,
+    // even if that first blow knocked the weapon away or the player lowered their guard.
+    if(inflictor == attacker && (attacker.flags & FL_MONSTER) && attacker.vr_parry_stagger_until > time)
+    {
+        dprint(sprintf("parry interrupt: %s remaining melee hit cancelled\n", attacker.classname));
+        return 0;
+    }
     if(inflictor != attacker || !(attacker.flags & FL_MONSTER) || damage <= 0 || !cvar_hget(cvarh_vr_parry) ||
        targ.classname != "player" || !VRHandsTracked(targ) || !VR_Parry_MeleeMonster(attacker))
     {
@@ -1853,6 +1923,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         }
         VR_Motion_Event("parry", armsCrossed ? "arms" : VR_Motion_HandSub(hand), armsCrossed ? -1 : hand, damage,
             armsCrossed ? VRGetEntHandPos(targ, cVR_MainHand) : vr_parry_at, attacker, "cooldown");
+        VR_Parry_Interrupt(attacker, targ);
         v_forward = oldForward;
         v_right = oldRight;
         v_up = oldUp;
@@ -1953,6 +2024,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_reduction))));
     }
 
+    if(vr_parried)
+    {
+        VR_Parry_Interrupt(attacker, targ);
+    }
     v_forward = oldForward;
     v_right = oldRight;
     v_up = oldUp;

@@ -1097,6 +1097,10 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Parry Angle", vr_parry_angle, 15.f, 80.f, 5.f, "%.0f deg").extend()
             .help("Hold a weapon (sword, axe or gun, one hand or two) level across in front of you to block a monster's melee blow: how far it may be tilted off level."),
         slider("Parry Reach", vr_parry_reach, 0.5f, 2.5f, 0.1f, "%.1f m").extend().help("How far in front of you a held weapon still parries."),
+        toggle("Parry Stops Attacks", vr_parry_interrupt)
+            .help("A successful weapon or crossed-arm parry cancels the monster's remaining melee hits and briefly staggers it. Off: the original damage reduction and push."),
+        slider("Parry Stagger", vr_parry_stagger, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.1f, 3.f)
+            .help("How long the monster pauses after a successful parry before it can move and attack again."),
         slider("Parry Damage Reduction", "vr_parry_reduction", 0.f, 1.f, 0.05f, "%.2f").help("Share of a parried blow's damage taken away."),
         slider("Parry Drop Chance", "vr_parry_drop_chance", 0.f, 1.f, 0.05f, "%.2f").help("Chance a one-handed parry knocks the weapon out of your hand (two hands: never). Not used with Parry Stamina on (Parry, Bash and Headbutt), which replaces it."),
         slider("Parry Arm Knock", "vr_parry_wobble", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much a parried blow knocks your hand and arm."),
@@ -4312,6 +4316,15 @@ za::Vector<Item> pageDebugTests()
                   "asleep); standing up, or holding the small crate up, it should (Crates Hide You)."),
         command("Can the Grunt See You?", "impulse 224")
             .help("impulse 224: whether Crate Cover's grunt sees you now, how high your head is, and whether it woke."),
+        header("Parry"),
+        command("Check the Parry Pose", "impulse 249")
+            .help("Developer 1: whether each held weapon blocks a blow from ahead, and its angle and position."),
+        command("Dragon Parry Sequence", "vr_physics_spawn VR_Parry_DragonTest 120")
+            .help("Developer 1: a real dragon tail hit and two same-frame follow-ups, then its route recovery. Needs Dissolution of Eternity; grants 500 health. Hold a guard to test the parry."),
+        command("Same-Frame Parry Hits", "vr_physics_spawn VR_Parry_SameCallbackTest 48")
+            .help("Developer 1: a knight deals three 10-damage blows in one callback and checks the restored self and vectors. Grants 500 health. A successful parry should cancel the last two."),
+        command("A Melee Blow Now", "impulse 242")
+            .help("The nearest melee monster within 150 units strikes for 10 damage through the actual parry test. With notarget, it attacks only when asked. Parry Stops Attacks also cancels blows asked for during its stagger."),
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "

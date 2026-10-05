@@ -107,6 +107,7 @@ rogue_combat.qc
 rogue_defs.qc
 rogue_dmatch.qc
 rogue_dragon.qc
+vr_parry_test.qc
 rogue_earthq.qc
 rogue_eel.qc
 rogue_elevatr.qc

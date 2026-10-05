@@ -1679,3 +1679,26 @@ Change `vr_portals_maxviews` live to 1, 4 and 8: one gate at 1, all three at
 4/8, with the correct distinct rooms and destination entities. Graphics >
 Slipgates > Visible Gates exposes this 1..8 limit (default 4). Views do not
 recurse, and additional passes increase rendering/shadow cost.
+
+
+### Parry interrupts (2026-10-05)
+
+Combat > Parry and Bash: **Parry Stops Attacks** (`vr_parry_interrupt`, default 1) cancels a successful
+weapon or crossed-arm parry's remaining melee hits. **Parry Stagger** (`vr_parry_stagger`, default 0.35 s,
+clamped 0.1–3 s) holds the first pain pose before normal AI resumes. The first hit still uses the existing
+damage reduction, push, stamina and counter rules. Off preserves the previous behavior; failed guards do not
+interrupt. Dog/fiend/spawn leap touches stop too. The dragon closes its attack through its own
+scheduler, keeps its flight route and normal attack cooldown, and resumes flying after the stagger. Its tail
+launch and same-frame follow-ups are cancelled too. The training dummy retains its custom practice timing;
+dead/knocked-down monsters and entities without `th_run` retain their own thinks. The spawn
+and Guardian skip forced pain callbacks (mitosis/teleport side effects) but their attack thinks still stop.
+
+`python Misc/quakevr/parryinterrupt/test.py <worktree>` runs real guard tests, lowered-guard follow-up hits,
+option-off and failed-guard controls, actual knight animations, a 0.8 s stagger, e1m1 smoke and calibration
+menu paths, a real dragon tail sequence with route recovery, and knight same-callback damage/global checks.
+Optional trailing sections: `forced animations timing smoke dragon callback`. Logs stay in the worktree root;
+the script overwrites `quakevr/test_parryinterrupt.cfg`. Debug > Tests also exposes **Dragon Parry Sequence**
+and **Same-Frame Parry Hits** (both grant 500 health; the dragon requires Rogue assets), plus **Check the Parry Pose**
+(impulse 249) and **A Melee Blow Now** (impulse 242). With `notarget`, the latter is a controlled blow through
+the actual parry path. In VR, check a knight/ogre's multi-hit attack, crossed arms, counter timing, and turn
+Parry Stops Attacks off to compare. Do not tune or replay archived melee takes for this check.
