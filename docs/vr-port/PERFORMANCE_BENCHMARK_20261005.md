@@ -1,5 +1,7 @@
 # Quake VR CPU/GPU benchmark — 5 October 2026
 
+Follow-up: [VTune and retro/prop/decal audit](PERFORMANCE_AUDIT_20261005.md) refines the CPU priorities and tests 4096 large marks; mixed rigid props primarily expose classification and interaction queries, rather than skinned-bone uploads.
+
 The largest measured optimization opportunity is **particle pixel cost**, especially the interaction between retro shading and the half-resolution particle path. Dense particle stress takes **13.299 ms GPU at 2048 per eye**, or **30.795 ms at 3072**. Active props are CPU-bound; crowded combat additionally exposes decal-grid rebuilds and model/shadow submissions. The new incandescent explosion debris is a smaller cost than dense smoke overdraw.
 
 Measured source: `vr-ironwail` at `6ca0664a`. No engine/gameplay optimization was applied by this investigation. The benchmark scripts, compact results and this report are the deliverables.

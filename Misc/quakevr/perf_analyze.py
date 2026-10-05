@@ -25,6 +25,8 @@ for meta_path in root.glob("*/metadata.json"):
     if meta["scene"] == "portal_enemies":
         assert "physical=0 pvs=0 gate=8" in (folder / "qconsole.log").read_text(), f"NPC was not across the portal: {folder}"
     log = (folder / "qconsole.log").read_text(errors="replace")
+    if "4096" in meta["scene"]:
+        assert re.search(r"4096 decals:", log), f"Expected full 4096-mark pool in {folder}"
     if meta["scene"] == "fire":
         fire = re.search(r"fireparticles: static=\d+ dynamic=\d+ torches=(\d+)", log)
         assert fire and int(fire[1]) >= 32, f"Fire emitters missing in {folder}"

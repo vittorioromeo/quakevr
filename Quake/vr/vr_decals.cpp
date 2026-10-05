@@ -1362,28 +1362,34 @@ void buildWorld()
     QVR_PROFILE("decals on the world");
     worldBuilds++;
     worldClock = cl.time;
-    worldDecals.clear();
-    for(za::SizeT k = 0; k < decals.size(); k++)
     {
-        const Decal& d = decals[k];
-        const float hu = glm::length(d.u), hv = glm::length(d.v);
-        WorldDecal w;
-        w.centre = {d.centre, static_cast<float>(d.cell)};
-        w.u = {hu > 0.f ? d.u / hu : glm::vec3{0.f}, za::max(hu, 1e-3f)};
-        w.v = {hv > 0.f ? d.v / hv : glm::vec3{0.f}, za::max(hv, 1e-3f)};
-        w.n = {d.normal, d.depth};
-        w.time = {static_cast<float>(d.born - worldClock), d.grow, d.growFrom, d.darken + (d.fromStart ? 2.f : 0.f)};
-        worldDecals.pushBack(w);
+        QVR_PROFILE("decal records");
+        worldDecals.clear();
+        for(za::SizeT k = 0; k < decals.size(); k++)
+        {
+            const Decal& d = decals[k];
+            const float hu = glm::length(d.u), hv = glm::length(d.v);
+            WorldDecal w;
+            w.centre = {d.centre, static_cast<float>(d.cell)};
+            w.u = {hu > 0.f ? d.u / hu : glm::vec3{0.f}, za::max(hu, 1e-3f)};
+            w.v = {hv > 0.f ? d.v / hv : glm::vec3{0.f}, za::max(hv, 1e-3f)};
+            w.n = {d.normal, d.depth};
+            w.time = {static_cast<float>(d.born - worldClock), d.grow, d.growFrom, d.darken + (d.fromStart ? 2.f : 0.f)};
+            worldDecals.pushBack(w);
+        }
     }
 
     // Buckets: twice the cells listed (at least 256), a power of two.
     za::SizeT cells = 0;
-    for(const WorldDecal& w : worldDecals)
     {
-        const glm::vec3 extent = glm::abs(glm::vec3{w.u}) * w.u.w + glm::abs(glm::vec3{w.v}) * w.v.w +
-                                 glm::abs(glm::vec3{w.n}) * w.n.w + glm::vec3{worldReach};
-        const glm::vec3 span = glm::floor(extent * (2.f / worldCell)) + 2.f;
-        cells += static_cast<za::SizeT>(span.x * span.y * span.z);
+        QVR_PROFILE("decal grid sizing");
+        for(const WorldDecal& w : worldDecals)
+        {
+            const glm::vec3 extent = glm::abs(glm::vec3{w.u}) * w.u.w + glm::abs(glm::vec3{w.v}) * w.v.w +
+                                     glm::abs(glm::vec3{w.n}) * w.n.w + glm::vec3{worldReach};
+            const glm::vec3 span = glm::floor(extent * (2.f / worldCell)) + 2.f;
+            cells += static_cast<za::SizeT>(span.x * span.y * span.z);
+        }
     }
     za::U32 buckets = 256;
     while(buckets < 2 * cells && buckets < (1u << 20))
@@ -1391,39 +1397,49 @@ void buildWorld()
         buckets <<= 1;
     }
     const za::U32 mask = buckets - 1;
-    worldBucketCount.assign(buckets, 0u);
-    for(const WorldDecal& w : worldDecals)
     {
-        worldBuckets(w, mask);
-        for(const za::U32 b : worldMarkBuckets)
+        QVR_PROFILE("decal grid count");
+        worldBucketCount.assign(buckets, 0u);
+        for(const WorldDecal& w : worldDecals)
         {
-            worldBucketCount[b]++;
-        }
-    }
-    // Each bucket's list: the newest 64 of its marks (the oldest are under them).
-    worldGrid.assign(1 + buckets, 0u);
-    worldGrid[0] = mask;
-    za::U32 total = 0;
-    for(za::U32 b = 0; b < buckets; b++)
-    {
-        const za::U32 n = za::min(worldBucketCount[b], worldBucketMarks);
-        worldGrid[1 + b] = (total << 8) | n;
-        total += n;
-    }
-    worldGrid.resize(1 + buckets + total, 0u);
-    worldBucketFill.assign(buckets, 0u);
-    for(za::SizeT k = worldDecals.size(); k-- > 0;)
-    {
-        worldBuckets(worldDecals[k], mask);
-        for(const za::U32 b : worldMarkBuckets)
-        {
-            const za::U32 n = worldGrid[1 + b] & 255u;
-            if(worldBucketFill[b] < n)
+            worldBuckets(w, mask);
+            for(const za::U32 b : worldMarkBuckets)
             {
-                worldGrid[1 + buckets + (worldGrid[1 + b] >> 8) + worldBucketFill[b]++] = static_cast<za::U32>(k);
+                worldBucketCount[b]++;
             }
         }
     }
+    // Each bucket's list: the newest 64 of its marks (the oldest are under them).
+    za::U32 total = 0;
+    {
+        QVR_PROFILE("decal grid prefix");
+        worldGrid.assign(1 + buckets, 0u);
+        worldGrid[0] = mask;
+        for(za::U32 b = 0; b < buckets; b++)
+        {
+            const za::U32 n = za::min(worldBucketCount[b], worldBucketMarks);
+            worldGrid[1 + b] = (total << 8) | n;
+            total += n;
+        }
+        worldGrid.resize(1 + buckets + total, 0u);
+    }
+    {
+        QVR_PROFILE("decal grid fill");
+        worldBucketFill.assign(buckets, 0u);
+        for(za::SizeT k = worldDecals.size(); k-- > 0;)
+        {
+            worldBuckets(worldDecals[k], mask);
+            for(const za::U32 b : worldMarkBuckets)
+            {
+                const za::U32 n = worldGrid[1 + b] & 255u;
+                if(worldBucketFill[b] < n)
+                {
+                    worldGrid[1 + buckets + (worldGrid[1 + b] >> 8) + worldBucketFill[b]++] = static_cast<za::U32>(k);
+                }
+            }
+        }
+    }
+    QVR_PROFILE("decal buffers upload");
     gfx::upload(worldDecalBuffer, worldDecals.data(), worldDecals.size() * sizeof(WorldDecal));
     gfx::upload(worldGridBuffer, worldGrid.data(), worldGrid.size() * sizeof(za::U32));
 }
@@ -1532,6 +1548,38 @@ void draw()
     }
 }
 
+void stress_f()
+{
+    if(!cl.worldmodel || cl.viewentity <= 0 || cl.viewentity >= cl.num_entities)
+    {
+        Con_Printf("vr_decal_stress: enter a map first\n");
+        return;
+    }
+    static unsigned serial = 0;
+    const int count = Cmd_Argc() > 1 ? za::clamp(atoi(Cmd_Argv(1)), 1, 64) : 64;
+    const float size = Cmd_Argc() > 2 ? za::clamp(Q_atof(Cmd_Argv(2)), 1.f, 256.f) : 64.f;
+    vec3_t forward, right, up;
+    AngleVectors(cl.viewangles, forward, right, up);
+    const glm::vec3 f{forward[0], forward[1], 0.f}, r{right[0], right[1], 0.f};
+    const auto& e = cl_entities[cl.viewentity];
+    const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
+    int made = 0;
+    for(int i = 0; i < count; i++)
+    {
+        // Permute the 64 x 64 lattice so that the newest marks cover the whole area.
+        const unsigned k = (serial++ * 109u) & 4095u;
+        const glm::vec3 from = origin + f * (64.f + 6.f * static_cast<float>(k & 63u)) +
+                              r * (6.f * (static_cast<float>(k >> 6u) - 31.5f)) + glm::vec3{0.f, 0.f, 24.f};
+        glm::vec3 where, normal;
+        float fraction;
+        if(hitWorld(from, from - glm::vec3{0.f, 0.f, 2048.f}, where, normal, fraction))
+        {
+            made += place(Mark::Splatter, where, normal, size);
+        }
+    }
+    Con_DPrintf("vr_decal_stress: %d of %d marks, size %.0f\n", made, count, size);
+}
+
 void count_f()
 {
     int kinds[KindCount]{};
@@ -1560,6 +1608,18 @@ void count_f()
                    "texture heights %s): %d marks, %d grid entries, made %lld times so far\n",
             vr_parallax.value, vr_parallax_depth.value, TexMgr_IndexedSmooth() ? "on" : "only replacement textures' (vr_texture_smooth 2 for Quake's)",
             static_cast<int>(worldDecals.size()), static_cast<int>(worldGrid.size()), worldBuilds);
+        za::U32 occupied = 0, capped = 0, largest = 0;
+        for(const za::U32 n : worldBucketCount)
+        {
+            occupied += n > 0;
+            capped += n > worldBucketMarks;
+            largest = za::max(largest, n);
+        }
+        Con_Printf("world decal grid: %d buckets, %u occupied, %u capped at %u, %u largest uncapped; "
+                   "%.1f KB marks, %.1f KB grid\n",
+            static_cast<int>(worldBucketCount.size()), occupied, capped, worldBucketMarks, largest,
+            static_cast<double>(worldDecals.size() * sizeof(WorldDecal)) / 1024.0,
+            static_cast<double>(worldGrid.size() * sizeof(za::U32)) / 1024.0);
     }
     else
     {

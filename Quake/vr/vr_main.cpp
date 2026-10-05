@@ -1218,6 +1218,7 @@ extern "C" void VR_Init()
     portals::registerCommands(); // vr_portals_info
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     Cmd_AddCommand("vr_decal_count", decals::count_f);
+    Cmd_AddCommand("vr_decal_stress", decals::stress_f);
     Cmd_AddCommand("vr_limits", limits::command_f);
     Cmd_AddCommand("vr_decal_atlas", decals::atlas_f);
     Cmd_AddCommand("vr_gore_test", gore::test_f);

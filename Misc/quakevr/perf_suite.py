@@ -30,7 +30,8 @@ def scene(name, frames):
                 setup += ["vr_portals_ai 0"]
             setup += ["vr_portals_ai_test 12"]
     elif name.startswith("props"):
-        setup = ["vr_physics_bigpile mixed 500"]
+        count = int(name.rsplit("_", 1)[-1]) if name.rsplit("_", 1)[-1].isdigit() else 500
+        setup = [f"vr_physics_bigpile mixed {count}"]
         warm = 10 if "active" in name else 900
         if "single" in name:
             setup += ["vr_box3d_threads 0"]
@@ -70,7 +71,7 @@ def scene(name, frames):
         setup += [f"vr_physics_spawn light_torch_small_walltorch {96 + (i // 8) * 48} {(i % 8 - 3.5) * 40}" for i in range(32)]
         setup += ["vr_fire_particles 0" if "off" in name else "vr_fire_particles 1"]
     elif name.startswith(("particles", "explosions")) or name == "combined":
-        if "off" in name:
+        if name == "particles_off":
             setup += ["vr_particles 0", "vr_explosion_debris 0"]
         if "half" in name or "full_nonretro" in name:
             setup += ["vr_retro_particles 0"]
@@ -78,6 +79,12 @@ def scene(name, frames):
             setup += ["vr_particle_halfres 1"]
         if "full_nonretro" in name:
             setup += ["vr_particle_halfres 0"]
+        if "palette_off" in name:
+            setup += ["vr_retro_particles_palette 0"]
+        if "hard" in name:
+            setup += ["vr_retro_particles_soft 0"]
+        if "snap_off" in name:
+            setup += ["vr_retro_particles_snap 0"]
         if "no_debris" in name:
             setup += ["vr_explosion_debris 0"]
         if "count4" in name:
@@ -92,20 +99,30 @@ def scene(name, frames):
                 body += [f"vr_particle_test {(4, 1, 11)[i % 3]} 80"]
             body += waits(interval)
     elif name.startswith("decals"):
-        setup += ["vr_decal_max 1024", "vr_explosion_debris 0"]
+        limit = 4096 if "4096" in name else 1024
+        setup += [f"vr_decal_max {limit}", "vr_explosion_debris 0"]
+        if "nonretro" in name:
+            setup += ["vr_retro_decals 0"]
+        if "mesh" in name:
+            setup += ["vr_decals_world 0"]
         if "off" in name:
             setup += ["vr_decals 0"]
         rng = random.Random(11)
-        for _ in range(1400):
-            x, y = 316 - rng.uniform(60, 320), -556 + rng.uniform(-200, 200)
-            setup += [f"vr_physics_fire 10 {x:.0f} {y:.0f} -40", "wait"]
+        if "blood" in name:
+            setup += ["vr_particles 0", "vr_decal_life 1200"]
+            for _ in range(96):
+                setup += ["vr_decal_stress 64 128", "wait"]
+        else:
+            for _ in range(5800 if limit == 4096 else 1400):
+                x, y = 316 - rng.uniform(60, 320), -556 + rng.uniform(-200, 200)
+                setup += [f"vr_physics_fire 10 {x:.0f} {y:.0f} -40", "wait"]
         setup += ["vr_decal_count"]
         if "stream" in name:
             setup += ["vr_particles 0"]
             body = []
             for _ in range(frames // 4):
                 x, y = 316 - rng.uniform(60, 320), -556 + rng.uniform(-200, 200)
-                body += [f"vr_physics_fire 10 {x:.0f} {y:.0f} -40"] + waits(4)
+                body += (["vr_decal_stress 1 128"] if "blood" in name else [f"vr_physics_fire 10 {x:.0f} {y:.0f} -40"]) + waits(4)
     elif name.startswith("lights"):
         setup += [f"vr_light_test 400 120 {48 + i * 12}" for i in range(32)]
         if "no_shadows" in name:
@@ -141,7 +158,30 @@ def script(name, frames, eye, gpu, screenshot):
 
 
 def run(args):
-    allowed = ('combined', 'decals', 'decals_off', 'decals_stream', 'decals_stream_off', 'enemies', 'enemies_fine', 'enemies_fine_hitch', 'enemies_no_decals', 'explosions', 'explosions_count4', 'explosions_no_debris', 'explosions_storm', 'explosions_storm_no_debris', 'fire', 'fire_off', 'idle', 'lights', 'lights_no_shadows', 'particles', 'particles_full_nonretro', 'particles_half', 'particles_no_debris', 'particles_off', 'portal', 'portal_enemies', 'portal_enemies_ai_off', 'portal_off', 'portal_one', 'props_active', 'props_active_single', 'props_settled', 'ragdolls_active', 'ragdolls_active_audit', 'ragdolls_settled')
+    allowed = (
+        'combined', 'decals', 'decals_off',
+        'decals_stream', 'decals_stream_off', 'enemies',
+        'enemies_fine', 'enemies_fine_hitch', 'enemies_no_decals',
+        'explosions', 'explosions_count4', 'explosions_no_debris',
+        'explosions_storm', 'explosions_storm_no_debris', 'fire',
+        'fire_off', 'idle', 'lights',
+        'lights_no_shadows', 'particles', 'particles_full_nonretro',
+        'particles_half', 'particles_no_debris', 'particles_off',
+        'portal', 'portal_enemies', 'portal_enemies_ai_off',
+        'portal_off', 'portal_one', 'props_active',
+        'props_active_single', 'props_settled', 'ragdolls_active',
+        'ragdolls_active_audit', 'ragdolls_settled',
+    )
+    allowed += (
+        'particles_palette_off', 'particles_hard', 'particles_hard_palette_off',
+        'particles_snap_off', 'decals_4096', 'decals_4096_stream',
+        'decals_4096_stream_nonretro', 'decals_4096_stream_mesh',
+    )
+    allowed += (
+        'props_active_100', 'props_active_1000', 'props_settled_100',
+        'props_settled_1000', 'decals_blood_4096', 'decals_blood_4096_stream',
+        'decals_blood_4096_stream_nonretro', 'decals_blood_4096_stream_mesh',
+    )
     if any(name not in allowed for name in args.scenes.split(",")):
         raise ValueError("Unknown scene; supported: " + ",".join(allowed))
     base, output, exe = map(lambda p: Path(p).resolve(), (args.base, args.output, args.exe))
