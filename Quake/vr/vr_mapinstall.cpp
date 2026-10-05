@@ -71,9 +71,51 @@ za::AtomicMutex handoff;
 za::UniquePtr<Job> pending;
 za::Atomic<bool> pendingReady{false};
 za::Thread worker;
-za::Atomic<bool> running{false};
+za::Atomic<bool> jobRunning{false};
 SDL_atomic_t cancelJob{}; // (the Download API's abort flag; not named `cancel`: this module has a cancel() too)
 SDL_atomic_t progress{}; // 0..100, read while the job runs
+// What the running job is doing, published by its thread for poll() and the page (the Job itself is the thread's own
+// until it is handed off): its phase, the zip's bytes so far, the mirror tried (1-based) of how many, and why it was
+// cancelled (a Cancel reason; 0: it was not).
+SDL_atomic_t livePhase{};
+SDL_atomic_t liveBytes{};
+SDL_atomic_t liveMirror{};
+SDL_atomic_t liveMirrors{};
+SDL_atomic_t cancelReason{};
+
+enum CancelReason
+{
+    CancelNone,
+    CancelUser,    // the page's Cancel, maps_cancel
+    CancelStalled, // nothing arrived for stallSeconds (the watchdog in poll())
+    CancelQuit,    // the game quitting
+};
+
+// The watchdog: a download that received nothing for this long is cancelled (curl's own low-speed limit, in
+// host_cmd.c's Download, catches a stalled transfer too; this also covers a mirror that never answers at all).
+constexpr double stallSeconds = 45.0;
+// Main thread: when the job began, and when its bytes last moved (the watchdog's clock).
+double jobStarted = 0.0;
+double lastMoved = 0.0;
+int lastBytes = -1;
+int lastMirror = 0;
+
+void requestCancel(CancelReason reason)
+{
+    SDL_AtomicCAS(&cancelReason, CancelNone, reason);
+    SDL_AtomicSet(&cancelJob, 1);
+}
+
+[[nodiscard]] const char* cancelText()
+{
+    switch(SDL_AtomicGet(&cancelReason))
+    {
+        case CancelUser: return "cancelled";
+        case CancelStalled: return "timed out (nothing arrived for 45 s)";
+        case CancelQuit: return "cancelled (the game quit)";
+        default: return "cancelled";
+    }
+}
 
 // The job asked for, copied out of the index before the thread starts: a fetch that finishes meanwhile replaces the
 // index and every Entry in it.
@@ -332,6 +374,7 @@ size_t writeChunk(void* buffer, size_t size, size_t nmemb, void* stream)
     const za::SizeT n = size * nmemb;
     body.reserveMore(n);
     body.unsafeEmplaceBackRange(static_cast<const char*>(buffer), n);
+    SDL_AtomicSet(&liveBytes, static_cast<int>(za::min(static_cast<za::U64>(body.size()), static_cast<za::U64>(0x7fffffff))));
     if(request.zipBytes)
     {
         const za::U64 got = static_cast<za::U64>(body.size());
@@ -370,13 +413,19 @@ bool downloadZip(za::Vector<char>& body, za::String& why)
         why = "the index gives no download URL";
         return false;
     }
+    SDL_AtomicSet(&liveMirrors, static_cast<int>(urls.size()));
+    za::String tried; // each mirror's failure, for the message when all of them failed
+    int mirror = 0;
     for(const za::String& url : urls)
     {
+        mirror++;
         if(SDL_AtomicGet(&cancelJob))
         {
-            why = "cancelled";
+            why = cancelText();
             return false;
         }
+        SDL_AtomicSet(&liveMirror, mirror);
+        SDL_AtomicSet(&liveBytes, 0);
         body.clear();
         download_t dl{};
         dl.write_fn = writeChunk;
@@ -384,21 +433,33 @@ bool downloadZip(za::Vector<char>& body, za::String& why)
         dl.abort = &cancelJob;
         const za::U32 t0 = SDL_GetTicks();
         const bool ok = Download(url.cStr(), &dl);
+        if(SDL_AtomicGet(&cancelJob))
+        {
+            why = cancelText();
+            return false;
+        }
+        za::String failed;
         if(!ok)
         {
-            why = za::String{"HTTP "} +
-                  za::toString(dl.response ? dl.response : 0) + " from " +
-                  (dl.error ? dl.error : "no response");
-            continue;
+            failed = dl.error ? za::String{dl.error}
+                              : za::String{"HTTP "} + za::toString(dl.response ? dl.response : 0);
         }
-        if(body.empty())
+        else if(body.empty())
         {
-            why = "the download came back empty";
-            continue;
+            failed = "it came back empty";
         }
-        current.downloadMs = static_cast<int>(SDL_GetTicks() - t0); // (not read by the thread: set before the handoff)
-        return true;
+        else
+        {
+            (void)t0;
+            return true;
+        }
+        if(tried.size())
+        {
+            tried += "; ";
+        }
+        tried += "mirror " + za::toString(mirror) + ": " + failed;
     }
+    why = urls.size() > 1 ? za::String{"every mirror failed ("} + tried + ")" : tried;
     return false;
 }
 
@@ -485,7 +546,7 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
     {
         if(SDL_AtomicGet(&cancelJob))
         {
-            why = "cancelled";
+            why = cancelText();
             mz_zip_reader_end(&z);
             return false;
         }
@@ -503,7 +564,12 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
         // the game dir's root, keeping its path (its textures and sounds are named from there).
         const bool bsp = endsFolded(rel, ".bsp");
         const za::String target = bsp ? mapsDirName + "/" + baseName(rel) : gameDirName + "/" + rel;
-        done++;        SDL_AtomicSet(&progress, downloadShare + (100 - downloadShare) * done / static_cast<int>(items.size()));
+        done++;
+        SDL_AtomicSet(&progress, downloadShare + (100 - downloadShare) * done / static_cast<int>(items.size()));
+        if(it.dir)
+        {
+            continue; // (a folder's own entry, "gfx/": its files' folders are made as they are written)
+        }
 
         if(files::exists(target.cStr()))
         {
@@ -534,8 +600,15 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
         }
         if(ok)
         {
-            files::createDirectories(za::String{files::parentPath(target)}.cStr());
-            if(!files::writeBytes(target.cStr(), data, got))
+            const za::String folder{files::parentPath(target)};
+            if(!files::createDirectories(folder.cStr()))
+            {
+                notes += "could not make the folder for "; // (e.g. a file of that name in the way)
+                notes += rel;
+                notes += "; ";
+                ok = false;
+            }
+            else if(!files::writeBytes(target.cStr(), data, got))
             {
                 notes += "could not write ";
                 notes += rel;
@@ -621,6 +694,7 @@ int run()
         if(request.install)
         {
             job->phase = Phase::Extract;
+            SDL_AtomicSet(&livePhase, static_cast<int>(Phase::Extract));
             SDL_AtomicSet(&progress, downloadShare);
             const za::U32 e0 = SDL_GetTicks();
             za::String note;
@@ -668,7 +742,7 @@ int run()
         pending = ZA_MOVE(job);
         pendingReady.storeSeqCst(true);
     }
-    running.storeSeqCst(false);
+    jobRunning.storeSeqCst(false);
     return 0;
 }
 
@@ -711,18 +785,53 @@ void start()
 
 void finish()
 {
-    SDL_AtomicSet(&cancelJob, 1);
+    // Quitting never waits on the network: the job is cancelled (a download stops within a second, an unpacking before
+    // its next file) and given 3 s; one still running then (a blocking lookup inside curl) is let go, not joined, so
+    // the process ends anyway.
+    requestCancel(CancelQuit);
+    const za::U32 t0 = SDL_GetTicks();
+    while(jobRunning.loadSeqCst() && SDL_GetTicks() - t0 < 3000)
+    {
+        SDL_Delay(10);
+    }
     if(worker.joinable())
     {
-        worker.join();
+        if(jobRunning.loadSeqCst())
+        {
+            Sys_Printf("maps: the download did not stop in 3 s; quitting without it\n");
+            worker.detach();
+        }
+        else
+        {
+            worker.join();
+        }
     }
-    running.storeSeqCst(false);
+    jobRunning.storeSeqCst(false);
 }
 
 void poll()
 {
     if(!pendingReady.loadSeqCst())
     {
+        // The running job, as its thread last said (the page shows `current` live), and the watchdog.
+        if(jobRunning.loadSeqCst())
+        {
+            current.phase = static_cast<Phase>(SDL_AtomicGet(&livePhase));
+            const int got = SDL_AtomicGet(&liveBytes);
+            const int mirror = SDL_AtomicGet(&liveMirror);
+            current.gotBytes = static_cast<za::U64>(got);
+            if(got != lastBytes || mirror != lastMirror || current.phase != Phase::Download)
+            {
+                lastBytes = got;
+                lastMirror = mirror;
+                lastMoved = realtime;
+            }
+            else if(realtime - lastMoved > stallSeconds && !SDL_AtomicGet(&cancelJob))
+            {
+                Con_SafePrintf("maps: %s - nothing arrived for %.0f s: cancelled\n", current.title.cStr(), stallSeconds);
+                requestCancel(CancelStalled);
+            }
+        }
         return;
     }
     za::UniquePtr<Job> taken;
@@ -737,27 +846,37 @@ void poll()
     }
     static_cast<Job&>(current) = ZA_MOVE(*taken); // (the registered job holds the live one: vr_memstats)
     const Job& j = current;
-    if(j.phase == Phase::Done)
+    Con_SafePrintf("maps: %s - %s\n", j.title.cStr(), j.message.cStr());
+    // A job that did not finish is rolled back: the files its unpacking wrote (new files only: one already on disk is
+    // never overwritten) are removed, so no half-installed package is left offering Play.
+    if(j.phase != Phase::Done)
     {
-        Con_SafePrintf("maps: %s - %s\n", j.title.cStr(), j.message.cStr());
-        if(j.wrote.size())
+        int removed = 0;
+        for(const InstalledFile& f : j.wrote)
         {
-            for(const InstalledFile& f : j.wrote)
-            {
-                registry.files.pushBack(f);
-            }
-            rebuildPackages();
-            if(!writeRegistry())
-            {
-                Con_DPrintf("map install: could not write %s\n", registryPath.cStr());
-            }
-            // Installing writes files and reports them; it never starts a map. Playing is its own action (play(),
-            // maps_play, the page's Play button), so a package can be got ready without leaving the current map.
+            removed += files::remove((gameDirName + "/" + f.path).cStr()) ? 1 : 0;
         }
+        if(removed)
+        {
+            VR_FileCacheForget();
+            Con_SafePrintf("maps: %s - the %d file(s) it had unpacked were removed\n", j.title.cStr(), removed);
+        }
+        current.wrote.clear();
+        return;
     }
-    else
+    if(j.wrote.size())
     {
-        Con_SafePrintf("maps: %s - %s\n", j.title.cStr(), j.message.cStr());
+        for(const InstalledFile& f : j.wrote)
+        {
+            registry.files.pushBack(f);
+        }
+        rebuildPackages();
+        if(!writeRegistry())
+        {
+            Con_DPrintf("map install: could not write %s\n", registryPath.cStr());
+        }
+        // Installing writes files and reports them; it never starts a map. Playing is its own action (play(),
+        // maps_play, the page's Play button), so a package can be got ready without leaving the current map.
     }
 }
 
@@ -773,15 +892,31 @@ int percent()
 
 bool busy(const za::String& sha)
 {
-    return running.loadSeqCst() && request.sha == sha;
+    return jobRunning.loadSeqCst() && request.sha == sha;
 }
 
-bool begin(const mapindex::Entry* entry, bool install)
+bool begin(const mapindex::Entry* entry, bool install, za::String* why)
 {
     ensureStarted();
-    if(!entry || running.loadSeqCst() || !gameDirName.size())
+    const auto refuse = [&](za::String reason)
     {
+        if(why)
+        {
+            *why = ZA_MOVE(reason);
+        }
         return false;
+    };
+    if(!entry)
+    {
+        return refuse("no package");
+    }
+    if(jobRunning.loadSeqCst())
+    {
+        return refuse(statusLine() + " - one job at a time (maps_cancel, or Cancel on the page, stops it)");
+    }
+    if(!gameDirName.size())
+    {
+        return refuse("the game dir is not known yet");
     }
     if(worker.joinable())
     {
@@ -793,15 +928,93 @@ bool begin(const mapindex::Entry* entry, bool install)
     request.zipBytes = entry->bytes;
     request.install = install;
     SDL_AtomicSet(&cancelJob, 0);
+    SDL_AtomicSet(&cancelReason, CancelNone);
     SDL_AtomicSet(&progress, 0);
-    running.storeSeqCst(true);
+    SDL_AtomicSet(&livePhase, static_cast<int>(Phase::Download));
+    SDL_AtomicSet(&liveBytes, 0);
+    SDL_AtomicSet(&liveMirror, 0);
+    SDL_AtomicSet(&liveMirrors, 0);
+    // The page's job is this one from now on (its thread's own Job replaces it when it is done).
+    static_cast<Job&>(current) = Job{};
+    current.sha = request.sha;
+    current.title = request.title;
+    current.install = install;
+    current.zipBytes = request.zipBytes;
+    current.phase = Phase::Download;
+    jobStarted = lastMoved = realtime;
+    lastBytes = 0;
+    lastMirror = 0;
+    jobRunning.storeSeqCst(true);
     worker = za::Thread(run);
     return true;
 }
 
-void cancel()
+bool cancel()
 {
-    SDL_AtomicSet(&cancelJob, 1);
+    if(!jobRunning.loadSeqCst())
+    {
+        return false;
+    }
+    requestCancel(CancelUser);
+    return true;
+}
+
+bool running()
+{
+    return jobRunning.loadSeqCst();
+}
+
+bool cancelling()
+{
+    return jobRunning.loadSeqCst() && SDL_AtomicGet(&cancelJob) != 0;
+}
+
+za::String statusLine()
+{
+    const Job& j = current;
+    char line[320];
+    if(jobRunning.loadSeqCst())
+    {
+        const int secs = static_cast<int>(realtime - jobStarted);
+        if(SDL_AtomicGet(&cancelJob))
+        {
+            q_snprintf(line, sizeof(line), "Stopping %s (%s)...", j.title.cStr(), cancelText());
+        }
+        else if(j.phase == Phase::Extract)
+        {
+            q_snprintf(line, sizeof(line), "Installing %s: unpacking, %d%% (%d s)", j.title.cStr(), percent(), secs);
+        }
+        else
+        {
+            const int mirror = SDL_AtomicGet(&liveMirror), mirrors = SDL_AtomicGet(&liveMirrors);
+            char where[48] = "";
+            if(mirrors > 1 && mirror > 0)
+            {
+                q_snprintf(where, sizeof(where), ", mirror %d of %d", mirror, mirrors);
+            }
+            const double still = realtime - lastMoved;
+            char stalled[48] = "";
+            if(still >= 5.0)
+            {
+                q_snprintf(stalled, sizeof(stalled), ", nothing for %.0f s", still);
+            }
+            q_snprintf(line, sizeof(line), "Downloading %s: %s of %s%s (%d s%s)", j.title.cStr(),
+                formatBytes(j.gotBytes).cStr(), formatBytes(j.zipBytes).cStr(), where, secs, stalled);
+        }
+    }
+    else if(j.phase == Phase::Done)
+    {
+        q_snprintf(line, sizeof(line), "Idle. Last: %s - %s", j.title.cStr(), j.message.cStr());
+    }
+    else if(j.phase == Phase::Failed)
+    {
+        q_snprintf(line, sizeof(line), "Idle. Failed: %s - %s", j.title.cStr(), j.message.cStr());
+    }
+    else
+    {
+        q_snprintf(line, sizeof(line), "Idle: nothing being downloaded");
+    }
+    return za::String{line};
 }
 
 bool cached(const za::String& sha, za::String& out)
@@ -939,10 +1152,32 @@ const mapindex::Entry* argEntry(const char* context, const char* argv0)
     return e;
 }
 
+void cancel_f()
+{
+    if(cancel())
+    {
+        Con_Printf("maps: cancelling %s...\n", current.title.cStr());
+    }
+    else
+    {
+        Con_Printf("maps: nothing to cancel (%s)\n", statusLine().cStr());
+    }
+}
+
+void status_f()
+{
+    Con_Printf("maps: %s\n", statusLine().cStr());
+}
+
 void get_f()
 {
     const mapindex::Entry* e = argEntry("maps_get", Cmd_Argv(1));
-    if(e && begin(e, false))
+    za::String why;
+    if(e && !begin(e, false, &why))
+    {
+        Con_Printf("maps_get: not started: %s\n", why.cStr());
+    }
+    else if(e)
     {
         Con_SafePrintf("maps: downloading %s (%s)...\n", mapindex::index().field(e->title),
                        formatBytes(e->bytes).cStr());
@@ -952,7 +1187,12 @@ void get_f()
 void install_f()
 {
     const mapindex::Entry* e = argEntry("maps_install", Cmd_Argv(1));
-    if(e && begin(e, true))
+    za::String why;
+    if(e && !begin(e, true, &why))
+    {
+        Con_Printf("maps_install: not started: %s\n", why.cStr());
+    }
+    else if(e)
     {
         Con_SafePrintf("maps: downloading and installing %s (%s)...\n", mapindex::index().field(e->title),
                        formatBytes(e->bytes).cStr());
@@ -997,6 +1237,8 @@ void registerCommands()
 {
     Cmd_AddCommand("maps_get", get_f);
     Cmd_AddCommand("maps_install", install_f);
+    Cmd_AddCommand("maps_cancel", cancel_f);
+    Cmd_AddCommand("maps_status", status_f);
     Cmd_AddCommand("maps_play", play_f);
     Cmd_AddCommand("maps_installed", installed_f);
     Cmd_AddCommand("maps_uninstall", uninstall_f);

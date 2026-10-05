@@ -1086,10 +1086,24 @@ void start()
 
 void finish()
 {
+    // As mapinstall::finish: cancelled, given 3 s, then let go rather than joined (quitting never waits on the network).
     SDL_AtomicSet(&cancel, 1);
+    const za::U32 t0 = SDL_GetTicks();
+    while(running.loadSeqCst() && SDL_GetTicks() - t0 < 3000)
+    {
+        SDL_Delay(10);
+    }
     if(worker.joinable())
     {
-        worker.join();
+        if(running.loadSeqCst())
+        {
+            Sys_Printf("map index: the fetch did not stop in 3 s; quitting without it\n");
+            worker.detach();
+        }
+        else
+        {
+            worker.join();
+        }
     }
     running.storeSeqCst(false);
 }

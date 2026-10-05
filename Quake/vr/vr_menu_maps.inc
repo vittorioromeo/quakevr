@@ -90,8 +90,6 @@ struct MapsPage
     int picked{-1};
     int visibleResults{1};
 
-    za::String status; // the last job's line, shown until the next one
-    int lastPhase{-1};
 
     // measured (maps_page_stats)
     int searchRuns{0};
@@ -357,33 +355,10 @@ void mapsScrollTo(int r)
 // What the page does
 // ----------------------------------------------------------------------------
 
-// The live job, if any.
+// A job is running (its thread has it: the bar's action is Cancel meanwhile).
 [[nodiscard]] bool mapsBusy()
 {
-    const mapinstall::Phase phase = mapinstall::job().phase;
-    return phase == mapinstall::Phase::Download || phase == mapinstall::Phase::Extract;
-}
-
-// A job finished: its line stays on the bar until the next one.
-void mapsNoteJob()
-{
-    const mapinstall::Job& j = mapinstall::job();
-    const int phase = static_cast<int>(j.phase);
-    if(phase == mapPage.lastPhase)
-    {
-        return;
-    }
-    mapPage.lastPhase = phase;
-    if(phase == static_cast<int>(mapinstall::Phase::Done) || phase == static_cast<int>(mapinstall::Phase::Failed))
-    {
-        mapPage.status = j.title;
-        mapPage.status += ": ";
-        mapPage.status += j.message;
-    }
-    else if(phase == static_cast<int>(mapinstall::Phase::Idle))
-    {
-        mapPage.status = "";
-    }
+    return mapinstall::running();
 }
 
 void mapsInstallAt(int r)
@@ -393,13 +368,13 @@ void mapsInstallAt(int r)
         return;
     }
     const mapindex::Entry* e = mapPage.results[r];
-    if(!mapinstall::begin(e, true))
+    za::String why;
+    if(!mapinstall::begin(e, true, &why))
     {
-        Con_Printf("maps: another package is being downloaded still.\n");
+        Con_Printf("maps: %s not started: %s\n", mapindex::index().field(e->title), why.cStr());
         S_LocalSound("misc/menu1.wav");
         return;
     }
-    mapPage.status = "";
     S_LocalSound("misc/menu3.wav");
 }
 
@@ -456,6 +431,12 @@ void mapsButtonAt(int button)
             mapPage.rating = (mapPage.rating + 1) % mapsRatingCount;
             break;
         case MapButtonAction:
+            if(mapsBusy())
+            {
+                // While a job runs the action is its Cancel.
+                S_LocalSound(mapinstall::cancel() ? "misc/menu3.wav" : "misc/menu1.wav");
+                return;
+            }
             mapsPrimaryAt(mapsSelected());
             return; // (its own sound)
         default: return;
@@ -926,7 +907,6 @@ void drawMapsPage()
 {
     const double t0 = Sys_DoubleTime();
     mapsShown();
-    mapsNoteJob();
     const MapsLayout m = mapsLayout();
     const menupaint::Painter p;
     namespace colors = menupaint::colors;
@@ -1085,16 +1065,24 @@ void drawMapsPage()
 
     if(mapsBusy())
     {
-        const mapinstall::Job& j = mapinstall::job();
+        // The job's progress under Cancel (the status line below says what it is doing).
         const int pct = mapinstall::percent();
+        const bool hot = mapPage.hoverButton == MapButtonAction || mapPage.focusButton == MapButtonAction;
         const float x = m.bar.x0[MapButtonAction], x1 = m.bar.x1[MapButtonAction];
         p.rounded(x, x1, m.bar.yc, m.bar.half, 3.f, colors::highlightEdge);
-        p.rounded(x + 1.f, x1 - 1.f, m.bar.yc, m.bar.half - 1.f, 2.f, colors::boxFill);
+        p.rounded(x + 1.f, x1 - 1.f, m.bar.yc, m.bar.half - 1.f, 2.f, hot ? colors::buttonHover : colors::boxFill);
         const float span = x1 - x - 10.f;
         p.rect(x + 5.f, x + 5.f + span * 0.01f * static_cast<float>(pct), m.bar.yc + 4.f / m.s.k, 2.5f,
             colors::scrollThumb);
-        q_snprintf(mapsText.label, sizeof(mapsText.label), "%s %d%%",
-            j.phase == mapinstall::Phase::Download ? "downloading" : "installing", pct);
+        if(mapinstall::cancelling())
+        {
+            q_snprintf(mapsText.label, sizeof(mapsText.label), "stopping...");
+        }
+        else
+        {
+            q_snprintf(mapsText.label, sizeof(mapsText.label), "Cancel (%s %d%%)",
+                mapinstall::job().phase == mapinstall::Phase::Extract ? "unpacking" : "downloading", pct);
+        }
         searchText(x + 5.f, m.bar.yc - 4.f, 6.f, span, mapsText.label, true);
     }
     else
@@ -1112,11 +1100,10 @@ void drawMapsPage()
         }
     }
 
-    if(!mapPage.status.empty())
-    {
-        searchText(m.s.left, m.bar.yc + (m.bar.half + 6.f) / m.s.k, 6.f, m.s.right - m.s.left, mapPage.status.cStr(),
-            false);
-    }
+    // What the downloads are doing, always: the running job (what, how far, the mirror, the seconds), or idle with how
+    // the last one ended (mapinstall::statusLine; maps_status prints the same).
+    const za::String jobLine = mapinstall::statusLine();
+    searchText(m.s.left, m.bar.yc + (m.bar.half + 6.f) / m.s.k, 6.f, m.s.right - m.s.left, jobLine.cStr(), false);
 
     mapPage.drawFrames++;
     mapPage.drawMs += (Sys_DoubleTime() - t0) * 1000.0;

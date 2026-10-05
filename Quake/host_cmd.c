@@ -600,6 +600,11 @@ qboolean Download (const char *url, download_t *download)
 	curl_easy_setopt (curl, CURLOPT_ACCEPT_ENCODING, "");
 	curl_easy_setopt (curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt (curl, CURLOPT_MAXREDIRS, 50L);
+	// QVR: a server that never answers, or a transfer that stalls, ends the download rather than holding its thread
+	// (and its caller's one-job-at-a-time state) for good: 20 s to connect, under 1 byte/s for 30 s is a stall.
+	curl_easy_setopt (curl, CURLOPT_CONNECTTIMEOUT, 20L);
+	curl_easy_setopt (curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
+	curl_easy_setopt (curl, CURLOPT_LOW_SPEED_TIME, 30L);
 	//curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L);
 
 	mc = curl_multi_add_handle (multi_handle, curl);
@@ -621,6 +626,20 @@ qboolean Download (const char *url, download_t *download)
 		if (download->abort && SDL_AtomicGet (download->abort))
 			break;
 	} while (still_running);
+
+	if (download->abort && SDL_AtomicGet (download->abort) && !download->error)
+		download->error = "cancelled"; // QVR
+
+	if (mc == CURLM_OK && !download->error)
+	{
+		// QVR: the transfer's own result (a timeout, a refused connection, a TLS failure: the multi API's calls all
+		// succeed then, and the response code is 0).
+		CURLMsg	*msg;
+		int		left = 0;
+		while ((msg = curl_multi_info_read (multi_handle, &left)) != NULL)
+			if (msg->msg == CURLMSG_DONE && msg->easy_handle == curl && msg->data.result != CURLE_OK)
+				download->error = curl_easy_strerror (msg->data.result);
+	}
 
 	if (mc == CURLM_OK)
 	{

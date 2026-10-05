@@ -25,6 +25,8 @@
 #include <unistd.h>
 #endif
 
+extern "C" void VR_FileCacheForget(); // vr_fscache.cpp
+
 namespace qvr::files
 {
 
@@ -141,7 +143,15 @@ bool createDirectories(const char* path)
             level = za::String{p.substrByPosLen(0, i)};
             if(!level.empty() && !(level.size() == 2 && level[1] == ':') && !isDirectory(level.cStr()))
             {
-                Sys_mkdir(level.cStr());
+                // Not Sys_mkdir: it ends the game (Sys_Error) when it cannot, e.g. a file of that name is in the way,
+                // and this is called from worker threads (the map installer). A failure is the caller's to report:
+                // the result below says it.
+                VR_FileCacheForget(); // (thread-safe: another thread's only asks the main thread to)
+#ifdef _WIN32
+                CreateDirectoryA(level.cStr(), nullptr);
+#else
+                mkdir(level.cStr(), 0777);
+#endif
             }
         }
     }

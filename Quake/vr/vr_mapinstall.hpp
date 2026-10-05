@@ -99,10 +99,17 @@ void poll();
 // Whether a job for this package is running now.
 [[nodiscard]] bool busy(const za::String& sha);
 
-// Begin the job (false: another one is running). `install` false: only the zip.
-bool begin(const mapindex::Entry* entry, bool install);
-// The current job's download stopped (its zip stays out of the cache).
-void cancel();
+// Begin the job (false: another one is running, or no package; `why` says which). `install` false: only the zip.
+bool begin(const mapindex::Entry* entry, bool install, za::String* why = nullptr);
+// The running job stopped (maps_cancel, the page's Cancel): the download within a second, the unpacking before its next
+// file; its zip stays out of the cache, the files already unpacked stay recorded. False: no job is running.
+bool cancel();
+// A job is running (its thread has not handed it off yet), and whether it was asked to stop.
+[[nodiscard]] bool running();
+[[nodiscard]] bool cancelling();
+// What the module is doing, in one line, always (maps_status, the page's status line): downloading what (bytes, the
+// mirror, the seconds, how long nothing arrived), unpacking it, stopping it, or idle with how the last job ended.
+[[nodiscard]] za::String statusLine();
 
 // The zip is in the cache (its path in `out`).
 [[nodiscard]] bool cached(const za::String& sha, za::String& out);
