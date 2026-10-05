@@ -21,6 +21,10 @@ void init(); // registers vr_climb_probe, vr_climb_mantle_grunt_test
 // Server, a new map loading (VR_OnSpawnServerBeforeLoad): the mantle's grunts precached (vr_climb_mantle_grunt_sound).
 void precache();
 
+// Client: whether `hand` holds a ledge now (the server's holds, STAT_QVR_CLIMB): it is not free to take anything else
+// (a weapon's second grip, a hotspot).
+[[nodiscard]] bool holding(int hand);
+
 // Server: every player's holds and mantle forgotten (a map loaded, a saved game loaded: their entity numbers and ledge
 // maps are another world's).
 void reset();

@@ -2938,7 +2938,7 @@ void updateGroundSpots(const hands::State& s)
     {
         twohand::clearGroundSpot(hand);
         if((!vr_weapon_grab_hotspots.value && !vr_weapon_grab_anywhere.value) || !s.valid || !held::handEmpty(hand) ||
-            twohand::helping(hand) ||
+            climb::holding(hand) || twohand::helping(hand) ||
             twohand::carrying(hand))
         {
             continue;
@@ -3073,7 +3073,7 @@ void updateFreeSpots(const hands::State& s)
         const view::ViewEntity& w = entities.weapon[other];
         const int slot = weapons::slotForModel(w.ent.model);
         bool on = false;
-        if(vr_weapon_grab_anywhere.value && s.valid && held::handEmpty(hand) && !twohand::carrying(hand) &&
+        if(vr_weapon_grab_anywhere.value && s.valid && held::handEmpty(hand) && !climb::holding(hand) && !twohand::carrying(hand) &&
             !flashlight::holds(hand) && w.visible &&
             w.ent.model && w.ent.model->type == mod_alias && slot >= 0 && slot != weapons::fistSlot() &&
             !isHandModel(w.ent.model))

@@ -2742,3 +2742,8 @@ float qvr::climb::drawnHand(const hands::State& s, int hand, const glm::mat3& ha
     lightShift = -w * pin.offset;
     return w;
 }
+
+bool qvr::climb::holding(int hand)
+{
+    return hand >= 0 && hand <= 1 && (cl.stats[protocol::STAT_QVR_CLIMB] & (1 << hand)) != 0;
+}
