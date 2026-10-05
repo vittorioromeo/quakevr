@@ -42,6 +42,7 @@ extern "C"
 }
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <string.h>
 #include <time.h>
 
@@ -74,6 +75,23 @@ SDL_atomic_t cancel{};
 
 // What the last fetch or cache load said, for maps_stats (main thread only, taken from pendingStatus).
 za::String lastStatus;
+
+// The fetch thread's progress lines, printed by poll() on the main thread (as the status is): each step of a pass, and
+// what went wrong. `progress` is the latest one, for the Map Library page while the index has not arrived.
+za::Vector<za::String> pendingLog;
+za::String progress;
+
+void note(const char* fmt, ...)
+{
+    char line[512];
+    va_list args;
+    va_start(args, fmt);
+    q_vsnprintf(line, sizeof(line), fmt, args);
+    va_end(args);
+    za::LockGuard lock{handoff};
+    pendingLog.pushBack(za::String{line});
+    progress = za::String{line};
+}
 
 [[nodiscard]] za::String cachePath()
 {
@@ -308,10 +326,14 @@ za::String xmlAttribute(const char* tag, const char* end, const char* name)
 int addRatings(Index& idx, const za::Vector<za::String>& zipNames, za::Vector<char>& body)
 {
     const char* error = nullptr;
+    note("map index: fetching the ratings: %s", ratingsUrl);
+    const za::U32 t0 = SDL_GetTicks();
     if(!fetchPage(za::String{ratingsUrl}, body, error))
     {
+        note("map index: the ratings failed after %u ms (%s): the index is kept without them", SDL_GetTicks() - t0, error);
         return -1;
     }
+    note("map index: the ratings: %d KiB in %u ms", static_cast<int>(body.size() / 1024), SDL_GetTicks() - t0);
     body.pushBack('\0');
     int matched = 0;
     for(const char* p = strstr(body.data(), "<file "); p; p = strstr(p + 1, "<file "))
@@ -340,9 +362,12 @@ int addRatings(Index& idx, const za::Vector<za::String>& zipNames, za::Vector<ch
             e.rating = static_cast<za::U8>(s >= 1 && s <= 5 ? s : 0);
             const double u = users.empty() ? 0.0 : atof(users.cStr());
             e.userRating = static_cast<za::U16>(u > 0.0 && u <= 5.0 ? static_cast<int>(u * 100.0 + 0.5) : 0);
-            matched++;
             break;
         }
+    }
+    for(const Entry& e : idx.entries)
+    {
+        matched += e.score() > 0 ? 1 : 0;
     }
     return matched;
 }
@@ -436,11 +461,12 @@ int splitFields(const char* line, za::SizeT len, za::String (&fields)[17])
 }
 
 // A cached index, if the file is there, of this version and this source URL, and no older than cacheSeconds.
-bool loadCache(Index& idx, const za::String& url)
+bool loadCache(Index& idx, const za::String& url, bool anyAge)
 {
     za::String text;
     if(!files::readText(cachePath().cStr(), text) || text.size() < sizeof(cacheMagic))
     {
+        note("map index: no cached copy at %s", cachePath().cStr());
         return false;
     }
     za::I64 fetchedAt = 0;
@@ -454,15 +480,23 @@ bool loadCache(Index& idx, const za::String& url)
         }
         line++;
     });
-    if(header[0] != za::String{cacheMagic} || header[1] != za::String{"#"} + url)
+    if(header[0] != za::String{cacheMagic})
     {
+        note("map index: the cached copy is of another version (%s, not %s): fetched again", header[0].cStr(), cacheMagic);
+        return false;
+    }
+    if(header[1] != za::String{"#"} + url)
+    {
+        note("map index: the cached copy is of another URL (%s): fetched again", header[1].cStr() + 1);
         return false;
     }
     fetchedAt = static_cast<za::I64>(strtoll(header[2].cStr() + 1, nullptr, 10));
     za::I64 now = 0;
     time(&now);
-    if(fetchedAt <= 0 || now - fetchedAt > cacheSeconds)
+    if(!anyAge && (fetchedAt <= 0 || now - fetchedAt > cacheSeconds))
     {
+        note("map index: the cached copy is %lld s old (over %lld): fetched again", static_cast<long long>(now - fetchedAt),
+            static_cast<long long>(cacheSeconds));
         return false;
     }
 
@@ -557,9 +591,12 @@ bool fetchIndex(Index& idx, const za::String& url, za::String& status)
             url + "?q=*:*&rows=" + za::toString(pageRows) + "&start=" + za::toString(start);
         const za::U32 t0 = SDL_GetTicks();
         const char* error = nullptr;
+        note("map index: fetching page %d (%d packages so far): %s", idx.pages + 1, static_cast<int>(idx.entries.size()),
+            pageUrl.cStr());
         if(!fetchPage(pageUrl, body, error))
         {
             status = za::String{"map index: none ("} + pageUrl + ": " + error + ") - the game runs without it";
+            note("map index: page %d failed after %u ms: %s", idx.pages + 1, SDL_GetTicks() - t0, error);
             return false;
         }
         idx.fetchMs += static_cast<int>(SDL_GetTicks() - t0);
@@ -573,6 +610,10 @@ bool fetchIndex(Index& idx, const za::String& url, za::String& status)
         if(!json)
         {
             status = za::String{"map index: none ("} + pageUrl + ": not JSON) - the game runs without it";
+            char head[81];
+            q_strlcpy(head, body.data(), sizeof(head));
+            note("map index: page %d is not JSON (%d bytes, starting \"%s\")", idx.pages, static_cast<int>(body.size()) - 1,
+                head);
             return false;
         }
         idx.jsonPeak = za::max(idx.jsonPeak, static_cast<za::U64>(json->memsize) + body.size());
@@ -590,6 +631,8 @@ bool fetchIndex(Index& idx, const za::String& url, za::String& status)
             }
         }
         JSON_Free(json);
+        note("map index: page %d: %d KiB in %u ms, %d packages", idx.pages, static_cast<int>(body.size() / 1024),
+            SDL_GetTicks() - t0, static_cast<int>(idx.entries.size() - before));
 
         if(idx.entries.size() - before < static_cast<za::SizeT>(pageRows))
         {
@@ -624,8 +667,9 @@ void run() noexcept
     } done;
     const za::String url = runUrl;
     Index built;
+    note("map index: started (%s, cache %s)", url.cStr(), cachePath().cStr());
 
-    if(loadCache(built, url))
+    if(loadCache(built, url, false))
     {
         char status[256];
         q_snprintf(status, sizeof(status),
@@ -641,6 +685,15 @@ void run() noexcept
     za::String status;
     if(!fetchIndex(built, url, status))
     {
+        // An old cached copy rather than none (one of this version and URL, however old).
+        Index stale;
+        if(loadCache(stale, url, true))
+        {
+            status += za::String{"; an older cached copy is used ("} + za::toString(static_cast<int>(stale.entries.size())) +
+                      " packages)";
+            publish(ZA_MOVE(stale), ZA_MOVE(status));
+            return;
+        }
         // The status only: the index held (a cached or earlier fetch) is kept.
         za::LockGuard lock{handoff};
         pendingStatus = ZA_MOVE(status);
@@ -651,10 +704,10 @@ void run() noexcept
     const bool cached = writeCache(built);
     char head[256];
     q_snprintf(head, sizeof(head),
-        "map index: %d packages from %s (%llu KiB in %d calls, %d ms; parsed in %d ms; peak %llu KiB) %s",
+        "map index: %d packages from %s (%llu KiB in %d calls, %d ms; parsed in %d ms; peak %llu KiB)%s",
         static_cast<int>(built.entries.size()), url.cStr(),
         static_cast<unsigned long long>(built.fetchedBytes / 1024), built.pages, built.fetchMs, built.parseMs,
-        static_cast<unsigned long long>(built.jsonPeak / 1024), cached ? "" : "(the cache could not be written)");
+        static_cast<unsigned long long>(built.jsonPeak / 1024), cached ? "" : " (the cache could not be written)");
     status = za::String{head};
     status += built.rated >= 0 ? za::String{", "} + za::toString(built.rated) + " rated" : za::String{", no ratings"};
     if(cached)
@@ -996,6 +1049,7 @@ void fetch_f()
         za::String path = cachePath();
         files::remove(path.cStr()); // (loadCache would otherwise take the cached copy)
     }
+    lastStatus = za::String{};
     start();
     Con_Printf("maps_fetch: fetching %s (maps_stats shows what happened)\n", indexUrl().cStr());
 }
@@ -1042,6 +1096,16 @@ void finish()
 
 void poll()
 {
+    za::Vector<za::String> log;
+    {
+        za::LockGuard lock{handoff};
+        log = ZA_MOVE(pendingLog);
+        pendingLog = za::Vector<za::String>{};
+    }
+    for(const za::String& line : log)
+    {
+        Con_SafePrintf("%s\n", line.cStr());
+    }
     if(!pendingReady.loadSeqCst())
     {
         return;
@@ -1069,6 +1133,28 @@ void poll()
 const Index& index()
 {
     return indexSet;
+}
+
+za::String state()
+{
+    if(running.loadSeqCst())
+    {
+        za::LockGuard lock{handoff};
+        return progress.empty() ? za::String{"map index: starting"} : progress;
+    }
+    if(!lastStatus.empty())
+    {
+        return lastStatus;
+    }
+    if(COM_CheckParm("-nomapindex"))
+    {
+        return za::String{"map index: off (-nomapindex)"};
+    }
+    if(!vr_maps_fetch.value)
+    {
+        return za::String{"map index: off (vr_maps_fetch 0)"};
+    }
+    return za::String{"map index: not started yet"};
 }
 
 void search(const Query& q, za::Vector<const Entry*>& out)

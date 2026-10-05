@@ -795,13 +795,13 @@ void mapsPageStatsPrint()
 // The page: drawing
 // ----------------------------------------------------------------------------
 
-// Text in `size`-pixel letters from x, no wider than `width`, wrapped over at most `maxLines` lines. Its end is kept
-// (the tail of a long line is what matters for a title or an author).
+// Text in `size`-pixel letters from x, no wider than `width`, wrapped over at most `maxLines` lines. On one line its end
+// is kept (the tail of a long line is what matters for a title or an author); over more, its start.
 int drawMapsWrapped(const char* text, float x, float y, float size, float width, int maxLines)
 {
     const int fit = q_max(static_cast<int>(width / size), 8);
     const int n = static_cast<int>(strlen(text));
-    const char* start = n > fit ? text + n - fit : text; // its end
+    const char* start = n > fit && maxLines == 1 ? text + n - fit : text; // one line: its end
     int lines = 0;
     for(const char* p = start; *p && lines < maxLines;)
     {
@@ -1008,11 +1008,17 @@ void drawMapsPage()
     }
     if(n == 0)
     {
-        searchText(x0, m.s.resultsTop + 2.f, 6.f, width,
-            mapPage.query.empty() && mapindex::index().entries.empty()
-                ? "The index has not arrived yet (maps_stats, Debug > Tools)"
-                : "Nothing matches",
-            false);
+        if(mapindex::index().entries.empty())
+        {
+            // Why there is nothing yet: the fetch's latest step, or how it ended (all of it in the console too).
+            searchText(x0, m.s.resultsTop + 2.f, 6.f, width, "The index has not arrived yet:", false);
+            const za::String state = mapindex::state();
+            drawMapsWrapped(state.cStr(), x0, m.s.resultsTop + 10.f, 5.f, width, 6);
+        }
+        else
+        {
+            searchText(x0, m.s.resultsTop + 2.f, 6.f, width, "Nothing matches", false);
+        }
     }
     for(int r = mapPage.resultScroll; r < n && r < mapPage.resultScroll + mapPage.visibleResults; r++)
     {

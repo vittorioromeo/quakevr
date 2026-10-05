@@ -116,6 +116,9 @@ void registerCommands();
 // The index: never null, empty until one has arrived. Read from the main thread only.
 [[nodiscard]] const Index& index();
 
+// What the fetch is doing (its latest step while it runs), or how the last one ended. Main thread.
+[[nodiscard]] za::String state();
+
 // `out` cleared, then every match in the query's order (the caller keeps `out`; the menu keeps it in its scratch).
 void search(const Query&, za::Vector<const Entry*>& out);
 
