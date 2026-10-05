@@ -1321,15 +1321,23 @@ constexpr float worldReach = 12.f;
 za::Vector<WorldDecal> worldDecals;
 za::Vector<za::U32> worldGrid;
 za::Vector<za::U32> worldBucketCount, worldBucketFill;
-za::Vector<za::U32> worldMarkBuckets; // a mark's buckets so far (each listed once)
+// Reused scratch: stamp each bucket once per mark, then keep that mark's memberships for the fill pass.
+za::Vector<za::U32> worldBucketStamp, worldMemberships;
+za::Vector<za::SizeT> worldMembershipOffsets;
+za::U32 worldStamp = 0;
 gfx::StorageBuffer worldDecalBuffer, worldGridBuffer;
 double worldClock = 0.0; // cl.time the marks' times count from (the floats near 0)
 long long worldBuilds = 0;
 
-// The buckets of mark `d`'s cells (each once) into worldMarkBuckets.
+// Append mark `d`'s buckets in first-cell order, each once. The stamp table matches mask + 1.
 void worldBuckets(const WorldDecal& d, za::U32 mask)
 {
-    worldMarkBuckets.clear();
+    if(++worldStamp == 0)
+    {
+        // Reusing generation 1 must not mistake an old stamp for this mark's membership.
+        worldBucketStamp.assign(worldBucketStamp.size(), 0u);
+        worldStamp = 1;
+    }
     const glm::vec3 c{d.centre};
     const glm::vec3 extent = glm::abs(glm::vec3{d.u}) * d.u.w + glm::abs(glm::vec3{d.v}) * d.v.w +
                              glm::abs(glm::vec3{d.n}) * d.n.w + glm::vec3{worldReach};
@@ -1342,14 +1350,10 @@ void worldBuckets(const WorldDecal& d, za::U32 mask)
             for(int x = lo.x; x <= hi.x; x++)
             {
                 const za::U32 b = worldCellHash(x, y, z) & mask;
-                bool seen = false;
-                for(const za::U32 o : worldMarkBuckets)
+                if(worldBucketStamp[b] != worldStamp)
                 {
-                    seen = seen || o == b;
-                }
-                if(!seen)
-                {
-                    worldMarkBuckets.pushBack(b);
+                    worldBucketStamp[b] = worldStamp;
+                    worldMemberships.pushBack(b);
                 }
             }
         }
@@ -1400,13 +1404,22 @@ void buildWorld()
     {
         QVR_PROFILE("decal grid count");
         worldBucketCount.assign(buckets, 0u);
+        if(worldBucketStamp.size() != buckets)
+        {
+            worldBucketStamp.assign(buckets, 0u);
+            worldStamp = 0;
+        }
+        worldMemberships.clear();
+        worldMembershipOffsets.clear();
+        worldMembershipOffsets.pushBack(0);
         for(const WorldDecal& w : worldDecals)
         {
             worldBuckets(w, mask);
-            for(const za::U32 b : worldMarkBuckets)
-            {
-                worldBucketCount[b]++;
-            }
+            worldMembershipOffsets.pushBack(worldMemberships.size());
+        }
+        for(const za::U32 b : worldMemberships)
+        {
+            worldBucketCount[b]++;
         }
     }
     // Each bucket's list: the newest 64 of its marks (the oldest are under them).
@@ -1428,9 +1441,9 @@ void buildWorld()
         worldBucketFill.assign(buckets, 0u);
         for(za::SizeT k = worldDecals.size(); k-- > 0;)
         {
-            worldBuckets(worldDecals[k], mask);
-            for(const za::U32 b : worldMarkBuckets)
+            for(za::SizeT m = worldMembershipOffsets[k]; m < worldMembershipOffsets[k + 1]; m++)
             {
+                const za::U32 b = worldMemberships[m];
                 const za::U32 n = worldGrid[1 + b] & 255u;
                 if(worldBucketFill[b] < n)
                 {
