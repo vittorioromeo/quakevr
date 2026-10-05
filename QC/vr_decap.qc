@@ -1060,6 +1060,12 @@ void(float xTest) VR_Decap_Test =
     float before = vr_decap_count;
     float pops = vr_decap_pops;
     entity m = VR_Decap_TestTarget((xTest != 5 && xTest != 8 && xTest != 10 && (xTest < 20 || xTest >= 24)));
+    if(xTest == 33 && m != world)
+    {
+        LightningDamage(self.origin + self.view_ofs, m.origin + 0.5 * (m.mins + m.maxs), self, 1);
+        bprint(sprintf("bodyshocktest: target=%s health=%g corpse=%g\n", m.classname, m.health, m.vr_corpse));
+        return;
+    }
     if(xTest == 8)
     {
         // (A headless corpse first: gibbed, it throws no head.)

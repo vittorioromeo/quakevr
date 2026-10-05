@@ -405,3 +405,6 @@ void(vector org, vector dir, float strength, float snd) watersplash = #0;
 float QVR_SPLASH_SILENT = 0; // the caller plays its own sound
 float QVR_SPLASH_SHOT = 1;   // a small plip
 float QVR_SPLASH_THING = 2;  // a splash, small or big by strength
+
+void(entity target, float duration) bodyshock = #0;
+void(entity box, entity player, float hand, float begin) portal_carry = #0;

@@ -1971,10 +1971,7 @@ void gearFrame()
     for(int i = 0; i < 3; i++)
     {
         const float lo = g.model->mins[i] - pad / k, hi = g.model->maxs[i] + pad / k;
-        if(p[i] < lo || p[i] > hi)
-        {
-            return false;
-        }
+        if(p[i] < lo || p[i] > hi) { return false; }
         if(za::fabs(v[i]) > 1e-4f)
         {
             t = za::min(t, ((v[i] > 0.f ? hi : lo) - p[i]) / v[i]);
@@ -2003,8 +2000,14 @@ void gearFrame()
     for(Splat& s : out)
     {
         const glm::vec3 c{s.v[0].x, s.v[0].y, s.v[0].z};
+        const glm::mat3 axes = held::axesFromAngles(g.angles, g.model->type == mod_brush);
+        const float k = za::max(VR_EntityScale(&g), 0.01f);
+        glm::vec3 local = glm::transpose(axes) * (c - originOf(g)) / k;
+        local = glm::clamp(local, glm::vec3{g.model->mins[0], g.model->mins[1], g.model->mins[2]},
+                                 glm::vec3{g.model->maxs[0], g.model->maxs[1], g.model->maxs[2]});
+        const glm::vec3 inside = originOf(g) + axes * local * k;
         glm::vec3 exit;
-        if(leavesBox(g, c, d, 1.f, exit))
+        if(leavesBox(g, inside, d, 1.f, exit))
         {
             const glm::vec3 to = exit + d * 2.f;
             s.v[0] = glm::vec4{to, s.v[0].w + glm::distance(c, to)}; // (reaching as far past it as before)

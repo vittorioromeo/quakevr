@@ -1299,6 +1299,19 @@ void PF_tracer()
 
 // watershock(kind, org, radius, duration): the lightning gun in water's effects (vr_shock.cpp): 0 the `self` player
 // shocked, 1 arcs on a liquid's surface round `org`, 2 arcs out from `org` in a liquid.
+void PF_bodyshock()
+{
+    edict_t* target = G_EDICT(OFS_PARM0);
+    server::sendShock(PROG_TO_EDICT(pr_global_struct->self), 3, target->v.origin,
+        static_cast<float>(NUM_FOR_EDICT(target)), G_FLOAT(OFS_PARM1));
+}
+
+extern "C" void VR_PortalCarry(edict_t* box, edict_t* player, int hand, int begin);
+void PF_portal_carry()
+{
+    VR_PortalCarry(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)), G_FLOAT(OFS_PARM3) != 0.f);
+}
+
 void PF_watershock()
 {
     server::sendShock(PROG_TO_EDICT(pr_global_struct->self), static_cast<int>(G_FLOAT(OFS_PARM0)), G_VECTOR(OFS_PARM1),
@@ -1703,6 +1716,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponfired", PF_weaponfired},
     {"tracer", PF_tracer},
     {"watershock", PF_watershock},
+    {"bodyshock", PF_bodyshock},
+    {"portal_carry", PF_portal_carry},
     {"findflags", PF_findflags},
     {"liquidentry", PF_liquidentry},
     {"watersplash", PF_watersplash},

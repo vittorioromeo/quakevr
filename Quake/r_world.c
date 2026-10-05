@@ -163,6 +163,7 @@ typedef struct bmodel_gpu_instance_s {
 	float		wound[4];	// QVR: a held prop's blood (vr/vr_wounds.cpp: its box mask)
 	float		woundbox[4];	// QVR: its box's centre, 1 / its largest side
 	float		retro[4];	// QVR: retro textures (vr/vr_retro.h): its set (VR_RetroInstance)
+	float		portalclip[4];
 } bmodel_gpu_instance_t;
 
 typedef struct bmodel_bindless_gpu_call_s {
@@ -195,7 +196,8 @@ typedef struct bmodel_gpu_call_remap_s {
 	GLuint		inst;
 } bmodel_gpu_call_remap_t;
 
-static bmodel_gpu_instance_t		bmodel_instances[MAX_VISEDICTS + 1]; // +1 for worldspawn
+static unsigned char bmodel_portal_counts[MAX_VISEDICTS + 1];
+static bmodel_gpu_instance_t		bmodel_instances[2 * MAX_VISEDICTS + 1]; // +1 for worldspawn
 static union {
 	struct {
 		bmodel_bindless_gpu_call_t	params[MAX_BMODEL_DRAWS];
@@ -230,6 +232,8 @@ static void R_InitBModelInstance (bmodel_gpu_instance_t *inst, entity_t *ent)
 {
 	float mat[16];
 
+	inst->portalclip[0] = inst->portalclip[1] = inst->portalclip[2] = 0.f;
+	inst->portalclip[3] = 1.f;
 	R_BModelMatrix (ent, mat); // QVR: (shared with R_PaintBrushWounds)
 
 	MatrixTranspose4x3 (mat, inst->world);
@@ -573,12 +577,33 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 
 	// fill instance data
 	for (i = 0, totalinst = 0; i < count; i++)
+	{
+		bmodel_portal_counts[i] = 1;
 		if (ents[i]->model->texofs[texend] - ents[i]->model->texofs[texbegin] > 0)
-			R_InitBModelInstance (&bmodel_instances[totalinst++], ents[i]);
+		{
+			bmodel_gpu_instance_t* inst = &bmodel_instances[totalinst++];
+			float mat[16], mapped[16], source[4], dest[4];
+			R_InitBModelInstance (inst, ents[i]);
+			R_BModelMatrix (ents[i], mat);
+			if (ents[i] != &cl_entities[0] && ents[i]->model->name[0] != '*' &&
+				VR_PortalAlias (ents[i], mat, mat, mapped, source, dest))
+			{
+				bmodel_gpu_instance_t* copy = &bmodel_instances[totalinst++];
+				*copy = *inst;
+				MatrixTranspose4x3 (mapped, copy->world);
+				memcpy(inst->portalclip, source, sizeof(source));
+				memcpy(copy->portalclip, dest, sizeof(dest));
+				bmodel_portal_counts[i] = 2;
+			}
+		}
+	}
+
 
 	if (!totalinst)
 		return;
 
+	if (pass <= BP_ALPHATEST || pass == BP_SHOWTRIS)
+		glEnable (GL_CLIP_DISTANCE1);
 	// setup state
 	state = GLS_CULL_BACK | GLS_ATTRIBS(4);
 	if (!translucent)
@@ -604,8 +629,8 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	else if (pass == BP_SKYCUBEMAP)
 		GL_Bind (GL_TEXTURE2, skybox->cubemap);
 
-	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * count, &buf, &ofs);
-	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * count);
+	GL_Upload (GL_SHADER_STORAGE_BUFFER, bmodel_instances, sizeof(bmodel_instances[0]) * totalinst, &buf, &ofs);
+	GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 2, buf, (GLintptr)ofs, sizeof(bmodel_instances[0]) * totalinst);
 
 	// QVR: the opaque world and brush models' depth first (the same draws, depth only), so that their costly shading
 	// (parallax, bumps, the lights' shadows) runs once a pixel, for the nearest surface only, not for the ones drawn
@@ -623,6 +648,7 @@ static void R_DrawBrushModels_Real (entity_t **ents, int count, brushpass_t pass
 	R_AddBModelPassCalls (ents, count, texbegin, texend, pass);
 
 	R_FlushBModelCalls ();
+	glDisable (GL_CLIP_DISTANCE1);
 	if (a2c) // QVR
 	{
 		glDisable (GL_SAMPLE_ALPHA_TO_COVERAGE);
@@ -656,8 +682,8 @@ static void R_AddBModelPassCalls (entity_t **ents, int count, textype_t texbegin
 		if (!numtex)
 			continue;
 
-		for (numinst = 1; i < count && ents[i]->model == model && !ents[i]->frame == !frame && numinst < MAX_BMODEL_INSTANCES; i++) // QVR: one frame a batch (a pressed button's alternate textures: docs/vr-port/ROUND21.md)
-			numinst += (ents[i]->model->texofs[texend] - ents[i]->model->texofs[texbegin]) > 0;
+		for (numinst = bmodel_portal_counts[i-1]; i < count && ents[i]->model == model && !ents[i]->frame == !frame && numinst + bmodel_portal_counts[i] <= MAX_BMODEL_INSTANCES; i++) // QVR: one frame a batch (a pressed button's alternate textures: docs/vr-port/ROUND21.md)
+			numinst += (ents[i]->model->texofs[texend] - ents[i]->model->texofs[texbegin]) > 0 ? bmodel_portal_counts[i] : 0;
 
 		for (j = model->texofs[texbegin]; j < model->texofs[texend]; j++)
 		{
@@ -852,7 +878,7 @@ void R_DrawBrushModels_Water (entity_t **ents, int count, qboolean translucent)
 		if (!R_EntHasWater (e, translucent))
 			continue;
 
-		for (numinst = 1; i < count && ents[i]->model == model && !ents[i]->frame == !frame && numinst < MAX_BMODEL_INSTANCES; i++) // QVR: one frame a batch
+		for (numinst = bmodel_portal_counts[i-1]; i < count && ents[i]->model == model && !ents[i]->frame == !frame && numinst + bmodel_portal_counts[i] <= MAX_BMODEL_INSTANCES; i++) // QVR: one frame a batch
 			numinst += R_EntHasWater (ents[i], translucent);
 
 		if (isworld && VR_WaterMeshActive ()) // QVR

@@ -212,3 +212,5 @@
                          // of it (VR_Prop_Flung) until it lands, is taken or flies up (VR_Throw_SelfFrame)
 .float vr_was_monster;   // a monster's head (VR_MakeGibGrabbable took its FL_MONSTER): what it drops after (a gibbed
                          // grunt's backpack: SoldierDrop after ThrowHead) is still a monster's drop (.vr_monster_drop)
+
+.float carry_portal; // room mapping of a held object, one-based gate

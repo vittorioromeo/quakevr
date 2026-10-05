@@ -272,6 +272,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 {
     dprint("carry: taken\n");
     xBox.carry_player = xPlayer;
+    portal_carry(xBox, xPlayer, xHand, TRUE);
     VR_Head_StopFlies(xBox); // (they would buzz on where it lay)
 
     vector handPos = VRGetEntHandPos(xPlayer, xHand);
@@ -846,6 +847,7 @@ void(float xHand) VR_Carry_HandFrame =
     }
 
     VR_Carry_KeepAlive(box);
+    portal_carry(box, self, xHand, FALSE); // also before a release in this frame
 
     float takeMode = cvar_hget(cvarh_vr_carry_take);
     if(!VR_HandGrabUtil_IsHandGrabbing(self, xHand))
@@ -1160,6 +1162,7 @@ void() VR_Carry_TwoHandFrame =
         return;
     }
     VR_Carry_KeepAlive(box);
+    portal_carry(box, self, cVR_MainHand, FALSE);
     box.carry_2h = TRUE;
 
     float gripMain = VR_HandGrabUtil_IsHandGrabbing(self, cVR_MainHand);
@@ -1214,6 +1217,7 @@ void() VR_Carry_TwoHandFrame =
         self.vr_2h_letgo_hand = letGo + 1; // (it strikes nothing while the other may yet throw it with both)
         self.vr_2h_letgo_time = time;
         VR_Carry_SetHeld(self, letGo, world);
+        portal_carry(box, self, keep, FALSE);
         vector keptFrom = box.origin;
         carry2hkeep(box, self, keep); // onto its grip in that hand (pulled off: carry2hoff has done it)
         VR_Carry_Regrip(keep, box);

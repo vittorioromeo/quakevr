@@ -170,6 +170,7 @@ void(vector xAt) VR_GrenShot_Sparks;
 
 void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
 {
+    if(VR_WallTorch_IsTorch(targ)) { return; }
     if(targ.vr_shootnade)
     {
         VR_GrenShot_Sparks(org);
@@ -192,6 +193,7 @@ void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
 // The same, sprayed every way (SpawnBloodSplash).
 void(entity targ, vector org, float damage) VR_HitBloodSplash =
 {
+    if(VR_WallTorch_IsTorch(targ)) { return; }
     if(targ.vr_shootnade)
     {
         VR_GrenShot_Sparks(org);

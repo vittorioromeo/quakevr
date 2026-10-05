@@ -365,6 +365,8 @@ double VR_SndBenchNow (void);						// vr_snd_bench (vr_audiobench.cpp): the time
 void VR_SndBenchAdd (int stage, double since);		// vr_snd_bench: now - since into this frame's stage (VR_SNDBENCH_*: vr_audiobench.hpp's Stage)
 enum { VR_SNDBENCH_PAINT = 3, VR_SNDBENCH_QUAKE = 12, VR_SNDBENCH_FILTERS = 13 };
 
+int VR_PortalReachMove(struct edict_s* player, const float* start, const float* mins, const float* maxs, const float* end, int type, trace_t* trace);
+
 #ifdef __cplusplus
 }
 #endif

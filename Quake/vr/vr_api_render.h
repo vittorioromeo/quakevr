@@ -98,6 +98,7 @@ typedef struct vraliasinstance_s
 	float		wound[4]; // its wound mask (vr_wounds.cpp): layer + 1 (0 none), its size in texels, the time
 	float		woundside[4]; // its right side's bones (your body's mask is one a side; bits 0..23, 24..47 as whole numbers), the side painted + 1 (0 all), the blood's opacity
 	float		retro[4]; // retro textures (vr_retro.cpp): its set (0 none), its skin's Quake size (0: the texture's own)
+	float		portalclip[4]; // plane keeping this room
 	float		retropart[4]; // your body's parts by bone (vr_retro.cpp bodyParts): xy the low bits, zw the high bits of each bone's part
 } vraliasinstance_t;
 void VR_AliasInstance (const struct entity_s *e, const float matrix[16], const void *aliashdr, int kind, vraliasinstance_t *out); // R_DrawAliasModel_Real: kind 1 standard, 0 showtris/showskel, 2 depth only (all zero)
@@ -240,6 +241,9 @@ int VR_SceneSamples (int samples);	// GL_CreateFrameBuffers: the scene's MSAA sa
 float VR_SceneTone (void);						// R_SetupView: the brightest the world and models write (1: Quake's clamp)
 float VR_SceneDither (float dither);			// R_SetupView: the scene's screen dither (0 in the eyes with vr_dither: the post-process dithers last)
 void VR_PostProcessTone (void);					// GL_PostProcess, the non-palettized program in use: the tone curve, grade (unit 3) and dither
+
+// Split alias models at an active slipgate, using the same animation pose in both rooms.
+int VR_PortalAlias(const struct entity_s* e, const float boundsMatrix[16], const float matrix[16], float mapped[16], float sourceClip[4], float destinationClip[4]);
 
 #ifdef __cplusplus
 }

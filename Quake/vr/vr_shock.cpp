@@ -7,6 +7,7 @@
 // moment past the last).
 
 #include "vr_shock.hpp"
+#include "vr_modelcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
@@ -338,7 +339,7 @@ void add(int kind, const glm::vec3& org, float radius, float duration)
     for(int i = 0; i < maxEffects; i++)
     {
         const Effect& e = effects[i];
-        if(e.until > now && e.kind == kind && glm::distance(e.org, org) < 24.f)
+        if(e.until > now && e.kind == kind && (kind == KindBody ? e.radius == radius : glm::distance(e.org, org) < 24.f))
         {
             slot = i;
             break;
@@ -497,7 +498,28 @@ void frame(const hands::State& s)
         {
             continue;
         }
-        if(e.kind == KindBurst)
+        if(e.kind == KindBody)
+        {
+            const int num = static_cast<int>(e.radius);
+            if(num <= 0 || num >= cl.num_entities) { continue; }
+            const entity_t& ent = cl_entities[num];
+            if(!ent.model || ent.msgtime < cl.mtime[0] - 0.001) { continue; }
+            za::Vector<glm::vec3> tris;
+            if(!modelcollide::drawnTriangles(ent, num, tris) || tris.size() < 3) { continue; }
+            const float fade = za::clamp(static_cast<float>((e.until - now) / 0.25), 0.f, 1.f);
+            for(int bolt = 0; bolt < 12; bolt++)
+            {
+                const size_t index = static_cast<size_t>(rnd() * (tris.size() / 3)) * 3;
+                const glm::vec3 a = tris[index], b = tris[index + 1], c = tris[index + 2];
+                const glm::vec3 cross = glm::cross(b - a, c - a);
+                if(glm::length(cross) < 1e-5f) { continue; }
+                const glm::vec3 n = glm::normalize(cross) * 0.5f;
+                const glm::vec3 from = glm::mix(a, b, rnd()) + n;
+                const glm::vec3 to = glm::mix(a, c, rnd()) + n;
+                arc(rnd, from, to, 4, 0.4f, fade, false, 0.45f, true, true);
+            }
+        }
+        else if(e.kind == KindBurst)
         {
             drawBurst(i, e, rnd);
         }
@@ -521,9 +543,27 @@ void clear()
     selfStart = selfUntil = 0.0;
 }
 
+void info_f()
+{
+    int active = 0;
+    for(const auto& effect : effects)
+    {
+        if(effect.kind != KindBody || effect.until <= cl.time) { continue; }
+        const int num = static_cast<int>(effect.radius);
+        if(num <= 0 || num >= cl.num_entities) { continue; }
+        za::Vector<glm::vec3> triangles;
+        modelcollide::drawnTriangles(cl_entities[num], num, triangles);
+        active++;
+        Con_Printf("bodyshock: entity=%d triangles=%d remaining=%.2f\n", num,
+            static_cast<int>(triangles.size() / 3), effect.until - cl.time);
+    }
+    Con_Printf("bodyshock: active=%d\n", active);
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_shock_test", test_f);
+    Cmd_AddCommand("vr_shock_info", info_f);
 }
 
 } // namespace qvr::shock

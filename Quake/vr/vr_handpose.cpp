@@ -70,10 +70,10 @@ bool newFrame = false; // the hands may be recomputed within a frame: the weight
 bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const glm::vec3& back = glm::vec3{0.f})
 {
     const glm::vec3 box{1.f};
-    auto tr = worldtrace::move(from, -box, box, to, MOVE_NORMAL);
+    auto tr = worldtrace::move(from, -box, box, to, MOVE_NORMAL | MOVE_PORTALS);
     if(tr && tr->fraction < 1.f && tr->ent && tr->ent->v.takedamage != 0.f && static_cast<int>(tr->ent->v.solid) != SOLID_BSP)
     {
-        tr = worldtrace::move(from, -box, box, to, MOVE_NOMONSTERS);
+        tr = worldtrace::move(from, -box, box, to, MOVE_NOMONSTERS | MOVE_PORTALS);
     }
     if(!tr || tr->fraction >= 1.f)
     {
@@ -96,10 +96,10 @@ bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const 
 [[nodiscard]] za::Optional<trace_t> lineTrace(const glm::vec3& from, const glm::vec3& to)
 {
     const glm::vec3 zero{0.f};
-    auto tr = worldtrace::move(from, zero, zero, to, MOVE_NORMAL);
+    auto tr = worldtrace::move(from, zero, zero, to, MOVE_NORMAL | MOVE_PORTALS);
     if(tr && tr->fraction < 1.f && tr->ent && tr->ent->v.takedamage != 0.f && static_cast<int>(tr->ent->v.solid) != SOLID_BSP)
     {
-        tr = worldtrace::move(from, zero, zero, to, MOVE_NOMONSTERS);
+        tr = worldtrace::move(from, zero, zero, to, MOVE_NOMONSTERS | MOVE_PORTALS);
     }
     return tr;
 }

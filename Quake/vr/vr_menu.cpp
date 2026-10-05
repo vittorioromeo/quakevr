@@ -2618,11 +2618,9 @@ void hologramTestMessage()
 {
     return {
         toggle("Take Torches Off Walls", vr_walltorch)
-            .help("Grip a wall torch and pull it out of its holder (or force grab it): it is a burning club, lighting the "
+            .help("Grip a wall torch to take it immediately (or force grab it): it is a burning club, lighting the "
                   "room round you as the wall torch did. Held, it burns for ever; dropped, thrown or used up by blows, "
                   "its fire dies. Grip and fingers: Held Object Offsets, holding it. Off: fixed, as in id's Quake. Next map."),
-        slider("Pull to Take", vr_walltorch_pull, 2.f, 30.f, 1.f, "%.0f cm").extend(0.f, 100.f)
-            .help("How far a hand gripping a torch on its wall pulls it before it comes out."),
         slider("Grab Reach", vr_walltorch_reach, 0.f, 30.f, 1.f, "%.0f cm").extend(0.f, 60.f)
             .help("A grip this near a torch on its wall (its stick's middle, from its butt to its flame; your hand or "
                   "your fist's middle, whichever is nearer) takes hold of it, though your fist isn't quite on it. 0: only "

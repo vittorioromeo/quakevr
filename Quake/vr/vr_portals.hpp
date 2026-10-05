@@ -55,6 +55,15 @@
 
 namespace qvr::portals
 {
+struct Reach
+{
+    glm::vec3 position{0.f}, from{0.f}, to{0.f};
+    glm::mat3 turn{1.f};
+    float yaw = 0.f;
+    int gate = 0;
+};
+// A physical hand or muzzle beyond the aperture, while the torso stays here.
+Reach reach(const glm::vec3& root, const glm::vec3& point);
 // The closest visible one-gate image of a point, for gravity-glove aiming.
 glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate = nullptr);
 
@@ -101,5 +110,7 @@ struct LightGate
 };
 // One traversal only, through active apertures reached from the light's front side.
 int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacity);
+// A rigid body's bounds crossing a fitting aperture. Either room can be its owner.
+bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate);
 
 } // namespace qvr::portals

@@ -66,7 +66,7 @@ struct CategoryInfo
 };
 
 constexpr CategoryInfo categoryInfo[categoryCount] = {
-    {"world", "World", "The map's walls, floors, ceilings and liquids."},
+    {"world", "World", "The map's walls, floors and ceilings."},
     {"brush", "Brush Entities", "Doors, lifts, buttons, moving walls: the map's moving parts."},
     {"items", "Item Pickups", "The ammo and health boxes, armour, keys, powerups and backpacks."},
     {"props", "Props and Debris", "Crates, explosive boxes, rocks, bricks, planks, shell casings, lanterns."},
@@ -84,6 +84,7 @@ constexpr CategoryInfo categoryInfo[categoryCount] = {
     {"particles", "Particles", "Blood, smoke, sparks, fire and splashes (blocks in world units); Quake's own dots become squares."},
     {"sprites", "Sprites", "Explosions, bubbles and other .spr sprites."},
     {"other", "Other Models", "Everything else drawn with a texture: projectiles, torches and flames, ..."},
+    {"liquids", "Liquids", "Water, slime and lava surfaces."},
 };
 
 za::String names[categoryCount * paramCount];
@@ -803,7 +804,9 @@ struct Hit
             hit.any = true;
             hit.distance = planeDistance(s, start, dir);
             hit.texture = textureKeyName(w->textures[s->texinfo->texnum]->name);
-            hit.modelCategory = hit.textureCategory = Category::World;
+            hit.modelCategory = Category::World;
+            const char* texture = w->textures[s->texinfo->texnum]->name;
+            hit.textureCategory = texture[0] == '*' && strncmp(texture, "*teleport", 9) != 0 ? Category::Liquids : Category::World;
         }
     }
     for(int i = 0; i < cl_numvisedicts; i++)
@@ -1648,9 +1651,11 @@ extern "C" void VR_RetroCall(entity_t* e, const texture_t* t, float out[4])
     {
         return;
     }
-    if(const Override* to = overrideFor(t, true, t->name))
+    const bool liquid = t->name[0] == '*' && strncmp(t->name, "*teleport", 9) != 0;
+    const Override* to = overrideFor(t, true, t->name);
+    if(liquid || to)
     {
-        out[2] = static_cast<float>(1 + setFor(categoryOf(e), modelOverride(e), to));
+        out[2] = static_cast<float>(1 + setFor(liquid ? Category::Liquids : categoryOf(e), modelOverride(e), to));
     }
 }
 

@@ -18,6 +18,7 @@ enum Kind : int
 {
     KindSelf = 0,    // the receiving player is shocked (sent to that client only)
     KindSurface = 1, // arcs over a liquid's surface round a point
+    KindBody = 3,    // radius encodes the struck entity; arcs follow its current surface
     KindBurst = 2,   // arcs out from a point in a liquid (the shock's source)
 };
 

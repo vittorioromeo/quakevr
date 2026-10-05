@@ -8,6 +8,9 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_units.hpp"
+#include "vr_portals.hpp"
+#include "vr_server.hpp"
+#include "vr_move.hpp"
 
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Math/Fabs.hpp"
@@ -170,6 +173,23 @@ ankerl::unordered_dense::map<int, Watch> watches;
 
 } // namespace
 
+// Solve both grips in the object's room even when the hands straddle the aperture.
+static Frame foldedHand(edict_t* player, int hand)
+{
+    using namespace progs;
+    const auto& f = fields();
+    if(const auto* move = server::clientMove(player))
+    {
+        const glm::vec3 root{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+        const auto gate = portals::reach(root, move->hands[1].pos);
+        glm::vec3 angles = move->hands[hand].rot;
+        angles.y = anglemod(angles.y + gate.yaw);
+        return {gate.turn * (move->hands[hand].pos - gate.from) + gate.to, fromAngles(&angles[0], true)};
+    }
+    const auto angles = fieldVec(player, hand ? f.handrot : f.offhandrot);
+    return {fieldVec(player, hand ? f.handpos : f.offhandpos), fromAngles(&angles[0], true)};
+}
+
 glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
 {
     QVR_PROFILE("carry2h");
@@ -182,12 +202,9 @@ glm::vec3 serverPlace(edict_t* ent, edict_t* player, bool grab)
         return origin;
     }
     Frame hands[2];
-    const int pos[2] = {f.offhandpos, f.handpos};
-    const int rot[2] = {f.offhandrot, f.handrot};
     for(int h = 0; h < 2; h++)
     {
-        const glm::vec3 angles = fieldVec(player, rot[h]);
-        hands[h] = {fieldVec(player, pos[h]), fromAngles(&angles[0], true)};
+        hands[h] = foldedHand(player, h);
     }
 
     const int num = NUM_FOR_EDICT(ent);
@@ -251,13 +268,12 @@ int detached(edict_t* ent, edict_t* player)
     // (Moved with the body since it was placed: see Watch.)
     const glm::vec3 carried = w.placed ? body - w.placedBody : glm::vec3{0.f};
     const Frame object{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} + carried, fromAngles(ent->v.angles, brush)};
-    const int pos[2] = {f.offhandpos, f.handpos};
     glm::vec3 hand[2];
     bool left[2];
     float moved[2];
     for(int h = 0; h < 2; h++)
     {
-        hand[h] = fieldVec(player, pos[h]);
+        hand[h] = foldedHand(player, h).pos;
         const float distance = glm::distance(hand[h], onGrip(it->second, object, h).pos);
         // Where the hand was (from the body: walking doesn't count) when it was last on its grip.
         if(distance <= drift || !w.valid[h])

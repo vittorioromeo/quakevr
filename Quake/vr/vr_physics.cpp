@@ -14,6 +14,7 @@
 #include "vr_progs.hpp"
 #include "vr_move.hpp"
 #include "vr_server.hpp"
+#include "vr_portals.hpp"
 #include "vr_protocol.hpp"
 #include "vr_units.hpp"
 #include "vr_particles.hpp"
@@ -236,7 +237,12 @@ void impactField(edict_t* e1, edict_t* e2, int ofs)
 {
     vec3_t s{start.x, start.y, start.z}, mi{mins.x, mins.y, mins.z},
         ma{maxs.x, maxs.y, maxs.z}, e{end.x, end.y, end.z};
-    return SV_Move(s, mi, ma, e, type, pass);
+    trace_t trace;
+    if((type & MOVE_PORTALS) && VR_PortalReachMove(pass, s, mi, ma, e, type & ~MOVE_PORTALS, &trace))
+    {
+        return trace;
+    }
+    return SV_Move(s, mi, ma, e, type & ~MOVE_PORTALS, pass);
 }
 
 // Hands touching things along the player's reach: traces from the body (and from a box
@@ -277,6 +283,14 @@ void handTouches(edict_t* ent)
 
     for(int h = 1; h >= 0; h--) // main hand first
     {
+        const auto* tracked = server::clientMove(ent);
+        if(tracked && portals::reach(vec(ent->v.origin), tracked->hands[h].pos).gate)
+        {
+            // A folded reach never sweeps a giant box between the two rooms.
+            const glm::vec3 end = tracked->hands[h].pos + forwardFromAngles(tracked->hands[h].rot);
+            checkTrace(moveTrace(vec(ent->v.origin), -handExtent, handExtent, end, MOVE_NORMAL | MOVE_PORTALS, ent));
+            continue;
+        }
         checkTrace(moveTrace(vec(ent->v.origin), vec(ent->v.mins), vec(ent->v.maxs), ends[h],
             MOVE_NORMAL, ent));
         checkTrace(moveTrace(unionCentre, -unionHalf, unionHalf, ends[h], MOVE_NORMAL, ent));
@@ -299,8 +313,11 @@ void weaponTouches(edict_t* ent)
 
     for(int i = 0; i < 2; i++)
     {
-        const trace_t trace = moveTrace(fieldVec(ent, handPos[i]), -gunExtent, gunExtent,
-            fieldVec(ent, muzzlePos[i]), MOVE_NORMAL, ent);
+        const auto* tracked = server::clientMove(ent);
+        const int h = i == 0 ? 1 : 0;
+        const trace_t trace = tracked ?
+            moveTrace(tracked->hands[h].pos, -gunExtent, gunExtent, tracked->muzzlePos[h], MOVE_NORMAL | MOVE_PORTALS, ent) :
+            moveTrace(fieldVec(ent, handPos[i]), -gunExtent, gunExtent, fieldVec(ent, muzzlePos[i]), MOVE_NORMAL, ent);
 
         if(trace.fraction < 1.f && trace.ent && fieldFunc(trace.ent, f().vr_wpntouch))
         {

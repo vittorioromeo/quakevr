@@ -236,9 +236,12 @@ extern "C" int VR_AliasZeroBlend(const entity_t* e, const void* aliashdr, int to
 extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], const void* aliashdr, int kind,
     vraliasinstance_t* out)
 {
+    out->portalclip[0] = out->portalclip[1] = out->portalclip[2] = 0.f;
+    out->portalclip[3] = 1.f;
     if(kind == 2)
     {
         ZA_MEMSET(out, 0, sizeof(*out));
+        out->portalclip[3] = 1.f;
         return;
     }
     const aliashdr_t* hdr = static_cast<const aliashdr_t*>(aliashdr);

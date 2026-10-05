@@ -51,6 +51,8 @@
 // order (entities in edict order) give the same result.
 
 #include "vr_box3d.hpp"
+#include "vr_main.hpp"
+#include "vr_portals.hpp"
 #include "vr_axestick.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_jobs.hpp"
@@ -595,6 +597,7 @@ struct World
     };
     za::Vector<FrameSample> frameSamples;
     const qmodel_t* map{nullptr};
+    int generation{-1};
     float m2u{1.f};      // units a metre
     float gravity{0.f};  // sv_gravity at the last update
     float friction{-1.f}, restitution{-1.f};
@@ -603,6 +606,15 @@ struct World
     za::Vector<za::Pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
     za::Vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
     za::Vector<Pushed> pushed; // the props near the hands' bodies before this step (kept: no allocation a frame)
+    struct PortalCopy
+    {
+        b3BodyId original{b3_nullBodyId}, copy{b3_nullBodyId};
+        glm::mat3 turn{1.f};
+        glm::vec3 shift{0.f}, velocity{0.f}, spin{0.f};
+        glm::vec4 here{0.f}, there{0.f};
+        bool dynamic{false};
+    };
+    za::Vector<PortalCopy> portalCopies;
     za::Vector<Slot> slots; // by edict number
     // The players' hands (by client, [0] off, [1] main): kinematic spheres at their fists that push solid props; and
     // their reach bodies (syncReach): the empty hand's, or the held weapon's.
@@ -637,6 +649,7 @@ struct World
         za::Vector<glm::vec4> fist; // the push body's spheres (the drawn fist, in the hand's frame; empty: the one sphere)
     };
     za::Vector<za::Array<HandBody, 2>> hands;
+    za::Vector<glm::vec3> walkOrigins; // physical walking also nudges nonblocking corpses
     // Throws (vr_box3d_throw_grace, noteThrows): what was thrown passes through its thrower's hands' bodies a moment.
     struct Grace
     {
@@ -1541,7 +1554,7 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     if(!held && isSolidProp(ent))
     {
         def.filter.categoryBits |= catSolid; // pushed and tipped by the hands' bodies
-        def.filter.maskBits |= catHand;
+        def.filter.maskBits |= catHand | catReachWeapon;
     }
     else if(!held)
     {
@@ -1551,6 +1564,7 @@ void addPropShapes(edict_t* ent, int num, qmodel_t* model, const glm::vec3& lo, 
     def.baseMaterial.restitution = isSoft(ent, model) ? 0.f : CLAMP(0.f, vr_throw_restitution.value, 1.f);
     def.enableContactEvents = !held;
     def.enableHitEvents = !held;
+    def.enablePreSolveEvents = true;
     if(isGrenade(model))
     {
         def.baseMaterial.restitution = grenadeRestitution;
@@ -3286,7 +3300,7 @@ void dropGrabsOf(int num)
 // The ragdoll of edict `num`, or null.
 [[nodiscard]] RagdollBodies* ragdollOf(int num)
 {
-    if(!world || num <= svs.maxclients || num >= static_cast<int>(world->slots.size()) || world->slots[num].ragdoll < 0)
+    if(!world || world->generation != worldGeneration() || num <= svs.maxclients || num >= static_cast<int>(world->slots.size()) || world->slots[num].ragdoll < 0)
     {
         return nullptr;
     }
@@ -4774,6 +4788,10 @@ constexpr float restUp = 0.3f;         // a prop rests on a hand where their con
     {
         return nullptr;
     }
+    for(const World::PortalCopy& copy : world->portalCopies)
+    {
+        if(B3_ID_EQUALS(copy.copy, body)) { body = copy.original; break; }
+    }
     for(World::HandBody& hb : world->hands[static_cast<size_t>(player)])
     {
         if(B3_IS_NON_NULL(hb.reach) && B3_ID_EQUALS(hb.reach, body))
@@ -6259,6 +6277,7 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
         return reachMeets(aReach ? a : b, aReach ? b : a);
     }
     const int na = numOf(a), nb = numOf(b);
+    if(na > 0 && na == nb) { return false; }
     if(na <= 0 || nb <= 0 || na >= qcvm->num_edicts || nb >= qcvm->num_edicts)
     {
         return true;
@@ -6340,6 +6359,16 @@ bool shouldCollide(b3ShapeId a, b3ShapeId b, void*)
 // kinematic spheres, wedged it into the wall: Box3D threw it off at 10 to 15 m/s. ROUND21.md, "Props regressions".)
 bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
 {
+    for(const World::PortalCopy& copy : world->portalCopies)
+    {
+        for(const b3ShapeId shape : {a, b})
+        {
+            const b3BodyId body = b3Shape_GetBody(shape);
+            const glm::vec4* clip = B3_ID_EQUALS(body, copy.original) ? &copy.here : B3_ID_EQUALS(body, copy.copy) ? &copy.there : nullptr;
+            if(clip && glm::dot(*clip, glm::vec4{world->toU(point), 1.f}) < -0.03125f) { return false; }
+        }
+    }
+
     const bool aPlayer = (b3Shape_GetFilter(a).categoryBits & catPlayer) != 0;
     if(aPlayer || (b3Shape_GetFilter(b).categoryBits & catPlayer) != 0)
     {
@@ -6389,6 +6418,99 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
         return false;
     }
     return mayHoldUp(propBody, n);
+}
+
+// The crossing half has a body in the other room. Both shapes are clipped
+// by their contact points, so the wall behind the aperture cannot catch it.
+// Dynamic copies return their contact impulses, rotated, to their owner.
+void syncPortalCopies()
+{
+    for(const World::PortalCopy& c : world->portalCopies)
+    {
+        if(b3Body_IsValid(c.copy)) { b3DestroyBody(c.copy); }
+    }
+    world->portalCopies.clear();
+    const auto add = [&](b3BodyId body) {
+        if(B3_IS_NULL(body) || !b3Body_IsValid(body)) { return; }
+        const b3AABB box = b3Body_ComputeAABB(body);
+        portals::LightGate gate;
+        if(!portals::splitBounds(world->toU(box.lowerBound), world->toU(box.upperBound), gate)) { return; }
+        World::PortalCopy c;
+        c.original = body;
+        c.turn = gate.turn;
+        c.shift = gate.to - gate.turn * gate.from;
+        c.here = glm::vec4{gate.normal, -gate.dist};
+        const glm::vec3 normal = -gate.turn * gate.normal;
+        c.there = glm::vec4{normal, -glm::dot(normal, gate.to)};
+        c.dynamic = b3Body_GetType(body) == b3_dynamicBody;
+        b3BodyDef def = b3DefaultBodyDef();
+        def.type = c.dynamic ? b3_dynamicBody : b3_kinematicBody;
+        def.gravityScale = 0.f;
+        const b3WorldTransform pose = b3Body_GetTransform(body);
+        def.position = world->toM(gate.turn * world->toU(pose.p) + c.shift);
+        def.rotation = toB3(glm::normalize(glm::quat_cast(gate.turn) * fromB3(pose.q)));
+        def.userData = b3Body_GetUserData(body);
+        c.copy = b3CreateBody(world->id, &def);
+        za::Array<b3ShapeId, 16> shapes;
+        const int count = b3Body_GetShapes(body, shapes.data(), static_cast<int>(shapes.size()));
+        for(int i = 0; i < count; i++)
+        {
+            const b3ShapeId original = shapes[i];
+            b3ShapeDef shape = b3DefaultShapeDef();
+            shape.userData = b3Shape_GetUserData(original);
+            shape.filter = b3Shape_GetFilter(original);
+            shape.density = b3Shape_GetDensity(original);
+            shape.baseMaterial.friction = b3Shape_GetFriction(original);
+            shape.baseMaterial.restitution = b3Shape_GetRestitution(original);
+            shape.enablePreSolveEvents = true;
+            shape.enableCustomFiltering = true;
+            b3Shape_EnablePreSolveEvents(original, true);
+            switch(b3Shape_GetType(original))
+            {
+            case b3_hullShape: b3CreateHullShape(c.copy, &shape, b3Shape_GetHull(original)); break;
+            case b3_sphereShape: { const b3Sphere v = b3Shape_GetSphere(original); b3CreateSphereShape(c.copy, &shape, &v); break; }
+            case b3_capsuleShape: { const b3Capsule v = b3Shape_GetCapsule(original); b3CreateCapsuleShape(c.copy, &shape, &v); break; }
+            default: break;
+            }
+        }
+        world->portalCopies.pushBack(c);
+    };
+    for(const Slot& slot : world->slots)
+    {
+        if(slot.kind == Kind::Held || slot.kind == Kind::Prop) { add(slot.body); }
+    }
+    for(const auto& pair : world->hands)
+    {
+        for(const World::HandBody& hand : pair) { add(hand.body); add(hand.reach); }
+    }
+}
+
+void feedPortalCopies()
+{
+    for(World::PortalCopy& c : world->portalCopies)
+    {
+        if(!b3Body_IsValid(c.original)) { continue; }
+        const b3WorldTransform pose = b3Body_GetTransform(c.original);
+        b3Body_SetTransform(c.copy, world->toM(c.turn * world->toU(pose.p) + c.shift),
+            toB3(glm::normalize(glm::quat_cast(c.turn) * fromB3(pose.q))));
+        c.velocity = c.turn * glmv(b3Body_GetLinearVelocity(c.original));
+        c.spin = c.turn * glmv(b3Body_GetAngularVelocity(c.original));
+        b3Body_SetLinearVelocity(c.copy, b3v(c.velocity));
+        b3Body_SetAngularVelocity(c.copy, b3v(c.spin));
+    }
+}
+
+void finishPortalCopies()
+{
+    for(const World::PortalCopy& c : world->portalCopies)
+    {
+        if(!c.dynamic || !b3Body_IsValid(c.original)) { continue; }
+        const glm::mat3 back = glm::transpose(c.turn);
+        b3Body_SetLinearVelocity(c.original, b3v(glmv(b3Body_GetLinearVelocity(c.original)) +
+            back * (glmv(b3Body_GetLinearVelocity(c.copy)) - c.velocity)));
+        b3Body_SetAngularVelocity(c.original, b3v(glmv(b3Body_GetAngularVelocity(c.original)) +
+            back * (glmv(b3Body_GetAngularVelocity(c.copy)) - c.spin)));
+    }
 }
 
 // Pushes by mass (pushShare): the mass behind a hand's body `shape` (kg), 0 for none (a kinematic body's full push: not
@@ -6687,6 +6809,7 @@ void buildWorld()
 {
     world = za::makeUnique<World>();
     world->map = sv.worldmodel;
+    world->generation = worldGeneration();
     world->m2u = units::metresToUnits();
     world->gravity = sv_gravity.value;
     world->friction = za::max(vr_throw_friction.value, 0.f);
@@ -8003,6 +8126,24 @@ void watchInside();
 
 bool commandsRegistered = false; // (registerCommands: once)
 
+void portalInfo_f()
+{
+    const VmScope vm;
+    Con_Printf("physicsportals: generation=%d current=%d copies=%d\n", world ? world->generation : -1,
+        worldGeneration(), world ? static_cast<int>(world->portalCopies.size()) : 0);
+    if(world)
+    {
+        for(const World::PortalCopy& c : world->portalCopies)
+        {
+            const glm::vec3 here = world->toU(b3Body_GetPosition(c.original));
+            const glm::vec3 there = world->toU(b3Body_GetPosition(c.copy));
+            Con_Printf("physicsportals: %d %s at %.1f %.1f %.1f -> %.1f %.1f %.1f\n",
+                static_cast<int>(reinterpret_cast<uintptr_t>(b3Body_GetUserData(c.original))), c.dynamic ? "dynamic" : "held",
+                here.x, here.y, here.z, there.x, there.y, there.z);
+        }
+    }
+}
+
 void registerCommands()
 {
     bool& registered = commandsRegistered;
@@ -8032,6 +8173,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_spawn", spawn_f);
         Cmd_AddCommand("vr_physics_fling", fling_f);
         Cmd_AddCommand("vr_physics_forcegrab", forcegrabCheck_f);
+        Cmd_AddCommand("vr_physics_portals", portalInfo_f);
         Cmd_AddCommand("vr_corpse_list", corpseList_f);
         Cmd_AddCommand("vr_corpse_drop", corpseDrop_f);
         Cmd_AddCommand("vr_ragdoll_list", ragdollList_f);
@@ -8860,16 +9002,48 @@ void ownBox(const Slot& s, glm::vec3& lo, glm::vec3& hi)
 
 [[nodiscard]] bool boxInLevel(const glm::vec3& lo, const glm::vec3& hi, const glm::vec3& at, const glm::quat& rot, float in = 1.f)
 {
-    // (`in` units inside its surface: touching isn't in.)
-    const za::Array<b3Vec3, 8> corners = boxCorners(lo, hi, rot, in);
-    const b3ShapeProxy proxy{corners.data(), 8, 0.f};
+    // Clip the convex box at the aperture; each half queries the level in its own room.
+    const auto corners = boxCorners(lo, hi, rot, in);
+    glm::vec3 points[8], boundsLo{1e9f}, boundsHi{-1e9f};
+    for(int i = 0; i < 8; i++)
+    {
+        points[i] = at + world->toU(corners[i]);
+        boundsLo = glm::min(boundsLo, points[i]); boundsHi = glm::max(boundsHi, points[i]);
+    }
+    portals::LightGate gate;
+    const bool split = portals::splitBounds(boundsLo, boundsHi, gate);
     bool any = false;
-    b3World_OverlapShape(world->id, world->toM(at), &proxy, levelFilter(),
-        [](b3ShapeId, void* context) {
-            *static_cast<bool*>(context) = true;
-            return false;
-        },
-        &any);
+    const auto query = [&](const b3Vec3* vertices, int count, const glm::vec3& centre) {
+        if(count < 4) { return; }
+        const b3ShapeProxy proxy{vertices, count, 0.f};
+        b3World_OverlapShape(world->id, world->toM(centre), &proxy, levelFilter(),
+            [](b3ShapeId, void* context) { *static_cast<bool*>(context) = true; return false; }, &any);
+    };
+    if(!split) { query(corners.data(), 8, at); return any; }
+    for(int half = 0; half < 2 && !any; half++)
+    {
+        b3Vec3 clipped[20]; int count = 0;
+        const glm::vec3 centre = half ? gate.turn * (at - gate.from) + gate.to : at;
+        const auto append = [&](glm::vec3 p) {
+            if(half) { p = gate.turn * (p - gate.from) + gate.to; }
+            clipped[count++] = world->toM(p - centre);
+        };
+        float distances[8];
+        for(int i = 0; i < 8; i++)
+        {
+            distances[i] = glm::dot(gate.normal, points[i]) - gate.dist;
+            if(half ? distances[i] <= 0.f : distances[i] >= 0.f) { append(points[i]); }
+        }
+        for(int i = 0; i < 8; i++) for(int axis = 0; axis < 3; axis++)
+        {
+            const int j = i ^ (1 << axis);
+            if(j > i && distances[i] * distances[j] < 0.f)
+            {
+                append(glm::mix(points[i], points[j], distances[i] / (distances[i] - distances[j])));
+            }
+        }
+        query(clipped, count, centre);
+    }
     return any;
 }
 
@@ -9143,6 +9317,48 @@ namespace
 {
     return num > svs.maxclients && num < static_cast<int>(world->slots.size()) && num < qcvm->num_edicts &&
            world->slots[num].kind == Kind::Corpse && world->slots[num].corpseDynamic && B3_IS_NON_NULL(world->slots[num].body);
+}
+
+// A nonblocking corpse still feels feet walking through it. Apply a gentle,
+// bounded horizontal nudge to nearby limbs without changing player collision.
+void nudgeWalkedRagdolls(float dt)
+{
+    world->walkOrigins.resize(svs.maxclients + 1);
+    for(int player = 1; player <= svs.maxclients; player++)
+    {
+        edict_t* e = EDICT_NUM(player);
+        const glm::vec3 origin = vec(e->v.origin);
+        glm::vec3& previous = world->walkOrigins[static_cast<size_t>(player)];
+        const glm::vec3 walked{origin.x - previous.x, origin.y - previous.y, 0.f};
+        const bool physical = previous != glm::vec3{0.f} && glm::length(walked) < world->m2u;
+        previous = origin;
+        if(e->free || e->v.health <= 0.f) { continue; }
+        glm::vec3 pace{e->v.velocity[0], e->v.velocity[1], 0.f};
+        if(physical && dt > 0.f && glm::length(walked) / dt > glm::length(pace)) { pace = walked / dt; }
+        const float speed = glm::length(pace) / world->m2u;
+        if(speed < 0.05f) { continue; }
+        pace = glm::normalize(pace);
+        const glm::vec3 lo = vec(e->v.absmin), hi = vec(e->v.absmax);
+        for(size_t num = svs.maxclients + 1; num < world->slots.size(); num++)
+        {
+            const RagdollBodies* r = ragdollOf(static_cast<int>(num));
+            if(!r || !world->slots[num].corpseDynamic) { continue; }
+            for(int part = 0; part < r->count; part++)
+            {
+                const b3BodyId b = r->body[static_cast<za::SizeT>(part)];
+                const b3AABB box = b3Body_ComputeAABB(b);
+                const glm::vec3 a = world->toU(box.lowerBound), z = world->toU(box.upperBound);
+                if(a.x > hi.x || z.x < lo.x || a.y > hi.y || z.y < lo.y || a.z > hi.z || z.z < lo.z - 2.f) { continue; }
+                const float along = glm::dot(glmv(b3Body_GetLinearVelocity(b)), pace);
+                const float target = za::min(speed * 0.3f, 0.6f);
+                if(along < target)
+                {
+                    const float change = za::min(target - along, 3.f * dt);
+                    b3Body_ApplyLinearImpulseToCenter(b, b3v(pace * (b3Body_GetMass(b) * change)), true);
+                }
+            }
+        }
+    }
 }
 
 // Before the step: each solid prop a player walked into this frame (VR_PlayerBumps: Quake's move stopped at its side)
@@ -10480,7 +10696,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         return;
     }
     QVR_PROFILE("box3d");
-    if(!world || world->map != sv.worldmodel || world->m2u != units::metresToUnits() ||
+    if(!world || world->map != sv.worldmodel || world->generation != worldGeneration() || world->m2u != units::metresToUnits() ||
        !meshCurrent(sv.worldmodel, world->m2u, world->mesh))
     {
         const double b0 = Sys_DoubleTime();
@@ -10505,6 +10721,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
         noteThrows();
         syncReach(dt);
+        syncPortalCopies();
     }
     const double tSync = Sys_DoubleTime();
     {
@@ -10512,6 +10729,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         beforeStep(dt);
         beforeStanding();
         shoveBumped(dt);
+        nudgeWalkedRagdolls(dt);
         unstickProps();
     }
     const double t1 = Sys_DoubleTime();
@@ -10533,6 +10751,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             {
                 liftAgain(); // (Box3D clears the forces after each step)
             }
+            feedPortalCopies();
             notePushed(dt / static_cast<float>(pieces));
             pressStanding(dt / static_cast<float>(pieces));
             world->tasks.next.storeRelaxed(0);
@@ -10540,6 +10759,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
             b3World_Step(world->id, dt / static_cast<float>(pieces), substeps);
             sample.ms[PhaseSolver] += static_cast<float>((Sys_DoubleTime() - s0) * 1000.0);
             addProfile(world->stepProfile, b3World_GetProfile(world->id));
+            finishPortalCopies();
             limitPushes(dt / static_cast<float>(pieces));
             world->steps++;
             touches(impacts);

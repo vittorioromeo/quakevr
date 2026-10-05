@@ -1635,7 +1635,7 @@ void(float damage) spawn_touchblood =
         VR_GrenShot_Sparks(self.origin);
         return;
     }
-    if(VR_WallTorch_OnWall(other)) // VR: a wall torch on its wall (vr_walltorch.qc): no blood, its hit's own embers
+    if(VR_WallTorch_IsTorch(other)) // the identity survives being knocked off by this hit
     {
         return;
     }
@@ -1880,7 +1880,7 @@ void(float damage, vector dir) TraceAttack =
             {
                 VR_GrenShot_Sparks(org); // VR: a grenade (vr_grenade.qc, "Shooting grenades"): sparks
             }
-            else if(VR_WallTorch_OnWall(trace_ent))
+            else if(VR_WallTorch_IsTorch(trace_ent))
             {
                 // VR: a wall torch on its wall (vr_walltorch.qc): no blood. It takes damage only so that shots meet
                 // it; its hit is VR_WallTorch_KnockOff's embers, and a taken torch takes no damage at all.
@@ -2249,6 +2249,10 @@ LIGHTNING
 float(entity t, entity from, float damage, vector xDir) VR_LightningHit =
 {
     vector at = trace_endpos;
+    if((t.flags & FL_MONSTER) || t.vr_corpse)
+    {
+        bodyshock(t, 0.75);
+    }
     float pop = VR_Decap_BoltArm(t, at, xDir, damage);
     float r = T_Damage(t, from, from, damage);
     if(pop)
@@ -2593,6 +2597,12 @@ void() GrenadeTouch =
 {
     if(other == self.owner)
         return;        // don't explode on owner
+
+    if(VR_WallTorch_OnWall(other))
+    {
+        VR_WallTorch_KnockOff(other, self, normalize(self.velocity));
+        return; // retain the grenade's bounce and its original fuse
+    }
 
     // HONEY
     self.owner.damage_weapon = IT_GRENADE_LAUNCHER;

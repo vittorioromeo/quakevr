@@ -63,7 +63,7 @@ void() Laser_Touch =
 
     if(other.health)
     {
-        SpawnBlood (org, self.velocity*0.2, 15);
+        VR_HitBlood(other, org, self.velocity*0.2, 15);
         T_Damage(other, self, self.owner, self.vr_laser_damage ? self.vr_laser_damage : 15); // VR: an enforcer's rifle's (vr_enemyguns.qc)
     }
     else
@@ -87,7 +87,7 @@ entity(vector org, vector vec) LaunchLaser =
 
     newmis = spawn();
     newmis.owner = self;
-    newmis.movetype = MOVETYPE_FLY;
+    newmis.movetype = MOVETYPE_FLYMISSILE; // shot-target collisions include mounted torches
     newmis.solid = SOLID_BBOX;
     newmis.effects = EF_DIMLIGHT;
     newmis.classname = "enforcer_laser";
