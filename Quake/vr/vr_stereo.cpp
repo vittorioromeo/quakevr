@@ -12,6 +12,7 @@
 #include "vr_fgfx.hpp"
 #include "vr_gfx.hpp"
 #include "vr_bloom.hpp"
+#include "vr_bullettime.hpp"
 #include "vr_body.hpp"
 #include "vr_envmap.hpp"
 #include "vr_foveated.hpp"
@@ -210,6 +211,8 @@ layout(location = 9) uniform vec3 WaterUp;
 layout(location = 10) uniform vec3 Map0;  // Map's columns: the window (-1..1, 1) to the scene's uv (homogeneous)
 layout(location = 11) uniform vec3 Map1;
 layout(location = 12) uniform vec3 Map2;
+layout(location = 13) uniform vec4 SlowLook; // bullet time: strength, desaturation, vignette, unused
+layout(location = 14) uniform vec3 SlowTint;
 layout(location = 0) out vec4 Out;
 )" QVR_TONE_GLSL R"(
 // Catmull-Rom in nine bilinear reads (the middle two texels of each axis in one).
@@ -287,6 +290,14 @@ void main()
     }
     if(Tone.x > 0.0)
         c = QvrTonemap(c * Tone.x, Tone.yz);
+    if(SlowLook.x > 0.0)
+    {
+        // The headset's look (vr_glsl.h), centred on this camera's rectangle, regardless of its resolution or FOV.
+        float luma = dot(c, vec3(0.299, 0.587, 0.114));
+        c = mix(c, vec3(luma), SlowLook.x * SlowLook.y);
+        c *= mix(vec3(1.0), SlowTint, SlowLook.x);
+        c *= 1.0 - SlowLook.x * SlowLook.z * smoothstep(0.35, 1.7, dot(ndc, ndc));
+    }
     if(Tone.w > 0.0)
         c = QvrGrade(GradeLUT, c, Tone.w);
     Out = vec4(c, 1.0);
@@ -381,6 +392,12 @@ void drawToWindow(const SceneTargets& source, const SceneLook& look, const glm::
     GL_Uniform3fFunc(10, map[0].x, map[0].y, map[0].z);
     GL_Uniform3fFunc(11, map[1].x, map[1].y, map[1].z);
     GL_Uniform3fFunc(12, map[2].x, map[2].y, map[2].z);
+    // Only the actual spectator scene: toggling this setting never changes either mirror mode or the headset.
+    // This also follows the live fade while the spectator repeats a retained scene between camera frames.
+    const bullettime::Look slow = &source == &spectatorTargets && vr_spectator_bullettime_fx.value != 0.f ?
+        bullettime::look() : bullettime::Look{};
+    GL_Uniform4fFunc(13, slow.strength, slow.desaturate, slow.vignette, 0.f);
+    GL_Uniform3fFunc(14, slow.tint.x, slow.tint.y, slow.tint.z);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     if(filtered)
     {

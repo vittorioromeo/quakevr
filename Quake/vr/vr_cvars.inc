@@ -301,6 +301,7 @@ QVR_CVAR(vr_window_zoom, "1.2", CVAR_ARCHIVE)         // smoothed mirror: 1 the 
 QVR_CVAR(vr_spectator_fov, "90", CVAR_ARCHIVE)        // spectator camera: horizontal field of view, degrees (40 .. 160; the slider 60 .. 150)
 QVR_CVAR(vr_spectator_scale, "0.75", CVAR_ARCHIVE)    // spectator camera: its resolution, times the window's (0.25 .. 2)
 QVR_CVAR(vr_spectator_rate, "60", CVAR_ARCHIVE)        // spectator camera: drawn every frame (1), every 2nd or 3rd (2, 3), or at most this many times a second (more than 3); the window shows the last between
+QVR_CVAR(vr_spectator_bullettime_fx, "1", CVAR_ARCHIVE) // 1: bullet time's colour, tint and darkened edges in the spectator camera; 0: its normal look (headset unchanged)
 QVR_CVAR(vr_spectator_aa, "1", CVAR_ARCHIVE)           // spectator camera: 1 the window's MSAA (vid_fsaa), as the eyes; 0 none
 QVR_CVAR(vr_spectator_pos_smooth, "0.05", CVAR_ARCHIVE) // spectator camera: seconds, the steadied position's lag (0 none .. 0.3)
 // Slow motion (vr_timescale.cpp; ROUND21.md, "Slow motion"): the whole simulation slowed (the server, the client's time,
@@ -325,7 +326,7 @@ QVR_CVAR(vr_bullettime_recharge, "20", CVAR_ARCHIVE)   // real seconds the meter
 QVR_CVAR(vr_bullettime_cooldown, "2", CVAR_ARCHIVE)    // real seconds after it ends before it can start again (the meter waits too)
 QVR_CVAR(vr_bullettime_min, "0.25", CVAR_ARCHIVE)      // the least meter it starts with (0.01 .. 1)
 QVR_CVAR(vr_bullettime_sandevistan, "0", CVAR_ARCHIVE) // 1: while it runs, the player runs in its own time (as vr_sandevistan)
-QVR_CVAR(vr_bullettime_fx, "1", CVAR_ARCHIVE)          // its look's strength in the eyes (0 off .. 1); never for the recording's vr_timescale
+QVR_CVAR(vr_bullettime_fx, "1", CVAR_ARCHIVE)          // its look's strength (0 off .. 1; spectator: vr_spectator_bullettime_fx); never for the recording's vr_timescale
 QVR_CVAR(vr_bullettime_fx_desat, "0.7", CVAR_ARCHIVE)  // ... how much of the colour it takes out (0 .. 1)
 QVR_CVAR(vr_bullettime_fx_vignette, "0.5", CVAR_ARCHIVE) // ... how dark the view's edges (0 .. 1)
 QVR_CVAR(vr_bullettime_fx_tint, "0.85 0.95 1.15", CVAR_ARCHIVE) // ... the colour it multiplies by (red green blue)

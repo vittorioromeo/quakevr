@@ -41,6 +41,10 @@
                   "closer and leaves a margin for the steadied view to turn in. Past the margin, the view follows your "
                   "head: raise it if quick turns show the view catching up."),
         header("Spectator Camera"),
+        toggle("Bullet Time Effects", "vr_spectator_bullettime_fx")
+            .help("Shows bullet time's drained colour, tint and darkened edges in the Spectator Camera (on by default). "
+                  "Off: the camera keeps its normal look. The headset is unchanged. Strength and colour: Combat > "
+                  "Bullet Time. The recording's Time Scale alone never applies this look."),
         slider("Field of View", "vr_spectator_fov", 60.f, 150.f, 1.f, "%.0f deg").extend(40.f, 160.f)
             .help("The window's horizontal field of view (90 as a flat game; the vertical one follows the window's shape)."),
         cycle("Frame Rate", "vr_spectator_rate", {{1.f, "Every Frame"}, {2.f, "Every 2nd Frame"}, {3.f, "Every 3rd Frame"},
