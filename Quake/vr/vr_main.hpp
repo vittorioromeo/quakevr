@@ -4,6 +4,8 @@
 
 #include "vr_backend.hpp"
 
+#include "Zancle/String/String.hpp"
+
 namespace qvr
 {
 
@@ -35,5 +37,9 @@ struct FrameRate
     float gpuMs{-1.f};
 };
 [[nodiscard]] bool frameRate(FrameRate& out);
+
+// The menu's status box's lines (vr_menu_status): VR, mock VR or flat; the runtime; the resolution rendered; the target
+// rate; the frames a second and the CPU's and GPU's work; the RAM and VRAM held. Once a frame while it is shown.
+void statusLines(za::Vector<za::String>& out);
 
 } // namespace qvr

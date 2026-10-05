@@ -1063,6 +1063,58 @@ void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4
 
 } // namespace
 
+// The status box (vr_menu_status), over every menu, in VR and on a flat screen: in the canvas's top right corner, its
+// lines (qvr::statusLines) in small letters on a box like the corner's buttons.
+extern "C" void VR_MenuDrawStatus()
+{
+    if(!vr_menu_status.value || M_WaitingForKeyBinding())
+    {
+        return;
+    }
+    GL_SetCanvas(CANVAS_MENU);
+    static za::Vector<za::String> lines; // (kept: once a frame while a menu is open)
+    statusLines(lines);
+    if(lines.empty())
+    {
+        return;
+    }
+    const Painter p;
+    const ToolbarLayout l = toolbarLayout();
+    float right = 0.f;
+    {
+        drawtransform_t t;
+        Draw_GetCanvasTransform(CANVAS_MENU, &t);
+        float left, top, bottom;
+        Draw_GetTransformBounds(&t, &left, &top, &right, &bottom);
+    }
+    // Small on a flat screen (the menu's canvas is near the window's size); nearer the corner buttons' 8 in the headset.
+    const bool headset = menuui::active();
+    const float size = headset ? 7.f : 5.f, step = headset ? 9.f : 7.f, pad = 4.f;
+    za::SizeT widest = 0;
+    for(const za::String& line : lines)
+    {
+        widest = line.size() > widest ? line.size() : widest;
+    }
+    const float width = size * static_cast<float>(widest) + 2.f * pad;
+    const float x1 = right - ToolbarLayout::corner;
+    const float x0 = x1 - width;
+    const float height = step * static_cast<float>(lines.size()) + 2.f * pad - (step - size);
+    const float y0 = l.top + ToolbarLayout::corner / l.k;
+    const float yc = y0 + height * 0.5f;
+    p.rounded(x0, x1, yc, height * 0.5f, 3.f, colors::boxBorder);
+    p.rounded(x0 + 1.f, x1 - 1.f, yc, height * 0.5f - 1.f, 2.f, colors::boxFill);
+    float y = y0 + pad;
+    for(za::SizeT i = 0; i < lines.size(); i++, y += step)
+    {
+        float x = x0 + pad;
+        for(const char* c = lines[i].cStr(); *c; c++, x += size)
+        {
+            // The first line (the mode) white, the rest in the menus' tan.
+            Draw_CharacterEx(x, y, size, size, i == 0 ? *c : (*c | 128));
+        }
+    }
+}
+
 // The corner's buttons (over every menu, not while a key is being bound): their labels where they fit
 // left of Quake's plaque (x 16), else only their icons.
 extern "C" void VR_MenuDrawOverlay()

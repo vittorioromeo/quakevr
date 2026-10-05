@@ -15,6 +15,7 @@
     return {
         slider("Menu Scale", "vr_menu_scale", 0.05f, 0.6f, 0.01f, "%.2f").extend(0.02f, 1.5f).help("Scale multiplier for the menu: the size of one of its pixels, in world units."),
         slider("Menu Distance", "vr_menu_distance", 24.f, 256.f, 1.f, "%.0f").extend(8.f, 600.f).help("Distance of the menu from the anchor point."),
+        toggle("Status Box", "vr_menu_status").help("A small box in the menus' top right corner: VR, mock VR or flat screen, the runtime (SteamVR, VDXR), the resolution rendered, the target rate, fps, the CPU's and GPU's milliseconds a frame (and their share of the frame's budget), RAM and VRAM."),
         toggle("VR Menu Style", "vr_menu_vr_style").help("The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag."),
         open("Laser Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
         toggle("Main Menu Lettering", "vr_menu_bigfont").help("The main menu's rows as text in Quake's own lettering (its letters cut from the menu pictures), VR Calibration among them. Off: Quake's picture of the rows, with VR Calibration above it in the console's letters."),
