@@ -952,6 +952,149 @@ void(entity t, float dt) VR_Burn_OnYou =
 };
 
 // ----------------------------------------------------------------------------
+// Mapper flames: the static flame registry and wall torches still on their walls. No extra edicts, and a torch
+// taken off its wall stops being a fixture immediately. Hands/arms use the held torch warning and burn delay;
+// torso/head/legs use dropped torch touch ignition. The same burn effects/damage continue after leaving the fire.
+.float burn_map_next;
+.float burn_map_last;
+.float burn_map_on;
+float vr_map_got;
+vector vr_map_at;
+vector vr_map_out;
+entity vr_map_source;
+
+// The upright flame capsule against the player's physical body box, including feet in avatar modes without legs.
+// Prefer tracked body shapes when available; physical walking contact uses the dropped torch ignition path.
+float(entity p, vector a, vector b, float r) VR_Burn_MapBody =
+{
+    vector fire = (a + b) * 0.5;
+    vector at;
+    at_x = max(p.absmin_x, min(fire_x, p.absmax_x));
+    at_y = max(p.absmin_y, min(fire_y, p.absmax_y));
+    at_z = max(p.absmin_z, min(fire_z, p.absmax_z));
+    fire_z = max(a_z, min(at_z, b_z));
+    if(vlen(fire - at) > r)
+    {
+        return 0;
+    }
+    trace_endpos = at;
+    trace_plane_normal = normalize(fire - (p.absmin + p.absmax) * 0.5);
+    return 16 + 16 * 256;
+};
+
+void(entity p, entity source, vector o, float kind) VR_Burn_MapContact =
+{
+    if(vlen(o - p.origin) > 160)
+    {
+        return;
+    }
+    vector a = o + '0 0 1';
+    vector b = o + '0 0 16';
+    float r = 2.2; // wall torch: same hot lower flame as its upright portable version
+    if(kind != 2)
+    {
+        a = o;
+        b = o + (kind == 1 ? '0 0 32' : '0 0 12');
+        r = kind == 1 ? 6.5 : 3;
+    }
+    // Body touch takes priority, including when a hand is deeper in the same fire.
+    float got = cvar_hget(cvarh_vr_burn_touch) ? mapflametouch(p, a, b, r, 48) : 0;
+    if(!got && cvar_hget(cvarh_vr_burn_touch))
+    {
+        got = VR_Burn_MapBody(p, a, b, r);
+    }
+    if(!got && cvar_hget(cvarh_vr_burn_self))
+    {
+        got = mapflametouch(p, a, b, r, 15);
+    }
+    float deep = floor(got / 256);
+    if(!got)
+    {
+        return;
+    }
+    if(!vr_map_got || (deep & 48))
+    {
+        vr_map_got = got;
+        vr_map_at = trace_endpos;
+        vr_map_out = trace_plane_normal;
+        vr_map_source = source;
+    }
+};
+
+void() VR_Burn_MapFrame =
+{
+    entity p;
+    for(p = find(world, classname, "player"); p; p = find(p, classname, "player"))
+    {
+        if(p.ishuman && p.health > 0 && (cvar_hget(cvarh_vr_burn_self) || cvar_hget(cvarh_vr_burn_touch)) &&
+           (vr_fire_spots > 0 || find(world, classname, "light_torch_small_walltorch") != world))
+        {
+            mapflametouch(p, '0 0 0', '0 0 0', -1, 63); // keep the body's shapes through the 0.1 s polling gap
+        }
+        if(!p.ishuman || time < p.burn_map_next)
+        {
+            continue;
+        }
+        float dt = p.burn_map_last > 0 ? min(0.5, max(0, time - p.burn_map_last)) : 0;
+        p.burn_map_last = time;
+        p.burn_map_next = time + 0.1;
+        if(p.health <= 0 || (!cvar_hget(cvarh_vr_burn_self) && !cvar_hget(cvarh_vr_burn_touch)))
+        {
+            p.burn_map_on = 0;
+            continue;
+        }
+        vr_map_got = 0;
+        float i;
+        for(i = 0; i < vr_fire_spots; i++)
+        {
+            vector o = vr_fire_spot[i];
+            float kind = vr_fire_spot_large[i]; // cache both: the scalar array getter clobbers vector call arguments
+            VR_Burn_MapContact(p, world, o, kind);
+        }
+        entity t;
+        for(t = find(world, classname, "light_torch_small_walltorch"); t;
+            t = find(t, classname, "light_torch_small_walltorch"))
+        {
+            if(t.wt_state == 0 && t.wt_fire > 0 && t.modelindex)
+            {
+                VR_Burn_MapContact(p, t, t.origin, 2);
+            }
+        }
+        p.burn_map_on = vr_map_got ? p.burn_map_on + dt : max(0, p.burn_map_on - 2 * dt);
+        if(!vr_map_got)
+        {
+            continue;
+        }
+        float deep = floor(vr_map_got / 256);
+        float side = (deep & 5) ? cVR_OffHand : cVR_MainHand;
+        float need = (deep & 48) ? 0 : max(0, cvar_hget(cvarh_vr_burn_self_time));
+        entity oldSelf = self;
+        self = p;
+        if(p.burn_map_on >= need)
+        {
+            vr_burn_part = (deep & 15) ? side + 1 : 0;
+            vr_burn_out = vr_map_out == '0 0 0' ? '0 0 1' : vr_map_out;
+            if(p.burn_fire == world)
+            {
+                dprint(sprintf("burning: map flame on you (deepest %g) at %v for %.2f s: you catch fire\n",
+                               deep, vr_map_at, p.burn_map_on));
+            }
+            VR_Burn_Ignite(p, vr_map_source, vr_map_at, vr_burn_out * -1, VR_BURN_TOUCH);
+            vr_burn_part = 0;
+            vr_burn_out = '0 0 0';
+            p.burn_map_on = need;
+        }
+        else if(p.ishuman && cvar_hget(cvarh_vr_burn_self_haptic) > 0)
+        {
+            float k = need > 0 ? p.burn_map_on / need : 1;
+            float buzz = max(0, cvar_hget(cvarh_vr_burn_self_haptic));
+            dprint(sprintf("burning: map flame on you (deepest %g): warning %.2f\n", deep, k));
+            haptic(side, 0, 0.1, 90 + 160 * k, min(1, (0.2 + 0.6 * k) * buzz));
+        }
+        self = oldSelf;
+    }
+};
+
 // Nails through a flame (vr_burn_nail_convert): a nail (the nailgun's, the super nailgun's) passing within
 // vr_burn_nail_reach units of a lit torch's flame (held, thrown, lying or on its wall) becomes a lava nail: a lava nail's
 // damage (Weapon Damage), its glow and trail, and it sets what it hits on fire (vr_burn_lava_nails).

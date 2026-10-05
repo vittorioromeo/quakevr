@@ -2697,6 +2697,7 @@ void hologramTestMessage()
         header("What Sets Things on Fire"),
         toggle("Torch Touch", vr_burn_touch)
             .help("A lit torch, held or thrown, sets a monster or a corpse on fire just by touching it: no blow needed. "
+                  "Mapper flames touching your body burn you in the same way as a dropped lit torch. "
                   "Off: a lit torch's blow, or one thrown into it."),
         toggle("Lava Nails", vr_burn_lava_nails)
             .help("Your lava nails (the nailgun's and super nailgun's lava ammo) set what they hit on fire."),
@@ -2762,7 +2763,8 @@ void hologramTestMessage()
         toggle("Its Flame Burns You", vr_burn_self)
             .help("The flame of the torch you hold, kept on your other hand, an arm, your body or your head, sets you on fire "
                   "there after a moment (Catch Fire After), as it does a monster: flames on you, burns on your skin, Burn "
-                  "Damage. Till then the hand buzzes, harder as it comes."),
+                  "Damage. Till then the hand buzzes, harder as it comes. Mapper flames touching your hands or arms use "
+                  "the same warning and delay."),
         slider("Catch Fire After", vr_burn_self_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 10.f)
             .help("How long the flame must stay on you before you catch fire (off it, it eases back twice as fast)."),
         slider("Warning Buzz", vr_burn_self_haptic, 0.f, 2.f, 0.1f, "%.1fx")

@@ -1424,18 +1424,24 @@ void keepShapes()
     shapesWanted = host_framecount;
 }
 
-FlameTouch flameTouch(const glm::vec3& a, const glm::vec3& b, float r, int holdHand)
+FlameTouch flameTouch(const glm::vec3& a, const glm::vec3& b, float r, int holdHand, unsigned allowedParts)
 {
     FlameTouch t;
-    if(!shapesOn || (holdHand != 0 && holdHand != 1))
+    if(!shapesOn || (holdHand != -1 && holdHand != 0 && holdHand != 1))
     {
         return t;
     }
+    const bool fixture = holdHand == -1;
+    holdHand = fixture ? 0 : holdHand;
     const int other = 1 - holdHand;
     const Scene& sc = scene;
     float best = -1.f, bestHold = -1.f;
     glm::vec3 holdAt{0.f}, holdOut{0.f, 0.f, 1.f};
     const auto test = [&](const Caps& caps, unsigned bit) {
+        if(!(allowedParts & bit))
+        {
+            return;
+        }
         for(const Cap& k : caps)
         {
             glm::vec3 pf, pk;
@@ -1450,7 +1456,7 @@ FlameTouch flameTouch(const glm::vec3& a, const glm::vec3& b, float r, int holdH
             t.parts |= bit;
             const glm::vec3 out = len > 1e-4f ? d / len : glm::vec3{0.f, 0.f, 1.f};
             const glm::vec3 at = pk + out * k.r;
-            if(bit == TouchHoldHand)
+            if(bit == TouchHoldHand && !fixture)
             {
                 if(depth > bestHold)
                 {
