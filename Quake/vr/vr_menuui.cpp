@@ -525,7 +525,8 @@ void haptic(int hand, float seconds, float amplitude)
 struct MenuUiScratch
 {
     za::Vector<gfx::Vertex> laser;
-    auto members() { return qvr::mem::list(laser); }
+    za::Vector<za::String> status;
+    auto members() { return qvr::mem::list(laser, status); }
 };
 mem::Scratch<MenuUiScratch> scratch{"menu laser"};
 
@@ -1072,7 +1073,7 @@ extern "C" void VR_MenuDrawStatus()
         return;
     }
     GL_SetCanvas(CANVAS_MENU);
-    static za::Vector<za::String> lines; // (kept: once a frame while a menu is open)
+    auto& lines = scratch.status;
     statusLines(lines);
     if(lines.empty())
     {

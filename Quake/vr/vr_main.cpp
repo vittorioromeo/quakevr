@@ -370,6 +370,15 @@ struct MemSample
     double scanMs{0.0}; // what counting the GL objects took
 };
 
+struct StatusSampleState
+{
+    double windowStart{-1.0}, sampledAt{-10.0};
+    int windowFrames{0};
+    float fps{0.f};
+    MemSample memory;
+};
+StatusSampleState statusSample;
+
 // The GL functions sampleMemory counts objects with (looked up on its first scan).
 struct GlIsFns
 {
@@ -1127,9 +1136,9 @@ void statusLines(za::Vector<za::String>& out)
 
     // The frames: counted here over half a second (in any mode); the CPU's and the GPU's work from the phases timed
     // (frameRate), each also as a share of the target's frame budget.
-    static double windowStart = -1.0;
-    static int windowFrames = 0;
-    static float fps = 0.f;
+    auto& windowStart = statusSample.windowStart;
+    auto& windowFrames = statusSample.windowFrames;
+    auto& fps = statusSample.fps;
     if(windowStart < 0.0 || realtime < windowStart || realtime - windowStart > 2.0)
     {
         windowStart = realtime;
@@ -1167,8 +1176,8 @@ void statusLines(za::Vector<za::String>& out)
     out.pushBack(za::String{line});
 
     // The memory: the process's (its working set) and the GPU's (used of total: NVIDIA's; free only: AMD's).
-    static double sampledAt = -10.0;
-    static MemSample mem;
+    auto& sampledAt = statusSample.sampledAt;
+    auto& mem = statusSample.memory;
     if(realtime - sampledAt >= 1.0 || realtime < sampledAt)
     {
         mem = sampleMemory(false);
