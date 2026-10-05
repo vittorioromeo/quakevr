@@ -546,7 +546,7 @@ float panelHeight()
 
 int menuHeight()
 {
-    return active() ? heightSetting() : 240; // (flat: the menu canvas fits 384 x 240, gl_draw.c CANVAS_MENU)
+    return active() ? heightSetting() : 320; // (flat: the menu canvas fits 420 x 320, gl_draw.c CANVAS_MENU)
 }
 
 void update(const hands::State& s)
