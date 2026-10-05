@@ -37,6 +37,9 @@ namespace qvr::decals
 namespace
 {
 
+// The vr_decal_stress command's lattice permutation counter (stress_f): file scope, not a function-local static.
+unsigned stressSerial = 0;
+
 enum Kind : int
 {
     Blood,
@@ -1569,7 +1572,6 @@ void stress_f()
         Con_Printf("vr_decal_stress: enter a map first\n");
         return;
     }
-    static unsigned serial = 0;
     const int count = Cmd_Argc() > 1 ? za::clamp(atoi(Cmd_Argv(1)), 1, 64) : 64;
     const float size = Cmd_Argc() > 2 ? za::clamp(Q_atof(Cmd_Argv(2)), 1.f, 256.f) : 64.f;
     vec3_t forward, right, up;
@@ -1581,7 +1583,7 @@ void stress_f()
     for(int i = 0; i < count; i++)
     {
         // Permute the 64 x 64 lattice so that the newest marks cover the whole area.
-        const unsigned k = (serial++ * 109u) & 4095u;
+        const unsigned k = (stressSerial++ * 109u) & 4095u;
         const glm::vec3 from = origin + f * (64.f + 6.f * static_cast<float>(k & 63u)) +
                               r * (6.f * (static_cast<float>(k >> 6u) - 31.5f)) + glm::vec3{0.f, 0.f, 24.f};
         glm::vec3 where, normal;

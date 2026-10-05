@@ -368,17 +368,18 @@ void weaponTouches(edict_t* ent)
 }
 
 za::U64 touchVerified = 0;
+// The per-frame dedup for verifyPropTouch: file scope, not function-local statics.
+int touchVerifyFrame = -1;
+unsigned touchSampled = 0;
 void verifyPropTouch(edict_t* ent, edict_t* target)
 {
     if(vr_prop_touch_verify.value == 0.f) return;
-    static int frame = -1;
-    static unsigned sampled = 0;
-    if(frame != host_framecount) { frame = host_framecount; sampled = 0; }
+    if(touchVerifyFrame != host_framecount) { touchVerifyFrame = host_framecount; touchSampled = 0; }
     const auto& types = progs::bindings().propTouches;
     const auto* which = za::find(types, types + za::getArraySize(types), target->v.touch);
     const unsigned bit = 1u << static_cast<unsigned>(which - types);
-    if(sampled & bit) return;
-    sampled |= bit;
+    if(touchSampled & bit) return;
+    touchSampled |= bit;
     const int count = qcvm->num_edicts;
     const za::SizeT bytes = static_cast<za::SizeT>(count) * qcvm->edict_size;
     za::Vector<byte> edicts(bytes);
