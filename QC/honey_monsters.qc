@@ -9,7 +9,8 @@ void() teleport_glitter =
 
 void() monster_add_to_counter =
 {
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE){
+    if(MG_WorldCampaign() && self.classname == "monster_zombie" && (self.spawnflags & 1)) return;
+    if(!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)){
         if(self.cnt != -1){
                 total_monsters = total_monsters + self.cnt + 1;
         }else{
@@ -51,7 +52,7 @@ void() monster_check_remove_corpse =
 {
     entity player;
 
-    if(!(self.spawnflags & SPAWNFLAG_REMOVE_CORPSE)) { return; }
+    if(MG_WorldCampaign() || !(self.spawnflags & SPAWNFLAG_REMOVE_CORPSE)) { return; }
 
     player = find(world, classname, "player");
     while (player)

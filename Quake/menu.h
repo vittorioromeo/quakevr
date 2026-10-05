@@ -50,7 +50,8 @@ enum m_state_e {
 	m_gameoptions,
 	m_search,
 	m_slist,
-	m_vr // QVR: vr/vr_menu.cpp
+	m_vr, // QVR: vr/vr_menu.cpp
+	m_credits // QVR: native official campaign ending
 };
 
 extern enum m_state_e m_state;
