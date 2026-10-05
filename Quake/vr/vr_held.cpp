@@ -1,6 +1,7 @@
 // vr_held.cpp -- see vr_held.hpp.
 
 #include "vr_held.hpp"
+#include "vr_climb.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
@@ -1968,7 +1969,8 @@ bool handEmpty(int hand)
     using namespace protocol;
     const bool main = hand == 1;
     return cl.stats[main ? STAT_QVR_WEAPON : STAT_QVR_WEAPON2] == 0 && // QC's WID_FIST
-           cl.stats[main ? STAT_QVR_CARRYMAIN : STAT_QVR_CARRYOFF] == 0;
+           cl.stats[main ? STAT_QVR_CARRYMAIN : STAT_QVR_CARRYOFF] == 0 &&
+           !climb::holding(hand); // (a hand on a ledge holds the ledge)
 }
 
 bool drawnHand(int hand, glm::vec3& pos, glm::vec3& angles)

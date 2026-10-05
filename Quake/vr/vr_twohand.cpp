@@ -33,7 +33,6 @@
 // gun's handle (HS_CARRIED_GRIP) takes it back.
 
 #include "vr_twohand.hpp"
-#include "vr_climb.hpp"
 #include "vr_engine.hpp"
 #include "vr_backend.hpp"
 #include "vr_body.hpp"
@@ -55,16 +54,6 @@
 
 namespace qvr::twohand
 {
-namespace
-{
-// An empty hand that may take a grip: no weapon nor box in it (held::handEmpty), and not holding a ledge (climbing: its
-// fist is on the ledge, wherever the weapon is brought near it).
-[[nodiscard]] bool handFree(int hand)
-{
-    return qvr::held::handEmpty(hand) && !qvr::climb::holding(hand);
-}
-} // namespace
-
 namespace
 {
 
@@ -339,7 +328,7 @@ void applySword(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
 
     const glm::vec3 blade = bladeDirection(slot, holding, originalRots[holding]);
     // (An empty hand: no weapon, and not carrying a box either: held::handEmpty.)
-    const bool canGrab = client::grabbing(helping) && handFree(helping);
+    const bool canGrab = client::grabbing(helping) && held::handEmpty(helping);
     const bool wasHeld = shouldAim[holding];
 
     // The grips (round 18). The grip point below the holding hand (GRIP_FOREGRIP): the blade along the
@@ -587,7 +576,7 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
         off = glm::distance(s.pos[helping], holdingPos + hands::redirect(g.point, rot0));
     }
 
-    if(!client::grabbing(helping) || !handFree(helping))
+    if(!client::grabbing(helping) || !held::handEmpty(helping))
     {
         endFree(holding, "the grip let go", 0.f, 0.f);
         return false;
@@ -618,7 +607,7 @@ bool updateFree(hands::State& s, const glm::vec3 (&originalRots)[2], int holding
 bool startFree(const hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
 {
     if(!vr_weapon_grab_anywhere.value || slot < 0 || shouldAim[holding] || aimTransition[holding] > 0.f ||
-        !client::grabbing(helping) || !handFree(helping) || carrying(helping) || !candidate(helping) ||
+        !client::grabbing(helping) || !held::handEmpty(helping) || carrying(helping) || !candidate(helping) ||
         !freshGrab(helping))
     {
         return false;
@@ -655,7 +644,7 @@ bool startFree(const hands::State& s, const glm::vec3 (&originalRots)[2], int ho
 bool startRetake(const hands::State& s, const glm::vec3 (&originalRots)[2], int holding, int helping, int slot)
 {
     if(!vr_weapon_grab_anywhere.value || slot < 0 || shouldAim[holding] || aimTransition[holding] > 0.f ||
-        !client::grabbing(helping) || !handFree(helping) || carrying(helping) || !carryPoseValid[helping] ||
+        !client::grabbing(helping) || !held::handEmpty(helping) || carrying(helping) || !carryPoseValid[helping] ||
         !carryPose[helping].free || vr_gametime - carryLast[helping] >= 0.5 || retakeFrom[helping] == carryLast[helping])
     {
         return false;
@@ -790,7 +779,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     const bool beforeMuzzle = !s.muzzleValid[holding] || handDist <= muzzleDist;
 
     const bool canGrab = client::grabbing(helping) && wpnMode != WPN_2H_FORBIDDEN &&
-                         handFree(helping) && beforeMuzzle && !handpose::gunColliding(holding);
+                         held::handEmpty(helping) && beforeMuzzle && !handpose::gunColliding(holding);
     // A cup (a two-handed pistol grip) is held wherever the hands point: it doesn't aim.
     const bool cup = fixedMode && s.grip2HCup[holding];
     const float dotNeed = wasHeld ? heldDot(vr_2h_angle_threshold.value, stick) : vr_2h_angle_threshold.value;
@@ -812,7 +801,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     }
     if(wasHeld && !shouldAim[holding])
     {
-        if(!client::grabbing(helping) || !handFree(helping))
+        if(!client::grabbing(helping) || !held::handEmpty(helping))
         {
             reportLetGo(holding, "the grip let go", 0.f, 0.f, stick);
         }
@@ -1152,7 +1141,7 @@ void applyCarried(hands::State& s, int holding, int helping)
     {
         const carry2h::Frame object = carriedInBoth(s, holding);
         const float off = glm::distance(s.pos[helping], carry2h::onGrip(g.hold, object, helping).pos);
-        const bool gripping = client::grabbing(helping) && handFree(helping);
+        const bool gripping = client::grabbing(helping) && held::handEmpty(helping);
         if(gripping && off <= freeKeep())
         {
             g.lastOn = vr_gametime;
@@ -1172,7 +1161,7 @@ void applyCarried(hands::State& s, int holding, int helping)
     }
     g.on = false;
     // The other hand taking hold of it anywhere but its handle (which takes it back: HS_CARRIED_GRIP).
-    if(!vr_weapon_grab_anywhere.value || !client::grabbing(helping) || !handFree(helping) || carrying(helping) ||
+    if(!vr_weapon_grab_anywhere.value || !client::grabbing(helping) || !held::handEmpty(helping) || carrying(helping) ||
         !candidate(helping) || !freshGrab(helping))
     {
         return;
@@ -1361,7 +1350,7 @@ void updateHotspots(hands::State& s)
     for(int hand = 0; hand < 2; hand++)
     {
         const int other = 1 - hand;
-        if(handFree(hand) && carrying(other) && handleValid[other] &&
+        if(held::handEmpty(hand) && carrying(other) && handleValid[other] &&
             glm::distance(s.pos[hand], handle[other]) < carriedGripRadius)
         {
             s.hotspot[hand] = body::HS_CARRIED_GRIP;

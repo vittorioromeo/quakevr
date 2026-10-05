@@ -50,8 +50,8 @@ void modelBox(const qmodel_t* model, const glm::vec3& scale, const glm::vec3& sc
 [[nodiscard]] int heldEntity(int hand);
 
 // Client side: whether the local player's `hand` (0 off, 1 main) is empty, as QC's VRIsHandEmpty: no weapon (the fist)
-// and carrying nothing (STAT_QVR_CARRYMAIN, STAT_QVR_CARRYOFF: a box, a gib, a torch). What may grip a weapon's
-// two-handed hotspots, take the carried gun's handle or the flashlight.
+// and carrying nothing (STAT_QVR_CARRYMAIN, STAT_QVR_CARRYOFF: a box, a gib, a torch), and not holding a ledge
+// (climb::holding). What may grip a weapon's two-handed hotspots, take the carried gun's handle or the flashlight.
 [[nodiscard]] bool handEmpty(int hand);
 
 // Client side, for the weight (vr_weight.cpp): where the entity `hand` holds (heldEntity) sits in it, as drawn last
