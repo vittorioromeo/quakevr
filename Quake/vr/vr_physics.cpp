@@ -387,13 +387,13 @@ void verifyPropTouch(edict_t* ent, edict_t* target)
     memcpy(globals.data(), qcvm->globals, globals.size() * sizeof(float));
     const int datagram = sv.datagram.cursize, reliable = sv.reliable_datagram.cursize;
     za::Vector<byte> messages(static_cast<za::SizeT>(datagram + reliable));
-    memcpy(messages.data(), sv.datagram.data, datagram);
-    memcpy(messages.data() + datagram, sv.reliable_datagram.data, reliable);
+    if(datagram) memcpy(messages.data(), sv.datagram.data, datagram);
+    if(reliable) memcpy(messages.data() + datagram, sv.reliable_datagram.data, reliable);
     callField(target, ent, target->v.touch);
     if(qcvm->num_edicts != count || memcmp(edicts.data(), qcvm->edicts, bytes) ||
        sv.datagram.cursize != datagram || sv.reliable_datagram.cursize != reliable ||
-       memcmp(messages.data(), sv.datagram.data, datagram) ||
-       memcmp(messages.data() + datagram, sv.reliable_datagram.data, reliable))
+       (datagram && memcmp(messages.data(), sv.datagram.data, datagram)) ||
+       (reliable && memcmp(messages.data() + datagram, sv.reliable_datagram.data, reliable)))
         Sys_Error("prop touch verify: supposedly inactive touch changed entity/network state");
     const za::SizeT time = reinterpret_cast<float*>(&pr_global_struct->time) - qcvm->globals;
     // FTE's shared unnamed temporaries are scratch, like the argument registers.

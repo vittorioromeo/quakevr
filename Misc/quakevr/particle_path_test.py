@@ -1,4 +1,4 @@
-"""Same-state stereo screenshots of reference/fast/half retro particle paths in a disposable base."""
+"""Same-state direct eye captures of reference/fast/half particle paths in a disposable base."""
 import argparse
 import hashlib
 import json
@@ -41,9 +41,10 @@ def main(args):
     if 'build-cmake' not in base.parts:
         raise ValueError('Use a disposable base under build-cmake')
     output.mkdir(parents=True, exist_ok=True)
+    captures = {}
     commands = ['vr_backend mock', 'vr_enabled 1', 'vr_mock_fast 1', 'vr_fixed_frames 1',
                 'vr_fixed_frames_rate 72', f'vr_mock_eye_size {args.eye}', 'vr_render_scale 1',
-                'vr_window_view 0', 'vr_mirror 2', 'vid_vsync 0', 'host_maxfps 0',
+                'vr_window_view 0', 'vr_mirror 0', 'vid_vsync 0', 'host_maxfps 0',
                 'sv_autosave 0', 'con_notifytime 0', 'vr_tips 0', 'showpause 0',
                 'vr_fire_particles 0', 'vr_explosion_debris 0', 'vr_torch_lights 0',
                 'vr_roomscale_move_mult 0', 'vr_profile 0', 'vr_profile_gpu 0'] + waits(80)
@@ -62,9 +63,9 @@ def main(args):
         commands += waits(10)
         for path, fast, half in [('reference', 0, 0), ('fast', 1, 0), ('trim_off', 1, 0), ('fast_again', 1, 0), ('reference_again', 0, 0),
                                  ('half', 1, 1), ('half_all', 1, 1)]:
+            captures[name, path] = len(captures)
             commands += [f'vr_particle_trim {0 if path == "trim_off" else 1}', f'vr_particle_retro_fast {fast}', f'vr_particle_retro_halfres {half}',
-                         f'vr_particle_retro_halfres_pixels {0 if path == "half_all" else 64}',
-                         f'cl_screenshotname screenshots/particle_{name}_{path}'] + waits(5) + ['screenshot'] + waits(3)
+                         f'vr_particle_retro_halfres_pixels {0 if path == "half_all" else 64}'] + waits(5) + ['vr_eyeshot 1'] + waits(3)
     commands += ['echo PARTICLE_PATH_TEST_DONE', 'disconnect'] + waits(10) + ['quit']
     config = '\n'.join(commands) + '\n'
     (base / 'quakevr/autoexec.cfg').write_text(config)
@@ -91,10 +92,15 @@ def main(args):
         images = {}
         for path in ('reference', 'fast', 'trim_off', 'fast_again', 'reference_again', 'half', 'half_all'):
             filename = f'particle_{name}_{path}.png'
-            matches = re.findall(r'Wrote screenshots/(' + re.escape(filename[:-4]) + r'\d*\.png)', log)
-            assert len(matches) == 1, (filename, matches)
-            shutil.copy2(base / 'quakevr/screenshots' / matches[0], output / filename)
-            images[path] = np.asarray(Image.open(output / filename).convert('RGB')).astype(np.int16)
+            eyes = []
+            for side in ('L', 'R'):
+                shot = f'vrfiringrange_{captures[name, path]:03d}_{side}.png'
+                assert log.count(f'Wrote eyeshots/{shot}') == 1, shot
+                shutil.copy2(base / 'quakevr/eyeshots' / shot, output / f'particle_{name}_{path}_{side}.png')
+                eyes.append(np.asarray(Image.open(output / f'particle_{name}_{path}_{side}.png').convert('RGB')))
+            stereo = np.concatenate(eyes, axis=1)
+            Image.fromarray(stereo).save(output / filename)
+            images[path] = stereo.astype(np.int16)
         reference = images['reference']
         row = {'fixture': name}
         for path in ('fast', 'reference_again', 'half', 'half_all'):
@@ -104,15 +110,18 @@ def main(args):
                          'over_8_pixels_pct': float(np.any(error > 8, axis=2).mean() * 100)}
         assert row['fast']['mae_rgb8'] < max(0.1, 2 * row['reference_again']['mae_rgb8']), row
         assert row['fast']['over_8_pixels_pct'] < max(0.2, 2 * row['reference_again']['over_8_pixels_pct']), row
+        assert row['reference_again']['mae_rgb8'] < 2 and row['reference_again']['over_8_pixels_pct'] < 5, row
         for path in ('trim_off', 'fast_again'):
             error = np.abs(images[path] - images['fast'])
             row[path] = {'mae_rgb8': float(error.mean()), 'max_rgb8': int(error.max()),
                          'over_8_pixels_pct': float(np.any(error > 8, axis=2).mean() * 100)}
         assert row['trim_off']['mae_rgb8'] < max(0.1, 2 * row['fast_again']['mae_rgb8']), row
         assert row['trim_off']['over_8_pixels_pct'] < max(0.2, 2 * row['fast_again']['over_8_pixels_pct']), row
+        assert row['fast_again']['mae_rgb8'] < 2 and row['fast_again']['over_8_pixels_pct'] < 5, row
         rows.append(row)
         print(name, json.dumps(row['fast']), 'control', row['reference_again']['mae_rgb8'], flush=True)
-    (output / 'results.json').write_text(json.dumps({'eye': args.eye, 'exe_sha256': hashlib.sha256(exe.read_bytes()).hexdigest(),
+    (output / 'results.json').write_text(json.dumps({'eye': args.eye, 'capture': 'direct eye targets before runtime submission',
+                                                   'exe_sha256': hashlib.sha256(exe.read_bytes()).hexdigest(),
                                                    'comparisons': rows}, indent=2))
 
 

@@ -85,6 +85,6 @@ if __name__ == '__main__':
     parser.add_argument('--eye', type=int, default=2048)
     parser.add_argument('--gpu', type=int, default=16)
     args = parser.parse_args()
-    if not re.fullmatch(r'vr_[a-zA-Z0-9_]+', args.cvar) or args.reps < 1 or args.frames < 900:
-        parser.error('Use a numeric VR cvar, positive repeats and at least 900 frames')
+    if not re.fullmatch(r'vr_[a-zA-Z0-9_]+', args.cvar) or args.reps < 1 or args.frames < 900 or args.eye < 1 or args.gpu < 0:
+        parser.error('Use a numeric VR cvar, positive repeats/eye size, at least 900 frames and a nonnegative GPU interval')
     run(args)
