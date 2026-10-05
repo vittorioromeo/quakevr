@@ -7426,6 +7426,7 @@ void M_Draw (void)
 	}
 
 	VR_MenuDrawOverlay (); // QVR: the "Back to game" button
+	VR_MenuDrawStatus (); // QVR: the status box (vr_menu_status)
 	draw_textoutline = 0.f; // QVR
 
 	if (m_entersound)

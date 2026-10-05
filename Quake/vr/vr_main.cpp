@@ -109,6 +109,7 @@ namespace qvr::gfx
 extern int targetsMade; // vr_gfx_gl.cpp
 }
 extern "C" int r_numactiveparticles; // r_part.c
+extern "C" cvar_t host_maxfps, vid_vsync, vid_refreshrate; // host.c, gl_vidsdl.c (the menu's status box)
 
 namespace
 {
@@ -1049,6 +1050,156 @@ bool frameRate(FrameRate& out)
     }
     out = last;
     return valid;
+}
+
+// The menu's status box (vr_menu_status, vr_menuui.cpp): the mode, the runtime, the resolution rendered, the target
+// rate, and the frames' cost and the memory held. The memory is sampled once a second (its GL queries are not free).
+void statusLines(za::Vector<za::String>& out)
+{
+    out.clear();
+    char line[160];
+    Backend* b = backend();
+    const bool vr = vrActive() && b;
+    const bool mock = vr && !strcmp(b->name(), "mock");
+
+    // The mode, and the runtime (named for the two this port is tested on; any other by its own name).
+    const char* rt = vr ? b->runtimeName() : "";
+    const char* runtimeKind = !vr ? "" : mock ? "no runtime" : (strstr(rt, "SteamVR") ? "SteamVR" : (strstr(rt, "VirtualDesktop") || strstr(rt, "VDXR")) ? "VDXR" : "other runtime");
+    q_snprintf(line, sizeof(line), "%s%s%s", !vr ? "Flat screen" : mock ? "Mock VR" : "VR", vr ? " - " : "", runtimeKind);
+    out.pushBack(za::String{line});
+    if(vr && !mock)
+    {
+        q_snprintf(line, sizeof(line), "%s", rt);
+        out.pushBack(za::String{line});
+    }
+
+    // The resolution: in VR the runtime's eye image (its own resolution and supersampling settings, SteamVR's or VDXR's
+    // quality, in its recommended size) and what the eyes are rendered at in it (vr_render_scale, within its largest).
+    const double periodMs = vr ? profile::displayPeriodMs() : 0.0;
+    double targetHz = 0.0;
+    if(vr)
+    {
+        const EyeSizes s = b->eyeSizes();
+        const int w = scaledEyeSize(s.width, s.maxWidth), h = scaledEyeSize(s.height, s.maxHeight);
+        q_snprintf(line, sizeof(line), "Eyes %dx%d (runtime %dx%d x%.2f)", w, h, s.width, s.height,
+            static_cast<double>(CLAMP(0.25f, vr_render_scale.value, 2.f)));
+        out.pushBack(za::String{line});
+        targetHz = periodMs > 0.0 ? 1000.0 / periodMs : 0.0;
+        if(targetHz > 0.0)
+        {
+            q_snprintf(line, sizeof(line), "Target %.0f Hz (the headset's)", targetHz);
+        }
+        else
+        {
+            q_snprintf(line, sizeof(line), "Target: unpaced (no headset)");
+        }
+        out.pushBack(za::String{line});
+    }
+    else
+    {
+        const int scale = q_max(r_refdef.scale, 1);
+        q_snprintf(line, sizeof(line), "3D view %dx%d (window %dx%d, r_scale %d)", vid.width / scale, vid.height / scale,
+            vid.width, vid.height, scale);
+        out.pushBack(za::String{line});
+        const double refresh = vid_refreshrate.value;
+        const double maxfps = host_maxfps.value;
+        char display[40] = "";
+        if(refresh > 0.0)
+        {
+            q_snprintf(display, sizeof(display), "; %.0f Hz display", refresh);
+        }
+        if(vid_vsync.value && refresh > 0.0)
+        {
+            targetHz = maxfps > 0.0 ? q_min(refresh, maxfps) : refresh;
+            q_snprintf(line, sizeof(line), "Target %.0f fps (vsync%s)", targetHz, display);
+        }
+        else if(maxfps > 0.0)
+        {
+            targetHz = maxfps;
+            q_snprintf(line, sizeof(line), "Target %.0f fps (host_maxfps%s)", maxfps, display);
+        }
+        else
+        {
+            q_snprintf(line, sizeof(line), "Target: unlimited (host_maxfps 0%s)", display);
+        }
+        out.pushBack(za::String{line});
+    }
+
+    // The frames: counted here over half a second (in any mode); the CPU's and the GPU's work from the phases timed
+    // (frameRate), each also as a share of the target's frame budget.
+    static double windowStart = -1.0;
+    static int windowFrames = 0;
+    static float fps = 0.f;
+    if(windowStart < 0.0 || realtime < windowStart || realtime - windowStart > 2.0)
+    {
+        windowStart = realtime;
+        windowFrames = 0;
+    }
+    windowFrames++;
+    if(realtime - windowStart >= 0.5)
+    {
+        fps = static_cast<float>(windowFrames / (realtime - windowStart));
+        windowStart = realtime;
+        windowFrames = 0;
+    }
+    FrameRate rate;
+    const bool timed = frameRate(rate);
+    const double budget = targetHz > 0.0 ? 1000.0 / targetHz : 0.0;
+    const auto usage = [&](char* buf, za::SizeT size, const char* what, float ms)
+    {
+        if(ms < 0.f)
+        {
+            q_snprintf(buf, size, "%s -", what);
+        }
+        else if(budget > 0.0)
+        {
+            q_snprintf(buf, size, "%s %.1f ms %.0f%%", what, static_cast<double>(ms), 100.0 * ms / budget);
+        }
+        else
+        {
+            q_snprintf(buf, size, "%s %.1f ms", what, static_cast<double>(ms));
+        }
+    };
+    char cpu[48], gpu[48];
+    usage(cpu, sizeof(cpu), "CPU", timed ? rate.cpuMs : -1.f);
+    usage(gpu, sizeof(gpu), "GPU", timed && rate.gpuMs > 0.f ? rate.gpuMs : -1.f); // (only the eyes are timed: VR)
+    q_snprintf(line, sizeof(line), "%.0f fps  %s  %s", static_cast<double>(fps), cpu, gpu);
+    out.pushBack(za::String{line});
+
+    // The memory: the process's (its working set) and the GPU's (used of total: NVIDIA's; free only: AMD's).
+    static double sampledAt = -10.0;
+    static MemSample mem;
+    if(realtime - sampledAt >= 1.0 || realtime < sampledAt)
+    {
+        mem = sampleMemory(false);
+#ifndef _WIN32
+        if(FILE* f = fopen("/proc/self/statm", "r"))
+        {
+            long pages = 0, resident = 0;
+            if(fscanf(f, "%ld %ld", &pages, &resident) == 2)
+            {
+                mem.workingSet = static_cast<double>(resident) * 4096.0 / 1048576.0;
+            }
+            fclose(f);
+        }
+#endif
+        sampledAt = realtime;
+    }
+    char vram[64];
+    if(mem.vramTotal > 0 && mem.vramFree >= 0)
+    {
+        q_snprintf(vram, sizeof(vram), "VRAM %.1f/%.1f GB", (mem.vramTotal - mem.vramFree) / 1024.0, mem.vramTotal / 1024.0);
+    }
+    else if(mem.vramFree >= 0)
+    {
+        q_snprintf(vram, sizeof(vram), "VRAM %.1f GB free", mem.vramFree / 1024.0);
+    }
+    else
+    {
+        q_snprintf(vram, sizeof(vram), "VRAM -");
+    }
+    q_snprintf(line, sizeof(line), "RAM %.0f MB  %s", mem.workingSet, vram);
+    out.pushBack(za::String{line});
 }
 
 int scaledEyeSize(int image, int max)
