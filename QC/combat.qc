@@ -854,7 +854,31 @@ This should be the only function that ever reduces health.
 
 float VR_SHOVE_MINSPEED = 100; // units/s: a softer push is only the hop
 float VR_SHOVE_FRICTION = 500; // units/s/s
-float VR_SHOVE_SAFEFALL = 150; // units of drop without damage; 0.4 a unit beyond
+float VR_SHOVE_SAFEFALL = 150; // units of drop without damage; 0.4 a unit beyond (any monster's fall: VR_Monster_Fall)
+
+// VR: a live monster's fall damage, whatever threw it (a shove over a ledge, the grappling hook, a blast, a knockdown's
+// throw): from the speed it came down at, the drop that speed takes (v^2 / 2g) beyond VR_SHOVE_SAFEFALL, 0.4 a unit (as
+// a shove's fall was measured), so the harder it lands the more it takes. Called by the engine: standing, as it lands
+// (SV_Physics_Step: its speed down); knocked down (vr_knockdown.qc), its ragdoll's hardest hit on the level in a frame
+// (vr_box3d.cpp: that hit's speed along the vertical). A burst of hits (the ragdoll's limbs, a bounce) counts once.
+.float vr_fall_time; // until when a landing does not hurt it again
+void(entity m, float xSpeed) VR_Monster_Fall =
+{
+    if(m.health <= 0 || !(m.flags & FL_MONSTER) || !m.takedamage || time < m.vr_fall_time)
+    {
+        return;
+    }
+    float drop = xSpeed * xSpeed / (2 * max(1, cvar("sv_gravity")));
+    if(drop <= VR_SHOVE_SAFEFALL)
+    {
+        return;
+    }
+    m.vr_fall_time = time + 0.5;
+    float dmg = (drop - VR_SHOVE_SAFEFALL) * 0.4;
+    dprint(sprintf("fall: %s landed at %g u/s (a %g unit drop): %g damage%s\n", m.classname, xSpeed, drop, dmg,
+        m.vr_knockdown ? " (knocked down)" : ""));
+    T_Damage(m, world, world, dmg);
+};
 
 .entity vr_shove; // on a monster: its slide (a "vr_shove" entity; world when none)
 
@@ -893,10 +917,7 @@ void(entity m, float xDrop) VR_Shove_Landed =
     {
         dmg = 30;
     }
-    else if(contents == CONTENT_EMPTY && xDrop > VR_SHOVE_SAFEFALL)
-    {
-        dmg = (xDrop - VR_SHOVE_SAFEFALL) * 0.4;
-    }
+    // (The drop's own damage is any landing's now: the engine's VR_Monster_Fall, from its speed.)
     if(xDrop > 24 || dmg > 0)
     {
         dprint("shove: "); dprint(m.classname); dprint(" landed from "); dprint(ftos(xDrop)); dprint(" units, ");

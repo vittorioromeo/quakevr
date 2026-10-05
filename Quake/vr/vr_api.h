@@ -147,6 +147,7 @@ void VR_OnSpawnServerBeforeLoad (void);	// SV_SpawnServer, before ED_LoadFromFil
 void VR_OnEntitySpawned (edict_t *ent);	// ED_LoadFromFile, after an entity's spawn function ran
 void VR_OnSpawnServerSpawned (void);		// SV_SpawnServer, after ED_LoadFromFile (before the settling frames)
 void VR_OnClearMemory (void);			// Host_ClearMemory, before the hunk (edicts, cl_entities, models) is freed: every pointer into it forgotten
+void VR_MonsterFell (edict_t *ent, float speed);	// SV_Physics_Step, a walking monster landed at `speed` (QC VR_Monster_Fall)
 void VR_OnEdictFree (edict_t *ed);	// ED_Free (any VM's)
 void VR_OnSpawnServerAfterLoad (void);	// SV_SpawnServer, after serverinfo is sent
 void VR_OnBeginLoadGame (void);			// Host_Loadgame_f, before SV_SpawnServer

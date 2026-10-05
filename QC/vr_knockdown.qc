@@ -12,7 +12,8 @@
 //   blood; no pain frames: T_DamageImpl keeps its frame and think), each keeping it down vr_knockdown_hit_time longer.
 //   It is grabbed, pushed and thrown as a dead one's. Killed there, it screams and its death code runs at once (its
 //   drops; Killed: VR_Knockdown_FastForwardDeath): the ragdoll stays as it lies. Gibbed, it gibs; beheaded or its head
-//   blown off, the ragdoll goes on headless.
+//   blown off, the ragdoll goes on headless. Thrown or dropped down there, it takes fall damage as a standing monster does
+//   (combat.qc VR_Monster_Fall, from its ragdoll's hardest landing on the level: vr_box3d.cpp callFalls).
 // - Room: when the ragdolls are at vr_ragdoll_max, the oldest dead one goes (removed), else the oldest knocked-down one
 //   is killed and removed (VR_Knockdown_MakeRoom); no room at all: no knockdown.
 // - Getting up, after vr_knockdown_time_min to _max seconds: the engine fits its get-up's first frame to how the body

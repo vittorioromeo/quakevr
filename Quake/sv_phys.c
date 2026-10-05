@@ -1252,8 +1252,11 @@ void SV_Physics_Step (edict_t *ent)
 		else
 			hitsound = false;
 
+		float fall; // QVR: the speed it comes down at, for its fall damage
+
 		SV_AddGravity (ent);
 		SV_CheckVelocity (ent);
+		fall = -ent->v.velocity[2];
 		SV_FlyMove (ent, host_frametime, NULL);
 		SV_LinkEdict (ent, true);
 
@@ -1261,6 +1264,8 @@ void SV_Physics_Step (edict_t *ent)
 		{
 			if (hitsound)
 				SV_StartSound (ent, 0, "demon/dland2.wav", 255, 1);
+			if (fall > 0)
+				VR_MonsterFell (ent, fall); // QVR: a live monster's fall damage (QC VR_Monster_Fall)
 		}
 	}
 

@@ -607,6 +607,7 @@ struct World
     b3ShapeId worldShape{b3_nullShapeId};
     za::Vector<za::Pair<int, int>> impacts; // the step's touches (kept: no allocation a frame)
     za::Vector<Shock> shocks; // props with a .vr_impact hitting something this frame (the hardest hit each)
+    za::Vector<Shock> falls;  // knocked-down monsters' ragdolls hitting the level this frame (the hardest, vertically)
     za::Vector<Pushed> pushed; // the props near the hands' bodies before this step (kept: no allocation a frame)
     struct PortalCopy
     {
@@ -2544,6 +2545,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
         b3ShapeDef sd = shapeDef(num, catCorpse, s.corpseMask | (vr_ragdoll_collide_each.value ? catCorpse : 0));
         sd.enableCustomFiltering = true; // (shouldCollide: thrown things, vr_corpse_collide_thrown; what it is made in)
         sd.filter.groupIndex = -num;     // (its own parts never meet)
+        sd.enableHitEvents = true;       // (a knocked-down monster's fall damage: touches, callFalls)
         sd.baseMaterial.friction = friction;
         sd.density = bone.joint == ragdoll::Joint::Loose ? looseMass / za::max(volumes[static_cast<za::SizeT>(b)], 1e-6f) : density;
         if(b3HullData* hull = hulls[static_cast<za::SizeT>(b)])
@@ -6253,6 +6255,36 @@ void touches(za::Vector<za::Pair<int, int>>& out)
         }
     }
     soundHits(events);
+    // A ragdoll landing on the level (the world, a door, a fixture): its hardest hit this frame, along the vertical
+    // (QC's VR_Monster_Fall judges it: a knocked-down monster alive takes fall damage; a dead one's ignored).
+    for(int i = 0; i < events.hitCount; i++)
+    {
+        const b3ContactHitEvent& e = events.hitEvents[i];
+        if(!b3Shape_IsValid(e.shapeIdA) || !b3Shape_IsValid(e.shapeIdB))
+        {
+            continue;
+        }
+        for(int side = 0; side < 2; side++)
+        {
+            const int a = numOf(side ? e.shapeIdB : e.shapeIdA), b = numOf(side ? e.shapeIdA : e.shapeIdB);
+            const Kind level = kindAt(b);
+            if(kindAt(a) != Kind::Corpse || world->slots[a].ragdoll < 0 ||
+                (b != 0 && level != Kind::Mover && level != Kind::Fixture))
+            {
+                continue;
+            }
+            const float speed = e.approachSpeed * za::fabs(e.normal.z) * world->m2u;
+            auto it = za::findIf(world->falls.begin(), world->falls.end(), [a](const Shock& s) { return s.num == a; });
+            if(it == world->falls.end())
+            {
+                world->falls.pushBack({a, b, speed});
+            }
+            else if(speed > it->speed)
+            {
+                *it = {a, b, speed};
+            }
+        }
+    }
     // A prop that wants to know how hard it hits (.vr_impact): its hardest hit on anything (the level too).
     const int impactField = fields().vr_impact;
     if(impactField < 0)
@@ -6300,6 +6332,34 @@ void touches(za::Vector<za::Pair<int, int>>& out)
             }
         }
     }
+}
+
+// A live monster's fall (QC's VR_Monster_Fall: its fall damage) at `speed` units/s down.
+void monsterFell(edict_t* ent, float speed)
+{
+    const func_t fn = qvr::progs::findFunction("VR_Monster_Fall");
+    if(!fn || ent->free || ent->v.health <= 0.f || !(static_cast<int>(ent->v.flags) & FL_MONSTER))
+    {
+        return;
+    }
+    QcCallGuard guard;
+    pr_global_struct->time = qcvm->time;
+    G_INT(OFS_PARM0) = EDICT_TO_PROG(ent);
+    G_FLOAT(OFS_PARM1) = speed;
+    PR_ExecuteProgram(fn);
+}
+
+// The knocked-down monsters' ragdolls' landings this frame (touches), after the physics' loops.
+void callFalls()
+{
+    for(const Shock& fall : world->falls)
+    {
+        if(fall.num < qcvm->num_edicts)
+        {
+            monsterFell(EDICT_NUM(fall.num), fall.speed);
+        }
+    }
+    world->falls.clear();
 }
 
 // The props' hardest hits this frame, to their .vr_impact (QC: an explosive box hit hard enough takes damage).
@@ -10984,6 +11044,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
     }
     callShocks();
+    callFalls();
     watchInside();
     physsound::frameEnd(); // the frame's knocks and scrapes
 
@@ -11427,3 +11488,11 @@ int ragdollHeadAt(int num, const glm::vec3& at, float neck)
 }
 
 } // namespace qvr::box3d
+
+extern "C" void VR_MonsterFell(edict_t* ent, float speed)
+{
+    if(ent)
+    {
+        monsterFell(ent, speed);
+    }
+}
