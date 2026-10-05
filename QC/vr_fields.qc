@@ -57,6 +57,7 @@
 .entity fg_player;
 .float fg_hand;
 .float fg_state;    // 0 not pulled, 1 flying to the hand, 2 missed: falling, not yet touchable
+.float fg_portal;   // one-based slipgate used by this gravity-glove flight, 0 same room
 .float fg_arrive;   // when it reaches the hand
 .float fg_gravity;  // of its arc
 .float fg_movetype; // as it was before

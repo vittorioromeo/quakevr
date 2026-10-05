@@ -966,7 +966,9 @@ void()   gremlin_flip7    =[ $flip7.asc,    gremlin_flip_stuck ]
    };
 void()   gremlin_flip8    =[ $flip8.asc,    gremlin_flip8 ]
    {
-   self.solid = SOLID_NOT;
+   // This frame loops forever. Do not undo the corpse watcher making it touchable.
+   if(self.vr_corpse != 2 && !self.vr_corpse_dying)
+       self.solid = SOLID_NOT;
    };
 
 /*

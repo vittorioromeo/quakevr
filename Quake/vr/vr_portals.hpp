@@ -55,6 +55,8 @@
 
 namespace qvr::portals
 {
+// The closest visible one-gate image of a point, for gravity-glove aiming.
+glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate = nullptr);
 
 // Before each scene view: the gates (found anew for a new map) and the side looked through by this camera.
 void update(const float* origin = nullptr, const float* angles = nullptr);

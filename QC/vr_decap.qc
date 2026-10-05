@@ -24,6 +24,7 @@ float VR_DECAP_BEAT = 2.2;         // Hz: its pulses
 float QVR_DECAP_SWING = 1;  // a sword or an axe swung
 float QVR_DECAP_THROWN = 2; // an axe thrown
 float QVR_DECAP_SAW = 3;    // the chainsaw
+float QVR_DECAP_BLUNT = 7;  // a fist, gun or other blunt melee head hit
 // Head pops (below: "Head pops"; combat.qc: QVR_DECAP_SHOTGUN 4, _SSG 5, _LIGHTNING 6): a shot kills with a headshot.
 
 .float vr_decap_died; // when it was killed (Killed: VR_Decap_Killed)
@@ -52,6 +53,7 @@ string(float xHow) VR_Decap_HowName =
     if(xHow == QVR_DECAP_SHOTGUN) { return "a shotgun blast"; }
     if(xHow == QVR_DECAP_SSG) { return "a super shotgun blast"; }
     if(xHow == QVR_DECAP_LIGHTNING) { return "a lightning bolt"; }
+    if(xHow == QVR_DECAP_BLUNT) { return "a blunt head blow"; }
     return "a slash";
 };
 
@@ -107,7 +109,7 @@ float(float xHow) VR_Decap_HowOn =
 // Whether `xHow` pops the head (a shot's) rather than cutting it off.
 float(float xHow) VR_Decap_IsPop =
 {
-    return xHow == QVR_DECAP_SHOTGUN || xHow == QVR_DECAP_SSG || xHow == QVR_DECAP_LIGHTNING;
+    return xHow == QVR_DECAP_SHOTGUN || xHow == QVR_DECAP_SSG || xHow == QVR_DECAP_LIGHTNING || xHow == QVR_DECAP_BLUNT;
 };
 
 // `e`'s head zone (xHeadForward, xHeadUp, xHeadRadius): positional damage's (PositionalHead, weapons.qc), or for a
@@ -315,6 +317,13 @@ float(entity targ, entity attacker) VR_Decap_Blow =
         return FALSE;
     }
     entity b = VR_Blow(vr_hithand);
+    if(b.mh_kind == VR_MKIND_POMMEL || b.mh_wid == WID_MJOLNIR || b.mh_thing == VR_MTHING_FIST || b.mh_thing == VR_MTHING_GUN ||
+       b.mh_thing == VR_MTHING_CROWBAR || b.mh_thing == VR_MTHING_CLUB)
+    {
+        if(!VR_Decap_OnHead(targ, b.mh_c_pos, '0 0 0')) { return FALSE; }
+        return VR_Decap_Arm(targ, attacker, b.mh_c_pos,
+            VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_BLUNT);
+    }
     if(b.mh_thing != VR_MTHING_SWORD && b.mh_thing != VR_MTHING_AXE && b.mh_thing != VR_MTHING_SAW)
     {
         return FALSE;
@@ -666,6 +675,14 @@ float(entity c, float xHand, vector xAt) VR_Decap_CorpseBlow =
         return FALSE;
     }
     entity b = VR_Blow(xHand);
+    float thing = VR_Melee_Thing(self, xHand);
+    if((b.mh_thing == thing && (b.mh_kind == VR_MKIND_POMMEL || b.mh_wid == WID_MJOLNIR)) || thing == VR_MTHING_FIST || thing == VR_MTHING_GUN ||
+       thing == VR_MTHING_CROWBAR || thing == VR_MTHING_CLUB)
+    {
+        float head = ragdollhead(c, xAt, 0); // a head hit, without the blade's neck extension
+        if(head < 0) { head = VR_Decap_OnHead(c, xAt, '0 0 0'); }
+        return head && VR_Decap_Cut(c, self, VRGetHandVel(xHand) * VRMetersToUnits(), QVR_DECAP_BLUNT);
+    }
     if(b.mh_thing != VR_MTHING_SWORD && b.mh_thing != VR_MTHING_AXE && b.mh_thing != VR_MTHING_SAW)
     {
         return FALSE;
@@ -1012,10 +1029,37 @@ void(entity m) VR_Decap_Sweep =
 
 void(float xTest) VR_Decap_Test =
 {
+    if(xTest == 32)
+    {
+        bprint(sprintf("gremlingrabtest: held=%g\n", ragdollheld(self, cVR_MainHand)));
+        return;
+    }
+    if(xTest == 30)
+    {
+        entity small = spawn(); small.vr_rigid = 1; small.classname = "vr_smallgib"; small.vr_sgib = time;
+        float rejected = !VR_Button_Thrown(small);
+        small.classname = "gib"; small.vr_sgib = 0;
+        bprint(sprintf("buttongibtest: small_rejected=%g large_allowed=%g\n", rejected, VR_Button_Thrown(small)));
+        remove(small);
+        return;
+    }
+    if(xTest == 31)
+    {
+        entity g = find(world, classname, "monster_gremlin");
+        if(g != world && g.health <= 0)
+        {
+            entity player = self; self = g;
+            self.solid = SOLID_NOT;
+            gremlin_flip8();
+            VR_Corpse_Watch(g);
+            self = player;
+        }
+        return;
+    }
     float heads = VR_Decap_TestHeads();
     float before = vr_decap_count;
     float pops = vr_decap_pops;
-    entity m = VR_Decap_TestTarget((xTest != 5 && xTest != 8 && xTest != 10 && xTest < 20));
+    entity m = VR_Decap_TestTarget((xTest != 5 && xTest != 8 && xTest != 10 && (xTest < 20 || xTest >= 24)));
     if(xTest == 8)
     {
         // (A headless corpse first: gibbed, it throws no head.)
@@ -1105,6 +1149,32 @@ void(float xTest) VR_Decap_Test =
         setorigin(self, at + normalize(away) * 64 + '0 0 24' - self.view_ofs);
         VR_Decap_TestShot(xTest == 22 ? QVR_DECAP_LIGHTNING : xTest == 21 ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN, at);
         setorigin(self, playerOrigin);
+    }
+    else if(xTest >= 23 && xTest <= 27)
+    {
+        what = "a blunt head blow";
+        if(xTest == 24 || xTest == 26 || xTest == 27) { m.health = 1; }
+        if(xTest == 25) { m.health = 500; }
+        if(xTest == 26) { at = m.origin; what = "a blunt body blow"; }
+        VR_Decap_TestBlow(at, VR_MTHING_FIST, VR_MKIND_POMMEL, 0.7, 0, 8);
+        if(xTest == 27)
+        {
+            entity b = VR_Blow(cVR_MainHand);
+            b.mh_thing = VR_MTHING_AXE;
+            b.mh_kind = VR_MKIND_SLASH;
+            b.mh_wid = WID_MJOLNIR;
+            what = "Mjolnir's head blow";
+        }
+        if(xTest == 23)
+        {
+            if(!VR_Decap_CorpseBlow(m, cVR_MainHand, at)) { T_Damage(m, self, self, dmg); }
+        }
+        else
+        {
+            VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
+            T_Damage_VRMelee(m, self, self, dmg);
+            VR_ClearHitKind();
+        }
     }
     else if(xTest >= 12 && xTest <= 18)
     {

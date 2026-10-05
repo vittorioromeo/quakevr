@@ -16,6 +16,7 @@
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
 #include "vr_physics.hpp"
+#include "vr_portals.hpp"
 #include "vr_props.hpp"
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
@@ -136,6 +137,43 @@ void PF_findcone()
         chain = ent;
     }
     G_INT(OFS_RETURN) = EDICT_TO_PROG(chain);
+}
+
+void PF_findportalcone()
+{
+    const float* p = G_VECTOR(OFS_PARM0);
+    const glm::vec3 from{p[0], p[1], p[2]};
+    const float range = G_FLOAT(OFS_PARM1);
+    const float* d = G_VECTOR(OFS_PARM2);
+    const glm::vec3 aim{d[0], d[1], d[2]};
+    const float minCos = G_FLOAT(OFS_PARM3) - 1e-4f;
+    edict_t* chain = qcvm->edicts;
+    edict_t* ent = NEXT_EDICT(qcvm->edicts);
+    for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))
+    {
+        if(ent->free || static_cast<int>(ent->v.solid) == SOLID_NOT || !ent->v.model) { continue; }
+        const glm::vec3 to = portals::pullImage(from, physics::modelCentre(ent)) - from;
+        const float distance = glm::length(to);
+        if(distance < 0.999f || distance > range || glm::dot(to, aim) < minCos * distance) { continue; }
+        ent->v.chain = EDICT_TO_PROG(chain);
+        chain = ent;
+    }
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(chain);
+}
+
+void PF_portal_pullimage()
+{
+    const float* a = G_VECTOR(OFS_PARM0), *b = G_VECTOR(OFS_PARM1);
+    const glm::vec3 result = portals::pullImage({a[0], a[1], a[2]}, {b[0], b[1], b[2]});
+    G_VECTOR(OFS_RETURN)[0] = result.x;
+    G_VECTOR(OFS_RETURN)[1] = result.y;
+    G_VECTOR(OFS_RETURN)[2] = result.z;
+}
+
+extern "C" void VR_PortalPullTarget(edict_t* ent, const float hand[3], int begin, float out[3]);
+void PF_portal_pulltarget()
+{
+    VR_PortalPullTarget(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), G_FLOAT(OFS_PARM2) != 0.f, G_VECTOR(OFS_RETURN));
 }
 
 // Where the force grab takes an entity, in the world (vector(entity e) forcegrabpoint): a weapon by its handle, its
@@ -1582,6 +1620,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"modelbounds", PF_modelbounds},
     {"modelcentre", PF_modelcentre},
     {"findcone", PF_findcone},
+    {"findportalcone", PF_findportalcone},
+    {"portal_pullimage", PF_portal_pullimage},
+    {"portal_pulltarget", PF_portal_pulltarget},
     {"forcegrabpoint", PF_forcegrabpoint},
     {"catchblend", PF_catchblend},
     {"physicsblast", PF_physicsblast},

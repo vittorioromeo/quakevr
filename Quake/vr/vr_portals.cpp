@@ -1327,6 +1327,80 @@ extern "C" void VR_PortalClientCross(edict_t* ent)
     crossPlayer(ent, *best, EDICT_NUM(best->trigger), cs);
 }
 
+namespace qvr::portals
+{
+glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate)
+{
+    if(gate) { *gate = 0; }
+    if(!walkOn()) { return point; }
+    if(!current()) { build(); }
+    glm::vec3 result = point;
+    float best = 1e30f;
+    for(int i = 0; i < static_cast<int>(sides.size()); ++i)
+    {
+        const Side& sd = sides[i];
+        if(!triggerActive(EDICT_NUM(sd.trigger)) || (static_cast<int>(EDICT_NUM(sd.trigger)->v.spawnflags) & 1)) { continue; }
+        const glm::vec3 image = carried(reverseSide(sd), point);
+        const float d0 = glm::dot(sd.normal, from) - sd.dist, d1 = glm::dot(sd.normal, image) - sd.dist;
+        const float distance = glm::distance(from, image);
+        if(d0 < 0.f || d1 >= 0.f || distance >= best || distance > za::max(1.f, vr_forcegrab_distance.value) * 1.25f) { continue; }
+        const glm::vec3 entry = glm::mix(from, image, d0 / (d0 - d1));
+        if(!onGate(sd, entry, 0.f)) { continue; }
+        const glm::vec3 exit = carried(sd, entry) + glm::normalize(point - carried(sd, entry)) * 0.5f;
+        vec3_t a{from.x, from.y, from.z}, b{entry.x, entry.y, entry.z};
+        const trace_t first = SV_Move(a, vec3_origin, vec3_origin, b, MOVE_NOMONSTERS, qcvm->edicts);
+        if(first.startsolid || first.fraction < 0.999f) { continue; }
+        vec3_t c{exit.x, exit.y, exit.z}, d{point.x, point.y, point.z};
+        const trace_t second = SV_Move(c, vec3_origin, vec3_origin, d, MOVE_NOMONSTERS, qcvm->edicts);
+        if(second.startsolid || second.fraction < 0.999f) { continue; }
+        result = image;
+        best = distance;
+        if(gate) { *gate = i + 1; }
+    }
+    return result;
+}
+} // namespace qvr::portals
+
+// A force grab homes in the destination room until it crosses the exit aperture,
+// then maps its position, angles and velocities back to the player's room.
+extern "C" void VR_PortalPullTarget(edict_t* ent, const float hand[3], int begin, float out[3])
+{
+    using namespace qvr::portals;
+    const int field = ED_FindFieldOffset("fg_portal");
+    setVec(out, vec(hand));
+    if(field < 0) { return; }
+    eval_t* state = GetEdictFieldValue(ent, field);
+    if(begin)
+    {
+        int gate = 0;
+        pullImage(vec(hand), physics::modelCentre(ent), &gate);
+        state->_float = static_cast<float>(gate);
+    }
+    const int index = static_cast<int>(state->_float) - 1;
+    if(index < 0) { return; }
+    if(!walkOn() || index >= static_cast<int>(sides.size())) { state->_float = -1.f; return; }
+    const Side& sd = sides[index];
+    if(!triggerActive(EDICT_NUM(sd.trigger))) { state->_float = -1.f; return; }
+    const Side exit = reverseSide(sd);
+    const glm::vec3 middle = physics::modelCentre(ent);
+    const float distance = glm::dot(exit.normal, middle) - exit.dist;
+    if(distance <= 0.f)
+    {
+        // A moving hand can pull the trajectory outside the aperture. Drop
+        // the object where it is rather than catching it through a wall.
+        if(!onGate(exit, middle - exit.normal * distance, 2.f)) { state->_float = -1.f; return; }
+        setVec(ent->v.origin, carried(exit, vec(ent->v.origin)));
+        setVec(ent->v.oldorigin, vec(ent->v.origin));
+        setVec(ent->v.velocity, exit.turn * vec(ent->v.velocity));
+        ent->v.angles[YAW] = anglemod(ent->v.angles[YAW] + exit.yaw);
+        state->_float = 0.f;
+        SV_LinkEdict(ent, false);
+        Con_DPrintf("force grab: crossed slipgate %d\n", index + 1);
+        return;
+    }
+    setVec(out, carried(sd, vec(hand)));
+}
+
 // SV_Physics_Toss, before the move: what flies (missiles, grenades, gibs) carried through a seamless slipgate as this
 // frame's path crosses its plane over the gate (from the front, nothing in the way), its speed and heading turned with it.
 extern "C" void VR_PortalToss(edict_t* ent)
@@ -1552,11 +1626,43 @@ void shot_f()
     Con_Printf("VR portal shot: the next view through a gate will be read back.\n");
 }
 
+void pullTest_f()
+{
+    if(!sv.active || svs.maxclients < 1) { return; }
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    if(!current()) { build(); }
+    edict_t* player = EDICT_NUM(1);
+    const glm::vec3 origin = vec(player->v.origin);
+    const Side* nearest = nullptr;
+    float best = 1e30f;
+    for(const Side& side : sides)
+    {
+        const float distance = glm::distance(origin, side.from);
+        if(glm::dot(side.normal, origin) > side.dist && distance < best)
+        { nearest = &side; best = distance; }
+    }
+    if(nearest)
+    {
+        const glm::vec3 point = carried(*nearest, nearest->from - nearest->normal * 64.f);
+        const func_t fn = progs::findFunction("VR_Forcegrab_PortalTest");
+        if(fn)
+        {
+            pr_global_struct->self = EDICT_TO_PROG(player);
+            pr_global_struct->time = qcvm->time;
+            setVec(G_VECTOR(OFS_PARM0), point);
+            PR_ExecuteProgram(fn);
+        }
+    }
+    PR_PopQCVM(oldVm);
+}
+
 void registerCommands()
 {
     Cmd_AddCommand("vr_portals_info", info_f);
     Cmd_AddCommand("vr_portals_view", viewInfo_f);
     Cmd_AddCommand("vr_portals_shot", shot_f);
+    Cmd_AddCommand("vr_portals_pulltest", pullTest_f);
 }
 
 } // namespace qvr::portals

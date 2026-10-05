@@ -51,7 +51,7 @@ constexpr const char* keyDefaults[numKeys] = {
 // the rocks and bricks at Size 1.25; 51: the crates' small pieces in the palm; 53: the multi-grenade's as the grenade's;
 // 54: the author's grenade and multi-grenade fits; 55: the author's weights and sizes (slots 6-16 his items); 56: every
 // prop in both hands.
-constexpr int settingsVersion = 56;
+constexpr int settingsVersion = 57;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -418,6 +418,43 @@ void migrate()
                 Con_DPrintf("Held Object Offsets: %s: %s %s (was 0)\n", cvarAt(slot, Key::ID).string, var.name, var.string);
             }
         }
+    }
+    // 57: October 5 playtest gib/head sizes; preserve custom sizes and reassigned slots.
+    if(from < 57)
+    {
+        if(!strcmp(cvarAt(34, Key::ID).string, "progs/gib2.mdl") &&
+            za::fabs(value(34, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(34, Key::Size), cvarAt(34, Key::Size).default_string);
+        if(!strcmp(cvarAt(35, Key::ID).string, "progs/gib3.mdl") &&
+            za::fabs(value(35, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(35, Key::Size), cvarAt(35, Key::Size).default_string);
+        if(!strcmp(cvarAt(37, Key::ID).string, "progs/h_guard.mdl") &&
+            za::fabs(value(37, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(37, Key::Size), cvarAt(37, Key::Size).default_string);
+        if(!strcmp(cvarAt(38, Key::ID).string, "progs/h_dog.mdl") &&
+            za::fabs(value(38, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(38, Key::Size), cvarAt(38, Key::Size).default_string);
+        if(!strcmp(cvarAt(39, Key::ID).string, "progs/h_mega.mdl") &&
+            za::fabs(value(39, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(39, Key::Size), cvarAt(39, Key::Size).default_string);
+        if(!strcmp(cvarAt(40, Key::ID).string, "progs/h_knight.mdl") &&
+            za::fabs(value(40, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(40, Key::Size), cvarAt(40, Key::Size).default_string);
+        if(!strcmp(cvarAt(41, Key::ID).string, "progs/h_hellkn.mdl") &&
+            za::fabs(value(41, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(41, Key::Size), cvarAt(41, Key::Size).default_string);
+        if(!strcmp(cvarAt(42, Key::ID).string, "progs/h_ogre.mdl") &&
+            za::fabs(value(42, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(42, Key::Size), cvarAt(42, Key::Size).default_string);
+        if(!strcmp(cvarAt(45, Key::ID).string, "progs/h_shal.mdl") &&
+            za::fabs(value(45, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(45, Key::Size), cvarAt(45, Key::Size).default_string);
+        if(!strcmp(cvarAt(46, Key::ID).string, "progs/h_shams.mdl") &&
+            za::fabs(value(46, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(46, Key::Size), cvarAt(46, Key::Size).default_string);
+        if(!strcmp(cvarAt(47, Key::ID).string, "progs/h_demon.mdl") &&
+            za::fabs(value(47, Key::Size) - 1.0f) < 1e-4f)
+            Cvar_SetQuick(&cvarAt(47, Key::Size), cvarAt(47, Key::Size).default_string);
     }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);
 }

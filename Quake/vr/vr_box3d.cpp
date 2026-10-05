@@ -461,6 +461,8 @@ struct RagdollBodies
     // A living monster knocked down (vr_knockdown; "Knockdowns" below): its loose pieces (a weapon) welded to the part
     // that held them, until it gets up or dies.
     bool knocked{false};
+    za::Array<glm::quat, ragdoll::maxBones> struggleRest{};
+    bool struggleReady{false};
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -2654,9 +2656,10 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
 void feedRagdoll(edict_t* ent, Slot& s)
 {
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
-    // Living, knocked-down enemies struggle with small physical joint motions.
-    // Torques depend on mass, so the same controls suit a grunt and a shambler.
-    if(knockedDown(ent) && ent->v.health > 0.f && vr_knockdown_wiggle.value > 0.f)
+    // A small coordinated curl of the chest and nod of the head, about the pose
+    // in which the body settled. Arms and legs follow through their joints.
+    // Relative pose feedback bounds the motion rather than adding random torque.
+    if(knockedDown(ent) && ent->v.health > 0.f && vr_knockdown_wiggle.value > 0.f && qcvm->time > r.born + 0.6)
     {
         const float t = static_cast<float>(qcvm->time - r.born);
         const float frequency = za::clamp(vr_knockdown_wiggle_frequency.value, 0.1f, 5.f);
@@ -2665,14 +2668,40 @@ void feedRagdoll(edict_t* ent, Slot& s)
         const float burst = pause == 0.f ? 1.f : za::max(0.f, za::sin(t * 6.2831853f / (pause + 1.f)));
         for(int b = 1; b < r.count; ++b)
         {
-            if(partCut(r, b) || r.rig->bones[b].joint == ragdoll::Joint::Loose) { continue; }
+            const ragdoll::Bone& bone = r.rig->bones[b];
+            if(partCut(r, b) || bone.parent < 0 || partCut(r, bone.parent) ||
+                (strcmp(bone.name, "chest") && strcmp(bone.name, "head"))) { continue; }
             const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
-            const float phase = t * frequency * 6.2831853f + b * 2.39996f + NUM_FOR_EDICT(ent) * 0.7f;
-            // Overcome the joints' holding friction, even for small light limbs.
-            const float torque = (za::max(1.5f, tune(ent, Tune::JointFriction) * 3.f) +
-                b3Body_GetMass(body) * 0.12f) * strength * burst;
-            b3Body_ApplyTorque(body, b3v(glm::vec3{za::sin(phase), za::cos(phase * 0.73f), 0.f} * torque), true);
+            const b3BodyId parent = r.body[static_cast<za::SizeT>(bone.parent)];
+            const glm::quat qp = fromB3(b3Body_GetTransform(parent).q), qb = fromB3(b3Body_GetTransform(body).q);
+            const glm::quat relative = glm::inverse(qp) * qb;
+            if(!r.struggleReady) { r.struggleRest[static_cast<za::SizeT>(b)] = relative; }
+            const float angle = glm::radians(5.f) * strength * burst * burst *
+                za::sin(t * frequency * 6.2831853f);
+            const glm::quat target = qp * r.struggleRest[static_cast<za::SizeT>(b)] *
+                glm::angleAxis(angle, glm::vec3{0.f, 1.f, 0.f});
+            glm::quat delta = glm::normalize(target * glm::inverse(qb));
+            if(delta.w < 0.f) { delta = -delta; }
+            const glm::vec3 error{delta.x * 2.f, delta.y * 2.f, delta.z * 2.f};
+            // A throw or grab must not pull it back to an obsolete resting pose.
+            if(glm::length(error) > glm::radians(15.f))
+            {
+                r.struggleRest[static_cast<za::SizeT>(b)] = relative;
+                continue;
+            }
+            const glm::vec3 speed = glmv(b3Body_GetAngularVelocity(body)) - glmv(b3Body_GetAngularVelocity(parent));
+            glm::vec3 torque = error * 15.f - speed * 1.5f;
+            const float errorLength = glm::length(error);
+            if(errorLength > 1e-6f)
+                torque += error / errorLength * tune(ent, Tune::JointFriction) * 1.35f *
+                    za::clamp(errorLength / 0.005f, 0.f, 1.f);
+            const float magnitude = glm::length(torque);
+            const float limit = za::max(0.5f, tune(ent, Tune::JointFriction) * 1.8f);
+            if(magnitude > limit) { torque *= limit / magnitude; }
+            b3Body_ApplyTorque(body, b3v(torque), true);
+            b3Body_ApplyTorque(parent, b3v(-torque), true);
         }
+        r.struggleReady = true;
     }
     const glm::vec3 origin = vec(ent->v.origin);
     const glm::vec3 moved = origin - s.origin;
@@ -10383,6 +10412,7 @@ void knockdownTest_f()
     if(Cmd_Argc() >= 2 && Q_atof(Cmd_Argv(1)) == 9 && world)
     {
         float angular = 0.f;
+        float deflection = 0.f;
         int bodies = 0;
         for(const RagdollBodies& r : world->ragdolls)
         {
@@ -10391,11 +10421,21 @@ void knockdownTest_f()
             {
                 if(partCut(r, b)) { continue; }
                 angular += glm::length(glmv(b3Body_GetAngularVelocity(r.body[static_cast<za::SizeT>(b)])));
+                const ragdoll::Bone& bone = r.rig->bones[b];
+                if(r.struggleReady && bone.parent >= 0 && !partCut(r, bone.parent) &&
+                    (!strcmp(bone.name, "chest") || !strcmp(bone.name, "head")))
+                {
+                    const glm::quat relative = glm::inverse(fromB3(b3Body_GetTransform(r.body[bone.parent]).q)) *
+                        fromB3(b3Body_GetTransform(r.body[b]).q);
+                    const glm::quat delta = glm::normalize(relative * glm::inverse(r.struggleRest[b]));
+                    deflection = za::max(deflection, glm::degrees(2.f * glm::acos(za::clamp(za::fabs(delta.w), 0.f, 1.f))));
+                }
                 ++bodies;
             }
         }
         Con_Printf("wigglecheck: strength=%.2f parts=%d angular=%.4f rad/s\n", vr_knockdown_wiggle.value,
             bodies, bodies ? angular / bodies : 0.f);
+        Con_Printf("strugglecheck: strength=%.2f deflection=%.3f degrees\n", vr_knockdown_wiggle.value, deflection);
         return;
     }
     for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)

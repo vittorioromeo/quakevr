@@ -749,7 +749,7 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
                   "loose as a dead one's."),
         header("Getting Up"),
         slider("Struggling Strength", vr_knockdown_wiggle, 0.f, 3.f, 0.1f, "%.1fx")
-            .help("Living knockdowns wiggle their limbs with small physical torques. 0: still. Dead bodies never struggle."),
+            .help("Living knockdowns gently curl their chest and nod their head about their resting pose. Arms and legs follow physically. 0: still. Dead bodies never struggle."),
         slider("Struggling Frequency", vr_knockdown_wiggle_frequency, 0.1f, 5.f, 0.1f, "%.1f Hz"),
         slider("Struggling Pause", vr_knockdown_wiggle_pause, 0.f, 5.f, 0.25f, "%.2f s")
             .help("Pause between bursts of movement. 0: continuous."),

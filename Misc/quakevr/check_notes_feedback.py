@@ -29,7 +29,9 @@ assert "drowned for 12, health -10" in text
 samples = [(float(s), int(p), float(v)) for s, p, v in re.findall(
     r"wigglecheck: strength=([\d.]+) parts=(\d+) angular=([\d.]+)", text)]
 assert any(s == 0 and p > 0 and v == 0 for s, p, v in samples)
-assert max(v for s, p, v in samples if s > 0 and p > 0) > .01
+assert max(v for s, p, v in samples if s > 0 and p > 0) > .001
+angles = [float(a) for s, a in re.findall(r"strugglecheck: strength=([\d.]+) deflection=([\d.]+)", text) if float(s) > 0]
+assert angles and .1 < max(angles) < 16, angles
 assert "no spawn function" not in text
 for weapon in ("shotgun", "supershotgun", "nailgun", "supernailgun", "grenadelauncher",
                "rocketlauncher", "lightning", "mjolnir", "laser_gun", "proximity_gun"):

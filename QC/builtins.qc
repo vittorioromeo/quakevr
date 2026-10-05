@@ -360,6 +360,9 @@ float() portal_crossings = #0;       // QVR: how many slipgates the last MOVE_PO
 vector(float i) portal_entry = #0;   // QVR: ... where it went into the i-th (from 0)
 vector(float i) portal_exit = #0;    // QVR: ... where it came out of it
 vector(vector v) portal_turn = #0;   // QVR: v turned as that traceline was by its slipgates
+entity(vector from, float range, vector aim, float mincos) findportalcone = #0;
+vector(vector from, vector point) portal_pullimage = #0;
+vector(entity e, vector hand, float begin) portal_pulltarget = #0;
 void(float h, float v) worldtext_hsethalign = #0;
 void(float h, float v) worldtext_hsetscale = #0;
 

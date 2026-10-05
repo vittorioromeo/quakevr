@@ -544,6 +544,7 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 
     vec3_t oldVelocity;
     VectorCopy(ent->v.velocity, oldVelocity);
+    const float oldYaw = ent->v.angles[YAW];
     ent->v.velocity[0] = move.x;
     ent->v.velocity[1] = move.y;
     ent->v.velocity[2] = 0.f;
@@ -567,7 +568,16 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
         default: break;
     }
 
-    VectorCopy(oldVelocity, ent->v.velocity);
+    // Test the completed room-scale move while its direction is still available.
+    // A crossing also rotates the original stick/falling velocity into the new room.
+    VR_PortalClientCross(ent);
+    const float turn = glm::radians(ent->v.angles[YAW] - oldYaw);
+    const float c = za::cos(turn), s = za::sin(turn);
+    const glm::vec3 restored{oldVelocity[0] * c - oldVelocity[1] * s,
+        oldVelocity[0] * s + oldVelocity[1] * c, oldVelocity[2]};
+    ent->v.velocity[0] = restored.x;
+    ent->v.velocity[1] = restored.y;
+    ent->v.velocity[2] = restored.z;
 }
 
 // ----------------------------------------------------------------------------
