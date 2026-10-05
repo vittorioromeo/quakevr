@@ -349,7 +349,6 @@ maps_installed lists what you installed with its size; maps_uninstall <sha prefi
 A map that brings its own progs.dat or an unusual BSP version should be refused with a clear message, not half-installed
 
 [Evening playtest requests - pending fixes]
-After map-flame fix: e1m2 braziers/wall torches warn then burn a touching hand like a handheld torch; body contact burns like stepping on a dropped lit torch
 After weapon-pickup fix: fresh mapper-placed weapons in e1m3 arrive loaded; dropped/regrabbed weapons keep their actual magazine contents
 After spectator VFX fix: Bullet Hell effects appear in the spectator camera by default; its new option hides/shows them without changing headset effects
 
@@ -362,3 +361,4 @@ Map Library: an installed map shows Play, not Install; the page says how many pa
 Map Library: a title or author with accents (e.g. "Rickard Edé") reads correctly, not as escapes
 Map Library: a package that brings its own progs.dat, or one with an unusual BSP version, is refused with a clear message rather than half-installed
 Parry interruption (Combat > Parry and Bash): On, Stagger 0.35 s: knight and ogre attacks stop after a successful parry; compare Off, crossed arms, leap parries and dragon tail recovery; tune stagger 0.1-3 s
+Map flames (e1m2): braziers and wall torches warn then burn either hand using vr_burn_self_time; body and feet burn like a dropped lit torch, even without drawn legs; taking/extinguishing a torch leaves no phantom flame
