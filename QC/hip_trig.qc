@@ -90,6 +90,8 @@ Variable sized single use trigger that requires a key to trigger targets.  Must 
 
 void() trigger_usekey =
     {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    if(world.worldtype == 0)
     {
         precache_sound("doors/medtry.wav");
@@ -149,6 +151,8 @@ players.
 */
 void() trigger_remove =
    {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    self.cnt = FL_CLIENT|FL_MONSTER;
    if(self.spawnflags & 1)
       self.cnt = self.cnt - FL_MONSTER;
@@ -189,6 +193,8 @@ set the gravity of a player
 */
 void() trigger_setgravity =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     InitTrigger();
    self.touch = trigger_gravity_touch;
    if(!self.gravity)
@@ -216,6 +222,8 @@ void() trigger_command_use =
 
 void() trigger_command =
    {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    self.use = oncount_use;
     self.think = SUB_Null;
    };
@@ -237,6 +245,8 @@ void() trigger_decoy_touch =
 
 void() trigger_decoy_use =
    {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    if(deathmatch)
     {
         remove(self);
@@ -268,6 +278,8 @@ void() trigger_waterfall_touch =
 
 void() trigger_waterfall =
    {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    InitTrigger();
    self.touch = trigger_waterfall_touch;
 

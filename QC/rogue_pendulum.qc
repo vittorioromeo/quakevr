@@ -339,6 +339,8 @@ PEND_TRG - the pendulum must be triggered to start swinging. The delay value sti
 */
 void() pendulum =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     precache_model("progs/pendulum.mdl");
     precache_sound("pendulum/swing.wav");
     precache_sound("pendulum/hit.wav");

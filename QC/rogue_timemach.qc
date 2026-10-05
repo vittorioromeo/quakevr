@@ -192,6 +192,8 @@ void() time_pain_die =
 */
 void() item_time_machine =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(deathmatch)
     {
         remove(self);
@@ -225,6 +227,8 @@ void() item_time_machine =
 */
 void() item_time_core =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(deathmatch)
     {
         remove(self);

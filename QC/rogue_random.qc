@@ -67,6 +67,8 @@ Contains a random powerup.
 */
 void() item_random_powerup =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(!deathmatch)
     {
         remove(self);

@@ -27,6 +27,11 @@
 #include "vr_wounds.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Container/Vector.hpp"
+
+#include <cstdio>
+#include <cstdint>
+#include <cstring>
 
 
 namespace
@@ -37,17 +42,252 @@ constexpr const char* missionPacks[] = {"hipnotic", "rogue"};
 
 bool addingMissionPacks = false;
 
-[[nodiscard]] bool gameDirExists(const char* game)
+// 0 missing, 1 available, 2 incomplete/corrupt. Inspect the pack's own files, never
+// the VR overrides: shipping a view model is not evidence of owning the campaign.
+int packStatus[2] = {};
+constexpr const char* hipnoticResources[] = {
+#include "vr_pack_hipnotic.inc"
+};
+constexpr const char* rogueResources[] = {
+#include "vr_pack_rogue.inc"
+};
+
+struct PackEntry
 {
-    for(int i = 0; i < com_numbasedirs; i++)
+    char name[56];
+    int32_t offset;
+    int32_t length;
+};
+
+// Pack inspection runs on the main thread during filesystem setup/switching. Each nested
+// operation has its own buffer; capacity is reused during inspection and released on map change.
+struct PackScratch
+{
+    za::Vector<unsigned char> resourceBytes;
+    za::Vector<unsigned char> found;
+    za::Vector<PackEntry> entries;
+    auto members() { return qvr::mem::list(resourceBytes, found, entries); }
+};
+qvr::mem::Scratch<PackScratch> packScratch{"mission packs"};
+
+// Structural validation accepts different owned releases and replacement assets, while
+// rejecting truncated payloads before the model/sound loaders can consume them.
+bool validResource(FILE* file, long offset, long length, const char* name)
+{
+    if(length < 12 || fseek(file, offset, SEEK_SET)) { return false; }
+    za::Vector<unsigned char>& bytes = packScratch.resourceBytes;
+    bytes.clear();
+    bytes.resize(static_cast<za::SizeT>(length));
+    if(fread(bytes.data(), 1, bytes.size(), file) != bytes.size()) { return false; }
+    const auto integer = [&](size_t pos) -> int32_t
     {
-        if(Sys_FileType(va("%s/%s", com_basedirs[i], game)) == FS_ENT_DIRECTORY)
+        int32_t value = 0;
+        if(pos <= bytes.size() && bytes.size() - pos >= 4) { memcpy(&value, bytes.data() + pos, 4); }
+        return LittleLong(value);
+    };
+    size_t cursor = 0;
+    const auto advance = [&](int64_t count) -> bool
+    {
+        if(count < 0 || static_cast<uint64_t>(count) > bytes.size() - cursor) { return false; }
+        cursor += static_cast<size_t>(count);
+        return true;
+    };
+    const char* ext = COM_FileGetExtension(name);
+    if(!q_strcasecmp(ext, "mdl"))
+    {
+        if(length < 84 || memcmp(bytes.data(), "IDPO", 4) || integer(4) != 6) { return false; }
+        const int skins = integer(48), width = integer(52), height = integer(56);
+        const int vertices = integer(60), triangles = integer(64), frames = integer(68);
+        if(skins <= 0 || width <= 0 || height <= 0 || vertices <= 0 || triangles <= 0 || frames <= 0)
+        { return false; }
+        cursor = 84;
+        for(int i = 0; i < skins; ++i)
         {
-            return true;
+            const int type = integer(cursor);
+            if(!advance(4)) { return false; }
+            int count = 1;
+            if(type == 1)
+            {
+                count = integer(cursor);
+                if(count <= 0 || !advance(4 + int64_t(count) * 4)) { return false; }
+            }
+            else if(type != 0) { return false; }
+            // Check one image first: the following multiplication cannot exceed the file size.
+            const int64_t image = int64_t(width) * height;
+            if(image > length || !advance(image * count)) { return false; }
+        }
+        if(!advance(int64_t(vertices) * 12 + int64_t(triangles) * 16)) { return false; }
+        for(int i = 0; i < frames; ++i)
+        {
+            const int type = integer(cursor);
+            if(!advance(4)) { return false; }
+            int count = 1;
+            if(type == 1)
+            {
+                count = integer(cursor);
+                if(count <= 0 || !advance(12 + int64_t(count) * 4)) { return false; }
+            }
+            else if(type != 0) { return false; }
+            const int64_t frame = 24 + int64_t(vertices) * 4;
+            if(frame > length || !advance(frame * count)) { return false; }
+        }
+        return true;
+    }
+    if(!q_strcasecmp(ext, "spr"))
+    {
+        if(length < 36 || memcmp(bytes.data(), "IDSP", 4) || integer(4) != 1 || integer(24) <= 0)
+        { return false; }
+        cursor = 36;
+        for(int i = 0; i < integer(24); ++i)
+        {
+            const int type = integer(cursor);
+            if(!advance(4)) { return false; }
+            int count = 1;
+            if(type == 1)
+            {
+                count = integer(cursor);
+                if(count <= 0 || !advance(4 + int64_t(count) * 4)) { return false; }
+            }
+            else if(type != 0) { return false; }
+            for(int j = 0; j < count; ++j)
+            {
+                const int width = integer(cursor + 8), height = integer(cursor + 12);
+                if(width <= 0 || height <= 0 || !advance(16 + int64_t(width) * height)) { return false; }
+            }
+        }
+        return true;
+    }
+    if(!q_strcasecmp(ext, "wav"))
+    {
+        if(length < 44 || memcmp(bytes.data(), "RIFF", 4) || memcmp(bytes.data() + 8, "WAVE", 4) ||
+            integer(4) < 36 || int64_t(integer(4)) + 8 > length) { return false; }
+        bool format = false, samples = false;
+        cursor = 12;
+        const size_t end = static_cast<size_t>(integer(4)) + 8;
+        while(cursor < end)
+        {
+            if(end - cursor < 8) { return false; }
+            const int size = integer(cursor + 4);
+            if(size < 0 || static_cast<size_t>(size) > end - cursor - 8) { return false; }
+            if(!memcmp(bytes.data() + cursor, "fmt ", 4)) { format = size >= 16; }
+            if(!memcmp(bytes.data() + cursor, "data", 4)) { samples = size > 0; }
+            // Original pack WAVs can contain junk LIST metadata or omit the final pad byte.
+            // The engine needs the bounded fmt/data chunks; trailing metadata is not consumed.
+            if(format && samples) { return true; }
+            if(!advance(8 + int64_t(size) + (size & 1))) { return false; }
+        }
+        return format && samples;
+    }
+    if(length < 124 || (integer(0) != 29 && integer(0) != 30)) { return false; }
+    for(int i = 0; i < 15; ++i)
+    {
+        const int pos = integer(4 + i * 8), size = integer(8 + i * 8);
+        if(pos < 0 || size < 0 || pos > length || size > length - pos) { return false; }
+    }
+    return integer(120) >= 64; // at least the world model
+}
+
+int inspectPack(const char* game, const char* const* resources, size_t count)
+{
+    za::Vector<unsigned char>& found = packScratch.found;
+    found.assign(count, 0);
+    bool directory = false;
+    for(int base = 0; base < com_numbasedirs; ++base)
+    {
+        char folder[MAX_OSPATH];
+        q_snprintf(folder, sizeof(folder), "%s/%s", com_basedirs[base], game);
+        directory |= Sys_FileType(folder) == FS_ENT_DIRECTORY;
+        for(int pak = 0;; ++pak)
+        {
+            char path[MAX_OSPATH];
+            q_snprintf(path, sizeof(path), "%s/pak%d.pak", folder, pak);
+            FILE* file = fopen(path, "rb");
+            if(!file) { break; }
+            fseek(file, 0, SEEK_END);
+            const long size = ftell(file);
+            rewind(file);
+            struct { char id[4]; int32_t offset; int32_t length; } header{};
+            bool valid = fread(&header, 1, sizeof(header), file) == sizeof(header) &&
+                         !memcmp(header.id, "PACK", 4);
+            const int offset = LittleLong(header.offset);
+            const int length = LittleLong(header.length);
+            valid &= offset >= 12 && length > 0 && length % sizeof(PackEntry) == 0 &&
+                     length / sizeof(PackEntry) <= 2048 && offset <= size && length <= size - offset;
+            za::Vector<PackEntry>& entries = packScratch.entries;
+            entries.clear();
+            if(valid)
+            {
+                entries.resize(length / sizeof(PackEntry));
+                valid = !fseek(file, offset, SEEK_SET) && fread(entries.data(), 1, length, file) == size_t(length);
+            }
+            for(const PackEntry& entry : entries)
+            {
+                const int pos = LittleLong(entry.offset), len = LittleLong(entry.length);
+                if(!memchr(entry.name, 0, sizeof(entry.name)) || pos < 0 || len < 0 || pos > size || len > size - pos)
+                {
+                    valid = false;
+                    break;
+                }
+                for(size_t i = 0; i < count; ++i)
+                {
+                    if(!strcmp(entry.name, resources[i]))
+                    {
+                        if(!validResource(file, pos, len, entry.name))
+                        {
+                            Con_Printf("VR: %s: invalid/truncated resource %s in %s.\n", game, entry.name, path);
+                            valid = false;
+                        }
+                        found[i] = true;
+                    }
+                }
+            }
+            fclose(file);
+            if(!valid)
+            {
+                Con_Printf("VR: %s: corrupt archive %s; restore your owned mission-pack data.\n", game, path);
+                return 2;
+            }
+        }
+        // An extracted installation is also supported, but every required file must exist.
+        for(size_t i = 0; i < count; ++i)
+        {
+            char path[MAX_OSPATH];
+            q_snprintf(path, sizeof(path), "%s/%s", folder, resources[i]);
+            if(FILE* file = fopen(path, "rb"))
+            {
+                fseek(file, 0, SEEK_END);
+                const long size = ftell(file);
+                const bool valid = validResource(file, 0, size, resources[i]);
+                fclose(file);
+                if(!valid) { return 2; }
+                found[i] = true;
+            }
         }
     }
+    for(size_t i = 0; i < count; ++i)
+    {
+        if(!found[i])
+        {
+            if(directory)
+            {
+                Con_Printf("VR: %s: incomplete installation (missing %s); restore your owned mission-pack data.\n",
+                    game, resources[i]);
+            }
+            return directory ? 2 : 0;
+        }
+    }
+    return 1;
+}
 
-    return false;
+void reportPackStatus()
+{
+    for(int i = 0; i < 2; ++i)
+    {
+        Con_Printf("VR: %s %s. %s\n", missionPacks[i], packStatus[i] == 1 ? "available" :
+            packStatus[i] == 2 ? "incomplete/corrupt" : "missing",
+            packStatus[i] == 1 ? "Campaign and pack resources enabled." :
+            "Optional for Quake; copy the owned pack data into its folder to enable it.");
+    }
 }
 
 [[nodiscard]] bool gameDirAlreadyAdded(const char* game)
@@ -105,15 +345,28 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
         return;
     }
 
+    packStatus[0] = inspectPack("hipnotic", hipnoticResources, sizeof(hipnoticResources) / sizeof(*hipnoticResources));
+    packStatus[1] = inspectPack("rogue", rogueResources, sizeof(rogueResources) / sizeof(*rogueResources));
     addingMissionPacks = true;
-    for(const char* pack : missionPacks)
+    for(int i = 0; i < 2; ++i)
     {
-        if(gameDirExists(pack) && !gameDirAlreadyAdded(pack))
+        const char* pack = missionPacks[i];
+        if(packStatus[i] == 1 && !gameDirAlreadyAdded(pack))
         {
             COM_AddGameDirectory(pack);
         }
     }
     addingMissionPacks = false;
+}
+
+extern "C" void VR_RegisterPackStatus()
+{
+    Cvar_SetROM("vr_hipnotic_available", packStatus[0] == 1 ? "1" : "0");
+    Cvar_SetROM("vr_rogue_available", packStatus[1] == 1 ? "1" : "0");
+    Cvar_SetROM("vr_hipnotic_status", va("%d", packStatus[0]));
+    Cvar_SetROM("vr_rogue_status", va("%d", packStatus[1]));
+    Cmd_AddCommand("vr_pack_status", reportPackStatus);
+    reportPackStatus();
 }
 
 // Quake, Scourge of Armagon and Dissolution of Eternity each have a maps/start.bsp; with all
@@ -129,11 +382,7 @@ extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
 
     static constexpr const char* campaigns[] = {"id1", "hipnotic", "rogue"};
     const int idx = (static_cast<int>(qvr::vr_activestartpaknameidx.value) % 3 + 3) % 3;
-    const char* selected = campaigns[idx];
-    if(idx > 0 && !gameDirAlreadyAdded(selected))
-    {
-        return 0; // not installed: leave the lookup alone
-    }
+    const char* selected = campaigns[(idx > 0 && packStatus[idx - 1] != 1) ? 0 : idx];
 
     char name[MAX_OSPATH];
     gameFolderName(path, name, sizeof(name));
@@ -222,7 +471,58 @@ extern "C" void VR_AfterAddGameDirectory(const char* dir)
         return;
     }
 
+    if(Cvar_FindVar("vr_hipnotic_available"))
+    {
+        Cvar_SetROM("vr_hipnotic_available", packStatus[0] == 1 ? "1" : "0");
+        Cvar_SetROM("vr_rogue_available", packStatus[1] == 1 ? "1" : "0");
+        Cvar_SetROM("vr_hipnotic_status", va("%d", packStatus[0]));
+        Cvar_SetROM("vr_rogue_status", va("%d", packStatus[1]));
+        reportPackStatus();
+    }
     standard_quake = true;
     hipnotic = false;
     rogue = false;
+}
+
+extern "C" int VR_CanLoadCampaignMap(const char* map)
+{
+    if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
+    int pack = -1;
+    if(!strncmp(map, "hip", 3)) { pack = 0; }
+    if(!strncmp(map, "r1m", 3) || !strncmp(map, "r2m", 3)) { pack = 1; }
+    if(!strcmp(map, "start"))
+    {
+        const int idx = (static_cast<int>(qvr::vr_activestartpaknameidx.value) % 3 + 3) % 3;
+        if(idx > 0) { pack = idx - 1; }
+    }
+    if(pack >= 0 && packStatus[pack] != 1)
+    {
+        Con_Printf("VR: cannot load %s: %s is unavailable; restore its owned data or select Quake in the VR Hub.\n",
+            map, missionPacks[pack]);
+        return 0;
+    }
+    return 1;
+}
+
+// Entity model indices in a save refer to the original map's precache order. Refuse a
+// different installation before disconnecting, instead of restoring wrong/missing models.
+extern "C" int VR_CanLoadCampaignSave(const char* text)
+{
+    if(!gameDirAlreadyAdded(vrGameDir)) { return 1; }
+    constexpr const char* key = "\"vr_save_packmask\"";
+    const char* marker = strstr(text, key);
+    int saved = 4; // Legacy merged VR progs precached both packs on every map.
+    if(marker)
+    {
+        COM_Parse(marker + strlen(key));
+        saved = Q_atoi(com_token);
+    }
+    const int installed = 1 + (packStatus[0] == 1) + 2 * (packStatus[1] == 1);
+    if(saved != installed)
+    {
+        Con_Printf("VR: save uses a different mission-pack installation (saved mask %d, installed %d). "
+            "Restore the same owned packs before loading; start a new game to use this installation.\n", saved, installed);
+        return 0;
+    }
+    return 1;
 }

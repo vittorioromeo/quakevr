@@ -83,6 +83,8 @@ The shield upgrade
 */
 void() item_powerup_shield =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     self.handtouch = newitems_touch;
 
     precache_model("progs/shield.mdl");
@@ -103,6 +105,8 @@ The anti-grav belt
 */
 void() item_powerup_belt =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     self.handtouch = newitems_touch;
 
     precache_model("progs/beltup.mdl");

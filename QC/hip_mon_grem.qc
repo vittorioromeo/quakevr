@@ -1541,6 +1541,8 @@ void() Gremlin_MissileAttack =
 */
 void() monster_gremlin =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_gremlin, $death12.asc, $death1.asc, -1, -1); // VR: knocked down (vr_knockdown.qc): its death backwards
     if(deathmatch)
     {

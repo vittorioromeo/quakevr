@@ -84,6 +84,8 @@ void() hip_rubble_use =
 */
 void() func_rubble =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     precache_model("progs/rubble1.mdl");
     precache_model("progs/rubble2.mdl");
     precache_model("progs/rubble3.mdl");
@@ -101,6 +103,8 @@ void() func_rubble =
 */
 void() func_rubble1 =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     precache_model("progs/rubble1.mdl");
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble1";
@@ -116,6 +120,8 @@ void() func_rubble1 =
 */
 void() func_rubble2 =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     precache_model("progs/rubble3.mdl");
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble2";
@@ -131,6 +137,8 @@ void() func_rubble2 =
 */
 void() func_rubble3 =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     precache_model("progs/rubble2.mdl");
     precache_sound("zombie/z_hit.wav");
     self.classname = "rubble3";

@@ -419,6 +419,8 @@ void() ScourgeTriggerTouch =
 */
 void() monster_scourge =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     if(deathmatch)
     {
         remove(self);

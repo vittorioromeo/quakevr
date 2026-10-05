@@ -67,6 +67,8 @@ Set the angle to be the direction the clock is facing.
 
 void() func_clock =
     {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    vector temp;
 
    self.classname = "clock";

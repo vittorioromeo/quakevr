@@ -81,6 +81,17 @@ string vr_button_how; // what pressed the button now firing, for vr_debug_wallbu
 
 void() button_fire =
 {
+    if(self.buttonEffect == 3 &&
+        ((substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
+         (substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
+    {
+        if(self.enemy.classname == "player")
+        {
+            centerprint(self.enemy, "Mission pack unavailable. Restore its owned data; Quake is available.");
+        }
+        return;
+    }
+
     if(self.state == STATE_UP || self.state == STATE_TOP || self.state == STATE_DISABLED)
     {
         return;
@@ -431,6 +442,13 @@ N) code button
 */
 void() func_button =
 {
+    if(self.buttonEffect == 3 &&
+       ((substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 1; " && !VR_Pack_Hipnotic()) ||
+        (substring(self.targetname, 0, 26) == "vr_activestartpaknameidx 2; " && !VR_Pack_Rogue())))
+    {
+        self.worldtext = strcat(self.worldtext, "\n(unavailable)");
+    }
+
     if(self.sounds == 0)
     {
         precache_sound("buttons/airbut1.wav");
@@ -743,7 +761,8 @@ void() func_enemy_dispenser_use =
 
     // Not installed: say what it needs instead.
     string mdl = VR_EnemyDispenser_Model(choice);
-    if(mdl != NULLSTR && !fileexists(mdl))
+    if((choice >= 12 && choice <= 13 && !VR_Pack_Hipnotic()) ||
+       (choice >= 14 && choice <= 19 && !VR_Pack_Rogue()) || (mdl != NULLSTR && !fileexists(mdl)))
     {
         if(activator.classname == "player")
         {
@@ -811,7 +830,8 @@ void() func_enemy_dispenser =
         // The model now, if installed (no hitch at the first press); the monster's other models and
         // its sounds are precached (late) when it first spawns.
         string mdl = VR_EnemyDispenser_Model(self.weapon);
-        if(mdl != NULLSTR && fileexists(mdl))
+        if(!(self.weapon >= 12 && self.weapon <= 13 && !VR_Pack_Hipnotic()) &&
+           !(self.weapon >= 14 && self.weapon <= 19 && !VR_Pack_Rogue()) && mdl != NULLSTR && fileexists(mdl))
         {
             precache_model(mdl);
         }

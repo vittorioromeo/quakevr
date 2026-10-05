@@ -24,5 +24,5 @@ Used guns: holstering, throwing and handoffs preserve ammunition and blood
 [Record]
 Record new melee takes: stand closer with the smaller hitbox and melee speed 3
 
-[Expansion support — upcoming]
-Expansion setup: base Quake alone should boot; installed campaigns should be selectable and missing ones clearly marked
+[Expansion setup]
+Base Quake only: hub, tutorial and firing range work; absent mission packs are labelled unavailable

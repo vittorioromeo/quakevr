@@ -78,6 +78,8 @@ Pushable walls.
 
 void() func_pushable =
     {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     entity new;
     vector newsize;
 

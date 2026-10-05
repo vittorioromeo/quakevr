@@ -1,11 +1,57 @@
 # Official expansion support audit
 
-Audit date: 2026-10-05. Documentation only; no engine/QC implementation and no new cvars.
-Baseline: `agent/expansionaudit`, using the coordinator's already built worktree.
+Initial audit: 2026-10-05, documentation only, baseline `agent/expansionaudit`.
+Optional-pack implementation: 2026-10-05, `agent/optionalpacks` (tasks 1 and 2 below).
 
-## Findings and measured checks
+## Optional-pack implementation and verification
 
-Both mission packs are currently mandatory for the merged VR progs, including when playing the base campaign.
+Neither Hipnotic nor Rogue is required for base Quake VR. Each pack is validated and mounted independently below
+VR's progs. `vr_gamedir.cpp` checks the pack's own 100 Hipnotic / 131 Rogue QC resource and official BSP filenames,
+PAK directory/entry bounds, model/sprite payload layout, BSP lumps and the WAV chunks used by the engine. It does
+not require canonical checksums or consume copyrighted asset data from this repository. Original WAV trailing LIST
+metadata/padding quirks are accepted as the engine accepts them. Empty directories, malformed archives and truncated
+required resources are unavailable. `common.c` also ignores malformed PAKs during the earlier mod discovery pass,
+which previously could terminate startup before the VR-specific validation ran. This is structural validation,
+not an authenticity check or an exhaustive proof of every authored gameplay behavior.
+
+Read-only `vr_hipnotic_available` / `vr_rogue_available` are 0 or 1 (compiled default 0, populated from installed data).
+Read-only `vr_hipnotic_status` / `vr_rogue_status` are 0 missing, 1 available, 2 incomplete/corrupt (default 0).
+`vr_pack_status` and Debug > Reports > Mission Pack Status print the result and restoration advice. Unavailable hub
+buttons show their state, refuse selection, and campaign map/start requests report the missing pack before spawn.
+
+`QC/vr_packutil.qc` centralizes availability policy so later campaign-specific implementations can extend it.
+Guards cover global precaches, pack spawn functions, dispensers, ammo boxes, weapon/item ownership, random drops,
+Rogue monster variants and secondary ammo, restored level parms, and torch-to-lava nail conversion/tests. Missing
+resources are never represented by model aliases or native-support stubs. Shared Honey candle resources are checked
+by file availability. A saved `vr_save_packmask` identifies the precache layout; saves require the same installed
+pack set, and legacy merged-VR saves require both packs. Incompatible saves are rejected before disconnecting.
+
+Isolated fixtures in `agent/optionalpacks/pack-tests` hardlink the original audit's owned PAKs read-only, with a
+worktree-local VR junction and local autoexec/logs. Corrupt cases contain independent synthetic/copied files only.
+All runs used `-nomapindex -noaddons -nosteam -nogog -noegs -noconfigwrite`, mock headset, hidden window, autosaves
+disabled; audio checks used SDL's dummy driver. Maps were verified with the console's actual `Current map` report.
+
+| Data/check | Verified result |
+|---|---|
+| Original and rerelease id1 only: e1m1, vrstart | Exit 0, no Host_Error/missing spawn functions/unprecached resources |
+| Original id1 only: tutorial, firing range; rerelease id1 only: tutorial | Exit 0, correct map loaded; base weapon cycling, firing and spawn/drop checks pass |
+| Original and rerelease + only Hipnotic: hip1m1 | Exit 0, Hipnotic available, Rogue missing |
+| Original and rerelease + only Rogue: r1m1 | Exit 0, Rogue available, Hipnotic missing |
+| Original and rerelease + both packs: e1m1 and hub; original both: range | Exit 0, both available |
+| Empty pack directories, truncated/bad PAK headers, truncated playham payload | Exit 0, base e1m1/hub playable, damaged packs unavailable with specific diagnostics |
+| Base-only unavailable start requests | Both refused with restoration advice |
+| Completed base-only/both-pack saves, same-layout loads | Successful; mask 1 and mask 4 recorded |
+| Base-only save under both packs and vice versa | Refused before disconnecting with saved/installed masks |
+
+Shipping build: 0 QC warnings, FGD covers all 248 spawn functions, engine built; kit smoke exits 0. The kit melee
+check cannot run because its canary recording `no_hit_reloading_2026-09-29_23-08-51.csv` is absent. An initial
+immediate save/load test raced the existing background save writer; loading the completed file in a subsequent run
+passes. No calibration or authored melee data was changed. Headset follow-up: unavailable hub labels/messages,
+base-only range/tutorial, and each pack's weapons/monsters and portal selection.
+
+## Initial audit findings and measured checks
+
+At the initial audit baseline, both mission packs were mandatory for the merged VR progs, including when playing the base campaign.
 `Quake/vr/vr_gamedir.cpp` automatically layers installed `hipnotic` and `rogue` below `quakevr`, but detects only
 whether their directories exist. `QC/world.qc` unconditionally precaches their models; `QC/weapons.qc:W_Precache`
 unconditionally precaches their sounds. The launcher and installation documentation describe the packs as optional,
@@ -108,7 +154,8 @@ these behaviors. Keep VR frame updates, hands and collision behavior. No melee t
 
 ## Detection, installation and campaign selection
 
-`VR_BeforeAddGameDirectory` tests only for a folder, so empty/broken mission-pack folders count as installed.
+At the initial audit baseline, `VR_BeforeAddGameDirectory` tested only for a folder. The implementation above
+replaces that check; the following discovery/selection notes also guide the later native campaign work.
 `COM_AddGameDirectory` mounts sequential numbered PAKs; a gap stops the loop. A directory, a PAK filename and an
 available BSP are three different checks. Validate pack directory structure/PAK header and resolved required
 resources, returning per-pack status and missing paths. Missing mandatory packs must produce an actionable message
@@ -147,13 +194,13 @@ is read-only and can mask an incomplete local test fixture; verify resolved tabl
 
 ## Small implementation tasks, in order
 
-1. **Required assets and pack status** (`vr_gamedir.cpp`, map-start/UX hooks): centralize mandatory Hipnotic/Rogue
+1. **Implemented: required assets and pack status** (`vr_gamedir.cpp`, map-start/UX hooks): centralize mandatory Hipnotic/Rogue
    sentinel/resource checks, distinguish missing/corrupt/available, and explain remediation before `worldspawn`.
    Acceptance: isolated boot matrix above yields actionable status instead of `Mod_LoadModel` failure.
-2. **Optional-pack resource policy** (`world.qc`, `weapons.qc`, related spawn paths): if base-only gameplay is required,
+2. **Implemented: optional-pack resource policy** (`world.qc`, `weapons.qc`, related spawn paths): if base-only gameplay is required,
    gate all pack precaches, random expansion spawns, persistent inventory/items and pack-only mechanics together.
    Do not silently alias unavailable models. Acceptance: id1-only map boot and no reachable unprecached resources.
-   Until this is implemented, UX must accurately state that both mission packs are required.
+   The implementation and measured acceptance results are recorded above; neither pack is now required for Quake.
 3. **Official campaign discovery and launcher order** (existing store/base discovery and `vr_gamedir.cpp`): detect
    owned Dopa/MG1/MG3 without network/install writes; validate content and maintain VR progs priority.
 4. **Campaign selection and hub** (`vr_gamedir.cpp`, `vr_menu.cpp`, `vrstart.ent`, QC campaign helper): select paths,
@@ -205,8 +252,8 @@ native MG1/MG3 completion merely because all maps launch or all spawn symbols ha
 The approved local README states GPLv2; individual source headers grant GPLv2 or later and preserve id Software
 copyright notices (MG3 headers extend to 2026). `progs.src` identifies Machinegames 2021/2026. Retain those notices
 on imported code, add source/changed-file attribution to `docs/vr-port/CREDITS.md` and package source notices, and
-include the applicable license text with source distribution. The local excerpt does not itself contain the README's
-referenced `COPYING.txt`; check the complete approved source/license provenance before shipping imports. GPL QC
+include the applicable license text with source distribution. The complete approved upstream source at commit
+`634eefa` includes the root `COPYING.txt` (GPLv2); retain it when shipping source imports. GPL QC
 permission does not grant permission to redistribute owned commercial PAKs, maps, models, sounds or language tables.
 No asset content or upstream QC was added by this audit.
 
