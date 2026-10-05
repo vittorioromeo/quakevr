@@ -876,6 +876,8 @@ float()  ArmagonCheckAttack =
 */
 void() monster_armagon
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    entity body;
    float sk;
    if(deathmatch)

@@ -106,6 +106,8 @@ void(entity decoy) setup_decoy =
 */
 void() monster_decoy =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    if(deathmatch)
     {
         remove(self);

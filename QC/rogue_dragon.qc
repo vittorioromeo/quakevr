@@ -763,6 +763,8 @@ void() dragon_activate =
 */
 void() monster_dragon =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(deathmatch)
     {
         remove(self);
@@ -820,6 +822,8 @@ If not, he is leaving.
 */
 void() trigger_dragon =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     remove(self);
 };
 
@@ -850,6 +854,8 @@ between rooms.
 */
 void() dragon_corner =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(!self.targetname)
         objerror ("dragon_corner: no targetname");
 

@@ -8,6 +8,8 @@ Default style is 0
 */
 void() light_lantern =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     precache_model("progs/lantern.mdl");
     setmodel(self, "progs/lantern.mdl");
     makestatic (self);
@@ -20,6 +22,8 @@ Default style is 0
 */
 void() light_candle =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     precache_model("progs/candle.mdl");
     setmodel(self, "progs/candle.mdl");
     makestatic (self);
@@ -98,6 +102,8 @@ delay - time between rubble pieces (Default 5 sec)
 */
 void() rubble_generator =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     precache_model("progs/rubble.mdl");
 
     if(!self.target)
@@ -130,6 +136,8 @@ health: amount of damage needed to set off trigger.
 */
 void() trigger_explosion =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     InitTrigger ();
 
     if(!self.health)

@@ -1621,6 +1621,8 @@ to 90.
 */
 void() item_flag_team1 =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(!deathmatch) {
         remove(self);
         return;
@@ -1668,6 +1670,8 @@ to 90.
 */
 void() item_flag_team2 =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(!deathmatch) {
         remove(self);
         return;
@@ -1715,6 +1719,8 @@ to 90.
 */
 void() item_flag =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(cvar_hget(cvarh_teamplay) != TEAM_CTF_ONEFLAG) {
         remove(self);
         return;
@@ -1742,6 +1748,8 @@ potential spawning position for CTF games team 1.
 */
 void() info_player_team1 =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
 };
 
 /*QUAKED info_player_team2 (1 0 1) (-16 -16 -24) (16 16 24)
@@ -1749,6 +1757,8 @@ potential spawning position for CTF games team 2.
 */
 void() info_player_team2 =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
 };
 
 void() TeamSetUpdate =
@@ -1882,6 +1892,8 @@ Only appears in CTF teamplay
 */
 void() func_ctf_wall =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     teamplay = cvar_hget(cvarh_teamplay);
     if(teamplay == TEAM_CTF || teamplay == TEAM_CTF_ONEFLAG ||
         teamplay == TEAM_CTF_ALT) {

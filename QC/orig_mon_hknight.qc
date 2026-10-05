@@ -469,6 +469,8 @@ frame: frame to be frozen in. (default 73)
 */
 void() monster_hell_knight =
 {
+    if(!VR_Pack_Rogue() && (self.spawnflags & 2)) { remove(self); return; }
+
     VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, $death12, $death1, $deathb9, $deathb1); // VR: knocked down (vr_knockdown.qc): no get-up of its own, a death backwards
     if(deathmatch)
     {

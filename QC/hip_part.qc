@@ -164,6 +164,8 @@ USE_COUNT when the activator is a func_counter, the field will only
 
 void() func_particlefield =
     {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    if(!self.color)
        {
       self.color = 192;
@@ -272,6 +274,8 @@ START_OFF wall doesn't block until triggered.
 
 void() func_togglewall =
     {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    self.classname = "togglewall";
    self.movetype = MOVETYPE_PUSH;
    self.mdl = self.model;

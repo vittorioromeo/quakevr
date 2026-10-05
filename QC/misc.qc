@@ -497,6 +497,14 @@ Laser, Lava and SuperLava are only for REGISTERED.
 //MED 11/01/96 commented out setmovedir
 void() trap_spikeshooter =
 {
+    if(!VR_Pack_Rogue() && (self.spawnflags &
+        (SPAWNFLAG_LAVASPIKE | SPAWNFLAG_SUPERLAVA | SPAWNFLAG_LAVASKILL | SPAWNFLAG_FIREBALL | SPAWNFLAG_LAVABALL)))
+    {
+        dprint("VR: Rogue projectile trap unavailable\n");
+        remove(self);
+        return;
+    }
+
     SetMovedir();
     self.use = spikeshooter_use;
 

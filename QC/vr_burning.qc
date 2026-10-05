@@ -1103,6 +1103,7 @@ void() VR_Burn_MapFrame =
 
 void(entity n, vector xFlame, entity xTorch) VR_Burn_NailToLava =
 {
+    if(!VR_Pack_Rogue()) { return; }
     // A very short fizz from the torch's flame (vr_burn_nail_sound: its volume, 0 none).
     float vol = cvar_hget(cvarh_vr_burn_nail_sound);
     if(vol > 0)
@@ -1157,7 +1158,7 @@ void(entity n, entity xTorches, vector a, vector b) VR_Burn_NailCheck =
 // held just past the muzzle, a monster just past it, hit in the frame it is fired).
 void(entity n) VR_Burn_NailLaunched =
 {
-    if(!cvar_hget(cvarh_vr_burn_nail_convert))
+    if(!VR_Pack_Rogue() || !cvar_hget(cvarh_vr_burn_nail_convert))
     {
         return;
     }
@@ -1291,6 +1292,7 @@ void() VR_Burn_TestFrame =
     }
     if(ask == 5)
     {
+        if(!VR_Pack_Rogue()) { dprint("burning: lava nail test requires Rogue\n"); return; }
         // The main hand's nailgun or super nailgun loaded with lava nails (no reload needed).
         float wid = VRGetEntWeapon(p, cVR_MainHand);
         if(wid != WID_NAILGUN && wid != WID_SUPER_NAILGUN)
@@ -1354,6 +1356,7 @@ void() VR_Burn_TestFrame =
     }
     if(ask == 11)
     {
+        if(!VR_Pack_Rogue()) { dprint("burning: lava nail test requires Rogue\n"); return; }
         // A lava nail of yours at the nearest piece, from 40 units above it and towards you.
         entity np = world;
         float npd = 100000;

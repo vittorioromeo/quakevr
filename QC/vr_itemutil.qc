@@ -158,6 +158,7 @@ float(float xItemId) VR_ItemUtil_ItemIdToItemCategory =
 
 float(entity xEnt, float xItemId) VR_ItemUtil_EntHasItem =
 {
+    if(!VR_Pack_ItemAvailable(xItemId)) { return FALSE; }
     float itemCategory, itemFlag;
     itemCategory = VR_ItemUtil_ItemIdToItemCategory(xItemId);
     itemFlag = VR_ItemUtil_Impl_ItemIdToFlag(xItemId);
@@ -186,6 +187,7 @@ float(entity xEnt, float xItemId) VR_ItemUtil_EntHasItem =
 
 void(entity xEnt, float xItemId, float xOwned) VR_ItemUtil_EntSetItem =
 {
+    if(xOwned && !VR_Pack_ItemAvailable(xItemId)) { return; }
     float itemCategory, itemFlag;
     itemCategory = VR_ItemUtil_ItemIdToItemCategory(xItemId);
     itemFlag = VR_ItemUtil_Impl_ItemIdToFlag(xItemId);

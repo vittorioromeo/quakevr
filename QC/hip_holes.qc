@@ -12,6 +12,8 @@ Places a sprite on a wall.  Angles should be opposite of face.
 */
 void() wallsprite =
    {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
    if(!self.model)
       {
       self.model = "progs/s_blood1.spr";

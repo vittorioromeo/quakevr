@@ -1927,6 +1927,8 @@ static void SV_SpawnServerRun (const char *server);
 // QVR: a map's load, a scope of its own for the profiler (its hitch log).
 void SV_SpawnServer (const char *server)
 {
+	if (!VR_CanLoadCampaignMap(server))
+		return;
 	VR_ProfileBegin ("map spawn");
 	SV_SpawnServerRun (server);
 	VR_ProfileEnd ();

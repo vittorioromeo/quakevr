@@ -133,6 +133,8 @@ it specifies how high to count before reseting to zero.  Default is 10.
 
 void() func_counter =
     {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     if(!self.wait)
        {
        self.wait = 1;
@@ -176,6 +178,8 @@ reaches the value set by count, func_oncount triggers its targets.
 
 void() func_oncount =
     {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Hipnotic(), "Hipnotic")) { return; }
+
     self.count = floor(self.count);
     if(self.count <= 0)
        {

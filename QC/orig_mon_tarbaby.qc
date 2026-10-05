@@ -287,6 +287,7 @@ If you want a specific type, select "Blue", "Green", or "Spots".
 */
 void() monster_tarbaby =
 {
+    if(!VR_Pack_Rogue() && (self.spawnflags & (4 | 8))) { remove(self); return; }
     float     myRand;
     float     skillLevel;
 
@@ -301,7 +302,7 @@ void() monster_tarbaby =
     precache_sound2("blob/hit1.wav");
     precache_sound2("blob/land1.wav");
     precache_sound2("blob/sight1.wav");
-    precache_sound2("blob/mytosis.wav");
+    if(VR_Pack_Rogue()) { precache_sound2("blob/mytosis.wav"); }
 
 
     if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE && !self.cnt){
@@ -321,9 +322,12 @@ void() monster_tarbaby =
     self.th_melee = tbaby_jump1;
     self.th_die = tbaby_die1;
 
-    // TODO VR: (P0) might need to control with cvar due to missing resources
-    // ROGUE
-    if(self.spawnflags & 8)
+    // Rogue variants and random mitosis require the installed pack.
+    if(!VR_Pack_Rogue())
+    {
+        self.skin = 0;
+    }
+    else if(self.spawnflags & 8)
     {
         self.th_pain = tbaby_mitosis;
         self.skin = 2;

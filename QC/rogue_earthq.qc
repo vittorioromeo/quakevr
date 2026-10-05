@@ -52,6 +52,8 @@ can vary between -20 and +20, a range of 40.
 */
 void() earthquake =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(!self.delay)
         self.delay = 20;
     if(!self.wait)
@@ -116,6 +118,8 @@ can vary between -20 and +20, a range of 40.
 */
 void() trigger_earthquake =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     precache_sound("equake/rumble.wav");
 
     if(!self.weapon)
@@ -154,6 +158,8 @@ Trigger to kill the level-wide earthquake.
 */
 void() trigger_earthquake_kill =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     self.touch = kill_earthquake;
 
     InitTrigger();

@@ -219,8 +219,9 @@ All of these have switches on the *Graphics* page, and the *Preset* there sets m
 - **The VR hub** (`vrstart`) is where the game starts. Pick Quake, Scourge of Armagon or Dissolution of Eternity,
   and step into the portal. Its signs explain the basics. From *Advanced VR Options > Play* you can go back to the
   hub, the **tutorial** or the **firing range** (weapons to try, both swords, and a training dummy).
-- **Mission packs:** installed ones (the `hipnotic` and `rogue` folders) are used automatically, with their
-  weapons, monsters and maps. Quake VR's QuakeC contains all three campaigns.
+- **Mission packs:** Hipnotic and Rogue are independent optional packs. Validated installed data is used
+  automatically, with its weapons, monsters and maps. Quake, the hub, tutorial and firing range work without
+  either pack; unavailable campaign buttons are labelled in the hub. Quake VR's QuakeC contains all three campaigns.
 - **Custom maps** without their own `progs.dat` play with Quake VR's gameplay. **Other mods** run in a
   compatibility mode: your hand aims and their weapons fire from your gun, and you can walk the room and teleport,
   but there are no off-hand weapons, holsters, throwing or melee. See [INSTALL.md](INSTALL.md#custom-maps-and-mods).

@@ -32,6 +32,8 @@ float(entity xEnt, float xWeaponId) VR_WeaponUtil_EntHasWeapon =
 {
     ASSERT(VR_WeaponUtil_IsValidWeaponId(xWeaponId));
 
+    if(!VR_Pack_WeaponAvailable(xWeaponId)) { return FALSE; }
+
     if(xWeaponId == WID_FIST)
     {
         return TRUE;
@@ -78,6 +80,8 @@ entity() FindEntPlayerForDrop =
 
 float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyDrop =
 {
+    if(!VR_Pack_WeaponAvailable(xWeapon)) { return FALSE; }
+
     if(VR_WeaponUtil_Impl_GetEnemyDrops() == QVR_ENEMYDROPS_DISABLE)
     {
         return FALSE;
@@ -101,6 +105,8 @@ float(entity entEnemy, entity entPlayer, float xWeapon, float xChance) TryEnemyD
 // TODO VR: (P2) code repetition, but create ammo box uses player ent
 float(entity entAmmoBox, entity entPlayer, float xWeapon, float xChance) TryAmmoBoxDrop =
 {
+    if(!VR_Pack_WeaponAvailable(xWeapon)) { return FALSE; }
+
     if(VR_WeaponUtil_Impl_GetAmmoBoxDrops() == QVR_AMMOBOXDROPS_DISABLE)
     {
         return FALSE;
@@ -162,6 +168,7 @@ string(float xWeaponFlags, string xPrimaryModel, string xSecondaryModel) SelectM
 
 string(float wid, float xWeaponFlags) WeaponIdToModel =
 {
+    xWeaponFlags = VR_Pack_WeaponFlags(wid, xWeaponFlags);
     if(wid == WID_FIST)             { return "progs/hand.mdl"; }
     if(wid == WID_GRAPPLE)          { return "progs/v_grpple.mdl"; }
     if(wid == WID_AXE)              { return "progs/v_axe.mdl"; }
@@ -197,6 +204,7 @@ float(float xWeaponFlags, float xPrimaryAid, float xSecondaryAid) SelectAmmoByFl
 
 float(float wid, float xWeaponFlags) WeaponIdToAmmoId =
 {
+    xWeaponFlags = VR_Pack_WeaponFlags(wid, xWeaponFlags);
     if(wid == WID_FIST)             { return AID_NONE; }
     if(wid == WID_GRAPPLE)          { return AID_NONE; }
     if(wid == WID_AXE)              { return AID_NONE; }

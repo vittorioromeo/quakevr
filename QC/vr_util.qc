@@ -259,12 +259,14 @@ inline float(float xHand) VRGetOtherHand =
 
 void(entity e, float xHand, float v) VRSetEntWeapon =
 {
+    if(!VR_Pack_WeaponAvailable(v)) { v = WID_FIST; }
     if(xHand == cVR_OffHand) e.weapon2 = v;
     else                     e.weapon = v;
 }
 
 void(entity e, float xHand, float v) VRSetEntWeaponFlags =
 {
+    v = VR_Pack_WeaponFlags(xHand == cVR_OffHand ? e.weapon2 : e.weapon, v);
     if(xHand == cVR_OffHand) e.weaponflags2 = v;
     else                     e.weaponflags = v;
 }

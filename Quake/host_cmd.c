@@ -1964,6 +1964,9 @@ static void Host_Map_f (void)
 	if (cmd_source != src_command)
 		return;
 
+	if (!VR_CanLoadCampaignMap(Cmd_Argv(1)))
+		return;
+
 	VR_OnFreshStart (); // QVR
 	cls.demonum = -1;		// stop demo loop in case this fails
 
@@ -2560,6 +2563,14 @@ static void Host_Loadgame_f (void)
 		SCR_EndLoadingPlaque ();
 		return;
 	}
+
+	if (!VR_CanLoadCampaignSave(start))
+    {
+        VR_HeapFree(start);
+        start = NULL;
+        SCR_EndLoadingPlaque();
+        return;
+    }
 
 	data = start;
 	data = COM_ParseIntNewline (data, &version);

@@ -57,7 +57,8 @@ The re-release's data works too, with the campaign and both mission packs. Its f
 and an `id1\pak0.pak` of about 220 MB. On Steam, that's `Quake\rerelease`. Don't unzip Quake VR into this folder,
 because the package's `SDL2.dll` would replace the re-release's own. Use one of these instead:
 
-- Copy the re-release's `id1`, `hipnotic` and `rogue` folders into your Quake VR folder, then run `QuakeVR.bat`.
+- Copy the re-release's `id1` folder into your Quake VR folder, plus `hipnotic` and/or `rogue` if you want those
+  campaigns, then run `QuakeVR.bat`.
 - Or leave the data where it is, and name both folders on the command line:
   `QuakeVR.bat -basedir "<re-release folder>" -basedir "<Quake VR folder>"`. Don't end either path with a `\`.
 
@@ -146,9 +147,25 @@ Angle* and *Off Hand Angle* in VR Settings (the *Hand/Gun Calibration* page has 
 
 ## Mission packs
 
-If `hipnotic` (Scourge of Armagon) and `rogue` (Dissolution of Eternity) are in your Quake folder, Quake VR uses
-them automatically. There's nothing to copy or rename. In the VR hub, press the button for the campaign you want
-(Quake, SoA or DoE) and step into the portal. The Steam version of Quake includes both packs.
+**No expansion is required for Quake's campaign, the VR hub, tutorial or firing range.** Scourge of Armagon
+(`hipnotic`) and Dissolution of Eternity (`rogue`) are independent optional packs. Each enables its own campaign,
+weapons, monsters and items; either works without the other. Pack weapons/items and their random drops are disabled
+when their data is unavailable. Rogue is also needed for lava nails made by shooting through a torch's flame.
+
+Put the complete owned pack data in its folder alongside `id1`. Quake VR validates the pack's own required maps,
+models and sounds before mounting it; an empty directory or a VR replacement view model does not establish that the
+pack is installed. Missing, incomplete or corrupt packs are reported at startup. Their hub buttons are marked
+*unavailable*, and selecting their campaign is blocked with a message explaining which data to restore. Run
+`vr_pack_status`, or choose *Debug > Reports > Mission Pack Status*, to see each pack's status. Restore the pack
+from your owned copy when validation reports missing files or a damaged archive.
+
+In the hub, press an available campaign's button (Quake, SoA or DoE) and step into the portal. Keep the same pack
+installation when restoring a save: changing the set of packs changes the saved model indices, so an incompatible
+save is rejected before loading. Saves from the earlier merged VR progs require both packs.
+
+Dimension of the Past (`dopa`), Dimension of the Machine (`mg1`) and the newer MG3 campaign are separate from these two mission packs. Native
+VR gameplay support for their additional entities and mechanics is incomplete; see the
+[expansion audit](vr-port/EXPANSIONS.md). Their presence is not advertised as native campaign support.
 
 Don't start the mission packs with `-game hipnotic` or `-game rogue`: that would run their own QuakeC, without Quake
 VR's gameplay. Quake VR's QuakeC already contains all three campaigns.

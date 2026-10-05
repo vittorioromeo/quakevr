@@ -304,6 +304,8 @@ frame: frame to be frozen in. (default 44)
 */
 void() monster_knight =
 {
+    if(!VR_Pack_Rogue() && (self.spawnflags & 2)) { remove(self); return; }
+
     VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_knight, $painb9, knight_painb9); // VR: knocked down (vr_knockdown.qc): low: painb9 on rises
     if(deathmatch)
     {

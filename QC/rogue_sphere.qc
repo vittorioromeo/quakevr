@@ -137,6 +137,8 @@ The Vengeance Sphere. DEATHMATCH ONLY.
 */
 void() item_sphere =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(!deathmatch)
     {
         remove(self);

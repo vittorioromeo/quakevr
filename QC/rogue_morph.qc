@@ -532,6 +532,8 @@ If the monster has a targetname (triggered by something) he will rise up out of 
 */
 void() monster_morph =
 {
+    if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
+
     if(deathmatch)
     {
         remove(self);
