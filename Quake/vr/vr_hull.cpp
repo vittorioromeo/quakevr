@@ -3831,7 +3831,120 @@ za::Vector<glm::vec3> wantedExts(bool loading)
     return exts;
 }
 
-// The trees for those boxes, compiled at once on the pool (not at the first move: a hitch in play).
+// Recover every loaded brush model before workers read the shared brushes. Each worker owns one size's Tree:
+// its submodels append to the same node/plane arrays, so they must not be built concurrently with each other.
+void prepareBrushModels()
+{
+    if(vr_hull_brushmodels.value == 0.f) return;
+    const double started = Sys_DoubleTime();
+    const za::SizeT beforeBytes = built.bytes() + tree.bytes() + monsterTrees.bytes();
+    za::Vector<za::SizeT> subs;
+    for(int i = 1; i < MAX_MODELS; ++i)
+    {
+        const qmodel_t* model = sv.models[i];
+        if(!model || model->type != mod_brush) continue;
+        const int sub = subOf(built, i);
+        if(sub <= 0) continue;
+        const za::SizeT s = static_cast<za::SizeT>(sub);
+        if(za::find(subs.begin(), subs.end(), s) == subs.end()) subs.pushBack(s);
+    }
+    za::Vector<Tree*> sizes;
+    if(tree.forClipnodes == built.clipnodes) sizes.pushBack(&tree);
+    for(Tree& t : monsterTrees.trees)
+    {
+        if(t.forClipnodes == built.clipnodes) sizes.pushBack(&t);
+    }
+    za::Vector<int> counts(sizes.size(), 0);
+    jobs::parallelFor(treesSite, sizes.size(), 1,
+        [&](za::SizeT begin, za::SizeT end)
+        {
+            for(za::SizeT i = begin; i < end; ++i)
+            {
+                Tree& t = *sizes[i];
+                if(t.heads.size() < built.subs.size()) t.heads.resize(built.subs.size(), -1);
+                for(const za::SizeT sub : subs)
+                {
+                    if(t.heads[sub] >= 0) continue;
+                    buildTree(t, built, sub, nullptr, false);
+                    ++counts[i];
+                }
+            }
+        });
+    int count = 0;
+    for(const int n : counts) count += n;
+    const double elapsed = Sys_DoubleTime() - started;
+    VR_TimeAdd("hull: loaded brush models prepared", elapsed);
+    if(vr_hull_audit.value != 0.f)
+    {
+        Con_Printf("hull_audit: prepared models=%zu sizes=%zu builds=%d bytes_before=%zu bytes_after=%zu ms=%.3f\n",
+            subs.size(), sizes.size(), count, beforeBytes, built.bytes() + tree.bytes() + monsterTrees.bytes(), elapsed * 1000.0);
+    }
+}
+
+// Rebuild nodes independently against the same shared plane table. An isolated model's fresh plane table can
+// choose slightly different near-equal planes from the world's table (the builder's existing plane deduplication).
+// Do not fill missing cached heads: the test must catch incomplete preparation.
+void preloadTest_f()
+{
+    if(!sv.active || !wanted() || vr_hull_brushmodels.value == 0.f || !worldBrushes(sv.worldmodel)) return;
+    settle();
+    za::Vector<const Tree*> sizes;
+    if(tree.forClipnodes == built.clipnodes) sizes.pushBack(&tree);
+    for(const Tree& t : monsterTrees.trees)
+    {
+        if(t.forClipnodes == built.clipnodes) sizes.pushBack(&t);
+    }
+    int checked = 0, mismatches = 0, missing = 0;
+    za::U32 seed = 17;
+    const auto random = [&seed] { seed = seed * 1664525u + 1013904223u; return static_cast<float>(seed >> 8) / 8388608.f - 1.f; };
+    for(const Tree* cached : sizes)
+    {
+        for(za::SizeT sub = 1; sub < built.subs.size(); ++sub)
+        {
+            if(sub >= cached->heads.size() || cached->heads[sub] < 0) { ++missing; continue; }
+            Tree reference;
+            reference.ext = cached->ext;
+            reference.planes = cached->planes;
+            reference.heads.resize(built.subs.size(), -1);
+            buildTree(reference, built, sub, nullptr, false);
+            const SubModel& sm = built.subs[sub];
+            glm::vec3 lo{0.f}, hi{0.f};
+            for(za::U32 j = 0; j < sm.numBrushes; ++j)
+            {
+                const Brush& br = built.brushes[sm.firstBrush + j];
+                lo = j ? glm::min(lo, br.mins) : br.mins;
+                hi = j ? glm::max(hi, br.maxs) : br.maxs;
+            }
+            const glm::vec3 centre = (lo + hi) * 0.5f;
+            const glm::vec3 reach = (hi - lo) * 0.5f + cached->ext + glm::vec3{16.f};
+            for(int n = 0; n < 128; ++n)
+            {
+                const glm::vec3 start = centre + reach * glm::vec3{random(), random(), random()};
+                const glm::vec3 end = centre + reach * glm::vec3{random(), random(), random()};
+                const trace_t a = treeTrace(*cached, cached->heads[sub], start, end);
+                const trace_t b = treeTrace(reference, reference.heads[sub], start, end);
+                bool same = a.startsolid == b.startsolid && a.allsolid == b.allsolid && fabsf(a.fraction - b.fraction) <= 0.00001f;
+                for(int axis = 0; axis < 3; ++axis) same = same && fabsf(a.endpos[axis] - b.endpos[axis]) <= 0.0001f;
+                if(!same)
+                {
+                    if(mismatches < 5)
+                    {
+                        Con_Printf("preloadtest mismatch sub=%zu size=%gx%gx%g fractions=%.9g/%.9g solid=%d,%d/%d,%d "
+                            "end_delta=%g,%g,%g\n", sub, cached->ext.x * 2.f, cached->ext.y * 2.f, cached->ext.z * 2.f,
+                            a.fraction, b.fraction, a.startsolid, a.allsolid, b.startsolid, b.allsolid,
+                            a.endpos[0] - b.endpos[0], a.endpos[1] - b.endpos[1], a.endpos[2] - b.endpos[2]);
+                    }
+                    ++mismatches;
+                }
+                ++checked;
+            }
+        }
+    }
+    Con_Printf("vr_hull_preloadtest: %s traces=%d missing=%d mismatches=%d\n",
+        checked && !missing && !mismatches ? "PASS" : "FAIL", checked, missing, mismatches);
+}
+
+// World and loaded brush hulls for these boxes, prepared before play (or after a width-setting change).
 void prepare()
 {
     if(!wanted() || !worldBrushes(sv.worldmodel))
@@ -3839,6 +3952,7 @@ void prepare()
         return;
     }
     compileTrees(claimTrees(built.clipnodes, wantedExts(false)), built);
+    prepareBrushModels();
 }
 
 void onWidthChanged(cvar_t*)
@@ -3853,6 +3967,7 @@ void init()
     Cvar_RegisterVariable(&vr_hull_audit);
     Cmd_AddCommand("vr_hull_warmcache", warmCache_f);
     Cmd_AddCommand("vr_hull_cachetest", cacheTest_f);
+    Cmd_AddCommand("vr_hull_preloadtest", preloadTest_f);
     Cmd_AddCommand("vr_hull_stats", stats_f);
     Cmd_AddCommand("vr_hull_bench", bench_f);
     Cmd_AddCommand("vr_hull_walktest", walkTest_f);
@@ -3864,6 +3979,7 @@ void init()
     Cmd_AddCommand("vr_mhull_reset", reset_f);
     Cvar_SetCallback(&vr_hull_width, onWidthChanged);
     Cvar_SetCallback(&vr_hull_method, onWidthChanged);
+    Cvar_SetCallback(&vr_hull_brushmodels, onWidthChanged);
     Cvar_SetCallback(&vr_mhull, onWidthChanged);
     for(const MonsterClass& c : monsterClasses)
     {

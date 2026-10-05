@@ -17,7 +17,7 @@ def main(args):
         checks = 'vr_alloc_test\n' if args.self_test else ''
         if args.hull_audit:
             # Enable before combat setup as well as during the measured window.
-            config = config.replace('god 1', 'vr_hull_audit 1\ngod 1')
+            config = 'vr_hull_audit 1\n' + config
             config = config.replace('echo BENCH_MEASURE_BEGIN', 'vr_hull_stats\necho BENCH_MEASURE_BEGIN')
             config = config.replace('echo BENCH_MEASURE_END', 'vr_hull_stats\necho BENCH_MEASURE_END')
         if args.prewarm_hulls:

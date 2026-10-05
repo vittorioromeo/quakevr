@@ -1,0 +1,979 @@
+{
+  "date": "2026-10-05",
+  "branch": "vr-ironwail",
+  "eye": 1024,
+  "fixed_hz": 72,
+  "exe_sha256": "75d2e02dde7588f64d06e74ce131ef01f600ef5f3fba27413557e894c75b77a7",
+  "baseline_exe_sha256": "42927ebbddd10af336ef16ef680465edb6a3b7d71ada723d03d7983569e16889",
+  "load_comparison": [
+    {
+      "variant": "baseline",
+      "map": "vrfiringrange",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\baseline\\vrfiringrange\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 27,
+      "prepared": [],
+      "tree_hashes": [
+        [
+          "16x56",
+          "57636828"
+        ]
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20890,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "baseline",
+      "map": "vrfiringrange",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\baseline\\vrfiringrange\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": 27,
+      "prepared": [],
+      "tree_hashes": [
+        [
+          "16x56",
+          "57636828"
+        ]
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20890,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "baseline",
+      "map": "e1m1",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\baseline\\e1m1\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 131,
+      "prepared": [],
+      "tree_hashes": [
+        [
+          "16x56",
+          "455ecee0"
+        ],
+        [
+          "24x56",
+          "c704caa9"
+        ]
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20870,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "baseline",
+      "map": "e1m1",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\baseline\\e1m1\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": 131,
+      "prepared": [],
+      "tree_hashes": [
+        [
+          "16x56",
+          "455ecee0"
+        ],
+        [
+          "24x56",
+          "c704caa9"
+        ]
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20870,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "baseline",
+      "map": "e2m2",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\baseline\\e2m2\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 183,
+      "prepared": [],
+      "tree_hashes": [
+        [
+          "16x56",
+          "c5d5251c"
+        ],
+        [
+          "24x56",
+          "cd816117"
+        ],
+        [
+          "40x88",
+          "c2ea47b9"
+        ]
+      ],
+      "peak_requests": 48,
+      "peak_bytes": 126283,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "baseline",
+      "map": "e2m2",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\baseline\\e2m2\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": 183,
+      "prepared": [],
+      "tree_hashes": [
+        [
+          "16x56",
+          "c5d5251c"
+        ],
+        [
+          "24x56",
+          "cd816117"
+        ],
+        [
+          "40x88",
+          "c2ea47b9"
+        ]
+      ],
+      "peak_requests": 40,
+      "peak_bytes": 102820,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "baseline",
+      "map": "start",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\baseline\\start\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 118,
+      "prepared": [],
+      "tree_hashes": [
+        [
+          "16x56",
+          "2d7d2707"
+        ],
+        [
+          "24x56",
+          "3f46fdf0"
+        ]
+      ],
+      "peak_requests": 40,
+      "peak_bytes": 28474,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "baseline",
+      "map": "start",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\baseline\\start\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": 118,
+      "prepared": [],
+      "tree_hashes": [
+        [
+          "16x56",
+          "2d7d2707"
+        ],
+        [
+          "24x56",
+          "3f46fdf0"
+        ]
+      ],
+      "peak_requests": 45,
+      "peak_bytes": 68043,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "vrfiringrange",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\preload\\vrfiringrange\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "27",
+          "1",
+          "27",
+          "572976",
+          "586860",
+          "26.864"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "57636828"
+        ]
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20890,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "vrfiringrange",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\preload\\vrfiringrange\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "27",
+          "1",
+          "27",
+          "572976",
+          "586860",
+          "23.212"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "57636828"
+        ]
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20890,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "e1m1",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\preload\\e1m1\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "66",
+          "2",
+          "131",
+          "775288",
+          "787264",
+          "21.224"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "455ecee0"
+        ],
+        [
+          "24x56",
+          "c704caa9"
+        ]
+      ],
+      "peak_requests": 40,
+      "peak_bytes": 102820,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "e1m1",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\preload\\e1m1\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "66",
+          "2",
+          "131",
+          "775288",
+          "787264",
+          "20.310"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "455ecee0"
+        ],
+        [
+          "24x56",
+          "c704caa9"
+        ]
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20870,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "e2m2",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\preload\\e2m2\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "61",
+          "3",
+          "183",
+          "1476244",
+          "1489820",
+          "17.988"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "c5d5251c"
+        ],
+        [
+          "24x56",
+          "cd816117"
+        ],
+        [
+          "40x88",
+          "c2ea47b9"
+        ]
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20870,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "e2m2",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\preload\\e2m2\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "61",
+          "3",
+          "183",
+          "1476244",
+          "1489820",
+          "18.675"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "c5d5251c"
+        ],
+        [
+          "24x56",
+          "cd816117"
+        ],
+        [
+          "40x88",
+          "c2ea47b9"
+        ]
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20870,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "start",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\preload\\start\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "59",
+          "2",
+          "118",
+          "746156",
+          "857088",
+          "9.655"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "2d7d2707"
+        ],
+        [
+          "24x56",
+          "3f46fdf0"
+        ]
+      ],
+      "peak_requests": 42,
+      "peak_bytes": 94805,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "start",
+      "log": "build-cmake\\hull-preload-20261005\\maps\\preload\\start\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "59",
+          "2",
+          "118",
+          "746156",
+          "857088",
+          "15.238"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "2d7d2707"
+        ],
+        [
+          "24x56",
+          "3f46fdf0"
+        ]
+      ],
+      "peak_requests": 40,
+      "peak_bytes": 102820,
+      "measured_hull_builds": 0
+    }
+  ],
+  "final_collision_checks": [
+    {
+      "variant": "preload",
+      "map": "vrfiringrange",
+      "log": "build-cmake\\hull-preload-20261005\\final-maps\\preload\\vrfiringrange\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "27",
+          "1",
+          "27",
+          "572976",
+          "586860",
+          "11.646"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "57636828"
+        ]
+      ],
+      "trace_check": [
+        "3456"
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20890,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "e1m1",
+      "log": "build-cmake\\hull-preload-20261005\\final-maps\\preload\\e1m1\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "66",
+          "2",
+          "131",
+          "775288",
+          "787264",
+          "12.800"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "455ecee0"
+        ],
+        [
+          "24x56",
+          "c704caa9"
+        ]
+      ],
+      "trace_check": [
+        "16896"
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20870,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "e2m2",
+      "log": "build-cmake\\hull-preload-20261005\\final-maps\\preload\\e2m2\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "61",
+          "3",
+          "183",
+          "1476244",
+          "1489820",
+          "18.453"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "c5d5251c"
+        ],
+        [
+          "24x56",
+          "cd816117"
+        ],
+        [
+          "40x88",
+          "c2ea47b9"
+        ]
+      ],
+      "trace_check": [
+        "23424"
+      ],
+      "peak_requests": 24,
+      "peak_bytes": 20870,
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "start",
+      "log": "build-cmake\\hull-preload-20261005\\final-maps\\preload\\start\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": 0,
+      "prepared": [
+        [
+          "59",
+          "2",
+          "118",
+          "746156",
+          "857088",
+          "9.952"
+        ]
+      ],
+      "tree_hashes": [
+        [
+          "16x56",
+          "2d7d2707"
+        ],
+        [
+          "24x56",
+          "3f46fdf0"
+        ]
+      ],
+      "trace_check": [
+        "15104"
+      ],
+      "peak_requests": 41,
+      "peak_bytes": 120283,
+      "measured_hull_builds": 0
+    }
+  ],
+  "native_traversal": [
+    {
+      "variant": "baseline",
+      "map": "e1m1",
+      "log": "build-cmake\\hull-preload-20261005\\walk\\baseline\\e1m1\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": null,
+      "prepared": [],
+      "tree_hashes": [],
+      "trace_check": [],
+      "peak_requests": 1549,
+      "peak_bytes": 221944,
+      "walk": [
+        "hullwalk maps/e1m1.bsp: width 16 (compiled hull), entities 16, 864 frames, 2142 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ],
+      "measured_hull_builds": 4
+    },
+    {
+      "variant": "baseline",
+      "map": "e1m1",
+      "log": "build-cmake\\hull-preload-20261005\\walk\\baseline\\e1m1\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": null,
+      "prepared": [],
+      "tree_hashes": [],
+      "trace_check": [],
+      "peak_requests": 1549,
+      "peak_bytes": 221944,
+      "walk": [
+        "hullwalk maps/e1m1.bsp: width 16 (compiled hull), entities 16, 864 frames, 2142 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ],
+      "measured_hull_builds": 4
+    },
+    {
+      "variant": "baseline",
+      "map": "e2m2",
+      "log": "build-cmake\\hull-preload-20261005\\walk\\baseline\\e2m2\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": null,
+      "prepared": [],
+      "tree_hashes": [],
+      "trace_check": [],
+      "peak_requests": 4628,
+      "peak_bytes": 512394,
+      "walk": [
+        "hullwalk maps/e2m2.bsp: width 16 (compiled hull), entities 16, 864 frames, 3366 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ],
+      "measured_hull_builds": 4
+    },
+    {
+      "variant": "baseline",
+      "map": "e2m2",
+      "log": "build-cmake\\hull-preload-20261005\\walk\\baseline\\e2m2\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": null,
+      "prepared": [],
+      "tree_hashes": [],
+      "trace_check": [],
+      "peak_requests": 4629,
+      "peak_bytes": 512433,
+      "walk": [
+        "hullwalk maps/e2m2.bsp: width 16 (compiled hull), entities 16, 864 frames, 3366 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ],
+      "measured_hull_builds": 4
+    },
+    {
+      "variant": "preload",
+      "map": "e1m1",
+      "log": "build-cmake\\hull-preload-20261005\\walk\\preload\\e1m1\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": null,
+      "prepared": [
+        [
+          "66",
+          "2",
+          "131",
+          "775288",
+          "787264",
+          "27.863"
+        ]
+      ],
+      "tree_hashes": [],
+      "trace_check": [],
+      "peak_requests": 37,
+      "peak_bytes": 76818,
+      "walk": [
+        "hullwalk maps/e1m1.bsp: width 16 (compiled hull), entities 16, 864 frames, 2142 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ],
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "e1m1",
+      "log": "build-cmake\\hull-preload-20261005\\walk\\preload\\e1m1\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": null,
+      "prepared": [
+        [
+          "66",
+          "2",
+          "131",
+          "775288",
+          "787264",
+          "17.515"
+        ]
+      ],
+      "tree_hashes": [],
+      "trace_check": [],
+      "peak_requests": 37,
+      "peak_bytes": 76938,
+      "walk": [
+        "hullwalk maps/e1m1.bsp: width 16 (compiled hull), entities 16, 864 frames, 2142 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ],
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "e2m2",
+      "log": "build-cmake\\hull-preload-20261005\\walk\\preload\\e2m2\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "remaining_builds": null,
+      "prepared": [
+        [
+          "61",
+          "3",
+          "183",
+          "1476244",
+          "1489820",
+          "20.237"
+        ]
+      ],
+      "tree_hashes": [],
+      "trace_check": [],
+      "peak_requests": 49,
+      "peak_bytes": 421088,
+      "walk": [
+        "hullwalk maps/e2m2.bsp: width 16 (compiled hull), entities 16, 864 frames, 3366 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ],
+      "measured_hull_builds": 0
+    },
+    {
+      "variant": "preload",
+      "map": "e2m2",
+      "log": "build-cmake\\hull-preload-20261005\\walk\\preload\\e2m2\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "remaining_builds": null,
+      "prepared": [
+        [
+          "61",
+          "3",
+          "183",
+          "1476244",
+          "1489820",
+          "28.322"
+        ]
+      ],
+      "tree_hashes": [],
+      "trace_check": [],
+      "peak_requests": 49,
+      "peak_bytes": 421088,
+      "walk": [
+        "hullwalk maps/e2m2.bsp: width 16 (compiled hull), entities 16, 864 frames, 3366 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ],
+      "measured_hull_builds": 0
+    }
+  ],
+  "combat": [
+    {
+      "log": "build-cmake\\hull-preload-20261005\\walk\\baseline\\e1m1\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "peak_requests": 1549,
+      "peak_bytes": 221944,
+      "measured_hull_builds": [
+        "hull_audit: build frame=698 sub=22 target=*22 size=16.000x16.000x56.000 reason=lazy-submodel new=1540 c=0 bytes=196892 retained=177868 ms=2.561",
+        "hull_audit: build frame=1087 sub=9 target=*9 size=16.000x16.000x56.000 reason=lazy-submodel new=1420 c=0 bytes=188232 retained=177868 ms=2.380",
+        "hull_audit: build frame=1112 sub=8 target=*8 size=24.000x24.000x56.000 reason=lazy-submodel new=1422 c=0 bytes=189716 retained=177868 ms=2.353",
+        "hull_audit: build frame=1136 sub=8 target=*8 size=16.000x16.000x56.000 reason=lazy-submodel new=1420 c=0 bytes=188232 retained=177868 ms=2.354"
+      ],
+      "brush_recoveries": 0,
+      "walk": [
+        "hullwalk maps/e1m1.bsp: width 16 (compiled hull), entities 16, 864 frames, 2142 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ]
+    },
+    {
+      "log": "build-cmake\\hull-preload-20261005\\walk\\baseline\\e1m1\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "peak_requests": 1549,
+      "peak_bytes": 221944,
+      "measured_hull_builds": [
+        "hull_audit: build frame=698 sub=22 target=*22 size=16.000x16.000x56.000 reason=lazy-submodel new=1540 c=0 bytes=196892 retained=177868 ms=2.792",
+        "hull_audit: build frame=1087 sub=9 target=*9 size=16.000x16.000x56.000 reason=lazy-submodel new=1420 c=0 bytes=188232 retained=177868 ms=2.427",
+        "hull_audit: build frame=1112 sub=8 target=*8 size=24.000x24.000x56.000 reason=lazy-submodel new=1422 c=0 bytes=189716 retained=177868 ms=2.446",
+        "hull_audit: build frame=1136 sub=8 target=*8 size=16.000x16.000x56.000 reason=lazy-submodel new=1420 c=0 bytes=188232 retained=177868 ms=2.490"
+      ],
+      "brush_recoveries": 0,
+      "walk": [
+        "hullwalk maps/e1m1.bsp: width 16 (compiled hull), entities 16, 864 frames, 2142 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ]
+    },
+    {
+      "log": "build-cmake\\hull-preload-20261005\\walk\\baseline\\e2m2\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "peak_requests": 4628,
+      "peak_bytes": 512394,
+      "measured_hull_builds": [
+        "hull_audit: build frame=671 sub=16 target=*16 size=24.000x24.000x56.000 reason=lazy-submodel new=2693 c=0 bytes=388888 retained=290632 ms=6.998",
+        "hull_audit: build frame=698 sub=23 target=*23 size=16.000x16.000x56.000 reason=lazy-submodel new=2716 c=0 bytes=388756 retained=290632 ms=4.806",
+        "hull_audit: build frame=763 sub=23 target=*23 size=40.000x40.000x88.000 reason=lazy-submodel new=2739 c=0 bytes=390720 retained=290632 ms=6.805",
+        "hull_audit: build frame=958 sub=17 target=*17 size=40.000x40.000x88.000 reason=lazy-submodel new=4626 c=0 bytes=512316 retained=290632 ms=7.906"
+      ],
+      "brush_recoveries": 0,
+      "walk": [
+        "hullwalk maps/e2m2.bsp: width 16 (compiled hull), entities 16, 864 frames, 3366 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ]
+    },
+    {
+      "log": "build-cmake\\hull-preload-20261005\\walk\\baseline\\e2m2\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "peak_requests": 4629,
+      "peak_bytes": 512433,
+      "measured_hull_builds": [
+        "hull_audit: build frame=671 sub=16 target=*16 size=24.000x24.000x56.000 reason=lazy-submodel new=2693 c=0 bytes=388888 retained=290632 ms=7.244",
+        "hull_audit: build frame=698 sub=23 target=*23 size=16.000x16.000x56.000 reason=lazy-submodel new=2716 c=0 bytes=388756 retained=290632 ms=7.750",
+        "hull_audit: build frame=763 sub=23 target=*23 size=40.000x40.000x88.000 reason=lazy-submodel new=2739 c=0 bytes=390720 retained=290632 ms=7.522",
+        "hull_audit: build frame=958 sub=17 target=*17 size=40.000x40.000x88.000 reason=lazy-submodel new=4626 c=0 bytes=512316 retained=290632 ms=11.073"
+      ],
+      "brush_recoveries": 0,
+      "walk": [
+        "hullwalk maps/e2m2.bsp: width 16 (compiled hull), entities 16, 864 frames, 3366 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ]
+    },
+    {
+      "log": "build-cmake\\hull-preload-20261005\\walk\\preload\\e1m1\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "peak_requests": 37,
+      "peak_bytes": 76818,
+      "measured_hull_builds": [],
+      "brush_recoveries": 0,
+      "walk": [
+        "hullwalk maps/e1m1.bsp: width 16 (compiled hull), entities 16, 864 frames, 2142 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ]
+    },
+    {
+      "log": "build-cmake\\hull-preload-20261005\\walk\\preload\\e1m1\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "peak_requests": 37,
+      "peak_bytes": 76938,
+      "measured_hull_builds": [],
+      "brush_recoveries": 0,
+      "walk": [
+        "hullwalk maps/e1m1.bsp: width 16 (compiled hull), entities 16, 864 frames, 2142 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ]
+    },
+    {
+      "log": "build-cmake\\hull-preload-20261005\\walk\\preload\\e2m2\\idle_eye1024_gpu0_r1\\qconsole.log",
+      "peak_requests": 49,
+      "peak_bytes": 421088,
+      "measured_hull_builds": [],
+      "brush_recoveries": 0,
+      "walk": [
+        "hullwalk maps/e2m2.bsp: width 16 (compiled hull), entities 16, 864 frames, 3366 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ]
+    },
+    {
+      "log": "build-cmake\\hull-preload-20261005\\walk\\preload\\e2m2\\idle_eye1024_gpu0_r2\\qconsole.log",
+      "peak_requests": 49,
+      "peak_bytes": 421088,
+      "measured_hull_builds": [],
+      "brush_recoveries": 0,
+      "walk": [
+        "hullwalk maps/e2m2.bsp: width 16 (compiled hull), entities 16, 864 frames, 3366 units walked, 2 hops (2 near pushers, 0 failed), stuck 0 (0 right after a hop), in monsters or items 0, embedded 0, outside 0"
+      ]
+    },
+    {
+      "log": "build-cmake\\hull-preload-20261005\\dynamic-combat\\enemies_fine_eye1024_gpu0_r1\\qconsole.log",
+      "peak_requests": 3801,
+      "peak_bytes": 510200,
+      "measured_hull_builds": [
+        "hull_audit: build frame=444 sub=21 target=maps/vr_spawnbutton.bsp size=24.000x24.000x56.000 reason=lazy-submodel new=1899 c=0 bytes=254800 retained=145176 ms=4.094",
+        "hull_audit: build frame=451 sub=20 target=maps/vr_spawnpanel.bsp size=24.000x24.000x56.000 reason=lazy-submodel new=1899 c=0 bytes=254824 retained=145176 ms=3.889",
+        "hull_audit: build frame=474 sub=23 target=maps/vr_button_north.bsp size=24.000x24.000x56.000 reason=lazy-submodel new=1899 c=0 bytes=254848 retained=145176 ms=3.910",
+        "hull_audit: build frame=593 sub=22 target=maps/vr_panel_north.bsp size=24.000x24.000x56.000 reason=lazy-submodel new=1899 c=0 bytes=254872 retained=145176 ms=3.957",
+        "hull_audit: build frame=603 sub=23 target=maps/vr_button_north.bsp size=40.000x40.000x88.000 reason=lazy-submodel new=1898 c=0 bytes=254864 retained=112812 ms=3.779",
+        "hull_audit: build frame=800 sub=22 target=maps/vr_panel_north.bsp size=40.000x40.000x88.000 reason=lazy-submodel new=1900 c=0 bytes=254944 retained=112812 ms=3.869",
+        "hull_audit: build frame=1148 sub=20 target=maps/vr_spawnpanel.bsp size=40.000x40.000x88.000 reason=lazy-submodel new=1900 c=0 bytes=254968 retained=112812 ms=3.773",
+        "hull_audit: build frame=1148 sub=21 target=maps/vr_spawnbutton.bsp size=40.000x40.000x88.000 reason=lazy-submodel new=1900 c=0 bytes=254992 retained=112812 ms=3.684"
+      ],
+      "brush_recoveries": 0,
+      "walk": []
+    },
+    {
+      "log": "build-cmake\\hull-preload-20261005\\dynamic-combat\\enemies_fine_eye1024_gpu0_r2\\qconsole.log",
+      "peak_requests": 1929,
+      "peak_bytes": 285843,
+      "measured_hull_builds": [
+        "hull_audit: build frame=444 sub=21 target=maps/vr_spawnbutton.bsp size=24.000x24.000x56.000 reason=lazy-submodel new=1899 c=0 bytes=254800 retained=145176 ms=4.853",
+        "hull_audit: build frame=451 sub=20 target=maps/vr_spawnpanel.bsp size=24.000x24.000x56.000 reason=lazy-submodel new=1899 c=0 bytes=254824 retained=145176 ms=3.606",
+        "hull_audit: build frame=474 sub=23 target=maps/vr_button_north.bsp size=24.000x24.000x56.000 reason=lazy-submodel new=1899 c=0 bytes=254848 retained=145176 ms=4.074",
+        "hull_audit: build frame=593 sub=22 target=maps/vr_panel_north.bsp size=24.000x24.000x56.000 reason=lazy-submodel new=1899 c=0 bytes=254872 retained=145176 ms=3.918",
+        "hull_audit: build frame=725 sub=21 target=maps/vr_spawnbutton.bsp size=40.000x40.000x88.000 reason=lazy-submodel new=1898 c=0 bytes=254864 retained=112812 ms=3.786",
+        "hull_audit: build frame=732 sub=20 target=maps/vr_spawnpanel.bsp size=40.000x40.000x88.000 reason=lazy-submodel new=1900 c=0 bytes=254944 retained=112812 ms=3.842",
+        "hull_audit: build frame=808 sub=5 target=*5 size=24.000x24.000x56.000 reason=lazy-submodel new=1900 c=0 bytes=254912 retained=145176 ms=3.775",
+        "hull_audit: build frame=830 sub=23 target=maps/vr_button_north.bsp size=40.000x40.000x88.000 reason=lazy-submodel new=1900 c=0 bytes=254968 retained=112812 ms=3.836"
+      ],
+      "brush_recoveries": 0,
+      "walk": []
+    }
+  ],
+  "control_checks": [
+    "vr_hull_preloadtest: PASS traces=3456 missing=0 mismatches=0",
+    "vr_hull_preloadtest: PASS traces=3456 missing=0 mismatches=0",
+    "vr_hull_preloadtest: PASS traces=3456 missing=0 mismatches=0",
+    "vr_hull_preloadtest: PASS traces=16896 missing=0 mismatches=0",
+    "vr_hull_preloadtest: PASS traces=23424 missing=0 mismatches=0",
+    "vr_hull_preloadtest: PASS traces=3456 missing=0 mismatches=0"
+  ],
+  "regression": [
+    {
+      "fixture": "mixed",
+      "exit_code": 0,
+      "model_checks": [
+        "1881 transform cases across 57 models (centre and four point queries each)",
+        "2013 transform cases across 61 models (centre and four point queries each)",
+        "2013 transform cases across 61 models (centre and four point queries each)",
+        "1716 transform cases across 52 models (centre and four point queries each)"
+      ],
+      "chain_checks": [
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons"
+      ],
+      "exe_sha256": "75d2e02dde7588f64d06e74ce131ef01f600ef5f3fba27413557e894c75b77a7"
+    },
+    {
+      "fixture": "portal",
+      "exit_code": 0,
+      "model_checks": [
+        "792 transform cases across 24 models (centre and four point queries each)",
+        "792 transform cases across 24 models (centre and four point queries each)",
+        "792 transform cases across 24 models (centre and four point queries each)",
+        "792 transform cases across 24 models (centre and four point queries each)"
+      ],
+      "chain_checks": [
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons"
+      ],
+      "exe_sha256": "75d2e02dde7588f64d06e74ce131ef01f600ef5f3fba27413557e894c75b77a7"
+    },
+    {
+      "fixture": "hands",
+      "exit_code": 0,
+      "model_checks": [
+        "1881 transform cases across 57 models (centre and four point queries each)",
+        "1881 transform cases across 57 models (centre and four point queries each)",
+        "1881 transform cases across 57 models (centre and four point queries each)",
+        "1848 transform cases across 56 models (centre and four point queries each)",
+        "1881 transform cases across 57 models (centre and four point queries each)",
+        "1848 transform cases across 56 models (centre and four point queries each)",
+        "1848 transform cases across 56 models (centre and four point queries each)"
+      ],
+      "chain_checks": [
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons",
+        "96 exact ordered-chain comparisons"
+      ],
+      "exe_sha256": "75d2e02dde7588f64d06e74ce131ef01f600ef5f3fba27413557e894c75b77a7",
+      "hand_outcomes": [
+        {
+          "pick": "4",
+          "both": 1,
+          "kept": 1,
+          "moved": [
+            0.02
+          ]
+        },
+        {
+          "pick": "1",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.01,
+            0.01
+          ]
+        },
+        {
+          "pick": "0",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "9",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "10",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "11",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "pick": "12",
+          "both": 3,
+          "kept": 2,
+          "moved": [
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "fixture": "ragdolls",
+      "exit_code": 0,
+      "model_checks": [
+        "1980 transform cases across 60 models (centre and four point queries each)"
+      ],
+      "chain_checks": [
+        "96 exact ordered-chain comparisons"
+      ],
+      "exe_sha256": "75d2e02dde7588f64d06e74ce131ef01f600ef5f3fba27413557e894c75b77a7"
+    },
+    {
+      "fixture": "vanilla",
+      "exit_code": 0,
+      "model_checks": [
+        "1452 transform cases across 44 models (centre and four point queries each)"
+      ],
+      "chain_checks": [
+        "96 exact ordered-chain comparisons"
+      ],
+      "exe_sha256": "75d2e02dde7588f64d06e74ce131ef01f600ef5f3fba27413557e894c75b77a7"
+    }
+  ]
+}

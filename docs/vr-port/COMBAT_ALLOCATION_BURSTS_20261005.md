@@ -1,5 +1,7 @@
 # Combat allocation bursts — 5 October 2026
 
+Follow-up implemented: [load-time brush hull preparation and campaign validation](HULL_PRELOAD_20261005.md). The manual prewarming control described below belongs to this earlier investigation.
+
 The monster collision-tree cache now retains up to **128 bounding-box sizes**, up from 12. Trees are shared per size, not per monster. Capacity is reserved before builds to preserve tree pointers. Increasing the cap does not eagerly build 128 trees.
 
 ## Method and evidence
