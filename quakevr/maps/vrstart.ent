@@ -56,7 +56,7 @@
 "_tb_group" "1"
 "speed" "0.085"
 "worldtext_halign" "1"
-"worldtext" "Pick a mission pack and step\ninto the portal to begin."
+"worldtext" "Choose a campaign and step\ninto the portal to begin.$All campaigns and data status:\n{menu:Official Campaigns}"
 "angle" "0"
 "origin" "-520.182 343.522 317.19"
 "classname" "func_worldtext_banner"

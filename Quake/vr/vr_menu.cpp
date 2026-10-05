@@ -625,17 +625,32 @@ char reviewListHeader[64];
 
 // The old Single Player and Bot Control menus' extras.
 void playCalibration() { Cbuf_AddText("vr_setup\n"); }
-void playHub() { Cbuf_AddText("map vrstart\n"); }
+void playHub() { Cbuf_AddText("vr_campaign_hub\n"); }
 void playTutorial() { Cbuf_AddText("map vrtutorial\n"); }
 void playFiringRange() { Cbuf_AddText("map vrfiringrange\n"); }
 void addBotTeam0() { Cbuf_AddText("impulse 100\n"); }
 void addBotTeam1() { Cbuf_AddText("impulse 101\n"); }
 void kickBot() { Cbuf_AddText("impulse 102\n"); }
 
+[[nodiscard]] za::Vector<Item> pageCampaigns()
+{
+    za::Vector<Item> items{header("Official Campaigns")};
+    for(int i = 0; i < 6; ++i)
+    {
+        Item choice = row(VR_CampaignLabel, VR_CampaignHelp, VR_SelectCampaign, i, -1);
+        choice.dimArg = [](int index) -> bool { return VR_CampaignUnavailable(index) != 0; };
+        items.pushBack(choice);
+    }
+    items.pushBack(command("Campaign Data Status", "vr_campaign_status"));
+    items.pushBack(action("Return to VR Hub", playHub));
+    return items;
+}
+
 [[nodiscard]] za::Vector<Item> pagePlay()
 {
     return {
         header("Maps"),
+        open("Official Campaigns", pageIndex(pageCampaigns)),
         action("VR Calibration", playCalibration)
             .help("The calibration room: height, body and main hand calibrated as you arrive; buttons for the main options."),
         action("VR Hub", playHub),
@@ -3912,6 +3927,8 @@ za::Vector<Item> pageDebugReports()
 {
     return {
         header("The Game"),
+        command("Official Campaign Status", "vr_campaign_status").help("Owned data readiness and the active native campaign context."),
+        command("Campaign File Sources", "vr_campaign_probe").help("Actual resolved sources for VR progs and colliding official maps; vr_campaign_probe <filename> checks any virtual file."),
         command("Mission Pack Status", "vr_pack_status")
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
@@ -5152,6 +5169,7 @@ const Page pages[] = {
     {"Fire Particles", pageFireParticles, pageParticleSettings},
     {"Spawn Pickup Weapons", pageSpawnWeapons, pageDebugTests, LevelDeveloper},
     {"Map Library", pageMaps, pageMain, LevelStandard}, // (the corner's Maps, and Single Player > Map Library; vr_menu_maps.inc)
+    {"Official Campaigns", pageCampaigns, pageMain, LevelStandard},
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -5309,6 +5327,7 @@ void openSearchRow()
 za::Vector<Item> pageMain()
 {
     return {
+        open("Official Campaigns", pageIndex(pageCampaigns)).help("Choose an owned campaign; installed data and native gameplay readiness are shown separately."),
         action("Search Settings", openSearchRow)
             .help("Find any setting by its name or what it does: type, and pick one to go to it (also the corner's Search "
                   "button in the headset)."),
@@ -8250,6 +8269,12 @@ extern "C" void VR_Menu_Open()
 }
 
 // Single Player > Map Library (menu.c): the map browser page, from Quake's own menu.
+extern "C" void VR_OpenCampaignSelector()
+{
+    VR_Menu_Open();
+    openInTree(pageIndex(pageCampaigns));
+}
+
 extern "C" void VR_OpenMapLibrary()
 {
     qvr::menu::openMaps();

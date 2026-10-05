@@ -1340,8 +1340,9 @@ qboolean m_singleplayer_showlevels;
 int	m_singleplayer_cursor;
 // QVR: one row of our own at the end of Quake's (New Game, Load, Save, the levels, Map Library): the map browser
 // (vr_menu_maps.inc). Its row is the last, so Quake's picture rows keep their places.
-#define	SINGLEPLAYER_ITEMS	(4 + m_singleplayer_showlevels)
+#define	SINGLEPLAYER_ITEMS	(5 + m_singleplayer_showlevels)
 #define	SINGLEPLAYER_MAPS	(3 + m_singleplayer_showlevels)
+#define SINGLEPLAYER_CAMPAIGNS (4 + m_singleplayer_showlevels)
 
 void M_Menu_SinglePlayer_f (void)
 {
@@ -1371,6 +1372,14 @@ void M_SinglePlayer_Draw (void)
 	else
 		M_PrintEx (74, 32 + SINGLEPLAYER_MAPS * 20 + 1, 16, "MAP LIBRARY");
 
+	if (VR_BigFont_CanDraw ("Official Campaigns"))
+	{
+		VR_BigFont_Draw (73, 32 + SINGLEPLAYER_CAMPAIGNS * 20, "Official Campaigns");
+	}
+	else
+	{
+		M_PrintEx (74, 32 + SINGLEPLAYER_CAMPAIGNS * 20 + 1, 16, "OFFICIAL CAMPAIGNS");
+	}
 	M_DrawQuakeCursor (54, 32 + m_singleplayer_cursor * 20);
 }
 
@@ -1404,6 +1413,8 @@ void M_SinglePlayer_Key (int key)
 	case K_MOUSE1:
 		m_entersound = true;
 
+        if (m_singleplayer_cursor == SINGLEPLAYER_CAMPAIGNS)
+        { VR_OpenCampaignSelector(); break; }
 		switch (m_singleplayer_cursor)
 		{
 		case 0:

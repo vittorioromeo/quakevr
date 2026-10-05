@@ -29,7 +29,7 @@ float() VR_GameUtil_EnableHoneyExtensions =
 {
     // TODO VR: (P2) also add cvar override
 
-    if(VR_GameUtil_InStartMap() || VR_GameUtil_InHoneyMap())
+    if((VR_GameUtil_InStartMap() && cvar("vr_honey_context")) || VR_GameUtil_InHoneyMap())
     {
         return TRUE;
     }

@@ -372,7 +372,23 @@ int VR_PortalReachMove(struct edict_s* player, const float* start, const float* 
 
 void VR_RegisterPackStatus(void);
 int VR_CanLoadCampaignMap(const char *map);
+int VR_CanChangeCampaignMap(const char *map);
 int VR_CanLoadCampaignSave(const char *text);
+
+// Official campaign context and read-only source roots.
+const char *VR_GameDirectoryRoot(const char *dir, int index);
+void VR_PrepareCampaignDirectories(const char *paths);
+void VR_InitCampaignDirectories(void);
+int VR_IsNativeCampaignLaunch(void);
+int VR_IsNewCampaignDirectory(const char *dir);
+int VR_ShouldMountCampaignDirectory(const char *dir);
+int VR_HasNativeCampaignDirectory(const char *paths);
+int VR_CampaignDataAvailable(const char *dir);
+void VR_OpenCampaignSelector(void);
+const char *VR_CampaignLabel(int index);
+const char *VR_CampaignHelp(int index);
+void VR_SelectCampaign(int index);
+int VR_CampaignUnavailable(int index);
 
 #ifdef __cplusplus
 }
