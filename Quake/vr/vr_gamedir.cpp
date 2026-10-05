@@ -17,6 +17,7 @@
 #include "vr_engine.hpp"
 #include "vr_walltorch.hpp"
 #include "vr_gfx.hpp"
+#include "vr_mapinstall.hpp"
 #include "vr_mem.hpp"
 #include "vr_modellight.hpp"
 #include "vr_avatar.hpp"
@@ -606,10 +607,24 @@ extern "C" void VR_BeforeAddGameDirectory(const char* dir)
     if(activeCampaign >= 3 && campaigns[activeCampaign].status == 1 &&
         !gameDirAlreadyAdded(campaigns[activeCampaign].folder))
     { COM_AddGameDirectory(campaigns[activeCampaign].folder); }
+    // The active map package's own folder (vr_mapinstall.cpp), last before quakevr: over the stock game and the
+    // packs, under every file of Quake VR's own.
+    qvr::mapinstall::mountActive();
     addingMissionPacks = false;
     campaigns[1].status = packStatus[0];
     campaigns[2].status = packStatus[1];
     publishCampaign();
+}
+
+extern "C" int VR_QuakeVRMounted() { return gameDirAlreadyAdded(vrGameDir) ? 1 : 0; }
+
+// The game folders rebuilt as they are (quakevr, its packs, the campaign, the map package now active), the selected
+// campaign kept: COM_ReloadVRGame alone would read the campaign from its "quakevr" argument (Quake's).
+extern "C" void VR_ReloadVRGameKeepCampaign()
+{
+    rebuildingCampaign = true;
+    COM_ReloadVRGame("quakevr");
+    rebuildingCampaign = false;
 }
 
 extern "C" void VR_RegisterPackStatus()
@@ -636,6 +651,10 @@ extern "C" void VR_RegisterPackStatus()
 // engine's COM_FindFile did for its paks: the other campaigns' folders are skipped for it.
 extern "C" int VR_SkipSearchPath(const char* filename, const char* path)
 {
+    if(qvr::mapinstall::skipSearchPath(path)) // (a map package's folder, while the stock game alone is asked)
+    {
+        return 1;
+    }
     if(!gameDirAlreadyAdded(vrGameDir))
     {
         return 0;

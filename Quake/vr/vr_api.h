@@ -137,6 +137,12 @@ void VR_BeforeAddGameDirectory (const char *dir);	// start of COM_AddGameDirecto
 void VR_AfterAddGameDirectory (const char *dir);	// end of COM_AddGameDirectory
 void VR_OnGameDirChanged (void);	// COM_SwitchGame, after Mod_ResetAll and the renderer's reload: caches of models and game files emptied
 int VR_SkipSearchPath (const char *filename, const char *path);	// COM_FindFile: nonzero to skip a search path
+void COM_AddAddonPath (const char *path);
+void VR_ReloadVRGameKeepCampaign (void);	// vr_gamedir.cpp: the game folders rebuilt, the selected campaign kept
+int VR_QuakeVRMounted (void);	// vr_gamedir.cpp: quakevr is on the search path	// common.c: a map package's folder on top of the search path (vr_mapinstall.cpp)
+int VR_AddonForMapCommand (const char *map);	// Host_Map_f: the map package the map is played from made the active one (0: refused)
+void VR_AddonForSave (const char *savepath, const char *map);	// Host_Loadgame_f: the save's map package made the active one
+void VR_AddonOnSave (const char *savepath);	// Host_Savegame_f: the active map package noted beside the save
 const char *VR_ModelFile (const char *name);	// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)
 int VR_ModelReplacementOk (const char *name, const char *md5mesh);	// loadMd5Replacement: 0 refuses a jointed hand the rig can't use (vr_handrig.cpp)
 void VR_AliasPosesLoaded (const char *name, void *aliashdr, const stvert_t *stverts, const dtriangle_t *tris, trivertx_t **poses); // Mod_LoadAliasModel, after the frames

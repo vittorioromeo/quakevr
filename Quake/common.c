@@ -2601,6 +2601,18 @@ void COM_AddGameDirectory (const char *dir)
 	VR_AfterAddGameDirectory (dir); // QVR
 }
 
+// QVR: one folder on top of the search path as it is now (no paks, no game name, com_gamedir untouched): a map
+// package's own folder (vr_mapinstall.cpp), added by VR_BeforeAddGameDirectory just below quakevr. It shares the
+// path_id of the folder under it, and is freed with the other game dirs by the next COM_ResetGameDirectories.
+void COM_AddAddonPath (const char *path)
+{
+	searchpath_t *search = (searchpath_t *) Z_Malloc(sizeof(searchpath_t));
+	search->path_id = com_searchpaths ? com_searchpaths->path_id : 1u;
+	q_strlcpy (search->filename, path, sizeof(search->filename));
+	search->next = com_searchpaths;
+	com_searchpaths = search;
+}
+
 void COM_ResetGameDirectories(const char *newgamedirs)
 {
 	const char *newpath, *path;

@@ -1983,6 +1983,8 @@ static void Host_Map_f (void)
 	if (cmd_source != src_command)
 		return;
 
+	if (!VR_AddonForMapCommand(Cmd_Argv(1))) // QVR: a map package's folder mounted, or the stock game's again
+		return;
 	if (!VR_CanLoadCampaignMap(Cmd_Argv(1)))
 		return;
 
@@ -2447,6 +2449,7 @@ static void Host_Savegame_f (void)
 	q_strlcpy (relname, Cmd_Argv(1), sizeof(relname));
 	COM_AddExtension (relname, ".sav", sizeof(relname));
 	q_snprintf (name, sizeof(name), "%s/%s", com_gamedir, relname);
+	VR_AddonOnSave (name); // QVR: <save>.addon names the map package it was made in
 
 	// second argument, if present, indicates whether or not text should be printed to the notification area
 	skipnotify = (Cmd_Argc () < 3 || atof (Cmd_Argv (2))) ? "" : "[skipnotify]";
@@ -2637,6 +2640,7 @@ static void Host_Loadgame_f (void)
 	data = COM_ParseStringNewline (data);
 	q_strlcpy (mapname, com_token, sizeof(mapname));
 	data = COM_ParseFloatNewline (data, &time);
+	VR_AddonForSave (name, mapname); // QVR: the map package the save was made in, mounted (before the disconnect below)
 
 // Note: calling CL_Disconnect instead of CL_Disconnect_f to avoid stopping the music
 	CL_Disconnect ();

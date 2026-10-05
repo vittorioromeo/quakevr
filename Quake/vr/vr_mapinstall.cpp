@@ -32,6 +32,7 @@
 
 #include "miniz.h" // (the engine's C header, which guards itself for C++)
 
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -40,7 +41,8 @@ namespace qvr::mapinstall
 namespace
 {
 
-constexpr char registryMagic[] = "#quakevr-maps-installed-1";
+constexpr char registryMagic[] = "#quakevr-maps-installed-2"; // paths in the package's own folder
+constexpr char registryMagicMerged[] = "#quakevr-maps-installed-1"; // paths in the game dir (moved at load, once)
 constexpr char fieldSep = '\t';
 constexpr int downloadShare = 90; // the download's part of the job's percent; the unpacking's is the rest
 
@@ -65,6 +67,30 @@ za::String gameDirName;
 za::String mapsDirName;
 za::String cacheDirName;
 za::String registryPath;
+
+// The map packages' own folders: <user base dir>/qvr_addons/<the sha256's first 16>/, each laid out as a game dir
+// (maps/, gfx/, sound/, ...). Never on the search path but the active one's (mountActive): one package's files never
+// meet another's, nor the stock game's when it is played, and Quake VR's own always come first.
+[[nodiscard]] const za::String& addonsRoot()
+{
+    static za::String root;
+    if(root.empty() && com_numbasedirs > 0)
+    {
+        root = za::String{com_basedirs[com_numbasedirs - 1]} + "/qvr_addons";
+    }
+    return root;
+}
+
+[[nodiscard]] za::String addonDir(const za::String& sha)
+{
+    return addonsRoot() + "/" + za::String{za::StringView{sha}.substrByPosLen(0, za::min(sha.size(), za::SizeT{16}))};
+}
+
+// The package whose folder is mounted (main thread; "" : none, the stock game's folders alone), and the one Play just
+// asked for (its `map` command keeps it whatever the stock game has of the same name).
+za::String activeSha;
+za::String playPending;
+bool baseOnly = false; // VR_SkipSearchPath: the packages' folders skipped (the stock game asked alone)
 
 // The handoff (vr_mapindex.cpp's shape): the thread fills `pending`, poll() takes it.
 za::AtomicMutex handoff;
@@ -123,6 +149,7 @@ struct Request
 {
     za::String sha, title, urls; // the mirrors, mapindex::partSep separated
     za::String extract;          // install.extract: where the zip's root goes ("{base}/id1/maps/", "{base}/", ...)
+    za::String root;             // the package's own folder the files go to (addonDir)
     za::U64 zipBytes{0};
     bool install{true};
 };
@@ -137,6 +164,7 @@ Request request;
 
 bool writeRegistry();
 void rebuildPackages();
+void migrateMerged();
 
 void loadRegistry()
 {
@@ -149,41 +177,79 @@ void loadRegistry()
         return;
     }
     int line = 0;
+    bool merged = false; // the old layout: every package's files in the game dir itself
+    bool known = false;
     files::forLines(text, [&](za::StringView l)
     {
-        if(line == 0)
+        if(line++ == 0)
         {
-            if(l != za::StringView{registryMagic})
-            {
-                registry.files.clear();
-                return;
-            }
+            merged = l == za::StringView{registryMagicMerged};
+            known = merged || l == za::StringView{registryMagic};
+            return;
         }
-        else if(!l.empty())
+        if(!known || l.empty())
         {
-            // sha \t bytes \t path (the path last: it may hold anything but a tab)
-            const za::SizeT a = l.findFirstOf(fieldSep);
-            if(a == za::StringView::nPos)
-            {
-                return;
-            }
-            const za::SizeT b = l.findFirstOf(fieldSep, a + 1);
-            if(b == za::StringView::nPos)
-            {
-                return;
-            }
-            InstalledFile f;
-            f.sha = za::String{l.substrByPosLen(0, a)};
-            f.bytes = static_cast<za::U64>(strtoull(za::String{l.substrByPosLen(a + 1, b - a - 1)}.cStr(), nullptr, 10));
-            f.path = za::String{l.substrByPosLen(b + 1, l.size() - b - 1)};
-            if(f.sha.size() && f.path.size())
-            {
-                registry.files.pushBack(ZA_MOVE(f));
-            }
+            return;
         }
-        line++;
+        // sha \t bytes \t path (the path last: it may hold anything but a tab)
+        const za::SizeT a = l.findFirstOf(fieldSep);
+        if(a == za::StringView::nPos)
+        {
+            return;
+        }
+        const za::SizeT b = l.findFirstOf(fieldSep, a + 1);
+        if(b == za::StringView::nPos)
+        {
+            return;
+        }
+        InstalledFile f;
+        f.sha = za::String{l.substrByPosLen(0, a)};
+        f.bytes = static_cast<za::U64>(strtoull(za::String{l.substrByPosLen(a + 1, b - a - 1)}.cStr(), nullptr, 10));
+        f.path = za::String{l.substrByPosLen(b + 1, l.size() - b - 1)};
+        if(f.sha.size() && f.path.size())
+        {
+            registry.files.pushBack(ZA_MOVE(f));
+        }
     });
+    if(merged)
+    {
+        migrateMerged();
+    }
     rebuildPackages();
+}
+
+// The old layout (every package's files written into the game dir itself, where they could meet each other's and
+// override the stock game's for every map) moved to the packages' own folders, once: each file the list names is
+// moved to the same path in its package's folder; one no longer there is dropped from the list.
+void migrateMerged()
+{
+    int moved = 0, missing = 0;
+    za::Vector<InstalledFile> kept;
+    for(InstalledFile& f : registry.files)
+    {
+        const za::String from = gameDirName + "/" + f.path;
+        const za::String to = addonDir(f.sha) + "/" + f.path;
+        if(!files::isFile(from.cStr()))
+        {
+            missing++;
+            continue;
+        }
+        files::createDirectories(za::String{files::parentPath(to)}.cStr());
+        if(files::rename(from.cStr(), to.cStr()))
+        {
+            moved++;
+            kept.pushBack(ZA_MOVE(f));
+        }
+        else
+        {
+            Con_Printf("maps: could not move %s to %s\n", from.cStr(), to.cStr());
+        }
+    }
+    registry.files = ZA_MOVE(kept);
+    writeRegistry();
+    VR_FileCacheForget();
+    Con_Printf("maps: the installed maps moved to their own folders in %s (%d file(s); %d were gone already)\n",
+        addonsRoot().cStr(), moved, missing);
 }
 
 void rebuildPackages()
@@ -539,6 +605,66 @@ size_t readFromMemory(void* opaque, mz_uint64 ofs, void* buf, size_t n)
 // ---------------------------------------------------------------- the unpacking
 
 // `body` (a zip) into the game dir. Appends what it wrote to `job.wrote`; `why` says what stopped it.
+// The game code a mod carries (a zip's or a pak's file): a package holding one is refused.
+[[nodiscard]] bool gameCode(const za::String& path)
+{
+    const za::String leaf = baseName(path);
+    return !q_strcasecmp(leaf.cStr(), "progs.dat") || !q_strcasecmp(leaf.cStr(), "qwprogs.dat") ||
+           !q_strcasecmp(leaf.cStr(), "csprogs.dat") || !q_strcasecmp(leaf.cStr(), "progs.lno");
+}
+
+// The startup scripts and settings a mod's folder carries: never installed (they are not run from a package's folder,
+// and are not the game's to take).
+[[nodiscard]] bool startupConfig(const za::String& path)
+{
+    const za::String leaf = baseName(path);
+    return !q_strcasecmp(leaf.cStr(), "quake.rc") || !q_strcasecmp(leaf.cStr(), "autoexec.cfg") ||
+           !q_strcasecmp(leaf.cStr(), "default.cfg") || !q_strcasecmp(leaf.cStr(), "config.cfg");
+}
+
+// "pak3.pak" at a package's root: 3 (the order the engine reads them in, a later one over an earlier); -1 otherwise.
+[[nodiscard]] int rootPakNumber(const za::String& placed)
+{
+    if(placed.findFirstOf('/') != za::StringView::nPos || placed.size() < 8 || q_strncasecmp(placed.cStr(), "pak", 3) ||
+       !endsFolded(placed, ".pak"))
+    {
+        return -1;
+    }
+    int n = 0;
+    for(za::SizeT i = 3; i + 4 < placed.size(); i++)
+    {
+        const char c = placed.cStr()[i];
+        if(c < '0' || c > '9')
+        {
+            return -1;
+        }
+        n = n * 10 + (c - '0');
+    }
+    return n;
+}
+
+// A map's own files (its BSP and the files named after it beside it) under a lower-case name: `map` is typed, and
+// the index names startmaps, in lower case, and Linux's file names are not folded.
+[[nodiscard]] za::String mapFileName(const za::String& placed)
+{
+    if(za::StringView{placed}.substrByPosLen(0, za::min(placed.size(), za::SizeT{5})) != za::StringView{"maps/"} ||
+       za::String{placed.substrByPosLen(5, placed.size() - 5)}.findFirstOf('/') != za::StringView::nPos)
+    {
+        return placed;
+    }
+    if(!endsFolded(placed, ".bsp") && !endsFolded(placed, ".lit") && !endsFolded(placed, ".ent") &&
+       !endsFolded(placed, ".vis") && !endsFolded(placed, ".lux"))
+    {
+        return placed;
+    }
+    za::String out = placed;
+    for(za::SizeT i = 5; i < out.size(); i++)
+    {
+        out[i] = static_cast<char>(tolower(static_cast<unsigned char>(out[i])));
+    }
+    return out;
+}
+
 bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
 {
     mz_zip_archive z{};
@@ -570,6 +696,7 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
     za::Vector<za::String> paths;
     za::U64 unpacked = 0;
     int refused = 0;
+    int configs = 0;
     for(int i = 0; i < count; i++)
     {
         mz_zip_archive_file_stat st{};
@@ -584,6 +711,18 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
         if(!safePath(st.m_filename, it.path) || skippedFile(it.path))
         {
             refused++;
+            continue;
+        }
+        if(!it.dir && gameCode(it.path))
+        {
+            // A mod, not a map package: its own game code would take the place of Quake VR's.
+            why = za::String{"it carries its own game code ("} + it.path + "): a mod Quake VR cannot play";
+            mz_zip_reader_end(&z);
+            return false;
+        }
+        if(!it.dir && startupConfig(it.path))
+        {
+            configs++; // (never run: a package's settings are not the game's)
             continue;
         }
         unpacked += it.bytes;
@@ -612,11 +751,84 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
     int skipped = 0;
     int done = 0;
     za::String notes;
+    const za::String& root = request.root; // the package's own folder (every path below is in it)
+
+    // One file into the package's folder: `overwrite` for a pak's (the engine reads a pak over the folder's loose
+    // files, and a later pak over an earlier one); otherwise one already there (the same path twice in a zip) is kept.
+    const auto place = [&](const za::String& placed, const void* data, za::SizeT size, bool overwrite) -> bool
+    {
+        const za::String target = root + "/" + placed;
+        if(!overwrite && files::exists(target.cStr()))
+        {
+            skipped++;
+            return false;
+        }
+        if(endsFolded(placed, ".bsp"))
+        {
+            za::String version;
+            if(!bspVersionOk(static_cast<const char*>(data), size, version))
+            {
+                notes += placed; // (a map this engine cannot load: said, and left out)
+                notes += " is a BSP of ";
+                notes += version;
+                notes += "; ";
+                return false;
+            }
+        }
+        if(!files::createDirectories(za::String{files::parentPath(target)}.cStr()))
+        {
+            notes += "could not make the folder for "; // (e.g. a file of that name in the way)
+            notes += placed;
+            notes += "; ";
+            return false;
+        }
+        if(!files::writeBytes(target.cStr(), data, size))
+        {
+            notes += "could not write ";
+            notes += placed;
+            notes += "; ";
+            return false;
+        }
+        for(InstalledFile& w : job.wrote)
+        {
+            if(w.path == placed)
+            {
+                w.bytes = size; // (a pak's file over a loose one: the same path, recorded once)
+                return true;
+            }
+        }
+        InstalledFile f;
+        f.sha = job.sha;
+        f.bytes = size;
+        f.path = placed;
+        job.wrote.pushBack(ZA_MOVE(f));
+        written++;
+        return true;
+    };
+
+    // The packs at the package's root (pak0.pak, ...): their files unpacked after the loose ones, in order.
+    struct Pak
+    {
+        int number{0};
+        void* data{nullptr};
+        size_t size{0};
+    };
+    za::Vector<Pak> paks;
+    const auto freePaks = [&]
+    {
+        for(Pak& k : paks)
+        {
+            free(k.data);
+        }
+        paks.clear();
+    };
+
     for(const Item& it : items)
     {
         if(SDL_AtomicGet(&cancelJob))
         {
             why = cancelText();
+            freePaks();
             mz_zip_reader_end(&z);
             return false;
         }
@@ -640,26 +852,27 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
             refused++;
             continue;
         }
-        // A BSP to maps/, under its own name only: that is where the engine's `map` command looks. Everything else
-        // where the index says the zip's root goes (maps/ for most single maps: a .lit beside its BSP), keeping its
-        // path (textures and sounds are named from the game dir).
-        const bool bsp = endsFolded(rel, ".bsp");
-        const za::String placed = prefix.size() && !(firstSegment(rel).size() && assetFolder(firstSegment(rel)))
-                                      ? prefix + "/" + rel
-                                      : rel;
-        const za::String target = bsp ? mapsDirName + "/" + baseName(rel) : gameDirName + "/" + placed;
         done++;
         SDL_AtomicSet(&progress, downloadShare + (100 - downloadShare) * done / static_cast<int>(items.size()));
         if(it.dir)
         {
             continue; // (a folder's own entry, "gfx/": its files' folders are made as they are written)
         }
-
-        if(files::exists(target.cStr()))
+        // A BSP to maps/, under its own name only: that is where the engine's `map` command looks. Everything else
+        // where the index says the zip's root goes (maps/ for most single maps: a .lit beside its BSP), keeping its
+        // path (textures and sounds are named from the game dir).
+        const za::String placed = mapFileName(endsFolded(rel, ".bsp")
+                ? za::String{"maps/"} + baseName(rel)
+                : prefix.size() && !(firstSegment(rel).size() && assetFolder(firstSegment(rel))) ? prefix + "/" + rel
+                                                                                                    : rel);
+        const int pakNumber = rootPakNumber(placed);
+        if(pakNumber < 0 && endsFolded(placed, ".pak"))
         {
-            skipped++; // (never overwritten silently)
+            notes += placed; // (a pak the engine would never read from where it is)
+            notes += " left out (not at the package's root); ";
             continue;
         }
+
         size_t got = 0;
         void* data = mz_zip_reader_extract_to_heap(&z, static_cast<mz_uint>(it.index), &got, 0);
         if(!data)
@@ -669,50 +882,80 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
             notes += "; ";
             continue;
         }
-        bool ok = true;
-        if(bsp)
+        if(pakNumber >= 0)
         {
-            za::String version;
-            if(!bspVersionOk(static_cast<const char*>(data), static_cast<za::SizeT>(got), version))
-            {
-                notes += rel; // (a map this engine cannot load: said, and left out)
-                notes += " is a BSP of ";
-                notes += version;
-                notes += "; ";
-                ok = false;
-            }
-        }
-        if(ok)
-        {
-            const za::String folder{files::parentPath(target)};
-            if(!files::createDirectories(folder.cStr()))
-            {
-                notes += "could not make the folder for "; // (e.g. a file of that name in the way)
-                notes += rel;
-                notes += "; ";
-                ok = false;
-            }
-            else if(!files::writeBytes(target.cStr(), data, got))
-            {
-                notes += "could not write ";
-                notes += rel;
-                notes += "; ";
-                ok = false;
-            }
-        }
-        free(data);
-        if(!ok)
-        {
+            paks.pushBack(Pak{pakNumber, data, got}); // (unpacked below, after every loose file)
             continue;
         }
-        InstalledFile f;
-        f.sha = job.sha;
-        f.bytes = it.bytes;
-        f.path = za::String{target.substrByPosLen(gameDirName.size() + 1, target.size() - gameDirName.size() - 1)};
-        job.wrote.pushBack(ZA_MOVE(f));
-        written++;
+        place(placed, data, static_cast<za::SizeT>(got), false);
+        free(data);
     }
     mz_zip_reader_end(&z);
+
+    // The packs, unpacked into loose files of the package's folder (a pak in a package's folder would not be read:
+    // the engine reads paks only from the game dirs it adds itself). Refused whole if one carries game code.
+    za::heapSort(paks.begin(), paks.end(), [](const Pak& x, const Pak& y) { return x.number < y.number; });
+    for(const Pak& k : paks)
+    {
+        const char* d = static_cast<const char*>(k.data);
+        za::I32 dirOfs = 0, dirLen = 0;
+        if(k.size < 12 || memcmp(d, "PACK", 4))
+        {
+            notes += "pak" + za::toString(k.number) + ".pak is not a pak; ";
+            continue;
+        }
+        memcpy(&dirOfs, d + 4, 4);
+        memcpy(&dirLen, d + 8, 4);
+        if(dirOfs < 12 || dirLen < 0 || dirLen % 64 || static_cast<za::U64>(dirOfs) + static_cast<za::U64>(dirLen) > k.size)
+        {
+            notes += "pak" + za::toString(k.number) + ".pak is damaged; ";
+            continue;
+        }
+        for(za::I32 e = 0; e < dirLen / 64; e++)
+        {
+            char raw[57] = {};
+            memcpy(raw, d + dirOfs + e * 64, 56);
+            if(gameCode(za::String{raw}))
+            {
+                why = za::String{"its pak"} + za::toString(k.number) + ".pak carries its own game code (" + raw +
+                      "): a mod Quake VR cannot play";
+                freePaks();
+                return false;
+            }
+        }
+        for(za::I32 e = 0; e < dirLen / 64; e++)
+        {
+            if(SDL_AtomicGet(&cancelJob))
+            {
+                why = cancelText();
+                freePaks();
+                return false;
+            }
+            char raw[57] = {};
+            za::I32 pos = 0, len = 0;
+            memcpy(raw, d + dirOfs + e * 64, 56);
+            memcpy(&pos, d + dirOfs + e * 64 + 56, 4);
+            memcpy(&len, d + dirOfs + e * 64 + 60, 4);
+            za::String name;
+            if(pos < 0 || len < 0 || static_cast<za::U64>(pos) + static_cast<za::U64>(len) > k.size ||
+               !safePath(raw, name) || skippedFile(name))
+            {
+                refused++;
+                continue;
+            }
+            if(startupConfig(name))
+            {
+                configs++;
+                continue;
+            }
+            place(mapFileName(name), d + pos, static_cast<za::SizeT>(len), true);
+        }
+    }
+    freePaks();
+    if(configs)
+    {
+        notes += za::toString(configs) + " config file(s) left out (quake.rc, *.cfg); ";
+    }
 
     if(written)
     {
@@ -938,7 +1181,11 @@ void poll()
         int removed = 0;
         for(const InstalledFile& f : j.wrote)
         {
-            removed += files::remove((gameDirName + "/" + f.path).cStr()) ? 1 : 0;
+            removed += files::remove((addonDir(j.sha) + "/" + f.path).cStr()) ? 1 : 0;
+        }
+        if(!installed(j.sha))
+        {
+            files::removeAll(addonDir(j.sha).cStr()); // (its folder, and the folders made for it)
         }
         if(removed)
         {
@@ -952,7 +1199,20 @@ void poll()
     {
         for(const InstalledFile& f : j.wrote)
         {
-            registry.files.pushBack(f);
+            bool listed = false; // (a package installed again: its files listed once)
+            for(InstalledFile& r : registry.files)
+            {
+                if(r.sha == f.sha && r.path == f.path)
+                {
+                    r.bytes = f.bytes;
+                    listed = true;
+                    break;
+                }
+            }
+            if(!listed)
+            {
+                registry.files.pushBack(f);
+            }
         }
         rebuildPackages();
         if(!writeRegistry())
@@ -1010,6 +1270,7 @@ bool begin(const mapindex::Entry* entry, bool install, za::String* why)
     request.title = za::String{mapindex::index().field(entry->title)};
     request.urls = za::String{mapindex::index().field(entry->urls)};
     request.extract = za::String{mapindex::index().field(entry->extract)};
+    request.root = addonDir(request.sha);
     request.zipBytes = entry->bytes;
     request.install = install;
     SDL_AtomicSet(&cancelJob, 0);
@@ -1091,6 +1352,11 @@ za::String statusLine()
     {
         q_snprintf(line, sizeof(line), "Idle. Last: %s - %s", j.title.cStr(), j.message.cStr());
     }
+    else if(activeSha.size())
+    {
+        const mapindex::Entry* e = mapindex::find(activeSha);
+        q_snprintf(line, sizeof(line), "Idle. Playing from %s's folder", e ? mapindex::index().field(e->title) : activeSha.cStr());
+    }
     else if(j.phase == Phase::Failed)
     {
         q_snprintf(line, sizeof(line), "Idle. Failed: %s - %s", j.title.cStr(), j.message.cStr());
@@ -1153,27 +1419,29 @@ bool uninstall(const za::String& sha)
     {
         return false;
     }
+    if(activeSha == sha)
+    {
+        activate(za::String{}); // (its folder off the search path before it goes)
+    }
     int removed = 0;
     za::Vector<InstalledFile> keep;
     for(const InstalledFile& f : registry.files)
     {
         if(f.sha == sha)
         {
-            if(files::remove((gameDirName + "/" + f.path).cStr()))
-            {
-                removed++;
-            }
+            removed++;
         }
         else
         {
             keep.pushBack(f);
         }
     }
+    files::removeAll(addonDir(sha).cStr()); // (the package's own folder: nothing in it is another's)
     registry.files = ZA_MOVE(keep);
     rebuildPackages();
     writeRegistry();
-    VR_FileCacheForget(); // (a map removed from maps/: the listings forget it too)
-    Con_SafePrintf("maps: removed %d file(s).\n", removed);
+    VR_FileCacheForget(); // (a map removed: the listings forget it too)
+    Con_SafePrintf("maps: removed %d file(s) (%s).\n", removed, addonDir(sha).cStr());
     return true;
 }
 
@@ -1187,17 +1455,138 @@ bool play(const za::String& sha)
         Con_Printf("maps: the index no longer has that package.\n");
         return false;
     }
-    const za::String name = mapindex::index().field(e->startmap);
+    za::String name = mapindex::index().field(e->startmap);
     if(!name.size())
     {
         Con_Printf("maps: %s does not say which map to start.\n", mapindex::index().field(e->title));
         return false;
     }
+    if(!installed(sha))
+    {
+        Con_Printf("maps: %s is not installed.\n", mapindex::index().field(e->title));
+        return false;
+    }
+    for(za::SizeT i = 0; i < name.size(); i++)
+    {
+        name[i] = static_cast<char>(tolower(static_cast<unsigned char>(name[i]))); // (its BSP's name, as installed)
+    }
+    // Its folder on the search path (under Quake VR's own), then its map: the `map` command keeps this package for
+    // it, whatever the stock game has of the same name (an episode's start).
+    if(!activate(sha))
+    {
+        return false;
+    }
+    playPending = sha;
     // Cbuf_InsertText, not AddText: this runs next. AddText would put it after the commands already queued (a test
     // script's `screenshot; quit` would be run first, and the map never started).
     Cbuf_InsertText((za::String{"map "} + name + "\n").cStr());
     return true;
 }
+
+// ---------------------------------------------------------------- the active package
+
+const za::String& active()
+{
+    return activeSha;
+}
+
+bool activate(const za::String& sha)
+{
+    if(sha == activeSha)
+    {
+        return true;
+    }
+    if(!VR_QuakeVRMounted())
+    {
+        Con_Printf("maps: the map packages are played in Quake VR's own game (quakevr) only.\n");
+        return false;
+    }
+    if(sha.size() && !files::isDirectory(addonDir(sha).cStr()))
+    {
+        Con_Printf("maps: %s is missing; install the package again.\n", addonDir(sha).cStr());
+        return false;
+    }
+    activeSha = sha;
+    // The game folders rebuilt with it (mountActive, from vr_gamedir.cpp's hook), and every cache of models, sounds,
+    // textures and file listings emptied: one package's files never outlive it into another's maps or the stock game.
+    VR_ReloadVRGameKeepCampaign();
+    VR_FileCacheForget();
+    if(sha.size())
+    {
+        const mapindex::Entry* e = mapindex::find(sha);
+        Con_Printf("maps: playing from %s's folder (%s)\n", e ? mapindex::index().field(e->title) : sha.cStr(),
+            addonDir(sha).cStr());
+    }
+    else
+    {
+        Con_Printf("maps: no map package mounted (the stock game's folders)\n");
+    }
+    return true;
+}
+
+void mountActive()
+{
+    if(activeSha.empty())
+    {
+        return;
+    }
+    const za::String dir = addonDir(activeSha);
+    if(!files::isDirectory(dir.cStr()))
+    {
+        Con_Printf("maps: %s is missing: no map package mounted\n", dir.cStr());
+        activeSha = za::String{};
+        return;
+    }
+    COM_AddAddonPath(dir.cStr());
+}
+
+bool skipSearchPath(const char* path)
+{
+    const za::String& root = addonsRoot();
+    return baseOnly && root.size() && !q_strncasecmp(path, root.cStr(), root.size());
+}
+
+namespace
+{
+
+// A package's folder has this map (its BSP under the lower-case name it was installed with).
+[[nodiscard]] bool packageHas(const za::String& sha, const char* map)
+{
+    za::String lower{map};
+    for(za::SizeT i = 0; i < lower.size(); i++)
+    {
+        lower[i] = static_cast<char>(tolower(static_cast<unsigned char>(lower[i])));
+    }
+    return files::isFile((addonDir(sha) + "/maps/" + lower + ".bsp").cStr());
+}
+
+// Which package a map is played from: none when the stock game (Quake VR, id1, the packs) has it; else the active
+// package if it has it, else the installed one that has it (the last installed first).
+[[nodiscard]] za::String packageForMap(const char* map)
+{
+    baseOnly = true;
+    const bool stock = COM_FileExists(va("maps/%s.bsp", map), nullptr);
+    baseOnly = false;
+    if(stock)
+    {
+        return za::String{};
+    }
+    if(activeSha.size() && packageHas(activeSha, map))
+    {
+        return activeSha;
+    }
+    const za::Vector<Installed>& list = installedList();
+    for(za::SizeT i = list.size(); i-- > 0;)
+    {
+        if(packageHas(list[i].sha, map))
+        {
+            return list[i].sha;
+        }
+    }
+    return za::String{};
+}
+
+} // namespace
 
 // ---------------------------------------------------------------- the console
 
@@ -1252,6 +1641,9 @@ void cancel_f()
 void status_f()
 {
     Con_Printf("maps: %s\n", statusLine().cStr());
+    const mapindex::Entry* e = activeSha.size() ? mapindex::find(activeSha) : nullptr;
+    Con_Printf("maps: mounted: %s\n", activeSha.empty() ? "none (the stock game)"
+                                      : e ? mapindex::index().field(e->title) : activeSha.cStr());
 }
 
 void get_f()
@@ -1292,7 +1684,8 @@ void installed_f()
         Con_Printf("maps: nothing installed. (maps_install <sha256>)\n");
         return;
     }
-    Con_SafePrintf("maps: %d package(s) installed in %s\n", static_cast<int>(list.size()), gameDir().cStr());
+    Con_SafePrintf("maps: %d package(s) installed, each in its own folder in %s\n", static_cast<int>(list.size()),
+        addonsRoot().cStr());
     for(const Installed& p : list)
     {
         Con_SafePrintf("  %s  %8s  %d file(s)  %s\n", p.title.cStr(), formatBytes(p.bytes).cStr(),
@@ -1329,4 +1722,79 @@ void registerCommands()
     Cmd_AddCommand("maps_uninstall", uninstall_f);
 }
 
+za::String packageFor(const char* map)
+{
+    ensureStarted();
+    return packageForMap(map);
+}
+
+bool playPendingFor(const char* map)
+{
+    // Play's `map`: the package it mounted is kept for it (the next `map` is decided by the stock game again).
+    const bool keep = playPending.size() && playPending == activeSha && packageHas(activeSha, map);
+    playPending = za::String{};
+    return keep;
+}
+
 } // namespace qvr::mapinstall
+
+// ---------------------------------------------------------------- the engine's hooks
+
+using namespace qvr;
+
+// `map X` (the console, the menus, Play): the map's package mounted, or none when the stock game has the map (New
+// Game's `map start` is Quake's own, whatever package was played last). Play's own `map` keeps its package.
+extern "C" int VR_AddonForMapCommand(const char* map)
+{
+    if(!map || !*map || !VR_QuakeVRMounted())
+    {
+        return 1;
+    }
+    if(mapinstall::playPendingFor(map))
+    {
+        return 1;
+    }
+    return mapinstall::activate(mapinstall::packageFor(map)) ? 1 : 0;
+}
+
+// `load`: the package the save was made in (its <save>.addon), else the one its map is in, mounted before the load.
+extern "C" void VR_AddonForSave(const char* savepath, const char* map)
+{
+    if(!VR_QuakeVRMounted())
+    {
+        return;
+    }
+    za::String sha;
+    if(files::readText((za::String{savepath} + ".addon").cStr(), sha))
+    {
+        while(sha.size() && (sha.back() == '\n' || sha.back() == '\r' || sha.back() == ' '))
+        {
+            sha.popBack();
+        }
+        if(sha.size() && !mapinstall::installed(sha))
+        {
+            Con_Printf("maps: the save was made in a map package no longer installed (%s)\n", sha.cStr());
+            sha = za::String{};
+        }
+    }
+    if(sha.empty())
+    {
+        sha = mapinstall::packageFor(map);
+    }
+    mapinstall::activate(sha);
+}
+
+// `save`: the package mounted now, noted beside the save (removed when there is none).
+extern "C" void VR_AddonOnSave(const char* savepath)
+{
+    const za::String note = za::String{savepath} + ".addon";
+    const za::String& sha = mapinstall::active();
+    if(sha.size())
+    {
+        (void)files::writeText(note.cStr(), za::StringView{sha});
+    }
+    else if(files::exists(note.cStr()))
+    {
+        files::remove(note.cStr());
+    }
+}

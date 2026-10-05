@@ -1,6 +1,9 @@
 // vr_mapinstall.hpp -- getting a package from the map index (vr_mapindex.hpp) into the game: its zip downloaded to
-// quakevr/cache/maps/<sha256>.zip, its files extracted into the user's game dir (BSPs to <game dir>/maps/, where the
-// engine's `map` command looks, everything else at the game dir's root).
+// <base>/cache/maps/<sha256>.zip, its files extracted into the package's own folder, <base>/qvr_addons/<id>/, laid
+// out as a game dir (BSPs to maps/, the rest where the index's install.extract says the zip's root goes; its game
+// folder, id1 or a mod's, dropped). That folder is on the search path only while the package is played, under quakevr
+// and over the stock game (active(), below): no package's file meets another's, the stock game's maps never see one,
+// and none can take the place of a Quake VR file (its progs, its VR models, sounds and ammo boxes).
 //
 // Installing and playing are separate actions: installing writes files and reports what it wrote, and never starts a
 // map; play() (maps_play, the page's Play button) is what starts a package's startmap, and is what a package whose
@@ -15,7 +18,9 @@
 // unpack to more than maxUnpackedBytes, or hold more than maxFiles, is refused; a file path that would leave the game
 // dir (`..`, an absolute path, a drive letter) is left out; `__MACOSX` and `.DS_Store` are; a single top-level folder
 // around everything is stripped (the index's zipbasedir tag); a BSP whose version is not 29, 2PSB, BSP2 or Q64 is left
-// out and said; a file already on disk is never overwritten (it is skipped and counted in the status).
+// out and said; a package carrying game code (progs.dat, qwprogs.dat, csprogs.dat: a mod, in the zip or in one of its
+// paks) is refused; quake.rc and the *.cfg a mod folder carries are left out; the paks at its root are unpacked into
+// loose files (in their order, over the loose ones, as the engine would read them).
 
 #pragma once
 
@@ -124,6 +129,22 @@ bool uninstall(const za::String& sha);
 // The package's startmap, started now: the page's Play action, and maps_play. Never part of installing. Cbuf_InsertText,
 // so that it runs next rather than after the commands already queued (a script's `screenshot;quit` would come first).
 bool play(const za::String& sha);
+
+// The map packages' folders (each package in its own: <base>/qvr_addons/<id>/). One at a time is on the search path,
+// under quakevr and over the stock game: the active one, mounted by Play, by a `map` whose BSP only a package has, or
+// by loading a save made in one (its <save>.addon); a `map` the stock game has unmounts it. Every change rebuilds
+// the game folders (vr_gamedir.cpp) and empties the caches, so no file of one package outlives it.
+[[nodiscard]] const za::String& active();
+// `sha` mounted ("" : none). False: it cannot be (not Quake VR's own game, or its folder is missing).
+bool activate(const za::String& sha);
+// vr_gamedir.cpp, while it adds quakevr: the active package's folder added to the search path (under quakevr).
+void mountActive();
+// VR_SkipSearchPath: a package's folder skipped while the stock game alone is asked (packageFor).
+[[nodiscard]] bool skipSearchPath(const char* path);
+// The package `map` is played from ("" : the stock game's, or none has it).
+[[nodiscard]] za::String packageFor(const char* map);
+// The `map` Play queued: true (and forgotten) when it is the active package's own.
+[[nodiscard]] bool playPendingFor(const char* map);
 
 // A byte count as the console and the page show it ("5.1 MB").
 [[nodiscard]] za::String formatBytes(za::U64 bytes);

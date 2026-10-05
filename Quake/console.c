@@ -1463,6 +1463,15 @@ void Con_LinkPrintf (const char *addr, const char *fmt, ...)
 	char		msg[MAXPRINTMSG];
 	char		*text;
 
+	if (!con_initialized) // QVR: a dedicated server has no console text (con_totallines 0, divided by below): the text alone
+	{
+		va_start (argptr, fmt);
+		q_vsnprintf (msg, sizeof(msg), fmt, argptr);
+		va_end (argptr);
+		Con_SafePrintf ("%s", msg);
+		return;
+	}
+
 	len = strlen (addr);
 	link = (conlink_t *) VR_HeapMalloc (sizeof (conlink_t) + len + 1);
 	if (!link)
