@@ -378,6 +378,24 @@ const char			*Modlist_GetDate (const filelist_item_t *item);
 qboolean			Modlist_StartInstalling (const filelist_item_t *item);
 qboolean			Modlist_IsInstalling (void);
 
+/* One HTTP transfer (host_cmd.c's Download, on libcurl): the add-on list and installer, and the VR map index
+   (Quake/vr/vr_mapindex.cpp). write_fn/write_data are fwrite's shape; abort, when given, is checked between the
+   poll cycles. Download returns whether it got a 200; `response` and `error` say what happened instead. */
+typedef struct download_s
+{
+	const char		**headers;
+	int				num_headers;
+
+	size_t			(*write_fn) (void *buffer, size_t size, size_t nmemb, void *stream);
+	void			*write_data;
+
+	SDL_atomic_t	*abort;
+	int				response;
+	const char		*error;
+} download_t;
+
+qboolean			Download (const char *url, download_t *download);
+
 extern filelist_item_t **extralevels_sorted;
 extern filelist_item_t	*modlist;
 extern filelist_item_t	*extralevels;
