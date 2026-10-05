@@ -1972,13 +1972,35 @@ extern "C" int VR_PortalAlias(const entity_t* e, const float boundsMatrix[16], c
             const float d = glm::dot(sd.normal, centre) - sd.dist;
             const bool reaching = own && !reverse && glm::dot(sd.normal, root) >= sd.dist && glm::distance(root, centre) < 160.f;
             if(lo >= 0.f || (hi <= 0.f && !reaching) || za::fabs(d) >= nearest) { continue; }
-            bool fits = true;
-            for(const glm::vec3& p : corners)
+            // Through the aperture: where the box meets the gate's plane (the middle of its edges' crossings: what passes
+            // through, not the whole box's shadow on the plane, which a long gun held aslant, or the box of all its
+            // frames, throws far past the aperture's edges); a model wholly through (a gun pushed in to the wrist): where
+            // the line from the body to it crosses the plane.
+            glm::vec3 meet{0.f};
+            int crossings = 0;
+            for(int c = 0; c < 8; c++)
             {
-                const glm::vec3 on = p - sd.normal * (glm::dot(sd.normal, p) - sd.dist);
-                fits &= onGate(sd, on, 1.f);
+                for(int axis = 0; axis < 3; axis++)
+                {
+                    const int other = c | (1 << axis);
+                    if(other == c) { continue; }
+                    const float da = glm::dot(sd.normal, corners[c]) - sd.dist, db = glm::dot(sd.normal, corners[other]) - sd.dist;
+                    if((da < 0.f) == (db < 0.f)) { continue; }
+                    meet += glm::mix(corners[c], corners[other], da / (da - db));
+                    crossings++;
+                }
             }
-            if(!fits) { continue; }
+            if(crossings > 0)
+            {
+                meet /= static_cast<float>(crossings);
+            }
+            else
+            {
+                const float a = glm::dot(sd.normal, root) - sd.dist, b = d;
+                if(a - b < 1e-5f) { continue; }
+                meet = glm::mix(root, centre, a / (a - b));
+            }
+            if(!onGate(sd, meet, 1.f)) { continue; }
             nearest = za::fabs(d); picked = sd; found = true;
         }
     }
@@ -2077,7 +2099,7 @@ extern "C" int VR_PortalReachMove(edict_t* player, const float* start, const flo
 
 namespace qvr::portals
 {
-bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate)
+bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate, float margin)
 {
     if(!walkOn()) { return false; }
     if(!current()) { build(); }
@@ -2106,7 +2128,7 @@ bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate)
                 const glm::vec3 p{(c & 1) ? hi.x : lo.x, (c & 2) ? hi.y : lo.y, (c & 4) ? hi.z : lo.z};
                 const float d = glm::dot(sd.normal, p) - sd.dist;
                 low = za::min(low, d); high = za::max(high, d);
-                fits &= onGate(sd, p - sd.normal * d, 0.f);
+                fits &= onGate(sd, p - sd.normal * d, margin);
             }
             const float d = za::fabs(glm::dot(sd.normal, centre) - sd.dist);
             if(!fits || low >= 0.f || high <= 0.f || d >= nearest) { continue; }
@@ -2120,6 +2142,18 @@ bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate)
 
 namespace qvr::portals
 {
+Reach reachAlong(const glm::vec3& root, const glm::vec3& hand, const glm::vec3& point)
+{
+    Reach through = reach(root, hand);
+    if(through.gate)
+    {
+        through.position = through.turn * (point - through.from) + through.to;
+        return through;
+    }
+    through = reach(hand, point);
+    return through.gate ? through : reach(root, point);
+}
+
 bool eyeThrough(const glm::vec3& body, glm::vec3& eye, glm::vec3& angles)
 {
     if(!walkOn()) { return false; }

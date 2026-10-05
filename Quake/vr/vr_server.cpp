@@ -491,7 +491,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     setFieldVec(ent, f.headpos, move.headPos);
     for(int h = 0; h < 2; h++)
     {
-        const portals::Reach gate = portals::reach(move.origin, move.muzzlePos[h]);
+        const portals::Reach gate = portals::reachAlong(move.origin, move.hands[h].pos, move.muzzlePos[h]);
         glm::vec3 angles = move.shotRot[h];
         angles.y = anglemod(angles.y + gate.yaw);
         setFieldVec(ent, h ? f.muzzlepos : f.offmuzzlepos, gate.position);
@@ -839,7 +839,7 @@ void rebaseHands(edict_t* player)
         setFieldVec(player, h ? f.handthrowvel : f.offhandthrowvel, gate.turn * hand.throwVel);
         setFieldVec(player, h ? f.handthrowpos : f.offhandthrowpos, gate.turn * (hand.throwPos - gate.from) + gate.to);
         setFieldVec(player, h ? f.handthrowflick : f.offhandthrowflick, gate.turn * hand.throwFlick);
-        const auto muzzle = portals::reach(origin, move.muzzlePos[h]);
+        const auto muzzle = portals::reachAlong(origin, hand.pos, move.muzzlePos[h]);
         angles = move.shotRot[h];
         angles.y = anglemod(angles.y + muzzle.yaw);
         setFieldVec(player, h ? f.muzzlepos : f.offmuzzlepos, muzzle.position);

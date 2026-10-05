@@ -67,6 +67,11 @@ struct Reach
 };
 // A physical hand or muzzle beyond the aperture, while the torso stays here.
 Reach reach(const glm::vec3& root, const glm::vec3& point);
+// A muzzle (or anything along what the hand holds) beyond the aperture: with the hand if the hand is through (one gate
+// for both), else where the weapon itself goes through (the line from the grip to it), else as reach from the body.
+// The body's line alone missed a gun reached in aslant or from beside the gate (it crossed the plane beside the
+// aperture): the muzzle stayed behind the gate's surface and the shot hit the wall there.
+Reach reachAlong(const glm::vec3& root, const glm::vec3& hand, const glm::vec3& point);
 // The closest visible one-gate image of a point, for gravity-glove aiming.
 glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate = nullptr);
 // Search centres for a conservative force-grab broad phase: the hand itself and its
@@ -122,7 +127,7 @@ struct LightGate
 // One traversal only, through active apertures reached from the light's front side.
 int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacity);
 // A rigid body's bounds crossing a fitting aperture. Either room can be its owner.
-bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate);
+bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate, float margin = 0.f);
 
 // An eye ahead of the body through a gate (the head leaning or walking in before the torso, which is what the gate
 // carries; or still behind once the body is through): the line from `body` (the body's axis at the eye's height) to

@@ -6511,7 +6511,7 @@ bool preSolve(b3ShapeId a, b3ShapeId b, b3Pos point, b3Vec3 normal, void*)
 // The crossing half has a body in the other room. Both shapes are clipped
 // by their contact points, so the wall behind the aperture cannot catch it.
 // Dynamic copies return their contact impulses, rotated, to their owner.
-void syncPortalCopies()
+void syncPortalCopies(float dt)
 {
     for(const World::PortalCopy& c : world->portalCopies)
     {
@@ -6520,9 +6520,15 @@ void syncPortalCopies()
     world->portalCopies.clear();
     const auto add = [&](b3BodyId body) {
         if(B3_IS_NULL(body) || !b3Body_IsValid(body)) { return; }
+        // Its box over this step too (where its motion takes it: a thrown prop goes from short of the gate to the wall
+        // behind it in one step, and continuous collision met that wall before any copy was made: it bounced off), with
+        // a few units' slack for a tumbling box's corners round the aperture.
         const b3AABB box = b3Body_ComputeAABB(body);
+        const glm::vec3 step = glmv(b3Body_GetLinearVelocity(body)) * (1.5f * dt);
+        const glm::vec3 lo = glm::min(glmv(box.lowerBound), glmv(box.lowerBound) + step);
+        const glm::vec3 hi = glm::max(glmv(box.upperBound), glmv(box.upperBound) + step);
         portals::LightGate gate;
-        if(!portals::splitBounds(world->toU(box.lowerBound), world->toU(box.upperBound), gate)) { return; }
+        if(!portals::splitBounds(world->toU(b3v(lo)), world->toU(b3v(hi)), gate, 4.f)) { return; }
         World::PortalCopy c;
         c.original = body;
         c.turn = gate.turn;
@@ -10813,7 +10819,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
         }
         noteThrows();
         syncReach(dt);
-        syncPortalCopies();
+        syncPortalCopies(dt);
     }
     const double tSync = Sys_DoubleTime();
     {
