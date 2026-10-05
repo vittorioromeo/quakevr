@@ -247,7 +247,7 @@ static void Skywind_Load_f (void)
 		skybox->wind_pitch = fmod (atof (com_token) + 90.0, 180.0) - 90.0;
 
 done:
-	free (buf);
+	VR_HeapFree (buf);
 }
 
 /*
@@ -473,7 +473,7 @@ void Sky_LoadSkyBox (const char *name)
 		size_t numfacebytes = samesize * samesize * 4;
 		size_t aligneddatasize = (numfacebytes * 6 + sizeof (void *) - 1) & ~(sizeof (void *) - 1);
 
-		newsky.cubemap_pixels = (byte *) malloc (aligneddatasize + sizeof (void *) * 6);
+		newsky.cubemap_pixels = (byte *) VR_HeapMalloc (aligneddatasize + sizeof (void *) * 6);
 		if (!newsky.cubemap_pixels)
 		{
 			Con_Warning ("Sky_LoadSkyBox: out of memory on %" SDL_PRIu64 " bytes\n", (uint64_t) numfacebytes);
@@ -525,7 +525,7 @@ Sky_FreeSkyBox
 */
 static void Sky_FreeSkyBox (skybox_t *sky)
 {
-	free (sky->cubemap_pixels);
+	VR_HeapFree (sky->cubemap_pixels);
 	// Note: textures are freed by Mod_ClearAll / Mod_ResetAll
 	memset (sky, 0, sizeof (*sky));
 }

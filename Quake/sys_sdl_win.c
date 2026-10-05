@@ -489,7 +489,7 @@ const char *Sys_GetEGSLauncherData (void)
 	}
 
 	size = (int) filesize;
-	buf = (char *) malloc (size + 1);
+	buf = (char *) VR_HeapMalloc (size + 1);
 	if (!buf)
 	{
 		fclose (file);
@@ -498,7 +498,7 @@ const char *Sys_GetEGSLauncherData (void)
 
 	if (fread (buf, size, 1, file) != 1)
 	{
-		free (buf);
+		VR_HeapFree (buf);
 		fclose (file);
 		return NULL;
 	}
@@ -515,27 +515,27 @@ const char *Sys_GetEGSLauncherData (void)
 		size8 = WideCharToMultiByte (CP_UTF8, 0, (WCHAR *)(buf + 2), size / 2 - 1, NULL, 0, NULL, NULL);
 		if (!size8)
 		{
-			free (buf);
+			VR_HeapFree (buf);
 			return NULL;
 		}
 
-		buf8 = (char *) malloc (size8 + 1);
+		buf8 = (char *) VR_HeapMalloc (size8 + 1);
 		if (!buf8)
 		{
-			free (buf);
+			VR_HeapFree (buf);
 			return NULL;
 		}
 
 		size8 = WideCharToMultiByte (CP_UTF8, 0, (WCHAR *)(buf + 2), size / 2 - 1, buf8, size8, NULL, NULL);
 		if (!size8)
 		{
-			free (buf8);
-			free (buf);
+			VR_HeapFree (buf8);
+			VR_HeapFree (buf);
 			return NULL;
 		}
 		buf8[size8] = '\0';
 
-		free (buf);
+		VR_HeapFree (buf);
 		buf = buf8;
 	}
 
@@ -740,7 +740,7 @@ findfile_t *Sys_FindFirst (const char *dir, const char *ext)
 	if (handle == INVALID_HANDLE_VALUE)
 		return NULL;
 
-	ret = (winfindfile_t *) calloc (1, sizeof (winfindfile_t));
+	ret = (winfindfile_t *) VR_HeapCalloc (1, sizeof (winfindfile_t));
 	if (!ret)
 		Sys_Error ("Sys_FindFirst: out of memory");
 	ret->handle = handle;
@@ -768,7 +768,7 @@ void Sys_FindClose (findfile_t *find)
 	{
 		winfindfile_t *wfind = (winfindfile_t *) find;
 		FindClose (wfind->handle);
-		free (wfind);
+		VR_HeapFree (wfind);
 	}
 }
 

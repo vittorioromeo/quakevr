@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_sightalign.cpp -- see vr_sightalign.hpp.
 
 #include "vr_sightalign.hpp"
@@ -117,7 +118,7 @@ constexpr const char* melee[] = {
     constexpr int headerSize = 84;
     if(size < headerSize || readInt(0) != IDPOLYHEADER)
     {
-        free(data);
+        VR_HeapFree(data);
         return pts;
     }
     const glm::vec3 scale{readFloat(8), readFloat(12), readFloat(16)};
@@ -148,7 +149,7 @@ constexpr const char* melee[] = {
     int frameOfs = triOfs + numtris * 16;
     if(!skin || numframes < 1 || frameOfs + 4 > size)
     {
-        free(data);
+        VR_HeapFree(data);
         return pts;
     }
     // The first frame (a group's first).
@@ -163,7 +164,7 @@ constexpr const char* melee[] = {
     }
     if(frameOfs + numverts * 4 > size)
     {
-        free(data);
+        VR_HeapFree(data);
         return pts;
     }
     const auto vertex = [&](int i) {
@@ -182,7 +183,7 @@ constexpr const char* melee[] = {
             vi[k] = readInt(o + 4 + k * 4);
             if(vi[k] < 0 || vi[k] >= numverts)
             {
-                free(data);
+                VR_HeapFree(data);
                 return {};
             }
             const int so = stOfs + vi[k] * 12;
@@ -223,7 +224,7 @@ constexpr const char* melee[] = {
             }
         }
     }
-    free(data);
+    VR_HeapFree(data);
     return pts;
 }
 

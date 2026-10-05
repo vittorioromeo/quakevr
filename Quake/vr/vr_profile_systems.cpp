@@ -170,12 +170,16 @@ enum Count
     Box3dContacts,
     Edicts,
     Allocations,
+    CppDeletes,
+    HeapAllocs,
+    HeapFrees,
+    HeapRequestKiB,
     CountCount
 };
 constexpr const char* countNames[CountCount] = {"traces", "hull traces", "draw calls", "alias models", "box3d bodies",
-    "box3d awake", "box3d contacts", "edicts", "allocations"};
+    "box3d awake", "box3d contacts", "edicts", "allocations", "C++ deletes", "C heap requests", "C heap frees", "heap requested KiB"};
 constexpr const char* countColumns[CountCount] = {"traces", "hull_traces", "draw_calls", "alias_models", "box3d_bodies",
-    "box3d_awake", "box3d_contacts", "edicts", "allocations"};
+    "box3d_awake", "box3d_contacts", "edicts", "allocations", "cpp_deletes", "c_heap_requests", "c_heap_frees", "heap_requested_kib"};
 
 [[nodiscard]] bool inList(const char* list, const char* name)
 {
@@ -200,6 +204,7 @@ constexpr const char* countColumns[CountCount] = {"traces", "hull_traces", "draw
 // ---- This frame ----
 
 za::I64 frameCpu[SysCount]{};
+alloccount::Stats heapBefore{};
 za::U64 allocationsBefore = 0; // the main thread's allocation count at the last frame collected's end
 int allocationsFrame = -1;           // and that frame's host_framecount
 za::I64 frameViewCpu[ViewCount]{};
@@ -1019,6 +1024,19 @@ void frameEnd(za::I64 now, za::I64 periodNs, za::I64 hostNs, const Counts& count
     // collected (its delta would span the frames before).
     const za::U64 allocationsNow = alloccount::thisThread();
     n[Allocations] = allocationsFrame == host_framecount - 1 ? static_cast<int>(allocationsNow - allocationsBefore) : 0;
+    const auto heapNow = alloccount::statsThisThread();
+    if(allocationsFrame == host_framecount - 1)
+    {
+        const auto delta = [&](alloccount::Kind k) {
+            const int i = static_cast<int>(k);
+            return heapNow.calls[i] - heapBefore.calls[i];
+        };
+        n[CppDeletes] = static_cast<int>(delta(alloccount::Kind::Delete));
+        n[HeapAllocs] = static_cast<int>(delta(alloccount::Kind::Malloc) + delta(alloccount::Kind::Calloc) + delta(alloccount::Kind::Realloc));
+        n[HeapFrees] = static_cast<int>(delta(alloccount::Kind::Free));
+        n[HeapRequestKiB] = static_cast<int>((heapNow.requestedBytes - heapBefore.requestedBytes) / 1024);
+    }
+    heapBefore = heapNow;
     allocationsBefore = allocationsNow;
     allocationsFrame = host_framecount;
 

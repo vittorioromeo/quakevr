@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_walltorch.cpp -- wall torches taken off their walls: the engine's side (see vr_walltorch.hpp; QC vr_walltorch.qc;
 // docs/vr-port/ROUND21.md, "Wall torches you can take").
 
@@ -344,7 +345,7 @@ namespace
     constexpr size_t headerSize = 84;
     const auto keep = [&](const char* why) -> byte* {
         Con_DPrintf("wall torch: %s as shipped (%s)\n", stickModelName, why);
-        free(id);
+        VR_HeapFree(id);
         return own;
     };
     if(!id || idSize < headerSize + 4 || ownSize < headerSize || rd(id, 0) != IDPOLYHEADER || rd(own, 0) != IDPOLYHEADER)
@@ -386,7 +387,7 @@ namespace
             }
         }
     }
-    free(id);
+    VR_HeapFree(id);
     Con_DPrintf("wall torch: %s: the wall torch's skin copied in (%d x %d)\n", stickModelName, w, h);
     return own;
 }
@@ -422,7 +423,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
     constexpr size_t headerSize = 84;
     const auto fail = [&](const char* why) -> byte* {
         Con_DPrintf("wall torch: %s: %s\n", wallModelName, why);
-        free(src);
+        VR_HeapFree(src);
         return nullptr;
     };
     if(size < headerSize || rd(0) != IDPOLYHEADER)
@@ -518,14 +519,14 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
         return fail("no triangle of its flame");
     }
     const size_t outSize = size - static_cast<size_t>(numTris - kept) * 16;
-    byte* out = static_cast<byte*>(malloc(outSize + 1));
+    byte* out = static_cast<byte*>(VR_HeapMalloc(outSize + 1));
     memcpy(out, src, trisAt);
     const int keptLe = LittleLong(kept);
     memcpy(out + 64, &keptLe, 4);
     memcpy(out + trisAt, tris.data(), tris.size());
     memcpy(out + trisAt + tris.size(), src + framesAt, size - framesAt);
     out[outSize] = 0;
-    free(src);
+    VR_HeapFree(src);
     Con_DPrintf("wall torch: %s: %d of %d triangles (its flame)\n", fireModelName, kept, numTris);
     return out;
 }

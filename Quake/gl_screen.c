@@ -1828,7 +1828,7 @@ static void SCR_ScreenShot_f (void)
 	}
 
 //get data
-	if (!(buffer = (byte *) malloc(glwidth*glheight*3)))
+	if (!(buffer = (byte *) VR_HeapMalloc(glwidth*glheight*3)))
 	{
 		Con_Printf ("SCR_ScreenShot_f: Couldn't allocate memory\n");
 		return;
@@ -1886,7 +1886,7 @@ static void SCR_ScreenShot_f (void)
 			if (i == 10000)
 			{
 				Con_Printf ("SCR_ScreenShot_f: Couldn't find an unused filename\n");
-				free (buffer);
+				VR_HeapFree (buffer);
 				return;
 			}
 		}
@@ -1921,7 +1921,7 @@ static void SCR_ScreenShot_f (void)
 			Con_Printf ("SCR_ScreenShot_f: Couldn't create %s\n", basename);
 	}
 
-	free (buffer);
+	VR_HeapFree (buffer);
 }
 
 

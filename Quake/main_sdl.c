@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 			parms.memsize = Q_atoi(com_argv[t]) * 1024;
 	}
 
-	parms.membase = malloc (parms.memsize);
+	parms.membase = VR_HeapMalloc (parms.memsize);
 
 	if (!parms.membase)
 		Sys_Error ("Not enough memory free; check disk space\n");

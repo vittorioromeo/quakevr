@@ -32,6 +32,12 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 	#pragma GCC diagnostic ignored "-Wunused-function"
 #endif
 
+#define STBI_MALLOC VR_HeapMalloc
+#define STBI_REALLOC VR_HeapRealloc
+#define STBI_FREE VR_HeapFree
+#define STBIW_MALLOC VR_HeapMalloc
+#define STBIW_REALLOC VR_HeapRealloc
+#define STBIW_FREE VR_HeapFree
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_STATIC
 #define STBI_NO_BMP
@@ -61,7 +67,12 @@ static byte *Image_LoadLMP (FILE *f, int *width, int *height);
 #define LODEPNG_NO_COMPILE_ANCILLARY_CHUNKS
 #define LODEPNG_NO_COMPILE_ERROR_TEXT
 #include "lodepng.h"
+#define LODEPNG_NO_COMPILE_ALLOCATORS
+#undef LODEPNG_COMPILE_ALLOCATORS
 #include "lodepng.c"
+void* lodepng_malloc(size_t size) { return VR_HeapMalloc(size); }
+void* lodepng_realloc(void* p, size_t size) { return VR_HeapRealloc(p, size); }
+void lodepng_free(void* p) { VR_HeapFree(p); }
 
 #pragma pop_macro("fopen")
 
@@ -76,7 +87,7 @@ typedef struct stdio_buffer_s {
 
 static stdio_buffer_t *Buf_Alloc(FILE *f)
 {
-	stdio_buffer_t *buf = (stdio_buffer_t *) calloc(1, sizeof(stdio_buffer_t));
+	stdio_buffer_t *buf = (stdio_buffer_t *) VR_HeapCalloc(1, sizeof(stdio_buffer_t));
 	if (!buf)
 		Sys_Error ("Buf_Alloc: out of memory");
 	buf->f = f;
@@ -85,7 +96,7 @@ static stdio_buffer_t *Buf_Alloc(FILE *f)
 
 static void Buf_Free(stdio_buffer_t *buf)
 {
-	free(buf);
+	VR_HeapFree(buf);
 }
 
 static inline int Buf_GetC(stdio_buffer_t *buf)
@@ -157,7 +168,7 @@ static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum
 				int numbytes = (*width) * (*height) * 4;
 				byte *hunkdata = (byte *) Hunk_AllocNameNoFill (numbytes, ext);
 				memcpy (hunkdata, data, numbytes);
-				free (data);
+				VR_HeapFree (data);
 				data = hunkdata;
 				*fmt = SRC_RGBA;
 				if ((developer.value || map_checks.value) && strcmp (ext, "tga") != 0)
@@ -423,7 +434,7 @@ byte* Image_CopyFlipped (const void *src, int width, int height, int bpp)
 	byte		*flipped;
 
 	rowsize = width * (bpp / 8);
-	flipped = (byte *) malloc(height * rowsize);
+	flipped = (byte *) VR_HeapMalloc(height * rowsize);
 	if (!flipped)
 		return NULL;
 
@@ -466,7 +477,7 @@ qboolean Image_WriteJPG (const char *name, byte *data, int width, int height, in
 
 	error = stbi_write_jpg (pathname, width, height, bytes_per_pixel, flipped, quality);
 	if (!upsidedown)
-		free (flipped);
+		VR_HeapFree (flipped);
 
 	return (error != 0);
 }
@@ -500,12 +511,12 @@ qboolean Image_WritePNGPath (const char *pathname, byte *data, int width, int he
 
 	// QVR: pathname is the caller's
 	flipped = (!upsidedown)? Image_CopyFlipped (data, width, height, bpp) : data;
-	filters = (unsigned char *) malloc (height);
+	filters = (unsigned char *) VR_HeapMalloc (height);
 	if (!filters || !flipped)
 	{
 		if (!upsidedown)
-		  free (flipped);
-		free (filters);
+		  VR_HeapFree (flipped);
+		VR_HeapFree (filters);
 		return false;
 	}
 
@@ -537,9 +548,9 @@ qboolean Image_WritePNGPath (const char *pathname, byte *data, int width, int he
 
 	lodepng_state_cleanup (&state);
 	lodepng_free (png); /* png was allocated by lodepng */
-	free (filters);
+	VR_HeapFree (filters);
 	if (!upsidedown) {
-	  free (flipped);
+	  VR_HeapFree (flipped);
 	}
 
 	return (error == 0);

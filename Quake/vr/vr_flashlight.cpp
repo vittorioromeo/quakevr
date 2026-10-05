@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_flashlight.cpp -- see vr_flashlight.hpp.
 
 #include "vr_flashlight.hpp"
@@ -123,7 +124,7 @@ Shape shape_;
         return LittleFloat(v);
     };
     const auto fail = [&]() {
-        free(data);
+        VR_HeapFree(data);
         return false;
     };
     // mdl_t: ident, version, scale[3], scale_origin[3], boundingradius, eyeposition[3], numskins, skinwidth,
@@ -242,7 +243,7 @@ Shape shape_;
             sh.fromModel = true;
         }
     }
-    free(data);
+    VR_HeapFree(data);
 
     // The tail, the outline and the switch.
     float x0 = 1e9f, x1 = -1e9f;

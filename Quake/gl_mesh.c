@@ -179,15 +179,15 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 	if (!numindexes) return;
 
 	// create an elements buffer
-	ebodata = (byte *) malloc(numindexes * sizeof(unsigned short));
+	ebodata = (byte *) VR_HeapMalloc(numindexes * sizeof(unsigned short));
 	if (!ebodata)
 		return;	//fatal
 
 	// create the vertex buffer (empty)
-	vbodata = (byte *) malloc(totalvbosize);
+	vbodata = (byte *) VR_HeapMalloc(totalvbosize);
 	if (!vbodata)
 	{	//fatal
-		free(ebodata);
+		VR_HeapFree(ebodata);
 		return;
 	}
 	memset(vbodata, 0, totalvbosize);
@@ -219,7 +219,7 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 		const unsigned char *vertexao = mainhdr->poseverttype == PV_QUAKE1 ? VR_AliasVertexAO (m, mainhdr) : NULL;
 		if (mainhdr->poseverttype == PV_QUAKE1 && !Mod_NextSurface (mainhdr))
 		{
-			flamerefs = (unsigned short *) malloc (mainhdr->numverts_vbo * sizeof (unsigned short));
+			flamerefs = (unsigned short *) VR_HeapMalloc (mainhdr->numverts_vbo * sizeof (unsigned short));
 			if (flamerefs)
 				VR_AliasFlameRefs (mainhdr, flamerefs);
 		}
@@ -273,7 +273,7 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 				}
 			}
 		}
-		free (flamerefs); // QVR
+		VR_HeapFree (flamerefs); // QVR
 	}
 	else // PV_IQM
 	{
@@ -322,8 +322,8 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 	GL_DeleteBuffer (m->meshvbo);
 	m->meshvbo = GL_CreateBuffer (GL_ARRAY_BUFFER, GL_STATIC_DRAW, va ("%s vertices", m->name), totalvbosize, vbodata);
 
-	free (vbodata);
-	free (ebodata);
+	VR_HeapFree (vbodata);
+	VR_HeapFree (ebodata);
 }
 
 /*

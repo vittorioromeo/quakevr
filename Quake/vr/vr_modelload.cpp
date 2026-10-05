@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_modelload.cpp -- what Quake VR adds to loading models (gl_model.c calls these): the light's directions beside a
 // relit map (.lux, deluxemaps; and their texture's texels, r_brush.c), the parts of their textures the item boxes' faces show (parallax mapping), full-colour
 // replacement skins (DarkPlaces' names), and the skins' normal maps with their islands (alias models and MD5 meshes).
@@ -228,7 +229,7 @@ static byte *Mod_SkinIslandsMalloc (const float *corners, int numtris, int w, in
 {
 	double	t0 = Sys_DoubleTime ();
 	int		mark = Hunk_LowMark ();
-	byte	*mask = (byte *) malloc ((size_t) w * h);
+	byte	*mask = (byte *) VR_HeapMalloc ((size_t) w * h);
 	if (!mask)
 		Sys_Error ("Mod_SkinIslandsMalloc: out of memory");
 	memcpy (mask, Mod_SkinIslands (corners, numtris, w, h), (size_t) w * h);
@@ -323,7 +324,7 @@ static void Mod_SkinNormalMapLater (gltexture_t *glt, byte *data, enum srcformat
 		numskinnormalmaps++;
 	}
 	else if (owned)
-		free (data);
+		VR_HeapFree (data);
 }
 
 extern "C" void VR_LoadSkinNormalMaps (qmodel_t *loadmodel, void *hdr, const stvert_t *verts, const dtriangle_t *tris)
@@ -366,7 +367,7 @@ extern "C" void VR_LoadSkinNormalMaps (qmodel_t *loadmodel, void *hdr, const stv
 		VR_LoadNormalMap (skinnormalmaps[i].glt, skinnormalmaps[i].name, strcmp (shared, skinnormalmaps[i].name) ? shared : NULL,
 			skinnormalmaps[i].data, skinnormalmaps[i].format, w, NORMALMAP_HEIGHTS | NORMALMAP_SKIN);
 		if (skinnormalmaps[i].owned)
-			free (skinnormalmaps[i].data);
+			VR_HeapFree (skinnormalmaps[i].data);
 	}
 	VR_SetHeightMask (NULL, 0, 0);
 	numskinnormalmaps = 0;
@@ -400,7 +401,7 @@ static gltexture_t *Mod_LoadExternalSkin (qmodel_t *loadmodel, const char *name,
 		return NULL;
 	}
 	size = (size_t) fwidth * fheight * (fmt == SRC_INDEXED ? 1 : 4);
-	copy = (byte *) malloc (size);
+	copy = (byte *) VR_HeapMalloc (size);
 	if (copy)
 		memcpy (copy, data, size);
 	glt = TexMgr_LoadImage (loadmodel, name, fwidth, fheight, fmt, data, name, 0,
@@ -501,7 +502,7 @@ static void Mod_MD5SkinNormalMap (aliashdr_t *surf, gltexture_t *glt, const char
 	mark = Hunk_LowMark ();
 	if (!md5islands || md5islands_surf != surf || md5islands_w != w || md5islands_h != h)
 	{
-		free (md5islands);
+		VR_HeapFree (md5islands);
 		corners = (float *) Hunk_AllocNoFill (q_max (surf->numtris, 1) * 6 * sizeof (float));
 		for (i = 0; i < surf->numtris; i++)
 			for (j = 0; j < 3; j++)
@@ -510,7 +511,7 @@ static void Mod_MD5SkinNormalMap (aliashdr_t *surf, gltexture_t *glt, const char
 				corners[i * 6 + j * 2 + 0] = v->st[0] * w;
 				corners[i * 6 + j * 2 + 1] = v->st[1] * h;
 			}
-		md5islands = (byte *) malloc ((size_t) w * h);
+		md5islands = (byte *) VR_HeapMalloc ((size_t) w * h);
 		if (!md5islands)
 			Sys_Error ("Mod_MD5SkinNormalMap: out of memory");
 		memcpy (md5islands, Mod_SkinIslands (corners, surf->numtris, w, h), (size_t) w * h);
@@ -575,7 +576,7 @@ VR_MD5SkinsReset -- the islands of the last surface's skins freed (Mod_LoadMD5Sk
 */
 extern "C" void VR_MD5SkinsReset (void)
 {
-	free (md5islands);
+	VR_HeapFree (md5islands);
 	md5islands = NULL;
 	md5islands_surf = NULL;
 }

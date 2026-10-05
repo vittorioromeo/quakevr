@@ -799,7 +799,7 @@ static void Con_Clear_f (void)
 
 	Con_SetHotLink (NULL);
 	for (i = 0; i < VEC_SIZE (con_links); i++)
-		free (con_links[i]);
+		VR_HeapFree (con_links[i]);
 	VEC_CLEAR (con_links);
 }
 
@@ -838,7 +838,7 @@ qboolean Con_CopySelectionToClipboard (void)
 
 	// Convert to UTF-8
 	maxsize = UTF8_FromQuake (NULL, 0, qtext);
-	utf8 = (char *) malloc (maxsize);
+	utf8 = (char *) VR_HeapMalloc (maxsize);
 	if (!utf8)
 		Sys_Error ("Con_CopySelectionToClipboard: out of memory on %" SDL_PRIu64 " bytes", (uint64_t)maxsize);
 	UTF8_FromQuake (utf8, maxsize, qtext);
@@ -847,7 +847,7 @@ qboolean Con_CopySelectionToClipboard (void)
 	SDL_SetClipboardText (utf8);
 
 	// Clean up temporary buffers
-	free (utf8);
+	VR_HeapFree (utf8);
 	VEC_FREE (qtext);
 
 	Con_ClearSelection ();
@@ -1464,7 +1464,7 @@ void Con_LinkPrintf (const char *addr, const char *fmt, ...)
 	char		*text;
 
 	len = strlen (addr);
-	link = (conlink_t *) malloc (sizeof (conlink_t) + len + 1);
+	link = (conlink_t *) VR_HeapMalloc (sizeof (conlink_t) + len + 1);
 	if (!link)
 		Sys_Error ("Con_LinkPrintf: out of memory on %" SDL_PRIu64 " bytes", (uint64_t)(sizeof (conlink_t) + len + 1));
 	

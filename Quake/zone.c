@@ -599,7 +599,7 @@ static void *Hunk_AllocInternal (int size, const char *name, hunkflags_t flags)
 
 		Sys_Printf ("Allocating new hunk segment: %.2lf MiB\n", newsize / 1048576.0);
 
-		seg = (hunkseg_t *) malloc (sizeof (hunkseg_t) + newsize);
+		seg = (hunkseg_t *) VR_HeapMalloc (sizeof (hunkseg_t) + newsize);
 		if (!seg)
 		{
 			Sys_Error ("Hunk_Alloc: failed on %i bytes", size);

@@ -506,7 +506,7 @@ static void TexMgr_Imagedump_f (void)
 				*c = '_';
 
 		GL_Bind (GL_TEXTURE0, glt);
-		buffer = (byte *) malloc(glt->width * glt->height * glt->depth * channels);
+		buffer = (byte *) VR_HeapMalloc(glt->width * glt->height * glt->depth * channels);
 		if (!buffer)
 			Sys_Error ("TexMgr_Imagedump_f: out of memory (%dx%dx%d %d bpp)", glt->width, glt->height, glt->depth, channels * 8);
 
@@ -528,7 +528,7 @@ static void TexMgr_Imagedump_f (void)
 			Image_WriteTGA (tganame, buffer, glt->width, glt->height*glt->depth, channels*8, true);
 		}
 
-		free (buffer);
+		VR_HeapFree (buffer);
 		count++;
 	}
 
@@ -576,7 +576,7 @@ static void TexMgr_Imagehash_f (void)
 
 		if (filter && !q_strcasestr (glt->name, filter))
 			continue;
-		buffer = (byte *) malloc (facebytes);
+		buffer = (byte *) VR_HeapMalloc (facebytes);
 		if (!buffer)
 			Sys_Error ("TexMgr_Imagehash_f: out of memory (%dx%dx%d)", glt->width, glt->height, glt->depth);
 		GL_Bind (GL_TEXTURE0, glt);
@@ -586,7 +586,7 @@ static void TexMgr_Imagehash_f (void)
 			for (i = 0; i < facebytes; i++)
 				h = (h ^ buffer[i]) * 1099511628211ULL;
 		}
-		free (buffer);
+		VR_HeapFree (buffer);
 		fprintf (out, "%016llx %d %d %d %s\n", h, glt->width, glt->height, glt->depth, glt->name);
 		for (c = glt->name; *c; c++)
 			h = (h ^ (byte) *c) * 1099511628211ULL;

@@ -405,7 +405,7 @@ qpic_t	*Draw_TryCachePic (const char *path, unsigned int texflags)
 		gl.th = (float)dat->height/(float)TexMgr_PadConditional(dat->height); //johnfitz
 	}
 
-	free (dat);
+	VR_HeapFree (dat);
 	memcpy (pic->pic.data, &gl, sizeof(glpic_t));
 
 	return &pic->pic;

@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_handrig.cpp -- see vr_handrig.hpp.
 //
 // The rig from the file (round 21, "Hand editable in Blender"; the author's guide: docs/vr-port/HANDS_IN_BLENDER.md):
@@ -974,7 +975,7 @@ bool readRig(const char* meshText, Rig& out, za::String& error, Report& report)
         za::Vector<za::Pair<za::String, long>> hierarchy;
         za::String animError;
         const bool ok = parseAnim(reinterpret_cast<const char*>(anim), hierarchy, animError);
-        free(anim);
+        VR_HeapFree(anim);
         if(!ok)
         {
             error = animError;
@@ -1306,7 +1307,7 @@ void reload_f()
     za::String error;
     Report report;
     const bool ok = readRig(reinterpret_cast<const char*>(text), r, error, report);
-    free(text);
+    VR_HeapFree(text);
     if(!ok)
     {
         Con_Warning("vr_hand_reload: %s\n", error.cStr());

@@ -152,8 +152,20 @@ context (only the engine's framebuffers are made again), so the VR module's GL o
 ## Allocations a frame
 
 The profiler counts the main thread's C++ allocations (`vr_profile_report`: "allocations", avg/max a frame; the systems
-CSV's column): `vr_alloccount.cpp` replaces `operator new` with a counting one. A system's frame should allocate nothing
-once warm; its first frames after a map load grow its scratch sets again.
+CSV's column): `vr_alloccount.cpp` replaces `operator new` with a counting one, including aligned forms. Engine-owned
+C calls use `VR_HeapMalloc/Calloc/Realloc/Free` (`vr_alloccount.h`); Box3D uses aligned allocator callbacks and image
+libraries use their allocator hooks. Do not use allocation-name macros across system/vendor headers. The wrappers
+preserve CRT pointer ownership and failure semantics; C++ allocation uses raw CRT storage to avoid double counting.
+Counters are per thread; the frame profiler reads only the main thread. Its additional columns are `cpp_deletes`,
+`c_heap_requests`, `c_heap_frees` and `heap_requested_kib` (request bytes floored to KiB per frame, not live heap usage).
+C request counts include attempts; null frees are ignored. `vr_alloc_sites 300 50` records heap event kinds, exact
+requested bytes, caller sites, and the peak allocation-request frame. Windows stack resolution requires the build's
+PDB. Tracing is opt-in and changes timing; do not benchmark CPU cost with it enabled. DLL-private heaps and zone/hunk
+suballocations are outside these counters (the zone/hunk's CRT backing allocation is covered).
+
+A system's frame should allocate nothing once warm; its first frames after a map load grow its scratch sets again.
+Use retained scratch storage for sequential users and fixed inline storage for small bounded data. Do not reuse one
+scratch vector across nested/reentrant calls or workers. `vr_alloc_test` checks wrapper semantics and counter deltas.
 
 ## QuakeC
 

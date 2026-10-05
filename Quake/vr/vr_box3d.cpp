@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_box3d.cpp -- the rigid bodies in Box3D, the only rigid-body physics; see vr_box3d.hpp and
 // docs/vr-port/ROUND21.md, "Box3D physics" and "Simplification: Box3D only".
 //
@@ -8145,12 +8146,16 @@ void portalInfo_f()
     }
 }
 
+void* heapAllocate(size_t size, int32_t alignment) { return VR_HeapAlignedAlloc(size, static_cast<size_t>(alignment)); }
+void heapFree(void* p, size_t) { VR_HeapAlignedFree(p); }
+
 void registerCommands()
 {
     bool& registered = commandsRegistered;
     if(!registered)
     {
         registered = true;
+        b3SetAllocator(heapAllocate, heapFree);
         Cmd_AddCommand("vr_physics_player", player_f);
         Cmd_AddCommand("vr_physics_stack", stack_f);
         Cmd_AddCommand("vr_physics_pyramid", pyramid_f);

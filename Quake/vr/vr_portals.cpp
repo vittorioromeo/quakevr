@@ -67,6 +67,15 @@ struct Side
     int trigger = 0;       // its trigger_teleport's edict
 };
 
+struct PortalScratch
+{
+    za::Vector<gfx::Vertex> mask;
+    za::Vector<byte> sourcePvs;
+    za::Vector<glm::vec3> added;
+    auto members() { return mem::list(mask, sourcePvs, added); }
+};
+mem::Scratch<PortalScratch> scratch{"portal mask and PVS"};
+
 za::Vector<Side> sides;
 const qmodel_t* builtFor = nullptr;
 int builtGeneration = -1;
@@ -811,7 +820,10 @@ extern "C" void VR_DrawPortalMask(void)
     const glm::vec4 r = portals::eyeRect;
     const glm::vec2 quads[4][2] = {{{-1.f, -1.f}, {1.f, r.y}}, {{-1.f, r.w}, {1.f, 1.f}}, {{-1.f, r.y}, {r.x, r.w}},
         {{r.z, r.y}, {1.f, r.w}}};
-    za::Vector<gfx::Vertex> tris;
+    // draw uploads synchronously; the next eye/portal may reuse this storage.
+    auto& tris = portals::scratch.mask;
+    tris.clear();
+    tris.reserve(24); // four quads, six vertices each
     for(const auto& q : quads)
     {
         if(q[1].x <= q[0].x || q[1].y <= q[0].y)
@@ -892,10 +904,11 @@ extern "C" void VR_PortalAddPVS(byte* pvs, const float org[3])
     // Test only the original source visibility: adding destination rows must not
     // recursively make more entrances eligible. Rendering ranks gates per camera,
     // so a fixed first-eight server budget could omit entities in a rendered gate.
-    za::Vector<byte> sourcePvs;
+    auto& sourcePvs = portals::scratch.sourcePvs;
     sourcePvs.resize((sv.worldmodel->numleafs + 7) >> 3);
     memcpy(sourcePvs.data(), pvs, sourcePvs.size());
-    za::Vector<glm::vec3> added;
+    auto& added = portals::scratch.added;
+    added.clear();
     for(const portals::Side& sd : portals::sides)
     {
         if(glm::dot(sd.normal, o) - sd.dist < 0.f || !portals::inPvs(sourcePvs.data(), sd.leaf) ||

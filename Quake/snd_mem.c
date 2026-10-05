@@ -148,14 +148,14 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	info = GetWavinfo (s->name, data, com_filesize);
 	if (info.channels != 1)
 	{
-		free (data);
+		VR_HeapFree (data);
 		Con_Printf ("%s is a stereo sample\n",s->name);
 		return NULL;
 	}
 
 	if (info.width != 1 && info.width != 2)
 	{
-		free (data);
+		VR_HeapFree (data);
 		Con_Printf("%s is not 8 or 16 bit\n", s->name);
 		return NULL;
 	}
@@ -170,7 +170,7 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 
 	if (info.samples == 0 || len == 0)
 	{
-		free (data);
+		VR_HeapFree (data);
 		Con_Printf("%s has zero samples\n", s->name);
 		return NULL;
 	}
@@ -180,7 +180,7 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 	sc = (sfxcache_t *) Cache_Alloc ( &s->cache, (fullband ? fullband + 2 * (int)(info.samples / stepscale) : len) + sizeof(sfxcache_t), s->name);
 	if (!sc)
 	{
-		free (data);
+		VR_HeapFree (data);
 		return NULL;
 	}
 	sc->fullband = fullband;
@@ -193,7 +193,7 @@ sfxcache_t *S_LoadSound (sfx_t *s)
 
 	ResampleSfx (s, sc->speed, sc->width, data + info.dataofs);
 
-	free (data);
+	VR_HeapFree (data);
 
 	return sc;
 }

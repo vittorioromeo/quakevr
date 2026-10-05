@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_debris.cpp -- rocks and bricks lying about the maps; see vr_debris.hpp and docs/vr-port/ROUND21.md, "Rocks and
 // bricks". The models are Misc/quakevr/make_debris.py's; QC vr_debris.qc spawns and handles them.
 
@@ -221,7 +222,7 @@ void loadModel(ModelInfo& m)
     const auto fail = [&](const char* why) {
         Con_Printf("debris: %s: %s\n", m.name(), why);
         m.skinLab.clear();
-        free(data);
+        VR_HeapFree(data);
     };
     if(size < 84 || memcmp(data, "IDPO", 4) != 0 || readInt(data + 4) != 6)
     {
@@ -272,7 +273,7 @@ void loadModel(ModelInfo& m)
         m.lo = glm::min(m.lo, p);
         m.hi = glm::max(m.hi, p);
     }
-    free(data);
+    VR_HeapFree(data);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

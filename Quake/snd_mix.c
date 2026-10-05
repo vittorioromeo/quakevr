@@ -210,8 +210,8 @@ static void S_UpdateFilter(filter_t *filter, int M, float f_c)
 {
 	if (filter->f_c != f_c || filter->M != M)
 	{
-		if (filter->memory != NULL) free(filter->memory);
-		if (filter->kernel != NULL) free(filter->kernel);
+		if (filter->memory != NULL) VR_HeapFree(filter->memory);
+		if (filter->kernel != NULL) VR_HeapFree(filter->kernel);
 
 		filter->M = M;
 		filter->f_c = f_c;
@@ -219,8 +219,8 @@ static void S_UpdateFilter(filter_t *filter, int M, float f_c)
 		filter->parity = 0;
 	// M + 1 rounded up to the next multiple of 16
 		filter->kernelsize = (M + 1) + 16 - ((M + 1) % 16);
-		filter->memory = (float *) calloc(filter->kernelsize, sizeof(float));
-		filter->kernel = (float *) calloc(filter->kernelsize, sizeof(float));
+		filter->memory = (float *) VR_HeapCalloc(filter->kernelsize, sizeof(float));
+		filter->kernel = (float *) VR_HeapCalloc(filter->kernelsize, sizeof(float));
 
 		if (!filter->memory || !filter->kernel)
 			Sys_Error ("S_UpdateFilter: out of memory (%" SDL_PRIu64 " bytes)", (uint64_t)(filter->kernelsize * sizeof (float)));

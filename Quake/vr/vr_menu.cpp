@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_menu.cpp -- the "VR Settings" pages (Options > VR Settings), drawn like Ironwail's options
 // pages: scrolling lists of labelled settings, changed with left/right (the sticks in VR), with
 // actions on enter (A). "Advanced VR Options" at the bottom opens a list of further pages: the old
@@ -3884,9 +3885,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Print Memory Now", "vr_memstats")
             .help("vr_memstats: video and system memory, the textures and models loaded, the frame times since the last one."),
         command("Allocation Sites", "vr_alloc_sites 300")
-            .help("vr_alloc_sites [frames] [lines]: the main thread's C++ allocations over the next 300 frames by where they "
+            .help("vr_alloc_sites [frames] [lines]: the main thread's C++ and C heap events over the next 300 frames by where they "
                   "were asked for (the commonest first: a frame's, the place, its caller) in the console. To find the buffers "
-                  "a frame makes and frees."),
+                  "a frame makes and frees. Includes call kinds, requested bytes and the busiest frame; tracing affects timings."),
         header("Crashes"),
         command("Crash the Game", "vr_debug_crash")
             .help("vr_debug_crash [access | abort]: crashes the game now, on purpose, to test the crash report (in a test run: "
@@ -8185,7 +8186,7 @@ void qvr::menu::pathCheck_f()
         at = end + 1;
     }
     Con_Printf("menu paths: %d found, %d missing\n", found, missing);
-    free(file);
+    VR_HeapFree(file);
 }
 
 int qvr::menu::bodyCalibrationPage()

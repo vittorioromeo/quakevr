@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_anchor.cpp -- see vr_anchor.hpp.
 
 #include "vr_anchor.hpp"
@@ -241,7 +242,7 @@ private:
     constexpr int headerSize = 84;
     if(size < headerSize || readInt(0) != IDPOLYHEADER)
     {
-        free(data);
+        VR_HeapFree(data);
         return tris;
     }
 
@@ -272,7 +273,7 @@ private:
 
     if(ofs + numtris * 16 > size)
     {
-        free(data);
+        VR_HeapFree(data);
         return tris;
     }
 
@@ -286,7 +287,7 @@ private:
         }
     }
 
-    free(data);
+    VR_HeapFree(data);
     return tris;
 }
 

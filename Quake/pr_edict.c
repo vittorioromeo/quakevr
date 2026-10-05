@@ -1655,9 +1655,9 @@ void PR_ClearProgs(qcvm_t *vm)
 
 	if (qcvm->knownstrings)
 		Z_Free ((void *)qcvm->knownstrings);
-	free(qcvm->edicts); // ericw -- sv.edicts switched to use malloc()
+	VR_HeapFree(qcvm->edicts); // ericw -- sv.edicts switched to use malloc()
 	if (qcvm->fielddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
-		free(qcvm->fielddefs);
+		VR_HeapFree(qcvm->fielddefs);
 	memset(qcvm, 0, sizeof(*qcvm));
 
 	qcvm = NULL;
@@ -1823,12 +1823,12 @@ static void PR_MergeEngineFieldDefs (void)
 	if (maxdefs != qcvm->progs->numfielddefs)
 	{	//we now know how many entries we need to add...
 		ddef_t *olddefs = qcvm->fielddefs;
-		qcvm->fielddefs = malloc(maxdefs * sizeof(*qcvm->fielddefs));
+		qcvm->fielddefs = VR_HeapMalloc(maxdefs * sizeof(*qcvm->fielddefs));
 		if (!qcvm->fielddefs)
 			Sys_Error ("PR_MergeEngineFieldDefs: out of memory (%d defs)", maxdefs);
 		memcpy(qcvm->fielddefs, olddefs, qcvm->progs->numfielddefs*sizeof(*qcvm->fielddefs));
 		if (olddefs != (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs))
-			free(olddefs);
+			VR_HeapFree(olddefs);
 
 		//allocate the extra defs
 		for (j = 0; j < countof(extrafields); j++)
@@ -2471,7 +2471,7 @@ void SaveData_Init (savedata_t *save)
 {
 	memset (save, 0, sizeof (*save));
 	save->buffersize = 48 * 1024 * 1024; // ad_sepulcher needs ~32 MB
-	save->buffer = (byte *) malloc (save->buffersize);
+	save->buffer = (byte *) VR_HeapMalloc (save->buffersize);
 	if (!save->buffer)
 		Sys_Error ("SaveData_Init: couldn't allocate %d bytes", save->buffersize);
 }
@@ -2480,7 +2480,7 @@ void SaveData_Clear (savedata_t *save)
 {
 	if (save->file)
 		fclose (save->file);
-	free (save->buffer);
+	VR_HeapFree (save->buffer);
 	memset (save, 0, sizeof (*save));
 }
 
@@ -2516,7 +2516,7 @@ void SaveData_Fill (savedata_t *save)
 	if (size > save->buffersize)
 	{
 		save->buffersize = size + size/2;
-		save->buffer = (byte *) realloc (save->buffer, save->buffersize);
+		save->buffer = (byte *) VR_HeapRealloc (save->buffer, save->buffersize);
 		if (!save->buffer)
 			Sys_Error ("SaveData_Fill: failed to allocate %d bytes", save->buffersize);
 	}

@@ -174,9 +174,9 @@ void Vec_Grow (void **pvec, size_t element_size, size_t count)
 		total_size = sizeof(vec_header_t) + header.capacity * element_size;
 
 		if (*pvec)
-			new_buffer = realloc (((vec_header_t*)*pvec) - 1, total_size);
+			new_buffer = VR_HeapRealloc (((vec_header_t*)*pvec) - 1, total_size);
 		else
-			new_buffer = malloc (total_size);
+			new_buffer = VR_HeapMalloc (total_size);
 		if (!new_buffer)
 			Sys_Error ("Vec_Grow: failed to allocate %" SDL_PRIu64 " bytes\n", (uint64_t) total_size);
 
@@ -204,7 +204,7 @@ void Vec_Free (void **pvec)
 {
 	if (*pvec)
 	{
-		free(&VEC_HEADER(*pvec));
+		VR_HeapFree(&VEC_HEADER(*pvec));
 		*pvec = NULL;
 	}
 }
@@ -2221,7 +2221,7 @@ byte *COM_LoadFile (const char *path, int usehunk, unsigned int *path_id)
 		buf = (byte *) Hunk_AllocNameNoFill (len+1, base);
 		break;
 	case LOADFILE_MALLOC:
-		buf = (byte *) malloc (len+1);
+		buf = (byte *) VR_HeapMalloc (len+1);
 		break;
 	default:
 		Sys_Error ("COM_LoadFile: bad usehunk");
@@ -2272,7 +2272,7 @@ byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 		return NULL;
 	}
 
-	data = (byte *) malloc (len + 1);
+	data = (byte *) VR_HeapMalloc (len + 1);
 	if (data == NULL)
 	{
 		fclose (f);
@@ -2284,7 +2284,7 @@ byte *COM_LoadMallocFile_TextMode_OSPath (const char *path, long *len_out)
 	if (ferror(f))
 	{
 		fclose (f);
-		free (data);
+		VR_HeapFree (data);
 		return NULL;
 	}
 	data[actuallen] = '\0';
@@ -2908,7 +2908,7 @@ static void COM_MigrateNightdiveUserFiles (void)
 
 		// write config (and create directory structure as needed)
 		COM_WriteFile_OSPath (dst, cfg, strlen (cfg));
-		free (cfg);
+		VR_HeapFree (cfg);
 		Sys_remove (src);
 
 		// move all recognized files
@@ -3721,7 +3721,7 @@ qboolean LOC_LoadFile (const char *file)
 	// clear existing data
 	if (localization.text)
 	{
-		free(localization.text);
+		VR_HeapFree(localization.text);
 		localization.text = NULL;
 	}
 	localization.numentries = 0;
@@ -3791,14 +3791,14 @@ qboolean LOC_LoadFile (const char *file)
 			if (!localization.text) goto fail;
 			mz_zip_reader_end(&archive);
 			SDL_RWclose(rw);
-			localization.text = (char *) realloc(localization.text, size+1);
+			localization.text = (char *) VR_HeapRealloc(localization.text, size+1);
 			localization.text[size] = 0;
 		}
 		else
 		{
 			sz = SDL_RWsize(rw);
 			if (sz <= 0) goto fail;
-			localization.text = (char *) calloc(1, sz+1);
+			localization.text = (char *) VR_HeapCalloc(1, sz+1);
 			if (!localization.text)
 			{
 fail:				mz_zip_reader_end(&archive);
@@ -3923,7 +3923,7 @@ fail:				mz_zip_reader_end(&archive);
 				// grow by 50%
 				localization.maxnumentries += localization.maxnumentries >> 1;
 				localization.maxnumentries = q_max(localization.maxnumentries, 32);
-				localization.entries = (locentry_t*) realloc(localization.entries, sizeof(*localization.entries) * localization.maxnumentries);
+				localization.entries = (locentry_t*) VR_HeapRealloc(localization.entries, sizeof(*localization.entries) * localization.maxnumentries);
 			}
 
 			UTF8_ToQuake (value, strlen (value) + 1, value);
@@ -3962,7 +3962,7 @@ fail:				mz_zip_reader_end(&archive);
 		return false;
 	}
 
-	localization.indices = (unsigned*) realloc(localization.indices, localization.numindices * sizeof(*localization.indices));
+	localization.indices = (unsigned*) VR_HeapRealloc(localization.indices, localization.numindices * sizeof(*localization.indices));
 	memset(localization.indices, 0, localization.numindices * sizeof(*localization.indices));
 
 	for (i = 0; i < localization.numentries; i++)
@@ -4100,9 +4100,9 @@ LOC_Shutdown
 */
 void LOC_Shutdown(void)
 {
-	free(localization.indices);
-	free(localization.entries);
-	free(localization.text);
+	VR_HeapFree(localization.indices);
+	VR_HeapFree(localization.entries);
+	VR_HeapFree(localization.text);
 }
 
 /*

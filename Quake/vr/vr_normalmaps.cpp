@@ -1,3 +1,4 @@
+#include "vr_alloccount.h"
 // vr_normalmaps.cpp -- the normal maps Quake VR makes for the world's textures and the models' skins (vr_normalmaps;
 // gl_texmgr.c's TexMgr_LoadNormalMap makes them textures): from a texture's shading or a skin's colours, with the heights
 // parallax mapping walks (vr_parallax), an authored map's heights, and a skin's islands; and coverage-preserving mipmaps
@@ -543,7 +544,7 @@ extern "C" void VR_SetHeightMask (const byte *mask, int width, int height)
 	heightmask_width = width;
 	heightmask_height = height;
 	heightmask_corners = NULL;
-	free (heightmask_made);
+	VR_HeapFree (heightmask_made);
 	heightmask_made = NULL;
 }
 
