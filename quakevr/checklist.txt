@@ -11,7 +11,7 @@ Weapon pickups (e1m3): fresh guns fire before reloading; regrabbing, holstering 
 Recording: Bullet Time Effects defaults On; toggling it changes spectator effects without changing the headset
 
 [Map Library]
-Open Maps from the corner button and Single Player > Map Library
+Open Maps from the corner button and the main menu's Map Library
 Search, filter and sort smoothly; accented titles and authors read correctly
 Install shows progress; Play is a separate action and installed maps stay remembered
 Unsupported map packages are refused clearly without a partial install
@@ -26,3 +26,4 @@ Record new melee takes: stand closer with the smaller hitbox and melee speed 3
 
 [Expansion setup]
 Base Quake only: hub, tutorial and firing range work; absent mission packs are labelled unavailable
+Official Campaigns: owned data is found; correct campaigns/saves load and VR Hub return works; new ports say in progress
