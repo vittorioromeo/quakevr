@@ -2076,6 +2076,15 @@ bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate)
 {
     if(!walkOn()) { return false; }
     if(!current()) { build(); }
+    // The gates' triggers are the server's edicts: read under its VM, whichever side asks (the client's held objects ask
+    // as it reads the server's messages, VR_RelinkHeld > holdClear, with no VM or the client's active).
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    struct PopVm
+    {
+        qcvm_t* old;
+        ~PopVm() { PR_PopQCVM(old); }
+    } popVm{oldVm};
     float nearest = 1e9f;
     bool found = false;
     const glm::vec3 centre = (lo + hi) * 0.5f;
