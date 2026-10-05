@@ -364,7 +364,7 @@ Campaign campaigns[] = {
     {"id1", "Quake", "start", 0, true, nullptr, 0, 1, {}},
     {"hipnotic", "Scourge of Armagon", "start", 1, true, nullptr, 0, 0, {}},
     {"rogue", "Dissolution of Eternity", "start", 2, true, nullptr, 0, 0, {}},
-    {"dopa", "Dimension of the Past", "e5start", 3, false, dopaResources, countof(dopaResources), 0, {}},
+    {"dopa", "Dimension of the Past", "e5start", 3, true, dopaResources, countof(dopaResources), 0, {}},
     {"mg1", "Dimension of the Machine", "start", 4, false, mg1Resources, countof(mg1Resources), 0, {}},
     {"mg3", "Dawn of the Machine", "start", 5, false, mg3Resources, countof(mg3Resources), 0, {}},
 };
@@ -463,6 +463,11 @@ constexpr const char* mg1LanguageKeys[] = {
 constexpr const char* mg3LanguageKeys[] = {
 #include "vr_loc_mg3.inc"
 };
+
+bool campaignMultiplayerRequested()
+{
+    return Cvar_VariableValue("coop") || Cvar_VariableValue("deathmatch") || svs.maxclients > 1;
+}
 
 int missingLanguage(int index, const char** first = nullptr)
 {
@@ -701,10 +706,10 @@ bool selectCampaign(int selected, bool developer, bool start)
             c.folder, campaignStatus(selected), c.folder, c.root[0] ? c.root : "none");
         return false;
     }
-    if(selected == 3 && Cvar_VariableValue("coop") && !developer)
+    if(selected == 3 && campaignMultiplayerRequested())
     {
-        Con_Printf("VR: Dimension of the Past native readiness covers single-player. Coop checkpoint/revival behavior is not accepted; set coop 0 before starting.\n");
-        return false;
+        Con_Printf("VR: Dimension of the Past native readiness covers single-player. Multiplayer context/join/respawn behavior is not accepted; set coop 0, deathmatch 0 and maxplayers 1 before starting.\n");
+        if(!developer) { return false; }
     }
     const char* firstMissing = "none";
     const int languageMissing = selected >= 3 ? missingLanguage(selected, &firstMissing) : 0;
@@ -780,13 +785,15 @@ extern "C" const char* VR_CampaignHelp(int index)
     const Campaign& c = campaigns[index];
     return va("%s. Data: %s. %s", c.title, c.root[0] ? c.root : "configured basedirs",
         c.status != 1 ? "Supply complete owned campaign files to play." :
+        index == 3 && campaignMultiplayerRequested() ? "Accepted for single-player: set coop 0, deathmatch 0, maxplayers 1; multiplayer context/join/respawn is not accepted." :
         index >= 3 && missingLanguage(index) ? "Language data incomplete: supply updated owned rerelease id1 tables, or enable store discovery." :
         c.nativeReady ? "Starts a new single-player campaign and resets level progress." : "Native gameplay is being ported; campaign play is unavailable.");
 }
 extern "C" void VR_SelectCampaign(int index)
 { selectCampaign(index, false, true); }
 extern "C" int VR_CampaignUnavailable(int index)
-{ return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || !campaigns[index].nativeReady || (index >= 3 && missingLanguage(index)); }
+{ return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || !campaigns[index].nativeReady || (index >= 3 && missingLanguage(index)) ||
+    (index == 3 && campaignMultiplayerRequested()); }
 
 extern "C" void VR_BeforeAddGameDirectory(const char* dir)
 {
@@ -1003,7 +1010,7 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
         requested = legacy;
     }
     if(campaigns[requested].status != 1 || requested != activeCampaign ||
-        (requested >= 3 && !developerNative && (!campaigns[requested].nativeReady || missingLanguage(requested))))
+        (requested >= 3 && !developerNative && (!campaigns[requested].nativeReady || missingLanguage(requested) || (requested == 3 && campaignMultiplayerRequested()))))
     { return selectCampaign(requested, developerNative, false); }
     char source[MAX_OSPATH] = {};
     if(COM_FileExists(va("maps/%s.bsp", map), nullptr))
@@ -1038,7 +1045,11 @@ extern "C" int VR_CanLoadCampaignSave(const char* text)
         const int savedCampaign = Q_atoi(com_token);
         if(savedCampaign < 0 || savedCampaign >= int(countof(campaigns)))
         { Con_Printf("VR: save has an invalid campaign context.\n"); return 0; }
-        if(savedCampaign != activeCampaign && !selectCampaign(savedCampaign, true, false)) { return 0; }
+        // Ready campaign saves obey ordinary data/solo readiness, including when already active.
+        // Keep unfinished developer-save behavior for the campaigns still being ported.
+        if(savedCampaign >= 3 && campaigns[savedCampaign].nativeReady)
+        { if(!selectCampaign(savedCampaign, false, false)) { return 0; } }
+        else if(savedCampaign != activeCampaign && !selectCampaign(savedCampaign, true, false)) { return 0; }
     }
     return 1;
 }

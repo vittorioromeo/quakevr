@@ -4219,6 +4219,10 @@ za::Vector<Item> pageDebugTests()
             .help("Check triggered official monsters, counts and campaign flag isolation. Reload afterward."),
         command("Official Campaign: Progress Report", "vr_mg_world_test 4")
             .help("Print monster counts and both hands' persistent weapon magazines/ids."),
+        command("Dopa: Ordinary Health Pickup", "vr_mg_world_test 11")
+            .help("Destructive acceptance: set health40 and use a real health box; report the cap. Reload afterward."),
+        command("Dopa: Megahealth Carry Setup", "vr_mg_world_test 12")
+            .help("Destructive acceptance: use ordinary and megahealth boxes to check save and level carry. Reload afterward."),
         open("Spawn Pickup Weapons", pageIndex(pageSpawnWeapons))
             .help("Spawn a physical pickup ahead of you, ready to grab and use."),
         header("Physics Stress"),
