@@ -2076,6 +2076,10 @@ bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate)
 {
     if(!walkOn()) { return false; }
     if(!current()) { build(); }
+    // Also queried while the client places a two-handed prop (VR_RelinkHeld), outside QuakeC execution.
+    // Both EDICT_NUM and triggerActive's strings/time belong to the server VM, even with a different VM active.
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
     float nearest = 1e9f;
     bool found = false;
     const glm::vec3 centre = (lo + hi) * 0.5f;
@@ -2100,6 +2104,7 @@ bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate)
             gate = {sd.from, sd.to, sd.normal, sd.mins, sd.maxs, sd.turn, sd.dist};
         }
     }
+    PR_PopQCVM(oldVm);
     return found;
 }
 }
