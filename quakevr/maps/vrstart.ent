@@ -572,3 +572,12 @@
 "classname" "func_wall"
 "spawnflags" "1792"
 }
+{
+"message" "Welcome to Quake VR!\nThis tip is at a fixed point in the map:\nit shows once, within its own range."
+"tipname" "testwelcome"
+"distance" "400"
+"tip_size" "1.5"
+"spawnflags" "4"
+"origin" "64 348 280"
+"classname" "func_vr_tip"
+}

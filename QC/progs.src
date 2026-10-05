@@ -51,6 +51,7 @@ vr_grapple.qc
 vr_enemyshove.qc
 
 buttons.qc
+vr_tips.qc
 client.qc
 doors.qc
 misc.qc

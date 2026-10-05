@@ -25,6 +25,7 @@
 #include "vr_selfcollide.hpp"
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
+#include "vr_tips.hpp"
 #include "vr_worldtext.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
@@ -390,6 +391,62 @@ void PF_floattext()
     const float* color = G_VECTOR(OFS_PARM2);
     worldtext::serverFloatText({org[0], org[1], org[2]}, G_STRING(OFS_PARM1), {color[0], color[1], color[2]},
         G_FLOAT(OFS_PARM3));
+}
+
+// ----------------------------------------------------------------------------
+// Map tips (func_vr_tip: QC/vr_tips.qc; see vr_tips.hpp)
+
+[[nodiscard]] int tipHandle()
+{
+    return static_cast<int>(G_FLOAT(OFS_PARM0));
+}
+
+void PF_vr_tip_make()
+{
+    G_FLOAT(OFS_RETURN) = static_cast<float>(tips::serverMake());
+}
+
+void PF_vr_tip_setname()
+{
+    tips::serverSetName(tipHandle(), G_STRING(OFS_PARM1));
+}
+
+void PF_vr_tip_settext()
+{
+    tips::serverSetText(tipHandle(), G_STRING(OFS_PARM1));
+}
+
+void PF_vr_tip_setpos()
+{
+    tips::serverSetPos(tipHandle(), vecParm1());
+}
+
+// void(float h, entity e) vr_tip_setentity: the tip follows that entity (the client follows it live). The world: a
+// fixed point in the map (the client is told -1).
+void PF_vr_tip_setentity()
+{
+    const int num = NUM_FOR_EDICT(G_EDICT(OFS_PARM1));
+    tips::serverSetEntity(tipHandle(), num > 0 ? num : -1);
+}
+
+void PF_vr_tip_setdistance()
+{
+    tips::serverSetDistance(tipHandle(), G_FLOAT(OFS_PARM1));
+}
+
+void PF_vr_tip_setsize()
+{
+    tips::serverSetSize(tipHandle(), G_FLOAT(OFS_PARM1));
+}
+
+void PF_vr_tip_setdelay()
+{
+    tips::serverSetDelay(tipHandle(), G_FLOAT(OFS_PARM1));
+}
+
+void PF_vr_tip_setflags()
+{
+    tips::serverSetFlags(tipHandle(), static_cast<int>(G_FLOAT(OFS_PARM1)));
 }
 
 // ----------------------------------------------------------------------------
@@ -1817,6 +1874,15 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"carry2hoff", PF_carry2hoff},
     {"carry2hkeep", PF_carry2hkeep},
     {"floattext", PF_floattext},
+    {"vr_tip_make", PF_vr_tip_make},
+    {"vr_tip_setname", PF_vr_tip_setname},
+    {"vr_tip_settext", PF_vr_tip_settext},
+    {"vr_tip_setpos", PF_vr_tip_setpos},
+    {"vr_tip_setentity", PF_vr_tip_setentity},
+    {"vr_tip_setdistance", PF_vr_tip_setdistance},
+    {"vr_tip_setsize", PF_vr_tip_setsize},
+    {"vr_tip_setdelay", PF_vr_tip_setdelay},
+    {"vr_tip_setflags", PF_vr_tip_setflags},
     {"ejectcasings", PF_ejectcasings},
     {"weaponfired", PF_weaponfired},
     {"tracer", PF_tracer},
@@ -1942,6 +2008,7 @@ void resetBuiltinState()
     cvarHandles.clear();
     woundsSent.clear();
     worldtext::serverReset();
+    tips::serverReset();
 }
 
 } // namespace qvr::progs

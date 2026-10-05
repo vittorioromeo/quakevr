@@ -2165,6 +2165,9 @@ void hologramTestMessage()
         command("Show the Torch Tip Now", "vr_tips_test walltorch")
             .help("The wall torch tip on the nearest wall torch in view, as soon as you close the menu (however far; it is "
                   "not counted as shown): to try the two ways and these settings."),
+        command("List This Map's Tips", "vr_tips_test list")
+            .help("Names every tip available here: the built-in ones and this map's func_vr_tip placed by hand. "
+                  "vr_tips_test <name> shows one of them now, however far, to try it."),
         open("Wrist Gadget Messages", pageIndex(pageScreens)).help("The hologram's size, height and look (HUD and Menus > Screens)."),
     };
 }

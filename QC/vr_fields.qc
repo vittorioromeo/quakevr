@@ -168,6 +168,19 @@
 //
 //
 // ----------------------------------------------------------------------------
+// Map tips (func_vr_tip: QC/vr_tips.qc)
+// ----------------------------------------------------------------------------
+
+.string tipname;   // the tip's name (its key in vr_tips_seen)
+.float tiphandle;  // the engine's tip record this one made (vr_tip_make)
+.float tip_size;   // its screen's text size (0: vr_tips_size)
+.float tip_delay;  // seconds near before it shows (unset or < 0: vr_tips_delay)
+.float _vr_tips_repeat; // worldspawn: every func_vr_tip in this map shows again each time you come near
+
+//
+//
+//
+// ----------------------------------------------------------------------------
 // Button fields
 // ----------------------------------------------------------------------------
 

@@ -24425,3 +24425,54 @@ It checks both hands, brazier/wall body contact, a static wall torch, toggles, w
 non-flaming stick, clear space, detaching, lit held/dropped and extinguished portable torches, and a 1.5-second delay.
 In VR, confirm the warning buzz, burns following the touched hand, foot/body burn placement, and withdrawing from
 both e1m2 braziers at `-96 632 406` and `-24 -232 414`; also try wall torch 52 before and after taking it.
+
+## Hand-placed map tips (func_vr_tip) (2026-10-05)
+
+A tip for new players placed by hand in a map, with its own text, range and subject. Alongside the built-in tips
+(`tips` in `Quake/vr/vr_tips.cpp`, which are about a client entity the code knows), the map supplies its own list.
+
+**The channel** (the world texts' pattern exactly, `vr_worldtext.cpp`): the map entity is a QC edict and the client
+cannot read its spawnkeys, so QC makes the server's list and the engine sends it. `QC/vr_tips.qc`'s `func_vr_tip`
+calls the `vr_tip_make` / `vr_tip_set*` builtins (`QC/builtins.qc`, `PF_vr_tip_*` in `vr_builtins.cpp`); the list is
+broadcast through the new `QVR_SVC_TIP_*` subcmds (`vr_protocol.hpp`, dispatched in `vr_client.cpp`) and the whole list
+is replayed to each client as it spawns (`tips::serverWriteAll` from `VR_WriteClientSpawnState`, `vr_server.cpp`).
+`tips::clientReset` (with the client's other state) clears it with the map; `tips::serverReset` with the progs.
+The client's map tips join the same frame loop after the built-in ones: same nearness, view angle, line of sight and
+delay tests, same floating CRT screen with its cable, same gadget hologram.
+
+**Attached to an entity or a prop**: the tip's `target` (or `targetname`, when `target` is unset) names another
+entity's `targetname`; the engine sends that entity's index once (`QVR_SVC_TIP_ENT`, `NUM_FOR_EDICT`; `-1` for the
+world = a fixed point) and the client follows `cl_entities[i]` live — its origin and model box as it moves, `msgtime`
+saying when it is gone (the panel fades). A tip naming itself follows nothing: it stays at its own origin. A target
+placed after the tip in the map file is found again 0.5 s after the map starts (`VR_Tip_Retry`).
+
+**Seen once**: the key in `vr_tips_seen` is `<mapname>:<tipname>` (`<mapname>#<index>` when it has no name), so the
+same name in two maps is two tips; `vr_tips_reset` (VR Settings > Tips > Show Tips Again) clears them with the rest.
+
+**Keys** (`func_vr_tip`, a point entity; the zero defaults mean the player's own VR Settings > Tips values):
+
+| key | default | what it does |
+| --- | --- | --- |
+| `message` | — | its text; `\n` starts a new line. Without it the tip removes itself. |
+| `distance` | 0 | range in units (0: `vr_tips_distance`, 150). |
+| `target` / `targetname` | — | another entity's `targetname`: the tip follows it, live. Neither: a fixed point at its origin. |
+| `tipname` | — | names the tip: its key in `vr_tips_seen`, and what `vr_tips_test` takes. Falls back to `targetname`. |
+| `tip_size` | 0 | its text size (0: `vr_tips_size`; 1 is about 1.5 degrees a character). |
+| `tip_delay` | 0 | seconds he must stay near before it shows (0: `vr_tips_delay`). |
+| spawnflag 1 `REPEAT` | off | shown every time he comes near, not remembered. |
+| spawnflag 2 `HOLOGRAM` | off | in the wrist gadget's hologram instead of the floating screen. A map tip uses the screen whatever `vr_tips` is (1 or 2) unless this is ticked; `vr_tips 0` is no tips at all. |
+| spawnflag 4 `ANYANGLE` | off | shown even out of `vr_tips_view_angle` or hidden by the world. |
+| worldspawn `_vr_tips_repeat` | 0 | 1: every `func_vr_tip` in this map repeats (a tutorial map). |
+
+**In TrenchBroom**: the entity is in `quakevr.fgd` (its QUAKED comment in `QC/vr_tips.qc`, its keys, choices and help
+in `Misc/trenchbroom/entities.fgd`, `python Misc/trenchbroom/fgdgen.py` then `install.ps1` with TrenchBroom closed).
+Point → place it where the tip is about (its origin is what the cable points at; for a fixed point, put it in the open
+air, not in a wall); set `message`; tick the flags. To attach it: give the prop a `targetname` (a `func_button`, a
+`vr_crate`, an item) and the tip that name in `target`. To try one in the game: `vr_tips_test <tipname>` (VR Settings
+> Tips > List This Map's Tips names them all), and Show Tips Again to see it again.
+
+**In vrstart.ent**: one test tip (`testwelcome`), at a fixed point 100 units from the start, `distance 400`,
+`tip_size 1.5`, ANYANGLE — the range and size keys are the ones to try first. Proved headless: with three more test
+tips, the log shows `tips: "testfollow" by entity 54` (attached to an `item_health`), `tips: "testfar" at 64 148 280`
+(302 units, shown only because its `distance` 400 overrides the 150 default), `testwelcome`, and a fourth at the same
+point with `distance 60` never showing; `vr_tips_seen` ends as `vrstart:testfollow vrstart:testfar vrstart:testwelcome`.

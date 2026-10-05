@@ -31,6 +31,7 @@
 #include "vr_explosiondebris.hpp"
 #include "vr_shock.hpp"
 #include "vr_teleport.hpp"
+#include "vr_tips.hpp"
 #include "vr_throw.hpp"
 #include "vr_trace.hpp"
 #include "vr_twohand.hpp"
@@ -657,6 +658,7 @@ extern "C" void VR_OnClientClearState()
     particles::clear();
     decals::clear();
     worldtext::clientReset();
+    tips::clientReset();
     throwing::reset();
     thrownValid[0] = thrownValid[1] = false;
     twohand::reset();
@@ -766,6 +768,15 @@ extern "C" int VR_ParseServerMessage(int cmd)
         case QVR_SVC_WORLDTEXT_HALIGN:
         case QVR_SVC_WORLDTEXT_SCALE: worldtext::clientParse(subcmd); break;
         case QVR_SVC_FLOATTEXT: worldtext::clientParseFloatText(); break;
+        case QVR_SVC_TIP_MAKE:
+        case QVR_SVC_TIP_NAME:
+        case QVR_SVC_TIP_TEXT:
+        case QVR_SVC_TIP_POS:
+        case QVR_SVC_TIP_ENT:
+        case QVR_SVC_TIP_DISTANCE:
+        case QVR_SVC_TIP_SIZE:
+        case QVR_SVC_TIP_DELAY:
+        case QVR_SVC_TIP_FLAGS: tips::clientParse(subcmd); break;
         case QVR_SVC_EJECT: shells::parseEject(); break;
         case QVR_SVC_WOUND: wounds::parseEvent(); break;
         case QVR_SVC_WOUNDCLEAR: wounds::parseClear(); break;

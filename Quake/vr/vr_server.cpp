@@ -14,6 +14,7 @@
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_portals.hpp"
+#include "vr_tips.hpp"
 #include "vr_worldtext.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
@@ -717,6 +718,7 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
     if(vrProtocol())
     {
         worldtext::serverWriteAll(msg);
+        tips::serverWriteAll(msg);
     }
 }
 
