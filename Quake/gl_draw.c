@@ -1318,7 +1318,8 @@ void Draw_GetCanvasTransform (canvastype type, drawtransform_t *transform)
 			Draw_Transform2 (320, 200, s, s2, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
 			break;
 		}
-		s = q_min((float)vid.guiwidth / 320.0f, (float)vid.guiheight / 200.0f);
+		// QVR: room for a fifth more each way round the 320x200 menu (the VR pages use it: menuui::menuHeight 240)
+		s = q_min((float)vid.guiwidth / 384.0f, (float)vid.guiheight / 240.0f);
 		s = CLAMP (1.0f, scr_menuscale.value, s);
 		Draw_Transform (320, 200, s, CANVAS_ALIGN_CENTERX, CANVAS_ALIGN_CENTERY, transform);
 		break;

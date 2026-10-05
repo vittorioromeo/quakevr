@@ -47,6 +47,15 @@ struct Entry
     za::U64 bytes{0};
     int files{0}; // how many files its zip holds (the count only: the browser says "12 files")
     bool hasProgs{false}; // its files carry a progs.dat at any path (vr_maps_allow_progs)
+    // Community ratings: Quaddicted's archived database (the API carries none), joined on the zip's name.
+    za::U16 userRating{0}; // the users' average, x100 (100..500); 0: none
+    za::U8 rating{0};      // Quaddicted's own stars, 1..5; 0: none
+
+    // What the Rating sort and filter go by (x100): the users' average, else Quaddicted's stars; 0: unrated.
+    [[nodiscard]] int score() const
+    {
+        return userRating ? static_cast<int>(userRating) : static_cast<int>(rating) * 100;
+    }
 };
 
 // The index, and what the fetch that made it cost (maps_stats). Registered with mem::Cache (mem::Never: its owner
@@ -63,6 +72,7 @@ struct Index
     int fetchMs{0};
     int parseMs{0};
     int pages{0};
+    int rated{-1}; // packages the ratings were found for (-1: none fetched, e.g. read from the cache)
 
     auto members()
     {
@@ -80,6 +90,7 @@ enum class Sort
     Date, // release_date
     Bytes,
     Title,
+    Rating, // Entry::score, the best first (unrated last)
 };
 
 struct Query
@@ -89,6 +100,7 @@ struct Query
     bool allowProgs{false};            // include the packages that carry their own progs.dat
     Sort sort{Sort::Date};
     bool newestFirst{true};            // Date and Bytes only
+    int minRating{0};                  // Entry::score at least this (x100); 0: any, the unrated included
     int limit{0};                      // 0: every match
 };
 

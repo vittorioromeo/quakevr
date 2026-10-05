@@ -22,6 +22,7 @@ enum MapsButton
     MapButtonSort,
     MapButtonType,
     MapButtonSize,
+    MapButtonRating,
     MapButtonAction,
     MapButtonCount
 };
@@ -34,6 +35,7 @@ struct MapsSortChoice
     bool newestFirst;
 };
 constexpr MapsSortChoice mapsSorts[] = {
+    {"rating", mapindex::Sort::Rating, true},
     {"newest", mapindex::Sort::Date, true},
     {"oldest", mapindex::Sort::Date, false},
     {"largest", mapindex::Sort::Bytes, true},
@@ -41,6 +43,15 @@ constexpr MapsSortChoice mapsSorts[] = {
     {"title", mapindex::Sort::Title, true},
 };
 constexpr int mapsSortCount = static_cast<int>(sizeof(mapsSorts) / sizeof(mapsSorts[0]));
+
+// The minimum community ratings the Rating button cycles (Entry::score, x100; 0: any, the unrated included).
+struct MapsRatingChoice
+{
+    const char* label;
+    int min;
+};
+constexpr MapsRatingChoice mapsRatings[] = {{"any", 0}, {"3+", 300}, {"3.5+", 350}, {"4+", 400}, {"4.5+", 450}};
+constexpr int mapsRatingCount = static_cast<int>(sizeof(mapsRatings) / sizeof(mapsRatings[0]));
 
 // A filter choice read from the index (a type or a map_size a package carries, and how many do).
 struct MapsFacet
@@ -53,7 +64,8 @@ struct MapsFacet
 struct MapsPage
 {
     za::String query;
-    int sort{0};
+    int sort{1}; // newest
+    int rating{0}; // mapsRatings
     za::Vector<MapsFacet> typeFacets, sizeFacets;
     int typeIdx{0}, sizeIdx{0}; // 0: any; n > 0: facets[n - 1]
     za::I64 facetsAt{-1};       // index().fetchedAt the facets were read from
@@ -61,7 +73,7 @@ struct MapsPage
     za::Vector<const mapindex::Entry*> results;
     za::String sigQuery;
     za::String sigType, sigSize;
-    int sigSort{-1}, sigTypeIdx{-1}, sigSizeIdx{-1};
+    int sigSort{-1}, sigTypeIdx{-1}, sigSizeIdx{-1}, sigRating{-1};
     int sigProgs{-1};
     za::I64 sigFetched{-1};
     int sigInstalled{-1};
@@ -177,6 +189,7 @@ void mapsRunSearch()
     q.allowProgs = vr_maps_allow_progs.value != 0.f;
     q.sort = mapsSorts[mapPage.sort].sort;
     q.newestFirst = mapsSorts[mapPage.sort].newestFirst;
+    q.minRating = mapsRatings[mapPage.rating].min;
     q.limit = 0; // every match: the page scrolls, and its header says how many there are
     mapindex::search(q, mapPage.results);
 
@@ -198,6 +211,7 @@ void mapsRunSearch()
     mapPage.sigSort = mapPage.sort;
     mapPage.sigTypeIdx = mapPage.typeIdx;
     mapPage.sigSizeIdx = mapPage.sizeIdx;
+    mapPage.sigRating = mapPage.rating;
     mapPage.sigProgs = q.allowProgs ? 1 : 0;
     mapPage.sigFetched = idx.fetchedAt;
     mapPage.sigInstalled = static_cast<int>(mapinstall::installedList().size());
@@ -229,7 +243,7 @@ void mapsShown()
     const int installed = static_cast<int>(mapinstall::installedList().size());
     const int progs = vr_maps_allow_progs.value != 0.f ? 1 : 0;
     if(mapPage.sigQuery != mapPage.query || mapPage.sigSort != mapPage.sort || mapPage.sigTypeIdx != mapPage.typeIdx ||
-        mapPage.sigSizeIdx != mapPage.sizeIdx || mapPage.sigProgs != progs || mapPage.sigFetched != idx.fetchedAt ||
+        mapPage.sigSizeIdx != mapPage.sizeIdx || mapPage.sigRating != mapPage.rating || mapPage.sigProgs != progs || mapPage.sigFetched != idx.fetchedAt ||
         mapPage.sigInstalled != installed)
     {
         mapsRunSearch();
@@ -272,16 +286,17 @@ struct MapsLayout
         }
     }
     m.bar.half = 7.f; // (the bar's buttons as before)
-    m.bar.yc = static_cast<float>(l.helpTop) + m.bar.half / m.s.k + 2.f;
+    // At the page's foot (its status line just under it), well clear of the columns' last lines above.
+    m.bar.yc = static_cast<float>(l.bottom) - m.bar.half - 10.f;
     m.listBottom = static_cast<float>(l.helpTop) - 6.f;
     const float rowStep = (2.f * m.s.half + 3.f) / m.s.k;
     m.detailTop = m.s.keys.empty() ? m.s.boxY + rowStep : m.s.keys.back().yc + rowStep;
 
-    // Three filters across the left, the action (Install / Play) at the right end of the bar.
+    // Four filters across the left, the action (Install / Play) at the right end of the bar.
     const float total = m.s.right - m.s.left;
-    const float action = za::fmin(160.f, total * 0.36f);
-    const float each = (total - action - 6.f) / 3.f;
-    for(int i = 0; i < 3; i++)
+    const float action = za::fmin(130.f, total * 0.28f);
+    const float each = (total - action - 6.f) / 4.f;
+    for(int i = 0; i < MapButtonAction; i++)
     {
         m.bar.x0[i] = m.s.left + each * static_cast<float>(i) + 2.f;
         m.bar.x1[i] = m.s.left + each * static_cast<float>(i + 1) - 2.f;
@@ -436,6 +451,9 @@ void mapsButtonAt(int button)
             break;
         case MapButtonSize:
             mapPage.sizeIdx = (mapPage.sizeIdx + 1) % (static_cast<int>(mapPage.sizeFacets.size()) + 1);
+            break;
+        case MapButtonRating:
+            mapPage.rating = (mapPage.rating + 1) % mapsRatingCount;
             break;
         case MapButtonAction:
             mapsPrimaryAt(mapsSelected());
@@ -873,10 +891,19 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
     y += 10.f;
 
     const za::String sizeLabel = mapinstall::formatBytes(e.bytes);
-    q_snprintf(mapsText.meta, sizeof(mapsText.meta), "%s  %s  %s  %d files  %s%s",
+    char rated[48] = "";
+    if(e.userRating)
+    {
+        q_snprintf(rated, sizeof(rated), "  rated %.1f/5", static_cast<double>(e.userRating) / 100.0);
+    }
+    else if(e.rating)
+    {
+        q_snprintf(rated, sizeof(rated), "  rated %d/5", static_cast<int>(e.rating));
+    }
+    q_snprintf(mapsText.meta, sizeof(mapsText.meta), "%s  %s  %s  %d files  %s%s%s",
         idx.field(e.date) ? idx.field(e.date) : "undated",
         idx.field(e.types) ? idx.field(e.types) : "type?",
-        idx.field(e.sizes) ? idx.field(e.sizes) : "size?", e.files, sizeLabel.cStr(), have ? "  INSTALLED" : "");
+        idx.field(e.sizes) ? idx.field(e.sizes) : "size?", e.files, sizeLabel.cStr(), rated, have ? "  INSTALLED" : "");
     drawMapsWrapped(mapsText.meta, x, y, 6.f, width, 2);
     y += 14.f;
 
@@ -1026,7 +1053,7 @@ void drawMapsPage()
     // The bottom bar: the filters, and Install or Play for the picked package (its progress while a job runs).
     const int r = mapsSelected();
     const bool have = r >= 0 && mapinstall::installed(za::String{mapindex::index().field(mapPage.results[r]->sha256)});
-    for(int b = 0; b < 3; b++)
+    for(int b = 0; b < MapButtonAction; b++)
     {
         const bool hot = mapPage.hoverButton == b || mapPage.focusButton == b;
         if(b == MapButtonSort)
@@ -1037,6 +1064,10 @@ void drawMapsPage()
         {
             q_snprintf(mapsText.label, sizeof(mapsText.label), "type: %s",
                 mapPage.typeIdx > 0 ? mapPage.typeFacets[mapPage.typeIdx - 1].value.cStr() : "any");
+        }
+        else if(b == MapButtonRating)
+        {
+            q_snprintf(mapsText.label, sizeof(mapsText.label), "rated: %s", mapsRatings[mapPage.rating].label);
         }
         else
         {

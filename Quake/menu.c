@@ -1162,8 +1162,7 @@ enum
 	MAIN_MAPLIBRARY, // QVR: the map browser (vr_menu_maps.inc)
 	MAIN_OPTIONS,
 	MAIN_MODS,
-	MAIN_HELP,
-	MAIN_QUIT,
+	MAIN_QUIT, // QVR: no Help/Ordering row
 
 	MAIN_ITEMS,
 };
@@ -1172,7 +1171,7 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"VR Calibration", "Single Player", "Multiplayer", "Map Library", "Options", "Mods", "Help/Ordering", "Quit",
+	"VR Calibration", "Single Player", "Multiplayer", "Map Library", "Options", "Mods", "Quit",
 };
 
 const char *M_Main_RowLabel (void) // QVR: menu_vr pos
@@ -1231,17 +1230,17 @@ void M_Main_Draw (void)
 		p = Draw_CachePic ("gfx/mainmenu.lmp");
 		M_DrawSubpic (72, 52, p, 0, 0, p->width, split);
 		M_PrintEx (74, 52 + split + 1, 16, "MAP LIBRARY");
+		M_DrawSubpic (72, 52 + split + 20, p, 0, split, p->width, 20); // Options
+		row = 52 + split + 40;
 		if (m_main_mods)
 		{
-			M_DrawSubpic (72, 52 + split + 20, p, 0, split, p->width, 20); // Options
 			if (m_main_mods > 0)
-				M_DrawTransPic (72, 52 + split + 40, Draw_CachePic ("gfx/menumods.lmp"));
+				M_DrawTransPic (72, row, Draw_CachePic ("gfx/menumods.lmp"));
 			else
-				M_PrintEx (74, 52 + split + 40 + 1, 16, "MODS");
-			M_DrawSubpic (72, 52 + split + 60, p, 0, split + 20, p->width, p->height - split - 20);
+				M_PrintEx (74, row + 1, 16, "MODS");
+			row += 20;
 		}
-		else
-			M_DrawSubpic (72, 52 + split + 20, p, 0, split, p->width, p->height - split);
+		M_DrawSubpic (72, row, p, 0, split + 40, p->width, p->height - split - 40); // Quit (the picture's Help row left out)
 	}
 
 	cursor = m_main_cursor;
@@ -1313,10 +1312,6 @@ void M_Main_Key (int key)
 
 		case MAIN_OPTIONS:
 			M_Menu_Options_f ();
-			break;
-
-		case MAIN_HELP:
-			M_Menu_Help_f ();
 			break;
 
 		case MAIN_MODS:

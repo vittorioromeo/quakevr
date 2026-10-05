@@ -57,6 +57,10 @@ constexpr Op ops[]{
     {Op::Copy, 5, 71, 82, 0, 17, 0, 0, false, 0x3222567du},
     {Op::Copy, 5, 83, 90, 0, 6, 12, 0, false, 0x590c663cu},
     {Op::Copy, 5, 83, 90, 0, 6, 12, 10, true, 0x590c663cu},
+    {Op::Copy, 0, 114, 122, 0, 20, 0, 0, false, 0x25a8142du},
+    {Op::Copy, 0, 79, 87, 9, 17, 8, 1, false, 0x1307921du},
+    {Op::Copy, 1, 138, 153, 0, 20, 0, 0, false, 0xe744ec8cu},
+    {Op::Clear, 0, 0, 1, 10, 17, 0, 0, false, 0u},
     {Op::Copy, 2, 22, 31, 0, 20, 0, 0, false, 0x785b7beau},
     {Op::Clear, 0, 0, 1, 7, 11, 0, 0, false, 0u},
     {Op::Copy, 2, 31, 41, 3, 7, 9, 0, false, 0x0d8ca07du},
@@ -92,7 +96,9 @@ constexpr GlyphDef glyphDefs[]{
     {"R", 21, 21, 25, 3},
     {"V", 19, 19, 28, 10},
     {"C", 19, 19, 38, 3},
-    {"b", 19, 19, 41, 8},
+    {"L", 17, 17, 41, 2},
+    {"y", 15, 15, 43, 2},
+    {"b", 19, 19, 45, 8},
 };
 
 constexpr int cellRows = 24;

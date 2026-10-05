@@ -10,7 +10,8 @@
 #   C(band, x0, x1, y0, y1, dx, dy, flip): copies the band's rows y0..y1 (columns x0..x1) to column dx, down by the
 #     band's own offset plus dy (flip: the rows upside down);
 #   X(x0, x1, y0, y1): clears that part of the cell (a neighbour's pixels that reach into a letter's columns).
-# The pictures have no V, R, C or b (VR Calibration): they are made from v (Save), r (Player), G (Game) and p (Options),
+# The pictures have no V, R, C or b (VR Calibration), nor L or y alone (Map Library): they are made from v (Save), r
+# (Player), G (Game) and p (Options); L from P's stem and l's foot, y from ay,
 # stretched or mirrored. "ay" is one glyph: the two letters overlap in the pictures.
 # --preview draws the given texts (the main menu's rows by default) with the pak's letters, 3 times the size.
 import argparse
@@ -63,6 +64,8 @@ glyph('V', 19, [C('S2', 32, 51, 3, 7, dy=-2), C('S2', 32, 51, 6, 11, dy=-1), C('
                 X(0, 7, 14, 16)])  # without a's leg
 glyph('C', 19, [C('S0', 71, 82, 0, 17), C('S0', 83, 90, 0, 6, dx=12),  # G's curve and its top end,
                 C('S0', 83, 90, 0, 6, dx=12, dy=10, flip=True)])  # the end again at the bottom
+glyph('L', 17, [C('M0', 114, 122), C('M0', 79, 87, 9, 17, dx=8, dy=1)])  # P's stem (a capital's height), l's foot
+glyph('y', 15, [C('M1', 138, 153), X(0, 1, 10, 17)])  # ay's y alone (without a's last column)
 glyph('b', 19, [C('M2', 22, 31), X(0, 1, 7, 11),  # p's stem, and its bowl twice (rows 3-6 and 10-12 of it)
                 C('M2', 31, 41, 3, 7, dx=9), C('M2', 31, 41, 10, 13, dx=9, dy=-3),
                 C('M2', 31, 41, 3, 7, dx=9, dy=6), C('M2', 31, 41, 10, 13, dx=9, dy=3), X(18, 19, 3, 6), X(18, 19, 9, 12)])
