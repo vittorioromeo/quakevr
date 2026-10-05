@@ -122,6 +122,7 @@ void requestCancel(CancelReason reason)
 struct Request
 {
     za::String sha, title, urls; // the mirrors, mapindex::partSep separated
+    za::String extract;          // install.extract: where the zip's root goes ("{base}/id1/maps/", "{base}/", ...)
     za::U64 zipBytes{0};
     bool install{true};
 };
@@ -309,7 +310,68 @@ bool safePath(const char* name, za::String& out)
            lower.endsWith("/thumbs.db");
 }
 
-// The one folder every entry is under (a zip built around a folder: the index's zipbasedir tag). "" : none.
+// A folder a game dir holds its assets in: a zip's path starting with one is laid out from a game dir already.
+[[nodiscard]] bool assetFolder(const za::String& first)
+{
+    static constexpr const char* names[] = {"maps", "gfx", "sound", "progs", "textures", "music", "env", "lits",
+        "locs", "particles", "scripts", "shaders", "sprites", "skins", "models"};
+    for(const char* n : names)
+    {
+        if(!q_strcasecmp(first.cStr(), n))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+[[nodiscard]] za::String firstSegment(const za::String& p)
+{
+    const za::SizeT slash = p.findFirstOf('/');
+    return slash == za::StringView::nPos ? za::String{} : za::String{p.substrByPosLen(0, slash)};
+}
+
+// Where the zip's root goes, from the index's install.extract ("{base}/id1/maps/", "{base}/ad/", "{base}/", ""): its
+// game folder (id1, ad, copper, quoth, ...: every one is quakevr here, the VR progs being what plays them) dropped, the
+// rest kept as the prefix inside our game dir ("maps" for "{base}/id1/maps/", "" for "{base}/ad/"). `perEntryGame`:
+// "{base}/" (or none given): each entry starts with its own game folder ("vanisch01/maps/...": a mod's folder, made
+// to be run with -game), dropped entry by entry.
+void extractLayout(const za::String& extract, za::String& prefix, bool& perEntryGame)
+{
+    za::String rest = extract;
+    if(rest.size() >= 6 && !q_strncasecmp(rest.cStr(), "{base}", 6))
+    {
+        rest.erase(0, 6);
+    }
+    za::Vector<za::String> parts;
+    za::SizeT i = 0;
+    while(i <= rest.size())
+    {
+        za::SizeT j = i;
+        while(j < rest.size() && rest.cStr()[j] != '/' && rest.cStr()[j] != '\\')
+        {
+            j++;
+        }
+        if(j > i)
+        {
+            parts.pushBack(za::String{rest.substrByPosLen(i, j - i)});
+        }
+        i = j + 1;
+    }
+    prefix = za::String{};
+    perEntryGame = parts.empty();
+    for(za::SizeT p = 1; p < parts.size(); p++)
+    {
+        if(prefix.size())
+        {
+            prefix += "/";
+        }
+        prefix += parts[p];
+    }
+}
+
+// The one folder every entry is under (a zip built around a folder: the index's zipbasedir tag). "" : none, or one of
+// a game dir's own asset folders (a zip of maps/ alone is laid out from the game dir, not wrapped).
 [[nodiscard]] za::String commonTopDir(const za::Vector<za::String>& paths)
 {
     za::String top;
@@ -330,7 +392,7 @@ bool safePath(const char* name, za::String& out)
             return za::String{};
         }
     }
-    return top;
+    return assetFolder(top) ? za::String{} : top;
 }
 
 // A BSP's version: 29 (Quake's), or a BSP2 variant's (its version field spells 2PSB, BSP2 or Q64). Anything else is a
@@ -525,7 +587,10 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
             continue;
         }
         unpacked += it.bytes;
-        paths.pushBack(it.path);
+        if(!it.dir)
+        {
+            paths.pushBack(it.path); // (a folder's own entry, "vanisch01/" read as "vanisch01", is no file at the root)
+        }
         items.pushBack(ZA_MOVE(it));
     }
     if(unpacked > maxUnpackedBytes)
@@ -536,7 +601,12 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
         return false;
     }
 
-    const za::String top = commonTopDir(paths); // (the zipbasedir tag: a single top-level folder, stripped)
+    za::String prefix;
+    bool perEntryGame = false;
+    extractLayout(request.extract, prefix, perEntryGame);
+    // A single folder around everything (the zipbasedir tag), stripped where the entries do not each carry their game
+    // folder anyway.
+    const za::String top = perEntryGame ? za::String{} : commonTopDir(paths);
 
     int written = 0;
     int skipped = 0;
@@ -555,15 +625,29 @@ bool extractZip(const za::Vector<char>& body, Job& job, za::String& why)
         {
             rel.erase(0, top.size() + 1);
         }
+        else if(perEntryGame)
+        {
+            // "vanisch01/gfx/env/x.tga": its game folder dropped, unless it is laid out from a game dir already
+            // ("maps/x.bsp"); a file at the root (a readme) stays there.
+            const za::String first = firstSegment(rel);
+            if(first.size() && !assetFolder(first))
+            {
+                rel.erase(0, first.size() + 1);
+            }
+        }
         if(rel.empty())
         {
             refused++;
             continue;
         }
-        // A BSP to maps/, under its own name only: that is where the engine's `map` command looks. Everything else to
-        // the game dir's root, keeping its path (its textures and sounds are named from there).
+        // A BSP to maps/, under its own name only: that is where the engine's `map` command looks. Everything else
+        // where the index says the zip's root goes (maps/ for most single maps: a .lit beside its BSP), keeping its
+        // path (textures and sounds are named from the game dir).
         const bool bsp = endsFolded(rel, ".bsp");
-        const za::String target = bsp ? mapsDirName + "/" + baseName(rel) : gameDirName + "/" + rel;
+        const za::String placed = prefix.size() && !(firstSegment(rel).size() && assetFolder(firstSegment(rel)))
+                                      ? prefix + "/" + rel
+                                      : rel;
+        const za::String target = bsp ? mapsDirName + "/" + baseName(rel) : gameDirName + "/" + placed;
         done++;
         SDL_AtomicSet(&progress, downloadShare + (100 - downloadShare) * done / static_cast<int>(items.size()));
         if(it.dir)
@@ -925,6 +1009,7 @@ bool begin(const mapindex::Entry* entry, bool install, za::String* why)
     request.sha = za::String{mapindex::index().field(entry->sha256)};
     request.title = za::String{mapindex::index().field(entry->title)};
     request.urls = za::String{mapindex::index().field(entry->urls)};
+    request.extract = za::String{mapindex::index().field(entry->extract)};
     request.zipBytes = entry->bytes;
     request.install = install;
     SDL_AtomicSet(&cancelJob, 0);
