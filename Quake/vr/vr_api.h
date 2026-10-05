@@ -386,6 +386,7 @@ int VR_CanLoadCampaignSave(const char *text);
 const char *VR_GameDirectoryRoot(const char *dir, int index);
 void VR_PrepareCampaignDirectories(const char *paths);
 void VR_InitCampaignDirectories(void);
+char *VR_LoadOwnedLocalization(const char *file);
 int VR_IsNativeCampaignLaunch(void);
 int VR_IsNewCampaignDirectory(const char *dir);
 int VR_ShouldMountCampaignDirectory(const char *dir);

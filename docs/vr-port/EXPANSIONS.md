@@ -532,3 +532,33 @@ gated. The earlier crash/stall remain retained, unassigned intermittent findings
 Preliminary builds had link failures when a headless run still held the executable; final verification used the
 successful fresh Release build. Final QC has 0 warnings; priority/static checks and FGD 270 pass. Git diff check passes.
 Nightmare acceptance also exits 0: fresh Dopa e5start health50, and e5m1 health50 with 53 total / 8 deferred monsters; normal-difficulty new campaign health100 was checked separately.
+
+## Portable campaign language data (mglocalize, 2026-10-06)
+
+`LOC_LoadFile` now layers local requested-language text, read-only owned requested-language tables, local English,
+and owned English. Earlier valid entries win. Empty values and literal untranslated `$identifier` values leave
+room for the fallback. PAK reads validate header/directory/payload bounds and cap one language table at 8 MiB.
+The resolver shares campaign root precedence and honors disabled Steam/GOG lookup; KPF fallback also honors
+Steam/GOG/Epic disable flags. Borrowed language lookup never mounts general id1 content or changes writable bases.
+No translated text, maps or other commercial assets are committed. The identifier-only inventories cover
+30 Dopa BSP strings, 198 MG1 QC/BSP strings and 246 MG3 QC/BSP strings; the installed updated English table
+resolves all of them. MG1/MG3 gameplay readiness remains false.
+
+Each parsed entry retains its actual source. Read-only `loc_probe $identifier [arguments...]` uses the same
+placeholder formatter as QC and prints the winning table; Debug > Reports has Dopa Finale Text. Campaign
+status reports missing-key counts, and ordinary selection gives actionable language-data instructions before
+loading unsupported content. Empty/raw placeholder entries do not hide an owned fallback; literal templates
+with `{0}`/`{1}` format correctly even when no table loaded. No new cvars/defaults.
+
+Private owned-data fixture matrix passes original-id1 with Steam lookup, rerelease-only with stores disabled,
+original with explicit owned roots and stores disabled, standalone missing tables, a one-entry old table, custom
+Italian with real owned Italian, and partial Italian with English-only owned tables. Custom strings are preserved;
+missing Italian, empty finale and raw-placeholder upgrade values fall back to readable English. Representative
+MG3 messages produce health capacity120 and shell capacity80 with no braces/literal identifiers. Original e1m1
+map/player-model probes retain original asset provenance while tables come from rerelease.
+
+Tests use hidden mock, `-nomapindex -noaddons`; default map-index startup remains unverified. Timestamped evidence
+and authored-asset fixtures are worktree-only under `localization-tests/`. A first diagnostic script queued `wait`
+before loading a map and timed out at150s; its log is retained. Adding an active stock map before waits lets the
+same language probes exit0. This driver correction is not an attribution or repair for the earlier transition
+crash/stall. Real transition/campaign cases are recorded with the Dopa readiness acceptance below.

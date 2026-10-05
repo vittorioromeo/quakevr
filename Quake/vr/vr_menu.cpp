@@ -3930,7 +3930,8 @@ za::Vector<Item> pageDebugReports()
 {
     return {
         header("The Game"),
-        command("Official Campaign Status", "vr_campaign_status").help("Owned data readiness and the active native campaign context."),
+        command("Official Campaign Status", "vr_campaign_status").help("Owned data and language readiness; active native campaign context."),
+        command("Dopa Finale Text", "loc_probe $map_dopa_endtext_final").help("Preview the resolved completion text. loc_probe <key> [arguments] also checks formatted expansion strings."),
         command("Campaign File Sources", "vr_campaign_probe").help("Actual resolved sources for VR progs and colliding official maps; vr_campaign_probe <filename> checks any virtual file."),
         command("Mission Pack Status", "vr_pack_status")
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),

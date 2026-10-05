@@ -383,10 +383,8 @@ int campaignIndex(const char* name)
     return -1;
 }
 
-void discoverCampaigns()
+za::Vector<za::String> ownedRoots()
 {
-    if(discoveredCampaigns) { return; }
-    discoveredCampaigns = true;
     // Explicit bases win, last base highest. Never add store roots to com_basedirs:
     // configs, saves and community caches must remain under the writable VR root.
     // (on the heap: MAX_BASEDIRS * 3 + 2 paths of PATH_MAX bytes is most of a megabyte of stack on Linux)
@@ -414,6 +412,16 @@ void discoverCampaigns()
         addRoot(path);
         addRoot(com_basedirs[i]);
     }
+    return roots;
+}
+
+void discoverCampaigns()
+{
+    if(discoveredCampaigns) { return; }
+    discoveredCampaigns = true;
+    // Explicit bases win, last base highest. Never add store roots to com_basedirs:
+    // configs, saves and community caches must remain under the writable VR root.
+    const auto roots = ownedRoots();
     for(int i = 3; i < int(countof(campaigns)); ++i)
     {
         Campaign& c = campaigns[i];
@@ -446,10 +454,34 @@ void publishCampaign(bool syncHub = false)
     { Cvar_SetROM(va("vr_%s_status", campaigns[i].folder), va("%d", campaigns[i].status)); }
 }
 
+constexpr const char* dopaLanguageKeys[] = {
+#include "vr_loc_dopa.inc"
+};
+constexpr const char* mg1LanguageKeys[] = {
+#include "vr_loc_mg1.inc"
+};
+constexpr const char* mg3LanguageKeys[] = {
+#include "vr_loc_mg3.inc"
+};
+
+int missingLanguage(int index, const char** first = nullptr)
+{
+    const char* const* keys = index == 3 ? dopaLanguageKeys : index == 4 ? mg1LanguageKeys : mg3LanguageKeys;
+    const size_t count = index == 3 ? countof(dopaLanguageKeys) : index == 4 ? countof(mg1LanguageKeys) : countof(mg3LanguageKeys);
+    int missing = 0;
+    for(size_t i = 0; i < count; ++i)
+    {
+        const char* text = LOC_GetRawString(keys[i]);
+        if(!text || !*text || !strcmp(text, keys[i]))
+        { if(first && !missing) { *first = keys[i]; } ++missing; }
+    }
+    return missing;
+}
+
 const char* campaignStatus(int i)
 {
     return campaigns[i].status == 0 ? "missing" : campaigns[i].status == 2 ? "incomplete/corrupt" :
-        campaigns[i].nativeReady ? "ready" : "installed; native support in progress";
+        campaigns[i].nativeReady ? (i >= 3 && Cvar_FindVar("language") && missingLanguage(i) ? "installed; language data incomplete" : "ready") : "installed; native support in progress";
 }
 
 void reportCampaigns()
@@ -459,6 +491,12 @@ void reportCampaigns()
         const Campaign& c = campaigns[i];
         Con_Printf("VR campaign %d %s: %s; start %s; schema %d; source %s\n",
             i, c.folder, campaignStatus(i), c.start, c.schema, c.root[0] ? c.root : "configured basedirs");
+    }
+    for(int i = 3; i < int(countof(campaigns)); ++i)
+    {
+        const char* first = "none";
+        const int missing = missingLanguage(i, &first);
+        Con_Printf("VR language %s: %d missing identifiers; first %s. Missing translations use owned English when available.\n", campaigns[i].folder, missing, first);
     }
     Con_Printf("VR active campaign: %s (%d), VR progs highest.\n", campaigns[activeCampaign].folder, activeCampaign);
 }
@@ -523,6 +561,88 @@ void gameFolderName(const char* path, char* out, size_t size)
 } // namespace
 
 // The filesystem asks for roots here without changing its writable basedirs.
+// Language tables are borrowed individually; this never mounts their maps/models or
+// changes com_basedirs (and therefore cannot redirect saves/configs to a store).
+extern "C" char* VR_LoadOwnedLocalization(const char* name)
+{
+    if(strncmp(name, "localization/loc_", 17) || strchr(name, ':') || strstr(name, "..")) { return nullptr; }
+    const auto roots = ownedRoots();
+    char* result = nullptr;
+    size_t used = 0;
+    const auto append = [&](FILE* file, long offset, long length, const char* source)
+    {
+        constexpr long maxTable = 8 * 1024 * 1024;
+        if(length <= 0 || length > maxTable || fseek(file, offset, SEEK_SET)) { return; }
+        char* buffer = static_cast<char*>(VR_HeapMalloc(static_cast<size_t>(length) + 1));
+        if(fread(buffer, 1, static_cast<size_t>(length), file) != static_cast<size_t>(length))
+        { VR_HeapFree(buffer); return; }
+        // A separate line between tables preserves the final entry of files without a newline.
+        char marker[MAX_OSPATH + 32];
+        const size_t markerLength = q_snprintf(marker, sizeof(marker), "// vr-language-source %s\n", source);
+        result = static_cast<char*>(VR_HeapRealloc(result, used + markerLength + static_cast<size_t>(length) + 2));
+        memcpy(result + used, marker, markerLength);
+        used += markerLength;
+        memcpy(result + used, buffer, static_cast<size_t>(length));
+        used += static_cast<size_t>(length);
+        result[used++] = '\n';
+        result[used] = 0;
+        VR_HeapFree(buffer);
+        Con_Printf("[skipnotify]VR language source: %s -> %s\n", name, source);
+    };
+    for(int r = int(roots.size()) - 1; r >= 0; --r)
+    {
+        char path[MAX_OSPATH];
+        int last = -1;
+        for(int pak = 0; pak < 2048; ++pak)
+        {
+            q_snprintf(path, sizeof(path), "%s/id1/pak%d.pak", roots[r].cStr(), pak);
+            FILE* file = fopen(path, "rb");
+            if(!file) { break; }
+            fclose(file);
+            last = pak;
+        }
+        for(int pak = last; pak >= 0; --pak)
+        {
+            q_snprintf(path, sizeof(path), "%s/id1/pak%d.pak", roots[r].cStr(), pak);
+            FILE* file = fopen(path, "rb");
+            if(!file) { continue; }
+            fseek(file, 0, SEEK_END);
+            const long size = ftell(file);
+            rewind(file);
+            struct { char id[4]; int32_t dirofs; int32_t dirlen; } header{};
+            if(fread(&header, sizeof(header), 1, file) == 1 && !memcmp(header.id, "PACK", 4))
+            {
+                const int offset = LittleLong(header.dirofs), length = LittleLong(header.dirlen);
+                if(offset >= 12 && length >= 0 && length % sizeof(PackEntry) == 0 &&
+                    length / sizeof(PackEntry) <= 2048 && offset <= size && length <= size - offset)
+                {
+                    for(int entry = 0; entry < length / int(sizeof(PackEntry)); ++entry)
+                    {
+                        PackEntry item{};
+                        fseek(file, offset + entry * sizeof(PackEntry), SEEK_SET);
+                        if(fread(&item, sizeof(item), 1, file) != 1) { break; }
+                        if(!memchr(item.name, 0, sizeof(item.name)) || strcmp(item.name, name)) { continue; }
+                        const int pos = LittleLong(item.offset), len = LittleLong(item.length);
+                        if(pos >= 12 && len > 0 && pos <= size && len <= size - pos) { append(file, pos, len, path); }
+                        break;
+                    }
+                }
+            }
+            fclose(file);
+        }
+        q_snprintf(path, sizeof(path), "%s/id1/%s", roots[r].cStr(), name);
+        FILE* loose = fopen(path, "rb");
+        if(loose)
+        {
+            fseek(loose, 0, SEEK_END);
+            const long size = ftell(loose);
+            append(loose, 0, size, path);
+            fclose(loose);
+        }
+    }
+    return result;
+}
+
 extern "C" const char* VR_GameDirectoryRoot(const char* dir, int index)
 {
     const int i = campaignIndex(dir);
@@ -554,7 +674,7 @@ extern "C" void VR_PrepareCampaignDirectories(const char* paths)
             campaigns[selected].folder, campaignStatus(selected), campaigns[selected].folder);
         selected = 0;
     }
-    if(vr) { activeCampaign = selected; developerNative = selected >= 3; }
+    if(vr) { activeCampaign = selected; developerNative = selected >= 3 && !campaigns[selected].nativeReady; }
     publishCampaign();
 }
 
@@ -580,6 +700,18 @@ bool selectCampaign(int selected, bool developer, bool start)
         Con_Printf("VR: %s is %s. Supply its complete owned data in <basedir>/%s; detected source %s.\n",
             c.folder, campaignStatus(selected), c.folder, c.root[0] ? c.root : "none");
         return false;
+    }
+    if(selected == 3 && Cvar_VariableValue("coop") && !developer)
+    {
+        Con_Printf("VR: Dimension of the Past native readiness covers single-player. Coop checkpoint/revival behavior is not accepted; set coop 0 before starting.\n");
+        return false;
+    }
+    const char* firstMissing = "none";
+    const int languageMissing = selected >= 3 ? missingLanguage(selected, &firstMissing) : 0;
+    if(languageMissing)
+    {
+        Con_Printf("VR: %s language data incomplete: %d missing identifiers (first %s). Supply updated owned rerelease id1/pak*.pak via -basedir, or enable store discovery. Local translations override supplied strings.\n", c.folder, languageMissing, firstMissing);
+        if(!developer) { return false; }
     }
     if(!c.nativeReady && !developer)
     {
@@ -648,12 +780,13 @@ extern "C" const char* VR_CampaignHelp(int index)
     const Campaign& c = campaigns[index];
     return va("%s. Data: %s. %s", c.title, c.root[0] ? c.root : "configured basedirs",
         c.status != 1 ? "Supply complete owned campaign files to play." :
-        c.nativeReady ? "Starts a new campaign and resets level progress." : "Native gameplay is being ported; campaign play is unavailable.");
+        index >= 3 && missingLanguage(index) ? "Language data incomplete: supply updated owned rerelease id1 tables, or enable store discovery." :
+        c.nativeReady ? "Starts a new single-player campaign and resets level progress." : "Native gameplay is being ported; campaign play is unavailable.");
 }
 extern "C" void VR_SelectCampaign(int index)
 { selectCampaign(index, false, true); }
 extern "C" int VR_CampaignUnavailable(int index)
-{ return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || !campaigns[index].nativeReady; }
+{ return index < 0 || index >= int(countof(campaigns)) || campaigns[index].status != 1 || !campaigns[index].nativeReady || (index >= 3 && missingLanguage(index)); }
 
 extern "C" void VR_BeforeAddGameDirectory(const char* dir)
 {
@@ -869,7 +1002,8 @@ extern "C" int VR_CanLoadCampaignMap(const char* map)
         { Con_Printf("VR: invalid campaign index %d; choose a campaign first.\n", legacy); return 0; }
         requested = legacy;
     }
-    if(campaigns[requested].status != 1 || requested != activeCampaign)
+    if(campaigns[requested].status != 1 || requested != activeCampaign ||
+        (requested >= 3 && !developerNative && (!campaigns[requested].nativeReady || missingLanguage(requested))))
     { return selectCampaign(requested, developerNative, false); }
     char source[MAX_OSPATH] = {};
     if(COM_FileExists(va("maps/%s.bsp", map), nullptr))

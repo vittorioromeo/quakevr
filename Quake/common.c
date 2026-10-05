@@ -3693,6 +3693,7 @@ typedef struct
 {
 	char *key;
 	char *value;
+	const char *source;
 } locentry_t;
 
 typedef struct
@@ -3754,34 +3755,27 @@ static size_t mz_zip_file_read_func(void *opaque, mz_uint64 ofs, void *buf, size
 LOC_LoadFile
 ================
 */
-qboolean LOC_LoadFile (const char *file)
+static char *LOC_ReadFile (const char *file)
 {
-	char path[1024];
-	int i,lineno,warnings;
-	char *cursor;
+	char path[1024] = {0};
+	int i;
+	char *text = NULL;
+	char source[1024] = {0};
 
 	SDL_RWops *rw = NULL;
 	Sint64 sz;
 	mz_zip_archive archive;
 	size_t size = 0;
 
-	// clear existing data
-	if (localization.text)
-	{
-		VR_HeapFree(localization.text);
-		localization.text = NULL;
-	}
-	localization.numentries = 0;
-	localization.numindices = 0;
-
 	if (!file || !*file)
-		return false;
+		return NULL;
 
 	memset(&archive, 0, sizeof(archive));
 
-	localization.text = (char *) COM_LoadMallocFile (file, NULL);
+	text = (char *) COM_LoadMallocFile (file, NULL);
+	if (text) { if (Sys_FileType(com_filesource) == FS_ENT_DIRECTORY) q_snprintf(source, sizeof(source), "%s/%s", com_filesource, file); else q_strlcpy(source, com_filesource, sizeof(source)); Con_Printf("[skipnotify]VR language source: %s -> %s\n", file, source); }
 
-	if (!localization.text)
+	if (!text)
 	{
 		for (i = com_numbasedirs - 1; i >= 0; i--)
 		{
@@ -3803,7 +3797,7 @@ qboolean LOC_LoadFile (const char *file)
 			{
 				steamgame_t steamquake;
 				char steampath[MAX_OSPATH];
-				if (Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) &&
+				if (!COM_CheckParm("-nosteam") && Steam_FindGame (&steamquake, QUAKE_STEAM_APPID) &&
 					Steam_ResolvePath (steampath, sizeof (steampath), &steamquake))
 				{
 					q_snprintf(path, sizeof(path), "%s/rerelease/QuakeEX.kpf", steampath);
@@ -3813,7 +3807,7 @@ qboolean LOC_LoadFile (const char *file)
 			if (!rw)
 			{
 				char gogpath[MAX_OSPATH];
-				if (Sys_GetGOGQuakeEnhancedDir (gogpath, sizeof (gogpath)))
+				if (!COM_CheckParm("-nogog") && Sys_GetGOGQuakeEnhancedDir (gogpath, sizeof (gogpath)))
 				{
 					q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", gogpath);
 					rw = SDL_RWFromFile(path, "rb");
@@ -3822,7 +3816,7 @@ qboolean LOC_LoadFile (const char *file)
 			if (!rw)
 			{
 				char egspath[MAX_OSPATH];
-				if (EGS_FindGame (egspath, sizeof (egspath), QUAKE_EGS_NAMESPACE, QUAKE_EGS_ITEM_ID, QUAKE_EGS_APP_NAME))
+				if (!COM_CheckParm("-noegs") && EGS_FindGame (egspath, sizeof (egspath), QUAKE_EGS_NAMESPACE, QUAKE_EGS_ITEM_ID, QUAKE_EGS_APP_NAME))
 				{
 					q_snprintf(path, sizeof(path), "%s/QuakeEX.kpf", egspath);
 					rw = SDL_RWFromFile(path, "rb");
@@ -3834,29 +3828,77 @@ qboolean LOC_LoadFile (const char *file)
 			archive.m_pRead = mz_zip_file_read_func;
 			archive.m_pIO_opaque = rw;
 			if (!mz_zip_reader_init(&archive, sz, 0)) goto fail;
-			localization.text = (char *) mz_zip_reader_extract_file_to_heap(&archive, file, &size, 0);
-			if (!localization.text) goto fail;
+			text = (char *) mz_zip_reader_extract_file_to_heap(&archive, file, &size, 0);
+			if (!text) goto fail;
 			mz_zip_reader_end(&archive);
 			SDL_RWclose(rw);
-			localization.text = (char *) VR_HeapRealloc(localization.text, size+1);
-			localization.text[size] = 0;
+			text = (char *) VR_HeapRealloc(text, size+1);
+			text[size] = 0;
 		}
 		else
 		{
 			sz = SDL_RWsize(rw);
 			if (sz <= 0) goto fail;
-			localization.text = (char *) VR_HeapCalloc(1, sz+1);
-			if (!localization.text)
+			text = (char *) VR_HeapCalloc(1, sz+1);
+			if (!text)
 			{
 fail:				mz_zip_reader_end(&archive);
 				if (rw) SDL_RWclose(rw);
 				Con_Printf("Couldn't load '%s'\n", file);
-				return false;
+				return NULL;
 			}
-			SDL_RWread(rw, localization.text, 1, sz);
+			SDL_RWread(rw, text, 1, sz);
 			SDL_RWclose(rw);
 		}
 	}
+
+	if (text && path[0]) Con_Printf("[skipnotify]VR language fallback: %s -> %s\n", file, path);
+	if (text)
+	{
+		const char *resolved = source[0] ? source : path;
+		const size_t header = strlen(resolved) + 24;
+		const size_t bytes = strlen(text) + 1;
+		char *wrapped = (char *) VR_HeapMalloc(header + bytes);
+		const int written = q_snprintf(wrapped, header, "// vr-language-source %s\n", resolved);
+		memcpy(wrapped + written, text, bytes);
+		VR_HeapFree(text);
+		text = wrapped;
+	}
+	return text;
+}
+
+static void LOC_AppendText(char *text)
+{
+	size_t used, added;
+	if (!text) return;
+	used = localization.text ? strlen(localization.text) : 0;
+	added = strlen(text);
+	localization.text = (char *) VR_HeapRealloc(localization.text, used + added + 2);
+	memcpy(localization.text + used, text, added);
+	localization.text[used + added] = '\n';
+	localization.text[used + added + 1] = 0;
+	VR_HeapFree(text);
+}
+
+qboolean LOC_LoadFile (const char *file)
+{
+	int i, lineno, warnings;
+	char *cursor;
+	const char *source = "unknown";
+	VR_HeapFree(localization.text);
+	localization.text = NULL;
+	localization.numentries = 0;
+	localization.numindices = 0;
+	// Earlier entries win in the hash table: preserve custom/local language entries,
+	// then fill missing translations from owned data, then readable English.
+	LOC_AppendText(LOC_ReadFile(file));
+	LOC_AppendText(VR_LoadOwnedLocalization(file));
+	if (strcmp(file, "localization/loc_english.txt"))
+	{
+		LOC_AppendText(LOC_ReadFile("localization/loc_english.txt"));
+		LOC_AppendText(VR_LoadOwnedLocalization("localization/loc_english.txt"));
+	}
+	if (!localization.text) return false;
 
 	cursor = localization.text;
 
@@ -3876,6 +3918,7 @@ fail:				mz_zip_reader_end(&archive);
 		while (q_isblank(*cursor))
 			++cursor;
 
+		if ((unsigned char)cursor[0] == 0xEF && (unsigned char)cursor[1] == 0xBB && (unsigned char)cursor[2] == 0xBF) cursor += 3;
 		line = cursor;
 		equals = NULL;
 		// find line end and first equals sign, if any
@@ -3885,6 +3928,8 @@ fail:				mz_zip_reader_end(&archive);
 				equals = cursor;
 			cursor++;
 		}
+
+		if (!strncmp(line, "// vr-language-source ", 22)) source = line + 22;
 
 		if (line[0] == '/')
 		{
@@ -3988,9 +4033,14 @@ fail:				mz_zip_reader_end(&archive);
 				Sys_Printf ("   %d. %s = \"%.*s\"\n", warnings, line, trim, value);
 			}
 
-			entry = &localization.entries[localization.numentries++];
-			entry->key = line;
-			entry->value = value;
+			// Empty or untranslated placeholders must not hide an owned fallback.
+			if (*value && !(value[0] == '$' && !strcmp(value + 1, line)))
+			{
+				entry = &localization.entries[localization.numentries++];
+				entry->key = line;
+				entry->value = value;
+				entry->source = source;
+			}
 		}
 
 		if (*cursor)
@@ -4125,6 +4175,28 @@ void LOC_LanguageCompletion_f (cvar_t *cvar, const char *partial)
 		Con_AddToTabList (knownlangs[i][1], partial, NULL);
 }
 
+// Read-only diagnostic uses the same formatting path as QuakeC prints. It is
+// reachable through Debug > Reports > Campaign Status as well as the console.
+static locentry_t *LOC_FindEntry(const char *key);
+
+static const char *LOC_ProbeArg(int index, void *userdata)
+{
+	return index >= 0 && index < Cmd_Argc() - 2 ? LOC_GetString(Cmd_Argv(index + 2)) : "";
+}
+
+static void LOC_Probe_f(void)
+{
+	char output[4096];
+	const char *text;
+	locentry_t *entry;
+	if (Cmd_Argc() < 2) { Con_Printf("loc_probe $identifier [format arguments...]\n"); return; }
+	text = LOC_GetString(Cmd_Argv(1));
+	LOC_Format(text, LOC_ProbeArg, NULL, output, sizeof(output));
+	entry = LOC_FindEntry(Cmd_Argv(1));
+	Con_Printf("LOC probe %s: %s\n", Cmd_Argv(1), output);
+	Con_Printf("LOC probe source: %s\n", entry ? entry->source : "missing (literal input)");
+}
+
 /*
 ================
 LOC_Init
@@ -4134,6 +4206,7 @@ void LOC_Init(void)
 {
 	Con_Printf("\nLanguage initialization\n");
 
+	Cmd_AddCommand("loc_probe", LOC_Probe_f);
 	Cvar_RegisterVariable (&language);
 	Cvar_SetCallback (&language, LOC_Language_f);
 	Cvar_SetCompletion (&language, LOC_LanguageCompletion_f);
@@ -4159,7 +4232,7 @@ LOC_GetRawString
 Returns localized string if available, or NULL otherwise
 ================
 */
-const char* LOC_GetRawString (const char *key)
+static locentry_t *LOC_FindEntry (const char *key)
 {
 	unsigned pos, end;
 
@@ -4179,7 +4252,7 @@ const char* LOC_GetRawString (const char *key)
 
 		entry = &localization.entries[idx - 1];
 		if (!Q_strcmp(entry->key, key))
-			return entry->value;
+			return entry;
 
 		++pos;
 		if (pos == localization.numindices)
@@ -4187,6 +4260,12 @@ const char* LOC_GetRawString (const char *key)
 	} while (pos != end);
 
 	return NULL;
+}
+
+const char* LOC_GetRawString (const char *key)
+{
+	locentry_t *entry = LOC_FindEntry(key);
+	return entry ? entry->value : NULL;
 }
 
 /*
@@ -4240,8 +4319,6 @@ LOC_HasPlaceholders
 */
 qboolean LOC_HasPlaceholders (const char *str)
 {
-	if (!localization.numindices)
-		return false;
 	while (*str)
 	{
 		if (LOC_ParseArg(&str) >= 0)
