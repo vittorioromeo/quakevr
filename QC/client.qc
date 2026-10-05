@@ -668,6 +668,8 @@ void() execute_changelevel =
         other.modelindex = 0;
         setorigin(other, pos.origin);
 
+        if(MG_WorldCampaign()) MG_FogPushSettingsFrom(other, pos, 0);
+
         // HONEY
         if(fogsettings != NULLENT && fogsettings.classname == "trigger_fogcontroller") {
             fog_setOverrideConditional(other, fogsettings.view_ofs, fogsettings.ideal_yaw, 1);
@@ -1040,6 +1042,11 @@ void() PutClientInServer =
     // paustime is set by teleporters to keep the player from moving a while
     self.pausetime = 0;
 
+    if(MG_WorldCampaign())
+    {
+        self.fog_active_fog_trigger = world;
+        if(!MG_FogPushSettingsFrom(self, spot, 0)) MG_FogPushSettingsFrom(self, world, 0);
+    }
     self.origin = self.oldorigin = spot.origin + '0 0 1';    // 1998-07-21 Respawning where player died fix by Robert Field
     self.angles = spot.angles;
     self.fixangle = TRUE;        // turn this way immediately

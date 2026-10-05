@@ -149,6 +149,10 @@ owned data enables their campaigns and resources. Empty or corrupt pack folders 
 You start in the **VR hub**. Pick Quake or an available mission pack there and step into the portal. The hub also
 leads to the tutorial and the firing range.
 
+**Single Player > Official Campaigns** shows detected owned campaigns and native gameplay readiness. Dimension
+of the Past, Dimension of the Machine and Dawn of the Machine are detected, but their native VR gameplay ports
+are still in progress. See the [campaign setup guide](docs/INSTALL.md#official-campaigns).
+
 **Optional extras** (all in [docs/INSTALL.md](docs/INSTALL.md)):
 
 - **HD textures:** the Quake Revitalization Project (QRP) map textures the author plays with, as one zip to extract

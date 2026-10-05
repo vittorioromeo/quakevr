@@ -26,4 +26,4 @@ Record new melee takes: stand closer with the smaller hitbox and melee speed 3
 
 [Expansion setup]
 Base Quake only: hub, tutorial and firing range work; absent mission packs are labelled unavailable
-Official Campaigns: owned data is found; correct campaigns/saves load and VR Hub return works; new ports say in progress
+Campaigns: owned data, saves and VR Hub return work; Dopa developer tests show fog, breakables and hazards; new ports remain in progress

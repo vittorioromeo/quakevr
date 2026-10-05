@@ -72,11 +72,9 @@ What changes with the re-release data:
   maps the script reports that the patch "is for another version of the map" and leaves them alone, which is fine:
   their water is see-through already. Relit maps replace a map whichever version they were made from, so make them
   from the data you play with.
-- **Dimension of the Past** (`dopa`) plays with Quake VR's gameplay. If you copied the folders, copy `dopa` too.
-  Start `ironwail.exe -game dopa -game quakevr`, in that order (plus the `-basedir` options, if you use them), then
-  type `map e5start` in the console.
-- **Dimension of the Machine** (`mg1`) has its own QuakeC. `QuakeVR.bat -game mg1` runs it in
-  [compatibility mode](#custom-maps-and-mods).
+- **Additional official campaigns:** the re-release includes Dimension of the Past (`dopa`), Dimension of the
+  Machine (`mg1`) and Dawn of the Machine (`mg3`). Their installed data is detected separately from native gameplay
+  readiness. See [Official campaigns](#official-campaigns) before starting one.
 
 ## Installing the package
 
@@ -163,12 +161,33 @@ In the hub, press an available campaign's button (Quake, SoA or DoE) and step in
 installation when restoring a save: changing the set of packs changes the saved model indices, so an incompatible
 save is rejected before loading. Saves from the earlier merged VR progs require both packs.
 
-Dimension of the Past (`dopa`), Dimension of the Machine (`mg1`) and the newer MG3 campaign are separate from these two mission packs. Native
-VR gameplay support for their additional entities and mechanics is incomplete; see the
-[expansion audit](vr-port/EXPANSIONS.md). Their presence is not advertised as native campaign support.
+Use the hub or Official Campaigns selector to start an owned campaign with Quake VR's gameplay. The merged VR
+QuakeC contains Quake, Scourge of Armagon and Dissolution of Eternity; selecting one keeps VR's progs active.
 
-Don't start the mission packs with `-game hipnotic` or `-game rogue`: that would run their own QuakeC, without Quake
-VR's gameplay. Quake VR's QuakeC already contains all three campaigns.
+## Official campaigns
+
+Open **Single Player > Official Campaigns**, **VR Settings > Official Campaigns**, or the hub's campaign board link.
+The selector shows Quake, the two mission packs, Dimension of the Past (`dopa`), Dimension of the Machine (`mg1`)
+and Dawn of the Machine (`mg3`). Each entry reports missing data, incomplete/corrupt data, or installed data with
+its native gameplay readiness. The three newer native ports are currently **in progress**; ordinary selection
+refuses them until their gameplay and progression are ready. Installed maps alone do not establish support.
+
+For an owned Steam installation, Quake VR checks the original Quake folder and its `rerelease` folders. It also
+checks explicit `-basedir` roots and the existing Steam/GOG discovery paths. No expansion download or separate
+installer is needed when complete data is found. For other copies, keep each complete owned pack folder alongside
+`id1`, or use the two `-basedir` options shown above. Detection does not copy assets or write into the borrowed
+installation. The last explicit base has priority; a damaged copy there is reported rather than silently replaced
+by another installation.
+
+Run `vr_campaign_status`, or **Debug > Reports > Official Campaign Status**, to inspect the resolved folders and
+readiness. `vr_campaign_select <folder>` uses the same availability checks as the selector. `vr_campaign_hub`
+returns to the VR hub and restores the base campaign paths. Saves restore their campaign context, but still require
+the same optional mission-pack set described above. Newer expansion save schemas may change during development.
+
+Official campaign arguments such as `QuakeVR.bat -game mg1` now keep VR's merged progs active; they are not a way
+to opt into the pack's original gameplay code. Developer-only `vr_campaign_native <folder>` bypasses the readiness
+gate for testing and warns that gameplay/progression is incomplete. Use the normal selector for supported play.
+Current port coverage and outstanding mechanics are recorded in the [expansion audit](vr-port/EXPANSIONS.md).
 
 ## Custom maps and mods
 

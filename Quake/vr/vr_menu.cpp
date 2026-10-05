@@ -4207,6 +4207,10 @@ za::Vector<Item> pageSpawnWeapons()
 za::Vector<Item> pageDebugTests()
 {
     return {
+        command("Official World: Fog Report", "vr_mg_world_test 1")
+            .help("Print the native campaign's authored world and player fog values."),
+        command("Official World: Environment Test", "vr_mg_world_test 2")
+            .help("Check native movement/fog and explode a test barrel on e5m1. Developer campaign only; reload the map afterward."),
         open("Spawn Pickup Weapons", pageIndex(pageSpawnWeapons))
             .help("Spawn a physical pickup ahead of you, ready to grab and use."),
         header("Physics Stress"),
