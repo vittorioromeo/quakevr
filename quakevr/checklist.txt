@@ -356,3 +356,9 @@ After spectator VFX fix: Bullet Hell effects appear in the spectator camera by d
 
 [Evening shipped fixes (Oct 5)]
 Secret-impact fix: punch and shoot e1m1 secret walls and the Quad Damage trigger: sparks/metal sounds, no blood; secrets still activate and enemies still bleed
+Map Library: open it both ways — the corner's Maps button, and Single Player > Map Library (the new row sits after the levels row; the other rows must not move, flat screen too)
+Map Library: search by title or author, filter by type and map size, sort by newest / oldest / size / title — no stutter, the list must not rebuild every frame (check with Debug > Tools: maps_page_stats)
+Map Library: Install a map with visible progress, then Play it as a separate action — installing alone must not start a map
+Map Library: an installed map shows Play, not Install; the page says how many packages are hidden for bringing their own progs.dat
+Map Library: a title or author with accents (e.g. "Rickard Edé") reads correctly, not as escapes
+Map Library: a package that brings its own progs.dat, or one with an unusual BSP version, is refused with a clear message rather than half-installed
