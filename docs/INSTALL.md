@@ -46,7 +46,7 @@ Quake VR needs the game data of the original Quake: the `id1` folder with `PAK0.
 
 - **Steam:** the Quake folder (usually `C:\Program Files (x86)\Steam\steamapps\common\Quake`) has the original data
   in `id1`, the mission packs in `hipnotic` and `rogue`, and the 2021 re-release in `rerelease`. Install Quake VR
-  into this folder. Quake VR uses the original data; the re-release folder isn't needed.
+  into this folder. Quake VR can use the original data. The rerelease folder also supplies owned newer campaigns and their current language tables; it is optional for the original campaign.
 - **GOG and other copies:** any Quake folder with `id1\PAK0.PAK` and `id1\PAK1.PAK` works the same way.
 - **Music:** if you hear no music, copy the soundtrack into `id1\music`. The Steam version has it in
   `rerelease\id1\music`.
@@ -179,8 +179,21 @@ installer is needed when complete data is found. For other copies, keep each com
 installation. The last explicit base has priority; a damaged copy there is reported rather than silently replaced
 by another installation.
 
-Run `vr_campaign_status`, or **Debug > Reports > Official Campaign Status**, to inspect the resolved folders and
-readiness. `vr_campaign_select <folder>` uses the same availability checks as the selector. `vr_campaign_hub`
+The newer campaigns also need current language tables from the owned rerelease `id1` data; their expansion
+PAKs do not contain them. Quake VR borrows only these tables from the configured roots or enabled Steam/GOG
+discovery, without adding the borrowed `id1` maps/models to your campaign paths. `-nosteam`, `-nogog`, and
+`-noegs` disable the corresponding store lookup; explicit `-basedir` roots and their rerelease subfolders still
+work. Keep the writable Quake VR folder as the last `-basedir` in the command shown above.
+
+Custom local translations have priority. Missing, empty, or untranslated entries are filled from owned tables
+in that language, then owned English. An old/incomplete table alone blocks ordinary launch and reports which
+identifiers are missing; point `-basedir` at updated owned rerelease data or enable store lookup. No commercial
+language text is included in the VR package.
+
+Run `vr_campaign_status`, or **Debug > Reports > Official Campaign Status**, to inspect resolved folders,
+language coverage, and readiness. Language-load messages show actual table paths. `loc_probe $identifier
+[arguments...]` previews resolved/formatted text and prints the specific table that supplied it; **Debug >
+Reports > Dopa Finale Text** previews the ending. `vr_campaign_select <folder>` uses the same availability checks as the selector. `vr_campaign_hub`
 returns to the VR hub and restores the base campaign paths. Saves restore their campaign context, but still require
 the same optional mission-pack set described above. Newer expansion save schemas may change during development.
 
