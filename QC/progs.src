@@ -33,6 +33,17 @@ vr_debris.qc
 vr_crates.qc
 vr_smallgibs.qc
 vr_walltorch.qc
+vr_mg_defs.qc
+vr_mg_fog.qc
+vr_mg_func_bob.qc
+vr_mg_func_toss.qc
+vr_mg_rotate.qc
+vr_mg_lights.qc
+vr_mg_particles.qc
+vr_mg_model.qc
+vr_mg_rope.qc
+vr_mg_corpses.qc
+vr_mg_world.qc
 // The grapple after vr_carry.qc and vr_walltorch.qc: it reads their fields.
 vr_grapple.qc
 // Grunts' and enforcers' shoves (ai.qc calls it; the monsters' files use it).
@@ -62,6 +73,7 @@ world.qc
 vr_dummy.qc
 vr_motion.qc
 vr_highlights.qc
+vr_mg_world_test.qc
 
 orig_mon_boss.qc
 orig_mon_demon.qc

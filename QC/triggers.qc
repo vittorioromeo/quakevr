@@ -461,6 +461,11 @@ vector    org;
     }
 
     vector teleportedFrom = other.origin; // QVR
+    if(MG_WorldCampaign() && other.classname == "player")
+    {
+        other.fog_active_fog_trigger = world;
+        MG_FogPushSettingsFrom(other, t, 0);
+    }
     setorigin(other, t.origin);
     other.angles = t.mangle;
     if(other.classname == "player")
