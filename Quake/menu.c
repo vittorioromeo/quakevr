@@ -1338,7 +1338,10 @@ void M_Main_Mousemove (float cx, float cy)
 
 qboolean m_singleplayer_showlevels;
 int	m_singleplayer_cursor;
-#define	SINGLEPLAYER_ITEMS	(3 + m_singleplayer_showlevels)
+// QVR: one row of our own at the end of Quake's (New Game, Load, Save, the levels, Map Library): the map browser
+// (vr_menu_maps.inc). Its row is the last, so Quake's picture rows keep their places.
+#define	SINGLEPLAYER_ITEMS	(4 + m_singleplayer_showlevels)
+#define	SINGLEPLAYER_MAPS	(3 + m_singleplayer_showlevels)
 
 void M_Menu_SinglePlayer_f (void)
 {
@@ -1361,6 +1364,12 @@ void M_SinglePlayer_Draw (void)
 	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/sp_menu.lmp") );
 	if (m_singleplayer_showlevels)
 		M_DrawTransPic (72, 92, Draw_CachePic ("gfx/sp_maps.lmp") );
+
+	// QVR: the map browser's row, in the letters of Quake's own menu rows (its pictures have no row for it).
+	if (VR_BigFont_CanDraw ("Map Library"))
+		VR_BigFont_Draw (73, 32 + SINGLEPLAYER_MAPS * 20, "Map Library");
+	else
+		M_PrintEx (74, 32 + SINGLEPLAYER_MAPS * 20 + 1, 16, "MAP LIBRARY");
 
 	M_DrawQuakeCursor (54, 32 + m_singleplayer_cursor * 20);
 }
@@ -1427,7 +1436,14 @@ void M_SinglePlayer_Key (int key)
 			break;
 
 		case 3:
-			Cbuf_AddText ("menu_maps\n");
+			if (m_singleplayer_showlevels)
+				Cbuf_AddText ("menu_maps\n");
+			else
+				VR_OpenMapLibrary (); // (no levels row: the map browser takes it)
+			break;
+
+		case 4:
+			VR_OpenMapLibrary ();
 			break;
 		}
 	}

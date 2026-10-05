@@ -305,6 +305,7 @@ int VR_GameSound (int entnum, struct sfx_s *sfx);		// CL_ParseStartSoundPacket: 
 
 // Menu (menu.c).
 void VR_Menu_Open (void);								// Options > VR Settings
+void VR_OpenMapLibrary (void);							// Single Player > Map Library: the map browser page (vr_menu_maps.inc)
 void VR_Menu_Draw (void);								// M_Draw, m_vr
 void VR_Menu_Key (int key, int repeat);				// M_Keydown, m_vr (repeat: the key's auto-repeat)
 void VR_Menu_Mousemove (float cx, float cy);			// M_Mousemove, m_vr

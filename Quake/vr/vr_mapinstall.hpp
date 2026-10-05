@@ -1,9 +1,13 @@
 // vr_mapinstall.hpp -- getting a package from the map index (vr_mapindex.hpp) into the game: its zip downloaded to
 // quakevr/cache/maps/<sha256>.zip, its files extracted into the user's game dir (BSPs to <game dir>/maps/, where the
-// engine's `map` command looks, everything else at the game dir's root), and the package's startmap started.
+// engine's `map` command looks, everything else at the game dir's root).
+//
+// Installing and playing are separate actions: installing writes files and reports what it wrote, and never starts a
+// map; play() (maps_play, the page's Play button) is what starts a package's startmap, and is what a package whose
+// files are there already is offered.
 //
 // One job at a time, on a thread of its own (the download and the extraction never run on the main thread). poll()
-// takes what it finished, on the main thread: the console line, the status the page shows, and `map <startmap>`.
+// takes what it finished, on the main thread: the console line and the status the page shows.
 // What was written is recorded in quakevr/cache/maps_installed.txt (one line per file), which is what "Installed"
 // lists and what uninstall removes.
 //
@@ -85,7 +89,7 @@ void registerCommands();
 void start();
 // Quit: the job's thread is cancelled and joined.
 void finish();
-// The main thread, every frame: takes what the job's thread finished, prints its line, and starts the map it installed.
+// The main thread, every frame: takes what the job's thread finished, prints its line, and records what it wrote.
 void poll();
 
 // The live job (never null; Phase::Idle when there is none). Read from the main thread only.
@@ -110,9 +114,12 @@ void cancel();
 [[nodiscard]] za::U64 installedBytes(const za::String& sha);
 // Remove an installed package's files (the ones no other package wrote too), and the record.
 bool uninstall(const za::String& sha);
-// The package's startmap, started now: the page's Play action, and what a finished install does. Cbuf_InsertText, so
-// that it runs next rather than after the commands already queued (a script's `screenshot;quit` would come first).
+// The package's startmap, started now: the page's Play action, and maps_play. Never part of installing. Cbuf_InsertText,
+// so that it runs next rather than after the commands already queued (a script's `screenshot;quit` would come first).
 bool play(const za::String& sha);
+
+// A byte count as the console and the page show it ("5.1 MB").
+[[nodiscard]] za::String formatBytes(za::U64 bytes);
 
 // The game dir the files go to (com_basedirs' last: the user's quakevr), and its maps dir.
 [[nodiscard]] const za::String& gameDir();

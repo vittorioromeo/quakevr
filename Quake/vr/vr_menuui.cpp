@@ -352,12 +352,14 @@ enum Tool
     ToolConsole, // Quake's console with a keyboard (vr_menu_console.inc)
     ToolAdvanced,
     ToolLevels,
+    ToolMaps, // the map browser: the external map index, installed and played from here (vr_menu_maps.inc)
     ToolChecklist,
     ToolCount
 };
 
 // (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game".)
-constexpr const char* toolLabels[ToolCount]{"Back to game", "Search", "Console", "Advanced VR", "Levels", "Checklist 99"};
+constexpr const char* toolLabels[ToolCount]{"Back to game", "Search", "Console", "Advanced VR", "Levels", "Map Library",
+    "Checklist 99"};
 
 // The buttons shown: the Checklist (the last) only at Menu Detail: Developer (the playtest checklist is the author's).
 [[nodiscard]] int toolsShown()
@@ -697,6 +699,7 @@ void useTool(int tool, int hand)
             M_Menu_Maps_f();
             break;
         case ToolChecklist: menu::jumpToChecklist(); break;
+        case ToolMaps: menu::openMaps(); break;
         default: break;
     }
 }
@@ -1035,6 +1038,15 @@ void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4
             // A flag on its pole.
             p.band(x + 1.f, x + 2.4f, yc, -4.5f, 4.5f, ink);
             p.arrowHeadRight(x + w, w - 2.4f, yc - 2.f / p.k, 2.6f, ink);
+            break;
+        case ToolMaps:
+            // A map: a sheet with a fold down its middle, a place marked on it.
+            p.rect(x, x + w, yc - 4.f / p.k, 0.7f, ink);
+            p.rect(x, x + w, yc + 4.f / p.k, 0.7f, ink);
+            p.band(x, x + 1.2f, yc, -4.7f, 4.7f, ink);
+            p.band(x + w - 1.2f, x + w, yc, -4.7f, 4.7f, ink);
+            p.band(x + 4.4f, x + 5.6f, yc, -4.7f, 4.7f, ink);
+            p.disc(x + 2.6f, yc - 1.2f / p.k, 1.3f, ink);
             break;
         case ToolChecklist:
             // Three lines, each after a box.

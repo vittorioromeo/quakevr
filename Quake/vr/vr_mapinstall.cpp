@@ -751,10 +751,8 @@ void poll()
             {
                 Con_DPrintf("map install: could not write %s\n", registryPath.cStr());
             }
-            if(j.install)
-            {
-                play(j.sha); // (the flow the page is for: downloaded, installed, played)
-            }
+            // Installing writes files and reports them; it never starts a map. Playing is its own action (play(),
+            // maps_play, the page's Play button), so a package can be got ready without leaving the current map.
         }
     }
     else
@@ -881,7 +879,7 @@ bool uninstall(const za::String& sha)
     return true;
 }
 
-// The package's startmap, started now (the page's Play action, and what a finished install does).
+// The package's startmap, started now: the page's Play action, and maps_play. Never part of installing.
 bool play(const za::String& sha)
 {
     ensureStarted();
