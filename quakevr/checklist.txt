@@ -348,9 +348,6 @@ Console pipeline (the menu page comes next): maps_stats, then maps_list type=map
 maps_installed lists what you installed with its size; maps_uninstall <sha prefix> removes exactly those files
 A map that brings its own progs.dat or an unusual BSP version should be refused with a clear message, not half-installed
 
-[Evening playtest requests - pending fixes]
-After spectator VFX fix: Bullet Hell effects appear in the spectator camera by default; its new option hides/shows them without changing headset effects
-
 [Evening shipped fixes (Oct 5)]
 Secret-impact fix: punch and shoot e1m1 secret walls and the Quad Damage trigger: sparks/metal sounds, no blood; secrets still activate and enemies still bleed
 Map Library: open it both ways — the corner's Maps button, and Single Player > Map Library (the new row sits after the levels row; the other rows must not move, flat screen too)
@@ -362,3 +359,4 @@ Map Library: a package that brings its own progs.dat, or one with an unusual BSP
 Parry interruption (Combat > Parry and Bash): On, Stagger 0.35 s: knight and ogre attacks stop after a successful parry; compare Off, crossed arms, leap parries and dragon tail recovery; tune stagger 0.1-3 s
 Map flames (e1m2): braziers and wall torches warn then burn either hand using vr_burn_self_time; body and feet burn like a dropped lit torch, even without drawn legs; taking/extinguishing a torch leaves no phantom flame
 Map weapon pickups: with immersive reloading on, grip fresh e1m3 nailgun, super shotgun or grenade launcher and fire before reloading; available ammo moves into the clip once; dropped, regrabbed, holstered and handed-off guns keep their used magazines
+Bullet Time spectator effects (Graphics > Recording > Bullet Time Effects): on by default; activate Bullet Time while recording and toggle spectator effects off/on; headset effects and raw mirror stay the same
