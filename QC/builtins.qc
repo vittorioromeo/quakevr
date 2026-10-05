@@ -408,3 +408,7 @@ float QVR_SPLASH_THING = 2;  // a splash, small or big by strength
 
 void(entity target, float duration) bodyshock = #0;
 void(entity box, entity player, float hand, float begin) portal_carry = #0;
+
+float(entity observer, entity target, vector from, vector point, float gate) portal_ai_sight = #0;
+vector(float gate, vector value, float direction) portal_ai_map = #0;
+entity(entity observer) portal_ai_client = #0;

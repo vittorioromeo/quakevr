@@ -48,7 +48,8 @@ float() LavaManCheckAttack =
 // see if any entities are in the way of the shot
     spot1 = self.origin + '0 0 64';
 
-    traceline (spot1, targ.origin, FALSE, self);
+    visible(targ);
+    traceline(spot1, VR_AI_Origin(targ), self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
@@ -355,7 +356,8 @@ void(float AttackNumber) lavaman_missile =
         org = self.origin + v_forward*40 - v_right*75 + v_up*125;
     }
 
-    d = self.enemy.origin;
+    if(!VR_AI_ShotReady(org)) { return; }
+    d = VR_AI_Origin(self.enemy);
     t = vlen(d - org);
     t = t / 380;
     if(t > 1.75)
@@ -367,6 +369,7 @@ void(float AttackNumber) lavaman_missile =
 
     fireball = spawn();
     fireball.owner = self;
+    VR_AI_Tag(fireball);
 //    fireball.movetype = MOVETYPE_FLYMISSILE;
     fireball.movetype = MOVETYPE_BOUNCE;
     fireball.solid = SOLID_BBOX;

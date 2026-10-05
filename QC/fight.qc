@@ -46,9 +46,9 @@ float() CheckAttack =
 
 // see if any entities are in the way of the shot
     spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
+    spot2 = VR_AI_Origin(targ) + targ.view_ofs;
 
-    traceline(spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
 //MED 10/17/96 added charmed stuff
     if((trace_ent != targ) && (!self.charmed))
@@ -122,7 +122,7 @@ Stay facing the enemy
 */
 void() ai_face =
 {
-    self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
+    self.ideal_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
     ChangeYaw();
 };
 
@@ -150,7 +150,7 @@ void() ai_charge_side =
 
 // aim to the left of the enemy for a flyby
 
-    self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
+    self.ideal_yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
     ChangeYaw();
 
     makevectors(self.angles);
@@ -226,9 +226,9 @@ float() SoldierCheckAttack =
 
 // see if any entities are in the way of the shot
     spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
+    spot2 = VR_AI_Origin(targ) + targ.view_ofs;
 
-    traceline(spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
@@ -299,12 +299,12 @@ float() ShamCheckAttack =
 
 // see if any entities are in the way of the shot
     spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
+    spot2 = VR_AI_Origin(targ) + targ.view_ofs;
 
     if(vlen(spot1 - spot2) > 600)
         return FALSE;
 
-    traceline(spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
@@ -358,9 +358,9 @@ float() OgreCheckAttack =
 
 // see if any entities are in the way of the shot
     spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
+    spot2 = VR_AI_Origin(targ) + targ.view_ofs;
 
-    traceline(spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents

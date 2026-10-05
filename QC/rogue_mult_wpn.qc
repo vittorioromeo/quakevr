@@ -246,7 +246,7 @@ void() HomingMissileThink =
         return;
     }
 
-    dir = normalize(self.enemy.origin - self.origin);
+    dir = normalize(VR_AI_HomePoint(self.enemy.origin) - self.origin);
     self.velocity = dir * 1000;
     self.nextthink = time + 0.1;
     self.think = HomingMissileThink;

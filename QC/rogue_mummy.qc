@@ -163,6 +163,7 @@ void(vector st) mummyFireGrenade =
 
     missile = spawn();
     missile.owner = self;
+    VR_AI_Tag(missile);
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
 
@@ -173,7 +174,8 @@ void(vector st) mummyFireGrenade =
 
     makevectors(self.angles);
 
-    missile.velocity = normalize(self.enemy.origin - org);
+    if(!VR_AI_ShotReady(org)) { remove(missile); return; }
+    missile.velocity = normalize(VR_AI_Origin(self.enemy) - org);
     missile.velocity = missile.velocity * 600;
     missile.velocity_z = 200;
 

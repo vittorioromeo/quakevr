@@ -33,6 +33,8 @@ A practical first scope is one-hop ranged perception: expose a mapped image of t
 
 This is a moderate change across perception plus the monster-specific attack routines, including mission packs. It is much smaller than full portal-aware navigation. Keep melee decisions local and discuss whether enemies should walk through gates separately; otherwise an enemy able to see a portal image may still try walking towards its physical target. No AI behavior has been changed in this patch.
 
+The subsequently authorized implementation is described in [PORTAL_AI.md](PORTAL_AI.md), including bidirectional return fire and the mock integration tests.
+
 ## Verification
 
 Release engine build succeeds and QuakeC compiles with zero warnings. Static checks and `git diff --check` pass.

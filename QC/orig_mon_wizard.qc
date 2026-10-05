@@ -49,16 +49,17 @@ void(entity missile, float mspeed, float accuracy) LaunchMissile =
     vector    vec, move;
     float    fly;
 
+    if(!VR_AI_ShotReady(missile.origin)) { remove(missile); return; }
     makevectors(self.angles);
 
 // set missile speed
-    vec = self.enemy.origin + self.enemy.mins + self.enemy.size * 0.7 - missile.origin;
+    vec = VR_AI_Origin(self.enemy) + self.enemy.mins + self.enemy.size * 0.7 - missile.origin;
 
 // calc aproximate time for missile to reach vec
     fly = vlen(vec) / mspeed;
 
 // get the entities xy velocity
-    move = self.enemy.velocity;
+    move = VR_AI_Vector(self.enemy.velocity);
     move_z = 0;
 
 // project the target forward in time
@@ -107,9 +108,9 @@ float()    WizardCheckAttack =
 
 // see if any entities are in the way of the shot
     spot1 = self.origin + self.view_ofs;
-    spot2 = targ.origin + targ.view_ofs;
+    spot2 = VR_AI_Origin(targ) + targ.view_ofs;
 
-    traceline(spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
     if(trace_ent != targ)
     {    // don't have a clear shot, so move to a side
@@ -189,12 +190,13 @@ void() Wiz_FastFire =
     vector dst;
     entity newmis;
 
+    if(!VR_AI_ShotReady(self.origin)) { remove(self); return; }
     if(self.owner.health > 0)
     {
         self.owner.effects = self.owner.effects | EF_MUZZLEFLASH;
 
         makevectors(self.enemy.angles);
-        dst = self.enemy.origin - 13*self.movedir;
+        dst = VR_AI_Origin(self.enemy) - 13*self.movedir;
 
         vec = normalize(dst - self.origin);
         sound(self, CHAN_WEAPON, "wizard/wattack.wav", 1, ATTN_NORM);
@@ -224,6 +226,8 @@ void() Wiz_StartFast =
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, self.origin + '0 0 30' + v_forward*14 + v_right*14);
     missile.enemy = self.enemy;
+    missile.vr_ai_target = self.enemy;
+    missile.vr_ai_gate = self.vr_ai_gate;
     missile.nextthink = time + 0.8;
     missile.think = Wiz_FastFire;
     missile.movedir = v_right;
@@ -234,6 +238,8 @@ void() Wiz_StartFast =
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, self.origin + '0 0 30' + v_forward*14 + v_right* -14);
     missile.enemy = self.enemy;
+    missile.vr_ai_target = self.enemy;
+    missile.vr_ai_gate = self.vr_ai_gate;
     missile.nextthink = time + 0.3;
     missile.think = Wiz_FastFire;
     missile.movedir = VEC_ORIGIN - v_right;

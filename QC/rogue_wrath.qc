@@ -241,12 +241,13 @@ WrathMissile
 */
 void(float AttackNumber) WrathMissile =
 {
+    if(!VR_AI_ShotReady(self.origin + self.view_ofs)) { return; }
     entity     missile;
     vector    dir, org;
     float    dist, flytime;
 
-    dir = normalize((self.enemy.origin + '0 0 10') - self.origin);
-    dist = vlen(self.enemy.origin - self.origin);
+    dir = normalize((VR_AI_Origin(self.enemy) + '0 0 10') - self.origin);
+    dist = vlen(VR_AI_Origin(self.enemy) - self.origin);
     flytime = dist * 0.002;
     if(flytime < 0.1)
         flytime = 0.1;
@@ -257,6 +258,7 @@ void(float AttackNumber) WrathMissile =
 
     missile = spawn();
     missile.owner = self;
+    VR_AI_Tag(missile);
     missile.solid = SOLID_BBOX;
     missile.movetype = MOVETYPE_FLYMISSILE;
     setmodel(missile, "progs/w_ball.mdl");
@@ -282,6 +284,7 @@ void(float AttackNumber) WrathMissile =
         org = self.origin + v_forward*20 + v_up*16;
     }
 
+    if(!VR_AI_ShotReady(org)) { remove(missile); return; }
     setorigin(missile, org);
     missile.velocity = dir * 400;
     missile.avelocity = '300 300 300';
@@ -301,7 +304,10 @@ void() WrathHome =
         return;
     }
 
-    if(skill == 3)
+    vector aim = VR_AI_HomePoint(self.enemy.origin);
+    if(self.vr_ai_gate > 0)
+        self.velocity = normalize(aim - self.origin) * (skill == 3 ? 550 : 400);
+    else if(skill == 3)
         ai_track(self.enemy, 550);
     else
         ai_track(self.enemy, 400);

@@ -1297,8 +1297,39 @@ void PF_tracer()
     server::sendTracer(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), G_VECTOR(OFS_PARM2), G_VECTOR(OFS_PARM3));
 }
 
-// watershock(kind, org, radius, duration): the lightning gun in water's effects (vr_shock.cpp): 0 the `self` player
-// shocked, 1 arcs on a liquid's surface round `org`, 2 arcs out from `org` in a liquid.
+// Ranged enemy perception through one active slipgate.
+static glm::vec3 aiVec(const float* v) { return {v[0], v[1], v[2]}; }
+
+void PF_portal_ai_sight()
+{
+    glm::vec3 image;
+    G_FLOAT(OFS_RETURN) = static_cast<float>(portals::aiImage(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1),
+        aiVec(G_VECTOR(OFS_PARM2)), aiVec(G_VECTOR(OFS_PARM3)), static_cast<int>(G_FLOAT(OFS_PARM4)), image));
+}
+
+void PF_portal_ai_map()
+{
+    const auto point = portals::aiMap(static_cast<int>(G_FLOAT(OFS_PARM0)), aiVec(G_VECTOR(OFS_PARM1)), G_FLOAT(OFS_PARM2) != 0.f);
+    VectorCopy(&point.x, G_VECTOR(OFS_RETURN));
+}
+
+void PF_portal_ai_client()
+{
+    edict_t* observer = G_EDICT(OFS_PARM0);
+    edict_t* result = qcvm->edicts;
+    // Rotate candidates independently of checkclient's ordinary-room PVS.
+    const int first = svs.maxclients > 0 ? static_cast<int>(qcvm->time * 10) % svs.maxclients : 0;
+    for(int n = 0; n < svs.maxclients; n++)
+    {
+        edict_t* target = EDICT_NUM(1 + (first + n) % svs.maxclients);
+        if(target->free || target->v.health <= 0.f || (static_cast<int>(target->v.flags) & FL_NOTARGET)) { continue; }
+        glm::vec3 image;
+        if(portals::aiImage(observer, target, aiVec(observer->v.origin) + aiVec(observer->v.view_ofs),
+            aiVec(target->v.origin) + aiVec(target->v.view_ofs), 0, image)) { result = target; break; }
+    }
+    G_INT(OFS_RETURN) = EDICT_TO_PROG(result);
+}
+
 void PF_bodyshock()
 {
     edict_t* target = G_EDICT(OFS_PARM0);
@@ -1716,6 +1747,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponfired", PF_weaponfired},
     {"tracer", PF_tracer},
     {"watershock", PF_watershock},
+    {"portal_ai_sight", PF_portal_ai_sight},
+    {"portal_ai_map", PF_portal_ai_map},
+    {"portal_ai_client", PF_portal_ai_client},
     {"bodyshock", PF_bodyshock},
     {"portal_carry", PF_portal_carry},
     {"findflags", PF_findflags},

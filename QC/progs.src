@@ -8,6 +8,8 @@ vr_weaponinst.qc
 vr_util.qc
 vr_handgrabutil.qc
 
+vr_portal_ai.qc
+vr_portal_ai_test.qc
 ai.qc
 combat.qc
 fight.qc

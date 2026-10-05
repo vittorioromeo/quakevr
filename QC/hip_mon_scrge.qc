@@ -40,9 +40,9 @@ float() ScourgeCheckAttack =
 
     // see if any entities are in the way of the shot
     vector spot1 = self.origin + self.view_ofs;
-    vector spot2 = targ.origin + targ.view_ofs;
+    vector spot2 = VR_AI_Origin(targ) + targ.view_ofs;
 
-    if(vlen(spot1 - spot2) <= 100)
+    if(self.vr_ai_gate <= 0 && vlen(spot1 - spot2) <= 100)
     {
       if(CanDamage(self.enemy, self))
       {
@@ -72,7 +72,7 @@ float() ScourgeCheckAttack =
     if(vlen(spot1 - spot2) < 150)
         return FALSE;
 
-    traceline(spot1, spot2, FALSE, self);
+    traceline(spot1, spot2, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
 
     if(trace_inopen && trace_inwater)
         return FALSE;            // sight line crossed contents
@@ -92,7 +92,8 @@ void(float ox) SCOURGE_FireSpikes =
     ai_face();
     makevectors(self.angles);
     vector src = self.origin - '0 0 19' + v_right*ox + v_forward*14;
-    vector vec = (self.enemy.origin + (200*v_forward)) - src;
+    if(!VR_AI_ShotReady(src)) { return; }
+    vector vec = (VR_AI_Origin(self.enemy) + (200*v_forward)) - src;
     vec = normalize(vec);
     sound(self, CHAN_WEAPON, "weapons/rocket1i.wav", 1, ATTN_NORM);
     launch_spike(src, vec);

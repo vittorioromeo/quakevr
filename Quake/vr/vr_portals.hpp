@@ -53,6 +53,8 @@
 #include <glm/vec3.hpp>
 #include <glm/mat3x3.hpp>
 
+struct edict_s;
+
 namespace qvr::portals
 {
 struct Reach
@@ -66,6 +68,11 @@ struct Reach
 Reach reach(const glm::vec3& root, const glm::vec3& point);
 // The closest visible one-gate image of a point, for gravity-glove aiming.
 glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate = nullptr);
+
+// One-hop AI sight from a monster/muzzle to a player point. A positive gate pins the route.
+int aiImage(edict_s* observer, edict_s* target, const glm::vec3& from, const glm::vec3& point,
+    int gate, glm::vec3& image);
+glm::vec3 aiMap(int gate, const glm::vec3& value, bool direction);
 
 // Before each scene view: the gates (found anew for a new map) and the side looked through by this camera.
 void update(const float* origin = nullptr, const float* angles = nullptr);

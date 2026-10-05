@@ -99,16 +99,17 @@ void() dragon_check_attack =
     else
     {
         makevectors(self.angles);
-        vec = normalize(self.enemy.origin - self.origin);
+        if(!visible(self.enemy)) { return; }
+        vec = normalize(VR_AI_Origin(self.enemy) - self.origin);
         dot = vec * v_forward;
 //        if(dot > 0.55)
         if(dot > 0.3)
         {
-            traceline (self.origin, self.enemy.origin, TRUE, world);
+            traceline(self.origin, VR_AI_Origin(self.enemy), TRUE | (self.vr_ai_gate > 0 ? MOVE_PORTALS : 0), self);
             if(trace_fraction == 1)
             {
-                dot = vlen(self.enemy.origin - self.origin);
-                if(dot < 350)
+                dot = vlen(VR_AI_Origin(self.enemy) - self.origin);
+                if(dot < 350 && self.vr_ai_gate <= 0)
                 {
                     self.dragonAttacking = TRUE;
                     self.think = dragon_melee1;
@@ -378,6 +379,7 @@ entity(vector org, vector dir) launch_fireball =
     self.effects = self.effects | EF_MUZZLEFLASH;
     fireball = spawn();
     fireball.owner = self;
+    VR_AI_Tag(fireball);
     fireball.movetype = MOVETYPE_FLYMISSILE;
     fireball.solid = SOLID_BBOX;
     fireball.classname = "fireball";
@@ -413,6 +415,7 @@ void() dragon_fireball =
     makevectors(self.angles);
     org = self.origin + v_forward*112 + v_up*32;
 
+    if(!VR_AI_ShotReady(org)) { return; }
     if(random() > 0.66)
     {
         fireCount = 1;
@@ -431,7 +434,7 @@ void() dragon_fireball =
     while (fireCount > 0)
     {
         distortion = (random() - 0.5) * 0.25;
-        dir = normalize(self.enemy.origin - org);
+        dir = normalize(VR_AI_Origin(self.enemy) - org);
         makevectors(dir);
         dir = dir + v_right * distortion;
 

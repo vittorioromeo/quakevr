@@ -654,6 +654,7 @@ entity(vector org, vector vec, vector extraVel, float light) HIP_LaunchLaser =
     entity newmis;
     newmis = spawn();
     newmis.owner = self;
+    VR_AI_Tag(newmis);
     newmis.classname = "hiplaser";
     newmis.lastvictim = self;
     newmis.movetype = MOVETYPE_FLYMISSILE;
@@ -2025,7 +2026,11 @@ void(float shotcount, vector dir, vector spread) EnemyFireBullets =
 
     src = self.origin + v_forward*10;
     src_z = self.absmin_z + self.size_z * 0.7;
-    dir = VR_Crate_ShotAim(src, dir, self.enemy); // no higher than a player crouched really stands
+    if(!VR_AI_ShotReady(src)) { return; }
+    if(self.vr_ai_gate > 0)
+        dir = normalize(VR_AI_Point(self.enemy.origin + self.enemy.view_ofs) - VR_AI_Vector(self.enemy.velocity) * 0.2 - src);
+    else
+        dir = VR_Crate_ShotAim(src, dir, self.enemy);
 
     weaponfired(self, -1); // VR: its gun's muzzle flash (a grunt's: vr_weaponfx.cpp)
     vr_tracer_hand = -1;
@@ -2896,6 +2901,7 @@ entity(vector org, vector dir) launch_spike =
 
     newmis = spawn();
     newmis.owner = self;
+    VR_AI_Tag(newmis);
     newmis.movetype = MOVETYPE_FLYMISSILE;
     newmis.solid = SOLID_BBOX;
 
@@ -7016,6 +7022,7 @@ void() W_Frame =
     VR_Carry_HandFrame(cVR_OffHand);
     VR_WallTorch_HandFrame(cVR_MainHand); // a torch gripped on its wall pulled out (vr_walltorch.qc)
     VR_WallTorch_HandFrame(cVR_OffHand);
+    VR_AI_TestFrame();
     VR_WallTorch_TestShot(); // vr_test_walltorch_shot: a wall torch shot off its wall (vr_walltorch.qc)
     VR_HandGrenade_HandFrame(cVR_MainHand); // a grenade taken from the pouch at the small of the back (vr_grenade.qc)
     VR_HandGrenade_HandFrame(cVR_OffHand);

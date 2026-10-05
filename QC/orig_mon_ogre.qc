@@ -89,6 +89,7 @@ OgreFireGrenade
 */
 void() OgreFireGrenade =
 {
+    if(!VR_AI_ShotReady(self.origin)) { return; }
     entity missile;
 
     // HONEY
@@ -102,12 +103,13 @@ void() OgreFireGrenade =
 
     missile = spawn();
     missile.owner = self;
+    VR_AI_Tag(missile);
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
     missile.classname = "ogre_grenade";
 
     // HONEY
-    trajectory = self.enemy.origin - self.origin;
+    trajectory = VR_AI_Origin(self.enemy) - self.origin;
     missile.velocity = normalize(trajectory);
 
     // set missile speed

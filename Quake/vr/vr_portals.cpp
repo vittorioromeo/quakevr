@@ -1324,6 +1324,58 @@ extern "C" void VR_PortalClientCross(edict_t* ent)
 
 namespace qvr::portals
 {
+glm::vec3 aiMap(int gate, const glm::vec3& value, bool direction)
+{
+    if(!walkOn() || !vr_portals_ai.value) { return value; }
+    if(!current()) { build(); }
+    if(gate <= 0 || gate > 2 * static_cast<int>(sides.size())) { return value; }
+    const int count = static_cast<int>(sides.size());
+    const Side sd = gate <= count ? sides[gate - 1] : reverseSide(sides[gate - count - 1]);
+    if(!triggerActive(EDICT_NUM(sd.trigger))) { return value; }
+    const Side inverse = reverseSide(sd);
+    return direction ? inverse.turn * value : carried(inverse, value);
+}
+
+int aiImage(edict_t* observer, edict_t* target, const glm::vec3& from, const glm::vec3& point,
+    int gate, glm::vec3& image)
+{
+    image = point;
+    if(!walkOn() || !vr_portals_ai.value || !target || target->free ||
+       !(static_cast<int>(target->v.flags) & FL_CLIENT) || target->v.health <= 0.f) { return 0; }
+    if(!current()) { build(); }
+    float best = 1e30f;
+    int picked = 0;
+    for(int i = 0; i < 2 * static_cast<int>(sides.size()); i++)
+    {
+        if(gate > 0 && gate != i + 1) { continue; }
+        const int count = static_cast<int>(sides.size());
+        const Side sd = i < count ? sides[i] : reverseSide(sides[i - count]);
+        if(!triggerActive(EDICT_NUM(sd.trigger)) || (static_cast<int>(EDICT_NUM(sd.trigger)->v.spawnflags) & 1)) { continue; }
+        const Side inverse = reverseSide(sd);
+        const glm::vec3 candidate = carried(inverse, point);
+        const float a = glm::dot(sd.normal, from) - sd.dist, b = glm::dot(sd.normal, candidate) - sd.dist;
+        const float distance = glm::distance(from, candidate);
+        if(a <= 0.f || b >= 0.f || distance >= best) { continue; }
+        const glm::vec3 entry = glm::mix(from, candidate, a / (a - b));
+        if(!onGate(sd, entry, 0.f)) { continue; }
+        const glm::vec3 exit = carried(sd, entry);
+        const glm::vec3 ray = point - exit;
+        if(glm::length(ray) < 0.01f) { continue; }
+        const glm::vec3 farStart = exit + glm::normalize(ray) * 0.05f;
+        vec3_t start{from.x, from.y, from.z}, end{entry.x, entry.y, entry.z};
+        // Ordinary traces in each room: they cannot accidentally recurse through another gate.
+        const trace_t nearTrace = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NORMAL, observer);
+        if(nearTrace.startsolid || nearTrace.fraction < 0.999f) { continue; }
+        vec3_t farOrigin{farStart.x, farStart.y, farStart.z}, targetPoint{point.x, point.y, point.z};
+        const trace_t farTrace = SV_Move(farOrigin, vec3_origin, vec3_origin, targetPoint, MOVE_NORMAL, observer);
+        if(farTrace.startsolid || (farTrace.fraction < 0.999f && farTrace.ent != target)) { continue; }
+        // *teleport shimmer reports water at the entry plane; it is not a water boundary.
+        // Attack traces keep their ordinary contents checks in the reached room.
+        image = candidate; best = distance; picked = i + 1;
+    }
+    return picked;
+}
+
 glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate)
 {
     if(gate) { *gate = 0; }
@@ -1396,6 +1448,16 @@ extern "C" void VR_PortalPullTarget(edict_t* ent, const float hand[3], int begin
     setVec(out, carried(sd, vec(hand)));
 }
 
+namespace qvr::portals
+{
+static int aiRoute(edict_t* entity)
+{
+    if(!entity || !vr_portals_ai.value) { return 0; }
+    const int offset = ED_FindFieldOffset("vr_ai_gate");
+    return offset >= 0 ? static_cast<int>(GetEdictFieldValue(entity, offset)->_float) : 0;
+}
+}
+
 // SV_Physics_Toss, before the move: what flies (missiles, grenades, gibs) carried through a seamless slipgate as this
 // frame's path crosses its plane over the gate (from the front, nothing in the way), its speed and heading turned with it.
 extern "C" void VR_PortalToss(edict_t* ent)
@@ -1418,8 +1480,12 @@ extern "C" void VR_PortalToss(edict_t* ent)
         return;
     }
     const glm::vec3 e = o + v * static_cast<float>(host_frametime);
-    for(const Side& sd : sides)
+    const int count = static_cast<int>(sides.size());
+    const int route = aiRoute(ent);
+    for(int i = -1; i < count; i++)
     {
+        if(i < 0 && (route <= count || route > 2 * count)) { continue; }
+        const Side sd = i < 0 ? reverseSide(sides[route - count - 1]) : sides[i];
         const float d0 = glm::dot(sd.normal, o) - sd.dist, d1 = glm::dot(sd.normal, e) - sd.dist;
         if(d0 < 0.f || d1 >= 0.f)
         {
@@ -1459,6 +1525,8 @@ extern "C" void VR_PortalToss(edict_t* ent)
             eval_t* spin = GetEdictFieldValue(ent, spinField);
             setVec(spin->vector, sd.turn * vec(spin->vector));
         }
+        const int gateField = ED_FindFieldOffset("vr_ai_gate");
+        if(gateField >= 0) { GetEdictFieldValue(ent, gateField)->_float = 0.f; }
         SV_LinkEdict(ent, false);
         return;
     }
@@ -1647,8 +1715,10 @@ void pullTest_f()
 }
 
 void reachTest_f();
+void rebuild_f() { if(sv.active) { build(); } }
 void registerCommands()
 {
+    Cmd_AddCommand("vr_portals_rebuild", rebuild_f);
     Cmd_AddCommand("vr_portals_info", info_f);
     Cmd_AddCommand("vr_portals_view", viewInfo_f);
     Cmd_AddCommand("vr_portals_shot", shot_f);
@@ -1714,8 +1784,14 @@ extern "C" void VR_PortalTrace(const float start[3], const float end[3], int typ
         const Side* hit = nullptr;
         float bestT = 2.f;
         glm::vec3 at{0.f};
-        for(const Side& sd : sides)
+        const int count = static_cast<int>(sides.size());
+        const int route = aiRoute(passedict);
+        Side reverse;
+        for(int i = -1; i < count; i++)
         {
+            if(i < 0 && (route <= count || route > 2 * count || n > 0)) { continue; }
+            if(i < 0) { reverse = reverseSide(sides[route - count - 1]); }
+            const Side& sd = i < 0 ? reverse : sides[i];
             const float d0 = glm::dot(sd.normal, s) - sd.dist, d1 = glm::dot(sd.normal, e) - sd.dist;
             if(d0 < 0.f || d1 >= 0.f)
             {
