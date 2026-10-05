@@ -87,7 +87,8 @@ void keepShapes();
 
 // The capsule a..b (radius r, world units) against this frame's body shapes (the hands' spheres, the arms, the torso,
 // head and legs, as vr_body_collide makes them; the tracked pose). `holdHand` (0 off, 1 main): the hand that holds it.
-[[nodiscard]] FlameTouch flameTouch(const glm::vec3& a, const glm::vec3& b, float r, int holdHand);
+// -1: a map fixture; bits 1/4 are off hand/arm, 2/8 main hand/arm, with every contact eligible as deepest.
+[[nodiscard]] FlameTouch flameTouch(const glm::vec3& a, const glm::vec3& b, float r, int holdHand, unsigned allowedParts = 63);
 
 // A new map: nothing pushed, nothing recorded.
 void reset();

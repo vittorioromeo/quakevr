@@ -169,6 +169,7 @@ void() light_torch_small_walltorch =
         VR_WallTorch_Setup();
         return;
     }
+    VR_FireSpot(2); // static wall torch: its visible flame also burns you
     makestatic(self);
 };
 

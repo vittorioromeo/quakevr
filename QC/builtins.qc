@@ -346,6 +346,10 @@ void(entity e, float zone, vector lo, vector hi, float radius) debughitzone = #0
 // the head (bits), plus 256 times the deepest contact's bit (but the holding hand's); 0 nothing. trace_endpos: where (that
 // contact), on the body; trace_plane_normal: the way out of it.
 float(entity t) torchflametouch = #0;
+// A map flame capsule against player p: same bits, 1/4 off hand/arm, 2/8 main; deepest includes both hands.
+// parts selects eligible contacts (15 hands/arms, 48 torso/legs/head, 63 all).
+// A negative radius only requests tracked body shapes for the next frame (returns 0).
+float(entity p, vector a, vector b, float radius, float parts) mapflametouch = #0;
 
 float(string s) cvar_hmake = #0;
 float(float h) cvar_hget = #0;

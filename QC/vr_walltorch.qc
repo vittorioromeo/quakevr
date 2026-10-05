@@ -525,7 +525,7 @@ float(vector p, vector a, vector b) VR_WallTorch_SegmentDist =
 // would move the map's edict numbers). Set at each map's spawn, which a loaded save runs too (before its own globals).
 float VR_FIRE_SPOTS_MAX = 128;
 vector vr_fire_spot[128];
-float vr_fire_spot_large[128]; // flame2.mdl's frame: 0 the small flame, 1 the large one
+float vr_fire_spot_large[128]; // 0 small flame2, 1 large flame2, 2 a static wall torch
 float vr_fire_spots;
 
 void(float xLarge) VR_FireSpot =
@@ -553,7 +553,14 @@ string(entity t, vector xHead) VR_WallTorch_FireAt =
         // flame2.mdl's ball: the small one about 6 units wide, up to 16 over its origin; the large one 13 wide, to 39.
         // A little more all round: held into it, the torch's head is in it.
         vector o = vr_fire_spot[i];
-        if(vr_fire_spot_large[i])
+        if(vr_fire_spot_large[i] == 2)
+        {
+            if(VR_WallTorch_SegmentDist(xHead, o + '0 0 1', o + '0 0 16') < 6)
+            {
+                return "a burning torch";
+            }
+        }
+        else if(vr_fire_spot_large[i] == 1)
         {
             if(VR_WallTorch_SegmentDist(xHead, o + '0 0 -6', o + '0 0 32') < 12)
             {

@@ -706,7 +706,7 @@ QVR_CVAR(vr_burn_flame_tilt, "12", CVAR_ARCHIVE)         // degrees the other fl
 QVR_CVAR(vr_burn_corpses, "1", CVAR_ARCHIVE)             // 1: corpses catch fire too (Gibs and Corpses' corpses), and a monster dying burning burns on
 QVR_CVAR(vr_burn_corpse_time, "8", CVAR_ARCHIVE)         // s a corpse burns
 QVR_CVAR(vr_burn_corpse_damage, "0", CVAR_ARCHIVE)       // a burning corpse's damage, times a monster's (it gibs at its corpse health; 0: it just burns)
-QVR_CVAR(vr_burn_touch, "1", CVAR_ARCHIVE)               // 1: a lit torch (held, thrown or lying) touching a monster or a corpse sets it on fire, no blow needed
+QVR_CVAR(vr_burn_touch, "1", CVAR_ARCHIVE)               // 1: lit torch touch ignites monsters/corpses; mapper flames touching your body use the same burn
 QVR_CVAR(vr_burn_lava_nails, "1", CVAR_ARCHIVE)          // 1: your lava nails (the nailguns' lava ammo) set what they hit on fire
 QVR_CVAR(vr_burn_crates, "1", CVAR_ARCHIVE)              // 1: wooden crates catch fire (a torch's blow or touch, a lava nail, a burning crate touching them)
 QVR_CVAR(vr_burn_crate_time, "10", CVAR_ARCHIVE)         // s a crate burns before it breaks (vr_burn_crate_break) or goes out
@@ -724,7 +724,7 @@ QVR_CVAR(vr_burn_piece_flame_size, "0.7", CVAR_ARCHIVE)  // a piece's flames' si
 QVR_CVAR(vr_burn_nail_convert, "1", CVAR_ARCHIVE)        // 1: a nail passing through a lit torch's flame (held, thrown, lying, on its wall) becomes a lava nail
 QVR_CVAR(vr_burn_nail_reach, "10", CVAR_ARCHIVE)         // units from a torch's flame a nail must pass to catch fire
 QVR_CVAR(vr_burn_nail_sound, "0.5", CVAR_ARCHIVE)        // the volume of the short fizz a nail makes catching fire in a torch's flame (0: none)
-QVR_CVAR(vr_burn_self, "0", CVAR_ARCHIVE)                // 1: the flame of the torch you hold, kept on your other hand, an arm or your body (the body's collision shapes), sets you on fire after vr_burn_self_time
+QVR_CVAR(vr_burn_self, "0", CVAR_ARCHIVE)                // 1: your held torch burns you after vr_burn_self_time; mapper flames use the same hand/arm warnings and delay
 QVR_CVAR(vr_burn_self_time, "0.6", CVAR_ARCHIVE)         // s a held torch's flame must stay on you before you catch fire (haptic warnings till then)
 QVR_CVAR(vr_burn_self_haptic, "1", CVAR_ARCHIVE)         // the warnings' strength (the hand buzzing as the flame stays on you; 0: none)
 QVR_CVAR(vr_burn_drop, "0", CVAR_ARCHIVE)                // 1: a torch held upside down whose flame stays on the hand holding it for vr_burn_drop_time is dropped (a burn on the hand)

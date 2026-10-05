@@ -22,6 +22,7 @@
 #include "vr_protocol.hpp"
 #include "vr_ropesim.hpp"
 #include "vr_server.hpp"
+#include "vr_selfcollide.hpp"
 #include "vr_twohand.hpp"
 #include "vr_cvars.hpp"
 #include "vr_worldtext.hpp"
@@ -530,6 +531,34 @@ void PF_torchflametouch()
         {
             pr_global_struct->trace_endpos[i] = at[i];
             pr_global_struct->trace_plane_normal[i] = out[i];
+        }
+    }
+}
+
+// A visible map flame capsule against the local tracked body, using the held torch contact shapes.
+void PF_mapflametouch()
+{
+    G_FLOAT(OFS_RETURN) = 0.f;
+    if(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)) != cl.viewentity || cls.state != ca_connected)
+    {
+        return;
+    }
+    selfcollide::keepShapes();
+    if(G_FLOAT(OFS_PARM3) < 0.f)
+    {
+        return; // request shapes between the QC contact polls, even when the body solve is off
+    }
+    const float* a = G_VECTOR(OFS_PARM1);
+    const float* b = G_VECTOR(OFS_PARM2);
+    const auto t = selfcollide::flameTouch(glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]},
+        za::max(0.f, G_FLOAT(OFS_PARM3)), -1, static_cast<unsigned>(G_FLOAT(OFS_PARM4)) & 63);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(t.parts | (t.deepest << 8));
+    if(t.parts)
+    {
+        for(int i = 0; i < 3; i++)
+        {
+            pr_global_struct->trace_endpos[i] = t.at[i];
+            pr_global_struct->trace_plane_normal[i] = t.out[i];
         }
     }
 }
@@ -1812,6 +1841,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"hitmodel_rest", PF_hitmodel_rest},
     {"debughitzone", PF_debughitzone},
     {"torchflametouch", PF_torchflametouch},
+    {"mapflametouch", PF_mapflametouch},
     {"anglemod", PF_anglemod},
     {"meleerun", PF_meleerun},
     {"meleewristspeed", PF_meleewristspeed},

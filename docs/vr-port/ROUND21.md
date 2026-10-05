@@ -24403,3 +24403,25 @@ In VR:
 - [ ] Gore > Small Gibs > Per Enemy lists every monster twice; a grunt's at 2 doubles what he throws, an enforcer's is
       untouched.
 - [ ] A beheaded grunt's head, shot to bursting later, still throws his doubled counts.
+
+
+## Mapper flames burn hands and the walking body (2026-10-05)
+
+`light_flame_large_yellow`, `light_flame_small_yellow`, `light_flame_small_white`, and wall torches still on their walls
+now burn you at their visible flames. Hands/arms use `vr_burn_self`, its existing delay and haptic warning, then the
+same anchored flames, wounds, damage and duration as a held torch. The physical body uses `vr_burn_touch` and the
+immediate ignition of a dropped torch. Tracked torso/head/legs are tested first; the player collision box also keeps
+feet touchable with Body Mode below 3. Existing defaults, including the author's 0.6-second delay, are unchanged.
+Static flames reuse the existing relighting registry; static wall torches join it when `vr_walltorch 0`. Dynamic
+wall torches are sources only while `wt_state == 0`, lit, and modeled: taking one leaves no wall hazard. The flame
+capsule builtin requests body shapes between the 0.1-second contact checks even with `vr_body_collide 0`.
+
+QuakeC/FTE pitfall found in the real fixture checks: passing `vr_fire_spot[i]` (vector) followed by
+`vr_fire_spot_large[i]` (scalar) directly as call arguments let the latter array getter overwrite the vector's y/z
+argument slots; `-96 632 406` arrived as `-96 0 0`. Cache both indexed values in locals before making the call.
+
+Focused check: `bash Misc/quakevr/mapflameburn_test.sh <agent>` (optional second argument filters case names).
+It checks both hands, brazier/wall body contact, a static wall torch, toggles, withdrawing before ignition, the
+non-flaming stick, clear space, detaching, lit held/dropped and extinguished portable torches, and a 1.5-second delay.
+In VR, confirm the warning buzz, burns following the touched hand, foot/body burn placement, and withdrawing from
+both e1m2 braziers at `-96 632 406` and `-24 -232 414`; also try wall torch 52 before and after taking it.
