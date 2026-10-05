@@ -3843,7 +3843,8 @@ void collidingSubs(za::Vector<za::SizeT>& subs)
     {
         const edict_t* ent = EDICT_NUM(e);
         const int index = static_cast<int>(ent->v.modelindex);
-        if(ent->free || index <= 0 || index >= MAX_MODELS || ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT) continue;
+        if(ent->free || index <= 0 || index >= MAX_MODELS || ent->v.solid == static_cast<float>(SOLID_TRIGGER) ||
+           ent->v.solid == static_cast<float>(SOLID_NOT)) continue;
         const qmodel_t* model = sv.models[index];
         if(!model || model->type != mod_brush) continue;
         const int sub = subOf(built, index);
