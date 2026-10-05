@@ -102,6 +102,18 @@ float(entity e) VR_Crate_Wooden =
            e.classname == "vr_crate_piece_gone";
 };
 
+// Hit material, separate from prop classification: secret doors rename themselves to door. Shootable triggers
+// clear their model in InitTrigger, so recognize their class even when activation disables damage.
+// Keep crates' existing material ahead of the brush fallback.
+float(entity e) VR_Hit_Metal =
+{
+    if(e == world) { return FALSE; }
+    if(VR_Prop_Metal(e)) { return TRUE; }
+    if(VR_Crate_Wooden(e)) { return FALSE; }
+    return e.solid == SOLID_BSP || substring(e.model, 0, 1) == "*" ||
+           e.classname == "trigger_multiple" || e.classname == "trigger_once" || e.classname == "trigger_secret";
+};
+
 // What a hit on metal sounds like (VR_Metal_Hit, VR_Melee_HitSoundOn): a shot's tink or ricochet, a blade's clang (the
 // axe's on a wall), a blunt blow's or a thrown thing's heavy metal knock (the physics sounds' metal_h, a 40 kg box's).
 float VR_METAL_SHOT = 0;
@@ -141,7 +153,7 @@ void(entity targ, vector org, vector dir, float damage, float xHow) VR_Metal_Hit
 // blunt blow's (a pommel, a gun's butt, a fist, a club) metal knock; else the blow's own `xSound`.
 string(entity xTarg, string xSound, float xBlade) VR_Melee_HitSoundOn =
 {
-    if(VR_Prop_Metal(xTarg))
+    if(VR_Hit_Metal(xTarg))
     {
         float blade = xBlade && !vr_melee_blunt;
         string s = VR_Metal_Sound(blade ? VR_METAL_BLADE : VR_METAL_BLUNT);
@@ -176,7 +188,7 @@ void(entity targ, vector org, vector vel, float damage) VR_HitBlood =
         VR_GrenShot_Sparks(org);
         return;
     }
-    if(VR_Prop_Metal(targ))
+    if(VR_Hit_Metal(targ))
     {
         VR_Metal_Hit(targ, org, vel * 0.2, damage, VR_METAL_BLUNT);
         return;
@@ -199,7 +211,7 @@ void(entity targ, vector org, float damage) VR_HitBloodSplash =
         VR_GrenShot_Sparks(org);
         return;
     }
-    if(VR_Prop_Metal(targ))
+    if(VR_Hit_Metal(targ))
     {
         VR_Metal_Hit(targ, org, [crandom() * 60, crandom() * 60, random() * 40 + 30], damage, VR_METAL_BLUNT);
         return;
