@@ -54,7 +54,7 @@ constexpr int pageRows = 200;             // packages per API call
 constexpr int maxPages = 30;              // a guard: 10 cover the index today
 constexpr za::I64 cacheSeconds = 24 * 60 * 60; // an index older than this is fetched again (host_cmd.c's MANIFEST_RETENTION)
 constexpr int listLimit = 20;             // maps_list's default
-constexpr char cacheMagic[] = "#quakevr-mapindex-1";
+constexpr char cacheMagic[] = "#quakevr-mapindex-2";
 const char* acceptHeader = "Accept: application/json"; // (file-scope, not a function-local static: download_t.headers wants a const char**)
 
 // The live index, counted by vr_memstats (mem::Never: only the fetch thread's handoff replaces it). Main thread.
@@ -234,6 +234,11 @@ void parseEntry(Index& idx, const jsonentry_t* e)
         }
     }
 
+    if(const char* description = JSON_FindString(e, "description"))
+    {
+        out.description = addField(idx, description, strlen(description));
+    }
+
     if(const jsonentry_t* urls = JSON_Find(e, "urls", JSON_ARRAY))
     {
         for(const jsonentry_t* url = urls->firstchild; url; url = url->next)
@@ -242,7 +247,8 @@ void parseEntry(Index& idx, const jsonentry_t* e)
         }
     }
 
-    // `files` is an object; its children are its keys, each with its value as a child (json.c's JSON_Find).
+    // `files` is an object; its children are its keys, each with its value as a child (json.c's JSON_Find). Its count
+    // is what the browser shows ("12 files"), and a file named progs.dat at any path is what vr_maps_allow_progs gates.
     if(const jsonentry_t* files = JSON_Find(e, "files", JSON_OBJECT))
     {
         for(const jsonentry_t* f = files->firstchild; f; f = f->next)
@@ -251,12 +257,12 @@ void parseEntry(Index& idx, const jsonentry_t* e)
             {
                 continue;
             }
+            out.files++;
             const char* base = strrchr(f->string, '/');
             base = base ? base + 1 : f->string;
             if(!q_strcasecmp(base, "progs.dat"))
             {
                 out.hasProgs = true;
-                break;
             }
         }
     }
@@ -300,6 +306,10 @@ za::String cacheText(const Index& idx)
         out += fieldSep;
         out += e.hasProgs ? '1' : '0';
         addField(e.urls);
+        addField(e.description);
+        q_snprintf(bytes, sizeof(bytes), "%d", e.files);
+        out += fieldSep;
+        out += bytes;
         out += '\n';
     }
     return out;
@@ -320,11 +330,11 @@ bool writeCache(Index& idx)
 
 // A cache line's fields, by position: an empty field stays empty (files::forPieces skips an empty piece at the end of
 // a line, which would drop a package that has no download URL). Returns how many fields it filled.
-int splitFields(const char* line, za::SizeT len, za::String (&fields)[13])
+int splitFields(const char* line, za::SizeT len, za::String (&fields)[15])
 {
     za::SizeT i = 0;
     int n = 0;
-    while(n < 13)
+    while(n < 15)
     {
         za::SizeT j = i;
         while(j < len && line[j] != fieldSep)
@@ -383,9 +393,9 @@ bool loadCache(Index& idx, const za::String& url)
         {
             return;
         }
-        // sha title author date types modes sizes themes bytes startmap extract progs urls
-        za::String fields[13];
-        if(splitFields(l.data(), l.size(), fields) < 13)
+        // sha title author date types modes sizes themes bytes startmap extract progs urls description files
+        za::String fields[15];
+        if(splitFields(l.data(), l.size(), fields) < 15)
         {
             return;
         }
@@ -403,6 +413,8 @@ bool loadCache(Index& idx, const za::String& url)
         e.extract = loadField(idx, fields[10]);
         e.hasProgs = fields[11].size() && fields[11].cStr()[0] == '1';
         e.urls = loadField(idx, fields[12]);
+        e.description = loadField(idx, fields[13]);
+        e.files = static_cast<int>(strtol(fields[14].cStr(), nullptr, 10));
         idx.entries.pushBack(e);
     });
 
@@ -790,7 +802,9 @@ void info_f()
     Con_Printf("  bytes       %llu\n", static_cast<unsigned long long>(e->bytes));
     Con_Printf("  startmap    %s\n", indexSet.field(e->startmap));
     Con_Printf("  extract     %s\n", indexSet.field(e->extract));
+    Con_Printf("  files       %d\n", e->files);
     Con_Printf("  progs.dat   %s\n", e->hasProgs ? "yes (vr_maps_allow_progs)" : "no");
+    Con_Printf("  description %s\n", indexSet.field(e->description));
     Con_Printf("  download    %s\n", joinParts(indexSet, e->urls, "\n              ").cStr());
 }
 

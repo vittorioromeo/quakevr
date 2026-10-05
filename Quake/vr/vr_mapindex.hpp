@@ -43,7 +43,9 @@ struct Entry
     Text modes;    // singleplayer, deathmatch, cooperative
     Text sizes;    // tiny, small, medium, large, huge
     Text themes;
+    Text description; // the package's own text (the browser's detail view)
     za::U64 bytes{0};
+    int files{0}; // how many files its zip holds (the count only: the browser says "12 files")
     bool hasProgs{false}; // its files carry a progs.dat at any path (vr_maps_allow_progs)
 };
 
