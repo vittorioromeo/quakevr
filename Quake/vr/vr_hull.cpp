@@ -3833,20 +3833,37 @@ za::Vector<glm::vec3> wantedExts(bool loading)
 
 // Recover every loaded brush model before workers read the shared brushes. Each worker owns one size's Tree:
 // its submodels append to the same node/plane arrays, so they must not be built concurrently with each other.
+// The brush models a box can collide with now: those of live edicts that are neither triggers nor SOLID_NOT (the
+// clipping lists never hold those: world.c's SV_ClipToLinks; func_illusionary, every trigger_*). One made solid later,
+// or a model no edict uses yet, is built on its first trace (traceSub's runtime build).
+void collidingSubs(za::Vector<za::SizeT>& subs)
+{
+    subs.clear();
+    for(int e = 1; e < qcvm->num_edicts; ++e)
+    {
+        const edict_t* ent = EDICT_NUM(e);
+        const int index = static_cast<int>(ent->v.modelindex);
+        if(ent->free || index <= 0 || index >= MAX_MODELS || ent->v.solid == SOLID_TRIGGER || ent->v.solid == SOLID_NOT) continue;
+        const qmodel_t* model = sv.models[index];
+        if(!model || model->type != mod_brush) continue;
+        const int sub = subOf(built, index);
+        if(sub <= 0) continue;
+        const za::SizeT s = static_cast<za::SizeT>(sub);
+        if(za::find(subs.begin(), subs.end(), s) == subs.end()) subs.pushBack(s);
+    }
+}
+
 void prepareBrushModels()
 {
     if(vr_hull_brushmodels.value == 0.f) return;
     const double started = Sys_DoubleTime();
     const za::SizeT beforeBytes = built.bytes() + tree.bytes() + monsterTrees.bytes();
     za::Vector<za::SizeT> subs;
-    for(int i = 1; i < MAX_MODELS; ++i)
     {
-        const qmodel_t* model = sv.models[i];
-        if(!model || model->type != mod_brush) continue;
-        const int sub = subOf(built, i);
-        if(sub <= 0) continue;
-        const za::SizeT s = static_cast<za::SizeT>(sub);
-        if(za::find(subs.begin(), subs.end(), s) == subs.end()) subs.pushBack(s);
+        qcvm_t* oldVm = nullptr;
+        PR_PushQCVM(&sv.qcvm, &oldVm);
+        collidingSubs(subs);
+        PR_PopQCVM(oldVm);
     }
     za::Vector<Tree*> sizes;
     if(tree.forClipnodes == built.clipnodes) sizes.pushBack(&tree);
@@ -3897,9 +3914,16 @@ void preloadTest_f()
     int checked = 0, mismatches = 0, missing = 0;
     za::U32 seed = 17;
     const auto random = [&seed] { seed = seed * 1664525u + 1013904223u; return static_cast<float>(seed >> 8) / 8388608.f - 1.f; };
+    za::Vector<za::SizeT> wantedSubs; // (the prepared ones: those that can collide)
+    {
+        qcvm_t* oldVm = nullptr;
+        PR_PushQCVM(&sv.qcvm, &oldVm);
+        collidingSubs(wantedSubs);
+        PR_PopQCVM(oldVm);
+    }
     for(const Tree* cached : sizes)
     {
-        for(za::SizeT sub = 1; sub < built.subs.size(); ++sub)
+        for(const za::SizeT sub : wantedSubs)
         {
             if(sub >= cached->heads.size() || cached->heads[sub] < 0) { ++missing; continue; }
             Tree reference;

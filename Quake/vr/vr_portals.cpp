@@ -1391,7 +1391,7 @@ int aiImage(edict_t* observer, edict_t* target, const glm::vec3& from, const glm
     return picked;
 }
 
-void pullSearchOrigins(const glm::vec3& from, za::Vector<glm::vec3>& out)
+void pullSearchOrigins(const glm::vec3& from, za::Vector<glm::vec3>& out, float range)
 {
     out.clear();
     out.pushBack(from);
@@ -1401,6 +1401,9 @@ void pullSearchOrigins(const glm::vec3& from, za::Vector<glm::vec3>& out)
     {
         if(!triggerActive(EDICT_NUM(sd.trigger)) || (static_cast<int>(EDICT_NUM(sd.trigger)->v.spawnflags) & 1) ||
            glm::dot(sd.normal, from) - sd.dist < 0.f) { continue; }
+        // A gate whose aperture is out of reach takes nothing to the hand (pullImage's line from the hand crosses the
+        // aperture within the range): its room is not searched (range < 0: every gate).
+        if(range >= 0.f && glm::distance(nearestPoint(sd, from), from) > range + 1.f) { continue; }
         out.pushBack(carried(sd, from));
     }
 }

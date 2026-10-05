@@ -380,7 +380,7 @@ qboolean Sys_GetSteamAPILibraryPath (char *path, size_t pathsize, const steamgam
 		if ((bytes_read = getline (&line, &line_size, config_info)) == -1)
 		{
 			fclose (config_info);
-			VR_HeapFree (line);
+			free (line); // (getline's, from libc: not counted)
 			return false;
 		}
 	}
@@ -398,7 +398,7 @@ qboolean Sys_GetSteamAPILibraryPath (char *path, size_t pathsize, const steamgam
 
 	result = (size_t) q_snprintf (path, pathsize, "%s/libsteam_api.so", line) < pathsize;
 
-	VR_HeapFree (line);
+	free (line); // (getline's, from libc: not counted)
 
 	return result;
 }
@@ -611,7 +611,7 @@ static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 	else
 	{
 		/* strip off the binary name */
-		if (! (tmp = strdup (dst))) goto _fail;
+		if (! (tmp = VR_HeapStrdup (dst))) goto _fail; // QVR: counted
 		q_strlcpy (dst, dirname(tmp), dstsize);
 		VR_HeapFree (tmp);
 	}
@@ -635,7 +635,7 @@ static void Sys_GetBasedir (char *argv0, char *dst, size_t dstsize)
 	else
 	{
 		/* strip off the binary name */
-		if (! (tmp = strdup (dst))) goto _fail;
+		if (! (tmp = VR_HeapStrdup (dst))) goto _fail; // QVR: counted
 		q_strlcpy (dst, dirname(tmp), dstsize);
 		VR_HeapFree (tmp);
 	}

@@ -679,7 +679,7 @@ void Cvar_RegisterVariable (cvar_t *variable)
 	variable->flags |= CVAR_REGISTERED;
 
 // copy the value off, because future sets will Z_Free it (QVR: any length; was a 512-byte copy, a longer value cut)
-	value = strdup (variable->string ? variable->string : "");
+	value = VR_HeapStrdup (variable->string ? variable->string : ""); // QVR: counted
 	if (!value)
 		Sys_Error ("Cvar_RegisterVariable: out of memory");
 	variable->string = NULL;

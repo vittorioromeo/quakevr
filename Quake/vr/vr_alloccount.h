@@ -8,6 +8,7 @@ extern "C" {
 void* VR_HeapMalloc(size_t size);
 void* VR_HeapCalloc(size_t count, size_t size);
 void* VR_HeapRealloc(void* pointer, size_t size);
+char* VR_HeapStrdup(const char* string); // strdup, counted (freed with VR_HeapFree)
 void VR_HeapFree(void* pointer);
 /* Aligned allocations must be paired with the aligned free (Box3D callbacks). */
 void* VR_HeapAlignedAlloc(size_t size, size_t alignment);

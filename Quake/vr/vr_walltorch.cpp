@@ -636,7 +636,12 @@ extern "C" void VR_WallTorchFlames(void)
             const glm::vec3 player = hands::current().playerOrigin;
             if(heldBy[0] == i || heldBy[1] == i)
             {
-                const glm::vec3 walk = (player - t.player) / fdt;
+                glm::vec3 walk = (player - t.player) / fdt;
+                if(glm::length(walk) > 3000.f)
+                {
+                    walk = glm::vec3{0.f}; // the player's jump too (a teleport, a slipgate): no lean from it
+                    v = glm::vec3{0.f};
+                }
                 v = walk + (v - walk) * za::clamp(vr_walltorch_hand_motion.value, 0.f, 4.f);
             }
             const float ease = za::clamp(vr_walltorch_motion_smooth.value, 0.01f, 0.5f);

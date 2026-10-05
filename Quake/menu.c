@@ -5078,8 +5078,8 @@ static void M_Keys_AddCustomEntry (const char *cmd, const char *desc)
 	}
 
 	// add custom key binding
-	new_item.command = strdup (cmd);
-	new_item.description = strdup (desc);
+	new_item.command = VR_HeapStrdup (cmd); // QVR: counted (freed by VR_HeapFree)
+	new_item.description = VR_HeapStrdup (desc);
 	new_item.devicemask = KDM_ANY;
 	VEC_PUSH (keysmenu.custom_items, new_item);
 }

@@ -559,7 +559,8 @@ void(vector at) VR_Forcegrab_PortalTest =
     bprint(sprintf("portalpulltest: gate=%g flight=%g\n", g.fg_portal, g.fg_arrive - time));
 };
 
-// A ragdoll force grabbed (vr_ragdoll_grab 2): the limb nearest the hand's aim flies to the hand (the engine's pull:
+// A ragdoll force grabbed: no longer reached in play (ragdolls are taken by hand only: vr_ragdoll_grab 1, the legacy 2
+// too; force grab's targets leave them out); kept for a target that is a ragdoll all the same. The limb nearest the hand's aim flies to the hand (the engine's pull:
 // ragdollpull, in the time a prop would take), the body dragged after it; the grip held as it comes within
 // vr_forcegrab_catch_radius catches it: the hand holds that limb (VR_Ragdoll_HandFrame).
 void(entity e, float xHand) VR_Ragdoll_Pull =

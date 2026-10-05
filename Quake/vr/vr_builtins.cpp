@@ -153,6 +153,7 @@ mem::Scratch<PullSearchScratch> pullSearch{"force-grab search"};
 [[nodiscard]] bool nearPullSearch(const glm::vec3& point, float range)
 {
     if(!(range >= 0.f)) { return true; } // preserve the original comparisons for unusual QC inputs
+    if(!(point.x - point.x == 0.f && point.y - point.y == 0.f && point.z - point.z == 0.f)) { return true; } // (a NaN centre: the original comparisons decide, as before)
     for(const glm::vec3& origin : pullSearch.origins)
     {
         // Account for float cancellation and the portal rotation's rounding. The
@@ -171,7 +172,7 @@ void PF_findportalcone()
     const float* d = G_VECTOR(OFS_PARM2);
     const glm::vec3 aim{d[0], d[1], d[2]};
     const float minCos = G_FLOAT(OFS_PARM3) - 1e-4f;
-    portals::pullSearchOrigins(from, pullSearch.origins);
+    portals::pullSearchOrigins(from, pullSearch.origins, range);
     edict_t* chain = qcvm->edicts;
     edict_t* ent = NEXT_EDICT(qcvm->edicts);
     for(int i = 1; i < qcvm->num_edicts; ++i, ent = NEXT_EDICT(ent))

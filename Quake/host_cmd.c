@@ -411,7 +411,7 @@ static int ExtraMaps_ParseDescriptions (void *unused)
 
 		if (!Mod_LoadMapDescription (buf, sizeof (buf), item->name))
 			SDL_AtomicSet (&extra->type, MAPTYPE_BMODEL);
-		SDL_AtomicSetPtr ((void **) &extra->message, buf[0] ? strdup (buf) : "");
+		SDL_AtomicSetPtr ((void **) &extra->message, buf[0] ? VR_HeapStrdup (buf) : "");
 	}
 
 	return 0;
@@ -1117,7 +1117,7 @@ static void Modlist_Add (const char *name)
 		{
 			if (info->full_name)
 				VR_HeapFree ((void *) info->full_name);
-			info->full_name = strdup (description);
+			info->full_name = VR_HeapStrdup (description);
 		}
 		VR_HeapFree (buf);
 
@@ -1160,7 +1160,7 @@ static void Modlist_Add (const char *name)
 							if (q_strcasecmp (mod_dir, name) != 0)
 								continue;
 
-						info->full_name = strdup (mod_name);
+						info->full_name = VR_HeapStrdup (mod_name);
 						break;
 					}
 				}
@@ -1176,7 +1176,7 @@ static void Modlist_Add (const char *name)
 		{
 			if (!q_strcasecmp (name, knownmods[i][0]))
 			{
-				info->full_name = strdup (knownmods[i][1]);
+				info->full_name = VR_HeapStrdup (knownmods[i][1]);
 				break;
 			}
 		}

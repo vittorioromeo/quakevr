@@ -397,8 +397,9 @@ const DefaultChange defaultChanges[] = {
     {87, &vr_decap_fountain, "2.5"},
     {87, &vr_walltorch_inv_size, "1.25"}, // legacy three-flame size
     {87, &vr_ragdoll_grab, "2"}, // ragdolls are taken by hand only
+    {88, &vr_particle_retro_halfres_pixels, "64"}, // 0: all particles in their order (the split drew small over large)
 };
-constexpr int configVersion = 87;
+constexpr int configVersion = 88;
 
 // Two settings' values the same (as numbers when both are).
 [[nodiscard]] bool sameValue(const char* a, const char* b)

@@ -739,6 +739,10 @@ struct World
     };
     za::Vector<MonsterMotion> motion;
     za::Vector<RagdollBodies> ragdolls; // (Slot::ragdoll)
+    // A full ragdoll pool (vr_ragdoll_max): the corpses waiting for QC to make room (VR_Knockdown_MakeRoom), run after
+    // syncEntities' edict loop rather than inside it; and the ones it refused, left as corpses until they are gone.
+    za::Vector<int> roomWanted, roomRefused;
+    bool syncingEntities{false};
     za::Vector<Recovery> recoveries;    // knocked-down monsters getting up (Knockdowns)
     // Hands holding a ragdoll's limb (vr_ragdoll_grab; "Ragdolls"): a kinematic body at the hand and a motor joint to
     // the limb; or a force grab's pull flying the limb to the hand (no joint yet).
@@ -2288,6 +2292,60 @@ void pruneRagdollsInside()
 
 bool cutHead(RagdollBodies& r, edict_t* ent, const glm::vec3& blade, bool launch); // (below)
 
+// The QC globals a call into QC from the engine's middle (a builtin, the physics) may clobber and its caller may still
+// read: the parameters and return value, self, other, msg_entity and the last trace's results. (Not the rest: Killed's
+// counters, killed_monsters and the like, are meant to change.)
+struct QcCallGuard
+{
+    globalvars_t saved;
+    QcCallGuard() { memcpy(&saved, pr_global_struct, sizeof saved); }
+    ~QcCallGuard()
+    {
+        globalvars_t& g = *pr_global_struct;
+        memcpy(g.pad, saved.pad, sizeof g.pad);
+        g.self = saved.self;
+        g.other = saved.other;
+        g.msg_entity = saved.msg_entity;
+        g.trace_allsolid = saved.trace_allsolid;
+        g.trace_startsolid = saved.trace_startsolid;
+        g.trace_fraction = saved.trace_fraction;
+        VectorCopy(saved.trace_endpos, g.trace_endpos);
+        VectorCopy(saved.trace_plane_normal, g.trace_plane_normal);
+        g.trace_plane_dist = saved.trace_plane_dist;
+        g.trace_ent = saved.trace_ent;
+        g.trace_inopen = saved.trace_inopen;
+        g.trace_inwater = saved.trace_inwater;
+    }
+};
+
+[[nodiscard]] bool roomRefused(int num)
+{
+    return za::anyOf(world->roomRefused.begin(), world->roomRefused.end(), [&](int n) { return n == num; });
+}
+
+// QC's VR_Knockdown_MakeRoom for `ent` (a ragdoll retired, a knockdown ended): whether a ragdoll may be made now. Its
+// removed edicts' bodies go at once.
+bool makeRagdollRoom(edict_t* ent)
+{
+    const func_t room = qvr::progs::findFunction("VR_Knockdown_MakeRoom");
+    if(!room) { return false; }
+    bool madeRoom = false;
+    {
+        QcCallGuard guard;
+        G_INT(OFS_PARM0) = EDICT_TO_PROG(ent);
+        PR_ExecuteProgram(room);
+        madeRoom = G_FLOAT(OFS_RETURN) != 0.f;
+    }
+    for(RagdollBodies& old : world->ragdolls)
+    {
+        if(old.num > 0 && EDICT_NUM(old.num)->free)
+        {
+            destroyBody(world->slots[old.num]);
+        }
+    }
+    return madeRoom;
+}
+
 // The ragdoll's parts made for `ent` where its frame has them; false (nothing made) without a rig. `now`: made at once
 // from whatever frame it is in (beheaded: ragdollDecap), its loose piece hidden (what it held: its death code drops it).
 bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
@@ -2302,22 +2360,25 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now = false)
     // strand a newly killed monster in its animated death pose.
     if(ragdollCount() >= static_cast<int>(za::max(1.f, vr_ragdoll_max.value)))
     {
-        const func_t room = qvr::progs::findFunction("VR_Knockdown_MakeRoom");
-        if(!room) { return false; }
-        const int oldSelf = pr_global_struct->self;
-        G_INT(OFS_PARM0) = EDICT_TO_PROG(ent);
-        PR_ExecuteProgram(room);
-        pr_global_struct->self = oldSelf;
-        const bool madeRoom = G_FLOAT(OFS_RETURN) != 0.f;
-        // QC removed an edict; retire its physical bodies before reusing a slot.
-        for(RagdollBodies& old : world->ragdolls)
+        if(roomRefused(num))
         {
-            if(old.num > 0 && EDICT_NUM(old.num)->free)
-            {
-                destroyBody(world->slots[old.num]);
-            }
+            return false; // (refused once: a corpse till it is gone)
         }
-        if(!madeRoom) { return false; }
+        if(world->syncingEntities)
+        {
+            // In syncEntities' edict loop: QC (which removes and spawns edicts, and kills) runs after it; the ragdoll
+            // is made the next frame.
+            if(!za::anyOf(world->roomWanted.begin(), world->roomWanted.end(), [&](int n) { return n == num; }))
+            {
+                world->roomWanted.pushBack(num);
+            }
+            return false;
+        }
+        if(!makeRagdollRoom(ent))
+        {
+            world->roomRefused.pushBack(num);
+            return false;
+        }
     }
     int index = -1;
     for(int i = 0; i < static_cast<int>(world->ragdolls.size()); i++)
@@ -3895,7 +3956,7 @@ void updateShapeGeneration()
     case Kind::Corpse:
     {
         const int num = NUM_FOR_EDICT(ent);
-        if(s.ragdoll >= 0 || wantsRagdoll(ent, num))
+        if(s.ragdoll >= 0 || (wantsRagdoll(ent, num) && !roomRefused(num)))
         {
             // A ragdoll stays one while it is wanted (its frames, its box are its own); a corpse becomes one.
             return s.ragdoll < 0 || s.model != modelOf(ent) || !wantsRagdoll(ent, num);
@@ -5528,6 +5589,11 @@ void syncEntities(float dt)
         Con_DPrintf("ragdoll: the map's rigs (%d models) ready in %.1f ms\n", static_cast<int>(rigged.size()),
             (Sys_DoubleTime() - w0) * 1000.0);
     }
+    // The corpses refused a ragdoll once (a full pool) are forgotten once they are something else.
+    za::vectorEraseIf(world->roomRefused, [](int n) {
+        return n >= qcvm->num_edicts || EDICT_NUM(n)->free || slotOf(n).kind != Kind::Corpse;
+    });
+    world->syncingEntities = true;
     for(int num = 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
@@ -5573,6 +5639,26 @@ void syncEntities(float dt)
         default: break;
         }
     }
+    world->syncingEntities = false;
+    // The corpses that found the ragdoll pool full: QC makes room for each, now that the loop is done (a refusal is not
+    // asked again); their ragdolls are made next frame (stale: a corpse that wants one).
+    for(za::SizeT i = 0; i < world->roomWanted.size(); i++)
+    {
+        const int num = world->roomWanted[i];
+        if(num >= qcvm->num_edicts || EDICT_NUM(num)->free || roomRefused(num))
+        {
+            continue;
+        }
+        if(ragdollCount() < static_cast<int>(za::max(1.f, vr_ragdoll_max.value)))
+        {
+            continue; // (room made for an earlier one, or a ragdoll gone meanwhile)
+        }
+        if(!makeRagdollRoom(EDICT_NUM(num)))
+        {
+            world->roomRefused.pushBack(num);
+        }
+    }
+    world->roomWanted.clear();
     for(size_t num = static_cast<size_t>(qcvm->num_edicts); num < world->slots.size(); num++)
     {
         if(world->slots[num].kind != Kind::None)

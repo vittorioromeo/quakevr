@@ -231,8 +231,17 @@ extern "C" void* VR_HeapCalloc(size_t count, size_t size)
 }
 extern "C" void* VR_HeapRealloc(void* p, size_t size)
 {
-    account(qvr::alloccount::Kind::Realloc, size);
+    // realloc(NULL, n) allocates and realloc(p, 0) frees: counted as such, so that requests and frees balance.
+    account(!p ? qvr::alloccount::Kind::Malloc : size == 0 ? qvr::alloccount::Kind::Free : qvr::alloccount::Kind::Realloc, size);
     return realloc(p, size);
+}
+extern "C" char* VR_HeapStrdup(const char* s)
+{
+    const size_t n = strlen(s) + 1;
+    account(qvr::alloccount::Kind::Malloc, n);
+    char* copy = static_cast<char*>(malloc(n));
+    if(copy) memcpy(copy, s, n);
+    return copy;
 }
 extern "C" void VR_HeapFree(void* p)
 {
@@ -274,8 +283,11 @@ void traceFrameEnd(bool retainPeak)
     {
         if(retainPeak)
         {
-            t.peakCount = t.frameCount;
-            t.peakBytes = t.frameBytes;
+            // The peak frame is chosen by its allocations (vr_allocsites frameEnd): its sites are the allocating ones,
+            // not the frees and deletes traced in it too.
+            const bool frees = t.kind == Kind::Free || t.kind == Kind::Delete;
+            t.peakCount = frees ? 0 : t.frameCount;
+            t.peakBytes = frees ? 0 : t.frameBytes;
         }
         t.frameCount = t.frameBytes = 0;
     }

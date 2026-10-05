@@ -71,7 +71,7 @@ Reach reach(const glm::vec3& root, const glm::vec3& point);
 glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate = nullptr);
 // Search centres for a conservative force-grab broad phase: the hand itself and its
 // active source-facing one-hop images in destination rooms. pullImage still decides visibility.
-void pullSearchOrigins(const glm::vec3& from, za::Vector<glm::vec3>& out);
+void pullSearchOrigins(const glm::vec3& from, za::Vector<glm::vec3>& out, float range = -1.f);
 
 // One-hop AI sight from a monster/muzzle to a player point. A positive gate pins the route.
 int aiImage(edict_s* observer, edict_s* target, const glm::vec3& from, const glm::vec3& point,
