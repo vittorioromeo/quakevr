@@ -1,6 +1,7 @@
 // vr_retro.cpp -- see vr_retro.hpp (the settings, the overrides) and vr_retro.h (the shaders' side).
 
 #include "vr_retro.hpp"
+#include "vr_modelmetadata.hpp"
 #include "vr_retro.h"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -480,144 +481,6 @@ void sayFull()
 
 // ---- What a model is (its name; Category's comments)
 
-[[nodiscard]] bool startsWith(const char* s, const char* prefix)
-{
-    return ZA_STRNCMP(s, prefix, ZA_STRLEN(prefix)) == 0;
-}
-
-[[nodiscard]] const char* fileOf(const char* name)
-{
-    const char* f = name;
-    for(const char* p = name; *p; p++)
-    {
-        if(*p == '/')
-        {
-            f = p + 1;
-        }
-    }
-    return f;
-}
-
-template <za::SizeT N>
-[[nodiscard]] bool anyPrefix(const char* f, const char* const (&prefixes)[N])
-{
-    for(const char* p : prefixes)
-    {
-        if(startsWith(f, p))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-constexpr const char* gibPrefixes[] = {"gib1.", "gib2.", "gib3.", "gib_brain", "zom_gib.", "statgib", "h_"};
-constexpr const char* handPrefixes[] = {"hand", "finger_"};
-constexpr const char* gearPrefixes[] = {"vrgadget", "vrpauldron", "vrpouch", "legholster", "vrflashlight"};
-constexpr const char* propPrefixes[] = {"vr_crate", "vr_rock", "vr_brick", "vr_plank", "vr_shell", "vrtorch.", "lantern",
-    "candle", "barrel"};
-// Quake's monsters, the mission packs' (hipnotic: scorpions, gremlins, the armagon; rogue: mummies, eels, lava men,
-// dragons) and the player's model (other players, statues)
-constexpr const char* monsterFiles[] = {"soldier.", "dog.", "ogre.", "knight.", "hknight.", "wizard.", "demon.",
-    "shambler.", "zombie.", "shalrath.", "enforcer.", "fish.", "tarbaby.", "boss.", "oldone.", "player.", "scor.",
-    "grem.", "armabody.", "armalegs.", "mummy.", "eel.", "lavaman.", "dragon.", "ogre_", "sword.", "frogman"};
-constexpr const char* itemFiles[] = {"armor.", "backpack.", "w_s_key.", "w_g_key.", "m_s_key.", "m_g_key.", "b_s_key.",
-    "b_g_key.", "invulner.", "suit.", "invisibl.", "quaddama.", "end1.", "end2.", "end3.", "end4.", "empathy.",
-    "wetsuit.", "shield.", "antigrav."};
-
-// A model's category by its name alone (entities that move it elsewhere: categoryOf).
-[[nodiscard]] Category classifyModel(const qmodel_t* m)
-{
-    const char* f = fileOf(m->name);
-    if(m->type == mod_brush)
-    {
-        if(m->name[0] == '*')
-        {
-            return Category::Brush;
-        }
-        if(startsWith(f, "b_explob") || startsWith(f, "b_exbox"))
-        {
-            return Category::Props;
-        }
-        return startsWith(f, "b_") ? Category::Items : Category::Props;
-    }
-    if(m->type == mod_sprite)
-    {
-        return Category::Sprites;
-    }
-    if(m->type != mod_alias)
-    {
-        return Category::Other;
-    }
-    if(anyPrefix(f, gibPrefixes))
-    {
-        return Category::Gibs;
-    }
-    if(startsWith(f, "v_") || startsWith(f, "g_"))
-    {
-        return Category::Weapons;
-    }
-    if(startsWith(f, "vrbody"))
-    {
-        return Category::Torso; // (by part: bodyParts)
-    }
-    if(anyPrefix(f, handPrefixes))
-    {
-        return Category::Hands;
-    }
-    if(anyPrefix(f, gearPrefixes))
-    {
-        return Category::Gear;
-    }
-    if(anyPrefix(f, propPrefixes))
-    {
-        return Category::Props;
-    }
-    if(anyPrefix(f, monsterFiles))
-    {
-        return Category::Monsters;
-    }
-    if((m->flags & EF_ROTATE) || anyPrefix(f, itemFiles))
-    {
-        return Category::Items;
-    }
-    return Category::Other;
-}
-
-// Model-only classification survives stereo/portal draws; entity ownership and gib scale stay live.
-struct ModelMetadata
-{
-    Category category{Category::Other};
-    bool partsReady = false, splitBody = false;
-    float parts[4]{};
-};
-struct RetroModelCache
-{
-    ankerl::unordered_dense::map<const qmodel_t*, ModelMetadata> models;
-    auto members() { return mem::list(models); }
-};
-mem::Cache<RetroModelCache> modelCache{"retro models", mem::MapChange | mem::GameDirChange | mem::ModelReload};
-
-[[nodiscard]] ModelMetadata& modelMetadata(const qmodel_t* model)
-{
-    const auto [it, inserted] = modelCache.models.try_emplace(model);
-    if(inserted)
-    {
-        it->second.category = classifyModel(model);
-    }
-    return it->second;
-}
-
-[[nodiscard]] Category modelCategory(const qmodel_t* model)
-{
-    const Category category = modelMetadata(model).category;
-    if(vr_prop_query_verify.value && category != classifyModel(model))
-    {
-        Sys_Error("retro category cache changed %s", model->name);
-    }
-    return category;
-}
-
 // An entity's category: its model's, but a weapon in your hands or holsters is Held, anything else of yours that is
 // not your body or hands your Gear; a gib scaled down (the small gibs: vr_smallgibs.qc) a small gib.
 [[nodiscard]] Category categoryOf(const entity_t* e)
@@ -626,7 +489,7 @@ mem::Cache<RetroModelCache> modelCache{"retro models", mem::MapChange | mem::Gam
     {
         return Category::World;
     }
-    const Category c = modelCategory(e->model);
+    const Category c = modelmeta::category(e->model);
     if(e->model->type == mod_alias && view::find(e) != nullptr)
     {
         if(c == Category::Weapons || c == Category::Held)
@@ -645,91 +508,16 @@ mem::Cache<RetroModelCache> modelCache{"retro models", mem::MapChange | mem::Gam
 // The world's surfaces and brush submodels' ("*N", the map's own) take overrides by texture only; other models by name.
 [[nodiscard]] const Override* modelOverride(const entity_t* e)
 {
-    if(e == &cl_entities[0] || !e->model || e->model->name[0] == '*')
+    if(e == &cl_entities[0] || !e->model || modelmeta::has(e->model, modelmeta::Trait::Submodel))
     {
         return nullptr;
     }
     return overrideFor(e->model, false, e->model->name);
 }
 
-// Your body's bones by their names (make_vrbody.py's, vr_avatar.cpp's jointNames): the hands' and wrists', the arms',
-// the legs'; the rest (pelvis, spine, chest, neck, head, clavicles) the torso's.
-constexpr const char* handBones[] = {"hand_", "wrist_", "finger", "thumb"};
-constexpr const char* armBones[] = {"upperarm_", "forearm_", "foretwist"};
-constexpr const char* legBones[] = {"thigh_", "calf_", "foot_", "toe"};
-
-[[nodiscard]] Category bonePart(const char* name)
-{
-    if(anyPrefix(name, handBones))
-    {
-        return Category::Hands;
-    }
-    if(anyPrefix(name, armBones))
-    {
-        return Category::Arms;
-    }
-    return anyPrefix(name, legBones) ? Category::Legs : Category::Torso;
-}
-
-// Your body's parts (progs/vrbody*, skinned): each bone's part (Hands .. Legs: 0 .. 3) as two bits, as InstanceData's
-// RetroPart has them: xy the low bits of bones 0..23 and 24..47, zw the high bits, as whole numbers (a vertex's part is
-// its heaviest bone's). False (all 0) for any other model, or a body without bones: drawn whole by its category.
-bool makeBodyParts(const qmodel_t* model, float out[4])
-{
-    out[0] = out[1] = out[2] = out[3] = 0.f;
-    if(!model || model->type != mod_alias || !startsWith(fileOf(model->name), "vrbody"))
-    {
-        return false;
-    }
-    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
-    if(!hdr || hdr->poseverttype != aliashdr_t::PV_IQM || hdr->numbones <= 0 || !hdr->boneinfo)
-    {
-        return false;
-    }
-    const auto* bones = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(hdr) + hdr->boneinfo);
-    za::U32 bits[4]{0u, 0u, 0u, 0u};
-    for(int i = 0; i < za::min(hdr->numbones, 48); i++)
-    {
-        const int part = static_cast<int>(bonePart(bones[i].name)) - static_cast<int>(Category::Hands);
-        if(part & 1)
-        {
-            bits[i / 24] |= 1u << (i % 24);
-        }
-        if(part & 2)
-        {
-            bits[2 + i / 24] |= 1u << (i % 24);
-        }
-    }
-    for(int k = 0; k < 4; k++)
-    {
-        out[k] = static_cast<float>(bits[k]);
-    }
-    return true;
-}
-
 bool bodyParts(const qmodel_t* model, float out[4])
 {
-    if(!model)
-    {
-        out[0] = out[1] = out[2] = out[3] = 0.f;
-        return false;
-    }
-    ModelMetadata& memo = modelMetadata(model);
-    if(!memo.partsReady)
-    {
-        memo.splitBody = makeBodyParts(model, memo.parts);
-        memo.partsReady = true;
-    }
-    if(vr_prop_query_verify.value)
-    {
-        float expected[4];
-        if(makeBodyParts(model, expected) != memo.splitBody || memcmp(expected, memo.parts, sizeof(expected)))
-        {
-            Sys_Error("retro body parts cache changed %s", model->name);
-        }
-    }
-    ZA_MEMCPY(out, memo.parts, sizeof(memo.parts));
-    return memo.splitBody;
+    return modelmeta::bodyParts(model, out);
 }
 
 [[nodiscard]] bool isBody(const entity_t* e)
@@ -893,7 +681,7 @@ struct Hit
                 hit.model = m->name;
                 hit.texture = textureKeyName(m->textures[s->texinfo->texnum]->name);
                 hit.modelCategory = categoryOf(e);
-                hit.textureCategory = m->name[0] == '*' ? Category::Brush : hit.modelCategory;
+                hit.textureCategory = modelmeta::has(m, modelmeta::Trait::Submodel) ? Category::Brush : hit.modelCategory;
             }
             continue;
         }

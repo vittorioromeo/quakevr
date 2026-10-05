@@ -420,6 +420,7 @@ static qmodel_t *Mod_LoadModel (qmodel_t *mod, qboolean crash)
 //
 // load the file
 //
+	VR_ModelMetadataChanged (mod); // QVR: alias-cache eviction and explicit reload invalidate copied metadata
 	if (VR_SyntheticModel (mod)) // QVR: a model made in memory from another (a ragdoll's skinned body, vr/vr_ragdoll.cpp)
 		return mod;
 	buf = VR_DerivedModelFile (mod->name, &mod->path_id); // QVR: a model made from another's file (a taken torch's flame)
@@ -789,7 +790,7 @@ static void Mod_LoadTextures (lump_t *l)
 					// QVR: heights only if drawn smooth (the shifts would bend its texels), but for the ammo and
 					// health boxes (the expansions' have no replacement textures), whose depth is a texel or two
 					VR_LoadNormalMap (tx->gltexture, NULL, NULL, (byte *)(tx+1), SRC_INDEXED, tx->width,
-						TexMgr_IndexedSmooth () || !q_strncasecmp (loadmodel->name, "maps/b_", 7) ? NORMALMAP_HEIGHTS : 0);
+						TexMgr_IndexedSmooth () || VR_ModelHasTrait (loadmodel, VR_MODEL_TRAIT_AmmoBoxInsensitive) ? NORMALMAP_HEIGHTS : 0);
 					if (VR_ExtMapsPrepare (loadmodel, tx->name, (byte *)(tx+1), SRC_INDEXED, tx->width, tx->height)) // QVR: an external pack's maps (vr/vr_extmaps.cpp)
 						VR_ExtMapsAttach (tx, loadmodel, fullbrights);
 				}
@@ -3290,14 +3291,14 @@ void Mod_SetExtraFlags (qmodel_t *mod)
 		mod->flags |= MOD_NOSHADOW;
 
 	// QVR: a taken torch's flame (vr_walltorch.cpp) as id's torch's is (r_nolerp_list, r_noshadow_list)
-	if (!strcmp (mod->name, "progs/vrtorch_fire.mdl"))
+	if (VR_ModelIdentity (mod) == VR_MODEL_ID_VrtorchFire)
 		mod->flags |= MOD_NOLERP | MOD_NOSHADOW;
 
 	// fullbright hack (TODO: make this a cvar list)
-	if (!strcmp (mod->name, "progs/flame2.mdl") ||
-		!strcmp (mod->name, "progs/flame.mdl") ||
-		!strcmp (mod->name, "progs/vrtorch_fire.mdl") || // QVR: a taken torch's flame (vr_walltorch.cpp)
-		!strcmp (mod->name, "progs/boss.mdl"))
+	if (VR_ModelIdentity (mod) == VR_MODEL_ID_Flame2 ||
+		VR_ModelIdentity (mod) == VR_MODEL_ID_Flame ||
+		VR_ModelIdentity (mod) == VR_MODEL_ID_VrtorchFire || // QVR: a taken torch's flame (vr_walltorch.cpp)
+		VR_ModelIdentity (mod) == VR_MODEL_ID_Boss)
 	{
 		mod->flags |= MOD_FBRIGHTHACK;
 	}

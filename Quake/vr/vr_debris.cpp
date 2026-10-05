@@ -1,6 +1,7 @@
 // vr_debris.cpp -- rocks and bricks lying about the maps; see vr_debris.hpp and docs/vr-port/ROUND21.md, "Rocks and
 // bricks". The models are Misc/quakevr/make_debris.py's; QC vr_debris.qc spawns and handles them.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_debris.hpp"
 
 #include "vr_cvars.hpp"
@@ -147,7 +148,8 @@ constexpr Rule rules[] = {
 
 struct ModelInfo
 {
-    const char* name;
+    modelmeta::Id id;
+    [[nodiscard]] const char* name() const { return modelmeta::path(id); }
     int kind;      // 1 rock, 2 brick
     float weight;  // how often it is picked among its kind
     bool loaded{false};
@@ -156,15 +158,15 @@ struct ModelInfo
 };
 
 ModelInfo models[] = {
-    {"progs/vr_rock1.mdl", 1, 1.f},
-    {"progs/vr_rock2.mdl", 1, 1.f},
-    {"progs/vr_rock3.mdl", 1, 1.f},
-    {"progs/vr_rock4.mdl", 1, 1.f},
-    {"progs/vr_rock5.mdl", 1, 1.f},
-    {"progs/vr_brick1.mdl", 2, 0.3f},  // whole
-    {"progs/vr_brick2.mdl", 2, 0.25f}, // whole, chipped
-    {"progs/vr_brick3.mdl", 2, 0.25f}, // a half
-    {"progs/vr_brick4.mdl", 2, 0.2f},  // a broken piece
+    {modelmeta::Id::VrRock1, 1, 1.f},
+    {modelmeta::Id::VrRock2, 1, 1.f},
+    {modelmeta::Id::VrRock3, 1, 1.f},
+    {modelmeta::Id::VrRock4, 1, 1.f},
+    {modelmeta::Id::VrRock5, 1, 1.f},
+    {modelmeta::Id::VrBrick1, 2, 0.3f},  // whole
+    {modelmeta::Id::VrBrick2, 2, 0.25f}, // whole, chipped
+    {modelmeta::Id::VrBrick3, 2, 0.25f}, // a half
+    {modelmeta::Id::VrBrick4, 2, 0.2f},  // a broken piece
 };
 constexpr int numModels = static_cast<int>(za::getArraySize(models));
 
@@ -209,15 +211,15 @@ void loadModel(ModelInfo& m)
     m.loaded = true;
     m.skinLab.clear();
     unsigned int pathId = 0;
-    byte* data = COM_LoadMallocFile(m.name, &pathId);
+    byte* data = COM_LoadMallocFile(m.name(), &pathId);
     if(!data)
     {
-        Con_DPrintf("debris: no %s\n", m.name);
+        Con_DPrintf("debris: no %s\n", m.name());
         return;
     }
     const int size = com_filesize;
     const auto fail = [&](const char* why) {
-        Con_Printf("debris: %s: %s\n", m.name, why);
+        Con_Printf("debris: %s: %s\n", m.name(), why);
         m.skinLab.clear();
         free(data);
     };
@@ -1227,7 +1229,7 @@ int plan()
             {
                 const Placement& p = placements[i];
                 Con_Printf("debris: %d %s skin %d at (%.1f %.1f %.1f) yaw %.0f%s size %.2f, out (%.2f %.2f)\n", static_cast<int>(i),
-                    models[p.model].name + 6, p.skin, p.floor.x, p.floor.y, p.floor.z, p.yaw, p.onSide ? " on its side" : "",
+                    models[p.model].name() + 6, p.skin, p.floor.x, p.floor.y, p.floor.z, p.yaw, p.onSide ? " on its side" : "",
                     p.scale.x / pl.worldScale, p.out.x, p.out.y);
             }
         }
@@ -1237,7 +1239,7 @@ int plan()
 
 const char* modelOf(int i)
 {
-    return i >= 0 && i < static_cast<int>(placements.size()) ? models[placements[static_cast<size_t>(i)].model].name : "";
+    return i >= 0 && i < static_cast<int>(placements.size()) ? models[placements[static_cast<size_t>(i)].model].name() : "";
 }
 
 namespace
@@ -1310,8 +1312,8 @@ int put(edict_t* e, int i)
 
 int putPlaced(edict_t* e)
 {
-    const char* name = PR_GetString(e->v.model);
-    const auto m = za::findIf(models, models + za::getArraySize(models), [&](const ModelInfo& info) { return !strcmp(info.name, name); });
+    const auto id = modelmeta::identifyPath(PR_GetString(e->v.model));
+    const auto m = za::findIf(models, models + za::getArraySize(models), [&](const ModelInfo& info) { return info.id == id; });
     if(m == (models + za::getArraySize(models)))
     {
         return 0;

@@ -1,5 +1,6 @@
 // vr_avatar.cpp -- see vr_avatar.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_avatar.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
@@ -1580,14 +1581,7 @@ bool usable(qmodel_t* model)
     const auto* bones = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(hdr) + hdr->boneinfo);
     for(int j = 0; j < JointCount; j++)
     {
-        int found = -1;
-        for(int i = 0; i < hdr->numbones; i++)
-        {
-            if(!strcmp(bones[i].name, jointNames[j]))
-            {
-                found = i;
-            }
-        }
+        const int found = modelmeta::boneIndex(model, jointNames[j], true);
         if(found < 0)
         {
             Con_Printf("%s: no bone \"%s\", not usable as the VR body\n", model->name, jointNames[j]);

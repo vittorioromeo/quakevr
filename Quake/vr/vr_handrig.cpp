@@ -22,6 +22,7 @@
 //   constants and palmCentre (weapon placements and cups are measured from them: they stay where they were on the
 //   controller, and an edited hand changes shape around them), the wrist (where the arm meets the hand).
 
+#include "vr_modelmetadata.hpp"
 #include "vr_handrig.hpp"
 #include "vr_mem.hpp"
 
@@ -1398,7 +1399,7 @@ void info_f()
 extern "C" int VR_ModelReplacementOk(const char* name, const char* md5mesh)
 {
     using namespace qvr::handrig;
-    if(q_strcasecmp(name, modelName) != 0)
+    if(!qvr::modelmeta::describePath(name).has(qvr::modelmeta::Trait::RigHandInsensitive))
     {
         return 1;
     }

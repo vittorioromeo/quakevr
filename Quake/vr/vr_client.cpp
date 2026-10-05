@@ -1,6 +1,7 @@
 // vr_client.cpp -- client side of the Quake VR protocol extensions (see vr_protocol.hpp):
 // VR input commands, building the VR move from tracking, and parsing VR server data.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_client.hpp"
 #include "vr_chainsaw.hpp"
 #include "vr_held.hpp"
@@ -629,11 +630,11 @@ extern "C" float VR_BeamScale(qmodel_t* model)
     {
         return 1.f;
     }
-    if(!strcmp(model->name, "progs/bolt2.mdl"))
+    if(modelmeta::is(model, modelmeta::Id::Bolt2))
     {
         return 0.5f;
     }
-    if(!strcmp(model->name, "progs/beam.mdl"))
+    if(modelmeta::is(model, modelmeta::Id::Beam))
     {
         return 0.25f;
     }
@@ -716,7 +717,7 @@ extern "C" void VR_DebugDrawnBoxes(void)
     {
         const entity_t* ent = cl_visedicts[i];
         const int num = static_cast<int>(ent - cl_entities);
-        if(num <= 0 || num >= cl.num_entities || !ent->model || strncmp(ent->model->name, "maps/b_", 7) != 0)
+        if(num <= 0 || num >= cl.num_entities || !ent->model || !modelmeta::has(ent->model, modelmeta::Trait::AmmoBox))
         {
             continue;
         }
@@ -962,7 +963,7 @@ void thrownGunRopeStart(int key, float* start)
     for(int i = 1; i < cl.num_entities; i++)
     {
         const entity_t& e = cl_entities[i];
-        if(!e.model || e.model->type != mod_alias || e.msgtime != cl.mtime[0] || strcmp(e.model->name, "progs/v_grpple.mdl"))
+        if(!e.model || e.model->type != mod_alias || e.msgtime != cl.mtime[0] || !modelmeta::is(e.model, modelmeta::Id::VGrpple))
         {
             continue;
         }
@@ -1034,7 +1035,7 @@ extern "C" int VR_BeamGone(int ent)
         return 0;
     }
     const qmodel_t* const held = weapons::heldModel(id);
-    if(held && !strcmp(held->name, "progs/v_light.mdl"))
+    if(held && modelmeta::is(held, modelmeta::Id::VLight))
     {
         return 0;
     }
@@ -1099,7 +1100,7 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
     for(int i = 1; i < cl.num_entities; i++)
     {
         const entity_t& e = cl_entities[i];
-        if(!e.model || e.msgtime != cl.mtime[0] || strcmp(e.model->name, "progs/hook.mdl"))
+        if(!e.model || e.msgtime != cl.mtime[0] || !modelmeta::is(e.model, modelmeta::Id::Hook))
         {
             continue;
         }

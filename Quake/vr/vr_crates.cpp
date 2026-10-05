@@ -2,6 +2,7 @@
 // vr_crates.hpp and docs/vr-port/ROUND21.md, "Wooden crates". The models are Misc/quakevr/make_crates.py's; QC
 // vr_crates.qc spawns them, breaks them and drops what they hold.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_crates.hpp"
 
 #include "vr_box3d.hpp"
@@ -41,12 +42,13 @@ using progs::fields;
 // The crates' models and their half sizes (units, unscaled: make_crates.py's CRATES; the explosive boxes' size).
 struct CrateModel
 {
-    const char* name;
+    modelmeta::Id id;
+    [[nodiscard]] const char* name() const { return modelmeta::path(id); }
     glm::vec3 half;
 };
 constexpr CrateModel models[] = {
-    {"progs/vr_crate1.mdl", {16.f, 16.f, 16.f}}, // small (the small explosive box's size)
-    {"progs/vr_crate2.mdl", {20.f, 20.f, 24.f}}, // large
+    {modelmeta::Id::VrCrate1, {16.f, 16.f, 16.f}}, // small (the small explosive box's size)
+    {modelmeta::Id::VrCrate2, {20.f, 20.f, 24.f}}, // large
 };
 constexpr int numModels = static_cast<int>(za::getArraySize(models));
 constexpr int numSkins = 3; // pine, brown, weathered
@@ -116,7 +118,7 @@ struct Rng
 // A crate's size as drawn: its model's Size (Held Object Offsets).
 [[nodiscard]] float sizeOf(int model)
 {
-    const qmodel_t* m = serverModel(models[model].name);
+    const qmodel_t* m = serverModel(models[model].name());
     return m ? props::drawnSize(m) : 1.f;
 }
 
@@ -804,7 +806,7 @@ int plan()
                 const Placement& p = placements[i];
                 // The nearest entity's box (before its margin) from the crate's footprint.
                 Con_Printf("crates: %d %s skin %d at (%.1f %.1f %.1f) yaw %.0f%s%s; clearance %.0f units, %d of 12 places round "
-                           "it open (one way round)\n", static_cast<int>(i), models[p.model].name + 6, p.skin, p.centre.x, p.centre.y,
+                           "it open (one way round)\n", static_cast<int>(i), models[p.model].name() + 6, p.skin, p.centre.x, p.centre.y,
                     p.centre.z, p.o.yaw, p.below >= 0 ? va(", on crate %d", p.below) : "", p.corner && p.below < 0 ? ", in a corner" : "",
                     p.clearance, p.ringOpen);
             }
@@ -820,7 +822,7 @@ bool hasCrowbar(int i)
 
 const char* modelOf(int i)
 {
-    return i >= 0 && i < static_cast<int>(placements.size()) ? models[placements[static_cast<size_t>(i)].model].name : "";
+    return i >= 0 && i < static_cast<int>(placements.size()) ? models[placements[static_cast<size_t>(i)].model].name() : "";
 }
 
 namespace
@@ -851,9 +853,10 @@ void rest(edict_t* e, const glm::mat3& axes, const glm::vec3& centre, const glm:
 
 [[nodiscard]] int modelIndexOf(const char* name)
 {
+    const auto id = modelmeta::identifyPath(name);
     for(int k = 0; k < numModels; k++)
     {
-        if(!strcmp(models[k].name, name))
+        if(models[k].id == id)
         {
             return k;
         }

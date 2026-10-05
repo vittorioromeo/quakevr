@@ -26,6 +26,7 @@
 // Kept until the map changes (a different world model); a saved game of the same map keeps them. Not affected by
 // vr_world_scale: a ledge is geometry, in map units.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_ledges.hpp"
 #include "vr_cvars.hpp"
 #include "vr_jobs.hpp"
@@ -557,7 +558,7 @@ void resetCache()
 [[nodiscard]] bool fromThisMap(const qmodel_t* model)
 {
     return model && model->type == mod_brush && sv.worldmodel &&
-           (model == sv.worldmodel || (model->name[0] == '*' && model->surfaces == sv.worldmodel->surfaces));
+           (model == sv.worldmodel || (qvr::modelmeta::has(model, qvr::modelmeta::Trait::Submodel) && model->surfaces == sv.worldmodel->surfaces));
 }
 
 // Totals over the maps made (vr_ledges, and the load's line with developer or vr_climb_debug).

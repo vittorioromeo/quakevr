@@ -1,5 +1,6 @@
 // vr_haze.cpp -- see vr_haze.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_haze.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -522,11 +523,11 @@ void draw()
     for(int i = 0; i < cl_numvisedicts && flames < kMaxFlames; i++)
     {
         const entity_t* ent = cl_visedicts[i];
-        if(!ent || !ent->model || ZA_STRNCMP(ent->model->name, "progs/flame", 11) != 0)
+        if(!ent || !ent->model || !modelmeta::has(ent->model, modelmeta::Trait::Flame))
         {
             continue;
         }
-        const bool big = ZA_STRCMP(ent->model->name, "progs/flame2.mdl") == 0;
+        const bool big = modelmeta::is(ent->model, modelmeta::Id::Flame2);
         const glm::vec3 origin(ent->origin[0], ent->origin[1], ent->origin[2]);
         if(glm::distance(origin, eye) > kFlameDistance)
         {

@@ -50,6 +50,7 @@
 // b3DefaultAddTaskFcn in physics_world.c); no scheduler, no threads. Deterministic: the same calls in the same
 // order (entities in edict order) give the same result.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_box3d.hpp"
 #include "vr_main.hpp"
 #include "vr_portals.hpp"
@@ -258,9 +259,9 @@ constexpr float sinkDensity = 0.5f;
 {
     const bool gib = hasFlag(ent, physics::FL_FORCEGRABBABLE) && !hasFlag(ent, FL_ITEM);
     const int index = static_cast<int>(ent->v.modelindex);
-    const char* name = index > 0 && index < MAX_MODELS && sv.models[index] ? sv.models[index]->name : "";
-    const bool wood = !strcmp(name, "progs/vrtorch.mdl") || !strncmp(name, "progs/vr_plank", 14); // (a crate's pieces float)
-    if(const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr)
+    const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
+    const bool wood = modelmeta::is(model, modelmeta::Id::Vrtorch) || modelmeta::has(model, modelmeta::Trait::Plank); // (a crate's pieces float)
+    if(model)
     {
         if(const float stone = props::stoneDensity(model); stone > 0.f)
         {
@@ -314,7 +315,7 @@ constexpr float sinkDensity = 0.5f;
 // never meets its thrower's own body (Quake's rule for a missile and its owner: it leaves the ogre it is thrown from).
 [[nodiscard]] bool isGrenade(const qmodel_t* model)
 {
-    return model->type == mod_alias && (!strcmp(model->name, "progs/grenade.mdl") || !strcmp(model->name, "progs/mervup.mdl"));
+    return model->type == mod_alias && (modelmeta::is(model, modelmeta::Id::Grenade) || modelmeta::is(model, modelmeta::Id::Mervup));
 }
 
 constexpr float smallPropSleepThreshold = 0.15f; // m/s: a prop with its own mass (a small gib) sleeps under it (Box3D's: 0.05)
@@ -347,7 +348,7 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
     }
     if(hasFlag(ent, FL_ITEM))
     {
-        return strstr(model->name, "armor") ? 600.f : 250.f; // armour; backpacks
+        return modelmeta::has(model, modelmeta::Trait::ContainsArmor) ? 600.f : 250.f; // armour; backpacks
     }
     return 1000.f; // gibs and heads: flesh
 }
@@ -381,7 +382,7 @@ constexpr float grenadeRestitution = 0.45f; // (Quake's bounce: 0.5; a steel bal
 // rigid hull of a backpack lands on an edge and tumbles down a gentle slope like a crate).
 [[nodiscard]] bool isSoft(edict_t* ent, const qmodel_t* model)
 {
-    return model->type == mod_alias && !isWeaponLike(ent) && !strstr(model->name, "armor") && !isGrenade(model) &&
+    return model->type == mod_alias && !isWeaponLike(ent) && !modelmeta::has(model, modelmeta::Trait::ContainsArmor) && !isGrenade(model) &&
         props::stoneDensity(model) <= 0.f; // (rocks and bricks are hard)
 }
 
@@ -2684,7 +2685,7 @@ void feedRagdoll(edict_t* ent, Slot& s)
         {
             const ragdoll::Bone& bone = r.rig->bones[b];
             if(partCut(r, b) || bone.parent < 0 || partCut(r, bone.parent) ||
-                (strcmp(bone.name, "chest") && strcmp(bone.name, "head"))) { continue; }
+                (bone.role != modelmeta::BoneRole::Chest && bone.role != modelmeta::BoneRole::Head)) { continue; }
             const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
             const b3BodyId parent = r.body[static_cast<za::SizeT>(bone.parent)];
             const glm::quat qp = fromB3(b3Body_GetTransform(parent).q), qb = fromB3(b3Body_GetTransform(body).q);
@@ -10639,7 +10640,7 @@ void knockdownTest_f()
                 angular += glm::length(glmv(b3Body_GetAngularVelocity(r.body[static_cast<za::SizeT>(b)])));
                 const ragdoll::Bone& bone = r.rig->bones[b];
                 if(r.struggleReady && bone.parent >= 0 && !partCut(r, bone.parent) &&
-                    (!strcmp(bone.name, "chest") || !strcmp(bone.name, "head")))
+                    (bone.role == modelmeta::BoneRole::Chest || bone.role == modelmeta::BoneRole::Head))
                 {
                     const glm::quat relative = glm::inverse(fromB3(b3Body_GetTransform(r.body[bone.parent]).q)) *
                         fromB3(b3Body_GetTransform(r.body[b]).q);

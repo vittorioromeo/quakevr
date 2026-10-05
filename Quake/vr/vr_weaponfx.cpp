@@ -1,5 +1,6 @@
 // vr_weaponfx.cpp -- see vr_weaponfx.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_engine.hpp"
 #include "vr_anchor.hpp"
@@ -110,7 +111,7 @@ mem::Scratch<WeaponFxScratch> scratch{"weaponfx"};
 //   in attack6, the fire frame; 0.3 at most in the others); 29.9..30.3 model units apart in every frame.
 struct MonsterGun
 {
-    const char* model;
+    modelmeta::Id model;
     int verts;
     za::Span<const int> muzzle;
     za::Span<const int> rear;
@@ -120,8 +121,8 @@ constexpr int soldierRear[] = {465, 497, 500, 510, 544, 545};
 constexpr int enforcerMuzzle[] = {22, 100, 400, 401, 402, 403, 407};
 constexpr int enforcerRear[] = {404, 405, 423, 424, 425};
 const MonsterGun monsterGuns[] = {
-    {"progs/soldier.mdl", 555, soldierMuzzle, soldierRear},
-    {"progs/enforcer.mdl", 479, enforcerMuzzle, enforcerRear},
+    {modelmeta::Id::Soldier, 555, soldierMuzzle, soldierRear},
+    {modelmeta::Id::Enforcer, 479, enforcerMuzzle, enforcerRear},
 };
 constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share of its gun
 
@@ -132,9 +133,10 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
     {
         return nullptr;
     }
+    const auto& info = modelmeta::get(e.model);
     for(const MonsterGun& g : monsterGuns)
     {
-        if(strcmp(e.model->name, g.model) == 0)
+        if(info.is(g.model))
         {
             const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
             return hdr->numverts == g.verts ? &g : nullptr;
@@ -248,7 +250,7 @@ void monsterSmoke(int ent)
         return;
     }
     const entity_t& e = cl_entities[ent];
-    if(!e.model || (strcmp(e.model->name, "progs/enforcer.mdl") != 0 && strcmp(e.model->name, "progs/soldier.mdl") != 0))
+    if(!e.model || (!modelmeta::is(e.model, modelmeta::Id::Enforcer) && !modelmeta::is(e.model, modelmeta::Id::Soldier)))
     {
         return;
     }

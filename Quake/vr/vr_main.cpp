@@ -1,5 +1,6 @@
 // vr_main.cpp -- Quake VR module lifetime, core cvars and per-frame update.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_audio.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_hitmodel.hpp"
@@ -574,18 +575,18 @@ EdictCounts countEdicts()
         e.inUse++;
         const char* classname = PR_GetString(ent->v.classname);
         const int modelindex = static_cast<int>(ent->v.modelindex);
-        const char* model = modelindex > 0 && modelindex < MAX_MODELS && sv.model_precache[modelindex]
-                                ? sv.model_precache[modelindex]
-                                : "";
+        const qmodel_t* model = modelindex > 0 && modelindex < MAX_MODELS ? sv.models[modelindex] : nullptr;
+        const char* modelPath = modelindex > 0 && modelindex < MAX_MODELS ? sv.model_precache[modelindex] : "";
+        const auto info = model ? modelmeta::get(model) : modelmeta::describePath(modelPath);
         if(!ZA_STRNCMP(classname, "monster_", 8))
         {
             (ent->v.deadflag != 0.f || ent->v.health <= 0.f ? e.corpses : e.monsters)++;
         }
-        else if(!ZA_STRNCMP(model, "progs/h_", 8))
+        else if(info.has(modelmeta::Trait::Head))
         {
             e.heads++;
         }
-        else if(!ZA_STRNCMP(model, "progs/gib", 9))
+        else if(info.has(modelmeta::Trait::Gib))
         {
             e.gibs++;
         }
@@ -1194,6 +1195,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_hand_rig_info", handrig::info_f);
     Cmd_AddCommand("vr_model_reload", view::modelReload_f);
     Cmd_AddCommand("vr_prop_query_test", progs::propQueriesTest_f);
+    Cmd_AddCommand("vr_modelmetadata_test", modelmeta::test_f);
     Cmd_AddCommand("vr_model_collide_bench", modelcollide::bench_f);
     Cmd_AddCommand("vr_hitmodel_bench", hitmodel::bench_f);
     Cmd_AddCommand("vr_zancle_math_test", qza::mathTest_f);

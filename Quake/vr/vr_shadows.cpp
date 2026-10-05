@@ -5,6 +5,7 @@
 // things stand on the ground. A model's disc is pushed away from the light it is shaded from
 // (vr_modellight). Built once per frame, drawn in each eye's scene pass, depth-tested.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_gfx.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -68,7 +69,7 @@ void entityBlobs()
     {
         const entity_t* e = cl_visedicts[i];
         // Alias models, and the brush models of ammo and health boxes (maps/b_*.bsp).
-        const bool itemBox = e->model && e->model->type == mod_brush && e->model->name[0] != '*' && e->model != cl.worldmodel;
+        const bool itemBox = e->model && e->model->type == mod_brush && !qvr::modelmeta::has(e->model, qvr::modelmeta::Trait::Submodel) && e->model != cl.worldmodel;
         if(!e->model || (e->model->type != mod_alias && !itemBox) || (e->model->flags & MOD_NOSHADOW) ||
             e == &cl_entities[cl.viewentity] || VR_IsViewEntity(e) || e->alpha != ENTALPHA_DEFAULT)
         {

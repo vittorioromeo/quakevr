@@ -1,6 +1,7 @@
 // vr_walltorch.cpp -- wall torches taken off their walls: the engine's side (see vr_walltorch.hpp; QC vr_walltorch.qc;
 // docs/vr-port/ROUND21.md, "Wall torches you can take").
 
+#include "vr_modelmetadata.hpp"
 #include "vr_walltorch.hpp"
 
 #include "vr_cvars.hpp"
@@ -141,11 +142,11 @@ void findModels()
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
         const qmodel_t* m = cl.model_precache[i];
-        if(!strcmp(m->name, stickModelName))
+        if(modelmeta::is(m, modelmeta::Id::Vrtorch))
         {
             stickModel = m;
         }
-        else if(!strcmp(m->name, wallModelName))
+        else if(modelmeta::is(m, modelmeta::Id::Flame))
         {
             wallModel = m;
         }
@@ -398,11 +399,12 @@ namespace
 // stands still). Nothing of id's is written anywhere: it is made as the model loads, from the game's own file.
 extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
 {
-    if(!strcmp(name, stickModelName))
+    const auto id = modelmeta::identifyPath(name);
+    if(id == modelmeta::Id::Vrtorch)
     {
         return stickWithWallSkin(path_id);
     }
-    if(strcmp(name, fireModelName) != 0)
+    if(id != modelmeta::Id::VrtorchFire)
     {
         return nullptr;
     }
@@ -531,7 +533,7 @@ extern "C" byte* VR_DerivedModelFile(const char* name, unsigned int* path_id)
 // Mod_LoadAllSkins: the name a model's external skins are found by (progs/ogre.mdl_0.tga): the flame's are id's torch's.
 extern "C" const char* VR_ModelSkinName(const char* name)
 {
-    return strcmp(name, fireModelName) == 0 ? wallModelName : name;
+    return modelmeta::identifyPath(name) == modelmeta::Id::VrtorchFire ? wallModelName : name;
 }
 
 // Each client frame, after the temp entities (CL_ReadFromServer, before VR_TorchLights): the taken torches' flames,
@@ -810,8 +812,8 @@ void walltorch::prepare()
 {
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
-        const char* name = cl.model_precache[i]->name;
-        if(!strcmp(name, stickModelName) || !strcmp(name, wallModelName))
+        const auto& info = modelmeta::get(cl.model_precache[i]);
+        if(info.is(modelmeta::Id::Vrtorch) || info.is(modelmeta::Id::Flame))
         {
             (void)::fire(); // (the flame model, not walltorch::fire)
             return;

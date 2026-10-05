@@ -10,6 +10,7 @@
 // there (a lift gone down). Going into water, slime or lava it makes a tiny splash, a ripple and a quiet plip
 // (enterLiquid), and the liquid takes most of its speed: it then sinks slowly.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_shells.hpp"
 #include "vr_engine.hpp"
 #include "vr_anchor.hpp"
@@ -58,7 +59,7 @@ enum Flags : int
 // vr_anchor.hpp) whose move from frame 0 moves them with the firing animation (the recoil).
 struct Weapon
 {
-    const char* model;
+    modelmeta::Id model;
     int ports;
     glm::vec3 port[2];
     glm::vec3 dir[2];
@@ -71,8 +72,8 @@ struct Weapon
 };
 
 constexpr Weapon weaponTable[] = {
-    {"progs/v_shot.mdl", 1, {{14.5f, -2.75f, 4.65f}}, {{-0.3f, -1.f, 0.65f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3, 70},
-    {"progs/v_shot2.mdl", 2, {{11.6f, 1.2f, 6.9f}, {11.6f, -1.2f, 6.9f}}, {{-1.f, 0.15f, 0.5f}, {-1.f, -0.15f, 0.5f}},
+    {modelmeta::Id::VShot, 1, {{14.5f, -2.75f, 4.65f}}, {{-0.3f, -1.f, 0.65f}}, 1.6f, {0.f, 0.f, 1.f}, -16.f, 1.f, 3, 70},
+    {modelmeta::Id::VShot2, 2, {{11.6f, 1.2f, 6.9f}, {11.6f, -1.2f, 6.9f}}, {{-1.f, 0.15f, 0.5f}, {-1.f, -0.15f, 0.5f}},
         1.6f, {0.f, 1.f, 0.f}, 9.f, 1.5f, 1, 17},
 };
 
@@ -190,9 +191,10 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
     {
         return nullptr;
     }
+    const auto& info = modelmeta::get(model);
     for(const Weapon& w : weaponTable)
     {
-        if(!strcmp(model->name, w.model))
+        if(info.is(w.model))
         {
             return &w;
         }

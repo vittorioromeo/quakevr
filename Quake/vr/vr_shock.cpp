@@ -6,6 +6,7 @@
 // The effects are few at once (the surfaces: one a place, however many bolts go in there; kept a
 // moment past the last).
 
+#include "vr_modelmetadata.hpp"
 #include "vr_shock.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_engine.hpp"
@@ -572,7 +573,7 @@ void registerCommands()
 // Quad Damage's arcs along it in the next view (vr_beam_arcs).
 extern "C" void VR_BeamDrawn(int index, qmodel_t* model, const float* start, const float* end)
 {
-    if(index < 0 || index >= MAX_BEAMS || !model || strncmp(model->name, "progs/bolt", 10) != 0)
+    if(index < 0 || index >= MAX_BEAMS || !model || !qvr::modelmeta::has(model, qvr::modelmeta::Trait::Bolt))
     {
         return;
     }

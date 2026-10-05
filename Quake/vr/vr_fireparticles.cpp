@@ -1,3 +1,4 @@
+#include "vr_modelmetadata.hpp"
 #include "vr_fireparticles.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -60,17 +61,17 @@ void emit(int id, const qmodel_t* model, const glm::vec3& at, float scale)
 bool flame(const entity_t& e)
 {
     if(!e.model || e.model->type != mod_alias || e.alpha == ENTALPHA_ZERO) { return false; }
-    const char* name = e.model->name;
-    return !strcmp(name, "progs/flame.mdl") || !strcmp(name, "progs/flame2.mdl") ||
-        !strcmp(name, "progs/candle.mdl") || !strcmp(name, "progs/lantern.mdl");
+    const auto& info = modelmeta::get(e.model);
+    return info.is(modelmeta::Id::Flame) || info.is(modelmeta::Id::Flame2) ||
+        info.is(modelmeta::Id::Candle) || info.is(modelmeta::Id::Lantern);
 }
 void entity(int id, const entity_t& e)
 {
     const float scale = ENTSCALE_DECODE(e.scale);
     float base = 0.f, top = 6.f;
-    const char* name = e.model->name;
-    if(!strcmp(name, "progs/flame.mdl")) { base = 1.28f; top = 30.8f; }
-    else if(!strcmp(name, "progs/flame2.mdl"))
+    const auto& info = modelmeta::get(e.model);
+    if(info.is(modelmeta::Id::Flame)) { base = 1.28f; top = 30.8f; }
+    else if(info.is(modelmeta::Id::Flame2))
     {
         // The two flame-ball sizes have different bounds; use the actual frame.
         const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
@@ -81,8 +82,8 @@ void entity(int id, const entity_t& e)
             top = hdr->scale_origin[2] + hdr->scale[2] * frame.bboxmax.v[2];
         }
     }
-    else if(!strcmp(name, "progs/candle.mdl")) { base = 8.f; top = 12.f; }
-    else if(!strcmp(name, "progs/lantern.mdl")) { base = 0.f; top = 8.f; }
+    else if(info.is(modelmeta::Id::Candle)) { base = 8.f; top = 12.f; }
+    else if(info.is(modelmeta::Id::Lantern)) { base = 0.f; top = 8.f; }
     const float fraction = za::clamp(vr_fire_particles_origin.value, 0.f, 1.f);
     const glm::vec3 pos = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} +
         held::axesFromAngles(e.angles, false)[2] * (glm::mix(base, top, fraction) * scale);

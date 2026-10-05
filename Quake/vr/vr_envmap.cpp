@@ -1,5 +1,6 @@
 // vr_envmap.cpp -- see vr_envmap.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_envmap.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
@@ -958,31 +959,26 @@ namespace
 
 using namespace qvr;
 
-[[nodiscard]] bool startsWith(const char* s, const char* prefix)
-{
-    return !strncmp(s, prefix, strlen(prefix));
-}
-
 // How metal a model is (0 none .. 1): the share of its grey and blue-grey texels (the alias shader's mask) that
 // reflect. Held weapons by their model; the rest none.
-[[nodiscard]] float weaponMetal(const char* name, float& lod)
+[[nodiscard]] float weaponMetal(modelmeta::Id id, float& lod)
 {
     struct Entry
     {
-        const char* name;
+        modelmeta::Id id;
         float metal;
         float lod; // the cube's mip level read: blurrier (rougher) the higher
     };
     static constexpr Entry table[] = {
-        {"progs/v_shot.mdl", 1.f, 2.5f},    {"progs/v_shot2.mdl", 1.f, 2.5f}, {"progs/v_nail.mdl", 1.f, 2.5f},
-        {"progs/v_nail2.mdl", 1.f, 2.5f},   {"progs/v_rock.mdl", 0.8f, 3.f},  {"progs/v_rock2.mdl", 0.8f, 3.f},
-        {"progs/v_light.mdl", 0.9f, 2.5f},  {"progs/v_axe.mdl", 0.9f, 2.f},   {"progs/v_ksword.mdl", 1.f, 1.5f},
-        {"progs/v_hksword.mdl", 1.f, 1.5f}, {"progs/v_hammer.mdl", 0.8f, 2.5f},
-        {"progs/v_crowbar.mdl", 0.5f, 3.f}, // (painted: its worn steel shows at the edges and the ends)
+        {modelmeta::Id::VShot, 1.f, 2.5f},    {modelmeta::Id::VShot2, 1.f, 2.5f}, {modelmeta::Id::VNail, 1.f, 2.5f},
+        {modelmeta::Id::VNail2, 1.f, 2.5f},   {modelmeta::Id::VRock, 0.8f, 3.f},  {modelmeta::Id::VRock2, 0.8f, 3.f},
+        {modelmeta::Id::VLight, 0.9f, 2.5f},  {modelmeta::Id::VAxe, 0.9f, 2.f},   {modelmeta::Id::VKsword, 1.f, 1.5f},
+        {modelmeta::Id::VHksword, 1.f, 1.5f}, {modelmeta::Id::VHammer, 0.8f, 2.5f},
+        {modelmeta::Id::VCrowbar, 0.5f, 3.f}, // (painted: its worn steel shows at the edges and the ends)
     };
     for(const Entry& e : table)
     {
-        if(!strcmp(name, e.name))
+        if(id == e.id)
         {
             lod = e.lod;
             return e.metal;
@@ -1003,11 +999,11 @@ extern "C" void VR_AliasSurface(const entity_t* e, float out[4])
     {
         return;
     }
-    const char* name = e->model->name;
+    const auto& info = modelmeta::get(e->model);
     const bool view = e == &cl.viewent || VR_IsViewEntity(e);
     const bool self = e == &cl_entities[cl.viewentity];
-    const bool weapon = view && weapons::slotForModel(e->model) >= 0 && !startsWith(name, "progs/hand") &&
-                        !startsWith(name, "progs/finger_");
+    const bool weapon = view && weapons::slotForModel(e->model) >= 0 && !info.has(modelmeta::Trait::Hand) &&
+                        !info.has(modelmeta::Trait::Finger);
 
     // Rim light: monsters and things full, held weapons less, your hands a little, your body not (seen from
     // inside, its edges are everywhere).
@@ -1022,8 +1018,8 @@ extern "C" void VR_AliasSurface(const entity_t* e, float out[4])
     }
     else if(view)
     {
-        const bool hand = startsWith(name, "progs/hand") || startsWith(name, "progs/finger_") ||
-                          startsWith(name, "progs/openhand");
+        const bool hand = info.has(modelmeta::Trait::Hand) || info.has(modelmeta::Trait::Finger) ||
+                          info.has(modelmeta::Trait::OpenHand);
         out[0] = hand ? rim * 0.35f : 0.f;
     }
     else
@@ -1042,11 +1038,11 @@ extern "C" void VR_AliasSurface(const entity_t* e, float out[4])
     float metal = 0.f;
     if(weapon)
     {
-        metal = weaponMetal(name, lod);
+        metal = weaponMetal(modelmeta::get(e->model).id, lod);
     }
-    else if(!view && (startsWith(name, "progs/g_") || startsWith(name, "progs/v_")))
+    else if(!view && (info.has(modelmeta::Trait::WorldWeapon) || info.has(modelmeta::Trait::ViewWeapon)))
     {
-        metal = weaponMetal(name, lod) * 0.8f;
+        metal = weaponMetal(modelmeta::get(e->model).id, lod) * 0.8f;
         const glm::vec3 o{e->origin[0], e->origin[1], e->origin[2]};
         metal *= 1.f - glm::smoothstep(96.f, 256.f, glm::distance(o, envmap::place()));
         lod += 0.5f;

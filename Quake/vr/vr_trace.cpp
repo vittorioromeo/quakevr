@@ -1,5 +1,6 @@
 // vr_trace.cpp -- see vr_trace.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_trace.hpp"
 #include "vr_engine.hpp"
 #include "vr_hull.hpp"
@@ -85,7 +86,7 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, 
     {
         entity_t& e = cl_entities[i];
         if(i == skipA || i == skipB || !e.model || e.model->type != mod_brush || e.model == cl.worldmodel || e.msgtime != cl.mtime[0] ||
-            (e.model->name[0] != '*' && !ownFiles))
+            (!qvr::modelmeta::has(e.model, qvr::modelmeta::Trait::Submodel) && !ownFiles))
         {
             continue;
         }

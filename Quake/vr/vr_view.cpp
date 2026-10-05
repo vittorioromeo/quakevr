@@ -1,5 +1,6 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
+#include "vr_modelmetadata.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_rope.hpp"
 #include "vr_view.hpp"
@@ -367,9 +368,9 @@ void forEachEntity(F&& f)
         return false;
     }
 
-    const char* n = model->name;
-    return !strcmp(n, "progs/hand.mdl") || !strcmp(n, "progs/hand_base.mdl") ||
-           !strncmp(n, "progs/finger_", 13) || !strcmp(n, handrig::modelName);
+    const auto& info = modelmeta::get(model);
+    return info.is(modelmeta::Id::Hand) || info.is(modelmeta::Id::HandBase) ||
+           info.has(modelmeta::Trait::Finger) || info.is(modelmeta::Id::HandRig);
 }
 
 [[nodiscard]] qmodel_t* precachedModel(int index)
@@ -679,19 +680,20 @@ void queueWeaponText(const glm::vec3& handRot, bool mirrored, int hand, const vi
 // a glowing seam sweeping between (the alias shader: VR_AliasMorph). The pairs, and the seam's colour (kind).
 [[nodiscard]] int morphKind(const qmodel_t* a, const qmodel_t* b)
 {
-    static constexpr const char* pairs[][2] = {{"progs/v_nail.mdl", "progs/v_lava.mdl"},
-        {"progs/v_nail2.mdl", "progs/v_lava2.mdl"}, {"progs/v_rock.mdl", "progs/v_multi.mdl"},
-        {"progs/v_rock2.mdl", "progs/v_multi2.mdl"}, {"progs/v_light.mdl", "progs/v_plasma.mdl"}};
+    static constexpr modelmeta::Id pairs[][2] = {{modelmeta::Id::VNail, modelmeta::Id::VLava},
+        {modelmeta::Id::VNail2, modelmeta::Id::VLava2}, {modelmeta::Id::VRock, modelmeta::Id::VMulti},
+        {modelmeta::Id::VRock2, modelmeta::Id::VMulti2}, {modelmeta::Id::VLight, modelmeta::Id::VPlasma}};
     static constexpr int kinds[] = {0, 0, 1, 1, 2}; // lava, multi-rockets, plasma
     if(!a || !b)
     {
         return -1;
     }
+    const auto ia = modelmeta::get(a).id, ib = modelmeta::get(b).id;
     for(int i = 0; i < static_cast<int>(za::getArraySize(pairs)); i++)
     {
-        const char* x = pairs[i][0];
-        const char* y = pairs[i][1];
-        if((!strcmp(a->name, x) && !strcmp(b->name, y)) || (!strcmp(a->name, y) && !strcmp(b->name, x)))
+        const auto x = pairs[i][0];
+        const auto y = pairs[i][1];
+        if((ia == x && ib == y) || (ia == y && ib == x))
         {
             return kinds[i];
         }
@@ -1168,12 +1170,12 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     }
     // (vr_grapple_debug: the grappling gun's frame as drawn, when it changes: 0 the hook in it, 2 out.)
     int(&drawnFrame)[2] = grappleDebug.drawnFrame;
-    if(vr_grapple_debug.value && developer.value && model && !strcmp(model->name, "progs/v_grpple.mdl") &&
+    if(vr_grapple_debug.value && developer.value && model && modelmeta::is(model, modelmeta::Id::VGrpple) &&
         frame != drawnFrame[hand])
     {
         Con_Printf("grapple: hand %d's gun drawn with frame %d (was %d)\n", hand, frame, drawnFrame[hand]);
     }
-    drawnFrame[hand] = model && !strcmp(model->name, "progs/v_grpple.mdl") ? frame : -1;
+    drawnFrame[hand] = model && modelmeta::is(model, modelmeta::Id::VGrpple) ? frame : -1;
 
     // A config's own two-handed grips, once, as hotspots (round 21).
     if(model && slot >= 0 && weapons::takeHotspotMigration(slot))
@@ -2948,7 +2950,7 @@ void updateGroundSpots(const hands::State& s)
         {
             const entity_t* e = cl_visedicts[i];
             if(!e || e < cl_entities || e >= cl_entities + cl_max_edicts || !e->model || e->model->type != mod_alias ||
-                view::find(e) || e == &cl_entities[cl.viewentity] || strncmp(e->model->name, "progs/v_", 8))
+                view::find(e) || e == &cl_entities[cl.viewentity] || !modelmeta::has(e->model, modelmeta::Trait::ViewWeapon))
             {
                 continue;
             }
@@ -4300,7 +4302,7 @@ bool holsterLive[HolsterCount]{};
 // the server's holster place). Drawn empty then (frame 2; 0 is the hook in it).
 [[nodiscard]] bool holsteredGrappleOut(const qmodel_t* model, const glm::vec3& at)
 {
-    if(!model || strcmp(model->name, "progs/v_grpple.mdl"))
+    if(!model || !modelmeta::is(model, modelmeta::Id::VGrpple))
     {
         return false;
     }
@@ -4348,7 +4350,7 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
     {
         button.visible = false;
     }
-    if(button.visible && vr_grapple_front_button.value && !strcmp(e.model->name, "progs/v_grpple.mdl"))
+    if(button.visible && vr_grapple_front_button.value && modelmeta::is(e.model, modelmeta::Id::VGrpple))
     {
         const glm::vec3 pos = view::entityAnchorPosition(e, mirrored, 0.f,
             static_cast<int>(weapons::value(slot, Key::WpnButtonAnchorVertex)),
@@ -4613,7 +4615,7 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
     {
         const entity_t* e = cl_visedicts[i];
         if(!e || !e->model || e->model->type != mod_alias || view::find(e) || e == &cl_entities[cl.viewentity] ||
-            strncmp(e->model->name, "progs/v_", 8) || weapons::slotForModel(e->model) < 0)
+            !modelmeta::has(e->model, modelmeta::Trait::ViewWeapon) || weapons::slotForModel(e->model) < 0)
         {
             continue;
         }
@@ -5116,7 +5118,7 @@ void setupFrontButton(int hand)
     view::ViewEntity& ve = entities.frontButton[hand];
     const view::ViewEntity& weapon = entities.weapon[hand];
     const int slot = weapon.ent.model ? weapons::slotForModel(weapon.ent.model) : -1;
-    if(!vr_grapple_front_button.value || slot < 0 || strcmp(weapon.ent.model->name, "progs/v_grpple.mdl") ||
+    if(!vr_grapple_front_button.value || slot < 0 || !modelmeta::is(weapon.ent.model, modelmeta::Id::VGrpple) ||
         weapons::value(slot, Key::WpnButtonMode) == 0.f || !entities.button[hand].visible)
     {
         ve.visible = false;
@@ -5377,14 +5379,14 @@ static void patchModelFlags()
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
         qmodel_t* m = cl.model_precache[i];
-        if(!strcmp(m->name, "progs/grenade.mdl") || !strcmp(m->name, "progs/proxbomb.mdl"))
+        if(modelmeta::is(m, modelmeta::Id::Grenade) || modelmeta::is(m, modelmeta::Id::Proxbomb))
         {
             m->flags |= EF_GRENADE;
         }
         constexpr int trails = EF_ROCKET | EF_GRENADE | EF_GIB | EF_TRACER | EF_ZOMGIB | EF_TRACER2 | EF_TRACER3;
-        if(m->type == mod_alias && !strncmp(m->name, "progs/h_", 8) && !(m->flags & trails))
+        if(m->type == mod_alias && modelmeta::has(m, modelmeta::Trait::Head) && !(m->flags & trails))
         {
-            m->flags |= !strcmp(m->name, "progs/h_zombie.mdl") ? EF_ZOMGIB : EF_GIB;
+            m->flags |= modelmeta::is(m, modelmeta::Id::HZombie) ? EF_ZOMGIB : EF_GIB;
         }
     }
 }

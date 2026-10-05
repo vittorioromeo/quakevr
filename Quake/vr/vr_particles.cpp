@@ -3,6 +3,7 @@
 // numbers; the drawing is camera-facing quads of 1.5 x scale units, turned by their angle about
 // the view direction, as the old geometry shader built them.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_particles.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_units.hpp"
@@ -2564,7 +2565,7 @@ extern "C" int VR_GrenadeTrail(int ent)
     const entity_t& e = cl_entities[ent];
     constexpr int unarmedSkin = 1;
     const bool smokes = !(e.model && e.skinnum == unarmedSkin &&
-                          (!strcmp(e.model->name, "progs/grenade.mdl") || !strcmp(e.model->name, "progs/mervup.mdl")));
+                          (qvr::modelmeta::is(e.model, qvr::modelmeta::Id::Grenade) || qvr::modelmeta::is(e.model, qvr::modelmeta::Id::Mervup)));
     // developer 1: each grenade's trail as it starts or stops.
     const auto n = static_cast<size_t>(ent);
     if(developer.value && (!grenadeTrails.seen[n] || grenadeTrails.smoking[n] != smokes))

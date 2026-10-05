@@ -109,7 +109,8 @@ def run(args):
             raise RuntimeError(f"Timed out: {name}")
         shutil.copy2(run_base / "qconsole.log", destination / "qconsole.log")
         log = (destination / "qconsole.log").read_text(errors="replace")
-        assert code == 0 and "PROP_TEST_DONE" in log and "Sys_Error" not in log and "Host_Error" not in log, name
+        # vr_limits describes overflow paths using these names; only actual error lines are failures.
+        assert code == 0 and "PROP_TEST_DONE" in log and not re.search(r"^(?:Sys_Error|Host_Error)(?:[: ]|$)", log, re.M), name
         if name != "hands-reference":
             assert "prop model queries: PASS" in log and "prop force-grab queries: PASS" in log, name
         if name == "portal":

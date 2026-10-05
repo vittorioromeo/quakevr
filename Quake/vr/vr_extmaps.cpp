@@ -1,5 +1,6 @@
 // vr_extmaps.cpp -- see vr_extmaps.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_extmaps.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -217,7 +218,7 @@ Record& record(const qmodel_t* mod, const char* texname)
 {
     // A new map (not one of its item boxes, maps/b_*.bsp): the list starts again.
     const char* model = mod ? mod->name : "";
-    const bool item = strncmp(model, "maps/b_", 7) == 0;
+    const bool item = qvr::modelmeta::has(mod, qvr::modelmeta::Trait::AmmoBox);
     if(!item && strcmp(model, recordsWorld) != 0)
     {
         records.clear();

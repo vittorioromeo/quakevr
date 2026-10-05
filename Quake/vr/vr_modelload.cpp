@@ -3,6 +3,7 @@
 // replacement skins (DarkPlaces' names), and the skins' normal maps with their islands (alias models and MD5 meshes).
 // Engine-style code, kept out of gl_model.c (docs/vr-port/IRONWAIL_DIFF.md).
 
+#include "vr_modelmetadata.hpp"
 #include "vr_engine.hpp"
 
 #include <float.h>
@@ -143,7 +144,7 @@ extern "C" void VR_ItemTextureClamp (qmodel_t *loadmodel)
 	msurface_t	*s;
 	texture_t	*t, *t2;
 
-	if (q_strncasecmp (loadmodel->name, "maps/b_", 7))
+	if (!qvr::modelmeta::has(loadmodel, qvr::modelmeta::Trait::AmmoBoxInsensitive))
 		return;
 	for (i = 0; i < loadmodel->numtextures; i++)
 		if (loadmodel->textures[i])

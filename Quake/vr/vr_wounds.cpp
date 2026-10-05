@@ -1,5 +1,6 @@
 // vr_wounds.cpp -- see vr_wounds.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_wounds.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
@@ -20,6 +21,8 @@
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Container/InPlaceVector.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 #include "Zancle/Math/Ceil.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -325,28 +328,7 @@ int layersOf(int layer, int out[2], int side[2])
 // mask is one a side. None for any other model.
 void rightBones(const qmodel_t* model, float out[2])
 {
-    out[0] = out[1] = 0.f;
-    if(!model || model->type != mod_alias || ZA_STRNCMP(model->name, "progs/vrbody", 12) != 0)
-    {
-        return;
-    }
-    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
-    if(!hdr || hdr->poseverttype != aliashdr_t::PV_IQM || hdr->numbones <= 0 || !hdr->boneinfo)
-    {
-        return;
-    }
-    const auto* bones = reinterpret_cast<const boneinfo_t*>(reinterpret_cast<const byte*>(hdr) + hdr->boneinfo);
-    za::U32 bits[2]{0u, 0u};
-    for(int i = 0; i < za::min(hdr->numbones, 48); i++)
-    {
-        const za::SizeT n = strlen(bones[i].name);
-        if(n > 2 && bones[i].name[n - 2] == '_' && bones[i].name[n - 1] == 'r')
-        {
-            bits[i / 24] |= 1u << (i % 24);
-        }
-    }
-    out[0] = static_cast<float>(bits[0]);
-    out[1] = static_cast<float>(bits[1]);
+    modelmeta::rightBones(model, out);
 }
 
 void attach(GLenum target, int layer)
@@ -621,7 +603,7 @@ constexpr float boxTexels = 2.5f; // a unit (the monsters' skins' about 2)
     {
         return true;
     }
-    return ZA_STRNCMP(a->name, "progs/vrbody", 12) == 0 && ZA_STRNCMP(b->name, "progs/vrbody", 12) == 0;
+    return modelmeta::has(a, modelmeta::Trait::Body) && modelmeta::has(b, modelmeta::Trait::Body);
 }
 
 void freeMask(int layer)
@@ -945,9 +927,11 @@ struct Capsule
     float r{1.f};
 };
 
-za::Vector<Capsule> playerCapsules(entity_t* const own[3])
+using PlayerCapsules = za::InPlaceVector<Capsule, 6>;
+
+PlayerCapsules playerCapsules(entity_t* const own[3])
 {
-    za::Vector<Capsule> out;
+    PlayerCapsules out;
     const glm::vec3 up{0.f, 0.f, 1.f};
     if(own[0])
     {
@@ -983,7 +967,7 @@ za::Vector<Capsule> playerCapsules(entity_t* const own[3])
 }
 
 // The first capsule the line through `org` going `dir` goes into (48 units either side): where, and its normal there.
-bool strikeCapsules(const za::Vector<Capsule>& caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
+bool strikeCapsules(za::Span<const Capsule> caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
 {
     for(float s = -48.f; s <= 48.f; s += 0.4f)
     {
@@ -1012,7 +996,7 @@ struct Target
     entity_t* ent{nullptr};
     int num{-1};     // its entity number (cl_entities), -1: the player's own body or hand
     bool view{false};
-    const za::Vector<Capsule>* capsules{nullptr}; // the player's: where blows meet it
+    const PlayerCapsules* capsules{nullptr}; // the player's: where blows meet it
     glm::vec3 shift{0.f}; // the player's: where the body is drawn off the player's box (room-scale), added to the blow
 };
 
@@ -1039,7 +1023,7 @@ void wound(const Target& t, const Event& ev)
     // A blow at a point: where it meets the model (its triangles), else (the player's jointed body and hands) as it
     // goes, over what faces it within its radius of its line.
     // The player's own are seen close: smaller wounds; the hands' smaller still (a hand is a few units across).
-    const float own = !t.view ? 1.f : ZA_STRNCMP(t.ent->model->name, "progs/hand", 10) == 0 ? 0.65f : 0.75f;
+    const float own = !t.view ? 1.f : modelmeta::has(t.ent->model, modelmeta::Trait::Hand) ? 0.65f : 0.75f;
     const auto blow = [&](const glm::vec3& org, const glm::vec3& way, int kind, const glm::vec4& what, float scale) {
         WoundSize ws = woundSize(kind, ev.amount);
         ws.run *= own;
@@ -1240,7 +1224,7 @@ void apply(const Event& ev)
         Con_Printf("wounds: event kind %d on entity %d%s, amount %d, extra %d, at %.1f %.1f %.1f going %.2f %.2f %.2f\n", ev.kind,
             ev.num, ev.num == cl.viewentity ? " (you)" : "", ev.amount, ev.extra, ev.org.x, ev.org.y, ev.org.z, ev.dir.x, ev.dir.y, ev.dir.z);
     }
-    za::Vector<Capsule> caps;
+    PlayerCapsules caps;
     Target targets[3];
     int count = 0;
     if(ev.num == cl.viewentity)
@@ -1386,8 +1370,7 @@ SkinPart skinParts[3];
     {
         return false;
     }
-    const char* name = cl_entities[num].model->name;
-    return ZA_STRNCMP(name, "progs/h_", 8) == 0 || strstr(name, "gib") != nullptr;
+    return modelmeta::has(cl_entities[num].model, modelmeta::Trait::Head) || modelmeta::has(cl_entities[num].model, modelmeta::Trait::ContainsGib);
 }
 
 [[nodiscard]] bool inWater(const glm::vec3& p)
@@ -2136,7 +2119,7 @@ void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reac
     }
     if(e.model->type == mod_brush)
     {
-        return e.model->name[0] != '*';
+        return !modelmeta::has(e.model, modelmeta::Trait::Submodel);
     }
     if(e.model->type != mod_alias)
     {
@@ -2309,7 +2292,7 @@ int nearestHand(const glm::vec3& at, float& dist)
 [[nodiscard]] bool holdsSaw(int hand)
 {
     const view::ViewEntity* ve = view::heldWeapon(hand);
-    return ve && ve->ent.model && ZA_STRCMP(ve->ent.model->name, "progs/v_chainsaw.mdl") == 0;
+    return ve && ve->ent.model && modelmeta::is(ve->ent.model, modelmeta::Id::VChainsaw);
 }
 
 // A wound on a monster or a corpse (or a test's: `saw` 0 or 1 forces a blow's kind, -1 by what the hand holds): its
@@ -2418,7 +2401,7 @@ void gibContacts(double now)
     }
     entity_t* own[3]{};
     view::woundTargets(own);
-    const za::Vector<Capsule> caps = playerCapsules(own);
+    const PlayerCapsules caps = playerCapsules(own);
     const glm::vec3 me = originOf(cl_entities[cl.viewentity]);
     const int carried[2]{cl.stats[protocol::STAT_QVR_CARRYOFF], cl.stats[protocol::STAT_QVR_CARRYMAIN]};
     for(int i = 1; i < cl.num_entities && !caps.empty(); i++)
@@ -2690,7 +2673,7 @@ void checkEntities()
         }
         // Another model: its head flying off (the monster is its head now), or the slot taken by something else.
         const int num = static_cast<int>(e - cl_entities);
-        const bool head = e->model && ZA_STRNCMP(e->model->name, "progs/h_", 8) == 0;
+        const bool head = e->model && modelmeta::has(e->model, modelmeta::Trait::Head);
         const bool bled = vr_wounds.value && m.painted > -1e8;
         freeMask(i);
         if(head && bled && num > 0 && num < cl.num_entities)
@@ -2786,7 +2769,7 @@ void drips(double now)
         if(m.view)
         {
             // A hand (the body is under the view: its drips are the hands')
-            if(ZA_STRNCMP(m.ent->model->name, "progs/vrbody", 12) == 0)
+            if(modelmeta::has(m.ent->model, modelmeta::Trait::Body))
             {
                 continue;
             }
@@ -3253,7 +3236,7 @@ void test_f()
         {
             const entity_t& c = cl_entities[i];
             if(i != cl.viewentity && c.model && c.model->type == mod_alias && c.msgtime >= cl.mtime[1] - 0.2 &&
-                ZA_STRNCMP(c.model->name, "progs/v_", 8) != 0)
+                !modelmeta::has(c.model, modelmeta::Trait::ViewWeapon))
             {
                 Cbuf_InsertText(va("vr_wounds_test %d %s\n", i, args));
                 n++;

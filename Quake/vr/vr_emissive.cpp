@@ -1,5 +1,6 @@
 // vr_emissive.cpp -- see vr_emissive.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_emissive.hpp"
 #include "vr_main.hpp"
 #include "vr_color.hpp"
@@ -56,7 +57,6 @@ constexpr Glow lavaNail{{1.9f, 0.62f, 0.16f}, 110.f};    // molten orange-red (m
 constexpr Glow beamBolt{{0.85f, 1.1f, 2.1f}, 170.f};      // the lightning's blue-white, along the beam
 constexpr Glow beamEnd{{1.1f, 1.35f, 2.3f}, 230.f};       // and where it strikes
 
-constexpr const char* lavaNailModel = "progs/lspike.mdl"; // Rogue's lava nails (and the lava ogre's)
 
 // The lava nails' lights: only the nearest vr_lavanail_lights, each frame (the super nailgun has a
 // dozen in the air, two guns twice as many).
@@ -134,11 +134,11 @@ void killDlight(int key)
     }
     if(e.effects & EF_DIMLIGHT)
     {
-        if(!strcmp(e.model->name, "progs/laser.mdl"))
+        if(modelmeta::is(e.model, modelmeta::Id::Laser))
         {
             return &enforcerLaser;
         }
-        if(!strcmp(e.model->name, "progs/lasrspik.mdl"))
+        if(modelmeta::is(e.model, modelmeta::Id::Lasrspik))
         {
             return &cannonLaser;
         }
@@ -264,7 +264,7 @@ void lavaNailLight(int ent, const entity_t& e, float scale)
 // radius: the baked light already lights the room, this only moves it a little).
 struct TorchKind
 {
-    const char* model;
+    modelmeta::Id model;
     int frame; // -1: any
     glm::vec3 fire;
     float radius;
@@ -272,22 +272,23 @@ struct TorchKind
 };
 
 constexpr TorchKind torchKinds[] = {
-    {"progs/flame.mdl", -1, {0.f, 0.f, 20.f}, 150.f, {0.45f, 0.28f, 0.135f}}, // light_torch_small_walltorch
-    {"progs/flame2.mdl", 1, {0.f, 0.f, 14.f}, 170.f, {0.5f, 0.31f, 0.15f}},   // light_flame_large_yellow
-    {"progs/flame2.mdl", -1, {0.f, 0.f, 3.f}, 130.f, {0.42f, 0.26f, 0.125f}}, // light_flame_small_*
-    {"progs/candle.mdl", -1, {0.f, 0.f, 10.f}, 80.f, {0.3f, 0.19f, 0.09f}},    // Rogue's light_candle
-    {"progs/lantern.mdl", -1, {5.f, 0.f, 4.f}, 120.f, {0.38f, 0.24f, 0.115f}}, // Rogue's light_lantern
+    {modelmeta::Id::Flame, -1, {0.f, 0.f, 20.f}, 150.f, {0.45f, 0.28f, 0.135f}}, // light_torch_small_walltorch
+    {modelmeta::Id::Flame2, 1, {0.f, 0.f, 14.f}, 170.f, {0.5f, 0.31f, 0.15f}},   // light_flame_large_yellow
+    {modelmeta::Id::Flame2, -1, {0.f, 0.f, 3.f}, 130.f, {0.42f, 0.26f, 0.125f}}, // light_flame_small_*
+    {modelmeta::Id::Candle, -1, {0.f, 0.f, 10.f}, 80.f, {0.3f, 0.19f, 0.09f}},    // Rogue's light_candle
+    {modelmeta::Id::Lantern, -1, {5.f, 0.f, 4.f}, 120.f, {0.38f, 0.24f, 0.115f}}, // Rogue's light_lantern
 };
 
 [[nodiscard]] const TorchKind* torchKind(const entity_t& e)
 {
-    if(!e.model || e.model->type != mod_alias || strncmp(e.model->name, "progs/", 6))
+    if(!e.model || e.model->type != mod_alias)
     {
         return nullptr;
     }
+    const auto& info = modelmeta::get(e.model);
     for(const TorchKind& k : torchKinds)
     {
-        if((k.frame < 0 || k.frame == e.frame) && !strcmp(e.model->name, k.model))
+        if((k.frame < 0 || k.frame == e.frame) && info.is(k.model))
         {
             return &k;
         }
@@ -419,7 +420,7 @@ extern "C" void VR_ProjectileLight(int ent)
     {
         return;
     }
-    if(!strcmp(e.model->name, lavaNailModel))
+    if(modelmeta::is(e.model, modelmeta::Id::Lspike))
     {
         lavaNailTrail(ent, e);
         if(scale > 0.f)
@@ -472,7 +473,7 @@ extern "C" void VR_ProjectileImpactLight(int kind, const float* pos)
 extern "C" void VR_BeamLights(int index, qmodel_t* model, const float* start, const float* end)
 {
     const int cap = za::clamp(static_cast<int>(vr_beam_lights.value), 0, maxBeamLights);
-    if(cap <= 0 || !model || strncmp(model->name, "progs/bolt", 10))
+    if(cap <= 0 || !model || !modelmeta::has(model, modelmeta::Trait::Bolt))
     {
         return;
     }
@@ -768,7 +769,7 @@ void emissive::weaponScreenLight(int hand, const glm::vec3& pos, const glm::vec3
 
 bool emissive::isLavaGun(const qmodel_t* model)
 {
-    return model && (!strcmp(model->name, "progs/v_lava.mdl") || !strcmp(model->name, "progs/v_lava2.mdl"));
+    return model && (modelmeta::is(model, modelmeta::Id::VLava) || modelmeta::is(model, modelmeta::Id::VLava2));
 }
 
 // Round 20: the lava nailguns' barrels show lava through their windows; loaded with lava nails the gun glows: a
@@ -819,10 +820,10 @@ void emissive::lavaGunLight(int index, const glm::vec3& pos, float strength)
 // (muzzle flashes) hardly change.
 extern "C" float VR_EntityFullbrightBoost(const entity_t* e)
 {
-    if(e->model && !strcmp(e->model->name, "progs/vr_explosion_debris.mdl")) { return 2.f; }
+    if(e->model && modelmeta::is(e->model, modelmeta::Id::VrExplosionDebris)) { return 2.f; }
     // A lava nail's molten skin (fullbright 229-236, dim oranges) burns bright orange, for the
     // bloom, with the projectiles' lights.
-    if(e->model && vr_projectile_lights.value > 0.f && !strcmp(e->model->name, lavaNailModel))
+    if(e->model && vr_projectile_lights.value > 0.f && modelmeta::is(e->model, modelmeta::Id::Lspike))
     {
         return 2.5f;
     }
@@ -831,8 +832,7 @@ extern "C" float VR_EntityFullbrightBoost(const entity_t* e)
     {
         return 0.f;
     }
-    const char* n = e->model->name;
-    if(!strncmp(n, "progs/hand", 10) || !strncmp(n, "progs/finger_", 13) || weapons::slotForModel(e->model) < 0)
+    if(modelmeta::has(e->model, modelmeta::Trait::Hand) || modelmeta::has(e->model, modelmeta::Trait::Finger) || weapons::slotForModel(e->model) < 0)
     {
         return 0.f;
     }

@@ -1,5 +1,6 @@
 // vr_decals.cpp -- see vr_decals.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_decals.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -1768,7 +1769,7 @@ extern "C" int VR_BulletHoleSprite(int ent)
     using namespace qvr::decals;
 
     const entity_t& e = cl_entities[ent];
-    if(!e.model || e.model->type != mod_sprite || strcmp(e.model->name, "progs/s_bullet.spr") ||
+    if(!e.model || e.model->type != mod_sprite || !modelmeta::is(e.model, modelmeta::Id::BulletDecal) ||
         !(cl.protocolflags & PRFL_QUAKEVR) || !vr_decals.value || !cl.worldmodel)
     {
         return 0;
@@ -1780,7 +1781,7 @@ extern "C" int VR_BulletHoleSprite(int ent)
         holesPrunedFrame = host_framecount;
         erase_if(holes, [](const auto& kv) { // (ankerl's, by ADL: std::erase_if's for its maps)
             const qmodel_t* m = kv.first < cl.num_entities ? cl_entities[kv.first].model : nullptr;
-            return !m || strcmp(m->name, "progs/s_bullet.spr");
+            return !m || !modelmeta::is(m, modelmeta::Id::BulletDecal);
         });
     }
 

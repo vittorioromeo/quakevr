@@ -1,6 +1,7 @@
 // vr_audiosim.cpp -- the spatial audio's scene and simulations; see vr_audiosim.hpp and docs/vr-port/ROUND21.md,
 // "Spatial audio (Steam Audio)".
 
+#include "vr_modelmetadata.hpp"
 #include "vr_audiosim.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
@@ -846,7 +847,7 @@ int trackBrushEntities(Simulation& sim, float unitsPerMetre)
     {
         const entity_t* e = &cl_entities[i];
         const qmodel_t* m = e->model;
-        if(!m || m->type != mod_brush || m->name[0] != '*')
+        if(!m || m->type != mod_brush || !qvr::modelmeta::has(m, qvr::modelmeta::Trait::Submodel))
         {
             continue;
         }

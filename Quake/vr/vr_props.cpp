@@ -1,5 +1,6 @@
 // vr_props.cpp -- see vr_props.hpp.
 
+#include "vr_modelmetadata.hpp"
 #include "vr_props.hpp"
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
@@ -422,37 +423,37 @@ void migrate()
     // 57: October 5 playtest gib/head sizes; preserve custom sizes and reassigned slots.
     if(from < 57)
     {
-        if(!strcmp(cvarAt(34, Key::ID).string, "progs/gib2.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(34, Key::ID).string) == modelmeta::Id::Gib2 &&
             za::fabs(value(34, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(34, Key::Size), cvarAt(34, Key::Size).default_string);
-        if(!strcmp(cvarAt(35, Key::ID).string, "progs/gib3.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(35, Key::ID).string) == modelmeta::Id::Gib3 &&
             za::fabs(value(35, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(35, Key::Size), cvarAt(35, Key::Size).default_string);
-        if(!strcmp(cvarAt(37, Key::ID).string, "progs/h_guard.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(37, Key::ID).string) == modelmeta::Id::HGuard &&
             za::fabs(value(37, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(37, Key::Size), cvarAt(37, Key::Size).default_string);
-        if(!strcmp(cvarAt(38, Key::ID).string, "progs/h_dog.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(38, Key::ID).string) == modelmeta::Id::HDog &&
             za::fabs(value(38, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(38, Key::Size), cvarAt(38, Key::Size).default_string);
-        if(!strcmp(cvarAt(39, Key::ID).string, "progs/h_mega.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(39, Key::ID).string) == modelmeta::Id::HMega &&
             za::fabs(value(39, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(39, Key::Size), cvarAt(39, Key::Size).default_string);
-        if(!strcmp(cvarAt(40, Key::ID).string, "progs/h_knight.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(40, Key::ID).string) == modelmeta::Id::HKnight &&
             za::fabs(value(40, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(40, Key::Size), cvarAt(40, Key::Size).default_string);
-        if(!strcmp(cvarAt(41, Key::ID).string, "progs/h_hellkn.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(41, Key::ID).string) == modelmeta::Id::HHellkn &&
             za::fabs(value(41, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(41, Key::Size), cvarAt(41, Key::Size).default_string);
-        if(!strcmp(cvarAt(42, Key::ID).string, "progs/h_ogre.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(42, Key::ID).string) == modelmeta::Id::HOgre &&
             za::fabs(value(42, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(42, Key::Size), cvarAt(42, Key::Size).default_string);
-        if(!strcmp(cvarAt(45, Key::ID).string, "progs/h_shal.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(45, Key::ID).string) == modelmeta::Id::HShal &&
             za::fabs(value(45, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(45, Key::Size), cvarAt(45, Key::Size).default_string);
-        if(!strcmp(cvarAt(46, Key::ID).string, "progs/h_shams.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(46, Key::ID).string) == modelmeta::Id::HShams &&
             za::fabs(value(46, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(46, Key::Size), cvarAt(46, Key::Size).default_string);
-        if(!strcmp(cvarAt(47, Key::ID).string, "progs/h_demon.mdl") &&
+        if(modelmeta::identifyPath(cvarAt(47, Key::ID).string) == modelmeta::Id::HDemon &&
             za::fabs(value(47, Key::Size) - 1.0f) < 1e-4f)
             Cvar_SetQuick(&cvarAt(47, Key::Size), cvarAt(47, Key::Size).default_string);
     }
@@ -832,11 +833,12 @@ float stoneDensity(const qmodel_t* model)
     {
         return 0.f;
     }
-    if(!strncmp(model->name, "progs/vr_rock", 13))
+    const auto& info = modelmeta::get(model);
+    if(info.has(modelmeta::Trait::Rock))
     {
         return 2600.f; // granite, sandstone: 2300-2700
     }
-    if(!strncmp(model->name, "progs/vr_brick", 14))
+    if(info.has(modelmeta::Trait::Brick))
     {
         return 1900.f; // fired clay brick: 1800-2000 (a whole one, 19 x 9 x 6 cm: 1.9 kg)
     }
@@ -857,16 +859,17 @@ float density(const qmodel_t* model, bool weaponLike)
     {
         return stone;
     }
-    if(weaponLike || !strncmp(model->name, "progs/g_", 8) || !strncmp(model->name, "progs/w_", 8) ||
-        strstr(model->name, "key") || !strncmp(model->name, "progs/v_", 8))
+    const auto& info = modelmeta::get(model);
+    if(weaponLike || info.has(modelmeta::Trait::WorldWeapon) || info.has(modelmeta::Trait::WeaponItem) ||
+        info.has(modelmeta::Trait::ContainsKey) || info.has(modelmeta::Trait::ViewWeapon))
     {
         return 700.f; // guns and blades (their hulls are partly air), keys
     }
-    if(strstr(model->name, "armor"))
+    if(info.has(modelmeta::Trait::ContainsArmor))
     {
         return 600.f;
     }
-    if(strstr(model->name, "backpack"))
+    if(info.has(modelmeta::Trait::ContainsBackpack))
     {
         return 250.f;
     }
