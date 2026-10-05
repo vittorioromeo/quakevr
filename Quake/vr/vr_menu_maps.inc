@@ -71,6 +71,11 @@ struct MapsPage
     int resultScroll{0};
     int hoverKey{-1}, hoverResult{-1}, hoverButton{-1};  // under the laser
     int focusKey{-1}, focusResult{-1}, focusButton{-1};  // the sticks' selection
+    // The package picked (a click on its row, or the sticks on it): the detail and Install / Play are its until another
+    // is picked, wherever the mouse or the selection goes then (to the button). Kept by its sha256 (the list is built
+    // again as the text or a filter changes, the index itself when it is fetched again), its row found again then.
+    za::String pickedSha;
+    int picked{-1};
     int visibleResults{1};
 
     za::String status; // the last job's line, shown until the next one
@@ -198,6 +203,15 @@ void mapsRunSearch()
     mapPage.sigInstalled = static_cast<int>(mapinstall::installedList().size());
     mapPage.resultScroll = 0;
     mapPage.focusResult = mapPage.hoverResult = -1;
+    mapPage.picked = -1;
+    for(int r = 0; r < static_cast<int>(mapPage.results.size()) && !mapPage.pickedSha.empty(); r++)
+    {
+        if(za::StringView{idx.field(mapPage.results[r]->sha256)} == za::StringView{mapPage.pickedSha})
+        {
+            mapPage.picked = r;
+            break;
+        }
+    }
     mapPage.searchRuns++;
     mapPage.searchMs += (Sys_DoubleTime() - t0) * 1000.0;
 }
@@ -245,8 +259,19 @@ struct MapsLayout
 {
     const Layout l = layout();
     MapsLayout m;
-    m.s = searchLayout(mapsPageWidth, mapsKeySplit);
-    m.bar.half = m.s.half;
+    // The keys as large as fit (easier to hit with the laser), with more room between them, above the picked package's
+    // detail (a few lines kept for it) and the bar.
+    constexpr float detailRoom = 30.f;
+    for(float half = 9.f;; half -= 0.5f)
+    {
+        m.s = searchLayout(mapsPageWidth, mapsKeySplit, half, half > 7.f ? 1.5f : 1.f);
+        const float keysBottom = m.s.keys.empty() ? m.s.boxY : m.s.keys.back().yc + m.s.half / m.s.k;
+        if(half <= 7.f || keysBottom + detailRoom <= static_cast<float>(l.helpTop))
+        {
+            break;
+        }
+    }
+    m.bar.half = 7.f; // (the bar's buttons as before)
     m.bar.yc = static_cast<float>(l.helpTop) + m.bar.half / m.s.k + 2.f;
     m.listBottom = static_cast<float>(l.helpTop) - 6.f;
     const float rowStep = (2.f * m.s.half + 3.f) / m.s.k;
@@ -285,11 +310,20 @@ struct MapsLayout
                : -1;
 }
 
-// The package the detail shows: what the sticks selected, else what the laser is over.
+// The package the detail shows and Install / Play acts on: what the sticks are on, else the one picked, else what the
+// laser is over.
 [[nodiscard]] int mapsSelected()
 {
-    const int r = mapPage.focusResult >= 0 ? mapPage.focusResult : mapPage.hoverResult;
+    const int r = mapPage.focusResult >= 0 ? mapPage.focusResult : mapPage.picked >= 0 ? mapPage.picked : mapPage.hoverResult;
     return r >= 0 && r < static_cast<int>(mapPage.results.size()) ? r : -1;
+}
+
+// Picks row `r` (-1: none).
+void mapsPick(int r)
+{
+    const bool valid = r >= 0 && r < static_cast<int>(mapPage.results.size());
+    mapPage.picked = valid ? r : -1;
+    mapPage.pickedSha = valid ? za::String{mapindex::index().field(mapPage.results[r]->sha256)} : za::String{};
 }
 
 void mapsScrollTo(int r)
@@ -440,7 +474,20 @@ void mapsTypeIn(char ch)
 // ----------------------------------------------------------------------------
 
 // The sticks' selection: the keys (left), the packages (right), the bar (bottom).
+void mapsMoveImpl(int dx, int dy);
+
+// The sticks' selection moved; a package it lands on is picked (it stays the detail's as the selection moves on to the
+// bar's Install / Play).
 void mapsMove(int dx, int dy)
+{
+    mapsMoveImpl(dx, dy);
+    if(mapPage.focusResult >= 0)
+    {
+        mapsPick(mapPage.focusResult);
+    }
+}
+
+void mapsMoveImpl(int dx, int dy)
 {
     const MapsLayout m = mapsLayout();
     const int keys = static_cast<int>(m.s.keys.size());
@@ -643,7 +690,18 @@ void mapsKey(int key)
                     return;
                 }
             }
-            mapsPrimaryAt(mapsResultAt(m, m_mousex, m_mousey));
+            if(const int r = mapsResultAt(m, m_mousex, m_mousey); r >= 0)
+            {
+                if(r == mapPage.picked)
+                {
+                    mapsPrimaryAt(r); // (a second click on the picked one: Install or Play, as its button)
+                }
+                else
+                {
+                    mapsPick(r);
+                    S_LocalSound("misc/menu1.wav");
+                }
+            }
             return;
         default: return; // (typing: VR_Menu_Char)
     }
@@ -895,7 +953,7 @@ void drawMapsPage()
         const float keyWidth = key.x1 - key.x0 - 2.f;
         const float labelSize = za::fmax(5.f, za::fmin(8.f, keyWidth / q_max(static_cast<float>(strlen(label)), 1.f)));
         const float w = labelSize * static_cast<float>(strlen(label));
-        searchText((key.x0 + key.x1 - w) * 0.5f, key.yc - labelSize, labelSize, keyWidth, label, hot);
+        searchText((key.x0 + key.x1 - w) * 0.5f, key.yc - labelSize * 0.5f, labelSize, keyWidth, label, hot); // (centred)
     }
 
     drawMapsDetail(m, p);
@@ -934,9 +992,13 @@ void drawMapsPage()
         const mapindex::Entry& e = *mapPage.results[r];
         const mapindex::Index& idx = mapindex::index();
         const float y = m.s.resultsTop + mapsRowHeight * static_cast<float>(r - mapPage.resultScroll);
-        const bool hot = mapPage.hoverResult == r || mapPage.focusResult == r;
+        const bool hot = mapPage.hoverResult == r || mapPage.focusResult == r || mapPage.picked == r;
         const bool have = mapinstall::installed(za::String{idx.field(e.sha256)});
         const bool working = mapinstall::busy(za::String{idx.field(e.sha256)});
+        if(mapPage.picked == r)
+        {
+            p.rounded(x0 - 3.f, m.s.right + 1.f, y + 7.5f, 9.5f * m.s.k, 2.f, colors::highlightEdge); // (picked: an edge)
+        }
         if(hot)
         {
             p.rounded(x0 - 2.f, m.s.right, y + 7.5f, 8.5f * m.s.k, 2.f, colors::listHover);

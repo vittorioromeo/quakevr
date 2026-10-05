@@ -1159,6 +1159,7 @@ enum
 	MAIN_VRCALIBRATION, // QVR: the first-time setup (vr_setup.hpp), the first row
 	MAIN_SINGLEPLAYER,
 	MAIN_MULTIPLAYER,
+	MAIN_MAPLIBRARY, // QVR: the map browser (vr_menu_maps.inc)
 	MAIN_OPTIONS,
 	MAIN_MODS,
 	MAIN_HELP,
@@ -1171,7 +1172,7 @@ enum
 // (vr_bigfont.cpp), so that VR Calibration looks like the others.
 static const char *const m_main_labels[MAIN_ITEMS] =
 {
-	"VR Calibration", "Single Player", "Multiplayer", "Options", "Mods", "Help/Ordering", "Quit",
+	"VR Calibration", "Single Player", "Multiplayer", "Map Library", "Options", "Mods", "Help/Ordering", "Quit",
 };
 
 const char *M_Main_RowLabel (void) // QVR: menu_vr pos
@@ -1223,22 +1224,24 @@ void M_Main_Draw (void)
 				VR_BigFont_Draw (73, 32 + row++ * 20, m_main_labels[i]);
 	}
 	else
-	{ // QVR: the VR Calibration row above the picture's
+	{ // QVR: the VR Calibration row above the picture's, Map Library after its Multiplayer (in the mods' row's letters)
+		int split = 40; // the picture's Single Player and Multiplayer rows
 		M_PrintEx (74, 32 + 1, 16, "VR CALIBRATION");
 
 		p = Draw_CachePic ("gfx/mainmenu.lmp");
+		M_DrawSubpic (72, 52, p, 0, 0, p->width, split);
+		M_PrintEx (74, 52 + split + 1, 16, "MAP LIBRARY");
 		if (m_main_mods)
 		{
-			int split = 60;
-			M_DrawSubpic (72, 52, p, 0, 0, p->width, split);
+			M_DrawSubpic (72, 52 + split + 20, p, 0, split, p->width, 20); // Options
 			if (m_main_mods > 0)
-				M_DrawTransPic (72, 52 + split, Draw_CachePic ("gfx/menumods.lmp"));
+				M_DrawTransPic (72, 52 + split + 40, Draw_CachePic ("gfx/menumods.lmp"));
 			else
-				M_PrintEx (74, 52 + split + 1, 16, "MODS");
-			M_DrawSubpic (72, 52 + split + 20, p, 0, split, p->width, p->height - split);
+				M_PrintEx (74, 52 + split + 40 + 1, 16, "MODS");
+			M_DrawSubpic (72, 52 + split + 60, p, 0, split + 20, p->width, p->height - split - 20);
 		}
 		else
-			M_DrawTransPic (72, 52, Draw_CachePic ("gfx/mainmenu.lmp"));
+			M_DrawSubpic (72, 52 + split + 20, p, 0, split, p->width, p->height - split);
 	}
 
 	cursor = m_main_cursor;
@@ -1304,6 +1307,10 @@ void M_Main_Key (int key)
 			M_Menu_MultiPlayer_f ();
 			break;
 
+		case MAIN_MAPLIBRARY: // QVR
+			VR_OpenMapLibrary ();
+			break;
+
 		case MAIN_OPTIONS:
 			M_Menu_Options_f ();
 			break;
@@ -1338,10 +1345,7 @@ void M_Main_Mousemove (float cx, float cy)
 
 qboolean m_singleplayer_showlevels;
 int	m_singleplayer_cursor;
-// QVR: one row of our own at the end of Quake's (New Game, Load, Save, the levels, Map Library): the map browser
-// (vr_menu_maps.inc). Its row is the last, so Quake's picture rows keep their places.
-#define	SINGLEPLAYER_ITEMS	(4 + m_singleplayer_showlevels)
-#define	SINGLEPLAYER_MAPS	(3 + m_singleplayer_showlevels)
+#define	SINGLEPLAYER_ITEMS	(3 + m_singleplayer_showlevels) // (the map browser: the main menu's Map Library)
 
 void M_Menu_SinglePlayer_f (void)
 {
@@ -1364,12 +1368,6 @@ void M_SinglePlayer_Draw (void)
 	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/sp_menu.lmp") );
 	if (m_singleplayer_showlevels)
 		M_DrawTransPic (72, 92, Draw_CachePic ("gfx/sp_maps.lmp") );
-
-	// QVR: the map browser's row, in the letters of Quake's own menu rows (its pictures have no row for it).
-	if (VR_BigFont_CanDraw ("Map Library"))
-		VR_BigFont_Draw (73, 32 + SINGLEPLAYER_MAPS * 20, "Map Library");
-	else
-		M_PrintEx (74, 32 + SINGLEPLAYER_MAPS * 20 + 1, 16, "MAP LIBRARY");
 
 	M_DrawQuakeCursor (54, 32 + m_singleplayer_cursor * 20);
 }
@@ -1436,14 +1434,7 @@ void M_SinglePlayer_Key (int key)
 			break;
 
 		case 3:
-			if (m_singleplayer_showlevels)
-				Cbuf_AddText ("menu_maps\n");
-			else
-				VR_OpenMapLibrary (); // (no levels row: the map browser takes it)
-			break;
-
-		case 4:
-			VR_OpenMapLibrary ();
+			Cbuf_AddText ("menu_maps\n");
 			break;
 		}
 	}

@@ -499,7 +499,10 @@ constexpr float searchResultHeight = 18.f; // a result's two lines (menu y)
 
 char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, filled with the layout (SearchKey points at them)
 
-[[nodiscard]] SearchLayout searchLayout(float maxWidth = 440.f, float splitFraction = 0.7f)
+// `keyHalf`: half a key's height (true pixels); `keyGap`: the room between keys, across (menu units) and down (true
+// pixels). The Map Library's keys are larger, easier to hit with the laser.
+[[nodiscard]] SearchLayout searchLayout(float maxWidth = 440.f, float splitFraction = 0.7f, float keyHalf = 7.f,
+    float keyGap = 1.f)
 {
     const Layout l = layout();
     drawtransform_t t;
@@ -511,8 +514,8 @@ char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, f
     s.left = za::fmax(cl + 4.f, 12.f); // (right of the corner's buttons)
     s.right = za::fmin(cr - 4.f, s.left + maxWidth);
     s.split = s.left + (s.right - s.left) * splitFraction;
-    s.half = 7.f;
-    const float rowStep = (2.f * s.half + 3.f) / s.k;
+    s.half = keyHalf;
+    const float rowStep = (2.f * s.half + 1.f + 2.f * keyGap) / s.k;
     s.boxY = static_cast<float>(l.listTop) + s.half / s.k;
     s.resultsTop = static_cast<float>(l.listTop);
     s.resultsBottom = static_cast<float>(l.helpTop) - 4.f; // (the help under them)
@@ -530,19 +533,19 @@ char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, f
             searchKeyLetters[r][i][0] = rows[r][i];
             searchKeyLetters[r][i][1] = '\0';
             s.keys.pushBack({static_cast<char>(rows[r][i] >= 'A' && rows[r][i] <= 'Z' ? rows[r][i] - 'A' + 'a' : rows[r][i]),
-                searchKeyLetters[r][i], x + keyW * i + 1.f, x + keyW * (i + 1) - 1.f, y});
+                searchKeyLetters[r][i], x + keyW * i + keyGap, x + keyW * (i + 1) - keyGap, y});
         }
     }
-    s.keys.pushBack({' ', "Space", s.left + keyW * 1.f + 1.f, s.left + keyW * 6.f - 1.f, y});
-    s.keys.pushBack({keyBackspace, "Delete", s.left + keyW * 6.f + 1.f, s.left + keyW * 8.f - 1.f, y});
-    s.keys.pushBack({keyClear, "Clear", s.left + keyW * 8.f + 1.f, s.left + keyW * 10.f - 1.f, y});
+    s.keys.pushBack({' ', "Space", s.left + keyW * 1.f + keyGap, s.left + keyW * 6.f - keyGap, y});
+    s.keys.pushBack({keyBackspace, "Delete", s.left + keyW * 6.f + keyGap, s.left + keyW * 8.f - keyGap, y});
+    s.keys.pushBack({keyClear, "Clear", s.left + keyW * 8.f + keyGap, s.left + keyW * 10.f - keyGap, y});
     return s;
 }
 
 [[nodiscard]] bool keyHit(const SearchLayout& s, const SearchKey& key, float x, float y)
 {
-    const float h = (s.half + 1.5f) / s.k;
-    return x >= key.x0 - 1.f && x <= key.x1 + 1.f && y >= key.yc - h && y <= key.yc + h;
+    const float h = (s.half + 2.5f) / s.k; // (the gaps between keys counted to the nearer key: no dead spots)
+    return x >= key.x0 - 1.5f && x <= key.x1 + 1.5f && y >= key.yc - h && y <= key.yc + h;
 }
 
 [[nodiscard]] int searchResultAt(const SearchLayout& s, float x, float y)
