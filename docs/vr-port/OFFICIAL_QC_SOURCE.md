@@ -1,0 +1,15 @@
+# Official expansion QuakeC source provenance
+
+Upstream: [id Software's Quake rerelease QuakeC](https://github.com/id-Software/quake-rerelease-qc).
+Snapshot: `634eefab09a77eb7b5f5ca7078ba3d8784a91142`, downloaded with the author's approval on 2026-10-05.
+
+The upstream repository declares GPLv2. Its original license text is retained unchanged in
+[QC/COPYING-rerelease.txt](../../QC/COPYING-rerelease.txt). Retain the original copyright and license headers
+in adapted files; individual headers permit GPLv2 or later. The manifests credit MachineGames 2021/2026.
+Native port changes are recorded in the task commits and expansion implementation notes.
+
+This source license covers the QuakeC code. Commercial PAKs, maps, models, sounds and localization tables
+come from the player's owned Quake installation and are not included in the VR distribution.
+
+Implementation status and validation are tracked in [EXPANSIONS.md](EXPANSIONS.md), with player setup in
+[INSTALL.md](../INSTALL.md).

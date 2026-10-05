@@ -14,6 +14,7 @@ articles, talks and other engines' source are credited with where they came from
 | **FitzQuake** | John Fitzgibbons ("johnfitz") | GPL-2.0 | through QuakeSpasm |
 | **QuakeSpasm-Spiked** | Spike (David Walton) | GPL-2.0 | the original Quake VR's base |
 | Mission packs' QuakeC (Scourge of Armagon, Dissolution of Eternity) | Hipnotic Interactive, Rogue Entertainment (released by id Software) | GPL-2.0 | `QC/hip_*`, `QC/rogue_*` |
+| Official rerelease expansion QuakeC | id Software and MachineGames | GPL-2.0 (file headers also permit later versions) | native expansion ports under `QC/`; [source provenance](OFFICIAL_QC_SOURCE.md) |
 | **GLM** (OpenGL Mathematics) | G-Truc Creation | MIT / Happy Bunny | `Quake/vr/external/glm` |
 | **OpenXR SDK** (loader and headers) | The Khronos Group | Apache-2.0 | `Windows/OpenXR` |
 | **SDL2** | Sam Lantinga and contributors | zlib | `Windows/SDL2` |
