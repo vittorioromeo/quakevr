@@ -1781,6 +1781,7 @@ QUAKE FILESYSTEM
 */
 
 THREAD_LOCAL qfileofs_t com_filesize;
+THREAD_LOCAL char com_filesource[MAX_OSPATH];
 
 
 //
@@ -2013,6 +2014,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 		Sys_Error ("COM_FindFile: both handle and file set");
 
 	file_from_pak = 0;
+	com_filesource[0] = 0;
 
 //
 // search through the path, one element at a time
@@ -2030,6 +2032,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 				if (strcmp(pak->files[i].name, filename) != 0)
 					continue;
 				// found it!
+				q_strlcpy(com_filesource, pak->filename, sizeof(com_filesource));
 				com_filesize = pak->files[i].filelen;
 				file_from_pak = 1;
 				if (path_id)
@@ -2066,6 +2069,7 @@ static int COM_FindFile (const char *filename, int *handle, FILE **file,
 			if (i == 0 || (i < 0 && ! (Sys_FileType(netpath) & FS_ENT_FILE)))
 				continue;
 
+			q_strlcpy(com_filesource, search->filename, sizeof(com_filesource));
 			if (path_id)
 				*path_id = search->path_id;
 			if (handle)
@@ -2532,6 +2536,8 @@ void COM_AddGameDirectory (const char *dir)
 	pack_t *pak;
 	char pakfile[MAX_OSPATH];
 
+	if (!VR_ShouldMountCampaignDirectory(dir))
+		return;
 	VR_BeforeAddGameDirectory (dir); // QVR
 
 	if (*com_gamenames)
@@ -2561,9 +2567,8 @@ void COM_AddGameDirectory (const char *dir)
 	else
 		path_id = 1U;
 
-	for (j = 0; j < com_numbasedirs; j++)
+	for (j = 0; (base = VR_GameDirectoryRoot(dir, j)) != NULL; j++)
 	{
-		base = com_basedirs[j];
 		q_snprintf (com_gamedir, sizeof (com_gamedir), "%s/%s", base, dir);
 
 		// add the directory to the search path
@@ -2600,6 +2605,7 @@ void COM_ResetGameDirectories(const char *newgamedirs)
 {
 	const char *newpath, *path;
 	searchpath_t *search;
+	VR_PrepareCampaignDirectories(newgamedirs ? newgamedirs : "");
 	//Kill the extra game if it is loaded
 	while (com_searchpaths != com_base_searchpaths)
 	{
@@ -2684,7 +2690,8 @@ static qboolean COM_ValidateGameDirs (const char *newgamedirs)
 		if (p)
 			*p++ = 0;
 
-		if (!COM_GameDirExists (newpath))
+		if (!COM_GameDirExists (newpath) &&
+            !(VR_HasNativeCampaignDirectory(newgamedirs) && VR_CampaignDataAvailable(newpath)))
 		{
 			Con_Printf ("No such game directory \"%s\"\n", newpath);
 			return false;
@@ -2701,10 +2708,10 @@ static qboolean COM_ValidateGameDirs (const char *newgamedirs)
 COM_SwitchGame
 =================
 */
-void COM_SwitchGame (const char *paths)
+static void COM_SwitchGameInternal (const char *paths, qboolean vrCampaign)
 {
 	extern cvar_t max_edicts;
-	if (!q_strcasecmp(paths, COM_GetGameNames(true)))
+	if (!vrCampaign && !q_strcasecmp(paths, COM_GetGameNames(true)))
 	{
 		Con_Printf("\"game\" is already \"%s\"\n", COM_GetGameNames(true));
 		return;
@@ -2721,8 +2728,9 @@ void COM_SwitchGame (const char *paths)
 	CL_Disconnect ();
 	Host_ShutdownServer(true);
 
-	//Write config file
-	Host_WriteConfiguration ();
+	// Native selection preserves settings in memory and never writes a borrowed store folder.
+	if (!vrCampaign)
+		Host_WriteConfiguration ();
 
 	// stop parsing map files before changing file system search paths
 	ExtraMaps_Clear ();
@@ -2754,14 +2762,20 @@ void COM_SwitchGame (const char *paths)
 
 	Con_Printf("\n%s\n\"game\" changed to \"%s\"\n", Con_Quakebar (40), COM_GetGameNames(true));
 
-	VID_Lock ();
+	if (!vrCampaign)
+		VID_Lock ();
 	LOC_Load ();
 
+	if (vrCampaign)
+		return; // Campaign switching preserves controls and does not re-run autoexec.
 	Cbuf_AddText ("unaliasall\n");
 	Cbuf_AddText ("exec quake.rc\n");
 	Cbuf_AddText ("vid_unlock\n");
 }
 
+
+void COM_SwitchGame (const char *paths) { COM_SwitchGameInternal(paths, false); }
+void COM_ReloadVRGame (const char *paths) { COM_SwitchGameInternal(paths, true); }
 
 /*
 =================
@@ -3424,6 +3438,7 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 
 	if (startarg)
 		COM_PatchCmdLine (startarg);
+	VR_InitCampaignDirectories();
 
 	i = COM_CheckParm ("-basegame");
 	if (i)
@@ -3475,6 +3490,8 @@ void COM_InitFilesystem (void) //johnfitz -- modified based on topaz's tutorial
 		p = com_argv[i + 1];
 		if (!*p || !strcmp(p, ".") || strstr(p, "..") || strstr(p, "/") || strstr(p, "\\") || strstr(p, ":"))
 			Sys_Error ("gamedir should be a single directory name, not a path\n");
+        if (VR_IsNativeCampaignLaunch() && VR_IsNewCampaignDirectory(p))
+            continue;
 		if (!COM_GameDirExists (p))
 			Sys_Error ("No such game directory \"%s\"", p);
 		com_modified = true;

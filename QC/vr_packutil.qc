@@ -1,3 +1,5 @@
+// Saved native campaign context; engine restores it before map/resource spawn.
+float vr_save_campaign;
 // Saved precache layout: 1 + Hipnotic + 2*Rogue. It must match when a save is restored.
 float vr_save_packmask;
 

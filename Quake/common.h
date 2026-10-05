@@ -412,6 +412,7 @@ extern	int		com_numbasedirs;
 extern	char	com_basedirs[MAX_BASEDIRS][MAX_OSPATH];
 extern	char	com_gamedir[MAX_OSPATH];
 extern	char	com_nightdivedir[MAX_OSPATH];
+extern THREAD_LOCAL char com_filesource[MAX_OSPATH]; // exact last resolved root/archive, including duplicate basedirs
 extern	THREAD_LOCAL int	file_from_pak;	// global indicating that file came from a pak
 
 void COM_WriteFile (const char *filename, const void *data, int len);
@@ -485,5 +486,6 @@ long FS_filelength (fshandle_t *fh);
 extern struct cvar_s	registered;
 extern qboolean		standard_quake, rogue, hipnotic, mg3;
 
-#endif	/* _Q_COMMON_H */
+void COM_ReloadVRGame (const char *paths); // Native VR campaign switch, preserves controls/autoexec.
 
+#endif	/* _Q_COMMON_H */
