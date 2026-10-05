@@ -499,7 +499,7 @@ constexpr float searchResultHeight = 18.f; // a result's two lines (menu y)
 
 char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, filled with the layout (SearchKey points at them)
 
-[[nodiscard]] SearchLayout searchLayout()
+[[nodiscard]] SearchLayout searchLayout(float maxWidth = 440.f, float splitFraction = 0.7f)
 {
     const Layout l = layout();
     drawtransform_t t;
@@ -509,8 +509,8 @@ char searchKeyLetters[4][10][2]; // the keyboard's key labels, two chars each, f
     SearchLayout s;
     s.k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth));
     s.left = za::fmax(cl + 4.f, 12.f); // (right of the corner's buttons)
-    s.right = za::fmin(cr - 4.f, s.left + 440.f);
-    s.split = s.left + (s.right - s.left) * 0.7f;
+    s.right = za::fmin(cr - 4.f, s.left + maxWidth);
+    s.split = s.left + (s.right - s.left) * splitFraction;
     s.half = 7.f;
     const float rowStep = (2.f * s.half + 3.f) / s.k;
     s.boxY = static_cast<float>(l.listTop) + s.half / s.k;

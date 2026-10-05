@@ -17,6 +17,7 @@
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
 #include "vr_mapindex.hpp"
+#include "vr_mapinstall.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
@@ -379,6 +380,7 @@ using PageBuilder = za::Vector<Item> (*)();
 [[nodiscard]] za::Vector<Item> pageChanged();
 [[nodiscard]] za::Vector<Item> pageSearch();
 [[nodiscard]] za::Vector<Item> pageConsole();
+[[nodiscard]] za::Vector<Item> pageMaps();
 // (Settings with their home on another page link to it: one home per setting.)
 [[nodiscard]] za::Vector<Item> pageMain();
 [[nodiscard]] za::Vector<Item> pageColours();
@@ -3989,6 +3991,10 @@ za::Vector<Item> pageDebugTools()
             .help("maps_fetch force: Quaddicted's index fetched again now, on its own thread (the cached copy forgotten). Nothing waits for it; maps_stats says what happened."),
         toggle("Include Packages with progs.dat", vr_maps_allow_progs)
             .help("vr_maps_allow_progs: packages that ship their own progs.dat replace the game's code, so they are left out of the list by default. They are in the index either way (maps_info shows them, maps_stats counts them)."),
+        command("Map Browser Costs", "maps_page_stats")
+            .help("maps_page_stats: the Map Library page - how many times its list was built and what it cost, what a frame of the page costs, and its layout. The list is built when the text, a filter or the index changes, never per frame."),
+        command("Open the Map Browser", "maps_page")
+            .help("maps_page [text]: the Map Library page (the corner's Maps button, Single Player > Map Library), with the text typed in. maps_install <sha> gets a package, maps_play <sha> starts it."),
         header("Test Effects"),
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
@@ -5128,6 +5134,7 @@ const Page pages[] = {
     {"Explosion Debris", pageExplosionDebris, pageParticleSettings},
     {"Fire Particles", pageFireParticles, pageParticleSettings},
     {"Spawn Pickup Weapons", pageSpawnWeapons, pageDebugTests, LevelDeveloper},
+    {"Map Library", pageMaps, pageMain, LevelStandard}, // (the corner's Maps, and Single Player > Map Library; vr_menu_maps.inc)
 };
 constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 
@@ -6742,9 +6749,9 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     const bool settings = za::anyOf(list.begin(), list.end(), [](const Item& item) {
         return item.cvar && item.kind != Item::Action && item.cvar != &vr_menu_level;
     });
-    if(pages[page].build == pageSearch || pages[page].build == pageConsole)
+    if(pages[page].build == pageSearch || pages[page].build == pageConsole || pages[page].build == pageMaps)
     {
-        return; // (drawn their own way: vr_menu_search.inc, vr_menu_console.inc)
+        return; // (drawn their own way: vr_menu_search.inc, vr_menu_console.inc, vr_menu_maps.inc)
     }
     if(settings && !slotPage(pages[page].build) && pages[page].build != pageChanged)
     {
@@ -7909,8 +7916,15 @@ za::Vector<Item> pageConsole()
     return {info(searchRowText)};
 }
 
+// The Map Library page's rows: as Search's (vr_menu_maps.inc draws and drives it).
+za::Vector<Item> pageMaps()
+{
+    return {info(searchRowText)};
+}
+
 #include "vr_menu_search.inc"
 #include "vr_menu_console.inc"
+#include "vr_menu_maps.inc"
 
 void dumpPages()
 {
@@ -8218,6 +8232,12 @@ extern "C" void VR_Menu_Open()
     showPage(PageMain);
 }
 
+// Single Player > Map Library (menu.c): the map browser page, from Quake's own menu.
+extern "C" void VR_OpenMapLibrary()
+{
+    qvr::menu::openMaps();
+}
+
 // menu_vr [page [row]]: the VR Settings, or one of its pages (1: Advanced VR Options), opened through the pages
 // above it in the tree; menu_vr list: the pages' numbers and places; menu_vr dump: every page's rows.
 void qvr::menu::handCalMatch_f()
@@ -8396,6 +8416,25 @@ void qvr::menu::openConsole()
     openConsolePage();
 }
 
+// The Map Library, from the corner's Maps button or Single Player > Map Library.
+void qvr::menu::openMaps()
+{
+    openMapsPage();
+}
+
+// maps_page [text]: the Map Library page, with the text typed in (as vr_menu_search is for the Search page).
+void qvr::menu::mapsPage_f()
+{
+    mapPage.query = Cmd_Argc() >= 2 ? za::String{Cmd_Args()} : za::String{};
+    openMapsPage();
+}
+
+// maps_page_stats (Debug > Tools).
+void qvr::menu::mapsPageStats_f()
+{
+    mapsPageStatsPrint();
+}
+
 // vr_menu_search <text>: the Search page's results for the text, best first, with their scores and pages.
 void qvr::menu::search_f()
 {
@@ -8456,6 +8495,11 @@ void qvr::menu::selectEnd(int dir)
         consolePage.focusKey = 0;
         return;
     }
+    if(m_state == m_vr && pages[page].build == pageMaps)
+    {
+        mapPage.focusKey = 0; // from the corner's buttons: the keys
+        return;
+    }
     if(m_state == m_vr)
     {
         const auto& list = items(page);
@@ -8481,6 +8525,12 @@ bool qvr::menu::scroll(int rows)
     if(pages[page].build == pageConsole)
     {
         consoleScroll(-rows); // (the stick down: newer)
+        return true;
+    }
+    if(pages[page].build == pageMaps)
+    {
+        mapPage.resultScroll -= rows; // (the stick down: the next packages)
+        mapsScrollTo(-1);
         return true;
     }
     if(dropDownItem())
@@ -8581,6 +8631,11 @@ extern "C" void VR_Menu_Draw()
         drawConsolePage();
         return;
     }
+    if(pages[page].build == pageMaps)
+    {
+        drawMapsPage();
+        return;
+    }
     const auto& list = items(page);
     int& cursor = cursors[page];
     int& scroll = scrolls[page];
@@ -8663,6 +8718,11 @@ extern "C" void VR_Menu_Key(int key, int repeat)
     if(pages[page].build == pageConsole)
     {
         consoleKey(key);
+        return;
+    }
+    if(pages[page].build == pageMaps)
+    {
+        mapsKey(key);
         return;
     }
     const auto& list = items(page);
@@ -8811,12 +8871,17 @@ extern "C" void VR_Menu_Char(int key)
     {
         typeInConsole(static_cast<char>(key));
     }
+    if(pages[page].build == pageMaps && key >= 32 && key < 127)
+    {
+        mapsTypeIn(static_cast<char>(key));
+    }
 }
 
 extern "C" int VR_Menu_TextEntry()
 {
-    return pages[page].build == pageSearch || pages[page].build == pageConsole ? TEXTMODE_NOPOPUP
-                                                                               : TEXTMODE_OFF; // (the page's own keyboard)
+    return pages[page].build == pageSearch || pages[page].build == pageConsole || pages[page].build == pageMaps
+               ? TEXTMODE_NOPOPUP
+               : TEXTMODE_OFF; // (the page's own keyboard)
 }
 
 extern "C" void VR_Menu_Mousemove(float cx, float cy)
@@ -8829,6 +8894,11 @@ extern "C" void VR_Menu_Mousemove(float cx, float cy)
     if(pages[page].build == pageConsole)
     {
         consoleMouse(cx, cy);
+        return;
+    }
+    if(pages[page].build == pageMaps)
+    {
+        mapsMouse(cx, cy);
         return;
     }
     if(dropDownMousemove(cx, cy))
