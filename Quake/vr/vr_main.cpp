@@ -25,6 +25,7 @@
 #include "vr_input.hpp"
 #include "vr_lines.hpp"
 #include "vr_limits.hpp"
+#include "vr_mapindex.hpp"
 #include "vr_text3d.hpp"
 #include "vr_tips.hpp"
 #include "vr_timescale.hpp"
@@ -1236,6 +1237,8 @@ extern "C" void VR_Init()
     envmap::init(); // vr_envmap_dump
     profile::init();
     audio::init(); // spatial audio's commands (vr_snd_info, vr_snd_test...); Steam Audio is loaded on first use
+    mapindex::registerCommands(); // maps_list, maps_info, maps_stats, maps_fetch
+    mapindex::start(); // the external map index, fetched on a thread of its own (vr_mapindex.cpp): nothing here waits
 
     state->restartRequested = true;
 }
@@ -1244,6 +1247,7 @@ extern "C" void VR_Shutdown()
 {
     hull::finishLoads(); // (a map load's builds, if a quit came in the middle of one)
     box3d::finishLoads();
+    mapindex::finish(); // the map index fetch, cancelled and joined (vr_mapindex.cpp)
     imgprefetch::shutdown(); // (the decoding tasks finished)
     ao::shutdown(); // (the models' occlusion bakes, VR or not)
     gpustats::stop();
@@ -1444,6 +1448,7 @@ extern "C" int VR_ModalMessageFrame()
 
 extern "C" void VR_HostFrameEnd()
 {
+    qvr::mapindex::poll(); // the map index the fetch thread finished, taken here (vr_mapindex.cpp)
     qvr::motion::hostFrameEnd();
     qvr::allocsites::frameEnd();
 }

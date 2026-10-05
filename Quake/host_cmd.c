@@ -557,20 +557,9 @@ static const char *const knownmods[][2] =
 	{"ad",			"Arcane Dimensions"},
 };
 
-typedef struct download_s
-{
-	const char		**headers;
-	int				num_headers;
+// download_t and Download are declared in quakedef.h: the VR map index (Quake/vr/vr_mapindex.cpp) downloads with them.
 
-	size_t			(*write_fn) (void *buffer, size_t size, size_t nmemb, void *stream);
-	void			*write_data;
-
-	SDL_atomic_t	*abort;
-	int				response;
-	const char		*error;
-} download_t;
-
-static qboolean Download (const char *url, download_t *download)
+qboolean Download (const char *url, download_t *download)
 {
 #ifdef WITHOUT_CURL
 	download->error = "download support disabled at compile time.";

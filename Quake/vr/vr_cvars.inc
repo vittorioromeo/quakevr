@@ -2178,3 +2178,10 @@ QVR_CVAR(vr_finger_base_z, "0.0", CVAR_ARCHIVE)
 
 // Exact uncached-reference checks for prop optimization regression runs; never archived.
 QVR_CVAR(vr_prop_query_verify, "0", CVAR_NONE)
+
+// The external map index (Quake/vr/vr_mapindex.cpp): Quaddicted's package index, fetched at start-up on a thread of
+// its own and cached in the game dir (quakevr/cache/maps_index.txt). No UI page yet: maps_list / maps_info /
+// maps_stats in the console, and Debug > Tools.
+QVR_CVAR(vr_maps_fetch, "1", CVAR_ARCHIVE)              // the index is fetched at start-up (0: never; a cached copy is still read). -nomapindex turns it off for one run
+QVR_CVAR(vr_maps_index_url, "https://www.quaddicted.com/api/v1/", CVAR_ARCHIVE) // where the index comes from (a paged API: ?q=*:*&rows=200&start=N). Another URL re-fetches: a cached copy of a different one is not used
+QVR_CVAR(vr_maps_allow_progs, "0", CVAR_ARCHIVE)       // packages that carry their own progs.dat: 0 left out of the list (they replace the game's code), 1 included. They are in the index either way (maps_info shows them; maps_stats counts them)

@@ -16,6 +16,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_gadget.hpp"
+#include "vr_mapindex.hpp"
 #include "vr_main.hpp"
 #include "vr_mem.hpp"
 #include "vr_menu.hpp"
@@ -3979,6 +3980,15 @@ za::Vector<Item> pageDebugTools()
         command("Texture Checksums", "imagehash").help("imagehash: every loaded texture's checksum as the GPU holds it, to imagehash.txt, and their sum in the console (two texture packs, or TGA and PNG files, compared)."),
         command("Reflection Map", "vr_envmap_dump").help("vr_envmap_dump: the held weapon's reflection map, to envmap.tga (Weapon Reflections on)."),
         command("Weight Test", "vr_weight_test csv").help("vr_weight_test: the weight's spring on test cases (swings, wrist snaps, wrist steps: pitch, yaw and roll), tables in the console and weight_test.csv."),
+        header("External Map Index (vr_mapindex.cpp)"),
+        command("Map Index Stats", "maps_stats")
+            .help("maps_stats: how many packages the external index holds, by type / game_mode / map_size, how many carry their own progs.dat (left out unless the setting below is on), what the fetch cost, and where its cache is."),
+        command("List Maps (newest first)", "maps_list limit=20").help("maps_list [text] [type=map] [mode=singleplayer] [size=large] [sort=date|bytes|title] [limit=20] [progs=1] [oldest=1]: the index as a table, newest first (maps_info <sha256> for one package)."),
+        command("List Large Maps", "maps_list type=map size=large sort=bytes limit=40").help("maps_list type=map size=large sort=bytes: the big single-player maps, largest first."),
+        command("Fetch the Map Index", "maps_fetch force")
+            .help("maps_fetch force: Quaddicted's index fetched again now, on its own thread (the cached copy forgotten). Nothing waits for it; maps_stats says what happened."),
+        toggle("Include Packages with progs.dat", vr_maps_allow_progs)
+            .help("vr_maps_allow_progs: packages that ship their own progs.dat replace the game's code, so they are left out of the list by default. They are in the index either way (maps_info shows them, maps_stats counts them)."),
         header("Test Effects"),
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
