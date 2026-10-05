@@ -842,6 +842,19 @@ Profiler (ROUND21.md, "Profiling: where the time goes"): `vr_profile_csv 1` coll
 panel; `vr_profile_report [s]` prints the table; the hitch log prints `vr_profile: hitch` lines. The panel is UI, so
 `vr_eyeshot` misses it: to see it in a screenshot, `vr_window_view 2; vr_spectator_fov 50; vr_spectator_scale 2;
 vr_spectator_rate 1; vr_profile_overlay 2` (the spectator camera, narrow, frames the panel in the 960 x 540 window).
+Bullet Time's colour treatment also appears in the spectator camera by default. Graphics > Recording >
+Bullet Time Effects (`vr_spectator_bullettime_fx`, archived, default 1) hides it there when off; the headset's
+look and both mirror modes stay unchanged. This controls the desaturation, tint and darkened edges from
+Combat > Bullet Time, and never adds them for the recording's Time Scale alone. The vignette uses the spectator
+viewport, so its centre stays correct at different fields of view and resolution scales, including retained frames.
+For paired render checks, use `vr_window_view 2; vr_spectator_rate 1; vr_spectator_fov 105;
+vr_spectator_scale 0.75; vr_bullettime_duration 60; vr_bullettime; wait60`, then compare screenshots with
+`vr_spectator_bullettime_fx 1` and `0`. Capture both headset eyes with `vr_eyeshot 1` at the same fixed frame
+in separate runs. For exact image comparison use `vr_fixed_frames 1; vr_dither 0; r_drawentities 0;
+r_particles 0; vr_particles 0; r_dynamic 0` before the map, to exclude simulation variation from the fixture.
+The two headset images must match while the spectator colour changes. Check the toggle with
+`vr_menu_search vr_spectator_bullettime_fx` and the boards with `vr_menu_path_check maps/vrcalibration.map`.
+
 The spectator camera's own settings: `vr_spectator_rate` (1 every frame, 2 or 3 every 2nd or 3rd, more than 3 at most
 that many images a second; the window pass shows the last image between: `window view` outside `spectator` in the
 profile) and `vr_spectator_aa` (1 the window's MSAA, `vid_fsaa`; 0 none). Its timings need a real window size: the
