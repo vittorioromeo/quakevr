@@ -3,7 +3,10 @@
 
 #include "vr_crtheap.h"
 
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if defined(QVR_MIMALLOC)
 
@@ -11,6 +14,54 @@
 #include "mimalloc-stats.h"
 
 static char qvrHeapName[64];
+
+// mimalloc's messages (its warnings and errors; also on stderr, as without these hooks) and errors (an invalid or double
+// free, corrupted heap data: EFAULT; out of memory: ENOMEM), counted for `vr_heap`, the first 2 KB of the messages kept.
+static char qvrHeapMessages[2048];
+static unsigned qvrHeapMessagesUsed;
+static unsigned long long qvrHeapMessageCount, qvrHeapErrorCount;
+static int qvrHeapLastError;
+
+static void qvrHeapOutput(const char* message, void* arg)
+{
+    (void)arg;
+    __atomic_fetch_add(&qvrHeapMessageCount, 1, __ATOMIC_RELAXED);
+    const unsigned length = (unsigned)strlen(message);
+    const unsigned at = __atomic_fetch_add(&qvrHeapMessagesUsed, length, __ATOMIC_RELAXED);
+    if(at + 1 < sizeof(qvrHeapMessages)) // (what fits: the last byte stays the terminating zero)
+    {
+        const unsigned room = (unsigned)sizeof(qvrHeapMessages) - 1 - at;
+        memcpy(qvrHeapMessages + at, message, length < room ? length : room);
+    }
+    fputs(message, stderr);
+}
+
+static void qvrHeapError(int error, void* arg)
+{
+    (void)arg;
+    __atomic_fetch_add(&qvrHeapErrorCount, 1, __ATOMIC_RELAXED);
+    qvrHeapLastError = error;
+#if !defined(NDEBUG)
+    if(error == EFAULT) // as mimalloc's own in Debug: a corrupted heap ends the game (the crash report)
+    {
+        abort();
+    }
+#endif
+}
+
+void VR_CrtHeapHooks(void)
+{
+    mi_register_output(qvrHeapOutput, NULL);
+    mi_register_error(qvrHeapError, NULL);
+}
+
+void VR_CrtHeapMessages(unsigned long long* messages, unsigned long long* errors, int* lastError, const char** text)
+{
+    *messages = __atomic_load_n(&qvrHeapMessageCount, __ATOMIC_RELAXED);
+    *errors = __atomic_load_n(&qvrHeapErrorCount, __ATOMIC_RELAXED);
+    *lastError = qvrHeapLastError;
+    *text = qvrHeapMessages;
+}
 
 const char* VR_CrtHeapName(void)
 {
@@ -66,6 +117,14 @@ void VR_CrtHeapPrintStats(void (*out)(const char* text, void* arg), void* arg)
     mi_options_print_out(out, arg);
 }
 
+void VR_CrtHeapSetPurgeDelay(long milliseconds)
+{
+    if(VR_CrtHeapIsMimalloc())
+    {
+        mi_option_set(mi_option_purge_delay, milliseconds);
+    }
+}
+
 void VR_CrtHeapCollect(void)
 {
     if(VR_CrtHeapIsMimalloc())
@@ -76,11 +135,20 @@ void VR_CrtHeapCollect(void)
 
 #else // !QVR_MIMALLOC
 
-#include <string.h>
-
 const char* VR_CrtHeapName(void)
 {
     return "the C runtime's (a build without mimalloc)";
+}
+
+void VR_CrtHeapHooks(void)
+{
+}
+
+void VR_CrtHeapMessages(unsigned long long* messages, unsigned long long* errors, int* lastError, const char** text)
+{
+    *messages = *errors = 0;
+    *lastError = 0;
+    *text = "";
 }
 
 VR_CrtHeapStats_t VR_CrtHeapStats(void)
@@ -93,6 +161,11 @@ VR_CrtHeapStats_t VR_CrtHeapStats(void)
 void VR_CrtHeapPrintStats(void (*out)(const char* text, void* arg), void* arg)
 {
     out("a build without mimalloc: no statistics\n", arg);
+}
+
+void VR_CrtHeapSetPurgeDelay(long milliseconds)
+{
+    (void)milliseconds;
 }
 
 void VR_CrtHeapCollect(void)

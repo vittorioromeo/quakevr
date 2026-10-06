@@ -29,6 +29,12 @@ VR_CrtHeapStats_t VR_CrtHeapStats(void);
 // mimalloc's own statistics table (mi_stats_print_out) and its options, piece by piece (each piece may hold several
 // lines or part of one).
 void VR_CrtHeapPrintStats(void (*out)(const char* text, void* arg), void* arg);
+// mimalloc's messages and errors (counted; the first 2 KB of the messages kept; also on stderr): its error handler and
+// output, installed at the first allocation (vr_crtheap.c). In Debug, a corrupted heap (EFAULT) aborts, as mimalloc's own.
+void VR_CrtHeapHooks(void);
+void VR_CrtHeapMessages(unsigned long long* messages, unsigned long long* errors, int* lastError, const char** text);
+// How long mimalloc keeps freed memory before it goes back to the OS (ms; 0 at once, -1 never): vr_heap_purge_delay.
+void VR_CrtHeapSetPurgeDelay(long milliseconds);
 // Returns the memory mimalloc holds unused to the OS (mi_collect(true), on this thread's heap and the abandoned ones).
 void VR_CrtHeapCollect(void);
 

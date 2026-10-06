@@ -7,6 +7,7 @@
 #include "vr_alloccount.hpp"
 #include "vr_alloccount.h"
 #include "vr_crtheap.h"
+#include "vr_cvars.hpp"
 #include <new>
 #include <stdint.h>
 #include <stdlib.h>
@@ -117,6 +118,16 @@ void heapSummary()
     const VR_CrtHeapStats_t s = VR_CrtHeapStats();
     Con_Printf("vr_heap: %s; %llu calls on blocks the C runtime's own functions allocated\n", VR_CrtHeapName(),
         VR_CrtHeapForeignCalls());
+    unsigned long long messages = 0, errors = 0;
+    int lastError = 0;
+    const char* text = "";
+    VR_CrtHeapMessages(&messages, &errors, &lastError, &text);
+    Con_Printf("vr_heap: mimalloc's messages %llu, errors %llu%s%s", messages, errors,
+        errors ? va(" (the last: errno %d)", lastError) : "", messages ? ", the first ones:\n" : "\n");
+    if(messages)
+    {
+        Con_Printf("%s\n", text);
+    }
     if(VR_CrtHeapIsMimalloc())
     {
         Con_Printf("vr_heap: process working set %.1f MB (peak %.1f), commit %.1f MB (peak %.1f); mimalloc reserved %.1f MB, "
@@ -375,6 +386,9 @@ void registerCommands()
     Cmd_AddCommand("vr_alloc_sites", command_f);
     Cmd_AddCommand("vr_alloc_test", test_f);
     Cmd_AddCommand("vr_heap", heap_f);
+    VR_CrtHeapHooks(); // (again: on Windows the first allocation installed them; elsewhere this does)
+    // A change applies at once (the start-up value: vr_crtheap.c, 0, or MIMALLOC_PURGE_DELAY).
+    Cvar_SetCallback(&vr_heap_purge_delay, [](cvar_t* var) { VR_CrtHeapSetPurgeDelay(static_cast<long>(var->value)); });
 }
 
 void frameEnd()

@@ -4401,6 +4401,10 @@ za::Vector<Item> pageDebugProfiling()
         command("Heap Stress", "vr_heap stress 8 2000")
             .help("vr_heap stress [threads] [ms]: 8 threads allocating and freeing for 2 s (a quarter freed by another "
                   "thread), each block checked: million operations a second, the heap's contention. Stalls the game."),
+        cycle("Heap: Purge Delay", "vr_heap_purge_delay", {{0.f, "At once"}, {10.f, "10 ms"}, {1000.f, "1 s (mimalloc's)"}, {-1.f, "Never"}})
+            .help("vr_heap_purge_delay: how long the heap (mimalloc) keeps freed memory before giving it back to the system. "
+                  "At once: the smallest working set. 1 s, mimalloc's own default: map loads about 15% quicker, 0.3 to 1 GB "
+                  "more memory held after them."),
         command("Heap: Return Free Memory", "vr_heap collect")
             .help("vr_heap collect: mimalloc returns the memory it holds unused to the system, then vr_heap."),
         header("Crashes"),

@@ -155,7 +155,11 @@ The profiler counts the main thread's C++ allocations (`vr_profile_report`: "all
 CSV's column): `vr_alloccount.cpp` replaces `operator new` with a counting one, including aligned forms. Engine-owned
 C calls use `VR_HeapMalloc/Calloc/Realloc/Free` (`vr_alloccount.h`); Box3D uses aligned allocator callbacks and image
 libraries use their allocator hooks. Do not use allocation-name macros across system/vendor headers. The wrappers
-preserve CRT pointer ownership and failure semantics; C++ allocation uses raw CRT storage to avoid double counting.
+preserve CRT pointer ownership and failure semantics; C++ allocation uses raw C heap storage (malloc/free) to avoid double counting.
+The C heap is mimalloc (`vr_crtheap.c`, `external/mimalloc/README.md`): every malloc, free, `_aligned_*`, strdup and so
+new/delete in the executable; the DLLs (SDL2, libcurl, OpenXR, Steam Audio) keep the C runtime's. Never hand a DLL a
+block to free, nor free one of theirs with `free` (theirs go back with `SDL_free`, `curl_free`, ...); `vr_heap` counts
+the C runtime's own blocks freed here (`_fullpath(NULL)` and the like: handled, but each one a call to look at).
 Counters are per thread; the frame profiler reads only the main thread. Its additional columns are `cpp_deletes`,
 `c_heap_requests`, `c_heap_frees` and `heap_requested_kib` (request bytes floored to KiB per frame, not live heap usage).
 C request counts include attempts; null frees are ignored. `vr_alloc_sites 300 50` records heap event kinds, exact

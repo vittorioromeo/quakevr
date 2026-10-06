@@ -152,6 +152,14 @@ static __declspec(noinline) int qvrHeapInit(void)
         mode = modeCrt;
         qvrHeapOffReason = "-nomimalloc";
     }
+    if(mode == modeMimalloc)
+    {
+        VR_CrtHeapHooks(); // its messages and errors counted (vr_crtheap_info.c)
+        // Freed memory goes back to the system at once (mimalloc's default: after a second, and only when some
+        // thread next allocates: the pool's idle workers kept 0.3 to 1 GB after warden's load). The environment's
+        // MIMALLOC_PURGE_DELAY still wins; vr_heap_purge_delay changes it in game. ROUND21.md, "mimalloc".
+        mi_option_set_default(mi_option_purge_delay, 0);
+    }
     __atomic_store_n(&qvrHeapMode, mode, __ATOMIC_RELEASE);
     return mode;
 }

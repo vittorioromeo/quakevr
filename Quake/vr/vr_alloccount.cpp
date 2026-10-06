@@ -115,7 +115,7 @@ void deallocate(void* p)
 
 } // namespace
 
-// C++ allocation uses raw CRT storage to avoid counting the same request twice.
+// C++ allocation uses raw C heap storage (malloc/free: mimalloc, vr_crtheap.c) to avoid counting the same request twice.
 void* operator new(za::SizeT size)
 {
     return allocate(size);
