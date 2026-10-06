@@ -45,6 +45,13 @@ void jumpToAdvanced();
 // from it goes to the VR Settings.
 void jumpToChecklist();
 
+// "VR Settings" (the corner's button): the VR Settings page from any menu (a tick on it already).
+void jumpToSettings();
+
+// "Relighting" (the corner's button): Graphics > Relighting from any menu (Menu Detail raised to Advanced if lower);
+// Back from it goes up the tree: Graphics, Advanced VR Options, VR Settings.
+void jumpToRelighting();
+
 // The presets' callbacks (VR Settings' Comfort and Handedness), once the cvars are registered.
 void init();
 

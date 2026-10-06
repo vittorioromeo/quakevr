@@ -340,32 +340,37 @@ void appendStrip(za::Vector<gfx::Vertex>& v, const glm::vec3& a, const glm::vec3
 }
 
 // ----------------------------------------------------------------------------
-// The corner's buttons: Back to game, Search, Console, Advanced VR, Levels, Checklist
+// The corner's buttons: Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting,
+// Checklist
 // ----------------------------------------------------------------------------
 
-// A column at the panel's top left, over every menu: "Back to game" (closes the menu, which reopens
-// where it was), "Search" and "Console" (Quake's console with a keyboard: commands typed in the headset), "Advanced
-// VR" (the Advanced VR Options page), "Levels" (Ironwail's level list) and
-// "Checklist" (the playtest checklist, its open items counted on it; vr_checklist.hpp), from any page. The laser clicks them; the sticks reach them too (focus): a click of either stick
+// A column at the panel's top left, over every menu: "Back to game" (closes the menu, which reopens where it was),
+// "Search" and "Console" (Quake's console with a keyboard: commands typed in the headset), "VR Settings" (the VR
+// Settings page), "Advanced VR" (the Advanced VR Options page), "Levels" (Ironwail's level list), "Map Library",
+// "Relighting" (Graphics > Relighting) and "Checklist" (the playtest checklist, its open items counted on it;
+// vr_checklist.hpp), from any page. The laser clicks them; the sticks reach them too (focus): a click of either stick
 // on any menu, or on a VR page up from its first setting (down from its last).
 enum Tool
 {
     ToolBack,
     ToolSearch, // the VR menus' Search page (vr_menu_search.inc)
     ToolConsole, // Quake's console with a keyboard (vr_menu_console.inc)
+    ToolSettings, // the VR Settings page
     ToolAdvanced,
     ToolLevels,
     ToolMaps, // the map browser: the external map index, installed and played from here (vr_menu_maps.inc)
-    ToolChecklist,
+    ToolRelighting, // Graphics > Relighting (the map's lights baked again: vr_relight)
+    ToolChecklist, // (the last: shown at Menu Detail: Developer only)
     ToolCount
 };
 
 // (The checklist's count after its label: "Checklist 99" at most, as wide as "Back to game".)
-constexpr const char* toolLabels[ToolCount]{"Back to game", "Search", "Console", "Advanced VR", "Levels", "Map Library",
-    "Checklist 99"};
+constexpr const char* toolLabels[ToolCount]{"Back to game", "Search", "Console", "VR Settings", "Advanced VR", "Levels",
+    "Map Library", "Relighting", "Checklist 99"};
 
 // Their names for the tests' commands (vr_mock_laser, vr_mock_mouse).
-constexpr const char* toolNames[ToolCount]{"back", "search", "console", "advanced", "levels", "maps", "checklist"};
+constexpr const char* toolNames[ToolCount]{"back", "search", "console", "settings", "advanced", "levels", "maps", "relighting",
+    "checklist"};
 
 // The buttons shown: the Checklist (the last) only at Menu Detail: Developer (the playtest checklist is the author's).
 [[nodiscard]] int toolsShown()
@@ -851,8 +856,8 @@ void mockLaser_f()
         pointingHand = HAND_MAIN;
         return;
     }
-    Con_Printf("vr_mock_laser <x> <y> | back | search | console | advanced | levels | maps | checklist | spectator | off: the main "
-               "hand's laser on that spot of the menu\n");
+    Con_Printf("vr_mock_laser <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
+               "checklist | spectator | off: the main hand's laser on that spot of the menu\n");
 }
 
 void mockMouse_f()
@@ -878,8 +883,8 @@ void mockMouse_f()
     }
     if(next == 0)
     {
-        Con_Printf("vr_mock_mouse <x> <y> | back | search | console | advanced | levels | maps | checklist [click]: the desktop "
-                   "mouse on that spot of the menu, clicked with click\n");
+        Con_Printf("vr_mock_mouse <x> <y> | back | search | console | settings | advanced | levels | maps | relighting | "
+                   "checklist [click]: the desktop mouse on that spot of the menu, clicked with click\n");
         return;
     }
 
@@ -991,6 +996,7 @@ void useTool(int tool, int hand)
         case ToolBack: backToGame(hand); break;
         case ToolSearch: menu::openSearch(); break;
         case ToolConsole: menu::openConsole(); break;
+        case ToolSettings: menu::jumpToSettings(); break;
         case ToolAdvanced: menu::jumpToAdvanced(); break;
         case ToolLevels:
             if(m_state == m_maps)
@@ -1003,6 +1009,7 @@ void useTool(int tool, int hand)
             break;
         case ToolChecklist: menu::jumpToChecklist(); break;
         case ToolMaps: menu::openMaps(); break;
+        case ToolRelighting: menu::jumpToRelighting(); break;
         default: break;
     }
 }
@@ -1330,8 +1337,9 @@ extern "C" void VR_MenuBounds(int* top, int* height)
 namespace
 {
 
-// A button's icon, `x` its left, `yc` its middle: Back to game's arrow, Advanced VR's sliders, the
-// levels' flag, the checklist's lines.
+// A button's icon, `x` its left, `yc` its middle: Back to game's arrow, Search's magnifying glass, the console's
+// prompt, VR Settings' headset, Advanced VR's sliders, the levels' flag, the Map Library's map, Relighting's sun, the
+// checklist's lines.
 void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4& ink)
 {
     const float w = ToolbarLayout::icon;
@@ -1355,6 +1363,27 @@ void drawToolIcon(const Painter& p, int tool, float x, float yc, const glm::vec4
             // A prompt: ">" and "_".
             p.arrowHeadRight(x + 4.f, 4.f, yc - 1.f / p.k, 3.f, ink);
             p.rect(x + 5.f, x + w, yc + 3.f / p.k, 0.8f, ink);
+            break;
+        case ToolSettings:
+            // A headset: its visor (two lenses in it, a notch for the nose under them), a strap over it.
+            p.rect(x + 1.5f, x + w - 1.5f, yc - 3.6f / p.k, 0.6f, ink);
+            p.rounded(x, x + w, yc + 0.5f / p.k, 2.8f, 1.5f, ink);
+            p.disc(x + 2.6f, yc + 0.2f / p.k, 1.25f, colors::boxFill);
+            p.disc(x + w - 2.6f, yc + 0.2f / p.k, 1.25f, colors::boxFill);
+            p.band(x + 3.9f, x + w - 3.9f, yc, 2.f, 3.4f, colors::boxFill);
+            break;
+        case ToolRelighting:
+            // A sun: a disc, its rays round it.
+            p.disc(x + 4.5f, yc, 2.f, ink);
+            p.rect(x, x + 1.4f, yc, 0.6f, ink);
+            p.rect(x + w - 1.4f, x + w, yc, 0.6f, ink);
+            p.band(x + 3.9f, x + 5.1f, yc, -4.8f, -3.3f, ink);
+            p.band(x + 3.9f, x + 5.1f, yc, 3.3f, 4.8f, ink);
+            for(int i = 0; i < 4; i++)
+            {
+                const float dx = i & 1 ? 3.2f : -3.2f, dy = i & 2 ? 3.2f : -3.2f;
+                p.disc(x + 4.5f + dx, yc + dy / p.k, 0.75f, ink);
+            }
             break;
         case ToolAdvanced:
             // Three sliders, their knobs set apart.

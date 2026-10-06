@@ -8928,6 +8928,50 @@ void qvr::menu::jumpToChecklist()
     showPage(target);
 }
 
+void qvr::menu::jumpToSettings()
+{
+    if(m_state == m_vr && page == PageMain)
+    {
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    if(m_state == m_vr)
+    {
+        S_LocalSound("misc/menu2.wav");
+        showPage(PageMain);
+        return;
+    }
+    VR_Menu_Open(); // (its sound as it is drawn)
+}
+
+void qvr::menu::jumpToRelighting()
+{
+    const int target = pageIndex(pageGraphicsRelighting);
+    if(menuLevel() < pages[target].level)
+    {
+        Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(pages[target].level)); // (as the corner's Advanced VR)
+    }
+    if(m_state == m_vr && page == target)
+    {
+        S_LocalSound("misc/menu1.wav");
+        return;
+    }
+    if(m_state == m_vr)
+    {
+        S_LocalSound("misc/menu2.wav");
+    }
+    else
+    {
+        VR_Menu_Open(); // (its sound as it is drawn)
+    }
+    // Back walks up its place in the tree (Graphics, Advanced VR Options, VR Settings), as after the menus' own links.
+    for(int p = target; p != PageMain; p = homeOf(p))
+    {
+        parentPage[p] = homeOf(p);
+    }
+    showPage(target);
+}
+
 void qvr::menu::selectEnd(int dir)
 {
     if(m_state == m_vr && pages[page].build == pageSearch)

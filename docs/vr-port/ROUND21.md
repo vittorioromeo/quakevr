@@ -25706,3 +25706,22 @@ Not tested: the Map Library set with packages installed (none in the qbase: "no 
 - [ ] Cancel halfway: the maps done play relit (E1M2 from its start), the others as before.
 - [ ] Relight These Maps again: everything skipped at once ("8 skipped"); change a slider: relit.
 - [ ] Every Map with Maps at Once 2 while playing: no hitches beyond a frame at each map's start.
+## Corner buttons: VR Settings and Relighting (2026-10-06)
+
+Vittorio: two more shortcuts in the corner bar, "VR Settings" (the regular VR Settings page, not Advanced) and
+"Relighting" (Graphics > Relighting). The column (headset) and the flat screen's icon row now have nine buttons: Back
+to game, Search, Console, **VR Settings**, Advanced VR, Levels, Map Library, **Relighting**, Checklist (Developer only,
+still last) (`Quake/vr/vr_menuui.cpp` `Tool`, `toolLabels`, `toolNames`, `useTool`, `drawToolIcon`;
+`Quake/vr/vr_menu.cpp` `menu::jumpToSettings`, `menu::jumpToRelighting`).
+- **VR Settings** opens the VR Settings page from any menu (a tick if it is already shown); Back from it goes to
+  Options, as from Options > VR Settings. Its icon: a headset (a visor with two lenses and a nose notch, a strap).
+- **Relighting** opens Graphics > Relighting from any menu; Menu Detail goes up to Advanced if it was lower (as the
+  Advanced VR button does: the page is an Advanced one). Back walks up its place in the tree: Graphics, Advanced VR
+  Options, VR Settings. Its icon: a sun.
+- `vr_mock_laser` / `vr_mock_mouse` take `settings` and `relighting` too (TESTING.md).
+
+**Tests.** Flat 1280x720: `vr_mock_mouse settings click` from the main menu opened page 0 (VR Settings);
+`vr_mock_mouse relighting click` page 145 (Graphics - Relighting, back to 32), then Escape three times: Graphics,
+Advanced VR Options, VR Settings. Keys: a stick click on Advanced VR Options, three rights (corner button 3), Enter:
+VR Settings; on the main menu, seven rights to button 7, Enter: Relighting. Mock headset: the laser on `settings` and
+`relighting` with a trigger click opened the same pages. The hover names show under the row's new icons.
