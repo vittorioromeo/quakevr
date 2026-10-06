@@ -30,11 +30,11 @@ The 3072 dense fixture ends with 9,218 live particles in every variant/repeat, b
 
 | Eye size | Mode | CPU frame ms | GPU frame ms | Particle GPU ms | GPU frame reduction |
 |---:|---|---:|---:|---:|---:|
-| 2048 | Reference full | 13.552 | 13.395 | 12.330 | — |
+| 2048 | Reference full | 13.552 | 13.395 | 12.330 | â€” |
 | 2048 | Fast full (default) | 11.674 | 11.581 | 10.525 | 13.5% |
 | 2048 | Retro half, 64 px threshold | 5.968 | 5.989 | 5.032 | 55.3% |
 | 2048 | Retro half, all | 5.929 | 5.928 | 4.981 | 55.7% |
-| 3072 | Reference full | 31.324 | 30.992 | 29.374 | — |
+| 3072 | Reference full | 31.324 | 30.992 | 29.374 | â€” |
 | 3072 | Fast full (default) | 26.959 | 26.773 | 25.195 | 13.6% |
 | 3072 | Retro half, 64 px threshold | 12.658 | 12.516 | 11.025 | 59.6% |
 | 3072 | Retro half, all | 12.603 | 12.530 | 10.984 | 59.6% |

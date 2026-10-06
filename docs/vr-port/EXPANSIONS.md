@@ -599,7 +599,7 @@ late join/reconnect, per-player carry/death respawn and the authored cooperative
 multiclient acceptance pass. Dopa normal launch remains solo-only until that work is accepted.
 
 Final cap review found native Dopa Nightmare used initial health50 but still max_health100 and transition
-carry50–100. Official MG1 client uses max_health50 and carries between half-cap25 and cap50. Those three bounds
+carry50â€“100. Official MG1 client uses max_health50 and carries between half-cap25 and cap50. Those three bounds
 are now scoped to Dopa/skill3/non-deathmatch; other contexts retain their existing100 cap and50 carry minimum.
 Real ordinary health-box pickup from40 reaches50/max50; a real megahealth pickup reaches150/max50. Completed
 save/load retains both ordinary50 and mega150 states. The actual QC normal exit carries megahealth down to50
@@ -899,5 +899,6 @@ for the other campaigns, MG3's 50/50/100/20/100 + 10 per upgrade (mega 500) for 
 (`QC/vr_mg3_upgrades.qc`, adapted from `mg3_upgrades.qc`) are physical holster pickups: first take per map raises
 and fills, a revisit's says so only (faded). Tests: Debug > Tests > Dawn of the Machine Tests (`vr_mg3_test` 1
 report, 2 seed masks, 3 add a bit, 4 capacity check in any campaign, 5 take this map's upgrades). Measurements:
-ROUND21.md, "Dawn of the Machine (MG3): foundation". The six MG3 decisions (plan section 4) are unanswered: these
-tasks use the defaults (official base health 50 and caps).
+ROUND21.md, "Dawn of the Machine (MG3): foundation". The six MG3 decisions (plan section 4) were unanswered when these
+tasks were built, so they use the defaults (official base health 50 and caps); Vittorio has since answered them
+(MG3_PLAN.md, "Decisions (Vittorio, 2026-10-06)").
