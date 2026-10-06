@@ -1928,6 +1928,7 @@ static void SV_SpawnServerRun (const char *server);
 void SV_SpawnServer (const char *server)
 {
 	VR_CheckSpawnCampaignMap (server); // QVR: never a campaign switch here (map and load chose it before they disconnected)
+	VR_NoteMapSpawn (server); // QVR: the map (and its map package) a crash report names
 	VR_ProfileBegin ("map spawn");
 	SV_SpawnServerRun (server);
 	VR_ProfileEnd ();

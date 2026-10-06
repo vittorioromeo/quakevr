@@ -100,7 +100,7 @@ typedef struct
 const char *VR_ParseToken (const char *data, const char **token); // Cmd_TokenizeString: COM_Parse for an argument of any length
 
 // Automated test runs (QVR_NO_ERROR_DIALOG; vr_crash.cpp, Windows only).
-void VR_InstallCrashHandler (void);	// main, first: a crash writes qvr_crash.txt (the stack) and qvr_crash.dmp; Zancle's asserts reported (vr_zancle.cpp)
+void VR_InstallCrashHandler (void);	// main, first: a crash writes qvr_crash.txt (the stack, the map) and qvr_crash.dmp (test runs and players' alike); Zancle's asserts reported (vr_zancle.cpp)
 int VR_ErrorDialogSuppressed (const char *errorMsg);	// PL_ErrorDialog: nonzero if written to qvr_error.txt instead
 
 // Start-up and map-load timing (vr_startup.cpp: vr_startup_times, vr_walltime).
@@ -146,6 +146,8 @@ int VR_QuakeVRMounted (void);	// vr_gamedir.cpp: quakevr is on the search path	/
 int VR_AddonForMapCommand (const char *map);	// Host_Map_f: the map package the map is played from made the active one (0: refused)
 void VR_AddonForSave (const char *savepath, const char *map);	// Host_Loadgame_f: the save's map package made the active one
 void VR_AddonOnSave (const char *savepath);	// Host_Savegame_f: the active map package noted beside the save
+void VR_NoteMapSpawn (const char *map);	// SV_SpawnServer: the map and the map package mounted, the crash report's context line
+void VR_SetCrashContext (const char *what);	// vr_crash.cpp: that line (qvr_crash.txt's second)
 const char *VR_ModelFile (const char *name);	// Mod_LoadModel, Mod_LoadLighting: the file to load a model from (relit maps)
 int VR_ModelReplacementOk (const char *name, const char *md5mesh);	// loadMd5Replacement: 0 refuses a jointed hand the rig can't use (vr_handrig.cpp)
 void VR_AliasPosesLoaded (const char *name, void *aliashdr, const stvert_t *stverts, const dtriangle_t *tris, trivertx_t **poses); // Mod_LoadAliasModel, after the frames

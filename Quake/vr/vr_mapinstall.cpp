@@ -2069,6 +2069,24 @@ extern "C" void VR_AddonForSave(const char* savepath, const char* map)
     mapinstall::activate(sha);
 }
 
+// A map spawned: the crash report's context (vr_crash.cpp), so that a crash in a map package's map names it.
+extern "C" void VR_NoteMapSpawn(const char* map)
+{
+    const za::String& sha = mapinstall::active();
+    za::String line = za::String{"map "} + (map ? map : "?");
+    if(sha.size())
+    {
+        const mapindex::Entry* e = mapindex::find(sha);
+        line += za::String{", map package "} + (e ? mapindex::index().field(e->title) : "?") + " (" +
+                za::String{za::StringView{sha}.substrByPosLen(0, za::min(sha.size(), za::SizeT{16}))} + ")";
+    }
+    else
+    {
+        line += ", no map package";
+    }
+    VR_SetCrashContext(line.cStr());
+}
+
 // `save`: the package mounted now, noted beside the save (removed when there is none).
 extern "C" void VR_AddonOnSave(const char* savepath)
 {
