@@ -4,9 +4,9 @@ What Quake VR does and how to use it. Menu paths are under **Options > VR Settin
 **VR Settings > Advanced VR Options** (the other pages). [SETTINGS.md](SETTINGS.md) lists the settings themselves.
 
 The controls named here are the defaults: trigger, grip, A/B on the main hand, X/Y on the off hand, and the sticks.
-The main hand is the right controller, the off hand the left: both hands hold, fire, swing and climb alike. There is no
-left-handed mode; what has a side has its own setting: *Swap Stick Functions* (the right stick moves), *Wrist Gadget
-Arm* and *Flashlight Side*.
+The main hand is the right controller, the off hand the left: both hands hold, fire, swing and climb alike. *Handedness*
+(VR Settings) sets everything that has a side at once, for right- or left-handed players; each also has its own
+setting: *Swap Stick Functions* (the right stick moves), *Wrist Gadget Arm* and *Flashlight Side*.
 
 - [Weapons](#weapons)
 - [Holsters and reloading](#holsters-and-reloading)
@@ -43,9 +43,12 @@ Arm* and *Flashlight Side*.
   between the types, for example lava nails, multi-grenades and plasma.
 - **Crosshair:** off by default. Pick a dot, a laser or a soft laser from the muzzle (VR Settings > Crosshair; more
   on the *Crosshair* page).
-- **Knights' swords:** knights and hell knights can drop their swords (Gameplay > *Knights Drop Swords*). A sword
+- **Knights' swords:** knights and hell knights drop their swords. A sword
   is a melee weapon with more reach and damage than the axe.
-- **Grappling hook:** from Dissolution of Eternity.
+- **Grappling hook:** from Dissolution of Eternity, with a physical rope you can swing on and reel in or out, and
+  that pulls props to you (Movement > *Grappling Hook*).
+- **Enemies' weapons:** ogres drop their chainsaws (pull the cord to start one), grunts their burst rifles and
+  enforcers their laser rifles, for you to use (Combat > *Enemy Weapons*; World > *Enemy Weapon Drops*).
 
 ## Holsters and reloading
 
@@ -66,16 +69,21 @@ Arm* and *Flashlight Side*.
   your grip eases during a fast swing (*Analog Release*). A flick of the wrist adds spin and speed.
 - **True-scale flight:** thrown things fly under real gravity (*Throw Gravity: Real*, or *Quake*), spin as your
   hand did, bounce, slide, come to rest on a flat side, and float in water. A thrown weapon hurts what it hits.
-  *Aim Assist* (off by default) bends a throw towards a nearby monster.
+  *Aim Assist* (on by default) bends a throw towards a nearby monster.
 - **Carrying boxes:** grip an ammo or health box or a backpack to hold it. Let go of it at a holster to take it
   (*Take a Box* can use the trigger instead). A hand or gun touching a box without gripping nudges it. Punching with
   a box in your hand hits harder, and thrown boxes hurt.
 - **Armour** is a physics object too: take it, and let go of it over your torso to put it on (only if it beats what
-  you wear). Throw it, knock it, force-grab it (Carrying and Gibs > *Armour*).
+  you wear). Throw it, knock it, force-grab it (Carrying > *Armour*).
 - A closed hand never grabs by moving onto something: carrying starts when you press the grip.
-- **Gibs and heads** can be picked up, thrown (they burst against walls) and force-grabbed (*Gibs and Heads*).
+- **Gibs and heads** can be picked up, thrown (they burst against walls) and force-grabbed (*Gibs and Corpses*).
   Corpses can be gibbed by shots and blows.
-- Settings: the *Throwing and Physics* page.
+- **Props in the maps:** breakable wooden crates (with ammo or health inside, and a crowbar to pry them),
+  throwable rocks and bricks, and wall torches you can take off the wall and carry (Carrying and Throwing > *Crates*,
+  *Rocks and Bricks*, *Wall Torches*).
+- **Ragdolls:** corpses go limp as physical bodies; you can grab a limb and drag or throw them (Gibs and Corpses >
+  *Ragdolls*).
+- Settings: the *Throwing and Physics* page (Menu Detail: Developer).
 
 ## Force grab
 
@@ -101,17 +109,28 @@ through walls, so it can't get stuck. Settings: the *Force Grab* page, and *Forc
 - **Blade or bash:** a sword hits with the blade whatever its angle; the hilt landing first doesn't spoil the cut.
   A bash needs the guard held still first, a shove open palms pushed hard at the enemy.
 - **Knockback:** your blows push monsters, their blows push you, and a parry pushes you both apart.
-- Settings: the *Melee* page, and *Gameplay* (Parry and Bash, Feel, Headbutt). The *firing range* has a training
+- **Knockdowns:** a hard shove can knock a monster down as a live ragdoll that struggles and gets up again
+  (Combat > *Knockdowns*). Monsters shove you too when you are too close (*Enemy Shoves*).
+- **Stamina** (optional, Combat > *Stamina*): parries, shoves, strikes and climbing tire you; exhausted, you hit
+  softer and your aim shakes.
+- **Bullet time:** slow the world on a stick press, a tap on your wrist or the gadget's button, for a few seconds
+  that recharge (Combat > *Bullet Time*).
+- Settings: the *Melee* page (with the headbutt), *Parry and Bash* (Combat), and *World* (Feel). The *firing range* has a training
   dummy that shows every hit's damage, kind and body part.
 
 ## Damage and gore
 
 - **Positional damage:** headshots (with a crack you can hear), and weaker arm and leg shots, on humanoid monsters.
-- **Damage settings:** damage to enemies, to you, and from your own explosives (*Gameplay* page).
+- **Damage settings:** damage to enemies, to you, and from your own explosives (Combat > *Damage and Knockback*).
 - **Gore** (the *Gore* page; *Gore*: normal, more, or over the top, the default): blood sprays on walls and floors,
   gibs that stick to ceilings and walls and drip, pools spreading under corpses, and blood trails from gibs. When
   you are hurt, your arms and hands get bloodier and drip on the floor.
 - **Decals:** blood, scorch marks and bullet holes (Graphics, or Gore > *Marks*).
+- **Beheading and head pops:** a fast blade slash at the neck cuts the head off; shotgun blasts, lightning, lasers,
+  thrown things and hard blunt blows can pop it (Gore > *Decapitation*). Limbs are cut off or popped too (Gore >
+  *Limb Gore*).
+- **Burning:** flames spread between monsters, corpses and crates; lava nails set things alight (Combat >
+  *Burning*). The lightning gun leaves arcs, convulsions, burn marks and smoke (Gore > *Lightning Shock*).
 
 ## Movement
 
@@ -126,12 +145,12 @@ through walls, so it can't get stuck. Settings: the *Force Grab* page, and *Forc
 - **Swimming:** in water the stick slows, and strokes of your hands (palm first) move you where you look. Point
   your off hand up or down while pushing forward to swim up or down, or use the main stick's up and down. The
   *Swimming* page tunes the strokes.
-- **Ledge grab (experimental):** Locomotion > *Ledge Grab*. Grip a ledge with an empty hand to hang from it, and
-  pull down to climb onto it. It only works on ledges, not walls.
+- **Climbing** (Movement > *Climbing*, on by default): grip a ledge or a rung with an empty hand to hang from it,
+  climb hand over hand, shimmy along, and pull down to mantle onto it (sloping tops too).
 
 ## Body
 
-- **Body** (VR Settings > Body): *Off*, *Torso and arms*, or *Full body* (the default), with legs that walk and step
+- **Body** (VR Settings > Body and Display > *Body*): *Off*, *Torso and arms*, or *Full body* (the default), with legs that walk and step
   round as you turn. Your arms reach your hands (inverse kinematics), and the body crouches and leans with your
   head.
 - **Build:** lean, athletic or brawny.
@@ -140,7 +159,7 @@ through walls, so it can't get stuck. Settings: the *Force Grab* page, and *Forc
 - **Fingers** curl with the trigger (index), the grip (middle to little finger) and your thumb resting on a button
   or stick. Each weapon's finger and thumb positions and openness can be tuned (Weapon Offsets > Fingers).
 - **Holsters** at the hips follow your thighs as the legs walk; in water the legs trail and kick.
-- **Placement:** *Torso Offset*, *Legs Offset* and *Shoulders Offset* on the main page. The *Body* page has much
+- **Placement:** *Torso Offset*, *Legs Offset* and *Shoulders Offset* on the *Body* page. The *Body* page has much
   more.
 
 ## HUD, menus and screens
@@ -155,23 +174,27 @@ through walls, so it can't get stuck. Settings: the *Force Grab* page, and *Forc
 - **Menus** float in front of you, with modern sliders and switches. Point with the laser from your hand, pull the
   trigger to click, and drag sliders. The sticks work too. *Back to Game* is at the top left, or you can hold the
   menu button. Settings pages show their changes live, and in single player the game keeps running underneath.
+- **Tips:** the first time you come near something you can use, a small screen beside it (or the wrist gadget)
+  explains it, once (VR Settings > *Tips*).
+- **Search and console:** the menu corner's *Search* finds any setting by its name or what it does; *Console* shows
+  Quake's console with a keyboard, to type commands in the headset.
 - **Map boards** (the text signs in the hub, tutorial and firing range) are CRT screens.
 - **Colours:** one *Player Effects Hue* colours the gadget's screen, the force grab, the teleport arc, the crosshair
-  and the menu laser (Wrist Gadget > Colours).
+  and the menu laser (HUD and Menus > Colours).
 
 ## Flashlight
 
-A torch clipped to the front of your chest (VR Settings > *Chest Flashlight*). Put a hand at it and pull the
+A torch on your belt, at the hip *Flashlight Side* chooses (VR Settings > Body and Display > *Chest Flashlight*). Put a hand at it and pull the
 trigger to switch it on or off. Grip it to take it in your hand, and let go to send it back. Bring it to the gun
 in your other hand and press B or Y to clip it on the gun; it comes off with the other hand and B or Y, or goes
-back to your chest when the gun is holstered or dropped. It stays on across level changes and goes off when you
-start a map afresh. It's a real spotlight: it lights models and casts shadows. Settings: the *Body* page, under Flashlight.
+back to your belt when the gun is holstered or dropped. It stays on across level changes and goes off when you
+start a map afresh. It's a real spotlight: it lights models and casts shadows. Settings: the *Flashlight* page.
 
 ## Haptics
 
 Your controllers buzz when you fire, hit, get hit (on the side the hit comes from), hover over a holster, or catch
 a force-grabbed item. Explosions nearby rumble, and a heartbeat beats at low health. You can turn all of it off
-(*Haptics* on the main page) or tune it on the *Gameplay* and *Immersion* pages.
+(*Haptics* on the main page) or tune it on the *World* (Feel) and *Immersion* pages.
 
 ## Graphics
 
@@ -209,10 +232,18 @@ All of these have switches on the *Graphics* page, and the *Preset* there sets m
 - **Particles and effects:** textured smoke, sparks, blood and explosions (*Quake VR Particles*) that fade softly
   into walls, shell casings, and torches whose light flickers.
 - **Tone and colour:** tone mapping, exposure, colour grades and dither, plus the headset's own gamma and contrast.
+- **Retro look** (optional): blocky, palette-snapped textures for the world or chosen kinds of things, and banded,
+  dithered or blocky light, like software-rendered Quake (Graphics > *Retro Textures*, *Retro Lighting*).
 - **HD textures:** replacement textures (such as QRP's) are filtered smoothly and get bump maps.
 - **Headset:** *Render Scale* renders the eyes at a lower or higher resolution (0.5 to 1.5), with *Upscaling* (FSR 1
   or NIS) sharpening a lower one back up; *Foveated Rendering* (NVIDIA cards) shades the edges of the view, which
   the lenses blur, at a lower rate; *Hide Lens Corners* skips the pixels the lenses never show.
+
+## Sound
+
+Spatial sound with Valve's Steam Audio (VR Settings > *Sound*): sounds around your head (HRTF), muffled behind walls
+(occlusion), the room's reverb, air absorption over distance, your weapons heard from your hands, and a muffle under
+water.
 
 ## Maps, mission packs and mods
 
@@ -222,6 +253,11 @@ All of these have switches on the *Graphics* page, and the *Preset* there sets m
 - **Mission packs:** Hipnotic and Rogue are independent optional packs. Validated installed data is used
   automatically, with its weapons, monsters and maps. Quake, the hub, tutorial and firing range work without
   either pack; unavailable campaign buttons are labelled in the hub. Quake VR's QuakeC contains all three campaigns.
+- **Official campaigns** (Single Player > *Official Campaigns*): the re-release's Dimension of the Past plays
+  natively in VR when you own it; Dimension of the Machine and Dawn of the Machine are detected, and their ports are
+  in progress. See [INSTALL.md](INSTALL.md#official-campaigns).
+- **Map Library** (on the main menu): browse [Quaddicted](https://www.quaddicted.com/)'s archive of custom maps, then
+  install and play one in the game. See [INSTALL.md](INSTALL.md#custom-maps-and-mods).
 - **Custom maps** without their own `progs.dat` play with Quake VR's gameplay. **Other mods** run in a
   compatibility mode: your hand aims and their weapons fire from your gun, and you can walk the room and teleport,
   but there are no off-hand weapons, holsters, throwing or melee. See [INSTALL.md](INSTALL.md#custom-maps-and-mods).
@@ -230,7 +266,7 @@ All of these have switches on the *Graphics* page, and the *Preset* there sets m
 
 ## Voice notes
 
-A playtesting aid (Gameplay > *Voice Notes*, on by default). Raise your off hand to your mouth, like a radio, and
+A playtesting aid (Debug > *Voice Notes*, at Menu Detail: Developer; on by default). Raise your off hand to your mouth, like a radio, and
 hold **Y** to talk. Let go to save the note. "REC" shows while you record, and the hand buzzes as a note starts and
 ends. Away from your mouth, Y does what it always does. A note shorter than 0.8 seconds counts as an accidental press
 and is dropped.

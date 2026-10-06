@@ -54,7 +54,7 @@ A short list. [docs/FEATURES.md](docs/FEATURES.md) explains each feature and how
 - Room-scale play: walking around your room moves you in the game, with collision. You can crouch, jump for real,
   and lean over railings.
 - **Swimming** with arm strokes.
-- **Ledge grab** (experimental): hang from a ledge and pull yourself up.
+- **Climbing:** hang from ledges and rungs, climb hand over hand and pull yourself up.
 - Either hand for anything (the stick functions, the wrist gadget's arm and the torch's hip are separate options), height calibration and world scale.
 
 ### Body and immersion
@@ -112,7 +112,7 @@ was built on QuakeSpasm-Spiked and OpenVR. This version keeps its gameplay and Q
 | HUD | Status bar on a hand | Wrist gadget with a CRT screen, or the status bar |
 | Lighting | Quake's lightmaps (optional external `.lit` files) | Relit maps, real-time shadows, per-pixel lights, bump maps, bloom, tone mapping |
 | New in combat | | Parry, bash, headbutt, knights' swords, batting projectiles back, carrying boxes and gibs, gore |
-| New in movement | | Swimming with strokes, leaning, ledge grab (experimental), chest flashlight |
+| New in movement | | Swimming with strokes, leaning, climbing, a flashlight on your belt |
 | Other mods | Had to be ported | Run in a compatibility mode |
 | Not (yet) carried over | | Index per-finger tracking (fingers follow the buttons instead) |
 

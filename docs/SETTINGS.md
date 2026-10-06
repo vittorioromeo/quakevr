@@ -24,7 +24,7 @@ trigger held. With the left stick (the off hand's), up and down move between row
 selects and B goes back. The right stick (the main hand's) only scrolls or moves between rows: it never changes a
 setting, so navigating can't change one by accident (with *Swap Stick Functions* on, the sticks swap). *Back to Game* is at the top left, or hold the menu button. Each setting shows a line
 of help at the bottom when you select it. In the headset the menus are taller than on the desktop, so more rows show
-at once (Menu page > *Menu Height*, `vr_menu_height`: 1.35 times Quake's height, about 35 degrees up and down with
+at once (Menu page > *Menu Height*, `vr_menu_height`: 1.6 times Quake's height, about 35 degrees up and down with
 the shipped menu distance and scale).
 
 **Menu Detail** (the last row of every page, `vr_menu_level`): *Standard* (the default: what every player sets),
@@ -60,7 +60,7 @@ The main page has these sections (rows marked *A* show from Menu Detail: Advance
 | **You** | Handedness (a preset: right- or left-handed, or Custom), Height and *Set Height Now*, *Body Calibration*, Dominant Eye |
 | **Weapons** | Gun Angle, Off Hand Angle, Weapon Grip (hold or sticky), Two-Handed (off, basic, virtual stock), Force Grab, Haptics; *A*: Two-Handed Hand-Off, Throw Speed, Throw Gravity (real or Quake) |
 | **Sound and Display** | Volume, Music Volume, HUD (wrist gadget or status bar), Crosshair, Headset Gamma, Graphics Preset |
-| **More** | *Body and Display*, *Headset*, *Sound* (A), *Advanced VR Options* (A), *Changed Settings*, *Run VR Calibration Again* |
+| **More** | *Body and Display*, *Headset*, *Sound* (A), *Advanced VR Options* (A), *Tips*, *Changed Settings*, *Run VR Calibration Again* |
 
 **Body and Display:** Swap Stick Functions, Wrist Gadget Arm and Flashlight Side (Handedness sets all three), World
 Scale, Floor Offset (A), Chest Flashlight, Body (off, torso and arms, full body), Build, Holster Models, Status Bar
@@ -70,7 +70,7 @@ balanced, aggressive), Hide Lens Corners; Near Clip, Held Items at the Eyes and 
 
 Notes:
 
-- **Height:** *Set Height Now* measures you while you stand straight. *World Scale* (1.25 by default) makes the
+- **Height:** *Set Height Now* measures you while you stand straight. *World Scale* (1.2 by default) makes the
   world bigger or smaller around you. *Floor Offset* moves the floor up or down.
 - **Gun Angle / Off Hand Angle:** the pitch between your controller and the gun. If shots go above or below where
   the gun seems to point, change these first. The *Hand/Gun Calibration* page also has the yaw.
@@ -87,43 +87,89 @@ Notes:
 
 ## Advanced VR Options
 
-*Advanced VR Options* at the bottom of the main page opens these pages, grouped by topic. Most settings are sliders
-with a line of help. Long topics are split into pages of about a screenful each (the Graphics page also links to its
-sub-pages).
+*Advanced VR Options* (Menu Detail: Advanced; also a row of the main menu) opens these pages, grouped by topic as on
+its own page: Play, Combat, Movement, Carrying and Throwing, World, Gore, Body, Flashlight, Weapons, HUD and Menus,
+Graphics and, at Developer, Debug. Most settings are sliders with a line of help. Long topics are split into pages of
+about a screenful each. Pages marked (D) show only at Menu Detail: Developer.
 
-**Game**
-
-| Page | What's on it |
-|---|---|
-| **Play** | Go to the VR hub, the tutorial or the firing range; add and kick bots |
-| **Gameplay** | Damage (to enemies, to you, self damage, melee), positional damage (headshot, arm and leg multipliers, the headshot sound), knockback per source, knights' swords, explosion rumble, low-health heartbeat, voice notes |
-| **Parry, Bash and Headbutt** | Parry angle and reach, unarmed parry, bash (speed, damage, push), their sounds; batting projectiles back (reach, swing speed, timing); headbutt (speed, damage) |
-| **Melee** | Swing speed, blow distance, punch multiplier, damage and range multipliers, bloodlust, parry settings (from the original Quake VR) |
-| **Gore** | Gore level, blood sprays, splat size, pools, dripping, how long gibs stick; your wounds' drips and floor marks; decals (count and lifetime) and gib blood |
-| **Throwing and Physics** | Throw speed (one and two hands), gravity, how the throw is measured, analogue release, aim assist; bounciness, friction, spin, hitbox |
-| **Carrying and Gibs** | Carrying ammo and health boxes (how you take a box, pushing, box throw speed and damage); grabbing gibs and heads, their damage, destroying gibs, gibbing corpses |
-| **Force Grab** | On/off, distance, aim cone, flick speed and turn, flight time and speed, arc, catch window, pointing particles and haptics, the outline and effects, box size |
-
-**Body and Movement**
+**Play and World**
 
 | Page | What's on it |
 |---|---|
-| **Body** | Body mode and build, walking legs (step rate, turning before stepping), armour and wounds, powerups, anchors; the body's placement (torso, legs, eyes), crouch tilt |
-| **Arms and Pauldrons** | Body Calibration and what it measured; tweaks on top of it (upper arm, forearm, the shoulders' place, rise and swing; 0: as measured, uncalibrated: the default body), Arm Length (uncalibrated only), stretch, shoulder reach; forearm twist, wrist limits, elbows; pauldrons (style, size, how they follow the arm, placement) |
-| **Flashlight** | The chest flashlight: brightness, range, visible beam, shadows, placement on the chest and in the hand |
+| **Play** | Official Campaigns, VR Calibration, the VR hub, the tutorial and the firing range; add and kick bots |
+| **World** | Enemies hurt by liquids, ogres aiming grenades; enemy weapons and weapon drops (from enemies and ammo boxes, and their chances); explosion rumble and the low-health heartbeat |
+
+**Combat**
+
+| Page | What's on it |
+|---|---|
+| **Melee** | Swing speed, pommel and gun-butt strikes, punch, damage and range multipliers, Quad's extra melee, bloodlust; headbutt (speed, damage) |
+| **Parry and Bash** | Parry angle, reach, stagger, damage reduction, drop chance and cooldown, unarmed parry; bash and shove (speed, damage, push) and their sounds; counter-attacks (window, damage, glow) |
+| **Stamina** | The stamina pool for parries, shoves, strikes and climbing: costs, recovery, the tiring warning, what being exhausted does (damage, shake, slower running) |
+| **Batting and Catching** | Batting projectiles back (reach, swing speed, timing, aim assist); catching and shooting grenades, blows setting them off; hand grenades and the grenade pouch |
+| **Damage and Knockback** | Precise hit detection and its tolerances; damage to enemies, to you, self damage; positional damage (head, arm and leg multipliers, the headshot sound); knockback per source; hits knocking your hands |
+| **Weapon Damage** | Each weapon's damage, the enemies' weapons and throws |
+| **Enemy Weapons** | Ogres' chainsaws (fuel, the engine, the cord), grunts' burst rifles, enforcers' laser rifles |
+| **Enemy Shoves** | Enemies shoving you when you are too close: delay, cooldown, damage, push |
+| **Knockdowns** | Shove knockdowns: the chance (per monster, damage, one or two hands, stamina, over a ledge), time down, struggling, getting up ([vr-port/KNOCKDOWNS_2026-10-04.md](vr-port/KNOCKDOWNS_2026-10-04.md)) |
+| **Bullet Time** | Slow motion on demand: trigger (a stick press, a wrist tap, the gadget's button), time scale, duration, recharge, the Sandevistan mode and the look |
+| **Burning** | Burn damage and time, flames spreading to monsters, corpses and crates, lava nails, torches, the flames' look |
+
+**Movement**
+
+| Page | What's on it |
+|---|---|
+| **Locomotion** | Movement speed, default speed and run multiplier, joystick turning, lean and its recentre, room-scale jump (the comfort settings are on VR Settings) |
+| **Climbing** | Climbing ledges and rungs hand over hand (on by default): ledges, grab leniency, mantling onto slopes, the grunt, climbing stamina, the hand's pose on a hold |
+| **Swimming** | The stick's speed in shallow water, wading and swimming; stroke strength, speed curve, palm, recovery; telling a stroke from the return of the arms; *Reset Swimming to Defaults* |
+| **Grappling Hook** | Dissolution of Eternity's hook: the rope (length, physics, thickness), reeling in and out, its buttons, swinging (air drag, top speed), pulling props |
+| **Player Hitbox**, **Monster Hitbox** (D) | The smaller player box and the monsters' boxes ([vr-port/HULLS.md](vr-port/HULLS.md)) |
+
+**Carrying and Throwing**
+
+| Page | What's on it |
+|---|---|
+| **Carrying** | Carrying ammo and health boxes; grabbing weapons by the fist, by their hotspots or anywhere; two-handed carrying; held things colliding with walls, hands and the world |
+| **Throwing and Physics** (D) | Two-hand throw speed, how the throw is measured, analogue release, slow-motion throws, spin, throws by weight, aim assist; bounciness, friction, hitbox |
+| **Force Grab** | Distance, aim cone, flick speed and turn, flight time and speed, arc, catch window, pointing particles and haptics, the outline and effects, box size |
+| **Wall Torches** | Taking torches off walls, force-grabbing them, blows before one dies, burning, lighting again, shooting them off |
+| **Rocks and Bricks** | Throwable rocks and bricks placed in maps: where, how many (in a map, in multiplayer, in an area), sizes |
+| **Crates** | Breakable wooden crates placed in maps: density, stacking, health, pieces, what's inside, the crowbar, hiding behind them |
+| **Gibs and Corpses** | Grabbing gibs and heads, their damage, destroying gibs, hard throws bursting them; gibbing corpses; pushable corpses; ragdolls (and, at Developer, *Ragdolls* and per-monster pages) |
+| **Held Object Offsets**, **Held Object Weights** (D) | Where each prop sits in the hand, and its weight |
+
+**Gore**
+
+| Page | What's on it |
+|---|---|
+| **Gore** | Gore level, blood sprays, splat size, pools, dripping, gibs sticking (and thrown gibs), flies on heads, gib speeds; your wounds, burns and wetness; lightning shock (arcs, convulsions, burn marks, smoke) |
+| **Gore - Decapitation** | Beheading by blades, the chainsaw and thrown axes; head pops by shotguns, lightning, lasers, thrown things and blunt blows, and their chances |
+| **Gore - Limb Gore** | Limbs cut off or popped: chances, corpses, explosions, limbs lying about, their weight |
+| **Small Gibs** (D) | Small gibs per hit and weapon, brain chunks |
+
+**Body and Flashlight**
+
+| Page | What's on it |
+|---|---|
+| **Body** | Walking legs (step rate, turning before stepping), wading and swimming kicks, armour and wounds, powerups, anchors, body collisions; the body's placement (torso, legs, eyes), crouch tilt |
+| **Body - Arms and Pauldrons** (D) | Tweaks on top of Body Calibration (upper arm, forearm, the shoulders' place, rise and swing), arm length and stretch; forearm twist, wrist limits, elbows; pauldrons |
+| **Body Calibration** | Measures your body (also on VR Settings) |
 | **Player Calibration** | World scale, floor offset |
-| **Locomotion** | Movement mode, deadzone, stick turning, turn and turn speed, teleport, lean and lean recentre, roomscale jump and threshold, room-scale multiplier, walk speed, run/walk and run multiplier, swimming, **ledge grab (experimental)** |
-| **Swimming** | The stick's speed in shallow water, wading and swimming; stroke strength, speed curve, palm, recovery; telling a stroke from the return of the arms (intent threshold, stroke memory, return damping); *Reset Swimming to Defaults* |
+| **Flashlight** | The flashlight on your belt: brightness, range, visible beam, shadows, cord, hue; flicking it over; grabbing it, clipping it on a gun or your head; placement (and, at Developer, its grips) |
 
 **Weapons**
 
 | Page | What's on it |
 |---|---|
-| **Immersion** | Body picks up items, haptics; holster mode (immersive or quick slots), reloading mode (none, all holsters, hip holsters), holster haptics, weapon cycling, throw mode (immersive, vanish on hit, discard), throw damage and speed, dropped weapon particles; shell casings; enemy and ammo-box weapon drops |
+| **Immersion** | Body picks up items, haptics; holster mode (immersive or quick slots), reloading mode, holster haptics, weapon cycling, throw mode, throw damage and speed, dropped weapon particles; shell casings |
 | **Hand/Gun Calibration** | Gun angle and yaw, gun model pitch, scale and height, gun height offset, off-hand pitch and yaw, finger grip bias, auto-close thumb |
-| **Weapon Offsets** | The held weapon's settings (see [Weapon offsets](#weapon-offsets)) |
 | **Aiming** | Two-handed mode, threshold, virtual stock factor, hand-off; weapon weight (position and turn, with two-handed help) |
-| **Hotspots** | The virtual stock's shoulder, and the shoulder, hip and upper (chest) holsters: their positions and reach, with *Show...* switches that draw them. The holster models' size and position. |
+| **Weight and Damage** | How a held thing's weight scales its melee damage (heavier than, lighter than, least and most damage) |
+| **Hotspots** | The virtual stock's shoulder, and the shoulder and upper (chest) holsters: their positions and reach, with *Show...* switches that draw them |
+| **Hip Holsters** | The hip holsters and the grenade pouch: positions, reach, the holster models |
+| **Lightning Gun in Water** | Discharging the lightning gun in water: shock damage to you and others, reach, the electrified water |
+| **Weapon Effects** | Programmatic recoil and muzzle flash, enemies' muzzle flashes and smoke, bullet tracers |
+| **Weapon Offsets**, **Weapon Weights**, **Fingers and Collisions** (D) | Each held weapon's settings (see [Weapon offsets](#weapon-offsets)) |
 
 **HUD and Menus**
 
@@ -136,18 +182,31 @@ sub-pages).
 | **Crosshair** | Crosshair type, depth, size, alpha, hue, height offset |
 | **Menu** | Menu scale and distance, VR menu style, laser hue, row spacing, menu height, live preview, reopen where left |
 
+**Sound** (on VR Settings, Menu Detail: Advanced): Steam Audio's spatial sound (HRTF, occlusion, air absorption, room
+reverb, sounds from your hands, Doppler, near field), the underwater muffle and the mix limiter.
+
+**Tips** (on VR Settings): the first-time tips (distance, line of sight, delay, time shown, the panel), *Show Tips
+Again*.
+
+**Debug** (D): the checklist, voice notes, and the Views, Logging, Profiling and Memory, Reports, Tools and Tests
+pages.
+
 **Graphics**
 
 | Page | What's on it |
 |---|---|
-| **Graphics** | The [preset](#graphics-presets); anti-aliasing, smooth textures, fence coverage, relit maps, headset gamma and contrast; links to the pages below; the performance profile and memory log |
+| **Graphics** | The [preset](#graphics-presets); anti-aliasing, smooth textures, fence coverage, relit maps, headset contrast (gamma is on VR Settings); links to the pages below; the performance profile and the FPS counter on the gadget (the memory log is on Debug - Profiling and Memory) |
+| **Relighting** | Relighting maps in the game: this map or many, the light sliders, the progress ([RELIGHTING.md](RELIGHTING.md#relighting-in-the-game)) |
+| **Slipgates** | Slipgate views and seamless slipgates (walking through), enemies seeing and shooting through them, the gates' look |
+| **Retro Textures**, **Retro Lighting** | The retro look: blocky, palette-snapped textures per category of thing, and banded, dithered or blocky light (presets: Software Quake, Blocky Lightmaps, Banded and Dithered) |
+| **Recording** | The desktop window's view for recording (smoothing, zoom, field of view, the spectator camera), slow motion for footage, highlight markers ([vr-port/TRAILER.md](vr-port/TRAILER.md)) |
 | **Lights** | Light contrast, coloured lights, dynamic lights (falloff, uncapped, on models, angle); the lights of muzzle flashes, explosions, projectiles, lava nails, lightning beams, torches (count, brightness, shadows) and ammo screens |
 | **Shadows** | Shadow-casting dynamic lights and map lights (count, detail, strength), muzzle-flash shadows, your shadow, softness, distance, atlas, bias, statistics; blob shadows |
 | **Surfaces** | Light sheen and its anti-aliasing; bump maps (depth, in map light, real light directions, on models); parallax (depth, distance, items, models); detail textures |
 | **Liquids** | Waves, reflection, refraction, glints, lava glow, real waves, shoreline foam, heat haze; under water (caustics, the view, wobble); splashes, rings, ripples and water sounds |
 | **Post-processing** | Bloom (threshold, size, white and coloured lights, adapt); tone mapping, exposure, colour grade, dither |
 | **Models and Effects** | Model lighting, models lit as the world, directional ambient, rim light, hands' least light, weapon reflections; screen, text and sight glow, sight hue; soft particles, decals, gib blood |
-| **Particles** | Particles on/off, Quake VR particles, particle multiplier |
+| **Particles** | Particles on/off, Quake VR particles, particle multiplier; large fireballs per explosion; *Explosion Debris* (physical chunks) and *Fire Particles* pages |
 | **Transparency** | No vis (debug), water, lava, teleporter and slime alpha |
 
 ## Graphics presets
@@ -230,7 +289,7 @@ Handed* on, nothing needs rebinding.
 - **Desktop keys** (flat-screen play and testing): `k`/`l` grab with the left/right hand, `n`/`m` reload, `o`/`i`
   flick-reload, and the mouse buttons fire the two hands.
 - The default bindings are in `quakevr\vr_bindings.cfg`. They are applied once, on top of any config you had
-  before. *Reset to defaults* applies them again.
+  before. *Options > Reset All* applies them again.
 
 ## The console
 
@@ -258,14 +317,14 @@ built-in ones.
 | `vr_roomscale_jump` | 1 | jump for real |
 | `vr_lean_radius` | 12 | how far (units) your head can lean before the body follows |
 | `vr_swim` | 1 | swimming with arm strokes |
-| `vr_climb` | 0 | ledge grab (experimental) |
+| `vr_climb` | 1 (shipped) | climbing: ledges and rungs, hand over hand |
 
 ### Body and calibration
 
 | Variable | Default | |
 |---|---|---|
 | `vr_height_calibration` | 1.646 | your height in metres (*Set Height Now*) |
-| `vr_world_scale` | 1.25 | size of the world around you |
+| `vr_world_scale` | 1.2 (shipped) | size of the world around you |
 | `vr_floor_offset` | -21 | floor height |
 | `vr_stick_swap` | 0 | 1: the right stick moves and the left turns (*Swap Stick Functions*, on Body and Display; *Handedness* on VR Settings sets it too) |
 | `vr_gadget_arm` | 0 | the wrist gadget's arm: 0 left, 1 right |
@@ -292,7 +351,7 @@ built-in ones.
 | `vr_crosshair` | 0 | 0 off, 1 dot, 2 laser, 3 soft laser |
 | `vr_weapon_throw_velocity_mult` | 1 | throw speed |
 | `vr_throw_gravity` | 9.81 | thrown things' gravity; 0 is Quake's |
-| `vr_throw_assist` | 0 | throw aim assist |
+| `vr_throw_assist` | 1 | throw aim assist |
 | `vr_forcegrab_mode` | 1 | force grab |
 | `vr_melee_speed`, `vr_melee_wrist_speed` | 3, 1.1 | how fast (m/s) the striking hand (a weapon's swing 1.25x, a stab 0.75x) and its wrist must move for a blow |
 | `vr_parry`, `vr_bash`, `vr_headbutt`, `vr_deflect` | 1 | parry, bash, headbutt, batting projectiles |
@@ -313,9 +372,9 @@ built-in ones.
 |---|---|---|
 | `vr_hud_mode` | 1 | 1 wrist gadget, 0 status bar on a hand |
 | `vr_sbar_mode` | 1 | status bar on 1 the off hand, 0 the main hand |
-| `vr_player_hue` | 110 (shipped) | the hue of your effects: gadget screen, force grab, teleport arc, crosshair, laser |
-| `vr_menu_distance`, `vr_menu_scale` | 69, 0.2 (shipped) | menu placement |
-| `vr_menu_spacing`, `vr_menu_height` | 1.8 (shipped), 1.35 | the headset menus' row spacing and height, over Quake's |
+| `vr_player_hue` | 100 (shipped) | the hue of your effects: gadget screen, force grab, teleport arc, crosshair, laser |
+| `vr_menu_distance`, `vr_menu_scale` | 100, 0.18 (shipped) | menu placement |
+| `vr_menu_spacing`, `vr_menu_height` | 2, 1.6 (shipped) | the headset menus' row spacing and height, over Quake's |
 | `vr_mirror` | 1 | desktop window: 0 off, 1 left eye, 2 both eyes |
 
 ### Graphics
@@ -324,8 +383,8 @@ built-in ones.
 |---|---|---|
 | `vr_graphics_preset` | (not saved) | 0 Off (Quake), 1 Low, 2 Medium, 3 High, 4 Ultra |
 | `vr_relit_maps` | 1 | use the relit maps when present (next map) |
-| `vr_bloom` | 0.1 (shipped) | bloom strength |
-| `vr_light_contrast` | 2.3 (shipped) | how dark the shade is |
+| `vr_bloom` | 0.08 (shipped) | bloom strength |
+| `vr_light_contrast` | 2.5 (shipped) | how dark the shade is |
 | `vr_normalmaps`, `vr_parallax`, `vr_detail`, `vr_deluxemap` | 1 | bump maps, parallax, detail textures, real light directions |
 | `vr_texture_smooth` | 1 | smooth filtering: 1 replacement textures, 2 all textures, 0 as `gl_texturemode` |
 | `vr_tonemap`, `vr_exposure`, `vr_grade` | 1 | tone mapping, exposure, colour grade |
@@ -356,7 +415,7 @@ Running with `-game quakevr` executes these, in order, from `quakevr\quake.rc`:
 
 1. **`default.cfg`**: Ironwail's default bindings, then `vr_bindings.cfg` (controller bindings), then
    `vr_defaults.cfg` (Quake VR's tuned settings), and a few display defaults (anti-aliasing 4x, gamma, contrast).
-   *Options > Reset to defaults* runs this file.
+   *Options > Reset All* runs this file.
 2. **`ironwail.cfg`**: your saved settings. It's written when you quit, and it wins over the defaults.
 3. **`quakevr.cfg`**: settings the Quake VR QuakeC needs (gameplay fixes, item scale, opaque lava) and
    `vr_enabled 1`. It runs after your config, so these win.
@@ -372,7 +431,7 @@ changed yourself is left alone.
 
 **Resetting:**
 
-- Everything: *Options > Reset to defaults*, or quit and delete `quakevr\ironwail.cfg`.
+- Everything: *Options > Reset All*, or quit and delete `quakevr\ironwail.cfg`.
 - One variable: `reset <name>` (back to its shipped default).
 - One weapon's offsets: *Reset This Weapon* on the Weapon Offsets page.
 - The swimming settings: *Reset Swimming to Defaults* on the Swimming page.
