@@ -25167,3 +25167,34 @@ Tested headless with a local fake index/zip server (scratch, 127.0.0.1): cap 8 M
 evicted first), a trickled download protected while the cap went to 0, a non-zip not kept, cap 0 removing the zip after
 install, a start-up trim (6 -> 2 MB), and six off-pattern entries (txt, short/non-hex names, .zip.part, a directory
 named like a zip) untouched.
+## Firing range: buttons that vanished at a distance, labels' boxes too wide (2026-10-06)
+
+**Buttons gone from afar** (NOTES.md vrfiringrange_2026-10-06_13-11-00). No distance cull hid them: the server sends
+every entity in the PVS (no distance test), and the client culls brush entities by the frustum only. Ironwail's
+gl_zfix (brush entities, not static ones, lose to a world face they are flush with) added 1/1024 to their clip-space
+depth. With reversed Z that pushes a point back (1/1024) / near of its distance: 1/4096 at the desktop's near plane of
+4 units, but 1/102 at the headset's 0.1 (vr_nearclip; 1/20 at its least, 0.02). A brush entity standing s units
+proud of a world face sank behind it from about 102 s units away; vrfiringrange's west row of monster buttons (8
+units proud of world panels) from about 820 (measured: seen at 806 units, gone at 910; the platform's sightlines reach
+about 930). Now clip z moves towards the far plane's by 1/4096 (QVR_ZFixDepth, vr_glsl.h; the world vertex shader and
+the parallax depth write): the push back is 1/4096 of the distance at any near plane, the desktop's as before.
+
+| brush entity s units proud of a world face | gone from (headset, before) | gone from (now) |
+|---|---|---|
+| button, 8 (vrfiringrange's first row) | ~820 | ~32800 (none on any map) |
+| plat or door edge, 4 | ~410 | ~16400 |
+| trim, 1 | ~100 | ~4100 |
+| item box (b_*.bsp) on a floor | sinks 1% of its distance (16 tall: gone at ~1640) | 0.024% |
+
+Not affected: alias models, sprites, particles, static entities. The other distance limits found, none hiding gameplay
+entities: shadows (vr_shadow_distance 1536), parallax relief (vr_parallax_distance 1024, fading), detail textures
+(vr_detail_distance 144), fire particles (vr_fire_particles_range 1200), haze (1400), wet reflections (1280), dynamic
+AO's occluders (2048), gl_farclip 65536; the server's entity list is capped by count (MAX_NET_EDICTS), not distance.
+
+**Labels' boxes wider than their text** (NOTES.md vrfiringrange_2026-10-06_13-12-36). Not the menu status box's fix
+(vr_menuui.cpp only). A world text board (vr_worldtext_crt) keeps its handle's largest page and was reset when the
+map's model changed; a game directory change (the Map Library's packages) empties the models (Mod_ResetAll) and the
+next map reuses another map's slot, so vrfiringrange took vrstart's boards and their widths. Reproduced with `map
+vrstart; disconnect; game hipnotic; game quakevr; map vrfiringrange` (labels from the ogre's on 2-4x their text's
+width). A board now belongs to the client's world text list (worldtext::clientGeneration, new at each clientReset).
+Since round 15 (boards kept by map), seen since game changes became common.
