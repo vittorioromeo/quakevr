@@ -7,6 +7,8 @@
 //   them), times 1 + vr_knockdown_damage x the share of its health it has lost, times vr_knockdown_onehand or _twohand
 //   (a weapon's bash: vr_knockdown_bash too), times 1 - vr_knockdown_stamina x the share of your stamina spent (with the
 //   stamina pool on). vr_knockdown_debug (developer 1) prints each roll.
+// - Over a ledge (vr_knockdown_ledge): a shove that would carry it over the edge of a drop of vr_knockdown_ledge_drop or
+//   more (64: higher than stairs) knocks it down for sure, if its chance is above 0 (VR_Knockdown_Ledge).
 // - Down: touchable, not solid, .vr_knockdown 1: the engine makes its ragdoll at once from the frame it is drawn in, its
 //   weapon welded in its hand. Hits land on the ragdoll (its limbs as drawn) and it reacts as it does (its pain sounds,
 //   blood; no pain frames: T_DamageImpl keeps its frame and think), each keeping it down vr_knockdown_hit_time longer.
@@ -282,6 +284,86 @@ float(entity e) VR_Knockdown_Start =
     return TRUE;
 };
 
+float VR_KD_LEDGE_MARGIN = 16; // units past a shove's reckoned travel where a ledge still counts (VR_Knockdown_Ledge)
+float VR_KD_LEDGE_STEP = 8;    // units between the points along its way where the ground under it is looked for
+
+// Ledges (vr_knockdown_ledge; Combat > Knockdowns, "Over a Ledge"): whether the shove that just landed on `e` (its
+// velocity VR_Push's: along the shove, and the hop) carries it over the edge of a drop of vr_knockdown_ledge_drop or more.
+// - Its reach: the hop (2 x up / gravity in the air, at its speed), then the slide (speed^2 / 2 VR_SHOVE_FRICTION; none
+//   under VR_SHOVE_MINSPEED, as VR_Push), plus VR_KD_LEDGE_MARGIN.
+// - Its hull is traced along the way, a unit off the floor: a wall, a railing or a step up stops it there (no ledge past
+//   it). Only the world and brush entities count (lifts, plats, doors); monsters and props do not.
+// - Every VR_KD_LEDGE_STEP units the ground under the middle of its feet is looked for (where the slide sends it on over:
+//   VR_Shove_Think). A ledge: no ground within the height below the last point's ground (so stairs and slopes, a step at
+//   a time, are none), with room past the edge for its whole hull to drop that far (a crack is none).
+// - Liquids are not ground: a drop into water, slime or lava is measured to the bottom under it.
+// - Its ground may be a lift or a plat (moving or not): the drop is measured from it.
+float(entity e) VR_Knockdown_Ledge =
+{
+    float height = cvar_hget(cvarh_vr_knockdown_ledge_drop);
+    vector dir = e.velocity;
+    dir_z = 0;
+    float speed = vlen(dir);
+    if(!cvar_hget(cvarh_vr_knockdown_ledge) || height <= 0 || speed < 1)
+    {
+        return FALSE;
+    }
+    dir = dir * (1 / speed);
+    float g = max(1, cvar_hget(cvarh_sv_gravity) * (e.gravity ? e.gravity : 1));
+    float reach = speed * 2 * max(0, e.velocity_z) / g + VR_KD_LEDGE_MARGIN;
+    if(speed >= VR_SHOVE_MINSPEED)
+    {
+        reach = reach + speed * speed / (2 * VR_SHOVE_FRICTION);
+    }
+    vector start = e.origin + '0 0 1';
+    tracebox(start, e.mins, e.maxs, start + dir * reach, TRUE, e);
+    if(trace_startsolid)
+    {
+        start = e.origin;
+        tracebox(start, e.mins, e.maxs, start + dir * reach, TRUE, e);
+        if(trace_startsolid)
+        {
+            return FALSE;
+        }
+    }
+    float clear = trace_fraction * reach;
+    float ground = e.origin_z + e.mins_z; // (its feet)
+    float half = max(e.maxs_x, e.maxs_y);
+    float d = 0;
+    while(d < clear)
+    {
+        d = min(clear, d + VR_KD_LEDGE_STEP);
+        vector p = start + dir * d;
+        traceline(p, p - '0 0 1' * (p_z - ground + height), TRUE, e);
+        if(trace_startsolid)
+        {
+            break;
+        }
+        if(trace_fraction < 1)
+        {
+            ground = trace_endpos_z;
+            continue;
+        }
+        // An edge: room for its hull past it, as far down?
+        vector q = p + dir * half;
+        tracebox(q, e.mins, e.maxs, q - '0 0 1' * (q_z + e.mins_z - (ground - height)), TRUE, e);
+        if(!trace_startsolid && trace_fraction == 1)
+        {
+            if(cvar_hget(cvarh_vr_knockdown_debug))
+            {
+                dprint(sprintf("knockdown ledge: %s: an edge %.0f units ahead (reach %.0f, clear %.0f), a drop of %g or more\n",
+                    e.classname, d, reach, clear, height));
+            }
+            return TRUE;
+        }
+    }
+    if(cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("knockdown ledge: %s: none (reach %.0f, clear %.0f)\n", e.classname, reach, clear));
+    }
+    return FALSE;
+};
+
 // A shove (or a bash) by self (a player) that landed on `e` (VR_Bash_Hit): by chance it knocks it down. xKind: the hit's
 // (QVR_HITKIND_SHOVE or _BASH); xHand -1: both hands.
 float(entity e, vector xForward, float xKind, float xHand) VR_Knockdown_Try =
@@ -310,15 +392,18 @@ float(entity e, vector xForward, float xKind, float xHand) VR_Knockdown_Try =
         stamina = max(0, 1 - max(0, cvar_hget(cvarh_vr_knockdown_stamina)) * (1 - left));
     }
     chance = chance * stamina;
+    // Shoved over a ledge (VR_Knockdown_Ledge): down for sure, if this shove could knock it down at all.
+    float ledge = chance > 0 && VR_Knockdown_Ledge(e);
     float roll = random();
     if(cvar_hget(cvarh_vr_knockdown_debug))
     {
         dprint(sprintf("knockdown: %s %s (%s): base %.2f, health %g of %g, stamina x%.2f",
             xKind == QVR_HITKIND_SHOVE ? "shove" : "bash", e.classname, xHand == -1 ? "two hands" : "one hand", base, e.health,
             full, stamina));
-        dprint(sprintf(": chance %.2f, roll %.2f%s\n", chance, roll, roll < chance ? ": down" : ""));
+        dprint(sprintf(": chance %.2f%s, roll %.2f%s\n", chance, ledge ? " (over a ledge: down)" : "", roll,
+            (ledge || roll < chance) ? ": down" : ""));
     }
-    if(roll >= chance)
+    if(roll >= chance && !ledge)
     {
         return FALSE;
     }
@@ -331,9 +416,30 @@ float(entity e, vector xForward, float xKind, float xHand) VR_Knockdown_Try =
 
 // For tests (the engine's vr_knockdown_test <mode>), self the player: 0 knocks the nearest monster that can be down
 // (regardless of the chance; pushed away from you), 1 gets every knocked-down one up now (their next try), 2 hits the
-// nearest knocked-down one for 5 (its pain), 3 kills it (a hit for its health), 4 gibs it, 5 lists them.
+// nearest knocked-down one for 5 (its pain), 3 kills it (a hit for its health), 4 gibs it, 5 lists them, 20 removes every
+// monster, standing, knocked down or dead (the ledge tests' clean slate between trials).
 void(float xMode) VR_Knockdown_Test =
 {
+    if(xMode == 20)
+    {
+        float removed = 0;
+        entity next = world;
+        for(entity mon = nextent(world); mon; mon = next)
+        {
+            next = nextent(mon);
+            if(mon.flags & FL_MONSTER)
+            {
+                if(mon.vr_shove != world && mon.vr_shove.classname == "vr_shove" && mon.vr_shove.owner == mon)
+                {
+                    remove(mon.vr_shove);
+                }
+                VR_Knockdown_RemoveBody(mon);
+                removed = removed + 1;
+            }
+        }
+        dprint(sprintf("knockdown test: %g monsters removed\n", removed));
+        return;
+    }
     // Feedback regression probes: 6 lists bodies and their breathing point;
     // 7 moves a living knockdown to the player (underwater test); 8 fires a
     // real nail at the nearest living monster at one health.

@@ -744,6 +744,12 @@ void kickBot() { Cbuf_AddText("impulse 102\n"); }
         slider("Stamina", vr_knockdown_stamina, 0.f, 1.f, 0.05f, "%.2f")
             .help("Tired shoves knock down less: the chance times 1 - this times the share of your stamina spent (with "
                   "Stamina on). 0: stamina doesn't matter."),
+        toggle("Over a Ledge, Always", vr_knockdown_ledge)
+            .help("A shove that would carry it over the edge of a high drop (Ledge Height or more) always knocks it down, "
+                  "so it tumbles off as a ragdoll. Not through a wall or railing; stairs are no ledge. Off: the chance as "
+                  "anywhere."),
+        slider("Ledge Height", vr_knockdown_ledge_drop, 24.f, 256.f, 8.f, "%.0f units").extend(1.f, 1024.f)
+            .help("How high a drop must be to count as a ledge (64: a bit more than you are tall; a stair is 16-18)."),
         header("Each Monster's Chance"),
         slider("Grunt", vr_knockdown_chance_army, 0.f, 1.f, 0.01f, "%.2f"),
         slider("Enforcer", vr_knockdown_chance_enforcer, 0.f, 1.f, 0.01f, "%.2f"),
@@ -4410,6 +4416,9 @@ za::Vector<Item> pageDebugTests()
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
                   "staggered). Developer 1 logs grunts' and enforcers' shoves and why one can't shove (Combat > Enemy Shoves)."),
+        command("Remove Every Monster", "vr_knockdown_test 20")
+            .help("Every monster removed, standing, knocked down or dead: a clean slate between shove tests (with a grunt "
+                  "ahead: impulse 244). Shove one off vrclimb's long ledge or into its trench to see Over a Ledge, Always."),
         command("A Blast in 3 Seconds", "impulse 221")
             .help("impulse 221: an explosion of 60 at your feet 3 s from now, a little ahead of you (towards a wall you hang "
                   "from): hanging from a ledge or a rung, a blast of Climbing: Blasts Knock You Off or more makes you let go "

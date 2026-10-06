@@ -24570,3 +24570,25 @@ run noise 0.05-0.08). Mean difference between the frames outside that mask (full
 With the pack the pulse was the specular map (parallax off changes nothing); with made maps mostly the parallax heights.
 The start view of e1m1 (no animation in it) is unchanged (mean 0.00004). `vr_extmaps_frames`: e1m1 QRP 2 of 5
 animations with one surface before, 5 of 5 after; e1m4 `button` 0 of 1 / 1 of 1; e1m1 id textures 2 / 5.
+
+## Shoved over a ledge: always knocked down (vr_knockdown_ledge, 2026-10-06)
+
+Asked: a shove's knockdown chance is 100% when the shove would carry the monster off a high ledge. `VR_Knockdown_Ledge`
+(QC vr_knockdown.qc), called by `VR_Knockdown_Try` once the shove's push is set (VR_Push), when the hit could knock it
+down at all (its chance above 0: a weapon's bash at Weapon Bash 0, flying and swimming monsters, ones without a ragdoll
+are unchanged). Its reach is the push's own: the hop (2 x up / gravity at its horizontal speed) and the slide after it
+(speed^2 / 2 VR_SHOVE_FRICTION), plus 16. Its hull is traced along the way a unit off the floor (the world and brush
+entities: a wall or railing before the edge ends it there); every 8 units the ground under the middle of its feet (where
+the slide sends it on over) is looked for, and a ledge is no ground within `vr_knockdown_ledge_drop` (64, a bit more than
+a player; stairs, a step at a time, are none) below the last point's ground, with room past the edge for its whole hull
+(not a crack). Liquids are not ground (traces pass through them): a drop into water, slime or lava counts to the bottom
+under it. On a lift or plat the drop is measured from it. Settings: Combat > Knockdowns, **Over a Ledge, Always**
+(`vr_knockdown_ledge 1`) and **Ledge Height** (`vr_knockdown_ledge_drop 64`). Test aid: `vr_knockdown_test 20` removes
+every monster (Debug > Tests > Enemy Shoves, **Remove Every Monster**).
+
+Checked on vrclimb (`scratch/ledgetest.py`: a grunt by `impulse 244`, shoved by `impulse 219`, `vr_knockdown_chance 0.3`
+so the plain chance is 0.43; 20 trials each): toward the trench's edge (48 ahead, a 200-unit drop) 20/20 down, all forced,
+all landing in the trench; the same with the toggle off 7/20; shoved away from it 8/20; down the trench stairs (16-unit
+steps) 7/20, none forced; on the grab-leniency block (top 48) at Ledge Height 32: toward its open edge 20/20 forced,
+toward the thin wall 6 units past its edge 9/20, none forced (the hull's way ends 18 units on); at 64, its open edge 10/20
+(48 is no ledge); on vrclimb's plat (top 48) at 32: 20/20 forced. Not checked: a lift while it moves, a drop into liquid.

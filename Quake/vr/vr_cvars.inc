@@ -1676,6 +1676,8 @@ QVR_CVAR(vr_knockdown_search, "48", CVAR_ARCHIVE)         // how far (units) fro
 QVR_CVAR(vr_knockdown_blend, "0.35", CVAR_ARCHIVE)        // seconds the body blends from the ragdoll into the get-up
 QVR_CVAR(vr_knockdown_getup_speed, "1", CVAR_ARCHIVE)     // the get-up's frames' speed (1: Quake's 10 a second)
 QVR_CVAR(vr_knockdown_push, "1", CVAR_ARCHIVE)            // the knocked body's launch, times the shove's push
+QVR_CVAR(vr_knockdown_ledge, "1", CVAR_ARCHIVE)           // a shove that carries it over a ledge always knocks it down (0: the chance as anywhere)
+QVR_CVAR(vr_knockdown_ledge_drop, "64", CVAR_ARCHIVE)     // how high (units) a drop must be to count as a ledge (stairs and steps do not)
 QVR_CVAR(vr_knockdown_weld, "1", CVAR_ARCHIVE)            // its weapon stays in its hand while down (0: it falls loose)
 QVR_CVAR(vr_knockdown_debug, "0", CVAR_NONE)              // prints each shove's chance and roll, and the get-ups
 

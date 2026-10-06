@@ -463,6 +463,8 @@ float cvarh_vr_knockdown_retry;
 float cvarh_vr_knockdown_search;
 float cvarh_vr_knockdown_getup_speed;
 float cvarh_vr_knockdown_push;
+float cvarh_vr_knockdown_ledge;
+float cvarh_vr_knockdown_ledge_drop;
 float cvarh_vr_knockdown_debug;
 float cvarh_vr_shove_stamina_cost_2h;
 float cvarh_vr_stamina_exhausted_damage;
@@ -1022,6 +1024,8 @@ void() VR_CVars_InitAllHandles =
     VR_CVAR_HMAKE(vr_knockdown_search);
     VR_CVAR_HMAKE(vr_knockdown_getup_speed);
     VR_CVAR_HMAKE(vr_knockdown_push);
+    VR_CVAR_HMAKE(vr_knockdown_ledge);
+    VR_CVAR_HMAKE(vr_knockdown_ledge_drop);
     VR_CVAR_HMAKE(vr_knockdown_debug);
     VR_CVAR_HMAKE(vr_shove_stamina_cost_2h);
     VR_CVAR_HMAKE(vr_stamina_exhausted_damage);
