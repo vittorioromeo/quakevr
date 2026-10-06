@@ -1194,6 +1194,7 @@ command (QC `localcmd`) is appended after everything left in the script**: to se
 1` (the two toggles put the keys back to the game: the A button's binding then runs after the buttons' commands).
 `vr_setup_option list` prints every setting and its choice. `vr_menu_path_check [maps/vrcalibration.map]` checks the
 boards' menu paths (any missing: `MENU PATH MISSING`).
+Elbow tucked by the face (ROUND21.md, the section of that name): `Misc/quakevr/armik/armsweep.py <tag> poses|orient|play ["<cvars>"]` (run from a scratch folder; `QVR_AGENT=<agent>`) poses the arms with the author's calibration and prints the elbows (cm past, behind and below the shoulder, the swing, the strain, `tuck`); `contin.py` and `orientsum.py` summarise the sweeps; `"vr_body_elbow_tuck 0"` is the old IK exactly. `vr_debug_arm 1` lines end with `tuck` and `torso` (the swing out of the torso).
 Arms options and holster limits (ROUND21.md, "Arms options after body calibration; holster limits"): `cvarlist
 vr_bodycal_` and `cvarlist vr_body_tweak` show the measurements and the tweaks (typing `vr_bodycal_undo` runs Undo;
 list it instead). To test a config's migration, copy it over the worktree's `quakevr/ironwail.cfg` before the run (the

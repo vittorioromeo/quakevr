@@ -25409,3 +25409,54 @@ dynamically relight the maps in-game ... and then reload the maps while still be
   `LICENSE-embree.txt` and a notice; the release page must offer ericw-tools 2.0.0-alpha11's source beside the package.
 - Fixed on the way: `id_light_values` took a classname's value "light" for the key (a light of "light" "0" whose
   classname came first lost its origin; no id map has one).
+## Elbow tucked by the face (vr_body_elbow_tuck, 2026-10-06)
+
+Voice notes vrstart 13:05 and 13:07: aiming down the sights (one or two hands) or holding the axe up by the face, the
+elbow "either goes all the way outwards with a very steep and acute angle, or all the way inwards"; it should stay back
+and down by the torso, even a little behind it.
+
+- **The cause.** With the hand by the face the arm is folded (the wrist 0.35-0.7 of the arm's length from the
+  shoulder), the elbow far off the shoulder-wrist line, and two things swung it round that line: the wrist's ease
+  (`easeWrist`: a gun pointed forward with the forearm upright is a 90-100 degree wrist bend, so the elbow swung 50-98
+  degrees out by the shoulder or across to the neck to ease it) and the pole's hand term (the hand's roll: a pronated
+  axe grip turned it out) plus the wings (Elbows Spread: palm down by the face).
+- **The fix** (`vr_avatar.cpp`, `elbowTuck`, `solveArm`, `easeWrist`): a drawn arm is *tucked* (0..1) with the wrist
+  within `vr_body_elbow_tuck_near` (0.6) of the arm's length from the shoulder, fading out by `vr_body_elbow_tuck_far`
+  (0.9), only with the hand in front of the shoulder and not raised to the forehead (a hand there or behind the head
+  lifts the elbow up and out as before). Tucked, the pole turns down and back (`vr_body_elbow_tuck_back` 0.8 per down,
+  half the rest's outward, no hand-roll term), the wrist's ease counts the strain at 0.15 and the swing at 7 times (a
+  little swing for a hand turned past a wrist's reach, never round to the neck), and by the face or with the hand
+  pointing up the wings don't spread it. Everything is continuous in the hand's pose (smoothstep fades; the swing keeps
+  its 0.05 s ease). `vr_body_elbow_tuck 0` is the old IK exactly. The body-off forearm (wrist gadget) is unchanged.
+- **Menu:** Body > Arms > Elbows and Wrists: Elbow Tuck, Tucked Elbow Back, Tuck Within, Tuck Fades By (archived, kept
+  out of `vr_savedefaults` with the other arm settings).
+- **What it costs:** the wrist bends more by the face (median strain at the face 0.77 -> 1.22; a pistol 18 cm before
+  the eyes pointed forward bends it about 100 degrees, as the forearm stands upright under it). How far back the elbow
+  goes is set by where the hand is: with the hand at the face the elbow can't be behind the shoulder (the arm's lengths
+  put it 20 cm in front); at the chest it hangs 4-8 cm behind it, where the torso's capsules stop it (Tucked Elbow Back
+  past 1 only swings it out of the torso).
+
+Measured (`Misc/quakevr/armik/`, the author's calibration and arm settings, right arm, body axes in cm):
+
+| pose | before: out, down, swing | after |
+|---|---|---|
+| ADS, hand forward by the right eye (faceR 70 0 0) | 23 in, 0 down (at shoulder height), 87 | 10 out, 23 down, -9 |
+| ADS, hand pointing a little down (faceR 40 0 0) | 24 out, 2 above, -55 | 16 out, 8 down, -16 |
+| image pose ADS two-handed (look 35 down) | 13 out, 25 down, -27 | 5 out, 28 down, 0 |
+| image pose axe by the face (130 -45 -60) | 22 out, 21 down, 0 | 10 out, 29 down, 0 |
+| over the head, behind the head, low, far, across, rest | | unchanged (tuck 0) |
+
+Orientation grid (4 places by the face and chest x 45 hand orientations, both arms; the elbow's swing from straight
+down-and-back about the shoulder-wrist line): face mean 20 -> 13 degrees, by the right eye 21 -> 9, chin 24 -> 10, chest
+24 -> 21; swings past 60 degrees 15 -> 0 by the face, 5 -> 5 at the chest (hands pointed far up, not tucked); elbows
+above shoulder height less 8 cm by the face 27 -> 4. Continuity (`vr_mock_play` sweeps, every frame, `vr_debug_arm 2`):
+the largest elbow jump per frame from the far reach to the face 1.27 -> 1.16 cm, rolling the hand by the face 5.1 ->
+0.9, pitching it 0.94 -> 0.30, from low to over the head 12.4 -> 1.6 (16 -> 1 steps where the elbow jumped more than 3
+times the hand's step plus 1 cm). The two arms mirror (mirrored poses: the same ranges, the wrist strain within 0.3, from the swing's ease carried between poses).
+
+- [ ] Aim down the sights one- and two-handed, the shotgun by the eye: the elbow down under the shoulder, not out to the
+      side or across the chest. Too stiff (the wrist bent too far)? Lower Elbow Tuck (0.5).
+- [ ] Axe up by the face, rolled both ways: the elbow stays down. Reach out from there: it fades back smoothly by
+      Tuck Fades By (0.9 arm).
+- [ ] Hand on the chest, then a look at the wrist gadget (forearm level, palm down): still spreads like wings.
+- [ ] Scratch the back of the head, salute: the elbow lifts up and out as before.
