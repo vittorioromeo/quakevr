@@ -27030,3 +27030,40 @@ Functions shows Right Hand; Hand Yaw +1 gives `vr_gunyaw` 1 and `vr_offhandyaw` 
 Again to Reset All"), the second resets (snap 90, volume 0.3, vignette, body mode 0, vibration 0.4, height back;
 Menu Detail 2 and `vr_cfg_version` 94 kept). `vr_menu_path_check maps/vrcalibration.map`: 14 found, 0 missing (the
 board's "VR Settings>Comfort" is now "VR Settings>Turning Mode", the map rebuilt).
+## Monsters' heads weigh what a cut head weighs (2026-10-07)
+
+The author: "Please bring the head's weights closer to the ragdoll's." A head cut off a ragdoll (vr_decap.qc,
+vr_limbs.qc `VR_Limb_SetMass`) weighs its rig's head share (head and jaw: 7% in every rig) of its class's
+`vr_ragdoll_<class>_mass`, times `vr_limbs_mass_scale`; a head thrown whole (`ThrowHead`, the `h_*` props) weighed its
+Held Object Offsets Mass, set apart. Now one source: a monster's head prop has Mass **-1**, "Its Monster's" (the Mass
+bar's leftmost step, shown only for such a head), which the engine reads as that head cut off its class's ragdoll
+(`box3d::headPropMass`: `ragdollClasses` names each class's head model). It follows the ragdoll masses and Limb Weight
+live (a change of either weighs the heads lying about again: `updateShapeGeneration` sums them), so the two can't
+drift apart; Limb Weight 0 (cut pieces by their volume) leaves them estimated too. A number set in the slot is used as
+set. The mummy throws the zombie's head model: weighed as the zombie's. The player's head (no ragdoll class) keeps 5.
+
+| slot | head | class (kg) | before (v58) | now |
+|---|---|---|---|---|
+| 37 | h_guard | grunt 80 | 8 | 5.6 |
+| 38 | h_dog | rottweiler 40 | 9 | 2.8 |
+| 39 | h_mega | enforcer 100 | 9 | 7 |
+| 40 | h_knight | knight 90 | 8 | 6.3 |
+| 41 | h_hellkn | hell knight 130 | 11 | 9.1 |
+| 42 | h_ogre | ogre 200 (and marksman) | 15 | 14 |
+| 43 | h_wizard | scrag 40 | 10 | 2.8 |
+| 44 | h_zombie | zombie 70 (mummy too) | 8 | 4.9 |
+| 45 | h_shal | vore 160 | 10 | 11.2 |
+| 46 | h_shams | shambler 280 | 65 | 19.6 |
+| 47 | h_demon | fiend 140 | 18 | 9.8 |
+| 7 | h_grem | gremlin 20 | 9 | 1.4 |
+| 8 | h_scourg | centroid 180 | 50 | 12.6 |
+| 36 | h_player | (none) | 5 | 5 |
+
+`vr_props_version` 59: a slot still its model's at 58's default takes -1; a config's own weight is kept.
+`vr_weight_table` prints each thing's one-hand throw limit (`throw1`, m/s).
+
+What it changes in play: heads are thrown faster (the one-hand limit 28 m/s x (1.5 / kg)^0.9: a shambler's head about
+2.8 m/s instead of 0.9, a grunt's 8 instead of 6, a dog's 16 instead of 7.4), weigh less in the hand and strike softer
+(the weight's damage curve). A thrown head under `vr_decap_pop_thrown_mass` (4 kg: now the dog's, scrag's, gremlin's)
+pops a head on a killing headshot only at `vr_decap_pop_thrown_light_chance` (0.25), not always. Bursting on a wall
+goes by the hand's speed (7 m/s), not the mass: unchanged. Grabbing and holding: a lighter prop, nothing else.

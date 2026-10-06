@@ -14,6 +14,7 @@
 #include "vr_serverrules.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_backend.hpp"
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"

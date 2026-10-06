@@ -879,11 +879,13 @@ void table_f()
         vr_weight_damage_heavy.value, vr_weight_damage_exp.value, vr_weight_damage_light.value, vr_weight_damage_exp.value,
         vr_weight_damage_min.value, vr_weight_damage_max.value, vr_weight_lenient_from.value, vr_weight_lenient.value,
         vr_weight_lenient_min.value);
-    Con_Printf("%-4s %-26s %6s | %6s %6s %6s | %7s\n", "slot", "model", "kg", "weight", "melee", "thrown", "speeds");
+    // (throw1: one hand's top throw by its mass, m/s: throwLimit; 0 with vr_throw_mass_model off.)
+    Con_Printf("%-4s %-26s %6s | %6s %6s %6s | %7s %6s\n", "slot", "model", "kg", "weight", "melee", "thrown", "speeds",
+        "throw1");
     const auto row = [](const char* slot, const char* model, float mass, float melee, float thrown) {
         const float curve = damageMultiplier(mass);
-        Con_Printf("%-4s %-26s %6.2f | %6.3f %6.3f %6.3f | %7.3f\n", slot, model, mass, curve, curve * melee, curve * thrown,
-            leniency(mass));
+        Con_Printf("%-4s %-26s %6.2f | %6.3f %6.3f %6.3f | %7.3f %6.2f\n", slot, model, mass, curve, curve * melee,
+            curve * thrown, leniency(mass), throwLimit(mass, 1));
     };
     for(int slot = 0; slot < weapons::numSlots; slot++)
     {

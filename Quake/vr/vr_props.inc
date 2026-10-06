@@ -9,7 +9,7 @@
 
 #ifdef QVR_PROP_KEY
 QVR_PROP_KEY(ID, "id", "")                   // the model ("" or "-1": a free slot)
-QVR_PROP_KEY(Mass, "mass", "0")              // kg; 0: estimated (its volume times a density for what it is)
+QVR_PROP_KEY(Mass, "mass", "0")              // kg; 0: estimated (its volume times a density for what it is); -1: a monster's head, its ragdoll's share (box3d::headPropMass)
 QVR_PROP_KEY(Inertia, "inertia", "1")        // times the inertia of its box: how sluggishly it turns in the hand
 QVR_PROP_KEY(ComX, "com_x", "0")             // units off the middle of its drawn box, in its model's axes: its
 QVR_PROP_KEY(ComY, "com_y", "0")             // centre of mass (a torch's head, a hammer's)
@@ -111,9 +111,9 @@ QVR_PROP_DEFAULT(5, MassScale, "1.25")
 QVR_PROP_DEFAULT(6, ID, "maps/b_plas1.bsp")
 QVR_PROP_DEFAULT(6, MassScale, "1.25")
 QVR_PROP_DEFAULT(7, ID, "progs/h_grem.mdl")
-QVR_PROP_DEFAULT(7, Mass, "9")
+QVR_PROP_DEFAULT(7, Mass, "-1")
 QVR_PROP_DEFAULT(8, ID, "progs/h_scourg.mdl")
-QVR_PROP_DEFAULT(8, Mass, "50")
+QVR_PROP_DEFAULT(8, Mass, "-1")
 QVR_PROP_DEFAULT(9, ID, "progs/armor.mdl")
 QVR_PROP_DEFAULT(9, MassScale, "0.6")
 QVR_PROP_DEFAULT(10, ID, "maps/b_bh100.bsp")
@@ -148,8 +148,10 @@ QVR_PROP_DEFAULT(16, ButtX, "-14")
 // weight's damage curve. Their masses as things of their kind weigh: the Mass is also their Box3D mass. (Slots 34..48;
 // vr_cfg_version 27 gives them to configs saved before; props::fleshSlots.) The author's heavier
 // masses since 2026-10-02 (vr_props_version 55): a gib 8 to 20 kg, a head 10 to 70; lighter since 2026-10-07
-// (vr_props_version 58, his config's): a gib 8 to 15, a head 5 to 65 (most nearer what a head cut off a ragdoll weighs:
-// vr_limbs.qc VR_Limb_SetMass, 7% of the class's vr_ragdoll_<class>_mass).
+// (vr_props_version 58, his config's): a gib 8 to 15, a head 5 to 65. Since vr_props_version 59 ("bring the head's
+// weights closer to the ragdoll's"), a monster's head Mass -1: what a head cut off its ragdoll weighs (vr_limbs.qc
+// VR_Limb_SetMass; box3d::headPropMass), 7% of its class's vr_ragdoll_<class>_mass times vr_limbs_mass_scale, followed
+// live (a grunt's 5.6 kg, a dog's 2.8, a shambler's 19.6). The player's head (no ragdoll class) keeps its 5 kg.
 QVR_PROP_DEFAULT(33, ID, "progs/gib1.mdl")
 QVR_PROP_DEFAULT(33, Mass, "8")
 QVR_PROP_DEFAULT(34, ID, "progs/gib2.mdl")
@@ -162,35 +164,35 @@ QVR_PROP_DEFAULT(36, ID, "progs/h_player.mdl")
 QVR_PROP_DEFAULT(36, Mass, "5")
 QVR_PROP_DEFAULT(37, ID, "progs/h_guard.mdl")
 QVR_PROP_DEFAULT(37, Size, "0.7")
-QVR_PROP_DEFAULT(37, Mass, "8")
+QVR_PROP_DEFAULT(37, Mass, "-1")
 QVR_PROP_DEFAULT(38, ID, "progs/h_dog.mdl")
 QVR_PROP_DEFAULT(38, Size, "0.75")
-QVR_PROP_DEFAULT(38, Mass, "9")
+QVR_PROP_DEFAULT(38, Mass, "-1")
 QVR_PROP_DEFAULT(39, ID, "progs/h_mega.mdl")
 QVR_PROP_DEFAULT(39, Size, "0.7")
-QVR_PROP_DEFAULT(39, Mass, "9")
+QVR_PROP_DEFAULT(39, Mass, "-1")
 QVR_PROP_DEFAULT(40, ID, "progs/h_knight.mdl")
 QVR_PROP_DEFAULT(40, Size, "0.7")
-QVR_PROP_DEFAULT(40, Mass, "8")
+QVR_PROP_DEFAULT(40, Mass, "-1")
 QVR_PROP_DEFAULT(41, ID, "progs/h_hellkn.mdl")
 QVR_PROP_DEFAULT(41, Size, "0.75")
-QVR_PROP_DEFAULT(41, Mass, "11")
+QVR_PROP_DEFAULT(41, Mass, "-1")
 QVR_PROP_DEFAULT(42, ID, "progs/h_ogre.mdl")
 QVR_PROP_DEFAULT(42, Size, "0.65")
-QVR_PROP_DEFAULT(42, Mass, "15")
+QVR_PROP_DEFAULT(42, Mass, "-1")
 QVR_PROP_DEFAULT(43, ID, "progs/h_wizard.mdl")
-QVR_PROP_DEFAULT(43, Mass, "10")
+QVR_PROP_DEFAULT(43, Mass, "-1")
 QVR_PROP_DEFAULT(44, ID, "progs/h_zombie.mdl")
-QVR_PROP_DEFAULT(44, Mass, "8")
+QVR_PROP_DEFAULT(44, Mass, "-1")
 QVR_PROP_DEFAULT(45, ID, "progs/h_shal.mdl")
 QVR_PROP_DEFAULT(45, Size, "0.75")
-QVR_PROP_DEFAULT(45, Mass, "10")
+QVR_PROP_DEFAULT(45, Mass, "-1")
 QVR_PROP_DEFAULT(46, ID, "progs/h_shams.mdl")
 QVR_PROP_DEFAULT(46, Size, "0.9")
-QVR_PROP_DEFAULT(46, Mass, "65")
+QVR_PROP_DEFAULT(46, Mass, "-1")
 QVR_PROP_DEFAULT(47, ID, "progs/h_demon.mdl")
 QVR_PROP_DEFAULT(47, Size, "0.7")
-QVR_PROP_DEFAULT(47, Mass, "18")
+QVR_PROP_DEFAULT(47, Mass, "-1")
 // The rocks and bricks lying about (vr_debris.cpp, QC vr_debris.qc; slots 17-25, vr_prop_*_18 to _26, after the torch's): their Mass is
 // left estimated, stone's density times their size (vr_props.cpp stoneDensity: a rock 0.3 to 1.7 kg, a whole brick
 // about 1.9), since each piece is sized apart. Their damage is the weight's (round 21, "Spring only; Weapon Weights and

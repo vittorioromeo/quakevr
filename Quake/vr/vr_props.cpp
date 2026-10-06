@@ -1,5 +1,6 @@
 // vr_props.cpp -- see vr_props.hpp.
 
+#include "vr_box3d.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_props.hpp"
 #include "vr_cvars.hpp"
@@ -51,8 +52,9 @@ constexpr const char* keyDefaults[numKeys] = {
 // (the round's agents number their changes apart); 48: the bricks' grip offsets back to 0; 49: the crates' slots; 50:
 // the rocks and bricks at Size 1.25; 51: the crates' small pieces in the palm; 53: the multi-grenade's as the grenade's;
 // 54: the author's grenade and multi-grenade fits; 55: the author's weights and sizes (slots 6-16 his items); 56: every
-// prop in both hands; 57: the gibs' and heads' sizes; 58: the author's lighter gibs and heads (and the gremlin's head).
-constexpr int settingsVersion = 58;
+// prop in both hands; 57: the gibs' and heads' sizes; 58: the author's lighter gibs and heads (and the gremlin's head);
+// 59: the monsters' heads weigh what a head cut off their ragdoll does (Mass -1).
+constexpr int settingsVersion = 59;
 
 za::Array<za::String, numSlots * numKeys> names;
 za::Array<cvar_t, numSlots * numKeys> cvars{};
@@ -480,6 +482,30 @@ void migrate()
             }
         }
     }
+    // 59: a monster's head weighs its share of its ragdoll (Mass -1: box3d::headPropMass, the 7% of its class's
+    // vr_ragdoll_<class>_mass a head cut off it weighs; the author, 2026-10-07: "bring the head's weights closer to the
+    // ragdoll's"): a slot still its model's that holds 58's default takes -1 (a config's own weight is kept).
+    if(from < 59)
+    {
+        struct Change
+        {
+            int slot;
+            float before;
+        };
+        constexpr Change changes[] = {{7, 9.f}, {8, 50.f}, {37, 8.f}, {38, 9.f}, {39, 9.f}, {40, 8.f}, {41, 11.f},
+            {42, 15.f}, {43, 10.f}, {44, 8.f}, {45, 10.f}, {46, 65.f}, {47, 18.f}};
+        for(const Change& c : changes)
+        {
+            cvar_t& var = cvarAt(c.slot, Key::Mass);
+            if(!strcmp(cvarAt(c.slot, Key::ID).string, cvarAt(c.slot, Key::ID).default_string) &&
+                za::fabs(static_cast<float>(atof(var.string)) - c.before) < 1e-4f)
+            {
+                Cvar_SetQuick(&var, var.default_string);
+                Con_DPrintf("Held Object Offsets: %s: %s %s (was %g)\n", cvarAt(c.slot, Key::ID).string, var.name, var.string,
+                    static_cast<double>(c.before));
+            }
+        }
+    }
     Cvar_SetValueQuick(&vr_props_version, settingsVersion);
 }
 
@@ -587,7 +613,12 @@ float value(int slot, Key key)
     {
         return keyDefaultValues[static_cast<int>(key)];
     }
-    return cvarAt(slot, key).value;
+    const float v = cvarAt(slot, key).value;
+    if(key == Key::Mass && v < 0.f)
+    {
+        return box3d::headPropMass(cvarAt(slot, Key::ID).string); // (-1: a monster's head, its ragdoll's share)
+    }
+    return v;
 }
 
 float valueFor(const char* model, Key key)

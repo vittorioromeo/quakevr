@@ -129,7 +129,8 @@ entity(entity c, string m, float xBone, vector xAt, vector xAng, vector xVel, ve
 // Piece `h` (a limb or the head) cut off `c` at joint `xBone` (-1 the head) weighs its share of c's ragdoll's Mass by
 // the kind of limb (limbpiece; the engine's limbMassShare: an arm 6.3%, a forearm and hand 2.8, a hand 0.8, a leg 15.5,
 // a shin and foot 6, the head 7) times vr_limbs_mass_scale (Box3D's: .vr_prop_mass; held and thrown as that). No rig,
-// or vr_limbs_mass_scale 0: its model's hull of flesh, as before.
+// or vr_limbs_mass_scale 0: its model's hull of flesh, as before. A head thrown whole (ThrowHead) weighs the same: its
+// prop's Mass -1 (Held Object Offsets; the engine's headPropMass).
 void(entity h, entity c, float xBone) VR_Limb_SetMass =
 {
     float scale = cvar_hget(cvarh_vr_limbs_mass_scale);

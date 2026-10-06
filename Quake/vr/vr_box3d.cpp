@@ -2084,6 +2084,9 @@ enum class Tune : uint8_t
 struct RagdollClass
 {
     const char* classname;
+    // The head its QC throws (ThrowHead): its prop's Mass -1 weighs what this class's head cut off its ragdoll does
+    // (headPropMass). The mummy's is the zombie's model, weighed as the zombie's.
+    const char* head;
     za::Array<cvar_t*, static_cast<za::SizeT>(Tune::Count)> own;
 };
 
@@ -2092,51 +2095,66 @@ const za::Array<cvar_t*, static_cast<za::SizeT>(Tune::Count)> ragdollGlobals{&vr
     &vr_ragdoll_blast, &vr_ragdoll_inherit};
 
 const RagdollClass ragdollClasses[] = {
-    {"monster_army", {&vr_ragdoll_army_start, &vr_ragdoll_army_mass, &vr_ragdoll_army_friction, &vr_ragdoll_army_joint_friction,
-                         &vr_ragdoll_army_joint_stiffness, &vr_ragdoll_army_limits, &vr_ragdoll_army_damping,
-                         &vr_ragdoll_army_blast, &vr_ragdoll_army_inherit}},
-    {"monster_knight", {&vr_ragdoll_knight_start, &vr_ragdoll_knight_mass, &vr_ragdoll_knight_friction,
-                           &vr_ragdoll_knight_joint_friction, &vr_ragdoll_knight_joint_stiffness, &vr_ragdoll_knight_limits,
-                           &vr_ragdoll_knight_damping, &vr_ragdoll_knight_blast, &vr_ragdoll_knight_inherit}},
-    {"monster_ogre", {&vr_ragdoll_ogre_start, &vr_ragdoll_ogre_mass, &vr_ragdoll_ogre_friction,
-                &vr_ragdoll_ogre_joint_friction, &vr_ragdoll_ogre_joint_stiffness, &vr_ragdoll_ogre_limits,
-                &vr_ragdoll_ogre_damping, &vr_ragdoll_ogre_blast, &vr_ragdoll_ogre_inherit}},
-    {"monster_ogre_marksman", {&vr_ragdoll_ogre_start, &vr_ragdoll_ogre_mass, &vr_ragdoll_ogre_friction,
-                &vr_ragdoll_ogre_joint_friction, &vr_ragdoll_ogre_joint_stiffness, &vr_ragdoll_ogre_limits,
-                &vr_ragdoll_ogre_damping, &vr_ragdoll_ogre_blast, &vr_ragdoll_ogre_inherit}},
-    {"monster_enforcer", {&vr_ragdoll_enforcer_start, &vr_ragdoll_enforcer_mass, &vr_ragdoll_enforcer_friction,
-                &vr_ragdoll_enforcer_joint_friction, &vr_ragdoll_enforcer_joint_stiffness, &vr_ragdoll_enforcer_limits,
-                &vr_ragdoll_enforcer_damping, &vr_ragdoll_enforcer_blast, &vr_ragdoll_enforcer_inherit}},
-    {"monster_hell_knight", {&vr_ragdoll_hknight_start, &vr_ragdoll_hknight_mass, &vr_ragdoll_hknight_friction,
-                &vr_ragdoll_hknight_joint_friction, &vr_ragdoll_hknight_joint_stiffness, &vr_ragdoll_hknight_limits,
-                &vr_ragdoll_hknight_damping, &vr_ragdoll_hknight_blast, &vr_ragdoll_hknight_inherit}},
-    {"monster_dog", {&vr_ragdoll_dog_start, &vr_ragdoll_dog_mass, &vr_ragdoll_dog_friction,
-                &vr_ragdoll_dog_joint_friction, &vr_ragdoll_dog_joint_stiffness, &vr_ragdoll_dog_limits,
-                &vr_ragdoll_dog_damping, &vr_ragdoll_dog_blast, &vr_ragdoll_dog_inherit}},
-    {"monster_wizard", {&vr_ragdoll_wizard_start, &vr_ragdoll_wizard_mass, &vr_ragdoll_wizard_friction,
-                &vr_ragdoll_wizard_joint_friction, &vr_ragdoll_wizard_joint_stiffness, &vr_ragdoll_wizard_limits,
-                &vr_ragdoll_wizard_damping, &vr_ragdoll_wizard_blast, &vr_ragdoll_wizard_inherit}},
-    {"monster_zombie", {&vr_ragdoll_zombie_start, &vr_ragdoll_zombie_mass, &vr_ragdoll_zombie_friction,
-                &vr_ragdoll_zombie_joint_friction, &vr_ragdoll_zombie_joint_stiffness, &vr_ragdoll_zombie_limits,
-                &vr_ragdoll_zombie_damping, &vr_ragdoll_zombie_blast, &vr_ragdoll_zombie_inherit}},
-    {"monster_demon1", {&vr_ragdoll_demon_start, &vr_ragdoll_demon_mass, &vr_ragdoll_demon_friction,
-                &vr_ragdoll_demon_joint_friction, &vr_ragdoll_demon_joint_stiffness, &vr_ragdoll_demon_limits,
-                &vr_ragdoll_demon_damping, &vr_ragdoll_demon_blast, &vr_ragdoll_demon_inherit}},
-    {"monster_shambler", {&vr_ragdoll_shambler_start, &vr_ragdoll_shambler_mass, &vr_ragdoll_shambler_friction,
-                &vr_ragdoll_shambler_joint_friction, &vr_ragdoll_shambler_joint_stiffness, &vr_ragdoll_shambler_limits,
-                &vr_ragdoll_shambler_damping, &vr_ragdoll_shambler_blast, &vr_ragdoll_shambler_inherit}},
-    {"monster_gremlin", {&vr_ragdoll_gremlin_start, &vr_ragdoll_gremlin_mass, &vr_ragdoll_gremlin_friction,
-                &vr_ragdoll_gremlin_joint_friction, &vr_ragdoll_gremlin_joint_stiffness, &vr_ragdoll_gremlin_limits,
-                &vr_ragdoll_gremlin_damping, &vr_ragdoll_gremlin_blast, &vr_ragdoll_gremlin_inherit}},
-    {"monster_mummy", {&vr_ragdoll_mummy_start, &vr_ragdoll_mummy_mass, &vr_ragdoll_mummy_friction,
-                &vr_ragdoll_mummy_joint_friction, &vr_ragdoll_mummy_joint_stiffness, &vr_ragdoll_mummy_limits,
-                &vr_ragdoll_mummy_damping, &vr_ragdoll_mummy_blast, &vr_ragdoll_mummy_inherit}},
-    {"monster_shalrath", {&vr_ragdoll_vore_start, &vr_ragdoll_vore_mass, &vr_ragdoll_vore_friction,
-                &vr_ragdoll_vore_joint_friction, &vr_ragdoll_vore_joint_stiffness, &vr_ragdoll_vore_limits,
-                &vr_ragdoll_vore_damping, &vr_ragdoll_vore_blast, &vr_ragdoll_vore_inherit}},
-    {"monster_scourge", {&vr_ragdoll_centroid_start, &vr_ragdoll_centroid_mass, &vr_ragdoll_centroid_friction,
-                &vr_ragdoll_centroid_joint_friction, &vr_ragdoll_centroid_joint_stiffness, &vr_ragdoll_centroid_limits,
-                &vr_ragdoll_centroid_damping, &vr_ragdoll_centroid_blast, &vr_ragdoll_centroid_inherit}},
+    {"monster_army", "progs/h_guard.mdl",
+        {&vr_ragdoll_army_start, &vr_ragdoll_army_mass, &vr_ragdoll_army_friction, &vr_ragdoll_army_joint_friction,
+            &vr_ragdoll_army_joint_stiffness, &vr_ragdoll_army_limits, &vr_ragdoll_army_damping, &vr_ragdoll_army_blast,
+            &vr_ragdoll_army_inherit}},
+    {"monster_knight", "progs/h_knight.mdl",
+        {&vr_ragdoll_knight_start, &vr_ragdoll_knight_mass, &vr_ragdoll_knight_friction,
+            &vr_ragdoll_knight_joint_friction, &vr_ragdoll_knight_joint_stiffness, &vr_ragdoll_knight_limits,
+            &vr_ragdoll_knight_damping, &vr_ragdoll_knight_blast, &vr_ragdoll_knight_inherit}},
+    {"monster_ogre", "progs/h_ogre.mdl",
+        {&vr_ragdoll_ogre_start, &vr_ragdoll_ogre_mass, &vr_ragdoll_ogre_friction, &vr_ragdoll_ogre_joint_friction,
+            &vr_ragdoll_ogre_joint_stiffness, &vr_ragdoll_ogre_limits, &vr_ragdoll_ogre_damping, &vr_ragdoll_ogre_blast,
+            &vr_ragdoll_ogre_inherit}},
+    {"monster_ogre_marksman", "progs/h_ogre.mdl",
+        {&vr_ragdoll_ogre_start, &vr_ragdoll_ogre_mass, &vr_ragdoll_ogre_friction, &vr_ragdoll_ogre_joint_friction,
+            &vr_ragdoll_ogre_joint_stiffness, &vr_ragdoll_ogre_limits, &vr_ragdoll_ogre_damping, &vr_ragdoll_ogre_blast,
+            &vr_ragdoll_ogre_inherit}},
+    {"monster_enforcer", "progs/h_mega.mdl",
+        {&vr_ragdoll_enforcer_start, &vr_ragdoll_enforcer_mass, &vr_ragdoll_enforcer_friction,
+            &vr_ragdoll_enforcer_joint_friction, &vr_ragdoll_enforcer_joint_stiffness, &vr_ragdoll_enforcer_limits,
+            &vr_ragdoll_enforcer_damping, &vr_ragdoll_enforcer_blast, &vr_ragdoll_enforcer_inherit}},
+    {"monster_hell_knight", "progs/h_hellkn.mdl",
+        {&vr_ragdoll_hknight_start, &vr_ragdoll_hknight_mass, &vr_ragdoll_hknight_friction,
+            &vr_ragdoll_hknight_joint_friction, &vr_ragdoll_hknight_joint_stiffness, &vr_ragdoll_hknight_limits,
+            &vr_ragdoll_hknight_damping, &vr_ragdoll_hknight_blast, &vr_ragdoll_hknight_inherit}},
+    {"monster_dog", "progs/h_dog.mdl",
+        {&vr_ragdoll_dog_start, &vr_ragdoll_dog_mass, &vr_ragdoll_dog_friction, &vr_ragdoll_dog_joint_friction,
+            &vr_ragdoll_dog_joint_stiffness, &vr_ragdoll_dog_limits, &vr_ragdoll_dog_damping, &vr_ragdoll_dog_blast,
+            &vr_ragdoll_dog_inherit}},
+    {"monster_wizard", "progs/h_wizard.mdl",
+        {&vr_ragdoll_wizard_start, &vr_ragdoll_wizard_mass, &vr_ragdoll_wizard_friction,
+            &vr_ragdoll_wizard_joint_friction, &vr_ragdoll_wizard_joint_stiffness, &vr_ragdoll_wizard_limits,
+            &vr_ragdoll_wizard_damping, &vr_ragdoll_wizard_blast, &vr_ragdoll_wizard_inherit}},
+    {"monster_zombie", "progs/h_zombie.mdl",
+        {&vr_ragdoll_zombie_start, &vr_ragdoll_zombie_mass, &vr_ragdoll_zombie_friction,
+            &vr_ragdoll_zombie_joint_friction, &vr_ragdoll_zombie_joint_stiffness, &vr_ragdoll_zombie_limits,
+            &vr_ragdoll_zombie_damping, &vr_ragdoll_zombie_blast, &vr_ragdoll_zombie_inherit}},
+    {"monster_demon1", "progs/h_demon.mdl",
+        {&vr_ragdoll_demon_start, &vr_ragdoll_demon_mass, &vr_ragdoll_demon_friction, &vr_ragdoll_demon_joint_friction,
+            &vr_ragdoll_demon_joint_stiffness, &vr_ragdoll_demon_limits, &vr_ragdoll_demon_damping,
+            &vr_ragdoll_demon_blast, &vr_ragdoll_demon_inherit}},
+    {"monster_shambler", "progs/h_shams.mdl",
+        {&vr_ragdoll_shambler_start, &vr_ragdoll_shambler_mass, &vr_ragdoll_shambler_friction,
+            &vr_ragdoll_shambler_joint_friction, &vr_ragdoll_shambler_joint_stiffness, &vr_ragdoll_shambler_limits,
+            &vr_ragdoll_shambler_damping, &vr_ragdoll_shambler_blast, &vr_ragdoll_shambler_inherit}},
+    {"monster_gremlin", "progs/h_grem.mdl",
+        {&vr_ragdoll_gremlin_start, &vr_ragdoll_gremlin_mass, &vr_ragdoll_gremlin_friction,
+            &vr_ragdoll_gremlin_joint_friction, &vr_ragdoll_gremlin_joint_stiffness, &vr_ragdoll_gremlin_limits,
+            &vr_ragdoll_gremlin_damping, &vr_ragdoll_gremlin_blast, &vr_ragdoll_gremlin_inherit}},
+    {"monster_mummy", nullptr,
+        {&vr_ragdoll_mummy_start, &vr_ragdoll_mummy_mass, &vr_ragdoll_mummy_friction, &vr_ragdoll_mummy_joint_friction,
+            &vr_ragdoll_mummy_joint_stiffness, &vr_ragdoll_mummy_limits, &vr_ragdoll_mummy_damping,
+            &vr_ragdoll_mummy_blast, &vr_ragdoll_mummy_inherit}},
+    {"monster_shalrath", "progs/h_shal.mdl",
+        {&vr_ragdoll_vore_start, &vr_ragdoll_vore_mass, &vr_ragdoll_vore_friction, &vr_ragdoll_vore_joint_friction,
+            &vr_ragdoll_vore_joint_stiffness, &vr_ragdoll_vore_limits, &vr_ragdoll_vore_damping, &vr_ragdoll_vore_blast,
+            &vr_ragdoll_vore_inherit}},
+    {"monster_scourge", "progs/h_scourg.mdl",
+        {&vr_ragdoll_centroid_start, &vr_ragdoll_centroid_mass, &vr_ragdoll_centroid_friction,
+            &vr_ragdoll_centroid_joint_friction, &vr_ragdoll_centroid_joint_stiffness, &vr_ragdoll_centroid_limits,
+            &vr_ragdoll_centroid_damping, &vr_ragdoll_centroid_blast, &vr_ragdoll_centroid_inherit}},
 };
 
 // The setting `t` for `ent`'s ragdoll: its class's own, else the global one.
@@ -4095,13 +4113,14 @@ void syncRagdollGrabs(float dt)
 }
 
 // What a prop's drawn box and Mass are made from besides its entity (localBox, massSetting): the weapon and prop
-// settings (their changes counted), the scales and offsets every weapon's drawing follows, Quake VR's protocol. Its
-// count goes up whenever any of them changes (updateShapeGeneration, once a frame).
+// settings (their changes counted), the scales and offsets every weapon's drawing follows, Quake VR's protocol, and the
+// ragdolls' masses a monster's head weighs a share of (Mass -1: headPropMass; their sum). Its count goes up whenever any
+// of them changes (updateShapeGeneration, once a frame).
 struct ShapeInputs
 {
     unsigned weapons{0}, props{0};
     bool quakevr{false};
-    float scales[7]{};
+    float scales[8]{};
     bool operator==(const ShapeInputs& o) const
     {
         return weapons == o.weapons && props == o.props && quakevr == o.quakevr && !memcmp(scales, o.scales, sizeof(scales));
@@ -4110,12 +4129,23 @@ struct ShapeInputs
 ShapeInputs shapeInputs;
 unsigned shapeGeneration = 1;
 
+[[nodiscard]] float headMassSum()
+{
+    float sum = 0.f;
+    for(const RagdollClass& c : ragdollClasses)
+    {
+        sum += c.head ? qvr::box3d::headPropMass(c.head) : 0.f;
+    }
+    return sum;
+}
+
 void updateShapeGeneration()
 {
     const ShapeInputs now{weapons::settingsGeneration(), props::settingsGeneration(),
         (cl.protocolflags & PRFL_QUAKEVR) || (sv.active && (sv.protocolflags & PRFL_QUAKEVR)),
         {vr_world_scale.value, vr_gunmodelscale.value, vr_gunmodely.value, vr_leg_holster_model_scale.value,
-            vr_leg_holster_model_x_offset.value, vr_leg_holster_model_y_offset.value, vr_leg_holster_model_z_offset.value}};
+            vr_leg_holster_model_x_offset.value, vr_leg_holster_model_y_offset.value, vr_leg_holster_model_z_offset.value,
+            headMassSum()}};
     if(!(now == shapeInputs))
     {
         shapeInputs = now;
@@ -12055,6 +12085,42 @@ glm::vec3 limbPiece(edict_t* ent, int bone, int what)
     }
     const float mass = za::max(tune(ent, Tune::Mass), 1.f);
     return glm::vec3{mass * share, mass, share};
+}
+
+namespace
+{
+[[nodiscard]] const RagdollClass* headClass(const char* model)
+{
+    for(const RagdollClass& c : ragdollClasses)
+    {
+        if(model && c.head && !strcmp(model, c.head))
+        {
+            return &c;
+        }
+    }
+    return nullptr;
+}
+} // namespace
+
+bool monsterHead(const char* model)
+{
+    return headClass(model) != nullptr;
+}
+
+float headPropMass(const char* model)
+{
+    // As a head cut off its ragdoll (limbPiece, then the QC's VR_Limb_SetMass): the class's mass times the head's
+    // share (every rig's head and jaw: headShare) times vr_limbs_mass_scale. Its scale 0 (cut pieces weighed by their
+    // volume): 0, estimated as well.
+    const RagdollClass* c = headClass(model);
+    const float scale = vr_limbs_mass_scale.value;
+    if(!c || scale <= 0.f)
+    {
+        return 0.f;
+    }
+    const auto i = static_cast<za::SizeT>(Tune::Mass);
+    const float mass = za::max(c->own[i]->value >= 0.f ? c->own[i]->value : ragdollGlobals[i]->value, 1.f);
+    return za::max(mass * limbmass::headShare * scale, 0.05f);
 }
 
 glm::vec3 limbPlace(edict_t* ent, int bone, int what)

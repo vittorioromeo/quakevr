@@ -400,6 +400,20 @@ void heldObjectWeightsPrint()
     props::printSlot(heldObjectSlot, props::Part::Weights);
 }
 
+// Held Object Offsets' Mass: a monster's head's (box3d::monsterHead) leftmost step -1, Its Monster's (its ragdoll's share).
+[[nodiscard]] Item heldObjectMassSlider(int slot)
+{
+    const cvar_t* id = props::cvar(slot, props::Key::ID);
+    if(!id || !box3d::monsterHead(id->string))
+    {
+        return slider("Mass", props::cvar(slot, props::Key::Mass), 0.f, 100.f, 0.5f, "%.1f kg").extend(0.f, 2000.f);
+    }
+    Item i = slider("Mass", props::cvar(slot, props::Key::Mass), -0.5f, 100.f, 0.5f, "%.1f kg").extend(-0.5f, 2000.f);
+    i.negativeLabel = "Its Monster's";
+    i.negativeStart = 0.f;
+    return i;
+}
+
 [[nodiscard]] const char* heldObjectMassReadout(int /* unused */)
 {
     za::String& text = readouts.heldObjectMass;
@@ -421,7 +435,9 @@ void heldObjectWeightsPrint()
     }
     const bool set = props::valueFor(heldObjectModel.cStr(), props::Key::Mass) > 0.f;
     const float scale = props::valueFor(heldObjectModel.cStr(), props::Key::MassScale);
-    text = set ? va("Mass now: %.1f kg (set)", l.mass)
+    const cvar_t* own = props::cvar(props::slotForModel(heldObjectModel.cStr()), props::Key::Mass);
+    text = set && own && own->value < 0.f ? va("Mass now: %.1f kg (its monster's: 7%% of its ragdoll)", l.mass)
+         : set ? va("Mass now: %.1f kg (set)", l.mass)
          : scale != 1.f ? va("Mass now: %.1f kg (estimated, x%.2f)", l.mass, scale)
                         : va("Mass now: %.1f kg (estimated)", l.mass);
     return text.cStr();
@@ -545,10 +561,11 @@ za::Vector<Item> pageHeldObjectWeights()
     list.pushBackMultiple(
         infoLine(heldObjectMassReadout, 0),
         header("Weight"),
-        s("Mass", Key::Mass, 0.f, 100.f, 0.5f, "%.1f kg").extend(0.f, 2000.f)
-            .help("0: estimated from its size and what it is made of (the readout above). Also its mass in the physics "
-                  "world (what knocks it how far), how it follows your hand, and how hard it strikes and is thrown "
-                  "(Aiming: Weight and Damage)."),
+        heldObjectMassSlider(slot)
+            .help("0: estimated from its size and what it is made of (the readout above). A monster's head: leftmost, "
+                  "Its Monster's, what a head cut off its ragdoll weighs (7% of its Ragdolls Mass, times Limb Weight). "
+                  "Also its mass in the physics world (what knocks it how far), how it follows your hand, and how hard "
+                  "it strikes and is thrown (Aiming: Weight and Damage)."),
         s("Estimated Mass x", Key::MassScale, 0.f, 4.f, 0.05f, "%.2fx").extend(0.f, 50.f)
             .help("Times its estimated mass (Mass 0: its volume, which grows with its Size cubed, times what it is "
                   "made of): tune the estimate rather than set a mass by hand. A Mass set above is used as set."),
