@@ -1313,7 +1313,7 @@ This bmodel appears unless players have all of the episode sigils."
 [
 ]
 
-@SolidClass base(Appearflags, Targetname) model({ "path": "progs/rubble1.mdl" }) =
+@SolidClass base(Appearflags, Targetname) =
 	func_breakablewallwithrubble : "Breakable wall with rubble (Scourge of Armagon, unfinished)
 
 A leftover of the Scourge of Armagon: a wall that breaks into rubble models when damaged. Prefer func_breakawaywall."
@@ -1943,7 +1943,7 @@ speed default 100 dmg default 0 sounds
 	noise1(string) : "Sound 1" :  : "A sound, relative to sound/."
 ]
 
-@PointClass color(102 102 51) size(0 0 0, 32 32 32) model({ "path": "progs/rubble1.mdl" }) =
+@PointClass color(102 102 51) size(0 0 0, 32 32 32) =
 	func_rubble : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 
 Spawns random sized rubble when triggered.
@@ -1953,7 +1953,7 @@ Spawns random sized rubble when triggered.
 	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
 ]
 
-@PointClass color(102 102 51) size(0 0 0, 8 8 8) model({ "path": "progs/rubble1.mdl" }) =
+@PointClass color(102 102 51) size(0 0 0, 8 8 8) =
 	func_rubble1 : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 
 Spawns small rubble when triggered.
@@ -1963,7 +1963,7 @@ Spawns small rubble when triggered.
 	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
 ]
 
-@PointClass color(102 102 51) size(0 0 0, 16 16 16) model({ "path": "progs/rubble3.mdl" }) =
+@PointClass color(102 102 51) size(0 0 0, 16 16 16) =
 	func_rubble2 : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 
 Spawns medium rubble when triggered.
@@ -1973,7 +1973,7 @@ Spawns medium rubble when triggered.
 	dmg(integer) : "Damage" :  : "Damage it deals (a mover: to what blocks it)."
 ]
 
-@PointClass color(102 102 51) size(0 0 0, 32 32 32) model({ "path": "progs/rubble2.mdl" }) =
+@PointClass color(102 102 51) size(0 0 0, 32 32 32) =
 	func_rubble3 : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 
 Spawns large rubble when triggered.
@@ -3465,7 +3465,7 @@ This defines an object to be rotated. Used as the target of func_rotate_door."
 	pos2(string) : "Travel (x y z)" :  : "A vector, in units: see the help for this entity."
 ]
 
-@PointClass color(255 255 0) size(-8 -8 -8, 8 8 8) model({ "path": "progs/rubble.mdl" }) =
+@PointClass color(255 255 0) size(-8 -8 -8, 8 8 8) =
 	rubble_generator : "From the Dissolution of Eternity (rogue): its models and sounds come from the rogue folder.
 
 Rubble Generator - cave colored rock chunks flung at the target. Triggering the generator will turn it off and on.
