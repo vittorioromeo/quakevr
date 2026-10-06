@@ -124,9 +124,21 @@ bool cancel();
 [[nodiscard]] za::U64 installedBytes(const za::String& sha);
 // Remove an installed package's files (the ones no other package wrote too), and the record.
 bool uninstall(const za::String& sha);
-// The package's startmap, started now: the page's Play action, and maps_play. Never part of installing. Cbuf_InsertText,
-// so that it runs next rather than after the commands already queued (a script's `screenshot;quit` would come first).
-bool play(const za::String& sha);
+// The package's start map (startMap), or `map` when given, started now: the page's Play action, and maps_play. Never
+// part of installing. Cbuf_InsertText, so that it runs next rather than after the commands already queued (a script's
+// `screenshot;quit` would come first). False: it could not start (playProblem says why; the console too).
+bool play(const za::String& sha, const char* map = nullptr);
+// What Play starts for an installed package: the index's startmap ("start" first when it lists several) when the
+// package holds it, else its own maps' "start", else its first map by name. "" : it holds no map (`why` says so).
+// `mapCount`: the maps (BSPs) its files hold.
+[[nodiscard]] za::String startMap(const za::String& sha, za::String* why = nullptr, int* mapCount = nullptr);
+// The maps an installed package holds, by name ("plaw01", "sub/x"), sorted.
+void packageMaps(const za::String& sha, za::Vector<za::String>& out);
+// Why the last Play of this package did not start it ("" : it did, or none was tried).
+[[nodiscard]] const za::String& playProblem(const za::String& sha);
+// The mod a package was made for that Quake VR does not run (its own progs: "Arcane Dimensions", "Quoth", "Copper",
+// else the folder the index unpacks it into, e.g. "drake"); "" : the stock game's (id1, the mission packs).
+[[nodiscard]] za::String madeFor(const mapindex::Entry& e);
 
 // The map packages' folders (each package in its own: <base>/qvr_addons/<id>/). One at a time is on the search path,
 // under quakevr and over the stock game: the active one, mounted by Play, by a `map` whose BSP only a package has, or

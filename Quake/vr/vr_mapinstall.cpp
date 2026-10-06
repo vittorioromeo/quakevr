@@ -95,6 +95,10 @@ za::String addonsRootName;
 // asked for (its `map` command keeps it whatever the stock game has of the same name).
 za::String activeSha;
 za::String playPending;
+// Why the last Play could not start its package (the page shows it under the package; "" : it started).
+za::String playProblemSha;
+za::String playProblemText;
+const za::String noPlayProblem;
 bool baseOnly = false; // VR_SkipSearchPath: the packages' folders skipped (the stock game asked alone)
 
 // The handoff (vr_mapindex.cpp's shape): the thread fills `pending`, poll() takes it.
@@ -1550,36 +1554,184 @@ bool uninstall(const za::String& sha)
 }
 
 // The package's startmap, started now: the page's Play action, and maps_play. Never part of installing.
-bool play(const za::String& sha)
+namespace
+{
+
+[[nodiscard]] za::String lowered(za::String s)
+{
+    for(za::SizeT i = 0; i < s.size(); i++)
+    {
+        s[i] = static_cast<char>(tolower(static_cast<unsigned char>(s[i])));
+    }
+    return s;
+}
+
+[[nodiscard]] bool packageHas(const za::String& sha, const char* map);
+
+// Play's failure, said in the console and kept for the page.
+bool playFailed(const za::String& sha, const za::String& text)
+{
+    Con_Printf("maps: %s\n", text.cStr());
+    playProblemSha = sha;
+    playProblemText = text;
+    return false;
+}
+
+} // namespace
+
+void packageMaps(const za::String& sha, za::Vector<za::String>& out)
+{
+    out.clear();
+    if(!registryLoaded)
+    {
+        loadRegistry();
+    }
+    for(const InstalledFile& f : registry.files)
+    {
+        // "maps/<name>.bsp" (a subfolder's too: `map sub/name` loads it), as installed (lower case).
+        if(f.sha == sha && f.path.size() > 9 && !q_strncasecmp(f.path.cStr(), "maps/", 5) && endsFolded(f.path, ".bsp"))
+        {
+            out.pushBack(lowered(za::String{f.path.substrByPosLen(5, f.path.size() - 9)}));
+        }
+    }
+    za::quickSort(out.begin(), out.end(), [](const za::String& a, const za::String& b) { return strcmp(a.cStr(), b.cStr()) < 0; });
+}
+
+za::String startMap(const za::String& sha, za::String* why, int* mapCount)
+{
+    ensureStarted();
+    za::Vector<za::String> maps;
+    packageMaps(sha, maps);
+    if(mapCount)
+    {
+        *mapCount = static_cast<int>(maps.size());
+    }
+    // The index's startmap first: a list for many packages ("start e1m1 e1m2 ..." for an episode, every map of a
+    // speedmap pack), "start" preferred, else its first map the package holds.
+    za::String pick;
+    if(const mapindex::Entry* e = mapindex::find(sha))
+    {
+        mapindex::forParts(mapindex::index().field(e->startmap), [&](const za::String& part) {
+            const za::String name = lowered(part);
+            if((pick.empty() || name == "start") && pick != "start" && packageHas(sha, name.cStr()))
+            {
+                pick = name;
+            }
+        });
+    }
+    // None given (about half of the index's packages), or none of them installed: its own maps, "start" if one is,
+    // else the first by name.
+    for(za::SizeT i = 0; pick.empty() && i < maps.size(); i++)
+    {
+        pick = maps[i] == "start" ? maps[i] : za::String{};
+    }
+    if(pick.empty() && !maps.empty())
+    {
+        pick = maps[0];
+    }
+    if(pick.empty() && why)
+    {
+        *why = "its files hold no map (no BSP under maps/): it may be a mod or a texture pack, not a map";
+    }
+    return pick;
+}
+
+const za::String& playProblem(const za::String& sha)
+{
+    return sha == playProblemSha ? playProblemText : noPlayProblem;
+}
+
+za::String madeFor(const mapindex::Entry& e)
+{
+    // install.extract's game folder ("{base}/ad/"), else a mod's tag (a package laid out from the base dir).
+    const char* extract = mapindex::index().field(e.extract);
+    if(!q_strncasecmp(extract, "{base}", 6))
+    {
+        extract += 6;
+    }
+    while(*extract == '/' || *extract == '\\')
+    {
+        extract++;
+    }
+    za::String folder;
+    while(*extract && *extract != '/' && *extract != '\\')
+    {
+        folder += static_cast<char>(tolower(static_cast<unsigned char>(*extract++)));
+    }
+    if(!*extract)
+    {
+        folder = za::String{}; // ("{base}/maps": no game folder named)
+    }
+    bool adTag = false, quothTag = false;
+    mapindex::forParts(mapindex::index().field(e.themes), [&](const za::String& tag) {
+        adTag = adTag || tag == "arcane_dimensions";
+        quothTag = quothTag || tag == "quoth";
+    });
+    // The stock game's and the mission packs' (Quake VR runs those), and no folder at all, need nothing else.
+    if(folder.empty() || assetFolder(folder) || folder == "id1" || folder == "hipnotic" || folder == "rogue" || folder == "quakevr")
+    {
+        folder = adTag ? za::String{"ad"} : quothTag ? za::String{"quoth"} : za::String{};
+    }
+    if(folder == "ad")
+    {
+        return za::String{"Arcane Dimensions"};
+    }
+    if(folder == "quoth")
+    {
+        return za::String{"Quoth"};
+    }
+    if(folder == "copper")
+    {
+        return za::String{"Copper"};
+    }
+    return folder;
+}
+
+bool play(const za::String& sha, const char* map)
 {
     ensureStarted();
     const mapindex::Entry* e = mapindex::find(sha);
     if(!e)
     {
-        Con_Printf("maps: the index no longer has that package.\n");
-        return false;
+        return playFailed(sha, za::String{"the index no longer has that package."});
     }
-    za::String name = mapindex::index().field(e->startmap);
-    if(!name.size())
-    {
-        Con_Printf("maps: %s does not say which map to start.\n", mapindex::index().field(e->title));
-        return false;
-    }
+    const za::String title{mapindex::index().field(e->title)};
     if(!installed(sha))
     {
-        Con_Printf("maps: %s is not installed.\n", mapindex::index().field(e->title));
-        return false;
+        return playFailed(sha, title + " is not installed.");
     }
-    for(za::SizeT i = 0; i < name.size(); i++)
+    za::String name;
+    if(map && *map)
     {
-        name[i] = static_cast<char>(tolower(static_cast<unsigned char>(name[i]))); // (its BSP's name, as installed)
+        name = lowered(za::String{map});
+        if(!packageHas(sha, name.cStr()))
+        {
+            return playFailed(sha, title + " has no map " + name + ".");
+        }
+    }
+    else
+    {
+        za::String why;
+        int count = 0;
+        name = startMap(sha, &why, &count);
+        if(name.empty())
+        {
+            return playFailed(sha, title + ": " + why + ".");
+        }
+        if(count > 1)
+        {
+            Con_Printf("maps: %s holds %d maps; starting %s (maps_play %.8s <map> for another)\n", title.cStr(), count,
+                name.cStr(), sha.cStr());
+        }
     }
     // Its folder on the search path (under Quake VR's own), then its map: the `map` command keeps this package for
     // it, whatever the stock game has of the same name (an episode's start).
     if(!activate(sha))
     {
-        return false;
+        return playFailed(sha, za::String{"the package's folder could not be mounted (see the console)."});
     }
+    playProblemSha = za::String{};
+    playProblemText = za::String{};
     playPending = sha;
     // Cbuf_InsertText, not AddText: this runs next. AddText would put it after the commands already queued (a test
     // script's `screenshot; quit` would be run first, and the map never started).
@@ -1794,6 +1946,15 @@ void installed_f()
     {
         Con_SafePrintf("  %s  %8s  %d file(s)  %s\n", p.title.cStr(), formatBytes(p.bytes).cStr(),
                        p.files, p.sha.cStr());
+        // What Play starts (and its other maps), and the mod it was made for: as the Map Library's detail says.
+        za::String why;
+        int count = 0;
+        const za::String start = startMap(p.sha, &why, &count);
+        const mapindex::Entry* e = mapindex::find(p.sha);
+        const za::String mod = e ? madeFor(*e) : za::String{};
+        Con_SafePrintf("    %s%s%s%s%s\n", start.size() ? "starts " : "cannot be played: ",
+            start.size() ? start.cStr() : why.cStr(), count > 1 ? (za::String{" (of "} + za::toString(count) + " maps)").cStr() : "",
+            mod.size() ? "; made for " : "", mod.cStr());
     }
 }
 
@@ -1831,7 +1992,7 @@ void play_f()
     const mapindex::Entry* e = argEntry("maps_play", Cmd_Argv(1));
     if(e)
     {
-        play(za::String{mapindex::index().field(e->sha256)});
+        (void)play(za::String{mapindex::index().field(e->sha256)}, Cmd_Argc() >= 3 ? Cmd_Argv(2) : nullptr);
     }
 }
 

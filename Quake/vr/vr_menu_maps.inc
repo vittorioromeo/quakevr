@@ -103,6 +103,12 @@ struct MapsPage
     za::String pickedSha;
     int picked{-1};
     int visibleResults{1};
+    // The detail's notes on the package it shows (what Play starts; the mod it was made for), built again when the
+    // package, the index or what is installed changes (not every frame).
+    za::String notesSha;
+    za::U32 notesGeneration{0};
+    int notesInstalled{-1};
+    za::String notes;
 
 
     // measured (maps_page_stats)
@@ -651,6 +657,7 @@ void mapsMoveImpl(int dx, int dy)
 
 void mapsKey(int key)
 {
+    mapsShown(); // (the index replaced at the last frame's end, before this frame's draw: its results again first)
     const MapsLayout m = mapsLayout();
     switch(key)
     {
@@ -741,6 +748,7 @@ void mapsKey(int key)
 
 void mapsMouse(float x, float y)
 {
+    mapsShown(); // (as mapsKey)
     const MapsLayout m = mapsLayout();
     int key = -1;
     for(int i = 0; i < static_cast<int>(m.s.keys.size()) && key < 0; i++)
@@ -922,6 +930,40 @@ void drawMapsDetail(const MapsLayout& m, const menupaint::Painter& p)
         idx.field(e.sizes) ? idx.field(e.sizes) : "size?", e.files, sizeLabel.cStr(), rated, have ? "  INSTALLED" : "");
     drawMapsWrapped(mapsText.meta, x, y, 6.f, width, 2);
     y += 14.f;
+
+    // What Play starts (or why it cannot), and the mod it was made for: said here, not only in the console.
+    const int installedNow = static_cast<int>(mapinstall::installedList().size());
+    if(mapPage.notesSha != sha || mapPage.notesGeneration != mapindex::generation() ||
+        mapPage.notesInstalled != installedNow)
+    {
+        mapPage.notesSha = sha;
+        mapPage.notesGeneration = mapindex::generation();
+        mapPage.notesInstalled = installedNow;
+        mapPage.notes = za::String{};
+        if(have)
+        {
+            za::String why;
+            int count = 0;
+            const za::String start = mapinstall::startMap(sha, &why, &count);
+            mapPage.notes = start.empty() ? za::String{"Cannot be played: "} + why + "."
+                            : count > 1  ? za::String{"Play starts "} + start + " (one of its " + za::toString(count) +
+                                              " maps; maps_play in the console starts another)."
+                                         : za::String{"Play starts "} + start + ".";
+        }
+        const za::String mod = mapinstall::madeFor(e);
+        if(mod.size())
+        {
+            mapPage.notes += za::String{mapPage.notes.empty() ? "" : " "} + "Made for " + mod +
+                             ", whose own progs Quake VR does not run: its monsters, items and effects are missing.";
+        }
+    }
+    const za::String& problem = mapinstall::playProblem(sha);
+    const char* notes = problem.size() ? problem.cStr() : mapPage.notes.cStr();
+    if(*notes)
+    {
+        const int lines = drawMapsWrapped(notes, x, y, 6.f, width, 4);
+        y += static_cast<float>(lines) * 8.f + 4.f;
+    }
 
     mapsQuake(e.description, mapsText.detail, sizeof(mapsText.detail));
     if(mapsText.detail[0])
