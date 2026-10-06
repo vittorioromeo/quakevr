@@ -20,6 +20,8 @@ void() info_intermission =
 
 void() SetChangeParms =
 {
+    MG3_EncodeParms(); // (Dawn of the Machine's upgrades: kept even by the SetNewParms below, vr_mg3_defs.qc)
+
     if(self.health <= 0)
     {
         SetNewParms();
@@ -377,6 +379,7 @@ void() DecodeLevelParms =
     // with the level's start parms while his old weapon still lies about gets a new one).
     qvr_weaponinst_next = max(qvr_weaponinst_next, parm49);
     self.vr_flashlight_state = parm50;
+    MG3_DecodeParms(); // (parm51..56: Dawn of the Machine's upgrades and bloody weapons, vr_mg3_defs.qc)
     self.weaponinst = WeaponInst_Carried(self.weapon, parm31, parm41);
     self.weaponinst2 = WeaponInst_Carried(self.weapon2, parm32, parm42);
     self.holsterweaponinst0 = WeaponInst_Carried(self.holsterweapon0, parm33, parm43);

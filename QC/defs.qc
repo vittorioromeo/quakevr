@@ -169,6 +169,15 @@ float parm47;
 float parm48; // ... holster 5's.
 float parm49; // The next id to give (`qvr_weaponinst_next`): the next level's never collide with these.
 float parm50; // flashlight attachment, hand, switch and grip state
+// Dawn of the Machine (vr_mg3_defs.qc: MG3_EncodeParms/MG3_DecodeParms): the official parm10..15, which VR's hands and
+// holsters own here. Every campaign carries them; SetNewParms leaves them alone, as upstream, so only a new game
+// (`map`: fresh globals) clears them.
+float parm51; // health capacity upgrades: one bit per map (official GetUpgradeFlag)
+float parm52; // shells
+float parm53; // nails
+float parm54; // rockets
+float parm55; // cells
+float parm56; // bloody weapons (MG3_BLOODY_SG, MG3_BLOODY_SSG)
 
 void() OnSpawnServerBeforeLoad; // Called when a new server
                                 // is spawned, before

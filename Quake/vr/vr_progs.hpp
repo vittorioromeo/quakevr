@@ -12,7 +12,7 @@ namespace qvr::progs
 {
 
 inline constexpr int firstExtSpawnParm = 17;
-inline constexpr int lastExtSpawnParm = 50;
+inline constexpr int lastExtSpawnParm = 56; // (51..56: Dawn of the Machine's upgrades and bloody weapons, QC/vr_mg3_defs.qc)
 inline constexpr int numExtSpawnParms = lastExtSpawnParm - firstExtSpawnParm + 1;
 
 // Offsets (in floats, from edict_t::v) of the VR entity fields; -1 when absent.

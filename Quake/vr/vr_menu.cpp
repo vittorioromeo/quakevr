@@ -4805,6 +4805,10 @@ za::Vector<Item> pageMg3Tests()
         header("Developer campaign only: vr_campaign_native mg3"),
         command("State Report", "vr_mg3_test 1")
             .help("Print the map, skill, serverflags and the player's health, caps, ammunition and weapons (developer 1)."),
+        command("Seed Saved Upgrades", "vr_mg3_test 2")
+            .help("Destructive: set every upgrade mask and both bloody weapon bits, for changelevel/save/death carry checks."),
+        command("Add an Upgrade Bit", "vr_mg3_test 3")
+            .help("Destructive: one more health upgrade bit this level; a death's restart must take it back."),
     };
 }
 

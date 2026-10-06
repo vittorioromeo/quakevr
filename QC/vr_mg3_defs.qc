@@ -21,3 +21,44 @@
 // license: docs/vr-port/OFFICIAL_QC_SOURCE.md, QC/COPYING-rerelease.txt (quakec_mg3).
 // Gated: vr_gamedir.cpp keeps MG3 nativeReady false (developer path: `vr_campaign_native mg3`).
 float() MG3_Campaign = { return cvar("vr_campaign") == 5; };
+
+// ----------------------------------------------------------------------------
+// Persistent state (MG3_PLAN.md 2.1). Upstream keeps its capacity upgrades (one bit per map) in parm10..14 and its
+// bloody weapons in parm15, used live through the level; VR's hands and holsters own those slots, so here the live
+// values are these globals (saved with the game) and the level-start values parm51..56 (defs.qc), which the engine
+// carries through changelevel, keeps for a death's restart and stores in saves like parm17..50. Upstream's
+// SetNewParms never touches them: neither does VR's, so only a new game (`map`: fresh globals) clears them.
+float MG3_UPGRADE_HEALTH = 0; // upgrade kinds: health, or the ammunition's AID_SHELLS .. AID_CELLS (vr_defs.qc)
+float MG3_BLOODY_SG = 1;      // MG3_bloody bits (upstream BLOODY_SG, BLOODY_SSG)
+float MG3_BLOODY_SSG = 2;
+float MG3_upgrade_health, MG3_upgrade_shells, MG3_upgrade_nails, MG3_upgrade_rockets, MG3_upgrade_cells;
+float MG3_bloody;
+float(float kind) MG3_UpgradeMask = {
+    if(kind == AID_SHELLS) return MG3_upgrade_shells;
+    if(kind == AID_NAILS) return MG3_upgrade_nails;
+    if(kind == AID_ROCKETS) return MG3_upgrade_rockets;
+    if(kind == AID_CELLS) return MG3_upgrade_cells;
+    return MG3_upgrade_health;
+};
+void(float kind, float mask) MG3_SetUpgradeMask = {
+    if(kind == AID_SHELLS) MG3_upgrade_shells = mask;
+    else if(kind == AID_NAILS) MG3_upgrade_nails = mask;
+    else if(kind == AID_ROCKETS) MG3_upgrade_rockets = mask;
+    else if(kind == AID_CELLS) MG3_upgrade_cells = mask;
+    else MG3_upgrade_health = mask;
+};
+float() MG3_BloodyBits = { return MG3_bloody; };
+void(float bits) MG3_SetBloodyBits = { MG3_bloody = bits; };
+// SetChangeParms (before anything else, so a dead player's SetNewParms keeps them, as upstream's does).
+void() MG3_EncodeParms = {
+    parm51 = MG3_upgrade_health; parm52 = MG3_upgrade_shells; parm53 = MG3_upgrade_nails;
+    parm54 = MG3_upgrade_rockets; parm55 = MG3_upgrade_cells; parm56 = MG3_bloody;
+};
+// DecodeLevelParms: the level-start values, joined with what this level's server already has (fresh globals after a
+// changelevel, a restart or a new game, so they alone; a coop player joining or respawning mid-level must not take
+// back another's pickup: the state is the server's, like upstream's parm globals).
+void() MG3_DecodeParms = {
+    MG3_upgrade_health = MG3_upgrade_health | parm51; MG3_upgrade_shells = MG3_upgrade_shells | parm52;
+    MG3_upgrade_nails = MG3_upgrade_nails | parm53; MG3_upgrade_rockets = MG3_upgrade_rockets | parm54;
+    MG3_upgrade_cells = MG3_upgrade_cells | parm55; MG3_bloody = MG3_bloody | parm56;
+};

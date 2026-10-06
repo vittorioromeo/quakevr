@@ -35,7 +35,7 @@ namespace
 
 Bindings sv_bindings;
 
-// Level-start values of parm17..parm40, per client (parm1..parm16 live in client_t).
+// Level-start values of parm17..parm56, per client (parm1..parm16 live in client_t).
 za::Vector<float> extSpawnParms;
 
 // Set while Host_Loadgame_f respawns the server, for `spawnServerFromSaveFile`.
@@ -685,7 +685,7 @@ extern "C" void VR_OnLoadGame()
 {
     loadingSaveGame = false;
 
-    // parm17..parm40 were restored with the other globals and still hold the level-start
+    // parm17..parm56 were restored with the other globals and still hold the level-start
     // values (QC only rewrites them in SetNewParms/SetChangeParms), so they become the
     // single-player client's stored parms, like parm1..16 do from the savegame header.
     VR_StoreSpawnParms(0);

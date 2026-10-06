@@ -26735,3 +26735,15 @@ test uses the developer path (`vr_campaign_native mg3`, `-nomapindex`).
   cycle (MG3's serverflags mean its own runes and Bloody Nightmare bits); Honey's flag meanings were already off for
   every official campaign (`MG_WorldCampaign`). All 22 BSPs (start..boss2, dm1, both brush models) load with exit 0
   and no Host_Error; e1m1 and MG1 hub (20/0) smoke pass.
+- **M3-02 extra saved-state slots.** The engine's extended spawn parms grow from 17..50 to 17..56
+  (`lastExtSpawnParm`, `Quake/vr/vr_progs.hpp`); QC `parm51..55` carry the five upgrade masks and `parm56` the bloody
+  weapon bits (official parm10..15, which VR's hands/holsters own). Live state is the saved globals `MG3_upgrade_*`,
+  `MG3_bloody` (accessors `MG3_UpgradeMask(kind)`, `MG3_SetUpgradeMask`, `MG3_BloodyBits`, `MG3_SetBloodyBits`;
+  kinds `MG3_UPGRADE_HEALTH` or `AID_SHELLS..AID_CELLS`); `MG3_EncodeParms` runs first in SetChangeParms (so a dead
+  player's SetNewParms keeps them, as upstream), `MG3_DecodeParms` in DecodeLevelParms joins the level-start values
+  with the server's (a coop join or respawn never takes back a pickup). SetNewParms leaves them alone, so only a new
+  game (`map`, fresh globals) clears them; older saves load them as 0. Measured (`vr_mg3_test 2`/`3`/`1`): seeded
+  masks 5/2/8192/16384/1, bloody 3 survive changelevel map1->map2, hub and start; a bit added on map2 is gone after
+  `restart` (a death: level-start masks) and back after loading the save made with it; `map map3` clears all.
+  Stock e1m1->e1m2 (+ save/load), Dopa e5m1->e5m2 and MG1 mge1m1->mge1m2 (+ save/load, six seeded holster clips/ids)
+  carry the same hands, holsters, clips and ids.
