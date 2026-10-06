@@ -31,6 +31,7 @@ THINK FUNCTIONS
 void() door_blocked =
 {
     T_Damage(other, self, self, self.dmg);
+    if(MG_WorldCampaign() && (self.spawnflags & 64)) return; // Authored crusher, not Honey trigger-on-end.
 
 // if a door has a negative wait, it would never come back if blocked,
 // so let it just squash the object to death real fast
@@ -50,7 +51,7 @@ void() door_hit_top =
     self.state = STATE_TOP;
 
     // HONEY
-    if(self.spawnflags & DOOR_TRIGGER_ON_END)
+    if(!MG_WorldCampaign() && (self.spawnflags & DOOR_TRIGGER_ON_END))
         SUB_UseTargets();
 
     if(self.spawnflags & DOOR_TOGGLE)
@@ -68,7 +69,7 @@ void() door_hit_bottom =
 
 void() door_go_down =
 {
-    float speed2; // HONEY
+    float returnSpeed; // HONEY
 
     sound(self, CHAN_VOICE, self.noise2, 1, ATTN_NORM);
     if(self.max_health)
@@ -78,11 +79,12 @@ void() door_go_down =
     }
 
     // HONEY
-    if(self.cnt) { speed2 = self.speed * self.cnt; }
-    else { speed2 = self.speed; }
+    if(MG_WorldCampaign()) { returnSpeed = self.speed2 ? self.speed2 : self.speed; }
+    else if(self.cnt) { returnSpeed = self.speed * self.cnt; }
+    else { returnSpeed = self.speed; }
 
     self.state = STATE_DOWN;
-    SUB_CalcMove(self.pos1, speed2, door_hit_bottom);
+    SUB_CalcMove(self.pos1, returnSpeed, door_hit_bottom);
 };
 
 void() door_go_up =
@@ -100,7 +102,7 @@ void() door_go_up =
     self.state = STATE_UP;
     SUB_CalcMove (self.pos2, self.speed, door_hit_top);
 
-    if(!(self.spawnflags & DOOR_TRIGGER_ON_END)) { // HONEY
+    if(MG_WorldCampaign() || !(self.spawnflags & DOOR_TRIGGER_ON_END)) { // HONEY
         SUB_UseTargets();
     }
 };
@@ -483,6 +485,8 @@ Key doors are allways wait -1.
 
 void() func_door =
 {
+    if(MG_MonsterInhibited()) return;
+    float mgExplicitMove = MG_WorldCampaign() && self.movedir != '0 0 0';
     if(world.worldtype == 0)
     {
         precache_sound("doors/medtry.wav");
@@ -595,7 +599,11 @@ void() func_door =
         tempVect_y = 0 - tempVect_y;
     }
 
-    if(!self.pos2) // HONEY
+    if(mgExplicitMove) {
+        self.pos2 = self.pos1 + self.movedir;
+        self.angles = '0 0 0';
+    }
+    else if(!self.pos2) // HONEY
     {
         self.pos2 = self.pos1 + self.movedir*(fabs(tempVect*self.size) - self.lip);
     }

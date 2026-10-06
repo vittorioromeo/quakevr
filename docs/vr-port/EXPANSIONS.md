@@ -619,3 +619,67 @@ Final solo-mode guard checks refuse deathmatch1 and a two-client server, then ac
 Dopa with Nightmare initial health50/max50 and an ordinary pickup still capped50. After the final guard build,
 three more e5m7 -> e5sm1 repeats and Dopa -> MG1 -> MG3 -> Dopa switches exit0 with no Host_Error/crash; the
 retained earlier findings remain unassigned. The supported campaign also returns to VR Hub correctly.
+
+
+## Native shared trigger and mover acceptance (mgtriggers, 2026-10-06)
+
+Audit steps 6/8 now include source-backed shared behavior from upstream MG1/MG3
+`triggers.qc`, `misc_fx.qc`, `misc.qc`, `subs.qc`, `buttons.qc` and `doors.qc`.
+The licensed implementation is `QC/vr_mg_triggers.qc`; existing VR trigger, button,
+door and delayed-target paths dispatch to native behavior only in official context.
+MG1/MG3 still require developer bypass and remain unready. Hub/runes/electrode/horde
+and Dawn-specific gameplay belong to later work; this does not grant campaign readiness.
+
+Implemented authored repeater toggle/jitter/activator, timed counter inactivity reset,
+looping regular counter, lightning endpoint activation/flags/damage, positional sound,
+dead-target fade/removal, scheduled-think freeze/resume, changetarget, cooperative-only
+dead-monster cleanup and delayed point explosions (including no-damage). Delayed uses
+carry the source targetname so killtarget cancels every pending use. Lightning endpoint
+lookup excludes those internal delayed entities to prevent self-expanding target chains.
+Native beams retain the VR protocol disambiguation byte. Message-all bits differ between
+MG1/Dopa and Dawn; silent lightning is Dawn-only. Authored coop spawn inhibition is retained.
+
+Native doors/buttons preserve exact authored movedir translation and speed2 return speed.
+Native crusher64 and button key8/16/always32 are scoped away from Honey flag/item meanings.
+Physical hand, held-prop/weapon and thrown-actor button activation respects native key
+requirements and consumption. Empty authored model strings no longer produce a VR model
+precache warning. Rogue brush-explosion behavior remains in its original context.
+Native quake sound and duration/ramp are retained; controller vibration replaces view
+punch so authored screenshakes never move the tracked head or camera.
+
+Visible slipgate destination caches now invalidate when native changetarget rewrites a
+gate's target. This updates both traversal and preview. Native ignore-targetname4 is
+honored alongside existing legacy bit8 semantics. Debug portal reports print target and
+cached standing destination; standing height retains existing floor correction.
+
+Acceptance uses private owned original-id1 plus official campaign PAK fixtures, hidden
+mock and `-nomapindex -noaddons -noconfigwrite`. Updated language tables are read-only
+borrowed data; no commercial asset is committed. `vr_mg_trigger_test` defaults0 and
+Debug > Tests exposes shared acceptance1, authored mge5m2 route2, lightning damage3 and
+visible slipgate retarget4. These tests deliberately alter the current map; reload it after use.
+
+Shared timing/target/cancellation/key/mover/effect tests pass34/0 in each native context
+Dopa3/MG1 4/MG3 5. Dopa pending-trigger save/load passes34/0 before and after load.
+Actual positional beam damage passes3/0 (100 -> 90 -> 80, wetsuit remains80), including
+ordinary ready-Dopa selection. The real mge5m2 route passes10/0: a missed two-second
+button window resets; coordinated physical presses remove both buttons and pending
+flash, open the authored unlock door, awaken its delayed shalrath, then remove the
+quake blocker and repeater. This is representative shared progression, not full campaign QA.
+
+A separate private native-context fixture uses owned stock e1m5 slipgate geometry under
+a private MG1 map name. Its five-side cache remains active and carry-enabled while the
+real changetarget advances destination X/Y by128/64 immediately; standing Z receives
+its existing13-unit floor correction. This fixture is not an authored MG1 map claim.
+Stock VRHub/e1m1 and Honey h/saint smoke exit0; menu paths14 found/0 missing.
+QC/Release/style/precedence/FGD checks pass (FGD279; QC0 warnings). The single-job melee
+canary cannot start because the existing exact authored motion CSV
+`no_hit_reloading_2026-09-29_23-08-51.csv` is absent; no replacement or tuning was used.
+
+Human VR QA should check keyed physical buttons, slipgate preview/traversal after
+retargeting and authored quake audio/vibration comfort. Corpse cleanup's isolated
+coop-context test is not network cooperative acceptance; Dopa remains solo-only.
+Default map-index startup and earlier unassigned rapid-transition failures remain outside
+this acceptance. Private fixtures/logs are retained in `trigger-tests/`; the first raw
+beam/recursive-endpoint diagnostic failures informed the fixes above. An initial kit
+quit timeout ended after a passing menu check; an explicit console-state test-driver
+correction exits normally and does not claim a runtime hang fix.

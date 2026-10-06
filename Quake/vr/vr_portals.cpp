@@ -65,6 +65,7 @@ struct Side
     float yaw = 0.f;       // degrees a view's yaw turns going through
     glm::mat3 turn{1.f};   // the same turn
     int trigger = 0;       // its trigger_teleport's edict
+    int sourceTarget = 0;  // Native authored retargeting invalidates the cached destination immediately.
 };
 
 struct PortalScratch
@@ -283,6 +284,7 @@ void build()
                 sd->normal = n;
                 sd->dist = dist;
                 sd->trigger = i;
+                sd->sourceTarget = e->v.target;
                 sd->mins = vec(s->mins);
                 sd->maxs = vec(s->maxs);
             }
@@ -313,7 +315,20 @@ void build()
 
 [[nodiscard]] bool current()
 {
-    return builtFor == sv.worldmodel && builtGeneration == worldGeneration();
+    if(builtFor != sv.worldmodel || builtGeneration != worldGeneration()) { return false; }
+    if(vr_campaign.value >= 3.f && vr_campaign.value <= 5.f)
+    {
+        // Use the server VM directly: current() also runs from the client's render path.
+        // Checking only cached gates avoids a full entity scan in every movement/trace call.
+        for(const Side& side : sides)
+        {
+            if(side.trigger <= 0 || side.trigger >= sv.qcvm.num_edicts) { return false; }
+            const auto* trigger = reinterpret_cast<const edict_t*>(
+                reinterpret_cast<const byte*>(sv.qcvm.edicts) + side.trigger * sv.qcvm.edict_size);
+            if(trigger->free || trigger->v.target != side.sourceTarget) { return false; }
+        }
+    }
+    return true;
 }
 
 [[nodiscard]] bool inPvs(const byte* vis, int leaf)
@@ -981,7 +996,10 @@ ClientState& crossingState(edict_t* ent)
     {
         return false;
     }
-    return !PR_GetString(trig->v.targetname)[0] || (static_cast<int>(trig->v.spawnflags) & 8) || trig->v.nextthink >= qcvm->time;
+    const bool official = vr_campaign.value >= 3.f && vr_campaign.value <= 5.f;
+    const int ignoreTargetnameFlag = official ? 4 : 8;
+    return !PR_GetString(trig->v.targetname)[0] ||
+        (static_cast<int>(trig->v.spawnflags) & ignoreTargetnameFlag) || trig->v.nextthink >= qcvm->time;
 }
 
 [[nodiscard]] bool overlaps(const edict_t* a, const edict_t* b)
@@ -1602,6 +1620,8 @@ void infoBody()
         const edict_t* trig = EDICT_NUM(sd.trigger);
         Con_Printf("  side %d: trigger %d plane (%.2f %.2f %.2f) %g\n", i, sd.trigger, sd.normal.x, sd.normal.y,
             sd.normal.z, sd.dist);
+        Con_Printf("      target \"%s\" cached destination (%.0f %.0f %.0f)\n", PR_GetString(trig->v.target),
+            sd.dest.x, sd.dest.y, sd.dest.z);
         Con_Printf("      aperture (%.0f %.0f %.0f)-(%.0f %.0f %.0f) area %.0f  trigger brush (%.0f %.0f %.0f)-(%.0f "
                    "%.0f %.0f)\n",
             sd.mins.x, sd.mins.y, sd.mins.z, sd.maxs.x, sd.maxs.y, sd.maxs.z, sd.area, trig->v.absmin[0],

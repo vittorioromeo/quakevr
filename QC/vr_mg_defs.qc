@@ -18,6 +18,7 @@
 */
 // Native official environment framework. Helpers are namespaced; mapper keys retain their authored names.
 // Source snapshot and license: docs/vr-port/OFFICIAL_QC_SOURCE.md, QC/COPYING-rerelease.txt.
+.float mapversion;
 .float MG_registered;
 .void(float dt) MG_tick;
 .float MG_fog_valid;

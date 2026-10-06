@@ -128,6 +128,7 @@ set "message" to text string
 */
 void() trigger_multiple =
 {
+    if(MG_MonsterInhibited()) return;
     if(self.sounds == 1)
     {
         precache_sound("misc/secret.wav");
@@ -213,6 +214,7 @@ This fixed size trigger cannot be touched, it can only be fired by other events.
 */
 void() trigger_relay =
 {
+    if(MG_MonsterInhibited()) return;
     self.use = SUB_UseTargets;
 };
 
@@ -309,6 +311,13 @@ After the counter has been triggered "count" times (default 2), it will fire all
 */
 void() trigger_counter =
 {
+    if(MG_WorldCampaign()) {
+        if(MG_MonsterInhibited()) return;
+        if(!self.count) self.count = 2;
+        if(!self.wait) self.wait = self.count;
+        self.use = MG_counter_use;
+        return;
+    }
     self.wait = -1;
     if(!self.count)
         self.count = 2;
@@ -416,7 +425,8 @@ vector    org;
 
     if(self.targetname != NULLSTR)
     {
-        if(/* HONEY */ !(self.spawnflags & IGNORE_TARGETNAME) && self.nextthink < time)
+        float ignoreName = MG_WorldCampaign() ? (self.spawnflags & 4) : (self.spawnflags & IGNORE_TARGETNAME);
+        if(!ignoreName && self.nextthink < time)
         {
             return;        // not fired yet
         }
@@ -518,16 +528,17 @@ If the trigger_teleport has a targetname, it will only teleport entities when it
 */
 void() trigger_teleport =
 {
+    if(MG_MonsterInhibited()) return;
     vector o;
 
     // HONEY
-    if(self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN){
+    if(!MG_WorldCampaign() && (self.spawnflags & SPAWNFLAG_TRIGGER_SPAWN)){
         self.use = trigger_teleport;
         self.spawnflags = (self.spawnflags & PLAYER_ONLY) | SILENT | IGNORE_TARGETNAME;
         return;
     }
 
-    if(self.spawnflags & CTF_ONLY)
+    if(!MG_WorldCampaign() && (self.spawnflags & CTF_ONLY))
     {
         if(teamplay < TEAM_CTF || teamplay > TEAM_CTF_ALT)
         {
