@@ -467,6 +467,7 @@ struct RagdollBodies
     bool knocked{false};
     za::Array<glm::quat, ragdoll::maxBones> struggleRest{};
     bool struggleReady{false};
+    int shockJerk{-1}; // shocked (shockRagdoll): the jerk it last bucked or not at
 };
 
 // A knocked-down monster getting up ("Knockdowns"): its ragdoll's last pose blended into its animation as it plays.
@@ -2852,6 +2853,162 @@ void feedRagdoll(edict_t* ent, Slot& s)
                 glm::length(pelvisOwn), glm::length(glm::vec2{pelvisOwn}));
         }
         r.settle = 1.f;
+    }
+}
+
+// ---- Shocked ragdolls (vr_shock_seizure; QC vr_shock.qc) ----
+// A body the lightning killed, or struck dead, convulses while it is shocked (.vr_shock_until, over .vr_shock_len): each
+// limb is driven, relative to the part it hangs from, towards a turning speed that jerks one way then back (shockPulse a
+// second), about an axis of its own that changes every few jerks, the chest now and then bucking up. Driven as a speed
+// (not a force) and shared between the two parts by their masses, it is bounded (never faster than shockLimbSpeed times
+// vr_shock_seizure), it pushes the body nowhere as a whole (what turns a limb turns its parent back) and it lets go as it
+// fades out: the body falls still as the shock ends.
+
+constexpr float shockPulse = 9.f;      // jerks a second
+constexpr float shockLimbSpeed = 14.f; // rad/s: a limb's turning speed at vr_shock_seizure 1, the shock fresh
+constexpr float shockGrip = 25.f;      // 1/s: how fast a limb takes that speed
+constexpr float shockBuck = 0.9f;      // m/s: the chest's buck up at vr_shock_seizure 1, fresh
+constexpr float shockBuckChance = 0.2f; // a jerk's chance to buck
+constexpr float shockFlop = 3.f;        // m/s: a limb's flop up off the floor at vr_shock_seizure 1, fresh
+constexpr float shockFlopChance = 0.45f; // a limb's chance to flop at each jerk
+
+[[nodiscard]] float shockHash(uint32_t a, uint32_t b, uint32_t c)
+{
+    uint32_t h = a * 0x9E3779B1u ^ (b + 0x7F4A7C15u) * 0x85EBCA77u ^ (c + 0x165667B1u) * 0xC2B2AE3Du;
+    h ^= h >> 15;
+    h *= 0x2C1B3C6Du;
+    h ^= h >> 12;
+    h *= 0x297A2D39u;
+    h ^= h >> 15;
+    return static_cast<float>(h >> 8) / static_cast<float>(1u << 24);
+}
+
+// How shocked `ent` is now: 1 fresh .. 0 over (0: not).
+[[nodiscard]] float shockLeft(edict_t* ent)
+{
+    if(fields().vr_shock_until < 0)
+    {
+        return 0.f;
+    }
+    const double until = fieldFloat(ent, fields().vr_shock_until);
+    if(until <= qcvm->time)
+    {
+        return 0.f;
+    }
+    const double len = za::max(0.1, static_cast<double>(fieldFloatOr(ent, fields().vr_shock_len, 1.f)));
+    return static_cast<float>(za::clamp((until - qcvm->time) / len, 0.0, 1.0));
+}
+
+// A part's turning inertia (kg m^2, as a ball's) about a point `lever` metres off its middle.
+[[nodiscard]] float shockInertia(b3BodyId body, float lever)
+{
+    const b3Matrix3 i = b3Body_GetLocalRotationalInertia(body);
+    return (i.cx.x + i.cy.y + i.cz.z) / 3.f + b3Body_GetMass(body) * lever * lever;
+}
+
+void shockRagdoll(edict_t* ent, Slot& s, float dt)
+{
+    const float left = shockLeft(ent);
+    const float strength = za::clamp(vr_shock_seizure.value, 0.f, 3.f);
+    if(left <= 0.f || strength <= 0.f || dt <= 0.f)
+    {
+        return;
+    }
+    RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
+    // Fading: full over its first 40%, then easing off, gone at the end.
+    const float t = static_cast<float>(qcvm->time);
+    const float x = za::min(1.f, left / 0.6f);
+    const float fade = x * x * (3.f - 2.f * x);
+    const float amp = shockLimbSpeed * strength * fade;
+    const float release = za::min(1.f, fade * 4.f); // (letting go as it ends)
+    const float friction = za::max(tune(ent, Tune::JointFriction), 0.f);
+    float spun = 0.f, pushed = 0.f;
+    int driven = 0, awakeParts = 0;
+    const uint32_t num = static_cast<uint32_t>(r.num);
+    const uint32_t jerk = static_cast<uint32_t>(za::max(0.f, t * shockPulse));
+    for(int b = 1; b < r.count; ++b)
+    {
+        const ragdoll::Bone& bone = r.rig->bones[b];
+        if(partCut(r, b) || bone.parent < 0 || partCut(r, bone.parent) || bone.joint == ragdoll::Joint::Loose)
+        {
+            continue;
+        }
+        const uint32_t ub = static_cast<uint32_t>(b);
+        // An axis of its own for three jerks at a time, back and forth along it (each limb out of step with the next).
+        const uint32_t phase = jerk + static_cast<uint32_t>(shockHash(num, ub, 7u) * 3.f);
+        const glm::vec3 axis = glm::normalize(glm::vec3{shockHash(num, ub, phase / 3u * 3u + 1u) - 0.5f,
+            shockHash(num, ub, phase / 3u * 3u + 2u) - 0.5f, shockHash(num, ub, phase / 3u * 3u + 3u) - 0.5f} + 1e-3f);
+        const float sign = (phase & 1u) ? 1.f : -1.f;
+        const float size = (0.45f + 0.55f * shockHash(num, ub, phase * 5u + 11u)) *
+                           (bone.role == modelmeta::BoneRole::Chest ? 0.5f : 1.f);
+        const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+        const b3BodyId parent = r.body[static_cast<za::SizeT>(bone.parent)];
+        const glm::vec3 rel = glmv(b3Body_GetAngularVelocity(body)) - glmv(b3Body_GetAngularVelocity(parent));
+        const glm::vec3 error = axis * (sign * size * amp) - rel;
+        // The pair's inertia about the joint (each part's own, and its mass half the way between their middles off it).
+        const float half = 0.5f * glm::length(glmv(b3Body_GetWorldCenter(body)) - glmv(b3Body_GetWorldCenter(parent)));
+        const float ib = shockInertia(body, half), ip = shockInertia(parent, half);
+        const float pair = ib * ip / za::max(ib + ip, 1e-6f);
+        glm::vec3 torque = error * (pair * shockGrip);
+        const float miss = glm::length(error);
+        if(miss > 1e-4f)
+        {
+            torque += error / miss * (friction * za::min(1.f, miss / 0.5f)); // (the joint's friction overcome)
+        }
+        torque *= release;
+        const float most = (pair * shockGrip * amp * 2.f + friction * 1.5f) * release;
+        if(const float m = glm::length(torque); m > most)
+        {
+            torque *= most / m;
+        }
+        b3Body_ApplyTorque(body, b3v(torque), true);
+        b3Body_ApplyTorque(parent, b3v(-torque), true);
+        spun += glm::length(rel);
+        pushed += glm::length(torque);
+        awakeParts += b3Body_IsAwake(body) ? 1 : 0;
+        ++driven;
+    }
+    if(vr_debug_ragdoll.value >= 2.f && (jerk % 9u) == 0u && static_cast<int>(jerk) != r.shockJerk)
+    {
+        Con_Printf("ragdoll: %d shocked: left %.2f, speed %.1f rad/s wanted, %.1f mean; torque %.2f N m mean (friction %.2f), %d of %d awake, dt %.4f\n", r.num, left, amp,
+            driven ? spun / static_cast<float>(driven) : 0.f, driven ? pushed / static_cast<float>(driven) : 0.f, friction,
+            awakeParts, driven, dt);
+    }
+    // Each jerk, as it starts: some limbs flop up off the floor (a lying limb's own drive can't overcome the floor's grip
+    // on it), the part they hang from pushed the other way (the floor takes it: the body as a whole stays where it lies);
+    // now and then the chest bucks up.
+    if(static_cast<int>(jerk) != r.shockJerk)
+    {
+        r.shockJerk = static_cast<int>(jerk);
+        const bool buck = shockHash(num, 99u, jerk) < shockBuckChance;
+        for(int b = 1; b < r.count; ++b)
+        {
+            const ragdoll::Bone& bone = r.rig->bones[b];
+            if(partCut(r, b) || bone.parent < 0 || partCut(r, bone.parent) || bone.joint == ragdoll::Joint::Loose)
+            {
+                continue;
+            }
+            const uint32_t ub = static_cast<uint32_t>(b);
+            const bool chest = bone.role == modelmeta::BoneRole::Chest;
+            if(chest ? !buck : shockHash(num, ub, jerk * 7u + 3u) >= shockFlopChance)
+            {
+                continue;
+            }
+            const float speed = (chest ? shockBuck : shockFlop) * strength * fade * (0.6f + 0.4f * shockHash(num, ub, jerk * 7u + 4u));
+            const glm::vec3 kick{(shockHash(num, ub, jerk * 7u + 5u) - 0.5f) * 0.6f * speed,
+                (shockHash(num, ub, jerk * 7u + 6u) - 0.5f) * 0.6f * speed, speed};
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            const b3BodyId parent = r.body[static_cast<za::SizeT>(bone.parent)];
+            const float mb = b3Body_GetMass(body), mp = za::max(b3Body_GetMass(parent), 1e-4f);
+            b3Body_SetLinearVelocity(body, b3v(glmv(b3Body_GetLinearVelocity(body)) + kick));
+            b3Body_SetLinearVelocity(parent, b3v(glmv(b3Body_GetLinearVelocity(parent)) - kick * za::min(1.f, mb / mp)));
+            b3Body_SetAwake(body, true);
+            if(vr_debug_ragdoll.value >= 3.f)
+            {
+                Con_Printf("ragdoll: %d part %d (mass %.1f, parent's %.1f) flops %.2f m/s, now %.2f\n", r.num, b, mb, mp,
+                    glm::length(kick), glm::length(glmv(b3Body_GetLinearVelocity(body))));
+            }
+        }
     }
 }
 
@@ -5628,6 +5785,7 @@ void syncEntities(float dt)
             if(s.ragdoll >= 0)
             {
                 feedRagdoll(ent, s);
+                shockRagdoll(ent, s, dt);
             }
             else if(s.corpseDynamic)
             {
@@ -8275,6 +8433,7 @@ void approach_f(); // (below, with the players' shape against props)
 void shotBench_f(); // (below, with the shots' shape against props)
 void fire_f();
 void knockdownTest_f();
+void shockCheck_f();
 void inside_f();
 void watchInside();
 
@@ -8327,6 +8486,7 @@ void registerCommands()
         Cmd_AddCommand("vr_physics_shotbench", shotBench_f);
         Cmd_AddCommand("vr_physics_fire", fire_f);
         Cmd_AddCommand("vr_knockdown_test", knockdownTest_f);
+        Cmd_AddCommand("vr_shock_ragdoll_check", shockCheck_f);
         Cmd_AddCommand("vr_physics_inside", inside_f);
         Cmd_AddCommand("vr_physics_spawn", spawn_f);
         Cmd_AddCommand("vr_physics_fling", fling_f);
@@ -10768,6 +10928,57 @@ void fire_f()
             static_cast<double>(shot->v.origin[2]), static_cast<double>(shot->v.velocity[0]),
             static_cast<double>(shot->v.velocity[1]), static_cast<double>(shot->v.velocity[2]));
     }
+}
+
+// vr_shock_ragdoll_check: each ragdoll's shock (left: 1 fresh .. 0), its limbs' turning speed relative to their parents
+// (mean, rad/s), its fastest part (units/s), its joints' worst separation (units: stretched limbs) and where its pelvis is.
+// For tests (vr_shock.qc).
+void shockCheck_f()
+{
+    if(!sv.active || !world)
+    {
+        Con_Printf("vr_shock_ragdoll_check: no game\n");
+        return;
+    }
+    const VmScope vm;
+    int count = 0;
+    for(const RagdollBodies& r : world->ragdolls)
+    {
+        if(r.num <= 0)
+        {
+            continue;
+        }
+        float relative = 0.f, fastest = 0.f, separation = 0.f;
+        int limbs = 0;
+        for(int b = 0; b < r.count; ++b)
+        {
+            if(partCut(r, b))
+            {
+                continue;
+            }
+            const b3BodyId body = r.body[static_cast<za::SizeT>(b)];
+            fastest = za::max(fastest, glm::length(glmv(b3Body_GetLinearVelocity(body))) * world->m2u);
+            const int parent = r.rig->bones[b].parent;
+            if(parent >= 0 && !partCut(r, parent) && r.rig->bones[b].joint != ragdoll::Joint::Loose)
+            {
+                relative += glm::length(glmv(b3Body_GetAngularVelocity(body)) -
+                                        glmv(b3Body_GetAngularVelocity(r.body[static_cast<za::SizeT>(parent)])));
+                ++limbs;
+            }
+            b3JointId joints[8];
+            const int n = b3Body_GetJoints(body, joints, 8);
+            for(int j = 0; j < n; ++j)
+            {
+                separation = za::max(separation, b3Joint_GetLinearSeparation(joints[j]) * world->m2u);
+            }
+        }
+        const glm::vec3 pelvis = world->toU(b3Body_GetWorldCenter(r.body[0]));
+        Con_Printf("shockcheck: entity=%d left=%.2f limbs=%d relspin=%.2f fastest=%.0f stretch=%.2f pelvis=%.0f %.0f %.0f\n",
+            r.num, shockLeft(EDICT_NUM(r.num)), limbs, limbs ? relative / static_cast<float>(limbs) : 0.f, fastest,
+            separation, pelvis.x, pelvis.y, pelvis.z);
+        ++count;
+    }
+    Con_Printf("shockcheck: ragdolls=%d\n", count);
 }
 
 // vr_knockdown_test <mode>: QC's VR_Knockdown_Test, as the first player: 0 knocks the nearest monster down (whatever the
