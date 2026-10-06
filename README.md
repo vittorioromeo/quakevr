@@ -63,7 +63,8 @@ A short list. [docs/FEATURES.md](docs/FEATURES.md) explains each feature and how
   three builds. Your body shows the armour you wear, your wounds and your powerups.
 - **Wrist gadget HUD:** health, armour and ammo on a CRT screen strapped to your forearm. You read it like a
   watch, and messages float above it. The classic status bar on a hand is still available.
-- **Chest flashlight:** a real shadow-casting spotlight. Switch it with the trigger, or take it in your hand.
+- **Flashlight** on your belt: a real shadow-casting spotlight. Switch it with the trigger, take it in your hand,
+  or clip it on a gun or your head.
 - **Hands** whose fingers curl with the trigger, the grip and your thumb.
 - **VR menus** that you point at with a laser. Settings pages preview their changes live.
 - **Voice notes:** hold a button with your hand at your mouth to record feedback. Each note is saved with a

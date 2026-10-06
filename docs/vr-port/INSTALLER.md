@@ -51,7 +51,7 @@ packager's folder (custom maps, mod folders, saves, configs, screenshots, notes,
 | Audio codecs | `libFLAC-8`, `libogg-0`, `libvorbis-0`, `libvorbisfile-3`, `libopus-0`, `libopusfile-0`, `libmpg123-0`, `libxmp`, `libmad-0`, `libmikmod-3` `.dll` | ~2 MB | `ironwail.vcxproj` links vorbis, opus, FLAC, mpg123 and xmp; `libmad` and `libmikmod` look unused (verify) |
 | Launcher | `QuakeVR.bat`: `start "" "%~dp0ironwail.exe" -game quakevr %*` | | the working directory is the caller's |
 | Game folder | `quakevr\`: `progs.dat` (1.9 MB, built), `progs\` (66 MB of models and skins), `sound\` (4.5 MB), `maps\` (6 MB: hub, tutorial, firing range, calibration room, already relit), `textures\`, `textures_quetoo\` (47 MB, CC BY-SA 4.0), `gfx\`, `wads\`, `motions\`, `quake.rc`, `default.cfg`, `quakevr.cfg`, `vr_defaults.cfg`, `vr_bindings.cfg`, `retro_overrides_default.txt`, `bindlist.lst`, `checklist.txt` | 124 MB tracked | |
-| Relight scripts | `quakevr\tools\`: `relight_maps.py`, `vis_maps.py`, `quakepak.py`, `relight_textures.cfg` | | Python 3.7+, standard library only |
+| Relight scripts | `quakevr\tools\`: `relight_maps.py`, `vis_maps.py`, `quakepak.py`, `quakeimage.py`, `relight_probe.py`, and `ericw-tools\` (`light.exe` and its DLLs, for the in-game relighting); `relight_textures.cfg` is in `quakevr\` | | Python 3.7+, standard library only |
 | Symbols | `ironwail.pdb` (34 MB, full: clang-cl `/Z7` objects linked by lld-link `/DEBUG`) | | shipped beside the exe: `qvr_crash.txt` names the functions on the stack (DbgHelp looks in the exe's folder, then the working directory), and `qvr_crash.dmp` opens in a debugger with it |
 | Build version | baked into the exe (`quakevr.props`, `QvrBuildVersion`: the last commit's date and short hash, `-dirty` with uncommitted changes) | | printed at start and by `version`, on the last line of VR Settings, and in `qvr_crash.txt`'s second line |
 
@@ -104,7 +104,7 @@ So a launch that does not rely on the working directory is
 |---|---|---|---|
 | `id1` (original) | `pak0.pak` + `pak1.pak` | yes | `COM_SetBaseDir`; installer should also check `pak1` and the known 1.06 sizes (PAK0 18,689,235 bytes, PAK1 34,257,856 bytes: verify) |
 | `id1` (rerelease) | `pak0.pak` ~220 MB | yes (campaign, packs); relight works from it with `--quake <rerelease>` | |
-| `hipnotic`, `rogue` | every file of `vr_pack_hipnotic.inc` / `vr_pack_rogue.inc` (101 / 132 entries) found intact in the packs of any base dir | yes (merged VR progs) | `inspectPack`: 1 available, 2 incomplete/corrupt (a pak or one of the pack's files is there, but not all of them), 0 missing (also a folder holding only an extracted texture pack's `textures\`); `vr_pack_status` |
+| `hipnotic`, `rogue` | every file of `vr_pack_hipnotic.inc` / `vr_pack_rogue.inc` (100 / 131 entries) found intact in the packs of any base dir | yes (merged VR progs) | `inspectPack`: 1 available, 2 incomplete/corrupt (a pak or one of the pack's files is there, but not all of them), 0 missing (also a folder holding only an extracted texture pack's `textures\`); `vr_pack_status` |
 | `dopa` | its resource list, from `ownedRoots()` (Steam `rerelease`, GOG enhanced, each base dir, its `rerelease` and `..\rerelease`) | **yes**, single player only (`coop 0`, `deathmatch 0`, `maxplayers 1`) | `discoverCampaigns`; also needs current language tables from the rerelease `id1` pak |
 | `mg1`, `mg3` | as dopa | **no**: shown as "detected, not yet supported" (decision 9); selection refused ("native support in progress") | `nativeReady` false in `campaigns[]`; `vr_campaign_status` |
 
@@ -224,7 +224,7 @@ Quake files", survives store updates, and the engine already supports it. Two ca
 | Shipped tuning | `quakevr/vr_defaults.cfg`: `vr_default <cvar> <value>` sets the value **and makes it the default** (resets go to it); run from `default.cfg`, before the saved config; rewritten by `vr_savedefaults` | every start |
 | Saved config | `quakevr/ironwail.cfg` (`exec config.cfg` in `quake.rc`) | every start |
 | Forced | `quakevr/quakevr.cfg`: gameplay rules (`vr_gameplayfix_*`, `vr_pickup_scale`, `sv_gameplayfix_random 0`), `vr_checkbindings`, `vr_enabled 1` | after the saved config |
-| Migrations | `defaultChanges` in `vr_cvars.cpp`, `configVersion` 89: a setting is moved to its new default only if it still has the old one; `vr_props_version` (57, `vr_props.cpp`) and `vr_wofs_version` (`vr_weapons.cpp`) do the same for held objects and weapon offsets | first start of a new build |
+| Migrations | `defaultChanges` in `vr_cvars.cpp`, `configVersion` 89 (94 on 2026-10-06): a setting is moved to its new default only if it still has the old one; `vr_props_version` (57, `vr_props.cpp`) and `vr_wofs_version` (`vr_weapons.cpp`) do the same for held objects and weapon offsets | first start of a new build |
 | Graphics presets | `vr_graphics_preset` 0 off .. 4 ultra (applies a group of settings) | on demand |
 | First start | no saved config: `vr_migrate_config new` sets `vr_setup_pending 1`: **VR Calibration** starts once the headset is on (`vrcalibration.bsp`: height, body poses; wall buttons for turning, locomotion, sticks, gadget arm, torch side, world scale, body, HUD) | once |
 
@@ -346,7 +346,8 @@ installer and the update check try one, then the other). There is **no code-sign
 | 2 | Layout | The installer defaults to **its own folder** (B); Quake's folder is left untouched. The zip stays for A. |
 | 3 | Which of his ~20 tuning values become defaults | **He picks later** from Appendix A's "promote?" tables; each then gets a `vr_default` line and a `defaultChanges` entry. |
 | 4 | HQ textures (0.6 GB) and the relight (~1 min) by default? | **Both ticked by default.** |
-| 5 | Embedded Python for the relight? | No: the relight becomes an **in-game tool** (worker `relight` is building it). |
+| 5 | Embedded Python for the relight? | No: the relight became an **in-game tool** (VR Settings > Advanced VR Options > Graphics > Relighting; it has no
+VisPatch step, so see-through water still needs the script's maps). |
 | 6 | Hosting; code signing | Host on **both GitHub and vittorioromeo.com**; **no code-signing certificate** (SmartScreen: [section 9](#hosting-and-smartscreen-decision-6)). |
 | 7 | Bundle ericw-tools' `light.exe`? | **Bundle it**, since GPL-3 does not extend to our code: it is a separate program run as its own process (mere aggregation), shipped unmodified with its licence and a source offer. Were that ever in doubt, download it on demand (pinned hash) instead. |
 | 8 | Music | Read the rerelease's music **in place** (worker `music` is doing it), and the original Quake's music too; never copied. |
