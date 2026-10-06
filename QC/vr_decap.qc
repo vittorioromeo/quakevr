@@ -56,6 +56,7 @@ float(entity e, entity by, vector xVel, float xHow) VR_Decap_Cut;
 float(entity e, entity by, vector xVel, float xHow, float xBone, float xLive) VR_Limb_Cut;
 void(entity e) VR_Limb_Killed;
 void(entity h, entity c, float xBone) VR_Limb_SetMass;
+void(entity h, entity c, float xBone, float xHead) VR_Limb_EndFountain;
 void(entity e) VR_Limb_BlastKilled;
 float(entity e) VR_Limb_IsZombie;
 
@@ -611,6 +612,7 @@ entity(entity c, string m, vector xAt, vector xAng, vector xVel, vector xSpin) V
     h.vr_rigid = 1;
     h.vr_spin = xSpin;
     VR_Limb_SetMass(h, c, -1); // (its share of the ragdoll's mass; vr_limbs.qc)
+    VR_Limb_EndFountain(h, c, -1, TRUE); // (its neck spurts as it flies)
     particle2(xAt, xVel * 0.3, QVR_PARTICLE_PRESET_BLOOD, 30);
     vr_decap_lasthead = h;
     return h;

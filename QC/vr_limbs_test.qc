@@ -133,6 +133,24 @@ void(float xTest) VR_Limb_Test =
         vr_decap_limb = oldLimb;
         return;
     }
+    if(xTest == 18)
+    {
+        // (The pieces' own fountains: each one's age, how far its spout is from its piece's middle, and was from the
+        // stump's joint as it was cut; the drops thrown so far.)
+        float nf = 0;
+        for(entity f = find(world, classname, "vr_limb_fountain"); f; f = find(f, classname, "vr_limb_fountain"))
+        {
+            entity pc = f.owner;
+            vector sp = pc.origin + modelpoint(pc, pc.angles, f.vr_limb_end);
+            bprint(sprintf("limbtest: 18 fountain of %s (joint %g) age %.2f of %.2f: spout %v, %.1f from its middle", pc.model,
+                f.vr_limb_bone, time - f.ltime, f.wait, sp, vlen(sp - pc.origin)));
+            bprint(sprintf(", born %.2f from the stump's joint; piece at %v %.0f u/s, %.2f kg\n", f.dmg, pc.origin,
+                vlen(pc.velocity), pc.vr_prop_mass));
+            nf++;
+        }
+        bprint(sprintf("limbtest: 18 %g fountains, %g drops thrown in all\n", nf, vr_limb_endspurts));
+        return;
+    }
     if(xTest == 19)
     {
         // (Every kind of monster here once: each limb joint's piece (what a cut there takes) and the head's, kg and share.)

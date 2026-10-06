@@ -26284,6 +26284,17 @@ Enforcer Laser Pops (the same setting). Tests: `vr_limb_test 20` (head) / `21` (
 64 units off along a clear line, the target at health 1. Roll 0: both pop; `vr_decap_pop_laser 0`: neither (not armed);
 random rolls at 0.85 (each a fresh grunt): heads 34 of 40 kills popped (two runs), limbs 11 of 15.
 
+### The cut end's own fountain
+
+A limb cut off (and a head) spurts a smaller fountain out of its cut end as it flies: `vr_limbs_end_fountain` s (1; the
+stump's is `vr_decap_fountain` 2.5), 1-3 drops a tick (the stump's 2-6), pulsing and dying away, gone with the piece. A
+limb's spout is its joint in the limb model's space (`limbpiece(e, bone, 1)`: the model is made from the rig); the
+head's gib model has a space of its own, so its spout is the neck where it was cut, in the gib's axes (modelpoint
+undone). `vr_limb_test 18`: a grunt's forearm, spout 0.00 units from the stump's joint as it is cut, 8.3 from the piece's
+middle, carried along (the piece 129 -> 30 -> 52 u/s), 47 drops in 1 s, then gone; after a corpse cut apart, 8
+fountains, every spout within 0.13 units of its joint at birth, the head's 0.00. Menu: Limb Gore > Cut End Fountain,
+Decapitation > Flying Head's Fountain (the same setting).
+
 ### Limb weights
 
 A limb (or head) cut off weighed its model's hull at the density of flesh, whatever its body weighed. Now it weighs its

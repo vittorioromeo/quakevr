@@ -2034,6 +2034,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
             .help("And how fast it is thrown upwards besides (vr_decap_head_lift)."),
         slider("Fountain", vr_decap_fountain, 0.f, 8.f, 0.25f, "%.2f s").extend(0.f, 30.f)
             .help("How long the neck spurts blood, in beats, dying away (0: none) (vr_decap_fountain)."),
+        slider("Flying Head's Fountain", vr_limbs_end_fountain, 0.f, 4.f, 0.25f, "%.2f s").extend(0.f, 20.f)
+            .help("How long the neck of a head cut off spurts a smaller fountain as it flies (and the cut end of a limb: "
+                  "Limb Gore's Cut End Fountain, the same setting) (0: none) (vr_limbs_end_fountain)."),
         toggle("Keeps Its Own Motion", vr_decap_own_motion)
             .help("A beheaded (or popped) monster's headless body goes on as it was moving (running at you: it stumbles on "
                   "towards you) in full; a pop slows only the shot's knock (Body's Speed After a Pop). Off: as before: its "
@@ -2172,6 +2175,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
                   "6.3%, a forearm and hand 2.8%, a hand 0.8%, a whole leg 15.5%, a shin and foot 6%, the head 7% (four "
                   "legs share two legs' weight, six arms two arms'; a tail its share of the body's volume), times this; "
                   "held and thrown as that. 0: its model's volume of flesh, as before (vr_limbs_mass_scale)."),
+        slider("Cut End Fountain", vr_limbs_end_fountain, 0.f, 4.f, 0.25f, "%.2f s").extend(0.f, 20.f)
+            .help("How long the cut end of a limb (or a head's neck) spurts a smaller fountain of its own as it flies, "
+                  "dying away (the stump's: Decapitation > Fountain) (0: none) (vr_limbs_end_fountain)."),
         slider("Enforcer Laser Pops", vr_decap_pop_laser, 0.f, 1.f, 0.05f, "%.2f")
             .help("An enforcer's laser bolt that kills with a head or limb hit (an enemy's into another monster, or your "
                   "enforcer's rifle) pops it at this chance (times Head or Limb Chance) (vr_decap_pop_laser)."),
@@ -4593,6 +4599,9 @@ za::Vector<Item> pageDebugTools()
         command("Most Limbs", "vr_limb_test 11").help("vr_limb_test 11: twice Most Limbs Lying About thrown: how many stay."),
         command("Where Its Limbs Map", "vr_limb_test 13").help("vr_limb_test 13: each limb's surface point and the joint a hit there cuts."),
         command("The Limbs Lying About", "vr_limb_test 17").help("vr_limb_test 17: each limb thrown: its model, where it is, how fast (none fallen out of the world)."),
+        command("Cut Ends' Fountains", "vr_limb_test 18")
+            .help("vr_limb_test 18: each flying limb's (or head's) own fountain: its age, its spout (how far from the piece's "
+                  "middle, and from the stump's joint as it was cut), the piece's speed and weight; the drops so far."),
         command("Limb Weights Here", "vr_limb_test 19")
             .help("vr_limb_test 19: every kind of monster on the map: what its head and each limb weigh cut off (kg, share of "
                   "its ragdoll's Mass; * a whole limb) (Limb Gore > Limb Weight)."),

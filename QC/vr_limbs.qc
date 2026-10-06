@@ -18,6 +18,9 @@ float vr_limb_pops;      // limbs popped (the tests)
 entity vr_limb_last;     // the last limb thrown (the tests)
 // vr_limb_blast_at, _by, _time (combat.qc): the explosion being dealt (T_RadiusDamage).
 .float vr_limb_bone;     // a stump's fountain: its joint (-1 the head); a limb thrown: its joint
+.vector vr_limb_end;     // a piece's own fountain (VR_Limb_EndFountain): its spout, the cut end, in the piece's model space
+.float vr_limb_born;     // ... the piece's vr_gib_made (it is that piece still)
+float vr_limb_endspurts; // the pieces' fountains' drops thrown (the tests)
 .float vr_limb_gibbed;   // when it was gibbed throwing its own limbs (VR_Limb_GibAll; ThrowGib's meat gibs not then: vr_gib_limbs 2)
 .float vr_limb_bserial;  // the blast its pellets below are of (vr_sgib_blastserial)
 .float vr_limb_bdmg[16]; // the blast's damage at each limb (by its joint)
@@ -117,6 +120,7 @@ entity(entity c, string m, float xBone, vector xAt, vector xAng, vector xVel, ve
     h.vr_rigid = 1;
     h.vr_spin = xSpin;
     VR_Limb_SetMass(h, c, xBone);
+    VR_Limb_EndFountain(h, c, xBone, FALSE);
     particle2(xAt, xVel * 0.3, QVR_PARTICLE_PRESET_BLOOD, 20);
     vr_limb_last = h;
     return h;
@@ -134,6 +138,85 @@ void(entity h, entity c, float xBone) VR_Limb_SetMass =
     {
         h.vr_prop_mass = max(0.05, piece_x * scale);
     }
+};
+
+// Piece `h`'s fountain (VR_Limb_EndFountain; self): its cut end spurts blood as it flies, smaller than the stump's,
+// pulsing and dying away over vr_limbs_end_fountain s; gone with the piece.
+void() VR_Limb_EndFountainThink =
+{
+    entity h = self.owner;
+    float age = time - self.ltime;
+    if(age > self.wait || h.model == "" || h.model != self.netname || h.vr_gib_made != self.vr_limb_born)
+    {
+        remove(self);
+        return;
+    }
+    self.nextthink = time + VR_DECAP_SPURT_TICK;
+    vector off = modelpoint(h, h.angles, self.vr_limb_end);
+    vector out = normalize(off);
+    float fade = 1 - age / max(0.1, self.wait);
+    float beat = 0.55 + 0.45 * cos(age * VR_DECAP_BEAT * 2 * 3.14159265);
+    float s = fade * beat;
+    vector jitter;
+    jitter_x = crandom() * 10;
+    jitter_y = crandom() * 10;
+    jitter_z = crandom() * 6;
+    float n = 1 + ceil(2 * s);
+    particle2(h.origin + off + out * 0.5, out * (2 + 4 * s) + jitter * 0.03, QVR_PARTICLE_PRESET_BLOODTRAIL, n);
+    vr_limb_endspurts = vr_limb_endspurts + n;
+};
+
+// Piece `h` just cut off `c` at joint `xBone` (-1 the head; `xHead` it is: its gib's model, not the rig's) spurts blood
+// out of its cut end as it flies (vr_limbs_end_fountain s; 0 none). A limb's model is made from the rig: its end is
+// the joint (limbpiece 1). The head's gib model has a space of its own: its end is where the neck is as it is cut (the
+// stump's), in the gib's turned axes (modelpoint's, undone); far off (no stump), from its middle the rig's way to the
+// neck out to its box's side.
+void(entity h, entity c, float xBone, float xHead) VR_Limb_EndFountain =
+{
+    float len = cvar_hget(cvarh_vr_limbs_end_fountain);
+    vector end = limbpiece(c, xBone, 1);
+    if(len <= 0 || end == '0 0 0' || h.model == "")
+    {
+        return;
+    }
+    vector neck = ragdollcut(c, 4, xBone) - h.origin;
+    if(xHead && vlen(neck) < 32)
+    {
+        vector ax = modelpoint(h, h.angles, '1 0 0');
+        vector ay = modelpoint(h, h.angles, '0 1 0');
+        vector az = modelpoint(h, h.angles, '0 0 1');
+        float k2 = max(0.0001, ax * ax);
+        end_x = (neck * ax) / k2;
+        end_y = (neck * ay) / k2;
+        end_z = (neck * az) / k2;
+    }
+    else if(xHead)
+    {
+        vector lo = modelbounds(h, 0);
+        vector hi = modelbounds(h, 1);
+        vector half = (hi - lo) * 0.5;
+        vector d = normalize(end);
+        float t = 1000;
+        if(fabs(d_x) > 0.001) { t = min(t, half_x / fabs(d_x)); }
+        if(fabs(d_y) > 0.001) { t = min(t, half_y / fabs(d_y)); }
+        if(fabs(d_z) > 0.001) { t = min(t, half_z / fabs(d_z)); }
+        end = (lo + hi) * 0.5 + d * t;
+    }
+    entity f = spawn();
+    f.classname = "vr_limb_fountain";
+    f.owner = h;
+    f.enemy = c;
+    f.vr_limb_bone = xBone;
+    f.netname = h.model;
+    f.vr_limb_born = h.vr_gib_made;
+    f.vr_limb_end = end;
+    f.ltime = time;
+    f.wait = len;
+    f.think = VR_Limb_EndFountainThink;
+    f.nextthink = time;
+    // (The tests: how far its spout is from the stump's joint as it is cut.)
+    f.dest = h.origin + modelpoint(h, h.angles, end);
+    f.dmg = vlen(f.dest - ragdollcut(c, 4, xBone));
 };
 
 // Room for one more limb under vr_limbs_max: the oldest lying about go (not one in a hand).
