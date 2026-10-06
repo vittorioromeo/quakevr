@@ -67,6 +67,10 @@ void registerCvars();
 // the same) takes the shipped look's; a changed one is left alone.
 void migrateShippedLook();
 
+// Config 95: the All Categories panel's values (vr_retro_all_<setting>) still at their old defaults take the shipped
+// look's; a changed one is left alone (nothing is applied to the categories).
+void migrateAllPanel();
+
 // Each frame (VR_Frame): a pick's countdown and outline; your overrides written a second after the last edit.
 void frame();
 

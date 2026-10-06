@@ -26938,3 +26938,33 @@ archived tuning knobs, duplicated campaign status cvars, finished test knobs, th
 CVAR_AUDIT.md, none done without the author's yes.
 
 In VR: nothing to test (no behaviour changed); an old config still setting `vr_throw_lookahead` loads with no message.
+
+## His gameplay and look values as defaults (2026-10-07)
+
+INSTALLER.md Appendix A's "Gameplay and look: promote?" table, his values re-read from his config: fire particles
+(`vr_fire_particles_alpha` / `_count` / `_origin` / `_size` 1 / 8 / 0.2 / 2.5, were 0.55 / 6 / 0.25 / 2; count and size
+in vr_defaults.cfg, the others compiled in), head pops (`vr_decap_pop_always_range` / `_never_range` 2 / 12, were 3 / 15;
+`vr_decap_pop_thrown_light_chance` 0.25, was 0), limb grabs (`vr_ragdoll_grab_reach` / `vr_ragdoll_hand_stick` 2 / 2,
+were 6 / 12), `vr_messages_hologram_height` 10 (was 5). Config 95 moves a config still at the old default.
+
+- Retro textures: every kind has had his look since config 89 (vr_retro.cpp shippedLook), but the All Categories
+  panel (`vr_retro_all_*`) still started at the old values, so applying it as it started undid the look. Its values
+  now start from the shipped look (0 / 0.5 / 0.5 / -1 / 1 for average / block / dither / fade / palette); config 95
+  moves a panel still at the old values (`retro::migrateAllPanel`; written as values only, never applied).
+- The grappling hook's flashlight clip (`vr_wofs_torch_out_18` / `_up_18` -0.035 / 0.075): `vr_wofs_version` 35.
+- Gib and head weights (`vr_props_version` 58): gremlin head 18 to 9, gib2 20 to 15, gib3 12 to 10, grunt 10 to 8,
+  dog 12 to 9, enforcer 16 to 9, knight 12 to 8, hell knight 17 to 11, ogre 30 to 15, vore 12 to 10, shambler 70 to 65,
+  fiend 28 to 18 (gib1 8, player 5, scrag 10, zombie 8, scourge 50 unchanged). A slot still its model's at the old
+  weight takes the new one.
+- Limb masses: a head cut off a ragdoll (vr_decap.qc, vr_limbs.qc `VR_Limb_SetMass`) weighs 7% of its class's
+  `vr_ragdoll_<class>_mass` times `vr_limbs_mass_scale` (1): grunt 5.6, enforcer 7, knight 6.3, hell knight 9.1, ogre
+  14, dog 2.8, fiend 9.8 (less a jaw, where its rig has one), shambler 19.6, gremlin 1.4 kg. His lighter `h_*` weights bring the thrown
+  heads (the props) nearer those (the ogre's 15 and the hell knight's 11 almost the same); the dog's 9 and the
+  shambler's 65 stay well above a cut head's. Nothing changed in the limb shares or the scale (his `vr_limbs_mass_scale`
+  is the default 1).
+
+Tested (headless): a config at the old defaults (versions 94 / 57 / 34) takes every new value; one with its own values
+keeps them (and takes the rest); a first start has them all; e1m1 loads clean.
+
+In VR: torches' flames (denser, opaque), the messages' hologram higher over the gadget, a limb taken only from close,
+heads popping a little less far away, thrown heads lighter; Retro Textures > All Categories shows the shipped look.

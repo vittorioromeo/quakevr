@@ -61,7 +61,8 @@ constexpr ParamInfo paramInfo[paramCount] = {
 };
 
 // The shipped look (the author's settings, 2026-10-06; config 89): every kind but Liquids takes these over
-// paramInfo's (which stay the All Categories panel's and the override editor's starting values, and Liquids'):
+// paramInfo's (which stay the override editor's starting values, and Liquids'), and so does the All Categories panel
+// (config 95, the author's vr_retro_all_* values: applying it as it starts gives every kind the shipped look):
 // half-texel blocks (a quarter on your body's arms, torso and legs and on particles), each block its centre texel, in
 // Quake's palette with a half dither, never fading back to plain mipmapping.
 struct LookDefault
@@ -1230,7 +1231,7 @@ void registerAll()
         allNames[p * 2] = za::String("vr_retro_all_") + paramName(p);
         allNames[p * 2 + 1] = za::String("vr_retro_all_apply_") + paramName(p);
         allValues[p].name = allNames[p * 2].cStr();
-        allValues[p].string = paramInfo[p].def;
+        allValues[p].string = categoryDefault(Category::World, static_cast<Param>(p)); // the shipped look (config 95)
         allValues[p].flags = CVAR_ARCHIVE;
         allApplies[p].name = allNames[p * 2 + 1].cStr();
         allApplies[p].string = p == static_cast<int>(Param::On) ? "0" : "1"; // the categories' switches: yours
@@ -1489,6 +1490,25 @@ void migrateShippedLook()
             Cvar_SetQuick(&var, var.default_string);
         }
     }
+}
+
+// Config 95: the All Categories panel's values (vr_retro_all_<setting>) start from the shipped look; a config's still
+// at paramInfo's old defaults takes the new ones (written as values only, never applied to the categories).
+void migrateAllPanel()
+{
+    allCopying = true;
+    for(int p = 0; p < paramCount; p++)
+    {
+        cvar_t& var = allValues[p];
+        const float before = static_cast<float>(atof(paramInfo[p].def));
+        if(!ZA_STRCMP(var.string, var.default_string) || fabsf(var.value - before) > 1e-6f)
+        {
+            continue;
+        }
+        Con_DPrintf("VR: %s: new default %s (was %s)\n", var.name, var.default_string, paramInfo[p].def);
+        Cvar_SetQuick(&var, var.default_string);
+    }
+    allCopying = false;
 }
 
 void registerCvars()

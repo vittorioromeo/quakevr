@@ -224,7 +224,7 @@ Quake files", survives store updates, and the engine already supports it. Two ca
 | Shipped tuning | `quakevr/vr_defaults.cfg`: `vr_default <cvar> <value>` sets the value **and makes it the default** (resets go to it); run from `default.cfg`, before the saved config; rewritten by `vr_savedefaults` | every start |
 | Saved config | `quakevr/ironwail.cfg` (`exec config.cfg` in `quake.rc`) | every start |
 | Forced | `quakevr/quakevr.cfg`: gameplay rules (`vr_gameplayfix_*`, `vr_pickup_scale`, `sv_gameplayfix_random 0`), `vr_checkbindings`, `vr_enabled 1` | after the saved config |
-| Migrations | `defaultChanges` in `vr_cvars.cpp`, `configVersion` 89 (94 on 2026-10-06): a setting is moved to its new default only if it still has the old one; `vr_props_version` (57, `vr_props.cpp`) and `vr_wofs_version` (`vr_weapons.cpp`) do the same for held objects and weapon offsets | first start of a new build |
+| Migrations | `defaultChanges` in `vr_cvars.cpp`, `configVersion` 89 (94 on 2026-10-06, 95 on 2026-10-07): a setting is moved to its new default only if it still has the old one; `vr_props_version` (58, `vr_props.cpp`) and `vr_wofs_version` (35, `vr_weapons.cpp`) do the same for held objects and weapon offsets | first start of a new build |
 | Graphics presets | `vr_graphics_preset` 0 off .. 4 ultra (applies a group of settings) | on demand |
 | First start | no saved config: `vr_migrate_config new` sets `vr_setup_pending 1`: **VR Calibration** starts once the headset is on (`vrcalibration.bsp`: height, body poses; wall buttons for turning, locomotion, sticks, gadget arm, torch side, world scale, body, HUD) | once |
 
@@ -465,16 +465,20 @@ history since 2026-07-01 (none do).
 | `scr_conscale`, `scr_menuscale`, `scr_sbarscale`, `scr_crosshairscale` | 3 | 1 |
 | `scr_centerprintbg` / `scr_menubgstyle` | 3 / 0 | 2 / -1 |
 
-### Gameplay and look: promote? (his own values)
+### Gameplay and look: promoted (his own values)
 
-| Setting | His | Fresh |
+Promoted on 2026-10-07: his values are the shipped defaults (`vr_cfg_version` 95, `vr_wofs_version` 35,
+`vr_props_version` 58); a config still holding the old default takes the new one, a changed value is kept.
+`vr_dummy_gib` was not part of it (still a question).
+
+| Setting | His = now shipped | Was |
 |---|---|---|
 | `vr_fire_particles_alpha` / `_count` / `_origin` / `_size` | 1 / 8 / 0.2 / 2.5 | 0.55 / 6 / 0.25 / 2 |
 | `vr_decap_pop_always_range` / `_never_range` | 2 / 12 | 3 / 15 |
 | `vr_decap_pop_thrown_light_chance` | 0.25 | 0 |
 | `vr_ragdoll_grab_reach` / `vr_ragdoll_hand_stick` | 2 / 2 | 6 / 12 |
-| `vr_dummy_gib` | 1 | 0 |
+| `vr_dummy_gib` | 1 | 0 (not promoted) |
 | `vr_messages_hologram_height` | 10 | 5 |
-| `vr_retro_all_average` / `_block` / `_dither` / `_fade` / `_palette` | 0 / 0.5 / 0.5 / -1 / 1 | 1 / 1 / 0 / 1 / 0 (maybe an experiment: confirm) |
-| `vr_wofs_torch_out_18` / `vr_wofs_torch_up_18` | -0.035 / 0.075 | 0 / 0 (a weapon-offset slot: needs a `vr_wofs_version` change) |
-| Masses (kg), `vr_prop_mass_NN` (needs a `vr_props_version` change) | gib2 15, gib3 10, h_guard 8, h_dog 9, h_mega 9, h_knight 8, h_hellkn 11, h_ogre 15, h_shal 10, h_shams 65, h_demon 18 | 20, 12, 10, 12, 16, 12, 17, 30, 12, 70, 28 |
+| `vr_retro_all_average` / `_block` / `_dither` / `_fade` / `_palette` (the All Categories panel: now the shipped look every kind has had since config 89) | 0 / 0.5 / 0.5 / -1 / 1 | 1 / 1 / 0 / 1 / 0 |
+| `vr_wofs_torch_out_18` / `vr_wofs_torch_up_18` (the grappling hook's flashlight) | -0.035 / 0.075 | 0 / 0 |
+| Masses (kg), `vr_prop_mass_NN` | h_grem 9, gib2 15, gib3 10, h_guard 8, h_dog 9, h_mega 9, h_knight 8, h_hellkn 11, h_ogre 15, h_shal 10, h_shams 65, h_demon 18 (gib1 8, h_player 5, h_wizard 10, h_zombie 8, h_scourg 50 unchanged) | 18, 20, 12, 10, 12, 16, 12, 17, 30, 12, 70, 28 |

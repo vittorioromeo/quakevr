@@ -149,9 +149,10 @@ namespace
 // held its old default. 34: the author's, 2026-10-02 evening (his weights of 15 weapons, the crowbar's holstered poses, the
 // lightning gun's second hotspot, the laser cannon's grip bias, roll weight and ammo screen, the grunts' gun's stock pitch,
 // the enforcers' rifle's ammo screen hidden), each key only where the config still held its old default (the hotspot
-// whole, where the config has none there). A first start (no saved config) takes this
-// version as it is: its settings are these defaults (markCurrent).
-constexpr int settingsVersion = 34;
+// whole, where the config has none there). 35: the author's flashlight on the grappling hook (slot 17's Torch Out -0.035 and
+// Up 0.075, 2026-10-07; INSTALLER.md, Appendix A), each key only where the config still held its old default (0). A first
+// start (no saved config) takes this version as it is: its settings are these defaults (markCurrent).
+constexpr int settingsVersion = 35;
 
 // Slots whose hotspots the view is to derive from the config's two-handed grip keys (round 21).
 bool hotspotMigration[numSlots]{};
@@ -503,6 +504,11 @@ void migrate()
                 Cvar_SetQuick(&var, var.default_string);
             }
         }
+    }
+    if(vr_wofs_version.value < 35) // the author's flashlight on the grappling hook: where still the old default
+    {
+        const OldDefault changes[] = {{17, Key::TorchOut, 0.f}, {17, Key::TorchUp, 0.f}};
+        takeWhereOld(changes);
     }
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
 }

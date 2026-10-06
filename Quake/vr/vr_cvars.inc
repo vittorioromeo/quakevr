@@ -1115,7 +1115,7 @@ QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured par
 QVR_CVAR(vr_fire_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_count, "1", CVAR_ARCHIVE) // exact particles in each emission burst
 QVR_CVAR(vr_fire_particles_frequency, "10", CVAR_ARCHIVE) // bursts per second per flame model
-QVR_CVAR(vr_fire_particles_origin, "0.25", CVAR_ARCHIVE) // emission height along flame: 0 base, 1 tip
+QVR_CVAR(vr_fire_particles_origin, "0.2", CVAR_ARCHIVE) // emission height along flame: 0 base, 1 tip
 QVR_CVAR(vr_fire_particles_speed_min, "0.1", CVAR_ARCHIVE) // horizontal outward speed, m/s
 QVR_CVAR(vr_fire_particles_speed_max, "0.4", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_up_min, "0.3", CVAR_ARCHIVE) // upward speed in world axes, regardless of torch tilt
@@ -1123,7 +1123,7 @@ QVR_CVAR(vr_fire_particles_up_max, "0.9", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_life_min, "0.25", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_life_max, "0.65", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_size, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_fire_particles_alpha, "0.55", CVAR_ARCHIVE)
+QVR_CVAR(vr_fire_particles_alpha, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_fire_particles_range, "1200", CVAR_ARCHIVE)
 
 // Physical explosion chunks (client model objects; harmless, bounded, swept world/brush collisions).
@@ -1782,9 +1782,9 @@ QVR_CVAR(vr_ragdoll_limits, "1", CVAR_ARCHIVE)        // the joints' limits (con
 QVR_CVAR(vr_ragdoll_collide_each, "1", CVAR_ARCHIVE)  // ragdolls meet each other (a pile of them lies on itself); 0 they pass through each other
 QVR_CVAR(vr_ragdoll_grab, "1", CVAR_ARCHIVE)          // take a ragdoll's limb: 0 never, 1 by hand; legacy 2 also only by hand
 QVR_CVAR(vr_ragdoll_grab_force, "3000", CVAR_ARCHIVE) // N: the most a hand pulls a held limb with (3000: a grunt lifted by his chest sags a unit; 1500: about 18)
-QVR_CVAR(vr_ragdoll_grab_reach, "6", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
+QVR_CVAR(vr_ragdoll_grab_reach, "2", CVAR_ARCHIVE)    // units: how near a limb's surface the hand must be to take it
 QVR_CVAR(vr_ragdoll_grab_fit, "1", CVAR_ARCHIVE)      // a taken limb's surface brought onto the palm (as a carried prop's: vr_held_surface_fit); 0: held where the hand's middle was
-QVR_CVAR(vr_ragdoll_hand_stick, "12", CVAR_ARCHIVE)   // cm: the most the hand holding a limb is drawn off its controller to stay on the limb (it lags and sags); 0: on the controller
+QVR_CVAR(vr_ragdoll_hand_stick, "2", CVAR_ARCHIVE)    // cm: the most the hand holding a limb is drawn off its controller to stay on the limb (it lags and sags); 0: on the controller
 QVR_CVAR(vr_ragdoll_hand_turn, "60", CVAR_ARCHIVE)    // degrees: and the most it is drawn turned off it, with the limb twisting in the hand (the hand turns about its fingers on the limb)
 QVR_CVAR(vr_ragdoll_throw, "1", CVAR_ARCHIVE)         // times the hand's throw a limb let go of keeps (0: only what the pull gave it)
 QVR_CVAR(vr_ragdoll_blood, "1", CVAR_ARCHIVE)         // a ragdoll's limbs flung fast leave blood trails and drops (as gibs do: vr_gib_blood_trail)
@@ -1812,8 +1812,8 @@ QVR_CVAR(vr_decap_head_share, "0.5", CVAR_ARCHIVE)    // share of a blast's dama
 // scale x (1 - t)^falloff x ((1 - pellet_weight) + pellet_weight x the share of the blast's pellets at the head), t the
 // way from the one range to the other.
 QVR_CVAR(vr_decap_pop_chance, "1", CVAR_ARCHIVE)          // shots' head pops by chance (0: every headshot kill pops, as before)
-QVR_CVAR(vr_decap_pop_always_range, "3", CVAR_ARCHIVE)    // player lengths (56 units): a shotgun's or super shotgun's headshot kill this near always pops
-QVR_CVAR(vr_decap_pop_never_range, "15", CVAR_ARCHIVE)    // player lengths: this far or farther it never does (the lightning gun's always: aside)
+QVR_CVAR(vr_decap_pop_always_range, "2", CVAR_ARCHIVE)    // player lengths (56 units): a shotgun's or super shotgun's headshot kill this near always pops
+QVR_CVAR(vr_decap_pop_never_range, "12", CVAR_ARCHIVE)    // player lengths: this far or farther it never does (the lightning gun's always: aside)
 QVR_CVAR(vr_decap_pop_ssg_scale, "1.25", CVAR_ARCHIVE)    // the super shotgun's chance between the ranges, times this
 QVR_CVAR(vr_decap_pop_ssg_falloff, "1", CVAR_ARCHIVE)     // its falloff exponent over the way between them (1: straight; higher: dies away sooner)
 QVR_CVAR(vr_decap_pop_sg_scale, "0.75", CVAR_ARCHIVE)     // the shotgun's chance between the ranges, times this
@@ -1822,7 +1822,7 @@ QVR_CVAR(vr_decap_pop_pellet_weight, "0.75", CVAR_ARCHIVE) // how much the share
 QVR_CVAR(vr_decap_pop_lightning_always, "1", CVAR_ARCHIVE) // a lightning bolt's headshot kill always pops, at any range (0: the ranges, the super shotgun's falloff, all of it at the head)
 QVR_CVAR(vr_decap_pop_thrown, "1", CVAR_ARCHIVE)          // a thrown (or flung) blunt weapon or prop killing with a headshot pops the head
 QVR_CVAR(vr_decap_pop_thrown_mass, "4", CVAR_ARCHIVE)     // kg: this heavy or heavier, always
-QVR_CVAR(vr_decap_pop_thrown_light_chance, "0", CVAR_ARCHIVE) // a lighter one's chance (0: never)
+QVR_CVAR(vr_decap_pop_thrown_light_chance, "0.25", CVAR_ARCHIVE) // a lighter one's chance (0: never)
 QVR_CVAR(vr_decap_pop_laser, "0.85", CVAR_ARCHIVE) // an enforcer laser bolt's kill (an enemy's, or your enforcer's rifle) at the head or a limb pops it at this chance (0: never)
 // Blunt melee head kills (QC vr_decap.qc, "Blunt melee head pops"): chance = the weapon's scale x hardness^curve (at most 1),
 // hardness = (1 - damage_weight) x the speed's way from soft to hard + damage_weight x the damage's way from soft to hard.
