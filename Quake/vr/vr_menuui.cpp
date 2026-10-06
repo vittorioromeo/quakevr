@@ -391,6 +391,8 @@ struct ToolbarLayout
     static constexpr float gap = 2.f;       // between two buttons
     static constexpr float icon = 9.f;      // an icon's width
     static constexpr float iconButton = 4.f + icon + 4.f; // a button without its label
+    static constexpr float columnRight = -8.f;  // the labelled column's right edge (menu x): 16 clear of the menus' x 8
+    static constexpr float columnNearest = 8.f; // ... and on a narrow panel, the nearest the menus it goes
 
     float left{0.f}, top{0.f}; // the canvas's corner
     float bottom{0.f};         // the canvas's bottom edge (menu y)
@@ -440,18 +442,24 @@ struct ToolbarLayout
     Draw_GetTransformBounds(&t, &l.left, &l.top, &right, &l.bottom);
     l.k = za::fmax(1.f, -t.scale[1] * vid.guiheight / (t.scale[0] * vid.guiwidth)); // as Painter's
 
-    // All as wide as the widest label, their right edges a character left of Quake's plaque (x 16): on
-    // a wide panel near the menu rather than out at its corner. Where the labels do not fit, only
-    // the icons, in the corner.
+    // All as wide as the widest label, their right edges at columnRight (clear of the menus: Quake's plaque at x 16,
+    // the VR pages' rows from x 8, the Search and Map Library pages from 12): on a wide panel near the menu rather than
+    // out at its corner. On a narrower one as far left as the panel goes (no nearer the menu than x 8); where the
+    // labels do not fit even so, only the icons, in the corner.
     float widest = 0.f;
     for(const char* label : toolLabels)
     {
         widest = za::fmax(widest, 8.f * static_cast<float>(strlen(label)));
     }
     const float width = 4.f + ToolbarLayout::icon + 4.f + widest + 5.f;
-    l.x1 = 16.f - 8.f;
+    l.x1 = ToolbarLayout::columnRight;
     l.x0 = l.x1 - width;
-    l.labels = l.x0 >= l.left + ToolbarLayout::corner;
+    if(l.x0 < l.left + ToolbarLayout::corner)
+    {
+        l.x0 = l.left + ToolbarLayout::corner;
+        l.x1 = l.x0 + width;
+    }
+    l.labels = l.x1 <= ToolbarLayout::columnNearest;
     l.row = !qvr::menuui::active(); // (a flat screen)
     if(!l.labels || l.row)
     {
@@ -571,8 +579,8 @@ struct BannerLayout
     const char* text{""};
 };
 
-// Its right edge as the buttons' (left of the menu and its help), the long text where it fits, else the short; else
-// the short in the corner.
+// Its right edge as the buttons' (left of the menu and its help, as far as the panel lets them), the long text where
+// it fits, else the short; else the short in the corner.
 [[nodiscard]] BannerLayout bannerLayout(const ToolbarLayout& l)
 {
     const bool on = spectatorOn();
@@ -584,9 +592,14 @@ struct BannerLayout
     {
         b.text = text;
         width = 4.f + 6.f + 4.f + 8.f * static_cast<float>(strlen(text)) + 5.f;
-        b.x1 = 16.f - 8.f;
+        b.x1 = ToolbarLayout::columnRight;
         b.x0 = b.x1 - width;
-        if(b.x0 >= l.left + ToolbarLayout::corner)
+        if(b.x0 < l.left + ToolbarLayout::corner)
+        {
+            b.x0 = l.left + ToolbarLayout::corner; // (as far left as the panel goes, as the column)
+            b.x1 = b.x0 + width;
+        }
+        if(b.x1 <= ToolbarLayout::columnNearest)
         {
             return b;
         }
@@ -631,7 +644,7 @@ void placePreview(const ToolbarLayout& l, const BannerLayout& b)
     }
     const float aspect = static_cast<float>(vid.height) / static_cast<float>(vid.width); // the camera's: the window's
     const float x0 = za::fmax(b.x0, l.left + ToolbarLayout::corner);
-    float x1 = za::fmin(b.x1, 16.f - 8.f);
+    float x1 = za::fmin(b.x1, ToolbarLayout::columnNearest);
     const float bottom = b.yc - (ToolbarLayout::half + 2.f * ToolbarLayout::gap) / l.k;
     const float room = (bottom - (l.buttonsBottom() + 2.f * ToolbarLayout::gap / l.k)) * l.k; // true pixels
     float height = (x1 - x0 - 2.f * border) * aspect + 2.f * border;

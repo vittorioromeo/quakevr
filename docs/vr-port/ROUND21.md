@@ -25725,3 +25725,20 @@ still last) (`Quake/vr/vr_menuui.cpp` `Tool`, `toolLabels`, `toolNames`, `useToo
 Advanced VR Options, VR Settings. Keys: a stick click on Advanced VR Options, three rights (corner button 3), Enter:
 VR Settings; on the main menu, seven rights to button 7, Enter: Relighting. Mock headset: the laser on `settings` and
 `relighting` with a trigger click opened the same pages. The hover names show under the row's new icons.
+
+## Corner column further left (2026-10-06)
+
+Vittorio: "The shortcut bar in VR mode should be a bit more to the left, it almost overlaps the rest of the menu." The
+headset's labelled column (and the spectator switch and preview under it, which share its right edge) ended at menu x
+8: flush with the VR pages' row highlights (x 8) and 4 pixels from the Search and Map Library pages (x 12). Its right
+edge is now x -8 (`ToolbarLayout::columnRight`): 16 menu pixels clear of the VR pages, 20 of the Map Library, 24 of
+Quake's plaque. On a panel too narrow for that the column goes as far left as the panel lets it (its left edge 4 from
+the panel's), its labels kept while it ends no nearer the menu than x 8 (`columnNearest`, where it was); narrower
+still, only the icons in the corner, as before (`toolbarLayout`, `bannerLayout`, `placePreview`).
+- Checked in the mock headset (eyes): VR Settings, Advanced VR Options, Map Library, Options, main menu at the shipped
+  Menu Height 1.35 / Spacing 1.5 and at 2 / 2: a clear gap everywhere; the spectator switch and its preview (on) stay
+  under the column, which ends well above them.
+- With the two new buttons the column is 32 true pixels taller, and the VR pages' and Ironwail's lists start below it
+  as before (`layout().listTop`, `VR_MenuBounds`): about 2 rows fewer on a VR page at the shipped settings. At Menu
+  Height 1 with Spacing 1 (the smallest panel) the column is icons only and a VR page shows only a row or two (it
+  showed three or four with seven buttons).
