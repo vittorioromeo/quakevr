@@ -520,6 +520,7 @@ WORLD_CALLDATA_BUFFER
 WORLD_INSTANCEDATA_BUFFER
 WORLD_VERTEX_BUFFER
 LIQUID_SWELL // QVR
+QVR_ZFIX_FUNCTION // QVR: gl_zfix's push back (vr_glsl.h)
 "layout(location=5) in vec3 in_surfacecentre; // QVR: BSP slipgate visual scaling pivot\n"
 "layout(location=4) in float in_swellpin; // QVR: the geometric waves' mesh (vr/vr_water.cpp); 0 elsewhere (unset)\n"
 "\n"
@@ -559,13 +560,8 @@ QVR_WORLD_VS_OUTPUTS // QVR: the world vertex shader's Quake VR outputs
 "		gl_Position = ViewProj * vec4(LiquidDisplace(out_pos, in_swellpin, LiquidKind(call.flags)), 1.0);\n"
 "	out_rim = in_swellpin; // QVR\n"
 "#endif\n"
-"#if REVERSED_Z\n"
-"	const float ZBIAS = -1./1024;\n"
-"#else\n"
-"	const float ZBIAS =  1./1024;\n"
-"#endif\n"
-"	if ((call.flags & CF_USE_POLYGON_OFFSET) != 0u)\n"
-"		gl_Position.z += ZBIAS;\n"
+"	if ((call.flags & CF_USE_POLYGON_OFFSET) != 0u)\n" // QVR: pushed back a fixed fraction of its distance (QVR_ZFIX)
+"		gl_Position.z = QVR_ZFixDepth(gl_Position.z, gl_Position.w);\n"
 "	out_uv = in_uv.xy;\n"
 "	out_lmuv = in_uv.zw;\n"
 "	out_depth = gl_Position.w;\n"
@@ -708,7 +704,7 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "		puv = ParallaxUV(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, facing, in_pos - EyePos, in_pdepth, Parallax.z, in_uvclamp);\n"
 "#if QVR_PDO\n"
 "	if (ParallaxDist > 0. && Parallax2.w > 0.) // QVR: the hit's depth (bounded by the pre-pass's: glprogs.world_depth_pdo)\n"
-"		gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), ParallaxDist, (in_flags & CF_USE_POLYGON_OFFSET) != 0u ? QVR_ZBIAS : 0.);\n"
+"		gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), ParallaxDist, (in_flags & CF_USE_POLYGON_OFFSET) != 0u);\n"
 "#endif\n"
 "#else\n"
 "	const bool parallax = false;\n" // QVR: no parallax mapping here

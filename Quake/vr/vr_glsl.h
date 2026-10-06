@@ -535,6 +535,24 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 
 ////////////////////////////////////////////////////////////////
 
+// gl_zfix (CF_USE_POLYGON_OFFSET: brush entities, so that one flush with a wall loses to it): the clip-space depth
+// (z, w) of a point pushed back 1/4096 of its distance, whatever the near plane. Ironwail added a constant 1/1024 to
+// clip z, which pushes a point back (that / the near plane) of its distance with reversed Z, half that without:
+// 1/4096 at the desktop's near plane of 4 units, but 1% at the headset's 0.1 (vr_nearclip), so that a button 8 units
+// proud of its panel went behind it from 800 units away (NOTES.md vrfiringrange_2026-10-06_13-11-00). Moving clip z
+// towards the far plane's (0 reversed, w otherwise) by a fraction moves the point back by that fraction (to first
+// order) with any near plane, and keeps the depths' order (portals' oblique near planes too).
+#define QVR_ZFIX_FRACTION "(1./4096.)"
+#define QVR_ZFIX_FUNCTION \
+"float QVR_ZFixDepth(float z, float w)\n"\
+"{\n"\
+"#if REVERSED_Z\n"\
+"	return z * (1. - " QVR_ZFIX_FRACTION ");\n"\
+"#else\n"\
+"	return mix(z, w, " QVR_ZFIX_FRACTION ");\n"\
+"#endif\n"\
+"}\n"
+
 // parallax occlusion mapping (vr_parallax): the texture coordinates where the ray from the eye through this
 // pixel (ray: from the eye to it; n: the surface's normal, facing the eye) meets the height field under the surface
 // (tex's alpha: 1 the surface, 0 `depth` units deep; the instance's: the world's, an item box's or a model's).
@@ -551,6 +569,7 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 // texture_t): the rays stay in the part of the texture the face shows, the shift shrinking towards its edges, instead
 // of reading past them (the texture's unused rest, or its other side).
 #define PARALLAX_FUNCTIONS \
+QVR_ZFIX_FUNCTION \
 "#define PARALLAX_STRETCH 8.0\n"\
 "// How far along the eye's ray (dist from it to the surface; cosa its cosine to the surface's normal) the ray walks\n"\
 "// below the surface, to the height field's bottom (0: none). Also the world's depth pre-pass's bound on it.\n"\
@@ -565,12 +584,12 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "}\n"\
 "// pixel depth offset (vr_parallax_depth_write): ParallaxUV's hit, how far past the surface along the eye's ray (0:\n"\
 "// none); ParallaxFragDepth the depth of the point that far along it (dir, a unit) from p, as the view's matrix puts\n"\
-"// it (zbias: the vertex shader's polygon offset), never nearer than the surface's own\n"\
+"// it (zfix: with the vertex shader's polygon offset, QVR_ZFixDepth), never nearer than the surface's own\n"\
 "float ParallaxDist = 0.;\n"\
-"float ParallaxFragDepth(mat4 viewproj, vec3 p, vec3 dir, float s, float zbias)\n"\
+"float ParallaxFragDepth(mat4 viewproj, vec3 p, vec3 dir, float s, bool zfix)\n"\
 "{\n"\
 "	vec4 clip = viewproj * vec4(p + dir * s, 1.0);\n"\
-"	float ndc = (clip.z + zbias) / clip.w;\n"\
+"	float ndc = (zfix ? QVR_ZFixDepth(clip.z, clip.w) : clip.z) / clip.w;\n"\
 "#if REVERSED_Z\n"\
 "	return min(gl_DepthRange.near + gl_DepthRange.diff * ndc, gl_FragCoord.z);\n"\
 "#else\n"\
@@ -680,7 +699,7 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 // path: the surface's own (gl_FragCoord.z), or a parallax hit's, which is always further (ParallaxFragDepth).
 // Declared conservative (depth_less with reversed depth, depth_greater without), so that the early depth test
 // could still reject what is hidden. The driver measured here (NVIDIA, 2026-10) shades every fragment of such a shader
-// either way (depth_any, less and greater timed alike): the cost of vr_parallax_depth_write (ROUND21.md). QVR_ZBIAS: the world vertex shader's polygon offset (CF_USE_POLYGON_OFFSET), as ZBIAS.
+// either way (depth_any, less and greater timed alike): the cost of vr_parallax_depth_write (ROUND21.md).
 #define QVR_PARALLAX_DEPTH_OUT \
 "#ifndef PDO\n"\
 "	#define PDO 0\n"\
@@ -694,11 +713,6 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "	#endif\n"\
 "#else\n"\
 "	#define QVR_PDO 0\n"\
-"#endif\n"\
-"#if REVERSED_Z\n"\
-"	#define QVR_ZBIAS (-1./1024.)\n"\
-"#else\n"\
-"	#define QVR_ZBIAS (1./1024.)\n"\
 "#endif\n"
 
 // the opaque world's depth pre-pass with pixel depth offset (glprogs.world_depth_pdo, r_world.c): the shading pass
@@ -721,7 +735,7 @@ QVR_RETROLIGHT_GLSL /* QVR: retro lighting (vr_retrolight.h) */ \
 "		float reach = ParallaxReach(dist, -dot(ray, n), in_pdepth);\n"\
 "		if (reach > 0.)\n"\
 "			gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), reach * 1.01 + 0.01,\n"\
-"				(in_flags & CF_USE_POLYGON_OFFSET) != 0u ? QVR_ZBIAS : 0.);\n"\
+"				(in_flags & CF_USE_POLYGON_OFFSET) != 0u);\n"\
 "	}\n"\
 "}\n"
 
