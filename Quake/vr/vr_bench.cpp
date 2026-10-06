@@ -1,6 +1,7 @@
 // vr_bench.cpp -- see vr_bench.hpp.
 
 #include "vr_bench.hpp"
+#include "vr_cvars.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_box3d.hpp"
 #include "vr_decals.hpp"
@@ -22,6 +23,16 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 extern "C" int r_numactiveparticles; // r_part.c
 
 namespace qvr::bench
@@ -31,6 +42,54 @@ bool recording = false;
 
 namespace
 {
+
+// An external CPU profiler's collection (VTune started with -start-paused): resumed and paused through the ITT
+// collector the profiler loads into the game (its path in INTEL_LIBITTNOTIFY64; it exports __itt_resume and
+// __itt_pause). Without it, nothing happens. Nothing linked, no SDK needed.
+struct Collector
+{
+    bool looked = false;
+    void (*resume)() = nullptr;
+    void (*pause)() = nullptr;
+    bool on = false;
+};
+Collector collector;
+
+bool collectorFound()
+{
+    Collector& k = collector;
+    if(!k.looked)
+    {
+        k.looked = true;
+#ifdef _WIN32
+        if(const char* path = getenv("INTEL_LIBITTNOTIFY64"); path && *path)
+        {
+            if(HMODULE lib = LoadLibraryA(path))
+            {
+                k.resume = reinterpret_cast<void (*)()>(reinterpret_cast<void*>(GetProcAddress(lib, "__itt_resume")));
+                k.pause = reinterpret_cast<void (*)()>(reinterpret_cast<void*>(GetProcAddress(lib, "__itt_pause")));
+            }
+        }
+#endif
+        if(!k.resume || !k.pause)
+        {
+            k.resume = k.pause = nullptr;
+        }
+    }
+    return k.resume != nullptr;
+}
+
+void collect(bool on, const char* why)
+{
+    Collector& k = collector;
+    if(on == k.on || !collectorFound())
+    {
+        return;
+    }
+    k.on = on;
+    (on ? k.resume : k.pause)();
+    Con_Printf("vr_bench: the profiler's collection %s (%s)\n", on ? "resumed" : "paused", why);
+}
 
 using profile::PhaseCount;
 
@@ -313,6 +372,10 @@ void writeLoads(FILE* f, const Capture& c)
 void finish()
 {
     recording = false;
+    if(vr_bench_profiler.value == 1.f)
+    {
+        collect(false, "the window's end");
+    }
     Capture& c = capture;
     int endCounts[CountCount]{};
     takeCounts(endCounts);
@@ -559,6 +622,10 @@ void frame(double periodMs, double hostMs, double busyMs, const za::I64 (&phaseN
         c.heapBefore = events;
         c.heapRequestedStart = c.heapRequestedBefore = heap.requestedBytes;
         c.startNs = za::Clock::nowNanoseconds();
+        if(c.skip == 0 && vr_bench_profiler.value == 1.f)
+        {
+            collect(true, "the window");
+        }
         return;
     }
     const float values[SeriesCount] = {static_cast<float>(periodMs), static_cast<float>(hostMs),
@@ -639,8 +706,45 @@ void loadDone(const char* what, const char* map, double totalMs, int frames, con
     c.loads.pushBack(static_cast<LoadRecord&&>(r));
 }
 
+void loadCommand()
+{
+    if(vr_bench_profiler.value == 2.f)
+    {
+        collect(true, "a map load's command");
+    }
+}
+
+void loadEnded()
+{
+    if(vr_bench_profiler.value == 2.f)
+    {
+        collect(false, "the load's first frame drawn");
+    }
+}
+
+namespace
+{
+void profilerCollect_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        Con_Printf("vr_profiler_collect 0|1: pauses or resumes an external profiler's collection (VTune started with "
+                   "-start-paused: its ITT collector); now %s%s\n", collector.on ? "on" : "off",
+            collectorFound() ? "" : " (no profiler attached)");
+        return;
+    }
+    if(!collectorFound())
+    {
+        Con_Printf("vr_profiler_collect: no profiler attached (no ITT collector: INTEL_LIBITTNOTIFY64)\n");
+        return;
+    }
+    collect(atoi(Cmd_Argv(1)) != 0, "vr_profiler_collect");
+}
+} // namespace
+
 void registerCommands()
 {
+    Cmd_AddCommand("vr_profiler_collect", profilerCollect_f);
     Cmd_AddCommand("vr_bench_begin", begin_f);
     Cmd_AddCommand("vr_bench_end", end_f);
     Cmd_AddCommand("vr_bench_mark", mark_f);

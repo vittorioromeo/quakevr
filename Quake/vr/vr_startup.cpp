@@ -251,6 +251,7 @@ extern "C" void VR_TimeLoadCommand(const char* what)
     command = Command{};
     command.start = command.last = Sys_DoubleTime();
     command.what = what;
+    qvr::bench::loadCommand(); // (vr_bench_profiler 2: an external profiler collects the load alone)
 }
 
 extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
@@ -259,10 +260,12 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
     if(command.start >= 0.0)
     {
         command = Command{}; // (a command that loaded nothing: refused, or a map not found)
+        qvr::bench::loadEnded();
     }
     if(load.open && idle)
     {
         load.open = false; // a load that failed (Host_Error): not timed; the file lookups ask the file system again
+        qvr::bench::loadEnded();
         load.marks.clear();
         load.sums.clear();
         VR_FileCacheEnable(startup.open ? 1 : 0);
@@ -285,6 +288,7 @@ extern "C" void VR_TimeFrameEnd(int signedOn, int idle)
         }
         mark(load, "first frame drawn", now);
         load.open = false;
+        qvr::bench::loadEnded();
         VR_ImagePrefetchEnd();
         VR_FileCacheEnable(0);
         const double ms = (load.last - load.start) * 1000.0;

@@ -4246,6 +4246,11 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_bench_begin manual 10s: the next 10 seconds' frame times (median, 95th and 99th percentiles, worst), "
                   "each GPU pass, the heap events and what there is, into quakevr/profile/bench/manual.json and a line in "
                   "the console (docs/vr-port/BENCHMARKS.md). Stand still and press it."),
+        cycle("External Profiler Collects", vr_bench_profiler, {{0.f, "As Started"}, {1.f, "Benchmark Windows"}, {2.f, "Map Loads"}})
+            .help("For a CPU profiler run on the game (VTune started paused: -start-paused): Benchmark Windows resumes its "
+                  "collection for each Benchmark Capture (vr_bench_begin) alone, Map Loads for each load alone (the map "
+                  "command to its first frame drawn), so gameplay and loading are profiled apart (vr_bench_profiler; "
+                  "vr_profiler_collect 0|1 by hand)."),
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), and every load's total."),

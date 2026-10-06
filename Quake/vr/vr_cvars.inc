@@ -1214,6 +1214,7 @@ QVR_CVAR(vr_profile_gpu, "4", CVAR_NONE)               // the profiler's GPU tim
 QVR_CVAR(vr_profile_detail, "1", CVAR_NONE)            // 2: the profiler also times every trace (SV_Move) and every QuakeC builtin call apart (dearer)
 QVR_CVAR(vr_profile_csv, "0", CVAR_NONE)               // 1: the profiler writes a row a second, a column per system, to <gamedir>/profile/systems_<date>_<time>.csv
 QVR_CVAR(vr_profile_hitch, "1.5", CVAR_NONE)           // while the profiler collects, frames over this many budgets (refresh periods) are logged with their breakdown (console, profile/hitches_*.csv); 0 off
+QVR_CVAR(vr_bench_profiler, "0", CVAR_NONE)          // an external CPU profiler (VTune with -start-paused) collects only: 1 inside benchmark windows (vr_bench_begin, from its first recorded frame to its end); 2 inside map loads (the command to the first frame drawn); 0 as it was started. vr_profiler_collect 0|1 by hand
 QVR_CVAR(vr_dlight_models, "1", CVAR_ARCHIVE)          // dynamic lights light models per pixel, by angle and shadowed (0: Quake's flat)
 QVR_CVAR(vr_dlight_angle, "1", CVAR_ARCHIVE)           // dynamic lights fall off with the angle they reach surfaces at (0: Quake's)
 QVR_CVAR(vr_dlight_uncapped, "1", CVAR_ARCHIVE)        // dynamic lights add fully to bright walls (Quake caps them)

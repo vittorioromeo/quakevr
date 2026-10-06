@@ -42,6 +42,11 @@ struct LoadStage
 void loadDone(const char* what, const char* map, double totalMs, int frames, const LoadStage* stages, int stageCount,
     const LoadStage* work, int workCount);
 
+// vr_startup.cpp: a load's command (map, changelevel, restart, load), and its first frame drawn (or the load given
+// up): with vr_bench_profiler 2, an external profiler collects only between them (vr_profiler_collect).
+void loadCommand();
+void loadEnded();
+
 void registerCommands();
 
 } // namespace qvr::bench
