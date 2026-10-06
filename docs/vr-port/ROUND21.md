@@ -16224,6 +16224,11 @@ font. Quake has no such font: the lettering exists only in its menu pictures.
   taller (without a's leg that overlaps it), C Game's G without its spur (its top end mirrored at the bottom), b
   Options' p with its bowl twice. "ay" is one glyph (the two overlap in both pictures). The originals' rows come out
   as in the picture to a pixel or two (widths: Single Player 214 vs 219, Help/Ordering 236 vs 237).
+- (2026-10-06) Single Player's "Official Campaigns" row is in the same letters (it was the console's, twice the size:
+  the font had no f, c or m). m is Game's m (`sp_menu.lmp`); f is Single's e without its bottom arm, on i's stem and
+  foot; c is Options' o's left half with G's end at the top and, mirrored, at the bottom (5 of its rows: the opening as
+  wide as e's). `vr_bigfont`: 30 of 30 letters cut. Other rows unchanged to the pixel (main menu, Single Player);
+  `vr_menu_bigfont 0` draws the row as before.
 - `vr_menu_bigfont` (1; VR Settings > Advanced VR Options > Menu Settings > Main Menu Lettering): 0 draws the picture
   as before. `vr_bigfont` (Debug > Reports > Main Menu Lettering): which pictures were read and which letters were
   left out (none with id1).
