@@ -20,3 +20,11 @@ healing, death, key spending, item and intermission hooks adapt the same snapsho
 MG1 game code to the existing native VR inventory and monster constructors. Tests
 and the contemporary seven-arena rotation are VR-port additions documented in
 EXPANSIONS.md.
+
+MG1 solo acceptance also adapts `quakec_mg1/ai.qc`, `monsters/boss.qc` and
+`weapons.qc` into the existing native AI, Chthon, liquid and grenade modules.
+The source's slope-stall reflection runs within VR's existing grenade tick so
+catching, throwing and fuse scheduling stay intact. Namespaced acceptance tests
+are VR-port additions. The owned shipping `progs.dat` and all seven arena entity
+inventories were inspected read-only to establish that Hunger hooks are dormant;
+no commercial bytecode or assets are included in these commits.

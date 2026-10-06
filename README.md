@@ -151,7 +151,7 @@ leads to the tutorial and the firing range.
 
 **Single Player > Official Campaigns** shows detected owned campaigns and native gameplay readiness. Dimension
 of the Past supports native single-player VR when its complete owned data and current language tables are available.
-Dimension of the Machine and Dawn of the Machine are detected; their native VR gameplay ports are still in progress. See the [campaign setup guide](docs/INSTALL.md#official-campaigns).
+Dimension of the Machine supports native single-player story and all seven Horde arenas, including its authored hub, rune and Chthon progression. Dawn of the Machine is detected; its native VR gameplay port is still in progress. See the [campaign setup guide](docs/INSTALL.md#official-campaigns).
 
 **Optional extras** (all in [docs/INSTALL.md](docs/INSTALL.md)):
 

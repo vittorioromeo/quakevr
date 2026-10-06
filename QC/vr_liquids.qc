@@ -1,3 +1,23 @@
+/*  Copyright (C) 1996-2022 id Software LLC
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+    See file, 'COPYING', for details.
+*/
+// Authored MG1 adaptations: docs/vr-port/OFFICIAL_QC_SOURCE.md.
+
 // ----------------------------------------------------------------------------
 // VR: monsters hurt by slime and lava (vr_enemy_liquid_damage, the Gameplay menu's "Enemies Hurt by Liquids").
 //
@@ -96,6 +116,7 @@ float(entity e) VR_Liquid_Level =
 
 float(entity e) VR_Liquid_Immune =
 {
+    if(MG1_Campaign() && (e.spawnflags & 16384)) return TRUE;
     if(e.flags & FL_SWIM)
     {
         return TRUE;
@@ -139,7 +160,7 @@ void(entity e, float hurt) VR_Liquid_Monster =
 
     float level = VR_Liquid_Level(e);
     float kind = vr_liquid_type;
-    if(kind == CONTENT_WATER && level == 3 && hurt)
+    if(kind == CONTENT_WATER && level == 3 && hurt && !MG1_Campaign())
     {
         if(!e.vr_liquid_air)
         {
@@ -192,10 +213,10 @@ void(entity e, float hurt) VR_Liquid_Monster =
     if(kind == CONTENT_LAVA)
     {
         e.vr_liquid_next = time + 0.2;
-        dmg = 10 * level;
+        dmg = (MG1_Campaign() ? 30 : 10) * level;
         if(e.health > 0 && e.classname == "monster_zombie")
         {
-            dmg = e.health + 40; // burnt up: a zombie only dies of a hit its size (zombie_pain)
+            dmg = MG1_Campaign() ? 120 : e.health + 40; // burnt up: a zombie only dies of a hit its size (zombie_pain)
         }
         VR_Liquid_BurnEffect(e);
     }

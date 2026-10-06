@@ -1,3 +1,23 @@
+/*  Copyright (C) 1996-2022 id Software LLC
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+    See file, 'COPYING', for details.
+*/
+// Authored MG1 adaptations: docs/vr-port/OFFICIAL_QC_SOURCE.md.
+
 // vr_grenade.qc -- live grenades you can catch and throw back (vr_grenade_catch), and the lobbers' aim
 // (vr_ogre_aim_height). See docs/vr-port/ROUND21.md, "Deflection by blows and bashes; catching grenades; ogre aim".
 //
@@ -867,6 +887,7 @@ void() VR_Grenade_Think =
             VR_Grenade_BounceSound(vlen(dv));
         }
     }
+    MG1_GrenadeSlopeBounce();
     self.vr_gren_lastvel = self.velocity;
     self.vr_gren_lastorg = self.origin;
 };
@@ -1267,4 +1288,32 @@ void(entity xMissile, vector xFrom) VR_Lob_Aim =
     dprint(sprintf("lob: %s at %s, %.0f across, %.0f up: %s, %.1f deg, %.2f s;", self.classname, e.classname,
         vlen(flat), at_z - xFrom_z, how, atan2(vel_z, vlen(vel - '0 0 1' * vel_z)) * 57.29578, vr_lob_time));
     dprint(sprintf(" %.0f u/s %v (Quake's %v)\n", vr_lob_speed, vel, quake));
+};
+
+// Official slope-stall reflection, adapted to the native catchable grenade tick.
+// Keep the VR fuse and held/force-grab scheduling instead of replacing its think.
+void() MG1_GrenadeSlopeBounce = {
+    if(!MG1_Campaign() || self.movetype != MOVETYPE_BOUNCE || self.carry_player ||
+       self.vr_gren_trap || self.velocity != '0 0 0' || vlen(self.vr_gren_lastvel) <= 120 || self.vr_gren_lastvel_z >= 0) return;
+    traceline(self.origin + '0 0 4', self.origin - '0 0 8', TRUE, self);
+    if(trace_fraction < 1) {
+        self.flags = self.flags - (self.flags & FL_ONGROUND);
+        self.velocity = (self.vr_gren_lastvel - 2 * (self.vr_gren_lastvel * trace_plane_normal) * trace_plane_normal) * 0.6;
+        self.avelocity = '400 400 400';
+    }
+};
+
+.float MG1_grenade_fuse;
+void() MG1_GrenadeThink = {
+    if(time >= self.MG1_grenade_fuse) { GrenadeExplode(); return; }
+    MG1_GrenadeSlopeBounce();
+    self.vr_gren_lastvel = self.velocity;
+    self.nextthink = time+0.05;
+};
+void(entity grenade) MG1_PlainGrenade = {
+    if(!MG1_Campaign() || grenade.vr_grenade) return;
+    grenade.MG1_grenade_fuse = grenade.nextthink;
+    grenade.vr_gren_lastvel = grenade.velocity;
+    grenade.think = MG1_GrenadeThink;
+    grenade.nextthink = time+0.05;
 };

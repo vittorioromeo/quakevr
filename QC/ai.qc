@@ -1,3 +1,23 @@
+/*  Copyright (C) 1996-2022 id Software LLC
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+    See file, 'COPYING', for details.
+*/
+// Authored MG1 adaptations: docs/vr-port/OFFICIAL_QC_SOURCE.md.
+
 /*
 
 .enemy
@@ -269,6 +289,13 @@ float(entity targ) range =
     spot2 = VR_AI_Origin(targ) + targ.view_ofs;
 
     r = vlen(spot1 - spot2);
+    if(MG1_Campaign() && (self.spawnflags & 8192)) {
+        vector limits = self.enemy != world ? '96 400 800' : '120 300 340';
+        if(r < limits_x && !(self.vr_ai_target == targ && self.vr_ai_gate > 0)) return RANGE_MELEE;
+        if(r < limits_y) return RANGE_NEAR;
+        if(r < limits_z) return RANGE_MID;
+        return RANGE_FAR;
+    }
 
     // HONEY.
     if(self.rangescale) { scale = self.rangescale; }
@@ -339,7 +366,7 @@ float(entity targ) infront =
     vec = normalize(VR_AI_Origin(targ) - self.origin);
     dot = vec * v_forward;
 
-    if(dot > 0.3)
+    if(dot > ((MG1_Campaign() && (self.spawnflags & 8192)) ? 0.866 : 0.3))
     {
         return TRUE;
     }
@@ -580,6 +607,11 @@ float() FindTarget =
 {
     entity client;
     float  r;
+
+    if(MG1_Campaign() && (self.spawnflags & 32)) {
+        entity friendTarget = MG1_FriendTarget(self);
+        if(friendTarget) { self.enemy = friendTarget; FoundTarget(); return TRUE; }
+    }
 
 // if the first spawnflag bit is set, the monster will only wake up on
 // really seeing the player, not another monster getting angry

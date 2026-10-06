@@ -232,3 +232,22 @@ void(float request) MG_ProgressTest = {
     }
     self = oldself; other = oldother; activator = oldact;
 };
+
+// Official SUB_RandomTarget/CanTakedamage semantics for authored friendly attacks.
+// Reservoir selection preserves a uniform choice without replacing VR target routing.
+entity(entity attacker) MG1_FriendTarget = {
+    if(!attacker.target) return world;
+    entity e = find(world, targetname, attacker.target), choice = world;
+    float count = 0;
+    while(e) {
+        if(e.takedamage > 0) { count++; if(random() < 1/count) choice = e; }
+        e = find(e, targetname, attacker.target);
+    }
+    return choice;
+};
+
+void(float uid) MG1_ReserveCarryUid = {
+    if(uid < 1) return;
+    entity record = WeaponInst_Find(uid);
+    if(record) record.wi_uid = WeaponInst_FreeUid(0);
+};

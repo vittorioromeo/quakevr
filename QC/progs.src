@@ -82,6 +82,7 @@ vr_mg_world_test.qc
 vr_mg_trigger_test.qc
 vr_mg_hub_test.qc
 vr_mg_horde_test.qc
+vr_mg_gameplay_test.qc
 
 orig_mon_boss.qc
 orig_mon_demon.qc

@@ -836,3 +836,83 @@ inventory after death/revival, corpse cleanup, and all seven arenas' spawn flow.
 
 The shield, statue and CTF resource groups now parenthesize the entire assignment RHS, so fteqcc evaluates the final resource checks. The existing unarchived world diagnostic request 1000 reports these three availability bits. Private owned-Rogue addon fixtures give 1/1/1 with complete resources and 0/0/0 with shield fadeout, statue death and flag-taking sounds omitted; each still has every first-group resource. Both hidden base-only runs exit 0. QC0, Release, precedence/style and FGD295 pass. No asset payload is committed.
 
+
+## Native MG1 solo readiness acceptance (mggameplay, 2026-10-06)
+
+Dimension of the Machine is now ready for **single-player** selection with complete
+owned resources and all198 required locale identifiers. Dawn remains gated. Ordinary
+Machine selection, maps/restarts and completed save loads reject coop, deathmatch or
+multiple clients using Dopa's existing guard; developer bypass stays explicit for
+future cooperative acceptance. Setup/docs now distinguish these scopes.
+
+Remaining authored solo gaps are implemented in existing native modules:
+- Nearsighted flag8192 uses idle120/300/340 ranges, engaged96/400/800 ranges and
+  source thirty-degree vision. Native portal melee restrictions remain intact.
+- Friendly-attack flag32 selects a random damageable named target as the source
+  specifies, using native target/attack routing rather than monster aliases.
+- Machine liquid damage uses source lava30 per submerged level/0.2s, slime4 per
+  level/1s, zombie lava120 and authored immunity16384. Fish/scripted bosses retain
+  immunity; Machine monsters do not acquire VR's extra ordinary-water drowning.
+  The existing Enemies Hurt by Liquids setting remains effective (default1).
+- Killable Chthon flag2 activates with4000 health, native weapon damage, first-hit
+  nonfreezing shock, both health thresholds, source freeze/unfreeze relay phases,
+  death animation, kill accounting and actual finale target/door chains. Stock
+  Chthon stays invulnerable even with this flag; this is not Dawn's boss port.
+- Source grenade slope-stall reflection runs inside the native catchable grenade
+  tick, keeping physical catches/throws, hand/force-grab scheduling and fuse time.
+  Noncatchable player grenades use the same correction in a saved twenty-Hz tick
+  with their original absolute fuse deadline; catches0/1 do not lose source behavior.
+
+Actual secret-transition acceptance found a pre-existing record collision: fresh
+map pickups had allocated carried hand IDs before DecodeLevelParms restored them.
+Machine solo story now reserves all eight carried IDs by reassigning only colliding
+fresh map records after advancing the allocator to parm49. Prop references and
+magazines remain attached to their original records. Existing-player/Horde revival
+and cooperative paths are excluded; no engine spawn-parm ABI changes are made.
+
+Hunger does not block this authored solo milestone. All seven owned arena entity
+lumps contain **zero rune pickups**. Inspection of the owned shipping MG1 progs.dat
+found exactly three instructions referencing hunger_time's field-global: addresses
+in T_Heal and sigil_touch for stores, and a load in sigil_touch's diagnostic print.
+There is no consequence/timer consumer in this bytecode or the published QC.
+Existing dormant timer hooks remain saved; no damage or rune effect is invented.
+This evidence supersedes the earlier tentative externally implemented Hunger claim
+for the installed authored arenas. Optional engine-driven Horde rune variants are
+not exposed or advertised by this native port.
+
+Validation uses hidden original-id1 fixtures plus owned packs/read-only updated
+English tables, no Hipnotic/Rogue requirement and no asset redistribution. All25
+owned maps have complete spawn-class coverage and load without dropped gameplay
+entities/unknown gameplay fields; four empty Horde2 editor s keys remain harmless.
+Gameplay suite26/0 exercises actual lava, immunity, sight, friendly targeting,
+real geometry grenade reflection/fuse preservation, both actual catchable/noncatchable launcher constructors and record-collision separation.
+It damages the actual mgend boss through both freezes/resumption/death and verifies
+its removal, exactly one kill increment and authored end-door opening. Horde24/0,
+electrode puzzle15/0 and menu paths14/0 pass. Five real rune returns reach flags31,
+all six indicators and the final gate, then actual mgend -> start completion.
+Authored hub returns reset equipment, as the source requires.
+
+Real Nightmare mge1m1 -> mge1m3 -> mge1m2 transitions and completed saves/load keep
+health50/max50, shells42, hand IDs7/8 with clips3/7 and all six holster IDs10..15
+with clips1..6. Loading under coop1 is refused before disconnect and leaves this
+state intact; ordinary new-campaign selection resets progress/equipment. Actual
+ordinary and mega health pickups give50/max50 and150/max50. Stock e1m7/Dopa e5m1
+isolation and Dopa Nightmare ordinary healing pass; stock flag2 Chthon remains
+health3/invulnerable. Missing updated locale data refuses normal Machine selection
+with198 missing IDs, actionable instructions and the old id1 context intact.
+
+QC0 warnings, Release, precedence/style and FGD295 pass. No new cvars or migration
+numbers: the existing unarchived vr_mg_world_test adds1001..1007 gameplay/boss
+requests and1008 stock-context isolation;1000 is the resource prerequisite probe.
+Tests are destructive and use actual production callbacks; reload afterward.
+Real Honey h/saint QA is unavailable: inventories of the suggested mgtriggers
+compatibility PAKs contain neither map, and attempted loads explicitly report
+absence. This corrects the earlier fixture's apparent Honey smoke claim rather
+than treating a failed map command as acceptance. Missing archived melee canary
+no_hit_reloading_2026-09-29_23-08-51.csv prevents eval.sh; no substitute/tuning.
+Default MapIndex startup, real-headset combat and multiplayer/context/checkpoints
+remain separate acceptance work. Private gameplay-tests/, evaltakes/, owned-data
+fixtures, configs and saves are retained; none are committed.
+
+Human VR QA: MG1 story/secret route, fresh versus carried magazines in both hands,
+all six holsters, Chthon threshold freezes and finale door, and seven Horde arenas.

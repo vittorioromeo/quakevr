@@ -172,8 +172,7 @@ and Dawn of the Machine (`mg3`). Each entry reports missing data, incomplete/cor
 its native gameplay readiness. **Dimension of the Past is ready for native single-player VR**, including authored
 normal/secret routes, deferred monsters, fog/exploding geometry, VR inventory carry/save/reset and readable
 completion text/menu. Dopa coop context/join/respawn behavior is not accepted; ordinary launch requires `coop 0`, `deathmatch 0`, and `maxplayers 1`.
-**Dimension of the Machine and Dawn of the Machine remain in progress**; ordinary selection refuses them until
-their gameplay and progression are ready. Installed maps alone do not establish support.
+**Dimension of the Machine is ready for native single-player VR**, including all five rune episodes, the secret route, hub return positions, electrode puzzle, killable Chthon finale and seven Horde arenas. Both hands and six holsters retain separate weapon identities and magazines on ordinary story transitions/saves; authored hub returns and fresh Horde arenas reset equipment. Machine multiplayer context/join/checkpoint/revival is not yet accepted; ordinary launch also requires `coop 0`, `deathmatch 0`, and `maxplayers 1`. **Dawn of the Machine remains in progress**; ordinary selection refuses it until its gameplay and progression are ready. Installed maps alone do not establish support.
 
 For an owned Steam installation, Quake VR checks the original Quake folder and its `rerelease` folders. It also
 checks explicit `-basedir` roots and the existing Steam/GOG discovery paths. No expansion download or separate

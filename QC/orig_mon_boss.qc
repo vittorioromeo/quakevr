@@ -1,3 +1,23 @@
+/*  Copyright (C) 1996-2022 id Software LLC
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+    See file, 'COPYING', for details.
+*/
+// Authored MG1 adaptations: docs/vr-port/OFFICIAL_QC_SOURCE.md.
+
 /*
 ==============================================================================
 
@@ -132,6 +152,18 @@ void() boss_missile21    =[    $attack21, boss_missile22 ] {boss_face();};
 void() boss_missile22    =[    $attack22, boss_missile23 ] {boss_missile(1, '100 -100 200');};
 void() boss_missile23    =[    $attack23, boss_missile1 ] {boss_face();};
 
+void() boss_shockz1 =[	$shocka1, boss_shockz2 ] {};
+void() boss_shockz2 =[	$shocka2, boss_shockz3 ] {};
+void() boss_shockz3 =[	$shocka3, boss_shockz4 ] {};
+void() boss_shockz4 =[	$shocka4, boss_shockz5 ] {};
+void() boss_shockz5 =[	$shocka5, boss_shockz6 ] {};
+void() boss_shockz6 =[	$shocka6, boss_shockz7 ] {};
+void() boss_shockz7 =[	$shocka7, boss_shockz8 ] {};
+void() boss_shockz8 =[	$shocka8, boss_shockz9 ] {};
+void() boss_shockz9 =[	$shocka9, boss_shockz10 ] {};
+void() boss_shockz10 =[	$shocka10, boss_missile1 ] {};
+// end of add
+
 void() boss_shocka1 =[    $shocka1, boss_shocka2 ] {};
 void() boss_shocka2 =[    $shocka2, boss_shocka3 ] {};
 void() boss_shocka3 =[    $shocka3, boss_shocka4 ] {};
@@ -141,7 +173,7 @@ void() boss_shocka6 =[    $shocka6, boss_shocka7 ] {};
 void() boss_shocka7 =[    $shocka7, boss_shocka8 ] {};
 void() boss_shocka8 =[    $shocka8, boss_shocka9 ] {};
 void() boss_shocka9 =[    $shocka9, boss_shocka10 ] {};
-void() boss_shocka10 =[    $shocka10, boss_missile1 ] {};
+void() boss_shocka10 =[    $shocka10, boss_missile1 ] { if(MG1_Campaign() && (self.spawnflags & 2)) { MG_SUB_Freeze(); self.use = MG_SUB_Unfreeze; } };
 
 void() boss_shockb1 =[    $shockb1, boss_shockb2 ] {};
 void() boss_shockb2 =[    $shockb2, boss_shockb3 ] {};
@@ -152,7 +184,7 @@ void() boss_shockb6 =[    $shockb6, boss_shockb7 ] {};
 void() boss_shockb7 =[    $shockb1, boss_shockb8 ] {};
 void() boss_shockb8 =[    $shockb2, boss_shockb9 ] {};
 void() boss_shockb9 =[    $shockb3, boss_shockb10 ] {};
-void() boss_shockb10 =[    $shockb4, boss_missile1 ] {};
+void() boss_shockb10 =[    $shockb4, boss_missile1 ] { if(MG1_Campaign() && (self.spawnflags & 2)) { MG_SUB_Freeze(); self.use = MG_SUB_Unfreeze; } };
 
 void() boss_shockc1 =[    $shockc1, boss_shockc2 ] {};
 void() boss_shockc2 =[    $shockc2, boss_shockc3 ] {};
@@ -276,6 +308,13 @@ void() boss_awake =
         self.health = 3;
 
     self.enemy = activator;
+    if(MG1_Campaign() && (self.spawnflags & 2)) {
+        self.takedamage = DAMAGE_AIM;
+        self.th_die = boss_death1;
+        self.health = self.max_health = 4000;
+        self.use = monster_use;
+        self.th_pain = MG1_BossPain;
+    }
 
     WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
     WriteByte(MSG_BROADCAST, TE_LAVASPLASH);
@@ -408,3 +447,11 @@ void() event_lightning =
 };
 
 
+
+// Source-backed killable Chthon: authored threshold targets and animation freezes.
+void(entity attacker, float damage) MG1_BossPain = {
+    float prior = self.health + damage;
+    if(prior == self.max_health && self.health < self.max_health) { boss_shockz1(); SUB_UseTargets(); }
+    if(self.health < self.max_health/3 && prior > self.max_health/3) { boss_shockb1(); SUB_UseTargets(); return; }
+    if(self.health < self.max_health*2/3 && prior > self.max_health*2/3) { boss_shocka1(); SUB_UseTargets(); }
+};

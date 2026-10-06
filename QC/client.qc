@@ -377,6 +377,15 @@ void() DecodeLevelParms =
     // with the level's start parms while his old weapon still lies about gets a new one).
     qvr_weaponinst_next = max(qvr_weaponinst_next, parm49);
     self.vr_flashlight_state = parm50;
+    // New-map pickups are spawned before the client parms arrive. Reserve carried IDs
+    // by moving only colliding fresh map records; all prop references remain intact.
+    // Horde revival restores its original records and multiplayer needs separate acceptance.
+    if(MG1_Campaign() && !MGH_Active() && !coop && !deathmatch && !self.weaponinst && !self.weaponinst2) {
+        MG1_ReserveCarryUid(parm41); MG1_ReserveCarryUid(parm42);
+        MG1_ReserveCarryUid(parm43); MG1_ReserveCarryUid(parm44);
+        MG1_ReserveCarryUid(parm45); MG1_ReserveCarryUid(parm46);
+        MG1_ReserveCarryUid(parm47); MG1_ReserveCarryUid(parm48);
+    }
     self.weaponinst = WeaponInst_Carried(self.weapon, parm31, parm41);
     self.weaponinst2 = WeaponInst_Carried(self.weapon2, parm32, parm42);
     self.holsterweaponinst0 = WeaponInst_Carried(self.holsterweapon0, parm33, parm43);
