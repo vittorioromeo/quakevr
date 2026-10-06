@@ -30,6 +30,11 @@ namespace za
 /// (`std::terminate`), as the pool cannot report it to whoever posted the
 /// work, and other threads may still depend on the frame it would unwind.
 ///
+/// Queuing a task can allocate memory (the queue grows in blocks). If that
+/// allocation fails, the program aborts (`za::abort`), in every build: a
+/// task the pool failed to queue would otherwise be lost silently, and
+/// whoever waits for it would wait forever.
+///
 ////////////////////////////////////////////////////////////
 class ZA_SYSTEM_API ThreadPool
 {

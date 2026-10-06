@@ -5,8 +5,9 @@ and the author's own (`license.md`); moodycamel's queue is under the simplified 
 `extlibs/moodycamel/concurrentqueue.h`), its semaphore under zlib (`lightweightsemaphore.h`).
 
 - Upstream: https://github.com/vittorioromeo/zancle, branch `rebrand_to_zancle`
-- Commit: `304ea6c3bfe209bb27f18c848b605c713c7bf8bd` (2026-10-02, "Add Thread::usableHardwareConcurrency, rename
-  ThreadPool worker count hints"); no local changes: the files are upstream's.
+- Commit: `2f8a1ca5b147019a9587e342107da167e48637ed` (2026-10-07, branch `zancle-concurrency-fixes` off `7bd385db`:
+  the five concurrency fixes of `docs/vr-port/ZANCLE_CONCURRENCY_REVIEW_2026-10-04.md`, for `rebrand_to_zancle`);
+  no local changes: the files are upstream's.
 
 The Quake VR code is written on Zancle instead of the C++ standard library (`docs/vr-port/ROUND21.md`, "Zancle
 migration"; `docs/vr-port/CODE_STYLE.md`, "Zancle, not the standard library"). Vendored: the headers the VR code
@@ -51,7 +52,7 @@ Build (every build file compiles the same set):
 - CMake (`Quake/vr/vr.cmake`): on Windows configure with `-T ClangCL` (plain MSVC stops with a message). The Makefiles:
   `-pthread` or `-lsynchronization`; the engine's C++ files are `-std=c++23 -DZA_STATIC` with Zancle's `include`.
 
-Local changes: none since 534219bf (and none at 304ea6c3). The last ones went upstream at `fad225a4`: `MaxAlignT.hpp`'s `__float128` guard
+Local changes: none since 534219bf (and none at 304ea6c3 or 2f8a1ca5). The last ones went upstream at `fad225a4`: `MaxAlignT.hpp`'s `__float128` guard
 (`__SIZEOF_FLOAT128__`, for 32-bit clang-cl), `InitializerList.hpp`'s real `<initializer_list>` under `_MSC_VER` (two
 layouts of one type had corrupted memory: ROUND21.md, "Zancle update to 4ed9c3cc"), and the assert hook
 (`za::setAssertHandler`, in place of QVR's edit to `Assert.cpp`). `Config.hpp`'s clang-cl C++23 check went upstream at

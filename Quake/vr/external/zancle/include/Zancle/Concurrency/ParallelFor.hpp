@@ -73,6 +73,13 @@ namespace za
 /// the only worker). It must not be destroyed while a `parallelFor`
 /// using it is in progress.
 ///
+/// It also bounds the helper tasks posted and not finished yet: a helper
+/// queued behind busy workers stays queued after its call returned, until
+/// a worker gets to it (and finds nothing to do). Once a call's pool has
+/// `outstandingHelpersPerWorker` such helpers per worker, calls post no
+/// more helpers and run on their calling threads, so back-to-back calls
+/// while every worker is busy cannot grow the queue without bound.
+///
 ////////////////////////////////////////////////////////////
 class ZA_SYSTEM_API ParallelForSlots
 {
@@ -82,6 +89,16 @@ public:
     ///
     ////////////////////////////////////////////////////////////
     static constexpr SizeT slotCount = 64u;
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Helper tasks not yet finished, per worker of a call's pool, beyond which calls post no more helpers
+    ///
+    /// As many as `slotCount` calls in progress at once can use helpers,
+    /// each posting up to one per worker.
+    ///
+    ////////////////////////////////////////////////////////////
+    static constexpr SizeT outstandingHelpersPerWorker = slotCount;
 
 
     ////////////////////////////////////////////////////////////
@@ -135,6 +152,29 @@ private:
         }
 
         return slotCount;
+    }
+
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Account for up to `wanted` new helper tasks, keeping the helpers not yet finished within `budget`
+    ///
+    /// \return How many helpers to post (`0` once the budget is used up)
+    ///
+    ////////////////////////////////////////////////////////////
+    [[nodiscard, gnu::always_inline]] SizeT reserveHelpers(const SizeT wanted, const SizeT budget) noexcept
+    {
+        U64 outstanding = m_outstanding.loadRelaxed();
+
+        while (outstanding < budget)
+        {
+            const auto  available = static_cast<SizeT>(budget - outstanding);
+            const SizeT reserved  = wanted < available ? wanted : available;
+
+            if (m_outstanding.compareExchangeWeak<MemoryOrder::Relaxed, MemoryOrder::Relaxed>(outstanding, outstanding + reserved))
+                return reserved;
+        }
+
+        return 0u;
     }
 
 
@@ -227,7 +267,8 @@ private:
     /// \brief Post helpers `[first, first + count)` of a call (`count` is 1 or 2), as part of a tree wake
     ///
     /// The caller posts helpers 0 and 1, and helper `i` posts helpers `2i + 2`
-    /// and `2i + 3` (see `priv::parallelForTreeWake`).
+    /// and `2i + 3` (see `priv::parallelForTreeWake`). Posts fewer, or none,
+    /// once the helper budget is used up (see `reserveHelpers`).
     ///
     ////////////////////////////////////////////////////////////
     template <typename Frame>
@@ -238,14 +279,14 @@ private:
                             const SizeT       first,
                             const SizeT       count) noexcept
     {
-        slots.m_outstanding.fetchAddRelaxed(count);
+        const SizeT reserved = slots.reserveHelpers(count, frame->helperBudget);
 
         ThreadPool::Task tasks[2];
-        for (SizeT i = 0u; i < count; ++i)
+        for (SizeT i = 0u; i < reserved; ++i)
             tasks[i] = ThreadPool::Task{[&slots, slot, generation, frame, index = first + i]
             { runHelper(slots, slot, generation, frame, index); }};
 
-        frame->pool->postBulk(tasks, count);
+        frame->pool->postBulk(tasks, reserved);
     }
 
     ////////////////////////////////////////////////////////////
@@ -307,7 +348,9 @@ private:
 /// have not started yet (e.g. queued behind long tasks): those find the
 /// work done and return at once whenever they run. So a call takes as
 /// long as its own work, not as long as whatever else the pool is busy
-/// with. When every worker is busy, the caller simply does all the work.
+/// with. When every worker is busy, the caller simply does all the work
+/// (and, once too many helpers are queued, posts none: see
+/// `ParallelForSlots`).
 ///
 /// `slots` holds the call's bookkeeping (see `ParallelForSlots`). Calls
 /// may be nested (e.g. `f` itself calling `parallelFor`) and may be made
@@ -355,6 +398,7 @@ void parallelForImpl(ThreadPool& pool, ParallelForSlots& slots, const SizeT coun
         SizeT               chunkSize;
         SizeT               nChunks;
         SizeT               nHelpers;
+        SizeT               helperBudget; // see `ParallelForSlots::reserveHelpers`
 
         [[nodiscard, gnu::always_inline]] bool hasChunksLeft() const noexcept
         {
@@ -371,7 +415,13 @@ void parallelForImpl(ThreadPool& pool, ParallelForSlots& slots, const SizeT coun
         }
     };
 
-    Frame frame{.pool = &pool, .f = &f, .count = count, .chunkSize = chunkSize, .nChunks = nChunks, .nHelpers = nHelpers};
+    Frame frame{.pool         = &pool,
+                .f            = &f,
+                .count        = count,
+                .chunkSize    = chunkSize,
+                .nChunks      = nChunks,
+                .nHelpers     = nHelpers,
+                .helperBudget = ParallelForSlots::outstandingHelpersPerWorker * (nThreads - 1u)};
 
     // No helpers needed, or every gate in use: do everything on the calling thread
     const SizeT slot = nHelpers > 0u ? slots.acquireSlot() : ParallelForSlots::slotCount;
@@ -391,11 +441,13 @@ void parallelForImpl(ThreadPool& pool, ParallelForSlots& slots, const SizeT coun
     }
     else
     {
-        // Every helper at once, with an index that has no children
-        slots.m_outstanding.fetchAddRelaxed(nHelpers);
-        pool.postCopies(ThreadPool::Task{[&slots, slot, generation, framePtr = &frame, nHelpers]
-        { ParallelForSlots::runHelper(slots, slot, generation, framePtr, nHelpers); }},
-                        nHelpers);
+        // Every helper at once (within the budget), with an index that has no children
+        const SizeT reserved = slots.reserveHelpers(nHelpers, frame.helperBudget);
+
+        if (reserved > 0u)
+            pool.postCopies(ThreadPool::Task{[&slots, slot, generation, framePtr = &frame, nHelpers]
+            { ParallelForSlots::runHelper(slots, slot, generation, framePtr, nHelpers); }},
+                            reserved);
     }
 
     frame.processChunks();

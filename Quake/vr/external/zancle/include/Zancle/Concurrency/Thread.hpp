@@ -12,6 +12,7 @@
 #include "Zancle/Base/FwdStdAlignedNewDelete.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/PlacementNew.hpp"
+#include "Zancle/Base/ScopeGuard.hpp"
 #include "Zancle/Base/SizeT.hpp"
 
 #include "Zancle/Trait/Decay.hpp"
@@ -123,8 +124,11 @@ public:
     /// \brief Spawn a new thread that will invoke `callable()`
     ///
     /// Takes ownership of `callable` (heap-allocated for the duration
-    /// of the worker thread). Throws no C++ exceptions -- uses
-    /// `za::abort()` if the OS refuses to spawn.
+    /// of the worker thread). Uses `za::abort()` if the OS refuses to
+    /// spawn. Otherwise throws only what storing `callable` throws:
+    /// `std::bad_alloc` from allocating its storage, or an exception from
+    /// its copy/move constructor (exception-enabled builds), in which case
+    /// no thread is started and nothing leaks.
     ///
     /// Implementation detail: each unique callable type instantiates
     /// its own thunk, but the `Thread` ABI itself is type-erased.
@@ -267,7 +271,18 @@ private:
             ::operator delete(static_cast<void*>(e), std::align_val_t{alignment});
         }};
 
+        // If constructing the callable throws, free the block before the exception leaves
+        // (`ThreadEntry` is trivially destructible, nothing else to undo)
+        bool constructed = false;
+
+        ZA_SCOPE_GUARD({
+            if (!constructed) [[unlikely]]
+                ::operator delete(mem, std::align_val_t{alignment});
+        });
+
         ZA_PLACEMENT_NEW(reinterpret_cast<char*>(mem) + fOffset) FT(static_cast<FFwd&&>(callable));
+        constructed = true;
+
         return entry;
     }
 

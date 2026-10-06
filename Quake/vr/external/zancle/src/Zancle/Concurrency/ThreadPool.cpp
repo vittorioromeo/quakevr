@@ -9,9 +9,12 @@
 
 #include "Zancle/Container/Vector.hpp"
 
+#include "Zancle/Base/Abort.hpp"
 #include "Zancle/Base/Assert.hpp"
 #include "Zancle/Base/Macros.hpp"
+#include "Zancle/Base/ScopeGuard.hpp"
 #include "Zancle/Base/SizeT.hpp"
+#include "Zancle/Base/StackTrace.hpp"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnull-dereference"
@@ -21,6 +24,8 @@
 
 #pragma GCC diagnostic pop
 
+#include <cstdio>
+
 
 namespace za
 {
@@ -28,6 +33,33 @@ namespace
 {
 ////////////////////////////////////////////////////////////
 using TaskQueue = moodycamel::BlockingConcurrentQueue<ThreadPool::Task>;
+
+
+////////////////////////////////////////////////////////////
+/// \brief Abort if a task could not be queued, in every build
+///
+/// The queue only fails when it cannot allocate memory. Posting cannot
+/// report that (it returns `void`), and carrying on would silently lose the
+/// task, and with it whatever waits for it: a `parallelFor` helper keeps its
+/// `ParallelForSlots` waiting forever, a lost stop task keeps the destructor
+/// waiting for its worker. So fail fast, like a thread that cannot be spawned.
+///
+////////////////////////////////////////////////////////////
+[[noreturn, gnu::cold, gnu::noinline]] void onEnqueueFailure() noexcept
+{
+    std::fflush(stdout);
+    std::fputs("\n[[ZANCLE THREADPOOL FAILURE]]: out of memory while queuing a task\n", stderr);
+    priv::printStackTrace();
+    za::abort();
+}
+
+
+////////////////////////////////////////////////////////////
+[[gnu::always_inline]] inline void checkEnqueued(const bool enqueued) noexcept
+{
+    if (!enqueued) [[unlikely]]
+        onEnqueueFailure();
+}
 
 
 ////////////////////////////////////////////////////////////
@@ -60,8 +92,7 @@ void enqueueCopies(TaskQueue& queue, const ThreadPool::Task& task, const SizeT c
     if (count == 0u)
         return;
 
-    [[maybe_unused]] const bool enqueued = queue.enqueue_bulk(RepeatIterator{&task}, count);
-    ZA_ASSERT(enqueued);
+    checkEnqueued(queue.enqueue_bulk(RepeatIterator{&task}, count));
 }
 
 } // namespace
@@ -71,7 +102,9 @@ void enqueueCopies(TaskQueue& queue, const ThreadPool::Task& task, const SizeT c
 /// Shutdown protocol:
 ///
 /// - An empty task is a "stop task". Users cannot post one (asserted).
-/// - The destructor posts one stop task per worker. A worker exits as soon
+/// - The destructor posts one stop task per worker (and so does a
+///   constructor that fails to start them all, for the workers it started,
+///   before rethrowing). A worker exits as soon
 ///   as its main loop dequeues one, so each worker consumes exactly one,
 ///   no matter how the tasks are distributed.
 /// - Stop tasks dequeued elsewhere (by `tryRunPendingTask`, e.g. from a
@@ -85,6 +118,18 @@ struct ThreadPool::Impl
 {
     TaskQueue              queue;
     za::Vector<za::Thread> workers;
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Post one stop task per worker, and join them all
+    ///
+    ////////////////////////////////////////////////////////////
+    void stopAndJoinWorkers()
+    {
+        enqueueCopies(queue, Task{}, workers.size());
+
+        for (za::Thread& worker : workers)
+            worker.join();
+    }
 };
 
 
@@ -92,6 +137,19 @@ struct ThreadPool::Impl
 ThreadPool::ThreadPool(const SizeT workerCount)
 {
     ZA_ASSERT(workerCount > 0u);
+
+    // If starting a worker throws (e.g. `std::bad_alloc` from its thread
+    // entry, with exceptions enabled), stop and join the workers already
+    // started before the exception leaves: the destructor does not run for
+    // a failed construction, and destroying a worker joins it, which would
+    // wait forever for a worker blocked on the empty queue. (If queuing the
+    // stop tasks fails as well, `checkEnqueued` aborts instead of hanging.)
+    bool allStarted = false;
+
+    ZA_SCOPE_GUARD({
+        if (!allStarted) [[unlikely]]
+            m_impl->stopAndJoinWorkers();
+    });
 
     m_impl->workers.reserve(workerCount);
 
@@ -112,16 +170,15 @@ ThreadPool::ThreadPool(const SizeT workerCount)
                 task();
             }
         });
+
+    allStarted = true;
 }
 
 
 ////////////////////////////////////////////////////////////
 ThreadPool::~ThreadPool()
 {
-    enqueueCopies(m_impl->queue, Task{}, m_impl->workers.size());
-
-    for (za::Thread& worker : m_impl->workers)
-        worker.join();
+    m_impl->stopAndJoinWorkers();
 
     while (tryRunPendingTask())
         ;
@@ -133,8 +190,7 @@ void ThreadPool::post(Task&& f)
 {
     ZA_ASSERT(static_cast<bool>(f) && "cannot post an empty task");
 
-    [[maybe_unused]] const bool enqueued = m_impl->queue.enqueue(ZA_MOVE(f));
-    ZA_ASSERT(enqueued);
+    checkEnqueued(m_impl->queue.enqueue(ZA_MOVE(f)));
 }
 
 
@@ -173,8 +229,7 @@ void ThreadPool::postBulk(Task* const tasks, const SizeT count)
         ZA_ASSERT(static_cast<bool>(tasks[i]) && "cannot post an empty task");
 #endif
 
-    [[maybe_unused]] const bool enqueued = m_impl->queue.enqueue_bulk(MoveIterator{tasks}, count);
-    ZA_ASSERT(enqueued);
+    checkEnqueued(m_impl->queue.enqueue_bulk(MoveIterator{tasks}, count));
 }
 
 
@@ -197,7 +252,7 @@ bool ThreadPool::tryRunPendingTask() noexcept
     if (!task) [[unlikely]]
     {
         // Stop task: it belongs to a worker's main loop (the pool is being destroyed)
-        m_impl->queue.enqueue(ZA_MOVE(task));
+        checkEnqueued(m_impl->queue.enqueue(ZA_MOVE(task)));
         return false;
     }
 

@@ -304,6 +304,7 @@ void Thread::join()
 
 #endif
 
+    m_id       = 0u; // no thread any more (see `getId`)
     m_joinable = false;
 }
 
@@ -325,6 +326,7 @@ void Thread::detach()
 
 #endif
 
+    m_id       = 0u; // the thread is no longer this object's (see `getId`)
     m_joinable = false;
 }
 
