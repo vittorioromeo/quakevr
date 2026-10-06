@@ -16,6 +16,8 @@ Map tips: the CRT tip near the vrstart start appears; REPEAT tips come back; Lis
 Map Library: Down the Gutter now plays (page says which map Play starts); reinstall November-Schlacht to get its sky back; AD/Copper maps are flagged
 Training dummy: with Dummy Dies on it dies exactly like a grunt (beheaded, head pops by chance, ragdoll, gibs), stands again after 2 s
 Music: plays from your own rerelease install in e1m1, hip1m1, r1m1, an mg3 and a dopa map; vrstart hub track is the one you want
+Firing range: buttons visible from the far end; doors/buttons don't flicker against frames up close; labels fit their text even after playing a Map Library package
+Map Library: Debug > External Map Index shows Download Cache Size (512 MB) and Usage; an oversized cache trims at start
 
 [Menus and maps]
 Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
