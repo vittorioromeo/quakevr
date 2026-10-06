@@ -75,6 +75,7 @@ Recording: slow motion with game-time sound and highlight markers line up in Res
 Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects toggle
 
 [Decide]
+Multiplayer: default for Rocks and Bricks > Most in Multiplayer (now 0 = none)? More cvars as server rules (melee timing is now one)?
 Gibs: should hard throws BURST on walls (lower Gib Splat Speed below ~200) rather than stick? Rottweiler: add a head zone like the fiend's?
 Map tips: seen-tips limit (~80), targetname naming clash, tip_delay 0
 
