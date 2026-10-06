@@ -1322,14 +1322,16 @@ struct ZoneVertex { glm::vec3 rest, drawn; };
 using ZonePolygon = za::Vector<ZoneVertex>;
 struct ZoneSample { int num, region; glm::vec3 rest; };
 za::Vector<ZoneSample> zoneSamples;
+bool zoneSampling = false; // painting positional damage's regions (animatedZones): their pieces are vr_hitzones_check's samples
 int zoneModels = 0, zoneFallbacks = 0;
-za::Array<int, 4> zonePieces{};
+za::Array<int, 5> zonePieces{}; // (body, head, extremities, legs; melee beheading's)
+int zoneDecapModels = 0;        // models whose melee beheading zone is painted on as drawn
 za::U32 zonePoseHash = 0;
 
 void resetZones()
 {
     zones.clear(); zonesTime = -1.; zoneSamples.clear();
-    zoneModels = zoneFallbacks = 0; zonePieces = {}; zonePoseHash = 0;
+    zoneModels = zoneFallbacks = zoneDecapModels = 0; zonePieces = {}; zonePoseHash = 0;
 }
 
 void splitZone(const ZonePolygon& poly, const glm::vec3& normal, float distance, ZonePolygon& inside, ZonePolygon& outside)
@@ -1352,7 +1354,10 @@ void splitZone(const ZonePolygon& poly, const glm::vec3& normal, float distance,
     }
 }
 
-void paintZone(const ZonePolygon& poly, int num, int region)
+// Paints `poly` (on the model as drawn) in `region`'s colour, `lift` units off the surface (a layer over another: more);
+// `fill` false: only its edges (the melee beheading zone over Both's regions). The melee zone's (4) pieces are not
+// samples for vr_hitzones_check (positional damage's regions).
+void paintZone(const ZonePolygon& poly, int num, int region, float lift = 0.08f, bool fill = true)
 {
     if(poly.size() < 3) { return; }
     const bool xray = vr_debug_hitzones_xray.value != 0;
@@ -1364,14 +1369,17 @@ void paintZone(const ZonePolygon& poly, int num, int region)
         const float len = glm::length(normal);
         if(len < 1e-6f) { continue; }
         // Keep the overlay just off the opaque surface; both windings receive it without covering walls.
-        normal *= 0.08f / len;
+        normal *= lift / len;
         for(float side : {-1.f, 1.f})
         {
-            lines::triangle(poly[0].drawn + normal * side, poly[i].drawn + normal * side,
-                poly[i + 1].drawn + normal * side, color, xray);
+            if(fill)
+            {
+                lines::triangle(poly[0].drawn + normal * side, poly[i].drawn + normal * side,
+                    poly[i + 1].drawn + normal * side, color, xray);
+            }
         }
         ++zonePieces[static_cast<za::SizeT>(region)];
-        if(zoneSamples.size() < 32768)
+        if(zoneSampling && zoneSamples.size() < 32768)
         {
             zoneSamples.pushBack({num, region, (poly[0].rest + poly[i].rest + poly[i + 1].rest) / 3.f});
         }
@@ -1389,8 +1397,10 @@ void paintZone(const ZonePolygon& poly, int num, int region)
 // Split the sphere's intersection with this triangle's plane into an inscribed 64-sided circle.
 // The maximum inward error is r * (1 - cos(pi / 64)): under 0.02 units for the game's heads.
 // Outside fragments are retained, so every part of a triangle gets exactly one damage region.
+// `region` (the head's; the melee beheading zone's ends: 4), `lift` and `fill` as paintZone's.
 template<class Outside>
-void headZone(const ZonePolygon& poly, int num, const glm::vec3& centre, float radius, Outside&& outside)
+void headZone(const ZonePolygon& poly, int num, const glm::vec3& centre, float radius, Outside&& outside, int region = 1,
+    float lift = 0.08f, bool fill = true)
 {
     if(poly.size() < 3) { return; }
     glm::vec3 lo{1e30f}, hi{-1e30f};
@@ -1400,7 +1410,7 @@ void headZone(const ZonePolygon& poly, int num, const glm::vec3& centre, float r
         lo = glm::min(lo, p.rest); hi = glm::max(hi, p.rest);
         allHead = allHead && glm::distance(p.rest, centre) < radius;
     }
-    if(allHead) { paintZone(poly, num, 1); return; }
+    if(allHead) { paintZone(poly, num, region, lift, fill); return; }
     if(glm::distance(glm::clamp(centre, lo, hi), centre) >= radius) { outside(poly); return; }
     glm::vec3 normal{0.f};
     for(za::SizeT i = 1; i + 1 < poly.size() && glm::length(normal) < 1e-6f; ++i)
@@ -1429,7 +1439,36 @@ void headZone(const ZonePolygon& poly, int num, const glm::vec3& centre, float r
         outside(out);
         remaining.swap(in);
     }
-    paintZone(remaining, num, 1);
+    paintZone(remaining, num, region, lift, fill);
+}
+
+// The melee's beheading zone (QC VR_Decap_MeleeZone, magenta): an upright capsule from `bottom` to `top` (standing-pose
+// coordinates, as the head's sphere) of `radius`. Above its top, the top's sphere; below its bottom, the bottom's;
+// between, the upright cylinder (a 64-sided prism inside it, as headZone's circle). VR_Decap_OnMeleeHead tests a point
+// on the model as drawn mapped to its standing pose (hitmodel_rest), so this is the part of the model, as it moves,
+// that a slash beheads at.
+template<class Outside>
+void capsuleZone(const ZonePolygon& poly, int num, const glm::vec3& bottom, const glm::vec3& top, float radius, Outside&& outside,
+    float lift, bool fill)
+{
+    ZonePolygon above, rest, below, middle;
+    splitZone(poly, {0.f, 0.f, 1.f}, top.z, rest, above);
+    splitZone(rest, {0.f, 0.f, -1.f}, -bottom.z, middle, below);
+    headZone(above, num, top, radius, outside, 4, lift, fill);
+    headZone(below, num, bottom, radius, outside, 4, lift, fill);
+    constexpr int sides = 64;
+    constexpr float pi = 3.14159265f;
+    const float apothem = radius * za::cos(pi / sides);
+    ZonePolygon remaining = middle, in, out;
+    for(int i = 0; i < sides && remaining.size() >= 3; ++i)
+    {
+        const float angle = 2.f * pi * (i + 0.5f) / sides;
+        const glm::vec3 n{za::cos(angle), za::sin(angle), 0.f};
+        splitZone(remaining, n, glm::dot(top, n) + apothem, in, out);
+        outside(out);
+        remaining.swap(in);
+    }
+    paintZone(remaining, num, 4, lift, fill);
 }
 
 void bodyZones(const ZonePolygon& poly, int num, float lateral, const glm::vec3& head, float radius, bool priority)
@@ -1444,24 +1483,25 @@ void bodyZones(const ZonePolygon& poly, int num, float lateral, const glm::vec3&
     else { headZone(upper, num, head, radius, [&](const ZonePolygon& p) { paintZone(p, num, 0); }); }
 }
 
-bool animatedZones(const Zone& body, const Zone& head, const entity_t& e)
+// Each triangle of entity `num`'s model as drawn (`e`), its corners in its standing pose and as drawn: `each(triangle)`.
+// False: it isn't a precise hits target drawn now (its zones are drawn as boxes and spheres where it stands).
+template<class Each>
+bool drawnZoneTriangles(int num, const entity_t& e, Each&& each)
 {
-    if(body.num >= sv.qcvm.num_edicts || e.msgtime != cl.mtime[0]) { return false; }
+    if(num >= sv.qcvm.num_edicts || e.msgtime != cl.mtime[0]) { return false; }
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
-    edict_t* ent = EDICT_NUM(body.num);
+    edict_t* ent = EDICT_NUM(num);
     Drawn d;
     za::Vector<glm::vec3> drawn;
     const bool valid = target(ent) && e.model == modelOf(ent) && drawnOf(ent, d) &&
-        modelcollide::drawnTriangles(e, body.num, drawn);
+        modelcollide::drawnTriangles(e, num, drawn);
     PR_PopQCVM(oldvm);
     if(!valid) { return false; }
-    ++zoneModels;
     const auto* base = reinterpret_cast<const byte*>(d.hdr);
     const auto* desc = reinterpret_cast<const aliasmesh_t*>(base + d.hdr->meshdesc);
     const auto* indices = reinterpret_cast<const unsigned short*>(base + d.hdr->indexes);
     const trivertx_t* rest = posesOf(d.hdr) + static_cast<za::SizeT>(d.mesh->restPose) * d.mesh->numverts;
-    const bool priority = vr_hit_head_priority.value != 0;
     for(za::SizeT i = 0; i + 2 < drawn.size() && i + 2 < static_cast<za::SizeT>(d.hdr->numindexes); i += 3)
     {
         ZonePolygon triangle;
@@ -1474,17 +1514,45 @@ bool animatedZones(const Zone& body, const Zone& head, const entity_t& e)
                 zonePoseHash = (zonePoseHash ^ ZA_BIT_CAST(za::U32, drawn[idx][axis])) * 16777619u;
             }
         }
+        each(triangle);
+    }
+    return true;
+}
+
+bool animatedZones(const Zone& body, const Zone& head, const entity_t& e)
+{
+    const bool priority = vr_hit_head_priority.value != 0;
+    zoneSampling = true;
+    const bool drawn = drawnZoneTriangles(body.num, e, [&](const ZonePolygon& triangle) {
         const auto outside = [&](const ZonePolygon& p) { bodyZones(p, body.num, body.hi.y, head.lo, head.radius, priority); };
         if(priority) { headZone(triangle, body.num, head.lo, head.radius, outside); }
         else { outside(triangle); }
-    }
-    return true;
+    });
+    zoneSampling = false;
+    zoneModels += drawn ? 1 : 0;
+    return drawn;
+}
+
+// The melee beheading zone `decap` (4) painted on the model as drawn: Decapitation (`alone`) fills it, and the head's
+// sphere `head` (if any: shots' and thrown axes') over it; Both outlines it over positional damage's regions.
+bool animatedDecap(const Zone& decap, const Zone* head, const entity_t& e, bool alone)
+{
+    const auto none = [](const ZonePolygon&) {};
+    const bool drawn = drawnZoneTriangles(decap.num, e, [&](const ZonePolygon& triangle) {
+        capsuleZone(triangle, decap.num, decap.lo, decap.hi, decap.radius, none, alone ? 0.08f : 0.16f, alone);
+        if(alone && head)
+        {
+            headZone(triangle, decap.num, head->lo, head->radius, none, 1, 0.16f, true);
+        }
+    });
+    zoneDecapModels += drawn ? 1 : 0;
+    return drawn;
 }
 }
 
 void zonesDraw()
 {
-    zoneSamples.clear(); zoneModels = zoneFallbacks = 0; zonePieces = {}; zonePoseHash = 2166136261u;
+    zoneSamples.clear(); zoneModels = zoneFallbacks = zoneDecapModels = 0; zonePieces = {}; zonePoseHash = 2166136261u;
     // (Stale: the option just turned off, a map change, the QC sending none; a frame's zones last a 0.25 s at most.)
     if(!vr_debug_hitzones.value || !sv.active || zones.empty() || sv.qcvm.time < zonesTime || sv.qcvm.time - zonesTime > 0.25)
     {
@@ -1512,9 +1580,27 @@ void zonesDraw()
             }
         }
     }
+    // The melee's beheading zone (4) on the animated surface too, as the melee tests it (VR_Decap_OnMeleeHead: the point
+    // struck mapped to the standing pose); Decapitation alone: with the head's sphere (1) over it.
+    const bool decapAlone = static_cast<int>(vr_debug_hitzones.value) == 2;
+    za::Vector<int> decapAnimated;
+    for(const Zone& decap : zones)
+    {
+        if(decap.zone != 4 || decap.num <= 0 || decap.num >= cl.num_entities) { continue; }
+        const entity_t& e = cl_entities[decap.num];
+        if(!e.model || e.msgtime != cl.mtime[0]) { continue; }
+        const Zone* head = nullptr;
+        for(const Zone& h : zones)
+        {
+            head = !head && h.num == decap.num && h.zone == 1 ? &h : head;
+        }
+        if(animatedDecap(decap, decapAlone ? head : nullptr, e, decapAlone)) { decapAnimated.pushBack(decap.num); }
+    }
     for(const Zone& z : zones)
     {
-        if(z.zone != 4 && za::anyOf(animated.begin(), animated.end(), [&](int num) { return num == z.num; })) { continue; }
+        const auto in = [&](const za::Vector<int>& nums) { return za::anyOf(nums.begin(), nums.end(), [&](int num) { return num == z.num; }); };
+        if(z.zone != 4 && in(animated)) { continue; }
+        if((z.zone == 4 || (decapAlone && z.zone == 1)) && in(decapAnimated)) { continue; }
         if(z.num <= 0 || z.num >= cl.num_entities)
         {
             continue;
@@ -1617,9 +1703,9 @@ void zonesCheck_f()
         }
     }
     PR_PopQCVM(oldvm);
-    Con_Printf("vr_hitzones_check: models=%d fallback=%d body=%d head=%d limbs=%d legs=%d samples=%d checked=%d "
-        "mismatch=%d boundary=%d pose=%08x priority=%d xray=%d classifier=%d\n", zoneModels, zoneFallbacks,
-        zonePieces[0], zonePieces[1], zonePieces[2], zonePieces[3], int(zoneSamples.size()), checked, mismatch,
+    Con_Printf("vr_hitzones_check: models=%d fallback=%d body=%d head=%d limbs=%d legs=%d decap_models=%d decap=%d samples=%d "
+        "checked=%d mismatch=%d boundary=%d pose=%08x priority=%d xray=%d classifier=%d\n", zoneModels, zoneFallbacks,
+        zonePieces[0], zonePieces[1], zonePieces[2], zonePieces[3], zoneDecapModels, zonePieces[4], int(zoneSamples.size()), checked, mismatch,
         boundary, unsigned(zonePoseHash), int(vr_hit_head_priority.value), int(vr_debug_hitzones_xray.value), int(fn != 0));
 }
 

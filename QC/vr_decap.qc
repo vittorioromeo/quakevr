@@ -1940,7 +1940,8 @@ void(float xTest) VR_Decap_Test =
 // (green: within 0.35 of its box's width of its middle, above its origin), the legs (blue: below it), the extremities
 // (yellow: out to its sides beyond that, drawn to 0.75 of its width; open-ended). 2 melee beheading's
 // (VR_Decap_MeleeZone, magenta: vr_decap_head_size, vr_decap_neck) and the head zone that shots and thrown axes use
-// (red). 3 both.
+// (red), painted on the animated surface as well (capsuleZone; the melee's test maps the point struck to the standing
+// pose, VR_Decap_OnMeleeHead). 3 both (the magenta outlined over positional damage's colors).
 void() VR_Decap_DebugFrame =
 {
     float mode = cvar_hget(cvarh_vr_debug_hitzones);

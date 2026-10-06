@@ -8,7 +8,13 @@
 // beside a limb that kills (health 1); 10 a body gibbed (its limbs thrown: vr_gib_limbs); 11 twice Most Limbs thrown
 // (the cap); 12 a sword's slash at a limb at full health (a zombie dies of it); 13 where each limb's middle maps
 // (ragdolllimb); 14 the main hand put on the last limb thrown (then grip it: vr_mock_button main grip 1); 15 whether a
-// hand holds it; 16 its body's speed; 17 the limbs lying about (where, how fast: none fallen out). `limbtest:` lines.
+// hand holds it; 16 its body's speed; 17 the limbs lying about (where, how fast: none fallen out); 18 the cut pieces'
+// own fountains (their spouts, the drops so far); 19 what each limb and the head of every kind of monster here weighs
+// cut off (limbpiece: its share of the ragdoll's mass); 20 an enemy enforcer's laser bolt into the nearest living
+// monster's head that kills (health 1; 21 at a limb); 22 the nearest living monster held still in frame 17 (a grunt's
+// last death frame: lying, its head far from where it stands); 23 where its head is for the head and limb tests: a
+// point on its head as animated against its standing head zone's middle (VR_Decap_OnMeleeHead, VR_Decap_OnHead,
+// ragdolllimb). `limbtest:` lines.
 
 float() VR_Limb_TestCount =
 {
@@ -186,6 +192,41 @@ void(float xTest) VR_Limb_Test =
             }
             bprint(sprintf("%s; whole limbs (*) and head %.1f%% of it\n", line, (topShare + hp_z) * 100));
         }
+        return;
+    }
+    if(xTest == 22 || xTest == 23)
+    {
+        m = VR_Limb_TestTarget(1);
+        if(m == world)
+        {
+            bprint(sprintf("limbtest: %g: no living monster with limbs near\n", xTest));
+            return;
+        }
+        if(xTest == 22)
+        {
+            m.frame = 17;
+            m.think = SUB_Null;
+            m.nextthink = 0;
+            m.velocity = '0 0 0';
+            bprint(sprintf("limbtest: 22 %s held in frame %g\n", m.classname, m.frame));
+            return;
+        }
+        float hb = ragdolllimbs(m, 3);
+        vector animated = limbplace(m, hb, 3); // (a point on its head bone's surface, as its frame has it)
+        if(!VR_Decap_HeadZone(m))
+        {
+            bprint(sprintf("limbtest: 23 %s has no head zone\n", m.classname));
+            return;
+        }
+        float hyaw = m.angles_y * (3.14159265 / 180);
+        vector standing = m.origin + '1 0 0' * (cos(hyaw) * xHeadForward) + '0 1 0' * (sin(hyaw) * xHeadForward) + '0 0 1' * xHeadUp;
+        bprint(sprintf("limbtest: 23 %s frame %g: its head as animated %v, its standing head zone's middle %v (%.1f apart)\n",
+            m.classname, m.frame, animated, standing, vlen(animated - standing)));
+        bprint(sprintf("limbtest: 23 melee beheading zone: animated %g, standing %g; head zone: animated %g, standing %g",
+            VR_Decap_OnMeleeHead(m, animated, '0 0 0'), VR_Decap_OnMeleeHead(m, standing, '0 0 0'),
+            VR_Decap_OnHead(m, animated, '0 0 0'), VR_Decap_OnHead(m, standing, '0 0 0')));
+        bprint(sprintf("; limb joint: animated %g, standing %g (head bone %g)\n", ragdolllimb(m, animated),
+            ragdolllimb(m, standing), hb));
         return;
     }
     if(xTest == 20 || xTest == 21)

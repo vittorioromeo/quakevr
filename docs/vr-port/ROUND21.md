@@ -26327,3 +26327,25 @@ bolt. Its death (any kill: `VR_Shock_Killed` from Killed) carries a shock still 
 one ended already stays ended. `vr_shock_hit_test 5` on a grunt: 1.5 s left (3 x 0.5); killed 0.5 s later by a plain
 blow (`vr_shock_hit_test -2`, new): 1.0 -> 2.5 s left; a corpse struck: 3. Menu: Gore > Lightning Shock > On the Living.
 
+### Show Hit Zones' Decapitation view
+
+The question: is the static magenta capsule what melee beheading uses? No. Every head and limb decision tests the point
+struck on the model as animated: `VR_Decap_OnMeleeHead` (slashes, the chainsaw, corpse blows) and `VR_Decap_OnHead`
+(head pops, thrown axes, the laser) map it to the standing pose with `hitmodel_rest` (the same triangle's place in the
+stand frame) and test it against the standing zone there; limbs (`ragdolllimb`) use the bones posed by the current
+frame. The capsule's numbers are right, only the debug view drew it where the monster's head is when standing, not
+mapped onto the animated model. (Precise hits off: the static zone is what is used.) Now Decapitation paints the melee
+zone (magenta) on the animated surface, as Positional Damage paints its regions (`capsuleZone`: the capsule clipped
+exactly, ends as spheres, the middle a 64-sided prism), with the head sphere that shots and thrown axes use (red) over
+it; Both outlines the magenta pieces over the positional regions; the wireframe stays for precise hits off.
+`vr_hitzones_check` reports `decap_models` and `decap` pieces. `vr_limb_test 22` holds the nearest monster in frame 17
+(a grunt lying dead), `23`: its head as animated is 54.5 units from where the standing zone sits; the animated head
+point is in the melee zone and the head zone (1, 1) and maps to the head bone, the standing zone's middle is in
+neither (0, 0) and maps to a leg (8). Running (frame 2, 6.3 apart): both in.
+
+### For the author to try in VR
+
+Hipnotic or the firing range: let an enforcer shoot another monster in the head (or shoot one with its rifle); cut limbs
+off and watch the cut ends spurt as they fly, a head's neck too; pick a forearm, a leg and a head up and throw them
+(Limb Weight); shock a living monster and kill it with the axe (its arcs go on); Debug > Show Hit Zones > Decapitation on
+a running and a dying monster.

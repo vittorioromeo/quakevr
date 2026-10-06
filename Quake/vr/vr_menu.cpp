@@ -4003,7 +4003,10 @@ za::Vector<Item> pageDebugViews()
         cycle("Show Hit Zones", vr_debug_hitzones, {{0.f, "Off"}, {1.f, "Positional Damage"}, {2.f, "Decapitation"}, {3.f, "Both"}})
             .help("Positional Damage colors the animated model surface: head red, body green, extremities yellow, legs blue. "
                   "Uses the same standing-pose mapping and Head Priority as precise shots and positional melee. "
-                  "Precise hits off: box/ray reference zones. Decapitation shows the older standing melee zone in magenta."),
+                  "Precise hits off: box/ray reference zones. Decapitation colors, on the animated model too, where a "
+                  "slash beheads (magenta: the melee's zone, Head Size and Neck) and the head that shots, lasers and "
+                  "thrown axes pop (red); Both outlines the magenta over Positional Damage's colors. Every head and limb "
+                  "test maps the point struck to the standing pose, so these zones move with the model."),
         toggle("Hit Zones Through Walls", vr_debug_hitzones_xray)
             .help("Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces."),
         cycle("Show Hits", vr_debug_hits, {{0.f, "Off"}, {1.f, "Hits"}, {2.f, "Hits and Misses"}})
