@@ -1508,6 +1508,7 @@ extern "C" void VR_BeginFrame()
     throwing::filterGrips(state->tracking); // the analog grip's release, before it becomes a key
     input::update(state->tracking.input); // releases held keys when VR is off
     bullettime::frame(); // the gadget's bullet time button (the hands as last placed)
+    flashlight::flicks(); // the held torch turned over by a flick of the wrist (likewise)
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
     input::roomscaleJump(hands::current());

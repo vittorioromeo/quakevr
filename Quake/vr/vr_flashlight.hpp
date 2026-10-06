@@ -72,6 +72,10 @@ enum class Button
 // true: the game saw that press and must see it let go.
 void lateGrips();
 
+// Once a frame, after the input (the hands as last placed): a sharp flick of the wrist up or down turns the torch held
+// in a hand over, as its B/Y does (vr_flashlight_flick; voice note vrfiringrange 17:28).
+void flicks();
+
 // A fresh game's baseline: off, on the chest. Loading subsequently restores the saved state.
 void reset();
 // Player field/level parm persistence. Transient poses and model pointers are rebuilt.

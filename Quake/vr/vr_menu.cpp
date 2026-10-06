@@ -1755,6 +1755,16 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         cycle("Cord", vr_flashlight_cord, {{0.f, "None"}, {1.f, "Low-Poly Chain"}}).help("The retracting cord from the clip on your belt to the torch while it is off the belt: a rusty low-poly iron chain (chunky links of square bar, flat-shaded: Quake's look), springy, swinging as your hand moves, or none drawn."),
         hueSlider("Beam Hue", vr_flashlight_hue).help("The beam's colour, with Beam Saturation (at 0 it is white): its light, the beam in the air and the lens. 40 warm, 200 cold blue; Player's: the Player Effects Hue."),
         slider("Beam Saturation", vr_flashlight_saturation, 0.f, 1.f, 0.05f, "%.2f").help("0 white (the default), 1 the Beam Hue in full."),
+        header("Turning It Over"),
+        toggle("Flick to Turn Over", vr_flashlight_flick)
+            .help("A sharp flick of your wrist up or down turns the torch in your hand over, as B or Y does (the beam out "
+                  "past your thumb or out past your little finger). Not by a gun or your head (B or Y clips it on there)."),
+        slider("Flick Strength", vr_flashlight_flick_speed, 300.f, 1500.f, 50.f, "%.0f deg/s").extend(100.f, 3000.f)
+            .help("How fast your wrist must turn up or down to count. Higher: only sharper flicks (fewer by accident)."),
+        slider("Flick: Hand Still Below", vr_flashlight_flick_max_move, 0.5f, 4.f, 0.1f, "%.1f m/s").extend(0.1f, 10.f)
+            .help("Your hand moving faster than this (a swing, a punch) never flicks: the wrist alone."),
+        slider("Flick Cooldown", vr_flashlight_flick_cooldown, 0.1f, 1.5f, 0.05f, "%.2f s")
+            .help("After a flick, how long before the next one counts (your wrist coming back is not a second flick)."),
         header("Taking and Clipping On"),
         slider("Grab Range", vr_flashlight_grab_range, 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
             .help("How far from the torch your hand reaches it (it lights up, a grip takes it): times 9 cm from its middle line. Higher is more lenient."),
@@ -4085,6 +4095,8 @@ za::Vector<Item> pageDebugLogging()
             .help("Bullet time starting, stopping and refused (the meter, the cooldown), each tap and press; and every "
                   "frame, how far your fingertip is from the gadget's button, or (And the Wrist Tap) how far your other "
                   "hand is from the gadget and how fast the hands come together."),
+        cycle("Flashlight Flicks", vr_flashlight_flick_debug, {{0.f, "Off"}, {1.f, "Each Flick and Why"}, {2.f, "And the Wrist Every Frame"}})
+            .help("vr_flashlight_flick_debug: the wrist flick that turns the held torch over, taken or refused (and why); 2: the held hand's wrist speed every frame."),
         cycle("Chainsaw", vr_debug_chainsaw, {{0.f, "Off"}, {1.f, "Pulls and Cuts"}, {2.f, "And the Bar in Monsters"}})
             .help("The chainsaws' cords (taken, pulled, too slow, let go), their engines (started, stalled) and cuts; "
                   "And the Bar: also each cut's test against what is near, how deep the drawn bar sinks into a monster, "

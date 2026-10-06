@@ -26368,3 +26368,29 @@ press`, on at 0.30x, `taken by bullet time` (press and release). Mode 2: left to
 taken. The gadget's button could not be exercised headless here: `vr_mock_hand_to main button` says "no gadget shown"
 (the gadget's pose is never valid in this mock run, with or without placed hands), so the gadget-off part rests on the
 code path.
+
+## Flashlight: turned over by a flick of the wrist (2026-10-06)
+
+Voice note vrfiringrange 17:28 ("turn the torch's direction with a quick flick of the wrist upwards or downwards").
+Read as the flashlight (the British torch): held in a hand away from a gun and the head, B/Y turns it over between the
+low grip (beam out past the thumb) and the overhead one (out past the little finger); now a sharp flick of the wrist,
+up or down, does the same (`flip`, its spin, click and buzz). Not the burning wall torch (nothing to turn there).
+
+`flashlight::flicks()` (vr_main, once a frame after the input, the hands as last placed): each hand's forward and up on
+the body (the play space's turn taken out), the turn since the last frame as axis times angle, in real time
+(`realtime`: bullet time doesn't change it). A flick: the turn about the hand's right (pitch) at
+`vr_flashlight_flick_speed` (600 deg/s) or more; that pitch at least 0.7 of the whole turn (a twist or a sideways wave
+isn't one); the hand slower than `vr_flashlight_flick_max_move` (1.5 m/s: swings and punches never flick); one per
+`vr_flashlight_flick_cooldown` (0.4 s) and the wrist must slow below half the speed to re-arm (the wrist coming back is
+not a second flick); a turn over 120 degrees in one frame is a tracking jump. Only for the holding hand, in the game,
+alive; not by a gun or the head (B/Y clips it on there). `vr_flashlight_flick` 1 (on). Menu: the flashlight's page,
+**Turning It Over** (Flick to Turn Over, Flick Strength, Flick: Hand Still Below, Flick Cooldown); Debug > Logs >
+**Flashlight Flicks** (`vr_flashlight_flick_debug` 1: each flick taken or refused and why; 2: the wrist every frame).
+
+Test (`Misc/quakevr/flashflick/flick_test.py`, mock, e1m1, the off hand holding it, fixed frames): slow wrist up 60
+degrees over 60 frames and back, and aiming around (pitch and yaw 1 degree a frame): nothing. Flick up (60 degrees in 6
+frames: 644 deg/s): flipped; flick down: flipped; up and straight back: one flip; that twice 40 frames apart: two. Roll
+70 in 6 frames, yaw 60 in 6: nothing. The flick with the hand moving 2 m/s: refused (the hand moving). Strength 1200:
+the 644 deg/s flick nothing, 90 degrees in 4 frames (1299 deg/s) flipped. Off: nothing. (Mock scripts: `wait N` is one
+frame; only run.sh's `-Script` expands `waitN`. `vr_flashlight_give` before the view has run once after a map load is
+undone by the flashlight's state restore: the test gives after 150 frames.)
