@@ -451,6 +451,9 @@ console command (its targetname, for example map vrfiringrange)."
 	spawnflags(flags) =
 	[
 		2 : "Starts disabled (Honey)" : 0 : "Pushed in and dead until a trigger_buttontoggle enables it."
+        8 : "Gold key (official campaigns)" : 0
+        16 : "Silver key (official campaigns)" : 0
+        32 : "Key required each time (official campaigns)" : 0
 	]
 ]
 
@@ -847,4 +850,38 @@ on whatever is below its origin (within 128 units), whatever Rocks and Bricks' o
  fog_info_entity(target_destination) : "Fog on low side"
  target(target_destination) : "Fog on high side"
  style(choices) : "Axis" : 0 = [ 0 : "X" 1 : "Y" 2 : "Z" ]
+]
+
+// Official rerelease native shared triggers; campaign-gated, using owned expansion data.
+@PointClass base(Targetname, Target) = trigger_counter_timed : "Timed official sequence; delay is its inactivity reset window. Completion fires once without a target delay." [
+    count(integer) : "Inputs" : 2
+    delay(float) : "Inactivity timeout" : 2
+]
+@PointClass base(Targetname, Target) = trigger_repeater : "Official target repeater: toggle on/off; wait plus random pausetime controls the next tick." [
+    wait(float) : "Interval" : 1
+    pausetime(float) : "Random added interval" : 0
+    spawnflags(flags) = [ 1 : "Start on" : 0 ]
+]
+@PointClass base(Targetname, Target) = trigger_lightning : "Official lightning to named endpoints. Endpoint targets activate twice (0.2 seconds apart) unless flags change that. dmg uses native positional lightning damage." [
+    style(choices) : "Beam" : 0 = [ 0 : "Lightning 3" 1 : "Lightning 1" 2 : "Lightning 2" ]
+    spawnflags(flags) = [ 1 : "Random endpoint" : 0 2 : "Trace backwards" : 0 4 : "Do not activate endpoint targets" : 0 8 : "Activate endpoint targets once" : 0 16 : "Silent (Dawn)" : 0 ]
+]
+@PointClass base(Targetname) = trigger_sound : "Play the specified owned sound when activated." []
+@PointClass base(Targetname, Target) = trigger_fade : "Fade dead targets over delay seconds, then remove them. Living targets remain." [ delay(float) : "Fade seconds" : 1 ]
+@PointClass base(Targetname) = trigger_screenshake : "Authored quake audio and controller vibration. Does not alter headset/view angles or tracked position." [
+    wait(float) : "Duration" : 2
+    dmg(float) : "Intensity" : 3
+    spawnflags(flags) = [ 1 : "Silent" : 0 ]
+]
+@PointClass base(Targetname, Target) = trigger_freeze : "Toggle suspension of named targets' scheduled think; retains authored resume time." []
+@PointClass base(Targetname, Target) = trigger_changetarget : "Change target of entities named target to killtarget; does not remove them." []
+@PointClass base(Targetname) = trigger_cleanup_corpses : "Cooperative-only one-shot removal of dead monsters; preserves living monsters and players." []
+
+@SolidClass = func_door : "Sliding door; official campaigns support movedir as an exact translation, speed2 as the return speed, and bit64 as crusher (Honey uses bit64 for trigger-on-end)." [
+    speed2(float) : "Return speed (official campaigns)" : 0 : "Zero uses speed."
+    movedir(string) : "Exact translation (official campaigns)" : "0 0 0"
+]
+
+@SolidClass = trigger_explosion : "Rogue radius-damage brush relay. Official campaigns use an activated point explosion: delay before effect, bit1 disables damage." [
+    spawnflags(flags) = [ 1 : "No damage (official campaigns)" : 0 ]
 ]

@@ -4211,6 +4211,14 @@ za::Vector<Item> pageSpawnWeapons()
 za::Vector<Item> pageDebugTests()
 {
     return {
+        command("Official Triggers: Acceptance Test", "vr_mg_trigger_test 1")
+            .help("Check native target timing, cancellation, lightning, fades and comfortable quake feedback. Reload afterward."),
+        command("Official Triggers: Retarget Slipgate", "vr_mg_trigger_test 4")
+            .help("Destructive: redirect a visible native slipgate and report the new cached destination. Reload afterward."),
+        command("Official Triggers: Lightning Damage", "vr_mg_trigger_test 3")
+            .help("Check native positional lightning damage, backwards traces and wetsuit protection in a clear corridor."),
+        command("Machine: mge5m2 Trigger Route", "vr_mg_trigger_test 2")
+            .help("Destructive authored rune puzzle and quake sequence on mge5m2. Uses real buttons and engine movement. Reload afterward."),
         command("Official World: Fog Report", "vr_mg_world_test 1")
             .help("Print the native campaign's authored world and player fog values."),
         command("Official World: Environment Test", "vr_mg_world_test 2")

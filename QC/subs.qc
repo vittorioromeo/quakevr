@@ -12,6 +12,7 @@ just constant angles.
 */
 void() SetMovedir =
 {
+    if(MG_WorldCampaign() && self.movedir != '0 0 0') { self.angles = '0 0 0'; return; }
     if(self.angles == '0 -1 0')
         self.movedir = '0 0 1';
     else if(self.angles == '0 -2 0')
@@ -192,7 +193,7 @@ void() DelayThink =
     SUB_UseTargets();
 
     // HONEY
-    self.owner.delayedThink = world;
+    if(!MG_WorldCampaign() && self.owner.delayedThink == self) self.owner.delayedThink = world;
 
     remove(self);
 };
@@ -236,8 +237,15 @@ void() SUB_UseTargets =
         t.target = self.target;
 
         // HONEY
-        t.owner = self;
-        self.delayedThink = t;
+        if(MG_WorldCampaign()) {
+            // Every pending activation is independently cancelable by its authored targetname.
+            t.targetname = self.targetname;
+            t.spawnflags = self.spawnflags;
+            t.use = SUB_Null;
+        } else {
+            t.owner = self;
+            self.delayedThink = t;
+        }
 
         return;
     }
@@ -246,9 +254,10 @@ void() SUB_UseTargets =
 //
 // print the message
 //
-    if(activator.classname == "player" && self.message != "")
+    if((activator.classname == "player" || MG_MessageAll(self)) && self.message != "")
     {
-        centerprint(activator, self.message);
+        if(MG_MessageAll(self)) MG_PrintAll(self.message);
+        else centerprint(activator, self.message);
         if(!self.noise)
             sound(activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
     }
@@ -262,14 +271,14 @@ void() SUB_UseTargets =
         while(t)
         {
             // HONEY
-            if(t.delayedThink) remove(t.delayedThink);
-            if(t.classname == "func_button"){
+            if(!MG_WorldCampaign() && t.delayedThink) remove(t.delayedThink);
+            if(!MG_WorldCampaign() && t.classname == "func_button"){
                 if(t.spawnflags & 1){ //Disableable button spawnflag
                     button_disable(t);
                 }else{
                     remove(t);
                 }
-            }else if(t.classname == "func_door_secret"){
+            }else if(!MG_WorldCampaign() && t.classname == "func_door_secret"){
                 //Honey hack to stop a secret door killed mid-move to play its noise endlessly
                 //dprint("killed func_door_secret\n");
                 if(t.velocity != '0 0 0')

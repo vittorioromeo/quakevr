@@ -136,6 +136,11 @@ health: amount of damage needed to set off trigger.
 */
 void() trigger_explosion =
 {
+    if(MG_WorldCampaign()) {
+        if(MG_MonsterInhibited()) return;
+        self.use = MG_trigger_explosion_use;
+        return;
+    }
     if(!VR_Pack_RequireSpawn(VR_Pack_Rogue(), "Rogue")) { return; }
 
     InitTrigger ();

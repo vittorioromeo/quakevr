@@ -1287,6 +1287,9 @@ console command (its targetname, for example map vrfiringrange)."
 	spawnflags(flags) =
 	[
 		2 : "Starts disabled (Honey)" : 0 : "Pushed in and dead until a trigger_buttontoggle enables it."
+		8 : "Gold key (official campaigns)" : 0
+		16 : "Silver key (official campaigns)" : 0
+		32 : "Key required each time (official campaigns)" : 0
 	]
 	angle(integer) : "Direction" : 0 : "The direction it moves when pressed (-1 up, -2 down)."
 	buttonEffect(choices) : "Effect (Quake VR)" : 0 : "What else it does when pressed." =
@@ -1359,30 +1362,7 @@ This is just a solid wall if not inhibitted Only appears in CTF teamplay"
 ]
 
 @SolidClass base(Angle, Appearflags, Targetname, Target) color(0 128 204) =
-	func_door : "Basic door
-
-if two doors touch, they are assumed to be connected and operate as a unit.
-
-TOGGLE causes the door to wait in both the start and end states for a trigger event.
-
-START_OPEN causes the door to move to its destination when spawned, and operate in reverse. It is used to temporarily or permanently close off an area when triggered (not usefull for touch or takedamage doors).
-
-Key doors are allways wait -1.
-
-'message' is printed when the door is touched if it is a trigger door and it hasn't been fired yet
-'angle' determines the opening direction
-'targetname' if set, no touch field will be spawned and a remote button or trigger field activates the door.
-'health' if set, door must be shot open
-'speed' movement speed (100 default)
-'wait' wait before returning (3 default, -1 = never return)
-'lip' lip remaining at end of move (8 default)
-'dmg' damage to inflict when blocked (2 default)
-'sounds'
-0) no sound
-1) stone
-2) base
-3) stone chain
-4) screechy metal"
+	func_door : "Sliding door; official campaigns support movedir as an exact translation, speed2 as the return speed, and bit64 as crusher (Honey uses bit64 for trigger-on-end)."
 [
 	speed(integer) : "Speed" : 100
 	sounds(choices) : "Sound" : 0 =
@@ -1406,6 +1386,8 @@ Key doors are allways wait -1.
 		16 : "Silver Key required" : 0
 		32 : "Toggle" : 0
 	]
+	speed2(float) : "Return speed (official campaigns)" : 0 : "Zero uses speed."
+	movedir(string) : "Exact translation (official campaigns)" : "0 0 0"
 	pos2(string) : "Travel (x y z)" :  : "A vector, in units: see the help for this entity."
 ]
 
@@ -2259,6 +2241,16 @@ When the player touches this, he gets sent to the map listed in the 'map' variab
 	]
 ]
 
+@PointClass base(Targetname, Target) color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_changetarget : "Change target of entities named target to killtarget; does not remove them."
+[
+]
+
+@PointClass base(Targetname) color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_cleanup_corpses : "Cooperative-only one-shot removal of dead monsters; preserves living monsters and players."
+[
+]
+
 @PointClass color(76 26 153) size(-10 -10 -8, 10 10 8) =
 	trigger_command : "From the Scourge of Armagon (hipnotic): its models and sounds come from the hipnotic folder.
 
@@ -2284,6 +2276,18 @@ After the counter has been triggered 'count' times (default 2), it will fire all
 	count(integer) : "Count before trigger" : 2
 	delay(integer) : "Delay"
 	message(string) : "Message"
+	wait(float) : "Wait" :  : "Seconds to wait (before it returns, resets or repeats). -1: never."
+]
+
+@PointClass base(Targetname, Target) color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_counter_timed : "Timed official sequence; delay is its inactivity reset window. Completion fires once without a target delay."
+[
+	spawnflags(flags) =
+	[
+		1 : "nomessage" : 0
+	]
+	count(integer) : "Inputs" : 2
+	delay(float) : "Inactivity timeout" : 2
 ]
 
 @SolidClass color(0 128 204) =
@@ -2363,13 +2367,19 @@ Trigger to kill the level-wide earthquake."
 ]
 
 @SolidClass color(128 128 128) =
-	trigger_explosion : "From the Dissolution of Eternity (rogue): its models and sounds come from the rogue folder.
-
-Variable sized repeatable trigger. Must be targeted at one or more entities. Only set off when killed, and is only damaged by T_RadiusDamage.
-
-health: amount of damage needed to set off trigger."
+	trigger_explosion : "Rogue radius-damage brush relay. Official campaigns use an activated point explosion: delay before effect, bit1 disables damage."
 [
+	spawnflags(flags) =
+	[
+		1 : "No damage (official campaigns)" : 0
+	]
 	health(integer) : "Health" :  : "If set, it must be shot (this much damage) instead of touched."
+]
+
+@PointClass base(Targetname, Target) =
+	trigger_fade : "Fade dead targets over delay seconds, then remove them. Living targets remain."
+[
+	delay(float) : "Fade seconds" : 1
 ]
 
 @SolidClass base(Targetname) color(128 128 204) =
@@ -2403,6 +2413,11 @@ while inside the global fog is faded to the specified color and density. the tra
 [
 ]
 
+@PointClass base(Targetname, Target) =
+	trigger_freeze : "Toggle suspension of named targets' scheduled think; retains authored resume time."
+[
+]
+
 @SolidClass base(Appearflags, Targetname) color(128 128 128) =
 	trigger_hurt : "Trigger: Hurt
 
@@ -2411,6 +2426,27 @@ Any object touching this will be hurt set dmg to damage amount defalt dmg = 5
 [
 	dmg(integer) : "Damage per second" : 5
 	cnt(integer) : "Count (cnt)" :  : "A count: see the help for this entity."
+]
+
+@PointClass base(Targetname, Target) =
+	trigger_lightning : "Official lightning to named endpoints. Endpoint targets activate twice (0.2 seconds apart) unless flags change that. dmg uses native positional lightning damage."
+[
+	spawnflags(flags) =
+	[
+		1 : "Random endpoint" : 0
+		2 : "Trace backwards" : 0
+		4 : "Do not activate endpoint targets" : 0
+		8 : "Activate endpoint targets once" : 0
+		16 : "Silent (Dawn)" : 0
+	]
+	style(choices) : "Beam" : 0 =
+	[
+		0 : "Lightning 3"
+		1 : "Lightning 1"
+		2 : "Lightning 2"
+	]
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
+	volume(float) : "Volume" :  : "Sound volume, 0 to 1."
 ]
 
 @SolidClass base(Angle, Appearflags, Targetname) color(128 128 128) =
@@ -2519,6 +2555,30 @@ Variable sized trigger that removes the thing that touches it. Does not affect m
 	cnt(integer) : "Count (cnt)" :  : "A count: see the help for this entity."
 ]
 
+@PointClass base(Targetname, Target) color(128 128 128) size(-8 -8 -8, 8 8 8) =
+	trigger_repeater : "Official target repeater: toggle on/off; wait plus random pausetime controls the next tick."
+[
+	spawnflags(flags) =
+	[
+		1 : "Start on" : 0
+	]
+	wait(float) : "Interval" : 1
+	pausetime(float) : "Random added interval" : 0
+]
+
+@PointClass base(Targetname) =
+	trigger_screenshake : "Authored quake audio and controller vibration. Does not alter headset/view angles or tracked position."
+[
+	spawnflags(flags) =
+	[
+		1 : "Silent" : 0
+	]
+	wait(float) : "Duration" : 2
+	dmg(float) : "Intensity" : 3
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
+	noise1(string) : "Sound 1" :  : "A sound, relative to sound/."
+]
+
 @SolidClass base(Trigger) color(128 128 128) =
 	trigger_secret : "Trigger: Secret
 
@@ -2586,6 +2646,12 @@ When triggered this enetity changes the target field of the target entity to its
 [
 	target(target_destination) : "Target" :  : "The entities (by targetname) it triggers."
 	message(string) : "Message" :  : "Text shown to the player. \n makes a new line."
+]
+
+@PointClass base(Targetname) =
+	trigger_sound : "Play the specified owned sound when activated."
+[
+	noise(string) : "Sound" :  : "A sound, relative to sound/ (for example misc/secret.wav)."
 ]
 
 @SolidClass base(Appearflags, Target, Targetname) color(128 128 128) =
