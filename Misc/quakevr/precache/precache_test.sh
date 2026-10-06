@@ -10,7 +10,8 @@
 #   legacy   the dummy save with its `// qvr_` lines taken out (a save of an older build): its models found by name,
 #            the console's warning
 #   build    the save said to be another build's (a warning, the centre print), and of a newer format (refused)
-#   hitch    the first limb cut's server frame (vr_limb_test 4's time, ms), a sword's killing slash at a grunt
+#   hitch    a sword's killing slash at a grunt's limb, twice: no `late precache` of its limb model at the first
+#            (vr_limbs_prebuild 1: made as the map loaded; with 0, the line and its time in ms), then with 0
 AGENT=${1:?worktree name}; shift
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 TREE=C:/OHWorkspace/qvr-agents/$AGENT
@@ -40,8 +41,8 @@ for c in $CASES; do
         sed -E 's|^// qvr_save [0-9]+ |// qvr_save 99 |' $TREE/quakevr/pctest_b.sav > $TREE/quakevr/pctest_newer.sav
         run "map vrfiringrange;wait10;vr_dummy_type 8;load pctest_other;$CHK;load pctest_newer;wait30;vr_model_check;vr_dummy_type 0;toggleconsole;quit" "$FILTER|Saved game|another build|newer build" ;;
     hitch)
-        # (the first cut of a session, then a second grunt's, the same limb: its model made already)
-        run "map vrfiringrange;wait30;god;notarget;vr_test_spawn 0;vr_test_spawn_dist 90;impulse 241;wait30;vr_limb_test 4;wait60;vr_mock_look 0 60;impulse 241;wait30;vr_limb_test 4;wait30;toggleconsole;quit" "^limbtest: 4|first cut|rror" ;;
+        # (the map loaded with each setting: the dummy, a grunt, has its limbs made with 1)
+        for p in 1 0; do echo "-- vr_limbs_prebuild $p"; run "vr_limbs_prebuild $p;developer 1;map vrfiringrange;wait30;god;notarget;vr_test_spawn 0;vr_test_spawn_dist 90;impulse 241;wait30;vr_limb_test 4;wait60;vr_mock_look 0 60;impulse 241;wait30;vr_limb_test 4;wait30;developer 0;vr_limbs_prebuild 1;toggleconsole;quit" "late precache: [^ ]*#limb|^limbtest: 4 at|limb models:|rror"; done ;;
     *) echo "unknown case $c" ;;
     esac
 done

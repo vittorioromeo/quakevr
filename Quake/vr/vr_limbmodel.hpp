@@ -34,5 +34,8 @@ bool name(const char* base, int bone, uint32_t bones, char* out, size_t size);
 // vr_limb_models [<model>]: the limbs of a monster's model (the nearest dead or living monster's, else the grunt's),
 // each one's triangles, cap and size, made now.
 void info_f();
+// SV_SpawnServer, the map's entities spawned (VR_OnSpawnServerSpawned): the whole limbs of every kind of monster the
+// map has, made and precached now (vr_limbs_prebuild), not at the first cut (its frame: ~5 ms).
+void prebuild();
 
 } // namespace qvr::limbmodel

@@ -3,6 +3,7 @@
 # (both kept in git history). Reload List refreshes this page; no rebuild needed.
 
 [New this week]
+Saved games (the firing-range corruption): change Dummy Enemy, cut limbs, get an autosave, die and respawn: every model right (no gremlin pillars, no head-gib buttons); loading an old save says so in the console and once on screen
 Head pops: shotgun and super shotgun headshot kills pop up close, rarer with range (shotgun sooner), never far away; lightning always; heavy thrown things pop (Gore > Decapitation > Head Pop Chance)
 Lightning: one hit puts arcs on a living enemy that last through its death; corpses convulse until the arcs end; try Duration 30 s; arcs readable, lights not too strong (Gore > Lightning Shock)
 Smoke: lightning-hit and burnt enemies/corpses smoulder for a few seconds (visible in dark rooms, not too much); Gore > Lightning Shock > Arcs on the Living off = lasting arcs only on corpses

@@ -1162,8 +1162,11 @@ static void PF_precache_model (void)
 	{
 		if (!sv.model_precache[i])
 		{
+			double t0 = Sys_DoubleTime (); // QVR: a late one's load (the frame's hitch), said with developer 1
 			sv.model_precache[i] = s;
 			sv.models[i] = Mod_ForName (s, true);
+			if (sv.state == ss_active)
+				Con_DPrintf ("late precache: %s, %.1f ms\n", s, (Sys_DoubleTime () - t0) * 1000.0);
 			return;
 		}
 		if (!strcmp(sv.model_precache[i], s))

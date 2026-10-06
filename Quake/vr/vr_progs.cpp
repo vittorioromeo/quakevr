@@ -10,6 +10,7 @@
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
 #include "vr_ledges.hpp"
+#include "vr_limbmodel.hpp"
 #include "vr_cvars.hpp"
 #include "vr_mem.hpp"
 #include "vr_physics.hpp"
@@ -292,6 +293,7 @@ extern "C" void VR_OnEntitySpawned(edict_t* ent)
 extern "C" void VR_OnSpawnServerSpawned()
 {
     qvr::hull::spawned(); // the monsters' compiled hulls (their widths now known), on the pool
+    qvr::limbmodel::prebuild(); // the limbs of the map's monsters (before serverinfo: in every client's list)
 }
 
 extern "C" void VR_OnEdictFree(edict_t* ed)
@@ -736,8 +738,13 @@ extern "C" int VR_LatePrecacheModel(const char* name)
         if(!sv.model_precache[i])
         {
             // Clients learn about it from VR_ServerFrameEnd.
+            const double t0 = Sys_DoubleTime(); // (its load: the frame's hitch, said with developer 1)
             sv.model_precache[i] = name;
             sv.models[i] = Mod_ForName(name, true);
+            if(sv.state == ss_active) // (not the map's own: vr_limbs_prebuild's, as it loads)
+            {
+                Con_DPrintf("late precache: %s, %.1f ms\n", name, (Sys_DoubleTime() - t0) * 1000.0);
+            }
             return i;
         }
 

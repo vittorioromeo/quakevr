@@ -26156,3 +26156,53 @@ equal, e.g. the rocket launcher 38.2 x 8.3 x 10.2 both; before: the g_ model at 
 
 To check in VR: the pickups' height and spin in e1m1-e1m5 (objects and touch mode), a pickup knocked loose (it should
 fall as the same shape), deathmatch respawn.
+
+## Saved games' models: the firing-range corruption (2026-10-06)
+
+Vittorio died in the firing range, was respawned (the autoload of the last autosave), and every model was wrong:
+buttons drawn as head gibs, panels as the vore, torches and flames in odd places; hitting one Host_Errored.
+
+**Cause.** A saved entity's `.modelindex` indexes the precache list of the game that was saved, and a load spawns the
+map afresh, precaching in its own order, then puts the saved values back. Vanilla Quake gets away with it (the same
+spawn functions precache the same models in the same order); here the list is not the same: the training dummy's spawn
+precaches the enemy `vr_dummy_type` names (changed in the menu since: its models now come earlier, every later model
+moves), and models are precached late (the dummy's new enemy, limbs cut off, test spawns, boxes), elsewhere or not at
+all at load. `rebindLoadedModels` only fixed an index that named nothing or a model not precached; an index that named
+*another* precached model was trusted (kept for the ring of shadows' eyes on the player's model), so after a shift every
+entity kept its old number: 35 wrong in the firing range after a dummy change (`vr_model_check 1`: the spawn panels'
+`func_wall` index = `progs/shalrath.mdl`, the buttons' = `progs/h_shal.mdl`). A `func_wall` with an alias model is a
+`SOLID_BSP` without hulls: the hand's trace into it, `Host_Error: SOLID_BSP with a non bsp model (func_wall at 380 -460
+17)`, his crash.
+
+**Fix.** Every save now writes, after the light styles, comment lines Quake's parser skips (older builds load the save
+as before): `// qvr_save <format> progs <crc> build <build>` and `// qvr_model <i> <name>` for the whole precache list
+(`SaveData_Fill` copies it with the rest, the save thread writes it). The load (`VR_ReadSaveInfo` before the old game
+ends; `rebindLoadedModels` after the edicts) turns every saved model index into today's index of the same name
+(precached now if need be: the client connects afterwards and gets the whole list): each entity's `.modelindex` (the
+eyes too), the globals `modelindex_*` (player, eyes, hammer: `CheckPowerups` sets the player's model from them every
+frame) and the fields that keep one (`.vr_corpse_model`, `.burn_model`, `.vr_stick_model`: float fields named `*_model`).
+A save without the lines (an older build's, his autosaves) is repaired by name: an entity's own `.model` wins over its
+saved index; the globals and other fields go by the list its entities make (saved index -> the first such entity's
+model). Not remapped: the decapitation/limb fountains' `.cnt` (a modelindex kept to stop when the body is gibbed: at
+worst one stops early after a load across a shift).
+
+**Versioning.** Another build's save (its `build` differs from `VR_BuildVersion`): a console warning naming both builds
+and both progs CRCs, and a centre print once the player is in ("Saved game from another build"). An older build's
+(none written): the same, "from an older build". A save of a newer `VR_SAVE_FORMAT` than this build reads: refused,
+the old game kept (console error and a centre print). The format is 1; it goes up only when a save would load wrong in
+an older build. The re-release's saves (version 6) say nothing.
+
+**First-cut hitch.** A limb's model was made at its first cut (`progs/soldier.mdl#limb4`: 4-5 ms of the frame in
+QuakeC, `quakec_max` 5.6 ms, busy 9.6 ms in the mock's 4 ms frames). `vr_limbs_prebuild 1` (Gore > Limb Gore > Make
+Limbs as the Map Loads) makes the whole limbs of every kind of monster the map has as it spawns
+(`VR_OnSpawnServerSpawned`, before serverinfo: in every client's list): e1m1 17 limbs of 2 kinds, 237 ms the first
+time (normal maps made), 79 ms after (of a ~800 ms load); the firing range's first cut then has no late precache
+(`quakec_max` 0.7 ms). A limb whose own end was cut first (`#limb3m8`), and monsters spawned later (test spawns, the
+firing range's panels) are still made at their cut. `developer 1` prints each late precache with its time.
+
+**Tests.** `Misc/quakevr/precache/precache_test.sh <agent> [dummy death restart legacy build hitch]`:
+`vr_model_check` (Debug > Reports > Models Check) after each step must say 0 wrong for the entities and the client.
+Before the fix: dummy 35/36 wrong, death (limb cut, dummy changed, autosave, killed, loaded) 36, legacy 35, and the
+Host_Error by a hand put on a button; after: 0 everywhere, no Host_Error, his own 17:37 autosave loads with 0 wrong.
+The death case loads the autosave itself: `restart`'s autoload (`Host_AutoLoad`) adds its `load` behind the rest of a
+test script, so it fails there ("Autoload failed!"); in the game the buffer is empty and it is the same load.

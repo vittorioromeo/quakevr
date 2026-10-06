@@ -2158,6 +2158,9 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
                   "stood; 1: flung as a kill) (vr_limbs_body_speed)."),
         slider("Most Limbs Lying About", vr_limbs_max, 1.f, 64.f, 1.f, "%.0f").extend(1.f, 256.f)
             .help("Past it, the oldest go first (not one in your hand) (vr_limbs_max)."),
+        toggle("Make Limbs as the Map Loads", vr_limbs_prebuild)
+            .help("On: the limbs of every kind of monster the map has are made as it loads (about 5 ms each: a tenth of a "
+                  "second or so more), not at their first cut (a dropped frame). The next map load (vr_limbs_prebuild)."),
         header("Explosions and Gibbing"),
         toggle("Explosions Pop Limbs", vr_limbs_blast)
             .help("An explosion pops the limbs near it by chance: a monster it kills falls as a ragdoll without them instead "
@@ -4245,6 +4248,9 @@ za::Vector<Item> pageDebugReports()
             .help("Prints whether Hipnotic and Rogue are available, missing or incomplete/corrupt. Both are optional for the Quake campaign."),
         command("Headset", "vr_status").help("vr_status: the backend, the eyes' sizes, the hidden area, the head's and hands' poses."),
         command("Player", "vr_dumpplayer").help("vr_dumpplayer [client]: a player's VR fields in the game (hands, weapons, hotspots)."),
+        command("Models Check", "vr_model_check 1")
+            .help("vr_model_check 1: every entity's model index against its model's name, and your models against the "
+                  "server's; each mismatch listed (a saved game loaded wrong: buttons drawn as gibs). 0 wrong is right."),
         command("View", "vr_dumpview").help("vr_dumpview: the hands, grips, palms, fingers and every entity drawn in the view (long)."),
         command("Bullet Time Now", "vr_bullettime").help("vr_bullettime: starts or stops bullet time, as the gadget's button."),
         command("Slow Motion Clocks", "vr_slowmo_probe")

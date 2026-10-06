@@ -1,9 +1,12 @@
 // vr_limbmodel.cpp -- see vr_limbmodel.hpp.
 
 #include "vr_limbmodel.hpp"
+#include "vr_box3d.hpp"
+#include "vr_cvars.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_api.h"
 
+#include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -586,6 +589,42 @@ void info_f()
             rig->bones[b].name, ragdoll::limbBones(*rig, b), built.tris, built.cap, built.verts, built.size.x, built.size.y,
             built.size.z, static_cast<int>(built.file.size()));
     }
+}
+
+// (each kind of monster once: the first of its model's; a limb its first cut takes whole, as box3d::limbModel names it)
+void prebuild()
+{
+    if(!vr_limbs.value || !vr_limbs_prebuild.value || !VR_AllowLatePrecache())
+    {
+        return;
+    }
+    const double t0 = Sys_DoubleTime();
+    za::Vector<int> seen;
+    int made = 0;
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    {
+        edict_t* ent = EDICT_NUM(num);
+        const int index = static_cast<int>(ent->v.modelindex);
+        if(ent->free || !(static_cast<int>(ent->v.flags) & FL_MONSTER) || index <= 0 || index >= MAX_MODELS ||
+            !sv.model_precache[index] || za::find(seen.begin(), seen.end(), index) != seen.end())
+        {
+            continue;
+        }
+        seen.pushBack(index);
+        const uint32_t joints = box3d::limbInfo(ent, 0, -1);
+        for(int bone = 0; bone < 32; bone++)
+        {
+            const char* name = (joints & (1u << bone)) ? box3d::limbModel(ent, bone) : "";
+            if(name[0])
+            {
+                VR_LatePrecacheModel(name);
+                made++;
+            }
+        }
+    }
+    VR_TimeAdd("VR after spawn: limb models", Sys_DoubleTime() - t0);
+    Con_DPrintf("limb models: %d made for %d kinds of monster, %.1f ms\n", made, static_cast<int>(seen.size()),
+        (Sys_DoubleTime() - t0) * 1000.0);
 }
 
 } // namespace qvr::limbmodel
