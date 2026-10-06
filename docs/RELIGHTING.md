@@ -248,12 +248,50 @@ At their defaults the result is the relight script's (the lights given to `light
 *Defaults* puts them back. The console has the same: `vr_relight` (the map in play, or `vr_relight e1m2` for another one,
 which is not reloaded), `vr_relight_cancel`, `vr_relight_status`, `vr_relight_defaults`, `vr_relight_revert`.
 
+### Many maps at once
+
+The page's **Many Maps** part relights a whole set with the same settings, in the background, while you play:
+
+1. Choose the **Maps**: *This Map*, *An Episode* (the one you are in, e.g. E1M1 to E1M8 from E1M3, or HIP2M1... in a
+   mission pack; or pick E1 to E4 under **Episode**), *A Game* (the one you are in, or pick Quake, Scourge of Armagon,
+   Dissolution of Eternity, Dimension of the Past, Dimension of the Machine, Dawn of the Machine under **Game**, when
+   installed), *Map Library's* (every map of the packages installed from the Map Library) or *Every Map* (all of them).
+   Only maps you can play are taken (a game folder's brush models in `maps/`, the ammo boxes and Quake VR's buttons, are
+   not).
+2. Choose **Relight These Maps**. The page shows a bar: how far the whole batch is (each map weighed by its size, the
+   one being lit by its stage), the time left, the maps done of how many and each map being lit with its stage. Outside
+   the menu the wrist gadget's screen shows a line in place of the kills and secrets (`RELIGHT 3/8 45% 0:27`, a thin bar
+   under it); on a flat screen it is in the top right corner (*Progress Outside the Menu*, `vr_relight_indicator`).
+3. **Cancel** stops it: the maps it finished keep their new light, the ones being lit keep the light they had (nothing
+   half-made is left: each file is written beside its place and renamed into it at the end, and `light`'s copies in the
+   work folder are removed). Quitting the game mid-batch does the same.
+
+Maps relit with the same settings before are skipped (the `.relight` file keeps a hash of the settings, `light`'s
+options, the map's file and `relight_textures.cfg`); *Relight Unchanged Maps Too* (`vr_relight_batch_force`) relights
+them again (a new texture pack's glow images are not in the hash: use it then). The map you are in goes first; with
+*Reload Where You Are* on it is reloaded as soon as it is done, or only at the batch's end (*Reload the Map You're In*,
+`vr_relight_batch_reload`).
+
+**Maps at Once** (`vr_relight_parallel`, 0: two from 8 cores, else one) lights maps side by side, `light`'s threads
+shared between them. On a 32-core computer id's episode 1 took 7 s one at a time, 6 s two at once and 5 s three or
+four; with Bounced Light 34, 33, 33 and 42 s. A map's texture lights are made on the game's thread when it starts (5 to
+15 ms for id's maps), one map a frame at most.
+
+| Console | What it does |
+|---|---|
+| `vr_relight_batch` | The page's choice (`vr_relight_batch_set` 0..4, `vr_relight_batch_episode`, `vr_relight_batch_game`). |
+| `vr_relight_batch episode e2`, `game hipnotic`, `library`, `everything`, `map` | That set. |
+| `vr_relight_batch e1m1 dm4 start` | These maps (as the game finds them). |
+| `... -force`, `... -list` | Relight unchanged maps too; only list the maps (their files and sizes). |
+| `vr_relight_status` | The batch: maps done, each `light` running (stage, process id), progress and time left. |
+
 **Where the result goes:** `quakevr\relit_custom\<game>\maps\` (in the folder the game saves into), with a
 `<map>.relight` file saying how it was made. It is used over the relight script's map from then on (*Use In-game
 Relights*, `vr_relight_use`; off: the script's or the map's own). *Remove This Map's Relight* (`vr_relight_revert`)
 deletes it. The game starts from the relight script's copy of the map when there is one (it keeps that copy's
 see-through water), else from the map itself; id's `.pak` files and the game folders' maps are only read. The work
-folder, `relit_custom\_work\`, holds the last map given to `light` and `light`'s log (`<map>.txt`).
+folder, `relit_custom\_work\<game>\`, holds `light`'s logs (`<map>.txt`, `<map>-light.log`); the map given to it and
+what it made are removed once the result is in place (or the relighting stopped).
 
 **Not done in the game:** the water-vis patch (see-through water: the relight script does it; a map relit in the game
 keeps it if the script's copy had it) and lights for the glowing textures of BSP2 maps (neither does those).

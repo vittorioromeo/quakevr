@@ -25660,3 +25660,49 @@ effects" and "Server rules".
   the server frame clears `sv.datagram` first); impulse 232 (fling test) can pick a player's body (80.5 kg) as "the
   nearest prop" in multiplayer; resting pieces made after signon cost ~22 B a frame each (no baseline): a baseline
   sent when a piece comes to rest would cut that (MULTIPLAYER.md).
+
+## Relighting many maps; a progress bar; cancel (2026-10-06)
+
+Request: relight many maps in the game (whole episodes), with a progress bar, cancellable.
+
+- **Batches** (`vr_relight_batch`, Graphics > Relighting > Many Maps; `vr_relight.cpp`, new `vr_relight_maps.cpp`): the
+  map in play, an episode (by the map in play's name, `e1m3` -> `e1m`, `hip2m4` -> `hip2m`; or E1..E5 picked), a game
+  (id1, hipnotic, rogue, dopa, mg1, mg3 or the map in play's), the Map Library's installed packages
+  (`mapinstall::packageFolder`, new) or every map. Maps are found in the search paths' paks and `maps/` folders
+  themselves (a campaign not being played, a package not mounted still count) and read from their own file (a pak's
+  offset); only playable ones (an `info_player_*` in the entity lump; quakevr's 11 button and prop-table BSPs and the
+  `b_*` boxes are not). In the qbase: e1 8 maps, id1 38, rogue 17, hipnotic 18, every map 79 (6 of them quakevr's).
+- **Slots** (`vr_relight_process.cpp`): up to 8 light processes, each in the job object; `stopAll` terminates all, then
+  waits for each. `vr_relight_parallel` 0 (auto) = 2 from 8 cores: on 32 cores (exclusive runs) e1 at the defaults
+  took 7 / 6 / 5 / 5 s at 1 / 2 / 3 / 4 at once, with Bounced Light 1 34 / 33 / 33 / 42 s; two get most of it at
+  two thirds of three's memory. light's `-threads` is (cores - 1) / parallel.
+- **The settings** are taken when the batch starts (`Look`): moving a slider meanwhile changes nothing. The `.relight`
+  gets `hash <fnv64>` of the settings text, light's options (not `-threads`), `relight_textures.cfg` and the map's
+  file (the script's relit copy when used): a batch skips a map with the same hash and its .bsp and .lit there
+  (`vr_relight_batch_force`, `-force`: not). `vr_relight` (Relight This Map) always relights.
+- **Writing**: each output as `.tmp`, the old `.relight` removed first, then `.lit`, `.lux`, `.bsp`, `.relight` renamed
+  into place; the work copies (`_work/<game>/<map>.bsp/.lit/.lux`) removed after, the logs kept. Cancel and quit stop
+  every light, remove their work copies and write nothing.
+- **Progress**: each map weighs its file's size (at least 200 KB); a running one by its stage (`stageFraction`; with
+  bounce Direct 5-15 %, Indirect 15-86 %, from `developer 1`'s stage times: e1m1 with bounce 1 Direct at 0.26 s,
+  Indirect 0.77 s, LightGrid 4.86 s, end 5.26 s). ETA = elapsed x (1 - p) / p. The page: status line (maps done of
+  how many, the time), a bar (`progressBar` item: `menuui::drawProgress` in the VR style, Draw_Fill in Quake's) with
+  the percentage and the time left, a line of the maps being lit. Outside the menu (`relight::indicator`,
+  `vr_relight_indicator` 1): the wrist gadget's kills/secrets line becomes `RELIGHT 0/8 19% 0:27` over a 1-pixel bar;
+  without the gadget (flat screen, `vr_hud_mode 0`) top right of the canvas (`SCR_DrawRelight`).
+- **Reload**: the map in play goes first; reloaded when it is done (mid-batch: the save, the load, the other lights
+  keep running) or at the end (`vr_relight_batch_reload 1`). Cancel does not reload.
+
+Tested headless: dm4 dm5 dm6 e1m7 (4 relit in 1 s, 3 at once then); again: 4 skipped; `-force`: relit; `vr_relight_ao 1`
+and back: relit each time. e1 with bounce, one at a time: progress 10 % (0:02, ETA 0:23), 24 %, 39 %, 51 %, 68 %, 79 %,
+88 %, 96 %, 99 %, done in 0:32, e1m1 reloaded where the player was after 5.3 s while the rest went on. Cancel at 0:29
+(two at once): e1m1-3 kept, e1m4 and e1m5 no output, no work copies, their light.exe PIDs gone within a second; then e2
+started and the game quit at 0:10: no output for e2m1/e2m2, no light.exe after. Page bar in both eyes (`vr_eyeshot 3`),
+gadget screen (`vr_gadget_screen_dump`), flat (`vr_enabled 0`). `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
+Not tested: the Map Library set with packages installed (none in the qbase: "no maps installed from the Map Library").
+
+- [ ] Relighting > Many Maps: Maps An Episode, Relight These Maps in E1M1: the bar fills, the time left counts down,
+      E1M1 reloads after a few seconds while the rest go on; the wrist gadget shows `RELIGHT n/8 ...` under the level name.
+- [ ] Cancel halfway: the maps done play relit (E1M2 from its start), the others as before.
+- [ ] Relight These Maps again: everything skipped at once ("8 skipped"); change a slider: relit.
+- [ ] Every Map with Maps at Once 2 while playing: no hitches beyond a frame at each map's start.
