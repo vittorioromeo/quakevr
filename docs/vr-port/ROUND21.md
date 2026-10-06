@@ -25109,3 +25109,28 @@ and no matter what chance".
 | dummy after, SG 150 / 250 | 10 / 4 | 5 / 0 | 10 (0.62) / 4 (0.27) | 5 / 4 | 0 |
 
 (The dummy was shot from its side, the grunts head on: the hits differ, the rules are the same.)
+
+## Music read in place from the owned installs, per campaign (2026-10-06)
+
+Why it was silent: the original Steam Quake ships no music at all (its id1/hipnotic/rogue have only paks); the
+soundtrack and the mission packs' are loose OGGs in `rerelease/<game>/music/`, which Quake VR never mounts (only
+dopa/mg1/mg3 are mounted from the rerelease, so mg3's music already played). Ironwail's bgmusic only looks on the
+search path, so id1, hipnotic, rogue, dopa and mg1 maps had no track.
+
+Now (`Quake/vr/vr_music.cpp`, `VR_FindMusicTrack`, called by `BGM_PlayCDtrack`):
+- A game folder that is no campaign's (a mod, a map package, quakevr) with the track wins, as the search path had it.
+- Else the active campaign's folder (`vr_campaign`), then id1: first where the search path has that folder (loose or
+  in a pak), then the owned roots read in place: `VR_OwnedReadRoot` (vr_gamedir.cpp: `ownedRoots()` minus the base
+  dirs: Steam/GOG/Epic rerelease, `<basedir>/rerelease`, `<basedir>/../rerelease`), then the GOG original install
+  (`<root>/id1/music` or `<root>/music`). Nothing is mounted, copied or written; com_basedirs is untouched.
+- Else another campaign's track still on the search path (the old choice), else one console line per track
+  (`VR music: no track N ...`, [skipnotify]; tracks 0/1 silent). The old per-map "Couldn't find a cdrip" is gone.
+- Files outside the search path open with the new `S_CodecOpenStreamAt` (snd_codec.c: path, offset, length).
+  The same-track resume compares the resolved file, so hipnotic's track 4 then id1's track 4 switches.
+- Each start logs `VR music: track N -> <file> (from <root>)` to the console. bgmvolume, bgm_extmusic,
+  -noextmusic and CD audio first are unchanged.
+
+Verified headless (with -Sound): e1m1 -> rerelease/id1/music/track06.ogg, hip1m1 -> rerelease/hipnotic track04,
+r1m1 -> rerelease/rogue track05, e5start/e5m1 (dopa) -> id1 track04/03, mg3 start -> rerelease/mg3 track09 (mounted),
+e1m1 twice -> one start (resumed); decoding advanced (145 KB of track06 read in 5 s). `-nosteam -nogog`: one line per
+missing track, nothing else. Untested here: a track inside a pak, the GOG original layout (not installed).

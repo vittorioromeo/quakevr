@@ -156,6 +156,51 @@ snd_stream_t *S_CodecOpenStreamType (const char *filename, unsigned int type, qb
 	return stream;
 }
 
+/* QVR: like S_CodecOpenStreamType, for a file outside the search path, read in place */
+snd_stream_t *S_CodecOpenStreamAt (const char *ospath, long offset, long length, qboolean pak,
+				    const char *name, unsigned int type, qboolean loop)
+{
+	snd_codec_t *codec;
+	snd_stream_t *stream;
+	FILE *handle;
+
+	codec = codecs;
+	while (codec && codec->type != type)
+		codec = codec->next;
+	if (!codec || length <= 0)
+		return NULL;
+	handle = fopen (ospath, "rb");
+	if (!handle)
+	{
+		Con_DPrintf ("Couldn't open %s\n", ospath);
+		return NULL;
+	}
+	if (fseek (handle, offset, SEEK_SET) != 0)
+	{
+		fclose (handle);
+		return NULL;
+	}
+
+	stream = (snd_stream_t *) Z_Malloc (sizeof (snd_stream_t));
+	stream->codec = codec;
+	stream->loop = loop;
+	stream->fh.file = handle;
+	stream->fh.start = offset;
+	stream->fh.pos = 0;
+	stream->fh.length = length;
+	stream->fh.pak = stream->pak = pak;
+	q_strlcpy (stream->name, name, MAX_QPATH);
+
+	if (codec->codec_open (stream))
+	{
+		stream->status = STREAM_PLAY;
+		stream->volume = 1.f;
+	}
+	else
+		S_CodecUtilClose (&stream);
+	return stream;
+}
+
 snd_stream_t *S_CodecOpenStreamExt (const char *filename, qboolean loop)
 {
 	snd_codec_t *codec;

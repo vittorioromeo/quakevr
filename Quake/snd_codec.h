@@ -74,6 +74,12 @@ snd_stream_t *S_CodecOpenStreamAny (const char *filename, qboolean loop);
 	/* Decides according to file extension. if the
 	 * name has no extension, try all available. */
 
+snd_stream_t *S_CodecOpenStreamAt (const char *ospath, long offset, long length, qboolean pak,
+				    const char *name, unsigned int type, qboolean loop);
+	/* QVR: a file outside the search path (an owned install's music, read where it is):
+	 * `length` bytes at `offset` of `ospath` (a loose file: 0 and its size). `name` is the
+	 * stream's name for messages. */
+
 snd_stream_t *S_CodecOpenStreamExt (const char *filename, qboolean loop);
 	/* Decides according to file extension. the name
 	 * MUST have an extension. */

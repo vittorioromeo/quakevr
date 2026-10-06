@@ -1178,3 +1178,29 @@ extern "C" int VR_CampaignDataAvailable(const char* dir)
     const int i = campaignIndex(dir);
     return i >= 3 && campaigns[i].status == 1;
 }
+
+// Read-in-place sources for vr_music.cpp. The active campaign's folder while the quakevr folder is mounted (its music
+// is chosen per campaign, though Quake's and the two mission packs' folders are mounted together), else null.
+extern "C" const char* VR_ActiveCampaignFolder()
+{
+    return gameDirAlreadyAdded(vrGameDir) ? campaigns[activeCampaign].folder : nullptr;
+}
+
+// The owned store/rerelease roots that are not base dirs (a base dir's folders are on the search path already),
+// lowest priority first as ownedRoots lists them, found once (Steam's and GOG's lookups are not free); null past the end.
+static za::Vector<za::String> ownedReadRoots;
+static bool ownedReadRootsKnown = false;
+extern "C" const char* VR_OwnedReadRoot(int index)
+{
+    if(!ownedReadRootsKnown)
+    {
+        ownedReadRootsKnown = true;
+        for(const za::String& r : ownedRoots())
+        {
+            bool base = false;
+            for(int i = 0; i < com_numbasedirs && !base; ++i) { base = !q_strcasecmp(r.cStr(), com_basedirs[i]); }
+            if(!base) { ownedReadRoots.pushBack(r); }
+        }
+    }
+    return index >= 0 && index < int(ownedReadRoots.size()) ? ownedReadRoots[index].cStr() : nullptr;
+}

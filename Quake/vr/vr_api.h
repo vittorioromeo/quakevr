@@ -403,6 +403,21 @@ const char *VR_CampaignHelp(int index);
 void VR_SelectCampaign(int index);
 int VR_CampaignUnavailable(int index);
 
+// Music read in place (vr_music.cpp): a CD track from the game folders on the search path, or from the owned
+// rerelease/store installs where they are (never mounted, copied or written), per campaign.
+typedef struct vr_musicfile_s
+{
+    char path[MAX_OSPATH];   // the track's file, or the pak that holds it
+    long offset, length;     // the track inside `path` (a loose file: 0 and its size)
+    int pak;
+    char ext[16];            // its extension: the codec bgmusic opens it with
+    char name[64];           // "music/track02.ogg": the stream's name
+    char source[MAX_OSPATH]; // where it was found, for the log: a game folder or an owned install's root
+} vr_musicfile_t;
+int VR_FindMusicTrack(int track, const char *const *exts, int numExts, vr_musicfile_t *out);
+const char *VR_ActiveCampaignFolder(void);
+const char *VR_OwnedReadRoot(int index);
+
 #ifdef __cplusplus
 }
 #endif

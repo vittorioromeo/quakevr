@@ -74,6 +74,9 @@ static music_handler_t *music_handlers = NULL;
 #define CDRIPTYPE(x)	(((x) & CDRIP_TYPES) != 0)
 
 static snd_stream_t *bgmstream = NULL;
+/* QVR: the file the stream reads (a pak's: and its offset), for the same track's resume */
+static char bgmsource[MAX_OSPATH];
+static long bgmoffset;
 
 static void BGM_Play_f (void)
 {
@@ -295,76 +298,66 @@ void BGM_Play (const char *filename)
 
 void BGM_PlayCDtrack (byte track, qboolean looping)
 {
-/* instead of searching by the order of music_handlers, do so by
- * the order of searchpath priority: the file from the searchpath
- * with the highest path_id is most likely from our own gamedir
- * itself. This way, if a mod has track02 as a *.mp3 file, which
- * is below *.ogg in the music_handler order, the mp3 will still
- * have priority over track02.ogg from, say, id1.
+/* QVR: the track is found per campaign (vr_music.cpp): a mod's or map
+ * package's own track first, as the search path always had it, then the
+ * active campaign's and Quake's, in the game folders on the search path or
+ * read in place from the owned rerelease/store installs (the original Steam
+ * Quake ships no music: its tracks are in the rerelease's folders).
+ * Within one search path entry, the handler order picks the extension.
  */
-	char tmp[MAX_QPATH];
-	const char *ext;
-	unsigned int path_id, prev_id, type;
+	const char *exts[countof(wanted_handlers)];
+	unsigned int types[countof(wanted_handlers)];
+	int numexts = 0, i;
+	qboolean found = false;
+	vr_musicfile_t file;
 	music_handler_t *handler;
 
-	/* if replaying the same track, just resume playing instead of stopping and restarting*/
-	if (bgmstream)
+	if (music_handlers && !no_extmusic && bgm_extmusic.value)
 	{
-		q_snprintf (tmp, sizeof (tmp), "%s/track%02d.%s", MUSIC_DIRNAME, track, bgmstream->codec->ext);
-		if (strcmp (tmp, bgmstream->name) == 0)
+		for (handler = music_handlers; handler; handler = handler->next)
 		{
-			BGM_Resume ();
-			return;
+			if (handler->is_available <= 0 || handler->player != BGM_STREAMER)
+				continue;
+			exts[numexts] = handler->ext;
+			types[numexts] = handler->type;
+			numexts++;
 		}
+		found = VR_FindMusicTrack (track, exts, numexts, &file);
+	}
+
+	/* if replaying the same track, just resume playing instead of stopping and restarting*/
+	if (bgmstream && found && bgmsource[0] && !strcmp (file.path, bgmsource) && file.offset == bgmoffset)
+	{
+		BGM_Resume ();
+		return;
 	}
 
 	BGM_Stop();
 	if (CDAudio_Play(track, looping) == 0)
 		return;			/* success */
 
-	if (music_handlers == NULL)
+	if (!found)
 		return;
 
-	if (no_extmusic || !bgm_extmusic.value)
+	for (i = 0; i < numexts && q_strcasecmp (exts[i], file.ext); i++)
+		;
+	if (i == numexts)
 		return;
-
-	prev_id = 0;
-	type = 0;
-	ext  = NULL;
-	handler = music_handlers;
-	while (handler)
+	bgmstream = S_CodecOpenStreamAt (file.path, file.offset, file.length, file.pak, file.name, types[i], bgmloop);
+	if (! bgmstream)
 	{
-		if (! handler->is_available)
-			goto _next;
-	//	if (! CDRIPTYPE(handler->type))
-	//		goto _next;
-		q_snprintf(tmp, sizeof(tmp), "%s/track%02d.%s",
-				MUSIC_DIRNAME, (int)track, handler->ext);
-		if (! COM_FileExists(tmp, &path_id))
-			goto _next;
-		if (path_id > prev_id)
-		{
-			prev_id = path_id;
-			type = handler->type;
-			ext = handler->ext;
-		}
-	_next:
-		handler = handler->next;
+		Con_Printf("Couldn't handle music file %s\n", file.path);
+		return;
 	}
-	if (ext == NULL)
-		Con_Printf("Couldn't find a cdrip for track %d\n", (int)track);
-	else
-	{
-		q_snprintf(tmp, sizeof(tmp), "%s/track%02d.%s",
-				MUSIC_DIRNAME, (int)track, ext);
-		bgmstream = S_CodecOpenStreamType(tmp, type, bgmloop);
-		if (! bgmstream)
-			Con_Printf("Couldn't handle music file %s\n", tmp);
-	}
+	q_strlcpy (bgmsource, file.path, sizeof (bgmsource));
+	bgmoffset = file.offset;
+	Con_Printf ("[skipnotify]VR music: track %d -> %s%s%s (from %s)\n", (int)track, file.path,
+		file.pak ? " : " : "", file.pak ? file.name : "", file.source);
 }
 
 void BGM_Stop (void)
 {
+	bgmsource[0] = 0;
 	if (bgmstream)
 	{
 		bgmstream->status = STREAM_NONE;
