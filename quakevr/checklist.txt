@@ -14,6 +14,7 @@ New defaults: a fresh config looks and plays like yours (parallax, combat, parry
 Official Campaigns: drawn in the big menu font
 Map tips: the CRT tip near the vrstart start appears; REPEAT tips come back; List This Map's Tips works
 Map Library: Down the Gutter now plays (page says which map Play starts); reinstall November-Schlacht to get its sky back; AD/Copper maps are flagged
+Training dummy: with Dummy Dies on it dies exactly like a grunt (beheaded, head pops by chance, ragdoll, gibs), stands again after 2 s
 
 [Menus and maps]
 Menus: Menu Detail, VR presets, first-start calibration, Changed Settings (*), Reset This Page and Search all work
@@ -67,10 +68,9 @@ Spectator camera: no hand ghost, hides head-locked text, Bullet Time effects tog
 
 [Decide]
 Melee multipliers for blades and the chainsaw; give the fiend a head zone?
-Blunt melee head kills: always pop (now) or use the new chance?
 Ragdolls: masses and blast throw by mass right? Turn ragdolls on by default?
 Thrown axe sticks in explosive boxes? Explosive boxes catch fire?
-Training dummy: heal over time? Make vr_dummy_gib 1 (yours) the default?
+Training dummy: heal over time? Make Dummy Dies (vr_dummy_gib 1, yours) the default?
 Gibs too heavy to splat on walls: lower the splat speed or the masses?
 Shotgun lag in a fast wiggle too much? Add a Low graphics preset?
 Multiplayer: debris client-only or gameplay; melee speed a server rule?
