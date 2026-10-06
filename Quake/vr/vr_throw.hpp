@@ -36,6 +36,7 @@ struct Motion
     glm::vec3 vel{0.f};
     glm::vec3 angVel{0.f};
     glm::vec3 forward{1.f, 0.f, 0.f};
+    float spinLag{0.f}; // seconds `angVel` is older than the sample (a turn between two frames is its middle's: half one)
 };
 
 // `hand`: the hand's motion (as drawn: in slow motion the slowed hand, timescale::filterHands); `controller`: its
@@ -46,7 +47,8 @@ void sample(int hand, double time, const Motion& handMotion, const Motion& contr
 // The estimate as of the newest sample, as if released now.
 [[nodiscard]] Estimate estimate(int hand);
 
-// The estimate for a release at `releaseTime`: the peak in a window around it.
+// The estimate for a release at `releaseTime`: the peak in the window before it, the samples taken as a signal in time
+// (the same throw at any frame rate).
 [[nodiscard]] Estimate estimateAt(int hand, double releaseTime);
 
 // Both hands holding one object (vr_carry2h.hpp), released at `releaseTime`: the estimate of the object's own motion

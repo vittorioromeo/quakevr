@@ -26531,3 +26531,77 @@ ms). Made slowly at 72 fps (sampled 3.3 times as densely), the throws match the 
 at 72 (overhand0, 1000 keys: +19.4 against +19.5 at 240 fps, +5.3 at 72). The full-speed throw alone moves by up to 14
 degrees between 72 and 240 fps with these synthetic arcs; and with `vr_fixed_frames_rate` 240 the scripted `-grabmain`
 registered about 37 ms after its time (0 at 72).
+
+## Throws at any frame rate (2026-10-06)
+
+The author: "Ideally throwing should feel the same at any FPS (within reason, let's say between 70-240 FPS)". The
+section above measured the same synthetic throw moving by up to 14 degrees between 72 and 240 fps. Causes, all on the
+client's estimate (the server side is not frame-dependent: QC places the throw by its age, `weapons.qc` ~6430, and the
+server and Box3D step on the fixed 72 Hz server tick; the slowed hands' caps are per second times dt):
+
+1. `vr_throw.cpp releasePeak` anchored everything on the fastest *sample*: on a flat-topped or noisy peak any of
+   several, a frame or more off the true peak; the velocity, spin and direction were unweighted sums of the samples
+   within so many seconds of it (the direction's 40 ms: 3 samples at 72 fps, centred 14 ms back; 10 at 240, 19 ms
+   back; an overarm arc turns about 0.7 degrees a millisecond).
+2. The window ran 10 ms past the release (`vr_throw_lookahead`), but the estimate is taken when the move carrying the
+   release is built, on a server frame: at 72 fps the release's own frame (never a sample after it), at 90-240 fps
+   0-25 ms later (sometimes some).
+3. The wrist's lever (the flick's velocity) and the release point were the peak sample's: a flick turns the hand
+   about 11 degrees in a frame at 72 fps.
+4. The release was the frame that saw the grip open: up to a frame late.
+5. `vr_hands.cpp poseSpin` (the spin from the turn between two frames) was stamped at the newer frame: half a frame
+   late (7 ms at 72 fps, 2 at 240).
+6. The "37 ms late at 240 fps" was mostly the test: a play file's `cmd -grabmain` waits in the command buffer for a
+   server frame (`cmd.c` Cbuf_Execute, `host.c` Cbuf_Waited) and the move is built on server frames, so it was 12-25
+   ms late; the rest was the peak sample 12 ms before the release. A controller's release is timed on the tracking
+   clock (`filterGrips`), which the client uses, so play was not affected by this part. The 1000-key plays also had
+   +-0.1 m/s of noise in their velocity (positions written to 0.1 mm).
+
+Fix: the samples are a signal in time (linear between them; the spin at the middle of its turn, `Motion::spinLag`).
+The window is `vr_throw_window` before the release, up to it (`vr_throw_lookahead` no longer used). The speed is
+smoothed by a line fitted over `vr_throw_peak_span` either side (continuous least squares, weighed by time: a line is
+the mean inside the window and unbiased at its end, where a throw released while speeding up has its peak), sampled a
+millisecond apart; the peak is the middle of where it is within 2% of its top. The velocity is the smoothed one there,
+as fast as a parabola fitted to the speeds over 30 ms says (not at the release), the direction the mean over
+`vr_throw_dir_lookback` before it, the spin the mean over twice the span, the lever and release point between the
+samples. `filterGrips` puts the release where the analog grip crossed its line between the two frames. Slow motion's
+windows (`motionRate`) and both hands (`estimateBothAt`) go through the same code.
+
+Test aids: `vr_mock_play` takes `<t> grip <main|off> <0..1>` (the analog grip, linear between its keys);
+`throw_plays.py` lets the grip open as a hand does by default (`--grip 2`: 1 until 15 ms before the release, 0 35 ms
+after: it crosses the release's line at the release; `--grip 1` a button step, `0` as before) and writes positions to
+1 micrometre (`--digits`, 4 before).
+
+Measured offline (`Misc/quakevr/throw_fps/compare.py exact 0.02`: a replica of the estimate, old and new, on the same plays, which reproduced the engine's numbers at
+72 fps to 0.1 degree and the +19.5 overhand0 at 240): speed m/s, elevation, spin rad/s; smooth motion (1000 keys,
+exact), the release where the grip crossed its line:
+
+| | overhand | lob | flat | overhand0 |
+|---|---|---|---|---|
+| before, 72 fps | 4.39, -1.4, 32.3 | 4.88, +17.9, 14.5 | 5.00, +5.0 | 6.34, +14.7, 11.3 |
+| before, 90 | 4.80, +1.2, 32.1 | 4.85, +17.7, 14.4 | 5.00, +5.0 | 6.32, +12.9, 11.5 |
+| before, 120 | 4.49, +0.1, 33.1 | 4.78, +20.1, 15.1 | 5.00, +5.0 | 6.32, +12.6, 11.4 |
+| before, 144 | 4.35, -1.8, 35.0 | 4.77, +19.5, 15.5 | 5.00, +5.0 | 6.32, +12.1, 11.7 |
+| before, 240 | 4.32, -3.8, 33.8 | 4.80, +17.6, 15.1 | 5.00, +5.0 | 6.30, +13.9, 11.5 |
+| now, 72 | 4.88, -0.6, 32.8 | 4.72, +18.8, 15.5 | 4.98, +5.0 | 6.28, +16.3, 11.5 |
+| now, 90 | 4.89, -1.2, 32.9 | 4.72, +18.9, 15.5 | 4.99, +5.0 | 6.29, +16.5, 11.5 |
+| now, 120 | 4.89, -0.9, 33.1 | 4.73, +18.9, 15.5 | 4.99, +5.0 | 6.29, +16.4, 11.5 |
+| now, 144 | 4.88, -1.1, 33.2 | 4.73, +18.9, 15.6 | 4.99, +5.0 | 6.30, +16.5, 11.5 |
+| now, 240 | 4.89, -1.2, 33.3 | 4.73, +18.9, 15.6 | 4.99, +5.0 | 6.30, +16.5, 11.5 |
+
+Spread over 72/90/120/144/240 fps and two frame phases (speed, elevation, spin): before 11%, 6.6 degrees, 13%; now
+0.5%, 0.7 degrees, 2.1%. Frame times jittering +-30%: now at most 1.1%, 1.1 degrees, 2%. With the old 0.1 mm plays
+(noisy velocity): now at most 2.1%, 2.1 degrees, 2.2% (before 27%, 14 degrees, 13%). A grip let go as a button (a
+step) still puts the release up to a frame off (overhand0, released while speeding up: 7 degrees, as before). The
+90-key plays (the mock's velocity a stairstep, no runtime's) still flip the flicked overhand between its two speed
+peaks (the wrist's and the arm's): an artefact of the mock's held velocities.
+
+At 72 fps the throws change a little: the flicked overhand 4.9 m/s (4.4 before: the release's own speed now counts in
+full at the window's end), overhand0 +16 degrees (+5 to +15 before, depending on where the frames fell).
+
+**Still to run** (the in-engine sweep was blocked by a profiling run; built and statics-checked only): the four plays
+at 72, 90, 120, 144, 240 fps (`vr_fixed_frames_rate`), a jittered run, bullet time (both `vr_throw_slowmo_aim` and
+`_tempo`), Sandevistan, `vr_debug_throw 2` timings, e1m1 smoke.
+
+In VR: throw overhand, underarm, flat and with a wrist flick at your headset's lowest and highest refresh rates: the
+same throw should go the same way and as far. Two-handed throws and throws in bullet time as before.

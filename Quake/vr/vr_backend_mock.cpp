@@ -179,6 +179,9 @@ void mockHand_f()
 //   <t> <main|off|head> <x> <y> <z> [<pitch> <yaw> <roll>]   (as vr_mock_hand)
 //   <t> button <main|off> <control> <0|1>                     (as vr_mock_button)
 //   <t> cmd <console command>                                (e.g. +grabright, -grabright)
+//   <t> grip <main|off> <0..1>                               the analog grip, linear between its keys (a hand
+//                                                            opening over tens of milliseconds, as a real one does;
+//                                                            its button pressed from 0.5): the throws' release
 // Poses in between are interpolated (positions linearly, orientations by slerp), and the hands
 // report the motion's velocities between their keyframes, as a runtime would. At the end the last
 // poses stay, as vr_mock_hand leaves them. The head's keyframes with angles turn it too (a lean's tilt: pitch up,
@@ -199,6 +202,12 @@ struct PlayButton
 };
 za::Vector<PlayKey> playKeys[HAND_COUNT + 1];
 za::Vector<PlayButton> playButtons;
+struct PlayGrip
+{
+    double t;
+    float value;
+};
+za::Vector<PlayGrip> playGrips[HAND_COUNT];
 za::SizeT playNextButton = 0;
 double playStart = -1.0;
 double playEnd = 0.0;
@@ -210,6 +219,10 @@ void mockPlay_f()
         keys.clear();
     }
     playButtons.clear();
+    for(auto& grips : playGrips)
+    {
+        grips.clear();
+    }
     playNextButton = 0;
     playStart = -1.0;
     playEnd = 0.0;
@@ -238,6 +251,15 @@ void mockPlay_f()
             q_strlcpy(b.control, command, sizeof(b.control));
             playButtons.pushBack(b);
             playEnd = za::max(playEnd, t);
+            continue;
+        }
+        if(float value; sscanf(line, "%lf grip %15s %f", &t, what, &value) == 3)
+        {
+            if(const int hand = mockHand(what); hand >= 0)
+            {
+                playGrips[hand].pushBack({t, CLAMP(0.f, value, 1.f)});
+                playEnd = za::max(playEnd, t);
+            }
             continue;
         }
         if(sscanf(line, "%lf button %15s %15s %d", &t, what, a, &on) == 4)
@@ -271,6 +293,10 @@ void mockPlay_f()
     for(auto& keys : playKeys)
     {
         za::stableSort(keys.begin(), keys.end(), [](const PlayKey& l, const PlayKey& r) { return l.t < r.t; });
+    }
+    for(auto& grips : playGrips)
+    {
+        za::stableSort(grips.begin(), grips.end(), [](const PlayGrip& l, const PlayGrip& r) { return l.t < r.t; });
     }
     playStart = realtime;
 }
@@ -331,6 +357,26 @@ void playFrame(double now, glm::vec3* vel, glm::vec3* angVel, bool* played)
                 angVel[target] = glm::axis(d) * (glm::angle(d) / static_cast<float>(span));
             }
         }
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const za::Vector<PlayGrip>& grips = playGrips[h];
+        if(grips.empty())
+        {
+            continue;
+        }
+        za::SizeT i = 0;
+        while(i + 1 < grips.size() && grips[i + 1].t <= t)
+        {
+            i++;
+        }
+        const PlayGrip& g0 = grips[i];
+        const PlayGrip& g1 = i + 1 < grips.size() ? grips[i + 1] : grips[i];
+        const double span = g1.t - g0.t;
+        const float s = t <= g0.t ? 0.f : span > 0.0 ? static_cast<float>(za::clamp((t - g0.t) / span, 0.0, 1.0)) : 1.f;
+        HandInput& in = mockInput.hands[h];
+        in.gripValue = t < g0.t ? in.gripValue : g0.value + (g1.value - g0.value) * s;
+        in.grip = in.gripValue >= 0.5f;
     }
     while(playNextButton < playButtons.size() && playButtons[playNextButton].t <= t)
     {

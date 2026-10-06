@@ -73,6 +73,16 @@ def main():
     ap.add_argument("--rate", type=float, default=90.0,
                     help="keys a second of the motion (90: a headset's; more: a smoother motion between the game's frames,"
                          " whose throws then depend less on where the frames fall)")
+    ap.add_argument("--grip", type=int, default=2,
+                    help="2: the analog grip opens as a hand does (grip main keys: 1 until 15 ms before the release, 0"
+                         " 35 ms after; it crosses the release's line, 0.7 of its peak, at the release, between the"
+                         " frames); 1: the grip button let go at the release (a step: the release up to a frame late); both"
+                         " besides the +grabmain/-grabmain commands, which wait for a server frame (up to 25 ms late at"
+                         " 240 fps), while the grip's release is timed on the tracking clock; 0: the commands alone (as"
+                         " before 2026-10-06)")
+    ap.add_argument("--digits", type=int, default=6,
+                    help="decimals of the positions (the angles two fewer): 4 as before 2026-10-06, whose 0.1 mm steps"
+                         " made 1000 keys a second +-0.1 m/s of noise in the played velocity")
     args = ap.parse_args()
     global RATE
     RATE = args.rate
@@ -88,9 +98,19 @@ def main():
         L.append(f"{t0 - 0.5:.3f} main {keys[0][1]:.4f} {keys[0][2]:.4f} {keys[0][3]:.4f} {keys[0][4] + args.gunangle:.2f} 0 0")
         L.append(f"{t0 - 0.45:.3f} cmd echo THROW {name} {elev}")
         L.append(f"{t0 - 0.4:.3f} cmd +grabmain")
+        if args.grip == 1:
+            L.append(f"{t0 - 0.4:.3f} button main grip 1")
+        elif args.grip == 2:
+            L.append(f"{t0 - 0.4:.3f} grip main 1")
+        d, a = args.digits, max(2, args.digits - 2)
         for k in keys:
-            L.append(f"{t0 + k[0]:.4f} main {k[1]:.4f} {k[2]:.4f} {k[3]:.4f} {k[4] + args.gunangle:.2f} 0 0")
-        L.append(f"{t0 + rel:.4f} cmd -grabmain")
+            L.append(f"{t0 + k[0]:.6f} main {k[1]:.{d}f} {k[2]:.{d}f} {k[3]:.{d}f} {k[4] + args.gunangle:.{a}f} 0 0")
+        L.append(f"{t0 + rel:.6f} cmd -grabmain")
+        if args.grip == 1:
+            L.append(f"{t0 + rel:.6f} button main grip 0")
+        elif args.grip == 2:
+            L.append(f"{t0 + rel - 0.015:.6f} grip main 1")
+            L.append(f"{t0 + rel + 0.035:.6f} grip main 0")
         t0 += keys[-1][0] + 1.0
         L.append(f"{t0 - 0.6:.3f} main 0.25 1.1 -0.2 70 0 0")
     L.append(f"{t0:.3f} off -0.25 1.1 -0.2 70 0 0")
