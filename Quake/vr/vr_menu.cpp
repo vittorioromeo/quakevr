@@ -4282,6 +4282,13 @@ za::Vector<Item> pageDebugProfiling()
                   "collection for each Benchmark Capture (vr_bench_begin) alone, Map Loads for each load alone (the map "
                   "command to its first frame drawn), so gameplay and loading are profiled apart (vr_bench_profiler; "
                   "vr_profiler_collect 0|1 by hand)."),
+        toggle("Layered Shadow Casters", vr_shadow_layered)
+            .help("vr_shadow_layered: each shadow caster drawn once per light into all the faces it reaches (the GPU picks "
+                  "the face), instead of once per face: fewer draw calls, the same shadows. Off: a face at a time (also when "
+                  "the GPU lacks GL_ARB_shader_viewport_layer_array)."),
+        command("Check Layered Shadows", "vr_shadow_layered_check 20")
+            .help("vr_shadow_layered_check 20: this frame's shadow maps drawn both ways 20 times, timed (draw calls, CPU and "
+                  "GPU ms), then read back and compared texel by texel, in the console. Stand where shadows are."),
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), and every load's total."),

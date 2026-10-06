@@ -61,6 +61,7 @@ constexpr Face faces[6] = {
 // GL resources
 
 GLuint depthProgram = 0;
+GLuint depthLayeredProgram = 0; // vr_shadow_layered's (gl_viewport_layer_able)
 
 struct DepthTarget
 {
@@ -96,6 +97,38 @@ void main()
 }
 )";
     depthProgram = gfx::glProgram(vs, nullptr, "vr shadow depth");
+    if(depthProgram && gl_viewport_layer_able && !depthLayeredProgram)
+    {
+        // The world's and the brush casters' for vr_shadow_layered: a draw's (Entry >> 3) matrices into the face (Entry & 7)
+        // and its viewport, each draw's instances its faces; the same arithmetic as the one above.
+        static constexpr const char* extensions[4] = {"", "GL_ARB_shader_viewport_layer_array",
+            "GL_AMD_vertex_shader_viewport_index", "GL_NV_viewport_array2"};
+        static constexpr const char* layeredBody = R"(
+struct Draw
+{
+    mat4 MVP[6];
+    vec4 ClipPlane;
+};
+layout(std430, binding = 7) restrict readonly buffer DrawBuffer
+{
+    Draw draws[];
+};
+layout(location = 0) in uint Entry;
+layout(location = 1) in vec3 Pos;
+void main()
+{
+    uint face = Entry & 7u;
+    uint draw = Entry >> 3;
+    gl_Position = draws[draw].MVP[face] * vec4(Pos, 1.0);
+    gl_ClipDistance[0] = dot(draws[draw].ClipPlane, vec4(Pos, 1.0));
+    gl_ViewportIndex = int(face);
+}
+)";
+        char source[1024];
+        q_snprintf(source, sizeof(source), "#version 430\n#extension %s : require\n%s",
+            extensions[za::clamp(gl_viewport_layer_able, 1, 3)], layeredBody);
+        depthLayeredProgram = gfx::glProgram(source, nullptr, "vr shadow depth layered");
+    }
     return depthProgram != 0;
 }
 
@@ -335,13 +368,40 @@ struct SlotCasters
 };
 za::Vector<SlotCasters> slotCasters; // by map slot
 
+// vr_shadow_layered's world and brush casters: a draw's matrices into each face (the layered depth shader's Draw,
+// std430), and its indirect command.
+struct LayeredDraw
+{
+    glm::mat4 mvp[6];
+    glm::vec4 clip;
+};
+static_assert(sizeof(LayeredDraw) == 6 * 64 + 16);
+struct LayeredCaster
+{
+    entity_t* e;
+    unsigned char bits; // its faces
+};
+struct IndirectCommand
+{
+    GLuint count, instanceCount, firstIndex;
+    GLint baseVertex;
+    GLuint baseInstance;
+};
+
 // A shadow map's draw's buffers (the main thread).
 struct CasterScratch
 {
     za::Vector<glm::mat4> brushModels;    // the brush casters' model matrices
-    za::Vector<entity_t*> faceCasters;    // the skeletal casters, drawn in every face
+    za::Vector<entity_t*> faceCasters;    // the alias casters drawn in this face (layered: in their faces)
     za::Vector<unsigned char> posed;      // whether each alias caster is posed by bones
-    auto members() { return qvr::mem::list(brushModels, faceCasters, posed); }
+    za::Vector<unsigned char> faceBits;   // layered: each of faceCasters' faces (bit f: face f)
+    za::Vector<LayeredCaster> layered;    // layered: the casters to sort by model (the alias renderer's batches)
+    za::Vector<entity_t*> holey;          // layered: the holey-skinned casters, drawn a face at a time
+    za::Vector<unsigned char> holeyBits;  // their faces
+    za::Vector<LayeredDraw> draws;        // layered: the world's and the brush casters' draws
+    za::Vector<uint32_t> entries;         // their instances: draw << 3 | face
+    za::Vector<IndirectCommand> commands; // and commands
+    auto members() { return qvr::mem::list(brushModels, faceCasters, posed, faceBits, layered, holey, holeyBits, draws, entries, commands); }
 };
 mem::Scratch<CasterScratch> casterScratch{"shadow casters"};
 
@@ -516,6 +576,211 @@ bool viewHasCasters(const glm::vec3& light, const ShadowView& view, float size, 
     return false;
 }
 
+// vr_shadow_layered: a light's casters drawn once into all its faces (each face a viewport, chosen in the vertex shader:
+// gl_viewport_layer_able), instead of once per face. layeredOverride -1 as the cvar says, 0 or 1 forced
+// (vr_shadow_layered_check).
+int layeredOverride = -1;
+
+bool layeredShadows()
+{
+    const bool on = layeredOverride >= 0 ? layeredOverride != 0 : vr_shadow_layered.value != 0.f;
+    return on && gl_viewport_layer_able && depthLayeredProgram && glprogs.alias_depth_layered[0];
+}
+
+// A light's views drawn at once (renderLight, vr_shadow_layered): the same depth as a face at a time. The world and the
+// brush casters in one indirect draw (a draw's instances: its faces); each alias caster once, with the faces it
+// reaches by the same tests a face at a time makes (R_CullModelForEntity on the face's frustum, the view entities'
+// wider sphere, the posed ones in every face), set up once (lerp, matrices, bones); the holey-skinned ones (their
+// fragment shader's alpha test) a face at a time after.
+void drawLayered(const glm::vec3& light, float radius, const ShadowView* views, int numViews, float size, size_t worldCount,
+    bool brushes, bool aliases, unsigned* faceMask, const glm::vec4& plane, GLuint ibuf, GLbyte* iofs)
+{
+    CasterScratch& cs = casterScratch;
+    glm::mat4 vps[6]{};
+    mplane_t planes[6][4]{};
+    unsigned visible = 0u;
+    GLuint numVisible = 0;
+    for(int face = 0; face < numViews; face++)
+    {
+        const ShadowView& view = views[face];
+        if(!viewVisible(light, view, radius))
+        {
+            continue;
+        }
+        visible |= 1u << face;
+        numVisible++;
+        vps[face] = viewProj(light, view, size);
+        viewFrustum(light, view, size, planes[face]);
+        // As glViewport's integers a face at a time.
+        GL_ViewportIndexedfFunc(static_cast<GLuint>(face), static_cast<float>(static_cast<int>(view.at.x)),
+            static_cast<float>(static_cast<int>(view.at.y)), static_cast<float>(static_cast<int>(size)),
+            static_cast<float>(static_cast<int>(size)));
+        facesDrawn++;
+        if(faceMask && viewHasCasters(light, view, size, brushes, aliases, cs.posed))
+        {
+            *faceMask |= 1u << face;
+        }
+    }
+    if(!visible)
+    {
+        return;
+    }
+
+    if(!indices.empty() && (worldCount || (brushes && !brushCasters.empty())))
+    {
+        cs.draws.clear();
+        cs.entries.clear();
+        cs.commands.clear();
+        const size_t base = reinterpret_cast<uintptr_t>(iofs) / sizeof(uint32_t);
+        const auto add = [&](size_t first, size_t count, const glm::mat4* model, const glm::vec4& clip)
+        {
+            if(!count)
+            {
+                return;
+            }
+            const uint32_t draw = static_cast<uint32_t>(cs.draws.size());
+            LayeredDraw& d = cs.draws.emplaceBack();
+            const GLuint baseInstance = static_cast<GLuint>(cs.entries.size());
+            for(int face = 0; face < 6; face++)
+            {
+                d.mvp[face] = glm::mat4{0.f};
+                if(visible & (1u << face))
+                {
+                    d.mvp[face] = model ? vps[face] * *model : vps[face]; // as drawIndices' a face at a time
+                    cs.entries.pushBack(draw << 3 | static_cast<uint32_t>(face));
+                }
+            }
+            d.clip = clip;
+            cs.commands.pushBack({static_cast<GLuint>(count), numVisible, static_cast<GLuint>(base + first), 0, baseInstance});
+        };
+        add(0, worldCount, nullptr, plane);
+        for(size_t i = 0; brushes && i < cs.brushModels.size(); i++)
+        {
+            add(brushCasters[i].first, brushCasters[i].count, &cs.brushModels[i], glm::transpose(cs.brushModels[i]) * plane);
+        }
+        if(!cs.commands.empty())
+        {
+            GLuint drawBuf = 0, entryBuf = 0, commandBuf = 0;
+            GLbyte *drawOfs = nullptr, *entryOfs = nullptr, *commandOfs = nullptr;
+            const size_t drawBytes = cs.draws.size() * sizeof(LayeredDraw);
+            GL_Upload(GL_SHADER_STORAGE_BUFFER, cs.draws.data(), drawBytes, &drawBuf, &drawOfs);
+            GL_Upload(GL_ARRAY_BUFFER, cs.entries.data(), cs.entries.size() * sizeof(uint32_t), &entryBuf, &entryOfs);
+            GL_Upload(GL_DRAW_INDIRECT_BUFFER, cs.commands.data(), cs.commands.size() * sizeof(IndirectCommand), &commandBuf,
+                &commandOfs);
+            GL_UseProgram(depthLayeredProgram);
+            GL_SetState(GLS_BLEND_OPAQUE | GLS_CULL_NONE | GLS_ATTRIBS(2) | GLS_INSTANCED_ATTRIBS(1));
+            GL_BindBufferRange(GL_SHADER_STORAGE_BUFFER, 7, drawBuf, reinterpret_cast<GLintptr>(drawOfs),
+                static_cast<GLsizeiptr>(drawBytes));
+            GL_BindBuffer(GL_ARRAY_BUFFER, entryBuf);
+            GL_VertexAttribIPointerFunc(0, 1, GL_UNSIGNED_INT, 0, entryOfs);
+            GL_BindBuffer(GL_ARRAY_BUFFER, gl_bmodel_vbo);
+            GL_VertexAttribPointerFunc(1, 3, GL_FLOAT, GL_FALSE, sizeof(glvert_t), nullptr);
+            GL_BindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibuf);
+            GL_BindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuf);
+            GL_MultiDrawElementsIndirectFunc(GL_TRIANGLES, GL_UNSIGNED_INT, commandOfs, static_cast<GLsizei>(cs.commands.size()),
+                sizeof(IndirectCommand));
+        }
+    }
+
+    if(aliases && !aliasCasters.empty())
+    {
+        QVR_PROFILE("shadow alias draw");
+        mplane_t savedFrustum[4];
+        memcpy(savedFrustum, frustum, sizeof(savedFrustum));
+        cs.layered.clear();
+        cs.holey.clear();
+        cs.holeyBits.clear();
+        for(size_t i = 0; i < aliasCasters.size(); i++)
+        {
+            entity_t* e = aliasCasters[i];
+            const bool view = VR_IsViewEntity(e);
+            const float reach = view ? viewEntityReach(e) : 0.f;
+            unsigned bits = 0u;
+            for(int face = 0; face < numViews; face++)
+            {
+                if(!(visible & (1u << face)))
+                {
+                    continue;
+                }
+                if(cs.posed[i])
+                {
+                    bits |= 1u << face;
+                    continue;
+                }
+                // A face at a time: in the face's casters by the sphere (the view entities) or R_CullModelForEntity,
+                // then culled by the alias renderer's own R_CullModelForEntity.
+                memcpy(frustum, planes[face], sizeof(planes[face]));
+                if((!view || sphereInView(frustum, e->origin, reach)) && !R_CullModelForEntity(e))
+                {
+                    bits |= 1u << face;
+                }
+            }
+            if(!bits)
+            {
+                continue;
+            }
+            for(unsigned b = bits; b; b &= b - 1u)
+            {
+                modelsDrawn++; // a draw per face, as a face at a time
+            }
+            if(e->model->flags & MF_HOLEY)
+            {
+                cs.holey.pushBack(e);
+                cs.holeyBits.pushBack(static_cast<unsigned char>(bits));
+            }
+            else
+            {
+                cs.layered.pushBack({e, static_cast<unsigned char>(bits)});
+            }
+        }
+        memcpy(frustum, savedFrustum, sizeof(savedFrustum));
+        // By model and skin: the alias renderer draws a run of the same model and skin as one batch (the depth is the
+        // nearest whatever the order).
+        za::quickSort(cs.layered.begin(), cs.layered.end(), [](const LayeredCaster& a, const LayeredCaster& b)
+        {
+            const uintptr_t ma = reinterpret_cast<uintptr_t>(a.e->model), mb = reinterpret_cast<uintptr_t>(b.e->model);
+            return ma != mb ? ma < mb : a.e->skinnum < b.e->skinnum;
+        });
+        cs.faceCasters.clear();
+        cs.faceBits.clear();
+        for(const LayeredCaster& c : cs.layered)
+        {
+            cs.faceCasters.pushBack(c.e);
+            cs.faceBits.pushBack(c.bits);
+        }
+        if(!cs.faceCasters.empty())
+        {
+            R_DrawAliasModelsDepthLayered(cs.faceCasters.data(), cs.faceBits.data(), static_cast<int>(cs.faceCasters.size()),
+                &vps[0][0][0]);
+        }
+        // The holey ones a face at a time (glViewport sets every viewport: after the layered draws).
+        for(int face = 0; face < numViews && !cs.holey.empty(); face++)
+        {
+            cs.faceCasters.clear();
+            for(size_t i = 0; i < cs.holey.size(); i++)
+            {
+                if(cs.holeyBits[i] & (1u << face))
+                {
+                    cs.faceCasters.pushBack(cs.holey[i]);
+                }
+            }
+            if(cs.faceCasters.empty())
+            {
+                continue;
+            }
+            const ShadowView& view = views[face];
+            glViewport(static_cast<int>(view.at.x), static_cast<int>(view.at.y), static_cast<int>(size), static_cast<int>(size));
+            memcpy(frustum, planes[face], sizeof(planes[face]));
+            float savedViewProj[16];
+            memcpy(savedViewProj, r_matviewproj, sizeof(savedViewProj));
+            memcpy(r_matviewproj, &vps[face][0][0], sizeof(r_matviewproj));
+            R_DrawAliasModelsDepth(cs.faceCasters.data(), static_cast<int>(cs.faceCasters.size()));
+            memcpy(r_matviewproj, savedViewProj, sizeof(savedViewProj));
+            memcpy(frustum, savedFrustum, sizeof(savedFrustum));
+        }
+    }
+}
+
 // Renders a light's views (tiles of `size` texels) in `target`: `worldCount` indices of the world
 // (from 0), the brush casters, and the alias casters. faceMask: the views drawn with moving casters
 // in them (viewHasCasters), for the world shader to skip the others' lookups (MapLightShadow).
@@ -562,7 +827,12 @@ void renderLight(DepthTarget& target, const glm::vec3& light, float radius, cons
     avatar::shadowLight(light); // your body's head in this light's shadow (vr_shadow_head)
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, target.fbo);
-    for(int face = 0; face < numViews; face++)
+    const bool layered = layeredShadows();
+    if(layered)
+    {
+        drawLayered(light, radius, views, numViews, size, worldCount, brushes, aliases, faceMask, plane, ibuf, iofs);
+    }
+    for(int face = 0; !layered && face < numViews; face++) // a face at a time (vr_shadow_layered 0, or no extension)
     {
         const ShadowView& view = views[face];
         if(!viewVisible(light, view, radius))
@@ -1079,6 +1349,129 @@ bool shadowsSupported()
     return true;
 }
 
+// vr_shadow_layered_check [repeats]: this frame's shadow maps drawn a face at a time and layered (vr_shadow_layered),
+// `repeats` times each, alternating, timed (CPU: the submission; GPU: timestamps round it, waited for), then once more
+// each with the map lights' cached world drawn again too, read back and compared texel by texel (both atlases).
+int layeredCheckRepeats = 0;
+
+void layeredCheck_f()
+{
+    layeredCheckRepeats = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 1, 500) : 1;
+    if(!gl_viewport_layer_able || !depthLayeredProgram)
+    {
+        Con_Printf("vr_shadow_layered_check: no layered shadows here (%s), compared with themselves\n",
+            gl_viewport_layer_able ? "no program yet" : "no GL_ARB_shader_viewport_layer_array or AMD/NV one");
+    }
+}
+
+// An atlas' depth, read back.
+void readDepth(const DepthTarget& t, za::Vector<float>& out)
+{
+    out.resize(static_cast<size_t>(t.width) * static_cast<size_t>(t.height));
+    if(out.empty())
+    {
+        return;
+    }
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, t.tex);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, GL_FLOAT, out.data());
+    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
+}
+
+// Two read-backs compared: texels that differ, the most they differ (and in units in the last place: depths are
+// positive floats, so their bits order as they do), and each one's FNV-1a hash.
+void compareDepth(const char* name, const DepthTarget& t, const za::Vector<float>& a, const za::Vector<float>& b)
+{
+    size_t differ = 0;
+    float most = 0.f;
+    uint32_t mostUlp = 0u;
+    uint32_t hash[2] = {2166136261u, 2166136261u};
+    for(size_t i = 0; i < a.size() && i < b.size(); i++)
+    {
+        uint32_t ua = 0u, ub = 0u;
+        memcpy(&ua, &a[i], sizeof(ua));
+        memcpy(&ub, &b[i], sizeof(ub));
+        hash[0] = (hash[0] ^ ua) * 16777619u;
+        hash[1] = (hash[1] ^ ub) * 16777619u;
+        if(ua != ub)
+        {
+            differ++;
+            most = za::max(most, za::abs(a[i] - b[i]));
+            mostUlp = za::max(mostUlp, ua > ub ? ua - ub : ub - ua);
+        }
+    }
+    Con_Printf("  %s %dx%d: %zu texels differ (most %g, %u ulp); hashes %08x %08x\n", name, t.width, t.height, differ, most,
+        mostUlp, hash[0], hash[1]);
+}
+
+template <class Render>
+void layeredCheck(const Render& renderAll)
+{
+    const int repeats = layeredCheckRepeats;
+    layeredCheckRepeats = 0;
+    GLuint queries[2] = {};
+    GL_GenQueriesFunc(2, queries);
+    double cpu[2] = {}, gpu[2] = {};
+    int calls[2] = {}, faces[2] = {}, models[2] = {};
+    za::Vector<float> depth[2][2]; // [face at a time, layered][atlas, static atlas]
+    for(int r = 0; r <= repeats; r++)
+    {
+        for(int way = 0; way < 2; way++)
+        {
+            layeredOverride = way;
+            const bool last = r == repeats; // the read-back: every atlas drawn again
+            if(last)
+            {
+                for(MapSlot& s : mapSlots)
+                {
+                    s.cached = false;
+                }
+            }
+            glFinish();
+            const int calls0 = vr_profcounts.drawcalls;
+            GL_QueryCounterFunc(queries[0], GL_TIMESTAMP);
+            const double t0 = Sys_DoubleTime();
+            renderAll();
+            const double t1 = Sys_DoubleTime();
+            GL_QueryCounterFunc(queries[1], GL_TIMESTAMP);
+            GLuint64 begin = 0, end = 0;
+            GL_GetQueryObjectui64vFunc(queries[0], GL_QUERY_RESULT, &begin);
+            GL_GetQueryObjectui64vFunc(queries[1], GL_QUERY_RESULT, &end);
+            if(!last)
+            {
+                cpu[way] += (t1 - t0) * 1000.0;
+                gpu[way] += static_cast<double>(end - begin) / 1e6;
+                calls[way] = vr_profcounts.drawcalls - calls0;
+                faces[way] = facesDrawn;
+                models[way] = modelsDrawn;
+                continue;
+            }
+            readDepth(atlas, depth[way][0]);
+            readDepth(staticAtlas, depth[way][1]);
+        }
+    }
+    layeredOverride = -1;
+    GL_DeleteQueriesFunc(2, queries);
+    int dl = 0, spots = 0, ml = 0;
+    for(const DlightSlot& s : dlightSlots)
+    {
+        dl += s.selected ? 1 : 0;
+        spots += s.selected && s.spot ? 1 : 0;
+    }
+    for(const MapSlot& s : mapSlots)
+    {
+        ml += (s.light >= 0 && s.hasCasters) ? 1 : 0;
+    }
+    Con_Printf("vr_shadow_layered_check (%d repeats, means; %d dynamic (%d spot), %d portal, %d map lights):\n", repeats, dl,
+        spots, portalLightCount, ml);
+    for(int way = 0; way < 2; way++)
+    {
+        Con_Printf("  %s: %d draw calls, %d faces, %d model draws; CPU %.3f ms, GPU %.3f ms\n",
+            way ? "layered     " : "face at a time", calls[way], faces[way], models[way], cpu[way] / repeats, gpu[way] / repeats);
+    }
+    compareDepth("atlas", atlas, depth[0][0], depth[1][0]);
+    compareDepth("static atlas", staticAtlas, depth[0][1], depth[1][1]);
+}
+
 } // namespace
 
 // ----------------------------------------------------------------------------
@@ -1230,117 +1623,132 @@ extern "C" void VR_RenderShadowMaps(void)
     }
 
     GL_BeginGroup("Shadow maps");
-    facesDrawn = 0;
-    modelsDrawn = 0;
-    glEnable(GL_SCISSOR_TEST);
-
-    profile::begin("map light world", true);
-    // Map lights' world depth, once per light (the world does not move).
-    for(MapSlot& s : mapSlots)
+    // Everything drawn into the atlases (twice by vr_shadow_layered_check).
+    const auto renderAll = [&]()
     {
-        if(s.light < 0 || s.cached || s.light >= static_cast<int>(lights.size()))
+        facesDrawn = 0;
+        modelsDrawn = 0;
+        glEnable(GL_SCISSOR_TEST);
+
+        profile::begin("map light world", true);
+        // Map lights' world depth, once per light (the world does not move).
+        for(MapSlot& s : mapSlots)
         {
-            continue;
+            if(s.light < 0 || s.cached || s.light >= static_cast<int>(lights.size()))
+            {
+                continue;
+            }
+            const auto& l = lights[s.light];
+            GL_BindFramebufferFunc(GL_FRAMEBUFFER, staticAtlas.fbo);
+            glScissor(static_cast<int>(s.staticOrigin.x), static_cast<int>(s.staticOrigin.y), static_cast<int>(3.f * mapSlotSize),
+                static_cast<int>(2.f * mapSlotSize));
+            GL_SetState(glstate & ~GLS_NO_ZWRITE);
+            glClearDepth(0.f);
+            glClear(GL_DEPTH_BUFFER_BIT);
+            indices.clear();
+            collectWorld(cl.worldmodel->nodes, l.pos, l.value / l.scale);
+            // All six faces: the cache must not depend on where the viewer looks.
+            mplane_t saved[4];
+            memcpy(saved, frustum, sizeof(saved));
+            for(mplane_t& p : frustum)
+            {
+                p.dist = -1e9f;
+            }
+            ShadowView views[6];
+            renderLight(staticAtlas, l.pos, l.value / l.scale, views, cubeViews(s.staticOrigin, mapSlotSize, views), mapSlotSize,
+                indices.size(), false, false);
+            memcpy(frustum, saved, sizeof(saved));
+            s.cached = true;
         }
-        const auto& l = lights[s.light];
-        GL_BindFramebufferFunc(GL_FRAMEBUFFER, staticAtlas.fbo);
-        glScissor(static_cast<int>(s.staticOrigin.x), static_cast<int>(s.staticOrigin.y), static_cast<int>(3.f * mapSlotSize),
-            static_cast<int>(2.f * mapSlotSize));
+        profile::end();
+
+        profile::begin("atlas clear", true);
+        GL_BindFramebufferFunc(GL_FRAMEBUFFER, atlas.fbo);
+        glScissor(0, 0, atlas.width, atlas.height);
         GL_SetState(glstate & ~GLS_NO_ZWRITE);
         glClearDepth(0.f);
         glClear(GL_DEPTH_BUFFER_BIT);
-        indices.clear();
-        collectWorld(cl.worldmodel->nodes, l.pos, l.value / l.scale);
-        // All six faces: the cache must not depend on where the viewer looks.
-        mplane_t saved[4];
-        memcpy(saved, frustum, sizeof(saved));
-        for(mplane_t& p : frustum)
-        {
-            p.dist = -1e9f;
-        }
-        ShadowView views[6];
-        renderLight(staticAtlas, l.pos, l.value / l.scale, views, cubeViews(s.staticOrigin, mapSlotSize, views), mapSlotSize,
-            indices.size(), false, false);
-        memcpy(frustum, saved, sizeof(saved));
-        s.cached = true;
-    }
-    profile::end();
-
-    profile::begin("atlas clear", true);
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, atlas.fbo);
-    glScissor(0, 0, atlas.width, atlas.height);
-    GL_SetState(glstate & ~GLS_NO_ZWRITE);
-    glClearDepth(0.f);
-    glClear(GL_DEPTH_BUFFER_BIT);
-    glDisable(GL_SCISSOR_TEST);
-    profile::end();
-
-    profile::begin("dlight shadows", true);
-    // Dynamic lights: the world, doors and lifts, and models.
-    for(int i = 0; i < MAX_DLIGHTS; i++)
-    {
-        if(!dlightSlots[i].selected)
-        {
-            continue;
-        }
-        const dlight_t& l = cl_dlights[i];
-        const DlightSlot& slot = dlightSlots[i];
-        const glm::vec3 p{l.origin[0], l.origin[1], l.origin[2]};
-        // A spot light's casters: those round its cone.
-        glm::vec3 center = p;
-        float reach = l.radius;
-        ShadowView views[6];
-        int numViews = 0;
-        if(const Spot* spot = spotOf(i); slot.spot && spot)
-        {
-            spotBounds(p, spot->dir, l.radius, spot->cosOuter, center, reach);
-            ShadowView& v = views[numViews++];
-            v.fwd = spot->dir;
-            spotFrame(spot->dir, v.right, v.up);
-            v.spread = spotSpread(*spot);
-            v.at = slot.origin;
-        }
-        else
-        {
-            numViews = cubeViews(slot.origin, slot.size, views);
-        }
-        profile::begin("dlight casters", false);
-        indices.clear();
-        collectWorld(cl.worldmodel->nodes, center, reach);
-        const size_t worldCount = indices.size();
-        collectBrushes(center, reach, false);
-        collectAliases(center, reach, l.key > 0 && l.key < cl.num_entities ? l.key : 0, l.key != cl.viewentity);
+        glDisable(GL_SCISSOR_TEST);
         profile::end();
-        renderLight(atlas, p, l.radius, views, numViews, slot.size, worldCount, true, true);
-    }
 
-    profile::end();
-
-    profile::begin("portal light shadows", true);
-    for(int i = 0; i < portalLightCount; i++) { renderPortalLight(portalLights[i]); }
-    profile::end();
-
-    profile::begin("map light shadows", true);
-    // Map lights: the moving things only.
-    for(size_t i = 0; i < mapSlots.size(); i++)
-    {
-        MapSlot& s = mapSlots[i];
-        if(s.light < 0 || !s.hasCasters || s.light >= static_cast<int>(lights.size()))
+        profile::begin("dlight shadows", true);
+        // Dynamic lights: the world, doors and lifts, and models.
+        for(int i = 0; i < MAX_DLIGHTS; i++)
         {
-            continue;
+            if(!dlightSlots[i].selected)
+            {
+                continue;
+            }
+            const dlight_t& l = cl_dlights[i];
+            const DlightSlot& slot = dlightSlots[i];
+            const glm::vec3 p{l.origin[0], l.origin[1], l.origin[2]};
+            // A spot light's casters: those round its cone.
+            glm::vec3 center = p;
+            float reach = l.radius;
+            ShadowView views[6];
+            int numViews = 0;
+            if(const Spot* spot = spotOf(i); slot.spot && spot)
+            {
+                spotBounds(p, spot->dir, l.radius, spot->cosOuter, center, reach);
+                ShadowView& v = views[numViews++];
+                v.fwd = spot->dir;
+                spotFrame(spot->dir, v.right, v.up);
+                v.spread = spotSpread(*spot);
+                v.at = slot.origin;
+            }
+            else
+            {
+                numViews = cubeViews(slot.origin, slot.size, views);
+            }
+            profile::begin("dlight casters", false);
+            indices.clear();
+            collectWorld(cl.worldmodel->nodes, center, reach);
+            const size_t worldCount = indices.size();
+            collectBrushes(center, reach, false);
+            collectAliases(center, reach, l.key > 0 && l.key < cl.num_entities ? l.key : 0, l.key != cl.viewentity);
+            profile::end();
+            renderLight(atlas, p, l.radius, views, numViews, slot.size, worldCount, true, true);
         }
-        const auto& l = lights[s.light];
-        SlotCasters& c = slotCasters[i]; // collected above
-        aliasCasters.swap(c.aliases);
-        brushCasters.swap(c.brushes);
-        indices.swap(c.indices);
-        ShadowView views[6];
-        s.faceMask = 0u;
-        renderLight(atlas, l.pos, l.value / l.scale, views, cubeViews(s.origin, mapSlotSize, views), mapSlotSize, 0, true, true,
-            &s.faceMask);
-    }
 
-    profile::end();
+        profile::end();
+
+        profile::begin("portal light shadows", true);
+        for(int i = 0; i < portalLightCount; i++) { renderPortalLight(portalLights[i]); }
+        profile::end();
+
+        profile::begin("map light shadows", true);
+        // Map lights: the moving things only.
+        for(size_t i = 0; i < mapSlots.size(); i++)
+        {
+            MapSlot& s = mapSlots[i];
+            if(s.light < 0 || !s.hasCasters || s.light >= static_cast<int>(lights.size()))
+            {
+                continue;
+            }
+            const auto& l = lights[s.light];
+            SlotCasters& c = slotCasters[i]; // collected above
+            aliasCasters.swap(c.aliases);
+            brushCasters.swap(c.brushes);
+            indices.swap(c.indices);
+            ShadowView views[6];
+            s.faceMask = 0u;
+            renderLight(atlas, l.pos, l.value / l.scale, views, cubeViews(s.origin, mapSlotSize, views), mapSlotSize, 0, true, true,
+                &s.faceMask);
+            aliasCasters.swap(c.aliases); // back: drawn again by vr_shadow_layered_check
+            brushCasters.swap(c.brushes);
+            indices.swap(c.indices);
+        }
+
+        profile::end();
+    };
+    if(layeredCheckRepeats > 0)
+    {
+        layeredCheck(renderAll);
+    }
+    else
+    {
+        renderAll();
+    }
 
     GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
     GL_BindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -1984,6 +2392,7 @@ void lighting::init()
     Cvar_SetCallback(&vr_graphics_preset, onPreset);
     Cmd_AddCommand("vr_light_test", lightTest_f);
     Cmd_AddCommand("vr_light_probe", lightProbe_f);
+    Cmd_AddCommand("vr_shadow_layered_check", layeredCheck_f);
     Cvar_SetCallback(&vr_alpha_coverage, onAlphaCoverage);
     ao::init();
 }

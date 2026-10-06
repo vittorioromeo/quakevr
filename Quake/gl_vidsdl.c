@@ -87,6 +87,7 @@ qboolean gl_buffer_storage_able = false;
 qboolean gl_multi_bind_able = false;
 qboolean gl_bindless_able = false;
 qboolean gl_clipcontrol_able = false;
+int gl_viewport_layer_able = 0; // QVR
 float gl_max_anisotropy; //johnfitz
 int gl_stencilbits;
 
@@ -1105,6 +1106,14 @@ static void GL_CheckExtensions (void)
 		!COM_CheckParm ("-noclipcontrol") &&
 		GL_FindExtension ("GL_ARB_clip_control") &&
 		GL_InitFunctions (gl_arb_clip_control_functions, false)
+	;
+
+	// QVR: the shadow maps' casters drawn into all their faces at once (vr/vr_lighting.cpp, vr_shadow_layered)
+	gl_viewport_layer_able =
+		COM_CheckParm ("-noviewportlayer") ? 0 :
+		GL_FindExtension ("GL_ARB_shader_viewport_layer_array") ? 1 :
+		GL_FindExtension ("GL_AMD_vertex_shader_viewport_index") ? 2 :
+		GL_FindExtension ("GL_NV_viewport_array2") ? 3 : 0
 	;
 }
 

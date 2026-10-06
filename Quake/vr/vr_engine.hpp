@@ -80,6 +80,8 @@ void R_RestoreTranslucentTarget (void);			// gl_rmain.c: the translucent pass's 
 void R_SetupGL (void);								// gl_rmain.c: the scene's framebuffer and viewport again (after a pass of vr_water.cpp's or vr_haze.cpp's)
 void R_SceneViewport (int viewport[4]);					// gl_rmain.c: the viewport R_SetupGL sets (x, y, width, height), without a glGet
 void R_DrawAliasModelsDepth (entity_t **ents, int count); // r_alias.c: depth only (the shadow maps' casters)
+// r_alias.c: the same, each drawn once into all its faces (faces[i]'s bits; faceviewproj: 6 matrices; vr_shadow_layered)
+void R_DrawAliasModelsDepthLayered (entity_t **ents, const unsigned char *faces, int count, const float *faceviewproj);
 qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, int side); // r_alias.c: into its wound mask (vr_wounds.cpp); side -1 all, 0 or 1 that side's
 qboolean R_PaintBrushWounds (entity_t *e, int numsplats, const float *splats); // r_world.c: a held brush model's box into its box mask (vr_wounds.cpp)
 void R_BModelCentre (entity_t *e, float out[3]); // r_world.c: where the middle of a brush model's box is drawn

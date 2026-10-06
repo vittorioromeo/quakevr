@@ -42,6 +42,9 @@ extern vec3_t	lightcolor; //johnfitz -- replaces "float shadelight" for lit supp
 static float	entalpha; //johnfitz
 static qboolean	aliasdepth; // QVR: drawing the shadow maps' casters (R_DrawAliasModelsDepth)
 static int		aliasnear; // QVR: the batch's VR_AliasNearEye flags (1 depth clamp, 2 both sides)
+// QVR: a shadow map's casters drawn once into all the light's faces they reach (R_DrawAliasModelsDepthLayered): the
+// faces of the entity being added (bit f: face f, its viewport f), NULL one face at a time (R_DrawAliasModelsDepth)
+static const unsigned char	*aliasfaces;
 
 #ifndef GL_DEPTH_CLAMP
 #define GL_DEPTH_CLAMP 0x864F
@@ -84,6 +87,14 @@ struct ibuf_s {
 	} global;
 	aliasinstance_t inst[MAX_ALIAS_INSTANCES];
 } ibuf;
+
+// QVR: the layered shadow casters' (R_DrawAliasModelsDepthLayered): each batched instance's faces, and the shader's
+// FaceBuffer (gl_shaders.h): the faces' view-projections, then a draw per instance and face (its index | face << 16)
+static unsigned char aliasinstfaces[MAX_ALIAS_INSTANCES];
+static struct {
+	float		viewproj[6][16];
+	uint32_t	draws[MAX_ALIAS_INSTANCES * 6];
+} aliasfacebuf;
 
 /*
 =================
@@ -318,6 +329,9 @@ void R_FlushAliasInstances (qboolean showtris)
 	aliashdr_t* mainhdr, *hdr;
 	qboolean	alphatest, translucent, oit;
 	qboolean	a2c; // QVR
+	qboolean	layered; // QVR: into all their faces at once (aliasfaces)
+	int			drawcount; // QVR: instances drawn (layered: an instance once per face)
+	int			i, f; // QVR
 	int			totalverts;
 	int			poseverttype;
 	int			skinnum, anim, mode;
@@ -339,6 +353,23 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	model = ibuf.ent->model;
 	mainhdr = (aliashdr_t*)Mod_Extradata (model);
+
+	// QVR: layered shadow casters: a draw per instance and face it reaches (the faces in aliasinstfaces)
+	layered = aliasdepth && aliasfaces && glprogs.alias_depth_layered[mainhdr->poseverttype];
+	drawcount = ibuf.count;
+	if (layered)
+	{
+		drawcount = 0;
+		for (i = 0; i < ibuf.count; i++)
+			for (f = 0; f < 6; f++)
+				if (aliasinstfaces[i] & (1 << f))
+					aliasfacebuf.draws[drawcount++] = (uint32_t)i | ((uint32_t)f << 16);
+		if (!drawcount)
+		{
+			ibuf.count = 0;
+			return;
+		}
+	}
 	anim = (int)(cl.time * 10) & 3;
 
 	GL_BeginGroup (model->name);
@@ -361,7 +392,15 @@ void R_FlushAliasInstances (qboolean showtris)
 	}
 	GL_UseProgram (glprogs.alias[oit][mode][alphatest][poseverttype]);
 	if (aliasdepth && !alphatest && !translucent) // QVR: a shadow map's opaque casters: no fragment shader (holey skins keep theirs)
-		GL_UseProgram (glprogs.alias_depth[poseverttype]);
+		GL_UseProgram (layered ? glprogs.alias_depth_layered[poseverttype] : glprogs.alias_depth[poseverttype]);
+	if (layered) // QVR: the faces' view-projections and the draws (holey skins are drawn a face at a time: vr_lighting.cpp)
+	{
+		GLuint		facebuf;
+		GLbyte		*faceofs;
+		GLsizeiptr	facesize = (GLsizeiptr)(sizeof (aliasfacebuf.viewproj) + sizeof (aliasfacebuf.draws[0]) * drawcount);
+		GL_Upload (GL_SHADER_STORAGE_BUFFER, &aliasfacebuf, facesize, &facebuf, &faceofs);
+		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 7, facebuf, (GLintptr)faceofs, facesize);
+	}
 
 	glEnable (GL_CLIP_DISTANCE1); // QVR: each instance keeps its half of the slipgate
 	VR_AliasShadowClip (); // QVR: clipped virtual-light shadow, or a disabled plane
@@ -397,7 +436,7 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	ibuf_size = sizeof (ibuf.global) + sizeof (ibuf.inst[0]) * ibuf.count;
 	GL_Upload (GL_SHADER_STORAGE_BUFFER, &ibuf.global, ibuf_size, &buf, &ofs);
-	vr_profcounts.aliasdrawn += ibuf.count; // QVR: profile
+	vr_profcounts.aliasdrawn += drawcount; // QVR: profile (a model drawn into a view: layered, once per face)
 
 	numvrbones = poseverttype == PV_IQM ? (aliasdepth ? VR_AliasShadowBonePoses (ibuf.ent, &vrbones) : VR_AliasBonePoses (ibuf.ent, &vrbones)) : 0; // QVR: the shadow maps' with your head
 	if (numvrbones) // QVR
@@ -481,8 +520,8 @@ void R_FlushAliasInstances (qboolean showtris)
 		textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
 		GL_BindTextures (0, 3, textures); // QVR: and the normal map
-		GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, ibuf.count);
-		rs_aliaspasses += hdr->numtris * ibuf.count;
+		GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount); // QVR: drawcount
+		rs_aliaspasses += hdr->numtris * drawcount;
 	}
 
 	if (a2c) // QVR
@@ -517,8 +556,8 @@ void R_FlushAliasInstances (qboolean showtris)
 			textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
 			GL_BindTextures (0, 3, textures); // QVR: and the normal map
-			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, ibuf.count);
-			rs_aliaspasses += hdr->numtris * ibuf.count;
+			GL_DrawElementsInstancedFunc (GL_TRIANGLES, hdr->numindexes, GL_UNSIGNED_SHORT, (void*)hdr->eboofs, drawcount); // QVR: drawcount
+			rs_aliaspasses += hdr->numtris * drawcount;
 		}
 
 	}
@@ -687,7 +726,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 	ApplyScale (model_matrix, paliashdr->scale[0], paliashdr->scale[1] * fovscale, paliashdr->scale[2] * fovscale);
 	VR_AliasPostTransform (e, model_matrix); // QVR
 	portal_split = mode != ALIAS_DEPTH && VR_PortalAlias (e, bounds_matrix, model_matrix, mapped_matrix, source_clip, destination_clip);
-	if (!portal_split && !VR_AliasBonePoses (e, NULL) && R_CullModelForEntity(e))
+	if (!portal_split && !VR_AliasBonePoses (e, NULL) && !aliasfaces && R_CullModelForEntity(e)) // QVR: layered: the caller culled it by face
 		return;
 
 	//
@@ -736,6 +775,7 @@ static void R_DrawAliasModel_Real (entity_t *e, aliasmode_t mode)
 		aliasnear = nearflags; // QVR
 	}
 
+	aliasinstfaces[ibuf.count] = aliasfaces ? *aliasfaces : 0; // QVR: layered shadow casters: its faces
 	instance = &ibuf.inst[ibuf.count++];
 
 	MatrixTranspose4x3 (model_matrix, instance->worldmatrix);
@@ -929,6 +969,31 @@ void R_DrawAliasModelsDepth (entity_t **ents, int count)
 	for (i = 0; i < count; i++)
 		R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH);
 	R_FlushAliasInstances (false);
+	aliasdepth = false;
+}
+
+/*
+=================
+R_DrawAliasModelsDepthLayered -- QVR
+
+The shadow maps' casters drawn once into all of a light's faces they reach (vr/vr_lighting.cpp, vr_shadow_layered):
+faces[i] the faces of ents[i] (bit f: face f, drawn into viewport f through faceviewproj[f], 16 floats each; the
+caller has culled them by face), their lerp, transforms and bones set up once instead of once per face. Needs
+glprogs.alias_depth_layered (gl_viewport_layer_able) and opaque skins (not MF_HOLEY: those keep their fragment shader).
+=================
+*/
+void R_DrawAliasModelsDepthLayered (entity_t **ents, const unsigned char *faces, int count, const float *faceviewproj)
+{
+	int i;
+	memcpy (aliasfacebuf.viewproj, faceviewproj, sizeof (aliasfacebuf.viewproj));
+	aliasdepth = true;
+	for (i = 0; i < count; i++)
+	{
+		aliasfaces = &faces[i];
+		R_DrawAliasModel_Real (ents[i], ALIAS_DEPTH);
+	}
+	R_FlushAliasInstances (false);
+	aliasfaces = NULL;
 	aliasdepth = false;
 }
 

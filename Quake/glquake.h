@@ -120,6 +120,7 @@ extern	qboolean	gl_buffer_storage_able;
 extern	qboolean	gl_multi_bind_able;
 extern	qboolean	gl_bindless_able;
 extern	qboolean	gl_clipcontrol_able;
+extern	int		gl_viewport_layer_able; // QVR: gl_ViewportIndex from a vertex shader: 0 no, 1 ARB_shader_viewport_layer_array, 2 AMD_vertex_shader_viewport_index, 3 NV_viewport_array2
 
 extern	const char	*gl_vendor;
 extern	const char	*gl_renderer;
@@ -133,6 +134,7 @@ extern	const char	*gl_version;
 	x(void,			VertexAttribDivisor, (GLuint index, GLuint divisor))\
 	x(void,			DrawElementsIndirect, (GLenum mode, GLenum type, const void *indirect))\
 	x(void,			MultiDrawElementsIndirect, (GLenum mode, GLenum type, const void *indirect, GLsizei drawcount, GLsizei stride))\
+	x(void,			ViewportIndexedf, (GLuint index, GLfloat x, GLfloat y, GLfloat w, GLfloat h))\
 	x(void,			GenBuffers, (GLsizei n, GLuint *buffers))\
 	x(void,			DeleteBuffers, (GLsizei n, const GLuint *buffers))\
 	x(void,			BindBuffer, (GLenum target, GLuint buffer))\
@@ -584,6 +586,7 @@ typedef struct glprogs_s {
 	GLuint		skyboxside[2];		// [dither]
 	GLuint		alias[2][3][2][3];	// [OIT][mode:standard/dithered/noperspective][alpha test][poseverttype]
 	GLuint		alias_depth[3];		// QVR: [poseverttype] the shadow maps' casters: depth only (no fragment shader)
+	GLuint		alias_depth_layered[3];	// QVR: [poseverttype] the same, drawn into all their faces at once (gl_viewport_layer_able; 0 without)
 	GLuint		woundpaint[3];		// QVR: [poseverttype] a model drawn into its wound mask (vr/vr_wounds.cpp)
 	GLuint		woundpaintbox;		// QVR: a held brush model's box drawn into its wound mask (vr/vr_wounds.cpp)
 	GLuint		sprites[2];			// [dither]

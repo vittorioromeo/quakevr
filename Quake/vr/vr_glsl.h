@@ -1750,7 +1750,7 @@ QVR_DECAL_FUNCTIONS \
 #define QVR_ALIAS_VS_SHADE \
 "	vec3 lightdir = normalize(mix(vec3(0.70710678, 0.0, 0.70710678), inst.LightDir.xyz, inst.LightDir.w)); // QVR: vr/vr_modellight.cpp\n" \
 "	vec3 shadevector = orientation * lightdir;\n" \
-"	out_instance = gl_InstanceID; // QVR\n" \
+"	out_instance = ALIAS_INSTANCE_ID; // QVR: its instance (a layered shadow draw's: FaceDraws)\n" \
 "	out_morph = inst.Ambient[2].w; // QVR\n" \
 "	out_vao = inst.AO.y > 0. ? max(1.0 - inst.AO.y * (1.0 - mix(PoseAO(inst.Pose1), PoseAO(inst.Pose2), inst.Blend)), 0.0) : 1.0; // QVR\n" \
 "	out_morphpos = lerpedPos * vec3(inst.Ambient[3].w, inst.Ambient[4].w, inst.Ambient[5].w); // QVR: the model's scale\n" \
