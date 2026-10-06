@@ -725,6 +725,7 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
 extern "C" void VR_ServerFrameEnd()
 {
     sweepWeaponInsts(); // the weapons' records nothing has any more: freed, their ids gone
+    tips::serverFrame(); // the map tips whose entity is gone (before its slot is reused)
 
     qvr::hitmodel::serverFrame(); // precise hits: the client's lerp of the monsters' poses and steps, kept
     qvr::axestick::serverFrame(); // thrown axes stuck in things go with them (after the poses above)

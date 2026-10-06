@@ -425,8 +425,9 @@ void PF_vr_tip_setpos()
 // fixed point in the map (the client is told -1).
 void PF_vr_tip_setentity()
 {
-    const int num = NUM_FOR_EDICT(G_EDICT(OFS_PARM1));
-    tips::serverSetEntity(tipHandle(), num > 0 ? num : -1);
+    edict_t* ed = G_EDICT(OFS_PARM1);
+    const int num = NUM_FOR_EDICT(ed);
+    tips::serverSetEntity(tipHandle(), num > 0 ? num : -1, PR_GetString(ed->v.classname));
 }
 
 void PF_vr_tip_setdistance()

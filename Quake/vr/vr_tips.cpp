@@ -298,12 +298,16 @@ struct Subject
 {
     if(MapTip* mt = mapTipOf(tip))
     {
+        if(mt->ent == goneEntity)
+        {
+            return false; // its entity is gone for good (the server said so)
+        }
         if(mt->ent >= 0)
         {
             const entity_t* e = liveEntity(mt->ent);
             if(!e)
             {
-                return false; // its entity is gone (removed, or not in this frame's message)
+                return false; // its entity is not in this frame's message
             }
             const glm::vec3 at = targetPoint(*e);
             const float d = placing(at, e, mt->distance, mt->flags, anyDistance);
@@ -601,10 +605,11 @@ void serverSetPos(int handle, const glm::vec3& pos)
     }
 }
 
-void serverSetEntity(int handle, int ent)
+void serverSetEntity(int handle, int ent, const char* classname)
 {
     MapTip& mt = serverTip(handle);
     mt.ent = ent;
+    mt.followClass = ent >= 0 && classname ? classname : "";
     if(sizebuf_t* msg = broadcast())
     {
         beginMessage(msg, QVR_SVC_TIP_ENT, handle);
@@ -653,6 +658,26 @@ void serverSetFlags(int handle, int flags)
     {
         beginMessage(msg, QVR_SVC_TIP_FLAGS, handle);
         MSG_WriteByte(msg, mt.flags);
+    }
+}
+
+void serverFrame()
+{
+    for(int handle = 0; handle < static_cast<int>(serverTips.size()); handle++)
+    {
+        const MapTip& mt = serverTips[static_cast<size_t>(handle)];
+        if(mt.ent < 0)
+        {
+            continue;
+        }
+        // Freed, or another entity in its slot (a loaded game; a slot freed in the map's first seconds is taken at
+        // once): the tip would follow whatever takes it next.
+        const edict_t* ed = mt.ent < qcvm->num_edicts ? EDICT_NUM(mt.ent) : nullptr;
+        if(ed && !ed->free && mt.followClass == PR_GetString(ed->v.classname))
+        {
+            continue;
+        }
+        serverSetEntity(handle, goneEntity, nullptr);
     }
 }
 
@@ -839,12 +864,17 @@ void test_f()
     za::Vector<Near> nearby;
     if(MapTip* mt = mapTipOf(t))
     {
+        if(mt->ent == goneEntity)
+        {
+            Con_Printf("vr_tips_test: %s followed an entity that is gone\n", tipName(t));
+            return;
+        }
         if(mt->ent >= 0)
         {
             const entity_t* e = liveEntity(mt->ent);
             if(!e)
             {
-                Con_Printf("vr_tips_test: %s follows entity %d, which is not there\n", mt->name.cStr(), mt->ent);
+                Con_Printf("vr_tips_test: %s follows entity %d, which is not there\n", tipName(t), mt->ent);
                 return;
             }
             nearby.pushBack({mt->ent, glm::distance(targetPoint(*e), head.head), targetPoint(*e)});

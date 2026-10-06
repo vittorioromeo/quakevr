@@ -35,6 +35,9 @@ enum Flags : int
     AnyAngle = 1 << 2  // shown even out of vr_tips_view_angle or hidden by the world
 };
 
+// MapTip::ent for a tip whose entity is gone (freed, or its slot taken by another): it never shows again.
+constexpr int goneEntity = -2;
+
 // A tip the map supplies. The zero defaults mean the player's own settings (vr_tips_distance, vr_tips_size,
 // vr_tips_delay), so a placed tip follows what new players set unless the map says otherwise.
 struct MapTip
@@ -42,12 +45,14 @@ struct MapTip
     za::String name;        // its name in vr_tips_seen, with the map's (<mapname>:<name>); empty: <mapname>#<index>
     za::String text;        // its lines (\n new lines)
     glm::vec3 pos{0.f};     // its fixed point (or where it started, when it follows an entity)
-    int ent{-1};            // the client entity it follows (its origin and model box, live); -1: a fixed point
+    int ent{-1};            // the client entity it follows (its origin and model box, live); -1: a fixed point;
+                            // goneEntity: it followed one that is gone
     float distance{0.f};    // how near you must come, units (0: vr_tips_distance)
     float size{0.f};        // the screen's text size (0: vr_tips_size)
     float delay{-1.f};      // seconds you must stay near and see it (below 0: vr_tips_delay)
     int flags{0};           // Flags
     bool shownNear{false};  // client: a Repeat tip shown, and the player not yet gone out of its range since
+    za::String followClass; // server: the classname of the entity it follows (another in its slot: gone)
 };
 
 // Server side (the vr_tip_* builtins, while the map spawns; QC/vr_tips.qc func_vr_tip).
@@ -56,12 +61,13 @@ void serverReset();
 void serverSetName(int handle, const char* name);
 void serverSetText(int handle, const char* text);
 void serverSetPos(int handle, const glm::vec3& pos);
-void serverSetEntity(int handle, int ent); // -1: a fixed point
+void serverSetEntity(int handle, int ent, const char* classname); // -1: a fixed point
 void serverSetDistance(int handle, float distance);
 void serverSetSize(int handle, float size);
 void serverSetDelay(int handle, float delay);
 void serverSetFlags(int handle, int flags);
 void serverWriteAll(sizebuf_t* msg); // replay for a spawning client
+void serverFrame(); // once a server frame: a followed entity freed or replaced makes its tip's entity goneEntity
 
 // Client side.
 void clientReset();

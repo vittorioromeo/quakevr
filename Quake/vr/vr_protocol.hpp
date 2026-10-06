@@ -53,7 +53,7 @@ enum SvcQuakeVr : int
     QVR_SVC_TIP_NAME = 23,        // [short handle][string]: its name (its key in vr_tips_seen, with the map's)
     QVR_SVC_TIP_TEXT = 24,        // [short handle][string]: its text (\n new lines)
     QVR_SVC_TIP_POS = 25,         // [short handle][coord3]: its point in the map
-    QVR_SVC_TIP_ENT = 26,         // [short handle][short entity index, -1 a fixed point]: what it follows
+    QVR_SVC_TIP_ENT = 26,         // [short handle][short entity index, -1 a fixed point, -2 gone]: what it follows
     QVR_SVC_TIP_DISTANCE = 27,    // [short handle][float]: how near (units) it must be to show (0: vr_tips_distance)
     QVR_SVC_TIP_SIZE = 28,        // [short handle][float]: its screen's text size (0: vr_tips_size)
     QVR_SVC_TIP_DELAY = 29,       // [short handle][float]: seconds near and seen before it shows (< 0: vr_tips_delay)
