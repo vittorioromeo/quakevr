@@ -402,6 +402,16 @@ const DefaultChange defaultChanges[] = {
     {89, &vr_parallax_distance, "512"},     // 1024
     {89, &vr_parallax_grazing, "86"},       // 90
     {89, &vr_parallax_depth_write, "0"},    // 1
+    // 89: the author's combat tweaks (2026-10-06): the hands' knock from hits, burning, struggling knockdowns
+    {89, &vr_pain_knock_strength, "0.75"},  // 0.6
+    {89, &vr_pain_knock_max, "10"},         // 8.5
+    {89, &vr_pain_knock_time, "0.35"},      // 0.3
+    {89, &vr_burn_flames_max, "7"},         // 12
+    {89, &vr_burn_self, "0"},               // 1
+    {89, &vr_burn_drop, "0"},               // 1
+    {89, &vr_knockdown_wiggle, "0.7"},      // 1
+    {89, &vr_knockdown_wiggle_frequency, "1.2"}, // 2.2
+    {89, &vr_knockdown_wiggle_pause, "1"},  // 0
 };
 constexpr int configVersion = 89;
 

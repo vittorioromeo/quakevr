@@ -701,7 +701,7 @@ QVR_CVAR(vr_walltorch_debug, "0", CVAR_NONE)             // 1: each taken lit to
 QVR_CVAR(vr_burn_damage, "4", CVAR_ARCHIVE)              // damage a second a fire does, however many flames or hits (0: nothing alive is set on fire)
 QVR_CVAR(vr_burn_time, "3", CVAR_ARCHIVE)                // s a monster burns from the last hit that lit it
 QVR_CVAR(vr_burn_flames, "4", CVAR_ARCHIVE)              // flames a fire spreads to over the body on its own (1: just the first)
-QVR_CVAR(vr_burn_flames_max, "7", CVAR_ARCHIVE)          // most flames on one body: more hits add one each up to this (the damage stays one fire's)
+QVR_CVAR(vr_burn_flames_max, "12", CVAR_ARCHIVE)         // most flames on one body: more hits add one each up to this (the damage stays one fire's; 7 before config 89)
 QVR_CVAR(vr_burn_spread, "0.5", CVAR_ARCHIVE)            // s between flames spreading
 QVR_CVAR(vr_burn_flame_size, "0.8", CVAR_ARCHIVE)        // the first flame's scale (id's small flame, progs/flame2.mdl)
 QVR_CVAR(vr_burn_flame_small, "0.7", CVAR_ARCHIVE)       // the other flames' size, times the first's (each a little more or less)
@@ -727,10 +727,10 @@ QVR_CVAR(vr_burn_piece_flame_size, "0.7", CVAR_ARCHIVE)  // a piece's flames' si
 QVR_CVAR(vr_burn_nail_convert, "1", CVAR_ARCHIVE)        // 1: a nail passing through a lit torch's flame (held, thrown, lying, on its wall) becomes a lava nail
 QVR_CVAR(vr_burn_nail_reach, "10", CVAR_ARCHIVE)         // units from a torch's flame a nail must pass to catch fire
 QVR_CVAR(vr_burn_nail_sound, "0.5", CVAR_ARCHIVE)        // the volume of the short fizz a nail makes catching fire in a torch's flame (0: none)
-QVR_CVAR(vr_burn_self, "0", CVAR_ARCHIVE)                // 1: your held torch burns you after vr_burn_self_time; mapper flames use the same hand/arm warnings and delay
+QVR_CVAR(vr_burn_self, "1", CVAR_ARCHIVE)                // 1 (the default since config 89; 0 before): your held torch burns you after vr_burn_self_time; mapper flames use the same hand/arm warnings and delay
 QVR_CVAR(vr_burn_self_time, "0.6", CVAR_ARCHIVE)         // s a held torch's flame must stay on you before you catch fire (haptic warnings till then)
 QVR_CVAR(vr_burn_self_haptic, "1", CVAR_ARCHIVE)         // the warnings' strength (the hand buzzing as the flame stays on you; 0: none)
-QVR_CVAR(vr_burn_drop, "0", CVAR_ARCHIVE)                // 1: a torch held upside down whose flame stays on the hand holding it for vr_burn_drop_time is dropped (a burn on the hand)
+QVR_CVAR(vr_burn_drop, "1", CVAR_ARCHIVE)                // 1 (the default since config 89; 0 before): a torch held upside down whose flame stays on the hand holding it for vr_burn_drop_time is dropped (a burn on the hand)
 QVR_CVAR(vr_burn_drop_time, "1", CVAR_ARCHIVE)           // s the flame of a torch held upside down must stay on its hand before it is dropped
 QVR_CVAR(vr_burn_test, "0", CVAR_NONE)                   // the QC sets the nearest monster or corpse on fire: 1 as a torch's blow, 2 a lava nail, 3 a touch; 4 prints how it burns; 5 loads lava nails in the main hand's nailgun; 6 shoots a nail through the nearest lit torch's flame (Debug)
 QVR_CVAR(vr_offhandpitch, "40.25", CVAR_ARCHIVE)
@@ -1452,9 +1452,9 @@ QVR_CVAR(vr_fatigue_shake_always, "0", CVAR_ARCHIVE)  // 0: only while a hand ho
 // Hits knock the hands (vr_painknock.cpp; ROUND21.md, "Pain feedback: hits knock the hands"): looks only, both drawn hands
 // pushed away from the hit, more the one on its side, and eased back; the aim and the shots stay steady.
 QVR_CVAR(vr_pain_knock, "1", CVAR_ARCHIVE)             // being hit knocks the drawn hands, arms and what they hold
-QVR_CVAR(vr_pain_knock_strength, "0.75", CVAR_ARCHIVE)    // cm the hands are pushed for each point of damage (armour's share too), for small hits
-QVR_CVAR(vr_pain_knock_max, "10", CVAR_ARCHIVE)        // cm harder hits curve towards (a rocket nearly; hits in quick succession add up to no more)
-QVR_CVAR(vr_pain_knock_time, "0.35", CVAR_ARCHIVE)      // s the knock takes: out, held a moment, eased back
+QVR_CVAR(vr_pain_knock_strength, "0.6", CVAR_ARCHIVE)     // cm the hands are pushed for each point of damage (armour's share too), for small hits (0.75 before config 89)
+QVR_CVAR(vr_pain_knock_max, "8.5", CVAR_ARCHIVE)       // cm harder hits curve towards (a rocket nearly; hits in quick succession add up to no more; 10 before config 89)
+QVR_CVAR(vr_pain_knock_time, "0.3", CVAR_ARCHIVE)       // s the knock takes: out, held a moment, eased back (0.35 before config 89)
 QVR_CVAR(vr_pain_knock_tip, "3", CVAR_ARCHIVE)         // degrees the hands (and what they hold) tip up for each cm they are knocked
 QVR_CVAR(vr_pain_knock_seen, "1", CVAR_ARCHIVE)        // 1: the knock's size is what you see: turned across the line from your eyes to each hand (a hit from ahead lifts them, from the side throws them sideways), its move towards or away from your eyes kept on top; 0: straight away from the hit and up (from ahead nearly all of it towards your eyes, where it barely shows)
 QVR_CVAR(vr_pain_haptics, "1", CVAR_ARCHIVE)           // strength of the buzz a hit gives each controller (more the harder and the nearer its side; 0: none)
@@ -2024,9 +2024,9 @@ QVR_CVAR(vr_push, "0.5", CVAR_ARCHIVE)                    // knockback: all of i
 QVR_CVAR(vr_hit_push, "1", CVAR_ARCHIVE)                 // heavy weapon hits shove monsters
 QVR_CVAR(vr_kill_push, "1", CVAR_ARCHIVE)                // killing blows throw the bodies
 QVR_CVAR(vr_enemy_liquid_damage, "1", CVAR_ARCHIVE)      // monsters burn in slime/lava and drown underwater (QC vr_liquids.qc)
-QVR_CVAR(vr_knockdown_wiggle, "0.7", CVAR_ARCHIVE) // physical struggling of living knockdowns; 0 disables
-QVR_CVAR(vr_knockdown_wiggle_frequency, "1.2", CVAR_ARCHIVE) // struggling frequency, Hz
-QVR_CVAR(vr_knockdown_wiggle_pause, "1", CVAR_ARCHIVE) // pause between bursts, seconds; 0 continuous
+QVR_CVAR(vr_knockdown_wiggle, "1", CVAR_ARCHIVE) // physical struggling of living knockdowns; 0 disables (0.7 before config 89)
+QVR_CVAR(vr_knockdown_wiggle_frequency, "2.2", CVAR_ARCHIVE) // struggling frequency, Hz (1.2 before config 89)
+QVR_CVAR(vr_knockdown_wiggle_pause, "0", CVAR_ARCHIVE) // pause between bursts, seconds; 0 continuous (the default since config 89; 1 before)
 QVR_CVAR(vr_explosion_rumble, "1", CVAR_ARCHIVE)         // explosions near you rumble in your hands
 QVR_CVAR(vr_heartbeat, "1", CVAR_ARCHIVE)                // a heartbeat in your hands when your health is low
 QVR_CVAR(vr_deflect, "1", CVAR_ARCHIVE)                  // melee swings bat monsters' projectiles back
