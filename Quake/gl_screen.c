@@ -1191,6 +1191,28 @@ static void SCR_DrawSaving (void)
 
 /*
 ==============
+SCR_DrawRelight -- QVR: the in-game relighting's progress, under the saving disc's corner (vr_relight.cpp)
+==============
+*/
+static void SCR_DrawRelight (void)
+{
+	float fraction = 0.f;
+	const char *text = VR_RelightIndicator (&fraction);
+	int x, w;
+
+	if (!text)
+		return;
+
+	GL_SetCanvas (CANVAS_TOPRIGHT);
+	w = 8 * (int) strlen (text);
+	x = 320 - 8 - w;
+	Draw_String (x, 40, text);
+	Draw_Fill (x, 50, w, 2, 4, 1.f);
+	Draw_Fill (x, 50, (int) (w * CLAMP (0.f, fraction, 1.f)), 2, 192, 1.f);
+}
+
+/*
+==============
 SCR_DrawCrosshair -- johnfitz
 ==============
 */
@@ -2260,6 +2282,7 @@ void SCR_UpdateScreen (void)
 		M_Draw ();
 		SCR_DrawFPS (); //johnfitz
 		SCR_DrawSaving ();
+		SCR_DrawRelight (); // QVR
 	}
 
 	Draw_Flush ();

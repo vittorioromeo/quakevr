@@ -1194,6 +1194,24 @@ bool qvr::menuui::drawSlider(int x, int y, float range, int past, const char* de
     return true;
 }
 
+bool qvr::menuui::drawProgress(int x0, int x1, int y, float fraction)
+{
+    if(!styled())
+    {
+        return false;
+    }
+    const Painter p;
+    const float yc = y + 4.f;
+    p.rounded(static_cast<float>(x0), static_cast<float>(x1), yc, 3.f, 3.f, colors::track);
+    if(fraction > 0.f)
+    {
+        // (at least its rounded ends: a sliver shows that it started)
+        const float end = x0 + q_max(6.f, (x1 - x0) * CLAMP(0.f, fraction, 1.f));
+        p.rounded(static_cast<float>(x0), end, yc, 3.f, 3.f, colors::fill);
+    }
+    return true;
+}
+
 extern "C" int VR_MenuDrawSlider(int x, int y, float range, float marker, const char* desc)
 {
     if(!styled())

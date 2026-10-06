@@ -85,6 +85,10 @@ bool scrollStick(float y);
 // style: Quake's slider is drawn instead.
 bool drawSlider(int x, int y, float range, int past, const char* desc);
 
+// A progress bar on the row at y, from x0 to x1, filled to `fraction` (0..1): a track and its fill, as the sliders'.
+// False (nothing drawn) without the style: the menu draws Quake's (vr_menu.cpp, progressBar).
+bool drawProgress(int x0, int x1, int y, float fraction);
+
 // An open drop-down list's highlighted choice (vr_menu.cpp): a bar from x0 to x1 on the row at y, in either menu style.
 void drawListHighlight(float x0, float x1, int y);
 

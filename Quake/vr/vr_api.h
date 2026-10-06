@@ -124,6 +124,10 @@ int VR_FileCacheHas (const char *path);	// 1 a file, 0 none, -1 not known (ask t
 void VR_FileCacheEnable (int on);	// VR_TimeStart, VR_TimeLoadBegin on; the first frame drawn off
 void VR_FileCacheForget (void);	// a file written, a directory made
 
+// The in-game relighting's line outside the menu on a flat screen (vr_relight.cpp; gl_screen.c SCR_DrawRelight): its text
+// ("RELIGHT 3/12 45% 2:10") and how far it is (0..1), or null when none runs, the wrist gadget shows it, or a menu does.
+const char *VR_RelightIndicator (float *fraction);
+
 // Images decoded ahead on worker threads (vr_imgprefetch.cpp; image.c Image_LoadImage).
 unsigned char *VR_ImagePrefetchTake (const char *name, FILE *f, int length, int *width, int *height);
 void VR_ImagePrefetchNote (const char *name, double seconds);

@@ -118,6 +118,9 @@ struct Item
     // Info: its text, asked for each time it is drawn.
     const char* (*info)(){nullptr};
 
+    // Info drawn as a progress bar (progressBar()): how far, 0..1 (below 0: an empty row), and its text, right of it.
+    float (*progress)(){nullptr};
+
     // Shown under the list while selected.
     const char* helpText{nullptr};
 
@@ -348,6 +351,16 @@ void runCommand(const char* text)
 [[nodiscard]] Item info(const char* (*text)())
 {
     Item i{Item::Info, ""};
+    i.info = text;
+    return i;
+}
+
+// A progress bar across the row, filled to fraction() (an empty row while it is below 0), text() right of it (the
+// percentage, the time left): Graphics > Relighting's.
+[[nodiscard]] Item progressBar(float (*fraction)(), const char* (*text)())
+{
+    Item i{Item::Info, ""};
+    i.progress = fraction;
     i.info = text;
     return i;
 }
@@ -4175,7 +4188,8 @@ za::Vector<Item> pageDebugReports()
             .help("vr_relight_lights: the lights the map's glowing textures get with Graphics > Relighting's settings, a line "
                   "each texture (its kind, where its glow came from: fullbright pixels or a glow image's file, its lights), "
                   "and the lights into relight_lights.txt (to compare with relight_maps.py --list-glows)."),
-        command("Relighting: Status", "vr_relight_status").help("vr_relight_status: the relighting's state, how the map in play is lit, the light.exe found."),
+        command("Relighting: Status", "vr_relight_status").help("vr_relight_status: the relighting's state (a batch's maps done, each light running: its stage and process id; the progress and time left), how the map in play is lit, the light.exe found."),
+        command("Relighting: Batch's Maps", "vr_relight_batch -list").help("vr_relight_batch -list: the maps Graphics > Relighting's Relight These Maps would take (Maps, Episode, Game), with their files and sizes, without relighting them."),
         command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };
 }
@@ -8094,6 +8108,25 @@ void drawItem(const Item& item, int y, bool selected)
     if(item.kind == Item::Header)
     {
         M_PrintWhite((320 - 8 * static_cast<int>(strlen(item.label))) / 2, y, item.label);
+        return;
+    }
+    if(item.kind == Item::Info && item.progress)
+    {
+        const float f = item.progress();
+        if(f < 0.f)
+        {
+            return;
+        }
+        // The bar from 16 to 200, its text from 208 (14 characters: "100% 1:02:03").
+        constexpr int x0 = 16, x1 = 200;
+        if(!menuui::drawProgress(x0, x1, y, f))
+        {
+            Draw_Fill(x0, y + 1, x1 - x0, 6, 4, 1.f);                                          // (the palette's dark grey)
+            Draw_Fill(x0, y + 1, static_cast<int>((x1 - x0) * CLAMP(0.f, f, 1.f)), 6, 192, 1.f); // (its yellow)
+        }
+        char text[15];
+        q_strlcpy(text, item.info ? item.info() : "", sizeof(text));
+        M_Print(x1 + 8, y, text);
         return;
     }
     if(item.kind == Item::Info)

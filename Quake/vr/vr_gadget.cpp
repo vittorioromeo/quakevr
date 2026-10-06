@@ -23,6 +23,7 @@
 #include "vr_mem.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_profile.hpp"
+#include "vr_relight.hpp"
 #include "vr_text3d.hpp"
 #include "vr_hands.hpp"
 
@@ -385,16 +386,30 @@ void layout()
 
     bulletTimeMeter(pal);
 
-    // The level, kills and secrets.
-    if(!vr_gadget_show_level.value)
+    // The level, kills and secrets; while maps are being relit (vr_relight.cpp), that line in place of the kills and
+    // secrets, a thin bar under it.
+    const char* relit = relight::indicator();
+    if(!vr_gadget_show_level.value && !relit)
     {
         return;
     }
     fill(8.f, 122.f, width - 16.f, 1.f, pal.line);
     char line[64];
-    q_snprintf(line, sizeof(line), "%.22s", cl.levelname);
     gfx::draw2D::color(pal.text);
-    gfx::draw2D::text(8.f, 127.f, 8.f, line);
+    if(vr_gadget_show_level.value)
+    {
+        q_snprintf(line, sizeof(line), "%.22s", cl.levelname);
+        gfx::draw2D::text(8.f, 127.f, 8.f, line);
+    }
+    if(relit)
+    {
+        q_snprintf(line, sizeof(line), "%.28s", relit);
+        gfx::draw2D::text(8.f, 137.f, 8.f, line);
+        gfx::draw2D::color(white);
+        fill(8.f, 146.f, width - 16.f, 1.f, pal.line * 0.6f);
+        fill(8.f, 146.f, (width - 16.f) * CLAMP(0.f, relight::progress(), 1.f), 1.f, glm::vec3{pal.text});
+        return;
+    }
     q_snprintf(line, sizeof(line), "K %d/%d  S %d/%d", cl.stats[STAT_MONSTERS], cl.stats[STAT_TOTALMONSTERS],
         cl.stats[STAT_SECRETS], cl.stats[STAT_TOTALSECRETS]);
     gfx::draw2D::text(8.f, 138.f, 8.f, line);

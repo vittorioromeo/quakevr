@@ -1217,17 +1217,33 @@ void retroAllUncheckCategories()
 }
 
 // Graphics > Relighting (vr_relight.cpp; docs/RELIGHTING.md, "Relighting in the game"): ericw-tools' light on the map you
-// are in, in the background, with these settings; then the map reloaded where you are.
+// are in, in the background, with these settings; then the map reloaded where you are. Or many maps (Many Maps): an
+// episode, a game, the Map Library's, every one, a few side by side, the bar showing how far.
 [[nodiscard]] za::Vector<Item> pageGraphicsRelighting()
 {
     return {
         info(relight::statusLine),
+        progressBar(relight::progress, relight::progressText),
+        info(relight::detailLine),
         info(relight::mapLine),
         command("Relight This Map", "vr_relight").help("Relights the map you are in with the settings below (a few seconds to a minute, in the background; you can keep playing), then reloads it where you are. The result is kept: the map plays with it from now on."),
-        command("Cancel", "vr_relight_cancel").help("Stops the relighting running now (the map keeps the light it has)."),
+        command("Cancel", "vr_relight_cancel").help("Stops the relighting running now: the maps it finished keep their new light, the ones it was lighting keep the light they had (nothing half-made is left)."),
         command("Remove This Map's Relight", "vr_relight_revert").help("The map you are in plays with its other light from its next start: relight_maps.py's relit map, if made, else its own."),
         toggle("Use In-game Relights", "vr_relight_use").help("Maps relit here are used over those relight_maps.py made (next map). Off: the relit maps of the script, or the maps' own light."),
         toggle("Reload Where You Are", "vr_relight_reload").help("After relighting the map you are in, it is reloaded at once, where you are (a quick save and load; where the game can't be saved, the map restarts). Off: you see the new light from its next start."),
+        header("Many Maps"),
+        cycle("Maps", "vr_relight_batch_set", {{0.f, "This Map"}, {1.f, "An Episode"}, {2.f, "A Game"}, {3.f, "Map Library's"}, {4.f, "Every Map"}})
+            .help("What Relight These Maps relights, with the settings below: the map you are in, an episode (E1M1 to E1M8...), a whole game (Quake, a mission pack, a campaign), every map installed from the Map Library, or every map there is."),
+        cycle("Episode", "vr_relight_batch_episode", {{0.f, "The One You're In"}, {1.f, "E1"}, {2.f, "E2"}, {3.f, "E3"}, {4.f, "E4"}, {5.f, "E5 (Past)"}})
+            .help("Maps: An Episode. The one the map you are in belongs to (E1M3: E1; a mission pack's HIP2M1: its second), or one of Quake's."),
+        cycle("Game", "vr_relight_batch_game", {{0.f, "The One You're In"}, {1.f, "Quake"}, {2.f, "Armagon"}, {3.f, "Eternity"}, {4.f, "Past"}, {5.f, "Machine"}, {6.f, "Dawn"}})
+            .help("Maps: A Game. The one the map you are in is from, or Quake, Scourge of Armagon, Dissolution of Eternity, Dimension of the Past, Dimension of the Machine, Dawn of the Machine (when installed)."),
+        command("Relight These Maps", "vr_relight_batch").help("Relights the maps chosen above one after another in the background, while you play (an episode takes a few minutes, every map an hour or more with Bounced Light). The bar above shows how far, and the time left; Cancel stops it. Maps relit with these same settings already are skipped."),
+        toggle("Relight Unchanged Maps Too", "vr_relight_batch_force").help("Off: a map relit with the same settings before (and the same map file and texture rules) is skipped. On: every map is relit again."),
+        slider("Maps at Once", "vr_relight_parallel", 0.f, 8.f, 1.f, "%.0f").help("How many maps are lit side by side (light's threads shared between them). 0: two on a computer with 8 cores or more, else one. More finishes a batch of small maps a little sooner; maps with Bounced Light gain nothing, and four are slower."),
+        cycle("Reload the Map You're In", "vr_relight_batch_reload", {{0.f, "When It's Done"}, {1.f, "At the End"}})
+            .help("When the batch relights the map you are in (it goes first) and Reload Where You Are is on: reload it as soon as it is done, or only when the whole batch is."),
+        toggle("Progress Outside the Menu", "vr_relight_indicator").help("While maps are being relit, a line on the wrist gadget's screen (on a flat screen, in the corner): maps done, percentage and the time left."),
         header("Lamps and Glowing Textures"),
         slider("Light Textures", "vr_relight_strength", 0.f, 4.f, 0.1f, "%.1fx").extend().help("How bright everything a texture lights is: lamps, light panels, glowing buttons and panels, lava (1: the relight script's)."),
         slider("Lamps and Light Panels", "vr_relight_lamps", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The light fixtures' light, times Light Textures: lamps, light panels and strips, the pyramid lanterns."),
