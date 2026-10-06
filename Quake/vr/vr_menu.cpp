@@ -3960,6 +3960,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Zancle Math Self-Test", "vr_zancle_math_test")
             .help("vr_zancle_math_test: Zancle's math (and the angle wrap) against the standard library's on edge values "
                   "(signed zeros, halves, wrap angles, infinities, NaN), to the last bit; one line."),
+        command("SHA-256 Self-Test", "vr_sha256_test")
+            .help("vr_sha256_test: the SHA-256 that checks each Map Library download against its index, on the standard "
+                  "test vectors (FIPS 180-2's, a million a's, the padding's edges); one line."),
         command("Ragdoll Hand Probe", "vr_ragdoll_hand_probe")
             .help("vr_ragdoll_hand_probe: each hand holding a ragdoll's limb: the limb's lag, the hand drawn off its "
                   "controller onto it, its palm and fingertips from the limb's mesh (cm), the fingers that met it."),

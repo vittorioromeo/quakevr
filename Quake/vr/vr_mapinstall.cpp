@@ -18,6 +18,7 @@
 #include "vr_api.h" // VR_FileCacheForget: the engine's directory listings, told that files appeared
 #include "vr_files.hpp"
 #include "vr_mem.hpp"
+#include "vr_sha256.hpp"
 #include "vr_zancle.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
@@ -641,7 +642,19 @@ bool downloadZip(za::Vector<char>& body, za::String& why)
         }
         else
         {
-            return true;
+            // The zip against the index's sha256 (the hash of the zip's bytes, the package's identifier): a corrupted
+            // download, or a file changed on the server, is neither kept nor unpacked; the next mirror is tried.
+            const sha256::Digest got = sha256::of(body.data(), body.size());
+            if(sha256::matches(got, request.sha.cStr()))
+            {
+                return true;
+            }
+            char hex[65];
+            sha256::toHex(got, hex);
+            body.clear();
+            failed = za::String{"its sha256 is "} + za::String{hex, 16} + "..., not the index's " +
+                     za::String{request.sha.cStr(), za::min(request.sha.size(), za::SizeT{16})} +
+                     "... (a corrupted download or a changed file): not unpacked";
         }
         if(tried.size())
         {
@@ -2211,6 +2224,7 @@ void registerCommands()
     Cmd_AddCommand("maps_installed", installed_f);
     Cmd_AddCommand("maps_uninstall", uninstall_f);
     Cmd_AddCommand("maps_cache", cache_f);
+    Cmd_AddCommand("vr_sha256_test", sha256::selfTest_f);
 }
 
 za::String packageFor(const char* map)
