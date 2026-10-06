@@ -838,9 +838,10 @@ Source parity fixes: a dead Horde player goes through the source's release-then-
 `client.qc` PlayerDeathThink): a trigger held at death no longer restarts the arena at once. Solo, or a coop team
 with nobody alive, restarts the arena (one queued `restart`, even when the press lasts several frames); a dead coop
 player with a living teammate waits for the wave-boundary revival. A player who leaves no longer counts as alive
-(official ClientDisconnect), so waves, targets and team-wipe checks ignore the left body. With a save made in this
-session and `sv_autoload` 2 (the engine default), a solo wipe loads that save, as every Quake death does in this
-engine; with no save (or `sv_autoload` 0) the arena restarts fresh as the source does. Coop has no autoload.
+(official ClientDisconnect), so waves, targets and team-wipe checks ignore the left body. A solo wipe restarts the
+arena fresh as the source does, even with a save made this session (the author, 2026-10-06): Horde's restart is
+`restart fresh`, which skips the engine's autoload (`sv_autoload`); every other death still loads the last save. Coop
+has no autoload.
 
 Source behaviour reviewed and deliberately left as it is:
 - Rune of Hunger: the shipped `mg1/progs.dat` (checked by its statement table) only writes `hunger_time`
@@ -881,7 +882,7 @@ Arenas for manual tests (all seven are in the owned MG1 PAK; `vr_campaign_native
 - horde5: the only boss and flying spawn points together: boss waves (shambler/shalrath/fiends).
 - horde2 and horde6: keyed buttons; horde6 has the most item spawns (9) and two exits.
 - Revival needs coop (two games): any arena, best horde1 (4 coop starts); one player dies, the other finishes the
-  wave. Solo death restarts the arena (or loads your save).
+  wave. Solo death restarts the arena, even after a save.
 
 Still open for full MG1 acceptance: a human coop session (real headsets, late joins, revival telefrag spots);
 melee, gore and ragdolls on Horde monsters in VR (native constructors, not separately measured here); the arena

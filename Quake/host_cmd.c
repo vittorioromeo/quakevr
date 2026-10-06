@@ -2163,6 +2163,7 @@ static void Host_Changelevel_f (void)
 Host_Restart_f
 
 Restarts the current server for a dead player
+("restart fresh": never the last save, whatever sv_autoload: QVR, MG1 Horde's arena)
 ==================
 */
 static void Host_Restart_f (void)
@@ -2175,7 +2176,7 @@ static void Host_Restart_f (void)
 	if (cmd_source != src_command)
 		return;
 
-	if (Host_AutoLoad ())
+	if (!(Cmd_Argc () > 1 && !q_strcasecmp (Cmd_Argv (1), "fresh")) && Host_AutoLoad ())
 		return;
 
 	q_strlcpy (mapname, sv.name, sizeof(mapname));	// mapname gets cleared in spawnserver

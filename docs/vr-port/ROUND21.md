@@ -26796,3 +26796,21 @@ as the blade ring shows.)
 
 In VR:
 - [ ] Shoot a rottweiler in the head, slash it (Show Damage Numbers): "head (x1.50)"; a killing slash beheads him.
+
+### MG1 Horde: a solo death restarts the arena, never the last save
+
+His answer: dying in a Horde game must not load an earlier save. The engine's `restart` (Host_Restart_f) autoloads the
+session's last save for a dead single player (`sv_autoload` 2, the default: Host_AutoLoad); Horde's team wipe
+(`MGH_DeathThink`, vr_mg_horde.qc) restarted with it, so a save made mid-arena was loaded instead of the fresh arena
+the official game gives. Now `restart fresh` skips the autoload (any other argument, or none, is the old command), and
+Horde's wipe sends that. Only an active Horde game: every other death (`respawn`'s `restart`, a changelevel to the
+same map) still autoloads; coop never did. Another engine ignores the argument and restarts as before.
+
+Tests (horde1, solo, `developer 1`, a save `dz_horde` made first, `vr_mg_horde_test 17` killing the player): the
+release-then-press gate (`+attack`, then test 16 to continue after the queued restart): "restart horde1", no
+"Autoloading", wave 0, health 100, dead 0. Typed after the same death: `restart` prints "Autoloading..." (the engine's
+autoload, kept), `restart fresh` restarts the map without it.
+
+In VR:
+- [ ] Horde (horde1): save, die, let go and press fire: the arena restarts from wave 0 (not your save). In e1m1: save,
+  die, press: your save loads as before.

@@ -1934,7 +1934,9 @@ void() MGH_DeathThink = {
  if(MGH_restart_queued) return;
  MGH_restart_queued = TRUE;
  serverflags = MGH_initial_serverflags;
- localcmd(sprintf("restart\n"));
+ // "restart fresh": the arena from its start as the official game does, never the last save (the engine's
+ // sv_autoload loads it for a dead solo player; other modes keep that). Engines without the argument ignore it.
+ localcmd("restart fresh\n");
 };
 void(entity p) MGH_ResetHunger = { if(MGH_Active() && (serverflags & 2)) p.MGH_hunger_time=time+10; };
 void() MGH_RuneHunger = {
