@@ -61,6 +61,9 @@ struct Registry
 };
 mem::Cache<Registry> registry{"map install registry", mem::Never};
 bool registryLoaded = false;
+// The mapindex::generation() the packages' titles were read from: the registry is read at start-up, before any index
+// has arrived, and its titles (the sha's start until then) are read again when one does (poll()).
+za::U32 titlesGeneration = 0;
 
 // The paths, set at start() (com_basedirs' last: the user's game dir, as vr_mapindex.cpp's cache path).
 za::String gameDirName;
@@ -256,6 +259,7 @@ void migrateMerged()
 
 void rebuildPackages()
 {
+    titlesGeneration = mapindex::generation();
     registry.packages.clear();
     for(const InstalledFile& f : registry.files)
     {
@@ -1146,6 +1150,10 @@ void finish()
 
 void poll()
 {
+    if(registryLoaded && titlesGeneration != mapindex::generation())
+    {
+        rebuildPackages(); // (the index arrived, or changed: the installed packages' titles from it)
+    }
     if(!pendingReady.loadSeqCst())
     {
         // The running job, as its thread last said (the page shows `current` live), and the watchdog.
