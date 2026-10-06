@@ -10,6 +10,10 @@ Flames (e1m2): braziers and wall torches warn then burn hands, and burn the body
 Weapon pickups (e1m3): fresh guns fire before reloading; regrabbing, holstering and handoffs preserve remaining rounds
 Recording: Bullet Time Effects defaults On; toggling it changes spectator effects without changing the headset
 
+[Map tips]
+vrstart: the test tip near the start appears as a CRT screen with its cable when you come into range; its text size follows the map's tip_size
+Tips menu: "List This Map's Tips" lists the map's tips; Show Tips Again makes a seen tip appear again
+
 [Map Library]
 Open Maps from the corner button and the main menu's Map Library
 Search, filter and sort smoothly; accented titles and authors read correctly
