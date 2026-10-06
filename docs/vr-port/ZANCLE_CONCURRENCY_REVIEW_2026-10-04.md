@@ -4,6 +4,25 @@ Zancle's concurrency module is competitive for CPU loops and batched dispatch on
 
 This review changes no production code. The recommendations below are proposed changes, not fixes already applied.
 
+## Status (checked 2026-10-06 against `bbe2ed97`)
+
+None of the five defects is fixed. Quake VR's vendored Zancle (`Quake/vr/external/zancle`, upstream `304ea6c3`) has
+not changed since `6a5042b3` (2026-10-02). Its concurrency files match the reviewed code line for line. The local
+upstream checkout (`C:/OHWorkspace/SFML`, at `7bd385db`) has only one commit past `304ea6c3`, a format pass that does
+not touch `Concurrency`. `ZANCLE_REPORT.md` does not track these five; its open list covers only the maps, async,
+A1 and cl support. Paths below are relative to `Quake/vr/external/zancle/`.
+
+| Finding | Status | Evidence |
+|---|---|---|
+| 1. enqueue failure loses tasks | **still open**, P1 (library); P2 for Quake VR | `src/Zancle/Concurrency/ThreadPool.cpp:63-64,136-137,176-177`: only `ZA_ASSERT`. `:200` ignores the result entirely. In QVR it triggers only if a queue block allocation fails; parallel-for slots then hang at destruction, and so does the pool at shutdown. |
+| 2. partial construction deadlock | **still open**, P3 for Quake VR (P2 upstream) | `ThreadPool.cpp:97-112`: no unwind cleanup. QVR builds without exceptions (`ZANCLE_REPORT.md` N7), so a failed allocation terminates the program and never unwinds. |
+| 3. throwing callable leaks entry | **still open**, P3 for Quake VR | `include/Zancle/Concurrency/Thread.hpp:270`: placement-new with no guard. Exception builds only. |
+| 4. `getId` after join/detach | **still open**, P3 | `src/Zancle/Concurrency/Thread.cpp:340-342` returns `m_id` unconditionally. `join`/`detach` (`289-312`) clear only `m_joinable`. QVR never calls `Thread::getId()`. |
+| 5. unbounded stale-helper backlog | **still open**, P3 for Quake VR | `include/Zancle/Concurrency/ParallelFor.hpp:395-397` (flat) and `:241` (tree) post without a budget. QVR's one pool (`Quake/vr/vr_jobs.cpp:38-39`) also runs long `jobs::async` work: image prefetch `vr_imgprefetch.cpp:167`, audio sim `vr_audiosim.cpp:708,715`, AO bake `vr_ao.cpp:1902`. Helpers can therefore queue while every worker is busy, but each frame makes only a few `parallelFor` calls, so the backlog is small and drains. |
+
+Local paths: the `C:/OHWorkspace/SFML` and `C:/OHWorkspace/quakevr-iw/build-cmake/zancle-review/...` links point
+to the author's machine (an ignored build tree, still present on 2026-10-06). They are not in Git.
+
 ## Scope and versions
 
 - Input: `C:/OHWorkspace/SFML`, clean working tree, HEAD `304ea6c3bfe209bb27f18c848b605c713c7bf8bd`.
@@ -14,7 +33,7 @@ This review changes no production code. The recommendations below are proposed c
 
 ## Confirmed defects and resource behavior
 
-### 1. P1: enqueue allocation failure silently loses tasks in Release
+### 1. P1: enqueue allocation failure silently loses tasks in Release (still open, 2026-10-06)
 
 Locations: [ThreadPool.cpp:136](C:/OHWorkspace/SFML/src/Zancle/Concurrency/ThreadPool.cpp:136), bulk enqueue at line 176, and `enqueueCopies` at line 63. Stop-task reinsertion at line 200 ignores the result even in Debug.
 
@@ -35,7 +54,7 @@ The second process failed to finish within 2.5 seconds and was stopped. Inspecti
 
 Recommendation: check every enqueue result in all builds. For the current void, noexcept-oriented design, an unconditional fail-fast path is the smallest coherent fix. Recoverable posting needs an explicit result and correct helper-accounting rollback/fallback; throwing from a noexcept parallel-for is not recovery. Include stop submission and reinsertion in the same policy.
 
-### 2. P2: partial pool construction deadlocks on a C++ allocation exception
+### 2. P2: partial pool construction deadlocks on a C++ allocation exception (still open, 2026-10-06)
 
 Location: [ThreadPool.cpp:100](C:/OHWorkspace/SFML/src/Zancle/Concurrency/ThreadPool.cpp:100).
 
@@ -47,7 +66,7 @@ Recommendation: add constructor cleanup that stops and joins already-created wor
 
 This is an exception-enabled library defect. Quake VR's normal build disables exceptions, so its allocation-failure behavior differs. The silent moodycamel enqueue failure in finding 1 still matters there.
 
-### 3. P2: a throwing callable construction leaks a thread-entry allocation
+### 3. P2: a throwing callable construction leaks a thread-entry allocation (still open, 2026-10-06)
 
 Location: [Thread.hpp:270](C:/OHWorkspace/SFML/include/Zancle/Concurrency/Thread.hpp:270).
 
@@ -57,7 +76,7 @@ The reproducer's callable copy throws; instrumentation records exactly one align
 
 Recommendation: keep a scope guard on the allocated block until callable construction completes. Document the actual exception policy: the existing constructor can throw from allocation or callable construction despite wording suggesting it throws no C++ exceptions. This also concerns exception-enabled users rather than Quake VR's usual build.
 
-### 4. P2: getId violates its documented post-join/post-detach contract
+### 4. P2: getId violates its documented post-join/post-detach contract (still open, 2026-10-06)
 
 Location: [Thread.cpp:340](C:/OHWorkspace/SFML/src/Zancle/Concurrency/Thread.cpp:340).
 
@@ -71,7 +90,7 @@ getId before=1 after_join=1 joinable=0
 
 Recommendation: clear the ID on successful join/detach, or have `getId()` return an empty ID for a non-joinable object. Add tests for both operations. Keeping a historical ID instead would require deliberately changing the documented contract.
 
-### 5. P2: completed parallel-for calls can accumulate an unbounded helper backlog
+### 5. P2: completed parallel-for calls can accumulate an unbounded helper backlog (still open, 2026-10-06)
 
 Locations: [ParallelFor.hpp:395](C:/OHWorkspace/SFML/include/Zancle/Concurrency/ParallelFor.hpp:395), tree helper posting at line 241, and slot reuse at line 216.
 

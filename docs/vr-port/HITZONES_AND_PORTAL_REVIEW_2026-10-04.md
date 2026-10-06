@@ -10,9 +10,28 @@ replaced there with the normal current progs. User configs and assets were not
 used as test output locations. The runtime fixtures below test specific functions;
 they do not replace headset acceptance of swing feel.
 
+## Status (checked 2026-10-06 against `bbe2ed97`)
+
+Every finding below was fixed by `98864d26` ("Fix slipgate views, crossing, lighting and review regressions",
+the same day). Checked against the current code; line numbers are at `bbe2ed97`.
+
+| Finding | Status | Evidence |
+|---|---|---|
+| P2 zombie chainsaw threshold | **fixed** `98864d26` | `QC/vr_chainsaw.qc:430-432`: `VR_Melee_Positional` multiplies the tick before `VR_Zombie_SawHurt` accumulates it. |
+| P2 head priority vs unanimated head sphere | **fixed** `98864d26` | `VR_HeadZoneCrossing` removed. Melee (`QC/weapons.qc:378`, `VR_Melee_Positional`) and shots share `PositionalRegion` (`weapons.qc:319`), which maps the contact with `hitmodel_rest` (`345-348`) into `PositionalPointRegion` (`299-311`). Head priority resolves the overlap at that point (`VR_RegionPick`, `263`). Since then, `936ccc4f`/`24df27e7` made `PositionalHead` (`weapons.qc:229`) the single head zone for shots, melee, head pops and decapitation (`QC/vr_decap.qc:142`). |
+| P2 blade contact uses pommel start | **fixed** `98864d26` (code removed) | `mh_c_from`/`mh_sweep_live` and the swing-chord path are gone from `QC/vr_melee.qc`. Melee classifies only its contact point (`QC/combat.qc:2171`). |
+| P2 flat/spectator portal views | **fixed** `98864d26` | `Quake/view.c:947` calls `VR_RenderPortalForView` for each eye, the flat view and the spectator (`Quake/vr/vr_stereo.cpp:773-781`). Only a headset eye uses the eye FOV (`Quake/vr/vr_portals.cpp:511`). Several gates per view came later (`vr_portals_maxviews`). |
+| P2 CRT banners flat-screen | **fixed** `98864d26` | `Quake/vr/vr_panel.cpp:390-392`: when not drawing to the canvas, `VR_End2D` runs `text3d::renderScreens()`. |
+| P2 destination torch lights vs source PVS | **fixed** `98864d26` | `Quake/vr/vr_emissive.cpp:546-552,609,641` use `portals::prepareLightViews`/`lightDistance` (`vr_portals.cpp:586,619`) to cover the destination PVS. Per-view shadow reselection is at `vr_lighting.cpp:1090-1102`. Transmitted lights are at `vr_lighting.cpp:973-1030`. |
+| Backed gates (recommendation) | **fixed** `98864d26` (option 1) | Split collision at the plane: `VR_PortalBodyMove` (`vr_portals.cpp:1182`), `portalplane` clipping in `Quake/world.c:895,1095`. Residual, **open P3**: the destination body bound is axis-aligned (`vr_portals.cpp:1563`), so a non-cardinal turn can block a narrow exit (recorded under "Verification of the fixes"). |
+| HANDOFF.md/QUEUE.md corrections | **obsolete** | These files are outside this repository (`C:/OHWorkspace/qvr-kit`) and have since been rewritten. The corrected claims ("server bit k = leaf k", "inert in flat mode", `82ebe9c5`) no longer appear in them. |
+
+Local paths: `C:/OHWorkspace/qvr-kit/...` and the `build-cmake/slipgate-review/...` logs and screenshots exist only on
+the author's machine (an ignored build tree). They are not in Git.
+
 ## New hitzones findings
 
-### P2 — Apply positional damage before the zombie chainsaw threshold
+### P2 — Apply positional damage before the zombie chainsaw threshold (fixed: `98864d26`)
 
 `QC/vr_chainsaw.qc:430-431` first calls `VR_Zombie_SawHurt`, then multiplies
 its answer by `VR_Melee_Positional`. The zombie helper accumulates ordinary ticks,
@@ -38,7 +57,7 @@ it; ensure the helper's final threshold damage is not reduced a second time.
 Test standing knockdown and downed gibbing with leg/limb multipliers and enemy
 damage scales below and above 1.
 
-### P2 — Head priority compares the swing with an unanimated head sphere
+### P2 — Head priority compares the swing with an unanimated head sphere (fixed: `98864d26`)
 
 `QC/weapons.qc:403` can replace the model-mapped body region with a head hit via
 `VR_HeadZoneCrossing`. That helper (`292-326`) compares a world-space segment
@@ -65,7 +84,7 @@ triangles in that same space; a standing sphere tested directly in world space
 is not an animated head zone. Simply mapping arbitrary free-space segment ends
 to the nearest triangle is also not a reliable swept-zone test.
 
-### P2 — Blade contacts use the pommel's start point as their swing path
+### P2 — Blade contacts use the pommel's start point as their swing path (fixed: `98864d26`)
 
 `QC/vr_melee.qc:1511` saves `mh_pp[0]` as the single remembered swing origin.
 Every chosen contact, including a blade/tip contact, copies that point to
@@ -97,7 +116,7 @@ new hitzones commit. The author confirms that portal surfaces and banner text
 render in VR, but not on the flat screen; portals also fail in the spectator
 camera.
 
-### P2 — Flat-screen and spectator portal views are excluded
+### P2 — Flat-screen and spectator portal views are excluded (fixed: `98864d26`)
 
 `portals::update()` and `stereo::renderPortal()` are scheduled in the eye render
 loop (`Quake/vr/vr_stereo.cpp:716`, `751`). Portal frame data and texture access
@@ -112,7 +131,7 @@ exit clip plane, and entity-list restoration. Draw a visible gate from the
 spectator's position even when neither eye is looking at it. Respect the existing
 off switches and avoid recursive portal rendering.
 
-### P2 — CRT banner images are generated only inside the VR canvas path
+### P2 — CRT banner images are generated only inside the VR canvas path (fixed: `98864d26`)
 
 `VR_End2D` returns when `drawingToCanvas` is false
 (`Quake/vr/vr_panel.cpp:389-393`). The call that generates board textures is
@@ -132,7 +151,7 @@ gadget/canvas activity, preserving GL state and avoiding duplicate work in VR.
 Verify fresh flat-screen startup, page changes, map changes, and VR/flat mode
 switching. Temporary workaround: `vr_worldtext_crt 0`.
 
-### P2 — Destination torch lights are filtered against the player's source PVS
+### P2 — Destination torch lights are filtered against the player's source PVS (fixed: `98864d26`)
 
 `VR_TorchLights` builds candidates from the ordinary view's leaf/PVS and physical
 distance (`Quake/vr/vr_emissive.cpp:541-566`). Dynamic/taken torches must pass
@@ -158,7 +177,7 @@ point light to the other room leaks around the gate and lets backing geometry
 incorrectly block its shadow rays. Implement destination-side lights first,
 then transmitted lights; profile actual GPU time before setting shadow budgets.
 
-### Backed gates — recommended solutions without early frame teleportation
+### Backed gates — recommended solutions without early frame teleportation (option 1 implemented: `98864d26`)
 
 Requiring the torso to reach the surface exposes a map-geometry conflict: the
 leading half of the collision box can hit a wall behind the surface before its
@@ -185,7 +204,7 @@ Do not revive the timed vanilla bypass, destination-centre snap, or camera-only
 stand-off clamp. Acceptance should cover backing walls, sill jumps, border
 contacts, angled approaches, blocked exits, and the same cases in flat/VR modes.
 
-## HANDOFF.md and QUEUE.md corrections for future sessions
+## HANDOFF.md and QUEUE.md corrections for future sessions (obsolete: external files since rewritten)
 
 Reviewed the actual files in `C:/OHWorkspace/qvr-kit`; no external file edits
 were made. Their summaries of the decoder repair, removed camera clamp,
