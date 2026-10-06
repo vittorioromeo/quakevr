@@ -66,6 +66,7 @@ int VR_ModalMessageFrame (void); // SCR_ModalMessage's loop: with a headset, a f
 							// dialog (the runtime paces it); zero without one (the loop sleeps)
 double VR_HostFrameTime (double time);	// start of _Host_Frame: the frame's time (a motion take's own while
 							// it plays back, vr_motion_play: the same frames at any speed)
+int VR_Box3DSteps (void);		// host_tickstats: Box3D's world steps so far (0 without a world)
 int VR_ServerFrameOverride (double *frametime); // _Host_Frame: whether the server runs this frame: -1 as
 							// usual; 0 no; 1 yes, for *frametime seconds (a take's recorded server frames)
 // Slow motion (vr_timescale.cpp; ROUND21.md, "Slow motion").

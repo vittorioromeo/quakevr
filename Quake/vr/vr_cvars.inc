@@ -208,9 +208,8 @@ QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
 // headset's frame rate, the server's frames on its own 72 Hz clock between them: the drawn motion's smoothness tests,
 // vr_drawn_motion_test).
 QVR_CVAR(vr_fixed_frames_rate, "72", CVAR_NONE)
-// Test runs with vr_fixed_frames 1 and a rate other than 72: each host frame's time that share longer or shorter at
-// random (0.3: 0.7 to 1.3 of 1/rate; a seeded sequence, the same every run): uneven frame times (the throws at any frame
-// rate, ROUND21.md "Throws at any frame rate"). 0: even.
+// Test runs with vr_fixed_frames 1: each frame's time off by up to this fraction of a frame (0.02: a headset's +-2%), the
+// frames' times jittered around the rate (no drift); the server ticks on its own clock (host_tickstats).
 QVR_CVAR(vr_fixed_frames_jitter, "0", CVAR_NONE)
 // Test runs: 1 runs the mock headset's frames as fast as the machine makes them while the game's clock doesn't follow the
 // wall clock (vr_fixed_frames 1, a motion take played back not in watch mode): no frame cap, no vsync (VR_Unpaced). The

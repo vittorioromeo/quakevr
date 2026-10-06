@@ -68,7 +68,6 @@ int				cl_numvisedicts;
 entity_t		*cl_visedicts[MAX_VISEDICTS];
 
 extern cvar_t	r_lerpmodels, r_lerpmove; //johnfitz
-extern float	host_netinterval;	//Spike
 
 extern vec3_t	v_punchangles[2];
 

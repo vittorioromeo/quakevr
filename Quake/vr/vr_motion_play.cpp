@@ -609,6 +609,7 @@ enum class State
 };
 
 constexpr double setupDt = 1.0 / 72.0; // a server frame with every host frame: the same start every time
+za::U64 fixedFrameCount = 0;           // vr_fixed_frames' frames so far (vr_fixed_frames_jitter's)
 
 // vr_fixed_frames' host frame (vr_fixed_frames_rate: 72, a server frame with each; 90, a headset's frames over the
 // server's 72 Hz, the drawn motion's smoothness tests).
@@ -616,20 +617,6 @@ constexpr double setupDt = 1.0 / 72.0; // a server frame with every host frame: 
 {
     const float rate = vr_fixed_frames_rate.value;
     return rate == 72.f || rate < 10.f ? setupDt : 1.0 / static_cast<double>(za::min(rate, 1000.f));
-}
-// vr_fixed_frames_jitter: `dt` that share longer or shorter at random (a seeded sequence: the same every run); not at
-// 72 (a server frame with each host frame, of 1/72 s).
-za::U32 jitterSeed = 12345u;
-[[nodiscard]] double jittered(double dt)
-{
-    const float share = za::clamp(vr_fixed_frames_jitter.value, 0.f, 0.9f);
-    if(share <= 0.f || dt == setupDt)
-    {
-        return dt;
-    }
-    jitterSeed = jitterSeed * 1664525u + 1013904223u;
-    const double r = static_cast<double>(jitterSeed >> 8) / static_cast<double>(1u << 24) * 2.0 - 1.0;
-    return dt * (1.0 + static_cast<double>(share) * r);
 }
 constexpr double setupPress = 0.2;     // the main hand's grip
 constexpr double setupEquip = 0.3;     // the weapons
@@ -650,21 +637,48 @@ struct Options
     bool recorded{false}; // the melee settings as recorded too
     bool quiet{false};
     float rate{0.f};      // resampled to this many frames a second (0: the take's own frames)
+    float jitter{0.f};    // with rate: each frame's time off by up to this fraction of a frame (a headset's timing)
 };
+
+// A repeatable jitter: frame k's time off by up to `amount` frames (a hash of k: the same every run), none for frame 0.
+[[nodiscard]] double frameJitter(za::U64 k, double amount)
+{
+    if(k == 0 || amount <= 0.0)
+    {
+        return 0.0;
+    }
+    za::U64 x = k * 0x9E3779B97F4A7C15ull;
+    x ^= x >> 30;
+    x *= 0xBF58476D1CE4E5B9ull;
+    x ^= x >> 27;
+    x *= 0x94D049BB133111EBull;
+    x ^= x >> 31;
+    const double u = static_cast<double>(x >> 11) / 9007199254740992.0; // [0, 1)
+    return (u * 2.0 - 1.0) * amount;
+}
 
 // The take resampled at `hz` frames a second (another headset's rate): poses and velocities interpolated
 // (positions and velocities linearly, orientations by slerp), the controls and the rest from the frame before;
-// the server frames left to the engine (72 Hz). The take's events stay at their times, for the report.
-void resample(Take& take, float hz)
+// the server frames left to the engine (its 72 Hz ticks, as with a headset at that rate). `jitter`: each frame's time
+// off by up to that fraction of a frame (frameJitter), as a headset's frame times vary around its rate. The take's events
+// stay at their times, for the report.
+void resample(Take& take, float hz, float jitter)
 {
     za::Vector<Frame> out;
     const za::Vector<Frame>& in = take.frames;
     const double dt = 1.0 / hz;
+    const double tStart = in.front().t;
     const double tEnd = in.back().t;
     size_t j = 0;
     size_t nextEvents = 0;
-    for(double t = in.front().t; t <= tEnd + 1e-9; t += dt)
+    double prevT = tStart;
+    for(za::U64 k = 0;; k++)
     {
+        const double t = tStart + static_cast<double>(k) * dt + frameJitter(k, za::clamp(static_cast<double>(jitter), 0.0, 0.45)) * dt;
+        if(t > tEnd + 1e-9)
+        {
+            break;
+        }
         while(j + 1 < in.size() && in[j + 1].t <= t)
         {
             j++;
@@ -674,7 +688,8 @@ void resample(Take& take, float hz)
         const float s = b.t > a.t ? static_cast<float>(za::clamp((t - a.t) / (b.t - a.t), 0.0, 1.0)) : 0.f;
         Frame f = a;
         f.t = t;
-        f.dt = dt;
+        f.dt = k > 0 ? t - prevT : dt;
+        prevT = t;
         f.tick = false;
         f.hasD = false;
         f.events.clear();
@@ -1230,7 +1245,7 @@ void stopPlayback(const char* why)
     }
     if(o.rate > 0.f)
     {
-        resample(t, za::clamp(o.rate, 20.f, 500.f));
+        resample(t, za::clamp(o.rate, 20.f, 500.f), o.jitter);
     }
     take = ZA_MOVE(t);
     opts = o;
@@ -1284,13 +1299,13 @@ void stopPlayback(const char* why)
     return true;
 }
 
-// vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [rate <hz>] [noplace] [watch] [save] [recorded] [quiet]
+// vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] [save] [recorded] [quiet]
 // vr_motion_play stop
 void play_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("usage: vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [rate <hz>] [noplace] [watch] "
+        Con_Printf("usage: vr_motion_play <take> [target <classname|#entity>] [yaw <degrees>] [rate <hz> [jitter <fraction>]] [noplace] [watch] "
                    "[save] [recorded] [quiet]; vr_motion_play stop\n");
         return;
     }
@@ -1315,6 +1330,10 @@ void play_f()
         else if(!q_strcasecmp(a, "rate") && i + 1 < Cmd_Argc())
         {
             o.rate = Q_atof(Cmd_Argv(++i));
+        }
+        else if(!q_strcasecmp(a, "jitter") && i + 1 < Cmd_Argc())
+        {
+            o.jitter = Q_atof(Cmd_Argv(++i));
         }
         else if(!q_strcasecmp(a, "noplace"))
         {
@@ -1405,7 +1424,15 @@ double hostFrameTime(double time)
     double dt = time;
     if(state == State::Idle && (fixedLoading || vr_fixed_frames.value != 0.f))
     {
-        return fixedLoading ? setupDt : jittered(fixedFrameDt());
+        if(fixedLoading)
+        {
+            return setupDt;
+        }
+        // vr_fixed_frames_jitter: each frame's time off by up to that fraction of a frame, as a headset's (the
+        // frames' times jittered, not their lengths: no drift).
+        const double jitter = za::clamp(static_cast<double>(vr_fixed_frames_jitter.value), 0.0, 0.45);
+        fixedFrameCount++;
+        return fixedFrameDt() * (1.0 + frameJitter(fixedFrameCount, jitter) - frameJitter(fixedFrameCount - 1, jitter));
     }
     if(state == State::Setup || state == State::Post)
     {
@@ -1469,9 +1496,12 @@ int serverFrameOverride(double& frametime)
         }
     }
 
-    if(state == State::Idle && !fixedLoading && vr_fixed_frames.value != 0.f && fixedFrameDt() != setupDt)
+    if(state == State::Idle && !fixedLoading && vr_fixed_frames.value != 0.f &&
+       (fixedFrameDt() != setupDt || host_fixedtick.value != 0.f || vr_fixed_frames_jitter.value > 0.f))
     {
-        return -1; // (vr_fixed_frames_rate: the drawn frames at their own rate, the server's on its 72 Hz clock)
+        // (vr_fixed_frames_rate: the drawn frames at their own rate, the server's on its 72 Hz clock; at 72 with
+        // host_fixedtick, the engine's ticks are this frame's, one each: host_tickstats measures them.)
+        return -1;
     }
     if(state == State::Setup || state == State::Post || (state == State::Idle && (fixedLoading || vr_fixed_frames.value != 0.f)))
     {
@@ -2325,7 +2355,7 @@ void evalFrame()
     return out;
 }
 
-// vr_motion_eval [<folder, pattern or take>] [list <file>] [map <name>] [out <file>] [rate <hz>] [save] [recorded] [verbose]
+// vr_motion_eval [<folder, pattern or take>] [list <file>] [map <name>] [out <file>] [rate <hz> [jitter <fraction>]] [save] [recorded] [verbose]
 // [watch] [progress <file>] [quit];
 // vr_motion_eval stop
 void eval_f()
@@ -2379,6 +2409,10 @@ void eval_f()
         else if(!q_strcasecmp(a, "rate") && i + 1 < Cmd_Argc())
         {
             evalOpts.rate = Q_atof(Cmd_Argv(++i));
+        }
+        else if(!q_strcasecmp(a, "jitter") && i + 1 < Cmd_Argc())
+        {
+            evalOpts.jitter = Q_atof(Cmd_Argv(++i));
         }
         else if(!q_strcasecmp(a, "save"))
         {

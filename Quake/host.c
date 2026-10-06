@@ -58,7 +58,15 @@ client_t	*host_client;			// current client
 jmp_buf 	host_abortserver;
 
 byte		*host_colormap;
-float	host_netinterval;
+double	host_netinterval; // QVR: double (a float's 1/72 is a little over it: an exact 1/72 s frame never reached it)
+// QVR: the server's fixed tick (ROUND21.md, "Server tick rate"): 1 runs the server in ticks of host_netinterval (1/72
+// s) at any frame rate, the leftover time carried, several ticks in a frame that's behind; 0 the old way (a server
+// frame once 1/72 s had built up, given all of it: half the headset's rate at 72, 80, 90 or 144 Hz).
+cvar_t	host_fixedtick = {"host_fixedtick", "1", CVAR_NONE};
+// QVR: frames within this many seconds of a whole number of ticks run them with the frame's time spread over them (no
+// beat between a 72.1 Hz headset and the 72 Hz tick: a tick every frame, none skipped).
+cvar_t	host_fixedtick_tolerance = {"host_fixedtick_tolerance", "0.001", CVAR_NONE};
+cvar_t	host_fixedtick_max = {"host_fixedtick_max", "8", CVAR_NONE}; // QVR: the most ticks a frame catches up on
 cvar_t	host_framerate = {"host_framerate","0",CVAR_NONE};	// set for slow motion
 cvar_t	host_speeds = {"host_speeds","0",CVAR_NONE};			// set for running times
 cvar_t	host_maxfps = {"host_maxfps", "250", CVAR_ARCHIVE}; //johnfitz
@@ -132,6 +140,143 @@ static void Max_Fps_f (cvar_t *var)
 		if (var->value > 72)
 			Con_Warning ("host_maxfps above 72 breaks physics.\n");
 	}
+}
+
+/*
+================
+QVR: the server's tick (host_fixedtick; ROUND21.md, "Server tick rate")
+================
+*/
+#define TICKSTATS_BINS 80	// the ticks' lengths in half milliseconds, up to 40 ms
+#define TICKSTATS_PATTERN 48	// the last frames' tick counts
+
+static struct
+{
+	int		frames, ticks;
+	double	frametime;		// the host frames' time (real seconds)
+	double	ticktime;		// the ticks' (real seconds, before slow motion)
+	double	tickmin, tickmax;
+	int		perframe[5];	// frames with 0, 1, 2, 3, 4+ ticks
+	int		lengths[TICKSTATS_BINS + 1];
+	int		gap, maxgap;	// frames in a row without a tick
+	double	sincetick, wallmin, wallmax; // the time between frames that ticked
+	char	pattern[TICKSTATS_PATTERN + 1];
+	int		box3dsteps;
+} tickstats;
+
+static void Host_TickStatsReset (void)
+{
+	memset (&tickstats, 0, sizeof (tickstats));
+	tickstats.tickmin = tickstats.wallmin = 1e9;
+	tickstats.sincetick = -1.0;
+	tickstats.box3dsteps = VR_Box3DSteps ();
+}
+
+static void Host_TickStatsFrame (double frametime, int ticks, double ticklen)
+{
+	int i;
+	if (!tickstats.tickmin)
+		Host_TickStatsReset ();
+	tickstats.frames++;
+	tickstats.frametime += frametime;
+	tickstats.perframe[q_min (ticks, 4)]++;
+	memmove (tickstats.pattern, tickstats.pattern + 1, TICKSTATS_PATTERN - 1);
+	tickstats.pattern[TICKSTATS_PATTERN - 1] = ticks < 10 ? '0' + ticks : '+';
+	if (tickstats.sincetick >= 0.0)
+		tickstats.sincetick += frametime;
+	if (!ticks)
+	{
+		tickstats.maxgap = q_max (tickstats.maxgap, ++tickstats.gap);
+		return;
+	}
+	tickstats.gap = 0;
+	if (tickstats.sincetick >= 0.0)
+	{
+		tickstats.wallmin = q_min (tickstats.wallmin, tickstats.sincetick);
+		tickstats.wallmax = q_max (tickstats.wallmax, tickstats.sincetick);
+	}
+	tickstats.sincetick = 0.0;
+	for (i = 0; i < ticks; i++)
+	{
+		tickstats.ticks++;
+		tickstats.ticktime += ticklen;
+		tickstats.tickmin = q_min (tickstats.tickmin, ticklen);
+		tickstats.tickmax = q_max (tickstats.tickmax, ticklen);
+		tickstats.lengths[CLAMP (0, (int)(ticklen * 2000.0), TICKSTATS_BINS)]++;
+	}
+}
+
+/*
+================
+Host_TickStats_f -- QVR: the server's ticks since the last call (or `host_tickstats reset`): ticks a second, their
+lengths, the frames' tick counts, Box3D's steps
+================
+*/
+static void Host_TickStats_f (void)
+{
+	int i;
+	if (!tickstats.tickmin)
+		Host_TickStatsReset ();
+	if (Cmd_Argc () < 2 || q_strcasecmp (Cmd_Argv (1), "reset"))
+	{
+		const double secs = q_max (tickstats.frametime, 1e-9);
+		Con_Printf ("ticks: %s, interval %.6f ms (%.3f Hz), tolerance %.2f ms\n",
+			!host_netinterval ? "every frame (host_maxfps 72 or less)" : host_fixedtick.value ? "fixed (host_fixedtick 1)" : "old (host_fixedtick 0)",
+			host_netinterval * 1000.0, host_netinterval ? 1.0 / host_netinterval : 0.0, host_fixedtick_tolerance.value * 1000.f);
+		Con_Printf ("ticks: %d frames in %.3f s (%.2f fps), %d ticks: %.2f ticks/s, %.3f per frame\n",
+			tickstats.frames, tickstats.frametime, tickstats.frames / secs, tickstats.ticks, tickstats.ticks / secs,
+			tickstats.frames ? (double)tickstats.ticks / tickstats.frames : 0.0);
+		if (tickstats.ticks)
+			Con_Printf ("ticks: length mean %.3f ms, min %.3f, max %.3f; game time %.3f s of %.3f s\n",
+				tickstats.ticktime * 1000.0 / tickstats.ticks, tickstats.tickmin * 1000.0, tickstats.tickmax * 1000.0,
+				tickstats.ticktime, tickstats.frametime);
+		Con_Printf ("ticks: frames with 0/1/2/3/4+ ticks: %d %d %d %d %d; most frames in a row without one %d; between ticking frames %.2f-%.2f ms\n",
+			tickstats.perframe[0], tickstats.perframe[1], tickstats.perframe[2], tickstats.perframe[3], tickstats.perframe[4],
+			tickstats.maxgap, tickstats.wallmin < 1e8 ? tickstats.wallmin * 1000.0 : 0.0, tickstats.wallmax * 1000.0);
+		Con_Printf ("ticks: lengths (ms: count):");
+		for (i = 0; i <= TICKSTATS_BINS; i++)
+			if (tickstats.lengths[i])
+				Con_Printf (" %s%.1f: %d", i == TICKSTATS_BINS ? ">=" : "", i * 0.5, tickstats.lengths[i]);
+		Con_Printf ("\nticks: the last frames' ticks: %s\n", tickstats.pattern);
+		Con_Printf ("ticks: Box3D steps %d (%.2f a tick)\n", VR_Box3DSteps () - tickstats.box3dsteps,
+			tickstats.ticks ? (double)(VR_Box3DSteps () - tickstats.box3dsteps) / tickstats.ticks : 0.0);
+	}
+	Host_TickStatsReset ();
+}
+
+/*
+================
+Host_FixedTicks -- QVR: host_fixedtick's ticks for this frame: how many (*len seconds each), the rest of *accum carried
+================
+*/
+static int Host_FixedTicks (double *accum, double *len)
+{
+	const double interval = host_netinterval;
+	const double tol = CLAMP (0.0, (double)host_fixedtick_tolerance.value, interval * 0.25);
+	const int maxticks = CLAMP (1, (int)host_fixedtick_max.value, 64);
+	double rest;
+	int n = (int)floor ((*accum + tol) / interval);
+	if (n <= 0)
+		return 0;
+	if (n > maxticks) // far behind (a hitch): the rest is dropped, the game slows rather than stalling on catching up
+	{
+		n = maxticks;
+		*accum = n * interval;
+	}
+	rest = *accum - n * interval;
+	if (fabs (rest) <= tol)
+	{
+		// Near a whole number of ticks: they take all of it (a few percent longer or shorter), none skipped or doubled
+		// against a headset a little off 72 Hz (or 144: a tick every other frame).
+		*len = *accum / n;
+		*accum = 0.0;
+	}
+	else
+	{
+		*len = interval;
+		*accum = rest;
+	}
+	return n;
 }
 
 /*
@@ -384,6 +529,10 @@ void Host_InitLocal (void)
 	Cvar_SetCallback (&host_maxfps, Max_Fps_f);
 	Max_Fps_f (&host_maxfps);
 	Cvar_RegisterVariable (&host_timescale); //johnfitz
+	Cvar_RegisterVariable (&host_fixedtick); // QVR
+	Cvar_RegisterVariable (&host_fixedtick_tolerance); // QVR
+	Cvar_RegisterVariable (&host_fixedtick_max); // QVR
+	Cmd_AddCommand ("host_tickstats", Host_TickStats_f); // QVR
 
 	Cvar_RegisterVariable (&cl_nocsqc);	//spike
 	Cvar_RegisterVariable (&max_edicts); //johnfitz
@@ -1304,27 +1453,47 @@ void _Host_Frame (double time)
 	//Run the server+networking (client->server->client), at a different rate from everyt
 	double vrframetime; // QVR: a motion take playing back runs its recorded server frames
 	int vrserver = VR_ServerFrameOverride (&vrframetime);
-	if (vrserver >= 0 ? vrserver : accumtime >= host_netinterval)
+	int ticks = 0, tick; // QVR: the server's ticks this frame (host_fixedtick: as many as the time built up holds)
+	double ticklen = 0.0;
+	usercmd_t pendingcmd = cl.pendingcmd;
+	if (vrserver >= 0) // QVR: a motion take's recorded server frames (VR_ServerFrameOverride)
 	{
-		float realframetime = host_frametime;
-		if (vrserver >= 0) // QVR: a motion take's recorded server frames (VR_ServerFrameOverride)
-		{
-			host_frametime = vrframetime;
+		ticks = vrserver;
+		ticklen = vrframetime;
+		if (ticks)
 			accumtime = 0;
-		}
+	}
+	else if (!host_netinterval) // host_maxfps 72 or less: a server frame with every frame, of its time
+	{
+		ticks = 1;
+		ticklen = host_rawframetime;
+	}
+	else if (host_fixedtick.value) // QVR
+		ticks = Host_FixedTicks (&accumtime, &ticklen);
+	else if (accumtime >= (float)host_netinterval) // the old way (as when host_netinterval was a float)
+	{
+		ticks = 1;
+		ticklen = accumtime;
+		accumtime = 0;
+	}
+	Host_TickStatsFrame (time, ticks, ticklen); // QVR: host_tickstats
+	for (tick = 0; tick < ticks; tick++)
+	{
+		double realframetime = host_frametime;
+		if (vrserver >= 0)
+			host_frametime = ticklen;
 		else if (host_netinterval)
 		{
-			host_frametime = q_max(accumtime, (double)host_netinterval);
-			accumtime -= host_frametime;
+			host_frametime = ticklen;
 			if (host_timescale.value > 0)
 				host_frametime *= host_timescale.value;
 			else if (host_framerate.value)
 				host_frametime = host_framerate.value;
 		}
-		else
-			accumtime -= host_netinterval;
 		if ((vrserver >= 0 || host_netinterval) && VR_TimeScale () != 1.0)
 			host_frametime *= VR_TimeScale (); // QVR: slow motion: the server's frames (as many, each shorter)
+		if (tick > 0)
+			cl.pendingcmd = pendingcmd; // QVR: a frame's later ticks move as its first (the sticks' and mice's moves)
 		VR_ProfileBegin ("client send"); // QVR: profile
 		CL_SendCmd ();
 		VR_ProfileEnd (); // QVR

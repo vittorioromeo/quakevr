@@ -10470,6 +10470,11 @@ void inside_f()
 // is no steeper than vr_box3d_player_slope. Steeper, he slides off it, not friction holding him: with Quake's limit (a
 // normal's z over 0.7, 45.6 degrees), on a box tilted 33 degrees he stood, creeping down at 7 units a second, its own
 // weight on it (ROUND21.md, "Sliding off steep boxes").
+extern "C" int VR_Box3DSteps(void)
+{
+    return world ? world->steps : 0;
+}
+
 extern "C" int VR_StandsOn(edict_t* ent, edict_t* ground, const float* normal)
 {
     if(!world)

@@ -178,7 +178,10 @@ int main(int argc, char *argv[])
 			newtime = Sys_DoubleTime ();
 			time = newtime - oldtime;
 
-			while (time < sys_ticrate.value )
+			// QVR: with host_fixedtick, a frame each server tick (72 Hz) rather than sys_ticrate's (20 Hz): every
+			// move a client sends is used, and the clients' updates come evenly
+			const double ticrate = host_fixedtick.value && host_netinterval ? q_min ((double)sys_ticrate.value, host_netinterval) : sys_ticrate.value;
+			while (time < ticrate )
 			{
 				SDL_Delay(1);
 				newtime = Sys_DoubleTime ();

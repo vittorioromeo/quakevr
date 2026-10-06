@@ -42,7 +42,7 @@
 #include <string.h>
 #include <time.h>
 
-extern "C" float host_netinterval; // host.c
+extern "C" double host_netinterval; // host.c
 
 namespace qvr::motion
 {

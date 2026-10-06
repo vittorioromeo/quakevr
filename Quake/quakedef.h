@@ -314,6 +314,8 @@ extern	cvar_t		max_edicts; //johnfitz
 
 extern	qboolean	host_initialized;	// true if into command execution
 extern	double		host_frametime;
+extern	double		host_netinterval; // QVR: the server's tick (1/72 s; 0: every frame), host.c
+extern	cvar_t		host_fixedtick; // QVR
 extern	double		host_rawframetime;
 extern	byte		*host_colormap;
 extern	int		host_framecount;	// incremented every frame, never reset

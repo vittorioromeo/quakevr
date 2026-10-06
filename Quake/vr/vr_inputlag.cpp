@@ -37,7 +37,7 @@
 #include <string.h>
 
 extern "C" kbutton_t in_forward; // cl_input.c
-extern "C" float host_netinterval; // host.c
+extern "C" double host_netinterval; // host.c
 extern "C" sizebuf_t cmd_text;     // cmd.c
 extern "C" qboolean cmd_wait;      // cmd.c
 extern "C" cvar_t cl_movespeedkey, sv_maxspeed; // cl_input.c, sv_user.c
