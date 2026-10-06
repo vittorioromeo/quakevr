@@ -22,7 +22,7 @@ Unsupported map packages are refused clearly without a partial install
 
 [Quick regressions]
 Slipgates: walk, reach, shoot and throw through them; frames stay solid and hits land in the correct room
-Several slipgates: destinations and lighting look correct in both eyes and spectator; gates make no water splashes
+Several slipgates: destinations and lighting look correct in both eyes and spectator; retargeted exits update; no water splashes
 Used guns: holstering, throwing and handoffs preserve ammunition and blood
 
 [Record]
@@ -31,4 +31,5 @@ Record new melee takes: stand closer with the smaller hitbox and melee speed 3
 [Expansion setup]
 Base Quake only: hub, tutorial and firing range work; absent mission packs are labelled unavailable
 Dopa: start from Official Campaigns; check secret returns, saves, carried guns and readable finale (single-player)
+MG1 developer tests: keyed buttons need the right key; quake vibration feels comfortable
 # Dimension of the Machine and Dawn of the Machine native ports remain in progress.
