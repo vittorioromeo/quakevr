@@ -764,7 +764,7 @@ def light_entity(origin, value, wait, colour, extra=""):
 
 
 def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_lit=FIXTURE_LIT, rules=None,
-                where=("*", "*"), lumas=None, report=None, strength=1.0):
+                where=("*", "*"), lumas=None, report=None):
     """Light entities for the map's glowing textures: fullbright pixels (palette 224-254), or else the
     glowing part of a replacement texture's glow image (`lumas`, a Glows), in the colour of what glows.
 
@@ -788,7 +788,7 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
     A rule's scale multiplies a texture's light, light= sets a fixture's (instead of FIXTURE_LIGHT),
     color= its colour, reach= how far it reaches (1: as computed; the light entities' "wait" divided by
     it), kind= fixture, glow or off. The rules' `strength` lines multiply each kind's light (fixtures, glows,
-    liquids), and `strength` all of them (--light-texture-strength). `report`, a list, gets a line for each glowing
+    liquids), and `scale` all of them (--light-texture-strength). `report`, a list, gets a line for each glowing
     texture."""
     if rules is None:
         rules = load_rules(DEFAULT_TEXTURES)
@@ -859,7 +859,7 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
             # (the edge of the pool, where it meets the walls, is a corner that -dirt would darken).
             top = max(r, g, b, 1.0)
             colour = "%d %d %d" % (r * 255 / top, g * 255 / top, b * 255 / top)
-            value = rule.get("light", LIQUID_LIGHT) * rule.get("scale", 1.0) * scale * strength * kinds["liquid"]
+            value = rule.get("light", LIQUID_LIGHT) * rule.get("scale", 1.0) * scale * kinds["liquid"]
             spots = liquid_spots(used, contents) if value >= 12 else []
             made = []
             for p in spots:
@@ -879,7 +879,7 @@ def glow_lights(data, palette, scale, budget_base, fixture_scale=1.0, fixture_li
         r, g, b = (r * (1 - white) + top * white, g * (1 - white) + top * white, b * (1 - white) + top * white)
         colour = "%d %d %d" % (r * 255 / top, g * 255 / top, b * 255 / top)
         wait = 1 / (1 + sat) / rule.get("reach", 1.0)
-        own = rule.get("scale", 1.0) * scale * strength * kinds[kind]
+        own = rule.get("scale", 1.0) * scale * kinds[kind]
         made = []
         if kind == "fixture":
             each = rule.get("light", FIXTURE_LIGHT) * own * fixture_scale * (0.6 + 0.4 * min(1.0, share * 5))
