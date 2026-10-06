@@ -271,6 +271,16 @@ void() worldspawn =
     precache_sound("fisthit.wav");
     precache_sound("knight/sword1.wav");
     precache_sound("knight/sword2.wav");
+    // A hand taking a prop by what it is made of (VR_Carry_GrabSound; the engine's climbing grabs: vr_physsound.cpp)
+    precache_sound("vr/phys/grab_wood1.wav");
+    precache_sound("vr/phys/grab_wood2.wav");
+    precache_sound("vr/phys/grab_wood3.wav");
+    precache_sound("vr/phys/grab_metal1.wav");
+    precache_sound("vr/phys/grab_metal2.wav");
+    precache_sound("vr/phys/grab_metal3.wav");
+    precache_sound("vr/phys/grab_stone1.wav");
+    precache_sound("vr/phys/grab_stone2.wav");
+    precache_sound("vr/phys/grab_stone3.wav");
     precache_model("progs/v_ksword.mdl");
     precache_model("progs/v_hksword.mdl");
     VR_Chainsaw_Precache(); // VR: the ogres' chainsaw (vr_chainsaw.qc)

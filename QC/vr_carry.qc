@@ -268,6 +268,32 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Nudge =
 
 float vr_carry_quiet; // set round VR_Carry_Start: no pickup sound (a wall torch pulled out played its own: vr_walltorch.qc)
 
+// A hand closing on the prop `e` (VR_Carry_Start): what it is made of, as the physics sounds class it (vr_physsound.cpp
+// materialOf) -- a crate or a piece of one wood, a rock or a brick stone, an explosive box metal: the climbing hand's
+// grabs (a palm's slap and a tap of the material) -- and a gib or a head a small wet squish. "" for the rest (ammo and
+// health boxes, backpacks, armour, keys: the old swish). One of three (four) at random.
+string(entity e) VR_Carry_GrabSound =
+{
+    float k = floor(random() * 3);
+    if(e.vr_gib)
+    {
+        return VR_Gib_SquishSound(TRUE);
+    }
+    if(VR_Prop_Metal(e))
+    {
+        return k < 1 ? "vr/phys/grab_metal1.wav" : (k < 2 ? "vr/phys/grab_metal2.wav" : "vr/phys/grab_metal3.wav");
+    }
+    if(VR_Debris_Is(e))
+    {
+        return k < 1 ? "vr/phys/grab_stone1.wav" : (k < 2 ? "vr/phys/grab_stone2.wav" : "vr/phys/grab_stone3.wav");
+    }
+    if(VR_Crate_Wooden(e))
+    {
+        return k < 1 ? "vr/phys/grab_wood1.wav" : (k < 2 ? "vr/phys/grab_wood2.wav" : "vr/phys/grab_wood3.wav");
+    }
+    return "";
+};
+
 void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
 {
     dprint("carry: taken\n");
@@ -320,7 +346,17 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     }
     else if(!vr_carry_quiet)
     {
-        sound(self, CHAN_AUTO, "knight/sword2.wav", 0.4, ATTN_NORM);
+        // What it is made of, from the thing itself (in the hand: heard there, not from the middle of the head); the
+        // rest (boxes, backpacks, armour) the old soft swish.
+        string grab = VR_Carry_GrabSound(xBox);
+        if(grab != "")
+        {
+            sound(xBox, CHAN_AUTO, grab, xBox.vr_gib ? 0.7 : 1, ATTN_NORM);
+        }
+        else
+        {
+            sound(self, CHAN_AUTO, "knight/sword2.wav", 0.4, ATTN_NORM);
+        }
     }
     haptic(xHand, 0.0, 0.1, 70, 0.6);
     self = oldSelf;
