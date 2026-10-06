@@ -2725,6 +2725,7 @@ void lightsCommand()
 char statusText[512];
 char mapText[512];
 char toolText[MAX_OSPATH + 64];
+double toolCheckedAt{0.0}; // when toolText was made (Sys_DoubleTime)
 
 } // namespace
 
@@ -2824,6 +2825,13 @@ const char* mapLine()
 
 const char* toolLine()
 {
+    // (looked for again every two seconds while the page shows it: a file check a search path folder)
+    const double now = Sys_DoubleTime();
+    if(toolText[0] && now < toolCheckedAt + 2.0)
+    {
+        return toolText;
+    }
+    toolCheckedAt = now;
     const za::String tool = findTool();
     q_snprintf(toolText, sizeof(toolText), "%s", tool.empty() ? "light.exe: not found (vr_relight_tool)" : va("light.exe: %s", tool.cStr()));
     return toolText;
