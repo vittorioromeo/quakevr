@@ -1245,6 +1245,7 @@ static void UpdateWindowTitle (void)
 {
 	static float timeleft = 0.f;
 	static summary_t last = {{-1}}; // negative value to force initial update
+	static int last_titlestats = -1; // QVR: cl_titlestats 2 <-> 1 changes the title too
 	summary_t current;
 
 	timeleft -= host_frametime;
@@ -1253,9 +1254,11 @@ static void UpdateWindowTitle (void)
 	timeleft = 0.125f;
 
 	GetGameSummary (&current);
-	if (!strcmp (current.map, last.map) && !memcmp (&current.stats, &last.stats, sizeof (current.stats)))
+	if (!strcmp (current.map, last.map) && !memcmp (&current.stats, &last.stats, sizeof (current.stats)) &&
+		last_titlestats == (int) cl_titlestats.value)
 		return;
 	last = current;
+	last_titlestats = (int) cl_titlestats.value;
 
 	if (current.map[0])
 	{
@@ -1266,16 +1269,23 @@ static void UpdateWindowTitle (void)
 		Mod_SanitizeMapDescription (cleanname, sizeof (cleanname), cl.levelname);
 
 		UTF8_FromQuake (utf8name, sizeof (utf8name), cleanname);
-		q_snprintf (title, sizeof (title),
-			utf8name[0] ?
-				"%s (%s)  |  skill %d  |  %d/%d kills  |  %d/%d secrets  -  " WINDOW_TITLE_STRING :
-				"%s%s  |  skill %d  |  %d/%d kills  |  %d/%d secrets  -  " WINDOW_TITLE_STRING,
-			utf8name, current.map,
-			current.stats.skill,
-			current.stats.monsters, current.stats.total_monsters,
-			current.stats.secrets, current.stats.total_secrets
-		);
-		VID_SetWindowTitle (title);
+		// QVR: the window title stays "Quake VR: Unleashed | by Vittorio Romeo"; cl_titlestats 1 (the
+		// default) only feeds the Steam status, 2 also appends the level stats after the title
+		if (cl_titlestats.value >= 2.f)
+		{
+			q_snprintf (title, sizeof (title),
+				utf8name[0] ?
+					WINDOW_TITLE_STRING "  -  %s (%s)  |  skill %d  |  %d/%d kills  |  %d/%d secrets" :
+					WINDOW_TITLE_STRING "  -  %s%s  |  skill %d  |  %d/%d kills  |  %d/%d secrets",
+				utf8name, current.map,
+				current.stats.skill,
+				current.stats.monsters, current.stats.total_monsters,
+				current.stats.secrets, current.stats.total_secrets
+			);
+			VID_SetWindowTitle (title);
+		}
+		else
+			VID_SetWindowTitle (WINDOW_TITLE_STRING);
 
 		if (current.stats.max_players > 1)
 			Steam_SetStatus_Multiplayer (current.stats.players, current.stats.max_players, utf8name[0] ? utf8name : current.map);

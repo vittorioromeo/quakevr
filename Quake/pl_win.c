@@ -31,7 +31,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include "SDL_syswm.h"
 #endif
 
+// QVR: the exe's "icon" resource (Windows/QuakeVR.ico), loaded at the system's large and small icon
+// sizes so the title bar, taskbar and alt-tab pick the matching frame instead of a rescaled 32x32
 static HICON icon;
+static HICON icon_small;
 
 void PL_SetWindowIcon (void)
 {
@@ -40,7 +43,10 @@ void PL_SetWindowIcon (void)
 	HWND hwnd;
 
 	handle = GetModuleHandle(NULL);
-	icon = LoadIcon(handle, "icon");
+	if (!icon)
+		icon = (HICON) LoadImage(handle, "icon", IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), 0);
+	if (!icon_small)
+		icon_small = (HICON) LoadImage(handle, "icon", IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), 0);
 
 	if (!icon)
 		return;	/* no icon in the exe */
@@ -53,14 +59,24 @@ void PL_SetWindowIcon (void)
 	hwnd = wminfo.info.win.window;
 #ifdef _WIN64
 	SetClassLongPtr(hwnd, GCLP_HICON, (LONG_PTR) icon);
+	if (icon_small)
+		SetClassLongPtr(hwnd, GCLP_HICONSM, (LONG_PTR) icon_small);
 #else
 	SetClassLong(hwnd, GCL_HICON, (LONG) icon);
+	if (icon_small)
+		SetClassLong(hwnd, GCL_HICONSM, (LONG) icon_small);
 #endif
+	SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM) icon);
+	SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM) (icon_small ? icon_small : icon));
 }
 
 void PL_VID_Shutdown (void)
 {
 	DestroyIcon(icon);
+	icon = NULL;
+	if (icon_small)
+		DestroyIcon(icon_small);
+	icon_small = NULL;
 }
 
 #define MAX_CLIPBOARDTXT	MAXCMDLINE	/* 256 */
@@ -105,6 +121,6 @@ void PL_ErrorDialog(const char *errorMsg)
 		msg = L"An unknown error occurred";
 	else
 		msg = error_buffer;
-	MessageBoxW (NULL, msg, L"Quake Error", MB_OK | MB_SETFOREGROUND | MB_ICONSTOP);
+	MessageBoxW (NULL, msg, L"Quake VR: Unleashed - Error", MB_OK | MB_SETFOREGROUND | MB_ICONSTOP);
 }
 

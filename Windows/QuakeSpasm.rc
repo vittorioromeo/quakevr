@@ -1,7 +1,8 @@
 #include <winresrc.h>
 #include "../Quake/quakedef.h"
 
-icon ICON "QuakeSpasm.ico"
+// QVR: the Quake VR: Unleashed logo (Misc/quakevr/make_exe_icon.py); Ironwail's icon stays as QuakeSpasm.ico
+icon ICON "QuakeVR.ico"
 
 ////////////////////////////////////////////////////////////////
 
@@ -32,11 +33,11 @@ BEGIN
 	BEGIN
 		BLOCK "040904E4"
 		BEGIN
-			VALUE "FileDescription",	"Ironwail Quake engine"
+			VALUE "FileDescription",	"Quake VR: Unleashed"
 			VALUE "FileVersion",		VER_FILEVERSION_STR
 			VALUE "LegalCopyright",		"\xA9 2022"
 			VALUE "OriginalFilename",	"ironwail.exe"
-			VALUE "ProductName",		"Ironwail"
+			VALUE "ProductName",		"Quake VR: Unleashed"
 			VALUE "ProductVersion",		VER_PRODUCTVERSION_STR
 		END
 	END

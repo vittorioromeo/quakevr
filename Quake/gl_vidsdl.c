@@ -437,7 +437,7 @@ static qboolean VID_SetMode (int width, int height, int refreshrate, qboolean fu
 {
 	int		temp;
 	Uint32	flags;
-	char		caption[50];
+	char		caption[64];
 	int		depthbits, stencilbits;
 	int		previous_display;
 

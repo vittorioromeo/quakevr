@@ -91,6 +91,6 @@ char *PL_GetClipboardData (void)
 
 void PL_ErrorDialog (const char *errorMsg)
 {
-	SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_ERROR, "Quake Error", errorMsg, NULL);
+	SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_ERROR, "Quake VR: Unleashed - Error", errorMsg, NULL);
 }
 

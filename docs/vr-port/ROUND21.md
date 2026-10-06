@@ -27115,3 +27115,19 @@ frame, times them and compares both atlases texel by texel: 0 texels differ on `
 lights, the flashlight) and start's slipgate (lights through it). `combined` (his settings, median of 3): draw calls
 7818 to 966, shadow CPU 1.69 to 1.03 ms, shadow GPU 6.7 to 0.6 ms, frame p50 22.7 to 16.6 ms; `lights_32` 3422 to
 394, 0.41 to 0.34 ms, 0.48 to 0.09 ms. Details and the table: LIGHTING.md, "Layered shadow casters".
+
+## The exe's icon and window title
+
+The engine exe now carries the Quake VR: Unleashed logo as its icon (`Windows/QuakeVR.ico`: 16, 24, 32, 48, 64,
+128 and 256, made by `Misc/quakevr/make_exe_icon.py` from the square logo: premultiplied Lanczos downscales, a mild
+colour-only unsharp mask up to 64, alpha untouched; `Windows/QuakeSpasm.ico` stays as Ironwail's). `pl_win.c` loads it
+at the system's large and small icon sizes and sets both on the window (class icons and `WM_SETICON`), so the title
+bar and taskbar get the 16/24 frames instead of a shrunk 32. The version resource names "Quake VR: Unleashed" (Task
+Manager shows it).
+
+The window title is "Quake VR: Unleashed | by Vittorio Romeo" (`WINDOW_TITLE_STRING`), in game too: `cl_titlestats 1`
+(the default) now only feeds the Steam status, `cl_titlestats 2` appends Ironwail's level stats after the title. The
+console's corner banner says "Quake VR: Unleashed"; the `version` command and the startup log still list QuakeSpasm,
+Ironwail and the Quake VR build; error dialogs are titled "Quake VR: Unleashed - Error".
+
+In VR: start the game: the taskbar, alt-tab and the title bar show the logo and the title above.
